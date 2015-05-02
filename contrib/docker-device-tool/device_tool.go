@@ -125,7 +125,7 @@ func main() {
 
 		err = devices.ResizePool(size)
 		if err != nil {
-			fmt.Println("Error resizeing pool: ", err)
+			fmt.Println("Error resizing pool: ", err)
 			os.Exit(1)
 		}
 

@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/go-check/check"
@@ -65,9 +66,28 @@ func (s *DockerSuite) TestEventsContainerFailStartDie(c *check.C) {
 }
 
 func (s *DockerSuite) TestEventsLimit(c *check.C) {
-	for i := 0; i < 30; i++ {
-		dockerCmd(c, "run", "busybox", "echo", strconv.Itoa(i))
+
+	var waitGroup sync.WaitGroup
+	errChan := make(chan error, 17)
+
+	args := []string{"run", "--rm", "busybox", "true"}
+	for i := 0; i < 17; i++ {
+		waitGroup.Add(1)
+		go func() {
+			defer waitGroup.Done()
+			errChan <- exec.Command(dockerBinary, args...).Run()
+		}()
 	}
+
+	waitGroup.Wait()
+	close(errChan)
+
+	for err := range errChan {
+		if err != nil {
+			c.Fatalf("%q failed with error: %v", strings.Join(args, " "), err)
+		}
+	}
+
 	eventsCmd := exec.Command(dockerBinary, "events", "--since=0", fmt.Sprintf("--until=%d", daemonTime(c).Unix()))
 	out, _, _ := runCommandWithOutput(eventsCmd)
 	events := strings.Split(out, "\n")
@@ -208,8 +228,7 @@ func (s *DockerSuite) TestEventsImageImport(c *check.C) {
 	if err != nil {
 		c.Fatal(err)
 	}
-	err = eventsCmd.Start()
-	if err != nil {
+	if err := eventsCmd.Start(); err != nil {
 		c.Fatal(err)
 	}
 	defer eventsCmd.Process.Kill()
@@ -403,30 +422,23 @@ func (s *DockerSuite) TestEventsFilterContainer(c *check.C) {
 func (s *DockerSuite) TestEventsStreaming(c *check.C) {
 	start := daemonTime(c).Unix()
 
-	finish := make(chan struct{})
-	defer close(finish)
 	id := make(chan string)
 	eventCreate := make(chan struct{})
 	eventStart := make(chan struct{})
 	eventDie := make(chan struct{})
 	eventDestroy := make(chan struct{})
 
+	eventsCmd := exec.Command(dockerBinary, "events", "--since", strconv.FormatInt(start, 10))
+	stdout, err := eventsCmd.StdoutPipe()
+	if err != nil {
+		c.Fatal(err)
+	}
+	if err := eventsCmd.Start(); err != nil {
+		c.Fatalf("failed to start 'docker events': %s", err)
+	}
+	defer eventsCmd.Process.Kill()
+
 	go func() {
-		eventsCmd := exec.Command(dockerBinary, "events", "--since", strconv.FormatInt(start, 10))
-		stdout, err := eventsCmd.StdoutPipe()
-		if err != nil {
-			c.Fatal(err)
-		}
-		err = eventsCmd.Start()
-		if err != nil {
-			c.Fatalf("failed to start 'docker events': %s", err)
-		}
-
-		go func() {
-			<-finish
-			eventsCmd.Process.Kill()
-		}()
-
 		containerID := <-id
 
 		matchCreate := regexp.MustCompile(containerID + `: \(from busybox:latest\) create$`)
@@ -446,11 +458,6 @@ func (s *DockerSuite) TestEventsStreaming(c *check.C) {
 			case matchDestroy.MatchString(scanner.Text()):
 				close(eventDestroy)
 			}
-		}
-
-		err = eventsCmd.Wait()
-		if err != nil && !IsKilled(err) {
-			c.Fatalf("docker events had bad exit status: %s", err)
 		}
 	}()
 
@@ -495,5 +502,4 @@ func (s *DockerSuite) TestEventsStreaming(c *check.C) {
 	case <-eventDestroy:
 		// ignore, done
 	}
-
 }

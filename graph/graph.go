@@ -348,9 +348,8 @@ func (graph *Graph) Delete(name string) error {
 	tmp, err := graph.Mktemp("")
 	graph.idIndex.Delete(id)
 	if err == nil {
-		err = os.Rename(graph.ImageRoot(id), tmp)
-		// On err make tmp point to old dir and cleanup unused tmp dir
-		if err != nil {
+		if err := os.Rename(graph.ImageRoot(id), tmp); err != nil {
+			// On err make tmp point to old dir and cleanup unused tmp dir
 			os.RemoveAll(tmp)
 			tmp = graph.ImageRoot(id)
 		}

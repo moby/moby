@@ -129,6 +129,7 @@ func (daemon *Daemon) commonRm(container *Container, forceRemove bool) (err erro
 		if err != nil && forceRemove {
 			daemon.idIndex.Delete(container.ID)
 			daemon.containers.Delete(container.ID)
+			os.RemoveAll(container.root)
 		}
 	}()
 

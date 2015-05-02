@@ -32,7 +32,11 @@ func (daemon *Daemon) Commit(container *Container, repository, tag, comment, aut
 	if err != nil {
 		return nil, err
 	}
-	defer rwTar.Close()
+	defer func() {
+		if rwTar != nil {
+			rwTar.Close()
+		}
+	}()
 
 	// Create a new image from the container's base layers + a new layer from container changes
 	var (

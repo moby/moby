@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/Sirupsen/logrus"
 	apiserver "github.com/docker/docker/api/server"
@@ -14,9 +15,9 @@ import (
 	"github.com/docker/docker/daemon"
 	_ "github.com/docker/docker/daemon/execdriver/lxc"
 	_ "github.com/docker/docker/daemon/execdriver/native"
-	"github.com/docker/docker/engine"
 	"github.com/docker/docker/pkg/homedir"
 	flag "github.com/docker/docker/pkg/mflag"
+	"github.com/docker/docker/pkg/pidfile"
 	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/pkg/timeutils"
@@ -83,13 +84,44 @@ func mainDaemon() {
 
 	logrus.SetFormatter(&logrus.TextFormatter{TimestampFormat: timeutils.RFC3339NanoFixed})
 
-	eng := engine.New()
-	signal.Trap(eng.Shutdown)
+	var pfile *pidfile.PidFile
+	if daemonCfg.Pidfile != "" {
+		pf, err := pidfile.New(daemonCfg.Pidfile)
+		if err != nil {
+			logrus.Fatalf("Error starting daemon: %v", err)
+		}
+		pfile = pf
+		defer func() {
+			if err := pfile.Remove(); err != nil {
+				logrus.Error(err)
+			}
+		}()
+	}
 
 	if err := migrateKey(); err != nil {
 		logrus.Fatal(err)
 	}
 	daemonCfg.TrustKeyPath = *flTrustKey
+
+	registryService := registry.NewService(registryCfg)
+	d, err := daemon.NewDaemon(daemonCfg, registryService)
+	if err != nil {
+		if pfile != nil {
+			if err := pfile.Remove(); err != nil {
+				logrus.Error(err)
+			}
+		}
+		logrus.Fatalf("Error starting daemon: %v", err)
+	}
+
+	logrus.Info("Daemon has completed initialization")
+
+	logrus.WithFields(logrus.Fields{
+		"version":     dockerversion.VERSION,
+		"commit":      dockerversion.GITCOMMIT,
+		"execdriver":  d.ExecutionDriver().Name(),
+		"graphdriver": d.GraphDriver().String(),
+	}).Info("Docker daemon")
 
 	serverConfig := &apiserver.ServerConfig{
 		Logging:     true,
@@ -104,7 +136,7 @@ func mainDaemon() {
 		TlsKey:      *flKey,
 	}
 
-	api := apiserver.New(serverConfig, eng)
+	api := apiserver.New(serverConfig)
 
 	// The serve API routine never exits unless an error occurs
 	// We need to start it as a goroutine and wait on it so
@@ -119,37 +151,49 @@ func mainDaemon() {
 		serveAPIWait <- nil
 	}()
 
-	registryService := registry.NewService(registryCfg)
-	d, err := daemon.NewDaemon(daemonCfg, eng, registryService)
-	if err != nil {
-		eng.Shutdown()
-		logrus.Fatalf("Error starting daemon: %v", err)
-	}
-
-	if err := d.Install(eng); err != nil {
-		eng.Shutdown()
-		logrus.Fatalf("Error starting daemon: %v", err)
-	}
-
-	logrus.Info("Daemon has completed initialization")
-
-	logrus.WithFields(logrus.Fields{
-		"version":     dockerversion.VERSION,
-		"commit":      dockerversion.GITCOMMIT,
-		"execdriver":  d.ExecutionDriver().Name(),
-		"graphdriver": d.GraphDriver().String(),
-	}).Info("Docker daemon")
+	signal.Trap(func() {
+		api.Close()
+		<-serveAPIWait
+		shutdownDaemon(d, 15)
+		if pfile != nil {
+			if err := pfile.Remove(); err != nil {
+				logrus.Error(err)
+			}
+		}
+	})
 
 	// after the daemon is done setting up we can tell the api to start
 	// accepting connections with specified daemon
 	api.AcceptConnections(d)
 
 	// Daemon is fully initialized and handling API traffic
-	// Wait for serve API job to complete
+	// Wait for serve API to complete
 	errAPI := <-serveAPIWait
-	eng.Shutdown()
+	shutdownDaemon(d, 15)
 	if errAPI != nil {
+		if pfile != nil {
+			if err := pfile.Remove(); err != nil {
+				logrus.Error(err)
+			}
+		}
 		logrus.Fatalf("Shutting down due to ServeAPI error: %v", errAPI)
+	}
+}
+
+// shutdownDaemon just wraps daemon.Shutdown() to handle a timeout in case
+// d.Shutdown() is waiting too long to kill container or worst it's
+// blocked there
+func shutdownDaemon(d *daemon.Daemon, timeout time.Duration) {
+	ch := make(chan struct{})
+	go func() {
+		d.Shutdown()
+		close(ch)
+	}()
+	select {
+	case <-ch:
+		logrus.Debug("Clean shutdown succeded")
+	case <-time.After(timeout * time.Second):
+		logrus.Error("Force shutdown daemon")
 	}
 }
 

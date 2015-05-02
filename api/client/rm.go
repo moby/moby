@@ -3,6 +3,7 @@ package client
 import (
 	"fmt"
 	"net/url"
+	"strings"
 
 	flag "github.com/docker/docker/pkg/mflag"
 )
@@ -36,6 +37,7 @@ func (cli *DockerCli) CmdRm(args ...string) error {
 		if name == "" {
 			return fmt.Errorf("Container name cannot be empty")
 		}
+		name = strings.Trim(name, "/")
 
 		_, _, err := readBody(cli.call("DELETE", "/containers/"+name+"?"+val.Encode(), nil, nil))
 		if err != nil {

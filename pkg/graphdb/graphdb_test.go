@@ -52,7 +52,7 @@ func TestGetRootEntity(t *testing.T) {
 		t.Fatal("Entity should not be nil")
 	}
 	if e.ID() != "0" {
-		t.Fatalf("Enity id should be 0, got %s", e.ID())
+		t.Fatalf("Entity id should be 0, got %s", e.ID())
 	}
 }
 
@@ -74,7 +74,7 @@ func TestSetDuplicateEntity(t *testing.T) {
 		t.Fatal(err)
 	}
 	if _, err := db.Set("/foo", "43"); err == nil {
-		t.Fatalf("Creating an entry with a duplciate path did not cause an error")
+		t.Fatalf("Creating an entry with a duplicate path did not cause an error")
 	}
 }
 

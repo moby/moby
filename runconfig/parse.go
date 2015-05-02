@@ -2,7 +2,6 @@ package runconfig
 
 import (
 	"fmt"
-	"path"
 	"strconv"
 	"strings"
 
@@ -15,7 +14,6 @@ import (
 )
 
 var (
-	ErrInvalidWorkingDirectory          = fmt.Errorf("The working directory is invalid. It needs to be an absolute path.")
 	ErrConflictContainerNetworkAndLinks = fmt.Errorf("Conflicting options: --net=container can't be used with links. This would result in undefined behavior.")
 	ErrConflictContainerNetworkAndDns   = fmt.Errorf("Conflicting options: --net=container can't be used with --dns. This configuration is invalid.")
 	ErrConflictNetworkHostname          = fmt.Errorf("Conflicting options: -h and the network mode (--net)")
@@ -101,12 +99,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		return nil, nil, cmd, err
 	}
 
-	// Validate input params
-	if *flWorkingDir != "" && !path.IsAbs(*flWorkingDir) {
-		return nil, nil, cmd, ErrInvalidWorkingDirectory
-	}
-
-	// Validate the input mac address
+	// Validate input params starting with the input mac address
 	if *flMacAddress != "" {
 		if _, err := opts.ValidateMACAddress(*flMacAddress); err != nil {
 			return nil, nil, cmd, fmt.Errorf("%s is not a valid mac address", *flMacAddress)

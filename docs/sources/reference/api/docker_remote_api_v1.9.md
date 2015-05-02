@@ -1052,7 +1052,7 @@ Query Parameters:
     Request Headers:
 
 -   **Content-type** – should be set to `"application/tar"`.
--   **X-Registry-Config** – base64-encoded ConfigFile objec
+-   **X-Registry-Config** – base64-encoded ConfigFile object
 
 Status Codes:
 

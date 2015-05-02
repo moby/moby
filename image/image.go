@@ -268,8 +268,7 @@ func NewImgJSON(src []byte) (*Image, error) {
 func ValidateID(id string) error {
 	validHex := regexp.MustCompile(`^([a-f0-9]{64})$`)
 	if ok := validHex.MatchString(id); !ok {
-		err := fmt.Errorf("image ID '%s' is invalid", id)
-		return err
+		return fmt.Errorf("image ID '%s' is invalid", id)
 	}
 	return nil
 }

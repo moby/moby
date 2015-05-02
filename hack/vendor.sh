@@ -59,17 +59,6 @@ clone git github.com/go-fsnotify/fsnotify v1.0.4
 
 clone git github.com/go-check/check 64131543e7896d5bcc6bd5a76287eb75ea96c673
 
-# get Go tip's archive/tar, for xattr support and improved performance
-# TODO after Go 1.4 drops, bump our minimum supported version and drop this vendored dep
-if [ "$1" = '--go' ]; then
-	# Go takes forever and a half to clone, so we only redownload it when explicitly requested via the "--go" flag to this script.
-	clone hg code.google.com/p/go 1b17b3426e3c
-	mv src/code.google.com/p/go/src/pkg/archive/tar tmp-tar
-	rm -rf src/code.google.com/p/go
-	mkdir -p src/code.google.com/p/go/src/pkg/archive
-	mv tmp-tar src/code.google.com/p/go/src/pkg/archive/tar
-fi
-
 # get distribution packages
 clone git github.com/docker/distribution d957768537c5af40e4f4cd96871f7b2bde9e2923
 mv src/github.com/docker/distribution/digest tmp-digest

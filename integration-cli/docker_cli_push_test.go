@@ -1,6 +1,7 @@
 package main
 
 import (
+	"archive/tar"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -8,7 +9,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/docker/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
 	"github.com/go-check/check"
 )
 
@@ -41,7 +41,7 @@ func (s *DockerRegistrySuite) TestPushUntagged(c *check.C) {
 	expected := "Repository does not exist"
 	pushCmd := exec.Command(dockerBinary, "push", repoName)
 	if out, _, err := runCommandWithOutput(pushCmd); err == nil {
-		c.Fatalf("pushing the image to the private registry should have failed: outuput %q", out)
+		c.Fatalf("pushing the image to the private registry should have failed: output %q", out)
 	} else if !strings.Contains(out, expected) {
 		c.Fatalf("pushing the image failed with an unexpected message: expected %q, got %q", expected, out)
 	}
@@ -53,7 +53,7 @@ func (s *DockerRegistrySuite) TestPushBadTag(c *check.C) {
 	expected := "does not exist"
 	pushCmd := exec.Command(dockerBinary, "push", repoName)
 	if out, _, err := runCommandWithOutput(pushCmd); err == nil {
-		c.Fatalf("pushing the image to the private registry should have failed: outuput %q", out)
+		c.Fatalf("pushing the image to the private registry should have failed: output %q", out)
 	} else if !strings.Contains(out, expected) {
 		c.Fatalf("pushing the image failed with an unexpected message: expected %q, got %q", expected, out)
 	}

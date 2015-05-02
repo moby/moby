@@ -367,8 +367,7 @@ func (s *TagStore) pushV2Repository(r *registry.Session, localRepo Repository, o
 			logrus.Debugf("Pushing layer: %s", layer.ID)
 
 			if layer.Config != nil && metadata.Image != layer.ID {
-				err = runconfig.Merge(&metadata, layer.Config)
-				if err != nil {
+				if err := runconfig.Merge(&metadata, layer.Config); err != nil {
 					return err
 				}
 			}

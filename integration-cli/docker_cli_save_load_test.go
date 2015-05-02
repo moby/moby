@@ -333,7 +333,7 @@ func (s *DockerSuite) TestSaveRepoWithMultipleImages(c *check.C) {
 	sort.Strings(actual)
 	sort.Strings(expected)
 	if !reflect.DeepEqual(expected, actual) {
-		c.Fatalf("achive does not contains the right layers: got %v, expected %v", actual, expected)
+		c.Fatalf("archive does not contains the right layers: got %v, expected %v", actual, expected)
 	}
 
 }

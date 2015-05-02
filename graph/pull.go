@@ -537,8 +537,7 @@ func (s *TagStore) pullV2Tag(r *registry.Session, out io.Writer, endpoint *regis
 				di.err <- downloadFunc(di)
 			}(&downloads[i])
 		} else {
-			err := downloadFunc(&downloads[i])
-			if err != nil {
+			if err := downloadFunc(&downloads[i]); err != nil {
 				return false, err
 			}
 		}
@@ -548,8 +547,7 @@ func (s *TagStore) pullV2Tag(r *registry.Session, out io.Writer, endpoint *regis
 	for i := len(downloads) - 1; i >= 0; i-- {
 		d := &downloads[i]
 		if d.err != nil {
-			err := <-d.err
-			if err != nil {
+			if err := <-d.err; err != nil {
 				return false, err
 			}
 		}

@@ -95,3 +95,21 @@ To start on system boot:
 If you need to add an HTTP Proxy, set a different directory or partition for the
 Docker runtime files, or make other customizations, read our systemd article to
 learn how to [customize your systemd Docker daemon options](/articles/systemd/).
+
+## Uninstallation
+
+To uninstall the Docker package:
+
+    $ sudo emerge -cav app-emulation/docker
+
+To uninstall the Docker package and dependencies that are no longer needed:
+
+    $ sudo emerge -C app-emulation/docker
+
+The above commands will not remove images, containers, volumes, or user created
+configuration files on your host. If you wish to delete all images, containers,
+and volumes run the following command:
+
+    $ rm -rf /var/lib/docker
+
+You must delete the user created configuration files manually.

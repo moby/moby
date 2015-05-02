@@ -24,15 +24,15 @@ func checkPidFileAlreadyExists(path string) error {
 	return nil
 }
 
-func New(path string) (file *PidFile, err error) {
+func New(path string) (*PidFile, error) {
 	if err := checkPidFileAlreadyExists(path); err != nil {
 		return nil, err
 	}
+	if err := ioutil.WriteFile(path, []byte(fmt.Sprintf("%d", os.Getpid())), 0644); err != nil {
+		return nil, err
+	}
 
-	file = &PidFile{path: path}
-	err = ioutil.WriteFile(path, []byte(fmt.Sprintf("%d", os.Getpid())), 0644)
-
-	return file, err
+	return &PidFile{path: path}, nil
 }
 
 func (file PidFile) Remove() error {

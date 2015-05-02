@@ -172,7 +172,7 @@ will be stored (as a diff). See which images you already have using the
     # Commit your container to a new named image
     $ docker commit <container_id> <some_name>
 
-    # List your containers
+    # List your images
     $ docker images
 
 You now have an image state from which you can create new instances.

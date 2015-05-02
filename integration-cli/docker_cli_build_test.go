@@ -15,7 +15,6 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
-	"sync"
 	"text/template"
 	"time"
 
@@ -764,17 +763,17 @@ ADD test_file .`,
 	}
 	defer ctx.Close()
 
-	done := make(chan struct{})
+	errChan := make(chan error)
 	go func() {
-		if _, err := buildImageFromContext(name, ctx, true); err != nil {
-			c.Fatal(err)
-		}
-		close(done)
+		_, err := buildImageFromContext(name, ctx, true)
+		errChan <- err
+		close(errChan)
 	}()
 	select {
 	case <-time.After(5 * time.Second):
 		c.Fatal("Build with adding to workdir timed out")
-	case <-done:
+	case err := <-errChan:
+		c.Assert(err, check.IsNil)
 	}
 }
 
@@ -1365,17 +1364,17 @@ COPY test_file .`,
 	}
 	defer ctx.Close()
 
-	done := make(chan struct{})
+	errChan := make(chan error)
 	go func() {
-		if _, err := buildImageFromContext(name, ctx, true); err != nil {
-			c.Fatal(err)
-		}
-		close(done)
+		_, err := buildImageFromContext(name, ctx, true)
+		errChan <- err
+		close(errChan)
 	}()
 	select {
 	case <-time.After(5 * time.Second):
 		c.Fatal("Build with adding to workdir timed out")
-	case <-done:
+	case err := <-errChan:
+		c.Assert(err, check.IsNil)
 	}
 }
 
@@ -1829,9 +1828,6 @@ func (s *DockerSuite) TestBuildForceRm(c *check.C) {
 // * When docker events sees container start, close the "docker build" command
 // * Wait for docker events to emit a dying event.
 func (s *DockerSuite) TestBuildCancelationKillsSleep(c *check.C) {
-	var wg sync.WaitGroup
-	defer wg.Wait()
-
 	name := "testbuildcancelation"
 
 	// (Note: one year, will never finish)
@@ -1849,26 +1845,21 @@ func (s *DockerSuite) TestBuildCancelationKillsSleep(c *check.C) {
 	containerID := make(chan string)
 
 	startEpoch := daemonTime(c).Unix()
+	// Watch for events since epoch.
+	eventsCmd := exec.Command(
+		dockerBinary, "events",
+		"--since", strconv.FormatInt(startEpoch, 10))
+	stdout, err := eventsCmd.StdoutPipe()
+	if err != nil {
+		c.Fatal(err)
+	}
+	if err := eventsCmd.Start(); err != nil {
+		c.Fatal(err)
+	}
+	defer eventsCmd.Process.Kill()
 
-	wg.Add(1)
 	// Goroutine responsible for watching start/die events from `docker events`
 	go func() {
-		defer wg.Done()
-		// Watch for events since epoch.
-		eventsCmd := exec.Command(
-			dockerBinary, "events",
-			"--since", strconv.FormatInt(startEpoch, 10))
-		stdout, err := eventsCmd.StdoutPipe()
-		err = eventsCmd.Start()
-		if err != nil {
-			c.Fatalf("failed to start 'docker events': %s", err)
-		}
-
-		go func() {
-			<-finish
-			eventsCmd.Process.Kill()
-		}()
-
 		cid := <-containerID
 
 		matchStart := regexp.MustCompile(cid + `(.*) start$`)
@@ -1886,19 +1877,13 @@ func (s *DockerSuite) TestBuildCancelationKillsSleep(c *check.C) {
 				close(eventDie)
 			}
 		}
-
-		err = eventsCmd.Wait()
-		if err != nil && !IsKilled(err) {
-			c.Fatalf("docker events had bad exit status: %s", err)
-		}
 	}()
 
 	buildCmd := exec.Command(dockerBinary, "build", "-t", name, ".")
 	buildCmd.Dir = ctx.Dir
 
 	stdoutBuild, err := buildCmd.StdoutPipe()
-	err = buildCmd.Start()
-	if err != nil {
+	if err := buildCmd.Start(); err != nil {
 		c.Fatalf("failed to run build: %s", err)
 	}
 
@@ -1923,14 +1908,12 @@ func (s *DockerSuite) TestBuildCancelationKillsSleep(c *check.C) {
 
 	// Send a kill to the `docker build` command.
 	// Causes the underlying build to be cancelled due to socket close.
-	err = buildCmd.Process.Kill()
-	if err != nil {
+	if err := buildCmd.Process.Kill(); err != nil {
 		c.Fatalf("error killing build command: %s", err)
 	}
 
 	// Get the exit status of `docker build`, check it exited because killed.
-	err = buildCmd.Wait()
-	if err != nil && !IsKilled(err) {
+	if err := buildCmd.Wait(); err != nil && !IsKilled(err) {
 		c.Fatalf("wait failed during build run: %T %s", err, err)
 	}
 
@@ -3408,7 +3391,7 @@ func (s *DockerSuite) TestBuildVerifyIntString(c *check.C) {
 
 	out, rc, err := runCommandWithOutput(exec.Command(dockerBinary, "inspect", name))
 	if rc != 0 || err != nil {
-		c.Fatalf("Unexcepted error from inspect: rc: %v  err: %v", rc, err)
+		c.Fatalf("Unexpected error from inspect: rc: %v  err: %v", rc, err)
 	}
 
 	if !strings.Contains(out, "\"123\"") {
@@ -3427,20 +3410,29 @@ func (s *DockerSuite) TestBuildDockerignore(c *check.C) {
 		RUN [[ ! -e /bla/src/_vendor ]]
 		RUN [[ ! -e /bla/.gitignore ]]
 		RUN [[ ! -e /bla/README.md ]]
+		RUN [[ ! -e /bla/dir/foo ]]
+		RUN [[ ! -e /bla/foo ]]
 		RUN [[ ! -e /bla/.git ]]`
 	ctx, err := fakeContext(dockerfile, map[string]string{
 		"Makefile":         "all:",
 		".git/HEAD":        "ref: foo",
 		"src/x.go":         "package main",
 		"src/_vendor/v.go": "package main",
+		"dir/foo":          "",
 		".gitignore":       "",
 		"README.md":        "readme",
-		".dockerignore":    ".git\npkg\n.gitignore\nsrc/_vendor\n*.md",
+		".dockerignore": `
+.git
+pkg
+.gitignore
+src/_vendor
+*.md
+dir`,
 	})
-	defer ctx.Close()
 	if err != nil {
 		c.Fatal(err)
 	}
+	defer ctx.Close()
 	if _, err := buildImageFromContext(name, ctx, true); err != nil {
 		c.Fatal(err)
 	}
@@ -3457,6 +3449,55 @@ func (s *DockerSuite) TestBuildDockerignoreCleanPaths(c *check.C) {
 		"foo2":          "foo2",
 		"dir1/foo":      "foo in dir1",
 		".dockerignore": "./foo\ndir1//foo\n./dir1/../foo2",
+	})
+	if err != nil {
+		c.Fatal(err)
+	}
+	defer ctx.Close()
+	if _, err := buildImageFromContext(name, ctx, true); err != nil {
+		c.Fatal(err)
+	}
+}
+
+func (s *DockerSuite) TestBuildDockerignoreExceptions(c *check.C) {
+	name := "testbuilddockerignoreexceptions"
+	defer deleteImages(name)
+	dockerfile := `
+        FROM busybox
+        ADD . /bla
+		RUN [[ -f /bla/src/x.go ]]
+		RUN [[ -f /bla/Makefile ]]
+		RUN [[ ! -e /bla/src/_vendor ]]
+		RUN [[ ! -e /bla/.gitignore ]]
+		RUN [[ ! -e /bla/README.md ]]
+		RUN [[  -e /bla/dir/dir/foo ]]
+		RUN [[ ! -e /bla/dir/foo1 ]]
+		RUN [[ -f /bla/dir/e ]]
+		RUN [[ -f /bla/dir/e-dir/foo ]]
+		RUN [[ ! -e /bla/foo ]]
+		RUN [[ ! -e /bla/.git ]]`
+	ctx, err := fakeContext(dockerfile, map[string]string{
+		"Makefile":         "all:",
+		".git/HEAD":        "ref: foo",
+		"src/x.go":         "package main",
+		"src/_vendor/v.go": "package main",
+		"dir/foo":          "",
+		"dir/foo1":         "",
+		"dir/dir/f1":       "",
+		"dir/dir/foo":      "",
+		"dir/e":            "",
+		"dir/e-dir/foo":    "",
+		".gitignore":       "",
+		"README.md":        "readme",
+		".dockerignore": `
+.git
+pkg
+.gitignore
+src/_vendor
+*.md
+dir
+!dir/e*
+!dir/dir/foo`,
 	})
 	if err != nil {
 		c.Fatal(err)
@@ -3607,6 +3648,7 @@ func (s *DockerSuite) TestBuildDockerignoringWholeDir(c *check.C) {
 	ctx, err := fakeContext(dockerfile, map[string]string{
 		"Dockerfile":    "FROM scratch",
 		"Makefile":      "all:",
+		".gitignore":    "",
 		".dockerignore": ".*\n",
 	})
 	defer ctx.Close()
@@ -5033,7 +5075,7 @@ RUN echo "  \
 
 	expecting := "\n    foo  \n"
 	if !strings.Contains(out, expecting) {
-		c.Fatalf("Bad output: %q expecting to contian %q", out, expecting)
+		c.Fatalf("Bad output: %q expecting to contain %q", out, expecting)
 	}
 
 }

@@ -58,3 +58,24 @@ func (s *DockerRegistrySuite) TearDownTest(c *check.C) {
 	s.reg.Close()
 	s.ds.TearDownTest(c)
 }
+
+func init() {
+	check.Suite(&DockerDaemonSuite{
+		ds: &DockerSuite{},
+	})
+}
+
+type DockerDaemonSuite struct {
+	ds *DockerSuite
+	d  *Daemon
+}
+
+func (s *DockerDaemonSuite) SetUpTest(c *check.C) {
+	s.d = NewDaemon(c)
+	s.ds.SetUpTest(c)
+}
+
+func (s *DockerDaemonSuite) TearDownTest(c *check.C) {
+	s.d.Stop()
+	s.ds.TearDownTest(c)
+}

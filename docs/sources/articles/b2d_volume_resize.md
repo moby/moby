@@ -60,7 +60,7 @@ You might need to create the bus before you can add the ISO.
 ## 5. Add the new VDI image 
 
 In the settings for the Boot2Docker image in VirtualBox, remove the VMDK image 
-from the SATA contoller and add the VDI image.
+from the SATA controller and add the VDI image.
 
 <img src="/articles/b2d_volume_images/add_volume.png">
 

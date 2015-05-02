@@ -8,7 +8,7 @@ Docker is available in **openSUSE 12.3 and later**. Please note that due
 to its current limitations Docker is able to run only **64 bit** architecture.
 
 Docker is not part of the official repositories of openSUSE 12.3 and
-openSUSE 13.1. Hence  it is neccessary to add the [Virtualization
+openSUSE 13.1. Hence  it is necessary to add the [Virtualization
 repository](https://build.opensuse.org/project/show/Virtualization) from
 [OBS](https://build.opensuse.org/) to install the `docker` package.
 
@@ -28,7 +28,7 @@ Docker is available in **SUSE Linux Enterprise 12 and later**. Please note that
 due to its current limitations Docker is able to run only on **64 bit**
 architecture.
 
-# Installation
+## Installation
 
 Install the Docker package.
 
@@ -75,6 +75,20 @@ hand to ensure the `FW_ROUTE` flag is set to `yes` like so:
 If you need to add an HTTP Proxy, set a different directory or partition for the
 Docker runtime files, or make other customizations, read our systemd article to
 learn how to [customize your systemd Docker daemon options](/articles/systemd/).
+
+## Uninstallation
+
+To uninstall the Docker package:
+
+    $ sudo zypper rm docker
+
+The above command will not remove images, containers, volumes, or user created
+configuration files on your host. If you wish to delete all images, containers,
+and volumes run the following command:
+
+    $ rm -rf /var/lib/docker
+
+You must delete the user created configuration files manually.
 
 ## What's next
 

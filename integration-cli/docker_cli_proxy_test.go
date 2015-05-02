@@ -22,7 +22,7 @@ func (s *DockerSuite) TestCliProxyDisableProxyUnixSock(c *check.C) {
 
 // Can't use localhost here since go has a special case to not use proxy if connecting to localhost
 // See https://golang.org/pkg/net/http/#ProxyFromEnvironment
-func (s *DockerSuite) TestCliProxyProxyTCPSock(c *check.C) {
+func (s *DockerDaemonSuite) TestCliProxyProxyTCPSock(c *check.C) {
 	testRequires(c, SameHostDaemon)
 	// get the IP to use to connect since we can't use localhost
 	addrs, err := net.InterfaceAddrs()
@@ -43,8 +43,7 @@ func (s *DockerSuite) TestCliProxyProxyTCPSock(c *check.C) {
 		c.Fatal("could not find ip to connect to")
 	}
 
-	d := NewDaemon(c)
-	if err := d.Start("-H", "tcp://"+ip+":2375"); err != nil {
+	if err := s.d.Start("-H", "tcp://"+ip+":2375"); err != nil {
 		c.Fatal(err)
 	}
 

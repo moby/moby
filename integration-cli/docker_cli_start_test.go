@@ -20,18 +20,19 @@ func (s *DockerSuite) TestStartAttachReturnsOnError(c *check.C) {
 		c.Fatal("Expected error but got none")
 	}
 
-	ch := make(chan struct{})
+	ch := make(chan error)
 	go func() {
 		// Attempt to start attached to the container that won't start
 		// This should return an error immediately since the container can't be started
 		if _, err := runCommand(exec.Command(dockerBinary, "start", "-a", "test2")); err == nil {
-			c.Fatal("Expected error but got none")
+			ch <- fmt.Errorf("Expected error but got none")
 		}
 		close(ch)
 	}()
 
 	select {
-	case <-ch:
+	case err := <-ch:
+		c.Assert(err, check.IsNil)
 	case <-time.After(time.Second):
 		c.Fatalf("Attach did not exit properly")
 	}
@@ -205,7 +206,7 @@ func (s *DockerSuite) TestStartMultipleContainers(c *check.C) {
 		c.Fatal("Container should be stopped")
 	}
 
-	// start all the three containers, container `child_first` start first which should be faild
+	// start all the three containers, container `child_first` start first which should be failed
 	// container 'parent' start second and then start container 'child_second'
 	cmd = exec.Command(dockerBinary, "start", "child_first", "parent", "child_second")
 	out, _, err = runCommandWithOutput(cmd)

@@ -67,7 +67,7 @@ Boot2Docker command requires `ssh.exe` to be in the PATH, therefore we need to
 include `bin` folder of the Git installation (which has ssh.exe) to the `%PATH%`
 environment variable by running:
 
-	set PATH=%PATH%;"c:\Program Files (x86)\Git\bin"
+    set PATH=%PATH%;"c:\Program Files (x86)\Git\bin"
 
 and then we can run the `boot2docker start` command to start the Boot2Docker VM.
 (Run `boot2docker init` command if you get an error saying machine does not
@@ -81,7 +81,7 @@ to your console window and you are ready to run docker commands such as
 
 Launch a PowerShell window, then you need to add `ssh.exe` to your PATH:
 
-	$Env:Path = "${Env:Path};c:\Program Files (x86)\Git\bin"
+    $Env:Path = "${Env:Path};c:\Program Files (x86)\Git\bin"
 
 and after running `boot2docker start` command it will print PowerShell commands
 to set the environment variables to connect Docker running inside VM. Run these
@@ -149,6 +149,12 @@ You can do this with
   `%USERPROFILE%\.ssh\id_boot2docker`
 - then click: "Save Private Key".
 - Then use the saved file to login with PuTTY using `docker@127.0.0.1:2022`.
+
+## Uninstallation
+
+You can uninstall Boot2Docker using Window's standard process for removing programs.
+This process does not remove the `docker-install.exe` file. You must delete that file
+yourself.
 
 ## References
 

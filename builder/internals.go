@@ -32,7 +32,6 @@ import (
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/progressreader"
 	"github.com/docker/docker/pkg/stringid"
-	"github.com/docker/docker/pkg/symlink"
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/pkg/tarsum"
 	"github.com/docker/docker/pkg/urlutil"
@@ -148,8 +147,15 @@ func (b *Builder) runContextCommand(args []string, allowRemote bool, allowDecomp
 	// do the copy (e.g. hash value if cached).  Don't actually do
 	// the copy until we've looked at all src files
 	for _, orig := range args[0 : len(args)-1] {
-		err := calcCopyInfo(b, cmdName, &copyInfos, orig, dest, allowRemote, allowDecompression)
-		if err != nil {
+		if err := calcCopyInfo(
+			b,
+			cmdName,
+			&copyInfos,
+			orig,
+			dest,
+			allowRemote,
+			allowDecompression,
+		); err != nil {
 			return err
 		}
 	}
@@ -483,7 +489,7 @@ func (b *Builder) processImageFrom(img *imagepkg.Image) error {
 		fmt.Fprintf(b.ErrStream, "# Executing %d build triggers\n", nTriggers)
 	}
 
-	// Copy the ONBUILD triggers, and remove them from the config, since the config will be commited.
+	// Copy the ONBUILD triggers, and remove them from the config, since the config will be committed.
 	onBuildTriggers := b.Config.OnBuild
 	b.Config.OnBuild = []string{}
 
@@ -646,14 +652,12 @@ func (b *Builder) addContext(container *daemon.Container, orig, dest string, dec
 		err        error
 		destExists = true
 		origPath   = path.Join(b.contextPath, orig)
-		destPath   = path.Join(container.RootfsPath(), dest)
+		destPath   string
 	)
 
-	if destPath != container.RootfsPath() {
-		destPath, err = symlink.FollowSymlinkInScope(destPath, container.RootfsPath())
-		if err != nil {
-			return err
-		}
+	destPath, err = container.GetResourcePath(dest)
+	if err != nil {
+		return err
 	}
 
 	// Preserve the trailing '/'

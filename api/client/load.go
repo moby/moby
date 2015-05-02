@@ -29,7 +29,12 @@ func (cli *DockerCli) CmdLoad(args ...string) error {
 			return err
 		}
 	}
-	if err := cli.stream("POST", "/images/load", input, cli.out, nil); err != nil {
+	sopts := &streamOpts{
+		rawTerminal: true,
+		in:          input,
+		out:         cli.out,
+	}
+	if err := cli.stream("POST", "/images/load", sopts); err != nil {
 		return err
 	}
 	return nil

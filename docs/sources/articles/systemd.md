@@ -30,8 +30,8 @@ If the `docker.service` file is set to use an `EnvironmentFile`
 (often pointing to `/etc/sysconfig/docker`) then you can modify the
 referenced file.
 
-Or, you may need to edit the `docker.service` file, which can be in `/usr/lib/systemd/system`
-or `/etc/systemd/service`.
+Or, you may need to edit the `docker.service` file, which can be in
+`/usr/lib/systemd/system`, `/etc/systemd/service`, or `/lib/systemd/system`.
 
 ### Runtime directory and storage driver
 

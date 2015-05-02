@@ -3,11 +3,10 @@
 package archive
 
 import (
+	"archive/tar"
 	"errors"
 	"os"
 	"syscall"
-
-	"github.com/docker/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
 )
 
 // canonicalTarNameForPath returns platform-specific filepath

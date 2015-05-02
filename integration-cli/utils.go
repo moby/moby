@@ -1,6 +1,7 @@
 package main
 
 import (
+	"archive/tar"
 	"bytes"
 	"encoding/json"
 	"errors"
@@ -17,7 +18,6 @@ import (
 	"time"
 
 	"github.com/docker/docker/pkg/stringutils"
-	"github.com/docker/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
 )
 
 func getExitCode(err error) (int, error) {
@@ -169,8 +169,7 @@ func runCommandPipelineWithOutput(cmds ...*exec.Cmd) (output string, exitCode in
 }
 
 func unmarshalJSON(data []byte, result interface{}) error {
-	err := json.Unmarshal(data, result)
-	if err != nil {
+	if err := json.Unmarshal(data, result); err != nil {
 		return err
 	}
 
