@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 
 	"github.com/docker/docker/pkg/etchosts"
+	"github.com/docker/libnetwork/netutils"
+	"github.com/docker/libnetwork/pkg/options"
 	"github.com/docker/libnetwork/sandbox"
 	"github.com/docker/libnetwork/types"
 )
@@ -65,14 +67,15 @@ type containerInfo struct {
 }
 
 type endpoint struct {
-	name        string
-	id          types.UUID
-	network     *network
-	sandboxInfo *sandbox.Info
-	sandBox     sandbox.Sandbox
-	container   *containerInfo
-	generic     map[string]interface{}
-	context     map[string]interface{}
+	name         string
+	id           types.UUID
+	network      *network
+	sandboxInfo  *sandbox.Info
+	sandBox      sandbox.Sandbox
+	container    *containerInfo
+	exposedPorts []netutils.TransportPort
+	generic      map[string]interface{}
+	context      map[string]interface{}
 }
 
 const prefix = "/var/lib/docker/network/files"
@@ -186,7 +189,7 @@ func (ep *endpoint) Join(containerID string, options ...JoinOption) (*ContainerD
 	}()
 
 	n := ep.network
-	err = n.driver.Join(n.id, ep.id, sboxKey, ep.container.Config.generic)
+	err = n.driver.Join(n.id, ep.id, sboxKey, ep.container.config.generic)
 	if err != nil {
 		return nil, err
 	}
@@ -297,12 +300,26 @@ func JoinOptionDomainname(name string) JoinOption {
 	}
 }
 
+// CreateOptionPortMapping function returns an option setter for the container exposed
+// ports option to be passed to endpoint Join method.
+func CreateOptionPortMapping(portBindings []netutils.PortBinding) EndpointOption {
+	return func(ep *endpoint) {
+		// Store endpoint label
+		ep.generic[options.PortMap] = portBindings
+		// Extract exposed ports as this is the only concern of libnetwork endpoint
+		ep.exposedPorts = make([]netutils.TransportPort, 0, len(portBindings))
+		for _, b := range portBindings {
+			ep.exposedPorts = append(ep.exposedPorts, netutils.TransportPort{Proto: b.Proto, Port: b.Port})
+		}
+	}
+}
+
 // JoinOptionGeneric function returns an option setter for Generic configuration
 // that is not managed by libNetwork but can be used by the Drivers during the call to
 // endpoint join method. Container Labels are a good example.
 func JoinOptionGeneric(generic map[string]interface{}) JoinOption {
 	return func(ep *endpoint) {
-		ep.container.Config.generic = generic
+		ep.container.config.generic = generic
 	}
 }
 

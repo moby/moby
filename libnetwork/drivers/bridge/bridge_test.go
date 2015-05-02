@@ -74,10 +74,10 @@ func TestCreateLinkWithOptions(t *testing.T) {
 	_, d := New()
 
 	config := &Configuration{BridgeName: DefaultBridgeName}
-	genericOption := make(map[string]interface{})
-	genericOption[options.GenericData] = config
+	driverOptions := make(map[string]interface{})
+	driverOptions[options.GenericData] = config
 
-	if err := d.Config(genericOption); err != nil {
+	if err := d.Config(driverOptions); err != nil {
 		t.Fatalf("Failed to setup driver config: %v", err)
 	}
 
@@ -87,10 +87,10 @@ func TestCreateLinkWithOptions(t *testing.T) {
 	}
 
 	mac := net.HardwareAddr([]byte{0x1e, 0x67, 0x66, 0x44, 0x55, 0x66})
-	epConf := &EndpointConfiguration{MacAddress: mac}
-	genericOption[options.GenericData] = epConf
+	epOptions := make(map[string]interface{})
+	epOptions[options.MacAddress] = mac
 
-	sinfo, err := d.CreateEndpoint("net1", "ep", genericOption)
+	sinfo, err := d.CreateEndpoint("net1", "ep", epOptions)
 	if err != nil {
 		t.Fatalf("Failed to create a link: %s", err.Error())
 	}

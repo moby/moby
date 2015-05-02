@@ -16,10 +16,11 @@ import (
 )
 
 const (
-	networkType   = "bridge"
-	vethPrefix    = "veth"
-	vethLen       = 7
-	containerVeth = "eth0"
+	networkType             = "bridge"
+	vethPrefix              = "veth"
+	vethLen                 = 7
+	containerVeth           = "eth0"
+	maxAllocatePortAttempts = 10
 )
 
 var (
@@ -42,11 +43,13 @@ type Configuration struct {
 	Mtu                   int
 	DefaultGatewayIPv4    net.IP
 	DefaultGatewayIPv6    net.IP
+	DefaultBindingIP      net.IP
 }
 
 // EndpointConfiguration represents the user specified configuration for the sandbox endpoint
 type EndpointConfiguration struct {
-	MacAddress net.HardwareAddr
+	MacAddress   net.HardwareAddr
+	PortBindings []netutils.PortBinding
 }
 
 // ContainerConfiguration represents the user specified configuration for a container
@@ -55,9 +58,10 @@ type ContainerConfiguration struct {
 }
 
 type bridgeEndpoint struct {
-	id     types.UUID
-	port   *sandbox.Interface
-	config *EndpointConfiguration // User specified parameters
+	id          types.UUID
+	port        *sandbox.Interface
+	config      *EndpointConfiguration // User specified parameters
+	portMapping []netutils.PortBinding // Operation port bindings
 }
 
 type bridgeNetwork struct {
@@ -343,7 +347,6 @@ func (d *driver) CreateEndpoint(nid, eid types.UUID, epOptions map[string]interf
 	// Try to convert the options to endpoint configuration
 	epConfig, err := parseEndpointOptions(epOptions)
 	if err != nil {
-		n.Unlock()
 		return nil, err
 	}
 
@@ -462,14 +465,13 @@ func (d *driver) CreateEndpoint(nid, eid types.UUID, epOptions map[string]interf
 		ipv6Addr = &net.IPNet{IP: ip6, Mask: network.Mask}
 	}
 
-	// Store the sandbox side pipe interface
-	// This is needed for cleanup on DeleteEndpoint()
+	// Create the sandbox side pipe interface
 	intf := &sandbox.Interface{}
 	intf.SrcName = name2
 	intf.DstName = containerVeth
 	intf.Address = ipv4Addr
 
-	// Update endpoint with the sandbox interface info
+	// Store the interface in endpoint, this is needed for cleanup on DeleteEndpoint()
 	endpoint.port = intf
 
 	// Generate the sandbox info to return
@@ -480,6 +482,12 @@ func (d *driver) CreateEndpoint(nid, eid types.UUID, epOptions map[string]interf
 	if config.EnableIPv6 {
 		intf.AddressIPv6 = ipv6Addr
 		sinfo.GatewayIPv6 = n.bridge.gatewayIPv6
+	}
+
+	// Program any required port mapping and store them in the endpoint
+	endpoint.portMapping, err = allocatePorts(epConfig, sinfo, config.DefaultBindingIP)
+	if err != nil {
+		return nil, err
 	}
 
 	return sinfo, nil
@@ -531,6 +539,9 @@ func (d *driver) DeleteEndpoint(nid, eid types.UUID) error {
 		}
 	}()
 
+	// Remove port mappings. Do not stop endpoint delete on unmap failure
+	releasePorts(ep)
+
 	// Release the v4 address allocated to this endpoint's sandbox interface
 	err = ipAllocator.ReleaseIP(n.bridge.bridgeIPv4, ep.port.Address.IP)
 	if err != nil {
@@ -573,22 +584,26 @@ func parseEndpointOptions(epOptions map[string]interface{}) (*EndpointConfigurat
 	if epOptions == nil {
 		return nil, nil
 	}
-	genericData := epOptions[options.GenericData]
-	if genericData == nil {
-		return nil, nil
-	}
-	switch opt := genericData.(type) {
-	case options.Generic:
-		opaqueConfig, err := options.GenerateFromModel(opt, &EndpointConfiguration{})
-		if err != nil {
-			return nil, err
+
+	ec := &EndpointConfiguration{}
+
+	if opt, ok := epOptions[options.MacAddress]; ok {
+		if mac, ok := opt.(net.HardwareAddr); ok {
+			ec.MacAddress = mac
+		} else {
+			return nil, ErrInvalidEndpointConfig
 		}
-		return opaqueConfig.(*EndpointConfiguration), nil
-	case *EndpointConfiguration:
-		return opt, nil
-	default:
-		return nil, ErrInvalidEndpointConfig
 	}
+
+	if opt, ok := epOptions[options.PortMap]; ok {
+		if bs, ok := opt.([]netutils.PortBinding); ok {
+			ec.PortBindings = bs
+		} else {
+			return nil, ErrInvalidEndpointConfig
+		}
+	}
+
+	return ec, nil
 }
 
 func parseContainerOptions(cOptions interface{}) (*ContainerConfiguration, error) {
