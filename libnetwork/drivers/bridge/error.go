@@ -145,6 +145,12 @@ func (name ipTableCfgError) Error() string {
 	return fmt.Sprintf("unexpected request to set IP tables for interface: %s", string(name))
 }
 
+type invalidIPTablesCfgError string
+
+func (action invalidIPTablesCfgError) Error() string {
+	return fmt.Sprintf("Invalid IPTables action '%s'", string(action))
+}
+
 // IPv4AddrRangeError is returned when a valid IP address range couldn't be found.
 type IPv4AddrRangeError string
 
@@ -187,4 +193,11 @@ type IPv6AddrNoMatchError net.IPNet
 
 func (ipv6 *IPv6AddrNoMatchError) Error() string {
 	return fmt.Sprintf("bridge IPv6 addresses do not match the expected bridge configuration %s", ipv6)
+}
+
+// InvalidLinkIPAddrError is returned when a link is configured to a container with an invalid ip address
+type InvalidLinkIPAddrError string
+
+func (address InvalidLinkIPAddrError) Error() string {
+	return fmt.Sprintf("Cannot link to a container with Invalid IP Address '%s'", string(address))
 }

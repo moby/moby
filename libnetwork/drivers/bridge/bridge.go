@@ -54,12 +54,13 @@ type EndpointConfiguration struct {
 
 // ContainerConfiguration represents the user specified configuration for a container
 type ContainerConfiguration struct {
-	// TODO : Add container specific configuration when Join processing is handled
+	parentEndpoints []types.UUID
+	childEndpoints  []types.UUID
 }
 
 type bridgeEndpoint struct {
 	id          types.UUID
-	port        *sandbox.Interface
+	intf        *sandbox.Interface
 	config      *EndpointConfiguration // User specified parameters
 	portMapping []netutils.PortBinding // Operation port bindings
 }
@@ -174,6 +175,12 @@ func (d *driver) Config(option map[string]interface{}) error {
 	}
 
 	return nil
+}
+
+func (d *driver) getNetwork(id types.UUID) (*bridgeNetwork, error) {
+	// Just a dummy function to return the only network managed by Bridge driver.
+	// But this API makes the caller code unchanged when we move to support multiple networks.
+	return d.network, nil
 }
 
 // Create a new network using bridge plugin
@@ -472,7 +479,7 @@ func (d *driver) CreateEndpoint(nid, eid types.UUID, epOptions map[string]interf
 	intf.Address = ipv4Addr
 
 	// Store the interface in endpoint, this is needed for cleanup on DeleteEndpoint()
-	endpoint.port = intf
+	endpoint.intf = intf
 
 	// Generate the sandbox info to return
 	sinfo := &sandbox.Info{Interfaces: []*sandbox.Interface{intf}}
@@ -543,14 +550,14 @@ func (d *driver) DeleteEndpoint(nid, eid types.UUID) error {
 	releasePorts(ep)
 
 	// Release the v4 address allocated to this endpoint's sandbox interface
-	err = ipAllocator.ReleaseIP(n.bridge.bridgeIPv4, ep.port.Address.IP)
+	err = ipAllocator.ReleaseIP(n.bridge.bridgeIPv4, ep.intf.Address.IP)
 	if err != nil {
 		return err
 	}
 
 	// Release the v6 address allocated to this endpoint's sandbox interface
 	if config.EnableIPv6 {
-		err := ipAllocator.ReleaseIP(n.bridge.bridgeIPv6, ep.port.AddressIPv6.IP)
+		err := ipAllocator.ReleaseIP(n.bridge.bridgeIPv6, ep.intf.AddressIPv6.IP)
 		if err != nil {
 			return err
 		}
@@ -558,7 +565,7 @@ func (d *driver) DeleteEndpoint(nid, eid types.UUID) error {
 
 	// Try removal of link. Discard error: link pair might have
 	// already been deleted by sandbox delete.
-	link, err := netlink.LinkByName(ep.port.SrcName)
+	link, err := netlink.LinkByName(ep.intf.SrcName)
 	if err == nil {
 		netlink.LinkDel(link)
 	}
@@ -568,11 +575,105 @@ func (d *driver) DeleteEndpoint(nid, eid types.UUID) error {
 
 // Join method is invoked when a Sandbox is attached to an endpoint.
 func (d *driver) Join(nid, eid types.UUID, sboxKey string, options map[string]interface{}) error {
-	return nil
+	var err error
+	if !d.config.EnableICC {
+		err = d.link(nid, eid, options, true)
+	}
+	return err
 }
 
 // Leave method is invoked when a Sandbox detaches from an endpoint.
 func (d *driver) Leave(nid, eid types.UUID, options map[string]interface{}) error {
+	var err error
+	if !d.config.EnableICC {
+		err = d.link(nid, eid, options, false)
+	}
+	return err
+}
+
+func (d *driver) link(nid, eid types.UUID, options map[string]interface{}, enable bool) error {
+	network, err := d.getNetwork(nid)
+	if err != nil {
+		return err
+	}
+	endpoint, err := network.getEndpoint(eid)
+	if err != nil {
+		return err
+	}
+
+	if endpoint == nil {
+		return EndpointNotFoundError(eid)
+	}
+
+	cc, err := parseContainerOptions(options)
+	if err != nil {
+		return err
+	}
+	if cc == nil {
+		return nil
+	}
+
+	if endpoint.config != nil && endpoint.config.PortBindings != nil {
+		for _, p := range cc.parentEndpoints {
+			var parentEndpoint *bridgeEndpoint
+			parentEndpoint, err = network.getEndpoint(p)
+			if err != nil {
+				return err
+			}
+			if parentEndpoint == nil {
+				err = InvalidEndpointIDError(string(p))
+				return err
+			}
+
+			l := newLink(parentEndpoint.intf.Address.IP.String(),
+				endpoint.intf.Address.IP.String(),
+				endpoint.config.PortBindings, d.config.BridgeName)
+			if enable {
+				err = l.Enable()
+				if err != nil {
+					return err
+				}
+				defer func() {
+					if err != nil {
+						l.Disable()
+					}
+				}()
+			} else {
+				l.Disable()
+			}
+		}
+	}
+
+	for _, c := range cc.childEndpoints {
+		var childEndpoint *bridgeEndpoint
+		childEndpoint, err = network.getEndpoint(c)
+		if err != nil {
+			return err
+		}
+		if childEndpoint == nil {
+			err = InvalidEndpointIDError(string(c))
+			return err
+		}
+		if childEndpoint.config == nil || childEndpoint.config.PortBindings == nil {
+			continue
+		}
+		l := newLink(endpoint.intf.Address.IP.String(),
+			childEndpoint.intf.Address.IP.String(),
+			childEndpoint.config.PortBindings, d.config.BridgeName)
+		if enable {
+			err = l.Enable()
+			if err != nil {
+				return err
+			}
+			defer func() {
+				if err != nil {
+					l.Disable()
+				}
+			}()
+		} else {
+			l.Disable()
+		}
+	}
 	return nil
 }
 
@@ -606,11 +707,15 @@ func parseEndpointOptions(epOptions map[string]interface{}) (*EndpointConfigurat
 	return ec, nil
 }
 
-func parseContainerOptions(cOptions interface{}) (*ContainerConfiguration, error) {
+func parseContainerOptions(cOptions map[string]interface{}) (*ContainerConfiguration, error) {
 	if cOptions == nil {
 		return nil, nil
 	}
-	switch opt := cOptions.(type) {
+	genericData := cOptions[options.GenericData]
+	if genericData == nil {
+		return nil, nil
+	}
+	switch opt := genericData.(type) {
 	case options.Generic:
 		opaqueConfig, err := options.GenerateFromModel(opt, &ContainerConfiguration{})
 		if err != nil {
@@ -620,7 +725,7 @@ func parseContainerOptions(cOptions interface{}) (*ContainerConfiguration, error
 	case *ContainerConfiguration:
 		return opt, nil
 	default:
-		return nil, ErrInvalidContainerConfig
+		return nil, nil
 	}
 }
 
