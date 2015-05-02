@@ -65,9 +65,7 @@ func (d *driver) createContainer(c *execdriver.Command) (*configs.Config, error)
 		return nil, err
 	}
 
-	if err := d.setupLabels(container, c); err != nil {
-		return nil, err
-	}
+	d.setupLabels(container, c)
 	d.setupRlimits(container, c)
 	return container, nil
 }
@@ -254,9 +252,7 @@ func (d *driver) setupMounts(container *configs.Config, c *execdriver.Command) e
 	return nil
 }
 
-func (d *driver) setupLabels(container *configs.Config, c *execdriver.Command) error {
+func (d *driver) setupLabels(container *configs.Config, c *execdriver.Command) {
 	container.ProcessLabel = c.ProcessLabel
 	container.MountLabel = c.MountLabel
-
-	return nil
 }
