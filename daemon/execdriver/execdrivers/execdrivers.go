@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"path"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/execdriver"
 	"github.com/docker/docker/daemon/execdriver/lxc"
 	"github.com/docker/docker/daemon/execdriver/native"
@@ -13,6 +14,8 @@ import (
 func NewDriver(name string, options []string, root, libPath, initPath string, sysInfo *sysinfo.SysInfo) (execdriver.Driver, error) {
 	switch name {
 	case "lxc":
+		// we are depreciating lxc
+		logrus.Warn("The lxc driver is being depreciated. Please switch to the native driver.")
 		// we want to give the lxc driver the full docker root because it needs
 		// to access and write config and template files in /var/lib/docker/containers/*
 		// to be backwards compatible
