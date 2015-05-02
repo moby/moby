@@ -26,7 +26,7 @@ DOCS_MOUNT := $(if $(DOCSDIR),-v $(CURDIR)/$(DOCSDIR):/$(DOCSDIR))
 DOCSPORT := 8000
 
 GIT_BRANCH := $(shell git rev-parse --abbrev-ref HEAD 2>/dev/null)
-DOCKER_IMAGE := docker$(if $(GIT_BRANCH),:$(GIT_BRANCH))
+DOCKER_IMAGE := docker-dev$(if $(GIT_BRANCH),:$(GIT_BRANCH))
 DOCKER_DOCS_IMAGE := docker-docs$(if $(GIT_BRANCH),:$(GIT_BRANCH))
 
 DOCKER_RUN_DOCKER := docker run --rm -it --privileged $(DOCKER_ENVS) $(DOCKER_MOUNT) "$(DOCKER_IMAGE)"
