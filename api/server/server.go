@@ -306,16 +306,9 @@ func (s *Server) postContainersPause(version version.Version, w http.ResponseWri
 		return err
 	}
 
-	name := vars["name"]
-	cont, err := s.daemon.Get(name)
-	if err != nil {
+	if err := s.daemon.ContainerPause(vars["name"]); err != nil {
 		return err
 	}
-
-	if err := cont.Pause(); err != nil {
-		return fmt.Errorf("Cannot pause container %s: %s", name, err)
-	}
-	cont.LogEvent("pause")
 
 	w.WriteHeader(http.StatusNoContent)
 
@@ -330,16 +323,9 @@ func (s *Server) postContainersUnpause(version version.Version, w http.ResponseW
 		return err
 	}
 
-	name := vars["name"]
-	cont, err := s.daemon.Get(name)
-	if err != nil {
+	if err := s.daemon.ContainerUnpause(vars["name"]); err != nil {
 		return err
 	}
-
-	if err := cont.Unpause(); err != nil {
-		return fmt.Errorf("Cannot unpause container %s: %s", name, err)
-	}
-	cont.LogEvent("unpause")
 
 	w.WriteHeader(http.StatusNoContent)
 
@@ -529,13 +515,7 @@ func (s *Server) getContainersChanges(version version.Version, w http.ResponseWr
 		return fmt.Errorf("Missing parameter")
 	}
 
-	name := vars["name"]
-	cont, err := s.daemon.Get(name)
-	if err != nil {
-		return err
-	}
-
-	changes, err := cont.Changes()
+	changes, err := s.daemon.ContainerChanges(vars["name"])
 	if err != nil {
 		return err
 	}
@@ -1112,12 +1092,7 @@ func (s *Server) postContainersResize(version version.Version, w http.ResponseWr
 		return err
 	}
 
-	cont, err := s.daemon.Get(vars["name"])
-	if err != nil {
-		return err
-	}
-
-	return cont.Resize(height, width)
+	return s.daemon.ContainerResize(vars["name"], height, width)
 }
 
 func (s *Server) postContainersAttach(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
@@ -1371,30 +1346,19 @@ func (s *Server) postContainersCopy(version version.Version, w http.ResponseWrit
 		return fmt.Errorf("Path cannot be empty")
 	}
 
-	res := cfg.Resource
-
-	if res[0] == '/' {
-		res = res[1:]
-	}
-
-	cont, err := s.daemon.Get(vars["name"])
+	data, err := s.daemon.ContainerCopy(vars["name"], cfg.Resource)
 	if err != nil {
-		logrus.Errorf("%v", err)
 		if strings.Contains(strings.ToLower(err.Error()), "no such id") {
 			w.WriteHeader(http.StatusNotFound)
 			return nil
 		}
-	}
-
-	data, err := cont.Copy(res)
-	if err != nil {
-		logrus.Errorf("%v", err)
 		if os.IsNotExist(err) {
 			return fmt.Errorf("Could not find the file %s in container %s", cfg.Resource, vars["name"])
 		}
 		return err
 	}
 	defer data.Close()
+
 	w.Header().Set("Content-Type", "application/x-tar")
 	if _, err := io.Copy(w, data); err != nil {
 		return err
