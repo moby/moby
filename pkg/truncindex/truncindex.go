@@ -14,12 +14,6 @@ var (
 	ErrAmbiguousPrefix = errors.New("Multiple IDs found with provided prefix")
 )
 
-func init() {
-	// Change patricia max prefix per node length,
-	// because our len(ID) always 64
-	patricia.MaxPrefixPerNode = 64
-}
-
 // TruncIndex allows the retrieval of string identifiers by any of their unique prefixes.
 // This is used to retrieve image and container IDs by more convenient shorthand prefixes.
 type TruncIndex struct {
@@ -31,8 +25,11 @@ type TruncIndex struct {
 // NewTruncIndex creates a new TruncIndex and initializes with a list of IDs
 func NewTruncIndex(ids []string) (idx *TruncIndex) {
 	idx = &TruncIndex{
-		ids:  make(map[string]struct{}),
-		trie: patricia.NewTrie(),
+		ids: make(map[string]struct{}),
+
+		// Change patricia max prefix per node length,
+		// because our len(ID) always 64
+		trie: patricia.NewTrie(patricia.MaxPrefixPerNode(64)),
 	}
 	for _, id := range ids {
 		idx.addID(id)

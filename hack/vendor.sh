@@ -45,7 +45,7 @@ clone git github.com/gorilla/context 14f550f51a
 
 clone git github.com/gorilla/mux e444e69cbd
 
-clone git github.com/tchap/go-patricia v1.0.1
+clone git github.com/tchap/go-patricia v2.1.0
 
 clone hg code.google.com/p/go.net 84a4013f96e0
 

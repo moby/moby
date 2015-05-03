@@ -13,6 +13,20 @@ import (
 
 // Tests -----------------------------------------------------------------------
 
+func TestTrie_ConstructorOptions(t *testing.T) {
+	trie := NewTrie(MaxPrefixPerNode(16), MaxChildrenPerSparseNode(10))
+
+	if trie.maxPrefixPerNode != 16 {
+		t.Errorf("Unexpected trie.maxPrefixPerNode value, expected=%v, got=%v",
+			16, trie.maxPrefixPerNode)
+	}
+
+	if trie.maxChildrenPerSparseNode != 10 {
+		t.Errorf("Unexpected trie.maxChildrenPerSparseNode value, expected=%v, got=%v",
+			10, trie.maxChildrenPerSparseNode)
+	}
+}
+
 func TestTrie_GetNonexistentPrefix(t *testing.T) {
 	trie := NewTrie()
 
