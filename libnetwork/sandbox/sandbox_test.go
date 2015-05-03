@@ -11,7 +11,7 @@ func TestSandboxCreate(t *testing.T) {
 		t.Fatalf("Failed to obtain a key: %v", err)
 	}
 
-	s, err := NewSandbox(key)
+	s, err := NewSandbox(key, true)
 	if err != nil {
 		t.Fatalf("Failed to create a new sandbox: %v", err)
 	}

@@ -198,13 +198,13 @@ func (c *controller) NetworkByID(id string) Network {
 	return nil
 }
 
-func (c *controller) sandboxAdd(key string) (sandbox.Sandbox, error) {
+func (c *controller) sandboxAdd(key string, create bool) (sandbox.Sandbox, error) {
 	c.Lock()
 	defer c.Unlock()
 
 	sData, ok := c.sandboxes[key]
 	if !ok {
-		sb, err := sandbox.NewSandbox(key)
+		sb, err := sandbox.NewSandbox(key, create)
 		if err != nil {
 			return nil, err
 		}

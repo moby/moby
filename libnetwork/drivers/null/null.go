@@ -40,8 +40,8 @@ func (d *driver) EndpointInfo(nid, eid types.UUID) (map[string]interface{}, erro
 }
 
 // Join method is invoked when a Sandbox is attached to an endpoint.
-func (d *driver) Join(nid, eid types.UUID, sboxKey string, options map[string]interface{}) error {
-	return nil
+func (d *driver) Join(nid, eid types.UUID, sboxKey string, options map[string]interface{}) (*driverapi.JoinInfo, error) {
+	return nil, nil
 }
 
 // Leave method is invoked when a Sandbox detaches from an endpoint.

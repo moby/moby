@@ -231,7 +231,7 @@ func TestLinkContainers(t *testing.T) {
 	genericOption = make(map[string]interface{})
 	genericOption[options.GenericData] = cConfig
 
-	err = d.Join("net1", "ep2", "", genericOption)
+	_, err = d.Join("net1", "ep2", "", genericOption)
 	if err != nil {
 		t.Fatalf("Failed to link ep1 and ep2")
 	}
@@ -281,7 +281,7 @@ func TestLinkContainers(t *testing.T) {
 	genericOption = make(map[string]interface{})
 	genericOption[options.GenericData] = cConfig
 
-	err = d.Join("net1", "ep2", "", genericOption)
+	_, err = d.Join("net1", "ep2", "", genericOption)
 	if err != nil {
 		out, err = iptables.Raw("-L", "DOCKER")
 		for _, pm := range portMappings {
