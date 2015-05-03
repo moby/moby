@@ -56,8 +56,7 @@ After that, we modify Riak's configuration:
     RUN sed -i "s|listener.http.internal = 127.0.0.1:8098|listener.http.internal = 0.0.0.0:8098|" /etc/riak/riak.conf
     RUN sed -i "s|listener.protobuf.internal = 127.0.0.1:8087|listener.protobuf.internal = 0.0.0.0:8087|" /etc/riak/riak.conf
 
-Then, we expose the Riak Protocol Buffers and HTTP interfaces, along
-with SSH:
+Then, we expose the Riak Protocol Buffers and HTTP interfaces:
 
     # Expose Riak Protocol Buffers and HTTP interfaces
     EXPOSE 8087 8098
