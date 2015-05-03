@@ -7,7 +7,10 @@
 // Package fsnotify provides a platform-independent interface for file system notifications.
 package fsnotify
 
-import "fmt"
+import (
+	"bytes"
+	"fmt"
+)
 
 // Event represents a single file system notification.
 type Event struct {
@@ -30,27 +33,30 @@ const (
 // String returns a string representation of the event in the form
 // "file: REMOVE|WRITE|..."
 func (e Event) String() string {
-	events := ""
+	// Use a buffer for efficient string concatenation
+	var buffer bytes.Buffer
 
 	if e.Op&Create == Create {
-		events += "|CREATE"
+		buffer.WriteString("|CREATE")
 	}
 	if e.Op&Remove == Remove {
-		events += "|REMOVE"
+		buffer.WriteString("|REMOVE")
 	}
 	if e.Op&Write == Write {
-		events += "|WRITE"
+		buffer.WriteString("|WRITE")
 	}
 	if e.Op&Rename == Rename {
-		events += "|RENAME"
+		buffer.WriteString("|RENAME")
 	}
 	if e.Op&Chmod == Chmod {
-		events += "|CHMOD"
+		buffer.WriteString("|CHMOD")
 	}
 
-	if len(events) > 0 {
-		events = events[1:]
+	// If buffer remains empty, return no event names
+	if buffer.Len() == 0 {
+		return fmt.Sprintf("%q: ", e.Name)
 	}
 
-	return fmt.Sprintf("%q: %s", e.Name, events)
+	// Return a list of event names, with leading pipe character stripped
+	return fmt.Sprintf("%q: %s", e.Name, buffer.String()[1:])
 }

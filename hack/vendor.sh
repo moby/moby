@@ -55,7 +55,7 @@ clone git github.com/docker/libtrust 230dfd18c232
 
 clone git github.com/Sirupsen/logrus v0.7.2
 
-clone git github.com/go-fsnotify/fsnotify v1.0.4
+clone git github.com/go-fsnotify/fsnotify v1.2.0
 
 clone git github.com/go-check/check 64131543e7896d5bcc6bd5a76287eb75ea96c673
 
