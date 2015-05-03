@@ -226,8 +226,10 @@ func (d *driver) CreateNetwork(id types.UUID, option map[string]interface{}) err
 	bridgeAlreadyExists := bridgeIface.exists()
 	if !bridgeAlreadyExists {
 		bridgeSetup.queueStep(setupDevice)
-		bridgeSetup.queueStep(setupBridgeIPv4)
 	}
+
+	// Even if a bridge exists try to setup IPv4.
+	bridgeSetup.queueStep(setupBridgeIPv4)
 
 	// Conditionnally queue setup steps depending on configuration values.
 	for _, step := range []struct {
@@ -269,6 +271,8 @@ func (d *driver) CreateNetwork(id types.UUID, option map[string]interface{}) err
 		}
 	}
 
+	// Block bridge IP from being allocated.
+	bridgeSetup.queueStep(allocateBridgeIP)
 	// Apply the prepared list of steps, and abort at the first error.
 	bridgeSetup.queueStep(setupDeviceUp)
 	if err = bridgeSetup.apply(); err != nil {

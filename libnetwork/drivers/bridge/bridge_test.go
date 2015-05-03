@@ -14,6 +14,31 @@ import (
 	"github.com/vishvananda/netlink"
 )
 
+func TestCreateFullOptions(t *testing.T) {
+	defer netutils.SetupTestNetNS(t)()
+	_, d := New()
+
+	config := &Configuration{
+		BridgeName:         DefaultBridgeName,
+		EnableIPv6:         true,
+		FixedCIDR:          bridgeNetworks[0],
+		EnableIPTables:     true,
+		EnableIPForwarding: true,
+	}
+	_, config.FixedCIDRv6, _ = net.ParseCIDR("2001:db8::/48")
+	genericOption := make(map[string]interface{})
+	genericOption[options.GenericData] = config
+
+	if err := d.Config(genericOption); err != nil {
+		t.Fatalf("Failed to setup driver config: %v", err)
+	}
+
+	err := d.CreateNetwork("dummy", nil)
+	if err != nil {
+		t.Fatalf("Failed to create bridge: %v", err)
+	}
+}
+
 func TestCreate(t *testing.T) {
 	defer netutils.SetupTestNetNS(t)()
 	_, d := New()
@@ -45,31 +70,6 @@ func TestCreateFail(t *testing.T) {
 
 	if err := d.CreateNetwork("dummy", nil); err == nil {
 		t.Fatal("Bridge creation was expected to fail")
-	}
-}
-
-func TestCreateFullOptions(t *testing.T) {
-	defer netutils.SetupTestNetNS(t)()
-	_, d := New()
-
-	config := &Configuration{
-		BridgeName:         DefaultBridgeName,
-		EnableIPv6:         true,
-		FixedCIDR:          bridgeNetworks[0],
-		EnableIPTables:     true,
-		EnableIPForwarding: true,
-	}
-	_, config.FixedCIDRv6, _ = net.ParseCIDR("2001:db8::/48")
-	genericOption := make(map[string]interface{})
-	genericOption[options.GenericData] = config
-
-	if err := d.Config(genericOption); err != nil {
-		t.Fatalf("Failed to setup driver config: %v", err)
-	}
-
-	err := d.CreateNetwork("dummy", nil)
-	if err != nil {
-		t.Fatalf("Failed to create bridge: %v", err)
 	}
 }
 

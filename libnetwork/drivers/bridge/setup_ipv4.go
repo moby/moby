@@ -41,6 +41,25 @@ func init() {
 }
 
 func setupBridgeIPv4(config *Configuration, i *bridgeInterface) error {
+	addrv4, _, err := i.addresses()
+	if err != nil {
+		return err
+	}
+
+	// Check if we have an IP address already on the bridge.
+	if addrv4.IPNet != nil {
+		// Make sure to store bridge network and default gateway before getting out.
+		i.bridgeIPv4 = addrv4.IPNet
+		i.gatewayIPv4 = addrv4.IPNet.IP
+		return nil
+	}
+
+	// Do not try to configure IPv4 on a non-default bridge unless you are
+	// specifically asked to do so.
+	if config.BridgeName != DefaultBridgeName && !config.AllowNonDefaultBridge {
+		return NonDefaultBridgeExistError(config.BridgeName)
+	}
+
 	bridgeIPv4, err := electBridgeIPv4(config)
 	if err != nil {
 		return err
@@ -55,6 +74,11 @@ func setupBridgeIPv4(config *Configuration, i *bridgeInterface) error {
 	i.bridgeIPv4 = bridgeIPv4
 	i.gatewayIPv4 = i.bridgeIPv4.IP
 
+	return nil
+}
+
+func allocateBridgeIP(config *Configuration, i *bridgeInterface) error {
+	ipAllocator.RequestIP(i.bridgeIPv4, i.bridgeIPv4.IP)
 	return nil
 }
 
