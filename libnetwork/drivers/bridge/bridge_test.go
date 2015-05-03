@@ -2,11 +2,15 @@ package bridge
 
 import (
 	"bytes"
+	"fmt"
 	"net"
+	"regexp"
 	"testing"
 
+	"github.com/docker/docker/pkg/iptables"
 	"github.com/docker/libnetwork/netutils"
 	"github.com/docker/libnetwork/pkg/options"
+	"github.com/docker/libnetwork/types"
 	"github.com/vishvananda/netlink"
 )
 
@@ -103,6 +107,136 @@ func TestCreateLinkWithOptions(t *testing.T) {
 
 	if !bytes.Equal(mac, veth.Attrs().HardwareAddr) {
 		t.Fatalf("Failed to parse and program endpoint configuration")
+	}
+}
+
+func getPortMapping() []netutils.PortBinding {
+	return []netutils.PortBinding{
+		netutils.PortBinding{Proto: netutils.TCP, Port: uint16(230), HostPort: uint16(23000)},
+		netutils.PortBinding{Proto: netutils.UDP, Port: uint16(200), HostPort: uint16(22000)},
+		netutils.PortBinding{Proto: netutils.TCP, Port: uint16(120), HostPort: uint16(12000)},
+	}
+}
+
+func TestLinkContainers(t *testing.T) {
+	defer netutils.SetupTestNetNS(t)()
+
+	_, d := New()
+
+	config := &Configuration{
+		BridgeName:     DefaultBridgeName,
+		EnableIPTables: true,
+		EnableICC:      false,
+	}
+	genericOption := make(map[string]interface{})
+	genericOption[options.GenericData] = config
+
+	if err := d.Config(genericOption); err != nil {
+		t.Fatalf("Failed to setup driver config: %v", err)
+	}
+
+	err := d.CreateNetwork("net1", nil)
+	if err != nil {
+		t.Fatalf("Failed to create bridge: %v", err)
+	}
+
+	portMappings := getPortMapping()
+	epOptions := make(map[string]interface{})
+	epOptions[options.PortMap] = portMappings
+
+	sinfo, err := d.CreateEndpoint("net1", "ep1", epOptions)
+	if err != nil {
+		t.Fatalf("Failed to create an endpoint : %s", err.Error())
+	}
+
+	addr1 := sinfo.Interfaces[0].Address
+	if addr1 == nil {
+		t.Fatalf("No Ipv4 address assigned to the endpoint:  ep1")
+	}
+
+	sinfo, err = d.CreateEndpoint("net1", "ep2", nil)
+	if err != nil {
+		t.Fatalf("Failed to create an endpoint : %s", err.Error())
+	}
+
+	addr2 := sinfo.Interfaces[0].Address
+	if addr2 == nil {
+		t.Fatalf("No Ipv4 address assigned to the endpoint:  ep2")
+	}
+
+	ce := []types.UUID{"ep1"}
+	cConfig := &ContainerConfiguration{childEndpoints: ce}
+	genericOption = make(map[string]interface{})
+	genericOption[options.GenericData] = cConfig
+
+	err = d.Join("net1", "ep2", "", genericOption)
+	if err != nil {
+		t.Fatalf("Failed to link ep1 and ep2")
+	}
+
+	out, err := iptables.Raw("-L", "DOCKER")
+	for _, pm := range portMappings {
+		regex := fmt.Sprintf("%s dpt:%d", pm.Proto.String(), pm.Port)
+		re := regexp.MustCompile(regex)
+		matches := re.FindAllString(string(out[:]), -1)
+		// There will be 2 matches : Port-Mapping and Linking table rules
+		if len(matches) < 2 {
+			t.Fatalf("IP Tables programming failed %s", string(out[:]))
+		}
+
+		regex = fmt.Sprintf("%s spt:%d", pm.Proto.String(), pm.Port)
+		matched, _ := regexp.MatchString(regex, string(out[:]))
+		if !matched {
+			t.Fatalf("IP Tables programming failed %s", string(out[:]))
+		}
+	}
+
+	err = d.Leave("net1", "ep2", genericOption)
+	if err != nil {
+		t.Fatalf("Failed to unlink ep1 and ep2")
+	}
+
+	out, err = iptables.Raw("-L", "DOCKER")
+	for _, pm := range portMappings {
+		regex := fmt.Sprintf("%s dpt:%d", pm.Proto.String(), pm.Port)
+		re := regexp.MustCompile(regex)
+		matches := re.FindAllString(string(out[:]), -1)
+		// There will be 1 match : Port-Mapping
+		if len(matches) > 1 {
+			t.Fatalf("Leave should have deleted relevant IPTables rules  %s", string(out[:]))
+		}
+
+		regex = fmt.Sprintf("%s spt:%d", pm.Proto.String(), pm.Port)
+		matched, _ := regexp.MatchString(regex, string(out[:]))
+		if matched {
+			t.Fatalf("Leave should have deleted relevant IPTables rules  %s", string(out[:]))
+		}
+	}
+
+	// Error condition test with an invalid endpoint-id "ep4"
+	ce = []types.UUID{"ep1", "ep4"}
+	cConfig = &ContainerConfiguration{childEndpoints: ce}
+	genericOption = make(map[string]interface{})
+	genericOption[options.GenericData] = cConfig
+
+	err = d.Join("net1", "ep2", "", genericOption)
+	if err != nil {
+		out, err = iptables.Raw("-L", "DOCKER")
+		for _, pm := range portMappings {
+			regex := fmt.Sprintf("%s dpt:%d", pm.Proto.String(), pm.Port)
+			re := regexp.MustCompile(regex)
+			matches := re.FindAllString(string(out[:]), -1)
+			// There must be 1 match : Port-Mapping
+			if len(matches) > 1 {
+				t.Fatalf("Error handling should rollback relevant IPTables rules  %s", string(out[:]))
+			}
+
+			regex = fmt.Sprintf("%s spt:%d", pm.Proto.String(), pm.Port)
+			matched, _ := regexp.MatchString(regex, string(out[:]))
+			if matched {
+				t.Fatalf("Error handling should rollback relevant IPTables rules  %s", string(out[:]))
+			}
+		}
 	}
 }
 

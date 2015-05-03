@@ -1,7 +1,6 @@
 package bridge
 
 import (
-	"fmt"
 	"os"
 	"testing"
 
@@ -62,8 +61,6 @@ func TestPortMappingConfig(t *testing.T) {
 		ep.portMapping[1].HostIP == nil || ep.portMapping[1].HostPort == 0 {
 		t.Fatalf("operational port mapping data not found on bridgeEndpoint")
 	}
-
-	fmt.Printf("\nendpoint: %v\n", ep.portMapping)
 
 	err = releasePorts(ep)
 	if err != nil {
