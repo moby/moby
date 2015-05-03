@@ -1,5 +1,5 @@
 {
-	"ImportPath": "github.com/docker/docker/vendor/src/github.com/docker/libnetwork",
+	"ImportPath": "github.com/docker/libnetwork",
 	"GoVersion": "go1.4.2",
 	"Packages": [
 		"./..."
@@ -52,8 +52,8 @@
 		},
 		{
 			"ImportPath": "github.com/docker/libcontainer/user",
-			"Comment": "v1.4.0",
-			"Rev": "53eca435e63db58b06cf796d3a9326db5fd42253"
+			"Comment": "v1.4.0-495-g3e66118",
+			"Rev": "3e661186ba24f259d3860f067df052c7f6904bee"
 		},
 		{
 			"ImportPath": "github.com/vishvananda/netlink",

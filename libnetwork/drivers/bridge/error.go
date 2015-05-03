@@ -37,9 +37,30 @@ var (
 	// ErrInvalidContainerSubnet is returned when the container subnet (FixedCIDR) is not valid.
 	ErrInvalidContainerSubnet = errors.New("container subnet must be a subset of bridge network")
 
-	// ErrInvalidMtu is returned when the user provided MTU is not valid
+	// ErrInvalidMtu is returned when the user provided MTU is not valid.
 	ErrInvalidMtu = errors.New("invalid MTU number")
 )
+
+// ErrInvalidPort is returned when the container or host port specified in the port binding is not valid.
+type ErrInvalidPort string
+
+func (ip ErrInvalidPort) Error() string {
+	return fmt.Sprintf("invalid transport port: %s", string(ip))
+}
+
+// ErrUnsupportedAddressType is returned when the specified address type is not supported.
+type ErrUnsupportedAddressType string
+
+func (uat ErrUnsupportedAddressType) Error() string {
+	return fmt.Sprintf("unsupported address type: %s", string(uat))
+}
+
+// ErrInvalidAddressBinding is returned when the host address specfied in the port binding is not valid.
+type ErrInvalidAddressBinding string
+
+func (iab ErrInvalidAddressBinding) Error() string {
+	return fmt.Sprintf("invalid host address in port binding: %s", string(iab))
+}
 
 // ActiveEndpointsError is returned when there are
 // still active endpoints in the network being deleted.

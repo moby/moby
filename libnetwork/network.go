@@ -127,7 +127,7 @@ func (n *network) Delete() error {
 }
 
 func (n *network) CreateEndpoint(name string, options ...EndpointOption) (Endpoint, error) {
-	ep := &endpoint{name: name}
+	ep := &endpoint{name: name, generic: make(map[string]interface{})}
 	ep.id = types.UUID(stringid.GenerateRandomID())
 	ep.network = n
 	ep.processOptions(options...)

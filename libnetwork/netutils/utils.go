@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"strings"
 
 	"github.com/vishvananda/netlink"
 )
@@ -24,6 +25,102 @@ var (
 
 	networkGetRoutesFct = netlink.RouteList
 )
+
+// ErrInvalidProtocolBinding is returned when the port binding protocol is not valid.
+type ErrInvalidProtocolBinding string
+
+func (ipb ErrInvalidProtocolBinding) Error() string {
+	return fmt.Sprintf("invalid transport protocol: %s", string(ipb))
+}
+
+// TransportPort represent a local Layer 4 endpoint
+type TransportPort struct {
+	Proto Protocol
+	Port  uint16
+}
+
+// PortBinding represent a port binding between the container an the host
+type PortBinding struct {
+	Proto    Protocol
+	IP       net.IP
+	Port     uint16
+	HostIP   net.IP
+	HostPort uint16
+}
+
+// HostAddr returns the host side tranport address
+func (p PortBinding) HostAddr() (net.Addr, error) {
+	switch p.Proto {
+	case UDP:
+		return &net.UDPAddr{IP: p.HostIP, Port: int(p.HostPort)}, nil
+	case TCP:
+		return &net.TCPAddr{IP: p.HostIP, Port: int(p.HostPort)}, nil
+	default:
+		return nil, ErrInvalidProtocolBinding(p.Proto.String())
+	}
+}
+
+// ContainerAddr returns the container side tranport address
+func (p PortBinding) ContainerAddr() (net.Addr, error) {
+	switch p.Proto {
+	case UDP:
+		return &net.UDPAddr{IP: p.IP, Port: int(p.Port)}, nil
+	case TCP:
+		return &net.TCPAddr{IP: p.IP, Port: int(p.Port)}, nil
+	default:
+		return nil, ErrInvalidProtocolBinding(p.Proto.String())
+	}
+}
+
+// GetCopy returns a copy of this PortBinding structure instance
+func (p *PortBinding) GetCopy() PortBinding {
+	return PortBinding{
+		Proto:    p.Proto,
+		IP:       GetIPCopy(p.IP),
+		Port:     p.Port,
+		HostIP:   GetIPCopy(p.HostIP),
+		HostPort: p.HostPort,
+	}
+}
+
+const (
+	// ICMP is for the ICMP ip protocol
+	ICMP = 1
+	// TCP is for the TCP ip protocol
+	TCP = 6
+	// UDP is for the UDP ip protocol
+	UDP = 17
+)
+
+// Protocol represents a IP protocol number
+type Protocol uint8
+
+func (p Protocol) String() string {
+	switch p {
+	case 1:
+		return "icmp"
+	case 6:
+		return "tcp"
+	case 17:
+		return "udp"
+	default:
+		return fmt.Sprintf("%d", p)
+	}
+}
+
+// ParseProtocol returns the respective Protocol type for the passed string
+func ParseProtocol(s string) Protocol {
+	switch strings.ToLower(s) {
+	case "icmp":
+		return 1
+	case "udp":
+		return 6
+	case "tcp":
+		return 17
+	default:
+		return 0
+	}
+}
 
 // CheckNameserverOverlaps checks whether the passed network overlaps with any of the nameservers
 func CheckNameserverOverlaps(nameservers []string, toCheck *net.IPNet) error {
