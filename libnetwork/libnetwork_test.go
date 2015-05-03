@@ -89,6 +89,39 @@ func TestNull(t *testing.T) {
 	}
 }
 
+func TestHost(t *testing.T) {
+	network, err := createTestNetwork("host", "testnetwork", options.Generic{})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ep, err := network.CreateEndpoint("testep")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = ep.Join("host_container",
+		libnetwork.JoinOptionHostname("test"),
+		libnetwork.JoinOptionDomainname("docker.io"),
+		libnetwork.JoinOptionExtraHost("web", "192.168.0.1"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = ep.Leave("host_container")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := ep.Delete(); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := network.Delete(); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestBridge(t *testing.T) {
 	defer netutils.SetupTestNetNS(t)()
 	ip, subnet, err := net.ParseCIDR("192.168.100.1/24")
