@@ -117,6 +117,10 @@ func (s *DockerSuite) TestApiImagesDelete(c *check.C) {
 	c.Assert(status, check.Equals, http.StatusConflict)
 	c.Assert(err, check.IsNil)
 
+	status, _, err = sockRequest("DELETE", "/images/test:noexist", nil)
+	c.Assert(status, check.Equals, http.StatusNotFound) //Status Codes:404 – no such image
+	c.Assert(err, check.IsNil)
+
 	status, _, err = sockRequest("DELETE", "/images/test:tag1", nil)
 	c.Assert(status, check.Equals, http.StatusOK)
 	c.Assert(err, check.IsNil)
