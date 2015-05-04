@@ -310,7 +310,7 @@ func (m *containerMonitor) resetContainer(lock bool) {
 				close(exit)
 			}()
 			select {
-			case <-time.After(1 * time.Second):
+			case <-time.After(10 * time.Second):
 				logrus.Warnf("Logger didn't exit in time: logs may be truncated")
 			case <-exit:
 			}

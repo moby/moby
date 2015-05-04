@@ -46,6 +46,9 @@ func (p *Publisher) Subscribe() chan interface{} {
 // Evict removes the specified subscriber from receiving any more messages.
 func (p *Publisher) Evict(sub chan interface{}) {
 	p.m.Lock()
+	if _, ok := p.subscribers[sub]; !ok {
+		return
+	}
 	delete(p.subscribers, sub)
 	close(sub)
 	p.m.Unlock()
@@ -56,6 +59,13 @@ func (p *Publisher) Publish(v interface{}) {
 	p.m.RLock()
 	for sub := range p.subscribers {
 		// send under a select as to not block if the receiver is unavailable
+		if p.timeout == 0 {
+			select {
+			case sub <- v:
+			default:
+			}
+			continue
+		}
 		select {
 		case sub <- v:
 		case <-time.After(p.timeout):
@@ -70,5 +80,6 @@ func (p *Publisher) Close() {
 	for sub := range p.subscribers {
 		close(sub)
 	}
+	p.subscribers = make(map[subscriber]struct{})
 	p.m.Unlock()
 }

@@ -316,5 +316,4 @@ func (s *DockerSuite) TestLogsFollowSlowStdoutConsumer(c *check.C) {
 	if actual != expected {
 		c.Fatalf("Invalid bytes read: %d, expected %d", actual, expected)
 	}
-
 }

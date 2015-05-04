@@ -7,9 +7,10 @@ import (
 	"io"
 	"os"
 	"strconv"
-	"sync"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/daemon/logger"
+	"github.com/docker/docker/daemon/logger/jsonfilelog"
 	"github.com/docker/docker/pkg/jsonlog"
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/docker/docker/pkg/tailfile"
@@ -125,38 +126,46 @@ func (daemon *Daemon) ContainerLogs(name string, config *ContainerLogsConfig) er
 			}
 		}
 	}
-	if config.Follow && container.IsRunning() {
-		errors := make(chan error, 2)
-		wg := sync.WaitGroup{}
-
-		if config.UseStdout {
-			wg.Add(1)
-			stdoutPipe := container.StdoutLogPipe()
-			defer stdoutPipe.Close()
-			go func() {
-				errors <- jsonlog.WriteLog(stdoutPipe, outStream, format)
-				wg.Done()
-			}()
+	if config.Follow {
+		ld := container.getLogDriver()
+		if ld == nil {
+			// container is stopped
+			return nil
 		}
-		if config.UseStderr {
-			wg.Add(1)
-			stderrPipe := container.StderrLogPipe()
-			defer stderrPipe.Close()
-			go func() {
-				errors <- jsonlog.WriteLog(stderrPipe, errStream, format)
-				wg.Done()
-			}()
+		jld, ok := ld.(*jsonfilelog.JSONFileLogger)
+		if !ok {
+			return nil
 		}
+		listener := jld.Subscribe()
 
-		wg.Wait()
-		close(errors)
-
-		for err := range errors {
-			if err != nil {
-				logrus.Errorf("%s", err)
+		defer jld.Evict(listener)
+		for msg := range listener {
+			lMsg, ok := msg.(*logger.Message)
+			if !ok {
+				// this panic is impossible :)
+				// but will be catched by mux anyway
+				panic(fmt.Sprintf("unexpected type of log message: %T", msg))
+			}
+			var stream io.Writer
+			if lMsg.Source == "stdout" && config.UseStdout {
+				stream = outStream
+			}
+			if lMsg.Source == "stderr" && config.UseStderr {
+				stream = errStream
+			}
+			if stream != nil {
+				var line string
+				if format != "" {
+					line = fmt.Sprintf("%s %s", lMsg.Timestamp.Format(format), lMsg.Line)
+				} else {
+					line = string(lMsg.Line)
+				}
+				if _, err := io.WriteString(stream, line+"\n"); err != nil {
+					logrus.Errorf("%s", err)
+					return err
+				}
 			}
 		}
-
 	}
 	return nil
 }

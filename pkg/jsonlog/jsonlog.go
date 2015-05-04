@@ -3,10 +3,7 @@ package jsonlog
 import (
 	"encoding/json"
 	"fmt"
-	"io"
 	"time"
-
-	"github.com/Sirupsen/logrus"
 )
 
 type JSONLog struct {
@@ -30,25 +27,4 @@ func (jl *JSONLog) Reset() {
 	jl.Log = ""
 	jl.Stream = ""
 	jl.Created = time.Time{}
-}
-
-func WriteLog(src io.Reader, dst io.Writer, format string) error {
-	dec := json.NewDecoder(src)
-	l := &JSONLog{}
-	for {
-		if err := dec.Decode(l); err == io.EOF {
-			return nil
-		} else if err != nil {
-			logrus.Printf("Error streaming logs: %s", err)
-			return err
-		}
-		line, err := l.Format(format)
-		if err != nil {
-			return err
-		}
-		if _, err := io.WriteString(dst, line); err != nil {
-			return err
-		}
-		l.Reset()
-	}
 }

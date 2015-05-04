@@ -516,25 +516,13 @@ func (streamConfig *StreamConfig) StdinPipe() io.WriteCloser {
 
 func (streamConfig *StreamConfig) StdoutPipe() io.ReadCloser {
 	reader, writer := io.Pipe()
-	streamConfig.stdout.AddWriter(writer, "")
+	streamConfig.stdout.AddWriter(writer)
 	return ioutils.NewBufReader(reader)
 }
 
 func (streamConfig *StreamConfig) StderrPipe() io.ReadCloser {
 	reader, writer := io.Pipe()
-	streamConfig.stderr.AddWriter(writer, "")
-	return ioutils.NewBufReader(reader)
-}
-
-func (streamConfig *StreamConfig) StdoutLogPipe() io.ReadCloser {
-	reader, writer := io.Pipe()
-	streamConfig.stdout.AddWriter(writer, "stdout")
-	return ioutils.NewBufReader(reader)
-}
-
-func (streamConfig *StreamConfig) StderrLogPipe() io.ReadCloser {
-	reader, writer := io.Pipe()
-	streamConfig.stderr.AddWriter(writer, "stderr")
+	streamConfig.stderr.AddWriter(writer)
 	return ioutils.NewBufReader(reader)
 }
 
@@ -1557,4 +1545,11 @@ func (c *Container) LogDriverType() string {
 		return c.daemon.defaultLogConfig.Type
 	}
 	return c.hostConfig.LogConfig.Type
+}
+
+func (c *Container) getLogDriver() logger.Logger {
+	c.Lock()
+	ld := c.logDriver
+	c.Unlock()
+	return ld
 }
