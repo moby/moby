@@ -173,7 +173,7 @@ func (n *networkNamespace) AddInterface(i *Interface) error {
 	}
 	defer f.Close()
 
-	// Find the network inteerface identified by the SrcName attribute.
+	// Find the network interface identified by the SrcName attribute.
 	iface, err := netlink.LinkByName(i.SrcName)
 	if err != nil {
 		return err

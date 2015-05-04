@@ -22,7 +22,7 @@ type NetworkCli struct {
 	call CallFunc
 }
 
-// NewNetworkCli is a conveninent function to create a NetworkCli object
+// NewNetworkCli is a convenient function to create a NetworkCli object
 func NewNetworkCli(out, err io.Writer, call CallFunc) *NetworkCli {
 	return &NetworkCli{
 		out:  out,
