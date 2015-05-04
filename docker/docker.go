@@ -25,9 +25,107 @@ const (
 	defaultCertFile     = "cert.pem"
 )
 
+func checkDaemon(args []string) bool {
+	for j := 1; j < len(args); j++ {
+		if args[j] == "-d" || args[j] == "--daemon" {
+			return true
+		} else if args[j][:1] == "-" {
+			if strings.Contains(args[j], "=") {
+				continue //Flag with a value
+			}
+			isBool, exists := flag.CommandLine.FlagsMap[args[j]]
+			if exists && !isBool {
+				//Global string flag
+				j = j + 1
+				continue
+			} else if exists && isBool {
+				//Global bool flag
+				continue
+			}
+
+			isBool, exists = cmd.FlagsMap[args[j]]
+			if exists && !isBool {
+				//Daemon string flag
+				j = j + 1
+				continue
+			} else if exists && isBool {
+				//Daemon bool flag
+				continue
+			}
+			break
+
+		} else {
+			break
+		}
+	}
+	return false
+}
+
+func shuffle(args []string) []string {
+	var (
+		global_args = []string{args[0]}
+		rest_args   = []string{"daemon"}
+	)
+
+	logrus.Printf("-d and --daemon are deprecated. Please use daemon command")
+	//Shuffling of arguments required.Create global and rest args list.
+
+	for j := 1; j < len(args); j++ {
+		if args[j] == "-d" || args[j] == "--daemon" {
+			continue
+		}
+		if args[j][:1] == "-" {
+			if index_of_equal := strings.Index(args[j], "="); index_of_equal != -1 {
+				_, exists := flag.CommandLine.FlagsMap[args[j][:index_of_equal]]
+				if exists {
+					//Global flag with a value
+					global_args = append(global_args, args[j])
+					continue
+				}
+				rest_args = append(rest_args, args[j])
+				continue
+			}
+			isBool, exists := flag.CommandLine.FlagsMap[args[j]]
+			if exists && !isBool {
+				//Global string flag
+				global_args = append(global_args, args[j])
+				j = j + 1
+				global_args = append(global_args, args[j])
+				continue
+			} else if exists && isBool {
+				//Global bool flag
+				global_args = append(global_args, args[j])
+				continue
+			}
+
+			isBool, exists = cmd.FlagsMap[args[j]]
+			if exists && !isBool {
+				//Daemon string flag
+				rest_args = append(rest_args, args[j])
+				j = j + 1
+				rest_args = append(rest_args, args[j])
+				continue
+			}
+			rest_args = append(rest_args, args[j])
+
+		} else {
+			rest_args = append(rest_args, args[j])
+		}
+
+	}
+	return append(global_args, rest_args...)
+}
+
 func main() {
+
 	if reexec.Init() {
 		return
+	}
+
+	installDaemonFlags()
+
+	if checkDaemon(os.Args) {
+		os.Args = shuffle(os.Args)
 	}
 
 	// Set terminal emulation based on platform as required.
@@ -36,7 +134,10 @@ func main() {
 	initLogging(stderr)
 
 	flag.Parse()
-	// FIXME: validate daemon flags here
+
+	if len(flag.Args()) != 0 && flag.Args()[0] == "daemon" {
+		*flDaemon = true
+	}
 
 	if *flVersion {
 		showVersion()
@@ -85,6 +186,11 @@ func main() {
 			flag.Usage()
 			return
 		}
+
+		if err := parseDaemonFlags(cmd, flag.Args()...); err != nil {
+			logrus.Fatal(err)
+		}
+
 		mainDaemon()
 		return
 	}

@@ -394,6 +394,17 @@ func (s *DockerSuite) TestRunModeNetContainerHostname(c *check.C) {
 	}
 }
 
+// Issue 9677.
+func (s *DockerSuite) TestRunWithDaemonFlags(c *check.C) {
+	runCmd := exec.Command(dockerBinary, "--selinux-enabled", "run", "-i", "-t", "busybox", "true")
+	out2, _, err := runCommandWithOutput(runCmd)
+	if err != nil {
+		if !strings.Contains(out2, "flag provided but not defined") {
+			c.Fatal(err, out2)
+		}
+	}
+}
+
 // Regression test for #4741
 func (s *DockerSuite) TestRunWithVolumesAsFiles(c *check.C) {
 	runCmd := exec.Command(dockerBinary, "run", "--name", "test-data", "--volume", "/etc/hosts:/target-file", "busybox", "true")

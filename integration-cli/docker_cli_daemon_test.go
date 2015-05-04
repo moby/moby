@@ -206,6 +206,74 @@ func (s *DockerDaemonSuite) TestDaemonLogLevelWrong(c *check.C) {
 	c.Assert(s.d.Start("--log-level=bogus"), check.NotNil, check.Commentf("Daemon shouldn't start with wrong log level"))
 }
 
+func (s *DockerSuite) TestDaemonStartWithBackwardCompatibility(c *check.C) {
+
+	var validCommandArgs = [][]string{
+		{"--selinux-enabled", "-l", "info"},
+		{"-p", "./d.pid", "--selinux-enabled", "-g=./graph"},
+		{"--tls"},
+		{"-H", "tcp://localhost:1234"},
+		{"-H", "tcp://localhost:1234", "-H=unix:///var/run/docker.sock"},
+		{"--insecure-registry", "daemon"},
+	}
+
+	var invalidCommandArgs = [][]string{
+		{"--selinux-enabled", "--storage-opt"},
+		{"-D", "-b"},
+	}
+
+	for _, args := range validCommandArgs {
+		d := NewDaemon(c)
+		if err := d.Start(args...); err != nil {
+			c.Fatal("Daemon should have started successfully")
+		}
+		d.Stop()
+	}
+
+	for _, args := range invalidCommandArgs {
+		d := NewDaemon(c)
+		if err := d.Start(args...); err == nil {
+			c.Fatal("Daemon should have failed to start")
+		}
+		d.Stop()
+	}
+}
+
+func (s *DockerSuite) TestDaemonStartWithDaemonCommand(c *check.C) {
+
+	var validCommandArgs = [][]string{
+		{"-l", "info", "daemon", "--selinux-enabled"},
+		{"-D", "daemon", "--selinux-enabled", "-r"},
+		{"-D", "daemon", "-r", "-g=./graph", "-p", "./d.pid"},
+	}
+
+	var invalidCommandArgs = [][]string{
+		//Invalid because you cannot pass daemon flags as global flags.
+		{"--selinux-enabled", "-l", "info", "daemon"},
+		{"-D", "-r", "daemon"},
+	}
+
+	for _, args := range validCommandArgs {
+
+		daemonCmd := exec.Command(dockerBinary, args...)
+		out, _, _, err := runCommandWithOutputForDuration(daemonCmd, time.Duration(time.Second*10))
+		if err != nil {
+			c.Fatalf("Daemon should have started successfully: %v, output: %q", err, out)
+		}
+	}
+
+	for _, args := range invalidCommandArgs {
+
+		daemonCmd := exec.Command(dockerBinary, args...)
+		out, _, _, err := runCommandWithOutputForDuration(daemonCmd, time.Duration(time.Second*10))
+		if err == nil {
+			c.Fatalf("Daemon should have failed to start: %v, output: %q", err, out)
+		}
+
+	}
+
+}
+
 func (s *DockerDaemonSuite) TestDaemonLogLevelDebug(c *check.C) {
 	if err := s.d.Start("--log-level=debug"); err != nil {
 		c.Fatal(err)
