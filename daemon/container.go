@@ -1303,9 +1303,6 @@ func (container *Container) verifyDaemonSettings() {
 		logrus.Warnf("Your kernel does not support swap limit capabilities. Limitation discarded.")
 		container.hostConfig.MemorySwap = -1
 	}
-	if container.daemon.sysInfo.IPv4ForwardingDisabled {
-		logrus.Warnf("IPv4 forwarding is disabled. Networking will not work")
-	}
 }
 
 func (container *Container) setupLinkedContainers() ([]string, error) {
