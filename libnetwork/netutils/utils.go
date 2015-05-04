@@ -114,9 +114,9 @@ func ParseProtocol(s string) Protocol {
 	case "icmp":
 		return 1
 	case "udp":
-		return 6
-	case "tcp":
 		return 17
+	case "tcp":
+		return 6
 	default:
 		return 0
 	}
