@@ -32,7 +32,7 @@ func initializer() {
 	if err != nil {
 		fatal(err)
 	}
-	if err := factory.StartInitialization(3); err != nil {
+	if err := factory.StartInitialization(); err != nil {
 		fatal(err)
 	}
 

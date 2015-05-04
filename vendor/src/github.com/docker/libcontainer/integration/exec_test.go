@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
+	"syscall"
 	"testing"
 
 	"github.com/docker/libcontainer"
@@ -29,9 +31,7 @@ func testExecPS(t *testing.T, userns bool) {
 		return
 	}
 	rootfs, err := newRootfs()
-	if err != nil {
-		t.Fatal(err)
-	}
+	ok(t, err)
 	defer remove(rootfs)
 	config := newTemplateConfig(rootfs)
 	if userns {
@@ -64,21 +64,15 @@ func TestIPCPrivate(t *testing.T) {
 	}
 
 	rootfs, err := newRootfs()
-	if err != nil {
-		t.Fatal(err)
-	}
+	ok(t, err)
 	defer remove(rootfs)
 
 	l, err := os.Readlink("/proc/1/ns/ipc")
-	if err != nil {
-		t.Fatal(err)
-	}
+	ok(t, err)
 
 	config := newTemplateConfig(rootfs)
 	buffers, exitCode, err := runContainer(config, "", "readlink", "/proc/self/ns/ipc")
-	if err != nil {
-		t.Fatal(err)
-	}
+	ok(t, err)
 
 	if exitCode != 0 {
 		t.Fatalf("exit code not 0. code %d stderr %q", exitCode, buffers.Stderr)
@@ -95,22 +89,16 @@ func TestIPCHost(t *testing.T) {
 	}
 
 	rootfs, err := newRootfs()
-	if err != nil {
-		t.Fatal(err)
-	}
+	ok(t, err)
 	defer remove(rootfs)
 
 	l, err := os.Readlink("/proc/1/ns/ipc")
-	if err != nil {
-		t.Fatal(err)
-	}
+	ok(t, err)
 
 	config := newTemplateConfig(rootfs)
 	config.Namespaces.Remove(configs.NEWIPC)
 	buffers, exitCode, err := runContainer(config, "", "readlink", "/proc/self/ns/ipc")
-	if err != nil {
-		t.Fatal(err)
-	}
+	ok(t, err)
 
 	if exitCode != 0 {
 		t.Fatalf("exit code not 0. code %d stderr %q", exitCode, buffers.Stderr)
@@ -127,23 +115,17 @@ func TestIPCJoinPath(t *testing.T) {
 	}
 
 	rootfs, err := newRootfs()
-	if err != nil {
-		t.Fatal(err)
-	}
+	ok(t, err)
 	defer remove(rootfs)
 
 	l, err := os.Readlink("/proc/1/ns/ipc")
-	if err != nil {
-		t.Fatal(err)
-	}
+	ok(t, err)
 
 	config := newTemplateConfig(rootfs)
 	config.Namespaces.Add(configs.NEWIPC, "/proc/1/ns/ipc")
 
 	buffers, exitCode, err := runContainer(config, "", "readlink", "/proc/self/ns/ipc")
-	if err != nil {
-		t.Fatal(err)
-	}
+	ok(t, err)
 
 	if exitCode != 0 {
 		t.Fatalf("exit code not 0. code %d stderr %q", exitCode, buffers.Stderr)
@@ -160,9 +142,7 @@ func TestIPCBadPath(t *testing.T) {
 	}
 
 	rootfs, err := newRootfs()
-	if err != nil {
-		t.Fatal(err)
-	}
+	ok(t, err)
 	defer remove(rootfs)
 
 	config := newTemplateConfig(rootfs)
@@ -180,16 +160,12 @@ func TestRlimit(t *testing.T) {
 	}
 
 	rootfs, err := newRootfs()
-	if err != nil {
-		t.Fatal(err)
-	}
+	ok(t, err)
 	defer remove(rootfs)
 
 	config := newTemplateConfig(rootfs)
 	out, _, err := runContainer(config, "", "/bin/sh", "-c", "ulimit -n")
-	if err != nil {
-		t.Fatal(err)
-	}
+	ok(t, err)
 	if limit := strings.TrimSpace(out.Stdout.String()); limit != "1025" {
 		t.Fatalf("expected rlimit to be 1025, got %s", limit)
 	}
@@ -208,9 +184,7 @@ func newTestRoot() (string, error) {
 
 func waitProcess(p *libcontainer.Process, t *testing.T) {
 	status, err := p.Wait()
-	if err != nil {
-		t.Fatal(err)
-	}
+	ok(t, err)
 	if !status.Success() {
 		t.Fatal(status)
 	}
@@ -221,35 +195,25 @@ func TestEnter(t *testing.T) {
 		return
 	}
 	root, err := newTestRoot()
-	if err != nil {
-		t.Fatal(err)
-	}
+	ok(t, err)
 	defer os.RemoveAll(root)
 
 	rootfs, err := newRootfs()
-	if err != nil {
-		t.Fatal(err)
-	}
+	ok(t, err)
 	defer remove(rootfs)
 
 	config := newTemplateConfig(rootfs)
 
 	factory, err := libcontainer.New(root, libcontainer.Cgroupfs)
-	if err != nil {
-		t.Fatal(err)
-	}
+	ok(t, err)
 
 	container, err := factory.Create("test", config)
-	if err != nil {
-		t.Fatal(err)
-	}
+	ok(t, err)
 	defer container.Destroy()
 
 	// Execute a first process in the container
 	stdinR, stdinW, err := os.Pipe()
-	if err != nil {
-		t.Fatal(err)
-	}
+	ok(t, err)
 
 	var stdout, stdout2 bytes.Buffer
 
@@ -262,19 +226,13 @@ func TestEnter(t *testing.T) {
 	err = container.Start(&pconfig)
 	stdinR.Close()
 	defer stdinW.Close()
-	if err != nil {
-		t.Fatal(err)
-	}
+	ok(t, err)
 	pid, err := pconfig.Pid()
-	if err != nil {
-		t.Fatal(err)
-	}
+	ok(t, err)
 
 	// Execute another process in the container
 	stdinR2, stdinW2, err := os.Pipe()
-	if err != nil {
-		t.Fatal(err)
-	}
+	ok(t, err)
 	pconfig2 := libcontainer.Process{
 		Env: standardEnvironment,
 	}
@@ -285,19 +243,13 @@ func TestEnter(t *testing.T) {
 	err = container.Start(&pconfig2)
 	stdinR2.Close()
 	defer stdinW2.Close()
-	if err != nil {
-		t.Fatal(err)
-	}
+	ok(t, err)
 
 	pid2, err := pconfig2.Pid()
-	if err != nil {
-		t.Fatal(err)
-	}
+	ok(t, err)
 
 	processes, err := container.Processes()
-	if err != nil {
-		t.Fatal(err)
-	}
+	ok(t, err)
 
 	n := 0
 	for i := range processes {
@@ -318,14 +270,10 @@ func TestEnter(t *testing.T) {
 
 	// Check that both processes live in the same pidns
 	pidns := string(stdout.Bytes())
-	if err != nil {
-		t.Fatal(err)
-	}
+	ok(t, err)
 
 	pidns2 := string(stdout2.Bytes())
-	if err != nil {
-		t.Fatal(err)
-	}
+	ok(t, err)
 
 	if pidns != pidns2 {
 		t.Fatal("The second process isn't in the required pid namespace", pidns, pidns2)
@@ -337,28 +285,20 @@ func TestProcessEnv(t *testing.T) {
 		return
 	}
 	root, err := newTestRoot()
-	if err != nil {
-		t.Fatal(err)
-	}
+	ok(t, err)
 	defer os.RemoveAll(root)
 
 	rootfs, err := newRootfs()
-	if err != nil {
-		t.Fatal(err)
-	}
+	ok(t, err)
 	defer remove(rootfs)
 
 	config := newTemplateConfig(rootfs)
 
 	factory, err := libcontainer.New(root, libcontainer.Cgroupfs)
-	if err != nil {
-		t.Fatal(err)
-	}
+	ok(t, err)
 
 	container, err := factory.Create("test", config)
-	if err != nil {
-		t.Fatal(err)
-	}
+	ok(t, err)
 	defer container.Destroy()
 
 	var stdout bytes.Buffer
@@ -374,17 +314,12 @@ func TestProcessEnv(t *testing.T) {
 		Stdout: &stdout,
 	}
 	err = container.Start(&pconfig)
-	if err != nil {
-		t.Fatal(err)
-	}
+	ok(t, err)
 
 	// Wait for process
 	waitProcess(&pconfig, t)
 
 	outputEnv := string(stdout.Bytes())
-	if err != nil {
-		t.Fatal(err)
-	}
 
 	// Check that the environment has the key/value pair we added
 	if !strings.Contains(outputEnv, "FOO=BAR") {
@@ -402,28 +337,20 @@ func TestProcessCaps(t *testing.T) {
 		return
 	}
 	root, err := newTestRoot()
-	if err != nil {
-		t.Fatal(err)
-	}
+	ok(t, err)
 	defer os.RemoveAll(root)
 
 	rootfs, err := newRootfs()
-	if err != nil {
-		t.Fatal(err)
-	}
+	ok(t, err)
 	defer remove(rootfs)
 
 	config := newTemplateConfig(rootfs)
 
 	factory, err := libcontainer.New(root, libcontainer.Cgroupfs)
-	if err != nil {
-		t.Fatal(err)
-	}
+	ok(t, err)
 
 	container, err := factory.Create("test", config)
-	if err != nil {
-		t.Fatal(err)
-	}
+	ok(t, err)
 	defer container.Destroy()
 
 	processCaps := append(config.Capabilities, "NET_ADMIN")
@@ -437,17 +364,12 @@ func TestProcessCaps(t *testing.T) {
 		Stdout:       &stdout,
 	}
 	err = container.Start(&pconfig)
-	if err != nil {
-		t.Fatal(err)
-	}
+	ok(t, err)
 
 	// Wait for process
 	waitProcess(&pconfig, t)
 
 	outputStatus := string(stdout.Bytes())
-	if err != nil {
-		t.Fatal(err)
-	}
 
 	lines := strings.Split(outputStatus, "\n")
 
@@ -497,37 +419,28 @@ func testFreeze(t *testing.T, systemd bool) {
 		return
 	}
 	root, err := newTestRoot()
-	if err != nil {
-		t.Fatal(err)
-	}
+	ok(t, err)
 	defer os.RemoveAll(root)
 
 	rootfs, err := newRootfs()
-	if err != nil {
-		t.Fatal(err)
-	}
+	ok(t, err)
 	defer remove(rootfs)
 
 	config := newTemplateConfig(rootfs)
+	cgm := libcontainer.Cgroupfs
 	if systemd {
-		config.Cgroups.Slice = "system.slice"
+		cgm = libcontainer.SystemdCgroups
 	}
 
-	factory, err := libcontainer.New(root, libcontainer.Cgroupfs)
-	if err != nil {
-		t.Fatal(err)
-	}
+	factory, err := libcontainer.New(root, cgm)
+	ok(t, err)
 
 	container, err := factory.Create("test", config)
-	if err != nil {
-		t.Fatal(err)
-	}
+	ok(t, err)
 	defer container.Destroy()
 
 	stdinR, stdinW, err := os.Pipe()
-	if err != nil {
-		t.Fatal(err)
-	}
+	ok(t, err)
 
 	pconfig := libcontainer.Process{
 		Args:  []string{"cat"},
@@ -537,41 +450,61 @@ func testFreeze(t *testing.T, systemd bool) {
 	err = container.Start(&pconfig)
 	stdinR.Close()
 	defer stdinW.Close()
-	if err != nil {
-		t.Fatal(err)
-	}
+	ok(t, err)
 
 	pid, err := pconfig.Pid()
-	if err != nil {
-		t.Fatal(err)
-	}
+	ok(t, err)
 
 	process, err := os.FindProcess(pid)
-	if err != nil {
-		t.Fatal(err)
-	}
+	ok(t, err)
 
-	if err := container.Pause(); err != nil {
-		t.Fatal(err)
-	}
+	err = container.Pause()
+	ok(t, err)
 	state, err := container.Status()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := container.Resume(); err != nil {
-		t.Fatal(err)
-	}
+	ok(t, err)
+	err = container.Resume()
+	ok(t, err)
 	if state != libcontainer.Paused {
 		t.Fatal("Unexpected state: ", state)
 	}
 
 	stdinW.Close()
 	s, err := process.Wait()
-	if err != nil {
-		t.Fatal(err)
-	}
+	ok(t, err)
+
 	if !s.Success() {
 		t.Fatal(s.String())
+	}
+}
+
+func TestCpuShares(t *testing.T) {
+	testCpuShares(t, false)
+}
+
+func TestSystemdCpuShares(t *testing.T) {
+	if !systemd.UseSystemd() {
+		t.Skip("Systemd is unsupported")
+	}
+	testCpuShares(t, true)
+}
+
+func testCpuShares(t *testing.T, systemd bool) {
+	if testing.Short() {
+		return
+	}
+	rootfs, err := newRootfs()
+	ok(t, err)
+	defer remove(rootfs)
+
+	config := newTemplateConfig(rootfs)
+	if systemd {
+		config.Cgroups.Slice = "system.slice"
+	}
+	config.Cgroups.CpuShares = 1
+
+	_, _, err = runContainer(config, "", "ps")
+	if err == nil {
+		t.Fatalf("runContainer should failed with invalid CpuShares")
 	}
 }
 
@@ -647,4 +580,186 @@ func TestContainerState(t *testing.T) {
 	}
 	stdinW.Close()
 	p.Wait()
+}
+
+func TestPassExtraFiles(t *testing.T) {
+	if testing.Short() {
+		return
+	}
+
+	rootfs, err := newRootfs()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer remove(rootfs)
+
+	config := newTemplateConfig(rootfs)
+
+	factory, err := libcontainer.New(rootfs, libcontainer.Cgroupfs)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	container, err := factory.Create("test", config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer container.Destroy()
+
+	var stdout bytes.Buffer
+	pipeout1, pipein1, err := os.Pipe()
+	pipeout2, pipein2, err := os.Pipe()
+	process := libcontainer.Process{
+		Args:       []string{"sh", "-c", "cd /proc/$$/fd; echo -n *; echo -n 1 >3; echo -n 2 >4"},
+		Env:        []string{"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"},
+		ExtraFiles: []*os.File{pipein1, pipein2},
+		Stdin:      nil,
+		Stdout:     &stdout,
+	}
+	err = container.Start(&process)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	waitProcess(&process, t)
+
+	out := string(stdout.Bytes())
+	// fd 5 is the directory handle for /proc/$$/fd
+	if out != "0 1 2 3 4 5" {
+		t.Fatalf("expected to have the file descriptors '0 1 2 3 4 5' passed to init, got '%s'", out)
+	}
+	var buf = []byte{0}
+	_, err = pipeout1.Read(buf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	out1 := string(buf)
+	if out1 != "1" {
+		t.Fatalf("expected first pipe to receive '1', got '%s'", out1)
+	}
+
+	_, err = pipeout2.Read(buf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	out2 := string(buf)
+	if out2 != "2" {
+		t.Fatalf("expected second pipe to receive '2', got '%s'", out2)
+	}
+}
+
+func TestMountCmds(t *testing.T) {
+	if testing.Short() {
+		return
+	}
+	root, err := newTestRoot()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(root)
+
+	rootfs, err := newRootfs()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer remove(rootfs)
+
+	tmpDir, err := ioutil.TempDir("", "tmpdir")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	config := newTemplateConfig(rootfs)
+	config.Mounts = append(config.Mounts, &configs.Mount{
+		Source:      tmpDir,
+		Destination: filepath.Join(rootfs, "tmp"),
+		Device:      "bind",
+		Flags:       syscall.MS_BIND | syscall.MS_REC,
+		PremountCmds: []configs.Command{
+			{Path: "touch", Args: []string{filepath.Join(tmpDir, "hello")}},
+			{Path: "touch", Args: []string{filepath.Join(tmpDir, "world")}},
+		},
+		PostmountCmds: []configs.Command{
+			{Path: "cp", Args: []string{filepath.Join(rootfs, "tmp", "hello"), filepath.Join(rootfs, "tmp", "hello-backup")}},
+			{Path: "cp", Args: []string{filepath.Join(rootfs, "tmp", "world"), filepath.Join(rootfs, "tmp", "world-backup")}},
+		},
+	})
+
+	factory, err := libcontainer.New(root, libcontainer.Cgroupfs)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	container, err := factory.Create("test", config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer container.Destroy()
+
+	pconfig := libcontainer.Process{
+		Args: []string{"sh", "-c", "env"},
+		Env:  standardEnvironment,
+	}
+	err = container.Start(&pconfig)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Wait for process
+	waitProcess(&pconfig, t)
+
+	entries, err := ioutil.ReadDir(tmpDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	expected := []string{"hello", "hello-backup", "world", "world-backup"}
+	for i, e := range entries {
+		if e.Name() != expected[i] {
+			t.Errorf("Got(%s), expect %s", e.Name(), expected[i])
+		}
+	}
+}
+
+func TestSystemProperties(t *testing.T) {
+	if testing.Short() {
+		return
+	}
+	root, err := newTestRoot()
+	ok(t, err)
+	defer os.RemoveAll(root)
+
+	rootfs, err := newRootfs()
+	ok(t, err)
+	defer remove(rootfs)
+
+	config := newTemplateConfig(rootfs)
+	config.SystemProperties = map[string]string{
+		"kernel.shmmni": "8192",
+	}
+
+	factory, err := libcontainer.New(root, libcontainer.Cgroupfs)
+	ok(t, err)
+
+	container, err := factory.Create("test", config)
+	ok(t, err)
+	defer container.Destroy()
+
+	var stdout bytes.Buffer
+	pconfig := libcontainer.Process{
+		Args:   []string{"sh", "-c", "cat /proc/sys/kernel/shmmni"},
+		Env:    standardEnvironment,
+		Stdin:  nil,
+		Stdout: &stdout,
+	}
+	err = container.Start(&pconfig)
+	ok(t, err)
+
+	// Wait for process
+	waitProcess(&pconfig, t)
+
+	shmmniOutput := strings.TrimSpace(string(stdout.Bytes()))
+	if shmmniOutput != "8192" {
+		t.Fatalf("kernel.shmmni property expected to be 8192, but is %s", shmmniOutput)
+	}
 }

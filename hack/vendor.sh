@@ -53,8 +53,6 @@ clone hg code.google.com/p/gosqlite 74691fb6f837
 
 clone git github.com/docker/libtrust 230dfd18c232
 
-clone git github.com/Sirupsen/logrus v0.7.2
-
 clone git github.com/go-fsnotify/fsnotify v1.2.0
 
 clone git github.com/go-check/check 64131543e7896d5bcc6bd5a76287eb75ea96c673
@@ -69,8 +67,8 @@ mv tmp-digest src/github.com/docker/distribution/digest
 mkdir -p src/github.com/docker/distribution/registry
 mv tmp-api src/github.com/docker/distribution/registry/api
 
-clone git github.com/docker/libcontainer bd8ec36106086f72b66e1be85a81202b93503e44
+clone git github.com/docker/libcontainer 6607689b1d06743003a45a722d9fe0bef36b274e
 # see src/github.com/docker/libcontainer/update-vendor.sh which is the "source of truth" for libcontainer deps (just like this file)
 rm -rf src/github.com/docker/libcontainer/vendor
-eval "$(grep '^clone ' src/github.com/docker/libcontainer/update-vendor.sh | grep -v 'github.com/codegangsta/cli' | grep -v 'github.com/Sirupsen/logrus')"
+eval "$(grep '^clone ' src/github.com/docker/libcontainer/update-vendor.sh | grep -v 'github.com/codegangsta/cli')"
 # we exclude "github.com/codegangsta/cli" here because it's only needed for "nsinit", which Docker doesn't include

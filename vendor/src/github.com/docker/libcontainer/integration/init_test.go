@@ -21,7 +21,7 @@ func init() {
 	if err != nil {
 		log.Fatalf("unable to initialize for container: %s", err)
 	}
-	if err := factory.StartInitialization(3); err != nil {
+	if err := factory.StartInitialization(); err != nil {
 		log.Fatal(err)
 	}
 }

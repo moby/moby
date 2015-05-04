@@ -6,8 +6,11 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"syscall"
+	"testing"
 
 	"github.com/docker/libcontainer"
 	"github.com/docker/libcontainer/configs"
@@ -36,6 +39,14 @@ func (b *stdBuffers) String() string {
 		s = append(s, b.Stdout.String())
 	}
 	return strings.Join(s, "|")
+}
+
+// ok fails the test if an err is not nil.
+func ok(t testing.TB, err error) {
+	if err != nil {
+		_, file, line, _ := runtime.Caller(1)
+		t.Fatalf("%s:%d: unexpected error: %s\n\n", filepath.Base(file), line, err.Error())
+	}
 }
 
 // newRootfs creates a new tmp directory and copies the busybox root filesystem
