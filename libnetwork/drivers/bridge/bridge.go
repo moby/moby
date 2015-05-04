@@ -183,6 +183,8 @@ func (d *driver) Config(option map[string]interface{}) error {
 func (d *driver) getNetwork(id types.UUID) (*bridgeNetwork, error) {
 	// Just a dummy function to return the only network managed by Bridge driver.
 	// But this API makes the caller code unchanged when we move to support multiple networks.
+	d.Lock()
+	defer d.Unlock()
 	return d.network, nil
 }
 
@@ -627,20 +629,24 @@ func (d *driver) EndpointInfo(nid, eid types.UUID) (map[string]interface{}, erro
 
 // Join method is invoked when a Sandbox is attached to an endpoint.
 func (d *driver) Join(nid, eid types.UUID, sboxKey string, options map[string]interface{}) (*driverapi.JoinInfo, error) {
-	var err error
-	if !d.config.EnableICC {
-		err = d.link(nid, eid, options, true)
+	d.Lock()
+	config := d.config
+	d.Unlock()
+	if !config.EnableICC {
+		return nil, d.link(nid, eid, options, true)
 	}
-	return nil, err
+	return nil, nil
 }
 
 // Leave method is invoked when a Sandbox detaches from an endpoint.
 func (d *driver) Leave(nid, eid types.UUID, options map[string]interface{}) error {
-	var err error
-	if !d.config.EnableICC {
-		err = d.link(nid, eid, options, false)
+	d.Lock()
+	config := d.config
+	d.Unlock()
+	if !config.EnableICC {
+		return d.link(nid, eid, options, false)
 	}
-	return err
+	return nil
 }
 
 func (d *driver) link(nid, eid types.UUID, options map[string]interface{}, enable bool) error {
@@ -684,9 +690,11 @@ func (d *driver) link(nid, eid types.UUID, options map[string]interface{}, enabl
 				return err
 			}
 
+			d.Lock()
 			l := newLink(parentEndpoint.intf.Address.IP.String(),
 				endpoint.intf.Address.IP.String(),
 				endpoint.config.ExposedPorts, d.config.BridgeName)
+			d.Unlock()
 			if enable {
 				err = l.Enable()
 				if err != nil {
@@ -716,9 +724,11 @@ func (d *driver) link(nid, eid types.UUID, options map[string]interface{}, enabl
 		if childEndpoint.config == nil || childEndpoint.config.ExposedPorts == nil {
 			continue
 		}
+		d.Lock()
 		l := newLink(endpoint.intf.Address.IP.String(),
 			childEndpoint.intf.Address.IP.String(),
 			childEndpoint.config.ExposedPorts, d.config.BridgeName)
+		d.Unlock()
 		if enable {
 			err = l.Enable()
 			if err != nil {
