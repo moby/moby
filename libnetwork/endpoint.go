@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 
 	"github.com/docker/docker/pkg/etchosts"
+	"github.com/docker/docker/pkg/resolvconf"
 	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/netutils"
 	"github.com/docker/libnetwork/pkg/options"
@@ -54,12 +55,15 @@ type ContainerData struct {
 }
 
 type containerConfig struct {
-	hostName      string
-	domainName    string
-	generic       map[string]interface{}
-	hostsPath     string
-	ExtraHosts    []extraHost
-	parentUpdates []parentUpdate
+	hostName       string
+	domainName     string
+	generic        map[string]interface{}
+	hostsPath      string
+	ExtraHosts     []extraHost
+	parentUpdates  []parentUpdate
+	resolvConfPath string
+	dnsList        []string
+	dnsSearchList  []string
 }
 
 type extraHost struct {
@@ -179,6 +183,10 @@ func (ep *endpoint) Join(containerID string, options ...EndpointOption) (*Contai
 		ep.container.config.hostsPath = defaultPrefix + "/" + containerID + "/hosts"
 	}
 
+	if ep.container.config.resolvConfPath == "" {
+		ep.container.config.resolvConfPath = defaultPrefix + "/" + containerID + "/resolv.conf"
+	}
+
 	sboxKey := sandbox.GenerateKey(containerID)
 
 	joinInfo, err := ep.network.driver.Join(ep.network.id, ep.id,
@@ -194,6 +202,11 @@ func (ep *endpoint) Join(containerID string, options ...EndpointOption) (*Contai
 	}
 
 	err = ep.updateParentHosts()
+	if err != nil {
+		return nil, err
+	}
+
+	err = ep.setupDNS()
 	if err != nil {
 		return nil, err
 	}
@@ -327,16 +340,6 @@ func (ep *endpoint) buildHostsFiles() error {
 		ep.container.config.domainName, extraContent)
 }
 
-// EndpointOptionGeneric function returns an option setter for a Generic option defined
-// in a Dictionary of Key-Value pair
-func EndpointOptionGeneric(generic map[string]interface{}) EndpointOption {
-	return func(ep *endpoint) {
-		for k, v := range generic {
-			ep.generic[k] = v
-		}
-	}
-}
-
 func (ep *endpoint) updateParentHosts() error {
 	for _, update := range ep.container.config.parentUpdates {
 		ep.network.Lock()
@@ -354,6 +357,51 @@ func (ep *endpoint) updateParentHosts() error {
 	}
 
 	return nil
+}
+
+func (ep *endpoint) setupDNS() error {
+	dir, _ := filepath.Split(ep.container.config.resolvConfPath)
+	err := createBasePath(dir)
+	if err != nil {
+		return err
+	}
+
+	resolvConf, err := resolvconf.Get()
+	if err != nil {
+		return err
+	}
+
+	if len(ep.container.config.dnsList) > 0 ||
+		len(ep.container.config.dnsSearchList) > 0 {
+		var (
+			dnsList       = resolvconf.GetNameservers(resolvConf)
+			dnsSearchList = resolvconf.GetSearchDomains(resolvConf)
+		)
+
+		if len(ep.container.config.dnsList) > 0 {
+			dnsList = ep.container.config.dnsList
+		}
+
+		if len(ep.container.config.dnsSearchList) > 0 {
+			dnsSearchList = ep.container.config.dnsSearchList
+		}
+
+		return resolvconf.Build(ep.container.config.resolvConfPath, dnsList, dnsSearchList)
+	}
+
+	// replace any localhost/127.* but always discard IPv6 entries for now.
+	resolvConf, _ = resolvconf.FilterResolvDns(resolvConf, false)
+	return ioutil.WriteFile(ep.container.config.resolvConfPath, resolvConf, 0644)
+}
+
+// EndpointOptionGeneric function returns an option setter for a Generic option defined
+// in a Dictionary of Key-Value pair
+func EndpointOptionGeneric(generic map[string]interface{}) EndpointOption {
+	return func(ep *endpoint) {
+		for k, v := range generic {
+			ep.generic[k] = v
+		}
+	}
 }
 
 // JoinOptionHostname function returns an option setter for hostname option to
@@ -393,6 +441,30 @@ func JoinOptionExtraHost(name string, IP string) EndpointOption {
 func JoinOptionParentUpdate(eid string, name, ip string) EndpointOption {
 	return func(ep *endpoint) {
 		ep.container.config.parentUpdates = append(ep.container.config.parentUpdates, parentUpdate{eid: eid, name: name, ip: ip})
+	}
+}
+
+// JoinOptionResolvConfPath function returns an option setter for resolvconfpath option to
+// be passed to endpoint Join method.
+func JoinOptionResolvConfPath(path string) EndpointOption {
+	return func(ep *endpoint) {
+		ep.container.config.resolvConfPath = path
+	}
+}
+
+// JoinOptionDNS function returns an option setter for dns entry option to
+// be passed to endpoint Join method.
+func JoinOptionDNS(dns string) EndpointOption {
+	return func(ep *endpoint) {
+		ep.container.config.dnsList = append(ep.container.config.dnsList, dns)
+	}
+}
+
+// JoinOptionDNSSearch function returns an option setter for dns search entry option to
+// be passed to endpoint Join method.
+func JoinOptionDNSSearch(search string) EndpointOption {
+	return func(ep *endpoint) {
+		ep.container.config.dnsSearchList = append(ep.container.config.dnsSearchList, search)
 	}
 }
 
