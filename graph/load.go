@@ -7,7 +7,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
-	"path"
+	"path/filepath"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/image"
@@ -25,7 +25,7 @@ func (s *TagStore) Load(inTar io.ReadCloser, outStream io.Writer) error {
 	defer os.RemoveAll(tmpImageDir)
 
 	var (
-		repoDir = path.Join(tmpImageDir, "repo")
+		repoDir = filepath.Join(tmpImageDir, "repo")
 	)
 
 	if err := os.Mkdir(repoDir, os.ModeDir); err != nil {
@@ -58,7 +58,7 @@ func (s *TagStore) Load(inTar io.ReadCloser, outStream io.Writer) error {
 		}
 	}
 
-	reposJSONFile, err := os.Open(path.Join(tmpImageDir, "repo", "repositories"))
+	reposJSONFile, err := os.Open(filepath.Join(tmpImageDir, "repo", "repositories"))
 	if err != nil {
 		if !os.IsNotExist(err) {
 			return err
@@ -87,13 +87,13 @@ func (s *TagStore) recursiveLoad(address, tmpImageDir string) error {
 	if _, err := s.LookupImage(address); err != nil {
 		logrus.Debugf("Loading %s", address)
 
-		imageJson, err := ioutil.ReadFile(path.Join(tmpImageDir, "repo", address, "json"))
+		imageJson, err := ioutil.ReadFile(filepath.Join(tmpImageDir, "repo", address, "json"))
 		if err != nil {
 			logrus.Debugf("Error reading json", err)
 			return err
 		}
 
-		layer, err := os.Open(path.Join(tmpImageDir, "repo", address, "layer.tar"))
+		layer, err := os.Open(filepath.Join(tmpImageDir, "repo", address, "layer.tar"))
 		if err != nil {
 			logrus.Debugf("Error reading embedded tar", err)
 			return err
