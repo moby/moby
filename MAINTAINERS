@@ -345,6 +345,7 @@ made through a pull request.
 			"icecrime",
 			"jfrazelle",
 			"lk4d4",
+			"runcom",
 			"tibor",
 			"unclejack",
 			"vbatts",
@@ -591,6 +592,11 @@ made through a pull request.
 	Name = "Mary Anthony"
 	Email = "mary.anthony@docker.com"
 	GitHub = "moxiegirl"
+
+	[people.runcom]
+	Name = "Antonio Murdaca"
+	Email = "me@runcom.ninja"
+	GitHub = "runcom"
 
 	[people.sday]
 	Name = "Stephen Day"
