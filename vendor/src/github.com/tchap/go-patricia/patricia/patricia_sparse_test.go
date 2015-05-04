@@ -300,10 +300,10 @@ func TestTrie_VisitReturnError(t *testing.T) {
 	someErr := errors.New("Something exploded")
 	if err := trie.Visit(func(prefix Prefix, item Item) error {
 		t.Logf("VISITING prefix=%q, item=%v", prefix, item)
-		if item.(int) == 0 {
+		if item.(int) == 3 {
 			return someErr
 		}
-		if item.(int) != 0 {
+		if item.(int) != 3 {
 			t.Errorf("Unexpected prefix encountered, %q", prefix)
 		}
 		return nil
@@ -598,10 +598,10 @@ func ExampleTrie() {
 
 	// Walk the tree.
 	trie.Visit(printItem)
+	// "Karel Hynek Macha": 4
+	// "Karel Macha": 3
 	// "Pepa Novak": 1
 	// "Pepa Sindelar": 2
-	// "Karel Macha": 3
-	// "Karel Hynek Macha": 4
 
 	// Walk a subtree.
 	trie.VisitSubtree(Prefix("Pepa"), printItem)
@@ -625,8 +625,8 @@ func ExampleTrie() {
 
 	// Walk again.
 	trie.Visit(printItem)
-	// "Pepa Sindelar": 2
 	// "Karel Hynek Macha": 10
+	// "Pepa Sindelar": 2
 
 	// Delete a subtree.
 	trie.DeleteSubtree(Prefix("Pepa"))
@@ -638,16 +638,16 @@ func ExampleTrie() {
 	// Output:
 	// "Pepa Novak" present? true
 	// Anybody called "Karel" here? true
-	// "Pepa Novak": 1
-	// "Pepa Sindelar": 2
-	// "Karel Macha": 3
 	// "Karel Hynek Macha": 4
+	// "Karel Macha": 3
+	// "Pepa Novak": 1
+	// "Pepa Sindelar": 2
 	// "Pepa Novak": 1
 	// "Pepa Sindelar": 2
 	// "Karel Hynek Macha": 10
 	// "Karel Hynek Macha": 10
-	// "Pepa Sindelar": 2
 	// "Karel Hynek Macha": 10
+	// "Pepa Sindelar": 2
 	// "Karel Hynek Macha": 10
 }
 
