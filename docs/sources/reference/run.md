@@ -812,7 +812,7 @@ command is not available for this logging driver
 
 #### Logging driver: journald
 
-Journald logging driver for Docker. Writes log messages to journald. `docker logs` command is not available for this logging driver
+Journald logging driver for Docker. Writes log messages to journald; the container id will be stored in the journal's `CONTAINER_ID` field. `docker logs` command is not available for this logging driver.  For detailed information on working with this logging driver, see [the journald logging driver](reference/logging/journald) reference documentation.
 
 ## Overriding Dockerfile image defaults
 

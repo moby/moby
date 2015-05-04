@@ -131,6 +131,7 @@ pages:
 - ['reference/builder.md', 'Reference', 'Dockerfile']
 - ['faq.md', 'Reference', 'FAQ']
 - ['reference/run.md', 'Reference', 'Run reference']
+- ['reference/logging/journald.md', '**HIDDEN**']
 - ['compose/cli.md', 'Reference', 'Compose command line']
 - ['compose/yml.md', 'Reference', 'Compose yml']
 - ['compose/env.md', 'Reference', 'Compose ENV variables']
