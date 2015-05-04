@@ -131,6 +131,22 @@ func TestBridge(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	epInfo, err := ep.Info()
+	if err != nil {
+		t.Fatal(err)
+	}
+	pmd, ok := epInfo[options.PortMap]
+	if !ok {
+		t.Fatalf("Could not find expected info in endpoint data")
+	}
+	pm, ok := pmd.([]netutils.PortBinding)
+	if !ok {
+		t.Fatalf("Unexpected format for port mapping in endpoint operational data")
+	}
+	if len(pm) != 3 {
+		t.Fatalf("Incomplete data for port mapping in endpoint operational data")
+	}
+
 	if err := ep.Delete(); err != nil {
 		t.Fatal(err)
 	}

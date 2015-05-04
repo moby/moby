@@ -72,6 +72,68 @@ func TestCreateFullOptions(t *testing.T) {
 		t.Fatalf("Failed to create bridge: %v", err)
 	}
 }
+
+func TestQueryEndpointInfo(t *testing.T) {
+	defer netutils.SetupTestNetNS(t)()
+
+	_, d := New()
+
+	config := &Configuration{
+		BridgeName:     DefaultBridgeName,
+		EnableIPTables: true,
+		EnableICC:      false,
+	}
+	genericOption := make(map[string]interface{})
+	genericOption[options.GenericData] = config
+
+	if err := d.Config(genericOption); err != nil {
+		t.Fatalf("Failed to setup driver config: %v", err)
+	}
+
+	err := d.CreateNetwork("net1", nil)
+	if err != nil {
+		t.Fatalf("Failed to create bridge: %v", err)
+	}
+
+	portMappings := getPortMapping()
+	epOptions := make(map[string]interface{})
+	epOptions[options.PortMap] = portMappings
+
+	_, err = d.CreateEndpoint("net1", "ep1", epOptions)
+	if err != nil {
+		t.Fatalf("Failed to create an endpoint : %s", err.Error())
+	}
+
+	dd := d.(*driver)
+	ep, _ := dd.network.endpoints["ep1"]
+	data, err := d.EndpointInfo(dd.network.id, ep.id)
+	if err != nil {
+		t.Fatalf("Failed to ask for endpoint operational data:  %v", err)
+	}
+	pmd, ok := data[options.PortMap]
+	if !ok {
+		t.Fatalf("Endpoint operational data does not contain port mapping data")
+	}
+	pm, ok := pmd.([]netutils.PortBinding)
+	if !ok {
+		t.Fatalf("Unexpected format for port mapping in endpoint operational data")
+	}
+	if len(ep.portMapping) != len(pm) {
+		t.Fatalf("Incomplete data for port mapping in endpoint operational data")
+	}
+	for i, pb := range ep.portMapping {
+		if !pb.Equal(&pm[i]) {
+			t.Fatalf("Unexpected data for port mapping in endpoint operational data")
+		}
+	}
+
+	// Cleanup as host ports are there
+	err = releasePorts(ep)
+	if err != nil {
+		t.Fatalf("Failed to release mapped ports: %v", err)
+	}
+}
+
 func TestCreateLinkWithOptions(t *testing.T) {
 	defer netutils.SetupTestNetNS(t)()
 

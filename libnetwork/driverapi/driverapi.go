@@ -40,6 +40,9 @@ type Driver interface {
 	// passing the network id and endpoint id.
 	DeleteEndpoint(nid, eid types.UUID) error
 
+	// EndpointInfo retrieves from the driver the operational data related to the specified endpoint
+	EndpointInfo(nid, eid types.UUID) (map[string]interface{}, error)
+
 	// Join method is invoked when a Sandbox is attached to an endpoint.
 	Join(nid, eid types.UUID, sboxKey string, options map[string]interface{}) error
 

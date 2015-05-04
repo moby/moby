@@ -573,6 +573,46 @@ func (d *driver) DeleteEndpoint(nid, eid types.UUID) error {
 	return nil
 }
 
+func (d *driver) EndpointInfo(nid, eid types.UUID) (map[string]interface{}, error) {
+	// Get the network handler and make sure it exists
+	d.Lock()
+	n := d.network
+	d.Unlock()
+	if n == nil {
+		return nil, driverapi.ErrNoNetwork
+	}
+
+	// Sanity check
+	n.Lock()
+	if n.id != nid {
+		n.Unlock()
+		return nil, InvalidNetworkIDError(nid)
+	}
+	n.Unlock()
+
+	// Check if endpoint id is good and retrieve correspondent endpoint
+	ep, err := n.getEndpoint(eid)
+	if err != nil {
+		return nil, err
+	}
+	if ep == nil {
+		return nil, driverapi.ErrNoEndpoint
+	}
+
+	m := make(map[string]interface{})
+
+	if ep.portMapping != nil {
+		// Return a copy of the operational data
+		pmc := make([]netutils.PortBinding, 0, len(ep.portMapping))
+		for _, pm := range ep.portMapping {
+			pmc = append(pmc, pm.GetCopy())
+		}
+		m[options.PortMap] = pmc
+	}
+
+	return m, nil
+}
+
 // Join method is invoked when a Sandbox is attached to an endpoint.
 func (d *driver) Join(nid, eid types.UUID, sboxKey string, options map[string]interface{}) error {
 	var err error

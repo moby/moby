@@ -83,6 +83,43 @@ func (p *PortBinding) GetCopy() PortBinding {
 	}
 }
 
+// Equal checks if this instance of PortBinding is equal to the passed one
+func (p *PortBinding) Equal(o *PortBinding) bool {
+	if p == o {
+		return true
+	}
+
+	if o == nil {
+		return false
+	}
+
+	if p.Proto != o.Proto || p.Port != o.Port || p.HostPort != o.HostPort {
+		return false
+	}
+
+	if p.IP != nil {
+		if !p.IP.Equal(o.IP) {
+			return false
+		}
+	} else {
+		if o.IP != nil {
+			return false
+		}
+	}
+
+	if p.HostIP != nil {
+		if !p.HostIP.Equal(o.HostIP) {
+			return false
+		}
+	} else {
+		if o.HostIP != nil {
+			return false
+		}
+	}
+
+	return true
+}
+
 const (
 	// ICMP is for the ICMP ip protocol
 	ICMP = 1
