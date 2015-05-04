@@ -47,6 +47,22 @@ func env(b *Builder, args []string, attributes map[string]bool, original string)
 		return fmt.Errorf("Bad input to ENV, too many args")
 	}
 
+	// TODO/FIXME/NOT USED
+	// Just here to show how to use the builder flags stuff within the
+	// context of a builder command. Will remove once we actually add
+	// a builder command to something!
+	/*
+		flBool1 := b.BuilderFlags.AddBool("bool1", false)
+		flStr1 := b.BuilderFlags.AddString("str1", "HI")
+
+		if err := b.BuilderFlags.Parse(); err != nil {
+			return err
+		}
+
+		fmt.Printf("Bool1:%v\n", flBool1)
+		fmt.Printf("Str1:%v\n", flStr1)
+	*/
+
 	commitStr := "ENV"
 
 	for j := 0; j < len(args); j++ {
