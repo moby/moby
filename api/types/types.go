@@ -153,7 +153,6 @@ type Info struct {
 	MemoryLimit        bool
 	SwapLimit          bool
 	CpuCfsQuota        bool
-	IPv4Forwarding     bool
 	Debug              bool
 	NFd                int
 	NGoroutines        int

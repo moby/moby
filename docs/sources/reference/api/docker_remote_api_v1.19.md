@@ -1617,7 +1617,6 @@ Display system-wide information
              "IndexServerAddress":["https://index.docker.io/v1/"],
              "MemoryLimit":true,
              "SwapLimit":false,
-             "IPv4Forwarding":true,
              "Labels":["storage=ssd"],
              "DockerRootDir": "/var/lib/docker",
              "HttpProxy": "http://test:test@localhost:8080"
