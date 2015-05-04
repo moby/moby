@@ -24,6 +24,11 @@ func (daemon *Daemon) ContainerCreate(name string, config *runconfig.Config, hos
 		return "", warnings, fmt.Errorf("The working directory '%s' is invalid. It needs to be an absolute path.", config.WorkingDir)
 	}
 
+	if !daemon.SystemConfig().OomKillDisable {
+		hostConfig.OomKillDisable = false
+		return "", warnings, fmt.Errorf("Your kernel does not support oom kill disable.")
+	}
+
 	container, buildWarnings, err := daemon.Create(config, hostConfig, name)
 	if err != nil {
 		if daemon.Graph().IsNotExist(err, config.Image) {

@@ -54,6 +54,7 @@ func SetupCgroups(container *configs.Config, c *Command) error {
 		container.Cgroups.CpusetCpus = c.Resources.CpusetCpus
 		container.Cgroups.CpusetMems = c.Resources.CpusetMems
 		container.Cgroups.CpuQuota = c.Resources.CpuQuota
+		container.Cgroups.OomKillDisable = c.Resources.OomKillDisable
 	}
 
 	return nil

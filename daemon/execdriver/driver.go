@@ -100,13 +100,14 @@ type NetworkInterface struct {
 
 // TODO Windows: Factor out ulimit.Rlimit
 type Resources struct {
-	Memory     int64            `json:"memory"`
-	MemorySwap int64            `json:"memory_swap"`
-	CpuShares  int64            `json:"cpu_shares"`
-	CpusetCpus string           `json:"cpuset_cpus"`
-	CpusetMems string           `json:"cpuset_mems"`
-	CpuQuota   int64            `json:"cpu_quota"`
-	Rlimits    []*ulimit.Rlimit `json:"rlimits"`
+	Memory         int64            `json:"memory"`
+	MemorySwap     int64            `json:"memory_swap"`
+	CpuShares      int64            `json:"cpu_shares"`
+	CpusetCpus     string           `json:"cpuset_cpus"`
+	CpusetMems     string           `json:"cpuset_mems"`
+	CpuQuota       int64            `json:"cpu_quota"`
+	Rlimits        []*ulimit.Rlimit `json:"rlimits"`
+	OomKillDisable bool             `json:"oom_kill_disable"`
 }
 
 type ResourceStats struct {

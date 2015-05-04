@@ -939,6 +939,7 @@ Creates a new container.
       --mac-address=""           Container MAC address (e.g. 92:d0:c6:0a:29:33)
       --name=""                  Assign a name to the container
       --net="bridge"             Set the Network mode for the container
+      --oom-kill-disable=false   Whether to disable OOM Killer for the container or not
       -P, --publish-all=false    Publish all exposed ports to random ports
       -p, --publish=[]           Publish a container's port(s) to the host
       --privileged=false         Give extended privileges to this container
@@ -1897,6 +1898,7 @@ To remove an image using its digest:
       --memory-swap=""           Total memory (memory + swap), '-1' to disable swap
       --name=""                  Assign a name to the container
       --net="bridge"             Set the Network mode for the container
+      --oom-kill-disable=false   Whether to disable OOM Killer for the container or not
       -P, --publish-all=false    Publish all exposed ports to random ports
       -p, --publish=[]           Publish a container's port(s) to the host
       --pid=""                   PID namespace to use

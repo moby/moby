@@ -149,6 +149,7 @@ Create a container
                "CpuShares": 512,
                "CpusetCpus": "0,1",
                "CpusetMems": "0,1",
+               "OomKillDisable": false,
                "PortBindings": { "22/tcp": [{ "HostPort": "11022" }] },
                "PublishAllPorts": false,
                "Privileged": false,
@@ -194,6 +195,7 @@ Json Parameters:
 -   **Cpuset** - The same as CpusetCpus, but deprecated, please don't use.
 -   **CpusetCpus** - String value containing the cgroups CpusetCpus to use.
 -   **CpusetMems** - Memory nodes (MEMs) in which to allow execution (0-3, 0,1). Only effective on NUMA systems.
+-   **OomKillDisable** - Boolean value, whether to disable OOM Killer for the container or not.
 -   **AttachStdin** - Boolean value, attaches to stdin.
 -   **AttachStdout** - Boolean value, attaches to stdout.
 -   **AttachStderr** - Boolean value, attaches to stderr.
@@ -354,6 +356,7 @@ Return low-level information on the container `id`
 			"LxcConf": [],
 			"Memory": 0,
 			"MemorySwap": 0,
+			"OomKillDisable": false,
 			"NetworkMode": "bridge",
 			"PortBindings": {},
 			"Privileged": false,

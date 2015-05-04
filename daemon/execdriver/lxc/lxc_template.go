@@ -118,6 +118,9 @@ lxc.cgroup.cpuset.mems = {{.Resources.CpusetMems}}
 {{if .Resources.CpuQuota}}
 lxc.cgroup.cpu.cfs_quota_us = {{.Resources.CpuQuota}}
 {{end}}
+{{if .Resources.OomKillDisable}}
+lxc.cgroup.memory.oom_control = {{.Resources.OomKillDisable}}
+{{end}}
 {{end}}
 
 {{if .LxcConfig}}
