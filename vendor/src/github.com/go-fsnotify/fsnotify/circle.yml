@@ -1,0 +1,26 @@
+## OS X build (CircleCI iOS beta)
+
+# Pretend like it's an Xcode project, at least to get it running.
+machine:
+  environment:
+    XCODE_WORKSPACE: NotUsed.xcworkspace
+    XCODE_SCHEME: NotUsed
+    # This is where the go project is actually checked out to:
+    CIRCLE_BUILD_DIR: $HOME/.go_project/src/github.com/go-fsnotify/fsnotify
+
+dependencies:
+  pre:
+    - brew upgrade go
+
+test:
+  override:
+    - go test ./...
+
+# Idealized future config, eventually with cross-platform build matrix :-)
+
+# machine:
+#   go:
+#     version: 1.4
+#   os:
+#     - osx
+#     - linux
