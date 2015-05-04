@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"os"
 	"os/exec"
 	"strings"
 	"time"
@@ -1039,4 +1040,113 @@ func (s *DockerSuite) TestContainerApiCopyContainerNotFound(c *check.C) {
 	status, _, err := sockRequest("POST", "/containers/notexists/copy", postData)
 	c.Assert(err, check.IsNil)
 	c.Assert(status, check.Equals, http.StatusNotFound)
+}
+
+func (s *DockerSuite) TestContainerApiDelete(c *check.C) {
+	runCmd := exec.Command(dockerBinary, "run", "-d", "busybox", "top")
+	out, _, err := runCommandWithOutput(runCmd)
+	c.Assert(err, check.IsNil)
+
+	id := strings.TrimSpace(out)
+	c.Assert(waitRun(id), check.IsNil)
+
+	stopCmd := exec.Command(dockerBinary, "stop", id)
+	_, err = runCommand(stopCmd)
+	c.Assert(err, check.IsNil)
+
+	status, _, err := sockRequest("DELETE", "/containers/"+id, nil)
+	c.Assert(err, check.IsNil)
+	c.Assert(status, check.Equals, http.StatusNoContent)
+}
+
+func (s *DockerSuite) TestContainerApiDeleteNotExist(c *check.C) {
+	status, body, err := sockRequest("DELETE", "/containers/doesnotexist", nil)
+	c.Assert(err, check.IsNil)
+	c.Assert(status, check.Equals, http.StatusNotFound)
+	c.Assert(string(body), check.Matches, "no such id: doesnotexist\n")
+}
+
+func (s *DockerSuite) TestContainerApiDeleteForce(c *check.C) {
+	runCmd := exec.Command(dockerBinary, "run", "-d", "busybox", "top")
+	out, _, err := runCommandWithOutput(runCmd)
+	c.Assert(err, check.IsNil)
+
+	id := strings.TrimSpace(out)
+	c.Assert(waitRun(id), check.IsNil)
+
+	status, _, err := sockRequest("DELETE", "/containers/"+id+"?force=1", nil)
+	c.Assert(err, check.IsNil)
+	c.Assert(status, check.Equals, http.StatusNoContent)
+}
+
+func (s *DockerSuite) TestContainerApiDeleteRemoveLinks(c *check.C) {
+	runCmd := exec.Command(dockerBinary, "run", "-d", "--name", "tlink1", "busybox", "top")
+	out, _, err := runCommandWithOutput(runCmd)
+	c.Assert(err, check.IsNil)
+
+	id := strings.TrimSpace(out)
+	c.Assert(waitRun(id), check.IsNil)
+
+	runCmd = exec.Command(dockerBinary, "run", "--link", "tlink1:tlink1", "--name", "tlink2", "-d", "busybox", "top")
+	out, _, err = runCommandWithOutput(runCmd)
+	c.Assert(err, check.IsNil)
+
+	id2 := strings.TrimSpace(out)
+	c.Assert(waitRun(id2), check.IsNil)
+
+	links, err := inspectFieldJSON(id2, "HostConfig.Links")
+	c.Assert(err, check.IsNil)
+
+	if links != "[\"/tlink1:/tlink2/tlink1\"]" {
+		c.Fatal("expected to have links between containers")
+	}
+
+	status, _, err := sockRequest("DELETE", "/containers/tlink2/tlink1?link=1", nil)
+	c.Assert(err, check.IsNil)
+	c.Assert(status, check.Equals, http.StatusNoContent)
+
+	linksPostRm, err := inspectFieldJSON(id2, "HostConfig.Links")
+	c.Assert(err, check.IsNil)
+
+	if linksPostRm != "null" {
+		c.Fatal("call to api deleteContainer links should have removed the specified links")
+	}
+}
+
+func (s *DockerSuite) TestContainerApiDeleteConflict(c *check.C) {
+	runCmd := exec.Command(dockerBinary, "run", "-d", "busybox", "top")
+	out, _, err := runCommandWithOutput(runCmd)
+	c.Assert(err, check.IsNil)
+
+	id := strings.TrimSpace(out)
+	c.Assert(waitRun(id), check.IsNil)
+
+	status, _, err := sockRequest("DELETE", "/containers/"+id, nil)
+	c.Assert(status, check.Equals, http.StatusConflict)
+	c.Assert(err, check.IsNil)
+}
+
+func (s *DockerSuite) TestContainerApiDeleteRemoveVolume(c *check.C) {
+	testRequires(c, SameHostDaemon)
+
+	runCmd := exec.Command(dockerBinary, "run", "-d", "-v", "/testvolume", "busybox", "top")
+	out, _, err := runCommandWithOutput(runCmd)
+	c.Assert(err, check.IsNil)
+
+	id := strings.TrimSpace(out)
+	c.Assert(waitRun(id), check.IsNil)
+
+	vol, err := inspectFieldMap(id, "Volumes", "/testvolume")
+	c.Assert(err, check.IsNil)
+
+	_, err = os.Stat(vol)
+	c.Assert(err, check.IsNil)
+
+	status, _, err := sockRequest("DELETE", "/containers/"+id+"?v=1&force=1", nil)
+	c.Assert(status, check.Equals, http.StatusNoContent)
+	c.Assert(err, check.IsNil)
+
+	if _, err := os.Stat(vol); !os.IsNotExist(err) {
+		c.Fatalf("expected to get ErrNotExist error, got %v", err)
+	}
 }

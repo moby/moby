@@ -1,7 +1,6 @@
 package main
 
 import (
-	"net/http"
 	"os"
 	"os/exec"
 	"strings"
@@ -52,16 +51,6 @@ func (s *DockerSuite) TestRmRunningContainer(c *check.C) {
 		c.Fatalf("Expected error, can't rm a running container")
 	}
 
-}
-
-func (s *DockerSuite) TestRmRunningContainerCheckError409(c *check.C) {
-
-	createRunningContainer(c, "foo")
-
-	endpoint := "/containers/foo"
-	status, _, err := sockRequest("DELETE", endpoint, nil)
-	c.Assert(status, check.Equals, http.StatusConflict)
-	c.Assert(err, check.IsNil)
 }
 
 func (s *DockerSuite) TestRmForceRemoveRunningContainer(c *check.C) {
