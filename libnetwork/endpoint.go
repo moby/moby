@@ -34,6 +34,9 @@ type Endpoint interface {
 	// SandboxInfo returns the sandbox information for this endpoint.
 	SandboxInfo() *sandbox.Info
 
+	// Info returns a collection of operational data related to this endpoint retrieved from the driver
+	Info() (map[string]interface{}, error)
+
 	// Delete and detaches this endpoint from the network.
 	Delete() error
 }
@@ -92,6 +95,10 @@ func (ep *endpoint) SandboxInfo() *sandbox.Info {
 		return nil
 	}
 	return ep.sandboxInfo.GetCopy()
+}
+
+func (ep *endpoint) Info() (map[string]interface{}, error) {
+	return ep.network.driver.EndpointInfo(ep.network.id, ep.id)
 }
 
 func (ep *endpoint) processOptions(options ...EndpointOption) {

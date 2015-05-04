@@ -1,7 +1,10 @@
 package main
 
 import (
+	"fmt"
+
 	"github.com/docker/libnetwork"
+	"github.com/docker/libnetwork/netutils"
 	"github.com/docker/libnetwork/pkg/options"
 )
 
@@ -45,5 +48,15 @@ func main() {
 		libnetwork.JoinOptionDomainname("docker.io"))
 	if err != nil {
 		return
+	}
+
+	// libentwork client can check the endpoint's operational data via the Info() API
+	epInfo, err := ep.Info()
+	mapData, ok := epInfo[options.PortMap]
+	if ok {
+		portMapping, ok := mapData.([]netutils.PortBinding)
+		if ok {
+			fmt.Printf("Current port mapping for endpoint %s: %v", ep.Name(), portMapping)
+		}
 	}
 }
