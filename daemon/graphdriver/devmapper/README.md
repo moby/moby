@@ -252,3 +252,23 @@ Here is the list of supported options:
     > Otherwise, set this flag for migrating existing Docker daemons to a
     > daemon with a supported environment.
 
+ *  `dm.use_deferred_removal`
+
+    Enables use of deferred device removal if libdm and kernel driver
+    support the mechanism.
+
+    Deferred device removal means that if device is busy when devices is
+    being removed/deactivated, then a deferred removal is scheduled on
+    device. And devices automatically goes away when last user of device
+    exits.
+
+    For example, when contianer exits, its associated thin device is
+    removed. If that devices has leaked into some other mount namespace
+    can can't be removed now, container exit will still be successful
+    and this option will just schedule device for deferred removal and
+    will not wait in a loop trying to remove a busy device.
+
+    Example use:
+
+    ``docker -d --storage-opt dm.use_deferred_device_removal=true``
+

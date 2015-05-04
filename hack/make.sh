@@ -109,6 +109,15 @@ if \
 	DOCKER_BUILDTAGS+=' btrfs_noversion'
 fi
 
+# test whether "libdevmapper.h" is new enough to support deferred remove
+# functionality.
+if \
+	command -v gcc &> /dev/null \
+	&& ! ( echo -e  '#include <libdevmapper.h>\nint main() { dm_task_deferred_remove(NULL); }'| gcc -ldevmapper -xc - &> /dev/null ) \
+; then
+       DOCKER_BUILDTAGS+=' libdm_no_deferred_remove'
+fi
+
 # Use these flags when compiling the tests and final binary
 
 IAMSTATIC='true'
