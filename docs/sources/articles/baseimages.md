@@ -65,4 +65,4 @@ There are lots more resources available to help you write your 'Dockerfile`.
 * There's a [complete guide to all the instructions](/reference/builder/) available for use in a `Dockerfile` in the reference section.
 * To help you write a clear, readable, maintainable `Dockerfile`, we've also
 written a [`Dockerfile` Best Practices guide](/articles/dockerfile_best-practices).
-* If you're working on an Official Repo, be sure to check out the [Official Repo Guidelines](/docker-hub/official_repos/).
+* If your goal is to create a new Official Repository, be sure to read up on Docker's [Official Repositories](/docker-hub/official_repos/).

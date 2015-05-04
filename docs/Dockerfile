@@ -9,7 +9,7 @@ MAINTAINER Sven Dowideit <SvenDowideit@docker.com> (@SvenDowideit)
 ENV COMPOSE_BRANCH release
 ENV SWARM_BRANCH v0.2.0
 ENV MACHINE_BRANCH master
-ENV DISTRIB_BRANCH release/2.0
+ENV DISTRIB_BRANCH docs
 
 
 # TODO: need the full repo source to get the git version info
@@ -49,13 +49,26 @@ ADD https://raw.githubusercontent.com/docker/distribution/${DISTRIB_BRANCH}/docs
 ADD https://raw.githubusercontent.com/docker/distribution/${DISTRIB_BRANCH}/docs/spec/api.md \
     https://raw.githubusercontent.com/docker/distribution/${DISTRIB_BRANCH}/docs/spec/json.md \
   /docs/sources/registry/spec/
+  
+ADD https://raw.githubusercontent.com/docker/distribution/${DISTRIB_BRANCH}/docs/storage-drivers/s3.md \
+    https://raw.githubusercontent.com/docker/distribution/${DISTRIB_BRANCH}/docs/storage-drivers/azure.md \
+    https://raw.githubusercontent.com/docker/distribution/${DISTRIB_BRANCH}/docs/storage-drivers/filesystem.md \
+    https://raw.githubusercontent.com/docker/distribution/${DISTRIB_BRANCH}/docs/storage-drivers/inmemory.md \
+  /docs/sources/registry/storage-drivers/
 
 ADD https://raw.githubusercontent.com/docker/distribution/${DISTRIB_BRANCH}/docs/spec/auth/token.md /docs/sources/registry/spec/auth/token.md
 
 RUN sed -i.old '1s;^;no_version_dropdown: true;' \
   /docs/sources/registry/*.md \
   /docs/sources/registry/spec/*.md \
-  /docs/sources/registry/spec/auth/*.md
+  /docs/sources/registry/spec/auth/*.md \
+  /docs/sources/registry/storage-drivers/*.md 
+
+RUN sed -i.old  -e '/^<!--GITHUB/g' -e '/^IGNORES-->/g'\
+  /docs/sources/registry/*.md \
+  /docs/sources/registry/spec/*.md \
+  /docs/sources/registry/spec/auth/*.md \
+  /docs/sources/registry/storage-drivers/*.md 
 
 #######################
 # Docker Swarm
