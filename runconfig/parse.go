@@ -15,9 +15,8 @@ import (
 
 var (
 	ErrConflictContainerNetworkAndLinks = fmt.Errorf("Conflicting options: --net=container can't be used with links. This would result in undefined behavior.")
-	ErrConflictContainerNetworkAndDns   = fmt.Errorf("Conflicting options: --net=container can't be used with --dns. This configuration is invalid.")
+	ErrConflictNetworkAndDns            = fmt.Errorf("Conflicting options: --dns and the network mode (--net).")
 	ErrConflictNetworkHostname          = fmt.Errorf("Conflicting options: -h and the network mode (--net)")
-	ErrConflictHostNetworkAndDns        = fmt.Errorf("Conflicting options: --net=host can't be used with --dns. This configuration is invalid.")
 	ErrConflictHostNetworkAndLinks      = fmt.Errorf("Conflicting options: --net=host can't be used with links. This would result in undefined behavior.")
 )
 
@@ -112,24 +111,25 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		attachStderr = flAttach.Get("stderr")
 	)
 
-	if *flNetMode != "bridge" && *flNetMode != "none" && *flHostname != "" {
+	netMode, err := parseNetMode(*flNetMode)
+	if err != nil {
+		return nil, nil, cmd, fmt.Errorf("--net: invalid net mode: %v", err)
+	}
+
+	if (netMode.IsHost() || netMode.IsContainer()) && *flHostname != "" {
 		return nil, nil, cmd, ErrConflictNetworkHostname
 	}
 
-	if *flNetMode == "host" && flLinks.Len() > 0 {
+	if netMode.IsHost() && flLinks.Len() > 0 {
 		return nil, nil, cmd, ErrConflictHostNetworkAndLinks
 	}
 
-	if strings.HasPrefix(*flNetMode, "container") && flLinks.Len() > 0 {
+	if netMode.IsContainer() && flLinks.Len() > 0 {
 		return nil, nil, cmd, ErrConflictContainerNetworkAndLinks
 	}
 
-	if *flNetMode == "host" && flDns.Len() > 0 {
-		return nil, nil, cmd, ErrConflictHostNetworkAndDns
-	}
-
-	if strings.HasPrefix(*flNetMode, "container") && flDns.Len() > 0 {
-		return nil, nil, cmd, ErrConflictContainerNetworkAndDns
+	if (netMode.IsHost() || netMode.IsContainer()) && flDns.Len() > 0 {
+		return nil, nil, cmd, ErrConflictNetworkAndDns
 	}
 
 	// If neither -d or -a are set, attach to everything by default
@@ -264,11 +264,6 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 	pidMode := PidMode(*flPidMode)
 	if !pidMode.Valid() {
 		return nil, nil, cmd, fmt.Errorf("--pid: invalid PID mode")
-	}
-
-	netMode, err := parseNetMode(*flNetMode)
-	if err != nil {
-		return nil, nil, cmd, fmt.Errorf("--net: invalid net mode: %v", err)
 	}
 
 	restartPolicy, err := ParseRestartPolicy(*flRestartPolicy)
