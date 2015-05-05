@@ -47,6 +47,10 @@ func env(b *Builder, args []string, attributes map[string]bool, original string)
 		return fmt.Errorf("Bad input to ENV, too many args")
 	}
 
+	if err := b.BuilderFlags.Parse(); err != nil {
+		return err
+	}
+
 	// TODO/FIXME/NOT USED
 	// Just here to show how to use the builder flags stuff within the
 	// context of a builder command. Will remove once we actually add
@@ -97,6 +101,10 @@ func maintainer(b *Builder, args []string, attributes map[string]bool, original 
 		return fmt.Errorf("MAINTAINER requires exactly one argument")
 	}
 
+	if err := b.BuilderFlags.Parse(); err != nil {
+		return err
+	}
+
 	b.maintainer = args[0]
 	return b.commit("", b.Config.Cmd, fmt.Sprintf("MAINTAINER %s", b.maintainer))
 }
@@ -112,6 +120,10 @@ func label(b *Builder, args []string, attributes map[string]bool, original strin
 	if len(args)%2 != 0 {
 		// should never get here, but just in case
 		return fmt.Errorf("Bad input to LABEL, too many args")
+	}
+
+	if err := b.BuilderFlags.Parse(); err != nil {
+		return err
 	}
 
 	commitStr := "LABEL"
@@ -142,6 +154,10 @@ func add(b *Builder, args []string, attributes map[string]bool, original string)
 		return fmt.Errorf("ADD requires at least two arguments")
 	}
 
+	if err := b.BuilderFlags.Parse(); err != nil {
+		return err
+	}
+
 	return b.runContextCommand(args, true, true, "ADD")
 }
 
@@ -154,6 +170,10 @@ func dispatchCopy(b *Builder, args []string, attributes map[string]bool, origina
 		return fmt.Errorf("COPY requires at least two arguments")
 	}
 
+	if err := b.BuilderFlags.Parse(); err != nil {
+		return err
+	}
+
 	return b.runContextCommand(args, false, false, "COPY")
 }
 
@@ -164,6 +184,10 @@ func dispatchCopy(b *Builder, args []string, attributes map[string]bool, origina
 func from(b *Builder, args []string, attributes map[string]bool, original string) error {
 	if len(args) != 1 {
 		return fmt.Errorf("FROM requires one argument")
+	}
+
+	if err := b.BuilderFlags.Parse(); err != nil {
+		return err
 	}
 
 	name := args[0]
@@ -210,6 +234,10 @@ func onbuild(b *Builder, args []string, attributes map[string]bool, original str
 		return fmt.Errorf("ONBUILD requires at least one argument")
 	}
 
+	if err := b.BuilderFlags.Parse(); err != nil {
+		return err
+	}
+
 	triggerInstruction := strings.ToUpper(strings.TrimSpace(args[0]))
 	switch triggerInstruction {
 	case "ONBUILD":
@@ -231,6 +259,10 @@ func onbuild(b *Builder, args []string, attributes map[string]bool, original str
 func workdir(b *Builder, args []string, attributes map[string]bool, original string) error {
 	if len(args) != 1 {
 		return fmt.Errorf("WORKDIR requires exactly one argument")
+	}
+
+	if err := b.BuilderFlags.Parse(); err != nil {
+		return err
 	}
 
 	workdir := args[0]
@@ -256,6 +288,10 @@ func workdir(b *Builder, args []string, attributes map[string]bool, original str
 func run(b *Builder, args []string, attributes map[string]bool, original string) error {
 	if b.image == "" && !b.noBaseImage {
 		return fmt.Errorf("Please provide a source image with `from` prior to run")
+	}
+
+	if err := b.BuilderFlags.Parse(); err != nil {
+		return err
 	}
 
 	args = handleJsonArgs(args, attributes)
@@ -317,6 +353,10 @@ func run(b *Builder, args []string, attributes map[string]bool, original string)
 // Argument handling is the same as RUN.
 //
 func cmd(b *Builder, args []string, attributes map[string]bool, original string) error {
+	if err := b.BuilderFlags.Parse(); err != nil {
+		return err
+	}
+
 	cmdSlice := handleJsonArgs(args, attributes)
 
 	if !attributes["json"] {
@@ -345,6 +385,10 @@ func cmd(b *Builder, args []string, attributes map[string]bool, original string)
 // is initialized at NewBuilder time instead of through argument parsing.
 //
 func entrypoint(b *Builder, args []string, attributes map[string]bool, original string) error {
+	if err := b.BuilderFlags.Parse(); err != nil {
+		return err
+	}
+
 	parsed := handleJsonArgs(args, attributes)
 
 	switch {
@@ -382,6 +426,10 @@ func expose(b *Builder, args []string, attributes map[string]bool, original stri
 
 	if len(args) == 0 {
 		return fmt.Errorf("EXPOSE requires at least one argument")
+	}
+
+	if err := b.BuilderFlags.Parse(); err != nil {
+		return err
 	}
 
 	if b.Config.ExposedPorts == nil {
@@ -428,6 +476,10 @@ func user(b *Builder, args []string, attributes map[string]bool, original string
 		return fmt.Errorf("USER requires exactly one argument")
 	}
 
+	if err := b.BuilderFlags.Parse(); err != nil {
+		return err
+	}
+
 	b.Config.User = args[0]
 	return b.commit("", b.Config.Cmd, fmt.Sprintf("USER %v", args))
 }
@@ -439,6 +491,10 @@ func user(b *Builder, args []string, attributes map[string]bool, original string
 func volume(b *Builder, args []string, attributes map[string]bool, original string) error {
 	if len(args) == 0 {
 		return fmt.Errorf("VOLUME requires at least one argument")
+	}
+
+	if err := b.BuilderFlags.Parse(); err != nil {
+		return err
 	}
 
 	if b.Config.Volumes == nil {

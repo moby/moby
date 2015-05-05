@@ -5349,3 +5349,38 @@ RUN cat /proc/self/cgroup
 		c.Fatalf("unexpected failure when running container with --cgroup-parent option - %s\n%v", string(out), err)
 	}
 }
+
+func (s *DockerSuite) TestBuildNoDupOutput(c *check.C) {
+	// Check to make sure our build output prints the Dockerfile cmd
+	// property - there was a bug that caused it to be duplicated on the
+	// Step X  line
+	name := "testbuildnodupoutput"
+
+	_, out, err := buildImageWithOut(name, `
+  FROM busybox
+  RUN env`, false)
+	if err != nil {
+		c.Fatalf("Build should have worked: %q", err)
+	}
+
+	exp := "\nStep 1 : RUN env\n"
+	if !strings.Contains(out, exp) {
+		c.Fatalf("Bad output\nGot:%s\n\nExpected to contain:%s\n", out, exp)
+	}
+}
+
+func (s *DockerSuite) TestBuildBadCmdFlag(c *check.C) {
+	name := "testbuildbadcmdflag"
+
+	_, out, err := buildImageWithOut(name, `
+  FROM busybox
+  MAINTAINER --boo joe@example.com`, false)
+	if err == nil {
+		c.Fatal("Build should have failed")
+	}
+
+	exp := `"Unknown flag: boo"`
+	if !strings.Contains(out, exp) {
+		c.Fatalf("Bad output\nGot:%s\n\nExpected to contain:%s\n", out, exp)
+	}
+}

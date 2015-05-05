@@ -280,7 +280,11 @@ func (b *Builder) dispatch(stepN int, ast *parser.Node) error {
 	original := ast.Original
 	flags := ast.Flags
 	strs := []string{}
-	msg := fmt.Sprintf("Step %d : %s", stepN, original)
+	msg := fmt.Sprintf("Step %d : %s", stepN, strings.ToUpper(cmd))
+
+	if len(ast.Flags) > 0 {
+		msg += " " + strings.Join(ast.Flags, " ")
+	}
 
 	if cmd == "onbuild" {
 		if ast.Next == nil {
@@ -289,6 +293,11 @@ func (b *Builder) dispatch(stepN int, ast *parser.Node) error {
 		ast = ast.Next.Children[0]
 		strs = append(strs, ast.Value)
 		msg += " " + ast.Value
+
+		if len(ast.Flags) > 0 {
+			msg += " " + strings.Join(ast.Flags, " ")
+		}
+
 	}
 
 	// count the number of nodes that we are going to traverse first
