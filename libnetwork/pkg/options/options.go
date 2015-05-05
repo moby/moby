@@ -14,6 +14,8 @@ const (
 	PortMap = "io.docker.network.endpoint.portmap"
 	// MacAddress constant represents Mac Address config of a Container
 	MacAddress = "io.docker.network.endpoint.macaddress"
+	// ExposedPorts constant represents exposedports of a Container
+	ExposedPorts = "io.docker.network.endpoint.exposedports"
 )
 
 // NoSuchFieldError is the error returned when the generic parameters hold a
