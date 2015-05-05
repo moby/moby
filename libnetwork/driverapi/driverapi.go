@@ -56,7 +56,5 @@ type Driver interface {
 // JoinInfo represents a set of resources that the driver has the ability to provide during
 // join time.
 type JoinInfo struct {
-	SandboxKey      string
-	NoSandboxCreate bool
-	HostsPath       string
+	HostsPath string
 }

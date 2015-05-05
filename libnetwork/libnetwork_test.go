@@ -103,7 +103,8 @@ func TestHost(t *testing.T) {
 	_, err = ep.Join("host_container",
 		libnetwork.JoinOptionHostname("test"),
 		libnetwork.JoinOptionDomainname("docker.io"),
-		libnetwork.JoinOptionExtraHost("web", "192.168.0.1"))
+		libnetwork.JoinOptionExtraHost("web", "192.168.0.1"),
+		libnetwork.JoinOptionUseDefaultSandbox())
 	if err != nil {
 		t.Fatal(err)
 	}

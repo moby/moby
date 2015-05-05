@@ -54,16 +54,27 @@ type ContainerData struct {
 	SandboxKey string
 }
 
-type containerConfig struct {
-	hostName       string
-	domainName     string
-	generic        map[string]interface{}
-	hostsPath      string
-	ExtraHosts     []extraHost
-	parentUpdates  []parentUpdate
+// These are the container configs used to customize container /etc/hosts file.
+type hostsPathConfig struct {
+	hostName      string
+	domainName    string
+	hostsPath     string
+	extraHosts    []extraHost
+	parentUpdates []parentUpdate
+}
+
+// These are the container configs used to customize container /etc/resolv.conf file.
+type resolvConfPathConfig struct {
 	resolvConfPath string
 	dnsList        []string
 	dnsSearchList  []string
+}
+
+type containerConfig struct {
+	hostsPathConfig
+	resolvConfPathConfig
+	generic           map[string]interface{}
+	useDefaultSandBox bool
 }
 
 type extraHost struct {
@@ -168,8 +179,10 @@ func (ep *endpoint) Join(containerID string, options ...EndpointOption) (*Contai
 
 	ep.container = &containerInfo{
 		config: containerConfig{
-			ExtraHosts:    []extraHost{},
-			parentUpdates: []parentUpdate{},
+			hostsPathConfig: hostsPathConfig{
+				extraHosts:    []extraHost{},
+				parentUpdates: []parentUpdate{},
+			},
 		}}
 	defer func() {
 		if err != nil {
@@ -188,6 +201,9 @@ func (ep *endpoint) Join(containerID string, options ...EndpointOption) (*Contai
 	}
 
 	sboxKey := sandbox.GenerateKey(containerID)
+	if ep.container.config.useDefaultSandBox {
+		sboxKey = sandbox.GenerateKey("default")
+	}
 
 	joinInfo, err := ep.network.driver.Join(ep.network.id, ep.id,
 		sboxKey, ep.container.config.generic)
@@ -211,18 +227,8 @@ func (ep *endpoint) Join(containerID string, options ...EndpointOption) (*Contai
 		return nil, err
 	}
 
-	create := true
-	if joinInfo != nil {
-		if joinInfo.SandboxKey != "" {
-			sboxKey = joinInfo.SandboxKey
-		}
-
-		if joinInfo.NoSandboxCreate {
-			create = false
-		}
-	}
-
-	sb, err := ep.network.ctrlr.sandboxAdd(sboxKey, create)
+	sb, err := ep.network.ctrlr.sandboxAdd(sboxKey,
+		!ep.container.config.useDefaultSandBox)
 	if err != nil {
 		return nil, err
 	}
@@ -325,7 +331,7 @@ func (ep *endpoint) buildHostsFiles() error {
 		name = name + "." + ep.container.config.domainName
 	}
 
-	for _, extraHost := range ep.container.config.ExtraHosts {
+	for _, extraHost := range ep.container.config.extraHosts {
 		extraContent = append(extraContent,
 			etchosts.Record{Hosts: extraHost.name, IP: extraHost.IP})
 	}
@@ -432,7 +438,7 @@ func JoinOptionHostsPath(path string) EndpointOption {
 // which is a name and IP as strings.
 func JoinOptionExtraHost(name string, IP string) EndpointOption {
 	return func(ep *endpoint) {
-		ep.container.config.ExtraHosts = append(ep.container.config.ExtraHosts, extraHost{name: name, IP: IP})
+		ep.container.config.extraHosts = append(ep.container.config.extraHosts, extraHost{name: name, IP: IP})
 	}
 }
 
@@ -465,6 +471,14 @@ func JoinOptionDNS(dns string) EndpointOption {
 func JoinOptionDNSSearch(search string) EndpointOption {
 	return func(ep *endpoint) {
 		ep.container.config.dnsSearchList = append(ep.container.config.dnsSearchList, search)
+	}
+}
+
+// JoinOptionUseDefaultSandbox function returns an option setter for using default sandbox to
+// be passed to endpoint Join method.
+func JoinOptionUseDefaultSandbox() EndpointOption {
+	return func(ep *endpoint) {
+		ep.container.config.useDefaultSandBox = true
 	}
 }
 

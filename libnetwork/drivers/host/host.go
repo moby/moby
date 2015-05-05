@@ -42,9 +42,7 @@ func (d *driver) EndpointInfo(nid, eid types.UUID) (map[string]interface{}, erro
 // Join method is invoked when a Sandbox is attached to an endpoint.
 func (d *driver) Join(nid, eid types.UUID, sboxKey string, options map[string]interface{}) (*driverapi.JoinInfo, error) {
 	jInfo := &driverapi.JoinInfo{
-		SandboxKey:      sandbox.GenerateKey("host"),
-		NoSandboxCreate: true,
-		HostsPath:       "/etc/hosts",
+		HostsPath: "/etc/hosts",
 	}
 
 	return jInfo, nil
