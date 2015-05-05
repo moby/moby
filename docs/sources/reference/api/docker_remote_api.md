@@ -46,6 +46,11 @@ You can still call an old version of the API using
 
 ### What's new
 
+`GET /containers/(id)/stats`
+
+**New!**
+You can now supply a `stream` bool to get only one set of stats and
+disconnect
 
 ## v1.18
 
