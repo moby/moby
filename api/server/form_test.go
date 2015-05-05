@@ -33,7 +33,7 @@ func TestBoolValue(t *testing.T) {
 	}
 }
 
-func TestInt64Value(t *testing.T) {
+func TestInt64ValueOrZero(t *testing.T) {
 	cases := map[string]int64{
 		"":     0,
 		"asdf": 0,
@@ -47,7 +47,7 @@ func TestInt64Value(t *testing.T) {
 		r, _ := http.NewRequest("POST", "", nil)
 		r.Form = v
 
-		a := int64Value(r, "test")
+		a := int64ValueOrZero(r, "test")
 		if a != e {
 			t.Fatalf("Value: %s, expected: %v, actual: %v", c, e, a)
 		}

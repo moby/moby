@@ -11,7 +11,7 @@ func boolValue(r *http.Request, k string) bool {
 	return !(s == "" || s == "0" || s == "no" || s == "false" || s == "none")
 }
 
-func int64Value(r *http.Request, k string) int64 {
+func int64ValueOrZero(r *http.Request, k string) int64 {
 	val, err := strconv.ParseInt(r.FormValue(k), 10, 64)
 	if err != nil {
 		return 0

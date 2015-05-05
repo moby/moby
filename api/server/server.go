@@ -1295,10 +1295,10 @@ func (s *Server) postBuild(version version.Version, w http.ResponseWriter, r *ht
 	buildConfig.ForceRemove = boolValue(r, "forcerm")
 	buildConfig.AuthConfig = authConfig
 	buildConfig.ConfigFile = configFile
-	buildConfig.MemorySwap = int64Value(r, "memswap")
-	buildConfig.Memory = int64Value(r, "memory")
-	buildConfig.CpuShares = int64Value(r, "cpushares")
-	buildConfig.CpuQuota = int64Value(r, "cpuquota")
+	buildConfig.MemorySwap = int64ValueOrZero(r, "memswap")
+	buildConfig.Memory = int64ValueOrZero(r, "memory")
+	buildConfig.CpuShares = int64ValueOrZero(r, "cpushares")
+	buildConfig.CpuQuota = int64ValueOrZero(r, "cpuquota")
 	buildConfig.CpuSetCpus = r.FormValue("cpusetcpus")
 	buildConfig.CpuSetMems = r.FormValue("cpusetmems")
 
