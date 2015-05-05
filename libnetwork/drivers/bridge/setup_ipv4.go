@@ -35,7 +35,7 @@ func init() {
 			log.Errorf("Failed to parse address %s", addr)
 			continue
 		}
-		net.IP = ip
+		net.IP = ip.To4()
 		bridgeNetworks = append(bridgeNetworks, net)
 	}
 }

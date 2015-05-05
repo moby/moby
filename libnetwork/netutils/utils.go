@@ -192,7 +192,9 @@ func CheckRouteOverlaps(toCheck *net.IPNet) error {
 
 // NetworkOverlaps detects overlap between one IPNet and another
 func NetworkOverlaps(netX *net.IPNet, netY *net.IPNet) bool {
-	if len(netX.IP) == len(netY.IP) {
+	// Check if both netX and netY are ipv4 or ipv6
+	if (netX.IP.To4() != nil && netY.IP.To4() != nil) ||
+		(netX.IP.To4() == nil && netY.IP.To4() == nil) {
 		if firstIP, _ := NetworkRange(netX); netY.Contains(firstIP) {
 			return true
 		}
