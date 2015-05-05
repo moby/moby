@@ -69,7 +69,7 @@ func linkContainers(action, parentIP, childIP string, ports []netutils.PortBindi
 		return InvalidLinkIPAddrError(childIP)
 	}
 
-	chain := iptables.Chain{Name: "DOCKER", Bridge: bridge}
+	chain := iptables.Chain{Name: DockerChain, Bridge: bridge}
 	for _, port := range ports {
 		err := chain.Link(nfAction, ip1, ip2, int(port.Port), port.Proto.String())
 		if !ignoreErrors && err != nil {
