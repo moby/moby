@@ -134,11 +134,11 @@ type Protocol uint8
 
 func (p Protocol) String() string {
 	switch p {
-	case 1:
+	case ICMP:
 		return "icmp"
-	case 6:
+	case TCP:
 		return "tcp"
-	case 17:
+	case UDP:
 		return "udp"
 	default:
 		return fmt.Sprintf("%d", p)
@@ -149,11 +149,11 @@ func (p Protocol) String() string {
 func ParseProtocol(s string) Protocol {
 	switch strings.ToLower(s) {
 	case "icmp":
-		return 1
+		return ICMP
 	case "udp":
-		return 17
+		return UDP
 	case "tcp":
-		return 6
+		return TCP
 	default:
 		return 0
 	}

@@ -61,6 +61,7 @@ type ContainerConfiguration struct {
 type bridgeEndpoint struct {
 	id          types.UUID
 	intf        *sandbox.Interface
+	macAddress  net.HardwareAddr
 	config      *EndpointConfiguration // User specified parameters
 	portMapping []netutils.PortBinding // Operation port bindings
 }
@@ -226,8 +227,10 @@ func (d *driver) CreateNetwork(id types.UUID, option map[string]interface{}) err
 	bridgeAlreadyExists := bridgeIface.exists()
 	if !bridgeAlreadyExists {
 		bridgeSetup.queueStep(setupDevice)
-		bridgeSetup.queueStep(setupBridgeIPv4)
 	}
+
+	// Even if a bridge exists try to setup IPv4.
+	bridgeSetup.queueStep(setupBridgeIPv4)
 
 	// Conditionnally queue setup steps depending on configuration values.
 	for _, step := range []struct {
@@ -269,6 +272,8 @@ func (d *driver) CreateNetwork(id types.UUID, option map[string]interface{}) err
 		}
 	}
 
+	// Block bridge IP from being allocated.
+	bridgeSetup.queueStep(allocateBridgeIP)
 	// Apply the prepared list of steps, and abort at the first error.
 	bridgeSetup.queueStep(setupDeviceUp)
 	if err = bridgeSetup.apply(); err != nil {
@@ -420,6 +425,7 @@ func (d *driver) CreateEndpoint(nid, eid types.UUID, epOptions map[string]interf
 	if err != nil {
 		return nil, err
 	}
+	endpoint.macAddress = mac
 
 	// Add bridge inherited attributes to pipe interfaces
 	if config.Mtu != 0 {
@@ -610,16 +616,20 @@ func (d *driver) EndpointInfo(nid, eid types.UUID) (map[string]interface{}, erro
 		m[options.PortMap] = pmc
 	}
 
+	if len(ep.macAddress) != 0 {
+		m[options.MacAddress] = ep.macAddress
+	}
+
 	return m, nil
 }
 
 // Join method is invoked when a Sandbox is attached to an endpoint.
-func (d *driver) Join(nid, eid types.UUID, sboxKey string, options map[string]interface{}) error {
+func (d *driver) Join(nid, eid types.UUID, sboxKey string, options map[string]interface{}) (*driverapi.JoinInfo, error) {
 	var err error
 	if !d.config.EnableICC {
 		err = d.link(nid, eid, options, true)
 	}
-	return err
+	return nil, err
 }
 
 // Leave method is invoked when a Sandbox detaches from an endpoint.

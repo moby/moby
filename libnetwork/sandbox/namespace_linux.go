@@ -12,7 +12,7 @@ import (
 	"github.com/vishvananda/netns"
 )
 
-const prefix = "/var/lib/docker/network"
+const prefix = "/var/lib/docker/netns"
 
 var once sync.Once
 
@@ -44,11 +44,16 @@ func GenerateKey(containerID string) string {
 
 // NewSandbox provides a new sandbox instance created in an os specific way
 // provided a key which uniquely identifies the sandbox
-func NewSandbox(key string) (Sandbox, error) {
-	return createNetworkNamespace(key)
+func NewSandbox(key string, osCreate bool) (Sandbox, error) {
+	info, err := createNetworkNamespace(key, osCreate)
+	if err != nil {
+		return nil, err
+	}
+
+	return &networkNamespace{path: key, sinfo: info}, nil
 }
 
-func createNetworkNamespace(path string) (Sandbox, error) {
+func createNetworkNamespace(path string, osCreate bool) (*Info, error) {
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
 
@@ -62,15 +67,17 @@ func createNetworkNamespace(path string) (Sandbox, error) {
 		return nil, err
 	}
 
-	defer netns.Set(origns)
-	newns, err := netns.New()
-	if err != nil {
-		return nil, err
-	}
-	defer newns.Close()
+	if osCreate {
+		defer netns.Set(origns)
+		newns, err := netns.New()
+		if err != nil {
+			return nil, err
+		}
+		defer newns.Close()
 
-	if err := loopbackUp(); err != nil {
-		return nil, err
+		if err := loopbackUp(); err != nil {
+			return nil, err
+		}
 	}
 
 	procNet := fmt.Sprintf("/proc/%d/task/%d/ns/net", os.Getpid(), syscall.Gettid())
@@ -80,8 +87,8 @@ func createNetworkNamespace(path string) (Sandbox, error) {
 	}
 
 	interfaces := []*Interface{}
-	sinfo := &Info{Interfaces: interfaces}
-	return &networkNamespace{path: path, sinfo: sinfo}, nil
+	info := &Info{Interfaces: interfaces}
+	return info, nil
 }
 
 func createNamespaceFile(path string) (err error) {

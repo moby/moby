@@ -41,7 +41,7 @@ type ChainError struct {
 	Output []byte
 }
 
-func (e *ChainError) Error() string {
+func (e ChainError) Error() string {
 	return fmt.Sprintf("Error iptables %s: %s", e.Chain, string(e.Output))
 }
 
@@ -142,7 +142,7 @@ func (c *Chain) Forward(action Action, ip net.IP, port int, proto, destAddr stri
 		"--to-destination", net.JoinHostPort(destAddr, strconv.Itoa(destPort))); err != nil {
 		return err
 	} else if len(output) != 0 {
-		return &ChainError{Chain: "FORWARD", Output: output}
+		return ChainError{Chain: "FORWARD", Output: output}
 	}
 
 	if output, err := Raw("-t", string(Filter), string(action), c.Name,
@@ -154,7 +154,7 @@ func (c *Chain) Forward(action Action, ip net.IP, port int, proto, destAddr stri
 		"-j", "ACCEPT"); err != nil {
 		return err
 	} else if len(output) != 0 {
-		return &ChainError{Chain: "FORWARD", Output: output}
+		return ChainError{Chain: "FORWARD", Output: output}
 	}
 
 	if output, err := Raw("-t", string(Nat), string(action), "POSTROUTING",
@@ -165,7 +165,7 @@ func (c *Chain) Forward(action Action, ip net.IP, port int, proto, destAddr stri
 		"-j", "MASQUERADE"); err != nil {
 		return err
 	} else if len(output) != 0 {
-		return &ChainError{Chain: "FORWARD", Output: output}
+		return ChainError{Chain: "FORWARD", Output: output}
 	}
 
 	return nil
@@ -208,7 +208,7 @@ func (c *Chain) Prerouting(action Action, args ...string) error {
 	if output, err := Raw(append(a, "-j", c.Name)...); err != nil {
 		return err
 	} else if len(output) != 0 {
-		return &ChainError{Chain: "PREROUTING", Output: output}
+		return ChainError{Chain: "PREROUTING", Output: output}
 	}
 	return nil
 }
@@ -222,7 +222,7 @@ func (c *Chain) Output(action Action, args ...string) error {
 	if output, err := Raw(append(a, "-j", c.Name)...); err != nil {
 		return err
 	} else if len(output) != 0 {
-		return &ChainError{Chain: "OUTPUT", Output: output}
+		return ChainError{Chain: "OUTPUT", Output: output}
 	}
 	return nil
 }
@@ -261,7 +261,7 @@ func Exists(table Table, chain string, rule ...string) bool {
 	// parse "iptables -S" for the rule (this checks rules in a specific chain
 	// in a specific table)
 	ruleString := strings.Join(rule, " ")
-	existingRules, _ := exec.Command("iptables", "-t", string(table), "-S", chain).Output()
+	existingRules, _ := exec.Command(iptablesPath, "-t", string(table), "-S", chain).Output()
 
 	// regex to replace ips in rule
 	// because MASQUERADE rule will not be exactly what was passed
@@ -275,6 +275,13 @@ func Exists(table Table, chain string, rule ...string) bool {
 
 // Call 'iptables' system command, passing supplied arguments
 func Raw(args ...string) ([]byte, error) {
+	if firewalldRunning {
+		output, err := Passthrough(Iptables, args...)
+		if err == nil || !strings.Contains(err.Error(), "was not provided by any .service files") {
+			return output, err
+		}
+
+	}
 
 	if err := initCheck(); err != nil {
 		return nil, err

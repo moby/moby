@@ -67,14 +67,49 @@ func TestNull(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = ep.Join(containerID,
+	_, err = ep.Join("null_container",
 		libnetwork.JoinOptionHostname("test"),
-		libnetwork.JoinOptionDomainname("docker.io"))
+		libnetwork.JoinOptionDomainname("docker.io"),
+		libnetwork.JoinOptionExtraHost("web", "192.168.0.1"))
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	err = ep.Leave(containerID)
+	err = ep.Leave("null_container")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := ep.Delete(); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := network.Delete(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestHost(t *testing.T) {
+	network, err := createTestNetwork("host", "testnetwork", options.Generic{})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ep, err := network.CreateEndpoint("testep")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = ep.Join("host_container",
+		libnetwork.JoinOptionHostname("test"),
+		libnetwork.JoinOptionDomainname("docker.io"),
+		libnetwork.JoinOptionExtraHost("web", "192.168.0.1"),
+		libnetwork.JoinOptionUseDefaultSandbox())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = ep.Leave("host_container")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -556,7 +591,8 @@ func TestEndpointJoin(t *testing.T) {
 
 	_, err = ep.Join(containerID,
 		libnetwork.JoinOptionHostname("test"),
-		libnetwork.JoinOptionDomainname("docker.io"))
+		libnetwork.JoinOptionDomainname("docker.io"),
+		libnetwork.JoinOptionExtraHost("web", "192.168.0.1"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -605,7 +641,8 @@ func TestEndpointMultipleJoins(t *testing.T) {
 
 	_, err = ep.Join(containerID,
 		libnetwork.JoinOptionHostname("test"),
-		libnetwork.JoinOptionDomainname("docker.io"))
+		libnetwork.JoinOptionDomainname("docker.io"),
+		libnetwork.JoinOptionExtraHost("web", "192.168.0.1"))
 
 	if err != nil {
 		t.Fatal(err)
@@ -650,7 +687,8 @@ func TestEndpointInvalidLeave(t *testing.T) {
 
 	_, err = ep.Join(containerID,
 		libnetwork.JoinOptionHostname("test"),
-		libnetwork.JoinOptionDomainname("docker.io"))
+		libnetwork.JoinOptionDomainname("docker.io"),
+		libnetwork.JoinOptionExtraHost("web", "192.168.0.1"))
 
 	if err != nil {
 		t.Fatal(err)
@@ -675,6 +713,54 @@ func TestEndpointInvalidLeave(t *testing.T) {
 	}
 
 	err = ep.Leave(containerID)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestEndpointUpdateParent(t *testing.T) {
+	defer netutils.SetupTestNetNS(t)()
+
+	n, err := createTestNetwork("bridge", "testnetwork", options.Generic{})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ep1, err := n.CreateEndpoint("ep1", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = ep1.Join(containerID,
+		libnetwork.JoinOptionHostname("test1"),
+		libnetwork.JoinOptionDomainname("docker.io"),
+		libnetwork.JoinOptionExtraHost("web", "192.168.0.1"))
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ep2, err := n.CreateEndpoint("ep2", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = ep2.Join("container2",
+		libnetwork.JoinOptionHostname("test2"),
+		libnetwork.JoinOptionDomainname("docker.io"),
+		libnetwork.JoinOptionHostsPath("/var/lib/docker/test_network/container2/hosts"),
+		libnetwork.JoinOptionParentUpdate(ep1.ID(), "web", "192.168.0.2"))
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = ep2.Leave("container2")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = ep1.Leave(containerID)
 	if err != nil {
 		t.Fatal(err)
 	}

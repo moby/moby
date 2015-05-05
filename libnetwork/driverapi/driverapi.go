@@ -44,11 +44,17 @@ type Driver interface {
 	EndpointInfo(nid, eid types.UUID) (map[string]interface{}, error)
 
 	// Join method is invoked when a Sandbox is attached to an endpoint.
-	Join(nid, eid types.UUID, sboxKey string, options map[string]interface{}) error
+	Join(nid, eid types.UUID, sboxKey string, options map[string]interface{}) (*JoinInfo, error)
 
 	// Leave method is invoked when a Sandbox detaches from an endpoint.
 	Leave(nid, eid types.UUID, options map[string]interface{}) error
 
 	// Type returns the the type of this driver, the network type this driver manages
 	Type() string
+}
+
+// JoinInfo represents a set of resources that the driver has the ability to provide during
+// join time.
+type JoinInfo struct {
+	HostsPath string
 }
