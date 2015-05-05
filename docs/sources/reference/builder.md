@@ -246,7 +246,7 @@ Or
 
 The `FROM` instruction sets the [*Base Image*](/terms/image/#base-image)
 for subsequent instructions. As such, a valid `Dockerfile` must have `FROM` as
-its first instruction. The image can be any valid image 鈥�it is especially easy
+its first instruction. The image can be any valid image – it is especially easy
 to start by **pulling an image** from the [*Public Repositories*](
 /userguide/dockerrepos).
 
@@ -1053,6 +1053,5 @@ For example you might add something like this:
     RUN echo moo > oink
     # Will output something like ===> 695d7793cbe4
 
-    # You峋縧l now have two images, 907ad6c2736f with /bar, and 695d7793cbe4 with
+    # You᾿ll now have two images, 907ad6c2736f with /bar, and 695d7793cbe4 with
     # /oink.
-
