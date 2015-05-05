@@ -61,6 +61,7 @@ type ContainerConfiguration struct {
 type bridgeEndpoint struct {
 	id          types.UUID
 	intf        *sandbox.Interface
+	macAddress  net.HardwareAddr
 	config      *EndpointConfiguration // User specified parameters
 	portMapping []netutils.PortBinding // Operation port bindings
 }
@@ -424,6 +425,7 @@ func (d *driver) CreateEndpoint(nid, eid types.UUID, epOptions map[string]interf
 	if err != nil {
 		return nil, err
 	}
+	endpoint.macAddress = mac
 
 	// Add bridge inherited attributes to pipe interfaces
 	if config.Mtu != 0 {
@@ -612,6 +614,10 @@ func (d *driver) EndpointInfo(nid, eid types.UUID) (map[string]interface{}, erro
 			pmc = append(pmc, pm.GetCopy())
 		}
 		m[options.PortMap] = pmc
+	}
+
+	if len(ep.macAddress) != 0 {
+		m[options.MacAddress] = ep.macAddress
 	}
 
 	return m, nil
