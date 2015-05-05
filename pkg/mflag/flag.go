@@ -526,7 +526,7 @@ func (f *FlagSet) PrintDefaults() {
 				names = append(names, name)
 			}
 		}
-		if len(names) > 0 {
+		if len(names) > 0 && len(flag.Usage) > 0 {
 			val := flag.DefValue
 
 			if home != "" && strings.HasPrefix(val, home) {
@@ -1142,4 +1142,54 @@ func NewFlagSet(name string, errorHandling ErrorHandling) *FlagSet {
 func (f *FlagSet) Init(name string, errorHandling ErrorHandling) {
 	f.name = name
 	f.errorHandling = errorHandling
+}
+
+type mergeVal struct {
+	Value
+	key  string
+	fset *FlagSet
+}
+
+func (v mergeVal) Set(s string) error {
+	return v.fset.Set(v.key, s)
+}
+
+func (v mergeVal) IsBoolFlag() bool {
+	if b, ok := v.Value.(boolFlag); ok {
+		return b.IsBoolFlag()
+	}
+	return false
+}
+
+func Merge(dest *FlagSet, flagsets ...*FlagSet) error {
+	for _, fset := range flagsets {
+		for k, f := range fset.formal {
+			if _, ok := dest.formal[k]; ok {
+				var err error
+				if fset.name == "" {
+					err = fmt.Errorf("flag redefined: %s", k)
+				} else {
+					err = fmt.Errorf("%s flag redefined: %s", fset.name, k)
+				}
+				fmt.Fprintln(fset.Out(), err.Error())
+				// Happens only if flags are declared with identical names
+				switch dest.errorHandling {
+				case ContinueOnError:
+					return err
+				case ExitOnError:
+					os.Exit(2)
+				case PanicOnError:
+					panic(err)
+				}
+			}
+			newF := *f
+			newF.Value = mergeVal{f.Value, k, fset}
+			dest.formal[k] = &newF
+		}
+	}
+	return nil
+}
+
+func (f *FlagSet) IsEmpty() bool {
+	return len(f.actual) == 0
 }

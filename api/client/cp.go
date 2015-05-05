@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/docker/docker/api/types"
+	Cli "github.com/docker/docker/cli"
 	"github.com/docker/docker/pkg/archive"
 	flag "github.com/docker/docker/pkg/mflag"
 )
@@ -37,7 +38,7 @@ const (
 // 	docker cp CONTAINER:PATH LOCALPATH|-
 // 	docker cp LOCALPATH|- CONTAINER:PATH
 func (cli *DockerCli) CmdCp(args ...string) error {
-	cmd := cli.Subcmd(
+	cmd := Cli.Subcmd(
 		"cp",
 		[]string{"CONTAINER:PATH LOCALPATH|-", "LOCALPATH|- CONTAINER:PATH"},
 		strings.Join([]string{

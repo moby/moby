@@ -8,6 +8,7 @@ import (
 	"runtime"
 
 	"github.com/Sirupsen/logrus"
+	Cli "github.com/docker/docker/cli"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/promise"
 	"github.com/docker/docker/pkg/signal"
@@ -39,7 +40,7 @@ func (cid *cidFile) Write(id string) error {
 //
 // Usage: docker run [OPTIONS] IMAGE [COMMAND] [ARG...]
 func (cli *DockerCli) CmdRun(args ...string) error {
-	cmd := cli.Subcmd("run", []string{"IMAGE [COMMAND] [ARG...]"}, "Run a command in a new container", true)
+	cmd := Cli.Subcmd("run", []string{"IMAGE [COMMAND] [ARG...]"}, "Run a command in a new container", true)
 
 	// These are flags not stored in Config/HostConfig
 	var (
@@ -249,7 +250,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		}
 	}
 	if status != 0 {
-		return StatusError{StatusCode: status}
+		return Cli.StatusError{StatusCode: status}
 	}
 	return nil
 }

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/url"
 
+	Cli "github.com/docker/docker/cli"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/registry"
@@ -13,7 +14,7 @@ import (
 //
 // Usage: docker push NAME[:TAG]
 func (cli *DockerCli) CmdPush(args ...string) error {
-	cmd := cli.Subcmd("push", []string{"NAME[:TAG]"}, "Push an image or a repository to a registry", true)
+	cmd := Cli.Subcmd("push", []string{"NAME[:TAG]"}, "Push an image or a repository to a registry", true)
 	cmd.Require(flag.Exact, 1)
 
 	cmd.ParseFlags(args, true)
