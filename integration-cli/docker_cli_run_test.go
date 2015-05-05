@@ -2765,6 +2765,38 @@ func (s *DockerSuite) TestRunModePidHost(c *check.C) {
 	}
 }
 
+func (s *DockerSuite) TestRunModeUTSHost(c *check.C) {
+	testRequires(c, NativeExecDriver, SameHostDaemon)
+	defer deleteAllContainers()
+
+	hostUTS, err := os.Readlink("/proc/1/ns/uts")
+	if err != nil {
+		c.Fatal(err)
+	}
+
+	cmd := exec.Command(dockerBinary, "run", "--uts=host", "busybox", "readlink", "/proc/self/ns/uts")
+	out2, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		c.Fatal(err, out2)
+	}
+
+	out2 = strings.Trim(out2, "\n")
+	if hostUTS != out2 {
+		c.Fatalf("UTS different with --uts=host %s != %s\n", hostUTS, out2)
+	}
+
+	cmd = exec.Command(dockerBinary, "run", "busybox", "readlink", "/proc/self/ns/uts")
+	out2, _, err = runCommandWithOutput(cmd)
+	if err != nil {
+		c.Fatal(err, out2)
+	}
+
+	out2 = strings.Trim(out2, "\n")
+	if hostUTS == out2 {
+		c.Fatalf("UTS should be different without --uts=host %s == %s\n", hostUTS, out2)
+	}
+}
+
 func (s *DockerSuite) TestRunTLSverify(c *check.C) {
 	cmd := exec.Command(dockerBinary, "ps")
 	out, ec, err := runCommandWithOutput(cmd)

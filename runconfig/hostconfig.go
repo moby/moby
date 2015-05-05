@@ -76,6 +76,27 @@ func (n IpcMode) Container() string {
 	return ""
 }
 
+type UTSMode string
+
+// IsPrivate indicates whether container use it's private UTS namespace
+func (n UTSMode) IsPrivate() bool {
+	return !(n.IsHost())
+}
+
+func (n UTSMode) IsHost() bool {
+	return n == "host"
+}
+
+func (n UTSMode) Valid() bool {
+	parts := strings.Split(string(n), ":")
+	switch mode := parts[0]; mode {
+	case "", "host":
+	default:
+		return false
+	}
+	return true
+}
+
 type PidMode string
 
 // IsPrivate indicates whether container use it's private pid stack
@@ -187,6 +208,7 @@ type HostConfig struct {
 	NetworkMode     NetworkMode
 	IpcMode         IpcMode
 	PidMode         PidMode
+	UTSMode         UTSMode
 	CapAdd          []string
 	CapDrop         []string
 	RestartPolicy   RestartPolicy
