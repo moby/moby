@@ -7,7 +7,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
-	"path"
+	"path/filepath"
 	"sync"
 
 	"github.com/Sirupsen/logrus"
@@ -247,7 +247,7 @@ func (s *TagStore) pushRepository(r *registry.Session, out io.Writer,
 
 func (s *TagStore) pushImage(r *registry.Session, out io.Writer, imgID, ep string, token []string, sf *streamformatter.StreamFormatter) (checksum string, err error) {
 	out = utils.NewWriteFlusher(out)
-	jsonRaw, err := ioutil.ReadFile(path.Join(s.graph.Root, imgID, "json"))
+	jsonRaw, err := ioutil.ReadFile(filepath.Join(s.graph.Root, imgID, "json"))
 	if err != nil {
 		return "", fmt.Errorf("Cannot retrieve the path for {%s}: %s", imgID, err)
 	}
