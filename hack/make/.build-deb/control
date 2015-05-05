@@ -1,10 +1,10 @@
-Source: docker-core
+Source: docker-engine
 Maintainer: Docker <support@docker.com>
 Homepage: https://dockerproject.com
 Vcs-Browser: https://github.com/docker/docker
 Vcs-Git: git://github.com/docker/docker.git
 
-Package: docker-core
+Package: docker-engine
 Architecture: linux-any
 Depends: iptables, ${misc:Depends}, ${perl:Depends}, ${shlibs:Depends}
 Recommends: aufs-tools,
