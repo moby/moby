@@ -1058,13 +1058,10 @@ func (s *Server) postContainersWait(version version.Version, w http.ResponseWrit
 		return fmt.Errorf("Missing parameter")
 	}
 
-	name := vars["name"]
-	cont, err := s.daemon.Get(name)
+	status, err := s.daemon.ContainerWait(vars["name"], -1*time.Second)
 	if err != nil {
 		return err
 	}
-
-	status, _ := cont.WaitStop(-1 * time.Second)
 
 	return writeJSON(w, http.StatusOK, &types.ContainerWaitResponse{
 		StatusCode: status,
@@ -1099,18 +1096,11 @@ func (s *Server) postContainersAttach(version version.Version, w http.ResponseWr
 		return fmt.Errorf("Missing parameter")
 	}
 
-	cont, err := s.daemon.Get(vars["name"])
-	if err != nil {
-		return err
-	}
-
 	inStream, outStream, err := hijackServer(w)
 	if err != nil {
 		return err
 	}
 	defer closeStreams(inStream, outStream)
-
-	var errStream io.Writer
 
 	if _, ok := r.Header["Upgrade"]; ok {
 		fmt.Fprintf(outStream, "HTTP/1.1 101 UPGRADED\r\nContent-Type: application/vnd.docker.raw-stream\r\nConnection: Upgrade\r\nUpgrade: tcp\r\n\r\n")
@@ -1118,31 +1108,21 @@ func (s *Server) postContainersAttach(version version.Version, w http.ResponseWr
 		fmt.Fprintf(outStream, "HTTP/1.1 200 OK\r\nContent-Type: application/vnd.docker.raw-stream\r\n\r\n")
 	}
 
-	if !cont.Config.Tty && version.GreaterThanOrEqualTo("1.6") {
-		errStream = stdcopy.NewStdWriter(outStream, stdcopy.Stderr)
-		outStream = stdcopy.NewStdWriter(outStream, stdcopy.Stdout)
-	} else {
-		errStream = outStream
-	}
-	logs := boolValue(r, "logs")
-	stream := boolValue(r, "stream")
-
-	var stdin io.ReadCloser
-	var stdout, stderr io.Writer
-
-	if boolValue(r, "stdin") {
-		stdin = inStream
-	}
-	if boolValue(r, "stdout") {
-		stdout = outStream
-	}
-	if boolValue(r, "stderr") {
-		stderr = errStream
+	attachWithLogsConfig := &daemon.ContainerAttachWithLogsConfig{
+		InStream:  inStream,
+		OutStream: outStream,
+		UseStdin:  boolValue(r, "stdin"),
+		UseStdout: boolValue(r, "stdout"),
+		UseStderr: boolValue(r, "stderr"),
+		Logs:      boolValue(r, "logs"),
+		Stream:    boolValue(r, "stream"),
+		Multiplex: version.GreaterThanOrEqualTo("1.6"),
 	}
 
-	if err := cont.AttachWithLogs(stdin, stdout, stderr, logs, stream); err != nil {
+	if err := s.daemon.ContainerAttachWithLogs(vars["name"], attachWithLogsConfig); err != nil {
 		fmt.Fprintf(outStream, "Error attaching: %s\n", err)
 	}
+
 	return nil
 }
 
@@ -1153,17 +1133,19 @@ func (s *Server) wsContainersAttach(version version.Version, w http.ResponseWrit
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
 	}
-	cont, err := s.daemon.Get(vars["name"])
-	if err != nil {
-		return err
-	}
 
 	h := websocket.Handler(func(ws *websocket.Conn) {
 		defer ws.Close()
-		logs := r.Form.Get("logs") != ""
-		stream := r.Form.Get("stream") != ""
 
-		if err := cont.AttachWithLogs(ws, ws, ws, logs, stream); err != nil {
+		wsAttachWithLogsConfig := &daemon.ContainerWsAttachWithLogsConfig{
+			InStream:  ws,
+			OutStream: ws,
+			ErrStream: ws,
+			Logs:      boolValue(r, "logs"),
+			Stream:    boolValue(r, "stream"),
+		}
+
+		if err := s.daemon.ContainerWsAttachWithLogs(vars["name"], wsAttachWithLogsConfig); err != nil {
 			logrus.Errorf("Error attaching websocket: %s", err)
 		}
 	})
