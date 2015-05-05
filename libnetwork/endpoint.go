@@ -486,13 +486,18 @@ func JoinOptionUseDefaultSandbox() EndpointOption {
 // ports option to be passed to network.CreateEndpoint() method.
 func CreateOptionPortMapping(portBindings []netutils.PortBinding) EndpointOption {
 	return func(ep *endpoint) {
-		// Store endpoint label
-		ep.generic[options.PortMap] = portBindings
-		// Extract exposed ports as this is the only concern of libnetwork endpoint
-		ep.exposedPorts = make([]netutils.TransportPort, 0, len(portBindings))
+		// Extract and store exposed ports as this is the only concern of libnetwork endpoint
+		// Store a copy of the bindings as generic data to pass to the driver
+		pbs := make([]netutils.PortBinding, 0, len(portBindings))
+		exp := make([]netutils.TransportPort, 0, len(portBindings))
+
 		for _, b := range portBindings {
-			ep.exposedPorts = append(ep.exposedPorts, netutils.TransportPort{Proto: b.Proto, Port: b.Port})
+			pbs = append(pbs, b.GetCopy())
+			exp = append(exp, netutils.TransportPort{Proto: b.Proto, Port: b.Port})
 		}
+
+		ep.generic[options.PortMap] = pbs
+		ep.exposedPorts = exp
 	}
 }
 
