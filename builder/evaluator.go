@@ -72,6 +72,7 @@ func init() {
 		command.Volume:     volume,
 		command.User:       user,
 		command.Insert:     insert,
+		command.Tag:        tag,
 	}
 }
 
