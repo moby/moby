@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types"
+	Cli "github.com/docker/docker/cli"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/pkg/stringutils"
@@ -17,7 +18,7 @@ import (
 //
 // Usage: docker history [OPTIONS] IMAGE
 func (cli *DockerCli) CmdHistory(args ...string) error {
-	cmd := cli.Subcmd("history", []string{"IMAGE"}, "Show the history of an image", true)
+	cmd := Cli.Subcmd("history", []string{"IMAGE"}, "Show the history of an image", true)
 	human := cmd.Bool([]string{"H", "-human"}, true, "Print sizes and dates in human readable format")
 	quiet := cmd.Bool([]string{"q", "-quiet"}, false, "Only show numeric IDs")
 	noTrunc := cmd.Bool([]string{"#notrunc", "-no-trunc"}, false, "Don't truncate output")

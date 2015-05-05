@@ -9,7 +9,6 @@ import (
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/nat"
 	"github.com/docker/docker/pkg/parsers"
-	"github.com/docker/docker/pkg/ulimit"
 	"github.com/docker/docker/pkg/units"
 )
 
@@ -48,8 +47,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		flLabels  = opts.NewListOpts(opts.ValidateEnv)
 		flDevices = opts.NewListOpts(opts.ValidateDevice)
 
-		ulimits   = make(map[string]*ulimit.Ulimit)
-		flUlimits = opts.NewUlimitOpt(ulimits)
+		flUlimits = opts.NewUlimitOpt(nil)
 
 		flPublish     = opts.NewListOpts(nil)
 		flExpose      = opts.NewListOpts(nil)

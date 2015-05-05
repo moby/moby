@@ -17,11 +17,18 @@ import (
 
 // Options represents the information needed to create client and server TLS configurations.
 type Options struct {
+	CAFile string
+
+	// If either CertFile or KeyFile is empty, Client() will not load them
+	// preventing the client from authenticating to the server.
+	// However, Server() requires them and will error out if they are empty.
+	CertFile string
+	KeyFile  string
+
+	// client-only option
 	InsecureSkipVerify bool
-	ClientAuth         tls.ClientAuthType
-	CAFile             string
-	CertFile           string
-	KeyFile            string
+	// server-only option
+	ClientAuth tls.ClientAuthType
 }
 
 // Extra (server-side) accepted CBC cipher suites - will phase out in the future

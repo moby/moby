@@ -7,6 +7,7 @@ import (
 
 	"github.com/docker/docker/api/client/ps"
 	"github.com/docker/docker/api/types"
+	Cli "github.com/docker/docker/cli"
 	"github.com/docker/docker/opts"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/parsers/filters"
@@ -22,7 +23,7 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 		psFilterArgs = filters.Args{}
 		v            = url.Values{}
 
-		cmd      = cli.Subcmd("ps", nil, "List containers", true)
+		cmd      = Cli.Subcmd("ps", nil, "List containers", true)
 		quiet    = cmd.Bool([]string{"q", "-quiet"}, false, "Only display numeric IDs")
 		size     = cmd.Bool([]string{"s", "-size"}, false, "Display total file sizes")
 		all      = cmd.Bool([]string{"a", "-all"}, false, "Show all containers (default shows just running)")

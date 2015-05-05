@@ -8,6 +8,7 @@ import (
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/autogen/dockerversion"
+	Cli "github.com/docker/docker/cli"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/utils"
 )
@@ -42,7 +43,7 @@ type VersionData struct {
 //
 // Usage: docker version
 func (cli *DockerCli) CmdVersion(args ...string) (err error) {
-	cmd := cli.Subcmd("version", nil, "Show the Docker version information.", true)
+	cmd := Cli.Subcmd("version", nil, "Show the Docker version information.", true)
 	tmplStr := cmd.String([]string{"f", "#format", "-format"}, "", "Format the output using the given go template")
 	cmd.Require(flag.Exact, 0)
 
@@ -53,7 +54,7 @@ func (cli *DockerCli) CmdVersion(args ...string) (err error) {
 
 	var tmpl *template.Template
 	if tmpl, err = template.New("").Funcs(funcMap).Parse(*tmplStr); err != nil {
-		return StatusError{StatusCode: 64,
+		return Cli.StatusError{StatusCode: 64,
 			Status: "Template parsing error: " + err.Error()}
 	}
 
@@ -85,7 +86,7 @@ func (cli *DockerCli) CmdVersion(args ...string) (err error) {
 	defer serverResp.body.Close()
 
 	if err = json.NewDecoder(serverResp.body).Decode(&vd.Server); err != nil {
-		return StatusError{StatusCode: 1,
+		return Cli.StatusError{StatusCode: 1,
 			Status: "Error reading remote version: " + err.Error()}
 	}
 

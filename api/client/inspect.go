@@ -9,14 +9,22 @@ import (
 	"text/template"
 
 	"github.com/docker/docker/api/types"
+	Cli "github.com/docker/docker/cli"
 	flag "github.com/docker/docker/pkg/mflag"
 )
+
+var funcMap = template.FuncMap{
+	"json": func(v interface{}) string {
+		a, _ := json.Marshal(v)
+		return string(a)
+	},
+}
 
 // CmdInspect displays low-level information on one or more containers or images.
 //
 // Usage: docker inspect [OPTIONS] CONTAINER|IMAGE [CONTAINER|IMAGE...]
 func (cli *DockerCli) CmdInspect(args ...string) error {
-	cmd := cli.Subcmd("inspect", []string{"CONTAINER|IMAGE [CONTAINER|IMAGE...]"}, "Return low-level information on a container or image", true)
+	cmd := Cli.Subcmd("inspect", []string{"CONTAINER|IMAGE [CONTAINER|IMAGE...]"}, "Return low-level information on a container or image", true)
 	tmplStr := cmd.String([]string{"f", "#format", "-format"}, "", "Format the output using the given go template")
 	inspectType := cmd.String([]string{"-type"}, "", "Return JSON for specified type, (e.g image or container)")
 	cmd.Require(flag.Min, 1)
@@ -29,7 +37,7 @@ func (cli *DockerCli) CmdInspect(args ...string) error {
 
 	if *tmplStr != "" {
 		if tmpl, err = template.New("").Funcs(funcMap).Parse(*tmplStr); err != nil {
-			return StatusError{StatusCode: 64,
+			return Cli.StatusError{StatusCode: 64,
 				Status: "Template parsing error: " + err.Error()}
 		}
 	}
@@ -143,7 +151,7 @@ func (cli *DockerCli) CmdInspect(args ...string) error {
 	}
 
 	if status != 0 {
-		return StatusError{StatusCode: status}
+		return Cli.StatusError{StatusCode: status}
 	}
 	return nil
 }

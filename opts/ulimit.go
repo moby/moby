@@ -7,10 +7,13 @@ import (
 )
 
 type UlimitOpt struct {
-	values map[string]*ulimit.Ulimit
+	values *map[string]*ulimit.Ulimit
 }
 
-func NewUlimitOpt(ref map[string]*ulimit.Ulimit) *UlimitOpt {
+func NewUlimitOpt(ref *map[string]*ulimit.Ulimit) *UlimitOpt {
+	if ref == nil {
+		ref = &map[string]*ulimit.Ulimit{}
+	}
 	return &UlimitOpt{ref}
 }
 
@@ -20,14 +23,14 @@ func (o *UlimitOpt) Set(val string) error {
 		return err
 	}
 
-	o.values[l.Name] = l
+	(*o.values)[l.Name] = l
 
 	return nil
 }
 
 func (o *UlimitOpt) String() string {
 	var out []string
-	for _, v := range o.values {
+	for _, v := range *o.values {
 		out = append(out, v.String())
 	}
 
@@ -36,7 +39,7 @@ func (o *UlimitOpt) String() string {
 
 func (o *UlimitOpt) GetList() []*ulimit.Ulimit {
 	var ulimits []*ulimit.Ulimit
-	for _, v := range o.values {
+	for _, v := range *o.values {
 		ulimits = append(ulimits, v)
 	}
 
