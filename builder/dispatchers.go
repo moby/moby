@@ -459,7 +459,7 @@ func volume(b *Builder, args []string, attributes map[string]bool, original stri
 
 // TAG reponame:tagname
 //
-// Tag the middle of the image layer. 
+// Tag the middle of the image layer.
 //
 func tag(b *Builder, args []string, attributes map[string]bool, original string) error {
 	if len(args) != 1 {
