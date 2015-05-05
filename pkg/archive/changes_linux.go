@@ -100,6 +100,15 @@ func (w *walker) walk(path string, i1, i2 os.FileInfo) (err error) {
 	is1Dir := i1 != nil && i1.IsDir()
 	is2Dir := i2 != nil && i2.IsDir()
 
+	sameDevice := false
+	if i1 != nil && i2 != nil {
+		si1 := i1.Sys().(*syscall.Stat_t)
+		si2 := i2.Sys().(*syscall.Stat_t)
+		if si1.Dev == si2.Dev {
+			sameDevice = true
+		}
+	}
+
 	// If these files are both non-existent, or leaves (non-dirs), we are done.
 	if !is1Dir && !is2Dir {
 		return nil
@@ -144,7 +153,7 @@ func (w *walker) walk(path string, i1, i2 os.FileInfo) (err error) {
 			names = append(names, ni1.name)
 			ix1++
 		case 0: // ni1 == ni2
-			if ni1.ino != ni2.ino {
+			if ni1.ino != ni2.ino || !sameDevice {
 				names = append(names, ni1.name)
 			}
 			ix1++
