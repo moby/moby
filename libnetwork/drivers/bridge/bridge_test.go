@@ -10,7 +10,6 @@ import (
 	"github.com/docker/docker/pkg/iptables"
 	"github.com/docker/libnetwork/netutils"
 	"github.com/docker/libnetwork/pkg/options"
-	"github.com/docker/libnetwork/types"
 	"github.com/vishvananda/netlink"
 )
 
@@ -226,8 +225,8 @@ func TestLinkContainers(t *testing.T) {
 		t.Fatalf("No Ipv4 address assigned to the endpoint:  ep2")
 	}
 
-	ce := []types.UUID{"ep1"}
-	cConfig := &ContainerConfiguration{childEndpoints: ce}
+	ce := []string{"ep1"}
+	cConfig := &ContainerConfiguration{ChildEndpoints: ce}
 	genericOption = make(map[string]interface{})
 	genericOption[options.GenericData] = cConfig
 
@@ -276,8 +275,8 @@ func TestLinkContainers(t *testing.T) {
 	}
 
 	// Error condition test with an invalid endpoint-id "ep4"
-	ce = []types.UUID{"ep1", "ep4"}
-	cConfig = &ContainerConfiguration{childEndpoints: ce}
+	ce = []string{"ep1", "ep4"}
+	cConfig = &ContainerConfiguration{ChildEndpoints: ce}
 	genericOption = make(map[string]interface{})
 	genericOption[options.GenericData] = cConfig
 

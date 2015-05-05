@@ -54,8 +54,8 @@ type EndpointConfiguration struct {
 
 // ContainerConfiguration represents the user specified configuration for a container
 type ContainerConfiguration struct {
-	parentEndpoints []types.UUID
-	childEndpoints  []types.UUID
+	ParentEndpoints []string
+	ChildEndpoints  []string
 }
 
 type bridgeEndpoint struct {
@@ -664,14 +664,14 @@ func (d *driver) link(nid, eid types.UUID, options map[string]interface{}, enabl
 	}
 
 	if endpoint.config != nil && endpoint.config.PortBindings != nil {
-		for _, p := range cc.parentEndpoints {
+		for _, p := range cc.ParentEndpoints {
 			var parentEndpoint *bridgeEndpoint
-			parentEndpoint, err = network.getEndpoint(p)
+			parentEndpoint, err = network.getEndpoint(types.UUID(p))
 			if err != nil {
 				return err
 			}
 			if parentEndpoint == nil {
-				err = InvalidEndpointIDError(string(p))
+				err = InvalidEndpointIDError(p)
 				return err
 			}
 
@@ -694,14 +694,14 @@ func (d *driver) link(nid, eid types.UUID, options map[string]interface{}, enabl
 		}
 	}
 
-	for _, c := range cc.childEndpoints {
+	for _, c := range cc.ChildEndpoints {
 		var childEndpoint *bridgeEndpoint
-		childEndpoint, err = network.getEndpoint(c)
+		childEndpoint, err = network.getEndpoint(types.UUID(c))
 		if err != nil {
 			return err
 		}
 		if childEndpoint == nil {
-			err = InvalidEndpointIDError(string(c))
+			err = InvalidEndpointIDError(c)
 			return err
 		}
 		if childEndpoint.config == nil || childEndpoint.config.PortBindings == nil {
