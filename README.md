@@ -246,3 +246,9 @@ Docker on a Mac
 
 If you know of another project underway that should be listed here, please help 
 us keep this list up-to-date by submitting a PR.
+
+Mailing Lists
+=============
+
+* [Google group for Docker Users](https://groups.google.com/forum/#!forum/docker-user)
+* [Google group for Docker development discussions](https://groups.google.com/forum/#!forum/docker-dev)
