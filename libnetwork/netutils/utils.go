@@ -39,6 +39,11 @@ type TransportPort struct {
 	Port  uint16
 }
 
+// GetCopy returns a copy of this TransportPort structure instance
+func (t *TransportPort) GetCopy() TransportPort {
+	return TransportPort{Proto: t.Proto, Port: t.Port}
+}
+
 // PortBinding represent a port binding between the container an the host
 type PortBinding struct {
 	Proto    Protocol

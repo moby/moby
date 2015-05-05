@@ -50,6 +50,7 @@ type Configuration struct {
 type EndpointConfiguration struct {
 	MacAddress   net.HardwareAddr
 	PortBindings []netutils.PortBinding
+	ExposedPorts []netutils.TransportPort
 }
 
 // ContainerConfiguration represents the user specified configuration for a container
@@ -663,7 +664,7 @@ func (d *driver) link(nid, eid types.UUID, options map[string]interface{}, enabl
 		return nil
 	}
 
-	if endpoint.config != nil && endpoint.config.PortBindings != nil {
+	if endpoint.config != nil && endpoint.config.ExposedPorts != nil {
 		for _, p := range cc.ParentEndpoints {
 			var parentEndpoint *bridgeEndpoint
 			parentEndpoint, err = network.getEndpoint(types.UUID(p))
@@ -677,7 +678,7 @@ func (d *driver) link(nid, eid types.UUID, options map[string]interface{}, enabl
 
 			l := newLink(parentEndpoint.intf.Address.IP.String(),
 				endpoint.intf.Address.IP.String(),
-				endpoint.config.PortBindings, d.config.BridgeName)
+				endpoint.config.ExposedPorts, d.config.BridgeName)
 			if enable {
 				err = l.Enable()
 				if err != nil {
@@ -704,12 +705,12 @@ func (d *driver) link(nid, eid types.UUID, options map[string]interface{}, enabl
 			err = InvalidEndpointIDError(c)
 			return err
 		}
-		if childEndpoint.config == nil || childEndpoint.config.PortBindings == nil {
+		if childEndpoint.config == nil || childEndpoint.config.ExposedPorts == nil {
 			continue
 		}
 		l := newLink(endpoint.intf.Address.IP.String(),
 			childEndpoint.intf.Address.IP.String(),
-			childEndpoint.config.PortBindings, d.config.BridgeName)
+			childEndpoint.config.ExposedPorts, d.config.BridgeName)
 		if enable {
 			err = l.Enable()
 			if err != nil {
@@ -749,6 +750,14 @@ func parseEndpointOptions(epOptions map[string]interface{}) (*EndpointConfigurat
 	if opt, ok := epOptions[options.PortMap]; ok {
 		if bs, ok := opt.([]netutils.PortBinding); ok {
 			ec.PortBindings = bs
+		} else {
+			return nil, ErrInvalidEndpointConfig
+		}
+	}
+
+	if opt, ok := epOptions[options.ExposedPorts]; ok {
+		if ports, ok := opt.([]netutils.TransportPort); ok {
+			ec.ExposedPorts = ports
 		} else {
 			return nil, ErrInvalidEndpointConfig
 		}

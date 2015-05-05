@@ -179,7 +179,7 @@ func TestBridge(t *testing.T) {
 		t.Fatalf("Unexpected format for port mapping in endpoint operational data")
 	}
 	if len(pm) != 3 {
-		t.Fatalf("Incomplete data for port mapping in endpoint operational data")
+		t.Fatalf("Incomplete data for port mapping in endpoint operational data: %d", len(pm))
 	}
 
 	if err := ep.Delete(); err != nil {

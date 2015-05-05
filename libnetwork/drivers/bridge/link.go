@@ -12,7 +12,7 @@ import (
 type link struct {
 	parentIP string
 	childIP  string
-	ports    []netutils.PortBinding
+	ports    []netutils.TransportPort
 	bridge   string
 }
 
@@ -20,7 +20,7 @@ func (l *link) String() string {
 	return fmt.Sprintf("%s <-> %s [%v] on %s", l.parentIP, l.childIP, l.ports, l.bridge)
 }
 
-func newLink(parentIP, childIP string, ports []netutils.PortBinding, bridge string) *link {
+func newLink(parentIP, childIP string, ports []netutils.TransportPort, bridge string) *link {
 	return &link{
 		childIP:  childIP,
 		parentIP: parentIP,
@@ -45,7 +45,7 @@ func (l *link) Disable() {
 	// that returns typed errors
 }
 
-func linkContainers(action, parentIP, childIP string, ports []netutils.PortBinding, bridge string,
+func linkContainers(action, parentIP, childIP string, ports []netutils.TransportPort, bridge string,
 	ignoreErrors bool) error {
 	var nfAction iptables.Action
 
