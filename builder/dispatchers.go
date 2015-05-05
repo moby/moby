@@ -12,6 +12,7 @@ import (
 	"io/ioutil"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"sort"
 	"strings"
 
@@ -38,6 +39,9 @@ func nullDispatch(b *Builder, args []string, attributes map[string]bool, origina
 // in the dockerfile available from the next statement on via ${foo}.
 //
 func env(b *Builder, args []string, attributes map[string]bool, original string) error {
+	if runtime.GOOS == "windows" {
+		return fmt.Errorf("ENV is not supported on Windows.")
+	}
 	if len(args) == 0 {
 		return fmt.Errorf("ENV requires at least one argument")
 	}
@@ -247,10 +251,11 @@ func workdir(b *Builder, args []string, attributes map[string]bool, original str
 // RUN some command yo
 //
 // run a command and commit the image. Args are automatically prepended with
-// 'sh -c' in the event there is only one argument. The difference in
-// processing:
+// 'sh -c' under linux or 'cmd /S /C' under Windows, in the event there is
+// only one argument. The difference in processing:
 //
-// RUN echo hi          # sh -c echo hi
+// RUN echo hi          # sh -c echo hi       (Linux)
+// RUN echo hi          # cmd /S /C echo hi   (Windows)
 // RUN [ "echo", "hi" ] # echo hi
 //
 func run(b *Builder, args []string, attributes map[string]bool, original string) error {
@@ -261,7 +266,11 @@ func run(b *Builder, args []string, attributes map[string]bool, original string)
 	args = handleJsonArgs(args, attributes)
 
 	if !attributes["json"] {
-		args = append([]string{"/bin/sh", "-c"}, args...)
+		if runtime.GOOS != "windows" {
+			args = append([]string{"/bin/sh", "-c"}, args...)
+		} else {
+			args = append([]string{"cmd", "/S /C"}, args...)
+		}
 	}
 
 	runCmd := flag.NewFlagSet("run", flag.ContinueOnError)
@@ -320,7 +329,11 @@ func cmd(b *Builder, args []string, attributes map[string]bool, original string)
 	cmdSlice := handleJsonArgs(args, attributes)
 
 	if !attributes["json"] {
-		cmdSlice = append([]string{"/bin/sh", "-c"}, cmdSlice...)
+		if runtime.GOOS != "windows" {
+			cmdSlice = append([]string{"/bin/sh", "-c"}, cmdSlice...)
+		} else {
+			cmdSlice = append([]string{"cmd", "/S /C"}, cmdSlice...)
+		}
 	}
 
 	b.Config.Cmd = runconfig.NewCommand(cmdSlice...)
@@ -338,8 +351,8 @@ func cmd(b *Builder, args []string, attributes map[string]bool, original string)
 
 // ENTRYPOINT /usr/sbin/nginx
 //
-// Set the entrypoint (which defaults to sh -c) to /usr/sbin/nginx. Will
-// accept the CMD as the arguments to /usr/sbin/nginx.
+// Set the entrypoint (which defaults to sh -c on linux, or cmd /S /C on Windows) to
+// /usr/sbin/nginx. Will accept the CMD as the arguments to /usr/sbin/nginx.
 //
 // Handles command processing similar to CMD and RUN, only b.Config.Entrypoint
 // is initialized at NewBuilder time instead of through argument parsing.
@@ -356,7 +369,11 @@ func entrypoint(b *Builder, args []string, attributes map[string]bool, original 
 		b.Config.Entrypoint = nil
 	default:
 		// ENTRYPOINT echo hi
-		b.Config.Entrypoint = runconfig.NewEntrypoint("/bin/sh", "-c", parsed[0])
+		if runtime.GOOS != "windows" {
+			b.Config.Entrypoint = runconfig.NewEntrypoint("/bin/sh", "-c", parsed[0])
+		} else {
+			b.Config.Entrypoint = runconfig.NewEntrypoint("cmd", "/S /C", parsed[0])
+		}
 	}
 
 	// when setting the entrypoint if a CMD was not explicitly set then
@@ -424,6 +441,10 @@ func expose(b *Builder, args []string, attributes map[string]bool, original stri
 // ENTRYPOINT/CMD at container run time.
 //
 func user(b *Builder, args []string, attributes map[string]bool, original string) error {
+	if runtime.GOOS == "windows" {
+		return fmt.Errorf("USER is not supported on Windows.")
+	}
+
 	if len(args) != 1 {
 		return fmt.Errorf("USER requires exactly one argument")
 	}
@@ -437,6 +458,9 @@ func user(b *Builder, args []string, attributes map[string]bool, original string
 // Expose the volume /foo for use. Will also accept the JSON array form.
 //
 func volume(b *Builder, args []string, attributes map[string]bool, original string) error {
+	if runtime.GOOS == "windows" {
+		return fmt.Errorf("VOLUME is not supported on Windows.")
+	}
 	if len(args) == 0 {
 		return fmt.Errorf("VOLUME requires at least one argument")
 	}
