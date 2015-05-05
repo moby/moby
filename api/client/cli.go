@@ -90,8 +90,7 @@ func (cli *DockerCli) Cmd(args ...string) error {
 	if len(args) > 0 {
 		method, exists := cli.getMethod(args[0])
 		if !exists {
-			fmt.Fprintf(cli.err, "docker: '%s' is not a docker command. See 'docker --help'.\n", args[0])
-			os.Exit(1)
+			return fmt.Errorf("docker: '%s' is not a docker command. See 'docker --help'.", args[0])
 		}
 		return method(args[1:]...)
 	}

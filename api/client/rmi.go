@@ -29,17 +29,17 @@ func (cli *DockerCli) CmdRmi(args ...string) error {
 		v.Set("noprune", "1")
 	}
 
-	var encounteredError error
+	var errNames []string
 	for _, name := range cmd.Args() {
 		rdr, _, err := cli.call("DELETE", "/images/"+name+"?"+v.Encode(), nil, nil)
 		if err != nil {
 			fmt.Fprintf(cli.err, "%s\n", err)
-			encounteredError = fmt.Errorf("Error: failed to remove one or more images")
+			errNames = append(errNames, name)
 		} else {
 			dels := []types.ImageDelete{}
 			if err := json.NewDecoder(rdr).Decode(&dels); err != nil {
 				fmt.Fprintf(cli.err, "%s\n", err)
-				encounteredError = fmt.Errorf("Error: failed to remove one or more images")
+				errNames = append(errNames, name)
 				continue
 			}
 
@@ -52,5 +52,8 @@ func (cli *DockerCli) CmdRmi(args ...string) error {
 			}
 		}
 	}
-	return encounteredError
+	if len(errNames) > 0 {
+		return fmt.Errorf("Error: failed to remove images: %v", errNames)
+	}
+	return nil
 }

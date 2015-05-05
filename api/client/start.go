@@ -120,6 +120,7 @@ func (cli *DockerCli) CmdStart(args ...string) error {
 	}
 
 	var encounteredError error
+	var errNames []string
 	for _, name := range cmd.Args() {
 		_, _, err := readBody(cli.call("POST", "/containers/"+name+"/start", nil, nil))
 		if err != nil {
@@ -127,7 +128,7 @@ func (cli *DockerCli) CmdStart(args ...string) error {
 				// attach and openStdin is false means it could be starting multiple containers
 				// when a container start failed, show the error message and start next
 				fmt.Fprintf(cli.err, "%s\n", err)
-				encounteredError = fmt.Errorf("Error: failed to start one or more containers")
+				errNames = append(errNames, name)
 			} else {
 				encounteredError = err
 			}
@@ -138,6 +139,9 @@ func (cli *DockerCli) CmdStart(args ...string) error {
 		}
 	}
 
+	if len(errNames) > 0 {
+		encounteredError = fmt.Errorf("Error: failed to start containers: %v", errNames)
+	}
 	if encounteredError != nil {
 		return encounteredError
 	}
