@@ -2951,13 +2951,57 @@ func (s *DockerSuite) TestRunContainerWithWritableRootfs(c *check.C) {
 func (s *DockerSuite) TestRunContainerWithReadonlyRootfs(c *check.C) {
 	testRequires(c, NativeExecDriver)
 
-	out, err := exec.Command(dockerBinary, "run", "--read-only", "--rm", "busybox", "touch", "/file").CombinedOutput()
+	for _, f := range []string{"/file", "/etc/hosts", "/etc/resolv.conf", "/etc/hostname"} {
+		testReadOnlyFile(f, c)
+	}
+}
+
+func testReadOnlyFile(filename string, c *check.C) {
+	testRequires(c, NativeExecDriver)
+
+	out, err := exec.Command(dockerBinary, "run", "--read-only", "--rm", "busybox", "touch", filename).CombinedOutput()
 	if err == nil {
 		c.Fatal("expected container to error on run with read only error")
 	}
 	expected := "Read-only file system"
 	if !strings.Contains(string(out), expected) {
 		c.Fatalf("expected output from failure to contain %s but contains %s", expected, out)
+	}
+}
+
+func (s *DockerSuite) TestRunContainerWithReadonlyEtcHostsAndLinkedContainer(c *check.C) {
+	testRequires(c, NativeExecDriver)
+
+	_, err := runCommand(exec.Command(dockerBinary, "run", "-d", "--name", "test-etc-hosts-ro-linked", "busybox", "top"))
+	c.Assert(err, check.IsNil)
+
+	out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "run", "--read-only", "--link", "test-etc-hosts-ro-linked:testlinked", "busybox", "cat", "/etc/hosts"))
+	c.Assert(err, check.IsNil)
+
+	if !strings.Contains(string(out), "testlinked") {
+		c.Fatal("Expected /etc/hosts to be updated even if --read-only enabled")
+	}
+}
+
+func (s *DockerSuite) TestRunContainerWithReadonlyRootfsWithDnsFlag(c *check.C) {
+	testRequires(c, NativeExecDriver)
+
+	out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "run", "--read-only", "--dns", "1.1.1.1", "busybox", "/bin/cat", "/etc/resolv.conf"))
+	c.Assert(err, check.IsNil)
+
+	if !strings.Contains(string(out), "1.1.1.1") {
+		c.Fatal("Expected /etc/resolv.conf to be updated even if --read-only enabled and --dns flag used")
+	}
+}
+
+func (s *DockerSuite) TestRunContainerWithReadonlyRootfsWithAddHostFlag(c *check.C) {
+	testRequires(c, NativeExecDriver)
+
+	out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "run", "--read-only", "--add-host", "testreadonly:127.0.0.1", "busybox", "/bin/cat", "/etc/hosts"))
+	c.Assert(err, check.IsNil)
+
+	if !strings.Contains(string(out), "testreadonly") {
+		c.Fatal("Expected /etc/hosts to be updated even if --read-only enabled and --add-host flag used")
 	}
 }
 
