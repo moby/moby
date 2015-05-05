@@ -57,7 +57,7 @@ install-deps:
 	go get github.com/mattn/goveralls
 
 coveralls:
-	@goveralls -service circleci -coverprofile=coverage.coverprofile -repotoken $$COVERALLS_TOKEN
+	-@goveralls -service circleci -coverprofile=coverage.coverprofile -repotoken $$COVERALLS_TOKEN
 
 # CircleCI's Docker fails when cleaning up using the --rm flag
 # The following target is a workaround for this
