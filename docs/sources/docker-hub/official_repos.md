@@ -5,8 +5,8 @@ page_keywords: Docker, docker, registry, accounts, plans, Dockerfile, Docker Hub
 # Official Repositories on Docker Hub
 
 The Docker [Official Repositories](http://registry.hub.docker.com/official) are
-a curated set of Docker repositories that are promoted on Docker Hub and
-supported by Docker, Inc. They are designed to:
+a curated set of Docker repositories that are promoted on Docker Hub. They are
+designed to:
 
 * Provide essential base OS repositories (for example,
   [`ubuntu`](https://registry.hub.docker.com/_/ubuntu/),
