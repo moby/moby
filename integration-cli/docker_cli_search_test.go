@@ -63,6 +63,16 @@ func (s *DockerSuite) TestSearchCmdOptions(c *check.C) {
 		c.Fatalf("failed to search on the central registry: %s, %v", outSearchCmd, err)
 	}
 
+	searchCmdNotrunc := exec.Command(dockerBinary, "search", "--no-trunc=true", "busybox")
+	outSearchCmdNotrunc, _, err := runCommandWithOutput(searchCmdNotrunc)
+	if err != nil {
+		c.Fatalf("failed to search on the central registry: %s, %v", outSearchCmdNotrunc, err)
+	}
+
+	if len(outSearchCmd) > len(outSearchCmdNotrunc) {
+		c.Fatalf("The no-trunc option can't take effect.")
+	}
+
 	searchCmdautomated := exec.Command(dockerBinary, "search", "--automated=true", "busybox")
 	outSearchCmdautomated, exitCode, err := runCommandWithOutput(searchCmdautomated) //The busybox is a busybox base image, not an AUTOMATED image.
 	if err != nil || exitCode != 0 {
