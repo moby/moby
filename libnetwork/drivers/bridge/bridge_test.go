@@ -171,6 +171,14 @@ func TestCreateLinkWithOptions(t *testing.T) {
 	}
 }
 
+func getExposedPorts() []netutils.TransportPort {
+	return []netutils.TransportPort{
+		netutils.TransportPort{Proto: netutils.TCP, Port: uint16(5000)},
+		netutils.TransportPort{Proto: netutils.UDP, Port: uint16(400)},
+		netutils.TransportPort{Proto: netutils.TCP, Port: uint16(600)},
+	}
+}
+
 func getPortMapping() []netutils.PortBinding {
 	return []netutils.PortBinding{
 		netutils.PortBinding{Proto: netutils.TCP, Port: uint16(230), HostPort: uint16(23000)},
@@ -201,9 +209,9 @@ func TestLinkContainers(t *testing.T) {
 		t.Fatalf("Failed to create bridge: %v", err)
 	}
 
-	portMappings := getPortMapping()
+	exposedPorts := getExposedPorts()
 	epOptions := make(map[string]interface{})
-	epOptions[options.PortMap] = portMappings
+	epOptions[options.ExposedPorts] = exposedPorts
 
 	sinfo, err := d.CreateEndpoint("net1", "ep1", epOptions)
 	if err != nil {
@@ -235,13 +243,12 @@ func TestLinkContainers(t *testing.T) {
 		t.Fatalf("Failed to link ep1 and ep2")
 	}
 
-	out, err := iptables.Raw("-L", "DOCKER")
-	for _, pm := range portMappings {
+	out, err := iptables.Raw("-L", DockerChain)
+	for _, pm := range exposedPorts {
 		regex := fmt.Sprintf("%s dpt:%d", pm.Proto.String(), pm.Port)
 		re := regexp.MustCompile(regex)
 		matches := re.FindAllString(string(out[:]), -1)
-		// There will be 2 matches : Port-Mapping and Linking table rules
-		if len(matches) < 2 {
+		if len(matches) != 1 {
 			t.Fatalf("IP Tables programming failed %s", string(out[:]))
 		}
 
@@ -257,13 +264,12 @@ func TestLinkContainers(t *testing.T) {
 		t.Fatalf("Failed to unlink ep1 and ep2")
 	}
 
-	out, err = iptables.Raw("-L", "DOCKER")
-	for _, pm := range portMappings {
+	out, err = iptables.Raw("-L", DockerChain)
+	for _, pm := range exposedPorts {
 		regex := fmt.Sprintf("%s dpt:%d", pm.Proto.String(), pm.Port)
 		re := regexp.MustCompile(regex)
 		matches := re.FindAllString(string(out[:]), -1)
-		// There will be 1 match : Port-Mapping
-		if len(matches) > 1 {
+		if len(matches) != 0 {
 			t.Fatalf("Leave should have deleted relevant IPTables rules  %s", string(out[:]))
 		}
 
@@ -282,13 +288,12 @@ func TestLinkContainers(t *testing.T) {
 
 	_, err = d.Join("net1", "ep2", "", genericOption)
 	if err != nil {
-		out, err = iptables.Raw("-L", "DOCKER")
-		for _, pm := range portMappings {
+		out, err = iptables.Raw("-L", DockerChain)
+		for _, pm := range exposedPorts {
 			regex := fmt.Sprintf("%s dpt:%d", pm.Proto.String(), pm.Port)
 			re := regexp.MustCompile(regex)
 			matches := re.FindAllString(string(out[:]), -1)
-			// There must be 1 match : Port-Mapping
-			if len(matches) > 1 {
+			if len(matches) != 0 {
 				t.Fatalf("Error handling should rollback relevant IPTables rules  %s", string(out[:]))
 			}
 
@@ -298,6 +303,8 @@ func TestLinkContainers(t *testing.T) {
 				t.Fatalf("Error handling should rollback relevant IPTables rules  %s", string(out[:]))
 			}
 		}
+	} else {
+		t.Fatalf("Expected Join to fail given link conditions are not satisfied")
 	}
 }
 

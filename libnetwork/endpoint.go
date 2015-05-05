@@ -482,22 +482,27 @@ func JoinOptionUseDefaultSandbox() EndpointOption {
 	}
 }
 
-// CreateOptionPortMapping function returns an option setter for the container exposed
+// CreateOptionExposedPorts function returns an option setter for the container exposed
+// ports option to be passed to network.CreateEndpoint() method.
+func CreateOptionExposedPorts(exposedPorts []netutils.TransportPort) EndpointOption {
+	return func(ep *endpoint) {
+		// Defensive copy
+		eps := make([]netutils.TransportPort, len(exposedPorts))
+		copy(eps, exposedPorts)
+		// Store endpoint label and in generic because driver needs it
+		ep.exposedPorts = eps
+		ep.generic[options.ExposedPorts] = eps
+	}
+}
+
+// CreateOptionPortMapping function returns an option setter for the mapping
 // ports option to be passed to network.CreateEndpoint() method.
 func CreateOptionPortMapping(portBindings []netutils.PortBinding) EndpointOption {
 	return func(ep *endpoint) {
-		// Extract and store exposed ports as this is the only concern of libnetwork endpoint
 		// Store a copy of the bindings as generic data to pass to the driver
-		pbs := make([]netutils.PortBinding, 0, len(portBindings))
-		exp := make([]netutils.TransportPort, 0, len(portBindings))
-
-		for _, b := range portBindings {
-			pbs = append(pbs, b.GetCopy())
-			exp = append(exp, netutils.TransportPort{Proto: b.Proto, Port: b.Port})
-		}
-
+		pbs := make([]netutils.PortBinding, len(portBindings))
+		copy(pbs, portBindings)
 		ep.generic[options.PortMap] = pbs
-		ep.exposedPorts = exp
 	}
 }
 
