@@ -940,6 +940,20 @@ For example:
 The output of the final `pwd` command in this `Dockerfile` would be
 `/path/$DIRNAME`
 
+## TAG
+
+    TAG reponame:tagname
+
+The `TAG` instruction sets the tag in the `Dockerfile` easily. It can sets
+the middle image in `Dockerfile` while `build -t` can only tag the whole image. 
+
+Dockerfile must create at least one new image layer when using TAG to 
+tag the image. For example:
+	
+	FROM docker-ut:v1
+	USER admin
+	TAG docker-ut:v2
+
 ## ONBUILD
 
     ONBUILD [INSTRUCTION]
@@ -1041,4 +1055,3 @@ For example you might add something like this:
 
     # You᾿ll now have two images, 907ad6c2736f with /bar, and 695d7793cbe4 with
     # /oink.
-

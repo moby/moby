@@ -774,3 +774,22 @@ func (b *Builder) clearTmp() {
 		fmt.Fprintf(b.OutStream, "Removing intermediate container %s\n", stringid.TruncateID(c))
 	}
 }
+
+func (b *Builder) makeTag(repoName string) error {
+	repoName, tag := parsers.ParseRepositoryTag(repoName)
+	if repoName != "" {
+		if err := registry.ValidateRepositoryName(repoName); err != nil {
+			return err
+		}
+		if len(tag) > 0 {
+			if err := graph.ValidateTagName(tag); err != nil {
+				return err
+			}
+		}
+	}
+	if repoName == "" {
+		return fmt.Errorf("Illegal repository name.")
+	}
+	id := b.image
+	return b.Daemon.Repositories().Tag(repoName, tag, id, false)
+}
