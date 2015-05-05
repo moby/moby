@@ -1107,7 +1107,7 @@ func (container *Container) setupContainerDns() error {
 		return err
 	}
 
-	if config.NetworkMode != "host" {
+	if config.NetworkMode.IsBridge() || config.NetworkMode.IsNone() {
 		// check configurations for any container/daemon dns settings
 		if len(config.Dns) > 0 || len(daemon.config.Dns) > 0 || len(config.DnsSearch) > 0 || len(daemon.config.DnsSearch) > 0 {
 			var (

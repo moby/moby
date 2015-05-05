@@ -371,6 +371,33 @@ func (s *DockerSuite) TestRunLinkToContainerNetMode(c *check.C) {
 	}
 }
 
+func (s *DockerSuite) TestRunContainerNetModeWithDnsMacHosts(c *check.C) {
+	cmd := exec.Command(dockerBinary, "run", "-d", "--name", "parent", "busybox", "top")
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		c.Fatalf("failed to run container: %v, output: %q", err, out)
+	}
+
+	cmd = exec.Command(dockerBinary, "run", "--dns", "1.2.3.4", "--net=container:parent", "busybox")
+	out, _, err = runCommandWithOutput(cmd)
+	if err == nil || !strings.Contains(out, "Conflicting options: --dns and the network mode") {
+		c.Fatalf("run --net=container with --dns should error out")
+	}
+
+	cmd = exec.Command(dockerBinary, "run", "--mac-address", "92:d0:c6:0a:29:33", "--net=container:parent", "busybox")
+	out, _, err = runCommandWithOutput(cmd)
+	if err == nil || !strings.Contains(out, "--mac-address and the network mode") {
+		c.Fatalf("run --net=container with --mac-address should error out")
+	}
+
+	cmd = exec.Command(dockerBinary, "run", "--add-host", "test:192.168.2.109", "--net=container:parent", "busybox")
+	out, _, err = runCommandWithOutput(cmd)
+	if err == nil || !strings.Contains(out, "--add-host and the network mode") {
+		c.Fatalf("run --net=container with --add-host should error out")
+	}
+
+}
+
 func (s *DockerSuite) TestRunModeNetContainerHostname(c *check.C) {
 	testRequires(c, ExecSupport)
 	cmd := exec.Command(dockerBinary, "run", "-i", "-d", "--name", "parent", "busybox", "top")

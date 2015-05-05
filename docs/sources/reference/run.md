@@ -282,7 +282,8 @@ With the networking mode set to `host` a container will share the host's
 network stack and all interfaces from the host will be available to the
 container.  The container's hostname will match the hostname on the host
 system.  Publishing ports and linking to other containers will not work
-when sharing the host's network stack.
+when sharing the host's network stack. Note that `--add-host` `--hostname`
+`--dns` `--dns-search` and `--mac-address` is invalid in `host` netmode.
 
 Compared to the default `bridge` mode, the `host` mode gives *significantly*
 better networking performance since it uses the host's native networking stack
@@ -298,7 +299,9 @@ or a High Performance Web Server.
 
 With the networking mode set to `container` a container will share the
 network stack of another container.  The other container's name must be
-provided in the format of `--net container:<name|id>`.
+provided in the format of `--net container:<name|id>`. Note that `--add-host` 
+`--hostname` `--dns` `--dns-search` and `--mac-address` is invalid 
+in `container` netmode.
 
 Example running a Redis container with Redis binding to `localhost` then
 running the `redis-cli` command and connecting to the Redis server over the

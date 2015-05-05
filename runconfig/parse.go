@@ -18,6 +18,8 @@ var (
 	ErrConflictNetworkAndDns            = fmt.Errorf("Conflicting options: --dns and the network mode (--net).")
 	ErrConflictNetworkHostname          = fmt.Errorf("Conflicting options: -h and the network mode (--net)")
 	ErrConflictHostNetworkAndLinks      = fmt.Errorf("Conflicting options: --net=host can't be used with links. This would result in undefined behavior.")
+	ErrConflictContainerNetworkAndMac   = fmt.Errorf("Conflicting options: --mac-address and the network mode (--net).")
+	ErrConflictNetworkHosts             = fmt.Errorf("Conflicting options: --add-host and the network mode (--net).")
 )
 
 func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSet, error) {
@@ -99,12 +101,6 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		return nil, nil, cmd, err
 	}
 
-	// Validate input params starting with the input mac address
-	if *flMacAddress != "" {
-		if _, err := opts.ValidateMACAddress(*flMacAddress); err != nil {
-			return nil, nil, cmd, fmt.Errorf("%s is not a valid mac address", *flMacAddress)
-		}
-	}
 	var (
 		attachStdin  = flAttach.Get("stdin")
 		attachStdout = flAttach.Get("stdout")
@@ -130,6 +126,21 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 
 	if (netMode.IsHost() || netMode.IsContainer()) && flDns.Len() > 0 {
 		return nil, nil, cmd, ErrConflictNetworkAndDns
+	}
+
+	if (netMode.IsContainer() || netMode.IsHost()) && flExtraHosts.Len() > 0 {
+		return nil, nil, cmd, ErrConflictNetworkHosts
+	}
+
+	if (netMode.IsContainer() || netMode.IsHost()) && *flMacAddress != "" {
+		return nil, nil, cmd, ErrConflictContainerNetworkAndMac
+	}
+
+	// Validate the input mac address
+	if *flMacAddress != "" {
+		if _, err := opts.ValidateMACAddress(*flMacAddress); err != nil {
+			return nil, nil, cmd, fmt.Errorf("%s is not a valid mac address", *flMacAddress)
+		}
 	}
 
 	// If neither -d or -a are set, attach to everything by default
