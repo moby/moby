@@ -296,6 +296,9 @@ func (ep *endpoint) Leave(containerID string, options ...EndpointOption) error {
 
 func (ep *endpoint) Delete() error {
 	var err error
+	if ep.container != nil {
+		return &ActiveContainerError{name: ep.name, id: string(ep.id)}
+	}
 
 	n := ep.network
 	n.Lock()
