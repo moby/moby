@@ -162,8 +162,8 @@ func (d *driver) Config(option map[string]interface{}) error {
 		return ErrConfigExists
 	}
 
-	genericData := option[netlabel.GenericData]
-	if genericData != nil {
+	genericData, ok := option[netlabel.GenericData]
+	if ok && genericData != nil {
 		switch opt := genericData.(type) {
 		case options.Generic:
 			opaqueConfig, err := options.GenerateFromModel(opt, &Configuration{})
@@ -178,6 +178,8 @@ func (d *driver) Config(option map[string]interface{}) error {
 		}
 
 		d.config = config
+	} else {
+		config = &Configuration{}
 	}
 
 	if config.EnableIPForwarding {
@@ -198,8 +200,8 @@ func (d *driver) getNetwork(id types.UUID) (*bridgeNetwork, error) {
 func parseNetworkOptions(option options.Generic) (*NetworkConfiguration, error) {
 	var config *NetworkConfiguration
 
-	genericData := option[netlabel.GenericData]
-	if genericData != nil {
+	genericData, ok := option[netlabel.GenericData]
+	if ok && genericData != nil {
 		switch opt := genericData.(type) {
 		case options.Generic:
 			opaqueConfig, err := options.GenerateFromModel(opt, &NetworkConfiguration{})
@@ -218,6 +220,10 @@ func parseNetworkOptions(option options.Generic) (*NetworkConfiguration, error) 
 		}
 	} else {
 		config = &NetworkConfiguration{}
+	}
+
+	if _, ok := option[netlabel.EnableIPv6]; ok {
+		config.EnableIPv6 = option[netlabel.EnableIPv6].(bool)
 	}
 
 	return config, nil

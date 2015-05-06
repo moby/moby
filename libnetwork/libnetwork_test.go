@@ -1,6 +1,8 @@
 package libnetwork_test
 
 import (
+	"bytes"
+	"io/ioutil"
 	"net"
 	"os"
 	"testing"
@@ -30,16 +32,13 @@ func createTestNetwork(networkType, networkName string, option options.Generic, 
 	genericOption := make(map[string]interface{})
 	genericOption[netlabel.GenericData] = option
 
-	genericNetOption := make(map[string]interface{})
-	genericNetOption[netlabel.GenericData] = netOption
-
 	err := controller.ConfigureNetworkDriver(networkType, genericOption)
 	if err != nil {
 		return nil, err
 	}
 
 	network, err := controller.NewNetwork(networkType, networkName,
-		libnetwork.NetworkOptionGeneric(genericNetOption))
+		libnetwork.NetworkOptionGeneric(netOption))
 	if err != nil {
 		return nil, err
 	}
@@ -771,6 +770,109 @@ func TestEndpointUpdateParent(t *testing.T) {
 	}
 
 	err = ep1.Leave(containerID)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestEnableIPv6(t *testing.T) {
+	defer netutils.SetupTestNetNS(t)()
+
+	tmpResolvConf := []byte("search pommesfrites.fr\nnameserver 12.34.56.78\nnameserver 2001:4860:4860::8888")
+	//take a copy of resolv.conf for restoring after test completes
+	resolvConfSystem, err := ioutil.ReadFile("/etc/resolv.conf")
+	if err != nil {
+		t.Fatal(err)
+	}
+	//cleanup
+	defer func() {
+		if err := ioutil.WriteFile("/etc/resolv.conf", resolvConfSystem, 0644); err != nil {
+			t.Fatal(err)
+		}
+	}()
+
+	netOption := options.Generic{
+		netlabel.EnableIPv6: true,
+	}
+
+	n, err := createTestNetwork("bridge", "testnetwork", options.Generic{}, netOption)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ep1, err := n.CreateEndpoint("ep1", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := ioutil.WriteFile("/etc/resolv.conf", tmpResolvConf, 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	resolvConfPath := "/tmp/libnetwork_test/resolv.conf"
+
+	_, err = ep1.Join(containerID,
+		libnetwork.JoinOptionResolvConfPath(resolvConfPath))
+
+	content, err := ioutil.ReadFile(resolvConfPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !bytes.Equal(content, tmpResolvConf) {
+		t.Fatalf("Expected %s, Got %s", string(tmpResolvConf), string(content))
+	}
+
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestNoEnableIPv6(t *testing.T) {
+	defer netutils.SetupTestNetNS(t)()
+
+	tmpResolvConf := []byte("search pommesfrites.fr\nnameserver 12.34.56.78\nnameserver 2001:4860:4860::8888")
+	expectedResolvConf := []byte("search pommesfrites.fr\nnameserver 12.34.56.78\n")
+	//take a copy of resolv.conf for restoring after test completes
+	resolvConfSystem, err := ioutil.ReadFile("/etc/resolv.conf")
+	if err != nil {
+		t.Fatal(err)
+	}
+	//cleanup
+	defer func() {
+		if err := ioutil.WriteFile("/etc/resolv.conf", resolvConfSystem, 0644); err != nil {
+			t.Fatal(err)
+		}
+	}()
+
+	n, err := createTestNetwork("bridge", "testnetwork", options.Generic{}, options.Generic{})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ep1, err := n.CreateEndpoint("ep1", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := ioutil.WriteFile("/etc/resolv.conf", tmpResolvConf, 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	resolvConfPath := "/tmp/libnetwork_test/resolv.conf"
+
+	_, err = ep1.Join(containerID,
+		libnetwork.JoinOptionResolvConfPath(resolvConfPath))
+
+	content, err := ioutil.ReadFile(resolvConfPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !bytes.Equal(content, expectedResolvConf) {
+		t.Fatalf("Expected %s, Got %s", string(expectedResolvConf), string(content))
+	}
+
 	if err != nil {
 		t.Fatal(err)
 	}

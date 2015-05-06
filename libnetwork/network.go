@@ -5,6 +5,7 @@ import (
 
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/libnetwork/driverapi"
+	"github.com/docker/libnetwork/pkg/netlabel"
 	"github.com/docker/libnetwork/pkg/options"
 	"github.com/docker/libnetwork/types"
 )
@@ -52,6 +53,7 @@ type network struct {
 	networkType string
 	id          types.UUID
 	driver      driverapi.Driver
+	enableIPv6  bool
 	endpoints   endpointTable
 	generic     options.Generic
 	sync.Mutex
@@ -83,6 +85,9 @@ type NetworkOption func(n *network)
 func NetworkOptionGeneric(generic map[string]interface{}) NetworkOption {
 	return func(n *network) {
 		n.generic = generic
+		if _, ok := generic[netlabel.EnableIPv6]; ok {
+			n.enableIPv6 = generic[netlabel.EnableIPv6].(bool)
+		}
 	}
 }
 

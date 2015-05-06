@@ -409,7 +409,7 @@ func (ep *endpoint) setupDNS() error {
 	}
 
 	// replace any localhost/127.* but always discard IPv6 entries for now.
-	resolvConf, _ = resolvconf.FilterResolvDns(resolvConf, false)
+	resolvConf, _ = resolvconf.FilterResolvDns(resolvConf, ep.network.enableIPv6)
 	return ioutil.WriteFile(ep.container.config.resolvConfPath, resolvConf, 0644)
 }
 
