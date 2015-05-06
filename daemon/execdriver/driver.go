@@ -72,6 +72,7 @@ type Network struct {
 	Interface      *NetworkInterface `json:"interface"` // if interface is nil then networking is disabled
 	Mtu            int               `json:"mtu"`
 	ContainerID    string            `json:"container_id"` // id of the container to join network.
+	NamespacePath  string            `json:"namespace_path"`
 	HostNetworking bool              `json:"host_networking"`
 }
 

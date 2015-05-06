@@ -18,7 +18,7 @@ type NetworkMode string
 
 // IsPrivate indicates whether container use it's private network stack
 func (n NetworkMode) IsPrivate() bool {
-	return !(n.IsHost() || n.IsContainer() || n.IsNone())
+	return !(n.IsHost() || n.IsContainer())
 }
 
 func (n NetworkMode) IsBridge() bool {

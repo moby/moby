@@ -3,11 +3,13 @@
 package daemon
 
 import (
-	"bytes"
 	"fmt"
 	"io/ioutil"
+	"net"
 	"os"
+	"path"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -15,20 +17,21 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/execdriver"
 	"github.com/docker/docker/daemon/network"
-	"github.com/docker/docker/daemon/networkdriver/bridge"
 	"github.com/docker/docker/links"
 	"github.com/docker/docker/nat"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/directory"
-	"github.com/docker/docker/pkg/etchosts"
 	"github.com/docker/docker/pkg/ioutils"
-	"github.com/docker/docker/pkg/resolvconf"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/pkg/ulimit"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/utils"
 	"github.com/docker/libcontainer/configs"
 	"github.com/docker/libcontainer/devices"
+	"github.com/docker/libnetwork"
+	"github.com/docker/libnetwork/netlabel"
+	"github.com/docker/libnetwork/netutils"
+	"github.com/docker/libnetwork/options"
 )
 
 const DefaultPathEnv = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
@@ -59,179 +62,6 @@ func killProcessDirectly(container *Container) error {
 					return err
 				}
 				logrus.Debugf("Cannot kill process (pid=%d) with signal 9: no such process.", pid)
-			}
-		}
-	}
-	return nil
-}
-
-func (container *Container) setupContainerDns() error {
-	if container.ResolvConfPath != "" {
-		// check if this is an existing container that needs DNS update:
-		if container.UpdateDns {
-			// read the host's resolv.conf, get the hash and call updateResolvConf
-			logrus.Debugf("Check container (%s) for update to resolv.conf - UpdateDns flag was set", container.ID)
-			latestResolvConf, latestHash := resolvconf.GetLastModified()
-
-			// clean container resolv.conf re: localhost nameservers and IPv6 NS (if IPv6 disabled)
-			updatedResolvConf, modified := resolvconf.FilterResolvDns(latestResolvConf, container.daemon.config.Bridge.EnableIPv6)
-			if modified {
-				// changes have occurred during resolv.conf localhost cleanup: generate an updated hash
-				newHash, err := ioutils.HashData(bytes.NewReader(updatedResolvConf))
-				if err != nil {
-					return err
-				}
-				latestHash = newHash
-			}
-
-			if err := container.updateResolvConf(updatedResolvConf, latestHash); err != nil {
-				return err
-			}
-			// successful update of the restarting container; set the flag off
-			container.UpdateDns = false
-		}
-		return nil
-	}
-
-	var (
-		config = container.hostConfig
-		daemon = container.daemon
-	)
-
-	resolvConf, err := resolvconf.Get()
-	if err != nil {
-		return err
-	}
-	container.ResolvConfPath, err = container.GetRootResourcePath("resolv.conf")
-	if err != nil {
-		return err
-	}
-
-	if config.NetworkMode.IsBridge() || config.NetworkMode.IsNone() {
-		// check configurations for any container/daemon dns settings
-		if len(config.Dns) > 0 || len(daemon.config.Dns) > 0 || len(config.DnsSearch) > 0 || len(daemon.config.DnsSearch) > 0 {
-			var (
-				dns       = resolvconf.GetNameservers(resolvConf)
-				dnsSearch = resolvconf.GetSearchDomains(resolvConf)
-			)
-			if len(config.Dns) > 0 {
-				dns = config.Dns
-			} else if len(daemon.config.Dns) > 0 {
-				dns = daemon.config.Dns
-			}
-			if len(config.DnsSearch) > 0 {
-				dnsSearch = config.DnsSearch
-			} else if len(daemon.config.DnsSearch) > 0 {
-				dnsSearch = daemon.config.DnsSearch
-			}
-			return resolvconf.Build(container.ResolvConfPath, dns, dnsSearch)
-		}
-
-		// replace any localhost/127.*, and remove IPv6 nameservers if IPv6 disabled in daemon
-		resolvConf, _ = resolvconf.FilterResolvDns(resolvConf, daemon.config.Bridge.EnableIPv6)
-	}
-	//get a sha256 hash of the resolv conf at this point so we can check
-	//for changes when the host resolv.conf changes (e.g. network update)
-	resolvHash, err := ioutils.HashData(bytes.NewReader(resolvConf))
-	if err != nil {
-		return err
-	}
-	resolvHashFile := container.ResolvConfPath + ".hash"
-	if err = ioutil.WriteFile(resolvHashFile, []byte(resolvHash), 0644); err != nil {
-		return err
-	}
-	return ioutil.WriteFile(container.ResolvConfPath, resolvConf, 0644)
-}
-
-// called when the host's resolv.conf changes to check whether container's resolv.conf
-// is unchanged by the container "user" since container start: if unchanged, the
-// container's resolv.conf will be updated to match the host's new resolv.conf
-func (container *Container) updateResolvConf(updatedResolvConf []byte, newResolvHash string) error {
-
-	if container.ResolvConfPath == "" {
-		return nil
-	}
-	if container.Running {
-		//set a marker in the hostConfig to update on next start/restart
-		container.UpdateDns = true
-		return nil
-	}
-
-	resolvHashFile := container.ResolvConfPath + ".hash"
-
-	//read the container's current resolv.conf and compute the hash
-	resolvBytes, err := ioutil.ReadFile(container.ResolvConfPath)
-	if err != nil {
-		return err
-	}
-	curHash, err := ioutils.HashData(bytes.NewReader(resolvBytes))
-	if err != nil {
-		return err
-	}
-
-	//read the hash from the last time we wrote resolv.conf in the container
-	hashBytes, err := ioutil.ReadFile(resolvHashFile)
-	if err != nil {
-		if !os.IsNotExist(err) {
-			return err
-		}
-		// backwards compat: if no hash file exists, this container pre-existed from
-		// a Docker daemon that didn't contain this update feature. Given we can't know
-		// if the user has modified the resolv.conf since container start time, safer
-		// to just never update the container's resolv.conf during it's lifetime which
-		// we can control by setting hashBytes to an empty string
-		hashBytes = []byte("")
-	}
-
-	//if the user has not modified the resolv.conf of the container since we wrote it last
-	//we will replace it with the updated resolv.conf from the host
-	if string(hashBytes) == curHash {
-		logrus.Debugf("replacing %q with updated host resolv.conf", container.ResolvConfPath)
-
-		// for atomic updates to these files, use temporary files with os.Rename:
-		dir := filepath.Dir(container.ResolvConfPath)
-		tmpHashFile, err := ioutil.TempFile(dir, "hash")
-		if err != nil {
-			return err
-		}
-		tmpResolvFile, err := ioutil.TempFile(dir, "resolv")
-		if err != nil {
-			return err
-		}
-
-		// write the updates to the temp files
-		if err = ioutil.WriteFile(tmpHashFile.Name(), []byte(newResolvHash), 0644); err != nil {
-			return err
-		}
-		if err = ioutil.WriteFile(tmpResolvFile.Name(), updatedResolvConf, 0644); err != nil {
-			return err
-		}
-
-		// rename the temp files for atomic replace
-		if err = os.Rename(tmpHashFile.Name(), resolvHashFile); err != nil {
-			return err
-		}
-		return os.Rename(tmpResolvFile.Name(), container.ResolvConfPath)
-	}
-	return nil
-}
-
-func (container *Container) updateParentsHosts() error {
-	refs := container.daemon.ContainerGraph().RefPaths(container.ID)
-	for _, ref := range refs {
-		if ref.ParentID == "0" {
-			continue
-		}
-
-		c, err := container.daemon.Get(ref.ParentID)
-		if err != nil {
-			logrus.Error(err)
-		}
-
-		if c != nil && !container.daemon.config.DisableNetwork && container.hostConfig.NetworkMode.IsPrivate() {
-			logrus.Debugf("Update /etc/hosts of %s for alias %s with ip %s", c.ID, ref.Name, container.NetworkSettings.IPAddress)
-			if err := etchosts.Update(c.HostsPath, container.NetworkSettings.IPAddress, ref.Name); err != nil {
-				logrus.Errorf("Failed to update /etc/hosts in parent container %s for alias %s: %v", c.ID, ref.Name, err)
 			}
 		}
 	}
@@ -360,39 +190,16 @@ func getDevicesFromPath(deviceMapping runconfig.DeviceMapping) (devs []*configs.
 
 func populateCommand(c *Container, env []string) error {
 	en := &execdriver.Network{
-		Mtu:       c.daemon.config.Mtu,
-		Interface: nil,
+		NamespacePath: c.NetworkSettings.SandboxKey,
 	}
 
 	parts := strings.SplitN(string(c.hostConfig.NetworkMode), ":", 2)
-	switch parts[0] {
-	case "none":
-	case "host":
-		en.HostNetworking = true
-	case "bridge", "": // empty string to support existing containers
-		if !c.Config.NetworkDisabled {
-			network := c.NetworkSettings
-			en.Interface = &execdriver.NetworkInterface{
-				Gateway:              network.Gateway,
-				Bridge:               network.Bridge,
-				IPAddress:            network.IPAddress,
-				IPPrefixLen:          network.IPPrefixLen,
-				MacAddress:           network.MacAddress,
-				LinkLocalIPv6Address: network.LinkLocalIPv6Address,
-				GlobalIPv6Address:    network.GlobalIPv6Address,
-				GlobalIPv6PrefixLen:  network.GlobalIPv6PrefixLen,
-				IPv6Gateway:          network.IPv6Gateway,
-				HairpinMode:          network.HairpinMode,
-			}
-		}
-	case "container":
+	if parts[0] == "container" {
 		nc, err := c.getNetworkedContainer()
 		if err != nil {
 			return err
 		}
 		en.ContainerID = nc.ID
-	default:
-		return fmt.Errorf("invalid network mode: %s", c.hostConfig.NetworkMode)
 	}
 
 	ipc := &execdriver.Ipc{}
@@ -537,39 +344,317 @@ func (container *Container) GetSize() (int64, int64) {
 	return sizeRw, sizeRootfs
 }
 
-func (container *Container) AllocateNetwork() error {
-	mode := container.hostConfig.NetworkMode
-	if container.Config.NetworkDisabled || !mode.IsPrivate() {
+func (container *Container) buildHostnameFile() error {
+	hostnamePath, err := container.GetRootResourcePath("hostname")
+	if err != nil {
+		return err
+	}
+	container.HostnamePath = hostnamePath
+
+	if container.Config.Domainname != "" {
+		return ioutil.WriteFile(container.HostnamePath, []byte(fmt.Sprintf("%s.%s\n", container.Config.Hostname, container.Config.Domainname)), 0644)
+	}
+	return ioutil.WriteFile(container.HostnamePath, []byte(container.Config.Hostname+"\n"), 0644)
+}
+
+func (container *Container) buildJoinOptions() ([]libnetwork.EndpointOption, error) {
+	var (
+		joinOptions []libnetwork.EndpointOption
+		err         error
+		dns         []string
+		dnsSearch   []string
+	)
+
+	joinOptions = append(joinOptions, libnetwork.JoinOptionHostname(container.Config.Hostname),
+		libnetwork.JoinOptionDomainname(container.Config.Domainname))
+
+	if container.hostConfig.NetworkMode.IsHost() {
+		joinOptions = append(joinOptions, libnetwork.JoinOptionUseDefaultSandbox())
+	}
+
+	container.HostsPath, err = container.GetRootResourcePath("hosts")
+	if err != nil {
+		return nil, err
+	}
+	joinOptions = append(joinOptions, libnetwork.JoinOptionHostsPath(container.HostsPath))
+
+	container.ResolvConfPath, err = container.GetRootResourcePath("resolv.conf")
+	if err != nil {
+		return nil, err
+	}
+	joinOptions = append(joinOptions, libnetwork.JoinOptionResolvConfPath(container.ResolvConfPath))
+
+	if len(container.hostConfig.Dns) > 0 {
+		dns = container.hostConfig.Dns
+	} else if len(container.daemon.config.Dns) > 0 {
+		dns = container.daemon.config.Dns
+	}
+
+	for _, d := range dns {
+		joinOptions = append(joinOptions, libnetwork.JoinOptionDNS(d))
+	}
+
+	if len(container.hostConfig.DnsSearch) > 0 {
+		dnsSearch = container.hostConfig.DnsSearch
+	} else if len(container.daemon.config.DnsSearch) > 0 {
+		dnsSearch = container.daemon.config.DnsSearch
+	}
+
+	for _, ds := range dnsSearch {
+		joinOptions = append(joinOptions, libnetwork.JoinOptionDNSSearch(ds))
+	}
+
+	if container.NetworkSettings.SecondaryIPAddresses != nil {
+		name := container.Config.Hostname
+		if container.Config.Domainname != "" {
+			name = name + "." + container.Config.Domainname
+		}
+
+		for _, a := range container.NetworkSettings.SecondaryIPAddresses {
+			joinOptions = append(joinOptions, libnetwork.JoinOptionExtraHost(name, a.Addr))
+		}
+	}
+
+	var childEndpoints, parentEndpoints []string
+
+	children, err := container.daemon.Children(container.Name)
+	if err != nil {
+		return nil, err
+	}
+
+	for linkAlias, child := range children {
+		_, alias := path.Split(linkAlias)
+		// allow access to the linked container via the alias, real name, and container hostname
+		aliasList := alias + " " + child.Config.Hostname
+		// only add the name if alias isn't equal to the name
+		if alias != child.Name[1:] {
+			aliasList = aliasList + " " + child.Name[1:]
+		}
+		joinOptions = append(joinOptions, libnetwork.JoinOptionExtraHost(aliasList, child.NetworkSettings.IPAddress))
+		if child.NetworkSettings.EndpointID != "" {
+			childEndpoints = append(childEndpoints, child.NetworkSettings.EndpointID)
+		}
+	}
+
+	for _, extraHost := range container.hostConfig.ExtraHosts {
+		// allow IPv6 addresses in extra hosts; only split on first ":"
+		parts := strings.SplitN(extraHost, ":", 2)
+		joinOptions = append(joinOptions, libnetwork.JoinOptionExtraHost(parts[0], parts[1]))
+	}
+
+	refs := container.daemon.ContainerGraph().RefPaths(container.ID)
+	for _, ref := range refs {
+		if ref.ParentID == "0" {
+			continue
+		}
+
+		c, err := container.daemon.Get(ref.ParentID)
+		if err != nil {
+			logrus.Error(err)
+		}
+
+		if c != nil && !container.daemon.config.DisableNetwork && container.hostConfig.NetworkMode.IsPrivate() {
+			logrus.Debugf("Update /etc/hosts of %s for alias %s with ip %s", c.ID, ref.Name, container.NetworkSettings.IPAddress)
+			joinOptions = append(joinOptions, libnetwork.JoinOptionParentUpdate(c.NetworkSettings.EndpointID, ref.Name, container.NetworkSettings.IPAddress))
+			if c.NetworkSettings.EndpointID != "" {
+				parentEndpoints = append(parentEndpoints, c.NetworkSettings.EndpointID)
+			}
+		}
+	}
+
+	linkOptions := options.Generic{
+		netlabel.GenericData: options.Generic{
+			"ParentEndpoints": parentEndpoints,
+			"ChildEndpoints":  childEndpoints,
+		},
+	}
+
+	joinOptions = append(joinOptions, libnetwork.JoinOptionGeneric(linkOptions))
+
+	return joinOptions, nil
+}
+
+func (container *Container) buildPortMapInfo(n libnetwork.Network, ep libnetwork.Endpoint, networkSettings *network.Settings) (*network.Settings, error) {
+	if ep == nil {
+		return nil, fmt.Errorf("invalid endpoint while building port map info")
+	}
+
+	if networkSettings == nil {
+		return nil, fmt.Errorf("invalid networksettings while building port map info")
+	}
+
+	driverInfo, err := ep.DriverInfo()
+	if err != nil {
+		return nil, err
+	}
+
+	if driverInfo == nil {
+		// It is not an error for epInfo to be nil
+		return networkSettings, nil
+	}
+
+	if mac, ok := driverInfo[netlabel.MacAddress]; ok {
+		networkSettings.MacAddress = mac.(net.HardwareAddr).String()
+	}
+
+	mapData, ok := driverInfo[netlabel.PortMap]
+	if !ok {
+		return networkSettings, nil
+	}
+
+	if portMapping, ok := mapData.([]netutils.PortBinding); ok {
+		networkSettings.Ports = nat.PortMap{}
+		for _, pp := range portMapping {
+			natPort := nat.NewPort(pp.Proto.String(), strconv.Itoa(int(pp.Port)))
+			natBndg := nat.PortBinding{HostIp: pp.HostIP.String(), HostPort: strconv.Itoa(int(pp.HostPort))}
+			networkSettings.Ports[natPort] = append(networkSettings.Ports[natPort], natBndg)
+		}
+	}
+
+	return networkSettings, nil
+}
+
+func (container *Container) buildEndpointInfo(n libnetwork.Network, ep libnetwork.Endpoint, networkSettings *network.Settings) (*network.Settings, error) {
+	if ep == nil {
+		return nil, fmt.Errorf("invalid endpoint while building port map info")
+	}
+
+	if networkSettings == nil {
+		return nil, fmt.Errorf("invalid networksettings while building port map info")
+	}
+
+	epInfo := ep.Info()
+	if epInfo == nil {
+		// It is not an error to get an empty endpoint info
+		return networkSettings, nil
+	}
+
+	ifaceList := epInfo.InterfaceList()
+	if len(ifaceList) == 0 {
+		return networkSettings, nil
+	}
+
+	iface := ifaceList[0]
+
+	ones, _ := iface.Address().Mask.Size()
+	networkSettings.IPAddress = iface.Address().IP.String()
+	networkSettings.IPPrefixLen = ones
+
+	if iface.AddressIPv6().IP.To16() != nil {
+		onesv6, _ := iface.AddressIPv6().Mask.Size()
+		networkSettings.GlobalIPv6Address = iface.AddressIPv6().IP.String()
+		networkSettings.GlobalIPv6PrefixLen = onesv6
+	}
+
+	if len(ifaceList) == 1 {
+		return networkSettings, nil
+	}
+
+	networkSettings.SecondaryIPAddresses = make([]network.Address, 0, len(ifaceList)-1)
+	networkSettings.SecondaryIPv6Addresses = make([]network.Address, 0, len(ifaceList)-1)
+	for _, iface := range ifaceList[1:] {
+		ones, _ := iface.Address().Mask.Size()
+		addr := network.Address{Addr: iface.Address().IP.String(), PrefixLen: ones}
+		networkSettings.SecondaryIPAddresses = append(networkSettings.SecondaryIPAddresses, addr)
+
+		if iface.AddressIPv6().IP.To16() != nil {
+			onesv6, _ := iface.AddressIPv6().Mask.Size()
+			addrv6 := network.Address{Addr: iface.AddressIPv6().IP.String(), PrefixLen: onesv6}
+			networkSettings.SecondaryIPv6Addresses = append(networkSettings.SecondaryIPv6Addresses, addrv6)
+		}
+	}
+
+	return networkSettings, nil
+}
+
+func (container *Container) updateJoinInfo(ep libnetwork.Endpoint) error {
+	epInfo := ep.Info()
+	if epInfo == nil {
+		// It is not an error to get an empty endpoint info
 		return nil
 	}
 
-	var err error
+	container.NetworkSettings.Gateway = epInfo.Gateway().String()
+	if epInfo.GatewayIPv6().To16() != nil {
+		container.NetworkSettings.IPv6Gateway = epInfo.GatewayIPv6().String()
+	}
 
-	networkSettings, err := bridge.Allocate(container.ID, container.Config.MacAddress, "", "")
+	container.NetworkSettings.SandboxKey = epInfo.SandboxKey()
+
+	return nil
+}
+
+func (container *Container) updateNetworkSettings(n libnetwork.Network, ep libnetwork.Endpoint) error {
+	networkSettings := &network.Settings{NetworkID: n.ID(), EndpointID: ep.ID()}
+
+	networkSettings, err := container.buildPortMapInfo(n, ep, networkSettings)
 	if err != nil {
 		return err
 	}
 
-	// Error handling: At this point, the interface is allocated so we have to
-	// make sure that it is always released in case of error, otherwise we
-	// might leak resources.
-
-	if container.Config.PortSpecs != nil {
-		if err = migratePortMappings(container.Config, container.hostConfig); err != nil {
-			bridge.Release(container.ID)
-			return err
-		}
-		container.Config.PortSpecs = nil
-		if err = container.WriteHostConfig(); err != nil {
-			bridge.Release(container.ID)
-			return err
-		}
+	networkSettings, err = container.buildEndpointInfo(n, ep, networkSettings)
+	if err != nil {
+		return err
 	}
 
+	if container.hostConfig.NetworkMode == runconfig.NetworkMode("bridge") {
+		networkSettings.Bridge = container.daemon.config.Bridge.Iface
+	}
+
+	container.NetworkSettings = networkSettings
+	return nil
+}
+
+func (container *Container) UpdateNetwork() error {
+	n, err := container.daemon.netController.NetworkByID(container.NetworkSettings.NetworkID)
+	if err != nil {
+		return fmt.Errorf("error locating network id %s: %v", container.NetworkSettings.NetworkID, err)
+	}
+
+	ep, err := n.EndpointByID(container.NetworkSettings.EndpointID)
+	if err != nil {
+		return fmt.Errorf("error locating endpoint id %s: %v", container.NetworkSettings.EndpointID, err)
+	}
+
+	if err := ep.Leave(container.ID); err != nil {
+		return fmt.Errorf("endpoint leave failed: %v", err)
+
+	}
+
+	joinOptions, err := container.buildJoinOptions()
+	if err != nil {
+		return fmt.Errorf("Update network failed: %v", err)
+	}
+
+	if _, err := ep.Join(container.ID, joinOptions...); err != nil {
+		return fmt.Errorf("endpoint join failed: %v", err)
+	}
+
+	if err := container.updateJoinInfo(ep); err != nil {
+		return fmt.Errorf("Updating join info failed: %v", err)
+	}
+
+	return nil
+}
+
+func (container *Container) buildCreateEndpointOptions() ([]libnetwork.EndpointOption, error) {
 	var (
-		portSpecs = make(nat.PortSet)
-		bindings  = make(nat.PortMap)
+		portSpecs     = make(nat.PortSet)
+		bindings      = make(nat.PortMap)
+		pbList        []netutils.PortBinding
+		exposeList    []netutils.TransportPort
+		createOptions []libnetwork.EndpointOption
 	)
+
+	if container.Config.PortSpecs != nil {
+		if err := migratePortMappings(container.Config, container.hostConfig); err != nil {
+			return nil, err
+		}
+		container.Config.PortSpecs = nil
+		if err := container.WriteHostConfig(); err != nil {
+			return nil, err
+		}
+	}
 
 	if container.Config.ExposedPorts != nil {
 		portSpecs = container.Config.ExposedPorts
@@ -597,52 +682,99 @@ func (container *Container) AllocateNetwork() error {
 	}
 	nat.SortPortMap(ports, bindings)
 	for _, port := range ports {
-		if err = container.allocatePort(port, bindings); err != nil {
-			bridge.Release(container.ID)
-			return err
+		expose := netutils.TransportPort{}
+		expose.Proto = netutils.ParseProtocol(port.Proto())
+		expose.Port = uint16(port.Int())
+		exposeList = append(exposeList, expose)
+
+		pb := netutils.PortBinding{Port: expose.Port, Proto: expose.Proto}
+		binding := bindings[port]
+		for i := 0; i < len(binding); i++ {
+			pbCopy := pb.GetCopy()
+			pbCopy.HostPort = uint16(nat.Port(binding[i].HostPort).Int())
+			pbCopy.HostIP = net.ParseIP(binding[i].HostIp)
+			pbList = append(pbList, pbCopy)
+		}
+
+		if container.hostConfig.PublishAllPorts && len(binding) == 0 {
+			pbList = append(pbList, pb)
 		}
 	}
-	container.WriteHostConfig()
 
-	networkSettings.Ports = bindings
-	container.NetworkSettings = networkSettings
+	createOptions = append(createOptions,
+		libnetwork.CreateOptionPortMapping(pbList),
+		libnetwork.CreateOptionExposedPorts(exposeList))
+
+	if container.Config.MacAddress != "" {
+		mac, err := net.ParseMAC(container.Config.MacAddress)
+		if err != nil {
+			return nil, err
+		}
+
+		genericOption := options.Generic{
+			netlabel.MacAddress: mac,
+		}
+
+		createOptions = append(createOptions, libnetwork.EndpointOptionGeneric(genericOption))
+	}
+
+	return createOptions, nil
+}
+
+func (container *Container) AllocateNetwork() error {
+	mode := container.hostConfig.NetworkMode
+	if container.Config.NetworkDisabled || mode.IsContainer() {
+		return nil
+	}
+
+	var err error
+
+	n, err := container.daemon.netController.NetworkByName(string(mode))
+	if err != nil {
+		return fmt.Errorf("error locating network with name %s: %v", string(mode), err)
+	}
+
+	createOptions, err := container.buildCreateEndpointOptions()
+	if err != nil {
+		return err
+	}
+
+	ep, err := n.CreateEndpoint(container.Name, createOptions...)
+	if err != nil {
+		return err
+	}
+
+	if err := container.updateNetworkSettings(n, ep); err != nil {
+		return err
+	}
+
+	joinOptions, err := container.buildJoinOptions()
+	if err != nil {
+		return err
+	}
+
+	if _, err := ep.Join(container.ID, joinOptions...); err != nil {
+		return err
+	}
+
+	if err := container.updateJoinInfo(ep); err != nil {
+		return fmt.Errorf("Updating join info failed: %v", err)
+	}
+
+	container.WriteHostConfig()
 
 	return nil
 }
 
 func (container *Container) initializeNetworking() error {
 	var err error
-	if container.hostConfig.NetworkMode.IsHost() {
-		container.Config.Hostname, err = os.Hostname()
-		if err != nil {
-			return err
-		}
 
-		parts := strings.SplitN(container.Config.Hostname, ".", 2)
-		if len(parts) > 1 {
-			container.Config.Hostname = parts[0]
-			container.Config.Domainname = parts[1]
-		}
-
-		content, err := ioutil.ReadFile("/etc/hosts")
-		if os.IsNotExist(err) {
-			return container.buildHostnameAndHostsFiles("")
-		} else if err != nil {
-			return err
-		}
-
-		if err := container.buildHostnameFile(); err != nil {
-			return err
-		}
-
-		hostsPath, err := container.GetRootResourcePath("hosts")
-		if err != nil {
-			return err
-		}
-		container.HostsPath = hostsPath
-
-		return ioutil.WriteFile(container.HostsPath, content, 0644)
+	// Make sure NetworkMode has an acceptable value before
+	// initializing networking.
+	if container.hostConfig.NetworkMode == runconfig.NetworkMode("") {
+		container.hostConfig.NetworkMode = runconfig.NetworkMode("bridge")
 	}
+
 	if container.hostConfig.NetworkMode.IsContainer() {
 		// we need to get the hosts files from the container to join
 		nc, err := container.getNetworkedContainer()
@@ -656,14 +788,30 @@ func (container *Container) initializeNetworking() error {
 		container.Config.Domainname = nc.Config.Domainname
 		return nil
 	}
+
 	if container.daemon.config.DisableNetwork {
 		container.Config.NetworkDisabled = true
-		return container.buildHostnameAndHostsFiles("127.0.1.1")
 	}
+
+	if container.hostConfig.NetworkMode.IsHost() {
+		container.Config.Hostname, err = os.Hostname()
+		if err != nil {
+			return err
+		}
+
+		parts := strings.SplitN(container.Config.Hostname, ".", 2)
+		if len(parts) > 1 {
+			container.Config.Hostname = parts[0]
+			container.Config.Domainname = parts[1]
+		}
+
+	}
+
 	if err := container.AllocateNetwork(); err != nil {
 		return err
 	}
-	return container.buildHostnameAndHostsFiles(container.NetworkSettings.IPAddress)
+
+	return container.buildHostnameFile()
 }
 
 // Make sure the config is compatible with the current kernel
@@ -699,62 +847,6 @@ func (container *Container) ExportRw() (archive.Archive, error) {
 			return err
 		}),
 		nil
-}
-
-func (container *Container) buildHostnameFile() error {
-	hostnamePath, err := container.GetRootResourcePath("hostname")
-	if err != nil {
-		return err
-	}
-	container.HostnamePath = hostnamePath
-
-	if container.Config.Domainname != "" {
-		return ioutil.WriteFile(container.HostnamePath, []byte(fmt.Sprintf("%s.%s\n", container.Config.Hostname, container.Config.Domainname)), 0644)
-	}
-	return ioutil.WriteFile(container.HostnamePath, []byte(container.Config.Hostname+"\n"), 0644)
-}
-
-func (container *Container) buildHostsFiles(IP string) error {
-
-	hostsPath, err := container.GetRootResourcePath("hosts")
-	if err != nil {
-		return err
-	}
-	container.HostsPath = hostsPath
-
-	var extraContent []etchosts.Record
-
-	children, err := container.daemon.Children(container.Name)
-	if err != nil {
-		return err
-	}
-
-	for linkAlias, child := range children {
-		_, alias := filepath.Split(linkAlias)
-		// allow access to the linked container via the alias, real name, and container hostname
-		aliasList := alias + " " + child.Config.Hostname
-		// only add the name if alias isn't equal to the name
-		if alias != child.Name[1:] {
-			aliasList = aliasList + " " + child.Name[1:]
-		}
-		extraContent = append(extraContent, etchosts.Record{Hosts: aliasList, IP: child.NetworkSettings.IPAddress})
-	}
-
-	for _, extraHost := range container.hostConfig.ExtraHosts {
-		// allow IPv6 addresses in extra hosts; only split on first ":"
-		parts := strings.SplitN(extraHost, ":", 2)
-		extraContent = append(extraContent, etchosts.Record{Hosts: parts[0], IP: parts[1]})
-	}
-
-	return etchosts.Build(container.HostsPath, IP, container.Config.Hostname, container.Config.Domainname, extraContent)
-}
-
-func (container *Container) buildHostnameAndHostsFiles(IP string) error {
-	if err := container.buildHostnameFile(); err != nil {
-		return err
-	}
-
-	return container.buildHostsFiles(IP)
 }
 
 func (container *Container) getIpcContainer() (*Container, error) {
@@ -795,23 +887,6 @@ func (container *Container) setupWorkingDirectory() error {
 	return nil
 }
 
-func (container *Container) allocatePort(port nat.Port, bindings nat.PortMap) error {
-	binding := bindings[port]
-	if container.hostConfig.PublishAllPorts && len(binding) == 0 {
-		binding = append(binding, nat.PortBinding{})
-	}
-
-	for i := 0; i < len(binding); i++ {
-		b, err := bridge.AllocatePort(container.ID, port, binding[i])
-		if err != nil {
-			return err
-		}
-		binding[i] = b
-	}
-	bindings[port] = binding
-	return nil
-}
-
 func (container *Container) getNetworkedContainer() (*Container, error) {
 	parts := strings.SplitN(string(container.hostConfig.NetworkMode), ":", 2)
 	switch parts[0] {
@@ -836,34 +911,31 @@ func (container *Container) getNetworkedContainer() (*Container, error) {
 }
 
 func (container *Container) ReleaseNetwork() {
-	if container.Config.NetworkDisabled || !container.hostConfig.NetworkMode.IsPrivate() {
+	if container.hostConfig.NetworkMode.IsContainer() {
 		return
 	}
-	bridge.Release(container.ID)
+
+	n, err := container.daemon.netController.NetworkByID(container.NetworkSettings.NetworkID)
+	if err != nil {
+		logrus.Errorf("error locating network id %s: %v", container.NetworkSettings.NetworkID, err)
+		return
+	}
+
+	ep, err := n.EndpointByID(container.NetworkSettings.EndpointID)
+	if err != nil {
+		logrus.Errorf("error locating endpoint id %s: %v", container.NetworkSettings.EndpointID, err)
+		return
+	}
+
+	if err := ep.Leave(container.ID); err != nil {
+		logrus.Errorf("leaving endpoint failed: %v", err)
+	}
+
+	if err := ep.Delete(); err != nil {
+		logrus.Errorf("deleting endpoint failed: %v", err)
+	}
+
 	container.NetworkSettings = &network.Settings{}
-}
-
-func (container *Container) RestoreNetwork() error {
-	mode := container.hostConfig.NetworkMode
-	// Don't attempt a restore if we previously didn't allocate networking.
-	// This might be a legacy container with no network allocated, in which case the
-	// allocation will happen once and for all at start.
-	if !container.isNetworkAllocated() || container.Config.NetworkDisabled || !mode.IsPrivate() {
-		return nil
-	}
-
-	// Re-allocate the interface with the same IP and MAC address.
-	if _, err := bridge.Allocate(container.ID, container.NetworkSettings.MacAddress, container.NetworkSettings.IPAddress, ""); err != nil {
-		return err
-	}
-
-	// Re-allocate any previously allocated ports.
-	for port := range container.NetworkSettings.Ports {
-		if err := container.allocatePort(port, container.NetworkSettings.Ports); err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 func disableAllActiveLinks(container *Container) {
@@ -878,6 +950,10 @@ func (container *Container) DisableLink(name string) {
 	if container.activeLinks != nil {
 		if link, exists := container.activeLinks[name]; exists {
 			link.Disable()
+			delete(container.activeLinks, name)
+			if err := container.UpdateNetwork(); err != nil {
+				logrus.Debugf("Could not update network to remove link: %v", err)
+			}
 		} else {
 			logrus.Debugf("Could not find active link for %s", name)
 		}

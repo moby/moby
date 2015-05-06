@@ -19,7 +19,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/nat"
-	"github.com/docker/docker/pkg/resolvconf"
+	"github.com/docker/libnetwork/resolvconf"
 	"github.com/go-check/check"
 )
 
@@ -1459,14 +1459,11 @@ func (s *DockerSuite) TestRunDnsOptionsBasedOnHostResolvConf(c *check.C) {
 	}
 }
 
-// Test the file watch notifier on docker host's /etc/resolv.conf
-// A go-routine is responsible for auto-updating containers which are
-// stopped and have an unmodified copy of resolv.conf, as well as
-// marking running containers as requiring an update on next restart
-func (s *DockerSuite) TestRunResolvconfUpdater(c *check.C) {
-	// Because overlay doesn't support inotify properly, we need to skip
-	// this test if the docker daemon has Storage Driver == overlay
-	testRequires(c, SameHostDaemon, NotOverlay)
+// Test if container resolv.conf gets updated the next time it restarts
+// if host /etc/resolv.conf has changed. This only applies if the container
+// uses the host's /etc/resolv.conf and does not have any dns options provided.
+func (s *DockerSuite) TestRunResolvconfUpdate(c *check.C) {
+	testRequires(c, SameHostDaemon)
 
 	tmpResolvConf := []byte("search pommesfrites.fr\nnameserver 12.34.56.78")
 	tmpLocalhostResolvConf := []byte("nameserver 127.0.0.1")
@@ -1492,7 +1489,7 @@ func (s *DockerSuite) TestRunResolvconfUpdater(c *check.C) {
 		}
 	}()
 
-	//1. test that a non-running container gets an updated resolv.conf
+	//1. test that a restarting container gets an updated resolv.conf
 	cmd = exec.Command(dockerBinary, "run", "--name='first'", "busybox", "true")
 	if _, err := runCommand(cmd); err != nil {
 		c.Fatal(err)
@@ -1508,17 +1505,26 @@ func (s *DockerSuite) TestRunResolvconfUpdater(c *check.C) {
 		c.Fatal(err)
 	}
 
-	time.Sleep(time.Second / 2)
+	// start the container again to pickup changes
+	cmd = exec.Command(dockerBinary, "start", "first")
+	if out, err := runCommand(cmd); err != nil {
+		c.Fatalf("Errored out %s, \nerror: %v", string(out), err)
+	}
+
 	// check for update in container
 	containerResolv, err := readContainerFile(containerID1, "resolv.conf")
 	if err != nil {
 		c.Fatal(err)
 	}
 	if !bytes.Equal(containerResolv, bytesResolvConf) {
-		c.Fatalf("Stopped container does not have updated resolv.conf; expected %q, got %q", tmpResolvConf, string(containerResolv))
+		c.Fatalf("Restarted container does not have updated resolv.conf; expected %q, got %q", tmpResolvConf, string(containerResolv))
 	}
 
-	//2. test that a non-running container does not receive resolv.conf updates
+	/* 	//make a change to resolv.conf (in this case replacing our tmp copy with orig copy)
+	   	if err := ioutil.WriteFile("/etc/resolv.conf", resolvConfSystem, 0644); err != nil {
+	   		c.Fatal(err)
+	   	} */
+	//2. test that a restarting container does not receive resolv.conf updates
 	//   if it modified the container copy of the starting point resolv.conf
 	cmd = exec.Command(dockerBinary, "run", "--name='second'", "busybox", "sh", "-c", "echo 'search mylittlepony.com' >>/etc/resolv.conf")
 	if _, err = runCommand(cmd); err != nil {
@@ -1528,24 +1534,26 @@ func (s *DockerSuite) TestRunResolvconfUpdater(c *check.C) {
 	if err != nil {
 		c.Fatal(err)
 	}
-	containerResolvHashBefore, err := readContainerFile(containerID2, "resolv.conf.hash")
-	if err != nil {
-		c.Fatal(err)
-	}
 
 	//make a change to resolv.conf (in this case replacing our tmp copy with orig copy)
 	if err := ioutil.WriteFile("/etc/resolv.conf", resolvConfSystem, 0644); err != nil {
 		c.Fatal(err)
 	}
 
-	time.Sleep(time.Second / 2)
-	containerResolvHashAfter, err := readContainerFile(containerID2, "resolv.conf.hash")
+	// start the container again
+	cmd = exec.Command(dockerBinary, "start", "second")
+	if out, err := runCommand(cmd); err != nil {
+		c.Fatalf("Errored out %s, \nerror: %v", string(out), err)
+	}
+
+	// check for update in container
+	containerResolv, err = readContainerFile(containerID2, "resolv.conf")
 	if err != nil {
 		c.Fatal(err)
 	}
 
-	if !bytes.Equal(containerResolvHashBefore, containerResolvHashAfter) {
-		c.Fatalf("Stopped container with modified resolv.conf should not have been updated; expected hash: %v, new hash: %v", containerResolvHashBefore, containerResolvHashAfter)
+	if bytes.Equal(containerResolv, resolvConfSystem) {
+		c.Fatalf("Restarting  a container after container updated resolv.conf should not pick up host changes; expected %q, got %q", string(containerResolv), string(resolvConfSystem))
 	}
 
 	//3. test that a running container's resolv.conf is not modified while running
@@ -1556,26 +1564,19 @@ func (s *DockerSuite) TestRunResolvconfUpdater(c *check.C) {
 	}
 	runningContainerID := strings.TrimSpace(out)
 
-	containerResolvHashBefore, err = readContainerFile(runningContainerID, "resolv.conf.hash")
-	if err != nil {
-		c.Fatal(err)
-	}
-
 	// replace resolv.conf
 	if err := ioutil.WriteFile("/etc/resolv.conf", bytesResolvConf, 0644); err != nil {
 		c.Fatal(err)
 	}
 
-	// make sure the updater has time to run to validate we really aren't
-	// getting updated
-	time.Sleep(time.Second / 2)
-	containerResolvHashAfter, err = readContainerFile(runningContainerID, "resolv.conf.hash")
+	// check for update in container
+	containerResolv, err = readContainerFile(runningContainerID, "resolv.conf")
 	if err != nil {
 		c.Fatal(err)
 	}
 
-	if !bytes.Equal(containerResolvHashBefore, containerResolvHashAfter) {
-		c.Fatalf("Running container's resolv.conf should not be updated; expected hash: %v, new hash: %v", containerResolvHashBefore, containerResolvHashAfter)
+	if bytes.Equal(containerResolv, bytesResolvConf) {
+		c.Fatalf("Running container should not have updated resolv.conf; expected %q, got %q", string(resolvConfSystem), string(containerResolv))
 	}
 
 	//4. test that a running container's resolv.conf is updated upon restart
@@ -1591,7 +1592,7 @@ func (s *DockerSuite) TestRunResolvconfUpdater(c *check.C) {
 		c.Fatal(err)
 	}
 	if !bytes.Equal(containerResolv, bytesResolvConf) {
-		c.Fatalf("Restarted container should have updated resolv.conf; expected %q, got %q", tmpResolvConf, string(containerResolv))
+		c.Fatalf("Restarted container should have updated resolv.conf; expected %q, got %q", string(bytesResolvConf), string(containerResolv))
 	}
 
 	//5. test that additions of a localhost resolver are cleaned from
@@ -1603,7 +1604,12 @@ func (s *DockerSuite) TestRunResolvconfUpdater(c *check.C) {
 		c.Fatal(err)
 	}
 
-	time.Sleep(time.Second / 2)
+	// start the container again to pickup changes
+	cmd = exec.Command(dockerBinary, "start", "first")
+	if out, err := runCommand(cmd); err != nil {
+		c.Fatalf("Errored out %s, \nerror: %v", string(out), err)
+	}
+
 	// our first exited container ID should have been updated, but with default DNS
 	// after the cleanup of resolv.conf found only a localhost nameserver:
 	containerResolv, err = readContainerFile(containerID1, "resolv.conf")
@@ -1645,7 +1651,12 @@ func (s *DockerSuite) TestRunResolvconfUpdater(c *check.C) {
 		c.Fatal(err)
 	}
 
-	time.Sleep(time.Second / 2)
+	// start the container again to pickup changes
+	cmd = exec.Command(dockerBinary, "start", "third")
+	if out, err := runCommand(cmd); err != nil {
+		c.Fatalf("Errored out %s, \nerror: %v", string(out), err)
+	}
+
 	// check for update in container
 	containerResolv, err = readContainerFile(containerID3, "resolv.conf")
 	if err != nil {

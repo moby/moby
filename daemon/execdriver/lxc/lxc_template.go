@@ -15,8 +15,7 @@ import (
 	"github.com/docker/libcontainer/label"
 )
 
-const LxcTemplate = `
-{{if .Network.Interface}}
+/* {{if .Network.Interface}}
 # network configuration
 lxc.network.type = veth
 lxc.network.link = {{.Network.Interface.Bridge}}
@@ -30,8 +29,10 @@ lxc.network.type = none
 lxc.network.type = empty
 lxc.network.flags = up
 lxc.network.mtu = {{.Network.Mtu}}
-{{end}}
+{{end}} */
 
+const LxcTemplate = `
+lxc.network.type = none
 # root filesystem
 {{$ROOTFS := .Rootfs}}
 lxc.rootfs = {{$ROOTFS}}
@@ -145,6 +146,7 @@ lxc.network.ipv4.gateway = {{.Network.Interface.Gateway}}
 {{if .Network.Interface.MacAddress}}
 lxc.network.hwaddr = {{.Network.Interface.MacAddress}}
 {{end}}
+{{end}}
 {{if .ProcessConfig.Env}}
 lxc.utsname = {{getHostname .ProcessConfig.Env}}
 {{end}}
@@ -163,7 +165,6 @@ lxc.cap.drop = {{.}}
 		{{end}}
 		{{end}}
 	{{end}}
-{{end}}
 {{end}}
 `
 

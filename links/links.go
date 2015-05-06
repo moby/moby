@@ -5,9 +5,7 @@ import (
 	"path"
 	"strings"
 
-	"github.com/docker/docker/daemon/networkdriver/bridge"
 	"github.com/docker/docker/nat"
-	"github.com/docker/docker/pkg/iptables"
 )
 
 type Link struct {
@@ -140,26 +138,10 @@ func (l *Link) getDefaultPort() *nat.Port {
 }
 
 func (l *Link) Enable() error {
-	// -A == iptables append flag
-	if err := l.toggle("-A", false); err != nil {
-		return err
-	}
-	// call this on Firewalld reload
-	iptables.OnReloaded(func() { l.toggle("-A", false) })
 	l.IsEnabled = true
 	return nil
 }
 
 func (l *Link) Disable() {
-	// We do not care about errors here because the link may not
-	// exist in iptables
-	// -D == iptables delete flag
-	l.toggle("-D", true)
-	// call this on Firewalld reload
-	iptables.OnReloaded(func() { l.toggle("-D", true) })
 	l.IsEnabled = false
-}
-
-func (l *Link) toggle(action string, ignoreErrors bool) error {
-	return bridge.LinkContainers(action, l.ParentIP, l.ChildIP, l.Ports, ignoreErrors)
 }
