@@ -765,10 +765,10 @@ func AllocatePort(id string, port nat.Port, binding nat.PortBinding, start int, 
 
 	network.PortMappings = append(network.PortMappings, host)
 
-	var portRange string
-	if start == 0 && end == 0 {
+	portRange := ""
+	if start == 0 && end == 0 && hostPort == 0 {
 		portRange = fmt.Sprintf("%d-%d", portMapper.Allocator.Begin, portMapper.Allocator.End)
-	} else {
+	} else if start != 0 {
 		portRange = fmt.Sprintf("%d-%d", start, end)
 	}
 

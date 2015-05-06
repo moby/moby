@@ -656,20 +656,11 @@ func (container *Container) AllocateNetwork() error {
 		}
 	}
 
-	// Capture the bindings for NetworkSettings before we change them for persistense
 	networkSettings.Ports = bindings
 	container.NetworkSettings = networkSettings
 
-	// Use port persistence policy to save appropriate values in HostConfig
-	// Save the allocated port to the HostConfig to enable "soft" binding (try same port, re-allocate from range if busy)
-	// Also clear the range to enforce a "hard" bind to the port (no re-allocation)
-	switch container.hostConfig.PortPersistence {
-	case "hard":
-		bindings = nat.AddRangeToPortBindings(bindings, "")
-		fallthrough
-	case "soft":
-		container.hostConfig.PortBindings = bindings
-	}
+	// Write out the current bindings to the HostConfig, persistence policy will require previous allocations
+	container.hostConfig.PortBindings = bindings
 	container.WriteHostConfig()
 
 	return nil
@@ -1497,21 +1488,43 @@ func (container *Container) allocatePort(port nat.Port, bindings nat.PortMap) er
 	var err error
 	var start, end uint64 = 0, 0
 
+	persist := container.hostConfig.PortPersistence
 	binding := bindings[port]
 	if container.hostConfig.PublishAllPorts && len(binding) == 0 {
 		binding = append(binding, nat.PortBinding{})
 	}
 
 	for i := 0; i < len(binding); i++ {
-		if binding[i].PortRange != "" {
-			start, end, err = parsers.ParsePortRange(binding[i].PortRange)
-			if err != nil {
-				return err
+
+		// Apply port persistence policy to the port allocation request
+		switch persist {
+		case "hard":
+			start, end = 0, 0
+		case "soft":
+			if binding[i].PortRange != "" {
+				start, end, err = parsers.ParsePortRange(binding[i].PortRange)
+				if err != nil {
+					return err
+				}
+			}
+		default:
+			if binding[i].PortRange != "" {
+				start, end, err = parsers.ParsePortRange(binding[i].PortRange)
+				if err != nil {
+					return err
+				}
+				binding[i].HostPort = ""
 			}
 		}
+
 		b, err := bridge.AllocatePort(container.ID, port, binding[i], int(start), int(end))
 		if err != nil {
 			return err
+		}
+
+		// Fix the binding if persistence policy changed it to make sure HostConfig is accurate
+		if persist == "hard" && b.PortRange == "" {
+			b.PortRange = binding[i].PortRange
 		}
 		binding[i] = b
 	}

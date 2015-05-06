@@ -73,7 +73,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		flLoggingDriver   = cmd.String([]string{"-log-driver"}, "", "Logging driver for container")
 		flCgroupParent    = cmd.String([]string{"-cgroup-parent"}, "", "Optional parent cgroup for the container")
 		flPortRange       = cmd.String([]string{"-port-range"}, "", "Port range to use for dynamic allocation")
-		flPortPersistence = cmd.String([]string{"-port-persistence"}, "static", "Persistence policy for dynamically allocated ports (static|soft|hard)")
+		flPortPersistence = cmd.String([]string{"-port-persistence"}, "", "Persistence policy for dynamic ports")
 	)
 
 	cmd.Var(&flAttach, []string{"a", "-attach"}, "Attach to STDIN, STDOUT or STDERR")
