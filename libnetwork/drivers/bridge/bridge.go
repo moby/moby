@@ -60,11 +60,12 @@ type ContainerConfiguration struct {
 }
 
 type bridgeEndpoint struct {
-	id          types.UUID
-	intf        *sandbox.Interface
-	macAddress  net.HardwareAddr
-	config      *EndpointConfiguration // User specified parameters
-	portMapping []netutils.PortBinding // Operation port bindings
+	id              types.UUID
+	intf            *sandbox.Interface
+	macAddress      net.HardwareAddr
+	config          *EndpointConfiguration // User specified parameters
+	containerConfig *ContainerConfiguration
+	portMapping     []netutils.PortBinding // Operation port bindings
 }
 
 type bridgeNetwork struct {
@@ -643,6 +644,8 @@ func (d *driver) Leave(nid, eid types.UUID, options map[string]interface{}) erro
 }
 
 func (d *driver) link(nid, eid types.UUID, options map[string]interface{}, enable bool) error {
+	var cc *ContainerConfiguration
+
 	network, err := d.getNetwork(nid)
 	if err != nil {
 		return err
@@ -656,10 +659,15 @@ func (d *driver) link(nid, eid types.UUID, options map[string]interface{}, enabl
 		return EndpointNotFoundError(eid)
 	}
 
-	cc, err := parseContainerOptions(options)
-	if err != nil {
-		return err
+	if enable {
+		cc, err = parseContainerOptions(options)
+		if err != nil {
+			return err
+		}
+	} else {
+		cc = endpoint.containerConfig
 	}
+
 	if cc == nil {
 		return nil
 	}
@@ -725,6 +733,11 @@ func (d *driver) link(nid, eid types.UUID, options map[string]interface{}, enabl
 			l.Disable()
 		}
 	}
+
+	if enable {
+		endpoint.containerConfig = cc
+	}
+
 	return nil
 }
 

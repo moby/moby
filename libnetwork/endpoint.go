@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/etchosts"
 	"github.com/docker/docker/pkg/resolvconf"
 	"github.com/docker/libnetwork/driverapi"
@@ -275,6 +276,18 @@ func (ep *endpoint) Leave(containerID string, options ...EndpointOption) error {
 
 	n := ep.network
 	err := n.driver.Leave(n.id, ep.id, ep.context)
+
+	sinfo := ep.SandboxInfo()
+	if sinfo != nil {
+		sb := ep.network.ctrlr.sandboxGet(ep.container.data.SandboxKey)
+		for _, i := range sinfo.Interfaces {
+			err = sb.RemoveInterface(i)
+			if err != nil {
+				logrus.Debugf("Remove interface failed: %v", err)
+			}
+		}
+	}
+
 	ep.network.ctrlr.sandboxRm(ep.container.data.SandboxKey)
 	ep.container = nil
 	ep.context = nil

@@ -23,6 +23,10 @@ type Sandbox interface {
 	// interface according to the specified settings.
 	AddInterface(*Interface) error
 
+	// Remove an interface from the sandbox by renamin to original name
+	// and moving it out of the sandbox.
+	RemoveInterface(*Interface) error
+
 	// Set default IPv4 gateway for the sandbox
 	SetGateway(gw net.IP) error
 

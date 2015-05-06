@@ -109,6 +109,54 @@ func loopbackUp() error {
 	return netlink.LinkSetUp(iface)
 }
 
+func (n *networkNamespace) RemoveInterface(i *Interface) error {
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+
+	origns, err := netns.Get()
+	if err != nil {
+		return err
+	}
+	defer origns.Close()
+
+	f, err := os.OpenFile(n.path, os.O_RDONLY, 0)
+	if err != nil {
+		return fmt.Errorf("failed get network namespace %q: %v", n.path, err)
+	}
+	defer f.Close()
+
+	nsFD := f.Fd()
+	if err = netns.Set(netns.NsHandle(nsFD)); err != nil {
+		return err
+	}
+	defer netns.Set(origns)
+
+	// Find the network inteerface identified by the DstName attribute.
+	iface, err := netlink.LinkByName(i.DstName)
+	if err != nil {
+		return err
+	}
+
+	// Down the interface before configuring
+	if err := netlink.LinkSetDown(iface); err != nil {
+		return err
+	}
+
+	err = netlink.LinkSetName(iface, i.SrcName)
+	if err != nil {
+		fmt.Println("LinkSetName failed: ", err)
+		return err
+	}
+
+	// Move the network interface to init namespace.
+	if err := netlink.LinkSetNsPid(iface, 1); err != nil {
+		fmt.Println("LinkSetNsPid failed: ", err)
+		return err
+	}
+
+	return nil
+}
+
 func (n *networkNamespace) AddInterface(i *Interface) error {
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
