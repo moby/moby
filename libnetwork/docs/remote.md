@@ -5,7 +5,7 @@ Remote driver is a special built-in driver. This driver in itself doesn't provid
 
 ## LibNetwork Integration
 
-When LibNetwork creates an instance of the Built-in `Remote` Driver via the `New()` function, it provides a `DriverCallback` which implements the `RegisterDynamicDriver()` to let the Built-in Remote Driver to register any of the `Dynamic` Drivers/Plugins with LibNetwork's `NetworkController`
+When LibNetwork creates an instance of the Built-in `Remote` Driver via the `New()` function, it provides a `DriverCallback` which implements the `RegisterDriver()` to let the Built-in Remote Driver to register any of the `Dynamic` Drivers/Plugins with LibNetwork's `NetworkController`
 
 Refer to [Remote Driver Test](https://github.com/docker/libnetwork/blob/drivers/remote/driver_test.go) which provides an example of how the Built-In Remote driver can register any Dynamic driver with LibNetwork.
 

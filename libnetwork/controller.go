@@ -49,6 +49,7 @@ import (
 	"sync"
 
 	"github.com/docker/docker/pkg/stringid"
+	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/sandbox"
 	"github.com/docker/libnetwork/types"
 )
@@ -98,22 +99,39 @@ type controller struct {
 
 // New creates a new instance of network controller.
 func New() NetworkController {
-	return &controller{networkTable{}, enumerateDrivers(), sandboxTable{}, sync.Mutex{}}
+	c := &controller{networks: networkTable{}, sandboxes: sandboxTable{}}
+	c.drivers = enumerateDrivers(c)
+	return c
+
 }
 
 func (c *controller) ConfigureNetworkDriver(networkType string, options map[string]interface{}) error {
+	c.Lock()
 	d, ok := c.drivers[networkType]
+	c.Unlock()
 	if !ok {
 		return NetworkTypeError(networkType)
 	}
 	return d.Config(options)
 }
 
+func (c *controller) RegisterDriver(networkType string, driver driverapi.Driver) error {
+	c.Lock()
+	defer c.Unlock()
+	if _, ok := c.drivers[networkType]; ok {
+		return driverapi.ErrActiveRegistration(networkType)
+	}
+	c.drivers[networkType] = driver
+	return nil
+}
+
 // NewNetwork creates a new network of the specified network type. The options
 // are network specific and modeled in a generic way.
 func (c *controller) NewNetwork(networkType, name string, options ...NetworkOption) (Network, error) {
 	// Check if a driver for the specified network type is available
+	c.Lock()
 	d, ok := c.drivers[networkType]
+	c.Unlock()
 	if !ok {
 		return nil, ErrInvalidNetworkDriver
 	}

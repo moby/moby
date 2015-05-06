@@ -11,7 +11,7 @@ import (
 
 func TestLinkCreate(t *testing.T) {
 	defer netutils.SetupTestNetNS(t)()
-	_, d := New()
+	_, d := New(nil)
 	dr := d.(*driver)
 
 	mtu := 1490
@@ -97,7 +97,7 @@ func TestLinkCreate(t *testing.T) {
 
 func TestLinkCreateTwo(t *testing.T) {
 	defer netutils.SetupTestNetNS(t)()
-	_, d := New()
+	_, d := New(nil)
 
 	config := &NetworkConfiguration{
 		BridgeName: DefaultBridgeName,
@@ -127,7 +127,7 @@ func TestLinkCreateTwo(t *testing.T) {
 
 func TestLinkCreateNoEnableIPv6(t *testing.T) {
 	defer netutils.SetupTestNetNS(t)()
-	_, d := New()
+	_, d := New(nil)
 
 	config := &NetworkConfiguration{
 		BridgeName: DefaultBridgeName}
@@ -156,7 +156,7 @@ func TestLinkCreateNoEnableIPv6(t *testing.T) {
 
 func TestLinkDelete(t *testing.T) {
 	defer netutils.SetupTestNetNS(t)()
-	_, d := New()
+	_, d := New(nil)
 
 	config := &NetworkConfiguration{
 		BridgeName: DefaultBridgeName,
