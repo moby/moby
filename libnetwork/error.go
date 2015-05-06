@@ -65,6 +65,17 @@ func (uee *UnknownEndpointError) Error() string {
 	return fmt.Sprintf("unknown endpoint %s id %s", uee.name, uee.id)
 }
 
+// ActiveContainerError is returned when an endpoint is deleted which has active
+// containers attached to it.
+type ActiveContainerError struct {
+	name string
+	id   string
+}
+
+func (ace *ActiveContainerError) Error() string {
+	return fmt.Sprintf("endpoint with name %s id %s has active containers", ace.name, ace.id)
+}
+
 // InvalidContainerIDError is returned when an invalid container id is passed
 // in Join/Leave
 type InvalidContainerIDError string

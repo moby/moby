@@ -635,6 +635,37 @@ func TestEndpointJoinInvalidContainerId(t *testing.T) {
 	}
 }
 
+func TestEndpointDeleteWithActiveContainer(t *testing.T) {
+	defer netutils.SetupTestNetNS(t)()
+
+	n, err := createTestNetwork(bridgeNetType, "testnetwork", options.Generic{}, options.Generic{})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ep, err := n.CreateEndpoint("ep1")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = ep.Join(containerID,
+		libnetwork.JoinOptionHostname("test"),
+		libnetwork.JoinOptionDomainname("docker.io"),
+		libnetwork.JoinOptionExtraHost("web", "192.168.0.1"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = ep.Delete()
+	if err == nil {
+		t.Fatal("Expected to fail. But instead succeeded")
+	}
+
+	if _, ok := err.(*libnetwork.ActiveContainerError); !ok {
+		t.Fatalf("Did not fail with expected error. Actual error: %v", err)
+	}
+}
+
 func TestEndpointMultipleJoins(t *testing.T) {
 	defer netutils.SetupTestNetNS(t)()
 
