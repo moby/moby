@@ -6,11 +6,11 @@ import (
 	"path/filepath"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/docker/pkg/etchosts"
-	"github.com/docker/docker/pkg/resolvconf"
 	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/netutils"
+	"github.com/docker/libnetwork/pkg/etchosts"
 	"github.com/docker/libnetwork/pkg/netlabel"
+	"github.com/docker/libnetwork/pkg/resolvconf"
 	"github.com/docker/libnetwork/sandbox"
 	"github.com/docker/libnetwork/types"
 )
@@ -412,7 +412,7 @@ func (ep *endpoint) setupDNS() error {
 	}
 
 	// replace any localhost/127.* but always discard IPv6 entries for now.
-	resolvConf, _ = resolvconf.FilterResolvDns(resolvConf, ep.network.enableIPv6)
+	resolvConf, _ = resolvconf.FilterResolvDNS(resolvConf, ep.network.enableIPv6)
 	return ioutil.WriteFile(ep.container.config.resolvConfPath, resolvConf, 0644)
 }
 
