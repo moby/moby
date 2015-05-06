@@ -21,8 +21,8 @@ override_dh_strip:
 override_dh_auto_install:
 	mkdir -p debian/docker-engine/usr/bin
 	cp -aT "$$(readlink -f bundles/$(VERSION)/dynbinary/docker)" debian/docker-engine/usr/bin/docker
-	mkdir -p debian/docker-engine/usr/libexec/docker
-	cp -aT "$$(readlink -f bundles/$(VERSION)/dynbinary/dockerinit)" debian/docker-engine/usr/libexec/docker/dockerinit
+	mkdir -p debian/docker-engine/usr/lib/docker
+	cp -aT "$$(readlink -f bundles/$(VERSION)/dynbinary/dockerinit)" debian/docker-engine/usr/lib/docker/dockerinit
 
 override_dh_installinit:
 	# use "docker" as our service name, not "docker-engine"
