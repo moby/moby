@@ -9,6 +9,7 @@ import (
 	"github.com/docker/docker/pkg/reexec"
 	"github.com/docker/libnetwork"
 	"github.com/docker/libnetwork/netutils"
+	"github.com/docker/libnetwork/pkg/netlabel"
 	"github.com/docker/libnetwork/pkg/options"
 )
 
@@ -27,7 +28,7 @@ func TestMain(m *testing.M) {
 func createTestNetwork(networkType, networkName string, option options.Generic) (libnetwork.Network, error) {
 	controller := libnetwork.New()
 	genericOption := make(map[string]interface{})
-	genericOption[options.GenericData] = option
+	genericOption[netlabel.GenericData] = option
 
 	err := controller.ConfigureNetworkDriver(networkType, genericOption)
 	if err != nil {
@@ -44,7 +45,7 @@ func createTestNetwork(networkType, networkName string, option options.Generic) 
 
 func getEmptyGenericOption() map[string]interface{} {
 	genericOption := make(map[string]interface{})
-	genericOption[options.GenericData] = options.Generic{}
+	genericOption[netlabel.GenericData] = options.Generic{}
 	return genericOption
 }
 
@@ -170,7 +171,7 @@ func TestBridge(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	pmd, ok := epInfo[options.PortMap]
+	pmd, ok := epInfo[netlabel.PortMap]
 	if !ok {
 		t.Fatalf("Could not find expected info in endpoint data")
 	}
@@ -237,7 +238,7 @@ func TestDuplicateNetwork(t *testing.T) {
 	controller := libnetwork.New()
 
 	genericOption := make(map[string]interface{})
-	genericOption[options.GenericData] = options.Generic{}
+	genericOption[netlabel.GenericData] = options.Generic{}
 
 	err := controller.ConfigureNetworkDriver(bridgeNetType, genericOption)
 	if err != nil {

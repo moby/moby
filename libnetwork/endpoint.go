@@ -10,7 +10,7 @@ import (
 	"github.com/docker/docker/pkg/resolvconf"
 	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/netutils"
-	"github.com/docker/libnetwork/pkg/options"
+	"github.com/docker/libnetwork/pkg/netlabel"
 	"github.com/docker/libnetwork/sandbox"
 	"github.com/docker/libnetwork/types"
 )
@@ -504,7 +504,7 @@ func CreateOptionExposedPorts(exposedPorts []netutils.TransportPort) EndpointOpt
 		copy(eps, exposedPorts)
 		// Store endpoint label and in generic because driver needs it
 		ep.exposedPorts = eps
-		ep.generic[options.ExposedPorts] = eps
+		ep.generic[netlabel.ExposedPorts] = eps
 	}
 }
 
@@ -515,7 +515,7 @@ func CreateOptionPortMapping(portBindings []netutils.PortBinding) EndpointOption
 		// Store a copy of the bindings as generic data to pass to the driver
 		pbs := make([]netutils.PortBinding, len(portBindings))
 		copy(pbs, portBindings)
-		ep.generic[options.PortMap] = pbs
+		ep.generic[netlabel.PortMap] = pbs
 	}
 }
 

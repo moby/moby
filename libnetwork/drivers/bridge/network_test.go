@@ -5,7 +5,7 @@ import (
 
 	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/netutils"
-	"github.com/docker/libnetwork/pkg/options"
+	"github.com/docker/libnetwork/pkg/netlabel"
 	"github.com/vishvananda/netlink"
 )
 
@@ -21,7 +21,7 @@ func TestLinkCreate(t *testing.T) {
 		EnableIPv6: true,
 	}
 	genericOption := make(map[string]interface{})
-	genericOption[options.GenericData] = config
+	genericOption[netlabel.GenericData] = config
 	if err := d.Config(genericOption); err != nil {
 		t.Fatalf("Failed to setup driver config: %v", err)
 	}
@@ -106,7 +106,7 @@ func TestLinkCreateTwo(t *testing.T) {
 		BridgeName: DefaultBridgeName,
 		EnableIPv6: true}
 	genericOption := make(map[string]interface{})
-	genericOption[options.GenericData] = config
+	genericOption[netlabel.GenericData] = config
 	if err := d.Config(genericOption); err != nil {
 		t.Fatalf("Failed to setup driver config: %v", err)
 	}
@@ -138,7 +138,7 @@ func TestLinkCreateNoEnableIPv6(t *testing.T) {
 	config := &Configuration{
 		BridgeName: DefaultBridgeName}
 	genericOption := make(map[string]interface{})
-	genericOption[options.GenericData] = config
+	genericOption[netlabel.GenericData] = config
 
 	if err := d.Config(genericOption); err != nil {
 		t.Fatalf("Failed to setup driver config: %v", err)
@@ -172,7 +172,7 @@ func TestLinkDelete(t *testing.T) {
 		BridgeName: DefaultBridgeName,
 		EnableIPv6: true}
 	genericOption := make(map[string]interface{})
-	genericOption[options.GenericData] = config
+	genericOption[netlabel.GenericData] = config
 
 	if err := d.Config(genericOption); err != nil {
 		t.Fatalf("Failed to setup driver config: %v", err)

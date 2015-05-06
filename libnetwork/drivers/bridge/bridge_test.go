@@ -9,7 +9,7 @@ import (
 
 	"github.com/docker/docker/pkg/iptables"
 	"github.com/docker/libnetwork/netutils"
-	"github.com/docker/libnetwork/pkg/options"
+	"github.com/docker/libnetwork/pkg/netlabel"
 	"github.com/vishvananda/netlink"
 )
 
@@ -26,7 +26,7 @@ func TestCreateFullOptions(t *testing.T) {
 	}
 	_, config.FixedCIDRv6, _ = net.ParseCIDR("2001:db8::/48")
 	genericOption := make(map[string]interface{})
-	genericOption[options.GenericData] = config
+	genericOption[netlabel.GenericData] = config
 
 	if err := d.Config(genericOption); err != nil {
 		t.Fatalf("Failed to setup driver config: %v", err)
@@ -44,7 +44,7 @@ func TestCreate(t *testing.T) {
 
 	config := &Configuration{BridgeName: DefaultBridgeName}
 	genericOption := make(map[string]interface{})
-	genericOption[options.GenericData] = config
+	genericOption[netlabel.GenericData] = config
 
 	if err := d.Config(genericOption); err != nil {
 		t.Fatalf("Failed to setup driver config: %v", err)
@@ -61,7 +61,7 @@ func TestCreateFail(t *testing.T) {
 
 	config := &Configuration{BridgeName: "dummy0"}
 	genericOption := make(map[string]interface{})
-	genericOption[options.GenericData] = config
+	genericOption[netlabel.GenericData] = config
 
 	if err := d.Config(genericOption); err != nil {
 		t.Fatalf("Failed to setup driver config: %v", err)
@@ -83,7 +83,7 @@ func TestQueryEndpointInfo(t *testing.T) {
 		EnableICC:      false,
 	}
 	genericOption := make(map[string]interface{})
-	genericOption[options.GenericData] = config
+	genericOption[netlabel.GenericData] = config
 
 	if err := d.Config(genericOption); err != nil {
 		t.Fatalf("Failed to setup driver config: %v", err)
@@ -96,7 +96,7 @@ func TestQueryEndpointInfo(t *testing.T) {
 
 	portMappings := getPortMapping()
 	epOptions := make(map[string]interface{})
-	epOptions[options.PortMap] = portMappings
+	epOptions[netlabel.PortMap] = portMappings
 
 	_, err = d.CreateEndpoint("net1", "ep1", epOptions)
 	if err != nil {
@@ -109,7 +109,7 @@ func TestQueryEndpointInfo(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to ask for endpoint operational data:  %v", err)
 	}
-	pmd, ok := data[options.PortMap]
+	pmd, ok := data[netlabel.PortMap]
 	if !ok {
 		t.Fatalf("Endpoint operational data does not contain port mapping data")
 	}
@@ -140,7 +140,7 @@ func TestCreateLinkWithOptions(t *testing.T) {
 
 	config := &Configuration{BridgeName: DefaultBridgeName}
 	driverOptions := make(map[string]interface{})
-	driverOptions[options.GenericData] = config
+	driverOptions[netlabel.GenericData] = config
 
 	if err := d.Config(driverOptions); err != nil {
 		t.Fatalf("Failed to setup driver config: %v", err)
@@ -153,7 +153,7 @@ func TestCreateLinkWithOptions(t *testing.T) {
 
 	mac := net.HardwareAddr([]byte{0x1e, 0x67, 0x66, 0x44, 0x55, 0x66})
 	epOptions := make(map[string]interface{})
-	epOptions[options.MacAddress] = mac
+	epOptions[netlabel.MacAddress] = mac
 
 	sinfo, err := d.CreateEndpoint("net1", "ep", epOptions)
 	if err != nil {
@@ -198,7 +198,7 @@ func TestLinkContainers(t *testing.T) {
 		EnableICC:      false,
 	}
 	genericOption := make(map[string]interface{})
-	genericOption[options.GenericData] = config
+	genericOption[netlabel.GenericData] = config
 
 	if err := d.Config(genericOption); err != nil {
 		t.Fatalf("Failed to setup driver config: %v", err)
@@ -211,7 +211,7 @@ func TestLinkContainers(t *testing.T) {
 
 	exposedPorts := getExposedPorts()
 	epOptions := make(map[string]interface{})
-	epOptions[options.ExposedPorts] = exposedPorts
+	epOptions[netlabel.ExposedPorts] = exposedPorts
 
 	sinfo, err := d.CreateEndpoint("net1", "ep1", epOptions)
 	if err != nil {
@@ -236,7 +236,7 @@ func TestLinkContainers(t *testing.T) {
 	ce := []string{"ep1"}
 	cConfig := &ContainerConfiguration{ChildEndpoints: ce}
 	genericOption = make(map[string]interface{})
-	genericOption[options.GenericData] = cConfig
+	genericOption[netlabel.GenericData] = cConfig
 
 	_, err = d.Join("net1", "ep2", "", genericOption)
 	if err != nil {
@@ -284,7 +284,7 @@ func TestLinkContainers(t *testing.T) {
 	ce = []string{"ep1", "ep4"}
 	cConfig = &ContainerConfiguration{ChildEndpoints: ce}
 	genericOption = make(map[string]interface{})
-	genericOption[options.GenericData] = cConfig
+	genericOption[netlabel.GenericData] = cConfig
 
 	_, err = d.Join("net1", "ep2", "", genericOption)
 	if err != nil {
@@ -415,7 +415,7 @@ func TestSetDefaultGw(t *testing.T) {
 	}
 
 	genericOption := make(map[string]interface{})
-	genericOption[options.GenericData] = config
+	genericOption[netlabel.GenericData] = config
 
 	if err := d.Config(genericOption); err != nil {
 		t.Fatalf("Failed to setup driver config: %v", err)

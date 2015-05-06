@@ -6,7 +6,7 @@ import (
 
 	"github.com/docker/docker/pkg/reexec"
 	"github.com/docker/libnetwork/netutils"
-	"github.com/docker/libnetwork/pkg/options"
+	"github.com/docker/libnetwork/pkg/netlabel"
 )
 
 func TestMain(m *testing.M) {
@@ -25,14 +25,14 @@ func TestPortMappingConfig(t *testing.T) {
 	portBindings := []netutils.PortBinding{binding1, binding2}
 
 	epOptions := make(map[string]interface{})
-	epOptions[options.PortMap] = portBindings
+	epOptions[netlabel.PortMap] = portBindings
 
 	driverConfig := &Configuration{
 		BridgeName:     DefaultBridgeName,
 		EnableIPTables: true,
 	}
 	driverOptions := make(map[string]interface{})
-	driverOptions[options.GenericData] = driverConfig
+	driverOptions[netlabel.GenericData] = driverConfig
 
 	if err := d.Config(driverOptions); err != nil {
 		t.Fatalf("Failed to setup driver config: %v", err)

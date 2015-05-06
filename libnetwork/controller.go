@@ -10,7 +10,7 @@ create network namespaces and allocate interfaces for containers to use.
 
         driverOptions := options.Generic{}
         genericOption := make(map[string]interface{})
-        genericOption[options.GenericData] = driverOptions
+        genericOption[netlabel.GenericData] = driverOptions
         err := controller.ConfigureNetworkDriver(networkType, genericOption)
         if err != nil {
                 return

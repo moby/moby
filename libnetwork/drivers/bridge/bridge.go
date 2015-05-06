@@ -8,6 +8,7 @@ import (
 	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/ipallocator"
 	"github.com/docker/libnetwork/netutils"
+	"github.com/docker/libnetwork/pkg/netlabel"
 	"github.com/docker/libnetwork/pkg/options"
 	"github.com/docker/libnetwork/portmapper"
 	"github.com/docker/libnetwork/sandbox"
@@ -156,7 +157,7 @@ func (d *driver) Config(option map[string]interface{}) error {
 		return ErrConfigExists
 	}
 
-	genericData := option[options.GenericData]
+	genericData := option[netlabel.GenericData]
 	if genericData != nil {
 		switch opt := genericData.(type) {
 		case options.Generic:
@@ -617,11 +618,11 @@ func (d *driver) EndpointInfo(nid, eid types.UUID) (map[string]interface{}, erro
 		for _, pm := range ep.portMapping {
 			pmc = append(pmc, pm.GetCopy())
 		}
-		m[options.PortMap] = pmc
+		m[netlabel.PortMap] = pmc
 	}
 
 	if len(ep.macAddress) != 0 {
-		m[options.MacAddress] = ep.macAddress
+		m[netlabel.MacAddress] = ep.macAddress
 	}
 
 	return m, nil
@@ -762,7 +763,7 @@ func parseEndpointOptions(epOptions map[string]interface{}) (*EndpointConfigurat
 
 	ec := &EndpointConfiguration{}
 
-	if opt, ok := epOptions[options.MacAddress]; ok {
+	if opt, ok := epOptions[netlabel.MacAddress]; ok {
 		if mac, ok := opt.(net.HardwareAddr); ok {
 			ec.MacAddress = mac
 		} else {
@@ -770,7 +771,7 @@ func parseEndpointOptions(epOptions map[string]interface{}) (*EndpointConfigurat
 		}
 	}
 
-	if opt, ok := epOptions[options.PortMap]; ok {
+	if opt, ok := epOptions[netlabel.PortMap]; ok {
 		if bs, ok := opt.([]netutils.PortBinding); ok {
 			ec.PortBindings = bs
 		} else {
@@ -778,7 +779,7 @@ func parseEndpointOptions(epOptions map[string]interface{}) (*EndpointConfigurat
 		}
 	}
 
-	if opt, ok := epOptions[options.ExposedPorts]; ok {
+	if opt, ok := epOptions[netlabel.ExposedPorts]; ok {
 		if ports, ok := opt.([]netutils.TransportPort); ok {
 			ec.ExposedPorts = ports
 		} else {
@@ -793,7 +794,7 @@ func parseContainerOptions(cOptions map[string]interface{}) (*ContainerConfigura
 	if cOptions == nil {
 		return nil, nil
 	}
-	genericData := cOptions[options.GenericData]
+	genericData := cOptions[netlabel.GenericData]
 	if genericData == nil {
 		return nil, nil
 	}
