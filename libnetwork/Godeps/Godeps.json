@@ -11,11 +11,6 @@
 			"Rev": "467d9d55c2d2c17248441a8fc661561161f40d5e"
 		},
 		{
-			"ImportPath": "github.com/docker/docker/pkg/etchosts",
-			"Comment": "v1.4.1-3152-g3e85803",
-			"Rev": "3e85803f311c3883a9b395ad046c894ea255e9be"
-		},
-		{
 			"ImportPath": "github.com/docker/docker/pkg/homedir",
 			"Comment": "v1.4.1-3152-g3e85803",
 			"Rev": "3e85803f311c3883a9b395ad046c894ea255e9be"
@@ -47,11 +42,6 @@
 		},
 		{
 			"ImportPath": "github.com/docker/docker/pkg/reexec",
-			"Comment": "v1.4.1-3152-g3e85803",
-			"Rev": "3e85803f311c3883a9b395ad046c894ea255e9be"
-		},
-		{
-			"ImportPath": "github.com/docker/docker/pkg/resolvconf",
 			"Comment": "v1.4.1-3152-g3e85803",
 			"Rev": "3e85803f311c3883a9b395ad046c894ea255e9be"
 		},
