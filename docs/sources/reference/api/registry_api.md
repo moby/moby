@@ -149,7 +149,7 @@ Status Codes:
 
 ## Image
 
-### Put image layer
+### Put image
 
 `PUT /v1/images/(image_id)/json`
 
@@ -212,7 +212,7 @@ Status Codes:
 - **200** – OK
 - **401** – Requires authorization
 
-### Get image layer
+### Get image
 
 `GET /v1/images/(image_id)/json`
 
