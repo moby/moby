@@ -71,7 +71,6 @@ func init() {
 		command.Expose:     expose,
 		command.Volume:     volume,
 		command.User:       user,
-		command.Insert:     insert,
 	}
 }
 
