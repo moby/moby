@@ -2,7 +2,7 @@ package bridge
 
 import "github.com/vishvananda/netlink"
 
-func setupVerifyAndReconcile(config *Configuration, i *bridgeInterface) error {
+func setupVerifyAndReconcile(config *NetworkConfiguration, i *bridgeInterface) error {
 	// Fetch a single IPv4 and a slice of IPv6 addresses from the bridge.
 	addrv4, addrsv6, err := i.addresses()
 	if err != nil {

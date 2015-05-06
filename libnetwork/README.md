@@ -29,7 +29,7 @@ There are many networking solutions available to suit a broad range of use-cases
 
         driverOptions := options.Generic{}
         genericOption := make(map[string]interface{})
-        genericOption[options.GenericData] = driverOptions
+        genericOption[netlabel.GenericData] = driverOptions
         err := controller.ConfigureNetworkDriver(networkType, genericOption)
         if err != nil {
                 return
@@ -64,7 +64,7 @@ There are many networking solutions available to suit a broad range of use-cases
 
 		// libentwork client can check the endpoint's operational data via the Info() API
 		epInfo, err := ep.Info()
-		mapData, ok := epInfo[options.PortMap]
+		mapData, ok := epInfo[netlabel.PortMap]
 		if ok {
 			portMapping, ok := mapData.([]netutils.PortBinding)
 			if ok {

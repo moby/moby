@@ -39,6 +39,10 @@ var (
 
 	// ErrInvalidMtu is returned when the user provided MTU is not valid.
 	ErrInvalidMtu = errors.New("invalid MTU number")
+
+	// ErrIPFwdCfg is returned when ip forwarding setup is invoked when the configuration
+	// not enabled.
+	ErrIPFwdCfg = errors.New("unexpected request to enable IP Forwarding")
 )
 
 // ErrInvalidPort is returned when the container or host port specified in the port binding is not valid.
@@ -131,12 +135,6 @@ type FixedCIDRv6Error struct {
 
 func (fcv6 *FixedCIDRv6Error) Error() string {
 	return fmt.Sprintf("setup FixedCIDRv6 failed for subnet %s in %s: %v", fcv6.net, fcv6.net, fcv6.err)
-}
-
-type ipForwardCfgError bridgeInterface
-
-func (i *ipForwardCfgError) Error() string {
-	return fmt.Sprintf("unexpected request to enable IP Forwarding for: %v", *i)
 }
 
 type ipTableCfgError string

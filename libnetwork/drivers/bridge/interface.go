@@ -25,7 +25,7 @@ type bridgeInterface struct {
 // an already existing device identified by the Configuration BridgeName field,
 // or the default bridge name when unspecified), but doesn't attempt to create
 // one when missing
-func newInterface(config *Configuration) *bridgeInterface {
+func newInterface(config *NetworkConfiguration) *bridgeInterface {
 	i := &bridgeInterface{}
 
 	// Initialize the bridge name to the default if unspecified.

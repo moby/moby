@@ -1,6 +1,8 @@
 package libnetwork_test
 
 import (
+	"bytes"
+	"io/ioutil"
 	"net"
 	"os"
 	"testing"
@@ -9,6 +11,7 @@ import (
 	"github.com/docker/docker/pkg/reexec"
 	"github.com/docker/libnetwork"
 	"github.com/docker/libnetwork/netutils"
+	"github.com/docker/libnetwork/pkg/netlabel"
 	"github.com/docker/libnetwork/pkg/options"
 )
 
@@ -24,17 +27,18 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-func createTestNetwork(networkType, networkName string, option options.Generic) (libnetwork.Network, error) {
+func createTestNetwork(networkType, networkName string, option options.Generic, netOption options.Generic) (libnetwork.Network, error) {
 	controller := libnetwork.New()
 	genericOption := make(map[string]interface{})
-	genericOption[options.GenericData] = option
+	genericOption[netlabel.GenericData] = option
 
 	err := controller.ConfigureNetworkDriver(networkType, genericOption)
 	if err != nil {
 		return nil, err
 	}
 
-	network, err := controller.NewNetwork(networkType, networkName)
+	network, err := controller.NewNetwork(networkType, networkName,
+		libnetwork.NetworkOptionGeneric(netOption))
 	if err != nil {
 		return nil, err
 	}
@@ -44,7 +48,7 @@ func createTestNetwork(networkType, networkName string, option options.Generic) 
 
 func getEmptyGenericOption() map[string]interface{} {
 	genericOption := make(map[string]interface{})
-	genericOption[options.GenericData] = options.Generic{}
+	genericOption[netlabel.GenericData] = options.Generic{}
 	return genericOption
 }
 
@@ -57,7 +61,8 @@ func getPortMapping() []netutils.PortBinding {
 }
 
 func TestNull(t *testing.T) {
-	network, err := createTestNetwork("null", "testnetwork", options.Generic{})
+	network, err := createTestNetwork("null", "testnetwork", options.Generic{},
+		options.Generic{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -90,7 +95,7 @@ func TestNull(t *testing.T) {
 }
 
 func TestHost(t *testing.T) {
-	network, err := createTestNetwork("host", "testnetwork", options.Generic{})
+	network, err := createTestNetwork("host", "testnetwork", options.Generic{}, options.Generic{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -145,6 +150,10 @@ func TestBridge(t *testing.T) {
 
 	log.Debug("Adding a bridge")
 	option := options.Generic{
+		"EnableIPForwarding": true,
+	}
+
+	netOption := options.Generic{
 		"BridgeName":            bridgeName,
 		"AddressIPv4":           subnet,
 		"FixedCIDR":             cidr,
@@ -153,10 +162,9 @@ func TestBridge(t *testing.T) {
 		"EnableIPTables":        true,
 		"EnableIPMasquerade":    true,
 		"EnableICC":             true,
-		"EnableIPForwarding":    true,
 		"AllowNonDefaultBridge": true}
 
-	network, err := createTestNetwork(bridgeNetType, "testnetwork", option)
+	network, err := createTestNetwork(bridgeNetType, "testnetwork", option, netOption)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -170,7 +178,7 @@ func TestBridge(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	pmd, ok := epInfo[options.PortMap]
+	pmd, ok := epInfo[netlabel.PortMap]
 	if !ok {
 		t.Fatalf("Could not find expected info in endpoint data")
 	}
@@ -194,7 +202,7 @@ func TestBridge(t *testing.T) {
 func TestUnknownDriver(t *testing.T) {
 	defer netutils.SetupTestNetNS(t)()
 
-	_, err := createTestNetwork("unknowndriver", "testnetwork", options.Generic{})
+	_, err := createTestNetwork("unknowndriver", "testnetwork", options.Generic{}, options.Generic{})
 	if err == nil {
 		t.Fatal("Expected to fail. But instead succeeded")
 	}
@@ -237,14 +245,15 @@ func TestDuplicateNetwork(t *testing.T) {
 	controller := libnetwork.New()
 
 	genericOption := make(map[string]interface{})
-	genericOption[options.GenericData] = options.Generic{}
+	genericOption[netlabel.GenericData] = options.Generic{}
 
 	err := controller.ConfigureNetworkDriver(bridgeNetType, genericOption)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	_, err = controller.NewNetwork(bridgeNetType, "testnetwork", nil)
+	_, err = controller.NewNetwork(bridgeNetType, "testnetwork",
+		libnetwork.NetworkOptionGeneric(genericOption))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -263,7 +272,7 @@ func TestNetworkName(t *testing.T) {
 	defer netutils.SetupTestNetNS(t)()
 	networkName := "testnetwork"
 
-	n, err := createTestNetwork(bridgeNetType, networkName, options.Generic{})
+	n, err := createTestNetwork(bridgeNetType, networkName, options.Generic{}, options.Generic{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -275,7 +284,7 @@ func TestNetworkName(t *testing.T) {
 
 func TestNetworkType(t *testing.T) {
 	defer netutils.SetupTestNetNS(t)()
-	n, err := createTestNetwork(bridgeNetType, "testnetwork", options.Generic{})
+	n, err := createTestNetwork(bridgeNetType, "testnetwork", options.Generic{}, options.Generic{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -288,7 +297,7 @@ func TestNetworkType(t *testing.T) {
 func TestNetworkID(t *testing.T) {
 	defer netutils.SetupTestNetNS(t)()
 
-	n, err := createTestNetwork(bridgeNetType, "testnetwork", options.Generic{})
+	n, err := createTestNetwork(bridgeNetType, "testnetwork", options.Generic{}, options.Generic{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -304,7 +313,7 @@ func TestDeleteNetworkWithActiveEndpoints(t *testing.T) {
 		"BridgeName":            bridgeName,
 		"AllowNonDefaultBridge": true}
 
-	network, err := createTestNetwork(bridgeNetType, "testnetwork", option)
+	network, err := createTestNetwork(bridgeNetType, "testnetwork", options.Generic{}, option)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -339,7 +348,7 @@ func TestUnknownNetwork(t *testing.T) {
 		"BridgeName":            bridgeName,
 		"AllowNonDefaultBridge": true}
 
-	network, err := createTestNetwork(bridgeNetType, "testnetwork", option)
+	network, err := createTestNetwork(bridgeNetType, "testnetwork", options.Generic{}, option)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -372,7 +381,7 @@ func TestUnknownEndpoint(t *testing.T) {
 		"AddressIPv4":           subnet,
 		"AllowNonDefaultBridge": true}
 
-	network, err := createTestNetwork(bridgeNetType, "testnetwork", option)
+	network, err := createTestNetwork(bridgeNetType, "testnetwork", options.Generic{}, option)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -579,7 +588,7 @@ const containerID = "valid_container"
 func TestEndpointJoin(t *testing.T) {
 	defer netutils.SetupTestNetNS(t)()
 
-	n, err := createTestNetwork(bridgeNetType, "testnetwork", options.Generic{})
+	n, err := createTestNetwork(bridgeNetType, "testnetwork", options.Generic{}, options.Generic{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -606,7 +615,7 @@ func TestEndpointJoin(t *testing.T) {
 func TestEndpointJoinInvalidContainerId(t *testing.T) {
 	defer netutils.SetupTestNetNS(t)()
 
-	n, err := createTestNetwork(bridgeNetType, "testnetwork", options.Generic{})
+	n, err := createTestNetwork(bridgeNetType, "testnetwork", options.Generic{}, options.Generic{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -629,7 +638,7 @@ func TestEndpointJoinInvalidContainerId(t *testing.T) {
 func TestEndpointMultipleJoins(t *testing.T) {
 	defer netutils.SetupTestNetNS(t)()
 
-	n, err := createTestNetwork(bridgeNetType, "testnetwork", options.Generic{})
+	n, err := createTestNetwork(bridgeNetType, "testnetwork", options.Generic{}, options.Generic{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -666,7 +675,7 @@ func TestEndpointMultipleJoins(t *testing.T) {
 func TestEndpointInvalidLeave(t *testing.T) {
 	defer netutils.SetupTestNetNS(t)()
 
-	n, err := createTestNetwork(bridgeNetType, "testnetwork", options.Generic{})
+	n, err := createTestNetwork(bridgeNetType, "testnetwork", options.Generic{}, options.Generic{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -721,7 +730,7 @@ func TestEndpointInvalidLeave(t *testing.T) {
 func TestEndpointUpdateParent(t *testing.T) {
 	defer netutils.SetupTestNetNS(t)()
 
-	n, err := createTestNetwork("bridge", "testnetwork", options.Generic{})
+	n, err := createTestNetwork("bridge", "testnetwork", options.Generic{}, options.Generic{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -761,6 +770,109 @@ func TestEndpointUpdateParent(t *testing.T) {
 	}
 
 	err = ep1.Leave(containerID)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestEnableIPv6(t *testing.T) {
+	defer netutils.SetupTestNetNS(t)()
+
+	tmpResolvConf := []byte("search pommesfrites.fr\nnameserver 12.34.56.78\nnameserver 2001:4860:4860::8888")
+	//take a copy of resolv.conf for restoring after test completes
+	resolvConfSystem, err := ioutil.ReadFile("/etc/resolv.conf")
+	if err != nil {
+		t.Fatal(err)
+	}
+	//cleanup
+	defer func() {
+		if err := ioutil.WriteFile("/etc/resolv.conf", resolvConfSystem, 0644); err != nil {
+			t.Fatal(err)
+		}
+	}()
+
+	netOption := options.Generic{
+		netlabel.EnableIPv6: true,
+	}
+
+	n, err := createTestNetwork("bridge", "testnetwork", options.Generic{}, netOption)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ep1, err := n.CreateEndpoint("ep1", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := ioutil.WriteFile("/etc/resolv.conf", tmpResolvConf, 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	resolvConfPath := "/tmp/libnetwork_test/resolv.conf"
+
+	_, err = ep1.Join(containerID,
+		libnetwork.JoinOptionResolvConfPath(resolvConfPath))
+
+	content, err := ioutil.ReadFile(resolvConfPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !bytes.Equal(content, tmpResolvConf) {
+		t.Fatalf("Expected %s, Got %s", string(tmpResolvConf), string(content))
+	}
+
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestNoEnableIPv6(t *testing.T) {
+	defer netutils.SetupTestNetNS(t)()
+
+	tmpResolvConf := []byte("search pommesfrites.fr\nnameserver 12.34.56.78\nnameserver 2001:4860:4860::8888")
+	expectedResolvConf := []byte("search pommesfrites.fr\nnameserver 12.34.56.78\n")
+	//take a copy of resolv.conf for restoring after test completes
+	resolvConfSystem, err := ioutil.ReadFile("/etc/resolv.conf")
+	if err != nil {
+		t.Fatal(err)
+	}
+	//cleanup
+	defer func() {
+		if err := ioutil.WriteFile("/etc/resolv.conf", resolvConfSystem, 0644); err != nil {
+			t.Fatal(err)
+		}
+	}()
+
+	n, err := createTestNetwork("bridge", "testnetwork", options.Generic{}, options.Generic{})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ep1, err := n.CreateEndpoint("ep1", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := ioutil.WriteFile("/etc/resolv.conf", tmpResolvConf, 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	resolvConfPath := "/tmp/libnetwork_test/resolv.conf"
+
+	_, err = ep1.Join(containerID,
+		libnetwork.JoinOptionResolvConfPath(resolvConfPath))
+
+	content, err := ioutil.ReadFile(resolvConfPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !bytes.Equal(content, expectedResolvConf) {
+		t.Fatalf("Expected %s, Got %s", string(expectedResolvConf), string(content))
+	}
+
 	if err != nil {
 		t.Fatal(err)
 	}

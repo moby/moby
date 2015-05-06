@@ -27,7 +27,7 @@ func TestSetupVerify(t *testing.T) {
 
 	addrv4 := net.IPv4(192, 168, 1, 1)
 	inf := setupVerifyTest(t)
-	config := &Configuration{}
+	config := &NetworkConfiguration{}
 	config.AddressIPv4 = &net.IPNet{IP: addrv4, Mask: addrv4.DefaultMask()}
 
 	if err := netlink.AddrAdd(inf.Link, &netlink.Addr{IPNet: config.AddressIPv4}); err != nil {
@@ -44,7 +44,7 @@ func TestSetupVerifyBad(t *testing.T) {
 
 	addrv4 := net.IPv4(192, 168, 1, 1)
 	inf := setupVerifyTest(t)
-	config := &Configuration{}
+	config := &NetworkConfiguration{}
 	config.AddressIPv4 = &net.IPNet{IP: addrv4, Mask: addrv4.DefaultMask()}
 
 	ipnet := &net.IPNet{IP: net.IPv4(192, 168, 1, 2), Mask: addrv4.DefaultMask()}
@@ -62,7 +62,7 @@ func TestSetupVerifyMissing(t *testing.T) {
 
 	addrv4 := net.IPv4(192, 168, 1, 1)
 	inf := setupVerifyTest(t)
-	config := &Configuration{}
+	config := &NetworkConfiguration{}
 	config.AddressIPv4 = &net.IPNet{IP: addrv4, Mask: addrv4.DefaultMask()}
 
 	if err := setupVerifyAndReconcile(config, inf); err == nil {
@@ -75,7 +75,7 @@ func TestSetupVerifyIPv6(t *testing.T) {
 
 	addrv4 := net.IPv4(192, 168, 1, 1)
 	inf := setupVerifyTest(t)
-	config := &Configuration{}
+	config := &NetworkConfiguration{}
 	config.AddressIPv4 = &net.IPNet{IP: addrv4, Mask: addrv4.DefaultMask()}
 	config.EnableIPv6 = true
 
@@ -96,7 +96,7 @@ func TestSetupVerifyIPv6Missing(t *testing.T) {
 
 	addrv4 := net.IPv4(192, 168, 1, 1)
 	inf := setupVerifyTest(t)
-	config := &Configuration{}
+	config := &NetworkConfiguration{}
 	config.AddressIPv4 = &net.IPNet{IP: addrv4, Mask: addrv4.DefaultMask()}
 	config.EnableIPv6 = true
 

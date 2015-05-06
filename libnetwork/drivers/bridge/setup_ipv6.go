@@ -22,7 +22,7 @@ func init() {
 	}
 }
 
-func setupBridgeIPv6(config *Configuration, i *bridgeInterface) error {
+func setupBridgeIPv6(config *NetworkConfiguration, i *bridgeInterface) error {
 	// Enable IPv6 on the bridge
 	procFile := "/proc/sys/net/ipv6/conf/" + config.BridgeName + "/disable_ipv6"
 	if err := ioutil.WriteFile(procFile, []byte{'0', '\n'}, 0644); err != nil {
@@ -47,7 +47,7 @@ func setupBridgeIPv6(config *Configuration, i *bridgeInterface) error {
 	return nil
 }
 
-func setupGatewayIPv6(config *Configuration, i *bridgeInterface) error {
+func setupGatewayIPv6(config *NetworkConfiguration, i *bridgeInterface) error {
 	if config.FixedCIDRv6 == nil {
 		return ErrInvalidContainerSubnet
 	}
