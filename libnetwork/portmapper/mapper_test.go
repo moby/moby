@@ -4,7 +4,7 @@ import (
 	"net"
 	"testing"
 
-	"github.com/docker/docker/pkg/iptables"
+	"github.com/docker/libnetwork/pkg/iptables"
 )
 
 func init() {
