@@ -1,0 +1,18 @@
+#!/bin/bash
+
+source "${MAKEDIR}/.validate"
+
+IFS=$'\n'
+files=( $(validate_diff --diff-filter=ACMR --name-only -- '*.md' | grep -v '^vendor/' || true) )
+unset IFS
+
+badFiles=()
+for f in "${files[@]}"; do
+	# we use "git show" here to pass to after the deadline what has been committed
+	changes="$(git show "$VALIDATE_HEAD:$f")"
+	
+	echo "Checking grammar for changes in $f"
+	
+	# post to api
+	atd -uri https://atd.dockerproject.com -data "$changes"
+done
