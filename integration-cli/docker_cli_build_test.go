@@ -5384,3 +5384,20 @@ func (s *DockerSuite) TestBuildBadCmdFlag(c *check.C) {
 		c.Fatalf("Bad output\nGot:%s\n\nExpected to contain:%s\n", out, exp)
 	}
 }
+
+func (s *DockerSuite) TestBuildRUNErrMsg(c *check.C) {
+	// Test to make sure the bad command is quoted with just "s and
+	// not as a Go []string
+	name := "testbuildbadrunerrmsg"
+	_, out, err := buildImageWithOut(name, `
+  FROM busybox
+  RUN badEXE a1 a2`, false)
+	if err == nil {
+		c.Fatal("Should have failed to build")
+	}
+
+	exp := `The command \"/bin/sh -c badEXE a1 a2\" returned a non-zero code: 127"`
+	if !strings.Contains(out, exp) {
+		c.Fatalf("RUN doesn't have the correct output:\nGot:%s\nExpected:%s", out, exp)
+	}
+}

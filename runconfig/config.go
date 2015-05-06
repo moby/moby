@@ -3,6 +3,7 @@ package runconfig
 import (
 	"encoding/json"
 	"io"
+	"strings"
 
 	"github.com/docker/docker/nat"
 )
@@ -57,6 +58,10 @@ func NewEntrypoint(parts ...string) *Entrypoint {
 
 type Command struct {
 	parts []string
+}
+
+func (e *Command) ToString() string {
+	return strings.Join(e.parts, " ")
 }
 
 func (e *Command) MarshalJSON() ([]byte, error) {
