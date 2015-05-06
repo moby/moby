@@ -125,6 +125,9 @@ install -p -m 644 contrib/syntax/vim/doc/dockerfile.txt $RPM_BUILD_ROOT/usr/shar
 install -p -m 644 contrib/syntax/vim/ftdetect/dockerfile.vim $RPM_BUILD_ROOT/usr/share/vim/vimfiles/ftdetect/dockerfile.vim
 install -p -m 644 contrib/syntax/vim/syntax/dockerfile.vim $RPM_BUILD_ROOT/usr/share/vim/vimfiles/syntax/dockerfile.vim
 
+# add nano
+install -d $RPM_BUILD_ROOT/usr/share/nano
+install -p -m 644 contrib/syntax/nano/Dockerfile.nanorc $RPM_BUILD_ROOT/usr/share/nano/Dockerfile.nanorc
 
 # list files owned by the package here
 %files
@@ -146,6 +149,7 @@ install -p -m 644 contrib/syntax/vim/syntax/dockerfile.vim $RPM_BUILD_ROOT/usr/s
 /usr/share/vim/vimfiles/doc/dockerfile.txt
 /usr/share/vim/vimfiles/ftdetect/dockerfile.vim
 /usr/share/vim/vimfiles/syntax/dockerfile.vim
+/usr/share/nano/Dockerfile.nanorc
 
 %post
 %if 0%{?is_systemd}
