@@ -129,6 +129,11 @@ func (daemon *Daemon) ContainerLogs(name string, config *ContainerLogsConfig) er
 		errors := make(chan error, 2)
 		wg := sync.WaitGroup{}
 
+		// write an empty chunk of data (this is to ensure that the
+		// HTTP Response is sent immediatly, even if the container has
+		// not yet produced any data)
+		outStream.Write(nil)
+
 		if config.UseStdout {
 			wg.Add(1)
 			stdoutPipe := container.StdoutLogPipe()
