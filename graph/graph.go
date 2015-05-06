@@ -30,7 +30,7 @@ import (
 
 // The type is used to protect pulling or building related image
 // layers from deleteing when filtered by dangling=true
-// The key of layers is the iamges ID which is pulling or building
+// The key of layers is the images ID which is pulling or building
 // The value of layers is a slice which hold layer IDs referenced to
 // pulling or building images
 type retainedLayers struct {
@@ -42,11 +42,7 @@ func (r *retainedLayers) Add(layerIDs []string, imgID string) {
 	r.Lock()
 	defer r.Unlock()
 	for _, layerID := range layerIDs {
-		if imgs, exists := r.layers[layerID]; exists {
-			r.layers[layerID] = append(imgs, imgID)
-		} else {
-			r.layers[layerID] = []string{imgID}
-		}
+		r.layers[layerID] = append(r.layers[layerID], imgID)
 	}
 }
 
@@ -475,10 +471,8 @@ func (graph *Graph) Retain(layerIDs []string, imgID string) {
 }
 
 // Release removes the referenced image id from the provided set of layers.
-func (graph *Graph) Release(layerIDs []string, imgIDs []string) {
-	for _, imgID := range imgIDs {
-		graph.retained.Delete(layerIDs, imgID)
-	}
+func (graph *Graph) Release(layerIDs []string, imgID string) {
+	graph.retained.Delete(layerIDs, imgID)
 }
 
 // Heads returns all heads in the graph, keyed by id.

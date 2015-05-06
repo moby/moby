@@ -18,6 +18,7 @@ import (
 	"github.com/docker/docker/pkg/httputils"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/streamformatter"
+	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/pkg/urlutil"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/runconfig"
@@ -172,11 +173,11 @@ func Build(d *daemon.Daemon, buildConfig *Config) error {
 		memory:          buildConfig.Memory,
 		memorySwap:      buildConfig.MemorySwap,
 		cancelled:       buildConfig.WaitCancelled(),
-		imageTag:        tag,
+		id:              stringid.GenerateRandomID(),
 	}
 
 	defer func() {
-		builder.Daemon.Graph().Release(builder.activeImages, []string{builder.imageTag})
+		builder.Daemon.Graph().Release(builder.activeImages, builder.id)
 	}()
 
 	id, err := builder.Run(context)

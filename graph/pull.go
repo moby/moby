@@ -150,9 +150,10 @@ func (s *TagStore) pullRepository(r *registry.Session, out io.Writer, repoInfo *
 
 	layersDownloaded := false
 	imgIDs := []string{}
-	defer s.graph.Release(imgIDs, imgIDs)
-	for imgID, image := range repoData.ImgList {
-		imgIDs = append(imgIDs, imgID)
+	defer func() {
+		s.graph.Release(imgIDs, r.ID())
+	}()
+	for _, image := range repoData.ImgList {
 		downloadImage := func(img *registry.ImgData) {
 			if askedTag != "" && img.Tag != askedTag {
 				errors <- nil
@@ -178,6 +179,10 @@ func (s *TagStore) pullRepository(r *registry.Session, out io.Writer, repoInfo *
 				return
 			}
 			defer s.poolRemove("pull", "img:"+img.ID)
+
+			// we need to retain it until tagging
+			s.graph.Retain([]string{img.ID}, r.ID())
+			imgIDs = append(imgIDs, img.ID)
 
 			out.Write(sf.FormatProgress(stringid.TruncateID(img.ID), fmt.Sprintf("Pulling image (%s) from %s", img.Tag, repoInfo.CanonicalName), nil))
 			success := false
@@ -259,10 +264,9 @@ func (s *TagStore) pullImage(r *registry.Session, out io.Writer, imgID, endpoint
 	// FIXME: Try to stream the images?
 	// FIXME: Launch the getRemoteImage() in goroutines
 
-	layers := append(history, imgID)
-	s.graph.Retain(layers, imgID)
-	// We need to delay realase [imgID] Until image tagged.
-	defer s.graph.Release(history, []string{imgID})
+	// As imgID has been retained in pullRepository, no need to retain again
+	s.graph.Retain(history[1:], r.ID())
+	defer s.graph.Release(history[1:], r.ID())
 
 	layersDownloaded := false
 	for i := len(history) - 1; i >= 0; i-- {
@@ -442,9 +446,9 @@ func (s *TagStore) pullV2Tag(r *registry.Session, out io.Writer, endpoint *regis
 	}
 	out.Write(sf.FormatStatus(tag, "Pulling from %s", repoInfo.CanonicalName))
 
-	layers := []string{}
+	layerIDs := []string{}
 	defer func() {
-		s.graph.Release(layers, []string{manifest.Name})
+		s.graph.Release(layerIDs, r.ID())
 	}()
 	downloads := make([]downloadInfo, len(manifest.FSLayers))
 
@@ -460,8 +464,8 @@ func (s *TagStore) pullV2Tag(r *registry.Session, out io.Writer, endpoint *regis
 		}
 		downloads[i].img = img
 
-		layers = append(layers, img.ID)
-		s.graph.Retain([]string{img.ID}, manifest.Name)
+		s.graph.Retain([]string{img.ID}, r.ID())
+		layerIDs = append(layerIDs, img.ID)
 
 		// Check if exists
 		if s.graph.Exists(img.ID) {
