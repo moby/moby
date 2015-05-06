@@ -8,13 +8,13 @@ import (
 	"regexp"
 )
 
-// Structure for a single host record
+// Record Structure for a single host record
 type Record struct {
 	Hosts string
 	IP    string
 }
 
-// Writes record to file and returns bytes written or error
+// WriteTo writes record to file and returns bytes written or error
 func (r Record) WriteTo(w io.Writer) (int64, error) {
 	n, err := fmt.Fprintf(w, "%s\t%s\n", r.IP, r.Hosts)
 	return int64(n), err
