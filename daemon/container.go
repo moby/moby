@@ -733,8 +733,10 @@ func (container *Container) KillSig(sig int) error {
 	}
 
 	// signal to the monitor that it should not restart the container
-	// after we send the kill signal
-	container.monitor.ExitOnNext()
+	// if the signal is one of a few:
+	if s := syscall.Signal; s == syscall.SIGKILL || s == syscall.SIGINT || s == syscall.SIGTERM {
+		container.monitor.ExitOnNext()
+	}
 
 	// if the container is currently restarting we do not need to send the signal
 	// to the process.  Telling the monitor that it should exit on it's next event
