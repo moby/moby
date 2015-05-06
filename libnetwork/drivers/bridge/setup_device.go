@@ -8,7 +8,7 @@ import (
 )
 
 // SetupDevice create a new bridge interface/
-func setupDevice(config *Configuration, i *bridgeInterface) error {
+func setupDevice(config *NetworkConfiguration, i *bridgeInterface) error {
 	// We only attempt to create the bridge when the requested device name is
 	// the default one.
 	if config.BridgeName != DefaultBridgeName && !config.AllowNonDefaultBridge {
@@ -35,7 +35,7 @@ func setupDevice(config *Configuration, i *bridgeInterface) error {
 }
 
 // SetupDeviceUp ups the given bridge interface.
-func setupDeviceUp(config *Configuration, i *bridgeInterface) error {
+func setupDeviceUp(config *NetworkConfiguration, i *bridgeInterface) error {
 	err := netlink.LinkSetUp(i.Link)
 	if err != nil {
 		return err

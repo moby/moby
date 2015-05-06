@@ -15,18 +15,15 @@ func TestLinkCreate(t *testing.T) {
 	dr := d.(*driver)
 
 	mtu := 1490
-	config := &Configuration{
+	config := &NetworkConfiguration{
 		BridgeName: DefaultBridgeName,
 		Mtu:        mtu,
 		EnableIPv6: true,
 	}
 	genericOption := make(map[string]interface{})
 	genericOption[netlabel.GenericData] = config
-	if err := d.Config(genericOption); err != nil {
-		t.Fatalf("Failed to setup driver config: %v", err)
-	}
 
-	err := d.CreateNetwork("dummy", nil)
+	err := d.CreateNetwork("dummy", genericOption)
 	if err != nil {
 		t.Fatalf("Failed to create bridge: %v", err)
 	}
@@ -102,16 +99,13 @@ func TestLinkCreateTwo(t *testing.T) {
 	defer netutils.SetupTestNetNS(t)()
 	_, d := New()
 
-	config := &Configuration{
+	config := &NetworkConfiguration{
 		BridgeName: DefaultBridgeName,
 		EnableIPv6: true}
 	genericOption := make(map[string]interface{})
 	genericOption[netlabel.GenericData] = config
-	if err := d.Config(genericOption); err != nil {
-		t.Fatalf("Failed to setup driver config: %v", err)
-	}
 
-	err := d.CreateNetwork("dummy", nil)
+	err := d.CreateNetwork("dummy", genericOption)
 	if err != nil {
 		t.Fatalf("Failed to create bridge: %v", err)
 	}
@@ -135,16 +129,12 @@ func TestLinkCreateNoEnableIPv6(t *testing.T) {
 	defer netutils.SetupTestNetNS(t)()
 	_, d := New()
 
-	config := &Configuration{
+	config := &NetworkConfiguration{
 		BridgeName: DefaultBridgeName}
 	genericOption := make(map[string]interface{})
 	genericOption[netlabel.GenericData] = config
 
-	if err := d.Config(genericOption); err != nil {
-		t.Fatalf("Failed to setup driver config: %v", err)
-	}
-
-	err := d.CreateNetwork("dummy", nil)
+	err := d.CreateNetwork("dummy", genericOption)
 	if err != nil {
 		t.Fatalf("Failed to create bridge: %v", err)
 	}
@@ -168,17 +158,13 @@ func TestLinkDelete(t *testing.T) {
 	defer netutils.SetupTestNetNS(t)()
 	_, d := New()
 
-	config := &Configuration{
+	config := &NetworkConfiguration{
 		BridgeName: DefaultBridgeName,
 		EnableIPv6: true}
 	genericOption := make(map[string]interface{})
 	genericOption[netlabel.GenericData] = config
 
-	if err := d.Config(genericOption); err != nil {
-		t.Fatalf("Failed to setup driver config: %v", err)
-	}
-
-	err := d.CreateNetwork("dummy", nil)
+	err := d.CreateNetwork("dummy", genericOption)
 	if err != nil {
 		t.Fatalf("Failed to create bridge: %v", err)
 	}

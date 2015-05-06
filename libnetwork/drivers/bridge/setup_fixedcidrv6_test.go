@@ -10,7 +10,7 @@ import (
 func TestSetupFixedCIDRv6(t *testing.T) {
 	defer netutils.SetupTestNetNS(t)()
 
-	config := &Configuration{}
+	config := &NetworkConfiguration{}
 	br := newInterface(config)
 
 	_, config.FixedCIDRv6, _ = net.ParseCIDR("2002:db8::/48")

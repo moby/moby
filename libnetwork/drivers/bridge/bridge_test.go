@@ -18,13 +18,16 @@ func TestCreateFullOptions(t *testing.T) {
 	_, d := New()
 
 	config := &Configuration{
-		BridgeName:         DefaultBridgeName,
-		EnableIPv6:         true,
-		FixedCIDR:          bridgeNetworks[0],
-		EnableIPTables:     true,
 		EnableIPForwarding: true,
 	}
-	_, config.FixedCIDRv6, _ = net.ParseCIDR("2001:db8::/48")
+
+	netConfig := &NetworkConfiguration{
+		BridgeName:     DefaultBridgeName,
+		EnableIPv6:     true,
+		FixedCIDR:      bridgeNetworks[0],
+		EnableIPTables: true,
+	}
+	_, netConfig.FixedCIDRv6, _ = net.ParseCIDR("2001:db8::/48")
 	genericOption := make(map[string]interface{})
 	genericOption[netlabel.GenericData] = config
 
@@ -32,7 +35,10 @@ func TestCreateFullOptions(t *testing.T) {
 		t.Fatalf("Failed to setup driver config: %v", err)
 	}
 
-	err := d.CreateNetwork("dummy", nil)
+	netOption := make(map[string]interface{})
+	netOption[netlabel.GenericData] = netConfig
+
+	err := d.CreateNetwork("dummy", netOption)
 	if err != nil {
 		t.Fatalf("Failed to create bridge: %v", err)
 	}
@@ -42,15 +48,11 @@ func TestCreate(t *testing.T) {
 	defer netutils.SetupTestNetNS(t)()
 	_, d := New()
 
-	config := &Configuration{BridgeName: DefaultBridgeName}
+	config := &NetworkConfiguration{BridgeName: DefaultBridgeName}
 	genericOption := make(map[string]interface{})
 	genericOption[netlabel.GenericData] = config
 
-	if err := d.Config(genericOption); err != nil {
-		t.Fatalf("Failed to setup driver config: %v", err)
-	}
-
-	if err := d.CreateNetwork("dummy", nil); err != nil {
+	if err := d.CreateNetwork("dummy", genericOption); err != nil {
 		t.Fatalf("Failed to create bridge: %v", err)
 	}
 }
@@ -59,15 +61,11 @@ func TestCreateFail(t *testing.T) {
 	defer netutils.SetupTestNetNS(t)()
 	_, d := New()
 
-	config := &Configuration{BridgeName: "dummy0"}
+	config := &NetworkConfiguration{BridgeName: "dummy0"}
 	genericOption := make(map[string]interface{})
 	genericOption[netlabel.GenericData] = config
 
-	if err := d.Config(genericOption); err != nil {
-		t.Fatalf("Failed to setup driver config: %v", err)
-	}
-
-	if err := d.CreateNetwork("dummy", nil); err == nil {
+	if err := d.CreateNetwork("dummy", genericOption); err == nil {
 		t.Fatal("Bridge creation was expected to fail")
 	}
 }
@@ -77,7 +75,7 @@ func TestQueryEndpointInfo(t *testing.T) {
 
 	_, d := New()
 
-	config := &Configuration{
+	config := &NetworkConfiguration{
 		BridgeName:     DefaultBridgeName,
 		EnableIPTables: true,
 		EnableICC:      false,
@@ -85,11 +83,7 @@ func TestQueryEndpointInfo(t *testing.T) {
 	genericOption := make(map[string]interface{})
 	genericOption[netlabel.GenericData] = config
 
-	if err := d.Config(genericOption); err != nil {
-		t.Fatalf("Failed to setup driver config: %v", err)
-	}
-
-	err := d.CreateNetwork("net1", nil)
+	err := d.CreateNetwork("net1", genericOption)
 	if err != nil {
 		t.Fatalf("Failed to create bridge: %v", err)
 	}
@@ -138,15 +132,11 @@ func TestCreateLinkWithOptions(t *testing.T) {
 
 	_, d := New()
 
-	config := &Configuration{BridgeName: DefaultBridgeName}
-	driverOptions := make(map[string]interface{})
-	driverOptions[netlabel.GenericData] = config
+	config := &NetworkConfiguration{BridgeName: DefaultBridgeName}
+	netOptions := make(map[string]interface{})
+	netOptions[netlabel.GenericData] = config
 
-	if err := d.Config(driverOptions); err != nil {
-		t.Fatalf("Failed to setup driver config: %v", err)
-	}
-
-	err := d.CreateNetwork("net1", nil)
+	err := d.CreateNetwork("net1", netOptions)
 	if err != nil {
 		t.Fatalf("Failed to create bridge: %v", err)
 	}
@@ -192,7 +182,7 @@ func TestLinkContainers(t *testing.T) {
 
 	_, d := New()
 
-	config := &Configuration{
+	config := &NetworkConfiguration{
 		BridgeName:     DefaultBridgeName,
 		EnableIPTables: true,
 		EnableICC:      false,
@@ -200,11 +190,7 @@ func TestLinkContainers(t *testing.T) {
 	genericOption := make(map[string]interface{})
 	genericOption[netlabel.GenericData] = config
 
-	if err := d.Config(genericOption); err != nil {
-		t.Fatalf("Failed to setup driver config: %v", err)
-	}
-
-	err := d.CreateNetwork("net1", nil)
+	err := d.CreateNetwork("net1", genericOption)
 	if err != nil {
 		t.Fatalf("Failed to create bridge: %v", err)
 	}
@@ -311,7 +297,7 @@ func TestLinkContainers(t *testing.T) {
 func TestValidateConfig(t *testing.T) {
 
 	// Test mtu
-	c := Configuration{Mtu: -2}
+	c := NetworkConfiguration{Mtu: -2}
 	err := c.Validate()
 	if err == nil {
 		t.Fatalf("Failed to detect invalid MTU number")
@@ -328,7 +314,7 @@ func TestValidateConfig(t *testing.T) {
 
 	// Test FixedCIDR
 	_, containerSubnet, _ := net.ParseCIDR("172.27.0.0/16")
-	c = Configuration{
+	c = NetworkConfiguration{
 		AddressIPv4: network,
 		FixedCIDR:   containerSubnet,
 	}
@@ -374,7 +360,7 @@ func TestValidateConfig(t *testing.T) {
 
 	// Test v6 gw
 	_, containerSubnet, _ = net.ParseCIDR("2001:1234:ae:b004::/64")
-	c = Configuration{
+	c = NetworkConfiguration{
 		EnableIPv6:         true,
 		FixedCIDRv6:        containerSubnet,
 		DefaultGatewayIPv6: net.ParseIP("2001:1234:ac:b004::bad:a55"),
@@ -406,7 +392,7 @@ func TestSetDefaultGw(t *testing.T) {
 	gw4[3] = 254
 	gw6 := net.ParseIP("2001:db8:ea9:9abc:b0c4::254")
 
-	config := &Configuration{
+	config := &NetworkConfiguration{
 		BridgeName:         DefaultBridgeName,
 		EnableIPv6:         true,
 		FixedCIDRv6:        subnetv6,
@@ -417,11 +403,7 @@ func TestSetDefaultGw(t *testing.T) {
 	genericOption := make(map[string]interface{})
 	genericOption[netlabel.GenericData] = config
 
-	if err := d.Config(genericOption); err != nil {
-		t.Fatalf("Failed to setup driver config: %v", err)
-	}
-
-	err := d.CreateNetwork("dummy", nil)
+	err := d.CreateNetwork("dummy", genericOption)
 	if err != nil {
 		t.Fatalf("Failed to create bridge: %v", err)
 	}

@@ -13,7 +13,7 @@ const (
 	DockerChain = "DOCKER"
 )
 
-func setupIPTables(config *Configuration, i *bridgeInterface) error {
+func setupIPTables(config *NetworkConfiguration, i *bridgeInterface) error {
 	// Sanity check.
 	if config.EnableIPTables == false {
 		return ipTableCfgError(config.BridgeName)

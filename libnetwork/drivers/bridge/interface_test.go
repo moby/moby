@@ -10,7 +10,7 @@ import (
 func TestInterfaceDefaultName(t *testing.T) {
 	defer netutils.SetupTestNetNS(t)()
 
-	config := &Configuration{}
+	config := &NetworkConfiguration{}
 	if _ = newInterface(config); config.BridgeName != DefaultBridgeName {
 		t.Fatalf("Expected default interface name %q, got %q", DefaultBridgeName, config.BridgeName)
 	}
@@ -19,7 +19,7 @@ func TestInterfaceDefaultName(t *testing.T) {
 func TestAddressesEmptyInterface(t *testing.T) {
 	defer netutils.SetupTestNetNS(t)()
 
-	inf := newInterface(&Configuration{})
+	inf := newInterface(&NetworkConfiguration{})
 	addrv4, addrsv6, err := inf.addresses()
 	if err != nil {
 		t.Fatalf("Failed to get addresses of default interface: %v", err)

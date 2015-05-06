@@ -27,18 +27,14 @@ func TestPortMappingConfig(t *testing.T) {
 	epOptions := make(map[string]interface{})
 	epOptions[netlabel.PortMap] = portBindings
 
-	driverConfig := &Configuration{
+	netConfig := &NetworkConfiguration{
 		BridgeName:     DefaultBridgeName,
 		EnableIPTables: true,
 	}
-	driverOptions := make(map[string]interface{})
-	driverOptions[netlabel.GenericData] = driverConfig
+	netOptions := make(map[string]interface{})
+	netOptions[netlabel.GenericData] = netConfig
 
-	if err := d.Config(driverOptions); err != nil {
-		t.Fatalf("Failed to setup driver config: %v", err)
-	}
-
-	err := d.CreateNetwork("dummy", nil)
+	err := d.CreateNetwork("dummy", netOptions)
 	if err != nil {
 		t.Fatalf("Failed to create bridge: %v", err)
 	}

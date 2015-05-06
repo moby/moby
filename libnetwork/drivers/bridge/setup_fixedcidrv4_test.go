@@ -10,7 +10,7 @@ import (
 func TestSetupFixedCIDRv4(t *testing.T) {
 	defer netutils.SetupTestNetNS(t)()
 
-	config := &Configuration{
+	config := &NetworkConfiguration{
 		BridgeName:  DefaultBridgeName,
 		AddressIPv4: &net.IPNet{IP: net.ParseIP("192.168.1.1"), Mask: net.CIDRMask(16, 32)},
 		FixedCIDR:   &net.IPNet{IP: net.ParseIP("192.168.2.0"), Mask: net.CIDRMask(24, 32)}}
@@ -37,7 +37,7 @@ func TestSetupFixedCIDRv4(t *testing.T) {
 func TestSetupBadFixedCIDRv4(t *testing.T) {
 	defer netutils.SetupTestNetNS(t)()
 
-	config := &Configuration{
+	config := &NetworkConfiguration{
 		BridgeName:  DefaultBridgeName,
 		AddressIPv4: &net.IPNet{IP: net.ParseIP("192.168.1.1"), Mask: net.CIDRMask(24, 32)},
 		FixedCIDR:   &net.IPNet{IP: net.ParseIP("192.168.2.0"), Mask: net.CIDRMask(24, 32)}}

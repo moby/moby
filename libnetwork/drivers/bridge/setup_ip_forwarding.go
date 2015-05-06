@@ -10,10 +10,10 @@ const (
 	ipv4ForwardConfPerm = 0644
 )
 
-func setupIPForwarding(config *Configuration, i *bridgeInterface) error {
+func setupIPForwarding(config *Configuration) error {
 	// Sanity Check
 	if config.EnableIPForwarding == false {
-		return (*ipForwardCfgError)(i)
+		return ErrIPFwdCfg
 	}
 
 	// Enable IPv4 forwarding

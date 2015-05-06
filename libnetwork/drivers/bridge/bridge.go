@@ -31,6 +31,11 @@ var (
 
 // Configuration info for the "bridge" driver.
 type Configuration struct {
+	EnableIPForwarding bool
+}
+
+// NetworkConfiguration for network specific configuration
+type NetworkConfiguration struct {
 	BridgeName            string
 	AddressIPv4           *net.IPNet
 	FixedCIDR             *net.IPNet
@@ -39,12 +44,11 @@ type Configuration struct {
 	EnableIPTables        bool
 	EnableIPMasquerade    bool
 	EnableICC             bool
-	EnableIPForwarding    bool
-	AllowNonDefaultBridge bool
 	Mtu                   int
 	DefaultGatewayIPv4    net.IP
 	DefaultGatewayIPv6    net.IP
 	DefaultBindingIP      net.IP
+	AllowNonDefaultBridge bool
 }
 
 // EndpointConfiguration represents the user specified configuration for the sandbox endpoint
@@ -71,7 +75,8 @@ type bridgeEndpoint struct {
 
 type bridgeNetwork struct {
 	id        types.UUID
-	bridge    *bridgeInterface               // The bridge's L3 interface
+	bridge    *bridgeInterface // The bridge's L3 interface
+	config    *NetworkConfiguration
 	endpoints map[types.UUID]*bridgeEndpoint // key: endpoint id
 	sync.Mutex
 }
@@ -92,9 +97,9 @@ func New() (string, driverapi.Driver) {
 	return networkType, &driver{}
 }
 
-// Validate performs a static validation on the configuration parameters.
+// Validate performs a static validation on the network configuration parameters.
 // Whatever can be assessed a priori before attempting any programming.
-func (c *Configuration) Validate() error {
+func (c *NetworkConfiguration) Validate() error {
 	if c.Mtu < 0 {
 		return ErrInvalidMtu
 	}
@@ -172,10 +177,11 @@ func (d *driver) Config(option map[string]interface{}) error {
 			return ErrInvalidDriverConfig
 		}
 
-		if err := config.Validate(); err != nil {
-			return err
-		}
 		d.config = config
+	}
+
+	if config.EnableIPForwarding {
+		return setupIPForwarding(config)
 	}
 
 	return nil
@@ -189,17 +195,40 @@ func (d *driver) getNetwork(id types.UUID) (*bridgeNetwork, error) {
 	return d.network, nil
 }
 
+func parseNetworkOptions(option options.Generic) (*NetworkConfiguration, error) {
+	var config *NetworkConfiguration
+
+	genericData := option[netlabel.GenericData]
+	if genericData != nil {
+		switch opt := genericData.(type) {
+		case options.Generic:
+			opaqueConfig, err := options.GenerateFromModel(opt, &NetworkConfiguration{})
+			if err != nil {
+				return nil, err
+			}
+			config = opaqueConfig.(*NetworkConfiguration)
+		case *NetworkConfiguration:
+			config = opt
+		default:
+			return nil, ErrInvalidNetworkConfig
+		}
+
+		if err := config.Validate(); err != nil {
+			return nil, err
+		}
+	} else {
+		config = &NetworkConfiguration{}
+	}
+
+	return config, nil
+}
+
 // Create a new network using bridge plugin
 func (d *driver) CreateNetwork(id types.UUID, option map[string]interface{}) error {
 	var err error
 
 	// Driver must be configured
 	d.Lock()
-	if d.config == nil {
-		d.Unlock()
-		return ErrInvalidNetworkConfig
-	}
-	config := d.config
 
 	// Sanity checks
 	if d.network != nil {
@@ -209,6 +238,7 @@ func (d *driver) CreateNetwork(id types.UUID, option map[string]interface{}) err
 
 	// Create and set network handler in driver
 	d.network = &bridgeNetwork{id: id, endpoints: make(map[types.UUID]*bridgeEndpoint)}
+	network := d.network
 	d.Unlock()
 
 	// On failure make sure to reset driver network handler to nil
@@ -220,9 +250,15 @@ func (d *driver) CreateNetwork(id types.UUID, option map[string]interface{}) err
 		}
 	}()
 
+	config, err := parseNetworkOptions(option)
+	if err != nil {
+		return err
+	}
+	network.config = config
+
 	// Create or retrieve the bridge L3 interface
 	bridgeIface := newInterface(config)
-	d.network.bridge = bridgeIface
+	network.bridge = bridgeIface
 
 	// Prepare the bridge setup configuration
 	bridgeSetup := newBridgeSetup(config, bridgeIface)
@@ -262,9 +298,6 @@ func (d *driver) CreateNetwork(id types.UUID, option map[string]interface{}) err
 
 		// Setup IPTables.
 		{config.EnableIPTables, setupIPTables},
-
-		// Setup IP forwarding.
-		{config.EnableIPForwarding, setupIPForwarding},
 
 		// Setup DefaultGatewayIPv4
 		{config.DefaultGatewayIPv4 != nil, setupGatewayIPv4},
@@ -336,7 +369,7 @@ func (d *driver) CreateEndpoint(nid, eid types.UUID, epOptions map[string]interf
 	// Get the network handler and make sure it exists
 	d.Lock()
 	n := d.network
-	config := d.config
+	config := n.config
 	d.Unlock()
 	if n == nil {
 		return nil, driverapi.ErrNoNetwork
@@ -517,7 +550,7 @@ func (d *driver) DeleteEndpoint(nid, eid types.UUID) error {
 	// Get the network handler and make sure it exists
 	d.Lock()
 	n := d.network
-	config := d.config
+	config := n.config
 	d.Unlock()
 	if n == nil {
 		return driverapi.ErrNoNetwork
@@ -630,23 +663,29 @@ func (d *driver) EndpointInfo(nid, eid types.UUID) (map[string]interface{}, erro
 
 // Join method is invoked when a Sandbox is attached to an endpoint.
 func (d *driver) Join(nid, eid types.UUID, sboxKey string, options map[string]interface{}) (*driverapi.JoinInfo, error) {
-	d.Lock()
-	config := d.config
-	d.Unlock()
-	if !config.EnableICC {
+	network, err := d.getNetwork(nid)
+	if err != nil {
+		return nil, err
+	}
+
+	if !network.config.EnableICC {
 		return nil, d.link(nid, eid, options, true)
 	}
+
 	return nil, nil
 }
 
 // Leave method is invoked when a Sandbox detaches from an endpoint.
 func (d *driver) Leave(nid, eid types.UUID, options map[string]interface{}) error {
-	d.Lock()
-	config := d.config
-	d.Unlock()
-	if !config.EnableICC {
+	network, err := d.getNetwork(nid)
+	if err != nil {
+		return err
+	}
+
+	if !network.config.EnableICC {
 		return d.link(nid, eid, options, false)
 	}
+
 	return nil
 }
 
@@ -691,11 +730,9 @@ func (d *driver) link(nid, eid types.UUID, options map[string]interface{}, enabl
 				return err
 			}
 
-			d.Lock()
 			l := newLink(parentEndpoint.intf.Address.IP.String(),
 				endpoint.intf.Address.IP.String(),
-				endpoint.config.ExposedPorts, d.config.BridgeName)
-			d.Unlock()
+				endpoint.config.ExposedPorts, network.config.BridgeName)
 			if enable {
 				err = l.Enable()
 				if err != nil {
@@ -725,11 +762,10 @@ func (d *driver) link(nid, eid types.UUID, options map[string]interface{}, enabl
 		if childEndpoint.config == nil || childEndpoint.config.ExposedPorts == nil {
 			continue
 		}
-		d.Lock()
+
 		l := newLink(endpoint.intf.Address.IP.String(),
 			childEndpoint.intf.Address.IP.String(),
-			childEndpoint.config.ExposedPorts, d.config.BridgeName)
-		d.Unlock()
+			childEndpoint.config.ExposedPorts, network.config.BridgeName)
 		if enable {
 			err = l.Enable()
 			if err != nil {
