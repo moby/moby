@@ -917,10 +917,7 @@ func (s *Server) postContainersRestart(version version.Version, w http.ResponseW
 		return fmt.Errorf("Missing parameter")
 	}
 
-	timeout, err := strconv.Atoi(r.Form.Get("t"))
-	if err != nil {
-		return err
-	}
+	timeout, _ := strconv.Atoi(r.Form.Get("t"))
 
 	if err := s.daemon.ContainerRestart(vars["name"], timeout); err != nil {
 		return err
