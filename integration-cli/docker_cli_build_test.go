@@ -4239,6 +4239,41 @@ func (s *DockerSuite) TestBuildInvalidTag(c *check.C) {
 	}
 }
 
+func (s *DockerSuite) TestBuildTag(c *check.C) {
+	name := "testbuildtag"
+	tagname := "buildtag"
+	_, _, err := buildImageWithOut(name, "FROM scratch\nMAINTAINER quux\nTAG "+tagname, true)
+	if err != nil {
+		c.Fatal(err)
+	}
+	_, err = inspectFieldJSON(tagname, "Id")
+	if err != nil {
+		c.Fatal("failed to tag the image.")
+	}
+}
+
+func (s *DockerSuite) TestBuildTagInvalidTag(c *check.C) {
+	name := "testbuildtaginvalidtag"
+	tagname := "abcd:" + stringutils.GenerateRandomAlphaOnlyString(200)
+	_, out, err := buildImageWithOut(name, "FROM scratch\nMAINTAINER quux\nTAG "+tagname+"\n", true)
+	// if the error doesnt check for illegal tag name, or the image is built
+	// then this should fail
+	if !strings.Contains(out, "Illegal tag name") {
+		c.Fatalf("failed to validate tag name. Error: %s, Output: %s", err, out)
+	}
+}
+
+func (s *DockerSuite) TestBuildTagInvalidRepo(c *check.C) {
+	name := "testbuildtaginvalidrepo"
+	tagname := ":123"
+	_, out, err := buildImageWithOut(name, "FROM scratch\nMAINTAINER quux\nTAG "+tagname+"\n", true)
+	// if the error doesnt check for illegal tag name, or the image is built
+	// then this should fail
+	if !strings.Contains(out, "Illegal repository name") {
+		c.Fatalf("failed to validate repository name. Error: %s, Output: %s", err, out)
+	}
+}
+
 func (s *DockerSuite) TestBuildCmdShDashC(c *check.C) {
 	name := "testbuildcmdshc"
 	if _, err := buildImage(name, "FROM busybox\nCMD echo cmd\n", true); err != nil {

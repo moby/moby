@@ -513,6 +513,21 @@ func volume(b *Builder, args []string, attributes map[string]bool, original stri
 	return nil
 }
 
+// TAG reponame:tagname
+//
+// Tag the middle of the image layer.
+//
+func tag(b *Builder, args []string, attributes map[string]bool, original string) error {
+	if len(args) != 1 {
+		return fmt.Errorf("TAG requires only one argument.")
+	}
+	repoName := args[0]
+	if err := b.makeTag(repoName); err != nil {
+		return err
+	}
+	return nil
+}
+
 // INSERT is no longer accepted, but we still parse it.
 func insert(b *Builder, args []string, attributes map[string]bool, original string) error {
 	return fmt.Errorf("INSERT has been deprecated. Please use ADD instead")
