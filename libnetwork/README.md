@@ -8,12 +8,8 @@ The goal of libnetwork is to deliver a robust Container Network Model that provi
 
 **NOTE**: libnetwork project is under heavy development and is not ready for general use.
 
-#### Current Status
-Please watch this space for updates on the progress.
-
-Currently libnetwork is nothing more than an attempt to modularize the Docker platform's networking subsystem by moving it into libnetwork as a library.
-
-Please refer to the [roadmap](ROADMAP.md) for more information.
+#### Design
+Please refer to the [design](docs/design.md) for more information.
 
 #### Using libnetwork
 
@@ -73,9 +69,13 @@ There are many networking solutions available to suit a broad range of use-cases
 		}
 
 ```
+#### Current Status
+Please watch this space for updates on the progress.
+
+Currently libnetwork is nothing more than an attempt to modularize the Docker platform's networking subsystem by moving it into libnetwork as a library.
 
 ## Future
-See the [roadmap](ROADMAP.md).
+Please refer to [roadmap](ROADMAP.md) for more information.
 
 ## Contributing
 

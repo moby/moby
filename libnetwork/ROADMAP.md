@@ -6,12 +6,17 @@ This document defines the high-level goals of the project and defines the releas
 * [Goals](#goals)
 * [Project Planning](#project-planning): release-relationship to the Docker Platform.
 
-## Goals
+## Long-term Goal
 
-- Combine the networking logic in Docker Engine and libcontainer in to a single, reusable library
+libnetwork project will follow Docker and Linux philosophy of delivering small, highly modular and composable tools that works well independently. 
+libnetwork aims to satisfy that composable need for Networking in Containers.
+
+## Short-term Goals
+
+- Modularize the networking logic in Docker Engine and libcontainer in to a single, reusable library
 - Replace the networking subsystem of Docker Engine, with libnetwork
 - Define a flexible model that allows local and remote drivers to provide networking to containers
-- Provide a stand-alone tool for using/testing libnetwork
+- Provide a stand-alone tool "dnet" for managing and testing libnetwork
 
 ## Project Planning
 

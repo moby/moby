@@ -1,16 +1,17 @@
 Design
 ======
 
-The main goals of libnetwork are highlighted in the [roadmap](../ROADMAP.md).
+The vision and goals of libnetwork are highlighted in [roadmap](../ROADMAP.md).
 This document describes how libnetwork has been designed in order to acheive this.
 Requirements for individual releases can be found on the [Project Page](https://github.com/docker/libnetwork/wiki)
 
-## Legacy Docker Networking
+Many of the design decisions are inspired by the learnings from the Docker networking design as of Docker v1.6.
+Please refer to this [Docker v1.6 Design](https://github.com/docker/libnetwork/blob/docs/legacy.md) document for more information on networking design as of Docker v1.6.
 
-Prior to libnetwork a container's networking was handled in both Docker Engine and libcontainer.
-Docker Engine was responsible for providing the configuration of the container's networking stack.
-Libcontainer would then use this information to create the necessary networking devices and move them in to a network namespace.
-This namespace would then be used when the container is started.
+## Goal
+
+libnetwork project will follow Docker and Linux philosophy of developing small, highly modular and composable tools that works well independently.
+Libnetwork aims to satisfy that composable need for Networking in Containers.
 
 ## The Container Network Model
 
@@ -35,55 +36,86 @@ A Network is a group of Endpoints that are able to communicate with each-other d
 An implementation of a Network could be a Linux bridge, a VLAN etc...
 Networks consist of *many* endpoints
 
-## API
+## CNM Objects
 
-Consumers of the CNM, like Docker for example, interact through the following APIs
+**NetworkController**
+`NetworkController` object provides the entry-point into libnetwork that exposes simple APIs for the users (such as Docker Engine) to allocate and manage Networks. libnetwork supports multiple active drivers (both inbuilt and remote). `NetworkController` allows user to bind a particular driver to a given network.
 
-The `NetworkController` object is created to manage the allocation of Networks and the binding of these Networks to a specific Driver
-Once a Network is created, `network.CreateEndpoint` can be called to create a new Endpoint in a given network.
-When an Endpoint exists, it can be joined to a Sandbox using `endpoint.Join(id)`. If no Sandbox exists, one will be created, but if the Sandbox already exists, the endpoint will be added there.
-The result of the Join operation is a Sandbox Key which identifies the Sandbox to the Operating System (e.g a path)
-This Key can be passed to the container runtime so the Sandbox is used when the container is started.
+**Driver**
+`Driver` is not an user visible object, but drivers provides the actual implementation that makes network work. `NetworkController` however provides an API to configure any specific driver with driver-specific options/labels that is transparent to libnetwork, but can be handled by the drivers directly. Drivers can be both inbuilt (such as Bridge, Host, None & overlay) and remote (from plugin providers) to satisfy various usecases & deployment scenarios. At this point, the Driver owns a network and is responsible for managing the network (including IPAM, etc.). This can be improved in the future by having multiple drivers participating in handling various network management functionalities.
 
-When the container is stopped, `endpoint.Leave` will be called on each endpoint within the Sandbox
-Finally once, endpoint.
+**Network**
+`Network` object is an implementation of the `CNM : Network` as defined above. `NetworkController` provides APIs to create and manage `Network` object. Whenever a `Network` is created or updated, the corresponding `Driver` will be notified of the event. LibNetwork treats `Network` object at an abstract level to provide connectivity between a group of end-points that belong to the same network and isolate from the rest. The Driver performs the actual work of providing the required connectivity and isolation. The connectivity can be within the same host or across multiple-hosts. Hence `Network` has a global scope within a cluster.
 
-## Component Lifecycle
+**Endpoint**
+`Endpoint` represents a Service Endpoint. It provides the connectivity for services exposed by a container in a network with other services provided by other containers in the network. `Network` object provides APIs to create and manage endpoint. An endpoint can be attached to only one network. `Endpoint` creation calls are made to the corresponding `Driver` which is responsible for allocating resources for the corresponding `Sandbox`. Since Endpoint represents a Service and not necessarily a particular container, `Endpoint` has a global scope within a cluster as well.
 
-### Sandbox Lifecycle
+**Sandbox**
+`Sandbox` object represents container's network configuration such as ip-address, mac-address, routes, DNS entries. A `Sandbox` object is created when the user requests to create an endpoint on a network. The `Driver` that handles the `Network` is responsible to allocate the required network resources (such as ip-address) and pass the info called `SandboxInfo` back to libnetwork. libnetwork will make use of OS specific constructs (example: netns for Linux) to populate the network configuration into the containers that is represented by the `Sandbox`. A `Sandbox` can have multiple endpoints attached to different networks. Since `Sandbox` is associated with a particular container in a given host, it has a local scope that represents the Host that the Container belong to.
 
-The Sandbox is created during the first `endpoint.Join` and deleted when `endpoint.Leave` is called on the last endpoint.
-<TODO @mrjana or @mavenugo to more details>
+**CNM Attributes**
 
-### Endpoint Lifecycle 
+***Options***
+`Options` provides a generic and flexible mechanism to pass `Driver` specific configuration option from the user to the `Driver` directly. `Options` are just key-value pairs of data with `key` represented by a string and `value` represented by a generic object (such as golang `interface{}`). Libnetwork will operate on the `Options` ONLY if the  `key` matches any of the well-known `Label` defined in the `net-labels` package. `Options` also encompasses `Labels` as explained below. `Options` are generally NOT end-user visible (in UI), while `Labels` are.
 
-The Endpoint is created on `network.CreateEndpoint` and removed on `endpoint.Delete`
-<TODO @mrjana or @mavenugo to add details on when this is called>
+***Labels***
+`Labels` are very similar to `Options` & infact they  are just a subset of `Options`. `Labels` are typically end-user visible and are represented in the UI explicitely using the `--labels` option. They are passed from the UI to the `Driver` so that `Driver` can make use of it and perform any `Driver` specific operation (such as a subnet to allocate IP-Addresses from in a Network).
 
-### Network Lifecycle
+## CNM Lifecycle
 
-Networks are created when the CNM API call is invoked and are not cleaned up until an corresponding delete API call is made.
+Consumers of the CNM, like Docker for example, interact through the CNM Objects and its APIs to network the containers that they manage.
 
-## Implementation
+0. `Drivers` registers with `NetworkController`. Build-in drivers registers inside of LibNetwork, while remote Drivers registers with LibNetwork via Plugin mechanism. (*plugin-mechanism is WIP*). Each `driver` handles a particular `networkType`.
 
-Networks and Endpoints are mostly implemented in drivers. For more information on these details, please see [the drivers section](#Drivers)
+1. `NetworkController` object is created using `libnetwork.New()` API to manage the allocation of Networks and optionally configure a `Driver` with driver specific `Options`.
 
-## Sandbox
+2. `Network` is created using the controller's `NewNetwork()` API by providing a `name` and `networkType`. `networkType` parameer helps to choose a corresponding `Driver` and binds the created `Network` to that `Driver`. From this point, any operation on `Network` will be handled by that `Driver`.
 
-Libnetwork provides an implementation of a Sandbox for Linux.
+3. `controller.NewNetwork()` API also takes in optional `options` parameter which carries Driver-specific options and `Labels`, which the Drivers can make use for its purpose.
+
+4. `network.CreateEndpoint()` can be called to create a new Endpoint in a given network. This API also accepts optional `options` parameter which drivers can make use of. These 'options' carry both well-known labels and driver-specific labels. Drivers will inturn be called with `driver.CreateEndpoint` and it can choose to reserve any required resources when an `Endpoint` is created in a `Network`. The `Driver` must return the reserved resources via the `sandbox.Info` return object. LibNetwork will make use of the `SandboxInfo` when a Container is attached later. The reason we get the `sandbox.Info` at the time of endpoint creation and not during the `Join()` is that, `Endpoint` represents a Service endpoint and not neccessarily the container that attaches later.
+
+5. `endpoint.Join()` can be used to attach a container to a `Endpoint`. The Join operation will create a `Sandbox` if it doesnt exist already for that container. The Drivers can make use of the Sandbox Key to identify multiple endpoints attached to a same container. This API also accepts optional `options` parameter which drivers can make use of.
+  * Though it is not a direct design issue of LibNetwork, it is highly encouraged to have users like `Docker` to call the endpoint.Join() during Container's `Start()` lifecycle that is invoked *before* the container is made operational. As part of Docker integration, this will be taken care of.
+  * one of a FAQ on endpoint join() API is that, why do we need an API to create an Endpoint and another to join the endpoint.
+    - The answer is based on the fact that Endpoint represents a Service which may or may not be backed by a Container. When an Endpoint is created, it will have its resources reserved so that any container can get attached to the endpoint later and get a consistent networking behaviour.
+
+6. `endpoint.Leave()` can be invoked when a container is stopped. The `Driver` can cleanup the states that it allocated during the `Join()` call. LibNetwork will delete the `Sandbox` when the last referencing endpoint leaves the network. But LibNetwork keeps hold of the `sandbox.Info` and will be reused when the container joins again. This ensures that the container's resources are reused when they are Stopped and Started again.
+
+7. `endpoint.Delete()` is used to delete an endpoint from a network. This results in deleting an endpoint and cleaning up the cached `sandbox.Info`.
+
+8. `network.Delete()` is used to delete a network. LibNetwork will not allow the delete to proceed if there are any existing endpoints attached to the Network. 
+
+
+## Implementation Details
+
+### Networks & Endpoints
+
+LibNetwork's Network and Endpoint APIs are primiarly for managing the corresponding Objects and book-keeping them to provide a level of abstraction as required by the CNM. It delegates the actual implementation to the drivers which  realizes the functionality as promised in the CNM. For more information on these details, please see [the drivers section](#Drivers)
+
+### Sandbox
+
+Libnetwork provides a framework to implement of a Sandbox in multiple Operating Systems. Currently we have implemented Sandbox for Linux using `namespace_linux.go` and `configure_linux.go` in `sandbox` package 
 This creates a Network Namespace for each sandbox which is uniquely identified by a path on the host filesystem.
 Netlink calls are used to move interfaces from the global namespace to the Sandbox namespace.
 Netlink is also used to manage the routing table in the namespace.
 
-# Drivers
+## Drivers
 
 ## API
 
-The Driver API allows libnetwork to defer to a driver to provide Networking services.
+Drivers are essentially an extension of libnetwork and provides the actual implementation for all of the LibNetwork APIs defined above. Hence there is an 1-1 correspondance for all the `Network` and `Endpoint` APIs, which includes :
+* `driver.Config`
+* `driver.CreateNetwork`
+* `driver.DeleteNetwork`
+* `driver.CreateEndpoint`
+* `driver.DeleteEndpoint`
+* `driver.Join`
+* `driver.Leave` 
 
-For Networks, drivers are notified on Create and Delete events
+These Driver facing APIs makes use of unique identifiers (`networkid`,`endpointid`,...) instead of names (as seen in user-facing APIs). 
 
-For Endpoints, drivers are also notified on Create and Delete events
+The APIs are still work in progress and there can be changes to these based on the driver requirements especially when it comes to Multi-host networking.
 
 ## Implementations
 
@@ -96,7 +128,7 @@ Libnetwork includes the following drivers:
 
 ### Null
 
-The null driver is a `noop` implementation of the driver API, used only in cases where no networking is desired.
+The null driver is a `noop` implementation of the driver API, used only in cases where no networking is desired. This is to provide backward compatibility to the Docker's `--net=none` option.
 
 ### Bridge
 
