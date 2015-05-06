@@ -127,6 +127,7 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 		"lxc-start",
 		"-n", c.ID,
 		"-f", configPath,
+		"-q",
 	}
 
 	// From lxc>=1.1 the default behavior is to daemonize containers after start
@@ -278,19 +279,20 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 	oomKillNotification, err := notifyOnOOM(cgroupPaths)
 
 	<-waitLock
+	exitCode := getExitCode(c)
 
 	if err == nil {
 		_, oomKill = <-oomKillNotification
-		logrus.Debugf("oomKill error %s waitErr %s", oomKill, waitErr)
+		logrus.Debugf("oomKill error: %v, waitErr: %v", oomKill, waitErr)
 	} else {
 		logrus.Warnf("Your kernel does not support OOM notifications: %s", err)
 	}
 
 	// check oom error
-	exitCode := getExitCode(c)
 	if oomKill {
 		exitCode = 137
 	}
+
 	return execdriver.ExitStatus{ExitCode: exitCode, OOMKilled: oomKill}, waitErr
 }
 
@@ -468,7 +470,11 @@ func getExitCode(c *execdriver.Command) int {
 }
 
 func (d *driver) Kill(c *execdriver.Command, sig int) error {
-	return KillLxc(c.ID, sig)
+	if sig == 9 || c.ProcessConfig.Process == nil {
+		return KillLxc(c.ID, sig)
+	}
+
+	return c.ProcessConfig.Process.Signal(syscall.Signal(sig))
 }
 
 func (d *driver) Pause(c *execdriver.Command) error {
@@ -528,7 +534,8 @@ func KillLxc(id string, sig int) error {
 	if err == nil {
 		output, err = exec.Command("lxc-kill", "-n", id, strconv.Itoa(sig)).CombinedOutput()
 	} else {
-		output, err = exec.Command("lxc-stop", "-k", "-n", id, strconv.Itoa(sig)).CombinedOutput()
+		// lxc-stop does not take arbitrary signals like lxc-kill does
+		output, err = exec.Command("lxc-stop", "-k", "-n", id).CombinedOutput()
 	}
 	if err != nil {
 		return fmt.Errorf("Err: %s Output: %s", err, output)
