@@ -69,7 +69,7 @@ Consumers of the CNM, like Docker for example, interact through the CNM Objects 
 
 1. `NetworkController` object is created using `libnetwork.New()` API to manage the allocation of Networks and optionally configure a `Driver` with driver specific `Options`.
 
-2. `Network` is created using the controller's `NewNetwork()` API by providing a `name` and `networkType`. `networkType` parameer helps to choose a corresponding `Driver` and binds the created `Network` to that `Driver`. From this point, any operation on `Network` will be handled by that `Driver`.
+2. `Network` is created using the controller's `NewNetwork()` API by providing a `name` and `networkType`. `networkType` parameter helps to choose a corresponding `Driver` and binds the created `Network` to that `Driver`. From this point, any operation on `Network` will be handled by that `Driver`.
 
 3. `controller.NewNetwork()` API also takes in optional `options` parameter which carries Driver-specific options and `Labels`, which the Drivers can make use for its purpose.
 
