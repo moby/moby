@@ -75,7 +75,8 @@ pages:
 # Docker Hub docs:
 - ['docker-hub/index.md', 'Docker Hub', 'Docker Hub' ]
 - ['docker-hub/accounts.md', 'Docker Hub', 'Accounts']
-- ['docker-hub/repos.md', 'Docker Hub', 'Repositories']
+- ['docker-hub/userguide.md', 'Docker Hub', 'User Guide']
+- ['docker-hub/repos.md', 'Docker Hub', 'Your Repositories']
 - ['docker-hub/builds.md', 'Docker Hub', 'Automated Builds']
 - ['docker-hub/official_repos.md', 'Docker Hub', 'Official Repositories']
 
