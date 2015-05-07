@@ -11,7 +11,7 @@ const networkType = "null"
 type driver struct{}
 
 // New provides a new instance of null driver
-func New() (string, driverapi.Driver) {
+func New(dc driverapi.DriverCallback) (string, driverapi.Driver) {
 	return networkType, &driver{}
 }
 

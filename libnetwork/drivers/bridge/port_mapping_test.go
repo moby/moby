@@ -18,7 +18,7 @@ func TestMain(m *testing.M) {
 
 func TestPortMappingConfig(t *testing.T) {
 	defer netutils.SetupTestNetNS(t)()
-	_, d := New()
+	_, d := New(nil)
 
 	binding1 := netutils.PortBinding{Proto: netutils.UDP, Port: uint16(400), HostPort: uint16(54000)}
 	binding2 := netutils.PortBinding{Proto: netutils.TCP, Port: uint16(500), HostPort: uint16(65000)}

@@ -93,7 +93,7 @@ func init() {
 }
 
 // New provides a new instance of bridge driver
-func New() (string, driverapi.Driver) {
+func New(dc driverapi.DriverCallback) (string, driverapi.Driver) {
 	return networkType, &driver{}
 }
 

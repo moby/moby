@@ -2,6 +2,7 @@ package driverapi
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/docker/libnetwork/sandbox"
 	"github.com/docker/libnetwork/types"
@@ -14,6 +15,8 @@ var (
 	ErrNoNetwork = errors.New("No network exists")
 	// ErrNoEndpoint is returned if no endpoint with the specified id exists
 	ErrNoEndpoint = errors.New("No endpoint exists")
+	// ErrNotImplemented is returned when a Driver has not implemented an API yet
+	ErrNotImplemented = errors.New("The API is not implemneted yet")
 )
 
 // Driver is an interface that every plugin driver needs to implement.
@@ -57,4 +60,18 @@ type Driver interface {
 // join time.
 type JoinInfo struct {
 	HostsPath string
+}
+
+// ErrActiveRegistration represents an error when a driver is registered to a networkType that is previously registered
+type ErrActiveRegistration string
+
+// Error interface for ErrActiveRegistration
+func (ar ErrActiveRegistration) Error() string {
+	return fmt.Sprintf("Driver already registered for type %q", string(ar))
+}
+
+// DriverCallback provides a Callback interface for Drivers into LibNetwork
+type DriverCallback interface {
+	// RegisterDriver provides a way for Remote drivers to dynamically register new NetworkType and associate with a driver instance
+	RegisterDriver(name string, driver Driver) error
 }
