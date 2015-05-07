@@ -899,6 +899,25 @@ func (s *DockerSuite) TestContainerApiRestart(c *check.C) {
 	}
 }
 
+func (s *DockerSuite) TestContainerApiRestartNotimeoutParam(c *check.C) {
+	name := "test-api-restart-no-timeout-param"
+	runCmd := exec.Command(dockerBinary, "run", "-di", "--name", name, "busybox", "top")
+	out, _, err := runCommandWithOutput(runCmd)
+	if err != nil {
+		c.Fatalf("Error on container creation: %v, output: %q", err, out)
+	}
+	id := strings.TrimSpace(out)
+	c.Assert(waitRun(id), check.IsNil)
+
+	status, _, err := sockRequest("POST", "/containers/"+name+"/restart", nil)
+	c.Assert(status, check.Equals, http.StatusNoContent)
+	c.Assert(err, check.IsNil)
+
+	if err := waitInspect(name, "{{ .State.Restarting  }} {{ .State.Running  }}", "false true", 5); err != nil {
+		c.Fatal(err)
+	}
+}
+
 func (s *DockerSuite) TestContainerApiStart(c *check.C) {
 	name := "testing-start"
 	config := map[string]interface{}{
