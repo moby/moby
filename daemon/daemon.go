@@ -1139,14 +1139,14 @@ func checkKernel() error {
 	// test for specific functionalities.
 	// Unfortunately we can't test for the feature "does not cause a kernel panic"
 	// without actually causing a kernel panic, so we need this workaround until
-	// the circumstances of pre-3.8 crashes are clearer.
+	// the circumstances of pre-3.10 crashes are clearer.
 	// For details see https://github.com/docker/docker/issues/407
 	if k, err := kernel.GetKernelVersion(); err != nil {
 		logrus.Warnf("%s", err)
 	} else {
-		if kernel.CompareKernelVersion(k, &kernel.KernelVersionInfo{Kernel: 3, Major: 8, Minor: 0}) < 0 {
+		if kernel.CompareKernelVersion(k, &kernel.KernelVersionInfo{Kernel: 3, Major: 10, Minor: 0}) < 0 {
 			if os.Getenv("DOCKER_NOWARN_KERNEL_VERSION") == "" {
-				logrus.Warnf("You are running linux kernel version %s, which might be unstable running docker. Please upgrade your kernel to 3.8.0.", k.String())
+				logrus.Warnf("You are running linux kernel version %s, which might be unstable running docker. Please upgrade your kernel to 3.10.0.", k.String())
 			}
 		}
 	}
