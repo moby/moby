@@ -8,6 +8,7 @@ docker-run - Run a command in a new container
 **docker run**
 [**-a**|**--attach**[=*[]*]]
 [**--add-host**[=*[]*]]
+[**--blkio-weight**[=*[BLKIO-WEIGHT]*]]
 [**-c**|**--cpu-shares**[=*0*]]
 [**--cap-add**[=*[]*]]
 [**--cap-drop**[=*[]*]]
@@ -85,6 +86,9 @@ each of stdin, stdout, and stderr.
 
    Add a line to /etc/hosts. The format is hostname:ip.  The **--add-host**
 option can be set multiple times.
+
+**--blkio-weight**=0
+   Block IO weight (relative weight) accepts a weight value between 10 and 1000.
 
 **-c**, **--cpu-shares**=0
    CPU shares (relative weight)

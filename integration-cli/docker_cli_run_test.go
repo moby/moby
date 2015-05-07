@@ -1158,6 +1158,20 @@ func (s *DockerSuite) TestRunWithCpusetMems(c *check.C) {
 	}
 }
 
+func (s *DockerSuite) TestRunWithBlkioWeight(c *check.C) {
+	cmd := exec.Command(dockerBinary, "run", "--blkio-weight", "300", "busybox", "true")
+	if code, err := runCommand(cmd); err != nil || code != 0 {
+		c.Fatalf("container should run successfully with blkio-weight of 300: %s", err)
+	}
+}
+
+func (s *DockerSuite) TestRunWithBlkioInvalidWeight(c *check.C) {
+	cmd := exec.Command(dockerBinary, "run", "--blkio-weight", "5", "busybox", "true")
+	if _, err := runCommand(cmd); err == nil {
+		c.Fatalf("run with invalid blkio-weight should failed")
+	}
+}
+
 func (s *DockerSuite) TestRunDeviceNumbers(c *check.C) {
 	cmd := exec.Command(dockerBinary, "run", "busybox", "sh", "-c", "ls -l /dev/null")
 	out, _, err := runCommandWithOutput(cmd)

@@ -149,6 +149,7 @@ Create a container
                "CpuShares": 512,
                "CpusetCpus": "0,1",
                "CpusetMems": "0,1",
+               "BlkioWeight": 300,
                "OomKillDisable": false,
                "PortBindings": { "22/tcp": [{ "HostPort": "11022" }] },
                "PublishAllPorts": false,
@@ -195,6 +196,7 @@ Json Parameters:
 -   **Cpuset** - The same as CpusetCpus, but deprecated, please don't use.
 -   **CpusetCpus** - String value containing the cgroups CpusetCpus to use.
 -   **CpusetMems** - Memory nodes (MEMs) in which to allow execution (0-3, 0,1). Only effective on NUMA systems.
+-   **BlkioWeight** - Block IO weight (relative weight) accepts a weight value between 10 and 1000.
 -   **OomKillDisable** - Boolean value, whether to disable OOM Killer for the container or not.
 -   **AttachStdin** - Boolean value, attaches to stdin.
 -   **AttachStdout** - Boolean value, attaches to stdout.
@@ -341,6 +343,7 @@ Return low-level information on the container `id`
 		"ExecIDs": null,
 		"HostConfig": {
 			"Binds": null,
+			"BlkioWeight": 0,
 			"CapAdd": null,
 			"CapDrop": null,
 			"ContainerIDFile": "",
