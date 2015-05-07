@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"io"
 	"time"
-
-	"github.com/Sirupsen/logrus"
 )
 
 type JSONLog struct {
@@ -37,15 +35,16 @@ func WriteLog(src io.Reader, dst io.Writer, format string, since time.Time) erro
 	l := &JSONLog{}
 	for {
 		l.Reset()
-		if err := dec.Decode(l); err == io.EOF {
-			return nil
-		} else if err != nil {
-			logrus.Printf("Error streaming logs: %s", err)
+		if err := dec.Decode(l); err != nil {
+			if err == io.EOF {
+				return nil
+			}
 			return err
 		}
 		if !since.IsZero() && l.Created.Before(since) {
 			continue
 		}
+
 		line, err := l.Format(format)
 		if err != nil {
 			return err
