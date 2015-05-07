@@ -1160,3 +1160,13 @@ func pingContainers(c *check.C, d *Daemon, expectFailure bool) {
 	args = append(dargs, "rm", "-f", "container1")
 	runCommand(exec.Command(dockerBinary, args...))
 }
+
+func (s *DockerDaemonSuite) TestDaemonRestartWithSockerAsVolume(c *check.C) {
+	c.Assert(s.d.StartWithBusybox(), check.IsNil)
+
+	socket := filepath.Join(s.d.folder, "docker.sock")
+
+	out, err := s.d.Cmd("run", "-d", "-v", socket+":/sock", "busybox")
+	c.Assert(err, check.IsNil, check.Commentf("Output: %s", out))
+	c.Assert(s.d.Restart(), check.IsNil)
+}

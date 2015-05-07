@@ -98,31 +98,6 @@ func mainDaemon() {
 		}()
 	}
 
-	if err := migrateKey(); err != nil {
-		logrus.Fatal(err)
-	}
-	daemonCfg.TrustKeyPath = *flTrustKey
-
-	registryService := registry.NewService(registryCfg)
-	d, err := daemon.NewDaemon(daemonCfg, registryService)
-	if err != nil {
-		if pfile != nil {
-			if err := pfile.Remove(); err != nil {
-				logrus.Error(err)
-			}
-		}
-		logrus.Fatalf("Error starting daemon: %v", err)
-	}
-
-	logrus.Info("Daemon has completed initialization")
-
-	logrus.WithFields(logrus.Fields{
-		"version":     dockerversion.VERSION,
-		"commit":      dockerversion.GITCOMMIT,
-		"execdriver":  d.ExecutionDriver().Name(),
-		"graphdriver": d.GraphDriver().String(),
-	}).Info("Docker daemon")
-
 	serverConfig := &apiserver.ServerConfig{
 		Logging:     true,
 		EnableCors:  daemonCfg.EnableCors,
@@ -150,6 +125,31 @@ func mainDaemon() {
 		}
 		serveAPIWait <- nil
 	}()
+
+	if err := migrateKey(); err != nil {
+		logrus.Fatal(err)
+	}
+	daemonCfg.TrustKeyPath = *flTrustKey
+
+	registryService := registry.NewService(registryCfg)
+	d, err := daemon.NewDaemon(daemonCfg, registryService)
+	if err != nil {
+		if pfile != nil {
+			if err := pfile.Remove(); err != nil {
+				logrus.Error(err)
+			}
+		}
+		logrus.Fatalf("Error starting daemon: %v", err)
+	}
+
+	logrus.Info("Daemon has completed initialization")
+
+	logrus.WithFields(logrus.Fields{
+		"version":     dockerversion.VERSION,
+		"commit":      dockerversion.GITCOMMIT,
+		"execdriver":  d.ExecutionDriver().Name(),
+		"graphdriver": d.GraphDriver().String(),
+	}).Info("Docker daemon")
 
 	signal.Trap(func() {
 		api.Close()
