@@ -2,14 +2,20 @@ package portmapper
 
 import (
 	"net"
+	"os"
 	"testing"
+	"time"
 
+	"github.com/docker/docker/pkg/reexec"
+	"github.com/docker/libnetwork/netutils"
 	"github.com/docker/libnetwork/pkg/iptables"
 )
 
-func init() {
-	// override this func to mock out the proxy server
-	newProxy = newMockProxyCommand
+func TestMain(m *testing.M) {
+	if reexec.Init() {
+		return
+	}
+	os.Exit(m.Run())
 }
 
 func TestSetIptablesChain(t *testing.T) {
@@ -30,7 +36,8 @@ func TestSetIptablesChain(t *testing.T) {
 	}
 }
 
-func TestMapPorts(t *testing.T) {
+func TestMapTCPPorts(t *testing.T) {
+	defer netutils.SetupTestNetNS(t)()
 	pm := New()
 	dstIP1 := net.ParseIP("192.168.0.1")
 	dstIP2 := net.ParseIP("192.168.0.2")
@@ -109,7 +116,59 @@ func TestGetUDPIPAndPort(t *testing.T) {
 	}
 }
 
+func TestMapUDPPorts(t *testing.T) {
+	defer netutils.SetupTestNetNS(t)()
+	pm := New()
+	dstIP1 := net.ParseIP("192.168.0.1")
+	dstIP2 := net.ParseIP("192.168.0.2")
+	dstAddr1 := &net.UDPAddr{IP: dstIP1, Port: 80}
+	dstAddr2 := &net.UDPAddr{IP: dstIP2, Port: 80}
+
+	srcAddr1 := &net.UDPAddr{Port: 1080, IP: net.ParseIP("172.16.0.1")}
+	srcAddr2 := &net.UDPAddr{Port: 1080, IP: net.ParseIP("172.16.0.2")}
+
+	addrEqual := func(addr1, addr2 net.Addr) bool {
+		return (addr1.Network() == addr2.Network()) && (addr1.String() == addr2.String())
+	}
+
+	if host, err := pm.Map(srcAddr1, dstIP1, 80); err != nil {
+		t.Fatalf("Failed to allocate port: %s", err)
+	} else if !addrEqual(dstAddr1, host) {
+		t.Fatalf("Incorrect mapping result: expected %s:%s, got %s:%s",
+			dstAddr1.String(), dstAddr1.Network(), host.String(), host.Network())
+	}
+
+	if _, err := pm.Map(srcAddr1, dstIP1, 80); err == nil {
+		t.Fatalf("Port is in use - mapping should have failed")
+	}
+
+	if _, err := pm.Map(srcAddr2, dstIP1, 80); err == nil {
+		t.Fatalf("Port is in use - mapping should have failed")
+	}
+
+	if _, err := pm.Map(srcAddr2, dstIP2, 80); err != nil {
+		t.Fatalf("Failed to allocate port: %s", err)
+	}
+
+	if pm.Unmap(dstAddr1) != nil {
+		t.Fatalf("Failed to release port")
+	}
+
+	if pm.Unmap(dstAddr2) != nil {
+		t.Fatalf("Failed to release port")
+	}
+
+	if pm.Unmap(dstAddr2) == nil {
+		t.Fatalf("Port already released, but no error reported")
+	}
+}
+
 func TestMapAllPortsSingleInterface(t *testing.T) {
+	newProxy = newMockProxyCommand
+	defer func() {
+		newProxy = newProxyCommand
+	}()
+	defer netutils.SetupTestNetNS(t)()
 	pm := New()
 	dstIP1 := net.ParseIP("0.0.0.0")
 	srcAddr1 := &net.TCPAddr{Port: 1080, IP: net.ParseIP("172.16.0.1")}
@@ -117,12 +176,6 @@ func TestMapAllPortsSingleInterface(t *testing.T) {
 	hosts := []net.Addr{}
 	var host net.Addr
 	var err error
-
-	defer func() {
-		for _, val := range hosts {
-			pm.Unmap(val)
-		}
-	}()
 
 	for i := 0; i < 10; i++ {
 		start, end := pm.Allocator.Begin, pm.Allocator.End
@@ -145,5 +198,30 @@ func TestMapAllPortsSingleInterface(t *testing.T) {
 		}
 
 		hosts = []net.Addr{}
+	}
+}
+
+func TestExecProxy(t *testing.T) {
+	defer netutils.SetupTestNetNS(t)()
+	args := []string{
+		userlandProxyCommandName,
+		"-proto", "tcp",
+		"-host-ip", "0.0.0.0",
+		"-host-port", "9999",
+		"-container-ip", "172.168.1.1",
+		"-container-port", "8888",
+	}
+	os.Args = args
+	doneChan := make(chan bool)
+	go func() {
+		execProxy()
+		doneChan <- true
+	}()
+
+	select {
+	case <-doneChan:
+		t.Fatal("execProxy is not supposed to exit")
+	case <-time.After(3 * time.Second):
+		return
 	}
 }
