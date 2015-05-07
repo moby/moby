@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/docker/distribution/registry/api/v2"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/opts"
 	flag "github.com/docker/docker/pkg/mflag"
@@ -207,25 +208,26 @@ func validateRemoteName(remoteName string) error {
 		namespace string
 		name      string
 	)
-	nameParts := strings.SplitN(remoteName, "/", 2)
-	if len(nameParts) < 2 {
+
+	lastIndex := strings.LastIndex(remoteName, "/")
+
+	if lastIndex == -1 {
 		namespace = "library"
-		name = nameParts[0]
+		name = remoteName
 
 		// the repository name must not be a valid image ID
 		if err := image.ValidateID(name); err == nil {
 			return fmt.Errorf("Invalid repository name (%s), cannot specify 64-byte hexadecimal strings", name)
 		}
 	} else {
-		namespace = nameParts[0]
-		name = nameParts[1]
+		namespace = remoteName[:lastIndex]
+		name = remoteName[lastIndex+1:]
 	}
-	if !validNamespaceChars.MatchString(namespace) {
-		return fmt.Errorf("Invalid namespace name (%s). Only [a-z0-9-_] are allowed.", namespace)
+
+	if err := v2.ValidateRespositoryName(namespace); err != nil {
+		return err
 	}
-	if len(namespace) < 2 || len(namespace) > 255 {
-		return fmt.Errorf("Invalid namespace name (%s). Cannot be fewer than 2 or more than 255 characters.", namespace)
-	}
+
 	if strings.HasPrefix(namespace, "-") || strings.HasSuffix(namespace, "-") {
 		return fmt.Errorf("Invalid namespace name (%s). Cannot begin or end with a hyphen.", namespace)
 	}
