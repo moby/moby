@@ -23,15 +23,18 @@ func (cli *DockerCli) CmdStop(args ...string) error {
 	v := url.Values{}
 	v.Set("t", strconv.Itoa(*nSeconds))
 
-	var encounteredError error
+	var errNames []string
 	for _, name := range cmd.Args() {
 		_, _, err := readBody(cli.call("POST", "/containers/"+name+"/stop?"+v.Encode(), nil, nil))
 		if err != nil {
 			fmt.Fprintf(cli.err, "%s\n", err)
-			encounteredError = fmt.Errorf("Error: failed to stop one or more containers")
+			errNames = append(errNames, name)
 		} else {
 			fmt.Fprintf(cli.out, "%s\n", name)
 		}
 	}
-	return encounteredError
+	if len(errNames) > 0 {
+		return fmt.Errorf("Error: failed to stop containers: %v", errNames)
+	}
+	return nil
 }
