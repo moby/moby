@@ -70,18 +70,14 @@ func (a *IPAllocator) RegisterSubnet(network *net.IPNet, subnet *net.IPNet) erro
 	if _, ok := a.allocatedIPs[key]; ok {
 		return ErrNetworkAlreadyRegistered
 	}
-	n := newAllocatedMap(network)
-	beginIP, endIP := netutils.NetworkRange(subnet)
-	begin := big.NewInt(0).Add(ipToBigInt(beginIP), big.NewInt(1))
-	end := big.NewInt(0).Sub(ipToBigInt(endIP), big.NewInt(1))
 
 	// Check that subnet is within network
-	if !(begin.Cmp(n.begin) >= 0 && end.Cmp(n.end) <= 0 && begin.Cmp(end) == -1) {
+	beginIP, endIP := netutils.NetworkRange(subnet)
+	if !(network.Contains(beginIP) && network.Contains(endIP)) {
 		return ErrBadSubnet
 	}
-	n.begin.Set(begin)
-	n.end.Set(end)
-	n.last.Sub(begin, big.NewInt(1))
+
+	n := newAllocatedMap(subnet)
 	a.allocatedIPs[key] = n
 	return nil
 }
