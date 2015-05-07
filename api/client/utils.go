@@ -153,6 +153,13 @@ func (cli *DockerCli) clientRequestAttemptLogin(method, path string, in io.Reade
 	return body, statusCode, err
 }
 
+// Call is an externalized verion of call().
+// Didn't want to change all refs to call() just yet but will if these
+// changes are adopted.
+func (cli *DockerCli) Call(method, path string, data interface{}, headers map[string][]string) (io.ReadCloser, http.Header, int, error) {
+	return cli.call(method, path, data, headers)
+}
+
 func (cli *DockerCli) call(method, path string, data interface{}, headers map[string][]string) (io.ReadCloser, http.Header, int, error) {
 	params, err := cli.encodeData(data)
 	if err != nil {

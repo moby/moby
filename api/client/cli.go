@@ -15,6 +15,7 @@ import (
 	"github.com/docker/docker/cliconfig"
 	"github.com/docker/docker/pkg/homedir"
 	flag "github.com/docker/docker/pkg/mflag"
+	"github.com/docker/docker/pkg/plugin"
 	"github.com/docker/docker/pkg/term"
 	"github.com/docker/docker/utils"
 )
@@ -52,6 +53,8 @@ type DockerCli struct {
 	isTerminalOut bool
 	// transport holds the client transport instance.
 	transport *http.Transport
+	// registered/loaded plugins
+	plugins map[string]*plugin.Plugin
 }
 
 var funcMap = template.FuncMap{
@@ -67,6 +70,14 @@ func (cli *DockerCli) Out() io.Writer {
 
 func (cli *DockerCli) Err() io.Writer {
 	return cli.err
+}
+
+func (cli *DockerCli) Plugins() map[string]*plugin.Plugin {
+	return cli.plugins
+}
+
+func (cli *DockerCli) DockerHost() string {
+	return cli.scheme + "://" + cli.addr
 }
 
 func (cli *DockerCli) getMethod(args ...string) (func(...string) error, bool) {
@@ -96,6 +107,16 @@ func (cli *DockerCli) Cmd(args ...string) error {
 	if len(args) > 0 {
 		method, exists := cli.getMethod(args[0])
 		if !exists {
+			pi := cli.plugins[args[0]]
+			if pi != nil {
+				buf, err := json.Marshal(args)
+				if err != nil {
+					return err
+				}
+				_, err = pi.CallBytes("run", buf)
+				return err
+			}
+
 			return fmt.Errorf("docker: '%s' is not a docker command.\nSee 'docker --help'.", args[0])
 		}
 		return method(args[1:]...)
@@ -199,5 +220,6 @@ func NewDockerCli(in io.ReadCloser, out, err io.Writer, keyFile string, proto, a
 		tlsConfig:     tlsConfig,
 		scheme:        scheme,
 		transport:     tr,
+		plugins:       map[string]*plugin.Plugin{},
 	}
 }

@@ -4,6 +4,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"os"
+	"path/filepath"
 	"runtime"
 	"strings"
 
@@ -11,6 +12,7 @@ import (
 	"github.com/docker/docker/api/client"
 	"github.com/docker/docker/autogen/dockerversion"
 	"github.com/docker/docker/opts"
+	"github.com/docker/docker/pkg/homedir"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/reexec"
 	"github.com/docker/docker/pkg/term"
@@ -128,6 +130,11 @@ func main() {
 		}
 	}
 	cli := client.NewDockerCli(stdin, stdout, stderr, *flTrustKey, protoAddrParts[0], protoAddrParts[1], tlsConfig)
+
+	err := LoadPlugins(filepath.Join(homedir.Get(), ".docker/plugins/cli"), cli)
+	if err != nil {
+		logrus.Fatal(err)
+	}
 
 	if err := cli.Cmd(flag.Args()...); err != nil {
 		if sterr, ok := err.(client.StatusError); ok {
