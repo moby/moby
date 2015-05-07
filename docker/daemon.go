@@ -3,6 +3,7 @@
 package main
 
 import (
+	"crypto/tls"
 	"fmt"
 	"io"
 	"os"
@@ -21,6 +22,7 @@ import (
 	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/pkg/timeutils"
+	"github.com/docker/docker/pkg/tlsconfig"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/utils"
 )
@@ -112,11 +114,17 @@ func mainDaemon() {
 		CorsHeaders: daemonCfg.CorsHeaders,
 		Version:     dockerversion.VERSION,
 		SocketGroup: daemonCfg.SocketGroup,
-		Tls:         *flTls,
-		TlsVerify:   *flTlsVerify,
-		TlsCa:       *flCa,
-		TlsCert:     *flCert,
-		TlsKey:      *flKey,
+	}
+
+	if *flTls {
+		if *flTlsVerify {
+			tlsOptions.ClientAuth = tls.RequireAndVerifyClientCert
+		}
+		tlsConfig, err := tlsconfig.Server(tlsOptions)
+		if err != nil {
+			logrus.Fatal(err)
+		}
+		serverConfig.TLSConfig = tlsConfig
 	}
 
 	api := apiserver.New(serverConfig)
