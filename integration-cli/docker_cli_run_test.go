@@ -3056,3 +3056,65 @@ func (s *DockerSuite) TestRunPidHostWithChildIsKillable(c *check.C) {
 		c.Fatal("Kill container timed out")
 	}
 }
+
+func (s *DockerSuite) TestRunWithTooSmallMemoryLimit(c *check.C) {
+	defer deleteAllContainers()
+	// this memory limit is 1 byte less than the min, which is 4MB
+	// https://github.com/docker/docker/blob/v1.5.0/daemon/create.go#L22
+	out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "run", "-m", "4194303", "busybox"))
+	if err == nil || !strings.Contains(out, "Minimum memory limit allowed is 4MB") {
+		c.Fatalf("expected run to fail when using too low a memory limit: %q", out)
+	}
+}
+
+func (s *DockerSuite) TestRunWriteToProcAsound(c *check.C) {
+	defer deleteAllContainers()
+	code, err := runCommand(exec.Command(dockerBinary, "run", "busybox", "sh", "-c", "echo 111 >> /proc/asound/version"))
+	if err == nil || code == 0 {
+		c.Fatal("standard container should not be able to write to /proc/asound")
+	}
+}
+
+func (s *DockerSuite) TestRunReadProcTimer(c *check.C) {
+	defer deleteAllContainers()
+	out, code, err := runCommandWithOutput(exec.Command(dockerBinary, "run", "busybox", "cat", "/proc/timer_stats"))
+	if err != nil || code != 0 {
+		c.Fatal(err)
+	}
+	if strings.Trim(out, "\n ") != "" {
+		c.Fatalf("expected to receive no output from /proc/timer_stats but received %q", out)
+	}
+}
+
+func (s *DockerSuite) TestRunReadProcLatency(c *check.C) {
+	// some kernels don't have this configured so skip the test if this file is not found
+	// on the host running the tests.
+	if _, err := os.Stat("/proc/latency_stats"); err != nil {
+		c.Skip("kernel doesnt have latency_stats configured")
+		return
+	}
+	defer deleteAllContainers()
+	out, code, err := runCommandWithOutput(exec.Command(dockerBinary, "run", "busybox", "cat", "/proc/latency_stats"))
+	if err != nil || code != 0 {
+		c.Fatal(err)
+	}
+	if strings.Trim(out, "\n ") != "" {
+		c.Fatalf("expected to receive no output from /proc/latency_stats but received %q", out)
+	}
+}
+
+func (s *DockerSuite) TestMountIntoProc(c *check.C) {
+	defer deleteAllContainers()
+	code, err := runCommand(exec.Command(dockerBinary, "run", "-v", "/proc//sys", "busybox", "true"))
+	if err == nil || code == 0 {
+		c.Fatal("container should not be able to mount into /proc")
+	}
+}
+
+func (s *DockerSuite) TestMountIntoSys(c *check.C) {
+	defer deleteAllContainers()
+	code, err := runCommand(exec.Command(dockerBinary, "run", "-v", "/sys/", "busybox", "true"))
+	if err == nil || code == 0 {
+		c.Fatal("container should not be able to mount into /sys")
+	}
+}

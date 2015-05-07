@@ -6,12 +6,10 @@ import (
 	"errors"
 	"fmt"
 	"net"
-	"path/filepath"
 	"strings"
 	"syscall"
 
 	"github.com/docker/docker/daemon/execdriver"
-	"github.com/docker/docker/pkg/symlink"
 	"github.com/docker/libcontainer/apparmor"
 	"github.com/docker/libcontainer/configs"
 	"github.com/docker/libcontainer/devices"
@@ -231,10 +229,6 @@ func (d *driver) setupMounts(container *configs.Config, c *execdriver.Command) e
 	container.Mounts = defaultMounts
 
 	for _, m := range c.Mounts {
-		dest, err := symlink.FollowSymlinkInScope(filepath.Join(c.Rootfs, m.Destination), c.Rootfs)
-		if err != nil {
-			return err
-		}
 		flags := syscall.MS_BIND | syscall.MS_REC
 		if !m.Writable {
 			flags |= syscall.MS_RDONLY
@@ -242,10 +236,9 @@ func (d *driver) setupMounts(container *configs.Config, c *execdriver.Command) e
 		if m.Slave {
 			flags |= syscall.MS_SLAVE
 		}
-
 		container.Mounts = append(container.Mounts, &configs.Mount{
 			Source:      m.Source,
-			Destination: dest,
+			Destination: m.Destination,
 			Device:      "bind",
 			Flags:       flags,
 		})
