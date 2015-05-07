@@ -127,7 +127,7 @@ func expectTokenOrQuoted(s string) (value string, rest string) {
 			p := make([]byte, len(s)-1)
 			j := copy(p, s[:i])
 			escape := true
-			for i = i + i; i < len(s); i++ {
+			for i = i + 1; i < len(s); i++ {
 				b := s[i]
 				switch {
 				case escape:

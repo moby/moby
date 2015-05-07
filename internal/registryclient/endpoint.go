@@ -117,6 +117,8 @@ func (e *RepositoryEndpoint) URLBuilder() (*v2.URLBuilder, error) {
 
 // HTTPClient returns a new HTTP client configured for this endpoint
 func (e *RepositoryEndpoint) HTTPClient(name string) (*http.Client, error) {
+	// TODO(dmcgowan): create http.Transport
+
 	transport := &repositoryTransport{
 		Header: e.Header,
 	}
