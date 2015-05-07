@@ -58,7 +58,7 @@ for version in "${versions[@]}"; do
 	echo >> "$version/Dockerfile"
 
 	awk '$1 == "ENV" && $2 == "GO_VERSION" { print; exit }' ../../../Dockerfile >> "$version/Dockerfile"
-	echo 'RUN curl -fsSL "https://storage.googleapis.com/golang/go${GO_VERSION}.linux-amd64.tar.gz" | tar xvzC /usr/local' >> "$version/Dockerfile"
+	echo 'RUN curl -fSL "https://storage.googleapis.com/golang/go${GO_VERSION}.linux-amd64.tar.gz" | tar xzC /usr/local' >> "$version/Dockerfile"
 	echo 'ENV PATH $PATH:/usr/local/go/bin' >> "$version/Dockerfile"
 
 	echo >> "$version/Dockerfile"
