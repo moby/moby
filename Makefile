@@ -47,6 +47,9 @@ binary: build
 cross: build
 	$(DOCKER_RUN_DOCKER) hack/make.sh binary cross
 
+dynbinary: build
+	$(DOCKER_RUN_DOCKER) hack/make.sh dynbinary
+
 docs: docs-build
 	$(DOCKER_RUN_DOCS) -p $(if $(DOCSPORT),$(DOCSPORT):)8000 "$(DOCKER_DOCS_IMAGE)" mkdocs serve
 
