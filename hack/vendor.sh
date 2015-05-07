@@ -36,26 +36,23 @@ clone() {
 	echo -n 'rm VCS, '
 	( cd $target_dir && rm -rf .{git,hg} )
 
+	echo -n 'rm vendor, '
+	( cd $target_dir && rm -rf vendor Godeps/_workspace )
+
 	echo done
 }
 
-clone git github.com/kr/pty 05017fcccf
-
-clone git github.com/gorilla/context 14f550f51a
-
-clone git github.com/gorilla/mux e444e69cbd
-
-clone git github.com/tchap/go-patricia v2.1.0
-
-clone hg code.google.com/p/go.net 84a4013f96e0
-
-clone hg code.google.com/p/gosqlite 74691fb6f837
-
+# the following lines are in sorted order, FYI
+clone git github.com/Sirupsen/logrus v0.7.3 # logrus is a common dependency among multiple deps
 clone git github.com/docker/libtrust 230dfd18c232
-
-clone git github.com/go-fsnotify/fsnotify v1.2.0
-
 clone git github.com/go-check/check 64131543e7896d5bcc6bd5a76287eb75ea96c673
+clone git github.com/go-fsnotify/fsnotify v1.2.0
+clone git github.com/gorilla/context 14f550f51a
+clone git github.com/gorilla/mux e444e69cbd
+clone git github.com/kr/pty 05017fcccf
+clone git github.com/tchap/go-patricia v2.1.0
+clone hg code.google.com/p/go.net 84a4013f96e0
+clone hg code.google.com/p/gosqlite 74691fb6f837
 
 # get distribution packages
 clone git github.com/docker/distribution d957768537c5af40e4f4cd96871f7b2bde9e2923
@@ -67,8 +64,8 @@ mv tmp-digest src/github.com/docker/distribution/digest
 mkdir -p src/github.com/docker/distribution/registry
 mv tmp-api src/github.com/docker/distribution/registry/api
 
-clone git github.com/docker/libcontainer 1b471834b45063b61e0aedefbb1739a8f34b414e
-# see src/github.com/docker/libcontainer/update-vendor.sh which is the "source of truth" for libcontainer deps (just like this file)
-rm -rf src/github.com/docker/libcontainer/vendor
-eval "$(grep '^clone ' src/github.com/docker/libcontainer/update-vendor.sh | grep -v 'github.com/codegangsta/cli')"
-# we exclude "github.com/codegangsta/cli" here because it's only needed for "nsinit", which Docker doesn't include
+clone git github.com/docker/libcontainer 90f8aa670f1f424041059060c7c63fe4dee2e441
+# libcontainer deps (see src/github.com/docker/libcontainer/update-vendor.sh)
+clone git github.com/coreos/go-systemd v2
+clone git github.com/godbus/dbus v2
+clone git github.com/syndtr/gocapability 8e4cdcb

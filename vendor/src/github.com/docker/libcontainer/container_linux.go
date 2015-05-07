@@ -11,7 +11,7 @@ import (
 	"sync"
 	"syscall"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/libcontainer/cgroups"
 	"github.com/docker/libcontainer/configs"
 )
@@ -102,7 +102,7 @@ func (c *linuxContainer) Start(process *Process) error {
 	if err := parent.start(); err != nil {
 		// terminate the process to ensure that it properly is reaped.
 		if err := parent.terminate(); err != nil {
-			log.Warn(err)
+			logrus.Warn(err)
 		}
 		return newSystemError(err)
 	}
@@ -227,7 +227,7 @@ func (c *linuxContainer) Destroy() error {
 	}
 	if !c.config.Namespaces.Contains(configs.NEWPID) {
 		if err := killCgroupProcesses(c.cgroupManager); err != nil {
-			log.Warn(err)
+			logrus.Warn(err)
 		}
 	}
 	err = c.cgroupManager.Destroy()

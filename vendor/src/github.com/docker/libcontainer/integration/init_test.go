@@ -1,11 +1,13 @@
 package integration
 
 import (
-	"log"
 	"os"
 	"runtime"
+	"testing"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/libcontainer"
+	"github.com/docker/libcontainer/cgroups/systemd"
 	_ "github.com/docker/libcontainer/nsenter"
 )
 
@@ -19,9 +21,40 @@ func init() {
 	runtime.LockOSThread()
 	factory, err := libcontainer.New("")
 	if err != nil {
-		log.Fatalf("unable to initialize for container: %s", err)
+		logrus.Fatalf("unable to initialize for container: %s", err)
 	}
 	if err := factory.StartInitialization(); err != nil {
-		log.Fatal(err)
+		logrus.Fatal(err)
 	}
+}
+
+var (
+	factory        libcontainer.Factory
+	systemdFactory libcontainer.Factory
+)
+
+func TestMain(m *testing.M) {
+	var (
+		err error
+		ret int = 0
+	)
+
+	logrus.SetOutput(os.Stderr)
+	logrus.SetLevel(logrus.InfoLevel)
+
+	factory, err = libcontainer.New(".", libcontainer.Cgroupfs)
+	if err != nil {
+		logrus.Error(err)
+		os.Exit(1)
+	}
+	if systemd.UseSystemd() {
+		systemdFactory, err = libcontainer.New(".", libcontainer.SystemdCgroups)
+		if err != nil {
+			logrus.Error(err)
+			os.Exit(1)
+		}
+	}
+
+	ret = m.Run()
+	os.Exit(ret)
 }

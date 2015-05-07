@@ -3,7 +3,7 @@ package main
 import (
 	"os"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/codegangsta/cli"
 )
 
@@ -29,18 +29,18 @@ func main() {
 	}
 	app.Before = func(context *cli.Context) error {
 		if context.GlobalBool("debug") {
-			log.SetLevel(log.DebugLevel)
+			logrus.SetLevel(logrus.DebugLevel)
 		}
 		if path := context.GlobalString("log-file"); path != "" {
 			f, err := os.Create(path)
 			if err != nil {
 				return err
 			}
-			log.SetOutput(f)
+			logrus.SetOutput(f)
 		}
 		return nil
 	}
 	if err := app.Run(os.Args); err != nil {
-		log.Fatal(err)
+		logrus.Fatal(err)
 	}
 }
