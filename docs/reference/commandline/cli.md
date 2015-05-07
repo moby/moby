@@ -976,6 +976,9 @@ relative to the root of the container's filesystem.
 
     Copy files/folders from the PATH to the HOSTDIR.
 
+This command respects shell globs inside the container's filesystem. For instance:
+
+    docker cp CONTAINER:/tmp/* /tmp
 
 ## create
 

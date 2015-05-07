@@ -596,6 +596,80 @@ func (s *DockerSuite) TestCpNameHasColon(c *check.C) {
 	}
 }
 
+func (s *DockerSuite) TestCpGlob(c *check.C) {
+	command := "mkdir '/other' && mkdir -p '/some/path/other' && echo -n '" + cpContainerContents + "' > " + cpFullPath + " && echo -n '" + cpContainerContents + "' > /some/path/other/test"
+
+	out, exitCode := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", command)
+	if exitCode != 0 {
+		c.Fatal("failed to create a container", out)
+	}
+
+	cleanedContainerID := strings.TrimSpace(out)
+
+	out, _ = dockerCmd(c, "wait", cleanedContainerID)
+	if strings.TrimSpace(out) != "0" {
+		c.Fatal("failed to set up container", out)
+	}
+
+	cases := []struct {
+		pathMatch string
+		tmpName   []string
+		fail      bool
+	}{
+		{path.Join(cpTestPath, "notfound"), []string{}, true},
+		{path.Join(cpTestPath, "*"), []string{cpTestName}, false},
+		{path.Join(cpTestPath, "t[a-z]st"), []string{cpTestName}, false},
+		{path.Join(cpTestPath, "*"), []string{cpTestName, filepath.Join("other", cpTestName)}, false},
+		{path.Join(cpTestPathParent, "*"), []string{filepath.Join("path", cpTestName)}, false},
+		{path.Join(cpTestPathParent, "**/*"), []string{cpTestName, filepath.Join("other", cpTestName)}, false},
+		{"/*", []string{"some", "other"}, false},
+		{"/", []string{"some", "other"}, false},
+		{"", []string{}, true},
+	}
+
+	for _, cs := range cases {
+		tmpdir, err := ioutil.TempDir("", "docker-integration")
+
+		if err != nil {
+			c.Fatal(err)
+		}
+		defer os.RemoveAll(tmpdir)
+
+		out, status, err := runCommandWithOutput(exec.Command(dockerBinary, "cp", cleanedContainerID+":"+cs.pathMatch, tmpdir))
+		if cs.fail {
+			if err == nil {
+				c.Fatalf("Expected error, found %v, status %d\n", out, status)
+			}
+			continue
+		}
+
+		for _, tmpName := range cs.tmpName {
+			fPath := filepath.Join(tmpdir, tmpName)
+			fi, err := os.Lstat(fPath)
+			if err != nil {
+				c.Fatal(err)
+			}
+
+			if fi.IsDir() {
+				continue
+			}
+
+			test, err := ioutil.ReadFile(fPath)
+			if err != nil {
+				c.Fatal(err)
+			}
+
+			if string(test) == cpHostContents {
+				c.Errorf("output matched host file -- %s - %s\n", cs.pathMatch, cs.tmpName)
+			}
+
+			if string(test) != cpContainerContents {
+				c.Errorf("output doesn't match the input -- %s - %s\n", cs.pathMatch, cs.tmpName)
+			}
+		}
+	}
+}
+
 func (s *DockerSuite) TestCopyAndRestart(c *check.C) {
 	expectedMsg := "hello"
 	out, err := exec.Command(dockerBinary, "run", "-d", "busybox", "echo", expectedMsg).CombinedOutput()
