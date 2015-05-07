@@ -686,14 +686,14 @@ func (daemon *Daemon) RegisterLink(parent, child *Container, alias string) error
 func (daemon *Daemon) RegisterLinks(container *Container, hostConfig *runconfig.HostConfig) error {
 	if hostConfig != nil && hostConfig.Links != nil {
 		for _, l := range hostConfig.Links {
-			parts, err := parsers.PartParser("name:alias", l)
+			name, alias, err := parsers.ParseLink(l)
 			if err != nil {
 				return err
 			}
-			child, err := daemon.Get(parts["name"])
+			child, err := daemon.Get(name)
 			if err != nil {
 				//An error from daemon.Get() means this name could not be found
-				return fmt.Errorf("Could not get container for %s", parts["name"])
+				return fmt.Errorf("Could not get container for %s", name)
 			}
 			for child.hostConfig.NetworkMode.IsContainer() {
 				parts := strings.SplitN(string(child.hostConfig.NetworkMode), ":", 2)
@@ -705,7 +705,7 @@ func (daemon *Daemon) RegisterLinks(container *Container, hostConfig *runconfig.
 			if child.hostConfig.NetworkMode.IsHost() {
 				return runconfig.ErrConflictHostNetworkAndLinks
 			}
-			if err := daemon.RegisterLink(container, child, parts["alias"]); err != nil {
+			if err := daemon.RegisterLink(container, child, alias); err != nil {
 				return err
 			}
 		}

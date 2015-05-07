@@ -196,7 +196,7 @@ func ValidateAttach(val string) (string, error) {
 }
 
 func ValidateLink(val string) (string, error) {
-	if _, err := parsers.PartParser("name:alias", val); err != nil {
+	if _, _, err := parsers.ParseLink(val); err != nil {
 		return val, err
 	}
 	return val, nil

@@ -114,7 +114,7 @@ You can also use `docker inspect` to return the container's name.
     $ docker inspect -f "{{ .Name }}" aed84ee21bde
     /web
 
-> **Note:** 
+> **Note:**
 > Container names have to be unique. That means you can only call
 > one container `web`. If you want to re-use a container name you must delete
 > the old container (with `docker rm`) before you can create a new
@@ -151,6 +151,14 @@ earlier. The `--link` flag takes the form:
 
 Where `name` is the name of the container we're linking to and `alias` is an
 alias for the link name. You'll see how that alias gets used shortly.
+The `--link` flag also takes the form:
+
+	--link <name or id>
+
+In which case the alias will match the name. You could have written the previous
+example as:
+
+    $ docker run -d -P --name web --link db training/webapp python app.py
 
 Next, inspect your linked containers with `docker inspect`:
 

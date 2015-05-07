@@ -135,3 +135,17 @@ func ParsePortRange(ports string) (uint64, uint64, error) {
 	}
 	return start, end, nil
 }
+
+func ParseLink(val string) (string, string, error) {
+	if val == "" {
+		return "", "", fmt.Errorf("empty string specified for links")
+	}
+	arr := strings.Split(val, ":")
+	if len(arr) > 2 {
+		return "", "", fmt.Errorf("bad format for links: %s", val)
+	}
+	if len(arr) == 1 {
+		return val, val, nil
+	}
+	return arr[0], arr[1], nil
+}

@@ -133,7 +133,8 @@ two memory nodes.
    Read labels from a file. Delimit each label with an EOL.
 
 **--link**=[]
-   Add link to another container in the form of <name or id>:alias
+   Add link to another container in the form of <name or id>:alias or just
+   <name or id> in which case the alias will match the name.
 
 **--lxc-conf**=[]
    (lxc exec-driver only) Add custom lxc options --lxc-conf="lxc.cgroup.cpuset.cpus = 0,1"

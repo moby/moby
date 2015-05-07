@@ -232,7 +232,8 @@ ENTRYPOINT.
    Read in a line delimited file of labels
 
 **--link**=[]
-   Add link to another container in the form of <name or id>:alias
+   Add link to another container in the form of <name or id>:alias or just <name or id>
+in which case the alias will match the name
 
    If the operator
 uses **--link** when starting the new client container, then the client
