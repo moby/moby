@@ -1,0 +1,85 @@
+{
+	"ImportPath": "github.com/docker/libnetwork",
+	"GoVersion": "go1.4.1",
+	"Packages": [
+		"./..."
+	],
+	"Deps": [
+		{
+			"ImportPath": "github.com/Sirupsen/logrus",
+			"Comment": "v0.6.4-12-g467d9d5",
+			"Rev": "467d9d55c2d2c17248441a8fc661561161f40d5e"
+		},
+		{
+			"ImportPath": "github.com/docker/docker/pkg/homedir",
+			"Comment": "v1.4.1-3479-ga9172f5",
+			"Rev": "a9172f572e13086859c652e2d581950e910d63d4"
+		},
+		{
+			"ImportPath": "github.com/docker/docker/pkg/ioutils",
+			"Comment": "v1.4.1-3479-ga9172f5",
+			"Rev": "a9172f572e13086859c652e2d581950e910d63d4"
+		},
+		{
+			"ImportPath": "github.com/docker/docker/pkg/mflag",
+			"Comment": "v1.4.1-3479-ga9172f5",
+			"Rev": "a9172f572e13086859c652e2d581950e910d63d4"
+		},
+		{
+			"ImportPath": "github.com/docker/docker/pkg/parsers",
+			"Comment": "v1.4.1-3479-ga9172f5",
+			"Rev": "a9172f572e13086859c652e2d581950e910d63d4"
+		},
+		{
+			"ImportPath": "github.com/docker/docker/pkg/plugins",
+			"Comment": "v1.4.1-3479-ga9172f5",
+			"Rev": "a9172f572e13086859c652e2d581950e910d63d4"
+		},
+		{
+			"ImportPath": "github.com/docker/docker/pkg/proxy",
+			"Comment": "v1.4.1-3479-ga9172f5",
+			"Rev": "a9172f572e13086859c652e2d581950e910d63d4"
+		},
+		{
+			"ImportPath": "github.com/docker/docker/pkg/reexec",
+			"Comment": "v1.4.1-3479-ga9172f5",
+			"Rev": "a9172f572e13086859c652e2d581950e910d63d4"
+		},
+		{
+			"ImportPath": "github.com/docker/docker/pkg/stringid",
+			"Comment": "v1.4.1-3479-ga9172f5",
+			"Rev": "a9172f572e13086859c652e2d581950e910d63d4"
+		},
+		{
+			"ImportPath": "github.com/docker/docker/pkg/term",
+			"Comment": "v1.4.1-3479-ga9172f5",
+			"Rev": "a9172f572e13086859c652e2d581950e910d63d4"
+		},
+		{
+			"ImportPath": "github.com/docker/libcontainer/user",
+			"Comment": "v1.4.0-495-g3e66118",
+			"Rev": "3e661186ba24f259d3860f067df052c7f6904bee"
+		},
+		{
+			"ImportPath": "github.com/godbus/dbus",
+			"Comment": "v2-3-g4160802",
+			"Rev": "41608027bdce7bfa8959d653a00b954591220e67"
+		},
+		{
+			"ImportPath": "github.com/gorilla/context",
+			"Rev": "215affda49addc4c8ef7e2534915df2c8c35c6cd"
+		},
+		{
+			"ImportPath": "github.com/gorilla/mux",
+			"Rev": "8096f47503459bcc74d1f4c487b7e6e42e5746b5"
+		},
+		{
+			"ImportPath": "github.com/vishvananda/netlink",
+			"Rev": "8eb64238879fed52fd51c5b30ad20b928fb4c36c"
+		},
+		{
+			"ImportPath": "github.com/vishvananda/netns",
+			"Rev": "008d17ae001344769b031375bdb38a86219154c6"
+		}
+	]
+}
