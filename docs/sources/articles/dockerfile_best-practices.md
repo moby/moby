@@ -9,7 +9,7 @@ page_keywords: Examples, Usage, base image, docker, documentation, dockerfile, b
 Docker can build images automatically by reading the instructions from a
 `Dockerfile`, a text file that contains all the commands, in order, needed to
 build a given image. `Dockerfile`s adhere to a specific format and use a
-specific set of instructions. You can learn the basics on the 
+specific set of instructions. You can learn the basics on the
 [Dockerfile Reference](https://docs.docker.com/reference/builder/) page. If
 you’re new to writing `Dockerfile`s, you should start there.
 
@@ -37,9 +37,9 @@ set-up and configuration.
 In most cases, it's best to put each Dockerfile in an empty directory. Then,
 add to that directory only the files needed for building the Dockerfile. To
 increase the build's performance, you can exclude files and directories by
-adding a `.dockerignore` file to that directory as well. This file supports 
+adding a `.dockerignore` file to that directory as well. This file supports
 exclusion patterns similar to `.gitignore` files. For information on creating one,
-see the [.dockerignore file](../../reference/builder/#dockerignore-file).
+see the [.dockerignore file](https://github.com/docker/docker/blob/master/.dockerignore).
 
 ### Avoid installing unnecessary packages
 
@@ -192,7 +192,7 @@ Writing the instruction this way also helps you avoid potential duplication of
 a given package because it is much easier to read than an instruction like:
 
     RUN apt-get install -y package-foo && apt-get install -y package-bar
-    
+
 ### [`CMD`](https://docs.docker.com/reference/builder/#cmd)
 
 The `CMD` instruction should be used to run the software contained by your
@@ -209,7 +209,7 @@ perl, etc), for example, `CMD ["perl", "-de0"]`, `CMD ["python"]`, or
 `CMD` should rarely be used in the manner of `CMD [“param”, “param”]` in
 conjunction with [`ENTRYPOINT`](https://docs.docker.com/reference/builder/#entrypoint), unless
 you and your expected users are already quite familiar with how `ENTRYPOINT`
-works. 
+works.
 
 ### [`EXPOSE`](https://docs.docker.com/reference/builder/#expose)
 
@@ -385,7 +385,7 @@ You should avoid installing or using `sudo` since it has unpredictable TTY and
 signal-forwarding behavior that can cause more problems than it solves. If
 you absolutely need functionality similar to `sudo` (e.g., initializing the
 daemon as root but running it as non-root), you may be able to use
-[“gosu”](https://github.com/tianon/gosu). 
+[“gosu”](https://github.com/tianon/gosu).
 
 Lastly, to reduce layers and complexity, avoid switching `USER` back
 and forth frequently.
@@ -410,7 +410,7 @@ A Docker build executes `ONBUILD` commands before any command in a child
 `ONBUILD` is useful for images that are going to be built `FROM` a given
 image. For example, you would use `ONBUILD` for a language stack image that
 builds arbitrary user software written in that language within the
-`Dockerfile`, as you can see in [Ruby’s `ONBUILD` variants](https://github.com/docker-library/ruby/blob/master/2.1/onbuild/Dockerfile). 
+`Dockerfile`, as you can see in [Ruby’s `ONBUILD` variants](https://github.com/docker-library/ruby/blob/master/2.1/onbuild/Dockerfile).
 
 Images built from `ONBUILD` should get a separate tag, for example:
 `ruby:1.9-onbuild` or `ruby:2.0-onbuild`.
@@ -434,5 +434,5 @@ These Official Repositories have exemplary `Dockerfile`s:
 * [Dockerfile Reference](https://docs.docker.com/reference/builder/#onbuild)
 * [More about Base Images](https://docs.docker.com/articles/baseimages/)
 * [More about Automated Builds](https://docs.docker.com/docker-hub/builds/)
-* [Guidelines for Creating Official 
+* [Guidelines for Creating Official
 Repositories](https://docs.docker.com/docker-hub/official_repos/)
