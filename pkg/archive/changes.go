@@ -174,10 +174,6 @@ func (info *FileInfo) path() string {
 	return filepath.Join(info.parent.path(), info.name)
 }
 
-func (info *FileInfo) isDir() bool {
-	return info.parent == nil || info.stat.Mode()&syscall.S_IFDIR != 0
-}
-
 func (info *FileInfo) addChanges(oldInfo *FileInfo, changes *[]Change) {
 
 	sizeAtEntry := len(*changes)
@@ -214,13 +210,7 @@ func (info *FileInfo) addChanges(oldInfo *FileInfo, changes *[]Change) {
 			// be visible when actually comparing the stat fields. The only time this
 			// breaks down is if some code intentionally hides a change by setting
 			// back mtime
-			if oldStat.Mode() != newStat.Mode() ||
-				oldStat.Uid() != newStat.Uid() ||
-				oldStat.Gid() != newStat.Gid() ||
-				oldStat.Rdev() != newStat.Rdev() ||
-				// Don't look at size for dirs, its not a good measure of change
-				(oldStat.Mode()&syscall.S_IFDIR != syscall.S_IFDIR &&
-					(!sameFsTimeSpec(oldStat.Mtim(), newStat.Mtim()) || (oldStat.Size() != newStat.Size()))) ||
+			if statDifferent(oldStat, newStat) ||
 				bytes.Compare(oldChild.capability, newChild.capability) != 0 {
 				change := Change{
 					Path: newChild.path(),
