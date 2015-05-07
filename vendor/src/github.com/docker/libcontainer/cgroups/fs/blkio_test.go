@@ -67,6 +67,8 @@ Total 22061056`
 252:0 Async 164
 252:0 Total 164
 Total 328`
+	throttleBefore = `8:0 1024`
+	throttleAfter  = `8:0 2048`
 )
 
 func appendBlkioStatEntry(blkioStatEntries *[]cgroups.BlkioStatEntry, major, minor, value uint64, op string) {
@@ -99,6 +101,35 @@ func TestBlkioSetWeight(t *testing.T) {
 
 	if value != weightAfter {
 		t.Fatal("Got the wrong value, set blkio.weight failed.")
+	}
+}
+
+func TestBlkioSetWeightDevice(t *testing.T) {
+	helper := NewCgroupTestUtil("blkio", t)
+	defer helper.cleanup()
+
+	const (
+		weightDeviceBefore = "8:0 400"
+		weightDeviceAfter  = "8:0 500"
+	)
+
+	helper.writeFileContents(map[string]string{
+		"blkio.weight_device": weightDeviceBefore,
+	})
+
+	helper.CgroupData.c.BlkioWeightDevice = weightDeviceAfter
+	blkio := &BlkioGroup{}
+	if err := blkio.Set(helper.CgroupPath, helper.CgroupData.c); err != nil {
+		t.Fatal(err)
+	}
+
+	value, err := getCgroupParamString(helper.CgroupPath, "blkio.weight_device")
+	if err != nil {
+		t.Fatalf("Failed to parse blkio.weight_device - %s", err)
+	}
+
+	if value != weightDeviceAfter {
+		t.Fatal("Got the wrong value, set blkio.weight_device failed.")
 	}
 }
 
@@ -441,4 +472,97 @@ func TestNonCFQBlkioStats(t *testing.T) {
 	appendBlkioStatEntry(&expectedStats.IoServicedRecursive, 252, 0, 164, "Total")
 
 	expectBlkioStatsEquals(t, expectedStats, actualStats.BlkioStats)
+}
+
+func TestBlkioSetThrottleReadBpsDevice(t *testing.T) {
+	helper := NewCgroupTestUtil("blkio", t)
+	defer helper.cleanup()
+
+	helper.writeFileContents(map[string]string{
+		"blkio.throttle.read_bps_device": throttleBefore,
+	})
+
+	helper.CgroupData.c.BlkioThrottleReadBpsDevice = throttleAfter
+	blkio := &BlkioGroup{}
+	if err := blkio.Set(helper.CgroupPath, helper.CgroupData.c); err != nil {
+		t.Fatal(err)
+	}
+
+	value, err := getCgroupParamString(helper.CgroupPath, "blkio.throttle.read_bps_device")
+	if err != nil {
+		t.Fatalf("Failed to parse blkio.throttle.read_bps_device - %s", err)
+	}
+
+	if value != throttleAfter {
+		t.Fatal("Got the wrong value, set blkio.throttle.read_bps_device failed.")
+	}
+}
+func TestBlkioSetThrottleWriteBpsDevice(t *testing.T) {
+	helper := NewCgroupTestUtil("blkio", t)
+	defer helper.cleanup()
+
+	helper.writeFileContents(map[string]string{
+		"blkio.throttle.write_bps_device": throttleBefore,
+	})
+
+	helper.CgroupData.c.BlkioThrottleWriteBpsDevice = throttleAfter
+	blkio := &BlkioGroup{}
+	if err := blkio.Set(helper.CgroupPath, helper.CgroupData.c); err != nil {
+		t.Fatal(err)
+	}
+
+	value, err := getCgroupParamString(helper.CgroupPath, "blkio.throttle.write_bps_device")
+	if err != nil {
+		t.Fatalf("Failed to parse blkio.throttle.write_bps_device - %s", err)
+	}
+
+	if value != throttleAfter {
+		t.Fatal("Got the wrong value, set blkio.throttle.write_bps_device failed.")
+	}
+}
+func TestBlkioSetThrottleReadIOpsDevice(t *testing.T) {
+	helper := NewCgroupTestUtil("blkio", t)
+	defer helper.cleanup()
+
+	helper.writeFileContents(map[string]string{
+		"blkio.throttle.read_iops_device": throttleBefore,
+	})
+
+	helper.CgroupData.c.BlkioThrottleReadIOpsDevice = throttleAfter
+	blkio := &BlkioGroup{}
+	if err := blkio.Set(helper.CgroupPath, helper.CgroupData.c); err != nil {
+		t.Fatal(err)
+	}
+
+	value, err := getCgroupParamString(helper.CgroupPath, "blkio.throttle.read_iops_device")
+	if err != nil {
+		t.Fatalf("Failed to parse blkio.throttle.read_iops_device - %s", err)
+	}
+
+	if value != throttleAfter {
+		t.Fatal("Got the wrong value, set blkio.throttle.read_iops_device failed.")
+	}
+}
+func TestBlkioSetThrottleWriteIOpsDevice(t *testing.T) {
+	helper := NewCgroupTestUtil("blkio", t)
+	defer helper.cleanup()
+
+	helper.writeFileContents(map[string]string{
+		"blkio.throttle.write_iops_device": throttleBefore,
+	})
+
+	helper.CgroupData.c.BlkioThrottleWriteIOpsDevice = throttleAfter
+	blkio := &BlkioGroup{}
+	if err := blkio.Set(helper.CgroupPath, helper.CgroupData.c); err != nil {
+		t.Fatal(err)
+	}
+
+	value, err := getCgroupParamString(helper.CgroupPath, "blkio.throttle.write_iops_device")
+	if err != nil {
+		t.Fatalf("Failed to parse blkio.throttle.write_iops_device - %s", err)
+	}
+
+	if value != throttleAfter {
+		t.Fatal("Got the wrong value, set blkio.throttle.write_iops_device failed.")
+	}
 }

@@ -40,14 +40,15 @@ type network struct {
 
 // initConfig is used for transferring parameters from Exec() to Init()
 type initConfig struct {
-	Args         []string        `json:"args"`
-	Env          []string        `json:"env"`
-	Cwd          string          `json:"cwd"`
-	Capabilities []string        `json:"capabilities"`
-	User         string          `json:"user"`
-	Config       *configs.Config `json:"config"`
-	Console      string          `json:"console"`
-	Networks     []*network      `json:"network"`
+	Args             []string        `json:"args"`
+	Env              []string        `json:"env"`
+	Cwd              string          `json:"cwd"`
+	Capabilities     []string        `json:"capabilities"`
+	User             string          `json:"user"`
+	Config           *configs.Config `json:"config"`
+	Console          string          `json:"console"`
+	Networks         []*network      `json:"network"`
+	PassedFilesCount int             `json:"passed_files_count"`
 }
 
 type initer interface {
@@ -95,10 +96,10 @@ func populateProcessEnvironment(env []string) error {
 // and working dir, and closes any leaked file descriptors
 // before executing the command inside the namespace
 func finalizeNamespace(config *initConfig) error {
-	// Ensure that all non-standard fds we may have accidentally
+	// Ensure that all unwanted fds we may have accidentally
 	// inherited are marked close-on-exec so they stay out of the
 	// container
-	if err := utils.CloseExecFrom(3); err != nil {
+	if err := utils.CloseExecFrom(config.PassedFilesCount + 3); err != nil {
 		return err
 	}
 

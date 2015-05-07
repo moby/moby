@@ -24,7 +24,7 @@ func TestNsenterAlivePid(t *testing.T) {
 		Path:       os.Args[0],
 		Args:       args,
 		ExtraFiles: []*os.File{w},
-		Env:        []string{fmt.Sprintf("_LIBCONTAINER_INITPID=%d", os.Getpid())},
+		Env:        []string{fmt.Sprintf("_LIBCONTAINER_INITPID=%d", os.Getpid()), "_LIBCONTAINER_INITPIPE=3"},
 	}
 
 	if err := cmd.Start(); err != nil {

@@ -2,9 +2,9 @@ package fs
 
 import (
 	"fmt"
-	"log"
 	"testing"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/docker/libcontainer/cgroups"
 )
 
