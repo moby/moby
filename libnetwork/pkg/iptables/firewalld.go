@@ -8,12 +8,16 @@ import (
 	"github.com/godbus/dbus"
 )
 
+// IPV defines the table string
 type IPV string
 
 const (
-	Iptables  IPV = "ipv4"
-	Ip6tables IPV = "ipv6"
-	Ebtables  IPV = "eb"
+	// Iptables point ipv4 table
+	Iptables IPV = "ipv4"
+	// IP6tables point to ipv6 table
+	IP6tables IPV = "ipv6"
+	// Ebtables point to bridge table
+	Ebtables IPV = "eb"
 )
 const (
 	dbusInterface = "org.fedoraproject.FirewallD1"
@@ -33,6 +37,7 @@ var (
 	onReloaded       []*func() // callbacks when Firewalld has been reloaded
 )
 
+// FirewalldInit initializes firewalld management code.
 func FirewalldInit() {
 	var err error
 
@@ -97,16 +102,16 @@ func signalHandler() {
 
 func dbusConnectionChanged(args []interface{}) {
 	name := args[0].(string)
-	old_owner := args[1].(string)
-	new_owner := args[2].(string)
+	oldOwner := args[1].(string)
+	newOwner := args[2].(string)
 
 	if name != dbusInterface {
 		return
 	}
 
-	if len(new_owner) > 0 {
+	if len(newOwner) > 0 {
 		connectionEstablished()
-	} else if len(old_owner) > 0 {
+	} else if len(oldOwner) > 0 {
 		connectionLost()
 	}
 }
@@ -126,7 +131,7 @@ func reloaded() {
 	}
 }
 
-// add callback
+// OnReloaded add callback
 func OnReloaded(callback func()) {
 	for _, pf := range onReloaded {
 		if pf == &callback {
@@ -150,7 +155,7 @@ func checkRunning() bool {
 	return false
 }
 
-// Firewalld's passthrough method simply passes args through to iptables/ip6tables
+// Passthrough method simply passes args through to iptables/ip6tables
 func Passthrough(ipv IPV, args ...string) ([]byte, error) {
 	var output string
 

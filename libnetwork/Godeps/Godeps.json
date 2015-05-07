@@ -21,11 +21,6 @@
 			"Rev": "3e85803f311c3883a9b395ad046c894ea255e9be"
 		},
 		{
-			"ImportPath": "github.com/docker/docker/pkg/iptables",
-			"Comment": "v1.4.1-3152-g3e85803",
-			"Rev": "3e85803f311c3883a9b395ad046c894ea255e9be"
-		},
-		{
 			"ImportPath": "github.com/docker/docker/pkg/mflag",
 			"Comment": "v1.4.1-3152-g3e85803",
 			"Rev": "3e85803f311c3883a9b395ad046c894ea255e9be"

@@ -12,30 +12,42 @@ import (
 	"github.com/Sirupsen/logrus"
 )
 
+//Action signifies the iptable action.
 type Action string
+
+//Table refers to Nat, Filter or Mangle.
 type Table string
 
 const (
+	//Append appends the rule at the end of the chain.
 	Append Action = "-A"
+	//Delete deletes the rule from the chain.
 	Delete Action = "-D"
+	//Insert inserts the rule at the top of the chain.
 	Insert Action = "-I"
-	Nat    Table  = "nat"
-	Filter Table  = "filter"
-	Mangle Table  = "mangle"
+	//Nat table is used for nat translation rules.
+	Nat Table = "nat"
+	//Filter table is used for filter rules.
+	Filter Table = "filter"
+	//Mangle table is used for mangling the packet.
+	Mangle Table = "mangle"
 )
 
 var (
-	iptablesPath        string
-	supportsXlock       = false
+	iptablesPath  string
+	supportsXlock = false
+	//ErrIptablesNotFound is returned when the rule is not found.
 	ErrIptablesNotFound = errors.New("Iptables not found")
 )
 
+//Chain defines the iptables chain.
 type Chain struct {
 	Name   string
 	Bridge string
 	Table  Table
 }
 
+//ChainError is returned to represent errors during ip table operation.
 type ChainError struct {
 	Chain  string
 	Output []byte
@@ -58,6 +70,7 @@ func initCheck() error {
 	return nil
 }
 
+//NewChain adds a new chain to ip table.
 func NewChain(name, bridge string, table Table) (*Chain, error) {
 	c := &Chain{
 		Name:   name,
@@ -113,6 +126,7 @@ func NewChain(name, bridge string, table Table) (*Chain, error) {
 	return c, nil
 }
 
+//RemoveExistingChain removes existing chain from the table.
 func RemoveExistingChain(name string, table Table) error {
 	c := &Chain{
 		Name:  name,
@@ -124,7 +138,7 @@ func RemoveExistingChain(name string, table Table) error {
 	return c.Remove()
 }
 
-// Add forwarding rule to 'filter' table and corresponding nat rule to 'nat' table
+//Forward adds forwarding rule to 'filter' table and corresponding nat rule to 'nat' table
 func (c *Chain) Forward(action Action, ip net.IP, port int, proto, destAddr string, destPort int) error {
 	daddr := ip.String()
 	if ip.IsUnspecified() {
@@ -171,7 +185,7 @@ func (c *Chain) Forward(action Action, ip net.IP, port int, proto, destAddr stri
 	return nil
 }
 
-// Add reciprocal ACCEPT rule for two supplied IP addresses.
+//Link adds reciprocal ACCEPT rule for two supplied IP addresses.
 // Traffic is allowed from ip1 to ip2 and vice-versa
 func (c *Chain) Link(action Action, ip1, ip2 net.IP, port int, proto string) error {
 	if output, err := Raw("-t", string(Filter), string(action), c.Name,
@@ -199,7 +213,7 @@ func (c *Chain) Link(action Action, ip1, ip2 net.IP, port int, proto string) err
 	return nil
 }
 
-// Add linking rule to nat/PREROUTING chain.
+//Prerouting adds linking rule to nat/PREROUTING chain.
 func (c *Chain) Prerouting(action Action, args ...string) error {
 	a := []string{"-t", string(Nat), string(action), "PREROUTING"}
 	if len(args) > 0 {
@@ -213,7 +227,7 @@ func (c *Chain) Prerouting(action Action, args ...string) error {
 	return nil
 }
 
-// Add linking rule to an OUTPUT chain
+//Output adds linking rule to an OUTPUT chain
 func (c *Chain) Output(action Action, args ...string) error {
 	a := []string{"-t", string(c.Table), string(action), "OUTPUT"}
 	if len(args) > 0 {
@@ -227,6 +241,7 @@ func (c *Chain) Output(action Action, args ...string) error {
 	return nil
 }
 
+// Remove removes the chain
 func (c *Chain) Remove() error {
 	// Ignore errors - This could mean the chains were never set up
 	if c.Table == Nat {
@@ -242,7 +257,7 @@ func (c *Chain) Remove() error {
 	return nil
 }
 
-// Check if a rule exists
+//Exists checks if a rule exists
 func Exists(table Table, chain string, rule ...string) bool {
 	if string(table) == "" {
 		table = Filter
@@ -273,7 +288,7 @@ func Exists(table Table, chain string, rule ...string) bool {
 	)
 }
 
-// Call 'iptables' system command, passing supplied arguments
+//Raw calls 'iptables' system command, passing supplied arguments
 func Raw(args ...string) ([]byte, error) {
 	if firewalldRunning {
 		output, err := Passthrough(Iptables, args...)

@@ -7,7 +7,7 @@ import (
 	"sync"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/docker/pkg/iptables"
+	"github.com/docker/libnetwork/pkg/iptables"
 	"github.com/docker/libnetwork/pkg/portallocator"
 )
 

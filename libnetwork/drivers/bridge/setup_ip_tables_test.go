@@ -4,8 +4,8 @@ import (
 	"net"
 	"testing"
 
-	"github.com/docker/docker/pkg/iptables"
 	"github.com/docker/libnetwork/netutils"
+	"github.com/docker/libnetwork/pkg/iptables"
 )
 
 const (
