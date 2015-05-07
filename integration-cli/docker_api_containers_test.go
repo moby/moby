@@ -14,6 +14,9 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/pkg/stringid"
+
+	"github.com/docker/docker/runconfig"
+
 	"github.com/go-check/check"
 )
 
@@ -682,37 +685,97 @@ func (s *DockerSuite) TestContainerApiCreateWithHostName(c *check.C) {
 		"Hostname": hostName,
 	}
 
-	_, b, err := sockRequest("POST", "/containers/create", config)
-	if err != nil && !strings.Contains(err.Error(), "200 OK: 201") {
-		c.Fatal(err)
-	}
-	type createResp struct {
-		Id string
-	}
-	var container createResp
+	status, b, err := sockRequest("POST", "/containers/create", config)
+	c.Assert(status, check.Equals, http.StatusCreated)
+	c.Assert(err, check.IsNil)
+	var container types.ContainerCreateResponse
 	if err := json.Unmarshal(b, &container); err != nil {
 		c.Fatal(err)
 	}
 
-	var id = container.Id
+	status, bodyGet, err := sockRequest("GET", "/containers/"+container.ID+"/json", nil)
+	c.Assert(status, check.Equals, http.StatusOK)
 
-	_, bodyGet, err := sockRequest("GET", "/containers/"+id+"/json", nil)
-
-	type configLocal struct {
-		Hostname string
-	}
-	type getResponse struct {
-		Id     string
-		Config configLocal
-	}
-
-	var containerInfo getResponse
+	var containerInfo types.ContainerJSON
 	if err := json.Unmarshal(bodyGet, &containerInfo); err != nil {
 		c.Fatal(err)
 	}
 	var hostNameActual = containerInfo.Config.Hostname
 	if hostNameActual != "test-host" {
 		c.Fatalf("Mismatched Hostname, Expected %v, Actual: %v ", hostName, hostNameActual)
+	}
+}
+
+func (s *DockerSuite) TestContainerApiCreateWithDomainName(c *check.C) {
+	var domainName = "test-domain"
+	config := map[string]interface{}{
+		"Image":      "busybox",
+		"Domainname": domainName,
+	}
+
+	status, b, err := sockRequest("POST", "/containers/create", config)
+
+	c.Assert(status, check.Equals, http.StatusCreated)
+	c.Assert(err, check.IsNil)
+
+	var container types.ContainerCreateResponse
+	if err := json.Unmarshal(b, &container); err != nil {
+		c.Fatal(err)
+	}
+
+	status, bodyGet, err := sockRequest("GET", "/containers/"+container.ID+"/json", nil)
+	c.Assert(status, check.Equals, http.StatusOK)
+	if err != nil {
+		c.Fatal(err)
+	}
+
+	var containerInfo types.ContainerJSON
+	if err := json.Unmarshal(bodyGet, &containerInfo); err != nil {
+		c.Fatal(err)
+	}
+	var domainNameActual = containerInfo.Config.Domainname
+	if domainNameActual != domainName {
+		c.Fatalf("Mismatched Hostname, Expected %v, Actual: %v ", domainName, domainNameActual)
+	}
+}
+
+func (s *DockerSuite) TestContainerApiCreateNetworkMode(c *check.C) {
+	UtilCreateNetworkMode(c, "host")
+	UtilCreateNetworkMode(c, "bridge")
+	UtilCreateNetworkMode(c, "container:web1")
+}
+
+func UtilCreateNetworkMode(c *check.C, networkMode string) {
+	config := map[string]interface{}{
+		"Image":      "busybox",
+		"HostConfig": map[string]interface{}{"NetworkMode": networkMode},
+	}
+
+	status, b, err := sockRequest("POST", "/containers/create", config)
+
+	c.Assert(err, check.IsNil)
+	c.Assert(status, check.Equals, http.StatusCreated)
+
+	var container types.ContainerCreateResponse
+
+	if err := json.Unmarshal(b, &container); err != nil {
+		c.Fatal(err)
+	}
+
+	status, bodyGet, err := sockRequest("GET", "/containers/"+container.ID+"/json", nil)
+	c.Assert(status, check.Equals, http.StatusOK)
+	if err != nil {
+		c.Fatal(err)
+	}
+
+	var containerInfo types.ContainerJSON
+	if err := json.Unmarshal(bodyGet, &containerInfo); err != nil {
+		c.Fatal(err)
+	}
+
+	var networkModeActual = containerInfo.HostConfig.NetworkMode
+	if networkModeActual != runconfig.NetworkMode(networkMode) {
+		c.Fatalf("Mismatched Hostname, Expected %v, Actual: %v ", networkMode, networkModeActual)
 	}
 }
 
