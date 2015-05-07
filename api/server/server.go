@@ -76,10 +76,6 @@ func (s *Server) Close() {
 	}
 }
 
-func (s *Server) SetDaemon(d *daemon.Daemon) {
-	s.daemon = d
-}
-
 type serverCloser interface {
 	Serve() error
 	Close() error
