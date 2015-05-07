@@ -37,6 +37,16 @@ type Daemon struct {
 	storageDriver  string
 	execDriver     string
 	wait           chan error
+	userlandProxy  bool
+}
+
+func enableUserlandProxy() bool {
+	if env := os.Getenv("DOCKER_USERLANDPROXY"); env != "" {
+		if val, err := strconv.ParseBool(env); err != nil {
+			return val
+		}
+	}
+	return true
 }
 
 // NewDaemon returns a Daemon instance to be used for testing.
@@ -58,11 +68,19 @@ func NewDaemon(c *check.C) *Daemon {
 		c.Fatalf("Could not create %s/graph directory", daemonFolder)
 	}
 
+	userlandProxy := true
+	if env := os.Getenv("DOCKER_USERLANDPROXY"); env != "" {
+		if val, err := strconv.ParseBool(env); err != nil {
+			userlandProxy = val
+		}
+	}
+
 	return &Daemon{
 		c:             c,
 		folder:        daemonFolder,
 		storageDriver: os.Getenv("DOCKER_GRAPHDRIVER"),
 		execDriver:    os.Getenv("DOCKER_EXECDRIVER"),
+		userlandProxy: userlandProxy,
 	}
 }
 
@@ -79,6 +97,7 @@ func (d *Daemon) Start(arg ...string) error {
 		"--daemon",
 		"--graph", fmt.Sprintf("%s/graph", d.folder),
 		"--pidfile", fmt.Sprintf("%s/docker.pid", d.folder),
+		fmt.Sprintf("--userland-proxy=%t", d.userlandProxy),
 	}
 
 	// If we don't explicitly set the log-level or debug flag(-D) then

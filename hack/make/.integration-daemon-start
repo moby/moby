@@ -14,6 +14,7 @@ exec 41>&1 42>&2
 
 export DOCKER_GRAPHDRIVER=${DOCKER_GRAPHDRIVER:-vfs}
 export DOCKER_EXECDRIVER=${DOCKER_EXECDRIVER:-native}
+export DOCKER_USERLANDPROXY=${DOCKER_USERLANDPROXY:-true}
 
 if [ -z "$DOCKER_TEST_HOST" ]; then
 	export DOCKER_HOST="unix://$(cd "$DEST" && pwd)/docker.sock" # "pwd" tricks to make sure $DEST is an absolute path, not a relative one
@@ -23,6 +24,7 @@ if [ -z "$DOCKER_TEST_HOST" ]; then
 		--storage-driver "$DOCKER_GRAPHDRIVER" \
 		--exec-driver "$DOCKER_EXECDRIVER" \
 		--pidfile "$DEST/docker.pid" \
+		--userland-proxy="$DOCKER_USERLANDPROXY" \
 			&> "$DEST/docker.log"
 	) &
 	trap "source '${MAKEDIR}/.integration-daemon-stop'" EXIT # make sure that if the script exits unexpectedly, we stop this daemon we just started

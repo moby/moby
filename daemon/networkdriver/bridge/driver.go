@@ -8,6 +8,7 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -83,6 +84,7 @@ var (
 	gatewayIPv6       net.IP
 	portMapper        *portmapper.PortMapper
 	once              sync.Once
+	hairpinMode       bool
 
 	defaultBindingIP  = net.ParseIP("0.0.0.0")
 	currentInterfaces = ifaces{c: make(map[string]*networkInterface)}
@@ -100,6 +102,7 @@ type Config struct {
 	EnableIptables              bool
 	EnableIpForward             bool
 	EnableIpMasq                bool
+	EnableUserlandProxy         bool
 	DefaultIp                   net.IP
 	Iface                       string
 	IP                          string
@@ -130,6 +133,8 @@ func InitDriver(config *Config) error {
 	if config.DefaultIp != nil {
 		defaultBindingIP = config.DefaultIp
 	}
+
+	hairpinMode = !config.EnableUserlandProxy
 
 	bridgeIface = config.Iface
 	usingDefaultBridge := false
@@ -243,17 +248,25 @@ func InitDriver(config *Config) error {
 	if config.EnableIpForward {
 		// Enable IPv4 forwarding
 		if err := ioutil.WriteFile("/proc/sys/net/ipv4/ip_forward", []byte{'1', '\n'}, 0644); err != nil {
-			logrus.Warnf("WARNING: unable to enable IPv4 forwarding: %s\n", err)
+			logrus.Warnf("Unable to enable IPv4 forwarding: %v", err)
 		}
 
 		if config.FixedCIDRv6 != "" {
 			// Enable IPv6 forwarding
 			if err := ioutil.WriteFile("/proc/sys/net/ipv6/conf/default/forwarding", []byte{'1', '\n'}, 0644); err != nil {
-				logrus.Warnf("WARNING: unable to enable IPv6 default forwarding: %s\n", err)
+				logrus.Warnf("Unable to enable IPv6 default forwarding: %v", err)
 			}
 			if err := ioutil.WriteFile("/proc/sys/net/ipv6/conf/all/forwarding", []byte{'1', '\n'}, 0644); err != nil {
-				logrus.Warnf("WARNING: unable to enable IPv6 all forwarding: %s\n", err)
+				logrus.Warnf("Unable to enable IPv6 all forwarding: %v", err)
 			}
+		}
+	}
+
+	if hairpinMode {
+		// Enable loopback adresses routing
+		sysPath := filepath.Join("/proc/sys/net/ipv4/conf", bridgeIface, "route_localnet")
+		if err := ioutil.WriteFile(sysPath, []byte{'1', '\n'}, 0644); err != nil {
+			logrus.Warnf("Unable to enable local routing for hairpin mode: %v", err)
 		}
 	}
 
@@ -263,19 +276,18 @@ func InitDriver(config *Config) error {
 	}
 
 	if config.EnableIptables {
-		_, err := iptables.NewChain("DOCKER", bridgeIface, iptables.Nat)
+		_, err := iptables.NewChain("DOCKER", bridgeIface, iptables.Nat, hairpinMode)
 		if err != nil {
 			return err
 		}
 		// call this on Firewalld reload
-		iptables.OnReloaded(func() { iptables.NewChain("DOCKER", bridgeIface, iptables.Nat) })
-
-		chain, err := iptables.NewChain("DOCKER", bridgeIface, iptables.Filter)
+		iptables.OnReloaded(func() { iptables.NewChain("DOCKER", bridgeIface, iptables.Nat, hairpinMode) })
+		chain, err := iptables.NewChain("DOCKER", bridgeIface, iptables.Filter, hairpinMode)
 		if err != nil {
 			return err
 		}
 		// call this on Firewalld reload
-		iptables.OnReloaded(func() { iptables.NewChain("DOCKER", bridgeIface, iptables.Filter) })
+		iptables.OnReloaded(func() { iptables.NewChain("DOCKER", bridgeIface, iptables.Filter, hairpinMode) })
 
 		portMapper.SetIptablesChain(chain)
 	}
@@ -370,6 +382,18 @@ func setupIPTables(addr net.Addr, icc, ipmasq bool) error {
 				return fmt.Errorf("Unable to allow intercontainer communication: %s", err)
 			} else if len(output) != 0 {
 				return fmt.Errorf("Error enabling intercontainer communication: %s", output)
+			}
+		}
+	}
+
+	// In hairpin mode, masquerade traffic from localhost
+	if hairpinMode {
+		masqueradeArgs := []string{"-t", "nat", "-m", "addrtype", "--src-type", "LOCAL", "-o", bridgeIface, "-j", "MASQUERADE"}
+		if !iptables.Exists(iptables.Filter, "POSTROUTING", masqueradeArgs...) {
+			if output, err := iptables.Raw(append([]string{"-I", "POSTROUTING"}, masqueradeArgs...)...); err != nil {
+				return fmt.Errorf("Unable to masquerade local traffic: %s", err)
+			} else if len(output) != 0 {
+				return fmt.Errorf("Error iptables masquerade local traffic: %s", output)
 			}
 		}
 	}
@@ -637,6 +661,7 @@ func Allocate(id, requestedMac, requestedIP, requestedIPv6 string) (*network.Set
 		Bridge:               bridgeIface,
 		IPPrefixLen:          maskSize,
 		LinkLocalIPv6Address: localIPv6.String(),
+		HairpinMode:          hairpinMode,
 	}
 
 	if globalIPv6Network != nil {
@@ -722,7 +747,7 @@ func AllocatePort(id string, port nat.Port, binding nat.PortBinding) (nat.PortBi
 		return nat.PortBinding{}, err
 	}
 	for i := 0; i < MaxAllocatedPortAttempts; i++ {
-		if host, err = portMapper.Map(container, ip, hostPort); err == nil {
+		if host, err = portMapper.Map(container, ip, hostPort, !hairpinMode); err == nil {
 			break
 		}
 		// There is no point in immediately retrying to map an explicitly

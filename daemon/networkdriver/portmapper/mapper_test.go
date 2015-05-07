@@ -44,22 +44,22 @@ func TestMapPorts(t *testing.T) {
 		return (addr1.Network() == addr2.Network()) && (addr1.String() == addr2.String())
 	}
 
-	if host, err := pm.Map(srcAddr1, dstIp1, 80); err != nil {
+	if host, err := pm.Map(srcAddr1, dstIp1, 80, true); err != nil {
 		t.Fatalf("Failed to allocate port: %s", err)
 	} else if !addrEqual(dstAddr1, host) {
 		t.Fatalf("Incorrect mapping result: expected %s:%s, got %s:%s",
 			dstAddr1.String(), dstAddr1.Network(), host.String(), host.Network())
 	}
 
-	if _, err := pm.Map(srcAddr1, dstIp1, 80); err == nil {
+	if _, err := pm.Map(srcAddr1, dstIp1, 80, true); err == nil {
 		t.Fatalf("Port is in use - mapping should have failed")
 	}
 
-	if _, err := pm.Map(srcAddr2, dstIp1, 80); err == nil {
+	if _, err := pm.Map(srcAddr2, dstIp1, 80, true); err == nil {
 		t.Fatalf("Port is in use - mapping should have failed")
 	}
 
-	if _, err := pm.Map(srcAddr2, dstIp2, 80); err != nil {
+	if _, err := pm.Map(srcAddr2, dstIp2, 80, true); err != nil {
 		t.Fatalf("Failed to allocate port: %s", err)
 	}
 
@@ -127,14 +127,14 @@ func TestMapAllPortsSingleInterface(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		start, end := pm.Allocator.Begin, pm.Allocator.End
 		for i := start; i < end; i++ {
-			if host, err = pm.Map(srcAddr1, dstIp1, 0); err != nil {
+			if host, err = pm.Map(srcAddr1, dstIp1, 0, true); err != nil {
 				t.Fatal(err)
 			}
 
 			hosts = append(hosts, host)
 		}
 
-		if _, err := pm.Map(srcAddr1, dstIp1, start); err == nil {
+		if _, err := pm.Map(srcAddr1, dstIp1, start, true); err == nil {
 			t.Fatalf("Port %d should be bound but is not", start)
 		}
 
