@@ -22,7 +22,6 @@ import (
 	"github.com/docker/docker/daemon/events"
 	"github.com/docker/docker/daemon/execdriver"
 	"github.com/docker/docker/daemon/execdriver/execdrivers"
-	"github.com/docker/docker/daemon/execdriver/lxc"
 	"github.com/docker/docker/daemon/graphdriver"
 	_ "github.com/docker/docker/daemon/graphdriver/vfs"
 	"github.com/docker/docker/daemon/network"
@@ -208,25 +207,16 @@ func (daemon *Daemon) register(container *Container, updateSuffixarray bool) err
 
 	container.registerVolumes()
 
-	// FIXME: if the container is supposed to be running but is not, auto restart it?
-	//        if so, then we need to restart monitor and init a new lock
-	// If the container is supposed to be running, make sure of it
 	if container.IsRunning() {
 		logrus.Debugf("killing old running container %s", container.ID)
 
 		container.SetStopped(&execdriver.ExitStatus{ExitCode: 0})
 
-		// We only have to handle this for lxc because the other drivers will ensure that
-		// no processes are left when docker dies
-		if container.ExecDriver == "" || strings.Contains(container.ExecDriver, "lxc") {
-			lxc.KillLxc(container.ID, 9)
-		} else {
-			// use the current driver and ensure that the container is dead x.x
-			cmd := &execdriver.Command{
-				ID: container.ID,
-			}
-			daemon.execDriver.Terminate(cmd)
+		// use the current driver and ensure that the container is dead x.x
+		cmd := &execdriver.Command{
+			ID: container.ID,
 		}
+		daemon.execDriver.Terminate(cmd)
 
 		if err := container.Unmount(); err != nil {
 			logrus.Debugf("unmount error %s", err)
