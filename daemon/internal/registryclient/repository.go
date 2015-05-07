@@ -25,8 +25,8 @@ import (
 	"golang.org/x/net/context"
 )
 
-// NewRepositoryClient creates a new Repository for the given repository name and endpoint
-func NewRepositoryClient(ctx context.Context, name string, endpoint *RepositoryEndpoint) (distribution.Repository, error) {
+// NewRepository creates a new Repository for the given repository name and endpoint
+func NewRepository(ctx context.Context, name string, endpoint *RepositoryEndpoint) (distribution.Repository, error) {
 	if err := v2.ValidateRespositoryName(name); err != nil {
 		return nil, err
 	}

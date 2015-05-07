@@ -6,6 +6,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"sort"
 	"strings"
 )
@@ -40,16 +41,18 @@ type Request struct {
 func (r Request) String() string {
 	queryString := ""
 	if len(r.QueryParams) > 0 {
-		queryString = "?"
 		keys := make([]string, 0, len(r.QueryParams))
+		queryParts := make([]string, 0, len(r.QueryParams))
 		for k := range r.QueryParams {
 			keys = append(keys, k)
 		}
 		sort.Strings(keys)
 		for _, k := range keys {
-			queryString += strings.Join(r.QueryParams[k], "&") + "&"
+			for _, val := range r.QueryParams[k] {
+				queryParts = append(queryParts, fmt.Sprintf("%s=%s", k, url.QueryEscape(val)))
+			}
 		}
-		queryString = queryString[:len(queryString)-1]
+		queryString = "?" + strings.Join(queryParts, "&")
 	}
 	return fmt.Sprintf("%s %s%s\n%s", r.Method, r.Route, queryString, r.Body)
 }
