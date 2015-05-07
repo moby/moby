@@ -122,7 +122,9 @@ fi
 
 IAMSTATIC='true'
 source "$SCRIPTDIR/make/.go-autogen"
-LDFLAGS='-w'
+if [ -z "$DOCKER_DEBUG" ]; then
+	LDFLAGS='-w'
+fi
 
 LDFLAGS_STATIC='-linkmode external'
 # Cgo -H windows is incompatible with -linkmode external.
