@@ -16,7 +16,7 @@ var (
 	// ErrNoEndpoint is returned if no endpoint with the specified id exists
 	ErrNoEndpoint = errors.New("No endpoint exists")
 	// ErrNotImplemented is returned when a Driver has not implemented an API yet
-	ErrNotImplemented = errors.New("The API is not implemneted yet")
+	ErrNotImplemented = errors.New("The API is not implemented yet")
 )
 
 // Driver is an interface that every plugin driver needs to implement.

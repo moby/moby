@@ -5,13 +5,13 @@ Remote driver is a special built-in driver. This driver in itself doesn't provid
 
 ## LibNetwork Integration
 
-When LibNetwork creates an instance of the Built-in `Remote` Driver via the `New()` function, it provides a `DriverCallback` which implements the `RegisterDriver()` to let the Built-in Remote Driver to register any of the `Dynamic` Drivers/Plugins with LibNetwork's `NetworkController`
+When LibNetwork creates an instance of the Built-in `Remote` Driver via the `New()` function, it passes a `DriverCallback` as a parameter which implements the `RegisterDriver()`. The Built-in Remote Driver can use this interface to register any of the `Dynamic` Drivers/Plugins with LibNetwork's `NetworkController`
 
-Refer to [Remote Driver Test](https://github.com/docker/libnetwork/blob/drivers/remote/driver_test.go) which provides an example of how the Built-In Remote driver can register any Dynamic driver with LibNetwork.
+Please Refer to [Remote Driver Test](https://github.com/docker/libnetwork/blob/master/drivers/remote/driver_test.go) which provides an example of registering a Dynamic driver with LibNetwork.
 
 This design ensures that the implementation details of Dynamic Driver Registration mechanism is completely owned by the inbuilt-Remote driver and it also doesnt expose any of the driver layer to the North of LibNetwork (none of the LibNetwork client APIs are impacted).
 
-When the inbuilt `Remote` driver detects a `Dynamic` Driver it will have to call the `registerRemoteDriver` method. This Method will take care of creating a new `Remote` Driver instance and associate it with the new `NetworkType` which is handled by the `Dynamic` Driver.
+When the inbuilt `Remote` driver detects a `Dynamic` Driver it can call the `registerRemoteDriver` method. This method will take care of creating a new `Remote` Driver instance with the passed 'NetworkType' and register it with Libnetwork's 'NetworkController
 
 ## Implementation
 
