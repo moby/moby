@@ -9,7 +9,7 @@ DEST=$1
 
 	# TODO consider using frozen images for the dockercore/builder-deb tags
 
-	debVersion="${VERSION//-/'~'}"
+	debVersion="${VERSION//-/~}"
 	# if we have a "-dev" suffix or have change in Git, let's make this package version more complex so it works better
 	if [[ "$VERSION" == *-dev ]] || [ -n "$(git status --porcelain)" ]; then
 		gitUnix="$(git log -1 --pretty='%at')"
