@@ -1,6 +1,7 @@
 package server
 
 import (
+	"crypto/tls"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -44,11 +45,7 @@ type ServerConfig struct {
 	CorsHeaders string
 	Version     string
 	SocketGroup string
-	Tls         bool
-	TlsVerify   bool
-	TlsCa       string
-	TlsCert     string
-	TlsKey      string
+	TLSConfig   *tls.Config
 }
 
 type Server struct {
@@ -1429,22 +1426,15 @@ func (s *Server) ping(version version.Version, w http.ResponseWriter, r *http.Re
 }
 
 func (s *Server) initTcpSocket(addr string) (l net.Listener, err error) {
-	if !s.cfg.TlsVerify {
+	if s.cfg.TLSConfig == nil || s.cfg.TLSConfig.ClientAuth != tls.RequireAndVerifyClientCert {
 		logrus.Warn("/!\\ DON'T BIND ON ANY IP ADDRESS WITHOUT setting -tlsverify IF YOU DON'T KNOW WHAT YOU'RE DOING /!\\")
 	}
-
-	var c *sockets.TlsConfig
-	if s.cfg.Tls || s.cfg.TlsVerify {
-		c = sockets.NewTlsConfig(s.cfg.TlsCert, s.cfg.TlsKey, s.cfg.TlsCa, s.cfg.TlsVerify)
-	}
-
-	if l, err = sockets.NewTcpSocket(addr, c, s.start); err != nil {
+	if l, err = sockets.NewTcpSocket(addr, s.cfg.TLSConfig, s.start); err != nil {
 		return nil, err
 	}
 	if err := allocateDaemonPort(addr); err != nil {
 		return nil, err
 	}
-
 	return
 }
 
