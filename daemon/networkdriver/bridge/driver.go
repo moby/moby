@@ -240,20 +240,22 @@ func InitDriver(config *Config) error {
 		iptables.OnReloaded(func() { setupIPTables(addrv4, config.InterContainerCommunication, config.EnableIpMasq) })
 	}
 
+	ipForward := byte('0')
 	if config.EnableIpForward {
-		// Enable IPv4 forwarding
-		if err := ioutil.WriteFile("/proc/sys/net/ipv4/ip_forward", []byte{'1', '\n'}, 0644); err != nil {
-			logrus.Warnf("WARNING: unable to enable IPv4 forwarding: %s\n", err)
-		}
+		ipForward = byte('1')
+	}
+	// Enable IPv4 forwarding
+	if err := ioutil.WriteFile("/proc/sys/net/ipv4/ip_forward", []byte{ipForward, '\n'}, 0644); err != nil {
+		logrus.Warnf("Unable to enable IPv4 forwarding. Networking will not work: %s\n", err)
+	}
 
-		if config.FixedCIDRv6 != "" {
-			// Enable IPv6 forwarding
-			if err := ioutil.WriteFile("/proc/sys/net/ipv6/conf/default/forwarding", []byte{'1', '\n'}, 0644); err != nil {
-				logrus.Warnf("WARNING: unable to enable IPv6 default forwarding: %s\n", err)
-			}
-			if err := ioutil.WriteFile("/proc/sys/net/ipv6/conf/all/forwarding", []byte{'1', '\n'}, 0644); err != nil {
-				logrus.Warnf("WARNING: unable to enable IPv6 all forwarding: %s\n", err)
-			}
+	if config.FixedCIDRv6 != "" {
+		// Enable IPv6 forwarding
+		if err := ioutil.WriteFile("/proc/sys/net/ipv6/conf/default/forwarding", []byte{ipForward, '\n'}, 0644); err != nil {
+			logrus.Warnf("Unable to enable IPv6 default forwarding. Networking will not work: %s\n", err)
+		}
+		if err := ioutil.WriteFile("/proc/sys/net/ipv6/conf/all/forwarding", []byte{ipForward, '\n'}, 0644); err != nil {
+			logrus.Warnf("Unable to enable IPv6 all forwarding. Networking will not work: %s\n", err)
 		}
 	}
 
