@@ -696,8 +696,9 @@ func (s *Server) postImagesCreate(version version.Version, w http.ResponseWriter
 	}
 
 	var (
-		opErr   error
+		err     error
 		useJSON = version.GreaterThan("1.0")
+		output  = utils.NewWriteFlusher(w)
 	)
 
 	if useJSON {
@@ -719,11 +720,12 @@ func (s *Server) postImagesCreate(version version.Version, w http.ResponseWriter
 			Parallel:    version.GreaterThan("1.3"),
 			MetaHeaders: metaHeaders,
 			AuthConfig:  authConfig,
-			OutStream:   utils.NewWriteFlusher(w),
+			OutStream:   output,
 			Json:        useJSON,
 		}
 
-		opErr = s.daemon.Repositories().Pull(image, tag, imagePullConfig)
+		err = s.daemon.Repositories().Pull(image, tag, imagePullConfig)
+
 	} else { //import
 		if tag == "" {
 			repo, tag = parsers.ParseRepositoryTag(repo)
@@ -733,7 +735,7 @@ func (s *Server) postImagesCreate(version version.Version, w http.ResponseWriter
 		imageImportConfig := &graph.ImageImportConfig{
 			Changes:   r.Form["changes"],
 			InConfig:  r.Body,
-			OutStream: utils.NewWriteFlusher(w),
+			OutStream: output,
 			Json:      useJSON,
 		}
 
@@ -743,15 +745,19 @@ func (s *Server) postImagesCreate(version version.Version, w http.ResponseWriter
 		}
 		imageImportConfig.ContainerConfig = newConfig
 
-		opErr = s.daemon.Repositories().Import(src, repo, tag, imageImportConfig)
-	}
+		err = s.daemon.Repositories().Import(src, repo, tag, imageImportConfig)
 
-	if opErr != nil {
+	}
+	if err != nil {
+		if !output.Flushed() {
+			return err
+		}
 		sf := streamformatter.NewStreamFormatter(useJSON)
-		return fmt.Errorf(string(sf.FormatError(opErr)))
+		output.Write(sf.FormatError(err))
 	}
 
 	return nil
+
 }
 
 func (s *Server) getImagesSearch(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
