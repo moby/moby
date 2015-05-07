@@ -59,7 +59,7 @@ func (uat ErrUnsupportedAddressType) Error() string {
 	return fmt.Sprintf("unsupported address type: %s", string(uat))
 }
 
-// ErrInvalidAddressBinding is returned when the host address specfied in the port binding is not valid.
+// ErrInvalidAddressBinding is returned when the host address specified in the port binding is not valid.
 type ErrInvalidAddressBinding string
 
 func (iab ErrInvalidAddressBinding) Error() string {

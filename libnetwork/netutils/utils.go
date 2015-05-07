@@ -53,7 +53,7 @@ type PortBinding struct {
 	HostPort uint16
 }
 
-// HostAddr returns the host side tranport address
+// HostAddr returns the host side transport address
 func (p PortBinding) HostAddr() (net.Addr, error) {
 	switch p.Proto {
 	case UDP:
@@ -65,7 +65,7 @@ func (p PortBinding) HostAddr() (net.Addr, error) {
 	}
 }
 
-// ContainerAddr returns the container side tranport address
+// ContainerAddr returns the container side transport address
 func (p PortBinding) ContainerAddr() (net.Addr, error) {
 	switch p.Proto {
 	case UDP:

@@ -160,7 +160,7 @@ func TestClientNetworkCreateHelp(t *testing.T) {
 }
 */
 
-// Docker flag processing in flag.go uses os.Exit(1) for incorrect paramater case.
+// Docker flag processing in flag.go uses os.Exit(1) for incorrect parameter case.
 // TODO : Handle the missing argument case in the IT when CLI is available
 /*
 func TestClientNetworkCreateMissingArgument(t *testing.T) {

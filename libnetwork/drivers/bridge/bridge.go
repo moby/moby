@@ -279,7 +279,7 @@ func (d *driver) CreateNetwork(id types.UUID, option map[string]interface{}) err
 	// Even if a bridge exists try to setup IPv4.
 	bridgeSetup.queueStep(setupBridgeIPv4)
 
-	// Conditionnally queue setup steps depending on configuration values.
+	// Conditionally queue setup steps depending on configuration values.
 	for _, step := range []struct {
 		Condition bool
 		Fn        setupStep
