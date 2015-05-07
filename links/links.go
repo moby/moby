@@ -145,7 +145,7 @@ func (l *Link) Enable() error {
 		return err
 	}
 	// call this on Firewalld reload
-	iptables.OnReloaded(func() { l.toggle("-I", false) })
+	iptables.OnReloaded(func() { l.toggle("-A", false) })
 	l.IsEnabled = true
 	return nil
 }
