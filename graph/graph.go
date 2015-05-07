@@ -254,9 +254,6 @@ func bufferToFile(f *os.File, src io.Reader) (int64, digest.Digest, error) {
 	if err != nil {
 		return 0, "", err
 	}
-	if err = f.Sync(); err != nil {
-		return 0, "", err
-	}
 	n, err := f.Seek(0, os.SEEK_CUR)
 	if err != nil {
 		return 0, "", err
