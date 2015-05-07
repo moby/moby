@@ -793,9 +793,6 @@ func NewTempArchive(src Archive, dir string) (*TempArchive, error) {
 	if _, err := io.Copy(f, src); err != nil {
 		return nil, err
 	}
-	if err = f.Sync(); err != nil {
-		return nil, err
-	}
 	if _, err := f.Seek(0, 0); err != nil {
 		return nil, err
 	}
