@@ -606,10 +606,12 @@ func TestEndpointJoin(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = ep.Leave(containerID)
-	if err != nil {
-		t.Fatal(err)
-	}
+	defer func() {
+		err = ep.Leave(containerID)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}()
 }
 
 func TestEndpointJoinInvalidContainerId(t *testing.T) {
@@ -655,6 +657,17 @@ func TestEndpointDeleteWithActiveContainer(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer func() {
+		err = ep.Leave(containerID)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		err = ep.Delete()
+		if err != nil {
+			t.Fatal(err)
+		}
+	}()
 
 	err = ep.Delete()
 	if err == nil {
@@ -687,6 +700,12 @@ func TestEndpointMultipleJoins(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer func() {
+		err = ep.Leave(containerID)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}()
 
 	_, err = ep.Join("container2")
 	if err == nil {
@@ -695,11 +714,6 @@ func TestEndpointMultipleJoins(t *testing.T) {
 
 	if err != libnetwork.ErrInvalidJoin {
 		t.Fatalf("Failed for unexpected reason: %v", err)
-	}
-
-	err = ep.Leave(containerID)
-	if err != nil {
-		t.Fatal(err)
 	}
 }
 
@@ -733,6 +747,12 @@ func TestEndpointInvalidLeave(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer func() {
+		err = ep.Leave(containerID)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}()
 
 	err = ep.Leave("")
 	if err == nil {
@@ -752,10 +772,6 @@ func TestEndpointInvalidLeave(t *testing.T) {
 		t.Fatalf("Failed for unexpected reason: %v", err)
 	}
 
-	err = ep.Leave(containerID)
-	if err != nil {
-		t.Fatal(err)
-	}
 }
 
 func TestEndpointUpdateParent(t *testing.T) {
@@ -779,6 +795,12 @@ func TestEndpointUpdateParent(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer func() {
+		err = ep1.Leave(containerID)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}()
 
 	ep2, err := n.CreateEndpoint("ep2", nil)
 	if err != nil {
@@ -795,15 +817,13 @@ func TestEndpointUpdateParent(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = ep2.Leave("container2")
-	if err != nil {
-		t.Fatal(err)
-	}
+	defer func() {
+		err = ep2.Leave("container2")
+		if err != nil {
+			t.Fatal(err)
+		}
+	}()
 
-	err = ep1.Leave(containerID)
-	if err != nil {
-		t.Fatal(err)
-	}
 }
 
 func TestEnableIPv6(t *testing.T) {
@@ -844,6 +864,16 @@ func TestEnableIPv6(t *testing.T) {
 
 	_, err = ep1.Join(containerID,
 		libnetwork.JoinOptionResolvConfPath(resolvConfPath))
+
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		err = ep1.Leave(containerID)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}()
 
 	content, err := ioutil.ReadFile(resolvConfPath)
 	if err != nil {
@@ -894,6 +924,15 @@ func TestNoEnableIPv6(t *testing.T) {
 
 	_, err = ep1.Join(containerID,
 		libnetwork.JoinOptionResolvConfPath(resolvConfPath))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		err = ep1.Leave(containerID)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}()
 
 	content, err := ioutil.ReadFile(resolvConfPath)
 	if err != nil {
