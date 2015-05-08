@@ -2,6 +2,7 @@ package parsers
 
 import (
 	"fmt"
+	"runtime"
 	"strconv"
 	"strings"
 )
@@ -10,7 +11,12 @@ import (
 func ParseHost(defaultTCPAddr, defaultUnixAddr, addr string) (string, error) {
 	addr = strings.TrimSpace(addr)
 	if addr == "" {
-		addr = fmt.Sprintf("unix://%s", defaultUnixAddr)
+		if runtime.GOOS != "windows" {
+			addr = fmt.Sprintf("unix://%s", defaultUnixAddr)
+		} else {
+			// Note - defaultTCPAddr already includes tcp:// prefix
+			addr = fmt.Sprintf("%s", defaultTCPAddr)
+		}
 	}
 	addrParts := strings.Split(addr, "://")
 	if len(addrParts) == 1 {
