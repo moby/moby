@@ -7,18 +7,15 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
-	"sync"
 
 	"github.com/docker/docker/autogen/dockerversion"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/fileutils"
-	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/stringid"
 )
 
@@ -121,47 +118,6 @@ func DockerInitPath(localCopy string) string {
 		}
 	}
 	return ""
-}
-
-// FIXME: move to httputils? ioutils?
-type WriteFlusher struct {
-	sync.Mutex
-	w       io.Writer
-	flusher http.Flusher
-	flushed bool
-}
-
-func (wf *WriteFlusher) Write(b []byte) (n int, err error) {
-	wf.Lock()
-	defer wf.Unlock()
-	n, err = wf.w.Write(b)
-	wf.flushed = true
-	wf.flusher.Flush()
-	return n, err
-}
-
-// Flush the stream immediately.
-func (wf *WriteFlusher) Flush() {
-	wf.Lock()
-	defer wf.Unlock()
-	wf.flushed = true
-	wf.flusher.Flush()
-}
-
-func (wf *WriteFlusher) Flushed() bool {
-	wf.Lock()
-	defer wf.Unlock()
-	return wf.flushed
-}
-
-func NewWriteFlusher(w io.Writer) *WriteFlusher {
-	var flusher http.Flusher
-	if f, ok := w.(http.Flusher); ok {
-		flusher = f
-	} else {
-		flusher = &ioutils.NopFlusher{}
-	}
-	return &WriteFlusher{w: w, flusher: flusher}
 }
 
 var globalTestID string

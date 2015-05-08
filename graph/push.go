@@ -14,6 +14,7 @@ import (
 	"github.com/docker/distribution/digest"
 	"github.com/docker/docker/cliconfig"
 	"github.com/docker/docker/image"
+	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/progressreader"
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/pkg/stringid"
@@ -212,7 +213,7 @@ func (s *TagStore) pushRepository(r *registry.Session, out io.Writer,
 	repoInfo *registry.RepositoryInfo, localRepo map[string]string,
 	tag string, sf *streamformatter.StreamFormatter) error {
 	logrus.Debugf("Local repo: %s", localRepo)
-	out = utils.NewWriteFlusher(out)
+	out = ioutils.NewWriteFlusher(out)
 	imgList, tags, err := s.getImageList(localRepo, tag)
 	if err != nil {
 		return err
@@ -246,7 +247,7 @@ func (s *TagStore) pushRepository(r *registry.Session, out io.Writer,
 }
 
 func (s *TagStore) pushImage(r *registry.Session, out io.Writer, imgID, ep string, token []string, sf *streamformatter.StreamFormatter) (checksum string, err error) {
-	out = utils.NewWriteFlusher(out)
+	out = ioutils.NewWriteFlusher(out)
 	jsonRaw, err := ioutil.ReadFile(filepath.Join(s.graph.Root, imgID, "json"))
 	if err != nil {
 		return "", fmt.Errorf("Cannot retrieve the path for {%s}: %s", imgID, err)
