@@ -5,6 +5,7 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 )
 
@@ -166,6 +167,45 @@ func TestOutput(t *testing.T) {
 	if _, err = Raw(delRule...); err != nil {
 		t.Fatal(err)
 	}
+}
+
+func TestConcurrencyWithWait(t *testing.T) {
+	RunConcurrencyTest(t, true)
+}
+
+func TestConcurrencyNoWait(t *testing.T) {
+	RunConcurrencyTest(t, false)
+}
+
+// Runs 10 concurrent rule additions. This will fail if iptables
+// is actually invoked simultaneously without --wait.
+// Note that if iptables does not support the xtable lock on this
+// system, then allowXlock has no effect -- it will always be off.
+func RunConcurrencyTest(t *testing.T, allowXlock bool) {
+	var wg sync.WaitGroup
+
+	if !allowXlock && supportsXlock {
+		supportsXlock = false
+		defer func() { supportsXlock = true }()
+	}
+
+	ip := net.ParseIP("192.168.1.1")
+	port := 1234
+	dstAddr := "172.17.0.1"
+	dstPort := 4321
+	proto := "tcp"
+
+	for i := 0; i < 10; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			err := natChain.Forward(Append, ip, port, proto, dstAddr, dstPort)
+			if err != nil {
+				t.Fatal(err)
+			}
+		}()
+	}
+	wg.Wait()
 }
 
 func TestCleanup(t *testing.T) {
