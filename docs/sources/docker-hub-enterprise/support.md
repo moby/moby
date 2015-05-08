@@ -2,7 +2,9 @@ page_title: Docker Hub Enterprise: Support
 page_description: Commercial Support
 page_keywords: docker, documentation, about, technology, understanding, enterprise, hub, registry, support
 
-# Commercial Support
+# Commercial Support Options
+
+## How to get support
 
 Purchasing a DHE License or Commercial Support subscription means your questions
 and issues about DHE will receive prioritized support.

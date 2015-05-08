@@ -53,7 +53,7 @@ following information:
 * Error logs
 * Crash logs
 
-## Emergency access to the DHE admin web interface
+## Emergency access to DHE
 
 If your authenticated or public access to the DHE web interface has stopped
 working, but your DHE admin container is still running, you can add an

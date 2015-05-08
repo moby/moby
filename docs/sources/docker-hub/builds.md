@@ -8,20 +8,18 @@ page_keywords: Docker, docker, registry, accounts, plans, Dockerfile, Docker Hub
 
 *Automated Builds* are a special feature of Docker Hub which allow you to
 use [Docker Hub's](https://hub.docker.com) build clusters to automatically
-create images from a specified `Dockerfile` and a GitHub or Bitbucket repository
-(or "context"). The system will clone your repository and build the image
-described by the `Dockerfile` using the repository as the context. The
-resulting automated image will then be uploaded to the Docker Hub registry
-and marked as an *Automated Build*.
+create images from a GitHub or Bitbucket repository containing a `Dockerfile`
+The system will clone your repository and build the image described by the
+`Dockerfile` using the directory the `Dockerfile` is in (and subdirectories)
+as the build context. The resulting automated image will then be uploaded
+to the Docker Hub registry and marked as an *Automated Build*.
 
 Automated Builds have several advantages:
 
 * Users of *your* Automated Build can trust that the resulting
 image was built exactly as specified.
-
 * The `Dockerfile` will be available to anyone with access to
-your repository on the Docker Hub registry. 
-
+your repository on the Docker Hub registry.
 * Because the process is automated, Automated Builds help to
 make sure that your repository is always up to date.
 
@@ -33,16 +31,26 @@ http://docs.docker.com/userguide/dockerhub/#creating-a-docker-hub-account)
 and on GitHub and/or Bitbucket. In either case, the account needs
 to be properly validated and activated before you can link to it.
 
-## Setting up Automated Builds with GitHub
-
-In order to set up an Automated Build, you need to first link your
-[Docker Hub](https://hub.docker.com) account with a GitHub account.
+The first time you to set up an Automated Build, your
+[Docker Hub](https://hub.docker.com) account will need to be linked to
+a GitHub or Bitbucket account.
 This will allow the registry to see your repositories.
 
-> *Note:* 
+If you have previously linked your Docker Hub account, and want to view or modify
+that link, click on the "Manage - Settings" link in the sidebar, and then
+"Linked Accounts" in your Settings sidebar.
+
+## Automated Builds from GitHub
+
+If you've previously linked your Docker Hub account to your GitHub account,
+you'll be able to skip to the [Creating an Automated Build](#creating-an-automated-build).
+
+### Linking your Docker Hub account to a GitHub account
+
+> *Note:*
 > Automated Builds currently require *read* and *write* access since
 > [Docker Hub](https://hub.docker.com) needs to setup a GitHub service
-> hook. We have no choice here, this is how GitHub manages permissions, sorry! 
+> hook. We have no choice here, this is how GitHub manages permissions, sorry!
 > We do guarantee nothing else will be touched in your account.
 
 To get started, log into your Docker Hub account and click the
@@ -51,17 +59,99 @@ To get started, log into your Docker Hub account and click the
 
 Select the [GitHub service](https://registry.hub.docker.com/associate/github/).
 
-Then follow the onscreen instructions to authorize and link your
+When linking to GitHub, you'll need to select either "Public and Private",
+or "Limited" linking.
+
+The "Public and Private" option is the easiest to use,
+as it grants the Docker Hub full access to all of your repositories. GitHub
+also allows you to grant access to repositories belonging to your GitHub
+organizations.
+
+By choosing the "Limited" linking, your Docker Hub account only gets permission
+to access your public data and public repositories.
+
+Follow the onscreen instructions to authorize and link your
 GitHub account to Docker Hub. Once it is linked, you'll be able to
-choose a repo from which to create the Automatic Build.
+choose a source repository from which to create the Automatic Build.
+
+You will be able to review and revoke Docker Hub's access by visiting the
+[GitHub User's Applications settings](https://github.com/settings/applications).
+
+> **Note**: If you delete the GitHub account linkage that is used for one of your
+> automated build repositories, the previously built images will still be available.
+> If you re-link to that GitHub account later, the automated build can be started
+> using the "Start Build" button on the Hub, or if the webhook on the GitHub repository
+> still exists, will be triggered by any subsequent commits.
+
+### Auto builds and Limited linked GitHub accounts.
+
+If you selected to link your GitHub account with only a "Limited" link, then
+after creating your automated build, you will need to either manually trigger a
+Docker Hub build using the "Start a Build" button, or add the GitHub webhook
+manually, as described in [GitHub Service Hooks](#github-service-hooks).
+
+### Changing the GitHub user link
+
+If you want to remove, or change the level of linking between your GitHub account
+and the Docker Hub, you need to do this in two places.
+
+First, remove the "Linked Account" from your Docker Hub "Settings".
+Then go to your GitHub account's Personal settings, and in the "Applications"
+section, "Revoke access".
+
+You can now re-link your account at any time.
+
+### GitHub Organizations
+
+GitHub organizations and private repositories forked from organizations will be
+made available to auto build using the "Docker Hub Registry" application, which
+needs to be added to the organization - and then will apply to all users.
+
+To check, or request access, go to your GitHub user's "Setting" page, select the
+"Applications" section from the left side bar, then click the "View" button for
+"Docker Hub Registry".
+
+![Check User access to GitHub](/docker-hub/hub-images/gh-check-user-org-dh-app-access.png)
+
+The organization's administrators may need to go to the Organization's "Third
+party access" screen in "Settings" to Grant or Deny access to the Docker Hub
+Registry application. This change will apply to all organization members.
+
+![Check Docker Hub application access to Organization](/docker-hub/hub-images/gh-check-admin-org-dh-app-access.png)
+
+More detailed access controls to specific users and GitHub repositories would be
+managed using the GitHub People and Teams interfaces.
 
 ### Creating an Automated Build
 
 You can [create an Automated Build](
 https://registry.hub.docker.com/builds/github/select/) from any of your
-public or private GitHub repositories with a `Dockerfile`.
+public or private GitHub repositories that have a `Dockerfile`.
 
-### GitHub Submodules
+Once you've selected the source repository, you can then configure:
+
+- The Hub user/org the repository is built to - either your Hub account name,
+or the name of any Hub organizations your account is in
+- The Docker repository name the image is built to
+- If the Docker repository should be "Public" or "Private"
+  You can change the accessibility options after the repository has been created.
+  If you add a Private repository to a Hub user, then you can only add other users
+  as collaborators, and those users will be able to view and pull all images in that 
+  repository. To configure more granular access permissions, such as using groups of 
+  users or allow different users access to different image tags, then you need
+  to add the Private repository to a Hub organization that your user has Administrator
+  privilege on.
+- If you want the GitHub to notify the Docker Hub when a commit is made, and thus trigger
+  a rebuild of all the images in this automated build.
+
+You can also select one or more
+- The git branch/tag, which repository sub-directory to use as the context
+- The Docker image tag name
+
+You can set a description for the repository by clicking "Description" link in the righthand side bar after the automated build - note that the "Full Description" will be over-written next build from the README.md file.
+has been created.
+
+### GitHub private submodules
 
 If your GitHub repository contains links to private submodules, you'll get an
 error message in your build.
@@ -114,17 +204,14 @@ can be limited to read-only access to just the repositories required to build.
     </tr>
   </tbody>
 </table>
-     
-### GitHub Organizations
 
-GitHub organizations will appear once your membership to that organization is
-made public on GitHub. To verify, you can look at the members tab for your
-organization on GitHub.
+### GitHub Service hooks
 
-### GitHub Service Hooks
+The GitHub Service hook allows GitHub to notify the Docker Hub when something has
+been committed to that git repository. You will need to add the Service Hook manually
+if your GitHub account is "Limited" linked to the Docker Hub.
 
-Follow the steps below to configure the GitHub service
-hooks for your Automated Build:
+Follow the steps below to configure the GitHub Service hooks for your Automated Build:
 
 <table class="table table-bordered">
   <thead>
@@ -146,14 +233,16 @@ hooks for your Automated Build:
       <td><img src="/docker-hub/hub-images/gh_menu.png" alt="Webhooks & Services"></td>
       <td>Click on "Webhooks & Services" on the left side of the page.</td></tr>
       <tr><td>3.</td>
-      <td><img src="/docker-hub/hub-images/gh_service_hook.png" alt="Find the service labeled Docker"></td><td>Find the service labeled "Docker" and click on it.</td></tr>
-      <tr><td>4.</td><td><img src="/docker-hub/hub-images/gh_docker-service.png" alt="Activate Service Hooks"></td>
+      <td><img src="/docker-hub/hub-images/gh_service_hook.png" alt="Find the service labeled Docker"></td>
+      <td>Find the service labeled "Docker" (or click on "Add service") and click on it.</td></tr>
+      <tr><td>4.</td>
+      <td><img src="/docker-hub/hub-images/gh_docker-service.png" alt="Activate Service Hooks"></td>
       <td>Make sure the "Active" checkbox is selected and click the "Update service" button to save your changes.</td>
     </tr>
   </tbody>
 </table>
 
-## Setting up Automated Builds with Bitbucket
+## Automated Builds with Bitbucket
 
 In order to setup an Automated Build, you need to first link your
 [Docker Hub](https://hub.docker.com) account with a Bitbucket account.
@@ -249,7 +338,7 @@ $ curl --data "build=true" -X POST https://registry.hub.docker.com/u/svendowidei
 OK
 ```
 
-> **Note:** 
+> **Note:**
 > You can only trigger one build at a time and no more than one
 > every five minutes. If you already have a build pending, or if you
 > recently submitted a build request, those requests *will be ignored*.

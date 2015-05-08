@@ -2,7 +2,7 @@ page_title: Docker Hub Enterprise: Install
 page_description: Installation instructions for Docker Hub Enterprise
 page_keywords: docker, documentation, about, technology, understanding, enterprise, hub, registry
 
-# Install
+# Installing Docker Hub Enterprise
 
 ## Overview
 
@@ -112,6 +112,7 @@ $ chmod 755 docker-cs-engine-deb.sh
 $ sudo ./docker-cs-engine-deb.sh
 $ sudo apt-get install docker-engine-cs
 ```
+Lastly, confirm Docker is running with `sudo service docker start`.
 
 In order to simplify using Docker, you can get non-sudo access to the Docker
 socket by adding your user to the `docker` group, then logging out and back in

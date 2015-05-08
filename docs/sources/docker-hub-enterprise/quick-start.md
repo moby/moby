@@ -46,7 +46,9 @@ You should be able to complete this guide in about thirty minutes.
 > fundamentals, please consult the
 > [Docker user guide](http://docs.docker.com/userguide/).
 
-First, you will retrieve a copy of the official Jenkins image from the Docker Hub. From the CLI of a machine running the Docker Engine on your network, use
+First, you will retrieve a copy of the official Jenkins image from the Docker Hub. By default, if
+Docker can't find an image locally, it will attempt to pull the image from the
+Docker Hub. From the CLI of a machine running the Docker Engine on your network, use
 the
 [`docker pull`](https://docs.docker.com/reference/commandline/cli/#pull)
 command to pull the public Jenkins image.
@@ -57,7 +59,7 @@ command to pull the public Jenkins image.
 > you are a member of the `docker` group, or have root privileges. Otherwise, you may
 > need to add `sudo` to the example commands below.
 
-Docker will start the process of pulling the image from the Hub. Once it has completed, the Jenkins image should be visible in the output of a [`docker images`](https://docs.docker.com/reference/commandline/cli/#images) command:
+Docker will start the process of pulling the image from the Hub. Once it has completed, the Jenkins image should be visible in the output of a [`docker images`](https://docs.docker.com/reference/commandline/cli/#images) command, which lists your available images:
 
     $ docker images
     REPOSITORY  TAG     IMAGE ID      CREATED      VIRTUAL SIZE
@@ -192,7 +194,27 @@ image pulled earlier:
 
 ## Pushing to Docker Hub Enterprise
 
-Now that you’ve create the custom image, it can be pushed to DHE using the
+> **Note**: If your DHE instance has authentication enabled, you will need to
+> use your command line to `docker login <dhe-hostname>` (e.g., `docker login
+> dhe.yourdomain.com`).
+>
+> Failures due to unauthenticated `docker push` and `docker pull` commands will
+> look like :
+>
+>     $ docker pull dhe.yourdomain.com/hello-world
+>     Pulling repository dhe.yourdomain.com/hello-world
+>     FATA[0001] Error: image hello-world:latest not found
+>
+>     $ docker push dhe.yourdomain.com/hello-world
+>     The push refers to a repository [dhe.yourdomain.com/hello-world] (len: 1)
+>     e45a5af57b00: Image push failed
+>     FATA[0001] Error pushing to registry: token auth attempt for registry
+>     https://dhe.yourdomain.com/v2/:
+>     https://dhe.yourdomain.com/auth/v2/token/
+>     ?scope=repository%3Ahello-world%3Apull%2Cpush&service=dhe.yourdomain.com
+>     request failed with status: 401 Unauthorized
+
+Now that you’ve created the custom image, it can be pushed to DHE using the
 [`docker push`command](https://docs.docker.com/reference/commandline/cli/#push):
 
     $ docker push dhe.yourdomain.com/ci-infrastructure/jnkns-img
