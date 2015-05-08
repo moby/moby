@@ -261,3 +261,83 @@ func TestNetIPCopyFunctions(t *testing.T) {
 		t.Fatalf("Failed to return a true copy of net.IPNet")
 	}
 }
+
+func TestPortBindingEqual(t *testing.T) {
+	pb1 := &PortBinding{
+		Proto:    TCP,
+		IP:       net.ParseIP("172.17.0.1"),
+		Port:     80,
+		HostIP:   net.ParseIP("192.168.100.1"),
+		HostPort: 8080,
+	}
+
+	pb2 := &PortBinding{
+		Proto:    UDP,
+		IP:       net.ParseIP("172.17.0.1"),
+		Port:     22,
+		HostIP:   net.ParseIP("192.168.100.1"),
+		HostPort: 2222,
+	}
+	if !pb1.Equal(pb1) {
+		t.Fatalf("PortBinding.Equal() returned false negative")
+	}
+
+	if pb1.Equal(nil) {
+		t.Fatalf("PortBinding.Equal() returned false negative")
+	}
+
+	if pb1.Equal(pb2) {
+		t.Fatalf("PortBinding.Equal() returned false positive")
+	}
+
+	if pb1.Equal(pb2) != pb2.Equal(pb1) {
+		t.Fatalf("PortBinding.Equal() failed commutative check")
+	}
+}
+
+func TestPortBindingGetCopy(t *testing.T) {
+	pb := &PortBinding{
+		Proto:    TCP,
+		IP:       net.ParseIP("172.17.0.1"),
+		Port:     80,
+		HostIP:   net.ParseIP("192.168.100.1"),
+		HostPort: 8080,
+	}
+	cp := pb.GetCopy()
+
+	if !pb.Equal(&cp) {
+		t.Fatalf("Failed to return a copy of PortBinding")
+	}
+
+	if pb == &cp {
+		t.Fatalf("Failed to return a true copy of PortBinding")
+	}
+}
+
+func TestPortBindingContainerAddr(t *testing.T) {
+	pb := PortBinding{
+		Proto:    TCP,
+		IP:       net.ParseIP("172.17.0.1"),
+		Port:     80,
+		HostIP:   net.ParseIP("192.168.100.1"),
+		HostPort: 8080,
+	}
+
+	container, err := pb.ContainerAddr()
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	switch netAddr := container.(type) {
+	case *net.TCPAddr:
+		if !pb.IP.Equal(netAddr.IP) {
+			t.Fatalf("PortBinding.ContainerAddr() Failed to return a ContainerAddr")
+		}
+		if int(pb.Port) != netAddr.Port {
+			t.Fatalf("PortBinding.ContainerAddr() Failed to return a ContainerAddr")
+		}
+	case *net.UDPAddr:
+		t.Fatalf("PortBinding.ContainerAddr() Failed to check correct proto")
+	}
+}
