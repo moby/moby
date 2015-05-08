@@ -224,8 +224,8 @@ Json Parameters:
             volume for the container), `host_path:container_path` (to bind-mount
             a host path into the container), or `host_path:container_path:ro`
             (to make the bind-mount read-only inside the container).
-    -   **Links** - A list of links for the container. Each link entry should be of
-          of the form `container_name:alias`.
+    -   **Links** - A list of links for the container. Each link entry should be
+          in the form of `container_name:alias`.
     -   **LxcConf** - LXC specific configurations. These configurations will only
           work when using the `lxc` execution driver.
     -   **PortBindings** - A map of exposed container ports and the host port they
