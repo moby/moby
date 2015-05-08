@@ -347,9 +347,12 @@ func (store *TagStore) GetImage(repoName, refOrID string) (*image.Image, error) 
 	}
 
 	// If no matching tag is found, search through images for a matching image id
-	for _, revision := range repo {
-		if strings.HasPrefix(revision, refOrID) {
-			return store.graph.Get(revision)
+	// iff it looks like a short ID or would look like a short ID
+	if stringid.IsShortID(stringid.TruncateID(refOrID)) {
+		for _, revision := range repo {
+			if strings.HasPrefix(revision, refOrID) {
+				return store.graph.Get(revision)
+			}
 		}
 	}
 
