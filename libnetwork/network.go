@@ -1,6 +1,7 @@
 package libnetwork
 
 import (
+	"encoding/json"
 	"sync"
 
 	"github.com/docker/docker/pkg/stringid"
@@ -56,6 +57,7 @@ type network struct {
 	enableIPv6  bool
 	endpoints   endpointTable
 	generic     options.Generic
+	dbIndex     uint64
 	sync.Mutex
 }
 
@@ -73,6 +75,51 @@ func (n *network) Type() string {
 	}
 
 	return n.driver.Type()
+}
+
+func (n *network) Key() []string {
+	return []string{"network", string(n.id)}
+}
+
+func (n *network) Value() []byte {
+	b, err := json.Marshal(n)
+	if err != nil {
+		return nil
+	}
+	return b
+}
+
+func (n *network) Index() uint64 {
+	return n.dbIndex
+}
+
+func (n *network) SetIndex(index uint64) {
+	n.dbIndex = index
+}
+
+// TODO : Can be made much more generic with the help of reflection (but has some golang limitations)
+func (n *network) MarshalJSON() ([]byte, error) {
+	netMap := make(map[string]interface{})
+	netMap["name"] = n.name
+	netMap["id"] = string(n.id)
+	netMap["networkType"] = n.networkType
+	netMap["enableIPv6"] = n.enableIPv6
+	netMap["generic"] = n.generic
+	return json.Marshal(netMap)
+}
+
+// TODO : Can be made much more generic with the help of reflection (but has some golang limitations)
+func (n *network) UnmarshalJSON(b []byte) (err error) {
+	var netMap map[string]interface{}
+	if err := json.Unmarshal(b, &netMap); err != nil {
+		return err
+	}
+	n.name = netMap["name"].(string)
+	n.id = netMap["id"].(types.UUID)
+	n.networkType = netMap["networkType"].(string)
+	n.enableIPv6 = netMap["enableIPv6"].(bool)
+	n.generic = netMap["generic"].(map[string]interface{})
+	return nil
 }
 
 // NetworkOption is a option setter function type used to pass varios options to
