@@ -4,14 +4,15 @@ import (
 	"fmt"
 	"net"
 	"os/exec"
-	"strconv"
 	"strings"
 
 	"github.com/go-check/check"
 )
 
 func startServerContainer(c *check.C, proto string, port int) string {
-	cmd := []string{"-d", "-p", fmt.Sprintf("%d:%d", port, port), "busybox", "nc", "-lp", strconv.Itoa(port)}
+	pStr := fmt.Sprintf("%d:%d", port, port)
+	bCmd := fmt.Sprintf("nc -lp %d && echo bye", port)
+	cmd := []string{"-d", "-p", pStr, "busybox", "sh", "-c", bCmd}
 	if proto == "udp" {
 		cmd = append(cmd, "-u")
 	}
@@ -75,7 +76,13 @@ func (s *DockerSuite) TestNetworkNat(c *check.C) {
 	}
 
 	result := getContainerLogs(c, srv)
-	if expected := "hello world"; result != expected {
+
+	// Ideally we'd like to check for "hello world" but sometimes
+	// nc doesn't show the data it received so instead let's look for
+	// the output of the 'echo bye' that should be printed once
+	// the nc command gets a connection
+	expected := "bye"
+	if !strings.Contains(result, expected) {
 		c.Fatalf("Unexpected output. Expected: %q, received: %q", expected, result)
 	}
 }
@@ -97,7 +104,13 @@ func (s *DockerSuite) TestNetworkLocalhostTCPNat(c *check.C) {
 	conn.Close()
 
 	result := getContainerLogs(c, srv)
-	if expected := "hello world"; result != expected {
+
+	// Ideally we'd like to check for "hello world" but sometimes
+	// nc doesn't show the data it received so instead let's look for
+	// the output of the 'echo bye' that should be printed once
+	// the nc command gets a connection
+	expected := "bye"
+	if !strings.Contains(result, expected) {
 		c.Fatalf("Unexpected output. Expected: %q, received: %q", expected, result)
 	}
 }
