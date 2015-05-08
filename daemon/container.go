@@ -647,7 +647,14 @@ func (container *Container) AllocateNetwork() error {
 
 	container.NetworkSettings.PortMapping = nil
 
-	for port := range portSpecs {
+	ports := make([]nat.Port, len(portSpecs))
+	var i int
+	for p := range portSpecs {
+		ports[i] = p
+		i++
+	}
+	nat.SortPortMap(ports, bindings)
+	for _, port := range ports {
 		if err = container.allocatePort(port, bindings); err != nil {
 			bridge.Release(container.ID)
 			return err

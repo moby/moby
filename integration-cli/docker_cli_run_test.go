@@ -2213,6 +2213,39 @@ func (s *DockerSuite) TestRunPortInUse(c *check.C) {
 	}
 }
 
+// https://github.com/docker/docker/issues/12148
+func (s *DockerSuite) TestRunAllocatePortInReservedRange(c *check.C) {
+	// allocate a dynamic port to get the most recent
+	cmd := exec.Command(dockerBinary, "run", "-d", "-P", "-p", "80", "busybox", "top")
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		c.Fatalf("Failed to run, output: %s, error: %s", out, err)
+	}
+	id := strings.TrimSpace(out)
+
+	cmd = exec.Command(dockerBinary, "port", id, "80")
+	out, _, err = runCommandWithOutput(cmd)
+	if err != nil {
+		c.Fatalf("Failed to get port, output: %s, error: %s", out, err)
+	}
+	strPort := strings.Split(strings.TrimSpace(out), ":")[1]
+	port, err := strconv.ParseInt(strPort, 10, 64)
+	if err != nil {
+		c.Fatalf("invalid port, got: %s, error: %s", strPort, err)
+	}
+
+	// allocate a static port and a dynamic port together, with static port
+	// takes the next recent port in dynamic port range.
+	cmd = exec.Command(dockerBinary, "run", "-d", "-P",
+		"-p", "80",
+		"-p", fmt.Sprintf("%d:8080", port+1),
+		"busybox", "top")
+	out, _, err = runCommandWithOutput(cmd)
+	if err != nil {
+		c.Fatalf("Failed to run, output: %s, error: %s", out, err)
+	}
+}
+
 // Regression test for #7792
 func (s *DockerSuite) TestRunMountOrdering(c *check.C) {
 	testRequires(c, SameHostDaemon)
