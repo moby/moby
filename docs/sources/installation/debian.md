@@ -17,7 +17,8 @@ Docker is supported on the following versions of Debian:
 
 ### Installation
 
-The docker package can be installed on debian using the docker install tool:
+The docker package can be installed on `Debian 8 Jessie` using the docker
+install tool:
 
     $ curl -sSL https://get.docker.com/ | sh
 
