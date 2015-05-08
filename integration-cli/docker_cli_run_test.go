@@ -3150,6 +3150,7 @@ func (s *DockerSuite) TestRunWriteToProcAsound(c *check.C) {
 }
 
 func (s *DockerSuite) TestRunReadProcTimer(c *check.C) {
+	testRequires(c, NativeExecDriver)
 	defer deleteAllContainers()
 	out, code, err := runCommandWithOutput(exec.Command(dockerBinary, "run", "busybox", "cat", "/proc/timer_stats"))
 	if err != nil || code != 0 {
@@ -3161,6 +3162,7 @@ func (s *DockerSuite) TestRunReadProcTimer(c *check.C) {
 }
 
 func (s *DockerSuite) TestRunReadProcLatency(c *check.C) {
+	testRequires(c, NativeExecDriver)
 	// some kernels don't have this configured so skip the test if this file is not found
 	// on the host running the tests.
 	if _, err := os.Stat("/proc/latency_stats"); err != nil {
@@ -3178,6 +3180,7 @@ func (s *DockerSuite) TestRunReadProcLatency(c *check.C) {
 }
 
 func (s *DockerSuite) TestMountIntoProc(c *check.C) {
+	testRequires(c, NativeExecDriver)
 	defer deleteAllContainers()
 	code, err := runCommand(exec.Command(dockerBinary, "run", "-v", "/proc//sys", "busybox", "true"))
 	if err == nil || code == 0 {
@@ -3186,6 +3189,7 @@ func (s *DockerSuite) TestMountIntoProc(c *check.C) {
 }
 
 func (s *DockerSuite) TestMountIntoSys(c *check.C) {
+	testRequires(c, NativeExecDriver)
 	defer deleteAllContainers()
 	code, err := runCommand(exec.Command(dockerBinary, "run", "-v", "/sys/", "busybox", "true"))
 	if err == nil || code == 0 {
