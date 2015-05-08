@@ -14,8 +14,8 @@ import (
 	"github.com/docker/distribution/digest"
 
 	"github.com/docker/distribution"
+	"github.com/docker/distribution/context"
 	"github.com/docker/distribution/registry/api/v2"
-	"golang.org/x/net/context"
 )
 
 // NewRepository creates a new Repository for the given repository name and endpoint

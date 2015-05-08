@@ -14,10 +14,10 @@ import (
 
 	"code.google.com/p/go-uuid/uuid"
 
+	"github.com/docker/distribution/context"
 	"github.com/docker/distribution/digest"
 	"github.com/docker/distribution/manifest"
 	"github.com/docker/distribution/testutil"
-	"golang.org/x/net/context"
 )
 
 func testServer(rrm testutil.RequestResponseMap) (string, func()) {
