@@ -1,4 +1,4 @@
-// +build !linux,!windows
+// +build windows
 
 package reexec
 
@@ -7,5 +7,8 @@ import (
 )
 
 func Command(args ...string) *exec.Cmd {
-	return nil
+	return &exec.Cmd{
+		Path: Self(),
+		Args: args,
+	}
 }
