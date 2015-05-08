@@ -79,19 +79,13 @@ func copyBusybox(dest string) error {
 }
 
 func newContainer(config *configs.Config) (libcontainer.Container, error) {
-	cgm := libcontainer.Cgroupfs
+	f := factory
+
 	if config.Cgroups != nil && config.Cgroups.Slice == "system.slice" {
-		cgm = libcontainer.SystemdCgroups
+		f = systemdFactory
 	}
 
-	factory, err := libcontainer.New(".",
-		libcontainer.InitArgs(os.Args[0], "init", "--"),
-		cgm,
-	)
-	if err != nil {
-		return nil, err
-	}
-	return factory.Create("testCT", config)
+	return f.Create("testCT", config)
 }
 
 // runContainer runs the container with the specific config and arguments
