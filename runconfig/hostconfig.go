@@ -21,6 +21,10 @@ func (n NetworkMode) IsPrivate() bool {
 	return !(n.IsHost() || n.IsContainer() || n.IsNone())
 }
 
+func (n NetworkMode) IsBridge() bool {
+	return n == "bridge"
+}
+
 func (n NetworkMode) IsHost() bool {
 	return n == "host"
 }
