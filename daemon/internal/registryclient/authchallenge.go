@@ -8,9 +8,9 @@ import (
 // Octet types from RFC 2616.
 type octetType byte
 
-// AuthorizationChallenge carries information
+// authorizationChallenge carries information
 // from a WWW-Authenticate response header.
-type AuthorizationChallenge struct {
+type authorizationChallenge struct {
 	Scheme     string
 	Parameters map[string]string
 }
@@ -54,12 +54,12 @@ func init() {
 	}
 }
 
-func parseAuthHeader(header http.Header) []AuthorizationChallenge {
-	var challenges []AuthorizationChallenge
+func parseAuthHeader(header http.Header) []authorizationChallenge {
+	var challenges []authorizationChallenge
 	for _, h := range header[http.CanonicalHeaderKey("WWW-Authenticate")] {
 		v, p := parseValueAndParams(h)
 		if v != "" {
-			challenges = append(challenges, AuthorizationChallenge{Scheme: v, Parameters: p})
+			challenges = append(challenges, authorizationChallenge{Scheme: v, Parameters: p})
 		}
 	}
 	return challenges

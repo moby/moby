@@ -20,11 +20,10 @@ import (
 	"golang.org/x/net/context"
 )
 
-func testServer(rrm testutil.RequestResponseMap) (*RepositoryEndpoint, func()) {
+func testServer(rrm testutil.RequestResponseMap) (string, func()) {
 	h := testutil.NewHandler(rrm)
 	s := httptest.NewServer(h)
-	e := RepositoryEndpoint{Endpoint: s.URL, Mirror: false}
-	return &e, s.Close
+	return s.URL, s.Close
 }
 
 func newRandomBlob(size int) (digest.Digest, []byte) {
@@ -97,7 +96,7 @@ func TestLayerFetch(t *testing.T) {
 	e, c := testServer(m)
 	defer c()
 
-	r, err := NewRepository(context.Background(), "test.example.com/repo1", e)
+	r, err := NewRepository(context.Background(), "test.example.com/repo1", e, &RepositoryConfig{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -127,7 +126,7 @@ func TestLayerExists(t *testing.T) {
 	e, c := testServer(m)
 	defer c()
 
-	r, err := NewRepository(context.Background(), "test.example.com/repo1", e)
+	r, err := NewRepository(context.Background(), "test.example.com/repo1", e, &RepositoryConfig{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -227,7 +226,7 @@ func TestLayerUploadChunked(t *testing.T) {
 	e, c := testServer(m)
 	defer c()
 
-	r, err := NewRepository(context.Background(), repo, e)
+	r, err := NewRepository(context.Background(), repo, e, &RepositoryConfig{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -334,7 +333,7 @@ func TestLayerUploadMonolithic(t *testing.T) {
 	e, c := testServer(m)
 	defer c()
 
-	r, err := NewRepository(context.Background(), repo, e)
+	r, err := NewRepository(context.Background(), repo, e, &RepositoryConfig{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -475,7 +474,7 @@ func TestManifestFetch(t *testing.T) {
 	e, c := testServer(m)
 	defer c()
 
-	r, err := NewRepository(context.Background(), repo, e)
+	r, err := NewRepository(context.Background(), repo, e, &RepositoryConfig{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -508,7 +507,7 @@ func TestManifestFetchByTag(t *testing.T) {
 	e, c := testServer(m)
 	defer c()
 
-	r, err := NewRepository(context.Background(), repo, e)
+	r, err := NewRepository(context.Background(), repo, e, &RepositoryConfig{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -553,7 +552,7 @@ func TestManifestDelete(t *testing.T) {
 	e, c := testServer(m)
 	defer c()
 
-	r, err := NewRepository(context.Background(), repo, e)
+	r, err := NewRepository(context.Background(), repo, e, &RepositoryConfig{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -591,7 +590,7 @@ func TestManifestPut(t *testing.T) {
 	e, c := testServer(m)
 	defer c()
 
-	r, err := NewRepository(context.Background(), repo, e)
+	r, err := NewRepository(context.Background(), repo, e, &RepositoryConfig{})
 	if err != nil {
 		t.Fatal(err)
 	}

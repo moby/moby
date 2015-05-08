@@ -30,7 +30,7 @@ func (w *testAuthenticationWrapper) ServeHTTP(rw http.ResponseWriter, r *http.Re
 	w.next.ServeHTTP(rw, r)
 }
 
-func testServerWithAuth(rrm testutil.RequestResponseMap, authenticate string, authCheck func(string) bool) (*RepositoryEndpoint, func()) {
+func testServerWithAuth(rrm testutil.RequestResponseMap, authenticate string, authCheck func(string) bool) (string, func()) {
 	h := testutil.NewHandler(rrm)
 	wrapper := &testAuthenticationWrapper{
 
@@ -43,8 +43,7 @@ func testServerWithAuth(rrm testutil.RequestResponseMap, authenticate string, au
 	}
 
 	s := httptest.NewServer(wrapper)
-	e := RepositoryEndpoint{Endpoint: s.URL, Mirror: false}
-	return &e, s.Close
+	return s.URL, s.Close
 }
 
 type testCredentialStore struct {
@@ -62,6 +61,16 @@ func TestEndpointAuthorizeToken(t *testing.T) {
 	repo2 := "other/registry"
 	scope1 := fmt.Sprintf("repository:%s:pull,push", repo1)
 	scope2 := fmt.Sprintf("repository:%s:pull,push", repo2)
+	tokenScope1 := TokenScope{
+		Resource: "repository",
+		Scope:    repo1,
+		Actions:  []string{"pull", "push"},
+	}
+	tokenScope2 := TokenScope{
+		Resource: "repository",
+		Scope:    repo2,
+		Actions:  []string{"pull", "push"},
+	}
 
 	tokenMap := testutil.RequestResponseMap([]testutil.RequestResponseMapping{
 		{
@@ -92,7 +101,7 @@ func TestEndpointAuthorizeToken(t *testing.T) {
 		{
 			Request: testutil.Request{
 				Method: "GET",
-				Route:  "/hello",
+				Route:  "/v2/hello",
 			},
 			Response: testutil.Response{
 				StatusCode: http.StatusAccepted,
@@ -100,19 +109,23 @@ func TestEndpointAuthorizeToken(t *testing.T) {
 		},
 	})
 
-	authenicate := fmt.Sprintf("Bearer realm=%q,service=%q", te.Endpoint+"/token", service)
+	authenicate := fmt.Sprintf("Bearer realm=%q,service=%q", te+"/token", service)
 	validCheck := func(a string) bool {
 		return a == "Bearer statictoken"
 	}
 	e, c := testServerWithAuth(m, authenicate, validCheck)
 	defer c()
 
-	client, err := e.HTTPClient(repo1)
+	repo1Config := &RepositoryConfig{
+		AuthSource: NewTokenAuthorizer(nil, nil, tokenScope1),
+	}
+
+	client, err := repo1Config.HTTPClient()
 	if err != nil {
 		t.Fatalf("Error creating http client: %s", err)
 	}
 
-	req, _ := http.NewRequest("GET", e.Endpoint+"/hello", nil)
+	req, _ := http.NewRequest("GET", e+"/v2/hello", nil)
 	resp, err := client.Do(req)
 	if err != nil {
 		t.Fatalf("Error sending get request: %s", err)
@@ -128,12 +141,15 @@ func TestEndpointAuthorizeToken(t *testing.T) {
 	e2, c2 := testServerWithAuth(m, authenicate, badCheck)
 	defer c2()
 
-	client2, err := e2.HTTPClient(repo2)
+	repo2Config := &RepositoryConfig{
+		AuthSource: NewTokenAuthorizer(nil, nil, tokenScope2),
+	}
+	client2, err := repo2Config.HTTPClient()
 	if err != nil {
 		t.Fatalf("Error creating http client: %s", err)
 	}
 
-	req, _ = http.NewRequest("GET", e.Endpoint+"/hello", nil)
+	req, _ = http.NewRequest("GET", e2+"/v2/hello", nil)
 	resp, err = client2.Do(req)
 	if err != nil {
 		t.Fatalf("Error sending get request: %s", err)
@@ -155,6 +171,11 @@ func TestEndpointAuthorizeTokenBasic(t *testing.T) {
 	scope := fmt.Sprintf("repository:%s:pull,push", repo)
 	username := "tokenuser"
 	password := "superSecretPa$$word"
+	tokenScope := TokenScope{
+		Resource: "repository",
+		Scope:    repo,
+		Actions:  []string{"pull", "push"},
+	}
 
 	tokenMap := testutil.RequestResponseMap([]testutil.RequestResponseMapping{
 		{
@@ -180,7 +201,7 @@ func TestEndpointAuthorizeTokenBasic(t *testing.T) {
 		{
 			Request: testutil.Request{
 				Method: "GET",
-				Route:  "/hello",
+				Route:  "/v2/hello",
 			},
 			Response: testutil.Response{
 				StatusCode: http.StatusAccepted,
@@ -188,24 +209,27 @@ func TestEndpointAuthorizeTokenBasic(t *testing.T) {
 		},
 	})
 
-	authenicate2 := fmt.Sprintf("Bearer realm=%q,service=%q", te.Endpoint+"/token", service)
+	authenicate2 := fmt.Sprintf("Bearer realm=%q,service=%q", te+"/token", service)
 	bearerCheck := func(a string) bool {
 		return a == "Bearer statictoken"
 	}
 	e, c := testServerWithAuth(m, authenicate2, bearerCheck)
 	defer c()
 
-	e.Credentials = &testCredentialStore{
+	creds := &testCredentialStore{
 		username: username,
 		password: password,
 	}
+	repoConfig := &RepositoryConfig{
+		AuthSource: NewTokenAuthorizer(creds, nil, tokenScope),
+	}
 
-	client, err := e.HTTPClient(repo)
+	client, err := repoConfig.HTTPClient()
 	if err != nil {
 		t.Fatalf("Error creating http client: %s", err)
 	}
 
-	req, _ := http.NewRequest("GET", e.Endpoint+"/hello", nil)
+	req, _ := http.NewRequest("GET", e+"/v2/hello", nil)
 	resp, err := client.Do(req)
 	if err != nil {
 		t.Fatalf("Error sending get request: %s", err)
@@ -221,7 +245,7 @@ func TestEndpointAuthorizeBasic(t *testing.T) {
 		{
 			Request: testutil.Request{
 				Method: "GET",
-				Route:  "/hello",
+				Route:  "/v2/hello",
 			},
 			Response: testutil.Response{
 				StatusCode: http.StatusAccepted,
@@ -237,17 +261,20 @@ func TestEndpointAuthorizeBasic(t *testing.T) {
 	}
 	e, c := testServerWithAuth(m, authenicate, validCheck)
 	defer c()
-	e.Credentials = &testCredentialStore{
+	creds := &testCredentialStore{
 		username: username,
 		password: password,
 	}
+	repoConfig := &RepositoryConfig{
+		AuthSource: NewTokenAuthorizer(creds, nil, TokenScope{}),
+	}
 
-	client, err := e.HTTPClient("test/repo/basic")
+	client, err := repoConfig.HTTPClient()
 	if err != nil {
 		t.Fatalf("Error creating http client: %s", err)
 	}
 
-	req, _ := http.NewRequest("GET", e.Endpoint+"/hello", nil)
+	req, _ := http.NewRequest("GET", e+"/v2/hello", nil)
 	resp, err := client.Do(req)
 	if err != nil {
 		t.Fatalf("Error sending get request: %s", err)
