@@ -155,6 +155,7 @@ func (b *Builder) runContextCommand(args []string, allowRemote bool, allowDecomp
 			dest,
 			allowRemote,
 			allowDecompression,
+			true,
 		); err != nil {
 			return err
 		}
@@ -225,7 +226,7 @@ func (b *Builder) runContextCommand(args []string, allowRemote bool, allowDecomp
 	return nil
 }
 
-func calcCopyInfo(b *Builder, cmdName string, cInfos *[]*copyInfo, origPath string, destPath string, allowRemote bool, allowDecompression bool) error {
+func calcCopyInfo(b *Builder, cmdName string, cInfos *[]*copyInfo, origPath string, destPath string, allowRemote bool, allowDecompression bool, allowWildcards bool) error {
 
 	if origPath != "" && origPath[0] == '/' && len(origPath) > 1 {
 		origPath = origPath[1:]
@@ -350,7 +351,7 @@ func calcCopyInfo(b *Builder, cmdName string, cInfos *[]*copyInfo, origPath stri
 	}
 
 	// Deal with wildcards
-	if ContainsWildcards(origPath) {
+	if allowWildcards && ContainsWildcards(origPath) {
 		for _, fileInfo := range b.context.GetSums() {
 			if fileInfo.Name() == "" {
 				continue
@@ -360,7 +361,9 @@ func calcCopyInfo(b *Builder, cmdName string, cInfos *[]*copyInfo, origPath stri
 				continue
 			}
 
-			calcCopyInfo(b, cmdName, cInfos, fileInfo.Name(), destPath, allowRemote, allowDecompression)
+			// Note we set allowWildcards to false in case the name has
+			// a * in it
+			calcCopyInfo(b, cmdName, cInfos, fileInfo.Name(), destPath, allowRemote, allowDecompression, false)
 		}
 		return nil
 	}

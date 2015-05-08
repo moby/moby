@@ -687,7 +687,6 @@ func fakeContextAddDockerfile(ctx *FakeContext, dockerfile string) error {
 func fakeContext(dockerfile string, files map[string]string) (*FakeContext, error) {
 	ctx, err := fakeContextWithFiles(files)
 	if err != nil {
-		ctx.Close()
 		return nil, err
 	}
 	if err := fakeContextAddDockerfile(ctx, dockerfile); err != nil {
