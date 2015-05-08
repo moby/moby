@@ -483,6 +483,7 @@ container:
     --cpuset-cpus="": CPUs in which to allow execution (0-3, 0,1)
     --cpuset-mems="": Memory nodes (MEMs) in which to allow execution (0-3, 0,1). Only effective on NUMA systems.
     --cpu-quota=0: Limit the CPU CFS (Completely Fair Scheduler) quota
+    --blkio-weight=0: Block IO weight (relative weight) accepts a weight value between 10 and 1000.
     --oom-kill-disable=true|false: Whether to disable OOM Killer for the container or not.
 
 ### Memory constraints
@@ -653,6 +654,30 @@ Scheduler) handles resource allocation for executing processes and is default
 Linux Scheduler used by the kernel. Set this value to 50000 to limit the container
 to 50% of a CPU resource. For multiple CPUs, adjust the `--cpu-quota` as necessary.
 For more information, see the [CFS documentation on bandwidth limiting](https://www.kernel.org/doc/Documentation/scheduler/sched-bwc.txt).
+
+### Block IO bandwidth (Blkio) constraint
+
+By default, all containers get the same proportion of block IO bandwidth
+(blkio). This proportion is 500. To modify this proportion, change the
+container's blkio weight relative to the weighting of all other running
+containers using the `--blkio-weight` flag.
+
+The `--blkio-weight` flag can set the weighting to a value between 10 to 1000.
+For example, the commands below create two containers with different blkio
+weight:
+
+    $ docker run -ti --name c1 --blkio-weight 300 ubuntu:14.04 /bin/bash
+    $ docker run -ti --name c2 --blkio-weight 600 ubuntu:14.04 /bin/bash
+
+If you do block IO in the two containers at the same time, by, for example:
+
+    $ time dd if=/mnt/zerofile of=test.out bs=1M count=1024 oflag=direct
+
+You'll find that the proportion of time is the same as the proportion of blkio
+weights of the two containers.
+
+> **Note:** The blkio weight setting is only available for direct IO. Buffered IO
+> is not currently supported.
 
 ## Runtime privilege, Linux capabilities, and LXC configuration
 

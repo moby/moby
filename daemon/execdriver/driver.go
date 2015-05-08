@@ -107,6 +107,7 @@ type Resources struct {
 	CpusetCpus     string           `json:"cpuset_cpus"`
 	CpusetMems     string           `json:"cpuset_mems"`
 	CpuQuota       int64            `json:"cpu_quota"`
+	BlkioWeight    int64            `json:"blkio_weight"`
 	Rlimits        []*ulimit.Rlimit `json:"rlimits"`
 	OomKillDisable bool             `json:"oom_kill_disable"`
 }

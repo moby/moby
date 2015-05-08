@@ -942,6 +942,7 @@ Creates a new container.
 
       -a, --attach=[]            Attach to STDIN, STDOUT or STDERR
       --add-host=[]              Add a custom host-to-IP mapping (host:ip)
+      --blkio-weight=0           Block IO weight (relative weight)
       -c, --cpu-shares=0         CPU shares (relative weight)
       --cap-add=[]               Add Linux capabilities
       --cap-drop=[]              Drop Linux capabilities
@@ -1899,6 +1900,7 @@ To remove an image using its digest:
 
       -a, --attach=[]            Attach to STDIN, STDOUT or STDERR
       --add-host=[]              Add a custom host-to-IP mapping (host:ip)
+      --blkio-weight=0           Block IO weight (relative weight)
       -c, --cpu-shares=0         CPU shares (relative weight)
       --cap-add=[]               Add Linux capabilities
       --cap-drop=[]              Drop Linux capabilities
