@@ -32,6 +32,9 @@ var (
 )
 
 func init() {
+	if daemonCfg.LogConfig.Config == nil {
+		daemonCfg.LogConfig.Config = make(map[string]string)
+	}
 	daemonCfg.InstallFlags()
 	registryCfg.InstallFlags()
 }

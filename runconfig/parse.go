@@ -47,6 +47,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		flCapDrop     = opts.NewListOpts(nil)
 		flSecurityOpt = opts.NewListOpts(nil)
 		flLabelsFile  = opts.NewListOpts(nil)
+		flLoggingOpts = opts.NewListOpts(nil)
 
 		flNetwork         = cmd.Bool([]string{"#n", "#-networking"}, true, "Enable networking for this container")
 		flPrivileged      = cmd.Bool([]string{"#privileged", "-privileged"}, false, "Give extended privileges to this container")
@@ -95,6 +96,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 	cmd.Var(&flCapDrop, []string{"-cap-drop"}, "Drop Linux capabilities")
 	cmd.Var(&flSecurityOpt, []string{"-security-opt"}, "Security Options")
 	cmd.Var(flUlimits, []string{"-ulimit"}, "Ulimit options")
+	cmd.Var(&flLoggingOpts, []string{"-log-opt"}, "Log driver options")
 
 	cmd.Require(flag.Min, 1)
 
@@ -283,6 +285,11 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		return nil, nil, cmd, err
 	}
 
+	loggingOpts, err := parseLoggingOpts(*flLoggingDriver, flLoggingOpts.GetAll())
+	if err != nil {
+		return nil, nil, cmd, err
+	}
+
 	config := &Config{
 		Hostname:        hostname,
 		Domainname:      domainname,
@@ -335,7 +342,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		SecurityOpt:     flSecurityOpt.GetAll(),
 		ReadonlyRootfs:  *flReadonlyRootfs,
 		Ulimits:         flUlimits.GetList(),
-		LogConfig:       LogConfig{Type: *flLoggingDriver},
+		LogConfig:       LogConfig{Type: *flLoggingDriver, Config: loggingOpts},
 		CgroupParent:    *flCgroupParent,
 	}
 
@@ -375,6 +382,15 @@ func convertKVStringsToMap(values []string) map[string]string {
 	}
 
 	return result
+}
+
+func parseLoggingOpts(loggingDriver string, loggingOpts []string) (map[string]string, error) {
+	loggingOptsMap := convertKVStringsToMap(loggingOpts)
+	if loggingDriver == "none" && len(loggingOpts) > 0 {
+		return map[string]string{}, fmt.Errorf("Invalid logging opts for driver %s", loggingDriver)
+	}
+	//TODO - validation step
+	return loggingOptsMap, nil
 }
 
 // ParseRestartPolicy returns the parsed policy or an error indicating what is incorrect
