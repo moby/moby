@@ -128,6 +128,9 @@ func (c *controller) RegisterDriver(networkType string, driver driverapi.Driver)
 // NewNetwork creates a new network of the specified network type. The options
 // are network specific and modeled in a generic way.
 func (c *controller) NewNetwork(networkType, name string, options ...NetworkOption) (Network, error) {
+	if name == "" {
+		return nil, ErrInvalidNetworkName
+	}
 	// Check if a driver for the specified network type is available
 	c.Lock()
 	d, ok := c.drivers[networkType]

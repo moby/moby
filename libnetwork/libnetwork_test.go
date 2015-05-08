@@ -276,8 +276,16 @@ func TestDuplicateNetwork(t *testing.T) {
 
 func TestNetworkName(t *testing.T) {
 	defer netutils.SetupTestNetNS(t)()
-	networkName := "testnetwork"
 
+	_, err := createTestNetwork(bridgeNetType, "", options.Generic{}, options.Generic{})
+	if err == nil {
+		t.Fatal("Expected to fail. But instead succeeded")
+	}
+	if err != libnetwork.ErrInvalidNetworkName {
+		t.Fatal("Expected to fail with ErrInvalidNetworkName error")
+	}
+
+	networkName := "testnetwork"
 	n, err := createTestNetwork(bridgeNetType, networkName, options.Generic{}, options.Generic{})
 	if err != nil {
 		t.Fatal(err)
@@ -390,6 +398,14 @@ func TestUnknownEndpoint(t *testing.T) {
 	network, err := createTestNetwork(bridgeNetType, "testnetwork", options.Generic{}, option)
 	if err != nil {
 		t.Fatal(err)
+	}
+
+	_, err = network.CreateEndpoint("")
+	if err == nil {
+		t.Fatal("Expected to fail. But instead succeeded")
+	}
+	if err != libnetwork.ErrInvalidEndpointName {
+		t.Fatal("Expected to fail with ErrInvalidEndpointName error")
 	}
 
 	ep, err := network.CreateEndpoint("testep")
