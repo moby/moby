@@ -124,7 +124,8 @@ func TestUploadReadFrom(t *testing.T) {
 	e, c := testServer(m)
 	defer c()
 
-	client, err := e.HTTPClient(repo)
+	repoConfig := &RepositoryConfig{}
+	client, err := repoConfig.HTTPClient()
 	if err != nil {
 		t.Fatalf("Error creating client: %s", err)
 	}
@@ -133,7 +134,7 @@ func TestUploadReadFrom(t *testing.T) {
 	}
 
 	// Valid case
-	layerUpload.location = e.Endpoint + locationPath
+	layerUpload.location = e + locationPath
 	n, err := layerUpload.ReadFrom(bytes.NewReader(b))
 	if err != nil {
 		t.Fatalf("Error calling ReadFrom: %s", err)
@@ -143,26 +144,26 @@ func TestUploadReadFrom(t *testing.T) {
 	}
 
 	// Bad range
-	layerUpload.location = e.Endpoint + locationPath
+	layerUpload.location = e + locationPath
 	_, err = layerUpload.ReadFrom(bytes.NewReader(b))
 	if err == nil {
 		t.Fatalf("Expected error when bad range received")
 	}
 
 	// 404
-	layerUpload.location = e.Endpoint + locationPath
+	layerUpload.location = e + locationPath
 	_, err = layerUpload.ReadFrom(bytes.NewReader(b))
 	if err == nil {
 		t.Fatalf("Expected error when not found")
 	}
 	if blobErr, ok := err.(*BlobUploadNotFoundError); !ok {
 		t.Fatalf("Wrong error type %T: %s", err, err)
-	} else if expected := e.Endpoint + locationPath; blobErr.Location != expected {
+	} else if expected := e + locationPath; blobErr.Location != expected {
 		t.Fatalf("Unexpected location: %s, expected %s", blobErr.Location, expected)
 	}
 
 	// 400 valid json
-	layerUpload.location = e.Endpoint + locationPath
+	layerUpload.location = e + locationPath
 	_, err = layerUpload.ReadFrom(bytes.NewReader(b))
 	if err == nil {
 		t.Fatalf("Expected error when not found")
@@ -185,7 +186,7 @@ func TestUploadReadFrom(t *testing.T) {
 	}
 
 	// 400 invalid json
-	layerUpload.location = e.Endpoint + locationPath
+	layerUpload.location = e + locationPath
 	_, err = layerUpload.ReadFrom(bytes.NewReader(b))
 	if err == nil {
 		t.Fatalf("Expected error when not found")
@@ -200,7 +201,7 @@ func TestUploadReadFrom(t *testing.T) {
 	}
 
 	// 500
-	layerUpload.location = e.Endpoint + locationPath
+	layerUpload.location = e + locationPath
 	_, err = layerUpload.ReadFrom(bytes.NewReader(b))
 	if err == nil {
 		t.Fatalf("Expected error when not found")

@@ -19,17 +19,17 @@ import (
 )
 
 // NewRepository creates a new Repository for the given repository name and endpoint
-func NewRepository(ctx context.Context, name string, endpoint *RepositoryEndpoint) (distribution.Repository, error) {
+func NewRepository(ctx context.Context, name, endpoint string, repoConfig *RepositoryConfig) (distribution.Repository, error) {
 	if err := v2.ValidateRespositoryName(name); err != nil {
 		return nil, err
 	}
 
-	ub, err := endpoint.URLBuilder()
+	ub, err := v2.NewURLBuilderFromString(endpoint)
 	if err != nil {
 		return nil, err
 	}
 
-	client, err := endpoint.HTTPClient(name)
+	client, err := repoConfig.HTTPClient()
 	if err != nil {
 		return nil, err
 	}
@@ -39,7 +39,7 @@ func NewRepository(ctx context.Context, name string, endpoint *RepositoryEndpoin
 		ub:      ub,
 		name:    name,
 		context: ctx,
-		mirror:  endpoint.Mirror,
+		mirror:  repoConfig.AllowMirrors,
 	}, nil
 }
 
