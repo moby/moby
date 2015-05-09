@@ -483,6 +483,7 @@ container:
     -m, --memory="": Memory limit (format: <number><optional unit>, where unit = b, k, m or g)
     -memory-swap="": Total memory limit (memory + swap, format: <number><optional unit>, where unit = b, k, m or g)
     -c, --cpu-shares=0: CPU shares (relative weight)
+    --cpu-period=0: Limit the CPU CFS (Completely Fair Scheduler) period
     --cpuset-cpus="": CPUs in which to allow execution (0-3, 0,1)
     --cpuset-mems="": Memory nodes (MEMs) in which to allow execution (0-3, 0,1). Only effective on NUMA systems.
     --cpu-quota=0: Limit the CPU CFS (Completely Fair Scheduler) quota
@@ -619,6 +620,20 @@ division of CPU shares:
     100    {C0}		0	100% of CPU0
     101    {C1}		1	100% of CPU1
     102    {C1}		2	100% of CPU2
+
+### CPU period constraint
+
+The default CPU CFS (Completely Fair Scheduler) period is 100ms. We can use
+`--cpu-period` to set the period of CPUs to limit the container's CPU usage. 
+And usually `--cpu-period` should work with `--cpu-quota`.
+
+Examples:
+
+    $ docker run -ti --cpu-period=50000 --cpu-quota=25000 ubuntu:14.04 /bin/bash
+
+If there is 1 CPU, this means the container can get 50% CPU worth of run-time every 50ms.
+
+For more information, see the [CFS documentation on bandwidth limiting](https://www.kernel.org/doc/Documentation/scheduler/sched-bwc.txt).
 
 ### Cpuset constraint
 

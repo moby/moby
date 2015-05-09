@@ -147,6 +147,7 @@ Create a container
                "Memory": 0,
                "MemorySwap": 0,
                "CpuShares": 512,
+               "CpuPeriod": 100000,
                "CpusetCpus": "0,1",
                "CpusetMems": "0,1",
                "BlkioWeight": 300,
@@ -193,6 +194,7 @@ Json Parameters:
       always use this with `memory`, and make the value larger than `memory`.
 -   **CpuShares** - An integer value containing the CPU Shares for container
       (ie. the relative weight vs other containers).
+-   **CpuPeriod** - The length of a CPU period (in microseconds).
 -   **Cpuset** - The same as CpusetCpus, but deprecated, please don't use.
 -   **CpusetCpus** - String value containing the cgroups CpusetCpus to use.
 -   **CpusetMems** - Memory nodes (MEMs) in which to allow execution (0-3, 0,1). Only effective on NUMA systems.
@@ -350,6 +352,7 @@ Return low-level information on the container `id`
 			"CpusetCpus": "",
 			"CpusetMems": "",
 			"CpuShares": 0,
+			"CpuPeriod": 100000,
 			"Devices": [],
 			"Dns": null,
 			"DnsSearch": null,

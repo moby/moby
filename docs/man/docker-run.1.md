@@ -13,6 +13,7 @@ docker-run - Run a command in a new container
 [**--cap-add**[=*[]*]]
 [**--cap-drop**[=*[]*]]
 [**--cidfile**[=*CIDFILE*]]
+[**--cpu-period**[=*0*]]
 [**--cpuset-cpus**[=*CPUSET-CPUS*]]
 [**--cpuset-mems**[=*CPUSET-MEMS*]]
 [**-d**|**--detach**[=*false*]]
@@ -137,6 +138,11 @@ division of CPU shares:
 
 **--cidfile**=""
    Write the container ID to the file
+
+**--cpu-period**=0
+   Limit the CPU CFS (Completely Fair Scheduler) period
+
+   Limit the container's CPU usage. This flag tell the kernel to restrict the container's CPU usage to the period you specify.
 
 **--cpuset-cpus**=""
    CPUs in which to allow execution (0-3, 0,1)

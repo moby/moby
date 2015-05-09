@@ -13,6 +13,7 @@ docker-create - Create a new container
 [**--cap-add**[=*[]*]]
 [**--cap-drop**[=*[]*]]
 [**--cidfile**[=*CIDFILE*]]
+[**--cpu-period**[=*0*]]
 [**--cpuset-cpus**[=*CPUSET-CPUS*]]
 [**--cpuset-mems**[=*CPUSET-MEMS*]]
 [**--cpu-quota**[=*0*]]
@@ -77,6 +78,9 @@ IMAGE [COMMAND] [ARG...]
 
 **--cgroup-parent**=""
    Path to cgroups under which the cgroup for the container will be created. If the path is not absolute, the path is considered to be relative to the cgroups path of the init process. Cgroups will be created if they do not already exist.
+
+**--cpu-peroid**=0
+    Limit the CPU CFS (Completely Fair Scheduler) period
 
 **--cpuset-cpus**=""
    CPUs in which to allow execution (0-3, 0,1)

@@ -49,6 +49,7 @@ type Config struct {
 	Memory         int64
 	MemorySwap     int64
 	CpuShares      int64
+	CpuPeriod      int64
 	CpuQuota       int64
 	CpuSetCpus     string
 	CpuSetMems     string
@@ -164,6 +165,7 @@ func Build(d *daemon.Daemon, buildConfig *Config) error {
 		ConfigFile:      buildConfig.ConfigFile,
 		dockerfileName:  buildConfig.DockerfileName,
 		cpuShares:       buildConfig.CpuShares,
+		cpuPeriod:       buildConfig.CpuPeriod,
 		cpuQuota:        buildConfig.CpuQuota,
 		cpuSetCpus:      buildConfig.CpuSetCpus,
 		cpuSetMems:      buildConfig.CpuSetMems,
