@@ -2051,7 +2051,7 @@ func (s *DockerSuite) TestRunWithBadDevice(c *check.C) {
 	if err == nil {
 		c.Fatal("Run should fail with bad device")
 	}
-	expected := `\"/etc\": not a device node`
+	expected := `"/etc": not a device node`
 	if !strings.Contains(out, expected) {
 		c.Fatalf("Output should contain %q, actual out: %q", expected, out)
 	}

@@ -63,6 +63,14 @@ var funcMap = template.FuncMap{
 	},
 }
 
+func (cli *DockerCli) Out() io.Writer {
+	return cli.out
+}
+
+func (cli *DockerCli) Err() io.Writer {
+	return cli.err
+}
+
 func (cli *DockerCli) getMethod(args ...string) (func(...string) error, bool) {
 	camelArgs := make([]string, len(args))
 	for i, s := range args {

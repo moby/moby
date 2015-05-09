@@ -907,8 +907,8 @@ func (s *DockerDaemonSuite) TestDaemonLoggingDriverNoneLogsError(c *check.C) {
 	if err == nil {
 		c.Fatalf("Logs should fail with \"none\" driver")
 	}
-	if !strings.Contains(out, `\"logs\" command is supported only for \"json-file\" logging driver`) {
-		c.Fatalf("There should be error about non-json-file driver, got %s", out)
+	if !strings.Contains(out, `"logs" command is supported only for "json-file" logging driver`) {
+		c.Fatalf("There should be error about non-json-file driver, got: %s", out)
 	}
 }
 

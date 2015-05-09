@@ -152,3 +152,32 @@ func (s *DockerSuite) TestHelpTextVerify(c *check.C) {
 	}
 
 }
+
+func (s *DockerSuite) TestHelpErrorStderr(c *check.C) {
+	// If we had a generic CLI test file this one shoudl go in there
+
+	cmd := exec.Command(dockerBinary, "boogie")
+	out, ec, err := runCommandWithOutput(cmd)
+	if err == nil || ec == 0 {
+		c.Fatalf("Boogie command should have failed")
+	}
+
+	expected := "docker: 'boogie' is not a docker command. See 'docker --help'.\n"
+	if out != expected {
+		c.Fatalf("Bad output from boogie\nGot:%s\nExpected:%s", out, expected)
+	}
+
+	cmd = exec.Command(dockerBinary, "rename", "foo", "bar")
+	out, ec, err = runCommandWithOutput(cmd)
+	if err == nil || ec == 0 {
+		c.Fatalf("Rename should have failed")
+	}
+
+	expected = `Error response from daemon: no such id: foo
+Error: failed to rename container named foo
+`
+	if out != expected {
+		c.Fatalf("Bad output from rename\nGot:%s\nExpected:%s", out, expected)
+	}
+
+}
