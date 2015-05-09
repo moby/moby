@@ -1053,16 +1053,11 @@ func (container *Container) Exposes(p nat.Port) bool {
 }
 
 func (container *Container) HostConfig() *runconfig.HostConfig {
-	container.Lock()
-	res := container.hostConfig
-	container.Unlock()
-	return res
+	return container.hostConfig
 }
 
 func (container *Container) SetHostConfig(hostConfig *runconfig.HostConfig) {
-	container.Lock()
 	container.hostConfig = hostConfig
-	container.Unlock()
 }
 
 func (container *Container) DisableLink(name string) {
