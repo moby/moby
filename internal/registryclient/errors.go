@@ -112,3 +112,10 @@ func parseHTTPErrorResponse(response *http.Response) error {
 	}
 	return &errors
 }
+
+func handleErrorResponse(resp *http.Response) error {
+	if resp.StatusCode >= 400 && resp.StatusCode < 500 {
+		return parseHTTPErrorResponse(resp)
+	}
+	return &UnexpectedHTTPStatusError{Status: resp.Status}
+}
