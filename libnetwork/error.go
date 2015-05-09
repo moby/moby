@@ -15,6 +15,9 @@ var (
 	// ErrInvalidJoin is returned if a join is attempted on an endpoint
 	// which already has a container joined.
 	ErrInvalidJoin = errors.New("A container has already joined the endpoint")
+	// ErrNoContainer is returned when the endpoint has no container
+	// attached to it.
+	ErrNoContainer = errors.New("no container attached to the endpoint")
 )
 
 // NetworkTypeError type is returned when the network type string is not

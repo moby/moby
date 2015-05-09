@@ -2,9 +2,14 @@ package libnetwork_test
 
 import (
 	"bytes"
+	"flag"
+	"fmt"
 	"io/ioutil"
 	"net"
 	"os"
+	"runtime"
+	"strconv"
+	"sync"
 	"testing"
 
 	log "github.com/Sirupsen/logrus"
@@ -13,6 +18,7 @@ import (
 	"github.com/docker/libnetwork/netutils"
 	"github.com/docker/libnetwork/pkg/netlabel"
 	"github.com/docker/libnetwork/pkg/options"
+	"github.com/vishvananda/netns"
 )
 
 const (
@@ -736,7 +742,9 @@ func TestEndpointInvalidLeave(t *testing.T) {
 	}
 
 	if _, ok := err.(libnetwork.InvalidContainerIDError); !ok {
-		t.Fatalf("Failed for unexpected reason: %v", err)
+		if err != libnetwork.ErrNoContainer {
+			t.Fatalf("Failed for unexpected reason: %v", err)
+		}
 	}
 
 	_, err = ep.Join(containerID,
@@ -946,4 +954,176 @@ func TestNoEnableIPv6(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+}
+
+var (
+	once   sync.Once
+	ctrlr  libnetwork.NetworkController
+	start  = make(chan struct{})
+	done   = make(chan chan struct{}, numThreads-1)
+	origns = netns.None()
+	testns = netns.None()
+)
+
+const (
+	iterCnt    = 25
+	numThreads = 3
+	first      = 1
+	last       = numThreads
+	debug      = false
+)
+
+func createGlobalInstance(t *testing.T) {
+	var err error
+	defer close(start)
+
+	origns, err = netns.Get()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	//testns = origns
+	testns, err = netns.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ctrlr = libnetwork.New()
+
+	err = ctrlr.ConfigureNetworkDriver(bridgeNetType, getEmptyGenericOption())
+	if err != nil {
+		t.Fatal("configure driver")
+	}
+
+	net, err := ctrlr.NewNetwork(bridgeNetType, "network1")
+	if err != nil {
+		t.Fatal("new network")
+	}
+
+	_, err = net.CreateEndpoint("ep1")
+	if err != nil {
+		t.Fatal("createendpoint")
+	}
+}
+
+func debugf(format string, a ...interface{}) (int, error) {
+	if debug {
+		return fmt.Printf(format, a...)
+	}
+
+	return 0, nil
+}
+
+func parallelJoin(t *testing.T, ep libnetwork.Endpoint, thrNumber int) {
+	debugf("J%d.", thrNumber)
+	_, err := ep.Join("racing_container")
+	runtime.LockOSThread()
+	if err != nil {
+		if err != libnetwork.ErrNoContainer && err != libnetwork.ErrInvalidJoin {
+			t.Fatal(err)
+		}
+		debugf("JE%d(%v).", thrNumber, err)
+	}
+	debugf("JD%d.", thrNumber)
+}
+
+func parallelLeave(t *testing.T, ep libnetwork.Endpoint, thrNumber int) {
+	debugf("L%d.", thrNumber)
+	err := ep.Leave("racing_container")
+	runtime.LockOSThread()
+	if err != nil {
+		if err != libnetwork.ErrNoContainer && err != libnetwork.ErrInvalidJoin {
+			t.Fatal(err)
+		}
+		debugf("LE%d(%v).", thrNumber, err)
+	}
+	debugf("LD%d.", thrNumber)
+}
+
+func runParallelTests(t *testing.T, thrNumber int) {
+	var err error
+
+	t.Parallel()
+
+	pTest := flag.Lookup("test.parallel")
+	if pTest == nil {
+		t.Skip("Skipped because test.parallel flag not set;")
+	}
+	numParallel, err := strconv.Atoi(pTest.Value.String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if numParallel < numThreads {
+		t.Skip("Skipped because t.parallel was less than ", numThreads)
+	}
+
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+
+	if thrNumber == first {
+		createGlobalInstance(t)
+	}
+
+	if thrNumber != first {
+		select {
+		case <-start:
+		}
+
+		thrdone := make(chan struct{})
+		done <- thrdone
+		defer close(thrdone)
+
+		if thrNumber == last {
+			defer close(done)
+		}
+
+		err = netns.Set(testns)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	defer netns.Set(origns)
+
+	net := ctrlr.NetworkByName("network1")
+	if net == nil {
+		t.Fatal("Could not find network1")
+	}
+
+	ep := net.EndpointByName("ep1")
+	if ep == nil {
+		t.Fatal("Could not find ep1")
+	}
+
+	for i := 0; i < iterCnt; i++ {
+		parallelJoin(t, ep, thrNumber)
+		parallelLeave(t, ep, thrNumber)
+	}
+
+	debugf("\n")
+
+	if thrNumber == first {
+		for thrdone := range done {
+			select {
+			case <-thrdone:
+			}
+		}
+
+		testns.Close()
+		err = ep.Delete()
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
+func TestParallel1(t *testing.T) {
+	runParallelTests(t, 1)
+}
+
+func TestParallel2(t *testing.T) {
+	runParallelTests(t, 2)
+}
+
+func TestParallel3(t *testing.T) {
+	runParallelTests(t, 3)
 }

@@ -35,7 +35,7 @@ run-tests:
 	@echo "mode: count" > coverage.coverprofile
 	@for dir in $$(find . -maxdepth 10 -not -path './.git*' -not -path '*/_*' -type d); do \
 	    if ls $$dir/*.go &> /dev/null; then \
-            	$(shell which godep) go test -test.v -covermode=count -coverprofile=$$dir/profile.tmp $$dir ; \
+            	$(shell which godep) go test -test.parallel 3 -test.v -covermode=count -coverprofile=$$dir/profile.tmp $$dir ; \
 		if [ $$? -ne 0 ]; then exit $$?; fi ;\
 	        if [ -f $$dir/profile.tmp ]; then \
 		        cat $$dir/profile.tmp | tail -n +2 >> coverage.coverprofile ; \

@@ -12,7 +12,7 @@ import (
 	"github.com/vishvananda/netns"
 )
 
-const prefix = "/var/lib/docker/netns"
+const prefix = "/var/run/netns"
 
 var once sync.Once
 
@@ -148,8 +148,8 @@ func (n *networkNamespace) RemoveInterface(i *Interface) error {
 		return err
 	}
 
-	// Move the network interface to init namespace.
-	if err := netlink.LinkSetNsPid(iface, 1); err != nil {
+	// Move the network interface to caller namespace.
+	if err := netlink.LinkSetNsFd(iface, int(origns)); err != nil {
 		fmt.Println("LinkSetNsPid failed: ", err)
 		return err
 	}
