@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -90,7 +91,36 @@ type manifests struct {
 }
 
 func (ms *manifests) Tags() ([]string, error) {
-	panic("not implemented")
+	u, err := ms.ub.BuildTagsURL(ms.name)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := ms.client.Get(u)
+	if err != nil {
+		return nil, err
+	}
+
+	switch {
+	case resp.StatusCode == http.StatusOK:
+		b, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			return nil, err
+		}
+
+		tagsResponse := struct {
+			Tags []string `json:"tags"`
+		}{}
+		if err := json.Unmarshal(b, &tagsResponse); err != nil {
+			return nil, err
+		}
+
+		return tagsResponse.Tags, nil
+	case resp.StatusCode == http.StatusNotFound:
+		return nil, nil
+	default:
+		return nil, handleErrorResponse(resp)
+	}
 }
 
 func (ms *manifests) Exists(dgst digest.Digest) (bool, error) {
@@ -113,10 +143,8 @@ func (ms *manifests) ExistsByTag(tag string) (bool, error) {
 		return true, nil
 	case resp.StatusCode == http.StatusNotFound:
 		return false, nil
-	case resp.StatusCode >= 400 && resp.StatusCode < 500:
-		return false, parseHTTPErrorResponse(resp)
 	default:
-		return false, &UnexpectedHTTPStatusError{Status: resp.Status}
+		return false, handleErrorResponse(resp)
 	}
 }
 
@@ -146,10 +174,8 @@ func (ms *manifests) GetByTag(tag string) (*manifest.SignedManifest, error) {
 		}
 
 		return &sm, nil
-	case resp.StatusCode >= 400 && resp.StatusCode < 500:
-		return nil, parseHTTPErrorResponse(resp)
 	default:
-		return nil, &UnexpectedHTTPStatusError{Status: resp.Status}
+		return nil, handleErrorResponse(resp)
 	}
 }
 
@@ -174,10 +200,8 @@ func (ms *manifests) Put(m *manifest.SignedManifest) error {
 	case resp.StatusCode == http.StatusAccepted:
 		// TODO(dmcgowan): Use or check digest header
 		return nil
-	case resp.StatusCode >= 400 && resp.StatusCode < 500:
-		return parseHTTPErrorResponse(resp)
 	default:
-		return &UnexpectedHTTPStatusError{Status: resp.Status}
+		return handleErrorResponse(resp)
 	}
 }
 
@@ -200,10 +224,8 @@ func (ms *manifests) Delete(dgst digest.Digest) error {
 	switch {
 	case resp.StatusCode == http.StatusOK:
 		return nil
-	case resp.StatusCode >= 400 && resp.StatusCode < 500:
-		return parseHTTPErrorResponse(resp)
 	default:
-		return &UnexpectedHTTPStatusError{Status: resp.Status}
+		return handleErrorResponse(resp)
 	}
 }
 
@@ -275,10 +297,8 @@ func (ls *layers) Upload() (distribution.LayerUpload, error) {
 			startedAt: time.Now(),
 			location:  location,
 		}, nil
-	case resp.StatusCode >= 400 && resp.StatusCode < 500:
-		return nil, parseHTTPErrorResponse(resp)
 	default:
-		return nil, &UnexpectedHTTPStatusError{Status: resp.Status}
+		return nil, handleErrorResponse(resp)
 	}
 }
 
@@ -327,9 +347,7 @@ func (ls *layers) fetchLayer(dgst digest.Digest) (distribution.Layer, error) {
 				BlobSum: dgst,
 			},
 		}
-	case resp.StatusCode >= 400 && resp.StatusCode < 500:
-		return nil, parseHTTPErrorResponse(resp)
 	default:
-		return nil, &UnexpectedHTTPStatusError{Status: resp.Status}
+		return nil, handleErrorResponse(resp)
 	}
 }
