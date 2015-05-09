@@ -25,6 +25,7 @@ import (
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/daemon/networkdriver/bridge"
 	"github.com/docker/docker/graph"
+	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/parsers/filters"
@@ -34,7 +35,6 @@ import (
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/pkg/version"
 	"github.com/docker/docker/runconfig"
-	"github.com/docker/docker/utils"
 )
 
 type ServerConfig struct {
@@ -442,7 +442,7 @@ func (s *Server) getEvents(version version.Version, w http.ResponseWriter, r *ht
 	d := s.daemon
 	es := d.EventsService
 	w.Header().Set("Content-Type", "application/json")
-	enc := json.NewEncoder(utils.NewWriteFlusher(w))
+	enc := json.NewEncoder(ioutils.NewWriteFlusher(w))
 
 	getContainerId := func(cn string) string {
 		c, err := d.Get(cn)
@@ -577,7 +577,7 @@ func (s *Server) getContainersStats(version version.Version, w http.ResponseWrit
 		return fmt.Errorf("Missing parameter")
 	}
 
-	return s.daemon.ContainerStats(vars["name"], boolValue(r, "stream"), utils.NewWriteFlusher(w))
+	return s.daemon.ContainerStats(vars["name"], boolValue(r, "stream"), ioutils.NewWriteFlusher(w))
 }
 
 func (s *Server) getContainersLogs(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
@@ -600,7 +600,7 @@ func (s *Server) getContainersLogs(version version.Version, w http.ResponseWrite
 		Tail:       r.Form.Get("tail"),
 		UseStdout:  stdout,
 		UseStderr:  stderr,
-		OutStream:  utils.NewWriteFlusher(w),
+		OutStream:  ioutils.NewWriteFlusher(w),
 	}
 
 	if err := s.daemon.ContainerLogs(vars["name"], logsConfig); err != nil {
@@ -698,7 +698,7 @@ func (s *Server) postImagesCreate(version version.Version, w http.ResponseWriter
 	var (
 		err     error
 		useJSON = version.GreaterThan("1.0")
-		output  = utils.NewWriteFlusher(w)
+		output  = ioutils.NewWriteFlusher(w)
 	)
 
 	if useJSON {
@@ -824,7 +824,7 @@ func (s *Server) postImagesPush(version version.Version, w http.ResponseWriter, 
 	useJSON := version.GreaterThan("1.0")
 	name := vars["name"]
 
-	output := utils.NewWriteFlusher(w)
+	output := ioutils.NewWriteFlusher(w)
 	imagePushConfig := &graph.ImagePushConfig{
 		MetaHeaders: metaHeaders,
 		AuthConfig:  authConfig,
@@ -860,7 +860,7 @@ func (s *Server) getImagesGet(version version.Version, w http.ResponseWriter, r 
 		w.Header().Set("Content-Type", "application/x-tar")
 	}
 
-	output := utils.NewWriteFlusher(w)
+	output := ioutils.NewWriteFlusher(w)
 	imageExportConfig := &graph.ImageExportConfig{Outstream: output}
 	if name, ok := vars["name"]; ok {
 		imageExportConfig.Names = []string{name}
@@ -1279,7 +1279,7 @@ func (s *Server) postBuild(version version.Version, w http.ResponseWriter, r *ht
 		buildConfig.Pull = true
 	}
 
-	output := utils.NewWriteFlusher(w)
+	output := ioutils.NewWriteFlusher(w)
 	buildConfig.Stdout = output
 	buildConfig.Context = r.Body
 
