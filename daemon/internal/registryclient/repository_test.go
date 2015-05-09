@@ -9,6 +9,7 @@ import (
 	"log"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -599,6 +600,57 @@ func TestManifestPut(t *testing.T) {
 	if err := ms.Put(m1); err != nil {
 		t.Fatal(err)
 	}
+
+	// TODO(dmcgowan): Check for error cases
+}
+
+func TestManifestTags(t *testing.T) {
+	repo := "test.example.com/repo/tags/list"
+	tagsList := []byte(strings.TrimSpace(`
+{
+	"name": "test.example.com/repo/tags/list",
+	"tags": [
+		"tag1",
+		"tag2",
+		"funtag"
+	]
+}
+	`))
+	var m testutil.RequestResponseMap
+	addPing(&m)
+	m = append(m, testutil.RequestResponseMapping{
+		Request: testutil.Request{
+			Method: "GET",
+			Route:  "/v2/" + repo + "/tags/list",
+		},
+		Response: testutil.Response{
+			StatusCode: http.StatusOK,
+			Body:       tagsList,
+			Headers: http.Header(map[string][]string{
+				"Content-Length": {fmt.Sprint(len(tagsList))},
+				"Last-Modified":  {time.Now().Add(-1 * time.Second).Format(time.ANSIC)},
+			}),
+		},
+	})
+
+	e, c := testServer(m)
+	defer c()
+
+	r, err := NewRepository(context.Background(), repo, e, &RepositoryConfig{})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ms := r.Manifests()
+	tags, err := ms.Tags()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(tags) != 3 {
+		t.Fatalf("Wrong number of tags returned: %d, expected 3", len(tags))
+	}
+	// TODO(dmcgowan): Check array
 
 	// TODO(dmcgowan): Check for error cases
 }

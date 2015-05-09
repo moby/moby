@@ -26,14 +26,10 @@ type httpLayerUpload struct {
 }
 
 func (hlu *httpLayerUpload) handleErrorResponse(resp *http.Response) error {
-	switch {
-	case resp.StatusCode == http.StatusNotFound:
+	if resp.StatusCode == http.StatusNotFound {
 		return &BlobUploadNotFoundError{Location: hlu.location}
-	case resp.StatusCode >= 400 && resp.StatusCode < 500:
-		return parseHTTPErrorResponse(resp)
-	default:
-		return &UnexpectedHTTPStatusError{Status: resp.Status}
 	}
+	return handleErrorResponse(resp)
 }
 
 func (hlu *httpLayerUpload) ReadFrom(r io.Reader) (n int64, err error) {
