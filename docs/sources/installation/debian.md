@@ -8,52 +8,14 @@ Docker is supported on the following versions of Debian:
 
  - [*Debian 8.0 Jessie (64-bit)*](#debian-jessie-80-64-bit)
  - [*Debian 7.7 Wheezy (64-bit)*](#debian-wheezystable-7x-64-bit)
+ - [*Debian Sid (64-bit)*](#debian-sid-unstable-64-bit)
 
 ## Debian Jessie 8.0 (64-bit)
 
-Debian 8 comes with a 3.16.0 Linux kernel, the `docker.io` package can be found in the `jessie-backports` repository. Reasoning behind this can be found <a href="https://lists.debian.org/debian-release/2015/03/msg00685.html" target="_blank">here</a>. Instructions how to enable the backports repository can be found <a href="http://backports.debian.org/Instructions/" target="_blank">here</a>.
-
-> **Note**:
-> Debian contains a much older KDE3/GNOME2 package called ``docker``, so the
-> package and the executable are called ``docker.io``.
-
-### Installation
-
-Make sure you enabled the `jessie-backports` repository, as stated above.
-
-To install the latest Debian package (may not be the latest Docker release):
-
-    $ sudo apt-get update
-    $ sudo apt-get install docker.io
-
-To verify that everything has worked as expected:
-
-    $ sudo docker run --rm hello-world
-
-This command downloads and runs the `hello-world` image in a container. When the
-container runs, it prints an informational message. Then, it exits.
-
-> **Note**:
-> If you want to enable memory and swap accounting see
-> [this](/installation/ubuntulinux/#memory-and-swap-accounting).
-
-### Uninstallation
-
-To uninstall the Docker package:
-
-    $ sudo apt-get purge docker-io
-
-To uninstall the Docker package and dependencies that are no longer needed:
-
-    $ sudo apt-get autoremove --purge docker-io
-
-The above commands will not remove images, containers, volumes, or user created
-configuration files on your host. If you wish to delete all images, containers,
-and volumes run the following command:
-
-    $ rm -rf /var/lib/docker
-
-You must delete the user created configuration files manually.
+Currently, docker.io package was removed from Debian Jessie cause
+of some security concerns - https://lists.debian.org/debian-release/2015/03/msg00685.html.
+However, the latest version (1.6.1) is working fine with kernel 3.16. You can install Docker
+using instruction from `Binaries` section - https://docs.docker.com/installation/binaries/
 
 ## Debian Wheezy/Stable 7.x (64-bit)
 
@@ -148,3 +110,9 @@ use the `-G` flag to specify an alternative group.
 ## What next?
 
 Continue with the [User Guide](/userguide/).
+
+## Debian Sid (64-bit)
+The normal package is available:
+https://packages.debian.org/sid/docker.io
+
+TBD:
