@@ -18,6 +18,12 @@ var (
 	// ErrNoContainer is returned when the endpoint has no container
 	// attached to it.
 	ErrNoContainer = errors.New("no container attached to the endpoint")
+	// ErrInvalidEndpointName is returned if an invalid endpoint name
+	// is passed when creating an endpoint
+	ErrInvalidEndpointName = errors.New("invalid endpoint name")
+	// ErrInvalidNetworkName is returned if an invalid network name
+	// is passed when creating a network
+	ErrInvalidNetworkName = errors.New("invalid network name")
 )
 
 // NetworkTypeError type is returned when the network type string is not

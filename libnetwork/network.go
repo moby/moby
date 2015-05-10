@@ -132,6 +132,9 @@ func (n *network) Delete() error {
 }
 
 func (n *network) CreateEndpoint(name string, options ...EndpointOption) (Endpoint, error) {
+	if name == "" {
+		return nil, ErrInvalidEndpointName
+	}
 	ep := &endpoint{name: name, generic: make(map[string]interface{})}
 	ep.id = types.UUID(stringid.GenerateRandomID())
 	ep.network = n
