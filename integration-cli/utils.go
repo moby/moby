@@ -23,7 +23,7 @@ import (
 func getExitCode(err error) (int, error) {
 	exitCode := 0
 	if exiterr, ok := err.(*exec.ExitError); ok {
-		if procExit := exiterr.Sys().(syscall.WaitStatus); ok {
+		if procExit, ok := exiterr.Sys().(syscall.WaitStatus); ok {
 			return procExit.ExitStatus(), nil
 		}
 	}
