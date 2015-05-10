@@ -46,6 +46,7 @@ var capabilityList = Capabilities{
 	{Key: "SETFCAP", Value: capability.CAP_SETFCAP},
 	{Key: "WAKE_ALARM", Value: capability.CAP_WAKE_ALARM},
 	{Key: "BLOCK_SUSPEND", Value: capability.CAP_BLOCK_SUSPEND},
+	{Key: "AUDIT_READ", Value: capability.CAP_AUDIT_READ},
 }
 
 type (
