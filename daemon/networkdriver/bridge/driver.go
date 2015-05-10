@@ -608,7 +608,7 @@ func Allocate(id, requestedMac, requestedIP, requestedIPv6 string) (*network.Set
 		return nil, err
 	}
 
-	// If no explicit mac address was given, generate a random one.
+	// If no explicit mac address was given, generate one from the IP address.
 	if mac, err = net.ParseMAC(requestedMac); err != nil {
 		mac = generateMacAddr(ip)
 	}

@@ -216,9 +216,9 @@ networking. In cases like this, you would perform I/O through files or
 Your container will use the same DNS servers as the host by default, but
 you can override this with `--dns`.
 
-By default a random MAC is generated. You can set the container's MAC address
-explicitly by providing a MAC via the `--mac-address` parameter (format:
-`12:34:56:78:9a:bc`).
+By default, the MAC address is generated using the IP address allocated to the
+container. You can set the container's MAC address explicitly by providing a
+MAC address via the `--mac-address` parameter (format:`12:34:56:78:9a:bc`).
 
 Supported networking modes are:
 
