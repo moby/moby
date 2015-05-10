@@ -1181,6 +1181,10 @@ func (daemon *Daemon) verifyHostConfig(hostConfig *runconfig.HostConfig) ([]stri
 	if hostConfig.BlkioWeight > 0 && (hostConfig.BlkioWeight < 10 || hostConfig.BlkioWeight > 1000) {
 		return warnings, fmt.Errorf("Range of blkio weight is from 10 to 1000.")
 	}
+	if hostConfig.OomKillDisable && !daemon.SystemConfig().OomKillDisable {
+		hostConfig.OomKillDisable = false
+		return warnings, fmt.Errorf("Your kernel does not support oom kill disable.")
+	}
 
 	return warnings, nil
 }
