@@ -12,26 +12,39 @@ Docker is supported on the following versions of Debian:
 ## Debian Jessie 8.0 (64-bit)
 
 > **Note**:
-> Debian contains a much older KDE3/GNOME2 package called ``docker``, so the
-> package and the executable are called ``docker.io``.
+> Debian contains a much older KDE3/GNOME2 package called ``docker``, so do not
+> mistake this for the docker client or daemon.
 
 ### Installation
 
-The docker package can be installed on `Debian 8 Jessie` using the docker
-install tool:
+The docker package can be installed using the online installer with `curl`. To
+make sure that you have `curl` installed run the following as root:
 
-    $ curl -sSL https://get.docker.com/ | sh
+    # apt-get install curl
+
+The docker package can be installed on `Debian 8 Jessie` using the docker
+install tool. Run the following as root user:
+
+    # curl -sSL https://get.docker.com/ | sh
 
 Follow the instructions in the terminal. Please note that the installer may ask
 you to perform additional steps, such as copying the client to the `/usr/bin`
-folder. Once installed restart your machine or start the daemon manually with:
+folder.
 
-    $ su
+If you would like to use docker with your normal user run the following as root,
+replacing `your-user` with your login user name:
+
+    # usermod -aG docker your-user
+
+You may need to logout and back in for the above changes to be made.
+
+Once installed restart your machine or start the daemon manually with:
+
     # service docker start
 
 To verify that everything has worked as expected:
 
-    $ sudo docker run --rm hello-world
+    $ docker run --rm hello-world
 
 This command downloads and runs the `hello-world` image in a container. When the
 container runs, it prints an informational message. Then, it exits.
