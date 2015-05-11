@@ -12,150 +12,178 @@ parent = "smn_linux"
 
 Docker is supported on the following versions of RHEL:
 
-- [*Red Hat Enterprise Linux 7 (64-bit)*](#red-hat-enterprise-linux-7-installation)
-- [*Red Hat Enterprise Linux 6.6 (64-bit)*](#red-hat-enterprise-linux-66-installation) or later
+- Red Hat Enterprise Linux 7 
+- Red Hat Enterprise Linux 6.6 or later
 
-## Kernel support
+This page instructs you to install using Docker-managed release packages and
+installation mechanisms. Using these packages ensures you get the latest release
+of Docker. If you wish to install using Red Hat-managed packages, consult your
+Red Hat release documentation for information on Red Hat's Docker support.
 
-RHEL will only support Docker via the *extras* channel or EPEL package when
-running on kernels shipped by the distribution. There are kernel changes which
-will cause issues if one decides to step outside that box and run
-non-distribution kernel packages.
+## Prerequisites
 
-## Red Hat Enterprise Linux 7
+Docker requires a 64-bit installation regardless of your Red Hat version. Docker
+requires that your kernel must be 3.10 at minimum. Red Hat 7 runs the 3.10
+kernel, 6.6 does not. We make an exception for Red Hat 6.6. To run Docker on
+[Red Hat-6.6](http://www.centos.org) or later, you need kernel 2.6.32-431 or
+higher. 
 
-### Installation
+To check your current kernel version, open a terminal and use `uname -r` to
+display your kernel version:
 
-**Red Hat Enterprise Linux 7 (64 bit)** has [shipped with
-Docker](https://access.redhat.com/site/products/red-hat-enterprise-linux/docker-and-containers).
-An overview and some guidance can be found in the [Release
-Notes](https://access.redhat.com/site/documentation/en-US/Red_Hat_Enterprise_Linux/7/html/7.0_Release_Notes/chap-Red_Hat_Enterprise_Linux-7.0_Release_Notes-Linux_Containers_with_Docker_Format.html).
+    $ uname -r 
+    3.10.0-229.el7.x86_64
 
-Docker is located in the *extras* channel. To install Docker:
+Finally, is it recommended that you fully update your system. Please keep in
+mind that your system should be fully patched to fix any potential kernel bugs.
+Any reported kernel bugs may have already been fixed on the latest kernel
+packages 
 
-1. Enable the *extras* channel:
 
-        $ sudo subscription-manager repos --enable=rhel-7-server-extras-rpms
+## Install
 
-2. Install Docker:
+You use the same installation procedure for all versions of Red Hat Enterprise,
+only the package you install differs.  There are two packages to choose from:
 
-        $ sudo yum install docker 
+<table>
+  <tr>
+    <th>Version</th>
+    <th>Package name</th>
+  </tr>
+  <tr>
+    <td>6.6 and  higher</td>
+    <td>
+    <p>
+    <a href="https://get.docker.com/rpm/1.7.0/centos-6/RPMS/x86_64/docker-engine-1.7.0-1.el6.x86_64.rpm">
+    https://get.docker.com/rpm/1.7.0/centos-6/RPMS/x86_64/docker-engine-1.7.0-1.el6.x86_64.rpm</a>
+    <p>
+    <a href="https://get.docker.com/rpm/1.7.0/centos-6/SRPMS/docker-engine-1.7.0-1.el6.src.rpm">
+   https://get.docker.com/rpm/1.7.0/centos-6/SRPMS/docker-engine-1.7.0-1.el6.src.rpm</a>
+    <p>
+    </p>
+    </td>
+  </tr>
+  <tr>
+    <td>7.X</td>
+    <td>
+    <p>
+     <a href="https://get.docker.com/rpm/1.7.0/centos-7/RPMS/x86_64/docker-engine-1.7.0-1.el7.centos.x86_64.rpm">
+    https://get.docker.com/rpm/1.7.0/centos-7/RPMS/x86_64/docker-engine-1.7.0-1.el7.centos.x86_64.rpm</a>   
+    </p>
+    <p>
+     <a href="https://get.docker.com/rpm/1.7.0/centos-7/SRPMS/docker-engine-1.7.0-1.el7.centos.src.rpm">
+    https://get.docker.com/rpm/1.7.0/centos-7/SRPMS/docker-engine-1.7.0-1.el7.centos.src.rpm</a>   
+    </p>
+    </td>
+  </tr>
+</table>
 
-Additional installation, configuration, and usage information,
-including a [Get Started with Docker Containers in Red Hat
-Enterprise Linux 7](https://access.redhat.com/site/articles/881893)
-guide, can be found by Red Hat customers on the [Red Hat Customer
-Portal](https://access.redhat.com/).
+This procedure depicts an installation on version 6.6.  If you are installing on
+7.X, substitute that package for your installation. 
 
-Please continue with the [Starting the Docker daemon](#starting-the-docker-daemon).
+1. Log into your machine as a user with `sudo` or `root` privileges.
 
-### Uninstallation
+2. Download the Docker RPM to the current directory.
+		
+		$ curl -O -sSL http://get.docker.com/docker/1.7.0/rpms/centos-6/RPMS/x86_64/docker-engine-1.7.0-0.1.el6.x86_64.rpm
 
-To uninstall the Docker package:
+3. Use `yum` to install the package.
 
-    $ sudo yum -y remove docker
+		$ sudo yum localinstall --nogpgcheck docker-engine-1.7.0-0.1.el6.x86_64.rpm
 
-The above command will not remove images, containers, volumes, or user created
-configuration files on your host. If you wish to delete all images, containers,
-and volumes run the following command:
+5. Start the Docker daemon.
 
-    $ rm -rf /var/lib/docker
+		$ sudo service docker start
 
-You must delete the user created configuration files manually.
+6. Verify `docker` is installed correctly.
 
-## Red Hat Enterprise Linux 6.6
+		$ sudo docker run hello-world
+		Unable to find image 'hello-world:latest' locally
+		latest: Pulling from hello-world
+		a8219747be10: Pull complete 
+		91c95931e552: Already exists 
+		hello-world:latest: The image you are pulling has been verified. Important: image verification is a tech preview feature and should not be relied on to provide security.
+		Digest: sha256:aa03e5d0d5553b4c3473e89c8619cf79df368babd18681cf5daeb82aab55838d
+		Status: Downloaded newer image for hello-world:latest
+		Hello from Docker.
+		This message shows that your installation appears to be working correctly.
 
-You will need **64 bit** [RHEL
-6.6](https://access.redhat.com/site/articles/3078#RHEL6) or later, with
-a RHEL 6 kernel version 2.6.32-504.16.2 or higher as this has specific kernel
-fixes to allow Docker to work. Related issues: [#9856](https://github.com/docker/docker/issues/9856).
+		To generate this message, Docker took the following steps:
+		 1. The Docker client contacted the Docker daemon.
+		 2. The Docker daemon pulled the "hello-world" image from the Docker Hub.
+				(Assuming it was not already locally available.)
+		 3. The Docker daemon created a new container from that image which runs the
+				executable that produces the output you are currently reading.
+		 4. The Docker daemon streamed that output to the Docker client, which sent it
+				to your terminal.
 
-Docker is available for **RHEL6.6** on EPEL. Please note that
-this package is part of [Extra Packages for Enterprise Linux
-(EPEL)](https://fedoraproject.org/wiki/EPEL), a community effort to
-create and maintain additional packages for the RHEL distribution.
+		To try something more ambitious, you can run an Ubuntu container with:
+		 $ docker run -it ubuntu bash
 
-### Kernel support
+		For more examples and ideas, visit:
+		 http://docs.docker.com/userguide/
+ 
+## Create a docker group		
 
-RHEL will only support Docker via the *extras* channel or EPEL package when
-running on kernels shipped by the distribution. There are things like namespace
-changes which will cause issues if one decides to step outside that box and run
-non-distro kernel packages.
+The `docker` daemon binds to a Unix socket instead of a TCP port. By default
+that Unix socket is owned by the user `root` and other users can access it with
+`sudo`. For this reason, `docker` daemon always runs as the `root` user.
 
-> **Warning**:
-> Please keep your system up to date using `yum update` and rebooting
-> your system. Keeping your system updated ensures critical security
->  vulnerabilities and severe bugs (such as those found in kernel 2.6.32)
-> are fixed.
+To avoid having to use `sudo` when you use the `docker` command, create a Unix
+group called `docker` and add users to it. When the `docker` daemon starts, it
+makes the ownership of the Unix socket read/writable by the `docker` group.
 
-###  Installation
+>**Warning**: The `docker` group is equivalent to the `root` user; For details
+>on how this impacts security in your system, see [*Docker Daemon Attack
+>Surface*](/articles/security/#docker-daemon-attack-surface) for details.
 
-Firstly, you need to install the EPEL repository. Please follow the
-[EPEL installation
-instructions](https://fedoraproject.org/wiki/EPEL#How_can_I_use_these_extra_packages.3F).
+To create the `docker` group and add your user:
 
-There is a package name conflict with a system tray application
-and its executable, so the Docker RPM package was called `docker-io`.
+1. Log into your machine as a user with `sudo` or `root` privileges.
 
-To proceed with `docker-io` installation, you may need to remove the
-`docker` package first.
+2. Create the `docker` group and add your user.
 
-    $ sudo yum -y remove docker
+    `sudo usermod -aG docker your_username`
 
-Next, let's install the `docker-io` package which will install Docker on our host.
+3. Log out and log back in.
 
-    $ sudo yum install docker-io
+    This ensures your user is running with the correct permissions.
 
-To update the `docker-io` package
+4. Verify your work by running `docker` without `sudo`.
 
-    $ sudo yum -y update docker-io
+			$ docker run hello-world
+ 
+## Start the docker daemon at boot
 
-Please continue with the [Starting the Docker daemon](#starting-the-docker-daemon).
-
-### Uninstallation
-
-To uninstall the Docker package:
-
-    $ sudo yum -y remove docker-io
-
-The above command will not remove images, containers, volumes, or user created
-configuration files on your host. If you wish to delete all images, containers,
-and volumes run the following command:
-
-    $ rm -rf /var/lib/docker
-
-You must delete the user created configuration files manually.
-
-## Starting the Docker daemon
-
-Now that it's installed, let's start the Docker daemon.
-
-    $ sudo service docker start
-
-If we want Docker to start at boot, we should also:
+To ensure Docker starts when you boot your system, do the following:
 
     $ sudo chkconfig docker on
-
-Now let's verify that Docker is working.
-
-    $ sudo docker run -i -t fedora /bin/bash
-
-> Note: If you get a `Cannot start container` error mentioning SELinux
-> or permission denied, you may need to update the SELinux policies.
-> This can be done using `sudo yum upgrade selinux-policy` and then rebooting.
-
-**Done!**
-
-Continue with the [User Guide](/userguide/).
-
-## Custom daemon options
 
 If you need to add an HTTP Proxy, set a different directory or partition for the
 Docker runtime files, or make other customizations, read our Systemd article to
 learn how to [customize your Systemd Docker daemon options](/articles/systemd/).
 
-## Issues?
 
-If you have any issues - please report them directly in the
-[Red Hat Bugzilla for docker-io component](
-https://bugzilla.redhat.com/enter_bug.cgi?product=Fedora%20EPEL&component=docker-io).
+## Uninstall
+
+You can uninstall the Docker software with `yum`.  
+
+1. List the package you have installed.
+
+		$ yum list installed | grep docker
+		yum list installed | grep docker
+		docker-engine.x86_64                1.7.0-0.1.el6
+																																					 @/docker-engine-1.7.0-0.1.el6.x86_64
+
+2. Remove the package.
+
+		$ sudo yum -y remove docker-engine.x86_64 
+
+	This command does not remove images, containers, volumes, or user created
+	configuration files on your host. 
+
+3. To delete all images, containers, and volumes run the following command:
+
+		$ rm -rf /var/lib/docker
+
+4. Locate and delete any user-created configuration files.
