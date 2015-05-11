@@ -13,13 +13,13 @@ import (
 	"github.com/docker/libcontainer/apparmor"
 	"github.com/docker/libcontainer/configs"
 	"github.com/docker/libcontainer/devices"
-	"github.com/docker/libcontainer/utils"
 )
 
 // createContainer populates and configures the container type with the
 // data provided by the execdriver.Command
 func (d *driver) createContainer(c *execdriver.Command) (*configs.Config, error) {
 	container := execdriver.InitContainer(c)
+	var ethname string
 
 	if err := d.createIpc(container, c); err != nil {
 		return nil, err
@@ -29,7 +29,10 @@ func (d *driver) createContainer(c *execdriver.Command) (*configs.Config, error)
 		return nil, err
 	}
 
-	if err := d.createNetwork(container, c); err != nil {
+	d.setupLabels(container, c)
+
+	ethname=container.Hostname
+	if err := d.createNetwork(container, c, ethname); err != nil {
 		return nil, err
 	}
 
@@ -45,11 +48,17 @@ func (d *driver) createContainer(c *execdriver.Command) (*configs.Config, error)
 		if err := d.setPrivileged(container); err != nil {
 			return nil, err
 		}
+
 	} else {
 		if err := d.setCapabilities(container, c); err != nil {
 			return nil, err
 		}
 	}
+
+        if err := d.createNetwork(container, c, ethname); err != nil {
+                return nil, err
+        }
+
 
 	if c.AppArmorProfile != "" {
 		container.AppArmorProfile = c.AppArmorProfile
@@ -63,17 +72,16 @@ func (d *driver) createContainer(c *execdriver.Command) (*configs.Config, error)
 		return nil, err
 	}
 
-	d.setupLabels(container, c)
 	d.setupRlimits(container, c)
 	return container, nil
 }
 
-func generateIfaceName() (string, error) {
-	for i := 0; i < 10; i++ {
-		name, err := utils.GenerateRandomName("veth", 7)
-		if err != nil {
+func generateIfaceName(ethname string) (string, error) {
+	for i := 0; i < 15; i++ {
+		var name = ethname
+		/*if err != nil {
 			continue
-		}
+		}*/
 		if _, err := net.InterfaceByName(name); err != nil {
 			if strings.Contains(err.Error(), "no such") {
 				return name, nil
@@ -84,7 +92,7 @@ func generateIfaceName() (string, error) {
 	return "", errors.New("Failed to find name for new interface")
 }
 
-func (d *driver) createNetwork(container *configs.Config, c *execdriver.Command) error {
+func (d *driver) createNetwork(container *configs.Config, c *execdriver.Command, ethname string) error {
 	if c.Network.HostNetworking {
 		container.Namespaces.Remove(configs.NEWNET)
 		return nil
@@ -96,7 +104,7 @@ func (d *driver) createNetwork(container *configs.Config, c *execdriver.Command)
 		},
 	}
 
-	iName, err := generateIfaceName()
+	iName, err := generateIfaceName(ethname)
 	if err != nil {
 		return err
 	}
