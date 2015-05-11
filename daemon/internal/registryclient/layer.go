@@ -48,7 +48,7 @@ func (hl *httpLayer) Read(p []byte) (n int, err error) {
 	n, err = rd.Read(p)
 	hl.offset += int64(n)
 
-	// Simulate io.EOR error if we reach filesize.
+	// Simulate io.EOF error if we reach filesize.
 	if err == nil && hl.offset >= hl.size {
 		err = io.EOF
 	}

@@ -17,6 +17,13 @@ type Authorizer interface {
 	Authorize(req *http.Request) error
 }
 
+// AuthenticationHandler is an interface for authorizing a request from
+// params from a "WWW-Authenicate" header for a single scheme.
+type AuthenticationHandler interface {
+	Scheme() string
+	AuthorizeRequest(req *http.Request, params map[string]string) error
+}
+
 // CredentialStore is an interface for getting credentials for
 // a given URL
 type CredentialStore interface {
@@ -48,18 +55,6 @@ func (rc *RepositoryConfig) HTTPClient() (*http.Client, error) {
 	return client, nil
 }
 
-// TokenScope represents the scope at which a token will be requested.
-// This represents a specific action on a registry resource.
-type TokenScope struct {
-	Resource string
-	Scope    string
-	Actions  []string
-}
-
-func (ts TokenScope) String() string {
-	return fmt.Sprintf("%s:%s:%s", ts.Resource, ts.Scope, strings.Join(ts.Actions, ","))
-}
-
 // NewTokenAuthorizer returns an authorizer which is capable of getting a token
 // from a token server. The expected authorization method will be discovered
 // by the authorizer, getting the token server endpoint from the URL being
@@ -69,24 +64,37 @@ func (ts TokenScope) String() string {
 func NewTokenAuthorizer(creds CredentialStore, header http.Header, scope TokenScope) Authorizer {
 	return &tokenAuthorizer{
 		header:     header,
-		creds:      creds,
-		scope:      scope,
-		challenges: map[string][]authorizationChallenge{},
+		challenges: map[string]map[string]authorizationChallenge{},
+		handlers: []AuthenticationHandler{
+			NewTokenHandler(creds, scope, header),
+			NewBasicHandler(creds),
+		},
+	}
+}
+
+// NewAuthorizer creates an authorizer which can handle multiple authentication
+// schemes. The handlers are tried in order, the higher priority authentication
+// methods should be first.
+func NewAuthorizer(header http.Header, handlers ...AuthenticationHandler) Authorizer {
+	return &tokenAuthorizer{
+		header:     header,
+		challenges: map[string]map[string]authorizationChallenge{},
+		handlers:   handlers,
 	}
 }
 
 type tokenAuthorizer struct {
 	header     http.Header
-	challenges map[string][]authorizationChallenge
-	creds      CredentialStore
-	scope      TokenScope
-
-	tokenLock       sync.Mutex
-	tokenCache      string
-	tokenExpiration time.Time
+	challenges map[string]map[string]authorizationChallenge
+	handlers   []AuthenticationHandler
 }
 
-func (ta *tokenAuthorizer) ping(endpoint string) ([]authorizationChallenge, error) {
+func (ta *tokenAuthorizer) client() *http.Client {
+	// TODO(dmcgowan): Use same transport which has properly configured TLS
+	return &http.Client{Transport: &Transport{ExtraHeader: ta.header}}
+}
+
+func (ta *tokenAuthorizer) ping(endpoint string) (map[string]authorizationChallenge, error) {
 	req, err := http.NewRequest("GET", endpoint, nil)
 	if err != nil {
 		return nil, err
@@ -98,6 +106,7 @@ func (ta *tokenAuthorizer) ping(endpoint string) ([]authorizationChallenge, erro
 	}
 	defer resp.Body.Close()
 
+	// TODO(dmcgowan): Add version string which would allow skipping this section
 	var supportsV2 bool
 HeaderLoop:
 	for _, supportedVersions := range resp.Header[http.CanonicalHeaderKey("Docker-Distribution-API-Version")] {
@@ -148,59 +157,80 @@ func (ta *tokenAuthorizer) Authorize(req *http.Request) error {
 		ta.challenges[pingEndpoint] = challenges
 	}
 
-	return ta.setAuth(challenges, req)
-}
-
-func (ta *tokenAuthorizer) client() *http.Client {
-	// TODO(dmcgowan): Use same transport which has properly configured TLS
-	return &http.Client{Transport: &Transport{ExtraHeader: ta.header}}
-}
-
-func (ta *tokenAuthorizer) setAuth(challenges []authorizationChallenge, req *http.Request) error {
-	var useBasic bool
-	for _, challenge := range challenges {
-		switch strings.ToLower(challenge.Scheme) {
-		case "basic":
-			useBasic = true
-		case "bearer":
-			if err := ta.refreshToken(challenge); err != nil {
+	for _, handler := range ta.handlers {
+		challenge, ok := challenges[handler.Scheme()]
+		if ok {
+			if err := handler.AuthorizeRequest(req, challenge.Parameters); err != nil {
 				return err
 			}
-
-			req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", ta.tokenCache))
-
-			return nil
-		default:
-			//log.Infof("Unsupported auth scheme: %q", challenge.Scheme)
 		}
-	}
-
-	// Only use basic when no token auth challenges found
-	if useBasic {
-		if ta.creds != nil {
-			username, password := ta.creds.Basic(req.URL)
-			if username != "" && password != "" {
-				req.SetBasicAuth(username, password)
-				return nil
-			}
-		}
-		return errors.New("no basic auth credentials")
 	}
 
 	return nil
 }
 
-func (ta *tokenAuthorizer) refreshToken(challenge authorizationChallenge) error {
-	ta.tokenLock.Lock()
-	defer ta.tokenLock.Unlock()
+type tokenHandler struct {
+	header http.Header
+	creds  CredentialStore
+	scope  TokenScope
+
+	tokenLock       sync.Mutex
+	tokenCache      string
+	tokenExpiration time.Time
+}
+
+// TokenScope represents the scope at which a token will be requested.
+// This represents a specific action on a registry resource.
+type TokenScope struct {
+	Resource string
+	Scope    string
+	Actions  []string
+}
+
+// NewTokenHandler creates a new AuthenicationHandler which supports
+// fetching tokens from a remote token server.
+func NewTokenHandler(creds CredentialStore, scope TokenScope, header http.Header) AuthenticationHandler {
+	return &tokenHandler{
+		header: header,
+		creds:  creds,
+		scope:  scope,
+	}
+}
+
+func (ts TokenScope) String() string {
+	return fmt.Sprintf("%s:%s:%s", ts.Resource, ts.Scope, strings.Join(ts.Actions, ","))
+}
+
+func (ts *tokenHandler) client() *http.Client {
+	// TODO(dmcgowan): Use same transport which has properly configured TLS
+	return &http.Client{Transport: &Transport{ExtraHeader: ts.header}}
+}
+
+func (ts *tokenHandler) Scheme() string {
+	return "bearer"
+}
+
+func (ts *tokenHandler) AuthorizeRequest(req *http.Request, params map[string]string) error {
+	if err := ts.refreshToken(params); err != nil {
+		return err
+	}
+
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", ts.tokenCache))
+
+	return nil
+}
+
+func (ts *tokenHandler) refreshToken(params map[string]string) error {
+	ts.tokenLock.Lock()
+	defer ts.tokenLock.Unlock()
 	now := time.Now()
-	if now.After(ta.tokenExpiration) {
-		token, err := ta.fetchToken(challenge)
+	if now.After(ts.tokenExpiration) {
+		token, err := ts.fetchToken(params)
 		if err != nil {
 			return err
 		}
-		ta.tokenCache = token
-		ta.tokenExpiration = now.Add(time.Minute)
+		ts.tokenCache = token
+		ts.tokenExpiration = now.Add(time.Minute)
 	}
 
 	return nil
@@ -210,25 +240,19 @@ type tokenResponse struct {
 	Token string `json:"token"`
 }
 
-func (ta *tokenAuthorizer) fetchToken(challenge authorizationChallenge) (token string, err error) {
+func (ts *tokenHandler) fetchToken(params map[string]string) (token string, err error) {
 	//log.Debugf("Getting bearer token with %s for %s", challenge.Parameters, ta.auth.Username)
-	params := map[string]string{}
-	for k, v := range challenge.Parameters {
-		params[k] = v
-	}
-	params["scope"] = ta.scope.String()
-
 	realm, ok := params["realm"]
 	if !ok {
 		return "", errors.New("no realm specified for token auth challenge")
 	}
 
+	// TODO(dmcgowan): Handle empty scheme
+
 	realmURL, err := url.Parse(realm)
 	if err != nil {
 		return "", fmt.Errorf("invalid token auth challenge realm: %s", err)
 	}
-
-	// TODO(dmcgowan): Handle empty scheme
 
 	req, err := http.NewRequest("GET", realmURL.String(), nil)
 	if err != nil {
@@ -237,7 +261,7 @@ func (ta *tokenAuthorizer) fetchToken(challenge authorizationChallenge) (token s
 
 	reqParams := req.URL.Query()
 	service := params["service"]
-	scope := params["scope"]
+	scope := ts.scope.String()
 
 	if service != "" {
 		reqParams.Add("service", service)
@@ -247,8 +271,8 @@ func (ta *tokenAuthorizer) fetchToken(challenge authorizationChallenge) (token s
 		reqParams.Add("scope", scopeField)
 	}
 
-	if ta.creds != nil {
-		username, password := ta.creds.Basic(realmURL)
+	if ts.creds != nil {
+		username, password := ts.creds.Basic(realmURL)
 		if username != "" && password != "" {
 			reqParams.Add("account", username)
 			req.SetBasicAuth(username, password)
@@ -257,7 +281,7 @@ func (ta *tokenAuthorizer) fetchToken(challenge authorizationChallenge) (token s
 
 	req.URL.RawQuery = reqParams.Encode()
 
-	resp, err := ta.client().Do(req)
+	resp, err := ts.client().Do(req)
 	if err != nil {
 		return "", err
 	}
@@ -279,4 +303,31 @@ func (ta *tokenAuthorizer) fetchToken(challenge authorizationChallenge) (token s
 	}
 
 	return tr.Token, nil
+}
+
+type basicHandler struct {
+	creds CredentialStore
+}
+
+// NewBasicHandler creaters a new authentiation handler which adds
+// basic authentication credentials to a request.
+func NewBasicHandler(creds CredentialStore) AuthenticationHandler {
+	return &basicHandler{
+		creds: creds,
+	}
+}
+
+func (*basicHandler) Scheme() string {
+	return "basic"
+}
+
+func (bh *basicHandler) AuthorizeRequest(req *http.Request, params map[string]string) error {
+	if bh.creds != nil {
+		username, password := bh.creds.Basic(req.URL)
+		if username != "" && password != "" {
+			req.SetBasicAuth(username, password)
+			return nil
+		}
+	}
+	return errors.New("no basic auth credentials")
 }
