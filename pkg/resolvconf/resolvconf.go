@@ -10,6 +10,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/ioutils"
+	"github.com/docker/docker/pkg/resolvconf/dns"
 )
 
 var (
@@ -24,10 +25,8 @@ var (
 	// For readability and sufficiency for Docker purposes this seemed more reasonable than a
 	// 1000+ character regexp with exact and complete IPv6 validation
 	ipv6Address = `([0-9A-Fa-f]{0,4}:){2,7}([0-9A-Fa-f]{0,4})`
-	ipLocalhost = `((127\.([0-9]{1,3}.){2}[0-9]{1,3})|(::1))`
 
-	localhostIPRegexp = regexp.MustCompile(ipLocalhost)
-	localhostNSRegexp = regexp.MustCompile(`(?m)^nameserver\s+` + ipLocalhost + `\s*\n*`)
+	localhostNSRegexp = regexp.MustCompile(`(?m)^nameserver\s+` + dns.IpLocalhost + `\s*\n*`)
 	nsIPv6Regexp      = regexp.MustCompile(`(?m)^nameserver\s+` + ipv6Address + `\s*\n*`)
 	nsRegexp          = regexp.MustCompile(`^\s*nameserver\s*((` + ipv4Address + `)|(` + ipv6Address + `))\s*$`)
 	searchRegexp      = regexp.MustCompile(`^\s*search\s*(([^\s]+\s*)*)$`)
@@ -126,13 +125,6 @@ func getLines(input []byte, commentMarker []byte) [][]byte {
 		}
 	}
 	return output
-}
-
-// IsLocalhost returns true if ip matches the localhost IP regular expression.
-// Used for determining if nameserver settings are being passed which are
-// localhost addresses
-func IsLocalhost(ip string) bool {
-	return localhostIPRegexp.MatchString(ip)
 }
 
 // GetNameservers returns nameservers (if any) listed in /etc/resolv.conf
