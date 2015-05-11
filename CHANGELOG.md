@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.6.2 (2015-05-13)
+
+####  Runtime
+- Revert change prohibiting mounting into /sys
+
 ## 1.6.1 (2015-05-07)
 
 ####  Security
