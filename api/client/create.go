@@ -10,7 +10,7 @@ import (
 	"strings"
 
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/graph"
+	"github.com/docker/docker/graph/tags"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/runconfig"
@@ -26,7 +26,7 @@ func (cli *DockerCli) pullImageCustomOut(image string, out io.Writer) error {
 	repos, tag := parsers.ParseRepositoryTag(image)
 	// pull only the image tagged 'latest' if no tag was specified
 	if tag == "" {
-		tag = graph.DEFAULTTAG
+		tag = tags.DEFAULTTAG
 	}
 	v.Set("fromImage", repos)
 	v.Set("tag", tag)
@@ -100,7 +100,7 @@ func (cli *DockerCli) createContainer(config *runconfig.Config, hostConfig *runc
 	if statusCode == 404 && strings.Contains(err.Error(), config.Image) {
 		repo, tag := parsers.ParseRepositoryTag(config.Image)
 		if tag == "" {
-			tag = graph.DEFAULTTAG
+			tag = tags.DEFAULTTAG
 		}
 		fmt.Fprintf(cli.err, "Unable to find image '%s' locally\n", utils.ImageReference(repo, tag))
 

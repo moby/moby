@@ -13,7 +13,7 @@ import (
 	"github.com/docker/docker/builder/parser"
 	"github.com/docker/docker/cliconfig"
 	"github.com/docker/docker/daemon"
-	"github.com/docker/docker/graph"
+	"github.com/docker/docker/graph/tags"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/httputils"
 	"github.com/docker/docker/pkg/parsers"
@@ -99,7 +99,7 @@ func Build(d *daemon.Daemon, buildConfig *Config) error {
 			return err
 		}
 		if len(tag) > 0 {
-			if err := graph.ValidateTagName(tag); err != nil {
+			if err := tags.ValidateTagName(tag); err != nil {
 				return err
 			}
 		}
