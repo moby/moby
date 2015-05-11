@@ -54,12 +54,12 @@ func init() {
 	}
 }
 
-func parseAuthHeader(header http.Header) []authorizationChallenge {
-	var challenges []authorizationChallenge
+func parseAuthHeader(header http.Header) map[string]authorizationChallenge {
+	challenges := map[string]authorizationChallenge{}
 	for _, h := range header[http.CanonicalHeaderKey("WWW-Authenticate")] {
 		v, p := parseValueAndParams(h)
 		if v != "" {
-			challenges = append(challenges, authorizationChallenge{Scheme: v, Parameters: p})
+			challenges[v] = authorizationChallenge{Scheme: v, Parameters: p}
 		}
 	}
 	return challenges

@@ -13,25 +13,26 @@ func TestAuthChallengeParse(t *testing.T) {
 	if len(challenges) != 1 {
 		t.Fatalf("Unexpected number of auth challenges: %d, expected 1", len(challenges))
 	}
+	challenge := challenges["bearer"]
 
-	if expected := "bearer"; challenges[0].Scheme != expected {
-		t.Fatalf("Unexpected scheme: %s, expected: %s", challenges[0].Scheme, expected)
+	if expected := "bearer"; challenge.Scheme != expected {
+		t.Fatalf("Unexpected scheme: %s, expected: %s", challenge.Scheme, expected)
 	}
 
-	if expected := "https://auth.example.com/token"; challenges[0].Parameters["realm"] != expected {
-		t.Fatalf("Unexpected param: %s, expected: %s", challenges[0].Parameters["realm"], expected)
+	if expected := "https://auth.example.com/token"; challenge.Parameters["realm"] != expected {
+		t.Fatalf("Unexpected param: %s, expected: %s", challenge.Parameters["realm"], expected)
 	}
 
-	if expected := "registry.example.com"; challenges[0].Parameters["service"] != expected {
-		t.Fatalf("Unexpected param: %s, expected: %s", challenges[0].Parameters["service"], expected)
+	if expected := "registry.example.com"; challenge.Parameters["service"] != expected {
+		t.Fatalf("Unexpected param: %s, expected: %s", challenge.Parameters["service"], expected)
 	}
 
-	if expected := "fun"; challenges[0].Parameters["other"] != expected {
-		t.Fatalf("Unexpected param: %s, expected: %s", challenges[0].Parameters["other"], expected)
+	if expected := "fun"; challenge.Parameters["other"] != expected {
+		t.Fatalf("Unexpected param: %s, expected: %s", challenge.Parameters["other"], expected)
 	}
 
-	if expected := "he\"llo"; challenges[0].Parameters["slashed"] != expected {
-		t.Fatalf("Unexpected param: %s, expected: %s", challenges[0].Parameters["slashed"], expected)
+	if expected := "he\"llo"; challenge.Parameters["slashed"] != expected {
+		t.Fatalf("Unexpected param: %s, expected: %s", challenge.Parameters["slashed"], expected)
 	}
 
 }
