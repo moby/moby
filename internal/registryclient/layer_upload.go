@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"os"
 	"time"
@@ -33,7 +34,7 @@ func (hlu *httpLayerUpload) handleErrorResponse(resp *http.Response) error {
 }
 
 func (hlu *httpLayerUpload) ReadFrom(r io.Reader) (n int64, err error) {
-	req, err := http.NewRequest("PATCH", hlu.location, r)
+	req, err := http.NewRequest("PATCH", hlu.location, ioutil.NopCloser(r))
 	if err != nil {
 		return 0, err
 	}
