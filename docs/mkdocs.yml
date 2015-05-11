@@ -88,6 +88,7 @@ pages:
 - ['docker-hub-enterprise/install.md', 'Docker Hub Enterprise', '&nbsp;&nbsp;Installation' ]
 - ['docker-hub-enterprise/configuration.md', 'Docker Hub Enterprise', '&nbsp;&nbsp;Configuration options' ]
 - ['docker-hub-enterprise/support.md', 'Docker Hub Enterprise', 'Support' ]
+- ['docker-hub-enterprise/release-notes.md', 'Docker Hub Enterprise', 'Release notes' ]
 
 # Examples:
 - ['examples/index.md', '**HIDDEN**']

@@ -131,3 +131,6 @@ handled centrally by Machine instead of letting each driver individually do it.
 host’s TLS certificates for good security practice and for if a host’s IP
 address changes. 
 
+## Docker Hub Enterprise & Commercialy Supported Docker Engine
+
+See the [DHE and CS Docker Engine release notes](docker-hub-enterprise/release-notes.md).
