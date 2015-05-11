@@ -15,7 +15,7 @@ import (
 
 func TestCreateFullOptions(t *testing.T) {
 	defer netutils.SetupTestNetNS(t)()
-	_, d := New(nil)
+	d := newDriver()
 
 	config := &Configuration{
 		EnableIPForwarding: true,
@@ -46,7 +46,7 @@ func TestCreateFullOptions(t *testing.T) {
 
 func TestCreate(t *testing.T) {
 	defer netutils.SetupTestNetNS(t)()
-	_, d := New(nil)
+	d := newDriver()
 
 	config := &NetworkConfiguration{BridgeName: DefaultBridgeName}
 	genericOption := make(map[string]interface{})
@@ -59,7 +59,7 @@ func TestCreate(t *testing.T) {
 
 func TestCreateFail(t *testing.T) {
 	defer netutils.SetupTestNetNS(t)()
-	_, d := New(nil)
+	d := newDriver()
 
 	config := &NetworkConfiguration{BridgeName: "dummy0"}
 	genericOption := make(map[string]interface{})
@@ -72,8 +72,8 @@ func TestCreateFail(t *testing.T) {
 
 func TestQueryEndpointInfo(t *testing.T) {
 	defer netutils.SetupTestNetNS(t)()
-
-	_, d := New(nil)
+	d := newDriver()
+	dd, _ := d.(*driver)
 
 	config := &NetworkConfiguration{
 		BridgeName:     DefaultBridgeName,
@@ -97,7 +97,6 @@ func TestQueryEndpointInfo(t *testing.T) {
 		t.Fatalf("Failed to create an endpoint : %s", err.Error())
 	}
 
-	dd := d.(*driver)
 	ep, _ := dd.network.endpoints["ep1"]
 	data, err := d.EndpointInfo(dd.network.id, ep.id)
 	if err != nil {
@@ -129,8 +128,7 @@ func TestQueryEndpointInfo(t *testing.T) {
 
 func TestCreateLinkWithOptions(t *testing.T) {
 	defer netutils.SetupTestNetNS(t)()
-
-	_, d := New(nil)
+	d := newDriver()
 
 	config := &NetworkConfiguration{BridgeName: DefaultBridgeName}
 	netOptions := make(map[string]interface{})
@@ -180,7 +178,7 @@ func getPortMapping() []netutils.PortBinding {
 func TestLinkContainers(t *testing.T) {
 	defer netutils.SetupTestNetNS(t)()
 
-	_, d := New(nil)
+	d := newDriver()
 
 	config := &NetworkConfiguration{
 		BridgeName:     DefaultBridgeName,
@@ -385,7 +383,7 @@ func TestValidateConfig(t *testing.T) {
 
 func TestSetDefaultGw(t *testing.T) {
 	defer netutils.SetupTestNetNS(t)()
-	_, d := New(nil)
+	d := newDriver()
 
 	_, subnetv6, _ := net.ParseCIDR("2001:db8:ea9:9abc:b0c4::/80")
 	gw4 := bridgeNetworks[0].IP.To4()

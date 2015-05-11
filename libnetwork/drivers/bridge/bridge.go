@@ -92,9 +92,14 @@ func init() {
 	portMapper = portmapper.New()
 }
 
-// New provides a new instance of bridge driver
-func New(dc driverapi.DriverCallback) (string, driverapi.Driver) {
-	return networkType, &driver{}
+// New constructs a new bridge driver
+func newDriver() driverapi.Driver {
+	return &driver{}
+}
+
+// Init registers a new instance of bridge driver
+func Init(dc driverapi.DriverCallback) error {
+	return dc.RegisterDriver(networkType, newDriver())
 }
 
 // Validate performs a static validation on the network configuration parameters.

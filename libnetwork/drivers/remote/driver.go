@@ -13,28 +13,11 @@ var errNoCallback = errors.New("No Callback handler registered with Driver")
 const remoteNetworkType = "remote"
 
 type driver struct {
-	networkType string
-	callback    driverapi.DriverCallback
 }
 
-// New instance of remote driver returned to LibNetwork
-func New(dc driverapi.DriverCallback) (string, driverapi.Driver) {
-	d := &driver{networkType: remoteNetworkType}
-	d.callback = dc
-	return d.networkType, d
-}
-
-// Internal Convenience method to register a remote driver.
-// The implementation of this method will change based on the dynamic driver registration design
-func (d *driver) registerRemoteDriver(networkType string) (driverapi.Driver, error) {
-	newDriver := &driver{networkType: networkType}
-	if d.callback == nil {
-		return nil, errNoCallback
-	}
-	if err := d.callback.RegisterDriver(networkType, newDriver); err != nil {
-		return nil, err
-	}
-	return newDriver, nil
+// Init does the necessary work to register remote drivers
+func Init(dc driverapi.DriverCallback) error {
+	return nil
 }
 
 func (d *driver) Config(option map[string]interface{}) error {
@@ -72,5 +55,5 @@ func (d *driver) Leave(nid, eid types.UUID, options map[string]interface{}) erro
 }
 
 func (d *driver) Type() string {
-	return d.networkType
+	return remoteNetworkType
 }

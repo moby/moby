@@ -10,18 +10,16 @@ import (
 
 type driverTable map[string]driverapi.Driver
 
-func enumerateDrivers(dc driverapi.DriverCallback) driverTable {
-	drivers := make(driverTable)
-
-	for _, fn := range [](func(driverapi.DriverCallback) (string, driverapi.Driver)){
-		bridge.New,
-		host.New,
-		null.New,
-		remote.New,
+func initDrivers(dc driverapi.DriverCallback) error {
+	for _, fn := range [](func(driverapi.DriverCallback) error){
+		bridge.Init,
+		host.Init,
+		null.Init,
+		remote.Init,
 	} {
-		name, driver := fn(dc)
-		drivers[name] = driver
+		if err := fn(dc); err != nil {
+			return err
+		}
 	}
-
-	return drivers
+	return nil
 }

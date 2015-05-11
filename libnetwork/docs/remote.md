@@ -1,17 +1,13 @@
-Remote Driver
-=============
+Remote Drivers
+==============
 
-Remote driver is a special built-in driver. This driver in itself doesn't provide any networking functionality. But it depends on actual remote drivers aka `Dynamic Drivers` to provide the required networking between the containers. The dynamic drivers (such as : Weave, OVS, OVN, ACI, Calico and external networking plugins) registers itself with the Build-In `Remote` Driver.
+The remote driver package provides the integration point for dynamically-registered drivers.
 
 ## LibNetwork Integration
 
-When LibNetwork creates an instance of the Built-in `Remote` Driver via the `New()` function, it passes a `DriverCallback` as a parameter which implements the `RegisterDriver()`. The Built-in Remote Driver can use this interface to register any of the `Dynamic` Drivers/Plugins with LibNetwork's `NetworkController`
+When LibNetwork initialises the `Remote` package with the `Init()` function, it passes a `DriverCallback` as a parameter, which implements the `RegisterDriver()`. The Remote Driver package can use this interface to register any of the `Dynamic` Drivers/Plugins with LibNetwork's `NetworkController`.
 
-Please Refer to [Remote Driver Test](https://github.com/docker/libnetwork/blob/master/drivers/remote/driver_test.go) which provides an example of registering a Dynamic driver with LibNetwork.
-
-This design ensures that the implementation details of Dynamic Driver Registration mechanism is completely owned by the inbuilt-Remote driver and it also doesnt expose any of the driver layer to the North of LibNetwork (none of the LibNetwork client APIs are impacted).
-
-When the inbuilt `Remote` driver detects a `Dynamic` Driver it can call the `registerRemoteDriver` method. This method will take care of creating a new `Remote` Driver instance with the passed 'NetworkType' and register it with Libnetwork's 'NetworkController
+This design ensures that the implementation details (TBD) of Dynamic Driver Registration mechanism is completely owned by the inbuilt-Remote driver, and it doesn't expose any of the driver layer to the North of LibNetwork (none of the LibNetwork client APIs are impacted).
 
 ## Implementation
 

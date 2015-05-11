@@ -8,8 +8,11 @@ import (
 
 func TestDriverRegistration(t *testing.T) {
 	bridgeNetType := "bridge"
-	c := New()
-	err := c.(*controller).RegisterDriver(bridgeNetType, nil)
+	c, err := New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = c.(*controller).RegisterDriver(bridgeNetType, nil)
 	if err == nil {
 		t.Fatalf("Expecting the RegisterDriver to fail for %s", bridgeNetType)
 	}

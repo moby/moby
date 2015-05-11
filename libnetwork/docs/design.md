@@ -119,7 +119,7 @@ The APIs are still work in progress and there can be changes to these based on t
 
 ## Implementations
 
-Libnetwork includes the following drivers:
+Libnetwork includes the following driver packages:
 
 - null
 - bridge
@@ -142,7 +142,7 @@ For more details on its design, please see the [Overlay Driver Design](overlay.m
 
 ### Remote
 
-The `remote` driver, provides a means of supporting drivers over a remote transport.
+The `remote` package does not provide a driver, but provides a means of supporting drivers over a remote transport.
 This allows a driver to be written in a language of your choice.
 For further details, please see the [Remote Driver Design](remote.md)
 
