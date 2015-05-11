@@ -1,23 +1,30 @@
 .PHONY: all all-local build build-local check check-code check-format run-tests check-local install-deps coveralls circle-ci
 SHELL=/bin/bash
-dockerargs = --privileged -v $(shell pwd):/go/src/github.com/docker/libnetwork -w /go/src/github.com/docker/libnetwork golang:1.4
-docker = docker run --rm ${dockerargs}
+build_image=libnetwork-build
+dockerargs = --privileged -v $(shell pwd):/go/src/github.com/docker/libnetwork -w /go/src/github.com/docker/libnetwork
+docker = docker run --rm ${dockerargs} ${build_image}
 ciargs = -e "COVERALLS_TOKEN=$$COVERALLS_TOKEN"
-cidocker = docker run ${ciargs} ${dockerargs}
+cidocker = docker run ${ciargs} ${dockerargs} golang:1.4
 
-all: 
+all: ${build_image}.created
 	${docker} make all-local
 
-all-local: 	install-deps check-local build-local
+all-local: check-local build-local
 
-build: 
-	${docker} make install-deps build-local
+${build_image}.created:
+	docker run --name=libnetworkbuild -v $(shell pwd):/go/src/github.com/docker/libnetwork -w /go/src/github.com/docker/libnetwork golang:1.4 make install-deps
+	docker commit libnetworkbuild ${build_image}
+	docker rm libnetworkbuild
+	touch ${build_image}.created
+
+build: ${build_image}.created
+	${docker} make build-local
 
 build-local:
 	$(shell which godep) go build ./...
 
-check:
-	${docker} make install-deps check-local
+check: ${build_image}.created
+	${docker} make check-local
 
 check-code:
 	@echo "Checking code... "
@@ -35,7 +42,7 @@ run-tests:
 	@echo "mode: count" > coverage.coverprofile
 	@for dir in $$(find . -maxdepth 10 -not -path './.git*' -not -path '*/_*' -type d); do \
 	    if ls $$dir/*.go &> /dev/null; then \
-            	$(shell which godep) go test -test.parallel 3 -test.v -covermode=count -coverprofile=$$dir/profile.tmp $$dir ; \
+		$(shell which godep) go test -test.parallel 3 -test.v -covermode=count -coverprofile=$$dir/profile.tmp $$dir ; \
 		if [ $$? -ne 0 ]; then exit $$?; fi ;\
 	        if [ -f $$dir/profile.tmp ]; then \
 		        cat $$dir/profile.tmp | tail -n +2 >> coverage.coverprofile ; \
@@ -64,4 +71,3 @@ coveralls:
 
 circle-ci:
 	@${cidocker} make install-deps check-local coveralls
-
