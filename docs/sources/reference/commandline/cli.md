@@ -2138,6 +2138,12 @@ Guide.
 The `--link` flag will link the container named `/redis` into the newly
 created container with the alias `redis`. The new container can access the
 network and environment of the `redis` container via environment variables.
+The `--link` flag will also just accept the form `<name or id>` in which case
+the alias will match the name. For instance, you could have written the previous
+example as:
+
+    $ docker run --link redis --name console ubuntu bash
+
 The `--name` flag will assign the name `console` to the newly created
 container.
 
