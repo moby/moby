@@ -71,10 +71,10 @@ type NetworkController interface {
 	WalkNetworks(walker NetworkWalker)
 
 	// NetworkByName returns the Network which has the passed name, if it exists otherwise nil is returned
-	NetworkByName(name string) Network
+	NetworkByName(name string) (Network, error)
 
 	// NetworkByID returns the Network which has the passed id, if it exists otherwise nil is returned
-	NetworkByID(id string) Network
+	NetworkByID(id string) (Network, error)
 }
 
 // NetworkWalker is a client provided function which will be used to walk the Networks.
@@ -129,7 +129,7 @@ func (c *controller) RegisterDriver(networkType string, driver driverapi.Driver)
 // are network specific and modeled in a generic way.
 func (c *controller) NewNetwork(networkType, name string, options ...NetworkOption) (Network, error) {
 	if name == "" {
-		return nil, ErrInvalidNetworkName
+		return nil, ErrInvalidName
 	}
 	// Check if a driver for the specified network type is available
 	c.Lock()
@@ -192,31 +192,35 @@ func (c *controller) WalkNetworks(walker NetworkWalker) {
 	}
 }
 
-func (c *controller) NetworkByName(name string) Network {
+func (c *controller) NetworkByName(name string) (Network, error) {
+	if name == "" {
+		return nil, ErrInvalidName
+	}
 	var n Network
 
-	if name != "" {
-		s := func(current Network) bool {
-			if current.Name() == name {
-				n = current
-				return true
-			}
-			return false
+	s := func(current Network) bool {
+		if current.Name() == name {
+			n = current
+			return true
 		}
-
-		c.WalkNetworks(s)
+		return false
 	}
 
-	return n
+	c.WalkNetworks(s)
+
+	return n, nil
 }
 
-func (c *controller) NetworkByID(id string) Network {
+func (c *controller) NetworkByID(id string) (Network, error) {
+	if id == "" {
+		return nil, ErrInvalidID
+	}
 	c.Lock()
 	defer c.Unlock()
 	if n, ok := c.networks[types.UUID(id)]; ok {
-		return n
+		return n, nil
 	}
-	return nil
+	return nil, nil
 }
 
 func (c *controller) sandboxAdd(key string, create bool) (sandbox.Sandbox, error) {

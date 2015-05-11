@@ -14,16 +14,16 @@ var (
 	ErrInvalidNetworkDriver = errors.New("invalid driver bound to network")
 	// ErrInvalidJoin is returned if a join is attempted on an endpoint
 	// which already has a container joined.
-	ErrInvalidJoin = errors.New("A container has already joined the endpoint")
+	ErrInvalidJoin = errors.New("a container has already joined the endpoint")
 	// ErrNoContainer is returned when the endpoint has no container
 	// attached to it.
 	ErrNoContainer = errors.New("no container attached to the endpoint")
-	// ErrInvalidEndpointName is returned if an invalid endpoint name
-	// is passed when creating an endpoint
-	ErrInvalidEndpointName = errors.New("invalid endpoint name")
-	// ErrInvalidNetworkName is returned if an invalid network name
-	// is passed when creating a network
-	ErrInvalidNetworkName = errors.New("invalid network name")
+	// ErrInvalidID is returned when a query-by-id method is being invoked
+	// with an empty id parameter
+	ErrInvalidID = errors.New("invalid ID")
+	// ErrInvalidName is returned when a query-by-name or resource create method is
+	// invoked with an empty name parameter
+	ErrInvalidName = errors.New("invalid Name")
 )
 
 // NetworkTypeError type is returned when the network type string is not
