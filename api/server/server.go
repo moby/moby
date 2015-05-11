@@ -353,28 +353,7 @@ func (s *Server) getImagesJSON(version version.Version, w http.ResponseWriter, r
 		return err
 	}
 
-	if version.GreaterThanOrEqualTo("1.7") {
-		return writeJSON(w, http.StatusOK, images)
-	}
-
-	legacyImages := []types.LegacyImage{}
-
-	for _, image := range images {
-		for _, repoTag := range image.RepoTags {
-			repo, tag := parsers.ParseRepositoryTag(repoTag)
-			legacyImage := types.LegacyImage{
-				Repository:  repo,
-				Tag:         tag,
-				ID:          image.ID,
-				Created:     image.Created,
-				Size:        image.Size,
-				VirtualSize: image.VirtualSize,
-			}
-			legacyImages = append(legacyImages, legacyImage)
-		}
-	}
-
-	return writeJSON(w, http.StatusOK, legacyImages)
+	return writeJSON(w, http.StatusOK, images)
 }
 
 func (s *Server) getInfo(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
@@ -520,10 +499,6 @@ func (s *Server) getContainersChanges(version version.Version, w http.ResponseWr
 }
 
 func (s *Server) getContainersTop(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	if version.LessThan("1.4") {
-		return fmt.Errorf("top was improved a lot since 1.3, Please upgrade your docker client.")
-	}
-
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
 	}
@@ -706,14 +681,11 @@ func (s *Server) postImagesCreate(version version.Version, w http.ResponseWriter
 	}
 
 	var (
-		err     error
-		useJSON = version.GreaterThan("1.0")
-		output  = ioutils.NewWriteFlusher(w)
+		err    error
+		output = ioutils.NewWriteFlusher(w)
 	)
 
-	if useJSON {
-		w.Header().Set("Content-Type", "application/json")
-	}
+	w.Header().Set("Content-Type", "application/json")
 
 	if image != "" { //pull
 		if tag == "" {
@@ -727,15 +699,12 @@ func (s *Server) postImagesCreate(version version.Version, w http.ResponseWriter
 		}
 
 		imagePullConfig := &graph.ImagePullConfig{
-			Parallel:    version.GreaterThan("1.3"),
 			MetaHeaders: metaHeaders,
 			AuthConfig:  authConfig,
 			OutStream:   output,
-			Json:        useJSON,
 		}
 
 		err = s.daemon.Repositories().Pull(image, tag, imagePullConfig)
-
 	} else { //import
 		if tag == "" {
 			repo, tag = parsers.ParseRepositoryTag(repo)
@@ -746,7 +715,6 @@ func (s *Server) postImagesCreate(version version.Version, w http.ResponseWriter
 			Changes:   r.Form["changes"],
 			InConfig:  r.Body,
 			OutStream: output,
-			Json:      useJSON,
 		}
 
 		newConfig, err := builder.BuildFromConfig(s.daemon, &runconfig.Config{}, imageImportConfig.Changes)
@@ -762,7 +730,7 @@ func (s *Server) postImagesCreate(version version.Version, w http.ResponseWriter
 		if !output.Flushed() {
 			return err
 		}
-		sf := streamformatter.NewStreamFormatter(useJSON)
+		sf := streamformatter.NewStreamFormatter(true)
 		output.Write(sf.FormatError(err))
 	}
 
@@ -831,26 +799,22 @@ func (s *Server) postImagesPush(version version.Version, w http.ResponseWriter, 
 		}
 	}
 
-	useJSON := version.GreaterThan("1.0")
 	name := vars["name"]
-
 	output := ioutils.NewWriteFlusher(w)
 	imagePushConfig := &graph.ImagePushConfig{
 		MetaHeaders: metaHeaders,
 		AuthConfig:  authConfig,
 		Tag:         r.Form.Get("tag"),
 		OutStream:   output,
-		Json:        useJSON,
 	}
-	if useJSON {
-		w.Header().Set("Content-Type", "application/json")
-	}
+
+	w.Header().Set("Content-Type", "application/json")
 
 	if err := s.daemon.Repositories().Push(name, imagePushConfig); err != nil {
 		if !output.Flushed() {
 			return err
 		}
-		sf := streamformatter.NewStreamFormatter(useJSON)
+		sf := streamformatter.NewStreamFormatter(true)
 		output.Write(sf.FormatError(err))
 	}
 	return nil
@@ -865,10 +829,7 @@ func (s *Server) getImagesGet(version version.Version, w http.ResponseWriter, r 
 		return err
 	}
 
-	useJSON := version.GreaterThan("1.0")
-	if useJSON {
-		w.Header().Set("Content-Type", "application/x-tar")
-	}
+	w.Header().Set("Content-Type", "application/x-tar")
 
 	output := ioutils.NewWriteFlusher(w)
 	imageExportConfig := &graph.ImageExportConfig{Outstream: output}
@@ -882,7 +843,7 @@ func (s *Server) getImagesGet(version version.Version, w http.ResponseWriter, r 
 		if !output.Flushed() {
 			return err
 		}
-		sf := streamformatter.NewStreamFormatter(useJSON)
+		sf := streamformatter.NewStreamFormatter(true)
 		output.Write(sf.FormatError(err))
 	}
 	return nil
@@ -1169,16 +1130,7 @@ func (s *Server) getContainersByName(version version.Version, w http.ResponseWri
 		return fmt.Errorf("Missing parameter")
 	}
 
-	name := vars["name"]
-
-	if version.LessThan("1.12") {
-		containerJSONRaw, err := s.daemon.ContainerInspectRaw(name)
-		if err != nil {
-			return err
-		}
-		return writeJSON(w, http.StatusOK, containerJSONRaw)
-	}
-	containerJSON, err := s.daemon.ContainerInspect(name)
+	containerJSON, err := s.daemon.ContainerInspect(vars["name"])
 	if err != nil {
 		return err
 	}
@@ -1203,17 +1155,7 @@ func (s *Server) getImagesByName(version version.Version, w http.ResponseWriter,
 		return fmt.Errorf("Missing parameter")
 	}
 
-	name := vars["name"]
-	if version.LessThan("1.12") {
-		imageInspectRaw, err := s.daemon.Repositories().LookupRaw(name)
-		if err != nil {
-			return err
-		}
-
-		return writeJSON(w, http.StatusOK, imageInspectRaw)
-	}
-
-	imageInspect, err := s.daemon.Repositories().Lookup(name)
+	imageInspect, err := s.daemon.Repositories().Lookup(vars["name"])
 	if err != nil {
 		return err
 	}
@@ -1222,29 +1164,12 @@ func (s *Server) getImagesByName(version version.Version, w http.ResponseWriter,
 }
 
 func (s *Server) postBuild(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	if version.LessThan("1.3") {
-		return fmt.Errorf("Multipart upload for build is no longer supported. Please upgrade your docker client.")
-	}
 	var (
-		authEncoded       = r.Header.Get("X-Registry-Auth")
 		authConfig        = &cliconfig.AuthConfig{}
 		configFileEncoded = r.Header.Get("X-Registry-Config")
 		configFile        = &cliconfig.ConfigFile{}
 		buildConfig       = builder.NewBuildConfig()
 	)
-
-	// This block can be removed when API versions prior to 1.9 are deprecated.
-	// Both headers will be parsed and sent along to the daemon, but if a non-empty
-	// ConfigFile is present, any value provided as an AuthConfig directly will
-	// be overridden. See BuildFile::CmdFrom for details.
-	if version.LessThan("1.9") && authEncoded != "" {
-		authJson := base64.NewDecoder(base64.URLEncoding, strings.NewReader(authEncoded))
-		if err := json.NewDecoder(authJson).Decode(authConfig); err != nil {
-			// for a pull it is not an error if no auth was given
-			// to increase compatibility with the existing api it is defaulting to be empty
-			authConfig = &cliconfig.AuthConfig{}
-		}
-	}
 
 	if configFileEncoded != "" {
 		configFileJson := base64.NewDecoder(base64.URLEncoding, strings.NewReader(configFileEncoded))
@@ -1255,10 +1180,7 @@ func (s *Server) postBuild(version version.Version, w http.ResponseWriter, r *ht
 		}
 	}
 
-	if version.GreaterThanOrEqualTo("1.8") {
-		w.Header().Set("Content-Type", "application/json")
-		buildConfig.JSONFormat = true
-	}
+	w.Header().Set("Content-Type", "application/json")
 
 	if boolValue(r, "forcerm") && version.GreaterThanOrEqualTo("1.12") {
 		buildConfig.Remove = true
@@ -1312,7 +1234,7 @@ func (s *Server) postBuild(version version.Version, w http.ResponseWriter, r *ht
 		if !output.Flushed() {
 			return err
 		}
-		sf := streamformatter.NewStreamFormatter(version.GreaterThanOrEqualTo("1.8"))
+		sf := streamformatter.NewStreamFormatter(true)
 		w.Write(sf.FormatError(err))
 	}
 	return nil
@@ -1418,12 +1340,11 @@ func (s *Server) postContainerExecStart(version version.Version, w http.Response
 			fmt.Fprintf(outStream, "HTTP/1.1 200 OK\r\nContent-Type: application/vnd.docker.raw-stream\r\n\r\n")
 		}
 
-		if !execStartCheck.Tty && version.GreaterThanOrEqualTo("1.6") {
+		if !execStartCheck.Tty {
 			errStream = stdcopy.NewStdWriter(outStream, stdcopy.Stderr)
 			outStream = stdcopy.NewStdWriter(outStream, stdcopy.Stdout)
-		} else {
-			errStream = outStream
 		}
+
 		stdin = inStream
 		stdout = outStream
 		stderr = errStream

@@ -11,21 +11,6 @@ import (
 	"github.com/go-check/check"
 )
 
-func (s *DockerSuite) TestLegacyImages(c *check.C) {
-	status, body, err := sockRequest("GET", "/v1.6/images/json", nil)
-	c.Assert(status, check.Equals, http.StatusOK)
-	c.Assert(err, check.IsNil)
-
-	images := []types.LegacyImage{}
-	if err = json.Unmarshal(body, &images); err != nil {
-		c.Fatalf("Error on unmarshal: %s", err)
-	}
-
-	if len(images) == 0 || images[0].Tag == "" || images[0].Repository == "" {
-		c.Fatalf("Bad data: %q", images)
-	}
-}
-
 func (s *DockerSuite) TestApiImagesFilter(c *check.C) {
 	name := "utest:tag1"
 	name2 := "utest/docker:tag2"

@@ -12,18 +12,6 @@ type ContainerJSONRaw struct {
 	HostConfig *runconfig.HostConfig
 }
 
-func (daemon *Daemon) ContainerInspectRaw(name string) (*ContainerJSONRaw, error) {
-	container, err := daemon.Get(name)
-	if err != nil {
-		return nil, err
-	}
-
-	container.Lock()
-	defer container.Unlock()
-
-	return &ContainerJSONRaw{container, container.hostConfig}, nil
-}
-
 func (daemon *Daemon) ContainerInspect(name string) (*types.ContainerJSON, error) {
 	container, err := daemon.Get(name)
 	if err != nil {

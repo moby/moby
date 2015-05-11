@@ -458,10 +458,8 @@ func (b *Builder) pullImage(name string) (*imagepkg.Image, error) {
 	}
 
 	imagePullConfig := &graph.ImagePullConfig{
-		Parallel:   true,
 		AuthConfig: pullRegistryAuth,
 		OutStream:  ioutils.NopWriteCloser(b.OutOld),
-		Json:       b.StreamFormatter.Json(),
 	}
 
 	if err := b.Daemon.Repositories().Pull(remote, tag, imagePullConfig); err != nil {
