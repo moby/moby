@@ -68,4 +68,4 @@ clone git github.com/docker/libcontainer 90f8aa670f1f424041059060c7c63fe4dee2e44
 # libcontainer deps (see src/github.com/docker/libcontainer/update-vendor.sh)
 clone git github.com/coreos/go-systemd v2
 clone git github.com/godbus/dbus v2
-clone git github.com/syndtr/gocapability 8e4cdcb
+clone git github.com/syndtr/gocapability 66ef2aa7a23ba682594e2b6f74cf40c0692b49fb
