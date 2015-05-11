@@ -151,7 +151,7 @@ To upgrade CS Docker Engine, run the following command:
 To upgrade CS Docker Engine, run the following command:
 
 ```
-   $ sudo apt-get update && apt-get dist-upgrade docker-engine-cs
+   $ sudo apt-get update && sudo apt-get dist-upgrade docker-engine-cs
 ```
 
 ## Installing Docker Hub Enterprise
