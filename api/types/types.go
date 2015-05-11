@@ -127,6 +127,11 @@ type CopyConfig struct {
 	Resource string
 }
 
+// POST "/images/{name:.*}/mount"
+type MountConfig struct {
+	MountDir string
+}
+
 // GET "/containers/{name:.*}/top"
 type ContainerProcessList struct {
 	Processes [][]string

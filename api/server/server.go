@@ -760,6 +760,64 @@ func (s *Server) postImagesCreate(version version.Version, w http.ResponseWriter
 
 }
 
+// Mount an image
+func (s *Server) postImagesMount(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if vars == nil {
+		return fmt.Errorf("Missing parameter")
+	}
+
+	if err := checkForJson(r); err != nil {
+		return err
+	}
+
+	cfg := types.MountConfig{}
+	if err := json.NewDecoder(r.Body).Decode(&cfg); err != nil {
+		return err
+	}
+
+	if cfg.MountDir == "" {
+		return fmt.Errorf("Mount Directory Path cannot be empty")
+	}
+
+	if vars["name"] == "" {
+		return fmt.Errorf("Image is nil")
+	}
+
+	if err := s.daemon.ImageMount(vars["name"], cfg.MountDir); err != nil {
+		return err
+	}
+	return nil
+}
+
+// Mount an image
+func (s *Server) postImagesUmount(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if vars == nil {
+		return fmt.Errorf("Missing parameter")
+	}
+
+	if err := checkForJson(r); err != nil {
+		return err
+	}
+
+	cfg := types.MountConfig{}
+	if err := json.NewDecoder(r.Body).Decode(&cfg); err != nil {
+		return err
+	}
+
+	if cfg.MountDir == "" {
+		return fmt.Errorf("Mount Directory Path cannot be empty")
+	}
+
+	if vars["name"] == "" {
+		return fmt.Errorf("Image is nil")
+	}
+
+	if err := s.daemon.ImageUmount(vars["name"], cfg.MountDir); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (s *Server) getImagesSearch(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := parseForm(r); err != nil {
 		return err
@@ -1552,6 +1610,8 @@ func createRouter(s *Server) *mux.Router {
 			"/commit":                       s.postCommit,
 			"/build":                        s.postBuild,
 			"/images/create":                s.postImagesCreate,
+			"/images/{name:.*}/mount":       s.postImagesMount,
+			"/images/{name:.*}/umount":      s.postImagesUmount,
 			"/images/load":                  s.postImagesLoad,
 			"/images/{name:.*}/push":        s.postImagesPush,
 			"/images/{name:.*}/tag":         s.postImagesTag,
