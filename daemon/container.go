@@ -767,23 +767,45 @@ func (container *Container) killPossiblyDeadProcess(sig int) error {
 }
 
 func (container *Container) Pause() error {
-	if container.IsPaused() {
+	container.Lock()
+	defer container.Unlock()
+
+	// We cannot Pause the container which is already paused
+	if container.Paused {
 		return fmt.Errorf("Container %s is already paused", container.ID)
 	}
-	if !container.IsRunning() {
+
+	// We cannot Pause the container which is not running
+	if !container.Running {
 		return fmt.Errorf("Container %s is not running", container.ID)
 	}
-	return container.daemon.Pause(container)
+
+	if err := container.daemon.execDriver.Pause(container.command); err != nil {
+		return err
+	}
+	container.Paused = true
+	return nil
 }
 
 func (container *Container) Unpause() error {
-	if !container.IsPaused() {
-		return fmt.Errorf("Container %s is not paused", container.ID)
+	container.Lock()
+	defer container.Unlock()
+
+	// We cannot unpause the container which is not paused
+	if !container.Paused {
+		return fmt.Errorf("Container %s is not paused, so what", container.ID)
 	}
-	if !container.IsRunning() {
+
+	// We cannot unpause the container which is not running
+	if !container.Running {
 		return fmt.Errorf("Container %s is not running", container.ID)
 	}
-	return container.daemon.Unpause(container)
+
+	if err := container.daemon.execDriver.Unpause(container.command); err != nil {
+		return err
+	}
+	container.Paused = false
+	return nil
 }
 
 func (container *Container) Kill() error {
