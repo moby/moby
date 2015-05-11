@@ -245,7 +245,9 @@ func waitInPIDHost(p *libcontainer.Process, c libcontainer.Container) func() (*o
 }
 
 func (d *driver) Kill(c *execdriver.Command, sig int) error {
+	d.Lock()
 	active := d.activeContainers[c.ID]
+	d.Unlock()
 	if active == nil {
 		return fmt.Errorf("active container for %s does not exist", c.ID)
 	}
