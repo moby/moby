@@ -6,43 +6,8 @@ import (
 	"io/ioutil"
 	"net/http"
 
-	"github.com/docker/distribution/digest"
 	"github.com/docker/distribution/registry/api/v2"
 )
-
-// RepositoryNotFoundError is returned when making an operation against a
-// repository that does not exist in the registry.
-type RepositoryNotFoundError struct {
-	Name string
-}
-
-func (e *RepositoryNotFoundError) Error() string {
-	return fmt.Sprintf("No repository found with Name: %s", e.Name)
-}
-
-// ImageManifestNotFoundError is returned when making an operation against a
-// given image manifest that does not exist in the registry.
-type ImageManifestNotFoundError struct {
-	Name string
-	Tag  string
-}
-
-func (e *ImageManifestNotFoundError) Error() string {
-	return fmt.Sprintf("No manifest found with Name: %s, Tag: %s",
-		e.Name, e.Tag)
-}
-
-// BlobNotFoundError is returned when making an operation against a given image
-// layer that does not exist in the registry.
-type BlobNotFoundError struct {
-	Name   string
-	Digest digest.Digest
-}
-
-func (e *BlobNotFoundError) Error() string {
-	return fmt.Sprintf("No blob found with Name: %s, Digest: %s",
-		e.Name, e.Digest)
-}
 
 // BlobUploadNotFoundError is returned when making a blob upload operation against an
 // invalid blob upload location url.
