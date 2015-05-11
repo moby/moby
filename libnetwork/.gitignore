@@ -29,3 +29,5 @@ _testmain.go
 
 # IDE files
 .project
+
+libnetwork-build.created
