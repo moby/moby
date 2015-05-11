@@ -5,6 +5,7 @@ package native
 import (
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -118,6 +119,13 @@ type execOutput struct {
 
 func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallback execdriver.StartCallback) (execdriver.ExitStatus, error) {
 	// take the Command and populate the libcontainer.Config from it
+	var err error
+	c.TmpDir, err = ioutil.TempDir("", c.ID)
+	if err != nil {
+		return execdriver.ExitStatus{ExitCode: -1}, err
+	}
+	defer os.RemoveAll(c.TmpDir)
+
 	container, err := d.createContainer(c)
 	if err != nil {
 		return execdriver.ExitStatus{ExitCode: -1}, err
