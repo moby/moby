@@ -16,6 +16,16 @@ export DOCKER_GRAPHDRIVER=${DOCKER_GRAPHDRIVER:-vfs}
 export DOCKER_EXECDRIVER=${DOCKER_EXECDRIVER:-native}
 export DOCKER_USERLANDPROXY=${DOCKER_USERLANDPROXY:-true}
 
+# example usage: DOCKER_STORAGE_OPTS="dm.basesize=20G,dm.loopdatasize=200G"
+storage_params=""
+if [ -n "$DOCKER_STORAGE_OPTS" ]; then
+	IFS=','
+	for i in ${DOCKER_STORAGE_OPTS}; do
+		storage_params="--storage-opt $i $storage_params"
+	done
+	unset IFS
+fi
+
 if [ -z "$DOCKER_TEST_HOST" ]; then
 	export DOCKER_HOST="unix://$(cd "$DEST" && pwd)/docker.sock" # "pwd" tricks to make sure $DEST is an absolute path, not a relative one
 	( set -x; exec \
@@ -25,6 +35,7 @@ if [ -z "$DOCKER_TEST_HOST" ]; then
 		--exec-driver "$DOCKER_EXECDRIVER" \
 		--pidfile "$DEST/docker.pid" \
 		--userland-proxy="$DOCKER_USERLANDPROXY" \
+		$storage_params \
 			&> "$DEST/docker.log"
 	) &
 	trap "source '${MAKEDIR}/.integration-daemon-stop'" EXIT # make sure that if the script exits unexpectedly, we stop this daemon we just started

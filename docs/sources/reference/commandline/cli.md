@@ -250,7 +250,7 @@ precedence over `HTTP_PROXY`.
 ### Daemon storage-driver option
 
 The Docker daemon has support for several different image layer storage drivers: `aufs`,
-`devicemapper`, `btrfs` and `overlay`.
+`devicemapper`, `btrfs`, `zfs` and `overlay`.
 
 The `aufs` driver is the oldest, but is based on a Linux kernel patch-set that
 is unlikely to be merged into the main kernel. These are also known to cause some
@@ -272,6 +272,11 @@ explains how to tune your existing setup without the use of options.
 The `btrfs` driver is very fast for `docker build` - but like `devicemapper` does not
 share executable memory between devices. Use `docker -d -s btrfs -g /mnt/btrfs_partition`.
 
+The `zfs` driver is probably not fast as `btrfs` but has a longer track record
+on stability. Thanks to `Single Copy ARC` shared blocks between clones will be
+cached only once. Use `docker -d -s zfs`. To select a different zfs filesystem
+set `zfs.fsname` option as described in [Storage driver options](#storage-driver-options):
+
 The `overlay` is a very fast union filesystem. It is now merged in the main
 Linux kernel as of [3.18.0](https://lkml.org/lkml/2014/10/26/137).
 Call `docker -d -s overlay` to use it.
@@ -282,10 +287,10 @@ Call `docker -d -s overlay` to use it.
 #### Storage driver options
 
 Particular storage-driver can be configured with options specified with
-`--storage-opt` flags. The only driver accepting options is `devicemapper` as
-of now. All its options are prefixed with `dm`.
+`--storage-opt` flags. Options for `devicemapper` are prefixed with `dm` and
+options for `zfs` start with `zfs`.
 
-Currently supported options are:
+Currently supported options of `devicemapper`:
 
  *  `dm.basesize`
 
@@ -444,6 +449,17 @@ Currently supported options are:
     > daemon with a supported environment.
 
 ### Docker execdriver option
+Currently supported options of `zfs`:
+
+ * `zfs.fsname`
+
+    Set zfs filesystem under which docker will create its own datasets.
+    By default docker will pick up the zfs filesystem where docker graph
+    (`/var/lib/docker`) is located.
+
+    Example use:
+
+       $ docker -d -s zfs --storage-opt zfs.fsname=zroot/docker
 
 The Docker daemon uses a specifically built `libcontainer` execution driver as its
 interface to the Linux kernel `namespaces`, `cgroups`, and `SELinux`.
