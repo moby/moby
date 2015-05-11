@@ -281,8 +281,8 @@ func TestNetworkName(t *testing.T) {
 	if err == nil {
 		t.Fatal("Expected to fail. But instead succeeded")
 	}
-	if err != libnetwork.ErrInvalidNetworkName {
-		t.Fatal("Expected to fail with ErrInvalidNetworkName error")
+	if err != libnetwork.ErrInvalidName {
+		t.Fatal("Expected to fail with ErrInvalidName error")
 	}
 
 	networkName := "testnetwork"
@@ -404,8 +404,8 @@ func TestUnknownEndpoint(t *testing.T) {
 	if err == nil {
 		t.Fatal("Expected to fail. But instead succeeded")
 	}
-	if err != libnetwork.ErrInvalidEndpointName {
-		t.Fatal("Expected to fail with ErrInvalidEndpointName error")
+	if err != libnetwork.ErrInvalidName {
+		t.Fatal("Expected to fail with ErrInvalidName error")
 	}
 
 	ep, err := network.CreateEndpoint("testep")
@@ -526,30 +526,46 @@ func TestControllerQuery(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	g := controller.NetworkByName("")
-	if g != nil {
+	_, err = controller.NetworkByName("")
+	if err == nil {
 		t.Fatalf("NetworkByName() succeeded with invalid target name")
 	}
-
-	g = controller.NetworkByID("")
-	if g != nil {
-		t.Fatalf("NetworkByID() succeeded with invalid target id: %v", g)
+	if err != libnetwork.ErrInvalidName {
+		t.Fatalf("NetworkByName() failed with unexpected error: %v", err)
 	}
 
-	g = controller.NetworkByID("network1")
-	if g != nil {
-		t.Fatalf("NetworkByID() succeeded with invalid target name")
+	_, err = controller.NetworkByID("")
+	if err == nil {
+		t.Fatalf("NetworkByID() succeeded with invalid target id")
+	}
+	if err != libnetwork.ErrInvalidID {
+		t.Fatalf("NetworkByID() failed with unexpected error: %v", err)
 	}
 
-	g = controller.NetworkByName("network1")
+	g, err := controller.NetworkByID("network1")
+	if err != nil {
+		t.Fatalf("Unexpected failure for NetworkByID(): %v", err)
+	}
+	if g != nil {
+		t.Fatalf("NetworkByID() succeeded with unknown target id")
+	}
+
+	g, err = controller.NetworkByName("network1")
+	if err != nil {
+		t.Fatalf("Unexpected failure for NetworkByName(): %v", err)
+	}
 	if g == nil {
 		t.Fatalf("NetworkByName() did not find the network")
 	}
+
 	if g != net1 {
 		t.Fatalf("NetworkByName() returned the wrong network")
 	}
 
-	g = controller.NetworkByID(net1.ID())
+	g, err = controller.NetworkByID(net1.ID())
+	if err != nil {
+		t.Fatalf("Unexpected failure for NetworkByID(): %v", err)
+	}
 	if net1 != g {
 		t.Fatalf("NetworkByID() returned unexpected element: %v", g)
 	}
@@ -578,31 +594,42 @@ func TestNetworkQuery(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	e := net1.EndpointByName("ep11")
+	e, err := net1.EndpointByName("ep11")
+	if err != nil {
+		t.Fatal(err)
+	}
 	if ep11 != e {
 		t.Fatalf("EndpointByName() returned %v instead of %v", e, ep11)
 	}
 
-	e = net1.EndpointByName("")
+	e, err = net1.EndpointByName("")
+	if err == nil {
+		t.Fatalf("EndpointByName() succeeded with invalid target name")
+	}
+	if err != libnetwork.ErrInvalidName {
+		t.Fatalf("EndpointByName() failed with unexpected error: %v", err)
+	}
+
+	e, err = net1.EndpointByName("IamNotAnEndpoint")
+	if err != nil {
+		t.Fatal(err)
+	}
 	if e != nil {
 		t.Fatalf("EndpointByName(): expected nil, got %v", e)
 	}
 
-	e = net1.EndpointByName("IamNotAnEndpoint")
-	if e != nil {
-		t.Fatalf("EndpointByName(): expected nil, got %v", e)
-	}
-
-	e = net1.EndpointByID(ep12.ID())
+	e, err = net1.EndpointByID(ep12.ID())
 	if ep12 != e {
 		t.Fatalf("EndpointByID() returned %v instead of %v", e, ep12)
 	}
 
-	e = net1.EndpointByID("")
-	if e != nil {
-		t.Fatalf("EndpointByID(): expected nil, got %v", e)
+	e, err = net1.EndpointByID("")
+	if err == nil {
+		t.Fatalf("EndpointByID() succeeded with invalid target id")
 	}
-
+	if err != libnetwork.ErrInvalidID {
+		t.Fatalf("EndpointByID() failed with unexpected error: %v", err)
+	}
 }
 
 const containerID = "valid_container"
@@ -1100,12 +1127,18 @@ func runParallelTests(t *testing.T, thrNumber int) {
 	}
 	defer netns.Set(origns)
 
-	net := ctrlr.NetworkByName("network1")
+	net, err := ctrlr.NetworkByName("network1")
+	if err != nil {
+		t.Fatal(err)
+	}
 	if net == nil {
 		t.Fatal("Could not find network1")
 	}
 
-	ep := net.EndpointByName("ep1")
+	ep, err := net.EndpointByName("ep1")
+	if err != nil {
+		t.Fatal(err)
+	}
 	if ep == nil {
 		t.Fatal("Could not find ep1")
 	}

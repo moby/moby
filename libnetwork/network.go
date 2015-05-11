@@ -37,10 +37,10 @@ type Network interface {
 	WalkEndpoints(walker EndpointWalker)
 
 	// EndpointByName returns the Endpoint which has the passed name, if it exists otherwise nil is returned
-	EndpointByName(name string) Endpoint
+	EndpointByName(name string) (Endpoint, error)
 
 	// EndpointByID returns the Endpoint which has the passed id, if it exists otherwise nil is returned
-	EndpointByID(id string) Endpoint
+	EndpointByID(id string) (Endpoint, error)
 }
 
 // EndpointWalker is a client provided function which will be used to walk the Endpoints.
@@ -133,7 +133,7 @@ func (n *network) Delete() error {
 
 func (n *network) CreateEndpoint(name string, options ...EndpointOption) (Endpoint, error) {
 	if name == "" {
-		return nil, ErrInvalidEndpointName
+		return nil, ErrInvalidName
 	}
 	ep := &endpoint{name: name, generic: make(map[string]interface{})}
 	ep.id = types.UUID(stringid.GenerateRandomID())
@@ -172,29 +172,33 @@ func (n *network) WalkEndpoints(walker EndpointWalker) {
 	}
 }
 
-func (n *network) EndpointByName(name string) Endpoint {
+func (n *network) EndpointByName(name string) (Endpoint, error) {
+	if name == "" {
+		return nil, ErrInvalidName
+	}
 	var e Endpoint
 
-	if name != "" {
-		s := func(current Endpoint) bool {
-			if current.Name() == name {
-				e = current
-				return true
-			}
-			return false
+	s := func(current Endpoint) bool {
+		if current.Name() == name {
+			e = current
+			return true
 		}
-
-		n.WalkEndpoints(s)
+		return false
 	}
 
-	return e
+	n.WalkEndpoints(s)
+
+	return e, nil
 }
 
-func (n *network) EndpointByID(id string) Endpoint {
+func (n *network) EndpointByID(id string) (Endpoint, error) {
+	if id == "" {
+		return nil, ErrInvalidID
+	}
 	n.Lock()
 	defer n.Unlock()
 	if e, ok := n.endpoints[types.UUID(id)]; ok {
-		return e
+		return e, nil
 	}
-	return nil
+	return nil, nil
 }
