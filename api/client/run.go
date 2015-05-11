@@ -9,7 +9,6 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/promise"
-	"github.com/docker/docker/pkg/resolvconf/dns"
 	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/libnetwork/resolvconf/dns"

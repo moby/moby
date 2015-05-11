@@ -15,22 +15,6 @@ import (
 	"github.com/docker/libcontainer/label"
 )
 
-/* {{if .Network.Interface}}
-# network configuration
-lxc.network.type = veth
-lxc.network.link = {{.Network.Interface.Bridge}}
-lxc.network.name = eth0
-lxc.network.mtu = {{.Network.Mtu}}
-lxc.network.flags = up
-{{else if .Network.HostNetworking}}
-lxc.network.type = none
-{{else}}
-# network is disabled (-n=false)
-lxc.network.type = empty
-lxc.network.flags = up
-lxc.network.mtu = {{.Network.Mtu}}
-{{end}} */
-
 const LxcTemplate = `
 lxc.network.type = none
 # root filesystem
