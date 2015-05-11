@@ -554,16 +554,27 @@ func (b *Builder) create() (*daemon.Container, error) {
 	}
 	b.Config.Image = b.image
 
-	hostConfig := &runconfig.HostConfig{
-		CpuShares:    b.cpuShares,
-		CpuPeriod:    b.cpuPeriod,
-		CpuQuota:     b.cpuQuota,
-		CpusetCpus:   b.cpuSetCpus,
-		CpusetMems:   b.cpuSetMems,
-		CgroupParent: b.cgroupParent,
-		Memory:       b.memory,
-		MemorySwap:   b.memorySwap,
-	}
+	// Note, after factoring out HostConfig to platform specific pieces and
+	// common, it was impossible to do the following type of thing as
+	// compilation fails (is this a bug in GO?).
+	//		hostConfig := &runconfig.HostConfig{
+	//			CommonHostConfig: CommonHostConfig{
+	//				CpuShares:  b.cpuShares,
+	//				...
+	// It's only a problem here were we have runconfig.HostConfig. In the
+	// runconfig package where hostConfig := &HostConfig{ ..., this is fine.
+	// Hence flattening this out.
+
+	hostConfig := &runconfig.HostConfig{}
+	hostConfig.CpuShares = b.cpuShares
+	hostConfig.CpuPeriod = b.cpuPeriod
+	hostConfig.CpuQuota = b.cpuQuota
+	hostConfig.CpusetCpus = b.cpuSetCpus
+	hostConfig.CpusetMems = b.cpuSetMems
+	hostConfig.Memory = b.memory
+	hostConfig.MemorySwap = b.memorySwap
+
+	setPlatformSpecificHostConfig(b, hostConfig)
 
 	config := *b.Config
 
