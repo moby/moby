@@ -60,7 +60,6 @@ func (s *DockerSuite) TestCpGarbagePath(c *check.C) {
 	defer os.RemoveAll(tmpdir)
 
 	path := path.Join("../../../../../../../../../../../../", cpFullPath)
-
 	_, _ = dockerCmd(c, "cp", cleanedContainerID+":"+path, tmpdir)
 
 	file, _ := os.Open(tmpname)
@@ -594,5 +593,56 @@ func (s *DockerSuite) TestCpNameHasColon(c *check.C) {
 	content, err := ioutil.ReadFile(tmpdir + "/te:s:t")
 	if string(content) != "lololol\n" {
 		c.Fatalf("Wrong content in copied file %q, should be %q", content, "lololol\n")
+	}
+}
+
+func (s *DockerSuite) TestCpToContainerFile(c *check.C) {
+	tempDir, err := ioutil.TempDir("", "test-cp-to-file")
+	if err != nil {
+		c.Fatal(err)
+	}
+	defer os.RemoveAll(tempDir)
+	hello := filepath.Join(tempDir, "test")
+	if err := ioutil.WriteFile(hello, []byte("hello"), 0644); err != nil {
+		c.Fatal(err)
+	}
+
+	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
+	id := strings.TrimSpace(out)
+
+	dockerCmd(c, "cp", "--pause", hello, id+":/")
+	dockerCmd(c, "cp", "--pause", id+":/test", tempDir)
+
+	b, err := ioutil.ReadFile(filepath.Join(tempDir, "test"))
+	if err != nil {
+		c.Fatal(err)
+	}
+	if string(b) != "hello" {
+		c.Fatalf("expected copied file to have `hello`; got %q", string(b))
+	}
+}
+
+func (s *DockerSuite) TestCpToContainerDir(c *check.C) {
+	tempDir, err := ioutil.TempDir("", "test-cp-to-file")
+	if err != nil {
+		c.Fatal(err)
+	}
+	defer os.RemoveAll(tempDir)
+	if err := ioutil.WriteFile(filepath.Join(tempDir, "test"), []byte("hello"), 0644); err != nil {
+		c.Fatal(err)
+	}
+
+	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
+	id := strings.TrimSpace(out)
+
+	dockerCmd(c, "cp", "--pause", tempDir, id+":/")
+	dockerCmd(c, "cp", "--pause", id+":/"+filepath.Base(tempDir), tempDir)
+
+	b, err := ioutil.ReadFile(filepath.Join(tempDir, filepath.Base(tempDir), "test"))
+	if err != nil {
+		c.Fatal(err)
+	}
+	if string(b) != "hello" {
+		c.Fatalf("expected copied file to have `hello`; got %q", string(b))
 	}
 }

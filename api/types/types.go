@@ -125,6 +125,7 @@ type Container struct {
 // POST "/containers/"+containerID+"/copy"
 type CopyConfig struct {
 	Resource string
+	Pause    bool
 }
 
 // GET "/containers/{name:.*}/top"
