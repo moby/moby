@@ -10,6 +10,10 @@ import (
 type ContainerJSONRaw struct {
 	*Container
 	HostConfig *runconfig.HostConfig
+
+	// Unused fields for backward compatibility with API versions < 1.12.
+	Volumes   map[string]string
+	VolumesRW map[string]bool
 }
 
 func (daemon *Daemon) ContainerInspectRaw(name string) (*ContainerJSONRaw, error) {
@@ -21,7 +25,10 @@ func (daemon *Daemon) ContainerInspectRaw(name string) (*ContainerJSONRaw, error
 	container.Lock()
 	defer container.Unlock()
 
-	return &ContainerJSONRaw{container, container.hostConfig}, nil
+	return &ContainerJSONRaw{
+		Container:  container,
+		HostConfig: container.hostConfig,
+	}, nil
 }
 
 func (daemon *Daemon) ContainerInspect(name string) (*types.ContainerJSON, error) {
@@ -59,7 +66,17 @@ func (daemon *Daemon) ContainerInspect(name string) (*types.ContainerJSON, error
 		StartedAt:  container.State.StartedAt,
 		FinishedAt: container.State.FinishedAt,
 	}
-
+	volumes := make(map[string]string)
+	volumesRW := make(map[string]bool)
+	for _, v := range container.volumes {
+		config := container.VolumeConfig[v.Name()]
+		volumes[config.Destination] = v.Path()
+		volumesRW[config.Destination] = config.RW
+	}
+	for _, b := range container.BindMounts {
+		volumes[b.Destination] = b.Source
+		volumesRW[b.Destination] = b.RW
+	}
 	contJSON := &types.ContainerJSON{
 		Id:              container.ID,
 		Created:         container.Created,
@@ -79,8 +96,8 @@ func (daemon *Daemon) ContainerInspect(name string) (*types.ContainerJSON, error
 		ExecDriver:      container.ExecDriver,
 		MountLabel:      container.MountLabel,
 		ProcessLabel:    container.ProcessLabel,
-		Volumes:         container.Volumes,
-		VolumesRW:       container.VolumesRW,
+		Volumes:         volumes,
+		VolumesRW:       volumesRW,
 		AppArmorProfile: container.AppArmorProfile,
 		ExecIDs:         container.GetExecIDs(),
 		HostConfig:      &hostConfig,

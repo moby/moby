@@ -166,7 +166,7 @@ func (s *DockerSuite) TestContainerApiStartDupVolumeBinds(c *check.C) {
 	c.Assert(status, check.Equals, http.StatusInternalServerError)
 	c.Assert(err, check.IsNil)
 
-	if !strings.Contains(string(body), "Duplicate volume") {
+	if !strings.Contains(string(body), "Duplicate bind") {
 		c.Fatalf("Expected failure due to duplicate bind mounts to same path, instead got: %q with error: %v", string(body), err)
 	}
 }
@@ -191,49 +191,6 @@ func (s *DockerSuite) TestContainerApiStartVolumesFrom(c *check.C) {
 
 	config = map[string]interface{}{
 		"VolumesFrom": []string{volName},
-	}
-	status, _, err = sockRequest("POST", "/containers/"+name+"/start", config)
-	c.Assert(status, check.Equals, http.StatusNoContent)
-	c.Assert(err, check.IsNil)
-
-	pth, err := inspectFieldMap(name, "Volumes", volPath)
-	if err != nil {
-		c.Fatal(err)
-	}
-	pth2, err := inspectFieldMap(volName, "Volumes", volPath)
-	if err != nil {
-		c.Fatal(err)
-	}
-
-	if pth != pth2 {
-		c.Fatalf("expected volume host path to be %s, got %s", pth, pth2)
-	}
-}
-
-// Ensure that volumes-from has priority over binds/anything else
-// This is pretty much the same as TestRunApplyVolumesFromBeforeVolumes, except with passing the VolumesFrom and the bind on start
-func (s *DockerSuite) TestVolumesFromHasPriority(c *check.C) {
-	volName := "voltst2"
-	volPath := "/tmp"
-
-	if out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "run", "-d", "--name", volName, "-v", volPath, "busybox")); err != nil {
-		c.Fatal(out, err)
-	}
-
-	name := "testing"
-	config := map[string]interface{}{
-		"Image":   "busybox",
-		"Volumes": map[string]struct{}{volPath: {}},
-	}
-
-	status, _, err := sockRequest("POST", "/containers/create?name="+name, config)
-	c.Assert(status, check.Equals, http.StatusCreated)
-	c.Assert(err, check.IsNil)
-
-	bindPath := randomUnixTmpDirPath("test")
-	config = map[string]interface{}{
-		"VolumesFrom": []string{volName},
-		"Binds":       []string{bindPath + ":/tmp"},
 	}
 	status, _, err = sockRequest("POST", "/containers/"+name+"/start", config)
 	c.Assert(status, check.Equals, http.StatusNoContent)
