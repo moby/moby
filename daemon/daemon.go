@@ -747,6 +747,9 @@ func NewDaemon(config *Config, registryService *registry.Service) (daemon *Daemo
 		return nil, err
 	}
 
+	// set up SIGUSR1 handler to dump Go routine stacks
+	setupSigusr1Trap()
+
 	// set up the tmpDir to use a canonical path
 	tmp, err := tempDir(config.Root)
 	if err != nil {
