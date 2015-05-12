@@ -4,6 +4,8 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+
+	_ "github.com/docker/libnetwork/netutils"
 )
 
 func TestGenerate(t *testing.T) {

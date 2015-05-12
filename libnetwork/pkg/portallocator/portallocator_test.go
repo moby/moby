@@ -3,6 +3,8 @@ package portallocator
 import (
 	"net"
 	"testing"
+
+	_ "github.com/docker/libnetwork/netutils"
 )
 
 func resetPortAllocator() {

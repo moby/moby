@@ -6,6 +6,8 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+
+	_ "github.com/docker/libnetwork/netutils"
 )
 
 const chainName = "DOCKERTEST"

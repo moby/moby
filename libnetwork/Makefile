@@ -2,8 +2,9 @@
 SHELL=/bin/bash
 build_image=libnetwork-build
 dockerargs = --privileged -v $(shell pwd):/go/src/github.com/docker/libnetwork -w /go/src/github.com/docker/libnetwork
-docker = docker run --rm ${dockerargs} ${build_image}
-ciargs = -e "COVERALLS_TOKEN=$$COVERALLS_TOKEN"
+container_env = -e "INSIDECONTAINER=-incontainer=true"
+docker = docker run --rm ${dockerargs} ${container_env} ${build_image}
+ciargs = -e "COVERALLS_TOKEN=$$COVERALLS_TOKEN" -e "INSIDECONTAINER=-incontainer=true"
 cidocker = docker run ${ciargs} ${dockerargs} golang:1.4
 
 all: ${build_image}.created
@@ -42,8 +43,11 @@ run-tests:
 	@echo "mode: count" > coverage.coverprofile
 	@for dir in $$(find . -maxdepth 10 -not -path './.git*' -not -path '*/_*' -type d); do \
 	    if ls $$dir/*.go &> /dev/null; then \
-		$(shell which godep) go test -test.parallel 3 -test.v -covermode=count -coverprofile=$$dir/profile.tmp $$dir ; \
+		pushd . &> /dev/null ; \
+		cd $$dir ; \
+		$(shell which godep) go test ${INSIDECONTAINER} -test.parallel 3 -test.v -covermode=count -coverprofile=./profile.tmp ; \
 		if [ $$? -ne 0 ]; then exit $$?; fi ;\
+		popd &> /dev/null; \
 	        if [ -f $$dir/profile.tmp ]; then \
 		        cat $$dir/profile.tmp | tail -n +2 >> coverage.coverprofile ; \
 				rm $$dir/profile.tmp ; \
