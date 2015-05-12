@@ -34,7 +34,8 @@ func setupBridgeIPv6(config *NetworkConfiguration, i *bridgeInterface) error {
 		return err
 	}
 
-	if len(addrsv6) == 0 {
+	// Add the default link local ipv6 address if it doesn't exist
+	if !findIPv6Address(netlink.Addr{IPNet: bridgeIPv6}, addrsv6) {
 		if err := netlink.AddrAdd(i.Link, &netlink.Addr{IPNet: bridgeIPv6}); err != nil {
 			return &IPv6AddrAddError{ip: bridgeIPv6, err: err}
 		}
