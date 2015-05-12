@@ -5,9 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"os"
 	"strconv"
-	"sync"
+	"syscall"
 	"time"
 
 	"github.com/Sirupsen/logrus"
@@ -132,9 +133,10 @@ func (daemon *Daemon) ContainerLogs(name string, config *ContainerLogsConfig) er
 			}
 		}
 	}
+
 	if config.Follow && container.IsRunning() {
-		errors := make(chan error, 2)
-		wg := sync.WaitGroup{}
+		chErr := make(chan error)
+		var stdoutPipe, stderrPipe io.ReadCloser
 
 		// write an empty chunk of data (this is to ensure that the
 		// HTTP Response is sent immediatly, even if the container has
@@ -142,33 +144,36 @@ func (daemon *Daemon) ContainerLogs(name string, config *ContainerLogsConfig) er
 		outStream.Write(nil)
 
 		if config.UseStdout {
-			wg.Add(1)
-			stdoutPipe := container.StdoutLogPipe()
-			defer stdoutPipe.Close()
+			stdoutPipe = container.StdoutLogPipe()
 			go func() {
-				errors <- jsonlog.WriteLog(stdoutPipe, outStream, format, config.Since)
-				wg.Done()
+				logrus.Debug("logs: stdout stream begin")
+				chErr <- jsonlog.WriteLog(stdoutPipe, outStream, format, config.Since)
+				logrus.Debug("logs: stdout stream end")
 			}()
 		}
 		if config.UseStderr {
-			wg.Add(1)
-			stderrPipe := container.StderrLogPipe()
-			defer stderrPipe.Close()
+			stderrPipe = container.StderrLogPipe()
 			go func() {
-				errors <- jsonlog.WriteLog(stderrPipe, errStream, format, config.Since)
-				wg.Done()
+				logrus.Debug("logs: stderr stream begin")
+				chErr <- jsonlog.WriteLog(stderrPipe, errStream, format, config.Since)
+				logrus.Debug("logs: stderr stream end")
 			}()
 		}
 
-		wg.Wait()
-		close(errors)
+		err = <-chErr
+		if stdoutPipe != nil {
+			stdoutPipe.Close()
+		}
+		if stderrPipe != nil {
+			stderrPipe.Close()
+		}
+		<-chErr // wait for 2nd goroutine to exit, otherwise bad things will happen
 
-		for err := range errors {
-			if err != nil {
-				logrus.Errorf("%s", err)
+		if err != nil && err != io.EOF && err != io.ErrClosedPipe {
+			if e, ok := err.(*net.OpError); ok && e.Err != syscall.EPIPE {
+				logrus.Errorf("error streaming logs: %v", err)
 			}
 		}
-
 	}
 	return nil
 }

@@ -1,7 +1,9 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
+	"io"
 	"os/exec"
 	"regexp"
 	"strconv"
@@ -392,4 +394,53 @@ func (s *DockerSuite) TestLogsFollowSlowStdoutConsumer(c *check.C) {
 		c.Fatalf("Invalid bytes read: %d, expected %d", actual, expected)
 	}
 
+}
+
+func (s *DockerSuite) TestLogsFollowGoroutinesWithStdout(c *check.C) {
+	out, _ := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "while true; do echo hello; sleep 2; done")
+	id := strings.TrimSpace(out)
+	c.Assert(waitRun(id), check.IsNil)
+
+	type info struct {
+		NGoroutines int
+	}
+	getNGoroutines := func() int {
+		var i info
+		status, b, err := sockRequest("GET", "/info", nil)
+		c.Assert(err, check.IsNil)
+		c.Assert(status, check.Equals, 200)
+		c.Assert(json.Unmarshal(b, &i), check.IsNil)
+		return i.NGoroutines
+	}
+
+	nroutines := getNGoroutines()
+
+	cmd := exec.Command(dockerBinary, "logs", "-f", id)
+	r, w := io.Pipe()
+	cmd.Stdout = w
+	c.Assert(cmd.Start(), check.IsNil)
+
+	// Make sure pipe is written to
+	chErr := make(chan error)
+	go func() {
+		b := make([]byte, 1)
+		_, err := r.Read(b)
+		chErr <- err
+	}()
+	c.Assert(<-chErr, check.IsNil)
+	c.Assert(cmd.Process.Kill(), check.IsNil)
+
+	// NGoroutines is not updated right away, so we need to wait before failing
+	t := time.After(5 * time.Second)
+	for {
+		select {
+		case <-t:
+			c.Assert(nroutines, check.Equals, getNGoroutines())
+		default:
+			if nroutines == getNGoroutines() {
+				return
+			}
+			time.Sleep(100 * time.Millisecond)
+		}
+	}
 }
