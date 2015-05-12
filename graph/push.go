@@ -495,7 +495,7 @@ func (s *TagStore) pushV2Image(r *registry.Session, img *image.Image, endpoint *
 // FIXME: Allow to interrupt current push when new push of same image is done.
 func (s *TagStore) Push(localName string, imagePushConfig *ImagePushConfig) error {
 	var (
-		sf = streamformatter.NewStreamFormatter(true)
+		sf = streamformatter.NewJSONStreamFormatter()
 	)
 
 	// Resolve the Repository name from fqn to RepositoryInfo

@@ -199,7 +199,7 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	// Setup an upload progress bar
 	// FIXME: ProgressReader shouldn't be this annoying to use
 	if context != nil {
-		sf := streamformatter.NewStreamFormatter(false)
+		sf := streamformatter.NewStreamFormatter()
 		body = progressreader.New(progressreader.Config{
 			In:        context,
 			Out:       cli.out,

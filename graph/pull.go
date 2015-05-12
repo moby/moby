@@ -29,7 +29,7 @@ type ImagePullConfig struct {
 
 func (s *TagStore) Pull(image string, tag string, imagePullConfig *ImagePullConfig) error {
 	var (
-		sf = streamformatter.NewStreamFormatter(true)
+		sf = streamformatter.NewJSONStreamFormatter()
 	)
 
 	// Resolve the Repository name from fqn to RepositoryInfo
