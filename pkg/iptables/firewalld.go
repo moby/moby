@@ -33,19 +33,18 @@ var (
 	onReloaded       []*func() // callbacks when Firewalld has been reloaded
 )
 
-func FirewalldInit() {
+func FirewalldInit() error {
 	var err error
 
-	connection, err = newConnection()
-
-	if err != nil {
-		logrus.Errorf("Failed to connect to D-Bus system bus: %s", err)
+	if connection, err = newConnection(); err != nil {
+		return fmt.Errorf("Failed to connect to D-Bus system bus: %v", err)
 	}
 	if connection != nil {
 		go signalHandler()
 	}
 
 	firewalldRunning = checkRunning()
+	return nil
 }
 
 // New() establishes a connection to the system bus.
@@ -146,19 +145,15 @@ func checkRunning() bool {
 		logrus.Infof("Firewalld running: %t", err == nil)
 		return err == nil
 	}
-	logrus.Info("Firewalld not running")
 	return false
 }
 
 // Firewalld's passthrough method simply passes args through to iptables/ip6tables
 func Passthrough(ipv IPV, args ...string) ([]byte, error) {
 	var output string
-
 	logrus.Debugf("Firewalld passthrough: %s, %s", ipv, args)
-	err := connection.sysobj.Call(dbusInterface+".direct.passthrough", 0, ipv, args).Store(&output)
-	if output != "" {
-		logrus.Debugf("passthrough output: %s", output)
+	if err := connection.sysobj.Call(dbusInterface+".direct.passthrough", 0, ipv, args).Store(&output); err != nil {
+		return nil, err
 	}
-
-	return []byte(output), err
+	return []byte(output), nil
 }
