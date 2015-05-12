@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
+	"time"
 
 	"github.com/docker/docker/api/types"
 	flag "github.com/docker/docker/pkg/mflag"
@@ -46,7 +47,7 @@ func (cli *DockerCli) CmdLogs(args ...string) error {
 	v.Set("stderr", "1")
 
 	if *since != "" {
-		v.Set("since", timeutils.GetTimestamp(*since))
+		v.Set("since", timeutils.GetTimestamp(*since, time.Now()))
 	}
 
 	if *times {

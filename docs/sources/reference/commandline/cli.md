@@ -1100,6 +1100,10 @@ and Docker images will report:
 
     untag, delete
 
+The `--since` and `--until` parameters can be Unix timestamps, RFC3339
+dates or Go duration strings (e.g. `10m`, `1h30m`) computed relative to
+client machine’s time.
+
 #### Filtering
 
 The filtering flag (`-f` or `--filter`) format is of "key=value". If you would like to use
@@ -1161,6 +1165,15 @@ You'll need two shells for this example.
     2014-05-10T17:42:14.999999999Z07:00 4386fb97867d: (from ubuntu-1:14.04) stop
     2014-05-10T17:42:14.999999999Z07:00 7805c1d35632: (from redis:2.8) die
     2014-09-03T15:49:29.999999999Z07:00 7805c1d35632: (from redis:2.8) stop
+
+This example outputs all events that were generated in the last 3 minutes,
+relative to the current time on the client machine:
+
+    $ docker events --since '3m'
+    2015-05-12T11:51:30.999999999Z07:00 4386fb97867d: (from ubuntu-1:14.04) die
+    2015-05-12T15:52:12.999999999Z07:00 4 4386fb97867d: (from ubuntu-1:14.04) stop
+    2015-05-12T15:53:45.999999999Z07:00  7805c1d35632: (from redis:2.8) die
+    2015-05-12T15:54:03.999999999Z07:00  7805c1d35632: (from redis:2.8) stop
 
 **Filter events:**
 
@@ -1655,9 +1668,11 @@ timestamp, for example `2014-09-16T06:17:46.000000000Z`, to each
 log entry. To ensure that the timestamps for are aligned the
 nano-second part of the timestamp will be padded with zero when necessary.
 
-The `--since` option shows logs of a container generated only after
-the given date, specified as RFC 3339 or UNIX timestamp. The `--since` option
-can be combined with the `--follow` and `--tail` options.
+The `--since` option shows only the container logs generated after
+a given date. You can specify the date as an RFC 3339 date, a UNIX
+timestamp, or a Go duration string (e.g. `1m30s`, `3h`). Docker computes
+the date relative to the client machine’s time. You can combine
+the `--since` option with either or both of the `--follow` or `--tail` options.
 
 ## pause
 
