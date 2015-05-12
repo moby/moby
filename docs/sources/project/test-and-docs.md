@@ -68,10 +68,6 @@ is simply `test`. The make file contains several targets for testing:
     <td>Run just the unit tests.</td>
   </tr>
   <tr>
-    <td class="monospaced">test-integration</td>
-    <td>Run just integration tests.</td>
-  </tr>
-  <tr>
     <td class="monospaced">test-integration-cli</td>
     <td>Run the test for the integration command line interface.</td>
   </tr>
@@ -143,7 +139,7 @@ Try this now.
 
 3. Run the tests using the `hack/make.sh` script.
 
-        root@5f8630b873fe:/go/src/github.com/docker/docker# hack/make.sh dynbinary binary cross test-unit test-integration test-integration-cli test-docker-py
+        root@5f8630b873fe:/go/src/github.com/docker/docker# hack/make.sh dynbinary binary cross test-unit test-integration-cli test-docker-py
 
     The tests run just as they did within your local host.
 
