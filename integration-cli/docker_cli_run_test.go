@@ -3175,3 +3175,25 @@ func (s *DockerSuite) TestDevicePermissions(c *check.C) {
 		c.Fatalf("output should begin with %q, got %q", permissions, out)
 	}
 }
+
+func (s *DockerSuite) TestRunWriteFilteredProc(c *check.C) {
+	testRequires(c, Apparmor)
+
+	testWritePaths := []string{
+		/* modprobe and core_pattern should both be denied by generic
+		 * policy of denials for /proc/sys/kernel. These files have been
+		 * picked to be checked as they are particularly sensitive to writes */
+		"/proc/sys/kernel/modprobe",
+		"/proc/sys/kernel/core_pattern",
+		"/proc/sysrq-trigger",
+	}
+	for i, filePath := range testWritePaths {
+		name := fmt.Sprintf("writeprocsieve-%d", i)
+
+		shellCmd := fmt.Sprintf("exec 3>%s", filePath)
+		runCmd := exec.Command(dockerBinary, "run", "--privileged", "--security-opt", "apparmor:docker-default", "--name", name, "busybox", "sh", "-c", shellCmd)
+		if out, exitCode, err := runCommandWithOutput(runCmd); err == nil || exitCode == 0 {
+			c.Fatalf("Open FD for write should have failed with permission denied, got: %s, %v", out, err)
+		}
+	}
+}
