@@ -52,6 +52,12 @@ You can still call an old version of the API using
 You can now supply a `stream` bool to get only one set of stats and
 disconnect
 
+`GET /containers(id)/logs`
+
+**New!**
+
+This endpoint now accepts a `since` timestamp parameter.
+
 ## v1.18
 
 ### Full documentation

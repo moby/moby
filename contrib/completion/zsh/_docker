@@ -305,6 +305,7 @@ __docker_subcommand () {
         (logs)
             _arguments \
                 {-f,--follow}'[Follow log output]' \
+                '-s,--since[Show logs since timestamp]' \
                 {-t,--timestamps}'[Show timestamps]' \
                 '--tail=-[Output the last K lines]:lines:(1 10 20 50 all)' \
                 '*:containers:__docker_containers'

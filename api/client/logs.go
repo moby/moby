@@ -7,6 +7,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	flag "github.com/docker/docker/pkg/mflag"
+	"github.com/docker/docker/pkg/timeutils"
 )
 
 // CmdLogs fetches the logs of a given container.
@@ -16,6 +17,7 @@ func (cli *DockerCli) CmdLogs(args ...string) error {
 	var (
 		cmd    = cli.Subcmd("logs", "CONTAINER", "Fetch the logs of a container", true)
 		follow = cmd.Bool([]string{"f", "-follow"}, false, "Follow log output")
+		since  = cmd.String([]string{"-since"}, "", "Show logs since timestamp")
 		times  = cmd.Bool([]string{"t", "-timestamps"}, false, "Show timestamps")
 		tail   = cmd.String([]string{"-tail"}, "all", "Number of lines to show from the end of the logs")
 	)
@@ -42,6 +44,10 @@ func (cli *DockerCli) CmdLogs(args ...string) error {
 	v := url.Values{}
 	v.Set("stdout", "1")
 	v.Set("stderr", "1")
+
+	if *since != "" {
+		v.Set("since", timeutils.GetTimestamp(*since))
+	}
 
 	if *times {
 		v.Set("timestamps", "1")

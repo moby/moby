@@ -32,15 +32,19 @@ func (jl *JSONLog) Reset() {
 	jl.Created = time.Time{}
 }
 
-func WriteLog(src io.Reader, dst io.Writer, format string) error {
+func WriteLog(src io.Reader, dst io.Writer, format string, since time.Time) error {
 	dec := json.NewDecoder(src)
 	l := &JSONLog{}
 	for {
+		l.Reset()
 		if err := dec.Decode(l); err == io.EOF {
 			return nil
 		} else if err != nil {
 			logrus.Printf("Error streaming logs: %s", err)
 			return err
+		}
+		if !since.IsZero() && l.Created.Before(since) {
+			continue
 		}
 		line, err := l.Format(format)
 		if err != nil {
@@ -49,6 +53,5 @@ func WriteLog(src io.Reader, dst io.Writer, format string) error {
 		if _, err := io.WriteString(dst, line); err != nil {
 			return err
 		}
-		l.Reset()
 	}
 }
