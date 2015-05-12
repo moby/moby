@@ -37,16 +37,15 @@ type RepositoryConfig struct {
 	Header     http.Header
 	AuthSource Authorizer
 
-	//TODO(dmcgowan): Add tls config
+	BaseTransport http.RoundTripper
 }
 
 // HTTPClient returns a new HTTP client configured for this configuration
 func (rc *RepositoryConfig) HTTPClient() (*http.Client, error) {
-	// TODO(dmcgowan): create base http.Transport with proper TLS configuration
-
 	transport := &Transport{
 		ExtraHeader: rc.Header,
 		AuthSource:  rc.AuthSource,
+		Base:        rc.BaseTransport,
 	}
 
 	client := &http.Client{
@@ -62,25 +61,27 @@ func (rc *RepositoryConfig) HTTPClient() (*http.Client, error) {
 // requested. Basic authentication may either be done to the token source or
 // directly with the requested endpoint depending on the endpoint's
 // WWW-Authenticate header.
-func NewTokenAuthorizer(creds CredentialStore, header http.Header, scope TokenScope) Authorizer {
+func NewTokenAuthorizer(creds CredentialStore, transport http.RoundTripper, header http.Header, scope TokenScope) Authorizer {
 	return &tokenAuthorizer{
 		header:     header,
 		challenges: map[string]map[string]authorizationChallenge{},
 		handlers: []AuthenticationHandler{
-			NewTokenHandler(creds, scope, header),
+			NewTokenHandler(transport, creds, scope, header),
 			NewBasicHandler(creds),
 		},
+		transport: transport,
 	}
 }
 
 // NewAuthorizer creates an authorizer which can handle multiple authentication
 // schemes. The handlers are tried in order, the higher priority authentication
 // methods should be first.
-func NewAuthorizer(header http.Header, handlers ...AuthenticationHandler) Authorizer {
+func NewAuthorizer(transport http.RoundTripper, header http.Header, handlers ...AuthenticationHandler) Authorizer {
 	return &tokenAuthorizer{
 		header:     header,
 		challenges: map[string]map[string]authorizationChallenge{},
 		handlers:   handlers,
+		transport:  transport,
 	}
 }
 
@@ -88,11 +89,7 @@ type tokenAuthorizer struct {
 	header     http.Header
 	challenges map[string]map[string]authorizationChallenge
 	handlers   []AuthenticationHandler
-}
-
-func (ta *tokenAuthorizer) client() *http.Client {
-	// TODO(dmcgowan): Use same transport which has properly configured TLS
-	return &http.Client{Transport: &Transport{ExtraHeader: ta.header}}
+	transport  http.RoundTripper
 }
 
 func (ta *tokenAuthorizer) ping(endpoint string) (map[string]authorizationChallenge, error) {
@@ -101,7 +98,16 @@ func (ta *tokenAuthorizer) ping(endpoint string) (map[string]authorizationChalle
 		return nil, err
 	}
 
-	resp, err := ta.client().Do(req)
+	client := &http.Client{
+		Transport: &Transport{
+			ExtraHeader: ta.header,
+			Base:        ta.transport,
+		},
+		// Ping should fail fast
+		Timeout: 5 * time.Second,
+	}
+
+	resp, err := client.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -171,9 +177,10 @@ func (ta *tokenAuthorizer) Authorize(req *http.Request) error {
 }
 
 type tokenHandler struct {
-	header http.Header
-	creds  CredentialStore
-	scope  TokenScope
+	header    http.Header
+	creds     CredentialStore
+	scope     TokenScope
+	transport http.RoundTripper
 
 	tokenLock       sync.Mutex
 	tokenCache      string
@@ -190,7 +197,7 @@ type TokenScope struct {
 
 // NewTokenHandler creates a new AuthenicationHandler which supports
 // fetching tokens from a remote token server.
-func NewTokenHandler(creds CredentialStore, scope TokenScope, header http.Header) AuthenticationHandler {
+func NewTokenHandler(transport http.RoundTripper, creds CredentialStore, scope TokenScope, header http.Header) AuthenticationHandler {
 	return &tokenHandler{
 		header: header,
 		creds:  creds,
@@ -203,8 +210,12 @@ func (ts TokenScope) String() string {
 }
 
 func (ts *tokenHandler) client() *http.Client {
-	// TODO(dmcgowan): Use same transport which has properly configured TLS
-	return &http.Client{Transport: &Transport{ExtraHeader: ts.header}}
+	return &http.Client{
+		Transport: &Transport{
+			ExtraHeader: ts.header,
+			Base:        ts.transport,
+		},
+	}
 }
 
 func (ts *tokenHandler) Scheme() string {
