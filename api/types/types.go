@@ -92,15 +92,6 @@ type ImageInspect struct {
 	VirtualSize     int64
 }
 
-type LegacyImage struct {
-	ID          string `json:"Id"`
-	Repository  string
-	Tag         string
-	Created     int
-	Size        int
-	VirtualSize int
-}
-
 // GET  "/containers/json"
 type Port struct {
 	IP          string

@@ -45,7 +45,6 @@ type Config struct {
 	Remove         bool
 	ForceRemove    bool
 	Pull           bool
-	JSONFormat     bool
 	Memory         int64
 	MemorySwap     int64
 	CpuShares      int64
@@ -142,7 +141,7 @@ func Build(d *daemon.Daemon, buildConfig *Config) error {
 	}
 	defer context.Close()
 
-	sf := streamformatter.NewStreamFormatter(buildConfig.JSONFormat)
+	sf := streamformatter.NewStreamFormatter(true)
 
 	builder := &Builder{
 		Daemon: d,
