@@ -9,7 +9,6 @@ import (
 	"github.com/docker/docker/opts"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/parsers"
-	"github.com/docker/docker/pkg/ulimit"
 	"github.com/docker/docker/pkg/units"
 )
 
@@ -19,43 +18,28 @@ var (
 	ErrConflictNetworkHostname          = fmt.Errorf("Conflicting options: -h and the network mode (--net)")
 	ErrConflictHostNetworkAndLinks      = fmt.Errorf("Conflicting options: --net=host can't be used with links. This would result in undefined behavior.")
 	ErrConflictContainerNetworkAndMac   = fmt.Errorf("Conflicting options: --mac-address and the network mode (--net).")
-	ErrConflictNetworkHosts             = fmt.Errorf("Conflicting options: --add-host and the network mode (--net).")
 )
 
 func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSet, error) {
 	var (
 		// FIXME: use utils.ListOpts for attach and volumes?
-		flAttach  = opts.NewListOpts(opts.ValidateAttach)
-		flVolumes = opts.NewListOpts(opts.ValidatePath)
-		flLinks   = opts.NewListOpts(opts.ValidateLink)
-		flEnv     = opts.NewListOpts(opts.ValidateEnv)
-		flLabels  = opts.NewListOpts(opts.ValidateEnv)
-		flDevices = opts.NewListOpts(opts.ValidatePath)
-
-		ulimits   = make(map[string]*ulimit.Ulimit)
-		flUlimits = opts.NewUlimitOpt(ulimits)
-
+		flAttach      = opts.NewListOpts(opts.ValidateAttach)
+		flVolumes     = opts.NewListOpts(opts.ValidatePath)
+		flLinks       = opts.NewListOpts(opts.ValidateLink)
+		flEnv         = opts.NewListOpts(opts.ValidateEnv)
+		flLabels      = opts.NewListOpts(opts.ValidateEnv)
 		flPublish     = opts.NewListOpts(nil)
 		flExpose      = opts.NewListOpts(nil)
 		flDns         = opts.NewListOpts(opts.ValidateIPAddress)
 		flDnsSearch   = opts.NewListOpts(opts.ValidateDnsSearch)
-		flExtraHosts  = opts.NewListOpts(opts.ValidateExtraHost)
-		flVolumesFrom = opts.NewListOpts(nil)
-		flLxcOpts     = opts.NewListOpts(nil)
 		flEnvFile     = opts.NewListOpts(nil)
-		flCapAdd      = opts.NewListOpts(nil)
-		flCapDrop     = opts.NewListOpts(nil)
-		flSecurityOpt = opts.NewListOpts(nil)
 		flLabelsFile  = opts.NewListOpts(nil)
 		flLoggingOpts = opts.NewListOpts(nil)
 
 		flNetwork         = cmd.Bool([]string{"#n", "#-networking"}, true, "Enable networking for this container")
-		flPrivileged      = cmd.Bool([]string{"#privileged", "-privileged"}, false, "Give extended privileges to this container")
-		flPidMode         = cmd.String([]string{"-pid"}, "", "PID namespace to use")
 		flPublishAll      = cmd.Bool([]string{"P", "-publish-all"}, false, "Publish all exposed ports to random ports")
 		flStdin           = cmd.Bool([]string{"i", "-interactive"}, false, "Keep STDIN open even if not attached")
 		flTty             = cmd.Bool([]string{"t", "-tty"}, false, "Allocate a pseudo-TTY")
-		flOomKillDisable  = cmd.Bool([]string{"-oom-kill-disable"}, false, "Disable OOM Killer")
 		flContainerIDFile = cmd.String([]string{"#cidfile", "-cidfile"}, "", "Write the container ID to the file")
 		flEntrypoint      = cmd.String([]string{"#entrypoint", "-entrypoint"}, "", "Overwrite the default ENTRYPOINT of the image")
 		flHostname        = cmd.String([]string{"h", "-hostname"}, "", "Container host name")
@@ -68,20 +52,15 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		flCpusetCpus      = cmd.String([]string{"#-cpuset", "-cpuset-cpus"}, "", "CPUs in which to allow execution (0-3, 0,1)")
 		flCpusetMems      = cmd.String([]string{"-cpuset-mems"}, "", "MEMs in which to allow execution (0-3, 0,1)")
 		flCpuQuota        = cmd.Int64([]string{"-cpu-quota"}, 0, "Limit the CPU CFS quota")
-		flBlkioWeight     = cmd.Int64([]string{"-blkio-weight"}, 0, "Block IO (relative weight), between 10 and 1000")
 		flNetMode         = cmd.String([]string{"-net"}, "bridge", "Set the Network mode for the container")
 		flMacAddress      = cmd.String([]string{"-mac-address"}, "", "Container MAC address (e.g. 92:d0:c6:0a:29:33)")
-		flIpcMode         = cmd.String([]string{"-ipc"}, "", "IPC namespace to use")
 		flRestartPolicy   = cmd.String([]string{"-restart"}, "no", "Restart policy to apply when a container exits")
-		flReadonlyRootfs  = cmd.Bool([]string{"-read-only"}, false, "Mount the container's root filesystem as read only")
 		flLoggingDriver   = cmd.String([]string{"-log-driver"}, "", "Logging driver for container")
-		flCgroupParent    = cmd.String([]string{"-cgroup-parent"}, "", "Optional parent cgroup for the container")
 	)
 
 	cmd.Var(&flAttach, []string{"a", "-attach"}, "Attach to STDIN, STDOUT or STDERR")
 	cmd.Var(&flVolumes, []string{"v", "-volume"}, "Bind mount a volume")
 	cmd.Var(&flLinks, []string{"#link", "-link"}, "Add link to another container")
-	cmd.Var(&flDevices, []string{"-device"}, "Add a host device to the container")
 	cmd.Var(&flLabels, []string{"l", "-label"}, "Set meta data on a container")
 	cmd.Var(&flLabelsFile, []string{"-label-file"}, "Read in a line delimited file of labels")
 	cmd.Var(&flEnv, []string{"e", "-env"}, "Set environment variables")
@@ -90,13 +69,6 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 	cmd.Var(&flExpose, []string{"#expose", "-expose"}, "Expose a port or a range of ports")
 	cmd.Var(&flDns, []string{"#dns", "-dns"}, "Set custom DNS servers")
 	cmd.Var(&flDnsSearch, []string{"-dns-search"}, "Set custom DNS search domains")
-	cmd.Var(&flExtraHosts, []string{"-add-host"}, "Add a custom host-to-IP mapping (host:ip)")
-	cmd.Var(&flVolumesFrom, []string{"#volumes-from", "-volumes-from"}, "Mount volumes from the specified container(s)")
-	cmd.Var(&flLxcOpts, []string{"#lxc-conf", "-lxc-conf"}, "Add custom lxc options")
-	cmd.Var(&flCapAdd, []string{"-cap-add"}, "Add Linux capabilities")
-	cmd.Var(&flCapDrop, []string{"-cap-drop"}, "Drop Linux capabilities")
-	cmd.Var(&flSecurityOpt, []string{"-security-opt"}, "Security Options")
-	cmd.Var(flUlimits, []string{"-ulimit"}, "Ulimit options")
 	cmd.Var(&flLoggingOpts, []string{"-log-opt"}, "Log driver options")
 
 	cmd.Require(flag.Min, 1)
@@ -130,10 +102,6 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 
 	if (netMode.IsHost() || netMode.IsContainer()) && flDns.Len() > 0 {
 		return nil, nil, cmd, ErrConflictNetworkAndDns
-	}
-
-	if (netMode.IsContainer() || netMode.IsHost()) && flExtraHosts.Len() > 0 {
-		return nil, nil, cmd, ErrConflictNetworkHosts
 	}
 
 	if (netMode.IsContainer() || netMode.IsHost()) && *flMacAddress != "" {
@@ -207,12 +175,6 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		entrypoint = NewEntrypoint(*flEntrypoint)
 	}
 
-	lc, err := parseKeyValueOpts(flLxcOpts)
-	if err != nil {
-		return nil, nil, cmd, err
-	}
-	lxcConf := NewLxcConfig(lc)
-
 	var (
 		domainname string
 		hostname   = *flHostname
@@ -249,16 +211,6 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		}
 	}
 
-	// parse device mappings
-	deviceMappings := []DeviceMapping{}
-	for _, device := range flDevices.GetAll() {
-		deviceMapping, err := ParseDevice(device)
-		if err != nil {
-			return nil, nil, cmd, err
-		}
-		deviceMappings = append(deviceMappings, deviceMapping)
-	}
-
 	// collect all the environment variables for the container
 	envVariables, err := readKVStrings(flEnvFile.GetAll(), flEnv.GetAll())
 	if err != nil {
@@ -269,16 +221,6 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 	labels, err := readKVStrings(flLabelsFile.GetAll(), flLabels.GetAll())
 	if err != nil {
 		return nil, nil, cmd, err
-	}
-
-	ipcMode := IpcMode(*flIpcMode)
-	if !ipcMode.Valid() {
-		return nil, nil, cmd, fmt.Errorf("--ipc: invalid IPC mode")
-	}
-
-	pidMode := PidMode(*flPidMode)
-	if !pidMode.Valid() {
-		return nil, nil, cmd, fmt.Errorf("--pid: invalid PID mode")
 	}
 
 	restartPolicy, err := ParseRestartPolicy(*flRestartPolicy)
@@ -314,38 +256,29 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 	}
 
 	hostConfig := &HostConfig{
-		Binds:           binds,
-		ContainerIDFile: *flContainerIDFile,
-		LxcConf:         lxcConf,
-		Memory:          flMemory,
-		MemorySwap:      MemorySwap,
-		CpuShares:       *flCpuShares,
-		CpuPeriod:       *flCpuPeriod,
-		CpusetCpus:      *flCpusetCpus,
-		CpusetMems:      *flCpusetMems,
-		CpuQuota:        *flCpuQuota,
-		BlkioWeight:     *flBlkioWeight,
-		OomKillDisable:  *flOomKillDisable,
-		Privileged:      *flPrivileged,
-		PortBindings:    portBindings,
-		Links:           flLinks.GetAll(),
-		PublishAllPorts: *flPublishAll,
-		Dns:             flDns.GetAll(),
-		DnsSearch:       flDnsSearch.GetAll(),
-		ExtraHosts:      flExtraHosts.GetAll(),
-		VolumesFrom:     flVolumesFrom.GetAll(),
-		NetworkMode:     netMode,
-		IpcMode:         ipcMode,
-		PidMode:         pidMode,
-		Devices:         deviceMappings,
-		CapAdd:          flCapAdd.GetAll(),
-		CapDrop:         flCapDrop.GetAll(),
-		RestartPolicy:   restartPolicy,
-		SecurityOpt:     flSecurityOpt.GetAll(),
-		ReadonlyRootfs:  *flReadonlyRootfs,
-		Ulimits:         flUlimits.GetList(),
-		LogConfig:       LogConfig{Type: *flLoggingDriver, Config: loggingOpts},
-		CgroupParent:    *flCgroupParent,
+		CommonHostConfig: CommonHostConfig{
+			Binds:           binds,
+			ContainerIDFile: *flContainerIDFile,
+			Memory:          flMemory,
+			MemorySwap:      MemorySwap,
+			CpuShares:       *flCpuShares,
+			CpuPeriod:       *flCpuPeriod,
+			CpusetCpus:      *flCpusetCpus,
+			CpusetMems:      *flCpusetMems,
+			CpuQuota:        *flCpuQuota,
+			PortBindings:    portBindings,
+			Links:           flLinks.GetAll(),
+			PublishAllPorts: *flPublishAll,
+			Dns:             flDns.GetAll(),
+			DnsSearch:       flDnsSearch.GetAll(),
+			NetworkMode:     netMode,
+			RestartPolicy:   restartPolicy,
+			LogConfig:       LogConfig{Type: *flLoggingDriver, Config: loggingOpts},
+		},
+	}
+
+	if err := parsePlatformSpecific(cmd, hostConfig, netMode); err != nil {
+		return nil, nil, cmd, err
 	}
 
 	// When allocating stdin in attached mode, close stdin at client disconnect
@@ -475,34 +408,4 @@ func parseNetMode(netMode string) (NetworkMode, error) {
 		return "", fmt.Errorf("invalid --net: %s", netMode)
 	}
 	return NetworkMode(netMode), nil
-}
-
-func ParseDevice(device string) (DeviceMapping, error) {
-	src := ""
-	dst := ""
-	permissions := "rwm"
-	arr := strings.Split(device, ":")
-	switch len(arr) {
-	case 3:
-		permissions = arr[2]
-		fallthrough
-	case 2:
-		dst = arr[1]
-		fallthrough
-	case 1:
-		src = arr[0]
-	default:
-		return DeviceMapping{}, fmt.Errorf("Invalid device specification: %s", device)
-	}
-
-	if dst == "" {
-		dst = src
-	}
-
-	deviceMapping := DeviceMapping{
-		PathOnHost:        src,
-		PathInContainer:   dst,
-		CgroupPermissions: permissions,
-	}
-	return deviceMapping, nil
 }

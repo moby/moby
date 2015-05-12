@@ -1,8 +1,11 @@
+// +build linux
+
 package opts
 
 import (
 	"fmt"
 
+	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/ulimit"
 )
 
@@ -41,4 +44,8 @@ func (o *UlimitOpt) GetList() []*ulimit.Ulimit {
 	}
 
 	return ulimits
+}
+
+func UlimitMapVar(values map[string]*ulimit.Ulimit, names []string, usage string) {
+	flag.Var(NewUlimitOpt(values), names, usage)
 }

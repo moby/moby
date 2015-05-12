@@ -10,7 +10,6 @@ import (
 
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/parsers"
-	"github.com/docker/docker/pkg/ulimit"
 )
 
 var (
@@ -54,10 +53,6 @@ func IPVar(value *net.IP, names []string, defaultValue, usage string) {
 
 func LabelListVar(values *[]string, names []string, usage string) {
 	flag.Var(newListOptsRef(values, ValidateLabel), names, usage)
-}
-
-func UlimitMapVar(values map[string]*ulimit.Ulimit, names []string, usage string) {
-	flag.Var(NewUlimitOpt(values), names, usage)
 }
 
 // ListOpts type
@@ -269,18 +264,6 @@ func validateDomain(val string) (string, error) {
 		return string(ns[1]), nil
 	}
 	return "", fmt.Errorf("%s is not a valid domain", val)
-}
-
-func ValidateExtraHost(val string) (string, error) {
-	// allow for IPv6 addresses in extra hosts by only splitting on first ":"
-	arr := strings.SplitN(val, ":", 2)
-	if len(arr) != 2 || len(arr[0]) == 0 {
-		return "", fmt.Errorf("bad format for add-host: %q", val)
-	}
-	if _, err := ValidateIPAddress(arr[1]); err != nil {
-		return "", fmt.Errorf("invalid IP address in add-host: %q", arr[1])
-	}
-	return val, nil
 }
 
 func ValidateLabel(val string) (string, error) {
