@@ -62,6 +62,14 @@ You can also bind UDP ports by adding a trailing `/udp`. For example:
 
     $ docker run -d -p 127.0.0.1:80:5000/udp training/webapp python app.py
 
+You can also specify a range of host ports from which to dynamically allocate,
+instead of using the default *ephemeral port range*
+
+    $ docker run -d -p 8000-9000:5000 training/webapp python app.py
+
+This would bind port 5000 in the container to the next available port
+between 8000 and 9000 on the host.
+
 You also learned about the useful `docker port` shortcut which showed us the
 current port bindings. This is also useful for showing you specific port
 configurations. For example, if you've bound the container port to the

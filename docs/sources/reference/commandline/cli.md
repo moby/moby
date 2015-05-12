@@ -994,6 +994,8 @@ Creates a new container.
       --read-only=false          Mount the container's root filesystem as read only
       --restart="no"             Restart policy (no, on-failure[:max-retry], always)
       --security-opt=[]          Security options
+      --port-persistence=static  Persistence policy for dynamic ports (static, soft, hard)
+      --port-range=[]            Range of host ports to use for dynamic allocation
       -t, --tty=false            Allocate a pseudo-TTY
       -u, --user=""              Username or UID
       -v, --volume=[]            Bind mount a volume
@@ -1963,6 +1965,8 @@ To remove an image using its digest:
       --rm=false                 Automatically remove the container when it exits
       --security-opt=[]          Security Options
       --sig-proxy=true           Proxy received signals to the process
+      --port-persistence=static  Persistence policy for dynamic ports (static, soft, hard)
+      --port-range=[]            Range of host ports to use for dynamic allocation
       -t, --tty=false            Allocate a pseudo-TTY
       -u, --user=""              Username or UID (format: <name|uid>[:<group|gid>])
       -v, --volume=[]            Bind mount a volume

@@ -34,6 +34,7 @@ import (
 	"github.com/docker/docker/pkg/directory"
 	"github.com/docker/docker/pkg/etchosts"
 	"github.com/docker/docker/pkg/ioutils"
+	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/promise"
 	"github.com/docker/docker/pkg/resolvconf"
 	"github.com/docker/docker/pkg/stringid"
@@ -640,8 +641,9 @@ func (container *Container) AllocateNetwork() error {
 			bindings[p] = []nat.PortBinding{}
 			for _, bb := range b {
 				bindings[p] = append(bindings[p], nat.PortBinding{
-					HostIp:   bb.HostIp,
-					HostPort: bb.HostPort,
+					HostIp:    bb.HostIp,
+					HostPort:  bb.HostPort,
+					PortRange: bb.PortRange,
 				})
 			}
 		}
@@ -662,10 +664,13 @@ func (container *Container) AllocateNetwork() error {
 			return err
 		}
 	}
-	container.WriteHostConfig()
 
 	networkSettings.Ports = bindings
 	container.NetworkSettings = networkSettings
+
+	// Write out the current bindings to the HostConfig, persistence policy will require previous allocations
+	container.hostConfig.PortBindings = bindings
+	container.WriteHostConfig()
 
 	return nil
 }
@@ -1506,15 +1511,46 @@ func (container *Container) waitForStart() error {
 }
 
 func (container *Container) allocatePort(port nat.Port, bindings nat.PortMap) error {
+	var err error
+	var start, end uint64 = 0, 0
+
+	persist := container.hostConfig.PortPersistence
 	binding := bindings[port]
 	if container.hostConfig.PublishAllPorts && len(binding) == 0 {
 		binding = append(binding, nat.PortBinding{})
 	}
 
 	for i := 0; i < len(binding); i++ {
-		b, err := bridge.AllocatePort(container.ID, port, binding[i])
+
+		// Apply port persistence policy to the port allocation request
+		switch persist {
+		case "hard":
+			start, end = 0, 0
+		case "soft":
+			if binding[i].PortRange != "" {
+				start, end, err = parsers.ParsePortRange(binding[i].PortRange)
+				if err != nil {
+					return err
+				}
+			}
+		default:
+			if binding[i].PortRange != "" {
+				start, end, err = parsers.ParsePortRange(binding[i].PortRange)
+				if err != nil {
+					return err
+				}
+				binding[i].HostPort = ""
+			}
+		}
+
+		b, err := bridge.AllocatePort(container.ID, port, binding[i], int(start), int(end))
 		if err != nil {
 			return err
+		}
+
+		// Fix the binding if persistence policy changed it to make sure HostConfig is accurate
+		if persist == "hard" && b.PortRange == "" {
+			b.PortRange = binding[i].PortRange
 		}
 		binding[i] = b
 	}
