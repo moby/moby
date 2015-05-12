@@ -95,6 +95,10 @@ if [ "$1" = 'configure' ] && [ -z "$2" ]; then
 	fi
 fi
 
+if [ -x /sbin/apparmor_parser ]; then
+	/sbin/apparmor_parser -r -W -T /etc/apparmor.d/ docker
+fi
+
 if ! { [ -x /sbin/initctl ] && /sbin/initctl version 2>/dev/null | grep -q upstart; }; then
 	# we only need to do this if upstart isn't in charge
 	update-rc.d docker defaults > /dev/null || true
@@ -154,6 +158,7 @@ EOF
 			--deb-recommends ca-certificates \
 			--deb-recommends git \
 			--deb-recommends xz-utils \
+			--deb-recommends apparmor \
 			--deb-recommends 'cgroupfs-mount | cgroup-lite' \
 			--description "$PACKAGE_DESCRIPTION" \
 			--maintainer "$PACKAGE_MAINTAINER" \
