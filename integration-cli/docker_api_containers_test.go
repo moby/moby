@@ -853,6 +853,17 @@ func (s *DockerSuite) TestContainerApiPostCreateNull(c *check.C) {
 	if out != "" {
 		c.Fatalf("expected empty string, got %q", out)
 	}
+
+	outMemory, errMemory := inspectField(container.Id, "HostConfig.Memory")
+	c.Assert(outMemory, check.Equals, "0")
+	if errMemory != nil {
+		c.Fatal(errMemory, outMemory)
+	}
+	outMemorySwap, errMemorySwap := inspectField(container.Id, "HostConfig.MemorySwap")
+	c.Assert(outMemorySwap, check.Equals, "0")
+	if errMemorySwap != nil {
+		c.Fatal(errMemorySwap, outMemorySwap)
+	}
 }
 
 func (s *DockerSuite) TestCreateWithTooLowMemoryLimit(c *check.C) {
