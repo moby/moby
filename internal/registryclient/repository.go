@@ -40,7 +40,6 @@ func NewRepository(ctx context.Context, name, endpoint string, repoConfig *Repos
 		ub:      ub,
 		name:    name,
 		context: ctx,
-		mirror:  repoConfig.AllowMirrors,
 	}, nil
 }
 
@@ -49,7 +48,6 @@ type repository struct {
 	ub      *v2.URLBuilder
 	context context.Context
 	name    string
-	mirror  bool
 }
 
 func (r *repository) Name() string {
