@@ -7,6 +7,7 @@ import (
 	"path"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -154,6 +155,7 @@ func lookupZfsDataset(rootdir string) (string, error) {
 type Driver struct {
 	dataset          *zfs.Dataset
 	options          ZfsOptions
+	sync.Mutex       // protects filesystem cache against concurrent access
 	filesystemsCache map[string]bool
 }
 
@@ -194,7 +196,7 @@ func (d *Driver) Status() [][2]string {
 	}
 }
 
-func cloneFilesystem(name, parentName string) error {
+func (d *Driver) cloneFilesystem(name, parentName string) error {
 	snapshotName := fmt.Sprintf("%d", time.Now().Nanosecond())
 	parentDataset := zfs.Dataset{Name: parentName}
 	snapshot, err := parentDataset.Snapshot(snapshotName /*recursive */, false)
@@ -203,6 +205,12 @@ func cloneFilesystem(name, parentName string) error {
 	}
 
 	_, err = snapshot.Clone(name, map[string]string{"mountpoint": "legacy"})
+	if err == nil {
+		d.Lock()
+		d.filesystemsCache[name] = true
+		d.Unlock()
+	}
+
 	if err != nil {
 		snapshot.Destroy(zfs.DestroyDeferDeletion)
 		return err
@@ -245,15 +253,27 @@ func (d *Driver) create(id, parent string) error {
 	name := d.ZfsPath(id)
 	if parent == "" {
 		mountoptions := map[string]string{"mountpoint": "legacy"}
-		_, err := zfs.CreateFilesystem(name, mountoptions)
+		fs, err := zfs.CreateFilesystem(name, mountoptions)
+		if err == nil {
+			d.Lock()
+			d.filesystemsCache[fs.Name] = true
+			d.Unlock()
+		}
 		return err
 	}
-	return cloneFilesystem(name, d.ZfsPath(parent))
+	return d.cloneFilesystem(name, d.ZfsPath(parent))
 }
 
 func (d *Driver) Remove(id string) error {
-	dataset := zfs.Dataset{Name: d.ZfsPath(id)}
-	return dataset.Destroy(zfs.DestroyRecursive)
+	name := d.ZfsPath(id)
+	dataset := zfs.Dataset{Name: name}
+	err := dataset.Destroy(zfs.DestroyRecursive)
+	if err == nil {
+		d.Lock()
+		delete(d.filesystemsCache, name)
+		d.Unlock()
+	}
+	return err
 }
 
 func (d *Driver) Get(id, mountLabel string) (string, error) {
