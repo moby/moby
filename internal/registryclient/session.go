@@ -34,9 +34,10 @@ type CredentialStore interface {
 // RepositoryConfig holds the base configuration needed to communicate
 // with a registry including a method of authorization and HTTP headers.
 type RepositoryConfig struct {
-	Header       http.Header
-	AuthSource   Authorizer
-	AllowMirrors bool
+	Header     http.Header
+	AuthSource Authorizer
+
+	//TODO(dmcgowan): Add tls config
 }
 
 // HTTPClient returns a new HTTP client configured for this configuration
