@@ -52,6 +52,21 @@ You can still call an old version of the API using
 You can now supply a `stream` bool to get only one set of stats and
 disconnect
 
+`GET /containers/(id)/copy`
+
+**New!**
+Copy files/dirs from container.  
+This used to be `POST /containers/(id)/copy`
+
+**New!**
+Now accepts `pause` boolean flag, which will pause the container while copying.
+
+`POST /containers/(id)/copy`
+
+**New!**
+Copy tar stream into container at specified `to` location
+
+
 ## v1.18
 
 ### Full documentation

@@ -1097,7 +1097,7 @@ Status Codes:
 
 ### Copy files or folders from a container
 
-`POST /containers/(id)/copy`
+`GET /containers/(id)/copy`
 
 Copy files or folders of container `id`
 
@@ -1108,6 +1108,7 @@ Copy files or folders of container `id`
 
         {
              "Resource": "test.txt"
+             "Pause": true
         }
 
 **Example response**:
@@ -1122,6 +1123,29 @@ Status Codes:
 -   **200** – no error
 -   **404** – no such container
 -   **500** – server error
+
+`POST /containers/(id)/copy`
+
+Copy tar stream into container `id`
+
+**Example request**:
+
+        POST /containers/4fa6e0f0c678/copy?to=/foo HTTP/1.1
+        Content-Type: application/x-tar
+
+        {{ TAR STREAM }}
+
+**Example response**:
+
+        HTTP/1.1 204 No Content
+
+Status Codes:
+
+-   **204** – no error
+-   **404** – no such container
+-   **500** – server error
+
+
 
 ## 2.2 Images
 

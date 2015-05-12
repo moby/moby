@@ -1054,7 +1054,7 @@ func (s *DockerSuite) TestContainerApiCopy(c *check.C) {
 		Resource: "/test.txt",
 	}
 
-	status, body, err := sockRequest("POST", "/containers/"+name+"/copy", postData)
+	status, body, err := sockRequest("GET", "/containers/"+name+"/copy", postData)
 	c.Assert(err, check.IsNil)
 	c.Assert(status, check.Equals, http.StatusOK)
 
@@ -1085,7 +1085,7 @@ func (s *DockerSuite) TestContainerApiCopyResourcePathEmpty(c *check.C) {
 		Resource: "",
 	}
 
-	status, body, err := sockRequest("POST", "/containers/"+name+"/copy", postData)
+	status, body, err := sockRequest("GET", "/containers/"+name+"/copy", postData)
 	c.Assert(err, check.IsNil)
 	c.Assert(status, check.Equals, http.StatusInternalServerError)
 	c.Assert(string(body), check.Matches, "Path cannot be empty\n")
@@ -1101,7 +1101,7 @@ func (s *DockerSuite) TestContainerApiCopyResourcePathNotFound(c *check.C) {
 		Resource: "/notexist",
 	}
 
-	status, body, err := sockRequest("POST", "/containers/"+name+"/copy", postData)
+	status, body, err := sockRequest("GET", "/containers/"+name+"/copy", postData)
 	c.Assert(err, check.IsNil)
 	c.Assert(status, check.Equals, http.StatusInternalServerError)
 	c.Assert(string(body), check.Matches, "Could not find the file /notexist in container "+name+"\n")
@@ -1112,7 +1112,7 @@ func (s *DockerSuite) TestContainerApiCopyContainerNotFound(c *check.C) {
 		Resource: "/something",
 	}
 
-	status, _, err := sockRequest("POST", "/containers/notexists/copy", postData)
+	status, _, err := sockRequest("GET", "/containers/notexists/copy", postData)
 	c.Assert(err, check.IsNil)
 	c.Assert(status, check.Equals, http.StatusNotFound)
 }

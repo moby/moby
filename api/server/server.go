@@ -1326,7 +1326,7 @@ func (s *Server) postBuild(version version.Version, w http.ResponseWriter, r *ht
 	return nil
 }
 
-func (s *Server) postContainersCopy(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (s *Server) getContainersCopy(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
 	}
@@ -1344,7 +1344,7 @@ func (s *Server) postContainersCopy(version version.Version, w http.ResponseWrit
 		return fmt.Errorf("Path cannot be empty")
 	}
 
-	data, err := s.daemon.ContainerCopy(vars["name"], cfg.Resource)
+	data, err := s.daemon.ContainerCopyOut(vars["name"], cfg.Resource, cfg.Pause)
 	if err != nil {
 		if strings.Contains(strings.ToLower(err.Error()), "no such id") {
 			w.WriteHeader(http.StatusNotFound)
@@ -1362,6 +1362,28 @@ func (s *Server) postContainersCopy(version version.Version, w http.ResponseWrit
 		return err
 	}
 
+	return nil
+}
+
+func (s *Server) postContainersCopy(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if version.LessThan("1.19") {
+		return s.getContainersCopy(version, w, r, vars)
+	}
+	if vars == nil {
+		return fmt.Errorf("Missing parameter")
+	}
+	if err := parseForm(r); err != nil {
+		return err
+	}
+
+	if err := s.daemon.ContainerCopyIn(vars["name"], r.Form.Get("to"), boolValue(r, "pause"), r.Body); err != nil && err != io.EOF {
+		if strings.Contains(strings.ToLower(err.Error()), "no such id") {
+			w.WriteHeader(http.StatusNotFound)
+			return nil
+		}
+		return err
+	}
+	w.WriteHeader(http.StatusNoContent)
 	return nil
 }
 
@@ -1545,6 +1567,7 @@ func createRouter(s *Server) *mux.Router {
 			"/containers/{name:.*}/logs":      s.getContainersLogs,
 			"/containers/{name:.*}/stats":     s.getContainersStats,
 			"/containers/{name:.*}/attach/ws": s.wsContainersAttach,
+			"/containers/{name:.*}/copy":      s.getContainersCopy,
 			"/exec/{id:.*}/json":              s.getExecByID,
 		},
 		"POST": {

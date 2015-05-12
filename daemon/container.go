@@ -31,6 +31,7 @@ import (
 	"github.com/docker/docker/nat"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/broadcastwriter"
+	"github.com/docker/docker/pkg/chrootarchive"
 	"github.com/docker/docker/pkg/directory"
 	"github.com/docker/docker/pkg/etchosts"
 	"github.com/docker/docker/pkg/ioutils"
@@ -1009,7 +1010,7 @@ func (container *Container) GetSize() (int64, int64) {
 	return sizeRw, sizeRootfs
 }
 
-func (container *Container) Copy(resource string) (io.ReadCloser, error) {
+func (container *Container) GetFile(resource string) (io.ReadCloser, error) {
 	container.Lock()
 	defer container.Unlock()
 	var err error
@@ -1066,6 +1067,37 @@ func (container *Container) Copy(resource string) (io.ReadCloser, error) {
 			return err
 		}),
 		nil
+}
+
+// PutFile copies the archive to the specified destination in the container
+func (container *Container) PutFile(to string, data archive.ArchiveReader) error {
+	container.Lock()
+	defer container.Unlock()
+	var err error
+
+	if err := container.Mount(); err != nil {
+		return err
+	}
+	defer func() {
+		if err != nil {
+			container.Unmount()
+		}
+	}()
+	if err = container.mountVolumes(); err != nil {
+		container.unmountVolumes()
+		return err
+	}
+	defer func() {
+		if err != nil {
+			container.unmountVolumes()
+		}
+	}()
+
+	basePath, err := container.GetResourcePath(to)
+	if err != nil {
+		return err
+	}
+	return chrootarchive.Untar(data, basePath, &archive.TarOptions{NoLchown: true})
 }
 
 // Returns true if the container exposes a certain port
