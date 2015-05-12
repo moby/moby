@@ -14,9 +14,12 @@ func main() {
 	net.IP = ip
 
 	options := options.Generic{"AddressIPv4": net}
-	controller := libnetwork.New()
+	controller, err := libnetwork.New()
+	if err != nil {
+		log.Fatal(err)
+	}
 	netType := "bridge"
-	err := controller.ConfigureNetworkDriver(netType, options)
+	err = controller.ConfigureNetworkDriver(netType, options)
 	netw, err := controller.NewNetwork(netType, "dummy")
 	if err != nil {
 		log.Fatal(err)

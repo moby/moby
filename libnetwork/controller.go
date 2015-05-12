@@ -3,7 +3,7 @@ Package libnetwork provides the basic functionality and extension points to
 create network namespaces and allocate interfaces for containers to use.
 
         // Create a new controller instance
-        controller := libnetwork.New()
+        controller, _err := libnetwork.New()
 
         // Select and configure the network driver
         networkType := "bridge"
@@ -98,11 +98,15 @@ type controller struct {
 }
 
 // New creates a new instance of network controller.
-func New() NetworkController {
-	c := &controller{networks: networkTable{}, sandboxes: sandboxTable{}}
-	c.drivers = enumerateDrivers(c)
-	return c
-
+func New() (NetworkController, error) {
+	c := &controller{
+		networks:  networkTable{},
+		sandboxes: sandboxTable{},
+		drivers:   driverTable{}}
+	if err := initDrivers(c); err != nil {
+		return nil, err
+	}
+	return c, nil
 }
 
 func (c *controller) ConfigureNetworkDriver(networkType string, options map[string]interface{}) error {

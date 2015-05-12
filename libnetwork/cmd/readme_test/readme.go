@@ -11,7 +11,10 @@ import (
 
 func main() {
 	// Create a new controller instance
-	controller := libnetwork.New()
+	controller, err := libnetwork.New()
+	if err != nil {
+		return
+	}
 
 	// Select and configure the network driver
 	networkType := "bridge"
@@ -19,7 +22,7 @@ func main() {
 	driverOptions := options.Generic{}
 	genericOption := make(map[string]interface{})
 	genericOption[netlabel.GenericData] = driverOptions
-	err := controller.ConfigureNetworkDriver(networkType, genericOption)
+	err = controller.ConfigureNetworkDriver(networkType, genericOption)
 	if err != nil {
 		return
 	}

@@ -34,11 +34,14 @@ func TestMain(m *testing.M) {
 }
 
 func createTestNetwork(networkType, networkName string, option options.Generic, netOption options.Generic) (libnetwork.Network, error) {
-	controller := libnetwork.New()
+	controller, err := libnetwork.New()
+	if err != nil {
+		return nil, err
+	}
 	genericOption := make(map[string]interface{})
 	genericOption[netlabel.GenericData] = option
 
-	err := controller.ConfigureNetworkDriver(networkType, genericOption)
+	err = controller.ConfigureNetworkDriver(networkType, genericOption)
 	if err != nil {
 		return nil, err
 	}
@@ -219,9 +222,12 @@ func TestUnknownDriver(t *testing.T) {
 }
 
 func TestNilDriver(t *testing.T) {
-	controller := libnetwork.New()
+	controller, err := libnetwork.New()
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	_, err := controller.NewNetwork("framerelay", "dummy",
+	_, err = controller.NewNetwork("framerelay", "dummy",
 		libnetwork.NetworkOptionGeneric(getEmptyGenericOption()))
 	if err == nil {
 		t.Fatal("Expected to fail. But instead succeeded")
@@ -233,9 +239,12 @@ func TestNilDriver(t *testing.T) {
 }
 
 func TestNoInitDriver(t *testing.T) {
-	controller := libnetwork.New()
+	controller, err := libnetwork.New()
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	_, err := controller.NewNetwork("ppp", "dummy",
+	_, err = controller.NewNetwork("ppp", "dummy",
 		libnetwork.NetworkOptionGeneric(getEmptyGenericOption()))
 	if err == nil {
 		t.Fatal("Expected to fail. But instead succeeded")
@@ -248,12 +257,15 @@ func TestNoInitDriver(t *testing.T) {
 
 func TestDuplicateNetwork(t *testing.T) {
 	defer netutils.SetupTestNetNS(t)()
-	controller := libnetwork.New()
+	controller, err := libnetwork.New()
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	genericOption := make(map[string]interface{})
 	genericOption[netlabel.GenericData] = options.Generic{}
 
-	err := controller.ConfigureNetworkDriver(bridgeNetType, genericOption)
+	err = controller.ConfigureNetworkDriver(bridgeNetType, genericOption)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -435,9 +447,12 @@ func TestUnknownEndpoint(t *testing.T) {
 
 func TestNetworkEndpointsWalkers(t *testing.T) {
 	defer netutils.SetupTestNetNS(t)()
-	controller := libnetwork.New()
+	controller, err := libnetwork.New()
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	err := controller.ConfigureNetworkDriver(bridgeNetType, getEmptyGenericOption())
+	err = controller.ConfigureNetworkDriver(bridgeNetType, getEmptyGenericOption())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -513,9 +528,12 @@ func TestNetworkEndpointsWalkers(t *testing.T) {
 
 func TestControllerQuery(t *testing.T) {
 	defer netutils.SetupTestNetNS(t)()
-	controller := libnetwork.New()
+	controller, err := libnetwork.New()
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	err := controller.ConfigureNetworkDriver(bridgeNetType, getEmptyGenericOption())
+	err = controller.ConfigureNetworkDriver(bridgeNetType, getEmptyGenericOption())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -573,9 +591,12 @@ func TestControllerQuery(t *testing.T) {
 
 func TestNetworkQuery(t *testing.T) {
 	defer netutils.SetupTestNetNS(t)()
-	controller := libnetwork.New()
+	controller, err := libnetwork.New()
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	err := controller.ConfigureNetworkDriver(bridgeNetType, getEmptyGenericOption())
+	err = controller.ConfigureNetworkDriver(bridgeNetType, getEmptyGenericOption())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1031,7 +1052,10 @@ func createGlobalInstance(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ctrlr = libnetwork.New()
+	ctrlr, err = libnetwork.New()
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	err = ctrlr.ConfigureNetworkDriver(bridgeNetType, getEmptyGenericOption())
 	if err != nil {

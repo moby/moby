@@ -10,9 +10,9 @@ const networkType = "null"
 
 type driver struct{}
 
-// New provides a new instance of null driver
-func New(dc driverapi.DriverCallback) (string, driverapi.Driver) {
-	return networkType, &driver{}
+// Init registers a new instance of null driver
+func Init(dc driverapi.DriverCallback) error {
+	return dc.RegisterDriver(networkType, &driver{})
 }
 
 func (d *driver) Config(option map[string]interface{}) error {
