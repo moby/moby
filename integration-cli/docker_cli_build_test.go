@@ -5416,12 +5416,12 @@ func (s *DockerSuite) TestBuildRUNErrMsg(c *check.C) {
 	name := "testbuildbadrunerrmsg"
 	_, out, err := buildImageWithOut(name, `
   FROM busybox
-  RUN badEXE a1 a2`, false)
+  RUN badEXE a1 \& a2	a3`, false) // tab between a2 and a3
 	if err == nil {
 		c.Fatal("Should have failed to build")
 	}
 
-	exp := `The command \"/bin/sh -c badEXE a1 a2\" returned a non-zero code: 127"`
+	exp := "The command '/bin/sh -c badEXE a1 \\\\& a2\\ta3' returned a non-zero code: 127"
 	if !strings.Contains(out, exp) {
 		c.Fatalf("RUN doesn't have the correct output:\nGot:%s\nExpected:%s", out, exp)
 	}
