@@ -117,7 +117,7 @@ func TestEndpointAuthorizeToken(t *testing.T) {
 	defer c()
 
 	repo1Config := &RepositoryConfig{
-		AuthSource: NewTokenAuthorizer(nil, nil, tokenScope1),
+		AuthSource: NewTokenAuthorizer(nil, nil, nil, tokenScope1),
 	}
 
 	client, err := repo1Config.HTTPClient()
@@ -142,7 +142,7 @@ func TestEndpointAuthorizeToken(t *testing.T) {
 	defer c2()
 
 	repo2Config := &RepositoryConfig{
-		AuthSource: NewTokenAuthorizer(nil, nil, tokenScope2),
+		AuthSource: NewTokenAuthorizer(nil, nil, nil, tokenScope2),
 	}
 	client2, err := repo2Config.HTTPClient()
 	if err != nil {
@@ -221,7 +221,7 @@ func TestEndpointAuthorizeTokenBasic(t *testing.T) {
 		password: password,
 	}
 	repoConfig := &RepositoryConfig{
-		AuthSource: NewTokenAuthorizer(creds, nil, tokenScope),
+		AuthSource: NewTokenAuthorizer(creds, nil, nil, tokenScope),
 	}
 
 	client, err := repoConfig.HTTPClient()
@@ -266,7 +266,7 @@ func TestEndpointAuthorizeBasic(t *testing.T) {
 		password: password,
 	}
 	repoConfig := &RepositoryConfig{
-		AuthSource: NewTokenAuthorizer(creds, nil, TokenScope{}),
+		AuthSource: NewTokenAuthorizer(creds, nil, nil, TokenScope{}),
 	}
 
 	client, err := repoConfig.HTTPClient()
