@@ -72,6 +72,10 @@ bundle_ubuntu() {
 		done
 	done
 
+	# Include contributed apparmor policy
+	mkdir -p "$DIR/etc/apparmor.d/"
+	cp contrib/apparmor/docker "$DIR/etc/apparmor.d/"
+
 	# Copy the binary
 	# This will fail if the binary bundle hasn't been built
 	mkdir -p "$DIR/usr/bin"
@@ -87,6 +91,10 @@ if [ "$1" = 'configure' ] && [ -z "$2" ]; then
 	if ! getent group docker > /dev/null; then
 		groupadd --system docker
 	fi
+fi
+
+if ( aa-status --enabled ); then
+	/sbin/apparmor_parser -r -W -T /etc/apparmor.d/docker
 fi
 
 if ! { [ -x /sbin/initctl ] && /sbin/initctl version 2>/dev/null | grep -q upstart; }; then
@@ -149,6 +157,7 @@ EOF
 			--deb-recommends git \
 			--deb-recommends xz-utils \
 			--deb-recommends 'cgroupfs-mount | cgroup-lite' \
+			--deb-suggests apparmor \
 			--description "$PACKAGE_DESCRIPTION" \
 			--maintainer "$PACKAGE_MAINTAINER" \
 			--conflicts docker \
