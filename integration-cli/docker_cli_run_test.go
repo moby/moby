@@ -2396,8 +2396,11 @@ func (s *DockerSuite) TestRunWriteToProcAsound(c *check.C) {
 
 func (s *DockerSuite) TestRunReadProcTimer(c *check.C) {
 	testRequires(c, NativeExecDriver)
-	out, code, err := dockerCmdWithError(c, "run", "busybox", "cat", "/proc/timer_stats")
-	if err != nil || code != 0 {
+	out, code, err := runCommandWithOutput(exec.Command(dockerBinary, "run", "busybox", "cat", "/proc/timer_stats"))
+	if code != 0 {
+		return
+	}
+	if err != nil {
 		c.Fatal(err)
 	}
 	if strings.Trim(out, "\n ") != "" {
@@ -2413,8 +2416,11 @@ func (s *DockerSuite) TestRunReadProcLatency(c *check.C) {
 		c.Skip("kernel doesnt have latency_stats configured")
 		return
 	}
-	out, code, err := dockerCmdWithError(c, "run", "busybox", "cat", "/proc/latency_stats")
-	if err != nil || code != 0 {
+	out, code, err := runCommandWithOutput(exec.Command(dockerBinary, "run", "busybox", "cat", "/proc/latency_stats"))
+	if code != 0 {
+		return
+	}
+	if err != nil {
 		c.Fatal(err)
 	}
 	if strings.Trim(out, "\n ") != "" {
@@ -2504,6 +2510,25 @@ func (s *DockerSuite) TestVolumeFromMixedRWOptions(c *check.C) {
 	}
 }
 
+func (s *DockerSuite) TestRunReadFilteredProc(c *check.C) {
+	testRequires(c, Apparmor)
+
+	testReadPaths := []string{
+		"/proc/latency_stats",
+		"/proc/timer_stats",
+		"/proc/kcore",
+	}
+	for i, filePath := range testReadPaths {
+		name := fmt.Sprintf("procsieve-%d", i)
+
+		shellCmd := fmt.Sprintf("exec 3<%s", filePath)
+		runCmd := exec.Command(dockerBinary, "run", "--privileged", "--security-opt", "apparmor:docker-default", "--name", name, "busybox", "sh", "-c", shellCmd)
+		if out, exitCode, err := runCommandWithOutput(runCmd); err == nil || exitCode == 0 {
+			c.Fatalf("Open FD for read should have failed with permission denied, got: %s, %v", out, err)
+		}
+	}
+}
+
 func (s *DockerSuite) TestRunWriteFilteredProc(c *check.C) {
 	testRequires(c, Apparmor)
 
@@ -2514,6 +2539,7 @@ func (s *DockerSuite) TestRunWriteFilteredProc(c *check.C) {
 		"/proc/sys/kernel/modprobe",
 		"/proc/sys/kernel/core_pattern",
 		"/proc/sysrq-trigger",
+		"/proc/kcore",
 	}
 	for i, filePath := range testWritePaths {
 		name := fmt.Sprintf("writeprocsieve-%d", i)
