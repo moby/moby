@@ -388,10 +388,22 @@ func convertKVStringsToMap(values []string) map[string]string {
 
 func parseLoggingOpts(loggingDriver string, loggingOpts []string) (map[string]string, error) {
 	loggingOptsMap := convertKVStringsToMap(loggingOpts)
-	if loggingDriver == "none" && len(loggingOpts) > 0 {
-		return map[string]string{}, fmt.Errorf("Invalid logging opts for driver %s", loggingDriver)
+	if loggingDriver == "none" || loggingDriver == "json-file" {
+		if len(loggingOpts) > 0 {
+			return nil, fmt.Errorf("%s does not accept any log options", loggingDriver)
+		}
 	}
-	//TODO - validation step
+
+	if loggingDriver == "syslog" {
+		for k, v := range loggingOptsMap {
+			switch k {
+			case "tag":
+			default:
+				return nil, fmt.Errorf("Invalid option and value: %s=%s", k, v)
+			}
+		}
+	}
+
 	return loggingOptsMap, nil
 }
 

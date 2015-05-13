@@ -1465,7 +1465,11 @@ func (container *Container) startLogging() error {
 		}
 		l = dl
 	case "syslog":
-		dl, err := syslog.New(container.ID[:12])
+		tag := container.hostConfig.LogConfig.Config["tag"]
+		if tag == "" {
+			tag = container.ID[:12]
+		}
+		dl, err := syslog.New(tag)
 		if err != nil {
 			return err
 		}
