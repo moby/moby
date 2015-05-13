@@ -1085,7 +1085,7 @@ func (cmd *FlagSet) ReportError(str string, withHelp bool) {
 			str += ". See '" + os.Args[0] + " " + cmd.Name() + " --help'"
 		}
 	}
-	fmt.Fprintf(cmd.Out(), "docker: %s.\n", str)
+	fmt.Fprintf(cmd.Out(), "docker: %s\n", str)
 	os.Exit(1)
 }
 
