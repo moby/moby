@@ -281,15 +281,16 @@ func (s *DockerSuite) TestLogsFollowStopped(c *check.C) {
 
 func (s *DockerSuite) TestLogsSince(c *check.C) {
 	name := "testlogssince"
-	runCmd := exec.Command(dockerBinary, "run", "--name="+name, "busybox", "/bin/sh", "-c", `date +%s; for i in $(seq 1 5); do sleep 1; echo log$i; done`)
+	runCmd := exec.Command(dockerBinary, "run", "--name="+name, "busybox", "/bin/sh", "-c", "for i in $(seq 1 3); do sleep 2; echo `date +%s` log$i; done")
 	out, _, err := runCommandWithOutput(runCmd)
 	if err != nil {
 		c.Fatalf("run failed with errors: %s, %v", out, err)
 	}
 
-	outLines := strings.Split(out, "\n")
-	startUnix, _ := strconv.ParseInt(outLines[0], 10, 64)
-	since := startUnix + 3
+	log2Line := strings.Split(strings.Split(out, "\n")[1], " ")
+	t, err := strconv.ParseInt(log2Line[0], 10, 64) // the timestamp log2 is writen
+	c.Assert(err, check.IsNil)
+	since := t + 1 // add 1s so log1 & log2 doesn't show up
 	logsCmd := exec.Command(dockerBinary, "logs", "-t", fmt.Sprintf("--since=%v", since), name)
 
 	out, _, err = runCommandWithOutput(logsCmd)
@@ -306,7 +307,7 @@ func (s *DockerSuite) TestLogsSince(c *check.C) {
 	}
 
 	// Test with default value specified and parameter omitted
-	expected := []string{"log1", "log2", "log3", "log4", "log5"}
+	expected := []string{"log1", "log2", "log3"}
 	for _, cmd := range []*exec.Cmd{
 		exec.Command(dockerBinary, "logs", "-t", name),
 		exec.Command(dockerBinary, "logs", "-t", "--since=0", name),
