@@ -1,6 +1,7 @@
 package types
 
 import (
+	"os"
 	"time"
 
 	"github.com/docker/docker/daemon/network"
@@ -125,6 +126,16 @@ type Container struct {
 // POST "/containers/"+containerID+"/copy"
 type CopyConfig struct {
 	Resource string
+}
+
+// ContainerPathStat is used to encode the response from
+// 	GET /containers/{name:.*}/stat-path
+type ContainerPathStat struct {
+	Name  string      `json:"name"`
+	Path  string      `json:"path"`
+	Size  int64       `json:"size"`
+	Mode  os.FileMode `json:"mode"`
+	Mtime time.Time   `json:"mtime"`
 }
 
 // GET "/containers/{name:.*}/top"
