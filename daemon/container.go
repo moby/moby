@@ -22,9 +22,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/execdriver"
 	"github.com/docker/docker/daemon/logger"
-	"github.com/docker/docker/daemon/logger/journald"
 	"github.com/docker/docker/daemon/logger/jsonfilelog"
-	"github.com/docker/docker/daemon/logger/syslog"
 	"github.com/docker/docker/daemon/network"
 	"github.com/docker/docker/daemon/networkdriver/bridge"
 	"github.com/docker/docker/image"
@@ -947,18 +945,6 @@ func (container *Container) Unmount() error {
 	return container.daemon.Unmount(container)
 }
 
-func (container *Container) logPath(name string) (string, error) {
-	return container.GetRootResourcePath(fmt.Sprintf("%s-%s.log", container.ID, name))
-}
-
-func (container *Container) ReadLog(name string) (io.Reader, error) {
-	pth, err := container.logPath(name)
-	if err != nil {
-		return nil, err
-	}
-	return os.Open(pth)
-}
-
 func (container *Container) hostConfigPath() (string, error) {
 	return container.GetRootResourcePath("hostconfig.json")
 }
@@ -1445,41 +1431,45 @@ func (container *Container) setupWorkingDirectory() error {
 	return nil
 }
 
-func (container *Container) startLogging() error {
+func (container *Container) getLogConfig() runconfig.LogConfig {
 	cfg := container.hostConfig.LogConfig
-	if cfg.Type == "" {
-		cfg = container.daemon.defaultLogConfig
+	if cfg.Type != "" { // container has log driver configured
+		return cfg
 	}
-	var l logger.Logger
-	switch cfg.Type {
-	case "json-file":
-		pth, err := container.logPath("json")
-		if err != nil {
-			return err
-		}
-		container.LogPath = pth
+	// Use daemon's default log config for containers
+	return container.daemon.defaultLogConfig
+}
 
-		dl, err := jsonfilelog.New(pth)
+func (container *Container) getLogger() (logger.Logger, error) {
+	cfg := container.getLogConfig()
+	c, err := logger.GetLogDriver(cfg.Type)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to get logging factory: %v", err)
+	}
+	ctx := logger.Context{
+		ContainerID:   container.ID,
+		ContainerName: container.Name,
+	}
+
+	// Set logging file for "json-logger"
+	if cfg.Type == jsonfilelog.Name {
+		ctx.LogPath, err = container.GetRootResourcePath(fmt.Sprintf("%s-json.log", container.ID))
 		if err != nil {
-			return err
+			return nil, err
 		}
-		l = dl
-	case "syslog":
-		dl, err := syslog.New(container.ID[:12])
-		if err != nil {
-			return err
-		}
-		l = dl
-	case "journald":
-		dl, err := journald.New(container.ID, container.Name)
-		if err != nil {
-			return err
-		}
-		l = dl
-	case "none":
-		return nil
-	default:
-		return fmt.Errorf("Unknown logging driver: %s", cfg.Type)
+	}
+	return c(ctx)
+}
+
+func (container *Container) startLogging() error {
+	cfg := container.getLogConfig()
+	if cfg.Type == "none" {
+		return nil // do not start logging routines
+	}
+
+	l, err := container.getLogger()
+	if err != nil {
+		return fmt.Errorf("Failed to initialize logging driver: %v", err)
 	}
 
 	copier, err := logger.NewCopier(container.ID, map[string]io.Reader{"stdout": container.StdoutPipe(), "stderr": container.StderrPipe()}, l)
@@ -1489,6 +1479,11 @@ func (container *Container) startLogging() error {
 	container.logCopier = copier
 	copier.Run()
 	container.logDriver = l
+
+	// set LogPath field only for json-file logdriver
+	if jl, ok := l.(*jsonfilelog.JSONFileLogger); ok {
+		container.LogPath = jl.LogPath()
+	}
 
 	return nil
 }
@@ -1663,28 +1658,13 @@ func (c *Container) Attach(stdin io.ReadCloser, stdout io.Writer, stderr io.Writ
 
 func (c *Container) AttachWithLogs(stdin io.ReadCloser, stdout, stderr io.Writer, logs, stream bool) error {
 	if logs {
-		cLog, err := c.ReadLog("json")
-		if err != nil && os.IsNotExist(err) {
-			// Legacy logs
-			logrus.Debugf("Old logs format")
-			if stdout != nil {
-				cLog, err := c.ReadLog("stdout")
-				if err != nil {
-					logrus.Errorf("Error reading logs (stdout): %s", err)
-				} else if _, err := io.Copy(stdout, cLog); err != nil {
-					logrus.Errorf("Error streaming logs (stdout): %s", err)
-				}
-			}
-			if stderr != nil {
-				cLog, err := c.ReadLog("stderr")
-				if err != nil {
-					logrus.Errorf("Error reading logs (stderr): %s", err)
-				} else if _, err := io.Copy(stderr, cLog); err != nil {
-					logrus.Errorf("Error streaming logs (stderr): %s", err)
-				}
-			}
-		} else if err != nil {
-			logrus.Errorf("Error reading logs (json): %s", err)
+		logDriver, err := c.getLogger()
+		cLog, err := logDriver.GetReader()
+
+		if err != nil {
+			logrus.Errorf("Error reading logs: %s", err)
+		} else if c.LogDriverType() != jsonfilelog.Name {
+			logrus.Errorf("Reading logs not implemented for driver %s", c.LogDriverType())
 		} else {
 			dec := json.NewDecoder(cLog)
 			for {

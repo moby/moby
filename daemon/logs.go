@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/daemon/logger/jsonfilelog"
 	"github.com/docker/docker/pkg/jsonlog"
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/docker/docker/pkg/tailfile"
@@ -57,32 +58,15 @@ func (daemon *Daemon) ContainerLogs(name string, config *ContainerLogsConfig) er
 		errStream = outStream
 	}
 
-	if container.LogDriverType() != "json-file" {
+	if container.LogDriverType() != jsonfilelog.Name {
 		return fmt.Errorf("\"logs\" endpoint is supported only for \"json-file\" logging driver")
 	}
-	cLog, err := container.ReadLog("json")
-	if err != nil && os.IsNotExist(err) {
-		// Legacy logs
-		logrus.Debugf("Old logs format")
-		if config.UseStdout {
-			cLog, err := container.ReadLog("stdout")
-			if err != nil {
-				logrus.Errorf("Error reading logs (stdout): %s", err)
-			} else if _, err := io.Copy(outStream, cLog); err != nil {
-				logrus.Errorf("Error streaming logs (stdout): %s", err)
-			}
-		}
-		if config.UseStderr {
-			cLog, err := container.ReadLog("stderr")
-			if err != nil {
-				logrus.Errorf("Error reading logs (stderr): %s", err)
-			} else if _, err := io.Copy(errStream, cLog); err != nil {
-				logrus.Errorf("Error streaming logs (stderr): %s", err)
-			}
-		}
-	} else if err != nil {
-		logrus.Errorf("Error reading logs (json): %s", err)
+	logDriver, err := container.getLogger()
+	cLog, err := logDriver.GetReader()
+	if err != nil {
+		logrus.Errorf("Error reading logs: %s", err)
 	} else {
+		// json-file driver
 		if config.Tail != "all" {
 			var err error
 			lines, err = strconv.Atoi(config.Tail)

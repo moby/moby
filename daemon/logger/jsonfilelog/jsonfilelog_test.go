@@ -12,18 +12,22 @@ import (
 )
 
 func TestJSONFileLogger(t *testing.T) {
+	cid := "a7317399f3f857173c6179d44823594f8294678dea9999662e5c625b5a1c7657"
 	tmp, err := ioutil.TempDir("", "docker-logger-")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer os.RemoveAll(tmp)
 	filename := filepath.Join(tmp, "container.log")
-	l, err := New(filename)
+	l, err := New(logger.Context{
+		ContainerID: cid,
+		LogPath:     filename,
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer l.Close()
-	cid := "a7317399f3f857173c6179d44823594f8294678dea9999662e5c625b5a1c7657"
+
 	if err := l.Log(&logger.Message{ContainerID: cid, Line: []byte("line1"), Source: "src1"}); err != nil {
 		t.Fatal(err)
 	}
@@ -48,18 +52,22 @@ func TestJSONFileLogger(t *testing.T) {
 }
 
 func BenchmarkJSONFileLogger(b *testing.B) {
+	cid := "a7317399f3f857173c6179d44823594f8294678dea9999662e5c625b5a1c7657"
 	tmp, err := ioutil.TempDir("", "docker-logger-")
 	if err != nil {
 		b.Fatal(err)
 	}
 	defer os.RemoveAll(tmp)
 	filename := filepath.Join(tmp, "container.log")
-	l, err := New(filename)
+	l, err := New(logger.Context{
+		ContainerID: cid,
+		LogPath:     filename,
+	})
 	if err != nil {
 		b.Fatal(err)
 	}
 	defer l.Close()
-	cid := "a7317399f3f857173c6179d44823594f8294678dea9999662e5c625b5a1c7657"
+
 	testLine := "Line that thinks that it is log line from docker\n"
 	msg := &logger.Message{ContainerID: cid, Line: []byte(testLine), Source: "stderr", Timestamp: time.Now().UTC()}
 	jsonlog, err := (&jsonlog.JSONLog{Log: string(msg.Line) + "\n", Stream: msg.Source, Created: msg.Timestamp}).MarshalJSON()
