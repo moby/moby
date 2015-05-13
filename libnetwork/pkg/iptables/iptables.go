@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/Sirupsen/logrus"
 )
@@ -36,6 +37,8 @@ const (
 var (
 	iptablesPath  string
 	supportsXlock = false
+	// used to lock iptables commands if xtables lock is not supported
+	bestEffortLock sync.Mutex
 	//ErrIptablesNotFound is returned when the rule is not found.
 	ErrIptablesNotFound = errors.New("Iptables not found")
 )
@@ -303,6 +306,9 @@ func Raw(args ...string) ([]byte, error) {
 	}
 	if supportsXlock {
 		args = append([]string{"--wait"}, args...)
+	} else {
+		bestEffortLock.Lock()
+		defer bestEffortLock.Unlock()
 	}
 
 	logrus.Debugf("%s, %v", iptablesPath, args)
