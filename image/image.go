@@ -19,6 +19,8 @@ import (
 // For more information see: http://sourceforge.net/p/aufs/aufs3-standalone/ci/aufs3.12/tree/config.mk
 const MaxImageDepth = 127
 
+var validHex = regexp.MustCompile(`^([a-f0-9]{64})$`)
+
 type Image struct {
 	ID              string            `json:"id"`
 	Parent          string            `json:"parent,omitempty"`
@@ -266,7 +268,6 @@ func NewImgJSON(src []byte) (*Image, error) {
 
 // Check wheather id is a valid image ID or not
 func ValidateID(id string) error {
-	validHex := regexp.MustCompile(`^([a-f0-9]{64})$`)
 	if ok := validHex.MatchString(id); !ok {
 		return fmt.Errorf("image ID '%s' is invalid", id)
 	}

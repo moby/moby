@@ -10,9 +10,11 @@ import (
 
 const shortLen = 12
 
+var validShortID = regexp.MustCompile("^[a-z0-9]{12}$")
+
 // Determine if an arbitrary string *looks like* a short ID.
 func IsShortID(id string) bool {
-	return regexp.MustCompile("^[a-z0-9]{12}$").MatchString(id)
+	return validShortID.MatchString(id)
 }
 
 // TruncateID returns a shorthand version of a string identifier for convenience.
