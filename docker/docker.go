@@ -53,11 +53,8 @@ func main() {
 		setLogLevel(logrus.InfoLevel)
 	}
 
-	// -D, --debug, -l/--log-level=debug processing
-	// When/if -D is removed this block can be deleted
 	if *flDebug {
 		os.Setenv("DEBUG", "1")
-		setLogLevel(logrus.DebugLevel)
 	}
 
 	if len(flHosts) == 0 {
