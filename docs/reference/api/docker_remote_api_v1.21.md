@@ -1433,7 +1433,7 @@ Return low-level information on the image `name`
 
 **Example request**:
 
-    GET /images/ubuntu/json HTTP/1.1
+    GET /images/example/json HTTP/1.1
 
 **Example response**:
 
@@ -1441,34 +1441,90 @@ Return low-level information on the image `name`
     Content-Type: application/json
 
     {
-         "Created": "2013-03-23T22:24:18.818426-07:00",
-         "Container": "3d67245a8d72ecf13f33dffac9f79dcdf70f75acb84d308770391510e0c23ad0",
-         "ContainerConfig":
-                 {
-                         "Hostname": "",
-                         "User": "",
-                         "AttachStdin": false,
-                         "AttachStdout": false,
-                         "AttachStderr": false,
-                         "Tty": true,
-                         "OpenStdin": true,
-                         "StdinOnce": false,
-                         "Env": null,
-                         "Cmd": ["/bin/bash"],
-                         "Dns": null,
-                         "Image": "ubuntu",
-                         "Labels": {
-                             "com.example.vendor": "Acme",
-                             "com.example.license": "GPL",
-                             "com.example.version": "1.0"
-                         },
-                         "Volumes": null,
-                         "VolumesFrom": "",
-                         "WorkingDir": ""
-                 },
-         "Id": "b750fe79269d2ec9a3c593ef05b4332b1d1a02a62b4accb2c21d589ff2f5f2dc",
-         "Parent": "27cf784147099545",
-         "Size": 6824592
+       "Id" : "85f05633ddc1c50679be2b16a0479ab6f7637f8884e0cfe0f4d20e1ebb3d6e7c",
+       "Container" : "cb91e48a60d01f1e27028b4fc6819f4f290b3cf12496c8176ec714d0d390984a",
+       "Comment" : "",
+       "Os" : "linux",
+       "Architecture" : "amd64",
+       "Parent" : "91e54dfb11794fad694460162bf0cb0a4fa710cfa3f60979c177d920813e267c",
+       "ContainerConfig" : {
+          "Tty" : false,
+          "Hostname" : "e611e15f9c9d",
+          "Volumes" : null,
+          "Domainname" : "",
+          "AttachStdout" : false,
+          "PublishService" : "",
+          "AttachStdin" : false,
+          "OpenStdin" : false,
+          "StdinOnce" : false,
+          "NetworkDisabled" : false,
+          "OnBuild" : [],
+          "Image" : "91e54dfb11794fad694460162bf0cb0a4fa710cfa3f60979c177d920813e267c",
+          "User" : "",
+          "WorkingDir" : "",
+          "Entrypoint" : null,
+          "MacAddress" : "",
+          "AttachStderr" : false,
+          "Labels" : {
+             "com.example.license" : "GPL",
+             "com.example.version" : "1.0",
+             "com.example.vendor" : "Acme"
+          },
+          "Env" : [
+             "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+          ],
+          "ExposedPorts" : null,
+          "Cmd" : [
+             "/bin/sh",
+             "-c",
+             "#(nop) LABEL com.example.vendor=Acme com.example.license=GPL com.example.version=1.0"
+          ]
+       },
+       "DockerVersion" : "1.9.0-dev",
+       "VirtualSize" : 188359297,
+       "Size" : 0,
+       "Author" : "",
+       "Created" : "2015-09-10T08:30:53.26995814Z",
+       "GraphDriver" : {
+          "Name" : "aufs",
+          "Data" : null
+       },
+       "Tags" : [
+          "example:1.0",
+          "example:latest",
+          "example:stable"
+       ],
+       "Config" : {
+          "Image" : "91e54dfb11794fad694460162bf0cb0a4fa710cfa3f60979c177d920813e267c",
+          "NetworkDisabled" : false,
+          "OnBuild" : [],
+          "StdinOnce" : false,
+          "PublishService" : "",
+          "AttachStdin" : false,
+          "OpenStdin" : false,
+          "Domainname" : "",
+          "AttachStdout" : false,
+          "Tty" : false,
+          "Hostname" : "e611e15f9c9d",
+          "Volumes" : null,
+          "Cmd" : [
+             "/bin/bash"
+          ],
+          "ExposedPorts" : null,
+          "Env" : [
+             "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+          ],
+          "Labels" : {
+             "com.example.vendor" : "Acme",
+             "com.example.version" : "1.0",
+             "com.example.license" : "GPL"
+          },
+          "Entrypoint" : null,
+          "MacAddress" : "",
+          "AttachStderr" : false,
+          "WorkingDir" : "",
+          "User" : ""
+       }
     }
 
 Status Codes:

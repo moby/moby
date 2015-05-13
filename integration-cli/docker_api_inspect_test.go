@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/pkg/stringutils"
 	"github.com/go-check/check"
 )
 
@@ -110,4 +112,24 @@ func (s *DockerSuite) TestInspectApiContainerVolumeDriver(c *check.C) {
 	if _, ok := cfg["VolumeDriver"]; !ok {
 		c.Fatal("Api version 1.21 expected to include VolumeDriver in 'HostConfig'")
 	}
+}
+
+func (s *DockerSuite) TestInspectApiImageResponse(c *check.C) {
+	dockerCmd(c, "tag", "busybox:latest", "busybox:mytag")
+
+	endpoint := "/images/busybox/json"
+	status, body, err := sockRequest("GET", endpoint, nil)
+
+	c.Assert(err, check.IsNil)
+	c.Assert(status, check.Equals, http.StatusOK)
+
+	var imageJSON types.ImageInspect
+	if err = json.Unmarshal(body, &imageJSON); err != nil {
+		c.Fatalf("unable to unmarshal body for latest version: %v", err)
+	}
+
+	c.Assert(len(imageJSON.Tags), check.Equals, 2)
+
+	c.Assert(stringutils.InSlice(imageJSON.Tags, "busybox:latest"), check.Equals, true)
+	c.Assert(stringutils.InSlice(imageJSON.Tags, "busybox:mytag"), check.Equals, true)
 }
