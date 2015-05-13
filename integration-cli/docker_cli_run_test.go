@@ -1000,7 +1000,7 @@ func (s *DockerSuite) TestRunPrivilegedCanMknod(c *check.C) {
 	}
 }
 
-func (s *DockerSuite) TestRunUnPrivilegedCanMknod(c *check.C) {
+func (s *DockerSuite) TestRunUnprivilegedCanMknod(c *check.C) {
 	cmd := exec.Command(dockerBinary, "run", "busybox", "sh", "-c", "mknod /tmp/sda b 8 0 && echo ok")
 	out, _, err := runCommandWithOutput(cmd)
 	if err != nil {
@@ -1124,7 +1124,7 @@ func (s *DockerSuite) TestRunPrivilegedCanMount(c *check.C) {
 	}
 }
 
-func (s *DockerSuite) TestRunUnPrivilegedCannotMount(c *check.C) {
+func (s *DockerSuite) TestRunUnprivilegedCannotMount(c *check.C) {
 	cmd := exec.Command(dockerBinary, "run", "busybox", "sh", "-c", "mount -t tmpfs none /tmp && echo ok")
 	out, _, err := runCommandWithOutput(cmd)
 	if err == nil {
