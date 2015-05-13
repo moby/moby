@@ -262,6 +262,11 @@ func (raw *data) join(subsystem string) (string, error) {
 }
 
 func writeFile(dir, file, data string) error {
+	// Normally dir should not be empty, one case is that cgroup subsystem
+	// is not mounted, we will get empty dir, and we want it fail here.
+	if dir == "" {
+		return fmt.Errorf("no such directory for %s.", file)
+	}
 	return ioutil.WriteFile(filepath.Join(dir, file), []byte(data), 0700)
 }
 

@@ -15,8 +15,8 @@ func TestCheckMountDestOnProc(t *testing.T) {
 func TestCheckMountDestInSys(t *testing.T) {
 	dest := "/rootfs//sys/fs/cgroup"
 	err := checkMountDestination("/rootfs", dest)
-	if err == nil {
-		t.Fatal("destination inside proc should return an error")
+	if err != nil {
+		t.Fatal("destination inside /sys should not return an error")
 	}
 }
 
