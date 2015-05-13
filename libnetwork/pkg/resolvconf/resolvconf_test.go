@@ -5,6 +5,8 @@ import (
 	"io/ioutil"
 	"os"
 	"testing"
+
+	_ "github.com/docker/libnetwork/netutils"
 )
 
 func TestGet(t *testing.T) {

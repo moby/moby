@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"io"
 	"testing"
+
+	_ "github.com/docker/libnetwork/netutils"
 )
 
 // nopCloser is used to provide a dummy CallFunc for Cmd()
