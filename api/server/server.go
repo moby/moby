@@ -1309,6 +1309,7 @@ func (s *Server) postBuild(version version.Version, w http.ResponseWriter, r *ht
 	return nil
 }
 
+// postContainersCopy is deprecated in favor of getContainersArchivePath.
 func (s *Server) postContainersCopy(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
@@ -1346,6 +1347,104 @@ func (s *Server) postContainersCopy(version version.Version, w http.ResponseWrit
 	}
 
 	return nil
+}
+
+// // Encode the stat to JSON, base64 encode, and place in a header.
+func setContainerPathStatHeader(stat *types.ContainerPathStat, header http.Header) error {
+	statJSON, err := json.Marshal(stat)
+	if err != nil {
+		return err
+	}
+
+	header.Set(
+		"X-Docker-Container-Path-Stat",
+		base64.StdEncoding.EncodeToString(statJSON),
+	)
+
+	return nil
+}
+
+func (s *Server) headContainersArchive(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if vars == nil {
+		return fmt.Errorf("Missing parameter")
+	}
+	if err := parseForm(r); err != nil {
+		return err
+	}
+
+	name := vars["name"]
+	path := r.Form.Get("path")
+
+	switch {
+	case name == "":
+		return fmt.Errorf("bad parameter: 'name' cannot be empty")
+	case path == "":
+		return fmt.Errorf("bad parameter: 'path' cannot be empty")
+	}
+
+	stat, err := s.daemon.ContainerStatPath(name, path)
+	if err != nil {
+		return err
+	}
+
+	return setContainerPathStatHeader(stat, w.Header())
+}
+
+func (s *Server) getContainersArchive(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if vars == nil {
+		return fmt.Errorf("Missing parameter")
+	}
+	if err := parseForm(r); err != nil {
+		return err
+	}
+
+	name := vars["name"]
+	path := r.Form.Get("path")
+
+	switch {
+	case name == "":
+		return fmt.Errorf("bad parameter: 'name' cannot be empty")
+	case path == "":
+		return fmt.Errorf("bad parameter: 'path' cannot be empty")
+	}
+
+	tarArchive, stat, err := s.daemon.ContainerArchivePath(name, path)
+	if err != nil {
+		return err
+	}
+	defer tarArchive.Close()
+
+	if err := setContainerPathStatHeader(stat, w.Header()); err != nil {
+		return err
+	}
+
+	w.Header().Set("Content-Type", "application/x-tar")
+	_, err = io.Copy(w, tarArchive)
+
+	return err
+}
+
+func (s *Server) putContainersArchive(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if vars == nil {
+		return fmt.Errorf("Missing parameter")
+	}
+	if err := parseForm(r); err != nil {
+		return err
+	}
+
+	name := vars["name"]
+	path := r.Form.Get("path")
+
+	noOverwriteDirNonDir := boolValue(r, "noOverwriteDirNonDir")
+
+	switch {
+	case name == "":
+		return fmt.Errorf("bad parameter: 'name' cannot be empty")
+	case path == "":
+		return fmt.Errorf("bad parameter: 'path' cannot be empty")
+	}
+
+	return s.daemon.ContainerExtractToDir(name, path, noOverwriteDirNonDir, r.Body)
 }
 
 func (s *Server) postContainerExecCreate(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
@@ -1536,6 +1635,9 @@ func createRouter(s *Server) *mux.Router {
 		ProfilerSetup(r, "/debug/")
 	}
 	m := map[string]map[string]HttpApiFunc{
+		"HEAD": {
+			"/containers/{name:.*}/archive": s.headContainersArchive,
+		},
 		"GET": {
 			"/_ping":                          s.ping,
 			"/events":                         s.getEvents,
@@ -1557,6 +1659,7 @@ func createRouter(s *Server) *mux.Router {
 			"/containers/{name:.*}/stats":     s.getContainersStats,
 			"/containers/{name:.*}/attach/ws": s.wsContainersAttach,
 			"/exec/{id:.*}/json":              s.getExecByID,
+			"/containers/{name:.*}/archive":   s.getContainersArchive,
 		},
 		"POST": {
 			"/auth":                         s.postAuth,
@@ -1581,6 +1684,9 @@ func createRouter(s *Server) *mux.Router {
 			"/exec/{name:.*}/start":         s.postContainerExecStart,
 			"/exec/{name:.*}/resize":        s.postContainerExecResize,
 			"/containers/{name:.*}/rename":  s.postContainerRename,
+		},
+		"PUT": {
+			"/containers/{name:.*}/archive": s.putContainersArchive,
 		},
 		"DELETE": {
 			"/containers/{name:.*}": s.deleteContainers,

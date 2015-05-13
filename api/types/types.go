@@ -128,8 +128,10 @@ type CopyConfig struct {
 	Resource string
 }
 
-// ContainerPathStat is used to encode the response from
-// 	GET /containers/{name:.*}/stat-path
+// ContainerPathStat is used to encode the header from
+// 	GET /containers/{name:.*}/archive
+// "name" is the file or directory name.
+// "path" is the absolute path to the resource in the container.
 type ContainerPathStat struct {
 	Name  string      `json:"name"`
 	Path  string      `json:"path"`
