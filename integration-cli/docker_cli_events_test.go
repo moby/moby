@@ -13,6 +13,41 @@ import (
 	"github.com/go-check/check"
 )
 
+func (s *DockerSuite) TestEventsTimestampFormats(c *check.C) {
+	image := "busybox"
+
+	// Start stopwatch, generate an event
+	time.Sleep(time.Second) // so that we don't grab events from previous test occured in the same second
+	start := daemonTime(c)
+	time.Sleep(time.Second) // remote API precision is only a second, wait a while before creating an event
+	dockerCmd(c, "tag", image, "timestamptest:1")
+	dockerCmd(c, "rmi", "timestamptest:1")
+	time.Sleep(time.Second) // so that until > since
+	end := daemonTime(c)
+
+	// List of available time formats to --since
+	unixTs := func(t time.Time) string { return fmt.Sprintf("%v", t.Unix()) }
+	rfc3339 := func(t time.Time) string { return t.Format(time.RFC3339) }
+
+	// --since=$start must contain only the 'untag' event
+	for _, f := range []func(time.Time) string{unixTs, rfc3339} {
+		since, until := f(start), f(end)
+		cmd := exec.Command(dockerBinary, "events", "--since="+since, "--until="+until)
+		out, _, err := runCommandWithOutput(cmd)
+		if err != nil {
+			c.Fatalf("docker events cmd failed: %v\nout=%s", err, out)
+		}
+		events := strings.Split(strings.TrimSpace(out), "\n")
+		if len(events) != 1 {
+			c.Fatalf("unexpected events, was expecting only 1 (since=%s, until=%s) out=%s", since, until, out)
+		}
+		if !strings.Contains(out, "untag") {
+			c.Fatalf("expected 'untag' event not found (since=%s, until=%s) out=%s", since, until, out)
+		}
+	}
+
+}
+
 func (s *DockerSuite) TestEventsUntag(c *check.C) {
 	image := "busybox"
 	dockerCmd(c, "tag", image, "utest:tag1")
