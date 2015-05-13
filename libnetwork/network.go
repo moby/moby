@@ -2,6 +2,7 @@ package libnetwork
 
 import (
 	"encoding/json"
+	"strings"
 	"sync"
 
 	"github.com/docker/docker/pkg/stringid"
@@ -253,4 +254,14 @@ func (n *network) EndpointByID(id string) (Endpoint, error) {
 		return e, nil
 	}
 	return nil, ErrNoSuchEndpoint(id)
+}
+
+func IsReservedNetwork(name string) bool {
+	reserved := []string{"bridge", "none", "host"}
+	for _, r := range reserved {
+		if strings.EqualFold(r, name) {
+			return true
+		}
+	}
+	return false
 }

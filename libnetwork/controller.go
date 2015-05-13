@@ -47,6 +47,7 @@ package libnetwork
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"sync"
 
@@ -59,6 +60,9 @@ import (
 	"github.com/docker/libnetwork/types"
 	"github.com/docker/swarm/pkg/store"
 )
+
+// TODO: Move it to error.go once the error refactoring is done
+var ErrInvalidDatastore = errors.New("Datastore is not initialized")
 
 // NetworkController provides the interface for controller instance which manages
 // networks.
@@ -198,6 +202,9 @@ func (c *controller) NewNetwork(networkType, name string, options ...NetworkOpti
 	}
 
 	network.processOptions(options...)
+	if err := c.addNetworkToStore(network); err != nil {
+		return nil, err
+	}
 	// Create the network
 	if err := d.CreateNetwork(network.id, network.generic); err != nil {
 		return nil, err
@@ -206,7 +213,6 @@ func (c *controller) NewNetwork(networkType, name string, options ...NetworkOpti
 	// Store the network handler in controller
 	c.Lock()
 	c.networks[network.id] = network
-	c.store.PutObjectAtomic(network)
 	c.Unlock()
 
 	return network, nil
@@ -224,6 +230,16 @@ func (c *controller) newNetworkFromStore(n *network) {
 	n.driver = c.drivers[n.networkType]
 	c.networks[n.id] = n
 	// TODO : Populate n.endpoints back from endpoint dbstore
+}
+
+func (c *controller) addNetworkToStore(n *network) error {
+	if IsReservedNetwork(n.Name()) {
+		return nil
+	}
+	if c.store == nil {
+		return ErrInvalidDatastore
+	}
+	return c.store.PutObjectAtomic(n)
 }
 
 func (c *controller) watchNewNetworks() {
