@@ -730,7 +730,7 @@ func (s *Server) postImagesCreate(version version.Version, w http.ResponseWriter
 		if !output.Flushed() {
 			return err
 		}
-		sf := streamformatter.NewStreamFormatter(true)
+		sf := streamformatter.NewJSONStreamFormatter()
 		output.Write(sf.FormatError(err))
 	}
 
@@ -814,7 +814,7 @@ func (s *Server) postImagesPush(version version.Version, w http.ResponseWriter, 
 		if !output.Flushed() {
 			return err
 		}
-		sf := streamformatter.NewStreamFormatter(true)
+		sf := streamformatter.NewJSONStreamFormatter()
 		output.Write(sf.FormatError(err))
 	}
 	return nil
@@ -843,7 +843,7 @@ func (s *Server) getImagesGet(version version.Version, w http.ResponseWriter, r 
 		if !output.Flushed() {
 			return err
 		}
-		sf := streamformatter.NewStreamFormatter(true)
+		sf := streamformatter.NewJSONStreamFormatter()
 		output.Write(sf.FormatError(err))
 	}
 	return nil
@@ -1234,7 +1234,7 @@ func (s *Server) postBuild(version version.Version, w http.ResponseWriter, r *ht
 		if !output.Flushed() {
 			return err
 		}
-		sf := streamformatter.NewStreamFormatter(true)
+		sf := streamformatter.NewJSONStreamFormatter()
 		w.Write(sf.FormatError(err))
 	}
 	return nil

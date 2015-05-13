@@ -141,7 +141,7 @@ func Build(d *daemon.Daemon, buildConfig *Config) error {
 	}
 	defer context.Close()
 
-	sf := streamformatter.NewStreamFormatter(true)
+	sf := streamformatter.NewJSONStreamFormatter()
 
 	builder := &Builder{
 		Daemon: d,

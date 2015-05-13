@@ -22,7 +22,7 @@ type ImageImportConfig struct {
 
 func (s *TagStore) Import(src string, repo string, tag string, imageImportConfig *ImageImportConfig) error {
 	var (
-		sf      = streamformatter.NewStreamFormatter(true)
+		sf      = streamformatter.NewJSONStreamFormatter()
 		archive archive.ArchiveReader
 		resp    *http.Response
 	)
