@@ -568,29 +568,29 @@ func (s *TagStore) pullV2Tag(r *registry.Session, out io.Writer, endpoint *regis
 			defer os.Remove(d.tmpFile.Name())
 			defer d.tmpFile.Close()
 
-			if d.validChecksum {
-				d.tmpFile.Seek(0, 0)
-				if d.tmpFile != nil {
-					err = s.graph.Register(d.img,
-						progressreader.New(progressreader.Config{
-							In:        d.tmpFile,
-							Out:       out,
-							Formatter: sf,
-							Size:      int(d.length),
-							ID:        stringid.TruncateID(d.img.ID),
-							Action:    "Extracting",
-						}))
-					if err != nil {
-						out.Write(sf.FormatProgress(stringid.TruncateID(d.img.ID), "Problem extracting", nil))
-						return false, err
-					}
-				}
-
-				// FIXME: Pool release here for parallel tag pull (ensures any downloads block until fully extracted)
-			} else {
+			if !d.validChecksum {
 				out.Write(sf.FormatProgress(stringid.TruncateID(d.img.ID), "Checksum problem", nil))
 				return false, errImageChecksumFailed
 			}
+
+			d.tmpFile.Seek(0, 0)
+			if d.tmpFile != nil {
+				err = s.graph.Register(d.img,
+					progressreader.New(progressreader.Config{
+						In:        d.tmpFile,
+						Out:       out,
+						Formatter: sf,
+						Size:      int(d.length),
+						ID:        stringid.TruncateID(d.img.ID),
+						Action:    "Extracting",
+					}))
+				if err != nil {
+					out.Write(sf.FormatProgress(stringid.TruncateID(d.img.ID), "Problem extracting", nil))
+					return false, err
+				}
+			}
+
+			// FIXME: Pool release here for parallel tag pull (ensures any downloads block until fully extracted)
 
 			out.Write(sf.FormatProgress(stringid.TruncateID(d.img.ID), "Pull complete", nil))
 			tagUpdated = true
