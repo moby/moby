@@ -115,10 +115,12 @@ func (n *network) UnmarshalJSON(b []byte) (err error) {
 		return err
 	}
 	n.name = netMap["name"].(string)
-	n.id = netMap["id"].(types.UUID)
+	n.id = types.UUID(netMap["id"].(string))
 	n.networkType = netMap["networkType"].(string)
 	n.enableIPv6 = netMap["enableIPv6"].(bool)
-	n.generic = netMap["generic"].(map[string]interface{})
+	if netMap["generic"] != nil {
+		n.generic = netMap["generic"].(map[string]interface{})
+	}
 	return nil
 }
 

@@ -46,6 +46,8 @@ create network namespaces and allocate interfaces for containers to use.
 package libnetwork
 
 import (
+	"encoding/json"
+	"fmt"
 	"sync"
 
 	log "github.com/Sirupsen/logrus"
@@ -55,6 +57,7 @@ import (
 	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/sandbox"
 	"github.com/docker/libnetwork/types"
+	"github.com/docker/swarm/pkg/store"
 )
 
 // NetworkController provides the interface for controller instance which manages
@@ -111,18 +114,30 @@ func New() (NetworkController, error) {
 		return nil, err
 	}
 
-	/* TODO : Duh ! make this configurable :-) */
+	if err := c.initDataStore(); err != nil {
+		log.Errorf("Failed to Initialize Datastore : %v", err)
+		// TODO : Should we fail if the initDataStore fail here ?
+	}
+
+	go c.watchNewNetworks()
+	return c, nil
+}
+
+func (c *controller) initDataStore() error {
+	/* TODO : Duh ! make this configurable */
 	config := &datastore.StoreConfiguration{}
 	config.Provider = "consul"
 	config.Addrs = []string{"localhost:8500"}
 
 	store, err := datastore.NewDataStore(config)
 	if err != nil {
-		log.Error("Failed to connect with Consul server")
+		return err
 	}
+	c.Lock()
 	c.store = store
+	c.Unlock()
 
-	return c, nil
+	return nil
 }
 
 func (c *controller) ConfigureNetworkDriver(networkType string, options map[string]interface{}) error {
@@ -195,6 +210,47 @@ func (c *controller) NewNetwork(networkType, name string, options ...NetworkOpti
 	c.Unlock()
 
 	return network, nil
+}
+
+func (c *controller) newNetworkFromStore(n *network) {
+	c.Lock()
+	defer c.Unlock()
+
+	if _, ok := c.drivers[n.networkType]; !ok {
+		log.Warnf("Network driver unavailable for type=%s. ignoring network updates for %s", n.Type(), n.Name())
+		return
+	}
+	n.ctrlr = c
+	n.driver = c.drivers[n.networkType]
+	c.networks[n.id] = n
+	// TODO : Populate n.endpoints back from endpoint dbstore
+}
+
+func (c *controller) watchNewNetworks() {
+	c.Lock()
+	store = c.store
+	c.Unlock()
+
+	store.KVStore().WatchRange(datastore.Key("network"), "", 0, func(kvi []store.KVEntry) {
+		for _, kve := range kvi {
+			var n network
+			err := json.Unmarshal(kve.Value(), &n)
+			if err != nil {
+				log.Error(err)
+				continue
+			}
+			n.dbIndex = kve.LastIndex()
+			c.Lock()
+			existing, ok := c.networks[n.id]
+			c.Unlock()
+			if ok && existing.dbIndex == n.dbIndex {
+				// Skip any watch notification for a network that has not changed
+				continue
+			}
+			fmt.Printf("WATCHED : %v = %v\n", kve.Key(), n)
+			c.newNetworkFromStore(&n)
+		}
+	})
 }
 
 func (c *controller) Networks() []Network {
