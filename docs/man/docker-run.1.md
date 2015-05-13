@@ -18,7 +18,8 @@ docker-run - Run a command in a new container
 [**--cpuset-mems**[=*CPUSET-MEMS*]]
 [**-d**|**--detach**[=*false*]]
 [**--cpu-quota**[=*0*]]
-[**--device**[=*[]*]]
+[**--device-allow**[=*[]*]]
+[**--device-deny**[=*[]*]]
 [**--dns-search**[=*[]*]]
 [**--dns**[=*[]*]]
 [**-e**|**--env**[=*[]*]]
@@ -172,8 +173,11 @@ the detached mode, then you cannot use the **-rm** option.
    When attached in the tty mode, you can detach from a running container without
 stopping the process by pressing the keys CTRL-P CTRL-Q.
 
-**--device**=[]
-   Add a host device to the container (e.g. --device=/dev/sdc:/dev/xvdc:rwm)
+**--device-allow**=[]
+   Allow the container to access  a host device (e.g. --device-allow=/dev/sdc:/dev/xvdc:rwm)
+
+**--device-deny**=[]
+   Deny the container to access a host device (e.g. --device-deny=/dev/sdc:/dev/sdc:rwm)
 
 **--dns-search**=[]
    Set custom DNS search domains (Use --dns-search=. if you don't wish to set the search domain)

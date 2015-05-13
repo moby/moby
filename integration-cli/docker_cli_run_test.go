@@ -1258,7 +1258,7 @@ func (s *DockerSuite) TestRunUnprivilegedWithChroot(c *check.C) {
 }
 
 func (s *DockerSuite) TestRunAddingOptionalDevices(c *check.C) {
-	cmd := exec.Command(dockerBinary, "run", "--device", "/dev/zero:/dev/nulo", "busybox", "sh", "-c", "ls /dev/nulo")
+	cmd := exec.Command(dockerBinary, "run", "--device-allow", "/dev/zero:/dev/nulo", "busybox", "sh", "-c", "ls /dev/nulo")
 	out, _, err := runCommandWithOutput(cmd)
 	if err != nil {
 		c.Fatal(err, out)
@@ -1266,6 +1266,19 @@ func (s *DockerSuite) TestRunAddingOptionalDevices(c *check.C) {
 
 	if actual := strings.Trim(out, "\r\n"); actual != "/dev/nulo" {
 		c.Fatalf("expected output /dev/nulo, received %s", actual)
+	}
+}
+
+func (s *DockerSuite) TestRunDenyingOptionalDevices(c *check.C) {
+	cmd := exec.Command(dockerBinary, "run", "--privileged", "--device-deny", "/dev/zero:/dev/nulo", "busybox", "sh", "-c", "echo hello > /dev/nulo")
+	out, _, err := runCommandWithOutput(cmd)
+	if err == nil {
+		c.Fatal("expected error, but successed")
+	}
+
+	out = strings.Trim(out, "\r\n")
+	if !strings.Contains(out, "operation not permitted") {
+		c.Fatalf("expected output operation not permitted, received %s", out)
 	}
 }
 
@@ -2046,7 +2059,7 @@ func (s *DockerSuite) TestRunWriteResolvFileAndNotCommit(c *check.C) {
 
 func (s *DockerSuite) TestRunWithBadDevice(c *check.C) {
 	name := "baddevice"
-	cmd := exec.Command(dockerBinary, "run", "--name", name, "--device", "/etc", "busybox", "true")
+	cmd := exec.Command(dockerBinary, "run", "--name", name, "--device-allow", "/etc", "busybox", "true")
 	out, _, err := runCommandWithOutput(cmd)
 	if err == nil {
 		c.Fatal("Run should fail with bad device")

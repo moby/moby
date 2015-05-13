@@ -1149,6 +1149,16 @@ func (daemon *Daemon) verifyHostConfig(hostConfig *runconfig.HostConfig) ([]stri
 	if hostConfig.LxcConf.Len() > 0 && !strings.Contains(daemon.ExecutionDriver().Name(), "lxc") {
 		return warnings, fmt.Errorf("Cannot use --lxc-conf with execdriver: %s", daemon.ExecutionDriver().Name())
 	}
+	if len(hostConfig.DeniedDevices) > 0 && hostConfig.Privileged != true {
+		return warnings, fmt.Errorf("--device-deny should be used with --privileged")
+	}
+	if len(hostConfig.DeniedDevices) > 0 && len(hostConfig.AllowedDevices) > 0 {
+		return warnings, fmt.Errorf("--device-allow and --device-deny Can not be used together")
+	}
+	if len(hostConfig.AllowedDevices) > 0 && hostConfig.Privileged == true {
+		warnings = append(warnings, "The container hast got privilege. --device-allow will be discarded.")
+		hostConfig.AllowedDevices = []runconfig.DeviceMapping{}
+	}
 	if hostConfig.Memory != 0 && hostConfig.Memory < 4194304 {
 		return warnings, fmt.Errorf("Minimum memory limit allowed is 4MB")
 	}

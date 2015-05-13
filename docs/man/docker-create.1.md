@@ -17,7 +17,8 @@ docker-create - Create a new container
 [**--cpuset-cpus**[=*CPUSET-CPUS*]]
 [**--cpuset-mems**[=*CPUSET-MEMS*]]
 [**--cpu-quota**[=*0*]]
-[**--device**[=*[]*]]
+[**--device-allow**[=*[]*]]
+[**--device-deny**[=*[]*]]
 [**--dns-search**[=*[]*]]
 [**--dns**[=*[]*]]
 [**-e**|**--env**[=*[]*]]
@@ -95,8 +96,11 @@ two memory nodes.
 **-cpu-quota**=0
    Limit the CPU CFS (Completely Fair Scheduler) quota
 
-**--device**=[]
-   Add a host device to the container (e.g. --device=/dev/sdc:/dev/xvdc:rwm)
+**--device-allow**=[]
+   Allow the container to access a host device (e.g. --device-allow=/dev/sdc:/dev/xvdc:rwm)
+
+**--device-deny**=[]
+   Deny the container to access a host device (e.g. --device-deny=/dev/sdc:/dev/sdc:rwm)
 
 **--dns-search**=[]
    Set custom DNS search domains (Use --dns-search=. if you don't wish to set the search domain)

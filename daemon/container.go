@@ -337,7 +337,7 @@ func populateCommand(c *Container, env []string) error {
 
 	// Build lists of devices allowed and created within the container.
 	var userSpecifiedDevices []*configs.Device
-	for _, deviceMapping := range c.hostConfig.Devices {
+	for _, deviceMapping := range c.hostConfig.AllowedDevices {
 		devs, err := getDevicesFromPath(deviceMapping)
 		if err != nil {
 			return err
@@ -346,6 +346,16 @@ func populateCommand(c *Container, env []string) error {
 		userSpecifiedDevices = append(userSpecifiedDevices, devs...)
 	}
 	allowedDevices := append(configs.DefaultAllowedDevices, userSpecifiedDevices...)
+
+	var deniedDevices []*configs.Device
+	for _, deviceMapping := range c.hostConfig.DeniedDevices {
+		devs, err := getDevicesFromPath(deviceMapping)
+		if err != nil {
+			return err
+		}
+
+		deniedDevices = append(deniedDevices, devs...)
+	}
 
 	autoCreatedDevices := append(configs.DefaultAutoCreatedDevices, userSpecifiedDevices...)
 
@@ -412,6 +422,7 @@ func populateCommand(c *Container, env []string) error {
 		Pid:                pid,
 		Resources:          resources,
 		AllowedDevices:     allowedDevices,
+		DeniedDevices:      deniedDevices,
 		AutoCreatedDevices: autoCreatedDevices,
 		CapAdd:             c.hostConfig.CapAdd,
 		CapDrop:            c.hostConfig.CapDrop,
