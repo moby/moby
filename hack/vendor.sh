@@ -50,19 +50,10 @@ clone git github.com/go-fsnotify/fsnotify v1.2.0
 clone git github.com/gorilla/context 14f550f51a
 clone git github.com/gorilla/mux e444e69cbd
 clone git github.com/kr/pty 05017fcccf
+clone git github.com/mistifyio/go-zfs v2.1.0
 clone git github.com/tchap/go-patricia v2.1.0
 clone hg code.google.com/p/go.net 84a4013f96e0
 clone hg code.google.com/p/gosqlite 74691fb6f837
-
-clone git github.com/docker/libtrust 230dfd18c232
-
-clone git github.com/Sirupsen/logrus v0.7.2
-
-clone git github.com/go-fsnotify/fsnotify v1.2.0
-
-clone git github.com/go-check/check 64131543e7896d5bcc6bd5a76287eb75ea96c673
-
-clone git github.com/mistifyio/go-zfs v2.1.0
 
 # get distribution packages
 clone git github.com/docker/distribution d957768537c5af40e4f4cd96871f7b2bde9e2923
