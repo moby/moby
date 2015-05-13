@@ -18,6 +18,12 @@ page_keywords: docker, documentation, about, technology, understanding, enterpri
 
 ## Commercialy Supported Docker Engine
 
+### CS Docker Engine 1.6.2
+(13 May 2015)
+
+Fix mount regression for `/sys`.
+
+
 ### CS Docker Engine 1.6.1
 (11 May 2015)
 
