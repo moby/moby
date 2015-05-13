@@ -1,6 +1,7 @@
 package daemon
 
 import (
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -16,6 +17,10 @@ import (
 	"github.com/docker/docker/volume/local"
 	"github.com/opencontainers/runc/libcontainer/label"
 )
+
+// ErrVolumeReadonly is used to signal an error when trying to copy data into
+// a volume mount that is not writable.
+var ErrVolumeReadonly = errors.New("mounted volume is marked read-only")
 
 type mountPoint struct {
 	Name        string
@@ -45,6 +50,16 @@ func (m *mountPoint) Setup() (string, error) {
 	}
 
 	return "", fmt.Errorf("Unable to setup mount point, neither source nor volume defined")
+}
+
+// hasResource checks whether the given absolute path for a container is in
+// this mount point. If the relative path starts with `../` then the resource
+// is outside of this mount point, but we can't simply check for this prefix
+// because it misses `..` which is also outside of the mount, so check both.
+func (m *mountPoint) hasResource(absolutePath string) bool {
+	relPath, err := filepath.Rel(m.Destination, absolutePath)
+
+	return err == nil && relPath != ".." && !strings.HasPrefix(relPath, fmt.Sprintf("..%c", filepath.Separator))
 }
 
 func (m *mountPoint) Path() string {

@@ -35,10 +35,11 @@ import (
 )
 
 var (
-	ErrNotATTY               = errors.New("The PTY is not a file")
-	ErrNoTTY                 = errors.New("No PTY found")
-	ErrContainerStart        = errors.New("The container failed to start. Unknown error")
-	ErrContainerStartTimeout = errors.New("The container failed to start due to timed out.")
+	ErrNotATTY                 = errors.New("The PTY is not a file")
+	ErrNoTTY                   = errors.New("No PTY found")
+	ErrContainerStart          = errors.New("The container failed to start. Unknown error")
+	ErrContainerStartTimeout   = errors.New("The container failed to start due to timed out.")
+	ErrContainerRootfsReadonly = errors.New("container rootfs is marked read-only")
 )
 
 type StreamConfig struct {
@@ -616,13 +617,22 @@ func validateID(id string) error {
 	return nil
 }
 
-func (container *Container) Copy(resource string) (io.ReadCloser, error) {
+func (container *Container) Copy(resource string) (rc io.ReadCloser, err error) {
 	container.Lock()
-	defer container.Unlock()
-	var err error
+
+	defer func() {
+		if err != nil {
+			// Wait to unlock the container until the archive is fully read
+			// (see the ReadCloseWrapper func below) or if there is an error
+			// before that occurs.
+			container.Unlock()
+		}
+	}()
+
 	if err := container.Mount(); err != nil {
 		return nil, err
 	}
+
 	defer func() {
 		if err != nil {
 			// unmount any volumes
@@ -631,28 +641,11 @@ func (container *Container) Copy(resource string) (io.ReadCloser, error) {
 			container.Unmount()
 		}
 	}()
-	mounts, err := container.setupMounts()
-	if err != nil {
+
+	if err := container.mountVolumes(); err != nil {
 		return nil, err
 	}
-	for _, m := range mounts {
-		var dest string
-		dest, err = container.GetResourcePath(m.Destination)
-		if err != nil {
-			return nil, err
-		}
-		var stat os.FileInfo
-		stat, err = os.Stat(m.Source)
-		if err != nil {
-			return nil, err
-		}
-		if err = fileutils.CreateIfNotExists(dest, stat.IsDir()); err != nil {
-			return nil, err
-		}
-		if err = mount.Mount(m.Source, dest, "bind", "rbind,ro"); err != nil {
-			return nil, err
-		}
-	}
+
 	basePath, err := container.GetResourcePath(resource)
 	if err != nil {
 		return nil, err
@@ -688,6 +681,7 @@ func (container *Container) Copy(resource string) (io.ReadCloser, error) {
 		container.CleanupStorage()
 		container.UnmountVolumes(true)
 		container.Unmount()
+		container.Unlock()
 		return err
 	})
 	container.LogEvent("copy")
@@ -1188,6 +1182,40 @@ func (container *Container) removeMountPoints() error {
 func (container *Container) shouldRestart() bool {
 	return container.hostConfig.RestartPolicy.Name == "always" ||
 		(container.hostConfig.RestartPolicy.Name == "on-failure" && container.ExitCode != 0)
+}
+
+func (container *Container) mountVolumes() error {
+	mounts, err := container.setupMounts()
+	if err != nil {
+		return err
+	}
+
+	for _, m := range mounts {
+		dest, err := container.GetResourcePath(m.Destination)
+		if err != nil {
+			return err
+		}
+
+		var stat os.FileInfo
+		stat, err = os.Stat(m.Source)
+		if err != nil {
+			return err
+		}
+		if err = fileutils.CreateIfNotExists(dest, stat.IsDir()); err != nil {
+			return err
+		}
+
+		opts := "rbind,ro"
+		if m.Writable {
+			opts = "rbind,rw"
+		}
+
+		if err := mount.Mount(m.Source, dest, "bind", opts); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (container *Container) copyImagePathContent(v volume.Volume, destination string) error {
