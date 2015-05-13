@@ -299,6 +299,9 @@ func TestValidateRepositoryName(t *testing.T) {
 	invalidRepoNames := []string{
 		"https://github.com/docker/docker",
 		"docker/Docker",
+		"-docker",
+		"-docker/docker",
+		"-docker.io/docker/docker",
 		"docker///docker",
 		"docker.io/docker/Docker",
 		"docker.io/docker///docker",

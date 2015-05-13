@@ -116,6 +116,30 @@ func (s *DockerSuite) TestTagExistedNameWithForce(c *check.C) {
 	}
 }
 
+func (s *DockerSuite) TestTagWithSuffixHyphen(c *check.C) {
+	if err := pullImageIfNotExist("busybox:latest"); err != nil {
+		c.Fatal("couldn't find the busybox:latest image locally and failed to pull it")
+	}
+	// test repository name begin with '-'
+	tagCmd := exec.Command(dockerBinary, "tag", "busybox:latest", "-busybox:test")
+	out, _, err := runCommandWithOutput(tagCmd)
+	if err == nil || !strings.Contains(out, "Invalid repository name (-busybox). Cannot begin or end with a hyphen") {
+		c.Fatal("tag a name begin with '-' should failed")
+	}
+	// test namespace name begin with '-'
+	tagCmd = exec.Command(dockerBinary, "tag", "busybox:latest", "-test/busybox:test")
+	out, _, err = runCommandWithOutput(tagCmd)
+	if err == nil || !strings.Contains(out, "Invalid namespace name (-test). Cannot begin or end with a hyphen") {
+		c.Fatal("tag a name begin with '-' should failed")
+	}
+	// test index name begin wiht '-'
+	tagCmd = exec.Command(dockerBinary, "tag", "busybox:latest", "-index:5000/busybox:test")
+	out, _, err = runCommandWithOutput(tagCmd)
+	if err == nil || !strings.Contains(out, "Invalid index name (-index:5000). Cannot begin or end with a hyphen") {
+		c.Fatal("tag a name begin with '-' should failed")
+	}
+}
+
 // ensure tagging using official names works
 // ensure all tags result in the same name
 func (s *DockerSuite) TestTagOfficialNames(c *check.C) {
