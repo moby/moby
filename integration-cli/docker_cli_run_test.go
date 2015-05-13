@@ -1734,7 +1734,7 @@ func (s *DockerSuite) TestRunAttachStdOutAndErrTTYMode(c *check.C) {
 
 // Test for #10388 - this will run the same test as TestRunAttachStdOutAndErrTTYMode
 // but using --attach instead of -a to make sure we read the flag correctly
-func (s *DockerSuite) TestRunAttachWithDettach(c *check.C) {
+func (s *DockerSuite) TestRunAttachWithDetach(c *check.C) {
 	cmd := exec.Command(dockerBinary, "run", "-d", "--attach", "stdout", "busybox", "true")
 	_, stderr, _, err := runCommandWithStdoutStderr(cmd)
 	if err == nil {
