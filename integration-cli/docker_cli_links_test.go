@@ -251,7 +251,7 @@ func (s *DockerSuite) TestLinksNetworkHostContainer(c *check.C) {
 	}
 
 	out, _, err = runCommandWithOutput(exec.Command(dockerBinary, "run", "--name", "should_fail", "--link", "host_container:tester", "busybox", "true"))
-	if err == nil || !strings.Contains(out, "--net=host can't be used with links. This would result in undefined behavior.") {
+	if err == nil || !strings.Contains(out, "--net=host can't be used with links. This would result in undefined behavior") {
 		c.Fatalf("Running container linking to a container with --net host should have failed: %s", out)
 	}
 
