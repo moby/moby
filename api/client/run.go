@@ -133,7 +133,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 	defer func() {
 		logrus.Debugf("End of CmdRun(), Waiting for hijack to finish.")
 		if _, ok := <-hijacked; ok {
-			logrus.Errorf("Hijack did not finish (chan still open)")
+			fmt.Fprintln(cli.err, "Hijack did not finish (chan still open)")
 		}
 	}()
 	if config.AttachStdin || config.AttachStdout || config.AttachStderr {
@@ -183,7 +183,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 	defer func() {
 		if *flAutoRemove {
 			if _, _, err = readBody(cli.call("DELETE", "/containers/"+createResponse.ID+"?v=1", nil, nil)); err != nil {
-				logrus.Errorf("Error deleting container: %s", err)
+				fmt.Fprintf(cli.err, "Error deleting container: %s\n", err)
 			}
 		}
 	}()
@@ -195,7 +195,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 
 	if (config.AttachStdin || config.AttachStdout || config.AttachStderr) && config.Tty && cli.isTerminalOut {
 		if err := cli.monitorTtySize(createResponse.ID, false); err != nil {
-			logrus.Errorf("Error monitoring TTY size: %s", err)
+			fmt.Fprintf(cli.err, "Error monitoring TTY size: %s\n", err)
 		}
 	}
 

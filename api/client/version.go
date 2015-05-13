@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"runtime"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/autogen/dockerversion"
@@ -40,7 +39,7 @@ func (cli *DockerCli) CmdVersion(args ...string) error {
 
 	var v types.Version
 	if err := json.NewDecoder(stream).Decode(&v); err != nil {
-		logrus.Errorf("Error reading remote version: %s", err)
+		fmt.Fprintf(cli.err, "Error reading remote version: %s\n", err)
 		return err
 	}
 

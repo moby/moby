@@ -30,7 +30,7 @@ func (cli *DockerCli) forwardAllSignals(cid string) chan os.Signal {
 				}
 			}
 			if sig == "" {
-				logrus.Errorf("Unsupported signal: %v. Discarding.", s)
+				fmt.Fprintf(cli.err, "Unsupported signal: %v. Discarding.\n", s)
 			}
 			if _, _, err := readBody(cli.call("POST", fmt.Sprintf("/containers/%s/kill?signal=%s", cid, sig), nil, nil)); err != nil {
 				logrus.Debugf("Error sending signal: %s", err)
@@ -96,7 +96,7 @@ func (cli *DockerCli) CmdStart(args ...string) error {
 		defer func() {
 			logrus.Debugf("CmdStart() returned, defer waiting for hijack to finish.")
 			if _, ok := <-hijacked; ok {
-				logrus.Errorf("Hijack did not finish (chan still open)")
+				fmt.Fprintln(cli.err, "Hijack did not finish (chan still open)")
 			}
 			cli.in.Close()
 		}()
@@ -149,7 +149,7 @@ func (cli *DockerCli) CmdStart(args ...string) error {
 	if *openStdin || *attach {
 		if tty && cli.isTerminalOut {
 			if err := cli.monitorTtySize(cmd.Arg(0), false); err != nil {
-				logrus.Errorf("Error monitoring TTY size: %s", err)
+				fmt.Fprintf(cli.err, "Error monitoring TTY size: %s\n", err)
 			}
 		}
 		if attchErr := <-cErr; attchErr != nil {

@@ -4808,7 +4808,7 @@ func (s *DockerSuite) TestBuildRenamedDockerfile(c *check.C) {
 		c.Fatalf("test5 was supposed to fail to find passwd")
 	}
 
-	if expected := fmt.Sprintf("The Dockerfile (%s) must be within the build context (.)", strings.Replace(nonDockerfileFile, `\`, `\\`, -1)); !strings.Contains(out, expected) {
+	if expected := fmt.Sprintf("The Dockerfile (%s) must be within the build context (.)", nonDockerfileFile); !strings.Contains(out, expected) {
 		c.Fatalf("wrong error messsage:%v\nexpected to contain=%v", out, expected)
 	}
 
@@ -5404,7 +5404,7 @@ func (s *DockerSuite) TestBuildBadCmdFlag(c *check.C) {
 		c.Fatal("Build should have failed")
 	}
 
-	exp := `"Unknown flag: boo"`
+	exp := "\nUnknown flag: boo\n"
 	if !strings.Contains(out, exp) {
 		c.Fatalf("Bad output\nGot:%s\n\nExpected to contain:%s\n", out, exp)
 	}
@@ -5421,7 +5421,7 @@ func (s *DockerSuite) TestBuildRUNErrMsg(c *check.C) {
 		c.Fatal("Should have failed to build")
 	}
 
-	exp := "The command '/bin/sh -c badEXE a1 \\\\& a2\\ta3' returned a non-zero code: 127"
+	exp := `The command '/bin/sh -c badEXE a1 \& a2	a3' returned a non-zero code: 127`
 	if !strings.Contains(out, exp) {
 		c.Fatalf("RUN doesn't have the correct output:\nGot:%s\nExpected:%s", out, exp)
 	}

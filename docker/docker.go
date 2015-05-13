@@ -46,7 +46,8 @@ func main() {
 	if *flLogLevel != "" {
 		lvl, err := logrus.ParseLevel(*flLogLevel)
 		if err != nil {
-			logrus.Fatalf("Unable to parse logging level: %s", *flLogLevel)
+			fmt.Fprintf(os.Stderr, "Unable to parse logging level: %s\n", *flLogLevel)
+			os.Exit(1)
 		}
 		setLogLevel(lvl)
 	} else {
@@ -70,7 +71,12 @@ func main() {
 		}
 		defaultHost, err := opts.ValidateHost(defaultHost)
 		if err != nil {
-			logrus.Fatal(err)
+			if *flDaemon {
+				logrus.Fatal(err)
+			} else {
+				fmt.Fprint(os.Stderr, err)
+			}
+			os.Exit(1)
 		}
 		flHosts = append(flHosts, defaultHost)
 	}
@@ -87,7 +93,8 @@ func main() {
 	}
 
 	if len(flHosts) > 1 {
-		logrus.Fatal("Please specify only one -H")
+		fmt.Fprintf(os.Stderr, "Please specify only one -H")
+		os.Exit(0)
 	}
 	protoAddrParts := strings.SplitN(flHosts[0], "://", 2)
 
@@ -108,7 +115,8 @@ func main() {
 		certPool := x509.NewCertPool()
 		file, err := ioutil.ReadFile(*flCa)
 		if err != nil {
-			logrus.Fatalf("Couldn't read ca cert %s: %s", *flCa, err)
+			fmt.Fprintf(os.Stderr, "Couldn't read ca cert %s: %s\n", *flCa, err)
+			os.Exit(1)
 		}
 		certPool.AppendCertsFromPEM(file)
 		tlsConfig.RootCAs = certPool
@@ -123,7 +131,8 @@ func main() {
 			*flTls = true
 			cert, err := tls.LoadX509KeyPair(*flCert, *flKey)
 			if err != nil {
-				logrus.Fatalf("Couldn't load X509 key pair: %q. Make sure the key is encrypted", err)
+				fmt.Fprintf(os.Stderr, "Couldn't load X509 key pair: %q. Make sure the key is encrypted\n", err)
+				os.Exit(1)
 			}
 			tlsConfig.Certificates = []tls.Certificate{cert}
 		}
@@ -140,11 +149,13 @@ func main() {
 	if err := cli.Cmd(flag.Args()...); err != nil {
 		if sterr, ok := err.(client.StatusError); ok {
 			if sterr.Status != "" {
-				logrus.Println(sterr.Status)
+				fmt.Fprintln(cli.Err(), sterr.Status)
+				os.Exit(1)
 			}
 			os.Exit(sterr.StatusCode)
 		}
-		logrus.Fatal(err)
+		fmt.Fprintln(cli.Err(), err)
+		os.Exit(1)
 	}
 }
 
