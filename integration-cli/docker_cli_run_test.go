@@ -3245,8 +3245,8 @@ func (s *DockerSuite) TestMountIntoProc(c *check.C) {
 func (s *DockerSuite) TestMountIntoSys(c *check.C) {
 	testRequires(c, NativeExecDriver)
 	defer deleteAllContainers()
-	code, err := runCommand(exec.Command(dockerBinary, "run", "-v", "/sys/", "busybox", "true"))
-	if err == nil || code == 0 {
-		c.Fatal("container should not be able to mount into /sys")
+	_, err := runCommand(exec.Command(dockerBinary, "run", "-v", "/sys/fs/cgroup", "busybox", "true"))
+	if err != nil {
+		c.Fatal("container should be able to mount into /sys/fs/cgroup")
 	}
 }

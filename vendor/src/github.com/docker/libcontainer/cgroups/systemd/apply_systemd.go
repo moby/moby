@@ -256,6 +256,11 @@ func (m *Manager) GetPaths() map[string]string {
 }
 
 func writeFile(dir, file, data string) error {
+	// Normally dir should not be empty, one case is that cgroup subsystem
+	// is not mounted, we will get empty dir, and we want it fail here.
+	if dir == "" {
+		return fmt.Errorf("no such directory for %s.", file)
+	}
 	return ioutil.WriteFile(filepath.Join(dir, file), []byte(data), 0700)
 }
 
@@ -276,16 +281,16 @@ func join(c *configs.Cgroup, subsystem string, pid int) (string, error) {
 
 func joinCpu(c *configs.Cgroup, pid int) error {
 	path, err := getSubsystemPath(c, "cpu")
-	if err != nil {
+	if err != nil && !cgroups.IsNotFound(err) {
 		return err
 	}
 	if c.CpuQuota != 0 {
-		if err = ioutil.WriteFile(filepath.Join(path, "cpu.cfs_quota_us"), []byte(strconv.FormatInt(c.CpuQuota, 10)), 0700); err != nil {
+		if err = writeFile(path, "cpu.cfs_quota_us", strconv.FormatInt(c.CpuQuota, 10)); err != nil {
 			return err
 		}
 	}
 	if c.CpuPeriod != 0 {
-		if err = ioutil.WriteFile(filepath.Join(path, "cpu.cfs_period_us"), []byte(strconv.FormatInt(c.CpuPeriod, 10)), 0700); err != nil {
+		if err = writeFile(path, "cpu.cfs_period_us", strconv.FormatInt(c.CpuPeriod, 10)); err != nil {
 			return err
 		}
 	}
@@ -293,7 +298,7 @@ func joinCpu(c *configs.Cgroup, pid int) error {
 }
 
 func joinFreezer(c *configs.Cgroup, pid int) error {
-	if _, err := join(c, "freezer", pid); err != nil {
+	if _, err := join(c, "freezer", pid); err != nil && !cgroups.IsNotFound(err) {
 		return err
 	}
 
@@ -393,6 +398,8 @@ func getUnitName(c *configs.Cgroup) string {
 // This happens at least for v208 when any sibling unit is started.
 func joinDevices(c *configs.Cgroup, pid int) error {
 	path, err := join(c, "devices", pid)
+	// Even if it's `not found` error, we'll return err because devices cgroup
+	// is hard requirement for container security.
 	if err != nil {
 		return err
 	}
@@ -410,11 +417,11 @@ func joinMemory(c *configs.Cgroup, pid int) error {
 	}
 
 	path, err := getSubsystemPath(c, "memory")
-	if err != nil {
+	if err != nil && !cgroups.IsNotFound(err) {
 		return err
 	}
 
-	return ioutil.WriteFile(filepath.Join(path, "memory.memsw.limit_in_bytes"), []byte(strconv.FormatInt(memorySwap, 10)), 0700)
+	return writeFile(path, "memory.memsw.limit_in_bytes", strconv.FormatInt(memorySwap, 10))
 }
 
 // systemd does not atm set up the cpuset controller, so we must manually
@@ -422,7 +429,7 @@ func joinMemory(c *configs.Cgroup, pid int) error {
 // level must have a full setup as the default for a new directory is "no cpus"
 func joinCpuset(c *configs.Cgroup, pid int) error {
 	path, err := getSubsystemPath(c, "cpuset")
-	if err != nil {
+	if err != nil && !cgroups.IsNotFound(err) {
 		return err
 	}
 
