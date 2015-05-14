@@ -10,10 +10,14 @@ import (
 	"net/http"
 	"os"
 	"path"
+	"runtime"
 	"strings"
 	"time"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/autogen/dockerversion"
+	"github.com/docker/docker/pkg/parsers/kernel"
+	"github.com/docker/docker/pkg/requestdecorator"
 	"github.com/docker/docker/pkg/timeoutconn"
 )
 
@@ -31,65 +35,17 @@ const (
 	ConnectTimeout
 )
 
-func newClient(jar http.CookieJar, roots *x509.CertPool, certs []tls.Certificate, timeout TimeoutType, secure bool) *http.Client {
-	tlsConfig := tls.Config{
-		RootCAs: roots,
-		// Avoid fallback to SSL protocols < TLS1.0
-		MinVersion:   tls.VersionTLS10,
-		Certificates: certs,
-	}
-
-	if !secure {
-		tlsConfig.InsecureSkipVerify = true
-	}
-
-	httpTransport := &http.Transport{
-		DisableKeepAlives: true,
-		Proxy:             http.ProxyFromEnvironment,
-		TLSClientConfig:   &tlsConfig,
-	}
-
-	switch timeout {
-	case ConnectTimeout:
-		httpTransport.Dial = func(proto string, addr string) (net.Conn, error) {
-			// Set the connect timeout to 5 seconds
-			d := net.Dialer{Timeout: 5 * time.Second, DualStack: true}
-
-			conn, err := d.Dial(proto, addr)
-			if err != nil {
-				return nil, err
-			}
-			// Set the recv timeout to 10 seconds
-			conn.SetDeadline(time.Now().Add(10 * time.Second))
-			return conn, nil
-		}
-	case ReceiveTimeout:
-		httpTransport.Dial = func(proto string, addr string) (net.Conn, error) {
-			d := net.Dialer{DualStack: true}
-
-			conn, err := d.Dial(proto, addr)
-			if err != nil {
-				return nil, err
-			}
-			conn = timeoutconn.New(conn, 1*time.Minute)
-			return conn, nil
-		}
-	}
-
-	return &http.Client{
-		Transport:     httpTransport,
-		CheckRedirect: AddRequiredHeadersToRedirectedRequests,
-		Jar:           jar,
-	}
+type httpsTransport struct {
+	*http.Transport
 }
 
-func doRequest(req *http.Request, jar http.CookieJar, timeout TimeoutType, secure bool) (*http.Response, *http.Client, error) {
+func (tr *httpsTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	var (
-		pool  *x509.CertPool
+		roots *x509.CertPool
 		certs []tls.Certificate
 	)
 
-	if secure && req.URL.Scheme == "https" {
+	if req.URL.Scheme == "https" {
 		hasFile := func(files []os.FileInfo, name string) bool {
 			for _, f := range files {
 				if f.Name() == name {
@@ -103,31 +59,31 @@ func doRequest(req *http.Request, jar http.CookieJar, timeout TimeoutType, secur
 		logrus.Debugf("hostDir: %s", hostDir)
 		fs, err := ioutil.ReadDir(hostDir)
 		if err != nil && !os.IsNotExist(err) {
-			return nil, nil, err
+			return nil, err
 		}
 
 		for _, f := range fs {
 			if strings.HasSuffix(f.Name(), ".crt") {
-				if pool == nil {
-					pool = x509.NewCertPool()
+				if roots == nil {
+					roots = x509.NewCertPool()
 				}
 				logrus.Debugf("crt: %s", hostDir+"/"+f.Name())
 				data, err := ioutil.ReadFile(path.Join(hostDir, f.Name()))
 				if err != nil {
-					return nil, nil, err
+					return nil, err
 				}
-				pool.AppendCertsFromPEM(data)
+				roots.AppendCertsFromPEM(data)
 			}
 			if strings.HasSuffix(f.Name(), ".cert") {
 				certName := f.Name()
 				keyName := certName[:len(certName)-5] + ".key"
 				logrus.Debugf("cert: %s", hostDir+"/"+f.Name())
 				if !hasFile(fs, keyName) {
-					return nil, nil, fmt.Errorf("Missing key %s for certificate %s", keyName, certName)
+					return nil, fmt.Errorf("Missing key %s for certificate %s", keyName, certName)
 				}
 				cert, err := tls.LoadX509KeyPair(path.Join(hostDir, certName), path.Join(hostDir, keyName))
 				if err != nil {
-					return nil, nil, err
+					return nil, err
 				}
 				certs = append(certs, cert)
 			}
@@ -136,24 +92,135 @@ func doRequest(req *http.Request, jar http.CookieJar, timeout TimeoutType, secur
 				certName := keyName[:len(keyName)-4] + ".cert"
 				logrus.Debugf("key: %s", hostDir+"/"+f.Name())
 				if !hasFile(fs, certName) {
-					return nil, nil, fmt.Errorf("Missing certificate %s for key %s", certName, keyName)
+					return nil, fmt.Errorf("Missing certificate %s for key %s", certName, keyName)
 				}
 			}
 		}
-	}
-
-	if len(certs) == 0 {
-		client := newClient(jar, pool, nil, timeout, secure)
-		res, err := client.Do(req)
-		if err != nil {
-			return nil, nil, err
+		if tr.Transport.TLSClientConfig == nil {
+			tr.Transport.TLSClientConfig = &tls.Config{
+				// Avoid fallback to SSL protocols < TLS1.0
+				MinVersion: tls.VersionTLS10,
+			}
 		}
-		return res, client, nil
+		tr.Transport.TLSClientConfig.RootCAs = roots
+		tr.Transport.TLSClientConfig.Certificates = certs
+	}
+	return tr.Transport.RoundTrip(req)
+}
+
+func DefaultTransport(timeout TimeoutType, secure bool) http.RoundTripper {
+	tlsConfig := tls.Config{
+		// Avoid fallback to SSL protocols < TLS1.0
+		MinVersion:         tls.VersionTLS10,
+		InsecureSkipVerify: !secure,
 	}
 
-	client := newClient(jar, pool, certs, timeout, secure)
-	res, err := client.Do(req)
-	return res, client, err
+	transport := &http.Transport{
+		DisableKeepAlives: true,
+		Proxy:             http.ProxyFromEnvironment,
+		TLSClientConfig:   &tlsConfig,
+	}
+
+	switch timeout {
+	case ConnectTimeout:
+		transport.Dial = func(proto string, addr string) (net.Conn, error) {
+			// Set the connect timeout to 5 seconds
+			d := net.Dialer{Timeout: 5 * time.Second, DualStack: true}
+
+			conn, err := d.Dial(proto, addr)
+			if err != nil {
+				return nil, err
+			}
+			// Set the recv timeout to 10 seconds
+			conn.SetDeadline(time.Now().Add(10 * time.Second))
+			return conn, nil
+		}
+	case ReceiveTimeout:
+		transport.Dial = func(proto string, addr string) (net.Conn, error) {
+			d := net.Dialer{DualStack: true}
+
+			conn, err := d.Dial(proto, addr)
+			if err != nil {
+				return nil, err
+			}
+			conn = timeoutconn.New(conn, 1*time.Minute)
+			return conn, nil
+		}
+	}
+
+	if secure {
+		// note: httpsTransport also handles http transport
+		// but for HTTPS, it sets up the certs
+		return &httpsTransport{transport}
+	}
+
+	return transport
+}
+
+type DockerHeaders struct {
+	http.RoundTripper
+	Headers http.Header
+}
+
+// cloneRequest returns a clone of the provided *http.Request.
+// The clone is a shallow copy of the struct and its Header map
+func cloneRequest(r *http.Request) *http.Request {
+	// shallow copy of the struct
+	r2 := new(http.Request)
+	*r2 = *r
+	// deep copy of the Header
+	r2.Header = make(http.Header, len(r.Header))
+	for k, s := range r.Header {
+		r2.Header[k] = append([]string(nil), s...)
+	}
+	return r2
+}
+
+func (tr *DockerHeaders) RoundTrip(req *http.Request) (*http.Response, error) {
+	req = cloneRequest(req)
+	httpVersion := make([]requestdecorator.UAVersionInfo, 0, 4)
+	httpVersion = append(httpVersion, requestdecorator.NewUAVersionInfo("docker", dockerversion.VERSION))
+	httpVersion = append(httpVersion, requestdecorator.NewUAVersionInfo("go", runtime.Version()))
+	httpVersion = append(httpVersion, requestdecorator.NewUAVersionInfo("git-commit", dockerversion.GITCOMMIT))
+	if kernelVersion, err := kernel.GetKernelVersion(); err == nil {
+		httpVersion = append(httpVersion, requestdecorator.NewUAVersionInfo("kernel", kernelVersion.String()))
+	}
+	httpVersion = append(httpVersion, requestdecorator.NewUAVersionInfo("os", runtime.GOOS))
+	httpVersion = append(httpVersion, requestdecorator.NewUAVersionInfo("arch", runtime.GOARCH))
+
+	userAgent := requestdecorator.AppendVersions(req.UserAgent(), httpVersion...)
+
+	req.Header.Set("User-Agent", userAgent)
+
+	for k, v := range tr.Headers {
+		req.Header[k] = v
+	}
+	return tr.RoundTripper.RoundTrip(req)
+}
+
+type debugTransport struct{ http.RoundTripper }
+
+func (tr debugTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	fmt.Println(req.Method, req.URL)
+	fmt.Println(req.Header)
+	fmt.Println("----------")
+	resp, err := tr.RoundTripper.RoundTrip(req)
+	if resp != nil {
+		fmt.Println(resp.Status)
+		fmt.Println(resp.Header)
+	}
+	return resp, err
+}
+
+func HTTPClient(transport http.RoundTripper) *http.Client {
+	if transport == nil {
+		transport = DefaultTransport(ConnectTimeout, true)
+	}
+
+	return &http.Client{
+		Transport:     transport,
+		CheckRedirect: AddRequiredHeadersToRedirectedRequests,
+	}
 }
 
 func trustedLocation(req *http.Request) bool {

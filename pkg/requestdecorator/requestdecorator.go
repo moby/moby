@@ -47,7 +47,7 @@ func (vi *UAVersionInfo) isValid() bool {
 // "product/version", where the "product" is get from the name field, while
 // version is get from the version field. Several pieces of verson information
 // will be concatinated and separated by space.
-func appendVersions(base string, versions ...UAVersionInfo) string {
+func AppendVersions(base string, versions ...UAVersionInfo) string {
 	if len(versions) == 0 {
 		return base
 	}
@@ -87,7 +87,7 @@ func (h *UserAgentDecorator) ChangeRequest(req *http.Request) (*http.Request, er
 		return req, ErrNilRequest
 	}
 
-	userAgent := appendVersions(req.UserAgent(), h.Versions...)
+	userAgent := AppendVersions(req.UserAgent(), h.Versions...)
 	if len(userAgent) > 0 {
 		req.Header.Set("User-Agent", userAgent)
 	}
