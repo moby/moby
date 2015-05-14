@@ -59,7 +59,7 @@ There are many networking solutions available to suit a broad range of use-cases
         }
 
 		// libentwork client can check the endpoint's operational data via the Info() API
-		epInfo, err := ep.Info()
+		epInfo, err := ep.DriverInfo()
 		mapData, ok := epInfo[netlabel.PortMap]
 		if ok {
 			portMapping, ok := mapData.([]netutils.PortBinding)

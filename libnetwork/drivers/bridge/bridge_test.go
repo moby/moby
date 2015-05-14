@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"testing"
 
+	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/iptables"
 	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/libnetwork/netutils"
@@ -70,6 +71,91 @@ func TestCreateFail(t *testing.T) {
 	}
 }
 
+type testInterface struct {
+	id      int
+	mac     net.HardwareAddr
+	addr    net.IPNet
+	addrv6  net.IPNet
+	srcName string
+	dstName string
+}
+
+type testEndpoint struct {
+	ifaces         []*testInterface
+	gw             net.IP
+	gw6            net.IP
+	hostsPath      string
+	resolvConfPath string
+}
+
+func (te *testEndpoint) Interfaces() []driverapi.InterfaceInfo {
+	iList := make([]driverapi.InterfaceInfo, len(te.ifaces))
+
+	for i, iface := range te.ifaces {
+		iList[i] = iface
+	}
+
+	return iList
+}
+
+func (te *testEndpoint) AddInterface(id int, mac net.HardwareAddr, ipv4 net.IPNet, ipv6 net.IPNet) error {
+	iface := &testInterface{id: id, addr: ipv4, addrv6: ipv6}
+	te.ifaces = append(te.ifaces, iface)
+	return nil
+}
+
+func (i *testInterface) ID() int {
+	return i.id
+}
+
+func (i *testInterface) MacAddress() net.HardwareAddr {
+	return i.mac
+}
+
+func (i *testInterface) Address() net.IPNet {
+	return i.addr
+}
+
+func (i *testInterface) AddressIPv6() net.IPNet {
+	return i.addrv6
+}
+
+func (i *testInterface) SetNames(srcName string, dstName string) error {
+	i.srcName = srcName
+	i.dstName = dstName
+	return nil
+}
+
+func (te *testEndpoint) InterfaceNames() []driverapi.InterfaceNameInfo {
+	iList := make([]driverapi.InterfaceNameInfo, len(te.ifaces))
+
+	for i, iface := range te.ifaces {
+		iList[i] = iface
+	}
+
+	return iList
+}
+
+func (te *testEndpoint) SetGateway(gw net.IP) error {
+	te.gw = gw
+	return nil
+}
+
+func (te *testEndpoint) SetGatewayIPv6(gw6 net.IP) error {
+	te.gw6 = gw6
+	return nil
+}
+
+func (te *testEndpoint) SetHostsPath(path string) error {
+	te.hostsPath = path
+	return nil
+}
+
+func (te *testEndpoint) SetResolvConfPath(path string) error {
+	te.resolvConfPath = path
+	return nil
+}
+
 func TestQueryEndpointInfo(t *testing.T) {
 	defer netutils.SetupTestNetNS(t)()
 	d := newDriver()
@@ -92,13 +178,14 @@ func TestQueryEndpointInfo(t *testing.T) {
 	epOptions := make(map[string]interface{})
 	epOptions[netlabel.PortMap] = portMappings
 
-	_, err = d.CreateEndpoint("net1", "ep1", epOptions)
+	te := &testEndpoint{ifaces: []*testInterface{}}
+	err = d.CreateEndpoint("net1", "ep1", te, epOptions)
 	if err != nil {
 		t.Fatalf("Failed to create an endpoint : %s", err.Error())
 	}
 
 	ep, _ := dd.network.endpoints["ep1"]
-	data, err := d.EndpointInfo(dd.network.id, ep.id)
+	data, err := d.EndpointOperInfo(dd.network.id, ep.id)
 	if err != nil {
 		t.Fatalf("Failed to ask for endpoint operational data:  %v", err)
 	}
@@ -143,12 +230,18 @@ func TestCreateLinkWithOptions(t *testing.T) {
 	epOptions := make(map[string]interface{})
 	epOptions[netlabel.MacAddress] = mac
 
-	sinfo, err := d.CreateEndpoint("net1", "ep", epOptions)
+	te := &testEndpoint{ifaces: []*testInterface{}}
+	err = d.CreateEndpoint("net1", "ep", te, epOptions)
 	if err != nil {
-		t.Fatalf("Failed to create a link: %s", err.Error())
+		t.Fatalf("Failed to create an endpoint: %s", err.Error())
 	}
 
-	ifaceName := sinfo.Interfaces[0].SrcName
+	err = d.Join("net1", "ep", "sbox", te, nil)
+	if err != nil {
+		t.Fatalf("Failed to join the endpoint: %v", err)
+	}
+
+	ifaceName := te.ifaces[0].srcName
 	veth, err := netlink.LinkByName(ifaceName)
 	if err != nil {
 		t.Fatal(err)
@@ -197,23 +290,25 @@ func TestLinkContainers(t *testing.T) {
 	epOptions := make(map[string]interface{})
 	epOptions[netlabel.ExposedPorts] = exposedPorts
 
-	sinfo, err := d.CreateEndpoint("net1", "ep1", epOptions)
+	te1 := &testEndpoint{ifaces: []*testInterface{}}
+	err = d.CreateEndpoint("net1", "ep1", te1, epOptions)
 	if err != nil {
 		t.Fatalf("Failed to create an endpoint : %s", err.Error())
 	}
 
-	addr1 := sinfo.Interfaces[0].Address
-	if addr1 == nil {
+	addr1 := te1.ifaces[0].addr
+	if addr1.IP.To4() == nil {
 		t.Fatalf("No Ipv4 address assigned to the endpoint:  ep1")
 	}
 
-	sinfo, err = d.CreateEndpoint("net1", "ep2", nil)
+	te2 := &testEndpoint{ifaces: []*testInterface{}}
+	err = d.CreateEndpoint("net1", "ep2", te2, nil)
 	if err != nil {
 		t.Fatalf("Failed to create an endpoint : %s", err.Error())
 	}
 
-	addr2 := sinfo.Interfaces[0].Address
-	if addr2 == nil {
+	addr2 := te2.ifaces[0].addr
+	if addr2.IP.To4() == nil {
 		t.Fatalf("No Ipv4 address assigned to the endpoint:  ep2")
 	}
 
@@ -222,7 +317,7 @@ func TestLinkContainers(t *testing.T) {
 	genericOption = make(map[string]interface{})
 	genericOption[netlabel.GenericData] = cConfig
 
-	_, err = d.Join("net1", "ep2", "", genericOption)
+	err = d.Join("net1", "ep2", "", te2, genericOption)
 	if err != nil {
 		t.Fatalf("Failed to link ep1 and ep2")
 	}
@@ -243,7 +338,7 @@ func TestLinkContainers(t *testing.T) {
 		}
 	}
 
-	err = d.Leave("net1", "ep2", genericOption)
+	err = d.Leave("net1", "ep2")
 	if err != nil {
 		t.Fatalf("Failed to unlink ep1 and ep2")
 	}
@@ -270,7 +365,7 @@ func TestLinkContainers(t *testing.T) {
 	genericOption = make(map[string]interface{})
 	genericOption[netlabel.GenericData] = cConfig
 
-	_, err = d.Join("net1", "ep2", "", genericOption)
+	err = d.Join("net1", "ep2", "", te2, genericOption)
 	if err != nil {
 		out, err = iptables.Raw("-L", DockerChain)
 		for _, pm := range exposedPorts {
@@ -406,16 +501,22 @@ func TestSetDefaultGw(t *testing.T) {
 		t.Fatalf("Failed to create bridge: %v", err)
 	}
 
-	sinfo, err := d.CreateEndpoint("dummy", "ep", nil)
+	te := &testEndpoint{ifaces: []*testInterface{}}
+	err = d.CreateEndpoint("dummy", "ep", te, nil)
 	if err != nil {
 		t.Fatalf("Failed to create endpoint: %v", err)
 	}
 
-	if !gw4.Equal(sinfo.Gateway) {
-		t.Fatalf("Failed to configure default gateway. Expected %v. Found %v", gw4, sinfo.Gateway)
+	err = d.Join("dummy", "ep", "sbox", te, nil)
+	if err != nil {
+		t.Fatalf("Failed to join endpoint: %v", err)
 	}
 
-	if !gw6.Equal(sinfo.GatewayIPv6) {
-		t.Fatalf("Failed to configure default gateway. Expected %v. Found %v", gw6, sinfo.GatewayIPv6)
+	if !gw4.Equal(te.gw) {
+		t.Fatalf("Failed to configure default gateway. Expected %v. Found %v", gw4, te.gw)
+	}
+
+	if !gw6.Equal(te.gw6) {
+		t.Fatalf("Failed to configure default gateway. Expected %v. Found %v", gw6, te.gw6)
 	}
 }

@@ -55,7 +55,7 @@ func main() {
 	}
 
 	// libentwork client can check the endpoint's operational data via the Info() API
-	epInfo, err := ep.Info()
+	epInfo, err := ep.DriverInfo()
 	mapData, ok := epInfo[netlabel.PortMap]
 	if ok {
 		portMapping, ok := mapData.([]netutils.PortBinding)

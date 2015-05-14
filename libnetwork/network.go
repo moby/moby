@@ -135,18 +135,17 @@ func (n *network) CreateEndpoint(name string, options ...EndpointOption) (Endpoi
 	if name == "" {
 		return nil, ErrInvalidName
 	}
-	ep := &endpoint{name: name, generic: make(map[string]interface{})}
+	ep := &endpoint{name: name, iFaces: []*endpointInterface{}, generic: make(map[string]interface{})}
 	ep.id = types.UUID(stringid.GenerateRandomID())
 	ep.network = n
 	ep.processOptions(options...)
 
 	d := n.driver
-	sinfo, err := d.CreateEndpoint(n.id, ep.id, ep.generic)
+	err := d.CreateEndpoint(n.id, ep.id, ep, ep.generic)
 	if err != nil {
 		return nil, err
 	}
 
-	ep.sandboxInfo = sinfo
 	n.Lock()
 	n.endpoints[ep.id] = ep
 	n.Unlock()
