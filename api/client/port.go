@@ -14,7 +14,7 @@ import (
 //
 // Usage: docker port CONTAINER [PRIVATE_PORT[/PROTO]]
 func (cli *DockerCli) CmdPort(args ...string) error {
-	cmd := cli.Subcmd("port", "CONTAINER [PRIVATE_PORT[/PROTO]]", "List port mappings for the CONTAINER, or lookup the public-facing port that\nis NAT-ed to the PRIVATE_PORT", true)
+	cmd := cli.Subcmd("port", []string{"CONTAINER [PRIVATE_PORT[/PROTO]]"}, "List port mappings for the CONTAINER, or lookup the public-facing port that\nis NAT-ed to the PRIVATE_PORT", true)
 	cmd.Require(flag.Min, 1)
 	cmd.ParseFlags(args, true)
 

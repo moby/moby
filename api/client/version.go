@@ -18,7 +18,7 @@ import (
 //
 // Usage: docker version
 func (cli *DockerCli) CmdVersion(args ...string) error {
-	cmd := cli.Subcmd("version", "", "Show the Docker version information.", true)
+	cmd := cli.Subcmd("version", nil, "Show the Docker version information.", true)
 	cmd.Require(flag.Exact, 0)
 
 	cmd.ParseFlags(args, true)

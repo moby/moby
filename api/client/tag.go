@@ -12,7 +12,7 @@ import (
 //
 // Usage: docker tag [OPTIONS] IMAGE[:TAG] [REGISTRYHOST/][USERNAME/]NAME[:TAG]
 func (cli *DockerCli) CmdTag(args ...string) error {
-	cmd := cli.Subcmd("tag", "IMAGE[:TAG] [REGISTRYHOST/][USERNAME/]NAME[:TAG]", "Tag an image into a repository", true)
+	cmd := cli.Subcmd("tag", []string{"IMAGE[:TAG] [REGISTRYHOST/][USERNAME/]NAME[:TAG]"}, "Tag an image into a repository", true)
 	force := cmd.Bool([]string{"f", "#force", "-force"}, false, "Force")
 	cmd.Require(flag.Exact, 2)
 

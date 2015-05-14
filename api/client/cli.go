@@ -107,29 +107,62 @@ func (cli *DockerCli) Cmd(args ...string) error {
 // A subcommand represents an action that can be performed
 // from the Docker command line client.
 //
+// Multiple subcommand synopses may be provided with one 'Usage' line being
+// printed for each in the following way:
+//
+//	Usage:	docker <subcmd-name> [OPTIONS] <synopsis 0>
+// 		docker <subcmd-name> [OPTIONS] <synopsis 1>
+// 		...
+//
+// If no undeprecated flags are added to the returned FlagSet, "[OPTIONS]" will
+// not be included on the usage synopsis lines. If no synopses are given, only
+// one usage synopsis line will be printed with nothing following the
+// "[OPTIONS]" section
+//
 // To see all available subcommands, run "docker --help".
-func (cli *DockerCli) Subcmd(name, signature, description string, exitOnError bool) *flag.FlagSet {
+func (cli *DockerCli) Subcmd(name string, synopses []string, description string, exitOnError bool) *flag.FlagSet {
 	var errorHandling flag.ErrorHandling
 	if exitOnError {
 		errorHandling = flag.ExitOnError
 	} else {
 		errorHandling = flag.ContinueOnError
 	}
+
 	flags := flag.NewFlagSet(name, errorHandling)
-	if signature != "" {
-		signature = " " + signature
-	}
+
 	flags.Usage = func() {
 		flags.ShortUsage()
 		flags.PrintDefaults()
 	}
+
 	flags.ShortUsage = func() {
 		options := ""
 		if flags.FlagCountUndeprecated() > 0 {
 			options = " [OPTIONS]"
 		}
-		fmt.Fprintf(flags.Out(), "\nUsage: docker %s%s%s\n\n%s\n", name, options, signature, description)
+
+		if len(synopses) == 0 {
+			synopses = []string{""}
+		}
+
+		// Allow for multiple command usage synopses.
+		for i, synopsis := range synopses {
+			lead := "\t"
+			if i == 0 {
+				// First line needs the word 'Usage'.
+				lead = "Usage:\t"
+			}
+
+			if synopsis != "" {
+				synopsis = " " + synopsis
+			}
+
+			fmt.Fprintf(flags.Out(), "\n%sdocker %s%s%s", lead, name, options, synopsis)
+		}
+
+		fmt.Fprintf(flags.Out(), "\n\n%s\n", description)
 	}
+
 	return flags
 }
 

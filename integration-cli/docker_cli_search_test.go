@@ -53,7 +53,7 @@ func (s *DockerSuite) TestSearchCmdOptions(c *check.C) {
 		c.Fatalf("failed to get search help information: %s, %v", out, err)
 	}
 
-	if !strings.Contains(out, "Usage: docker search [OPTIONS] TERM") {
+	if !strings.Contains(out, "Usage:\tdocker search [OPTIONS] TERM") {
 		c.Fatalf("failed to show docker search usage: %s, %v", out, err)
 	}
 

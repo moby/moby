@@ -215,7 +215,7 @@ func (s *DockerSuite) TestHelpTextVerify(c *check.C) {
 					c.Fatalf("Bad output from %q\nstdout:%q\nstderr:%q\nec:%d\nerr:%q", args, stdout, stderr, ec, err)
 				}
 				// Should have just short usage
-				if !strings.Contains(stderr, "\nUsage: ") {
+				if !strings.Contains(stderr, "\nUsage:\t") {
 					c.Fatalf("Missing short usage on %q\nstderr:%q", args, stderr)
 				}
 				// But shouldn't have full usage
