@@ -124,13 +124,8 @@ func TestUploadReadFrom(t *testing.T) {
 	e, c := testServer(m)
 	defer c()
 
-	repoConfig := &RepositoryConfig{}
-	client, err := repoConfig.HTTPClient()
-	if err != nil {
-		t.Fatalf("Error creating client: %s", err)
-	}
 	layerUpload := &httpLayerUpload{
-		client: client,
+		client: &http.Client{},
 	}
 
 	// Valid case

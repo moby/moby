@@ -11,12 +11,6 @@ import (
 	"time"
 )
 
-// Authorizer is used to apply Authorization to an HTTP request
-type Authorizer interface {
-	// Authorizer updates an HTTP request with the needed authorization
-	Authorize(req *http.Request) error
-}
-
 // AuthenticationHandler is an interface for authorizing a request from
 // params from a "WWW-Authenicate" header for a single scheme.
 type AuthenticationHandler interface {
@@ -31,54 +25,11 @@ type CredentialStore interface {
 	Basic(*url.URL) (string, string)
 }
 
-// RepositoryConfig holds the base configuration needed to communicate
-// with a registry including a method of authorization and HTTP headers.
-type RepositoryConfig struct {
-	Header     http.Header
-	AuthSource Authorizer
-
-	BaseTransport http.RoundTripper
-}
-
-// HTTPClient returns a new HTTP client configured for this configuration
-func (rc *RepositoryConfig) HTTPClient() (*http.Client, error) {
-	transport := &Transport{
-		ExtraHeader: rc.Header,
-		AuthSource:  rc.AuthSource,
-		Base:        rc.BaseTransport,
-	}
-
-	client := &http.Client{
-		Transport: transport,
-	}
-
-	return client, nil
-}
-
-// NewTokenAuthorizer returns an authorizer which is capable of getting a token
-// from a token server. The expected authorization method will be discovered
-// by the authorizer, getting the token server endpoint from the URL being
-// requested. Basic authentication may either be done to the token source or
-// directly with the requested endpoint depending on the endpoint's
-// WWW-Authenticate header.
-func NewTokenAuthorizer(creds CredentialStore, transport http.RoundTripper, header http.Header, scope TokenScope) Authorizer {
-	return &tokenAuthorizer{
-		header:     header,
-		challenges: map[string]map[string]authorizationChallenge{},
-		handlers: []AuthenticationHandler{
-			NewTokenHandler(transport, creds, scope, header),
-			NewBasicHandler(creds),
-		},
-		transport: transport,
-	}
-}
-
 // NewAuthorizer creates an authorizer which can handle multiple authentication
 // schemes. The handlers are tried in order, the higher priority authentication
 // methods should be first.
-func NewAuthorizer(transport http.RoundTripper, header http.Header, handlers ...AuthenticationHandler) Authorizer {
+func NewAuthorizer(transport http.RoundTripper, handlers ...AuthenticationHandler) RequestModifier {
 	return &tokenAuthorizer{
-		header:     header,
 		challenges: map[string]map[string]authorizationChallenge{},
 		handlers:   handlers,
 		transport:  transport,
@@ -86,7 +37,6 @@ func NewAuthorizer(transport http.RoundTripper, header http.Header, handlers ...
 }
 
 type tokenAuthorizer struct {
-	header     http.Header
 	challenges map[string]map[string]authorizationChallenge
 	handlers   []AuthenticationHandler
 	transport  http.RoundTripper
@@ -99,10 +49,7 @@ func (ta *tokenAuthorizer) ping(endpoint string) (map[string]authorizationChalle
 	}
 
 	client := &http.Client{
-		Transport: &Transport{
-			ExtraHeader: ta.header,
-			Base:        ta.transport,
-		},
+		Transport: ta.transport,
 		// Ping should fail fast
 		Timeout: 5 * time.Second,
 	}
@@ -140,7 +87,7 @@ HeaderLoop:
 	return nil, nil
 }
 
-func (ta *tokenAuthorizer) Authorize(req *http.Request) error {
+func (ta *tokenAuthorizer) ModifyRequest(req *http.Request) error {
 	v2Root := strings.Index(req.URL.Path, "/v2/")
 	if v2Root == -1 {
 		return nil
@@ -195,54 +142,52 @@ type TokenScope struct {
 	Actions  []string
 }
 
-// NewTokenHandler creates a new AuthenicationHandler which supports
-// fetching tokens from a remote token server.
-func NewTokenHandler(transport http.RoundTripper, creds CredentialStore, scope TokenScope, header http.Header) AuthenticationHandler {
-	return &tokenHandler{
-		header: header,
-		creds:  creds,
-		scope:  scope,
-	}
-}
-
 func (ts TokenScope) String() string {
 	return fmt.Sprintf("%s:%s:%s", ts.Resource, ts.Scope, strings.Join(ts.Actions, ","))
 }
 
-func (ts *tokenHandler) client() *http.Client {
-	return &http.Client{
-		Transport: &Transport{
-			ExtraHeader: ts.header,
-			Base:        ts.transport,
-		},
+// NewTokenHandler creates a new AuthenicationHandler which supports
+// fetching tokens from a remote token server.
+func NewTokenHandler(transport http.RoundTripper, creds CredentialStore, scope TokenScope) AuthenticationHandler {
+	return &tokenHandler{
+		transport: transport,
+		creds:     creds,
+		scope:     scope,
 	}
 }
 
-func (ts *tokenHandler) Scheme() string {
+func (th *tokenHandler) client() *http.Client {
+	return &http.Client{
+		Transport: th.transport,
+		Timeout:   15 * time.Second,
+	}
+}
+
+func (th *tokenHandler) Scheme() string {
 	return "bearer"
 }
 
-func (ts *tokenHandler) AuthorizeRequest(req *http.Request, params map[string]string) error {
-	if err := ts.refreshToken(params); err != nil {
+func (th *tokenHandler) AuthorizeRequest(req *http.Request, params map[string]string) error {
+	if err := th.refreshToken(params); err != nil {
 		return err
 	}
 
-	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", ts.tokenCache))
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", th.tokenCache))
 
 	return nil
 }
 
-func (ts *tokenHandler) refreshToken(params map[string]string) error {
-	ts.tokenLock.Lock()
-	defer ts.tokenLock.Unlock()
+func (th *tokenHandler) refreshToken(params map[string]string) error {
+	th.tokenLock.Lock()
+	defer th.tokenLock.Unlock()
 	now := time.Now()
-	if now.After(ts.tokenExpiration) {
-		token, err := ts.fetchToken(params)
+	if now.After(th.tokenExpiration) {
+		token, err := th.fetchToken(params)
 		if err != nil {
 			return err
 		}
-		ts.tokenCache = token
-		ts.tokenExpiration = now.Add(time.Minute)
+		th.tokenCache = token
+		th.tokenExpiration = now.Add(time.Minute)
 	}
 
 	return nil
@@ -252,7 +197,7 @@ type tokenResponse struct {
 	Token string `json:"token"`
 }
 
-func (ts *tokenHandler) fetchToken(params map[string]string) (token string, err error) {
+func (th *tokenHandler) fetchToken(params map[string]string) (token string, err error) {
 	//log.Debugf("Getting bearer token with %s for %s", challenge.Parameters, ta.auth.Username)
 	realm, ok := params["realm"]
 	if !ok {
@@ -273,7 +218,7 @@ func (ts *tokenHandler) fetchToken(params map[string]string) (token string, err 
 
 	reqParams := req.URL.Query()
 	service := params["service"]
-	scope := ts.scope.String()
+	scope := th.scope.String()
 
 	if service != "" {
 		reqParams.Add("service", service)
@@ -283,8 +228,8 @@ func (ts *tokenHandler) fetchToken(params map[string]string) (token string, err 
 		reqParams.Add("scope", scopeField)
 	}
 
-	if ts.creds != nil {
-		username, password := ts.creds.Basic(realmURL)
+	if th.creds != nil {
+		username, password := th.creds.Basic(realmURL)
 		if username != "" && password != "" {
 			reqParams.Add("account", username)
 			req.SetBasicAuth(username, password)
@@ -293,7 +238,7 @@ func (ts *tokenHandler) fetchToken(params map[string]string) (token string, err 
 
 	req.URL.RawQuery = reqParams.Encode()
 
-	resp, err := ts.client().Do(req)
+	resp, err := th.client().Do(req)
 	if err != nil {
 		return "", err
 	}
