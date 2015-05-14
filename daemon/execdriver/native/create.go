@@ -29,6 +29,10 @@ func (d *driver) createContainer(c *execdriver.Command) (*configs.Config, error)
 		return nil, err
 	}
 
+	if err := d.createUTS(container, c); err != nil {
+		return nil, err
+	}
+
 	if err := d.createNetwork(container, c); err != nil {
 		return nil, err
 	}
@@ -167,6 +171,16 @@ func (d *driver) createIpc(container *configs.Config, c *execdriver.Command) err
 func (d *driver) createPid(container *configs.Config, c *execdriver.Command) error {
 	if c.Pid.HostPid {
 		container.Namespaces.Remove(configs.NEWPID)
+		return nil
+	}
+
+	return nil
+}
+
+func (d *driver) createUTS(container *configs.Config, c *execdriver.Command) error {
+	if c.UTS.HostUTS {
+		container.Namespaces.Remove(configs.NEWUTS)
+		container.Hostname = ""
 		return nil
 	}
 

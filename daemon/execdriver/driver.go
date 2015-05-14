@@ -86,6 +86,11 @@ type Pid struct {
 	HostPid bool `json:"host_pid"`
 }
 
+// UTS settings of the container
+type UTS struct {
+	HostUTS bool `json:"host_uts"`
+}
+
 type NetworkInterface struct {
 	Gateway              string `json:"gateway"`
 	IPAddress            string `json:"ip"`
@@ -155,6 +160,7 @@ type Command struct {
 	Network            *Network          `json:"network"`
 	Ipc                *Ipc              `json:"ipc"`
 	Pid                *Pid              `json:"pid"`
+	UTS                *UTS              `json:"uts"`
 	Resources          *Resources        `json:"resources"`
 	Mounts             []Mount           `json:"mounts"`
 	AllowedDevices     []*configs.Device `json:"allowed_devices"`
