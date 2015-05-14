@@ -1,6 +1,6 @@
 // +build !linux,!darwin,!freebsd
 
-package signal
+package daemon
 
 func setupSigusr1Trap() {
 	return
