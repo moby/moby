@@ -129,12 +129,12 @@ However, there might be a way to implement that feature *on top of* Docker.
   <col width="45%">
   <col width="65%">
   <tr>
-    <td>Internet&nbsp;Relay&nbsp;Chat&nbsp;(IRC)</th>
+    <td>Internet&nbsp;Relay&nbsp;Chat&nbsp;(IRC)</td>
     <td>
       <p>
         IRC a direct line to our most knowledgeable Docker users; we have
-        both the  <code>#docker</code> and <code>#docker-dev</code> group on 
-        <strong>irc.freenode.net</strong>.  
+        both the  <code>#docker</code> and <code>#docker-dev</code> group on
+        <strong>irc.freenode.net</strong>.
         IRC is a rich chat protocol but it can overwhelm new users. You can search
         <a href="https://botbot.me/freenode/docker/#" target="_blank">our chat archives</a>.
       </p>
@@ -146,9 +146,9 @@ However, there might be a way to implement that feature *on top of* Docker.
     <td>
       There are two groups.
       <a href="https://groups.google.com/forum/#!forum/docker-user" target="_blank">Docker-user</a>
-      is for people using Docker containers. 
-      The <a href="https://groups.google.com/forum/#!forum/docker-dev" target="_blank">docker-dev</a> 
-      group is for contributors and other people contributing to the Docker 
+      is for people using Docker containers.
+      The <a href="https://groups.google.com/forum/#!forum/docker-dev" target="_blank">docker-dev</a>
+      group is for contributors and other people contributing to the Docker
       project.
     </td>
   </tr>
@@ -156,14 +156,14 @@ However, there might be a way to implement that feature *on top of* Docker.
     <td>Twitter</td>
     <td>
       You can follow <a href="https://twitter.com/docker/" target="_blank">Docker's Twitter feed</a>
-      to get updates on our products. You can also tweet us questions or just 
+      to get updates on our products. You can also tweet us questions or just
       share blogs or stories.
     </td>
   </tr>
   <tr>
     <td>Stack Overflow</td>
     <td>
-      Stack Overflow has over 7000K Docker questions listed. We regularly 
+      Stack Overflow has over 7000K Docker questions listed. We regularly
       monitor <a href="https://stackoverflow.com/search?tab=newest&q=docker" target="_blank">Docker questions</a>
       and so do many other knowledgeable Docker users.
     </td>
