@@ -149,7 +149,7 @@ func (daemon *Daemon) Containers(config *ContainersConfig) ([]*types.Container, 
 		} else {
 			newC.Command = fmt.Sprintf("%s", container.Path)
 		}
-		newC.Created = int(container.Created.Unix())
+		newC.Created = container.Created.UTC()
 		newC.Status = container.State.String()
 
 		newC.Ports = []types.Port{}

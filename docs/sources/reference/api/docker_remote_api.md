@@ -58,6 +58,24 @@ disconnect
 
 This endpoint now accepts a `since` timestamp parameter.
 
+`GET /images/json`
+
+**New!**
+The `Created` field is now formatted as a RFC3339 string instead of a UNIX
+timestamp, to be consistent with other parts of the API.
+
+`GET /containers/json`
+
+**New!**
+The `Created` field is now formatted as a RFC3339 string instead of a UNIX
+timestamp, to be consistent with other parts of the API.
+
+`GET /images/(name)/history`
+
+**New!**
+The `Created` field is now formatted as a RFC3339 string instead of a UNIX
+timestamp, to be consistent with other parts of the API.
+
 ## v1.18
 
 ### Full documentation

@@ -109,9 +109,9 @@ func (cli *DockerCli) CmdImages(args ...string) error {
 
 			if !*quiet {
 				if *showDigests {
-					fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s ago\t%s\n", repo, tag, digest, ID, units.HumanDuration(time.Now().UTC().Sub(time.Unix(int64(image.Created), 0))), units.HumanSize(float64(image.VirtualSize)))
+					fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s ago\t%s\n", repo, tag, digest, ID, units.HumanDuration(time.Now().UTC().Sub(image.Created)), units.HumanSize(float64(image.VirtualSize)))
 				} else {
-					fmt.Fprintf(w, "%s\t%s\t%s\t%s ago\t%s\n", repo, tag, ID, units.HumanDuration(time.Now().UTC().Sub(time.Unix(int64(image.Created), 0))), units.HumanSize(float64(image.VirtualSize)))
+					fmt.Fprintf(w, "%s\t%s\t%s\t%s ago\t%s\n", repo, tag, ID, units.HumanDuration(time.Now().UTC().Sub(image.Created)), units.HumanSize(float64(image.VirtualSize)))
 				}
 			} else {
 				fmt.Fprintln(w, ID)
