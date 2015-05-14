@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"path/filepath"
 	"strings"
 	"syscall"
 
@@ -139,7 +140,6 @@ func (d *driver) createNetwork(container *configs.Config, c *execdriver.Command)
 
 		container.Namespaces.Add(configs.NEWNET, state.NamespacePaths[configs.NEWNET])
 	}
-
 	return nil
 }
 
@@ -228,7 +228,7 @@ func (d *driver) genPremountCmd(c *execdriver.Command, fullDest string, dest str
 	tarFile := fmt.Sprintf("%s/%s.tar", c.TmpDir, strings.Replace(dest, "/", "_", -1))
 	return append(premount, configs.Command{
 		Path: "/usr/bin/tar",
-		Args: []string{"/usr/bin/tar", "-cf", tarFile, "-C", fullDest},
+		Args: []string{"-cf", tarFile, "-C", fullDest, "."},
 	})
 }
 
@@ -237,11 +237,11 @@ func (d *driver) genPostmountCmd(c *execdriver.Command, fullDest string, dest st
 	tarFile := fmt.Sprintf("%s/%s.tar", c.TmpDir, strings.Replace(dest, "/", "_", -1))
 	postmount = append(postmount, configs.Command{
 		Path: "/usr/bin/tar",
-		Args: []string{"tar", "-xf", tarFile, "-C", fullDest},
+		Args: []string{"-xf", tarFile, "-C", fullDest, "."},
 	})
 	return append(postmount, configs.Command{
 		Path: "/usr/bin/rm",
-		Args: []string{"rm", "-f", tarFile},
+		Args: []string{"-f", tarFile},
 	})
 }
 
@@ -266,6 +266,7 @@ func (d *driver) setupMounts(container *configs.Config, c *execdriver.Command) e
 
 	for _, m := range c.Mounts {
 		if m.Source == "tmpfs" {
+			dest := filepath.Join(c.Rootfs, m.Destination)
 			flags := syscall.MS_NOEXEC | syscall.MS_NOSUID | syscall.MS_NODEV
 			container.Mounts = append(container.Mounts, &configs.Mount{
 				Source:        m.Source,
@@ -273,8 +274,8 @@ func (d *driver) setupMounts(container *configs.Config, c *execdriver.Command) e
 				Device:        "tmpfs",
 				Data:          "mode=755,size=65536k",
 				Flags:         flags,
-				PremountCmds:  d.genPremountCmd(c, m.Destination, m.Destination),
-				PostmountCmds: d.genPostmountCmd(c, m.Destination, m.Destination),
+				PremountCmds:  d.genPremountCmd(c, dest, m.Destination),
+				PostmountCmds: d.genPostmountCmd(c, dest, m.Destination),
 			})
 			continue
 		}

@@ -266,7 +266,7 @@ func (container *Container) specialMounts() []execdriver.Mount {
 func (container *Container) setupMounts() error {
 	mounts := []execdriver.Mount{}
 
-	if container.hostConfig.MountRun && container.Volumes["/run"] == "" {
+	if !container.hostConfig.BuildFlag && container.Volumes["/run"] == "" {
 		mounts = append(mounts, execdriver.Mount{Source: "tmpfs", Destination: "/run", Writable: true, Private: true})
 	}
 
@@ -283,7 +283,8 @@ func (container *Container) setupMounts() error {
 		})
 	}
 
-	if container.Volumes["/var"] == "" &&
+	if !container.hostConfig.BuildFlag &&
+		container.Volumes["/var"] == "" &&
 		container.Volumes["/var/log"] == "" &&
 		container.Volumes["/var/log/journal"] == "" {
 		if journalPath, err := container.setupJournal(); err != nil {
