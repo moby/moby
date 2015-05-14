@@ -86,7 +86,7 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 		v.Set("filters", filterJSON)
 	}
 
-	rdr, _, err := cli.call("GET", "/containers/json?"+v.Encode(), nil, nil)
+	rdr, _, _, err := cli.call("GET", "/containers/json?"+v.Encode(), nil, nil)
 	if err != nil {
 		return err
 	}

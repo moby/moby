@@ -61,7 +61,7 @@ func (cli *DockerCli) CmdImages(args ...string) error {
 		v.Set("all", "1")
 	}
 
-	rdr, _, err := cli.call("GET", "/images/json?"+v.Encode(), nil, nil)
+	rdr, _, _, err := cli.call("GET", "/images/json?"+v.Encode(), nil, nil)
 	if err != nil {
 		return err
 	}

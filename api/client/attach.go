@@ -26,7 +26,7 @@ func (cli *DockerCli) CmdAttach(args ...string) error {
 	cmd.ParseFlags(args, true)
 	name := cmd.Arg(0)
 
-	stream, _, err := cli.call("GET", "/containers/"+name+"/json", nil, nil)
+	stream, _, _, err := cli.call("GET", "/containers/"+name+"/json", nil, nil)
 	if err != nil {
 		return err
 	}

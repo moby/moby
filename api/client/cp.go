@@ -31,7 +31,7 @@ func (cli *DockerCli) CmdCp(args ...string) error {
 	cfg := &types.CopyConfig{
 		Resource: info[1],
 	}
-	stream, statusCode, err := cli.call("POST", "/containers/"+info[0]+"/copy", cfg, nil)
+	stream, _, statusCode, err := cli.call("POST", "/containers/"+info[0]+"/copy", cfg, nil)
 	if stream != nil {
 		defer stream.Close()
 	}

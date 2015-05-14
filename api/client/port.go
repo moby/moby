@@ -18,7 +18,7 @@ func (cli *DockerCli) CmdPort(args ...string) error {
 	cmd.Require(flag.Min, 1)
 	cmd.ParseFlags(args, true)
 
-	stream, _, err := cli.call("GET", "/containers/"+cmd.Arg(0)+"/json", nil, nil)
+	stream, _, _, err := cli.call("GET", "/containers/"+cmd.Arg(0)+"/json", nil, nil)
 	if err != nil {
 		return err
 	}

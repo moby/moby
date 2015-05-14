@@ -35,7 +35,7 @@ func (s *containerStats) Collect(cli *DockerCli, streamStats bool) {
 	} else {
 		v.Set("stream", "0")
 	}
-	stream, _, err := cli.call("GET", "/containers/"+s.Name+"/stats?"+v.Encode(), nil, nil)
+	stream, _, _, err := cli.call("GET", "/containers/"+s.Name+"/stats?"+v.Encode(), nil, nil)
 	if err != nil {
 		s.mu.Lock()
 		s.err = err

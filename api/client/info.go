@@ -18,7 +18,7 @@ func (cli *DockerCli) CmdInfo(args ...string) error {
 	cmd.Require(flag.Exact, 0)
 	cmd.ParseFlags(args, true)
 
-	rdr, _, err := cli.call("GET", "/info", nil, nil)
+	rdr, _, _, err := cli.call("GET", "/info", nil, nil)
 	if err != nil {
 		return err
 	}

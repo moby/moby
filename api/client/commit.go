@@ -66,7 +66,7 @@ func (cli *DockerCli) CmdCommit(args ...string) error {
 			return err
 		}
 	}
-	stream, _, err := cli.call("POST", "/commit?"+v.Encode(), config, nil)
+	stream, _, _, err := cli.call("POST", "/commit?"+v.Encode(), config, nil)
 	if err != nil {
 		return err
 	}
