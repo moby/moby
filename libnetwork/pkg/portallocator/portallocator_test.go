@@ -12,7 +12,7 @@ func resetPortAllocator() {
 }
 
 func TestRequestNewPort(t *testing.T) {
-	p := New()
+	p := Get()
 	defer resetPortAllocator()
 
 	port, err := p.RequestPort(defaultIP, "tcp", 0)
@@ -26,7 +26,7 @@ func TestRequestNewPort(t *testing.T) {
 }
 
 func TestRequestSpecificPort(t *testing.T) {
-	p := New()
+	p := Get()
 	defer resetPortAllocator()
 
 	port, err := p.RequestPort(defaultIP, "tcp", 5000)
@@ -40,7 +40,7 @@ func TestRequestSpecificPort(t *testing.T) {
 }
 
 func TestReleasePort(t *testing.T) {
-	p := New()
+	p := Get()
 
 	port, err := p.RequestPort(defaultIP, "tcp", 5000)
 	if err != nil {
@@ -56,7 +56,7 @@ func TestReleasePort(t *testing.T) {
 }
 
 func TestReuseReleasedPort(t *testing.T) {
-	p := New()
+	p := Get()
 	defer resetPortAllocator()
 
 	port, err := p.RequestPort(defaultIP, "tcp", 5000)
@@ -78,7 +78,7 @@ func TestReuseReleasedPort(t *testing.T) {
 }
 
 func TestReleaseUnreadledPort(t *testing.T) {
-	p := New()
+	p := Get()
 	defer resetPortAllocator()
 
 	port, err := p.RequestPort(defaultIP, "tcp", 5000)
@@ -99,13 +99,13 @@ func TestReleaseUnreadledPort(t *testing.T) {
 }
 
 func TestUnknowProtocol(t *testing.T) {
-	if _, err := New().RequestPort(defaultIP, "tcpp", 0); err != ErrUnknownProtocol {
+	if _, err := Get().RequestPort(defaultIP, "tcpp", 0); err != ErrUnknownProtocol {
 		t.Fatalf("Expected error %s got %s", ErrUnknownProtocol, err)
 	}
 }
 
 func TestAllocateAllPorts(t *testing.T) {
-	p := New()
+	p := Get()
 	defer resetPortAllocator()
 
 	for i := 0; i <= p.End-p.Begin; i++ {
@@ -156,7 +156,7 @@ func TestAllocateAllPorts(t *testing.T) {
 }
 
 func BenchmarkAllocatePorts(b *testing.B) {
-	p := New()
+	p := Get()
 	defer resetPortAllocator()
 
 	for i := 0; i < b.N; i++ {
@@ -175,7 +175,7 @@ func BenchmarkAllocatePorts(b *testing.B) {
 }
 
 func TestPortAllocation(t *testing.T) {
-	p := New()
+	p := Get()
 	defer resetPortAllocator()
 
 	ip := net.ParseIP("192.168.0.1")
@@ -237,7 +237,7 @@ func TestPortAllocation(t *testing.T) {
 }
 
 func TestNoDuplicateBPR(t *testing.T) {
-	p := New()
+	p := Get()
 	defer resetPortAllocator()
 
 	if port, err := p.RequestPort(defaultIP, "tcp", p.Begin); err != nil {

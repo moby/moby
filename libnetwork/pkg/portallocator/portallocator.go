@@ -80,8 +80,8 @@ type (
 	protoMap map[string]*portMap
 )
 
-// New returns a new instance of PortAllocator
-func New() *PortAllocator {
+// Get returns the default instance of PortAllocator
+func Get() *PortAllocator {
 	// Port Allocator is a singleton
 	// Note: Long term solution will be each PortAllocator will have access to
 	// the OS so that it can have up to date view of the OS port allocation.
