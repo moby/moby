@@ -56,6 +56,7 @@ func main() {
 
 	if *flDebug {
 		os.Setenv("DEBUG", "1")
+		setLogLevel(logrus.DebugLevel)
 	}
 
 	if len(flHosts) == 0 {
