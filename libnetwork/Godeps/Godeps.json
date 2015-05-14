@@ -56,6 +56,14 @@
 			"Rev": "41608027bdce7bfa8959d653a00b954591220e67"
 		},
 		{
+			"ImportPath": "github.com/gorilla/context",
+			"Rev": "215affda49addc4c8ef7e2534915df2c8c35c6cd"
+		},
+		{
+			"ImportPath": "github.com/gorilla/mux",
+			"Rev": "8096f47503459bcc74d1f4c487b7e6e42e5746b5"
+		},
+		{
 			"ImportPath": "github.com/vishvananda/netlink",
 			"Rev": "8eb64238879fed52fd51c5b30ad20b928fb4c36c"
 		},
