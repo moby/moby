@@ -97,7 +97,7 @@ func TestLayerFetch(t *testing.T) {
 	e, c := testServer(m)
 	defer c()
 
-	r, err := NewRepository(context.Background(), "test.example.com/repo1", e, &RepositoryConfig{})
+	r, err := NewRepository(context.Background(), "test.example.com/repo1", e, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -127,7 +127,7 @@ func TestLayerExists(t *testing.T) {
 	e, c := testServer(m)
 	defer c()
 
-	r, err := NewRepository(context.Background(), "test.example.com/repo1", e, &RepositoryConfig{})
+	r, err := NewRepository(context.Background(), "test.example.com/repo1", e, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -227,7 +227,7 @@ func TestLayerUploadChunked(t *testing.T) {
 	e, c := testServer(m)
 	defer c()
 
-	r, err := NewRepository(context.Background(), repo, e, &RepositoryConfig{})
+	r, err := NewRepository(context.Background(), repo, e, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -334,7 +334,7 @@ func TestLayerUploadMonolithic(t *testing.T) {
 	e, c := testServer(m)
 	defer c()
 
-	r, err := NewRepository(context.Background(), repo, e, &RepositoryConfig{})
+	r, err := NewRepository(context.Background(), repo, e, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -475,7 +475,7 @@ func TestManifestFetch(t *testing.T) {
 	e, c := testServer(m)
 	defer c()
 
-	r, err := NewRepository(context.Background(), repo, e, &RepositoryConfig{})
+	r, err := NewRepository(context.Background(), repo, e, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -508,7 +508,7 @@ func TestManifestFetchByTag(t *testing.T) {
 	e, c := testServer(m)
 	defer c()
 
-	r, err := NewRepository(context.Background(), repo, e, &RepositoryConfig{})
+	r, err := NewRepository(context.Background(), repo, e, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -553,7 +553,7 @@ func TestManifestDelete(t *testing.T) {
 	e, c := testServer(m)
 	defer c()
 
-	r, err := NewRepository(context.Background(), repo, e, &RepositoryConfig{})
+	r, err := NewRepository(context.Background(), repo, e, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -591,7 +591,7 @@ func TestManifestPut(t *testing.T) {
 	e, c := testServer(m)
 	defer c()
 
-	r, err := NewRepository(context.Background(), repo, e, &RepositoryConfig{})
+	r, err := NewRepository(context.Background(), repo, e, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -636,7 +636,7 @@ func TestManifestTags(t *testing.T) {
 	e, c := testServer(m)
 	defer c()
 
-	r, err := NewRepository(context.Background(), repo, e, &RepositoryConfig{})
+	r, err := NewRepository(context.Background(), repo, e, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

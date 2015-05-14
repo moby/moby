@@ -20,7 +20,7 @@ import (
 )
 
 // NewRepository creates a new Repository for the given repository name and endpoint
-func NewRepository(ctx context.Context, name, endpoint string, repoConfig *RepositoryConfig) (distribution.Repository, error) {
+func NewRepository(ctx context.Context, name, endpoint string, transport http.RoundTripper) (distribution.Repository, error) {
 	if err := v2.ValidateRespositoryName(name); err != nil {
 		return nil, err
 	}
@@ -30,9 +30,10 @@ func NewRepository(ctx context.Context, name, endpoint string, repoConfig *Repos
 		return nil, err
 	}
 
-	client, err := repoConfig.HTTPClient()
-	if err != nil {
-		return nil, err
+	client := &http.Client{
+		Transport: transport,
+		Timeout:   1 * time.Minute,
+		// TODO(dmcgowan): create cookie jar
 	}
 
 	return &repository{
