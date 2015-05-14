@@ -42,7 +42,7 @@ type PortMapper struct {
 
 // New returns a new instance of PortMapper
 func New() *PortMapper {
-	return NewWithPortAllocator(portallocator.New())
+	return NewWithPortAllocator(portallocator.Get())
 }
 
 // NewWithPortAllocator returns a new instance of PortMapper which will use the specified PortAllocator
