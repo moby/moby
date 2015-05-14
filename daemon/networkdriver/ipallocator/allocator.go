@@ -5,14 +5,22 @@ import (
 	"math/big"
 	"net"
 	"sync"
+	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/networkdriver"
 )
 
+type IpStatus struct {
+	active bool
+	name   string
+	ts     time.Time
+}
+
 // allocatedMap is thread-unsafe set of allocated IP
 type allocatedMap struct {
-	p     map[string]struct{}
+	list  map[string]*IpStatus
+	cache map[string]net.IP
 	last  *big.Int
 	begin *big.Int
 	end   *big.Int
@@ -24,7 +32,8 @@ func newAllocatedMap(network *net.IPNet) *allocatedMap {
 	end := big.NewInt(0).Sub(ipToBigInt(lastIP), big.NewInt(1))
 
 	return &allocatedMap{
-		p:     make(map[string]struct{}),
+		list:  make(map[string]*IpStatus),
+		cache: make(map[string]net.IP),
 		begin: begin,
 		end:   end,
 		last:  big.NewInt(0).Sub(begin, big.NewInt(1)), // so first allocated will be begin
@@ -81,7 +90,7 @@ func (a *IPAllocator) RegisterSubnet(network *net.IPNet, subnet *net.IPNet) erro
 // will return the next available ip if the ip provided is nil.  If the
 // ip provided is not nil it will validate that the provided ip is available
 // for use or return an error
-func (a *IPAllocator) RequestIP(network *net.IPNet, ip net.IP) (net.IP, error) {
+func (a *IPAllocator) RequestIP(network *net.IPNet, ip net.IP, name string) (net.IP, error) {
 	a.mutex.Lock()
 	defer a.mutex.Unlock()
 
@@ -93,9 +102,14 @@ func (a *IPAllocator) RequestIP(network *net.IPNet, ip net.IP) (net.IP, error) {
 	}
 
 	if ip == nil {
-		return allocated.getNextIP()
+		newIp, err := allocated.getNextIP(name)
+		if err == nil {
+			allocated.markActive(name, newIp)
+		}
+		return newIp, err
+
 	}
-	return allocated.checkIP(ip)
+	return allocated.checkIP(ip, name)
 }
 
 // ReleaseIP adds the provided ip back into the pool of
@@ -105,14 +119,19 @@ func (a *IPAllocator) ReleaseIP(network *net.IPNet, ip net.IP) error {
 	defer a.mutex.Unlock()
 
 	if allocated, exists := a.allocatedIPs[network.String()]; exists {
-		delete(allocated.p, ip.String())
+		if ipStatus, ok := allocated.list[ip.String()]; ok {
+			ipStatus.active = false
+			ipStatus.ts = time.Now()
+		}
 	}
 	return nil
 }
 
-func (allocated *allocatedMap) checkIP(ip net.IP) (net.IP, error) {
-	if _, ok := allocated.p[ip.String()]; ok {
-		return nil, ErrIPAlreadyAllocated
+func (allocated *allocatedMap) checkIP(ip net.IP, name string) (net.IP, error) {
+	if ipStatus, ok := allocated.list[ip.String()]; ok {
+		if ipStatus.active {
+			return nil, ErrIPAlreadyAllocated
+		}
 	}
 
 	pos := ipToBigInt(ip)
@@ -121,15 +140,32 @@ func (allocated *allocatedMap) checkIP(ip net.IP) (net.IP, error) {
 		return nil, ErrIPOutOfRange
 	}
 
-	// Register the IP.
-	allocated.p[ip.String()] = struct{}{}
-
+	allocated.markActive(name, ip)
 	return ip, nil
+}
+
+func (allocated *allocatedMap) markActive(name string, ip net.IP) {
+	if ipStatus, exists := allocated.list[ip.String()]; exists {
+		if name != ipStatus.name {
+			// ip is allocated to a new name, delete old cache
+			delete(allocated.cache, ipStatus.name)
+		}
+	}
+	allocated.list[ip.String()] = &IpStatus{active: true, name: name, ts: time.Now()}
+	allocated.cache[name] = ip
 }
 
 // return an available ip if one is currently available.  If not,
 // return the next available ip for the network
-func (allocated *allocatedMap) getNextIP() (net.IP, error) {
+func (allocated *allocatedMap) getNextIP(name string) (net.IP, error) {
+	if cachedIp, cached := allocated.cache[name]; cached {
+		ipStatus, hasStatus := allocated.list[cachedIp.String()]
+		if hasStatus && (!ipStatus.active) {
+			return cachedIp, nil
+		}
+	}
+	recycledIp := new(net.IP)
+	recycledTs := time.Now()
 	pos := big.NewInt(0).Set(allocated.last)
 	allRange := big.NewInt(0).Sub(allocated.end, allocated.begin)
 	for i := big.NewInt(0); i.Cmp(allRange) <= 0; i.Add(i, big.NewInt(1)) {
@@ -137,12 +173,18 @@ func (allocated *allocatedMap) getNextIP() (net.IP, error) {
 		if pos.Cmp(allocated.end) == 1 {
 			pos.Set(allocated.begin)
 		}
-		if _, ok := allocated.p[bigIntToIP(pos).String()]; ok {
+		if ipStatus, ok := allocated.list[bigIntToIP(pos).String()]; ok {
+			if (!ipStatus.active) && ipStatus.ts.Before(recycledTs) {
+				*recycledIp = bigIntToIP(pos)
+				recycledTs = ipStatus.ts
+			}
 			continue
 		}
-		allocated.p[bigIntToIP(pos).String()] = struct{}{}
 		allocated.last.Set(pos)
 		return bigIntToIP(pos), nil
+	}
+	if *recycledIp != nil {
+		return *recycledIp, nil
 	}
 	return nil, ErrNoAvailableIPs
 }
