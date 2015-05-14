@@ -9,20 +9,13 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"syscall"
 
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/reexec"
+	"github.com/docker/docker/pkg/system"
 )
 
 var chrootArchiver = &archive.Archiver{Untar: Untar}
-
-func chroot(path string) error {
-	if err := syscall.Chroot(path); err != nil {
-		return err
-	}
-	return syscall.Chdir("/")
-}
 
 func untar() {
 	runtime.LockOSThread()
@@ -38,7 +31,20 @@ func untar() {
 	if err := chroot(flag.Arg(0)); err != nil {
 		fatal(err)
 	}
-	if err := archive.Unpack(os.Stdin, "/", options); err != nil {
+
+	// Explanation of Windows difference. Windows does not support chroot.
+	// untar() is a helper function for the command line in the format
+	// "docker docker-untar directory input". In Windows, directory will be
+	// something like <pathto>\docker-buildnnnnnnnnn. So, just use that directory
+	// directly instead.
+	//
+	// One example of where this is used is in the docker build command where the
+	// dockerfile will be unpacked to the machine on which the daemon runs.
+	rootPath := "/"
+	if runtime.GOOS == "windows" {
+		rootPath = flag.Arg(0)
+	}
+	if err := archive.Unpack(os.Stdin, rootPath, options); err != nil {
 		fatal(err)
 	}
 	// fully consume stdin in case it is zero padded
@@ -59,7 +65,7 @@ func Untar(tarArchive io.Reader, dest string, options *archive.TarOptions) error
 
 	dest = filepath.Clean(dest)
 	if _, err := os.Stat(dest); os.IsNotExist(err) {
-		if err := os.MkdirAll(dest, 0777); err != nil {
+		if err := system.MkdirAll(dest, 0777); err != nil {
 			return err
 		}
 	}
