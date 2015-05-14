@@ -1,22 +1,9 @@
 package driverapi
 
 import (
-	"errors"
-	"fmt"
 	"net"
 
 	"github.com/docker/libnetwork/types"
-)
-
-var (
-	// ErrEndpointExists is returned if more than one endpoint is added to the network
-	ErrEndpointExists = errors.New("Endpoint already exists (Only one endpoint allowed)")
-	// ErrNoNetwork is returned if no network with the specified id exists
-	ErrNoNetwork = errors.New("No network exists")
-	// ErrNoEndpoint is returned if no endpoint with the specified id exists
-	ErrNoEndpoint = errors.New("No endpoint exists")
-	// ErrNotImplemented is returned when a Driver has not implemented an API yet
-	ErrNotImplemented = errors.New("The API is not implemented yet")
 )
 
 // NetworkPluginEndpointType represents the Endpoint Type used by Plugin system
@@ -122,14 +109,6 @@ type JoinInfo interface {
 
 	// SetResolvConfPath sets the overriding /etc/resolv.conf path to use for the container.
 	SetResolvConfPath(string) error
-}
-
-// ErrActiveRegistration represents an error when a driver is registered to a networkType that is previously registered
-type ErrActiveRegistration string
-
-// Error interface for ErrActiveRegistration
-func (ar ErrActiveRegistration) Error() string {
-	return fmt.Sprintf("Driver already registered for type %q", string(ar))
 }
 
 // DriverCallback provides a Callback interface for Drivers into LibNetwork

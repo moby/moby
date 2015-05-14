@@ -134,7 +134,7 @@ func (c *controller) RegisterDriver(networkType string, driver driverapi.Driver)
 // are network specific and modeled in a generic way.
 func (c *controller) NewNetwork(networkType, name string, options ...NetworkOption) (Network, error) {
 	if name == "" {
-		return nil, ErrInvalidName
+		return nil, ErrInvalidName(name)
 	}
 	// Check if a driver for the specified network type is available
 	c.Lock()
@@ -203,7 +203,7 @@ func (c *controller) WalkNetworks(walker NetworkWalker) {
 
 func (c *controller) NetworkByName(name string) (Network, error) {
 	if name == "" {
-		return nil, ErrInvalidName
+		return nil, ErrInvalidName(name)
 	}
 	var n Network
 
@@ -218,7 +218,7 @@ func (c *controller) NetworkByName(name string) (Network, error) {
 	c.WalkNetworks(s)
 
 	if n == nil {
-		return nil, ErrNoSuchNetwork
+		return nil, ErrNoSuchNetwork(name)
 	}
 
 	return n, nil
@@ -226,14 +226,14 @@ func (c *controller) NetworkByName(name string) (Network, error) {
 
 func (c *controller) NetworkByID(id string) (Network, error) {
 	if id == "" {
-		return nil, ErrInvalidID
+		return nil, ErrInvalidID(id)
 	}
 	c.Lock()
 	defer c.Unlock()
 	if n, ok := c.networks[types.UUID(id)]; ok {
 		return n, nil
 	}
-	return nil, ErrNoSuchNetwork
+	return nil, ErrNoSuchNetwork(id)
 }
 
 func (c *controller) sandboxAdd(key string, create bool) (sandbox.Sandbox, error) {
@@ -286,13 +286,16 @@ func (c *controller) loadDriver(networkType string) (driverapi.Driver, error) {
 	// As per the design, this Get call will result in remote driver discovery if there is a corresponding plugin available.
 	_, err := plugins.Get(networkType, driverapi.NetworkPluginEndpointType)
 	if err != nil {
+		if err == plugins.ErrNotFound {
+			return nil, types.NotFoundErrorf(err.Error())
+		}
 		return nil, err
 	}
 	c.Lock()
 	defer c.Unlock()
 	d, ok := c.drivers[networkType]
 	if !ok {
-		return nil, ErrInvalidNetworkDriver
+		return nil, ErrInvalidNetworkDriver(networkType)
 	}
 	return d, nil
 }

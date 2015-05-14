@@ -109,7 +109,7 @@ func Init(dc driverapi.DriverCallback) error {
 // Whatever can be assessed a priori before attempting any programming.
 func (c *NetworkConfiguration) Validate() error {
 	if c.Mtu < 0 {
-		return ErrInvalidMtu
+		return ErrInvalidMtu(c.Mtu)
 	}
 
 	// If bridge v4 subnet is specified
@@ -118,19 +118,19 @@ func (c *NetworkConfiguration) Validate() error {
 		if c.FixedCIDR != nil {
 			// Check Network address
 			if !c.AddressIPv4.Contains(c.FixedCIDR.IP) {
-				return ErrInvalidContainerSubnet
+				return &ErrInvalidContainerSubnet{}
 			}
 			// Check it is effectively a subset
 			brNetLen, _ := c.AddressIPv4.Mask.Size()
 			cnNetLen, _ := c.FixedCIDR.Mask.Size()
 			if brNetLen > cnNetLen {
-				return ErrInvalidContainerSubnet
+				return &ErrInvalidContainerSubnet{}
 			}
 		}
 		// If default gw is specified, it must be part of bridge subnet
 		if c.DefaultGatewayIPv4 != nil {
 			if !c.AddressIPv4.Contains(c.DefaultGatewayIPv4) {
-				return ErrInvalidGateway
+				return &ErrInvalidGateway{}
 			}
 		}
 	}
@@ -138,7 +138,7 @@ func (c *NetworkConfiguration) Validate() error {
 	// If default v6 gw is specified, FixedCIDRv6 must be specified and gw must belong to FixedCIDRv6 subnet
 	if c.EnableIPv6 && c.DefaultGatewayIPv6 != nil {
 		if c.FixedCIDRv6 == nil || !c.FixedCIDRv6.Contains(c.DefaultGatewayIPv6) {
-			return ErrInvalidGateway
+			return &ErrInvalidGateway{}
 		}
 	}
 
@@ -167,7 +167,7 @@ func (d *driver) Config(option map[string]interface{}) error {
 	defer d.Unlock()
 
 	if d.config != nil {
-		return ErrConfigExists
+		return &ErrConfigExists{}
 	}
 
 	genericData, ok := option[netlabel.GenericData]
@@ -182,7 +182,7 @@ func (d *driver) Config(option map[string]interface{}) error {
 		case *Configuration:
 			config = opt
 		default:
-			return ErrInvalidDriverConfig
+			return &ErrInvalidDriverConfig{}
 		}
 
 		d.config = config
@@ -220,7 +220,7 @@ func parseNetworkOptions(option options.Generic) (*NetworkConfiguration, error) 
 		case *NetworkConfiguration:
 			config = opt
 		default:
-			return nil, ErrInvalidNetworkConfig
+			return nil, &ErrInvalidNetworkConfig{}
 		}
 
 		if err := config.Validate(); err != nil {
@@ -247,7 +247,7 @@ func (d *driver) CreateNetwork(id types.UUID, option map[string]interface{}) err
 	// Sanity checks
 	if d.network != nil {
 		d.Unlock()
-		return ErrNetworkExists
+		return &ErrNetworkExists{}
 	}
 
 	// Create and set network handler in driver
@@ -361,7 +361,7 @@ func (d *driver) DeleteNetwork(nid types.UUID) error {
 
 	// Sanity check
 	if n == nil {
-		err = driverapi.ErrNoNetwork
+		err = driverapi.ErrNoNetwork(nid)
 		return err
 	}
 
@@ -397,7 +397,7 @@ func (d *driver) CreateEndpoint(nid, eid types.UUID, epInfo driverapi.EndpointIn
 	config := n.config
 	d.Unlock()
 	if n == nil {
-		return driverapi.ErrNoNetwork
+		return driverapi.ErrNoNetwork(nid)
 	}
 
 	// Sanity check
@@ -416,7 +416,7 @@ func (d *driver) CreateEndpoint(nid, eid types.UUID, epInfo driverapi.EndpointIn
 
 	// Endpoint with that id exists either on desired or other sandbox
 	if ep != nil {
-		return driverapi.ErrEndpointExists
+		return driverapi.ErrEndpointExists(eid)
 	}
 
 	// Try to convert the options to endpoint configuration
@@ -578,7 +578,7 @@ func (d *driver) DeleteEndpoint(nid, eid types.UUID) error {
 	config := n.config
 	d.Unlock()
 	if n == nil {
-		return driverapi.ErrNoNetwork
+		return driverapi.ErrNoNetwork(nid)
 	}
 
 	// Sanity Check
@@ -648,7 +648,7 @@ func (d *driver) EndpointOperInfo(nid, eid types.UUID) (map[string]interface{}, 
 	n := d.network
 	d.Unlock()
 	if n == nil {
-		return nil, driverapi.ErrNoNetwork
+		return nil, driverapi.ErrNoNetwork(nid)
 	}
 
 	// Sanity check
@@ -665,7 +665,7 @@ func (d *driver) EndpointOperInfo(nid, eid types.UUID) (map[string]interface{}, 
 		return nil, err
 	}
 	if ep == nil {
-		return nil, driverapi.ErrNoEndpoint
+		return nil, driverapi.ErrNoEndpoint(eid)
 	}
 
 	m := make(map[string]interface{})
@@ -856,7 +856,7 @@ func parseEndpointOptions(epOptions map[string]interface{}) (*EndpointConfigurat
 		if mac, ok := opt.(net.HardwareAddr); ok {
 			ec.MacAddress = mac
 		} else {
-			return nil, ErrInvalidEndpointConfig
+			return nil, &ErrInvalidEndpointConfig{}
 		}
 	}
 
@@ -864,7 +864,7 @@ func parseEndpointOptions(epOptions map[string]interface{}) (*EndpointConfigurat
 		if bs, ok := opt.([]types.PortBinding); ok {
 			ec.PortBindings = bs
 		} else {
-			return nil, ErrInvalidEndpointConfig
+			return nil, &ErrInvalidEndpointConfig{}
 		}
 	}
 
@@ -872,7 +872,7 @@ func parseEndpointOptions(epOptions map[string]interface{}) (*EndpointConfigurat
 		if ports, ok := opt.([]types.TransportPort); ok {
 			ec.ExposedPorts = ports
 		} else {
-			return nil, ErrInvalidEndpointConfig
+			return nil, &ErrInvalidEndpointConfig{}
 		}
 	}
 
@@ -924,5 +924,5 @@ func generateIfaceName() (string, error) {
 			return "", err
 		}
 	}
-	return "", ErrIfaceName
+	return "", &ErrIfaceName{}
 }
