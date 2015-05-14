@@ -116,14 +116,8 @@ func TestEndpointAuthorizeToken(t *testing.T) {
 	e, c := testServerWithAuth(m, authenicate, validCheck)
 	defer c()
 
-	repo1Config := &RepositoryConfig{
-		AuthSource: NewTokenAuthorizer(nil, nil, nil, tokenScope1),
-	}
-
-	client, err := repo1Config.HTTPClient()
-	if err != nil {
-		t.Fatalf("Error creating http client: %s", err)
-	}
+	transport1 := NewTransport(nil, NewAuthorizer(nil, NewTokenHandler(nil, nil, tokenScope1)))
+	client := &http.Client{Transport: transport1}
 
 	req, _ := http.NewRequest("GET", e+"/v2/hello", nil)
 	resp, err := client.Do(req)
@@ -141,13 +135,8 @@ func TestEndpointAuthorizeToken(t *testing.T) {
 	e2, c2 := testServerWithAuth(m, authenicate, badCheck)
 	defer c2()
 
-	repo2Config := &RepositoryConfig{
-		AuthSource: NewTokenAuthorizer(nil, nil, nil, tokenScope2),
-	}
-	client2, err := repo2Config.HTTPClient()
-	if err != nil {
-		t.Fatalf("Error creating http client: %s", err)
-	}
+	transport2 := NewTransport(nil, NewAuthorizer(nil, NewTokenHandler(nil, nil, tokenScope2)))
+	client2 := &http.Client{Transport: transport2}
 
 	req, _ = http.NewRequest("GET", e2+"/v2/hello", nil)
 	resp, err = client2.Do(req)
@@ -220,14 +209,9 @@ func TestEndpointAuthorizeTokenBasic(t *testing.T) {
 		username: username,
 		password: password,
 	}
-	repoConfig := &RepositoryConfig{
-		AuthSource: NewTokenAuthorizer(creds, nil, nil, tokenScope),
-	}
 
-	client, err := repoConfig.HTTPClient()
-	if err != nil {
-		t.Fatalf("Error creating http client: %s", err)
-	}
+	transport1 := NewTransport(nil, NewAuthorizer(nil, NewTokenHandler(nil, creds, tokenScope), NewBasicHandler(creds)))
+	client := &http.Client{Transport: transport1}
 
 	req, _ := http.NewRequest("GET", e+"/v2/hello", nil)
 	resp, err := client.Do(req)
@@ -265,14 +249,9 @@ func TestEndpointAuthorizeBasic(t *testing.T) {
 		username: username,
 		password: password,
 	}
-	repoConfig := &RepositoryConfig{
-		AuthSource: NewTokenAuthorizer(creds, nil, nil, TokenScope{}),
-	}
 
-	client, err := repoConfig.HTTPClient()
-	if err != nil {
-		t.Fatalf("Error creating http client: %s", err)
-	}
+	transport1 := NewTransport(nil, NewAuthorizer(nil, NewBasicHandler(creds)))
+	client := &http.Client{Transport: transport1}
 
 	req, _ := http.NewRequest("GET", e+"/v2/hello", nil)
 	resp, err := client.Do(req)
