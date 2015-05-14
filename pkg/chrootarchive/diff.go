@@ -9,10 +9,10 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"syscall"
 
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/reexec"
+	"github.com/docker/docker/pkg/system"
 )
 
 type applyLayerResponse struct {
@@ -20,23 +20,40 @@ type applyLayerResponse struct {
 }
 
 func applyLayer() {
+
+	var (
+		root   = "/"
+		tmpDir = ""
+		err    error
+	)
+
 	runtime.LockOSThread()
 	flag.Parse()
 
-	if err := chroot(flag.Arg(0)); err != nil {
-		fatal(err)
+	if runtime.GOOS != "windows" {
+		if err := chroot(flag.Arg(0)); err != nil {
+			fatal(err)
+		}
+
+		// We need to be able to set any perms
+		oldmask, err := system.Umask(0)
+		defer system.Umask(oldmask)
+		if err != nil {
+			fatal(err)
+		}
+	} else {
+		// As Windows does not support chroot or umask, we use the directory
+		// passed in which will be <pathto>\docker-buildnnnnnnnn instead of
+		// the 'chroot-root', "/"
+		root = flag.Arg(0)
 	}
 
-	// We need to be able to set any perms
-	oldmask := syscall.Umask(0)
-	defer syscall.Umask(oldmask)
-	tmpDir, err := ioutil.TempDir("/", "temp-docker-extract")
-	if err != nil {
+	if tmpDir, err = ioutil.TempDir(root, "temp-docker-extract"); err != nil {
 		fatal(err)
 	}
 
 	os.Setenv("TMPDIR", tmpDir)
-	size, err := archive.UnpackLayer("/", os.Stdin)
+	size, err := archive.UnpackLayer(root, os.Stdin)
 	os.RemoveAll(tmpDir)
 	if err != nil {
 		fatal(err)
