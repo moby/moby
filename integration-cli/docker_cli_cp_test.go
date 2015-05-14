@@ -23,6 +23,18 @@ const (
 	cpHostContents      = "hello, i am the host"
 )
 
+// Ensure that an all-local path case returns an error.
+func (s *DockerSuite) TestCpLocalOnly(c *check.C) {
+	err := runDockerCp(c, "foo", "bar")
+	if err == nil {
+		c.Fatal("expected failure, got success")
+	}
+
+	if !strings.Contains(err.Error(), "must specify at least one container source") {
+		c.Fatalf("unexpected output: %s", err.Error())
+	}
+}
+
 // Test for #5656
 // Check that garbage paths don't escape the container's rootfs
 func (s *DockerSuite) TestCpGarbagePath(c *check.C) {
