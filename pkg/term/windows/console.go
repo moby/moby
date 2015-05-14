@@ -6,10 +6,12 @@ import (
 	"io"
 	"os"
 	"syscall"
+
+	. "github.com/Azure/go-ansiterm/winterm"
 )
 
-// ConsoleStreams, for each standard stream referencing a console, returns a wrapped
-// version that handles ANSI character sequences.
+// ConsoleStreams, for each standard stream referencing a console, returns a wrapped version
+// that handles ANSI character sequences.
 func ConsoleStreams() (stdIn io.ReadCloser, stdOut, stdErr io.Writer) {
 	if IsConsole(os.Stdin.Fd()) {
 		stdIn = newAnsiReader(syscall.STD_INPUT_HANDLE)
@@ -33,22 +35,22 @@ func ConsoleStreams() (stdIn io.ReadCloser, stdOut, stdErr io.Writer) {
 }
 
 // GetHandleInfo returns file descriptor and bool indicating whether the file is a console.
-func GetHandleInfo(stream interface{}) (uintptr, bool) {
-	switch stream := stream.(type) {
+func GetHandleInfo(in interface{}) (uintptr, bool) {
+	switch t := in.(type) {
 	case *ansiReader:
-		return stream.Fd(), true
+		return t.Fd(), true
 	case *ansiWriter:
-		return stream.Fd(), true
+		return t.Fd(), true
 	}
 
-	var streamFd uintptr
+	var inFd uintptr
 	var isTerminal bool
 
-	if file, ok := stream.(*os.File); ok {
-		streamFd = file.Fd()
-		isTerminal = IsConsole(streamFd)
+	if file, ok := in.(*os.File); ok {
+		inFd = file.Fd()
+		isTerminal = IsConsole(inFd)
 	}
-	return streamFd, isTerminal
+	return inFd, isTerminal
 }
 
 // IsConsole returns true if the given file descriptor is a Windows Console.

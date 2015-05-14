@@ -1,6 +1,6 @@
 // +build windows
 
-package windows
+package winterm
 
 import (
 	"fmt"
@@ -12,21 +12,20 @@ import (
 // IMPORTANT NOTE:
 //
 //	The methods below make extensive use of the "unsafe" package to obtain the required pointers.
-//	Beginning in Go 1.3, the garbage collector may release local variables the pointers reference *before*
-// 	the API completes.
+//	Beginning in Go 1.3, the garbage collector may release local variables (e.g., incoming arguments, stack
+//	variables) the pointers reference *before* the API completes.
 //
-//	Variables passed to Windows on the stack -- such as integer values and COORD structures -- need no
-//	protection; their values live on the Windows stack. Any element to which Windows receives only a
-//	pointer should be protected. The best protection is for the API caller to not pass the structure, but
-//	to pass a pointer to the structure (which is then passed along to Windows). Passing the pointer will
-//	keep the backing object live until the stack unwinds.
+//  As a result, in those cases, the code must hint that the variables remain in active by invoking the
+//	dummy method "use" (see below). Newer versions of Go are planned to change the mechanism to no longer
+//	require unsafe pointers.
 //
-//	If you add or modify methods, ENSURE protection of local variables if:
+//	If you add or modify methods, ENSURE protection of local variables through the "use" builtin to inform
+//	the garbage collector the variables remain in use if:
 //
-//	-- The value will not be pushed onto the Windows stack (e.g., struct)
+//	-- The value is not a pointer (e.g., int32, struct)
 //	-- The value is not referenced by the method after passing the pointer to Windows
 //
-//	See https://golang.org/doc/go1.3#garbage_collector.
+//	See http://golang.org/doc/go1.3.
 //===========================================================================================================
 
 var (
@@ -38,6 +37,7 @@ var (
 	setConsoleModeProc             = kernel32DLL.NewProc("SetConsoleMode")
 	getConsoleScreenBufferInfoProc = kernel32DLL.NewProc("GetConsoleScreenBufferInfo")
 	setConsoleScreenBufferSizeProc = kernel32DLL.NewProc("SetConsoleScreenBufferSize")
+	scrollConsoleScreenBufferProc  = kernel32DLL.NewProc("ScrollConsoleScreenBufferA")
 	setConsoleTextAttributeProc    = kernel32DLL.NewProc("SetConsoleTextAttribute")
 	setConsoleWindowInfoProc       = kernel32DLL.NewProc("SetConsoleWindowInfo")
 	getCurrentConsoleFontProc      = kernel32DLL.NewProc("GetCurrentConsoleFont")
@@ -91,7 +91,14 @@ const (
 	MENU_EVENT               = 0x0008
 	FOCUS_EVENT              = 0x0010
 
-	// WaitForSingleObject wait duration (additional to those in the syscall package)
+	// WaitForSingleObject return codes
+	WAIT_ABANDONED = 0x00000080
+	WAIT_FAILED    = 0xFFFFFFFF
+	WAIT_SIGNALED  = 0x0000000
+	WAIT_TIMEOUT   = 0x00000102
+
+	// WaitForSingleObject wait duration
+	WAIT_INFINITE       = 0xFFFFFFFF
 	WAIT_ONE_SECOND     = 1000
 	WAIT_HALF_SECOND    = 500
 	WAIT_QUARTER_SECOND = 250
@@ -164,6 +171,15 @@ type (
 	}
 )
 
+// boolToBOOL converts a Go bool into a Windows BOOL.
+func boolToBOOL(f bool) BOOL {
+	if f {
+		return BOOL(1)
+	} else {
+		return BOOL(0)
+	}
+}
+
 // GetConsoleCursorInfo retrieves information about the size and visiblity of the console cursor.
 // See https://msdn.microsoft.com/en-us/library/windows/desktop/ms683163(v=vs.85).aspx.
 func GetConsoleCursorInfo(handle uintptr, cursorInfo *CONSOLE_CURSOR_INFO) error {
@@ -180,8 +196,9 @@ func SetConsoleCursorInfo(handle uintptr, cursorInfo *CONSOLE_CURSOR_INFO) error
 
 // SetConsoleCursorPosition location of the console cursor.
 // See https://msdn.microsoft.com/en-us/library/windows/desktop/ms686025(v=vs.85).aspx.
-func SetConsoleCursorPosition(handle uintptr, coord *COORD) error {
-	r1, r2, err := setConsoleCursorPositionProc.Call(handle, coordToPointer(*coord))
+func SetConsoleCursorPosition(handle uintptr, coord COORD) error {
+	r1, r2, err := setConsoleCursorPositionProc.Call(handle, coordToPointer(coord))
+	use(coord)
 	return checkError(r1, r2, err)
 }
 
@@ -196,6 +213,7 @@ func GetConsoleMode(handle uintptr) (mode uint32, err error) {
 // See http://msdn.microsoft.com/en-us/library/windows/desktop/ms686033(v=vs.85).aspx.
 func SetConsoleMode(handle uintptr, mode uint32) error {
 	r1, r2, err := setConsoleModeProc.Call(handle, uintptr(mode), 0)
+	use(mode)
 	return checkError(r1, r2, err)
 }
 
@@ -210,10 +228,20 @@ func GetConsoleScreenBufferInfo(handle uintptr) (*CONSOLE_SCREEN_BUFFER_INFO, er
 	return &info, nil
 }
 
+func ScrollConsoleScreenBuffer(handle uintptr, scrollRect SMALL_RECT, clipRect SMALL_RECT, destOrigin COORD, char CHAR_INFO) error {
+	r1, r2, err := scrollConsoleScreenBufferProc.Call(handle, uintptr(unsafe.Pointer(&scrollRect)), uintptr(unsafe.Pointer(&clipRect)), coordToPointer(destOrigin), uintptr(unsafe.Pointer(&char)))
+	use(scrollRect)
+	use(clipRect)
+	use(destOrigin)
+	use(char)
+	return checkError(r1, r2, err)
+}
+
 // SetConsoleScreenBufferSize sets the size of the console screen buffer.
 // See https://msdn.microsoft.com/en-us/library/windows/desktop/ms686044(v=vs.85).aspx.
-func SetConsoleScreenBufferSize(handle uintptr, coord *COORD) error {
-	r1, r2, err := setConsoleScreenBufferSizeProc.Call(handle, coordToPointer(*coord))
+func SetConsoleScreenBufferSize(handle uintptr, coord COORD) error {
+	r1, r2, err := setConsoleScreenBufferSizeProc.Call(handle, coordToPointer(coord))
+	use(coord)
 	return checkError(r1, r2, err)
 }
 
@@ -222,14 +250,17 @@ func SetConsoleScreenBufferSize(handle uintptr, coord *COORD) error {
 // See http://msdn.microsoft.com/en-us/library/windows/desktop/ms686047(v=vs.85).aspx.
 func SetConsoleTextAttribute(handle uintptr, attribute WORD) error {
 	r1, r2, err := setConsoleTextAttributeProc.Call(handle, uintptr(attribute), 0)
+	use(attribute)
 	return checkError(r1, r2, err)
 }
 
 // SetConsoleWindowInfo sets the size and position of the console screen buffer's window.
 // Note that the size and location must be within and no larger than the backing console screen buffer.
 // See https://msdn.microsoft.com/en-us/library/windows/desktop/ms686125(v=vs.85).aspx.
-func SetConsoleWindowInfo(handle uintptr, isAbsolute bool, rect *SMALL_RECT) error {
-	r1, r2, err := setConsoleWindowInfoProc.Call(handle, uintptr(boolToBOOL(isAbsolute)), uintptr(unsafe.Pointer(rect)))
+func SetConsoleWindowInfo(handle uintptr, isAbsolute bool, rect SMALL_RECT) error {
+	r1, r2, err := setConsoleWindowInfoProc.Call(handle, uintptr(boolToBOOL(isAbsolute)), uintptr(unsafe.Pointer(&rect)))
+	use(isAbsolute)
+	use(rect)
 	return checkError(r1, r2, err)
 }
 
@@ -246,8 +277,11 @@ func GetCurrentConsoleFont(handle uintptr) (*CONSOLE_FONT_INFO, error) {
 
 // WriteConsoleOutput writes the CHAR_INFOs from the provided buffer to the active console buffer.
 // See https://msdn.microsoft.com/en-us/library/windows/desktop/ms687404(v=vs.85).aspx.
-func WriteConsoleOutput(handle uintptr, buffer []CHAR_INFO, bufferSize *COORD, bufferCoord *COORD, writeRegion *SMALL_RECT) error {
-	r1, r2, err := writeConsoleOutputProc.Call(handle, uintptr(unsafe.Pointer(&buffer[0])), coordToPointer(*bufferSize), coordToPointer(*bufferCoord), uintptr(unsafe.Pointer(writeRegion)))
+func WriteConsoleOutput(handle uintptr, buffer []CHAR_INFO, bufferSize COORD, bufferCoord COORD, writeRegion *SMALL_RECT) error {
+	r1, r2, err := writeConsoleOutputProc.Call(handle, uintptr(unsafe.Pointer(&buffer[0])), coordToPointer(bufferSize), coordToPointer(bufferCoord), uintptr(unsafe.Pointer(writeRegion)))
+	use(buffer)
+	use(bufferSize)
+	use(bufferCoord)
 	return checkError(r1, r2, err)
 }
 
@@ -255,6 +289,7 @@ func WriteConsoleOutput(handle uintptr, buffer []CHAR_INFO, bufferSize *COORD, b
 // See https://msdn.microsoft.com/en-us/library/windows/desktop/ms684961(v=vs.85).aspx.
 func ReadConsoleInput(handle uintptr, buffer []INPUT_RECORD, count *uint32) error {
 	r1, r2, err := readConsoleInputProc.Call(handle, uintptr(unsafe.Pointer(&buffer[0])), uintptr(len(buffer)), uintptr(unsafe.Pointer(count)))
+	use(buffer)
 	return checkError(r1, r2, err)
 }
 
@@ -264,15 +299,13 @@ func ReadConsoleInput(handle uintptr, buffer []INPUT_RECORD, count *uint32) erro
 func WaitForSingleObject(handle uintptr, msWait uint32) (bool, error) {
 	r1, _, err := waitForSingleObjectProc.Call(handle, uintptr(DWORD(msWait)))
 	switch r1 {
-	case syscall.WAIT_ABANDONED, syscall.WAIT_TIMEOUT:
+	case WAIT_ABANDONED, WAIT_TIMEOUT:
 		return false, nil
-	case syscall.WAIT_OBJECT_0:
+	case WAIT_SIGNALED:
 		return true, nil
-	case syscall.WAIT_FAILED:
-		fallthrough
-	default:
-		return false, err
 	}
+	use(msWait)
+	return false, err
 }
 
 // String helpers
@@ -286,15 +319,6 @@ func (coord COORD) String() string {
 
 func (rect SMALL_RECT) String() string {
 	return fmt.Sprintf("(%v,%v),(%v,%v)", rect.Left, rect.Top, rect.Right, rect.Bottom)
-}
-
-// boolToBOOL converts a Go bool into a Windows BOOL.
-func boolToBOOL(f bool) BOOL {
-	if f {
-		return BOOL(1)
-	} else {
-		return BOOL(0)
-	}
 }
 
 // checkError evaluates the results of a Windows API call and returns the error if it failed.
@@ -312,8 +336,11 @@ func checkError(r1, r2 uintptr, err error) error {
 }
 
 // coordToPointer converts a COORD into a uintptr (by fooling the type system).
-// WARNING: This code assumes the two SHORTs are correctly laid out; the "cast" to DWORD is just to get a pointer to pass.
-// TODO(azlinux): We should rewrite this to use a cgo package.
 func coordToPointer(c COORD) uintptr {
+	// Note: This code assumes the two SHORTs are correctly laid out; the "cast" to DWORD is just to get a pointer to pass.
 	return uintptr(*((*DWORD)(unsafe.Pointer(&c))))
 }
+
+// use is a no-op, but the compiler cannot see that it is.
+// Calling use(p) ensures that p is kept live until that point.
+func use(p interface{}) {}

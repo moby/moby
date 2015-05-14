@@ -4,36 +4,35 @@ package windows
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
-	"syscall"
 	"unsafe"
 
-	"github.com/Sirupsen/logrus"
+	. "github.com/Azure/go-ansiterm"
+	. "github.com/Azure/go-ansiterm/winterm"
 )
-
-// Empty record used solely to obtain size
-var inputRecord = INPUT_RECORD{}
 
 // ansiReader wraps a standard input file (e.g., os.Stdin) providing ANSI sequence translation.
 type ansiReader struct {
 	file     *os.File
 	fd       uintptr
-	buffer   []byte // Buffer of read bytes to process
-	cbBuffer int    // Number of unprocessed bytes remaining in buffer
+	buffer   []byte
+	cbBuffer int
 	command  []byte
 	// TODO(azlinux): Remove this and hard-code the string -- it is not going to change
 	escapeSequence []byte
 }
 
 func newAnsiReader(nFile int) *ansiReader {
-	file, fd := getStdFile(nFile)
+	file, fd := GetStdFile(nFile)
 	return &ansiReader{
 		file:           file,
 		fd:             fd,
 		command:        make([]byte, 0, ANSI_MAX_CMD_LENGTH),
 		escapeSequence: []byte(KEY_ESC_CSI),
+		buffer:         make([]byte, 0),
 	}
 }
 
@@ -48,39 +47,76 @@ func (ar *ansiReader) Fd() uintptr {
 }
 
 // Read reads up to len(p) bytes of translated input events into p.
-func (ar *ansiReader) Read(p []byte) (n int, err error) {
+func (ar *ansiReader) Read(p []byte) (int, error) {
 	if len(p) == 0 {
 		return 0, nil
 	}
 
-	for ar.cbBuffer <= 0 {
-		events, err := readInputEvents(ar.fd, len(p))
-		if err != nil {
-			return 0, err
+	// Previously read bytes exist, read as much as we can and return
+	if len(ar.buffer) > 0 {
+		logger.Debugf("Reading previously cached bytes")
+
+		originalLength := len(ar.buffer)
+		copiedLength := copy(p, ar.buffer)
+
+		if copiedLength == originalLength {
+			ar.buffer = make([]byte, 0, len(p))
+		} else {
+			ar.buffer = ar.buffer[copiedLength:]
 		}
-		ar.buffer = make([]byte, int(unsafe.Sizeof(events[0]))*len(events))
-		ar.cbBuffer = copy(ar.buffer, translateKeyEvents(events, ar.escapeSequence))
+
+		logger.Debugf("Read from cache p[%d]: % x", copiedLength, p)
+		return copiedLength, nil
 	}
 
-	n = copy(p, ar.buffer)
-	ar.cbBuffer -= n
-	return n, nil
+	// Read and translate key events
+	events, err := readInputEvents(ar.fd, len(p))
+	if err != nil {
+		return 0, err
+	} else if len(events) == 0 {
+		logger.Debug("No input events detected")
+		return 0, nil
+	}
+
+	keyBytes := translateKeyEvents(events, ar.escapeSequence)
+
+	// Save excess bytes and right-size keyBytes
+	if len(keyBytes) > len(p) {
+		logger.Debugf("Received %d keyBytes, only room for %d bytes", len(keyBytes), len(p))
+		ar.buffer = keyBytes[len(p):]
+		keyBytes = keyBytes[:len(p)]
+	} else if len(keyBytes) == 0 {
+		logger.Debug("No key bytes returned from the translater")
+		return 0, nil
+	}
+
+	copiedLength := copy(p, keyBytes)
+	if copiedLength != len(keyBytes) {
+		return 0, errors.New("Unexpected copy length encountered.")
+	}
+
+	logger.Debugf("Read        p[%d]: % x", copiedLength, p)
+	logger.Debugf("Read keyBytes[%d]: % x", copiedLength, keyBytes)
+	return copiedLength, nil
 }
 
 // readInputEvents polls until at least one event is available.
 func readInputEvents(fd uintptr, maxBytes int) ([]INPUT_RECORD, error) {
 	// Determine the maximum number of records to retrieve
-	recordSize := int(unsafe.Sizeof(inputRecord))
+	// -- Cast around the type system to obtain the size of a single INPUT_RECORD.
+	//    unsafe.Sizeof requires an expression vs. a type-reference; the casting
+	//    tricks the type system into believing it has such an expression.
+	recordSize := int(unsafe.Sizeof(*((*INPUT_RECORD)(unsafe.Pointer(&maxBytes)))))
 	countRecords := maxBytes / recordSize
 	if countRecords > MAX_INPUT_EVENTS {
 		countRecords = MAX_INPUT_EVENTS
 	}
-	logrus.Debugf("[windows] readInputEvents: Reading %d records (buffer size %d, record size %d)", countRecords, maxBytes, recordSize)
+	logger.Debugf("[windows] readInputEvents: Reading %v records (buffer size %v, record size %v)", countRecords, maxBytes, recordSize)
 
 	// Wait for and read input events
 	events := make([]INPUT_RECORD, countRecords)
 	nEvents := uint32(0)
-	eventsExist, err := WaitForSingleObject(fd, syscall.INFINITE)
+	eventsExist, err := WaitForSingleObject(fd, WAIT_INFINITE)
 	if err != nil {
 		return nil, err
 	}
@@ -93,7 +129,7 @@ func readInputEvents(fd uintptr, maxBytes int) ([]INPUT_RECORD, error) {
 	}
 
 	// Return a slice restricted to the number of returned records
-	logrus.Debugf("[windows] readInputEvents: Read %d events", nEvents)
+	logger.Debugf("[windows] readInputEvents: Read %v events", nEvents)
 	return events[:nEvents], nil
 }
 
@@ -132,14 +168,15 @@ var keyMapPrefix = map[WORD]string{
 }
 
 // translateKeyEvents converts the input events into the appropriate ANSI string.
-func translateKeyEvents(events []INPUT_RECORD, escapeSequence []byte) string {
+func translateKeyEvents(events []INPUT_RECORD, escapeSequence []byte) []byte {
 	var buffer bytes.Buffer
 	for _, event := range events {
 		if event.EventType == KEY_EVENT && event.KeyEvent.KeyDown != 0 {
 			buffer.WriteString(keyToString(&event.KeyEvent, escapeSequence))
 		}
 	}
-	return buffer.String()
+
+	return buffer.Bytes()
 }
 
 // keyToString maps the given input event record to the corresponding string.
