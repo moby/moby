@@ -31,7 +31,7 @@ func (cli *DockerCli) CmdRmi(args ...string) error {
 
 	var errNames []string
 	for _, name := range cmd.Args() {
-		rdr, _, err := cli.call("DELETE", "/images/"+name+"?"+v.Encode(), nil, nil)
+		rdr, _, _, err := cli.call("DELETE", "/images/"+name+"?"+v.Encode(), nil, nil)
 		if err != nil {
 			fmt.Fprintf(cli.err, "%s\n", err)
 			errNames = append(errNames, name)

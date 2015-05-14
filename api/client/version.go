@@ -36,7 +36,7 @@ func (cli *DockerCli) CmdVersion(args ...string) error {
 		fmt.Fprintf(cli.out, "Experimental (client): true\n")
 	}
 
-	stream, _, err := cli.call("GET", "/version", nil, nil)
+	stream, _, _, err := cli.call("GET", "/version", nil, nil)
 	if err != nil {
 		return err
 	}

@@ -61,7 +61,7 @@ func (cli *DockerCli) CmdStart(args ...string) error {
 			return fmt.Errorf("You cannot start and attach multiple containers at once.")
 		}
 
-		stream, _, err := cli.call("GET", "/containers/"+cmd.Arg(0)+"/json", nil, nil)
+		stream, _, _, err := cli.call("GET", "/containers/"+cmd.Arg(0)+"/json", nil, nil)
 		if err != nil {
 			return err
 		}

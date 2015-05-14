@@ -28,7 +28,7 @@ func (cli *DockerCli) CmdLogs(args ...string) error {
 
 	name := cmd.Arg(0)
 
-	stream, _, err := cli.call("GET", "/containers/"+name+"/json", nil, nil)
+	stream, _, _, err := cli.call("GET", "/containers/"+name+"/json", nil, nil)
 	if err != nil {
 		return err
 	}

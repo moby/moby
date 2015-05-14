@@ -24,7 +24,7 @@ func (cli *DockerCli) CmdHistory(args ...string) error {
 	cmd.Require(flag.Exact, 1)
 	cmd.ParseFlags(args, true)
 
-	rdr, _, err := cli.call("GET", "/images/"+cmd.Arg(0)+"/history", nil, nil)
+	rdr, _, _, err := cli.call("GET", "/images/"+cmd.Arg(0)+"/history", nil, nil)
 	if err != nil {
 		return err
 	}
