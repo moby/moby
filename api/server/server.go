@@ -812,14 +812,17 @@ func (s *Server) postImagesCreate(version version.Version, w http.ResponseWriter
 			OutStream: output,
 		}
 
-		newConfig, err := builder.BuildFromConfig(s.daemon, &runconfig.Config{}, imageImportConfig.Changes)
+		// 'err' MUST NOT be defined within this block, we need any error
+		// generated from the download to be available to the output
+		// stream processing below
+		var newConfig *runconfig.Config
+		newConfig, err = builder.BuildFromConfig(s.daemon, &runconfig.Config{}, imageImportConfig.Changes)
 		if err != nil {
 			return err
 		}
 		imageImportConfig.ContainerConfig = newConfig
 
 		err = s.daemon.Repositories().Import(src, repo, tag, imageImportConfig)
-
 	}
 	if err != nil {
 		if !output.Flushed() {
