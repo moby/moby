@@ -99,6 +99,7 @@ func (ms *manifests) Tags() ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer resp.Body.Close()
 
 	switch {
 	case resp.StatusCode == http.StatusOK:
