@@ -17,7 +17,7 @@ import (
 //
 // Usage: docker import [OPTIONS] URL [REPOSITORY[:TAG]]
 func (cli *DockerCli) CmdImport(args ...string) error {
-	cmd := cli.Subcmd("import", "URL|- [REPOSITORY[:TAG]]", "Create an empty filesystem image and import the contents of the\ntarball (.tar, .tar.gz, .tgz, .bzip, .tar.xz, .txz) into it, then\noptionally tag it.", true)
+	cmd := cli.Subcmd("import", []string{"URL|- [REPOSITORY[:TAG]]"}, "Create an empty filesystem image and import the contents of the\ntarball (.tar, .tar.gz, .tgz, .bzip, .tar.xz, .txz) into it, then\noptionally tag it.", true)
 	flChanges := opts.NewListOpts(nil)
 	cmd.Var(&flChanges, []string{"c", "-change"}, "Apply Dockerfile instruction to the created image")
 	cmd.Require(flag.Min, 1)
