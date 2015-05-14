@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	"github.com/docker/docker/cliconfig"
-	"github.com/docker/docker/pkg/requestdecorator"
 )
 
 var (
@@ -26,36 +25,25 @@ func spawnTestRegistrySession(t *testing.T) *Session {
 	if err != nil {
 		t.Fatal(err)
 	}
-	r, err := NewSession(authConfig, requestdecorator.NewRequestFactory(), endpoint, true)
+	var tr http.RoundTripper = debugTransport{NewTransport(ReceiveTimeout, endpoint.IsSecure)}
+	tr = &DockerHeaders{&authTransport{RoundTripper: tr, AuthConfig: authConfig}, nil}
+	client := HTTPClient(tr)
+	r, err := NewSession(client, authConfig, endpoint)
 	if err != nil {
 		t.Fatal(err)
 	}
+	// In a normal scenario for the v1 registry, the client should send a `X-Docker-Token: true`
+	// header while authenticating, in order to retrieve a token that can be later used to
+	// perform authenticated actions.
+	//
+	// The mock v1 registry does not support that, (TODO(tiborvass): support it), instead,
+	// it will consider authenticated any request with the header `X-Docker-Token: fake-token`.
+	//
+	// Because we know that the client's transport is an `*authTransport` we simply cast it,
+	// in order to set the internal cached token to the fake token, and thus send that fake token
+	// upon every subsequent requests.
+	r.client.Transport.(*authTransport).token = token
 	return r
-}
-
-func TestPublicSession(t *testing.T) {
-	authConfig := &cliconfig.AuthConfig{}
-
-	getSessionDecorators := func(index *IndexInfo) int {
-		endpoint, err := NewEndpoint(index)
-		if err != nil {
-			t.Fatal(err)
-		}
-		r, err := NewSession(authConfig, requestdecorator.NewRequestFactory(), endpoint, true)
-		if err != nil {
-			t.Fatal(err)
-		}
-		return len(r.reqFactory.GetDecorators())
-	}
-
-	decorators := getSessionDecorators(makeIndex("/v1/"))
-	assertEqual(t, decorators, 0, "Expected no decorator on http session")
-
-	decorators = getSessionDecorators(makeHttpsIndex("/v1/"))
-	assertNotEqual(t, decorators, 0, "Expected decorator on https session")
-
-	decorators = getSessionDecorators(makePublicIndex())
-	assertEqual(t, decorators, 0, "Expected no decorator on public session")
 }
 
 func TestPingRegistryEndpoint(t *testing.T) {
@@ -170,7 +158,7 @@ func TestEndpoint(t *testing.T) {
 
 func TestGetRemoteHistory(t *testing.T) {
 	r := spawnTestRegistrySession(t)
-	hist, err := r.GetRemoteHistory(imageID, makeURL("/v1/"), token)
+	hist, err := r.GetRemoteHistory(imageID, makeURL("/v1/"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -182,16 +170,16 @@ func TestGetRemoteHistory(t *testing.T) {
 
 func TestLookupRemoteImage(t *testing.T) {
 	r := spawnTestRegistrySession(t)
-	err := r.LookupRemoteImage(imageID, makeURL("/v1/"), token)
+	err := r.LookupRemoteImage(imageID, makeURL("/v1/"))
 	assertEqual(t, err, nil, "Expected error of remote lookup to nil")
-	if err := r.LookupRemoteImage("abcdef", makeURL("/v1/"), token); err == nil {
+	if err := r.LookupRemoteImage("abcdef", makeURL("/v1/")); err == nil {
 		t.Fatal("Expected error of remote lookup to not nil")
 	}
 }
 
 func TestGetRemoteImageJSON(t *testing.T) {
 	r := spawnTestRegistrySession(t)
-	json, size, err := r.GetRemoteImageJSON(imageID, makeURL("/v1/"), token)
+	json, size, err := r.GetRemoteImageJSON(imageID, makeURL("/v1/"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -200,7 +188,7 @@ func TestGetRemoteImageJSON(t *testing.T) {
 		t.Fatal("Expected non-empty json")
 	}
 
-	_, _, err = r.GetRemoteImageJSON("abcdef", makeURL("/v1/"), token)
+	_, _, err = r.GetRemoteImageJSON("abcdef", makeURL("/v1/"))
 	if err == nil {
 		t.Fatal("Expected image not found error")
 	}
@@ -208,7 +196,7 @@ func TestGetRemoteImageJSON(t *testing.T) {
 
 func TestGetRemoteImageLayer(t *testing.T) {
 	r := spawnTestRegistrySession(t)
-	data, err := r.GetRemoteImageLayer(imageID, makeURL("/v1/"), token, 0)
+	data, err := r.GetRemoteImageLayer(imageID, makeURL("/v1/"), 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -216,7 +204,7 @@ func TestGetRemoteImageLayer(t *testing.T) {
 		t.Fatal("Expected non-nil data result")
 	}
 
-	_, err = r.GetRemoteImageLayer("abcdef", makeURL("/v1/"), token, 0)
+	_, err = r.GetRemoteImageLayer("abcdef", makeURL("/v1/"), 0)
 	if err == nil {
 		t.Fatal("Expected image not found error")
 	}
@@ -224,14 +212,14 @@ func TestGetRemoteImageLayer(t *testing.T) {
 
 func TestGetRemoteTags(t *testing.T) {
 	r := spawnTestRegistrySession(t)
-	tags, err := r.GetRemoteTags([]string{makeURL("/v1/")}, REPO, token)
+	tags, err := r.GetRemoteTags([]string{makeURL("/v1/")}, REPO)
 	if err != nil {
 		t.Fatal(err)
 	}
 	assertEqual(t, len(tags), 1, "Expected one tag")
 	assertEqual(t, tags["latest"], imageID, "Expected tag latest to map to "+imageID)
 
-	_, err = r.GetRemoteTags([]string{makeURL("/v1/")}, "foo42/baz", token)
+	_, err = r.GetRemoteTags([]string{makeURL("/v1/")}, "foo42/baz")
 	if err == nil {
 		t.Fatal("Expected error when fetching tags for bogus repo")
 	}
@@ -265,7 +253,7 @@ func TestPushImageJSONRegistry(t *testing.T) {
 		Checksum: "sha256:1ac330d56e05eef6d438586545ceff7550d3bdcb6b19961f12c5ba714ee1bb37",
 	}
 
-	err := r.PushImageJSONRegistry(imgData, []byte{0x42, 0xdf, 0x0}, makeURL("/v1/"), token)
+	err := r.PushImageJSONRegistry(imgData, []byte{0x42, 0xdf, 0x0}, makeURL("/v1/"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -274,7 +262,7 @@ func TestPushImageJSONRegistry(t *testing.T) {
 func TestPushImageLayerRegistry(t *testing.T) {
 	r := spawnTestRegistrySession(t)
 	layer := strings.NewReader("")
-	_, _, err := r.PushImageLayerRegistry(imageID, layer, makeURL("/v1/"), token, []byte{})
+	_, _, err := r.PushImageLayerRegistry(imageID, layer, makeURL("/v1/"), []byte{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -694,7 +682,7 @@ func TestNewIndexInfo(t *testing.T) {
 
 func TestPushRegistryTag(t *testing.T) {
 	r := spawnTestRegistrySession(t)
-	err := r.PushRegistryTag("foo42/bar", imageID, "stable", makeURL("/v1/"), token)
+	err := r.PushRegistryTag("foo42/bar", imageID, "stable", makeURL("/v1/"))
 	if err != nil {
 		t.Fatal(err)
 	}

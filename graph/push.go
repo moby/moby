@@ -141,7 +141,7 @@ func lookupImageOnEndpoint(wg *sync.WaitGroup, r *registry.Session, out io.Write
 	images chan imagePushData, imagesToPush chan string) {
 	defer wg.Done()
 	for image := range images {
-		if err := r.LookupRemoteImage(image.id, image.endpoint, image.tokens); err != nil {
+		if err := r.LookupRemoteImage(image.id, image.endpoint); err != nil {
 			logrus.Errorf("Error in LookupRemoteImage: %s", err)
 			imagesToPush <- image.id
 			continue
@@ -199,7 +199,7 @@ func (s *TagStore) pushImageToEndpoint(endpoint string, out io.Writer, remoteNam
 		}
 		for _, tag := range tags[id] {
 			out.Write(sf.FormatStatus("", "Pushing tag for rev [%s] on {%s}", stringid.TruncateID(id), endpoint+"repositories/"+remoteName+"/tags/"+tag))
-			if err := r.PushRegistryTag(remoteName, id, tag, endpoint, repo.Tokens); err != nil {
+			if err := r.PushRegistryTag(remoteName, id, tag, endpoint); err != nil {
 				return err
 			}
 		}
@@ -258,7 +258,7 @@ func (s *TagStore) pushImage(r *registry.Session, out io.Writer, imgID, ep strin
 	}
 
 	// Send the json
-	if err := r.PushImageJSONRegistry(imgData, jsonRaw, ep, token); err != nil {
+	if err := r.PushImageJSONRegistry(imgData, jsonRaw, ep); err != nil {
 		if err == registry.ErrAlreadyExists {
 			out.Write(sf.FormatProgress(stringid.TruncateID(imgData.ID), "Image already pushed, skipping", nil))
 			return "", nil
@@ -284,14 +284,14 @@ func (s *TagStore) pushImage(r *registry.Session, out io.Writer, imgID, ep strin
 			NewLines:  false,
 			ID:        stringid.TruncateID(imgData.ID),
 			Action:    "Pushing",
-		}), ep, token, jsonRaw)
+		}), ep, jsonRaw)
 	if err != nil {
 		return "", err
 	}
 	imgData.Checksum = checksum
 	imgData.ChecksumPayload = checksumPayload
 	// Send the checksum
-	if err := r.PushImageChecksumRegistry(imgData, ep, token); err != nil {
+	if err := r.PushImageChecksumRegistry(imgData, ep); err != nil {
 		return "", err
 	}
 
@@ -514,7 +514,12 @@ func (s *TagStore) Push(localName string, imagePushConfig *ImagePushConfig) erro
 		return err
 	}
 
-	r, err := registry.NewSession(imagePushConfig.AuthConfig, registry.HTTPRequestFactory(imagePushConfig.MetaHeaders), endpoint, false)
+	// Adds Docker-specific headers as well as user-specified headers (metaHeaders)
+	tr := &registry.DockerHeaders{
+		registry.NewTransport(registry.NoTimeout, endpoint.IsSecure),
+		imagePushConfig.MetaHeaders,
+	}
+	r, err := registry.NewSession(client, imagePushConfig.AuthConfig, endpoint)
 	if err != nil {
 		return err
 	}
