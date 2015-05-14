@@ -340,7 +340,6 @@ made through a pull request.
 
 		people = [
 			"crosbymichael",
-			"erikh",
 			"estesp",
 			"icecrime",
 			"jfrazelle",
@@ -474,7 +473,6 @@ made through a pull request.
 
 			people = [
 				"duglin",
-				"erikh",
 				"tibor"
 			]
 
@@ -547,11 +545,6 @@ made through a pull request.
 	Name = "Evan Hazlett"
 	Email = "ejhazlett@gmail.com"
 	GitHub = "ehazlett"
-
-	[people.erikh]
-	Name = "Erik Hollensbe"
-	Email = "erik@docker.com"
-	GitHub = "erikh"
 
 	[people.erw]
 	Name = "Eric Windisch"
