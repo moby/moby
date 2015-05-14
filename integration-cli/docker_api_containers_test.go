@@ -811,8 +811,8 @@ func (s *DockerSuite) TestContainerApiPostCreateNull(c *check.C) {
 		"Domainname":"",
 		"Memory":0,
 		"MemorySwap":0,
-		"CpuShares":0,
-		"Cpuset":null,
+		"CpuShares":512,
+		"Cpuset":"0,1",
 		"AttachStdin":true,
 		"AttachStdout":true,
 		"AttachStderr":true,
@@ -863,6 +863,16 @@ func (s *DockerSuite) TestContainerApiPostCreateNull(c *check.C) {
 	c.Assert(outMemorySwap, check.Equals, "0")
 	if errMemorySwap != nil {
 		c.Fatal(errMemorySwap, outMemorySwap)
+	}
+	outCpuShares, errCpuShares := inspectField(container.Id, "HostConfig.CpuShares")
+	c.Assert(outCpuShares, check.Equals, "512")
+	if errCpuShares != nil {
+		c.Fatal(errCpuShares, outCpuShares)
+	}
+	outCpuSets, errCpuSets := inspectField(container.Id, "HostConfig.Cpuset")
+	c.Assert(outCpuSets, check.Equals, "0,1")
+	if errCpuSets != nil {
+		c.Fatal(errCpuSets, outCpuSets)
 	}
 }
 
