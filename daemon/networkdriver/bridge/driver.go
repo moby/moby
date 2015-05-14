@@ -591,7 +591,12 @@ func linkLocalIPv6FromMac(mac string) (string, error) {
 
 	hw[0] ^= 0x2
 
-	return fmt.Sprintf("fe80::%x%x:%xff:fe%x:%x%x/64", hw[0], hw[1], hw[2], hw[3], hw[4], hw[5]), nil
+	return fmt.Sprintf("fe80::%x:%x:%x:%x/64",
+			0x100*int(hw[0])+int(hw[1]),
+			0x100*int(hw[2])+0xff,
+			0xFE00+int(hw[3]),
+			0x100*int(hw[4])+int(hw[5])),
+		nil
 }
 
 // Allocate a network interface

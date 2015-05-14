@@ -149,6 +149,32 @@ func TestIPv6InterfaceAllocationRequest(t *testing.T) {
 	_ = newInterfaceAllocation(t, subnet, "", "", expectedIP, true)
 }
 
+func TestIPv6LinkLocalIPv6FromMac(t *testing.T) {
+	hw1 := "02:42:ac:11:00:12"
+	expectedIpv6Addr1 := "fe80::42:acff:fe11:12/64"
+
+	hw2 := "02:42:ac:11:01:02"
+	expectedIpv6Addr2 := "fe80::42:acff:fe11:102/64"
+
+	ipv6Addr1, err := linkLocalIPv6FromMac(hw1)
+	if err != nil {
+		t.Fatalf("Could not build IPv6 address from MAC address %s", hw1)
+	}
+
+	ipv6Addr2, err := linkLocalIPv6FromMac(hw2)
+	if err != nil {
+		t.Fatalf("Could not build IPv6 address from MAC address %s", hw2)
+	}
+
+	if ipv6Addr1 != expectedIpv6Addr1 {
+		t.Fatalf("MAC address %s results in link local IPv6 address %s - should be %s", hw1, ipv6Addr1, expectedIpv6Addr1)
+	}
+
+	if ipv6Addr2 != expectedIpv6Addr2 {
+		t.Fatalf("MAC address %s results in link local IPv6 address %s - should be %s", hw2, ipv6Addr2, expectedIpv6Addr2)
+	}
+}
+
 func TestMacAddrGeneration(t *testing.T) {
 	ip := net.ParseIP("192.168.0.1")
 	mac := generateMacAddr(ip).String()
