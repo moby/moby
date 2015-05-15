@@ -11,10 +11,10 @@ import (
 	"time"
 
 	"github.com/docker/distribution"
-	"github.com/docker/distribution/digest"
+	"github.com/docker/distribution/context"
 )
 
-type httpLayerUpload struct {
+type httpBlobUpload struct {
 	repo   distribution.Repository
 	client *http.Client
 
@@ -26,32 +26,32 @@ type httpLayerUpload struct {
 	closed   bool
 }
 
-func (hlu *httpLayerUpload) handleErrorResponse(resp *http.Response) error {
+func (hbu *httpBlobUpload) handleErrorResponse(resp *http.Response) error {
 	if resp.StatusCode == http.StatusNotFound {
-		return &BlobUploadNotFoundError{Location: hlu.location}
+		return &BlobUploadNotFoundError{Location: hbu.location}
 	}
 	return handleErrorResponse(resp)
 }
 
-func (hlu *httpLayerUpload) ReadFrom(r io.Reader) (n int64, err error) {
-	req, err := http.NewRequest("PATCH", hlu.location, ioutil.NopCloser(r))
+func (hbu *httpBlobUpload) ReadFrom(r io.Reader) (n int64, err error) {
+	req, err := http.NewRequest("PATCH", hbu.location, ioutil.NopCloser(r))
 	if err != nil {
 		return 0, err
 	}
 	defer req.Body.Close()
 
-	resp, err := hlu.client.Do(req)
+	resp, err := hbu.client.Do(req)
 	if err != nil {
 		return 0, err
 	}
 
 	if resp.StatusCode != http.StatusAccepted {
-		return 0, hlu.handleErrorResponse(resp)
+		return 0, hbu.handleErrorResponse(resp)
 	}
 
 	// TODO(dmcgowan): Validate headers
-	hlu.uuid = resp.Header.Get("Docker-Upload-UUID")
-	hlu.location, err = sanitizeLocation(resp.Header.Get("Location"), hlu.location)
+	hbu.uuid = resp.Header.Get("Docker-Upload-UUID")
+	hbu.location, err = sanitizeLocation(resp.Header.Get("Location"), hbu.location)
 	if err != nil {
 		return 0, err
 	}
@@ -67,27 +67,27 @@ func (hlu *httpLayerUpload) ReadFrom(r io.Reader) (n int64, err error) {
 
 }
 
-func (hlu *httpLayerUpload) Write(p []byte) (n int, err error) {
-	req, err := http.NewRequest("PATCH", hlu.location, bytes.NewReader(p))
+func (hbu *httpBlobUpload) Write(p []byte) (n int, err error) {
+	req, err := http.NewRequest("PATCH", hbu.location, bytes.NewReader(p))
 	if err != nil {
 		return 0, err
 	}
-	req.Header.Set("Content-Range", fmt.Sprintf("%d-%d", hlu.offset, hlu.offset+int64(len(p)-1)))
+	req.Header.Set("Content-Range", fmt.Sprintf("%d-%d", hbu.offset, hbu.offset+int64(len(p)-1)))
 	req.Header.Set("Content-Length", fmt.Sprintf("%d", len(p)))
 	req.Header.Set("Content-Type", "application/octet-stream")
 
-	resp, err := hlu.client.Do(req)
+	resp, err := hbu.client.Do(req)
 	if err != nil {
 		return 0, err
 	}
 
 	if resp.StatusCode != http.StatusAccepted {
-		return 0, hlu.handleErrorResponse(resp)
+		return 0, hbu.handleErrorResponse(resp)
 	}
 
 	// TODO(dmcgowan): Validate headers
-	hlu.uuid = resp.Header.Get("Docker-Upload-UUID")
-	hlu.location, err = sanitizeLocation(resp.Header.Get("Location"), hlu.location)
+	hbu.uuid = resp.Header.Get("Docker-Upload-UUID")
+	hbu.location, err = sanitizeLocation(resp.Header.Get("Location"), hbu.location)
 	if err != nil {
 		return 0, err
 	}
@@ -103,8 +103,8 @@ func (hlu *httpLayerUpload) Write(p []byte) (n int, err error) {
 
 }
 
-func (hlu *httpLayerUpload) Seek(offset int64, whence int) (int64, error) {
-	newOffset := hlu.offset
+func (hbu *httpBlobUpload) Seek(offset int64, whence int) (int64, error) {
+	newOffset := hbu.offset
 
 	switch whence {
 	case os.SEEK_CUR:
@@ -115,47 +115,47 @@ func (hlu *httpLayerUpload) Seek(offset int64, whence int) (int64, error) {
 		newOffset = int64(offset)
 	}
 
-	hlu.offset = newOffset
+	hbu.offset = newOffset
 
-	return hlu.offset, nil
+	return hbu.offset, nil
 }
 
-func (hlu *httpLayerUpload) UUID() string {
-	return hlu.uuid
+func (hbu *httpBlobUpload) ID() string {
+	return hbu.uuid
 }
 
-func (hlu *httpLayerUpload) StartedAt() time.Time {
-	return hlu.startedAt
+func (hbu *httpBlobUpload) StartedAt() time.Time {
+	return hbu.startedAt
 }
 
-func (hlu *httpLayerUpload) Finish(digest digest.Digest) (distribution.Layer, error) {
+func (hbu *httpBlobUpload) Commit(ctx context.Context, desc distribution.Descriptor) (distribution.Descriptor, error) {
 	// TODO(dmcgowan): Check if already finished, if so just fetch
-	req, err := http.NewRequest("PUT", hlu.location, nil)
+	req, err := http.NewRequest("PUT", hbu.location, nil)
 	if err != nil {
-		return nil, err
+		return distribution.Descriptor{}, err
 	}
 
 	values := req.URL.Query()
-	values.Set("digest", digest.String())
+	values.Set("digest", desc.Digest.String())
 	req.URL.RawQuery = values.Encode()
 
-	resp, err := hlu.client.Do(req)
+	resp, err := hbu.client.Do(req)
 	if err != nil {
-		return nil, err
+		return distribution.Descriptor{}, err
 	}
 
 	if resp.StatusCode != http.StatusCreated {
-		return nil, hlu.handleErrorResponse(resp)
+		return distribution.Descriptor{}, hbu.handleErrorResponse(resp)
 	}
 
-	return hlu.repo.Layers().Fetch(digest)
+	return hbu.repo.Blobs(ctx).Stat(ctx, desc.Digest)
 }
 
-func (hlu *httpLayerUpload) Cancel() error {
+func (hbu *httpBlobUpload) Rollback(ctx context.Context) error {
 	panic("not implemented")
 }
 
-func (hlu *httpLayerUpload) Close() error {
-	hlu.closed = true
+func (hbu *httpBlobUpload) Close() error {
+	hbu.closed = true
 	return nil
 }
