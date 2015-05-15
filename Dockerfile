@@ -26,7 +26,7 @@
 FROM ubuntu:14.04
 MAINTAINER Tianon Gravi <admwiggin@gmail.com> (@tianon)
 
-RUN	apt-key adv --keyserver pool.sks-keyservers.net --recv-keys E871F18B51E0147C77796AC81196BA81F6B0FC61
+RUN	apt-key adv --keyserver hkp://p80.pool.sks-keyservers.net --recv-keys E871F18B51E0147C77796AC81196BA81F6B0FC61
 RUN	echo deb http://ppa.launchpad.net/zfs-native/stable/ubuntu trusty main > /etc/apt/sources.list.d/zfs.list
 
 # Packaged dependencies
