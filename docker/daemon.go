@@ -14,13 +14,10 @@ import (
 	apiserver "github.com/docker/docker/api/server"
 	"github.com/docker/docker/autogen/dockerversion"
 	"github.com/docker/docker/daemon"
-	_ "github.com/docker/docker/daemon/execdriver/lxc"
-	_ "github.com/docker/docker/daemon/execdriver/native"
 	"github.com/docker/docker/pkg/homedir"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/pidfile"
 	"github.com/docker/docker/pkg/signal"
-	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/pkg/timeutils"
 	"github.com/docker/docker/pkg/tlsconfig"
 	"github.com/docker/docker/registry"
@@ -113,8 +110,8 @@ func mainDaemon() {
 		EnableCors:  daemonCfg.EnableCors,
 		CorsHeaders: daemonCfg.CorsHeaders,
 		Version:     dockerversion.VERSION,
-		SocketGroup: daemonCfg.SocketGroup,
 	}
+	serverConfig = setPlatformServerConfig(serverConfig, daemonCfg)
 
 	if *flTls {
 		if *flTlsVerify {
@@ -211,15 +208,4 @@ func shutdownDaemon(d *daemon.Daemon, timeout time.Duration) {
 	case <-time.After(timeout * time.Second):
 		logrus.Error("Force shutdown daemon")
 	}
-}
-
-// currentUserIsOwner checks whether the current user is the owner of the given
-// file.
-func currentUserIsOwner(f string) bool {
-	if fileInfo, err := system.Stat(f); err == nil && fileInfo != nil {
-		if int(fileInfo.Uid()) == os.Getuid() {
-			return true
-		}
-	}
-	return false
 }
