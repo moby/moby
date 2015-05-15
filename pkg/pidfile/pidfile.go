@@ -3,7 +3,6 @@ package pidfile
 import (
 	"fmt"
 	"io/ioutil"
-	"log"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -37,7 +36,6 @@ func New(path string) (*PidFile, error) {
 
 func (file PidFile) Remove() error {
 	if err := os.Remove(file.path); err != nil {
-		log.Printf("Error removing %s: %s", file.path, err)
 		return err
 	}
 	return nil
