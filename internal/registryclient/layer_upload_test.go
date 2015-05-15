@@ -11,8 +11,8 @@ import (
 	"github.com/docker/distribution/testutil"
 )
 
-// Test implements distribution.LayerUpload
-var _ distribution.LayerUpload = &httpLayerUpload{}
+// Test implements distribution.BlobWriter
+var _ distribution.BlobWriter = &httpBlobUpload{}
 
 func TestUploadReadFrom(t *testing.T) {
 	_, b := newRandomBlob(64)
@@ -124,13 +124,13 @@ func TestUploadReadFrom(t *testing.T) {
 	e, c := testServer(m)
 	defer c()
 
-	layerUpload := &httpLayerUpload{
+	blobUpload := &httpBlobUpload{
 		client: &http.Client{},
 	}
 
 	// Valid case
-	layerUpload.location = e + locationPath
-	n, err := layerUpload.ReadFrom(bytes.NewReader(b))
+	blobUpload.location = e + locationPath
+	n, err := blobUpload.ReadFrom(bytes.NewReader(b))
 	if err != nil {
 		t.Fatalf("Error calling ReadFrom: %s", err)
 	}
@@ -139,15 +139,15 @@ func TestUploadReadFrom(t *testing.T) {
 	}
 
 	// Bad range
-	layerUpload.location = e + locationPath
-	_, err = layerUpload.ReadFrom(bytes.NewReader(b))
+	blobUpload.location = e + locationPath
+	_, err = blobUpload.ReadFrom(bytes.NewReader(b))
 	if err == nil {
 		t.Fatalf("Expected error when bad range received")
 	}
 
 	// 404
-	layerUpload.location = e + locationPath
-	_, err = layerUpload.ReadFrom(bytes.NewReader(b))
+	blobUpload.location = e + locationPath
+	_, err = blobUpload.ReadFrom(bytes.NewReader(b))
 	if err == nil {
 		t.Fatalf("Expected error when not found")
 	}
@@ -158,8 +158,8 @@ func TestUploadReadFrom(t *testing.T) {
 	}
 
 	// 400 valid json
-	layerUpload.location = e + locationPath
-	_, err = layerUpload.ReadFrom(bytes.NewReader(b))
+	blobUpload.location = e + locationPath
+	_, err = blobUpload.ReadFrom(bytes.NewReader(b))
 	if err == nil {
 		t.Fatalf("Expected error when not found")
 	}
@@ -181,8 +181,8 @@ func TestUploadReadFrom(t *testing.T) {
 	}
 
 	// 400 invalid json
-	layerUpload.location = e + locationPath
-	_, err = layerUpload.ReadFrom(bytes.NewReader(b))
+	blobUpload.location = e + locationPath
+	_, err = blobUpload.ReadFrom(bytes.NewReader(b))
 	if err == nil {
 		t.Fatalf("Expected error when not found")
 	}
@@ -196,8 +196,8 @@ func TestUploadReadFrom(t *testing.T) {
 	}
 
 	// 500
-	layerUpload.location = e + locationPath
-	_, err = layerUpload.ReadFrom(bytes.NewReader(b))
+	blobUpload.location = e + locationPath
+	_, err = blobUpload.ReadFrom(bytes.NewReader(b))
 	if err == nil {
 		t.Fatalf("Expected error when not found")
 	}

@@ -5,7 +5,6 @@ import (
 	"crypto/rand"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -15,6 +14,7 @@ import (
 
 	"code.google.com/p/go-uuid/uuid"
 
+	"github.com/docker/distribution"
 	"github.com/docker/distribution/context"
 	"github.com/docker/distribution/digest"
 	"github.com/docker/distribution/manifest"
@@ -88,7 +88,7 @@ func addPing(m *testutil.RequestResponseMap) {
 	})
 }
 
-func TestLayerFetch(t *testing.T) {
+func TestBlobFetch(t *testing.T) {
 	d1, b1 := newRandomBlob(1024)
 	var m testutil.RequestResponseMap
 	addTestFetch("test.example.com/repo1", d1, b1, &m)
@@ -97,17 +97,14 @@ func TestLayerFetch(t *testing.T) {
 	e, c := testServer(m)
 	defer c()
 
-	r, err := NewRepository(context.Background(), "test.example.com/repo1", e, nil)
+	ctx := context.Background()
+	r, err := NewRepository(ctx, "test.example.com/repo1", e, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	l := r.Layers()
+	l := r.Blobs(ctx)
 
-	layer, err := l.Fetch(d1)
-	if err != nil {
-		t.Fatal(err)
-	}
-	b, err := ioutil.ReadAll(layer)
+	b, err := l.Get(ctx, d1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -118,7 +115,7 @@ func TestLayerFetch(t *testing.T) {
 	// TODO(dmcgowan): Test error cases
 }
 
-func TestLayerExists(t *testing.T) {
+func TestBlobExists(t *testing.T) {
 	d1, b1 := newRandomBlob(1024)
 	var m testutil.RequestResponseMap
 	addTestFetch("test.example.com/repo1", d1, b1, &m)
@@ -127,24 +124,30 @@ func TestLayerExists(t *testing.T) {
 	e, c := testServer(m)
 	defer c()
 
-	r, err := NewRepository(context.Background(), "test.example.com/repo1", e, nil)
+	ctx := context.Background()
+	r, err := NewRepository(ctx, "test.example.com/repo1", e, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	l := r.Layers()
+	l := r.Blobs(ctx)
 
-	ok, err := l.Exists(d1)
+	stat, err := l.Stat(ctx, d1)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !ok {
-		t.Fatalf("Blob does not exist: %s", d1)
+
+	if stat.Digest != d1 {
+		t.Fatalf("Unexpected digest: %s, expected %s", stat.Digest, d1)
 	}
 
-	// TODO(dmcgowan): Test error cases
+	if stat.Length != int64(len(b1)) {
+		t.Fatalf("Unexpected length: %d, expected %d", stat.Length, len(b1))
+	}
+
+	// TODO(dmcgowan): Test error cases and ErrBlobUnknown case
 }
 
-func TestLayerUploadChunked(t *testing.T) {
+func TestBlobUploadChunked(t *testing.T) {
 	dgst, b1 := newRandomBlob(1024)
 	var m testutil.RequestResponseMap
 	addPing(&m)
@@ -227,19 +230,20 @@ func TestLayerUploadChunked(t *testing.T) {
 	e, c := testServer(m)
 	defer c()
 
-	r, err := NewRepository(context.Background(), repo, e, nil)
+	ctx := context.Background()
+	r, err := NewRepository(ctx, repo, e, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	l := r.Layers()
+	l := r.Blobs(ctx)
 
-	upload, err := l.Upload()
+	upload, err := l.Writer(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if upload.UUID() != uuids[0] {
-		log.Fatalf("Unexpected UUID %s; expected %s", upload.UUID(), uuids[0])
+	if upload.ID() != uuids[0] {
+		log.Fatalf("Unexpected UUID %s; expected %s", upload.ID(), uuids[0])
 	}
 
 	for _, chunk := range chunks {
@@ -252,17 +256,20 @@ func TestLayerUploadChunked(t *testing.T) {
 		}
 	}
 
-	layer, err := upload.Finish(dgst)
+	blob, err := upload.Commit(ctx, distribution.Descriptor{
+		Digest: dgst,
+		Length: int64(len(b1)),
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if layer.Length() != int64(len(b1)) {
-		t.Fatalf("Unexpected layer size: %d; expected: %d", layer.Length(), len(b1))
+	if blob.Length != int64(len(b1)) {
+		t.Fatalf("Unexpected blob size: %d; expected: %d", blob.Length, len(b1))
 	}
 }
 
-func TestLayerUploadMonolithic(t *testing.T) {
+func TestBlobUploadMonolithic(t *testing.T) {
 	dgst, b1 := newRandomBlob(1024)
 	var m testutil.RequestResponseMap
 	addPing(&m)
@@ -334,19 +341,20 @@ func TestLayerUploadMonolithic(t *testing.T) {
 	e, c := testServer(m)
 	defer c()
 
-	r, err := NewRepository(context.Background(), repo, e, nil)
+	ctx := context.Background()
+	r, err := NewRepository(ctx, repo, e, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	l := r.Layers()
+	l := r.Blobs(ctx)
 
-	upload, err := l.Upload()
+	upload, err := l.Writer(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if upload.UUID() != uploadID {
-		log.Fatalf("Unexpected UUID %s; expected %s", upload.UUID(), uploadID)
+	if upload.ID() != uploadID {
+		log.Fatalf("Unexpected UUID %s; expected %s", upload.ID(), uploadID)
 	}
 
 	n, err := upload.ReadFrom(bytes.NewReader(b1))
@@ -357,18 +365,17 @@ func TestLayerUploadMonolithic(t *testing.T) {
 		t.Fatalf("Unexpected ReadFrom length: %d; expected: %d", n, len(b1))
 	}
 
-	layer, err := upload.Finish(dgst)
+	blob, err := upload.Commit(ctx, distribution.Descriptor{
+		Digest: dgst,
+		Length: int64(len(b1)),
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if layer.Length() != int64(len(b1)) {
-		t.Fatalf("Unexpected layer size: %d; expected: %d", layer.Length(), len(b1))
+	if blob.Length != int64(len(b1)) {
+		t.Fatalf("Unexpected blob size: %d; expected: %d", blob.Length, len(b1))
 	}
-}
-
-func TestLayerUploadResume(t *testing.T) {
-	// TODO(dmcgowan): implement
 }
 
 func newRandomSchema1Manifest(name, tag string, blobCount int) (*manifest.SignedManifest, digest.Digest) {
@@ -447,7 +454,7 @@ func checkEqualManifest(m1, m2 *manifest.SignedManifest) error {
 		return fmt.Errorf("tag does not match %q != %q", m1.Tag, m2.Tag)
 	}
 	if len(m1.FSLayers) != len(m2.FSLayers) {
-		return fmt.Errorf("fs layer length does not match %d != %d", len(m1.FSLayers), len(m2.FSLayers))
+		return fmt.Errorf("fs blob length does not match %d != %d", len(m1.FSLayers), len(m2.FSLayers))
 	}
 	for i := range m1.FSLayers {
 		if m1.FSLayers[i].BlobSum != m2.FSLayers[i].BlobSum {
