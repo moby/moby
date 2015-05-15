@@ -68,6 +68,23 @@ Running `docker rmi` emits an **untag** event when removing an image name.  The 
 
 ### What's new
 
+`GET /containers/(id)/archive`
+
+**New!**
+Get an archive of filesystem content from a container.
+
+`PUT /containers/(id)/archive`
+
+**New!**
+Upload an archive of content to be extracted to an
+existing directory inside a container's filesystem.
+
+`POST /containers/(id)/copy`
+
+**Deprecated!**
+This copy endpoint has been deprecated in favor of the above `archive` endpoint
+which can be used to download files and directories from a container.
+
 **New!**
 The `hostConfig` option now accepts the field `GroupAdd`, which specifies a list of additional
 groups that the container process will run as.
