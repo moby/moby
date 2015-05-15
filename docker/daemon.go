@@ -113,6 +113,13 @@ func mainDaemon() {
 		TlsCert:     *flCert,
 		TlsKey:      *flKey,
 	}
+	serverConfig = setPlatformServerConfig(serverConfig, daemonCfg)
+	
+	
+func setPlatformServerConfig(serverConfig *apiserver.ServerConfig, daemonCfg *daemon.Config) (*apiserver.ServerConfig)	 {
+	serverConfig.SocketGroup = daemonCfg.SocketGroup
+	return serverConfig
+}
 
 	api := apiserver.New(serverConfig)
 
