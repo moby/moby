@@ -38,8 +38,8 @@ func (s *DockerSuite) TestEventsTimestampFormats(c *check.C) {
 			c.Fatalf("docker events cmd failed: %v\nout=%s", err, out)
 		}
 		events := strings.Split(strings.TrimSpace(out), "\n")
-		if len(events) != 1 {
-			c.Fatalf("unexpected events, was expecting only 1 (since=%s, until=%s) out=%s", since, until, out)
+		if len(events) != 2 {
+			c.Fatalf("unexpected events, was expecting only 2 events tag/untag (since=%s, until=%s) out=%s", since, until, out)
 		}
 		if !strings.Contains(out, "untag") {
 			c.Fatalf("expected 'untag' event not found (since=%s, until=%s) out=%s", since, until, out)
@@ -228,6 +228,31 @@ func (s *DockerSuite) TestEventsImageUntagDelete(c *check.C) {
 	if deleteEvent[len(deleteEvent)-1] != "delete" {
 		c.Fatalf("delete should be delete, not %#v", deleteEvent)
 	}
+}
+
+func (s *DockerSuite) TestEventsImageTag(c *check.C) {
+	time.Sleep(time.Second * 2) // because API has seconds granularity
+	since := daemonTime(c).Unix()
+	image := "testimageevents:tag"
+	dockerCmd(c, "tag", "busybox", image)
+
+	eventsCmd := exec.Command(dockerBinary, "events",
+		fmt.Sprintf("--since=%d", since),
+		fmt.Sprintf("--until=%d", daemonTime(c).Unix()))
+	out, _, err := runCommandWithOutput(eventsCmd)
+	c.Assert(err, check.IsNil)
+
+	events := strings.Split(strings.TrimSpace(out), "\n")
+	if len(events) != 1 {
+		c.Fatalf("was expecting 1 event. out=%s", out)
+	}
+	event := strings.TrimSpace(events[0])
+	expectedStr := image + ": tag"
+
+	if !strings.HasSuffix(event, expectedStr) {
+		c.Fatalf("wrong event format. expected='%s' got=%s", expectedStr, event)
+	}
+
 }
 
 func (s *DockerSuite) TestEventsImagePull(c *check.C) {
