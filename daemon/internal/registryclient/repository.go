@@ -18,16 +18,17 @@ import (
 	"github.com/docker/distribution"
 	"github.com/docker/distribution/context"
 	"github.com/docker/distribution/registry/api/v2"
+	"github.com/docker/distribution/registry/client/transport"
 	"github.com/docker/distribution/registry/storage/cache"
 )
 
-// NewRepository creates a new Repository for the given repository name and endpoint
-func NewRepository(ctx context.Context, name, endpoint string, transport http.RoundTripper) (distribution.Repository, error) {
+// NewRepository creates a new Repository for the given repository name and base URL
+func NewRepository(ctx context.Context, name, baseURL string, transport http.RoundTripper) (distribution.Repository, error) {
 	if err := v2.ValidateRespositoryName(name); err != nil {
 		return nil, err
 	}
 
-	ub, err := v2.NewURLBuilderFromString(endpoint)
+	ub, err := v2.NewURLBuilderFromString(baseURL)
 	if err != nil {
 		return nil, err
 	}
@@ -292,7 +293,7 @@ func (ls *blobs) Open(ctx context.Context, dgst digest.Digest) (distribution.Rea
 		return nil, err
 	}
 
-	return NewHTTPReadSeeker(ls.repository.client, blobURL, stat.Length), nil
+	return transport.NewHTTPReadSeeker(ls.repository.client, blobURL, stat.Length), nil
 }
 
 func (ls *blobs) ServeBlob(ctx context.Context, w http.ResponseWriter, r *http.Request, dgst digest.Digest) error {

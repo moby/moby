@@ -1,4 +1,4 @@
-package client
+package transport
 
 import (
 	"encoding/base64"
@@ -10,6 +10,12 @@ import (
 
 	"github.com/docker/distribution/testutil"
 )
+
+func testServer(rrm testutil.RequestResponseMap) (string, func()) {
+	h := testutil.NewHandler(rrm)
+	s := httptest.NewServer(h)
+	return s.URL, s.Close
+}
 
 type testAuthenticationWrapper struct {
 	headers   http.Header
