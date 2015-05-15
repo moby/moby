@@ -151,10 +151,8 @@ func TestUploadReadFrom(t *testing.T) {
 	if err == nil {
 		t.Fatalf("Expected error when not found")
 	}
-	if blobErr, ok := err.(*BlobUploadNotFoundError); !ok {
-		t.Fatalf("Wrong error type %T: %s", err, err)
-	} else if expected := e + locationPath; blobErr.Location != expected {
-		t.Fatalf("Unexpected location: %s, expected %s", blobErr.Location, expected)
+	if err != distribution.ErrBlobUploadUnknown {
+		t.Fatalf("Wrong error thrown: %s, expected", err, distribution.ErrBlobUploadUnknown)
 	}
 
 	// 400 valid json
