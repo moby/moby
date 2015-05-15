@@ -8,18 +8,15 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
-	"time"
 
+	"github.com/docker/distribution"
 	"github.com/docker/distribution/context"
-	"github.com/docker/distribution/digest"
 )
 
-type httpLayer struct {
-	*layers
+type httpBlob struct {
+	*repository
 
-	size      int64
-	digest    digest.Digest
-	createdAt time.Time
+	desc distribution.Descriptor
 
 	rc     io.ReadCloser // remote read closer
 	brd    *bufio.Reader // internal buffered io
@@ -27,48 +24,40 @@ type httpLayer struct {
 	err    error
 }
 
-func (hl *httpLayer) CreatedAt() time.Time {
-	return hl.createdAt
-}
-
-func (hl *httpLayer) Digest() digest.Digest {
-	return hl.digest
-}
-
-func (hl *httpLayer) Read(p []byte) (n int, err error) {
-	if hl.err != nil {
-		return 0, hl.err
+func (hb *httpBlob) Read(p []byte) (n int, err error) {
+	if hb.err != nil {
+		return 0, hb.err
 	}
 
-	rd, err := hl.reader()
+	rd, err := hb.reader()
 	if err != nil {
 		return 0, err
 	}
 
 	n, err = rd.Read(p)
-	hl.offset += int64(n)
+	hb.offset += int64(n)
 
 	// Simulate io.EOF error if we reach filesize.
-	if err == nil && hl.offset >= hl.size {
+	if err == nil && hb.offset >= hb.desc.Length {
 		err = io.EOF
 	}
 
 	return n, err
 }
 
-func (hl *httpLayer) Seek(offset int64, whence int) (int64, error) {
-	if hl.err != nil {
-		return 0, hl.err
+func (hb *httpBlob) Seek(offset int64, whence int) (int64, error) {
+	if hb.err != nil {
+		return 0, hb.err
 	}
 
 	var err error
-	newOffset := hl.offset
+	newOffset := hb.offset
 
 	switch whence {
 	case os.SEEK_CUR:
 		newOffset += int64(offset)
 	case os.SEEK_END:
-		newOffset = hl.size + int64(offset)
+		newOffset = hb.desc.Length + int64(offset)
 	case os.SEEK_SET:
 		newOffset = int64(offset)
 	}
@@ -76,60 +65,60 @@ func (hl *httpLayer) Seek(offset int64, whence int) (int64, error) {
 	if newOffset < 0 {
 		err = fmt.Errorf("cannot seek to negative position")
 	} else {
-		if hl.offset != newOffset {
-			hl.reset()
+		if hb.offset != newOffset {
+			hb.reset()
 		}
 
 		// No problems, set the offset.
-		hl.offset = newOffset
+		hb.offset = newOffset
 	}
 
-	return hl.offset, err
+	return hb.offset, err
 }
 
-func (hl *httpLayer) Close() error {
-	if hl.err != nil {
-		return hl.err
+func (hb *httpBlob) Close() error {
+	if hb.err != nil {
+		return hb.err
 	}
 
 	// close and release reader chain
-	if hl.rc != nil {
-		hl.rc.Close()
+	if hb.rc != nil {
+		hb.rc.Close()
 	}
 
-	hl.rc = nil
-	hl.brd = nil
+	hb.rc = nil
+	hb.brd = nil
 
-	hl.err = fmt.Errorf("httpLayer: closed")
+	hb.err = fmt.Errorf("httpBlob: closed")
 
 	return nil
 }
 
-func (hl *httpLayer) reset() {
-	if hl.err != nil {
+func (hb *httpBlob) reset() {
+	if hb.err != nil {
 		return
 	}
-	if hl.rc != nil {
-		hl.rc.Close()
-		hl.rc = nil
+	if hb.rc != nil {
+		hb.rc.Close()
+		hb.rc = nil
 	}
 }
 
-func (hl *httpLayer) reader() (io.Reader, error) {
-	if hl.err != nil {
-		return nil, hl.err
+func (hb *httpBlob) reader() (io.Reader, error) {
+	if hb.err != nil {
+		return nil, hb.err
 	}
 
-	if hl.rc != nil {
-		return hl.brd, nil
+	if hb.rc != nil {
+		return hb.brd, nil
 	}
 
 	// If the offset is great than or equal to size, return a empty, noop reader.
-	if hl.offset >= hl.size {
+	if hb.offset >= hb.desc.Length {
 		return ioutil.NopCloser(bytes.NewReader([]byte{})), nil
 	}
 
-	blobURL, err := hl.ub.BuildBlobURL(hl.name, hl.digest)
+	blobURL, err := hb.ub.BuildBlobURL(hb.name, hb.desc.Digest)
 	if err != nil {
 		return nil, err
 	}
@@ -139,40 +128,32 @@ func (hl *httpLayer) reader() (io.Reader, error) {
 		return nil, err
 	}
 
-	if hl.offset > 0 {
+	if hb.offset > 0 {
 		// TODO(stevvooe): Get this working correctly.
 
 		// If we are at different offset, issue a range request from there.
 		req.Header.Add("Range", fmt.Sprintf("1-"))
-		context.GetLogger(hl.context).Infof("Range: %s", req.Header.Get("Range"))
+		context.GetLogger(hb.context).Infof("Range: %s", req.Header.Get("Range"))
 	}
 
-	resp, err := hl.client.Do(req)
+	resp, err := hb.client.Do(req)
 	if err != nil {
 		return nil, err
 	}
 
 	switch {
 	case resp.StatusCode == 200:
-		hl.rc = resp.Body
+		hb.rc = resp.Body
 	default:
 		defer resp.Body.Close()
 		return nil, fmt.Errorf("unexpected status resolving reader: %v", resp.Status)
 	}
 
-	if hl.brd == nil {
-		hl.brd = bufio.NewReader(hl.rc)
+	if hb.brd == nil {
+		hb.brd = bufio.NewReader(hb.rc)
 	} else {
-		hl.brd.Reset(hl.rc)
+		hb.brd.Reset(hb.rc)
 	}
 
-	return hl.brd, nil
-}
-
-func (hl *httpLayer) Length() int64 {
-	return hl.size
-}
-
-func (hl *httpLayer) Handler(r *http.Request) (http.Handler, error) {
-	panic("Not implemented")
+	return hb.brd, nil
 }
