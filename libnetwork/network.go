@@ -36,10 +36,10 @@ type Network interface {
 	// WalkEndpoints uses the provided function to walk the Endpoints
 	WalkEndpoints(walker EndpointWalker)
 
-	// EndpointByName returns the Endpoint which has the passed name, if it exists otherwise nil is returned
+	// EndpointByName returns the Endpoint which has the passed name. If not found, the error ErrNoSuchEndpoint is returned.
 	EndpointByName(name string) (Endpoint, error)
 
-	// EndpointByID returns the Endpoint which has the passed id, if it exists otherwise nil is returned
+	// EndpointByID returns the Endpoint which has the passed id. If not found, the error ErrNoSuchEndpoint is returned.
 	EndpointByID(id string) (Endpoint, error)
 }
 
@@ -188,6 +188,10 @@ func (n *network) EndpointByName(name string) (Endpoint, error) {
 
 	n.WalkEndpoints(s)
 
+	if e == nil {
+		return nil, ErrNoSuchEndpoint
+	}
+
 	return e, nil
 }
 
@@ -200,5 +204,5 @@ func (n *network) EndpointByID(id string) (Endpoint, error) {
 	if e, ok := n.endpoints[types.UUID(id)]; ok {
 		return e, nil
 	}
-	return nil, nil
+	return nil, ErrNoSuchEndpoint
 }
