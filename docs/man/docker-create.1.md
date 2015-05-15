@@ -177,7 +177,7 @@ This value should always larger than **-m**, so you should alway use this with *
                                'host': use the host network stack inside the container.  Note: the host mode gives the container full access to local system services such as D-bus and is therefore considered insecure.
 
 **--oom-kill-disable**=*true*|*false*
-	Whether to disable OOM Killer for the container or not.
+   Whether to disable OOM Killer for the container or not. Should alway use it with **-m** memory setting.
 
 **-P**, **--publish-all**=*true*|*false*
    Publish all exposed ports to random ports on the host interfaces. The default is *false*.
