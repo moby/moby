@@ -28,7 +28,7 @@ type httpBlobUpload struct {
 
 func (hbu *httpBlobUpload) handleErrorResponse(resp *http.Response) error {
 	if resp.StatusCode == http.StatusNotFound {
-		return &BlobUploadNotFoundError{Location: hbu.location}
+		return distribution.ErrBlobUploadUnknown
 	}
 	return handleErrorResponse(resp)
 }
