@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/docker/distribution"
+	"github.com/docker/distribution/registry/api/errcode"
 	"github.com/docker/distribution/registry/api/v2"
 	"github.com/docker/distribution/testutil"
 )
@@ -161,14 +162,14 @@ func TestUploadReadFrom(t *testing.T) {
 	if err == nil {
 		t.Fatalf("Expected error when not found")
 	}
-	if uploadErr, ok := err.(*v2.Errors); !ok {
+	if uploadErr, ok := err.(*errcode.Errors); !ok {
 		t.Fatalf("Wrong error type %T: %s", err, err)
 	} else if len(uploadErr.Errors) != 1 {
 		t.Fatalf("Unexpected number of errors: %d, expected 1", len(uploadErr.Errors))
 	} else {
 		v2Err := uploadErr.Errors[0]
 		if v2Err.Code != v2.ErrorCodeBlobUploadInvalid {
-			t.Fatalf("Unexpected error code: %s, expected %s", v2Err.Code.String(), v2.ErrorCodeBlobUploadInvalid.String())
+			t.Fatalf("Unexpected error code: %s, expected %d", v2Err.Code.String(), v2.ErrorCodeBlobUploadInvalid)
 		}
 		if expected := "invalid upload identifier"; v2Err.Message != expected {
 			t.Fatalf("Unexpected error message: %s, expected %s", v2Err.Message, expected)

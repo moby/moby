@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"net/http"
 
+	"github.com/docker/distribution/registry/api/errcode"
 	"github.com/docker/distribution/registry/api/v2"
 )
 
@@ -32,7 +33,7 @@ func (e *UnexpectedHTTPResponseError) Error() string {
 }
 
 func parseHTTPErrorResponse(r io.Reader) error {
-	var errors v2.Errors
+	var errors errcode.Errors
 	body, err := ioutil.ReadAll(r)
 	if err != nil {
 		return err
@@ -51,7 +52,7 @@ func handleErrorResponse(resp *http.Response) error {
 	if resp.StatusCode == 401 {
 		err := parseHTTPErrorResponse(resp.Body)
 		if uErr, ok := err.(*UnexpectedHTTPResponseError); ok {
-			return &v2.Error{
+			return &errcode.Error{
 				Code:    v2.ErrorCodeUnauthorized,
 				Message: "401 Unauthorized",
 				Detail:  uErr.Response,
