@@ -18,8 +18,8 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/autogen/dockerversion"
 	"github.com/docker/docker/pkg/parsers/kernel"
-	"github.com/docker/docker/pkg/requestdecorator"
 	"github.com/docker/docker/pkg/timeoutconn"
+	"github.com/docker/docker/pkg/useragent"
 )
 
 var (
@@ -186,17 +186,17 @@ func cloneRequest(r *http.Request) *http.Request {
 
 func (tr *DockerHeaders) RoundTrip(req *http.Request) (*http.Response, error) {
 	req = cloneRequest(req)
-	httpVersion := make([]requestdecorator.UAVersionInfo, 0, 4)
-	httpVersion = append(httpVersion, requestdecorator.NewUAVersionInfo("docker", dockerversion.VERSION))
-	httpVersion = append(httpVersion, requestdecorator.NewUAVersionInfo("go", runtime.Version()))
-	httpVersion = append(httpVersion, requestdecorator.NewUAVersionInfo("git-commit", dockerversion.GITCOMMIT))
+	httpVersion := make([]useragent.VersionInfo, 0, 4)
+	httpVersion = append(httpVersion, useragent.VersionInfo{"docker", dockerversion.VERSION})
+	httpVersion = append(httpVersion, useragent.VersionInfo{"go", runtime.Version()})
+	httpVersion = append(httpVersion, useragent.VersionInfo{"git-commit", dockerversion.GITCOMMIT})
 	if kernelVersion, err := kernel.GetKernelVersion(); err == nil {
-		httpVersion = append(httpVersion, requestdecorator.NewUAVersionInfo("kernel", kernelVersion.String()))
+		httpVersion = append(httpVersion, useragent.VersionInfo{"kernel", kernelVersion.String()})
 	}
-	httpVersion = append(httpVersion, requestdecorator.NewUAVersionInfo("os", runtime.GOOS))
-	httpVersion = append(httpVersion, requestdecorator.NewUAVersionInfo("arch", runtime.GOARCH))
+	httpVersion = append(httpVersion, useragent.VersionInfo{"os", runtime.GOOS})
+	httpVersion = append(httpVersion, useragent.VersionInfo{"arch", runtime.GOARCH})
 
-	userAgent := requestdecorator.AppendVersions(req.UserAgent(), httpVersion...)
+	userAgent := useragent.AppendVersions(req.UserAgent(), httpVersion...)
 
 	req.Header.Set("User-Agent", userAgent)
 
