@@ -11,7 +11,7 @@ import (
 )
 
 // NewServer sets up the required Server and does protocol specific checking.
-func (s *Server) newServer(proto, addr string) (Server, error) {
+func (s *Server) newServer(proto, addr string) (serverCloser, error) {
 	var (
 		err error
 		l   net.Listener
@@ -22,6 +22,7 @@ func (s *Server) newServer(proto, addr string) (Server, error) {
 		if err != nil {
 			return nil, err
 		}
+
 	default:
 		return nil, errors.New("Invalid protocol format. Windows only supports tcp.")
 	}
@@ -42,4 +43,8 @@ func (s *Server) AcceptConnections(d *daemon.Daemon) {
 	default:
 		close(s.start)
 	}
+}
+
+func allocateDaemonPort(addr string) error {
+	return nil
 }

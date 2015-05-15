@@ -36,7 +36,6 @@ import (
 	"github.com/docker/docker/pkg/version"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/utils"
-	"github.com/docker/libnetwork/portallocator"
 )
 
 type ServerConfig struct {
@@ -1549,31 +1548,4 @@ func createRouter(s *Server) *mux.Router {
 	}
 
 	return r
-}
-
-func allocateDaemonPort(addr string) error {
-	host, port, err := net.SplitHostPort(addr)
-	if err != nil {
-		return err
-	}
-
-	intPort, err := strconv.Atoi(port)
-	if err != nil {
-		return err
-	}
-
-	var hostIPs []net.IP
-	if parsedIP := net.ParseIP(host); parsedIP != nil {
-		hostIPs = append(hostIPs, parsedIP)
-	} else if hostIPs, err = net.LookupIP(host); err != nil {
-		return fmt.Errorf("failed to lookup %s address in host specification", host)
-	}
-
-	pa := portallocator.Get()
-	for _, hostIP := range hostIPs {
-		if _, err := pa.RequestPort(hostIP, "tcp", intPort); err != nil {
-			return fmt.Errorf("failed to allocate daemon listening port %d (err: %v)", intPort, err)
-		}
-	}
-	return nil
 }
