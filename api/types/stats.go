@@ -48,6 +48,7 @@ type MemoryStats struct {
 	Limit   uint64 `json:"limit"`
 }
 
+// TODO Windows: This can be factored out
 type BlkioStatEntry struct {
 	Major uint64 `json:"major"`
 	Minor uint64 `json:"minor"`
@@ -55,6 +56,7 @@ type BlkioStatEntry struct {
 	Value uint64 `json:"value"`
 }
 
+// TODO Windows: This can be factored out
 type BlkioStats struct {
 	// number of bytes tranferred to and from the block device
 	IoServiceBytesRecursive []BlkioStatEntry `json:"io_service_bytes_recursive"`
@@ -67,6 +69,7 @@ type BlkioStats struct {
 	SectorsRecursive        []BlkioStatEntry `json:"sectors_recursive"`
 }
 
+// TODO Windows: This will require refactoring
 type Network struct {
 	RxBytes   uint64 `json:"rx_bytes"`
 	RxPackets uint64 `json:"rx_packets"`
