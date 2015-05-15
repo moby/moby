@@ -1,12 +1,15 @@
 package libnetwork
 
 import (
+	"bytes"
 	"io/ioutil"
 	"os"
+	"path"
 	"path/filepath"
 	"sync"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/netutils"
 	"github.com/docker/libnetwork/pkg/etchosts"
@@ -513,10 +516,81 @@ func (ep *endpoint) updateParentHosts() error {
 	return nil
 }
 
-func (ep *endpoint) setupDNS() error {
+func (ep *endpoint) updateDNS(resolvConf []byte) error {
 	ep.Lock()
 	container := ep.container
 	network := ep.network
+	ep.Unlock()
+
+	if container == nil {
+		return ErrNoContainer
+	}
+
+	hashFile := container.config.resolvConfPath + ".hash"
+	oldHash, err := ioutil.ReadFile(hashFile)
+	if err != nil {
+		if !os.IsNotExist(err) {
+			return err
+		}
+
+		oldHash = []byte{}
+	}
+
+	resolvBytes, err := ioutil.ReadFile(container.config.resolvConfPath)
+	if err != nil {
+		if !os.IsNotExist(err) {
+			return err
+		}
+	}
+
+	curHash, err := ioutils.HashData(bytes.NewReader(resolvBytes))
+	if err != nil {
+		return err
+	}
+
+	if string(oldHash) != "" && curHash != string(oldHash) {
+		// Seems the user has changed the container resolv.conf since the last time
+		// we checked so return without doing anything.
+		return nil
+	}
+
+	// replace any localhost/127.* and remove IPv6 nameservers if IPv6 disabled.
+	resolvConf, _ = resolvconf.FilterResolvDNS(resolvConf, network.enableIPv6)
+
+	newHash, err := ioutils.HashData(bytes.NewReader(resolvConf))
+	if err != nil {
+		return err
+	}
+
+	// for atomic updates to these files, use temporary files with os.Rename:
+	dir := path.Dir(container.config.resolvConfPath)
+	tmpHashFile, err := ioutil.TempFile(dir, "hash")
+	if err != nil {
+		return err
+	}
+	tmpResolvFile, err := ioutil.TempFile(dir, "resolv")
+	if err != nil {
+		return err
+	}
+
+	// write the updates to the temp files
+	if err = ioutil.WriteFile(tmpHashFile.Name(), []byte(newHash), 0644); err != nil {
+		return err
+	}
+	if err = ioutil.WriteFile(tmpResolvFile.Name(), resolvConf, 0644); err != nil {
+		return err
+	}
+
+	// rename the temp files for atomic replace
+	if err = os.Rename(tmpHashFile.Name(), hashFile); err != nil {
+		return err
+	}
+	return os.Rename(tmpResolvFile.Name(), container.config.resolvConfPath)
+}
+
+func (ep *endpoint) setupDNS() error {
+	ep.Lock()
+	container := ep.container
 	ep.Unlock()
 
 	if container == nil {
@@ -556,9 +630,7 @@ func (ep *endpoint) setupDNS() error {
 		return resolvconf.Build(container.config.resolvConfPath, dnsList, dnsSearchList)
 	}
 
-	// replace any localhost/127.* but always discard IPv6 entries for now.
-	resolvConf, _ = resolvconf.FilterResolvDNS(resolvConf, network.enableIPv6)
-	return ioutil.WriteFile(ep.container.config.resolvConfPath, resolvConf, 0644)
+	return ep.updateDNS(resolvConf)
 }
 
 // EndpointOptionGeneric function returns an option setter for a Generic option defined

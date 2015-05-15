@@ -1017,13 +1017,17 @@ func TestEnableIPv6(t *testing.T) {
 	}
 }
 
-func TestNoEnableIPv6(t *testing.T) {
+func TestResolvConf(t *testing.T) {
 	if !netutils.IsRunningInContainer() {
 		defer netutils.SetupTestNetNS(t)()
 	}
 
-	tmpResolvConf := []byte("search pommesfrites.fr\nnameserver 12.34.56.78\nnameserver 2001:4860:4860::8888")
-	expectedResolvConf := []byte("search pommesfrites.fr\nnameserver 12.34.56.78\n")
+	tmpResolvConf1 := []byte("search pommesfrites.fr\nnameserver 12.34.56.78\nnameserver 2001:4860:4860::8888")
+	expectedResolvConf1 := []byte("search pommesfrites.fr\nnameserver 12.34.56.78\n")
+	tmpResolvConf2 := []byte("search pommesfrites.fr\nnameserver 112.34.56.78\nnameserver 2001:4860:4860::8888")
+	expectedResolvConf2 := []byte("search pommesfrites.fr\nnameserver 112.34.56.78\n")
+	tmpResolvConf3 := []byte("search pommesfrites.fr\nnameserver 113.34.56.78\n")
+
 	//take a copy of resolv.conf for restoring after test completes
 	resolvConfSystem, err := ioutil.ReadFile("/etc/resolv.conf")
 	if err != nil {
@@ -1046,7 +1050,7 @@ func TestNoEnableIPv6(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := ioutil.WriteFile("/etc/resolv.conf", tmpResolvConf, 0644); err != nil {
+	if err := ioutil.WriteFile("/etc/resolv.conf", tmpResolvConf1, 0644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1069,12 +1073,56 @@ func TestNoEnableIPv6(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if !bytes.Equal(content, expectedResolvConf) {
-		t.Fatalf("Expected %s, Got %s", string(expectedResolvConf), string(content))
+	if !bytes.Equal(content, expectedResolvConf1) {
+		t.Fatalf("Expected %s, Got %s", string(expectedResolvConf1), string(content))
 	}
 
+	err = ep1.Leave(containerID)
 	if err != nil {
 		t.Fatal(err)
+	}
+
+	if err := ioutil.WriteFile("/etc/resolv.conf", tmpResolvConf2, 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = ep1.Join(containerID,
+		libnetwork.JoinOptionResolvConfPath(resolvConfPath))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	content, err = ioutil.ReadFile(resolvConfPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !bytes.Equal(content, expectedResolvConf2) {
+		t.Fatalf("Expected %s, Got %s", string(expectedResolvConf2), string(content))
+	}
+
+	if err := ioutil.WriteFile(resolvConfPath, tmpResolvConf3, 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	err = ep1.Leave(containerID)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = ep1.Join(containerID,
+		libnetwork.JoinOptionResolvConfPath(resolvConfPath))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	content, err = ioutil.ReadFile(resolvConfPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !bytes.Equal(content, tmpResolvConf3) {
+		t.Fatalf("Expected %s, Got %s", string(tmpResolvConf3), string(content))
 	}
 }
 
