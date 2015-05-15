@@ -56,6 +56,9 @@ To see the man page for a command run **man docker <command>**.
 **--exec-opt**=[]
   Set exec driver options. See EXEC DRIVER OPTIONS.
 
+**--exec-root**=""
+  Path to use as the root of the Docker execdriver. Default is `/var/run/docker`.
+
 **--fixed-cidr**=""
   IPv4 subnet for fixed IPs (e.g., 10.20.0.0/16); this subnet must be nested in the bridge subnet (which is defined by \-b or \-\-bip)
 
