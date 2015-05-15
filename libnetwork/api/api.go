@@ -499,10 +499,10 @@ func findNetwork(c libnetwork.NetworkController, s string, by int) (libnetwork.N
 		panic(fmt.Sprintf("unexpected selector for network search: %d", by))
 	}
 	if err != nil {
+		if err == libnetwork.ErrNoSuchNetwork {
+			return nil, &responseStatus{Status: "Resource not found: Network", StatusCode: http.StatusNotFound}
+		}
 		return nil, &responseStatus{Status: err.Error(), StatusCode: http.StatusBadRequest}
-	}
-	if nw == nil {
-		return nil, &responseStatus{Status: "Resource not found: Network", StatusCode: http.StatusNotFound}
 	}
 	return nw, &successResponse
 }
@@ -525,10 +525,10 @@ func findEndpoint(c libnetwork.NetworkController, ns, es string, nwBy, epBy int)
 		panic(fmt.Sprintf("unexpected selector for endpoint search: %d", epBy))
 	}
 	if err != nil {
+		if err == libnetwork.ErrNoSuchEndpoint {
+			return nil, &responseStatus{Status: "Resource not found: Endpoint", StatusCode: http.StatusNotFound}
+		}
 		return nil, &responseStatus{Status: err.Error(), StatusCode: http.StatusBadRequest}
-	}
-	if ep == nil {
-		return nil, &responseStatus{Status: "Resource not found: Endpoint", StatusCode: http.StatusNotFound}
 	}
 	return ep, &successResponse
 }

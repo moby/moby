@@ -6,6 +6,10 @@ import (
 )
 
 var (
+	// ErrNoSuchNetwork is returned when a network query finds no result
+	ErrNoSuchNetwork = errors.New("network not found")
+	// ErrNoSuchEndpoint is returned when a endpoint query finds no result
+	ErrNoSuchEndpoint = errors.New("endpoint not found")
 	// ErrNilNetworkDriver is returned if a nil network driver
 	// is passed to NewNetwork api.
 	ErrNilNetworkDriver = errors.New("nil NetworkDriver instance")

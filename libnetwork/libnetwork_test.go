@@ -591,11 +591,11 @@ func TestControllerQuery(t *testing.T) {
 	}
 
 	g, err := controller.NetworkByID("network1")
-	if err != nil {
-		t.Fatalf("Unexpected failure for NetworkByID(): %v", err)
+	if err == nil {
+		t.Fatalf("Unexpected success for NetworkByID(): %g", g)
 	}
-	if g != nil {
-		t.Fatalf("NetworkByID() succeeded with unknown target id")
+	if err != libnetwork.ErrNoSuchNetwork {
+		t.Fatalf("NetworkByID() failed with unexpected error: %v", err)
 	}
 
 	g, err = controller.NetworkByName("network1")
@@ -665,7 +665,10 @@ func TestNetworkQuery(t *testing.T) {
 	}
 
 	e, err = net1.EndpointByName("IamNotAnEndpoint")
-	if err != nil {
+	if err == nil {
+		t.Fatalf("EndpointByName() succeeded with unknown target name")
+	}
+	if err != libnetwork.ErrNoSuchEndpoint {
 		t.Fatal(err)
 	}
 	if e != nil {
@@ -673,6 +676,9 @@ func TestNetworkQuery(t *testing.T) {
 	}
 
 	e, err = net1.EndpointByID(ep12.ID())
+	if err != nil {
+		t.Fatal(err)
+	}
 	if ep12 != e {
 		t.Fatalf("EndpointByID() returned %v instead of %v", e, ep12)
 	}
@@ -1273,7 +1279,7 @@ func runParallelTests(t *testing.T, thrNumber int) {
 		t.Fatal(err)
 	}
 	if ep == nil {
-		t.Fatal("Could not find ep1")
+		t.Fatal("Got nil ep with no error")
 	}
 
 	for i := 0; i < iterCnt; i++ {

@@ -70,10 +70,10 @@ type NetworkController interface {
 	// WalkNetworks uses the provided function to walk the Network(s) managed by this controller.
 	WalkNetworks(walker NetworkWalker)
 
-	// NetworkByName returns the Network which has the passed name, if it exists otherwise nil is returned
+	// NetworkByName returns the Network which has the passed name. If not found, the error ErrNoSuchNetwork is returned.
 	NetworkByName(name string) (Network, error)
 
-	// NetworkByID returns the Network which has the passed id, if it exists otherwise nil is returned
+	// NetworkByID returns the Network which has the passed id. If not found, the error ErrNoSuchNetwork is returned.
 	NetworkByID(id string) (Network, error)
 }
 
@@ -212,6 +212,10 @@ func (c *controller) NetworkByName(name string) (Network, error) {
 
 	c.WalkNetworks(s)
 
+	if n == nil {
+		return nil, ErrNoSuchNetwork
+	}
+
 	return n, nil
 }
 
@@ -224,7 +228,7 @@ func (c *controller) NetworkByID(id string) (Network, error) {
 	if n, ok := c.networks[types.UUID(id)]; ok {
 		return n, nil
 	}
-	return nil, nil
+	return nil, ErrNoSuchNetwork
 }
 
 func (c *controller) sandboxAdd(key string, create bool) (sandbox.Sandbox, error) {
