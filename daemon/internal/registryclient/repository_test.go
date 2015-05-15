@@ -237,7 +237,7 @@ func TestBlobUploadChunked(t *testing.T) {
 	}
 	l := r.Blobs(ctx)
 
-	upload, err := l.Writer(ctx)
+	upload, err := l.Create(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -348,7 +348,7 @@ func TestBlobUploadMonolithic(t *testing.T) {
 	}
 	l := r.Blobs(ctx)
 
-	upload, err := l.Writer(ctx)
+	upload, err := l.Create(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}

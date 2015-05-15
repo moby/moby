@@ -151,7 +151,7 @@ func (hbu *httpBlobUpload) Commit(ctx context.Context, desc distribution.Descrip
 	return hbu.repo.Blobs(ctx).Stat(ctx, desc.Digest)
 }
 
-func (hbu *httpBlobUpload) Rollback(ctx context.Context) error {
+func (hbu *httpBlobUpload) Cancel(ctx context.Context) error {
 	panic("not implemented")
 }
 
