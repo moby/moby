@@ -25,6 +25,7 @@ type CommonConfig struct {
 	DnsSearch      []string
 	EnableCors     bool
 	ExecDriver     string
+	ExecRoot       string
 	GraphDriver    string
 	Labels         []string
 	LogConfig      runconfig.LogConfig
@@ -38,9 +39,11 @@ type CommonConfig struct {
 // the current process.
 // Subsequent calls to `flag.Parse` will populate config with values parsed
 // from the command-line.
+
 func (config *Config) InstallCommonFlags() {
 	flag.StringVar(&config.Pidfile, []string{"p", "-pidfile"}, defaultPidFile, "Path to use for daemon PID file")
 	flag.StringVar(&config.Root, []string{"g", "-graph"}, defaultGraph, "Root of the Docker runtime")
+	flag.StringVar(&config.ExecRoot, []string{"-exec-root"}, "/var/run/docker", "Root of the Docker execdriver")
 	flag.BoolVar(&config.AutoRestart, []string{"#r", "#-restart"}, true, "--restart on the daemon has been deprecated in favor of --restart policies on docker run")
 	flag.BoolVar(&config.Bridge.EnableIptables, []string{"#iptables", "-iptables"}, true, "Enable addition of iptables rules")
 	flag.BoolVar(&config.Bridge.EnableIpForward, []string{"#ip-forward", "-ip-forward"}, true, "Enable net.ipv4.ip_forward")
