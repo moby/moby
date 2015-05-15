@@ -16,7 +16,10 @@ type plugins struct {
 	plugins map[string]*Plugin
 }
 
-var storage = plugins{plugins: make(map[string]*Plugin)}
+var (
+	storage          = plugins{plugins: make(map[string]*Plugin)}
+	extpointHandlers = make(map[string]func(string, *Client))
+)
 
 type Manifest struct {
 	Implements []string
@@ -39,6 +42,13 @@ func (p *Plugin) activate() error {
 
 	logrus.Debugf("%s's manifest: %v", p.Name, m)
 	p.Manifest = m
+	for _, iface := range m.Implements {
+		handler, handled := extpointHandlers[iface]
+		if !handled {
+			continue
+		}
+		handler(p.Name, p.Client)
+	}
 	return nil
 }
 
@@ -83,4 +93,8 @@ func Get(name, imp string) (*Plugin, error) {
 		}
 	}
 	return nil, ErrNotImplements
+}
+
+func Handle(iface string, fn func(string, *Client)) {
+	extpointHandlers[iface] = fn
 }

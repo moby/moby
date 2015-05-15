@@ -15,7 +15,7 @@ import (
 
 const (
 	versionMimetype = "appplication/vnd.docker.plugins.v1+json"
-	defaultTimeOut  = 120
+	defaultTimeOut  = 30
 )
 
 func NewClient(addr string) *Client {
