@@ -24,11 +24,20 @@ type datastore struct {
 
 //KV Key Value interface used by objects to be part of the DataStore
 type KV interface {
+	// Key method lets an object to provide the Key to be used in KV Store
 	Key() []string
+	// Value method lets an object to marshal its content to be stored in the KV store
 	Value() []byte
+	// Index method returns the latest DB Index as seen by the object
 	Index() uint64
+	// SetIndex method allows the datastore to store the latest DB Index into the object
 	SetIndex(uint64)
 }
+
+const (
+	// NetworkKeyPrefix is the prefix for network key in the kv store
+	NetworkKeyPrefix = "network"
+)
 
 //Key provides convenient method to create a Key
 func Key(key ...string) string {

@@ -3,8 +3,8 @@ title = "LibNetwork Configuration file"
 [daemon]
   debug = false
 [cluster]
-  discovery = "token://swarm-discovery-token"
-  Address = "Cluster-wide reachable Host IP"
+  discovery = "token://ce5b9756aeab50fe8fda02624f093d1c"
+  Address = "1.1.1.1:90"
 [datastore]
   embedded = false
 [datastore.client]

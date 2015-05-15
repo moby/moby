@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"github.com/docker/docker/pkg/stringid"
+	"github.com/docker/libnetwork/datastore"
 	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/libnetwork/options"
@@ -79,7 +80,7 @@ func (n *network) Type() string {
 }
 
 func (n *network) Key() []string {
-	return []string{"network", string(n.id)}
+	return []string{datastore.NetworkKeyPrefix, string(n.id)}
 }
 
 func (n *network) Value() []byte {

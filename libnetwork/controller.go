@@ -47,6 +47,8 @@ package libnetwork
 
 import (
 	"encoding/json"
+	"fmt"
+	"net"
 	"os"
 	"strings"
 	"sync"
@@ -57,6 +59,7 @@ import (
 	"github.com/docker/libnetwork/config"
 	"github.com/docker/libnetwork/datastore"
 	"github.com/docker/libnetwork/driverapi"
+	"github.com/docker/libnetwork/hostdiscovery"
 	"github.com/docker/libnetwork/sandbox"
 	"github.com/docker/libnetwork/types"
 	"github.com/docker/swarm/pkg/store"
@@ -123,6 +126,11 @@ func New(configFile string) (NetworkController, error) {
 			// But it cannot fail creating the Controller
 			log.Warnf("Failed to Initialize Datastore due to %v. Operating in non-clustered mode", err)
 		}
+		if err := c.initDiscovery(); err != nil {
+			// Failing to initalize discovery is a bad situation to be in.
+			// But it cannot fail creating the Controller
+			log.Warnf("Failed to Initialize Discovery : %v", err)
+		}
 	} else {
 		// Missing Configuration file is not a failure scenario
 		// But without that, datastore cannot be initialized.
@@ -156,6 +164,10 @@ func (c *controller) initConfig(configFile string) error {
 }
 
 func (c *controller) initDataStore() error {
+	if c.cfg == nil {
+		return fmt.Errorf("datastore initialization requires a valid configuration")
+	}
+
 	store, err := datastore.NewDataStore(&c.cfg.Datastore)
 	if err != nil {
 		return err
@@ -166,6 +178,21 @@ func (c *controller) initDataStore() error {
 	go c.watchNewNetworks()
 
 	return nil
+}
+
+func (c *controller) initDiscovery() error {
+	if c.cfg == nil {
+		return fmt.Errorf("discovery initialization requires a valid configuration")
+	}
+
+	hostDiscovery := hostdiscovery.NewHostDiscovery()
+	return hostDiscovery.StartDiscovery(&c.cfg.Cluster, c.hostJoinCallback, c.hostLeaveCallback)
+}
+
+func (c *controller) hostJoinCallback(hosts []net.IP) {
+}
+
+func (c *controller) hostLeaveCallback(hosts []net.IP) {
 }
 
 func (c *controller) ConfigureNetworkDriver(networkType string, options map[string]interface{}) error {
@@ -260,18 +287,22 @@ func (c *controller) addNetworkToStore(n *network) error {
 	if isReservedNetwork(n.Name()) {
 		return nil
 	}
-	if c.store == nil {
-		return ErrInvalidDatastore
+	c.Lock()
+	cs := c.store
+	c.Unlock()
+	if cs == nil {
+		log.Debugf("datastore not initialized. Network %s is not added to the store", n.Name())
+		return nil
 	}
-	return c.store.PutObjectAtomic(n)
+	return cs.PutObjectAtomic(n)
 }
 
 func (c *controller) watchNewNetworks() {
 	c.Lock()
-	store = c.store
+	cs := c.store
 	c.Unlock()
 
-	store.KVStore().WatchRange(datastore.Key("network"), "", 0, func(kvi []store.KVEntry) {
+	cs.KVStore().WatchRange(datastore.Key(datastore.NetworkKeyPrefix), "", 0, func(kvi []store.KVEntry) {
 		for _, kve := range kvi {
 			var n network
 			err := json.Unmarshal(kve.Value(), &n)
@@ -286,7 +317,12 @@ func (c *controller) watchNewNetworks() {
 			if ok && existing.dbIndex == n.dbIndex {
 				// Skip any watch notification for a network that has not changed
 				continue
+			} else if ok {
+				// Received an update for an existing network object
+				log.Debugf("Skipping network update for %s (%s)", n.name, n.id)
+				continue
 			}
+
 			c.newNetworkFromStore(&n)
 		}
 	})

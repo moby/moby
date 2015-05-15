@@ -2,6 +2,8 @@ package config
 
 import (
 	"testing"
+
+	_ "github.com/docker/libnetwork/netutils"
 )
 
 func TestInvalidConfig(t *testing.T) {
@@ -12,7 +14,7 @@ func TestInvalidConfig(t *testing.T) {
 }
 
 func TestConfig(t *testing.T) {
-	cfg, err := ParseConfig("libnetwork.toml")
+	_, err := ParseConfig("libnetwork.toml")
 	if err != nil {
 		t.Fatal("Error parsing a valid configuration file :", err)
 	}
