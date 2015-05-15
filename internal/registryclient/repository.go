@@ -18,6 +18,7 @@ import (
 	"github.com/docker/distribution"
 	"github.com/docker/distribution/context"
 	"github.com/docker/distribution/registry/api/v2"
+	"github.com/docker/distribution/registry/storage/cache"
 )
 
 // NewRepository creates a new Repository for the given repository name and endpoint
@@ -56,9 +57,13 @@ func (r *repository) Name() string {
 	return r.name
 }
 
-func (r *repository) Blobs(ctx context.Context) distribution.BlobService {
+func (r *repository) Blobs(ctx context.Context) distribution.BlobStore {
+	statter := &blobStatter{
+		repository: r,
+	}
 	return &blobs{
 		repository: r,
+		statter:    cache.NewCachedBlobStatter(cache.NewInMemoryBlobDescriptorCacheProvider(), statter),
 	}
 }
 
@@ -232,6 +237,8 @@ func (ms *manifests) Delete(dgst digest.Digest) error {
 
 type blobs struct {
 	*repository
+
+	statter distribution.BlobStatter
 }
 
 func sanitizeLocation(location, source string) (string, error) {
@@ -255,12 +262,17 @@ func sanitizeLocation(location, source string) (string, error) {
 	return location, nil
 }
 
+func (ls *blobs) Stat(ctx context.Context, dgst digest.Digest) (distribution.Descriptor, error) {
+	return ls.statter.Stat(ctx, dgst)
+
+}
+
 func (ls *blobs) Get(ctx context.Context, dgst digest.Digest) ([]byte, error) {
 	desc, err := ls.Stat(ctx, dgst)
 	if err != nil {
 		return nil, err
 	}
-	reader, err := ls.Open(ctx, desc)
+	reader, err := ls.Open(ctx, desc.Digest)
 	if err != nil {
 		return nil, err
 	}
@@ -269,19 +281,26 @@ func (ls *blobs) Get(ctx context.Context, dgst digest.Digest) ([]byte, error) {
 	return ioutil.ReadAll(reader)
 }
 
-func (ls *blobs) Open(ctx context.Context, desc distribution.Descriptor) (distribution.ReadSeekCloser, error) {
-	return &httpBlob{
-		repository: ls.repository,
-		desc:       desc,
-	}, nil
+func (ls *blobs) Open(ctx context.Context, dgst digest.Digest) (distribution.ReadSeekCloser, error) {
+	stat, err := ls.statter.Stat(ctx, dgst)
+	if err != nil {
+		return nil, err
+	}
+
+	blobURL, err := ls.ub.BuildBlobURL(ls.Name(), stat.Digest)
+	if err != nil {
+		return nil, err
+	}
+
+	return NewHTTPReadSeeker(ls.repository.client, blobURL, stat.Length), nil
 }
 
-func (ls *blobs) ServeBlob(ctx context.Context, w http.ResponseWriter, r *http.Request, desc distribution.Descriptor) error {
+func (ls *blobs) ServeBlob(ctx context.Context, w http.ResponseWriter, r *http.Request, dgst digest.Digest) error {
 	return nil
 }
 
 func (ls *blobs) Put(ctx context.Context, mediaType string, p []byte) (distribution.Descriptor, error) {
-	writer, err := ls.Writer(ctx)
+	writer, err := ls.Create(ctx)
 	if err != nil {
 		return distribution.Descriptor{}, err
 	}
@@ -303,7 +322,7 @@ func (ls *blobs) Put(ctx context.Context, mediaType string, p []byte) (distribut
 	return writer.Commit(ctx, desc)
 }
 
-func (ls *blobs) Writer(ctx context.Context) (distribution.BlobWriter, error) {
+func (ls *blobs) Create(ctx context.Context) (distribution.BlobWriter, error) {
 	u, err := ls.ub.BuildBlobUploadURL(ls.name)
 
 	resp, err := ls.client.Post(u, "", nil)
@@ -337,7 +356,11 @@ func (ls *blobs) Resume(ctx context.Context, id string) (distribution.BlobWriter
 	panic("not implemented")
 }
 
-func (ls *blobs) Stat(ctx context.Context, dgst digest.Digest) (distribution.Descriptor, error) {
+type blobStatter struct {
+	*repository
+}
+
+func (ls *blobStatter) Stat(ctx context.Context, dgst digest.Digest) (distribution.Descriptor, error) {
 	u, err := ls.ub.BuildBlobURL(ls.name, dgst)
 	if err != nil {
 		return distribution.Descriptor{}, err
