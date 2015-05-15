@@ -152,6 +152,7 @@ expect an integer, and they can only be specified once.
       --default-ulimit=[]                    Set default ulimit settings for containers
       -e, --exec-driver="native"             Exec driver to use
       --exec-opt=[]                          Set exec driver options
+      --exec-root="/var/run/docker"          Root of the Docker execdriver
       --fixed-cidr=""                        IPv4 subnet for fixed IPs
       --fixed-cidr-v6=""                     IPv6 subnet for fixed IPs
       -G, --group="docker"                   Group for the unix socket
