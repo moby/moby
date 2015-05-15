@@ -585,10 +585,9 @@ We set both memory and swap memory, so the processes in the container can use
 
 By default, Docker kills processes in a container if an out-of-memory (OOM)
 error occurs. To change this behaviour, use the `--oom-kill-disable` option.
-Only disable the OOM killer on containers where you have also set the
-`-m/--memory` option. If the `-m` flag is not set, this can result in the host
-running out of memory and require killing the host's system processes to free
-memory.
+It can be only used with `-m/--memory` option. Because if the `-m` flag is
+not set, this can result in the host running out of memory and require
+killing the host's system processes to free memory.
 
 Examples:
 
@@ -596,13 +595,6 @@ The following example limits the memory to 100M and disables the OOM killer for
 this container:
 
     $ docker run -ti -m 100M --oom-kill-disable ubuntu:14.04 /bin/bash
-
-The following example, illustrates a dangerous way to use the flag:
-
-    $ docker run -ti --oom-kill-disable ubuntu:14.04 /bin/bash
-
-The container has unlimited memory which can cause the host to run out memory
-and require killing system processes to free memory.
 
 ### CPU share constraint
 

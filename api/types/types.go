@@ -148,7 +148,6 @@ type Info struct {
 	IPv4Forwarding     bool
 	Debug              bool
 	NFd                int
-	OomKillDisable     bool
 	NGoroutines        int
 	SystemTime         string
 	ExecutionDriver    string
