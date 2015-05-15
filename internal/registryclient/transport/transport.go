@@ -1,4 +1,4 @@
-package client
+package transport
 
 import (
 	"io"
