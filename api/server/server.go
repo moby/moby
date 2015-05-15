@@ -353,37 +353,6 @@ func (s *Server) getImagesJSON(version version.Version, w http.ResponseWriter, r
 		return err
 	}
 
-	// For version >= 1.19 the Created filed of image will change
-	// from int64 to time.Time.
-	// This is for legacy data format.
-	if version.LessThan("1.19") {
-		type legacyImage struct {
-			ID          string `json:"Id"`
-			ParentId    string
-			RepoTags    []string
-			RepoDigests []string
-			Created     int64
-			Size        int
-			VirtualSize int
-			Labels      map[string]string
-		}
-
-		legacy := []*legacyImage{}
-		for _, img := range images {
-			l := &legacyImage{
-				ID:          img.ID,
-				ParentId:    img.ParentId,
-				RepoTags:    img.RepoTags,
-				RepoDigests: img.RepoDigests,
-				Created:     img.Created.Unix(),
-				Size:        img.Size,
-				VirtualSize: img.VirtualSize,
-				Labels:      img.Labels,
-			}
-			legacy = append(legacy, l)
-		}
-		return writeJSON(w, http.StatusOK, legacy)
-	}
 	return writeJSON(w, http.StatusOK, images)
 }
 
@@ -513,34 +482,6 @@ func (s *Server) getImagesHistory(version version.Version, w http.ResponseWriter
 		return err
 	}
 
-	// For version >= 1.19 the Created filed of image will change
-	// from int64 to time.Time.
-	// This is for legacy data format.
-	if version.LessThan("1.19") {
-		type legacyImageHistory struct {
-			ID        string `json:"Id"`
-			Created   int64
-			CreatedBy string
-			Tags      []string
-			Size      int64
-			Comment   string
-		}
-
-		legacy := []*legacyImageHistory{}
-		for _, img := range history {
-			l := &legacyImageHistory{
-				ID:        img.ID,
-				Created:   img.Created.Unix(),
-				CreatedBy: img.CreatedBy,
-				Tags:      img.Tags,
-				Size:      img.Size,
-				Comment:   img.Comment,
-			}
-			legacy = append(legacy, l)
-		}
-		return writeJSON(w, http.StatusOK, legacy)
-	}
-
 	return writeJSON(w, http.StatusOK, history)
 }
 
@@ -598,42 +539,6 @@ func (s *Server) getContainersJSON(version version.Version, w http.ResponseWrite
 	containers, err := s.daemon.Containers(config)
 	if err != nil {
 		return err
-	}
-
-	// For version >= 1.19 the Created filed of container will change
-	// from int64 to time.Time.
-	// This is for legacy data format.
-	if version.LessThan("1.19") {
-		type legacyContainer struct {
-			ID         string            `json:"Id"`
-			Names      []string          `json:",omitempty"`
-			Image      string            `json:",omitempty"`
-			Command    string            `json:",omitempty"`
-			Created    int64             `json:",omitempty"`
-			Ports      []types.Port      `json:",omitempty"`
-			SizeRw     int               `json:",omitempty"`
-			SizeRootFs int               `json:",omitempty"`
-			Labels     map[string]string `json:",omitempty"`
-			Status     string            `json:",omitempty"`
-		}
-
-		legacyContainers := []*legacyContainer{}
-		for _, c := range containers {
-			lc := &legacyContainer{
-				ID:         c.ID,
-				Names:      c.Names,
-				Image:      c.Image,
-				Command:    c.Command,
-				Created:    c.Created.Unix(),
-				Ports:      c.Ports,
-				SizeRw:     c.SizeRw,
-				SizeRootFs: c.SizeRootFs,
-				Labels:     c.Labels,
-				Status:     c.Status,
-			}
-			legacyContainers = append(legacyContainers, lc)
-		}
-		return writeJSON(w, http.StatusOK, legacyContainers)
 	}
 
 	return writeJSON(w, http.StatusOK, containers)

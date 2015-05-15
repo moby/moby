@@ -28,7 +28,7 @@ type ByCreated []*types.Image
 
 func (r ByCreated) Len() int           { return len(r) }
 func (r ByCreated) Swap(i, j int)      { r[i], r[j] = r[j], r[i] }
-func (r ByCreated) Less(i, j int) bool { return r[i].Created.Before(r[j].Created) }
+func (r ByCreated) Less(i, j int) bool { return r[i].Created < r[j].Created }
 
 func (s *TagStore) Images(config *ImagesConfig) ([]*types.Image, error) {
 	var (
@@ -101,7 +101,7 @@ func (s *TagStore) Images(config *ImagesConfig) ([]*types.Image, error) {
 					newImage := new(types.Image)
 					newImage.ParentId = image.Parent
 					newImage.ID = image.ID
-					newImage.Created = image.Created.UTC()
+					newImage.Created = int(image.Created.Unix())
 					newImage.Size = int(image.Size)
 					newImage.VirtualSize = int(image.GetParentsSize(0) + image.Size)
 					newImage.Labels = image.ContainerConfig.Labels
@@ -138,7 +138,7 @@ func (s *TagStore) Images(config *ImagesConfig) ([]*types.Image, error) {
 			newImage.RepoTags = []string{"<none>:<none>"}
 			newImage.RepoDigests = []string{"<none>@<none>"}
 			newImage.ID = image.ID
-			newImage.Created = image.Created.UTC()
+			newImage.Created = int(image.Created.Unix())
 			newImage.Size = int(image.Size)
 			newImage.VirtualSize = int(image.GetParentsSize(0) + image.Size)
 			newImage.Labels = image.ContainerConfig.Labels

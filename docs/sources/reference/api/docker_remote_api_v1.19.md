@@ -38,7 +38,7 @@ List containers
                      "Id": "8dfafdbc3a40",
                      "Image": "ubuntu:latest",
                      "Command": "echo 1",
-                     "Created": "2015-03-28T08:19:30.820225442Z",
+                     "Created": 1367854155,
                      "Status": "Exit 0",
                      "Ports": [{"PrivatePort": 2222, "PublicPort": 3333, "Type": "tcp"}],
                      "SizeRw": 12288,
@@ -48,7 +48,7 @@ List containers
                      "Id": "9cd87474be90",
                      "Image": "ubuntu:latest",
                      "Command": "echo 222222",
-                     "Created": "2015-01-05T19:42:44.334772611Z",
+                     "Created": 1367854155,
                      "Status": "Exit 0",
                      "Ports": [],
                      "SizeRw": 12288,
@@ -58,7 +58,7 @@ List containers
                      "Id": "3176a2479c92",
                      "Image": "ubuntu:latest",
                      "Command": "echo 3333333333333333",
-                     "Created": "2014-11-26T20:35:41.514880809Z",
+                     "Created": 1367854154,
                      "Status": "Exit 0",
                      "Ports":[],
                      "SizeRw":12288,
@@ -68,7 +68,7 @@ List containers
                      "Id": "4cb07b47f9fb",
                      "Image": "ubuntu:latest",
                      "Command": "echo 444444444444444444444444444444444",
-                     "Created": "2014-11-26T15:35:05.538305907Z",
+                     "Created": 1367854152,
                      "Status": "Exit 0",
                      "Ports": [],
                      "SizeRw": 12288,
@@ -1148,7 +1148,7 @@ Status Codes:
                "ubuntu:latest"
              ],
              "Id": "8dbd9e392a964056420e5d58ca5cc376ef18e2de93b5cc90e868a1bbc8318c1c",
-             "Created": "2014-11-26T15:35:05.538305907Z",
+             "Created": 1365714795,
              "Size": 131506275,
              "VirtualSize": 131506275
           },
@@ -1159,7 +1159,7 @@ Status Codes:
              ],
              "ParentId": "27cf784147099545",
              "Id": "b750fe79269d2ec9a3c593ef05b4332b1d1a02a62b4accb2c21d589ff2f5f2dc",
-             "Created": "2014-11-21T10:18:46.654545839Z",
+             "Created": 1364102658,
              "Size": 24653,
              "VirtualSize": 180116135
           }
@@ -1176,7 +1176,7 @@ Status Codes:
 
         [
           {
-            "Created": "2015-03-23T15:58:07.610802612Z",
+            "Created": 1420064636,
             "Id": "4986bf8c15363d1c5d15512d5266f8777bfba4974ac56e3270e7760f6f0a8125",
             "ParentId": "ea13149945cb6b1e746bf28032f02e9b5a793523481a0a18645fc77ad53c4ea2",
             "RepoDigests": [
@@ -1392,12 +1392,12 @@ Return the history of the image `name`
         [
              {
                      "Id": "b750fe79269d",
-                     "Created": "2014-12-15T19:52:48.480875289Z",
+                     "Created": 1364102658,
                      "CreatedBy": "/bin/bash"
              },
              {
                      "Id": "27cf78414709",
-                     "Created": "2013-06-13T21:03:50.821769Z",
+                     "Created": 1364068391,
                      "CreatedBy": ""
              }
         ]
