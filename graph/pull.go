@@ -55,6 +55,22 @@ func (s *TagStore) Pull(image string, tag string, imagePullConfig *ImagePullConf
 	}
 	defer s.poolRemove("pull", utils.ImageReference(repoInfo.LocalName, tag))
 
+	logName := repoInfo.LocalName
+	if tag != "" {
+		logName = utils.ImageReference(logName, tag)
+	}
+
+	v2mirrorEndpoint, v2mirrorRepoInfo, err := configureV2Mirror(repoInfo.Index.Mirrors, repoInfo, s.registryService)
+	if err != nil {
+		logrus.Errorf("Error configuring mirrors: %s", err)
+		return err
+	}
+
+	if v2mirrorEndpoint != nil {
+		logrus.Debugf("Attempting pull from v2 mirror: %s", v2mirrorEndpoint.URL)
+		return s.pullFromV2Mirror(v2mirrorEndpoint, v2mirrorRepoInfo, imagePullConfig, tag, sf, logName)
+	}
+
 	logrus.Debugf("pulling image from host %q with remote name %q", repoInfo.Index.Name, repoInfo.RemoteName)
 
 	endpoint, err := repoInfo.GetEndpoint(imagePullConfig.MetaHeaders)
@@ -71,11 +87,6 @@ func (s *TagStore) Pull(image string, tag string, imagePullConfig *ImagePullConf
 	r, err := registry.NewSession(client, imagePullConfig.AuthConfig, endpoint)
 	if err != nil {
 		return err
-	}
-
-	logName := repoInfo.LocalName
-	if tag != "" {
-		logName = utils.ImageReference(logName, tag)
 	}
 
 	if len(repoInfo.Index.Mirrors) == 0 && (repoInfo.Index.Official || endpoint.Version == registry.APIVersion2) {
@@ -101,6 +112,94 @@ func (s *TagStore) Pull(image string, tag string, imagePullConfig *ImagePullConf
 
 	s.eventsService.Log("pull", logName, "")
 
+	return nil
+
+}
+
+func makeMirrorRepoInfo(repoInfo *registry.RepositoryInfo, mirror string) *registry.RepositoryInfo {
+	mirrorRepo := &registry.RepositoryInfo{
+		RemoteName:    repoInfo.RemoteName,
+		LocalName:     repoInfo.LocalName,
+		CanonicalName: repoInfo.CanonicalName,
+		Official:      false,
+
+		Index: &registry.IndexInfo{
+			Official: false,
+			Secure:   repoInfo.Index.Secure,
+			Name:     mirror,
+			Mirrors:  []string{},
+		},
+	}
+	return mirrorRepo
+}
+
+func configureV2Mirror(mirrors []string, repoInfo *registry.RepositoryInfo, s *registry.Service) (*registry.Endpoint, *registry.RepositoryInfo, error) {
+	if len(mirrors) > 0 {
+		// repoInfo
+	} else {
+		officialIndex, err := s.ResolveIndex(registry.IndexServerName())
+		if err != nil {
+			return nil, nil, err
+		}
+		mirrors = officialIndex.Mirrors
+	}
+
+	v1MirrorCount := 0
+	var v2MirrorEndpoint *registry.Endpoint
+	var v2MirrorRepoInfo *registry.RepositoryInfo
+	var lastErr error
+	for _, mirror := range mirrors {
+		mirrorRepoInfo := makeMirrorRepoInfo(repoInfo, mirror)
+		endpoint, err := registry.NewEndpoint(mirrorRepoInfo.Index, nil)
+		if err != nil {
+			logrus.Errorf("Unable to create endpoint for %s: %s", mirror, err)
+			lastErr = err
+			continue
+		}
+		if endpoint.Version == 2 {
+			if v2MirrorEndpoint == nil {
+				v2MirrorEndpoint = endpoint
+				v2MirrorRepoInfo = mirrorRepoInfo
+			} else {
+				// > 1 v2 mirrors given
+				return nil, nil, fmt.Errorf("multiple v2 mirrors configured")
+			}
+		} else {
+			v1MirrorCount++
+		}
+	}
+
+	if v1MirrorCount == len(mirrors) {
+		// OK, but mirrors are v1
+		return nil, nil, nil
+	}
+	if v2MirrorEndpoint != nil && v1MirrorCount == 0 {
+		// OK, 1 v2 mirror specified
+		return v2MirrorEndpoint, v2MirrorRepoInfo, nil
+	}
+	if v2MirrorEndpoint != nil && v1MirrorCount > 0 {
+		lastErr = fmt.Errorf("v1 and v2 mirrors configured")
+	}
+	return nil, nil, lastErr
+}
+
+func (s *TagStore) pullFromV2Mirror(mirrorEndpoint *registry.Endpoint, repoInfo *registry.RepositoryInfo,
+	imagePullConfig *ImagePullConfig, tag string, sf *streamformatter.StreamFormatter, logName string) error {
+
+	tr := transport.NewTransport(
+		registry.NewTransport(registry.ReceiveTimeout, mirrorEndpoint.IsSecure),
+		registry.DockerHeaders(imagePullConfig.MetaHeaders)...,
+	)
+	client := registry.HTTPClient(tr)
+	mirrorSession, err := registry.NewSession(client, imagePullConfig.AuthConfig, mirrorEndpoint)
+	if err != nil {
+		return err
+	}
+	logrus.Debugf("Pulling v2 repository with local name %q from %s", repoInfo.LocalName, mirrorEndpoint.URL)
+	if err := s.pullV2Repository(mirrorSession, imagePullConfig.OutStream, repoInfo, tag, sf); err != nil {
+		return err
+	}
+	s.eventsService.Log("pull", logName, "")
 	return nil
 }
 
