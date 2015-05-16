@@ -2,8 +2,6 @@ package daemon
 
 import (
 	"os"
-
-	flag "github.com/docker/docker/pkg/mflag"
 )
 
 var (
