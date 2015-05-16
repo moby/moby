@@ -295,15 +295,6 @@ func fileServer(files map[string]string) (*FileServer, error) {
 	}, nil
 }
 
-func copyWithCP(source, target string) error {
-	copyCmd := exec.Command("cp", "-rp", source, target)
-	out, exitCode, err := runCommandWithOutput(copyCmd)
-	if err != nil || exitCode != 0 {
-		return fmt.Errorf("failed to copy: error: %q ,output: %q", err, out)
-	}
-	return nil
-}
-
 // randomUnixTmpDirPath provides a temporary unix path with rand string appended.
 // does not create or checks if it exists.
 func randomUnixTmpDirPath(s string) string {
