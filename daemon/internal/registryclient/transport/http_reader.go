@@ -13,6 +13,9 @@ import (
 	"github.com/docker/distribution"
 )
 
+// NewHTTPReadSeeker handles reading from an HTTP endpoint using a GET
+// request. When seeking and starting a read from a non-zero offset
+// the a "Range" header will be added which sets the offset.
 func NewHTTPReadSeeker(client *http.Client, url string, size int64) distribution.ReadSeekCloser {
 	return &httpReadSeeker{
 		client: client,
