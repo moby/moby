@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"runtime"
 	"strconv"
@@ -13,8 +15,10 @@ import (
 	"testing"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/docker/docker/pkg/plugins"
 	"github.com/docker/docker/pkg/reexec"
 	"github.com/docker/libnetwork"
+	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/libnetwork/netutils"
 	"github.com/docker/libnetwork/options"
@@ -226,7 +230,7 @@ func TestUnknownDriver(t *testing.T) {
 	}
 }
 
-func TestNilDriver(t *testing.T) {
+func TestNilRemoteDriver(t *testing.T) {
 	controller, err := libnetwork.New()
 	if err != nil {
 		t.Fatal(err)
@@ -238,24 +242,7 @@ func TestNilDriver(t *testing.T) {
 		t.Fatal("Expected to fail. But instead succeeded")
 	}
 
-	if err != libnetwork.ErrInvalidNetworkDriver {
-		t.Fatalf("Did not fail with expected error. Actual error: %v", err)
-	}
-}
-
-func TestNoInitDriver(t *testing.T) {
-	controller, err := libnetwork.New()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = controller.NewNetwork("ppp", "dummy",
-		libnetwork.NetworkOptionGeneric(getEmptyGenericOption()))
-	if err == nil {
-		t.Fatal("Expected to fail. But instead succeeded")
-	}
-
-	if err != libnetwork.ErrInvalidNetworkDriver {
+	if err != plugins.ErrNotFound {
 		t.Fatalf("Did not fail with expected error. Actual error: %v", err)
 	}
 }
@@ -1131,6 +1118,102 @@ func TestResolvConf(t *testing.T) {
 
 	if !bytes.Equal(content, tmpResolvConf3) {
 		t.Fatalf("Expected %s, Got %s", string(tmpResolvConf3), string(content))
+	}
+}
+
+func TestInvalidRemoteDriver(t *testing.T) {
+	if !netutils.IsRunningInContainer() {
+		t.Skip("Skipping test when not running inside a Container")
+	}
+
+	mux := http.NewServeMux()
+	server := httptest.NewServer(mux)
+	if server == nil {
+		t.Fatal("Failed to start a HTTP Server")
+	}
+	defer server.Close()
+
+	type pluginRequest struct {
+		name string
+	}
+
+	mux.HandleFunc("/Plugin.Activate", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/vnd.docker.plugins.v1+json")
+		fmt.Fprintln(w, `{"Implements": ["InvalidDriver"]}`)
+	})
+
+	if err := os.MkdirAll("/usr/share/docker/plugins", 0755); err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if err := os.RemoveAll("/usr/share/docker/plugins"); err != nil {
+			t.Fatal(err)
+		}
+	}()
+
+	if err := ioutil.WriteFile("/usr/share/docker/plugins/invalid-network-driver.spec", []byte(server.URL), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	controller, err := libnetwork.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = controller.NewNetwork("invalid-network-driver", "dummy",
+		libnetwork.NetworkOptionGeneric(getEmptyGenericOption()))
+	if err == nil {
+		t.Fatal("Expected to fail. But instead succeeded")
+	}
+
+	if err != plugins.ErrNotImplements {
+		t.Fatalf("Did not fail with expected error. Actual error: %v", err)
+	}
+}
+
+func TestValidRemoteDriver(t *testing.T) {
+	if !netutils.IsRunningInContainer() {
+		t.Skip("Skipping test when not running inside a Container")
+	}
+
+	mux := http.NewServeMux()
+	server := httptest.NewServer(mux)
+	if server == nil {
+		t.Fatal("Failed to start a HTTP Server")
+	}
+	defer server.Close()
+
+	type pluginRequest struct {
+		name string
+	}
+
+	mux.HandleFunc("/Plugin.Activate", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/vnd.docker.plugins.v1+json")
+		fmt.Fprintf(w, `{"Implements": ["%s"]}`, driverapi.NetworkPluginEndpointType)
+	})
+
+	if err := os.MkdirAll("/usr/share/docker/plugins", 0755); err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if err := os.RemoveAll("/usr/share/docker/plugins"); err != nil {
+			t.Fatal(err)
+		}
+	}()
+
+	if err := ioutil.WriteFile("/usr/share/docker/plugins/valid-network-driver.spec", []byte(server.URL), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	controller, err := libnetwork.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = controller.NewNetwork("valid-network-driver", "dummy",
+		libnetwork.NetworkOptionGeneric(getEmptyGenericOption()))
+	if err != nil && err != driverapi.ErrNotImplemented {
+		t.Fatal(err)
 	}
 }
 

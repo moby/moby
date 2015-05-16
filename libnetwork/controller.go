@@ -48,6 +48,7 @@ package libnetwork
 import (
 	"sync"
 
+	"github.com/docker/docker/pkg/plugins"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/sandbox"
@@ -140,7 +141,11 @@ func (c *controller) NewNetwork(networkType, name string, options ...NetworkOpti
 	d, ok := c.drivers[networkType]
 	c.Unlock()
 	if !ok {
-		return nil, ErrInvalidNetworkDriver
+		var err error
+		d, err = c.loadDriver(networkType)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// Check if a network already exists with the specified network name
@@ -274,4 +279,20 @@ func (c *controller) sandboxGet(key string) sandbox.Sandbox {
 	}
 
 	return sData.sandbox
+}
+
+func (c *controller) loadDriver(networkType string) (driverapi.Driver, error) {
+	// Plugins pkg performs lazy loading of plugins that acts as remote drivers.
+	// As per the design, this Get call will result in remote driver discovery if there is a corresponding plugin available.
+	_, err := plugins.Get(networkType, driverapi.NetworkPluginEndpointType)
+	if err != nil {
+		return nil, err
+	}
+	c.Lock()
+	defer c.Unlock()
+	d, ok := c.drivers[networkType]
+	if !ok {
+		return nil, ErrInvalidNetworkDriver
+	}
+	return d, nil
 }
