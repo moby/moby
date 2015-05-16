@@ -1023,22 +1023,12 @@ func (daemon *Daemon) Stats(c *Container) (*execdriver.ResourceStats, error) {
 	return daemon.execDriver.Stats(c.ID)
 }
 
-func (daemon *Daemon) SubscribeToContainerStats(name string) (chan interface{}, error) {
-	c, err := daemon.Get(name)
-	if err != nil {
-		return nil, err
-	}
-	ch := daemon.statsCollector.collect(c)
-	return ch, nil
+func (daemon *Daemon) SubscribeToContainerStats(c *Container) chan interface{} {
+	return daemon.statsCollector.collect(c)
 }
 
-func (daemon *Daemon) UnsubscribeToContainerStats(name string, ch chan interface{}) error {
-	c, err := daemon.Get(name)
-	if err != nil {
-		return err
-	}
+func (daemon *Daemon) UnsubscribeFromContainerStats(c *Container, ch chan interface{}) {
 	daemon.statsCollector.unsubscribe(c, ch)
-	return nil
 }
 
 // FIXME: this is a convenience function for integration tests

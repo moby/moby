@@ -11,10 +11,11 @@ import (
 )
 
 func (daemon *Daemon) ContainerStats(name string, stream bool, out io.Writer) error {
-	updates, err := daemon.SubscribeToContainerStats(name)
+	c, err := daemon.Get(name)
 	if err != nil {
 		return err
 	}
+	updates := daemon.SubscribeToContainerStats(c)
 	enc := json.NewEncoder(out)
 	for v := range updates {
 		update := v.(*execdriver.ResourceStats)
@@ -24,7 +25,7 @@ func (daemon *Daemon) ContainerStats(name string, stream bool, out io.Writer) er
 		ss.CpuStats.SystemUsage = update.SystemUsage
 		if err := enc.Encode(ss); err != nil {
 			// TODO: handle the specific broken pipe
-			daemon.UnsubscribeToContainerStats(name, updates)
+			daemon.UnsubscribeFromContainerStats(c, updates)
 			return err
 		}
 		if !stream {

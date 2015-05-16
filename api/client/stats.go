@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types"
-	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/units"
 )
 
@@ -124,12 +123,29 @@ func (s *containerStats) Display(w io.Writer) error {
 //
 // Usage: docker stats CONTAINER [CONTAINER...]
 func (cli *DockerCli) CmdStats(args ...string) error {
-	cmd := cli.Subcmd("stats", "CONTAINER [CONTAINER...]", "Display a live stream of one or more containers' resource usage statistics", true)
+	cmd := cli.Subcmd("stats", "[CONTAINER...]", "Display a live stream of one or more containers' resource usage statistics", true)
 	noStream := cmd.Bool([]string{"-no-stream"}, false, "Disable streaming stats and only pull the first result")
-	cmd.Require(flag.Min, 1)
 	cmd.ParseFlags(args, true)
 
-	names := cmd.Args()
+	var names []string
+	if cs := cmd.Args(); len(cs) != 0 {
+		names = cs
+	} else {
+		v := url.Values{}
+		v.Set("all", "1")
+		body, _, err := readBody(cli.call("GET", "/containers/json?"+v.Encode(), nil, nil))
+		if err != nil {
+			return err
+		}
+		var cs []types.Container
+		if err := json.Unmarshal(body, &cs); err != nil {
+			return err
+		}
+		for _, c := range cs {
+			names = append(names, c.ID[:12])
+		}
+	}
+
 	sort.Strings(names)
 	var (
 		cStats []*containerStats
