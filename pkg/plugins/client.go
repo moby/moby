@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	versionMimetype = "appplication/vnd.docker.plugins.v1+json"
+	versionMimetype = "application/vnd.docker.plugins.v1+json"
 	defaultTimeOut  = 30
 )
 
