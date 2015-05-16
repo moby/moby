@@ -44,8 +44,6 @@ func (auth *RequestAuthorization) getToken() (string, error) {
 		return auth.tokenCache, nil
 	}
 
-	client := auth.registryEndpoint.HTTPClient()
-
 	for _, challenge := range auth.registryEndpoint.AuthChallenges {
 		switch strings.ToLower(challenge.Scheme) {
 		case "basic":
@@ -57,7 +55,7 @@ func (auth *RequestAuthorization) getToken() (string, error) {
 				params[k] = v
 			}
 			params["scope"] = fmt.Sprintf("%s:%s:%s", auth.resource, auth.scope, strings.Join(auth.actions, ","))
-			token, err := getToken(auth.authConfig.Username, auth.authConfig.Password, params, auth.registryEndpoint, client)
+			token, err := getToken(auth.authConfig.Username, auth.authConfig.Password, params, auth.registryEndpoint)
 			if err != nil {
 				return "", err
 			}
@@ -104,7 +102,6 @@ func loginV1(authConfig *cliconfig.AuthConfig, registryEndpoint *Endpoint) (stri
 		status        string
 		reqBody       []byte
 		err           error
-		client        = registryEndpoint.HTTPClient()
 		reqStatusCode = 0
 		serverAddress = authConfig.ServerAddress
 	)
@@ -128,7 +125,7 @@ func loginV1(authConfig *cliconfig.AuthConfig, registryEndpoint *Endpoint) (stri
 
 	// using `bytes.NewReader(jsonBody)` here causes the server to respond with a 411 status.
 	b := strings.NewReader(string(jsonBody))
-	req1, err := client.Post(serverAddress+"users/", "application/json; charset=utf-8", b)
+	req1, err := registryEndpoint.client.Post(serverAddress+"users/", "application/json; charset=utf-8", b)
 	if err != nil {
 		return "", fmt.Errorf("Server Error: %s", err)
 	}
@@ -151,7 +148,7 @@ func loginV1(authConfig *cliconfig.AuthConfig, registryEndpoint *Endpoint) (stri
 		if string(reqBody) == "\"Username or email already exists\"" {
 			req, err := http.NewRequest("GET", serverAddress+"users/", nil)
 			req.SetBasicAuth(authConfig.Username, authConfig.Password)
-			resp, err := client.Do(req)
+			resp, err := registryEndpoint.client.Do(req)
 			if err != nil {
 				return "", err
 			}
@@ -180,7 +177,7 @@ func loginV1(authConfig *cliconfig.AuthConfig, registryEndpoint *Endpoint) (stri
 		// protected, so people can use `docker login` as an auth check.
 		req, err := http.NewRequest("GET", serverAddress+"users/", nil)
 		req.SetBasicAuth(authConfig.Username, authConfig.Password)
-		resp, err := client.Do(req)
+		resp, err := registryEndpoint.client.Do(req)
 		if err != nil {
 			return "", err
 		}
@@ -217,7 +214,6 @@ func loginV2(authConfig *cliconfig.AuthConfig, registryEndpoint *Endpoint) (stri
 	var (
 		err       error
 		allErrors []error
-		client    = registryEndpoint.HTTPClient()
 	)
 
 	for _, challenge := range registryEndpoint.AuthChallenges {
@@ -225,9 +221,9 @@ func loginV2(authConfig *cliconfig.AuthConfig, registryEndpoint *Endpoint) (stri
 
 		switch strings.ToLower(challenge.Scheme) {
 		case "basic":
-			err = tryV2BasicAuthLogin(authConfig, challenge.Parameters, registryEndpoint, client)
+			err = tryV2BasicAuthLogin(authConfig, challenge.Parameters, registryEndpoint)
 		case "bearer":
-			err = tryV2TokenAuthLogin(authConfig, challenge.Parameters, registryEndpoint, client)
+			err = tryV2TokenAuthLogin(authConfig, challenge.Parameters, registryEndpoint)
 		default:
 			// Unsupported challenge types are explicitly skipped.
 			err = fmt.Errorf("unsupported auth scheme: %q", challenge.Scheme)
@@ -245,7 +241,7 @@ func loginV2(authConfig *cliconfig.AuthConfig, registryEndpoint *Endpoint) (stri
 	return "", fmt.Errorf("no successful auth challenge for %s - errors: %s", registryEndpoint, allErrors)
 }
 
-func tryV2BasicAuthLogin(authConfig *cliconfig.AuthConfig, params map[string]string, registryEndpoint *Endpoint, client *http.Client) error {
+func tryV2BasicAuthLogin(authConfig *cliconfig.AuthConfig, params map[string]string, registryEndpoint *Endpoint) error {
 	req, err := http.NewRequest("GET", registryEndpoint.Path(""), nil)
 	if err != nil {
 		return err
@@ -253,7 +249,7 @@ func tryV2BasicAuthLogin(authConfig *cliconfig.AuthConfig, params map[string]str
 
 	req.SetBasicAuth(authConfig.Username, authConfig.Password)
 
-	resp, err := client.Do(req)
+	resp, err := registryEndpoint.client.Do(req)
 	if err != nil {
 		return err
 	}
@@ -266,8 +262,8 @@ func tryV2BasicAuthLogin(authConfig *cliconfig.AuthConfig, params map[string]str
 	return nil
 }
 
-func tryV2TokenAuthLogin(authConfig *cliconfig.AuthConfig, params map[string]string, registryEndpoint *Endpoint, client *http.Client) error {
-	token, err := getToken(authConfig.Username, authConfig.Password, params, registryEndpoint, client)
+func tryV2TokenAuthLogin(authConfig *cliconfig.AuthConfig, params map[string]string, registryEndpoint *Endpoint) error {
+	token, err := getToken(authConfig.Username, authConfig.Password, params, registryEndpoint)
 	if err != nil {
 		return err
 	}
@@ -279,7 +275,7 @@ func tryV2TokenAuthLogin(authConfig *cliconfig.AuthConfig, params map[string]str
 
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
 
-	resp, err := client.Do(req)
+	resp, err := registryEndpoint.client.Do(req)
 	if err != nil {
 		return err
 	}

@@ -17,6 +17,7 @@ import (
 	"github.com/docker/docker/pkg/progressreader"
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/pkg/stringid"
+	"github.com/docker/docker/pkg/transport"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/utils"
 )
@@ -55,16 +56,17 @@ func (s *TagStore) Pull(image string, tag string, imagePullConfig *ImagePullConf
 	defer s.poolRemove("pull", utils.ImageReference(repoInfo.LocalName, tag))
 
 	logrus.Debugf("pulling image from host %q with remote name %q", repoInfo.Index.Name, repoInfo.RemoteName)
-	endpoint, err := repoInfo.GetEndpoint()
+
+	endpoint, err := repoInfo.GetEndpoint(imagePullConfig.MetaHeaders)
 	if err != nil {
 		return err
 	}
-
+	// TODO(tiborvass): reuse client from endpoint?
 	// Adds Docker-specific headers as well as user-specified headers (metaHeaders)
-	tr := &registry.DockerHeaders{
+	tr := transport.NewTransport(
 		registry.NewTransport(registry.ReceiveTimeout, endpoint.IsSecure),
-		imagePullConfig.MetaHeaders,
-	}
+		registry.DockerHeaders(imagePullConfig.MetaHeaders)...,
+	)
 	client := registry.HTTPClient(tr)
 	r, err := registry.NewSession(client, imagePullConfig.AuthConfig, endpoint)
 	if err != nil {

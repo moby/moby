@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"errors"
+	"sync"
 	// this is required for some certificates
 	_ "crypto/sha512"
 	"encoding/hex"
@@ -22,6 +23,7 @@ import (
 	"github.com/docker/docker/cliconfig"
 	"github.com/docker/docker/pkg/httputils"
 	"github.com/docker/docker/pkg/tarsum"
+	"github.com/docker/docker/pkg/transport"
 )
 
 type Session struct {
@@ -31,7 +33,18 @@ type Session struct {
 	authConfig *cliconfig.AuthConfig
 }
 
-// authTransport handles the auth layer when communicating with a v1 registry (private or official)
+type authTransport struct {
+	http.RoundTripper
+	*cliconfig.AuthConfig
+
+	alwaysSetBasicAuth bool
+	token              []string
+
+	mu     sync.Mutex                      // guards modReq
+	modReq map[*http.Request]*http.Request // original -> modified
+}
+
+// AuthTransport handles the auth layer when communicating with a v1 registry (private or official)
 //
 // For private v1 registries, set alwaysSetBasicAuth to true.
 //
@@ -44,16 +57,23 @@ type Session struct {
 // If the server sends a token without the client having requested it, it is ignored.
 //
 // This RoundTripper also has a CancelRequest method important for correct timeout handling.
-type authTransport struct {
-	http.RoundTripper
-	*cliconfig.AuthConfig
-
-	alwaysSetBasicAuth bool
-	token              []string
+func AuthTransport(base http.RoundTripper, authConfig *cliconfig.AuthConfig, alwaysSetBasicAuth bool) http.RoundTripper {
+	if base == nil {
+		base = http.DefaultTransport
+	}
+	return &authTransport{
+		RoundTripper:       base,
+		AuthConfig:         authConfig,
+		alwaysSetBasicAuth: alwaysSetBasicAuth,
+		modReq:             make(map[*http.Request]*http.Request),
+	}
 }
 
-func (tr *authTransport) RoundTrip(req *http.Request) (*http.Response, error) {
-	req = cloneRequest(req)
+func (tr *authTransport) RoundTrip(orig *http.Request) (*http.Response, error) {
+	req := transport.CloneRequest(orig)
+	tr.mu.Lock()
+	tr.modReq[orig] = req
+	tr.mu.Unlock()
 
 	if tr.alwaysSetBasicAuth {
 		req.SetBasicAuth(tr.Username, tr.Password)
@@ -73,12 +93,31 @@ func (tr *authTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	}
 	resp, err := tr.RoundTripper.RoundTrip(req)
 	if err != nil {
+		delete(tr.modReq, orig)
 		return nil, err
 	}
 	if askedForToken && len(resp.Header["X-Docker-Token"]) > 0 {
 		tr.token = resp.Header["X-Docker-Token"]
 	}
+	resp.Body = &transport.OnEOFReader{
+		Rc: resp.Body,
+		Fn: func() { delete(tr.modReq, orig) },
+	}
 	return resp, nil
+}
+
+// CancelRequest cancels an in-flight request by closing its connection.
+func (tr *authTransport) CancelRequest(req *http.Request) {
+	type canceler interface {
+		CancelRequest(*http.Request)
+	}
+	if cr, ok := tr.RoundTripper.(canceler); ok {
+		tr.mu.Lock()
+		modReq := tr.modReq[req]
+		delete(tr.modReq, req)
+		tr.mu.Unlock()
+		cr.CancelRequest(modReq)
+	}
 }
 
 // TODO(tiborvass): remove authConfig param once registry client v2 is vendored
@@ -105,7 +144,7 @@ func NewSession(client *http.Client, authConfig *cliconfig.AuthConfig, endpoint 
 		}
 	}
 
-	client.Transport = &authTransport{RoundTripper: client.Transport, AuthConfig: authConfig, alwaysSetBasicAuth: alwaysSetBasicAuth}
+	client.Transport = AuthTransport(client.Transport, authConfig, alwaysSetBasicAuth)
 
 	jar, err := cookiejar.New(nil)
 	if err != nil {

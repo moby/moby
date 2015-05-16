@@ -11,6 +11,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/registry/api/v2"
+	"github.com/docker/docker/pkg/transport"
 )
 
 // for mocking in unit tests
@@ -41,9 +42,9 @@ func scanForAPIVersion(address string) (string, APIVersion) {
 }
 
 // NewEndpoint parses the given address to return a registry endpoint.
-func NewEndpoint(index *IndexInfo) (*Endpoint, error) {
+func NewEndpoint(index *IndexInfo, metaHeaders http.Header) (*Endpoint, error) {
 	// *TODO: Allow per-registry configuration of endpoints.
-	endpoint, err := newEndpoint(index.GetAuthConfigKey(), index.Secure)
+	endpoint, err := newEndpoint(index.GetAuthConfigKey(), index.Secure, metaHeaders)
 	if err != nil {
 		return nil, err
 	}
@@ -81,7 +82,7 @@ func validateEndpoint(endpoint *Endpoint) error {
 	return nil
 }
 
-func newEndpoint(address string, secure bool) (*Endpoint, error) {
+func newEndpoint(address string, secure bool, metaHeaders http.Header) (*Endpoint, error) {
 	var (
 		endpoint       = new(Endpoint)
 		trimmedAddress string
@@ -98,11 +99,13 @@ func newEndpoint(address string, secure bool) (*Endpoint, error) {
 		return nil, err
 	}
 	endpoint.IsSecure = secure
+	tr := NewTransport(ConnectTimeout, endpoint.IsSecure)
+	endpoint.client = HTTPClient(transport.NewTransport(tr, DockerHeaders(metaHeaders)...))
 	return endpoint, nil
 }
 
-func (repoInfo *RepositoryInfo) GetEndpoint() (*Endpoint, error) {
-	return NewEndpoint(repoInfo.Index)
+func (repoInfo *RepositoryInfo) GetEndpoint(metaHeaders http.Header) (*Endpoint, error) {
+	return NewEndpoint(repoInfo.Index, metaHeaders)
 }
 
 // Endpoint stores basic information about a registry endpoint.
@@ -174,7 +177,7 @@ func (e *Endpoint) pingV1() (RegistryInfo, error) {
 		return RegistryInfo{Standalone: false}, err
 	}
 
-	resp, err := e.HTTPClient().Do(req)
+	resp, err := e.client.Do(req)
 	if err != nil {
 		return RegistryInfo{Standalone: false}, err
 	}
@@ -222,7 +225,7 @@ func (e *Endpoint) pingV2() (RegistryInfo, error) {
 		return RegistryInfo{}, err
 	}
 
-	resp, err := e.HTTPClient().Do(req)
+	resp, err := e.client.Do(req)
 	if err != nil {
 		return RegistryInfo{}, err
 	}
@@ -260,12 +263,4 @@ HeaderLoop:
 	}
 
 	return RegistryInfo{}, fmt.Errorf("v2 registry endpoint returned status %d: %q", resp.StatusCode, http.StatusText(resp.StatusCode))
-}
-
-func (e *Endpoint) HTTPClient() *http.Client {
-	if e.client == nil {
-		tr := NewTransport(ConnectTimeout, e.IsSecure)
-		e.client = HTTPClient(tr)
-	}
-	return e.client
 }

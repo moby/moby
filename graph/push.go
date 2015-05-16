@@ -18,6 +18,7 @@ import (
 	"github.com/docker/docker/pkg/progressreader"
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/pkg/stringid"
+	"github.com/docker/docker/pkg/transport"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/utils"
@@ -509,16 +510,17 @@ func (s *TagStore) Push(localName string, imagePushConfig *ImagePushConfig) erro
 	}
 	defer s.poolRemove("push", repoInfo.LocalName)
 
-	endpoint, err := repoInfo.GetEndpoint()
+	endpoint, err := repoInfo.GetEndpoint(imagePushConfig.MetaHeaders)
 	if err != nil {
 		return err
 	}
-
+	// TODO(tiborvass): reuse client from endpoint?
 	// Adds Docker-specific headers as well as user-specified headers (metaHeaders)
-	tr := &registry.DockerHeaders{
+	tr := transport.NewTransport(
 		registry.NewTransport(registry.NoTimeout, endpoint.IsSecure),
-		imagePushConfig.MetaHeaders,
-	}
+		registry.DockerHeaders(imagePushConfig.MetaHeaders)...,
+	)
+	client := registry.HTTPClient(tr)
 	r, err := registry.NewSession(client, imagePushConfig.AuthConfig, endpoint)
 	if err != nil {
 		return err
