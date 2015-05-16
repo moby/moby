@@ -6,12 +6,16 @@ import (
 	"sync"
 )
 
+// RequestModifier represents an object which will do an inplace
+// modification of an HTTP request.
 type RequestModifier interface {
 	ModifyRequest(*http.Request) error
 }
 
 type headerModifier http.Header
 
+// NewHeaderRequestModifier returns a new RequestModifier which will
+// add the given headers to a request.
 func NewHeaderRequestModifier(header http.Header) RequestModifier {
 	return headerModifier(header)
 }
@@ -24,6 +28,8 @@ func (h headerModifier) ModifyRequest(req *http.Request) error {
 	return nil
 }
 
+// NewTransport creates a new transport which will apply modifiers to
+// the request on a RoundTrip call.
 func NewTransport(base http.RoundTripper, modifiers ...RequestModifier) http.RoundTripper {
 	return &transport{
 		Modifiers: modifiers,
