@@ -526,20 +526,22 @@ func (ep *endpoint) updateDNS(resolvConf []byte) error {
 		return ErrNoContainer
 	}
 
+	oldHash := []byte{}
 	hashFile := container.config.resolvConfPath + ".hash"
-	oldHash, err := ioutil.ReadFile(hashFile)
-	if err != nil {
-		if !os.IsNotExist(err) {
-			return err
-		}
-
-		oldHash = []byte{}
-	}
 
 	resolvBytes, err := ioutil.ReadFile(container.config.resolvConfPath)
 	if err != nil {
 		if !os.IsNotExist(err) {
 			return err
+		}
+	} else {
+		oldHash, err = ioutil.ReadFile(hashFile)
+		if err != nil {
+			if !os.IsNotExist(err) {
+				return err
+			}
+
+			oldHash = []byte{}
 		}
 	}
 

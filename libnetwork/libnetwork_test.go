@@ -995,6 +995,7 @@ func TestEnableIPv6(t *testing.T) {
 	}
 
 	resolvConfPath := "/tmp/libnetwork_test/resolv.conf"
+	defer os.Remove(resolvConfPath)
 
 	_, err = ep1.Join(containerID,
 		libnetwork.JoinOptionResolvConfPath(resolvConfPath))
@@ -1061,6 +1062,7 @@ func TestResolvConf(t *testing.T) {
 	}
 
 	resolvConfPath := "/tmp/libnetwork_test/resolv.conf"
+	defer os.Remove(resolvConfPath)
 
 	_, err = ep1.Join(containerID,
 		libnetwork.JoinOptionResolvConfPath(resolvConfPath))
