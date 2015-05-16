@@ -15,29 +15,22 @@ import (
 
 // save a repo using gz compression and try to load it using stdout
 func (s *DockerSuite) TestSaveXzAndLoadRepoStdout(c *check.C) {
-	runCmd := exec.Command(dockerBinary, "run", "-d", "busybox", "true")
+	name := "test-save-xz-and-load-repo-stdout"
+	runCmd := exec.Command(dockerBinary, "run", "--name", name, "busybox", "true")
 	out, _, err := runCommandWithOutput(runCmd)
 	if err != nil {
 		c.Fatalf("failed to create a container: %v %v", out, err)
 	}
 
-	cleanedContainerID := strings.TrimSpace(out)
-
 	repoName := "foobar-save-load-test-xz-gz"
 
-	inspectCmd := exec.Command(dockerBinary, "inspect", cleanedContainerID)
-	out, _, err = runCommandWithOutput(inspectCmd)
-	if err != nil {
-		c.Fatalf("output should've been a container id: %v %v", cleanedContainerID, err)
-	}
-
-	commitCmd := exec.Command(dockerBinary, "commit", cleanedContainerID, repoName)
+	commitCmd := exec.Command(dockerBinary, "commit", name, repoName)
 	out, _, err = runCommandWithOutput(commitCmd)
 	if err != nil {
 		c.Fatalf("failed to commit container: %v %v", out, err)
 	}
 
-	inspectCmd = exec.Command(dockerBinary, "inspect", repoName)
+	inspectCmd := exec.Command(dockerBinary, "inspect", repoName)
 	before, _, err := runCommandWithOutput(inspectCmd)
 	if err != nil {
 		c.Fatalf("the repo should exist before saving it: %v %v", before, err)
@@ -71,29 +64,22 @@ func (s *DockerSuite) TestSaveXzAndLoadRepoStdout(c *check.C) {
 
 // save a repo using xz+gz compression and try to load it using stdout
 func (s *DockerSuite) TestSaveXzGzAndLoadRepoStdout(c *check.C) {
-	runCmd := exec.Command(dockerBinary, "run", "-d", "busybox", "true")
+	name := "test-save-xz-gz-and-load-repo-stdout"
+	runCmd := exec.Command(dockerBinary, "run", "--name", name, "busybox", "true")
 	out, _, err := runCommandWithOutput(runCmd)
 	if err != nil {
 		c.Fatalf("failed to create a container: %v %v", out, err)
 	}
 
-	cleanedContainerID := strings.TrimSpace(out)
-
 	repoName := "foobar-save-load-test-xz-gz"
 
-	inspectCmd := exec.Command(dockerBinary, "inspect", cleanedContainerID)
-	out, _, err = runCommandWithOutput(inspectCmd)
-	if err != nil {
-		c.Fatalf("output should've been a container id: %v %v", cleanedContainerID, err)
-	}
-
-	commitCmd := exec.Command(dockerBinary, "commit", cleanedContainerID, repoName)
+	commitCmd := exec.Command(dockerBinary, "commit", name, repoName)
 	out, _, err = runCommandWithOutput(commitCmd)
 	if err != nil {
 		c.Fatalf("failed to commit container: %v %v", out, err)
 	}
 
-	inspectCmd = exec.Command(dockerBinary, "inspect", repoName)
+	inspectCmd := exec.Command(dockerBinary, "inspect", repoName)
 	before, _, err := runCommandWithOutput(inspectCmd)
 	if err != nil {
 		c.Fatalf("the repo should exist before saving it: %v %v", before, err)
@@ -121,10 +107,6 @@ func (s *DockerSuite) TestSaveXzGzAndLoadRepoStdout(c *check.C) {
 	if err == nil {
 		c.Fatalf("the repo should not exist: %v", after)
 	}
-
-	deleteContainer(cleanedContainerID)
-	deleteImages(repoName)
-
 }
 
 func (s *DockerSuite) TestSaveSingleTag(c *check.C) {
@@ -207,28 +189,21 @@ func (s *DockerSuite) TestSaveImageId(c *check.C) {
 
 // save a repo and try to load it using flags
 func (s *DockerSuite) TestSaveAndLoadRepoFlags(c *check.C) {
-	runCmd := exec.Command(dockerBinary, "run", "-d", "busybox", "true")
+	name := "test-save-and-load-repo-flags"
+	runCmd := exec.Command(dockerBinary, "run", "--name", name, "busybox", "true")
 	out, _, err := runCommandWithOutput(runCmd)
 	if err != nil {
 		c.Fatalf("failed to create a container: %s, %v", out, err)
 	}
-
-	cleanedContainerID := strings.TrimSpace(out)
-
 	repoName := "foobar-save-load-test"
 
-	inspectCmd := exec.Command(dockerBinary, "inspect", cleanedContainerID)
-	if out, _, err = runCommandWithOutput(inspectCmd); err != nil {
-		c.Fatalf("output should've been a container id: %s, %v", out, err)
-	}
-
-	commitCmd := exec.Command(dockerBinary, "commit", cleanedContainerID, repoName)
+	commitCmd := exec.Command(dockerBinary, "commit", name, repoName)
 	deleteImages(repoName)
 	if out, _, err = runCommandWithOutput(commitCmd); err != nil {
 		c.Fatalf("failed to commit container: %s, %v", out, err)
 	}
 
-	inspectCmd = exec.Command(dockerBinary, "inspect", repoName)
+	inspectCmd := exec.Command(dockerBinary, "inspect", repoName)
 	before, _, err := runCommandWithOutput(inspectCmd)
 	if err != nil {
 		c.Fatalf("the repo should exist before saving it: %s, %v", before, err)
@@ -251,7 +226,6 @@ func (s *DockerSuite) TestSaveAndLoadRepoFlags(c *check.C) {
 	if before != after {
 		c.Fatalf("inspect is not the same after a save / load")
 	}
-
 }
 
 func (s *DockerSuite) TestSaveMultipleNames(c *check.C) {

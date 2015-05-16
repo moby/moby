@@ -15,11 +15,7 @@ func (s *DockerSuite) TestKillContainer(c *check.C) {
 	}
 
 	cleanedContainerID := strings.TrimSpace(out)
-
-	inspectCmd := exec.Command(dockerBinary, "inspect", cleanedContainerID)
-	if out, _, err = runCommandWithOutput(inspectCmd); err != nil {
-		c.Fatalf("out should've been a container id: %s, %v", out, err)
-	}
+	c.Assert(waitRun(cleanedContainerID), check.IsNil)
 
 	killCmd := exec.Command(dockerBinary, "kill", cleanedContainerID)
 	if out, _, err = runCommandWithOutput(killCmd); err != nil {
@@ -48,11 +44,7 @@ func (s *DockerSuite) TestKillDifferentUserContainer(c *check.C) {
 	}
 
 	cleanedContainerID := strings.TrimSpace(out)
-
-	inspectCmd := exec.Command(dockerBinary, "inspect", cleanedContainerID)
-	if out, _, err = runCommandWithOutput(inspectCmd); err != nil {
-		c.Fatalf("out should've been a container id: %s, %v", out, err)
-	}
+	c.Assert(waitRun(cleanedContainerID), check.IsNil)
 
 	killCmd := exec.Command(dockerBinary, "kill", cleanedContainerID)
 	if out, _, err = runCommandWithOutput(killCmd); err != nil {
