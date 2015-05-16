@@ -129,6 +129,18 @@ type RestartPolicy struct {
 	MaximumRetryCount int
 }
 
+func (rp *RestartPolicy) IsNone() bool {
+	return rp.Name == "no"
+}
+
+func (rp *RestartPolicy) IsAlways() bool {
+	return rp.Name == "always"
+}
+
+func (rp *RestartPolicy) IsOnFailure() bool {
+	return rp.Name == "on-failure"
+}
+
 type LogConfig struct {
 	Type   string
 	Config map[string]string
