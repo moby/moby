@@ -7,8 +7,8 @@ import (
 	"sync"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/libnetwork/pkg/iptables"
-	"github.com/docker/libnetwork/pkg/portallocator"
+	"github.com/docker/libnetwork/iptables"
+	"github.com/docker/libnetwork/portallocator"
 )
 
 type mapping struct {

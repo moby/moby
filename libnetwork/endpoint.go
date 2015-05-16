@@ -11,10 +11,10 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/libnetwork/driverapi"
+	"github.com/docker/libnetwork/etchosts"
+	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/libnetwork/netutils"
-	"github.com/docker/libnetwork/pkg/etchosts"
-	"github.com/docker/libnetwork/pkg/netlabel"
-	"github.com/docker/libnetwork/pkg/resolvconf"
+	"github.com/docker/libnetwork/resolvconf"
 	"github.com/docker/libnetwork/sandbox"
 	"github.com/docker/libnetwork/types"
 )

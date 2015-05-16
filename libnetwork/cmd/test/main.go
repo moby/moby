@@ -6,7 +6,7 @@ import (
 	"net"
 
 	"github.com/docker/libnetwork"
-	"github.com/docker/libnetwork/pkg/options"
+	"github.com/docker/libnetwork/options"
 )
 
 func main() {

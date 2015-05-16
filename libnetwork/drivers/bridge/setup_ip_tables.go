@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"net"
 
+	"github.com/docker/libnetwork/iptables"
 	"github.com/docker/libnetwork/netutils"
-	"github.com/docker/libnetwork/pkg/iptables"
 )
 
 // DockerChain: DOCKER iptable chain name

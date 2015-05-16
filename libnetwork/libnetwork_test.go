@@ -15,9 +15,9 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/reexec"
 	"github.com/docker/libnetwork"
+	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/libnetwork/netutils"
-	"github.com/docker/libnetwork/pkg/netlabel"
-	"github.com/docker/libnetwork/pkg/options"
+	"github.com/docker/libnetwork/options"
 	"github.com/vishvananda/netns"
 )
 
