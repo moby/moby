@@ -10,12 +10,12 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/digest"
+	"github.com/docker/distribution/registry/client/transport"
 	"github.com/docker/docker/cliconfig"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/progressreader"
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/pkg/stringid"
-	"github.com/docker/docker/pkg/transport"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/utils"

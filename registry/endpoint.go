@@ -11,7 +11,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/registry/api/v2"
-	"github.com/docker/docker/pkg/transport"
+	"github.com/docker/distribution/registry/client/transport"
 )
 
 // for mocking in unit tests
