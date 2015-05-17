@@ -3186,3 +3186,14 @@ func (s *DockerSuite) TestRunUnshareProc(c *check.C) {
 		c.Fatalf("unshare should have failed with permission denied, got: %s, %v", out, err)
 	}
 }
+
+func (s *DockerSuite) TestRunPublishPort(c *check.C) {
+	out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "run", "-d", "--name", "test", "--expose", "8080", "busybox", "top"))
+	c.Assert(err, check.IsNil)
+	out, _, err = runCommandWithOutput(exec.Command(dockerBinary, "port", "test"))
+	c.Assert(err, check.IsNil)
+	out = strings.Trim(out, "\r\n")
+	if out != "" {
+		c.Fatalf("run without --publish-all should not publish port, out should be nil, but got: %s", out)
+	}
+}
