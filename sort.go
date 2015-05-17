@@ -60,10 +60,10 @@ func SortPortMap(ports []Port, bindings PortMap) {
 			for _, b := range binding {
 				s = append(s, portMapEntry{port: p, binding: b})
 			}
+			bindings[p] = []PortBinding{}
 		} else {
 			s = append(s, portMapEntry{port: p})
 		}
-		bindings[p] = []PortBinding{}
 	}
 
 	sort.Sort(s)
@@ -79,7 +79,9 @@ func SortPortMap(ports []Port, bindings PortMap) {
 			i++
 		}
 		// reorder bindings for this port
-		bindings[entry.port] = append(bindings[entry.port], entry.binding)
+		if _, ok := bindings[entry.port]; ok {
+			bindings[entry.port] = append(bindings[entry.port], entry.binding)
+		}
 	}
 }
 
