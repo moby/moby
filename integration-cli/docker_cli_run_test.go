@@ -3198,34 +3198,3 @@ func (s *DockerSuite) TestRunPublishPort(c *check.C) {
 		c.Fatalf("run without --publish-all should not publish port, out should be nil, but got: %s", out)
 	}
 }
-
-// Issue #10184.
-func (s *DockerSuite) TestDevicePermissions(c *check.C) {
-	testRequires(c, NativeExecDriver)
-	const permissions = "crw-rw-rw-"
-	out, status := dockerCmd(c, "run", "--device", "/dev/fuse:/dev/fuse:mrw", "busybox:latest", "ls", "-l", "/dev/fuse")
-	if status != 0 {
-		c.Fatalf("expected status 0, got %d", status)
-	}
-	if !strings.HasPrefix(out, permissions) {
-		c.Fatalf("output should begin with %q, got %q", permissions, out)
-	}
-}
-
-// https://github.com/docker/docker/pull/14498
-func (s *DockerSuite) TestVolumeFromMixedRWOptions(c *check.C) {
-	dockerCmd(c, "run", "--name", "parent", "-v", "/test", "busybox", "true")
-	dockerCmd(c, "run", "--volumes-from", "parent:ro", "--name", "test-volumes-1", "busybox", "true")
-	dockerCmd(c, "run", "--volumes-from", "parent:rw", "--name", "test-volumes-2", "busybox", "true")
-
-	testRO, err := inspectFieldMap("test-volumes-1", ".VolumesRW", "/test")
-	c.Assert(err, check.IsNil)
-	if testRO != "false" {
-		c.Fatalf("Expected RO volume was RW")
-	}
-	testRW, err := inspectFieldMap("test-volumes-2", ".VolumesRW", "/test")
-	c.Assert(err, check.IsNil)
-	if testRW != "true" {
-		c.Fatalf("Expected RW volume was RO")
-	}
-}
