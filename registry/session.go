@@ -22,8 +22,8 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/cliconfig"
 	"github.com/docker/docker/pkg/httputils"
+	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/tarsum"
-	"github.com/docker/docker/pkg/transport"
 )
 
 var (
@@ -73,6 +73,21 @@ func AuthTransport(base http.RoundTripper, authConfig *cliconfig.AuthConfig, alw
 	}
 }
 
+// cloneRequest returns a clone of the provided *http.Request.
+// The clone is a shallow copy of the struct and its Header map.
+func cloneRequest(r *http.Request) *http.Request {
+	// shallow copy of the struct
+	r2 := new(http.Request)
+	*r2 = *r
+	// deep copy of the Header
+	r2.Header = make(http.Header, len(r.Header))
+	for k, s := range r.Header {
+		r2.Header[k] = append([]string(nil), s...)
+	}
+
+	return r2
+}
+
 func (tr *authTransport) RoundTrip(orig *http.Request) (*http.Response, error) {
 	// Authorization should not be set on 302 redirect for untrusted locations.
 	// This logic mirrors the behavior in AddRequiredHeadersToRedirectedRequests.
@@ -112,7 +127,7 @@ func (tr *authTransport) RoundTrip(orig *http.Request) (*http.Response, error) {
 	if len(resp.Header["X-Docker-Token"]) > 0 {
 		tr.token = resp.Header["X-Docker-Token"]
 	}
-	resp.Body = &transport.OnEOFReader{
+	resp.Body = &ioutils.OnEOFReader{
 		Rc: resp.Body,
 		Fn: func() {
 			tr.mu.Lock()
