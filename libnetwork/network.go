@@ -5,8 +5,8 @@ import (
 
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/libnetwork/driverapi"
-	"github.com/docker/libnetwork/pkg/netlabel"
-	"github.com/docker/libnetwork/pkg/options"
+	"github.com/docker/libnetwork/netlabel"
+	"github.com/docker/libnetwork/options"
 	"github.com/docker/libnetwork/types"
 )
 

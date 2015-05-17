@@ -7,9 +7,9 @@ import (
 	"regexp"
 	"testing"
 
+	"github.com/docker/libnetwork/iptables"
+	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/libnetwork/netutils"
-	"github.com/docker/libnetwork/pkg/iptables"
-	"github.com/docker/libnetwork/pkg/netlabel"
 	"github.com/vishvananda/netlink"
 )
 

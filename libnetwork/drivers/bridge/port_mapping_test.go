@@ -5,8 +5,8 @@ import (
 	"testing"
 
 	"github.com/docker/docker/pkg/reexec"
+	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/libnetwork/netutils"
-	"github.com/docker/libnetwork/pkg/netlabel"
 )
 
 func TestMain(m *testing.M) {

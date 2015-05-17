@@ -5,8 +5,8 @@ import (
 	"net"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/docker/libnetwork/iptables"
 	"github.com/docker/libnetwork/netutils"
-	"github.com/docker/libnetwork/pkg/iptables"
 )
 
 type link struct {

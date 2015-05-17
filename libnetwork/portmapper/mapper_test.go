@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/docker/docker/pkg/reexec"
+	"github.com/docker/libnetwork/iptables"
 	"github.com/docker/libnetwork/netutils"
-	"github.com/docker/libnetwork/pkg/iptables"
 )
 
 func TestMain(m *testing.M) {

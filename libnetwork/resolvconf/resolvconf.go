@@ -10,7 +10,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/ioutils"
-	"github.com/docker/libnetwork/pkg/resolvconf/dns"
+	"github.com/docker/libnetwork/resolvconf/dns"
 )
 
 var (

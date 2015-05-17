@@ -7,9 +7,9 @@ import (
 
 	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/ipallocator"
+	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/libnetwork/netutils"
-	"github.com/docker/libnetwork/pkg/netlabel"
-	"github.com/docker/libnetwork/pkg/options"
+	"github.com/docker/libnetwork/options"
 	"github.com/docker/libnetwork/portmapper"
 	"github.com/docker/libnetwork/sandbox"
 	"github.com/docker/libnetwork/types"
