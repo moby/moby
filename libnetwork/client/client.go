@@ -1,11 +1,9 @@
 package client
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
-	"os"
 	"reflect"
 	"strings"
 
@@ -51,25 +49,21 @@ func (cli *NetworkCli) getMethod(args ...string) (func(string, ...string) error,
 // Cmd is borrowed from Docker UI and acts as the entry point for network UI commands.
 // network UI commands are designed to be invoked from multiple parent chains
 func (cli *NetworkCli) Cmd(chain string, args ...string) error {
-	var errStr string
 	if len(args) > 1 {
 		method, exists := cli.getMethod(args[:2]...)
 		if exists {
-			return method(chain, args[2:]...)
+			return method(chain+" "+args[0], args[2:]...)
 		}
 	}
 	if len(args) > 0 {
 		method, exists := cli.getMethod(args[0])
 		if !exists {
-			errStr = fmt.Sprintf("%s: '%s' is not a %s command. See '%s --help'.\n", chain, args[0], chain, chain)
-			fmt.Fprintf(cli.err, errStr)
-			return errors.New(errStr)
+			return fmt.Errorf("%s: '%s' is not a %s command. See '%s --help'.\n", chain, args[0], chain, chain)
 		}
 		return method(chain, args[1:]...)
 	}
-	errStr = fmt.Sprintf("'%s' is not a valid command. See '%s --help'.\n", chain, chain)
-	fmt.Fprintf(cli.err, errStr)
-	return errors.New(errStr)
+	flag.Usage()
+	return nil
 }
 
 // Subcmd is borrowed from Docker UI and performs the same function of configuring the subCmds
@@ -92,7 +86,6 @@ func (cli *NetworkCli) Subcmd(chain, name, signature, description string, exitOn
 		fmt.Fprintf(cli.out, "\nUsage: %s %s%s%s\n\n%s\n\n", chain, name, options, signature, description)
 		flags.SetOutput(cli.out)
 		flags.PrintDefaults()
-		os.Exit(0)
 	}
 	return flags
 }

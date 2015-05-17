@@ -28,16 +28,16 @@ func TestClientDummyCommand(t *testing.T) {
 	}
 }
 
-func TestClientNoCommand(t *testing.T) {
+func TestClientNetworkInvalidCommand(t *testing.T) {
 	var out, errOut bytes.Buffer
 	cFunc := func(method, path string, data interface{}, headers map[string][]string) (io.ReadCloser, int, error) {
 		return nopCloser{bytes.NewBufferString("")}, 200, nil
 	}
 	cli := NewNetworkCli(&out, &errOut, cFunc)
 
-	err := cli.Cmd("docker")
+	err := cli.Cmd("docker", "network", "invalid")
 	if err == nil {
-		t.Fatalf("Incorrect Command must fail")
+		t.Fatalf("Passing invalid commands must fail")
 	}
 }
 
@@ -119,33 +119,7 @@ func TestClientNetworkInfo(t *testing.T) {
 	}
 }
 
-func TestClientNetworkJoin(t *testing.T) {
-	var out, errOut bytes.Buffer
-	cFunc := func(method, path string, data interface{}, headers map[string][]string) (io.ReadCloser, int, error) {
-		return nopCloser{bytes.NewBufferString("")}, 200, nil
-	}
-	cli := NewNetworkCli(&out, &errOut, cFunc)
-
-	err := cli.Cmd("docker", "network", "join", "db1", "dbnet", "db1-ep")
-	if err != nil {
-		t.Fatal(err.Error())
-	}
-}
-
-func TestClientNetworkLeave(t *testing.T) {
-	var out, errOut bytes.Buffer
-	cFunc := func(method, path string, data interface{}, headers map[string][]string) (io.ReadCloser, int, error) {
-		return nopCloser{bytes.NewBufferString("")}, 200, nil
-	}
-	cli := NewNetworkCli(&out, &errOut, cFunc)
-
-	err := cli.Cmd("docker", "network", "leave", "db1", "dbnet")
-	if err != nil {
-		t.Fatal(err.Error())
-	}
-}
-
-// Docker Flag processing in flag.go uses os.Exit(0) for --help
+// Docker Flag processing in flag.go uses os.Exit() frequently, even for --help
 // TODO : Handle the --help test-case in the IT when CLI is available
 /*
 func TestClientNetworkCreateHelp(t *testing.T) {

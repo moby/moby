@@ -8,17 +8,57 @@ import (
 	flag "github.com/docker/docker/pkg/mflag"
 )
 
+const (
+	nullNetType = "null"
+)
+
+type command struct {
+	name        string
+	description string
+}
+
+var (
+	networkCommands = []command{
+		{"create", "Create a network"},
+		{"rm", "Remove a network"},
+		{"ls", "List all networks"},
+		{"info", "Display information of a network"},
+	}
+)
+
+func (cli *NetworkCli) CmdNetwork(chain string, args ...string) error {
+	cmd := cli.Subcmd(chain, "network", "COMMAND [OPTIONS] [arg...]", networkUsage(chain), false)
+	cmd.Require(flag.Min, 1)
+	err := cmd.ParseFlags(args, true)
+	if err == nil {
+		cmd.Usage()
+		return fmt.Errorf("Invalid command : %v", args)
+	}
+	return err
+}
+
+func networkUsage(chain string) string {
+	help := "Commands:\n"
+
+	for _, cmd := range networkCommands {
+		help += fmt.Sprintf("    %-10.10s%s\n", cmd.name, cmd.description)
+	}
+
+	help += fmt.Sprintf("\nRun '%s network COMMAND --help' for more information on a command.", chain)
+	return help
+}
+
 // CmdNetworkCreate handles Network Create UI
 func (cli *NetworkCli) CmdNetworkCreate(chain string, args ...string) error {
-	cmd := cli.Subcmd(chain, "create", "NETWORK-NAME", chain+" create", false)
-	flDriver := cmd.String([]string{"d", "-driver"}, "", "Driver to manage the Network")
+	cmd := cli.Subcmd(chain, "create", "NETWORK-NAME", "Creates a new network with a name specified by the user", false)
+	flDriver := cmd.String([]string{"d", "-driver"}, "null", "Driver to manage the Network")
 	cmd.Require(flag.Min, 1)
 	err := cmd.ParseFlags(args, true)
 	if err != nil {
 		return err
 	}
 	if *flDriver == "" {
-		*flDriver = "bridge"
+		*flDriver = nullNetType
 	}
 	// TODO : Proper Backend handling
 	obj, _, err := readBody(cli.call("POST", "/networks/"+args[0], nil, nil))
@@ -34,7 +74,7 @@ func (cli *NetworkCli) CmdNetworkCreate(chain string, args ...string) error {
 
 // CmdNetworkRm handles Network Delete UI
 func (cli *NetworkCli) CmdNetworkRm(chain string, args ...string) error {
-	cmd := cli.Subcmd(chain, "rm", "NETWORK-NAME", chain+" rm", false)
+	cmd := cli.Subcmd(chain, "rm", "NETWORK-NAME", "Deletes a network", false)
 	cmd.Require(flag.Min, 1)
 	err := cmd.ParseFlags(args, true)
 	if err != nil {
@@ -54,7 +94,7 @@ func (cli *NetworkCli) CmdNetworkRm(chain string, args ...string) error {
 
 // CmdNetworkLs handles Network List UI
 func (cli *NetworkCli) CmdNetworkLs(chain string, args ...string) error {
-	cmd := cli.Subcmd(chain, "ls", "", chain+" ls", false)
+	cmd := cli.Subcmd(chain, "ls", "", "Lists all the networks created by the user", false)
 	err := cmd.ParseFlags(args, true)
 	if err != nil {
 		return err
@@ -73,7 +113,7 @@ func (cli *NetworkCli) CmdNetworkLs(chain string, args ...string) error {
 
 // CmdNetworkInfo handles Network Info UI
 func (cli *NetworkCli) CmdNetworkInfo(chain string, args ...string) error {
-	cmd := cli.Subcmd(chain, "info", "NETWORK-NAME", chain+" info", false)
+	cmd := cli.Subcmd(chain, "info", "NETWORK-NAME", "Displays detailed information on a network", false)
 	cmd.Require(flag.Min, 1)
 	err := cmd.ParseFlags(args, true)
 	if err != nil {
