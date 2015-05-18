@@ -29,6 +29,10 @@ pages:
 - ['introduction/index.md', '**HIDDEN**']
 - ['introduction/understanding-docker.md', 'About', 'Understanding Docker']
 
+# Experimental
+- ['experimental/experimental.md', 'About', 'Experimental Features']
+
+
 # Installation:
 - ['installation/index.md', '**HIDDEN**']
 - ['installation/ubuntulinux.md', 'Installation', 'Ubuntu']
