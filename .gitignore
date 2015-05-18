@@ -3,6 +3,7 @@
 #  please consider a global .gitignore https://help.github.com/articles/ignoring-files
 *.exe
 *.orig
+*.rej
 *.test
 .*.swp
 .DS_Store
