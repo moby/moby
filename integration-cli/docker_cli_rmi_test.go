@@ -101,8 +101,8 @@ func (s *DockerSuite) TestRmiImgIDForce(c *check.C) {
 			c.Fatalf("tag busybox to create 4 more images with same imageID; docker images shows: %q\n", imagesAfter)
 		}
 	}
-	out, _ = dockerCmd(c, "inspect", "-f", "{{.Id}}", "busybox-test")
-	imgID := strings.TrimSpace(out)
+	imgID, err := inspectField("busybox-test", "Id")
+	c.Assert(err, check.IsNil)
 
 	// first checkout without force it fails
 	runCmd = exec.Command(dockerBinary, "rmi", imgID)

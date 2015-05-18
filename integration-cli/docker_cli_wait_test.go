@@ -21,12 +21,8 @@ func (s *DockerSuite) TestWaitNonBlockedExitZero(c *check.C) {
 
 	status := "true"
 	for i := 0; status != "false"; i++ {
-		runCmd = exec.Command(dockerBinary, "inspect", "--format='{{.State.Running}}'", containerID)
-		status, _, err = runCommandWithOutput(runCmd)
-		if err != nil {
-			c.Fatal(status, err)
-		}
-		status = strings.TrimSpace(status)
+		status, err = inspectField(containerID, "State.Running")
+		c.Assert(err, check.IsNil)
 
 		time.Sleep(time.Second)
 		if i >= 60 {
@@ -84,12 +80,8 @@ func (s *DockerSuite) TestWaitNonBlockedExitRandom(c *check.C) {
 
 	status := "true"
 	for i := 0; status != "false"; i++ {
-		runCmd = exec.Command(dockerBinary, "inspect", "--format='{{.State.Running}}'", containerID)
-		status, _, err = runCommandWithOutput(runCmd)
-		if err != nil {
-			c.Fatal(status, err)
-		}
-		status = strings.TrimSpace(status)
+		status, err = inspectField(containerID, "State.Running")
+		c.Assert(err, check.IsNil)
 
 		time.Sleep(time.Second)
 		if i >= 60 {

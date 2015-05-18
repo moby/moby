@@ -112,11 +112,8 @@ func (s *DockerSuite) TestRestartWithVolumes(c *check.C) {
 		c.Errorf("expect 1 volume received %s", out)
 	}
 
-	runCmd = exec.Command(dockerBinary, "inspect", "--format", "{{ .Volumes }}", cleanedContainerID)
-	volumes, _, err := runCommandWithOutput(runCmd)
-	if err != nil {
-		c.Fatal(volumes, err)
-	}
+	volumes, err := inspectField(cleanedContainerID, ".Volumes")
+	c.Assert(err, check.IsNil)
 
 	runCmd = exec.Command(dockerBinary, "restart", cleanedContainerID)
 	if out, _, err = runCommandWithOutput(runCmd); err != nil {
@@ -133,15 +130,10 @@ func (s *DockerSuite) TestRestartWithVolumes(c *check.C) {
 		c.Errorf("expect 1 volume after restart received %s", out)
 	}
 
-	runCmd = exec.Command(dockerBinary, "inspect", "--format", "{{ .Volumes }}", cleanedContainerID)
-	volumesAfterRestart, _, err := runCommandWithOutput(runCmd)
-	if err != nil {
-		c.Fatal(volumesAfterRestart, err)
-	}
+	volumesAfterRestart, err := inspectField(cleanedContainerID, ".Volumes")
+	c.Assert(err, check.IsNil)
 
 	if volumes != volumesAfterRestart {
-		volumes = strings.Trim(volumes, " \n\r")
-		volumesAfterRestart = strings.Trim(volumesAfterRestart, " \n\r")
 		c.Errorf("expected volume path: %s Actual path: %s", volumes, volumesAfterRestart)
 	}
 
@@ -157,9 +149,7 @@ func (s *DockerSuite) TestRestartPolicyNO(c *check.C) {
 
 	id := strings.TrimSpace(string(out))
 	name, err := inspectField(id, "HostConfig.RestartPolicy.Name")
-	if err != nil {
-		c.Fatal(err, out)
-	}
+	c.Assert(err, check.IsNil)
 	if name != "no" {
 		c.Fatalf("Container restart policy name is %s, expected %s", name, "no")
 	}
@@ -176,17 +166,13 @@ func (s *DockerSuite) TestRestartPolicyAlways(c *check.C) {
 
 	id := strings.TrimSpace(string(out))
 	name, err := inspectField(id, "HostConfig.RestartPolicy.Name")
-	if err != nil {
-		c.Fatal(err, out)
-	}
+	c.Assert(err, check.IsNil)
 	if name != "always" {
 		c.Fatalf("Container restart policy name is %s, expected %s", name, "always")
 	}
 
 	MaximumRetryCount, err := inspectField(id, "HostConfig.RestartPolicy.MaximumRetryCount")
-	if err != nil {
-		c.Fatal(err)
-	}
+	c.Assert(err, check.IsNil)
 
 	// MaximumRetryCount=0 if the restart policy is always
 	if MaximumRetryCount != "0" {
@@ -205,9 +191,7 @@ func (s *DockerSuite) TestRestartPolicyOnFailure(c *check.C) {
 
 	id := strings.TrimSpace(string(out))
 	name, err := inspectField(id, "HostConfig.RestartPolicy.Name")
-	if err != nil {
-		c.Fatal(err, out)
-	}
+	c.Assert(err, check.IsNil)
 	if name != "on-failure" {
 		c.Fatalf("Container restart policy name is %s, expected %s", name, "on-failure")
 	}
@@ -226,16 +210,12 @@ func (s *DockerSuite) TestContainerRestartwithGoodContainer(c *check.C) {
 		c.Fatal(err)
 	}
 	count, err := inspectField(id, "RestartCount")
-	if err != nil {
-		c.Fatal(err)
-	}
+	c.Assert(err, check.IsNil)
 	if count != "0" {
 		c.Fatalf("Container was restarted %s times, expected %d", count, 0)
 	}
 	MaximumRetryCount, err := inspectField(id, "HostConfig.RestartPolicy.MaximumRetryCount")
-	if err != nil {
-		c.Fatal(err)
-	}
+	c.Assert(err, check.IsNil)
 	if MaximumRetryCount != "3" {
 		c.Fatalf("Container Maximum Retry Count is %s, expected %s", MaximumRetryCount, "3")
 	}

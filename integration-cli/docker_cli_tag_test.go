@@ -22,15 +22,10 @@ func (s *DockerSuite) TestTagUnprefixedRepoByName(c *check.C) {
 
 // tagging an image by ID in a new unprefixed repo should work
 func (s *DockerSuite) TestTagUnprefixedRepoByID(c *check.C) {
-	getIDCmd := exec.Command(dockerBinary, "inspect", "-f", "{{.Id}}", "busybox")
-	out, _, err := runCommandWithOutput(getIDCmd)
-	if err != nil {
-		c.Fatalf("failed to get the image ID of busybox: %s, %v", out, err)
-	}
-
-	cleanedImageID := strings.TrimSpace(out)
-	tagCmd := exec.Command(dockerBinary, "tag", cleanedImageID, "testfoobarbaz")
-	if out, _, err = runCommandWithOutput(tagCmd); err != nil {
+	imageID, err := inspectField("busybox", "Id")
+	c.Assert(err, check.IsNil)
+	tagCmd := exec.Command(dockerBinary, "tag", imageID, "testfoobarbaz")
+	if out, _, err := runCommandWithOutput(tagCmd); err != nil {
 		c.Fatal(out, err)
 	}
 }
