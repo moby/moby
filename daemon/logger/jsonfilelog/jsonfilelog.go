@@ -33,7 +33,7 @@ func init() {
 }
 
 // New creates new JSONFileLogger which writes to filename
-func New(ctx logger.Context) (logger.Logger, error) {
+func New(ctx logger.Context, config map[string]string) (logger.Logger, error) {
 	log, err := os.OpenFile(ctx.LogPath, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0600)
 	if err != nil {
 		return nil, err

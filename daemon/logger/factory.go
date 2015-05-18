@@ -6,7 +6,7 @@ import (
 )
 
 // Creator is a method that builds a logging driver instance with given context
-type Creator func(Context) (Logger, error)
+type Creator func(Context, map[string]string) (Logger, error)
 
 // Context provides enough information for a logging driver to do its function
 type Context struct {

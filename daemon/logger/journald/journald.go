@@ -23,7 +23,7 @@ func init() {
 	}
 }
 
-func New(ctx logger.Context) (logger.Logger, error) {
+func New(ctx logger.Context, config map[string]string) (logger.Logger, error) {
 	if !journal.Enabled() {
 		return nil, fmt.Errorf("journald is not enabled on this host")
 	}

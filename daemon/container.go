@@ -1463,7 +1463,7 @@ func (container *Container) getLogger() (logger.Logger, error) {
 			return nil, err
 		}
 	}
-	return c(ctx)
+	return c(ctx, cfg.Config)
 }
 
 func (container *Container) startLogging() error {
