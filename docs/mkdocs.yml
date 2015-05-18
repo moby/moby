@@ -158,6 +158,7 @@ pages:
 - ['reference/api/docker-io_api.md', 'Reference', 'Docker Hub API']
 #- ['reference/image-spec-v1.md', 'Reference', 'Docker Image Specification v1.0.0']
 - ['reference/api/docker_remote_api.md', 'Reference', 'Docker Remote API']
+- ['reference/api/docker_remote_api_v1.19.md', 'Reference', 'Docker Remote API v1.19']
 - ['reference/api/docker_remote_api_v1.18.md', 'Reference', 'Docker Remote API v1.18']
 - ['reference/api/docker_remote_api_v1.17.md', 'Reference', 'Docker Remote API v1.17']
 - ['reference/api/docker_remote_api_v1.16.md', 'Reference', 'Docker Remote API v1.16']

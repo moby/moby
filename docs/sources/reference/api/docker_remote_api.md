@@ -58,6 +58,16 @@ disconnect
 
 This endpoint now accepts a `since` timestamp parameter.
 
+`GET /info`
+
+**New!**
+
+The fields `Debug`, `IPv4Forwarding`, `MemoryLimit`, and `SwapLimit`
+are now returned as boolean instead of as an int.
+
+In addition, the end point now returns the new boolean fields
+`CpuCfsPeriod`, `CpuCfsQuota`, and `OomKillDisable`.
+
 ## v1.18
 
 ### Full documentation
