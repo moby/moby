@@ -1,7 +1,11 @@
 package bridge
 
 import (
+	"fmt"
+	"io/ioutil"
 	"net"
+
+	"path/filepath"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/libnetwork/netutils"
@@ -119,5 +123,14 @@ func setupGatewayIPv4(config *NetworkConfiguration, i *bridgeInterface) error {
 	// Store requested default gateway
 	i.gatewayIPv4 = config.DefaultGatewayIPv4
 
+	return nil
+}
+
+func setupLoopbackAdressesRouting(config *NetworkConfiguration, i *bridgeInterface) error {
+	// Enable loopback adresses routing
+	sysPath := filepath.Join("/proc/sys/net/ipv4/conf", config.BridgeName, "route_localnet")
+	if err := ioutil.WriteFile(sysPath, []byte{'1', '\n'}, 0644); err != nil {
+		return fmt.Errorf("Unable to enable local routing for hairpin mode: %v", err)
+	}
 	return nil
 }
