@@ -25,7 +25,7 @@ func init() {
 	}
 }
 
-func New(ctx logger.Context) (logger.Logger, error) {
+func New(ctx logger.Context, config map[string]string) (logger.Logger, error) {
 	tag := ctx.ContainerID[:12]
 	log, err := syslog.New(syslog.LOG_DAEMON, fmt.Sprintf("%s/%s", path.Base(os.Args[0]), tag))
 	if err != nil {

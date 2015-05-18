@@ -22,7 +22,7 @@ func TestJSONFileLogger(t *testing.T) {
 	l, err := New(logger.Context{
 		ContainerID: cid,
 		LogPath:     filename,
-	})
+	}, map[string]string{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -62,7 +62,7 @@ func BenchmarkJSONFileLogger(b *testing.B) {
 	l, err := New(logger.Context{
 		ContainerID: cid,
 		LogPath:     filename,
-	})
+	}, map[string]string{})
 	if err != nil {
 		b.Fatal(err)
 	}
