@@ -176,7 +176,8 @@ func (s *DockerSuite) TestRunExitCodeOne(c *check.C) {
 // it should be possible to pipe in data via stdin to a process running in a container
 // some versions of lxc might make this test fail
 func (s *DockerSuite) TestRunStdinPipe(c *check.C) {
-	runCmd := exec.Command("bash", "-c", `echo "blahblah" | docker run -i -a stdin busybox cat`)
+	runCmd := exec.Command(dockerBinary, "run", "-i", "-a", "stdin", "busybox", "cat")
+	runCmd.Stdin = strings.NewReader("blahblah")
 	out, _, _, err := runCommandWithStdoutStderr(runCmd)
 	if err != nil {
 		c.Fatalf("failed to run container: %v, output: %q", err, out)

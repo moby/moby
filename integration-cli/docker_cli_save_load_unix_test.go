@@ -4,7 +4,7 @@ package main
 
 import (
 	"bytes"
-	"fmt"
+	"io/ioutil"
 	"os"
 	"os/exec"
 
@@ -34,17 +34,25 @@ func (s *DockerSuite) TestSaveAndLoadRepoStdout(c *check.C) {
 		c.Fatalf("the repo should exist before saving it: %s, %v", before, err)
 	}
 
-	saveCmdTemplate := `%v save %v > /tmp/foobar-save-load-test.tar`
-	saveCmdFinal := fmt.Sprintf(saveCmdTemplate, dockerBinary, repoName)
-	saveCmd := exec.Command("bash", "-c", saveCmdFinal)
-	if out, _, err = runCommandWithOutput(saveCmd); err != nil {
-		c.Fatalf("failed to save repo: %s, %v", out, err)
+	tmpFile, err := ioutil.TempFile("", "foobar-save-load-test.tar")
+	c.Assert(err, check.IsNil)
+	defer os.Remove(tmpFile.Name())
+
+	saveCmd := exec.Command(dockerBinary, "save", repoName)
+	saveCmd.Stdout = tmpFile
+
+	if _, err = runCommand(saveCmd); err != nil {
+		c.Fatalf("failed to save repo: %v", err)
 	}
+
+	tmpFile, err = os.Open(tmpFile.Name())
+	c.Assert(err, check.IsNil)
 
 	deleteImages(repoName)
 
-	loadCmdFinal := `cat /tmp/foobar-save-load-test.tar | docker load`
-	loadCmd := exec.Command("bash", "-c", loadCmdFinal)
+	loadCmd := exec.Command(dockerBinary, "load")
+	loadCmd.Stdin = tmpFile
+
 	if out, _, err = runCommandWithOutput(loadCmd); err != nil {
 		c.Fatalf("failed to load repo: %s, %v", out, err)
 	}
@@ -60,8 +68,6 @@ func (s *DockerSuite) TestSaveAndLoadRepoStdout(c *check.C) {
 	}
 
 	deleteImages(repoName)
-
-	os.Remove("/tmp/foobar-save-load-test.tar")
 
 	pty, tty, err := pty.Open()
 	if err != nil {
