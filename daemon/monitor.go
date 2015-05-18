@@ -223,10 +223,10 @@ func (m *containerMonitor) shouldRestart(exitCode int) bool {
 		return false
 	}
 
-	switch m.restartPolicy.Name {
-	case "always":
+	switch {
+	case m.restartPolicy.IsAlways():
 		return true
-	case "on-failure":
+	case m.restartPolicy.IsOnFailure():
 		// the default value of 0 for MaximumRetryCount means that we will not enforce a maximum count
 		if max := m.restartPolicy.MaximumRetryCount; max != 0 && m.failureCount > max {
 			logrus.Debugf("stopping restart of container %s because maximum failure could of %d has been reached",

@@ -122,7 +122,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 			fmt.Fprintf(cli.out, "%s\n", createResponse.ID)
 		}()
 	}
-	if *flAutoRemove && (hostConfig.RestartPolicy.Name == "always" || hostConfig.RestartPolicy.Name == "on-failure") {
+	if *flAutoRemove && (hostConfig.RestartPolicy.IsAlways() || hostConfig.RestartPolicy.IsOnFailure()) {
 		return ErrConflictRestartPolicyAndAutoRemove
 	}
 	// We need to instantiate the chan because the select needs it. It can
