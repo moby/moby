@@ -12,7 +12,7 @@ import (
 	"github.com/vishvananda/netns"
 )
 
-const prefix = "/var/run/netns"
+const prefix = "/var/run/docker/netns"
 
 var once sync.Once
 
