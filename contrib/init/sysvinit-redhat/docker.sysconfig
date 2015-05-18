@@ -1,7 +1,9 @@
 # /etc/sysconfig/docker
-#
-# Other arguments to pass to the docker daemon process
-# These will be parsed by the sysv initscript and appended
-# to the arguments list passed to docker -d
 
-other_args=""
+# Modify these options if you want to change the way the docker daemon runs
+DOCKER_OPTIONS=--selinux-enabled -H fd://
+
+# Location used for temporary files, such as those created by
+# docker load and build operations. Default is /var/lib/docker/tmp
+# Can be overriden by setting the following environment variable.
+# DOCKER_TMPDIR=/var/tmp

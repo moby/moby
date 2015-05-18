@@ -35,6 +35,7 @@ Requires(preun): initscripts
 
 # required packages on install
 Requires: /bin/sh
+Requires: docker-selinux
 Requires: iptables
 Requires: libc.so.6
 Requires: libcgroup
@@ -96,11 +97,12 @@ install -d $RPM_BUILD_ROOT/%{_initddir}
 
 %if 0%{?is_systemd}
 install -d $RPM_BUILD_ROOT/%{_unitdir}
-install -p -m 644 contrib/init/systemd/docker.service $RPM_BUILD_ROOT/%{_unitdir}/docker.service
-install -p -m 644 contrib/init/systemd/docker.socket $RPM_BUILD_ROOT/%{_unitdir}/docker.socket
+install -p -m 644 contrib/init/systemd-redhat/docker.service $RPM_BUILD_ROOT/%{_unitdir}/docker.service
+install -p -m 644 contrib/init/systemd-redhat/docker.socket $RPM_BUILD_ROOT/%{_unitdir}/docker.socket
 %endif
 
 install -p -m 644 contrib/init/sysvinit-redhat/docker.sysconfig $RPM_BUILD_ROOT/etc/sysconfig/docker
+install -p -m 644 contrib/init/sysvinit-redhat/docker.sysconfig-storage $RPM_BUILD_ROOT/etc/sysconfig/docker-storage
 install -p -m 755 contrib/init/sysvinit-redhat/docker $RPM_BUILD_ROOT/%{_initddir}/docker
 
 # add bash completions
@@ -139,6 +141,7 @@ install -p -m 644 contrib/syntax/nano/Dockerfile.nanorc $RPM_BUILD_ROOT/usr/shar
 /%{_unitdir}/docker.socket
 %endif
 /etc/sysconfig/docker
+/etc/sysconfig/docker-storage
 /%{_initddir}/docker
 /usr/share/bash-completion/completions/docker
 /usr/share/zsh/vendor-completions/_docker

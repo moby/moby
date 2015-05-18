@@ -30,6 +30,7 @@ lockfile="/var/lock/subsys/$prog"
 logfile="/var/log/$prog"
 
 [ -e /etc/sysconfig/$prog ] && . /etc/sysconfig/$prog
+[ -e /etc/sysconfig/$prog-storage ] && . /etc/sysconfig/$prog-storage
 
 prestart() {
     service cgconfig status > /dev/null
@@ -49,7 +50,7 @@ start() {
         prestart
         printf "Starting $prog:\t"
         echo "\n$(date)\n" >> $logfile
-        "$unshare" -m -- $exec -d $other_args &>> $logfile &
+        "$unshare" -m -- $exec -d $DOCKER_OPTIONS $DOCKER_STORAGE_OPTIONS &>> $logfile &
         pid=$!
         touch $lockfile
         # wait up to 10 seconds for the pidfile to exist.  see
