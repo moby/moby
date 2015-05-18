@@ -10,6 +10,7 @@ type Creator func(Context) (Logger, error)
 
 // Context provides enough information for a logging driver to do its function
 type Context struct {
+	Config        map[string]string
 	ContainerID   string
 	ContainerName string
 	LogPath       string
