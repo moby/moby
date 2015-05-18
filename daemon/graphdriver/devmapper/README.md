@@ -270,5 +270,5 @@ Here is the list of supported options:
 
     Example use:
 
-    ``docker -d --storage-opt dm.use_deferred_device_removal=true``
+    ``docker -d --storage-opt dm.use_deferred_removal=true``
 
