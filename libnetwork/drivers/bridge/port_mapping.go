@@ -15,7 +15,7 @@ var (
 	defaultBindingIP = net.IPv4(0, 0, 0, 0)
 )
 
-func allocatePorts(epConfig *EndpointConfiguration, sinfo *sandbox.Info, reqDefBindIP net.IP) ([]netutils.PortBinding, error) {
+func allocatePorts(epConfig *EndpointConfiguration, intf *sandbox.Interface, reqDefBindIP net.IP) ([]netutils.PortBinding, error) {
 	if epConfig == nil || epConfig.PortBindings == nil {
 		return nil, nil
 	}
@@ -25,7 +25,7 @@ func allocatePorts(epConfig *EndpointConfiguration, sinfo *sandbox.Info, reqDefB
 		defHostIP = reqDefBindIP
 	}
 
-	return allocatePortsInternal(epConfig.PortBindings, sinfo.Interfaces[0].Address.IP, defHostIP)
+	return allocatePortsInternal(epConfig.PortBindings, intf.Address.IP, defHostIP)
 }
 
 func allocatePortsInternal(bindings []netutils.PortBinding, containerIP, defHostIP net.IP) ([]netutils.PortBinding, error) {

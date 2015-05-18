@@ -288,6 +288,13 @@ func GenerateRandomName(prefix string, size int) (string, error) {
 	return prefix + hex.EncodeToString(id)[:size], nil
 }
 
+// GetMacCopy returns a copy of the passed MAC address
+func GetMacCopy(from net.HardwareAddr) net.HardwareAddr {
+	to := make(net.HardwareAddr, len(from))
+	copy(to, from)
+	return to
+}
+
 // GetIPCopy returns a copy of the passed IP address
 func GetIPCopy(from net.IP) net.IP {
 	to := make(net.IP, len(from))

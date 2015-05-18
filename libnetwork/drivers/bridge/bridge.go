@@ -1,6 +1,7 @@
 package bridge
 
 import (
+	"errors"
 	"net"
 	"strings"
 	"sync"
@@ -22,6 +23,7 @@ const (
 	vethLen                 = 7
 	containerVeth           = "eth0"
 	maxAllocatePortAttempts = 10
+	ifaceID                 = 1
 )
 
 var (
@@ -371,11 +373,19 @@ func (d *driver) DeleteNetwork(nid types.UUID) error {
 	return err
 }
 
-func (d *driver) CreateEndpoint(nid, eid types.UUID, epOptions map[string]interface{}) (*sandbox.Info, error) {
+func (d *driver) CreateEndpoint(nid, eid types.UUID, epInfo driverapi.EndpointInfo, epOptions map[string]interface{}) error {
 	var (
 		ipv6Addr *net.IPNet
 		err      error
 	)
+
+	if epInfo == nil {
+		return errors.New("invalid endpoint info passed")
+	}
+
+	if len(epInfo.Interfaces()) != 0 {
+		return errors.New("non empty interface list passed to bridge(local) driver")
+	}
 
 	// Get the network handler and make sure it exists
 	d.Lock()
@@ -383,32 +393,32 @@ func (d *driver) CreateEndpoint(nid, eid types.UUID, epOptions map[string]interf
 	config := n.config
 	d.Unlock()
 	if n == nil {
-		return nil, driverapi.ErrNoNetwork
+		return driverapi.ErrNoNetwork
 	}
 
 	// Sanity check
 	n.Lock()
 	if n.id != nid {
 		n.Unlock()
-		return nil, InvalidNetworkIDError(nid)
+		return InvalidNetworkIDError(nid)
 	}
 	n.Unlock()
 
 	// Check if endpoint id is good and retrieve correspondent endpoint
 	ep, err := n.getEndpoint(eid)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	// Endpoint with that id exists either on desired or other sandbox
 	if ep != nil {
-		return nil, driverapi.ErrEndpointExists
+		return driverapi.ErrEndpointExists
 	}
 
 	// Try to convert the options to endpoint configuration
 	epConfig, err := parseEndpointOptions(epOptions)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	// Create and add the endpoint
@@ -429,13 +439,13 @@ func (d *driver) CreateEndpoint(nid, eid types.UUID, epOptions map[string]interf
 	// Generate a name for what will be the host side pipe interface
 	name1, err := generateIfaceName()
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	// Generate a name for what will be the sandbox side pipe interface
 	name2, err := generateIfaceName()
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	// Generate and add the interface pipe host <-> sandbox
@@ -443,13 +453,13 @@ func (d *driver) CreateEndpoint(nid, eid types.UUID, epOptions map[string]interf
 		LinkAttrs: netlink.LinkAttrs{Name: name1, TxQLen: 0},
 		PeerName:  name2}
 	if err = netlink.LinkAdd(veth); err != nil {
-		return nil, err
+		return err
 	}
 
 	// Get the host side pipe interface handler
 	host, err := netlink.LinkByName(name1)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	defer func() {
 		if err != nil {
@@ -460,7 +470,7 @@ func (d *driver) CreateEndpoint(nid, eid types.UUID, epOptions map[string]interf
 	// Get the sandbox side pipe interface handler
 	sbox, err := netlink.LinkByName(name2)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	defer func() {
 		if err != nil {
@@ -472,7 +482,7 @@ func (d *driver) CreateEndpoint(nid, eid types.UUID, epOptions map[string]interf
 	mac := electMacAddress(epConfig)
 	err = netlink.LinkSetHardwareAddr(sbox, mac)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	endpoint.macAddress = mac
 
@@ -480,28 +490,29 @@ func (d *driver) CreateEndpoint(nid, eid types.UUID, epOptions map[string]interf
 	if config.Mtu != 0 {
 		err = netlink.LinkSetMTU(host, config.Mtu)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		err = netlink.LinkSetMTU(sbox, config.Mtu)
 		if err != nil {
-			return nil, err
+			return err
 		}
 	}
 
 	// Attach host side pipe interface into the bridge
 	if err = netlink.LinkSetMaster(host,
 		&netlink.Bridge{LinkAttrs: netlink.LinkAttrs{Name: config.BridgeName}}); err != nil {
-		return nil, err
+		return err
 	}
 
 	// v4 address for the sandbox side pipe interface
 	ip4, err := ipAllocator.RequestIP(n.bridge.bridgeIPv4, nil)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	ipv4Addr := &net.IPNet{IP: ip4, Mask: n.bridge.bridgeIPv4.Mask}
 
 	// v6 address for the sandbox side pipe interface
+	ipv6Addr = &net.IPNet{}
 	if config.EnableIPv6 {
 		var ip6 net.IP
 
@@ -521,7 +532,7 @@ func (d *driver) CreateEndpoint(nid, eid types.UUID, epOptions map[string]interf
 
 		ip6, err := ipAllocator.RequestIP(network, ip6)
 		if err != nil {
-			return nil, err
+			return err
 		}
 
 		ipv6Addr = &net.IPNet{IP: ip6, Mask: network.Mask}
@@ -533,26 +544,25 @@ func (d *driver) CreateEndpoint(nid, eid types.UUID, epOptions map[string]interf
 	intf.DstName = containerVeth
 	intf.Address = ipv4Addr
 
+	if config.EnableIPv6 {
+		intf.AddressIPv6 = ipv6Addr
+	}
+
 	// Store the interface in endpoint, this is needed for cleanup on DeleteEndpoint()
 	endpoint.intf = intf
 
-	// Generate the sandbox info to return
-	sinfo := &sandbox.Info{Interfaces: []*sandbox.Interface{intf}}
-
-	// Set the default gateway(s) for the sandbox
-	sinfo.Gateway = n.bridge.gatewayIPv4
-	if config.EnableIPv6 {
-		intf.AddressIPv6 = ipv6Addr
-		sinfo.GatewayIPv6 = n.bridge.gatewayIPv6
+	err = epInfo.AddInterface(ifaceID, endpoint.macAddress, *ipv4Addr, *ipv6Addr)
+	if err != nil {
+		return err
 	}
 
 	// Program any required port mapping and store them in the endpoint
-	endpoint.portMapping, err = allocatePorts(epConfig, sinfo, config.DefaultBindingIP)
+	endpoint.portMapping, err = allocatePorts(epConfig, intf, config.DefaultBindingIP)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	return sinfo, nil
+	return nil
 }
 
 func (d *driver) DeleteEndpoint(nid, eid types.UUID) error {
@@ -628,7 +638,7 @@ func (d *driver) DeleteEndpoint(nid, eid types.UUID) error {
 	return nil
 }
 
-func (d *driver) EndpointInfo(nid, eid types.UUID) (map[string]interface{}, error) {
+func (d *driver) EndpointOperInfo(nid, eid types.UUID) (map[string]interface{}, error) {
 	// Get the network handler and make sure it exists
 	d.Lock()
 	n := d.network
@@ -673,40 +683,12 @@ func (d *driver) EndpointInfo(nid, eid types.UUID) (map[string]interface{}, erro
 }
 
 // Join method is invoked when a Sandbox is attached to an endpoint.
-func (d *driver) Join(nid, eid types.UUID, sboxKey string, options map[string]interface{}) (*driverapi.JoinInfo, error) {
-	network, err := d.getNetwork(nid)
-	if err != nil {
-		return nil, err
-	}
-
-	if !network.config.EnableICC {
-		return nil, d.link(nid, eid, options, true)
-	}
-
-	return nil, nil
-}
-
-// Leave method is invoked when a Sandbox detaches from an endpoint.
-func (d *driver) Leave(nid, eid types.UUID, options map[string]interface{}) error {
+func (d *driver) Join(nid, eid types.UUID, sboxKey string, jinfo driverapi.JoinInfo, options map[string]interface{}) error {
 	network, err := d.getNetwork(nid)
 	if err != nil {
 		return err
 	}
 
-	if !network.config.EnableICC {
-		return d.link(nid, eid, options, false)
-	}
-
-	return nil
-}
-
-func (d *driver) link(nid, eid types.UUID, options map[string]interface{}, enable bool) error {
-	var cc *ContainerConfiguration
-
-	network, err := d.getNetwork(nid)
-	if err != nil {
-		return err
-	}
 	endpoint, err := network.getEndpoint(eid)
 	if err != nil {
 		return err
@@ -715,6 +697,62 @@ func (d *driver) link(nid, eid types.UUID, options map[string]interface{}, enabl
 	if endpoint == nil {
 		return EndpointNotFoundError(eid)
 	}
+
+	for _, iNames := range jinfo.InterfaceNames() {
+		// Make sure to set names on the correct interface ID.
+		if iNames.ID() == ifaceID {
+			err = iNames.SetNames(endpoint.intf.SrcName, endpoint.intf.DstName)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	err = jinfo.SetGateway(network.bridge.gatewayIPv4)
+	if err != nil {
+		return err
+	}
+
+	err = jinfo.SetGatewayIPv6(network.bridge.gatewayIPv6)
+	if err != nil {
+		return err
+	}
+
+	if !network.config.EnableICC {
+		return d.link(network, endpoint, options, true)
+	}
+
+	return nil
+}
+
+// Leave method is invoked when a Sandbox detaches from an endpoint.
+func (d *driver) Leave(nid, eid types.UUID) error {
+	network, err := d.getNetwork(nid)
+	if err != nil {
+		return err
+	}
+
+	endpoint, err := network.getEndpoint(eid)
+	if err != nil {
+		return err
+	}
+
+	if endpoint == nil {
+		return EndpointNotFoundError(eid)
+	}
+
+	if !network.config.EnableICC {
+		return d.link(network, endpoint, nil, false)
+	}
+
+	return nil
+}
+
+func (d *driver) link(network *bridgeNetwork, endpoint *bridgeEndpoint, options map[string]interface{}, enable bool) error {
+	var (
+		cc  *ContainerConfiguration
+		err error
+	)
 
 	if enable {
 		cc, err = parseContainerOptions(options)

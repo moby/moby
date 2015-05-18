@@ -28,7 +28,8 @@ func TestLinkCreate(t *testing.T) {
 		t.Fatalf("Failed to create bridge: %v", err)
 	}
 
-	sinfo, err := d.CreateEndpoint("dummy", "", nil)
+	te := &testEndpoint{ifaces: []*testInterface{}}
+	err = d.CreateEndpoint("dummy", "", te, nil)
 	if err != nil {
 		if _, ok := err.(InvalidEndpointIDError); !ok {
 			t.Fatalf("Failed with a wrong error :%s", err.Error())
@@ -38,13 +39,18 @@ func TestLinkCreate(t *testing.T) {
 	}
 
 	// Good endpoint creation
-	sinfo, err = d.CreateEndpoint("dummy", "ep", nil)
+	err = d.CreateEndpoint("dummy", "ep", te, nil)
+	if err != nil {
+		t.Fatalf("Failed to create a link: %s", err.Error())
+	}
+
+	err = d.Join("dummy", "ep", "sbox", te, nil)
 	if err != nil {
 		t.Fatalf("Failed to create a link: %s", err.Error())
 	}
 
 	// Verify sbox endoint interface inherited MTU value from bridge config
-	sboxLnk, err := netlink.LinkByName(sinfo.Interfaces[0].SrcName)
+	sboxLnk, err := netlink.LinkByName(te.ifaces[0].srcName)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -54,44 +60,44 @@ func TestLinkCreate(t *testing.T) {
 	// TODO: if we could get peer name from (sboxLnk.(*netlink.Veth)).PeerName
 	// then we could check the MTU on hostLnk as well.
 
-	_, err = d.CreateEndpoint("dummy", "ep", nil)
+	te1 := &testEndpoint{ifaces: []*testInterface{}}
+	err = d.CreateEndpoint("dummy", "ep", te1, nil)
 	if err == nil {
 		t.Fatalf("Failed to detect duplicate endpoint id on same network")
 	}
 
-	interfaces := sinfo.Interfaces
-	if len(interfaces) != 1 {
-		t.Fatalf("Expected exactly one interface. Instead got %d interface(s)", len(interfaces))
+	if len(te.ifaces) != 1 {
+		t.Fatalf("Expected exactly one interface. Instead got %d interface(s)", len(te.ifaces))
 	}
 
-	if interfaces[0].DstName == "" {
+	if te.ifaces[0].dstName == "" {
 		t.Fatal("Invalid Dstname returned")
 	}
 
-	_, err = netlink.LinkByName(interfaces[0].SrcName)
+	_, err = netlink.LinkByName(te.ifaces[0].srcName)
 	if err != nil {
-		t.Fatalf("Could not find source link %s: %v", interfaces[0].SrcName, err)
+		t.Fatalf("Could not find source link %s: %v", te.ifaces[0].srcName, err)
 	}
 
 	n := dr.network
-	ip := interfaces[0].Address.IP
+	ip := te.ifaces[0].addr.IP
 	if !n.bridge.bridgeIPv4.Contains(ip) {
 		t.Fatalf("IP %s is not a valid ip in the subnet %s", ip.String(), n.bridge.bridgeIPv4.String())
 	}
 
-	ip6 := interfaces[0].AddressIPv6.IP
+	ip6 := te.ifaces[0].addrv6.IP
 	if !n.bridge.bridgeIPv6.Contains(ip6) {
 		t.Fatalf("IP %s is not a valid ip in the subnet %s", ip6.String(), bridgeIPv6.String())
 	}
 
-	if !sinfo.Gateway.Equal(n.bridge.bridgeIPv4.IP) {
+	if !te.gw.Equal(n.bridge.bridgeIPv4.IP) {
 		t.Fatalf("Invalid default gateway. Expected %s. Got %s", n.bridge.bridgeIPv4.IP.String(),
-			sinfo.Gateway.String())
+			te.gw.String())
 	}
 
-	if !sinfo.GatewayIPv6.Equal(n.bridge.bridgeIPv6.IP) {
+	if !te.gw6.Equal(n.bridge.bridgeIPv6.IP) {
 		t.Fatalf("Invalid default gateway for IPv6. Expected %s. Got %s", n.bridge.bridgeIPv6.IP.String(),
-			sinfo.GatewayIPv6.String())
+			te.gw6.String())
 	}
 }
 
@@ -110,12 +116,14 @@ func TestLinkCreateTwo(t *testing.T) {
 		t.Fatalf("Failed to create bridge: %v", err)
 	}
 
-	_, err = d.CreateEndpoint("dummy", "ep", nil)
+	te1 := &testEndpoint{ifaces: []*testInterface{}}
+	err = d.CreateEndpoint("dummy", "ep", te1, nil)
 	if err != nil {
 		t.Fatalf("Failed to create a link: %s", err.Error())
 	}
 
-	_, err = d.CreateEndpoint("dummy", "ep", nil)
+	te2 := &testEndpoint{ifaces: []*testInterface{}}
+	err = d.CreateEndpoint("dummy", "ep", te2, nil)
 	if err != nil {
 		if err != driverapi.ErrEndpointExists {
 			t.Fatalf("Failed with a wrong error :%s", err.Error())
@@ -139,18 +147,19 @@ func TestLinkCreateNoEnableIPv6(t *testing.T) {
 		t.Fatalf("Failed to create bridge: %v", err)
 	}
 
-	sinfo, err := d.CreateEndpoint("dummy", "ep", nil)
+	te := &testEndpoint{ifaces: []*testInterface{}}
+	err = d.CreateEndpoint("dummy", "ep", te, nil)
 	if err != nil {
 		t.Fatalf("Failed to create a link: %s", err.Error())
 	}
 
-	interfaces := sinfo.Interfaces
-	if interfaces[0].AddressIPv6 != nil {
-		t.Fatalf("Expectd IPv6 address to be nil when IPv6 is not enabled. Got IPv6 = %s", interfaces[0].AddressIPv6.String())
+	interfaces := te.ifaces
+	if interfaces[0].addrv6.IP.To16() != nil {
+		t.Fatalf("Expectd IPv6 address to be nil when IPv6 is not enabled. Got IPv6 = %s", interfaces[0].addrv6.String())
 	}
 
-	if sinfo.GatewayIPv6 != nil {
-		t.Fatalf("Expected GatewayIPv6 to be nil when IPv6 is not enabled. Got GatewayIPv6 = %s", sinfo.GatewayIPv6.String())
+	if te.gw6.To16() != nil {
+		t.Fatalf("Expected GatewayIPv6 to be nil when IPv6 is not enabled. Got GatewayIPv6 = %s", te.gw6.String())
 	}
 }
 
@@ -169,7 +178,8 @@ func TestLinkDelete(t *testing.T) {
 		t.Fatalf("Failed to create bridge: %v", err)
 	}
 
-	_, err = d.CreateEndpoint("dummy", "ep1", nil)
+	te := &testEndpoint{ifaces: []*testInterface{}}
+	err = d.CreateEndpoint("dummy", "ep1", te, nil)
 	if err != nil {
 		t.Fatalf("Failed to create a link: %s", err.Error())
 	}
@@ -185,11 +195,6 @@ func TestLinkDelete(t *testing.T) {
 
 	err = d.DeleteEndpoint("dummy", "ep1")
 	if err != nil {
-		t.Fatal(err)
-	}
-
-	err = d.DeleteEndpoint("dummy", "ep1")
-	if err == nil {
 		t.Fatal(err)
 	}
 }

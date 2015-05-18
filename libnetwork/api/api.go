@@ -8,7 +8,6 @@ import (
 
 	"github.com/docker/libnetwork"
 	"github.com/docker/libnetwork/netutils"
-	"github.com/docker/libnetwork/sandbox"
 	"github.com/gorilla/mux"
 )
 
@@ -143,7 +142,6 @@ type endpointResource struct {
 	Name    string
 	ID      string
 	Network string
-	Info    sandbox.Info
 }
 
 func buildNetworkResource(nw libnetwork.Network) *networkResource {
@@ -168,11 +166,6 @@ func buildEndpointResource(ep libnetwork.Endpoint) *endpointResource {
 		r.Name = ep.Name()
 		r.ID = ep.ID()
 		r.Network = ep.Network()
-
-		i := ep.SandboxInfo()
-		if i != nil {
-			r.Info = *i
-		}
 	}
 	return r
 }
@@ -430,7 +423,7 @@ func procLeaveEndpoint(c libnetwork.NetworkController, vars map[string]string, b
 		return nil, errRsp
 	}
 
-	err := ep.Leave(vars[urlCnID], nil)
+	err := ep.Leave(vars[urlCnID])
 	if err != nil {
 		return nil, convertNetworkError(err)
 	}

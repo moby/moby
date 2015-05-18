@@ -10,7 +10,6 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/ioutils"
-	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/etchosts"
 	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/libnetwork/netutils"
@@ -39,11 +38,11 @@ type Endpoint interface {
 	// the network resources populated in the sandbox
 	Leave(containerID string, options ...EndpointOption) error
 
-	// SandboxInfo returns the sandbox information for this endpoint.
-	SandboxInfo() *sandbox.Info
+	// Return certain operational data belonging to this endpoint
+	Info() EndpointInfo
 
-	// Info returns a collection of operational data related to this endpoint retrieved from the driver
-	Info() (map[string]interface{}, error)
+	// Info returns a collection of driver operational data related to this endpoint retrieved from the driver
+	DriverInfo() (map[string]interface{}, error)
 
 	// Delete and detaches this endpoint from the network.
 	Delete() error
@@ -104,12 +103,11 @@ type endpoint struct {
 	id            types.UUID
 	network       *network
 	sandboxInfo   *sandbox.Info
-	sandBox       sandbox.Sandbox
-	joinInfo      *driverapi.JoinInfo
+	iFaces        []*endpointInterface
+	joinInfo      *endpointJoinInfo
 	container     *containerInfo
 	exposedPorts  []netutils.TransportPort
 	generic       map[string]interface{}
-	context       map[string]interface{}
 	joinLeaveDone chan struct{}
 	sync.Mutex
 }
@@ -135,30 +133,6 @@ func (ep *endpoint) Network() string {
 	defer ep.Unlock()
 
 	return ep.network.name
-}
-
-func (ep *endpoint) SandboxInfo() *sandbox.Info {
-	ep.Lock()
-	defer ep.Unlock()
-
-	if ep.sandboxInfo == nil {
-		return nil
-	}
-	return ep.sandboxInfo.GetCopy()
-}
-
-func (ep *endpoint) Info() (map[string]interface{}, error) {
-	ep.Lock()
-	network := ep.network
-	epid := ep.id
-	ep.Unlock()
-
-	network.Lock()
-	driver := network.driver
-	nid := network.id
-	network.Unlock()
-
-	return driver.EndpointInfo(nid, epid)
 }
 
 func (ep *endpoint) processOptions(options ...EndpointOption) {
@@ -255,9 +229,13 @@ func (ep *endpoint) Join(containerID string, options ...EndpointOption) (*Contai
 			},
 		}}
 
+	ep.joinInfo = &endpointJoinInfo{}
+
 	container := ep.container
 	network := ep.network
 	epid := ep.id
+	joinInfo := ep.joinInfo
+	ifaces := ep.iFaces
 
 	ep.Unlock()
 	defer func() {
@@ -281,14 +259,10 @@ func (ep *endpoint) Join(containerID string, options ...EndpointOption) (*Contai
 		sboxKey = sandbox.GenerateKey("default")
 	}
 
-	joinInfo, err := driver.Join(nid, epid, sboxKey, container.config.generic)
+	err = driver.Join(nid, epid, sboxKey, ep, container.config.generic)
 	if err != nil {
 		return nil, err
 	}
-
-	ep.Lock()
-	ep.joinInfo = joinInfo
-	ep.Unlock()
 
 	err = ep.buildHostsFiles()
 	if err != nil {
@@ -315,24 +289,29 @@ func (ep *endpoint) Join(containerID string, options ...EndpointOption) (*Contai
 		}
 	}()
 
-	sinfo := ep.SandboxInfo()
-	if sinfo != nil {
-		for _, i := range sinfo.Interfaces {
-			err = sb.AddInterface(i)
-			if err != nil {
-				return nil, err
-			}
+	for _, i := range ifaces {
+		iface := &sandbox.Interface{
+			SrcName: i.srcName,
+			DstName: i.dstName,
+			Address: &i.addr,
 		}
-
-		err = sb.SetGateway(sinfo.Gateway)
+		if i.addrv6.IP.To16() != nil {
+			iface.AddressIPv6 = &i.addrv6
+		}
+		err = sb.AddInterface(iface)
 		if err != nil {
 			return nil, err
 		}
+	}
 
-		err = sb.SetGatewayIPv6(sinfo.GatewayIPv6)
-		if err != nil {
-			return nil, err
-		}
+	err = sb.SetGateway(joinInfo.gw)
+	if err != nil {
+		return nil, err
+	}
+
+	err = sb.SetGatewayIPv6(joinInfo.gw6)
+	if err != nil {
+		return nil, err
 	}
 
 	container.data.SandboxKey = sb.Key()
@@ -352,7 +331,6 @@ func (ep *endpoint) Leave(containerID string, options ...EndpointOption) error {
 	ep.Lock()
 	container := ep.container
 	n := ep.network
-	context := ep.context
 
 	if container == nil || container.id == "" ||
 		containerID == "" || container.id != containerID {
@@ -366,7 +344,6 @@ func (ep *endpoint) Leave(containerID string, options ...EndpointOption) error {
 		return err
 	}
 	ep.container = nil
-	ep.context = nil
 	ep.Unlock()
 
 	n.Lock()
@@ -374,16 +351,13 @@ func (ep *endpoint) Leave(containerID string, options ...EndpointOption) error {
 	ctrlr := n.ctrlr
 	n.Unlock()
 
-	err = driver.Leave(n.id, ep.id, context)
+	err = driver.Leave(n.id, ep.id)
 
-	sinfo := ep.SandboxInfo()
-	if sinfo != nil {
-		sb := ctrlr.sandboxGet(container.data.SandboxKey)
-		for _, i := range sinfo.Interfaces {
-			err = sb.RemoveInterface(i)
-			if err != nil {
-				logrus.Debugf("Remove interface failed: %v", err)
-			}
+	sb := ctrlr.sandboxGet(container.data.SandboxKey)
+	for _, i := range sb.Interfaces() {
+		err = sb.RemoveInterface(i)
+		if err != nil {
+			logrus.Debugf("Remove interface failed: %v", err)
 		}
 	}
 
@@ -435,6 +409,7 @@ func (ep *endpoint) buildHostsFiles() error {
 	ep.Lock()
 	container := ep.container
 	joinInfo := ep.joinInfo
+	ifaces := ep.iFaces
 	ep.Unlock()
 
 	if container == nil {
@@ -451,8 +426,8 @@ func (ep *endpoint) buildHostsFiles() error {
 		return err
 	}
 
-	if joinInfo != nil && joinInfo.HostsPath != "" {
-		content, err := ioutil.ReadFile(joinInfo.HostsPath)
+	if joinInfo != nil && joinInfo.hostsPath != "" {
+		content, err := ioutil.ReadFile(joinInfo.hostsPath)
 		if err != nil && !os.IsNotExist(err) {
 			return err
 		}
@@ -473,10 +448,8 @@ func (ep *endpoint) buildHostsFiles() error {
 	}
 
 	IP := ""
-	sinfo := ep.SandboxInfo()
-	if sinfo != nil && sinfo.Interfaces[0] != nil &&
-		sinfo.Interfaces[0].Address != nil {
-		IP = sinfo.Interfaces[0].Address.IP.String()
+	if len(ifaces) != 0 && ifaces[0] != nil {
+		IP = ifaces[0].addr.IP.String()
 	}
 
 	return etchosts.Build(container.config.hostsPath, IP, container.config.hostName,
@@ -747,14 +720,5 @@ func CreateOptionPortMapping(portBindings []netutils.PortBinding) EndpointOption
 func JoinOptionGeneric(generic map[string]interface{}) EndpointOption {
 	return func(ep *endpoint) {
 		ep.container.config.generic = generic
-	}
-}
-
-// LeaveOptionGeneric function returns an option setter for Generic configuration
-// that is not managed by libNetwork but can be used by the Drivers during the call to
-// endpoint leave method. Container Labels are a good example.
-func LeaveOptionGeneric(context map[string]interface{}) EndpointOption {
-	return func(ep *endpoint) {
-		ep.context = context
 	}
 }

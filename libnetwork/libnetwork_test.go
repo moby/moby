@@ -190,7 +190,7 @@ func TestBridge(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	epInfo, err := ep.Info()
+	epInfo, err := ep.DriverInfo()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -696,6 +696,23 @@ func TestEndpointJoin(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// Validate if ep.Info() only gives me IP address info and not names and gateway during CreateEndpoint()
+	info := ep.Info()
+
+	for _, iface := range info.InterfaceList() {
+		if iface.Address().IP.To4() == nil {
+			t.Fatalf("Invalid IP address returned: %v", iface.Address())
+		}
+	}
+
+	if info.Gateway().To4() != nil {
+		t.Fatalf("Expected empty gateway for an empty endpoint. Instead found a gateway: %v", info.Gateway())
+	}
+
+	if info.SandboxKey() != "" {
+		t.Fatalf("Expected an empty sandbox key for an empty endpoint. Instead found a non-empty sandbox key: %s", info.SandboxKey())
+	}
+
 	_, err = ep.Join(containerID,
 		libnetwork.JoinOptionHostname("test"),
 		libnetwork.JoinOptionDomainname("docker.io"),
@@ -710,6 +727,16 @@ func TestEndpointJoin(t *testing.T) {
 			t.Fatal(err)
 		}
 	}()
+
+	// Validate if ep.Info() only gives valid gateway and sandbox key after has container has joined.
+	info = ep.Info()
+	if info.Gateway().To4() == nil {
+		t.Fatalf("Expected a valid gateway for a joined endpoint. Instead found an invalid gateway: %v", info.Gateway())
+	}
+
+	if info.SandboxKey() == "" {
+		t.Fatalf("Expected an non-empty sandbox key for a joined endpoint. Instead found a empty sandbox key")
+	}
 }
 
 func TestEndpointJoinInvalidContainerId(t *testing.T) {
