@@ -52,8 +52,9 @@ func newClient(jar http.CookieJar, roots *x509.CertPool, certs []tls.Certificate
 	switch timeout {
 	case ConnectTimeout:
 		httpTransport.Dial = func(proto string, addr string) (net.Conn, error) {
-			// Set the connect timeout to 5 seconds
-			d := net.Dialer{Timeout: 5 * time.Second, DualStack: true}
+			// Set the connect timeout to 30 seconds to allow for slower connection
+			// times...
+			d := net.Dialer{Timeout: 30 * time.Second, DualStack: true}
 
 			conn, err := d.Dial(proto, addr)
 			if err != nil {
