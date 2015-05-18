@@ -69,7 +69,7 @@ func (h *httpHandler) initRouter() {
 			"/networks/name/{" + urlNwName + ":.*}/endpoints/":                            procGetEndpoints,
 			"/networks/id/{" + urlNwID + ":.*}/endpoints/":                                procGetEndpoints,
 			"/networks/name/{" + urlNwName + ":.*}/endpoints/name/{" + urlEpName + ":.*}": procGetEndpoint,
-			"/networks/id/{" + urlNwName + ":.*}/endpoints/name/{" + urlEpName + ":.*}":   procGetEndpoint,
+			"/networks/id/{" + urlNwID + ":.*}/endpoints/name/{" + urlEpName + ":.*}":     procGetEndpoint,
 			"/networks/name/{" + urlNwName + ":.*}/endpoints/id/{" + urlEpID + ":.*}":     procGetEndpoint,
 			"/networks/id/{" + urlNwID + ":.*}/endpoints/id/{" + urlEpID + ":.*}":         procGetEndpoint,
 		},
