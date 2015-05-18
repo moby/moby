@@ -85,16 +85,11 @@ func (s *DockerSuite) TestCommitPausedContainer(c *check.C) {
 		c.Fatalf("failed to commit container to image: %s, %v", out, err)
 	}
 
-	cmd = exec.Command(dockerBinary, "inspect", "-f", "{{.State.Paused}}", cleanedContainerID)
-	out, _, _, err = runCommandWithStdoutStderr(cmd)
-	if err != nil {
-		c.Fatalf("failed to inspect container: %v, output: %q", err, out)
-	}
-
+	out, err = inspectField(cleanedContainerID, "State.Paused")
+	c.Assert(err, check.IsNil)
 	if !strings.Contains(out, "true") {
 		c.Fatalf("commit should not unpause a paused container")
 	}
-
 }
 
 func (s *DockerSuite) TestCommitNewFile(c *check.C) {
@@ -242,9 +237,7 @@ func (s *DockerSuite) TestCommitChange(c *check.C) {
 
 	for conf, value := range expected {
 		res, err := inspectField(imageId, conf)
-		if err != nil {
-			c.Errorf("failed to get value %s, error: %s", conf, err)
-		}
+		c.Assert(err, check.IsNil)
 		if res != value {
 			c.Errorf("%s('%s'), expected %s", conf, res, value)
 		}

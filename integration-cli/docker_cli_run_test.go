@@ -87,7 +87,7 @@ func (s *DockerSuite) TestRunEchoStdoutWithCPUAndMemoryLimit(c *check.C) {
 }
 
 // "test" should be printed
-func (s *DockerSuite) TestRunEchoStdoutWitCPUQuota(c *check.C) {
+func (s *DockerSuite) TestRunEchoStdoutWithCPUQuota(c *check.C) {
 	runCmd := exec.Command(dockerBinary, "run", "--cpu-quota", "8000", "--name", "test", "busybox", "echo", "test")
 	out, _, _, err := runCommandWithStdoutStderr(runCmd)
 	if err != nil {
@@ -101,12 +101,9 @@ func (s *DockerSuite) TestRunEchoStdoutWitCPUQuota(c *check.C) {
 		c.Errorf("container should've printed 'test'")
 	}
 
-	cmd := exec.Command(dockerBinary, "inspect", "-f", "{{.HostConfig.CpuQuota}}", "test")
-	out, _, err = runCommandWithOutput(cmd)
-	if err != nil {
-		c.Fatalf("failed to inspect container: %s, %v", out, err)
-	}
-	out = strings.TrimSpace(out)
+	out, err = inspectField("test", "HostConfig.CpuQuota")
+	c.Assert(err, check.IsNil)
+
 	if out != "8000" {
 		c.Errorf("setting the CPU CFS quota failed")
 	}
@@ -290,12 +287,8 @@ func (s *DockerSuite) TestRunLinksContainerWithContainerName(c *check.C) {
 	if err != nil {
 		c.Fatalf("failed to run container: %v, output: %q", err, out)
 	}
-	cmd = exec.Command(dockerBinary, "inspect", "-f", "{{.NetworkSettings.IPAddress}}", "parent")
-	ip, _, _, err := runCommandWithStdoutStderr(cmd)
-	if err != nil {
-		c.Fatalf("failed to inspect container: %v, output: %q", err, ip)
-	}
-	ip = strings.TrimSpace(ip)
+	ip, err := inspectField("parent", "NetworkSettings.IPAddress")
+	c.Assert(err, check.IsNil)
 	cmd = exec.Command(dockerBinary, "run", "--link", "parent:test", "busybox", "/bin/cat", "/etc/hosts")
 	out, _, err = runCommandWithOutput(cmd)
 	if err != nil {
@@ -314,12 +307,8 @@ func (s *DockerSuite) TestRunLinksContainerWithContainerId(c *check.C) {
 		c.Fatalf("failed to run container: %v, output: %q", err, cID)
 	}
 	cID = strings.TrimSpace(cID)
-	cmd = exec.Command(dockerBinary, "inspect", "-f", "{{.NetworkSettings.IPAddress}}", cID)
-	ip, _, _, err := runCommandWithStdoutStderr(cmd)
-	if err != nil {
-		c.Fatalf("failed to inspect container: %v, output: %q", err, ip)
-	}
-	ip = strings.TrimSpace(ip)
+	ip, err := inspectField(cID, "NetworkSettings.IPAddress")
+	c.Assert(err, check.IsNil)
 	cmd = exec.Command(dockerBinary, "run", "--link", cID+":test", "busybox", "/bin/cat", "/etc/hosts")
 	out, _, err := runCommandWithOutput(cmd)
 	if err != nil {
@@ -1163,12 +1152,8 @@ func (s *DockerSuite) TestRunWithCpuPeriod(c *check.C) {
 		c.Skip("Your kernel does not support CPU cfs period, skip this test")
 	}
 
-	cmd := exec.Command(dockerBinary, "inspect", "-f", "{{.HostConfig.CpuPeriod}}", "test")
-	out, _, err = runCommandWithOutput(cmd)
-	if err != nil {
-		c.Fatalf("failed to inspect container: %s, %v", out, err)
-	}
-	out = strings.TrimSpace(out)
+	out, err = inspectField("test", "HostConfig.CpuPeriod")
+	c.Assert(err, check.IsNil)
 	if out != "50000" {
 		c.Errorf("setting the CPU CFS period failed")
 	}
@@ -1741,16 +1726,12 @@ func (s *DockerSuite) TestRunState(c *check.C) {
 	}
 	id := strings.TrimSpace(out)
 	state, err := inspectField(id, "State.Running")
-	if err != nil {
-		c.Fatal(err)
-	}
+	c.Assert(err, check.IsNil)
 	if state != "true" {
 		c.Fatal("Container state is 'not running'")
 	}
 	pid1, err := inspectField(id, "State.Pid")
-	if err != nil {
-		c.Fatal(err)
-	}
+	c.Assert(err, check.IsNil)
 	if pid1 == "0" {
 		c.Fatal("Container state Pid 0")
 	}
@@ -1761,16 +1742,12 @@ func (s *DockerSuite) TestRunState(c *check.C) {
 		c.Fatal(err, out)
 	}
 	state, err = inspectField(id, "State.Running")
-	if err != nil {
-		c.Fatal(err)
-	}
+	c.Assert(err, check.IsNil)
 	if state != "false" {
 		c.Fatal("Container state is 'running'")
 	}
 	pid2, err := inspectField(id, "State.Pid")
-	if err != nil {
-		c.Fatal(err)
-	}
+	c.Assert(err, check.IsNil)
 	if pid2 == pid1 {
 		c.Fatalf("Container state Pid %s, but expected %s", pid2, pid1)
 	}
@@ -1781,16 +1758,12 @@ func (s *DockerSuite) TestRunState(c *check.C) {
 		c.Fatal(err, out)
 	}
 	state, err = inspectField(id, "State.Running")
-	if err != nil {
-		c.Fatal(err)
-	}
+	c.Assert(err, check.IsNil)
 	if state != "true" {
 		c.Fatal("Container state is 'not running'")
 	}
 	pid3, err := inspectField(id, "State.Pid")
-	if err != nil {
-		c.Fatal(err)
-	}
+	c.Assert(err, check.IsNil)
 	if pid3 == pid1 {
 		c.Fatalf("Container state Pid %s, but expected %s", pid2, pid1)
 	}
@@ -2166,9 +2139,7 @@ func (s *DockerSuite) TestRunNetworkNotInitializedNoneMode(c *check.C) {
 	}
 	id := strings.TrimSpace(out)
 	res, err := inspectField(id, "NetworkSettings.IPAddress")
-	if err != nil {
-		c.Fatal(err)
-	}
+	c.Assert(err, check.IsNil)
 	if res != "" {
 		c.Fatalf("For 'none' mode network must not be initialized, but container got IP: %s", res)
 	}
@@ -2197,9 +2168,7 @@ func (s *DockerSuite) TestRunInspectMacAddress(c *check.C) {
 	}
 	id := strings.TrimSpace(out)
 	inspectedMac, err := inspectField(id, "NetworkSettings.MacAddress")
-	if err != nil {
-		c.Fatal(err)
-	}
+	c.Assert(err, check.IsNil)
 	if inspectedMac != mac {
 		c.Fatalf("docker inspect outputs wrong MAC address: %q, should be: %q", inspectedMac, mac)
 	}
@@ -2225,9 +2194,7 @@ func (s *DockerSuite) TestRunDeallocatePortOnMissingIptablesRule(c *check.C) {
 	}
 	id := strings.TrimSpace(out)
 	ip, err := inspectField(id, "NetworkSettings.IPAddress")
-	if err != nil {
-		c.Fatal(err)
-	}
+	c.Assert(err, check.IsNil)
 	iptCmd := exec.Command("iptables", "-D", "DOCKER", "-d", fmt.Sprintf("%s/32", ip),
 		"!", "-i", "docker0", "-o", "docker0", "-p", "tcp", "-m", "tcp", "--dport", "23", "-j", "ACCEPT")
 	out, _, err = runCommandWithOutput(iptCmd)
@@ -2487,32 +2454,24 @@ func (s *DockerSuite) TestRunVolumesCleanPaths(c *check.C) {
 	}
 
 	out, err := inspectFieldMap("dark_helmet", "Volumes", "/foo/")
-	if err != nil {
-		c.Fatal(err)
-	}
+	c.Assert(err, check.IsNil)
 	if out != "" {
 		c.Fatalf("Found unexpected volume entry for '/foo/' in volumes\n%q", out)
 	}
 
 	out, err = inspectFieldMap("dark_helmet", "Volumes", "/foo")
-	if err != nil {
-		c.Fatal(err)
-	}
+	c.Assert(err, check.IsNil)
 	if !strings.Contains(out, volumesStoragePath) {
 		c.Fatalf("Volume was not defined for /foo\n%q", out)
 	}
 
 	out, err = inspectFieldMap("dark_helmet", "Volumes", "/bar/")
-	if err != nil {
-		c.Fatal(err)
-	}
+	c.Assert(err, check.IsNil)
 	if out != "" {
 		c.Fatalf("Found unexpected volume entry for '/bar/' in volumes\n%q", out)
 	}
 	out, err = inspectFieldMap("dark_helmet", "Volumes", "/bar")
-	if err != nil {
-		c.Fatal(err)
-	}
+	c.Assert(err, check.IsNil)
 	if !strings.Contains(out, volumesStoragePath) {
 		c.Fatalf("Volume was not defined for /bar\n%q", out)
 	}
@@ -2549,9 +2508,7 @@ func (s *DockerSuite) TestRunAllowPortRangeThroughExpose(c *check.C) {
 	}
 	id := strings.TrimSpace(out)
 	portstr, err := inspectFieldJSON(id, "NetworkSettings.Ports")
-	if err != nil {
-		c.Fatal(err)
-	}
+	c.Assert(err, check.IsNil)
 	var ports nat.PortMap
 	if err = unmarshalJSON([]byte(portstr), &ports); err != nil {
 		c.Fatal(err)
@@ -2592,14 +2549,8 @@ func (s *DockerSuite) TestRunUnknownCommand(c *check.C) {
 	runCmd = exec.Command(dockerBinary, "start", cID)
 	_, _, _, _ = runCommandWithStdoutStderr(runCmd)
 
-	runCmd = exec.Command(dockerBinary, "inspect", "--format={{.State.ExitCode}}", cID)
-	rc, _, _, err2 := runCommandWithStdoutStderr(runCmd)
-	rc = strings.TrimSpace(rc)
-
-	if err2 != nil {
-		c.Fatalf("Error getting status of container: %v", err2)
-	}
-
+	rc, err := inspectField(cID, "State.ExitCode")
+	c.Assert(err, check.IsNil)
 	if rc == "0" {
 		c.Fatalf("ExitCode(%v) cannot be 0", rc)
 	}
@@ -2646,16 +2597,12 @@ func (s *DockerSuite) TestRunModeIpcContainer(c *check.C) {
 	}
 	id := strings.TrimSpace(out)
 	state, err := inspectField(id, "State.Running")
-	if err != nil {
-		c.Fatal(err)
-	}
+	c.Assert(err, check.IsNil)
 	if state != "true" {
 		c.Fatal("Container state is 'not running'")
 	}
 	pid1, err := inspectField(id, "State.Pid")
-	if err != nil {
-		c.Fatal(err)
-	}
+	c.Assert(err, check.IsNil)
 
 	parentContainerIpc, err := os.Readlink(fmt.Sprintf("/proc/%s/ns/ipc", pid1))
 	if err != nil {
@@ -2694,9 +2641,7 @@ func (s *DockerSuite) TestContainerNetworkMode(c *check.C) {
 		c.Fatal(err)
 	}
 	pid1, err := inspectField(id, "State.Pid")
-	if err != nil {
-		c.Fatal(err)
-	}
+	c.Assert(err, check.IsNil)
 
 	parentContainerNet, err := os.Readlink(fmt.Sprintf("/proc/%s/ns/net", pid1))
 	if err != nil {
@@ -2951,9 +2896,7 @@ func (s *DockerSuite) TestRunAllowPortRangeThroughPublish(c *check.C) {
 
 	id := strings.TrimSpace(out)
 	portstr, err := inspectFieldJSON(id, "NetworkSettings.Ports")
-	if err != nil {
-		c.Fatal(err)
-	}
+	c.Assert(err, check.IsNil)
 	var ports nat.PortMap
 	err = unmarshalJSON([]byte(portstr), &ports)
 	for port, binding := range ports {
@@ -2991,12 +2934,8 @@ func (s *DockerSuite) TestRunSetDefaultRestartPolicy(c *check.C) {
 	if out, _, err := runCommandWithOutput(runCmd); err != nil {
 		c.Fatalf("failed to run container: %v, output: %q", err, out)
 	}
-	cmd := exec.Command(dockerBinary, "inspect", "-f", "{{.HostConfig.RestartPolicy.Name}}", "test")
-	out, _, err := runCommandWithOutput(cmd)
-	if err != nil {
-		c.Fatalf("failed to inspect container: %v, output: %q", err, out)
-	}
-	out = strings.Trim(out, "\r\n")
+	out, err := inspectField("test", "HostConfig.RestartPolicy.Name")
+	c.Assert(err, check.IsNil)
 	if out != "no" {
 		c.Fatalf("Set default restart policy failed")
 	}
@@ -3012,16 +2951,12 @@ func (s *DockerSuite) TestRunRestartMaxRetries(c *check.C) {
 		c.Fatal(err)
 	}
 	count, err := inspectField(id, "RestartCount")
-	if err != nil {
-		c.Fatal(err)
-	}
+	c.Assert(err, check.IsNil)
 	if count != "3" {
 		c.Fatalf("Container was restarted %s times, expected %d", count, 3)
 	}
 	MaximumRetryCount, err := inspectField(id, "HostConfig.RestartPolicy.MaximumRetryCount")
-	if err != nil {
-		c.Fatal(err)
-	}
+	c.Assert(err, check.IsNil)
 	if MaximumRetryCount != "3" {
 		c.Fatalf("Container Maximum Retry Count is %s, expected %s", MaximumRetryCount, "3")
 	}

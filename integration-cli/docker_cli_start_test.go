@@ -98,9 +98,7 @@ func (s *DockerSuite) TestStartRecordError(c *check.C) {
 	// when container runs successfully, we should not have state.Error
 	dockerCmd(c, "run", "-d", "-p", "9999:9999", "--name", "test", "busybox", "top")
 	stateErr, err := inspectField("test", "State.Error")
-	if err != nil {
-		c.Fatalf("Failed to inspect %q state's error, got error %q", "test", err)
-	}
+	c.Assert(err, check.IsNil)
 	if stateErr != "" {
 		c.Fatalf("Expected to not have state error but got state.Error(%q)", stateErr)
 	}
@@ -111,9 +109,7 @@ func (s *DockerSuite) TestStartRecordError(c *check.C) {
 		c.Fatalf("Expected error but got none, output %q", out)
 	}
 	stateErr, err = inspectField("test2", "State.Error")
-	if err != nil {
-		c.Fatalf("Failed to inspect %q state's error, got error %q", "test2", err)
-	}
+	c.Assert(err, check.IsNil)
 	expected := "port is already allocated"
 	if stateErr == "" || !strings.Contains(stateErr, expected) {
 		c.Fatalf("State.Error(%q) does not include %q", stateErr, expected)
@@ -123,9 +119,7 @@ func (s *DockerSuite) TestStartRecordError(c *check.C) {
 	dockerCmd(c, "stop", "test")
 	dockerCmd(c, "start", "test2")
 	stateErr, err = inspectField("test2", "State.Error")
-	if err != nil {
-		c.Fatalf("Failed to inspect %q state's error, got error %q", "test", err)
-	}
+	c.Assert(err, check.IsNil)
 	if stateErr != "" {
 		c.Fatalf("Expected to not have state error but got state.Error(%q)", stateErr)
 	}
@@ -196,12 +190,8 @@ func (s *DockerSuite) TestStartMultipleContainers(c *check.C) {
 	if out, _, err := runCommandWithOutput(cmd); err != nil {
 		c.Fatal(out, err)
 	}
-	cmd = exec.Command(dockerBinary, "inspect", "-f", "{{.State.Running}}", "parent")
-	out, _, err := runCommandWithOutput(cmd)
-	if err != nil {
-		c.Fatal(out, err)
-	}
-	out = strings.Trim(out, "\r\n")
+	out, err := inspectField("parent", "State.Running")
+	c.Assert(err, check.IsNil)
 	if out != "false" {
 		c.Fatal("Container should be stopped")
 	}
@@ -215,12 +205,8 @@ func (s *DockerSuite) TestStartMultipleContainers(c *check.C) {
 	}
 
 	for container, expected := range map[string]string{"parent": "true", "child_first": "false", "child_second": "true"} {
-		cmd = exec.Command(dockerBinary, "inspect", "-f", "{{.State.Running}}", container)
-		out, _, err = runCommandWithOutput(cmd)
-		if err != nil {
-			c.Fatal(out, err)
-		}
-		out = strings.Trim(out, "\r\n")
+		out, err := inspectField(container, "State.Running")
+		c.Assert(err, check.IsNil)
 		if out != expected {
 			c.Fatal("Container running state wrong")
 		}
@@ -260,12 +246,10 @@ func (s *DockerSuite) TestStartAttachMultipleContainers(c *check.C) {
 
 	// confirm the state of all the containers be stopped
 	for container, expected := range map[string]string{"test1": "false", "test2": "false", "test3": "false"} {
-		cmd = exec.Command(dockerBinary, "inspect", "-f", "{{.State.Running}}", container)
-		out, _, err := runCommandWithOutput(cmd)
+		out, err := inspectField(container, "State.Running")
 		if err != nil {
 			c.Fatal(out, err)
 		}
-		out = strings.Trim(out, "\r\n")
 		if out != expected {
 			c.Fatal("Container running state wrong")
 		}

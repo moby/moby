@@ -53,12 +53,9 @@ func getContainerLogs(c *check.C, containerID string) string {
 }
 
 func getContainerStatus(c *check.C, containerID string) string {
-	runCmd := exec.Command(dockerBinary, "inspect", "-f", "{{.State.Running}}", containerID)
-	out, _, err := runCommandWithOutput(runCmd)
-	if err != nil {
-		c.Fatal(out, err)
-	}
-	return strings.Trim(out, "\r\n")
+	out, err := inspectField(containerID, "State.Running")
+	c.Assert(err, check.IsNil)
+	return out
 }
 
 func (s *DockerSuite) TestNetworkNat(c *check.C) {
