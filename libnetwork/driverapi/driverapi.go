@@ -19,6 +19,9 @@ var (
 	ErrNotImplemented = errors.New("The API is not implemented yet")
 )
 
+// NetworkPluginEndpointType represents the Endpoint Type used by Plugin system
+const NetworkPluginEndpointType = "NetworkDriver"
+
 // Driver is an interface that every plugin driver needs to implement.
 type Driver interface {
 	// Push driver specific config to the driver

@@ -3,6 +3,8 @@ package remote
 import (
 	"errors"
 
+	log "github.com/Sirupsen/logrus"
+	"github.com/docker/docker/pkg/plugins"
 	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/sandbox"
 	"github.com/docker/libnetwork/types"
@@ -10,13 +12,22 @@ import (
 
 var errNoCallback = errors.New("No Callback handler registered with Driver")
 
-const remoteNetworkType = "remote"
-
 type driver struct {
+	endpoint    *plugins.Client
+	networkType string
 }
 
 // Init does the necessary work to register remote drivers
 func Init(dc driverapi.DriverCallback) error {
+	plugins.Handle(driverapi.NetworkPluginEndpointType, func(name string, client *plugins.Client) {
+
+		// TODO : Handhake with the Remote Plugin goes here
+
+		newDriver := &driver{networkType: name, endpoint: client}
+		if err := dc.RegisterDriver(name, newDriver); err != nil {
+			log.Errorf("Error registering Driver for %s due to %v", name, err)
+		}
+	})
 	return nil
 }
 
@@ -55,5 +66,5 @@ func (d *driver) Leave(nid, eid types.UUID, options map[string]interface{}) erro
 }
 
 func (d *driver) Type() string {
-	return remoteNetworkType
+	return d.networkType
 }
