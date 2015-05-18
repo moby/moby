@@ -186,12 +186,6 @@ func (s *DockerSuite) TestRunStdinPipe(c *check.C) {
 	}
 
 	out = strings.TrimSpace(out)
-
-	inspectCmd := exec.Command(dockerBinary, "inspect", out)
-	if out, _, err := runCommandWithOutput(inspectCmd); err != nil {
-		c.Fatalf("out should've been a container id: %s %v", out, err)
-	}
-
 	waitCmd := exec.Command(dockerBinary, "wait", out)
 	if waitOut, _, err := runCommandWithOutput(waitCmd); err != nil {
 		c.Fatalf("error thrown while waiting for container: %s, %v", waitOut, err)
@@ -224,12 +218,6 @@ func (s *DockerSuite) TestRunDetachedContainerIDPrinting(c *check.C) {
 	}
 
 	out = strings.TrimSpace(out)
-
-	inspectCmd := exec.Command(dockerBinary, "inspect", out)
-	if inspectOut, _, err := runCommandWithOutput(inspectCmd); err != nil {
-		c.Fatalf("out should've been a container id: %s %v", inspectOut, err)
-	}
-
 	waitCmd := exec.Command(dockerBinary, "wait", out)
 	if waitOut, _, err := runCommandWithOutput(waitCmd); err != nil {
 		c.Fatalf("error thrown while waiting for container: %s, %v", waitOut, err)

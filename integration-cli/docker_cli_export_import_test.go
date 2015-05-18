@@ -12,16 +12,10 @@ import (
 func (s *DockerSuite) TestExportContainerAndImportImage(c *check.C) {
 	containerID := "testexportcontainerandimportimage"
 
-	runCmd := exec.Command(dockerBinary, "run", "-d", "--name", containerID, "busybox", "true")
+	runCmd := exec.Command(dockerBinary, "run", "--name", containerID, "busybox", "true")
 	out, _, err := runCommandWithOutput(runCmd)
 	if err != nil {
 		c.Fatal("failed to create a container", out, err)
-	}
-
-	inspectCmd := exec.Command(dockerBinary, "inspect", containerID)
-	out, _, err = runCommandWithOutput(inspectCmd)
-	if err != nil {
-		c.Fatalf("output should've been a container id: %s %s ", containerID, err)
 	}
 
 	exportCmd := exec.Command(dockerBinary, "export", containerID)
@@ -37,28 +31,19 @@ func (s *DockerSuite) TestExportContainerAndImportImage(c *check.C) {
 	}
 
 	cleanedImageID := strings.TrimSpace(out)
-
-	inspectCmd = exec.Command(dockerBinary, "inspect", cleanedImageID)
-	if out, _, err = runCommandWithOutput(inspectCmd); err != nil {
-		c.Fatalf("output should've been an image id: %s, %v", out, err)
+	if cleanedImageID == "" {
+		c.Fatalf("output should have been an image id, got: %s", out)
 	}
-
 }
 
 // Used to test output flag in the export command
 func (s *DockerSuite) TestExportContainerWithOutputAndImportImage(c *check.C) {
 	containerID := "testexportcontainerwithoutputandimportimage"
 
-	runCmd := exec.Command(dockerBinary, "run", "-d", "--name", containerID, "busybox", "true")
+	runCmd := exec.Command(dockerBinary, "run", "--name", containerID, "busybox", "true")
 	out, _, err := runCommandWithOutput(runCmd)
 	if err != nil {
 		c.Fatal("failed to create a container", out, err)
-	}
-
-	inspectCmd := exec.Command(dockerBinary, "inspect", containerID)
-	out, _, err = runCommandWithOutput(inspectCmd)
-	if err != nil {
-		c.Fatalf("output should've been a container id: %s %s ", containerID, err)
 	}
 
 	defer os.Remove("testexp.tar")
@@ -81,10 +66,7 @@ func (s *DockerSuite) TestExportContainerWithOutputAndImportImage(c *check.C) {
 	}
 
 	cleanedImageID := strings.TrimSpace(out)
-
-	inspectCmd = exec.Command(dockerBinary, "inspect", cleanedImageID)
-	if out, _, err = runCommandWithOutput(inspectCmd); err != nil {
-		c.Fatalf("output should've been an image id: %s, %v", out, err)
+	if cleanedImageID == "" {
+		c.Fatalf("output should have been an image id, got: %s", out)
 	}
-
 }
