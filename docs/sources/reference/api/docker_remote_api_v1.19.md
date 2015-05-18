@@ -1612,33 +1612,51 @@ Display system-wide information
         Content-Type: application/json
 
         {
-             "Containers":11,
-             "Images":16,
-             "Driver":"btrfs",
-             "DriverStatus": [[""]],
-             "ExecutionDriver":"native-0.1",
-             "KernelVersion":"3.12.0-1-amd64"
-             "NCPU":1,
-             "MemTotal":2099236864,
-             "Name":"prod-server-42",
-             "ID":"7TRN:IPZB:QYBB:VPBQ:UMPP:KARE:6ZNR:XE6T:7EWV:PKF4:ZOJD:TPYS",
-             "Debug":false,
-             "NFd": 11,
-             "NGoroutines":21,
-             "SystemTime": "2015-03-10T11:11:23.730591467-07:00"
-             "NEventsListener":0,
-             "InitPath":"/usr/bin/docker",
-             "InitSha1":"",
-             "IndexServerAddress":["https://index.docker.io/v1/"],
-             "MemoryLimit":true,
-             "SwapLimit":false,
-             "IPv4Forwarding":true,
-             "Labels":["storage=ssd"],
-             "DockerRootDir": "/var/lib/docker",
-             "HttpProxy": "http://test:test@localhost:8080"
-             "HttpsProxy": "https://test:test@localhost:8080"
-             "NoProxy": "9.81.1.160"
-             "OperatingSystem": "Boot2Docker",
+            "Containers": 11,
+            "CpuCfsPeriod": true,
+            "CpuCfsQuota": true,
+            "Debug": false,
+            "DockerRootDir": "/var/lib/docker",
+            "Driver": "btrfs",
+            "DriverStatus": [[""]],
+            "ExecutionDriver": "native-0.1",
+            "HttpProxy": "http://test:test@localhost:8080",
+            "HttpsProxy": "https://test:test@localhost:8080",
+            "ID": "7TRN:IPZB:QYBB:VPBQ:UMPP:KARE:6ZNR:XE6T:7EWV:PKF4:ZOJD:TPYS",
+            "IPv4Forwarding": true,
+            "Images": 16,
+            "IndexServerAddress": "https://index.docker.io/v1/",
+            "InitPath": "/usr/bin/docker",
+            "InitSha1": "",
+            "KernelVersion": "3.12.0-1-amd64",
+            "Labels": [
+                "storage=ssd"
+            ],
+            "MemTotal": 2099236864,
+            "MemoryLimit": true,
+            "NCPU": 1,
+            "NEventsListener": 0,
+            "NFd": 11,
+            "NGoroutines": 21,
+            "Name": "prod-server-42",
+            "NoProxy": "9.81.1.160",
+            "OomKillDisable": true,
+            "OperatingSystem": "Boot2Docker",
+            "RegistryConfig": {
+                "IndexConfigs": {
+                    "docker.io": {
+                        "Mirrors": null,
+                        "Name": "docker.io",
+                        "Official": true,
+                        "Secure": true
+                    }
+                },
+                "InsecureRegistryCIDRs": [
+                    "127.0.0.0/8"
+                ]
+            },
+            "SwapLimit": false,
+            "SystemTime": "2015-03-10T11:11:23.730591467-07:00"
         }
 
 Status Codes:
