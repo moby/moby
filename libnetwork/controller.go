@@ -89,7 +89,7 @@ type sandboxData struct {
 
 type networkTable map[types.UUID]*network
 type endpointTable map[types.UUID]*endpoint
-type sandboxTable map[string]sandboxData
+type sandboxTable map[string]*sandboxData
 
 type controller struct {
 	networks  networkTable
@@ -247,7 +247,7 @@ func (c *controller) sandboxAdd(key string, create bool) (sandbox.Sandbox, error
 			return nil, err
 		}
 
-		sData = sandboxData{sandbox: sb, refCnt: 1}
+		sData = &sandboxData{sandbox: sb, refCnt: 1}
 		c.sandboxes[key] = sData
 		return sData.sandbox, nil
 	}

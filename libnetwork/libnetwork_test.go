@@ -113,13 +113,13 @@ func TestHost(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ep, err := network.CreateEndpoint("testep")
+	ep1, err := network.CreateEndpoint("testep1")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	_, err = ep.Join("host_container",
-		libnetwork.JoinOptionHostname("test"),
+	_, err = ep1.Join("host_container1",
+		libnetwork.JoinOptionHostname("test1"),
 		libnetwork.JoinOptionDomainname("docker.io"),
 		libnetwork.JoinOptionExtraHost("web", "192.168.0.1"),
 		libnetwork.JoinOptionUseDefaultSandbox())
@@ -127,12 +127,59 @@ func TestHost(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = ep.Leave("host_container")
+	ep2, err := network.CreateEndpoint("testep2")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if err := ep.Delete(); err != nil {
+	_, err = ep2.Join("host_container2",
+		libnetwork.JoinOptionHostname("test2"),
+		libnetwork.JoinOptionDomainname("docker.io"),
+		libnetwork.JoinOptionExtraHost("web", "192.168.0.1"),
+		libnetwork.JoinOptionUseDefaultSandbox())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = ep1.Leave("host_container1")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = ep2.Leave("host_container2")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := ep1.Delete(); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := ep2.Delete(); err != nil {
+		t.Fatal(err)
+	}
+
+	// Try to create another host endpoint and join/leave that.
+	ep3, err := network.CreateEndpoint("testep3")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = ep3.Join("host_container3",
+		libnetwork.JoinOptionHostname("test3"),
+		libnetwork.JoinOptionDomainname("docker.io"),
+		libnetwork.JoinOptionExtraHost("web", "192.168.0.1"),
+		libnetwork.JoinOptionUseDefaultSandbox())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = ep3.Leave("host_container3")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := ep3.Delete(); err != nil {
 		t.Fatal(err)
 	}
 
