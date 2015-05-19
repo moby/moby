@@ -9,7 +9,8 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"path"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
@@ -86,8 +87,9 @@ func newClient(jar http.CookieJar, roots *x509.CertPool, certs []tls.Certificate
 
 func doRequest(req *http.Request, jar http.CookieJar, timeout TimeoutType, secure bool) (*http.Response, *http.Client, error) {
 	var (
-		pool  *x509.CertPool
-		certs []tls.Certificate
+		pool    *x509.CertPool
+		certs   []tls.Certificate
+		hostDir string
 	)
 
 	if secure && req.URL.Scheme == "https" {
@@ -100,7 +102,11 @@ func doRequest(req *http.Request, jar http.CookieJar, timeout TimeoutType, secur
 			return false
 		}
 
-		hostDir := path.Join("/etc/docker/certs.d", req.URL.Host)
+		if runtime.GOOS == "windows" {
+			hostDir = filepath.Join(os.TempDir(), "/docker/certs.d", req.URL.Host)
+		} else {
+			hostDir = filepath.Join("/etc/docker/certs.d", req.URL.Host)
+		}
 		logrus.Debugf("hostDir: %s", hostDir)
 		fs, err := ioutil.ReadDir(hostDir)
 		if err != nil && !os.IsNotExist(err) {
@@ -113,7 +119,7 @@ func doRequest(req *http.Request, jar http.CookieJar, timeout TimeoutType, secur
 					pool = x509.NewCertPool()
 				}
 				logrus.Debugf("crt: %s", hostDir+"/"+f.Name())
-				data, err := ioutil.ReadFile(path.Join(hostDir, f.Name()))
+				data, err := ioutil.ReadFile(filepath.Join(hostDir, f.Name()))
 				if err != nil {
 					return nil, nil, err
 				}
@@ -126,7 +132,7 @@ func doRequest(req *http.Request, jar http.CookieJar, timeout TimeoutType, secur
 				if !hasFile(fs, keyName) {
 					return nil, nil, fmt.Errorf("Missing key %s for certificate %s", keyName, certName)
 				}
-				cert, err := tls.LoadX509KeyPair(path.Join(hostDir, certName), path.Join(hostDir, keyName))
+				cert, err := tls.LoadX509KeyPair(filepath.Join(hostDir, certName), filepath.Join(hostDir, keyName))
 				if err != nil {
 					return nil, nil, err
 				}
