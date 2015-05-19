@@ -304,7 +304,7 @@ func (s *DockerSuite) TestPsListContainersSize(c *check.C) {
 	}
 	expectedSize := fmt.Sprintf("%d B", (2 + baseBytes))
 	foundSize := lines[1][sizeIndex:]
-	if foundSize != expectedSize {
+	if !strings.Contains(foundSize, expectedSize) {
 		c.Fatalf("Expected size %q, got %q", expectedSize, foundSize)
 	}
 
@@ -665,4 +665,18 @@ func (s *DockerSuite) TestPsGroupPortRange(c *check.C) {
 		c.Fatalf("docker ps output should have had the port range %q: %s", portRange, string(out))
 	}
 
+}
+
+func (s *DockerSuite) TestPsWithSize(c *check.C) {
+	out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "run", "-d", "--name", "sizetest", "busybox", "top"))
+	if err != nil {
+		c.Fatal(out, err)
+	}
+	out, _, err = runCommandWithOutput(exec.Command(dockerBinary, "ps", "--size"))
+	if err != nil {
+		c.Fatal(out, err)
+	}
+	if !strings.Contains(out, "virtual") {
+		c.Fatalf("docker ps with --size should show virtual size of container")
+	}
 }
