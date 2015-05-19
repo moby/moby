@@ -8,13 +8,19 @@ import (
 	"io/ioutil"
 	"net"
 	"net/http"
+	"net/http/httputil"
 	"os"
 	"path"
+	"runtime"
 	"strings"
 	"time"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/autogen/dockerversion"
+	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/docker/docker/pkg/timeoutconn"
+	"github.com/docker/docker/pkg/transport"
+	"github.com/docker/docker/pkg/useragent"
 )
 
 var (
@@ -31,66 +37,38 @@ const (
 	ConnectTimeout
 )
 
-func newClient(jar http.CookieJar, roots *x509.CertPool, certs []tls.Certificate, timeout TimeoutType, secure bool) *http.Client {
-	tlsConfig := tls.Config{
-		RootCAs: roots,
-		// Avoid fallback to SSL protocols < TLS1.0
-		MinVersion:   tls.VersionTLS10,
-		Certificates: certs,
+// dockerUserAgent is the User-Agent the Docker client uses to identify itself.
+// It is populated on init(), comprising version information of different components.
+var dockerUserAgent string
+
+func init() {
+	httpVersion := make([]useragent.VersionInfo, 0, 6)
+	httpVersion = append(httpVersion, useragent.VersionInfo{"docker", dockerversion.VERSION})
+	httpVersion = append(httpVersion, useragent.VersionInfo{"go", runtime.Version()})
+	httpVersion = append(httpVersion, useragent.VersionInfo{"git-commit", dockerversion.GITCOMMIT})
+	if kernelVersion, err := kernel.GetKernelVersion(); err == nil {
+		httpVersion = append(httpVersion, useragent.VersionInfo{"kernel", kernelVersion.String()})
 	}
+	httpVersion = append(httpVersion, useragent.VersionInfo{"os", runtime.GOOS})
+	httpVersion = append(httpVersion, useragent.VersionInfo{"arch", runtime.GOARCH})
 
-	if !secure {
-		tlsConfig.InsecureSkipVerify = true
-	}
-
-	httpTransport := &http.Transport{
-		DisableKeepAlives: true,
-		Proxy:             http.ProxyFromEnvironment,
-		TLSClientConfig:   &tlsConfig,
-	}
-
-	switch timeout {
-	case ConnectTimeout:
-		httpTransport.Dial = func(proto string, addr string) (net.Conn, error) {
-			// Set the connect timeout to 30 seconds to allow for slower connection
-			// times...
-			d := net.Dialer{Timeout: 30 * time.Second, DualStack: true}
-
-			conn, err := d.Dial(proto, addr)
-			if err != nil {
-				return nil, err
-			}
-			// Set the recv timeout to 10 seconds
-			conn.SetDeadline(time.Now().Add(10 * time.Second))
-			return conn, nil
-		}
-	case ReceiveTimeout:
-		httpTransport.Dial = func(proto string, addr string) (net.Conn, error) {
-			d := net.Dialer{DualStack: true}
-
-			conn, err := d.Dial(proto, addr)
-			if err != nil {
-				return nil, err
-			}
-			conn = timeoutconn.New(conn, 1*time.Minute)
-			return conn, nil
-		}
-	}
-
-	return &http.Client{
-		Transport:     httpTransport,
-		CheckRedirect: AddRequiredHeadersToRedirectedRequests,
-		Jar:           jar,
-	}
+	dockerUserAgent = useragent.AppendVersions("", httpVersion...)
 }
 
-func doRequest(req *http.Request, jar http.CookieJar, timeout TimeoutType, secure bool) (*http.Response, *http.Client, error) {
+type httpsRequestModifier struct{ tlsConfig *tls.Config }
+
+// DRAGONS(tiborvass): If someone wonders why do we set tlsconfig in a roundtrip,
+// it's because it's so as to match the current behavior in master: we generate the
+// certpool on every-goddam-request. It's not great, but it allows people to just put
+// the certs in /etc/docker/certs.d/.../ and let docker "pick it up" immediately. Would
+// prefer an fsnotify implementation, but that was out of scope of my refactoring.
+func (m *httpsRequestModifier) ModifyRequest(req *http.Request) error {
 	var (
-		pool  *x509.CertPool
+		roots *x509.CertPool
 		certs []tls.Certificate
 	)
 
-	if secure && req.URL.Scheme == "https" {
+	if req.URL.Scheme == "https" {
 		hasFile := func(files []os.FileInfo, name string) bool {
 			for _, f := range files {
 				if f.Name() == name {
@@ -104,31 +82,31 @@ func doRequest(req *http.Request, jar http.CookieJar, timeout TimeoutType, secur
 		logrus.Debugf("hostDir: %s", hostDir)
 		fs, err := ioutil.ReadDir(hostDir)
 		if err != nil && !os.IsNotExist(err) {
-			return nil, nil, err
+			return nil
 		}
 
 		for _, f := range fs {
 			if strings.HasSuffix(f.Name(), ".crt") {
-				if pool == nil {
-					pool = x509.NewCertPool()
+				if roots == nil {
+					roots = x509.NewCertPool()
 				}
 				logrus.Debugf("crt: %s", hostDir+"/"+f.Name())
 				data, err := ioutil.ReadFile(path.Join(hostDir, f.Name()))
 				if err != nil {
-					return nil, nil, err
+					return err
 				}
-				pool.AppendCertsFromPEM(data)
+				roots.AppendCertsFromPEM(data)
 			}
 			if strings.HasSuffix(f.Name(), ".cert") {
 				certName := f.Name()
 				keyName := certName[:len(certName)-5] + ".key"
 				logrus.Debugf("cert: %s", hostDir+"/"+f.Name())
 				if !hasFile(fs, keyName) {
-					return nil, nil, fmt.Errorf("Missing key %s for certificate %s", keyName, certName)
+					return fmt.Errorf("Missing key %s for certificate %s", keyName, certName)
 				}
 				cert, err := tls.LoadX509KeyPair(path.Join(hostDir, certName), path.Join(hostDir, keyName))
 				if err != nil {
-					return nil, nil, err
+					return err
 				}
 				certs = append(certs, cert)
 			}
@@ -137,24 +115,108 @@ func doRequest(req *http.Request, jar http.CookieJar, timeout TimeoutType, secur
 				certName := keyName[:len(keyName)-4] + ".cert"
 				logrus.Debugf("key: %s", hostDir+"/"+f.Name())
 				if !hasFile(fs, certName) {
-					return nil, nil, fmt.Errorf("Missing certificate %s for key %s", certName, keyName)
+					return fmt.Errorf("Missing certificate %s for key %s", certName, keyName)
 				}
 			}
 		}
+		m.tlsConfig.RootCAs = roots
+		m.tlsConfig.Certificates = certs
+	}
+	return nil
+}
+
+func NewTransport(timeout TimeoutType, secure bool) http.RoundTripper {
+	tlsConfig := &tls.Config{
+		// Avoid fallback to SSL protocols < TLS1.0
+		MinVersion:         tls.VersionTLS10,
+		InsecureSkipVerify: !secure,
 	}
 
-	if len(certs) == 0 {
-		client := newClient(jar, pool, nil, timeout, secure)
-		res, err := client.Do(req)
-		if err != nil {
-			return nil, nil, err
+	tr := &http.Transport{
+		DisableKeepAlives: true,
+		Proxy:             http.ProxyFromEnvironment,
+		TLSClientConfig:   tlsConfig,
+	}
+
+	switch timeout {
+	case ConnectTimeout:
+		tr.Dial = func(proto string, addr string) (net.Conn, error) {
+			// Set the connect timeout to 30 seconds to allow for slower connection
+			// times...
+			d := net.Dialer{Timeout: 30 * time.Second, DualStack: true}
+
+			conn, err := d.Dial(proto, addr)
+			if err != nil {
+				return nil, err
+			}
+			// Set the recv timeout to 10 seconds
+			conn.SetDeadline(time.Now().Add(10 * time.Second))
+			return conn, nil
 		}
-		return res, client, nil
+	case ReceiveTimeout:
+		tr.Dial = func(proto string, addr string) (net.Conn, error) {
+			d := net.Dialer{DualStack: true}
+
+			conn, err := d.Dial(proto, addr)
+			if err != nil {
+				return nil, err
+			}
+			conn = timeoutconn.New(conn, 1*time.Minute)
+			return conn, nil
+		}
 	}
 
-	client := newClient(jar, pool, certs, timeout, secure)
-	res, err := client.Do(req)
-	return res, client, err
+	if secure {
+		// note: httpsTransport also handles http transport
+		// but for HTTPS, it sets up the certs
+		return transport.NewTransport(tr, &httpsRequestModifier{tlsConfig})
+	}
+
+	return tr
+}
+
+// DockerHeaders returns request modifiers that ensure requests have
+// the User-Agent header set to dockerUserAgent and that metaHeaders
+// are added.
+func DockerHeaders(metaHeaders http.Header) []transport.RequestModifier {
+	modifiers := []transport.RequestModifier{
+		transport.NewHeaderRequestModifier(http.Header{"User-Agent": []string{dockerUserAgent}}),
+	}
+	if metaHeaders != nil {
+		modifiers = append(modifiers, transport.NewHeaderRequestModifier(metaHeaders))
+	}
+	return modifiers
+}
+
+type debugTransport struct{ http.RoundTripper }
+
+func (tr debugTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	dump, err := httputil.DumpRequestOut(req, false)
+	if err != nil {
+		fmt.Println("could not dump request")
+	}
+	fmt.Println(string(dump))
+	resp, err := tr.RoundTripper.RoundTrip(req)
+	if err != nil {
+		return nil, err
+	}
+	dump, err = httputil.DumpResponse(resp, false)
+	if err != nil {
+		fmt.Println("could not dump response")
+	}
+	fmt.Println(string(dump))
+	return resp, err
+}
+
+func HTTPClient(transport http.RoundTripper) *http.Client {
+	if transport == nil {
+		transport = NewTransport(ConnectTimeout, true)
+	}
+
+	return &http.Client{
+		Transport:     transport,
+		CheckRedirect: AddRequiredHeadersToRedirectedRequests,
+	}
 }
 
 func trustedLocation(req *http.Request) bool {

@@ -17,6 +17,7 @@ import (
 	"github.com/docker/docker/pkg/progressreader"
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/pkg/stringid"
+	"github.com/docker/docker/pkg/transport"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/utils"
 )
@@ -55,12 +56,19 @@ func (s *TagStore) Pull(image string, tag string, imagePullConfig *ImagePullConf
 	defer s.poolRemove("pull", utils.ImageReference(repoInfo.LocalName, tag))
 
 	logrus.Debugf("pulling image from host %q with remote name %q", repoInfo.Index.Name, repoInfo.RemoteName)
-	endpoint, err := repoInfo.GetEndpoint()
+
+	endpoint, err := repoInfo.GetEndpoint(imagePullConfig.MetaHeaders)
 	if err != nil {
 		return err
 	}
-
-	r, err := registry.NewSession(imagePullConfig.AuthConfig, registry.HTTPRequestFactory(imagePullConfig.MetaHeaders), endpoint, true)
+	// TODO(tiborvass): reuse client from endpoint?
+	// Adds Docker-specific headers as well as user-specified headers (metaHeaders)
+	tr := transport.NewTransport(
+		registry.NewTransport(registry.ReceiveTimeout, endpoint.IsSecure),
+		registry.DockerHeaders(imagePullConfig.MetaHeaders)...,
+	)
+	client := registry.HTTPClient(tr)
+	r, err := registry.NewSession(client, imagePullConfig.AuthConfig, endpoint)
 	if err != nil {
 		return err
 	}
@@ -109,7 +117,7 @@ func (s *TagStore) pullRepository(r *registry.Session, out io.Writer, repoInfo *
 	}
 
 	logrus.Debugf("Retrieving the tag list")
-	tagsList, err := r.GetRemoteTags(repoData.Endpoints, repoInfo.RemoteName, repoData.Tokens)
+	tagsList, err := r.GetRemoteTags(repoData.Endpoints, repoInfo.RemoteName)
 	if err != nil {
 		logrus.Errorf("unable to get remote tags: %s", err)
 		return err
@@ -240,7 +248,7 @@ func (s *TagStore) pullRepository(r *registry.Session, out io.Writer, repoInfo *
 }
 
 func (s *TagStore) pullImage(r *registry.Session, out io.Writer, imgID, endpoint string, token []string, sf *streamformatter.StreamFormatter) (bool, error) {
-	history, err := r.GetRemoteHistory(imgID, endpoint, token)
+	history, err := r.GetRemoteHistory(imgID, endpoint)
 	if err != nil {
 		return false, err
 	}
@@ -269,7 +277,7 @@ func (s *TagStore) pullImage(r *registry.Session, out io.Writer, imgID, endpoint
 			)
 			retries := 5
 			for j := 1; j <= retries; j++ {
-				imgJSON, imgSize, err = r.GetRemoteImageJSON(id, endpoint, token)
+				imgJSON, imgSize, err = r.GetRemoteImageJSON(id, endpoint)
 				if err != nil && j == retries {
 					out.Write(sf.FormatProgress(stringid.TruncateID(id), "Error pulling dependent layers", nil))
 					return layersDownloaded, err
@@ -297,7 +305,7 @@ func (s *TagStore) pullImage(r *registry.Session, out io.Writer, imgID, endpoint
 					status = fmt.Sprintf("Pulling fs layer [retries: %d]", j)
 				}
 				out.Write(sf.FormatProgress(stringid.TruncateID(id), status, nil))
-				layer, err := r.GetRemoteImageLayer(img.ID, endpoint, token, int64(imgSize))
+				layer, err := r.GetRemoteImageLayer(img.ID, endpoint, int64(imgSize))
 				if uerr, ok := err.(*url.Error); ok {
 					err = uerr.Err
 				}
