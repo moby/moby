@@ -46,7 +46,8 @@ run-tests:
 		pushd . &> /dev/null ; \
 		cd $$dir ; \
 		$(shell which godep) go test ${INSIDECONTAINER} -test.parallel 3 -test.v -covermode=count -coverprofile=./profile.tmp ; \
-		if [ $$? -ne 0 ]; then exit $$?; fi ;\
+		ret=$$? ;\
+		if [ $$ret -ne 0 ]; then exit $$ret; fi ;\
 		popd &> /dev/null; \
 	        if [ -f $$dir/profile.tmp ]; then \
 		        cat $$dir/profile.tmp | tail -n +2 >> coverage.coverprofile ; \
