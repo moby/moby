@@ -23,10 +23,9 @@ func (cli *DockerCli) CmdHelp(args ...string) error {
 		method, exists := cli.getMethod(args[0])
 		if !exists {
 			return fmt.Errorf("docker: '%s' is not a docker command. See 'docker --help'.", args[0])
-		} else {
-			method("--help")
-			return nil
 		}
+		method("--help")
+		return nil
 	}
 
 	flag.Usage()

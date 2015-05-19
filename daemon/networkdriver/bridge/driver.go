@@ -307,11 +307,11 @@ func InitDriver(config *Config) error {
 		}
 	}
 
-	if gateway, err := requestDefaultGateway(config.DefaultGatewayIPv4, bridgeIPv4Network); err != nil {
+	gateway, err := requestDefaultGateway(config.DefaultGatewayIPv4, bridgeIPv4Network)
+	if err != nil {
 		return err
-	} else {
-		gatewayIPv4 = gateway
 	}
+	gatewayIPv4 = gateway
 
 	if config.FixedCIDRv6 != "" {
 		_, subnet, err := net.ParseCIDR(config.FixedCIDRv6)
@@ -325,11 +325,11 @@ func InitDriver(config *Config) error {
 		}
 		globalIPv6Network = subnet
 
-		if gateway, err := requestDefaultGateway(config.DefaultGatewayIPv6, globalIPv6Network); err != nil {
+		gateway, err := requestDefaultGateway(config.DefaultGatewayIPv6, globalIPv6Network)
+		if err != nil {
 			return err
-		} else {
-			gatewayIPv6 = gateway
 		}
+		gatewayIPv6 = gateway
 	}
 
 	// Block BridgeIP in IP allocator
