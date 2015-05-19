@@ -46,6 +46,26 @@ func TestSandboxCreate(t *testing.T) {
 	s.Destroy()
 }
 
+func TestSandboxCreateTwice(t *testing.T) {
+	key, err := newKey(t)
+	if err != nil {
+		t.Fatalf("Failed to obtain a key: %v", err)
+	}
+
+	_, err = NewSandbox(key, true)
+	if err != nil {
+		t.Fatalf("Failed to create a new sandbox: %v", err)
+	}
+
+	// Create another sandbox with the same key to see if we handle it
+	// gracefully.
+	s, err := NewSandbox(key, true)
+	if err != nil {
+		t.Fatalf("Failed to create a new sandbox: %v", err)
+	}
+	s.Destroy()
+}
+
 func TestInterfaceEqual(t *testing.T) {
 	list := getInterfaceList()
 

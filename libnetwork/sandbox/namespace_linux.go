@@ -91,10 +91,19 @@ func createNetworkNamespace(path string, osCreate bool) (*Info, error) {
 	return info, nil
 }
 
+func cleanupNamespaceFile(path string) {
+	if _, err := os.Stat(path); err == nil {
+		n := &networkNamespace{path: path}
+		n.Destroy()
+	}
+}
+
 func createNamespaceFile(path string) (err error) {
 	var f *os.File
 
 	once.Do(createBasePath)
+	// cleanup namespace file if it already exists because of a previous ungraceful exit.
+	cleanupNamespaceFile(path)
 	if f, err = os.Create(path); err == nil {
 		f.Close()
 	}
