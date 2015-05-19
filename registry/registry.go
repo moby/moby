@@ -11,6 +11,7 @@ import (
 	"net/http/httputil"
 	"os"
 	"path"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"time"
@@ -64,8 +65,9 @@ type httpsRequestModifier struct{ tlsConfig *tls.Config }
 // prefer an fsnotify implementation, but that was out of scope of my refactoring.
 func (m *httpsRequestModifier) ModifyRequest(req *http.Request) error {
 	var (
-		roots *x509.CertPool
-		certs []tls.Certificate
+		roots   *x509.CertPool
+		certs   []tls.Certificate
+		hostDir string
 	)
 
 	if req.URL.Scheme == "https" {
@@ -78,7 +80,11 @@ func (m *httpsRequestModifier) ModifyRequest(req *http.Request) error {
 			return false
 		}
 
-		hostDir := path.Join("/etc/docker/certs.d", req.URL.Host)
+		if runtime.GOOS == "windows" {
+			hostDir = path.Join(os.TempDir(), "/docker/certs.d", req.URL.Host)
+		} else {
+			hostDir = path.Join("/etc/docker/certs.d", req.URL.Host)
+		}
 		logrus.Debugf("hostDir: %s", hostDir)
 		fs, err := ioutil.ReadDir(hostDir)
 		if err != nil && !os.IsNotExist(err) {
@@ -91,7 +97,7 @@ func (m *httpsRequestModifier) ModifyRequest(req *http.Request) error {
 					roots = x509.NewCertPool()
 				}
 				logrus.Debugf("crt: %s", hostDir+"/"+f.Name())
-				data, err := ioutil.ReadFile(path.Join(hostDir, f.Name()))
+				data, err := ioutil.ReadFile(filepath.Join(hostDir, f.Name()))
 				if err != nil {
 					return err
 				}
@@ -104,7 +110,7 @@ func (m *httpsRequestModifier) ModifyRequest(req *http.Request) error {
 				if !hasFile(fs, keyName) {
 					return fmt.Errorf("Missing key %s for certificate %s", keyName, certName)
 				}
-				cert, err := tls.LoadX509KeyPair(path.Join(hostDir, certName), path.Join(hostDir, keyName))
+				cert, err := tls.LoadX509KeyPair(filepath.Join(hostDir, certName), path.Join(hostDir, keyName))
 				if err != nil {
 					return err
 				}
