@@ -579,7 +579,7 @@ func TestControllerQuery(t *testing.T) {
 
 	g, err := controller.NetworkByID("network1")
 	if err == nil {
-		t.Fatalf("Unexpected success for NetworkByID(): %g", g)
+		t.Fatalf("Unexpected success for NetworkByID(): %v", g)
 	}
 	if err != libnetwork.ErrNoSuchNetwork {
 		t.Fatalf("NetworkByID() failed with unexpected error: %v", err)

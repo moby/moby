@@ -15,7 +15,7 @@ var (
 	defaultBindingIP = net.IPv4(0, 0, 0, 0)
 )
 
-func allocatePorts(epConfig *EndpointConfiguration, intf *sandbox.Interface, reqDefBindIP net.IP) ([]netutils.PortBinding, error) {
+func allocatePorts(epConfig *EndpointConfiguration, intf *sandbox.Interface, reqDefBindIP net.IP, ulPxyEnabled bool) ([]netutils.PortBinding, error) {
 	if epConfig == nil || epConfig.PortBindings == nil {
 		return nil, nil
 	}
@@ -25,14 +25,14 @@ func allocatePorts(epConfig *EndpointConfiguration, intf *sandbox.Interface, req
 		defHostIP = reqDefBindIP
 	}
 
-	return allocatePortsInternal(epConfig.PortBindings, intf.Address.IP, defHostIP)
+	return allocatePortsInternal(epConfig.PortBindings, intf.Address.IP, defHostIP, ulPxyEnabled)
 }
 
-func allocatePortsInternal(bindings []netutils.PortBinding, containerIP, defHostIP net.IP) ([]netutils.PortBinding, error) {
+func allocatePortsInternal(bindings []netutils.PortBinding, containerIP, defHostIP net.IP, ulPxyEnabled bool) ([]netutils.PortBinding, error) {
 	bs := make([]netutils.PortBinding, 0, len(bindings))
 	for _, c := range bindings {
 		b := c.GetCopy()
-		if err := allocatePort(&b, containerIP, defHostIP); err != nil {
+		if err := allocatePort(&b, containerIP, defHostIP, ulPxyEnabled); err != nil {
 			// On allocation failure, release previously allocated ports. On cleanup error, just log a warning message
 			if cuErr := releasePortsInternal(bs); cuErr != nil {
 				logrus.Warnf("Upon allocation failure for %v, failed to clear previously allocated port bindings: %v", b, cuErr)
@@ -44,7 +44,7 @@ func allocatePortsInternal(bindings []netutils.PortBinding, containerIP, defHost
 	return bs, nil
 }
 
-func allocatePort(bnd *netutils.PortBinding, containerIP, defHostIP net.IP) error {
+func allocatePort(bnd *netutils.PortBinding, containerIP, defHostIP net.IP, ulPxyEnabled bool) error {
 	var (
 		host net.Addr
 		err  error
@@ -66,7 +66,7 @@ func allocatePort(bnd *netutils.PortBinding, containerIP, defHostIP net.IP) erro
 
 	// Try up to maxAllocatePortAttempts times to get a port that's not already allocated.
 	for i := 0; i < maxAllocatePortAttempts; i++ {
-		if host, err = portMapper.Map(container, bnd.HostIP, int(bnd.HostPort)); err == nil {
+		if host, err = portMapper.Map(container, bnd.HostIP, int(bnd.HostPort), ulPxyEnabled); err == nil {
 			break
 		}
 		// There is no point in immediately retrying to map an explicitly chosen port.

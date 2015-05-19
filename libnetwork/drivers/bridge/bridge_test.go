@@ -157,14 +157,23 @@ func (te *testEndpoint) SetResolvConfPath(path string) error {
 }
 
 func TestQueryEndpointInfo(t *testing.T) {
+	testQueryEndpointInfo(t, true)
+}
+
+func TestQueryEndpointInfoHairpin(t *testing.T) {
+	testQueryEndpointInfo(t, false)
+}
+
+func testQueryEndpointInfo(t *testing.T, ulPxyEnabled bool) {
 	defer netutils.SetupTestNetNS(t)()
 	d := newDriver()
 	dd, _ := d.(*driver)
 
 	config := &NetworkConfiguration{
-		BridgeName:     DefaultBridgeName,
-		EnableIPTables: true,
-		EnableICC:      false,
+		BridgeName:          DefaultBridgeName,
+		EnableIPTables:      true,
+		EnableICC:           false,
+		EnableUserlandProxy: ulPxyEnabled,
 	}
 	genericOption := make(map[string]interface{})
 	genericOption[netlabel.GenericData] = config

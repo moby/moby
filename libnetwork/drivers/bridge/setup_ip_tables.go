@@ -19,20 +19,22 @@ func setupIPTables(config *NetworkConfiguration, i *bridgeInterface) error {
 		return ipTableCfgError(config.BridgeName)
 	}
 
+	hairpinMode := !config.EnableUserlandProxy
+
 	addrv4, _, err := netutils.GetIfaceAddr(config.BridgeName)
 	if err != nil {
 		return fmt.Errorf("Failed to setup IP tables, cannot acquire Interface address: %s", err.Error())
 	}
-	if err = setupIPTablesInternal(config.BridgeName, addrv4, config.EnableICC, config.EnableIPMasquerade, true); err != nil {
+	if err = setupIPTablesInternal(config.BridgeName, addrv4, config.EnableICC, config.EnableIPMasquerade, hairpinMode, true); err != nil {
 		return fmt.Errorf("Failed to Setup IP tables: %s", err.Error())
 	}
 
-	_, err = iptables.NewChain(DockerChain, config.BridgeName, iptables.Nat)
+	_, err = iptables.NewChain(DockerChain, config.BridgeName, iptables.Nat, hairpinMode)
 	if err != nil {
 		return fmt.Errorf("Failed to create NAT chain: %s", err.Error())
 	}
 
-	chain, err := iptables.NewChain(DockerChain, config.BridgeName, iptables.Filter)
+	chain, err := iptables.NewChain(DockerChain, config.BridgeName, iptables.Filter, hairpinMode)
 	if err != nil {
 		return fmt.Errorf("Failed to create FILTER chain: %s", err.Error())
 	}
@@ -49,18 +51,26 @@ type iptRule struct {
 	args    []string
 }
 
-func setupIPTablesInternal(bridgeIface string, addr net.Addr, icc, ipmasq, enable bool) error {
+func setupIPTablesInternal(bridgeIface string, addr net.Addr, icc, ipmasq, hairpin, enable bool) error {
 
 	var (
-		address = addr.String()
-		natRule = iptRule{table: iptables.Nat, chain: "POSTROUTING", preArgs: []string{"-t", "nat"}, args: []string{"-s", address, "!", "-o", bridgeIface, "-j", "MASQUERADE"}}
-		outRule = iptRule{table: iptables.Filter, chain: "FORWARD", args: []string{"-i", bridgeIface, "!", "-o", bridgeIface, "-j", "ACCEPT"}}
-		inRule  = iptRule{table: iptables.Filter, chain: "FORWARD", args: []string{"-o", bridgeIface, "-m", "conntrack", "--ctstate", "RELATED,ESTABLISHED", "-j", "ACCEPT"}}
+		address   = addr.String()
+		natRule   = iptRule{table: iptables.Nat, chain: "POSTROUTING", preArgs: []string{"-t", "nat"}, args: []string{"-s", address, "!", "-o", bridgeIface, "-j", "MASQUERADE"}}
+		hpNatRule = iptRule{table: iptables.Nat, chain: "POSTROUTING", preArgs: []string{"-t", "nat"}, args: []string{"-m", "addrtype", "--src-type", "LOCAL", "-o", bridgeIface, "-j", "MASQUERADE"}}
+		outRule   = iptRule{table: iptables.Filter, chain: "FORWARD", args: []string{"-i", bridgeIface, "!", "-o", bridgeIface, "-j", "ACCEPT"}}
+		inRule    = iptRule{table: iptables.Filter, chain: "FORWARD", args: []string{"-o", bridgeIface, "-m", "conntrack", "--ctstate", "RELATED,ESTABLISHED", "-j", "ACCEPT"}}
 	)
 
 	// Set NAT.
 	if ipmasq {
 		if err := programChainRule(natRule, "NAT", enable); err != nil {
+			return err
+		}
+	}
+
+	// In hairpin mode, masquerade traffic from localhost
+	if hairpin {
+		if err := programChainRule(hpNatRule, "MASQ LOCAL HOST", enable); err != nil {
 			return err
 		}
 	}

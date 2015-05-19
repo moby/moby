@@ -51,6 +51,7 @@ type NetworkConfiguration struct {
 	DefaultGatewayIPv6    net.IP
 	DefaultBindingIP      net.IP
 	AllowNonDefaultBridge bool
+	EnableUserlandProxy   bool
 }
 
 // EndpointConfiguration represents the user specified configuration for the sandbox endpoint
@@ -309,6 +310,9 @@ func (d *driver) CreateNetwork(id types.UUID, option map[string]interface{}) err
 		// specified subnet.
 		{config.FixedCIDRv6 != nil, setupFixedCIDRv6},
 
+		// Setup Loopback Adresses Routing
+		{!config.EnableUserlandProxy, setupLoopbackAdressesRouting},
+
 		// Setup IPTables.
 		{config.EnableIPTables, setupIPTables},
 
@@ -557,7 +561,7 @@ func (d *driver) CreateEndpoint(nid, eid types.UUID, epInfo driverapi.EndpointIn
 	}
 
 	// Program any required port mapping and store them in the endpoint
-	endpoint.portMapping, err = allocatePorts(epConfig, intf, config.DefaultBindingIP)
+	endpoint.portMapping, err = allocatePorts(epConfig, intf, config.DefaultBindingIP, config.EnableUserlandProxy)
 	if err != nil {
 		return err
 	}

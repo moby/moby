@@ -14,8 +14,8 @@ type IPV string
 const (
 	// Iptables point ipv4 table
 	Iptables IPV = "ipv4"
-	// IP6tables point to ipv6 table
-	IP6tables IPV = "ipv6"
+	// IP6Tables point to ipv6 table
+	IP6Tables IPV = "ipv6"
 	// Ebtables point to bridge table
 	Ebtables IPV = "eb"
 )
@@ -156,7 +156,6 @@ func checkRunning() bool {
 // Passthrough method simply passes args through to iptables/ip6tables
 func Passthrough(ipv IPV, args ...string) ([]byte, error) {
 	var output string
-
 	logrus.Debugf("Firewalld passthrough: %s, %s", ipv, args)
 	if err := connection.sysobj.Call(dbusInterface+".direct.passthrough", 0, ipv, args).Store(&output); err != nil {
 		return nil, err
