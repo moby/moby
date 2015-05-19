@@ -53,7 +53,7 @@ func (cli *NetworkCli) CmdNetworkCreate(chain string, args ...string) error {
 
 	nc := networkCreate{Name: cmd.Arg(0), NetworkType: *flDriver}
 
-	obj, _, err := readBody(cli.call("POST", "/networks/name/"+cmd.Arg(0), nc, nil))
+	obj, _, err := readBody(cli.call("POST", "/networks", nc, nil))
 	if err != nil {
 		fmt.Fprintf(cli.err, "%s", err.Error())
 		return err
