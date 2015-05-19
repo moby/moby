@@ -10,6 +10,7 @@ ENV COMPOSE_BRANCH release
 ENV SWARM_BRANCH v0.2.0
 ENV MACHINE_BRANCH docs
 ENV DISTRIB_BRANCH docs
+ENV KITEMATIC_BRANCH master
 
 
 # TODO: need the full repo source to get the git version info
@@ -115,6 +116,48 @@ ADD https://raw.githubusercontent.com/docker/compose/${COMPOSE_BRANCH}/docs/inde
   /docs/sources/compose/
 
 RUN sed -i.old '1s;^;no_version_dropdown: true;' /docs/sources/compose/*.md
+
+#######################
+# Kitematic
+#######################
+ADD https://raw.githubusercontent.com/kitematic/kitematic/${KITEMATIC_BRANCH}/docs/faq.md \
+  https://raw.githubusercontent.com/kitematic/kitematic/${KITEMATIC_BRANCH}/docs/index.md \
+  https://raw.githubusercontent.com/kitematic/kitematic/${KITEMATIC_BRANCH}/docs/known-issues.md \
+  https://raw.githubusercontent.com/kitematic/kitematic/${KITEMATIC_BRANCH}/docs/minecraft-server.md \
+  https://raw.githubusercontent.com/kitematic/kitematic/${KITEMATIC_BRANCH}/docs/nginx-web-server.md \
+  https://raw.githubusercontent.com/kitematic/kitematic/${KITEMATIC_BRANCH}/docs/rethinkdb-dev-database.md \
+  https://raw.githubusercontent.com/kitematic/kitematic/${KITEMATIC_BRANCH}/docs/userguide.md \
+  /docs/sources/kitematic/
+RUN sed -i.old '1s;^;no_version_dropdown: true;' /docs/sources/kitematic/*.md
+ADD https://raw.githubusercontent.com/kitematic/kitematic/${KITEMATIC_BRANCH}/docs/assets/browse-images.png \
+  https://raw.githubusercontent.com/kitematic/kitematic/${KITEMATIC_BRANCH}/docs/assets/change-folder.png \
+  https://raw.githubusercontent.com/kitematic/kitematic/${KITEMATIC_BRANCH}/docs/assets/cli-access-button.png \
+  https://raw.githubusercontent.com/kitematic/kitematic/${KITEMATIC_BRANCH}/docs/assets/cli-redis-container.png \
+  https://raw.githubusercontent.com/kitematic/kitematic/${KITEMATIC_BRANCH}/docs/assets/cli-terminal.png \
+  https://raw.githubusercontent.com/kitematic/kitematic/${KITEMATIC_BRANCH}/docs/assets/containers.png \
+  https://raw.githubusercontent.com/kitematic/kitematic/${KITEMATIC_BRANCH}/docs/assets/installing.png \
+  https://raw.githubusercontent.com/kitematic/kitematic/${KITEMATIC_BRANCH}/docs/assets/minecraft-add-server.png \
+  https://raw.githubusercontent.com/kitematic/kitematic/${KITEMATIC_BRANCH}/docs/assets/minecraft-create.png \
+  https://raw.githubusercontent.com/kitematic/kitematic/${KITEMATIC_BRANCH}/docs/assets/minecraft-data-volume.png \
+  https://raw.githubusercontent.com/kitematic/kitematic/${KITEMATIC_BRANCH}/docs/assets/minecraft-login.png \
+  https://raw.githubusercontent.com/kitematic/kitematic/${KITEMATIC_BRANCH}/docs/assets/minecraft-map.png \
+  https://raw.githubusercontent.com/kitematic/kitematic/${KITEMATIC_BRANCH}/docs/assets/minecraft-port.png \
+  https://raw.githubusercontent.com/kitematic/kitematic/${KITEMATIC_BRANCH}/docs/assets/minecraft-restart.png \
+  https://raw.githubusercontent.com/kitematic/kitematic/${KITEMATIC_BRANCH}/docs/assets/minecraft-server-address.png \
+  https://raw.githubusercontent.com/kitematic/kitematic/${KITEMATIC_BRANCH}/docs/assets/nginx-2048-files.png \
+  https://raw.githubusercontent.com/kitematic/kitematic/${KITEMATIC_BRANCH}/docs/assets/nginx-2048.png \
+  https://raw.githubusercontent.com/kitematic/kitematic/${KITEMATIC_BRANCH}/docs/assets/nginx-create.png \
+  https://raw.githubusercontent.com/kitematic/kitematic/${KITEMATIC_BRANCH}/docs/assets/nginx-data-folder.png \
+  https://raw.githubusercontent.com/kitematic/kitematic/${KITEMATIC_BRANCH}/docs/assets/nginx-data-volume.png \
+  https://raw.githubusercontent.com/kitematic/kitematic/${KITEMATIC_BRANCH}/docs/assets/nginx-hello-world.png \
+  https://raw.githubusercontent.com/kitematic/kitematic/${KITEMATIC_BRANCH}/docs/assets/nginx-preview.png \
+  https://raw.githubusercontent.com/kitematic/kitematic/${KITEMATIC_BRANCH}/docs/assets/nginx-serving-2048.png \
+  https://raw.githubusercontent.com/kitematic/kitematic/${KITEMATIC_BRANCH}/docs/assets/rethink-container.png \
+  https://raw.githubusercontent.com/kitematic/kitematic/${KITEMATIC_BRANCH}/docs/assets/rethink-create.png \
+  https://raw.githubusercontent.com/kitematic/kitematic/${KITEMATIC_BRANCH}/docs/assets/rethink-ports.png \
+  https://raw.githubusercontent.com/kitematic/kitematic/${KITEMATIC_BRANCH}/docs/assets/rethinkdb-preview.png \
+  https://raw.githubusercontent.com/kitematic/kitematic/${KITEMATIC_BRANCH}/docs/assets/volumes-dir.png \
+  /docs/sources/kitematic/assets/
 
 # Then build everything together, ready for mkdocs
 RUN /docs/build.sh
