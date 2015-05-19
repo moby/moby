@@ -49,47 +49,29 @@ language powering Docker).
 
     Last stable version: 0.8.0
 
-### Seeing what the Docker client can do
+## Get Docker command help
 
-We can see all of the commands available to us with the Docker client by
-running the `docker` binary without any options.
+You can display the help for specific Docker commands. The help details the
+options and their usage. To see a list of all the possible commands, use the
+following:
 
-    $ docker
+    $ docker --help
 
-You will see a list of all currently available commands.
-
-    Commands:
-         attach    Attach to a running container
-         build     Build an image from a Dockerfile
-         commit    Create a new image from a container's changes
-    . . .
-
-### Seeing Docker command usage
-
-You can also zoom in and review the usage for specific Docker commands.
-
-Try typing Docker followed with a `[command]` to see the usage for that
-command:
-
-    $ docker attach
-    Help output . . .
-
-Or you can also pass the `--help` flag to the `docker` binary.
+To see usage for a specific command, specify the command with the `--help` flag:
 
     $ docker attach --help
-
-This will display the help text and all available flags:
 
     Usage: docker attach [OPTIONS] CONTAINER
 
     Attach to a running container
 
-      --no-stdin=false: Do not attach stdin
-      --sig-proxy=true: Proxify all received signal to the process (non-TTY mode only)
+      --help=false        Print usage
+      --no-stdin=false    Do not attach stdin
+      --sig-proxy=true    Proxy all received signals to the process
 
 > **Note:** 
-> You can see a full list of Docker's commands
-> [here](/reference/commandline/cli/).
+> For further details and examples of each command, see the
+> [command reference](/reference/commandline/cli/) in this guide.
 
 ## Running a web application in Docker
 
