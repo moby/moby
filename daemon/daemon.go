@@ -155,13 +155,10 @@ func (daemon *Daemon) containerRoot(id string) string {
 // This is typically done at startup.
 func (daemon *Daemon) load(id string) (*Container, error) {
 	container := &Container{
-		CommonContainer: CommonContainer{
-			State:        NewState(),
-			root:         daemon.containerRoot(id),
-			execCommands: newExecStore(),
-		},
+		root:         daemon.containerRoot(id),
+		State:        NewState(),
+		execCommands: newExecStore(),
 	}
-
 	if err := container.FromDisk(); err != nil {
 		return nil, err
 	}
@@ -576,24 +573,22 @@ func (daemon *Daemon) newContainer(name string, config *runconfig.Config, imgID 
 	entrypoint, args := daemon.getEntrypointAndArgs(config.Entrypoint, config.Cmd)
 
 	container := &Container{
-		CommonContainer: CommonContainer{
-			ID:              id, // FIXME: we should generate the ID here instead of receiving it as an argument
-			Created:         time.Now().UTC(),
-			Path:            entrypoint,
-			Args:            args, //FIXME: de-duplicate from config
-			Config:          config,
-			hostConfig:      &runconfig.HostConfig{},
-			ImageID:         imgID,
-			NetworkSettings: &network.Settings{},
-			Name:            name,
-			Driver:          daemon.driver.String(),
-			ExecDriver:      daemon.execDriver.Name(),
-			State:           NewState(),
-			execCommands:    newExecStore(),
-		},
+		// FIXME: we should generate the ID here instead of receiving it as an argument
+		ID:              id,
+		Created:         time.Now().UTC(),
+		Path:            entrypoint,
+		Args:            args, //FIXME: de-duplicate from config
+		Config:          config,
+		hostConfig:      &runconfig.HostConfig{},
+		ImageID:         imgID,
+		NetworkSettings: &network.Settings{},
+		Name:            name,
+		Driver:          daemon.driver.String(),
+		ExecDriver:      daemon.execDriver.Name(),
+		State:           NewState(),
+		execCommands:    newExecStore(),
 	}
 	container.root = daemon.containerRoot(container.ID)
-
 	return container, err
 }
 
