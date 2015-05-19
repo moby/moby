@@ -2,9 +2,10 @@ package stringutils
 
 import (
 	"bytes"
-	mathrand "math/rand"
+	"math/rand"
 	"strings"
-	"time"
+
+	"github.com/docker/docker/pkg/random"
 )
 
 // Generate alpha only random stirng with length n
@@ -12,7 +13,7 @@ func GenerateRandomAlphaOnlyString(n int) string {
 	// make a really long string
 	letters := []byte("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
 	b := make([]byte, n)
-	r := mathrand.New(mathrand.NewSource(time.Now().UTC().UnixNano()))
+	r := rand.New(random.NewSource())
 	for i := range b {
 		b[i] = letters[r.Intn(len(letters))]
 	}
@@ -26,7 +27,7 @@ func GenerateRandomAsciiString(n int) string {
 		"~!@#$%^&*()-_+={}[]\\|<,>.?/\"';:` "
 	res := make([]byte, n)
 	for i := 0; i < n; i++ {
-		res[i] = chars[mathrand.Intn(len(chars))]
+		res[i] = chars[rand.Intn(len(chars))]
 	}
 	return string(res)
 }
