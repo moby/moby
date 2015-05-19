@@ -3,7 +3,8 @@ package namesgenerator
 import (
 	"fmt"
 	"math/rand"
-	"time"
+
+	"github.com/docker/docker/pkg/random"
 )
 
 var (
@@ -309,7 +310,7 @@ var (
 		"yonath",
 	}
 
-	rnd = rand.New(rand.NewSource(time.Now().UnixNano()))
+	rnd = rand.New(random.NewSource())
 )
 
 func GetRandomName(retry int) string {
