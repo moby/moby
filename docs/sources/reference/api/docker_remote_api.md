@@ -46,6 +46,11 @@ You can still call an old version of the API using
 
 ### What's new
 
+**New!**
+When the daemon detects a version mismatch with the client, usually when
+the client is newer than the daemon, an HTTP 400 is now returned instead
+of a 404.
+
 `GET /containers/(id)/stats`
 
 **New!**

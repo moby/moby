@@ -1426,7 +1426,7 @@ func makeHttpHandler(logging bool, localMethod string, localRoute string, handle
 		}
 
 		if version.GreaterThan(api.APIVERSION) {
-			http.Error(w, fmt.Errorf("client and server don't have same version (client API version: %s, server API version: %s)", version, api.APIVERSION).Error(), http.StatusNotFound)
+			http.Error(w, fmt.Errorf("client and server don't have same version (client API version: %s, server API version: %s)", version, api.APIVERSION).Error(), http.StatusBadRequest)
 			return
 		}
 
