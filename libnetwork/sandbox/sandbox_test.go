@@ -66,6 +66,58 @@ func TestSandboxCreateTwice(t *testing.T) {
 	s.Destroy()
 }
 
+func TestAddRemoveInterface(t *testing.T) {
+	key, err := newKey(t)
+	if err != nil {
+		t.Fatalf("Failed to obtain a key: %v", err)
+	}
+
+	s, err := NewSandbox(key, true)
+	if err != nil {
+		t.Fatalf("Failed to create a new sandbox: %v", err)
+	}
+
+	if s.Key() != key {
+		t.Fatalf("s.Key() returned %s. Expected %s", s.Key(), key)
+	}
+
+	info, err := newInfo(t)
+	if err != nil {
+		t.Fatalf("Failed to generate new sandbox info: %v", err)
+	}
+
+	for _, i := range info.Interfaces {
+		err = s.AddInterface(i)
+		if err != nil {
+			t.Fatalf("Failed to add interfaces to sandbox: %v", err)
+		}
+	}
+
+	interfaces := s.Interfaces()
+	if !(interfaces[0].Equal(info.Interfaces[0]) && interfaces[1].Equal(info.Interfaces[1])) {
+		t.Fatalf("Failed to update Sandbox.sinfo.Interfaces in AddInterfaces")
+	}
+
+	if err := s.RemoveInterface(info.Interfaces[0]); err != nil {
+		t.Fatalf("Failed to remove interfaces from sandbox: %v", err)
+	}
+
+	if !s.Interfaces()[0].Equal(info.Interfaces[1]) {
+		t.Fatalf("Failed to update the sanbox.sinfo.Interfaces in RemoveInterferce")
+	}
+
+	if err := s.AddInterface(info.Interfaces[0]); err != nil {
+		t.Fatalf("Failed to add interfaces to sandbox: %v", err)
+	}
+
+	interfaces = s.Interfaces()
+	if !(interfaces[0].Equal(info.Interfaces[1]) && interfaces[1].Equal(info.Interfaces[0])) {
+		t.Fatalf("Failed to update Sandbox.sinfo.Interfaces in AddInterfaces")
+	}
+
+	s.Destroy()
+}
+
 func TestInterfaceEqual(t *testing.T) {
 	list := getInterfaceList()
 
