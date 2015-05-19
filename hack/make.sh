@@ -93,6 +93,12 @@ if [ ! "$GOPATH" ]; then
 	exit 1
 fi
 
+if [ "$DOCKER_EXPERIMENTAL" ]; then
+	echo >&2 '# WARNING! DOCKER_EXPERIMENTAL is set: building experimental features'
+	echo >&2
+	DOCKER_BUILDTAGS+=" experimental"
+fi
+
 if [ -z "$DOCKER_CLIENTONLY" ]; then
 	DOCKER_BUILDTAGS+=" daemon"
 fi
