@@ -41,6 +41,7 @@ type AuthConfig struct {
 type ConfigFile struct {
 	AuthConfigs map[string]AuthConfig `json:"auths"`
 	HttpHeaders map[string]string     `json:"HttpHeaders,omitempty"`
+	PsFormat    string                `json:"psFormat,omitempty"`
 	filename    string                // Note: not serialized - for internal use only
 }
 
