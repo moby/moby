@@ -38,7 +38,7 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 		since    = cmd.String([]string{"#sinceId", "#-since-id", "-since"}, "", "Show created since Id or Name, include non-running")
 		before   = cmd.String([]string{"#beforeId", "#-before-id", "-before"}, "", "Show only container created before Id or Name")
 		last     = cmd.Int([]string{"n"}, -1, "Show n last created containers, include non-running")
-		fields   = cmd.String([]string{"-fields"}, "cimtspn", "Choose fields to print, and order (c,i,m,t,s,p,n,z)")
+		fields   = cmd.String([]string{"-fields"}, "c,i,m,t,s,p,n", "Choose fields to print, and order (c,i,m,t,s,p,n,z)")
 		flFilter = opts.NewListOpts(nil)
 	)
 	cmd.Require(flag.Exact, 0)
@@ -103,26 +103,42 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 	}
 
 	if *size {
-		*fields = *fields + "z"
+		*fields = *fields + ",z"
+	}
+
+	defaultLabels := map[string]string{
+		"c": "CONTAINER ID",
+		"i": "IMAGE",
+		"m": "COMMAND",
+		"s": "STATUS",
+		"t": "CREATED",
+		"p": "PORTS",
+		"n": "NAMES",
+		"z": "SIZE",
+	}
+
+	type fieldentry struct {
+		label string
+		name  string
+	}
+	fieldorder := make([]fieldentry, 0)
+	for _, v := range strings.Split(*fields, ",") {
+		var fe fieldentry
+		eqv := strings.Split(v, "=")
+		fe.name = eqv[0]
+		if l, ok := defaultLabels[fe.name]; ok {
+			fe.label = l
+		}
+		if len(eqv) > 1 {
+			fe.label = eqv[1]
+		}
+		fieldorder = append(fieldorder, fe)
 	}
 
 	if !*quiet {
-		headermap := map[rune]string{
-			'c': "CONTAINER ID",
-			'i': "IMAGE",
-			'm': "COMMAND",
-			's': "STATUS",
-			't': "CREATED",
-			'p': "PORTS",
-			'n': "NAMES",
-			'z': "SIZE",
-		}
-
 		headers := make([]string, 0)
-		for _, v := range *fields {
-			if title, ok := headermap[v]; ok {
-				headers = append(headers, title)
-			}
+		for _, v := range fieldorder {
+			headers = append(headers, v.label)
 		}
 
 		if len(headers) > 0 {
@@ -191,23 +207,23 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 
 	for _, out := range outp {
 		of := make([]string, 0)
-		for _, v := range *fields {
-			switch v {
-			case 'c':
+		for _, v := range fieldorder {
+			switch v.name {
+			case "c":
 				of = append(of, out.c)
-			case 'i':
+			case "i":
 				of = append(of, out.i)
-			case 'm':
+			case "m":
 				of = append(of, out.m)
-			case 't':
+			case "t":
 				of = append(of, out.t)
-			case 's':
+			case "s":
 				of = append(of, out.s)
-			case 'p':
+			case "p":
 				of = append(of, out.p)
-			case 'n':
+			case "n":
 				of = append(of, out.n)
-			case 'z':
+			case "z":
 				of = append(of, out.z)
 
 			}
