@@ -1,4 +1,4 @@
-page_title: Resizing a Boot2Docker volume	
+page_title: Resizing a Boot2Docker volume   
 page_description: Resizing a Boot2Docker volume in VirtualBox with GParted
 page_keywords: boot2docker, volume, virtualbox
 
@@ -6,21 +6,39 @@ page_keywords: boot2docker, volume, virtualbox
 
 If you're using Boot2Docker with a large number of images, or the images you're
 working with are very large, your pulls might start failing with "no space left 
-on device" errors when the Boot2Docker volume fills up. The solution is to 
-increase the volume size by first cloning it, then resizing it using a disk 
-partitioning tool. 
+on device" errors when the Boot2Docker volume fills up. There are two solutions
+in this case:
+
+## Solution 1: Add the `DiskImage` property in boot2docker profile
+
+The boot2docker binary reads configuration from `$BOOT2DOCKER_PROFILE` if set, or `$BOOT2DOCKER_DIR/profile` or `$HOME/.boot2docker/profile` or (on Windows) `%USERPROFILE%/.boot2docker/profile`. boot2docker config will tell you where it is looking for the file, and will also output the settings that are in use, so you can initialise a default file to customize using `boot2docker config > ~/.boot2docker/profile`.
+Add the following lines to `$HOME/.boot2docker/profile`:
+
+    # Disk image size in MB
+    DiskSize = 50000
+
+And run:
+
+    boot2docker poweroff
+    boot2docker destroy
+    boot2docker init
+    boot2docker up
+
+## Solution 2: Increase the size of boot2docker volume
+
+The solution increase the volume size by first cloning it, then resizing it using a disk partitioning tool. 
 
 We recommend [GParted](http://gparted.sourceforge.net/download.php/index.php).
 The tool comes as a bootable ISO, is a free download, and works well with 
 VirtualBox.
 
-## 1. Stop Boot2Docker
+### 1. Stop Boot2Docker
 
 Issue the command to stop the Boot2Docker VM on the command line:
 
     $ boot2docker stop
 
-## 2. Clone the VMDK image to a VDI image
+### 2. Clone the VMDK image to a VDI image
 
 Boot2Docker ships with a VMDK image, which can’t be resized by VirtualBox’s 
 native tools. We will instead create a VDI volume and clone the VMDK volume to 
@@ -30,7 +48,7 @@ Using the command line VirtualBox tools, clone the VMDK image to a VDI image:
 
     $ vboxmanage clonehd /full/path/to/boot2docker-hd.vmdk /full/path/to/<newVDIimage>.vdi --format VDI --variant Standard
 
-## 3. Resize the VDI volume
+### 3. Resize the VDI volume
 
 Choose a size that will be appropriate for your needs. If you’re spinning up a 
 lot of containers, or your containers are particularly large, larger will be 
@@ -38,7 +56,7 @@ better:
 
     $ vboxmanage modifyhd /full/path/to/<newVDIimage>.vdi --resize <size in MB>
 
-## 4. Download a disk partitioning tool ISO 
+### 4. Download a disk partitioning tool ISO 
 
 To resize the volume, we'll use [GParted](http://gparted.sourceforge.net/download.php/). 
 Once you've downloaded the tool, add the ISO to the Boot2Docker VM IDE bus. 
@@ -49,29 +67,29 @@ You might need to create the bus before you can add the ISO.
 > that the Boot2Docker VM can be booted with it.
 
 <table>
-	<tr>
-		<td><img src="/articles/b2d_volume_images/add_new_controller.png"><br><br></td>
-	</tr>
-	<tr>
-		<td><img src="/articles/b2d_volume_images/add_cd.png"></td>
-	</tr>
+    <tr>
+        <td><img src="/articles/b2d_volume_images/add_new_controller.png"><br><br></td>
+    </tr>
+    <tr>
+        <td><img src="/articles/b2d_volume_images/add_cd.png"></td>
+    </tr>
 </table>
 
-## 5. Add the new VDI image 
+### 5. Add the new VDI image 
 
 In the settings for the Boot2Docker image in VirtualBox, remove the VMDK image 
 from the SATA controller and add the VDI image.
 
 <img src="/articles/b2d_volume_images/add_volume.png">
 
-## 6. Verify the boot order
+### 6. Verify the boot order
 
 In the **System** settings for the Boot2Docker VM, make sure that **CD/DVD** is 
 at the top of the **Boot Order** list.
 
 <img src="/articles/b2d_volume_images/boot_order.png">
 
-## 7. Boot to the disk partitioning ISO
+### 7. Boot to the disk partitioning ISO
 
 Manually start the Boot2Docker VM in VirtualBox, and the disk partitioning ISO 
 should start up. Using GParted, choose the **GParted Live (default settings)** 
