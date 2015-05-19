@@ -73,6 +73,7 @@ pages:
 - ['machine/index.md', 'User Guide', 'Docker Machine' ]
 - ['swarm/index.md', 'User Guide', 'Docker Swarm' ]
 - ['kitematic/userguide.md', 'User Guide', 'Kitematic']
+- ['userguide/plugins.md', 'User Guide', 'Docker Plugins']
 
 # Docker Hub docs:
 - ['docker-hub/index.md', 'Docker Hub', 'Docker Hub' ]
@@ -185,6 +186,7 @@ pages:
 - ['reference/api/docker_remote_api_v1.0.md', '**HIDDEN**']
 - ['reference/api/remote_api_client_libraries.md', 'Reference', 'Docker Remote API client libraries']
 - ['reference/api/docker_io_accounts_api.md', 'Reference', 'Docker Hub accounts API']
+- ['reference/api/plugin_api.md', 'Reference', 'Docker Plugin API']
 - ['kitematic/faq.md', 'Reference', 'Kitematic: FAQ']
 - ['kitematic/known-issues.md', 'Reference', 'Kitematic: Known issues']
 

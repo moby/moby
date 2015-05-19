@@ -27,12 +27,6 @@ type Container struct {
 	// removed in subsequent PRs.
 
 	AppArmorProfile string
-
-	// Store rw/ro in a separate structure to preserve reverse-compatibility on-disk.
-	// Easier than migrating older container configs :)
-	VolumesRW map[string]bool
-
-	AppliedVolumesFrom map[string]struct{}
 	// ---- END OF TEMPORARY DECLARATION ----
 
 }

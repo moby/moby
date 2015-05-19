@@ -26,9 +26,11 @@ import (
 	"github.com/docker/docker/pkg/broadcastwriter"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/jsonlog"
+	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/promise"
 	"github.com/docker/docker/pkg/symlink"
 	"github.com/docker/docker/runconfig"
+	"github.com/docker/docker/volume"
 )
 
 var (
@@ -48,46 +50,37 @@ type StreamConfig struct {
 // CommonContainer holds the settings for a container which are applicable
 // across all platforms supported by the daemon.
 type CommonContainer struct {
+	StreamConfig
+
 	*State `json:"State"` // Needed for remote api version <= 1.11
 	root   string         // Path to the "home" of the container, including metadata.
 	basefs string         // Path to the graphdriver mountpoint
 
-	ID string
-
-	Created time.Time
-
-	Path string
-	Args []string
-
-	Config  *runconfig.Config
-	ImageID string `json:"Image"`
-
-	NetworkSettings *network.Settings
-
-	ResolvConfPath string
-	HostnamePath   string
-	HostsPath      string
-	LogPath        string
-	Name           string
-	Driver         string
-	ExecDriver     string
-
-	command *execdriver.Command
-	StreamConfig
-
-	daemon                   *Daemon
+	ID                       string
+	Created                  time.Time
+	Path                     string
+	Args                     []string
+	Config                   *runconfig.Config
+	ImageID                  string `json:"Image"`
+	NetworkSettings          *network.Settings
+	ResolvConfPath           string
+	HostnamePath             string
+	HostsPath                string
+	LogPath                  string
+	Name                     string
+	Driver                   string
+	ExecDriver               string
 	MountLabel, ProcessLabel string
 	RestartCount             int
 	UpdateDns                bool
+	MountPoints              map[string]*mountPoint
 
-	// Maps container paths to volume paths.  The key in this is the path to which
-	// the volume is being mounted inside the container.  Value is the path of the
-	// volume on disk
-	Volumes    map[string]string
 	hostConfig *runconfig.HostConfig
+	command    *execdriver.Command
 
 	monitor      *containerMonitor
 	execCommands *execStore
+	daemon       *Daemon
 	// logDriver for closing
 	logDriver logger.Logger
 	logCopier *logger.Copier
@@ -259,9 +252,6 @@ func (container *Container) Start() (err error) {
 		return err
 	}
 	container.verifyDaemonSettings()
-	if err := container.prepareVolumes(); err != nil {
-		return err
-	}
 	linkedEnv, err := container.setupLinkedContainers()
 	if err != nil {
 		return err
@@ -273,10 +263,13 @@ func (container *Container) Start() (err error) {
 	if err := populateCommand(container, env); err != nil {
 		return err
 	}
-	if err := container.setupMounts(); err != nil {
+
+	mounts, err := container.setupMounts()
+	if err != nil {
 		return err
 	}
 
+	container.command.Mounts = mounts
 	return container.waitForStart()
 }
 
@@ -571,27 +564,38 @@ func (container *Container) Copy(resource string) (io.ReadCloser, error) {
 	if err := container.Mount(); err != nil {
 		return nil, err
 	}
-	defer func() {
-		if err != nil {
-			container.Unmount()
+	var paths []string
+	unmount := func() {
+		for _, p := range paths {
+			syscall.Unmount(p, 0)
 		}
-	}()
-
-	if err = container.mountVolumes(); err != nil {
-		container.unmountVolumes()
-		return nil, err
 	}
 	defer func() {
 		if err != nil {
-			container.unmountVolumes()
+			// unmount any volumes
+			unmount()
+			// unmount the container's rootfs
+			container.Unmount()
 		}
 	}()
-
+	mounts, err := container.setupMounts()
+	if err != nil {
+		return nil, err
+	}
+	for _, m := range mounts {
+		dest, err := container.GetResourcePath(m.Destination)
+		if err != nil {
+			return nil, err
+		}
+		paths = append(paths, dest)
+		if err := mount.Mount(m.Source, dest, "bind", "rbind,ro"); err != nil {
+			return nil, err
+		}
+	}
 	basePath, err := container.GetResourcePath(resource)
 	if err != nil {
 		return nil, err
 	}
-
 	stat, err := os.Stat(basePath)
 	if err != nil {
 		return nil, err
@@ -605,7 +609,6 @@ func (container *Container) Copy(resource string) (io.ReadCloser, error) {
 		filter = []string{filepath.Base(basePath)}
 		basePath = filepath.Dir(basePath)
 	}
-
 	archive, err := archive.TarWithOptions(basePath, &archive.TarOptions{
 		Compression:  archive.Uncompressed,
 		IncludeFiles: filter,
@@ -613,10 +616,9 @@ func (container *Container) Copy(resource string) (io.ReadCloser, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	return ioutils.NewReadCloserWrapper(archive, func() error {
 			err := archive.Close()
-			container.unmountVolumes()
+			unmount()
 			container.Unmount()
 			return err
 		}),
@@ -1006,4 +1008,85 @@ func copyEscapable(dst io.Writer, src io.ReadCloser) (written int64, err error) 
 		}
 	}
 	return written, err
+}
+
+func (container *Container) networkMounts() []execdriver.Mount {
+	var mounts []execdriver.Mount
+	if container.ResolvConfPath != "" {
+		mounts = append(mounts, execdriver.Mount{
+			Source:      container.ResolvConfPath,
+			Destination: "/etc/resolv.conf",
+			Writable:    !container.hostConfig.ReadonlyRootfs,
+			Private:     true,
+		})
+	}
+	if container.HostnamePath != "" {
+		mounts = append(mounts, execdriver.Mount{
+			Source:      container.HostnamePath,
+			Destination: "/etc/hostname",
+			Writable:    !container.hostConfig.ReadonlyRootfs,
+			Private:     true,
+		})
+	}
+	if container.HostsPath != "" {
+		mounts = append(mounts, execdriver.Mount{
+			Source:      container.HostsPath,
+			Destination: "/etc/hosts",
+			Writable:    !container.hostConfig.ReadonlyRootfs,
+			Private:     true,
+		})
+	}
+	return mounts
+}
+
+func (container *Container) AddLocalMountPoint(name, destination string, rw bool) {
+	container.MountPoints[destination] = &mountPoint{
+		Name:        name,
+		Driver:      volume.DefaultDriverName,
+		Destination: destination,
+		RW:          rw,
+	}
+}
+
+func (container *Container) AddMountPointWithVolume(destination string, vol volume.Volume, rw bool) {
+	container.MountPoints[destination] = &mountPoint{
+		Name:        vol.Name(),
+		Driver:      vol.DriverName(),
+		Destination: destination,
+		RW:          rw,
+		Volume:      vol,
+	}
+}
+
+func (container *Container) IsDestinationMounted(destination string) bool {
+	return container.MountPoints[destination] != nil
+}
+
+func (container *Container) PrepareMountPoints() error {
+	for _, config := range container.MountPoints {
+		if len(config.Driver) > 0 {
+			v, err := createVolume(config.Name, config.Driver)
+			if err != nil {
+				return err
+			}
+			config.Volume = v
+		}
+	}
+	return nil
+}
+
+func (container *Container) RemoveMountPoints() error {
+	for _, m := range container.MountPoints {
+		if m.Volume != nil {
+			if err := removeVolume(m.Volume); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func (container *Container) ShouldRestart() bool {
+	return container.hostConfig.RestartPolicy.Name == "always" ||
+		(container.hostConfig.RestartPolicy.Name == "on-failure" && container.ExitCode != 0)
 }

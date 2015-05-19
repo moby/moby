@@ -226,8 +226,11 @@ Json Parameters:
     -   **Binds** – A list of volume bindings for this container. Each volume
             binding is a string of the form `container_path` (to create a new
             volume for the container), `host_path:container_path` (to bind-mount
-            a host path into the container), or `host_path:container_path:ro`
-            (to make the bind-mount read-only inside the container).
+            a host path into the container), `host_path:container_path:ro`
+            (to make the bind-mount read-only inside the container), or
+            `volume_plugin/volume_name:container_path` (to provision a
+            volume named `volume_name` from a [volume plugin](/userguide/plugins)
+            named `volume_plugin`).
     -   **Links** - A list of links for the container. Each link entry should be
           in the form of `container_name:alias`.
     -   **LxcConf** - LXC specific configurations. These configurations will only

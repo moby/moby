@@ -73,6 +73,13 @@ are now returned as boolean instead of as an int.
 In addition, the end point now returns the new boolean fields
 `CpuCfsPeriod`, `CpuCfsQuota`, and `OomKillDisable`.
 
+**New!**
+
+You can now specify a volume plugin in `/v1.19/containers/create`, for example
+`"HostConfig": {"Binds": ["flocker/name:/data"]}` where `flocker` is the name
+of the plugin, `name` is the user-facing name of the volume (passed to the
+volume plugin) and `/data` is the mountpoint inside the container.
+
 ## v1.18
 
 ### Full documentation

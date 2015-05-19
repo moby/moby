@@ -210,6 +210,14 @@ Then un-tar the backup file in the new container's data volume.
 You can use the techniques above to automate backup, migration and
 restore testing using your preferred tools.
 
+## Integrating Docker with external storage systems
+
+Docker volume plugins such as [Flocker](https://clusterhq.com/docker-plugin/)
+enable Docker deployments to be integrated with external storage systems, such
+as Amazon EBS, and enable data volumes to persist beyond the lifetime of a
+single Docker host. See the [plugin section of the user
+guide](/userguide/plugins) for more information.
+
 # Next steps
 
 Now we've learned a bit more about how to use Docker we're going to see how to
