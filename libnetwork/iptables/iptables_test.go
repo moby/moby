@@ -7,6 +7,8 @@ import (
 	"strings"
 	"sync"
 	"testing"
+
+	_ "github.com/docker/libnetwork/netutils"
 )
 
 const chainName = "DOCKER-TEST"
