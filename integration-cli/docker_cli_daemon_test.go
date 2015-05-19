@@ -1161,7 +1161,7 @@ func pingContainers(c *check.C, d *Daemon, expectFailure bool) {
 	runCommand(exec.Command(dockerBinary, args...))
 }
 
-func (s *DockerDaemonSuite) TestDaemonRestartWithSockerAsVolume(c *check.C) {
+func (s *DockerDaemonSuite) TestDaemonRestartWithSocketAsVolume(c *check.C) {
 	c.Assert(s.d.StartWithBusybox(), check.IsNil)
 
 	socket := filepath.Join(s.d.folder, "docker.sock")
@@ -1169,4 +1169,17 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithSockerAsVolume(c *check.C) {
 	out, err := s.d.Cmd("run", "-d", "-v", socket+":/sock", "busybox")
 	c.Assert(err, check.IsNil, check.Commentf("Output: %s", out))
 	c.Assert(s.d.Restart(), check.IsNil)
+}
+
+func (s *DockerDaemonSuite) TestCleanupMountsAfterCrash(c *check.C) {
+	c.Assert(s.d.StartWithBusybox(), check.IsNil)
+
+	out, err := s.d.Cmd("run", "-d", "busybox", "top")
+	c.Assert(err, check.IsNil, check.Commentf("Output: %s", out))
+	id := strings.TrimSpace(out)
+	c.Assert(s.d.cmd.Process.Signal(os.Kill), check.IsNil)
+	c.Assert(s.d.Start(), check.IsNil)
+	mountOut, err := exec.Command("mount").CombinedOutput()
+	c.Assert(err, check.IsNil, check.Commentf("Output: %s", mountOut))
+	c.Assert(strings.Contains(string(mountOut), id), check.Equals, false, check.Commentf("Something mounted from older daemon start: %s", mountOut))
 }
