@@ -26,7 +26,7 @@
 			"Rev": "a9172f572e13086859c652e2d581950e910d63d4"
 		},
 		{
-			"ImportPath": "github.com/docker/docker/pkg/parsers/kernel",
+			"ImportPath": "github.com/docker/docker/pkg/parsers",
 			"Comment": "v1.4.1-3479-ga9172f5",
 			"Rev": "a9172f572e13086859c652e2d581950e910d63d4"
 		},
@@ -47,6 +47,11 @@
 		},
 		{
 			"ImportPath": "github.com/docker/docker/pkg/stringid",
+			"Comment": "v1.4.1-3479-ga9172f5",
+			"Rev": "a9172f572e13086859c652e2d581950e910d63d4"
+		},
+		{
+			"ImportPath": "github.com/docker/docker/pkg/term",
 			"Comment": "v1.4.1-3479-ga9172f5",
 			"Rev": "a9172f572e13086859c652e2d581950e910d63d4"
 		},
