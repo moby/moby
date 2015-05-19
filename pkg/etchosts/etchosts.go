@@ -65,15 +65,28 @@ func Build(path, IP, hostname, domainname string, extraContent []Record) error {
 	return ioutil.WriteFile(path, content.Bytes(), 0644)
 }
 
-// Update all IP addresses where hostname matches.
+// Update all IPv4 addresses where hostname matches.
 // path is path to host file
 // IP is new IP address
 // hostname is hostname to search for to replace IP
-func Update(path, IP, hostname string) error {
+func UpdateIPv4(path, IP, hostname string) error {
 	old, err := ioutil.ReadFile(path)
 	if err != nil {
 		return err
 	}
-	var re = regexp.MustCompile(fmt.Sprintf("(\\S*)(\\t%s)", regexp.QuoteMeta(hostname)))
+	var re = regexp.MustCompile(fmt.Sprintf("((?:[0-9]{1,3}\\.){3}[0-9]{1,3})(\\t%s)", regexp.QuoteMeta(hostname)))
 	return ioutil.WriteFile(path, re.ReplaceAll(old, []byte(IP+"$2")), 0644)
+}
+
+// Update all IPv6 addresses where hostname matches.
+// path is path to host file
+// IP is new IP address
+// hostname is hostname to search for to replace IP
+func UpdateIPv6(path, IP, hostname string) error {
+	old, err := ioutil.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	var re = regexp.MustCompile(fmt.Sprintf("((?:[0-9A-Fa-f]{1,4}(?::[0-9A-Fa-f]{1,4})*)?)::?((?:[0-9A-Fa-f]{1,4}(?::[0-9A-Fa-f]{1,4})*)?)(\\t%s)", regexp.QuoteMeta(hostname)))
+	return ioutil.WriteFile(path, re.ReplaceAll(old, []byte(IP+"$3")), 0644)
 }

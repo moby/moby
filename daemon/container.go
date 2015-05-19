@@ -583,6 +583,9 @@ func (container *Container) buildHostsFiles(IP string) error {
 			aliasList = aliasList + " " + child.Name[1:]
 		}
 		extraContent = append(extraContent, etchosts.Record{Hosts: aliasList, IP: child.NetworkSettings.IPAddress})
+		if child.NetworkSettings.GlobalIPv6Address != "" {
+			extraContent = append(extraContent, etchosts.Record{Hosts: aliasList, IP: child.NetworkSettings.GlobalIPv6Address})
+		}
 	}
 
 	for _, extraHost := range container.hostConfig.ExtraHosts {
@@ -1250,8 +1253,14 @@ func (container *Container) updateParentsHosts() error {
 
 		if c != nil && !container.daemon.config.DisableNetwork && container.hostConfig.NetworkMode.IsPrivate() {
 			logrus.Debugf("Update /etc/hosts of %s for alias %s with ip %s", c.ID, ref.Name, container.NetworkSettings.IPAddress)
-			if err := etchosts.Update(c.HostsPath, container.NetworkSettings.IPAddress, ref.Name); err != nil {
+			if err := etchosts.UpdateIPv4(c.HostsPath, container.NetworkSettings.IPAddress, ref.Name); err != nil {
 				logrus.Errorf("Failed to update /etc/hosts in parent container %s for alias %s: %v", c.ID, ref.Name, err)
+			}
+			if container.NetworkSettings.GlobalIPv6Address != "" {
+				logrus.Debugf("Update /etc/hosts of %s for alias %s with IPv6 %s", c.ID, ref.Name, container.NetworkSettings.GlobalIPv6Address)
+				if err := etchosts.UpdateIPv6(c.HostsPath, container.NetworkSettings.GlobalIPv6Address, ref.Name); err != nil {
+					logrus.Errorf("Failed to update /etc/hosts in parent container %s for alias %s: %v", c.ID, ref.Name, err)
+				}
 			}
 		}
 	}

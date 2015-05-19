@@ -99,7 +99,7 @@ func TestBuildNoIP(t *testing.T) {
 	}
 }
 
-func TestUpdate(t *testing.T) {
+func TestUpdateIPv4(t *testing.T) {
 	file, err := ioutil.TempFile("", "")
 	if err != nil {
 		t.Fatal(err)
@@ -119,7 +119,7 @@ func TestUpdate(t *testing.T) {
 		t.Fatalf("Expected to find '%s' got '%s'", expected, content)
 	}
 
-	if err := Update(file.Name(), "1.1.1.1", "testhostname"); err != nil {
+	if err := UpdateIPv4(file.Name(), "1.1.1.1", "testhostname"); err != nil {
 		t.Fatal(err)
 	}
 
@@ -129,6 +129,40 @@ func TestUpdate(t *testing.T) {
 	}
 
 	if expected := "1.1.1.1\ttesthostname.testdomainname testhostname\n"; !bytes.Contains(content, []byte(expected)) {
+		t.Fatalf("Expected to find '%s' got '%s'", expected, content)
+	}
+}
+
+func TestUpdateIPv6(t *testing.T) {
+	file, err := ioutil.TempFile("", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(file.Name())
+
+	if err := Build(file.Name(), "2001:db8::1", "testhostname", "testdomainname", nil); err != nil {
+		t.Fatal(err)
+	}
+
+	content, err := ioutil.ReadFile(file.Name())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if expected := "2001:db8::1\ttesthostname.testdomainname testhostname\n"; !bytes.Contains(content, []byte(expected)) {
+		t.Fatalf("Expected to find '%s' got '%s'", expected, content)
+	}
+
+	if err := UpdateIPv6(file.Name(), "2001:db8::23:42", "testhostname"); err != nil {
+		t.Fatal(err)
+	}
+
+	content, err = ioutil.ReadFile(file.Name())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if expected := "2001:db8::23:42\ttesthostname.testdomainname testhostname\n"; !bytes.Contains(content, []byte(expected)) {
 		t.Fatalf("Expected to find '%s' got '%s'", expected, content)
 	}
 }
