@@ -809,14 +809,17 @@ func (s *DockerSuite) TestRunEnvironment(c *check.C) {
 		"cky",
 		"",
 		"HOME=/root",
+		"container_uuid=ID",
 	}
 	sort.Strings(goodEnv)
 	if len(goodEnv) != len(actualEnv) {
-		c.Fatalf("Wrong environment: should be %d variables, not: %q\n", len(goodEnv), strings.Join(actualEnv, ", "))
+		c.Fatalf("Wrong environment: should be %d variables, not %d: %q\n", len(goodEnv), len(actualEnv), strings.Join(actualEnv, ", "))
 	}
 	for i := range goodEnv {
 		if actualEnv[i] != goodEnv[i] {
-			c.Fatalf("Wrong environment variable: should be %s, not %s", goodEnv[i], actualEnv[i])
+			if strings.Split(actualEnv[i], "=")[0] != "container_uuid" {
+				c.Fatalf("Wrong environment variable: should be %s, not %s", goodEnv[i], actualEnv[i])
+			}
 		}
 	}
 }
@@ -846,6 +849,7 @@ func (s *DockerSuite) TestRunEnvironmentErase(c *check.C) {
 	goodEnv := []string{
 		"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
 		"HOME=/root",
+		"container_uuid=ID",
 	}
 	sort.Strings(goodEnv)
 	if len(goodEnv) != len(actualEnv) {
@@ -853,7 +857,9 @@ func (s *DockerSuite) TestRunEnvironmentErase(c *check.C) {
 	}
 	for i := range goodEnv {
 		if actualEnv[i] != goodEnv[i] {
-			c.Fatalf("Wrong environment variable: should be %s, not %s", goodEnv[i], actualEnv[i])
+			if strings.Split(actualEnv[i], "=")[0] != "container_uuid" {
+				c.Fatalf("Wrong environment variable: should be %s, not %s", goodEnv[i], actualEnv[i])
+			}
 		}
 	}
 }
@@ -883,6 +889,7 @@ func (s *DockerSuite) TestRunEnvironmentOverride(c *check.C) {
 		"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
 		"HOME=/root2",
 		"HOSTNAME=bar",
+		"container_uuid=ID",
 	}
 	sort.Strings(goodEnv)
 	if len(goodEnv) != len(actualEnv) {
@@ -890,7 +897,9 @@ func (s *DockerSuite) TestRunEnvironmentOverride(c *check.C) {
 	}
 	for i := range goodEnv {
 		if actualEnv[i] != goodEnv[i] {
-			c.Fatalf("Wrong environment variable: should be %s, not %s", goodEnv[i], actualEnv[i])
+			if strings.Split(actualEnv[i], "=")[0] != "container_uuid" {
+				c.Fatalf("Wrong environment variable: should be %s, not %s", goodEnv[i], actualEnv[i])
+			}
 		}
 	}
 }

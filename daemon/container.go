@@ -38,6 +38,7 @@ import (
 	"github.com/docker/docker/pkg/resolvconf"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/pkg/symlink"
+	"github.com/docker/docker/pkg/systemd"
 	"github.com/docker/docker/pkg/ulimit"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/utils"
@@ -488,7 +489,13 @@ func (container *Container) Start() (err error) {
 		return err
 	}
 
-	return container.waitForStart()
+	if err := container.waitForStart(); err != nil {
+		return err
+	}
+
+	container.registerMachine()
+
+	return nil
 }
 
 func (container *Container) Run() error {
@@ -724,6 +731,15 @@ func (container *Container) cleanup() {
 		}
 	}
 
+	// Ignore errors here as it may not be mounted anymore
+	if !container.hostConfig.BuildFlag {
+		path, err := container.runPath()
+		if err != nil {
+			logrus.Errorf("%v: Failed to umount /run filesystem: %v", container.ID, err)
+		}
+		syscall.Unmount(path, syscall.MNT_DETACH)
+	}
+
 	if err := container.Unmount(); err != nil {
 		logrus.Errorf("%v: Failed to umount filesystem: %v", container.ID, err)
 	}
@@ -948,6 +964,10 @@ func (container *Container) GetImage() (*image.Image, error) {
 
 func (container *Container) Unmount() error {
 	return container.daemon.Unmount(container)
+}
+
+func (container *Container) runPath() (string, error) {
+	return container.GetRootResourcePath("run")
 }
 
 func (container *Container) hostConfigPath() (string, error) {
@@ -1405,6 +1425,7 @@ func (container *Container) createDaemonEnvironment(linkedEnv []string) []string
 	// because the env on the container can override certain default values
 	// we need to replace the 'env' keys where they match and append anything
 	// else.
+	env = append(env, fmt.Sprintf("container_uuid=%s", convertUUID(container.ID)))
 	env = utils.ReplaceOrAppendEnvValues(env, container.Config.Env)
 
 	return env
@@ -1857,4 +1878,17 @@ func copyEscapable(dst io.Writer, src io.ReadCloser) (written int64, err error) 
 		}
 	}
 	return written, err
+}
+
+/*
+Register Machine with systemd.  There is a potential race condition here
+where the container could have exited before the call gets made.  This
+call requires the container.Pid.  Therefore we just log the situation
+rather then fail the container
+*/
+func (container *Container) registerMachine() {
+	err := systemd.RegisterMachine(container.Name[1:], container.ID, container.Pid, "/")
+	if err != nil {
+		logrus.Errorf("Unable to RegisterMachine %s for %s: %s", container.Name[1:], container.ID, err)
+	}
 }

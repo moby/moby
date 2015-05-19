@@ -13,6 +13,7 @@ import (
 	"github.com/docker/docker/pkg/chrootarchive"
 	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/symlink"
+	"github.com/docker/libcontainer/label"
 )
 
 type volumeMount struct {
@@ -238,6 +239,16 @@ func validMountMode(mode string) bool {
 	return validModes[mode]
 }
 
+func (container *Container) setupJournal() (string, error) {
+	path := journalPath(container.ID)
+	if path != "" {
+		if err := os.MkdirAll(path, 0755); err != nil {
+			return "", err
+		}
+	}
+	return path, nil
+}
+
 func (container *Container) specialMounts() []execdriver.Mount {
 	var mounts []execdriver.Mount
 	if container.ResolvConfPath != "" {
@@ -255,6 +266,10 @@ func (container *Container) specialMounts() []execdriver.Mount {
 func (container *Container) setupMounts() error {
 	mounts := []execdriver.Mount{}
 
+	if !container.hostConfig.BuildFlag && container.Volumes["/run"] == "" {
+		mounts = append(mounts, execdriver.Mount{Source: "tmpfs", Destination: "/run", Writable: true, Private: true})
+	}
+
 	// Mount user specified volumes
 	// Note, these are not private because you may want propagation of (un)mounts from host
 	// volumes. For instance if you use -v /usr:/usr and the host later mounts /usr/share you
@@ -266,6 +281,20 @@ func (container *Container) setupMounts() error {
 			Destination: path,
 			Writable:    container.VolumesRW[path],
 		})
+	}
+
+	if !container.hostConfig.BuildFlag &&
+		container.Volumes["/var"] == "" &&
+		container.Volumes["/var/log"] == "" &&
+		container.Volumes["/var/log/journal"] == "" {
+		if journalPath, err := container.setupJournal(); err != nil {
+			return err
+		} else {
+			if journalPath != "" {
+				label.Relabel(journalPath, container.MountLabel, "Z")
+				mounts = append(mounts, execdriver.Mount{Source: journalPath, Destination: journalPath, Writable: true, Private: true})
+			}
+		}
 	}
 
 	mounts = append(mounts, container.specialMounts()...)

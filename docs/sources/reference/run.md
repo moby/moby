@@ -1031,6 +1031,7 @@ container by using one or more `-e` flags, even overriding those mentioned
 above, or already defined by the developer with a Dockerfile `ENV`:
 
     $ docker run -e "deep=purple" --rm ubuntu /bin/bash -c export
+    declare -x container_uuid="be84194d-87f9-08c2-b2e1-67311f4409f5"
     declare -x HOME="/"
     declare -x HOSTNAME="85bc26a0e200"
     declare -x OLDPWD

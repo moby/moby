@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"path/filepath"
 	"strings"
 	"syscall"
 
@@ -139,7 +140,6 @@ func (d *driver) createNetwork(container *configs.Config, c *execdriver.Command)
 
 		container.Namespaces.Add(configs.NEWNET, state.NamespacePaths[configs.NEWNET])
 	}
-
 	return nil
 }
 
@@ -223,6 +223,28 @@ func (d *driver) setupRlimits(container *configs.Config, c *execdriver.Command) 
 	}
 }
 
+func (d *driver) genPremountCmd(c *execdriver.Command, fullDest string, dest string) []configs.Command {
+	var premount []configs.Command
+	tarFile := fmt.Sprintf("%s/%s.tar", c.TmpDir, strings.Replace(dest, "/", "_", -1))
+	return append(premount, configs.Command{
+		Path: "/usr/bin/tar",
+		Args: []string{"-cf", tarFile, "-C", fullDest, "."},
+	})
+}
+
+func (d *driver) genPostmountCmd(c *execdriver.Command, fullDest string, dest string) []configs.Command {
+	var postmount []configs.Command
+	tarFile := fmt.Sprintf("%s/%s.tar", c.TmpDir, strings.Replace(dest, "/", "_", -1))
+	postmount = append(postmount, configs.Command{
+		Path: "/usr/bin/tar",
+		Args: []string{"-xf", tarFile, "-C", fullDest, "."},
+	})
+	return append(postmount, configs.Command{
+		Path: "/usr/bin/rm",
+		Args: []string{"-f", tarFile},
+	})
+}
+
 func (d *driver) setupMounts(container *configs.Config, c *execdriver.Command) error {
 	userMounts := make(map[string]struct{})
 	for _, m := range c.Mounts {
@@ -243,6 +265,20 @@ func (d *driver) setupMounts(container *configs.Config, c *execdriver.Command) e
 	container.Mounts = defaultMounts
 
 	for _, m := range c.Mounts {
+		if m.Source == "tmpfs" {
+			dest := filepath.Join(c.Rootfs, m.Destination)
+			flags := syscall.MS_NOEXEC | syscall.MS_NOSUID | syscall.MS_NODEV
+			container.Mounts = append(container.Mounts, &configs.Mount{
+				Source:        m.Source,
+				Destination:   m.Destination,
+				Device:        "tmpfs",
+				Data:          "mode=755,size=65536k",
+				Flags:         flags,
+				PremountCmds:  d.genPremountCmd(c, dest, m.Destination),
+				PostmountCmds: d.genPostmountCmd(c, dest, m.Destination),
+			})
+			continue
+		}
 		flags := syscall.MS_BIND | syscall.MS_REC
 		if !m.Writable {
 			flags |= syscall.MS_RDONLY
