@@ -1157,6 +1157,14 @@ func (devices *DeviceSet) initDevmapper(doInit bool) error {
 		}
 	}
 
+	if devices.thinPoolDevice == "" {
+		if devices.metadataLoopFile != "" || devices.dataLoopFile != "" {
+			logrus.Errorf("WARNING: LOOP DEVICE FALLBACK: No --storage-opt dm.thinpooldev specified; Usage of loopback is very strongly discouraged for production use.  Use --storage-opt dm.thinpooldev instead.  For more information see `man docker`")
+		} else {
+			logrus.Warnf("WARNING: Usage of --storage-opt dm.datadev or dm.metadatadev is strongly discouraged for production use.  Use --storage-opt dm.thinpooldev instead.  For more information see `man docker`")
+		}
+	}
+
 	// If we didn't just create the data or metadata image, we need to
 	// load the transaction id and migrate old metadata
 	if !createdLoopback {
