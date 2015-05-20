@@ -5,6 +5,7 @@ package daemon
 import (
 	"fmt"
 	"net"
+	"net/http"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -24,6 +25,7 @@ import (
 	"github.com/docker/docker/volume/local"
 	"github.com/docker/libcontainer/label"
 	"github.com/docker/libnetwork"
+	nwapi "github.com/docker/libnetwork/api"
 	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/libnetwork/options"
 )
@@ -360,4 +362,8 @@ func initNetworkController(config *Config) (libnetwork.NetworkController, error)
 	}
 
 	return controller, nil
+}
+
+func (daemon *Daemon) NetworkApiRouter() func(w http.ResponseWriter, req *http.Request) {
+	return nwapi.NewHTTPHandler(daemon.netController)
 }
