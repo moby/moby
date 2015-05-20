@@ -1033,7 +1033,8 @@ except the container is never started.  You can then use the `docker start
 <container_id>` command to start the container at any point.
 
 This is useful when you want to set up a container configuration ahead of time
-so that it is ready to start when you need it.
+so that it is ready to start when you need it. The initial status of the
+new container is `created`.
 
 Please see the [run command](#run) section and the [Docker run reference](
 /reference/run/) for more details.
@@ -1760,7 +1761,7 @@ The currently supported filters are:
 * label (`label=<key>` or `label=<key>=<value>`)
 * name (container's name)
 * exited (int - the code of exited containers. Only useful with `--all`)
-* status (restarting|running|paused|exited)
+* status (created|restarting|running|paused|exited)
 
 ##### Successfully exited containers
 

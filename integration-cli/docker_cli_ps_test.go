@@ -680,3 +680,54 @@ func (s *DockerSuite) TestPsWithSize(c *check.C) {
 		c.Fatalf("docker ps with --size should show virtual size of container")
 	}
 }
+
+func (s *DockerSuite) TestPsListContainersFilterCreated(c *check.C) {
+	// create a container
+	createCmd := exec.Command(dockerBinary, "create", "busybox")
+	out, _, err := runCommandWithOutput(createCmd)
+	if err != nil {
+		c.Fatal(out, err)
+	}
+	cID := strings.TrimSpace(out)
+	shortCID := cID[:12]
+
+	// Make sure it DOESN'T show up w/o a '-a' for normal 'ps'
+	runCmd := exec.Command(dockerBinary, "ps", "-q")
+	if out, _, err = runCommandWithOutput(runCmd); err != nil {
+		c.Fatal(out, err)
+	}
+	if strings.Contains(out, shortCID) {
+		c.Fatalf("Should have not seen '%s' in ps output:\n%s", shortCID, out)
+	}
+
+	// Make sure it DOES show up as 'Created' for 'ps -a'
+	runCmd = exec.Command(dockerBinary, "ps", "-a")
+	if out, _, err = runCommandWithOutput(runCmd); err != nil {
+		c.Fatal(out, err)
+	}
+
+	hits := 0
+	for _, line := range strings.Split(out, "\n") {
+		if !strings.Contains(line, shortCID) {
+			continue
+		}
+		hits++
+		if !strings.Contains(line, "Created") {
+			c.Fatalf("Missing 'Created' on '%s'", line)
+		}
+	}
+
+	if hits != 1 {
+		c.Fatalf("Should have seen '%s' in ps -a output once:%d\n%s", shortCID, hits, out)
+	}
+
+	// filter containers by 'create' - note, no -a needed
+	runCmd = exec.Command(dockerBinary, "ps", "-q", "-f", "status=created")
+	if out, _, err = runCommandWithOutput(runCmd); err != nil {
+		c.Fatal(out, err)
+	}
+	containerOut := strings.TrimSpace(out)
+	if !strings.HasPrefix(cID, containerOut) {
+		c.Fatalf("Expected id %s, got %s for filter, out: %s", cID, containerOut, out)
+	}
+}
