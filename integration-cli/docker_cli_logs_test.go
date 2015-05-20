@@ -410,12 +410,13 @@ func (s *DockerSuite) TestLogsFollowGoroutinesWithStdout(c *check.C) {
 	c.Assert(cmd.Process.Kill(), check.IsNil)
 
 	// NGoroutines is not updated right away, so we need to wait before failing
-	t := time.After(30 * time.Second)
+	t := time.After(60 * time.Second)
 	for {
 		select {
 		case <-t:
 			c.Assert(nroutines, check.Equals, getNGoroutines())
 		default:
+                        fmt.Println(nroutines, getNGoroutines())
 			if nroutines == getNGoroutines() {
 				return
 			}
