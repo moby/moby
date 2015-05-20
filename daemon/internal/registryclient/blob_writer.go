@@ -14,8 +14,8 @@ import (
 )
 
 type httpBlobUpload struct {
-	repo   distribution.Repository
-	client *http.Client
+	statter distribution.BlobStatter
+	client  *http.Client
 
 	uuid      string
 	startedAt time.Time
@@ -146,7 +146,7 @@ func (hbu *httpBlobUpload) Commit(ctx context.Context, desc distribution.Descrip
 		return distribution.Descriptor{}, hbu.handleErrorResponse(resp)
 	}
 
-	return hbu.repo.Blobs(ctx).Stat(ctx, desc.Digest)
+	return hbu.statter.Stat(ctx, desc.Digest)
 }
 
 func (hbu *httpBlobUpload) Cancel(ctx context.Context) error {

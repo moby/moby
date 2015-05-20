@@ -58,32 +58,42 @@ func (r *repository) Name() string {
 
 func (r *repository) Blobs(ctx context.Context) distribution.BlobStore {
 	statter := &blobStatter{
-		repository: r,
+		name:   r.Name(),
+		ub:     r.ub,
+		client: r.client,
 	}
 	return &blobs{
-		repository: r,
-		statter:    cache.NewCachedBlobStatter(cache.NewInMemoryBlobDescriptorCacheProvider(), statter),
+		name:    r.Name(),
+		ub:      r.ub,
+		client:  r.client,
+		statter: cache.NewCachedBlobStatter(cache.NewInMemoryBlobDescriptorCacheProvider(), statter),
 	}
 }
 
 func (r *repository) Manifests() distribution.ManifestService {
 	return &manifests{
-		repository: r,
+		name:   r.Name(),
+		ub:     r.ub,
+		client: r.client,
 	}
 }
 
 func (r *repository) Signatures() distribution.SignatureService {
 	return &signatures{
-		repository: r,
+		manifests: r.Manifests(),
 	}
 }
 
 type signatures struct {
-	*repository
+	manifests distribution.ManifestService
 }
 
 func (s *signatures) Get(dgst digest.Digest) ([][]byte, error) {
-	panic("not implemented")
+	m, err := s.manifests.Get(dgst)
+	if err != nil {
+		return nil, err
+	}
+	return m.Signatures()
 }
 
 func (s *signatures) Put(dgst digest.Digest, signatures ...[]byte) error {
@@ -91,7 +101,9 @@ func (s *signatures) Put(dgst digest.Digest, signatures ...[]byte) error {
 }
 
 type manifests struct {
-	*repository
+	name   string
+	ub     *v2.URLBuilder
+	client *http.Client
 }
 
 func (ms *manifests) Tags() ([]string, error) {
@@ -239,7 +251,9 @@ func (ms *manifests) Delete(dgst digest.Digest) error {
 }
 
 type blobs struct {
-	*repository
+	name   string
+	ub     *v2.URLBuilder
+	client *http.Client
 
 	statter distribution.BlobStatter
 }
@@ -290,12 +304,12 @@ func (bs *blobs) Open(ctx context.Context, dgst digest.Digest) (distribution.Rea
 		return nil, err
 	}
 
-	blobURL, err := bs.ub.BuildBlobURL(bs.Name(), stat.Digest)
+	blobURL, err := bs.ub.BuildBlobURL(bs.name, stat.Digest)
 	if err != nil {
 		return nil, err
 	}
 
-	return transport.NewHTTPReadSeeker(bs.repository.client, blobURL, stat.Length), nil
+	return transport.NewHTTPReadSeeker(bs.client, blobURL, stat.Length), nil
 }
 
 func (bs *blobs) ServeBlob(ctx context.Context, w http.ResponseWriter, r *http.Request, dgst digest.Digest) error {
@@ -344,7 +358,7 @@ func (bs *blobs) Create(ctx context.Context) (distribution.BlobWriter, error) {
 		}
 
 		return &httpBlobUpload{
-			repo:      bs.repository,
+			statter:   bs.statter,
 			client:    bs.client,
 			uuid:      uuid,
 			startedAt: time.Now(),
@@ -360,7 +374,9 @@ func (bs *blobs) Resume(ctx context.Context, id string) (distribution.BlobWriter
 }
 
 type blobStatter struct {
-	*repository
+	name   string
+	ub     *v2.URLBuilder
+	client *http.Client
 }
 
 func (bs *blobStatter) Stat(ctx context.Context, dgst digest.Digest) (distribution.Descriptor, error) {
