@@ -264,13 +264,8 @@ func TestCustomLxcConfigMisc(t *testing.T) {
 			"lxc.cgroup.cpuset.cpus = 0,1",
 		},
 		Network: &execdriver.Network{
-			Mtu: 1500,
-			Interface: &execdriver.NetworkInterface{
-				Gateway:     "10.10.10.1",
-				IPAddress:   "10.10.10.10",
-				IPPrefixLen: 24,
-				Bridge:      "docker0",
-			},
+			Mtu:       1500,
+			Interface: nil,
 		},
 		ProcessConfig:   processConfig,
 		CapAdd:          []string{"net_admin", "syslog"},
@@ -282,13 +277,6 @@ func TestCustomLxcConfigMisc(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// network
-	grepFile(t, p, "lxc.network.type = veth")
-	grepFile(t, p, "lxc.network.link = docker0")
-	grepFile(t, p, "lxc.network.name = eth0")
-	grepFile(t, p, "lxc.network.ipv4 = 10.10.10.10/24")
-	grepFile(t, p, "lxc.network.ipv4.gateway = 10.10.10.1")
-	grepFile(t, p, "lxc.network.flags = up")
 	grepFile(t, p, "lxc.aa_profile = lxc-container-default-with-nesting")
 	// hostname
 	grepFile(t, p, "lxc.utsname = testhost")
@@ -329,13 +317,8 @@ func TestCustomLxcConfigMiscOverride(t *testing.T) {
 			"lxc.network.ipv4 = 172.0.0.1",
 		},
 		Network: &execdriver.Network{
-			Mtu: 1500,
-			Interface: &execdriver.NetworkInterface{
-				Gateway:     "10.10.10.1",
-				IPAddress:   "10.10.10.10",
-				IPPrefixLen: 24,
-				Bridge:      "docker0",
-			},
+			Mtu:       1500,
+			Interface: nil,
 		},
 		ProcessConfig: processConfig,
 		CapAdd:        []string{"NET_ADMIN", "SYSLOG"},
@@ -346,13 +329,6 @@ func TestCustomLxcConfigMiscOverride(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// network
-	grepFile(t, p, "lxc.network.type = veth")
-	grepFile(t, p, "lxc.network.link = docker0")
-	grepFile(t, p, "lxc.network.name = eth0")
-	grepFile(t, p, "lxc.network.ipv4 = 172.0.0.1")
-	grepFile(t, p, "lxc.network.ipv4.gateway = 10.10.10.1")
-	grepFile(t, p, "lxc.network.flags = up")
 
 	// hostname
 	grepFile(t, p, "lxc.utsname = testhost")

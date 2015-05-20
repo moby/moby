@@ -10,7 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/docker/docker/pkg/iptables"
 	"github.com/go-check/check"
 )
 
@@ -107,31 +106,6 @@ func (s *DockerSuite) TestLinksPingLinkedContainersAfterRename(c *check.C) {
 	dockerCmd(c, "run", "--rm", "--link", "container_new:alias1", "--link", "container2:alias2", "busybox", "sh", "-c", "ping -c 1 alias1 -W 1 && ping -c 1 alias2 -W 1")
 	dockerCmd(c, "kill", idA)
 	dockerCmd(c, "kill", idB)
-
-}
-
-func (s *DockerSuite) TestLinksIpTablesRulesWhenLinkAndUnlink(c *check.C) {
-	testRequires(c, SameHostDaemon)
-
-	dockerCmd(c, "run", "-d", "--name", "child", "--publish", "8080:80", "busybox", "top")
-	dockerCmd(c, "run", "-d", "--name", "parent", "--link", "child:http", "busybox", "top")
-
-	childIP := findContainerIP(c, "child")
-	parentIP := findContainerIP(c, "parent")
-
-	sourceRule := []string{"-i", "docker0", "-o", "docker0", "-p", "tcp", "-s", childIP, "--sport", "80", "-d", parentIP, "-j", "ACCEPT"}
-	destinationRule := []string{"-i", "docker0", "-o", "docker0", "-p", "tcp", "-s", parentIP, "--dport", "80", "-d", childIP, "-j", "ACCEPT"}
-	if !iptables.Exists("filter", "DOCKER", sourceRule...) || !iptables.Exists("filter", "DOCKER", destinationRule...) {
-		c.Fatal("Iptables rules not found")
-	}
-
-	dockerCmd(c, "rm", "--link", "parent/http")
-	if iptables.Exists("filter", "DOCKER", sourceRule...) || iptables.Exists("filter", "DOCKER", destinationRule...) {
-		c.Fatal("Iptables rules should be removed when unlink")
-	}
-
-	dockerCmd(c, "kill", "child")
-	dockerCmd(c, "kill", "parent")
 
 }
 

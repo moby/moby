@@ -35,13 +35,14 @@ func (daemon *Daemon) ContainerRm(name string, config *ContainerRmConfig) error 
 		}
 		parentContainer, _ := daemon.Get(pe.ID())
 
+		if err := daemon.ContainerGraph().Delete(name); err != nil {
+			return err
+		}
+
 		if parentContainer != nil {
 			parentContainer.DisableLink(n)
 		}
 
-		if err := daemon.ContainerGraph().Delete(name); err != nil {
-			return err
-		}
 		return nil
 	}
 

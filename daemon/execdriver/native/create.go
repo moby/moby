@@ -89,40 +89,6 @@ func generateIfaceName() (string, error) {
 }
 
 func (d *driver) createNetwork(container *configs.Config, c *execdriver.Command) error {
-	if c.Network.HostNetworking {
-		container.Namespaces.Remove(configs.NEWNET)
-		return nil
-	}
-
-	container.Networks = []*configs.Network{
-		{
-			Type: "loopback",
-		},
-	}
-
-	iName, err := generateIfaceName()
-	if err != nil {
-		return err
-	}
-	if c.Network.Interface != nil {
-		vethNetwork := configs.Network{
-			Name:              "eth0",
-			HostInterfaceName: iName,
-			Mtu:               c.Network.Mtu,
-			Address:           fmt.Sprintf("%s/%d", c.Network.Interface.IPAddress, c.Network.Interface.IPPrefixLen),
-			MacAddress:        c.Network.Interface.MacAddress,
-			Gateway:           c.Network.Interface.Gateway,
-			Type:              "veth",
-			Bridge:            c.Network.Interface.Bridge,
-			HairpinMode:       c.Network.Interface.HairpinMode,
-		}
-		if c.Network.Interface.GlobalIPv6Address != "" {
-			vethNetwork.IPv6Address = fmt.Sprintf("%s/%d", c.Network.Interface.GlobalIPv6Address, c.Network.Interface.GlobalIPv6PrefixLen)
-			vethNetwork.IPv6Gateway = c.Network.Interface.IPv6Gateway
-		}
-		container.Networks = append(container.Networks, &vethNetwork)
-	}
-
 	if c.Network.ContainerID != "" {
 		d.Lock()
 		active := d.activeContainers[c.Network.ContainerID]
@@ -138,8 +104,14 @@ func (d *driver) createNetwork(container *configs.Config, c *execdriver.Command)
 		}
 
 		container.Namespaces.Add(configs.NEWNET, state.NamespacePaths[configs.NEWNET])
+		return nil
 	}
 
+	if c.Network.NamespacePath == "" {
+		return fmt.Errorf("network namespace path is empty")
+	}
+
+	container.Namespaces.Add(configs.NEWNET, c.Network.NamespacePath)
 	return nil
 }
 

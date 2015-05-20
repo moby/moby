@@ -1,0 +1,12 @@
+machine:
+    services:
+        - docker
+
+dependencies:
+    override:
+        - echo "Nothing to install"
+
+test:
+    override:
+        - make circle-ci
+
