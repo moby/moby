@@ -18,6 +18,70 @@ page_keywords: docker, documentation, about, technology, understanding, enterpri
 
 ## Commercialy Supported Docker Engine
 
+### CS Docker Engine 1.6.2-cs5
+
+For customers running Docker Engine on [supported versions of RedHat Enterprise
+Linux](https://www.docker.com/enterprise/support/) with [SELinux
+enabled](https://access.redhat.com/documentation/en-US/Red_Hat_Enterprise_Linux/
+6/html/Security-Enhanced_Linux/sect-Security-Enhanced_Linux-Working_with_SELinux
+-Enabling_and_Disabling_SELinux.html), the `docker build` and `docker run`
+commands will fail because bind mounted volumes or files are not accessible. As
+a result, customers with SELinux enabled cannot use these commands in their
+environment. By installing Docker Engine 1.6.2-cs5, customers can run with
+SELinux enabled and run these commands on their supported operating system.
+
+**Affected Versions**: Docker Engine: 1.6.x-cs1 through 1.6.x-cs4
+
+It is **highly recommended** that all customers running Docker Engine 1.6.x-cs1
+through 1.6.x-cs4 update to this release. 
+
+#### How to workaround this issue
+
+Customers who do not install this update have two options. The
+first option, is to disable SELinux. This is *not recommended* for production
+systems where SELinux is required.
+
+The second option is to pass the following parameter in to `docker run`. 
+  
+  	     --security-opt=label:type:docker_t
+
+This parameter cannot be passed to the `docker build` command.
+
+#### Upgrade notes 
+
+If you are running with SELinux enabled, previous Docker Engine releases allowed
+you to bind mount additional volumes or files inside the container as follows:
+
+		$ docker run -it -v /home/user/foo.txt:/foobar.txt:ro
+
+In the 1.6.2-cs5 release, you must ensure additional bind mounts have the correct
+SELinux context. As an example, if you want to mount `foobar.txt` as read only
+into the container, do the following to create and test your bind mount:
+
+1. Add the `z` option to the bind mount when you specify `docker run`.
+
+		$ docker run -it -v /home/user/foo.txt:/foobar.txt:ro,z
+
+2. Exec into your new container.  
+
+	For example, if your container is `bashful_curie` open a shell on the
+	container:
+		
+		$ docker exec -it bashful_curie bash
+
+3. Use the `cat` command to check the permissions on the mounted file.
+
+		$ cat /foobar.txt
+		the contents of foobar appear
+
+	If you see the file's contents, your mount succeeded. If you receive a
+	`Permission denied` message and/or the `/var/log/audit/audit.log` file on your
+	Docker host contains an AVC Denial message, the mount did not succeed.
+
+		type=AVC msg=audit(1432145409.197:7570): avc:  denied  { read } for  pid=21167 comm="cat" name="foobar.txt" dev="xvda2" ino=17704136 scontext=system_u:system_r:svirt_lxc_net_t:s0:c909,c965 tcontext=unconfined_u:object_r:user_home_t:s0 tclass=file
+	
+	Recheck your command line to make sure you passed in the `z` option.
+
 ### CS Docker Engine 1.6.2
 (13 May 2015)
 
