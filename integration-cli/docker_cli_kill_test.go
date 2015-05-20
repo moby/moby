@@ -31,9 +31,6 @@ func (s *DockerSuite) TestKillContainer(c *check.C) {
 	if strings.Contains(out, cleanedContainerID) {
 		c.Fatal("killed container is still running")
 	}
-
-	deleteContainer(cleanedContainerID)
-
 }
 
 func (s *DockerSuite) TestKillDifferentUserContainer(c *check.C) {
@@ -60,7 +57,4 @@ func (s *DockerSuite) TestKillDifferentUserContainer(c *check.C) {
 	if strings.Contains(out, cleanedContainerID) {
 		c.Fatal("killed container is still running")
 	}
-
-	deleteContainer(cleanedContainerID)
-
 }

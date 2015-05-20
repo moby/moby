@@ -35,9 +35,6 @@ func (s *DockerSuite) TestRmiWithContainerFails(c *check.C) {
 	if !strings.Contains(images, "busybox") {
 		c.Fatalf("The name 'busybox' should not have been removed from images: %q", images)
 	}
-
-	deleteContainer(cleanedContainerID)
-
 }
 
 func (s *DockerSuite) TestRmiTag(c *check.C) {
