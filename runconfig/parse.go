@@ -77,7 +77,6 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		flReadonlyRootfs  = cmd.Bool([]string{"-read-only"}, false, "Mount the container's root filesystem as read only")
 		flLoggingDriver   = cmd.String([]string{"-log-driver"}, "", "Logging driver for container")
 		flCgroupParent    = cmd.String([]string{"-cgroup-parent"}, "", "Optional parent cgroup for the container")
-		flVolumeDriver    = cmd.String([]string{"-volume-driver"}, "", "Optional volume driver for the container")
 	)
 
 	cmd.Var(&flAttach, []string{"a", "-attach"}, "Attach to STDIN, STDOUT or STDERR")
@@ -100,6 +99,8 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 	cmd.Var(&flSecurityOpt, []string{"-security-opt"}, "Security Options")
 	cmd.Var(flUlimits, []string{"-ulimit"}, "Ulimit options")
 	cmd.Var(&flLoggingOpts, []string{"-log-opt"}, "Log driver options")
+
+	expFlags := attachExperimentalFlags(cmd)
 
 	cmd.Require(flag.Min, 1)
 
@@ -318,7 +319,6 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		Entrypoint:      entrypoint,
 		WorkingDir:      *flWorkingDir,
 		Labels:          convertKVStringsToMap(labels),
-		VolumeDriver:    *flVolumeDriver,
 	}
 
 	hostConfig := &HostConfig{
@@ -356,6 +356,8 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		LogConfig:       LogConfig{Type: *flLoggingDriver, Config: loggingOpts},
 		CgroupParent:    *flCgroupParent,
 	}
+
+	applyExperimentalFlags(expFlags, config, hostConfig)
 
 	// When allocating stdin in attached mode, close stdin at client disconnect
 	if config.OpenStdin && config.AttachStdin {

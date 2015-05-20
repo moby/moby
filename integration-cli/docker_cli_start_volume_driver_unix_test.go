@@ -1,3 +1,4 @@
+// +build experimental
 // +build !windows
 
 package main
@@ -127,18 +128,6 @@ func (s *ExternalVolumeSuite) TearDownSuite(c *check.C) {
 
 func (s *ExternalVolumeSuite) TestStartExternalVolumeDriver(c *check.C) {
 	runCmd := exec.Command(dockerBinary, "run", "--name", "test-data", "-v", "external-volume-test:/tmp/external-volume-test", "--volume-driver", "test-external-volume-driver", "busybox:latest", "cat", "/tmp/external-volume-test/test")
-	out, stderr, exitCode, err := runCommandWithStdoutStderr(runCmd)
-	if err != nil && exitCode != 0 {
-		c.Fatal(out, stderr, err)
-	}
-
-	if !strings.Contains(out, s.server.URL) {
-		c.Fatalf("External volume mount failed. Output: %s\n", out)
-	}
-}
-
-func (s *ExternalVolumeSuite) TestStartExternalVolumeNamedDriver(c *check.C) {
-	runCmd := exec.Command(dockerBinary, "run", "--name", "test-data", "-v", "test-external-volume-driver/volume-1:/tmp/external-volume-test", "busybox:latest", "cat", "/tmp/external-volume-test/test")
 	out, stderr, exitCode, err := runCommandWithStdoutStderr(runCmd)
 	if err != nil && exitCode != 0 {
 		c.Fatal(out, stderr, err)

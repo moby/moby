@@ -142,6 +142,7 @@ Create a container
              "ExposedPorts": {
                      "22/tcp": {}
              },
+             VolumeDriver: "local",
              "HostConfig": {
                "Binds": ["/tmp:/tmp"],
                "Links": ["redis3:redis"],
@@ -222,15 +223,15 @@ Json Parameters:
       container
 -   **ExposedPorts** - An object mapping ports to an empty object in the form of:
       `"ExposedPorts": { "<port>/<tcp|udp>: {}" }`
+-   **VolumeDriver** - A string value containing the volume driver to use, `local` by default.
 -   **HostConfig**
     -   **Binds** – A list of volume bindings for this container. Each volume
             binding is a string of the form `container_path` (to create a new
             volume for the container), `host_path:container_path` (to bind-mount
             a host path into the container), `host_path:container_path:ro`
             (to make the bind-mount read-only inside the container), or
-            `volume_plugin/volume_name:container_path` (to provision a
-            volume named `volume_name` from a [volume plugin](/userguide/plugins)
-            named `volume_plugin`).
+            `volume_name:container_path` (to provision a volume named `volume_name`
+            from a [volume plugin](/userguide/plugins)).
     -   **Links** - A list of links for the container. Each link entry should be
           in the form of `container_name:alias`.
     -   **LxcConf** - LXC specific configurations. These configurations will only
