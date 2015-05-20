@@ -21,6 +21,11 @@
 			"Rev": "73a8ef737e8ea002281a28b4cb92a1de121ad4c6"
 		},
 		{
+			"ImportPath": "github.com/deckarep/golang-set",
+			"Comment": "v1-26-gef32fa3",
+			"Rev": "ef32fa3046d9f249d399f98ebaf9be944430fd1d"
+		},
+		{
 			"ImportPath": "github.com/docker/docker/pkg/homedir",
 			"Comment": "v1.4.1-3479-ga9172f5",
 			"Rev": "a9172f572e13086859c652e2d581950e910d63d4"
@@ -92,8 +97,8 @@
 		{
 			"ImportPath": "github.com/gorilla/mux",
 			"Rev": "8096f47503459bcc74d1f4c487b7e6e42e5746b5"
-                },
-                {
+		},
+		{
 			"ImportPath": "github.com/hashicorp/consul/api",
 			"Comment": "v0.5.0rc1-66-g954aec6",
 			"Rev": "954aec66231b79c161a4122b023fbcad13047f79"
