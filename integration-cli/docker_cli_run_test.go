@@ -3178,3 +3178,10 @@ func (s *DockerSuite) TestMountIntoSys(c *check.C) {
 		c.Fatal("container should be able to mount into /sys/fs/cgroup")
 	}
 }
+
+func (s *DockerSuite) TestTwoContainersInNetHost(c *check.C) {
+	dockerCmd(c, "run", "-d", "--net=host", "--name=first", "busybox", "top")
+	dockerCmd(c, "run", "-d", "--net=host", "--name=second", "busybox", "top")
+	dockerCmd(c, "stop", "first")
+	dockerCmd(c, "stop", "second")
+}
