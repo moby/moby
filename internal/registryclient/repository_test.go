@@ -18,6 +18,7 @@ import (
 	"github.com/docker/distribution/context"
 	"github.com/docker/distribution/digest"
 	"github.com/docker/distribution/manifest"
+	"github.com/docker/distribution/registry/api/v2"
 	"github.com/docker/distribution/testutil"
 )
 
@@ -73,26 +74,10 @@ func addTestFetch(repo string, dgst digest.Digest, content []byte, m *testutil.R
 	})
 }
 
-func addPing(m *testutil.RequestResponseMap) {
-	*m = append(*m, testutil.RequestResponseMapping{
-		Request: testutil.Request{
-			Method: "GET",
-			Route:  "/v2/",
-		},
-		Response: testutil.Response{
-			StatusCode: http.StatusOK,
-			Headers: http.Header(map[string][]string{
-				"Docker-Distribution-API-Version": {"registry/2.0"},
-			}),
-		},
-	})
-}
-
 func TestBlobFetch(t *testing.T) {
 	d1, b1 := newRandomBlob(1024)
 	var m testutil.RequestResponseMap
 	addTestFetch("test.example.com/repo1", d1, b1, &m)
-	addPing(&m)
 
 	e, c := testServer(m)
 	defer c()
@@ -112,14 +97,13 @@ func TestBlobFetch(t *testing.T) {
 		t.Fatalf("Wrong bytes values fetched: [%d]byte != [%d]byte", len(b), len(b1))
 	}
 
-	// TODO(dmcgowan): Test error cases
+	// TODO(dmcgowan): Test for unknown blob case
 }
 
 func TestBlobExists(t *testing.T) {
 	d1, b1 := newRandomBlob(1024)
 	var m testutil.RequestResponseMap
 	addTestFetch("test.example.com/repo1", d1, b1, &m)
-	addPing(&m)
 
 	e, c := testServer(m)
 	defer c()
@@ -150,7 +134,6 @@ func TestBlobExists(t *testing.T) {
 func TestBlobUploadChunked(t *testing.T) {
 	dgst, b1 := newRandomBlob(1024)
 	var m testutil.RequestResponseMap
-	addPing(&m)
 	chunks := [][]byte{
 		b1[0:256],
 		b1[256:512],
@@ -272,7 +255,6 @@ func TestBlobUploadChunked(t *testing.T) {
 func TestBlobUploadMonolithic(t *testing.T) {
 	dgst, b1 := newRandomBlob(1024)
 	var m testutil.RequestResponseMap
-	addPing(&m)
 	repo := "test.example.com/uploadrepo"
 	uploadID := uuid.New()
 	m = append(m, testutil.RequestResponseMapping{
@@ -378,7 +360,7 @@ func TestBlobUploadMonolithic(t *testing.T) {
 	}
 }
 
-func newRandomSchema1Manifest(name, tag string, blobCount int) (*manifest.SignedManifest, digest.Digest) {
+func newRandomSchemaV1Manifest(name, tag string, blobCount int) (*manifest.SignedManifest, digest.Digest) {
 	blobs := make([]manifest.FSLayer, blobCount)
 	history := make([]manifest.History, blobCount)
 
@@ -474,9 +456,8 @@ func checkEqualManifest(m1, m2 *manifest.SignedManifest) error {
 
 func TestManifestFetch(t *testing.T) {
 	repo := "test.example.com/repo"
-	m1, dgst := newRandomSchema1Manifest(repo, "latest", 6)
+	m1, dgst := newRandomSchemaV1Manifest(repo, "latest", 6)
 	var m testutil.RequestResponseMap
-	addPing(&m)
 	addTestManifest(repo, dgst.String(), m1.Raw, &m)
 
 	e, c := testServer(m)
@@ -507,9 +488,8 @@ func TestManifestFetch(t *testing.T) {
 
 func TestManifestFetchByTag(t *testing.T) {
 	repo := "test.example.com/repo/by/tag"
-	m1, _ := newRandomSchema1Manifest(repo, "latest", 6)
+	m1, _ := newRandomSchemaV1Manifest(repo, "latest", 6)
 	var m testutil.RequestResponseMap
-	addPing(&m)
 	addTestManifest(repo, "latest", m1.Raw, &m)
 
 	e, c := testServer(m)
@@ -540,10 +520,9 @@ func TestManifestFetchByTag(t *testing.T) {
 
 func TestManifestDelete(t *testing.T) {
 	repo := "test.example.com/repo/delete"
-	_, dgst1 := newRandomSchema1Manifest(repo, "latest", 6)
-	_, dgst2 := newRandomSchema1Manifest(repo, "latest", 6)
+	_, dgst1 := newRandomSchemaV1Manifest(repo, "latest", 6)
+	_, dgst2 := newRandomSchemaV1Manifest(repo, "latest", 6)
 	var m testutil.RequestResponseMap
-	addPing(&m)
 	m = append(m, testutil.RequestResponseMapping{
 		Request: testutil.Request{
 			Method: "DELETE",
@@ -577,9 +556,8 @@ func TestManifestDelete(t *testing.T) {
 
 func TestManifestPut(t *testing.T) {
 	repo := "test.example.com/repo/delete"
-	m1, dgst := newRandomSchema1Manifest(repo, "other", 6)
+	m1, dgst := newRandomSchemaV1Manifest(repo, "other", 6)
 	var m testutil.RequestResponseMap
-	addPing(&m)
 	m = append(m, testutil.RequestResponseMapping{
 		Request: testutil.Request{
 			Method: "PUT",
@@ -608,7 +586,7 @@ func TestManifestPut(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// TODO(dmcgowan): Check for error cases
+	// TODO(dmcgowan): Check for invalid input error
 }
 
 func TestManifestTags(t *testing.T) {
@@ -624,7 +602,6 @@ func TestManifestTags(t *testing.T) {
 }
 	`))
 	var m testutil.RequestResponseMap
-	addPing(&m)
 	m = append(m, testutil.RequestResponseMapping{
 		Request: testutil.Request{
 			Method: "GET",
@@ -660,4 +637,45 @@ func TestManifestTags(t *testing.T) {
 	// TODO(dmcgowan): Check array
 
 	// TODO(dmcgowan): Check for error cases
+}
+
+func TestManifestUnauthorized(t *testing.T) {
+	repo := "test.example.com/repo"
+	_, dgst := newRandomSchemaV1Manifest(repo, "latest", 6)
+	var m testutil.RequestResponseMap
+
+	m = append(m, testutil.RequestResponseMapping{
+		Request: testutil.Request{
+			Method: "GET",
+			Route:  "/v2/" + repo + "/manifests/" + dgst.String(),
+		},
+		Response: testutil.Response{
+			StatusCode: http.StatusUnauthorized,
+			Body:       []byte("<html>garbage</html>"),
+		},
+	})
+
+	e, c := testServer(m)
+	defer c()
+
+	r, err := NewRepository(context.Background(), repo, e, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ms := r.Manifests()
+
+	_, err = ms.Get(dgst)
+	if err == nil {
+		t.Fatal("Expected error fetching manifest")
+	}
+	v2Err, ok := err.(*v2.Error)
+	if !ok {
+		t.Fatalf("Unexpected error type: %#v", err)
+	}
+	if v2Err.Code != v2.ErrorCodeUnauthorized {
+		t.Fatalf("Unexpected error code: %s", v2Err.Code.String())
+	}
+	if expected := "401 Unauthorized"; v2Err.Message != expected {
+		t.Fatalf("Unexpected message value: %s, expected %s", v2Err.Message, expected)
+	}
 }
