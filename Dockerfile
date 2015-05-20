@@ -176,6 +176,9 @@ RUN set -x \
 	&& git clone https://github.com/BurntSushi/toml.git /go/src/github.com/BurntSushi/toml \
 	&& (cd /go/src/github.com/BurntSushi/toml && git checkout -q $TOMLV_COMMIT)
 
+# install atd (After The Deadline docs tool)
+RUN go get -v github.com/jfrazelle/atd
+
 # copy vendor/ because go-md2man needs golang.org/x/net
 COPY vendor /go/src/github.com/docker/docker/vendor
 RUN go install -v github.com/cpuguy83/go-md2man \
