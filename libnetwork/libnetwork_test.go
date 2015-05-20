@@ -22,6 +22,7 @@ import (
 	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/libnetwork/netutils"
 	"github.com/docker/libnetwork/options"
+	"github.com/docker/libnetwork/types"
 	"github.com/vishvananda/netns"
 )
 
@@ -65,11 +66,11 @@ func getEmptyGenericOption() map[string]interface{} {
 	return genericOption
 }
 
-func getPortMapping() []netutils.PortBinding {
-	return []netutils.PortBinding{
-		netutils.PortBinding{Proto: netutils.TCP, Port: uint16(230), HostPort: uint16(23000)},
-		netutils.PortBinding{Proto: netutils.UDP, Port: uint16(200), HostPort: uint16(22000)},
-		netutils.PortBinding{Proto: netutils.TCP, Port: uint16(120), HostPort: uint16(12000)},
+func getPortMapping() []types.PortBinding {
+	return []types.PortBinding{
+		types.PortBinding{Proto: types.TCP, Port: uint16(230), HostPort: uint16(23000)},
+		types.PortBinding{Proto: types.UDP, Port: uint16(200), HostPort: uint16(22000)},
+		types.PortBinding{Proto: types.TCP, Port: uint16(120), HostPort: uint16(12000)},
 	}
 }
 
@@ -245,7 +246,7 @@ func TestBridge(t *testing.T) {
 	if !ok {
 		t.Fatalf("Could not find expected info in endpoint data")
 	}
-	pm, ok := pmd.([]netutils.PortBinding)
+	pm, ok := pmd.([]types.PortBinding)
 	if !ok {
 		t.Fatalf("Unexpected format for port mapping in endpoint operational data")
 	}

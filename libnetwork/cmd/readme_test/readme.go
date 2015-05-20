@@ -5,8 +5,8 @@ import (
 
 	"github.com/docker/libnetwork"
 	"github.com/docker/libnetwork/netlabel"
-	"github.com/docker/libnetwork/netutils"
 	"github.com/docker/libnetwork/options"
+	"github.com/docker/libnetwork/types"
 )
 
 func main() {
@@ -58,7 +58,7 @@ func main() {
 	epInfo, err := ep.DriverInfo()
 	mapData, ok := epInfo[netlabel.PortMap]
 	if ok {
-		portMapping, ok := mapData.([]netutils.PortBinding)
+		portMapping, ok := mapData.([]types.PortBinding)
 		if ok {
 			fmt.Printf("Current port mapping for endpoint %s: %v", ep.Name(), portMapping)
 		}

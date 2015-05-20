@@ -16,6 +16,7 @@ import (
 	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/libnetwork/netutils"
 	"github.com/docker/libnetwork/options"
+	"github.com/docker/libnetwork/types"
 )
 
 const (
@@ -275,15 +276,15 @@ func TestGetNetworksAndEndpoints(t *testing.T) {
 	ec1 := endpointCreate{
 		Name:      "ep1",
 		NetworkID: string(nid),
-		ExposedPorts: []netutils.TransportPort{
-			netutils.TransportPort{Proto: netutils.TCP, Port: uint16(5000)},
-			netutils.TransportPort{Proto: netutils.UDP, Port: uint16(400)},
-			netutils.TransportPort{Proto: netutils.TCP, Port: uint16(600)},
+		ExposedPorts: []types.TransportPort{
+			types.TransportPort{Proto: types.TCP, Port: uint16(5000)},
+			types.TransportPort{Proto: types.UDP, Port: uint16(400)},
+			types.TransportPort{Proto: types.TCP, Port: uint16(600)},
 		},
-		PortMapping: []netutils.PortBinding{
-			netutils.PortBinding{Proto: netutils.TCP, Port: uint16(230), HostPort: uint16(23000)},
-			netutils.PortBinding{Proto: netutils.UDP, Port: uint16(200), HostPort: uint16(22000)},
-			netutils.PortBinding{Proto: netutils.TCP, Port: uint16(120), HostPort: uint16(12000)},
+		PortMapping: []types.PortBinding{
+			types.PortBinding{Proto: types.TCP, Port: uint16(230), HostPort: uint16(23000)},
+			types.PortBinding{Proto: types.UDP, Port: uint16(200), HostPort: uint16(22000)},
+			types.PortBinding{Proto: types.TCP, Port: uint16(120), HostPort: uint16(12000)},
 		},
 	}
 	b1, err := json.Marshal(ec1)

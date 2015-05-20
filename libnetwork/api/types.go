@@ -1,6 +1,6 @@
 package api
 
-import "github.com/docker/libnetwork/netutils"
+import "github.com/docker/libnetwork/types"
 
 /***********
  Resources
@@ -36,8 +36,8 @@ type networkCreate struct {
 type endpointCreate struct {
 	Name         string
 	NetworkID    string
-	ExposedPorts []netutils.TransportPort
-	PortMapping  []netutils.PortBinding
+	ExposedPorts []types.TransportPort
+	PortMapping  []types.PortBinding
 }
 
 // endpointJoin represents the expected body of the "join endpoint" or "leave endpoint" http request messages

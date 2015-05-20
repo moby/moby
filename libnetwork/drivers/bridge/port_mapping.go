@@ -7,15 +7,15 @@ import (
 	"net"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/libnetwork/netutils"
 	"github.com/docker/libnetwork/sandbox"
+	"github.com/docker/libnetwork/types"
 )
 
 var (
 	defaultBindingIP = net.IPv4(0, 0, 0, 0)
 )
 
-func allocatePorts(epConfig *EndpointConfiguration, intf *sandbox.Interface, reqDefBindIP net.IP, ulPxyEnabled bool) ([]netutils.PortBinding, error) {
+func allocatePorts(epConfig *EndpointConfiguration, intf *sandbox.Interface, reqDefBindIP net.IP, ulPxyEnabled bool) ([]types.PortBinding, error) {
 	if epConfig == nil || epConfig.PortBindings == nil {
 		return nil, nil
 	}
@@ -28,8 +28,8 @@ func allocatePorts(epConfig *EndpointConfiguration, intf *sandbox.Interface, req
 	return allocatePortsInternal(epConfig.PortBindings, intf.Address.IP, defHostIP, ulPxyEnabled)
 }
 
-func allocatePortsInternal(bindings []netutils.PortBinding, containerIP, defHostIP net.IP, ulPxyEnabled bool) ([]netutils.PortBinding, error) {
-	bs := make([]netutils.PortBinding, 0, len(bindings))
+func allocatePortsInternal(bindings []types.PortBinding, containerIP, defHostIP net.IP, ulPxyEnabled bool) ([]types.PortBinding, error) {
+	bs := make([]types.PortBinding, 0, len(bindings))
 	for _, c := range bindings {
 		b := c.GetCopy()
 		if err := allocatePort(&b, containerIP, defHostIP, ulPxyEnabled); err != nil {
@@ -44,7 +44,7 @@ func allocatePortsInternal(bindings []netutils.PortBinding, containerIP, defHost
 	return bs, nil
 }
 
-func allocatePort(bnd *netutils.PortBinding, containerIP, defHostIP net.IP, ulPxyEnabled bool) error {
+func allocatePort(bnd *types.PortBinding, containerIP, defHostIP net.IP, ulPxyEnabled bool) error {
 	var (
 		host net.Addr
 		err  error
@@ -98,7 +98,7 @@ func releasePorts(ep *bridgeEndpoint) error {
 	return releasePortsInternal(ep.portMapping)
 }
 
-func releasePortsInternal(bindings []netutils.PortBinding) error {
+func releasePortsInternal(bindings []types.PortBinding) error {
 	var errorBuf bytes.Buffer
 
 	// Attempt to release all port bindings, do not stop on failure
@@ -114,7 +114,7 @@ func releasePortsInternal(bindings []netutils.PortBinding) error {
 	return nil
 }
 
-func releasePort(bnd netutils.PortBinding) error {
+func releasePort(bnd types.PortBinding) error {
 	// Construct the host side transport address
 	host, err := bnd.HostAddr()
 	if err != nil {
