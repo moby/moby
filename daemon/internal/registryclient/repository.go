@@ -11,12 +11,10 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/docker/distribution/manifest"
-
-	"github.com/docker/distribution/digest"
-
 	"github.com/docker/distribution"
 	"github.com/docker/distribution/context"
+	"github.com/docker/distribution/digest"
+	"github.com/docker/distribution/manifest"
 	"github.com/docker/distribution/registry/api/v2"
 	"github.com/docker/distribution/registry/client/transport"
 	"github.com/docker/distribution/registry/storage/cache"
@@ -108,8 +106,8 @@ func (ms *manifests) Tags() ([]string, error) {
 	}
 	defer resp.Body.Close()
 
-	switch {
-	case resp.StatusCode == http.StatusOK:
+	switch resp.StatusCode {
+	case http.StatusOK:
 		b, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
 			return nil, err
@@ -123,7 +121,7 @@ func (ms *manifests) Tags() ([]string, error) {
 		}
 
 		return tagsResponse.Tags, nil
-	case resp.StatusCode == http.StatusNotFound:
+	case http.StatusNotFound:
 		return nil, nil
 	default:
 		return nil, handleErrorResponse(resp)
@@ -131,6 +129,8 @@ func (ms *manifests) Tags() ([]string, error) {
 }
 
 func (ms *manifests) Exists(dgst digest.Digest) (bool, error) {
+	// Call by Tag endpoint since the API uses the same
+	// URL endpoint for tags and digests.
 	return ms.ExistsByTag(dgst.String())
 }
 
@@ -145,10 +145,10 @@ func (ms *manifests) ExistsByTag(tag string) (bool, error) {
 		return false, err
 	}
 
-	switch {
-	case resp.StatusCode == http.StatusOK:
+	switch resp.StatusCode {
+	case http.StatusOK:
 		return true, nil
-	case resp.StatusCode == http.StatusNotFound:
+	case http.StatusNotFound:
 		return false, nil
 	default:
 		return false, handleErrorResponse(resp)
@@ -156,6 +156,8 @@ func (ms *manifests) ExistsByTag(tag string) (bool, error) {
 }
 
 func (ms *manifests) Get(dgst digest.Digest) (*manifest.SignedManifest, error) {
+	// Call by Tag endpoint since the API uses the same
+	// URL endpoint for tags and digests.
 	return ms.GetByTag(dgst.String())
 }
 
@@ -171,8 +173,8 @@ func (ms *manifests) GetByTag(tag string) (*manifest.SignedManifest, error) {
 	}
 	defer resp.Body.Close()
 
-	switch {
-	case resp.StatusCode == http.StatusOK:
+	switch resp.StatusCode {
+	case http.StatusOK:
 		var sm manifest.SignedManifest
 		decoder := json.NewDecoder(resp.Body)
 
@@ -203,9 +205,9 @@ func (ms *manifests) Put(m *manifest.SignedManifest) error {
 	}
 	defer resp.Body.Close()
 
-	switch {
-	case resp.StatusCode == http.StatusAccepted:
-		// TODO(dmcgowan): Use or check digest header
+	switch resp.StatusCode {
+	case http.StatusAccepted:
+		// TODO(dmcgowan): make use of digest header
 		return nil
 	default:
 		return handleErrorResponse(resp)
@@ -228,8 +230,8 @@ func (ms *manifests) Delete(dgst digest.Digest) error {
 	}
 	defer resp.Body.Close()
 
-	switch {
-	case resp.StatusCode == http.StatusOK:
+	switch resp.StatusCode {
+	case http.StatusOK:
 		return nil
 	default:
 		return handleErrorResponse(resp)
@@ -263,17 +265,17 @@ func sanitizeLocation(location, source string) (string, error) {
 	return location, nil
 }
 
-func (ls *blobs) Stat(ctx context.Context, dgst digest.Digest) (distribution.Descriptor, error) {
-	return ls.statter.Stat(ctx, dgst)
+func (bs *blobs) Stat(ctx context.Context, dgst digest.Digest) (distribution.Descriptor, error) {
+	return bs.statter.Stat(ctx, dgst)
 
 }
 
-func (ls *blobs) Get(ctx context.Context, dgst digest.Digest) ([]byte, error) {
-	desc, err := ls.Stat(ctx, dgst)
+func (bs *blobs) Get(ctx context.Context, dgst digest.Digest) ([]byte, error) {
+	desc, err := bs.Stat(ctx, dgst)
 	if err != nil {
 		return nil, err
 	}
-	reader, err := ls.Open(ctx, desc.Digest)
+	reader, err := bs.Open(ctx, desc.Digest)
 	if err != nil {
 		return nil, err
 	}
@@ -282,26 +284,26 @@ func (ls *blobs) Get(ctx context.Context, dgst digest.Digest) ([]byte, error) {
 	return ioutil.ReadAll(reader)
 }
 
-func (ls *blobs) Open(ctx context.Context, dgst digest.Digest) (distribution.ReadSeekCloser, error) {
-	stat, err := ls.statter.Stat(ctx, dgst)
+func (bs *blobs) Open(ctx context.Context, dgst digest.Digest) (distribution.ReadSeekCloser, error) {
+	stat, err := bs.statter.Stat(ctx, dgst)
 	if err != nil {
 		return nil, err
 	}
 
-	blobURL, err := ls.ub.BuildBlobURL(ls.Name(), stat.Digest)
+	blobURL, err := bs.ub.BuildBlobURL(bs.Name(), stat.Digest)
 	if err != nil {
 		return nil, err
 	}
 
-	return transport.NewHTTPReadSeeker(ls.repository.client, blobURL, stat.Length), nil
+	return transport.NewHTTPReadSeeker(bs.repository.client, blobURL, stat.Length), nil
 }
 
-func (ls *blobs) ServeBlob(ctx context.Context, w http.ResponseWriter, r *http.Request, dgst digest.Digest) error {
-	return nil
+func (bs *blobs) ServeBlob(ctx context.Context, w http.ResponseWriter, r *http.Request, dgst digest.Digest) error {
+	panic("not implemented")
 }
 
-func (ls *blobs) Put(ctx context.Context, mediaType string, p []byte) (distribution.Descriptor, error) {
-	writer, err := ls.Create(ctx)
+func (bs *blobs) Put(ctx context.Context, mediaType string, p []byte) (distribution.Descriptor, error) {
+	writer, err := bs.Create(ctx)
 	if err != nil {
 		return distribution.Descriptor{}, err
 	}
@@ -323,17 +325,17 @@ func (ls *blobs) Put(ctx context.Context, mediaType string, p []byte) (distribut
 	return writer.Commit(ctx, desc)
 }
 
-func (ls *blobs) Create(ctx context.Context) (distribution.BlobWriter, error) {
-	u, err := ls.ub.BuildBlobUploadURL(ls.name)
+func (bs *blobs) Create(ctx context.Context) (distribution.BlobWriter, error) {
+	u, err := bs.ub.BuildBlobUploadURL(bs.name)
 
-	resp, err := ls.client.Post(u, "", nil)
+	resp, err := bs.client.Post(u, "", nil)
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
 
-	switch {
-	case resp.StatusCode == http.StatusAccepted:
+	switch resp.StatusCode {
+	case http.StatusAccepted:
 		// TODO(dmcgowan): Check for invalid UUID
 		uuid := resp.Header.Get("Docker-Upload-UUID")
 		location, err := sanitizeLocation(resp.Header.Get("Location"), u)
@@ -342,8 +344,8 @@ func (ls *blobs) Create(ctx context.Context) (distribution.BlobWriter, error) {
 		}
 
 		return &httpBlobUpload{
-			repo:      ls.repository,
-			client:    ls.client,
+			repo:      bs.repository,
+			client:    bs.client,
 			uuid:      uuid,
 			startedAt: time.Now(),
 			location:  location,
@@ -353,7 +355,7 @@ func (ls *blobs) Create(ctx context.Context) (distribution.BlobWriter, error) {
 	}
 }
 
-func (ls *blobs) Resume(ctx context.Context, id string) (distribution.BlobWriter, error) {
+func (bs *blobs) Resume(ctx context.Context, id string) (distribution.BlobWriter, error) {
 	panic("not implemented")
 }
 
@@ -361,20 +363,20 @@ type blobStatter struct {
 	*repository
 }
 
-func (ls *blobStatter) Stat(ctx context.Context, dgst digest.Digest) (distribution.Descriptor, error) {
-	u, err := ls.ub.BuildBlobURL(ls.name, dgst)
+func (bs *blobStatter) Stat(ctx context.Context, dgst digest.Digest) (distribution.Descriptor, error) {
+	u, err := bs.ub.BuildBlobURL(bs.name, dgst)
 	if err != nil {
 		return distribution.Descriptor{}, err
 	}
 
-	resp, err := ls.client.Head(u)
+	resp, err := bs.client.Head(u)
 	if err != nil {
 		return distribution.Descriptor{}, err
 	}
 	defer resp.Body.Close()
 
-	switch {
-	case resp.StatusCode == http.StatusOK:
+	switch resp.StatusCode {
+	case http.StatusOK:
 		lengthHeader := resp.Header.Get("Content-Length")
 		length, err := strconv.ParseInt(lengthHeader, 10, 64)
 		if err != nil {
@@ -386,7 +388,7 @@ func (ls *blobStatter) Stat(ctx context.Context, dgst digest.Digest) (distributi
 			Length:    length,
 			Digest:    dgst,
 		}, nil
-	case resp.StatusCode == http.StatusNotFound:
+	case http.StatusNotFound:
 		return distribution.Descriptor{}, distribution.ErrBlobUnknown
 	default:
 		return distribution.Descriptor{}, handleErrorResponse(resp)

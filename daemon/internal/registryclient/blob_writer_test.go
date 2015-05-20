@@ -205,13 +205,3 @@ func TestUploadReadFrom(t *testing.T) {
 		t.Fatalf("Unexpected response status: %s, expected %s", uploadErr.Status, expected)
 	}
 }
-
-//repo   distribution.Repository
-//client *http.Client
-
-//uuid      string
-//startedAt time.Time
-
-//location string // always the last value of the location header.
-//offset   int64
-//closed   bool

@@ -2,7 +2,6 @@ package client
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -49,7 +48,6 @@ func (hbu *httpBlobUpload) ReadFrom(r io.Reader) (n int64, err error) {
 		return 0, hbu.handleErrorResponse(resp)
 	}
 
-	// TODO(dmcgowan): Validate headers
 	hbu.uuid = resp.Header.Get("Docker-Upload-UUID")
 	hbu.location, err = sanitizeLocation(resp.Header.Get("Location"), hbu.location)
 	if err != nil {
@@ -85,7 +83,6 @@ func (hbu *httpBlobUpload) Write(p []byte) (n int, err error) {
 		return 0, hbu.handleErrorResponse(resp)
 	}
 
-	// TODO(dmcgowan): Validate headers
 	hbu.uuid = resp.Header.Get("Docker-Upload-UUID")
 	hbu.location, err = sanitizeLocation(resp.Header.Get("Location"), hbu.location)
 	if err != nil {
@@ -110,7 +107,7 @@ func (hbu *httpBlobUpload) Seek(offset int64, whence int) (int64, error) {
 	case os.SEEK_CUR:
 		newOffset += int64(offset)
 	case os.SEEK_END:
-		return newOffset, errors.New("Cannot seek from end on incomplete upload")
+		newOffset += int64(offset)
 	case os.SEEK_SET:
 		newOffset = int64(offset)
 	}
@@ -143,6 +140,7 @@ func (hbu *httpBlobUpload) Commit(ctx context.Context, desc distribution.Descrip
 	if err != nil {
 		return distribution.Descriptor{}, err
 	}
+	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusCreated {
 		return distribution.Descriptor{}, hbu.handleErrorResponse(resp)
@@ -152,7 +150,22 @@ func (hbu *httpBlobUpload) Commit(ctx context.Context, desc distribution.Descrip
 }
 
 func (hbu *httpBlobUpload) Cancel(ctx context.Context) error {
-	panic("not implemented")
+	req, err := http.NewRequest("DELETE", hbu.location, nil)
+	if err != nil {
+		return err
+	}
+	resp, err := hbu.client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	switch resp.StatusCode {
+	case http.StatusNoContent, http.StatusNotFound:
+		return nil
+	default:
+		return hbu.handleErrorResponse(resp)
+	}
 }
 
 func (hbu *httpBlobUpload) Close() error {
