@@ -216,7 +216,7 @@ func (daemon *Daemon) register(container *Container, updateSuffixarray bool) err
 		return err
 	}
 
-	if err := container.PrepareMountPoints(); err != nil {
+	if err := container.prepareMountPoints(); err != nil {
 		return err
 	}
 
@@ -333,7 +333,7 @@ func (daemon *Daemon) restore() error {
 
 			// check the restart policy on the containers and restart any container with
 			// the restart policy of "always"
-			if daemon.config.AutoRestart && container.ShouldRestart() {
+			if daemon.config.AutoRestart && container.shouldRestart() {
 				logrus.Debugf("Starting container %s", container.ID)
 
 				if err := container.Start(); err != nil {

@@ -43,19 +43,19 @@ func Unregister(name string) bool {
 	return true
 }
 
-func Lookup(name string) volume.Driver {
+func Lookup(name string) (volume.Driver, error) {
 	drivers.Lock()
 	defer drivers.Unlock()
 	ext, ok := drivers.extensions[name]
 	if ok {
-		return ext
+		return ext, nil
 	}
 	pl, err := plugins.Get(name, "VolumeDriver")
 	if err != nil {
 		logrus.Errorf("Error: %v", err)
-		return nil
+		return nil, err
 	}
 	d := NewVolumeDriver(name, pl.Client)
 	drivers.extensions[name] = d
-	return d
+	return d, nil
 }

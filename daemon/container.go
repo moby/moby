@@ -1039,7 +1039,7 @@ func (container *Container) networkMounts() []execdriver.Mount {
 	return mounts
 }
 
-func (container *Container) AddLocalMountPoint(name, destination string, rw bool) {
+func (container *Container) addLocalMountPoint(name, destination string, rw bool) {
 	container.MountPoints[destination] = &mountPoint{
 		Name:        name,
 		Driver:      volume.DefaultDriverName,
@@ -1048,7 +1048,7 @@ func (container *Container) AddLocalMountPoint(name, destination string, rw bool
 	}
 }
 
-func (container *Container) AddMountPointWithVolume(destination string, vol volume.Volume, rw bool) {
+func (container *Container) addMountPointWithVolume(destination string, vol volume.Volume, rw bool) {
 	container.MountPoints[destination] = &mountPoint{
 		Name:        vol.Name(),
 		Driver:      vol.DriverName(),
@@ -1058,11 +1058,11 @@ func (container *Container) AddMountPointWithVolume(destination string, vol volu
 	}
 }
 
-func (container *Container) IsDestinationMounted(destination string) bool {
+func (container *Container) isDestinationMounted(destination string) bool {
 	return container.MountPoints[destination] != nil
 }
 
-func (container *Container) PrepareMountPoints() error {
+func (container *Container) prepareMountPoints() error {
 	for _, config := range container.MountPoints {
 		if len(config.Driver) > 0 {
 			v, err := createVolume(config.Name, config.Driver)
@@ -1075,7 +1075,7 @@ func (container *Container) PrepareMountPoints() error {
 	return nil
 }
 
-func (container *Container) RemoveMountPoints() error {
+func (container *Container) removeMountPoints() error {
 	for _, m := range container.MountPoints {
 		if m.Volume != nil {
 			if err := removeVolume(m.Volume); err != nil {
@@ -1086,7 +1086,7 @@ func (container *Container) RemoveMountPoints() error {
 	return nil
 }
 
-func (container *Container) ShouldRestart() bool {
+func (container *Container) shouldRestart() bool {
 	return container.hostConfig.RestartPolicy.Name == "always" ||
 		(container.hostConfig.RestartPolicy.Name == "on-failure" && container.ExitCode != 0)
 }

@@ -4,8 +4,6 @@ import (
 	"testing"
 
 	"github.com/docker/docker/runconfig"
-	"github.com/docker/docker/volume"
-	volumedrivers "github.com/docker/docker/volume/drivers"
 )
 
 func TestParseBindMount(t *testing.T) {
@@ -93,27 +91,5 @@ func TestParseVolumeFrom(t *testing.T) {
 		if mode != c.expMode {
 			t.Fatalf("Expected mode %s, was %s for spec %s\n", c.expMode, mode, c.spec)
 		}
-	}
-}
-
-type fakeDriver struct{}
-
-func (fakeDriver) Name() string                              { return "fake" }
-func (fakeDriver) Create(name string) (volume.Volume, error) { return nil, nil }
-func (fakeDriver) Remove(v volume.Volume) error              { return nil }
-
-func TestGetVolumeDriver(t *testing.T) {
-	_, err := getVolumeDriver("missing")
-	if err == nil {
-		t.Fatal("Expected error, was nil")
-	}
-
-	volumedrivers.Register(fakeDriver{}, "fake")
-	d, err := getVolumeDriver("fake")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if d.Name() != "fake" {
-		t.Fatalf("Expected fake driver, got %s\n", d.Name())
 	}
 }

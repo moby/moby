@@ -12,7 +12,6 @@ import (
 	"github.com/docker/docker/pkg/chrootarchive"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/volume"
-	volumedrivers "github.com/docker/docker/volume/drivers"
 )
 
 type mountPoint struct {
@@ -246,7 +245,7 @@ func (daemon *Daemon) verifyOldVolumesInfo(container *Container) error {
 		if strings.HasPrefix(hostPath, vfsPath) {
 			id := filepath.Base(hostPath)
 
-			container.AddLocalMountPoint(id, destination, vols.VolumesRW[destination])
+			container.addLocalMountPoint(id, destination, vols.VolumesRW[destination])
 		}
 	}
 
@@ -267,15 +266,4 @@ func removeVolume(v volume.Volume) error {
 		return nil
 	}
 	return vd.Remove(v)
-}
-
-func getVolumeDriver(name string) (volume.Driver, error) {
-	if name == "" {
-		name = volume.DefaultDriverName
-	}
-	vd := volumedrivers.Lookup(name)
-	if vd == nil {
-		return nil, fmt.Errorf("Volumes Driver %s isn't registered", name)
-	}
-	return vd, nil
 }

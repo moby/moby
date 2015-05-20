@@ -113,7 +113,7 @@ func (daemon *Daemon) Create(config *runconfig.Config, hostConfig *runconfig.Hos
 		}
 		// Skip volumes for which we already have something mounted on that
 		// destination because of a --volume-from.
-		if container.IsDestinationMounted(destination) {
+		if container.isDestinationMounted(destination) {
 			continue
 		}
 		path, err := container.GetResourcePath(destination)
@@ -136,7 +136,7 @@ func (daemon *Daemon) Create(config *runconfig.Config, hostConfig *runconfig.Hos
 		}
 		copyExistingContents(rootfs, path)
 
-		container.AddMountPointWithVolume(destination, v, true)
+		container.addMountPointWithVolume(destination, v, true)
 	}
 	if err := container.ToDisk(); err != nil {
 		return nil, nil, err
