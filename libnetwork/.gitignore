@@ -2,6 +2,7 @@
 *.o
 *.a
 *.so
+bin/
 
 # Folders
 integration-tmp/
@@ -33,4 +34,4 @@ cmd/dnet/dnet
 .project
 .settings/
 
-libnetwork-build.created
+libnetworkbuild.created

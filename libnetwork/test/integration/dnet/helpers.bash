@@ -73,7 +73,7 @@ function wait_for_dnet() {
     echo "waiting on dnet to come up ..."
     for i in `seq 1 10`;
     do
-	hrun ./cmd/dnet/dnet -H tcp://127.0.0.1:${hport} network ls
+	hrun ./bin/dnet -H tcp://127.0.0.1:${hport} network ls
 	echo ${output}
 	if [ "$status" -eq 0 ]; then
 	    return
@@ -168,7 +168,7 @@ EOF
 	   -v $(pwd)/${TMPC_ROOT}:/scratch \
 	   -v /usr/local/bin/runc:/usr/local/bin/runc \
 	   -w /go/src/github.com/docker/libnetwork \
-	   mrjana/golang ./cmd/dnet/dnet -d -D ${hopt} -c ${tomlfile}
+	   mrjana/golang ./bin/dnet -d -D ${hopt} -c ${tomlfile}
 
     wait_for_dnet $(inst_id2port ${inst}) ${name}
 }
@@ -196,7 +196,7 @@ function dnet_cmd() {
 
     hport=$1
     shift
-    ./cmd/dnet/dnet -H tcp://127.0.0.1:${hport} $*
+    ./bin/dnet -H tcp://127.0.0.1:${hport} $*
 }
 
 function dnet_exec() {
