@@ -168,6 +168,7 @@ type Info struct {
 	NoProxy            string
 	Name               string
 	Labels             []string
+	ExperimentalBuild  bool
 }
 
 // This struct is a temp struct used by execStart
