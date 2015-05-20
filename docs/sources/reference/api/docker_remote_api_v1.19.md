@@ -13,6 +13,8 @@ page_keywords: API, Docker, rcli, REST, documentation
  - The API tends to be REST, but for some complex commands, like `attach`
    or `pull`, the HTTP connection is hijacked to transport `STDOUT`,
    `STDIN` and `STDERR`.
+ - When the client API version is newer than the daemon's an HTTP
+   `400 Bad Request` error message is returned.
 
 # 2. Endpoints
 
