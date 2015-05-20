@@ -28,11 +28,7 @@ type UnexpectedHTTPResponseError struct {
 }
 
 func (e *UnexpectedHTTPResponseError) Error() string {
-	shortenedResponse := string(e.Response)
-	if len(shortenedResponse) > 15 {
-		shortenedResponse = shortenedResponse[:12] + "..."
-	}
-	return fmt.Sprintf("Error parsing HTTP response: %s: %q", e.ParseErr.Error(), shortenedResponse)
+	return fmt.Sprintf("Error parsing HTTP response: %s: %q", e.ParseErr.Error(), string(e.Response))
 }
 
 func parseHTTPErrorResponse(r io.Reader) error {
