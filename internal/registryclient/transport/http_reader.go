@@ -9,14 +9,19 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
-
-	"github.com/docker/distribution"
 )
+
+// ReadSeekCloser combines io.ReadSeeker with io.Closer.
+type ReadSeekCloser interface {
+	io.ReadSeeker
+	io.Closer
+}
 
 // NewHTTPReadSeeker handles reading from an HTTP endpoint using a GET
 // request. When seeking and starting a read from a non-zero offset
 // the a "Range" header will be added which sets the offset.
-func NewHTTPReadSeeker(client *http.Client, url string, size int64) distribution.ReadSeekCloser {
+// TODO(dmcgowan): Move this into a separate utility package
+func NewHTTPReadSeeker(client *http.Client, url string, size int64) ReadSeekCloser {
 	return &httpReadSeeker{
 		client: client,
 		url:    url,
