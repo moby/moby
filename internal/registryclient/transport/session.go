@@ -14,7 +14,12 @@ import (
 // AuthenticationHandler is an interface for authorizing a request from
 // params from a "WWW-Authenicate" header for a single scheme.
 type AuthenticationHandler interface {
+	// Scheme returns the scheme as expected from the "WWW-Authenicate" header.
 	Scheme() string
+
+	// AuthorizeRequest adds the authorization header to a request (if needed)
+	// using the parameters from "WWW-Authenticate" method. The parameters
+	// values depend on the scheme.
 	AuthorizeRequest(req *http.Request, params map[string]string) error
 }
 
