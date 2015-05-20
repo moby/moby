@@ -470,8 +470,8 @@ An MLS example might be:
 
     $ docker run --security-opt label:level:TopSecret -i -t rhel7 bash
 
-To disable the security labeling for this container versus running with the
-`--permissive` flag, use the following command:
+To disable the security labeling for this container instead of running with the
+`--privileged` flag, use the following command:
 
     $ docker run --security-opt label:disable -i -t fedora bash
 
@@ -482,9 +482,47 @@ command:
 
     $ docker run --security-opt label:type:svirt_apache_t -i -t centos bash
 
-Note:
+> **Note**: You would have to write policy defining a `svirt_apache_t` type.
 
-You would have to write policy defining a `svirt_apache_t` type.
+## Volume mounts and SELinux
+
+When using SELinux, be aware that the container has no knowledge of host SELinux
+policy. Therefore when SELinux policy is enforced, the
+host directory is not accessible by the container. A "Permission Denied"
+message will occur and an avc: message in the host's syslog.
+
+   [root@RHEL71 sven]# docker run -v /var/db:/data1 -i -t fedora ls -laZ /data1
+   ls: cannot access /data1/Makefile: Permission denied
+   drwxr-xr-x. root root system_u:object_r:var_t:s0       .
+   drwxr-xr-x. root root system_u:object_r:svirt_sandbox_file_t:s0:c602,c707 ..
+   ?---------  ?    ?                                     Makefile
+   drwx------. root root system_u:object_r:sudo_db_t:s0   sudo
+   [root@RHEL71 sven]# ls -laZ /var/db
+   drwxr-xr-x. root root system_u:object_r:var_t:s0       .
+   drwxr-xr-x. root root system_u:object_r:var_t:s0       ..
+   -rw-r--r--. root root system_u:object_r:var_t:s0       Makefile
+   drwx------. root root system_u:object_r:sudo_db_t:s0   sudo
+   [root@RHEL71 sven]# docker run -v /var/db:/data1 -i -t fedora bash
+   bash-4.3# echo "test" > /data1/test.txt
+   bash: /data1/test.txt: Permission denied
+   bash-4.3# exit
+
+
+You can give the container access to the `/var/db` directory in several ways:
+
+- Disable SELinux for the enture host: `setenforce 0`
+- Set the directory SELinux policy to allow any container access:
+  `chcon -Rt svirt_sandbox_file_t /var/db`
+- Make this container `--privileged`, disabling not only SELinux constraints, but
+  also the default cgroups restrictions:
+  `docker run --privileged -v /var/db:/data1 -i -t fedora`
+- Disable SELinux policy constraints for this container:
+  `docker run --security-opt label:disable -v /var/db:/data1 -i -t fedora`
+- Run the container processes as SELinux process type `unconfined_t`:
+  `docker run --security-opt label:type:unconfined_t -v /var/db:/data1 -i -t fedora`
+
+Now, writing to the /data1 volume in the container will be allowed and the
+changes will also be reflected on the host in /var/db.
 
 ## Specifying custom cgroups
 

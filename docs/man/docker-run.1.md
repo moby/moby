@@ -587,9 +587,9 @@ colon:
 
     # docker run -v /var/db:/data1 -i -t fedora bash
 
-When using SELinux, be aware that the host has no knowledge of container SELinux
+When using SELinux, be aware that the container has no knowledge of host SELinux
 policy. Therefore, in the above example, if SELinux policy is enforced, the
-`/var/db` directory is not writable to the container. A "Permission Denied"
+`/var/db` directory is not writeable by the container. A "Permission Denied"
 message will occur and an avc: message in the host's syslog.
 
 
@@ -616,8 +616,8 @@ An MLS example might be:
 
     # docker run --security-opt label:level:TopSecret -i -t rhel7 bash
 
-To disable the security labeling for this container versus running with the
-`--permissive` flag, use the following command:
+To disable the security labeling for this container instead of running with the
+`--privileged` flag, use the following command:
 
     # docker run --security-opt label:disable -i -t fedora bash
 
