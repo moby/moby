@@ -771,6 +771,39 @@ func UtilCreateNetworkMode(c *check.C, networkMode string) {
 	}
 }
 
+func (s *DockerSuite) TestContainerApiCreateWithCpuSharesCpuset(c *check.C) {
+	config := map[string]interface{}{
+		"Image":      "busybox",
+		"CpuShares":  512,
+		"CpusetCpus": "0,1",
+	}
+
+	status, body, err := sockRequest("POST", "/containers/create", config)
+	c.Assert(err, check.IsNil)
+	c.Assert(status, check.Equals, http.StatusCreated)
+
+	var container types.ContainerCreateResponse
+	if err := json.Unmarshal(body, &container); err != nil {
+		c.Fatal(err)
+	}
+
+	status, body, err = sockRequest("GET", "/containers/"+container.ID+"/json", nil)
+	c.Assert(err, check.IsNil)
+	c.Assert(status, check.Equals, http.StatusOK)
+
+	var containerJson types.ContainerJSON
+
+	c.Assert(json.Unmarshal(body, &containerJson), check.IsNil)
+
+	out, err := inspectField(containerJson.Id, "HostConfig.CpuShares")
+	c.Assert(err, check.IsNil)
+	c.Assert(out, check.Equals, "512")
+
+	outCpuset, errCpuset := inspectField(containerJson.Id, "HostConfig.CpusetCpus")
+	c.Assert(errCpuset, check.IsNil, check.Commentf("Output: %s", outCpuset))
+	c.Assert(outCpuset, check.Equals, "0,1")
+}
+
 func (s *DockerSuite) TestContainerApiVerifyHeader(c *check.C) {
 	config := map[string]interface{}{
 		"Image": "busybox",
