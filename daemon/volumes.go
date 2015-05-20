@@ -15,8 +15,6 @@ import (
 	volumedrivers "github.com/docker/docker/volume/drivers"
 )
 
-var localMountErr = fmt.Errorf("Invalid driver: %s driver doesn't support named volumes", volume.DefaultDriverName)
-
 type mountPoint struct {
 	Name        string
 	Destination string
@@ -74,32 +72,12 @@ func parseBindMount(spec string, config *runconfig.Config) (*mountPoint, error) 
 	}
 
 	if !filepath.IsAbs(arr[0]) {
-		bind.Driver, bind.Name = parseNamedVolumeInfo(arr[0], config)
-		if bind.Driver == volume.DefaultDriverName {
-			return nil, localMountErr
-		}
-	} else {
-		bind.Source = filepath.Clean(arr[0])
+		return nil, fmt.Errorf("cannot bind mount volume: %s volume paths must be absolute.", spec)
 	}
 
+	bind.Source = filepath.Clean(arr[0])
 	bind.Destination = filepath.Clean(bind.Destination)
 	return bind, nil
-}
-
-func parseNamedVolumeInfo(info string, config *runconfig.Config) (driver string, name string) {
-	p := strings.SplitN(info, "/", 2)
-	switch len(p) {
-	case 2:
-		driver = p[0]
-		name = p[1]
-	default:
-		if driver = config.VolumeDriver; len(driver) == 0 {
-			driver = volume.DefaultDriverName
-		}
-		name = p[0]
-	}
-
-	return
 }
 
 func parseVolumesFrom(spec string) (string, string, error) {

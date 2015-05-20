@@ -8,33 +8,6 @@ import (
 	volumedrivers "github.com/docker/docker/volume/drivers"
 )
 
-func TestParseNamedVolumeInfo(t *testing.T) {
-	cases := []struct {
-		driver    string
-		name      string
-		expDriver string
-		expName   string
-	}{
-		{"", "name", "local", "name"},
-		{"external", "name", "external", "name"},
-		{"", "external/name", "external", "name"},
-		{"ignored", "external/name", "external", "name"},
-	}
-
-	for _, c := range cases {
-		conf := &runconfig.Config{VolumeDriver: c.driver}
-		driver, name := parseNamedVolumeInfo(c.name, conf)
-
-		if driver != c.expDriver {
-			t.Fatalf("Expected %s, was %s\n", c.expDriver, driver)
-		}
-
-		if name != c.expName {
-			t.Fatalf("Expected %s, was %s\n", c.expName, name)
-		}
-	}
-}
-
 func TestParseBindMount(t *testing.T) {
 	cases := []struct {
 		bind      string
@@ -51,9 +24,9 @@ func TestParseBindMount(t *testing.T) {
 		{"/tmp:/tmp:rw", "", "/tmp", "/tmp", "", "", true, false},
 		{"/tmp:/tmp:foo", "", "/tmp", "/tmp", "", "", false, true},
 		{"name:/tmp", "", "", "", "", "", false, true},
-		{"name:/tmp", "external", "/tmp", "", "name", "external", true, false},
-		{"external/name:/tmp:rw", "", "/tmp", "", "name", "external", true, false},
-		{"external/name:/tmp:ro", "", "/tmp", "", "name", "external", false, false},
+		{"name:/tmp", "external", "/tmp", "", "name", "external", true, true},
+		{"external/name:/tmp:rw", "", "/tmp", "", "name", "external", true, true},
+		{"external/name:/tmp:ro", "", "/tmp", "", "name", "external", false, true},
 		{"external/name:/tmp:foo", "", "/tmp", "", "name", "external", false, true},
 		{"name:/tmp", "local", "", "", "", "", false, true},
 		{"local/name:/tmp:rw", "", "", "", "", "", true, true},
