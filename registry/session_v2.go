@@ -49,7 +49,7 @@ func (r *Session) V2RegistryEndpoint(index *IndexInfo) (ep *Endpoint, err error)
 }
 
 // GetV2Authorization gets the authorization needed to the given image
-// If readonly access is requested, then only the authorization may
+// If readonly access is requested, then the authorization may
 // only be used for Get operations.
 func (r *Session) GetV2Authorization(ep *Endpoint, imageName string, readOnly bool) (auth *RequestAuthorization, err error) {
 	scopes := []string{"pull"}
