@@ -94,7 +94,9 @@ HeaderLoop:
 
 func (ta *tokenAuthorizer) ModifyRequest(req *http.Request) error {
 	v2Root := strings.Index(req.URL.Path, "/v2/")
-	if v2Root == -1 {
+	// Test if /v2/ does not exist or not at beginning
+	// TODO(dmcgowan) support v2 endpoints which have a prefix before /v2/
+	if v2Root == -1 || v2Root > 0 {
 		return nil
 	}
 
