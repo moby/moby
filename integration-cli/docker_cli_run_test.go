@@ -1455,6 +1455,32 @@ func (s *DockerSuite) TestRunDnsOptionsBasedOnHostResolvConf(c *check.C) {
 	}
 }
 
+// Test to see if a non-root user can resolve a DNS name and reach out to it. Also
+// check if the container resolv.conf file has atleast 0644 perm.
+func (s *DockerSuite) TestRunNonRootUserResolvName(c *check.C) {
+	testRequires(c, SameHostDaemon)
+
+	cmd := exec.Command(dockerBinary, "run", "--name=testperm", "--user=default", "busybox", "ping", "-c", "1", "www.docker.io")
+	if out, err := runCommand(cmd); err != nil {
+		c.Fatal(err, out)
+	}
+
+	cID, err := getIDByName("testperm")
+	if err != nil {
+		c.Fatal(err)
+	}
+
+	fmode := (os.FileMode)(0644)
+	finfo, err := os.Stat(containerStorageFile(cID, "resolv.conf"))
+	if err != nil {
+		c.Fatal(err)
+	}
+
+	if (finfo.Mode() & fmode) != fmode {
+		c.Fatalf("Expected container resolv.conf mode to be atleast %s, instead got %s", fmode.String(), finfo.Mode().String())
+	}
+}
+
 // Test if container resolv.conf gets updated the next time it restarts
 // if host /etc/resolv.conf has changed. This only applies if the container
 // uses the host's /etc/resolv.conf and does not have any dns options provided.

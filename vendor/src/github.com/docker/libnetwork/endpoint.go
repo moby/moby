@@ -548,6 +548,11 @@ func (ep *endpoint) updateDNS(resolvConf []byte) error {
 		return err
 	}
 
+	// Change the perms to 0644 since ioutil.TempFile creates it by default as 0600
+	if err := os.Chmod(tmpResolvFile.Name(), 0644); err != nil {
+		return err
+	}
+
 	// write the updates to the temp files
 	if err = ioutil.WriteFile(tmpHashFile.Name(), []byte(newHash), 0644); err != nil {
 		return err
