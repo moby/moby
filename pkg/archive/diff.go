@@ -47,7 +47,7 @@ func UnpackLayer(dest string, layer ArchiveReader) (size int64, err error) {
 			parent := filepath.Dir(hdr.Name)
 			parentPath := filepath.Join(dest, parent)
 			if _, err := os.Lstat(parentPath); err != nil && os.IsNotExist(err) {
-				err = os.MkdirAll(parentPath, 0600)
+				err = system.MkdirAll(parentPath, 0600)
 				if err != nil {
 					return 0, err
 				}
