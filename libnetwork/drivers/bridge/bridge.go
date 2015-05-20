@@ -57,8 +57,8 @@ type NetworkConfiguration struct {
 // EndpointConfiguration represents the user specified configuration for the sandbox endpoint
 type EndpointConfiguration struct {
 	MacAddress   net.HardwareAddr
-	PortBindings []netutils.PortBinding
-	ExposedPorts []netutils.TransportPort
+	PortBindings []types.PortBinding
+	ExposedPorts []types.TransportPort
 }
 
 // ContainerConfiguration represents the user specified configuration for a container
@@ -73,7 +73,7 @@ type bridgeEndpoint struct {
 	macAddress      net.HardwareAddr
 	config          *EndpointConfiguration // User specified parameters
 	containerConfig *ContainerConfiguration
-	portMapping     []netutils.PortBinding // Operation port bindings
+	portMapping     []types.PortBinding // Operation port bindings
 }
 
 type bridgeNetwork struct {
@@ -672,7 +672,7 @@ func (d *driver) EndpointOperInfo(nid, eid types.UUID) (map[string]interface{}, 
 
 	if ep.portMapping != nil {
 		// Return a copy of the operational data
-		pmc := make([]netutils.PortBinding, 0, len(ep.portMapping))
+		pmc := make([]types.PortBinding, 0, len(ep.portMapping))
 		for _, pm := range ep.portMapping {
 			pmc = append(pmc, pm.GetCopy())
 		}
@@ -861,7 +861,7 @@ func parseEndpointOptions(epOptions map[string]interface{}) (*EndpointConfigurat
 	}
 
 	if opt, ok := epOptions[netlabel.PortMap]; ok {
-		if bs, ok := opt.([]netutils.PortBinding); ok {
+		if bs, ok := opt.([]types.PortBinding); ok {
 			ec.PortBindings = bs
 		} else {
 			return nil, ErrInvalidEndpointConfig
@@ -869,7 +869,7 @@ func parseEndpointOptions(epOptions map[string]interface{}) (*EndpointConfigurat
 	}
 
 	if opt, ok := epOptions[netlabel.ExposedPorts]; ok {
-		if ports, ok := opt.([]netutils.TransportPort); ok {
+		if ports, ok := opt.([]types.TransportPort); ok {
 			ec.ExposedPorts = ports
 		} else {
 			return nil, ErrInvalidEndpointConfig
