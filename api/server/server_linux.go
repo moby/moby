@@ -7,8 +7,8 @@ import (
 	"net"
 	"net/http"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon"
+	"github.com/docker/docker/pkg/sockets"
 	"github.com/docker/docker/pkg/systemd"
 )
 
@@ -45,17 +45,12 @@ func (s *Server) newServer(proto, addr string) (serverCloser, error) {
 		}
 		return nil, nil
 	case "tcp":
-		if !s.cfg.TlsVerify {
-			logrus.Warn("/!\\ DON'T BIND ON ANY IP ADDRESS WITHOUT setting -tlsverify IF YOU DON'T KNOW WHAT YOU'RE DOING /!\\")
-		}
-		if l, err = NewTcpSocket(addr, tlsConfigFromServerConfig(s.cfg), s.start); err != nil {
-			return nil, err
-		}
-		if err := allocateDaemonPort(addr); err != nil {
+		l, err = s.initTcpSocket(addr)
+		if err != nil {
 			return nil, err
 		}
 	case "unix":
-		if l, err = NewUnixSocket(addr, s.cfg.SocketGroup, s.start); err != nil {
+		if l, err = sockets.NewUnixSocket(addr, s.cfg.SocketGroup, s.start); err != nil {
 			return nil, err
 		}
 	default:

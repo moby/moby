@@ -1,4 +1,4 @@
-package server
+package sockets
 
 import (
 	"crypto/tls"
@@ -11,27 +11,23 @@ import (
 	"github.com/docker/docker/pkg/listenbuffer"
 )
 
-type tlsConfig struct {
+type TlsConfig struct {
 	CA          string
 	Certificate string
 	Key         string
 	Verify      bool
 }
 
-func tlsConfigFromServerConfig(conf *ServerConfig) *tlsConfig {
-	verify := conf.TlsVerify
-	if !conf.Tls && !conf.TlsVerify {
-		return nil
-	}
-	return &tlsConfig{
+func NewTlsConfig(tlsCert, tlsKey, tlsCA string, verify bool) *TlsConfig {
+	return &TlsConfig{
 		Verify:      verify,
-		Certificate: conf.TlsCert,
-		Key:         conf.TlsKey,
-		CA:          conf.TlsCa,
+		Certificate: tlsCert,
+		Key:         tlsKey,
+		CA:          tlsCA,
 	}
 }
 
-func NewTcpSocket(addr string, config *tlsConfig, activate <-chan struct{}) (net.Listener, error) {
+func NewTcpSocket(addr string, config *TlsConfig, activate <-chan struct{}) (net.Listener, error) {
 	l, err := listenbuffer.NewListenBuffer("tcp", addr, activate)
 	if err != nil {
 		return nil, err
@@ -44,7 +40,7 @@ func NewTcpSocket(addr string, config *tlsConfig, activate <-chan struct{}) (net
 	return l, nil
 }
 
-func setupTls(l net.Listener, config *tlsConfig) (net.Listener, error) {
+func setupTls(l net.Listener, config *TlsConfig) (net.Listener, error) {
 	tlsCert, err := tls.LoadX509KeyPair(config.Certificate, config.Key)
 	if err != nil {
 		if os.IsNotExist(err) {
