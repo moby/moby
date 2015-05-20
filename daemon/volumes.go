@@ -249,6 +249,10 @@ func (container *Container) specialMounts() []execdriver.Mount {
 	if container.HostsPath != "" {
 		mounts = append(mounts, execdriver.Mount{Source: container.HostsPath, Destination: "/etc/hosts", Writable: !container.hostConfig.ReadonlyRootfs, Private: true})
 	}
+	if path, err := container.GetRootResourcePath("/introspection"); err == nil {
+		logrus.Debugf("mounting introspection")
+		mounts = append(mounts, execdriver.Mount{Source: path, Destination: "/var/run/docker/introspection", Writable: false, Private: true})
+	}
 	return mounts
 }
 
