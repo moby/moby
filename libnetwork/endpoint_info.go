@@ -46,6 +46,7 @@ type endpointInterface struct {
 	addrv6    net.IPNet
 	srcName   string
 	dstPrefix string
+	routes    []*net.IPNet
 }
 
 type endpointJoinInfo struct {
@@ -53,6 +54,7 @@ type endpointJoinInfo struct {
 	gw6            net.IP
 	hostsPath      string
 	resolvConfPath string
+	StaticRoutes   []*types.StaticRoute
 }
 
 func (ep *endpoint) Info() EndpointInfo {
@@ -147,6 +149,35 @@ func (ep *endpoint) InterfaceNames() []driverapi.InterfaceNameInfo {
 	}
 
 	return iList
+}
+
+func (ep *endpoint) AddStaticRoute(destination *net.IPNet, routeType int, nextHop net.IP, interfaceID int) error {
+	ep.Lock()
+	defer ep.Unlock()
+
+	r := types.StaticRoute{destination, routeType, nextHop, interfaceID}
+
+	if routeType == types.NEXTHOP {
+		// If the route specifies a next-hop, then it's loosely routed (i.e. not bound to a particular interface).
+		ep.joinInfo.StaticRoutes = append(ep.joinInfo.StaticRoutes, &r)
+	} else {
+		// If the route doesn't specify a next-hop, it must be a connected route, bound to an interface.
+		if err := ep.addInterfaceRoute(&r); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (ep *endpoint) addInterfaceRoute(route *types.StaticRoute) error {
+	for _, iface := range ep.iFaces {
+		if iface.id == route.InterfaceID {
+			iface.routes = append(iface.routes, route.Destination)
+			return nil
+		}
+	}
+	return types.BadRequestErrorf("Interface with ID %d doesn't exist.",
+		route.InterfaceID)
 }
 
 func (ep *endpoint) SandboxKey() string {

@@ -184,6 +184,40 @@ func CompareIPNet(a, b *net.IPNet) bool {
 	return a.IP.Equal(b.IP) && bytes.Equal(a.Mask, b.Mask)
 }
 
+const (
+	// NEXTHOP indicates a StaticRoute with an IP next hop.
+	NEXTHOP = iota
+
+	// CONNECTED indicates a StaticRoute with a interface for directly connected peers.
+	CONNECTED
+)
+
+// StaticRoute is a statically-provisioned IP route.
+type StaticRoute struct {
+	Destination *net.IPNet
+
+	RouteType int // NEXT_HOP or CONNECTED
+
+	// NextHop will be resolved by the kernel (i.e. as a loose hop).
+	NextHop net.IP
+
+	// InterfaceID must refer to a defined interface on the
+	// Endpoint to which the routes are specified.  Routes specified this way
+	// are interpreted as directly connected to the specified interface (no
+	// next hop will be used).
+	InterfaceID int
+}
+
+// GetCopy returns a copy of this StaticRoute structure
+func (r *StaticRoute) GetCopy() *StaticRoute {
+	d := GetIPNetCopy(r.Destination)
+	nh := GetIPCopy(r.NextHop)
+	return &StaticRoute{Destination: d,
+		RouteType:   r.RouteType,
+		NextHop:     nh,
+		InterfaceID: r.InterfaceID}
+}
+
 /******************************
  * Well-known Error Interfaces
  ******************************/

@@ -35,6 +35,12 @@ type Sandbox interface {
 	// Set default IPv6 gateway for the sandbox
 	SetGatewayIPv6(gw net.IP) error
 
+	// Add a static route to the sandbox.
+	AddStaticRoute(*types.StaticRoute) error
+
+	// Remove a static route from the sandbox.
+	RemoveStaticRoute(*types.StaticRoute) error
+
 	// Destroy the sandbox
 	Destroy() error
 }
@@ -51,7 +57,11 @@ type Info struct {
 	// IPv6 gateway for the sandbox.
 	GatewayIPv6 net.IP
 
-	// TODO: Add routes and ip tables etc.
+	// Additional static routes for the sandbox.  (Note that directly
+	// connected routes are stored on the particular interface they refer to.)
+	StaticRoutes []*types.StaticRoute
+
+	// TODO: Add ip tables etc.
 }
 
 // Interface represents the settings and identity of a network device. It is
@@ -74,15 +84,25 @@ type Interface struct {
 
 	// IPv6 address for the interface.
 	AddressIPv6 *net.IPNet
+
+	// IP routes for the interface.
+	Routes []*net.IPNet
 }
 
 // GetCopy returns a copy of this Interface structure
 func (i *Interface) GetCopy() *Interface {
+	copiedRoutes := make([]*net.IPNet, len(i.Routes))
+
+	for index := range i.Routes {
+		copiedRoutes[index] = types.GetIPNetCopy(i.Routes[index])
+	}
+
 	return &Interface{
 		SrcName:     i.SrcName,
 		DstName:     i.DstName,
 		Address:     types.GetIPNetCopy(i.Address),
 		AddressIPv6: types.GetIPNetCopy(i.AddressIPv6),
+		Routes:      copiedRoutes,
 	}
 }
 
@@ -108,6 +128,16 @@ func (i *Interface) Equal(o *Interface) bool {
 		return false
 	}
 
+	if len(i.Routes) != len(o.Routes) {
+		return false
+	}
+
+	for index := range i.Routes {
+		if !types.CompareIPNet(i.Routes[index], o.Routes[index]) {
+			return false
+		}
+	}
+
 	return true
 }
 
@@ -120,7 +150,15 @@ func (s *Info) GetCopy() *Info {
 	gw := types.GetIPCopy(s.Gateway)
 	gw6 := types.GetIPCopy(s.GatewayIPv6)
 
-	return &Info{Interfaces: list, Gateway: gw, GatewayIPv6: gw6}
+	routes := make([]*types.StaticRoute, len(s.StaticRoutes))
+	for i, r := range s.StaticRoutes {
+		routes[i] = r.GetCopy()
+	}
+
+	return &Info{Interfaces: list,
+		Gateway:      gw,
+		GatewayIPv6:  gw6,
+		StaticRoutes: routes}
 }
 
 // Equal checks if this instance of SandboxInfo is equal to the passed one
@@ -150,6 +188,17 @@ func (s *Info) Equal(o *Info) bool {
 	// Note: At the moment, the two lists must be in the same order
 	for i := 0; i < len(s.Interfaces); i++ {
 		if !s.Interfaces[i].Equal(o.Interfaces[i]) {
+			return false
+		}
+	}
+
+	for index := range s.StaticRoutes {
+		ss := s.StaticRoutes[index]
+		oo := o.StaticRoutes[index]
+		if !types.CompareIPNet(ss.Destination, oo.Destination) {
+			return false
+		}
+		if !ss.NextHop.Equal(oo.NextHop) {
 			return false
 		}
 	}
