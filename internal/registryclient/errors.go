@@ -52,6 +52,17 @@ func parseHTTPErrorResponse(r io.Reader) error {
 }
 
 func handleErrorResponse(resp *http.Response) error {
+	if resp.StatusCode == 401 {
+		err := parseHTTPErrorResponse(resp.Body)
+		if uErr, ok := err.(*UnexpectedHTTPResponseError); ok {
+			return &v2.Error{
+				Code:    v2.ErrorCodeUnauthorized,
+				Message: "401 Unauthorized",
+				Detail:  uErr.Response,
+			}
+		}
+		return err
+	}
 	if resp.StatusCode >= 400 && resp.StatusCode < 500 {
 		return parseHTTPErrorResponse(resp.Body)
 	}
