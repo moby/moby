@@ -1137,6 +1137,16 @@ func TestResolvConf(t *testing.T) {
 		}
 	}()
 
+	finfo, err := os.Stat(resolvConfPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	fmode := (os.FileMode)(0644)
+	if finfo.Mode() != fmode {
+		t.Fatalf("Expected file mode %s, got %s", fmode.String(), finfo.Mode().String())
+	}
+
 	content, err := ioutil.ReadFile(resolvConfPath)
 	if err != nil {
 		t.Fatal(err)
