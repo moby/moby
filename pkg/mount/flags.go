@@ -49,6 +49,7 @@ func parseOptions(options string) (int, string) {
 		"norelatime":    {true, RELATIME},
 		"strictatime":   {false, STRICTATIME},
 		"nostrictatime": {true, STRICTATIME},
+		"val":           {false, VAL},
 	}
 
 	for _, o := range strings.Split(options, ",") {

@@ -27,4 +27,5 @@ const (
 	STRICTATIME = 0
 	SYNCHRONOUS = 0
 	RDONLY      = 0
+	VAL         = 0
 )
