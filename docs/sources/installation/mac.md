@@ -8,13 +8,12 @@ You can install Docker using Boot2Docker to run `docker` commands at your comman
 Choose this installation if you are familiar with the command-line or plan to
 contribute to the Docker project on GitHub.
 
+[<img src="/installation/images/kitematic.png" alt="Download Kitematic"
+style="float:right;">](/kitematic/)
+
 Alternatively, you may want to try <a id="inlinelink" href="https://kitematic.com/"
 target="_blank">Kitematic</a>, an application that lets you set up Docker and
 run containers using a graphical user interface (GUI).
-
-<a id="graphic" href="https://kitematic.com/" target="_blank"><img
-src="/installation/images/kitematic.png" alt="Download Kitematic"></a>
-
 
 ## Command-line Docker with Boot2Docker
 
