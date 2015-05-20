@@ -6,6 +6,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/stringid"
+	"github.com/docker/libnetwork/config"
 	"github.com/docker/libnetwork/datastore"
 	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/netlabel"
@@ -274,7 +275,7 @@ func (n *network) addEndpoint(ep *endpoint) error {
 
 func (n *network) CreateEndpoint(name string, options ...EndpointOption) (Endpoint, error) {
 	var err error
-	if name == "" {
+	if !config.IsValidName(name) {
 		return nil, ErrInvalidName(name)
 	}
 

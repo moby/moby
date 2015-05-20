@@ -5,6 +5,7 @@ package daemon
 import (
 	"fmt"
 	"net"
+	"net/http"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -24,6 +25,8 @@ import (
 	"github.com/docker/docker/volume/local"
 	"github.com/docker/libcontainer/label"
 	"github.com/docker/libnetwork"
+	nwapi "github.com/docker/libnetwork/api"
+	nwconfig "github.com/docker/libnetwork/config"
 	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/libnetwork/options"
 )
@@ -264,8 +267,35 @@ func isNetworkDisabled(config *Config) bool {
 	return config.Bridge.Iface == disableNetworkBridge
 }
 
+func networkOptions(dconfig *Config) ([]nwconfig.Option, error) {
+	options := []nwconfig.Option{}
+	if dconfig == nil {
+		return options, nil
+	}
+	if strings.TrimSpace(dconfig.DefaultNetwork) != "" {
+		dn := strings.Split(dconfig.DefaultNetwork, ":")
+		if len(dn) < 2 {
+			return nil, fmt.Errorf("default network daemon config must be of the form NETWORKDRIVER:NETWORKNAME")
+		}
+		options = append(options, nwconfig.OptionDefaultDriver(dn[0]))
+		options = append(options, nwconfig.OptionDefaultNetwork(strings.Join(dn[1:], ":")))
+	} else {
+		dd := runconfig.DefaultDaemonNetworkMode()
+		dn := runconfig.DefaultDaemonNetworkMode().NetworkName()
+		options = append(options, nwconfig.OptionDefaultDriver(string(dd)))
+		options = append(options, nwconfig.OptionDefaultNetwork(dn))
+	}
+	options = append(options, nwconfig.OptionLabels(dconfig.Labels))
+	return options, nil
+}
+
 func initNetworkController(config *Config) (libnetwork.NetworkController, error) {
-	controller, err := libnetwork.New()
+	netOptions, err := networkOptions(config)
+	if err != nil {
+		return nil, err
+	}
+
+	controller, err := libnetwork.New(netOptions...)
 	if err != nil {
 		return nil, fmt.Errorf("error obtaining controller instance: %v", err)
 	}
@@ -418,4 +448,8 @@ func setupInitLayer(initLayer string) error {
 
 	// Layer is ready to use, if it wasn't before.
 	return nil
+}
+
+func (daemon *Daemon) NetworkApiRouter() func(w http.ResponseWriter, req *http.Request) {
+	return nwapi.NewHTTPHandler(daemon.netController)
 }
