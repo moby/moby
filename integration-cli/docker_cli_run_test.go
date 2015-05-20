@@ -120,10 +120,6 @@ func (s *DockerSuite) TestRunEchoNamedContainer(c *check.C) {
 	if out != "test\n" {
 		c.Errorf("container should've printed 'test'")
 	}
-
-	if err := deleteContainer("testfoonamedcontainer"); err != nil {
-		c.Errorf("failed to remove the named container: %v", err)
-	}
 }
 
 // docker run should not leak file descriptors
@@ -2533,9 +2529,6 @@ func (s *DockerSuite) TestRunAllowPortRangeThroughExpose(c *check.C) {
 		if binding == nil || len(binding) != 1 || len(binding[0].HostPort) == 0 {
 			c.Fatalf("Port is not mapped for the port %d", port)
 		}
-	}
-	if err := deleteContainer(id); err != nil {
-		c.Fatal(err)
 	}
 }
 

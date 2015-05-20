@@ -54,8 +54,6 @@ func (s *DockerSuite) TestTopNonPrivileged(c *check.C) {
 		c.Fatalf("failed to kill container: %s, %v", out, err)
 	}
 
-	deleteContainer(cleanedContainerID)
-
 	if !strings.Contains(out1, "top") && !strings.Contains(out2, "top") {
 		c.Fatal("top should've listed `top` in the process list, but failed twice")
 	} else if !strings.Contains(out1, "top") {
@@ -91,8 +89,6 @@ func (s *DockerSuite) TestTopPrivileged(c *check.C) {
 	if out, _, err = runCommandWithOutput(killCmd); err != nil {
 		c.Fatalf("failed to kill container: %s, %v", out, err)
 	}
-
-	deleteContainer(cleanedContainerID)
 
 	if !strings.Contains(out1, "top") && !strings.Contains(out2, "top") {
 		c.Fatal("top should've listed `top` in the process list, but failed twice")
