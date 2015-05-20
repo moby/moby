@@ -3,6 +3,7 @@ package client
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 
@@ -34,9 +35,9 @@ func (e *UnexpectedHTTPResponseError) Error() string {
 	return fmt.Sprintf("Error parsing HTTP response: %s: %q", e.ParseErr.Error(), shortenedResponse)
 }
 
-func parseHTTPErrorResponse(response *http.Response) error {
+func parseHTTPErrorResponse(r io.Reader) error {
 	var errors v2.Errors
-	body, err := ioutil.ReadAll(response.Body)
+	body, err := ioutil.ReadAll(r)
 	if err != nil {
 		return err
 	}
@@ -52,7 +53,7 @@ func parseHTTPErrorResponse(response *http.Response) error {
 
 func handleErrorResponse(resp *http.Response) error {
 	if resp.StatusCode >= 400 && resp.StatusCode < 500 {
-		return parseHTTPErrorResponse(resp)
+		return parseHTTPErrorResponse(resp.Body)
 	}
 	return &UnexpectedHTTPStatusError{Status: resp.Status}
 }
