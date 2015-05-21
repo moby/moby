@@ -26,6 +26,12 @@ fi
 is_set() {
 	zgrep "CONFIG_$1=[y|m]" "$CONFIG" > /dev/null
 }
+is_set_in_kernel() {
+	zgrep "CONFIG_$1=y" "$CONFIG" > /dev/null
+}
+is_set_as_module() {
+	zgrep "CONFIG_$1=m" "$CONFIG" > /dev/null
+}
 
 # see https://en.wikipedia.org/wiki/ANSI_escape_code#Colors
 declare -A colors=(
@@ -70,8 +76,10 @@ wrap_warning() {
 }
 
 check_flag() {
-	if is_set "$1"; then
+	if is_set_in_kernel "$1"; then
 		wrap_good "CONFIG_$1" 'enabled'
+	elif is_set_as_module "$1"; then
+		wrap_good "CONFIG_$1" 'enabled (as module)'
 	else
 		wrap_bad "CONFIG_$1" 'missing'
 	fi
