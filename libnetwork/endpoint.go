@@ -40,7 +40,7 @@ type Endpoint interface {
 	// Return certain operational data belonging to this endpoint
 	Info() EndpointInfo
 
-	// Info returns a collection of driver operational data related to this endpoint retrieved from the driver
+	// DriverInfo returns a collection of driver operational data related to this endpoint retrieved from the driver
 	DriverInfo() (map[string]interface{}, error)
 
 	// Delete and detaches this endpoint from the network.

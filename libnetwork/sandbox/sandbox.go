@@ -25,7 +25,7 @@ type Sandbox interface {
 	// an appropriate suffix for the DstName to disambiguate.
 	AddInterface(*Interface) error
 
-	// Remove an interface from the sandbox by renamin to original name
+	// Remove an interface from the sandbox by renaming to original name
 	// and moving it out of the sandbox.
 	RemoveInterface(*Interface) error
 
