@@ -2,7 +2,10 @@
 
 In this feature:
 
-- `network` become a first class objects in the Docker UI
+- `network` and `service` become a first class objects in the Docker UI
+- You can create networks and attach containers to them
+- We introduce the concept of `services`
+  - This is an entry-point in to a given network that is also published via Service Discovery
 
 This is an experimental feature. For information on installing and using experimental features, see [the experimental feature overview](experimental.md).
 
@@ -59,13 +62,52 @@ If you no longer have need of a network, you can delete it with `docker network 
         bd61375b6993        host                host
         cc455abccfeb        bridge              bridge
 
-
-Currently the only way this network can be used to connect container is via default network-mode.
 Docker daemon supports a configuration flag `--default-network` which takes configuration value of format `NETWORK:DRIVER`, where,
 `NETWORK` is the name of the network created using the `docker network create` command and 
 `DRIVER` represents the in-built drivers such as bridge, overlay, container, host and none. or Remote drivers via Network Plugins.
 When a container is created and if the network mode (`--net`) is not specified, then this default network will be used to connect
 the container. If `--default-network` is not specified, the default network will be the `bridge` driver.
+
+## Using Services
+
+        Usage: docker service COMMAND [OPTIONS] [arg...]
+
+        Commands:
+            publish   Publish a service
+            unpublish Remove a service
+            attach    Attach a backend (container) to the service
+            detach    Detach the backend from the service
+            ls        Lists all services
+            info      Display information about a service
+
+        Run 'docker service COMMAND --help' for more information on a command.
+
+          --help=false       Print usage
+
+Assuming we want to publish a service from container `a0ebc12d3e48` on network `foo` as `my-service` we would use the following command:
+
+        $ docker service publish my-service.foo
+        ec56fd74717d00f968c26675c9a77707e49ae64b8e54832ebf78888eb116e428
+        $ docker service attach a0ebc12d3e48 my-service.foo
+
+This would make the container `a0ebc12d3e48` accessible as `my-service` on network `foo`. Any other container in network `foo` can use DNS to resolve the address of `my-service`
+
+This can also be acheived by using the `--publish-service` flag for `docker run`:
+
+        docker run -itd --publish-service db.foo postgres
+
+`db.foo` in this instance means "place the container on network `foo`, and allow other hosts on `foo` to discover it under the name `db`"
+
+We can see the current services using the `docker service ls` command
+
+        $ docker service ls
+        SERVICE ID          NAME                NETWORK             PROVIDER
+        ec56fd74717d        my-service          foo                 a0ebc12d3e48
+
+To remove the a service:
+
+        $ docker service detach a0ebc12d3e48 my-service.foo
+        $ docker service unpublish my-service.foo
 
 Send us feedback and comments on [#](https://github.com/docker/docker/issues/?),
 or on the usual Google Groups (docker-user, docker-dev) and IRC channels.
