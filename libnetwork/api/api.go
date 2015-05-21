@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"strings"
 
 	"github.com/docker/libnetwork"
 	"github.com/docker/libnetwork/types"
@@ -15,6 +16,7 @@ var (
 	successResponse  = responseStatus{Status: "Success", StatusCode: http.StatusOK}
 	createdResponse  = responseStatus{Status: "Created", StatusCode: http.StatusCreated}
 	mismatchResponse = responseStatus{Status: "Body/URI parameter mismatch", StatusCode: http.StatusBadRequest}
+	badQueryresponse = responseStatus{Status: "Unsupported query", StatusCode: http.StatusBadRequest}
 )
 
 const (
@@ -23,14 +25,19 @@ const (
 	// Router URL variable definition
 	nwName = "{" + urlNwName + ":" + regex + "}"
 	nwID   = "{" + urlNwID + ":" + regex + "}"
+	nwPID  = "{" + urlNwPID + ":" + regex + "}"
 	epName = "{" + urlEpName + ":" + regex + "}"
 	epID   = "{" + urlEpID + ":" + regex + "}"
+	epPID  = "{" + urlEpPID + ":" + regex + "}"
 	cnID   = "{" + urlCnID + ":" + regex + "}"
+
 	// Internal URL variable name, they can be anything
 	urlNwName = "network-name"
 	urlNwID   = "network-id"
+	urlNwPID  = "network-partial-id"
 	urlEpName = "endpoint-name"
 	urlEpID   = "endpoint-id"
+	urlEpPID  = "endpoint-partial-id"
 	urlCnID   = "container-id"
 )
 
@@ -77,9 +84,12 @@ func (h *httpHandler) initRouter() {
 		"GET": {
 			// Order matters
 			{"/networks", []string{"name", nwName}, procGetNetworks},
+			{"/networks", []string{"partial-id", nwPID}, procGetNetworks},
 			{"/networks", nil, procGetNetworks},
 			{"/networks/" + nwID, nil, procGetNetwork},
 			{"/networks/" + nwID + "/endpoints", []string{"name", epName}, procGetEndpoints},
+			{"/networks/" + nwID + "/endpoints", []string{"partial-id", epPID}, procGetEndpoints},
+
 			{"/networks/" + nwID + "/endpoints/" + epID, nil, procGetEndpoint},
 		},
 		"POST": {
@@ -234,12 +244,26 @@ func procGetNetwork(c libnetwork.NetworkController, vars map[string]string, body
 func procGetNetworks(c libnetwork.NetworkController, vars map[string]string, body []byte) (interface{}, *responseStatus) {
 	var list []*networkResource
 
-	// If query parameter is specified, return a filtered collection
-	if name, queryByName := vars[urlNwName]; queryByName {
-		nw, errRsp := findNetwork(c, name, byName)
-		if errRsp.isOK() {
+	// Look for query filters and validate
+	name, queryByName := vars[urlNwName]
+	shortID, queryByPid := vars[urlNwPID]
+	if queryByName && queryByPid {
+		return nil, &badQueryresponse
+	}
+
+	if queryByName {
+		if nw, errRsp := findNetwork(c, name, byName); errRsp.isOK() {
 			list = append(list, buildNetworkResource(nw))
 		}
+	} else if queryByPid {
+		// Return all the prefix-matching networks
+		l := func(nw libnetwork.Network) bool {
+			if strings.HasPrefix(nw.ID(), shortID) {
+				list = append(list, buildNetworkResource(nw))
+			}
+			return false
+		}
+		c.WalkNetworks(l)
 	} else {
 		for _, nw := range c.Networks() {
 			list = append(list, buildNetworkResource(nw))
@@ -295,6 +319,13 @@ func procGetEndpoint(c libnetwork.NetworkController, vars map[string]string, bod
 }
 
 func procGetEndpoints(c libnetwork.NetworkController, vars map[string]string, body []byte) (interface{}, *responseStatus) {
+	// Look for query filters and validate
+	name, queryByName := vars[urlEpName]
+	shortID, queryByPid := vars[urlEpPID]
+	if queryByName && queryByPid {
+		return nil, &badQueryresponse
+	}
+
 	nwT, nwBy := detectNetworkTarget(vars)
 	nw, errRsp := findNetwork(c, nwT, nwBy)
 	if !errRsp.isOK() {
@@ -304,11 +335,19 @@ func procGetEndpoints(c libnetwork.NetworkController, vars map[string]string, bo
 	var list []*endpointResource
 
 	// If query parameter is specified, return a filtered collection
-	if epT, queryByName := vars[urlEpName]; queryByName {
-		ep, errRsp := findEndpoint(c, nwT, epT, nwBy, byName)
-		if errRsp.isOK() {
+	if queryByName {
+		if ep, errRsp := findEndpoint(c, nwT, name, nwBy, byName); errRsp.isOK() {
 			list = append(list, buildEndpointResource(ep))
 		}
+	} else if queryByPid {
+		// Return all the prefix-matching networks
+		l := func(ep libnetwork.Endpoint) bool {
+			if strings.HasPrefix(ep.ID(), shortID) {
+				list = append(list, buildEndpointResource(ep))
+			}
+			return false
+		}
+		nw.WalkEndpoints(l)
 	} else {
 		for _, ep := range nw.Endpoints() {
 			epr := buildEndpointResource(ep)
