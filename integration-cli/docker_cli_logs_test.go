@@ -436,9 +436,11 @@ func (s *DockerSuite) TestLogsFollowGoroutinesWithStdout(c *check.C) {
 	for {
 		select {
 		case <-t:
-			c.Assert(nroutines, check.Equals, getNGoroutines())
+			if n := getNGoroutines(); n > nroutines {
+				c.Fatalf("leaked goroutines: expected less than or equal to %d, got: %d", nroutines, n)
+			}
 		default:
-			if nroutines == getNGoroutines() {
+			if n := getNGoroutines(); n <= nroutines {
 				return
 			}
 			time.Sleep(200 * time.Millisecond)
