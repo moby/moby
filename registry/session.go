@@ -80,13 +80,10 @@ func (tr *authTransport) RoundTrip(orig *http.Request) (*http.Response, error) {
 		return tr.RoundTripper.RoundTrip(req)
 	}
 
-	var askedForToken bool
-
 	// Don't override
 	if req.Header.Get("Authorization") == "" {
-		if req.Header.Get("X-Docker-Token") == "true" {
+		if req.Header.Get("X-Docker-Token") == "true" && len(tr.Username) > 0 {
 			req.SetBasicAuth(tr.Username, tr.Password)
-			askedForToken = true
 		} else if len(tr.token) > 0 {
 			req.Header.Set("Authorization", "Token "+strings.Join(tr.token, ","))
 		}
@@ -96,7 +93,7 @@ func (tr *authTransport) RoundTrip(orig *http.Request) (*http.Response, error) {
 		delete(tr.modReq, orig)
 		return nil, err
 	}
-	if askedForToken && len(resp.Header["X-Docker-Token"]) > 0 {
+	if len(resp.Header["X-Docker-Token"]) > 0 {
 		tr.token = resp.Header["X-Docker-Token"]
 	}
 	resp.Body = &transport.OnEOFReader{
