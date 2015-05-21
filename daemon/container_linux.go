@@ -336,7 +336,7 @@ func (container *Container) GetSize() (int64, int64) {
 		sizeRw = -1
 	}
 
-	if _, err = os.Stat(container.basefs); err != nil {
+	if _, err = os.Stat(container.basefs); err == nil {
 		if sizeRootfs, err = directory.Size(container.basefs); err != nil {
 			sizeRootfs = -1
 		}
