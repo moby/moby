@@ -33,7 +33,7 @@ func MapVar(values map[string]string, names []string, usage string) {
 }
 
 func LogOptsVar(values map[string]string, names []string, usage string) {
-	flag.Var(newMapOpt(values, ValidateLogOpts), names, usage)
+	flag.Var(newMapOpt(values, nil), names, usage)
 }
 
 func HostListVar(values *[]string, names []string, usage string) {
@@ -175,15 +175,6 @@ func newMapOpt(values map[string]string, validator ValidatorFctType) *MapOpts {
 // Validators
 type ValidatorFctType func(val string) (string, error)
 type ValidatorFctListType func(val string) ([]string, error)
-
-func ValidateLogOpts(val string) (string, error) {
-	allowedKeys := map[string]string{}
-	vals := strings.Split(val, "=")
-	if allowedKeys[vals[0]] != "" {
-		return val, nil
-	}
-	return "", fmt.Errorf("%s is not a valid log opt", vals[0])
-}
 
 func ValidateAttach(val string) (string, error) {
 	s := strings.ToLower(val)
