@@ -6,7 +6,6 @@ import (
 	"fmt"
 
 	"github.com/docker/distribution"
-	"github.com/docker/distribution/digest"
 )
 
 // BlobDescriptorCacheProvider provides repository scoped
@@ -17,12 +16,10 @@ type BlobDescriptorCacheProvider interface {
 	RepositoryScoped(repo string) (distribution.BlobDescriptorService, error)
 }
 
-func validateDigest(dgst digest.Digest) error {
-	return dgst.Validate()
-}
-
-func validateDescriptor(desc distribution.Descriptor) error {
-	if err := validateDigest(desc.Digest); err != nil {
+// ValidateDescriptor provides a helper function to ensure that caches have
+// common criteria for admitting descriptors.
+func ValidateDescriptor(desc distribution.Descriptor) error {
+	if err := desc.Digest.Validate(); err != nil {
 		return err
 	}
 
