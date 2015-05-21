@@ -57,7 +57,7 @@ func linkContainers(action, parentIP, childIP string, ports []types.TransportPor
 	case "-D":
 		nfAction = iptables.Delete
 	default:
-		return invalidIPTablesCfgError(action)
+		return InvalidIPTablesCfgError(action)
 	}
 
 	ip1 := net.ParseIP(parentIP)

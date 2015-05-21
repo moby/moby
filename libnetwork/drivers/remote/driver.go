@@ -31,37 +31,37 @@ func Init(dc driverapi.DriverCallback) error {
 }
 
 func (d *driver) Config(option map[string]interface{}) error {
-	return driverapi.ErrNotImplemented
+	return &driverapi.ErrNotImplemented{}
 }
 
 func (d *driver) CreateNetwork(id types.UUID, option map[string]interface{}) error {
-	return driverapi.ErrNotImplemented
+	return &driverapi.ErrNotImplemented{}
 }
 
 func (d *driver) DeleteNetwork(nid types.UUID) error {
-	return driverapi.ErrNotImplemented
+	return &driverapi.ErrNotImplemented{}
 }
 
 func (d *driver) CreateEndpoint(nid, eid types.UUID, epInfo driverapi.EndpointInfo, epOptions map[string]interface{}) error {
-	return driverapi.ErrNotImplemented
+	return &driverapi.ErrNotImplemented{}
 }
 
 func (d *driver) DeleteEndpoint(nid, eid types.UUID) error {
-	return driverapi.ErrNotImplemented
+	return &driverapi.ErrNotImplemented{}
 }
 
 func (d *driver) EndpointOperInfo(nid, eid types.UUID) (map[string]interface{}, error) {
-	return nil, driverapi.ErrNotImplemented
+	return nil, &driverapi.ErrNotImplemented{}
 }
 
 // Join method is invoked when a Sandbox is attached to an endpoint.
 func (d *driver) Join(nid, eid types.UUID, sboxKey string, jinfo driverapi.JoinInfo, options map[string]interface{}) error {
-	return driverapi.ErrNotImplemented
+	return &driverapi.ErrNotImplemented{}
 }
 
 // Leave method is invoked when a Sandbox detaches from an endpoint.
 func (d *driver) Leave(nid, eid types.UUID) error {
-	return driverapi.ErrNotImplemented
+	return &driverapi.ErrNotImplemented{}
 }
 
 func (d *driver) Type() string {

@@ -216,7 +216,7 @@ func (ep *endpoint) Join(containerID string, options ...EndpointOption) (*Contai
 	ep.Lock()
 	if ep.container != nil {
 		ep.Unlock()
-		return nil, ErrInvalidJoin
+		return nil, ErrInvalidJoin{}
 	}
 
 	ep.container = &containerInfo{
@@ -334,7 +334,7 @@ func (ep *endpoint) Leave(containerID string, options ...EndpointOption) error {
 	if container == nil || container.id == "" ||
 		containerID == "" || container.id != containerID {
 		if container == nil {
-			err = ErrNoContainer
+			err = ErrNoContainer{}
 		} else {
 			err = InvalidContainerIDError(containerID)
 		}
@@ -412,7 +412,7 @@ func (ep *endpoint) buildHostsFiles() error {
 	ep.Unlock()
 
 	if container == nil {
-		return ErrNoContainer
+		return ErrNoContainer{}
 	}
 
 	if container.config.hostsPath == "" {
@@ -462,7 +462,7 @@ func (ep *endpoint) updateParentHosts() error {
 	ep.Unlock()
 
 	if container == nil {
-		return ErrNoContainer
+		return ErrNoContainer{}
 	}
 
 	for _, update := range container.config.parentUpdates {
@@ -495,7 +495,7 @@ func (ep *endpoint) updateDNS(resolvConf []byte) error {
 	ep.Unlock()
 
 	if container == nil {
-		return ErrNoContainer
+		return ErrNoContainer{}
 	}
 
 	oldHash := []byte{}
@@ -573,7 +573,7 @@ func (ep *endpoint) setupDNS() error {
 	ep.Unlock()
 
 	if container == nil {
-		return ErrNoContainer
+		return ErrNoContainer{}
 	}
 
 	if container.config.resolvConfPath == "" {

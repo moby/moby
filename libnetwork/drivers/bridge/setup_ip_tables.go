@@ -16,7 +16,7 @@ const (
 func setupIPTables(config *NetworkConfiguration, i *bridgeInterface) error {
 	// Sanity check.
 	if config.EnableIPTables == false {
-		return ipTableCfgError(config.BridgeName)
+		return IPTableCfgError(config.BridgeName)
 	}
 
 	hairpinMode := !config.EnableUserlandProxy

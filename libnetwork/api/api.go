@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	"github.com/docker/libnetwork"
+	"github.com/docker/libnetwork/types"
 	"github.com/gorilla/mux"
 )
 
@@ -437,7 +438,7 @@ func findNetwork(c libnetwork.NetworkController, s string, by int) (libnetwork.N
 		panic(fmt.Sprintf("unexpected selector for network search: %d", by))
 	}
 	if err != nil {
-		if err == libnetwork.ErrNoSuchNetwork {
+		if _, ok := err.(libnetwork.ErrNoSuchNetwork); ok {
 			return nil, &responseStatus{Status: "Resource not found: Network", StatusCode: http.StatusNotFound}
 		}
 		return nil, &responseStatus{Status: err.Error(), StatusCode: http.StatusBadRequest}
@@ -463,7 +464,7 @@ func findEndpoint(c libnetwork.NetworkController, ns, es string, nwBy, epBy int)
 		panic(fmt.Sprintf("unexpected selector for endpoint search: %d", epBy))
 	}
 	if err != nil {
-		if err == libnetwork.ErrNoSuchEndpoint {
+		if _, ok := err.(libnetwork.ErrNoSuchEndpoint); ok {
 			return nil, &responseStatus{Status: "Resource not found: Endpoint", StatusCode: http.StatusNotFound}
 		}
 		return nil, &responseStatus{Status: err.Error(), StatusCode: http.StatusBadRequest}
@@ -472,9 +473,26 @@ func findEndpoint(c libnetwork.NetworkController, ns, es string, nwBy, epBy int)
 }
 
 func convertNetworkError(err error) *responseStatus {
-	// No real libnetwork error => http error code conversion for now.
-	// Will came in later when new interface for libnetwork error is vailable
-	return &responseStatus{Status: err.Error(), StatusCode: http.StatusBadRequest}
+	var code int
+	switch err.(type) {
+	case types.BadRequestError:
+		code = http.StatusBadRequest
+	case types.ForbiddenError:
+		code = http.StatusForbidden
+	case types.NotFoundError:
+		code = http.StatusNotFound
+	case types.TimeoutError:
+		code = http.StatusRequestTimeout
+	case types.NotImplementedError:
+		code = http.StatusNotImplemented
+	case types.NoServiceError:
+		code = http.StatusServiceUnavailable
+	case types.InternalError:
+		code = http.StatusInternalServerError
+	default:
+		code = http.StatusInternalServerError
+	}
+	return &responseStatus{Status: err.Error(), StatusCode: code}
 }
 
 func writeJSON(w http.ResponseWriter, code int, v interface{}) error {

@@ -177,8 +177,8 @@ func TestCreateDeleteNetwork(t *testing.T) {
 	if errRsp == &createdResponse {
 		t.Fatalf("Expected to fail but succeeded")
 	}
-	if errRsp.StatusCode != http.StatusBadRequest {
-		t.Fatalf("Expected StatusBadRequest status code, got: %v", errRsp.StatusCode)
+	if errRsp.StatusCode != http.StatusNotFound {
+		t.Fatalf("Expected StatusNotFound status code, got: %v", errRsp)
 	}
 
 	ops := make(map[string]interface{})
@@ -1387,5 +1387,94 @@ func TestEndToEnd(t *testing.T) {
 	}
 	if epr.Name != "ep-TwentyTwo" || epr.ID != eid {
 		t.Fatalf("Incongruent resource found: %v", epr)
+	}
+}
+
+type bre struct{}
+
+func (b *bre) Error() string {
+	return "I am a bad request error"
+}
+func (b *bre) BadRequest() {}
+
+type nfe struct{}
+
+func (n *nfe) Error() string {
+	return "I am a not found error"
+}
+func (n *nfe) NotFound() {}
+
+type forb struct{}
+
+func (f *forb) Error() string {
+	return "I am a bad request error"
+}
+func (f *forb) Forbidden() {}
+
+type notimpl struct{}
+
+func (nip *notimpl) Error() string {
+	return "I am a not implemented error"
+}
+func (nip *notimpl) NotImplemented() {}
+
+type inter struct{}
+
+func (it *inter) Error() string {
+	return "I am a internal error"
+}
+func (it *inter) Internal() {}
+
+type tout struct{}
+
+func (to *tout) Error() string {
+	return "I am a timeout error"
+}
+func (to *tout) Timeout() {}
+
+type noserv struct{}
+
+func (nos *noserv) Error() string {
+	return "I am a no service error"
+}
+func (nos *noserv) NoService() {}
+
+type notclassified struct{}
+
+func (noc *notclassified) Error() string {
+	return "I am a non classified error"
+}
+
+func TestErrorConversion(t *testing.T) {
+	if convertNetworkError(new(bre)).StatusCode != http.StatusBadRequest {
+		t.Fatalf("Failed to recognize BadRequest error")
+	}
+
+	if convertNetworkError(new(nfe)).StatusCode != http.StatusNotFound {
+		t.Fatalf("Failed to recognize NotFound error")
+	}
+
+	if convertNetworkError(new(forb)).StatusCode != http.StatusForbidden {
+		t.Fatalf("Failed to recognize Forbidden error")
+	}
+
+	if convertNetworkError(new(notimpl)).StatusCode != http.StatusNotImplemented {
+		t.Fatalf("Failed to recognize NotImplemented error")
+	}
+
+	if convertNetworkError(new(inter)).StatusCode != http.StatusInternalServerError {
+		t.Fatalf("Failed to recognize Internal error")
+	}
+
+	if convertNetworkError(new(tout)).StatusCode != http.StatusRequestTimeout {
+		t.Fatalf("Failed to recognize Timeout error")
+	}
+
+	if convertNetworkError(new(noserv)).StatusCode != http.StatusServiceUnavailable {
+		t.Fatalf("Failed to recognize No Service error")
+	}
+
+	if convertNetworkError(new(notclassified)).StatusCode != http.StatusInternalServerError {
+		t.Fatalf("Failed to recognize not classified error as Internal error")
 	}
 }
