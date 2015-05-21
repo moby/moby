@@ -70,11 +70,21 @@ func parseBindMount(spec string, config *runconfig.Config) (*mountPoint, error) 
 		return nil, fmt.Errorf("Invalid volume specification: %s", spec)
 	}
 
-	if !filepath.IsAbs(arr[0]) {
-		return nil, fmt.Errorf("cannot bind mount volume: %s volume paths must be absolute.", spec)
+	name, source, err := parseVolumeSource(arr[0], config)
+	if err != nil {
+		return nil, err
 	}
 
-	bind.Source = filepath.Clean(arr[0])
+	if len(source) == 0 {
+		bind.Driver = config.VolumeDriver
+		if len(bind.Driver) == 0 {
+			bind.Driver = volume.DefaultDriverName
+		}
+	} else {
+		bind.Source = filepath.Clean(source)
+	}
+
+	bind.Name = name
 	bind.Destination = filepath.Clean(bind.Destination)
 	return bind, nil
 }
@@ -245,7 +255,8 @@ func (daemon *Daemon) verifyOldVolumesInfo(container *Container) error {
 		if strings.HasPrefix(hostPath, vfsPath) {
 			id := filepath.Base(hostPath)
 
-			container.addLocalMountPoint(id, destination, vols.VolumesRW[destination])
+			rw := vols.VolumesRW != nil && vols.VolumesRW[destination]
+			container.addLocalMountPoint(id, destination, rw)
 		}
 	}
 
@@ -254,6 +265,7 @@ func (daemon *Daemon) verifyOldVolumesInfo(container *Container) error {
 
 func createVolume(name, driverName string) (volume.Volume, error) {
 	vd, err := getVolumeDriver(driverName)
+
 	if err != nil {
 		return nil, err
 	}
