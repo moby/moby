@@ -16,7 +16,7 @@ type byName []command
 
 var (
 	flDaemon   = flag.Bool([]string{"d", "-daemon"}, false, "Enable daemon mode")
-	flHost     = flag.String([]string{"H", "-Host"}, "", "Daemon socket to connect to")
+	flHost     = flag.String([]string{"H", "-host"}, "", "Daemon socket to connect to")
 	flLogLevel = flag.String([]string{"l", "-log-level"}, "info", "Set the logging level")
 	flDebug    = flag.Bool([]string{"D", "-debug"}, false, "Enable debug mode")
 	flHelp     = flag.Bool([]string{"h", "-help"}, false, "Print usage")

@@ -35,7 +35,6 @@ type networkCreate struct {
 // endpointCreate represents the body of the "create endpoint" http request message
 type endpointCreate struct {
 	Name         string
-	NetworkID    string
 	ExposedPorts []types.TransportPort
 	PortMapping  []types.PortBinding
 }

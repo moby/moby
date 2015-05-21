@@ -114,9 +114,7 @@ func (d *dnetConnection) dnetDaemon() error {
 	httpHandler := api.NewHTTPHandler(controller)
 	r := mux.NewRouter().StrictSlash(false)
 	post := r.PathPrefix("/networks").Subrouter()
-	post.Methods("GET").HandlerFunc(httpHandler)
-	post.Methods("PUT", "POST").HandlerFunc(httpHandler)
-	post.Methods("DELETE").HandlerFunc(httpHandler)
+	post.Methods("GET", "PUT", "POST", "DELETE").HandlerFunc(httpHandler)
 	return http.ListenAndServe(d.addr, r)
 }
 
