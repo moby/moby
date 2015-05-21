@@ -311,6 +311,24 @@ options for `zfs` start with `zfs`.
 
 Currently supported options of `devicemapper`:
 
+ *  `dm.thinpooldev`
+
+    Specifies a custom blockdevice to use for the thin pool.
+
+    If using a block device for device mapper storage, ideally lvm2
+    would be used to create/manage the thin-pool volume that is then
+    handed to docker to exclusively create/manage the thin and thin
+    snapshot volumes needed for its containers.  Managing the
+    thin-pool outside of docker makes for the most feature-rich method
+    of having docker utilize device mapper thin provisioning as the
+    backing storage for docker's containers.  lvm2-based thin-pool
+    management feature highlights include: automatic or interactive
+    thin-pool resize support, dynamically change thin-pool features,
+    automatic thinp metadata checking when lvm2 activates the
+    thin-pool, etc.
+
+    Example use: ``docker -d --storage-opt dm.thinpooldev=/dev/mapper/thin-pool``
+
  *  `dm.basesize`
 
     Specifies the size to use when creating the base device, which limits the
@@ -333,6 +351,9 @@ Currently supported options of `devicemapper`:
 
  *  `dm.loopdatasize`
 
+    Note: This option configures devicemapper loopback, which is not for
+    production use.
+
     Specifies the size to use when creating the loopback file for the "data"
     device which is used for the thin pool. The default size is 100G. Note that
     the file is sparse, so it will not initially take up this much space.
@@ -342,6 +363,9 @@ Currently supported options of `devicemapper`:
         $ docker -d --storage-opt dm.loopdatasize=200G
 
  *  `dm.loopmetadatasize`
+
+    Note: This option configures devicemapper loopback, which is not for
+    production use.
 
     Specifies the size to use when creating the loopback file for the
     "metadata" device which is used for the thin pool. The default size is 2G.
@@ -379,6 +403,8 @@ Currently supported options of `devicemapper`:
 
  *  `dm.datadev`
 
+    (Deprecated, use `dm.thinpooldev`)
+
     Specifies a custom blockdevice to use for data for the thin pool.
 
     If using a block device for device mapper storage, ideally both datadev and
@@ -392,6 +418,8 @@ Currently supported options of `devicemapper`:
             --storage-opt dm.metadatadev=/dev/sdc1
 
  *  `dm.metadatadev`
+
+    (Deprecated, use `dm.thinpooldev`)
 
     Specifies a custom blockdevice to use for metadata for the thin pool.
 
