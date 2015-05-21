@@ -34,6 +34,7 @@ docker-run - Run a command in a new container
 [**--link**[=*[]*]]
 [**--lxc-conf**[=*[]*]]
 [**--log-driver**[=*[]*]]
+[**--log-opt**[=*[]*]]
 [**-m**|**--memory**[=*MEMORY*]]
 [**--memory-swap**[=*MEMORY-SWAP*]]
 [**--mac-address**[=*MAC-ADDRESS*]]
@@ -254,6 +255,9 @@ which interface and port to use.
 **--log-driver**="|*json-file*|*syslog*|*journald*|*none*"
   Logging driver for container. Default is defined by daemon `--log-driver` flag.
   **Warning**: `docker logs` command works only for `json-file` logging driver.
+
+**--log-opt**=[]
+  Logging driver specific options.
 
 **-m**, **--memory**=""
    Memory limit (format: <number><optional unit>, where unit = b, k, m or g)

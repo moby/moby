@@ -105,6 +105,9 @@ unix://[/path/to/socket] to use.
   Default driver for container logs. Default is `json-file`.
   **Warning**: `docker logs` command works only for `json-file` logging driver.
 
+**--log-opt**=[]
+  Logging driver specific options.
+
 **--mtu**=VALUE
   Set the containers network mtu. Default is `0`.
 
