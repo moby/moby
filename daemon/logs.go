@@ -32,6 +32,7 @@ func (daemon *Daemon) ContainerLogs(name string, config *ContainerLogsConfig) er
 		lines  = -1
 		format string
 	)
+
 	if !(config.UseStdout || config.UseStderr) {
 		return fmt.Errorf("You must choose at least one stream")
 	}
@@ -47,6 +48,10 @@ func (daemon *Daemon) ContainerLogs(name string, config *ContainerLogsConfig) er
 		return err
 	}
 
+	if container.LogDriverType() != jsonfilelog.Name {
+		return fmt.Errorf("\"logs\" endpoint is supported only for \"json-file\" logging driver")
+	}
+
 	var (
 		outStream = config.OutStream
 		errStream io.Writer
@@ -58,9 +63,6 @@ func (daemon *Daemon) ContainerLogs(name string, config *ContainerLogsConfig) er
 		errStream = outStream
 	}
 
-	if container.LogDriverType() != jsonfilelog.Name {
-		return fmt.Errorf("\"logs\" endpoint is supported only for \"json-file\" logging driver")
-	}
 	logDriver, err := container.getLogger()
 	cLog, err := logDriver.GetReader()
 	if err != nil {
