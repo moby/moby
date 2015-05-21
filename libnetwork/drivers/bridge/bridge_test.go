@@ -194,8 +194,12 @@ func testQueryEndpointInfo(t *testing.T, ulPxyEnabled bool) {
 		t.Fatalf("Failed to create an endpoint : %s", err.Error())
 	}
 
-	ep, _ := dd.network.endpoints["ep1"]
-	data, err := d.EndpointOperInfo(dd.network.id, ep.id)
+	network, ok := dd.networks["net1"]
+	if !ok {
+		t.Fatalf("Cannot find network %s inside driver", "net1")
+	}
+	ep, _ := network.endpoints["ep1"]
+	data, err := d.EndpointOperInfo(network.id, ep.id)
 	if err != nil {
 		t.Fatalf("Failed to ask for endpoint operational data:  %v", err)
 	}

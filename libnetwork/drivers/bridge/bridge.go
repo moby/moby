@@ -86,8 +86,9 @@ type bridgeNetwork struct {
 }
 
 type driver struct {
-	config  *configuration
-	network *bridgeNetwork
+	config   *configuration
+	network  *bridgeNetwork
+	networks map[types.UUID]*bridgeNetwork
 	sync.Mutex
 }
 
@@ -98,7 +99,7 @@ func init() {
 
 // New constructs a new bridge driver
 func newDriver() driverapi.Driver {
-	return &driver{}
+	return &driver{networks: map[types.UUID]*bridgeNetwork{}}
 }
 
 // Init registers a new instance of bridge driver
@@ -144,6 +145,27 @@ func (c *networkConfiguration) Validate() error {
 	}
 
 	return nil
+}
+
+// Conflict check if two NetworkConfiguration objects overlap in the multinetwork
+func (c *networkConfiguration) Conflict(o *networkConfiguration) bool {
+	if o == nil {
+		return false
+	}
+
+	// Also empty, becasue only one network with empty name is allowed
+	if c.BridgeName == o.BridgeName {
+		return true
+	}
+
+	// They must be in different subnets
+
+	if (c.AddressIPv4 != nil && o.AddressIPv4.IP != nil) &&
+		(c.AddressIPv4.Contains(o.AddressIPv4.IP) || o.AddressIPv4.Contains(c.AddressIPv4.IP)) {
+		return true
+	}
+
+	return false
 }
 
 // FromMap retrieve the configuration data from the map form.
@@ -340,11 +362,18 @@ func (d *driver) Config(option map[string]interface{}) error {
 }
 
 func (d *driver) getNetwork(id types.UUID) (*bridgeNetwork, error) {
-	// Just a dummy function to return the only network managed by Bridge driver.
-	// But this API makes the caller code unchanged when we move to support multiple networks.
 	d.Lock()
 	defer d.Unlock()
-	return d.network, nil
+
+	if id == "" {
+		return nil, types.BadRequestErrorf("invalid network id: %s", id)
+	}
+
+	if nw, ok := d.networks[id]; ok {
+		return nw, nil
+	}
+
+	return nil, nil
 }
 
 func parseNetworkOptions(option options.Generic) (*networkConfiguration, error) {
@@ -387,34 +416,70 @@ func (d *driver) CreateNetwork(id types.UUID, option map[string]interface{}) err
 	d.Lock()
 
 	// Sanity checks
-	if d.network != nil {
+	if _, ok := d.networks[id]; ok {
 		d.Unlock()
-		return &ErrNetworkExists{}
+		return types.ForbiddenErrorf("network %s exists", id)
+	}
+
+	// Parse and validate the config. It should not conflict with existing networks' config
+	config, err := parseNetworkOptions(option)
+	if err != nil {
+		d.Unlock()
+		return err
+	}
+	for _, nw := range d.networks {
+		if nw.config.Conflict(config) {
+			d.Unlock()
+			return types.ForbiddenErrorf("conflicts with network %s (%s)", nw.id, nw.config.BridgeName)
+		}
 	}
 
 	// Create and set network handler in driver
-	d.network = &bridgeNetwork{id: id, endpoints: make(map[types.UUID]*bridgeEndpoint)}
-	network := d.network
+	network := &bridgeNetwork{id: id, endpoints: make(map[types.UUID]*bridgeEndpoint), config: config}
+	d.networks[id] = network
 	d.Unlock()
 
 	// On failure make sure to reset driver network handler to nil
 	defer func() {
 		if err != nil {
 			d.Lock()
-			d.network = nil
+			delete(d.networks, id)
 			d.Unlock()
 		}
 	}()
 
-	config, err := parseNetworkOptions(option)
-	if err != nil {
-		return err
-	}
-	network.config = config
-
 	// Create or retrieve the bridge L3 interface
 	bridgeIface := newInterface(config)
 	network.bridge = bridgeIface
+
+	// Verify network does not conflict with previously configured networks
+	// on parameters that were chosen by the driver.
+	d.Lock()
+	for _, nw := range d.networks {
+		if nw.id == id {
+			continue
+		}
+		// Verify the name (which may have been set by newInterface()) does not conflict with
+		// existing bridge interfaces. Ironically the system chosen name gets stored in the config...
+		// Basically we are checking if the two original configs were both empty.
+		if nw.config.BridgeName == config.BridgeName {
+			d.Unlock()
+			return types.ForbiddenErrorf("conflicts with network %s (%s)", nw.id, nw.config.BridgeName)
+		}
+		// If this network config specifies the AddressIPv4, we need
+		// to make sure it does not conflict with any previously allocated
+		// bridges. This could not be completely caught by the config conflict
+		// check, because networks which config does not specify the AddressIPv4
+		// get their address and subnet selected by the driver (see electBridgeIPv4())
+		if config.AddressIPv4 != nil {
+			if nw.bridge.bridgeIPv4.Contains(config.AddressIPv4.IP) ||
+				config.AddressIPv4.Contains(nw.bridge.bridgeIPv4.IP) {
+				d.Unlock()
+				return types.ForbiddenErrorf("conflicts with network %s (%s)", nw.id, nw.config.BridgeName)
+			}
+		}
+	}
+	d.Unlock()
 
 	// Prepare the bridge setup configuration
 	bridgeSetup := newBridgeSetup(config, bridgeIface)
@@ -485,8 +550,12 @@ func (d *driver) DeleteNetwork(nid types.UUID) error {
 
 	// Get network handler and remove it from driver
 	d.Lock()
-	n := d.network
-	d.network = nil
+	n, ok := d.networks[nid]
+	if !ok {
+		d.Unlock()
+		return types.InternalMaskableErrorf("network %s does not exist", nid)
+	}
+	delete(d.networks, nid)
 	d.Unlock()
 
 	// On failure set network handler back in driver, but
@@ -494,8 +563,8 @@ func (d *driver) DeleteNetwork(nid types.UUID) error {
 	defer func() {
 		if err != nil {
 			d.Lock()
-			if d.network == nil {
-				d.network = n
+			if _, ok := d.networks[nid]; !ok {
+				d.networks[nid] = n
 			}
 			d.Unlock()
 		}
@@ -535,7 +604,11 @@ func (d *driver) CreateEndpoint(nid, eid types.UUID, epInfo driverapi.EndpointIn
 
 	// Get the network handler and make sure it exists
 	d.Lock()
-	n := d.network
+	n, ok := d.networks[nid]
+	if !ok {
+		d.Unlock()
+		return types.NotFoundErrorf("network %s does not exist", nid)
+	}
 	config := n.config
 	d.Unlock()
 	if n == nil {
@@ -716,7 +789,11 @@ func (d *driver) DeleteEndpoint(nid, eid types.UUID) error {
 
 	// Get the network handler and make sure it exists
 	d.Lock()
-	n := d.network
+	n, ok := d.networks[nid]
+	if !ok {
+		d.Unlock()
+		return types.NotFoundErrorf("network %s does not exist", nid)
+	}
 	config := n.config
 	d.Unlock()
 	if n == nil {
@@ -787,7 +864,11 @@ func (d *driver) DeleteEndpoint(nid, eid types.UUID) error {
 func (d *driver) EndpointOperInfo(nid, eid types.UUID) (map[string]interface{}, error) {
 	// Get the network handler and make sure it exists
 	d.Lock()
-	n := d.network
+	n, ok := d.networks[nid]
+	if !ok {
+		d.Unlock()
+		return nil, types.NotFoundErrorf("network %s does not exist", nid)
+	}
 	d.Unlock()
 	if n == nil {
 		return nil, driverapi.ErrNoNetwork(nid)
