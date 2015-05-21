@@ -482,6 +482,43 @@ func TestGetNetworksAndEndpoints(t *testing.T) {
 	}
 }
 
+func TestDetectGetNetworksInvalidQueryComposition(t *testing.T) {
+	c, err := libnetwork.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	vars := map[string]string{urlNwName: "x", urlNwPID: "y"}
+	_, errRsp := procGetNetworks(c, vars, nil)
+	if errRsp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("Expected %d. Got: %v", http.StatusBadRequest, errRsp)
+	}
+}
+
+func TestDetectGetEndpointsInvalidQueryComposition(t *testing.T) {
+	defer netutils.SetupTestNetNS(t)()
+
+	c, err := libnetwork.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = c.ConfigureNetworkDriver(bridgeNetType, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = c.NewNetwork(bridgeNetType, "network", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	vars := map[string]string{urlNwName: "network", urlEpName: "x", urlEpPID: "y"}
+	_, errRsp := procGetEndpoints(c, vars, nil)
+	if errRsp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("Expected %d. Got: %v", http.StatusBadRequest, errRsp)
+	}
+}
+
 func TestFindNetworkUtil(t *testing.T) {
 	defer netutils.SetupTestNetNS(t)()
 
@@ -1281,6 +1318,29 @@ func TestEndToEnd(t *testing.T) {
 		t.Fatalf("Incongruent resource found: %v", list[0])
 	}
 
+	// Query network by partial id
+	chars := []byte(nid)
+	partial := string(chars[0 : len(chars)/2])
+	req, err = http.NewRequest("GET", "/networks?partial-id="+partial, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	handleRequest(rsp, req)
+	if rsp.statusCode != http.StatusOK {
+		t.Fatalf("Unexpectded failure: (%d): %s", rsp.statusCode, rsp.body)
+	}
+
+	err = json.Unmarshal(rsp.body, &list)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(list) == 0 {
+		t.Fatalf("Expected non empty list")
+	}
+	if list[0].Name != "network-fiftyfive" || nid != list[0].ID {
+		t.Fatalf("Incongruent resource found: %v", list[0])
+	}
+
 	// Get network by id
 	req, err = http.NewRequest("GET", "/networks/"+nid, nil)
 	if err != nil {
@@ -1354,6 +1414,29 @@ func TestEndToEnd(t *testing.T) {
 
 	// Query endpoint by name
 	req, err = http.NewRequest("GET", "/networks/"+nid+"/endpoints?name=ep-TwentyTwo", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	handleRequest(rsp, req)
+	if rsp.statusCode != http.StatusOK {
+		t.Fatalf("Unexpectded failure: (%d): %s", rsp.statusCode, rsp.body)
+	}
+
+	err = json.Unmarshal(rsp.body, &epList)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(epList) == 0 {
+		t.Fatalf("Empty response body")
+	}
+	if epList[0].Name != "ep-TwentyTwo" || eid != epList[0].ID {
+		t.Fatalf("Incongruent resource found: %v", epList[0])
+	}
+
+	// Query endpoint by partial id
+	chars = []byte(eid)
+	partial = string(chars[0 : len(chars)/2])
+	req, err = http.NewRequest("GET", "/networks/"+nid+"/endpoints?partial-id="+partial, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
