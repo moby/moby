@@ -18,6 +18,7 @@ import (
 	"github.com/docker/distribution/registry/api/v2"
 	"github.com/docker/distribution/registry/client/transport"
 	"github.com/docker/distribution/registry/storage/cache"
+	"github.com/docker/distribution/registry/storage/cache/memory"
 )
 
 // NewRepository creates a new Repository for the given repository name and base URL
@@ -66,7 +67,7 @@ func (r *repository) Blobs(ctx context.Context) distribution.BlobStore {
 		name:    r.Name(),
 		ub:      r.ub,
 		client:  r.client,
-		statter: cache.NewCachedBlobStatter(cache.NewInMemoryBlobDescriptorCacheProvider(), statter),
+		statter: cache.NewCachedBlobStatter(memory.NewInMemoryBlobDescriptorCacheProvider(), statter),
 	}
 }
 
