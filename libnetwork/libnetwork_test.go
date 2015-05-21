@@ -1277,6 +1277,10 @@ func TestValidRemoteDriver(t *testing.T) {
 		w.Header().Set("Content-Type", "application/vnd.docker.plugins.v1+json")
 		fmt.Fprintf(w, `{"Implements": ["%s"]}`, driverapi.NetworkPluginEndpointType)
 	})
+	mux.HandleFunc(fmt.Sprintf("/%s.CreateNetwork", driverapi.NetworkPluginEndpointType), func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/vnd.docker.plugins.v1+json")
+		fmt.Fprintf(w, "null")
+	})
 
 	if err := os.MkdirAll("/usr/share/docker/plugins", 0755); err != nil {
 		t.Fatal(err)
@@ -1299,9 +1303,7 @@ func TestValidRemoteDriver(t *testing.T) {
 	_, err = controller.NewNetwork("valid-network-driver", "dummy",
 		libnetwork.NetworkOptionGeneric(getEmptyGenericOption()))
 	if err != nil {
-		if _, ok := err.(*driverapi.ErrNotImplemented); !ok {
-			t.Fatal(err)
-		}
+		t.Fatal(err)
 	}
 }
 
