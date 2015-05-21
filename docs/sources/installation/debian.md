@@ -41,11 +41,11 @@ container runs, it prints an informational message. Then, it exits.
 
 To uninstall the Docker package:
 
-    $ sudo apt-get purge docker-io
+    $ sudo apt-get purge docker.io
 
 To uninstall the Docker package and dependencies that are no longer needed:
 
-    $ sudo apt-get autoremove --purge docker-io
+    $ sudo apt-get autoremove --purge docker.io
 
 The above commands will not remove images, containers, volumes, or user created
 configuration files on your host. If you wish to delete all images, containers,
