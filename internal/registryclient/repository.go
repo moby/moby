@@ -22,7 +22,7 @@ import (
 
 // NewRepository creates a new Repository for the given repository name and base URL
 func NewRepository(ctx context.Context, name, baseURL string, transport http.RoundTripper) (distribution.Repository, error) {
-	if err := v2.ValidateRespositoryName(name); err != nil {
+	if err := v2.ValidateRepositoryName(name); err != nil {
 		return nil, err
 	}
 
