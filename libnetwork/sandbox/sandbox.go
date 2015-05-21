@@ -20,7 +20,9 @@ type Sandbox interface {
 
 	// Add an existing Interface to this sandbox. The operation will rename
 	// from the Interface SrcName to DstName as it moves, and reconfigure the
-	// interface according to the specified settings.
+	// interface according to the specified settings. The caller is expected
+	// to only provide a prefix for DstName. The AddInterface api will auto-generate
+	// an appropriate suffix for the DstName to disambiguate.
 	AddInterface(*Interface) error
 
 	// Remove an interface from the sandbox by renamin to original name
@@ -62,7 +64,9 @@ type Interface struct {
 	SrcName string
 
 	// The name that will be assigned to the interface once moves inside a
-	// network namespace.
+	// network namespace. When the caller passes in a DstName, it is only
+	// expected to pass a prefix. The name will modified with an appropriately
+	// auto-generated suffix.
 	DstName string
 
 	// IPv4 address for the interface.

@@ -21,7 +21,7 @@ const (
 	networkType             = "bridge"
 	vethPrefix              = "veth"
 	vethLen                 = 7
-	containerVeth           = "eth0"
+	containerVethPrefix     = "eth"
 	maxAllocatePortAttempts = 10
 	ifaceID                 = 1
 )
@@ -545,7 +545,7 @@ func (d *driver) CreateEndpoint(nid, eid types.UUID, epInfo driverapi.EndpointIn
 	// Create the sandbox side pipe interface
 	intf := &sandbox.Interface{}
 	intf.SrcName = name2
-	intf.DstName = containerVeth
+	intf.DstName = containerVethPrefix
 	intf.Address = ipv4Addr
 
 	if config.EnableIPv6 {
