@@ -290,3 +290,36 @@ func (s *DockerSuite) TestCreateHostnameWithNumber(c *check.C) {
 		c.Fatalf("hostname not set, expected `web.0`, got: %s", out)
 	}
 }
+
+func (s *DockerSuite) TestCreateRM(c *check.C) {
+	// Test to make sure we can 'rm' a new container that is in
+	// "Created" state, and has ever been run. Test "rm -f" too.
+
+	// create a container
+	createCmd := exec.Command(dockerBinary, "create", "busybox")
+	out, _, err := runCommandWithOutput(createCmd)
+	if err != nil {
+		c.Fatalf("Failed to create container:%s\n%s", out, err)
+	}
+	cID := strings.TrimSpace(out)
+
+	rmCmd := exec.Command(dockerBinary, "rm", cID)
+	out, _, err = runCommandWithOutput(rmCmd)
+	if err != nil {
+		c.Fatalf("Failed to rm container:%s\n%s", out, err)
+	}
+
+	// Now do it again so we can "rm -f" this time
+	createCmd = exec.Command(dockerBinary, "create", "busybox")
+	out, _, err = runCommandWithOutput(createCmd)
+	if err != nil {
+		c.Fatalf("Failed to create 2nd container:%s\n%s", out, err)
+	}
+
+	cID = strings.TrimSpace(out)
+	rmCmd = exec.Command(dockerBinary, "rm", "-f", cID)
+	out, _, err = runCommandWithOutput(rmCmd)
+	if err != nil {
+		c.Fatalf("Failed to rm -f container:%s\n%s", out, err)
+	}
+}
