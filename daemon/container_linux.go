@@ -761,7 +761,9 @@ func (container *Container) AllocateNetwork() error {
 		return fmt.Errorf("Updating join info failed: %v", err)
 	}
 
-	container.WriteHostConfig()
+	if err := container.WriteHostConfig(); err != nil {
+		return err
+	}
 
 	return nil
 }
