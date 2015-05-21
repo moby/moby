@@ -40,12 +40,12 @@ type InterfaceInfo interface {
 }
 
 type endpointInterface struct {
-	id      int
-	mac     net.HardwareAddr
-	addr    net.IPNet
-	addrv6  net.IPNet
-	srcName string
-	dstName string
+	id        int
+	mac       net.HardwareAddr
+	addr      net.IPNet
+	addrv6    net.IPNet
+	srcName   string
+	dstPrefix string
 }
 
 type endpointJoinInfo struct {
@@ -130,9 +130,9 @@ func (i *endpointInterface) AddressIPv6() net.IPNet {
 	return (*types.GetIPNetCopy(&i.addrv6))
 }
 
-func (i *endpointInterface) SetNames(srcName string, dstName string) error {
+func (i *endpointInterface) SetNames(srcName string, dstPrefix string) error {
 	i.srcName = srcName
-	i.dstName = dstName
+	i.dstPrefix = dstPrefix
 	return nil
 }
 

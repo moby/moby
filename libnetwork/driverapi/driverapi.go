@@ -83,8 +83,8 @@ type InterfaceInfo interface {
 // InterfaceNameInfo provides a go interface for the drivers to assign names
 // to interfaces.
 type InterfaceNameInfo interface {
-	// SetNames method assigns the srcName and dstName for the interface.
-	SetNames(srcName, dstName string) error
+	// SetNames method assigns the srcName and dstPrefix for the interface.
+	SetNames(srcName, dstPrefix string) error
 
 	// ID returns the numerical id that was assigned to the interface by the driver
 	// CreateEndpoint.

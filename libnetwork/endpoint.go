@@ -291,7 +291,7 @@ func (ep *endpoint) Join(containerID string, options ...EndpointOption) (*Contai
 	for _, i := range ifaces {
 		iface := &sandbox.Interface{
 			SrcName: i.srcName,
-			DstName: i.dstName,
+			DstName: i.dstPrefix,
 			Address: &i.addr,
 		}
 		if i.addrv6.IP.To16() != nil {

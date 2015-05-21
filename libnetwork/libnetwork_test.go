@@ -23,6 +23,7 @@ import (
 	"github.com/docker/libnetwork/netutils"
 	"github.com/docker/libnetwork/options"
 	"github.com/docker/libnetwork/types"
+	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netns"
 )
 
@@ -730,6 +731,35 @@ func TestNetworkQuery(t *testing.T) {
 
 const containerID = "valid_container"
 
+func checkSandbox(t *testing.T, info libnetwork.EndpointInfo) {
+	origns, err := netns.Get()
+	if err != nil {
+		t.Fatalf("Could not get the current netns: %v", err)
+	}
+	defer origns.Close()
+
+	key := info.SandboxKey()
+	f, err := os.OpenFile(key, os.O_RDONLY, 0)
+	if err != nil {
+		t.Fatalf("Failed to open network namespace path %q: %v", key, err)
+	}
+	defer f.Close()
+
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+
+	nsFD := f.Fd()
+	if err = netns.Set(netns.NsHandle(nsFD)); err != nil {
+		t.Fatalf("Setting to the namespace pointed to by the sandbox %s failed: %v", key, err)
+	}
+	defer netns.Set(origns)
+
+	_, err = netlink.LinkByName("eth0")
+	if err != nil {
+		t.Fatalf("Could not find the interface eth0 inside the sandbox: %v", err)
+	}
+}
+
 func TestEndpointJoin(t *testing.T) {
 	if !netutils.IsRunningInContainer() {
 		defer netutils.SetupTestNetNS(t)()
@@ -786,6 +816,8 @@ func TestEndpointJoin(t *testing.T) {
 	if info.SandboxKey() == "" {
 		t.Fatalf("Expected an non-empty sandbox key for a joined endpoint. Instead found a empty sandbox key")
 	}
+
+	checkSandbox(t, info)
 }
 
 func TestEndpointJoinInvalidContainerId(t *testing.T) {
