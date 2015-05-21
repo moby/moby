@@ -167,6 +167,9 @@ func TestCreateDeleteNetwork(t *testing.T) {
 	if errRsp == &createdResponse {
 		t.Fatalf("Expected to fail but succeeded")
 	}
+	if errRsp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("Expected StatusBadRequest status code, got: %v", errRsp)
+	}
 
 	incompleteBody, err := json.Marshal(networkCreate{})
 	if err != nil {
@@ -177,8 +180,8 @@ func TestCreateDeleteNetwork(t *testing.T) {
 	if errRsp == &createdResponse {
 		t.Fatalf("Expected to fail but succeeded")
 	}
-	if errRsp.StatusCode != http.StatusNotFound {
-		t.Fatalf("Expected StatusNotFound status code, got: %v", errRsp)
+	if errRsp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("Expected StatusBadRequest status code, got: %v", errRsp)
 	}
 
 	ops := make(map[string]interface{})
