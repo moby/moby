@@ -1,4 +1,4 @@
-package transport
+package auth
 
 import (
 	"net/http"
@@ -13,7 +13,7 @@ func TestAuthChallengeParse(t *testing.T) {
 	if len(challenges) != 1 {
 		t.Fatalf("Unexpected number of auth challenges: %d, expected 1", len(challenges))
 	}
-	challenge := challenges["bearer"]
+	challenge := challenges[0]
 
 	if expected := "bearer"; challenge.Scheme != expected {
 		t.Fatalf("Unexpected scheme: %s, expected: %s", challenge.Scheme, expected)

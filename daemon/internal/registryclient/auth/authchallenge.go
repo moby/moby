@@ -1,6 +1,7 @@
-package transport
+package auth
 
 import (
+	"fmt"
 	"net/http"
 	"strings"
 )
@@ -8,10 +9,13 @@ import (
 // Octet types from RFC 2616.
 type octetType byte
 
-// authorizationChallenge carries information
-// from a WWW-Authenticate response header.
-type authorizationChallenge struct {
-	Scheme     string
+// Challenge carries information from a WWW-Authenticate response header.
+// See RFC 2617.
+type Challenge struct {
+	// Scheme is the auth-scheme according to RFC 2617
+	Scheme string
+
+	// Parameters are the auth-params according to RFC 2617
 	Parameters map[string]string
 }
 
@@ -54,12 +58,44 @@ func init() {
 	}
 }
 
-func parseAuthHeader(header http.Header) map[string]authorizationChallenge {
-	challenges := map[string]authorizationChallenge{}
+// Ping pings the provided endpoint to determine its required authorization challenges.
+// If a version header is provided, the versions will be returned.
+func Ping(client *http.Client, endpoint, versionHeader string) ([]Challenge, []string, error) {
+	req, err := http.NewRequest("GET", endpoint, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer resp.Body.Close()
+
+	versions := []string{}
+	if versionHeader != "" {
+		for _, supportedVersions := range resp.Header[http.CanonicalHeaderKey(versionHeader)] {
+			versions = append(versions, strings.Fields(supportedVersions)...)
+		}
+	}
+
+	if resp.StatusCode == http.StatusUnauthorized {
+		// Parse the WWW-Authenticate Header and store the challenges
+		// on this endpoint object.
+		return parseAuthHeader(resp.Header), versions, nil
+	} else if resp.StatusCode != http.StatusOK {
+		return nil, versions, fmt.Errorf("unable to get valid ping response: %d", resp.StatusCode)
+	}
+
+	return nil, versions, nil
+}
+
+func parseAuthHeader(header http.Header) []Challenge {
+	challenges := []Challenge{}
 	for _, h := range header[http.CanonicalHeaderKey("WWW-Authenticate")] {
 		v, p := parseValueAndParams(h)
 		if v != "" {
-			challenges[v] = authorizationChallenge{Scheme: v, Parameters: p}
+			challenges = append(challenges, Challenge{Scheme: v, Parameters: p})
 		}
 	}
 	return challenges
