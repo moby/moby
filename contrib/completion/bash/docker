@@ -27,7 +27,7 @@
 # This order should be applied to lists, alternatives and code blocks.
 
 __docker_q() {
-	docker 2>/dev/null "$@"
+	docker ${host:+-H "$host"} 2>/dev/null "$@"
 }
 
 __docker_containers_all() {
@@ -1183,6 +1183,7 @@ _docker() {
 	"
 
 	local main_options_with_args_glob=$(__docker_to_extglob "$main_options_with_args")
+	local host
 
 	COMPREPLY=()
 	local cur prev words cword
@@ -1192,6 +1193,11 @@ _docker() {
 	local counter=1
 	while [ $counter -lt $cword ]; do
 		case "${words[$counter]}" in
+			# save host so that completion can use custom daemon
+			--host|-H)
+				(( counter++ ))
+				host="${words[$counter]}"
+				;;
 			$main_options_with_args_glob )
 				(( counter++ ))
 				;;
