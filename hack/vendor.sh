@@ -71,6 +71,8 @@ mv tmp-api src/github.com/docker/distribution/registry/api
 
 clone git github.com/docker/libcontainer a37b2a4f152e2a1c9de596f54c051cb889de0691
 # libcontainer deps (see src/github.com/docker/libcontainer/update-vendor.sh)
+clone git github.com/codegangsta/cli 1.1.0
 clone git github.com/coreos/go-systemd v2
 clone git github.com/godbus/dbus v2
 clone git github.com/syndtr/gocapability 66ef2aa7a23ba682594e2b6f74cf40c0692b49fb
+
