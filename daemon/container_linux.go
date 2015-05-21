@@ -917,6 +917,12 @@ func (container *Container) ReleaseNetwork() {
 		return
 	}
 
+	// If the container is not attached to any network do not try
+	// to release network and generate spurious error messages.
+	if container.NetworkSettings.NetworkID == "" {
+		return
+	}
+
 	n, err := container.daemon.netController.NetworkByID(container.NetworkSettings.NetworkID)
 	if err != nil {
 		logrus.Errorf("error locating network id %s: %v", container.NetworkSettings.NetworkID, err)
