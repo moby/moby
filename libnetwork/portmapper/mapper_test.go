@@ -2,20 +2,15 @@ package portmapper
 
 import (
 	"net"
-	"os"
 	"testing"
-	"time"
 
-	"github.com/docker/docker/pkg/reexec"
 	"github.com/docker/libnetwork/iptables"
-	"github.com/docker/libnetwork/netutils"
+	_ "github.com/docker/libnetwork/netutils"
 )
 
-func TestMain(m *testing.M) {
-	if reexec.Init() {
-		return
-	}
-	os.Exit(m.Run())
+func init() {
+	// override this func to mock out the proxy server
+	newProxy = newMockProxyCommand
 }
 
 func TestSetIptablesChain(t *testing.T) {
@@ -37,7 +32,6 @@ func TestSetIptablesChain(t *testing.T) {
 }
 
 func TestMapTCPPorts(t *testing.T) {
-	defer netutils.SetupTestNetNS(t)()
 	pm := New()
 	dstIP1 := net.ParseIP("192.168.0.1")
 	dstIP2 := net.ParseIP("192.168.0.2")
@@ -117,7 +111,6 @@ func TestGetUDPIPAndPort(t *testing.T) {
 }
 
 func TestMapUDPPorts(t *testing.T) {
-	defer netutils.SetupTestNetNS(t)()
 	pm := New()
 	dstIP1 := net.ParseIP("192.168.0.1")
 	dstIP2 := net.ParseIP("192.168.0.2")
@@ -164,11 +157,6 @@ func TestMapUDPPorts(t *testing.T) {
 }
 
 func TestMapAllPortsSingleInterface(t *testing.T) {
-	newProxy = newMockProxyCommand
-	defer func() {
-		newProxy = newProxyCommand
-	}()
-	defer netutils.SetupTestNetNS(t)()
 	pm := New()
 	dstIP1 := net.ParseIP("0.0.0.0")
 	srcAddr1 := &net.TCPAddr{Port: 1080, IP: net.ParseIP("172.16.0.1")}
@@ -176,6 +164,12 @@ func TestMapAllPortsSingleInterface(t *testing.T) {
 	hosts := []net.Addr{}
 	var host net.Addr
 	var err error
+
+	defer func() {
+		for _, val := range hosts {
+			pm.Unmap(val)
+		}
+	}()
 
 	for i := 0; i < 10; i++ {
 		start, end := pm.Allocator.Begin, pm.Allocator.End
@@ -198,30 +192,5 @@ func TestMapAllPortsSingleInterface(t *testing.T) {
 		}
 
 		hosts = []net.Addr{}
-	}
-}
-
-func TestExecProxy(t *testing.T) {
-	defer netutils.SetupTestNetNS(t)()
-	args := []string{
-		userlandProxyCommandName,
-		"-proto", "tcp",
-		"-host-ip", "0.0.0.0",
-		"-host-port", "9999",
-		"-container-ip", "172.168.1.1",
-		"-container-port", "8888",
-	}
-	os.Args = args
-	doneChan := make(chan bool)
-	go func() {
-		execProxy()
-		doneChan <- true
-	}()
-
-	select {
-	case <-doneChan:
-		t.Fatal("execProxy is not supposed to exit")
-	case <-time.After(3 * time.Second):
-		return
 	}
 }
