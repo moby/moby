@@ -1,4 +1,4 @@
-package transport
+package auth
 
 import (
 	"encoding/base64"
@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"testing"
 
+	"github.com/docker/distribution/registry/client/transport"
 	"github.com/docker/distribution/testutil"
 )
 
@@ -67,17 +68,6 @@ func TestEndpointAuthorizeToken(t *testing.T) {
 	repo2 := "other/registry"
 	scope1 := fmt.Sprintf("repository:%s:pull,push", repo1)
 	scope2 := fmt.Sprintf("repository:%s:pull,push", repo2)
-	tokenScope1 := TokenScope{
-		Resource: "repository",
-		Scope:    repo1,
-		Actions:  []string{"pull", "push"},
-	}
-	tokenScope2 := TokenScope{
-		Resource: "repository",
-		Scope:    repo2,
-		Actions:  []string{"pull", "push"},
-	}
-
 	tokenMap := testutil.RequestResponseMap([]testutil.RequestResponseMapping{
 		{
 			Request: testutil.Request{
@@ -122,7 +112,14 @@ func TestEndpointAuthorizeToken(t *testing.T) {
 	e, c := testServerWithAuth(m, authenicate, validCheck)
 	defer c()
 
-	transport1 := NewTransport(nil, NewAuthorizer(nil, NewTokenHandler(nil, nil, tokenScope1)))
+	challenges1, _, err := Ping(&http.Client{}, e+"/v2/", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	challengeMap1 := map[string][]Challenge{
+		e + "/v2/": challenges1,
+	}
+	transport1 := transport.NewTransport(nil, NewAuthorizer(challengeMap1, NewTokenHandler(nil, nil, repo1, "pull", "push")))
 	client := &http.Client{Transport: transport1}
 
 	req, _ := http.NewRequest("GET", e+"/v2/hello", nil)
@@ -141,7 +138,14 @@ func TestEndpointAuthorizeToken(t *testing.T) {
 	e2, c2 := testServerWithAuth(m, authenicate, badCheck)
 	defer c2()
 
-	transport2 := NewTransport(nil, NewAuthorizer(nil, NewTokenHandler(nil, nil, tokenScope2)))
+	challenges2, _, err := Ping(&http.Client{}, e+"/v2/", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	challengeMap2 := map[string][]Challenge{
+		e + "/v2/": challenges2,
+	}
+	transport2 := transport.NewTransport(nil, NewAuthorizer(challengeMap2, NewTokenHandler(nil, nil, repo2, "pull", "push")))
 	client2 := &http.Client{Transport: transport2}
 
 	req, _ = http.NewRequest("GET", e2+"/v2/hello", nil)
@@ -166,11 +170,6 @@ func TestEndpointAuthorizeTokenBasic(t *testing.T) {
 	scope := fmt.Sprintf("repository:%s:pull,push", repo)
 	username := "tokenuser"
 	password := "superSecretPa$$word"
-	tokenScope := TokenScope{
-		Resource: "repository",
-		Scope:    repo,
-		Actions:  []string{"pull", "push"},
-	}
 
 	tokenMap := testutil.RequestResponseMap([]testutil.RequestResponseMapping{
 		{
@@ -216,7 +215,14 @@ func TestEndpointAuthorizeTokenBasic(t *testing.T) {
 		password: password,
 	}
 
-	transport1 := NewTransport(nil, NewAuthorizer(nil, NewTokenHandler(nil, creds, tokenScope), NewBasicHandler(creds)))
+	challenges, _, err := Ping(&http.Client{}, e+"/v2/", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	challengeMap := map[string][]Challenge{
+		e + "/v2/": challenges,
+	}
+	transport1 := transport.NewTransport(nil, NewAuthorizer(challengeMap, NewTokenHandler(nil, creds, repo, "pull", "push"), NewBasicHandler(creds)))
 	client := &http.Client{Transport: transport1}
 
 	req, _ := http.NewRequest("GET", e+"/v2/hello", nil)
@@ -256,7 +262,14 @@ func TestEndpointAuthorizeBasic(t *testing.T) {
 		password: password,
 	}
 
-	transport1 := NewTransport(nil, NewAuthorizer(nil, NewBasicHandler(creds)))
+	challenges, _, err := Ping(&http.Client{}, e+"/v2/", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	challengeMap := map[string][]Challenge{
+		e + "/v2/": challenges,
+	}
+	transport1 := transport.NewTransport(nil, NewAuthorizer(challengeMap, NewBasicHandler(creds)))
 	client := &http.Client{Transport: transport1}
 
 	req, _ := http.NewRequest("GET", e+"/v2/hello", nil)
