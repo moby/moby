@@ -4,6 +4,7 @@ import (
 	"os/exec"
 	"strings"
 
+	"github.com/docker/docker/utils"
 	"github.com/go-check/check"
 )
 
@@ -26,12 +27,16 @@ func (s *DockerSuite) TestInfoEnsureSucceeds(c *check.C) {
 		"CPUs:",
 		"Total Memory:",
 		"Kernel Version:",
-		"Storage Driver:"}
+		"Storage Driver:",
+	}
+
+	if utils.ExperimentalBuild() {
+		stringsToCheck = append(stringsToCheck, "Experimental: true")
+	}
 
 	for _, linePrefix := range stringsToCheck {
 		if !strings.Contains(out, linePrefix) {
 			c.Errorf("couldn't find string %v in output", linePrefix)
 		}
 	}
-
 }

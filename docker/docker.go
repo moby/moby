@@ -16,7 +16,6 @@ import (
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/reexec"
 	"github.com/docker/docker/pkg/term"
-	"github.com/docker/docker/utils"
 )
 
 const (
@@ -58,10 +57,6 @@ func main() {
 	if *flDebug {
 		os.Setenv("DEBUG", "1")
 		setLogLevel(logrus.DebugLevel)
-	}
-
-	if utils.ExperimentalBuild() {
-		logrus.Warn("Running experimental build")
 	}
 
 	if len(flHosts) == 0 {
