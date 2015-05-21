@@ -105,7 +105,7 @@ works with Docker can now transparently scale up to multiple hosts.
 
 Go to [Docker Swarm user guide](/swarm/).
 
-## Docker Plugins
+## (Experimental) Docker Plugins
 
 Docker plugins allow you to extend the capabilities of the Docker Engine.
 

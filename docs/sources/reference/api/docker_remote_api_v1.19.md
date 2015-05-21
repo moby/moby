@@ -15,6 +15,8 @@ page_keywords: API, Docker, rcli, REST, documentation
    `STDIN` and `STDERR`.
  - When the client API version is newer than the daemon's an HTTP
    `400 Bad Request` error message is returned.
+ - Options marked as *Experimental* are only available using Docker
+   from the Experimental channel.
 
 # 2. Endpoints
 
@@ -223,7 +225,7 @@ Json Parameters:
       container
 -   **ExposedPorts** - An object mapping ports to an empty object in the form of:
       `"ExposedPorts": { "<port>/<tcp|udp>: {}" }`
--   **VolumeDriver** - A string value containing the volume driver to use, `local` by default.
+-   **VolumeDriver** - *(Experimental)* A string value containing the volume driver to use, `local` by default.
 -   **HostConfig**
     -   **Binds** – A list of volume bindings for this container. Each volume
             binding is a string of the form `container_path` (to create a new

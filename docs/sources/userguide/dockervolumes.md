@@ -210,7 +210,7 @@ Then un-tar the backup file in the new container's data volume.
 You can use the techniques above to automate backup, migration and
 restore testing using your preferred tools.
 
-## Integrating Docker with external storage systems
+## (Experimental) Integrating Docker with external storage systems
 
 Docker volume plugins such as [Flocker](https://clusterhq.com/docker-plugin/)
 enable Docker deployments to be integrated with external storage systems, such

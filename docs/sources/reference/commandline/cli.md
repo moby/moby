@@ -1001,7 +1001,7 @@ Creates a new container.
       -t, --tty=false            Allocate a pseudo-TTY
       -u, --user=""              Username or UID
       -v, --volume=[]            Bind mount a volume, or specify name for volume plugin
-      --volume-driver=           Optional volume driver (plugin name) for the container
+      --volume-driver=           Optional volume driver (plugin name) for the container (Experimental)
       --volumes-from=[]          Mount volumes from the specified container(s)
       -w, --workdir=""           Working directory inside the container
 
@@ -1972,7 +1972,7 @@ To remove an image using its digest:
       -t, --tty=false            Allocate a pseudo-TTY
       -u, --user=""              Username or UID (format: <name|uid>[:<group|gid>])
       -v, --volume=[]            Bind mount a volume, or specify name for volume plugin
-      --volume-driver=           Optional volume driver (plugin name) for the container
+      --volume-driver=           Optional volume driver (plugin name) for the container (Experimental)
       --volumes-from=[]          Mount volumes from the specified container(s)
       -w, --workdir=""           Working directory inside the container
 
@@ -2067,18 +2067,6 @@ By bind-mounting the docker unix socket and statically linked docker
 binary (such as that provided by [https://get.docker.com](
 https://get.docker.com)), you give the container the full access to create and
 manipulate the host's Docker daemon.
-
-    $ docker run -ti -v volumename:/data --volume-driver=flocker busybox sh
-
-By specifying a volume name in conjunction with a volume driver, volume plugins
-such as [Flocker](https://clusterhq.com/docker-plugin/), once installed, can be
-used to manage volumes external to a single host, such as those on EBS. In this
-example, "volumename" is passed through to the volume plugin as a user-given
-name for the volume which allows the plugin to associate it with an external
-volume beyond the lifetime of a single container or container host. This can be
-used, for example, to move a stateful container from one server to another.
-
-The `volumename` must not begin with a `/`.
 
     $ docker run -p 127.0.0.1:80:8080 ubuntu bash
 
@@ -2284,6 +2272,21 @@ application change:
    volume from the `web` container, setting the workdir to `/var/log/httpd`. The
    `--rm` option means that when the container exits, the container's layer is
    removed.
+
+
+*Experimental*:
+
+    $ docker run -ti -v volumename:/data --volume-driver=flocker busybox sh
+
+By specifying a volume name in conjunction with a volume driver, volume plugins
+such as [Flocker](https://clusterhq.com/docker-plugin/), once installed, can be
+used to manage volumes external to a single host, such as those on EBS. In this
+example, "volumename" is passed through to the volume plugin as a user-given
+name for the volume which allows the plugin to associate it with an external
+volume beyond the lifetime of a single container or container host. This can be
+used, for example, to move a stateful container from one server to another.
+
+The `volumename` must not begin with a `/`.
 
 #### Restart policies
 
