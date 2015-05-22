@@ -166,6 +166,8 @@ EOF
 			--config-files /etc/init/docker.conf \
 			--config-files /etc/init.d/docker \
 			--config-files /etc/default/docker \
+			--config-files /lib/systemd/system/docker.service \
+			--config-files /lib/systemd/system/docker.socket \
 			--deb-compression gz \
 			-t deb .
 		# TODO replace "Suggests: cgroup-lite" with "Recommends: cgroupfs-mount | cgroup-lite" once cgroupfs-mount is available
