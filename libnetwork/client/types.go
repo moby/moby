@@ -1,6 +1,6 @@
 package client
 
-import "github.com/docker/libnetwork/sandbox"
+import "github.com/docker/libnetwork/types"
 
 /***********
  Resources
@@ -19,7 +19,6 @@ type endpointResource struct {
 	Name    string
 	ID      string
 	Network string
-	Info    sandbox.Info
 }
 
 /***********
@@ -31,4 +30,39 @@ type networkCreate struct {
 	Name        string
 	NetworkType string
 	Options     map[string]interface{}
+}
+
+// endpointCreate represents the body of the "create endpoint" http request message
+type endpointCreate struct {
+	Name         string
+	NetworkID    string
+	ExposedPorts []types.TransportPort
+	PortMapping  []types.PortBinding
+}
+
+// endpointJoin represents the expected body of the "join endpoint" or "leave endpoint" http request messages
+type endpointJoin struct {
+	ContainerID       string
+	HostName          string
+	DomainName        string
+	HostsPath         string
+	ResolvConfPath    string
+	DNS               []string
+	ExtraHosts        []endpointExtraHost
+	ParentUpdates     []endpointParentUpdate
+	UseDefaultSandbox bool
+}
+
+// EndpointExtraHost represents the extra host object
+type endpointExtraHost struct {
+	Name    string
+	Address string
+}
+
+// EndpointParentUpdate is the object carrying the information about the
+// endpoint parent that needs to be updated
+type endpointParentUpdate struct {
+	EndpointID string
+	Name       string
+	Address    string
 }

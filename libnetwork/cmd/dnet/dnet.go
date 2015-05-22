@@ -158,7 +158,7 @@ func (d *dnetConnection) httpCall(method, path string, data interface{}, headers
 		statusCode = resp.StatusCode
 	}
 	if err != nil {
-		return nil, statusCode, fmt.Errorf("An error occurred trying to connect: %v", err)
+		return nil, statusCode, fmt.Errorf("error when trying to connect: %v", err)
 	}
 
 	if statusCode < 200 || statusCode >= 400 {
@@ -166,7 +166,7 @@ func (d *dnetConnection) httpCall(method, path string, data interface{}, headers
 		if err != nil {
 			return nil, statusCode, err
 		}
-		return nil, statusCode, fmt.Errorf("Error response from daemon: %s", bytes.TrimSpace(body))
+		return nil, statusCode, fmt.Errorf("error : %s", bytes.TrimSpace(body))
 	}
 
 	return resp.Body, statusCode, nil

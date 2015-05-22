@@ -1391,8 +1391,8 @@ func TestEndToEnd(t *testing.T) {
 		t.Fatal(err)
 	}
 	handleRequest(rsp, req)
-	if rsp.statusCode != http.StatusNotFound {
-		t.Fatalf("Expected StatusNotFound. Got (%d): %s", rsp.statusCode, rsp.body)
+	if rsp.statusCode != http.StatusOK {
+		t.Fatalf("Expected StatusOK. Got (%d): %s", rsp.statusCode, rsp.body)
 	}
 
 	req, err = http.NewRequest("GET", "/networks/"+nid+"/endpoints?name=bla", nil)
