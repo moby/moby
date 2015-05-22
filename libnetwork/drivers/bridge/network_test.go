@@ -15,7 +15,7 @@ func TestLinkCreate(t *testing.T) {
 	dr := d.(*driver)
 
 	mtu := 1490
-	config := &NetworkConfiguration{
+	config := &networkConfiguration{
 		BridgeName: DefaultBridgeName,
 		Mtu:        mtu,
 		EnableIPv6: true,
@@ -105,7 +105,7 @@ func TestLinkCreateTwo(t *testing.T) {
 	defer netutils.SetupTestNetNS(t)()
 	d := newDriver()
 
-	config := &NetworkConfiguration{
+	config := &networkConfiguration{
 		BridgeName: DefaultBridgeName,
 		EnableIPv6: true}
 	genericOption := make(map[string]interface{})
@@ -137,7 +137,7 @@ func TestLinkCreateNoEnableIPv6(t *testing.T) {
 	defer netutils.SetupTestNetNS(t)()
 	d := newDriver()
 
-	config := &NetworkConfiguration{
+	config := &networkConfiguration{
 		BridgeName: DefaultBridgeName}
 	genericOption := make(map[string]interface{})
 	genericOption[netlabel.GenericData] = config
@@ -167,7 +167,7 @@ func TestLinkDelete(t *testing.T) {
 	defer netutils.SetupTestNetNS(t)()
 	d := newDriver()
 
-	config := &NetworkConfiguration{
+	config := &networkConfiguration{
 		BridgeName: DefaultBridgeName,
 		EnableIPv6: true}
 	genericOption := make(map[string]interface{})

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net"
-
 	"path/filepath"
 
 	log "github.com/Sirupsen/logrus"
@@ -44,7 +43,7 @@ func init() {
 	}
 }
 
-func setupBridgeIPv4(config *NetworkConfiguration, i *bridgeInterface) error {
+func setupBridgeIPv4(config *networkConfiguration, i *bridgeInterface) error {
 	addrv4, _, err := i.addresses()
 	if err != nil {
 		return err
@@ -81,12 +80,12 @@ func setupBridgeIPv4(config *NetworkConfiguration, i *bridgeInterface) error {
 	return nil
 }
 
-func allocateBridgeIP(config *NetworkConfiguration, i *bridgeInterface) error {
+func allocateBridgeIP(config *networkConfiguration, i *bridgeInterface) error {
 	ipAllocator.RequestIP(i.bridgeIPv4, i.bridgeIPv4.IP)
 	return nil
 }
 
-func electBridgeIPv4(config *NetworkConfiguration) (*net.IPNet, error) {
+func electBridgeIPv4(config *networkConfiguration) (*net.IPNet, error) {
 	// Use the requested IPv4 CIDR when available.
 	if config.AddressIPv4 != nil {
 		return config.AddressIPv4, nil
@@ -112,7 +111,7 @@ func electBridgeIPv4(config *NetworkConfiguration) (*net.IPNet, error) {
 	return nil, IPv4AddrRangeError(config.BridgeName)
 }
 
-func setupGatewayIPv4(config *NetworkConfiguration, i *bridgeInterface) error {
+func setupGatewayIPv4(config *networkConfiguration, i *bridgeInterface) error {
 	if !i.bridgeIPv4.Contains(config.DefaultGatewayIPv4) {
 		return &ErrInvalidGateway{}
 	}
@@ -126,7 +125,7 @@ func setupGatewayIPv4(config *NetworkConfiguration, i *bridgeInterface) error {
 	return nil
 }
 
-func setupLoopbackAdressesRouting(config *NetworkConfiguration, i *bridgeInterface) error {
+func setupLoopbackAdressesRouting(config *networkConfiguration, i *bridgeInterface) error {
 	// Enable loopback adresses routing
 	sysPath := filepath.Join("/proc/sys/net/ipv4/conf", config.BridgeName, "route_localnet")
 	if err := ioutil.WriteFile(sysPath, []byte{'1', '\n'}, 0644); err != nil {

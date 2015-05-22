@@ -1,14 +1,14 @@
 package bridge
 
-type setupStep func(*NetworkConfiguration, *bridgeInterface) error
+type setupStep func(*networkConfiguration, *bridgeInterface) error
 
 type bridgeSetup struct {
-	config *NetworkConfiguration
+	config *networkConfiguration
 	bridge *bridgeInterface
 	steps  []setupStep
 }
 
-func newBridgeSetup(c *NetworkConfiguration, i *bridgeInterface) *bridgeSetup {
+func newBridgeSetup(c *networkConfiguration, i *bridgeInterface) *bridgeSetup {
 	return &bridgeSetup{config: c, bridge: i}
 }
 

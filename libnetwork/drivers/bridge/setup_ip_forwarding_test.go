@@ -17,7 +17,7 @@ func TestSetupIPForwarding(t *testing.T) {
 	}
 
 	// Create test interface with ip forwarding setting enabled
-	config := &Configuration{
+	config := &configuration{
 		EnableIPForwarding: true}
 
 	// Set IP Forwarding
@@ -38,7 +38,7 @@ func TestUnexpectedSetupIPForwarding(t *testing.T) {
 	defer reconcileIPForwardingSetting(t, procSetting)
 
 	// Create test interface without ip forwarding setting enabled
-	config := &Configuration{
+	config := &configuration{
 		EnableIPForwarding: false}
 
 	// Attempt Set IP Forwarding
