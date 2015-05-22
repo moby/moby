@@ -218,6 +218,7 @@ test_env() {
 		GOPATH="$GOPATH" \
 		HOME="$ABS_DEST/fake-HOME" \
 		PATH="$PATH" \
+		TEMP="$TEMP" \
 		TEST_DOCKERINIT_PATH="$TEST_DOCKERINIT_PATH" \
 		"$@"
 }
