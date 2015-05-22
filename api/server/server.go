@@ -30,6 +30,7 @@ import (
 	"github.com/docker/docker/pkg/parsers/filters"
 	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/docker/docker/pkg/signal"
+	"github.com/docker/docker/pkg/sockets"
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/pkg/version"
@@ -1400,6 +1401,26 @@ func writeCorsHeaders(w http.ResponseWriter, r *http.Request, corsHeaders string
 func (s *Server) ping(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	_, err := w.Write([]byte{'O', 'K'})
 	return err
+}
+
+func (s *Server) initTcpSocket(addr string) (l net.Listener, err error) {
+	if !s.cfg.TlsVerify {
+		logrus.Warn("/!\\ DON'T BIND ON ANY IP ADDRESS WITHOUT setting -tlsverify IF YOU DON'T KNOW WHAT YOU'RE DOING /!\\")
+	}
+
+	var c *sockets.TlsConfig
+	if s.cfg.Tls || s.cfg.TlsVerify {
+		c = sockets.NewTlsConfig(s.cfg.TlsCert, s.cfg.TlsKey, s.cfg.TlsCa, s.cfg.TlsVerify)
+	}
+
+	if l, err = sockets.NewTcpSocket(addr, c, s.start); err != nil {
+		return nil, err
+	}
+	if err := allocateDaemonPort(addr); err != nil {
+		return nil, err
+	}
+
+	return
 }
 
 func makeHttpHandler(logging bool, localMethod string, localRoute string, handlerFunc HttpApiFunc, corsHeaders string, dockerVersion version.Version) http.HandlerFunc {
