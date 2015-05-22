@@ -184,6 +184,8 @@ echo 'Optional Features:'
 }
 flags=(
 	RESOURCE_COUNTERS
+	BLK_CGROUP
+	IOSCHED_CFQ
 	CGROUP_PERF
 	CFS_BANDWIDTH
 )
