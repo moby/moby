@@ -89,7 +89,7 @@ func (h *httpHandler) initRouter() {
 			{"/networks/" + nwID, nil, procGetNetwork},
 			{"/networks/" + nwID + "/endpoints", []string{"name", epName}, procGetEndpoints},
 			{"/networks/" + nwID + "/endpoints", []string{"partial-id", epPID}, procGetEndpoints},
-
+			{"/networks/" + nwID + "/endpoints", nil, procGetEndpoints},
 			{"/networks/" + nwID + "/endpoints/" + epID, nil, procGetEndpoint},
 		},
 		"POST": {
