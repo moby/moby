@@ -22,6 +22,7 @@ import (
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/pkg/timeutils"
 	"github.com/docker/docker/registry"
+	"github.com/docker/docker/utils"
 )
 
 const CanDaemon = true
@@ -80,6 +81,10 @@ func migrateKey() (err error) {
 }
 
 func mainDaemon() {
+	if utils.ExperimentalBuild() {
+		logrus.Warn("Running experimental build")
+	}
+
 	if flag.NArg() != 0 {
 		flag.Usage()
 		return
