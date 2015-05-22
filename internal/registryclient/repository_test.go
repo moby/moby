@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"code.google.com/p/go-uuid/uuid"
+	"github.com/docker/distribution/uuid"
 
 	"github.com/docker/distribution"
 	"github.com/docker/distribution/context"
@@ -141,7 +141,7 @@ func TestBlobUploadChunked(t *testing.T) {
 		b1[513:1024],
 	}
 	repo := "test.example.com/uploadrepo"
-	uuids := []string{uuid.New()}
+	uuids := []string{uuid.Generate().String()}
 	m = append(m, testutil.RequestResponseMapping{
 		Request: testutil.Request{
 			Method: "POST",
@@ -159,7 +159,7 @@ func TestBlobUploadChunked(t *testing.T) {
 	})
 	offset := 0
 	for i, chunk := range chunks {
-		uuids = append(uuids, uuid.New())
+		uuids = append(uuids, uuid.Generate().String())
 		newOffset := offset + len(chunk)
 		m = append(m, testutil.RequestResponseMapping{
 			Request: testutil.Request{
@@ -256,7 +256,7 @@ func TestBlobUploadMonolithic(t *testing.T) {
 	dgst, b1 := newRandomBlob(1024)
 	var m testutil.RequestResponseMap
 	repo := "test.example.com/uploadrepo"
-	uploadID := uuid.New()
+	uploadID := uuid.Generate().String()
 	m = append(m, testutil.RequestResponseMapping{
 		Request: testutil.Request{
 			Method: "POST",
