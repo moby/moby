@@ -9,6 +9,11 @@ import (
 	"github.com/Sirupsen/logrus"
 )
 
+const (
+	// The size of the buffer used to read one line of log.
+	MaxLogLineLength = 1024 * 1024
+)
+
 // Copier can copy logs from specified sources to Logger and attach
 // ContainerID and Timestamp.
 // Writes are concurrent, so you need implement some sync in your logger
@@ -40,14 +45,24 @@ func (c *Copier) Run() {
 
 func (c *Copier) copySrc(name string, src io.Reader) {
 	defer c.copyJobs.Done()
-	scanner := bufio.NewScanner(src)
-	for scanner.Scan() {
-		if err := c.dst.Log(&Message{ContainerID: c.cid, Line: scanner.Bytes(), Source: name, Timestamp: time.Now().UTC()}); err != nil {
-			logrus.Errorf("Failed to log msg %q for logger %s: %s", scanner.Bytes(), c.dst.Name(), err)
+
+	reader := bufio.NewReaderSize(src, MaxLogLineLength)
+	line, isPrefix, err := reader.ReadLine()
+	for err != io.EOF {
+		if err != nil {
+			logrus.Errorf("Failed to read log line for container %s: %s", c.cid, err)
+			continue
 		}
-	}
-	if err := scanner.Err(); err != nil {
-		logrus.Errorf("Error scanning log stream: %s", err)
+		if isPrefix {
+			logrus.Warnf("Log line exceeds buffer size for container %s", c.cid)
+		}
+
+		err := c.dst.Log(&Message{ContainerID: c.cid, Line: line, Source: name, Timestamp: time.Now().UTC()})
+		if err != nil {
+			logrus.Errorf("Failed to log msg for container %s:", c.cid, err)
+		}
+
+		line, isPrefix, err = reader.ReadLine()
 	}
 }
 
