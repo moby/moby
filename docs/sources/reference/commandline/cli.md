@@ -1000,8 +1000,7 @@ Creates a new container.
       --security-opt=[]          Security options
       -t, --tty=false            Allocate a pseudo-TTY
       -u, --user=""              Username or UID
-      -v, --volume=[]            Bind mount a volume, or specify name for volume plugin
-      --volume-driver=           Optional volume driver (plugin name) for the container (Experimental)
+      -v, --volume=[]            Bind mount a volume
       --volumes-from=[]          Mount volumes from the specified container(s)
       -w, --workdir=""           Working directory inside the container
 
@@ -1971,8 +1970,7 @@ To remove an image using its digest:
       --sig-proxy=true           Proxy received signals to the process
       -t, --tty=false            Allocate a pseudo-TTY
       -u, --user=""              Username or UID (format: <name|uid>[:<group|gid>])
-      -v, --volume=[]            Bind mount a volume, or specify name for volume plugin
-      --volume-driver=           Optional volume driver (plugin name) for the container (Experimental)
+      -v, --volume=[]            Bind mount a volume
       --volumes-from=[]          Mount volumes from the specified container(s)
       -w, --workdir=""           Working directory inside the container
 
@@ -2272,21 +2270,6 @@ application change:
    volume from the `web` container, setting the workdir to `/var/log/httpd`. The
    `--rm` option means that when the container exits, the container's layer is
    removed.
-
-
-*Experimental*:
-
-    $ docker run -ti -v volumename:/data --volume-driver=flocker busybox sh
-
-By specifying a volume name in conjunction with a volume driver, volume plugins
-such as [Flocker](https://clusterhq.com/docker-plugin/), once installed, can be
-used to manage volumes external to a single host, such as those on EBS. In this
-example, "volumename" is passed through to the volume plugin as a user-given
-name for the volume which allows the plugin to associate it with an external
-volume beyond the lifetime of a single container or container host. This can be
-used, for example, to move a stateful container from one server to another.
-
-The `volumename` must not begin with a `/`.
 
 #### Restart policies
 

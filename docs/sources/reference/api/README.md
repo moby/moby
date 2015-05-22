@@ -7,4 +7,3 @@ This directory holds the authoritative specifications of APIs defined and implem
    index for images to download
  * The docker.io OAuth and accounts API which 3rd party services can
    use to access account information
- * The plugin API for Docker Plugins
