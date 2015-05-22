@@ -58,7 +58,7 @@ func NewDaemon(c *check.C) *Daemon {
 		c.Fatal("Please set the DEST environment variable")
 	}
 
-	dir := filepath.Join(dest, fmt.Sprintf("daemon%d", time.Now().UnixNano()%100000000))
+	dir := filepath.Join(dest, fmt.Sprintf("d%d", time.Now().UnixNano()%100000000))
 	daemonFolder, err := filepath.Abs(dir)
 	if err != nil {
 		c.Fatalf("Could not make %q an absolute path: %v", dir, err)
