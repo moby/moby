@@ -114,9 +114,6 @@ func (daemon *Daemon) GenerateSecurityOpt(ipcMode runconfig.IpcMode, pidMode run
 		if err != nil {
 			return nil, err
 		}
-		if !c.IsRunning() {
-			return nil, fmt.Errorf("cannot join IPC of a non running container: %s", ipcContainer)
-		}
 
 		return label.DupSecOpt(c.ProcessLabel), nil
 	}

@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"os/exec"
 	"reflect"
@@ -321,5 +322,22 @@ func (s *DockerSuite) TestCreateRM(c *check.C) {
 	out, _, err = runCommandWithOutput(rmCmd)
 	if err != nil {
 		c.Fatalf("Failed to rm -f container:%s\n%s", out, err)
+	}
+}
+
+func (s *DockerSuite) TestCreateModeIpcContainer(c *check.C) {
+	testRequires(c, SameHostDaemon)
+
+	cmd := exec.Command(dockerBinary, "create", "busybox")
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		c.Fatal(err, out)
+	}
+	id := strings.TrimSpace(out)
+
+	cmd = exec.Command(dockerBinary, "create", fmt.Sprintf("--ipc=container:%s", id), "busybox")
+	out, _, err = runCommandWithOutput(cmd)
+	if err != nil {
+		c.Fatalf("Create container with ipc mode container should success with non running container: %s\n%s", out, err)
 	}
 }
