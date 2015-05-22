@@ -17,8 +17,8 @@ There are three major areas to consider when reviewing Docker security:
 ## Kernel namespaces
 
 Docker containers are very similar to LXC containers, and they have
-similar security features. When you start a container with `docker
-run`, behind the scenes Docker creates a set of namespaces and control
+similar security features. When you start a container with
+`docker run`, behind the scenes Docker creates a set of namespaces and control
 groups for the container.
 
 **Namespaces provide the first and most straightforward form of
@@ -103,7 +103,7 @@ Docker directly on your local machine, outside of a VM). You can then
 use traditional UNIX permission checks to limit access to the control
 socket.
 
-You can also expose the REST API over HTTP if you explicitly decide so.
+You can also expose the REST API over HTTP if you explicitly decide to do so.
 However, if you do that, being aware of the above mentioned security
 implication, you should ensure that it will be reachable only from a
 trusted network or VPN; or protected with e.g., `stunnel` and client SSL
@@ -253,7 +253,7 @@ an artificial capabilities set. Likewise, however, this artificial
 capabilities set may require use of 'capsh' to restrict the
 user-namespace capabilities set when using 'unshare'.
 
-Eventually, it is expected that Docker will direct, native support
+Eventually, it is expected that Docker will have direct, native support
 for user-namespaces, simplifying the process of hardening containers.
 
 ## Conclusions
