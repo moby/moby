@@ -211,6 +211,37 @@ func (s *DockerSuite) TestCommitWithHostBindMount(c *check.C) {
 
 }
 
+func (s *DockerSuite) TestCommitWithlabels(c *check.C) {
+
+	cmd := exec.Command(dockerBinary, "run", "--name", "test", "busybox", "true")
+	if _, err := runCommand(cmd); err != nil {
+		c.Fatal(err)
+	}
+
+	cmd = exec.Command(dockerBinary, "commit",
+		"--label", "key1=value1",
+		"--label", "key2=value2",
+		"test", "test-commit")
+	imageId, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		c.Fatal(imageId, err)
+	}
+	imageId = strings.Trim(imageId, "\r\n")
+
+	expected := map[string]string{
+		"Config.Labels": "map[key1:value1 key2:value2]",
+	}
+
+	for conf, value := range expected {
+		res, err := inspectField(imageId, conf)
+		c.Assert(err, check.IsNil)
+		if res != value {
+			c.Errorf("%s('%s'), expected %s", conf, res, value)
+		}
+	}
+
+}
+
 func (s *DockerSuite) TestCommitChange(c *check.C) {
 
 	cmd := exec.Command(dockerBinary, "run", "--name", "test", "busybox", "true")

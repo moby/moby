@@ -18,3 +18,15 @@ func int64ValueOrZero(r *http.Request, k string) int64 {
 	}
 	return val
 }
+
+func prefixedValuesToMap(r *http.Request, prefix string) map[string]string {
+	mapOfPrefix := make(map[string]string)
+	query := r.URL.Query()
+	for key := range query {
+		if strings.HasPrefix(key, prefix) {
+			label := key[len(prefix):]
+			mapOfPrefix[label] = query.Get(key)
+		}
+	}
+	return mapOfPrefix
+}

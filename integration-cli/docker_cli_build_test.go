@@ -5426,3 +5426,66 @@ func (s *DockerSuite) TestBuildRUNErrMsg(c *check.C) {
 		c.Fatalf("RUN doesn't have the correct output:\nGot:%s\nExpected:%s", out, exp)
 	}
 }
+
+func (s *DockerSuite) TestBuildWithLabels(c *check.C) {
+	name := "testbuildwithlabels"
+
+	ctx, err := fakeContext(`
+        FROM hello-world:frozen
+        RUN ["/hello"]
+        `, map[string]string{})
+	if err != nil {
+		c.Fatal(err)
+	}
+
+	cmd := exec.Command(dockerBinary, "build", "--no-cache", "--rm=false", "--label", "key1=value1", "--label", "key2=value2", "-t", name, ".")
+	cmd.Dir = ctx.Dir
+
+	if out, _, err := runCommandWithOutput(cmd); err != nil {
+		c.Fatal(err, out)
+	}
+
+	expected := `{"key1":"value1","key2":"value2"}`
+
+	actual, err := inspectFieldJSON(name, "Config.Labels")
+	if err != nil {
+		c.Fatal(err)
+	}
+
+	if actual != expected {
+		c.Fatalf("Labels %s, expected %s", actual, expected)
+	}
+
+}
+
+func (s *DockerSuite) TestBuildWithMergedLabels(c *check.C) {
+	name := "testbuildwithlabels"
+
+	ctx, err := fakeContext(`
+        FROM hello-world:frozen
+        RUN ["/hello"]
+        LABEL key1 value1
+        `, map[string]string{})
+	if err != nil {
+		c.Fatal(err)
+	}
+
+	cmd := exec.Command(dockerBinary, "build", "--no-cache", "--rm=false", "--label", "key1=value3", "--label", "key2=value2", "-t", name, ".")
+	cmd.Dir = ctx.Dir
+
+	if out, _, err := runCommandWithOutput(cmd); err != nil {
+		c.Fatal(err, out)
+	}
+
+	expected := `{"key1":"value1","key2":"value2"}`
+
+	actual, err := inspectFieldJSON(name, "Config.Labels")
+	if err != nil {
+		c.Fatal(err)
+	}
+
+	if actual != expected {
+		c.Fatalf("Labels %s, expected %s", actual, expected)
+	}
+
+}

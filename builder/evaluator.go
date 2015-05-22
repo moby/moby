@@ -129,6 +129,7 @@ type Builder struct {
 	cgroupParent string
 	memory       int64
 	memorySwap   int64
+	labels       map[string]string
 
 	cancelled <-chan struct{} // When closed, job was cancelled.
 }
@@ -184,6 +185,29 @@ func (b *Builder) Run(context io.Reader) (string, error) {
 		if b.Remove {
 			b.clearTmp()
 		}
+	}
+
+	// Handle build label(s), will add a final layer with LABEL
+	if b.labels != nil {
+		logrus.Infof("Labels: %s", b.labels)
+		// Run an additionnal step with labels
+		newLabels := map[string]string{}
+		for key, value := range b.labels {
+			if currentValue, ok := b.Config.Labels[key]; ok {
+				// Label already present, *do not override*
+				logrus.Warnf("Label %s was already present with the value : %s, keeping it.", key, currentValue)
+				continue
+			}
+			newLabels[key] = value
+		}
+		labelsArg := make([]string, len(newLabels)*2)
+		index := 0
+		for key, value := range newLabels {
+			labelsArg[index] = key
+			labelsArg[index+1] = value
+			index = index + 2
+		}
+		label(b, labelsArg, nil, "")
 	}
 
 	if b.image == "" {

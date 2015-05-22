@@ -1268,6 +1268,8 @@ Query Parameters:
 -   **memswap** - Total memory (memory + swap), `-1` to disable swap
 -   **cpushares** - CPU shares (relative weight)
 -   **cpusetcpus** - CPUs in which to allow execution, e.g., `0-3`, `0,1`
+-   **label** - List of labels to apply when building the image. The formatio
+         should be like : ``label=key1:value1&label=key2:value2``.
 
     Request Headers:
 
@@ -1747,6 +1749,10 @@ Create a new image from a container's changes
              ],
              "Volumes": {
                      "/tmp": {}
+             },
+             "Labels": {
+                     "key1": "value1",
+                     "key2": "value2"
              },
              "WorkingDir": "",
              "NetworkDisabled": false,
