@@ -321,7 +321,7 @@ func (bs *blobs) Put(ctx context.Context, mediaType string, p []byte) (distribut
 	if err != nil {
 		return distribution.Descriptor{}, err
 	}
-	dgstr := digest.NewCanonicalDigester()
+	dgstr := digest.Canonical.New()
 	n, err := io.Copy(writer, io.TeeReader(bytes.NewReader(p), dgstr.Hash()))
 	if err != nil {
 		return distribution.Descriptor{}, err
