@@ -2732,7 +2732,6 @@ func (s *DockerSuite) TestRunModePidHost(c *check.C) {
 
 func (s *DockerSuite) TestRunModeUTSHost(c *check.C) {
 	testRequires(c, NativeExecDriver, SameHostDaemon)
-	defer deleteAllContainers()
 
 	hostUTS, err := os.Readlink("/proc/1/ns/uts")
 	if err != nil {
@@ -3141,7 +3140,6 @@ func (s *DockerSuite) TestRunPidHostWithChildIsKillable(c *check.C) {
 }
 
 func (s *DockerSuite) TestRunWithTooSmallMemoryLimit(c *check.C) {
-	defer deleteAllContainers()
 	// this memory limit is 1 byte less than the min, which is 4MB
 	// https://github.com/docker/docker/blob/v1.5.0/daemon/create.go#L22
 	out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "run", "-m", "4194303", "busybox"))
@@ -3151,7 +3149,6 @@ func (s *DockerSuite) TestRunWithTooSmallMemoryLimit(c *check.C) {
 }
 
 func (s *DockerSuite) TestRunWriteToProcAsound(c *check.C) {
-	defer deleteAllContainers()
 	code, err := runCommand(exec.Command(dockerBinary, "run", "busybox", "sh", "-c", "echo 111 >> /proc/asound/version"))
 	if err == nil || code == 0 {
 		c.Fatal("standard container should not be able to write to /proc/asound")
@@ -3160,7 +3157,6 @@ func (s *DockerSuite) TestRunWriteToProcAsound(c *check.C) {
 
 func (s *DockerSuite) TestRunReadProcTimer(c *check.C) {
 	testRequires(c, NativeExecDriver)
-	defer deleteAllContainers()
 	out, code, err := runCommandWithOutput(exec.Command(dockerBinary, "run", "busybox", "cat", "/proc/timer_stats"))
 	if err != nil || code != 0 {
 		c.Fatal(err)
@@ -3178,7 +3174,6 @@ func (s *DockerSuite) TestRunReadProcLatency(c *check.C) {
 		c.Skip("kernel doesnt have latency_stats configured")
 		return
 	}
-	defer deleteAllContainers()
 	out, code, err := runCommandWithOutput(exec.Command(dockerBinary, "run", "busybox", "cat", "/proc/latency_stats"))
 	if err != nil || code != 0 {
 		c.Fatal(err)
@@ -3190,7 +3185,6 @@ func (s *DockerSuite) TestRunReadProcLatency(c *check.C) {
 
 func (s *DockerSuite) TestMountIntoProc(c *check.C) {
 	testRequires(c, NativeExecDriver)
-	defer deleteAllContainers()
 	code, err := runCommand(exec.Command(dockerBinary, "run", "-v", "/proc//sys", "busybox", "true"))
 	if err == nil || code == 0 {
 		c.Fatal("container should not be able to mount into /proc")
@@ -3199,7 +3193,6 @@ func (s *DockerSuite) TestMountIntoProc(c *check.C) {
 
 func (s *DockerSuite) TestMountIntoSys(c *check.C) {
 	testRequires(c, NativeExecDriver)
-	defer deleteAllContainers()
 	_, err := runCommand(exec.Command(dockerBinary, "run", "-v", "/sys/fs/cgroup", "busybox", "true"))
 	if err != nil {
 		c.Fatal("container should be able to mount into /sys/fs/cgroup")

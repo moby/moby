@@ -60,7 +60,6 @@ func getContainerStatus(c *check.C, containerID string) string {
 
 func (s *DockerSuite) TestNetworkNat(c *check.C) {
 	testRequires(c, SameHostDaemon, NativeExecDriver)
-	defer deleteAllContainers()
 
 	srv := startServerContainer(c, "tcp", 8080)
 
@@ -86,7 +85,6 @@ func (s *DockerSuite) TestNetworkNat(c *check.C) {
 
 func (s *DockerSuite) TestNetworkLocalhostTCPNat(c *check.C) {
 	testRequires(c, SameHostDaemon, NativeExecDriver)
-	defer deleteAllContainers()
 
 	srv := startServerContainer(c, "tcp", 8081)
 
