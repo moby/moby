@@ -126,7 +126,8 @@ RUN set -x \
 	&& git clone https://github.com/docker/distribution.git /go/src/github.com/docker/distribution \
 	&& (cd /go/src/github.com/docker/distribution && git checkout -q $REGISTRY_COMMIT) \
 	&& GOPATH=/go/src/github.com/docker/distribution/Godeps/_workspace:/go \
-		go build -o /go/bin/registry-v2 github.com/docker/distribution/cmd/registry
+		go build -o /go/bin/registry-v2 github.com/docker/distribution/cmd/registry \
+	&& rm -rf /go/src/github.com/docker/distribution/
 
 # Get the "docker-py" source so we can run their integration tests
 ENV DOCKER_PY_COMMIT 91985b239764fe54714fa0a93d52aa362357d251
