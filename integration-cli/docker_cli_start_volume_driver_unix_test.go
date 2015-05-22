@@ -10,7 +10,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -18,25 +17,40 @@ import (
 )
 
 func init() {
-	check.Suite(&ExternalVolumeSuite{
+	check.Suite(&DockerExternalVolumeSuite{
 		ds: &DockerSuite{},
 	})
 }
 
-type ExternalVolumeSuite struct {
+type eventCounter struct {
+	activations int
+	creations   int
+	removals    int
+	mounts      int
+	unmounts    int
+	paths       int
+}
+
+type DockerExternalVolumeSuite struct {
 	server *httptest.Server
 	ds     *DockerSuite
+	d      *Daemon
+	ec     *eventCounter
 }
 
-func (s *ExternalVolumeSuite) SetUpTest(c *check.C) {
+func (s *DockerExternalVolumeSuite) SetUpTest(c *check.C) {
+	s.d = NewDaemon(c)
 	s.ds.SetUpTest(c)
+	s.ec = &eventCounter{}
+
 }
 
-func (s *ExternalVolumeSuite) TearDownTest(c *check.C) {
+func (s *DockerExternalVolumeSuite) TearDownTest(c *check.C) {
+	s.d.Stop()
 	s.ds.TearDownTest(c)
 }
 
-func (s *ExternalVolumeSuite) SetUpSuite(c *check.C) {
+func (s *DockerExternalVolumeSuite) SetUpSuite(c *check.C) {
 	mux := http.NewServeMux()
 	s.server = httptest.NewServer(mux)
 
@@ -44,26 +58,30 @@ func (s *ExternalVolumeSuite) SetUpSuite(c *check.C) {
 		name string
 	}
 
-	hostVolumePath := func(name string) string {
-		return fmt.Sprintf("/var/lib/docker/volumes/%s", name)
-	}
-
 	mux.HandleFunc("/Plugin.Activate", func(w http.ResponseWriter, r *http.Request) {
+		s.ec.activations++
+
 		w.Header().Set("Content-Type", "appplication/vnd.docker.plugins.v1+json")
 		fmt.Fprintln(w, `{"Implements": ["VolumeDriver"]}`)
 	})
 
 	mux.HandleFunc("/VolumeDriver.Create", func(w http.ResponseWriter, r *http.Request) {
+		s.ec.creations++
+
 		w.Header().Set("Content-Type", "appplication/vnd.docker.plugins.v1+json")
 		fmt.Fprintln(w, `{}`)
 	})
 
 	mux.HandleFunc("/VolumeDriver.Remove", func(w http.ResponseWriter, r *http.Request) {
+		s.ec.removals++
+
 		w.Header().Set("Content-Type", "appplication/vnd.docker.plugins.v1+json")
 		fmt.Fprintln(w, `{}`)
 	})
 
 	mux.HandleFunc("/VolumeDriver.Path", func(w http.ResponseWriter, r *http.Request) {
+		s.ec.paths++
+
 		var pr pluginRequest
 		if err := json.NewDecoder(r.Body).Decode(&pr); err != nil {
 			http.Error(w, err.Error(), 500)
@@ -76,6 +94,8 @@ func (s *ExternalVolumeSuite) SetUpSuite(c *check.C) {
 	})
 
 	mux.HandleFunc("/VolumeDriver.Mount", func(w http.ResponseWriter, r *http.Request) {
+		s.ec.mounts++
+
 		var pr pluginRequest
 		if err := json.NewDecoder(r.Body).Decode(&pr); err != nil {
 			http.Error(w, err.Error(), 500)
@@ -94,7 +114,9 @@ func (s *ExternalVolumeSuite) SetUpSuite(c *check.C) {
 		fmt.Fprintln(w, fmt.Sprintf("{\"Mountpoint\": \"%s\"}", p))
 	})
 
-	mux.HandleFunc("/VolumeDriver.Umount", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/VolumeDriver.Unmount", func(w http.ResponseWriter, r *http.Request) {
+		s.ec.unmounts++
+
 		var pr pluginRequest
 		if err := json.NewDecoder(r.Body).Decode(&pr); err != nil {
 			http.Error(w, err.Error(), 500)
@@ -118,7 +140,7 @@ func (s *ExternalVolumeSuite) SetUpSuite(c *check.C) {
 	}
 }
 
-func (s *ExternalVolumeSuite) TearDownSuite(c *check.C) {
+func (s *DockerExternalVolumeSuite) TearDownSuite(c *check.C) {
 	s.server.Close()
 
 	if err := os.RemoveAll("/usr/share/docker/plugins"); err != nil {
@@ -126,14 +148,102 @@ func (s *ExternalVolumeSuite) TearDownSuite(c *check.C) {
 	}
 }
 
-func (s *ExternalVolumeSuite) TestStartExternalVolumeDriver(c *check.C) {
-	runCmd := exec.Command(dockerBinary, "run", "--name", "test-data", "-v", "external-volume-test:/tmp/external-volume-test", "--volume-driver", "test-external-volume-driver", "busybox:latest", "cat", "/tmp/external-volume-test/test")
-	out, stderr, exitCode, err := runCommandWithStdoutStderr(runCmd)
-	if err != nil && exitCode != 0 {
-		c.Fatal(out, stderr, err)
+func (s *DockerExternalVolumeSuite) TestStartExternalNamedVolumeDriver(c *check.C) {
+	if err := s.d.StartWithBusybox(); err != nil {
+		c.Fatal(err)
+	}
+
+	out, err := s.d.Cmd("run", "--rm", "--name", "test-data", "-v", "external-volume-test:/tmp/external-volume-test", "--volume-driver", "test-external-volume-driver", "busybox:latest", "cat", "/tmp/external-volume-test/test")
+	if err != nil {
+		c.Fatal(err)
 	}
 
 	if !strings.Contains(out, s.server.URL) {
 		c.Fatalf("External volume mount failed. Output: %s\n", out)
 	}
+
+	p := hostVolumePath("external-volume-test")
+	_, err = os.Lstat(p)
+	if err == nil {
+		c.Fatalf("Expected error checking volume path in host: %s\n", p)
+	}
+
+	if !os.IsNotExist(err) {
+		c.Fatalf("Expected volume path in host to not exist: %s, %v\n", p, err)
+	}
+
+	c.Assert(s.ec.activations, check.Equals, 1)
+	c.Assert(s.ec.creations, check.Equals, 1)
+	c.Assert(s.ec.removals, check.Equals, 1)
+	c.Assert(s.ec.mounts, check.Equals, 1)
+	c.Assert(s.ec.unmounts, check.Equals, 1)
+}
+
+func (s *DockerExternalVolumeSuite) TestStartExternalVolumeUnnamedDriver(c *check.C) {
+	if err := s.d.StartWithBusybox(); err != nil {
+		c.Fatal(err)
+	}
+
+	out, err := s.d.Cmd("run", "--rm", "--name", "test-data", "-v", "/tmp/external-volume-test", "--volume-driver", "test-external-volume-driver", "busybox:latest", "cat", "/tmp/external-volume-test/test")
+	if err != nil {
+		c.Fatal(err)
+	}
+
+	if !strings.Contains(out, s.server.URL) {
+		c.Fatalf("External volume mount failed. Output: %s\n", out)
+	}
+
+	c.Assert(s.ec.activations, check.Equals, 1)
+	c.Assert(s.ec.creations, check.Equals, 1)
+	c.Assert(s.ec.removals, check.Equals, 1)
+	c.Assert(s.ec.mounts, check.Equals, 1)
+	c.Assert(s.ec.unmounts, check.Equals, 1)
+}
+
+func (s DockerExternalVolumeSuite) TestStartExternalVolumeDriverVolumesFrom(c *check.C) {
+	if err := s.d.StartWithBusybox(); err != nil {
+		c.Fatal(err)
+	}
+
+	if _, err := s.d.Cmd("run", "-d", "--name", "vol-test1", "-v", "/foo", "--volume-driver", "test-external-volume-driver", "busybox:latest"); err != nil {
+		c.Fatal(err)
+	}
+
+	if _, err := s.d.Cmd("run", "--rm", "--volumes-from", "vol-test1", "--name", "vol-test2", "busybox", "ls", "/tmp"); err != nil {
+		c.Fatal(err)
+	}
+
+	if _, err := s.d.Cmd("rm", "-f", "vol-test1"); err != nil {
+		c.Fatal(err)
+	}
+
+	c.Assert(s.ec.activations, check.Equals, 1)
+	c.Assert(s.ec.creations, check.Equals, 2)
+	c.Assert(s.ec.removals, check.Equals, 1)
+	c.Assert(s.ec.mounts, check.Equals, 2)
+	c.Assert(s.ec.unmounts, check.Equals, 2)
+}
+
+func (s DockerExternalVolumeSuite) TestStartExternalVolumeDriverDeleteContainer(c *check.C) {
+	if err := s.d.StartWithBusybox(); err != nil {
+		c.Fatal(err)
+	}
+
+	if _, err := s.d.Cmd("run", "-d", "--name", "vol-test1", "-v", "/foo", "--volume-driver", "test-external-volume-driver", "busybox:latest"); err != nil {
+		c.Fatal(err)
+	}
+
+	if _, err := s.d.Cmd("rm", "-fv", "vol-test1"); err != nil {
+		c.Fatal(err)
+	}
+
+	c.Assert(s.ec.activations, check.Equals, 1)
+	c.Assert(s.ec.creations, check.Equals, 1)
+	c.Assert(s.ec.removals, check.Equals, 1)
+	c.Assert(s.ec.mounts, check.Equals, 1)
+	c.Assert(s.ec.unmounts, check.Equals, 1)
+}
+
+func hostVolumePath(name string) string {
+	return fmt.Sprintf("/var/lib/docker/volumes/%s", name)
 }

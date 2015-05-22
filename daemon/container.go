@@ -346,6 +346,8 @@ func (container *Container) cleanup() {
 	for _, eConfig := range container.execCommands.s {
 		container.daemon.unregisterExecCommand(eConfig)
 	}
+
+	container.UnmountVolumes(true)
 }
 
 func (container *Container) KillSig(sig int) error {
@@ -469,6 +471,7 @@ func (container *Container) Stop(seconds int) error {
 			return err
 		}
 	}
+
 	return nil
 }
 
@@ -564,16 +567,10 @@ func (container *Container) Copy(resource string) (io.ReadCloser, error) {
 	if err := container.Mount(); err != nil {
 		return nil, err
 	}
-	var paths []string
-	unmount := func() {
-		for _, p := range paths {
-			syscall.Unmount(p, 0)
-		}
-	}
 	defer func() {
 		if err != nil {
 			// unmount any volumes
-			unmount()
+			container.UnmountVolumes(true)
 			// unmount the container's rootfs
 			container.Unmount()
 		}
@@ -587,7 +584,6 @@ func (container *Container) Copy(resource string) (io.ReadCloser, error) {
 		if err != nil {
 			return nil, err
 		}
-		paths = append(paths, dest)
 		if err := mount.Mount(m.Source, dest, "bind", "rbind,ro"); err != nil {
 			return nil, err
 		}
@@ -618,7 +614,7 @@ func (container *Container) Copy(resource string) (io.ReadCloser, error) {
 	}
 	return ioutils.NewReadCloserWrapper(archive, func() error {
 			err := archive.Close()
-			unmount()
+			container.UnmountVolumes(true)
 			container.Unmount()
 			return err
 		}),
@@ -1089,4 +1085,49 @@ func (container *Container) removeMountPoints() error {
 func (container *Container) shouldRestart() bool {
 	return container.hostConfig.RestartPolicy.Name == "always" ||
 		(container.hostConfig.RestartPolicy.Name == "on-failure" && container.ExitCode != 0)
+}
+
+func (container *Container) UnmountVolumes(forceSyscall bool) error {
+	for _, m := range container.MountPoints {
+		dest, err := container.GetResourcePath(m.Destination)
+		if err != nil {
+			return err
+		}
+
+		if forceSyscall {
+			syscall.Unmount(dest, 0)
+		}
+
+		if m.Volume != nil {
+			if err := m.Volume.Unmount(); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func (container *Container) copyImagePathContent(v volume.Volume, destination string) error {
+	rootfs, err := symlink.FollowSymlinkInScope(filepath.Join(container.basefs, destination), container.basefs)
+	if err != nil {
+		return err
+	}
+
+	if _, err = ioutil.ReadDir(rootfs); err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
+
+	path, err := v.Mount()
+	if err != nil {
+		return err
+	}
+
+	if err := copyExistingContents(rootfs, path); err != nil {
+		return err
+	}
+
+	return v.Unmount()
 }

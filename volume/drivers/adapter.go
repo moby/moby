@@ -16,7 +16,10 @@ func (a *volumeDriverAdapter) Create(name string) (volume.Volume, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &volumeAdapter{a.proxy, name, a.name}, nil
+	return &volumeAdapter{
+		proxy:      a.proxy,
+		name:       name,
+		driverName: a.name}, nil
 }
 
 func (a *volumeDriverAdapter) Remove(v volume.Volume) error {
@@ -27,6 +30,7 @@ type volumeAdapter struct {
 	proxy      *volumeDriverProxy
 	name       string
 	driverName string
+	eMount     string // ephemeral host volume path
 }
 
 func (a *volumeAdapter) Name() string {
@@ -38,12 +42,17 @@ func (a *volumeAdapter) DriverName() string {
 }
 
 func (a *volumeAdapter) Path() string {
+	if len(a.eMount) > 0 {
+		return a.eMount
+	}
 	m, _ := a.proxy.Path(a.name)
 	return m
 }
 
 func (a *volumeAdapter) Mount() (string, error) {
-	return a.proxy.Mount(a.name)
+	var err error
+	a.eMount, err = a.proxy.Mount(a.name)
+	return a.eMount, err
 }
 
 func (a *volumeAdapter) Unmount() error {

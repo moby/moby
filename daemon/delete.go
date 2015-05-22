@@ -70,6 +70,7 @@ func (daemon *Daemon) ContainerRm(name string, config *ContainerRmConfig) error 
 			}
 		}
 		container.LogEvent("destroy")
+
 		if config.RemoveVolume {
 			container.removeMountPoints()
 		}

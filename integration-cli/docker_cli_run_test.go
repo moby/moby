@@ -440,14 +440,6 @@ func (s *DockerSuite) TestRunCreateVolumesInSymlinkDir(c *check.C) {
 	}
 }
 
-// Regression test for #4830
-func (s *DockerSuite) TestRunWithRelativePath(c *check.C) {
-	runCmd := exec.Command(dockerBinary, "run", "-v", "tmp:/other-tmp", "busybox", "true")
-	if _, _, _, err := runCommandWithStdoutStderr(runCmd); err == nil {
-		c.Fatalf("relative path should result in an error")
-	}
-}
-
 func (s *DockerSuite) TestRunVolumesMountedAsReadonly(c *check.C) {
 	cmd := exec.Command(dockerBinary, "run", "-v", "/test:/test:ro", "busybox", "touch", "/test/somefile")
 	if code, err := runCommand(cmd); err == nil || code == 0 {
