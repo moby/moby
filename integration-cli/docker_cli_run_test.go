@@ -1459,6 +1459,7 @@ func (s *DockerSuite) TestRunDnsOptionsBasedOnHostResolvConf(c *check.C) {
 // check if the container resolv.conf file has atleast 0644 perm.
 func (s *DockerSuite) TestRunNonRootUserResolvName(c *check.C) {
 	testRequires(c, SameHostDaemon)
+	testRequires(c, Network)
 
 	cmd := exec.Command(dockerBinary, "run", "--name=testperm", "--user=default", "busybox", "ping", "-c", "1", "www.docker.io")
 	if out, err := runCommand(cmd); err != nil {
