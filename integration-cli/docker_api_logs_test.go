@@ -63,7 +63,6 @@ func (s *DockerSuite) TestLogsApiNoStdoutNorStderr(c *check.C) {
 
 // Regression test for #12704
 func (s *DockerSuite) TestLogsApiFollowEmptyOutput(c *check.C) {
-	defer deleteAllContainers()
 	name := "logs_test"
 	t0 := time.Now()
 	runCmd := exec.Command(dockerBinary, "run", "-d", "-t", "--name", name, "busybox", "sleep", "10")
