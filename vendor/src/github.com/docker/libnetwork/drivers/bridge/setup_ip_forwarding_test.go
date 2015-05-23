@@ -47,7 +47,7 @@ func TestUnexpectedSetupIPForwarding(t *testing.T) {
 		t.Fatal("Setup IP forwarding was expected to fail")
 	}
 
-	if err != ErrIPFwdCfg {
+	if _, ok := err.(*ErrIPFwdCfg); !ok {
 		t.Fatalf("Setup IP forwarding failed with unexpected error: %v", err)
 	}
 }

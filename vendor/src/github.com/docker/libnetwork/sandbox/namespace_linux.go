@@ -20,8 +20,10 @@ var once sync.Once
 // interface. It represents a linux network namespace, and moves an interface
 // into it when called on method AddInterface or sets the gateway etc.
 type networkNamespace struct {
-	path  string
-	sinfo *Info
+	path        string
+	sinfo       *Info
+	nextIfIndex int
+	sync.Mutex
 }
 
 func createBasePath() {
@@ -167,6 +169,11 @@ func (n *networkNamespace) RemoveInterface(i *Interface) error {
 }
 
 func (n *networkNamespace) AddInterface(i *Interface) error {
+	n.Lock()
+	i.DstName = fmt.Sprintf("%s%d", i.DstName, n.nextIfIndex)
+	n.nextIfIndex++
+	n.Unlock()
+
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
 
@@ -214,7 +221,10 @@ func (n *networkNamespace) AddInterface(i *Interface) error {
 		return err
 	}
 
+	n.Lock()
 	n.sinfo.Interfaces = append(n.sinfo.Interfaces, i)
+	n.Unlock()
+
 	return nil
 }
 

@@ -30,8 +30,8 @@ import (
 	"github.com/docker/libcontainer/devices"
 	"github.com/docker/libnetwork"
 	"github.com/docker/libnetwork/netlabel"
-	"github.com/docker/libnetwork/netutils"
 	"github.com/docker/libnetwork/options"
+	"github.com/docker/libnetwork/types"
 )
 
 const DefaultPathEnv = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
@@ -502,7 +502,7 @@ func (container *Container) buildPortMapInfo(n libnetwork.Network, ep libnetwork
 		return networkSettings, nil
 	}
 
-	if portMapping, ok := mapData.([]netutils.PortBinding); ok {
+	if portMapping, ok := mapData.([]types.PortBinding); ok {
 		networkSettings.Ports = nat.PortMap{}
 		for _, pp := range portMapping {
 			natPort := nat.NewPort(pp.Proto.String(), strconv.Itoa(int(pp.Port)))
@@ -641,8 +641,8 @@ func (container *Container) buildCreateEndpointOptions() ([]libnetwork.EndpointO
 	var (
 		portSpecs     = make(nat.PortSet)
 		bindings      = make(nat.PortMap)
-		pbList        []netutils.PortBinding
-		exposeList    []netutils.TransportPort
+		pbList        []types.PortBinding
+		exposeList    []types.TransportPort
 		createOptions []libnetwork.EndpointOption
 	)
 
@@ -682,12 +682,12 @@ func (container *Container) buildCreateEndpointOptions() ([]libnetwork.EndpointO
 	}
 	nat.SortPortMap(ports, bindings)
 	for _, port := range ports {
-		expose := netutils.TransportPort{}
-		expose.Proto = netutils.ParseProtocol(port.Proto())
+		expose := types.TransportPort{}
+		expose.Proto = types.ParseProtocol(port.Proto())
 		expose.Port = uint16(port.Int())
 		exposeList = append(exposeList, expose)
 
-		pb := netutils.PortBinding{Port: expose.Port, Proto: expose.Proto}
+		pb := types.PortBinding{Port: expose.Port, Proto: expose.Proto}
 		binding := bindings[port]
 		for i := 0; i < len(binding); i++ {
 			pbCopy := pb.GetCopy()

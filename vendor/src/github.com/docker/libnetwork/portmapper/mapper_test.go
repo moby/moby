@@ -2,20 +2,16 @@ package portmapper
 
 import (
 	"net"
-	"os"
+	"strings"
 	"testing"
-	"time"
 
-	"github.com/docker/docker/pkg/reexec"
 	"github.com/docker/libnetwork/iptables"
-	"github.com/docker/libnetwork/netutils"
+	_ "github.com/docker/libnetwork/netutils"
 )
 
-func TestMain(m *testing.M) {
-	if reexec.Init() {
-		return
-	}
-	os.Exit(m.Run())
+func init() {
+	// override this func to mock out the proxy server
+	newProxy = newMockProxyCommand
 }
 
 func TestSetIptablesChain(t *testing.T) {
@@ -37,7 +33,6 @@ func TestSetIptablesChain(t *testing.T) {
 }
 
 func TestMapTCPPorts(t *testing.T) {
-	defer netutils.SetupTestNetNS(t)()
 	pm := New()
 	dstIP1 := net.ParseIP("192.168.0.1")
 	dstIP2 := net.ParseIP("192.168.0.2")
@@ -117,7 +112,6 @@ func TestGetUDPIPAndPort(t *testing.T) {
 }
 
 func TestMapUDPPorts(t *testing.T) {
-	defer netutils.SetupTestNetNS(t)()
 	pm := New()
 	dstIP1 := net.ParseIP("192.168.0.1")
 	dstIP2 := net.ParseIP("192.168.0.2")
@@ -164,11 +158,6 @@ func TestMapUDPPorts(t *testing.T) {
 }
 
 func TestMapAllPortsSingleInterface(t *testing.T) {
-	newProxy = newMockProxyCommand
-	defer func() {
-		newProxy = newProxyCommand
-	}()
-	defer netutils.SetupTestNetNS(t)()
 	pm := New()
 	dstIP1 := net.ParseIP("0.0.0.0")
 	srcAddr1 := &net.TCPAddr{Port: 1080, IP: net.ParseIP("172.16.0.1")}
@@ -176,6 +165,12 @@ func TestMapAllPortsSingleInterface(t *testing.T) {
 	hosts := []net.Addr{}
 	var host net.Addr
 	var err error
+
+	defer func() {
+		for _, val := range hosts {
+			pm.Unmap(val)
+		}
+	}()
 
 	for i := 0; i < 10; i++ {
 		start, end := pm.Allocator.Begin, pm.Allocator.End
@@ -201,27 +196,76 @@ func TestMapAllPortsSingleInterface(t *testing.T) {
 	}
 }
 
-func TestExecProxy(t *testing.T) {
-	defer netutils.SetupTestNetNS(t)()
-	args := []string{
-		userlandProxyCommandName,
-		"-proto", "tcp",
-		"-host-ip", "0.0.0.0",
-		"-host-port", "9999",
-		"-container-ip", "172.168.1.1",
-		"-container-port", "8888",
-	}
-	os.Args = args
-	doneChan := make(chan bool)
-	go func() {
-		execProxy()
-		doneChan <- true
-	}()
+func TestMapTCPDummyListen(t *testing.T) {
+	pm := New()
+	dstIP := net.ParseIP("0.0.0.0")
+	dstAddr := &net.TCPAddr{IP: dstIP, Port: 80}
 
-	select {
-	case <-doneChan:
-		t.Fatal("execProxy is not supposed to exit")
-	case <-time.After(3 * time.Second):
-		return
+	// no-op for dummy
+	srcAddr := &net.TCPAddr{Port: 1080, IP: net.ParseIP("172.16.0.1")}
+
+	addrEqual := func(addr1, addr2 net.Addr) bool {
+		return (addr1.Network() == addr2.Network()) && (addr1.String() == addr2.String())
+	}
+
+	if host, err := pm.Map(srcAddr, dstIP, 80, false); err != nil {
+		t.Fatalf("Failed to allocate port: %s", err)
+	} else if !addrEqual(dstAddr, host) {
+		t.Fatalf("Incorrect mapping result: expected %s:%s, got %s:%s",
+			dstAddr.String(), dstAddr.Network(), host.String(), host.Network())
+	}
+	if _, err := net.Listen("tcp", "0.0.0.0:80"); err == nil {
+		t.Fatal("Listen on mapped port without proxy should fail")
+	} else {
+		if !strings.Contains(err.Error(), "address already in use") {
+			t.Fatalf("Error should be about address already in use, got %v", err)
+		}
+	}
+	if _, err := net.Listen("tcp", "0.0.0.0:81"); err != nil {
+		t.Fatal(err)
+	}
+	if host, err := pm.Map(srcAddr, dstIP, 81, false); err == nil {
+		t.Fatalf("Bound port shouldn't be allocated, but it was on: %v", host)
+	} else {
+		if !strings.Contains(err.Error(), "address already in use") {
+			t.Fatalf("Error should be about address already in use, got %v", err)
+		}
+	}
+}
+
+func TestMapUDPDummyListen(t *testing.T) {
+	pm := New()
+	dstIP := net.ParseIP("0.0.0.0")
+	dstAddr := &net.UDPAddr{IP: dstIP, Port: 80}
+
+	// no-op for dummy
+	srcAddr := &net.UDPAddr{Port: 1080, IP: net.ParseIP("172.16.0.1")}
+
+	addrEqual := func(addr1, addr2 net.Addr) bool {
+		return (addr1.Network() == addr2.Network()) && (addr1.String() == addr2.String())
+	}
+
+	if host, err := pm.Map(srcAddr, dstIP, 80, false); err != nil {
+		t.Fatalf("Failed to allocate port: %s", err)
+	} else if !addrEqual(dstAddr, host) {
+		t.Fatalf("Incorrect mapping result: expected %s:%s, got %s:%s",
+			dstAddr.String(), dstAddr.Network(), host.String(), host.Network())
+	}
+	if _, err := net.ListenUDP("udp", &net.UDPAddr{IP: dstIP, Port: 80}); err == nil {
+		t.Fatal("Listen on mapped port without proxy should fail")
+	} else {
+		if !strings.Contains(err.Error(), "address already in use") {
+			t.Fatalf("Error should be about address already in use, got %v", err)
+		}
+	}
+	if _, err := net.ListenUDP("udp", &net.UDPAddr{IP: dstIP, Port: 81}); err != nil {
+		t.Fatal(err)
+	}
+	if host, err := pm.Map(srcAddr, dstIP, 81, false); err == nil {
+		t.Fatalf("Bound port shouldn't be allocated, but it was on: %v", host)
+	} else {
+		if !strings.Contains(err.Error(), "address already in use") {
+			t.Fatalf("Error should be about address already in use, got %v", err)
+		}
 	}
 }

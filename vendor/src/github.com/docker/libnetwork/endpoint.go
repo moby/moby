@@ -12,7 +12,6 @@ import (
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/libnetwork/etchosts"
 	"github.com/docker/libnetwork/netlabel"
-	"github.com/docker/libnetwork/netutils"
 	"github.com/docker/libnetwork/resolvconf"
 	"github.com/docker/libnetwork/sandbox"
 	"github.com/docker/libnetwork/types"
@@ -106,7 +105,7 @@ type endpoint struct {
 	iFaces        []*endpointInterface
 	joinInfo      *endpointJoinInfo
 	container     *containerInfo
-	exposedPorts  []netutils.TransportPort
+	exposedPorts  []types.TransportPort
 	generic       map[string]interface{}
 	joinLeaveDone chan struct{}
 	sync.Mutex
@@ -217,7 +216,7 @@ func (ep *endpoint) Join(containerID string, options ...EndpointOption) (*Contai
 	ep.Lock()
 	if ep.container != nil {
 		ep.Unlock()
-		return nil, ErrInvalidJoin
+		return nil, ErrInvalidJoin{}
 	}
 
 	ep.container = &containerInfo{
@@ -292,7 +291,7 @@ func (ep *endpoint) Join(containerID string, options ...EndpointOption) (*Contai
 	for _, i := range ifaces {
 		iface := &sandbox.Interface{
 			SrcName: i.srcName,
-			DstName: i.dstName,
+			DstName: i.dstPrefix,
 			Address: &i.addr,
 		}
 		if i.addrv6.IP.To16() != nil {
@@ -335,7 +334,7 @@ func (ep *endpoint) Leave(containerID string, options ...EndpointOption) error {
 	if container == nil || container.id == "" ||
 		containerID == "" || container.id != containerID {
 		if container == nil {
-			err = ErrNoContainer
+			err = ErrNoContainer{}
 		} else {
 			err = InvalidContainerIDError(containerID)
 		}
@@ -413,7 +412,7 @@ func (ep *endpoint) buildHostsFiles() error {
 	ep.Unlock()
 
 	if container == nil {
-		return ErrNoContainer
+		return ErrNoContainer{}
 	}
 
 	if container.config.hostsPath == "" {
@@ -463,7 +462,7 @@ func (ep *endpoint) updateParentHosts() error {
 	ep.Unlock()
 
 	if container == nil {
-		return ErrNoContainer
+		return ErrNoContainer{}
 	}
 
 	for _, update := range container.config.parentUpdates {
@@ -496,7 +495,7 @@ func (ep *endpoint) updateDNS(resolvConf []byte) error {
 	ep.Unlock()
 
 	if container == nil {
-		return ErrNoContainer
+		return ErrNoContainer{}
 	}
 
 	oldHash := []byte{}
@@ -574,7 +573,7 @@ func (ep *endpoint) setupDNS() error {
 	ep.Unlock()
 
 	if container == nil {
-		return ErrNoContainer
+		return ErrNoContainer{}
 	}
 
 	if container.config.resolvConfPath == "" {
@@ -697,10 +696,10 @@ func JoinOptionUseDefaultSandbox() EndpointOption {
 
 // CreateOptionExposedPorts function returns an option setter for the container exposed
 // ports option to be passed to network.CreateEndpoint() method.
-func CreateOptionExposedPorts(exposedPorts []netutils.TransportPort) EndpointOption {
+func CreateOptionExposedPorts(exposedPorts []types.TransportPort) EndpointOption {
 	return func(ep *endpoint) {
 		// Defensive copy
-		eps := make([]netutils.TransportPort, len(exposedPorts))
+		eps := make([]types.TransportPort, len(exposedPorts))
 		copy(eps, exposedPorts)
 		// Store endpoint label and in generic because driver needs it
 		ep.exposedPorts = eps
@@ -710,10 +709,10 @@ func CreateOptionExposedPorts(exposedPorts []netutils.TransportPort) EndpointOpt
 
 // CreateOptionPortMapping function returns an option setter for the mapping
 // ports option to be passed to network.CreateEndpoint() method.
-func CreateOptionPortMapping(portBindings []netutils.PortBinding) EndpointOption {
+func CreateOptionPortMapping(portBindings []types.PortBinding) EndpointOption {
 	return func(ep *endpoint) {
 		// Store a copy of the bindings as generic data to pass to the driver
-		pbs := make([]netutils.PortBinding, len(portBindings))
+		pbs := make([]types.PortBinding, len(portBindings))
 		copy(pbs, portBindings)
 		ep.generic[netlabel.PortMap] = pbs
 	}

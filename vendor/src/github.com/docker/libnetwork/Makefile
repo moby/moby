@@ -22,7 +22,7 @@ build: ${build_image}.created
 	${docker} make build-local
 
 build-local:
-	$(shell which godep) go build ./...
+	$(shell which godep) go build -tags experimental ./...
 
 check: ${build_image}.created
 	${docker} make check-local

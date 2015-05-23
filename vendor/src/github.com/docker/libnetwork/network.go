@@ -133,7 +133,7 @@ func (n *network) Delete() error {
 
 func (n *network) CreateEndpoint(name string, options ...EndpointOption) (Endpoint, error) {
 	if name == "" {
-		return nil, ErrInvalidName
+		return nil, ErrInvalidName(name)
 	}
 	ep := &endpoint{name: name, iFaces: []*endpointInterface{}, generic: make(map[string]interface{})}
 	ep.id = types.UUID(stringid.GenerateRandomID())
@@ -173,7 +173,7 @@ func (n *network) WalkEndpoints(walker EndpointWalker) {
 
 func (n *network) EndpointByName(name string) (Endpoint, error) {
 	if name == "" {
-		return nil, ErrInvalidName
+		return nil, ErrInvalidName(name)
 	}
 	var e Endpoint
 
@@ -188,7 +188,7 @@ func (n *network) EndpointByName(name string) (Endpoint, error) {
 	n.WalkEndpoints(s)
 
 	if e == nil {
-		return nil, ErrNoSuchEndpoint
+		return nil, ErrNoSuchEndpoint(name)
 	}
 
 	return e, nil
@@ -196,12 +196,12 @@ func (n *network) EndpointByName(name string) (Endpoint, error) {
 
 func (n *network) EndpointByID(id string) (Endpoint, error) {
 	if id == "" {
-		return nil, ErrInvalidID
+		return nil, ErrInvalidID(id)
 	}
 	n.Lock()
 	defer n.Unlock()
 	if e, ok := n.endpoints[types.UUID(id)]; ok {
 		return e, nil
 	}
-	return nil, ErrNoSuchEndpoint
+	return nil, ErrNoSuchEndpoint(id)
 }

@@ -11,7 +11,7 @@ import (
 	_ "github.com/docker/libnetwork/netutils"
 )
 
-const chainName = "DOCKER-TEST"
+const chainName = "DOCKEREST"
 
 var natChain *Chain
 var filterChain *Chain

@@ -6,7 +6,7 @@ This document describes how libnetwork has been designed in order to acheive thi
 Requirements for individual releases can be found on the [Project Page](https://github.com/docker/libnetwork/wiki)
 
 Many of the design decisions are inspired by the learnings from the Docker networking design as of Docker v1.6.
-Please refer to this [Docker v1.6 Design](https://github.com/docker/libnetwork/blob/docs/legacy.md) document for more information on networking design as of Docker v1.6.
+Please refer to this [Docker v1.6 Design](legacy.md) document for more information on networking design as of Docker v1.6.
 
 ## Goal
 
