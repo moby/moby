@@ -113,10 +113,8 @@ func (d *dnetConnection) dnetDaemon() error {
 	}
 	httpHandler := api.NewHTTPHandler(controller)
 	r := mux.NewRouter().StrictSlash(false)
-	post := r.PathPrefix("/networks").Subrouter()
-	post.Methods("GET").HandlerFunc(httpHandler)
-	post.Methods("PUT", "POST").HandlerFunc(httpHandler)
-	post.Methods("DELETE").HandlerFunc(httpHandler)
+	post := r.PathPrefix("/{.*}/networks").Subrouter()
+	post.Methods("GET", "PUT", "POST", "DELETE").HandlerFunc(httpHandler)
 	return http.ListenAndServe(d.addr, r)
 }
 
@@ -143,7 +141,7 @@ func (d *dnetConnection) httpCall(method, path string, data interface{}, headers
 		return nil, -1, err
 	}
 
-	req, err := http.NewRequest(method, fmt.Sprintf("%s", path), in)
+	req, err := http.NewRequest(method, fmt.Sprintf("/dnet%s", path), in)
 	if err != nil {
 		return nil, -1, err
 	}
@@ -160,7 +158,7 @@ func (d *dnetConnection) httpCall(method, path string, data interface{}, headers
 		statusCode = resp.StatusCode
 	}
 	if err != nil {
-		return nil, statusCode, fmt.Errorf("An error occurred trying to connect: %v", err)
+		return nil, statusCode, fmt.Errorf("error when trying to connect: %v", err)
 	}
 
 	if statusCode < 200 || statusCode >= 400 {
@@ -168,7 +166,7 @@ func (d *dnetConnection) httpCall(method, path string, data interface{}, headers
 		if err != nil {
 			return nil, statusCode, err
 		}
-		return nil, statusCode, fmt.Errorf("Error response from daemon: %s", bytes.TrimSpace(body))
+		return nil, statusCode, fmt.Errorf("error : %s", bytes.TrimSpace(body))
 	}
 
 	return resp.Body, statusCode, nil

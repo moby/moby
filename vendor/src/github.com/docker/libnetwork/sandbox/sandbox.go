@@ -3,7 +3,7 @@ package sandbox
 import (
 	"net"
 
-	"github.com/docker/libnetwork/netutils"
+	"github.com/docker/libnetwork/types"
 )
 
 // Sandbox represents a network sandbox, identified by a specific key.  It
@@ -20,7 +20,9 @@ type Sandbox interface {
 
 	// Add an existing Interface to this sandbox. The operation will rename
 	// from the Interface SrcName to DstName as it moves, and reconfigure the
-	// interface according to the specified settings.
+	// interface according to the specified settings. The caller is expected
+	// to only provide a prefix for DstName. The AddInterface api will auto-generate
+	// an appropriate suffix for the DstName to disambiguate.
 	AddInterface(*Interface) error
 
 	// Remove an interface from the sandbox by renamin to original name
@@ -62,7 +64,9 @@ type Interface struct {
 	SrcName string
 
 	// The name that will be assigned to the interface once moves inside a
-	// network namespace.
+	// network namespace. When the caller passes in a DstName, it is only
+	// expected to pass a prefix. The name will modified with an appropriately
+	// auto-generated suffix.
 	DstName string
 
 	// IPv4 address for the interface.
@@ -77,8 +81,8 @@ func (i *Interface) GetCopy() *Interface {
 	return &Interface{
 		SrcName:     i.SrcName,
 		DstName:     i.DstName,
-		Address:     netutils.GetIPNetCopy(i.Address),
-		AddressIPv6: netutils.GetIPNetCopy(i.AddressIPv6),
+		Address:     types.GetIPNetCopy(i.Address),
+		AddressIPv6: types.GetIPNetCopy(i.AddressIPv6),
 	}
 }
 
@@ -96,11 +100,11 @@ func (i *Interface) Equal(o *Interface) bool {
 		return false
 	}
 
-	if !netutils.CompareIPNet(i.Address, o.Address) {
+	if !types.CompareIPNet(i.Address, o.Address) {
 		return false
 	}
 
-	if !netutils.CompareIPNet(i.AddressIPv6, o.AddressIPv6) {
+	if !types.CompareIPNet(i.AddressIPv6, o.AddressIPv6) {
 		return false
 	}
 
@@ -113,8 +117,8 @@ func (s *Info) GetCopy() *Info {
 	for i, iface := range s.Interfaces {
 		list[i] = iface.GetCopy()
 	}
-	gw := netutils.GetIPCopy(s.Gateway)
-	gw6 := netutils.GetIPCopy(s.GatewayIPv6)
+	gw := types.GetIPCopy(s.Gateway)
+	gw6 := types.GetIPCopy(s.GatewayIPv6)
 
 	return &Info{Interfaces: list, Gateway: gw, GatewayIPv6: gw6}
 }

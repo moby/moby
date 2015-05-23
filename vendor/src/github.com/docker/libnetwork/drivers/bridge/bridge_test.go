@@ -11,6 +11,7 @@ import (
 	"github.com/docker/libnetwork/iptables"
 	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/libnetwork/netutils"
+	"github.com/docker/libnetwork/types"
 	"github.com/vishvananda/netlink"
 )
 
@@ -202,7 +203,7 @@ func testQueryEndpointInfo(t *testing.T, ulPxyEnabled bool) {
 	if !ok {
 		t.Fatalf("Endpoint operational data does not contain port mapping data")
 	}
-	pm, ok := pmd.([]netutils.PortBinding)
+	pm, ok := pmd.([]types.PortBinding)
 	if !ok {
 		t.Fatalf("Unexpected format for port mapping in endpoint operational data")
 	}
@@ -261,19 +262,19 @@ func TestCreateLinkWithOptions(t *testing.T) {
 	}
 }
 
-func getExposedPorts() []netutils.TransportPort {
-	return []netutils.TransportPort{
-		netutils.TransportPort{Proto: netutils.TCP, Port: uint16(5000)},
-		netutils.TransportPort{Proto: netutils.UDP, Port: uint16(400)},
-		netutils.TransportPort{Proto: netutils.TCP, Port: uint16(600)},
+func getExposedPorts() []types.TransportPort {
+	return []types.TransportPort{
+		types.TransportPort{Proto: types.TCP, Port: uint16(5000)},
+		types.TransportPort{Proto: types.UDP, Port: uint16(400)},
+		types.TransportPort{Proto: types.TCP, Port: uint16(600)},
 	}
 }
 
-func getPortMapping() []netutils.PortBinding {
-	return []netutils.PortBinding{
-		netutils.PortBinding{Proto: netutils.TCP, Port: uint16(230), HostPort: uint16(23000)},
-		netutils.PortBinding{Proto: netutils.UDP, Port: uint16(200), HostPort: uint16(22000)},
-		netutils.PortBinding{Proto: netutils.TCP, Port: uint16(120), HostPort: uint16(12000)},
+func getPortMapping() []types.PortBinding {
+	return []types.PortBinding{
+		types.PortBinding{Proto: types.TCP, Port: uint16(230), HostPort: uint16(23000)},
+		types.PortBinding{Proto: types.UDP, Port: uint16(200), HostPort: uint16(22000)},
+		types.PortBinding{Proto: types.TCP, Port: uint16(120), HostPort: uint16(12000)},
 	}
 }
 

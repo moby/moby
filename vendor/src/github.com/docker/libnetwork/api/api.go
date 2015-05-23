@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"strings"
 
 	"github.com/docker/libnetwork"
+	"github.com/docker/libnetwork/types"
 	"github.com/gorilla/mux"
 )
 
@@ -14,13 +16,28 @@ var (
 	successResponse  = responseStatus{Status: "Success", StatusCode: http.StatusOK}
 	createdResponse  = responseStatus{Status: "Created", StatusCode: http.StatusCreated}
 	mismatchResponse = responseStatus{Status: "Body/URI parameter mismatch", StatusCode: http.StatusBadRequest}
+	badQueryresponse = responseStatus{Status: "Unsupported query", StatusCode: http.StatusBadRequest}
 )
 
 const (
-	urlNwName = "name"
-	urlNwID   = "id"
+	// Resource name regex
+	regex = "[a-zA-Z_0-9-]+"
+	// Router URL variable definition
+	nwName = "{" + urlNwName + ":" + regex + "}"
+	nwID   = "{" + urlNwID + ":" + regex + "}"
+	nwPID  = "{" + urlNwPID + ":" + regex + "}"
+	epName = "{" + urlEpName + ":" + regex + "}"
+	epID   = "{" + urlEpID + ":" + regex + "}"
+	epPID  = "{" + urlEpPID + ":" + regex + "}"
+	cnID   = "{" + urlCnID + ":" + regex + "}"
+
+	// Internal URL variable name, they can be anything
+	urlNwName = "network-name"
+	urlNwID   = "network-id"
+	urlNwPID  = "network-partial-id"
 	urlEpName = "endpoint-name"
 	urlEpID   = "endpoint-id"
+	urlEpPID  = "endpoint-partial-id"
 	urlCnID   = "container-id"
 )
 
@@ -59,42 +76,41 @@ func (h *httpHandler) handleRequest(w http.ResponseWriter, req *http.Request) {
 }
 
 func (h *httpHandler) initRouter() {
-	m := map[string]map[string]processor{
+	m := map[string][]struct {
+		url string
+		qrs []string
+		fct processor
+	}{
 		"GET": {
-			"/networks":                                                                   procGetNetworks,
-			"/networks/name/{" + urlNwName + ":.*}":                                       procGetNetwork,
-			"/networks/id/{" + urlNwID + ":.*}":                                           procGetNetwork,
-			"/networks/name/{" + urlNwName + ":.*}/endpoints/":                            procGetEndpoints,
-			"/networks/id/{" + urlNwID + ":.*}/endpoints/":                                procGetEndpoints,
-			"/networks/name/{" + urlNwName + ":.*}/endpoints/name/{" + urlEpName + ":.*}": procGetEndpoint,
-			"/networks/id/{" + urlNwID + ":.*}/endpoints/name/{" + urlEpName + ":.*}":     procGetEndpoint,
-			"/networks/name/{" + urlNwName + ":.*}/endpoints/id/{" + urlEpID + ":.*}":     procGetEndpoint,
-			"/networks/id/{" + urlNwID + ":.*}/endpoints/id/{" + urlEpID + ":.*}":         procGetEndpoint,
+			// Order matters
+			{"/networks", []string{"name", nwName}, procGetNetworks},
+			{"/networks", []string{"partial-id", nwPID}, procGetNetworks},
+			{"/networks", nil, procGetNetworks},
+			{"/networks/" + nwID, nil, procGetNetwork},
+			{"/networks/" + nwID + "/endpoints", []string{"name", epName}, procGetEndpoints},
+			{"/networks/" + nwID + "/endpoints", []string{"partial-id", epPID}, procGetEndpoints},
+			{"/networks/" + nwID + "/endpoints", nil, procGetEndpoints},
+			{"/networks/" + nwID + "/endpoints/" + epID, nil, procGetEndpoint},
 		},
 		"POST": {
-			"/networks/name/{" + urlNwName + ":.*}":                                                                     procCreateNetwork,
-			"/networks/name/{" + urlNwName + ":.*}/endpoint/name/{" + urlEpName + ":.*}":                                procCreateEndpoint,
-			"/networks/name/{" + urlNwName + ":.*}/endpoint/name/{" + urlEpName + ":.*}/container/{" + urlCnID + ":.*}": procJoinEndpoint,
+			{"/networks", nil, procCreateNetwork},
+			{"/networks/" + nwID + "/endpoints", nil, procCreateEndpoint},
+			{"/networks/" + nwID + "/endpoints/" + epID + "/containers", nil, procJoinEndpoint},
 		},
 		"DELETE": {
-			"/networks/name/{" + urlNwName + ":.*}":                                                                     procDeleteNetwork,
-			"/networks/id/{" + urlNwID + ":.*}":                                                                         procDeleteNetwork,
-			"/networks/name/{" + urlNwName + ":.*}/endpoints/name/{" + urlEpName + ":.*}":                               procDeleteEndpoint,
-			"/networks/name/{" + urlNwName + ":.*}/endpoints/id/{" + urlEpID + ":.*}":                                   procDeleteEndpoint,
-			"/networks/id/{" + urlNwID + ":.*}/endpoints/name/{" + urlEpName + ":.*}":                                   procDeleteEndpoint,
-			"/networks/id/{" + urlNwID + ":.*}/endpoints/id/{" + urlEpID + ":.*}":                                       procDeleteEndpoint,
-			"/networks/name/{" + urlNwName + ":.*}/endpoint/name/{" + urlEpName + ":.*}/container/{" + urlCnID + ":.*}": procLeaveEndpoint,
-			"/networks/name/{" + urlNwName + ":.*}/endpoint/id/{" + urlEpID + ":.*}/container/{" + urlCnID + ":.*}":     procLeaveEndpoint,
-			"/networks/id/{" + urlNwID + ":.*}/endpoint/name/{" + urlEpName + ":.*}/container/{" + urlCnID + ":.*}":     procLeaveEndpoint,
-			"/networks/id/{" + urlNwID + ":.*}/endpoint/id/{" + urlEpID + ":.*}/container/{" + urlCnID + ":.*}":         procLeaveEndpoint,
+			{"/networks/" + nwID, nil, procDeleteNetwork},
+			{"/networks/" + nwID + "/endpoints/" + epID, nil, procDeleteEndpoint},
+			{"/networks/id/" + nwID + "/endpoints/" + epID + "/containers/" + cnID, nil, procLeaveEndpoint},
 		},
 	}
 
 	h.r = mux.NewRouter()
 	for method, routes := range m {
-		for route, fct := range routes {
-			f := makeHandler(h.c, fct)
-			h.r.Path(route).Methods(method).HandlerFunc(f)
+		for _, route := range routes {
+			r := h.r.Path("/{.*}" + route.url).Methods(method).HandlerFunc(makeHandler(h.c, route.fct))
+			if route.qrs != nil {
+				r.Queries(route.qrs...)
+			}
 		}
 	}
 }
@@ -208,12 +224,7 @@ func procCreateNetwork(c libnetwork.NetworkController, vars map[string]string, b
 		return "", &responseStatus{Status: "Invalid body: " + err.Error(), StatusCode: http.StatusBadRequest}
 	}
 
-	name := vars[urlNwName]
-	if name != create.Name {
-		return "", &mismatchResponse
-	}
-
-	nw, err := c.NewNetwork(create.NetworkType, name, nil)
+	nw, err := c.NewNetwork(create.NetworkType, create.Name, nil)
 	if err != nil {
 		return "", convertNetworkError(err)
 	}
@@ -232,10 +243,33 @@ func procGetNetwork(c libnetwork.NetworkController, vars map[string]string, body
 
 func procGetNetworks(c libnetwork.NetworkController, vars map[string]string, body []byte) (interface{}, *responseStatus) {
 	var list []*networkResource
-	for _, nw := range c.Networks() {
-		nwr := buildNetworkResource(nw)
-		list = append(list, nwr)
+
+	// Look for query filters and validate
+	name, queryByName := vars[urlNwName]
+	shortID, queryByPid := vars[urlNwPID]
+	if queryByName && queryByPid {
+		return nil, &badQueryresponse
 	}
+
+	if queryByName {
+		if nw, errRsp := findNetwork(c, name, byName); errRsp.isOK() {
+			list = append(list, buildNetworkResource(nw))
+		}
+	} else if queryByPid {
+		// Return all the prefix-matching networks
+		l := func(nw libnetwork.Network) bool {
+			if strings.HasPrefix(nw.ID(), shortID) {
+				list = append(list, buildNetworkResource(nw))
+			}
+			return false
+		}
+		c.WalkNetworks(l)
+	} else {
+		for _, nw := range c.Networks() {
+			list = append(list, buildNetworkResource(nw))
+		}
+	}
+
 	return list, &successResponse
 }
 
@@ -250,19 +284,10 @@ func procCreateEndpoint(c libnetwork.NetworkController, vars map[string]string, 
 		return "", &responseStatus{Status: "Invalid body: " + err.Error(), StatusCode: http.StatusBadRequest}
 	}
 
-	epn := vars[urlEpName]
-	if ec.Name != epn {
-		return "", &mismatchResponse
-	}
-
 	nwT, nwBy := detectNetworkTarget(vars)
 	n, errRsp := findNetwork(c, nwT, nwBy)
 	if !errRsp.isOK() {
 		return "", errRsp
-	}
-
-	if ec.NetworkID != n.ID() {
-		return "", &mismatchResponse
 	}
 
 	var setFctList []libnetwork.EndpointOption
@@ -273,7 +298,7 @@ func procCreateEndpoint(c libnetwork.NetworkController, vars map[string]string, 
 		setFctList = append(setFctList, libnetwork.CreateOptionPortMapping(ec.PortMapping))
 	}
 
-	ep, err := n.CreateEndpoint(epn, setFctList...)
+	ep, err := n.CreateEndpoint(ec.Name, setFctList...)
 	if err != nil {
 		return "", convertNetworkError(err)
 	}
@@ -294,17 +319,40 @@ func procGetEndpoint(c libnetwork.NetworkController, vars map[string]string, bod
 }
 
 func procGetEndpoints(c libnetwork.NetworkController, vars map[string]string, body []byte) (interface{}, *responseStatus) {
-	target, by := detectNetworkTarget(vars)
+	// Look for query filters and validate
+	name, queryByName := vars[urlEpName]
+	shortID, queryByPid := vars[urlEpPID]
+	if queryByName && queryByPid {
+		return nil, &badQueryresponse
+	}
 
-	nw, errRsp := findNetwork(c, target, by)
+	nwT, nwBy := detectNetworkTarget(vars)
+	nw, errRsp := findNetwork(c, nwT, nwBy)
 	if !errRsp.isOK() {
 		return nil, errRsp
 	}
 
 	var list []*endpointResource
-	for _, ep := range nw.Endpoints() {
-		epr := buildEndpointResource(ep)
-		list = append(list, epr)
+
+	// If query parameter is specified, return a filtered collection
+	if queryByName {
+		if ep, errRsp := findEndpoint(c, nwT, name, nwBy, byName); errRsp.isOK() {
+			list = append(list, buildEndpointResource(ep))
+		}
+	} else if queryByPid {
+		// Return all the prefix-matching networks
+		l := func(ep libnetwork.Endpoint) bool {
+			if strings.HasPrefix(ep.ID(), shortID) {
+				list = append(list, buildEndpointResource(ep))
+			}
+			return false
+		}
+		nw.WalkEndpoints(l)
+	} else {
+		for _, ep := range nw.Endpoints() {
+			epr := buildEndpointResource(ep)
+			list = append(list, epr)
+		}
 	}
 
 	return list, &successResponse
@@ -334,11 +382,6 @@ func procJoinEndpoint(c libnetwork.NetworkController, vars map[string]string, bo
 	err := json.Unmarshal(body, &ej)
 	if err != nil {
 		return nil, &responseStatus{Status: "Invalid body: " + err.Error(), StatusCode: http.StatusBadRequest}
-	}
-
-	cid := vars[urlCnID]
-	if ej.ContainerID != cid {
-		return "", &mismatchResponse
 	}
 
 	nwT, nwBy := detectNetworkTarget(vars)
@@ -434,7 +477,7 @@ func findNetwork(c libnetwork.NetworkController, s string, by int) (libnetwork.N
 		panic(fmt.Sprintf("unexpected selector for network search: %d", by))
 	}
 	if err != nil {
-		if err == libnetwork.ErrNoSuchNetwork {
+		if _, ok := err.(libnetwork.ErrNoSuchNetwork); ok {
 			return nil, &responseStatus{Status: "Resource not found: Network", StatusCode: http.StatusNotFound}
 		}
 		return nil, &responseStatus{Status: err.Error(), StatusCode: http.StatusBadRequest}
@@ -460,7 +503,7 @@ func findEndpoint(c libnetwork.NetworkController, ns, es string, nwBy, epBy int)
 		panic(fmt.Sprintf("unexpected selector for endpoint search: %d", epBy))
 	}
 	if err != nil {
-		if err == libnetwork.ErrNoSuchEndpoint {
+		if _, ok := err.(libnetwork.ErrNoSuchEndpoint); ok {
 			return nil, &responseStatus{Status: "Resource not found: Endpoint", StatusCode: http.StatusNotFound}
 		}
 		return nil, &responseStatus{Status: err.Error(), StatusCode: http.StatusBadRequest}
@@ -469,9 +512,26 @@ func findEndpoint(c libnetwork.NetworkController, ns, es string, nwBy, epBy int)
 }
 
 func convertNetworkError(err error) *responseStatus {
-	// No real libnetwork error => http error code conversion for now.
-	// Will came in later when new interface for libnetwork error is vailable
-	return &responseStatus{Status: err.Error(), StatusCode: http.StatusBadRequest}
+	var code int
+	switch err.(type) {
+	case types.BadRequestError:
+		code = http.StatusBadRequest
+	case types.ForbiddenError:
+		code = http.StatusForbidden
+	case types.NotFoundError:
+		code = http.StatusNotFound
+	case types.TimeoutError:
+		code = http.StatusRequestTimeout
+	case types.NotImplementedError:
+		code = http.StatusNotImplemented
+	case types.NoServiceError:
+		code = http.StatusServiceUnavailable
+	case types.InternalError:
+		code = http.StatusInternalServerError
+	default:
+		code = http.StatusInternalServerError
+	}
+	return &responseStatus{Status: err.Error(), StatusCode: code}
 }
 
 func writeJSON(w http.ResponseWriter, code int, v interface{}) error {

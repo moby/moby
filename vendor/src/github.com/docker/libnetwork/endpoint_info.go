@@ -4,7 +4,7 @@ import (
 	"net"
 
 	"github.com/docker/libnetwork/driverapi"
-	"github.com/docker/libnetwork/netutils"
+	"github.com/docker/libnetwork/types"
 )
 
 // EndpointInfo provides an interface to retrieve network resources bound to the endpoint.
@@ -40,12 +40,12 @@ type InterfaceInfo interface {
 }
 
 type endpointInterface struct {
-	id      int
-	mac     net.HardwareAddr
-	addr    net.IPNet
-	addrv6  net.IPNet
-	srcName string
-	dstName string
+	id        int
+	mac       net.HardwareAddr
+	addr      net.IPNet
+	addrv6    net.IPNet
+	srcName   string
+	dstPrefix string
 }
 
 type endpointJoinInfo struct {
@@ -105,10 +105,10 @@ func (ep *endpoint) AddInterface(id int, mac net.HardwareAddr, ipv4 net.IPNet, i
 
 	iface := &endpointInterface{
 		id:     id,
-		addr:   *netutils.GetIPNetCopy(&ipv4),
-		addrv6: *netutils.GetIPNetCopy(&ipv6),
+		addr:   *types.GetIPNetCopy(&ipv4),
+		addrv6: *types.GetIPNetCopy(&ipv6),
 	}
-	iface.mac = netutils.GetMacCopy(mac)
+	iface.mac = types.GetMacCopy(mac)
 
 	ep.iFaces = append(ep.iFaces, iface)
 	return nil
@@ -119,20 +119,20 @@ func (i *endpointInterface) ID() int {
 }
 
 func (i *endpointInterface) MacAddress() net.HardwareAddr {
-	return netutils.GetMacCopy(i.mac)
+	return types.GetMacCopy(i.mac)
 }
 
 func (i *endpointInterface) Address() net.IPNet {
-	return (*netutils.GetIPNetCopy(&i.addr))
+	return (*types.GetIPNetCopy(&i.addr))
 }
 
 func (i *endpointInterface) AddressIPv6() net.IPNet {
-	return (*netutils.GetIPNetCopy(&i.addrv6))
+	return (*types.GetIPNetCopy(&i.addrv6))
 }
 
-func (i *endpointInterface) SetNames(srcName string, dstName string) error {
+func (i *endpointInterface) SetNames(srcName string, dstPrefix string) error {
 	i.srcName = srcName
-	i.dstName = dstName
+	i.dstPrefix = dstPrefix
 	return nil
 }
 
@@ -168,7 +168,7 @@ func (ep *endpoint) Gateway() net.IP {
 		return net.IP{}
 	}
 
-	return netutils.GetIPCopy(ep.joinInfo.gw)
+	return types.GetIPCopy(ep.joinInfo.gw)
 }
 
 func (ep *endpoint) GatewayIPv6() net.IP {
@@ -179,14 +179,14 @@ func (ep *endpoint) GatewayIPv6() net.IP {
 		return net.IP{}
 	}
 
-	return netutils.GetIPCopy(ep.joinInfo.gw6)
+	return types.GetIPCopy(ep.joinInfo.gw6)
 }
 
 func (ep *endpoint) SetGateway(gw net.IP) error {
 	ep.Lock()
 	defer ep.Unlock()
 
-	ep.joinInfo.gw = netutils.GetIPCopy(gw)
+	ep.joinInfo.gw = types.GetIPCopy(gw)
 	return nil
 }
 
@@ -194,7 +194,7 @@ func (ep *endpoint) SetGatewayIPv6(gw6 net.IP) error {
 	ep.Lock()
 	defer ep.Unlock()
 
-	ep.joinInfo.gw6 = netutils.GetIPCopy(gw6)
+	ep.joinInfo.gw6 = types.GetIPCopy(gw6)
 	return nil
 }
 

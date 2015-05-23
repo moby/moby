@@ -3,14 +3,14 @@ package bridge
 import (
 	"testing"
 
-	"github.com/docker/libnetwork/netutils"
+	"github.com/docker/libnetwork/types"
 )
 
-func getPorts() []netutils.TransportPort {
-	return []netutils.TransportPort{
-		netutils.TransportPort{Proto: netutils.TCP, Port: uint16(5000)},
-		netutils.TransportPort{Proto: netutils.UDP, Port: uint16(400)},
-		netutils.TransportPort{Proto: netutils.TCP, Port: uint16(600)},
+func getPorts() []types.TransportPort {
+	return []types.TransportPort{
+		types.TransportPort{Proto: types.TCP, Port: uint16(5000)},
+		types.TransportPort{Proto: types.UDP, Port: uint16(400)},
+		types.TransportPort{Proto: types.TCP, Port: uint16(600)},
 	}
 }
 

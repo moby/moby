@@ -1,6 +1,8 @@
 package bridge
 
-import "github.com/vishvananda/netlink"
+import (
+	"github.com/vishvananda/netlink"
+)
 
 func setupVerifyAndReconcile(config *NetworkConfiguration, i *bridgeInterface) error {
 	// Fetch a single IPv4 and a slice of IPv6 addresses from the bridge.
@@ -11,12 +13,12 @@ func setupVerifyAndReconcile(config *NetworkConfiguration, i *bridgeInterface) e
 
 	// Verify that the bridge does have an IPv4 address.
 	if addrv4.IPNet == nil {
-		return ErrNoIPAddr
+		return &ErrNoIPAddr{}
 	}
 
 	// Verify that the bridge IPv4 address matches the requested configuration.
 	if config.AddressIPv4 != nil && !addrv4.IP.Equal(config.AddressIPv4.IP) {
-		return &IPv4AddrNoMatchError{ip: addrv4.IP, cfgIP: config.AddressIPv4.IP}
+		return &IPv4AddrNoMatchError{IP: addrv4.IP, CfgIP: config.AddressIPv4.IP}
 	}
 
 	// Verify that one of the bridge IPv6 addresses matches the requested
