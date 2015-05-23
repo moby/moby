@@ -60,15 +60,18 @@ func (s *TagStore) Pull(image string, tag string, imagePullConfig *ImagePullConf
 		logName = utils.ImageReference(logName, tag)
 	}
 
-	v2mirrorEndpoint, v2mirrorRepoInfo, err := configureV2Mirror(repoInfo.Index.Mirrors, repoInfo, s.registryService)
-	if err != nil {
-		logrus.Errorf("Error configuring mirrors: %s", err)
-		return err
-	}
+	// Attempt pulling official content from a provided v2 mirror
+	if repoInfo.Index.Official {
+		v2mirrorEndpoint, v2mirrorRepoInfo, err := configureV2Mirror(repoInfo, s.registryService)
+		if err != nil {
+			logrus.Errorf("Error configuring mirrors: %s", err)
+			return err
+		}
 
-	if v2mirrorEndpoint != nil {
-		logrus.Debugf("Attempting pull from v2 mirror: %s", v2mirrorEndpoint.URL)
-		return s.pullFromV2Mirror(v2mirrorEndpoint, v2mirrorRepoInfo, imagePullConfig, tag, sf, logName)
+		if v2mirrorEndpoint != nil {
+			logrus.Debugf("Attempting pull from v2 mirror: %s", v2mirrorEndpoint.URL)
+			return s.pullFromV2Mirror(v2mirrorEndpoint, v2mirrorRepoInfo, imagePullConfig, tag, sf, logName)
+		}
 	}
 
 	logrus.Debugf("pulling image from host %q with remote name %q", repoInfo.Index.Name, repoInfo.RemoteName)
@@ -133,10 +136,9 @@ func makeMirrorRepoInfo(repoInfo *registry.RepositoryInfo, mirror string) *regis
 	return mirrorRepo
 }
 
-func configureV2Mirror(mirrors []string, repoInfo *registry.RepositoryInfo, s *registry.Service) (*registry.Endpoint, *registry.RepositoryInfo, error) {
-	if len(mirrors) > 0 {
-		// repoInfo
-	} else {
+func configureV2Mirror(repoInfo *registry.RepositoryInfo, s *registry.Service) (*registry.Endpoint, *registry.RepositoryInfo, error) {
+	mirrors := repoInfo.Index.Mirrors
+	if len(mirrors) == 0 && !repoInfo.Index.Official {
 		officialIndex, err := s.ResolveIndex(registry.IndexServerName())
 		if err != nil {
 			return nil, nil, err
@@ -191,7 +193,7 @@ func (s *TagStore) pullFromV2Mirror(mirrorEndpoint *registry.Endpoint, repoInfo 
 		registry.DockerHeaders(imagePullConfig.MetaHeaders)...,
 	)
 	client := registry.HTTPClient(tr)
-	mirrorSession, err := registry.NewSession(client, imagePullConfig.AuthConfig, mirrorEndpoint)
+	mirrorSession, err := registry.NewSession(client, &cliconfig.AuthConfig{}, mirrorEndpoint)
 	if err != nil {
 		return err
 	}
