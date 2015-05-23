@@ -38,6 +38,22 @@ Calling `/info` is the same as calling
 You can still call an old version of the API using
 `/v1.18/info`.
 
+## Docker Events
+
+The following diagram depicts the container states accessible through the API.
+
+![States](../images/event_state.png)
+
+Some container-related events are not affected by container state, so they are not included in this diagram. These events are:
+
+* **export** emitted by `docker export`
+* **exec_create** emitted by `docker exec`
+* **exec_start** emitted by `docker exec` after **exec_create**
+
+Running `docker rmi` emits an **untag** event when removing an image name.  The `rmi` command may also emit **delete** events when images are deleted by ID directly or by deleting the last tag referring to the image.
+
+> **Acknowledgement**: This diagram and the accompanying text were used with the permission of Matt Good and Gilder Labs. See Matt's original blog post [Docker Events Explained](http://gliderlabs.com/blog/2015/04/14/docker-events-explained/).
+
 ## v1.19
 
 ### Full documentation
