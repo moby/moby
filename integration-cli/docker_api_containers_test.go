@@ -254,7 +254,7 @@ func (s *DockerSuite) TestGetContainerStats(c *check.C) {
 	}
 }
 
-func (s *DockerSuite) TestContainerStatsRmRunning(c *check.C) {
+func (s *DockerSuite) TestGetContainerStatsRmRunning(c *check.C) {
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
 	id := strings.TrimSpace(out)
 
@@ -288,6 +288,89 @@ func (s *DockerSuite) TestContainerStatsRmRunning(c *check.C) {
 
 	_, err = buf.ReadTimeout(b, 2*time.Second)
 	c.Assert(err, check.Not(check.IsNil))
+}
+
+// regression test for gh13421
+// previous test was just checking one stat entry so it didn't fail (stats with
+// stream false always return one stat)
+func (s *DockerSuite) TestGetContainerStatsStream(c *check.C) {
+	name := "statscontainer"
+	runCmd := exec.Command(dockerBinary, "run", "-d", "--name", name, "busybox", "top")
+	_, err := runCommand(runCmd)
+	c.Assert(err, check.IsNil)
+
+	type b struct {
+		status int
+		body   []byte
+		err    error
+	}
+	bc := make(chan b, 1)
+	go func() {
+		status, body, err := sockRequest("GET", "/containers/"+name+"/stats", nil)
+		bc <- b{status, body, err}
+	}()
+
+	// allow some time to stream the stats from the container
+	time.Sleep(4 * time.Second)
+	if _, err := runCommand(exec.Command(dockerBinary, "rm", "-f", name)); err != nil {
+		c.Fatal(err)
+	}
+
+	// collect the results from the stats stream or timeout and fail
+	// if the stream was not disconnected.
+	select {
+	case <-time.After(2 * time.Second):
+		c.Fatal("stream was not closed after container was removed")
+	case sr := <-bc:
+		c.Assert(sr.err, check.IsNil)
+		c.Assert(sr.status, check.Equals, http.StatusOK)
+
+		s := string(sr.body)
+		// count occurrences of "read" of types.Stats
+		if l := strings.Count(s, "read"); l < 2 {
+			c.Fatalf("Expected more than one stat streamed, got %d", l)
+		}
+	}
+}
+
+func (s *DockerSuite) TestGetContainerStatsNoStream(c *check.C) {
+	name := "statscontainer"
+	runCmd := exec.Command(dockerBinary, "run", "-d", "--name", name, "busybox", "top")
+	_, err := runCommand(runCmd)
+	c.Assert(err, check.IsNil)
+
+	type b struct {
+		status int
+		body   []byte
+		err    error
+	}
+	bc := make(chan b, 1)
+	go func() {
+		status, body, err := sockRequest("GET", "/containers/"+name+"/stats?stream=0", nil)
+		bc <- b{status, body, err}
+	}()
+
+	// allow some time to stream the stats from the container
+	time.Sleep(4 * time.Second)
+	if _, err := runCommand(exec.Command(dockerBinary, "rm", "-f", name)); err != nil {
+		c.Fatal(err)
+	}
+
+	// collect the results from the stats stream or timeout and fail
+	// if the stream was not disconnected.
+	select {
+	case <-time.After(2 * time.Second):
+		c.Fatal("stream was not closed after container was removed")
+	case sr := <-bc:
+		c.Assert(sr.err, check.IsNil)
+		c.Assert(sr.status, check.Equals, http.StatusOK)
+
+		s := string(sr.body)
+		// count occurrences of "read" of types.Stats
+		if l := strings.Count(s, "read"); l != 1 {
+			c.Fatalf("Expected only one stat streamed, got %d", l)
+		}
+	}
 }
 
 func (s *DockerSuite) TestGetStoppedContainerStats(c *check.C) {

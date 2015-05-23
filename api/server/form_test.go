@@ -33,6 +33,21 @@ func TestBoolValue(t *testing.T) {
 	}
 }
 
+func TestBoolValueOrDefault(t *testing.T) {
+	r, _ := http.NewRequest("GET", "", nil)
+	if !boolValueOrDefault(r, "queryparam", true) {
+		t.Fatal("Expected to get true default value, got false")
+	}
+
+	v := url.Values{}
+	v.Set("param", "")
+	r, _ = http.NewRequest("GET", "", nil)
+	r.Form = v
+	if boolValueOrDefault(r, "param", true) {
+		t.Fatal("Expected not to get true")
+	}
+}
+
 func TestInt64ValueOrZero(t *testing.T) {
 	cases := map[string]int64{
 		"":     0,
