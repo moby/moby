@@ -785,12 +785,7 @@ func NewDaemon(config *Config, registryService *registry.Service) (daemon *Daemo
 		return nil, err
 	}
 
-	volumesDriver, err := graphdriver.GetDriver("vfs", config.Root, config.GraphOptions)
-	if err != nil {
-		return nil, err
-	}
-
-	volumes, err := volumes.NewRepository(filepath.Join(config.Root, "volumes"), volumesDriver)
+	volumes, err := volumes.NewRepository(filepath.Join(config.Root, "volumes"), filepath.Join(config.Root, "volume-data"))
 	if err != nil {
 		return nil, err
 	}

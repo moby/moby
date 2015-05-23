@@ -2,31 +2,67 @@ package volumes
 
 import (
 	"encoding/json"
+	"fmt"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sync"
 
 	"github.com/docker/docker/pkg/symlink"
+	"github.com/docker/docker/volumes/volumedriver"
 )
 
 type Volume struct {
-	ID          string
-	Path        string
-	IsBindMount bool
-	Writable    bool
-	containers  map[string]struct{}
-	configPath  string
-	repository  *Repository
-	lock        sync.Mutex
+	ID         string // ID assigned by docker
+	containers map[string]struct{}
+	configPath string
+	Path       string
+	Writable   bool // TODO: Maybe this isn't needed
+	DriverName string
+	driver     volumedriver.Driver
+	repository *Repository
+	lock       sync.Mutex
 }
 
-func (v *Volume) IsDir() (bool, error) {
-	stat, err := os.Stat(v.Path)
-	if err != nil {
-		return false, err
-	}
+func (v *Volume) create() error {
+	v.lock.Lock()
+	defer v.lock.Unlock()
+	return v.driver.Create(v.Path)
+}
 
-	return stat.IsDir(), nil
+func (v *Volume) remove() error {
+	v.lock.Lock()
+	defer v.lock.Unlock()
+	if len(v.containers) > 0 {
+		return fmt.Errorf("volume is in use, cannot remove")
+	}
+	return v.driver.Remove(v.Path)
+}
+
+func (v *Volume) Link(containerID string) error {
+	v.lock.Lock()
+	defer v.lock.Unlock()
+	if err := v.driver.Link(v.Path, containerID); err != nil {
+		return err
+	}
+	v.containers[containerID] = struct{}{}
+	return nil
+}
+
+func (v *Volume) Unlink(containerID string) error {
+	v.lock.Lock()
+	defer v.lock.Unlock()
+	if err := v.driver.Unlink(v.Path, containerID); err != nil {
+		return err
+	}
+	delete(v.containers, containerID)
+	return nil
+}
+
+func (v *Volume) exists() bool {
+	v.lock.Lock()
+	defer v.lock.Unlock()
+	return v.driver.Exists(v.Path)
 }
 
 func (v *Volume) Containers() []string {
@@ -41,49 +77,16 @@ func (v *Volume) Containers() []string {
 	return containers
 }
 
-func (v *Volume) RemoveContainer(containerId string) {
-	v.lock.Lock()
-	delete(v.containers, containerId)
-	v.lock.Unlock()
-}
-
-func (v *Volume) AddContainer(containerId string) {
-	v.lock.Lock()
-	v.containers[containerId] = struct{}{}
-	v.lock.Unlock()
-}
-
-func (v *Volume) initialize() error {
-	v.lock.Lock()
-	defer v.lock.Unlock()
-
-	if _, err := os.Stat(v.Path); err != nil {
-		if !os.IsNotExist(err) {
-			return err
-		}
-		if err := os.MkdirAll(v.Path, 0755); err != nil {
-			return err
-		}
-	}
-
-	if err := os.MkdirAll(v.configPath, 0755); err != nil {
-		return err
-	}
-
-	return v.toDisk()
-}
-
-func (v *Volume) ToDisk() error {
-	v.lock.Lock()
-	defer v.lock.Unlock()
-	return v.toDisk()
-}
-
 func (v *Volume) toDisk() error {
 	jsonPath, err := v.jsonPath()
 	if err != nil {
 		return err
 	}
+
+	if err := os.MkdirAll(v.configPath, 0750); err != nil {
+		return err
+	}
+
 	f, err := os.OpenFile(jsonPath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
 	if err != nil {
 		return err
@@ -95,23 +98,48 @@ func (v *Volume) toDisk() error {
 	return f.Close()
 }
 
-func (v *Volume) FromDisk() error {
+func (v *Volume) fromDisk() error {
 	v.lock.Lock()
 	defer v.lock.Unlock()
+
 	pth, err := v.jsonPath()
 	if err != nil {
 		return err
 	}
 
-	jsonSource, err := os.Open(pth)
+	data, err := ioutil.ReadFile(pth)
 	if err != nil {
 		return err
 	}
-	defer jsonSource.Close()
 
-	dec := json.NewDecoder(jsonSource)
+	type cfg struct {
+		DriverName string
+		// This is from older docker versions before volume drivers
+		// We'll use this to determine the type of volume
+		IsBindMount bool
+	}
 
-	return dec.Decode(v)
+	var config *cfg
+	if err := json.Unmarshal(data, &config); err != nil {
+		return fmt.Errorf("error getting driver from volume config json: %v", err)
+	}
+	if config.DriverName == "" {
+		config.DriverName = "vfs"
+		if config.IsBindMount {
+			config.DriverName = "host"
+		}
+	}
+
+	driver, err := v.repository.getDriver(config.DriverName)
+	if err != nil {
+		return err
+	}
+	v.driver = driver
+	if err := json.Unmarshal(data, &v); err != nil {
+		return fmt.Errorf("error reading volume config json: %v", err)
+	}
+
+	return nil
 }
 
 func (v *Volume) jsonPath() (string, error) {

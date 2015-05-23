@@ -1,55 +1,37 @@
 package volumes
 
-import (
-	"os"
-	"testing"
+import "testing"
 
-	"github.com/docker/docker/pkg/stringutils"
-)
+type dummyDriver struct{}
+
+func (d *dummyDriver) Create(path string) error {
+	return nil
+}
+func (d *dummyDriver) Remove(path string) error {
+	return nil
+}
+func (d *dummyDriver) Link(path, id string) error {
+	return nil
+}
+func (d *dummyDriver) Unlink(path, id string) error {
+	return nil
+}
+func (d *dummyDriver) Exists(path string) bool {
+	return true
+}
 
 func TestContainers(t *testing.T) {
-	v := &Volume{containers: make(map[string]struct{})}
+	v := &Volume{containers: make(map[string]struct{}), driver: &dummyDriver{}}
 	id := "1234"
 
-	v.AddContainer(id)
+	v.Link(id)
 
 	if v.Containers()[0] != id {
 		t.Fatalf("adding a container ref failed")
 	}
 
-	v.RemoveContainer(id)
+	v.Unlink(id)
 	if len(v.Containers()) != 0 {
 		t.Fatalf("removing container failed")
-	}
-}
-
-// os.Stat(v.Path) is returning ErrNotExist, initialize catch it and try to
-// mkdir v.Path but it dies and correctly returns the error
-func TestInitializeCannotMkdirOnNonExistentPath(t *testing.T) {
-	v := &Volume{Path: "nonexistentpath"}
-
-	err := v.initialize()
-	if err == nil {
-		t.Fatal("Expected not to initialize volume with a non existent path")
-	}
-
-	if !os.IsNotExist(err) {
-		t.Fatalf("Expected to get ErrNotExist error, got %s", err)
-	}
-}
-
-// os.Stat(v.Path) is NOT returning ErrNotExist so skip and return error from
-// initialize
-func TestInitializeCannotStatPathFileNameTooLong(t *testing.T) {
-	// ENAMETOOLONG
-	v := &Volume{Path: stringutils.GenerateRandomAlphaOnlyString(300)}
-
-	err := v.initialize()
-	if err == nil {
-		t.Fatal("Expected not to initialize volume with a non existent path")
-	}
-
-	if os.IsNotExist(err) {
-		t.Fatal("Expected to not get ErrNotExist")
 	}
 }
