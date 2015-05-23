@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/Sirupsen/logrus"
@@ -56,7 +57,10 @@ func init() {
 	dockerUserAgent = useragent.AppendVersions("", httpVersion...)
 }
 
-type httpsRequestModifier struct{ tlsConfig *tls.Config }
+type httpsRequestModifier struct {
+	mu        sync.Mutex
+	tlsConfig *tls.Config
+}
 
 // DRAGONS(tiborvass): If someone wonders why do we set tlsconfig in a roundtrip,
 // it's because it's so as to match the current behavior in master: we generate the
@@ -125,8 +129,10 @@ func (m *httpsRequestModifier) ModifyRequest(req *http.Request) error {
 				}
 			}
 		}
+		m.mu.Lock()
 		m.tlsConfig.RootCAs = roots
 		m.tlsConfig.Certificates = certs
+		m.mu.Unlock()
 	}
 	return nil
 }
@@ -175,7 +181,7 @@ func NewTransport(timeout TimeoutType, secure bool) http.RoundTripper {
 	if secure {
 		// note: httpsTransport also handles http transport
 		// but for HTTPS, it sets up the certs
-		return transport.NewTransport(tr, &httpsRequestModifier{tlsConfig})
+		return transport.NewTransport(tr, &httpsRequestModifier{tlsConfig: tlsConfig})
 	}
 
 	return tr
