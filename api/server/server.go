@@ -576,16 +576,7 @@ func (s *Server) getContainersStats(version version.Version, w http.ResponseWrit
 		return fmt.Errorf("Missing parameter")
 	}
 
-	stream := boolValueOrDefault(r, "stream", true)
-	var out io.Writer
-	if !stream {
-		w.Header().Set("Content-Type", "application/json")
-		out = w
-	} else {
-		out = ioutils.NewWriteFlusher(w)
-	}
-
-	return s.daemon.ContainerStats(vars["name"], stream, out)
+	return s.daemon.ContainerStats(vars["name"], boolValueOrDefault(r, "stream", true), ioutils.NewWriteFlusher(w))
 }
 
 func (s *Server) getContainersLogs(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
