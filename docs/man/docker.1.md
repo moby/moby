@@ -295,21 +295,20 @@ inside it)
 
 # STORAGE DRIVER OPTIONS
 
-Docker makes use of storage backends (or "graphdriver" in Docker
-internals) to create writable containers from images.  Many of these
-backends make use of operating system level technologies, and support
-configuration.
+Docker uses storage backends (or "graphdriver" in Docker internals) to create
+writable containers from images.  Many of these backends use operating system
+level technologies and can be configured.
 
-Options to the storage backend can be specified with **--storage-opt**
-flags. The only backend which currently takes options is
-*devicemapper*. Therefore use these flags with **-s=**devicemapper.
+Specify options to the storage backend with **--storage-opt** flags. The only
+backend that currently takes options is *devicemapper*. Therefore use these
+flags with **-s=**devicemapper.
 
 Specifically for devicemapper, the default is a "loopback" model which
 requires no pre-configuration, but is extremely inefficient.  Do not
 use it in production.
 
-In order to make the best use of Docker with the devicemapper backend,
-you must have a recent version of lvm2.  Use `lvm` to create a thin
+To make the best use of Docker with the devicemapper backend,
+you must have a recent version of `lvm2`.  Use `lvm` to create a thin
 pool.  Then, use `--storage-opt dm.thinpooldev` to tell the Docker
 engine to use that pool for allocating images and container snapshots.
 
@@ -317,18 +316,19 @@ Here is the list of *devicemapper* options:
 
 #### dm.thinpooldev
 
-Specifies a custom blockdevice to use for the thin pool.
+Specifies a custom block storage device to use for the thin pool.
 
-If using a block device for device mapper storage, ideally lvm2 would
-be used to create/manage the thin-pool volume that is then handed to
-docker to exclusively create/manage the thin and thin snapshot volumes
-needed for its containers.  Managing the thin-pool outside of docker
-makes for the most feature-rich method of having docker utilize device
-mapper thin provisioning as the backing storage for docker's
-containers.  lvm2-based thin-pool management feature highlights
-include: automatic or interactive thin-pool resize support,
-dynamically change thin-pool features, automatic thinp metadata
-checking when lvm2 activates the thin-pool, etc.
+If using a block device for device mapper storage, it is best to use
+`lvm2` to create and manage the thin-pool volume. This volume is then
+handed to Docker to create snapshot volumes needed for images and
+containers.
+
+Managing the thin-pool outside of Docker makes for the most feature-rich method
+of having Docker utilize device mapper thin provisioning as the backing storage
+for Docker's containers. The highlights of the lvm2-based thin-pool management
+feature include: automatic or interactive thin-pool resize support, dynamically
+changing thin-pool features, automatic thinp metadata checking when lvm2 activates
+the thin-pool, etc.
 
 Example use: ``docker -d --storage-opt dm.thinpooldev=/dev/mapper/thin-pool``
 
@@ -350,7 +350,7 @@ Example use: ``docker -d --storage-opt dm.basesize=20G``
 #### dm.fs
 
 Specifies the filesystem type to use for the base device. The
-supported options are "ext4" and "xfs". The default is "ext4"
+supported options are `ext4` and `xfs`. The default is `ext4`.
 
 Example use: ``docker -d --storage-opt dm.fs=xfs``
 
@@ -368,25 +368,25 @@ Example use: ``docker -d --storage-opt dm.mountopt=nodiscard``
 
 #### dm.use_deferred_removal
 
-Enables use of deferred device removal if libdm and kernel driver
+Enables use of deferred device removal if `libdm` and kernel driver
 support the mechanism.
 
-Deferred device removal means that if device is busy when devices is
+Deferred device removal means that if device is busy when devices are
 being removed/deactivated, then a deferred removal is scheduled on
 device. And devices automatically goes away when last user of device
 exits.
 
-For example, when contianer exits, its associated thin device is
-removed. If that devices has leaked into some other mount namespace
-can can't be removed now, container exit will still be successful and
-this option will just schedule device for deferred removal and will
-not wait in a loop trying to remove a busy device.
+For example, when a container exits, its associated thin device is removed. If
+that devices has leaked into some other mount namespace and can't be removed,
+the container exit still succeeds and this option causes the system to schedule
+device for deferred removal. It does not wait in a loop trying to remove a busy
+device.
 
 Example use: ``docker -d --storage-opt dm.use_deferred_removal=true``
 
 #### dm.loopdatasize
 
-Note: This option configures devicemapper loopback, which is not for
+**Note**: This option configures devicemapper loopback, which is not for
 production use.
 
 Specifies the size to use when creating the loopback file for the
@@ -398,7 +398,7 @@ Example use: ``docker -d --storage-opt dm.loopdatasize=200G``
 
 #### dm.loopmetadatasize
 
-Note: This option configures devicemapper loopback, which is not for
+**Note**: This option configures devicemapper loopback, which is not for
 production use.
 
 Specifies the size to use when creating the loopback file for the
@@ -433,13 +433,13 @@ Example use: ``docker -d --storage-opt dm.blocksize=512K``
 
 #### dm.blkdiscard
 
-Enables or disables the use of blkdiscard when removing devicemapper
+Enables or disables the use of `blkdiscard` when removing devicemapper
 devices.  This is enabled by default (only) if using loopback devices
 and is required to resparsify the loopback file on image/container
 removal.
 
 Disabling this on loopback can lead to *much* faster container removal
-times, but will prevent the space used in `/var/lib/docker` directory
+times, but it also prevents the space used in `/var/lib/docker` directory
 from being returned to the system for other use when containers are
 removed.
 
@@ -458,7 +458,7 @@ To view the `udev` sync support of a Docker daemon that is using the
 	 Udev Sync Supported: true
 	[...]
 
-When `udev` sync support is `true`, then `devicemapper` and udev can
+When `udev` sync support is `true`, then `devicemapper` and `udev` can
 coordinate the activation and deactivation of devices for containers.
 
 When `udev` sync support is `false`, a race condition occurs between
@@ -467,8 +467,8 @@ condition results in errors and failures. (For information on these
 failures, see
 [docker#4036](https://github.com/docker/docker/issues/4036))
 
-To allow the `docker` daemon to start, regardless of `udev` sync not
-being supported, set `dm.override_udev_sync_check` to true:
+To allow the `docker` daemon to start, regardless of whether `udev` sync is
+`false`, set `dm.override_udev_sync_check` to true:
 
         $ docker -d --storage-opt dm.override_udev_sync_check=true
 

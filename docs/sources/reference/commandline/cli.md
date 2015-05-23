@@ -313,21 +313,20 @@ Currently supported options of `devicemapper`:
 
  *  `dm.thinpooldev`
 
-    Specifies a custom blockdevice to use for the thin pool.
+   Specifies a custom block storage device to use for the thin pool.
 
-    If using a block device for device mapper storage, ideally lvm2
-    would be used to create/manage the thin-pool volume that is then
-    handed to docker to exclusively create/manage the thin and thin
-    snapshot volumes needed for its containers.  Managing the
-    thin-pool outside of docker makes for the most feature-rich method
-    of having docker utilize device mapper thin provisioning as the
-    backing storage for docker's containers.  lvm2-based thin-pool
-    management feature highlights include: automatic or interactive
-    thin-pool resize support, dynamically change thin-pool features,
-    automatic thinp metadata checking when lvm2 activates the
-    thin-pool, etc.
+   If using a block device for device mapper storage, it is best to use `lvm2`
+   to create and manage the thin-pool volume. This volume is then handed to Docker
+   to exclusively create snapshot volumes needed for images and containers.  
 
-    Example use: ``docker -d --storage-opt dm.thinpooldev=/dev/mapper/thin-pool``
+   Managing the thin-pool outside of Docker makes for the most feature-rich
+   method of having Docker utilize device mapper thin provisioning as the
+   backing storage for Docker's containers. The highlights of the lvm2-based
+   thin-pool management feature include: automatic or interactive thin-pool
+   resize support, dynamically changing thin-pool features, automatic thinp
+   metadata checking when lvm2 activates the thin-pool, etc.
+
+  Example use: ``docker -d --storage-opt dm.thinpooldev=/dev/mapper/thin-pool``
 
  *  `dm.basesize`
 
@@ -351,28 +350,28 @@ Currently supported options of `devicemapper`:
 
  *  `dm.loopdatasize`
 
-    Note: This option configures devicemapper loopback, which is not for
-    production use.
+		>**Note**: This option configures devicemapper loopback, which is not for
+		>production use.
+		
+  Specifies the size to use when creating the loopback file for the "data"
+  device which is used for the thin pool. The default size is 100G. Note that
+  the file is sparse, so it will not initially take up this much space.
 
-    Specifies the size to use when creating the loopback file for the "data"
-    device which is used for the thin pool. The default size is 100G. Note that
-    the file is sparse, so it will not initially take up this much space.
-
-    Example use:
+  Example use:
 
         $ docker -d --storage-opt dm.loopdatasize=200G
 
  *  `dm.loopmetadatasize`
 
-    Note: This option configures devicemapper loopback, which is not for
-    production use.
+		>**Note**: This option configures devicemapper loopback, which is not for
+		>production use.
 
-    Specifies the size to use when creating the loopback file for the
-    "metadata" device which is used for the thin pool. The default size is 2G.
-    Note that the file is sparse, so it will not initially take up this much
-    space.
+	Specifies the size to use when creating the loopback file for the
+	"metadadata" device which is used for the thin pool. The default size
+	is 2G. Note that the file is sparse, so it will not initially take up
+	this much space
 
-    Example use:
+  Example use:
 
         $ docker -d --storage-opt dm.loopmetadatasize=4G
 
