@@ -15,7 +15,7 @@ import (
 func (cli *DockerCli) CmdInfo(args ...string) error {
 	cmd := cli.Subcmd("info", "", "Display system-wide information", true)
 	cmd.Require(flag.Exact, 0)
-	cmd.ParseFlags(args, false)
+	cmd.ParseFlags(args, true)
 
 	rdr, _, err := cli.call("GET", "/info", nil, nil)
 	if err != nil {

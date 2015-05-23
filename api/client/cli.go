@@ -8,7 +8,6 @@ import (
 	"io"
 	"net"
 	"net/http"
-	"os"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -98,7 +97,7 @@ func (cli *DockerCli) Cmd(args ...string) error {
 	if len(args) > 0 {
 		method, exists := cli.getMethod(args[0])
 		if !exists {
-			return fmt.Errorf("docker: '%s' is not a docker command. See 'docker --help'.", args[0])
+			return fmt.Errorf("docker: '%s' is not a docker command.\nSee 'docker --help'.", args[0])
 		}
 		return method(args[1:]...)
 	}
@@ -124,15 +123,13 @@ func (cli *DockerCli) Subcmd(name, signature, description string, exitOnError bo
 	flags.Usage = func() {
 		flags.ShortUsage()
 		flags.PrintDefaults()
-		os.Exit(0)
 	}
 	flags.ShortUsage = func() {
 		options := ""
 		if flags.FlagCountUndeprecated() > 0 {
 			options = " [OPTIONS]"
 		}
-		fmt.Fprintf(cli.out, "\nUsage: docker %s%s%s\n\n%s\n\n", name, options, signature, description)
-		flags.SetOutput(cli.out)
+		fmt.Fprintf(flags.Out(), "\nUsage: docker %s%s%s\n\n%s\n", name, options, signature, description)
 	}
 	return flags
 }

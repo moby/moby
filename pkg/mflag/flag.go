@@ -512,6 +512,12 @@ func (f *FlagSet) PrintDefaults() {
 	if runtime.GOOS != "windows" && home == "/" {
 		home = ""
 	}
+
+	// Add a blank line between cmd description and list of options
+	if f.FlagCount() > 0 {
+		fmt.Fprintln(writer, "")
+	}
+
 	f.VisitAll(func(flag *Flag) {
 		format := "  -%s=%s"
 		names := []string{}
@@ -1074,11 +1080,12 @@ func (cmd *FlagSet) ParseFlags(args []string, withHelp bool) error {
 		return err
 	}
 	if help != nil && *help {
+		cmd.SetOutput(os.Stdout)
 		cmd.Usage()
-		// just in case Usage does not exit
 		os.Exit(0)
 	}
 	if str := cmd.CheckArgs(); str != "" {
+		cmd.SetOutput(os.Stderr)
 		cmd.ReportError(str, withHelp)
 		cmd.ShortUsage()
 		os.Exit(1)
@@ -1089,9 +1096,9 @@ func (cmd *FlagSet) ParseFlags(args []string, withHelp bool) error {
 func (cmd *FlagSet) ReportError(str string, withHelp bool) {
 	if withHelp {
 		if os.Args[0] == cmd.Name() {
-			str += ". See '" + os.Args[0] + " --help'"
+			str += ".\nSee '" + os.Args[0] + " --help'"
 		} else {
-			str += ". See '" + os.Args[0] + " " + cmd.Name() + " --help'"
+			str += ".\nSee '" + os.Args[0] + " " + cmd.Name() + " --help'"
 		}
 	}
 	fmt.Fprintf(cmd.Out(), "docker: %s.\n", str)

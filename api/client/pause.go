@@ -12,7 +12,7 @@ import (
 func (cli *DockerCli) CmdPause(args ...string) error {
 	cmd := cli.Subcmd("pause", "CONTAINER [CONTAINER...]", "Pause all processes within a container", true)
 	cmd.Require(flag.Min, 1)
-	cmd.ParseFlags(args, false)
+	cmd.ParseFlags(args, true)
 
 	var errNames []string
 	for _, name := range cmd.Args() {
