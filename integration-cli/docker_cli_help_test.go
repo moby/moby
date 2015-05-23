@@ -93,6 +93,8 @@ func (s *DockerSuite) TestHelpTextVerify(c *check.C) {
 		// Skip first line, its "Commands:"
 		cmds := []string{}
 		for _, cmd := range strings.Split(out[i:], "\n")[1:] {
+			var stderr string
+
 			// Stop on blank line or non-idented line
 			if cmd == "" || !unicode.IsSpace(rune(cmd[0])) {
 				break
@@ -102,12 +104,24 @@ func (s *DockerSuite) TestHelpTextVerify(c *check.C) {
 			cmd = strings.Split(strings.TrimSpace(cmd), " ")[0]
 			cmds = append(cmds, cmd)
 
+			// Check the full usage text
 			helpCmd := exec.Command(dockerBinary, cmd, "--help")
 			helpCmd.Env = newEnvs
-			out, ec, err := runCommandWithOutput(helpCmd)
+			out, stderr, ec, err = runCommandWithStdoutStderr(helpCmd)
+			if len(stderr) != 0 {
+				c.Fatalf("Error on %q help. non-empty stderr:%q", cmd, stderr)
+			}
+			if strings.HasSuffix(out, "\n\n") {
+				c.Fatalf("Should not have blank line on %q\nout:%q", cmd, out)
+			}
+			if !strings.Contains(out, "--help=false") {
+				c.Fatalf("Should show full usage on %q\nout:%q", cmd, out)
+			}
 			if err != nil || ec != 0 {
 				c.Fatalf("Error on %q help: %s\nexit code:%d", cmd, out, ec)
 			}
+
+			// Check each line for lots of stuff
 			lines := strings.Split(out, "\n")
 			for _, line := range lines {
 				if len(line) > 80 {
@@ -142,6 +156,77 @@ func (s *DockerSuite) TestHelpTextVerify(c *check.C) {
 				}
 
 			}
+
+			// For each command make sure we generate an error
+			// if we give a bad arg
+			dCmd := exec.Command(dockerBinary, cmd, "--badArg")
+			out, stderr, ec, err = runCommandWithStdoutStderr(dCmd)
+			if len(out) != 0 || len(stderr) == 0 || ec == 0 || err == nil {
+				c.Fatalf("Bad results from 'docker %s --badArg'\nec:%d\nstdout:%s\nstderr:%s\nerr:%q", cmd, ec, out, stderr, err)
+			}
+			// Be really picky
+			if strings.HasSuffix(stderr, "\n\n") {
+				c.Fatalf("Should not have a blank line at the end of 'docker rm'\n%s", stderr)
+			}
+
+			// Now make sure that each command will print a short-usage
+			// (not a full usage - meaning no opts section) if we
+			// are missing a required arg or pass in a bad arg
+
+			// These commands will never print a short-usage so don't test
+			noShortUsage := map[string]string{
+				"images": "",
+				"login":  "",
+				"logout": "",
+			}
+
+			if _, ok := noShortUsage[cmd]; !ok {
+				// For each command run it w/o any args. It will either return
+				// valid output or print a short-usage
+				var dCmd *exec.Cmd
+				var stdout, stderr string
+				var args []string
+
+				// skipNoArgs are ones that we don't want to try w/o
+				// any args. Either because it'll hang the test or
+				// lead to incorrect test result (like false negative).
+				// Whatever the reason, skip trying to run w/o args and
+				// jump to trying with a bogus arg.
+				skipNoArgs := map[string]string{
+					"events": "",
+					"load":   "",
+				}
+
+				ec = 0
+				if _, ok := skipNoArgs[cmd]; !ok {
+					args = []string{cmd}
+					dCmd = exec.Command(dockerBinary, args...)
+					stdout, stderr, ec, err = runCommandWithStdoutStderr(dCmd)
+				}
+
+				// If its ok w/o any args then try again with an arg
+				if ec == 0 {
+					args = []string{cmd, "badArg"}
+					dCmd = exec.Command(dockerBinary, args...)
+					stdout, stderr, ec, err = runCommandWithStdoutStderr(dCmd)
+				}
+
+				if len(stdout) != 0 || len(stderr) == 0 || ec == 0 || err == nil {
+					c.Fatalf("Bad output from %q\nstdout:%q\nstderr:%q\nec:%d\nerr:%q", args, stdout, stderr, ec, err)
+				}
+				// Should have just short usage
+				if !strings.Contains(stderr, "\nUsage: ") {
+					c.Fatalf("Missing short usage on %q\nstderr:%q", args, stderr)
+				}
+				// But shouldn't have full usage
+				if strings.Contains(stderr, "--help=false") {
+					c.Fatalf("Should not have full usage on %q\nstderr:%q", args, stderr)
+				}
+				if strings.HasSuffix(stderr, "\n\n") {
+					c.Fatalf("Should not have a blank line on %q\nstderr:%q", args, stderr)
+				}
+			}
+
 		}
 
 		expected := 39
@@ -153,31 +238,92 @@ func (s *DockerSuite) TestHelpTextVerify(c *check.C) {
 
 }
 
-func (s *DockerSuite) TestHelpErrorStderr(c *check.C) {
-	// If we had a generic CLI test file this one shoudl go in there
+func (s *DockerSuite) TestHelpExitCodesHelpOutput(c *check.C) {
+	// Test to make sure the exit code and output (stdout vs stderr) of
+	// various good and bad cases are what we expect
 
-	cmd := exec.Command(dockerBinary, "boogie")
-	out, ec, err := runCommandWithOutput(cmd)
-	if err == nil || ec == 0 {
-		c.Fatalf("Boogie command should have failed")
+	// docker : stdout=all, stderr=empty, rc=0
+	cmd := exec.Command(dockerBinary)
+	stdout, stderr, ec, err := runCommandWithStdoutStderr(cmd)
+	if len(stdout) == 0 || len(stderr) != 0 || ec != 0 || err != nil {
+		c.Fatalf("Bad results from 'docker'\nec:%d\nstdout:%s\nstderr:%s\nerr:%q", ec, stdout, stderr, err)
+	}
+	// Be really pick
+	if strings.HasSuffix(stdout, "\n\n") {
+		c.Fatalf("Should not have a blank line at the end of 'docker'\n%s", stdout)
 	}
 
-	expected := "docker: 'boogie' is not a docker command. See 'docker --help'.\n"
-	if out != expected {
-		c.Fatalf("Bad output from boogie\nGot:%s\nExpected:%s", out, expected)
+	// docker help: stdout=all, stderr=empty, rc=0
+	cmd = exec.Command(dockerBinary, "help")
+	stdout, stderr, ec, err = runCommandWithStdoutStderr(cmd)
+	if len(stdout) == 0 || len(stderr) != 0 || ec != 0 || err != nil {
+		c.Fatalf("Bad results from 'docker help'\nec:%d\nstdout:%s\nstderr:%s\nerr:%q", ec, stdout, stderr, err)
+	}
+	// Be really pick
+	if strings.HasSuffix(stdout, "\n\n") {
+		c.Fatalf("Should not have a blank line at the end of 'docker help'\n%s", stdout)
 	}
 
-	cmd = exec.Command(dockerBinary, "rename", "foo", "bar")
-	out, ec, err = runCommandWithOutput(cmd)
-	if err == nil || ec == 0 {
-		c.Fatalf("Rename should have failed")
+	// docker --help: stdout=all, stderr=empty, rc=0
+	cmd = exec.Command(dockerBinary, "--help")
+	stdout, stderr, ec, err = runCommandWithStdoutStderr(cmd)
+	if len(stdout) == 0 || len(stderr) != 0 || ec != 0 || err != nil {
+		c.Fatalf("Bad results from 'docker --help'\nec:%d\nstdout:%s\nstderr:%s\nerr:%q", ec, stdout, stderr, err)
+	}
+	// Be really pick
+	if strings.HasSuffix(stdout, "\n\n") {
+		c.Fatalf("Should not have a blank line at the end of 'docker --help'\n%s", stdout)
 	}
 
-	expected = `Error response from daemon: no such id: foo
-Error: failed to rename container named foo
-`
-	if out != expected {
-		c.Fatalf("Bad output from rename\nGot:%s\nExpected:%s", out, expected)
+	// docker inspect busybox: stdout=all, stderr=empty, rc=0
+	// Just making sure stderr is empty on valid cmd
+	cmd = exec.Command(dockerBinary, "inspect", "busybox")
+	stdout, stderr, ec, err = runCommandWithStdoutStderr(cmd)
+	if len(stdout) == 0 || len(stderr) != 0 || ec != 0 || err != nil {
+		c.Fatalf("Bad results from 'docker inspect busybox'\nec:%d\nstdout:%s\nstderr:%s\nerr:%q", ec, stdout, stderr, err)
+	}
+	// Be really pick
+	if strings.HasSuffix(stdout, "\n\n") {
+		c.Fatalf("Should not have a blank line at the end of 'docker inspect busyBox'\n%s", stdout)
+	}
+
+	// docker rm: stdout=empty, stderr=all, rc!=0
+	// testing the min arg error msg
+	cmd = exec.Command(dockerBinary, "rm")
+	stdout, stderr, ec, err = runCommandWithStdoutStderr(cmd)
+	if len(stdout) != 0 || len(stderr) == 0 || ec == 0 || err == nil {
+		c.Fatalf("Bad results from 'docker rm'\nec:%d\nstdout:%s\nstderr:%s\nerr:%q", ec, stdout, stderr, err)
+	}
+	// Should not contain full help text but should contain info about
+	// # of args and Usage line
+	if !strings.Contains(stderr, "requires a minimum") {
+		c.Fatalf("Missing # of args text from 'docker rm'\nstderr:%s", stderr)
+	}
+
+	// docker rm NoSuchContainer: stdout=empty, stderr=all, rc=0
+	// testing to make sure no blank line on error
+	cmd = exec.Command(dockerBinary, "rm", "NoSuchContainer")
+	stdout, stderr, ec, err = runCommandWithStdoutStderr(cmd)
+	if len(stdout) != 0 || len(stderr) == 0 || ec == 0 || err == nil {
+		c.Fatalf("Bad results from 'docker rm NoSuchContainer'\nec:%d\nstdout:%s\nstderr:%s\nerr:%q", ec, stdout, stderr, err)
+	}
+	// Be really picky
+	if strings.HasSuffix(stderr, "\n\n") {
+		c.Fatalf("Should not have a blank line at the end of 'docker rm'\n%s", stderr)
+	}
+
+	// docker BadCmd: stdout=empty, stderr=all, rc=0
+	cmd = exec.Command(dockerBinary, "BadCmd")
+	stdout, stderr, ec, err = runCommandWithStdoutStderr(cmd)
+	if len(stdout) != 0 || len(stderr) == 0 || ec == 0 || err == nil {
+		c.Fatalf("Bad results from 'docker BadCmd'\nec:%d\nstdout:%s\nstderr:%s\nerr:%q", ec, stdout, stderr, err)
+	}
+	if stderr != "docker: 'BadCmd' is not a docker command.\nSee 'docker --help'.\n" {
+		c.Fatalf("Unexcepted output for 'docker badCmd'\nstderr:%s", stderr)
+	}
+	// Be really picky
+	if strings.HasSuffix(stderr, "\n\n") {
+		c.Fatalf("Should not have a blank line at the end of 'docker rm'\n%s", stderr)
 	}
 
 }
