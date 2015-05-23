@@ -12,24 +12,10 @@ func (daemon *Daemon) ContainerStart(name string, hostConfig *runconfig.HostConf
 		return err
 	}
 
-	if container.IsPaused() {
-		return fmt.Errorf("Cannot start a paused container, try unpause instead.")
-	}
-
-	if container.IsRunning() {
-		return fmt.Errorf("Container already started")
-	}
-
-	if _, err = daemon.verifyHostConfig(hostConfig); err != nil {
-		return err
-	}
-
 	// This is kept for backward compatibility - hostconfig should be passed when
 	// creating a container, not during start.
-	if hostConfig != nil {
-		if err := daemon.setHostConfig(container, hostConfig); err != nil {
-			return err
-		}
+	if _, err := container.SetHostConfig(hostConfig); err != nil {
+		return err
 	}
 
 	if err := container.Start(); err != nil {

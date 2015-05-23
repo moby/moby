@@ -230,8 +230,11 @@ func (container *Container) Start() (err error) {
 	container.Lock()
 	defer container.Unlock()
 
+	if container.Paused {
+		return fmt.Errorf("Cannot start a paused container, try unpause instead.")
+	}
 	if container.Running {
-		return nil
+		return fmt.Errorf("Container already started")
 	}
 
 	if container.removalInProgress || container.Dead {
@@ -258,7 +261,6 @@ func (container *Container) Start() (err error) {
 	if err := container.initializeNetworking(); err != nil {
 		return err
 	}
-	container.verifyDaemonSettings()
 	if err := container.prepareVolumes(); err != nil {
 		return err
 	}
@@ -456,7 +458,7 @@ func (container *Container) Kill() error {
 
 func (container *Container) Stop(seconds int) error {
 	if !container.IsRunning() {
-		return nil
+		return fmt.Errorf("Container already stopped")
 	}
 
 	// 1. Send a SIGTERM
@@ -631,10 +633,6 @@ func (container *Container) Exposes(p nat.Port) bool {
 
 func (container *Container) HostConfig() *runconfig.HostConfig {
 	return container.hostConfig
-}
-
-func (container *Container) SetHostConfig(hostConfig *runconfig.HostConfig) {
-	container.hostConfig = hostConfig
 }
 
 func (container *Container) getLogConfig() runconfig.LogConfig {
@@ -1006,4 +1004,40 @@ func copyEscapable(dst io.Writer, src io.ReadCloser) (written int64, err error) 
 		}
 	}
 	return written, err
+}
+
+func (container *Container) SetHostConfig(hostConfig *runconfig.HostConfig) ([]string, error) {
+	var (
+		warnings []string
+		err      error
+	)
+	container.Lock()
+	defer container.Unlock()
+
+	if hostConfig == nil {
+		hostConfig = &runconfig.HostConfig{}
+	}
+
+	if warnings, err = container.daemon.VerifyHostConfig(hostConfig); err != nil {
+		return nil, err
+	}
+	if hostConfig.SecurityOpt == nil {
+		hostConfig.SecurityOpt, err = container.daemon.GenerateSecurityOpt(hostConfig.IpcMode, hostConfig.PidMode)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if err := parseSecurityOpt(container, hostConfig); err != nil {
+		return nil, err
+	}
+
+	// Register any links from the host config before starting the container
+	if err := container.daemon.RegisterLinks(container, hostConfig); err != nil {
+		return nil, err
+	}
+
+	container.hostConfig = hostConfig
+	container.toDisk()
+
+	return warnings, nil
 }

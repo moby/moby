@@ -375,6 +375,13 @@ func (daemon *Daemon) mergeAndVerifyConfig(config *runconfig.Config, img *image.
 	if config.Entrypoint.Len() == 0 && config.Cmd.Len() == 0 {
 		return nil, fmt.Errorf("No command specified")
 	}
+	// The check for a valid workdir path is made on the server rather than in the
+	// client. This is because we don't know the type of path (Linux or Windows)
+	// to validate on the client.
+	if config.WorkingDir != "" && !filepath.IsAbs(config.WorkingDir) {
+		return warnings, fmt.Errorf("The working directory '%s' is invalid. It needs to be an absolute path.", config.WorkingDir)
+	}
+
 	return warnings, nil
 }
 
@@ -1171,12 +1178,8 @@ func checkKernel() error {
 	return nil
 }
 
-func (daemon *Daemon) verifyHostConfig(hostConfig *runconfig.HostConfig) ([]string, error) {
+func (daemon *Daemon) VerifyHostConfig(hostConfig *runconfig.HostConfig) ([]string, error) {
 	var warnings []string
-
-	if hostConfig == nil {
-		return warnings, nil
-	}
 
 	if hostConfig.LxcConf.Len() > 0 && !strings.Contains(daemon.ExecutionDriver().Name(), "lxc") {
 		return warnings, fmt.Errorf("Cannot use --lxc-conf with execdriver: %s", daemon.ExecutionDriver().Name())
@@ -1206,6 +1209,9 @@ func (daemon *Daemon) verifyHostConfig(hostConfig *runconfig.HostConfig) ([]stri
 		warnings = append(warnings, "Your kernel does not support CPU cfs quota. Quota discarded.")
 		hostConfig.CpuQuota = 0
 	}
+	if daemon.SystemConfig().IPv4ForwardingDisabled {
+		warnings = append(warnings, "IPv4 forwarding is disabled. Networking will not work")
+	}
 	if hostConfig.BlkioWeight > 0 && (hostConfig.BlkioWeight < 10 || hostConfig.BlkioWeight > 1000) {
 		return warnings, fmt.Errorf("Range of blkio weight is from 10 to 1000.")
 	}
@@ -1215,22 +1221,4 @@ func (daemon *Daemon) verifyHostConfig(hostConfig *runconfig.HostConfig) ([]stri
 	}
 
 	return warnings, nil
-}
-
-func (daemon *Daemon) setHostConfig(container *Container, hostConfig *runconfig.HostConfig) error {
-	container.Lock()
-	defer container.Unlock()
-	if err := parseSecurityOpt(container, hostConfig); err != nil {
-		return err
-	}
-
-	// Register any links from the host config before starting the container
-	if err := daemon.RegisterLinks(container, hostConfig); err != nil {
-		return err
-	}
-
-	container.hostConfig = hostConfig
-	container.toDisk()
-
-	return nil
 }
