@@ -6,10 +6,11 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
+	"text/tabwriter"
 
 	flag "github.com/docker/docker/pkg/mflag"
+	"github.com/docker/docker/pkg/stringid"
 )
 
 var (
@@ -103,9 +104,14 @@ func (cli *NetworkCli) CmdNetworkServiceCreate(chain string, args ...string) err
 	if err != nil {
 		return err
 	}
-	if _, err := io.Copy(cli.out, bytes.NewReader(obj)); err != nil {
+
+	var replyID string
+	err = json.Unmarshal(obj, &replyID)
+	if err != nil {
 		return err
 	}
+
+	fmt.Fprintf(cli.out, "%s\n", replyID)
 	return nil
 }
 
@@ -128,11 +134,8 @@ func (cli *NetworkCli) CmdNetworkServiceRm(chain string, args ...string) error {
 		return err
 	}
 
-	obj, _, err := readBody(cli.call("DELETE", "/networks/"+networkID+"/endpoints/"+serviceID, nil, nil))
+	_, _, err = readBody(cli.call("DELETE", "/networks/"+networkID+"/endpoints/"+serviceID, nil, nil))
 	if err != nil {
-		return err
-	}
-	if _, err := io.Copy(cli.out, bytes.NewReader(obj)); err != nil {
 		return err
 	}
 	return nil
@@ -141,6 +144,10 @@ func (cli *NetworkCli) CmdNetworkServiceRm(chain string, args ...string) error {
 // CmdNetworkServiceLs handles service list UI
 func (cli *NetworkCli) CmdNetworkServiceLs(chain string, args ...string) error {
 	cmd := cli.Subcmd(chain, "ls", "NETWORK", "Lists all the services on a network", false)
+	quiet := cmd.Bool([]string{"q", "-quiet"}, false, "Only display numeric IDs")
+	noTrunc := cmd.Bool([]string{"#notrunc", "-no-trunc"}, false, "Do not truncate the output")
+	nLatest := cmd.Bool([]string{"l", "-latest"}, false, "Show the latest network created")
+	last := cmd.Int([]string{"n"}, -1, "Show n last created networks")
 	err := cmd.ParseFlags(args, true)
 	if err != nil {
 		return err
@@ -158,9 +165,41 @@ func (cli *NetworkCli) CmdNetworkServiceLs(chain string, args ...string) error {
 		fmt.Fprintf(cli.err, "%s", err.Error())
 		return err
 	}
-	if _, err := io.Copy(cli.out, bytes.NewReader(obj)); err != nil {
+	if *last == -1 && *nLatest {
+		*last = 1
+	}
+
+	var endpointResources []endpointResource
+	err = json.Unmarshal(obj, &endpointResources)
+	if err != nil {
 		return err
 	}
+
+	wr := tabwriter.NewWriter(cli.out, 20, 1, 3, ' ', 0)
+	// unless quiet (-q) is specified, print field titles
+	if !*quiet {
+		fmt.Fprintln(wr, "NETWORK SERVICE ID\tNAME\tNETWORK")
+	}
+
+	for _, networkResource := range endpointResources {
+		ID := networkResource.ID
+		netName := networkResource.Name
+		if !*noTrunc {
+			ID = stringid.TruncateID(ID)
+		}
+		if *quiet {
+			fmt.Fprintln(wr, ID)
+			continue
+		}
+		network := networkResource.Network
+		fmt.Fprintf(wr, "%s\t%s\t%s",
+			ID,
+			netName,
+			network)
+		fmt.Fprint(wr, "\n")
+	}
+	wr.Flush()
+
 	return nil
 }
 
@@ -188,9 +227,15 @@ func (cli *NetworkCli) CmdNetworkServiceInfo(chain string, args ...string) error
 		fmt.Fprintf(cli.err, "%s", err.Error())
 		return err
 	}
-	if _, err := io.Copy(cli.out, bytes.NewReader(obj)); err != nil {
+
+	endpointResource := &endpointResource{}
+	if err := json.NewDecoder(bytes.NewReader(obj)).Decode(endpointResource); err != nil {
 		return err
 	}
+	fmt.Fprintf(cli.out, "Service Id: %s\n", endpointResource.ID)
+	fmt.Fprintf(cli.out, "\tName: %s\n", endpointResource.Name)
+	fmt.Fprintf(cli.out, "\tNetwork: %s\n", endpointResource.Network)
+
 	return nil
 }
 
@@ -220,12 +265,9 @@ func (cli *NetworkCli) CmdNetworkServiceJoin(chain string, args ...string) error
 
 	nc := endpointJoin{ContainerID: containerID}
 
-	obj, _, err := readBody(cli.call("POST", "/networks/"+networkID+"/endpoints/"+serviceID+"/containers", nc, nil))
+	_, _, err = readBody(cli.call("POST", "/networks/"+networkID+"/endpoints/"+serviceID+"/containers", nc, nil))
 	if err != nil {
 		fmt.Fprintf(cli.err, "%s", err.Error())
-		return err
-	}
-	if _, err := io.Copy(cli.out, bytes.NewReader(obj)); err != nil {
 		return err
 	}
 	return nil
@@ -255,12 +297,9 @@ func (cli *NetworkCli) CmdNetworkServiceLeave(chain string, args ...string) erro
 		return err
 	}
 
-	obj, _, err := readBody(cli.call("DELETE", "/networks/"+networkID+"/endpoints/"+serviceID+"/containers/"+containerID, nil, nil))
+	_, _, err = readBody(cli.call("DELETE", "/networks/"+networkID+"/endpoints/"+serviceID+"/containers/"+containerID, nil, nil))
 	if err != nil {
 		fmt.Fprintf(cli.err, "%s", err.Error())
-		return err
-	}
-	if _, err := io.Copy(cli.out, bytes.NewReader(obj)); err != nil {
 		return err
 	}
 	return nil

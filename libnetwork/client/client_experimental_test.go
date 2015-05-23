@@ -47,9 +47,6 @@ func TestClientNetworkServiceLs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err.Error())
 	}
-	if out.String() != string(mockServiceListJSON) {
-		t.Fatal("Network service ls command fail to return the expected list")
-	}
 }
 
 func TestClientNetworkServiceInfo(t *testing.T) {
@@ -60,9 +57,6 @@ func TestClientNetworkServiceInfo(t *testing.T) {
 	if err != nil {
 		t.Fatal(err.Error())
 	}
-	if out.String() != string(mockServiceJSON) {
-		t.Fatal("Network info command fail to return the expected object")
-	}
 }
 
 func TestClientNetworkServiceInfoById(t *testing.T) {
@@ -72,9 +66,6 @@ func TestClientNetworkServiceInfoById(t *testing.T) {
 	err := cli.Cmd("docker", "network", "service", "info", mockServiceID, mockNwID)
 	if err != nil {
 		t.Fatal(err.Error())
-	}
-	if out.String() != string(mockServiceJSON) {
-		t.Fatal("Network info command fail to return the expected object")
 	}
 }
 
