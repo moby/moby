@@ -256,7 +256,7 @@ func (n *network) EndpointByID(id string) (Endpoint, error) {
 	return nil, ErrNoSuchEndpoint(id)
 }
 
-func IsReservedNetwork(name string) bool {
+func isReservedNetwork(name string) bool {
 	reserved := []string{"bridge", "none", "host"}
 	for _, r := range reserved {
 		if strings.EqualFold(r, name) {

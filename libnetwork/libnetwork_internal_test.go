@@ -3,12 +3,13 @@ package libnetwork
 import (
 	"testing"
 
+	"github.com/docker/libnetwork/datastore"
 	"github.com/docker/libnetwork/driverapi"
 )
 
 func TestDriverRegistration(t *testing.T) {
 	bridgeNetType := "bridge"
-	c, err := New()
+	c, err := New("")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -23,4 +24,9 @@ func TestDriverRegistration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Test failed with an error %v", err)
 	}
+}
+
+func SetTestDataStore(c NetworkController, custom datastore.DataStore) {
+	con := c.(*controller)
+	con.store = custom
 }

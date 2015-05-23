@@ -4,16 +4,23 @@ import (
 	"encoding/json"
 	"testing"
 
+	"github.com/docker/libnetwork/config"
 	_ "github.com/docker/libnetwork/netutils"
 	"github.com/docker/libnetwork/options"
 )
 
 var dummyKey = "dummy"
 
+// NewCustomDataStore can be used by other Tests in order to use custom datastore
+func NewTestDataStore() DataStore {
+	return &datastore{store: NewMockStore()}
+}
+
 func TestInvalidDataStore(t *testing.T) {
-	config := &StoreConfiguration{}
-	config.Provider = "invalid"
-	config.Addrs = []string{"localhost:8500"}
+	config := &config.DatastoreCfg{}
+	config.Embedded = false
+	config.Client.Provider = "invalid"
+	config.Client.Address = "localhost:8500"
 	_, err := NewDataStore(config)
 	if err == nil {
 		t.Fatal("Invalid Datastore connection configuration must result in a failure")
@@ -21,8 +28,7 @@ func TestInvalidDataStore(t *testing.T) {
 }
 
 func TestKVObjectFlatKey(t *testing.T) {
-	mockStore := newMockStore()
-	store := datastore{store: mockStore}
+	store := NewTestDataStore()
 	expected := dummyKVObject("1000", true)
 	err := store.PutObject(expected)
 	if err != nil {
@@ -41,8 +47,7 @@ func TestKVObjectFlatKey(t *testing.T) {
 }
 
 func TestAtomicKVObjectFlatKey(t *testing.T) {
-	mockStore := newMockStore()
-	store := datastore{store: mockStore}
+	store := NewTestDataStore()
 	expected := dummyKVObject("1111", true)
 	err := store.PutObjectAtomic(expected)
 	if err != nil {

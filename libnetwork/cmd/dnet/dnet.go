@@ -106,7 +106,7 @@ type dnetConnection struct {
 }
 
 func (d *dnetConnection) dnetDaemon() error {
-	controller, err := libnetwork.New()
+	controller, err := libnetwork.New("")
 	if err != nil {
 		fmt.Println("Error starting dnetDaemon :", err)
 		return err
