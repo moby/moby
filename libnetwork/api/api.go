@@ -107,7 +107,7 @@ func (h *httpHandler) initRouter() {
 	h.r = mux.NewRouter()
 	for method, routes := range m {
 		for _, route := range routes {
-			r := h.r.Path(route.url).Methods(method).HandlerFunc(makeHandler(h.c, route.fct))
+			r := h.r.Path("/{.*}" + route.url).Methods(method).HandlerFunc(makeHandler(h.c, route.fct))
 			if route.qrs != nil {
 				r.Queries(route.qrs...)
 			}
