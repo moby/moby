@@ -273,11 +273,64 @@ func (container *Container) Start() (err error) {
 	if err := populateCommand(container, env); err != nil {
 		return err
 	}
+	if err := container.buildIntrospectionFiles(); err != nil {
+		logrus.Errorf("error creating introspection files: %v", err)
+	}
 	if err := container.setupMounts(); err != nil {
 		return err
 	}
 
 	return container.waitForStart()
+}
+
+func (container *Container) buildIntrospectionFiles() error {
+	iPath, err := container.GetRootResourcePath("/introspection")
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(iPath, 0755); err != nil {
+		return err
+	}
+	netPath := filepath.Join(iPath, "net")
+	if err := os.MkdirAll(filepath.Join(netPath), 0755); err != nil {
+		return err
+	}
+
+	if err := ioutil.WriteFile(filepath.Join(netPath, "ip4"), []byte(container.NetworkSettings.IPAddress), 0644); err != nil {
+		return err
+	}
+	if err := ioutil.WriteFile(filepath.Join(netPath, "ip6"), []byte(container.NetworkSettings.GlobalIPv6Address), 0644); err != nil {
+		return err
+	}
+	if err := ioutil.WriteFile(filepath.Join(iPath, "id"), []byte(container.ID+" "+container.Name), 0644); err != nil {
+		return err
+	}
+
+	portFiles := make(map[string]*os.File)
+	defer func() {
+		for _, f := range portFiles {
+			defer f.Close()
+		}
+	}()
+	for port, binds := range container.NetworkSettings.Ports {
+		var out string
+		for _, bind := range binds {
+			out = out + bind.HostIp + ":" + bind.HostPort + " "
+		}
+		proto := port.Proto()
+		if _, exists := portFiles[proto]; !exists {
+			f, err := os.OpenFile(filepath.Join(netPath, proto), os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
+			if err != nil {
+				return err
+			}
+			portFiles[proto] = f
+		}
+		if _, err := portFiles[proto].WriteString(port.Port() + " " + out + "\n"); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (container *Container) Run() error {
@@ -353,6 +406,14 @@ func (container *Container) cleanup() {
 	for _, eConfig := range container.execCommands.s {
 		container.daemon.unregisterExecCommand(eConfig)
 	}
+
+	// remove introspection
+	iPath, err := container.GetRootResourcePath("/introspection")
+	if err != nil {
+		logrus.Debug(err)
+		return
+	}
+	os.RemoveAll(iPath)
 }
 
 func (container *Container) KillSig(sig int) error {
