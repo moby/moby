@@ -113,7 +113,6 @@ type Config struct {
 	AttachStdin     bool
 	AttachStdout    bool
 	AttachStderr    bool
-	PortSpecs       []string // Deprecated - Can be in the format of 8080/tcp
 	ExposedPorts    map[nat.Port]struct{}
 	Tty             bool // Attach standard streams to a tty, including stdin if it is not closed.
 	OpenStdin       bool // Open stdin

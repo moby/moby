@@ -167,25 +167,30 @@ func TestParseRunVolumes(t *testing.T) {
 func TestCompare(t *testing.T) {
 	volumes1 := make(map[string]struct{})
 	volumes1["/test1"] = struct{}{}
+	ports1 := make(nat.PortSet)
+	ports1[nat.Port("1111/tcp")] = struct{}{}
+	ports1[nat.Port("2222/tcp")] = struct{}{}
 	config1 := Config{
-		PortSpecs: []string{"1111:1111", "2222:2222"},
-		Env:       []string{"VAR1=1", "VAR2=2"},
-		Volumes:   volumes1,
+		ExposedPorts: ports1,
+		Env:          []string{"VAR1=1", "VAR2=2"},
+		Volumes:      volumes1,
 	}
+	ports3 := make(nat.PortSet)
+	ports3[nat.Port("0000/tcp")] = struct{}{}
+	ports3[nat.Port("2222/tcp")] = struct{}{}
 	config3 := Config{
-		PortSpecs: []string{"0000:0000", "2222:2222"},
-		Env:       []string{"VAR1=1", "VAR2=2"},
-		Volumes:   volumes1,
+		ExposedPorts: ports3,
+		Volumes:      volumes1,
 	}
 	volumes2 := make(map[string]struct{})
 	volumes2["/test2"] = struct{}{}
 	config5 := Config{
-		PortSpecs: []string{"0000:0000", "2222:2222"},
-		Env:       []string{"VAR1=1", "VAR2=2"},
-		Volumes:   volumes2,
+		Env:     []string{"VAR1=1", "VAR2=2"},
+		Volumes: volumes2,
 	}
+
 	if Compare(&config1, &config3) {
-		t.Fatalf("Compare should return false, PortSpecs are different")
+		t.Fatalf("Compare should return false, ExposedPorts are different")
 	}
 	if Compare(&config1, &config5) {
 		t.Fatalf("Compare should return false, Volumes are different")
@@ -199,18 +204,24 @@ func TestMerge(t *testing.T) {
 	volumesImage := make(map[string]struct{})
 	volumesImage["/test1"] = struct{}{}
 	volumesImage["/test2"] = struct{}{}
+	portsImage := make(nat.PortSet)
+	portsImage[nat.Port("1111/tcp")] = struct{}{}
+	portsImage[nat.Port("2222/tcp")] = struct{}{}
 	configImage := &Config{
-		PortSpecs: []string{"1111:1111", "2222:2222"},
-		Env:       []string{"VAR1=1", "VAR2=2"},
-		Volumes:   volumesImage,
+		ExposedPorts: portsImage,
+		Env:          []string{"VAR1=1", "VAR2=2"},
+		Volumes:      volumesImage,
 	}
 
+	portsUser := make(nat.PortSet)
+	portsUser[nat.Port("2222/tcp")] = struct{}{}
+	portsUser[nat.Port("3333/tcp")] = struct{}{}
 	volumesUser := make(map[string]struct{})
 	volumesUser["/test3"] = struct{}{}
 	configUser := &Config{
-		PortSpecs: []string{"3333:2222", "3333:3333"},
-		Env:       []string{"VAR2=3", "VAR3=3"},
-		Volumes:   volumesUser,
+		ExposedPorts: portsUser,
+		Env:          []string{"VAR2=3", "VAR3=3"},
+		Volumes:      volumesUser,
 	}
 
 	if err := Merge(configUser, configImage); err != nil {

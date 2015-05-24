@@ -302,7 +302,6 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 	config := &Config{
 		Hostname:        hostname,
 		Domainname:      domainname,
-		PortSpecs:       nil, // Deprecated
 		ExposedPorts:    ports,
 		User:            *flUser,
 		Tty:             *flTty,

@@ -842,7 +842,6 @@ func (s *DockerSuite) TestContainerApiPostCreateNull(c *check.C) {
 		"AttachStdin":true,
 		"AttachStdout":true,
 		"AttachStderr":true,
-		"PortSpecs":null,
 		"ExposedPorts":{},
 		"Tty":true,
 		"OpenStdin":true,
