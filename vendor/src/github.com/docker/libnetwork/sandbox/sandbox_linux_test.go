@@ -15,6 +15,8 @@ import (
 const (
 	vethName1     = "wierdlongname1"
 	vethName2     = "wierdlongname2"
+	vethName3     = "wierdlongname3"
+	vethName4     = "wierdlongname4"
 	sboxIfaceName = "containername"
 )
 
@@ -36,33 +38,59 @@ func newInfo(t *testing.T) (*Info, error) {
 	veth := &netlink.Veth{
 		LinkAttrs: netlink.LinkAttrs{Name: vethName1, TxQLen: 0},
 		PeerName:  vethName2}
-	err := netlink.LinkAdd(veth)
-	if err != nil {
+	if err := netlink.LinkAdd(veth); err != nil {
 		return nil, err
 	}
 
 	// Store the sandbox side pipe interface
 	// This is needed for cleanup on DeleteEndpoint()
-	intf := &Interface{}
-	intf.SrcName = vethName2
-	intf.DstName = sboxIfaceName
+	intf1 := &Interface{}
+	intf1.SrcName = vethName2
+	intf1.DstName = sboxIfaceName
 
 	ip4, addr, err := net.ParseCIDR("192.168.1.100/24")
 	if err != nil {
 		return nil, err
 	}
-	intf.Address = addr
-	intf.Address.IP = ip4
+	intf1.Address = addr
+	intf1.Address.IP = ip4
 
 	// ip6, addrv6, err := net.ParseCIDR("2001:DB8::ABCD/48")
 	ip6, addrv6, err := net.ParseCIDR("fe80::2/64")
 	if err != nil {
 		return nil, err
 	}
-	intf.AddressIPv6 = addrv6
-	intf.AddressIPv6.IP = ip6
+	intf1.AddressIPv6 = addrv6
+	intf1.AddressIPv6.IP = ip6
 
-	sinfo := &Info{Interfaces: []*Interface{intf}}
+	veth = &netlink.Veth{
+		LinkAttrs: netlink.LinkAttrs{Name: vethName3, TxQLen: 0},
+		PeerName:  vethName4}
+
+	if err := netlink.LinkAdd(veth); err != nil {
+		return nil, err
+	}
+
+	intf2 := &Interface{}
+	intf2.SrcName = vethName4
+	intf2.DstName = sboxIfaceName
+
+	ip4, addr, err = net.ParseCIDR("192.168.2.100/24")
+	if err != nil {
+		return nil, err
+	}
+	intf2.Address = addr
+	intf2.Address.IP = ip4
+
+	// ip6, addrv6, err := net.ParseCIDR("2001:DB8::ABCD/48")
+	ip6, addrv6, err = net.ParseCIDR("fe80::3/64")
+	if err != nil {
+		return nil, err
+	}
+	intf2.AddressIPv6 = addrv6
+	intf2.AddressIPv6.IP = ip6
+
+	sinfo := &Info{Interfaces: []*Interface{intf1, intf2}}
 	sinfo.Gateway = net.ParseIP("192.168.1.1")
 	// sinfo.GatewayIPv6 = net.ParseIP("2001:DB8::1")
 	sinfo.GatewayIPv6 = net.ParseIP("fe80::1")
@@ -97,7 +125,13 @@ func verifySandbox(t *testing.T, s Sandbox) {
 	}
 	defer netns.Set(origns)
 
-	_, err = netlink.LinkByName(sboxIfaceName)
+	_, err = netlink.LinkByName(sboxIfaceName + "0")
+	if err != nil {
+		t.Fatalf("Could not find the interface %s inside the sandbox: %v", sboxIfaceName,
+			err)
+	}
+
+	_, err = netlink.LinkByName(sboxIfaceName + "1")
 	if err != nil {
 		t.Fatalf("Could not find the interface %s inside the sandbox: %v", sboxIfaceName,
 			err)

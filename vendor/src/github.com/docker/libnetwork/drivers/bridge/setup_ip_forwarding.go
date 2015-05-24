@@ -13,7 +13,7 @@ const (
 func setupIPForwarding(config *Configuration) error {
 	// Sanity Check
 	if config.EnableIPForwarding == false {
-		return ErrIPFwdCfg
+		return &ErrIPFwdCfg{}
 	}
 
 	// Enable IPv4 forwarding

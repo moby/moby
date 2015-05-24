@@ -37,7 +37,7 @@ func setupBridgeIPv6(config *NetworkConfiguration, i *bridgeInterface) error {
 	// Add the default link local ipv6 address if it doesn't exist
 	if !findIPv6Address(netlink.Addr{IPNet: bridgeIPv6}, addrsv6) {
 		if err := netlink.AddrAdd(i.Link, &netlink.Addr{IPNet: bridgeIPv6}); err != nil {
-			return &IPv6AddrAddError{ip: bridgeIPv6, err: err}
+			return &IPv6AddrAddError{IP: bridgeIPv6, Err: err}
 		}
 	}
 
@@ -50,10 +50,10 @@ func setupBridgeIPv6(config *NetworkConfiguration, i *bridgeInterface) error {
 
 func setupGatewayIPv6(config *NetworkConfiguration, i *bridgeInterface) error {
 	if config.FixedCIDRv6 == nil {
-		return ErrInvalidContainerSubnet
+		return &ErrInvalidContainerSubnet{}
 	}
 	if !config.FixedCIDRv6.Contains(config.DefaultGatewayIPv6) {
-		return ErrInvalidGateway
+		return &ErrInvalidGateway{}
 	}
 	if _, err := ipAllocator.RequestIP(config.FixedCIDRv6, config.DefaultGatewayIPv6); err != nil {
 		return err

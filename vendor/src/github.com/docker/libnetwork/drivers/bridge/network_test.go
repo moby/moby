@@ -125,8 +125,8 @@ func TestLinkCreateTwo(t *testing.T) {
 	te2 := &testEndpoint{ifaces: []*testInterface{}}
 	err = d.CreateEndpoint("dummy", "ep", te2, nil)
 	if err != nil {
-		if err != driverapi.ErrEndpointExists {
-			t.Fatalf("Failed with a wrong error :%s", err.Error())
+		if _, ok := err.(driverapi.ErrEndpointExists); !ok {
+			t.Fatalf("Failed with a wrong error: %s", err.Error())
 		}
 	} else {
 		t.Fatalf("Expected to fail while trying to add same endpoint twice")

@@ -7,6 +7,7 @@ import (
 	"github.com/docker/docker/pkg/reexec"
 	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/libnetwork/netutils"
+	"github.com/docker/libnetwork/types"
 )
 
 func TestMain(m *testing.M) {
@@ -20,9 +21,9 @@ func TestPortMappingConfig(t *testing.T) {
 	defer netutils.SetupTestNetNS(t)()
 	d := newDriver()
 
-	binding1 := netutils.PortBinding{Proto: netutils.UDP, Port: uint16(400), HostPort: uint16(54000)}
-	binding2 := netutils.PortBinding{Proto: netutils.TCP, Port: uint16(500), HostPort: uint16(65000)}
-	portBindings := []netutils.PortBinding{binding1, binding2}
+	binding1 := types.PortBinding{Proto: types.UDP, Port: uint16(400), HostPort: uint16(54000)}
+	binding2 := types.PortBinding{Proto: types.TCP, Port: uint16(500), HostPort: uint16(65000)}
+	portBindings := []types.PortBinding{binding1, binding2}
 
 	epOptions := make(map[string]interface{})
 	epOptions[netlabel.PortMap] = portBindings

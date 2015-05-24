@@ -16,6 +16,7 @@ import (
 	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/libnetwork/netutils"
 	"github.com/docker/libnetwork/options"
+	"github.com/docker/libnetwork/types"
 )
 
 const (
@@ -111,7 +112,7 @@ func TestJoinOptionParser(t *testing.T) {
 }
 
 func TestJson(t *testing.T) {
-	nc := networkCreate{Name: "mynet", NetworkType: bridgeNetType}
+	nc := networkCreate{NetworkType: bridgeNetType}
 	b, err := json.Marshal(nc)
 	if err != nil {
 		t.Fatal(err)
@@ -123,24 +124,8 @@ func TestJson(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if nc.Name != ncp.Name || nc.NetworkType != ncp.NetworkType {
+	if nc.NetworkType != ncp.NetworkType {
 		t.Fatalf("Incorrect networkCreate after json encoding/deconding: %v", ncp)
-	}
-
-	ec := endpointCreate{Name: "mioEp", NetworkID: "0xabcde"}
-	b, err = json.Marshal(ec)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	var ecp endpointCreate
-	err = json.Unmarshal(b, &ecp)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if ec.Name != ecp.Name || ec.NetworkID != ecp.NetworkID {
-		t.Fatalf("Incorrect endpointCreate after json encoding/deconding: %v", ecp)
 	}
 
 	jl := endpointJoin{ContainerID: "abcdef456789"}
@@ -156,7 +141,7 @@ func TestJson(t *testing.T) {
 	}
 
 	if jl.ContainerID != jld.ContainerID {
-		t.Fatalf("Incorrect endpointJoin after json encoding/deconding: %v", ecp)
+		t.Fatalf("Incorrect endpointJoin after json encoding/deconding: %v", jld)
 	}
 }
 
@@ -177,68 +162,55 @@ func TestCreateDeleteNetwork(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	goodVars := map[string]string{urlNwName: "myNet"}
-	_, errRsp := procCreateNetwork(c, goodVars, badBody)
-	if errRsp == &createdResponse {
-		t.Fatalf("Expected to fail but succeeded")
-	}
-
-	incompleteBody, err := json.Marshal(networkCreate{Name: "myNet"})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, errRsp = procCreateNetwork(c, goodVars, incompleteBody)
+	vars := make(map[string]string)
+	_, errRsp := procCreateNetwork(c, nil, badBody)
 	if errRsp == &createdResponse {
 		t.Fatalf("Expected to fail but succeeded")
 	}
 	if errRsp.StatusCode != http.StatusBadRequest {
-		t.Fatalf("Expected StatusBadRequest status code, got: %v", errRsp.StatusCode)
+		t.Fatalf("Expected StatusBadRequest status code, got: %v", errRsp)
+	}
+
+	incompleteBody, err := json.Marshal(networkCreate{})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, errRsp = procCreateNetwork(c, vars, incompleteBody)
+	if errRsp == &createdResponse {
+		t.Fatalf("Expected to fail but succeeded")
+	}
+	if errRsp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("Expected StatusBadRequest status code, got: %v", errRsp)
 	}
 
 	ops := make(map[string]interface{})
 	ops[netlabel.GenericData] = options.Generic{}
-	nc := networkCreate{Name: "myNet", NetworkType: bridgeNetType, Options: ops}
+	nc := networkCreate{Name: "network_1", NetworkType: bridgeNetType, Options: ops}
 	goodBody, err := json.Marshal(nc)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	badVars := map[string]string{urlNwName: ""}
-	_, errRsp = procCreateNetwork(c, badVars, goodBody)
-	if errRsp == &createdResponse {
-		t.Fatalf("Expected to fail but succeeded")
-	}
-	if errRsp.StatusCode != http.StatusBadRequest {
-		t.Fatalf("Expected StatusBadRequest status code, got: %v", errRsp.StatusCode)
-	}
-
-	badVars[urlNwName] = "badNetworkName"
-	_, errRsp = procCreateNetwork(c, badVars, goodBody)
-	if errRsp == &createdResponse {
-		t.Fatalf("Expected to fail but succeeded")
-	}
-	if errRsp.StatusCode != http.StatusBadRequest {
-		t.Fatalf("Expected StatusBadRequest status code, got: %v", errRsp.StatusCode)
-	}
-
-	_, errRsp = procCreateNetwork(c, goodVars, goodBody)
+	_, errRsp = procCreateNetwork(c, vars, goodBody)
 	if errRsp != &createdResponse {
 		t.Fatalf("Unexepected failure: %v", errRsp)
 	}
 
-	_, errRsp = procDeleteNetwork(c, badVars, nil)
+	vars[urlNwName] = ""
+	_, errRsp = procDeleteNetwork(c, vars, nil)
 	if errRsp == &successResponse {
 		t.Fatalf("Expected to fail but succeeded")
 	}
 
-	badVars[urlNwName] = ""
-	_, errRsp = procDeleteNetwork(c, badVars, nil)
+	vars[urlNwName] = "abc"
+	_, errRsp = procDeleteNetwork(c, vars, nil)
 	if errRsp == &successResponse {
 		t.Fatalf("Expected to fail but succeeded")
 	}
 
-	_, errRsp = procDeleteNetwork(c, goodVars, nil)
+	vars[urlNwName] = "network_1"
+	_, errRsp = procDeleteNetwork(c, vars, nil)
 	if errRsp != &successResponse {
 		t.Fatalf("Unexepected failure: %v", errRsp)
 	}
@@ -262,7 +234,7 @@ func TestGetNetworksAndEndpoints(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	vars := map[string]string{urlNwName: "sh"}
+	vars := make(map[string]string)
 	inid, errRsp := procCreateNetwork(c, vars, body)
 	if errRsp != &createdResponse {
 		t.Fatalf("Unexepected failure: %v", errRsp)
@@ -273,29 +245,29 @@ func TestGetNetworksAndEndpoints(t *testing.T) {
 	}
 
 	ec1 := endpointCreate{
-		Name:      "ep1",
-		NetworkID: string(nid),
-		ExposedPorts: []netutils.TransportPort{
-			netutils.TransportPort{Proto: netutils.TCP, Port: uint16(5000)},
-			netutils.TransportPort{Proto: netutils.UDP, Port: uint16(400)},
-			netutils.TransportPort{Proto: netutils.TCP, Port: uint16(600)},
+		Name: "ep1",
+		ExposedPorts: []types.TransportPort{
+			types.TransportPort{Proto: types.TCP, Port: uint16(5000)},
+			types.TransportPort{Proto: types.UDP, Port: uint16(400)},
+			types.TransportPort{Proto: types.TCP, Port: uint16(600)},
 		},
-		PortMapping: []netutils.PortBinding{
-			netutils.PortBinding{Proto: netutils.TCP, Port: uint16(230), HostPort: uint16(23000)},
-			netutils.PortBinding{Proto: netutils.UDP, Port: uint16(200), HostPort: uint16(22000)},
-			netutils.PortBinding{Proto: netutils.TCP, Port: uint16(120), HostPort: uint16(12000)},
+		PortMapping: []types.PortBinding{
+			types.PortBinding{Proto: types.TCP, Port: uint16(230), HostPort: uint16(23000)},
+			types.PortBinding{Proto: types.UDP, Port: uint16(200), HostPort: uint16(22000)},
+			types.PortBinding{Proto: types.TCP, Port: uint16(120), HostPort: uint16(12000)},
 		},
 	}
 	b1, err := json.Marshal(ec1)
 	if err != nil {
 		t.Fatal(err)
 	}
-	ec2 := endpointCreate{Name: "ep2", NetworkID: nid}
+	ec2 := endpointCreate{Name: "ep2"}
 	b2, err := json.Marshal(ec2)
 	if err != nil {
 		t.Fatal(err)
 	}
 
+	vars[urlNwName] = "sh"
 	vars[urlEpName] = "ep1"
 	ieid1, errRsp := procCreateEndpoint(c, vars, b1)
 	if errRsp != &createdResponse {
@@ -471,6 +443,7 @@ func TestGetNetworksAndEndpoints(t *testing.T) {
 	if errRsp != &successResponse {
 		t.Fatalf("Unexepected failure: %v", errRsp)
 	}
+	delete(vars, urlEpName)
 	iepList, errRsp = procGetEndpoints(c, vars, nil)
 	if errRsp != &successResponse {
 		t.Fatalf("Unexepected failure: %v", errRsp)
@@ -506,6 +479,43 @@ func TestGetNetworksAndEndpoints(t *testing.T) {
 	netList = i2nL(iList)
 	if len(netList) != 0 {
 		t.Fatalf("Did not return the expected number of network resources")
+	}
+}
+
+func TestDetectGetNetworksInvalidQueryComposition(t *testing.T) {
+	c, err := libnetwork.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	vars := map[string]string{urlNwName: "x", urlNwPID: "y"}
+	_, errRsp := procGetNetworks(c, vars, nil)
+	if errRsp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("Expected %d. Got: %v", http.StatusBadRequest, errRsp)
+	}
+}
+
+func TestDetectGetEndpointsInvalidQueryComposition(t *testing.T) {
+	defer netutils.SetupTestNetNS(t)()
+
+	c, err := libnetwork.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = c.ConfigureNetworkDriver(bridgeNetType, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = c.NewNetwork(bridgeNetType, "network", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	vars := map[string]string{urlNwName: "network", urlEpName: "x", urlEpPID: "y"}
+	_, errRsp := procGetEndpoints(c, vars, nil)
+	if errRsp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("Expected %d. Got: %v", http.StatusBadRequest, errRsp)
 	}
 }
 
@@ -603,85 +613,46 @@ func TestCreateDeleteEndpoints(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	vars := map[string]string{urlNwName: "firstNet"}
+	vars := make(map[string]string)
 	i, errRsp := procCreateNetwork(c, vars, body)
 	if errRsp != &createdResponse {
 		t.Fatalf("Unexepected failure: %v", errRsp)
 	}
 	nid := i2s(i)
 
-	vbad, err := json.Marshal("bad endppint create data")
+	vbad, err := json.Marshal("bad endppoint create data")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	vars[urlEpName] = "ep1"
+	vars[urlNwName] = "firstNet"
 	_, errRsp = procCreateEndpoint(c, vars, vbad)
 	if errRsp == &createdResponse {
 		t.Fatalf("Expected to fail but succeeded")
 	}
 
-	bad, err := json.Marshal(endpointCreate{Name: "ep1", NetworkID: "123456"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, errRsp = procCreateEndpoint(c, vars, bad)
-	if errRsp == &createdResponse {
-		t.Fatalf("Expected to fail but succeeded")
-	}
-
-	soso, err := json.Marshal(endpointCreate{Name: "ep11", NetworkID: nid})
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, errRsp = procCreateEndpoint(c, vars, soso)
-	if errRsp != &mismatchResponse {
-		t.Fatalf("Expected to fail with \"mismatchResponse\", but got: %v", errRsp)
-	}
-
-	bla, err := json.Marshal(endpointCreate{Name: "", NetworkID: nid})
-	if err != nil {
-		t.Fatal(err)
-	}
-	vars[urlNwName] = "firstNet"
-	vars[urlEpName] = ""
-	_, errRsp = procCreateEndpoint(c, vars, bla)
-	if errRsp == &createdResponse {
-		t.Fatalf("Expected to fail but succeeded: %v", errRsp)
-	}
-
-	b, err := json.Marshal(endpointCreate{Name: "firstEp", NetworkID: nid})
+	b, err := json.Marshal(endpointCreate{Name: ""})
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	vars[urlNwName] = "secondNet"
-	vars[urlEpName] = "firstEp"
 	_, errRsp = procCreateEndpoint(c, vars, b)
 	if errRsp == &createdResponse {
 		t.Fatalf("Expected to fail but succeeded")
 	}
 
 	vars[urlNwName] = "firstNet"
-	vars[urlEpName] = "ep1"
-	_, errRsp = procCreateEndpoint(c, vars, b)
-	if errRsp != &mismatchResponse {
-		t.Fatalf("Expected to fail with \"mismatchResponse\", but got: %v", errRsp)
-	}
-
-	vars = make(map[string]string)
 	_, errRsp = procCreateEndpoint(c, vars, b)
 	if errRsp == &successResponse {
 		t.Fatalf("Expected failure but succeeded: %v", errRsp)
 	}
 
-	vars[urlNwName] = "firstNet"
-	_, errRsp = procCreateEndpoint(c, vars, b)
-	if errRsp == &successResponse {
-		t.Fatalf("Expected failure but succeeded: %v", errRsp)
+	b, err = json.Marshal(endpointCreate{Name: "firstEp"})
+	if err != nil {
+		t.Fatal(err)
 	}
 
-	vars[urlEpName] = "firstEp"
 	i, errRsp = procCreateEndpoint(c, vars, b)
 	if errRsp != &createdResponse {
 		t.Fatalf("Unexepected failure: %v", errRsp)
@@ -713,8 +684,8 @@ func TestCreateDeleteEndpoints(t *testing.T) {
 		t.Fatalf("Unexepected failure: %v", errRsp)
 	}
 
-	if ep0 != ep1 || ep0 != ep2 || ep0 != ep3 {
-		t.Fatalf("Diffenrent queries returned different endpoints")
+	if ep0.ID() != ep1.ID() || ep0.ID() != ep2.ID() || ep0.ID() != ep3.ID() {
+		t.Fatalf("Diffenrent queries returned different endpoints: \nep0: %v\nep1: %v\nep2: %v\nep3: %v", ep0, ep1, ep2, ep3)
 	}
 
 	vars = make(map[string]string)
@@ -766,18 +737,17 @@ func TestJoinLeave(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	vars := map[string]string{urlNwName: "network"}
-	i, errRsp := procCreateNetwork(c, vars, nb)
+	vars := make(map[string]string)
+	_, errRsp := procCreateNetwork(c, vars, nb)
 	if errRsp != &createdResponse {
 		t.Fatalf("Unexepected failure: %v", errRsp)
 	}
-	nid := i2s(i)
 
-	vars[urlEpName] = "epoint"
-	eb, err := json.Marshal(endpointCreate{Name: "epoint", NetworkID: nid})
+	eb, err := json.Marshal(endpointCreate{Name: "endpoint"})
 	if err != nil {
 		t.Fatal(err)
 	}
+	vars[urlNwName] = "network"
 	_, errRsp = procCreateEndpoint(c, vars, eb)
 	if errRsp != &createdResponse {
 		t.Fatalf("Unexepected failure: %v", errRsp)
@@ -792,6 +762,7 @@ func TestJoinLeave(t *testing.T) {
 		t.Fatalf("Expected failure, got: %v", errRsp)
 	}
 
+	vars[urlEpName] = "endpoint"
 	bad, err := json.Marshal(endpointJoin{})
 	if err != nil {
 		t.Fatal(err)
@@ -811,44 +782,30 @@ func TestJoinLeave(t *testing.T) {
 	vars = make(map[string]string)
 	vars[urlNwName] = ""
 	vars[urlEpName] = ""
-	vars[urlCnID] = cid
-	_, errRsp = procJoinEndpoint(c, vars, jlb)
-	if errRsp == &successResponse {
-		t.Fatalf("Expected failure, got: %v", errRsp)
-	}
-
-	vars[urlNwName] = "network1"
-	vars[urlEpName] = ""
 	_, errRsp = procJoinEndpoint(c, vars, jlb)
 	if errRsp == &successResponse {
 		t.Fatalf("Expected failure, got: %v", errRsp)
 	}
 
 	vars[urlNwName] = "network"
-	vars[urlEpName] = "endpoint"
+	vars[urlEpName] = ""
 	_, errRsp = procJoinEndpoint(c, vars, jlb)
 	if errRsp == &successResponse {
 		t.Fatalf("Expected failure, got: %v", errRsp)
 	}
 
 	vars[urlEpName] = "epoint"
-	delete(vars, urlCnID)
 	_, errRsp = procJoinEndpoint(c, vars, jlb)
 	if errRsp == &successResponse {
 		t.Fatalf("Expected failure, got: %v", errRsp)
 	}
 
-	vars[urlCnID] = "who?"
-	_, errRsp = procJoinEndpoint(c, vars, jlb)
-	if errRsp == &successResponse {
-		t.Fatalf("Expected failure, got: %v", errRsp)
-	}
-
-	vars[urlCnID] = cid
+	vars[urlEpName] = "endpoint"
 	cdi, errRsp := procJoinEndpoint(c, vars, jlb)
 	if errRsp != &successResponse {
-		t.Fatalf("Unexpected failure, got: %v", errRsp)
+		t.Fatalf("Expected failure, got: %v", errRsp)
 	}
+
 	cd := i2c(cdi)
 	if cd.SandboxKey == "" {
 		t.Fatalf("Empty sandbox key")
@@ -897,6 +854,7 @@ func TestJoinLeave(t *testing.T) {
 	}
 
 	delete(vars, urlCnID)
+	vars[urlEpName] = "endpoint"
 	_, errRsp = procLeaveEndpoint(c, vars, jlb)
 	if errRsp == &successResponse {
 		t.Fatalf("Expected failure, got: %v", errRsp)
@@ -1178,7 +1136,7 @@ func TestHttpHandlerUninit(t *testing.T) {
 	}
 
 	rsp := newWriter()
-	req, err := http.NewRequest("GET", "/networks", nil)
+	req, err := http.NewRequest("GET", "/v1.19/networks", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1193,15 +1151,24 @@ func TestHttpHandlerUninit(t *testing.T) {
 
 	handleRequest(rsp, req)
 	if rsp.statusCode != http.StatusOK {
-		t.Fatalf("Unexpectded failure: (%d): %s", rsp.statusCode, rsp.body)
+		t.Fatalf("Expected (%d). Got: (%d): %s", http.StatusOK, rsp.statusCode, rsp.body)
 	}
 
-	n, err := c.NewNetwork(bridgeNetType, "onenet", nil)
+	var list []*networkResource
+	err = json.Unmarshal(rsp.body, &list)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(list) != 0 {
+		t.Fatalf("Expected empty list. Got %v", list)
+	}
+
+	n, err := c.NewNetwork(bridgeNetType, "didietro", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	nwr := buildNetworkResource(n)
-	expected, err := json.Marshal([]networkResource{*nwr})
+	expected, err := json.Marshal([]*networkResource{nwr})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1229,7 +1196,7 @@ func TestHttpHandlerBadBody(t *testing.T) {
 	}
 	handleRequest := NewHTTPHandler(c)
 
-	req, err := http.NewRequest("POST", "/networks/name/zero-network", &localReader{beBad: true})
+	req, err := http.NewRequest("POST", "/v1.19/networks", &localReader{beBad: true})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1240,7 +1207,7 @@ func TestHttpHandlerBadBody(t *testing.T) {
 
 	body := []byte{}
 	lr := newLocalReader(body)
-	req, err = http.NewRequest("POST", "/networks/name/zero-network", lr)
+	req, err = http.NewRequest("POST", "/v1.19/networks", lr)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1250,7 +1217,7 @@ func TestHttpHandlerBadBody(t *testing.T) {
 	}
 }
 
-func TestHttpHandlerGood(t *testing.T) {
+func TestEndToEnd(t *testing.T) {
 	defer netutils.SetupTestNetNS(t)()
 
 	rsp := newWriter()
@@ -1261,14 +1228,14 @@ func TestHttpHandlerGood(t *testing.T) {
 	}
 	handleRequest := NewHTTPHandler(c)
 
-	nc := networkCreate{Name: "zero-network", NetworkType: bridgeNetType}
+	// Create network
+	nc := networkCreate{Name: "network-fiftyfive", NetworkType: bridgeNetType}
 	body, err := json.Marshal(nc)
 	if err != nil {
 		t.Fatal(err)
 	}
-
 	lr := newLocalReader(body)
-	req, err := http.NewRequest("POST", "/networks/name/zero-network", lr)
+	req, err := http.NewRequest("POST", "/v1.19/networks", lr)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1280,13 +1247,102 @@ func TestHttpHandlerGood(t *testing.T) {
 		t.Fatalf("Empty response body")
 	}
 
-	var id string
-	err = json.Unmarshal(rsp.body, &id)
+	var nid string
+	err = json.Unmarshal(rsp.body, &nid)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	req, err = http.NewRequest("GET", "/networks/id/"+id, nil)
+	// Query networks collection
+	req, err = http.NewRequest("GET", "/v1.19/networks", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	handleRequest(rsp, req)
+	if rsp.statusCode != http.StatusOK {
+		t.Fatalf("Expected StatusOK. Got (%d): %s", rsp.statusCode, rsp.body)
+	}
+
+	b0 := make([]byte, len(rsp.body))
+	copy(b0, rsp.body)
+
+	req, err = http.NewRequest("GET", "/v1.19/networks?name=network-fiftyfive", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	handleRequest(rsp, req)
+	if rsp.statusCode != http.StatusOK {
+		t.Fatalf("Expected StatusOK. Got (%d): %s", rsp.statusCode, rsp.body)
+	}
+
+	if !bytes.Equal(b0, rsp.body) {
+		t.Fatalf("Expected same body from GET /networks and GET /networks?name=<nw> when only network <nw> exist.")
+	}
+
+	// Query network by name
+	req, err = http.NewRequest("GET", "/v1.19/networks?name=culo", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	handleRequest(rsp, req)
+	if rsp.statusCode != http.StatusOK {
+		t.Fatalf("Expected StatusOK. Got (%d): %s", rsp.statusCode, rsp.body)
+	}
+
+	var list []*networkResource
+	err = json.Unmarshal(rsp.body, &list)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(list) != 0 {
+		t.Fatalf("Expected empty list. Got %v", list)
+	}
+
+	req, err = http.NewRequest("GET", "/v1.19/networks?name=network-fiftyfive", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	handleRequest(rsp, req)
+	if rsp.statusCode != http.StatusOK {
+		t.Fatalf("Unexpectded failure: (%d): %s", rsp.statusCode, rsp.body)
+	}
+
+	err = json.Unmarshal(rsp.body, &list)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(list) == 0 {
+		t.Fatalf("Expected non empty list")
+	}
+	if list[0].Name != "network-fiftyfive" || nid != list[0].ID {
+		t.Fatalf("Incongruent resource found: %v", list[0])
+	}
+
+	// Query network by partial id
+	chars := []byte(nid)
+	partial := string(chars[0 : len(chars)/2])
+	req, err = http.NewRequest("GET", "/v1.19/networks?partial-id="+partial, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	handleRequest(rsp, req)
+	if rsp.statusCode != http.StatusOK {
+		t.Fatalf("Unexpectded failure: (%d): %s", rsp.statusCode, rsp.body)
+	}
+
+	err = json.Unmarshal(rsp.body, &list)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(list) == 0 {
+		t.Fatalf("Expected non empty list")
+	}
+	if list[0].Name != "network-fiftyfive" || nid != list[0].ID {
+		t.Fatalf("Incongruent resource found: %v", list[0])
+	}
+
+	// Get network by id
+	req, err = http.NewRequest("GET", "/v1.19/networks/"+nid, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1300,7 +1356,211 @@ func TestHttpHandlerGood(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if nwr.Name != "zero-network" || id != nwr.ID {
-		t.Fatalf("Incongruent resource found")
+	if nwr.Name != "network-fiftyfive" || nid != nwr.ID {
+		t.Fatalf("Incongruent resource found: %v", nwr)
+	}
+
+	// Create endpoint
+	eb, err := json.Marshal(endpointCreate{Name: "ep-TwentyTwo"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	lr = newLocalReader(eb)
+	req, err = http.NewRequest("POST", "/v1.19/networks/"+nid+"/endpoints", lr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	handleRequest(rsp, req)
+	if rsp.statusCode != http.StatusCreated {
+		t.Fatalf("Unexpectded status code. Expected (%d). Got (%d): %s.", http.StatusCreated, rsp.statusCode, string(rsp.body))
+	}
+	if len(rsp.body) == 0 {
+		t.Fatalf("Empty response body")
+	}
+
+	var eid string
+	err = json.Unmarshal(rsp.body, &eid)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Query endpoint(s)
+	req, err = http.NewRequest("GET", "/v1.19/networks/"+nid+"/endpoints", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	handleRequest(rsp, req)
+	if rsp.statusCode != http.StatusOK {
+		t.Fatalf("Expected StatusOK. Got (%d): %s", rsp.statusCode, rsp.body)
+	}
+
+	req, err = http.NewRequest("GET", "/v1.19/networks/"+nid+"/endpoints?name=bla", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	handleRequest(rsp, req)
+	if rsp.statusCode != http.StatusOK {
+		t.Fatalf("Unexpectded failure: (%d): %s", rsp.statusCode, rsp.body)
+	}
+	var epList []*endpointResource
+	err = json.Unmarshal(rsp.body, &epList)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(epList) != 0 {
+		t.Fatalf("Expected empty list. Got %v", epList)
+	}
+
+	// Query endpoint by name
+	req, err = http.NewRequest("GET", "/v1.19/networks/"+nid+"/endpoints?name=ep-TwentyTwo", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	handleRequest(rsp, req)
+	if rsp.statusCode != http.StatusOK {
+		t.Fatalf("Unexpectded failure: (%d): %s", rsp.statusCode, rsp.body)
+	}
+
+	err = json.Unmarshal(rsp.body, &epList)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(epList) == 0 {
+		t.Fatalf("Empty response body")
+	}
+	if epList[0].Name != "ep-TwentyTwo" || eid != epList[0].ID {
+		t.Fatalf("Incongruent resource found: %v", epList[0])
+	}
+
+	// Query endpoint by partial id
+	chars = []byte(eid)
+	partial = string(chars[0 : len(chars)/2])
+	req, err = http.NewRequest("GET", "/v1.19/networks/"+nid+"/endpoints?partial-id="+partial, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	handleRequest(rsp, req)
+	if rsp.statusCode != http.StatusOK {
+		t.Fatalf("Unexpectded failure: (%d): %s", rsp.statusCode, rsp.body)
+	}
+
+	err = json.Unmarshal(rsp.body, &epList)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(epList) == 0 {
+		t.Fatalf("Empty response body")
+	}
+	if epList[0].Name != "ep-TwentyTwo" || eid != epList[0].ID {
+		t.Fatalf("Incongruent resource found: %v", epList[0])
+	}
+
+	// Get endpoint by id
+	req, err = http.NewRequest("GET", "/v1.19/networks/"+nid+"/endpoints/"+eid, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	handleRequest(rsp, req)
+	if rsp.statusCode != http.StatusOK {
+		t.Fatalf("Unexpectded failure: (%d): %s", rsp.statusCode, rsp.body)
+	}
+
+	var epr endpointResource
+	err = json.Unmarshal(rsp.body, &epr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if epr.Name != "ep-TwentyTwo" || epr.ID != eid {
+		t.Fatalf("Incongruent resource found: %v", epr)
+	}
+}
+
+type bre struct{}
+
+func (b *bre) Error() string {
+	return "I am a bad request error"
+}
+func (b *bre) BadRequest() {}
+
+type nfe struct{}
+
+func (n *nfe) Error() string {
+	return "I am a not found error"
+}
+func (n *nfe) NotFound() {}
+
+type forb struct{}
+
+func (f *forb) Error() string {
+	return "I am a bad request error"
+}
+func (f *forb) Forbidden() {}
+
+type notimpl struct{}
+
+func (nip *notimpl) Error() string {
+	return "I am a not implemented error"
+}
+func (nip *notimpl) NotImplemented() {}
+
+type inter struct{}
+
+func (it *inter) Error() string {
+	return "I am a internal error"
+}
+func (it *inter) Internal() {}
+
+type tout struct{}
+
+func (to *tout) Error() string {
+	return "I am a timeout error"
+}
+func (to *tout) Timeout() {}
+
+type noserv struct{}
+
+func (nos *noserv) Error() string {
+	return "I am a no service error"
+}
+func (nos *noserv) NoService() {}
+
+type notclassified struct{}
+
+func (noc *notclassified) Error() string {
+	return "I am a non classified error"
+}
+
+func TestErrorConversion(t *testing.T) {
+	if convertNetworkError(new(bre)).StatusCode != http.StatusBadRequest {
+		t.Fatalf("Failed to recognize BadRequest error")
+	}
+
+	if convertNetworkError(new(nfe)).StatusCode != http.StatusNotFound {
+		t.Fatalf("Failed to recognize NotFound error")
+	}
+
+	if convertNetworkError(new(forb)).StatusCode != http.StatusForbidden {
+		t.Fatalf("Failed to recognize Forbidden error")
+	}
+
+	if convertNetworkError(new(notimpl)).StatusCode != http.StatusNotImplemented {
+		t.Fatalf("Failed to recognize NotImplemented error")
+	}
+
+	if convertNetworkError(new(inter)).StatusCode != http.StatusInternalServerError {
+		t.Fatalf("Failed to recognize Internal error")
+	}
+
+	if convertNetworkError(new(tout)).StatusCode != http.StatusRequestTimeout {
+		t.Fatalf("Failed to recognize Timeout error")
+	}
+
+	if convertNetworkError(new(noserv)).StatusCode != http.StatusServiceUnavailable {
+		t.Fatalf("Failed to recognize No Service error")
+	}
+
+	if convertNetworkError(new(notclassified)).StatusCode != http.StatusInternalServerError {
+		t.Fatalf("Failed to recognize not classified error as Internal error")
 	}
 }
