@@ -89,6 +89,9 @@ func generateIfaceName() (string, error) {
 }
 
 func (d *driver) createNetwork(container *configs.Config, c *execdriver.Command) error {
+	if c.Network == nil {
+		return nil
+	}
 	if c.Network.ContainerID != "" {
 		d.Lock()
 		active := d.activeContainers[c.Network.ContainerID]
