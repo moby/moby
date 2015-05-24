@@ -100,7 +100,7 @@ func (h *httpHandler) initRouter() {
 		"DELETE": {
 			{"/networks/" + nwID, nil, procDeleteNetwork},
 			{"/networks/" + nwID + "/endpoints/" + epID, nil, procDeleteEndpoint},
-			{"/networks/id/" + nwID + "/endpoints/" + epID + "/containers/" + cnID, nil, procLeaveEndpoint},
+			{"/networks/" + nwID + "/endpoints/" + epID + "/containers/" + cnID, nil, procLeaveEndpoint},
 		},
 	}
 
@@ -108,6 +108,11 @@ func (h *httpHandler) initRouter() {
 	for method, routes := range m {
 		for _, route := range routes {
 			r := h.r.Path("/{.*}" + route.url).Methods(method).HandlerFunc(makeHandler(h.c, route.fct))
+			if route.qrs != nil {
+				r.Queries(route.qrs...)
+			}
+
+			r = h.r.Path(route.url).Methods(method).HandlerFunc(makeHandler(h.c, route.fct))
 			if route.qrs != nil {
 				r.Queries(route.qrs...)
 			}
