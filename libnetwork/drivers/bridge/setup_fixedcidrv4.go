@@ -4,7 +4,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 )
 
-func setupFixedCIDRv4(config *NetworkConfiguration, i *bridgeInterface) error {
+func setupFixedCIDRv4(config *networkConfiguration, i *bridgeInterface) error {
 	addrv4, _, err := i.addresses()
 	if err != nil {
 		return err

@@ -12,7 +12,7 @@ import (
 func TestSetupNewBridge(t *testing.T) {
 	defer netutils.SetupTestNetNS(t)()
 
-	config := &NetworkConfiguration{BridgeName: DefaultBridgeName}
+	config := &networkConfiguration{BridgeName: DefaultBridgeName}
 	br := &bridgeInterface{}
 
 	if err := setupDevice(config, br); err != nil {
@@ -32,7 +32,7 @@ func TestSetupNewBridge(t *testing.T) {
 func TestSetupNewNonDefaultBridge(t *testing.T) {
 	defer netutils.SetupTestNetNS(t)()
 
-	config := &NetworkConfiguration{BridgeName: "test0"}
+	config := &networkConfiguration{BridgeName: "test0"}
 	br := &bridgeInterface{}
 
 	err := setupDevice(config, br)
@@ -48,7 +48,7 @@ func TestSetupNewNonDefaultBridge(t *testing.T) {
 func TestSetupDeviceUp(t *testing.T) {
 	defer netutils.SetupTestNetNS(t)()
 
-	config := &NetworkConfiguration{BridgeName: DefaultBridgeName}
+	config := &networkConfiguration{BridgeName: DefaultBridgeName}
 	br := &bridgeInterface{}
 
 	if err := setupDevice(config, br); err != nil {

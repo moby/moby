@@ -19,11 +19,11 @@ func TestCreateFullOptions(t *testing.T) {
 	defer netutils.SetupTestNetNS(t)()
 	d := newDriver()
 
-	config := &Configuration{
+	config := &configuration{
 		EnableIPForwarding: true,
 	}
 
-	netConfig := &NetworkConfiguration{
+	netConfig := &networkConfiguration{
 		BridgeName:     DefaultBridgeName,
 		EnableIPv6:     true,
 		FixedCIDR:      bridgeNetworks[0],
@@ -50,7 +50,7 @@ func TestCreate(t *testing.T) {
 	defer netutils.SetupTestNetNS(t)()
 	d := newDriver()
 
-	config := &NetworkConfiguration{BridgeName: DefaultBridgeName}
+	config := &networkConfiguration{BridgeName: DefaultBridgeName}
 	genericOption := make(map[string]interface{})
 	genericOption[netlabel.GenericData] = config
 
@@ -63,7 +63,7 @@ func TestCreateFail(t *testing.T) {
 	defer netutils.SetupTestNetNS(t)()
 	d := newDriver()
 
-	config := &NetworkConfiguration{BridgeName: "dummy0"}
+	config := &networkConfiguration{BridgeName: "dummy0"}
 	genericOption := make(map[string]interface{})
 	genericOption[netlabel.GenericData] = config
 
@@ -170,7 +170,7 @@ func testQueryEndpointInfo(t *testing.T, ulPxyEnabled bool) {
 	d := newDriver()
 	dd, _ := d.(*driver)
 
-	config := &NetworkConfiguration{
+	config := &networkConfiguration{
 		BridgeName:          DefaultBridgeName,
 		EnableIPTables:      true,
 		EnableICC:           false,
@@ -227,7 +227,7 @@ func TestCreateLinkWithOptions(t *testing.T) {
 	defer netutils.SetupTestNetNS(t)()
 	d := newDriver()
 
-	config := &NetworkConfiguration{BridgeName: DefaultBridgeName}
+	config := &networkConfiguration{BridgeName: DefaultBridgeName}
 	netOptions := make(map[string]interface{})
 	netOptions[netlabel.GenericData] = config
 
@@ -283,7 +283,7 @@ func TestLinkContainers(t *testing.T) {
 
 	d := newDriver()
 
-	config := &NetworkConfiguration{
+	config := &networkConfiguration{
 		BridgeName:     DefaultBridgeName,
 		EnableIPTables: true,
 		EnableICC:      false,
@@ -323,7 +323,7 @@ func TestLinkContainers(t *testing.T) {
 	}
 
 	ce := []string{"ep1"}
-	cConfig := &ContainerConfiguration{ChildEndpoints: ce}
+	cConfig := &containerConfiguration{ChildEndpoints: ce}
 	genericOption = make(map[string]interface{})
 	genericOption[netlabel.GenericData] = cConfig
 
@@ -371,7 +371,7 @@ func TestLinkContainers(t *testing.T) {
 
 	// Error condition test with an invalid endpoint-id "ep4"
 	ce = []string{"ep1", "ep4"}
-	cConfig = &ContainerConfiguration{ChildEndpoints: ce}
+	cConfig = &containerConfiguration{ChildEndpoints: ce}
 	genericOption = make(map[string]interface{})
 	genericOption[netlabel.GenericData] = cConfig
 
@@ -400,7 +400,7 @@ func TestLinkContainers(t *testing.T) {
 func TestValidateConfig(t *testing.T) {
 
 	// Test mtu
-	c := NetworkConfiguration{Mtu: -2}
+	c := networkConfiguration{Mtu: -2}
 	err := c.Validate()
 	if err == nil {
 		t.Fatalf("Failed to detect invalid MTU number")
@@ -417,7 +417,7 @@ func TestValidateConfig(t *testing.T) {
 
 	// Test FixedCIDR
 	_, containerSubnet, _ := net.ParseCIDR("172.27.0.0/16")
-	c = NetworkConfiguration{
+	c = networkConfiguration{
 		AddressIPv4: network,
 		FixedCIDR:   containerSubnet,
 	}
@@ -463,7 +463,7 @@ func TestValidateConfig(t *testing.T) {
 
 	// Test v6 gw
 	_, containerSubnet, _ = net.ParseCIDR("2001:1234:ae:b004::/64")
-	c = NetworkConfiguration{
+	c = networkConfiguration{
 		EnableIPv6:         true,
 		FixedCIDRv6:        containerSubnet,
 		DefaultGatewayIPv6: net.ParseIP("2001:1234:ac:b004::bad:a55"),
@@ -495,7 +495,7 @@ func TestSetDefaultGw(t *testing.T) {
 	gw4[3] = 254
 	gw6 := net.ParseIP("2001:db8:ea9:9abc:b0c4::254")
 
-	config := &NetworkConfiguration{
+	config := &networkConfiguration{
 		BridgeName:         DefaultBridgeName,
 		EnableIPv6:         true,
 		FixedCIDRv6:        subnetv6,

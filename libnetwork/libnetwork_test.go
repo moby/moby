@@ -314,8 +314,7 @@ func TestDuplicateNetwork(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = controller.NewNetwork(bridgeNetType, "testnetwork",
-		libnetwork.NetworkOptionGeneric(genericOption))
+	_, err = controller.NewNetwork(bridgeNetType, "testnetwork", nil)
 	if err != nil {
 		t.Fatal(err)
 	}

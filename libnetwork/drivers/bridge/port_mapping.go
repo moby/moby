@@ -15,7 +15,7 @@ var (
 	defaultBindingIP = net.IPv4(0, 0, 0, 0)
 )
 
-func allocatePorts(epConfig *EndpointConfiguration, intf *sandbox.Interface, reqDefBindIP net.IP, ulPxyEnabled bool) ([]types.PortBinding, error) {
+func allocatePorts(epConfig *endpointConfiguration, intf *sandbox.Interface, reqDefBindIP net.IP, ulPxyEnabled bool) ([]types.PortBinding, error) {
 	if epConfig == nil || epConfig.PortBindings == nil {
 		return nil, nil
 	}

@@ -53,7 +53,7 @@ func TestSetupGatewayIPv6(t *testing.T) {
 	_, nw, _ := net.ParseCIDR("2001:db8:ea9:9abc:ffff::/80")
 	gw := net.ParseIP("2001:db8:ea9:9abc:ffff::254")
 
-	config := &NetworkConfiguration{
+	config := &networkConfiguration{
 		BridgeName:         DefaultBridgeName,
 		FixedCIDRv6:        nw,
 		DefaultGatewayIPv6: gw}

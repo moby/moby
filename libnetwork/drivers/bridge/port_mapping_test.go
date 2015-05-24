@@ -28,7 +28,7 @@ func TestPortMappingConfig(t *testing.T) {
 	epOptions := make(map[string]interface{})
 	epOptions[netlabel.PortMap] = portBindings
 
-	netConfig := &NetworkConfiguration{
+	netConfig := &networkConfiguration{
 		BridgeName:     DefaultBridgeName,
 		EnableIPTables: true,
 	}

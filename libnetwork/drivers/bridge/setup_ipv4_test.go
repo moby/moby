@@ -8,8 +8,8 @@ import (
 	"github.com/vishvananda/netlink"
 )
 
-func setupTestInterface(t *testing.T) (*NetworkConfiguration, *bridgeInterface) {
-	config := &NetworkConfiguration{
+func setupTestInterface(t *testing.T) (*networkConfiguration, *bridgeInterface) {
+	config := &networkConfiguration{
 		BridgeName: DefaultBridgeName}
 	br := &bridgeInterface{}
 
@@ -84,7 +84,7 @@ func TestSetupGatewayIPv4(t *testing.T) {
 	nw.IP = ip
 	gw := net.ParseIP("192.168.0.254")
 
-	config := &NetworkConfiguration{
+	config := &networkConfiguration{
 		BridgeName:         DefaultBridgeName,
 		DefaultGatewayIPv4: gw}
 

@@ -9,6 +9,7 @@ import (
 
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/stringid"
+	"github.com/docker/libnetwork/netlabel"
 )
 
 const (
@@ -54,7 +55,17 @@ func (cli *NetworkCli) CmdNetworkCreate(chain string, args ...string) error {
 		*flDriver = nullNetType
 	}
 
-	nc := networkCreate{Name: cmd.Arg(0), NetworkType: *flDriver}
+	// Construct network create request body
+	ops := make(map[string]interface{})
+	nc := networkCreate{Name: cmd.Arg(0), NetworkType: *flDriver, Options: ops}
+
+	// Set driver specific options
+	if *flDriver == "bridge" {
+		ops[netlabel.GenericData] = map[string]string{
+			"BridgeName":            cmd.Arg(0),
+			"AllowNonDefaultBridge": "true",
+		}
+	}
 
 	obj, _, err := readBody(cli.call("POST", "/networks", nc, nil))
 	if err != nil {
