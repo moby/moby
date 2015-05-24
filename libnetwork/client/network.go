@@ -45,7 +45,7 @@ func (cli *NetworkCli) CmdNetwork(chain string, args ...string) error {
 // CmdNetworkCreate handles Network Create UI
 func (cli *NetworkCli) CmdNetworkCreate(chain string, args ...string) error {
 	cmd := cli.Subcmd(chain, "create", "NETWORK-NAME", "Creates a new network with a name specified by the user", false)
-	flDriver := cmd.String([]string{"d", "-driver"}, "null", "Driver to manage the Network")
+	flDriver := cmd.String([]string{"d", "-driver"}, "bridge", "Driver to manage the Network")
 	cmd.Require(flag.Min, 1)
 	err := cmd.ParseFlags(args, true)
 	if err != nil {

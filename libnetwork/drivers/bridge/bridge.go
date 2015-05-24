@@ -175,8 +175,8 @@ func (c *networkConfiguration) Conflict(o *networkConfiguration) bool {
 	return false
 }
 
-// FromMap retrieve the configuration data from the map form.
-func (c *networkConfiguration) FromMap(data map[string]interface{}) error {
+// fromMap retrieve the configuration data from the map form.
+func (c *networkConfiguration) fromMap(data map[string]interface{}) error {
 	var err error
 
 	if i, ok := data["BridgeName"]; ok && i != nil {
@@ -393,8 +393,12 @@ func parseNetworkGenericOptions(data interface{}) (*networkConfiguration, error)
 	case *networkConfiguration:
 		config = opt
 	case map[string]interface{}:
-		config = &networkConfiguration{}
-		err = config.FromMap(opt)
+		config = &networkConfiguration{
+			EnableICC:          true,
+			EnableIPTables:     true,
+			EnableIPMasquerade: true,
+		}
+		err = config.fromMap(opt)
 	case options.Generic:
 		var opaqueConfig interface{}
 		if opaqueConfig, err = options.GenerateFromModel(opt, config); err == nil {
