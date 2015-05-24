@@ -407,11 +407,11 @@ func procJoinEndpoint(c libnetwork.NetworkController, vars map[string]string, bo
 		return nil, errRsp
 	}
 
-	cd, err := ep.Join(ej.ContainerID, ej.parseOptions()...)
+	err = ep.Join(ej.ContainerID, ej.parseOptions()...)
 	if err != nil {
 		return nil, convertNetworkError(err)
 	}
-	return cd, &successResponse
+	return ep.Info().SandboxKey(), &successResponse
 }
 
 func procLeaveEndpoint(c libnetwork.NetworkController, vars map[string]string, body []byte) (interface{}, *responseStatus) {

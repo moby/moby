@@ -33,10 +33,9 @@ create network namespaces and allocate interfaces for containers to use.
         }
 
         // A container can join the endpoint by providing the container ID to the join
-        // api which returns the sandbox key which can be used to access the sandbox
-        // created for the container during join.
+        // api.
         // Join acceps Variadic arguments which will be made use of by libnetwork and Drivers
-        _, err = ep.Join("container1",
+        err = ep.Join("container1",
                 libnetwork.JoinOptionHostname("test"),
                 libnetwork.JoinOptionDomainname("docker.io"))
         if err != nil {
