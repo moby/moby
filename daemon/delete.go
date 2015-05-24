@@ -48,8 +48,6 @@ func (daemon *Daemon) ContainerRm(name string, config *ContainerRmConfig) error 
 		return fmt.Errorf("Cannot destroy container %s: %v", name, err)
 	}
 
-	container.LogEvent("destroy")
-
 	if config.RemoveVolume {
 		container.removeMountPoints()
 	}
@@ -102,6 +100,7 @@ func (daemon *Daemon) rm(container *Container, forceRemove bool) (err error) {
 			daemon.idIndex.Delete(container.ID)
 			daemon.containers.Delete(container.ID)
 			os.RemoveAll(container.root)
+			container.LogEvent("destroy")
 		}
 	}()
 
@@ -130,6 +129,7 @@ func (daemon *Daemon) rm(container *Container, forceRemove bool) (err error) {
 	daemon.idIndex.Delete(container.ID)
 	daemon.containers.Delete(container.ID)
 
+	container.LogEvent("destroy")
 	return nil
 }
 

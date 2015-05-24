@@ -246,6 +246,7 @@ func (container *Container) Start() (err error) {
 			}
 			container.toDisk()
 			container.cleanup()
+			container.LogEvent("die")
 		}
 	}()
 
@@ -379,7 +380,11 @@ func (container *Container) KillSig(sig int) error {
 		return nil
 	}
 
-	return container.daemon.Kill(container, sig)
+	if err := container.daemon.Kill(container, sig); err != nil {
+		return err
+	}
+	container.LogEvent("kill")
+	return nil
 }
 
 // Wrapper aroung KillSig() suppressing "no such process" error.
@@ -410,6 +415,7 @@ func (container *Container) Pause() error {
 		return err
 	}
 	container.Paused = true
+	container.LogEvent("pause")
 	return nil
 }
 
@@ -431,6 +437,7 @@ func (container *Container) Unpause() error {
 		return err
 	}
 	container.Paused = false
+	container.LogEvent("unpause")
 	return nil
 }
 
@@ -492,6 +499,7 @@ func (container *Container) Stop(seconds int) error {
 		}
 	}
 
+	container.LogEvent("stop")
 	return nil
 }
 
@@ -506,14 +514,24 @@ func (container *Container) Restart(seconds int) error {
 	if err := container.Stop(seconds); err != nil {
 		return err
 	}
-	return container.Start()
+
+	if err := container.Start(); err != nil {
+		return err
+	}
+
+	container.LogEvent("restart")
+	return nil
 }
 
 func (container *Container) Resize(h, w int) error {
 	if !container.IsRunning() {
 		return fmt.Errorf("Cannot resize container %s, container is not running", container.ID)
 	}
-	return container.command.ProcessConfig.Terminal.Resize(h, w)
+	if err := container.command.ProcessConfig.Terminal.Resize(h, w); err != nil {
+		return err
+	}
+	container.LogEvent("resize")
+	return nil
 }
 
 func (container *Container) Export() (archive.Archive, error) {
@@ -526,12 +544,13 @@ func (container *Container) Export() (archive.Archive, error) {
 		container.Unmount()
 		return nil, err
 	}
-	return ioutils.NewReadCloserWrapper(archive, func() error {
-			err := archive.Close()
-			container.Unmount()
-			return err
-		}),
-		nil
+	arch := ioutils.NewReadCloserWrapper(archive, func() error {
+		err := archive.Close()
+		container.Unmount()
+		return err
+	})
+	container.LogEvent("export")
+	return arch, err
 }
 
 func (container *Container) Mount() error {
@@ -641,13 +660,14 @@ func (container *Container) Copy(resource string) (io.ReadCloser, error) {
 	if err != nil {
 		return nil, err
 	}
-	return ioutils.NewReadCloserWrapper(archive, func() error {
-			err := archive.Close()
-			container.UnmountVolumes(true)
-			container.Unmount()
-			return err
-		}),
-		nil
+	reader := ioutils.NewReadCloserWrapper(archive, func() error {
+		err := archive.Close()
+		container.UnmountVolumes(true)
+		container.Unmount()
+		return err
+	})
+	container.LogEvent("copy")
+	return reader, nil
 }
 
 // Returns true if the container exposes a certain port
@@ -839,6 +859,7 @@ func (c *Container) Attach(stdin io.ReadCloser, stdout io.Writer, stderr io.Writ
 }
 
 func (c *Container) AttachWithLogs(stdin io.ReadCloser, stdout, stderr io.Writer, logs, stream bool) error {
+
 	if logs {
 		logDriver, err := c.getLogger()
 		cLog, err := logDriver.GetReader()
@@ -867,6 +888,8 @@ func (c *Container) AttachWithLogs(stdin io.ReadCloser, stdout, stderr io.Writer
 			}
 		}
 	}
+
+	c.LogEvent("attach")
 
 	//stream
 	if stream {

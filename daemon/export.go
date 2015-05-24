@@ -21,7 +21,5 @@ func (daemon *Daemon) ContainerExport(name string, out io.Writer) error {
 	if _, err := io.Copy(out, data); err != nil {
 		return fmt.Errorf("%s: %s", name, err)
 	}
-	// FIXME: factor job-specific LogEvent to engine.Job.Run()
-	container.LogEvent("export")
 	return nil
 }
