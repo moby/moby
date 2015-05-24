@@ -19,27 +19,21 @@ func init() {
 	// In theory this shouldn't matter - in practice there's bound to be a few scripts relying
 	// on the internal addressing or other stupid things like that.
 	// They shouldn't, but hey, let's not break them unless we really have to.
-	for _, addr := range []string{
-		"172.17.42.1/16", // Don't use 172.16.0.0/16, it conflicts with EC2 DNS 172.16.0.23
-		"10.0.42.1/16",   // Don't even try using the entire /8, that's too intrusive
-		"10.1.42.1/16",
-		"10.42.42.1/16",
-		"172.16.42.1/24",
-		"172.16.43.1/24",
-		"172.16.44.1/24",
-		"10.0.42.1/24",
-		"10.0.43.1/24",
-		"192.168.42.1/24",
-		"192.168.43.1/24",
-		"192.168.44.1/24",
-	} {
-		ip, net, err := net.ParseCIDR(addr)
-		if err != nil {
-			log.Errorf("Failed to parse address %s", addr)
-			continue
-		}
-		net.IP = ip.To4()
-		bridgeNetworks = append(bridgeNetworks, net)
+	// Don't use 172.16.0.0/16, it conflicts with EC2 DNS 172.16.0.23
+
+	// 172.[17-31].42.1/16
+	mask := []byte{255, 255, 0, 0}
+	for i := 17; i < 32; i++ {
+		bridgeNetworks = append(bridgeNetworks, &net.IPNet{IP: []byte{172, byte(i), 42, 1}, Mask: mask})
+	}
+	// 10.[0-255].42.1/16
+	for i := 0; i < 256; i++ {
+		bridgeNetworks = append(bridgeNetworks, &net.IPNet{IP: []byte{10, byte(i), 42, 1}, Mask: mask})
+	}
+	// 192.168.[42-44].1/24
+	mask[2] = 255
+	for i := 42; i < 45; i++ {
+		bridgeNetworks = append(bridgeNetworks, &net.IPNet{IP: []byte{192, 168, byte(i), 1}, Mask: mask})
 	}
 }
 

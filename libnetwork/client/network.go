@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	nullNetType = "null"
+	defaultDriverType = "bridge"
 )
 
 type command struct {
@@ -52,7 +52,7 @@ func (cli *NetworkCli) CmdNetworkCreate(chain string, args ...string) error {
 		return err
 	}
 	if *flDriver == "" {
-		*flDriver = nullNetType
+		*flDriver = defaultDriverType
 	}
 
 	// Construct network create request body
