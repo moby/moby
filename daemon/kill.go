@@ -26,6 +26,5 @@ func (daemon *Daemon) ContainerKill(name string, sig uint64) error {
 			return fmt.Errorf("Cannot kill container %s: %s", name, err)
 		}
 	}
-	container.LogEvent("kill")
 	return nil
 }

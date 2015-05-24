@@ -33,7 +33,6 @@ func (daemon *Daemon) ContainerStart(name string, hostConfig *runconfig.HostConf
 	}
 
 	if err := container.Start(); err != nil {
-		container.LogEvent("die")
 		return fmt.Errorf("Cannot start container %s: %s", name, err)
 	}
 
