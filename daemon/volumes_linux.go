@@ -4,6 +4,9 @@ package daemon
 
 import (
 	"os"
+	"path/filepath"
+	"sort"
+	"strings"
 
 	"github.com/docker/docker/daemon/execdriver"
 	"github.com/docker/docker/pkg/system"
@@ -24,36 +27,44 @@ func copyOwnership(source, destination string) error {
 	return os.Chmod(destination, os.FileMode(stat.Mode()))
 }
 
-func (container *Container) prepareVolumes() error {
-	if container.Volumes == nil || len(container.Volumes) == 0 {
-		container.Volumes = make(map[string]string)
-		container.VolumesRW = make(map[string]bool)
-	}
+func (container *Container) setupMounts() ([]execdriver.Mount, error) {
+	var mounts []execdriver.Mount
+	for _, m := range container.MountPoints {
+		path, err := m.Setup()
+		if err != nil {
+			return nil, err
+		}
 
-	if len(container.hostConfig.VolumesFrom) > 0 && container.AppliedVolumesFrom == nil {
-		container.AppliedVolumesFrom = make(map[string]struct{})
-	}
-	return container.createVolumes()
-}
-
-func (container *Container) setupMounts() error {
-	mounts := []execdriver.Mount{}
-
-	// Mount user specified volumes
-	// Note, these are not private because you may want propagation of (un)mounts from host
-	// volumes. For instance if you use -v /usr:/usr and the host later mounts /usr/share you
-	// want this new mount in the container
-	// These mounts must be ordered based on the length of the path that it is being mounted to (lexicographic)
-	for _, path := range container.sortedVolumeMounts() {
 		mounts = append(mounts, execdriver.Mount{
-			Source:      container.Volumes[path],
-			Destination: path,
-			Writable:    container.VolumesRW[path],
+			Source:      path,
+			Destination: m.Destination,
+			Writable:    m.RW,
 		})
 	}
 
-	mounts = append(mounts, container.specialMounts()...)
+	mounts = sortMounts(mounts)
+	return append(mounts, container.networkMounts()...), nil
+}
 
-	container.command.Mounts = mounts
-	return nil
+func sortMounts(m []execdriver.Mount) []execdriver.Mount {
+	sort.Sort(mounts(m))
+	return m
+}
+
+type mounts []execdriver.Mount
+
+func (m mounts) Len() int {
+	return len(m)
+}
+
+func (m mounts) Less(i, j int) bool {
+	return m.parts(i) < m.parts(j)
+}
+
+func (m mounts) Swap(i, j int) {
+	m[i], m[j] = m[j], m[i]
+}
+
+func (m mounts) parts(i int) int {
+	return len(strings.Split(filepath.Clean(m[i].Destination), string(os.PathSeparator)))
 }

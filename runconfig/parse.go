@@ -100,6 +100,8 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 	cmd.Var(flUlimits, []string{"-ulimit"}, "Ulimit options")
 	cmd.Var(&flLoggingOpts, []string{"-log-opt"}, "Log driver options")
 
+	expFlags := attachExperimentalFlags(cmd)
+
 	cmd.Require(flag.Min, 1)
 
 	if err := cmd.ParseFlags(args, true); err != nil {
@@ -354,6 +356,8 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		LogConfig:       LogConfig{Type: *flLoggingDriver, Config: loggingOpts},
 		CgroupParent:    *flCgroupParent,
 	}
+
+	applyExperimentalFlags(expFlags, config, hostConfig)
 
 	// When allocating stdin in attached mode, close stdin at client disconnect
 	if config.OpenStdin && config.AttachStdin {

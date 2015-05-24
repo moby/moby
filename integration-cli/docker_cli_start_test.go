@@ -126,32 +126,6 @@ func (s *DockerSuite) TestStartRecordError(c *check.C) {
 
 }
 
-// gh#8726: a failed Start() breaks --volumes-from on subsequent Start()'s
-func (s *DockerSuite) TestStartVolumesFromFailsCleanly(c *check.C) {
-
-	// Create the first data volume
-	dockerCmd(c, "run", "-d", "--name", "data_before", "-v", "/foo", "busybox")
-
-	// Expect this to fail because the data test after contaienr doesn't exist yet
-	if _, err := runCommand(exec.Command(dockerBinary, "run", "-d", "--name", "consumer", "--volumes-from", "data_before", "--volumes-from", "data_after", "busybox")); err == nil {
-		c.Fatal("Expected error but got none")
-	}
-
-	// Create the second data volume
-	dockerCmd(c, "run", "-d", "--name", "data_after", "-v", "/bar", "busybox")
-
-	// Now, all the volumes should be there
-	dockerCmd(c, "start", "consumer")
-
-	// Check that we have the volumes we want
-	out, _ := dockerCmd(c, "inspect", "--format='{{ len .Volumes }}'", "consumer")
-	nVolumes := strings.Trim(out, " \r\n'")
-	if nVolumes != "2" {
-		c.Fatalf("Missing volumes: expected 2, got %s", nVolumes)
-	}
-
-}
-
 func (s *DockerSuite) TestStartPausedContainer(c *check.C) {
 	defer unpauseAllContainers()
 

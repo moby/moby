@@ -2,11 +2,14 @@ package daemon
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/docker/docker/graph"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/parsers"
+	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/libcontainer/label"
 )
@@ -87,17 +90,51 @@ func (daemon *Daemon) Create(config *runconfig.Config, hostConfig *runconfig.Hos
 	if err := daemon.createRootfs(container); err != nil {
 		return nil, nil, err
 	}
-	if hostConfig != nil {
-		if err := daemon.setHostConfig(container, hostConfig); err != nil {
-			return nil, nil, err
-		}
+	if err := daemon.setHostConfig(container, hostConfig); err != nil {
+		return nil, nil, err
 	}
 	if err := container.Mount(); err != nil {
 		return nil, nil, err
 	}
 	defer container.Unmount()
-	if err := container.prepareVolumes(); err != nil {
-		return nil, nil, err
+
+	for spec := range config.Volumes {
+		var (
+			name, destination string
+			parts             = strings.Split(spec, ":")
+		)
+		switch len(parts) {
+		case 2:
+			name, destination = parts[0], filepath.Clean(parts[1])
+		default:
+			name = stringid.GenerateRandomID()
+			destination = filepath.Clean(parts[0])
+		}
+		// Skip volumes for which we already have something mounted on that
+		// destination because of a --volume-from.
+		if container.isDestinationMounted(destination) {
+			continue
+		}
+		path, err := container.GetResourcePath(destination)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		stat, err := os.Stat(path)
+		if err == nil && !stat.IsDir() {
+			return nil, nil, fmt.Errorf("cannot mount volume over existing file, file exists %s", path)
+		}
+
+		v, err := createVolume(name, config.VolumeDriver)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		if err := container.copyImagePathContent(v, destination); err != nil {
+			return nil, nil, err
+		}
+
+		container.addMountPointWithVolume(destination, v, true)
 	}
 	if err := container.ToDisk(); err != nil {
 		return nil, nil, err

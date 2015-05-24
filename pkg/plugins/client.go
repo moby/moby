@@ -31,6 +31,10 @@ type Client struct {
 }
 
 func (c *Client) Call(serviceMethod string, args interface{}, ret interface{}) error {
+	return c.callWithRetry(serviceMethod, args, ret, true)
+}
+
+func (c *Client) callWithRetry(serviceMethod string, args interface{}, ret interface{}, retry bool) error {
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(args); err != nil {
 		return err
@@ -50,12 +54,16 @@ func (c *Client) Call(serviceMethod string, args interface{}, ret interface{}) e
 	for {
 		resp, err := c.http.Do(req)
 		if err != nil {
+			if !retry {
+				return err
+			}
+
 			timeOff := backoff(retries)
-			if timeOff+time.Since(start) > defaultTimeOut {
+			if abort(start, timeOff) {
 				return err
 			}
 			retries++
-			logrus.Warn("Unable to connect to plugin: %s, retrying in %ds\n", c.addr, timeOff)
+			logrus.Warnf("Unable to connect to plugin: %s, retrying in %v", c.addr, timeOff)
 			time.Sleep(timeOff)
 			continue
 		}
@@ -73,7 +81,7 @@ func (c *Client) Call(serviceMethod string, args interface{}, ret interface{}) e
 }
 
 func backoff(retries int) time.Duration {
-	b, max := float64(1), float64(defaultTimeOut)
+	b, max := 1, defaultTimeOut
 	for b < max && retries > 0 {
 		b *= 2
 		retries--
@@ -81,7 +89,11 @@ func backoff(retries int) time.Duration {
 	if b > max {
 		b = max
 	}
-	return time.Duration(b)
+	return time.Duration(b) * time.Second
+}
+
+func abort(start time.Time, timeOff time.Duration) bool {
+	return timeOff+time.Since(start) > time.Duration(defaultTimeOut)*time.Second
 }
 
 func configureTCPTransport(tr *http.Transport, proto, addr string) {

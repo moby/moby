@@ -42,14 +42,7 @@ type Container struct {
 	// Fields below here are platform specific.
 
 	AppArmorProfile string
-
-	// Store rw/ro in a separate structure to preserve reverse-compatibility on-disk.
-	// Easier than migrating older container configs :)
-	VolumesRW map[string]bool
-
-	AppliedVolumesFrom map[string]struct{}
-
-	activeLinks map[string]*links.Link
+	activeLinks     map[string]*links.Link
 }
 
 func killProcessDirectly(container *Container) error {

@@ -46,8 +46,11 @@ import (
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/trust"
 	"github.com/docker/docker/utils"
-	"github.com/docker/docker/volumes"
+	volumedrivers "github.com/docker/docker/volume/drivers"
+	"github.com/docker/docker/volume/local"
 )
+
+const defaultVolumesPathName = "volumes"
 
 var (
 	validContainerNameChars   = `[a-zA-Z0-9][a-zA-Z0-9_.-]`
@@ -99,7 +102,6 @@ type Daemon struct {
 	repositories     *graph.TagStore
 	idIndex          *truncindex.TruncIndex
 	sysInfo          *sysinfo.SysInfo
-	volumes          *volumes.Repository
 	config           *Config
 	containerGraph   *graphdb.Database
 	driver           graphdriver.Driver
@@ -109,6 +111,7 @@ type Daemon struct {
 	RegistryService  *registry.Service
 	EventsService    *events.Events
 	netController    libnetwork.NetworkController
+	root             string
 }
 
 // Get looks for a container using the provided information, which could be
@@ -209,7 +212,13 @@ func (daemon *Daemon) register(container *Container, updateSuffixarray bool) err
 	// we'll waste time if we update it for every container
 	daemon.idIndex.Add(container.ID)
 
-	container.registerVolumes()
+	if err := daemon.verifyOldVolumesInfo(container); err != nil {
+		return err
+	}
+
+	if err := container.prepareMountPoints(); err != nil {
+		return err
+	}
 
 	if container.IsRunning() {
 		logrus.Debugf("killing old running container %s", container.ID)
@@ -249,10 +258,15 @@ func (daemon *Daemon) ensureName(container *Container) error {
 }
 
 func (daemon *Daemon) restore() error {
+	type cr struct {
+		container  *Container
+		registered bool
+	}
+
 	var (
 		debug         = (os.Getenv("DEBUG") != "" || os.Getenv("TEST") != "")
-		containers    = make(map[string]*Container)
 		currentDriver = daemon.driver.String()
+		containers    = make(map[string]*cr)
 	)
 
 	if !debug {
@@ -278,13 +292,11 @@ func (daemon *Daemon) restore() error {
 		if (container.Driver == "" && currentDriver == "aufs") || container.Driver == currentDriver {
 			logrus.Debugf("Loaded container %v", container.ID)
 
-			containers[container.ID] = container
+			containers[container.ID] = &cr{container: container}
 		} else {
 			logrus.Debugf("Cannot load container %s because it was created with another graph driver.", container.ID)
 		}
 	}
-
-	registeredContainers := []*Container{}
 
 	if entities := daemon.containerGraph.List("/", -1); entities != nil {
 		for _, p := range entities.Paths() {
@@ -294,50 +306,43 @@ func (daemon *Daemon) restore() error {
 
 			e := entities[p]
 
-			if container, ok := containers[e.ID()]; ok {
-				if err := daemon.register(container, false); err != nil {
-					logrus.Debugf("Failed to register container %s: %s", container.ID, err)
-				}
-
-				registeredContainers = append(registeredContainers, container)
-
-				// delete from the map so that a new name is not automatically generated
-				delete(containers, e.ID())
+			if c, ok := containers[e.ID()]; ok {
+				c.registered = true
 			}
 		}
 	}
 
-	// Any containers that are left over do not exist in the graph
-	for _, container := range containers {
-		// Try to set the default name for a container if it exists prior to links
-		container.Name, err = daemon.generateNewName(container.ID)
-		if err != nil {
-			logrus.Debugf("Setting default id - %s", err)
-		}
+	group := sync.WaitGroup{}
+	for _, c := range containers {
+		group.Add(1)
 
-		if err := daemon.register(container, false); err != nil {
-			logrus.Debugf("Failed to register container %s: %s", container.ID, err)
-		}
+		go func(container *Container, registered bool) {
+			defer group.Done()
 
-		registeredContainers = append(registeredContainers, container)
-	}
+			if !registered {
+				// Try to set the default name for a container if it exists prior to links
+				container.Name, err = daemon.generateNewName(container.ID)
+				if err != nil {
+					logrus.Debugf("Setting default id - %s", err)
+				}
+			}
 
-	// check the restart policy on the containers and restart any container with
-	// the restart policy of "always"
-	if daemon.config.AutoRestart {
-		logrus.Debug("Restarting containers...")
+			if err := daemon.register(container, false); err != nil {
+				logrus.Debugf("Failed to register container %s: %s", container.ID, err)
+			}
 
-		for _, container := range registeredContainers {
-			if container.hostConfig.RestartPolicy.IsAlways() ||
-				(container.hostConfig.RestartPolicy.IsOnFailure() && container.ExitCode != 0) {
+			// check the restart policy on the containers and restart any container with
+			// the restart policy of "always"
+			if daemon.config.AutoRestart && container.shouldRestart() {
 				logrus.Debugf("Starting container %s", container.ID)
 
 				if err := container.Start(); err != nil {
 					logrus.Debugf("Failed to start container %s: %s", container.ID, err)
 				}
 			}
-		}
+		}(c.container, c.registered)
 	}
+	group.Wait()
 
 	if !debug {
 		if logrus.GetLevel() == logrus.InfoLevel {
@@ -535,6 +540,7 @@ func (daemon *Daemon) newContainer(name string, config *runconfig.Config, imgID 
 			ExecDriver:      daemon.execDriver.Name(),
 			State:           NewState(),
 			execCommands:    newExecStore(),
+			MountPoints:     map[string]*mountPoint{},
 		},
 	}
 	container.root = daemon.containerRoot(container.ID)
@@ -785,15 +791,11 @@ func NewDaemon(config *Config, registryService *registry.Service) (daemon *Daemo
 		return nil, err
 	}
 
-	volumesDriver, err := graphdriver.GetDriver("vfs", config.Root, config.GraphOptions)
+	volumesDriver, err := local.New(filepath.Join(config.Root, defaultVolumesPathName))
 	if err != nil {
 		return nil, err
 	}
-
-	volumes, err := volumes.NewRepository(filepath.Join(config.Root, "volumes"), volumesDriver)
-	if err != nil {
-		return nil, err
-	}
+	volumedrivers.Register(volumesDriver, volumesDriver.Name())
 
 	trustKey, err := api.LoadOrCreateTrustKey(config.TrustKeyPath)
 	if err != nil {
@@ -872,7 +874,6 @@ func NewDaemon(config *Config, registryService *registry.Service) (daemon *Daemo
 	d.repositories = repositories
 	d.idIndex = truncindex.NewTruncIndex([]string{})
 	d.sysInfo = sysInfo
-	d.volumes = volumes
 	d.config = config
 	d.sysInitPath = sysInitPath
 	d.execDriver = ed
@@ -880,6 +881,7 @@ func NewDaemon(config *Config, registryService *registry.Service) (daemon *Daemo
 	d.defaultLogConfig = config.LogConfig
 	d.RegistryService = registryService
 	d.EventsService = eventsService
+	d.root = config.Root
 
 	if err := d.restore(); err != nil {
 		return nil, err
@@ -1218,6 +1220,10 @@ func (daemon *Daemon) verifyHostConfig(hostConfig *runconfig.HostConfig) ([]stri
 }
 
 func (daemon *Daemon) setHostConfig(container *Container, hostConfig *runconfig.HostConfig) error {
+	if err := daemon.registerMountPoints(container, hostConfig); err != nil {
+		return err
+	}
+
 	container.Lock()
 	defer container.Unlock()
 	if err := parseSecurityOpt(container, hostConfig); err != nil {
@@ -1231,6 +1237,5 @@ func (daemon *Daemon) setHostConfig(container *Container, hostConfig *runconfig.
 
 	container.hostConfig = hostConfig
 	container.toDisk()
-
 	return nil
 }
