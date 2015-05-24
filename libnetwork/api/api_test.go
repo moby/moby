@@ -1136,7 +1136,7 @@ func TestHttpHandlerUninit(t *testing.T) {
 	}
 
 	rsp := newWriter()
-	req, err := http.NewRequest("GET", "/networks", nil)
+	req, err := http.NewRequest("GET", "/v1.19/networks", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1196,7 +1196,7 @@ func TestHttpHandlerBadBody(t *testing.T) {
 	}
 	handleRequest := NewHTTPHandler(c)
 
-	req, err := http.NewRequest("POST", "/networks", &localReader{beBad: true})
+	req, err := http.NewRequest("POST", "/v1.19/networks", &localReader{beBad: true})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1207,7 +1207,7 @@ func TestHttpHandlerBadBody(t *testing.T) {
 
 	body := []byte{}
 	lr := newLocalReader(body)
-	req, err = http.NewRequest("POST", "/networks", lr)
+	req, err = http.NewRequest("POST", "/v1.19/networks", lr)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1235,7 +1235,7 @@ func TestEndToEnd(t *testing.T) {
 		t.Fatal(err)
 	}
 	lr := newLocalReader(body)
-	req, err := http.NewRequest("POST", "/networks", lr)
+	req, err := http.NewRequest("POST", "/v1.19/networks", lr)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1254,7 +1254,7 @@ func TestEndToEnd(t *testing.T) {
 	}
 
 	// Query networks collection
-	req, err = http.NewRequest("GET", "/networks", nil)
+	req, err = http.NewRequest("GET", "/v1.19/networks", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1266,7 +1266,7 @@ func TestEndToEnd(t *testing.T) {
 	b0 := make([]byte, len(rsp.body))
 	copy(b0, rsp.body)
 
-	req, err = http.NewRequest("GET", "/networks?name=network-fiftyfive", nil)
+	req, err = http.NewRequest("GET", "/v1.19/networks?name=network-fiftyfive", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1280,7 +1280,7 @@ func TestEndToEnd(t *testing.T) {
 	}
 
 	// Query network by name
-	req, err = http.NewRequest("GET", "/networks?name=culo", nil)
+	req, err = http.NewRequest("GET", "/v1.19/networks?name=culo", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1298,7 +1298,7 @@ func TestEndToEnd(t *testing.T) {
 		t.Fatalf("Expected empty list. Got %v", list)
 	}
 
-	req, err = http.NewRequest("GET", "/networks?name=network-fiftyfive", nil)
+	req, err = http.NewRequest("GET", "/v1.19/networks?name=network-fiftyfive", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1321,7 +1321,7 @@ func TestEndToEnd(t *testing.T) {
 	// Query network by partial id
 	chars := []byte(nid)
 	partial := string(chars[0 : len(chars)/2])
-	req, err = http.NewRequest("GET", "/networks?partial-id="+partial, nil)
+	req, err = http.NewRequest("GET", "/v1.19/networks?partial-id="+partial, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1342,7 +1342,7 @@ func TestEndToEnd(t *testing.T) {
 	}
 
 	// Get network by id
-	req, err = http.NewRequest("GET", "/networks/"+nid, nil)
+	req, err = http.NewRequest("GET", "/v1.19/networks/"+nid, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1367,7 +1367,7 @@ func TestEndToEnd(t *testing.T) {
 	}
 
 	lr = newLocalReader(eb)
-	req, err = http.NewRequest("POST", "/networks/"+nid+"/endpoints", lr)
+	req, err = http.NewRequest("POST", "/v1.19/networks/"+nid+"/endpoints", lr)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1386,7 +1386,7 @@ func TestEndToEnd(t *testing.T) {
 	}
 
 	// Query endpoint(s)
-	req, err = http.NewRequest("GET", "/networks/"+nid+"/endpoints", nil)
+	req, err = http.NewRequest("GET", "/v1.19/networks/"+nid+"/endpoints", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1395,7 +1395,7 @@ func TestEndToEnd(t *testing.T) {
 		t.Fatalf("Expected StatusOK. Got (%d): %s", rsp.statusCode, rsp.body)
 	}
 
-	req, err = http.NewRequest("GET", "/networks/"+nid+"/endpoints?name=bla", nil)
+	req, err = http.NewRequest("GET", "/v1.19/networks/"+nid+"/endpoints?name=bla", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1413,7 +1413,7 @@ func TestEndToEnd(t *testing.T) {
 	}
 
 	// Query endpoint by name
-	req, err = http.NewRequest("GET", "/networks/"+nid+"/endpoints?name=ep-TwentyTwo", nil)
+	req, err = http.NewRequest("GET", "/v1.19/networks/"+nid+"/endpoints?name=ep-TwentyTwo", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1436,7 +1436,7 @@ func TestEndToEnd(t *testing.T) {
 	// Query endpoint by partial id
 	chars = []byte(eid)
 	partial = string(chars[0 : len(chars)/2])
-	req, err = http.NewRequest("GET", "/networks/"+nid+"/endpoints?partial-id="+partial, nil)
+	req, err = http.NewRequest("GET", "/v1.19/networks/"+nid+"/endpoints?partial-id="+partial, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1457,7 +1457,7 @@ func TestEndToEnd(t *testing.T) {
 	}
 
 	// Get endpoint by id
-	req, err = http.NewRequest("GET", "/networks/"+nid+"/endpoints/"+eid, nil)
+	req, err = http.NewRequest("GET", "/v1.19/networks/"+nid+"/endpoints/"+eid, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
