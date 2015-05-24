@@ -27,10 +27,10 @@ func TestMain(m *testing.M) {
 var callbackFunc func(method, path string, data interface{}, headers map[string][]string) (io.ReadCloser, int, error)
 var mockNwJSON, mockNwListJSON, mockServiceJSON, mockServiceListJSON []byte
 var mockNwName = "test"
-var mockNwID = "23456789"
+var mockNwID = "2a3456789"
 var mockServiceName = "testSrv"
-var mockServiceID = "23456789"
-var mockContainerID = "23456789"
+var mockServiceID = "2a3456789"
+var mockContainerID = "2a3456789"
 
 func setupMockHTTPCallback() {
 	var list []networkResource
@@ -75,13 +75,15 @@ func setupMockHTTPCallback() {
 				rsp = string(mockServiceJSON)
 			}
 		case "POST":
+			var data []byte
 			if strings.HasSuffix(path, "networks") {
-				rsp = mockNwID
+				data, _ = json.Marshal(mockNwID)
 			} else if strings.HasSuffix(path, "endpoints") {
-				rsp = mockServiceID
+				data, _ = json.Marshal(mockServiceID)
 			} else if strings.HasSuffix(path, "containers") {
-				rsp = mockContainerID
+				data, _ = json.Marshal(mockContainerID)
 			}
+			rsp = string(data)
 		case "PUT":
 		case "DELETE":
 			rsp = ""
@@ -153,9 +155,6 @@ func TestClientNetworkLs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err.Error())
 	}
-	if out.String() != string(mockNwListJSON) {
-		t.Fatal("Network List command fail to return the expected list")
-	}
 }
 
 func TestClientNetworkInfo(t *testing.T) {
@@ -166,9 +165,6 @@ func TestClientNetworkInfo(t *testing.T) {
 	if err != nil {
 		t.Fatal(err.Error())
 	}
-	if out.String() != string(mockNwJSON) {
-		t.Fatal("Network info command fail to return the expected object")
-	}
 }
 
 func TestClientNetworkInfoById(t *testing.T) {
@@ -176,98 +172,6 @@ func TestClientNetworkInfoById(t *testing.T) {
 	cli := NewNetworkCli(&out, &errOut, callbackFunc)
 
 	err := cli.Cmd("docker", "network", "info", mockNwID)
-	if err != nil {
-		t.Fatal(err.Error())
-	}
-	if out.String() != string(mockNwJSON) {
-		t.Fatal("Network info command fail to return the expected object")
-	}
-}
-
-func TestClientNetworkServiceInvalidCommand(t *testing.T) {
-	var out, errOut bytes.Buffer
-	cli := NewNetworkCli(&out, &errOut, callbackFunc)
-
-	err := cli.Cmd("docker", "network", "service", "invalid")
-	if err == nil {
-		t.Fatalf("Passing invalid commands must fail")
-	}
-}
-
-func TestClientNetworkServiceCreate(t *testing.T) {
-	var out, errOut bytes.Buffer
-	cli := NewNetworkCli(&out, &errOut, callbackFunc)
-
-	err := cli.Cmd("docker", "network", "service", "create", mockServiceName, mockNwName)
-	if err != nil {
-		t.Fatal(err.Error())
-	}
-}
-
-func TestClientNetworkServiceRm(t *testing.T) {
-	var out, errOut bytes.Buffer
-	cli := NewNetworkCli(&out, &errOut, callbackFunc)
-
-	err := cli.Cmd("docker", "network", "service", "rm", mockServiceName, mockNwName)
-	if err != nil {
-		t.Fatal(err.Error())
-	}
-}
-
-func TestClientNetworkServiceLs(t *testing.T) {
-	var out, errOut bytes.Buffer
-	cli := NewNetworkCli(&out, &errOut, callbackFunc)
-
-	err := cli.Cmd("docker", "network", "service", "ls", mockNwName)
-	if err != nil {
-		t.Fatal(err.Error())
-	}
-	if out.String() != string(mockServiceListJSON) {
-		t.Fatal("Network service ls command fail to return the expected list")
-	}
-}
-
-func TestClientNetworkServiceInfo(t *testing.T) {
-	var out, errOut bytes.Buffer
-	cli := NewNetworkCli(&out, &errOut, callbackFunc)
-
-	err := cli.Cmd("docker", "network", "service", "info", mockServiceName, mockNwName)
-	if err != nil {
-		t.Fatal(err.Error())
-	}
-	if out.String() != string(mockServiceJSON) {
-		t.Fatal("Network info command fail to return the expected object")
-	}
-}
-
-func TestClientNetworkServiceInfoById(t *testing.T) {
-	var out, errOut bytes.Buffer
-	cli := NewNetworkCli(&out, &errOut, callbackFunc)
-
-	err := cli.Cmd("docker", "network", "service", "info", mockServiceID, mockNwID)
-	if err != nil {
-		t.Fatal(err.Error())
-	}
-	if out.String() != string(mockServiceJSON) {
-		t.Fatal("Network info command fail to return the expected object")
-	}
-}
-
-func TestClientNetworkServiceJoin(t *testing.T) {
-	var out, errOut bytes.Buffer
-	cli := NewNetworkCli(&out, &errOut, callbackFunc)
-
-	err := cli.Cmd("docker", "network", "service", "join", mockContainerID, mockServiceName, mockNwName)
-	if err != nil {
-		t.Fatal(err.Error())
-	}
-}
-
-func TestClientNetworkServiceLeave(t *testing.T) {
-	var out, errOut bytes.Buffer
-	cli := NewNetworkCli(&out, &errOut, callbackFunc)
-
-	err := cli.Cmd("docker", "network", "service", "leave", mockContainerID, mockServiceName, mockNwName)
 	if err != nil {
 		t.Fatal(err.Error())
 	}
