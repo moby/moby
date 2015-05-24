@@ -2406,31 +2406,6 @@ func (s *DockerSuite) TestBuildExposeUpperCaseProto(c *check.C) {
 	}
 }
 
-func (s *DockerSuite) TestBuildExposeHostPort(c *check.C) {
-	// start building docker file with ip:hostPort:containerPort
-	name := "testbuildexpose"
-	expected := "map[5678/tcp:{}]"
-	_, out, err := buildImageWithOut(name,
-		`FROM scratch
-        EXPOSE 192.168.1.2:2375:5678`,
-		true)
-	if err != nil {
-		c.Fatal(err)
-	}
-
-	if !strings.Contains(out, "to map host ports to container ports (ip:hostPort:containerPort) is deprecated.") {
-		c.Fatal("Missing warning message")
-	}
-
-	res, err := inspectField(name, "Config.ExposedPorts")
-	if err != nil {
-		c.Fatal(err)
-	}
-	if res != expected {
-		c.Fatalf("Exposed ports %s, expected %s", res, expected)
-	}
-}
-
 func (s *DockerSuite) TestBuildEmptyEntrypointInheritance(c *check.C) {
 	name := "testbuildentrypointinheritance"
 	name2 := "testbuildentrypointinheritance2"
