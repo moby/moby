@@ -170,13 +170,13 @@ func (c *networkConfiguration) Conflict(o *networkConfiguration) bool {
 
 // FromMap retrieve the configuration data from the map form.
 func (c *networkConfiguration) FromMap(data map[string]interface{}) error {
+	var err error
+
 	if i, ok := data["BridgeName"]; ok && i != nil {
 		if c.BridgeName, ok = i.(string); !ok {
 			return types.BadRequestErrorf("invalid type for BridgeName value")
 		}
 	}
-
-	var err error
 
 	if i, ok := data["Mtu"]; ok && i != nil {
 		if s, ok := i.(string); ok {
@@ -376,33 +376,49 @@ func (d *driver) getNetwork(id types.UUID) (*bridgeNetwork, error) {
 	return nil, nil
 }
 
-func parseNetworkOptions(option options.Generic) (*networkConfiguration, error) {
-	config := &networkConfiguration{}
-	if genData, ok := option[netlabel.GenericData]; ok && genData != nil {
-		switch opt := genData.(type) {
+func parseNetworkGenericOptions(data interface{}) (*networkConfiguration, error) {
+	var (
+		err    error
+		config *networkConfiguration
+	)
 
-		case map[string]interface{}:
-			if err := config.FromMap(opt); err != nil {
-				return nil, err
-			}
-		case options.Generic:
-			opaqueConfig, err := options.GenerateFromModel(opt, &networkConfiguration{})
-			if err != nil {
-				return nil, err
-			}
+	switch opt := data.(type) {
+	case *networkConfiguration:
+		config = opt
+	case map[string]interface{}:
+		config = &networkConfiguration{}
+		err = config.FromMap(opt)
+	case options.Generic:
+		var opaqueConfig interface{}
+		if opaqueConfig, err = options.GenerateFromModel(opt, config); err == nil {
 			config = opaqueConfig.(*networkConfiguration)
-		case *networkConfiguration:
-			config = opt
-		default:
-			return nil, types.BadRequestErrorf("do not recognize network configuration format: %T", opt)
+		}
+	default:
+		err = types.BadRequestErrorf("do not recognize network configuration format: %T", opt)
+	}
+
+	return config, err
+}
+
+func parseNetworkOptions(option options.Generic) (*networkConfiguration, error) {
+	var err error
+	config := &networkConfiguration{}
+
+	// Parse generic label first, config will be re-assigned
+	if genData, ok := option[netlabel.GenericData]; ok && genData != nil {
+		if config, err = parseNetworkGenericOptions(genData); err != nil {
+			return nil, err
 		}
 	}
-	if err := config.Validate(); err != nil {
-		return nil, err
-	}
 
+	// Process well-known labels next
 	if _, ok := option[netlabel.EnableIPv6]; ok {
 		config.EnableIPv6 = option[netlabel.EnableIPv6].(bool)
+	}
+
+	// Finally validate the configuration
+	if err = config.Validate(); err != nil {
+		return nil, err
 	}
 
 	return config, nil
