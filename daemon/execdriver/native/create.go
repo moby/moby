@@ -4,7 +4,6 @@ package native
 
 import (
 	"errors"
-	"encoding/json"
 	"fmt"
 	"net"
 	"strings"
@@ -87,24 +86,6 @@ func generateIfaceName() (string, error) {
 		}
 	}
 	return "", errors.New("Failed to find name for new interface")
-}
-
-// Re-create the container type from the image that was saved during checkpoint.
-func (d *driver) createRestoreContainer(c *execdriver.Command, imageDir string) (*libcontainer.Config, error) {
-	// Read the container.json.
-	f1, err := os.Open(filepath.Join(imageDir, "container.json"))
-	if err != nil {
-		return nil, err
-	}
-	defer f1.Close()
-
-	var container *libcontainer.Config
-	err = json.NewDecoder(f1).Decode(&container)
-	if err != nil {
-		return nil, err
-	}
-
-	return container, nil
 }
 
 func (d *driver) createNetwork(container *configs.Config, c *execdriver.Command) error {

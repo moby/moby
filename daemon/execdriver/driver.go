@@ -60,8 +60,8 @@ type Driver interface {
 	Kill(c *Command, sig int) error
 	Pause(c *Command) error
 	Unpause(c *Command) error
-	Checkpoint(c *Command) error
-	Restore(c *Command, pipes *Pipes, restoreCallback RestoreCallback) (int, error)
+	Checkpoint(c *Command, opts *libcontainer.CriuOpts) error
+	Restore(c *Command, pipes *Pipes, restoreCallback RestoreCallback, opts *libcontainer.CriuOpts, forceRestore bool) (ExitStatus, error)
 	Name() string                                 // Driver name
 	Info(id string) Info                          // "temporary" hack (until we move state from core to plugins)
 	GetPidsForContainer(id string) ([]int, error) // Returns a list of pids for the given container.
