@@ -102,8 +102,8 @@ func TestLinkEnv(t *testing.T) {
 	if env["DOCKER_PORT_6379_TCP_PORT"] != "6379" {
 		t.Fatalf("Expected 6379, got %s", env["DOCKER_PORT_6379_TCP_PORT"])
 	}
-	if env["DOCKER_NAME"] != "/db/docker" {
-		t.Fatalf("Expected /db/docker, got %s", env["DOCKER_NAME"])
+	if env["DOCKER_NAME"] != "docker" {
+		t.Fatalf("Expected docker, got %s", env["DOCKER_NAME"])
 	}
 	if env["DOCKER_ENV_PASSWORD"] != "gordon" {
 		t.Fatalf("Expected gordon, got %s", env["DOCKER_ENV_PASSWORD"])
@@ -151,8 +151,8 @@ func TestLinkMultipleEnv(t *testing.T) {
 	if env["DOCKER_PORT_6379_TCP_PORT_END"] != "6381" {
 		t.Fatalf("Expected 6381, got %s", env["DOCKER_PORT_6379_TCP_PORT_END"])
 	}
-	if env["DOCKER_NAME"] != "/db/docker" {
-		t.Fatalf("Expected /db/docker, got %s", env["DOCKER_NAME"])
+	if env["DOCKER_NAME"] != "docker" {
+		t.Fatalf("Expected docker, got %s", env["DOCKER_NAME"])
 	}
 	if env["DOCKER_ENV_PASSWORD"] != "gordon" {
 		t.Fatalf("Expected gordon, got %s", env["DOCKER_ENV_PASSWORD"])
@@ -201,8 +201,8 @@ func TestLinkPortRangeEnv(t *testing.T) {
 	if env["DOCKER_PORT_6379_TCP_PORT_END"] != "6381" {
 		t.Fatalf("Expected 6381, got %s", env["DOCKER_PORT_6379_TCP_PORT_END"])
 	}
-	if env["DOCKER_NAME"] != "/db/docker" {
-		t.Fatalf("Expected /db/docker, got %s", env["DOCKER_NAME"])
+	if env["DOCKER_NAME"] != "docker" {
+		t.Fatalf("Expected docker, got %s", env["DOCKER_NAME"])
 	}
 	if env["DOCKER_ENV_PASSWORD"] != "gordon" {
 		t.Fatalf("Expected gordon, got %s", env["DOCKER_ENV_PASSWORD"])

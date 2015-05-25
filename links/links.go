@@ -101,7 +101,7 @@ func (l *Link) ToEnv() []string {
 	}
 
 	// Load the linked container's name into the environment
-	env = append(env, fmt.Sprintf("%s_NAME=%s", alias, l.Name))
+	env = append(env, fmt.Sprintf("%s_NAME=%s", alias, l.Alias()))
 
 	if l.ChildEnvironment != nil {
 		for _, v := range l.ChildEnvironment {
