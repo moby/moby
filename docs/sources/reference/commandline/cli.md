@@ -2204,10 +2204,10 @@ logs could be retrieved using `docker logs`. This is
 useful if you need to pipe a file or something else into a container and
 retrieve the container's ID once the container has finished running.
 
-   $ docker run --device=/dev/sdc:/dev/xvdc --device=/dev/sdd --device=/dev/zero:/dev/nulo -i -t ubuntu ls -l /dev/{xvdc,sdd,nulo}
-   brw-rw---- 1 root disk 8, 2 Feb  9 16:05 /dev/xvdc
-   brw-rw---- 1 root disk 8, 3 Feb  9 16:05 /dev/sdd
-   crw-rw-rw- 1 root root 1, 5 Feb  9 16:05 /dev/nulo
+    $ docker run --device=/dev/sdc:/dev/xvdc --device=/dev/sdd --device=/dev/zero:/dev/nulo -i -t ubuntu ls -l /dev/{xvdc,sdd,nulo}
+    brw-rw---- 1 root disk 8, 2 Feb  9 16:05 /dev/xvdc
+    brw-rw---- 1 root disk 8, 3 Feb  9 16:05 /dev/sdd
+    crw-rw-rw- 1 root root 1, 5 Feb  9 16:05 /dev/nulo
 
 It is often necessary to directly expose devices to a container. The `--device`
 option enables that.  For example, a specific block storage device or loop
@@ -2400,7 +2400,7 @@ It is used to create a backup that can then be used with `docker load`
 
 It is even useful to cherry-pick particular tags of an image repository
 
-   $ docker save -o ubuntu.tar ubuntu:lucid ubuntu:saucy
+    $ docker save -o ubuntu.tar ubuntu:lucid ubuntu:saucy
 
 ## search
 
