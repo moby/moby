@@ -326,6 +326,19 @@ func (ep *endpoint) Join(containerID string, options ...EndpointOption) error {
 	return nil
 }
 
+func (ep *endpoint) hasInterface(iName string) bool {
+	ep.Lock()
+	defer ep.Unlock()
+
+	for _, iface := range ep.iFaces {
+		if iface.srcName == iName {
+			return true
+		}
+	}
+
+	return false
+}
+
 func (ep *endpoint) Leave(containerID string, options ...EndpointOption) error {
 	var err error
 
@@ -361,9 +374,12 @@ func (ep *endpoint) Leave(containerID string, options ...EndpointOption) error {
 
 	sb := ctrlr.sandboxGet(container.data.SandboxKey)
 	for _, i := range sb.Interfaces() {
-		err = sb.RemoveInterface(i)
-		if err != nil {
-			logrus.Debugf("Remove interface failed: %v", err)
+		// Only remove the interfaces owned by this endpoint from the sandbox.
+		if ep.hasInterface(i.SrcName) {
+			err = sb.RemoveInterface(i)
+			if err != nil {
+				logrus.Debugf("Remove interface failed: %v", err)
+			}
 		}
 	}
 
