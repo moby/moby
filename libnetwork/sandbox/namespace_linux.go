@@ -165,6 +165,15 @@ func (n *networkNamespace) RemoveInterface(i *Interface) error {
 		return err
 	}
 
+	n.Lock()
+	for index, intf := range n.sinfo.Interfaces {
+		if intf == i {
+			n.sinfo.Interfaces = append(n.sinfo.Interfaces[:index], n.sinfo.Interfaces[index+1:]...)
+			break
+		}
+	}
+	n.Unlock()
+
 	return nil
 }
 
@@ -255,6 +264,8 @@ func (n *networkNamespace) SetGatewayIPv6(gw net.IP) error {
 }
 
 func (n *networkNamespace) Interfaces() []*Interface {
+	n.Lock()
+	defer n.Unlock()
 	return n.sinfo.Interfaces
 }
 
