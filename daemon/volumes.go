@@ -6,11 +6,14 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/chrootarchive"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/volume"
+	"github.com/docker/libcontainer/label"
 )
 
 type mountPoint struct {
@@ -50,7 +53,7 @@ func (m *mountPoint) Path() string {
 	return m.Source
 }
 
-func parseBindMount(spec string, config *runconfig.Config) (*mountPoint, error) {
+func parseBindMount(spec string, mountLabel string, config *runconfig.Config) (*mountPoint, error) {
 	bind := &mountPoint{
 		RW: true,
 	}
@@ -61,10 +64,17 @@ func parseBindMount(spec string, config *runconfig.Config) (*mountPoint, error) 
 		bind.Destination = arr[1]
 	case 3:
 		bind.Destination = arr[1]
-		if !validMountMode(arr[2]) {
-			return nil, fmt.Errorf("invalid mode for volumes-from: %s", arr[2])
+		mode := arr[2]
+		if !validMountMode(mode) {
+			return nil, fmt.Errorf("invalid mode for volumes-from: %s", mode)
 		}
-		bind.RW = arr[2] == "rw"
+		bind.RW = rwModes[mode]
+		// check if we need to apply a SELinux label
+		if strings.ContainsAny(mode, "zZ") {
+			if err := label.Relabel(bind.Source, mountLabel, mode); err != nil {
+				return nil, err
+			}
+		}
 	default:
 		return nil, fmt.Errorf("Invalid volume specification: %s", spec)
 	}
@@ -106,12 +116,28 @@ func parseVolumesFrom(spec string) (string, string, error) {
 	return id, mode, nil
 }
 
+// read-write modes
+var rwModes = map[string]bool{
+	"rw":   true,
+	"rw,Z": true,
+	"rw,z": true,
+	"z,rw": true,
+	"Z,rw": true,
+	"Z":    true,
+	"z":    true,
+}
+
+// read-only modes
+var roModes = map[string]bool{
+	"ro":   true,
+	"ro,Z": true,
+	"ro,z": true,
+	"z,ro": true,
+	"Z,ro": true,
+}
+
 func validMountMode(mode string) bool {
-	validModes := map[string]bool{
-		"rw": true,
-		"ro": true,
-	}
-	return validModes[mode]
+	return roModes[mode] || rwModes[mode]
 }
 
 func copyExistingContents(source, destination string) error {
@@ -177,10 +203,13 @@ func (daemon *Daemon) registerMountPoints(container *Container, hostConfig *runc
 		}
 	}
 
+	// lock for labels
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
 	// 3. Read bind mounts
 	for _, b := range hostConfig.Binds {
 		// #10618
-		bind, err := parseBindMount(b, container.Config)
+		bind, err := parseBindMount(b, container.MountLabel, container.Config)
 		if err != nil {
 			return err
 		}
@@ -190,11 +219,26 @@ func (daemon *Daemon) registerMountPoints(container *Container, hostConfig *runc
 		}
 
 		if len(bind.Name) > 0 && len(bind.Driver) > 0 {
+			// set the label
+			if err := label.SetFileCreateLabel(container.MountLabel); err != nil {
+				return fmt.Errorf("Unable to setup default labeling for volume creation %s: %v", bind.Source, err)
+			}
+
+			// create the volume
 			v, err := createVolume(bind.Name, bind.Driver)
 			if err != nil {
+				// reset the label
+				if e := label.SetFileCreateLabel(""); e != nil {
+					logrus.Errorf("Unable to reset labeling for volume creation %s: %v", bind.Source, e)
+				}
 				return err
 			}
 			bind.Volume = v
+
+			// reset the label
+			if err := label.SetFileCreateLabel(""); err != nil {
+				return fmt.Errorf("Unable to reset labeling for volume creation %s: %v", bind.Source, err)
+			}
 		}
 
 		binds[bind.Destination] = true
@@ -250,7 +294,6 @@ func (daemon *Daemon) verifyOldVolumesInfo(container *Container) error {
 
 func createVolume(name, driverName string) (volume.Volume, error) {
 	vd, err := getVolumeDriver(driverName)
-
 	if err != nil {
 		return nil, err
 	}

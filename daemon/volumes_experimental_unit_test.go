@@ -34,28 +34,29 @@ func TestGetVolumeDriver(t *testing.T) {
 
 func TestParseBindMount(t *testing.T) {
 	cases := []struct {
-		bind      string
-		driver    string
-		expDest   string
-		expSource string
-		expName   string
-		expDriver string
-		expRW     bool
-		fail      bool
+		bind       string
+		driver     string
+		expDest    string
+		expSource  string
+		expName    string
+		expDriver  string
+		mountLabel string
+		expRW      bool
+		fail       bool
 	}{
-		{"/tmp:/tmp", "", "/tmp", "/tmp", "", "", true, false},
-		{"/tmp:/tmp:ro", "", "/tmp", "/tmp", "", "", false, false},
-		{"/tmp:/tmp:rw", "", "/tmp", "/tmp", "", "", true, false},
-		{"/tmp:/tmp:foo", "", "/tmp", "/tmp", "", "", false, true},
-		{"name:/tmp", "", "/tmp", "", "name", "local", true, false},
-		{"name:/tmp", "external", "/tmp", "", "name", "external", true, false},
-		{"name:/tmp:ro", "local", "/tmp", "", "name", "local", false, false},
-		{"local/name:/tmp:rw", "", "/tmp", "", "local/name", "local", true, false},
+		{"/tmp:/tmp", "", "/tmp", "/tmp", "", "", "", true, false},
+		{"/tmp:/tmp:ro", "", "/tmp", "/tmp", "", "", "", false, false},
+		{"/tmp:/tmp:rw", "", "/tmp", "/tmp", "", "", "", true, false},
+		{"/tmp:/tmp:foo", "", "/tmp", "/tmp", "", "", "", false, true},
+		{"name:/tmp", "", "/tmp", "", "name", "local", "", true, false},
+		{"name:/tmp", "external", "/tmp", "", "name", "external", "", true, false},
+		{"name:/tmp:ro", "local", "/tmp", "", "name", "local", "", false, false},
+		{"local/name:/tmp:rw", "", "/tmp", "", "local/name", "local", "", true, false},
 	}
 
 	for _, c := range cases {
 		conf := &runconfig.Config{VolumeDriver: c.driver}
-		m, err := parseBindMount(c.bind, conf)
+		m, err := parseBindMount(c.bind, c.mountLabel, conf)
 		if c.fail {
 			if err == nil {
 				t.Fatalf("Expected error, was nil, for spec %s\n", c.bind)
