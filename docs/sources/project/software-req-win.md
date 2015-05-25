@@ -15,7 +15,7 @@ you must have:
 - MinGW (tar and xz)
 - Go language
 
-> **Note**: This installation prcedure refers to the `C:\` drive. If you system's main drive
+> **Note**: This installation procedure refers to the `C:\` drive. If you system's main drive
 is `D:\` you'll need to substitute that in where appropriate in these
 instructions.
 
@@ -56,7 +56,7 @@ Docker Go code as you develop.
 1. Browse to
    [tdm-gcc download page](http://tdm-gcc.tdragon.net/download).
 
-2. Click on the lastest 64-bit version of the package.
+2. Click on the latest 64-bit version of the package.
 
 	Windows prompts you to save the file to your machine
 
@@ -166,7 +166,7 @@ In this section, you install the Go language. Then, you build the source so that
 
 3. Run the installer.
 
-	The system opens the **Go Programming Langauge Setup** dialog.
+	The system opens the **Go Programming Language Setup** dialog.
 
 4. Select all the defaults to install.
 

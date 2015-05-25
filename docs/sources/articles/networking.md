@@ -592,7 +592,7 @@ Therefore the router thinks it can talk to these containers directly.
 
 As soon as the router wants to send an IPv6 packet to the first container it
 will transmit a neighbor solicitation request, asking, who has
-`2001:db8::c009`? But it will get no answer because noone on this subnet has
+`2001:db8::c009`? But it will get no answer because no one on this subnet has
 this address. The container with this address is hidden behind the Docker host.
 The Docker host has to listen to neighbor solicitation requests for the container
 address and send a response that itself is the device that is responsible for

@@ -10,7 +10,7 @@ either on your own Docker daemon, or using your own Continuous integration servi
 you can push them to a Docker Hub repository that you add to your Docker Hub user or
 organization account.
 
-Alternativly, if the source code for your Docker image is on GitHub or Bitbucket,
+Alternatively, if the source code for your Docker image is on GitHub or Bitbucket,
 you can use an "Automated build" repository, which is built by the Docker Hub
 services. See the [automated builds documentation](./builds.md) to read about
 the extra functionality provided by those services.
@@ -181,7 +181,7 @@ The following parameters are recognized in callback data:
 
 ## Mark as unlisted
 
-By marking a repository as unlisted, you can create a publically pullable repository
+By marking a repository as unlisted, you can create a publicly pullable repository
 which will not be in the Hub or commandline search. This allows you to have a limited
 release, but does not restrict access to anyone that is told, or guesses the repository
 name.
