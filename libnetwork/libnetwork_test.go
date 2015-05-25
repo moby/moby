@@ -33,35 +33,46 @@ const (
 	bridgeName    = "docker0"
 )
 
+var controller libnetwork.NetworkController
+
 func TestMain(m *testing.M) {
 	if reexec.Init() {
 		return
 	}
-	os.Exit(m.Run())
-}
 
-func createTestController() (libnetwork.NetworkController, error) {
-	controller, err := libnetwork.New("")
-	if err != nil {
-		return nil, err
+	if err := createController(); err != nil {
+		os.Exit(1)
 	}
-	libnetwork.SetTestDataStore(controller, datastore.NewCustomDataStore(datastore.NewMockStore()))
-	return controller, nil
-}
+	option := options.Generic{
+		"EnableIPForwarding": true,
+	}
 
-func createTestNetwork(networkType, networkName string, option options.Generic, netOption options.Generic) (libnetwork.Network, error) {
-	controller, err := createTestController()
-	if err != nil {
-		return nil, err
-	}
 	genericOption := make(map[string]interface{})
 	genericOption[netlabel.GenericData] = option
 
-	err = controller.ConfigureNetworkDriver(networkType, genericOption)
+	err := controller.ConfigureNetworkDriver(bridgeNetType, genericOption)
 	if err != nil {
-		return nil, err
+		//m.Fatal(err)
+		os.Exit(1)
 	}
 
+	libnetwork.SetTestDataStore(controller, datastore.NewCustomDataStore(datastore.NewMockStore()))
+
+	os.Exit(m.Run())
+}
+
+func createController() error {
+	var err error
+
+	controller, err = libnetwork.New("")
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func createTestNetwork(networkType, networkName string, netOption options.Generic) (libnetwork.Network, error) {
 	network, err := controller.NewNetwork(networkType, networkName,
 		libnetwork.NetworkOptionGeneric(netOption))
 	if err != nil {
@@ -86,8 +97,7 @@ func getPortMapping() []types.PortBinding {
 }
 
 func TestNull(t *testing.T) {
-	network, err := createTestNetwork("null", "testnetwork", options.Generic{},
-		options.Generic{})
+	network, err := createTestNetwork("null", "testnetwork", options.Generic{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -120,7 +130,7 @@ func TestNull(t *testing.T) {
 }
 
 func TestHost(t *testing.T) {
-	network, err := createTestNetwork("host", "testnetwork", options.Generic{}, options.Generic{})
+	network, err := createTestNetwork("host", "testnetwork", options.Generic{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -224,9 +234,6 @@ func TestBridge(t *testing.T) {
 	cidrv6.IP = ip
 
 	log.Debug("Adding a bridge")
-	option := options.Generic{
-		"EnableIPForwarding": true,
-	}
 
 	netOption := options.Generic{
 		netlabel.GenericData: options.Generic{
@@ -242,7 +249,7 @@ func TestBridge(t *testing.T) {
 		},
 	}
 
-	network, err := createTestNetwork(bridgeNetType, "testnetwork", option, netOption)
+	network, err := createTestNetwork(bridgeNetType, "testnetwork", netOption)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -282,23 +289,18 @@ func TestUnknownDriver(t *testing.T) {
 		defer netutils.SetupTestNetNS(t)()
 	}
 
-	_, err := createTestNetwork("unknowndriver", "testnetwork", options.Generic{}, options.Generic{})
+	_, err := createTestNetwork("unknowndriver", "testnetwork", options.Generic{})
 	if err == nil {
 		t.Fatal("Expected to fail. But instead succeeded")
 	}
 
-	if _, ok := err.(libnetwork.NetworkTypeError); !ok {
+	if _, ok := err.(types.NotFoundError); !ok {
 		t.Fatalf("Did not fail with expected error. Actual error: %v", err)
 	}
 }
 
 func TestNilRemoteDriver(t *testing.T) {
-	controller, err := createTestController()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = controller.NewNetwork("framerelay", "dummy",
+	_, err := controller.NewNetwork("framerelay", "dummy",
 		libnetwork.NetworkOptionGeneric(getEmptyGenericOption()))
 	if err == nil {
 		t.Fatal("Expected to fail. But instead succeeded")
@@ -314,23 +316,15 @@ func TestDuplicateNetwork(t *testing.T) {
 		defer netutils.SetupTestNetNS(t)()
 	}
 
-	controller, err := createTestController()
+	n, err := controller.NewNetwork(bridgeNetType, "testnetwork", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	genericOption := make(map[string]interface{})
-	genericOption[netlabel.GenericData] = options.Generic{}
-
-	err = controller.ConfigureNetworkDriver(bridgeNetType, genericOption)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = controller.NewNetwork(bridgeNetType, "testnetwork", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
+	defer func() {
+		if err := n.Delete(); err != nil {
+			t.Fatal(err)
+		}
+	}()
 
 	_, err = controller.NewNetwork(bridgeNetType, "testnetwork")
 	if err == nil {
@@ -347,7 +341,7 @@ func TestNetworkName(t *testing.T) {
 		defer netutils.SetupTestNetNS(t)()
 	}
 
-	_, err := createTestNetwork(bridgeNetType, "", options.Generic{}, options.Generic{})
+	_, err := createTestNetwork(bridgeNetType, "", options.Generic{})
 	if err == nil {
 		t.Fatal("Expected to fail. But instead succeeded")
 	}
@@ -357,10 +351,15 @@ func TestNetworkName(t *testing.T) {
 	}
 
 	networkName := "testnetwork"
-	n, err := createTestNetwork(bridgeNetType, networkName, options.Generic{}, options.Generic{})
+	n, err := createTestNetwork(bridgeNetType, networkName, options.Generic{})
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer func() {
+		if err := n.Delete(); err != nil {
+			t.Fatal(err)
+		}
+	}()
 
 	if n.Name() != networkName {
 		t.Fatalf("Expected network name %s, got %s", networkName, n.Name())
@@ -372,10 +371,15 @@ func TestNetworkType(t *testing.T) {
 		defer netutils.SetupTestNetNS(t)()
 	}
 
-	n, err := createTestNetwork(bridgeNetType, "testnetwork", options.Generic{}, options.Generic{})
+	n, err := createTestNetwork(bridgeNetType, "testnetwork", options.Generic{})
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer func() {
+		if err := n.Delete(); err != nil {
+			t.Fatal(err)
+		}
+	}()
 
 	if n.Type() != bridgeNetType {
 		t.Fatalf("Expected network type %s, got %s", bridgeNetType, n.Type())
@@ -387,10 +391,15 @@ func TestNetworkID(t *testing.T) {
 		defer netutils.SetupTestNetNS(t)()
 	}
 
-	n, err := createTestNetwork(bridgeNetType, "testnetwork", options.Generic{}, options.Generic{})
+	n, err := createTestNetwork(bridgeNetType, "testnetwork", options.Generic{})
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer func() {
+		if err := n.Delete(); err != nil {
+			t.Fatal(err)
+		}
+	}()
 
 	if n.ID() == "" {
 		t.Fatal("Expected non-empty network id")
@@ -402,11 +411,14 @@ func TestDeleteNetworkWithActiveEndpoints(t *testing.T) {
 		defer netutils.SetupTestNetNS(t)()
 	}
 
-	option := options.Generic{
+	netOption := options.Generic{
 		"BridgeName":            bridgeName,
 		"AllowNonDefaultBridge": true}
+	option := options.Generic{
+		netlabel.GenericData: netOption,
+	}
 
-	network, err := createTestNetwork(bridgeNetType, "testnetwork", options.Generic{}, option)
+	network, err := createTestNetwork(bridgeNetType, "testnetwork", option)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -440,11 +452,14 @@ func TestUnknownNetwork(t *testing.T) {
 		defer netutils.SetupTestNetNS(t)()
 	}
 
-	option := options.Generic{
+	netOption := options.Generic{
 		"BridgeName":            bridgeName,
 		"AllowNonDefaultBridge": true}
+	option := options.Generic{
+		netlabel.GenericData: netOption,
+	}
 
-	network, err := createTestNetwork(bridgeNetType, "testnetwork", options.Generic{}, option)
+	network, err := createTestNetwork(bridgeNetType, "testnetwork", option)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -475,12 +490,15 @@ func TestUnknownEndpoint(t *testing.T) {
 	}
 	subnet.IP = ip
 
-	option := options.Generic{
+	netOption := options.Generic{
 		"BridgeName":            bridgeName,
 		"AddressIPv4":           subnet,
 		"AllowNonDefaultBridge": true}
+	option := options.Generic{
+		netlabel.GenericData: netOption,
+	}
 
-	network, err := createTestNetwork(bridgeNetType, "testnetwork", options.Generic{}, option)
+	network, err := createTestNetwork(bridgeNetType, "testnetwork", option)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -523,29 +541,36 @@ func TestNetworkEndpointsWalkers(t *testing.T) {
 		defer netutils.SetupTestNetNS(t)()
 	}
 
-	controller, err := createTestController()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	err = controller.ConfigureNetworkDriver(bridgeNetType, getEmptyGenericOption())
-	if err != nil {
-		t.Fatal(err)
-	}
-
 	// Create network 1 and add 2 endpoint: ep11, ep12
 	net1, err := controller.NewNetwork(bridgeNetType, "network1")
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer func() {
+		if err := net1.Delete(); err != nil {
+			t.Fatal(err)
+		}
+	}()
+
 	ep11, err := net1.CreateEndpoint("ep11")
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer func() {
+		if err := ep11.Delete(); err != nil {
+			t.Fatal(err)
+		}
+	}()
+
 	ep12, err := net1.CreateEndpoint("ep12")
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer func() {
+		if err := ep12.Delete(); err != nil {
+			t.Fatal(err)
+		}
+	}()
 
 	// Test list methods on net1
 	epList1 := net1.Endpoints()
@@ -607,21 +632,16 @@ func TestControllerQuery(t *testing.T) {
 		defer netutils.SetupTestNetNS(t)()
 	}
 
-	controller, err := createTestController()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	err = controller.ConfigureNetworkDriver(bridgeNetType, getEmptyGenericOption())
-	if err != nil {
-		t.Fatal(err)
-	}
-
 	// Create network 1
 	net1, err := controller.NewNetwork(bridgeNetType, "network1")
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer func() {
+		if err := net1.Delete(); err != nil {
+			t.Fatal(err)
+		}
+	}()
 
 	_, err = controller.NetworkByName("")
 	if err == nil {
@@ -673,29 +693,36 @@ func TestNetworkQuery(t *testing.T) {
 		defer netutils.SetupTestNetNS(t)()
 	}
 
-	controller, err := createTestController()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	err = controller.ConfigureNetworkDriver(bridgeNetType, getEmptyGenericOption())
-	if err != nil {
-		t.Fatal(err)
-	}
-
 	// Create network 1 and add 2 endpoint: ep11, ep12
 	net1, err := controller.NewNetwork(bridgeNetType, "network1")
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer func() {
+		if err := net1.Delete(); err != nil {
+			t.Fatal(err)
+		}
+	}()
+
 	ep11, err := net1.CreateEndpoint("ep11")
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer func() {
+		if err := ep11.Delete(); err != nil {
+			t.Fatal(err)
+		}
+	}()
+
 	ep12, err := net1.CreateEndpoint("ep12")
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer func() {
+		if err := ep12.Delete(); err != nil {
+			t.Fatal(err)
+		}
+	}()
 
 	e, err := net1.EndpointByName("ep11")
 	if err != nil {
@@ -770,6 +797,11 @@ func checkSandbox(t *testing.T, info libnetwork.EndpointInfo) {
 	if err != nil {
 		t.Fatalf("Could not find the interface eth0 inside the sandbox: %v", err)
 	}
+
+	_, err = netlink.LinkByName("eth1")
+	if err != nil {
+		t.Fatalf("Could not find the interface eth1 inside the sandbox: %v", err)
+	}
 }
 
 func TestEndpointJoin(t *testing.T) {
@@ -777,18 +809,28 @@ func TestEndpointJoin(t *testing.T) {
 		defer netutils.SetupTestNetNS(t)()
 	}
 
-	n, err := createTestNetwork(bridgeNetType, "testnetwork", options.Generic{}, options.Generic{})
+	n1, err := createTestNetwork(bridgeNetType, "testnetwork1", options.Generic{})
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer func() {
+		if err := n1.Delete(); err != nil {
+			t.Fatal(err)
+		}
+	}()
 
-	ep, err := n.CreateEndpoint("ep1")
+	ep1, err := n1.CreateEndpoint("ep1")
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer func() {
+		if err := ep1.Delete(); err != nil {
+			t.Fatal(err)
+		}
+	}()
 
 	// Validate if ep.Info() only gives me IP address info and not names and gateway during CreateEndpoint()
-	info := ep.Info()
+	info := ep1.Info()
 
 	for _, iface := range info.InterfaceList() {
 		if iface.Address().IP.To4() == nil {
@@ -804,7 +846,7 @@ func TestEndpointJoin(t *testing.T) {
 		t.Fatalf("Expected an empty sandbox key for an empty endpoint. Instead found a non-empty sandbox key: %s", info.SandboxKey())
 	}
 
-	err = ep.Join(containerID,
+	err = ep1.Join(containerID,
 		libnetwork.JoinOptionHostname("test"),
 		libnetwork.JoinOptionDomainname("docker.io"),
 		libnetwork.JoinOptionExtraHost("web", "192.168.0.1"))
@@ -813,14 +855,14 @@ func TestEndpointJoin(t *testing.T) {
 	}
 
 	defer func() {
-		err = ep.Leave(containerID)
+		err = ep1.Leave(containerID)
 		if err != nil {
 			t.Fatal(err)
 		}
 	}()
 
 	// Validate if ep.Info() only gives valid gateway and sandbox key after has container has joined.
-	info = ep.Info()
+	info = ep1.Info()
 	if info.Gateway().To4() == nil {
 		t.Fatalf("Expected a valid gateway for a joined endpoint. Instead found an invalid gateway: %v", info.Gateway())
 	}
@@ -828,6 +870,45 @@ func TestEndpointJoin(t *testing.T) {
 	if info.SandboxKey() == "" {
 		t.Fatalf("Expected an non-empty sandbox key for a joined endpoint. Instead found a empty sandbox key")
 	}
+
+	// Now test the container joining another network
+	n2, err := createTestNetwork(bridgeNetType, "testnetwork2",
+		options.Generic{
+			netlabel.GenericData: options.Generic{
+				"BridgeName":            "secondary",
+				"AllowNonDefaultBridge": true,
+			},
+		})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if err := n2.Delete(); err != nil {
+			t.Fatal(err)
+		}
+	}()
+
+	ep2, err := n2.CreateEndpoint("ep2")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if err := ep2.Delete(); err != nil {
+			t.Fatal(err)
+		}
+	}()
+
+	err = ep2.Join(containerID)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer func() {
+		err = ep2.Leave(containerID)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}()
 
 	checkSandbox(t, info)
 }
@@ -837,15 +918,25 @@ func TestEndpointJoinInvalidContainerId(t *testing.T) {
 		defer netutils.SetupTestNetNS(t)()
 	}
 
-	n, err := createTestNetwork(bridgeNetType, "testnetwork", options.Generic{}, options.Generic{})
+	n, err := createTestNetwork(bridgeNetType, "testnetwork", options.Generic{})
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer func() {
+		if err := n.Delete(); err != nil {
+			t.Fatal(err)
+		}
+	}()
 
 	ep, err := n.CreateEndpoint("ep1")
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer func() {
+		if err := ep.Delete(); err != nil {
+			t.Fatal(err)
+		}
+	}()
 
 	err = ep.Join("")
 	if err == nil {
@@ -862,10 +953,15 @@ func TestEndpointDeleteWithActiveContainer(t *testing.T) {
 		defer netutils.SetupTestNetNS(t)()
 	}
 
-	n, err := createTestNetwork(bridgeNetType, "testnetwork", options.Generic{}, options.Generic{})
+	n, err := createTestNetwork(bridgeNetType, "testnetwork", options.Generic{})
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer func() {
+		if err := n.Delete(); err != nil {
+			t.Fatal(err)
+		}
+	}()
 
 	ep, err := n.CreateEndpoint("ep1")
 	if err != nil {
@@ -906,15 +1002,25 @@ func TestEndpointMultipleJoins(t *testing.T) {
 		defer netutils.SetupTestNetNS(t)()
 	}
 
-	n, err := createTestNetwork(bridgeNetType, "testnetwork", options.Generic{}, options.Generic{})
+	n, err := createTestNetwork(bridgeNetType, "testnetwork", options.Generic{})
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer func() {
+		if err := n.Delete(); err != nil {
+			t.Fatal(err)
+		}
+	}()
 
 	ep, err := n.CreateEndpoint("ep1")
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer func() {
+		if err := ep.Delete(); err != nil {
+			t.Fatal(err)
+		}
+	}()
 
 	err = ep.Join(containerID,
 		libnetwork.JoinOptionHostname("test"),
@@ -946,15 +1052,25 @@ func TestEndpointInvalidLeave(t *testing.T) {
 		defer netutils.SetupTestNetNS(t)()
 	}
 
-	n, err := createTestNetwork(bridgeNetType, "testnetwork", options.Generic{}, options.Generic{})
+	n, err := createTestNetwork(bridgeNetType, "testnetwork", options.Generic{})
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer func() {
+		if err := n.Delete(); err != nil {
+			t.Fatal(err)
+		}
+	}()
 
 	ep, err := n.CreateEndpoint("ep1")
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer func() {
+		if err := ep.Delete(); err != nil {
+			t.Fatal(err)
+		}
+	}()
 
 	err = ep.Leave(containerID)
 	if err == nil {
@@ -1007,15 +1123,25 @@ func TestEndpointUpdateParent(t *testing.T) {
 		defer netutils.SetupTestNetNS(t)()
 	}
 
-	n, err := createTestNetwork("bridge", "testnetwork", options.Generic{}, options.Generic{})
+	n, err := createTestNetwork("bridge", "testnetwork", options.Generic{})
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer func() {
+		if err := n.Delete(); err != nil {
+			t.Fatal(err)
+		}
+	}()
 
-	ep1, err := n.CreateEndpoint("ep1", nil)
+	ep1, err := n.CreateEndpoint("ep1")
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer func() {
+		if err := ep1.Delete(); err != nil {
+			t.Fatal(err)
+		}
+	}()
 
 	err = ep1.Join(containerID,
 		libnetwork.JoinOptionHostname("test1"),
@@ -1032,10 +1158,15 @@ func TestEndpointUpdateParent(t *testing.T) {
 		}
 	}()
 
-	ep2, err := n.CreateEndpoint("ep2", nil)
+	ep2, err := n.CreateEndpoint("ep2")
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer func() {
+		if err := ep2.Delete(); err != nil {
+			t.Fatal(err)
+		}
+	}()
 
 	err = ep2.Join("container2",
 		libnetwork.JoinOptionHostname("test2"),
@@ -1087,15 +1218,25 @@ func TestEnableIPv6(t *testing.T) {
 		},
 	}
 
-	n, err := createTestNetwork("bridge", "testnetwork", options.Generic{}, netOption)
+	n, err := createTestNetwork("bridge", "testnetwork", netOption)
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer func() {
+		if err := n.Delete(); err != nil {
+			t.Fatal(err)
+		}
+	}()
 
-	ep1, err := n.CreateEndpoint("ep1", nil)
+	ep1, err := n.CreateEndpoint("ep1")
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer func() {
+		if err := ep1.Delete(); err != nil {
+			t.Fatal(err)
+		}
+	}()
 
 	if err := ioutil.WriteFile("/etc/resolv.conf", tmpResolvConf, 0644); err != nil {
 		t.Fatal(err)
@@ -1154,15 +1295,25 @@ func TestResolvConf(t *testing.T) {
 		}
 	}()
 
-	n, err := createTestNetwork("bridge", "testnetwork", options.Generic{}, options.Generic{})
+	n, err := createTestNetwork("bridge", "testnetwork", options.Generic{})
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer func() {
+		if err := n.Delete(); err != nil {
+			t.Fatal(err)
+		}
+	}()
 
-	ep1, err := n.CreateEndpoint("ep1", nil)
+	ep1, err := n.CreateEndpoint("ep1")
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer func() {
+		if err := ep1.Delete(); err != nil {
+			t.Fatal(err)
+		}
+	}()
 
 	if err := ioutil.WriteFile("/etc/resolv.conf", tmpResolvConf1, 0644); err != nil {
 		t.Fatal(err)
@@ -1339,21 +1490,24 @@ func TestValidRemoteDriver(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	controller, err := libnetwork.New("")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = controller.NewNetwork("valid-network-driver", "dummy",
+	n, err := controller.NewNetwork("valid-network-driver", "dummy",
 		libnetwork.NetworkOptionGeneric(getEmptyGenericOption()))
 	if err != nil {
-		t.Fatal(err)
+		// Only fail if we could not find the plugin driver
+		if _, ok := err.(types.NotFoundError); ok {
+			t.Fatal(err)
+		}
+		return
 	}
+	defer func() {
+		if err := n.Delete(); err != nil {
+			t.Fatal(err)
+		}
+	}()
 }
 
 var (
 	once   sync.Once
-	ctrlr  libnetwork.NetworkController
 	start  = make(chan struct{})
 	done   = make(chan chan struct{}, numThreads-1)
 	origns = netns.None()
@@ -1386,17 +1540,7 @@ func createGlobalInstance(t *testing.T) {
 		}
 	}
 
-	ctrlr, err = createTestController()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	err = ctrlr.ConfigureNetworkDriver(bridgeNetType, getEmptyGenericOption())
-	if err != nil {
-		t.Fatal("configure driver")
-	}
-
-	net, err := ctrlr.NewNetwork(bridgeNetType, "network1")
+	net, err := controller.NewNetwork(bridgeNetType, "network1")
 	if err != nil {
 		t.Fatal("new network")
 	}
@@ -1489,7 +1633,7 @@ func runParallelTests(t *testing.T, thrNumber int) {
 	}
 	defer netns.Set(origns)
 
-	net, err := ctrlr.NetworkByName("network1")
+	net, err := controller.NetworkByName("network1")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1522,6 +1666,10 @@ func runParallelTests(t *testing.T, thrNumber int) {
 		testns.Close()
 		err = ep.Delete()
 		if err != nil {
+			t.Fatal(err)
+		}
+
+		if err := net.Delete(); err != nil {
 			t.Fatal(err)
 		}
 	}
