@@ -115,6 +115,8 @@ func (d *dnetConnection) dnetDaemon() error {
 	r := mux.NewRouter().StrictSlash(false)
 	post := r.PathPrefix("/{.*}/networks").Subrouter()
 	post.Methods("GET", "PUT", "POST", "DELETE").HandlerFunc(httpHandler)
+	post = r.PathPrefix("/networks").Subrouter()
+	post.Methods("GET", "PUT", "POST", "DELETE").HandlerFunc(httpHandler)
 	return http.ListenAndServe(d.addr, r)
 }
 
@@ -141,7 +143,7 @@ func (d *dnetConnection) httpCall(method, path string, data interface{}, headers
 		return nil, -1, err
 	}
 
-	req, err := http.NewRequest(method, fmt.Sprintf("/dnet%s", path), in)
+	req, err := http.NewRequest(method, fmt.Sprintf("%s", path), in)
 	if err != nil {
 		return nil, -1, err
 	}
