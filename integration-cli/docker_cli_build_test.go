@@ -611,7 +611,7 @@ ONBUILD ENTRYPOINT ["echo"]`,
 
 }
 
-func (s *DockerSuite) TestBuildCacheADD(c *check.C) {
+func (s *DockerSuite) TestBuildCacheAdd(c *check.C) {
 	name := "testbuildtwoimageswithadd"
 	server, err := fakeStorage(map[string]string{
 		"robots.txt": "hello",
@@ -2674,7 +2674,7 @@ func (s *DockerSuite) TestBuildConditionalCache(c *check.C) {
 	}
 }
 
-func (s *DockerSuite) TestBuildADDLocalFileWithCache(c *check.C) {
+func (s *DockerSuite) TestBuildAddLocalFileWithCache(c *check.C) {
 	name := "testbuildaddlocalfilewithcache"
 	name2 := "testbuildaddlocalfilewithcache2"
 	dockerfile := `
@@ -2702,7 +2702,7 @@ func (s *DockerSuite) TestBuildADDLocalFileWithCache(c *check.C) {
 	}
 }
 
-func (s *DockerSuite) TestBuildADDMultipleLocalFileWithCache(c *check.C) {
+func (s *DockerSuite) TestBuildAddMultipleLocalFileWithCache(c *check.C) {
 	name := "testbuildaddmultiplelocalfilewithcache"
 	name2 := "testbuildaddmultiplelocalfilewithcache2"
 	dockerfile := `
@@ -2730,7 +2730,7 @@ func (s *DockerSuite) TestBuildADDMultipleLocalFileWithCache(c *check.C) {
 	}
 }
 
-func (s *DockerSuite) TestBuildADDLocalFileWithoutCache(c *check.C) {
+func (s *DockerSuite) TestBuildAddLocalFileWithoutCache(c *check.C) {
 	name := "testbuildaddlocalfilewithoutcache"
 	name2 := "testbuildaddlocalfilewithoutcache2"
 	dockerfile := `
@@ -2788,7 +2788,7 @@ func (s *DockerSuite) TestBuildCopyDirButNotFile(c *check.C) {
 	}
 }
 
-func (s *DockerSuite) TestBuildADDCurrentDirWithCache(c *check.C) {
+func (s *DockerSuite) TestBuildAddCurrentDirWithCache(c *check.C) {
 	name := "testbuildaddcurrentdirwithcache"
 	name2 := name + "2"
 	name3 := name + "3"
@@ -2852,7 +2852,7 @@ func (s *DockerSuite) TestBuildADDCurrentDirWithCache(c *check.C) {
 	}
 }
 
-func (s *DockerSuite) TestBuildADDCurrentDirWithoutCache(c *check.C) {
+func (s *DockerSuite) TestBuildAddCurrentDirWithoutCache(c *check.C) {
 	name := "testbuildaddcurrentdirwithoutcache"
 	name2 := "testbuildaddcurrentdirwithoutcache2"
 	dockerfile := `
@@ -2879,7 +2879,7 @@ func (s *DockerSuite) TestBuildADDCurrentDirWithoutCache(c *check.C) {
 	}
 }
 
-func (s *DockerSuite) TestBuildADDRemoteFileWithCache(c *check.C) {
+func (s *DockerSuite) TestBuildAddRemoteFileWithCache(c *check.C) {
 	name := "testbuildaddremotefilewithcache"
 	server, err := fakeStorage(map[string]string{
 		"baz": "hello",
@@ -2910,7 +2910,7 @@ func (s *DockerSuite) TestBuildADDRemoteFileWithCache(c *check.C) {
 	}
 }
 
-func (s *DockerSuite) TestBuildADDRemoteFileWithoutCache(c *check.C) {
+func (s *DockerSuite) TestBuildAddRemoteFileWithoutCache(c *check.C) {
 	name := "testbuildaddremotefilewithoutcache"
 	name2 := "testbuildaddremotefilewithoutcache2"
 	server, err := fakeStorage(map[string]string{
@@ -2942,7 +2942,7 @@ func (s *DockerSuite) TestBuildADDRemoteFileWithoutCache(c *check.C) {
 	}
 }
 
-func (s *DockerSuite) TestBuildADDRemoteFileMTime(c *check.C) {
+func (s *DockerSuite) TestBuildAddRemoteFileMTime(c *check.C) {
 	name := "testbuildaddremotefilemtime"
 	name2 := name + "2"
 	name3 := name + "3"
@@ -3013,7 +3013,7 @@ func (s *DockerSuite) TestBuildADDRemoteFileMTime(c *check.C) {
 	}
 }
 
-func (s *DockerSuite) TestBuildADDLocalAndRemoteFilesWithCache(c *check.C) {
+func (s *DockerSuite) TestBuildAddLocalAndRemoteFilesWithCache(c *check.C) {
 	name := "testbuildaddlocalandremotefilewithcache"
 	server, err := fakeStorage(map[string]string{
 		"baz": "hello",
@@ -3095,7 +3095,7 @@ func (s *DockerSuite) TestBuildNoContext(c *check.C) {
 }
 
 // TODO: TestCaching
-func (s *DockerSuite) TestBuildADDLocalAndRemoteFilesWithoutCache(c *check.C) {
+func (s *DockerSuite) TestBuildAddLocalAndRemoteFilesWithoutCache(c *check.C) {
 	name := "testbuildaddlocalandremotefilewithoutcache"
 	name2 := "testbuildaddlocalandremotefilewithoutcache2"
 	server, err := fakeStorage(map[string]string{
@@ -3215,7 +3215,7 @@ func (s *DockerSuite) TestBuildForbiddenContextPath(c *check.C) {
 
 }
 
-func (s *DockerSuite) TestBuildADDFileNotFound(c *check.C) {
+func (s *DockerSuite) TestBuildAddFileNotFound(c *check.C) {
 	name := "testbuildaddnotfound"
 	ctx, err := fakeContext(`FROM scratch
         ADD foo /usr/local/bar`,
