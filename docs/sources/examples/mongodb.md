@@ -13,7 +13,7 @@ MongoDB pre-installed.  We'll also see how to `push` that image to the
 > **Note:**
 >
 > This guide will show the mechanics of building a MongoDB container, but
-> you will probably want to use the offical image on [Docker Hub]( https://registry.hub.docker.com/_/mongo/)
+> you will probably want to use the official image on [Docker Hub]( https://registry.hub.docker.com/_/mongo/)
 
 Using Docker and containers for deploying [MongoDB](https://www.mongodb.org/)
 instances will bring several benefits, such as:

@@ -161,7 +161,7 @@ system's page size (the value would be very large, that's millions of trillions)
    Total memory limit (memory + swap)
 
    Set `-1` to disable swap (format: <number><optional unit>, where unit = b, k, m or g).
-This value should always larger than **-m**, so you should alway use this with **-m**.
+This value should always larger than **-m**, so you should always use this with **-m**.
 
 **--mac-address**=""
    Container MAC address (e.g. 92:d0:c6:0a:29:33)
