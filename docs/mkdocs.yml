@@ -25,12 +25,12 @@ pages:
 
 # Introduction:
 - ['index.md', 'About', 'Docker']
-- ['release-notes.md', 'About', 'Release notes']
-- ['introduction/index.md', '**HIDDEN**']
 - ['introduction/understanding-docker.md', 'About', 'Understanding Docker']
-
+- ['release-notes.md', 'About', 'Release notes']
 # Experimental
 - ['experimental/experimental.md', 'About', 'Experimental Features']
+- ['reference/glossary.md', 'About', 'Glossary']
+- ['introduction/index.md', '**HIDDEN**']
 
 
 # Installation:
