@@ -3,6 +3,7 @@ package client
 import (
 	"fmt"
 	"net/url"
+	"strings"
 
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/parsers"
@@ -33,7 +34,7 @@ func (cli *DockerCli) CmdPush(args ...string) error {
 	// applied to repository names and can warn the user in advance.
 	// Custom repositories can have different rules, and we must also
 	// allow pushing by image ID.
-	if repoInfo.Official {
+	if strings.Index(name, "/") == -1 {
 		username := authConfig.Username
 		if username == "" {
 			username = "<user>"

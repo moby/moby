@@ -337,10 +337,6 @@ func (config *ServiceConfig) NewRepositoryInfo(reposName string) (*RepositoryInf
 
 	if repoInfo.Index.Official {
 		normalizedName := repoInfo.RemoteName
-		if strings.HasPrefix(normalizedName, "library/") {
-			// If pull "library/foo", it's stored locally under "foo"
-			normalizedName = strings.SplitN(normalizedName, "/", 2)[1]
-		}
 
 		repoInfo.LocalName = normalizedName
 		repoInfo.RemoteName = normalizedName
