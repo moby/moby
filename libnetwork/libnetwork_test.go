@@ -219,15 +219,18 @@ func TestBridge(t *testing.T) {
 	}
 
 	netOption := options.Generic{
-		"BridgeName":            bridgeName,
-		"AddressIPv4":           subnet,
-		"FixedCIDR":             cidr,
-		"FixedCIDRv6":           cidrv6,
-		"EnableIPv6":            true,
-		"EnableIPTables":        true,
-		"EnableIPMasquerade":    true,
-		"EnableICC":             true,
-		"AllowNonDefaultBridge": true}
+		netlabel.GenericData: options.Generic{
+			"BridgeName":            bridgeName,
+			"AddressIPv4":           subnet,
+			"FixedCIDR":             cidr,
+			"FixedCIDRv6":           cidrv6,
+			"EnableIPv6":            true,
+			"EnableIPTables":        true,
+			"EnableIPMasquerade":    true,
+			"EnableICC":             true,
+			"AllowNonDefaultBridge": true,
+		},
+	}
 
 	network, err := createTestNetwork(bridgeNetType, "testnetwork", option, netOption)
 	if err != nil {
