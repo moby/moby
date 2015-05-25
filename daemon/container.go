@@ -1036,6 +1036,9 @@ func (container *Container) networkMounts() []execdriver.Mount {
 }
 
 func (container *Container) addLocalMountPoint(name, destination string, rw bool) {
+	if container.MountPoints == nil {
+		container.MountPoints = map[string]*mountPoint{}
+	}
 	container.MountPoints[destination] = &mountPoint{
 		Name:        name,
 		Driver:      volume.DefaultDriverName,
@@ -1045,6 +1048,9 @@ func (container *Container) addLocalMountPoint(name, destination string, rw bool
 }
 
 func (container *Container) addMountPointWithVolume(destination string, vol volume.Volume, rw bool) {
+	if container.MountPoints == nil {
+		container.MountPoints = map[string]*mountPoint{}
+	}
 	container.MountPoints[destination] = &mountPoint{
 		Name:        vol.Name(),
 		Driver:      vol.DriverName(),
