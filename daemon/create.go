@@ -154,5 +154,13 @@ func (daemon *Daemon) GenerateSecurityOpt(ipcMode runconfig.IpcMode, pidMode run
 
 		return label.DupSecOpt(c.ProcessLabel), nil
 	}
+	if pidContainer := pidMode.Container(); pidContainer != "" {
+		c, err := daemon.Get(pidContainer)
+		if err != nil {
+			return nil, err
+		}
+
+		return label.DupSecOpt(c.ProcessLabel), nil
+	}
 	return nil, nil
 }

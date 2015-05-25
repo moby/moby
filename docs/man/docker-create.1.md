@@ -128,8 +128,9 @@ two memory nodes.
 
 **--ipc**=""
    Default is to create a private IPC namespace (POSIX SysV IPC) for the container
-                               'container:<name|id>': reuses another container shared memory, semaphores and message queues
-                               'host': use the host shared memory,semaphores and message queues inside the container.  Note: the host mode gives the container full access to local shared memory and is therefore considered insecure.
+     'container:<name|id>': reuses another container shared memory, semaphores and message queues
+     'host': use the host shared memory, semaphores and message queues inside the container.
+     Note: the host mode gives the container full access to local shared memory and is therefore considered insecure.
 
 **-l**, **--label**=[]
    Adds metadata to a container (e.g., --label=com.example.key=value)
@@ -191,12 +192,13 @@ This value should always larger than **-m**, so you should alway use this with *
 
 **--pid**=host
    Set the PID mode for the container
-     **host**: use the host's PID namespace inside the container.
+     'container:<name|id>': reuses another container's PID namespace.
+     'host': use the host's PID namespace inside the container.
      Note: the host mode gives the container full access to local PID and is therefore considered insecure.
 
 **--uts**=host
    Set the UTS mode for the container
-     **host**: use the host's UTS namespace inside the container.
+     'host': use the host's UTS namespace inside the container.
      Note: the host mode gives the container access to changing the host's hostname and is therefore considered insecure.
 
 **--privileged**=*true*|*false*
