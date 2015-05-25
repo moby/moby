@@ -922,7 +922,7 @@ Supported `Dockerfile` instructions:
     197387f1b436        ubuntu:12.04        /bin/bash           7 days ago          Up 25 hours
     $ docker commit c3f279d17e0a  SvenDowideit/testimage:version3
     f5283438590d
-    $ docker images | head
+    $ docker images
     REPOSITORY                        TAG                 ID                  CREATED             VIRTUAL SIZE
     SvenDowideit/testimage            version3            f5283438590d        16 seconds ago      335.7 MB
 
@@ -1326,7 +1326,7 @@ uses up the `VIRTUAL SIZE` listed only once.
 
 #### Listing the most recently created images
 
-    $ docker images | head
+    $ docker images
     REPOSITORY                TAG                 IMAGE ID            CREATED             VIRTUAL SIZE
     <none>                    <none>              77af4d6b9913        19 hours ago        1.089 GB
     committ                   latest              b6fa739cedf5        19 hours ago        1.089 GB
@@ -1341,7 +1341,7 @@ uses up the `VIRTUAL SIZE` listed only once.
 
 #### Listing the full length image IDs
 
-    $ docker images --no-trunc | head
+    $ docker images --no-trunc
     REPOSITORY                    TAG                 IMAGE ID                                                           CREATED             VIRTUAL SIZE
     <none>                        <none>              77af4d6b9913e693e8d0b4b294fa62ade6054e6b2f1ffb617ac955dd63fb0182   19 hours ago        1.089 GB
     committest                    latest              b6fa739cedf5ea12a620a439402b6004d057da800f91c7524b5086a5e4749c9f   19 hours ago        1.089 GB
@@ -1360,7 +1360,7 @@ called a `digest`. As long as the input used to generate the image is
 unchanged, the digest value is predictable. To list image digest values, use
 the `--digests` flag:
 
-    $ docker images --digests | head
+    $ docker images --digests
     REPOSITORY                         TAG                 DIGEST                                                                    IMAGE ID            CREATED             VIRTUAL SIZE
     localhost:5000/test/busybox        <none>              sha256:cbbf2f9a99b47fc460d422812b6a5adff7dfee951d8fa2e4a98caa0382cfbdbf   4986bf8c1536        9 weeks ago         2.43 MB
 
