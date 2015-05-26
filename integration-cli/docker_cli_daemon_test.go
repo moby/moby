@@ -1269,3 +1269,19 @@ func (s *DockerDaemonSuite) TestDaemonRestartCleanupNetns(c *check.C) {
 	c.Assert(err, check.Not(check.IsNil), check.Commentf("Output: %s", out))
 	// c.Assert(out, check.Equals, "", check.Commentf("Output: %s", out))
 }
+
+func (s *DockerDaemonSuite) TestDaemonRestartWithContainerRunning(t *check.C) {
+	if err := s.d.StartWithBusybox(); err != nil {
+		t.Fatal(err)
+	}
+	if out, err := s.d.Cmd("run", "-ti", "-d", "--name", "test", "busybox"); err != nil {
+		t.Fatal(out, err)
+	}
+	if err := s.d.Restart(); err != nil {
+		t.Fatal(err)
+	}
+	// Container 'test' should be removed without error
+	if out, err := s.d.Cmd("rm", "test"); err != nil {
+		t.Fatal(out, err)
+	}
+}
