@@ -1,6 +1,7 @@
 package file
 
 import (
+	"fmt"
 	"io/ioutil"
 	"strings"
 	"time"
@@ -10,16 +11,21 @@ import (
 
 // Discovery is exported
 type Discovery struct {
-	heartbeat uint64
+	heartbeat time.Duration
 	path      string
 }
 
 func init() {
+	Init()
+}
+
+// Init is exported
+func Init() {
 	discovery.Register("file", &Discovery{})
 }
 
 // Initialize is exported
-func (s *Discovery) Initialize(path string, heartbeat uint64) error {
+func (s *Discovery) Initialize(path string, heartbeat time.Duration, ttl time.Duration) error {
 	s.path = path
 	s.heartbeat = heartbeat
 	return nil
@@ -46,23 +52,55 @@ func parseFileContent(content []byte) []string {
 	return result
 }
 
-// Fetch is exported
-func (s *Discovery) Fetch() ([]*discovery.Entry, error) {
+func (s *Discovery) fetch() (discovery.Entries, error) {
 	fileContent, err := ioutil.ReadFile(s.path)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to read '%s': %v", s.path, err)
 	}
 	return discovery.CreateEntries(parseFileContent(fileContent))
 }
 
 // Watch is exported
-func (s *Discovery) Watch(callback discovery.WatchCallback) {
-	for _ = range time.Tick(time.Duration(s.heartbeat) * time.Second) {
-		entries, err := s.Fetch()
-		if err == nil {
-			callback(entries)
+func (s *Discovery) Watch(stopCh <-chan struct{}) (<-chan discovery.Entries, <-chan error) {
+	ch := make(chan discovery.Entries)
+	errCh := make(chan error)
+	ticker := time.NewTicker(s.heartbeat)
+
+	go func() {
+		defer close(errCh)
+		defer close(ch)
+
+		// Send the initial entries if available.
+		currentEntries, err := s.fetch()
+		if err != nil {
+			errCh <- err
+		} else {
+			ch <- currentEntries
 		}
-	}
+
+		// Periodically send updates.
+		for {
+			select {
+			case <-ticker.C:
+				newEntries, err := s.fetch()
+				if err != nil {
+					errCh <- err
+					continue
+				}
+
+				// Check if the file has really changed.
+				if !newEntries.Equals(currentEntries) {
+					ch <- newEntries
+				}
+				currentEntries = newEntries
+			case <-stopCh:
+				ticker.Stop()
+				return
+			}
+		}
+	}()
+
+	return ch, errCh
 }
 
 // Register is exported

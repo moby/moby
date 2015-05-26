@@ -12,21 +12,22 @@ func createEndpoints(addrs []string, scheme string) (entries []string) {
 	return entries
 }
 
-// Formats the key
-func format(key string) string {
-	return fullpath(splitKey(key))
+// Normalize the key for each store to the form:
+//
+//     /path/to/key
+//
+func normalize(key string) string {
+	return "/" + join(splitKey(key))
 }
 
-// Formats the key partially (omits the first '/')
-func partialFormat(key string) string {
-	return partialpath(splitKey(key))
-}
-
-// Get the full directory part of the key
-func getDir(key string) string {
+// Get the full directory part of the key to the form:
+//
+//     /path/to/
+//
+func getDirectory(key string) string {
 	parts := splitKey(key)
 	parts = parts[:len(parts)-1]
-	return fullpath(parts)
+	return "/" + join(parts)
 }
 
 // SplitKey splits the key to extract path informations
@@ -39,13 +40,7 @@ func splitKey(key string) (path []string) {
 	return path
 }
 
-// Get the full correct path representation of a splitted key/directory
-func fullpath(path []string) string {
-	return "/" + strings.Join(path, "/")
-}
-
-// Get the partial correct path representation of a splitted key/directory
-// Omits the first '/'
-func partialpath(path []string) string {
-	return strings.Join(path, "/")
+// Join the path parts with '/'
+func join(parts []string) string {
+	return strings.Join(parts, "/")
 }

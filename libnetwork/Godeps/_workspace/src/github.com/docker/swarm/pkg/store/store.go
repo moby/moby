@@ -1,17 +1,54 @@
 package store
 
 import (
+	"crypto/tls"
+	"errors"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
 )
 
-// WatchCallback is used for watch methods on keys
-// and is triggered on key change
-type WatchCallback func(kviTuple []KVEntry)
+// Backend represents a KV Store Backend
+type Backend string
 
-// Initialize creates a new Store object, initializing the client
-type Initialize func(addrs []string, options Config) (Store, error)
+const (
+	// MOCK backend
+	MOCK Backend = "mock"
+	// CONSUL backend
+	CONSUL = "consul"
+	// ETCD backend
+	ETCD = "etcd"
+	// ZK backend
+	ZK = "zk"
+)
+
+var (
+	// ErrInvalidTTL is a specific error to consul
+	ErrInvalidTTL = errors.New("Invalid TTL, please change the value to the miminum allowed ttl for the chosen store")
+	// ErrNotSupported is exported
+	ErrNotSupported = errors.New("Backend storage not supported yet, please choose another one")
+	// ErrNotImplemented is exported
+	ErrNotImplemented = errors.New("Call not implemented in current backend")
+	// ErrNotReachable is exported
+	ErrNotReachable = errors.New("Api not reachable")
+	// ErrCannotLock is exported
+	ErrCannotLock = errors.New("Error acquiring the lock")
+	// ErrWatchDoesNotExist is exported
+	ErrWatchDoesNotExist = errors.New("No watch found for specified key")
+	// ErrKeyModified is exported
+	ErrKeyModified = errors.New("Unable to complete atomic operation, key modified")
+	// ErrKeyNotFound is exported
+	ErrKeyNotFound = errors.New("Key not found in store")
+	// ErrPreviousNotSpecified is exported
+	ErrPreviousNotSpecified = errors.New("Previous K/V pair should be provided for the Atomic operation")
+)
+
+// Config contains the options for a storage client
+type Config struct {
+	TLS               *tls.Config
+	ConnectionTimeout time.Duration
+	EphemeralTTL      time.Duration
+}
 
 // Store represents the backend K/V storage
 // Each store should support every call listed
@@ -19,10 +56,10 @@ type Initialize func(addrs []string, options Config) (Store, error)
 // backend for libkv
 type Store interface {
 	// Put a value at the specified key
-	Put(key string, value []byte) error
+	Put(key string, value []byte, options *WriteOptions) error
 
 	// Get a value given its key
-	Get(key string) (value []byte, lastIndex uint64, err error)
+	Get(key string) (*KVPair, error)
 
 	// Delete the value at the specified key
 	Delete(key string) error
@@ -30,61 +67,86 @@ type Store interface {
 	// Verify if a Key exists in the store
 	Exists(key string) (bool, error)
 
-	// Watch changes on a key
-	Watch(key string, heartbeat time.Duration, callback WatchCallback) error
+	// Watch changes on a key.
+	// Returns a channel that will receive changes or an error.
+	// Upon creating a watch, the current value will be sent to the channel.
+	// Providing a non-nil stopCh can be used to stop watching.
+	Watch(key string, stopCh <-chan struct{}) (<-chan *KVPair, error)
 
-	// Cancel watch key
-	CancelWatch(key string) error
+	// WatchTree watches changes on a "directory"
+	// Returns a channel that will receive changes or an error.
+	// Upon creating a watch, the current value will be sent to the channel.
+	// Providing a non-nil stopCh can be used to stop watching.
+	WatchTree(prefix string, stopCh <-chan struct{}) (<-chan []*KVPair, error)
 
-	// Acquire the lock at key
-	Acquire(key string, value []byte) (string, error)
+	// CreateLock for a given key.
+	// The returned Locker is not held and must be acquired with `.Lock`.
+	// value is optional.
+	NewLock(key string, options *LockOptions) (Locker, error)
 
-	// Release the lock at key
-	Release(session string) error
+	// List the content of a given prefix
+	List(prefix string) ([]*KVPair, error)
 
-	// Get range of keys based on prefix
-	GetRange(prefix string) ([]KVEntry, error)
-
-	// Delete range of keys based on prefix
-	DeleteRange(prefix string) error
-
-	// Watch key namespaces
-	WatchRange(prefix string, filter string, heartbeat time.Duration, callback WatchCallback) error
-
-	// Cancel watch key range
-	CancelWatchRange(prefix string) error
+	// DeleteTree deletes a range of keys based on prefix
+	DeleteTree(prefix string) error
 
 	// Atomic operation on a single value
-	AtomicPut(key string, oldValue []byte, newValue []byte, index uint64) (bool, error)
+	AtomicPut(key string, value []byte, previous *KVPair, options *WriteOptions) (bool, *KVPair, error)
 
 	// Atomic delete of a single value
-	AtomicDelete(key string, oldValue []byte, index uint64) (bool, error)
+	AtomicDelete(key string, previous *KVPair) (bool, error)
+
+	// Close the store connection
+	Close()
 }
 
-// KVEntry represents {Key, Value, Lastindex} tuple
-type KVEntry interface {
-	Key() string
-	Value() []byte
-	LastIndex() uint64
+// KVPair represents {Key, Value, Lastindex} tuple
+type KVPair struct {
+	Key       string
+	Value     []byte
+	LastIndex uint64
 }
+
+// WriteOptions contains optional request parameters
+type WriteOptions struct {
+	Heartbeat time.Duration
+	Ephemeral bool
+}
+
+// LockOptions contains optional request parameters
+type LockOptions struct {
+	Value []byte        // Optional, value to associate with the lock
+	TTL   time.Duration // Optional, expiration ttl associated with the lock
+}
+
+// WatchCallback is used for watch methods on keys
+// and is triggered on key change
+type WatchCallback func(entries ...*KVPair)
+
+// Locker provides locking mechanism on top of the store.
+// Similar to `sync.Lock` except it may return errors.
+type Locker interface {
+	Lock() (<-chan struct{}, error)
+	Unlock() error
+}
+
+// Initialize creates a new Store object, initializing the client
+type Initialize func(addrs []string, options *Config) (Store, error)
 
 var (
-	// List of Store services
-	stores map[string]Initialize
+	// Backend initializers
+	initializers = map[Backend]Initialize{
+		MOCK:   InitializeMock,
+		CONSUL: InitializeConsul,
+		ETCD:   InitializeEtcd,
+		ZK:     InitializeZookeeper,
+	}
 )
 
-func init() {
-	stores = make(map[string]Initialize)
-	stores["consul"] = InitializeConsul
-	stores["etcd"] = InitializeEtcd
-	stores["zk"] = InitializeZookeeper
-}
-
-// CreateStore creates a an instance of store
-func CreateStore(store string, addrs []string, options Config) (Store, error) {
-
-	if init, exists := stores[store]; exists {
-		log.WithFields(log.Fields{"store": store}).Debug("Initializing store service")
+// NewStore creates a an instance of store
+func NewStore(backend Backend, addrs []string, options *Config) (Store, error) {
+	if init, exists := initializers[backend]; exists {
+		log.WithFields(log.Fields{"backend": backend}).Debug("Initializing store service")
 		return init(addrs, options)
 	}
 

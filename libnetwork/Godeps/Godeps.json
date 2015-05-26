@@ -77,13 +77,13 @@
 		},
 		{
 			"ImportPath": "github.com/docker/swarm/discovery",
-			"Comment": "v0.2.0-333-g54dfabd",
-			"Rev": "54dfabd2521314de1c5b036f6c609efbe09df4ea"
+			"Comment": "v0.3.0-rc2",
+			"Rev": "a5b2e57496762cb6971eb65809b2e428cb179719"
 		},
 		{
 			"ImportPath": "github.com/docker/swarm/pkg/store",
-			"Comment": "v0.2.0-333-g54dfabd",
-			"Rev": "54dfabd2521314de1c5b036f6c609efbe09df4ea"
+			"Comment": "v0.3.0-rc2",
+			"Rev": "a5b2e57496762cb6971eb65809b2e428cb179719"
 		},
 		{
 			"ImportPath": "github.com/godbus/dbus",

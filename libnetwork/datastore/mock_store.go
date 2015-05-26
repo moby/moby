@@ -129,3 +129,8 @@ func (s *MockStore) AtomicDelete(key string, oldValue []byte, index uint64) (boo
 	}
 	return true, s.Delete(key)
 }
+
+// Close closes the client connection
+func (s *MockStore) Close() {
+	return
+}

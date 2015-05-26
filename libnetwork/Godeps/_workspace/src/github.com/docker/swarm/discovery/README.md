@@ -26,7 +26,7 @@ Then we create each node and join them to the cluster.
 # on each of your nodes, start the swarm agent
 #  <node_ip> doesn't have to be public (eg. 192.168.0.X),
 #  as long as the swarm manager can access it.
-$ swarm join --addr=<node_ip:2375> token://<cluster_id>
+$ swarm join --advertise=<node_ip:2375> token://<cluster_id>
 ```
 
 Finally, we start the Swarm manager. This can be on any machine or even
@@ -95,7 +95,7 @@ On each of your nodes, start the Swarm agent. The node IP address
 doesn't have to be public as long as the swarm manager can access it.
 
 ```bash
-swarm join --addr=<node_ip:2375> etcd://<etcd_ip>/<path>
+swarm join --advertise=<node_ip:2375> etcd://<etcd_ip>/<path>
 ```
 
 Start the manager on any machine or your laptop.
@@ -127,7 +127,7 @@ On each of your nodes, start the Swarm agent. The node IP address
 doesn't need to be public as long as the Swarm manager can access it.
 
 ```bash
-swarm join --addr=<node_ip:2375> consul://<consul_addr>/<path>
+swarm join --advertise=<node_ip:2375> consul://<consul_addr>/<path>
 ```
 
 Start the manager on any machine or your laptop.
@@ -159,7 +159,7 @@ On each of your nodes, start the Swarm agent. The node IP doesn't have
 to be public as long as the swarm manager can access it.
 
 ```bash
-swarm join --addr=<node_ip:2375> zk://<zookeeper_addr1>,<zookeeper_addr2>/<path>
+swarm join --advertise=<node_ip:2375> zk://<zookeeper_addr1>,<zookeeper_addr2>/<path>
 ```
 
 Start the manager on any machine or your laptop.
