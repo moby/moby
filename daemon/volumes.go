@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/docker/docker/daemon/execdriver"
 	"github.com/docker/docker/pkg/chrootarchive"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/volume"
@@ -113,20 +112,6 @@ func validMountMode(mode string) bool {
 		"ro": true,
 	}
 	return validModes[mode]
-}
-
-func (container *Container) specialMounts() []execdriver.Mount {
-	var mounts []execdriver.Mount
-	if container.ResolvConfPath != "" {
-		mounts = append(mounts, execdriver.Mount{Source: container.ResolvConfPath, Destination: "/etc/resolv.conf", Writable: !container.hostConfig.ReadonlyRootfs, Private: true})
-	}
-	if container.HostnamePath != "" {
-		mounts = append(mounts, execdriver.Mount{Source: container.HostnamePath, Destination: "/etc/hostname", Writable: !container.hostConfig.ReadonlyRootfs, Private: true})
-	}
-	if container.HostsPath != "" {
-		mounts = append(mounts, execdriver.Mount{Source: container.HostsPath, Destination: "/etc/hosts", Writable: !container.hostConfig.ReadonlyRootfs, Private: true})
-	}
-	return mounts
 }
 
 func copyExistingContents(source, destination string) error {
