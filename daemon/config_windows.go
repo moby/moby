@@ -7,6 +7,7 @@ import (
 var (
 	defaultPidFile = os.Getenv("programdata") + string(os.PathSeparator) + "docker.pid"
 	defaultGraph   = os.Getenv("programdata") + string(os.PathSeparator) + "docker"
+	defaultExec    = "windows"
 )
 
 // Config defines the configuration of a docker daemon.
