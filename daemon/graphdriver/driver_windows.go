@@ -1,26 +1,25 @@
 package graphdriver
 
+import (
+	_ "github.com/docker/docker/daemon/graphdriver/vfs"
+
+	// TODO Windows - Add references to real graph driver when PR'd
+)
+
 type DiffDiskDriver interface {
 	Driver
 	CopyDiff(id, sourceId string) error
 }
 
-const (
-	FsMagicWindows = FsMagic(0xa1b1830f)
-)
-
 var (
-	// Slice of drivers that should be used in an order
+	// Slice of drivers that should be used in order
 	priority = []string{
 		"windows",
-	}
-
-	FsNames = map[FsMagic]string{
-		FsMagicWindows:     "windows",
-		FsMagicUnsupported: "unsupported",
+		"vfs",
 	}
 )
 
 func GetFSMagic(rootpath string) (FsMagic, error) {
-	return FsMagicWindows, nil
+	// Note it is OK to return FsMagicUnsupported on Windows.
+	return FsMagicUnsupported, nil
 }
