@@ -435,7 +435,6 @@ func (s *DockerSuite) TestCpVolumePath(c *check.C) {
 	}
 
 	cleanedContainerID := strings.TrimSpace(out)
-	defer dockerCmd(c, "rm", "-fv", cleanedContainerID)
 
 	out, _ = dockerCmd(c, "wait", cleanedContainerID)
 	if strings.TrimSpace(out) != "0" {
