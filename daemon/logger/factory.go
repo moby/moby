@@ -8,12 +8,16 @@ import (
 // Creator is a method that builds a logging driver instance with given context
 type Creator func(Context) (Logger, error)
 
+type ContainerMetadata struct {
+	ID   string
+	Name string
+}
+
 // Context provides enough information for a logging driver to do its function
 type Context struct {
-	Config        map[string]string
-	ContainerID   string
-	ContainerName string
-	LogPath       string
+	Config    map[string]string
+	Container *ContainerMetadata
+	LogPath   string
 }
 
 type logdriverFactory struct {

@@ -644,6 +644,13 @@ func (container *Container) getLogConfig() runconfig.LogConfig {
 	return container.daemon.defaultLogConfig
 }
 
+func (container *Container) getLoggerMetadata() *logger.ContainerMetadata {
+	return &logger.ContainerMetadata{
+		ID:   container.ID,
+		Name: container.Name,
+	}
+}
+
 func (container *Container) getLogger() (logger.Logger, error) {
 	cfg := container.getLogConfig()
 	c, err := logger.GetLogDriver(cfg.Type)
@@ -651,9 +658,8 @@ func (container *Container) getLogger() (logger.Logger, error) {
 		return nil, fmt.Errorf("Failed to get logging factory: %v", err)
 	}
 	ctx := logger.Context{
-		Config:        cfg.Config,
-		ContainerID:   container.ID,
-		ContainerName: container.Name,
+		Config:    cfg.Config,
+		Container: container.getLoggerMetadata(),
 	}
 
 	// Set logging file for "json-logger"
