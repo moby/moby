@@ -1,3 +1,5 @@
+// +build linux
+
 package fs
 
 import (
@@ -51,6 +53,11 @@ func (s *MemoryGroup) Set(path string, cgroup *configs.Cgroup) error {
 	}
 	if cgroup.MemorySwap > 0 {
 		if err := writeFile(path, "memory.memsw.limit_in_bytes", strconv.FormatInt(cgroup.MemorySwap, 10)); err != nil {
+			return err
+		}
+	}
+	if cgroup.KernelMemory > 0 {
+		if err := writeFile(path, "memory.kmem.limit_in_bytes", strconv.FormatInt(cgroup.KernelMemory, 10)); err != nil {
 			return err
 		}
 	}

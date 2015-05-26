@@ -44,6 +44,7 @@ var createFlags = []cli.Flag{
 	cli.StringFlag{Name: "veth-gateway", Usage: "veth gateway address"},
 	cli.IntFlag{Name: "veth-mtu", Usage: "veth mtu"},
 	cli.BoolFlag{Name: "cgroup", Usage: "mount the cgroup data for the container"},
+	cli.StringSliceFlag{Name: "sysctl", Value: &cli.StringSlice{}, Usage: "set system properties in the container"},
 }
 
 var configCommand = cli.Command{
@@ -110,6 +111,14 @@ func modify(config *configs.Config, context *cli.Context) {
 			node.Uid = uint32(userns_uid)
 			node.Gid = uint32(userns_uid)
 		}
+	}
+	config.SystemProperties = make(map[string]string)
+	for _, sysProp := range context.StringSlice("sysctl") {
+		parts := strings.SplitN(sysProp, "=", 2)
+		if len(parts) != 2 {
+			logrus.Fatalf("invalid system property %s", sysProp)
+		}
+		config.SystemProperties[parts[0]] = parts[1]
 	}
 	for _, rawBind := range context.StringSlice("bind") {
 		mount := &configs.Mount{
