@@ -550,6 +550,34 @@ func (s *DockerSuite) TestRunMultipleVolumesFrom(c *check.C) {
 	}
 }
 
+func (s *DockerSuite) TestRunVolumesFromAfterBind(c *check.C) {
+	tmp, err := ioutil.TempDir("", "docker-suite-test-")
+	if err != nil {
+		c.Fatal(err)
+	}
+
+	if err = ioutil.WriteFile(filepath.Join(tmp, "test"), []byte("hello"), 0644); err != nil {
+		c.Fatal(err)
+	}
+
+	mount := fmt.Sprintf("%s:/tmp", tmp)
+
+	cmd := exec.Command(dockerBinary, "run", "-d", "--name", "parent", "-v", mount, "busybox", "true")
+	if _, err = runCommand(cmd); err != nil {
+		c.Fatal(err)
+	}
+
+	cmd = exec.Command(dockerBinary, "run", "--volumes-from", "parent", "-v", "/tmp:/tmp", "busybox", "cat", "/tmp/test")
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		c.Fatal(out, err)
+	}
+
+	if !strings.Contains(out, "hello") {
+		c.Fatalf("Expected output to contain `hello`, was %s\n", out)
+	}
+}
+
 // this tests verifies the ID format for the container
 func (s *DockerSuite) TestRunVerifyContainerID(c *check.C) {
 	cmd := exec.Command(dockerBinary, "run", "-d", "busybox", "true")
