@@ -1,11 +1,17 @@
 package daemon
 
 import (
-	"github.com/docker/docker/pkg/graphdb"
-	"github.com/docker/docker/pkg/truncindex"
+	"fmt"
+	"io/ioutil"
 	"os"
 	"path"
+	"path/filepath"
 	"testing"
+
+	"github.com/docker/docker/pkg/graphdb"
+	"github.com/docker/docker/pkg/stringid"
+	"github.com/docker/docker/pkg/truncindex"
+	"github.com/docker/docker/volume"
 )
 
 //
@@ -112,4 +118,90 @@ func TestGet(t *testing.T) {
 	}
 
 	os.Remove(daemonTestDbPath)
+}
+
+func TestLoadWithVolume(t *testing.T) {
+	tmp, err := ioutil.TempDir("", "docker-daemon-test-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmp)
+
+	containerId := "d59df5276e7b219d510fe70565e0404bc06350e0d4b43fe961f22f339980170e"
+	containerPath := filepath.Join(tmp, containerId)
+	if err = os.MkdirAll(containerPath, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	hostVolumeId := stringid.GenerateRandomID()
+	volumePath := filepath.Join(tmp, "vfs", "dir", hostVolumeId)
+
+	config := `{"State":{"Running":true,"Paused":false,"Restarting":false,"OOMKilled":false,"Dead":false,"Pid":2464,"ExitCode":0,
+"Error":"","StartedAt":"2015-05-26T16:48:53.869308965Z","FinishedAt":"0001-01-01T00:00:00Z"},
+"ID":"d59df5276e7b219d510fe70565e0404bc06350e0d4b43fe961f22f339980170e","Created":"2015-05-26T16:48:53.7987917Z","Path":"top",
+"Args":[],"Config":{"Hostname":"d59df5276e7b","Domainname":"","User":"","Memory":0,"MemorySwap":0,"CpuShares":0,"Cpuset":"",
+"AttachStdin":false,"AttachStdout":false,"AttachStderr":false,"PortSpecs":null,"ExposedPorts":null,"Tty":true,"OpenStdin":true,
+"StdinOnce":false,"Env":null,"Cmd":["top"],"Image":"ubuntu:latest","Volumes":null,"WorkingDir":"","Entrypoint":null,
+"NetworkDisabled":false,"MacAddress":"","OnBuild":null,"Labels":{}},"Image":"07f8e8c5e66084bef8f848877857537ffe1c47edd01a93af27e7161672ad0e95",
+"NetworkSettings":{"IPAddress":"172.17.0.1","IPPrefixLen":16,"MacAddress":"02:42:ac:11:00:01","LinkLocalIPv6Address":"fe80::42:acff:fe11:1",
+"LinkLocalIPv6PrefixLen":64,"GlobalIPv6Address":"","GlobalIPv6PrefixLen":0,"Gateway":"172.17.42.1","IPv6Gateway":"","Bridge":"docker0","PortMapping":null,"Ports":{}},
+"ResolvConfPath":"/var/lib/docker/containers/d59df5276e7b219d510fe70565e0404bc06350e0d4b43fe961f22f339980170e/resolv.conf",
+"HostnamePath":"/var/lib/docker/containers/d59df5276e7b219d510fe70565e0404bc06350e0d4b43fe961f22f339980170e/hostname",
+"HostsPath":"/var/lib/docker/containers/d59df5276e7b219d510fe70565e0404bc06350e0d4b43fe961f22f339980170e/hosts",
+"LogPath":"/var/lib/docker/containers/d59df5276e7b219d510fe70565e0404bc06350e0d4b43fe961f22f339980170e/d59df5276e7b219d510fe70565e0404bc06350e0d4b43fe961f22f339980170e-json.log",
+"Name":"/ubuntu","Driver":"aufs","ExecDriver":"native-0.2","MountLabel":"","ProcessLabel":"","AppArmorProfile":"","RestartCount":0,
+"UpdateDns":false,"Volumes":{"/vol1":"%s"},"VolumesRW":{"/vol1":true},"AppliedVolumesFrom":null}`
+
+	cfg := fmt.Sprintf(config, volumePath)
+	if err = ioutil.WriteFile(filepath.Join(containerPath, "config.json"), []byte(cfg), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	hostConfig := `{"Binds":[],"ContainerIDFile":"","LxcConf":[],"Memory":0,"MemorySwap":0,"CpuShares":0,"CpusetCpus":"",
+"Privileged":false,"PortBindings":{},"Links":null,"PublishAllPorts":false,"Dns":null,"DnsSearch":null,"ExtraHosts":null,"VolumesFrom":null,
+"Devices":[],"NetworkMode":"bridge","IpcMode":"","PidMode":"","CapAdd":null,"CapDrop":null,"RestartPolicy":{"Name":"no","MaximumRetryCount":0},
+"SecurityOpt":null,"ReadonlyRootfs":false,"Ulimits":null,"LogConfig":{"Type":"","Config":null},"CgroupParent":""}`
+	if err = ioutil.WriteFile(filepath.Join(containerPath, "hostconfig.json"), []byte(hostConfig), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	if err = os.MkdirAll(volumePath, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	daemon := &Daemon{
+		repository: tmp,
+		root:       tmp,
+	}
+
+	c, err := daemon.load(containerId)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = daemon.verifyOldVolumesInfo(c)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(c.MountPoints) != 1 {
+		t.Fatalf("Expected 1 volume mounted, was 0\n")
+	}
+
+	m := c.MountPoints["/vol1"]
+	if m.Name != hostVolumeId {
+		t.Fatalf("Expected mount name to be %s, was %s\n", hostVolumeId, m.Name)
+	}
+
+	if m.Destination != "/vol1" {
+		t.Fatalf("Expected mount destination /vol1, was %s\n", m.Destination)
+	}
+
+	if !m.RW {
+		t.Fatalf("Expected mount point to be RW but it was not\n")
+	}
+
+	if m.Driver != volume.DefaultDriverName {
+		t.Fatalf("Expected mount driver local, was %s\n", m.Driver)
+	}
 }
