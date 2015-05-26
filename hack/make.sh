@@ -290,7 +290,12 @@ main() {
 
 	if [ "$(go env GOHOSTOS)" != 'windows' ]; then
 		# Windows and symlinks don't get along well
-		ln -sfT "$VERSION" bundles/latest
+
+		if [ "$(go env GOHOSTOS)" != 'freebsd' ]; then
+			ln -sfT "$VERSION" bundles/latest
+		else 
+			ln -sfh "$VERSION" bundles/latest
+		fi
 	fi
 
 	if [ $# -lt 1 ]; then
