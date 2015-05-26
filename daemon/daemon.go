@@ -161,6 +161,7 @@ func (daemon *Daemon) load(id string) (*Container, error) {
 		CommonContainer: CommonContainer{
 			State:        NewState(),
 			root:         daemon.containerRoot(id),
+			MountPoints:  make(map[string]*mountPoint),
 			execCommands: newExecStore(),
 		},
 	}
