@@ -233,7 +233,7 @@ func (s DockerExternalVolumeSuite) TestStartExternalVolumeDriverDeleteContainer(
 		c.Fatal(err)
 	}
 
-	if _, err := s.d.Cmd("rm", "-fv", "vol-test1"); err != nil {
+	if _, err := s.d.Cmd("rm", "-f", "vol-test1"); err != nil {
 		c.Fatal(err)
 	}
 

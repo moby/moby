@@ -6,6 +6,7 @@ import (
 	"path"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/volume/local"
 )
 
 type ContainerRmConfig struct {
@@ -50,8 +51,15 @@ func (daemon *Daemon) ContainerRm(name string, config *ContainerRmConfig) error 
 
 	container.LogEvent("destroy")
 
-	if config.RemoveVolume {
-		container.removeMountPoints()
+	for _, m := range container.MountPoints {
+		if m.Volume == nil {
+			continue
+		}
+		if _, ok := m.Volume.(*local.Volume); !ok || config.RemoveVolume {
+			if err := removeVolume(m.Volume); err != nil {
+				return err
+			}
+		}
 	}
 	return nil
 }
@@ -131,8 +139,4 @@ func (daemon *Daemon) rm(container *Container, forceRemove bool) (err error) {
 	daemon.containers.Delete(container.ID)
 
 	return nil
-}
-
-func (daemon *Daemon) DeleteVolumes(c *Container) error {
-	return c.removeMountPoints()
 }
