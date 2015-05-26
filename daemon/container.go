@@ -347,7 +347,7 @@ func (container *Container) cleanup() {
 		container.daemon.unregisterExecCommand(eConfig)
 	}
 
-	container.UnmountVolumes(true)
+	container.UnmountVolumes(false)
 }
 
 func (container *Container) KillSig(sig int) error {
