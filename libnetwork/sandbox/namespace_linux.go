@@ -4,10 +4,15 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"os/exec"
+	"path/filepath"
 	"runtime"
 	"sync"
 	"syscall"
+	"time"
 
+	log "github.com/Sirupsen/logrus"
+	"github.com/docker/docker/pkg/reexec"
 	"github.com/docker/libnetwork/types"
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netns"
@@ -15,7 +20,13 @@ import (
 
 const prefix = "/var/run/docker/netns"
 
-var once sync.Once
+var (
+	once             sync.Once
+	garbagePathMap   = make(map[string]bool)
+	gpmLock          sync.Mutex
+	gpmWg            sync.WaitGroup
+	gpmCleanupPeriod = 60
+)
 
 // The networkNamespace type is the linux implementation of the Sandbox
 // interface. It represents a linux network namespace, and moves an interface
@@ -27,11 +38,56 @@ type networkNamespace struct {
 	sync.Mutex
 }
 
+func init() {
+	reexec.Register("netns-create", reexecCreateNamespace)
+}
+
 func createBasePath() {
 	err := os.MkdirAll(prefix, 0644)
 	if err != nil && !os.IsExist(err) {
 		panic("Could not create net namespace path directory")
 	}
+
+	// cleanup any stale namespace files if any
+	cleanupNamespaceFiles()
+
+	// Start the garbage collection go routine
+	go removeUnusedPaths()
+}
+
+func removeUnusedPaths() {
+	for {
+		time.Sleep(time.Duration(gpmCleanupPeriod) * time.Second)
+
+		gpmLock.Lock()
+		pathList := make([]string, 0, len(garbagePathMap))
+		for path := range garbagePathMap {
+			pathList = append(pathList, path)
+		}
+		garbagePathMap = make(map[string]bool)
+		gpmWg.Add(1)
+		gpmLock.Unlock()
+
+		for _, path := range pathList {
+			os.Remove(path)
+		}
+
+		gpmWg.Done()
+	}
+}
+
+func addToGarbagePaths(path string) {
+	gpmLock.Lock()
+	defer gpmLock.Unlock()
+
+	garbagePathMap[path] = true
+}
+
+func removeFromGarbagePaths(path string) {
+	gpmLock.Lock()
+	defer gpmLock.Unlock()
+
+	delete(garbagePathMap, path)
 }
 
 // GenerateKey generates a sandbox key based on the passed
@@ -56,6 +112,16 @@ func NewSandbox(key string, osCreate bool) (Sandbox, error) {
 	return &networkNamespace{path: key, sinfo: info}, nil
 }
 
+func reexecCreateNamespace() {
+	if len(os.Args) < 2 {
+		log.Fatal("no namespace path provided")
+	}
+
+	if err := syscall.Mount("/proc/self/ns/net", os.Args[1], "bind", syscall.MS_BIND, ""); err != nil {
+		log.Fatal(err)
+	}
+}
+
 func createNetworkNamespace(path string, osCreate bool) (*Info, error) {
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
@@ -70,23 +136,18 @@ func createNetworkNamespace(path string, osCreate bool) (*Info, error) {
 		return nil, err
 	}
 
-	if osCreate {
-		defer netns.Set(origns)
-		newns, err := netns.New()
-		if err != nil {
-			return nil, err
-		}
-		defer newns.Close()
-
-		if err := loopbackUp(); err != nil {
-			return nil, err
-		}
+	cmd := &exec.Cmd{
+		Path:   reexec.Self(),
+		Args:   append([]string{"netns-create"}, path),
+		Stdout: os.Stdout,
+		Stderr: os.Stderr,
 	}
-
-	procNet := fmt.Sprintf("/proc/%d/task/%d/ns/net", os.Getpid(), syscall.Gettid())
-
-	if err := syscall.Mount(procNet, path, "bind", syscall.MS_BIND, ""); err != nil {
-		return nil, err
+	if osCreate {
+		cmd.SysProcAttr = &syscall.SysProcAttr{}
+		cmd.SysProcAttr.Cloneflags = syscall.CLONE_NEWNET
+	}
+	if err := cmd.Run(); err != nil {
+		return nil, fmt.Errorf("namespace creation reexec command failed: %v", err)
 	}
 
 	interfaces := []*Interface{}
@@ -94,10 +155,27 @@ func createNetworkNamespace(path string, osCreate bool) (*Info, error) {
 	return info, nil
 }
 
-func cleanupNamespaceFile(path string) {
+func cleanupNamespaceFiles() {
+	filepath.Walk(prefix, func(path string, info os.FileInfo, err error) error {
+		stat, err := os.Stat(path)
+		if err != nil {
+			return err
+		}
+
+		if stat.IsDir() {
+			return filepath.SkipDir
+		}
+
+		syscall.Unmount(path, syscall.MNT_DETACH)
+		os.Remove(path)
+
+		return nil
+	})
+}
+
+func unmountNamespaceFile(path string) {
 	if _, err := os.Stat(path); err == nil {
-		n := &networkNamespace{path: path}
-		n.Destroy()
+		syscall.Unmount(path, syscall.MNT_DETACH)
 	}
 }
 
@@ -105,11 +183,20 @@ func createNamespaceFile(path string) (err error) {
 	var f *os.File
 
 	once.Do(createBasePath)
-	// cleanup namespace file if it already exists because of a previous ungraceful exit.
-	cleanupNamespaceFile(path)
+	// Remove it from garbage collection list if present
+	removeFromGarbagePaths(path)
+
+	// If the path is there unmount it first
+	unmountNamespaceFile(path)
+
+	// wait for garbage collection to complete if it is in progress
+	// before trying to create the file.
+	gpmWg.Wait()
+
 	if f, err = os.Create(path); err == nil {
 		f.Close()
 	}
+
 	return err
 }
 
@@ -310,5 +397,7 @@ func (n *networkNamespace) Destroy() error {
 		return err
 	}
 
-	return os.Remove(n.path)
+	// Stash it into the garbage collection list
+	addToGarbagePaths(n.path)
+	return nil
 }
