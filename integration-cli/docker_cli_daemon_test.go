@@ -1156,3 +1156,12 @@ func (s *DockerDaemonSuite) TestCleanupMountsAfterCrash(c *check.C) {
 	c.Assert(err, check.IsNil, check.Commentf("Output: %s", mountOut))
 	c.Assert(strings.Contains(string(mountOut), id), check.Equals, false, check.Commentf("Something mounted from older daemon start: %s", mountOut))
 }
+
+func (s *DockerDaemonSuite) TestRunContainerWithBridgeNone(c *check.C) {
+	c.Assert(s.d.StartWithBusybox("-b", "none"), check.IsNil)
+
+	out, err := s.d.Cmd("run", "--rm", "busybox", "ip", "l")
+	c.Assert(err, check.IsNil, check.Commentf("Output: %s", out))
+	c.Assert(strings.Contains(out, "eth0"), check.Equals, false,
+		check.Commentf("There shouldn't be eth0 in container when network is disabled: %s", out))
+}

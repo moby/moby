@@ -182,17 +182,20 @@ func getDevicesFromPath(deviceMapping runconfig.DeviceMapping) (devs []*configs.
 }
 
 func populateCommand(c *Container, env []string) error {
-	en := &execdriver.Network{
-		NamespacePath: c.NetworkSettings.SandboxKey,
-	}
-
-	parts := strings.SplitN(string(c.hostConfig.NetworkMode), ":", 2)
-	if parts[0] == "container" {
-		nc, err := c.getNetworkedContainer()
-		if err != nil {
-			return err
+	var en *execdriver.Network
+	if !c.daemon.config.DisableNetwork {
+		en = &execdriver.Network{
+			NamespacePath: c.NetworkSettings.SandboxKey,
 		}
-		en.ContainerID = nc.ID
+
+		parts := strings.SplitN(string(c.hostConfig.NetworkMode), ":", 2)
+		if parts[0] == "container" {
+			nc, err := c.getNetworkedContainer()
+			if err != nil {
+				return err
+			}
+			en.ContainerID = nc.ID
+		}
 	}
 
 	ipc := &execdriver.Ipc{}
@@ -906,7 +909,7 @@ func (container *Container) getNetworkedContainer() (*Container, error) {
 }
 
 func (container *Container) ReleaseNetwork() {
-	if container.hostConfig.NetworkMode.IsContainer() {
+	if container.hostConfig.NetworkMode.IsContainer() || container.daemon.config.DisableNetwork {
 		return
 	}
 
