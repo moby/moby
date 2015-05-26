@@ -6,9 +6,24 @@
 	],
 	"Deps": [
 		{
+			"ImportPath": "github.com/BurntSushi/toml",
+			"Comment": "v0.1.0-16-gf706d00",
+			"Rev": "f706d00e3de6abe700c994cdd545a1a4915af060"
+		},
+		{
 			"ImportPath": "github.com/Sirupsen/logrus",
 			"Comment": "v0.6.4-12-g467d9d5",
 			"Rev": "467d9d55c2d2c17248441a8fc661561161f40d5e"
+		},
+		{
+			"ImportPath": "github.com/coreos/go-etcd/etcd",
+			"Comment": "v2.0.0-7-g73a8ef7",
+			"Rev": "73a8ef737e8ea002281a28b4cb92a1de121ad4c6"
+		},
+		{
+			"ImportPath": "github.com/deckarep/golang-set",
+			"Comment": "v1-26-gef32fa3",
+			"Rev": "ef32fa3046d9f249d399f98ebaf9be944430fd1d"
 		},
 		{
 			"ImportPath": "github.com/docker/docker/pkg/homedir",
@@ -61,6 +76,16 @@
 			"Rev": "3e661186ba24f259d3860f067df052c7f6904bee"
 		},
 		{
+			"ImportPath": "github.com/docker/swarm/discovery",
+			"Comment": "v0.2.0-333-g54dfabd",
+			"Rev": "54dfabd2521314de1c5b036f6c609efbe09df4ea"
+		},
+		{
+			"ImportPath": "github.com/docker/swarm/pkg/store",
+			"Comment": "v0.2.0-333-g54dfabd",
+			"Rev": "54dfabd2521314de1c5b036f6c609efbe09df4ea"
+		},
+		{
 			"ImportPath": "github.com/godbus/dbus",
 			"Comment": "v2-3-g4160802",
 			"Rev": "41608027bdce7bfa8959d653a00b954591220e67"
@@ -72,6 +97,15 @@
 		{
 			"ImportPath": "github.com/gorilla/mux",
 			"Rev": "8096f47503459bcc74d1f4c487b7e6e42e5746b5"
+		},
+		{
+			"ImportPath": "github.com/hashicorp/consul/api",
+			"Comment": "v0.5.0rc1-66-g954aec6",
+			"Rev": "954aec66231b79c161a4122b023fbcad13047f79"
+		},
+		{
+			"ImportPath": "github.com/samuel/go-zookeeper/zk",
+			"Rev": "d0e0d8e11f318e000a8cc434616d69e329edc374"
 		},
 		{
 			"ImportPath": "github.com/vishvananda/netlink",

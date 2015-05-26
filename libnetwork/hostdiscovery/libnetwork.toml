@@ -1,0 +1,6 @@
+title = "LibNetwork Configuration file"
+
+[cluster]
+  discovery = "token://08469efb104bce980931ed24c8eb03a2"
+  Address = "1.1.1.1"
+  Heartbeat = 3

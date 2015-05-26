@@ -79,7 +79,7 @@ func i2nL(i interface{}) []*networkResource {
 }
 
 func createTestNetwork(t *testing.T, network string) (libnetwork.NetworkController, libnetwork.Network) {
-	c, err := libnetwork.New()
+	c, err := libnetwork.New("")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -167,7 +167,7 @@ func TestJson(t *testing.T) {
 func TestCreateDeleteNetwork(t *testing.T) {
 	defer netutils.SetupTestNetNS(t)()
 
-	c, err := libnetwork.New()
+	c, err := libnetwork.New("")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -245,7 +245,7 @@ func TestCreateDeleteNetwork(t *testing.T) {
 func TestGetNetworksAndEndpoints(t *testing.T) {
 	defer netutils.SetupTestNetNS(t)()
 
-	c, err := libnetwork.New()
+	c, err := libnetwork.New("")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -509,7 +509,7 @@ func TestGetNetworksAndEndpoints(t *testing.T) {
 }
 
 func TestDetectGetNetworksInvalidQueryComposition(t *testing.T) {
-	c, err := libnetwork.New()
+	c, err := libnetwork.New("")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -600,7 +600,7 @@ func TestFindNetworkUtil(t *testing.T) {
 func TestCreateDeleteEndpoints(t *testing.T) {
 	defer netutils.SetupTestNetNS(t)()
 
-	c, err := libnetwork.New()
+	c, err := libnetwork.New("")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -726,7 +726,7 @@ func TestCreateDeleteEndpoints(t *testing.T) {
 func TestJoinLeave(t *testing.T) {
 	defer netutils.SetupTestNetNS(t)()
 
-	c, err := libnetwork.New()
+	c, err := libnetwork.New("")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1114,7 +1114,7 @@ func TestwriteJSON(t *testing.T) {
 func TestHttpHandlerUninit(t *testing.T) {
 	defer netutils.SetupTestNetNS(t)()
 
-	c, err := libnetwork.New()
+	c, err := libnetwork.New("")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1180,7 +1180,7 @@ func TestHttpHandlerBadBody(t *testing.T) {
 
 	rsp := newWriter()
 
-	c, err := libnetwork.New()
+	c, err := libnetwork.New("")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1212,7 +1212,7 @@ func TestEndToEnd(t *testing.T) {
 
 	rsp := newWriter()
 
-	c, err := libnetwork.New()
+	c, err := libnetwork.New("")
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -18,7 +18,7 @@ There are many networking solutions available to suit a broad range of use-cases
 
 ```go
         // Create a new controller instance
-        controller := libnetwork.New()
+        controller := libnetwork.New("/etc/default/libnetwork.toml")
 
         // Select and configure the network driver
         networkType := "bridge"

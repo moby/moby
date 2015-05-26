@@ -3,7 +3,7 @@ Package libnetwork provides the basic functionality and extension points to
 create network namespaces and allocate interfaces for containers to use.
 
         // Create a new controller instance
-        controller, _err := libnetwork.New()
+        controller, _err := libnetwork.New("/etc/default/libnetwork.toml")
 
         // Select and configure the network driver
         networkType := "bridge"
@@ -46,13 +46,23 @@ create network namespaces and allocate interfaces for containers to use.
 package libnetwork
 
 import (
+	"encoding/json"
+	"fmt"
+	"net"
+	"os"
+	"strings"
 	"sync"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/plugins"
 	"github.com/docker/docker/pkg/stringid"
+	"github.com/docker/libnetwork/config"
+	"github.com/docker/libnetwork/datastore"
 	"github.com/docker/libnetwork/driverapi"
+	"github.com/docker/libnetwork/hostdiscovery"
 	"github.com/docker/libnetwork/sandbox"
 	"github.com/docker/libnetwork/types"
+	"github.com/docker/swarm/pkg/store"
 )
 
 // NetworkController provides the interface for controller instance which manages
@@ -95,11 +105,13 @@ type controller struct {
 	networks  networkTable
 	drivers   driverTable
 	sandboxes sandboxTable
+	cfg       *config.Config
+	store     datastore.DataStore
 	sync.Mutex
 }
 
 // New creates a new instance of network controller.
-func New() (NetworkController, error) {
+func New(configFile string) (NetworkController, error) {
 	c := &controller{
 		networks:  networkTable{},
 		sandboxes: sandboxTable{},
@@ -107,7 +119,80 @@ func New() (NetworkController, error) {
 	if err := initDrivers(c); err != nil {
 		return nil, err
 	}
+
+	if err := c.initConfig(configFile); err == nil {
+		if err := c.initDataStore(); err != nil {
+			// Failing to initalize datastore is a bad situation to be in.
+			// But it cannot fail creating the Controller
+			log.Warnf("Failed to Initialize Datastore due to %v. Operating in non-clustered mode", err)
+		}
+		if err := c.initDiscovery(); err != nil {
+			// Failing to initalize discovery is a bad situation to be in.
+			// But it cannot fail creating the Controller
+			log.Warnf("Failed to Initialize Discovery : %v", err)
+		}
+	} else {
+		// Missing Configuration file is not a failure scenario
+		// But without that, datastore cannot be initialized.
+		log.Debugf("Unable to Parse LibNetwork Config file : %v", err)
+	}
+
 	return c, nil
+}
+
+const (
+	cfgFileEnv     = "LIBNETWORK_CFG"
+	defaultCfgFile = "/etc/default/libnetwork.toml"
+)
+
+func (c *controller) initConfig(configFile string) error {
+	cfgFile := configFile
+	if strings.Trim(cfgFile, " ") == "" {
+		cfgFile = os.Getenv(cfgFileEnv)
+		if strings.Trim(cfgFile, " ") == "" {
+			cfgFile = defaultCfgFile
+		}
+	}
+	cfg, err := config.ParseConfig(cfgFile)
+	if err != nil {
+		return ErrInvalidConfigFile(cfgFile)
+	}
+	c.Lock()
+	c.cfg = cfg
+	c.Unlock()
+	return nil
+}
+
+func (c *controller) initDataStore() error {
+	if c.cfg == nil {
+		return fmt.Errorf("datastore initialization requires a valid configuration")
+	}
+
+	store, err := datastore.NewDataStore(&c.cfg.Datastore)
+	if err != nil {
+		return err
+	}
+	c.Lock()
+	c.store = store
+	c.Unlock()
+	go c.watchNewNetworks()
+
+	return nil
+}
+
+func (c *controller) initDiscovery() error {
+	if c.cfg == nil {
+		return fmt.Errorf("discovery initialization requires a valid configuration")
+	}
+
+	hostDiscovery := hostdiscovery.NewHostDiscovery()
+	return hostDiscovery.StartDiscovery(&c.cfg.Cluster, c.hostJoinCallback, c.hostLeaveCallback)
+}
+
+func (c *controller) hostJoinCallback(hosts []net.IP) {
+}
+
+func (c *controller) hostLeaveCallback(hosts []net.IP) {
 }
 
 func (c *controller) ConfigureNetworkDriver(networkType string, options map[string]interface{}) error {
@@ -168,6 +253,9 @@ func (c *controller) NewNetwork(networkType, name string, options ...NetworkOpti
 	}
 
 	network.processOptions(options...)
+	if err := c.addNetworkToStore(network); err != nil {
+		return nil, err
+	}
 	// Create the network
 	if err := d.CreateNetwork(network.id, network.generic); err != nil {
 		return nil, err
@@ -179,6 +267,65 @@ func (c *controller) NewNetwork(networkType, name string, options ...NetworkOpti
 	c.Unlock()
 
 	return network, nil
+}
+
+func (c *controller) newNetworkFromStore(n *network) {
+	c.Lock()
+	defer c.Unlock()
+
+	if _, ok := c.drivers[n.networkType]; !ok {
+		log.Warnf("Network driver unavailable for type=%s. ignoring network updates for %s", n.Type(), n.Name())
+		return
+	}
+	n.ctrlr = c
+	n.driver = c.drivers[n.networkType]
+	c.networks[n.id] = n
+	// TODO : Populate n.endpoints back from endpoint dbstore
+}
+
+func (c *controller) addNetworkToStore(n *network) error {
+	if isReservedNetwork(n.Name()) {
+		return nil
+	}
+	c.Lock()
+	cs := c.store
+	c.Unlock()
+	if cs == nil {
+		log.Debugf("datastore not initialized. Network %s is not added to the store", n.Name())
+		return nil
+	}
+	return cs.PutObjectAtomic(n)
+}
+
+func (c *controller) watchNewNetworks() {
+	c.Lock()
+	cs := c.store
+	c.Unlock()
+
+	cs.KVStore().WatchRange(datastore.Key(datastore.NetworkKeyPrefix), "", 0, func(kvi []store.KVEntry) {
+		for _, kve := range kvi {
+			var n network
+			err := json.Unmarshal(kve.Value(), &n)
+			if err != nil {
+				log.Error(err)
+				continue
+			}
+			n.dbIndex = kve.LastIndex()
+			c.Lock()
+			existing, ok := c.networks[n.id]
+			c.Unlock()
+			if ok && existing.dbIndex == n.dbIndex {
+				// Skip any watch notification for a network that has not changed
+				continue
+			} else if ok {
+				// Received an update for an existing network object
+				log.Debugf("Skipping network update for %s (%s)", n.name, n.id)
+				continue
+			}
+
+			c.newNetworkFromStore(&n)
+		}
+	})
 }
 
 func (c *controller) Networks() []Network {
