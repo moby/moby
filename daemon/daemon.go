@@ -1003,8 +1003,9 @@ func (daemon *Daemon) Shutdown() error {
 
 				go func() {
 					defer group.Done()
-					if err := c.KillSig(15); err != nil {
-						logrus.Debugf("kill 15 error for %s - %s", c.ID, err)
+					// If container failed to exit in 10 seconds of SIGTERM, then using the force
+					if err := c.Stop(10); err != nil {
+						logrus.Errorf("Stop container %s with error: %v", c.ID, err)
 					}
 					c.WaitStop(-1 * time.Second)
 					logrus.Debugf("container stopped %s", c.ID)
