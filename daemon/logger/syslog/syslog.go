@@ -26,7 +26,7 @@ func init() {
 }
 
 func New(ctx logger.Context) (logger.Logger, error) {
-	tag := ctx.ContainerID[:12]
+	tag := ctx.Container.ID[:12]
 	log, err := syslog.New(syslog.LOG_DAEMON, fmt.Sprintf("%s/%s", path.Base(os.Args[0]), tag))
 	if err != nil {
 		return nil, err

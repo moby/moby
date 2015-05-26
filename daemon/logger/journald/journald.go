@@ -29,13 +29,13 @@ func New(ctx logger.Context) (logger.Logger, error) {
 	}
 	// Strip a leading slash so that people can search for
 	// CONTAINER_NAME=foo rather than CONTAINER_NAME=/foo.
-	name := ctx.ContainerName
+	name := ctx.Container.Name
 	if name[0] == '/' {
 		name = name[1:]
 	}
 	jmap := map[string]string{
-		"CONTAINER_ID":      ctx.ContainerID[:12],
-		"CONTAINER_ID_FULL": ctx.ContainerID,
+		"CONTAINER_ID":      ctx.Container.ID[:12],
+		"CONTAINER_ID_FULL": ctx.Container.ID,
 		"CONTAINER_NAME":    name}
 	return &Journald{Jmap: jmap}, nil
 }
