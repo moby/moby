@@ -2,8 +2,18 @@ package sandbox
 
 import (
 	"net"
+	"os"
 	"testing"
+
+	"github.com/docker/docker/pkg/reexec"
 )
+
+func TestMain(m *testing.M) {
+	if reexec.Init() {
+		return
+	}
+	os.Exit(m.Run())
+}
 
 func TestSandboxCreate(t *testing.T) {
 	key, err := newKey(t)
@@ -44,6 +54,7 @@ func TestSandboxCreate(t *testing.T) {
 
 	verifySandbox(t, s)
 	s.Destroy()
+	verifyCleanup(t, s)
 }
 
 func TestSandboxCreateTwice(t *testing.T) {
