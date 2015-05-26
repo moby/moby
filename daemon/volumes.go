@@ -153,8 +153,8 @@ func copyExistingContents(source, destination string) error {
 // It follows the next sequence to decide what to mount in each final destination:
 //
 // 1. Select the previously configured mount points for the containers, if any.
-// 2. Select the volumes mounted from another containers. Overrides previously configured mount point destination.
-// 3. Select the bind mounts set by the client. Overrides previously configured mount point destinations.
+// 2. Select the bind mounts set by the client. Overrides previously configured mount point destinations.
+// 3. Select the volumes mounted from another containers. Overrides previously configured mount point destination.
 func (daemon *Daemon) registerMountPoints(container *Container, hostConfig *runconfig.HostConfig) error {
 	binds := map[string]bool{}
 	mountPoints := map[string]*mountPoint{}
@@ -164,7 +164,31 @@ func (daemon *Daemon) registerMountPoints(container *Container, hostConfig *runc
 		mountPoints[name] = point
 	}
 
-	// 2. Read volumes from other containers.
+	// 2. Read bind mounts
+	for _, b := range hostConfig.Binds {
+		// #10618
+		bind, err := parseBindMount(b, container.Config)
+		if err != nil {
+			return err
+		}
+
+		if binds[bind.Destination] {
+			return fmt.Errorf("Duplicate bind mount %s", bind.Destination)
+		}
+
+		if len(bind.Name) > 0 && len(bind.Driver) > 0 {
+			v, err := createVolume(bind.Name, bind.Driver)
+			if err != nil {
+				return err
+			}
+			bind.Volume = v
+		}
+
+		binds[bind.Destination] = true
+		mountPoints[bind.Destination] = bind
+	}
+
+	// 3. Read volumes from other containers.
 	for _, v := range hostConfig.VolumesFrom {
 		containerID, mode, err := parseVolumesFrom(v)
 		if err != nil {
@@ -190,30 +214,6 @@ func (daemon *Daemon) registerMountPoints(container *Container, hostConfig *runc
 
 			mountPoints[cp.Destination] = cp
 		}
-	}
-
-	// 3. Read bind mounts
-	for _, b := range hostConfig.Binds {
-		// #10618
-		bind, err := parseBindMount(b, container.Config)
-		if err != nil {
-			return err
-		}
-
-		if binds[bind.Destination] {
-			return fmt.Errorf("Duplicate bind mount %s", bind.Destination)
-		}
-
-		if len(bind.Name) > 0 && len(bind.Driver) > 0 {
-			v, err := createVolume(bind.Name, bind.Driver)
-			if err != nil {
-				return err
-			}
-			bind.Volume = v
-		}
-
-		binds[bind.Destination] = true
-		mountPoints[bind.Destination] = bind
 	}
 
 	container.MountPoints = mountPoints
