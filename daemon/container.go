@@ -1087,26 +1087,6 @@ func (container *Container) shouldRestart() bool {
 		(container.hostConfig.RestartPolicy.Name == "on-failure" && container.ExitCode != 0)
 }
 
-func (container *Container) UnmountVolumes(forceSyscall bool) error {
-	for _, m := range container.MountPoints {
-		dest, err := container.GetResourcePath(m.Destination)
-		if err != nil {
-			return err
-		}
-
-		if forceSyscall {
-			syscall.Unmount(dest, 0)
-		}
-
-		if m.Volume != nil {
-			if err := m.Volume.Unmount(); err != nil {
-				return err
-			}
-		}
-	}
-	return nil
-}
-
 func (container *Container) copyImagePathContent(v volume.Volume, destination string) error {
 	rootfs, err := symlink.FollowSymlinkInScope(filepath.Join(container.basefs, destination), container.basefs)
 	if err != nil {

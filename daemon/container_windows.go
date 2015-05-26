@@ -165,3 +165,7 @@ func disableAllActiveLinks(container *Container) {
 
 func (container *Container) DisableLink(name string) {
 }
+
+func (container *Container) UnmountVolumes(forceSyscall bool) error {
+	return nil
+}
