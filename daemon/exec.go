@@ -128,7 +128,6 @@ func (d *Daemon) ContainerExecCreate(config *runconfig.ExecConfig) (string, erro
 		Entrypoint: entrypoint,
 		Arguments:  args,
 		User:       config.User,
-		Privileged: config.Privileged,
 	}
 
 	execConfig := &execConfig{
