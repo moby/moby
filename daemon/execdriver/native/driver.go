@@ -259,7 +259,9 @@ func (d *driver) Kill(c *execdriver.Command, sig int) error {
 }
 
 func (d *driver) Pause(c *execdriver.Command) error {
+	d.Lock()
 	active := d.activeContainers[c.ID]
+	d.Unlock()
 	if active == nil {
 		return fmt.Errorf("active container for %s does not exist", c.ID)
 	}
@@ -267,7 +269,9 @@ func (d *driver) Pause(c *execdriver.Command) error {
 }
 
 func (d *driver) Unpause(c *execdriver.Command) error {
+	d.Lock()
 	active := d.activeContainers[c.ID]
+	d.Unlock()
 	if active == nil {
 		return fmt.Errorf("active container for %s does not exist", c.ID)
 	}
