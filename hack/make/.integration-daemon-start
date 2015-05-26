@@ -27,6 +27,17 @@ if [ -n "$DOCKER_STORAGE_OPTS" ]; then
 fi
 
 if [ -z "$DOCKER_TEST_HOST" ]; then
+	# Start apparmor if it is enabled
+	if [ "$(cat /sys/module/apparmor/parameters/enabled)" == "Y" ]; then
+		# reset container variable so apparmor profile is applied to process
+		# see https://github.com/docker/libcontainer/blob/master/apparmor/apparmor.go#L16
+		export container=""
+		(
+			set -x
+			/etc/init.d/apparmor start
+		)
+	fi
+
 	export DOCKER_HOST="unix://$(cd "$DEST" && pwd)/docker.sock" # "pwd" tricks to make sure $DEST is an absolute path, not a relative one
 	( set -x; exec \
 		docker --daemon --debug \

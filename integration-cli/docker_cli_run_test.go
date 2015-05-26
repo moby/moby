@@ -3170,3 +3170,19 @@ func (s *DockerSuite) TestTwoContainersInNetHost(c *check.C) {
 	dockerCmd(c, "stop", "first")
 	dockerCmd(c, "stop", "second")
 }
+
+func (s *DockerSuite) TestRunUnshareProc(c *check.C) {
+	testRequires(c, Apparmor)
+
+	name := "acidburn"
+	runCmd := exec.Command(dockerBinary, "run", "--name", name, "jess/unshare", "unshare", "-p", "-m", "-f", "-r", "--mount-proc=/proc", "mount")
+	if out, _, err := runCommandWithOutput(runCmd); err == nil || !strings.Contains(out, "Permission denied") {
+		c.Fatalf("unshare should have failed with permission denied, got: %s, %v", out, err)
+	}
+
+	name = "cereal"
+	runCmd = exec.Command(dockerBinary, "run", "--name", name, "jess/unshare", "unshare", "-p", "-m", "-f", "-r", "mount", "-t", "proc", "none", "/proc")
+	if out, _, err := runCommandWithOutput(runCmd); err == nil || !strings.Contains(out, "Permission denied") {
+		c.Fatalf("unshare should have failed with permission denied, got: %s, %v", out, err)
+	}
+}
