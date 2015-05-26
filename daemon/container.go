@@ -1131,3 +1131,19 @@ func (container *Container) copyImagePathContent(v volume.Volume, destination st
 
 	return v.Unmount()
 }
+
+type labelWalker func(key, value string)
+
+func (container *Container) walkLabels(walker labelWalker) error {
+	img, err := container.daemon.repositories.LookupImage(container.Config.Image)
+	if err != nil {
+		return err
+	}
+
+	for l, v := range container.Config.Labels {
+		if _, ok := img.Config.Labels[l]; !ok {
+			walker(l, v)
+		}
+	}
+	return nil
+}
