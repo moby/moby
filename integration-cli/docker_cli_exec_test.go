@@ -634,28 +634,3 @@ func (s *DockerSuite) TestExecWithUser(c *check.C) {
 	}
 
 }
-
-func (s *DockerSuite) TestExecWithPrivileged(c *check.C) {
-
-	runCmd := exec.Command(dockerBinary, "run", "-d", "--name", "parent", "--cap-drop=ALL", "busybox", "top")
-	if out, _, err := runCommandWithOutput(runCmd); err != nil {
-		c.Fatal(out, err)
-	}
-
-	cmd := exec.Command(dockerBinary, "exec", "parent", "sh", "-c", "mknod /tmp/sda b 8 0")
-	out, _, err := runCommandWithOutput(cmd)
-	if err == nil || !strings.Contains(out, "Operation not permitted") {
-		c.Fatalf("exec mknod in --cap-drop=ALL container without --privileged should failed")
-	}
-
-	cmd = exec.Command(dockerBinary, "exec", "--privileged", "parent", "sh", "-c", "mknod /tmp/sda b 8 0 && echo ok")
-	out, _, err = runCommandWithOutput(cmd)
-	if err != nil {
-		c.Fatal(err, out)
-	}
-
-	if actual := strings.TrimSpace(out); actual != "ok" {
-		c.Fatalf("exec mknod in --cap-drop=ALL container with --privileged failed: %v, output: %q", err, out)
-	}
-
-}
