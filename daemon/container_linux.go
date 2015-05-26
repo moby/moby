@@ -954,3 +954,23 @@ func (container *Container) DisableLink(name string) {
 		}
 	}
 }
+
+func (container *Container) UnmountVolumes(forceSyscall bool) error {
+	for _, m := range container.MountPoints {
+		dest, err := container.GetResourcePath(m.Destination)
+		if err != nil {
+			return err
+		}
+
+		if forceSyscall {
+			syscall.Unmount(dest, 0)
+		}
+
+		if m.Volume != nil {
+			if err := m.Volume.Unmount(); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
