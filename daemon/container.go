@@ -245,10 +245,16 @@ func (container *Container) Start() (err error) {
 		}
 	}()
 
+	if err := container.setupContainerDns(); err != nil {
+		return err
+	}
 	if err := container.Mount(); err != nil {
 		return err
 	}
 	if err := container.initializeNetworking(); err != nil {
+		return err
+	}
+	if err := container.updateParentsHosts(); err != nil {
 		return err
 	}
 	container.verifyDaemonSettings()

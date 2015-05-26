@@ -17,7 +17,7 @@ import (
 	"github.com/docker/docker/pkg/reexec"
 )
 
-const userlandProxyCommandName = "docker-proxy-deprecated"
+const userlandProxyCommandName = "docker-proxy"
 
 func init() {
 	reexec.Register(userlandProxyCommandName, execProxy)
