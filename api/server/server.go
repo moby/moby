@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
@@ -648,6 +649,12 @@ func (s *Server) postCommit(version version.Version, w http.ResponseWriter, r *h
 
 	if err := checkForJson(r); err != nil {
 		return err
+	}
+
+	for _, exclude := range r.Form["excludes"] {
+		if !filepath.IsAbs(exclude) {
+			return fmt.Errorf("Bad parameters: exclude patterns must be absolute paths")
+		}
 	}
 
 	cont := r.Form.Get("container")
