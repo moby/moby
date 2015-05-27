@@ -45,7 +45,7 @@ func parseHTTPErrorResponse(r io.Reader) error {
 			Response: body,
 		}
 	}
-	return &errors
+	return errors
 }
 
 func handleErrorResponse(resp *http.Response) error {
@@ -53,9 +53,8 @@ func handleErrorResponse(resp *http.Response) error {
 		err := parseHTTPErrorResponse(resp.Body)
 		if uErr, ok := err.(*UnexpectedHTTPResponseError); ok {
 			return &errcode.Error{
-				Code:    v2.ErrorCodeUnauthorized,
-				Message: "401 Unauthorized",
-				Detail:  uErr.Response,
+				Code:   v2.ErrorCodeUnauthorized,
+				Detail: uErr.Response,
 			}
 		}
 		return err
