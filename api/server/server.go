@@ -863,7 +863,7 @@ func (s *Server) postImagesLoad(version version.Version, w http.ResponseWriter, 
 
 func (s *Server) postContainersCreate(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := parseForm(r); err != nil {
-		return nil
+		return err
 	}
 	if err := checkForJson(r); err != nil {
 		return err
@@ -1288,7 +1288,7 @@ func (s *Server) postContainersCopy(version version.Version, w http.ResponseWrit
 
 func (s *Server) postContainerExecCreate(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := parseForm(r); err != nil {
-		return nil
+		return err
 	}
 	name := vars["name"]
 
@@ -1317,7 +1317,7 @@ func (s *Server) postContainerExecCreate(version version.Version, w http.Respons
 // TODO(vishh): Refactor the code to avoid having to specify stream config as part of both create and start.
 func (s *Server) postContainerExecStart(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := parseForm(r); err != nil {
-		return nil
+		return err
 	}
 	var (
 		execName = vars["name"]
