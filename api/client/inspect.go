@@ -108,7 +108,7 @@ func (cli *DockerCli) CmdInspect(args ...string) error {
 	}
 	indented.WriteString("]\n")
 
-	if tmpl == nil {
+	if tmpl == nil && status == 0 {
 		if _, err := io.Copy(cli.out, indented); err != nil {
 			return err
 		}
