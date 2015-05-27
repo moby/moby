@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/pkg/plugins"
+	"github.com/docker/docker/pkg/tlsconfig"
 )
 
 func TestVolumeRequestError(t *testing.T) {
@@ -42,11 +43,14 @@ func TestVolumeRequestError(t *testing.T) {
 	})
 
 	u, _ := url.Parse(server.URL)
-	client := plugins.NewClient("tcp://" + u.Host)
+	client, err := plugins.NewClient("tcp://"+u.Host, tlsconfig.Options{InsecureSkipVerify: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	driver := volumeDriverProxy{client}
 
-	err := driver.Create("volume")
-	if err == nil {
+	if err = driver.Create("volume"); err == nil {
 		t.Fatal("Expected error, was nil")
 	}
 

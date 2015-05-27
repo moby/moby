@@ -61,7 +61,7 @@ func TestLocalSocket(t *testing.T) {
 }
 
 func TestFileSpecPlugin(t *testing.T) {
-	tmpdir, err := ioutil.TempDir("", "docker-test")
+	tmpdir, err := ioutil.TempDir("", "docker-test-")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -100,5 +100,53 @@ func TestFileSpecPlugin(t *testing.T) {
 		if p.Addr != c.addr {
 			t.Fatalf("Expected plugin addr `%s`, got %s\n", c.addr, p.Addr)
 		}
+	}
+}
+
+func TestFileJSONSpecPlugin(t *testing.T) {
+	tmpdir, err := ioutil.TempDir("", "docker-test-")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	p := filepath.Join(tmpdir, "example.json")
+	spec := `{
+  "Name": "plugin-example",
+  "Addr": "https://example.com/docker/plugin",
+  "TLSConfig": {
+    "CAFile": "/usr/shared/docker/certs/example-ca.pem",
+    "CertFile": "/usr/shared/docker/certs/example-cert.pem",
+    "KeyFile": "/usr/shared/docker/certs/example-key.pem"
+	}
+}`
+
+	if err = ioutil.WriteFile(p, []byte(spec), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	r := newLocalRegistry(tmpdir)
+	plugin, err := r.Plugin("example")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if plugin.Name != "example" {
+		t.Fatalf("Expected plugin `plugin-example`, got %s\n", plugin.Name)
+	}
+
+	if plugin.Addr != "https://example.com/docker/plugin" {
+		t.Fatalf("Expected plugin addr `https://example.com/docker/plugin`, got %s\n", plugin.Addr)
+	}
+
+	if plugin.TLSConfig.CAFile != "/usr/shared/docker/certs/example-ca.pem" {
+		t.Fatalf("Expected plugin CA `/usr/shared/docker/certs/example-ca.pem`, got %s\n", plugin.TLSConfig.CAFile)
+	}
+
+	if plugin.TLSConfig.CertFile != "/usr/shared/docker/certs/example-cert.pem" {
+		t.Fatalf("Expected plugin Certificate `/usr/shared/docker/certs/example-cert.pem`, got %s\n", plugin.TLSConfig.CertFile)
+	}
+
+	if plugin.TLSConfig.KeyFile != "/usr/shared/docker/certs/example-key.pem" {
+		t.Fatalf("Expected plugin Key `/usr/shared/docker/certs/example-key.pem`, got %s\n", plugin.TLSConfig.KeyFile)
 	}
 }

@@ -1,6 +1,7 @@
 package plugins
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -37,24 +38,24 @@ func (l *LocalRegistry) Plugin(name string) (*Plugin, error) {
 	filepath := filepath.Join(l.path, name)
 	specpath := filepath + ".spec"
 	if fi, err := os.Stat(specpath); err == nil {
-		return readPluginInfo(specpath, fi)
+		return readPluginSpecInfo(specpath, fi)
 	}
+
 	socketpath := filepath + ".sock"
 	if fi, err := os.Stat(socketpath); err == nil {
-		return readPluginInfo(socketpath, fi)
+		return readPluginSocketInfo(socketpath, fi)
 	}
+
+	jsonpath := filepath + ".json"
+	if _, err := os.Stat(jsonpath); err == nil {
+		return readPluginJSONInfo(name, jsonpath)
+	}
+
 	return nil, ErrNotFound
 }
 
-func readPluginInfo(path string, fi os.FileInfo) (*Plugin, error) {
+func readPluginSpecInfo(path string, fi os.FileInfo) (*Plugin, error) {
 	name := strings.Split(fi.Name(), ".")[0]
-
-	if fi.Mode()&os.ModeSocket != 0 {
-		return &Plugin{
-			Name: name,
-			Addr: "unix://" + path,
-		}, nil
-	}
 
 	content, err := ioutil.ReadFile(path)
 	if err != nil {
@@ -71,8 +72,34 @@ func readPluginInfo(path string, fi os.FileInfo) (*Plugin, error) {
 		return nil, fmt.Errorf("Unknown protocol")
 	}
 
-	return &Plugin{
-		Name: name,
-		Addr: addr,
-	}, nil
+	return newLocalPlugin(name, addr), nil
+}
+
+func readPluginSocketInfo(path string, fi os.FileInfo) (*Plugin, error) {
+	name := strings.Split(fi.Name(), ".")[0]
+
+	if fi.Mode()&os.ModeSocket == 0 {
+		return nil, fmt.Errorf("%s is not a socket", path)
+	}
+
+	return newLocalPlugin(name, "unix://"+path), nil
+}
+
+func readPluginJSONInfo(name, path string) (*Plugin, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+
+	var p Plugin
+	if err := json.NewDecoder(f).Decode(&p); err != nil {
+		return nil, err
+	}
+	p.Name = name
+	if len(p.TLSConfig.CAFile) == 0 {
+		p.TLSConfig.InsecureSkipVerify = true
+	}
+
+	return &p, nil
 }
