@@ -959,21 +959,37 @@ func (container *Container) DisableLink(name string) {
 }
 
 func (container *Container) UnmountVolumes(forceSyscall bool) error {
-	for _, m := range container.MountPoints {
-		dest, err := container.GetResourcePath(m.Destination)
+	var volumeMounts []mountPoint
+
+	for _, mntPoint := range container.MountPoints {
+		dest, err := container.GetResourcePath(mntPoint.Destination)
 		if err != nil {
 			return err
 		}
 
-		if forceSyscall {
-			syscall.Unmount(dest, 0)
+		volumeMounts = append(volumeMounts, mountPoint{Destination: dest, Volume: mntPoint.Volume})
+	}
+
+	for _, mnt := range container.networkMounts() {
+		dest, err := container.GetResourcePath(mnt.Destination)
+		if err != nil {
+			return err
 		}
 
-		if m.Volume != nil {
-			if err := m.Volume.Unmount(); err != nil {
+		volumeMounts = append(volumeMounts, mountPoint{Destination: dest})
+	}
+
+	for _, volumeMount := range volumeMounts {
+		if forceSyscall {
+			syscall.Unmount(volumeMount.Destination, 0)
+		}
+
+		if volumeMount.Volume != nil {
+			if err := volumeMount.Volume.Unmount(); err != nil {
 				return err
 			}
 		}
 	}
+
 	return nil
 }
