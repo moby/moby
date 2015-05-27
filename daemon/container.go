@@ -74,6 +74,7 @@ type CommonContainer struct {
 	MountLabel, ProcessLabel string
 	RestartCount             int
 	UpdateDns                bool
+	HasBeenStartedBefore     bool
 
 	MountPoints map[string]*mountPoint
 	Volumes     map[string]string // Deprecated since 1.7, kept for backwards compatibility
@@ -286,6 +287,7 @@ func (container *Container) Run() error {
 	if err := container.Start(); err != nil {
 		return err
 	}
+	container.HasBeenStartedBefore = true
 	container.WaitStop(-1 * time.Second)
 	return nil
 }

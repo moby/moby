@@ -92,11 +92,12 @@ func populateCommand(c *Container, env []string) error {
 
 	// TODO Windows. Further refactoring required (privileged/user)
 	processConfig := execdriver.ProcessConfig{
-		Privileged: c.hostConfig.Privileged,
-		Entrypoint: c.Path,
-		Arguments:  c.Args,
-		Tty:        c.Config.Tty,
-		User:       c.Config.User,
+		Privileged:  c.hostConfig.Privileged,
+		Entrypoint:  c.Path,
+		Arguments:   c.Args,
+		Tty:         c.Config.Tty,
+		User:        c.Config.User,
+		ConsoleSize: c.hostConfig.ConsoleSize,
 	}
 
 	processConfig.Env = env
@@ -116,6 +117,7 @@ func populateCommand(c *Container, env []string) error {
 		ProcessConfig:  processConfig,
 		ProcessLabel:   c.GetProcessLabel(),
 		MountLabel:     c.GetMountLabel(),
+		FirstStart:     !c.HasBeenStartedBefore,
 	}
 
 	return nil

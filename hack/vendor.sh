@@ -12,7 +12,9 @@ clone git github.com/go-check/check 64131543e7896d5bcc6bd5a76287eb75ea96c673
 clone git github.com/gorilla/context 14f550f51a
 clone git github.com/gorilla/mux e444e69cbd
 clone git github.com/kr/pty 5cf931ef8f
+clone git github.com/microsoft/hcsshim 2f540b26beafc3d4aded4fc9799af261a1a91352
 clone git github.com/mistifyio/go-zfs v2.1.1
+clone git github.com/natefinch/npipe 0938d701e50e580f5925c773055eb6d6b32a0cbc
 clone git github.com/tchap/go-patricia v2.1.0
 clone git golang.org/x/net 3cffabab72adf04f8e3b01c5baf775361837b5fe https://github.com/golang/net.git
 clone hg code.google.com/p/gosqlite 74691fb6f837
