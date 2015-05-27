@@ -254,6 +254,42 @@ func (s *DockerSuite) TestGetContainerStats(c *check.C) {
 	}
 }
 
+func (s *DockerSuite) TestContainerStatsRmRunning(c *check.C) {
+	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
+	id := strings.TrimSpace(out)
+
+	buf := &channelBuffer{make(chan []byte, 1)}
+	defer buf.Close()
+	chErr := make(chan error)
+	go func() {
+		_, body, err := sockRequestRaw("GET", "/containers/"+id+"/stats?stream=1", nil, "application/json")
+		if err != nil {
+			chErr <- err
+		}
+		defer body.Close()
+		_, err = io.Copy(buf, body)
+		chErr <- err
+	}()
+	defer func() {
+		c.Assert(<-chErr, check.IsNil)
+	}()
+
+	b := make([]byte, 32)
+	// make sure we've got some stats
+	_, err := buf.ReadTimeout(b, 2*time.Second)
+	c.Assert(err, check.IsNil)
+
+	// Now remove without `-f` and make sure we are still pulling stats
+	_, err = runCommand(exec.Command(dockerBinary, "rm", id))
+	c.Assert(err, check.Not(check.IsNil), check.Commentf("rm should have failed but didn't"))
+	_, err = buf.ReadTimeout(b, 2*time.Second)
+	c.Assert(err, check.IsNil)
+	dockerCmd(c, "rm", "-f", id)
+
+	_, err = buf.ReadTimeout(b, 2*time.Second)
+	c.Assert(err, check.Not(check.IsNil))
+}
+
 func (s *DockerSuite) TestGetStoppedContainerStats(c *check.C) {
 	// TODO: this test does nothing because we are c.Assert'ing in goroutine
 	var (

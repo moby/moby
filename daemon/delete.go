@@ -58,10 +58,6 @@ func (daemon *Daemon) ContainerRm(name string, config *ContainerRmConfig) error 
 
 // Destroy unregisters a container from the daemon and cleanly removes its contents from the filesystem.
 func (daemon *Daemon) rm(container *Container, forceRemove bool) (err error) {
-	// stop collection of stats for the container regardless
-	// if stats are currently getting collected.
-	daemon.statsCollector.stopCollection(container)
-
 	if container.IsRunning() {
 		if !forceRemove {
 			return fmt.Errorf("Conflict, You cannot remove a running container. Stop the container before attempting removal or use -f")
@@ -70,6 +66,10 @@ func (daemon *Daemon) rm(container *Container, forceRemove bool) (err error) {
 			return fmt.Errorf("Could not kill running container, cannot remove - %v", err)
 		}
 	}
+
+	// stop collection of stats for the container regardless
+	// if stats are currently getting collected.
+	daemon.statsCollector.stopCollection(container)
 
 	element := daemon.containers.Get(container.ID)
 	if element == nil {

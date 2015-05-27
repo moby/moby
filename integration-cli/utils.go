@@ -316,3 +316,26 @@ func parseCgroupPaths(procCgroupData string) map[string]string {
 	}
 	return cgroupPaths
 }
+
+type channelBuffer struct {
+	c chan []byte
+}
+
+func (c *channelBuffer) Write(b []byte) (int, error) {
+	c.c <- b
+	return len(b), nil
+}
+
+func (c *channelBuffer) Close() error {
+	close(c.c)
+	return nil
+}
+
+func (c *channelBuffer) ReadTimeout(p []byte, n time.Duration) (int, error) {
+	select {
+	case b := <-c.c:
+		return copy(p[0:], b), nil
+	case <-time.After(n):
+		return -1, fmt.Errorf("timeout reading from channel")
+	}
+}
