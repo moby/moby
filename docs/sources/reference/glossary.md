@@ -90,7 +90,7 @@ Docker and its components. It provides the following services:
 - Docker image hosting
 - User authentication
 - Automated image builds and work-flow tools such as build triggers and web hooks
-- Integration with GitHub and BitBucket
+- Integration with GitHub and Bitbucket
 
 
 ## Dockerfile

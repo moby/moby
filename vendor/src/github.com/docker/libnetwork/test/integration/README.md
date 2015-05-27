@@ -18,13 +18,13 @@ Integration tests are written in *bash* using the
 
 1. Bats (https://github.com/sstephenson/bats#installing-bats-from-source)
 2. Docker Machine (https://github.com/docker/machine)
-3. Virtualbox (as a Docker machine driver)
+3. VirtualBox (as a Docker machine driver)
 
 ## Running integration tests
 
 * Start by [installing] (https://github.com/sstephenson/bats#installing-bats-from-source) *bats* on your system.
 * If not done already, [install](https://docs.docker.com/machine/) *docker-machine* into /usr/bin
-* Make sure Virtualbox is installed as well, which will be used by docker-machine as a driver to launch VMs
+* Make sure VirtualBox is installed as well, which will be used by docker-machine as a driver to launch VMs
 
 In order to run all integration tests, pass *bats* the test path:
 ```

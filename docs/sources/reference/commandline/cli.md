@@ -662,7 +662,7 @@ is returned by the `docker attach` command to its caller too:
       --memory-swap=""         Total memory (memory + swap), `-1` to disable swap
       -c, --cpu-shares         CPU Shares (relative weight)
       --cpuset-mems=""         MEMs in which to allow execution, e.g. `0-3`, `0,1`
-      --cpuset-cpus=""         CPUs in which to allow exection, e.g. `0-3`, `0,1`
+      --cpuset-cpus=""         CPUs in which to allow execution, e.g. `0-3`, `0,1`
       --cgroup-parent=""       Optional parent cgroup for the container
 
 Builds Docker images from a Dockerfile and a "context". A build's context is
@@ -677,7 +677,7 @@ and its submodules using a `git clone --depth 1 --recursive` command.
 This command runs in a temporary directory on your local host.
 After the command succeeds, the directory is sent to the Docker daemon as the context.
 Local clones give you the ability to access private repositories using
-local user credentials, VPN's, and so forth.
+local user credentials, VPNs, and so forth.
 
 Git URLs accept context configuration in their fragment section, separated by a colon `:`.
 The first part represents the reference that Git will check out, this can be either

@@ -1,7 +1,7 @@
 Bridge Driver
 =============
 
-The bridge driver is an implementation that uses Linux Bridging and iptables to provide connectvity for containers
+The bridge driver is an implementation that uses Linux Bridging and iptables to provide connectivity for containers
 It creates a single bridge, called `docker0` by default, and attaches a `veth pair` between the bridge and every endpoint.
 
 ## Configuration

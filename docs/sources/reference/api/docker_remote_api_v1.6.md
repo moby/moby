@@ -178,7 +178,7 @@ Status Codes:
              "Warnings":[]
         }
 
-    **Second, start (using the ID returned above) the image we jus
+    **Second, start (using the ID returned above) the image we just
     created, mapping the ssh port 22 to something on the host**:
 
         POST /containers/e90e34656806/start HTTP/1.1
@@ -190,7 +190,7 @@ Status Codes:
 
 **Example response**:
 
-        HTTP/1.1 204 No Conten
+        HTTP/1.1 204 No Content
         Content-Type: text/plain; charset=utf-8
         Content-Length: 0
 

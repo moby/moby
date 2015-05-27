@@ -280,9 +280,9 @@ aws cloudfront  create-invalidation --profile docs.docker.com --distribution-id 
 aws cloudfront  create-invalidation --profile docs.docker.com --distribution-id $DISTRIBUTION_ID --invalidation-batch '{"Paths":{"Quantity":1, "Items":["/v1.1/reference/api/docker_io_oauth_api/"]},"CallerReference":"6Mar2015sventest1"}'
 ```
 
-### Generate the man pages for Mac OSX
+### Generate the man pages for Mac OS X
 
-When using Docker on Mac OSX the man pages will be missing by default. You can manually generate them by following these steps:
+When using Docker on Mac OS X the man pages will be missing by default. You can manually generate them by following these steps:
 
 1. Checkout the docker source. You must clone into your `/Users` directory because Boot2Docker can only share this path
    with the docker containers.

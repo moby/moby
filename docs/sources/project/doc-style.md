@@ -207,7 +207,7 @@ Text taken from a GUI (e.g., menu text or button text) should appear in "double
 quotes". The text should take the exact same capitalisation, etc. as appears in
 the GUI. E.g., Click "Continue" to save the settings.
 
-Text that refers to a keyboard command or hotkey is  capitalized (e.g., Ctrl-D).
+Text that refers to a keyboard command or hotkey is capitalized (e.g., Ctrl-D).
 
 When writing CLI examples, give the user hints by making the examples resemble
 exactly what they see in their shell: 

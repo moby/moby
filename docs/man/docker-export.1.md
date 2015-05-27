@@ -41,4 +41,4 @@ and import the contents of the tarball into it, then optionally tag it.
 April 2014, Originally compiled by William Henry (whenry at redhat dot com)
 based on docker.com source material and internal work.
 June 2014, updated by Sven Dowideit <SvenDowideit@home.org.au>
-Janurary 2015, updated by Joseph Kern (josephakern at gmail dot com)
+January 2015, updated by Joseph Kern (josephakern at gmail dot com)
