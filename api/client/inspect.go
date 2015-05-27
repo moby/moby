@@ -37,8 +37,13 @@ func (cli *DockerCli) CmdInspect(args ...string) error {
 	isImage := false
 
 	for _, name := range cmd.Args() {
-		obj, _, err := readBody(cli.call("GET", "/containers/"+name+"/json", nil, nil))
+		obj, statusCode, err := readBody(cli.call("GET", "/containers/"+name+"/json?no_err=1", nil, nil))
 		if err != nil {
+			fmt.Fprintf(cli.err, "%v", err)
+			continue
+		}
+		// Our protocal takes StatusNoContent as container not found, try image
+		if statusCode == 204 {
 			obj, _, err = readBody(cli.call("GET", "/images/"+name+"/json", nil, nil))
 			isImage = true
 			if err != nil {
