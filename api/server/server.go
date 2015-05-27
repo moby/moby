@@ -244,8 +244,6 @@ func (s *Server) postAuth(version version.Version, w http.ResponseWriter, r *htt
 }
 
 func (s *Server) getVersion(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	w.Header().Set("Content-Type", "application/json")
-
 	v := &types.Version{
 		Version:    dockerversion.VERSION,
 		ApiVersion: api.APIVERSION,
@@ -359,8 +357,6 @@ func (s *Server) getImagesJSON(version version.Version, w http.ResponseWriter, r
 }
 
 func (s *Server) getInfo(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	w.Header().Set("Content-Type", "application/json")
-
 	info, err := s.daemon.SystemInfo()
 	if err != nil {
 		return err
