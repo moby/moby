@@ -313,20 +313,20 @@ Currently supported options of `devicemapper`:
 
  *  `dm.thinpooldev`
 
-   Specifies a custom block storage device to use for the thin pool.
+     Specifies a custom block storage device to use for the thin pool.
 
-   If using a block device for device mapper storage, it is best to use `lvm2`
-   to create and manage the thin-pool volume. This volume is then handed to Docker
-   to exclusively create snapshot volumes needed for images and containers.  
+     If using a block device for device mapper storage, it is best to use `lvm2`
+     to create and manage the thin-pool volume. This volume is then handed to Docker
+     to exclusively create snapshot volumes needed for images and containers.  
 
-   Managing the thin-pool outside of Docker makes for the most feature-rich
-   method of having Docker utilize device mapper thin provisioning as the
-   backing storage for Docker's containers. The highlights of the lvm2-based
-   thin-pool management feature include: automatic or interactive thin-pool
-   resize support, dynamically changing thin-pool features, automatic thinp
-   metadata checking when lvm2 activates the thin-pool, etc.
+     Managing the thin-pool outside of Docker makes for the most feature-rich
+     method of having Docker utilize device mapper thin provisioning as the
+     backing storage for Docker's containers. The highlights of the lvm2-based
+     thin-pool management feature include: automatic or interactive thin-pool
+     resize support, dynamically changing thin-pool features, automatic thinp
+     metadata checking when lvm2 activates the thin-pool, etc.
 
-  Example use: ``docker -d --storage-opt dm.thinpooldev=/dev/mapper/thin-pool``
+     Example use: ``docker -d --storage-opt dm.thinpooldev=/dev/mapper/thin-pool``
 
  *  `dm.basesize`
 
@@ -336,69 +336,57 @@ Currently supported options of `devicemapper`:
     10 GB of space on the pool. However, the filesystem will use more space for
     the empty case the larger the device is.
 
-     **Warning:** This value affects the system-wide "base" empty filesystem
-     that may already be initialized and inherited by pulled images. Typically,
-     a change to this value will require additional steps to take effect:
+    **Warning**: This value affects the system-wide "base" empty filesystem
+    that may already be initialized and inherited by pulled images. Typically,
+    a change to this value will require additional steps to take effect:
 
         $ sudo service docker stop
         $ sudo rm -rf /var/lib/docker
         $ sudo service docker start
 
-    Example use:
-
-        $ docker -d --storage-opt dm.basesize=20G
+    Example use: ``$ docker -d --storage-opt dm.basesize=20G``
 
  *  `dm.loopdatasize`
 
-		>**Note**: This option configures devicemapper loopback, which is not for
-		>production use.
+    >**Note**: This option configures devicemapper loopback, which is not for
+    >production use.
 		
-  Specifies the size to use when creating the loopback file for the "data"
-  device which is used for the thin pool. The default size is 100G. Note that
-  the file is sparse, so it will not initially take up this much space.
+    Specifies the size to use when creating the loopback file for the "data"
+    device which is used for the thin pool. The default size is 100G. Note that
+    the file is sparse, so it will not initially take up this much space.
 
-  Example use:
-
-        $ docker -d --storage-opt dm.loopdatasize=200G
+    Example use: ``$ docker -d --storage-opt dm.loopdatasize=200G``
 
  *  `dm.loopmetadatasize`
 
-		>**Note**: This option configures devicemapper loopback, which is not for
-		>production use.
+    >**Note**: This option configures devicemapper loopback, which is not for
+    >production use.
 
-	Specifies the size to use when creating the loopback file for the
-	"metadadata" device which is used for the thin pool. The default size
-	is 2G. Note that the file is sparse, so it will not initially take up
-	this much space
+    Specifies the size to use when creating the loopback file for the
+    "metadadata" device which is used for the thin pool. The default size
+    is 2G. Note that the file is sparse, so it will not initially take up
+    this much space
 
-  Example use:
-
-        $ docker -d --storage-opt dm.loopmetadatasize=4G
+  Example use: ``$ docker -d --storage-opt dm.loopmetadatasize=4G``
 
  *  `dm.fs`
 
     Specifies the filesystem type to use for the base device. The supported
     options are "ext4" and "xfs". The default is "ext4"
 
-    Example use:
-
-        $ docker -d --storage-opt dm.fs=xfs
+    Example use: ``$ docker -d --storage-opt dm.fs=xfs``
 
  *  `dm.mkfsarg`
 
     Specifies extra mkfs arguments to be used when creating the base device.
 
-    Example use:
-
-        $ docker -d --storage-opt "dm.mkfsarg=-O ^has_journal"
+    Example use: ``$ docker -d --storage-opt "dm.mkfsarg=-O ^has_journal"``
 
  *  `dm.mountopt`
 
     Specifies extra mount options used when mounting the thin devices.
 
-    Example use:
-
-        $ docker -d --storage-opt dm.mountopt=nodiscard
+    Example use: ``$ docker -d --storage-opt dm.mountopt=nodiscard``
 
  *  `dm.datadev`
 
@@ -410,11 +398,7 @@ Currently supported options of `devicemapper`:
     metadatadev should be specified to completely avoid using the loopback
     device.
 
-    Example use:
-
-        $ docker -d \
-            --storage-opt dm.datadev=/dev/sdb1 \
-            --storage-opt dm.metadatadev=/dev/sdc1
+    Example use: ``$ docker -d --storage-opt dm.datadev=/dev/sdb1 --storage-opt dm.metadatadev=/dev/sdc1``
 
  *  `dm.metadatadev`
 
@@ -428,22 +412,16 @@ Currently supported options of `devicemapper`:
     If setting up a new metadata pool it is required to be valid. This can be
     achieved by zeroing the first 4k to indicate empty metadata, like this:
 
-        $ dd if=/dev/zero of=$metadata_dev bs=4096 count=1
+	``$ dd if=/dev/zero of=$metadata_dev bs=4096 count=1``
 
-    Example use:
-
-        $ docker -d \
-            --storage-opt dm.datadev=/dev/sdb1 \
-            --storage-opt dm.metadatadev=/dev/sdc1
+    Example use: ``$ docker -d --storage-opt dm.datadev=/dev/sdb1 --storage-opt dm.metadatadev=/dev/sdc1``
 
  *  `dm.blocksize`
 
     Specifies a custom blocksize to use for the thin pool. The default
     blocksize is 64K.
 
-    Example use:
-
-        $ docker -d --storage-opt dm.blocksize=512K
+    Example use: ``$ docker -d --storage-opt dm.blocksize=512K``
 
  *  `dm.blkdiscard`
 
@@ -455,9 +433,7 @@ Currently supported options of `devicemapper`:
     times, but will make the space used in `/var/lib/docker` directory not be
     returned to the system for other use when containers are removed.
 
-    Example use:
-
-        $ docker -d --storage-opt dm.blkdiscard=false
+    Example use: ``$ docker -d --storage-opt dm.blkdiscard=false``
 
  *  `dm.override_udev_sync_check`
 
@@ -483,7 +459,7 @@ Currently supported options of `devicemapper`:
     To allow the `docker` daemon to start, regardless of `udev` sync not being
     supported, set `dm.override_udev_sync_check` to true:
 
-        $ docker -d --storage-opt dm.override_udev_sync_check=true
+	``$ docker -d --storage-opt dm.override_udev_sync_check=true``
 
     When this value is `true`, the  `devicemapper` continues and simply warns
     you the errors are happening.
