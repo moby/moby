@@ -1221,16 +1221,21 @@ func (daemon *Daemon) verifyHostConfig(hostConfig *runconfig.HostConfig) ([]stri
 }
 
 func (daemon *Daemon) setHostConfig(container *Container, hostConfig *runconfig.HostConfig) error {
+	container.Lock()
+	if err := parseSecurityOpt(container, hostConfig); err != nil {
+		container.Unlock()
+		return err
+	}
+	container.Unlock()
+
+	// Do not lock while creating volumes since this could be calling out to external plugins
+	// Don't want to block other actions, like `docker ps` because we're waiting on an external plugin
 	if err := daemon.registerMountPoints(container, hostConfig); err != nil {
 		return err
 	}
 
 	container.Lock()
 	defer container.Unlock()
-	if err := parseSecurityOpt(container, hostConfig); err != nil {
-		return err
-	}
-
 	// Register any links from the host config before starting the container
 	if err := daemon.RegisterLinks(container, hostConfig); err != nil {
 		return err
