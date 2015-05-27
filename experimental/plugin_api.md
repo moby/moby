@@ -26,18 +26,35 @@ containers is recommended.
 Docker discovers plugins by looking for them in the plugin directory whenever a
 user or container tries to use one by name.
 
-There are two types of files which can be put in the plugin directory.
+There are three types of files which can be put in the plugin directory.
 
 * `.sock` files are UNIX domain sockets.
 * `.spec` files are text files containing a URL, such as `unix:///other.sock`.
+* `.json` files are text files containing a full json specification for the plugin.
 
 The name of the file (excluding the extension) determines the plugin name.
 
 For example, the `flocker` plugin might create a UNIX socket at
 `/usr/share/docker/plugins/flocker.sock`.
 
-Plugins must be run locally on the same machine as the Docker daemon.  UNIX
-domain sockets are strongly encouraged for security reasons.
+### JSON specification
+
+This is the JSON format for a plugin:
+
+```json
+{
+  "Name": "plugin-example",
+  "Addr": "https://example.com/docker/plugin",
+  "TLSConfig": {
+    "InsecureSkipVerify": false,
+    "CAFile": "/usr/shared/docker/certs/example-ca.pem",
+    "CertFile": "/usr/shared/docker/certs/example-cert.pem",
+    "KeyFile": "/usr/shared/docker/certs/example-key.pem",
+  }
+}
+```
+
+The `TLSConfig` field is optional and TLS will only be verified if this configuration is present.
 
 ## Plugin lifecycle
 

@@ -15,8 +15,8 @@ import (
 	"github.com/docker/docker/cliconfig"
 	"github.com/docker/docker/pkg/homedir"
 	flag "github.com/docker/docker/pkg/mflag"
+	"github.com/docker/docker/pkg/sockets"
 	"github.com/docker/docker/pkg/term"
-	"github.com/docker/docker/utils"
 )
 
 // DockerCli represents the docker command line client.
@@ -210,7 +210,7 @@ func NewDockerCli(in io.ReadCloser, out, err io.Writer, keyFile string, proto, a
 	tr := &http.Transport{
 		TLSClientConfig: tlsConfig,
 	}
-	utils.ConfigureTCPTransport(tr, proto, addr)
+	sockets.ConfigureTCPTransport(tr, proto, addr)
 
 	configFile, e := cliconfig.Load(filepath.Join(homedir.Get(), ".docker"))
 	if e != nil {
