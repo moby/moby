@@ -1,23 +1,28 @@
 // +build windows
 
-/*
- This is the Windows driver for containers.
-
- TODO Windows: It is currently a placeholder to allow compilation of the
- daemon. Future PRs will have an implementation of this driver.
-*/
-
 package windows
 
 import (
 	"fmt"
+	"strings"
+	"sync"
 
+	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/autogen/dockerversion"
 	"github.com/docker/docker/daemon/execdriver"
+	"github.com/docker/docker/pkg/parsers"
 )
 
-const (
-	DriverName = "Windows"
-	Version    = "Placeholder"
+// This is a daemon development variable only and should not be
+// used for running production containers on Windows.
+var dummyMode bool
+
+// This allows the daemon to terminate containers rather than shutdown
+var terminateMode bool
+
+var (
+	DriverName = "Windows 1854"
+	Version    = dockerversion.VERSION + " " + dockerversion.GITCOMMIT
 )
 
 type activeContainer struct {
@@ -25,73 +30,61 @@ type activeContainer struct {
 }
 
 type driver struct {
-	root     string
-	initPath string
-}
-
-type info struct {
-	ID     string
-	driver *driver
-}
-
-func NewDriver(root, initPath string) (*driver, error) {
-	return &driver{
-		root:     root,
-		initPath: initPath,
-	}, nil
-}
-
-func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallback execdriver.StartCallback) (execdriver.ExitStatus, error) {
-	return execdriver.ExitStatus{ExitCode: 0}, nil
-}
-
-func (d *driver) Terminate(p *execdriver.Command) error {
-	return nil
-}
-
-func (d *driver) Kill(p *execdriver.Command, sig int) error {
-	return nil
-}
-
-func kill(ID string, PID int) error {
-	return nil
-}
-
-func (d *driver) Pause(c *execdriver.Command) error {
-	return fmt.Errorf("Windows: Containers cannot be paused")
-}
-
-func (d *driver) Unpause(c *execdriver.Command) error {
-	return fmt.Errorf("Windows: Containers cannot be paused")
-}
-
-func (i *info) IsRunning() bool {
-	return false
-}
-
-func (d *driver) Info(id string) execdriver.Info {
-	return &info{
-		ID:     id,
-		driver: d,
-	}
+	root             string
+	initPath         string
+	activeContainers map[string]*activeContainer
+	sync.Mutex
 }
 
 func (d *driver) Name() string {
-	return fmt.Sprintf("%s Date %s", DriverName, Version)
+	return fmt.Sprintf("%s %s", DriverName, Version)
 }
 
-func (d *driver) GetPidsForContainer(id string) ([]int, error) {
-	return nil, fmt.Errorf("GetPidsForContainer: GetPidsForContainer() not implemented")
+func NewDriver(root, initPath string, options []string) (*driver, error) {
+
+	for _, option := range options {
+		key, val, err := parsers.ParseKeyValueOpt(option)
+		if err != nil {
+			return nil, err
+		}
+		key = strings.ToLower(key)
+		switch key {
+
+		case "dummy":
+			switch val {
+			case "1":
+				dummyMode = true
+				logrus.Warn("Using dummy mode in Windows exec driver. This is for development use only!")
+			}
+
+		case "terminate":
+			switch val {
+			case "1":
+				terminateMode = true
+				logrus.Warn("Using terminate mode in Windows exec driver. This is for testing purposes only.")
+			}
+
+		default:
+			return nil, fmt.Errorf("Unrecognised exec driver option %s\n", key)
+		}
+	}
+
+	return &driver{
+		root:             root,
+		initPath:         initPath,
+		activeContainers: make(map[string]*activeContainer),
+	}, nil
 }
 
-func (d *driver) Clean(id string) error {
-	return nil
-}
-
-func (d *driver) Stats(id string) (*execdriver.ResourceStats, error) {
-	return nil, fmt.Errorf("Windows: Stats not implemented")
-}
-
-func (d *driver) Exec(c *execdriver.Command, processConfig *execdriver.ProcessConfig, pipes *execdriver.Pipes, startCallback execdriver.StartCallback) (int, error) {
-	return 0, nil
+// setupEnvironmentVariables convert a string array of environment variables
+// into a map as required by the HCS. Source array is in format [v1=k1] [v2=k2] etc.
+func setupEnvironmentVariables(a []string) map[string]string {
+	r := make(map[string]string)
+	for _, s := range a {
+		arr := strings.Split(s, "=")
+		if len(arr) == 2 {
+			r[arr[0]] = arr[1]
+		}
+	}
+	return r
 }
