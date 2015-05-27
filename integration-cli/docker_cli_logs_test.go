@@ -1,9 +1,12 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
+	"io"
 	"os/exec"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -32,9 +35,6 @@ func (s *DockerSuite) TestLogsContainerSmallerThanPage(c *check.C) {
 	if len(out) != testLen+1 {
 		c.Fatalf("Expected log length of %d, received %d\n", testLen+1, len(out))
 	}
-
-	deleteContainer(cleanedContainerID)
-
 }
 
 // Regression test: When going over the PageSize, it used to panic (gh#4851)
@@ -58,9 +58,6 @@ func (s *DockerSuite) TestLogsContainerBiggerThanPage(c *check.C) {
 	if len(out) != testLen+1 {
 		c.Fatalf("Expected log length of %d, received %d\n", testLen+1, len(out))
 	}
-
-	deleteContainer(cleanedContainerID)
-
 }
 
 // Regression test: When going much over the PageSize, it used to block (gh#4851)
@@ -84,9 +81,6 @@ func (s *DockerSuite) TestLogsContainerMuchBiggerThanPage(c *check.C) {
 	if len(out) != testLen+1 {
 		c.Fatalf("Expected log length of %d, received %d\n", testLen+1, len(out))
 	}
-
-	deleteContainer(cleanedContainerID)
-
 }
 
 func (s *DockerSuite) TestLogsTimestamps(c *check.C) {
@@ -126,9 +120,6 @@ func (s *DockerSuite) TestLogsTimestamps(c *check.C) {
 			}
 		}
 	}
-
-	deleteContainer(cleanedContainerID)
-
 }
 
 func (s *DockerSuite) TestLogsSeparateStderr(c *check.C) {
@@ -157,9 +148,6 @@ func (s *DockerSuite) TestLogsSeparateStderr(c *check.C) {
 	if stderr != msg {
 		c.Fatalf("Expected %v in stderr stream, got %v", msg, stderr)
 	}
-
-	deleteContainer(cleanedContainerID)
-
 }
 
 func (s *DockerSuite) TestLogsStderrInStdout(c *check.C) {
@@ -188,9 +176,6 @@ func (s *DockerSuite) TestLogsStderrInStdout(c *check.C) {
 	if stdout != msg {
 		c.Fatalf("Expected %v in stdout stream, got %v", msg, stdout)
 	}
-
-	deleteContainer(cleanedContainerID)
-
 }
 
 func (s *DockerSuite) TestLogsTail(c *check.C) {
@@ -240,8 +225,6 @@ func (s *DockerSuite) TestLogsTail(c *check.C) {
 	if len(lines) != testLen+1 {
 		c.Fatalf("Expected log %d lines, received %d\n", testLen+1, len(lines))
 	}
-
-	deleteContainer(cleanedContainerID)
 }
 
 func (s *DockerSuite) TestLogsFollowStopped(c *check.C) {
@@ -272,8 +255,81 @@ func (s *DockerSuite) TestLogsFollowStopped(c *check.C) {
 	case <-time.After(1 * time.Second):
 		c.Fatal("Following logs is hanged")
 	}
+}
 
-	deleteContainer(cleanedContainerID)
+func (s *DockerSuite) TestLogsSince(c *check.C) {
+	name := "testlogssince"
+	runCmd := exec.Command(dockerBinary, "run", "--name="+name, "busybox", "/bin/sh", "-c", "for i in $(seq 1 3); do sleep 2; echo `date +%s` log$i; done")
+	out, _, err := runCommandWithOutput(runCmd)
+	if err != nil {
+		c.Fatalf("run failed with errors: %s, %v", out, err)
+	}
+
+	log2Line := strings.Split(strings.Split(out, "\n")[1], " ")
+	t, err := strconv.ParseInt(log2Line[0], 10, 64) // the timestamp log2 is writen
+	c.Assert(err, check.IsNil)
+	since := t + 1 // add 1s so log1 & log2 doesn't show up
+	logsCmd := exec.Command(dockerBinary, "logs", "-t", fmt.Sprintf("--since=%v", since), name)
+
+	out, _, err = runCommandWithOutput(logsCmd)
+	if err != nil {
+		c.Fatalf("failed to log container: %s, %v", out, err)
+	}
+
+	// Skip 2 seconds
+	unexpected := []string{"log1", "log2"}
+	for _, v := range unexpected {
+		if strings.Contains(out, v) {
+			c.Fatalf("unexpected log message returned=%v, since=%v\nout=%v", v, since, out)
+		}
+	}
+
+	// Test with default value specified and parameter omitted
+	expected := []string{"log1", "log2", "log3"}
+	for _, cmd := range []*exec.Cmd{
+		exec.Command(dockerBinary, "logs", "-t", name),
+		exec.Command(dockerBinary, "logs", "-t", "--since=0", name),
+	} {
+		out, _, err = runCommandWithOutput(cmd)
+		if err != nil {
+			c.Fatalf("failed to log container: %s, %v", out, err)
+		}
+		for _, v := range expected {
+			if !strings.Contains(out, v) {
+				c.Fatalf("'%v' does not contain=%v\nout=%s", cmd.Args, v, out)
+			}
+		}
+	}
+}
+
+func (s *DockerSuite) TestLogsSinceFutureFollow(c *check.C) {
+	runCmd := exec.Command(dockerBinary, "run", "-d", "busybox", "/bin/sh", "-c", `for i in $(seq 1 5); do date +%s; sleep 1; done`)
+	out, _, err := runCommandWithOutput(runCmd)
+	if err != nil {
+		c.Fatalf("run failed with errors: %s, %v", out, err)
+	}
+	cleanedContainerID := strings.TrimSpace(out)
+
+	now := daemonTime(c).Unix()
+	since := now + 2
+	logCmd := exec.Command(dockerBinary, "logs", "-f", fmt.Sprintf("--since=%v", since), cleanedContainerID)
+	out, _, err = runCommandWithOutput(logCmd)
+	if err != nil {
+		c.Fatalf("failed to log container: %s, %v", out, err)
+	}
+	lines := strings.Split(strings.TrimSpace(out), "\n")
+	if len(lines) == 0 {
+		c.Fatal("got no log lines")
+	}
+	for _, v := range lines {
+		ts, err := strconv.ParseInt(v, 10, 64)
+		if err != nil {
+			c.Fatalf("cannot parse timestamp output from log: '%v'\nout=%s", v, out)
+		}
+		if ts < since {
+			c.Fatalf("earlier log found. since=%v logdate=%v", since, ts)
+		}
+	}
 }
 
 // Regression test for #8832
@@ -317,4 +373,55 @@ func (s *DockerSuite) TestLogsFollowSlowStdoutConsumer(c *check.C) {
 		c.Fatalf("Invalid bytes read: %d, expected %d", actual, expected)
 	}
 
+}
+
+func (s *DockerSuite) TestLogsFollowGoroutinesWithStdout(c *check.C) {
+	out, _ := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "while true; do echo hello; sleep 2; done")
+	id := strings.TrimSpace(out)
+	c.Assert(waitRun(id), check.IsNil)
+
+	type info struct {
+		NGoroutines int
+	}
+	getNGoroutines := func() int {
+		var i info
+		status, b, err := sockRequest("GET", "/info", nil)
+		c.Assert(err, check.IsNil)
+		c.Assert(status, check.Equals, 200)
+		c.Assert(json.Unmarshal(b, &i), check.IsNil)
+		return i.NGoroutines
+	}
+
+	nroutines := getNGoroutines()
+
+	cmd := exec.Command(dockerBinary, "logs", "-f", id)
+	r, w := io.Pipe()
+	cmd.Stdout = w
+	c.Assert(cmd.Start(), check.IsNil)
+
+	// Make sure pipe is written to
+	chErr := make(chan error)
+	go func() {
+		b := make([]byte, 1)
+		_, err := r.Read(b)
+		chErr <- err
+	}()
+	c.Assert(<-chErr, check.IsNil)
+	c.Assert(cmd.Process.Kill(), check.IsNil)
+
+	// NGoroutines is not updated right away, so we need to wait before failing
+	t := time.After(30 * time.Second)
+	for {
+		select {
+		case <-t:
+			if n := getNGoroutines(); n > nroutines {
+				c.Fatalf("leaked goroutines: expected less than or equal to %d, got: %d", nroutines, n)
+			}
+		default:
+			if n := getNGoroutines(); n <= nroutines {
+				return
+			}
+			time.Sleep(200 * time.Millisecond)
+		}
+	}
 }

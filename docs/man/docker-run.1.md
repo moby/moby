@@ -8,10 +8,12 @@ docker-run - Run a command in a new container
 **docker run**
 [**-a**|**--attach**[=*[]*]]
 [**--add-host**[=*[]*]]
+[**--blkio-weight**[=*[BLKIO-WEIGHT]*]]
 [**-c**|**--cpu-shares**[=*0*]]
 [**--cap-add**[=*[]*]]
 [**--cap-drop**[=*[]*]]
 [**--cidfile**[=*CIDFILE*]]
+[**--cpu-period**[=*0*]]
 [**--cpuset-cpus**[=*CPUSET-CPUS*]]
 [**--cpuset-mems**[=*CPUSET-MEMS*]]
 [**-d**|**--detach**[=*false*]]
@@ -37,9 +39,11 @@ docker-run - Run a command in a new container
 [**--mac-address**[=*MAC-ADDRESS*]]
 [**--name**[=*NAME*]]
 [**--net**[=*"bridge"*]]
+[**--oom-kill-disable**[=*false*]]
 [**-P**|**--publish-all**[=*false*]]
 [**-p**|**--publish**[=*[]*]]
 [**--pid**[=*[]*]]
+[**--uts**[=*[]*]]
 [**--privileged**[=*false*]]
 [**--read-only**[=*false*]]
 [**--restart**[=*RESTART*]]
@@ -84,6 +88,9 @@ each of stdin, stdout, and stderr.
 
    Add a line to /etc/hosts. The format is hostname:ip.  The **--add-host**
 option can be set multiple times.
+
+**--blkio-weight**=0
+   Block IO weight (relative weight) accepts a weight value between 10 and 1000.
 
 **-c**, **--cpu-shares**=0
    CPU shares (relative weight)
@@ -132,6 +139,11 @@ division of CPU shares:
 
 **--cidfile**=""
    Write the container ID to the file
+
+**--cpu-period**=0
+   Limit the CPU CFS (Completely Fair Scheduler) period
+
+   Limit the container's CPU usage. This flag tell the kernel to restrict the container's CPU usage to the period you specify.
 
 **--cpuset-cpus**=""
    CPUs in which to allow execution (0-3, 0,1)
@@ -227,7 +239,8 @@ ENTRYPOINT.
    Read in a line delimited file of labels
 
 **--link**=[]
-   Add link to another container in the form of <name or id>:alias
+   Add link to another container in the form of <name or id>:alias or just <name or id>
+in which case the alias will match the name
 
    If the operator
 uses **--link** when starting the new client container, then the client
@@ -285,6 +298,9 @@ and foreground Docker containers.
                                'container:<name|id>': reuses another container network stack
                                'host': use the host network stack inside the container.  Note: the host mode gives the container full access to local system services such as D-bus and is therefore considered insecure.
 
+**--oom-kill-disable**=*true*|*false*
+   Whether to disable OOM Killer for the container or not.
+
 **-P**, **--publish-all**=*true*|*false*
    Publish all exposed ports to random ports on the host interfaces. The default is *false*.
 
@@ -307,6 +323,11 @@ ports and the exposed ports, use `docker port`.
    Set the PID mode for the container
      **host**: use the host's PID namespace inside the container.
      Note: the host mode gives the container full access to local PID and is therefore considered insecure.
+
+**--uts**=host
+   Set the UTS mode for the container
+     **host**: use the host's UTS namespace inside the container.
+     Note: the host mode gives the container access to changing the host's hostname and is therefore considered insecure.
 
 **--privileged**=*true*|*false*
    Give extended privileges to this container. The default is *false*.

@@ -1,3 +1,5 @@
+// +build linux
+
 package lxc
 
 import (
@@ -14,22 +16,7 @@ import (
 )
 
 const LxcTemplate = `
-{{if .Network.Interface}}
-# network configuration
-lxc.network.type = veth
-lxc.network.link = {{.Network.Interface.Bridge}}
-lxc.network.name = eth0
-lxc.network.mtu = {{.Network.Mtu}}
-lxc.network.flags = up
-{{else if .Network.HostNetworking}}
 lxc.network.type = none
-{{else}}
-# network is disabled (-n=false)
-lxc.network.type = empty
-lxc.network.flags = up
-lxc.network.mtu = {{.Network.Mtu}}
-{{end}}
-
 # root filesystem
 {{$ROOTFS := .Rootfs}}
 lxc.rootfs = {{$ROOTFS}}
@@ -107,6 +94,9 @@ lxc.cgroup.memory.memsw.limit_in_bytes = {{$memSwap}}
 {{if .Resources.CpuShares}}
 lxc.cgroup.cpu.shares = {{.Resources.CpuShares}}
 {{end}}
+{{if .Resources.CpuPeriod}}
+lxc.cgroup.cpu.cfs_period_us = {{.Resources.CpuPeriod}}
+{{end}}
 {{if .Resources.CpusetCpus}}
 lxc.cgroup.cpuset.cpus = {{.Resources.CpusetCpus}}
 {{end}}
@@ -115,6 +105,12 @@ lxc.cgroup.cpuset.mems = {{.Resources.CpusetMems}}
 {{end}}
 {{if .Resources.CpuQuota}}
 lxc.cgroup.cpu.cfs_quota_us = {{.Resources.CpuQuota}}
+{{end}}
+{{if .Resources.BlkioWeight}}
+lxc.cgroup.blkio.weight = {{.Resources.BlkioWeight}}
+{{end}}
+{{if .Resources.OomKillDisable}}
+lxc.cgroup.memory.oom_control = {{.Resources.OomKillDisable}}
 {{end}}
 {{end}}
 
@@ -134,6 +130,7 @@ lxc.network.ipv4.gateway = {{.Network.Interface.Gateway}}
 {{if .Network.Interface.MacAddress}}
 lxc.network.hwaddr = {{.Network.Interface.MacAddress}}
 {{end}}
+{{end}}
 {{if .ProcessConfig.Env}}
 lxc.utsname = {{getHostname .ProcessConfig.Env}}
 {{end}}
@@ -152,7 +149,6 @@ lxc.cap.drop = {{.}}
 		{{end}}
 		{{end}}
 	{{end}}
-{{end}}
 {{end}}
 `
 

@@ -45,13 +45,6 @@ func TestParseRunLinks(t *testing.T) {
 	if _, hostConfig := mustParse(t, ""); len(hostConfig.Links) != 0 {
 		t.Fatalf("Error parsing links. No link expected, received: %v", hostConfig.Links)
 	}
-
-	if _, _, err := parse(t, "--link a"); err == nil {
-		t.Fatalf("Error parsing links. `--link a` should be an error but is not")
-	}
-	if _, _, err := parse(t, "--link"); err == nil {
-		t.Fatalf("Error parsing links. `--link` should be an error but is not")
-	}
 }
 
 func TestParseRunAttach(t *testing.T) {

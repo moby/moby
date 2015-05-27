@@ -92,15 +92,6 @@ type ImageInspect struct {
 	VirtualSize     int64
 }
 
-type LegacyImage struct {
-	ID          string `json:"Id"`
-	Repository  string
-	Tag         string
-	Created     int
-	Size        int
-	VirtualSize int
-}
-
 // GET  "/containers/json"
 type Port struct {
 	IP          string
@@ -152,10 +143,12 @@ type Info struct {
 	DriverStatus       [][2]string
 	MemoryLimit        bool
 	SwapLimit          bool
+	CpuCfsPeriod       bool
 	CpuCfsQuota        bool
 	IPv4Forwarding     bool
 	Debug              bool
 	NFd                int
+	OomKillDisable     bool
 	NGoroutines        int
 	SystemTime         string
 	ExecutionDriver    string
@@ -175,6 +168,7 @@ type Info struct {
 	NoProxy            string
 	Name               string
 	Labels             []string
+	ExperimentalBuild  bool
 }
 
 // This struct is a temp struct used by execStart

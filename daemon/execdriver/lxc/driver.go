@@ -1,3 +1,5 @@
+// +build linux
+
 package lxc
 
 import (
@@ -10,6 +12,7 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -28,6 +31,7 @@ import (
 	"github.com/docker/libcontainer/system"
 	"github.com/docker/libcontainer/user"
 	"github.com/kr/pty"
+	"github.com/vishvananda/netns"
 )
 
 const DriverName = "lxc"
@@ -78,6 +82,41 @@ func (d *driver) Name() string {
 	return fmt.Sprintf("%s-%s", DriverName, version)
 }
 
+func setupNetNs(nsPath string) (*os.Process, error) {
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+
+	origns, err := netns.Get()
+	if err != nil {
+		return nil, err
+	}
+	defer origns.Close()
+
+	f, err := os.OpenFile(nsPath, os.O_RDONLY, 0)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get network namespace %q: %v", nsPath, err)
+	}
+	defer f.Close()
+
+	nsFD := f.Fd()
+	if err := netns.Set(netns.NsHandle(nsFD)); err != nil {
+		return nil, fmt.Errorf("failed to set network namespace %q: %v", nsPath, err)
+	}
+	defer netns.Set(origns)
+
+	cmd := exec.Command("/bin/sh", "-c", "while true; do sleep 1; done")
+	if err := cmd.Start(); err != nil {
+		return nil, fmt.Errorf("failed to start netns process: %v", err)
+	}
+
+	return cmd.Process, nil
+}
+
+func killNetNsProc(proc *os.Process) {
+	proc.Kill()
+	proc.Wait()
+}
+
 func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallback execdriver.StartCallback) (execdriver.ExitStatus, error) {
 	var (
 		term     execdriver.Terminal
@@ -85,16 +124,25 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 		dataPath = d.containerDir(c.ID)
 	)
 
+	if c.Network.NamespacePath == "" && c.Network.ContainerID == "" {
+		return execdriver.ExitStatus{ExitCode: -1}, fmt.Errorf("empty namespace path for non-container network")
+	}
+
+	container, err := d.createContainer(c)
+	if err != nil {
+		return execdriver.ExitStatus{ExitCode: -1}, err
+	}
+
 	if c.ProcessConfig.Tty {
 		term, err = NewTtyConsole(&c.ProcessConfig, pipes)
 	} else {
 		term, err = execdriver.NewStdConsole(&c.ProcessConfig, pipes)
 	}
-	c.ProcessConfig.Terminal = term
-	container, err := d.createContainer(c)
 	if err != nil {
 		return execdriver.ExitStatus{ExitCode: -1}, err
 	}
+	c.ProcessConfig.Terminal = term
+
 	d.Lock()
 	d.activeContainers[c.ID] = &activeContainer{
 		container: container,
@@ -120,6 +168,7 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 		"lxc-start",
 		"-n", c.ID,
 		"-f", configPath,
+		"-q",
 	}
 
 	// From lxc>=1.1 the default behavior is to daemonize containers after start
@@ -128,10 +177,20 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 		params = append(params, "-F")
 	}
 
+	proc := &os.Process{}
 	if c.Network.ContainerID != "" {
 		params = append(params,
 			"--share-net", c.Network.ContainerID,
 		)
+	} else {
+		proc, err = setupNetNs(c.Network.NamespacePath)
+		if err != nil {
+			return execdriver.ExitStatus{ExitCode: -1}, err
+		}
+
+		pidStr := fmt.Sprintf("%d", proc.Pid)
+		params = append(params,
+			"--share-net", pidStr)
 	}
 	if c.Ipc != nil {
 		if c.Ipc.ContainerID != "" {
@@ -148,15 +207,6 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 	params = append(params,
 		"--",
 		c.InitPath,
-	)
-	if c.Network.Interface != nil {
-		params = append(params,
-			"-g", c.Network.Interface.Gateway,
-			"-i", fmt.Sprintf("%s/%d", c.Network.Interface.IPAddress, c.Network.Interface.IPPrefixLen),
-		)
-	}
-	params = append(params,
-		"-mtu", strconv.Itoa(c.Network.Mtu),
 	)
 
 	if c.ProcessConfig.User != "" {
@@ -206,10 +256,12 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 	c.ProcessConfig.Args = append([]string{name}, arg...)
 
 	if err := createDeviceNodes(c.Rootfs, c.AutoCreatedDevices); err != nil {
+		killNetNsProc(proc)
 		return execdriver.ExitStatus{ExitCode: -1}, err
 	}
 
 	if err := c.ProcessConfig.Start(); err != nil {
+		killNetNsProc(proc)
 		return execdriver.ExitStatus{ExitCode: -1}, err
 	}
 
@@ -237,8 +289,10 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 	// Poll lxc for RUNNING status
 	pid, err := d.waitForStart(c, waitLock)
 	if err != nil {
+		killNetNsProc(proc)
 		return terminate(err)
 	}
+	killNetNsProc(proc)
 
 	cgroupPaths, err := cgroupPaths(c.ID)
 	if err != nil {
@@ -271,19 +325,20 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 	oomKillNotification, err := notifyOnOOM(cgroupPaths)
 
 	<-waitLock
+	exitCode := getExitCode(c)
 
 	if err == nil {
 		_, oomKill = <-oomKillNotification
-		logrus.Debugf("oomKill error %s waitErr %s", oomKill, waitErr)
+		logrus.Debugf("oomKill error: %v, waitErr: %v", oomKill, waitErr)
 	} else {
 		logrus.Warnf("Your kernel does not support OOM notifications: %s", err)
 	}
 
 	// check oom error
-	exitCode := getExitCode(c)
 	if oomKill {
 		exitCode = 137
 	}
+
 	return execdriver.ExitStatus{ExitCode: exitCode, OOMKilled: oomKill}, waitErr
 }
 
@@ -461,7 +516,11 @@ func getExitCode(c *execdriver.Command) int {
 }
 
 func (d *driver) Kill(c *execdriver.Command, sig int) error {
-	return KillLxc(c.ID, sig)
+	if sig == 9 || c.ProcessConfig.Process == nil {
+		return KillLxc(c.ID, sig)
+	}
+
+	return c.ProcessConfig.Process.Signal(syscall.Signal(sig))
 }
 
 func (d *driver) Pause(c *execdriver.Command) error {
@@ -521,7 +580,8 @@ func KillLxc(id string, sig int) error {
 	if err == nil {
 		output, err = exec.Command("lxc-kill", "-n", id, strconv.Itoa(sig)).CombinedOutput()
 	} else {
-		output, err = exec.Command("lxc-stop", "-k", "-n", id, strconv.Itoa(sig)).CombinedOutput()
+		// lxc-stop does not take arbitrary signals like lxc-kill does
+		output, err = exec.Command("lxc-stop", "-k", "-n", id).CombinedOutput()
 	}
 	if err != nil {
 		return fmt.Errorf("Err: %s Output: %s", err, output)

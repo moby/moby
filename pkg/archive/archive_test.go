@@ -1,6 +1,7 @@
 package archive
 
 import (
+	"archive/tar"
 	"bytes"
 	"fmt"
 	"io"
@@ -15,7 +16,6 @@ import (
 	"time"
 
 	"github.com/docker/docker/pkg/system"
-	"github.com/docker/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
 )
 
 func TestIsArchiveNilHeader(t *testing.T) {

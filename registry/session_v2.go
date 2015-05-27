@@ -27,7 +27,7 @@ func getV2Builder(e *Endpoint) *v2.URLBuilder {
 func (r *Session) V2RegistryEndpoint(index *IndexInfo) (ep *Endpoint, err error) {
 	// TODO check if should use Mirror
 	if index.Official {
-		ep, err = newEndpoint(REGISTRYSERVER, true)
+		ep, err = newEndpoint(REGISTRYSERVER, true, nil)
 		if err != nil {
 			return
 		}
@@ -38,7 +38,7 @@ func (r *Session) V2RegistryEndpoint(index *IndexInfo) (ep *Endpoint, err error)
 	} else if r.indexEndpoint.String() == index.GetAuthConfigKey() {
 		ep = r.indexEndpoint
 	} else {
-		ep, err = NewEndpoint(index)
+		ep, err = NewEndpoint(index, nil)
 		if err != nil {
 			return
 		}
@@ -49,7 +49,7 @@ func (r *Session) V2RegistryEndpoint(index *IndexInfo) (ep *Endpoint, err error)
 }
 
 // GetV2Authorization gets the authorization needed to the given image
-// If readonly access is requested, then only the authorization may
+// If readonly access is requested, then the authorization may
 // only be used for Get operations.
 func (r *Session) GetV2Authorization(ep *Endpoint, imageName string, readOnly bool) (auth *RequestAuthorization, err error) {
 	scopes := []string{"pull"}
@@ -77,14 +77,14 @@ func (r *Session) GetV2ImageManifest(ep *Endpoint, imageName, tagName string, au
 	method := "GET"
 	logrus.Debugf("[registry] Calling %q %s", method, routeURL)
 
-	req, err := r.reqFactory.NewRequest(method, routeURL, nil)
+	req, err := http.NewRequest(method, routeURL, nil)
 	if err != nil {
 		return nil, "", err
 	}
 	if err := auth.Authorize(req); err != nil {
 		return nil, "", err
 	}
-	res, _, err := r.doRequest(req)
+	res, err := r.client.Do(req)
 	if err != nil {
 		return nil, "", err
 	}
@@ -118,14 +118,14 @@ func (r *Session) HeadV2ImageBlob(ep *Endpoint, imageName string, dgst digest.Di
 	method := "HEAD"
 	logrus.Debugf("[registry] Calling %q %s", method, routeURL)
 
-	req, err := r.reqFactory.NewRequest(method, routeURL, nil)
+	req, err := http.NewRequest(method, routeURL, nil)
 	if err != nil {
 		return false, err
 	}
 	if err := auth.Authorize(req); err != nil {
 		return false, err
 	}
-	res, _, err := r.doRequest(req)
+	res, err := r.client.Do(req)
 	if err != nil {
 		return false, err
 	}
@@ -152,14 +152,14 @@ func (r *Session) GetV2ImageBlob(ep *Endpoint, imageName string, dgst digest.Dig
 
 	method := "GET"
 	logrus.Debugf("[registry] Calling %q %s", method, routeURL)
-	req, err := r.reqFactory.NewRequest(method, routeURL, nil)
+	req, err := http.NewRequest(method, routeURL, nil)
 	if err != nil {
 		return err
 	}
 	if err := auth.Authorize(req); err != nil {
 		return err
 	}
-	res, _, err := r.doRequest(req)
+	res, err := r.client.Do(req)
 	if err != nil {
 		return err
 	}
@@ -183,14 +183,14 @@ func (r *Session) GetV2ImageBlobReader(ep *Endpoint, imageName string, dgst dige
 
 	method := "GET"
 	logrus.Debugf("[registry] Calling %q %s", method, routeURL)
-	req, err := r.reqFactory.NewRequest(method, routeURL, nil)
+	req, err := http.NewRequest(method, routeURL, nil)
 	if err != nil {
 		return nil, 0, err
 	}
 	if err := auth.Authorize(req); err != nil {
 		return nil, 0, err
 	}
-	res, _, err := r.doRequest(req)
+	res, err := r.client.Do(req)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -220,7 +220,7 @@ func (r *Session) PutV2ImageBlob(ep *Endpoint, imageName string, dgst digest.Dig
 
 	method := "PUT"
 	logrus.Debugf("[registry] Calling %q %s", method, location)
-	req, err := r.reqFactory.NewRequest(method, location, ioutil.NopCloser(blobRdr))
+	req, err := http.NewRequest(method, location, ioutil.NopCloser(blobRdr))
 	if err != nil {
 		return err
 	}
@@ -230,7 +230,7 @@ func (r *Session) PutV2ImageBlob(ep *Endpoint, imageName string, dgst digest.Dig
 	if err := auth.Authorize(req); err != nil {
 		return err
 	}
-	res, _, err := r.doRequest(req)
+	res, err := r.client.Do(req)
 	if err != nil {
 		return err
 	}
@@ -259,7 +259,7 @@ func (r *Session) initiateBlobUpload(ep *Endpoint, imageName string, auth *Reque
 	}
 
 	logrus.Debugf("[registry] Calling %q %s", "POST", routeURL)
-	req, err := r.reqFactory.NewRequest("POST", routeURL, nil)
+	req, err := http.NewRequest("POST", routeURL, nil)
 	if err != nil {
 		return "", err
 	}
@@ -267,7 +267,7 @@ func (r *Session) initiateBlobUpload(ep *Endpoint, imageName string, auth *Reque
 	if err := auth.Authorize(req); err != nil {
 		return "", err
 	}
-	res, _, err := r.doRequest(req)
+	res, err := r.client.Do(req)
 	if err != nil {
 		return "", err
 	}
@@ -305,14 +305,14 @@ func (r *Session) PutV2ImageManifest(ep *Endpoint, imageName, tagName string, si
 
 	method := "PUT"
 	logrus.Debugf("[registry] Calling %q %s", method, routeURL)
-	req, err := r.reqFactory.NewRequest(method, routeURL, bytes.NewReader(signedManifest))
+	req, err := http.NewRequest(method, routeURL, bytes.NewReader(signedManifest))
 	if err != nil {
 		return "", err
 	}
 	if err := auth.Authorize(req); err != nil {
 		return "", err
 	}
-	res, _, err := r.doRequest(req)
+	res, err := r.client.Do(req)
 	if err != nil {
 		return "", err
 	}
@@ -366,14 +366,14 @@ func (r *Session) GetV2RemoteTags(ep *Endpoint, imageName string, auth *RequestA
 	method := "GET"
 	logrus.Debugf("[registry] Calling %q %s", method, routeURL)
 
-	req, err := r.reqFactory.NewRequest(method, routeURL, nil)
+	req, err := http.NewRequest(method, routeURL, nil)
 	if err != nil {
 		return nil, err
 	}
 	if err := auth.Authorize(req); err != nil {
 		return nil, err
 	}
-	res, _, err := r.doRequest(req)
+	res, err := r.client.Do(req)
 	if err != nil {
 		return nil, err
 	}

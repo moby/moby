@@ -1,13 +1,14 @@
 package client
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/url"
 	"os"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/docker/engine"
+	"github.com/docker/docker/api/types"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/promise"
 	"github.com/docker/docker/pkg/signal"
@@ -29,7 +30,7 @@ func (cli *DockerCli) forwardAllSignals(cid string) chan os.Signal {
 				}
 			}
 			if sig == "" {
-				logrus.Errorf("Unsupported signal: %v. Discarding.", s)
+				fmt.Fprintf(cli.err, "Unsupported signal: %v. Discarding.\n", s)
 			}
 			if _, _, err := readBody(cli.call("POST", fmt.Sprintf("/containers/%s/kill?signal=%s", cid, sig), nil, nil)); err != nil {
 				logrus.Debugf("Error sending signal: %s", err)
@@ -65,12 +66,12 @@ func (cli *DockerCli) CmdStart(args ...string) error {
 			return err
 		}
 
-		env := engine.Env{}
-		if err := env.Decode(stream); err != nil {
+		var c types.ContainerJSON
+		if err := json.NewDecoder(stream).Decode(&c); err != nil {
 			return err
 		}
-		config := env.GetSubEnv("Config")
-		tty = config.GetBool("Tty")
+
+		tty = c.Config.Tty
 
 		if !tty {
 			sigc := cli.forwardAllSignals(cmd.Arg(0))
@@ -82,7 +83,7 @@ func (cli *DockerCli) CmdStart(args ...string) error {
 		v := url.Values{}
 		v.Set("stream", "1")
 
-		if *openStdin && config.GetBool("OpenStdin") {
+		if *openStdin && c.Config.OpenStdin {
 			v.Set("stdin", "1")
 			in = cli.in
 		}
@@ -95,7 +96,7 @@ func (cli *DockerCli) CmdStart(args ...string) error {
 		defer func() {
 			logrus.Debugf("CmdStart() returned, defer waiting for hijack to finish.")
 			if _, ok := <-hijacked; ok {
-				logrus.Errorf("Hijack did not finish (chan still open)")
+				fmt.Fprintln(cli.err, "Hijack did not finish (chan still open)")
 			}
 			cli.in.Close()
 		}()
@@ -119,6 +120,7 @@ func (cli *DockerCli) CmdStart(args ...string) error {
 	}
 
 	var encounteredError error
+	var errNames []string
 	for _, name := range cmd.Args() {
 		_, _, err := readBody(cli.call("POST", "/containers/"+name+"/start", nil, nil))
 		if err != nil {
@@ -126,7 +128,7 @@ func (cli *DockerCli) CmdStart(args ...string) error {
 				// attach and openStdin is false means it could be starting multiple containers
 				// when a container start failed, show the error message and start next
 				fmt.Fprintf(cli.err, "%s\n", err)
-				encounteredError = fmt.Errorf("Error: failed to start one or more containers")
+				errNames = append(errNames, name)
 			} else {
 				encounteredError = err
 			}
@@ -137,6 +139,9 @@ func (cli *DockerCli) CmdStart(args ...string) error {
 		}
 	}
 
+	if len(errNames) > 0 {
+		encounteredError = fmt.Errorf("Error: failed to start containers: %v", errNames)
+	}
 	if encounteredError != nil {
 		return encounteredError
 	}
@@ -144,7 +149,7 @@ func (cli *DockerCli) CmdStart(args ...string) error {
 	if *openStdin || *attach {
 		if tty && cli.isTerminalOut {
 			if err := cli.monitorTtySize(cmd.Arg(0), false); err != nil {
-				logrus.Errorf("Error monitoring TTY size: %s", err)
+				fmt.Fprintf(cli.err, "Error monitoring TTY size: %s\n", err)
 			}
 		}
 		if attchErr := <-cErr; attchErr != nil {

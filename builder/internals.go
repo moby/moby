@@ -155,6 +155,7 @@ func (b *Builder) runContextCommand(args []string, allowRemote bool, allowDecomp
 			dest,
 			allowRemote,
 			allowDecompression,
+			true,
 		); err != nil {
 			return err
 		}
@@ -225,7 +226,7 @@ func (b *Builder) runContextCommand(args []string, allowRemote bool, allowDecomp
 	return nil
 }
 
-func calcCopyInfo(b *Builder, cmdName string, cInfos *[]*copyInfo, origPath string, destPath string, allowRemote bool, allowDecompression bool) error {
+func calcCopyInfo(b *Builder, cmdName string, cInfos *[]*copyInfo, origPath string, destPath string, allowRemote bool, allowDecompression bool, allowWildcards bool) error {
 
 	if origPath != "" && origPath[0] == '/' && len(origPath) > 1 {
 		origPath = origPath[1:]
@@ -350,7 +351,7 @@ func calcCopyInfo(b *Builder, cmdName string, cInfos *[]*copyInfo, origPath stri
 	}
 
 	// Deal with wildcards
-	if ContainsWildcards(origPath) {
+	if allowWildcards && ContainsWildcards(origPath) {
 		for _, fileInfo := range b.context.GetSums() {
 			if fileInfo.Name() == "" {
 				continue
@@ -360,7 +361,9 @@ func calcCopyInfo(b *Builder, cmdName string, cInfos *[]*copyInfo, origPath stri
 				continue
 			}
 
-			calcCopyInfo(b, cmdName, cInfos, fileInfo.Name(), destPath, allowRemote, allowDecompression)
+			// Note we set allowWildcards to false in case the name has
+			// a * in it
+			calcCopyInfo(b, cmdName, cInfos, fileInfo.Name(), destPath, allowRemote, allowDecompression, false)
 		}
 		return nil
 	}
@@ -455,10 +458,8 @@ func (b *Builder) pullImage(name string) (*imagepkg.Image, error) {
 	}
 
 	imagePullConfig := &graph.ImagePullConfig{
-		Parallel:   true,
 		AuthConfig: pullRegistryAuth,
 		OutStream:  ioutils.NopWriteCloser(b.OutOld),
-		Json:       b.StreamFormatter.Json(),
 	}
 
 	if err := b.Daemon.Repositories().Pull(remote, tag, imagePullConfig); err != nil {
@@ -552,12 +553,15 @@ func (b *Builder) create() (*daemon.Container, error) {
 	b.Config.Image = b.image
 
 	hostConfig := &runconfig.HostConfig{
-		CpuShares:  b.cpuShares,
-		CpuQuota:   b.cpuQuota,
-		CpusetCpus: b.cpuSetCpus,
-		CpusetMems: b.cpuSetMems,
-		Memory:     b.memory,
-		MemorySwap: b.memorySwap,
+		CpuShares:    b.cpuShares,
+		CpuPeriod:    b.cpuPeriod,
+		CpuQuota:     b.cpuQuota,
+		CpusetCpus:   b.cpuSetCpus,
+		CpusetMems:   b.cpuSetMems,
+		CgroupParent: b.cgroupParent,
+		Memory:       b.memory,
+		MemorySwap:   b.memorySwap,
+		NetworkMode:  "bridge",
 	}
 
 	config := *b.Config
@@ -618,7 +622,7 @@ func (b *Builder) run(c *daemon.Container) error {
 	// Wait for it to finish
 	if ret, _ := c.WaitStop(-1 * time.Second); ret != 0 {
 		return &jsonmessage.JSONError{
-			Message: fmt.Sprintf("The command %v returned a non-zero code: %d", b.Config.Cmd, ret),
+			Message: fmt.Sprintf("The command '%s' returned a non-zero code: %d", b.Config.Cmd.ToString(), ret),
 			Code:    ret,
 		}
 	}
@@ -760,16 +764,14 @@ func fixPermissions(source, destination string, uid, gid int, destExisted bool) 
 
 func (b *Builder) clearTmp() {
 	for c := range b.TmpContainers {
-		tmp, err := b.Daemon.Get(c)
-		if err != nil {
-			fmt.Fprint(b.OutStream, err.Error())
+		rmConfig := &daemon.ContainerRmConfig{
+			ForceRemove:  true,
+			RemoveVolume: true,
 		}
-
-		if err := b.Daemon.Rm(tmp); err != nil {
+		if err := b.Daemon.ContainerRm(c, rmConfig); err != nil {
 			fmt.Fprintf(b.OutStream, "Error removing intermediate container %s: %v\n", stringid.TruncateID(c), err)
 			return
 		}
-		b.Daemon.DeleteVolumes(tmp.VolumePaths())
 		delete(b.TmpContainers, c)
 		fmt.Fprintf(b.OutStream, "Removing intermediate container %s\n", stringid.TruncateID(c))
 	}

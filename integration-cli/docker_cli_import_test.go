@@ -39,3 +39,14 @@ func (s *DockerSuite) TestImportDisplay(c *check.C) {
 	}
 
 }
+
+func (s *DockerSuite) TestImportBadURL(c *check.C) {
+	runCmd := exec.Command(dockerBinary, "import", "http://nourl/bad")
+	out, _, err := runCommandWithOutput(runCmd)
+	if err == nil {
+		c.Fatal("import was supposed to fail but didn't")
+	}
+	if !strings.Contains(out, "dial tcp") {
+		c.Fatalf("expected an error msg but didn't get one:\n%s", out)
+	}
+}

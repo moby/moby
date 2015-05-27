@@ -16,7 +16,7 @@
 
 function __fish_docker_no_subcommand --description 'Test if docker has yet to be given the subcommand'
     for i in (commandline -opc)
-        if contains -- $i attach build commit cp create diff events exec export history images import info inspect kill load login logout logs pause port ps pull push rename restart rm rmi run save search start stop tag top unpause version wait
+        if contains -- $i attach build commit cp create diff events exec export history images import info inspect kill load login logout logs pause port ps pull push rename restart rm rmi run save search start stop tag top unpause version wait stats
             return 1
         end
     end
@@ -233,6 +233,7 @@ complete -c docker -f -n '__fish_docker_no_subcommand' -a logs -d 'Fetch the log
 complete -c docker -A -f -n '__fish_seen_subcommand_from logs' -s f -l follow -d 'Follow log output'
 complete -c docker -A -f -n '__fish_seen_subcommand_from logs' -l help -d 'Print usage'
 complete -c docker -A -f -n '__fish_seen_subcommand_from logs' -s t -l timestamps -d 'Show timestamps'
+complete -c docker -A -f -n '__fish_seen_subcommand_from logs' -l since -d 'Show logs since timestamp'
 complete -c docker -A -f -n '__fish_seen_subcommand_from logs' -l tail -d 'Output the specified number of lines at the end of logs (defaults to all logs)'
 complete -c docker -A -f -n '__fish_seen_subcommand_from logs' -a '(__fish_print_docker_containers running)' -d "Container"
 
@@ -362,6 +363,7 @@ complete -c docker -A -f -n '__fish_seen_subcommand_from start' -a '(__fish_prin
 # stats
 complete -c docker -f -n '__fish_docker_no_subcommand' -a stats -d "Display a live stream of one or more containers' resource usage statistics"
 complete -c docker -A -f -n '__fish_seen_subcommand_from stats' -l help -d 'Print usage'
+complete -c docker -A -f -n '__fish_seen_subcommand_from stats' -l no-stream -d 'Disable streaming stats and only pull the first result'
 complete -c docker -A -f -n '__fish_seen_subcommand_from stats' -a '(__fish_print_docker_containers running)' -d "Container"
 
 # stop

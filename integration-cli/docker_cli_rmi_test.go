@@ -35,9 +35,6 @@ func (s *DockerSuite) TestRmiWithContainerFails(c *check.C) {
 	if !strings.Contains(images, "busybox") {
 		c.Fatalf("The name 'busybox' should not have been removed from images: %q", images)
 	}
-
-	deleteContainer(cleanedContainerID)
-
 }
 
 func (s *DockerSuite) TestRmiTag(c *check.C) {
@@ -101,8 +98,8 @@ func (s *DockerSuite) TestRmiImgIDForce(c *check.C) {
 			c.Fatalf("tag busybox to create 4 more images with same imageID; docker images shows: %q\n", imagesAfter)
 		}
 	}
-	out, _ = dockerCmd(c, "inspect", "-f", "{{.Id}}", "busybox-test")
-	imgID := strings.TrimSpace(out)
+	imgID, err := inspectField("busybox-test", "Id")
+	c.Assert(err, check.IsNil)
 
 	// first checkout without force it fails
 	runCmd = exec.Command(dockerBinary, "rmi", imgID)

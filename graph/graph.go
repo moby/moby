@@ -7,7 +7,6 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
-	"path"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -23,6 +22,7 @@ import (
 	"github.com/docker/docker/pkg/progressreader"
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/pkg/stringid"
+	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/pkg/truncindex"
 	"github.com/docker/docker/runconfig"
 )
@@ -42,7 +42,7 @@ func NewGraph(root string, driver graphdriver.Driver) (*Graph, error) {
 		return nil, err
 	}
 	// Create the root directory if it doesn't exists
-	if err := os.MkdirAll(root, 0700); err != nil && !os.IsExist(err) {
+	if err := system.MkdirAll(root, 0700); err != nil && !os.IsExist(err) {
 		return nil, err
 	}
 
@@ -229,8 +229,8 @@ func (graph *Graph) TempLayerArchive(id string, sf *streamformatter.StreamFormat
 
 // Mktemp creates a temporary sub-directory inside the graph's filesystem.
 func (graph *Graph) Mktemp(id string) (string, error) {
-	dir := path.Join(graph.Root, "_tmp", stringid.GenerateRandomID())
-	if err := os.MkdirAll(dir, 0700); err != nil {
+	dir := filepath.Join(graph.Root, "_tmp", stringid.GenerateRandomID())
+	if err := system.MkdirAll(dir, 0700); err != nil {
 		return "", err
 	}
 	return dir, nil
@@ -252,9 +252,6 @@ func bufferToFile(f *os.File, src io.Reader) (int64, digest.Digest, error) {
 	_, err := io.Copy(w, src)
 	w.Close()
 	if err != nil {
-		return 0, "", err
-	}
-	if err = f.Sync(); err != nil {
 		return 0, "", err
 	}
 	n, err := f.Seek(0, os.SEEK_CUR)
@@ -290,28 +287,28 @@ func SetupInitLayer(initLayer string) error {
 		parts := strings.Split(pth, "/")
 		prev := "/"
 		for _, p := range parts[1:] {
-			prev = path.Join(prev, p)
-			syscall.Unlink(path.Join(initLayer, prev))
+			prev = filepath.Join(prev, p)
+			syscall.Unlink(filepath.Join(initLayer, prev))
 		}
 
-		if _, err := os.Stat(path.Join(initLayer, pth)); err != nil {
+		if _, err := os.Stat(filepath.Join(initLayer, pth)); err != nil {
 			if os.IsNotExist(err) {
-				if err := os.MkdirAll(path.Join(initLayer, path.Dir(pth)), 0755); err != nil {
+				if err := system.MkdirAll(filepath.Join(initLayer, filepath.Dir(pth)), 0755); err != nil {
 					return err
 				}
 				switch typ {
 				case "dir":
-					if err := os.MkdirAll(path.Join(initLayer, pth), 0755); err != nil {
+					if err := system.MkdirAll(filepath.Join(initLayer, pth), 0755); err != nil {
 						return err
 					}
 				case "file":
-					f, err := os.OpenFile(path.Join(initLayer, pth), os.O_CREATE, 0755)
+					f, err := os.OpenFile(filepath.Join(initLayer, pth), os.O_CREATE, 0755)
 					if err != nil {
 						return err
 					}
 					f.Close()
 				default:
-					if err := os.Symlink(typ, path.Join(initLayer, pth)); err != nil {
+					if err := os.Symlink(typ, filepath.Join(initLayer, pth)); err != nil {
 						return err
 					}
 				}
@@ -432,7 +429,7 @@ func (graph *Graph) Heads() (map[string]*image.Image, error) {
 }
 
 func (graph *Graph) ImageRoot(id string) string {
-	return path.Join(graph.Root, id)
+	return filepath.Join(graph.Root, id)
 }
 
 func (graph *Graph) Driver() graphdriver.Driver {

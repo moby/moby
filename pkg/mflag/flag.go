@@ -560,7 +560,7 @@ func defaultUsage(f *FlagSet) {
 // Usage prints to standard error a usage message documenting all defined command-line flags.
 // The function is a variable that may be changed to point to a custom function.
 var Usage = func() {
-	fmt.Fprintf(CommandLine.output, "Usage of %s:\n", os.Args[0])
+	fmt.Fprintf(CommandLine.Out(), "Usage of %s:\n", os.Args[0])
 	PrintDefaults()
 }
 
@@ -1085,7 +1085,7 @@ func (cmd *FlagSet) ReportError(str string, withHelp bool) {
 			str += ". See '" + os.Args[0] + " " + cmd.Name() + " --help'"
 		}
 	}
-	fmt.Fprintf(cmd.Out(), "docker: %s.\n", str)
+	fmt.Fprintf(cmd.Out(), "docker: %s\n", str)
 	os.Exit(1)
 }
 

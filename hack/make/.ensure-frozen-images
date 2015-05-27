@@ -5,6 +5,7 @@ set -e
 images=(
 	busybox:latest
 	hello-world:frozen
+	jess/unshare:latest
 )
 
 if ! docker inspect "${images[@]}" &> /dev/null; then

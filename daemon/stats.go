@@ -10,7 +10,7 @@ import (
 	"github.com/docker/libcontainer/cgroups"
 )
 
-func (daemon *Daemon) ContainerStats(name string, out io.Writer) error {
+func (daemon *Daemon) ContainerStats(name string, stream bool, out io.Writer) error {
 	updates, err := daemon.SubscribeToContainerStats(name)
 	if err != nil {
 		return err
@@ -26,6 +26,9 @@ func (daemon *Daemon) ContainerStats(name string, out io.Writer) error {
 			// TODO: handle the specific broken pipe
 			daemon.UnsubscribeToContainerStats(name, updates)
 			return err
+		}
+		if !stream {
+			break
 		}
 	}
 	return nil

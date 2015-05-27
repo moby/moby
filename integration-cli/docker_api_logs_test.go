@@ -60,3 +60,24 @@ func (s *DockerSuite) TestLogsApiNoStdoutNorStderr(c *check.C) {
 		c.Fatalf("Expected %s, got %s", expected, string(body[:]))
 	}
 }
+
+// Regression test for #12704
+func (s *DockerSuite) TestLogsApiFollowEmptyOutput(c *check.C) {
+	name := "logs_test"
+	t0 := time.Now()
+	runCmd := exec.Command(dockerBinary, "run", "-d", "-t", "--name", name, "busybox", "sleep", "10")
+	if out, _, err := runCommandWithOutput(runCmd); err != nil {
+		c.Fatal(out, err)
+	}
+
+	_, body, err := sockRequestRaw("GET", fmt.Sprintf("/containers/%s/logs?follow=1&stdout=1&stderr=1&tail=all", name), bytes.NewBuffer(nil), "")
+	t1 := time.Now()
+	body.Close()
+	if err != nil {
+		c.Fatal(err)
+	}
+	elapsed := t1.Sub(t0).Seconds()
+	if elapsed > 5.0 {
+		c.Fatalf("HTTP response was not immediate (elapsed %.1fs)", elapsed)
+	}
+}

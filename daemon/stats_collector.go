@@ -24,6 +24,7 @@ func newStatsCollector(interval time.Duration) *statsCollector {
 		interval:   interval,
 		publishers: make(map[*Container]*pubsub.Publisher),
 		clockTicks: uint64(system.GetClockTicks()),
+		bufReader:  bufio.NewReaderSize(nil, 128),
 	}
 	go s.run()
 	return s
@@ -35,6 +36,7 @@ type statsCollector struct {
 	interval   time.Duration
 	clockTicks uint64
 	publishers map[*Container]*pubsub.Publisher
+	bufReader  *bufio.Reader
 }
 
 // collect registers the container with the collector and adds it to
@@ -121,14 +123,23 @@ const nanoSeconds = 1e9
 // getSystemCpuUSage returns the host system's cpu usage in nanoseconds
 // for the system to match the cgroup readings are returned in the same format.
 func (s *statsCollector) getSystemCpuUsage() (uint64, error) {
+	var line string
 	f, err := os.Open("/proc/stat")
 	if err != nil {
 		return 0, err
 	}
-	defer f.Close()
-	sc := bufio.NewScanner(f)
-	for sc.Scan() {
-		parts := strings.Fields(sc.Text())
+	defer func() {
+		s.bufReader.Reset(nil)
+		f.Close()
+	}()
+	s.bufReader.Reset(f)
+	err = nil
+	for err == nil {
+		line, err = s.bufReader.ReadString('\n')
+		if err != nil {
+			break
+		}
+		parts := strings.Fields(line)
 		switch parts[0] {
 		case "cpu":
 			if len(parts) < 8 {

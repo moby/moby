@@ -13,6 +13,8 @@ page_keywords: API, Docker, rcli, REST, documentation
  - The API tends to be REST, but for some complex commands, like `attach`
    or `pull`, the HTTP connection is hijacked to transport `STDOUT`,
    `STDIN` and `STDERR`.
+ - When the client API version is newer than the daemon's an HTTP
+   `400 Bad Request` error message is returned.
 
 # 2. Endpoints
 
@@ -147,8 +149,11 @@ Create a container
                "Memory": 0,
                "MemorySwap": 0,
                "CpuShares": 512,
+               "CpuPeriod": 100000,
                "CpusetCpus": "0,1",
                "CpusetMems": "0,1",
+               "BlkioWeight": 300,
+               "OomKillDisable": false,
                "PortBindings": { "22/tcp": [{ "HostPort": "11022" }] },
                "PublishAllPorts": false,
                "Privileged": false,
@@ -191,9 +196,12 @@ Json Parameters:
       always use this with `memory`, and make the value larger than `memory`.
 -   **CpuShares** - An integer value containing the CPU Shares for container
       (ie. the relative weight vs other containers).
+-   **CpuPeriod** - The length of a CPU period (in microseconds).
 -   **Cpuset** - The same as CpusetCpus, but deprecated, please don't use.
 -   **CpusetCpus** - String value containing the cgroups CpusetCpus to use.
 -   **CpusetMems** - Memory nodes (MEMs) in which to allow execution (0-3, 0,1). Only effective on NUMA systems.
+-   **BlkioWeight** - Block IO weight (relative weight) accepts a weight value between 10 and 1000.
+-   **OomKillDisable** - Boolean value, whether to disable OOM Killer for the container or not.
 -   **AttachStdin** - Boolean value, attaches to stdin.
 -   **AttachStdout** - Boolean value, attaches to stdout.
 -   **AttachStderr** - Boolean value, attaches to stderr.
@@ -220,8 +228,8 @@ Json Parameters:
             volume for the container), `host_path:container_path` (to bind-mount
             a host path into the container), or `host_path:container_path:ro`
             (to make the bind-mount read-only inside the container).
-    -   **Links** - A list of links for the container. Each link entry should be of
-          of the form `container_name:alias`.
+    -   **Links** - A list of links for the container. Each link entry should be
+          in the form of `container_name:alias`.
     -   **LxcConf** - LXC specific configurations. These configurations will only
           work when using the `lxc` execution driver.
     -   **PortBindings** - A map of exposed container ports and the host port they
@@ -339,12 +347,14 @@ Return low-level information on the container `id`
 		"ExecIDs": null,
 		"HostConfig": {
 			"Binds": null,
+			"BlkioWeight": 0,
 			"CapAdd": null,
 			"CapDrop": null,
 			"ContainerIDFile": "",
 			"CpusetCpus": "",
 			"CpusetMems": "",
 			"CpuShares": 0,
+			"CpuPeriod": 100000,
 			"Devices": [],
 			"Dns": null,
 			"DnsSearch": null,
@@ -354,6 +364,7 @@ Return low-level information on the container `id`
 			"LxcConf": [],
 			"Memory": 0,
 			"MemorySwap": 0,
+			"OomKillDisable": false,
 			"NetworkMode": "bridge",
 			"PortBindings": {},
 			"Privileged": false,
@@ -468,7 +479,7 @@ Get stdout and stderr logs from the container ``id``
 
 **Example request**:
 
-       GET /containers/4fa6e0f0c678/logs?stderr=1&stdout=1&timestamps=1&follow=1&tail=10 HTTP/1.1
+       GET /containers/4fa6e0f0c678/logs?stderr=1&stdout=1&timestamps=1&follow=1&tail=10&since=1428990821 HTTP/1.1
 
 **Example response**:
 
@@ -484,6 +495,8 @@ Query Parameters:
 -   **follow** – 1/True/true or 0/False/false, return stream. Default false
 -   **stdout** – 1/True/true or 0/False/false, show stdout log. Default false
 -   **stderr** – 1/True/true or 0/False/false, show stderr log. Default false
+-   **since** – UNIX timestamp (integer) to filter logs. Specifying a timestamp
+    will only output log-entries since that timestamp. Default: 0 (unfiltered)
 -   **timestamps** – 1/True/true or 0/False/false, print timestamps for
         every log line. Default false
 -   **tail** – Output specified number of lines at the end of logs: `all` or `<number>`. Default all
@@ -643,6 +656,10 @@ This endpoint returns a live stream of a container's resource usage statistics.
               "throttling_data" : {}
            }
         }
+
+Query Parameters:
+
+-   **stream** – 1/True/true or 0/False/false, pull stats once then disconnect. Default true
 
 Status Codes:
 
@@ -1597,33 +1614,52 @@ Display system-wide information
         Content-Type: application/json
 
         {
-             "Containers":11,
-             "Images":16,
-             "Driver":"btrfs",
-             "DriverStatus": [[""]],
-             "ExecutionDriver":"native-0.1",
-             "KernelVersion":"3.12.0-1-amd64"
-             "NCPU":1,
-             "MemTotal":2099236864,
-             "Name":"prod-server-42",
-             "ID":"7TRN:IPZB:QYBB:VPBQ:UMPP:KARE:6ZNR:XE6T:7EWV:PKF4:ZOJD:TPYS",
-             "Debug":false,
-             "NFd": 11,
-             "NGoroutines":21,
-             "SystemTime": "2015-03-10T11:11:23.730591467-07:00"
-             "NEventsListener":0,
-             "InitPath":"/usr/bin/docker",
-             "InitSha1":"",
-             "IndexServerAddress":["https://index.docker.io/v1/"],
-             "MemoryLimit":true,
-             "SwapLimit":false,
-             "IPv4Forwarding":true,
-             "Labels":["storage=ssd"],
-             "DockerRootDir": "/var/lib/docker",
-             "HttpProxy": "http://test:test@localhost:8080"
-             "HttpsProxy": "https://test:test@localhost:8080"
-             "NoProxy": "9.81.1.160"
-             "OperatingSystem": "Boot2Docker",
+            "Containers": 11,
+            "CpuCfsPeriod": true,
+            "CpuCfsQuota": true,
+            "Debug": false,
+            "DockerRootDir": "/var/lib/docker",
+            "Driver": "btrfs",
+            "DriverStatus": [[""]],
+            "ExecutionDriver": "native-0.1",
+            "ExperimentalBuild": false,
+            "HttpProxy": "http://test:test@localhost:8080",
+            "HttpsProxy": "https://test:test@localhost:8080",
+            "ID": "7TRN:IPZB:QYBB:VPBQ:UMPP:KARE:6ZNR:XE6T:7EWV:PKF4:ZOJD:TPYS",
+            "IPv4Forwarding": true,
+            "Images": 16,
+            "IndexServerAddress": "https://index.docker.io/v1/",
+            "InitPath": "/usr/bin/docker",
+            "InitSha1": "",
+            "KernelVersion": "3.12.0-1-amd64",
+            "Labels": [
+                "storage=ssd"
+            ],
+            "MemTotal": 2099236864,
+            "MemoryLimit": true,
+            "NCPU": 1,
+            "NEventsListener": 0,
+            "NFd": 11,
+            "NGoroutines": 21,
+            "Name": "prod-server-42",
+            "NoProxy": "9.81.1.160",
+            "OomKillDisable": true,
+            "OperatingSystem": "Boot2Docker",
+            "RegistryConfig": {
+                "IndexConfigs": {
+                    "docker.io": {
+                        "Mirrors": null,
+                        "Name": "docker.io",
+                        "Official": true,
+                        "Secure": true
+                    }
+                },
+                "InsecureRegistryCIDRs": [
+                    "127.0.0.0/8"
+                ]
+            },
+            "SwapLimit": false,
+            "SystemTime": "2015-03-10T11:11:23.730591467-07:00"
         }
 
 Status Codes:

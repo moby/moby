@@ -10,12 +10,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/docker/docker/pkg/iptables"
 	"github.com/go-check/check"
 )
 
 func (s *DockerSuite) TestLinksEtcHostsRegularFile(c *check.C) {
-
 	runCmd := exec.Command(dockerBinary, "run", "--net=host", "busybox", "ls", "-la", "/etc/hosts")
 	out, _, _, err := runCommandWithStdoutStderr(runCmd)
 	if err != nil {
@@ -108,31 +106,6 @@ func (s *DockerSuite) TestLinksPingLinkedContainersAfterRename(c *check.C) {
 	dockerCmd(c, "run", "--rm", "--link", "container_new:alias1", "--link", "container2:alias2", "busybox", "sh", "-c", "ping -c 1 alias1 -W 1 && ping -c 1 alias2 -W 1")
 	dockerCmd(c, "kill", idA)
 	dockerCmd(c, "kill", idB)
-
-}
-
-func (s *DockerSuite) TestLinksIpTablesRulesWhenLinkAndUnlink(c *check.C) {
-	testRequires(c, SameHostDaemon)
-
-	dockerCmd(c, "run", "-d", "--name", "child", "--publish", "8080:80", "busybox", "top")
-	dockerCmd(c, "run", "-d", "--name", "parent", "--link", "child:http", "busybox", "top")
-
-	childIP := findContainerIP(c, "child")
-	parentIP := findContainerIP(c, "parent")
-
-	sourceRule := []string{"-i", "docker0", "-o", "docker0", "-p", "tcp", "-s", childIP, "--sport", "80", "-d", parentIP, "-j", "ACCEPT"}
-	destinationRule := []string{"-i", "docker0", "-o", "docker0", "-p", "tcp", "-s", parentIP, "--dport", "80", "-d", childIP, "-j", "ACCEPT"}
-	if !iptables.Exists("filter", "DOCKER", sourceRule...) || !iptables.Exists("filter", "DOCKER", destinationRule...) {
-		c.Fatal("Iptables rules not found")
-	}
-
-	dockerCmd(c, "rm", "--link", "parent/http")
-	if iptables.Exists("filter", "DOCKER", sourceRule...) || iptables.Exists("filter", "DOCKER", destinationRule...) {
-		c.Fatal("Iptables rules should be removed when unlink")
-	}
-
-	dockerCmd(c, "kill", "child")
-	dockerCmd(c, "kill", "parent")
 
 }
 
@@ -252,7 +225,7 @@ func (s *DockerSuite) TestLinksNetworkHostContainer(c *check.C) {
 	}
 
 	out, _, err = runCommandWithOutput(exec.Command(dockerBinary, "run", "--name", "should_fail", "--link", "host_container:tester", "busybox", "true"))
-	if err == nil || !strings.Contains(out, "--net=host can't be used with links. This would result in undefined behavior.") {
+	if err == nil || !strings.Contains(out, "--net=host can't be used with links. This would result in undefined behavior") {
 		c.Fatalf("Running container linking to a container with --net host should have failed: %s", out)
 	}
 
@@ -330,4 +303,24 @@ func (s *DockerSuite) TestLinksEnvs(c *check.C) {
 		!strings.Contains(out, "FIRST_ENV_e3=v3=v3") {
 		c.Fatalf("Incorrect output: %s", out)
 	}
+}
+
+func (s *DockerSuite) TestLinkShortDefinition(c *check.C) {
+	runCmd := exec.Command(dockerBinary, "run", "-d", "--name", "shortlinkdef", "busybox", "top")
+	out, _, err := runCommandWithOutput(runCmd)
+	c.Assert(err, check.IsNil)
+
+	cid := strings.TrimSpace(out)
+	c.Assert(waitRun(cid), check.IsNil)
+
+	runCmd = exec.Command(dockerBinary, "run", "-d", "--name", "link2", "--link", "shortlinkdef", "busybox", "top")
+	out, _, err = runCommandWithOutput(runCmd)
+	c.Assert(err, check.IsNil)
+
+	cid2 := strings.TrimSpace(out)
+	c.Assert(waitRun(cid2), check.IsNil)
+
+	links, err := inspectFieldJSON(cid2, "HostConfig.Links")
+	c.Assert(err, check.IsNil)
+	c.Assert(links, check.Equals, "[\"/shortlinkdef:/link2/shortlinkdef\"]")
 }

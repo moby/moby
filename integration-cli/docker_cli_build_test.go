@@ -611,7 +611,7 @@ ONBUILD ENTRYPOINT ["echo"]`,
 
 }
 
-func (s *DockerSuite) TestBuildCacheADD(c *check.C) {
+func (s *DockerSuite) TestBuildCacheAdd(c *check.C) {
 	name := "testbuildtwoimageswithadd"
 	server, err := fakeStorage(map[string]string{
 		"robots.txt": "hello",
@@ -1112,10 +1112,10 @@ func (s *DockerSuite) TestBuildCopyWildcard(c *check.C) {
 			"dir/nested_dir/nest_nest_file": "2 times nested",
 			"dirt": "dirty",
 		})
-	defer ctx.Close()
 	if err != nil {
 		c.Fatal(err)
 	}
+	defer ctx.Close()
 
 	id1, err := buildImageFromContext(name, ctx, true)
 	if err != nil {
@@ -1152,6 +1152,31 @@ func (s *DockerSuite) TestBuildCopyWildcardNoFind(c *check.C) {
 		c.Fatalf("Wrong error %v, must be about no source files", err)
 	}
 
+}
+
+func (s *DockerSuite) TestBuildCopyWildcardInName(c *check.C) {
+	name := "testcopywildcardinname"
+	defer deleteImages(name)
+	ctx, err := fakeContext(`FROM busybox
+	COPY *.txt /tmp/
+	RUN [ "$(cat /tmp/\*.txt)" = 'hi there' ]
+	`, map[string]string{"*.txt": "hi there"})
+
+	if err != nil {
+		// Normally we would do c.Fatal(err) here but given that
+		// the odds of this failing are so rare, it must be because
+		// the OS we're running the client on doesn't support * in
+		// filenames (like windows).  So, instead of failing the test
+		// just let it pass. Then we don't need to explicitly
+		// say which OSs this works on or not.
+		return
+	}
+	defer ctx.Close()
+
+	_, err = buildImageFromContext(name, ctx, true)
+	if err != nil {
+		c.Fatalf("should have built: %q", err)
+	}
 }
 
 func (s *DockerSuite) TestBuildCopyWildcardCache(c *check.C) {
@@ -2649,7 +2674,7 @@ func (s *DockerSuite) TestBuildConditionalCache(c *check.C) {
 	}
 }
 
-func (s *DockerSuite) TestBuildADDLocalFileWithCache(c *check.C) {
+func (s *DockerSuite) TestBuildAddLocalFileWithCache(c *check.C) {
 	name := "testbuildaddlocalfilewithcache"
 	name2 := "testbuildaddlocalfilewithcache2"
 	dockerfile := `
@@ -2677,7 +2702,7 @@ func (s *DockerSuite) TestBuildADDLocalFileWithCache(c *check.C) {
 	}
 }
 
-func (s *DockerSuite) TestBuildADDMultipleLocalFileWithCache(c *check.C) {
+func (s *DockerSuite) TestBuildAddMultipleLocalFileWithCache(c *check.C) {
 	name := "testbuildaddmultiplelocalfilewithcache"
 	name2 := "testbuildaddmultiplelocalfilewithcache2"
 	dockerfile := `
@@ -2705,7 +2730,7 @@ func (s *DockerSuite) TestBuildADDMultipleLocalFileWithCache(c *check.C) {
 	}
 }
 
-func (s *DockerSuite) TestBuildADDLocalFileWithoutCache(c *check.C) {
+func (s *DockerSuite) TestBuildAddLocalFileWithoutCache(c *check.C) {
 	name := "testbuildaddlocalfilewithoutcache"
 	name2 := "testbuildaddlocalfilewithoutcache2"
 	dockerfile := `
@@ -2763,7 +2788,7 @@ func (s *DockerSuite) TestBuildCopyDirButNotFile(c *check.C) {
 	}
 }
 
-func (s *DockerSuite) TestBuildADDCurrentDirWithCache(c *check.C) {
+func (s *DockerSuite) TestBuildAddCurrentDirWithCache(c *check.C) {
 	name := "testbuildaddcurrentdirwithcache"
 	name2 := name + "2"
 	name3 := name + "3"
@@ -2827,7 +2852,7 @@ func (s *DockerSuite) TestBuildADDCurrentDirWithCache(c *check.C) {
 	}
 }
 
-func (s *DockerSuite) TestBuildADDCurrentDirWithoutCache(c *check.C) {
+func (s *DockerSuite) TestBuildAddCurrentDirWithoutCache(c *check.C) {
 	name := "testbuildaddcurrentdirwithoutcache"
 	name2 := "testbuildaddcurrentdirwithoutcache2"
 	dockerfile := `
@@ -2854,7 +2879,7 @@ func (s *DockerSuite) TestBuildADDCurrentDirWithoutCache(c *check.C) {
 	}
 }
 
-func (s *DockerSuite) TestBuildADDRemoteFileWithCache(c *check.C) {
+func (s *DockerSuite) TestBuildAddRemoteFileWithCache(c *check.C) {
 	name := "testbuildaddremotefilewithcache"
 	server, err := fakeStorage(map[string]string{
 		"baz": "hello",
@@ -2885,7 +2910,7 @@ func (s *DockerSuite) TestBuildADDRemoteFileWithCache(c *check.C) {
 	}
 }
 
-func (s *DockerSuite) TestBuildADDRemoteFileWithoutCache(c *check.C) {
+func (s *DockerSuite) TestBuildAddRemoteFileWithoutCache(c *check.C) {
 	name := "testbuildaddremotefilewithoutcache"
 	name2 := "testbuildaddremotefilewithoutcache2"
 	server, err := fakeStorage(map[string]string{
@@ -2917,7 +2942,7 @@ func (s *DockerSuite) TestBuildADDRemoteFileWithoutCache(c *check.C) {
 	}
 }
 
-func (s *DockerSuite) TestBuildADDRemoteFileMTime(c *check.C) {
+func (s *DockerSuite) TestBuildAddRemoteFileMTime(c *check.C) {
 	name := "testbuildaddremotefilemtime"
 	name2 := name + "2"
 	name3 := name + "3"
@@ -2988,7 +3013,7 @@ func (s *DockerSuite) TestBuildADDRemoteFileMTime(c *check.C) {
 	}
 }
 
-func (s *DockerSuite) TestBuildADDLocalAndRemoteFilesWithCache(c *check.C) {
+func (s *DockerSuite) TestBuildAddLocalAndRemoteFilesWithCache(c *check.C) {
 	name := "testbuildaddlocalandremotefilewithcache"
 	server, err := fakeStorage(map[string]string{
 		"baz": "hello",
@@ -3070,7 +3095,7 @@ func (s *DockerSuite) TestBuildNoContext(c *check.C) {
 }
 
 // TODO: TestCaching
-func (s *DockerSuite) TestBuildADDLocalAndRemoteFilesWithoutCache(c *check.C) {
+func (s *DockerSuite) TestBuildAddLocalAndRemoteFilesWithoutCache(c *check.C) {
 	name := "testbuildaddlocalandremotefilewithoutcache"
 	name2 := "testbuildaddlocalandremotefilewithoutcache2"
 	server, err := fakeStorage(map[string]string{
@@ -3190,7 +3215,7 @@ func (s *DockerSuite) TestBuildForbiddenContextPath(c *check.C) {
 
 }
 
-func (s *DockerSuite) TestBuildADDFileNotFound(c *check.C) {
+func (s *DockerSuite) TestBuildAddFileNotFound(c *check.C) {
 	name := "testbuildaddnotfound"
 	ctx, err := fakeContext(`FROM scratch
         ADD foo /usr/local/bar`,
@@ -4118,6 +4143,35 @@ func (s *DockerSuite) TestBuildFromGIT(c *check.C) {
 	}
 }
 
+func (s *DockerSuite) TestBuildFromGITWithContext(c *check.C) {
+	name := "testbuildfromgit"
+	defer deleteImages(name)
+	git, err := fakeGIT("repo", map[string]string{
+		"docker/Dockerfile": `FROM busybox
+					ADD first /first
+					RUN [ -f /first ]
+					MAINTAINER docker`,
+		"docker/first": "test git data",
+	}, true)
+	if err != nil {
+		c.Fatal(err)
+	}
+	defer git.Close()
+
+	u := fmt.Sprintf("%s#master:docker", git.RepoURL)
+	_, err = buildImageFromPath(name, u, true)
+	if err != nil {
+		c.Fatal(err)
+	}
+	res, err := inspectField(name, "Author")
+	if err != nil {
+		c.Fatal(err)
+	}
+	if res != "docker" {
+		c.Fatalf("Maintainer should be docker, got %s", res)
+	}
+}
+
 func (s *DockerSuite) TestBuildCleanupCmdOnEntrypoint(c *check.C) {
 	name := "testbuildcmdcleanuponentrypoint"
 	if _, err := buildImage(name,
@@ -4754,7 +4808,7 @@ func (s *DockerSuite) TestBuildRenamedDockerfile(c *check.C) {
 		c.Fatalf("test5 was supposed to fail to find passwd")
 	}
 
-	if expected := fmt.Sprintf("The Dockerfile (%s) must be within the build context (.)", strings.Replace(nonDockerfileFile, `\`, `\\`, -1)); !strings.Contains(out, expected) {
+	if expected := fmt.Sprintf("The Dockerfile (%s) must be within the build context (.)", nonDockerfileFile); !strings.Contains(out, expected) {
 		c.Fatalf("wrong error messsage:%v\nexpected to contain=%v", out, expected)
 	}
 
@@ -5292,4 +5346,83 @@ func (s *DockerSuite) TestBuildEmptyStringVolume(c *check.C) {
 		c.Fatal("Should have failed to build")
 	}
 
+}
+
+func (s *DockerSuite) TestBuildContainerWithCgroupParent(c *check.C) {
+	testRequires(c, NativeExecDriver)
+	testRequires(c, SameHostDaemon)
+	defer deleteImages()
+
+	cgroupParent := "test"
+	data, err := ioutil.ReadFile("/proc/self/cgroup")
+	if err != nil {
+		c.Fatalf("failed to read '/proc/self/cgroup - %v", err)
+	}
+	selfCgroupPaths := parseCgroupPaths(string(data))
+	_, found := selfCgroupPaths["memory"]
+	if !found {
+		c.Fatalf("unable to find self cpu cgroup path. CgroupsPath: %v", selfCgroupPaths)
+	}
+	cmd := exec.Command(dockerBinary, "build", "--cgroup-parent", cgroupParent, "-")
+	cmd.Stdin = strings.NewReader(`
+FROM busybox
+RUN cat /proc/self/cgroup
+`)
+
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		c.Fatalf("unexpected failure when running container with --cgroup-parent option - %s\n%v", string(out), err)
+	}
+}
+
+func (s *DockerSuite) TestBuildNoDupOutput(c *check.C) {
+	// Check to make sure our build output prints the Dockerfile cmd
+	// property - there was a bug that caused it to be duplicated on the
+	// Step X  line
+	name := "testbuildnodupoutput"
+
+	_, out, err := buildImageWithOut(name, `
+  FROM busybox
+  RUN env`, false)
+	if err != nil {
+		c.Fatalf("Build should have worked: %q", err)
+	}
+
+	exp := "\nStep 1 : RUN env\n"
+	if !strings.Contains(out, exp) {
+		c.Fatalf("Bad output\nGot:%s\n\nExpected to contain:%s\n", out, exp)
+	}
+}
+
+func (s *DockerSuite) TestBuildBadCmdFlag(c *check.C) {
+	name := "testbuildbadcmdflag"
+
+	_, out, err := buildImageWithOut(name, `
+  FROM busybox
+  MAINTAINER --boo joe@example.com`, false)
+	if err == nil {
+		c.Fatal("Build should have failed")
+	}
+
+	exp := "\nUnknown flag: boo\n"
+	if !strings.Contains(out, exp) {
+		c.Fatalf("Bad output\nGot:%s\n\nExpected to contain:%s\n", out, exp)
+	}
+}
+
+func (s *DockerSuite) TestBuildRUNErrMsg(c *check.C) {
+	// Test to make sure the bad command is quoted with just "s and
+	// not as a Go []string
+	name := "testbuildbadrunerrmsg"
+	_, out, err := buildImageWithOut(name, `
+  FROM busybox
+  RUN badEXE a1 \& a2	a3`, false) // tab between a2 and a3
+	if err == nil {
+		c.Fatal("Should have failed to build")
+	}
+
+	exp := `The command '/bin/sh -c badEXE a1 \& a2	a3' returned a non-zero code: 127`
+	if !strings.Contains(out, exp) {
+		c.Fatalf("RUN doesn't have the correct output:\nGot:%s\nExpected:%s", out, exp)
+	}
 }

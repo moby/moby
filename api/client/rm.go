@@ -3,6 +3,7 @@ package client
 import (
 	"fmt"
 	"net/url"
+	"strings"
 
 	flag "github.com/docker/docker/pkg/mflag"
 )
@@ -31,19 +32,23 @@ func (cli *DockerCli) CmdRm(args ...string) error {
 		val.Set("force", "1")
 	}
 
-	var encounteredError error
+	var errNames []string
 	for _, name := range cmd.Args() {
 		if name == "" {
 			return fmt.Errorf("Container name cannot be empty")
 		}
+		name = strings.Trim(name, "/")
 
 		_, _, err := readBody(cli.call("DELETE", "/containers/"+name+"?"+val.Encode(), nil, nil))
 		if err != nil {
 			fmt.Fprintf(cli.err, "%s\n", err)
-			encounteredError = fmt.Errorf("Error: failed to remove one or more containers")
+			errNames = append(errNames, name)
 		} else {
 			fmt.Fprintf(cli.out, "%s\n", name)
 		}
 	}
-	return encounteredError
+	if len(errNames) > 0 {
+		return fmt.Errorf("Error: failed to remove containers: %v", errNames)
+	}
+	return nil
 }

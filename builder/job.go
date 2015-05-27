@@ -13,7 +13,7 @@ import (
 	"github.com/docker/docker/builder/parser"
 	"github.com/docker/docker/cliconfig"
 	"github.com/docker/docker/daemon"
-	"github.com/docker/docker/graph"
+	"github.com/docker/docker/graph/tags"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/httputils"
 	"github.com/docker/docker/pkg/parsers"
@@ -45,13 +45,14 @@ type Config struct {
 	Remove         bool
 	ForceRemove    bool
 	Pull           bool
-	JSONFormat     bool
 	Memory         int64
 	MemorySwap     int64
 	CpuShares      int64
+	CpuPeriod      int64
 	CpuQuota       int64
 	CpuSetCpus     string
 	CpuSetMems     string
+	CgroupParent   string
 	AuthConfig     *cliconfig.AuthConfig
 	ConfigFile     *cliconfig.ConfigFile
 
@@ -97,7 +98,7 @@ func Build(d *daemon.Daemon, buildConfig *Config) error {
 			return err
 		}
 		if len(tag) > 0 {
-			if err := graph.ValidateTagName(tag); err != nil {
+			if err := tags.ValidateTagName(tag); err != nil {
 				return err
 			}
 		}
@@ -140,7 +141,7 @@ func Build(d *daemon.Daemon, buildConfig *Config) error {
 	}
 	defer context.Close()
 
-	sf := streamformatter.NewStreamFormatter(buildConfig.JSONFormat)
+	sf := streamformatter.NewJSONStreamFormatter()
 
 	builder := &Builder{
 		Daemon: d,
@@ -163,9 +164,11 @@ func Build(d *daemon.Daemon, buildConfig *Config) error {
 		ConfigFile:      buildConfig.ConfigFile,
 		dockerfileName:  buildConfig.DockerfileName,
 		cpuShares:       buildConfig.CpuShares,
+		cpuPeriod:       buildConfig.CpuPeriod,
 		cpuQuota:        buildConfig.CpuQuota,
 		cpuSetCpus:      buildConfig.CpuSetCpus,
 		cpuSetMems:      buildConfig.CpuSetMems,
+		cgroupParent:    buildConfig.CgroupParent,
 		memory:          buildConfig.Memory,
 		memorySwap:      buildConfig.MemorySwap,
 		cancelled:       buildConfig.WaitCancelled(),

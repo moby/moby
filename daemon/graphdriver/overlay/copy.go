@@ -71,9 +71,12 @@ func copyDir(srcDir, dstDir string, flags CopyFlags) error {
 			return fmt.Errorf("Unable to get raw syscall.Stat_t data for %s", srcPath)
 		}
 
+		isHardlink := false
+
 		switch f.Mode() & os.ModeType {
 		case 0: // Regular file
 			if flags&CopyHardlink != 0 {
+				isHardlink = true
 				if err := os.Link(srcPath, dstPath); err != nil {
 					return err
 				}
@@ -112,6 +115,12 @@ func copyDir(srcDir, dstDir string, flags CopyFlags) error {
 
 		default:
 			return fmt.Errorf("Unknown file type for %s\n", srcPath)
+		}
+
+		// Everything below is copying metadata from src to dst. All this metadata
+		// already shares an inode for hardlinks.
+		if isHardlink {
+			return nil
 		}
 
 		if err := os.Lchown(dstPath, int(stat.Uid), int(stat.Gid)); err != nil {

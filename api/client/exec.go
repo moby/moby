@@ -71,7 +71,7 @@ func (cli *DockerCli) CmdExec(args ...string) error {
 	defer func() {
 		logrus.Debugf("End of CmdExec(), Waiting for hijack to finish.")
 		if _, ok := <-hijacked; ok {
-			logrus.Errorf("Hijack did not finish (chan still open)")
+			fmt.Fprintln(cli.err, "Hijack did not finish (chan still open)")
 		}
 	}()
 
@@ -109,7 +109,7 @@ func (cli *DockerCli) CmdExec(args ...string) error {
 
 	if execConfig.Tty && cli.isTerminalIn {
 		if err := cli.monitorTtySize(execID, true); err != nil {
-			logrus.Errorf("Error monitoring TTY size: %s", err)
+			fmt.Fprintf(cli.err, "Error monitoring TTY size: %s\n", err)
 		}
 	}
 

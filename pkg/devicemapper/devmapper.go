@@ -55,6 +55,7 @@ var (
 	ErrTaskGetDeps            = errors.New("dm_task_get_deps failed")
 	ErrTaskGetInfo            = errors.New("dm_task_get_info failed")
 	ErrTaskGetDriverVersion   = errors.New("dm_task_get_driver_version failed")
+	ErrTaskDeferredRemove     = errors.New("dm_task_deferred_remove failed")
 	ErrTaskSetCookie          = errors.New("dm_task_set_cookie failed")
 	ErrNilCookie              = errors.New("cookie ptr can't be nil")
 	ErrAttachLoopbackDevice   = errors.New("loopback mounting failed")
@@ -69,9 +70,11 @@ var (
 	ErrLoopbackSetCapacity    = errors.New("Unable set loopback capacity")
 	ErrBusy                   = errors.New("Device is Busy")
 	ErrDeviceIdExists         = errors.New("Device Id Exists")
+	ErrEnxio                  = errors.New("No such device or address")
 
 	dmSawBusy  bool
 	dmSawExist bool
+	dmSawEnxio bool // No Such Device or Address
 )
 
 type (
@@ -84,16 +87,17 @@ type (
 		Device []uint64
 	}
 	Info struct {
-		Exists        int
-		Suspended     int
-		LiveTable     int
-		InactiveTable int
-		OpenCount     int32
-		EventNr       uint32
-		Major         uint32
-		Minor         uint32
-		ReadOnly      int
-		TargetCount   int32
+		Exists         int
+		Suspended      int
+		LiveTable      int
+		InactiveTable  int
+		OpenCount      int32
+		EventNr        uint32
+		Major          uint32
+		Minor          uint32
+		ReadOnly       int
+		TargetCount    int32
+		DeferredRemove int
 	}
 	TaskType    int
 	AddNodeType int
@@ -214,6 +218,14 @@ func (t *Task) GetDeps() (*Deps, error) {
 func (t *Task) GetInfo() (*Info, error) {
 	info := &Info{}
 	if res := DmTaskGetInfo(t.unmanaged, info); res != 1 {
+		return nil, ErrTaskGetInfo
+	}
+	return info, nil
+}
+
+func (t *Task) GetInfoWithDeferred() (*Info, error) {
+	info := &Info{}
+	if res := DmTaskGetInfoWithDeferred(t.unmanaged, info); res != 1 {
 		return nil, ErrTaskGetInfo
 	}
 	return info, nil
@@ -371,6 +383,55 @@ func RemoveDevice(name string) error {
 	return nil
 }
 
+func RemoveDeviceDeferred(name string) error {
+	logrus.Debugf("[devmapper] RemoveDeviceDeferred START(%s)", name)
+	defer logrus.Debugf("[devmapper] RemoveDeviceDeferred END(%s)", name)
+	task, err := TaskCreateNamed(DeviceRemove, name)
+	if task == nil {
+		return err
+	}
+
+	if err := DmTaskDeferredRemove(task.unmanaged); err != 1 {
+		return ErrTaskDeferredRemove
+	}
+
+	if err = task.Run(); err != nil {
+		return fmt.Errorf("Error running RemoveDeviceDeferred %s", err)
+	}
+
+	return nil
+}
+
+// Useful helper for cleanup
+func CancelDeferredRemove(deviceName string) error {
+	task, err := TaskCreateNamed(DeviceTargetMsg, deviceName)
+	if task == nil {
+		return err
+	}
+
+	if err := task.SetSector(0); err != nil {
+		return fmt.Errorf("Can't set sector %s", err)
+	}
+
+	if err := task.SetMessage(fmt.Sprintf("@cancel_deferred_remove")); err != nil {
+		return fmt.Errorf("Can't set message %s", err)
+	}
+
+	dmSawBusy = false
+	dmSawEnxio = false
+	if err := task.Run(); err != nil {
+		// A device might be being deleted already
+		if dmSawBusy {
+			return ErrBusy
+		} else if dmSawEnxio {
+			return ErrEnxio
+		}
+		return fmt.Errorf("Error running CancelDeferredRemove %s", err)
+
+	}
+	return nil
+}
+
 func GetBlockDeviceSize(file *os.File) (uint64, error) {
 	size, err := ioctlBlkGetSize64(file.Fd())
 	if err != nil {
@@ -477,6 +538,17 @@ func GetInfo(name string) (*Info, error) {
 		return nil, err
 	}
 	return task.GetInfo()
+}
+
+func GetInfoWithDeferred(name string) (*Info, error) {
+	task, err := TaskCreateNamed(DeviceInfo, name)
+	if task == nil {
+		return nil, err
+	}
+	if err := task.Run(); err != nil {
+		return nil, err
+	}
+	return task.GetInfoWithDeferred()
 }
 
 func GetDriverVersion() (string, error) {

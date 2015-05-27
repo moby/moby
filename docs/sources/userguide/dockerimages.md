@@ -54,6 +54,13 @@ We can see three crucial pieces of information about our images in the listing.
 * The tags for each image, for example `14.04`.
 * The image ID of each image.
 
+> **Note:**
+> Previously, the `docker images` command supported the `--tree` and `--dot`
+> arguments, which displayed different visualizations of the image data. Docker
+> core removed this functionality in the 1.7 version. If you liked this
+> functionality, you can still find it in
+> [the third-party dockviz tool](https://github.com/justone/dockviz).
+
 A repository potentially holds multiple variants of an image. In the case of
 our `ubuntu` image we can see multiple variants covering Ubuntu 10.04, 12.04,
 12.10, 13.04, 13.10 and 14.04. Each variant is identified by a tag and you can

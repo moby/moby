@@ -54,7 +54,7 @@ RELEASE_BUNDLES=(
 
 if [ "$1" != '--release-regardless-of-test-failure' ]; then
 	RELEASE_BUNDLES=(
-		test-unit test-integration
+		test-unit
 		"${RELEASE_BUNDLES[@]}"
 		test-integration-cli
 	)

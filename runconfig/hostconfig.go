@@ -18,7 +18,11 @@ type NetworkMode string
 
 // IsPrivate indicates whether container use it's private network stack
 func (n NetworkMode) IsPrivate() bool {
-	return !(n.IsHost() || n.IsContainer() || n.IsNone())
+	return !(n.IsHost() || n.IsContainer())
+}
+
+func (n NetworkMode) IsBridge() bool {
+	return n == "bridge"
 }
 
 func (n NetworkMode) IsHost() bool {
@@ -72,6 +76,27 @@ func (n IpcMode) Container() string {
 	return ""
 }
 
+type UTSMode string
+
+// IsPrivate indicates whether container use it's private UTS namespace
+func (n UTSMode) IsPrivate() bool {
+	return !(n.IsHost())
+}
+
+func (n UTSMode) IsHost() bool {
+	return n == "host"
+}
+
+func (n UTSMode) Valid() bool {
+	parts := strings.Split(string(n), ":")
+	switch mode := parts[0]; mode {
+	case "", "host":
+	default:
+		return false
+	}
+	return true
+}
+
 type PidMode string
 
 // IsPrivate indicates whether container use it's private pid stack
@@ -102,6 +127,18 @@ type DeviceMapping struct {
 type RestartPolicy struct {
 	Name              string
 	MaximumRetryCount int
+}
+
+func (rp *RestartPolicy) IsNone() bool {
+	return rp.Name == "no"
+}
+
+func (rp *RestartPolicy) IsAlways() bool {
+	return rp.Name == "always"
+}
+
+func (rp *RestartPolicy) IsOnFailure() bool {
+	return rp.Name == "on-failure"
 }
 
 type LogConfig struct {
@@ -162,12 +199,15 @@ type HostConfig struct {
 	Binds           []string
 	ContainerIDFile string
 	LxcConf         *LxcConfig
-	Memory          int64  // Memory limit (in bytes)
-	MemorySwap      int64  // Total memory usage (memory + swap); set `-1` to disable swap
-	CpuShares       int64  // CPU shares (relative weight vs. other containers)
+	Memory          int64 // Memory limit (in bytes)
+	MemorySwap      int64 // Total memory usage (memory + swap); set `-1` to disable swap
+	CpuShares       int64 // CPU shares (relative weight vs. other containers)
+	CpuPeriod       int64
 	CpusetCpus      string // CpusetCpus 0-2, 0,1
 	CpusetMems      string // CpusetMems 0-2, 0,1
 	CpuQuota        int64
+	BlkioWeight     int64 // Block IO weight (relative weight vs. other containers)
+	OomKillDisable  bool  // Whether to disable OOM Killer or not
 	Privileged      bool
 	PortBindings    nat.PortMap
 	Links           []string
@@ -180,6 +220,7 @@ type HostConfig struct {
 	NetworkMode     NetworkMode
 	IpcMode         IpcMode
 	PidMode         PidMode
+	UTSMode         UTSMode
 	CapAdd          []string
 	CapDrop         []string
 	RestartPolicy   RestartPolicy

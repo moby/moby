@@ -57,7 +57,6 @@ DEFAULT_BUNDLES=(
 	test-docker-py
 
 	dynbinary
-	test-integration
 
 	cover
 	cross
@@ -94,6 +93,13 @@ if [ ! "$GOPATH" ]; then
 	exit 1
 fi
 
+if [ "$DOCKER_EXPERIMENTAL" ]; then
+	echo >&2 '# WARNING! DOCKER_EXPERIMENTAL is set: building experimental features'
+	echo >&2
+	VERSION+="-experimental"
+	DOCKER_BUILDTAGS+=" experimental"
+fi
+
 if [ -z "$DOCKER_CLIENTONLY" ]; then
 	DOCKER_BUILDTAGS+=" daemon"
 fi
@@ -108,6 +114,15 @@ if \
 	&& ! gcc -E - &> /dev/null <<<'#include <btrfs/version.h>' \
 ; then
 	DOCKER_BUILDTAGS+=' btrfs_noversion'
+fi
+
+# test whether "libdevmapper.h" is new enough to support deferred remove
+# functionality.
+if \
+	command -v gcc &> /dev/null \
+	&& ! ( echo -e  '#include <libdevmapper.h>\nint main() { dm_task_deferred_remove(NULL); }'| gcc -ldevmapper -xc - &> /dev/null ) \
+; then
+       DOCKER_BUILDTAGS+=' libdm_no_deferred_remove'
 fi
 
 # Use these flags when compiling the tests and final binary
@@ -168,7 +183,12 @@ fi
 # If $TESTFLAGS is set in the environment, it is passed as extra arguments to 'go test'.
 # You can use this to select certain tests to run, eg.
 #
-#   TESTFLAGS='-run ^TestBuild$' ./hack/make.sh test
+#     TESTFLAGS='-test.run ^TestBuild$' ./hack/make.sh test-unit
+#
+# For integration-cli test, we use [gocheck](https://labix.org/gocheck), if you want
+# to run certain tests on your local host, you should run with command:
+#
+#     TESTFLAGS='-check.f DockerSuite.TestBuild*' ./hack/make.sh binary test-integration-cli
 #
 go_test_dir() {
 	dir=$1
@@ -194,6 +214,7 @@ test_env() {
 		DEST="$DEST" \
 		DOCKER_EXECDRIVER="$DOCKER_EXECDRIVER" \
 		DOCKER_GRAPHDRIVER="$DOCKER_GRAPHDRIVER" \
+		DOCKER_USERLANDPROXY="$DOCKER_USERLANDPROXY" \
 		DOCKER_HOST="$DOCKER_HOST" \
 		GOPATH="$GOPATH" \
 		HOME="$DEST/fake-HOME" \
@@ -216,7 +237,6 @@ find_dirs() {
 	find . -not \( \
 		\( \
 			-path './vendor/*' \
-			-o -path './integration/*' \
 			-o -path './integration-cli/*' \
 			-o -path './contrib/*' \
 			-o -path './pkg/mflag/example/*' \

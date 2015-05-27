@@ -38,6 +38,22 @@ Calling `/info` is the same as calling
 You can still call an old version of the API using
 `/v1.18/info`.
 
+## Docker Events
+
+The following diagram depicts the container states accessible through the API.
+
+![States](../images/event_state.png)
+
+Some container-related events are not affected by container state, so they are not included in this diagram. These events are:
+
+* **export** emitted by `docker export`
+* **exec_create** emitted by `docker exec`
+* **exec_start** emitted by `docker exec` after **exec_create**
+
+Running `docker rmi` emits an **untag** event when removing an image name.  The `rmi` command may also emit **delete** events when images are deleted by ID directly or by deleting the last tag referring to the image.
+
+> **Acknowledgement**: This diagram and the accompanying text were used with the permission of Matt Good and Gilder Labs. See Matt's original blog post [Docker Events Explained](http://gliderlabs.com/blog/2015/04/14/docker-events-explained/).
+
 ## v1.19
 
 ### Full documentation
@@ -46,6 +62,32 @@ You can still call an old version of the API using
 
 ### What's new
 
+**New!**
+When the daemon detects a version mismatch with the client, usually when
+the client is newer than the daemon, an HTTP 400 is now returned instead
+of a 404.
+
+`GET /containers/(id)/stats`
+
+**New!**
+You can now supply a `stream` bool to get only one set of stats and
+disconnect
+
+`GET /containers(id)/logs`
+
+**New!**
+
+This endpoint now accepts a `since` timestamp parameter.
+
+`GET /info`
+
+**New!**
+
+The fields `Debug`, `IPv4Forwarding`, `MemoryLimit`, and `SwapLimit`
+are now returned as boolean instead of as an int.
+
+In addition, the end point now returns the new boolean fields
+`CpuCfsPeriod`, `CpuCfsQuota`, and `OomKillDisable`.
 
 ## v1.18
 

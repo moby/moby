@@ -37,6 +37,24 @@ container runs, it prints an informational message. Then, it exits.
 > If you want to enable memory and swap accounting see
 > [this](/installation/ubuntulinux/#memory-and-swap-accounting).
 
+### Uninstallation
+
+To uninstall the Docker package:
+
+    $ sudo apt-get purge docker-io
+
+To uninstall the Docker package and dependencies that are no longer needed:
+
+    $ sudo apt-get autoremove --purge docker-io
+
+The above commands will not remove images, containers, volumes, or user created
+configuration files on your host. If you wish to delete all images, containers,
+and volumes run the following command:
+
+    $ rm -rf /var/lib/docker
+
+You must delete the user created configuration files manually.
+
 ## Debian Wheezy/Stable 7.x (64-bit)
 
 Docker requires Kernel 3.8+, while Wheezy ships with Kernel 3.2 (for more details
@@ -73,6 +91,24 @@ which is officially supported by Docker.
 >add the key directly using the following:
 >
 >       $ wget -qO- https://get.docker.com/gpg | sudo apt-key add -
+
+### Uninstallation
+
+To uninstall the Docker package:
+
+    $ sudo apt-get purge lxc-docker
+
+To uninstall the Docker package and dependencies that are no longer needed:
+
+    $ sudo apt-get autoremove --purge lxc-docker
+
+The above commands will not remove images, containers, volumes, or user created
+configuration files on your host. If you wish to delete all images, containers,
+and volumes run the following command:
+
+    $ rm -rf /var/lib/docker
+
+You must delete the user created configuration files manually.
 
 ## Giving non-root access
 

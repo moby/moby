@@ -198,6 +198,9 @@ func ValidateIndexName(val string) (string, error) {
 	if val == "index."+IndexServerName() {
 		val = IndexServerName()
 	}
+	if strings.HasPrefix(val, "-") || strings.HasSuffix(val, "-") {
+		return "", fmt.Errorf("Invalid index name (%s). Cannot begin or end with a hyphen.", val)
+	}
 	// *TODO: Check if valid hostname[:port]/ip[:port]?
 	return val, nil
 }
@@ -234,6 +237,9 @@ func validateRemoteName(remoteName string) error {
 	}
 	if !validRepo.MatchString(name) {
 		return fmt.Errorf("Invalid repository name (%s), only [a-z0-9-_.] are allowed", name)
+	}
+	if strings.HasPrefix(name, "-") || strings.HasSuffix(name, "-") {
+		return fmt.Errorf("Invalid repository name (%s). Cannot begin or end with a hyphen.", name)
 	}
 	return nil
 }

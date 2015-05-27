@@ -9,10 +9,8 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/execdriver"
-	"github.com/docker/docker/daemon/execdriver/lxc"
 	"github.com/docker/docker/pkg/broadcastwriter"
 	"github.com/docker/docker/pkg/ioutils"
-	"github.com/docker/docker/pkg/promise"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/runconfig"
 )
@@ -112,8 +110,9 @@ func (d *Daemon) getActiveContainer(name string) (*Container, error) {
 
 func (d *Daemon) ContainerExecCreate(config *runconfig.ExecConfig) (string, error) {
 
-	if strings.HasPrefix(d.execDriver.Name(), lxc.DriverName) {
-		return "", lxc.ErrExec
+	// Not all drivers support Exec (LXC for example)
+	if err := checkExecSupport(d.execDriver.Name()); err != nil {
+		return "", err
 	}
 
 	container, err := d.getActiveContainer(config.Container)
@@ -129,7 +128,6 @@ func (d *Daemon) ContainerExecCreate(config *runconfig.ExecConfig) (string, erro
 		Entrypoint: entrypoint,
 		Arguments:  args,
 		User:       config.User,
-		Privileged: config.Privileged,
 	}
 
 	execConfig := &execConfig{
@@ -244,73 +242,4 @@ func (d *Daemon) Exec(c *Container, execConfig *execConfig, pipes *execdriver.Pi
 	execConfig.Running = false
 
 	return exitStatus, err
-}
-
-func (container *Container) GetExecIDs() []string {
-	return container.execCommands.List()
-}
-
-func (container *Container) Exec(execConfig *execConfig) error {
-	container.Lock()
-	defer container.Unlock()
-
-	waitStart := make(chan struct{})
-
-	callback := func(processConfig *execdriver.ProcessConfig, pid int) {
-		if processConfig.Tty {
-			// The callback is called after the process Start()
-			// so we are in the parent process. In TTY mode, stdin/out/err is the PtySlave
-			// which we close here.
-			if c, ok := processConfig.Stdout.(io.Closer); ok {
-				c.Close()
-			}
-		}
-		close(waitStart)
-	}
-
-	// We use a callback here instead of a goroutine and an chan for
-	// syncronization purposes
-	cErr := promise.Go(func() error { return container.monitorExec(execConfig, callback) })
-
-	// Exec should not return until the process is actually running
-	select {
-	case <-waitStart:
-	case err := <-cErr:
-		return err
-	}
-
-	return nil
-}
-
-func (container *Container) monitorExec(execConfig *execConfig, callback execdriver.StartCallback) error {
-	var (
-		err      error
-		exitCode int
-	)
-
-	pipes := execdriver.NewPipes(execConfig.StreamConfig.stdin, execConfig.StreamConfig.stdout, execConfig.StreamConfig.stderr, execConfig.OpenStdin)
-	exitCode, err = container.daemon.Exec(container, execConfig, pipes, callback)
-	if err != nil {
-		logrus.Errorf("Error running command in existing container %s: %s", container.ID, err)
-	}
-
-	logrus.Debugf("Exec task in container %s exited with code %d", container.ID, exitCode)
-	if execConfig.OpenStdin {
-		if err := execConfig.StreamConfig.stdin.Close(); err != nil {
-			logrus.Errorf("Error closing stdin while running in %s: %s", container.ID, err)
-		}
-	}
-	if err := execConfig.StreamConfig.stdout.Clean(); err != nil {
-		logrus.Errorf("Error closing stdout while running in %s: %s", container.ID, err)
-	}
-	if err := execConfig.StreamConfig.stderr.Clean(); err != nil {
-		logrus.Errorf("Error closing stderr while running in %s: %s", container.ID, err)
-	}
-	if execConfig.ProcessConfig.Terminal != nil {
-		if err := execConfig.ProcessConfig.Terminal.Close(); err != nil {
-			logrus.Errorf("Error closing terminal while running in container %s: %s", container.ID, err)
-		}
-	}
-
-	return err
 }

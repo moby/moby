@@ -37,6 +37,16 @@ type Daemon struct {
 	storageDriver  string
 	execDriver     string
 	wait           chan error
+	userlandProxy  bool
+}
+
+func enableUserlandProxy() bool {
+	if env := os.Getenv("DOCKER_USERLANDPROXY"); env != "" {
+		if val, err := strconv.ParseBool(env); err != nil {
+			return val
+		}
+	}
+	return true
 }
 
 // NewDaemon returns a Daemon instance to be used for testing.
@@ -48,7 +58,7 @@ func NewDaemon(c *check.C) *Daemon {
 		c.Fatal("Please set the DEST environment variable")
 	}
 
-	dir := filepath.Join(dest, fmt.Sprintf("daemon%d", time.Now().UnixNano()%100000000))
+	dir := filepath.Join(dest, fmt.Sprintf("d%d", time.Now().UnixNano()%100000000))
 	daemonFolder, err := filepath.Abs(dir)
 	if err != nil {
 		c.Fatalf("Could not make %q an absolute path: %v", dir, err)
@@ -58,11 +68,19 @@ func NewDaemon(c *check.C) *Daemon {
 		c.Fatalf("Could not create %s/graph directory", daemonFolder)
 	}
 
+	userlandProxy := true
+	if env := os.Getenv("DOCKER_USERLANDPROXY"); env != "" {
+		if val, err := strconv.ParseBool(env); err != nil {
+			userlandProxy = val
+		}
+	}
+
 	return &Daemon{
 		c:             c,
 		folder:        daemonFolder,
 		storageDriver: os.Getenv("DOCKER_GRAPHDRIVER"),
 		execDriver:    os.Getenv("DOCKER_EXECDRIVER"),
+		userlandProxy: userlandProxy,
 	}
 }
 
@@ -79,6 +97,7 @@ func (d *Daemon) Start(arg ...string) error {
 		"--daemon",
 		"--graph", fmt.Sprintf("%s/graph", d.folder),
 		"--pidfile", fmt.Sprintf("%s/docker.pid", d.folder),
+		fmt.Sprintf("--userland-proxy=%t", d.userlandProxy),
 	}
 
 	// If we don't explicitly set the log-level or debug flag(-D) then
@@ -570,14 +589,19 @@ func dockerCmdInDirWithTimeout(timeout time.Duration, path string, args ...strin
 	return out, status, err
 }
 
-func findContainerIP(c *check.C, id string) string {
-	cmd := exec.Command(dockerBinary, "inspect", "--format='{{ .NetworkSettings.IPAddress }}'", id)
+func findContainerIP(c *check.C, id string, vargs ...string) string {
+	args := append(vargs, "inspect", "--format='{{ .NetworkSettings.IPAddress }}'", id)
+	cmd := exec.Command(dockerBinary, args...)
 	out, _, err := runCommandWithOutput(cmd)
 	if err != nil {
 		c.Fatal(err, out)
 	}
 
 	return strings.Trim(out, " \r\n'")
+}
+
+func (d *Daemon) findContainerIP(id string) string {
+	return findContainerIP(d.c, id, "--host", d.sock())
 }
 
 func getContainerCount() (int, error) {
@@ -663,7 +687,6 @@ func fakeContextAddDockerfile(ctx *FakeContext, dockerfile string) error {
 func fakeContext(dockerfile string, files map[string]string) (*FakeContext, error) {
 	ctx, err := fakeContextWithFiles(files)
 	if err != nil {
-		ctx.Close()
 		return nil, err
 	}
 	if err := fakeContextAddDockerfile(ctx, dockerfile); err != nil {

@@ -15,11 +15,7 @@ func (s *DockerSuite) TestKillContainer(c *check.C) {
 	}
 
 	cleanedContainerID := strings.TrimSpace(out)
-
-	inspectCmd := exec.Command(dockerBinary, "inspect", cleanedContainerID)
-	if out, _, err = runCommandWithOutput(inspectCmd); err != nil {
-		c.Fatalf("out should've been a container id: %s, %v", out, err)
-	}
+	c.Assert(waitRun(cleanedContainerID), check.IsNil)
 
 	killCmd := exec.Command(dockerBinary, "kill", cleanedContainerID)
 	if out, _, err = runCommandWithOutput(killCmd); err != nil {
@@ -35,31 +31,22 @@ func (s *DockerSuite) TestKillContainer(c *check.C) {
 	if strings.Contains(out, cleanedContainerID) {
 		c.Fatal("killed container is still running")
 	}
-
-	deleteContainer(cleanedContainerID)
-
 }
 
 func (s *DockerSuite) TestKillofStoppedContainer(c *check.C) {
 	runCmd := exec.Command(dockerBinary, "run", "-d", "busybox", "top")
 	out, _, err := runCommandWithOutput(runCmd)
-	if err != nil {
-		c.Fatal(out, err)
-	}
+	c.Assert(err, check.IsNil)
 
 	cleanedContainerID := strings.TrimSpace(out)
 
 	stopCmd := exec.Command(dockerBinary, "stop", cleanedContainerID)
-	if out, _, err = runCommandWithOutput(stopCmd); err != nil {
-		c.Fatalf("failed to stop container: %s, %v", out, err)
-	}
+	out, _, err = runCommandWithOutput(stopCmd)
+	c.Assert(err, check.IsNil, check.Commentf("failed to stop container: %s, %v", out, err))
 
 	killCmd := exec.Command(dockerBinary, "kill", "-s", "30", cleanedContainerID)
-	if _, _, err = runCommandWithOutput(killCmd); err == nil {
-		c.Fatalf("kill succeeded on a stopped container")
-	}
-
-	deleteContainer(cleanedContainerID)
+	_, _, err = runCommandWithOutput(killCmd)
+	c.Assert(err, check.Not(check.IsNil), check.Commentf("Kill succeeded on a stopped container"))
 }
 
 func (s *DockerSuite) TestKillDifferentUserContainer(c *check.C) {
@@ -70,11 +57,7 @@ func (s *DockerSuite) TestKillDifferentUserContainer(c *check.C) {
 	}
 
 	cleanedContainerID := strings.TrimSpace(out)
-
-	inspectCmd := exec.Command(dockerBinary, "inspect", cleanedContainerID)
-	if out, _, err = runCommandWithOutput(inspectCmd); err != nil {
-		c.Fatalf("out should've been a container id: %s, %v", out, err)
-	}
+	c.Assert(waitRun(cleanedContainerID), check.IsNil)
 
 	killCmd := exec.Command(dockerBinary, "kill", cleanedContainerID)
 	if out, _, err = runCommandWithOutput(killCmd); err != nil {
@@ -90,7 +73,4 @@ func (s *DockerSuite) TestKillDifferentUserContainer(c *check.C) {
 	if strings.Contains(out, cleanedContainerID) {
 		c.Fatal("killed container is still running")
 	}
-
-	deleteContainer(cleanedContainerID)
-
 }

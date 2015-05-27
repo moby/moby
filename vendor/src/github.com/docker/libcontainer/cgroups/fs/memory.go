@@ -16,8 +16,7 @@ type MemoryGroup struct {
 
 func (s *MemoryGroup) Apply(d *data) error {
 	dir, err := d.join("memory")
-	// only return an error for memory if it was specified
-	if err != nil && (d.c.Memory != 0 || d.c.MemoryReservation != 0 || d.c.MemorySwap != 0) {
+	if err != nil && !cgroups.IsNotFound(err) {
 		return err
 	}
 	defer func() {
@@ -95,6 +94,7 @@ func (s *MemoryGroup) GetStats(path string, stats *cgroups.Stats) error {
 		return fmt.Errorf("failed to parse memory.usage_in_bytes - %v", err)
 	}
 	stats.MemoryStats.Usage = value
+	stats.MemoryStats.Cache = stats.MemoryStats.Stats["cache"]
 	value, err = getCgroupParamUint(path, "memory.max_usage_in_bytes")
 	if err != nil {
 		return fmt.Errorf("failed to parse memory.max_usage_in_bytes - %v", err)

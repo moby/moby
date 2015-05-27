@@ -3,7 +3,6 @@ package client
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 
 	"github.com/docker/docker/api/types"
 	flag "github.com/docker/docker/pkg/mflag"
@@ -45,9 +44,8 @@ func (cli *DockerCli) CmdInfo(args ...string) error {
 	fmt.Fprintf(cli.out, "Name: %s\n", info.Name)
 	fmt.Fprintf(cli.out, "ID: %s\n", info.ID)
 
-	if info.Debug || os.Getenv("DEBUG") != "" {
+	if info.Debug {
 		fmt.Fprintf(cli.out, "Debug mode (server): %v\n", info.Debug)
-		fmt.Fprintf(cli.out, "Debug mode (client): %v\n", os.Getenv("DEBUG") != "")
 		fmt.Fprintf(cli.out, "File Descriptors: %d\n", info.NFd)
 		fmt.Fprintf(cli.out, "Goroutines: %d\n", info.NGoroutines)
 		fmt.Fprintf(cli.out, "System Time: %s\n", info.SystemTime)
@@ -88,6 +86,10 @@ func (cli *DockerCli) CmdInfo(args ...string) error {
 		for _, attribute := range info.Labels {
 			fmt.Fprintf(cli.out, " %s\n", attribute)
 		}
+	}
+
+	if info.ExperimentalBuild {
+		fmt.Fprintf(cli.out, "Experimental: true\n")
 	}
 
 	return nil

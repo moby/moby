@@ -17,6 +17,9 @@ Display a live stream of one or more containers' resource usage statistics
 **--help**
   Print usage statement
 
+**--no-stream**="false"
+  Disable streaming stats and only pull the first result
+
 # EXAMPLES
 
 Run **docker stats** with multiple containers.

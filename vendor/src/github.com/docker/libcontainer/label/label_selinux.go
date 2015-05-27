@@ -101,10 +101,22 @@ func SetFileCreateLabel(fileLabel string) error {
 // the MCS label should continue to be used.  SELinux will use this field
 // to make sure the content can not be shared by other containes.
 func Relabel(path string, fileLabel string, relabel string) error {
+	exclude_path := []string{"/", "/usr", "/etc"}
 	if fileLabel == "" {
 		return nil
 	}
-	if relabel == "z" {
+	for _, p := range exclude_path {
+		if path == p {
+			return fmt.Errorf("Relabeling of %s is not allowed", path)
+		}
+	}
+	if !strings.ContainsAny(relabel, "zZ") {
+		return nil
+	}
+	if strings.Contains(relabel, "z") && strings.Contains(relabel, "Z") {
+		return fmt.Errorf("Bad SELinux option z and Z can not be used together")
+	}
+	if strings.Contains(relabel, "z") {
 		c := selinux.NewContext(fileLabel)
 		c["level"] = "s0"
 		fileLabel = c.Get()

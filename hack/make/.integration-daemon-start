@@ -14,8 +14,30 @@ exec 41>&1 42>&2
 
 export DOCKER_GRAPHDRIVER=${DOCKER_GRAPHDRIVER:-vfs}
 export DOCKER_EXECDRIVER=${DOCKER_EXECDRIVER:-native}
+export DOCKER_USERLANDPROXY=${DOCKER_USERLANDPROXY:-true}
+
+# example usage: DOCKER_STORAGE_OPTS="dm.basesize=20G,dm.loopdatasize=200G"
+storage_params=""
+if [ -n "$DOCKER_STORAGE_OPTS" ]; then
+	IFS=','
+	for i in ${DOCKER_STORAGE_OPTS}; do
+		storage_params="--storage-opt $i $storage_params"
+	done
+	unset IFS
+fi
 
 if [ -z "$DOCKER_TEST_HOST" ]; then
+	# Start apparmor if it is enabled
+	if [ "$(cat /sys/module/apparmor/parameters/enabled)" == "Y" ]; then
+		# reset container variable so apparmor profile is applied to process
+		# see https://github.com/docker/libcontainer/blob/master/apparmor/apparmor.go#L16
+		export container=""
+		(
+			set -x
+			/etc/init.d/apparmor start
+		)
+	fi
+
 	export DOCKER_HOST="unix://$(cd "$DEST" && pwd)/docker.sock" # "pwd" tricks to make sure $DEST is an absolute path, not a relative one
 	( set -x; exec \
 		docker --daemon --debug \
@@ -23,6 +45,8 @@ if [ -z "$DOCKER_TEST_HOST" ]; then
 		--storage-driver "$DOCKER_GRAPHDRIVER" \
 		--exec-driver "$DOCKER_EXECDRIVER" \
 		--pidfile "$DEST/docker.pid" \
+		--userland-proxy="$DOCKER_USERLANDPROXY" \
+		$storage_params \
 			&> "$DEST/docker.log"
 	) &
 	trap "source '${MAKEDIR}/.integration-daemon-stop'" EXIT # make sure that if the script exits unexpectedly, we stop this daemon we just started

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"path"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"time"
@@ -18,6 +18,8 @@ import (
 // kernels are compiled with
 // For more information see: http://sourceforge.net/p/aufs/aufs3-standalone/ci/aufs3.12/tree/config.mk
 const MaxImageDepth = 127
+
+var validHex = regexp.MustCompile(`^([a-f0-9]{64})$`)
 
 type Image struct {
 	ID              string            `json:"id"`
@@ -55,7 +57,7 @@ func LoadImage(root string) (*Image, error) {
 		return nil, err
 	}
 
-	if buf, err := ioutil.ReadFile(path.Join(root, "layersize")); err != nil {
+	if buf, err := ioutil.ReadFile(filepath.Join(root, "layersize")); err != nil {
 		if !os.IsNotExist(err) {
 			return nil, err
 		}
@@ -107,21 +109,21 @@ func (img *Image) SetGraph(graph Graph) {
 
 // SaveSize stores the current `size` value of `img` in the directory `root`.
 func (img *Image) SaveSize(root string) error {
-	if err := ioutil.WriteFile(path.Join(root, "layersize"), []byte(strconv.Itoa(int(img.Size))), 0600); err != nil {
+	if err := ioutil.WriteFile(filepath.Join(root, "layersize"), []byte(strconv.Itoa(int(img.Size))), 0600); err != nil {
 		return fmt.Errorf("Error storing image size in %s/layersize: %s", root, err)
 	}
 	return nil
 }
 
 func (img *Image) SaveCheckSum(root, checksum string) error {
-	if err := ioutil.WriteFile(path.Join(root, "checksum"), []byte(checksum), 0600); err != nil {
+	if err := ioutil.WriteFile(filepath.Join(root, "checksum"), []byte(checksum), 0600); err != nil {
 		return fmt.Errorf("Error storing checksum in %s/checksum: %s", root, err)
 	}
 	return nil
 }
 
 func (img *Image) GetCheckSum(root string) (string, error) {
-	cs, err := ioutil.ReadFile(path.Join(root, "checksum"))
+	cs, err := ioutil.ReadFile(filepath.Join(root, "checksum"))
 	if err != nil {
 		if os.IsNotExist(err) {
 			return "", nil
@@ -132,7 +134,7 @@ func (img *Image) GetCheckSum(root string) (string, error) {
 }
 
 func jsonPath(root string) string {
-	return path.Join(root, "json")
+	return filepath.Join(root, "json")
 }
 
 func (img *Image) RawJson() ([]byte, error) {
@@ -266,7 +268,6 @@ func NewImgJSON(src []byte) (*Image, error) {
 
 // Check wheather id is a valid image ID or not
 func ValidateID(id string) error {
-	validHex := regexp.MustCompile(`^([a-f0-9]{64})$`)
 	if ok := validHex.MatchString(id); !ok {
 		return fmt.Errorf("image ID '%s' is invalid", id)
 	}

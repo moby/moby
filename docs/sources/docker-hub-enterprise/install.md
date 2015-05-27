@@ -2,7 +2,7 @@ page_title: Docker Hub Enterprise: Install
 page_description: Installation instructions for Docker Hub Enterprise
 page_keywords: docker, documentation, about, technology, understanding, enterprise, hub, registry
 
-# Install
+# Installing Docker Hub Enterprise
 
 ## Overview
 
@@ -33,9 +33,9 @@ copy of DHE.
 
 ## Prerequisites
 
-DHE requires the following:
+DHE 1.0.1 requires the following:
 
-* Commercially supported Docker Engine 1.6.0 or later running on an
+* Commercially supported Docker Engine 1.6.1 or later running on an
 Ubuntu 14.04 LTS, RHEL 7.1 or RHEL 7.0 host. (See below for instructions on how
 to install the commercially supported Docker Engine.)
 
@@ -112,6 +112,7 @@ $ chmod 755 docker-cs-engine-deb.sh
 $ sudo ./docker-cs-engine-deb.sh
 $ sudo apt-get install docker-engine-cs
 ```
+Lastly, confirm Docker is running with `sudo service docker start`.
 
 In order to simplify using Docker, you can get non-sudo access to the Docker
 socket by adding your user to the `docker` group, then logging out and back in
@@ -124,6 +125,35 @@ $ exit
 
 > **Note**: you may need to reboot your server to update its LTS kernel.
 
+## Upgrading the Commercially Supported Docker Engine
+
+CS Docker Engine 1.6.1 contains fixes to security vulnerabilities,
+  and customers should upgrade to it immediately.
+
+> **Note**: If you have CS Docker Engine 1.6.0 installed, it must be upgraded;
+  however, due to compatibility issues, [DHE must be upgraded](#upgrading-docker-hub-enterprise)
+  first.
+
+The CS Docker Engine installation script set up the RHEL/Ubuntu package repositories,
+so upgrading the Engine only requires you to run the update commands on your server.
+
+### RHEL 7.0/7.1 upgrade
+
+To upgrade CS Docker Engine, run the following command:
+
+```
+    $ sudo yum update
+    $ sudo systemctl daemon-reload && sudo systemctl restart docker
+```
+
+### Ubuntu 14.04 LTS upgrade
+
+To upgrade CS Docker Engine, run the following command:
+
+```
+   $ sudo apt-get update && sudo apt-get dist-upgrade docker-engine-cs
+```
+
 ## Installing Docker Hub Enterprise
 
 Once the commercially supported Docker Engine is installed, you can install DHE
@@ -131,7 +161,6 @@ itself. DHE is a self-installing application built and distributed using Docker
 and the [Docker Hub](https://registry.hub.docker.com/). It is able to restart
 and reconfigure itself using the Docker socket that is bind-mounted to its
 container.
-
 
 Start installing DHE by running the "dockerhubenterprise/manager" container:
 
@@ -279,7 +308,7 @@ based authentication.
 See [DHE Authentication settings](./configuration.md#authentication) for more
 details.
 
-# Upgrading
+## Upgrading Docker Hub Enterprise
 
 DHE has been designed to allow on-the-fly software upgrades. Start by
 clicking on the "System Health" tab. In the upper, right-hand side of the
@@ -304,6 +333,13 @@ DHE.
 
 Assuming you have a decent internet connection, the entire upgrade process
 should complete within a few minutes.
+
+You should now [upgrade CS Docker Engine](#upgrading-the-commercially-supported-docker-engine).
+
+> **Note**: If Docker engine is upgraded first (DHE 1.0.0 on CS Docker Engine 1.6.1),
+> DHE can still be upgraded from the command line by running:
+>
+> `sudo bash -c "$(sudo docker run dockerhubenterprise/manager:1.0.0 upgrade 1.0.1)"`
 
 ## Next Steps
 

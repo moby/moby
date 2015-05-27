@@ -42,6 +42,8 @@ while [ $# -gt 0 ]; do
 	[ "$tag" != "$imageTag" ] || tag='latest'
 	tag="${tag%@*}"
 
+	imageFile="${image//\//_}" # "/" can't be in filenames :)
+
 	token="$(curl -sSL -o /dev/null -D- -H 'X-Docker-Token: true' "https://index.docker.io/v1/repositories/$image/images" | tr -d '\r' | awk -F ': *' '$1 == "X-Docker-Token" { print $2 }')"
 
 	if [ -z "$imageId" ]; then
@@ -60,12 +62,12 @@ while [ $# -gt 0 ]; do
 	ancestry=( ${ancestryJson//[\[\] \"]/} )
 	unset IFS
 
-	if [ -s "$dir/tags-$image.tmp" ]; then
-		echo -n ', ' >> "$dir/tags-$image.tmp"
+	if [ -s "$dir/tags-$imageFile.tmp" ]; then
+		echo -n ', ' >> "$dir/tags-$imageFile.tmp"
 	else
 		images=( "${images[@]}" "$image" )
 	fi
-	echo -n '"'"$tag"'": "'"$imageId"'"' >> "$dir/tags-$image.tmp"
+	echo -n '"'"$tag"'": "'"$imageId"'"' >> "$dir/tags-$imageFile.tmp"
 
 	echo "Downloading '$imageTag' (${#ancestry[@]} layers)..."
 	for imageId in "${ancestry[@]}"; do
@@ -90,10 +92,12 @@ done
 echo -n '{' > "$dir/repositories"
 firstImage=1
 for image in "${images[@]}"; do
+	imageFile="${image//\//_}" # "/" can't be in filenames :)
+
 	[ "$firstImage" ] || echo -n ',' >> "$dir/repositories"
 	firstImage=
 	echo -n $'\n\t' >> "$dir/repositories"
-	echo -n '"'"$image"'": { '"$(cat "$dir/tags-$image.tmp")"' }' >> "$dir/repositories"
+	echo -n '"'"$image"'": { '"$(cat "$dir/tags-$imageFile.tmp")"' }' >> "$dir/repositories"
 done
 echo -n $'\n}\n' >> "$dir/repositories"
 

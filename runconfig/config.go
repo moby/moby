@@ -3,6 +3,7 @@ package runconfig
 import (
 	"encoding/json"
 	"io"
+	"strings"
 
 	"github.com/docker/docker/nat"
 )
@@ -57,6 +58,10 @@ func NewEntrypoint(parts ...string) *Entrypoint {
 
 type Command struct {
 	parts []string
+}
+
+func (e *Command) ToString() string {
+	return strings.Join(e.parts, " ")
 }
 
 func (e *Command) MarshalJSON() ([]byte, error) {
@@ -117,6 +122,7 @@ type Config struct {
 	Cmd             *Command
 	Image           string // Name of the image as it was passed by the operator (eg. could be symbolic)
 	Volumes         map[string]struct{}
+	VolumeDriver    string
 	WorkingDir      string
 	Entrypoint      *Entrypoint
 	NetworkDisabled bool

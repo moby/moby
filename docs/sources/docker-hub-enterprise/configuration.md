@@ -2,7 +2,9 @@ page_title: Docker Hub Enterprise: Configuration options
 page_description: Configuration instructions for Docker Hub Enterprise
 page_keywords: docker, documentation, about, technology, understanding, enterprise, hub, registry
 
-# Configuration options
+# Configuring DHE
+
+## Overview
 
 This page will help you properly configure Docker Hub Enterprise (DHE) so it can
 run in your environment. 
@@ -20,7 +22,7 @@ configuration options. You'll see options for configuring:
 
 ![Domain and Ports page</admin/settings#http>](../assets/admin-settings-http.png)
 
-* *Domain Name*: **required**; defaults to an empty string, the fully qualified domain name assigned to the DHE host.
+* *Domain Name*: **required** defaults to an empty string, the fully qualified domain name assigned to the DHE host.
 * *Load Balancer HTTP Port*: defaults to 80, used as the entry point for the image storage service. To see load balancer status, you can query
 http://&lt;dhe-host&gt;/load_balancer_status.
 * *Load Balancer HTTPS Port*: defaults to 443, used as the secure entry point
@@ -267,42 +269,85 @@ by the [Registry 2.0](http://docs.docker.com/registry/configuration/).
 
 ## Authentication
 
+The "Authentication" settings tab lets DHE administrators control access
+to the DHE web admin tool and to the DHE Registry.
+
 The current authentication methods are `None`, `Basic` and `LDAP`.
 
-The `Basic` setting includes:
+> **Note**: if you have issues logging into the DHE admin web interface after changing the authentication
+> settings, you may need to use the [emergency access to the DHE admin web interface](./adminguide.md#Emergency-access-to-the-dhe-admin-web-interface).
+
+### No authentication
+
+No authentication means that everyone that can access your DHE web administration
+site. This is not recommended for any use other than testing.
+
+
+### Basic authentication
+
+The `Basic` authentication setting allows the admin to provide username/password pairs local to DHE.
+Any user who can successfully authenticate can use DHE to push and pull Docker images.
+You can optionally filter the list of users to a subset of just those users with access to the DHE
+admin web interface.
 
 ![Basic authentication settings page</admin/settings#auth>](../assets/admin-settings-authentication-basic.png)
 
 * A button to add one user, or to upload a CSV file containing username,
 password pairs
 * A DHE website Administrator Filter, allowing you to either
-* * 'Allow all authenticated users' to log into the DHE admin web interface, or
-* * 'Whitelist usernames', which allows you to restrict access to the web
-interface to the listed set of users.
+* * *Allow all authenticated users*: to log into the DHE admin web interface, or
+* * *Whitelist usernames*: which allows you to restrict access to the web interface to a listed set of users.
 
-The `LDAP` setting includes:
+### LDAP authentication
+
+Using LDAP authentication allows you to integrate your DHE registry into your
+organization's existing user and authentication database.
+
+As this involves existing infrastructure external to DHE and Docker, you will need to
+gather the details required to configure DHE for your organization's particular LDAP
+implementation.
+
+You can test that you have the necessary LDAP server information by using it from
+inside a Docker container running on the same server as your DHE:
+
+> **Note**: if the LDAP server is configured to use *StartTLS*, then you need to add `-Z` to the
+> `ldapsearch` command examples below.
+
+```
+docker run --rm -it svendowideit/ldapsearch -h <LDAP Server hostname> -b <User Base DN> -D <Search User DN> -w <Search User Password>
+```
+
+or if the LDAP server is set up to allow anonymous access (which means your *Search User DN* and *Search User Password* settings can remain empty):
+
+```
+docker run --rm -it svendowideit/ldapsearch -h <LDAP Server hostname> -b <User Base DN> -x
+```
+
+The result of these queries should be a (very) long list - if you get an authentication error,
+then the details you have been given are not sufficient.
+
+The *User Login Attribute* key setting must match the field used in the LDAP server
+for the user's login-name. On OpenLDAP, it's generally `uid`, and on Microsoft Active Directory
+servers, it's `sAMAccountName`. The `ldapsearch` output above should allow you to
+confirm which setting you need.
 
 ![LDAP authentication settings page</admin/settings#auth>](../assets/admin-settings-authentication-ldap.png)
 
 * *Use StartTLS*: defaults to unchecked, check to enable StartTLS
-* *LDAP Server URL*: **required**; defaults to null, LDAP server URL (e.g., - ldap://example.com)
-* *User Base DN*: **required**; defaults to null, user base DN in the form
-(e.g., - dc=example,dc=com)
-* *User Login Attribute*: **required**; defaults to null, user login attribute
-(e.g., - uid or sAMAccountName)
-* *Search User DN*:** required**; defaults to null, search user DN
-(e.g., - domain\username)
-* *Search User Password*: **required**; defaults to null, search user password
-* A *DHE Registry User filter*, allowing you to either
-* * 'Allow all authenticated users' to push or pull any images, or
-* * 'Filter LDAP search results', which allows you to restrict DHE registry pull
-and push to users matching the LDAP filter,
-* * 'Whitelist usernames', which allows you to restrict DHE registry pull and
-push to the listed set of users.
+* *LDAP Server URL*: **required** defaults to null, LDAP server URL (e.g., - ldap://example.com)
+* *User Base DN*: **required** defaults to null, user base DN in the form (e.g., - dc=example,dc=com)
+* *User Login Attribute*: **required** defaults to null, user login attribute (e.g., - uid or sAMAccountName)
+* *Search User DN*: **required** defaults to null, search user DN (e.g., - domain\username)
+* *Search User Password*: **required** defaults to null, search user password
+* A *DHE Registry User filter*: allowing you to either
+* * *Allow all authenticated users* to push or pull any images, or
+* * *Filter LDAP search results*: which allows you to restrict DHE registry pull and push to users matching the LDAP filter,
+* * *Whitelist usernames*: which allows you to restrict DHE registry pull and push to the listed set of users.
 * A *DHE website Administrator filter*, allowing you to either
-* * 'Allow all authenticated users' to log into the DHE admin web interface, or
-* * 'Filter LDAP search results', which allows you to restrict DHE admin web access to users matching the LDAP filter,
-* * 'Whitelist usernames', which allows you to restrict access to the web interface to the listed set of users.
+* * *Allow all authenticated users*: to log into the DHE admin web interface, or
+* * *Filter LDAP search results*: which allows you to restrict DHE admin web access to users matching the LDAP filter,
+* * *Whitelist usernames*: which allows you to restrict access to the web interface to the listed set of users.
+
 
 ## Next Steps
 

@@ -9,9 +9,9 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/promise"
-	"github.com/docker/docker/pkg/resolvconf"
 	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/docker/runconfig"
+	"github.com/docker/libnetwork/resolvconf/dns"
 )
 
 func (cid *cidFile) Close() error {
@@ -38,7 +38,6 @@ func (cid *cidFile) Write(id string) error {
 //
 // Usage: docker run [OPTIONS] IMAGE [COMMAND] [ARG...]
 func (cli *DockerCli) CmdRun(args ...string) error {
-	// FIXME: just use runconfig.Parse already
 	cmd := cli.Subcmd("run", "IMAGE [COMMAND] [ARG...]", "Run a command in a new container", true)
 
 	// These are flags not stored in Config/HostConfig
@@ -65,7 +64,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		// localhost regexp to warn if they are trying to
 		// set a DNS to a localhost address
 		for _, dnsIP := range hostConfig.Dns {
-			if resolvconf.IsLocalhost(dnsIP) {
+			if dns.IsLocalhost(dnsIP) {
 				fmt.Fprintf(cli.err, "WARNING: Localhost DNS setting (--dns=%s) may fail in containers.\n", dnsIP)
 				break
 			}
@@ -123,7 +122,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 			fmt.Fprintf(cli.out, "%s\n", createResponse.ID)
 		}()
 	}
-	if *flAutoRemove && (hostConfig.RestartPolicy.Name == "always" || hostConfig.RestartPolicy.Name == "on-failure") {
+	if *flAutoRemove && (hostConfig.RestartPolicy.IsAlways() || hostConfig.RestartPolicy.IsOnFailure()) {
 		return ErrConflictRestartPolicyAndAutoRemove
 	}
 	// We need to instantiate the chan because the select needs it. It can
@@ -133,7 +132,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 	defer func() {
 		logrus.Debugf("End of CmdRun(), Waiting for hijack to finish.")
 		if _, ok := <-hijacked; ok {
-			logrus.Errorf("Hijack did not finish (chan still open)")
+			fmt.Fprintln(cli.err, "Hijack did not finish (chan still open)")
 		}
 	}()
 	if config.AttachStdin || config.AttachStdout || config.AttachStderr {
@@ -183,7 +182,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 	defer func() {
 		if *flAutoRemove {
 			if _, _, err = readBody(cli.call("DELETE", "/containers/"+createResponse.ID+"?v=1", nil, nil)); err != nil {
-				logrus.Errorf("Error deleting container: %s", err)
+				fmt.Fprintf(cli.err, "Error deleting container: %s\n", err)
 			}
 		}
 	}()
@@ -195,7 +194,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 
 	if (config.AttachStdin || config.AttachStdout || config.AttachStderr) && config.Tty && cli.isTerminalOut {
 		if err := cli.monitorTtySize(createResponse.ID, false); err != nil {
-			logrus.Errorf("Error monitoring TTY size: %s", err)
+			fmt.Fprintf(cli.err, "Error monitoring TTY size: %s\n", err)
 		}
 	}
 

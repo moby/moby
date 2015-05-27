@@ -1,6 +1,7 @@
 package archive
 
 import (
+	"archive/tar"
 	"bufio"
 	"bytes"
 	"compress/bzip2"
@@ -11,12 +12,10 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
-	"path"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"syscall"
-
-	"github.com/docker/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/fileutils"
@@ -292,17 +291,8 @@ func createTarFile(path, extractDir string, hdr *tar.Header, reader io.Reader, L
 		file.Close()
 
 	case tar.TypeBlock, tar.TypeChar, tar.TypeFifo:
-		mode := uint32(hdr.Mode & 07777)
-		switch hdr.Typeflag {
-		case tar.TypeBlock:
-			mode |= syscall.S_IFBLK
-		case tar.TypeChar:
-			mode |= syscall.S_IFCHR
-		case tar.TypeFifo:
-			mode |= syscall.S_IFIFO
-		}
-
-		if err := system.Mknod(path, mode, int(system.Mkdev(hdr.Devmajor, hdr.Devminor))); err != nil {
+		// Handle this is an OS-specific way
+		if err := handleTarTypeBlockCharFifo(hdr, path); err != nil {
 			return err
 		}
 
@@ -338,8 +328,11 @@ func createTarFile(path, extractDir string, hdr *tar.Header, reader io.Reader, L
 		return fmt.Errorf("Unhandled tar header type %d\n", hdr.Typeflag)
 	}
 
-	if err := os.Lchown(path, hdr.Uid, hdr.Gid); err != nil && Lchown {
-		return err
+	// Lchown is not supported on Windows
+	if runtime.GOOS != "windows" {
+		if err := os.Lchown(path, hdr.Uid, hdr.Gid); err != nil && Lchown {
+			return err
+		}
 	}
 
 	for key, value := range hdr.Xattrs {
@@ -350,20 +343,12 @@ func createTarFile(path, extractDir string, hdr *tar.Header, reader io.Reader, L
 
 	// There is no LChmod, so ignore mode for symlink. Also, this
 	// must happen after chown, as that can modify the file mode
-	if hdr.Typeflag == tar.TypeLink {
-		if fi, err := os.Lstat(hdr.Linkname); err == nil && (fi.Mode()&os.ModeSymlink == 0) {
-			if err := os.Chmod(path, hdrInfo.Mode()); err != nil {
-				return err
-			}
-		}
-	} else if hdr.Typeflag != tar.TypeSymlink {
-		if err := os.Chmod(path, hdrInfo.Mode()); err != nil {
-			return err
-		}
+	if err := handleLChmod(hdr, path, hdrInfo); err != nil {
+		return err
 	}
 
 	ts := []syscall.Timespec{timeToTimespec(hdr.AccessTime), timeToTimespec(hdr.ModTime)}
-	// syscall.UtimesNano doesn't support a NOFOLLOW flag atm, and
+	// syscall.UtimesNano doesn't support a NOFOLLOW flag atm
 	if hdr.Typeflag == tar.TypeLink {
 		if fi, err := os.Lstat(hdr.Linkname); err == nil && (fi.Mode()&os.ModeSymlink == 0) {
 			if err := system.UtimesNano(path, ts); err != nil && err != system.ErrNotSupportedPlatform {
@@ -532,7 +517,7 @@ loop:
 			parent := filepath.Dir(hdr.Name)
 			parentPath := filepath.Join(dest, parent)
 			if _, err := os.Lstat(parentPath); err != nil && os.IsNotExist(err) {
-				err = os.MkdirAll(parentPath, 0777)
+				err = system.MkdirAll(parentPath, 0777)
 				if err != nil {
 					return err
 				}
@@ -652,7 +637,7 @@ func (archiver *Archiver) CopyWithTar(src, dst string) error {
 	}
 	// Create dst, copy src's content into it
 	logrus.Debugf("Creating dest directory: %s", dst)
-	if err := os.MkdirAll(dst, 0755); err != nil && !os.IsExist(err) {
+	if err := system.MkdirAll(dst, 0755); err != nil && !os.IsExist(err) {
 		return err
 	}
 	logrus.Debugf("Calling TarUntar(%s, %s)", src, dst)
@@ -676,12 +661,12 @@ func (archiver *Archiver) CopyFileWithTar(src, dst string) (err error) {
 	if srcSt.IsDir() {
 		return fmt.Errorf("Can't copy a directory")
 	}
-	// Clean up the trailing /
-	if dst[len(dst)-1] == '/' {
-		dst = path.Join(dst, filepath.Base(src))
+	// Clean up the trailing slash
+	if dst[len(dst)-1] == os.PathSeparator {
+		dst = filepath.Join(dst, filepath.Base(src))
 	}
 	// Create the holding directory if necessary
-	if err := os.MkdirAll(filepath.Dir(dst), 0700); err != nil && !os.IsExist(err) {
+	if err := system.MkdirAll(filepath.Dir(dst), 0700); err != nil && !os.IsExist(err) {
 		return err
 	}
 
@@ -792,9 +777,6 @@ func NewTempArchive(src Archive, dir string) (*TempArchive, error) {
 		return nil, err
 	}
 	if _, err := io.Copy(f, src); err != nil {
-		return nil, err
-	}
-	if err = f.Sync(); err != nil {
 		return nil, err
 	}
 	if _, err := f.Seek(0, 0); err != nil {

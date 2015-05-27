@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"syscall"
 
 	"github.com/docker/docker/pkg/mount"
@@ -194,7 +195,11 @@ func (l *LinuxFactory) Type() string {
 
 // StartInitialization loads a container by opening the pipe fd from the parent to read the configuration and state
 // This is a low level implementation detail of the reexec and should not be consumed externally
-func (l *LinuxFactory) StartInitialization(pipefd uintptr) (err error) {
+func (l *LinuxFactory) StartInitialization() (err error) {
+	pipefd, err := strconv.Atoi(os.Getenv("_LIBCONTAINER_INITPIPE"))
+	if err != nil {
+		return err
+	}
 	var (
 		pipe = os.NewFile(uintptr(pipefd), "pipe")
 		it   = initType(os.Getenv("_LIBCONTAINER_INITTYPE"))

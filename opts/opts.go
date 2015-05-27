@@ -14,14 +14,26 @@ import (
 )
 
 var (
-	alphaRegexp       = regexp.MustCompile(`[a-zA-Z]`)
-	domainRegexp      = regexp.MustCompile(`^(:?(:?[a-zA-Z0-9]|(:?[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9]))(:?\.(:?[a-zA-Z0-9]|(:?[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])))*)\.?\s*$`)
-	DefaultHTTPHost   = "127.0.0.1"            // Default HTTP Host used if only port is provided to -H flag e.g. docker -d -H tcp://:8080
+	alphaRegexp     = regexp.MustCompile(`[a-zA-Z]`)
+	domainRegexp    = regexp.MustCompile(`^(:?(:?[a-zA-Z0-9]|(:?[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9]))(:?\.(:?[a-zA-Z0-9]|(:?[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])))*)\.?\s*$`)
+	DefaultHTTPHost = "127.0.0.1" // Default HTTP Host used if only port is provided to -H flag e.g. docker -d -H tcp://:8080
+	// TODO Windows. DefaultHTTPPort is only used on Windows if a -H parameter
+	// is not supplied. A better longer term solution would be to use a named
+	// pipe as the default on the Windows daemon.
+	DefaultHTTPPort   = 2375                   // Default HTTP Port
 	DefaultUnixSocket = "/var/run/docker.sock" // Docker daemon by default always listens on the default unix socket
 )
 
 func ListVar(values *[]string, names []string, usage string) {
 	flag.Var(newListOptsRef(values, nil), names, usage)
+}
+
+func MapVar(values map[string]string, names []string, usage string) {
+	flag.Var(newMapOpt(values, nil), names, usage)
+}
+
+func LogOptsVar(values map[string]string, names []string, usage string) {
+	flag.Var(newMapOpt(values, ValidateLogOpts), names, usage)
 }
 
 func HostListVar(values *[]string, names []string, usage string) {
@@ -126,9 +138,52 @@ func (opts *ListOpts) Len() int {
 	return len((*opts.values))
 }
 
+//MapOpts type
+type MapOpts struct {
+	values    map[string]string
+	validator ValidatorFctType
+}
+
+func (opts *MapOpts) Set(value string) error {
+	if opts.validator != nil {
+		v, err := opts.validator(value)
+		if err != nil {
+			return err
+		}
+		value = v
+	}
+	vals := strings.SplitN(value, "=", 2)
+	if len(vals) == 1 {
+		(opts.values)[vals[0]] = ""
+	} else {
+		(opts.values)[vals[0]] = vals[1]
+	}
+	return nil
+}
+
+func (opts *MapOpts) String() string {
+	return fmt.Sprintf("%v", map[string]string((opts.values)))
+}
+
+func newMapOpt(values map[string]string, validator ValidatorFctType) *MapOpts {
+	return &MapOpts{
+		values:    values,
+		validator: validator,
+	}
+}
+
 // Validators
 type ValidatorFctType func(val string) (string, error)
 type ValidatorFctListType func(val string) ([]string, error)
+
+func ValidateLogOpts(val string) (string, error) {
+	allowedKeys := map[string]string{}
+	vals := strings.Split(val, "=")
+	if allowedKeys[vals[0]] != "" {
+		return val, nil
+	}
+	return "", fmt.Errorf("%s is not a valid log opt", vals[0])
+}
 
 func ValidateAttach(val string) (string, error) {
 	s := strings.ToLower(val)
@@ -141,7 +196,7 @@ func ValidateAttach(val string) (string, error) {
 }
 
 func ValidateLink(val string) (string, error) {
-	if _, err := parsers.PartParser("name:alias", val); err != nil {
+	if _, _, err := parsers.ParseLink(val); err != nil {
 		return val, err
 	}
 	return val, nil

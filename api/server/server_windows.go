@@ -7,7 +7,6 @@ import (
 	"net"
 	"net/http"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon"
 )
 
@@ -19,13 +18,8 @@ func (s *Server) newServer(proto, addr string) (Server, error) {
 	)
 	switch proto {
 	case "tcp":
-		if !s.cfg.TlsVerify {
-			logrus.Warn("/!\\ DON'T BIND ON ANY IP ADDRESS WITHOUT setting -tlsverify IF YOU DON'T KNOW WHAT YOU'RE DOING /!\\")
-		}
-		if l, err = NewTcpSocket(addr, tlsConfigFromServerConfig(s.cfg)); err != nil {
-			return nil, err
-		}
-		if err := allocateDaemonPort(addr); err != nil {
+		l, err = s.initTcpSocket(addr)
+		if err != nil {
 			return nil, err
 		}
 	default:

@@ -90,28 +90,30 @@ const (
 )
 
 var (
-	DmGetLibraryVersion    = dmGetLibraryVersionFct
-	DmGetNextTarget        = dmGetNextTargetFct
-	DmLogInitVerbose       = dmLogInitVerboseFct
-	DmSetDevDir            = dmSetDevDirFct
-	DmTaskAddTarget        = dmTaskAddTargetFct
-	DmTaskCreate           = dmTaskCreateFct
-	DmTaskDestroy          = dmTaskDestroyFct
-	DmTaskGetDeps          = dmTaskGetDepsFct
-	DmTaskGetInfo          = dmTaskGetInfoFct
-	DmTaskGetDriverVersion = dmTaskGetDriverVersionFct
-	DmTaskRun              = dmTaskRunFct
-	DmTaskSetAddNode       = dmTaskSetAddNodeFct
-	DmTaskSetCookie        = dmTaskSetCookieFct
-	DmTaskSetMessage       = dmTaskSetMessageFct
-	DmTaskSetName          = dmTaskSetNameFct
-	DmTaskSetRo            = dmTaskSetRoFct
-	DmTaskSetSector        = dmTaskSetSectorFct
-	DmUdevWait             = dmUdevWaitFct
-	DmUdevSetSyncSupport   = dmUdevSetSyncSupportFct
-	DmUdevGetSyncSupport   = dmUdevGetSyncSupportFct
-	DmCookieSupported      = dmCookieSupportedFct
-	LogWithErrnoInit       = logWithErrnoInitFct
+	DmGetLibraryVersion       = dmGetLibraryVersionFct
+	DmGetNextTarget           = dmGetNextTargetFct
+	DmLogInitVerbose          = dmLogInitVerboseFct
+	DmSetDevDir               = dmSetDevDirFct
+	DmTaskAddTarget           = dmTaskAddTargetFct
+	DmTaskCreate              = dmTaskCreateFct
+	DmTaskDestroy             = dmTaskDestroyFct
+	DmTaskGetDeps             = dmTaskGetDepsFct
+	DmTaskGetInfo             = dmTaskGetInfoFct
+	DmTaskGetDriverVersion    = dmTaskGetDriverVersionFct
+	DmTaskRun                 = dmTaskRunFct
+	DmTaskSetAddNode          = dmTaskSetAddNodeFct
+	DmTaskSetCookie           = dmTaskSetCookieFct
+	DmTaskSetMessage          = dmTaskSetMessageFct
+	DmTaskSetName             = dmTaskSetNameFct
+	DmTaskSetRo               = dmTaskSetRoFct
+	DmTaskSetSector           = dmTaskSetSectorFct
+	DmUdevWait                = dmUdevWaitFct
+	DmUdevSetSyncSupport      = dmUdevSetSyncSupportFct
+	DmUdevGetSyncSupport      = dmUdevGetSyncSupportFct
+	DmCookieSupported         = dmCookieSupportedFct
+	LogWithErrnoInit          = logWithErrnoInitFct
+	DmTaskDeferredRemove      = dmTaskDeferredRemoveFct
+	DmTaskGetInfoWithDeferred = dmTaskGetInfoWithDeferredFct
 )
 
 func free(p *C.char) {

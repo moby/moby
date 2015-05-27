@@ -16,14 +16,13 @@ import (
 type ImageImportConfig struct {
 	Changes         []string
 	InConfig        io.ReadCloser
-	Json            bool
 	OutStream       io.Writer
 	ContainerConfig *runconfig.Config
 }
 
 func (s *TagStore) Import(src string, repo string, tag string, imageImportConfig *ImageImportConfig) error {
 	var (
-		sf      = streamformatter.NewStreamFormatter(imageImportConfig.Json)
+		sf      = streamformatter.NewJSONStreamFormatter()
 		archive archive.ArchiveReader
 		resp    *http.Response
 	)

@@ -7,7 +7,7 @@ FROM ubuntu-debootstrap:trusty
 RUN apt-get update && apt-get install -y bash-completion btrfs-tools build-essential curl ca-certificates debhelper dh-systemd git libapparmor-dev libdevmapper-dev libsqlite3-dev --no-install-recommends && rm -rf /var/lib/apt/lists/*
 
 ENV GO_VERSION 1.4.2
-RUN curl -fsSL "https://storage.googleapis.com/golang/go${GO_VERSION}.linux-amd64.tar.gz" | tar xvzC /usr/local
+RUN curl -fSL "https://storage.googleapis.com/golang/go${GO_VERSION}.linux-amd64.tar.gz" | tar xzC /usr/local
 ENV PATH $PATH:/usr/local/go/bin
 
 ENV AUTO_GOPATH 1

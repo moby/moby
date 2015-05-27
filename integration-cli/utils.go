@@ -1,6 +1,7 @@
 package main
 
 import (
+	"archive/tar"
 	"bytes"
 	"encoding/json"
 	"errors"
@@ -17,13 +18,12 @@ import (
 	"time"
 
 	"github.com/docker/docker/pkg/stringutils"
-	"github.com/docker/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
 )
 
 func getExitCode(err error) (int, error) {
 	exitCode := 0
 	if exiterr, ok := err.(*exec.ExitError); ok {
-		if procExit := exiterr.Sys().(syscall.WaitStatus); ok {
+		if procExit, ok := exiterr.Sys().(syscall.WaitStatus); ok {
 			return procExit.ExitStatus(), nil
 		}
 	}
@@ -293,15 +293,6 @@ func fileServer(files map[string]string) (*FileServer, error) {
 	return &FileServer{
 		Server: server,
 	}, nil
-}
-
-func copyWithCP(source, target string) error {
-	copyCmd := exec.Command("cp", "-rp", source, target)
-	out, exitCode, err := runCommandWithOutput(copyCmd)
-	if err != nil || exitCode != 0 {
-		return fmt.Errorf("failed to copy: error: %q ,output: %q", err, out)
-	}
-	return nil
 }
 
 // randomUnixTmpDirPath provides a temporary unix path with rand string appended.

@@ -1,6 +1,7 @@
 package opts
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 )
@@ -26,6 +27,31 @@ func TestValidateIPAddress(t *testing.T) {
 		t.Fatalf("ValidateIPAddress(`random invalid string`) got %s %s", ret, err)
 	}
 
+}
+
+func TestMapOpts(t *testing.T) {
+	tmpMap := make(map[string]string)
+	o := newMapOpt(tmpMap, logOptsValidator)
+	o.Set("max-size=1")
+	if o.String() != "map[max-size:1]" {
+		t.Errorf("%s != [map[max-size:1]", o.String())
+	}
+
+	o.Set("max-file=2")
+	if len(tmpMap) != 2 {
+		t.Errorf("map length %d != 2", len(tmpMap))
+	}
+
+	if tmpMap["max-file"] != "2" {
+		t.Errorf("max-file = %s != 2", tmpMap["max-file"])
+	}
+
+	if tmpMap["max-size"] != "1" {
+		t.Errorf("max-size = %s != 1", tmpMap["max-size"])
+	}
+	if o.Set("dummy-val=3") == nil {
+		t.Errorf("validator is not being called")
+	}
 }
 
 func TestValidateMACAddress(t *testing.T) {
@@ -151,4 +177,13 @@ func TestValidateExtraHosts(t *testing.T) {
 			}
 		}
 	}
+}
+
+func logOptsValidator(val string) (string, error) {
+	allowedKeys := map[string]string{"max-size": "1", "max-file": "2"}
+	vals := strings.Split(val, "=")
+	if allowedKeys[vals[0]] != "" {
+		return val, nil
+	}
+	return "", fmt.Errorf("invalid key %s", vals[0])
 }

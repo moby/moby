@@ -9,7 +9,8 @@ DEST=$1
 
 	# TODO consider using frozen images for the dockercore/builder-deb tags
 
-	debVersion="${VERSION//-/'~'}"
+	tilde='~' # ouch Bash 4.2 vs 4.3, you keel me
+	debVersion="${VERSION//-/$tilde}" # using \~ or '~' here works in 4.3, but not 4.2; just ~ causes $HOME to be inserted, hence the $tilde
 	# if we have a "-dev" suffix or have change in Git, let's make this package version more complex so it works better
 	if [[ "$VERSION" == *-dev ]] || [ -n "$(git status --porcelain)" ]; then
 		gitUnix="$(git log -1 --pretty='%at')"
@@ -56,15 +57,11 @@ DEST=$1
 			RUN { echo '$debSource (${debVersion}-0~${suite}) $suite; urgency=low'; echo; echo '  * Version: $VERSION'; echo; echo " -- $debMaintainer  $debDate"; } > debian/changelog && cat >&2 debian/changelog
 			RUN dpkg-buildpackage -uc -us
 		EOF
-		cp -a "$DEST/$version/Dockerfile.build" . # can't use $DEST because it's in .dockerignore...
 		tempImage="docker-temp/build-deb:$version"
-		( set -x && docker build -t "$tempImage" -f Dockerfile.build . )
+		( set -x && docker build -t "$tempImage" -f "$DEST/$version/Dockerfile.build" . )
 		docker run --rm "$tempImage" bash -c 'cd .. && tar -c *_*' | tar -xvC "$DEST/$version"
 		docker rmi "$tempImage"
 	done
-
-	# clean up after ourselves
-	rm -f Dockerfile.build
 
 	source "${MAKEDIR}/.integration-daemon-stop"
 ) 2>&1 | tee -a "$DEST/test.log"

@@ -53,6 +53,12 @@ To see the man page for a command run **man docker <command>**.
 **-e**, **--exec-driver**=""
   Force Docker to use specific exec driver. Default is `native`.
 
+**--exec-opt**=[]
+  Set exec driver options. See EXEC DRIVER OPTIONS.
+
+**--exec-root**=""
+  Path to use as the root of the Docker execdriver. Default is `/var/run/docker`.
+
 **--fixed-cidr**=""
   IPv4 subnet for fixed IPs (e.g., 10.20.0.0/16); this subnet must be nested in the bridge subnet (which is defined by \-b or \-\-bip)
 
@@ -111,6 +117,9 @@ unix://[/path/to/socket] to use.
 **-s**, **--storage-driver**=""
   Force the Docker runtime to use a specific storage driver.
 
+**--selinux-enabled**=*true*|*false*
+  Enable selinux support. Default is false. SELinux does not presently support the BTRFS storage driver.
+
 **--storage-opt**=[]
   Set storage driver options. See STORAGE DRIVER OPTIONS.
 
@@ -121,14 +130,11 @@ unix://[/path/to/socket] to use.
   Use TLS and verify the remote (daemon: verify client, client: verify daemon).
   Default is false.
 
+**--userland-proxy**=*true*|*false*
+    Rely on a userland proxy implementation for inter-container and outside-to-container loopback communications. Default is true.
+
 **-v**, **--version**=*true*|*false*
   Print version information and quit. Default is false.
-
-**--exec-opt**=[]
-  Set exec driver options. See EXEC DRIVER OPTIONS.
-
-**--selinux-enabled**=*true*|*false*
-  Enable selinux support. Default is false. SELinux does not presently support the BTRFS storage driver.
 
 # COMMANDS
 **attach**

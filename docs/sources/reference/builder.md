@@ -892,11 +892,11 @@ consider the following Dockerfile snippet:
 
     FROM ubuntu
     RUN mkdir /myvol
-    RUN echo "hello world" > /myvol/greating
+    RUN echo "hello world" > /myvol/greeting
     VOLUME /myvol
 
 This Dockerfile results in an image that causes `docker run`, to
-create a new mount point at `/myvol` and copy the  `greating` file 
+create a new mount point at `/myvol` and copy the  `greeting` file 
 into the newly created volume.
 
 > **Note**:

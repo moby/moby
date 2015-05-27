@@ -17,9 +17,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api"
-	"github.com/docker/docker/graph"
+	"github.com/docker/docker/graph/tags"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/fileutils"
 	"github.com/docker/docker/pkg/jsonmessage"
@@ -55,9 +54,11 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	flMemoryString := cmd.String([]string{"m", "-memory"}, "", "Memory limit")
 	flMemorySwap := cmd.String([]string{"-memory-swap"}, "", "Total memory (memory + swap), '-1' to disable swap")
 	flCPUShares := cmd.Int64([]string{"c", "-cpu-shares"}, 0, "CPU shares (relative weight)")
+	flCpuPeriod := cmd.Int64([]string{"-cpu-period"}, 0, "Limit the CPU CFS (Completely Fair Scheduler) period")
 	flCpuQuota := cmd.Int64([]string{"-cpu-quota"}, 0, "Limit the CPU CFS (Completely Fair Scheduler) quota")
 	flCPUSetCpus := cmd.String([]string{"-cpuset-cpus"}, "", "CPUs in which to allow execution (0-3, 0,1)")
 	flCPUSetMems := cmd.String([]string{"-cpuset-mems"}, "", "MEMs in which to allow execution (0-3, 0,1)")
+	flCgroupParent := cmd.String([]string{"-cgroup-parent"}, "", "Optional parent cgroup for the container")
 
 	cmd.Require(flag.Exact, 1)
 	cmd.ParseFlags(args, true)
@@ -190,14 +191,14 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	// windows: show error message about modified file permissions
 	// FIXME: this is not a valid warning when the daemon is running windows. should be removed once docker engine for windows can build.
 	if runtime.GOOS == "windows" {
-		logrus.Warn(`SECURITY WARNING: You are building a Docker image from Windows against a Linux Docker host. All files and directories added to build context will have '-rwxr-xr-x' permissions. It is recommended to double check and reset permissions for sensitive files and directories.`)
+		fmt.Fprintln(cli.err, `SECURITY WARNING: You are building a Docker image from Windows against a Linux Docker host. All files and directories added to build context will have '-rwxr-xr-x' permissions. It is recommended to double check and reset permissions for sensitive files and directories.`)
 	}
 
 	var body io.Reader
 	// Setup an upload progress bar
 	// FIXME: ProgressReader shouldn't be this annoying to use
 	if context != nil {
-		sf := streamformatter.NewStreamFormatter(false)
+		sf := streamformatter.NewStreamFormatter()
 		body = progressreader.New(progressreader.Config{
 			In:        context,
 			Out:       cli.out,
@@ -239,7 +240,7 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 			return err
 		}
 		if len(tag) > 0 {
-			if err := graph.ValidateTagName(tag); err != nil {
+			if err := tags.ValidateTagName(tag); err != nil {
 				return err
 			}
 		}
@@ -274,8 +275,10 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	v.Set("cpusetmems", *flCPUSetMems)
 	v.Set("cpushares", strconv.FormatInt(*flCPUShares, 10))
 	v.Set("cpuquota", strconv.FormatInt(*flCpuQuota, 10))
+	v.Set("cpuperiod", strconv.FormatInt(*flCpuPeriod, 10))
 	v.Set("memory", strconv.FormatInt(memory, 10))
 	v.Set("memswap", strconv.FormatInt(memorySwap, 10))
+	v.Set("cgroupparent", *flCgroupParent)
 
 	v.Set("dockerfile", *dockerfileName)
 
@@ -289,7 +292,13 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	if context != nil {
 		headers.Set("Content-Type", "application/tar")
 	}
-	err = cli.stream("POST", fmt.Sprintf("/build?%s", v.Encode()), body, cli.out, headers)
+	sopts := &streamOpts{
+		rawTerminal: true,
+		in:          body,
+		out:         cli.out,
+		headers:     headers,
+	}
+	err = cli.stream("POST", fmt.Sprintf("/build?%s", v.Encode()), sopts)
 	if jerr, ok := err.(*jsonmessage.JSONError); ok {
 		// If no error code is set, default to 1
 		if jerr.Code == 0 {

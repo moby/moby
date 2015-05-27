@@ -3,7 +3,6 @@ package pidfile
 import (
 	"fmt"
 	"io/ioutil"
-	"log"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -24,20 +23,19 @@ func checkPidFileAlreadyExists(path string) error {
 	return nil
 }
 
-func New(path string) (file *PidFile, err error) {
+func New(path string) (*PidFile, error) {
 	if err := checkPidFileAlreadyExists(path); err != nil {
 		return nil, err
 	}
+	if err := ioutil.WriteFile(path, []byte(fmt.Sprintf("%d", os.Getpid())), 0644); err != nil {
+		return nil, err
+	}
 
-	file = &PidFile{path: path}
-	err = ioutil.WriteFile(path, []byte(fmt.Sprintf("%d", os.Getpid())), 0644)
-
-	return file, err
+	return &PidFile{path: path}, nil
 }
 
 func (file PidFile) Remove() error {
 	if err := os.Remove(file.path); err != nil {
-		log.Printf("Error removing %s: %s", file.path, err)
 		return err
 	}
 	return nil

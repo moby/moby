@@ -12,8 +12,14 @@ type StreamFormatter struct {
 	json bool
 }
 
-func NewStreamFormatter(json bool) *StreamFormatter {
-	return &StreamFormatter{json}
+// NewStreamFormatter returns a simple StreamFormatter
+func NewStreamFormatter() *StreamFormatter {
+	return &StreamFormatter{}
+}
+
+// NewJSONStreamFormatter returns a StreamFormatter configured to stream json
+func NewJSONStreamFormatter() *StreamFormatter {
+	return &StreamFormatter{true}
 }
 
 const streamNewline = "\r\n"
@@ -62,7 +68,6 @@ func (sf *StreamFormatter) FormatProgress(id, action string, progress *jsonmessa
 		progress = &jsonmessage.JSONProgress{}
 	}
 	if sf.json {
-
 		b, err := json.Marshal(&jsonmessage.JSONMessage{
 			Status:          action,
 			ProgressMessage: progress.String(),
@@ -79,10 +84,6 @@ func (sf *StreamFormatter) FormatProgress(id, action string, progress *jsonmessa
 		endl += "\n"
 	}
 	return []byte(action + " " + progress.String() + endl)
-}
-
-func (sf *StreamFormatter) Json() bool {
-	return sf.json
 }
 
 type StdoutFormater struct {

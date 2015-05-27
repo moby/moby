@@ -2,7 +2,9 @@ page_title: Docker Hub Enterprise: Overview
 page_description: Docker Hub Enterprise
 page_keywords: docker, documentation, about, technology, understanding, enterprise, hub, registry
 
-# Overview
+# Welcome to Docker Hub Enterprise
+
+## Overview
 
 Docker Hub Enterprise (DHE) lets you run and manage your own Docker image
 storage service, securely on your own infrastructure behind your company
@@ -29,7 +31,7 @@ DHE is perfect for:
 
 DHE is built on [version 2 of the Docker registry](https://github.com/docker/distribution).
 
-## Documentation
+## Available Documentation
 
 The following documentation for DHE is available:
 

@@ -6,19 +6,18 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net"
 	"net/http"
 	"os"
 	"path/filepath"
 	"reflect"
 	"strings"
 	"text/template"
-	"time"
 
 	"github.com/docker/docker/cliconfig"
 	"github.com/docker/docker/pkg/homedir"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/term"
+	"github.com/docker/docker/utils"
 )
 
 // DockerCli represents the docker command line client.
@@ -63,6 +62,14 @@ var funcMap = template.FuncMap{
 	},
 }
 
+func (cli *DockerCli) Out() io.Writer {
+	return cli.out
+}
+
+func (cli *DockerCli) Err() io.Writer {
+	return cli.err
+}
+
 func (cli *DockerCli) getMethod(args ...string) (func(...string) error, bool) {
 	camelArgs := make([]string, len(args))
 	for i, s := range args {
@@ -90,8 +97,7 @@ func (cli *DockerCli) Cmd(args ...string) error {
 	if len(args) > 0 {
 		method, exists := cli.getMethod(args[0])
 		if !exists {
-			fmt.Fprintf(cli.err, "docker: '%s' is not a docker command. See 'docker --help'.\n", args[0])
-			os.Exit(1)
+			return fmt.Errorf("docker: '%s' is not a docker command. See 'docker --help'.", args[0])
 		}
 		return method(args[1:]...)
 	}
@@ -171,19 +177,7 @@ func NewDockerCli(in io.ReadCloser, out, err io.Writer, keyFile string, proto, a
 	tr := &http.Transport{
 		TLSClientConfig: tlsConfig,
 	}
-
-	// Why 32? See https://github.com/docker/docker/pull/8035.
-	timeout := 32 * time.Second
-	if proto == "unix" {
-		// No need for compression in local communications.
-		tr.DisableCompression = true
-		tr.Dial = func(_, _ string) (net.Conn, error) {
-			return net.DialTimeout(proto, addr, timeout)
-		}
-	} else {
-		tr.Proxy = http.ProxyFromEnvironment
-		tr.Dial = (&net.Dialer{Timeout: timeout}).Dial
-	}
+	utils.ConfigureTCPTransport(tr, proto, addr)
 
 	configFile, e := cliconfig.Load(filepath.Join(homedir.Get(), ".docker"))
 	if e != nil {

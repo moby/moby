@@ -149,7 +149,10 @@ expect an integer, and they can only be specified once.
       --default-gateway-v6=""                Container default gateway IPv6 address
       --dns=[]                               DNS server to use
       --dns-search=[]                        DNS search domains to use
+      --default-ulimit=[]                    Set default ulimit settings for containers
       -e, --exec-driver="native"             Exec driver to use
+      --exec-opt=[]                          Set exec driver options
+      --exec-root="/var/run/docker"          Root of the Docker execdriver
       --fixed-cidr=""                        IPv4 subnet for fixed IPs
       --fixed-cidr-v6=""                     IPv6 subnet for fixed IPs
       -G, --group="docker"                   Group for the unix socket
@@ -177,8 +180,8 @@ expect an integer, and they can only be specified once.
       --tlscert="~/.docker/cert.pem"         Path to TLS certificate file
       --tlskey="~/.docker/key.pem"           Path to TLS key file
       --tlsverify=false                      Use TLS and verify the remote
+      --userland-proxy=true                  Use userland proxy for loopback traffic
       -v, --version=false                    Print version information and quit
-      --default-ulimit=[]                    Set default ulimit settings for containers.
 
 Options with [] may be specified multiple times.
 
@@ -249,7 +252,7 @@ precedence over `HTTP_PROXY`.
 ### Daemon storage-driver option
 
 The Docker daemon has support for several different image layer storage drivers: `aufs`,
-`devicemapper`, `btrfs` and `overlay`.
+`devicemapper`, `btrfs`, `zfs` and `overlay`.
 
 The `aufs` driver is the oldest, but is based on a Linux kernel patch-set that
 is unlikely to be merged into the main kernel. These are also known to cause some
@@ -271,6 +274,11 @@ explains how to tune your existing setup without the use of options.
 The `btrfs` driver is very fast for `docker build` - but like `devicemapper` does not
 share executable memory between devices. Use `docker -d -s btrfs -g /mnt/btrfs_partition`.
 
+The `zfs` driver is probably not fast as `btrfs` but has a longer track record
+on stability. Thanks to `Single Copy ARC` shared blocks between clones will be
+cached only once. Use `docker -d -s zfs`. To select a different zfs filesystem
+set `zfs.fsname` option as described in [Storage driver options](#storage-driver-options):
+
 The `overlay` is a very fast union filesystem. It is now merged in the main
 Linux kernel as of [3.18.0](https://lkml.org/lkml/2014/10/26/137).
 Call `docker -d -s overlay` to use it.
@@ -281,10 +289,10 @@ Call `docker -d -s overlay` to use it.
 #### Storage driver options
 
 Particular storage-driver can be configured with options specified with
-`--storage-opt` flags. The only driver accepting options is `devicemapper` as
-of now. All its options are prefixed with `dm`.
+`--storage-opt` flags. Options for `devicemapper` are prefixed with `dm` and
+options for `zfs` start with `zfs`.
 
-Currently supported options are:
+Currently supported options of `devicemapper`:
 
  *  `dm.basesize`
 
@@ -443,6 +451,17 @@ Currently supported options are:
     > daemon with a supported environment.
 
 ### Docker execdriver option
+Currently supported options of `zfs`:
+
+ * `zfs.fsname`
+
+    Set zfs filesystem under which docker will create its own datasets.
+    By default docker will pick up the zfs filesystem where docker graph
+    (`/var/lib/docker`) is located.
+
+    Example use:
+
+       $ docker -d -s zfs --storage-opt zfs.fsname=zroot/docker
 
 The Docker daemon uses a specifically built `libcontainer` execution driver as its
 interface to the Linux kernel `namespaces`, `cgroups`, and `SELinux`.
@@ -642,8 +661,9 @@ is returned by the `docker attach` command to its caller too:
       -m, --memory=""          Memory limit for all build containers
       --memory-swap=""         Total memory (memory + swap), `-1` to disable swap
       -c, --cpu-shares         CPU Shares (relative weight)
-      --cpuset-cpus=""         CPUs in which to allow execution, e.g. `0-3`, `0,1`
       --cpuset-mems=""         MEMs in which to allow execution, e.g. `0-3`, `0,1`
+      --cpuset-cpus=""         CPUs in which to allow exection, e.g. `0-3`, `0,1`
+      --cgroup-parent=""       Optional parent cgroup for the container
 
 Builds Docker images from a Dockerfile and a "context". A build's context is
 the files located in the specified `PATH` or `URL`.  The build process can
@@ -652,12 +672,35 @@ an [*ADD*](/reference/builder/#add) instruction to reference a file in the
 context.
 
 The `URL` parameter can specify the location of a Git repository;
-the repository acts as the build context.  The system recursively clones the repository
+the repository acts as the build context. The system recursively clones the repository
 and its submodules using a `git clone --depth 1 --recursive` command.
 This command runs in a temporary directory on your local host.
 After the command succeeds, the directory is sent to the Docker daemon as the context.
 Local clones give you the ability to access private repositories using
 local user credentials, VPN's, and so forth.
+
+Git URLs accept context configuration in their fragment section, separated by a colon `:`.
+The first part represents the reference that Git will check out, this can be either
+a branch, a tag, or a commit SHA. The second part represents a subdirectory
+inside the repository that will be used as a build context.
+
+For example, run this command to use a directory called `docker` in the branch `container`:
+
+      $ docker build https://github.com/docker/rootfs.git#container:docker
+
+The following table represents all the valid suffixes with their build contexts:
+
+Build Syntax Suffix | Commit Used | Build Context Used
+--------------------|-------------|-------------------
+`myrepo.git` | `refs/heads/master` | `/`
+`myrepo.git#mytag` | `refs/tags/mytag` | `/`
+`myrepo.git#mybranch` | `refs/heads/mybranch` | `/`
+`myrepo.git#abcdef` | `sha1 = abcdef` | `/`
+`myrepo.git#:myfolder` | `refs/heads/master` | `/myfolder`
+`myrepo.git#master:myfolder` | `refs/heads/master` | `/myfolder`
+`myrepo.git#mytag:myfolder` | `refs/tags/mytag` | `/myfolder`
+`myrepo.git#mybranch:myfolder` | `refs/heads/mybranch` | `/myfolder`
+`myrepo.git#abcdef:myfolder` | `sha1 = abcdef` | `/myfolder`
 
 Instead of specifying a context, you can pass a single Dockerfile in the
 `URL` or pipe the file in via `STDIN`.  To pipe a Dockerfile from `STDIN`:
@@ -839,6 +882,11 @@ you refer to it on the command line.
 > children) for security reasons, and to ensure repeatable builds on remote
 > Docker hosts. This is also the reason why `ADD ../file` will not work.
 
+When `docker build` is run with the `--cgroup-parent` option the containers used
+in the build will be run with the [corresponding `docker run`
+flag](/reference/run/#specifying-custom-cgroups). 
+
+
 ## commit
 
     Usage: docker commit [OPTIONS] CONTAINER [REPOSITORY[:TAG]]
@@ -874,7 +922,7 @@ Supported `Dockerfile` instructions:
     197387f1b436        ubuntu:12.04        /bin/bash           7 days ago          Up 25 hours
     $ docker commit c3f279d17e0a  SvenDowideit/testimage:version3
     f5283438590d
-    $ docker images | head
+    $ docker images
     REPOSITORY                        TAG                 ID                  CREATED             VIRTUAL SIZE
     SvenDowideit/testimage            version3            f5283438590d        16 seconds ago      335.7 MB
 
@@ -912,6 +960,7 @@ Creates a new container.
 
       -a, --attach=[]            Attach to STDIN, STDOUT or STDERR
       --add-host=[]              Add a custom host-to-IP mapping (host:ip)
+      --blkio-weight=0           Block IO weight (relative weight)
       -c, --cpu-shares=0         CPU shares (relative weight)
       --cap-add=[]               Add Linux capabilities
       --cap-drop=[]              Drop Linux capabilities
@@ -919,6 +968,7 @@ Creates a new container.
       --cidfile=""               Write the container ID to the file
       --cpuset-cpus=""           CPUs in which to allow execution (0-3, 0,1)
       --cpuset-mems=""           Memory nodes (MEMs) in which to allow execution (0-3, 0,1)
+      --cpu-period=0             Limit the CPU CFS (Completely Fair Scheduler) period
       --cpu-quota=0              Limit the CPU CFS (Completely Fair Scheduler) quota
       --device=[]                Add a host device to the container
       --dns=[]                   Set custom DNS servers
@@ -939,8 +989,11 @@ Creates a new container.
       --mac-address=""           Container MAC address (e.g. 92:d0:c6:0a:29:33)
       --name=""                  Assign a name to the container
       --net="bridge"             Set the Network mode for the container
+      --oom-kill-disable=false   Whether to disable OOM Killer for the container or not
       -P, --publish-all=false    Publish all exposed ports to random ports
       -p, --publish=[]           Publish a container's port(s) to the host
+      --pid=""                   PID namespace to use
+      --uts=""                   UTS namespace to use
       --privileged=false         Give extended privileges to this container
       --read-only=false          Mount the container's root filesystem as read only
       --restart="no"             Restart policy (no, on-failure[:max-retry], always)
@@ -1148,7 +1201,6 @@ You'll need two shells for this example.
 
       -d, --detach=false         Detached mode: run command in the background
       -i, --interactive=false    Keep STDIN open even if not attached
-      --privileged=false         Give extended privileges to the command
       -t, --tty=false            Allocate a pseudo-TTY
       -u, --user=                Username or UID (format: <name|uid>[:<group|gid>])
 
@@ -1273,7 +1325,7 @@ uses up the `VIRTUAL SIZE` listed only once.
 
 #### Listing the most recently created images
 
-    $ docker images | head
+    $ docker images
     REPOSITORY                TAG                 IMAGE ID            CREATED             VIRTUAL SIZE
     <none>                    <none>              77af4d6b9913        19 hours ago        1.089 GB
     committ                   latest              b6fa739cedf5        19 hours ago        1.089 GB
@@ -1288,7 +1340,7 @@ uses up the `VIRTUAL SIZE` listed only once.
 
 #### Listing the full length image IDs
 
-    $ docker images --no-trunc | head
+    $ docker images --no-trunc
     REPOSITORY                    TAG                 IMAGE ID                                                           CREATED             VIRTUAL SIZE
     <none>                        <none>              77af4d6b9913e693e8d0b4b294fa62ade6054e6b2f1ffb617ac955dd63fb0182   19 hours ago        1.089 GB
     committest                    latest              b6fa739cedf5ea12a620a439402b6004d057da800f91c7524b5086a5e4749c9f   19 hours ago        1.089 GB
@@ -1307,7 +1359,7 @@ called a `digest`. As long as the input used to generate the image is
 unchanged, the digest value is predictable. To list image digest values, use
 the `--digests` flag:
 
-    $ docker images --digests | head
+    $ docker images --digests
     REPOSITORY                         TAG                 DIGEST                                                                    IMAGE ID            CREATED             VIRTUAL SIZE
     localhost:5000/test/busybox        <none>              sha256:cbbf2f9a99b47fc460d422812b6a5adff7dfee951d8fa2e4a98caa0382cfbdbf   4986bf8c1536        9 weeks ago         2.43 MB
 
@@ -1583,6 +1635,7 @@ For example:
     Fetch the logs of a container
 
       -f, --follow=false        Follow log output
+      --since=""                Show logs since timestamp
       -t, --timestamps=false    Show timestamps
       --tail="all"              Number of lines to show from the end of the logs
 
@@ -1601,6 +1654,10 @@ The `docker logs --timestamp` commands will add an RFC3339Nano
 timestamp, for example `2014-09-16T06:17:46.000000000Z`, to each
 log entry. To ensure that the timestamps for are aligned the
 nano-second part of the timestamp will be padded with zero when necessary.
+
+The `--since` option shows logs of a container generated only after
+the given date, specified as RFC 3339 or UNIX timestamp. The `--since` option
+can be combined with the `--follow` and `--tail` options.
 
 ## pause
 
@@ -1868,12 +1925,14 @@ To remove an image using its digest:
 
       -a, --attach=[]            Attach to STDIN, STDOUT or STDERR
       --add-host=[]              Add a custom host-to-IP mapping (host:ip)
+      --blkio-weight=0           Block IO weight (relative weight)
       -c, --cpu-shares=0         CPU shares (relative weight)
       --cap-add=[]               Add Linux capabilities
       --cap-drop=[]              Drop Linux capabilities
       --cidfile=""               Write the container ID to the file
       --cpuset-cpus=""           CPUs in which to allow execution (0-3, 0,1)
       --cpuset-mems=""           Memory nodes (MEMs) in which to allow execution (0-3, 0,1)
+      --cpu-period=0             Limit the CPU CFS (Completely Fair Scheduler) period
       --cpu-quota=0              Limit the CPU CFS (Completely Fair Scheduler) quota
       -d, --detach=false         Run container in background and print container ID
       --device=[]                Add a host device to the container
@@ -1897,9 +1956,11 @@ To remove an image using its digest:
       --memory-swap=""           Total memory (memory + swap), '-1' to disable swap
       --name=""                  Assign a name to the container
       --net="bridge"             Set the Network mode for the container
+      --oom-kill-disable=false   Whether to disable OOM Killer for the container or not
       -P, --publish-all=false    Publish all exposed ports to random ports
       -p, --publish=[]           Publish a container's port(s) to the host
       --pid=""                   PID namespace to use
+      --uts=""                   UTS namespace to use
       --privileged=false         Give extended privileges to this container
       --read-only=false          Mount the container's root filesystem as read only
       --restart="no"             Restart policy (no, on-failure[:max-retry], always)
@@ -2102,6 +2163,12 @@ Guide.
 The `--link` flag will link the container named `/redis` into the newly
 created container with the alias `redis`. The new container can access the
 network and environment of the `redis` container via environment variables.
+The `--link` flag will also just accept the form `<name or id>` in which case
+the alias will match the name. For instance, you could have written the previous
+example as:
+
+    $ docker run --link redis --name console ubuntu bash
+
 The `--name` flag will assign the name `console` to the newly created
 container.
 
@@ -2136,10 +2203,10 @@ logs could be retrieved using `docker logs`. This is
 useful if you need to pipe a file or something else into a container and
 retrieve the container's ID once the container has finished running.
 
-   $ docker run --device=/dev/sdc:/dev/xvdc --device=/dev/sdd --device=/dev/zero:/dev/nulo -i -t ubuntu ls -l /dev/{xvdc,sdd,nulo}
-   brw-rw---- 1 root disk 8, 2 Feb  9 16:05 /dev/xvdc
-   brw-rw---- 1 root disk 8, 3 Feb  9 16:05 /dev/sdd
-   crw-rw-rw- 1 root root 1, 5 Feb  9 16:05 /dev/nulo
+    $ docker run --device=/dev/sdc:/dev/xvdc --device=/dev/sdd --device=/dev/zero:/dev/nulo -i -t ubuntu ls -l /dev/{xvdc,sdd,nulo}
+    brw-rw---- 1 root disk 8, 2 Feb  9 16:05 /dev/xvdc
+    brw-rw---- 1 root disk 8, 3 Feb  9 16:05 /dev/sdd
+    crw-rw-rw- 1 root root 1, 5 Feb  9 16:05 /dev/nulo
 
 It is often necessary to directly expose devices to a container. The `--device`
 option enables that.  For example, a specific block storage device or loop
@@ -2332,7 +2399,7 @@ It is used to create a backup that can then be used with `docker load`
 
 It is even useful to cherry-pick particular tags of an image repository
 
-   $ docker save -o ubuntu.tar ubuntu:lucid ubuntu:saucy
+    $ docker save -o ubuntu.tar ubuntu:lucid ubuntu:saucy
 
 ## search
 
@@ -2369,6 +2436,7 @@ more details on finding shared images from the command line.
     Display a live stream of one or more containers' resource usage statistics
 
       --help=false       Print usage
+      --no-stream=false  Disable streaming stats and only pull the first result
 
 Running `docker stats` on multiple containers
 

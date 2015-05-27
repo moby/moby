@@ -64,10 +64,12 @@ func (daemon *Daemon) SystemInfo() (*types.Info, error) {
 		DriverStatus:       daemon.GraphDriver().Status(),
 		MemoryLimit:        daemon.SystemConfig().MemoryLimit,
 		SwapLimit:          daemon.SystemConfig().SwapLimit,
+		CpuCfsPeriod:       daemon.SystemConfig().CpuCfsPeriod,
 		CpuCfsQuota:        daemon.SystemConfig().CpuCfsQuota,
 		IPv4Forwarding:     !daemon.SystemConfig().IPv4ForwardingDisabled,
 		Debug:              os.Getenv("DEBUG") != "",
 		NFd:                fileutils.GetTotalUsedFds(),
+		OomKillDisable:     daemon.SystemConfig().OomKillDisable,
 		NGoroutines:        runtime.NumGoroutine(),
 		SystemTime:         time.Now().Format(time.RFC3339Nano),
 		ExecutionDriver:    daemon.ExecutionDriver().Name(),
@@ -83,6 +85,7 @@ func (daemon *Daemon) SystemInfo() (*types.Info, error) {
 		MemTotal:           meminfo.MemTotal,
 		DockerRootDir:      daemon.Config().Root,
 		Labels:             daemon.Config().Labels,
+		ExperimentalBuild:  utils.ExperimentalBuild(),
 	}
 
 	if httpProxy := os.Getenv("http_proxy"); httpProxy != "" {

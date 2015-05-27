@@ -13,6 +13,7 @@ fi
 
 source "${MAKEDIR}/.go-autogen"
 
+echo "Building: $DEST/$BINARY_FULLNAME"
 go build \
 	-o "$DEST/$BINARY_FULLNAME" \
 	"${BUILDFLAGS[@]}" \

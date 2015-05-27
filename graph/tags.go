@@ -14,6 +14,7 @@ import (
 	"sync"
 
 	"github.com/docker/docker/daemon/events"
+	"github.com/docker/docker/graph/tags"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/stringid"
@@ -26,9 +27,8 @@ import (
 const DEFAULTTAG = "latest"
 
 var (
-	//FIXME these 2 regexes also exist in registry/v2/regexp.go
-	validTagName = regexp.MustCompile(`^[\w][\w.-]{0,127}$`)
-	validDigest  = regexp.MustCompile(`[a-zA-Z0-9-_+.]+:[a-fA-F0-9]+`)
+	//FIXME this regex also exists in registry/v2/regexp.go
+	validDigest = regexp.MustCompile(`[a-zA-Z0-9-_+.]+:[a-fA-F0-9]+`)
 )
 
 type TagStore struct {
@@ -248,12 +248,12 @@ func (store *TagStore) SetLoad(repoName, tag, imageName string, force bool, out 
 		return err
 	}
 	if tag == "" {
-		tag = DEFAULTTAG
+		tag = tags.DEFAULTTAG
 	}
 	if err := validateRepoName(repoName); err != nil {
 		return err
 	}
-	if err := ValidateTagName(tag); err != nil {
+	if err := tags.ValidateTagName(tag); err != nil {
 		return err
 	}
 	if err := store.reload(); err != nil {
@@ -347,9 +347,12 @@ func (store *TagStore) GetImage(repoName, refOrID string) (*image.Image, error) 
 	}
 
 	// If no matching tag is found, search through images for a matching image id
-	for _, revision := range repo {
-		if strings.HasPrefix(revision, refOrID) {
-			return store.graph.Get(revision)
+	// iff it looks like a short ID or would look like a short ID
+	if stringid.IsShortID(stringid.TruncateID(refOrID)) {
+		for _, revision := range repo {
+			if strings.HasPrefix(revision, refOrID) {
+				return store.graph.Get(revision)
+			}
 		}
 	}
 
@@ -377,17 +380,6 @@ func validateRepoName(name string) error {
 	}
 	if name == "scratch" {
 		return fmt.Errorf("'scratch' is a reserved name")
-	}
-	return nil
-}
-
-// ValidateTagName validates the name of a tag
-func ValidateTagName(name string) error {
-	if name == "" {
-		return fmt.Errorf("tag name can't be empty")
-	}
-	if !validTagName.MatchString(name) {
-		return fmt.Errorf("Illegal tag name (%s): only [A-Za-z0-9_.-] are allowed, minimum 1, maximum 128 in length", name)
 	}
 	return nil
 }

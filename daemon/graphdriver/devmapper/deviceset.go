@@ -37,7 +37,9 @@ var (
 	// We retry device removal so many a times that even error messages
 	// will fill up console during normal operation. So only log Fatal
 	// messages by default.
-	DMLogLevel int = devicemapper.LogLevelFatal
+	DMLogLevel                   int  = devicemapper.LogLevelFatal
+	DriverDeferredRemovalSupport bool = false
+	EnableDeferredRemoval        bool = false
 )
 
 const deviceSetMetaFile string = "deviceset-metadata"
@@ -103,6 +105,7 @@ type DeviceSet struct {
 	thinPoolDevice        string
 	Transaction           `json:"-"`
 	overrideUdevSyncCheck bool
+	deferredRemove        bool // use deferred removal
 }
 
 type DiskUsage struct {
@@ -112,15 +115,16 @@ type DiskUsage struct {
 }
 
 type Status struct {
-	PoolName          string
-	DataFile          string // actual block device for data
-	DataLoopback      string // loopback file, if used
-	MetadataFile      string // actual block device for metadata
-	MetadataLoopback  string // loopback file, if used
-	Data              DiskUsage
-	Metadata          DiskUsage
-	SectorSize        uint64
-	UdevSyncSupported bool
+	PoolName              string
+	DataFile              string // actual block device for data
+	DataLoopback          string // loopback file, if used
+	MetadataFile          string // actual block device for metadata
+	MetadataLoopback      string // loopback file, if used
+	Data                  DiskUsage
+	Metadata              DiskUsage
+	SectorSize            uint64
+	UdevSyncSupported     bool
+	DeferredRemoveEnabled bool
 }
 
 type DevStatus struct {
@@ -433,6 +437,12 @@ func (devices *DeviceSet) registerDevice(id int, hash string, size uint64, trans
 
 func (devices *DeviceSet) activateDeviceIfNeeded(info *DevInfo) error {
 	logrus.Debugf("activateDeviceIfNeeded(%v)", info.Hash)
+
+	// Make sure deferred removal on device is canceled, if one was
+	// scheduled.
+	if err := devices.cancelDeferredRemoval(info); err != nil {
+		return fmt.Errorf("Deivce Deferred Removal Cancellation Failed: %s", err)
+	}
 
 	if devinfo, _ := devicemapper.GetInfo(info.Name()); devinfo != nil && devinfo.Exists != 0 {
 		return nil
@@ -960,14 +970,65 @@ func (devices *DeviceSet) closeTransaction() error {
 	return nil
 }
 
+func determineDriverCapabilities(version string) error {
+	/*
+	 * Driver version 4.27.0 and greater support deferred activation
+	 * feature.
+	 */
+
+	logrus.Debugf("devicemapper: driver version is %s", version)
+
+	versionSplit := strings.Split(version, ".")
+	major, err := strconv.Atoi(versionSplit[0])
+	if err != nil {
+		return graphdriver.ErrNotSupported
+	}
+
+	if major > 4 {
+		DriverDeferredRemovalSupport = true
+		return nil
+	}
+
+	if major < 4 {
+		return nil
+	}
+
+	minor, err := strconv.Atoi(versionSplit[1])
+	if err != nil {
+		return graphdriver.ErrNotSupported
+	}
+
+	/*
+	 * If major is 4 and minor is 27, then there is no need to
+	 * check for patch level as it can not be less than 0.
+	 */
+	if minor >= 27 {
+		DriverDeferredRemovalSupport = true
+		return nil
+	}
+
+	return nil
+}
+
 func (devices *DeviceSet) initDevmapper(doInit bool) error {
 	// give ourselves to libdm as a log handler
 	devicemapper.LogInit(devices)
 
-	_, err := devicemapper.GetDriverVersion()
+	version, err := devicemapper.GetDriverVersion()
 	if err != nil {
 		// Can't even get driver version, assume not supported
 		return graphdriver.ErrNotSupported
+	}
+
+	if err := determineDriverCapabilities(version); err != nil {
+		return graphdriver.ErrNotSupported
+	}
+
+	// If user asked for deferred removal and both library and driver
+	// supports deferred removal use it.
+	if EnableDeferredRemoval && DriverDeferredRemovalSupport && devicemapper.LibraryDeferredRemovalSupport == true {
+		logrus.Debugf("devmapper: Deferred removal support enabled.")
+		devices.deferredRemove = true
 	}
 
 	// https://github.com/docker/docker/issues/4036
@@ -1233,12 +1294,20 @@ func (devices *DeviceSet) deactivateDevice(info *DevInfo) error {
 	if err != nil {
 		return err
 	}
-	if devinfo.Exists != 0 {
+
+	if devinfo.Exists == 0 {
+		return nil
+	}
+
+	if devices.deferredRemove {
+		if err := devicemapper.RemoveDeviceDeferred(info.Name()); err != nil {
+			return err
+		}
+	} else {
 		if err := devices.removeDevice(info.Name()); err != nil {
 			return err
 		}
 	}
-
 	return nil
 }
 
@@ -1265,6 +1334,45 @@ func (devices *DeviceSet) removeDevice(devname string) error {
 		devices.Lock()
 	}
 
+	return err
+}
+
+func (devices *DeviceSet) cancelDeferredRemoval(info *DevInfo) error {
+	if !devices.deferredRemove {
+		return nil
+	}
+
+	logrus.Debugf("[devmapper] cancelDeferredRemoval START(%s)", info.Name())
+	defer logrus.Debugf("[devmapper] cancelDeferredRemoval END(%s)", info.Name)
+
+	devinfo, err := devicemapper.GetInfoWithDeferred(info.Name())
+
+	if devinfo != nil && devinfo.DeferredRemove == 0 {
+		return nil
+	}
+
+	// Cancel deferred remove
+	for i := 0; i < 100; i++ {
+		err = devicemapper.CancelDeferredRemove(info.Name())
+		if err == nil {
+			break
+		}
+
+		if err == devicemapper.ErrEnxio {
+			// Device is probably already gone. Return success.
+			return nil
+		}
+
+		if err != devicemapper.ErrBusy {
+			return err
+		}
+
+		// If we see EBUSY it may be a transient error,
+		// sleep a bit a retry a few times.
+		devices.Unlock()
+		time.Sleep(100 * time.Millisecond)
+		devices.Lock()
+	}
 	return err
 }
 
@@ -1366,11 +1474,7 @@ func (devices *DeviceSet) MountDevice(hash, path, mountLabel string) error {
 	options = joinMountOptions(options, devices.mountOptions)
 	options = joinMountOptions(options, label.FormatMountLabel("", mountLabel))
 
-	err = syscall.Mount(info.DevName(), path, fstype, flags, joinMountOptions("discard", options))
-	if err != nil && err == syscall.EINVAL {
-		err = syscall.Mount(info.DevName(), path, fstype, flags, options)
-	}
-	if err != nil {
+	if err := syscall.Mount(info.DevName(), path, fstype, flags, options); err != nil {
 		return fmt.Errorf("Error mounting '%s' on '%s': %s", info.DevName(), path, err)
 	}
 
@@ -1560,6 +1664,7 @@ func (devices *DeviceSet) Status() *Status {
 	status.MetadataFile = devices.MetadataDevicePath()
 	status.MetadataLoopback = devices.metadataLoopFile
 	status.UdevSyncSupported = devicemapper.UdevSyncSupported()
+	status.DeferredRemoveEnabled = devices.deferredRemove
 
 	totalSizeInSectors, _, dataUsed, dataTotal, metadataUsed, metadataTotal, err := devices.poolStatus()
 	if err == nil {
@@ -1670,6 +1775,13 @@ func NewDeviceSet(root string, doInit bool, options []string) (*DeviceSet, error
 			if err != nil {
 				return nil, err
 			}
+
+		case "dm.use_deferred_removal":
+			EnableDeferredRemoval, err = strconv.ParseBool(val)
+			if err != nil {
+				return nil, err
+			}
+
 		default:
 			return nil, fmt.Errorf("Unknown option %s\n", key)
 		}

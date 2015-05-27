@@ -22,8 +22,6 @@ func (daemon *Daemon) ContainerRm(name string, config *ContainerRmConfig) error 
 		name, err := GetFullContainerName(name)
 		if err != nil {
 			return err
-			// TODO: why was just job.Error(err) without return if the function cannot continue w/o container name?
-			//job.Error(err)
 		}
 		parent, n := path.Split(name)
 		if parent == "/" {
@@ -35,68 +33,42 @@ func (daemon *Daemon) ContainerRm(name string, config *ContainerRmConfig) error 
 		}
 		parentContainer, _ := daemon.Get(pe.ID())
 
+		if err := daemon.ContainerGraph().Delete(name); err != nil {
+			return err
+		}
+
 		if parentContainer != nil {
 			parentContainer.DisableLink(n)
 		}
 
-		if err := daemon.ContainerGraph().Delete(name); err != nil {
-			return err
-		}
 		return nil
 	}
 
-	if container != nil {
-		// stop collection of stats for the container regardless
-		// if stats are currently getting collected.
-		daemon.statsCollector.stopCollection(container)
-		if container.IsRunning() {
-			if config.ForceRemove {
-				if err := container.Kill(); err != nil {
-					return fmt.Errorf("Could not kill running container, cannot remove - %v", err)
-				}
-			} else {
-				return fmt.Errorf("Conflict, You cannot remove a running container. Stop the container before attempting removal or use -f")
-			}
-		}
+	if err := daemon.rm(container, config.ForceRemove); err != nil {
+		return fmt.Errorf("Cannot destroy container %s: %v", name, err)
+	}
 
-		if config.ForceRemove {
-			if err := daemon.ForceRm(container); err != nil {
-				logrus.Errorf("Cannot destroy container %s: %v", name, err)
-			}
-		} else {
-			if err := daemon.Rm(container); err != nil {
-				return fmt.Errorf("Cannot destroy container %s: %v", name, err)
-			}
-		}
-		container.LogEvent("destroy")
-		if config.RemoveVolume {
-			daemon.DeleteVolumes(container.VolumePaths())
-		}
+	container.LogEvent("destroy")
+
+	if config.RemoveVolume {
+		container.removeMountPoints()
 	}
 	return nil
 }
 
-func (daemon *Daemon) DeleteVolumes(volumeIDs map[string]struct{}) {
-	for id := range volumeIDs {
-		if err := daemon.volumes.Delete(id); err != nil {
-			logrus.Infof("%s", err)
-			continue
-		}
-	}
-}
-
-func (daemon *Daemon) Rm(container *Container) (err error) {
-	return daemon.commonRm(container, false)
-}
-
-func (daemon *Daemon) ForceRm(container *Container) (err error) {
-	return daemon.commonRm(container, true)
-}
-
 // Destroy unregisters a container from the daemon and cleanly removes its contents from the filesystem.
-func (daemon *Daemon) commonRm(container *Container, forceRemove bool) (err error) {
-	if container == nil {
-		return fmt.Errorf("The given container is <nil>")
+func (daemon *Daemon) rm(container *Container, forceRemove bool) (err error) {
+	// stop collection of stats for the container regardless
+	// if stats are currently getting collected.
+	daemon.statsCollector.stopCollection(container)
+
+	if container.IsRunning() {
+		if !forceRemove {
+			return fmt.Errorf("Conflict, You cannot remove a running container. Stop the container before attempting removal or use -f")
+		}
+		if err := container.Kill(); err != nil {
+			return fmt.Errorf("Could not kill running container, cannot remove - %v", err)
+		}
 	}
 
 	element := daemon.containers.Get(container.ID)
@@ -133,7 +105,6 @@ func (daemon *Daemon) commonRm(container *Container, forceRemove bool) (err erro
 		}
 	}()
 
-	container.derefVolumes()
 	if _, err := daemon.containerGraph.Purge(container.ID); err != nil {
 		logrus.Debugf("Unable to remove container from link graph: %s", err)
 	}
@@ -160,4 +131,8 @@ func (daemon *Daemon) commonRm(container *Container, forceRemove bool) (err erro
 	daemon.containers.Delete(container.ID)
 
 	return nil
+}
+
+func (daemon *Daemon) DeleteVolumes(c *Container) error {
+	return c.removeMountPoints()
 }
