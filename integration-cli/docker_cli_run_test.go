@@ -3172,7 +3172,7 @@ func (s *DockerSuite) TestTwoContainersInNetHost(c *check.C) {
 }
 
 func (s *DockerSuite) TestRunUnshareProc(c *check.C) {
-	testRequires(c, Apparmor)
+	testRequires(c, Apparmor, NativeExecDriver)
 
 	name := "acidburn"
 	runCmd := exec.Command(dockerBinary, "run", "--name", name, "jess/unshare", "unshare", "-p", "-m", "-f", "-r", "--mount-proc=/proc", "mount")
