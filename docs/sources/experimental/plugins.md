@@ -1,10 +1,12 @@
 page_title: Experimental feature - Plugins
 page_keywords: experimental, Docker, plugins
 
-# Overview
+# Experimental: Extend Docker with a plugin 
 
 You can extend the capabilities of the Docker Engine by loading third-party
-plugins.
+plugins. 
+
+This is an experimental feature. For information on installing and using experimental features, see [the experimental feature overview](experimental.md).
 
 ## Types of plugins
 

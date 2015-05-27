@@ -1,28 +1,51 @@
 page_title: Overview of Experimental Features
 page_keywords: experimental, Docker, feature
 
-# Overview 
+# Experimental Features in this Release 
 
-This page contains a list of features in the Docker engine which are experimental as of the current release. Experimental features are **not** ready for production.  They are provided to for test and evaluation in your sandbox environments.  
+This page contains a list of features in the Docker engine which are
+experimental as of the current release. Experimental features are **not** ready
+for production. They are provided for test and evaluation in your sandbox
+environments.  
 
-The information below describes each feature and the Github pull requests and issues associated with it. If necessary, links are provided to additional documentation on an issue.  As an active Docker user and community member, please feel free to provide any feedback on these features you wish.
+The information below describes each feature and the Github pull requests and
+issues associated with it. If necessary, links are provided to additional
+documentation on an issue.  As an active Docker user and community member,
+please feel free to provide any feedback on these features you wish.
 
-## XXXXX
+## Install Docker experimental 
 
-Short two sentence description of the feature. Why someone would use it.
+1. Verify that you have `wget` installed.
 
-### How to use XXXXX
+        $ which wget
 
-No more than two paragraphs. If longer, link to a page with the documentation.
+    If `wget` isn't installed, install it after updating your manager:
 
-### Known issues, limitations, and risks
+        $ sudo apt-get update
+        $ sudo apt-get install wget
 
-* one
-* two
-* three
+2. Get the latest Docker package.
 
-### Related GitHub PRs and issues
+        $ wget -qO- https://experimental.docker.com/ | sh
 
-* one
-* two 
-* three
+    The system prompts you for your `sudo` password. Then, it downloads and
+    installs Docker and its dependencies.
+
+	>**Note**: If your company is behind a filtering proxy, you may find that the
+	>`apt-key`
+	>command fails for the Docker repo during installation. To work around this,
+	>add the key directly using the following:
+	>
+	>       $ wget -qO- https://experimental.docker.com/gpg | sudo apt-key add -
+
+3. Verify `docker` is installed correctly.
+
+        $ sudo docker run hello-world
+
+    This command downloads a test image and runs it in a container.
+
+## Experimental features in this Release
+
+* [Support for Docker plugins](plugins.md)
+* [Volume plugins](plugins_volume.md)
+
