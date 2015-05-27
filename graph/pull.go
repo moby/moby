@@ -282,6 +282,8 @@ func (s *TagStore) pullRepository(r *registry.Session, out io.Writer, repoInfo *
 			var lastErr, err error
 			var isDownloaded bool
 			for _, ep := range repoInfo.Index.Mirrors {
+				// Ensure endpoint is v1
+				ep = ep + "v1/"
 				out.Write(sf.FormatProgress(stringid.TruncateID(img.ID), fmt.Sprintf("Pulling image (%s) from %s, mirror: %s", img.Tag, repoInfo.CanonicalName, ep), nil))
 				if isDownloaded, err = s.pullImage(r, out, img.ID, ep, repoData.Tokens, sf); err != nil {
 					// Don't report errors when pulling from mirrors.
