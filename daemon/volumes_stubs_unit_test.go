@@ -37,24 +37,25 @@ func TestGetVolumeDefaultDriver(t *testing.T) {
 
 func TestParseBindMount(t *testing.T) {
 	cases := []struct {
-		bind      string
-		expDest   string
-		expSource string
-		expName   string
-		expRW     bool
-		fail      bool
+		bind       string
+		expDest    string
+		expSource  string
+		expName    string
+		mountLabel string
+		expRW      bool
+		fail       bool
 	}{
-		{"/tmp:/tmp", "/tmp", "/tmp", "", true, false},
-		{"/tmp:/tmp:ro", "/tmp", "/tmp", "", false, false},
-		{"/tmp:/tmp:rw", "/tmp", "/tmp", "", true, false},
-		{"/tmp:/tmp:foo", "/tmp", "/tmp", "", false, true},
-		{"name:/tmp", "", "", "", false, true},
-		{"local/name:/tmp:rw", "", "", "", true, true},
+		{"/tmp:/tmp", "/tmp", "/tmp", "", "", true, false},
+		{"/tmp:/tmp:ro", "/tmp", "/tmp", "", "", false, false},
+		{"/tmp:/tmp:rw", "/tmp", "/tmp", "", "", true, false},
+		{"/tmp:/tmp:foo", "/tmp", "/tmp", "", "", false, true},
+		{"name:/tmp", "", "", "", "", false, true},
+		{"local/name:/tmp:rw", "", "", "", "", true, true},
 	}
 
 	for _, c := range cases {
 		conf := &runconfig.Config{}
-		m, err := parseBindMount(c.bind, conf)
+		m, err := parseBindMount(c.bind, c.mountLabel, conf)
 		if c.fail {
 			if err == nil {
 				t.Fatalf("Expected error, was nil, for spec %s\n", c.bind)

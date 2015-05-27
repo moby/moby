@@ -396,6 +396,21 @@ used in other containers using the **--volumes-from** option.
 read-only or read-write mode, respectively. By default, the volumes are mounted
 read-write. See examples.
 
+Labeling systems like SELinux require proper labels be placed on volume content
+mounted into a container, otherwise the secuirty system might prevent the
+processes running inside the container from using the content. By default,
+volumes are not relabeled.
+
+Two suffixes :z or :Z can be added to the volume mount. These suffixes tell
+Docker to relabel file objects on the shared volumes. The 'z' option tells
+Docker that the volume content will be shared between containers. Docker will
+label the content with a shared content label. Shared volumes labels allow all
+containers to read/write content. The 'Z' option tells Docker to label the
+content with a private unshared label. Private volumes can only be used by the
+current container.
+
+Note: Multiple Volume options can be added separated by a ","
+
 **--volumes-from**=[]
    Mount volumes from the specified container(s)
 
