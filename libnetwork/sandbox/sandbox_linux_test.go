@@ -33,7 +33,7 @@ func newKey(t *testing.T) (string, error) {
 	}
 
 	// Set the rpmCleanupPeriod to be low to make the test run quicker
-	gpmCleanupPeriod = 2
+	gpmCleanupPeriod = 2 * time.Second
 
 	return name, nil
 }
@@ -152,7 +152,7 @@ func verifySandbox(t *testing.T, s Sandbox) {
 }
 
 func verifyCleanup(t *testing.T, s Sandbox) {
-	time.Sleep(time.Duration(gpmCleanupPeriod*2) * time.Second)
+	time.Sleep(time.Duration(gpmCleanupPeriod * 2))
 	if _, err := os.Stat(s.Key()); err == nil {
 		t.Fatalf("The sandbox path %s is not getting cleanup event after twice the cleanup period", s.Key())
 	}

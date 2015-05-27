@@ -25,7 +25,7 @@ var (
 	garbagePathMap   = make(map[string]bool)
 	gpmLock          sync.Mutex
 	gpmWg            sync.WaitGroup
-	gpmCleanupPeriod = 60
+	gpmCleanupPeriod = 60 * time.Second
 )
 
 // The networkNamespace type is the linux implementation of the Sandbox
@@ -57,7 +57,7 @@ func createBasePath() {
 
 func removeUnusedPaths() {
 	for {
-		time.Sleep(time.Duration(gpmCleanupPeriod) * time.Second)
+		time.Sleep(time.Duration(gpmCleanupPeriod))
 
 		gpmLock.Lock()
 		pathList := make([]string, 0, len(garbagePathMap))
@@ -78,16 +78,14 @@ func removeUnusedPaths() {
 
 func addToGarbagePaths(path string) {
 	gpmLock.Lock()
-	defer gpmLock.Unlock()
-
 	garbagePathMap[path] = true
+	defer gpmLock.Unlock()
 }
 
 func removeFromGarbagePaths(path string) {
 	gpmLock.Lock()
-	defer gpmLock.Unlock()
-
 	delete(garbagePathMap, path)
+	defer gpmLock.Unlock()
 }
 
 // GenerateKey generates a sandbox key based on the passed
@@ -118,6 +116,10 @@ func reexecCreateNamespace() {
 	}
 
 	if err := syscall.Mount("/proc/self/ns/net", os.Args[1], "bind", syscall.MS_BIND, ""); err != nil {
+		log.Fatal(err)
+	}
+
+	if err := loopbackUp(); err != nil {
 		log.Fatal(err)
 	}
 }
