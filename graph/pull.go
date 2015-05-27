@@ -69,7 +69,7 @@ func (s *TagStore) Pull(image string, tag string, imagePullConfig *ImagePullConf
 		}
 
 		if v2mirrorEndpoint != nil {
-			logrus.Debugf("Attempting pull from v2 mirror: %s", v2mirrorEndpoint.URL)
+			logrus.Debugf("Attempting to pull from v2 mirror: %s", v2mirrorEndpoint.URL)
 			return s.pullFromV2Mirror(v2mirrorEndpoint, v2mirrorRepoInfo, imagePullConfig, tag, sf, logName)
 		}
 	}
@@ -138,12 +138,10 @@ func makeMirrorRepoInfo(repoInfo *registry.RepositoryInfo, mirror string) *regis
 
 func configureV2Mirror(repoInfo *registry.RepositoryInfo, s *registry.Service) (*registry.Endpoint, *registry.RepositoryInfo, error) {
 	mirrors := repoInfo.Index.Mirrors
-	if len(mirrors) == 0 && !repoInfo.Index.Official {
-		officialIndex, err := s.ResolveIndex(registry.IndexServerName())
-		if err != nil {
-			return nil, nil, err
-		}
-		mirrors = officialIndex.Mirrors
+
+	if len(mirrors) == 0 {
+		// no mirrors configured
+		return nil, nil, nil
 	}
 
 	v1MirrorCount := 0
