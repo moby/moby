@@ -101,6 +101,39 @@ func addTestCatalog(route string, content []byte, link string, m *testutil.Reque
 	})
 }
 
+func TestBlobDelete(t *testing.T) {
+	dgst, _ := newRandomBlob(1024)
+	var m testutil.RequestResponseMap
+	repo := "test.example.com/repo1"
+	m = append(m, testutil.RequestResponseMapping{
+		Request: testutil.Request{
+			Method: "DELETE",
+			Route:  "/v2/" + repo + "/blobs/" + dgst.String(),
+		},
+		Response: testutil.Response{
+			StatusCode: http.StatusAccepted,
+			Headers: http.Header(map[string][]string{
+				"Content-Length": {"0"},
+			}),
+		},
+	})
+
+	e, c := testServer(m)
+	defer c()
+
+	ctx := context.Background()
+	r, err := NewRepository(ctx, repo, e, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	l := r.Blobs(ctx)
+	err = l.Delete(ctx, dgst)
+	if err != nil {
+		t.Errorf("Error deleting blob: %s", err.Error())
+	}
+
+}
+
 func TestBlobFetch(t *testing.T) {
 	d1, b1 := newRandomBlob(1024)
 	var m testutil.RequestResponseMap
@@ -590,7 +623,7 @@ func TestManifestDelete(t *testing.T) {
 			Route:  "/v2/" + repo + "/manifests/" + dgst1.String(),
 		},
 		Response: testutil.Response{
-			StatusCode: http.StatusOK,
+			StatusCode: http.StatusAccepted,
 			Headers: http.Header(map[string][]string{
 				"Content-Length": {"0"},
 			}),
