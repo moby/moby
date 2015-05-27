@@ -3188,13 +3188,29 @@ func (s *DockerSuite) TestRunUnshareProc(c *check.C) {
 	}
 }
 
-func (s *DockerSuite) TestRunPublishPort(c *check.C) {
-	out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "run", "-d", "--name", "test", "--expose", "8080", "busybox", "top"))
-	c.Assert(err, check.IsNil)
-	out, _, err = runCommandWithOutput(exec.Command(dockerBinary, "port", "test"))
-	c.Assert(err, check.IsNil)
-	out = strings.Trim(out, "\r\n")
-	if out != "" {
-		c.Fatalf("run without --publish-all should not publish port, out should be nil, but got: %s", out)
+func (s *DockerSuite) TestRunContainerNetModeWithExposePort(c *check.C) {
+	cmd := exec.Command(dockerBinary, "run", "-d", "--name", "parent", "busybox", "top")
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		c.Fatalf("failed to run container: %v, output: %q", err, out)
 	}
+
+	cmd = exec.Command(dockerBinary, "run", "-p", "5000:5000", "--net=container:parent", "busybox")
+	out, _, err = runCommandWithOutput(cmd)
+	if err == nil || !strings.Contains(out, "Conflicting options: -p, -P, --publish-all, --publish and the network mode (--net)") {
+		c.Fatalf("run --net=container with -p should error out")
+	}
+
+	cmd = exec.Command(dockerBinary, "run", "-P", "--net=container:parent", "busybox")
+	out, _, err = runCommandWithOutput(cmd)
+	if err == nil || !strings.Contains(out, "Conflicting options: -p, -P, --publish-all, --publish and the network mode (--net)") {
+		c.Fatalf("run --net=container with -P should error out")
+	}
+
+	cmd = exec.Command(dockerBinary, "run", "--expose", "5000", "--net=container:parent", "busybox")
+	out, _, err = runCommandWithOutput(cmd)
+	if err == nil || !strings.Contains(out, "Conflicting options: --expose and the network mode (--expose)") {
+		c.Fatalf("run --net=container with --expose should error out")
+	}
+
 }
