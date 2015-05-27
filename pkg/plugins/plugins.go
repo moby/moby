@@ -8,7 +8,10 @@ import (
 )
 
 var (
-	ErrNotImplements = errors.New("Plugin does not implement the requested driver")
+	ErrNotImplements  = errors.New("Plugin does not implement the requested driver")
+	ErrNotInitialized = errors.New("Plugins registry not initialized")
+
+	DefaultRegistry Registry
 )
 
 type plugins struct {
@@ -17,7 +20,6 @@ type plugins struct {
 }
 
 var (
-	storage          = plugins{plugins: make(map[string]*Plugin)}
 	extpointHandlers = make(map[string]func(string, *Client))
 )
 
@@ -52,47 +54,11 @@ func (p *Plugin) activate() error {
 	return nil
 }
 
-func load(name string) (*Plugin, error) {
-	registry := newLocalRegistry("")
-	pl, err := registry.Plugin(name)
-	if err != nil {
-		return nil, err
+func Get(name, impl string) (*Plugin, error) {
+	if DefaultRegistry == nil {
+		return nil, ErrNotInitialized
 	}
-	if err := pl.activate(); err != nil {
-		return nil, err
-	}
-	return pl, nil
-}
-
-func get(name string) (*Plugin, error) {
-	storage.Lock()
-	defer storage.Unlock()
-	pl, ok := storage.plugins[name]
-	if ok {
-		return pl, nil
-	}
-	pl, err := load(name)
-	if err != nil {
-		return nil, err
-	}
-
-	logrus.Debugf("Plugin: %v", pl)
-	storage.plugins[name] = pl
-	return pl, nil
-}
-
-func Get(name, imp string) (*Plugin, error) {
-	pl, err := get(name)
-	if err != nil {
-		return nil, err
-	}
-	for _, driver := range pl.Manifest.Implements {
-		logrus.Debugf("%s implements: %s", name, driver)
-		if driver == imp {
-			return pl, nil
-		}
-	}
-	return nil, ErrNotImplements
+	return DefaultRegistry.Get(name, impl)
 }
 
 func Handle(iface string, fn func(string, *Client)) {

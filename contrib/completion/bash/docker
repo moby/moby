@@ -1194,6 +1194,7 @@ _docker() {
 		--tlscacert
 		--tlscert
 		--tlskey
+		--plugin-root
 	"
 
 	local main_options_with_args_glob=$(__docker_to_extglob "$main_options_with_args")

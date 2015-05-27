@@ -46,10 +46,12 @@ func Unregister(name string) bool {
 func Lookup(name string) (volume.Driver, error) {
 	drivers.Lock()
 	defer drivers.Unlock()
+
 	ext, ok := drivers.extensions[name]
 	if ok {
 		return ext, nil
 	}
+
 	pl, err := plugins.Get(name, "VolumeDriver")
 	if err != nil {
 		return nil, fmt.Errorf("Error looking up volume plugin %s: %v", name, err)

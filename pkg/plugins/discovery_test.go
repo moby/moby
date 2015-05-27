@@ -17,8 +17,8 @@ func TestUnknownLocalPath(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpdir)
 
-	l := newLocalRegistry(filepath.Join(tmpdir, "unknown"))
-	_, err = l.Plugin("foo")
+	l := NewLocalRegistry(filepath.Join(tmpdir, "unknown")).(*LocalRegistry)
+	_, err = l.plugin("foo")
 	if err == nil || err != ErrNotFound {
 		t.Fatalf("Expected error for unknown directory")
 	}
@@ -36,13 +36,13 @@ func TestLocalSocket(t *testing.T) {
 	}
 	defer l.Close()
 
-	r := newLocalRegistry(tmpdir)
-	p, err := r.Plugin("echo")
+	r := NewLocalRegistry(tmpdir).(*LocalRegistry)
+	p, err := r.plugin("echo")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	pp, err := r.Plugin("echo")
+	pp, err := r.plugin("echo")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -83,8 +83,8 @@ func TestFileSpecPlugin(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		r := newLocalRegistry(tmpdir)
-		p, err := r.Plugin(c.name)
+		r := NewLocalRegistry(tmpdir).(*LocalRegistry)
+		p, err := r.plugin(c.name)
 		if c.fail && err == nil {
 			continue
 		}
