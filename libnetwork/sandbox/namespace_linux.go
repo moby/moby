@@ -5,7 +5,6 @@ import (
 	"net"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"runtime"
 	"sync"
 	"syscall"
@@ -47,9 +46,6 @@ func createBasePath() {
 	if err != nil && !os.IsExist(err) {
 		panic("Could not create net namespace path directory")
 	}
-
-	// cleanup any stale namespace files if any
-	cleanupNamespaceFiles()
 
 	// Start the garbage collection go routine
 	go removeUnusedPaths()
@@ -153,24 +149,6 @@ func createNetworkNamespace(path string, osCreate bool) (*Info, error) {
 	interfaces := []*Interface{}
 	info := &Info{Interfaces: interfaces}
 	return info, nil
-}
-
-func cleanupNamespaceFiles() {
-	filepath.Walk(prefix, func(path string, info os.FileInfo, err error) error {
-		stat, err := os.Stat(path)
-		if err != nil {
-			return err
-		}
-
-		if stat.IsDir() {
-			return filepath.SkipDir
-		}
-
-		syscall.Unmount(path, syscall.MNT_DETACH)
-		os.Remove(path)
-
-		return nil
-	})
 }
 
 func unmountNamespaceFile(path string) {
