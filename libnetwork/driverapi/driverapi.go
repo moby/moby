@@ -104,6 +104,10 @@ type JoinInfo interface {
 	// SetGatewayIPv6 sets the default IPv6 gateway when a container joins the endpoint.
 	SetGatewayIPv6(net.IP) error
 
+	// AddStaticRoute adds a routes to the sandbox.
+	// It may be used in addtion to or instead of a default gateway (as above).
+	AddStaticRoute(destination *net.IPNet, routeType int, nextHop net.IP, interfaceID int) error
+
 	// SetHostsPath sets the overriding /etc/hosts path to use for the container.
 	SetHostsPath(string) error
 

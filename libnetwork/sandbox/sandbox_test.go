@@ -190,12 +190,14 @@ func getInterfaceList() []*Interface {
 			DstName:     "eth0",
 			Address:     netv4a,
 			AddressIPv6: netv6a,
+			Routes:      []*net.IPNet{netv4a, netv6a},
 		},
 		&Interface{
 			SrcName:     "veth7654321",
 			DstName:     "eth1",
 			Address:     netv4b,
 			AddressIPv6: netv6b,
+			Routes:      []*net.IPNet{netv4b, netv6b},
 		},
 	}
 }

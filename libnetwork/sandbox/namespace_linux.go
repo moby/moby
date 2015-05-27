@@ -8,6 +8,7 @@ import (
 	"sync"
 	"syscall"
 
+	"github.com/docker/libnetwork/types"
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netns"
 )
@@ -260,6 +261,35 @@ func (n *networkNamespace) SetGatewayIPv6(gw net.IP) error {
 		n.sinfo.GatewayIPv6 = gw
 	}
 
+	return err
+}
+
+func (n *networkNamespace) AddStaticRoute(r *types.StaticRoute) error {
+	err := programRoute(n.path, r.Destination, r.NextHop)
+	if err == nil {
+		n.Lock()
+		n.sinfo.StaticRoutes = append(n.sinfo.StaticRoutes, r)
+		n.Unlock()
+	}
+	return err
+}
+
+func (n *networkNamespace) RemoveStaticRoute(r *types.StaticRoute) error {
+	err := removeRoute(n.path, r.Destination, r.NextHop)
+	if err == nil {
+		n.Lock()
+		lastIndex := len(n.sinfo.StaticRoutes) - 1
+		for i, v := range n.sinfo.StaticRoutes {
+			if v == r {
+				// Overwrite the route we're removing with the last element
+				n.sinfo.StaticRoutes[i] = n.sinfo.StaticRoutes[lastIndex]
+				// Shorten the slice to trim the extra element
+				n.sinfo.StaticRoutes = n.sinfo.StaticRoutes[:lastIndex]
+				break
+			}
+		}
+		n.Unlock()
+	}
 	return err
 }
 

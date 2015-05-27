@@ -63,6 +63,13 @@ func newInfo(t *testing.T) (*Info, error) {
 	intf1.AddressIPv6 = addrv6
 	intf1.AddressIPv6.IP = ip6
 
+	_, route, err := net.ParseCIDR("192.168.2.1/32")
+	if err != nil {
+		return nil, err
+	}
+
+	intf1.Routes = []*net.IPNet{route}
+
 	veth = &netlink.Veth{
 		LinkAttrs: netlink.LinkAttrs{Name: vethName3, TxQLen: 0},
 		PeerName:  vethName4}
@@ -92,6 +99,7 @@ func newInfo(t *testing.T) (*Info, error) {
 	intf2.AddressIPv6.IP = ip6
 
 	sinfo := &Info{Interfaces: []*Interface{intf1, intf2}}
+
 	sinfo.Gateway = net.ParseIP("192.168.1.1")
 	// sinfo.GatewayIPv6 = net.ParseIP("2001:DB8::1")
 	sinfo.GatewayIPv6 = net.ParseIP("fe80::1")
