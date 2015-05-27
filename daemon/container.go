@@ -1090,17 +1090,6 @@ func (container *Container) prepareMountPoints() error {
 	return nil
 }
 
-func (container *Container) removeMountPoints() error {
-	for _, m := range container.MountPoints {
-		if m.Volume != nil {
-			if err := removeVolume(m.Volume); err != nil {
-				return err
-			}
-		}
-	}
-	return nil
-}
-
 func (container *Container) shouldRestart() bool {
 	return container.hostConfig.RestartPolicy.Name == "always" ||
 		(container.hostConfig.RestartPolicy.Name == "on-failure" && container.ExitCode != 0)
