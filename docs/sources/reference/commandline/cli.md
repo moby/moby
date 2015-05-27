@@ -16,9 +16,10 @@ or execute `docker help`:
       A self-sufficient runtime for Linux containers.
 
       ...
-Depending on your Docker system configuration, you may be required
-to preface each `docker` command with `sudo`. To avoid having to use `sudo` with
-the `docker` command, your system administrator can create a Unix group called
+
+Depending on your Docker system configuration, you may be required to preface
+each `docker` command with `sudo`. To avoid having to use `sudo` with the
+`docker` command, your system administrator can create a Unix group called
 `docker` and add users to it.
 
 For more information about installing Docker or `sudo` configuration, refer to
@@ -32,7 +33,8 @@ by the `docker` command line:
 * `DOCKER_CERT_PATH` The location of your authentication keys.
 * `DOCKER_DRIVER` The graph driver to use.
 * `DOCKER_HOST` Daemon socket to connect to.
-* `DOCKER_NOWARN_KERNEL_VERSION` Prevent warnings that your Linux kernel is unsuitable for Docker.
+* `DOCKER_NOWARN_KERNEL_VERSION` Prevent warnings that your Linux kernel is
+  unsuitable for Docker.
 * `DOCKER_RAMDISK` If set this will disable 'pivot_root'.
 * `DOCKER_TLS_VERIFY` When set Docker uses TLS and verifies the remote.
 * `DOCKER_TMPDIR` Location for temporary Docker files.
@@ -56,18 +58,18 @@ The Docker command line stores its configuration files in a directory called
 `.docker/config.json` file to control certain aspects of how the `docker`
 command behaves.
 
-Currently, you can modify the `docker` command behavior using environment 
-variables or command-line options. You can also use options within 
-`config.json` to modify some of the same behavior.  When using these 
-mechanisms, you must keep in mind the order of precedence among them. Command 
-line options override environment variables and environment variables override 
+Currently, you can modify the `docker` command behavior using environment
+variables or command-line options. You can also use options within
+`config.json` to modify some of the same behavior. When using these
+mechanisms, you must keep in mind the order of precedence among them. Command
+line options override environment variables and environment variables override
 properties you specify in a `config.json` file.
 
 The `config.json` file stores a JSON encoding of a single `HttpHeaders`
-property. The property specifies a set of headers to include in all
-messages sent from the Docker client to the daemon. Docker does not try to
-interpret or understand these header; it simply puts them into the messages.
-Docker does not allow these headers to change any headers it sets for itself.
+property. The property specifies a set of headers to include in all messages
+sent from the Docker client to the daemon. Docker does not try to interpret or
+understand these header; it simply puts them into the messages. Docker does
+not allow these headers to change any headers it sets for itself.
 
 Following is a sample `config.json` file:
 
@@ -78,7 +80,9 @@ Following is a sample `config.json` file:
     }
 
 ## Help
-To list the help on any command just execute the command, followed by the `--help` option.
+
+To list the help on any command just execute the command, followed by the
+`--help` option.
 
     $ docker run --help
 
@@ -98,16 +102,16 @@ you can write `docker run -it --name test busybox sh`.
 
 ### Boolean
 
-Boolean options take the form `-d=false`. The value you see in the help text is the
-default value which is set if you do **not** specify that flag. If you specify
-a Boolean flag without a value, this will set the flag to `true`, irrespective
-of the default value.
+Boolean options take the form `-d=false`. The value you see in the help text is
+the default value which is set if you do **not** specify that flag. If you
+specify a Boolean flag without a value, this will set the flag to `true`,
+irrespective of the default value.
 
-For example, running `docker run -d` will set the value to `true`, so
-your container **will** run in "detached" mode, in the background.
+For example, running `docker run -d` will set the value to `true`, so your
+container **will** run in "detached" mode, in the background.
 
-Options which default to `true` (e.g., `docker build --rm=true`) can only
-be set to the non-default value by explicitly setting them to `false`:
+Options which default to `true` (e.g., `docker build --rm=true`) can only be
+set to the non-default value by explicitly setting them to `false`:
 
     $ docker build --rm=false .
 
@@ -119,13 +123,15 @@ for example in these commands:
     $ docker run -a stdin -a stdout -i -t ubuntu /bin/bash
     $ docker run -a stdin -a stdout -a stderr ubuntu /bin/ls
 
-Sometimes, multiple options can call for a more complex value string as for `-v`:
+Sometimes, multiple options can call for a more complex value string as for
+`-v`:
 
     $ docker run -v /host:/container example/mysql
 
-> **Note**:
-> Do not use the `-t` and `-a stderr` options together due to limitations
-> in the `pty` implementation. All `stderr` in `pty` mode simply goes to `stdout`.
+> **Note:**
+> Do not use the `-t` and `-a stderr` options together due to
+> limitations in the `pty` implementation. All `stderr` in `pty` mode
+> simply goes to `stdout`.
 
 ### Strings and Integers
 
@@ -185,10 +191,9 @@ expect an integer, and they can only be specified once.
 
 Options with [] may be specified multiple times.
 
-The Docker daemon is the persistent process that manages containers.
-Docker uses the same binary for both the daemon and client. To run the
-daemon you provide the `-d` flag.
-
+The Docker daemon is the persistent process that manages containers. Docker
+uses the same binary for both the daemon and client. To run the daemon you
+provide the `-d` flag.
 
 To run the daemon with debug output, use `docker -d -D`.
 
@@ -197,30 +202,32 @@ To run the daemon with debug output, use `docker -d -D`.
 The Docker daemon can listen for [Docker Remote API](/reference/api/docker_remote_api/)
 requests via three different types of Socket: `unix`, `tcp`, and `fd`.
 
-By default, a `unix` domain socket (or IPC socket) is created at `/var/run/docker.sock`,
-requiring either `root` permission, or `docker` group membership.
+By default, a `unix` domain socket (or IPC socket) is created at
+`/var/run/docker.sock`, requiring either `root` permission, or `docker` group
+membership.
 
 If you need to access the Docker daemon remotely, you need to enable the `tcp`
-Socket. Beware that the default setup provides un-encrypted and un-authenticated
-direct access to the Docker daemon - and should be secured either using the
-[built in HTTPS encrypted socket](/articles/https/), or by putting a secure web
-proxy in front of it. You can listen on port `2375` on all network interfaces
-with `-H tcp://0.0.0.0:2375`, or on a particular network interface using its IP
-address: `-H tcp://192.168.59.103:2375`. It is conventional to use port `2375`
-for un-encrypted, and port `2376` for encrypted communication with the daemon.
+Socket. Beware that the default setup provides un-encrypted and
+un-authenticated direct access to the Docker daemon - and should be secured
+either using the [built in HTTPS encrypted socket](/articles/https/), or by
+putting a secure web proxy in front of it. You can listen on port `2375` on all
+network interfaces with `-H tcp://0.0.0.0:2375`, or on a particular network
+interface using its IP address: `-H tcp://192.168.59.103:2375`. It is
+conventional to use port `2375` for un-encrypted, and port `2376` for encrypted
+communication with the daemon.
 
-> **Note** If you're using an HTTPS encrypted socket, keep in mind that only TLS1.0
-> and greater are supported. Protocols SSLv3 and under are not supported anymore
-> for security reasons.
+> **Note:**
+> If you're using an HTTPS encrypted socket, keep in mind that only
+> TLS1.0 and greater are supported. Protocols SSLv3 and under are not
+> supported anymore for security reasons.
 
 On Systemd based systems, you can communicate with the daemon via
-[Systemd socket activation](http://0pointer.de/blog/projects/socket-activation.html), use
-`docker -d -H fd://`. Using `fd://` will work perfectly for most setups but
+[Systemd socket activation](http://0pointer.de/blog/projects/socket-activation.html),
+use `docker -d -H fd://`. Using `fd://` will work perfectly for most setups but
 you can also specify individual sockets: `docker -d -H fd://3`. If the
-specified socket activated files aren't found, then Docker will exit. You
-can find examples of using Systemd socket activation with Docker and
-Systemd in the [Docker source tree](
-https://github.com/docker/docker/tree/master/contrib/init/systemd/).
+specified socket activated files aren't found, then Docker will exit. You can
+find examples of using Systemd socket activation with Docker and Systemd in the
+[Docker source tree](https://github.com/docker/docker/tree/master/contrib/init/systemd/).
 
 You can configure the Docker daemon to listen to multiple sockets at the same
 time using multiple `-H` options:
@@ -228,8 +235,8 @@ time using multiple `-H` options:
     # listen using the default unix socket, and on 2 specific IP addresses on this host.
     docker -d -H unix:///var/run/docker.sock -H tcp://192.168.59.106 -H tcp://10.10.10.2
 
-The Docker client will honor the `DOCKER_HOST` environment variable to set
-the `-H` flag for the client.
+The Docker client will honor the `DOCKER_HOST` environment variable to set the
+`-H` flag for the client.
 
     $ docker -H tcp://0.0.0.0:2375 ps
     # or
@@ -237,8 +244,9 @@ the `-H` flag for the client.
     $ docker ps
     # both are equal
 
-Setting the `DOCKER_TLS_VERIFY` environment variable to any value other than the empty
-string is equivalent to setting the `--tlsverify` flag. The following are equivalent:
+Setting the `DOCKER_TLS_VERIFY` environment variable to any value other than
+the empty string is equivalent to setting the `--tlsverify` flag. The following
+are equivalent:
 
     $ docker --tlsverify ps
     # or
@@ -251,37 +259,39 @@ precedence over `HTTP_PROXY`.
 
 ### Daemon storage-driver option
 
-The Docker daemon has support for several different image layer storage drivers: `aufs`,
-`devicemapper`, `btrfs`, `zfs` and `overlay`.
+The Docker daemon has support for several different image layer storage
+drivers: `aufs`, `devicemapper`, `btrfs`, `zfs` and `overlay`.
 
 The `aufs` driver is the oldest, but is based on a Linux kernel patch-set that
-is unlikely to be merged into the main kernel. These are also known to cause some
-serious kernel crashes. However, `aufs` is also the only storage driver that allows
-containers to share executable and shared library memory, so is a useful choice
-when running thousands of containers with the same program or libraries.
+is unlikely to be merged into the main kernel. These are also known to cause
+some serious kernel crashes. However, `aufs` is also the only storage driver
+that allows containers to share executable and shared library memory, so is a
+useful choice when running thousands of containers with the same program or
+libraries.
 
 The `devicemapper` driver uses thin provisioning and Copy on Write (CoW)
 snapshots. For each devicemapper graph location – typically
 `/var/lib/docker/devicemapper` – a thin pool is created based on two block
-devices, one for data and one for metadata.  By default, these block devices
+devices, one for data and one for metadata. By default, these block devices
 are created automatically by using loopback mounts of automatically created
 sparse files. Refer to [Storage driver options](#storage-driver-options) below
 for a way how to customize this setup.
-[~jpetazzo/Resizing Docker containers with the Device Mapper plugin](
-http://jpetazzo.github.io/2014/01/29/docker-device-mapper-resize/) article
-explains how to tune your existing setup without the use of options.
+[~jpetazzo/Resizing Docker containers with the Device Mapper plugin](http://jpetazzo.github.io/2014/01/29/docker-device-mapper-resize/)
+article explains how to tune your existing setup without the use of options.
 
-The `btrfs` driver is very fast for `docker build` - but like `devicemapper` does not
-share executable memory between devices. Use `docker -d -s btrfs -g /mnt/btrfs_partition`.
+The `btrfs` driver is very fast for `docker build` - but like `devicemapper`
+does not share executable memory between devices. Use
+`docker -d -s btrfs -g /mnt/btrfs_partition`.
 
 The `zfs` driver is probably not fast as `btrfs` but has a longer track record
 on stability. Thanks to `Single Copy ARC` shared blocks between clones will be
 cached only once. Use `docker -d -s zfs`. To select a different zfs filesystem
-set `zfs.fsname` option as described in [Storage driver options](#storage-driver-options):
+set `zfs.fsname` option as described in [Storage driver options](#storage-driver-options).
 
 The `overlay` is a very fast union filesystem. It is now merged in the main
-Linux kernel as of [3.18.0](https://lkml.org/lkml/2014/10/26/137).
-Call `docker -d -s overlay` to use it.
+Linux kernel as of [3.18.0](https://lkml.org/lkml/2014/10/26/137). Call
+`docker -d -s overlay` to use it.
+
 > **Note:**
 > It is currently unsupported on `btrfs` or any Copy on Write filesystem
 > and should only be used over `ext4` partitions.
@@ -302,7 +312,7 @@ Currently supported options of `devicemapper`:
     10 GB of space on the pool. However, the filesystem will use more space for
     the empty case the larger the device is.
 
-     **Warning**: This value affects the system-wide "base" empty filesystem
+     **Warning:** This value affects the system-wide "base" empty filesystem
      that may already be initialized and inherited by pulled images. Typically,
      a change to this value will require additional steps to take effect:
 
@@ -424,9 +434,9 @@ Currently supported options of `devicemapper`:
     `devicemapper` driver, run:
 
         $ docker info
-	[...]
-	 Udev Sync Supported: true
-	[...]
+        [...]
+        Udev Sync Supported: true
+        [...]
 
     When `udev` sync support is `true`, then `devicemapper` and udev can
     coordinate the activation and deactivation of devices for containers.
@@ -444,13 +454,15 @@ Currently supported options of `devicemapper`:
     When this value is `true`, the  `devicemapper` continues and simply warns
     you the errors are happening.
 
-    > **Note**: The ideal is to pursue a `docker` daemon and environment that
-    > does support synchronizing with `udev`. For further discussion on this
+    > **Note:**
+    > The ideal is to pursue a `docker` daemon and environment that does
+    > support synchronizing with `udev`. For further discussion on this
     > topic, see [docker#4036](https://github.com/docker/docker/issues/4036).
-    > Otherwise, set this flag for migrating existing Docker daemons to a
-    > daemon with a supported environment.
+    > Otherwise, set this flag for migrating existing Docker daemons to
+    > a daemon with a supported environment.
 
 ### Docker execdriver option
+
 Currently supported options of `zfs`:
 
  * `zfs.fsname`
@@ -461,10 +473,10 @@ Currently supported options of `zfs`:
 
     Example use:
 
-       $ docker -d -s zfs --storage-opt zfs.fsname=zroot/docker
+        $ docker -d -s zfs --storage-opt zfs.fsname=zroot/docker
 
-The Docker daemon uses a specifically built `libcontainer` execution driver as its
-interface to the Linux kernel `namespaces`, `cgroups`, and `SELinux`.
+The Docker daemon uses a specifically built `libcontainer` execution driver as
+its interface to the Linux kernel `namespaces`, `cgroups`, and `SELinux`.
 
 There is still legacy support for the original [LXC userspace tools](
 https://linuxcontainers.org/) via the `lxc` execution driver, however, this is
@@ -477,14 +489,14 @@ You can configure the `native` (libcontainer) execdriver using options specified
 with the `--exec-opt` flag. All the flag's options have the `native` prefix. A
 single `native.cgroupdriver` option is available.
 
-The `native.cgroupdriver` option specifies the management of the container's 
-cgroups. You can specify `cgroupfs` or `systemd`. If you specify `systemd` and 
-it is not available, the system uses `cgroupfs`. By default, if no option is 
-specified, the execdriver first tries `systemd` and falls back to `cgroupfs`. 
+The `native.cgroupdriver` option specifies the management of the container's
+cgroups. You can specify `cgroupfs` or `systemd`. If you specify `systemd` and
+it is not available, the system uses `cgroupfs`. By default, if no option is
+specified, the execdriver first tries `systemd` and falls back to `cgroupfs`.
 This example sets the execdriver to `cgroupfs`:
 
     $ sudo docker -d --exec-opt native.cgroupdriver=cgroupfs
-     
+
 Setting this option applies to all containers the daemon launches.
 
 ### Daemon DNS options
@@ -497,74 +509,81 @@ To set the DNS search domain for all Docker containers, use
 
 ### Insecure registries
 
-Docker considers a private registry either secure or insecure.
-In the rest of this section, *registry* is used for *private registry*, and `myregistry:5000`
+Docker considers a private registry either secure or insecure. In the rest of
+this section, *registry* is used for *private registry*, and `myregistry:5000`
 is a placeholder example for a private registry.
 
-A secure registry uses TLS and a copy of its CA certificate is placed on the Docker host at
-`/etc/docker/certs.d/myregistry:5000/ca.crt`.
-An insecure registry is either not using TLS (i.e., listening on plain text HTTP), or is using
-TLS with a CA certificate not known by the Docker daemon. The latter can happen when the
-certificate was not found under `/etc/docker/certs.d/myregistry:5000/`, or if the certificate
-verification failed (i.e., wrong CA).
+A secure registry uses TLS and a copy of its CA certificate is placed on the
+Docker host at `/etc/docker/certs.d/myregistry:5000/ca.crt`. An insecure
+registry is either not using TLS (i.e., listening on plain text HTTP), or is
+using TLS with a CA certificate not known by the Docker daemon. The latter can
+happen when the certificate was not found under
+`/etc/docker/certs.d/myregistry:5000/`, or if the certificate verification
+failed (i.e., wrong CA).
 
-By default, Docker assumes all, but local (see local registries below), registries are secure.
-Communicating with an insecure registry is not possible if Docker assumes that registry is secure.
-In order to communicate with an insecure registry, the Docker daemon requires `--insecure-registry`
-in one of the following two forms:
+By default, Docker assumes all, but local (see local registries below),
+registries are secure. Communicating with an insecure registry is not possible
+if Docker assumes that registry is secure. In order to communicate with an
+insecure registry, the Docker daemon requires `--insecure-registry` in one of
+the following two forms:
 
-* `--insecure-registry myregistry:5000` tells the Docker daemon that myregistry:5000 should be considered insecure.
-* `--insecure-registry 10.1.0.0/16` tells the Docker daemon that all registries whose domain resolve to an IP address is part
-of the subnet described by the CIDR syntax, should be considered insecure.
+* `--insecure-registry myregistry:5000` tells the Docker daemon that
+  myregistry:5000 should be considered insecure.
+* `--insecure-registry 10.1.0.0/16` tells the Docker daemon that all registries
+  whose domain resolve to an IP address is part of the subnet described by the
+  CIDR syntax, should be considered insecure.
 
-The flag can be used multiple times to allow multiple registries to be marked as insecure.
+The flag can be used multiple times to allow multiple registries to be marked
+as insecure.
 
-If an insecure registry is not marked as insecure, `docker pull`, `docker push`, and `docker search`
-will result in an error message prompting the user to either secure or pass the `--insecure-registry`
-flag to the Docker daemon as described above.
+If an insecure registry is not marked as insecure, `docker pull`,
+`docker push`, and `docker search` will result in an error message prompting
+the user to either secure or pass the `--insecure-registry` flag to the Docker
+daemon as described above.
 
-Local registries, whose IP address falls in the 127.0.0.0/8 range, are automatically marked as insecure
-as of Docker 1.3.2. It is not recommended to rely on this, as it may change in the future.
+Local registries, whose IP address falls in the 127.0.0.0/8 range, are
+automatically marked as insecure as of Docker 1.3.2. It is not recommended to
+rely on this, as it may change in the future.
 
 ### Running a Docker daemon behind a HTTPS_PROXY
 
-When running inside a LAN that uses a `HTTPS` proxy, the Docker Hub certificates
-will be replaced by the proxy's certificates. These certificates need to be added
-to your Docker host's configuration:
+When running inside a LAN that uses a `HTTPS` proxy, the Docker Hub
+certificates will be replaced by the proxy's certificates. These certificates
+need to be added to your Docker host's configuration:
 
 1. Install the `ca-certificates` package for your distribution
 2. Ask your network admin for the proxy's CA certificate and append them to
    `/etc/pki/tls/certs/ca-bundle.crt`
 3. Then start your Docker daemon with `HTTPS_PROXY=http://username:password@proxy:port/ docker -d`.
-   The `username:` and `password@` are optional - and are only needed if your proxy
-   is set up to require authentication.
+   The `username:` and `password@` are optional - and are only needed if your
+   proxy is set up to require authentication.
 
 This will only add the proxy and authentication to the Docker daemon's requests -
-your `docker build`s and running containers will need extra configuration to use
-the proxy
+your `docker build`s and running containers will need extra configuration to
+use the proxy
 
 ### Default Ulimits
 
-`--default-ulimit` allows you to set the default `ulimit` options to use for all
-containers. It takes the same options as `--ulimit` for `docker run`. If these
-defaults are not set, `ulimit` settings will be inherited, if not set on
-`docker run`, from the Docker daemon. Any `--ulimit` options passed to
-`docker run` will overwrite these defaults.
+`--default-ulimit` allows you to set the default `ulimit` options to use for
+all containers. It takes the same options as `--ulimit` for `docker run`. If
+these defaults are not set, `ulimit` settings will be inherited, if not set on
+`docker run`, from the Docker daemon. Any `--ulimit` options passed to `docker
+run` will overwrite these defaults.
 
 ### Miscellaneous options
 
-IP masquerading uses address translation to allow containers without a public IP to talk
-to other machines on the Internet. This may interfere with some network topologies and
-can be disabled with --ip-masq=false.
+IP masquerading uses address translation to allow containers without a public
+IP to talk to other machines on the Internet. This may interfere with some
+network topologies and can be disabled with --ip-masq=false.
 
-Docker supports softlinks for the Docker data directory
-(`/var/lib/docker`) and for `/var/lib/docker/tmp`. The `DOCKER_TMPDIR` and the data directory can be set like this:
+Docker supports softlinks for the Docker data directory (`/var/lib/docker`) and
+for `/var/lib/docker/tmp`. The `DOCKER_TMPDIR` and the data directory can be
+set like this:
 
     DOCKER_TMPDIR=/mnt/disk2/tmp /usr/local/bin/docker -d -D -g /var/lib/docker -H unix:// > /var/lib/boot2docker/docker.log 2>&1
     # or
     export DOCKER_TMPDIR=/mnt/disk2/tmp
     /usr/local/bin/docker -d -D -g /var/lib/docker -H unix:// > /var/lib/boot2docker/docker.log 2>&1
-
 
 ## attach
 
@@ -577,23 +596,24 @@ Docker supports softlinks for the Docker data directory
 
 The `docker attach` command allows you to attach to a running container using
 the container's ID or name, either to view its ongoing output or to control it
-interactively.  You can attach to the same contained process multiple times
+interactively. You can attach to the same contained process multiple times
 simultaneously, screen sharing style, or quickly view the progress of your
 daemonized process.
 
-You can detach from the container and leave it running with `CTRL-p
-CTRL-q` (for a quiet exit) or with `CTRL-c` if `--sig-proxy` is false.
+You can detach from the container and leave it running with `CTRL-p CTRL-q`
+(for a quiet exit) or with `CTRL-c` if `--sig-proxy` is false.
 
-If `--sig-proxy` is true (the default),`CTRL-c` sends a `SIGINT`
-to the container.
+If `--sig-proxy` is true (the default),`CTRL-c` sends a `SIGINT` to the
+container.
 
->**Note**: A process running as PID 1 inside a container is treated
->specially by Linux: it ignores any signal with the default action.
->So, the process will not terminate on `SIGINT` or `SIGTERM` unless it is
->coded to do so.
+> **Note:**
+> A process running as PID 1 inside a container is treated specially by
+> Linux: it ignores any signal with the default action. So, the process
+> will not terminate on `SIGINT` or `SIGTERM` unless it is coded to do
+> so.
 
-It is forbidden to redirect the standard input of a `docker attach` command while
-attaching to a tty-enabled container (i.e.: launched with `-t`).
+It is forbidden to redirect the standard input of a `docker attach` command
+while attaching to a tty-enabled container (i.e.: launched with `-t`).
 
 #### Examples
 
@@ -632,8 +652,8 @@ attaching to a tty-enabled container (i.e.: launched with `-t`).
     $ docker ps -a | grep topdemo
     7998ac8581f9        ubuntu:14.04        "/usr/bin/top -b"   38 seconds ago      Exited (0) 21 seconds ago                          topdemo
 
-And in this second example, you can see the exit code returned by the `bash` process
-is returned by the `docker attach` command to its caller too:
+And in this second example, you can see the exit code returned by the `bash`
+process is returned by the `docker attach` command to its caller too:
 
     $ docker run --name test -d -it debian
     275c44472aebd77c926d4527885bb09f2f6db21d878c75f0a1c212c03d3bcfab
@@ -666,29 +686,31 @@ is returned by the `docker attach` command to its caller too:
       --cgroup-parent=""       Optional parent cgroup for the container
 
 Builds Docker images from a Dockerfile and a "context". A build's context is
-the files located in the specified `PATH` or `URL`.  The build process can
-refer to any of the files in the context. For example, your build can use
-an [*ADD*](/reference/builder/#add) instruction to reference a file in the
+the files located in the specified `PATH` or `URL`. The build process can refer
+to any of the files in the context. For example, your build can use an
+[*ADD*](/reference/builder/#add) instruction to reference a file in the
 context.
 
-The `URL` parameter can specify the location of a Git repository;
-the repository acts as the build context. The system recursively clones the repository
-and its submodules using a `git clone --depth 1 --recursive` command.
-This command runs in a temporary directory on your local host.
-After the command succeeds, the directory is sent to the Docker daemon as the context.
-Local clones give you the ability to access private repositories using
+The `URL` parameter can specify the location of a Git repository; the
+repository acts as the build context. The system recursively clones the
+repository and its submodules using a `git clone --depth 1 --recursive`
+command. This command runs in a temporary directory on your local host. After
+the command succeeds, the directory is sent to the Docker daemon as the
+context. Local clones give you the ability to access private repositories using
 local user credentials, VPN's, and so forth.
 
-Git URLs accept context configuration in their fragment section, separated by a colon `:`.
-The first part represents the reference that Git will check out, this can be either
-a branch, a tag, or a commit SHA. The second part represents a subdirectory
-inside the repository that will be used as a build context.
+Git URLs accept context configuration in their fragment section, separated by a
+colon `:`.  The first part represents the reference that Git will check out,
+this can be either a branch, a tag, or a commit SHA. The second part represents
+a subdirectory inside the repository that will be used as a build context.
 
-For example, run this command to use a directory called `docker` in the branch `container`:
+For example, run this command to use a directory called `docker` in the branch
+`container`:
 
       $ docker build https://github.com/docker/rootfs.git#container:docker
 
-The following table represents all the valid suffixes with their build contexts:
+The following table represents all the valid suffixes with their build
+contexts:
 
 Build Syntax Suffix | Commit Used | Build Context Used
 --------------------|-------------|-------------------
@@ -702,55 +724,55 @@ Build Syntax Suffix | Commit Used | Build Context Used
 `myrepo.git#mybranch:myfolder` | `refs/heads/mybranch` | `/myfolder`
 `myrepo.git#abcdef:myfolder` | `sha1 = abcdef` | `/myfolder`
 
-Instead of specifying a context, you can pass a single Dockerfile in the
-`URL` or pipe the file in via `STDIN`.  To pipe a Dockerfile from `STDIN`:
+Instead of specifying a context, you can pass a single Dockerfile in the `URL`
+or pipe the file in via `STDIN`. To pipe a Dockerfile from `STDIN`:
 
-	docker build - < Dockerfile
+    docker build - < Dockerfile
 
-If you use STDIN or specify a `URL`, the system places the contents into a
-file called `Dockerfile`, and any `-f`, `--file` option is ignored. In this
+If you use STDIN or specify a `URL`, the system places the contents into a file
+called `Dockerfile`, and any `-f`, `--file` option is ignored. In this
 scenario, there is no context.
 
-By default the `docker build` command will look for a `Dockerfile` at the
-root of the build context. The `-f`, `--file`, option lets you specify
-the path to an alternative file to use instead.  This is useful
-in cases where the same set of files are used for multiple builds. The path
-must be to a file within the build context. If a relative path is specified
-then it must to be relative to the current directory.
+By default the `docker build` command will look for a `Dockerfile` at the root
+of the build context. The `-f`, `--file`, option lets you specify the path to
+an alternative file to use instead. This is useful in cases where the same set
+of files are used for multiple builds. The path must be to a file within the
+build context. If a relative path is specified then it must to be relative to
+the current directory.
 
-In most cases, it's best to put each Dockerfile in an empty directory. Then, add
-to that directory only the files needed for building the Dockerfile. To increase
-the build's performance, you can exclude files and directories by adding a
-`.dockerignore` file to that directory as well. For information on creating one,
-see the [.dockerignore file](../../reference/builder/#dockerignore-file).
+In most cases, it's best to put each Dockerfile in an empty directory. Then,
+add to that directory only the files needed for building the Dockerfile. To
+increase the build's performance, you can exclude files and directories by
+adding a `.dockerignore` file to that directory as well. For information on
+creating one, see the [.dockerignore file](../../reference/builder/#dockerignore-file).
 
 If the Docker client loses connection to the daemon, the build is canceled.
 This happens if you interrupt the Docker client with `ctrl-c` or if the Docker
 client is killed for any reason.
 
-> **Note:** Currently only the "run" phase of the build can be canceled until
-> pull cancelation is implemented).
+> **Note:**
+> Currently only the "run" phase of the build can be canceled until pull
+> cancelation is implemented).
 
 ### Return code
 
-On a successful build, a return code of success `0` will be returned.
-When the build fails, a non-zero failure code will be returned.
+On a successful build, a return code of success `0` will be returned.  When the
+build fails, a non-zero failure code will be returned.
 
-There should be informational output of the reason for failure output
-to `STDERR`:
+There should be informational output of the reason for failure output to
+`STDERR`:
 
-```
-$ docker build -t fail .
-Sending build context to Docker daemon 2.048 kB
-Sending build context to Docker daemon
-Step 0 : FROM busybox
- ---> 4986bf8c1536
-Step 1 : RUN exit 13
- ---> Running in e26670ec7a0a
-INFO[0000] The command [/bin/sh -c exit 13] returned a non-zero code: 13
-$ echo $?
-1
-```
+    $ docker build -t fail .
+    Sending build context to Docker daemon 2.048 kB
+    Sending build context to Docker daemon
+    Step 0 : FROM busybox
+     ---> 4986bf8c1536
+    Step 1 : RUN exit 13
+     ---> Running in e26670ec7a0a
+    INFO[0000] The command [/bin/sh -c exit 13] returned a non-zero code: 13
+    $ echo $?
+    1
+
 See also:
 
 [*Dockerfile Reference*](/reference/builder).
@@ -783,24 +805,19 @@ See also:
     Removing intermediate container 9c9e81692ae9
     Removing intermediate container 02071fceb21b
 
-This example specifies that the `PATH` is
-`.`, and so all the files in the local directory get
-`tar`d and sent to the Docker daemon. The `PATH`
-specifies where to find the files for the "context" of the build on the
-Docker daemon. Remember that the daemon could be running on a remote
-machine and that no parsing of the Dockerfile
-happens at the client side (where you're running
-`docker build`). That means that *all* the files at
-`PATH` get sent, not just the ones listed to
-[*ADD*](/reference/builder/#add) in the Dockerfile.
+This example specifies that the `PATH` is `.`, and so all the files in the
+local directory get `tar`d and sent to the Docker daemon. The `PATH` specifies
+where to find the files for the "context" of the build on the Docker daemon.
+Remember that the daemon could be running on a remote machine and that no
+parsing of the Dockerfile happens at the client side (where you're running
+`docker build`). That means that *all* the files at `PATH` get sent, not just
+the ones listed to [*ADD*](/reference/builder/#add) in the Dockerfile.
 
-The transfer of context from the local machine to the Docker daemon is
-what the `docker` client means when you see the
-"Sending build context" message.
+The transfer of context from the local machine to the Docker daemon is what the
+`docker` client means when you see the "Sending build context" message.
 
-If you wish to keep the intermediate containers after the build is
-complete, you must use `--rm=false`. This does not
-affect the build cache.
+If you wish to keep the intermediate containers after the build is complete,
+you must use `--rm=false`. This does not affect the build cache.
 
     $ docker build .
     Uploading context 18.829 MB
@@ -829,63 +846,62 @@ uploaded context. The builder reference contains detailed information on
 
     $ docker build -t vieux/apache:2.0 .
 
-This will build like the previous example, but it will then tag the
-resulting image. The repository name will be `vieux/apache`
-and the tag will be `2.0`
+This will build like the previous example, but it will then tag the resulting
+image. The repository name will be `vieux/apache` and the tag will be `2.0`
 
     $ docker build - < Dockerfile
 
-This will read a Dockerfile from `STDIN` without context. Due to the
-lack of a context, no contents of any local directory will be sent to
-the Docker daemon. Since there is no context, a Dockerfile `ADD` only
-works if it refers to a remote URL.
+This will read a Dockerfile from `STDIN` without context. Due to the lack of a
+context, no contents of any local directory will be sent to the Docker daemon.
+Since there is no context, a Dockerfile `ADD` only works if it refers to a
+remote URL.
 
     $ docker build - < context.tar.gz
 
-This will build an image for a compressed context read from `STDIN`.
-Supported formats are: bzip2, gzip and xz.
+This will build an image for a compressed context read from `STDIN`.  Supported
+formats are: bzip2, gzip and xz.
 
     $ docker build github.com/creack/docker-firefox
 
-This will clone the GitHub repository and use the cloned repository as
-context. The Dockerfile at the root of the
-repository is used as Dockerfile. Note that you
-can specify an arbitrary Git repository by using the `git://` or `git@`
+This will clone the GitHub repository and use the cloned repository as context.
+The Dockerfile at the root of the repository is used as Dockerfile. Note that
+you can specify an arbitrary Git repository by using the `git://` or `git@`
 schema.
 
     $ docker build -f Dockerfile.debug .
 
-This will use a file called `Dockerfile.debug` for the build
-instructions instead of `Dockerfile`.
+This will use a file called `Dockerfile.debug` for the build instructions
+instead of `Dockerfile`.
 
     $ docker build -f dockerfiles/Dockerfile.debug -t myapp_debug .
     $ docker build -f dockerfiles/Dockerfile.prod  -t myapp_prod .
 
-The above commands will build the current build context (as specified by
-the `.`) twice, once using a debug version of a `Dockerfile` and once using
-a production version.
+The above commands will build the current build context (as specified by the
+`.`) twice, once using a debug version of a `Dockerfile` and once using a
+production version.
 
     $ cd /home/me/myapp/some/dir/really/deep
     $ docker build -f /home/me/myapp/dockerfiles/debug /home/me/myapp
     $ docker build -f ../../../../dockerfiles/debug /home/me/myapp
 
-These two `docker build` commands do the exact same thing. They both
-use the contents of the `debug` file instead of looking for a `Dockerfile`
-and will use `/home/me/myapp` as the root of the build context. Note that
-`debug` is in the directory structure of the build context, regardless of how
-you refer to it on the command line.
+These two `docker build` commands do the exact same thing. They both use the
+contents of the `debug` file instead of looking for a `Dockerfile` and will use
+`/home/me/myapp` as the root of the build context. Note that `debug` is in the
+directory structure of the build context, regardless of how you refer to it on
+the command line.
 
-> **Note:** `docker build` will return a `no such file or directory` error
-> if the file or directory does not exist in the uploaded context. This may
-> happen if there is no context, or if you specify a file that is elsewhere
-> on the Host system. The context is limited to the current directory (and its
-> children) for security reasons, and to ensure repeatable builds on remote
-> Docker hosts. This is also the reason why `ADD ../file` will not work.
+> **Note:**
+> `docker build` will return a `no such file or directory` error if the
+> file or directory does not exist in the uploaded context. This may
+> happen if there is no context, or if you specify a file that is
+> elsewhere on the Host system. The context is limited to the current
+> directory (and its children) for security reasons, and to ensure
+> repeatable builds on remote Docker hosts. This is also the reason why
+> `ADD ../file` will not work.
 
-When `docker build` is run with the `--cgroup-parent` option the containers used
-in the build will be run with the [corresponding `docker run`
-flag](/reference/run/#specifying-custom-cgroups). 
-
+When `docker build` is run with the `--cgroup-parent` option the containers
+used in the build will be run with the [corresponding `docker run`
+flag](/reference/run/#specifying-custom-cgroups).
 
 ## commit
 
@@ -898,20 +914,18 @@ flag](/reference/run/#specifying-custom-cgroups).
       -m, --message=""    Commit message
       -p, --pause=true    Pause container during commit
 
-It can be useful to commit a container's file changes or settings into a
-new image. This allows you debug a container by running an interactive
-shell, or to export a working dataset to another server. Generally, it
-is better to use Dockerfiles to manage your images in a documented and
-maintainable way.
+It can be useful to commit a container's file changes or settings into a new
+image. This allows you debug a container by running an interactive shell, or to
+export a working dataset to another server. Generally, it is better to use
+Dockerfiles to manage your images in a documented and maintainable way.
 
 By default, the container being committed and its processes will be paused
-while the image is committed. This reduces the likelihood of
-encountering data corruption during the process of creating the commit.
-If this behavior is undesired, set the 'p' option to false.
+while the image is committed. This reduces the likelihood of encountering data
+corruption during the process of creating the commit.  If this behavior is
+undesired, set the 'p' option to false.
 
-The `--change` option will apply `Dockerfile` instructions to the image
-that is created.
-Supported `Dockerfile` instructions:
+The `--change` option will apply `Dockerfile` instructions to the image that is
+created.  Supported `Dockerfile` instructions:
 `CMD`|`ENTRYPOINT`|`ENV`|`EXPOSE`|`ONBUILD`|`USER`|`VOLUME`|`WORKDIR`
 
 #### Commit a container
@@ -942,7 +956,7 @@ Supported `Dockerfile` instructions:
 ## cp
 
 Copy files or folders from a container's filesystem to the directory on the
-host.  Use '-' to write the data as a tar file to `STDOUT`. `CONTAINER:PATH` is
+host. Use '-' to write the data as a tar file to `STDOUT`. `CONTAINER:PATH` is
 relative to the root of the container's filesystem.
 
     Usage: docker cp CONTAINER:PATH HOSTDIR|-
@@ -1004,15 +1018,14 @@ Creates a new container.
       --volumes-from=[]          Mount volumes from the specified container(s)
       -w, --workdir=""           Working directory inside the container
 
-The `docker create` command creates a writeable container layer over
-the specified image and prepares it for running the specified command.
-The container ID is then printed to `STDOUT`.
-This is similar to `docker run -d` except the container is never started.
-You can then use the `docker start <container_id>` command to start the
-container at any point.
+The `docker create` command creates a writeable container layer over the
+specified image and prepares it for running the specified command.  The
+container ID is then printed to `STDOUT`.  This is similar to `docker run -d`
+except the container is never started.  You can then use the `docker start
+<container_id>` command to start the container at any point.
 
-This is useful when you want to set up a container configuration ahead
-of time so that it is ready to start when you need it.
+This is useful when you want to set up a container configuration ahead of time
+so that it is ready to start when you need it.
 
 Please see the [run command](#run) section and the [Docker run reference](
 /reference/run/) for more details.
@@ -1024,9 +1037,9 @@ Please see the [run command](#run) section and the [Docker run reference](
     $ docker start -a -i 6d8af538ec5
     bash-4.2#
 
-As of v1.4.0 container volumes are initialized during the `docker create`
-phase (i.e., `docker run` too). For example, this allows you to `create` the
-`data` volume container, and then use it from another container:
+As of v1.4.0 container volumes are initialized during the `docker create` phase
+(i.e., `docker run` too). For example, this allows you to `create` the `data`
+volume container, and then use it from another container:
 
     $ docker create -v /data --name data ubuntu
     240633dfbb98128fa77473d3d9018f6123b99c454b3251427ae190a7d951ad57
@@ -1035,8 +1048,8 @@ phase (i.e., `docker run` too). For example, this allows you to `create` the
     drwxr-xr-x  2 root root 4096 Dec  5 04:10 .
     drwxr-xr-x 48 root root 4096 Dec  5 04:11 ..
 
-Similarly, `create` a host directory bind mounted volume container, which
-can then be used from the subsequent container:
+Similarly, `create` a host directory bind mounted volume container, which can
+then be used from the subsequent container:
 
     $ docker create -v /home/docker:/docker --name docker ubuntu
     9aa88c08f319cd1e4515c3c46b0de7cc9aa75e878357b1e96f91e2c773029f03
@@ -1063,9 +1076,9 @@ List the changed files and directories in a container᾿s filesystem
 
 There are 3 events that are listed in the `diff`:
 
-1.  `A` - Add
-2.  `D` - Delete
-3.  `C` - Change
+1. `A` - Add
+2. `D` - Delete
+3. `C` - Change
 
 For example:
 
@@ -1103,16 +1116,17 @@ and Docker images will report:
 
 #### Filtering
 
-The filtering flag (`-f` or `--filter`) format is of "key=value". If you would like to use
-multiple filters, pass multiple flags (e.g., `--filter "foo=bar" --filter "bif=baz"`)
+The filtering flag (`-f` or `--filter`) format is of "key=value". If you would
+like to use multiple filters, pass multiple flags (e.g., `--filter "foo=bar"
+--filter "bif=baz"`)
 
 Using the same filter multiple times will be handled as a *OR*; for example
-`--filter container=588a23dac085 --filter container=a8f7720b8c22` will display events for
-container 588a23dac085 *OR* container a8f7720b8c22
+`--filter container=588a23dac085 --filter container=a8f7720b8c22` will display
+events for container 588a23dac085 *OR* container a8f7720b8c22
 
 Using multiple filters will be handled as a *AND*; for example
-`--filter container=588a23dac085 --filter event=start` will display events for container
-container 588a23dac085 *AND* the event type is *start*
+`--filter container=588a23dac085 --filter event=start` will display events for
+container container 588a23dac085 *AND* the event type is *start*
 
 The currently supported filters are:
 
@@ -1207,7 +1221,8 @@ You'll need two shells for this example.
 The `docker exec` command runs a new command in a running container.
 
 The command started using `docker exec` only runs while the container's primary
-process (`PID 1`) is running, and it is not restarted if the container is restarted.
+process (`PID 1`) is running, and it is not restarted if the container is
+restarted.
 
 If the container is paused, then the `docker exec` command will fail with an error:
 
@@ -1255,10 +1270,10 @@ This will create a new Bash session in the container `ubuntu_bash`.
     $ docker export --output="latest.tar" red_panda
 
 > **Note:**
-> `docker export` does not export the contents of volumes associated with the
-> container. If a volume is mounted on top of an existing directory in the
-> container, `docker export` will export the contents of the *underlying*
-> directory, not the contents of the volume.
+> `docker export` does not export the contents of volumes associated
+> with the container. If a volume is mounted on top of an existing
+> directory in the container, `docker export` will export the contents
+> of the *underlying* directory, not the contents of the volume.
 >
 > Refer to [Backup, restore, or migrate data volumes](/userguide/dockervolumes/#backup-restore-or-migrate-data-volumes)
 > in the user guide for examples on exporting data in a volume.
@@ -1289,8 +1304,8 @@ To see how the `docker:apache` image was added to a container's base image:
     $ docker history docker:scm
     IMAGE               CREATED             CREATED BY                                      SIZE                COMMENT
     2ac9d1098bf1        3 months ago        /bin/bash                                       241.4 MB            Added Apache to Fedora base image
-    88b42ffd1f7c        5 months ago        /bin/sh -c #(nop) ADD file:1fd8d7f9f6557cafc7   373.7 MB            
-    c69cab00d6ef        5 months ago        /bin/sh -c #(nop) MAINTAINER Lokesh Mandvekar   0 B                 
+    88b42ffd1f7c        5 months ago        /bin/sh -c #(nop) ADD file:1fd8d7f9f6557cafc7   373.7 MB
+    c69cab00d6ef        5 months ago        /bin/sh -c #(nop) MAINTAINER Lokesh Mandvekar   0 B
     511136ea3c5a        19 months ago                                                       0 B                 Imported from -
 
 
@@ -1666,7 +1681,7 @@ can be combined with the `--follow` and `--tail` options.
     Pause all processes within a container
 
 The `docker pause` command uses the cgroups freezer to suspend all processes in
-a container.  Traditionally, when suspending a process the `SIGSTOP` signal is
+a container. Traditionally, when suspending a process the `SIGSTOP` signal is
 used, which is observable by the process being suspended. With the cgroups freezer
 the process is unaware, and unable to capture, that it is being suspended,
 and subsequently resumed.
@@ -2054,7 +2069,7 @@ folder before starting your container.
     $ docker run --read-only -v /icanwrite busybox touch /icanwrite here
 
 Volumes can be used in combination with `--read-only` to control where
-a container writes files.  The `--read-only` flag mounts the container's root
+a container writes files. The `--read-only` flag mounts the container's root
 filesystem as read only prohibiting writes to locations other than the
 specified volumes for the container.
 
@@ -2194,8 +2209,9 @@ containers to read/write content. The 'Z' option tells Docker to label the
 content with a private unshared label. Private volumes can only be used by the
 current container.
 
-The `-a` flag tells `docker run` to bind to the container's `STDIN`, `STDOUT` or
-`STDERR`. This makes it possible to manipulate the output and input as needed.
+The `-a` flag tells `docker run` to bind to the container's `STDIN`, `STDOUT`
+or `STDERR`. This makes it possible to manipulate the output and input as
+needed.
 
     $ echo "test" | docker run -i -a stdin ubuntu cat -
 
@@ -2222,7 +2238,7 @@ retrieve the container's ID once the container has finished running.
     crw-rw-rw- 1 root root 1, 5 Feb  9 16:05 /dev/nulo
 
 It is often necessary to directly expose devices to a container. The `--device`
-option enables that.  For example, a specific block storage device or loop
+option enables that. For example, a specific block storage device or loop
 device or audio device can be added to an otherwise unprivileged container
 (without the `--privileged` flag) and have the application directly access it.
 
@@ -2231,26 +2247,25 @@ This can be overridden using a third `:rwm` set of options to each `--device`
 flag:
 
 
-```
-	$ docker run --device=/dev/sda:/dev/xvdc --rm -it ubuntu fdisk  /dev/xvdc
+    $ docker run --device=/dev/sda:/dev/xvdc --rm -it ubuntu fdisk  /dev/xvdc
 
-	Command (m for help): q
-	$ docker run --device=/dev/sda:/dev/xvdc:ro --rm -it ubuntu fdisk  /dev/xvdc
-	You will not be able to write the partition table.
+    Command (m for help): q
+    $ docker run --device=/dev/sda:/dev/xvdc:ro --rm -it ubuntu fdisk  /dev/xvdc
+    You will not be able to write the partition table.
 
-	Command (m for help): q
+    Command (m for help): q
 
-	$ docker run --device=/dev/sda:/dev/xvdc --rm -it ubuntu fdisk  /dev/xvdc
+    $ docker run --device=/dev/sda:/dev/xvdc --rm -it ubuntu fdisk  /dev/xvdc
 
-	Command (m for help): q
+    Command (m for help): q
 
-	$ docker run --device=/dev/sda:/dev/xvdc:m --rm -it ubuntu fdisk  /dev/xvdc
-	fdisk: unable to open /dev/xvdc: Operation not permitted
-```
+    $ docker run --device=/dev/sda:/dev/xvdc:m --rm -it ubuntu fdisk  /dev/xvdc
+    fdisk: unable to open /dev/xvdc: Operation not permitted
 
 > **Note:**
-> `--device` cannot be safely used with ephemeral devices. Block devices that
-> may be removed should not be added to untrusted containers with `--device`.
+> `--device` cannot be safely used with ephemeral devices. Block devices
+> that may be removed should not be added to untrusted containers with
+> `--device`.
 
 **A complete example:**
 
@@ -2333,15 +2348,15 @@ This will run the `redis` container with a restart policy of **always**
 so that if the container exits, Docker will restart it.
 
 More detailed information on restart policies can be found in the
-[Restart Policies (--restart)](/reference/run/#restart-policies-restart) section
-of the Docker run reference page.
+[Restart Policies (--restart)](/reference/run/#restart-policies-restart)
+section of the Docker run reference page.
 
 ### Adding entries to a container hosts file
 
-You can add other hosts into a container's `/etc/hosts` file by using one or more
-`--add-host` flags. This example adds a static address for a host named `docker`:
+You can add other hosts into a container's `/etc/hosts` file by using one or
+more `--add-host` flags. This example adds a static address for a host named
+`docker`:
 
-```
     $ docker run --add-host=docker:10.180.0.1 --rm -it debian
     $$ ping docker
     PING docker (10.180.0.1): 48 data bytes
@@ -2350,10 +2365,9 @@ You can add other hosts into a container's `/etc/hosts` file by using one or mor
     ^C--- docker ping statistics ---
     2 packets transmitted, 2 packets received, 0% packet loss
     round-trip min/avg/max/stddev = 7.600/19.152/30.705/11.553 ms
-```
 
 Sometimes you need to connect to the Docker host from within your
-container.  To enable this, pass the Docker host's IP address to
+container. To enable this, pass the Docker host's IP address to
 the container using the `--add-host` flag. To find the host's address,
 use the `ip addr show` command.
 
@@ -2375,17 +2389,15 @@ available in the default container, you can set these using the `--ulimit` flag.
 `--ulimit` is specified with a soft and hard limit as such:
 `<type>=<soft limit>[:<hard limit>]`, for example:
 
-```
     $ docker run --ulimit nofile=1024:1024 --rm debian ulimit -n
     1024
-```
 
->**Note:**
-> If you do not provide a `hard limit`, the `soft limit` will be used for both
-values. If no `ulimits` are set, they will be inherited from the default `ulimits`
-set on the daemon.
-> `as` option is disabled now. In other words, the following script is not supported:
->   `$ docker run -it --ulimit as=1024 fedora /bin/bash`
+> **Note:**
+> If you do not provide a `hard limit`, the `soft limit` will be used
+> for both values. If no `ulimits` are set, they will be inherited from
+> the default `ulimits` set on the daemon.  `as` option is disabled now.
+> In other words, the following script is not supported:
+> `$ docker run -it --ulimit as=1024 fedora /bin/bash`
 
 ## save
 
@@ -2463,19 +2475,20 @@ The `docker stats` command will only return a live stream of data for running
 containers. Stopped containers will not return any data.
 
 > **Note:**
-> If you want more detailed information about a container's resource usage, use the API endpoint.
+> If you want more detailed information about a container's resource
+> usage, use the API endpoint.
 
 ## stop
 
     Usage: docker stop [OPTIONS] CONTAINER [CONTAINER...]
 
     Stop a running container by sending SIGTERM and then SIGKILL after a
-	grace period
+    grace period
 
       -t, --time=10      Seconds to wait for stop before killing it
 
-The main process inside the container will receive `SIGTERM`, and after a
-grace period, `SIGKILL`.
+The main process inside the container will receive `SIGTERM`, and after a grace
+period, `SIGKILL`.
 
 ## tag
 
@@ -2485,9 +2498,8 @@ grace period, `SIGKILL`.
 
       -f, --force=false    Force
 
-You can group your images together using names and tags, and then upload
-them to [*Share Images via Repositories*](
-/userguide/dockerrepos/#contributing-to-docker-hub).
+You can group your images together using names and tags, and then upload them
+to [*Share Images via Repositories*](/userguide/dockerrepos/#contributing-to-docker-hub).
 
 ## top
 
@@ -2514,8 +2526,8 @@ for further details.
 
     Show the Docker version information.
 
-Show the Docker version, API version, Git commit, Go version and OS/architecture
-of both Docker client and daemon. Example use:
+Show the Docker version, API version, Git commit, Go version and
+OS/architecture of both Docker client and daemon. Example use:
 
     $ docker version
     Client version: 1.5.0
@@ -2535,4 +2547,3 @@ of both Docker client and daemon. Example use:
     Usage: docker wait CONTAINER [CONTAINER...]
 
     Block until a container stops, then print its exit code.
-
