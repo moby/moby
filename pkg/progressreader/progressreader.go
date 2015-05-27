@@ -23,6 +23,7 @@ type Config struct {
 func New(newReader Config) *Config {
 	return &newReader
 }
+
 func (config *Config) Read(p []byte) (n int, err error) {
 	read, err := config.In.Read(p)
 	config.Current += read
@@ -34,17 +35,30 @@ func (config *Config) Read(p []byte) (n int, err error) {
 		}
 	}
 	if config.Current-config.LastUpdate > updateEvery || err != nil {
-		config.Out.Write(config.Formatter.FormatProgress(config.ID, config.Action, &jsonmessage.JSONProgress{Current: config.Current, Total: config.Size}))
+		updateProgress(config)
 		config.LastUpdate = config.Current
 	}
-	// Send newline when complete
-	if config.NewLines && err != nil && read == 0 {
-		config.Out.Write(config.Formatter.FormatStatus("", ""))
+
+	if err != nil && read == 0 {
+		updateProgress(config)
+		if config.NewLines {
+			config.Out.Write(config.Formatter.FormatStatus("", ""))
+		}
 	}
 	return read, err
 }
+
 func (config *Config) Close() error {
-	config.Current = config.Size
-	config.Out.Write(config.Formatter.FormatProgress(config.ID, config.Action, &jsonmessage.JSONProgress{Current: config.Current, Total: config.Size}))
+	if config.Current < config.Size {
+		//print a full progress bar when closing prematurely
+		config.Current = config.Size
+		updateProgress(config)
+	}
 	return config.In.Close()
+}
+
+func updateProgress(config *Config) {
+	progress := jsonmessage.JSONProgress{Current: config.Current, Total: config.Size}
+	fmtMessage := config.Formatter.FormatProgress(config.ID, config.Action, &progress)
+	config.Out.Write(fmtMessage)
 }
