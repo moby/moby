@@ -18,6 +18,7 @@ import (
 type Options struct {
 	Mirrors            opts.ListOpts
 	InsecureRegistries opts.ListOpts
+	BlockedRegistries  opts.ListOpts
 }
 
 const (
@@ -51,6 +52,8 @@ func (options *Options) InstallFlags() {
 	flag.Var(&options.Mirrors, []string{"-registry-mirror"}, "Preferred Docker registry mirror")
 	options.InsecureRegistries = opts.NewListOpts(ValidateIndexName)
 	flag.Var(&options.InsecureRegistries, []string{"-insecure-registry"}, "Enable insecure registry communication")
+	options.BlockedRegistries = opts.NewListOpts(ValidateIndexName)
+	flag.Var(&options.BlockedRegistries, []string{"-blocked-registry"}, "Block a host as a registry")
 }
 
 type netIPNet net.IPNet
@@ -74,6 +77,7 @@ func (ipnet *netIPNet) UnmarshalJSON(b []byte) (err error) {
 type ServiceConfig struct {
 	InsecureRegistryCIDRs []*netIPNet           `json:"InsecureRegistryCIDRs"`
 	IndexConfigs          map[string]*IndexInfo `json:"IndexConfigs"`
+	BlockedRegistries     map[string]bool       `json:"BlockedRegistries"`
 }
 
 // NewServiceConfig returns a new instance of ServiceConfig
@@ -82,6 +86,7 @@ func NewServiceConfig(options *Options) *ServiceConfig {
 		options = &Options{
 			Mirrors:            opts.NewListOpts(nil),
 			InsecureRegistries: opts.NewListOpts(nil),
+			BlockedRegistries:  opts.NewListOpts(nil),
 		}
 	}
 
@@ -95,7 +100,13 @@ func NewServiceConfig(options *Options) *ServiceConfig {
 	config := &ServiceConfig{
 		InsecureRegistryCIDRs: make([]*netIPNet, 0),
 		IndexConfigs:          make(map[string]*IndexInfo, 0),
+		BlockedRegistries:     make(map[string]bool, 0),
 	}
+
+	for _, r := range options.BlockedRegistries.GetAll() {
+		config.BlockedRegistries[r] = true
+	}
+
 	// Split --insecure-registry into CIDR and registry-specific settings.
 	for _, r := range options.InsecureRegistries.GetAll() {
 		// Check if CIDR was passed to --insecure-registry
@@ -271,6 +282,11 @@ func (config *ServiceConfig) NewIndexInfo(indexName string) (*IndexInfo, error) 
 	indexName, err = ValidateIndexName(indexName)
 	if err != nil {
 		return nil, err
+	}
+
+	// Check to see if a given index has been blocked by the daemon
+	if config.BlockedRegistries[indexName] {
+		return nil, fmt.Errorf("Index %s is blocked", indexName)
 	}
 
 	// Return any configured index info, first.

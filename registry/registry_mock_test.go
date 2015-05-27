@@ -175,6 +175,7 @@ func makeServiceConfig(mirrors []string, insecureRegistries []string) *ServiceCo
 	options := &Options{
 		Mirrors:            opts.NewListOpts(nil),
 		InsecureRegistries: opts.NewListOpts(nil),
+		BlockedRegistries:  opts.NewListOpts(nil),
 	}
 	if mirrors != nil {
 		for _, mirror := range mirrors {
