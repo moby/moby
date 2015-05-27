@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net/http"
 	"net/http/httptest"
 	"os"
 	"os/exec"
@@ -275,26 +274,6 @@ type FileServer struct {
 	*httptest.Server
 }
 
-func fileServer(files map[string]string) (*FileServer, error) {
-	var handler http.HandlerFunc = func(w http.ResponseWriter, r *http.Request) {
-		if filePath, found := files[r.URL.Path]; found {
-			http.ServeFile(w, r, filePath)
-		} else {
-			http.Error(w, http.StatusText(404), 404)
-		}
-	}
-
-	for _, file := range files {
-		if _, err := os.Stat(file); err != nil {
-			return nil, err
-		}
-	}
-	server := httptest.NewServer(handler)
-	return &FileServer{
-		Server: server,
-	}, nil
-}
-
 // randomUnixTmpDirPath provides a temporary unix path with rand string appended.
 // does not create or checks if it exists.
 func randomUnixTmpDirPath(s string) string {
@@ -336,4 +315,27 @@ func parseCgroupPaths(procCgroupData string) map[string]string {
 		cgroupPaths[parts[1]] = parts[2]
 	}
 	return cgroupPaths
+}
+
+type channelBuffer struct {
+	c chan []byte
+}
+
+func (c *channelBuffer) Write(b []byte) (int, error) {
+	c.c <- b
+	return len(b), nil
+}
+
+func (c *channelBuffer) Close() error {
+	close(c.c)
+	return nil
+}
+
+func (c *channelBuffer) ReadTimeout(p []byte, n time.Duration) (int, error) {
+	select {
+	case b := <-c.c:
+		return copy(p[0:], b), nil
+	case <-time.After(n):
+		return -1, fmt.Errorf("timeout reading from channel")
+	}
 }
