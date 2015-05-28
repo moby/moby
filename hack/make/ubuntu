@@ -95,8 +95,8 @@ if [ "$1" = 'configure' ] && [ -z "$2" ]; then
 	fi
 fi
 
-if [ -x /sbin/apparmor_parser ]; then
-	/sbin/apparmor_parser -r -W -T /etc/apparmor.d/ docker
+if ( aa-status --enabled ); then
+	/sbin/apparmor_parser -r -W -T /etc/apparmor.d/docker
 fi
 
 if ! { [ -x /sbin/initctl ] && /sbin/initctl version 2>/dev/null | grep -q upstart; }; then
