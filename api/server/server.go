@@ -96,15 +96,17 @@ func (s *Server) ServeApi(protoAddrs []string) error {
 		if err != nil {
 			return err
 		}
-		s.servers = append(s.servers, srv)
+		s.servers = append(s.servers, srv...)
 
-		go func(proto, addr string) {
-			logrus.Infof("Listening for HTTP on %s (%s)", proto, addr)
-			if err := srv.Serve(); err != nil && strings.Contains(err.Error(), "use of closed network connection") {
-				err = nil
-			}
-			chErrors <- err
-		}(protoAddrParts[0], protoAddrParts[1])
+		for _, s := range srv {
+			logrus.Infof("Listening for HTTP on %s (%s)", protoAddrParts[0], protoAddrParts[1])
+			go func(s serverCloser) {
+				if err := s.Serve(); err != nil && strings.Contains(err.Error(), "use of closed network connection") {
+					err = nil
+				}
+				chErrors <- err
+			}(s)
+		}
 	}
 
 	for i := 0; i < len(protoAddrs); i++ {
