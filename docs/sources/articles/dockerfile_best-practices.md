@@ -55,6 +55,13 @@ container. Decoupling applications into multiple containers makes it much
 easier to scale horizontally and reuse containers. If that service depends on
 another service, make use of [container linking](https://docs.docker.com/userguide/dockerlinks/).
 
+In some cases the process you start might create more processes.
+If those are daemonized (non-child-processes), you will need to pay extra attention.
+The process you started within the dockerfile might end before the daemonized
+processes it created. While this is no problem in interactive mode, it will most likely
+cause unexpected behaviour during `docker build`. One solution is to check whether
+the daemonized process is still running (for example with `pgrep`) and sleep, if it does.
+
 ### Minimize the number of layers
 
 You need to find the balance between readability (and thus long-term
