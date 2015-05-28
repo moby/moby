@@ -5272,6 +5272,7 @@ RUN [ "/hello" ]`, map[string]string{})
 }
 
 func (s *DockerSuite) TestBuildResourceConstraintsAreUsed(c *check.C) {
+	testRequires(c, CpuCfsQuota)
 	name := "testbuildresourceconstraints"
 
 	ctx, err := fakeContext(`
