@@ -1489,12 +1489,8 @@ func makeHttpHandler(logging bool, localMethod string, localRoute string, handle
 			writeCorsHeaders(w, r, corsHeaders)
 		}
 
-		if version.GreaterThan(api.Version) {
-			http.Error(w, fmt.Errorf("client is newer than server (client API version: %s, server API version: %s)", version, api.Version).Error(), http.StatusBadRequest)
-			return
-		}
-		if version.LessThan(api.MinVersion) {
-			http.Error(w, fmt.Errorf("client is too old, minimum supported API version is %s, please upgrade your client to a newer version", api.MinVersion).Error(), http.StatusBadRequest)
+		if version.GreaterThan(api.APIVERSION) {
+			http.Error(w, fmt.Errorf("client is newer than server (client API version: %s, server API version: %s)", version, api.APIVERSION).Error(), http.StatusBadRequest)
 			return
 		}
 
