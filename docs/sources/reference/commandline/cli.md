@@ -2374,6 +2374,9 @@ set on the daemon.
 > `as` option is disabled now. In other words, the following script is not supported:
 >   `$ docker run -it --ulimit as=1024 fedora /bin/bash`
 
+The values are sent to the appropriate `syscall` as they are set.
+Docker doesn't perform any byte conversion. Take this into account when setting the values.
+
 ## save
 
     Usage: docker save [OPTIONS] IMAGE [IMAGE...]
