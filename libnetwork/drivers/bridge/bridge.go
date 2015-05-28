@@ -518,6 +518,11 @@ func (d *driver) CreateNetwork(id types.UUID, option map[string]interface{}) err
 	// Even if a bridge exists try to setup IPv4.
 	bridgeSetup.queueStep(setupBridgeIPv4)
 
+	enableIPv6Forwarding := false
+	if d.config != nil && d.config.EnableIPForwarding && config.FixedCIDRv6 != nil {
+		enableIPv6Forwarding = true
+	}
+
 	// Conditionally queue setup steps depending on configuration values.
 	for _, step := range []struct {
 		Condition bool
@@ -540,6 +545,9 @@ func (d *driver) CreateNetwork(id types.UUID, option map[string]interface{}) err
 		// Setup the bridge to allocate containers global IPv6 addresses in the
 		// specified subnet.
 		{config.FixedCIDRv6 != nil, setupFixedCIDRv6},
+
+		// Enable IPv6 Forwarding
+		{enableIPv6Forwarding, setupIPv6Forwarding},
 
 		// Setup Loopback Adresses Routing
 		{!config.EnableUserlandProxy, setupLoopbackAdressesRouting},
