@@ -293,6 +293,12 @@ Linux kernel as of [3.18.0](https://lkml.org/lkml/2014/10/26/137). Call
 `docker -d -s overlay` to use it.
 
 > **Note:**
+> As promising as `overlay` is, the feature is still quite young and should not
+> be used in production. Most notably, using `overlay` can cause excessive
+> inode consumption (especially as the number of images grows), as well as
+> being incompatible with the use of RPMs.
+
+> **Note:**
 > It is currently unsupported on `btrfs` or any Copy on Write filesystem
 > and should only be used over `ext4` partitions.
 
