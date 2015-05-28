@@ -267,7 +267,7 @@ EOF
 
 	# Add the DEB package to the APT repo
 	DEBFILE=bundles/$VERSION/ubuntu/lxc-docker*.deb
-	reprepro -b "$APTDIR" includedeb docker "$DEBFILE"
+	reprepro -b $APTDIR includedeb docker $DEBFILE
 
 	# Sign
 	for F in $(find $APTDIR -name Release); do
