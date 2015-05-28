@@ -16,14 +16,8 @@ import (
 
 // Common constants for daemon and client.
 const (
-	// Current REST API version
-	Version version.Version = "1.19"
-
-	// Minimun REST API version supported
-	MinVersion version.Version = "1.12"
-
-	// Default filename with Docker commands, read by docker build
-	DefaultDockerfileName string = "Dockerfile"
+	APIVERSION            version.Version = "1.20"       // Current REST API version
+	DefaultDockerfileName string          = "Dockerfile" // Default filename with Docker commands, read by docker build
 )
 
 type ByPrivatePort []types.Port
