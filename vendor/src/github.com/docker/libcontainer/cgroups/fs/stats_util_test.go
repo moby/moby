@@ -1,3 +1,5 @@
+// +build linux
+
 package fs
 
 import (
@@ -71,14 +73,10 @@ func expectThrottlingDataEquals(t *testing.T, expected, actual cgroups.Throttlin
 }
 
 func expectMemoryStatEquals(t *testing.T, expected, actual cgroups.MemoryStats) {
-	if expected.Usage != actual.Usage {
-		logrus.Printf("Expected memory usage %d but found %d\n", expected.Usage, actual.Usage)
-		t.Fail()
-	}
-	if expected.MaxUsage != actual.MaxUsage {
-		logrus.Printf("Expected memory max usage %d but found %d\n", expected.MaxUsage, actual.MaxUsage)
-		t.Fail()
-	}
+	expectMemoryDataEquals(t, expected.Usage, actual.Usage)
+	expectMemoryDataEquals(t, expected.SwapUsage, actual.SwapUsage)
+	expectMemoryDataEquals(t, expected.KernelUsage, actual.KernelUsage)
+
 	for key, expValue := range expected.Stats {
 		actValue, ok := actual.Stats[key]
 		if !ok {
@@ -89,6 +87,17 @@ func expectMemoryStatEquals(t *testing.T, expected, actual cgroups.MemoryStats) 
 			logrus.Printf("Expected memory stat value %d but found %d\n", expValue, actValue)
 			t.Fail()
 		}
+	}
+}
+
+func expectMemoryDataEquals(t *testing.T, expected, actual cgroups.MemoryData) {
+	if expected.Usage != actual.Usage {
+		logrus.Printf("Expected memory usage %d but found %d\n", expected.Usage, actual.Usage)
+		t.Fail()
+	}
+	if expected.MaxUsage != actual.MaxUsage {
+		logrus.Printf("Expected memory max usage %d but found %d\n", expected.MaxUsage, actual.MaxUsage)
+		t.Fail()
 	}
 	if expected.Failcnt != actual.Failcnt {
 		logrus.Printf("Expected memory failcnt %d but found %d\n", expected.Failcnt, actual.Failcnt)
