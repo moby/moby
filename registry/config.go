@@ -189,7 +189,7 @@ func ValidateMirror(val string) (string, error) {
 		return "", fmt.Errorf("Unsupported path/query/fragment at end of the URI")
 	}
 
-	return fmt.Sprintf("%s://%s/v1/", uri.Scheme, uri.Host), nil
+	return fmt.Sprintf("%s://%s/", uri.Scheme, uri.Host), nil
 }
 
 // ValidateIndexName validates an index name.
@@ -358,7 +358,9 @@ func (config *ServiceConfig) NewRepositoryInfo(reposName string) (*RepositoryInf
 		// *TODO: Decouple index name from hostname (via registry configuration?)
 		repoInfo.LocalName = repoInfo.Index.Name + "/" + repoInfo.RemoteName
 		repoInfo.CanonicalName = repoInfo.LocalName
+
 	}
+
 	return repoInfo, nil
 }
 
