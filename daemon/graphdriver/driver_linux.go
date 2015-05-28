@@ -31,8 +31,8 @@ var (
 		"aufs",
 		"btrfs",
 		"zfs",
-		"devicemapper",
 		"overlay",
+		"devicemapper",
 		"vfs",
 	}
 
