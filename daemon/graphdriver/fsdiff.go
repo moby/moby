@@ -74,7 +74,7 @@ func (gdw *naiveDiffDriver) Diff(id, parent string, excludes []string) (arch arc
 		return nil, err
 	}
 
-	archive, err := archive.ExportChanges(layerFs, changes, excludes)
+	archive, err := archive.ExportChangesExcludes(layerFs, changes, excludes)
 	if err != nil {
 		return nil, err
 	}

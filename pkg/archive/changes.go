@@ -359,7 +359,16 @@ func ChangesSize(newDir string, changes []Change) int64 {
 }
 
 // ExportChanges produces an Archive from the provided changes, relative to dir.
-func ExportChanges(dir string, changes []Change, excludes []string) (Archive, error) {
+func ExportChanges(dir string, changes []Change) (Archive, error) {
+	return exportChanges(dir, changes, []string{})
+}
+
+// Similar to ExportChanges, but the patterns in "excludes" will be excluded from the archive.
+func ExportChangesExcludes(dir string, changes []Change, excludes []string) (Archive, error) {
+	return exportChanges(dir, changes, excludes)
+}
+
+func exportChanges(dir string, changes []Change, excludes []string) (Archive, error) {
 	reader, writer := io.Pipe()
 	go func() {
 		ta := &tarAppender{

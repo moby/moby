@@ -66,7 +66,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	a, err := archive.ExportChanges(newDir, changes, []string{})
+	a, err := archive.ExportChanges(newDir, changes)
 	if err != nil {
 		log.Fatal(err)
 	}
