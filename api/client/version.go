@@ -20,7 +20,7 @@ func (cli *DockerCli) CmdVersion(args ...string) error {
 	cmd := cli.Subcmd("version", "", "Show the Docker version information.", true)
 	cmd.Require(flag.Exact, 0)
 
-	cmd.ParseFlags(args, false)
+	cmd.ParseFlags(args, true)
 
 	if dockerversion.VERSION != "" {
 		fmt.Fprintf(cli.out, "Client version: %s\n", dockerversion.VERSION)
