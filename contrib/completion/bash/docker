@@ -212,11 +212,12 @@ _docker_docker() {
 		--selinux-enabled
 		--tls
 		--tlsverify
+		--userland-proxy=false
 		--version -v
 	"
 
 	case "$prev" in
-		--graph|-g)
+		--exec-root|--graph|-g)
 			_filedir -d
 			return
 			;;
@@ -267,22 +268,25 @@ _docker_attach() {
 
 _docker_build() {
 	case "$prev" in
-		--tag|-t)
-			__docker_image_repos_and_tags
+		--cgroup-parent|--cpuset-cpus|--cpuset-mems|--cpu-shares|-c|--cpu-period|--cpu-quota|--memory|-m|--memory-swap)
 			return
 			;;
 		--file|-f)
 			_filedir
 			return
 			;;
+		--tag|-t)
+			__docker_image_repos_and_tags
+			return
+			;;
 	esac
 
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--cpu-shares -c --cpuset-cpus --cpu-quota --file -f --force-rm --help --memory -m --memory-swap --no-cache --pull --quiet -q --rm --tag -t" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--cgroup-parent --cpuset-cpus --cpuset-mems --cpu-shares -c --cpu-period --cpu-quota --file -f --force-rm --help --memory -m --memory-swap --no-cache --pull --quiet -q --rm --tag -t" -- "$cur" ) )
 			;;
 		*)
-			local counter="$(__docker_pos_first_nonflag '--tag|-t')"
+			local counter="$(__docker_pos_first_nonflag '--cgroup-parent|--cpuset-cpus|--cpuset-mems|--cpu-shares|-c|--cpu-period|--cpu-quota|--file|-f|--memory|-m|--memory-swap|--tag|-t')"
 			if [ $cword -eq $counter ]; then
 				_filedir -d
 			fi
@@ -405,6 +409,12 @@ _docker_events() {
 }
 
 _docker_exec() {
+	case "$prev" in
+		--user|-u)
+			return
+			;;
+	esac
+
 	case "$cur" in
 		-*)
 			COMPREPLY=( $( compgen -W "--detach -d --help --interactive -i -t --tty -u --user" -- "$cur" ) )
@@ -586,7 +596,7 @@ _docker_logout() {
 
 _docker_logs() {
 	case "$prev" in
-		--tail)
+		--since|--tail)
 			return
 			;;
 	esac
@@ -771,15 +781,16 @@ _docker_rmi() {
 _docker_run() {
 	local options_with_args="
 		--add-host
+		--blkio-weight
 		--attach -a
 		--cap-add
 		--cap-drop
 		--cgroup-parent
 		--cidfile
 		--cpuset
-		--cpu-shares -c
 		--cpu-period
 		--cpu-quota
+		--cpu-shares -c
 		--device
 		--dns
 		--dns-search
@@ -805,6 +816,7 @@ _docker_run() {
 		--security-opt
 		--user -u
 		--ulimit
+		--uts
 		--volumes-from
 		--volume -v
 		--workdir -w
@@ -1156,6 +1168,8 @@ _docker() {
 		--api-cors-header
 		--bip
 		--bridge -b
+		--default-gateway
+		--default-gateway-v6
 		--default-ulimit
 		--dns
 		--dns-search
@@ -1202,6 +1216,9 @@ _docker() {
 				(( counter++ ))
 				;;
 			-*)
+				;;
+			=)
+				(( counter++ ))
 				;;
 			*)
 				command="${words[$counter]}"
