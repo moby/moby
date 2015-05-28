@@ -263,13 +263,13 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 	}
 
 	// collect all the environment variables for the container
-	envVariables, err := readKVStrings(flEnvFile.GetAll(), flEnv.GetAll())
+	envVariables, err := opts.ReadKVStrings(flEnvFile.GetAll(), flEnv.GetAll())
 	if err != nil {
 		return nil, nil, cmd, err
 	}
 
 	// collect all the labels for the container
-	labels, err := readKVStrings(flLabelsFile.GetAll(), flLabels.GetAll())
+	labels, err := opts.ReadKVStrings(flLabelsFile.GetAll(), flLabels.GetAll())
 	if err != nil {
 		return nil, nil, cmd, err
 	}
@@ -318,7 +318,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		MacAddress:      *flMacAddress,
 		Entrypoint:      entrypoint,
 		WorkingDir:      *flWorkingDir,
-		Labels:          convertKVStringsToMap(labels),
+		Labels:          opts.ConvertKVStringsToMap(labels),
 	}
 
 	hostConfig := &HostConfig{
@@ -366,39 +366,8 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 	return config, hostConfig, cmd, nil
 }
 
-// reads a file of line terminated key=value pairs and override that with override parameter
-func readKVStrings(files []string, override []string) ([]string, error) {
-	envVariables := []string{}
-	for _, ef := range files {
-		parsedVars, err := opts.ParseEnvFile(ef)
-		if err != nil {
-			return nil, err
-		}
-		envVariables = append(envVariables, parsedVars...)
-	}
-	// parse the '-e' and '--env' after, to allow override
-	envVariables = append(envVariables, override...)
-
-	return envVariables, nil
-}
-
-// converts ["key=value"] to {"key":"value"}
-func convertKVStringsToMap(values []string) map[string]string {
-	result := make(map[string]string, len(values))
-	for _, value := range values {
-		kv := strings.SplitN(value, "=", 2)
-		if len(kv) == 1 {
-			result[kv[0]] = ""
-		} else {
-			result[kv[0]] = kv[1]
-		}
-	}
-
-	return result
-}
-
 func parseLoggingOpts(loggingDriver string, loggingOpts []string) (map[string]string, error) {
-	loggingOptsMap := convertKVStringsToMap(loggingOpts)
+	loggingOptsMap := opts.ConvertKVStringsToMap(loggingOpts)
 	if loggingDriver == "none" && len(loggingOpts) > 0 {
 		return map[string]string{}, fmt.Errorf("Invalid logging opts for driver %s", loggingDriver)
 	}

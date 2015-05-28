@@ -25,6 +25,10 @@ func (cli *DockerCli) CmdCommit(args ...string) error {
 	cmd.Var(&flChanges, []string{"c", "-change"}, "Apply Dockerfile instruction to the created image")
 	// FIXME: --run is deprecated, it will be replaced with inline Dockerfile commands.
 	flConfig := cmd.String([]string{"#run", "#-run"}, "", "This option is deprecated and will be removed in a future version in favor of inline Dockerfile-compatible commands")
+	flLabels := opts.NewListOpts(opts.ValidateEnv)
+	cmd.Var(&flLabels, []string{"l", "-label"}, "Set meta data on a container")
+	flLabelsFile := opts.NewListOpts(nil)
+	cmd.Var(&flLabelsFile, []string{"-label-file"}, "Read in a line delimited file of labels")
 	cmd.Require(flag.Max, 2)
 	cmd.Require(flag.Min, 1)
 	cmd.ParseFlags(args, true)
@@ -66,6 +70,21 @@ func (cli *DockerCli) CmdCommit(args ...string) error {
 			return err
 		}
 	}
+
+	// Handle labels
+
+	labels, err := opts.ReadKVStrings(flLabelsFile.GetAll(), flLabels.GetAll())
+	if err != nil {
+		return err
+	}
+
+	if labels != nil {
+		if config == nil {
+			config = &runconfig.Config{}
+		}
+		config.Labels = opts.ConvertKVStringsToMap(labels)
+	}
+
 	stream, _, err := cli.call("POST", "/commit?"+v.Encode(), config, nil)
 	if err != nil {
 		return err

@@ -53,6 +53,7 @@ type Config struct {
 	CpuSetCpus     string
 	CpuSetMems     string
 	CgroupParent   string
+	Labels         map[string]string
 	AuthConfig     *cliconfig.AuthConfig
 	ConfigFile     *cliconfig.ConfigFile
 
@@ -171,6 +172,7 @@ func Build(d *daemon.Daemon, buildConfig *Config) error {
 		cgroupParent:    buildConfig.CgroupParent,
 		memory:          buildConfig.Memory,
 		memorySwap:      buildConfig.MemorySwap,
+		labels:          buildConfig.Labels,
 		cancelled:       buildConfig.WaitCancelled(),
 	}
 

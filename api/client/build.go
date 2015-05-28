@@ -19,6 +19,7 @@ import (
 
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/graph/tags"
+	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/fileutils"
 	"github.com/docker/docker/pkg/jsonmessage"
@@ -59,6 +60,10 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	flCPUSetCpus := cmd.String([]string{"-cpuset-cpus"}, "", "CPUs in which to allow execution (0-3, 0,1)")
 	flCPUSetMems := cmd.String([]string{"-cpuset-mems"}, "", "MEMs in which to allow execution (0-3, 0,1)")
 	flCgroupParent := cmd.String([]string{"-cgroup-parent"}, "", "Optional parent cgroup for the container")
+	flLabels := opts.NewListOpts(opts.ValidateEnv)
+	cmd.Var(&flLabels, []string{"l", "-label"}, "Set meta data on a container")
+	flLabelsFile := opts.NewListOpts(nil)
+	cmd.Var(&flLabelsFile, []string{"-label-file"}, "Read in a line delimited file of labels")
 
 	cmd.Require(flag.Exact, 1)
 	cmd.ParseFlags(args, true)
@@ -271,6 +276,12 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 		v.Set("pull", "1")
 	}
 
+	// Handle labels
+	labels, err := opts.ReadKVStrings(flLabelsFile.GetAll(), flLabels.GetAll())
+	if err != nil {
+		return err
+	}
+
 	v.Set("cpusetcpus", *flCPUSetCpus)
 	v.Set("cpusetmems", *flCPUSetMems)
 	v.Set("cpushares", strconv.FormatInt(*flCPUShares, 10))
@@ -279,6 +290,10 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	v.Set("memory", strconv.FormatInt(memory, 10))
 	v.Set("memswap", strconv.FormatInt(memorySwap, 10))
 	v.Set("cgroupparent", *flCgroupParent)
+	// Represent labels as : label.key1=value1&label.key2=value2
+	for labelKey, labelValue := range opts.ConvertKVStringsToMap(labels) {
+		v.Set(fmt.Sprintf("label.%s", labelKey), labelValue)
+	}
 
 	v.Set("dockerfile", *dockerfileName)
 
