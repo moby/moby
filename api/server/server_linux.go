@@ -15,12 +15,6 @@ import (
 	"github.com/docker/libnetwork/portallocator"
 )
 
-const (
-	// See http://git.kernel.org/cgit/linux/kernel/git/tip/tip.git/tree/kernel/sched/sched.h?id=8cd9234c64c584432f6992fe944ca9e46ca8ea76#n269
-	linuxMinCpuShares = 2
-	linuxMaxCpuShares = 262144
-)
-
 // newServer sets up the required serverClosers and does protocol specific checking.
 func (s *Server) newServer(proto, addr string) ([]serverCloser, error) {
 	var (
