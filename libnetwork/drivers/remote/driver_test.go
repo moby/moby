@@ -69,6 +69,9 @@ type testEndpoint struct {
 	gatewayIPv6    string
 	resolvConfPath string
 	hostsPath      string
+	nextHop        string
+	destination    string
+	routeType      int
 }
 
 func (test *testEndpoint) Interfaces() []driverapi.InterfaceInfo {
@@ -115,6 +118,16 @@ func compareIPs(t *testing.T, kind string, shouldBe string, supplied net.IP) {
 	}
 }
 
+func compareIPNets(t *testing.T, kind string, shouldBe string, supplied net.IPNet) {
+	_, net, _ := net.ParseCIDR(shouldBe)
+	if net == nil {
+		t.Fatalf(`Invalid IP network to test against: "%s"`, shouldBe)
+	}
+	if !types.CompareIPNet(net, &supplied) {
+		t.Fatalf(`%s IP networks are not equal: expected "%s", got %v`, kind, shouldBe, supplied)
+	}
+}
+
 func (test *testEndpoint) SetGateway(ipv4 net.IP) error {
 	compareIPs(test.t, "Gateway", test.gateway, ipv4)
 	return nil
@@ -150,7 +163,17 @@ func (test *testEndpoint) SetNames(src string, dst string) error {
 }
 
 func (test *testEndpoint) AddStaticRoute(destination *net.IPNet, routeType int, nextHop net.IP, interfaceID int) error {
-	//TODO
+	compareIPNets(test.t, "Destination", test.destination, *destination)
+	compareIPs(test.t, "NextHop", test.nextHop, nextHop)
+
+	if test.routeType != routeType {
+		test.t.Fatalf(`Wrong RouteType; expected "%d", got "%d"`, test.routeType, routeType)
+	}
+
+	if test.id != interfaceID {
+		test.t.Fatalf(`Wrong InterfaceID; expected "%d", got "%d"`, test.id, interfaceID)
+	}
+
 	return nil
 }
 
@@ -172,6 +195,9 @@ func TestRemoteDriver(t *testing.T) {
 		gatewayIPv6:    "2001:DB8::1",
 		hostsPath:      "/here/comes/the/host/path",
 		resolvConfPath: "/there/goes/the/resolv/conf",
+		destination:    "10.0.0.0/8",
+		nextHop:        "10.0.0.1",
+		routeType:      1,
 	}
 
 	mux := http.NewServeMux()
@@ -219,6 +245,14 @@ func TestRemoteDriver(t *testing.T) {
 				map[string]interface{}{
 					"SrcName": ep.src,
 					"DstName": ep.dst,
+				},
+			},
+			"StaticRoutes": []map[string]interface{}{
+				map[string]interface{}{
+					"Destination": ep.destination,
+					"RouteType":   ep.routeType,
+					"InterfaceID": ep.id,
+					"NextHop":     ep.nextHop,
 				},
 			},
 		}
