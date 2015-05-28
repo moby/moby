@@ -1054,6 +1054,15 @@ func (container *Container) networkMounts() []execdriver.Mount {
 	return mounts
 }
 
+func (container *Container) addBindMountPoint(name, source, destination string, rw bool) {
+	container.MountPoints[destination] = &mountPoint{
+		Name:        name,
+		Source:      source,
+		Destination: destination,
+		RW:          rw,
+	}
+}
+
 func (container *Container) addLocalMountPoint(name, destination string, rw bool) {
 	container.MountPoints[destination] = &mountPoint{
 		Name:        name,
