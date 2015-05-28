@@ -16,7 +16,7 @@ import (
 
 // Common constants for daemon and client.
 const (
-	APIVERSION            version.Version = "1.19"       // Current REST API version
+	APIVERSION            version.Version = "1.20"       // Current REST API version
 	DefaultDockerfileName string          = "Dockerfile" // Default filename with Docker commands, read by docker build
 )
 
