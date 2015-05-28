@@ -557,7 +557,7 @@ Status Codes:
 
     1.  Read 8 bytes
     2.  chose stdout or stderr depending on the first byte
-    3.  Extract the frame size from the last 4 byets
+    3.  Extract the frame size from the last 4 bytes
     4.  Read the extracted size and output it on the correct output
     5.  Goto 1)
 
@@ -675,7 +675,7 @@ Status Codes:
 
 ## 2.2 Images
 
-### List Images
+### List images
 
 `GET /images/json`
 
@@ -1052,7 +1052,7 @@ Query Parameters:
     Request Headers:
 
 -   **Content-type** – should be set to `"application/tar"`.
--   **X-Registry-Config** – base64-encoded ConfigFile objec
+-   **X-Registry-Config** – base64-encoded ConfigFile object
 
 Status Codes:
 
@@ -1119,7 +1119,7 @@ Status Codes:
 -   **200** – no error
 -   **500** – server error
 
-### Show the docker version information
+### Show the Docker version information
 
 `GET /version`
 
@@ -1343,7 +1343,7 @@ Here are the steps of `docker run` :
 In this version of the API, /attach, uses hijacking to transport stdin,
 stdout and stderr on the same socket. This might change in the future.
 
-## 3.3 CORS Requests
+## 3.3 CORS requests
 
 To enable cross origin requests to the remote api add the flag
 "--api-enable-cors" when running docker in daemon mode.

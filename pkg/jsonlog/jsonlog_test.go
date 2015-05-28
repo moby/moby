@@ -21,7 +21,7 @@ func TestWriteLog(t *testing.T) {
 	}
 	w := bytes.NewBuffer(nil)
 	format := timeutils.RFC3339NanoFixed
-	if err := WriteLog(&buf, w, format); err != nil {
+	if err := WriteLog(&buf, w, format, time.Time{}); err != nil {
 		t.Fatal(err)
 	}
 	res := w.String()
@@ -52,7 +52,7 @@ func BenchmarkWriteLog(b *testing.B) {
 	b.SetBytes(int64(r.Len()))
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		if err := WriteLog(r, w, format); err != nil {
+		if err := WriteLog(r, w, format, time.Time{}); err != nil {
 			b.Fatal(err)
 		}
 		b.StopTimer()

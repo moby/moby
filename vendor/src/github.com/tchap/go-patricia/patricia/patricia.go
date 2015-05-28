@@ -13,6 +13,11 @@ import (
 // Trie
 //------------------------------------------------------------------------------
 
+const (
+	DefaultMaxPrefixPerNode         = 10
+	DefaultMaxChildrenPerSparseNode = 8
+)
+
 type (
 	Prefix      []byte
 	Item        interface{}
@@ -27,15 +32,44 @@ type Trie struct {
 	prefix Prefix
 	item   Item
 
+	maxPrefixPerNode         int
+	maxChildrenPerSparseNode int
+
 	children childList
 }
 
 // Public API ------------------------------------------------------------------
 
+type Option func(*Trie)
+
 // Trie constructor.
-func NewTrie() *Trie {
-	return &Trie{
-		children: newSparseChildList(),
+func NewTrie(options ...Option) *Trie {
+	trie := &Trie{}
+
+	for _, opt := range options {
+		opt(trie)
+	}
+
+	if trie.maxPrefixPerNode <= 0 {
+		trie.maxPrefixPerNode = DefaultMaxPrefixPerNode
+	}
+	if trie.maxChildrenPerSparseNode <= 0 {
+		trie.maxChildrenPerSparseNode = DefaultMaxChildrenPerSparseNode
+	}
+
+	trie.children = newSparseChildList(trie.maxChildrenPerSparseNode)
+	return trie
+}
+
+func MaxPrefixPerNode(value int) Option {
+	return func(trie *Trie) {
+		trie.maxPrefixPerNode = value
+	}
+}
+
+func MaxChildrenPerSparseNode(value int) Option {
+	return func(trie *Trie) {
+		trie.maxChildrenPerSparseNode = value
 	}
 }
 
@@ -85,7 +119,8 @@ func (trie *Trie) MatchSubtree(key Prefix) (matched bool) {
 	return
 }
 
-// Visit calls visitor on every node containing a non-nil item.
+// Visit calls visitor on every node containing a non-nil item
+// in alphabetical order.
 //
 // If an error is returned from visitor, the function stops visiting the tree
 // and returns that error, unless it is a special error - SkipSubtree. In that
@@ -233,7 +268,7 @@ func (trie *Trie) DeleteSubtree(prefix Prefix) (deleted bool) {
 	// If we are in the root of the trie, reset the trie.
 	if parent == nil {
 		root.prefix = nil
-		root.children = newSparseChildList()
+		root.children = newSparseChildList(trie.maxPrefixPerNode)
 		return true
 	}
 
@@ -257,12 +292,12 @@ func (trie *Trie) put(key Prefix, item Item, replace bool) (inserted bool) {
 	)
 
 	if node.prefix == nil {
-		if len(key) <= MaxPrefixPerNode {
+		if len(key) <= trie.maxPrefixPerNode {
 			node.prefix = key
 			goto InsertItem
 		}
-		node.prefix = key[:MaxPrefixPerNode]
-		key = key[MaxPrefixPerNode:]
+		node.prefix = key[:trie.maxPrefixPerNode]
+		key = key[trie.maxPrefixPerNode:]
 		goto AppendChild
 	}
 
@@ -306,14 +341,14 @@ AppendChild:
 	// This loop starts with empty node.prefix that needs to be filled.
 	for len(key) != 0 {
 		child := NewTrie()
-		if len(key) <= MaxPrefixPerNode {
+		if len(key) <= trie.maxPrefixPerNode {
 			child.prefix = key
 			node.children = node.children.add(child)
 			node = child
 			goto InsertItem
 		} else {
-			child.prefix = key[:MaxPrefixPerNode]
-			key = key[MaxPrefixPerNode:]
+			child.prefix = key[:trie.maxPrefixPerNode]
+			key = key[trie.maxPrefixPerNode:]
 			node.children = node.children.add(child)
 			node = child
 		}
@@ -344,7 +379,7 @@ func (trie *Trie) compact() *Trie {
 	}
 
 	// Make sure the combined prefixes fit into a single node.
-	if len(trie.prefix)+len(child.prefix) > MaxPrefixPerNode {
+	if len(trie.prefix)+len(child.prefix) > trie.maxPrefixPerNode {
 		return trie
 	}
 

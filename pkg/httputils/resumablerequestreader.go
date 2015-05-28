@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"time"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 )
 
 type resumableRequestReader struct {
@@ -72,7 +72,7 @@ func (r *resumableRequestReader) Read(p []byte) (n int, err error) {
 		r.cleanUpResponse()
 	}
 	if err != nil && err != io.EOF {
-		log.Infof("encountered error during pull and clearing it before resume: %s", err)
+		logrus.Infof("encountered error during pull and clearing it before resume: %s", err)
 		err = nil
 	}
 	return n, err

@@ -11,10 +11,12 @@ import (
 	"sync"
 	"syscall"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/libcontainer/cgroups"
 	"github.com/docker/libcontainer/configs"
 )
+
+const stdioFdCount = 3
 
 type linuxContainer struct {
 	id            string
@@ -100,7 +102,7 @@ func (c *linuxContainer) Start(process *Process) error {
 	if err := parent.start(); err != nil {
 		// terminate the process to ensure that it properly is reaped.
 		if err := parent.terminate(); err != nil {
-			log.Warn(err)
+			logrus.Warn(err)
 		}
 		return newSystemError(err)
 	}
@@ -139,7 +141,8 @@ func (c *linuxContainer) commandTemplate(p *Process, childPipe *os.File) (*exec.
 	if cmd.SysProcAttr == nil {
 		cmd.SysProcAttr = &syscall.SysProcAttr{}
 	}
-	cmd.ExtraFiles = []*os.File{childPipe}
+	cmd.ExtraFiles = append(p.ExtraFiles, childPipe)
+	cmd.Env = append(cmd.Env, fmt.Sprintf("_LIBCONTAINER_INITPIPE=%d", stdioFdCount+len(cmd.ExtraFiles)-1))
 	// NOTE: when running a container with no PID namespace and the parent process spawning the container is
 	// PID1 the pdeathsig is being delivered to the container's init process by the kernel for some reason
 	// even with the parent still running.
@@ -178,11 +181,9 @@ func (c *linuxContainer) newSetnsProcess(p *Process, cmd *exec.Cmd, parentPipe, 
 		fmt.Sprintf("_LIBCONTAINER_INITPID=%d", c.initProcess.pid()),
 		"_LIBCONTAINER_INITTYPE=setns",
 	)
-
 	if p.consolePath != "" {
 		cmd.Env = append(cmd.Env, "_LIBCONTAINER_CONSOLE_PATH="+p.consolePath)
 	}
-
 	// TODO: set on container for process management
 	return &setnsProcess{
 		cmd:         cmd,
@@ -195,13 +196,14 @@ func (c *linuxContainer) newSetnsProcess(p *Process, cmd *exec.Cmd, parentPipe, 
 
 func (c *linuxContainer) newInitConfig(process *Process) *initConfig {
 	return &initConfig{
-		Config:       c.config,
-		Args:         process.Args,
-		Env:          process.Env,
-		User:         process.User,
-		Cwd:          process.Cwd,
-		Console:      process.consolePath,
-		Capabilities: process.Capabilities,
+		Config:           c.config,
+		Args:             process.Args,
+		Env:              process.Env,
+		User:             process.User,
+		Cwd:              process.Cwd,
+		Console:          process.consolePath,
+		Capabilities:     process.Capabilities,
+		PassedFilesCount: len(process.ExtraFiles),
 	}
 }
 
@@ -225,7 +227,7 @@ func (c *linuxContainer) Destroy() error {
 	}
 	if !c.config.Namespaces.Contains(configs.NEWPID) {
 		if err := killCgroupProcesses(c.cgroupManager); err != nil {
-			log.Warn(err)
+			logrus.Warn(err)
 		}
 	}
 	err = c.cgroupManager.Destroy()

@@ -8,11 +8,15 @@ docker-create - Create a new container
 **docker create**
 [**-a**|**--attach**[=*[]*]]
 [**--add-host**[=*[]*]]
+[**--blkio-weight**[=*[BLKIO-WEIGHT]*]]
 [**-c**|**--cpu-shares**[=*0*]]
 [**--cap-add**[=*[]*]]
 [**--cap-drop**[=*[]*]]
 [**--cidfile**[=*CIDFILE*]]
+[**--cpu-period**[=*0*]]
 [**--cpuset-cpus**[=*CPUSET-CPUS*]]
+[**--cpuset-mems**[=*CPUSET-MEMS*]]
+[**--cpu-quota**[=*0*]]
 [**--device**[=*[]*]]
 [**--dns-search**[=*[]*]]
 [**--dns**[=*[]*]]
@@ -34,9 +38,11 @@ docker-create - Create a new container
 [**--mac-address**[=*MAC-ADDRESS*]]
 [**--name**[=*NAME*]]
 [**--net**[=*"bridge"*]]
+[**--oom-kill-disable**[=*false*]]
 [**-P**|**--publish-all**[=*false*]]
 [**-p**|**--publish**[=*[]*]]
 [**--pid**[=*[]*]]
+[**--uts**[=*[]*]]
 [**--privileged**[=*false*]]
 [**--read-only**[=*false*]]
 [**--restart**[=*RESTART*]]
@@ -56,6 +62,9 @@ IMAGE [COMMAND] [ARG...]
 **--add-host**=[]
    Add a custom host-to-IP mapping (host:ip)
 
+**--blkio-weight**=0
+   Block IO weight (relative weight) accepts a weight value between 10 and 1000.
+
 **-c**, **--cpu-shares**=0
    CPU shares (relative weight)
 
@@ -71,8 +80,21 @@ IMAGE [COMMAND] [ARG...]
 **--cgroup-parent**=""
    Path to cgroups under which the cgroup for the container will be created. If the path is not absolute, the path is considered to be relative to the cgroups path of the init process. Cgroups will be created if they do not already exist.
 
+**--cpu-peroid**=0
+    Limit the CPU CFS (Completely Fair Scheduler) period
+
 **--cpuset-cpus**=""
    CPUs in which to allow execution (0-3, 0,1)
+
+**--cpuset-mems**=""
+   Memory nodes (MEMs) in which to allow execution (0-3, 0,1). Only effective on NUMA systems.
+
+   If you have four memory nodes on your system (0-3), use `--cpuset-mems=0,1`
+then processes in your Docker container will only use memory from the first
+two memory nodes.
+
+**-cpu-quota**=0
+   Limit the CPU CFS (Completely Fair Scheduler) quota
 
 **--device**=[]
    Add a host device to the container (e.g. --device=/dev/sdc:/dev/xvdc:rwm)
@@ -116,12 +138,13 @@ IMAGE [COMMAND] [ARG...]
    Read labels from a file. Delimit each label with an EOL.
 
 **--link**=[]
-   Add link to another container in the form of <name or id>:alias
+   Add link to another container in the form of <name or id>:alias or just
+   <name or id> in which case the alias will match the name.
 
 **--lxc-conf**=[]
    (lxc exec-driver only) Add custom lxc options --lxc-conf="lxc.cgroup.cpuset.cpus = 0,1"
 
-**--log-driver**="|*json-file*|*syslog*|*none*"
+**--log-driver**="|*json-file*|*syslog*|*journald*|*none*"
   Logging driver for container. Default is defined by daemon `--log-driver` flag.
   **Warning**: `docker logs` command works only for `json-file` logging driver.
 
@@ -138,7 +161,7 @@ system's page size (the value would be very large, that's millions of trillions)
    Total memory limit (memory + swap)
 
    Set `-1` to disable swap (format: <number><optional unit>, where unit = b, k, m or g).
-This value should always larger than **-m**, so you should alway use this with **-m**.
+This value should always larger than **-m**, so you should always use this with **-m**.
 
 **--mac-address**=""
    Container MAC address (e.g. 92:d0:c6:0a:29:33)
@@ -152,6 +175,9 @@ This value should always larger than **-m**, so you should alway use this with *
                                'none': no networking for this container
                                'container:<name|id>': reuses another container network stack
                                'host': use the host network stack inside the container.  Note: the host mode gives the container full access to local system services such as D-bus and is therefore considered insecure.
+
+**--oom-kill-disable**=*true*|*false*
+	Whether to disable OOM Killer for the container or not.
 
 **-P**, **--publish-all**=*true*|*false*
    Publish all exposed ports to random ports on the host interfaces. The default is *false*.
@@ -167,6 +193,11 @@ This value should always larger than **-m**, so you should alway use this with *
    Set the PID mode for the container
      **host**: use the host's PID namespace inside the container.
      Note: the host mode gives the container full access to local PID and is therefore considered insecure.
+
+**--uts**=host
+   Set the UTS mode for the container
+     **host**: use the host's UTS namespace inside the container.
+     Note: the host mode gives the container access to changing the host's hostname and is therefore considered insecure.
 
 **--privileged**=*true*|*false*
    Give extended privileges to this container. The default is *false*.

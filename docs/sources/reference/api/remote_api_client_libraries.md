@@ -1,8 +1,8 @@
-page_title: Remote API Client Libraries
+page_title: Remote API client libraries
 page_description: Various client libraries available to use with the Docker remote API
 page_keywords: API, Docker, index, registry, REST, documentation, clients, C#, Erlang, Go, Groovy, Java, JavaScript, Perl, PHP, Python, Ruby, Rust, Scala
 
-# Docker Remote API Client Libraries
+# Docker Remote API client libraries
 
 These libraries have not been tested by the Docker maintainers for
 compatibility. Please file issues with the library owners. If you find
@@ -43,21 +43,33 @@ will add the libraries here.
       <td>Active</td>
     </tr>
     <tr class="row-even">
+      <td>Dart</td>
+      <td>bwu_docker</td>
+      <td><a class="reference external" href="https://github.com/bwu-dart/bwu_docker">https://github.com/bwu-dart/bwu_docker</a></td>
+      <td>Active</td>
+    </tr>
+    <tr class="row-odd">
       <td>Go</td>
       <td>go-dockerclient</td>
       <td><a class="reference external" href="https://github.com/fsouza/go-dockerclient">https://github.com/fsouza/go-dockerclient</a></td>
       <td>Active</td>
     </tr>
-    <tr class="row-odd">
+    <tr class="row-even">
       <td>Go</td>
       <td>dockerclient</td>
       <td><a class="reference external" href="https://github.com/samalba/dockerclient">https://github.com/samalba/dockerclient</a></td>
       <td>Active</td>
     </tr>
-    <tr class="row-even">
+    <tr class="row-odd">
       <td>Groovy</td>
       <td>docker-client</td>
       <td><a class="reference external" href="https://github.com/gesellix-docker/docker-client">https://github.com/gesellix-docker/docker-client</a></td>
+      <td>Active</td>
+    </tr>
+    <tr class="row-even">
+      <td>Haskell</td>
+      <td>docker-hs</td>
+      <td><a class="reference external" href="https://github.com/denibertovic/docker-hs">https://github.com/denibertovic/docker-hs</a></td>
       <td>Active</td>
     </tr>
     <tr class="row-odd">

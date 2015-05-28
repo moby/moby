@@ -158,23 +158,22 @@ To sync your repository:
         origin	https://github.com/moxiegirl/docker.git (fetch)
         origin	https://github.com/moxiegirl/docker.git (push)
         upstream	https://github.com/docker/docker.git (fetch)
-        upstream	https://github.com/docker/docker.git (
+        upstream	https://github.com/docker/docker.git (push)
 
     If the `upstream` is missing, add it.
 
         $ git remote add upstream https://github.com/docker/docker.git
 
-5. Fetch all the changes from the `upstream/master` branch.
+5. Fetch all the changes from the `upstream master` branch.
 
-        $ git fetch upstream/master
+        $ git fetch upstream master
         remote: Counting objects: 141, done.
         remote: Compressing objects: 100% (29/29), done.
         remote: Total 141 (delta 52), reused 46 (delta 46), pack-reused 66
         Receiving objects: 100% (141/141), 112.43 KiB | 0 bytes/s, done.
         Resolving deltas: 100% (79/79), done.
-        From github.com:docker/docker
-           9ffdf1e..01d09e4  docs       -> upstream/docs
-           05ba127..ac2521b  master     -> upstream/master
+	    From github.com:docker/docker
+	     * branch            master     -> FETCH_HEAD
 
     This command says get all the changes from the `master` branch belonging to
     the `upstream` remote.
@@ -185,8 +184,8 @@ To sync your repository:
         First, rewinding head to replay your work on top of it...
         Fast-forwarded master to upstream/master.
 
-    This command writes all the commits from the upstream branch into your local
-    branch.
+    This command applies all the commits from the upstream master to your local
+    master.
 
 8.  Check the status of your local branch.
 
@@ -196,12 +195,12 @@ To sync your repository:
           (use "git push" to publish your local commits)
         nothing to commit, working directory clean
 
-    Your local repository now has any changes from the `upstream` remote.  You
-    need to push the changes to your own remote fork which is `origin/master`.
+    Your local repository now has all the changes from the `upstream` remote. You 
+    need to push the changes to your own remote fork which is `origin master`.
 
-9. Push the rebased master to `origin/master`.
+9. Push the rebased master to `origin master`.
 
-        $ git push origin
+        $ git push origin master
         Username for 'https://github.com': moxiegirl
         Password for 'https://moxiegirl@github.com': 
         Counting objects: 223, done.
@@ -219,7 +218,7 @@ To sync your repository:
         $ git checkout -b 11038-fix-rhel-link
         Switched to a new branch '11038-fix-rhel-link'
 
-    Your branch should be up-to-date with the upstream/master. Why? Because you
+    Your branch should be up-to-date with the `upstream/master`. Why? Because you
     branched off a freshly synced master.  Let's check this anyway in the next
     step.
 
@@ -229,8 +228,8 @@ To sync your repository:
         Current branch 11038-fix-rhel-link is up to date.
 
     At this point, your local branch, your remote repository, and the Docker
-    repository all have identical code. You are ready to make changesfor your
-    issues.
+    repository all have identical code. You are ready to make changes for your
+    issue.
 
 
 ## Where to go next

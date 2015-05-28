@@ -2,9 +2,10 @@ page_title: Get the required software
 page_description: Describes the software required to contribute to Docker
 page_keywords: GitHub account, repository, Docker, Git, Go, make, 
 
-# Get the required software
+# Get the required software for Linux or OS X
 
-Before you begin contributing you must have:
+This page explains how to get the software you need to use a Linux or OS X
+machine for Docker development. Before you begin contributing you must have:
 
 *  a GitHub account
 * `git`
@@ -82,7 +83,7 @@ your user to the `docker` group as follows:
 
     $ sudo usermod -aG docker ubuntu
 
-You must log out and back in for this modification to take effect.
+You must log out and log back in for this modification to take effect.
 
 
 ## Where to go next

@@ -67,7 +67,7 @@ The following provides greater detail on the process:
 
     The design proposals are <a
     href="https://github.com/docker/docker/pulls?q=is%3Aopen+is%3Apr+label%
-    3AProposal" target="_blank">all online in our GitHub pull requests</a>. 
+    3Akind%2Fproposal" target="_blank">all online in our GitHub pull requests</a>. 
     
 3. Talk to the community about your idea.
 
@@ -89,7 +89,7 @@ The following provides greater detail on the process:
     This is a Markdown file that describes your idea. Your proposal
     should include information like:
 
-    * Why is this changed needed or what are the use cases?
+    * Why is this change needed or what are the use cases?
     * What are the requirements this change should meet?
     * What are some ways to design/implement this feature?
     * Which design/implementation do you think is best and why?
@@ -137,3 +137,16 @@ The following provides greater detail on the process:
 
 14. Acceptance and merge!
 
+## About the advanced process
+
+Docker is a large project. Our core team gets a great many design proposals.
+Design proposal discussions can span days, weeks, and longer. The number of comments can reach the 100s.
+In that situation, following the discussion flow and the decisions reached is crucial.
+
+Making a pull request with a design proposal simplifies this process:
+* you can leave comments on specific design proposal line
+* replies around line are easy to track
+* as a proposal changes and is updated, pages reset as line items resolve
+* Github maintains the entire history
+
+While proposals in pull requests do not end up merged into a master repository, they provide a convenient tool for managing the design process.

@@ -50,8 +50,11 @@ printItem := func(prefix patricia.Prefix, item patricia.Item) error {
 	return nil
 }
 
-// Create a new tree.
+// Create a new default trie (using the default parameter values).
 trie := NewTrie()
+
+// Create a new custom trie.
+trie := NewTrie(MaxPrefixPerNode(16), MaxChildrenPerSparseNode(10))
 
 // Insert some items.
 trie.Insert(Prefix("Pepa Novak"), 1)
@@ -67,12 +70,12 @@ key = Prefix("Karel")
 fmt.Printf("Anybody called %q here? %v\n", key, trie.MatchSubtree(key))
 // Anybody called "Karel" here? true
 
-// Walk the tree.
+// Walk the tree in alphabetical order.
 trie.Visit(printItem)
+// "Karel Hynek Macha": 4
+// "Karel Macha": 3
 // "Pepa Novak": 1
 // "Pepa Sindelar": 2
-// "Karel Macha": 3
-// "Karel Hynek Macha": 4
 
 // Walk a subtree.
 trie.VisitSubtree(Prefix("Pepa"), printItem)
@@ -96,8 +99,8 @@ trie.Delete(Prefix("Karel Macha"))
 
 // Walk again.
 trie.Visit(printItem)
-// "Pepa Sindelar": 2
 // "Karel Hynek Macha": 10
+// "Pepa Sindelar": 2
 
 // Delete a subtree.
 trie.DeleteSubtree(Prefix("Pepa"))

@@ -1,4 +1,4 @@
-page_title: Best Practices for Writing Dockerfiles
+page_title: Best practices for writing Dockerfiles
 page_description: Hints, tips and guidelines for writing clean, reliable Dockerfiles
 page_keywords: Examples, Usage, base image, docker, documentation, dockerfile, best practices, hub, official repo
 
@@ -32,13 +32,14 @@ ephemeral as possible. By “ephemeral,” we mean that it can be stopped and
 destroyed and a new one built and put in place with an absolute minimum of
 set-up and configuration.
 
-### Use [a .dockerignore file](https://docs.docker.com/reference/builder/#the-dockerignore-file)
+### Use a .dockerignore file
 
-For faster uploading and efficiency during `docker build`, you should use
-a `.dockerignore` file to exclude files or directories from the build
-context and final image. For example, unless`.git` is needed by your build
-process or scripts, you should add it to `.dockerignore`, which can save many
-megabytes worth of upload time.
+In most cases, it's best to put each Dockerfile in an empty directory. Then,
+add to that directory only the files needed for building the Dockerfile. To
+increase the build's performance, you can exclude files and directories by
+adding a `.dockerignore` file to that directory as well. This file supports 
+exclusion patterns similar to `.gitignore` files. For information on creating one,
+see the [.dockerignore file](../../reference/builder/#dockerignore-file).
 
 ### Avoid installing unnecessary packages
 
@@ -398,7 +399,15 @@ troubleshoot, and maintain.
 
 ### [`ONBUILD`](https://docs.docker.com/reference/builder/#onbuild)
 
-`ONBUILD` is only useful for images that are going to be built `FROM` a given
+An `ONBUILD` command executes after the current `Dockerfile` build completes.
+`ONBUILD` executes in any child image derived `FROM` the current image.  Think
+of the `ONBUILD` command as an instruction the parent `Dockerfile` gives
+to the child `Dockerfile`.
+
+A Docker build executes `ONBUILD` commands before any command in a child
+`Dockerfile`.
+
+`ONBUILD` is useful for images that are going to be built `FROM` a given
 image. For example, you would use `ONBUILD` for a language stack image that
 builds arbitrary user software written in that language within the
 `Dockerfile`, as you can see in [Ruby’s `ONBUILD` variants](https://github.com/docker-library/ruby/blob/master/2.1/onbuild/Dockerfile). 
@@ -411,16 +420,16 @@ fail catastrophically if the new build's context is missing the resource being
 added. Adding a separate tag, as recommended above, will help mitigate this by
 allowing the `Dockerfile` author to make a choice.
 
-## Examples For Official Repositories
+## Examples for Official Repositories
 
-These Official Repos have exemplary `Dockerfile`s:
+These Official Repositories have exemplary `Dockerfile`s:
 
 * [Go](https://registry.hub.docker.com/_/golang/)
 * [Perl](https://registry.hub.docker.com/_/perl/)
 * [Hy](https://registry.hub.docker.com/_/hylang/)
 * [Rails](https://registry.hub.docker.com/_/rails)
 
-## Additional Resources:
+## Additional resources:
 
 * [Dockerfile Reference](https://docs.docker.com/reference/builder/#onbuild)
 * [More about Base Images](https://docs.docker.com/articles/baseimages/)

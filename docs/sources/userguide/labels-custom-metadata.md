@@ -129,9 +129,13 @@ You can view the labels via the `docker inspect` command:
     }
     ...
 
-    $ docker inspect -f "{{json .Labels }}" 4fa6e0f0c678
+    # Inspect labels on container
+    $ docker inspect -f "{{json .Config.Labels }}" 4fa6e0f0c678
 
     {"Vendor":"ACME Incorporated","com.example.is-beta":"","com.example.version":"0.0.1-beta","com.example.release-date":"2015-02-12"}
+
+    # Inspect labels on images
+    $ docker inspect -f "{{json .ContainerConfig.Labels }}" myimage
 
 
 ## Query labels
@@ -171,6 +175,7 @@ These labels appear as part of the `docker info` output for the daemon:
      Backing Filesystem: extfs
      Dirs: 697
     Execution Driver: native-0.2
+    Logging Driver: json-file
     Kernel Version: 3.13.0-32-generic
     Operating System: Ubuntu 14.04.1 LTS
     CPUs: 1
@@ -179,7 +184,7 @@ These labels appear as part of the `docker info` output for the daemon:
     ID: RC3P:JTCT:32YS:XYSB:YUBG:VFED:AAJZ:W3YW:76XO:D7NN:TEVU:UCRW
     Debug mode (server): false
     Debug mode (client): true
-    Fds: 11
+    File Descriptors: 11
     Goroutines: 14
     EventsListeners: 0
     Init Path: /usr/bin/docker

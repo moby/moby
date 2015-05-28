@@ -1,8 +1,8 @@
-page_title: Network Configuration
+page_title: Network configuration
 page_description: Docker networking
 page_keywords: network, networking, bridge, docker, documentation
 
-# Network Configuration
+# Network configuration
 
 ## TL;DR
 
@@ -41,7 +41,7 @@ can use Docker options and — in advanced cases — raw Linux networking
 commands to tweak, supplement, or entirely replace Docker's default
 networking configuration.
 
-## Quick Guide to the Options
+## Quick guide to the options
 
 Here is a quick list of the networking-related Docker command-line
 options, in case it helps you find the section below that you are
@@ -55,6 +55,12 @@ server when it starts up, and cannot be changed once it is running:
 
  *  `--bip=CIDR` — see
     [Customizing docker0](#docker0)
+
+ *  `--default-gateway=IP_ADDRESS` — see
+    [How Docker networks a container](#container-networking)
+
+ *  `--default-gateway-v6=IP_ADDRESS` — see
+    [IPv6](#ipv6)
 
  *  `--fixed-cidr` — see
     [Customizing docker0](#docker0)
@@ -86,6 +92,9 @@ server when it starts up, and cannot be changed once it is running:
 
  *  `--mtu=BYTES` — see
     [Customizing docker0](#docker0)
+
+ *  `--userland-proxy=true|false` — see
+    [Binding container ports](#binding-ports)
 
 There are two networking options that can be supplied either at startup
 or when `docker run` is invoked.  When provided at startup, set the
@@ -121,8 +130,25 @@ Finally, several networking options can only be provided when calling
  *  `-P` or `--publish-all=true|false` — see
     [Binding container ports](#binding-ports)
 
-The following sections tackle all of the above topics in an order that
-moves roughly from simplest to most complex.
+To supply networking options to the Docker server at startup, use the
+`DOCKER_OPTS` variable in the Docker upstart configuration file. For Ubuntu, edit the
+variable in `/etc/default/docker` or `/etc/sysconfig/docker` for CentOS.
+
+The following example illustrates how to configure Docker on Ubuntu to recognize a
+newly built bridge. 
+
+Edit the `/etc/default/docker` file:
+
+    $ echo 'DOCKER_OPTS="-b=bridge0"' >> /etc/default/docker 
+
+Then restart the Docker server.
+
+    $ sudo service docker start
+
+For additional information on bridges, see [building your own
+bridge](#building-your-own-bridge) later on this page.
+
+The following sections tackle all of the above topics in an order that we can move roughly from simplest to most complex.
 
 ## Configuring DNS
 
@@ -296,8 +322,7 @@ system level, by two factors.
     policy to `DROP` if `--icc=false`.
 
 It is a strategic question whether to leave `--icc=true` or change it to
-`--icc=false` (on Ubuntu, by editing the `DOCKER_OPTS` variable in
-`/etc/default/docker` and restarting the Docker server) so that
+`--icc=false` so that
 `iptables` will protect other containers — and the main host — from
 having arbitrary ports probed or accessed by a container that gets
 compromised.
@@ -377,7 +402,7 @@ machine that the Docker server creates when it starts:
     ...
     Chain POSTROUTING (policy ACCEPT)
     target     prot opt source               destination
-    MASQUERADE  all  --  172.17.0.0/16       !172.17.0.0/16
+    MASQUERADE  all  --  172.17.0.0/16       0.0.0.0/0
     ...
 
 But if you want containers to accept incoming connections, you will need
@@ -426,10 +451,24 @@ you can use either `-p IP:host_port:container_port` or `-p IP::port` to
 specify the external interface for one particular binding.
 
 Or if you always want Docker port forwards to bind to one specific IP
-address, you can edit your system-wide Docker server settings (on
-Ubuntu, by editing `DOCKER_OPTS` in `/etc/default/docker`) and add the
+address, you can edit your system-wide Docker server settings and add the
 option `--ip=IP_ADDRESS`.  Remember to restart your Docker server after
 editing this setting.
+
+> **Note**:
+> With hairpin NAT enabled (`--userland-proxy=false`), containers port exposure
+> is achieved purely through iptables rules, and no attempt to bind the exposed
+> port is ever made. This means that nothing prevents shadowing a previously
+> listening service outside of Docker through exposing the same port for a
+> container. In such conflicting situation, Docker created iptables rules will
+> take precedence and route to the container.
+
+The `--userland-proxy` parameter, true by default, provides a userland
+implementation for inter-container and outside-to-container communication. When
+disabled, Docker uses both an additional `MASQUERADE` iptable rule and the
+`net.ipv4.route_localnet` kernel parameter which allow the host machine to
+connect to a local container exposed port through the commonly used loopback
+address: this alternative is preferred for performance reason.
 
 Again, this topic is covered without all of these low-level networking
 details in the [Docker User Guide](/userguide/dockerlinks/) document if you
@@ -484,7 +523,9 @@ want to configure `eth0` via Router Advertisements you should set:
 ![](/article-img/ipv6_basic_host_config.svg)
 
 Every new container will get an IPv6 address from the defined subnet. Further
-a default route will be added via the gateway `fe80::1` on `eth0`:
+a default route will be added on `eth0` in the container via the address
+specified by the daemon option `--default-gateway-v6` if present, otherwise
+via `fe80::1`:
 
     docker run -it ubuntu bash -c "ip -6 addr show dev eth0; ip -6 route show"
 
@@ -551,9 +592,9 @@ Therefore the router thinks it can talk to these containers directly.
 
 As soon as the router wants to send an IPv6 packet to the first container it
 will transmit a neighbor solicitation request, asking, who has
-`2001:db8::c009`? But it will get no answer because noone on this subnet has
+`2001:db8::c009`? But it will get no answer because no one on this subnet has
 this address. The container with this address is hidden behind the Docker host.
-The Docker host has to listen to neighbor solication requests for the container
+The Docker host has to listen to neighbor solicitation requests for the container
 address and send a response that itself is the device that is responsible for
 the address. This is done by a Kernel feature called `NDP Proxy`. You can
 enable it by executing
@@ -578,9 +619,9 @@ You have to execute the `ip -6 neigh add proxy ...` command for every IPv6
 address in your Docker subnet. Unfortunately there is no functionality for
 adding a whole subnet by executing one command.
 
-### Docker IPv6 Cluster
+### Docker IPv6 cluster
 
-#### Switched Network Environment
+#### Switched network environment
 Using routable IPv6 addresses allows you to realize communication between
 containers on different hosts. Let's have a look at a simple Docker IPv6 cluster
 example:
@@ -626,9 +667,9 @@ the Docker subnet on the host, the container IP addresses and the routes on the
 containers. The configuration above the line is up to the user and can be
 adapted to the individual environment.
 
-#### Routed Network Environment
+#### Routed network environment
 
-In a routed network environment you replace the level 2 switch with a level 3
+In a routed network environment you replace the layer 2 switch with a layer 3
 router. Now the hosts just have to know their default gateway (the router) and
 the route to their own containers (managed by Docker). The router holds all
 routing information about the Docker subnets. When you add or remove a host to
@@ -652,7 +693,7 @@ for Docker. When adding a third host you would add a route for the subnet
 Remember the subnet for Docker containers should at least have a size of `/80`.
 This way an IPv6 address can end with the container's MAC address and you
 prevent NDP neighbor cache invalidation issues in the Docker layer. So if you
-have a `/64` for your whole environment use `/68` subnets for the hosts and
+have a `/64` for your whole environment use `/78` subnets for the hosts and
 `/80` for the containers. This way you can use 4096 hosts with 16 `/80` subnets
 each.
 
@@ -692,9 +733,6 @@ options are configurable at server startup:
 
  *  `--mtu=BYTES` — override the maximum packet length on `docker0`.
 
-On Ubuntu you would add these to the `DOCKER_OPTS` setting in
-`/etc/default/docker` on your Docker host and restarting the Docker
-service.
 
 Once you have one or more containers up and running, you can confirm
 that Docker has properly connected them to the `docker0` bridge by
@@ -723,7 +761,7 @@ the Internet.
 
     # The network, as seen from a container
 
-    $ sudo docker run -i -t --rm base /bin/bash
+    $ docker run -i -t --rm base /bin/bash
 
     $$ ip addr show eth0
     24: eth0: <BROADCAST,UP,LOWER_UP> mtu 1500 qdisc pfifo_fast state UP group default qlen 1000
@@ -853,12 +891,13 @@ The steps with which Docker configures a container are:
     parameter or generate a random one.
 
 5.  Give the container's `eth0` a new IP address from within the
-    bridge's range of network addresses, and set its default route to
-    the IP address that the Docker host owns on the bridge. The MAC
-    address is generated from the IP address unless otherwise specified.
-    This prevents ARP cache invalidation problems, when a new container
-    comes up with an IP used in the past by another container with another
-    MAC.
+    bridge's range of network addresses. The default route is set to the
+    IP address passed to the Docker daemon using the `--default-gateway`
+    option if specified, otherwise to the IP address that the Docker host
+    owns on the bridge. The MAC address is generated from the IP address
+    unless otherwise specified. This prevents ARP cache invalidation
+    problems, when a new container comes up with an IP used in the past by
+    another container with another MAC.
 
 With these steps complete, the container now possesses an `eth0`
 (virtual) network card and will find itself able to communicate with
@@ -908,14 +947,14 @@ Docker do all of the configuration:
     # At one shell, start a container and
     # leave its shell idle and running
 
-    $ sudo docker run -i -t --rm --net=none base /bin/bash
+    $ docker run -i -t --rm --net=none base /bin/bash
     root@63f36fc01b5f:/#
 
     # At another shell, learn the container process ID
     # and create its namespace entry in /var/run/netns/
     # for the "ip netns" command we will be using below
 
-    $ sudo docker inspect -f '{{.State.Pid}}' 63f36fc01b5f
+    $ docker inspect -f '{{.State.Pid}}' 63f36fc01b5f
     2778
     $ pid=2778
     $ sudo mkdir -p /var/run/netns
@@ -972,7 +1011,7 @@ of the right to configure their own networks.  Using `ip netns exec` is
 what let us finish up the configuration without having to take the
 dangerous step of running the container itself with `--privileged=true`.
 
-## Tools and Examples
+## Tools and examples
 
 Before diving into the following sections on custom network topologies,
 you might be interested in glancing at a few external tools or examples
@@ -1016,18 +1055,18 @@ the previous section to go something like this:
 
     # Start up two containers in two terminal windows
 
-    $ sudo docker run -i -t --rm --net=none base /bin/bash
+    $ docker run -i -t --rm --net=none base /bin/bash
     root@1f1f4c1f931a:/#
 
-    $ sudo docker run -i -t --rm --net=none base /bin/bash
+    $ docker run -i -t --rm --net=none base /bin/bash
     root@12e343489d2f:/#
 
     # Learn the container process IDs
     # and create their namespace entries
 
-    $ sudo docker inspect -f '{{.State.Pid}}' 1f1f4c1f931a
+    $ docker inspect -f '{{.State.Pid}}' 1f1f4c1f931a
     2989
-    $ sudo docker inspect -f '{{.State.Pid}}' 12e343489d2f
+    $ docker inspect -f '{{.State.Pid}}' 12e343489d2f
     3004
     $ sudo mkdir -p /var/run/netns
     $ sudo ln -s /proc/2989/ns/net /var/run/netns/2989

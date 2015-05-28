@@ -30,4 +30,4 @@ The `md2man` Docker container will process the Markdown files and generate
 the man pages inside the `docker/docs/man/man1` directory using
 Docker volumes. For more information on Docker volumes see the man page for
 `docker run` and also look at the article [Sharing Directories via Volumes]
-(http://docs.docker.com/use/working_with_volumes/).
+(https://docs.docker.com/use/working_with_volumes/).

@@ -31,7 +31,7 @@ A Dockerfile is similar to a Makefile.
 
 # USAGE
 
-  sudo docker build .
+  docker build .
 
   -- Runs the steps and commits them, building a final image.
   The path to the source repository defines where to find the context of the
@@ -41,7 +41,7 @@ A Dockerfile is similar to a Makefile.
   daemon.
 
   ```
-  sudo docker build -t repository/tag .
+  docker build -t repository/tag .
   ```
 
   -- specifies a repository and tag at which to save the new image if the build
@@ -69,8 +69,8 @@ A Dockerfile is similar to a Makefile.
   multiple images. Make a note of the last image ID output by the commit before
   each new **FROM** command.
 
-  -- If no tag is given to the **FROM** instruction, latest is assumed. If the
-  used tag does not exist, an error is returned.
+  -- If no tag is given to the **FROM** instruction, Docker applies the 
+  `latest` tag. If the used tag does not exist, an error is returned.
 
 **MAINTAINER**
   -- **MAINTAINER** sets the Author field for the generated images.
@@ -273,10 +273,17 @@ A Dockerfile is similar to a Makefile.
 
 **USER**
   -- `USER daemon`
-  The **USER** instruction sets the username or UID that is used when running the
-  image.
+  Sets the username or UID used for running subsequent commands.
 
-**WRKDIR**
+  The **USER** instruction can optionally be used to set the group or GID. The
+  followings examples are all valid:
+  USER [user | user:group | uid | uid:gid | user:gid | uid:group ]
+
+  Until the **USER** instruction is set, instructions will be run as root. The USER
+  instruction can be used any number of times in a Dockerfile, and will only affect
+  subsequent commands.
+
+**WORKDIR**
   -- `WORKDIR /path/to/workdir`
   The **WORKDIR** instruction sets the working directory for the **RUN**, **CMD**,
   **ENTRYPOINT**, **COPY** and **ADD** Dockerfile commands that follow it. It can

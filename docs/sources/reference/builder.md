@@ -1,8 +1,8 @@
-page_title: Dockerfile Reference
+page_title: Dockerfile reference
 page_description: Dockerfiles use a simple DSL which allows you to automate the steps you would normally manually take to create an image.
 page_keywords: builder, docker, Dockerfile, automation, image creation
 
-# Dockerfile Reference
+# Dockerfile reference
 
 **Docker can build images automatically** by reading the instructions
 from a `Dockerfile`. A `Dockerfile` is a text document that contains all
@@ -26,7 +26,7 @@ This file will describe the steps to assemble the image.
 Then call `docker build` with the path of your source repository as the argument
 (for example, `.`):
 
-    $ sudo docker build .
+    $ docker build .
 
 The path to the source repository defines where to find the *context* of
 the build. The build is run by the Docker daemon, not by the CLI, so the
@@ -41,15 +41,16 @@ whole context must be transferred to the daemon. The Docker CLI reports
 > repository, the entire contents of your hard drive will get sent to the daemon (and
 > thus to the machine running the daemon). You probably don't want that.
 
-In most cases, it's best to put each Dockerfile in an empty directory, and then add only
-the files needed for building that Dockerfile to that directory. To further speed up the
-build, you can exclude files and directories by adding a `.dockerignore` file to the same
-directory.
+In most cases, it's best to put each Dockerfile in an empty directory. Then,
+only add the files needed for building the Dockerfile to the directory. To
+increase the build's performance, you can exclude files and directories by
+adding a `.dockerignore` file to the directory.  For information about how to
+[create a `.dockerignore` file](#the-dockerignore-file) on this page.
 
 You can specify a repository and tag at which to save the new image if
 the build succeeds:
 
-    $ sudo docker build -t shykes/myapp .
+    $ docker build -t shykes/myapp .
 
 The Docker daemon will run your steps one-by-one, committing the result
 to a new image if necessary, before finally outputting the ID of your
@@ -65,7 +66,7 @@ accelerating `docker build` significantly (indicated by `Using cache` -
 see the [`Dockerfile` Best Practices
 guide](/articles/dockerfile_best-practices/#build-cache) for more information):
 
-    $ sudo docker build -t SvenDowideit/ambassador .
+    $ docker build -t SvenDowideit/ambassador .
     Uploading context 10.24 kB
     Uploading context
     Step 1 : FROM docker-ut
@@ -105,7 +106,7 @@ be treated as an argument. This allows statements like:
 Here is the set of instructions you can use in a `Dockerfile` for building
 images.
 
-### Environment Replacement
+### Environment replacement
 
 > **Note**: prior to 1.3, `Dockerfile` environment variables were handled
 > similarly, in that they would be replaced as described below. However, there
@@ -113,18 +114,30 @@ images.
 > replacement at the time. After 1.3 this behavior will be preserved and
 > canonical.
 
-Environment variables (declared with [the `ENV` statement](#env)) can also be used in
-certain instructions as variables to be interpreted by the `Dockerfile`. Escapes
-are also handled for including variable-like syntax into a statement literally.
+Environment variables (declared with [the `ENV` statement](#env)) can also be
+used in certain instructions as variables to be interpreted by the
+`Dockerfile`. Escapes are also handled for including variable-like syntax
+into a statement literally.
 
 Environment variables are notated in the `Dockerfile` either with
 `$variable_name` or `${variable_name}`. They are treated equivalently and the
 brace syntax is typically used to address issues with variable names with no
 whitespace, like `${foo}_bar`.
 
+The `${variable_name}` syntax also supports a few of the standard `bash`
+modifiers as specified below:
+
+* `${variable:-word}` indicates that if `variable` is set then the result
+  will be that value. If `variable` is not set then `word` will be the result.
+* `${variable:+word}` indicates that if `variable` is set then `word` will be
+  the result, otherwise the result is the empty string.
+
+In all cases, `word` can be any string, including additional environment
+variables.
+
 Escaping is possible by adding a `\` before the variable: `\$foo` or `\${foo}`,
 for example, will translate to `$foo` and `${foo}` literals respectively.
- 
+
 Example (parsed representation is displayed after the `#`):
 
     FROM busybox
@@ -146,7 +159,7 @@ The instructions that handle environment variables in the `Dockerfile` are:
 `ONBUILD` instructions are **NOT** supported for environment replacement, even
 the instructions above.
 
-Environment variable subtitution will use the same value for each variable
+Environment variable substitution will use the same value for each variable
 throughout the entire command.  In other words, in this example:
 
     ENV abc=hello
@@ -157,43 +170,67 @@ will result in `def` having a value of `hello`, not `bye`.  However,
 `ghi` will have a value of `bye` because it is not part of the same command
 that set `abc` to `bye`.
 
-## The `.dockerignore` file
+### .dockerignore file
 
-If a file named `.dockerignore` exists in the source repository, then it
-is interpreted as a newline-separated list of exclusion patterns.
-Exclusion patterns match files or directories relative to the source repository
-that will be excluded from the context. Globbing is done using Go's
+If a file named `.dockerignore` exists in the root of `PATH`, then Docker
+interprets it as a newline-separated list of exclusion patterns. Docker excludes
+files or directories relative to `PATH` that match these exclusion patterns. If
+there are any `.dockerignore` files in `PATH` subdirectories, Docker treats
+them as normal files. 
+
+Filepaths in `.dockerignore` are absolute with the current directory as the
+root. Wildcards are allowed but the search is not recursive. Globbing (file name
+expansion) is done using Go's
 [filepath.Match](http://golang.org/pkg/path/filepath#Match) rules.
 
-> **Note**:
-> The `.dockerignore` file can even be used to ignore the `Dockerfile` and
-> `.dockerignore` files. This might be useful if you are copying files from
-> the root of the build context into your new containter but do not want to 
-> include the `Dockerfile` or `.dockerignore` files (e.g. `ADD . /someDir/`).
+You can specify exceptions to exclusion rules. To do this, simply prefix a
+pattern with an `!` (exclamation mark) in the same way you would in a
+`.gitignore` file.  Currently there is no support for regular expressions.
+Formats like `[^temp*]` are ignored. 
 
-The following example shows the use of the `.dockerignore` file to exclude the
-`.git` directory from the context. Its effect can be seen in the changed size of
-the uploaded context.
+The following is an example `.dockerignore` file:
 
-    $ sudo docker build .
-    Uploading context 18.829 MB
-    Uploading context
-    Step 0 : FROM busybox
-     ---> 769b9341d937
-    Step 1 : CMD echo Hello World
-     ---> Using cache
-     ---> 99cc1ad10469
-    Successfully built 99cc1ad10469
-    $ echo ".git" > .dockerignore
-    $ sudo docker build .
-    Uploading context  6.76 MB
-    Uploading context
-    Step 0 : FROM busybox
-     ---> 769b9341d937
-    Step 1 : CMD echo Hello World
-     ---> Using cache
-     ---> 99cc1ad10469
-    Successfully built 99cc1ad10469
+```
+    */temp*
+    */*/temp*
+    temp?
+    *.md
+    !LICENCSE.md
+```
+
+This file causes the following build behavior:
+
+| Rule           | Behavior                                                                                                                                                                     |
+|----------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `*/temp*`      | Exclude all files with names starting with`temp` in any subdirectory below the root directory. For example, a file named`/somedir/temporary.txt` is ignored.              |
+| `*/*/temp*`    | Exclude files starting with name `temp` from any subdirectory that is two levels below the root directory. For example, the file `/somedir/subdir/temporary.txt` is ignored. |
+| `temp?`        | Exclude the files that match the pattern in the root directory. For example, the files `tempa`, `tempb` in the root directory are ignored.                               |
+| `*.md `        | Exclude all markdown files.                                                                                                                                                  |
+| `!LICENSE.md` | Exception to the exclude all Markdown files is this file,  `LICENSE.md`, include this file in the build.                                                                     |
+
+The placement of  `!` exception rules influences the matching algorithm; the
+last line of the `.dockerignore` that matches a particular file determines
+whether it is included or excluded. In the above example, the `LICENSE.md` file
+matches both the  `*.md` and `!LICENSE.md` rule. If you reverse the lines in the
+example:
+
+```
+    */temp*
+    */*/temp*
+    temp?
+    !LICENCSE.md
+    *.md
+```
+
+The build would exclude `LICENSE.md` because the last `*.md` rule adds all
+Markdown files back onto the ignore list. The `!LICENSE.md` rule has no effect
+because the subsequent `*.md` rule overrides it.
+
+You can even use the  `.dockerignore` file to ignore the `Dockerfile` and
+`.dockerignore` files. This is useful if you are copying files from the root of
+the build context into your new container but do not want to include the
+`Dockerfile` or `.dockerignore` files (e.g. `ADD . /someDir/`).
+
 
 ## FROM
 
@@ -276,7 +313,7 @@ guide](/articles/dockerfile_best-practices/#build-cache) for more information.
 The cache for `RUN` instructions can be invalidated by `ADD` instructions. See
 [below](#add) for details.
 
-### Known Issues (RUN)
+### Known issues (RUN)
 
 - [Issue 783](https://github.com/docker/docker/issues/783) is about file
   permissions problems that can occur when using the AUFS file system. You
@@ -287,7 +324,7 @@ The cache for `RUN` instructions can be invalidated by `ADD` instructions. See
   the layers with `dirperm1` option. More details on `dirperm1` option can be
   found at [`aufs` man page](http://aufs.sourceforge.net/aufs3/man.html)
 
-  If your system doesnt have support for `dirperm1`, the issue describes a workaround.
+  If your system doesn't have support for `dirperm1`, the issue describes a workaround.
 
 ## CMD
 
@@ -356,14 +393,13 @@ default specified in `CMD`.
 
 The `LABEL` instruction adds metadata to an image. A `LABEL` is a
 key-value pair. To include spaces within a `LABEL` value, use quotes and
-blackslashes as you would in command-line parsing.
+backslashes as you would in command-line parsing.
 
     LABEL "com.example.vendor"="ACME Incorporated"
 
 An image can have more than one label. To specify multiple labels, separate each
-key-value pair by an EOL.
+key-value pair with whitespace.
 
-    LABEL com.example.label-without-value
     LABEL com.example.label-with-value="foo"
     LABEL version="1.0"
     LABEL description="This text illustrates \
@@ -373,12 +409,24 @@ Docker recommends combining labels in a single `LABEL` instruction where
 possible. Each `LABEL` instruction produces a new layer which can result in an
 inefficient image if you use many labels. This example results in four image
 layers. 
+
+    LABEL multi.label1="value1" multi.label2="value2" other="value3"
     
 Labels are additive including `LABEL`s in `FROM` images. As the system
 encounters and then applies a new label, new `key`s override any previous labels
 with identical keys.    
 
 To view an image's labels, use the `docker inspect` command.
+
+    "Labels": {
+        "com.example.vendor": "ACME Incorporated"
+        "com.example.label-with-value": "foo",
+        "version": "1.0",
+        "description": "This text illustrates that label-values can span multiple lines.",
+        "multi.label1": "value1",
+        "multi.label2": "value2",
+        "other": "value3"
+    },
 
 ## EXPOSE
 
@@ -844,11 +892,11 @@ consider the following Dockerfile snippet:
 
     FROM ubuntu
     RUN mkdir /myvol
-    RUN echo "hello world" > /myvol/greating
+    RUN echo "hello world" > /myvol/greeting
     VOLUME /myvol
 
 This Dockerfile results in an image that causes `docker run`, to
-create a new mount point at `/myvol` and copy the  `greating` file 
+create a new mount point at `/myvol` and copy the  `greeting` file 
 into the newly created volume.
 
 > **Note**:
@@ -950,7 +998,7 @@ For example you might add something like this:
 
 > **Warning**: The `ONBUILD` instruction may not trigger `FROM` or `MAINTAINER` instructions.
 
-## Dockerfile Examples
+## Dockerfile examples
 
     # Nginx
     #

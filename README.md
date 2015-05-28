@@ -2,7 +2,7 @@ Docker: the Linux container engine
 ==================================
 
 Docker is an open source project to pack, ship and run any application
-as a lightweight container
+as a lightweight container.
 
 Docker containers are both *hardware-agnostic* and *platform-agnostic*.
 This means they can run anywhere, from your laptop to the largest
@@ -13,7 +13,7 @@ databases, and backend services without depending on a particular stack
 or provider.
 
 Docker began as an open-source implementation of the deployment engine which
-powers [dotCloud](http://dotcloud.com), a popular Platform-as-a-Service.
+powers [dotCloud](https://dotcloud.com), a popular Platform-as-a-Service.
 It benefits directly from the experience accumulated over several years
 of large-scale operation and support of hundreds of thousands of
 applications and databases.
@@ -56,12 +56,12 @@ By contrast, Docker relies on a different sandboxing method known as
 *containerization*. Unlike traditional virtualization, containerization
 takes place at the kernel level. Most modern operating system kernels
 now support the primitives necessary for containerization, including
-Linux with [openvz](http://openvz.org),
+Linux with [openvz](https://openvz.org),
 [vserver](http://linux-vserver.org) and more recently
 [lxc](http://lxc.sourceforge.net), Solaris with
-[zones](http://docs.oracle.com/cd/E26502_01/html/E29024/preface-1.html#scrolltoc),
+[zones](https://docs.oracle.com/cd/E26502_01/html/E29024/preface-1.html#scrolltoc),
 and FreeBSD with
-[Jails](http://www.freebsd.org/doc/handbook/jails.html).
+[Jails](https://www.freebsd.org/doc/handbook/jails.html).
 
 Docker builds on top of these low-level primitives to offer developers a
 portable format and runtime environment that solves all four problems.
@@ -105,7 +105,7 @@ This is usually difficult for several reasons:
     these situations with various degrees of ease - but they all
     handle them in different and incompatible ways, which again forces
     the developer to do extra work.
-  
+
   * *Custom dependencies*. A developer may need to prepare a custom
     version of their application's dependency. Some packaging systems
     can handle custom versions of a dependency, others can't - and all
@@ -115,7 +115,7 @@ This is usually difficult for several reasons:
 Docker solves the problem of dependency hell by giving the developer a simple
 way to express *all* their application's dependencies in one place, while
 streamlining the process of assembling them. If this makes you think of
-[XKCD 927](http://xkcd.com/927/), don't worry. Docker doesn't
+[XKCD 927](https://xkcd.com/927/), don't worry. Docker doesn't
 *replace* your favorite packaging systems. It simply orchestrates
 their use in a simple and repeatable way. How does it do that? With
 layers.
@@ -147,19 +147,19 @@ Docker can be installed on your local machine as well as servers - both
 bare metal and virtualized.  It is available as a binary on most modern
 Linux systems, or as a VM on Windows, Mac and other systems.
 
-We also offer an [interactive tutorial](http://www.docker.com/tryit/)
+We also offer an [interactive tutorial](https://www.docker.com/tryit/)
 for quickly learning the basics of using Docker.
 
-For up-to-date install instructions, see the [Docs](http://docs.docker.com).
+For up-to-date install instructions, see the [Docs](https://docs.docker.com).
 
 Usage examples
 ==============
 
 Docker can be used to run short-lived commands, long-running daemons
-(app servers, databases etc.), interactive shell sessions, etc.
+(app servers, databases, etc.), interactive shell sessions, etc.
 
 You can find a [list of real-world
-examples](http://docs.docker.com/examples/) in the
+examples](https://docs.docker.com/examples/) in the
 documentation.
 
 Under the hood
@@ -171,15 +171,15 @@ Under the hood, Docker is built on the following components:
   [cgroup](http://blog.dotcloud.com/kernel-secrets-from-the-paas-garage-part-24-c)
   and
   [namespacing](http://blog.dotcloud.com/under-the-hood-linux-kernels-on-dotcloud-part)
-  capabilities of the Linux kernel;
-* The [Go](http://golang.org) programming language.
-* The [Docker Image Specification] (https://github.com/docker/docker/blob/master/image/spec/v1.md)
-* The [Libcontainer Specification] (https://github.com/docker/libcontainer/blob/master/SPEC.md)
+  capabilities of the Linux kernel
+* The [Go](https://golang.org) programming language
+* The [Docker Image Specification](https://github.com/docker/docker/blob/master/image/spec/v1.md)
+* The [Libcontainer Specification](https://github.com/docker/libcontainer/blob/master/SPEC.md)
 
 Contributing to Docker
 ======================
 
-[![GoDoc](https://godoc.org/github.com/docker/docker?status.png)](https://godoc.org/github.com/docker/docker)
+[![GoDoc](https://godoc.org/github.com/docker/docker?status.svg)](https://godoc.org/github.com/docker/docker)
 [![Jenkins Build Status](https://jenkins.dockerproject.com/job/Docker%20Master/badge/icon)](https://jenkins.dockerproject.com/job/Docker%20Master/)
 
 Want to hack on Docker? Awesome! We have [instructions to help you get
@@ -207,17 +207,65 @@ or want to get more involved, the best place to start is [the project directory]
 
 We are always open to suggestions on process improvements, and are always looking for more maintainers.
 
+### Talking to other Docker users and contributors
+
+<table class="tg">
+  <col width="45%">
+  <col width="65%">
+  <tr>
+    <td>Internet&nbsp;Relay&nbsp;Chat&nbsp;(IRC)</td>
+    <td>
+      <p>
+        IRC a direct line to our most knowledgeable Docker users; we have
+        both the  <code>#docker</code> and <code>#docker-dev</code> group on
+        <strong>irc.freenode.net</strong>.
+        IRC is a rich chat protocol but it can overwhelm new users. You can search
+        <a href="https://botbot.me/freenode/docker/#" target="_blank">our chat archives</a>.
+      </p>
+      Read our <a href="https://docs.docker.com/project/get-help/#irc-quickstart" target="_blank">IRC quickstart guide</a> for an easy way to get started.
+    </td>
+  </tr>
+  <tr>
+    <td>Google Groups</td>
+    <td>
+      There are two groups.
+      <a href="https://groups.google.com/forum/#!forum/docker-user" target="_blank">Docker-user</a>
+      is for people using Docker containers.
+      The <a href="https://groups.google.com/forum/#!forum/docker-dev" target="_blank">docker-dev</a>
+      group is for contributors and other people contributing to the Docker
+      project.
+    </td>
+  </tr>
+  <tr>
+    <td>Twitter</td>
+    <td>
+      You can follow <a href="https://twitter.com/docker/" target="_blank">Docker's Twitter feed</a>
+      to get updates on our products. You can also tweet us questions or just
+      share blogs or stories.
+    </td>
+  </tr>
+  <tr>
+    <td>Stack Overflow</td>
+    <td>
+      Stack Overflow has over 7000K Docker questions listed. We regularly
+      monitor <a href="https://stackoverflow.com/search?tab=newest&q=docker" target="_blank">Docker questions</a>
+      and so do many other knowledgeable Docker users.
+    </td>
+  </tr>
+</table>
+
 ### Legal
 
 *Brought to you courtesy of our legal counsel. For more context,
-please see the "NOTICE" document in this repo.*
+please see the [NOTICE](https://github.com/docker/docker/blob/master/NOTICE) document in this repo.*
 
 Use and transfer of Docker may be subject to certain restrictions by the
-United States and other governments.  
-It is your responsibility to ensure that your use and/or transfer does not
-violate applicable laws. 
+United States and other governments.
 
-For more information, please see http://www.bis.doc.gov
+It is your responsibility to ensure that your use and/or transfer does not
+violate applicable laws.
+
+For more information, please see https://www.bis.doc.gov
 
 
 Licensing
@@ -230,17 +278,18 @@ Other Docker Related Projects
 =============================
 There are a number of projects under development that are based on Docker's
 core technology. These projects expand the tooling built around the
-Docker platform to broaden its application and utility. 
-
-If you know of another project underway that should be listed here, please help
-us keep this list up-to-date by submitting a PR.
+Docker platform to broaden its application and utility.
 
 * [Docker Registry](https://github.com/docker/distribution): Registry 
 server for Docker (hosting/delivery of repositories and images)
 * [Docker Machine](https://github.com/docker/machine): Machine management 
-for a container-centric world 
+for a container-centric world
 * [Docker Swarm](https://github.com/docker/swarm): A Docker-native clustering 
-system 
+system
 * [Docker Compose](https://github.com/docker/compose) (formerly Fig): 
 Define and run multi-container apps
+* [Kitematic](https://github.com/kitematic/kitematic): The easiest way to use 
+Docker on a Mac
 
+If you know of another project underway that should be listed here, please help 
+us keep this list up-to-date by submitting a PR.

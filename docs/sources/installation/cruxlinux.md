@@ -15,19 +15,19 @@ The `docker` port will build and install the latest tagged version of Docker.
 
 ## Installation
 
-Assuming you have contrib enabled, update your ports tree and install docker (*as root*):
+Assuming you have contrib enabled, update your ports tree and install docker:
 
-    # prt-get depinst docker
+    $ sudo prt-get depinst docker
 
 
-## Kernel Requirements
+## Kernel requirements
 
 To have a working **CRUX+Docker** Host you must ensure your Kernel has
 the necessary modules enabled for the Docker Daemon to function correctly.
 
 Please read the `README`:
 
-    $ prt-get readme docker
+    $ sudo prt-get readme docker
 
 The `docker` port installs the `contrib/check-config.sh` script
 provided by the Docker contributors for checking your kernel
@@ -39,9 +39,9 @@ To check your Kernel configuration run:
 
 ## Starting Docker
 
-There is a rc script created for Docker. To start the Docker service (*as root*):
+There is a rc script created for Docker. To start the Docker service:
 
-    # /etc/rc.d/docker start
+    $ sudo /etc/rc.d/docker start
 
 To start on system boot:
 
@@ -59,6 +59,20 @@ or use it as part of your `FROM` line in your `Dockerfile(s)`.
 
 There are also user contributed [CRUX based image(s)](https://registry.hub.docker.com/repos/crux/) on the Docker Hub.
 
+
+## Uninstallation
+
+To uninstall the Docker package:
+
+    $ sudo prt-get remove docker
+
+The above command will not remove images, containers, volumes, or user created
+configuration files on your host. If you wish to delete all images, containers,
+and volumes run the following command:
+
+    $ rm -rf /var/lib/docker
+
+You must delete the user created configuration files manually.
 
 ## Issues
 

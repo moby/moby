@@ -5,102 +5,71 @@ import (
 	"os"
 	"path"
 
-	log "github.com/Sirupsen/logrus"
-	"github.com/docker/docker/engine"
+	"github.com/Sirupsen/logrus"
 )
 
-func (daemon *Daemon) ContainerRm(job *engine.Job) engine.Status {
-	if len(job.Args) != 1 {
-		return job.Errorf("Not enough arguments. Usage: %s CONTAINER\n", job.Name)
-	}
-	name := job.Args[0]
-	removeVolume := job.GetenvBool("removeVolume")
-	removeLink := job.GetenvBool("removeLink")
-	forceRemove := job.GetenvBool("forceRemove")
+type ContainerRmConfig struct {
+	ForceRemove, RemoveVolume, RemoveLink bool
+}
 
+func (daemon *Daemon) ContainerRm(name string, config *ContainerRmConfig) error {
 	container, err := daemon.Get(name)
 	if err != nil {
-		return job.Error(err)
+		return err
 	}
 
-	if removeLink {
+	if config.RemoveLink {
 		name, err := GetFullContainerName(name)
 		if err != nil {
-			job.Error(err)
+			return err
 		}
 		parent, n := path.Split(name)
 		if parent == "/" {
-			return job.Errorf("Conflict, cannot remove the default name of the container")
+			return fmt.Errorf("Conflict, cannot remove the default name of the container")
 		}
 		pe := daemon.ContainerGraph().Get(parent)
 		if pe == nil {
-			return job.Errorf("Cannot get parent %s for name %s", parent, name)
+			return fmt.Errorf("Cannot get parent %s for name %s", parent, name)
 		}
 		parentContainer, _ := daemon.Get(pe.ID())
+
+		if err := daemon.ContainerGraph().Delete(name); err != nil {
+			return err
+		}
 
 		if parentContainer != nil {
 			parentContainer.DisableLink(n)
 		}
 
-		if err := daemon.ContainerGraph().Delete(name); err != nil {
-			return job.Error(err)
-		}
-		return engine.StatusOK
+		return nil
 	}
 
-	if container != nil {
-		// stop collection of stats for the container regardless
-		// if stats are currently getting collected.
-		daemon.statsCollector.stopCollection(container)
-		if container.IsRunning() {
-			if forceRemove {
-				if err := container.Kill(); err != nil {
-					return job.Errorf("Could not kill running container, cannot remove - %v", err)
-				}
-			} else {
-				return job.Errorf("Conflict, You cannot remove a running container. Stop the container before attempting removal or use -f")
-			}
-		}
-
-		if forceRemove {
-			if err := daemon.ForceRm(container); err != nil {
-				log.Errorf("Cannot destroy container %s: %v", name, err)
-			}
-		} else {
-			if err := daemon.Rm(container); err != nil {
-				return job.Errorf("Cannot destroy container %s: %v", name, err)
-			}
-		}
-		container.LogEvent("destroy")
-		if removeVolume {
-			daemon.DeleteVolumes(container.VolumePaths())
-		}
+	if err := daemon.rm(container, config.ForceRemove); err != nil {
+		return fmt.Errorf("Cannot destroy container %s: %v", name, err)
 	}
-	return engine.StatusOK
-}
 
-func (daemon *Daemon) DeleteVolumes(volumeIDs map[string]struct{}) {
-	for id := range volumeIDs {
-		if err := daemon.volumes.Delete(id); err != nil {
-			log.Infof("%s", err)
-			continue
-		}
+	container.LogEvent("destroy")
+
+	if config.RemoveVolume {
+		container.removeMountPoints()
 	}
-}
-
-func (daemon *Daemon) Rm(container *Container) (err error) {
-	return daemon.commonRm(container, false)
-}
-
-func (daemon *Daemon) ForceRm(container *Container) (err error) {
-	return daemon.commonRm(container, true)
+	return nil
 }
 
 // Destroy unregisters a container from the daemon and cleanly removes its contents from the filesystem.
-func (daemon *Daemon) commonRm(container *Container, forceRemove bool) (err error) {
-	if container == nil {
-		return fmt.Errorf("The given container is <nil>")
+func (daemon *Daemon) rm(container *Container, forceRemove bool) (err error) {
+	if container.IsRunning() {
+		if !forceRemove {
+			return fmt.Errorf("Conflict, You cannot remove a running container. Stop the container before attempting removal or use -f")
+		}
+		if err := container.Kill(); err != nil {
+			return fmt.Errorf("Could not kill running container, cannot remove - %v", err)
+		}
 	}
+
+	// stop collection of stats for the container regardless
+	// if stats are currently getting collected.
+	daemon.statsCollector.stopCollection(container)
 
 	element := daemon.containers.Get(container.ID)
 	if element == nil {
@@ -132,12 +101,12 @@ func (daemon *Daemon) commonRm(container *Container, forceRemove bool) (err erro
 		if err != nil && forceRemove {
 			daemon.idIndex.Delete(container.ID)
 			daemon.containers.Delete(container.ID)
+			os.RemoveAll(container.root)
 		}
 	}()
 
-	container.derefVolumes()
 	if _, err := daemon.containerGraph.Purge(container.ID); err != nil {
-		log.Debugf("Unable to remove container from link graph: %s", err)
+		logrus.Debugf("Unable to remove container from link graph: %s", err)
 	}
 
 	if err = daemon.driver.Remove(container.ID); err != nil {
@@ -162,4 +131,8 @@ func (daemon *Daemon) commonRm(container *Container, forceRemove bool) (err erro
 	daemon.containers.Delete(container.ID)
 
 	return nil
+}
+
+func (daemon *Daemon) DeleteVolumes(c *Container) error {
+	return c.removeMountPoints()
 }

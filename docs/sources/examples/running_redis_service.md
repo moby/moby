@@ -2,12 +2,12 @@ page_title: Dockerizing a Redis service
 page_description: Installing and running an redis service
 page_keywords: docker, example, package installation, networking, redis
 
-# Dockerizing a Redis Service
+# Dockerizing a Redis service
 
 Very simple, no frills, Redis service attached to a web application
 using a link.
 
-## Create a docker container for Redis
+## Create a Docker container for Redis
 
 Firstly, we create a `Dockerfile` for our new Redis
 image.
@@ -20,7 +20,7 @@ image.
 Next we build an image from our `Dockerfile`.
 Replace `<your username>` with your own user name.
 
-    $ sudo docker build -t <your username>/redis .
+    $ docker build -t <your username>/redis .
 
 ## Run the service
 
@@ -33,7 +33,7 @@ Importantly, we're not exposing any ports on our container. Instead
 we're going to use a container link to provide access to our Redis
 database.
 
-    $ sudo docker run --name redis -d <your username>/redis
+    $ docker run --name redis -d <your username>/redis
 
 ## Create your web application container
 
@@ -43,7 +43,7 @@ created with an alias of `db`. This will create a secure tunnel to the
 `redis` container and expose the Redis instance running inside that
 container to only this container.
 
-    $ sudo docker run --link redis:db -i -t ubuntu:14.04 /bin/bash
+    $ docker run --link redis:db -i -t ubuntu:14.04 /bin/bash
 
 Once inside our freshly created container we need to install Redis to
 get the `redis-cli` binary to test our connection.

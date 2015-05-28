@@ -25,7 +25,10 @@ To run Docker on [CentOS-6.5](http://www.centos.org) or later, you will need
 kernel version 2.6.32-431 or higher as this has specific kernel fixes to allow
 Docker to run.
 
-## Installing Docker - CentOS-7
+## CentOS-7
+
+### Installation
+
 Docker is included by default in the CentOS-Extras repository. To install
 run the following command:
 
@@ -33,18 +36,23 @@ run the following command:
 
 Please continue with the [Starting the Docker daemon](#starting-the-docker-daemon).
 
-### FirewallD
+### Uninstallation
 
-CentOS-7 introduced firewalld, which is a wrapper around iptables and can
-conflict with Docker.
+To uninstall the Docker package:
 
-When `firewalld` is started or restarted it will remove the `DOCKER` chain
-from iptables, preventing Docker from working properly.
+    $ sudo yum -y remove docker
 
-When using Systemd, `firewalld` is started before Docker, but if you
-start or restart `firewalld` after Docker, you will have to restart the Docker daemon.
+The above command will not remove images, containers, volumes, or user created
+configuration files on your host. If you wish to delete all images, containers,
+and volumes run the following command:
 
-## Installing Docker - CentOS-6.5
+    $ rm -rf /var/lib/docker
+
+You must delete the user created configuration files manually.
+
+## CentOS-6.5
+
+### Installation
 
 For CentOS-6.5, the Docker package is part of [Extra Packages
 for Enterprise Linux (EPEL)](https://fedoraproject.org/wiki/EPEL) repository,
@@ -67,6 +75,20 @@ Next, let's install the `docker-io` package which will install Docker on our hos
     $ sudo yum install docker-io
 
 Please continue with the [Starting the Docker daemon](#starting-the-docker-daemon).
+
+### Uninstallation
+
+To uninstall the Docker package:
+
+    $ sudo yum -y remove docker-io
+
+The above command will not remove images, containers, volumes, or user created
+configuration files on your host. If you wish to delete all images, containers,
+and volumes run the following command:
+
+    $ rm -rf /var/lib/docker
+
+You must delete the user created configuration files manually.
 
 ## Manual installation of latest Docker release
 

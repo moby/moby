@@ -4,7 +4,7 @@ page_keywords: Docker, docker, registry, accounts, plans, Dockerfile, Docker Hub
 
 # Accounts on Docker Hub
 
-## Docker Hub Accounts
+## Docker Hub accounts
 
 You can `search` for Docker images and `pull` them from [Docker
 Hub](https://hub.docker.com) without signing in or even having an
@@ -12,7 +12,7 @@ account. However, in order to `push` images, leave comments or to *star*
 a repository, you are going to need a [Docker
 Hub](https://hub.docker.com) account.
 
-### Registration for a Docker Hub Account
+### Registration for a Docker Hub account
 
 You can get a [Docker Hub](https://hub.docker.com) account by
 [signing up for one here](https://hub.docker.com/account/signup/). A valid
@@ -32,23 +32,52 @@ If you can't access your account for some reason, you can reset your password
 from the [*Password Reset*](https://hub.docker.com/account/forgot-password/)
 page.
 
-## Organizations & Groups
+## Organizations and groups
 
-Also available on the Docker Hub are organizations and groups that allow
-you to collaborate across your organization or team. You can see what
-organizations [you belong to and add new organizations](
+A Docker Hub organization contains public and private repositories just like
+a user account. Access to push, pull or create these organisation owned repositories
+is allocated by defining groups of users and then assigning group rights to
+specific repositories. This allows you to distribute limited access
+Docker images, and to select which Docker Hub users can publish new images.
+
+### Creating and viewing organizations
+
+You can see what organizations [you belong to and add new organizations](
 https://hub.docker.com/account/organizations/) from the Account Settings
-tab. They are also listed below your user name on your repositories page and in your account profile.
+tab. They are also listed below your user name on your repositories page
+and in your account profile.
 
 ![organizations](/docker-hub/hub-images/orgs.png)
 
-From within your organizations you can create groups that allow you to
-further manage who can interact with your repositories.
+### Organization groups
+
+Users in the `Owners` group of an organization can create and modify the
+membership of groups.
+
+Unless they are the organization's `Owner`, users can only see groups of which they
+are members.
 
 ![groups](/docker-hub/hub-images/groups.png)
 
-You can add or invite users to join groups by clicking on the organization and then clicking the edit button for the group to which you want to add members. Enter a user-name (for current Hub users) or email address (if they are not yet Hub users) for the person you want to invite. They will receive an email invitation to join the group.
+### Repository group permissions
 
-![invite members](/docker-hub/hub-images/invite.png)
+Use organization groups to manage who can interact with your repositories.
+
+You need to be a member of the organization's `Owners` group to create a new group,
+Hub repository or automated build. As an `Owner`, you then delegate the following
+repository access rights to groups:
+
+- `Read` access allows a user to view, search, and pull a private repository in the
+  same way as they can a public repository.
+- `Write` access users are able to push to non-automated repositories on the Docker
+  Hub.
+- `Admin` access allows the user to modify the repositories "Description", "Collaborators" rights,
+  "Mark as unlisted", "Public/Private" status and "Delete".
+
+> **Note**: A User who has not yet verified their email address will only have
+> `Read` access to the repository, regardless of the rights their group membership
+>  gives them.
+
+![Organization repository collaborators](/docker-hub/hub-images/org-repo-collaborators.png)
 
 

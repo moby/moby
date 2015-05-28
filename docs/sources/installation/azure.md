@@ -1,4 +1,4 @@
-page_title: Installation on Microsoft Azure Platform
+page_title: Installation on Microsoft Azure platform
 page_description: Instructions for creating a Docker-ready virtual machine on Microsoft Azure cloud platform.
 page_keywords: Docker, Docker documentation, installation, azure, microsoft
 

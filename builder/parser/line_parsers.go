@@ -233,23 +233,24 @@ func parseString(rest string) (*Node, map[string]bool, error) {
 // parseJSON converts JSON arrays to an AST.
 func parseJSON(rest string) (*Node, map[string]bool, error) {
 	var myJson []interface{}
-	if err := json.Unmarshal([]byte(rest), &myJson); err != nil {
+	if err := json.NewDecoder(strings.NewReader(rest)).Decode(&myJson); err != nil {
 		return nil, nil, err
 	}
 
 	var top, prev *Node
 	for _, str := range myJson {
-		if s, ok := str.(string); !ok {
+		s, ok := str.(string)
+		if !ok {
 			return nil, nil, errDockerfileNotStringArray
-		} else {
-			node := &Node{Value: s}
-			if prev == nil {
-				top = node
-			} else {
-				prev.Next = node
-			}
-			prev = node
 		}
+
+		node := &Node{Value: s}
+		if prev == nil {
+			top = node
+		} else {
+			prev.Next = node
+		}
+		prev = node
 	}
 
 	return top, map[string]bool{"json": true}, nil
@@ -278,7 +279,7 @@ func parseMaybeJSON(rest string) (*Node, map[string]bool, error) {
 }
 
 // parseMaybeJSONToList determines if the argument appears to be a JSON array. If
-// so, passes to parseJSON; if not, attmpts to parse it as a whitespace
+// so, passes to parseJSON; if not, attempts to parse it as a whitespace
 // delimited string.
 func parseMaybeJSONToList(rest string) (*Node, map[string]bool, error) {
 	node, attrs, err := parseJSON(rest)

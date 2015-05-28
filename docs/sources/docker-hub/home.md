@@ -1,8 +1,8 @@
-page_title: The Docker Hub Registry Help
+page_title: The Docker Hub Registry help
 page_description: The Docker Registry help documentation home
 page_keywords: Docker, docker, registry, accounts, plans, Dockerfile, Docker Hub, docs, documentation
 
-# The Docker Hub Registry Help
+# The Docker Hub Registry help
 
 ## Introduction
 

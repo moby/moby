@@ -7,24 +7,24 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
-	"path"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"syscall"
 	"time"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/digest"
 	"github.com/docker/docker/autogen/dockerversion"
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/archive"
-	"github.com/docker/docker/pkg/common"
 	"github.com/docker/docker/pkg/progressreader"
+	"github.com/docker/docker/pkg/streamformatter"
+	"github.com/docker/docker/pkg/stringid"
+	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/pkg/truncindex"
 	"github.com/docker/docker/runconfig"
-	"github.com/docker/docker/utils"
 )
 
 // A Graph is a store for versioned filesystem images and the relationship between them.
@@ -42,7 +42,7 @@ func NewGraph(root string, driver graphdriver.Driver) (*Graph, error) {
 		return nil, err
 	}
 	// Create the root directory if it doesn't exists
-	if err := os.MkdirAll(root, 0700); err != nil && !os.IsExist(err) {
+	if err := system.MkdirAll(root, 0700); err != nil && !os.IsExist(err) {
 		return nil, err
 	}
 
@@ -70,14 +70,14 @@ func (graph *Graph) restore() error {
 		}
 	}
 	graph.idIndex = truncindex.NewTruncIndex(ids)
-	log.Debugf("Restored %d elements", len(dir))
+	logrus.Debugf("Restored %d elements", len(dir))
 	return nil
 }
 
 // FIXME: Implement error subclass instead of looking at the error text
 // Note: This is the way golang implements os.IsNotExists on Plan9
-func (graph *Graph) IsNotExist(err error) bool {
-	return err != nil && (strings.Contains(strings.ToLower(err.Error()), "does not exist") || strings.Contains(strings.ToLower(err.Error()), "no such"))
+func (graph *Graph) IsNotExist(err error, id string) bool {
+	return err != nil && (strings.Contains(strings.ToLower(err.Error()), "does not exist") || strings.Contains(strings.ToLower(err.Error()), "no such")) && strings.Contains(err.Error(), id)
 }
 
 // Exists returns true if an image is registered at the given id.
@@ -121,7 +121,7 @@ func (graph *Graph) Get(name string) (*image.Image, error) {
 // Create creates a new image and registers it in the graph.
 func (graph *Graph) Create(layerData archive.ArchiveReader, containerID, containerImage, comment, author string, containerConfig, config *runconfig.Config) (*image.Image, error) {
 	img := &image.Image{
-		ID:            common.GenerateRandomID(),
+		ID:            stringid.GenerateRandomID(),
 		Comment:       comment,
 		Created:       time.Now().UTC(),
 		DockerVersion: dockerversion.VERSION,
@@ -153,7 +153,7 @@ func (graph *Graph) Register(img *image.Image, layerData archive.ArchiveReader) 
 			graph.driver.Remove(img.ID)
 		}
 	}()
-	if err := utils.ValidateID(img.ID); err != nil {
+	if err := image.ValidateID(img.ID); err != nil {
 		return err
 	}
 	// (This is a convenience to save time. Race conditions are taken care of by os.Rename)
@@ -201,7 +201,7 @@ func (graph *Graph) Register(img *image.Image, layerData archive.ArchiveReader) 
 //   The archive is stored on disk and will be automatically deleted as soon as has been read.
 //   If output is not nil, a human-readable progress bar will be written to it.
 //   FIXME: does this belong in Graph? How about MktempFile, let the caller use it for archives?
-func (graph *Graph) TempLayerArchive(id string, sf *utils.StreamFormatter, output io.Writer) (*archive.TempArchive, error) {
+func (graph *Graph) TempLayerArchive(id string, sf *streamformatter.StreamFormatter, output io.Writer) (*archive.TempArchive, error) {
 	image, err := graph.Get(id)
 	if err != nil {
 		return nil, err
@@ -220,7 +220,7 @@ func (graph *Graph) TempLayerArchive(id string, sf *utils.StreamFormatter, outpu
 		Formatter: sf,
 		Size:      0,
 		NewLines:  false,
-		ID:        common.TruncateID(id),
+		ID:        stringid.TruncateID(id),
 		Action:    "Buffering to disk",
 	})
 	defer progressReader.Close()
@@ -229,8 +229,8 @@ func (graph *Graph) TempLayerArchive(id string, sf *utils.StreamFormatter, outpu
 
 // Mktemp creates a temporary sub-directory inside the graph's filesystem.
 func (graph *Graph) Mktemp(id string) (string, error) {
-	dir := path.Join(graph.Root, "_tmp", common.GenerateRandomID())
-	if err := os.MkdirAll(dir, 0700); err != nil {
+	dir := filepath.Join(graph.Root, "_tmp", stringid.GenerateRandomID())
+	if err := system.MkdirAll(dir, 0700); err != nil {
 		return "", err
 	}
 	return dir, nil
@@ -252,9 +252,6 @@ func bufferToFile(f *os.File, src io.Reader) (int64, digest.Digest, error) {
 	_, err := io.Copy(w, src)
 	w.Close()
 	if err != nil {
-		return 0, "", err
-	}
-	if err = f.Sync(); err != nil {
 		return 0, "", err
 	}
 	n, err := f.Seek(0, os.SEEK_CUR)
@@ -290,28 +287,28 @@ func SetupInitLayer(initLayer string) error {
 		parts := strings.Split(pth, "/")
 		prev := "/"
 		for _, p := range parts[1:] {
-			prev = path.Join(prev, p)
-			syscall.Unlink(path.Join(initLayer, prev))
+			prev = filepath.Join(prev, p)
+			syscall.Unlink(filepath.Join(initLayer, prev))
 		}
 
-		if _, err := os.Stat(path.Join(initLayer, pth)); err != nil {
+		if _, err := os.Stat(filepath.Join(initLayer, pth)); err != nil {
 			if os.IsNotExist(err) {
-				if err := os.MkdirAll(path.Join(initLayer, path.Dir(pth)), 0755); err != nil {
+				if err := system.MkdirAll(filepath.Join(initLayer, filepath.Dir(pth)), 0755); err != nil {
 					return err
 				}
 				switch typ {
 				case "dir":
-					if err := os.MkdirAll(path.Join(initLayer, pth), 0755); err != nil {
+					if err := system.MkdirAll(filepath.Join(initLayer, pth), 0755); err != nil {
 						return err
 					}
 				case "file":
-					f, err := os.OpenFile(path.Join(initLayer, pth), os.O_CREATE, 0755)
+					f, err := os.OpenFile(filepath.Join(initLayer, pth), os.O_CREATE, 0755)
 					if err != nil {
 						return err
 					}
 					f.Close()
 				default:
-					if err := os.Symlink(typ, path.Join(initLayer, pth)); err != nil {
+					if err := os.Symlink(typ, filepath.Join(initLayer, pth)); err != nil {
 						return err
 					}
 				}
@@ -348,9 +345,8 @@ func (graph *Graph) Delete(name string) error {
 	tmp, err := graph.Mktemp("")
 	graph.idIndex.Delete(id)
 	if err == nil {
-		err = os.Rename(graph.ImageRoot(id), tmp)
-		// On err make tmp point to old dir and cleanup unused tmp dir
-		if err != nil {
+		if err := os.Rename(graph.ImageRoot(id), tmp); err != nil {
+			// On err make tmp point to old dir and cleanup unused tmp dir
 			os.RemoveAll(tmp)
 			tmp = graph.ImageRoot(id)
 		}
@@ -433,7 +429,7 @@ func (graph *Graph) Heads() (map[string]*image.Image, error) {
 }
 
 func (graph *Graph) ImageRoot(id string) string {
-	return path.Join(graph.Root, id)
+	return filepath.Join(graph.Root, id)
 }
 
 func (graph *Graph) Driver() graphdriver.Driver {

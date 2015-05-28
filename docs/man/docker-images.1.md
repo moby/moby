@@ -66,6 +66,11 @@ used in builds use **-a**:
 
     docker images -a
 
+Previously, the docker images command supported the --tree and --dot arguments,
+which displayed different visualizations of the image data. Docker core removed
+this functionality in the 1.7 version. If you liked this functionality, you can
+still find it in the third-party dockviz tool: https://github.com/justone/dockviz.
+
 ## Listing only the shortened image IDs
 
 Listing just the shortened image IDs. This can be useful for some automated

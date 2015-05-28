@@ -7,7 +7,7 @@ page_keywords: Docker, Docker documentation, requirements, linux, rhel
 Docker is supported on the following versions of RHEL:
 
 - [*Red Hat Enterprise Linux 7 (64-bit)*](#red-hat-enterprise-linux-7-installation)
-- [*Red Hat Enterprise Linux 6.5 (64-bit)*](#red-hat-enterprise-linux-6.5-installation) or later
+- [*Red Hat Enterprise Linux 6.6 (64-bit)*](#red-hat-enterprise-linux-66-installation) or later
 
 ## Kernel support
 
@@ -16,7 +16,9 @@ running on kernels shipped by the distribution. There are kernel changes which
 will cause issues if one decides to step outside that box and run
 non-distribution kernel packages.
 
-## Red Hat Enterprise Linux 7 Installation
+## Red Hat Enterprise Linux 7
+
+### Installation
 
 **Red Hat Enterprise Linux 7 (64 bit)** has [shipped with
 Docker](https://access.redhat.com/site/products/red-hat-enterprise-linux/docker-and-containers).
@@ -41,14 +43,28 @@ Portal](https://access.redhat.com/).
 
 Please continue with the [Starting the Docker daemon](#starting-the-docker-daemon).
 
-## Red Hat Enterprise Linux 6.5 Installation
+### Uninstallation
+
+To uninstall the Docker package:
+
+    $ sudo yum -y remove docker
+
+The above command will not remove images, containers, volumes, or user created
+configuration files on your host. If you wish to delete all images, containers,
+and volumes run the following command:
+
+    $ rm -rf /var/lib/docker
+
+You must delete the user created configuration files manually.
+
+## Red Hat Enterprise Linux 6.6
 
 You will need **64 bit** [RHEL
-6.5](https://access.redhat.com/site/articles/3078#RHEL6) or later, with
-a RHEL 6 kernel version 2.6.32-431 or higher as this has specific kernel
-fixes to allow Docker to work.
+6.6](https://access.redhat.com/site/articles/3078#RHEL6) or later, with
+a RHEL 6 kernel version 2.6.32-504.16.2 or higher as this has specific kernel
+fixes to allow Docker to work. Related issues: [#9856](https://github.com/docker/docker/issues/9856).
 
-Docker is available for **RHEL6.5** on EPEL. Please note that
+Docker is available for **RHEL6.6** on EPEL. Please note that
 this package is part of [Extra Packages for Enterprise Linux
 (EPEL)](https://fedoraproject.org/wiki/EPEL), a community effort to
 create and maintain additional packages for the RHEL distribution.
@@ -66,7 +82,7 @@ non-distro kernel packages.
 >  vulnerabilities and severe bugs (such as those found in kernel 2.6.32)
 > are fixed.
 
-## Installation
+###  Installation
 
 Firstly, you need to install the EPEL repository. Please follow the
 [EPEL installation
@@ -89,6 +105,20 @@ To update the `docker-io` package
     $ sudo yum -y update docker-io
 
 Please continue with the [Starting the Docker daemon](#starting-the-docker-daemon).
+
+### Uninstallation
+
+To uninstall the Docker package:
+
+    $ sudo yum -y remove docker-io
+
+The above command will not remove images, containers, volumes, or user created
+configuration files on your host. If you wish to delete all images, containers,
+and volumes run the following command:
+
+    $ rm -rf /var/lib/docker
+
+You must delete the user created configuration files manually.
 
 ## Starting the Docker daemon
 
@@ -117,7 +147,6 @@ Continue with the [User Guide](/userguide/).
 If you need to add an HTTP Proxy, set a different directory or partition for the
 Docker runtime files, or make other customizations, read our Systemd article to
 learn how to [customize your Systemd Docker daemon options](/articles/systemd/).
-
 
 ## Issues?
 

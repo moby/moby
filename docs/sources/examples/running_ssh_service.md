@@ -2,7 +2,7 @@ page_title: Dockerizing an SSH service
 page_description: Installing and running an SSHd service on Docker
 page_keywords: docker, example, package installation, networking
 
-# Dockerizing an SSH Daemon Service
+# Dockerizing an SSH daemon service
 
 ## Build an `eg_sshd` image
 
@@ -33,15 +33,15 @@ quick access to a test container.
 
 Build the image using:
 
-    $ sudo docker build -t eg_sshd .
+    $ docker build -t eg_sshd .
 
 ## Run a `test_sshd` container
 
 Then run it. You can then use `docker port` to find out what host port
 the container's port 22 is mapped to:
 
-    $ sudo docker run -d -P --name test_sshd eg_sshd
-    $ sudo docker port test_sshd 22
+    $ docker run -d -P --name test_sshd eg_sshd
+    $ docker port test_sshd 22
     0.0.0.0:49154
 
 And now you can ssh as `root` on the container's IP address (you can find it
@@ -72,7 +72,7 @@ short script to do the same before you start `sshd -D` and then replace the
 Finally, clean up after your test by stopping and removing the
 container, and then removing the image.
 
-    $ sudo docker stop test_sshd
-    $ sudo docker rm test_sshd
-    $ sudo docker rmi eg_sshd
+    $ docker stop test_sshd
+    $ docker rm test_sshd
+    $ docker rmi eg_sshd
 

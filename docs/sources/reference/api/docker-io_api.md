@@ -10,7 +10,7 @@ page_keywords: API, Docker, index, REST, documentation, Docker Hub, registry
 
 # Repositories
 
-## User Repository
+## User repository
 
 ### Create a user repository
 
@@ -93,7 +93,7 @@ Status Codes:
 - **401** – Unauthorized
 - **403** – Account is not Active
 
-## Library Repository
+## Library repository
 
 ### Create a library repository
 
@@ -182,9 +182,9 @@ Status Codes:
 - **401** – Unauthorized
 - **403** – Account is not Active
 
-# Repository Images
+# Repository images
 
-## User Repository Images
+## User repository images
 
 ### Update user repository images
 
@@ -256,7 +256,7 @@ Status Codes:
 - **200** – OK
 - **404** – Not found
 
-## Library Repository Images
+## Library repository images
 
 ### Update library repository images
 
@@ -326,9 +326,9 @@ Status Codes:
 - **200** – OK
 - **404** – Not found
 
-# Repository Authorization
+# Repository authorization
 
-## Library Repository
+## Library repository
 
 ### Authorize a token for a library
 
@@ -361,7 +361,7 @@ Status Codes:
 - **403** – Permission denied
 - **404** – Not found
 
-## User Repository
+## User repository
 
 ### Authorize a token for a user repository
 
@@ -397,7 +397,7 @@ Status Codes:
 
 ## Users
 
-### User Login
+### User login
 
 `GET /v1/users/`
 
@@ -424,7 +424,7 @@ Status Codes:
 - **401** – Unauthorized
 - **403** – Account is not Active
 
-### User Register
+### User register
 
 `POST /v1/users/`
 
@@ -461,7 +461,7 @@ Status Codes:
 - **201** – User Created
 - **400** – Errors (invalid json, missing or invalid fields, etc)
 
-### Update User
+### Update user
 
 `PUT /v1/users/(username)/`
 

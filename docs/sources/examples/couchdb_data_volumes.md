@@ -1,8 +1,8 @@
-page_title: Dockerizing a CouchDB Service
+page_title: Dockerizing a CouchDB service
 page_description: Sharing data between 2 couchdb databases
 page_keywords: docker, example, package installation, networking, couchdb, data volumes
 
-# Dockerizing a CouchDB Service
+# Dockerizing a CouchDB service
 
 > **Note**: 
 > - **If you don't like sudo** then see [*Giving non-root
@@ -16,7 +16,7 @@ different versions of CouchDB on the same data, etc.
 
 Note that we're marking `/var/lib/couchdb` as a data volume.
 
-    $ COUCH1=$(sudo docker run -d -p 5984 -v /var/lib/couchdb shykes/couchdb:2013-05-03)
+    $ COUCH1=$(docker run -d -p 5984 -v /var/lib/couchdb shykes/couchdb:2013-05-03)
 
 ## Add data to the first database
 
@@ -24,19 +24,19 @@ We're assuming your Docker host is reachable at `localhost`. If not,
 replace `localhost` with the public IP of your Docker host.
 
     $ HOST=localhost
-    $ URL="http://$HOST:$(sudo docker port $COUCH1 5984 | grep -o '[1-9][0-9]*$')/_utils/"
+    $ URL="http://$HOST:$(docker port $COUCH1 5984 | grep -o '[1-9][0-9]*$')/_utils/"
     $ echo "Navigate to $URL in your browser, and use the couch interface to add data"
 
 ## Create second database
 
 This time, we're requesting shared access to `$COUCH1`'s volumes.
 
-    $ COUCH2=$(sudo docker run -d -p 5984 --volumes-from $COUCH1 shykes/couchdb:2013-05-03)
+    $ COUCH2=$(docker run -d -p 5984 --volumes-from $COUCH1 shykes/couchdb:2013-05-03)
 
 ## Browse data on the second database
 
     $ HOST=localhost
-    $ URL="http://$HOST:$(sudo docker port $COUCH2 5984 | grep -o '[1-9][0-9]*$')/_utils/"
+    $ URL="http://$HOST:$(docker port $COUCH2 5984 | grep -o '[1-9][0-9]*$')/_utils/"
     $ echo "Navigate to $URL in your browser. You should see the same data as in the first database"'!'
 
 Congratulations, you are now running two Couchdb containers, completely

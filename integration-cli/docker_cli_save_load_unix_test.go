@@ -4,99 +4,95 @@ package main
 
 import (
 	"bytes"
-	"fmt"
+	"io/ioutil"
 	"os"
 	"os/exec"
-	"testing"
 
 	"github.com/docker/docker/vendor/src/github.com/kr/pty"
+	"github.com/go-check/check"
 )
 
 // save a repo and try to load it using stdout
-func TestSaveAndLoadRepoStdout(t *testing.T) {
-	runCmd := exec.Command(dockerBinary, "run", "-d", "busybox", "true")
+func (s *DockerSuite) TestSaveAndLoadRepoStdout(c *check.C) {
+	name := "test-save-and-load-repo-stdout"
+	runCmd := exec.Command(dockerBinary, "run", "--name", name, "busybox", "true")
 	out, _, err := runCommandWithOutput(runCmd)
 	if err != nil {
-		t.Fatalf("failed to create a container: %s, %v", out, err)
+		c.Fatalf("failed to create a container: %s, %v", out, err)
 	}
-
-	cleanedContainerID := stripTrailingCharacters(out)
 
 	repoName := "foobar-save-load-test"
 
-	inspectCmd := exec.Command(dockerBinary, "inspect", cleanedContainerID)
-	if out, _, err = runCommandWithOutput(inspectCmd); err != nil {
-		t.Fatalf("output should've been a container id: %s, %v", out, err)
-	}
-
-	commitCmd := exec.Command(dockerBinary, "commit", cleanedContainerID, repoName)
+	commitCmd := exec.Command(dockerBinary, "commit", name, repoName)
 	if out, _, err = runCommandWithOutput(commitCmd); err != nil {
-		t.Fatalf("failed to commit container: %s, %v", out, err)
+		c.Fatalf("failed to commit container: %s, %v", out, err)
 	}
 
-	inspectCmd = exec.Command(dockerBinary, "inspect", repoName)
+	inspectCmd := exec.Command(dockerBinary, "inspect", repoName)
 	before, _, err := runCommandWithOutput(inspectCmd)
 	if err != nil {
-		t.Fatalf("the repo should exist before saving it: %s, %v", before, err)
+		c.Fatalf("the repo should exist before saving it: %s, %v", before, err)
 	}
 
-	saveCmdTemplate := `%v save %v > /tmp/foobar-save-load-test.tar`
-	saveCmdFinal := fmt.Sprintf(saveCmdTemplate, dockerBinary, repoName)
-	saveCmd := exec.Command("bash", "-c", saveCmdFinal)
-	if out, _, err = runCommandWithOutput(saveCmd); err != nil {
-		t.Fatalf("failed to save repo: %s, %v", out, err)
+	tmpFile, err := ioutil.TempFile("", "foobar-save-load-test.tar")
+	c.Assert(err, check.IsNil)
+	defer os.Remove(tmpFile.Name())
+
+	saveCmd := exec.Command(dockerBinary, "save", repoName)
+	saveCmd.Stdout = tmpFile
+
+	if _, err = runCommand(saveCmd); err != nil {
+		c.Fatalf("failed to save repo: %v", err)
 	}
+
+	tmpFile, err = os.Open(tmpFile.Name())
+	c.Assert(err, check.IsNil)
 
 	deleteImages(repoName)
 
-	loadCmdFinal := `cat /tmp/foobar-save-load-test.tar | docker load`
-	loadCmd := exec.Command("bash", "-c", loadCmdFinal)
+	loadCmd := exec.Command(dockerBinary, "load")
+	loadCmd.Stdin = tmpFile
+
 	if out, _, err = runCommandWithOutput(loadCmd); err != nil {
-		t.Fatalf("failed to load repo: %s, %v", out, err)
+		c.Fatalf("failed to load repo: %s, %v", out, err)
 	}
 
 	inspectCmd = exec.Command(dockerBinary, "inspect", repoName)
 	after, _, err := runCommandWithOutput(inspectCmd)
 	if err != nil {
-		t.Fatalf("the repo should exist after loading it: %s %v", after, err)
+		c.Fatalf("the repo should exist after loading it: %s %v", after, err)
 	}
 
 	if before != after {
-		t.Fatalf("inspect is not the same after a save / load")
+		c.Fatalf("inspect is not the same after a save / load")
 	}
 
-	deleteContainer(cleanedContainerID)
 	deleteImages(repoName)
-
-	os.Remove("/tmp/foobar-save-load-test.tar")
-
-	logDone("save - save/load a repo using stdout")
 
 	pty, tty, err := pty.Open()
 	if err != nil {
-		t.Fatalf("Could not open pty: %v", err)
+		c.Fatalf("Could not open pty: %v", err)
 	}
 	cmd := exec.Command(dockerBinary, "save", repoName)
 	cmd.Stdin = tty
 	cmd.Stdout = tty
 	cmd.Stderr = tty
 	if err := cmd.Start(); err != nil {
-		t.Fatalf("start err: %v", err)
+		c.Fatalf("start err: %v", err)
 	}
 	if err := cmd.Wait(); err == nil {
-		t.Fatal("did not break writing to a TTY")
+		c.Fatal("did not break writing to a TTY")
 	}
 
 	buf := make([]byte, 1024)
 
 	n, err := pty.Read(buf)
 	if err != nil {
-		t.Fatal("could not read tty output")
+		c.Fatal("could not read tty output")
 	}
 
 	if !bytes.Contains(buf[:n], []byte("Cowardly refusing")) {
-		t.Fatal("help output is not being yielded", out)
+		c.Fatal("help output is not being yielded", out)
 	}
 
-	logDone("save - do not save to a tty")
 }

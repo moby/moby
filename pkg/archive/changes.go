@@ -1,6 +1,7 @@
 package archive
 
 import (
+	"archive/tar"
 	"bytes"
 	"fmt"
 	"io"
@@ -11,9 +12,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/docker/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
-
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/pools"
 	"github.com/docker/docker/pkg/system"
 )
@@ -175,10 +174,6 @@ func (info *FileInfo) path() string {
 	return filepath.Join(info.parent.path(), info.name)
 }
 
-func (info *FileInfo) isDir() bool {
-	return info.parent == nil || info.stat.Mode()&syscall.S_IFDIR == syscall.S_IFDIR
-}
-
 func (info *FileInfo) addChanges(oldInfo *FileInfo, changes *[]Change) {
 
 	sizeAtEntry := len(*changes)
@@ -215,13 +210,7 @@ func (info *FileInfo) addChanges(oldInfo *FileInfo, changes *[]Change) {
 			// be visible when actually comparing the stat fields. The only time this
 			// breaks down is if some code intentionally hides a change by setting
 			// back mtime
-			if oldStat.Mode() != newStat.Mode() ||
-				oldStat.Uid() != newStat.Uid() ||
-				oldStat.Gid() != newStat.Gid() ||
-				oldStat.Rdev() != newStat.Rdev() ||
-				// Don't look at size for dirs, its not a good measure of change
-				(oldStat.Mode()&syscall.S_IFDIR != syscall.S_IFDIR &&
-					(!sameFsTimeSpec(oldStat.Mtim(), newStat.Mtim()) || (oldStat.Size() != newStat.Size()))) ||
+			if statDifferent(oldStat, newStat) ||
 				bytes.Compare(oldChild.capability, newChild.capability) != 0 {
 				change := Change{
 					Path: newChild.path(),
@@ -401,22 +390,22 @@ func ExportChanges(dir string, changes []Change) (Archive, error) {
 					ChangeTime: timestamp,
 				}
 				if err := ta.TarWriter.WriteHeader(hdr); err != nil {
-					log.Debugf("Can't write whiteout header: %s", err)
+					logrus.Debugf("Can't write whiteout header: %s", err)
 				}
 			} else {
 				path := filepath.Join(dir, change.Path)
 				if err := ta.addTarFile(path, change.Path[1:]); err != nil {
-					log.Debugf("Can't add file %s to tar: %s", path, err)
+					logrus.Debugf("Can't add file %s to tar: %s", path, err)
 				}
 			}
 		}
 
 		// Make sure to check the error on Close.
 		if err := ta.TarWriter.Close(); err != nil {
-			log.Debugf("Can't close layer: %s", err)
+			logrus.Debugf("Can't close layer: %s", err)
 		}
 		if err := writer.Close(); err != nil {
-			log.Debugf("failed close Changes writer: %s", err)
+			logrus.Debugf("failed close Changes writer: %s", err)
 		}
 	}()
 	return reader, nil

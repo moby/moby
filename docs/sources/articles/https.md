@@ -1,8 +1,8 @@
-page_title: Protecting the Docker daemon Socket with HTTPS
+page_title: Protecting the Docker daemon socket with HTTPS
 page_description: How to setup and run Docker with HTTPS
 page_keywords: docker, docs, article, example, https, daemon, tls, ca, certificate
 
-# Protecting the Docker daemon Socket with HTTPS
+# Protecting the Docker daemon socket with HTTPS
 
 By default, Docker runs via a non-networked Unix socket. It can also
 optionally communicate using a HTTP socket.
@@ -193,7 +193,7 @@ location using the environment variable `DOCKER_CERT_PATH`.
     $ export DOCKER_CERT_PATH=~/.docker/zone1/
     $ docker --tlsverify ps
 
-### Connecting to the Secure Docker port using `curl`
+### Connecting to the secure Docker port using `curl`
 
 To use `curl` to make test API requests, you need to use three extra command line
 flags:

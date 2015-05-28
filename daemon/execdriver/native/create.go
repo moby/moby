@@ -29,6 +29,10 @@ func (d *driver) createContainer(c *execdriver.Command) (*configs.Config, error)
 		return nil, err
 	}
 
+	if err := d.createUTS(container, c); err != nil {
+		return nil, err
+	}
+
 	if err := d.createNetwork(container, c); err != nil {
 		return nil, err
 	}
@@ -63,9 +67,7 @@ func (d *driver) createContainer(c *execdriver.Command) (*configs.Config, error)
 		return nil, err
 	}
 
-	if err := d.setupLabels(container, c); err != nil {
-		return nil, err
-	}
+	d.setupLabels(container, c)
 	d.setupRlimits(container, c)
 	return container, nil
 }
@@ -87,39 +89,9 @@ func generateIfaceName() (string, error) {
 }
 
 func (d *driver) createNetwork(container *configs.Config, c *execdriver.Command) error {
-	if c.Network.HostNetworking {
-		container.Namespaces.Remove(configs.NEWNET)
+	if c.Network == nil {
 		return nil
 	}
-
-	container.Networks = []*configs.Network{
-		{
-			Type: "loopback",
-		},
-	}
-
-	iName, err := generateIfaceName()
-	if err != nil {
-		return err
-	}
-	if c.Network.Interface != nil {
-		vethNetwork := configs.Network{
-			Name:              "eth0",
-			HostInterfaceName: iName,
-			Mtu:               c.Network.Mtu,
-			Address:           fmt.Sprintf("%s/%d", c.Network.Interface.IPAddress, c.Network.Interface.IPPrefixLen),
-			MacAddress:        c.Network.Interface.MacAddress,
-			Gateway:           c.Network.Interface.Gateway,
-			Type:              "veth",
-			Bridge:            c.Network.Interface.Bridge,
-		}
-		if c.Network.Interface.GlobalIPv6Address != "" {
-			vethNetwork.IPv6Address = fmt.Sprintf("%s/%d", c.Network.Interface.GlobalIPv6Address, c.Network.Interface.GlobalIPv6PrefixLen)
-			vethNetwork.IPv6Gateway = c.Network.Interface.IPv6Gateway
-		}
-		container.Networks = append(container.Networks, &vethNetwork)
-	}
-
 	if c.Network.ContainerID != "" {
 		d.Lock()
 		active := d.activeContainers[c.Network.ContainerID]
@@ -135,8 +107,14 @@ func (d *driver) createNetwork(container *configs.Config, c *execdriver.Command)
 		}
 
 		container.Namespaces.Add(configs.NEWNET, state.NamespacePaths[configs.NEWNET])
+		return nil
 	}
 
+	if c.Network.NamespacePath == "" {
+		return fmt.Errorf("network namespace path is empty")
+	}
+
+	container.Namespaces.Add(configs.NEWNET, c.Network.NamespacePath)
 	return nil
 }
 
@@ -168,6 +146,16 @@ func (d *driver) createIpc(container *configs.Config, c *execdriver.Command) err
 func (d *driver) createPid(container *configs.Config, c *execdriver.Command) error {
 	if c.Pid.HostPid {
 		container.Namespaces.Remove(configs.NEWPID)
+		return nil
+	}
+
+	return nil
+}
+
+func (d *driver) createUTS(container *configs.Config, c *execdriver.Command) error {
+	if c.UTS.HostUTS {
+		container.Namespaces.Remove(configs.NEWUTS)
+		container.Hostname = ""
 		return nil
 	}
 
@@ -218,8 +206,12 @@ func (d *driver) setupMounts(container *configs.Config, c *execdriver.Command) e
 
 	// Filter out mounts that are overriden by user supplied mounts
 	var defaultMounts []*configs.Mount
+	_, mountDev := userMounts["/dev"]
 	for _, m := range container.Mounts {
 		if _, ok := userMounts[m.Destination]; !ok {
+			if mountDev && strings.HasPrefix(m.Destination, "/dev/") {
+				continue
+			}
 			defaultMounts = append(defaultMounts, m)
 		}
 	}
@@ -243,9 +235,7 @@ func (d *driver) setupMounts(container *configs.Config, c *execdriver.Command) e
 	return nil
 }
 
-func (d *driver) setupLabels(container *configs.Config, c *execdriver.Command) error {
+func (d *driver) setupLabels(container *configs.Config, c *execdriver.Command) {
 	container.ProcessLabel = c.ProcessLabel
 	container.MountLabel = c.MountLabel
-
-	return nil
 }

@@ -3,7 +3,7 @@
 The source for Docker documentation is in this directory under `sources/`. Our
 documentation uses extended Markdown, as implemented by
 [MkDocs](http://mkdocs.org).  The current release of the Docker documentation
-resides on [http://docs.docker.com](http://docs.docker.com).
+resides on [https://docs.docker.com](https://docs.docker.com).
 
 ## Understanding the documentation branches and processes
 
@@ -11,7 +11,7 @@ Docker has two primary branches for documentation:
 
 | Branch   | Description                    | URL (published via commit-hook)                                              |
 |----------|--------------------------------|------------------------------------------------------------------------------|
-| `docs`   | Official release documentation | [http://docs.docker.com](http://docs.docker.com)                             |
+| `docs`   | Official release documentation | [https://docs.docker.com](https://docs.docker.com)                             |
 | `master` | Merged but unreleased development work    | [http://docs.master.dockerproject.com](http://docs.master.dockerproject.com) |
 
 Additions and updates to upcoming releases are made in a feature branch off of
@@ -280,3 +280,24 @@ aws cloudfront  create-invalidation --profile docs.docker.com --distribution-id 
 aws cloudfront  create-invalidation --profile docs.docker.com --distribution-id $DISTRIBUTION_ID --invalidation-batch '{"Paths":{"Quantity":1, "Items":["/v1.1/reference/api/docker_io_oauth_api/"]},"CallerReference":"6Mar2015sventest1"}'
 ```
 
+### Generate the man pages for Mac OSX
+
+When using Docker on Mac OSX the man pages will be missing by default. You can manually generate them by following these steps:
+
+1. Checkout the docker source. You must clone into your `/Users` directory because Boot2Docker can only share this path
+   with the docker containers.
+
+        $ git clone https://github.com/docker/docker.git
+		
+2. Build the docker image.
+   
+        $ cd docker/docs/man
+        $ docker build -t docker/md2man .
+
+3. Build the man pages.
+
+        $ docker run -v /Users/<path-to-git-dir>/docker/docs/man:/docs:rw -w /docs -i docker/md2man /docs/md2man-all.sh
+
+4. Copy the generated man pages to `/usr/share/man`
+
+        $ cp -R man* /usr/share/man/

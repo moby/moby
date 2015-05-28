@@ -31,13 +31,13 @@ import (
 	"sync"
 	"syscall"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/chrootarchive"
-	"github.com/docker/docker/pkg/common"
 	"github.com/docker/docker/pkg/directory"
 	mountpk "github.com/docker/docker/pkg/mount"
+	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/libcontainer/label"
 )
 
@@ -221,7 +221,7 @@ func (a *Driver) Remove(id string) error {
 	defer a.Unlock()
 
 	if a.active[id] != 0 {
-		log.Errorf("Removing active id %s", id)
+		logrus.Errorf("Removing active id %s", id)
 	}
 
 	// Make sure the dir is umounted first
@@ -410,7 +410,7 @@ func (a *Driver) Cleanup() error {
 
 	for _, id := range ids {
 		if err := a.unmount(id); err != nil {
-			log.Errorf("Unmounting %s: %s", common.TruncateID(id), err)
+			logrus.Errorf("Unmounting %s: %s", stringid.TruncateID(id), err)
 		}
 	}
 
@@ -480,14 +480,14 @@ func useDirperm() bool {
 	enableDirpermLock.Do(func() {
 		base, err := ioutil.TempDir("", "docker-aufs-base")
 		if err != nil {
-			log.Errorf("error checking dirperm1: %v", err)
+			logrus.Errorf("error checking dirperm1: %v", err)
 			return
 		}
 		defer os.RemoveAll(base)
 
 		union, err := ioutil.TempDir("", "docker-aufs-union")
 		if err != nil {
-			log.Errorf("error checking dirperm1: %v", err)
+			logrus.Errorf("error checking dirperm1: %v", err)
 			return
 		}
 		defer os.RemoveAll(union)
@@ -498,7 +498,7 @@ func useDirperm() bool {
 		}
 		enableDirperm = true
 		if err := Unmount(union); err != nil {
-			log.Errorf("error checking dirperm1: failed to unmount %v", err)
+			logrus.Errorf("error checking dirperm1: failed to unmount %v", err)
 		}
 	})
 	return enableDirperm

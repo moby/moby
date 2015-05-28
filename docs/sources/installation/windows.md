@@ -20,6 +20,8 @@ Although you will be using Windows Docker client, the docker engine hosting the
 containers will still be running on Linux. Until the Docker engine for Windows
 is developed, you can launch only Linux containers from your Windows machine.
 
+![Windows Architecture Diagram](/installation/images/win_docker_host.svg)
+
 ## Demonstration
 
 <iframe width="640" height="480" src="//www.youtube.com/embed/TjMU3bDX4vo?rel=0" frameborder="0" allowfullscreen></iframe>
@@ -28,7 +30,7 @@ is developed, you can launch only Linux containers from your Windows machine.
 
 1. Download the latest release of the
    [Docker for Windows Installer](https://github.com/boot2docker/windows-installer/releases/latest).
-2. Run the installer, which will install Docker Client or Windows, VirtualBox,
+2. Run the installer, which will install Docker Client for Windows, VirtualBox,
    Git for Windows (MSYS-git), the boot2docker Linux ISO, and the Boot2Docker
    management tool.
    ![](/installation/images/windows-installer.png)
@@ -57,7 +59,7 @@ Let's try the `hello-world` example image. Run
 This should download the very small `hello-world` image and print a
 `Hello from Docker.` message.
 
-## Using docker from Windows Command Line Prompt (cmd.exe)
+## Using Docker from Windows Command Line Prompt (cmd.exe)
 
 Launch a Windows Command Line Prompt (cmd.exe).
 
@@ -65,7 +67,7 @@ Boot2Docker command requires `ssh.exe` to be in the PATH, therefore we need to
 include `bin` folder of the Git installation (which has ssh.exe) to the `%PATH%`
 environment variable by running:
 
-	set PATH=%PATH%;"c:\Program Files (x86)\Git\bin"
+    set PATH=%PATH%;"c:\Program Files (x86)\Git\bin"
 
 and then we can run the `boot2docker start` command to start the Boot2Docker VM.
 (Run `boot2docker init` command if you get an error saying machine does not
@@ -75,11 +77,11 @@ to your console window and you are ready to run docker commands such as
 
 ![](/installation/images/windows-boot2docker-cmd.png)
 
-## Using docker from PowerShell
+## Using Docker from PowerShell
 
 Launch a PowerShell window, then you need to add `ssh.exe` to your PATH:
 
-	$Env:Path = "${Env:Path};c:\Program Files (x86)\Git\bin"
+    $Env:Path = "${Env:Path};c:\Program Files (x86)\Git\bin"
 
 and after running `boot2docker start` command it will print PowerShell commands
 to set the environment variables to connect Docker running inside VM. Run these
@@ -147,6 +149,12 @@ You can do this with
   `%USERPROFILE%\.ssh\id_boot2docker`
 - then click: "Save Private Key".
 - Then use the saved file to login with PuTTY using `docker@127.0.0.1:2022`.
+
+## Uninstallation
+
+You can uninstall Boot2Docker using Window's standard process for removing programs.
+This process does not remove the `docker-install.exe` file. You must delete that file
+yourself.
 
 ## References
 

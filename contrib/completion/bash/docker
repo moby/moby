@@ -22,12 +22,12 @@
 # must have access to the socket for the completions to function correctly
 #
 # Note for developers:
-# Please arrange options sorted alphabetically by long name with the short 
+# Please arrange options sorted alphabetically by long name with the short
 # options immediately following their corresponding long form.
 # This order should be applied to lists, alternatives and code blocks.
 
 __docker_q() {
-	docker 2>/dev/null "$@"
+	docker ${host:+-H "$host"} 2>/dev/null "$@"
 }
 
 __docker_containers_all() {
@@ -220,6 +220,10 @@ _docker_docker() {
 			_filedir -d
 			return
 			;;
+		--log-driver)
+			COMPREPLY=( $( compgen -W "json-file syslog none" -- "$cur" ) )
+			return
+			;;
 		--log-level|-l)
 			COMPREPLY=( $( compgen -W "debug info warn error fatal" -- "$cur" ) )
 			return
@@ -269,13 +273,13 @@ _docker_build() {
 			;;
 		--file|-f)
 			_filedir
-			return	
-			;;	
+			return
+			;;
 	esac
 
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--file -f --force-rm --help --no-cache --pull --quiet -q --rm --tag -t" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--cpu-shares -c --cpuset-cpus --cpu-quota --file -f --force-rm --help --memory -m --memory-swap --no-cache --pull --quiet -q --rm --tag -t" -- "$cur" ) )
 			;;
 		*)
 			local counter="$(__docker_pos_first_nonflag '--tag|-t')"
@@ -403,7 +407,7 @@ _docker_events() {
 _docker_exec() {
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--detach -d --help --interactive -i -t --tty" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--detach -d --help --interactive -i -t --tty -u --user" -- "$cur" ) )
 			;;
 		*)
 			__docker_containers_running
@@ -469,7 +473,7 @@ _docker_images() {
 
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--all -a --filter -f --help --no-trunc --quiet -q" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--all -a --digests --filter -f --help --no-trunc --quiet -q" -- "$cur" ) )
 			;;
 		=)
 			return
@@ -589,7 +593,7 @@ _docker_logs() {
 
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--follow -f --help --tail --timestamps -t" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--follow -f --help --since --tail --timestamps -t" -- "$cur" ) )
 			;;
 		*)
 			local counter=$(__docker_pos_first_nonflag '--tail')
@@ -675,6 +679,14 @@ _docker_pull() {
 		*)
 			local counter=$(__docker_pos_first_nonflag)
 			if [ $cword -eq $counter ]; then
+				for arg in "${COMP_WORDS[@]}"; do
+					case "$arg" in
+						--all-tags|-a)
+							__docker_image_repos
+							return
+							;;
+					esac
+				done
 				__docker_image_repos_and_tags
 			fi
 			;;
@@ -766,6 +778,8 @@ _docker_run() {
 		--cidfile
 		--cpuset
 		--cpu-shares -c
+		--cpu-period
+		--cpu-quota
 		--device
 		--dns
 		--dns-search
@@ -998,7 +1012,7 @@ _docker_start() {
 _docker_stats() {
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--help" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--no-stream --help" -- "$cur" ) )
 			;;
 		*)
 			__docker_containers_running
@@ -1146,6 +1160,8 @@ _docker() {
 		--dns
 		--dns-search
 		--exec-driver -e
+		--exec-opt
+		--exec-root
 		--fixed-cidr
 		--fixed-cidr-v6
 		--graph -g
@@ -1154,6 +1170,7 @@ _docker() {
 		--insecure-registry
 		--ip
 		--label
+		--log-driver
 		--log-level -l
 		--mtu
 		--pidfile -p
@@ -1166,6 +1183,7 @@ _docker() {
 	"
 
 	local main_options_with_args_glob=$(__docker_to_extglob "$main_options_with_args")
+	local host
 
 	COMPREPLY=()
 	local cur prev words cword
@@ -1175,6 +1193,11 @@ _docker() {
 	local counter=1
 	while [ $counter -lt $cword ]; do
 		case "${words[$counter]}" in
+			# save host so that completion can use custom daemon
+			--host|-H)
+				(( counter++ ))
+				host="${words[$counter]}"
+				;;
 			$main_options_with_args_glob )
 				(( counter++ ))
 				;;

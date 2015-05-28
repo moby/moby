@@ -3,6 +3,7 @@ package logger
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"io"
 	"testing"
 	"time"
@@ -12,16 +13,14 @@ type TestLoggerJSON struct {
 	*json.Encoder
 }
 
-func (l *TestLoggerJSON) Log(m *Message) error {
-	return l.Encode(m)
-}
+func (l *TestLoggerJSON) Log(m *Message) error { return l.Encode(m) }
 
-func (l *TestLoggerJSON) Close() error {
-	return nil
-}
+func (l *TestLoggerJSON) Close() error { return nil }
 
-func (l *TestLoggerJSON) Name() string {
-	return "json"
+func (l *TestLoggerJSON) Name() string { return "json" }
+
+func (l *TestLoggerJSON) GetReader() (io.Reader, error) {
+	return nil, errors.New("not used in the test")
 }
 
 type TestLoggerText struct {
@@ -33,12 +32,12 @@ func (l *TestLoggerText) Log(m *Message) error {
 	return err
 }
 
-func (l *TestLoggerText) Close() error {
-	return nil
-}
+func (l *TestLoggerText) Close() error { return nil }
 
-func (l *TestLoggerText) Name() string {
-	return "text"
+func (l *TestLoggerText) Name() string { return "text" }
+
+func (l *TestLoggerText) GetReader() (io.Reader, error) {
+	return nil, errors.New("not used in the test")
 }
 
 func TestCopier(t *testing.T) {

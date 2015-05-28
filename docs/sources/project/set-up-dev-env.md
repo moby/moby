@@ -7,7 +7,7 @@ page_keywords: development, inception, container, image Dockerfile, dependencies
 In this section, you learn to develop like a member of Docker's core team.
 The `docker` repository includes a `Dockerfile` at its root. This file defines
 Docker's development environment.  The `Dockerfile` lists the environment's
-dependencies: system libraries and binaries, go environment, go dependencies,
+dependencies: system libraries and binaries, Go environment, Go dependencies,
 etc. 
 
 Docker's development environment is itself, ultimately a Docker container.
@@ -15,20 +15,19 @@ You use the `docker` repository and its `Dockerfile` to create a Docker image,
 run a Docker container, and develop code in the container. Docker itself builds,
 tests, and releases new Docker versions using this container.
 
-If you followed the procedures that <a href="./set-up-prereqs" target="_blank">
-set up the prerequisites</a>, you should have a fork of the `docker/docker`
+If you followed the procedures that <a href="/project/set-up-git" target="_blank">
+set up Git for contributing</a>, you should have a fork of the `docker/docker`
 repository. You also created a branch called `dry-run-test`. In this section,
 you continue working with your fork on this branch.
 
 ##  Clean your host of Docker artifacts
 
-Docker developers run the latest stable release of the Docker software; Or 
-Boot2docker and Docker if their machine is Mac OS X. They clean their local
+Docker developers run the latest stable release of the Docker software (with Boot2Docker if their machine is Mac OS X). They clean their local
 hosts of unnecessary Docker artifacts such as stopped containers or unused
-images. Cleaning unnecessary artifacts isn't strictly necessary but it is
+images. Cleaning unnecessary artifacts isn't strictly necessary, but it is
 good practice, so it is included here.
 
-To remove unnecessary artifacts.
+To remove unnecessary artifacts,
 
 1. Verify that you have no unnecessary containers running on your host.
 
@@ -75,9 +74,9 @@ To remove unnecessary artifacts.
 
         $ docker rmi -f $(docker images -q -a -f dangling=true)
 
-    This command uses `docker images` to lists all images (`-a` flag) by numeric
-    IDs (`-q` flag) and filter them to find dangling images (`-f
-    dangling=true`). Then, the `docker rmi` command forcibly (`-f` flag) removes
+    This command uses `docker images` to list all images (`-a` flag) by numeric
+    IDs (`-q` flag) and filter them to find dangling images (`-f dangling=true`).
+    Then, the `docker rmi` command forcibly (`-f` flag) removes
     the resulting list. To remove just one image, use the `docker rmi ID`
     command.
 
@@ -97,10 +96,17 @@ environment.
 3. Change into the root of your forked repository.
 
         $ cd ~/repos/docker-fork 
+        
+	If you are following along with this guide, you created a `dry-run-test`
+	branch when you <a href="/project/set-up-git" target="_blank"> set up Git for
+	contributing</a>.
 
 4. Ensure you are on your `dry-run-test` branch.
 
         $ git checkout dry-run-test
+        
+    If you get a message that the branch doesn't exist, add the `-b` flag (git checkout -b dry-run-test) so the
+    command both creates the branch and checks it out.
 
 5. Compile your development environment container into an image.
 
@@ -194,7 +200,7 @@ build and run a `docker` binary in your container.
 
     ![Multiple terminals](/project/images/three_terms.png)
 
-    Mac OSX users, make sure you run `eval "$(boot2docker shellinit)"` in any new 
+    Mac OS X users, make sure you run `eval "$(boot2docker shellinit)"` in any new
     terminals.
 
 2. In a terminal, create a new container from your `dry-run-test` image.
@@ -203,9 +209,9 @@ build and run a `docker` binary in your container.
         root@5f8630b873fe:/go/src/github.com/docker/docker# 
 
     The command creates a container from your `dry-run-test` image. It opens an
-    interactive terminal (`-ti`) running a `/bin/bash shell`.  The
+    interactive terminal (`-ti`) running a `/bin/bash` shell.  The
     `--privileged` flag gives the container access to kernel features and device
-    access. It is this flag that allows you to run a container in a container.
+    access. This flag allows you to run a container in a container.
     Finally, the `-rm` flag instructs Docker to remove the container when you
     exit the `/bin/bash` shell.
 
@@ -232,7 +238,8 @@ build and run a `docker` binary in your container.
 
     You will create one in the next steps.
 
-4. From the `/go/src/github.com/docker/docker` directory make a `docker` binary with the `make.sh` script.
+4. From the `/go/src/github.com/docker/docker` directory make a `docker` binary
+with the `make.sh` script.
 
         root@5f8630b873fe:/go/src/github.com/docker/docker# hack/make.sh binary
 
@@ -244,10 +251,9 @@ build and run a `docker` binary in your container.
     When the command completes successfully, you should see the following
     output:
 
-        ---> Making bundle: ubuntu (in bundles/1.5.0-dev/ubuntu)
-        Created package {:path=>"lxc-docker-1.5.0-dev_1.5.0~dev~git20150223.181106.0.1ab0d23_amd64.deb"}
-        Created package {:path=>"lxc-docker_1.5.0~dev~git20150223.181106.0.1ab0d23_amd64.deb"}
-
+	---> Making bundle: binary (in bundles/1.5.0-dev/binary)
+	Created binary: /go/src/github.com/docker/docker/bundles/1.5.0-dev/binary/docker-1.5.0-dev
+	
 5. List all the contents of the `binary` directory.
 
         root@5f8630b873fe:/go/src/github.com/docker/docker#  ls bundles/1.5.0-dev/binary/
@@ -266,15 +272,15 @@ build and run a `docker` binary in your container.
         root@5f8630b873fe:/go/src/github.com/docker/docker# docker --version
         Docker version 1.5.0-dev, build 6e728fb
 
-    Inside the container you are running a development version. This is version
-    on the current branch it reflects the value of the `VERSION` file at the
+    Inside the container you are running a development version. This is the version
+    on the current branch. It reflects the value of the `VERSION` file at the
     root of your `docker-fork` repository.
 
 8. Start a `docker` daemon running inside your container.
 
         root@5f8630b873fe:/go/src/github.com/docker/docker#  docker -dD
 
-    The `-dD` flag starts the daemon in debug mode; You'll find this useful
+    The `-dD` flag starts the daemon in debug mode. You'll find this useful
     when debugging your code.
 
 9. Bring up one of the terminals on your local host.
@@ -357,7 +363,8 @@ container.
 
     Your location will be different because it reflects your environment. 
 
-3. Create a container using `dry-run-test` but this time mount your repository onto the `/go` directory inside the container.
+3. Create a container using `dry-run-test`, but this time, mount your repository
+onto the `/go` directory inside the container.
 
         $  docker run --privileged --rm -ti -v `pwd`:/go/src/github.com/docker/docker dry-run-test /bin/bash
 
@@ -375,7 +382,7 @@ container.
 
         $ cd ~/repos/docker-fork/
 
-6. Create a fresh binary but this time use the `make` command.
+6. Create a fresh binary, but this time, use the `make` command.
 
         $ make BINDDIR=. binary
 
@@ -408,4 +415,5 @@ container.
 Congratulations, you have successfully achieved Docker inception. At this point,
 you've set up your development environment and verified almost all the essential
 processes you need to contribute. Of course, before you start contributing, 
-[you'll need to learn one more piece of the development environment, the test framework](/project/test-and-docs/).
+[you'll need to learn one more piece of the development environment, the test
+framework](/project/test-and-docs/).

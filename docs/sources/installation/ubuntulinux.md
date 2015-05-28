@@ -28,8 +28,8 @@ and frequently panic under certain conditions.
 To check your current kernel version, open a terminal and use `uname -r` to display
 your kernel version:
 
-	$ uname -r 
-	3.11.0-15-generic
+    $ uname -r 
+    3.11.0-15-generic
 
 >**Caution** Some Ubuntu OS versions **require a version higher than 3.10** to
 >run Docker, see the prerequisites on this page that apply to your Ubuntu
@@ -72,17 +72,17 @@ To upgrade your kernel and install the additional packages, do the following:
 
 2. Update your package manager.
 
-		$ sudo apt-get update
+        $ sudo apt-get update
 
 3. Install both the required and optional packages.
 
-		$ sudo apt-get install linux-image-generic-lts-trusty
+        $ sudo apt-get install linux-image-generic-lts-trusty
 
-	Depending on your environment, you may install more as described in the preceding table.
+    Depending on your environment, you may install more as described in the preceding table.
 
 4. Reboot your host.
 
-		$ sudo reboot
+        $ sudo reboot
 
 5. After your system reboots, go ahead and [install Docker](#installing-docker-on-ubuntu).
 
@@ -92,35 +92,42 @@ To upgrade your kernel and install the additional packages, do the following:
 Docker uses AUFS as the default storage backend. If you don't have this
 prerequisite installed, Docker's installation process adds it.
 
-##Installing Docker on Ubuntu
+##Installation
 
-Make sure you have intalled the prerequisites for your Ubuntu version. Then,
+Make sure you have installed the prerequisites for your Ubuntu version. Then,
 install Docker using the following:
 
 1. Log into your Ubuntu installation as a user with `sudo` privileges.
 
 2. Verify that you have `wget` installed.
 
-		$ which wget
+        $ which wget
 
-	 If `wget` isn't installed, install it after updating your manager:
+    If `wget` isn't installed, install it after updating your manager:
 
-		$ sudo apt-get update $ sudo apt-get install wget
+        $ sudo apt-get update
+        $ sudo apt-get install wget
 
 3. Get the latest Docker package.
 
-		$ wget -qO- https://get.docker.com/ | sh
+        $ wget -qO- https://get.docker.com/ | sh
 
-	 The system prompts you for your `sudo` password. Then, it downloads and
-	 installs Docker and its dependencies.
+    The system prompts you for your `sudo` password. Then, it downloads and
+    installs Docker and its dependencies.
+>**Note**: If your company is behind a filtering proxy, you may find that the
+>`apt-key`
+>command fails for the Docker repo during installation. To work around this,
+>add the key directly using the following:
+>
+>       $ wget -qO- https://get.docker.com/gpg | sudo apt-key add -
 
 4. Verify `docker` is installed correctly.
 
-		$ sudo docker run hello-world
+        $ sudo docker run hello-world
 
-	This command downloads a test image and runs it in a container.
+    This command downloads a test image and runs it in a container.
 
-## Optional Configurations for Docker on Ubuntu 
+## Optional configurations for Docker on Ubuntu 
 
 This section contains optional procedures for configuring your Ubuntu to work
 better with Docker.
@@ -130,7 +137,7 @@ better with Docker.
 * [Enable UFW forwarding](#enable-ufw-forwarding) 
 * [Configure a DNS server for use by Docker](#configure-a-dns-server-for-docker)
 
-### Create a docker group		
+### Create a Docker group		
 
 The `docker` daemon binds to a Unix socket instead of a TCP port. By default
 that Unix socket is owned by the user `root` and other users can access it with
@@ -148,19 +155,19 @@ To create the `docker` group and add your user:
 
 1. Log into Ubuntu as a user with `sudo` privileges.
 
-	 This procedure assumes you log in as the `ubuntu` user.
+    This procedure assumes you log in as the `ubuntu` user.
 
 3. Create the `docker` group and add your user.
 
-		$ sudo usermod -aG docker ubuntu
+        $ sudo usermod -aG docker ubuntu
 
 3. Log out and log back in.
 
-	This ensures your user is running with the correct permissions.
+    This ensures your user is running with the correct permissions.
 
 4. Verify your work by running `docker` without `sudo`.
 
-		$ docker run hello-world
+        $ docker run hello-world
 
 
 ### Adjust memory and swap accounting
@@ -180,13 +187,13 @@ following.
 
 3. Set the `GRUB_CMDLINE_LINUX` value as follows:
 
-    	GRUB_CMDLINE_LINUX="cgroup_enable=memory swapaccount=1"
+        GRUB_CMDLINE_LINUX="cgroup_enable=memory swapaccount=1"
 
 4. Save and close the file.
 
 5. Update GRUB.
 
-		$ sudo update-grub
+        $ sudo update-grub
 
 6. Reboot your system.
 
@@ -209,25 +216,25 @@ To configure UFW and allow incoming connections on the Docker port:
 
 2. Verify that UFW is installed and enabled.
 
-		$ sudo ufw status
+        $ sudo ufw status
 
 3. Open the `/etc/default/ufw` file for editing.
 
-		$ sudo nano /etc/default/ufw
+        $ sudo nano /etc/default/ufw
 
 4. Set the `DEFAULT_FORWARD_POLICY` policy to:
 
-    	DEFAULT_FORWARD_POLICY="ACCEPT"
+        DEFAULT_FORWARD_POLICY="ACCEPT"
 
 5. Save and close the file.
 
 6. Reload UFW to use the new setting.
 
-		$ sudo ufw reload
+        $ sudo ufw reload
 
 7. Allow incoming connections on the Docker port.
 
-		$ sudo ufw allow 2375/tcp
+        $ sudo ufw allow 2375/tcp
 
 ### Configure a DNS server for use by Docker
 
@@ -246,7 +253,7 @@ The warning occurs because Docker containers can't use the local DNS nameserver.
 Instead, Docker defaults to using an external nameserver.
 
 To avoid this warning, you can specify a DNS server for use by Docker
-containers. Or, you can disable `dnsmasq` in NetworkManager. Though, disabiling
+containers. Or, you can disable `dnsmasq` in NetworkManager. Though, disabling
 `dnsmasq` might make DNS resolution slower on some networks.
 
 To specify a DNS server for use by Docker:
@@ -255,25 +262,25 @@ To specify a DNS server for use by Docker:
 
 2. Open the `/etc/default/docker` file for editing.
 
-     	$ sudo nano /etc/default/docker
+        $ sudo nano /etc/default/docker
 
 3. Add a setting for Docker.
 
-      	DOCKER_OPTS="--dns 8.8.8.8"
+        DOCKER_OPTS="--dns 8.8.8.8"
 
     Replace `8.8.8.8` with a local DNS server such as `192.168.1.1`. You can also
     specify multiple DNS servers. Separated them with spaces, for example:
 
-      	--dns 8.8.8.8 --dns 192.168.1.1
+        --dns 8.8.8.8 --dns 192.168.1.1
 
-	>**Warning**: If you're doing this on a laptop which connects to various
-	>networks, make sure to choose a public DNS server.
+    >**Warning**: If you're doing this on a laptop which connects to various
+    >networks, make sure to choose a public DNS server.
 
 4. Save and close the file.
 
 5. Restart the Docker daemon.
 
-    	$ sudo restart docker
+        $ sudo restart docker
 
 
 &nbsp;
@@ -282,24 +289,41 @@ To specify a DNS server for use by Docker:
 **Or, as an alternative to the previous procedure,** disable `dnsmasq` in
 NetworkManager (this might slow your network).
 
-1. Open the `/etc/default/docker` file for editing.
+1. Open the `/etc/NetworkManager/NetworkManager.conf` file for editing.
 
-		$ sudo nano /etc/NetworkManager/NetworkManager.conf
+        $ sudo nano /etc/NetworkManager/NetworkManager.conf
 
 2. Comment out the `dns=dsnmasq` line:
 
-		dns=dnsmasq
+        dns=dnsmasq
 
 3. Save and close the file.
 
 4. Restart both the NetworkManager and Docker.
 
-		$ sudo restart network-manager $ sudo restart docker
+        $ sudo restart network-manager $ sudo restart docker
 
 
 ## Upgrade Docker
 
-To install the latest version of Docker, use the standard `-N` flag with `wget`:
+To install the latest version of Docker with `wget`:
 
-	$ wget -N https://get.docker.com/ | sh
+    $ wget -qO- https://get.docker.com/ | sh
 
+## Uninstallation
+
+To uninstall the Docker package:
+
+    $ sudo apt-get purge lxc-docker
+
+To uninstall the Docker package and dependencies that are no longer needed:
+
+    $ sudo apt-get autoremove --purge lxc-docker
+
+The above commands will not remove images, containers, volumes, or user created
+configuration files on your host. If you wish to delete all images, containers,
+and volumes run the following command:
+
+    $ rm -rf /var/lib/docker
+
+You must delete the user created configuration files manually.

@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/execdriver"
 	"github.com/docker/docker/pkg/pubsub"
 	"github.com/docker/libcontainer/system"
@@ -24,6 +24,7 @@ func newStatsCollector(interval time.Duration) *statsCollector {
 		interval:   interval,
 		publishers: make(map[*Container]*pubsub.Publisher),
 		clockTicks: uint64(system.GetClockTicks()),
+		bufReader:  bufio.NewReaderSize(nil, 128),
 	}
 	go s.run()
 	return s
@@ -35,6 +36,7 @@ type statsCollector struct {
 	interval   time.Duration
 	clockTicks uint64
 	publishers map[*Container]*pubsub.Publisher
+	bufReader  *bufio.Reader
 }
 
 // collect registers the container with the collector and adds it to
@@ -76,22 +78,42 @@ func (s *statsCollector) unsubscribe(c *Container, ch chan interface{}) {
 }
 
 func (s *statsCollector) run() {
-	for _ = range time.Tick(s.interval) {
+	type publishersPair struct {
+		container *Container
+		publisher *pubsub.Publisher
+	}
+	// we cannot determine the capacity here.
+	// it will grow enough in first iteration
+	var pairs []publishersPair
+
+	for range time.Tick(s.interval) {
+		systemUsage, err := s.getSystemCpuUsage()
+		if err != nil {
+			logrus.Errorf("collecting system cpu usage: %v", err)
+			continue
+		}
+
+		// it does not make sense in the first iteration,
+		// but saves allocations in further iterations
+		pairs = pairs[:0]
+
+		s.m.Lock()
 		for container, publisher := range s.publishers {
-			systemUsage, err := s.getSystemCpuUsage()
-			if err != nil {
-				log.Errorf("collecting system cpu usage for %s: %v", container.ID, err)
-				continue
-			}
-			stats, err := container.Stats()
+			// copy pointers here to release the lock ASAP
+			pairs = append(pairs, publishersPair{container, publisher})
+		}
+		s.m.Unlock()
+
+		for _, pair := range pairs {
+			stats, err := pair.container.Stats()
 			if err != nil {
 				if err != execdriver.ErrNotRunning {
-					log.Errorf("collecting stats for %s: %v", container.ID, err)
+					logrus.Errorf("collecting stats for %s: %v", pair.container.ID, err)
 				}
 				continue
 			}
 			stats.SystemUsage = systemUsage
-			publisher.Publish(stats)
+			pair.publisher.Publish(stats)
 		}
 	}
 }
@@ -101,14 +123,23 @@ const nanoSeconds = 1e9
 // getSystemCpuUSage returns the host system's cpu usage in nanoseconds
 // for the system to match the cgroup readings are returned in the same format.
 func (s *statsCollector) getSystemCpuUsage() (uint64, error) {
+	var line string
 	f, err := os.Open("/proc/stat")
 	if err != nil {
 		return 0, err
 	}
-	defer f.Close()
-	sc := bufio.NewScanner(f)
-	for sc.Scan() {
-		parts := strings.Fields(sc.Text())
+	defer func() {
+		s.bufReader.Reset(nil)
+		f.Close()
+	}()
+	s.bufReader.Reset(f)
+	err = nil
+	for err == nil {
+		line, err = s.bufReader.ReadString('\n')
+		if err != nil {
+			break
+		}
+		parts := strings.Fields(line)
 		switch parts[0] {
 		case "cpu":
 			if len(parts) < 8 {

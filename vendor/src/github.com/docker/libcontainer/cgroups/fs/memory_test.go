@@ -128,7 +128,7 @@ func TestMemoryStats(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	expectedStats := cgroups.MemoryStats{Usage: 2048, MaxUsage: 4096, Failcnt: 100, Stats: map[string]uint64{"cache": 512, "rss": 1024}}
+	expectedStats := cgroups.MemoryStats{Usage: 2048, Cache: 512, MaxUsage: 4096, Failcnt: 100, Stats: map[string]uint64{"cache": 512, "rss": 1024}}
 	expectMemoryStatEquals(t, expectedStats, actualStats.MemoryStats)
 }
 

@@ -18,7 +18,6 @@ var (
 
 	dockerBasePath       = "/var/lib/docker"
 	volumesConfigPath    = dockerBasePath + "/volumes"
-	volumesStoragePath   = dockerBasePath + "/vfs/dir"
 	containerStoragePath = dockerBasePath + "/containers"
 
 	runtimePath    = "/var/run/docker"

@@ -15,7 +15,7 @@ with a strong security configuration.
 ### System Requirements and Compatibility
 
 Minimum requirements:
-* Kernel version - 3.8 recommended 2.6.2x minimum(with backported patches) 
+* Kernel version - 3.10 recommended 2.6.2x minimum(with backported patches)
 * Mounted cgroups with each subsystem in its own hierarchy
 
 
@@ -28,11 +28,9 @@ Minimum requirements:
 | CLONE_NEWIPC  |    1    |
 | CLONE_NEWNET  |    1    |
 | CLONE_NEWNS   |    1    |
-| CLONE_NEWUSER |    0    |
+| CLONE_NEWUSER |    1    |
 
-In v1 the user namespace is not enabled by default for support of older kernels
-where the user namespace feature is not fully implemented.  Namespaces are 
-created for the container via the `clone` syscall.  
+Namespaces are created for the container via the `clone` syscall.  
 
 
 ### Filesystem
@@ -143,6 +141,7 @@ system resources like cpu, memory, and device access.
 | blkio      | 1       |
 | perf_event | 1       |
 | freezer    | 1       |
+| hugetlb    | 1       |
 
 
 All cgroup subsystem are joined so that statistics can be collected from
@@ -165,6 +164,7 @@ provide a good default for security and flexibility for the applications.
 | -------------------- | ------- |
 | CAP_NET_RAW          | 1       |
 | CAP_NET_BIND_SERVICE | 1       |
+| CAP_AUDIT_READ       | 1       |
 | CAP_AUDIT_WRITE      | 1       |
 | CAP_DAC_OVERRIDE     | 1       |
 | CAP_SETFCAP          | 1       |
@@ -304,6 +304,7 @@ a container.
 | Pause          | Pause all processes inside the container                           |
 | Resume         | Resume all processes inside the container if paused                |
 | Exec           | Execute a new process inside of the container  ( requires setns )  |
+| Set            | Setup configs of the container after it's created                  |
 
 ### Execute a new process inside of a running container.
 

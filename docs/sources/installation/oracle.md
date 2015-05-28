@@ -43,35 +43,35 @@ To enable the *addons* repository:
 `/etc/yum.repos.d/public-yum-ol7.repo`
 and set `enabled=1` in the `[ol6_addons]` or the `[ol7_addons]` stanza.
 
-## To install Docker:
+## Installation 
 
 1. Ensure the appropriate *addons* channel or repository has been enabled.
 
 2. Use yum to install the Docker package:
 
-		$ sudo yum install docker
+        $ sudo yum install docker
 
-## To start Docker:
+## Starting Docker 
 
 1. Now that it's installed, start the Docker daemon:
 
-	1. On Oracle Linux 6:
+    1. On Oracle Linux 6:
 
-	    	$ sudo service docker start
+            $ sudo service docker start
 
-	2. On Oracle Linux 7:
+    2. On Oracle Linux 7:
 
-			$ sudo systemctl start docker.service
+            $ sudo systemctl start docker.service
 
 2. If you want the Docker daemon to start automatically at boot:
 
-	1. On Oracle Linux 6:
+    1. On Oracle Linux 6:
 
-	    	$ sudo chkconfig docker on
+            $ sudo chkconfig docker on
 
-	2. On Oracle Linux 7:
+    2. On Oracle Linux 7:
 
-			$ sudo systemctl enable docker.service
+            $ sudo systemctl enable docker.service
 
 **Done!**
 
@@ -99,6 +99,20 @@ To enable btrfs support on Oracle Linux:
 
 You can now continue with the [Docker User Guide](/userguide/).
 
+## Uninstallation
+
+To uninstall the Docker package:
+
+    $ sudo yum -y remove docker
+
+The above command will not remove images, containers, volumes, or user created
+configuration files on your host. If you wish to delete all images, containers,
+and volumes run the following command:
+
+    $ rm -rf /var/lib/docker
+
+You must delete the user created configuration files manually.
+
 ## Known issues
 
 ### Docker unmounts btrfs filesystem on shutdown
@@ -110,7 +124,7 @@ service.
 On Oracle Linux 7, you can use a `systemd.mount` definition and modify the
 Docker `systemd.service` to depend on the btrfs mount defined in systemd.
 
-### SElinux Support on Oracle Linux 7
+### SElinux support on Oracle Linux 7
 SElinux must be set to `Permissive` or `Disabled` in `/etc/sysconfig/selinux` to
 use the btrfs storage engine on Oracle Linux 7.
 

@@ -1,8 +1,8 @@
-page_title: Docker Security
+page_title: Docker security
 page_description: Review of the Docker Daemon attack surface
 page_keywords: Docker, Docker documentation, security
 
-# Docker Security
+# Docker security
 
 There are three major areas to consider when reviewing Docker security:
 
@@ -14,11 +14,11 @@ There are three major areas to consider when reviewing Docker security:
  - the "hardening" security features of the kernel and how they
    interact with containers.
 
-## Kernel Namespaces
+## Kernel namespaces
 
 Docker containers are very similar to LXC containers, and they have
-similar security features. When you start a container with `docker
-run`, behind the scenes Docker creates a set of namespaces and control
+similar security features. When you start a container with
+`docker run`, behind the scenes Docker creates a set of namespaces and control
 groups for the container.
 
 **Namespaces provide the first and most straightforward form of
@@ -53,7 +53,7 @@ http://en.wikipedia.org/wiki/OpenVZ) in such a way that they could be
 merged within the mainstream kernel. And OpenVZ was initially released
 in 2005, so both the design and the implementation are pretty mature.
 
-## Control Groups
+## Control groups
 
 Control Groups are another key component of Linux Containers. They
 implement resource accounting and limiting. They provide many
@@ -72,7 +72,7 @@ when some applications start to misbehave.
 Control Groups have been around for a while as well: the code was
 started in 2006, and initially merged in kernel 2.6.24.
 
-## Docker Daemon Attack Surface
+## Docker daemon attack surface
 
 Running containers (and applications) with Docker implies running the
 Docker daemon. This daemon currently requires `root` privileges, and you
@@ -103,7 +103,7 @@ Docker directly on your local machine, outside of a VM). You can then
 use traditional UNIX permission checks to limit access to the control
 socket.
 
-You can also expose the REST API over HTTP if you explicitly decide so.
+You can also expose the REST API over HTTP if you explicitly decide to do so.
 However, if you do that, being aware of the above mentioned security
 implication, you should ensure that it will be reachable only from a
 trusted network or VPN; or protected with e.g., `stunnel` and client SSL
@@ -132,7 +132,7 @@ containers controlled by Docker. Of course, it is fine to keep your
 favorite admin tools (probably at least an SSH server), as well as
 existing monitoring/supervision processes (e.g., NRPE, collectd, etc).
 
-## Linux Kernel Capabilities
+## Linux kernel capabilities
 
 By default, Docker starts containers with a restricted set of
 capabilities. What does that mean?
@@ -206,7 +206,7 @@ capability removal, or less secure through the addition of capabilities.
 The best practice for users would be to remove all capabilities except
 those explicitly required for their processes.
 
-## Other Kernel Security Features
+## Other kernel security features
 
 Capabilities are just one of the many security features provided by
 modern Linux kernels. It is also possible to leverage existing,
@@ -249,11 +249,11 @@ may still be utilized by Docker containers on supported kernels,
 by directly using the clone syscall, or utilizing the 'unshare'
 utility. Using this, some users may find it possible to drop
 more capabilities from their process as user namespaces provide
-an artifical capabilities set. Likewise, however, this artifical
+an artificial capabilities set. Likewise, however, this artificial
 capabilities set may require use of 'capsh' to restrict the
 user-namespace capabilities set when using 'unshare'.
 
-Eventually, it is expected that Docker will direct, native support
+Eventually, it is expected that Docker will have direct, native support
 for user-namespaces, simplifying the process of hardening containers.
 
 ## Conclusions

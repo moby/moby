@@ -22,7 +22,7 @@ Look up the running process of the container. ps-OPTION can be any of the
 
 Run **docker top** with the ps option of -x:
 
-    $ sudo docker top 8601afda2b -x
+    $ docker top 8601afda2b -x
     PID      TTY       STAT       TIME         COMMAND
     16623    ?         Ss         0:00         sleep 99999
 

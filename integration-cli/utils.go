@@ -1,13 +1,12 @@
 package main
 
 import (
+	"archive/tar"
 	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
-	"math/rand"
-	"net/http"
 	"net/http/httptest"
 	"os"
 	"os/exec"
@@ -17,13 +16,13 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/docker/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
+	"github.com/docker/docker/pkg/stringutils"
 )
 
 func getExitCode(err error) (int, error) {
 	exitCode := 0
 	if exiterr, ok := err.(*exec.ExitError); ok {
-		if procExit := exiterr.Sys().(syscall.WaitStatus); ok {
+		if procExit, ok := exiterr.Sys().(syscall.WaitStatus); ok {
 			return procExit.ExitStatus(), nil
 		}
 	}
@@ -44,12 +43,14 @@ func processExitCode(err error) (exitCode int) {
 
 func IsKilled(err error) bool {
 	if exitErr, ok := err.(*exec.ExitError); ok {
-		sys := exitErr.ProcessState.Sys()
-		status, ok := sys.(syscall.WaitStatus)
+		status, ok := exitErr.Sys().(syscall.WaitStatus)
 		if !ok {
 			return false
 		}
-		return status.Signaled() && status.Signal() == os.Kill
+		// status.ExitStatus() is required on Windows because it does not
+		// implement Signal() nor Signaled(). Just check it had a bad exit
+		// status could mean it was killed (and in tests we do kill)
+		return (status.Signaled() && status.Signal() == os.Kill) || status.ExitStatus() != 0
 	}
 	return false
 }
@@ -141,6 +142,7 @@ func runCommandPipelineWithOutput(cmds ...*exec.Cmd) (output string, exitCode in
 		if i > 0 {
 			prevCmd := cmds[i-1]
 			cmd.Stdin, err = prevCmd.StdoutPipe()
+
 			if err != nil {
 				return "", 0, fmt.Errorf("cannot set stdout pipe for %s: %v", cmd.Path, err)
 			}
@@ -165,17 +167,8 @@ func runCommandPipelineWithOutput(cmds ...*exec.Cmd) (output string, exitCode in
 	return runCommandWithOutput(cmds[len(cmds)-1])
 }
 
-func logDone(message string) {
-	fmt.Printf("[PASSED]: %s\n", message)
-}
-
-func stripTrailingCharacters(target string) string {
-	return strings.TrimSpace(target)
-}
-
 func unmarshalJSON(data []byte, result interface{}) error {
-	err := json.Unmarshal(data, result)
-	if err != nil {
+	if err := json.Unmarshal(data, result); err != nil {
 		return err
 	}
 
@@ -215,7 +208,16 @@ func waitInspect(name, expr, expected string, timeout int) error {
 		cmd := exec.Command(dockerBinary, "inspect", "-f", expr, name)
 		out, _, err := runCommandWithOutput(cmd)
 		if err != nil {
-			return fmt.Errorf("error executing docker inspect: %v", err)
+			if !strings.Contains(out, "No such") {
+				return fmt.Errorf("error executing docker inspect: %v\n%s", err, out)
+			}
+			select {
+			case <-after:
+				return err
+			default:
+				time.Sleep(10 * time.Millisecond)
+				continue
+			}
 		}
 
 		out = strings.TrimSpace(out)
@@ -272,50 +274,10 @@ type FileServer struct {
 	*httptest.Server
 }
 
-func fileServer(files map[string]string) (*FileServer, error) {
-	var handler http.HandlerFunc = func(w http.ResponseWriter, r *http.Request) {
-		if filePath, found := files[r.URL.Path]; found {
-			http.ServeFile(w, r, filePath)
-		} else {
-			http.Error(w, http.StatusText(404), 404)
-		}
-	}
-
-	for _, file := range files {
-		if _, err := os.Stat(file); err != nil {
-			return nil, err
-		}
-	}
-	server := httptest.NewServer(handler)
-	return &FileServer{
-		Server: server,
-	}, nil
-}
-
-func copyWithCP(source, target string) error {
-	copyCmd := exec.Command("cp", "-rp", source, target)
-	out, exitCode, err := runCommandWithOutput(copyCmd)
-	if err != nil || exitCode != 0 {
-		return fmt.Errorf("failed to copy: error: %q ,output: %q", err, out)
-	}
-	return nil
-}
-
-func makeRandomString(n int) string {
-	// make a really long string
-	letters := []byte("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
-	b := make([]byte, n)
-	r := rand.New(rand.NewSource(time.Now().UTC().UnixNano()))
-	for i := range b {
-		b[i] = letters[r.Intn(len(letters))]
-	}
-	return string(b)
-}
-
 // randomUnixTmpDirPath provides a temporary unix path with rand string appended.
 // does not create or checks if it exists.
 func randomUnixTmpDirPath(s string) string {
-	return path.Join("/tmp", fmt.Sprintf("%s.%s", s, makeRandomString(10)))
+	return path.Join("/tmp", fmt.Sprintf("%s.%s", s, stringutils.GenerateRandomAlphaOnlyString(10)))
 }
 
 // Reads chunkSize bytes from reader after every interval.
@@ -353,4 +315,27 @@ func parseCgroupPaths(procCgroupData string) map[string]string {
 		cgroupPaths[parts[1]] = parts[2]
 	}
 	return cgroupPaths
+}
+
+type channelBuffer struct {
+	c chan []byte
+}
+
+func (c *channelBuffer) Write(b []byte) (int, error) {
+	c.c <- b
+	return len(b), nil
+}
+
+func (c *channelBuffer) Close() error {
+	close(c.c)
+	return nil
+}
+
+func (c *channelBuffer) ReadTimeout(p []byte, n time.Duration) (int, error) {
+	select {
+	case b := <-c.c:
+		return copy(p[0:], b), nil
+	case <-time.After(n):
+		return -1, fmt.Errorf("timeout reading from channel")
+	}
 }

@@ -1,19 +1,28 @@
 package runconfig
 
 import (
+	"encoding/json"
+	"io"
 	"strings"
 
-	"github.com/docker/docker/engine"
 	"github.com/docker/docker/nat"
 	"github.com/docker/docker/pkg/ulimit"
-	"github.com/docker/docker/utils"
 )
+
+type KeyValuePair struct {
+	Key   string
+	Value string
+}
 
 type NetworkMode string
 
 // IsPrivate indicates whether container use it's private network stack
 func (n NetworkMode) IsPrivate() bool {
-	return !(n.IsHost() || n.IsContainer() || n.IsNone())
+	return !(n.IsHost() || n.IsContainer())
+}
+
+func (n NetworkMode) IsBridge() bool {
+	return n == "bridge"
 }
 
 func (n NetworkMode) IsHost() bool {
@@ -67,6 +76,27 @@ func (n IpcMode) Container() string {
 	return ""
 }
 
+type UTSMode string
+
+// IsPrivate indicates whether container use it's private UTS namespace
+func (n UTSMode) IsPrivate() bool {
+	return !(n.IsHost())
+}
+
+func (n UTSMode) IsHost() bool {
+	return n == "host"
+}
+
+func (n UTSMode) Valid() bool {
+	parts := strings.Split(string(n), ":")
+	switch mode := parts[0]; mode {
+	case "", "host":
+	default:
+		return false
+	}
+	return true
+}
+
 type PidMode string
 
 // IsPrivate indicates whether container use it's private pid stack
@@ -99,19 +129,85 @@ type RestartPolicy struct {
 	MaximumRetryCount int
 }
 
+func (rp *RestartPolicy) IsNone() bool {
+	return rp.Name == "no"
+}
+
+func (rp *RestartPolicy) IsAlways() bool {
+	return rp.Name == "always"
+}
+
+func (rp *RestartPolicy) IsOnFailure() bool {
+	return rp.Name == "on-failure"
+}
+
 type LogConfig struct {
 	Type   string
 	Config map[string]string
 }
 
+type LxcConfig struct {
+	values []KeyValuePair
+}
+
+func (c *LxcConfig) MarshalJSON() ([]byte, error) {
+	if c == nil {
+		return []byte{}, nil
+	}
+	return json.Marshal(c.Slice())
+}
+
+func (c *LxcConfig) UnmarshalJSON(b []byte) error {
+	if len(b) == 0 {
+		return nil
+	}
+
+	var kv []KeyValuePair
+	if err := json.Unmarshal(b, &kv); err != nil {
+		var h map[string]string
+		if err := json.Unmarshal(b, &h); err != nil {
+			return err
+		}
+		for k, v := range h {
+			kv = append(kv, KeyValuePair{k, v})
+		}
+	}
+	c.values = kv
+
+	return nil
+}
+
+func (c *LxcConfig) Len() int {
+	if c == nil {
+		return 0
+	}
+	return len(c.values)
+}
+
+func (c *LxcConfig) Slice() []KeyValuePair {
+	if c == nil {
+		return nil
+	}
+	return c.values
+}
+
+func NewLxcConfig(values []KeyValuePair) *LxcConfig {
+	return &LxcConfig{values}
+}
+
 type HostConfig struct {
 	Binds           []string
 	ContainerIDFile string
-	LxcConf         []utils.KeyValuePair
-	Memory          int64  // Memory limit (in bytes)
-	MemorySwap      int64  // Total memory usage (memory + swap); set `-1` to disable swap
-	CpuShares       int64  // CPU shares (relative weight vs. other containers)
+	LxcConf         *LxcConfig
+	Memory          int64 // Memory limit (in bytes)
+	MemorySwap      int64 // Total memory usage (memory + swap); set `-1` to disable swap
+	CpuShares       int64 // CPU shares (relative weight vs. other containers)
+	CpuPeriod       int64
 	CpusetCpus      string // CpusetCpus 0-2, 0,1
+	CpusetMems      string // CpusetMems 0-2, 0,1
+	CpuQuota        int64
+	BlkioWeight     int64 // Block IO weight (relative weight vs. other containers)
+	OomKillDisable  bool  // Whether to disable OOM Killer or not
 	Privileged      bool
 	PortBindings    nat.PortMap
 	Links           []string
@@ -124,6 +220,7 @@ type HostConfig struct {
 	NetworkMode     NetworkMode
 	IpcMode         IpcMode
 	PidMode         PidMode
+	UTSMode         UTSMode
 	CapAdd          []string
 	CapDrop         []string
 	RestartPolicy   RestartPolicy
@@ -134,96 +231,55 @@ type HostConfig struct {
 	CgroupParent    string // Parent cgroup.
 }
 
-// This is used by the create command when you want to set both the
-// Config and the HostConfig in the same call
-type ConfigAndHostConfig struct {
-	Config
-	HostConfig HostConfig
-}
-
-func MergeConfigs(config *Config, hostConfig *HostConfig) *ConfigAndHostConfig {
-	return &ConfigAndHostConfig{
-		*config,
-		*hostConfig,
+func MergeConfigs(config *Config, hostConfig *HostConfig) *ContainerConfigWrapper {
+	return &ContainerConfigWrapper{
+		config,
+		&hostConfigWrapper{InnerHostConfig: hostConfig},
 	}
 }
 
-func ContainerHostConfigFromJob(job *engine.Job) *HostConfig {
-	if job.EnvExists("HostConfig") {
-		hostConfig := HostConfig{}
-		job.GetenvJson("HostConfig", &hostConfig)
+type hostConfigWrapper struct {
+	InnerHostConfig *HostConfig `json:"HostConfig,omitempty"`
+	Cpuset          string      `json:",omitempty"` // Deprecated. Exported for backwards compatibility.
 
-		// FIXME: These are for backward compatibility, if people use these
-		// options with `HostConfig`, we should still make them workable.
-		if job.EnvExists("Memory") && hostConfig.Memory == 0 {
-			hostConfig.Memory = job.GetenvInt64("Memory")
+	*HostConfig // Deprecated. Exported to read attrubutes from json that are not in the inner host config structure.
+}
+
+func (w hostConfigWrapper) GetHostConfig() *HostConfig {
+	hc := w.HostConfig
+
+	if hc == nil && w.InnerHostConfig != nil {
+		hc = w.InnerHostConfig
+	} else if w.InnerHostConfig != nil {
+		if hc.Memory != 0 && w.InnerHostConfig.Memory == 0 {
+			w.InnerHostConfig.Memory = hc.Memory
 		}
-		if job.EnvExists("MemorySwap") && hostConfig.MemorySwap == 0 {
-			hostConfig.MemorySwap = job.GetenvInt64("MemorySwap")
+		if hc.MemorySwap != 0 && w.InnerHostConfig.MemorySwap == 0 {
+			w.InnerHostConfig.MemorySwap = hc.MemorySwap
 		}
-		if job.EnvExists("CpuShares") && hostConfig.CpuShares == 0 {
-			hostConfig.CpuShares = job.GetenvInt64("CpuShares")
-		}
-		if job.EnvExists("Cpuset") && hostConfig.CpusetCpus == "" {
-			hostConfig.CpusetCpus = job.Getenv("Cpuset")
+		if hc.CpuShares != 0 && w.InnerHostConfig.CpuShares == 0 {
+			w.InnerHostConfig.CpuShares = hc.CpuShares
 		}
 
-		return &hostConfig
+		hc = w.InnerHostConfig
 	}
 
-	hostConfig := &HostConfig{
-		ContainerIDFile: job.Getenv("ContainerIDFile"),
-		Memory:          job.GetenvInt64("Memory"),
-		MemorySwap:      job.GetenvInt64("MemorySwap"),
-		CpuShares:       job.GetenvInt64("CpuShares"),
-		CpusetCpus:      job.Getenv("CpusetCpus"),
-		Privileged:      job.GetenvBool("Privileged"),
-		PublishAllPorts: job.GetenvBool("PublishAllPorts"),
-		NetworkMode:     NetworkMode(job.Getenv("NetworkMode")),
-		IpcMode:         IpcMode(job.Getenv("IpcMode")),
-		PidMode:         PidMode(job.Getenv("PidMode")),
-		ReadonlyRootfs:  job.GetenvBool("ReadonlyRootfs"),
-		CgroupParent:    job.Getenv("CgroupParent"),
+	if hc != nil && w.Cpuset != "" && hc.CpusetCpus == "" {
+		hc.CpusetCpus = w.Cpuset
 	}
 
-	// FIXME: This is for backward compatibility, if people use `Cpuset`
-	// in json, make it workable, we will only pass hostConfig.CpusetCpus
-	// to execDriver.
-	if job.EnvExists("Cpuset") && hostConfig.CpusetCpus == "" {
-		hostConfig.CpusetCpus = job.Getenv("Cpuset")
+	return hc
+}
+
+func DecodeHostConfig(src io.Reader) (*HostConfig, error) {
+	decoder := json.NewDecoder(src)
+
+	var w hostConfigWrapper
+	if err := decoder.Decode(&w); err != nil {
+		return nil, err
 	}
 
-	job.GetenvJson("LxcConf", &hostConfig.LxcConf)
-	job.GetenvJson("PortBindings", &hostConfig.PortBindings)
-	job.GetenvJson("Devices", &hostConfig.Devices)
-	job.GetenvJson("RestartPolicy", &hostConfig.RestartPolicy)
-	job.GetenvJson("Ulimits", &hostConfig.Ulimits)
-	job.GetenvJson("LogConfig", &hostConfig.LogConfig)
-	hostConfig.SecurityOpt = job.GetenvList("SecurityOpt")
-	if Binds := job.GetenvList("Binds"); Binds != nil {
-		hostConfig.Binds = Binds
-	}
-	if Links := job.GetenvList("Links"); Links != nil {
-		hostConfig.Links = Links
-	}
-	if Dns := job.GetenvList("Dns"); Dns != nil {
-		hostConfig.Dns = Dns
-	}
-	if DnsSearch := job.GetenvList("DnsSearch"); DnsSearch != nil {
-		hostConfig.DnsSearch = DnsSearch
-	}
-	if ExtraHosts := job.GetenvList("ExtraHosts"); ExtraHosts != nil {
-		hostConfig.ExtraHosts = ExtraHosts
-	}
-	if VolumesFrom := job.GetenvList("VolumesFrom"); VolumesFrom != nil {
-		hostConfig.VolumesFrom = VolumesFrom
-	}
-	if CapAdd := job.GetenvList("CapAdd"); CapAdd != nil {
-		hostConfig.CapAdd = CapAdd
-	}
-	if CapDrop := job.GetenvList("CapDrop"); CapDrop != nil {
-		hostConfig.CapDrop = CapDrop
-	}
+	hc := w.GetHostConfig()
 
-	return hostConfig
+	return hc, nil
 }

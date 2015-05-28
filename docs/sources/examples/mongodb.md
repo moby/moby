@@ -10,6 +10,11 @@ In this example, we are going to learn how to build a Docker image with
 MongoDB pre-installed.  We'll also see how to `push` that image to the
 [Docker Hub registry](https://hub.docker.com) and share it with others!
 
+> **Note:**
+>
+> This guide will show the mechanics of building a MongoDB container, but
+> you will probably want to use the official image on [Docker Hub]( https://registry.hub.docker.com/_/mongo/)
+
 Using Docker and containers for deploying [MongoDB](https://www.mongodb.org/)
 instances will bring several benefits, such as:
 
@@ -59,8 +64,8 @@ a MongoDB repository file for the package manager.
 
     # Installation:
     # Import MongoDB public GPG key AND create a MongoDB list file
-    RUN apt-key adv --keyserver hkp://p80.pool.sks-keyservers.net:80 --recv 7F0CEB10
-    RUN echo 'deb http://downloads-distro.mongodb.org/repo/ubuntu-upstart dist 10gen' | tee /etc/apt/sources.list.d/10gen.list
+    RUN apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv 7F0CEB10
+    RUN echo "deb http://repo.mongodb.org/apt/ubuntu "$(lsb_release -sc)"/mongodb-org/3.0 multiverse" | tee /etc/apt/sources.list.d/mongodb-org-3.0.list
 
 After this initial preparation we can update our packages and install MongoDB.
 
@@ -70,7 +75,7 @@ After this initial preparation we can update our packages and install MongoDB.
 > **Tip:** You can install a specific version of MongoDB by using a list
 > of required packages with versions, e.g.:
 > 
->     RUN apt-get update && apt-get install -y mongodb-org=2.6.1 mongodb-org-server=2.6.1 mongodb-org-shell=2.6.1 mongodb-org-mongos=2.6.1 mongodb-org-tools=2.6.1
+>     RUN apt-get update && apt-get install -y mongodb-org=3.0.1 mongodb-org-server=3.0.1 mongodb-org-shell=3.0.1 mongodb-org-mongos=3.0.1 mongodb-org-tools=3.0.1
 
 MongoDB requires a data directory. Let's create it as the final step of our
 installation instructions.
@@ -86,7 +91,7 @@ the `EXPOSE` instruction.
     EXPOSE 27017
 
     # Set usr/bin/mongod as the dockerized entry-point application
-    ENTRYPOINT usr/bin/mongod
+    ENTRYPOINT ["/usr/bin/mongod"]
 
 Now save the file and let's build our image.
 
@@ -100,9 +105,9 @@ With our `Dockerfile`, we can now build the MongoDB image using Docker. Unless
 experimenting, it is always a good practice to tag Docker images by passing the
 `--tag` option to `docker build` command.
 
-    # Format: sudo docker build --tag/-t <user-name>/<repository> .
+    # Format: docker build --tag/-t <user-name>/<repository> .
     # Example:
-    $ sudo docker build --tag my/repo .
+    $ docker build --tag my/repo .
 
 Once this command is issued, Docker will go through the `Dockerfile` and build
 the image. The final image will be tagged `my/repo`.
@@ -114,13 +119,13 @@ All Docker image repositories can be hosted and shared on
 you need to be logged-in.
 
     # Log-in
-    $ sudo docker login
+    $ docker login
     Username:
     ..
 
     # Push the image
-    # Format: sudo docker push <user-name>/<repository>
-    $ sudo docker push my/repo
+    # Format: docker push <user-name>/<repository>
+    $ docker push my/repo
     The push refers to a repository [my/repo] (len: 1)
     Sending image list
     Pushing repository my/repo (1 tags)
@@ -132,20 +137,36 @@ Using the MongoDB image we created, we can run one or more MongoDB instances
 as daemon process(es).
 
     # Basic way
-    # Usage: sudo docker run --name <name for container> -d <user-name>/<repository>
-    $ sudo docker run --name mongo_instance_001 -d my/repo
+    # Usage: docker run --name <name for container> -d <user-name>/<repository>
+    $ docker run -p 27017:27017 --name mongo_instance_001 -d my/repo
 
     # Dockerized MongoDB, lean and mean!
-    # Usage: sudo docker run --name <name for container> -d <user-name>/<repository> --noprealloc --smallfiles
-    $ sudo docker run --name mongo_instance_001 -d my/repo --noprealloc --smallfiles
+    # Usage: docker run --name <name for container> -d <user-name>/<repository> --noprealloc --smallfiles
+    $ docker run -p 27017:27017 --name mongo_instance_001 -d my/repo --noprealloc --smallfiles
 
     # Checking out the logs of a MongoDB container
-    # Usage: sudo docker logs <name for container>
-    $ sudo docker logs mongo_instance_001
+    # Usage: docker logs <name for container>
+    $ docker logs mongo_instance_001
 
     # Playing with MongoDB
     # Usage: mongo --port <port you get from `docker ps`> 
-    $ mongo --port 12345
+    $ mongo --port 27017
+
+    # If using boot2docker
+    # Usage: mongo --port <port you get from `docker ps`>  --host <ip address from `boot2docker ip`>
+    $ mongo --port 27017 --host 192.168.59.103
+
+> **Tip:**
+If you want to run two containers on the same engine, then you will need to map
+the exposed port to two different ports on the host
+
+    # Start two containers and map the ports
+    $ docker run -p 28001:27017 --name mongo_instance_001 -d my/repo
+    $ docker run -p 28002:27017 --name mongo_instance_002 -d my/repo
+
+    # Now you can connect to each MongoDB instance on the two ports
+    $ mongo --port 28001
+    $ mongo --port 28002
 
  - [Linking containers](/userguide/dockerlinks)
  - [Cross-host linking containers](/articles/ambassador_pattern_linking/)

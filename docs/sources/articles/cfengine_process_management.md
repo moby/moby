@@ -1,8 +1,8 @@
-page_title: Process Management with CFEngine
+page_title: Process management with CFEngine
 page_description: Managing containerized processes with CFEngine
 page_keywords: cfengine, process, management, usage, docker, documentation
 
-# Process Management with CFEngine
+# Process management with CFEngine
 
 Create Docker containers with managed processes.
 
@@ -94,7 +94,7 @@ your image with the docker build command, e.g.,
 Start the container with `apache2` and `sshd` running and managed, forwarding
 a port to our SSH instance:
 
-    $ sudo docker run -p 127.0.0.1:222:22 -d managed_image "/usr/sbin/sshd" "/etc/init.d/apache2 start"
+    $ docker run -p 127.0.0.1:222:22 -d managed_image "/usr/sbin/sshd" "/etc/init.d/apache2 start"
 
 We now clearly see one of the benefits of the cfe-docker integration: it
 allows to start several processes as part of a normal `docker run` command.

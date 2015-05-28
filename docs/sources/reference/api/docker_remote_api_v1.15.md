@@ -174,12 +174,12 @@ Json Parameters:
       container.
 -   **Domainname** - A string value containing the desired domain name to use
       for the container.
--   **User** - A string value containg the user to use inside the container.
+-   **User** - A string value containing the user to use inside the container.
 -   **Memory** - Memory limit in bytes.
 -   **MemorySwap**- Total memory usage (memory + swap); set `-1` to disable swap.
 -   **CpuShares** - An integer value containing the CPU Shares for container
-      (ie. the relative weight vs othercontainers).
-    **CpuSet** - String value containg the cgroups Cpuset to use.
+      (ie. the relative weight vs other containers).
+    **CpuSet** - String value containing the cgroups Cpuset to use.
 -   **AttachStdin** - Boolean value, attaches to stdin.
 -   **AttachStdout** - Boolean value, attaches to stdout.
 -   **AttachStderr** - Boolean value, attaches to stderr.
@@ -195,7 +195,7 @@ Json Parameters:
         container to empty objects.
 -   **WorkingDir** - A string value containing the working dir for commands to
       run in.
--   **NetworkDisabled** - Boolean value, when true disables neworking for the
+-   **NetworkDisabled** - Boolean value, when true disables networking for the
       container
 -   **ExposedPorts** - An object mapping ports to an empty object in the form of:
       `"ExposedPorts": { "<port>/<tcp|udp>: {}" }`
@@ -207,8 +207,8 @@ Json Parameters:
           volume for the container), `host_path:container_path` (to bind-mount
           a host path into the container), or `host_path:container_path:ro`
           (to make the bind-mount read-only inside the container).
-  -   **Links** - A list of links for the container.  Each link entry should be of
-        of the form "container_name:alias".
+  -   **Links** - A list of links for the container.  Each link entry should be
+        in the form of "container_name:alias".
   -   **LxcConf** - LXC specific configurations.  These configurations will only
         work when using the `lxc` execution driver.
   -   **PortBindings** - A map of exposed container ports and the host port they
@@ -225,8 +225,8 @@ Json Parameters:
       container's `/etc/hosts` file. Specified in the form `["hostname:IP"]`.
   -   **VolumesFrom** - A list of volumes to inherit from another container.
         Specified in the form `<container name>[:<ro|rw>]`
-  -   **CapAdd** - A list of kernel capabilties to add to the container.
-  -   **Capdrop** - A list of kernel capabilties to drop from the container.
+  -   **CapAdd** - A list of kernel capabilities to add to the container.
+  -   **Capdrop** - A list of kernel capabilities to drop from the container.
   -   **RestartPolicy** – The behavior to apply when the container exits.  The
           value is an object with a `Name` property of either `"always"` to
           always restart or `"on-failure"` to restart only when the container
@@ -553,8 +553,8 @@ Json Parameters:
 -   **DnsSearch** - A list of DNS search domains
 -   **VolumesFrom** - A list of volumes to inherit from another container.
       Specified in the form `<container name>[:<ro|rw>]`
--   **CapAdd** - A list of kernel capabilties to add to the container.
--   **Capdrop** - A list of kernel capabilties to drop from the container.
+-   **CapAdd** - A list of kernel capabilities to add to the container.
+-   **Capdrop** - A list of kernel capabilities to drop from the container.
 -   **RestartPolicy** – The behavior to apply when the container exits.  The
         value is an object with a `Name` property of either `"always"` to
         always restart or `"on-failure"` to restart only when the container
@@ -766,7 +766,7 @@ Status Codes:
 
     1.  Read 8 bytes
     2.  chose stdout or stderr depending on the first byte
-    3.  Extract the frame size from the last 4 byets
+    3.  Extract the frame size from the last 4 bytes
     4.  Read the extracted size and output it on the correct output
     5.  Goto 1
 
@@ -1261,7 +1261,7 @@ Query Parameters:
     Request Headers:
 
 -   **Content-type** – should be set to `"application/tar"`.
--   **X-Registry-Config** – base64-encoded ConfigFile objec
+-   **X-Registry-Config** – base64-encoded ConfigFile object
 
 Status Codes:
 
@@ -1495,7 +1495,7 @@ Get a tarball containing all images and metadata for the repository specified
 by `name`.
 
 If `name` is a specific name and tag (e.g. ubuntu:latest), then only that image
-(and its parents) are returned. If `name` is an image ID, similarly only tha
+(and its parents) are returned. If `name` is an image ID, similarly only that
 image (and its parents) are returned, but with the exclusion of the
 'repositories' file in the tarball, as there were no image names referenced.
 

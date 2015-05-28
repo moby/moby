@@ -8,7 +8,7 @@ docker-pull - Pull an image or a repository from a registry
 **docker pull**
 [**-a**|**--all-tags**[=*false*]]
 [**--help**] 
-NAME[:TAG]
+NAME[:TAG] | [REGISTRY_HOST[:REGISTRY_PORT]/]NAME[:TAG]
 
 # DESCRIPTION
 
@@ -31,7 +31,7 @@ registry located at `registry-1.docker.io` by default.
 # Note that if the  image is previously downloaded then the status would be
 # 'Status: Image is up to date for fedora'
 
-    $ sudo docker pull fedora
+    $ docker pull fedora
     Pulling repository fedora
     ad57ef8d78d7: Download complete
     105182bb5e8b: Download complete
@@ -40,7 +40,7 @@ registry located at `registry-1.docker.io` by default.
 
     Status: Downloaded newer image for fedora
 
-    $ sudo docker images
+    $ docker images
     REPOSITORY   TAG         IMAGE ID        CREATED      VIRTUAL SIZE
     fedora       rawhide     ad57ef8d78d7    5 days ago   359.3 MB
     fedora       20          105182bb5e8b    5 days ago   372.7 MB
@@ -51,7 +51,7 @@ registry located at `registry-1.docker.io` by default.
 # Note that if the  image is previously downloaded then the status would be
 # 'Status: Image is up to date for registry.hub.docker.com/fedora:20'
 
-    $ sudo docker pull registry.hub.docker.com/fedora:20
+    $ docker pull registry.hub.docker.com/fedora:20
     Pulling repository fedora
     3f2fed40e4b0: Download complete 
     511136ea3c5a: Download complete 
@@ -59,7 +59,7 @@ registry located at `registry-1.docker.io` by default.
 
     Status: Downloaded newer image for registry.hub.docker.com/fedora:20
 
-    $ sudo docker images
+    $ docker images
     REPOSITORY   TAG         IMAGE ID        CREATED      VIRTUAL SIZE
     fedora       20          3f2fed40e4b0    4 days ago   372.7 MB
 

@@ -1,4 +1,4 @@
-page_title: Chef Usage
+page_title: Using Chef
 page_description: Installation and using Docker via Chef
 page_keywords: chef, installation, usage, docker, documentation
 
@@ -43,7 +43,7 @@ The next step is to pull a Docker image. For this, we have a resource:
 
 This is equivalent to running:
 
-    $ sudo docker pull samalba/docker-registry
+    $ docker pull samalba/docker-registry
 
 There are attributes available to control how long the cookbook will
 allow for downloading (5 minute default).
@@ -68,7 +68,7 @@ managed by Docker.
 
 This is equivalent to running the following command, but under upstart:
 
-    $ sudo docker run --detach=true --publish='5000:5000' --env='SETTINGS_FLAVOR=local' --volume='/mnt/docker:/docker-storage' samalba/docker-registry
+    $ docker run --detach=true --publish='5000:5000' --env='SETTINGS_FLAVOR=local' --volume='/mnt/docker:/docker-storage' samalba/docker-registry
 
 The resources will accept a single string or an array of values for any
 Docker flags that allow multiple values.

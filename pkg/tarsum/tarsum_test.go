@@ -1,6 +1,7 @@
 package tarsum
 
 import (
+	"archive/tar"
 	"bytes"
 	"compress/gzip"
 	"crypto/md5"
@@ -14,8 +15,6 @@ import (
 	"io/ioutil"
 	"os"
 	"testing"
-
-	"github.com/docker/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
 )
 
 type testLayer struct {

@@ -1,8 +1,8 @@
-page_title: Dockerizing Applications: A "Hello world"
+page_title: Dockerizing applications: A "Hello world"
 page_description: A simple "Hello world" exercise that introduced you to Docker.
 page_keywords: docker guide, docker, docker platform, virtualization framework, how to, dockerize, dockerizing apps, dockerizing applications, container, containers
 
-# Dockerizing Applications: A "Hello world"
+# Dockerizing applications: A "Hello world"
 
 *So what's this Docker thing all about?*
 
@@ -15,7 +15,7 @@ application inside a container takes a single command: `docker run`.
 
 Let's try it now.
 
-    $ sudo docker run ubuntu:14.04 /bin/echo 'Hello world'
+    $ docker run ubuntu:14.04 /bin/echo 'Hello world'
     Hello world
 
 And you just launched your first container!
@@ -48,12 +48,12 @@ So what happened to our container after that? Well Docker containers
 only run as long as the command you specify is active. Here, as soon as
 `Hello world` was echoed, the container stopped.
 
-## An Interactive Container
+## An interactive container
 
 Let's try the `docker run` command again, this time specifying a new
 command to run in our container.
 
-    $ sudo docker run -t -i ubuntu:14.04 /bin/bash
+    $ docker run -t -i ubuntu:14.04 /bin/bash
     root@af8bae53bdd3:/#
 
 Here we've again specified the `docker run` command and launched an
@@ -90,7 +90,7 @@ use the `exit` command or enter Ctrl-D to finish.
 As with our previous container, once the Bash shell process has
 finished, the container is stopped.
 
-## A Daemonized Hello world
+## A daemonized Hello world
 
 Now a container that runs a command and then exits has some uses but
 it's not overly helpful. Let's create a container that runs as a daemon,
@@ -98,7 +98,7 @@ like most of the applications we're probably going to run with Docker.
 
 Again we can do this with the `docker run` command:
 
-    $ sudo docker run -d ubuntu:14.04 /bin/sh -c "while true; do echo hello world; sleep 1; done"
+    $ docker run -d ubuntu:14.04 /bin/sh -c "while true; do echo hello world; sleep 1; done"
     1e5535038e285177d5214659a068137486f96ee5c2e85a4ac52dc83f2ebe4147
 
 Wait, what? Where's our "hello world" output? Let's look at what we've run here.
@@ -135,7 +135,7 @@ do that with the `docker ps` command. The `docker ps` command queries
 the Docker daemon for information about all the containers it knows
 about.
 
-    $ sudo docker ps
+    $ docker ps
     CONTAINER ID  IMAGE         COMMAND               CREATED        STATUS       PORTS NAMES
     1e5535038e28  ubuntu:14.04  /bin/sh -c 'while tr  2 minutes ago  Up 1 minute        insane_babbage
 
@@ -155,7 +155,7 @@ Okay, so we now know it's running. But is it doing what we asked it to do? To se
 we're going to look inside the container using the `docker logs`
 command. Let's use the container name Docker assigned.
 
-    $ sudo docker logs insane_babbage
+    $ docker logs insane_babbage
     hello world
     hello world
     hello world
@@ -171,7 +171,7 @@ Now we've established we can create our own containers let's tidy up
 after ourselves and stop our daemonized container. To do this we use the
 `docker stop` command.
 
-    $ sudo docker stop insane_babbage
+    $ docker stop insane_babbage
     insane_babbage
 
 The `docker stop` command tells Docker to politely stop the running
@@ -180,7 +180,7 @@ has just stopped.
 
 Let's check it worked with the `docker ps` command.
 
-    $ sudo docker ps
+    $ docker ps
     CONTAINER ID  IMAGE         COMMAND               CREATED        STATUS       PORTS NAMES
 
 Excellent. Our container has been stopped.

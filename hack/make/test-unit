@@ -12,7 +12,7 @@ TEXTRESET=$'\033[0m' # reset the foreground colour
 # If $TESTFLAGS is set in the environment, it is passed as extra arguments to 'go test'.
 # You can use this to select certain tests to run, eg.
 #
-#   TESTFLAGS='-run ^TestBuild$' ./hack/make.sh test-unit
+#   TESTFLAGS='-test.run ^TestBuild$' ./hack/make.sh test-unit
 #
 bundle_test_unit() {
 	{
@@ -39,12 +39,12 @@ bundle_test_unit() {
 				mkdir -p "$HOME/.parallel"
 				touch "$HOME/.parallel/ignored_vars"
 
-				echo "$TESTDIRS" | parallel --jobs "$PARALLEL_JOBS" --env _ "$(dirname "$BASH_SOURCE")/.go-compile-test-dir"
+				echo "$TESTDIRS" | parallel --jobs "$PARALLEL_JOBS" --env _ "${MAKEDIR}/.go-compile-test-dir"
 				rm -rf "$HOME"
 			else
 				# aww, no "parallel" available - fall back to boring
 				for test_dir in $TESTDIRS; do
-					"$(dirname "$BASH_SOURCE")/.go-compile-test-dir" "$test_dir" || true
+					"${MAKEDIR}/.go-compile-test-dir" "$test_dir" || true
 					# don't let one directory that fails to build tank _all_ our tests!
 				done
 			fi
@@ -85,4 +85,4 @@ go_run_test_dir() {
 	fi
 }
 
-bundle_test_unit 2>&1 | tee -a $DEST/test.log
+bundle_test_unit 2>&1 | tee -a "$DEST/test.log"

@@ -1,8 +1,8 @@
-page_title: Controlling and configuring Docker using Systemd
-page_description: Controlling and configuring Docker using Systemd
+page_title: Controlling and configuring Docker using systemd
+page_description: Controlling and configuring Docker using systemd
 page_keywords: docker, daemon, systemd, configuration
 
-# Controlling and configuring Docker using Systemd
+# Controlling and configuring Docker using systemd
 
 Many Linux distributions use systemd to start the Docker daemon. This document
 shows a few examples of how to customise Docker's settings.
@@ -30,8 +30,8 @@ If the `docker.service` file is set to use an `EnvironmentFile`
 (often pointing to `/etc/sysconfig/docker`) then you can modify the
 referenced file.
 
-Or, you may need to edit the `docker.service` file, which can be in `/usr/lib/systemd/system`
-or `/etc/systemd/service`.
+Or, you may need to edit the `docker.service` file, which can be in
+`/usr/lib/systemd/system`, `/etc/systemd/service`, or `/lib/systemd/system`.
 
 ### Runtime directory and storage driver
 
@@ -64,7 +64,7 @@ setting `OPTIONS`:
 You can also set other environment variables in this file, for example, the
 `HTTP_PROXY` environment variables described below.
 
-### HTTP Proxy
+### HTTP proxy
 
 This example overrides the default `docker.service` file.
 
