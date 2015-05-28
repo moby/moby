@@ -1133,8 +1133,17 @@ func (s *Server) getContainersByName(version version.Version, w http.ResponseWri
 		return fmt.Errorf("Missing parameter")
 	}
 
+	if err := parseForm(r); err != nil {
+		return err
+	}
+
+	no_err := r.Form.Get("no_err")
 	containerJSON, err := s.daemon.ContainerInspect(vars["name"])
 	if err != nil {
+		if strings.Contains(strings.ToLower(err.Error()), "no such id") && no_err == "1" {
+			w.WriteHeader(http.StatusNoContent)
+			return nil
+		}
 		return err
 	}
 	return writeJSON(w, http.StatusOK, containerJSON)

@@ -42,3 +42,10 @@ func (s *DockerSuite) TestInspectApiContainerResponse(c *check.C) {
 		c.Fatalf("Path of `true` should not be converted to boolean `true` via JSON marshalling")
 	}
 }
+
+func (s *DockerSuite) TestInspectApiContainerNoErr(c *check.C) {
+	endpoint := "/containers/" + "non_exist_container" + "/json?no_err=1"
+	status, _, err := sockRequest("GET", endpoint, nil)
+	c.Assert(status, check.Equals, http.StatusNoContent)
+	c.Assert(err, check.IsNil)
+}
