@@ -12,8 +12,8 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"path"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 	"syscall"
@@ -72,7 +72,11 @@ func (b *Builder) commit(id string, autoCmd *runconfig.Command, comment string) 
 	b.Config.Image = b.image
 	if id == "" {
 		cmd := b.Config.Cmd
-		b.Config.Cmd = runconfig.NewCommand("/bin/sh", "-c", "#(nop) "+comment)
+		if runtime.GOOS != "windows" {
+			b.Config.Cmd = runconfig.NewCommand("/bin/sh", "-c", "#(nop) "+comment)
+		} else {
+			b.Config.Cmd = runconfig.NewCommand("cmd", "/S /C", "REM (nop) "+comment)
+		}
 		defer func(cmd *runconfig.Command) { b.Config.Cmd = cmd }(cmd)
 
 		hit, err := b.probeCache()
@@ -191,7 +195,11 @@ func (b *Builder) runContextCommand(args []string, allowRemote bool, allowDecomp
 	}
 
 	cmd := b.Config.Cmd
-	b.Config.Cmd = runconfig.NewCommand("/bin/sh", "-c", fmt.Sprintf("#(nop) %s %s in %s", cmdName, srcHash, dest))
+	if runtime.GOOS != "windows" {
+		b.Config.Cmd = runconfig.NewCommand("/bin/sh", "-c", fmt.Sprintf("#(nop) %s %s in %s", cmdName, srcHash, dest))
+	} else {
+		b.Config.Cmd = runconfig.NewCommand("cmd", "/S /C", fmt.Sprintf("REM (nop) %s %s in %s", cmdName, srcHash, dest))
+	}
 	defer func(cmd *runconfig.Command) { b.Config.Cmd = cmd }(cmd)
 
 	hit, err := b.probeCache()
@@ -272,7 +280,7 @@ func calcCopyInfo(b *Builder, cmdName string, cInfos *[]*copyInfo, origPath stri
 		ci.tmpDir = tmpDirName
 
 		// Create a tmp file within our tmp dir
-		tmpFileName := path.Join(tmpDirName, "tmp")
+		tmpFileName := filepath.Join(tmpDirName, "tmp")
 		tmpFile, err := os.OpenFile(tmpFileName, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0600)
 		if err != nil {
 			return err
@@ -312,7 +320,7 @@ func calcCopyInfo(b *Builder, cmdName string, cInfos *[]*copyInfo, origPath stri
 			return err
 		}
 
-		ci.origPath = path.Join(filepath.Base(tmpDirName), filepath.Base(tmpFileName))
+		ci.origPath = filepath.Join(filepath.Base(tmpDirName), filepath.Base(tmpFileName))
 
 		// If the destination is a directory, figure out the filename.
 		if strings.HasSuffix(ci.destPath, "/") {
@@ -356,7 +364,7 @@ func calcCopyInfo(b *Builder, cmdName string, cInfos *[]*copyInfo, origPath stri
 			if fileInfo.Name() == "" {
 				continue
 			}
-			match, _ := path.Match(origPath, fileInfo.Name())
+			match, _ := filepath.Match(origPath, fileInfo.Name())
 			if !match {
 				continue
 			}
@@ -373,7 +381,7 @@ func calcCopyInfo(b *Builder, cmdName string, cInfos *[]*copyInfo, origPath stri
 	if err := b.checkPathForAddition(origPath); err != nil {
 		return err
 	}
-	fi, _ := os.Stat(path.Join(b.contextPath, origPath))
+	fi, _ := os.Stat(filepath.Join(b.contextPath, origPath))
 
 	ci := copyInfo{}
 	ci.origPath = origPath
@@ -394,7 +402,7 @@ func calcCopyInfo(b *Builder, cmdName string, cInfos *[]*copyInfo, origPath stri
 
 	// Must be a dir
 	var subfiles []string
-	absOrigPath := path.Join(b.contextPath, ci.origPath)
+	absOrigPath := filepath.Join(b.contextPath, ci.origPath)
 
 	// Add a trailing / to make sure we only pick up nested files under
 	// the dir and not sibling files of the dir that just happen to
@@ -407,7 +415,7 @@ func calcCopyInfo(b *Builder, cmdName string, cInfos *[]*copyInfo, origPath stri
 	absOrigPathNoSlash := absOrigPath[:len(absOrigPath)-1]
 
 	for _, fileInfo := range b.context.GetSums() {
-		absFile := path.Join(b.contextPath, fileInfo.Name())
+		absFile := filepath.Join(b.contextPath, fileInfo.Name())
 		// Any file in the context that starts with the given path will be
 		// picked up and its hashcode used.  However, we'll exclude the
 		// root dir itself.  We do this for a coupel of reasons:
@@ -631,7 +639,7 @@ func (b *Builder) run(c *daemon.Container) error {
 }
 
 func (b *Builder) checkPathForAddition(orig string) error {
-	origPath := path.Join(b.contextPath, orig)
+	origPath := filepath.Join(b.contextPath, orig)
 	origPath, err := filepath.EvalSymlinks(origPath)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -639,7 +647,11 @@ func (b *Builder) checkPathForAddition(orig string) error {
 		}
 		return err
 	}
-	if !strings.HasPrefix(origPath, b.contextPath) {
+	contextPath, err := filepath.EvalSymlinks(b.contextPath)
+	if err != nil {
+		return err
+	}
+	if !strings.HasPrefix(origPath, contextPath) {
 		return fmt.Errorf("Forbidden path outside the build context: %s (%s)", orig, origPath)
 	}
 	if _, err := os.Stat(origPath); err != nil {
@@ -655,7 +667,7 @@ func (b *Builder) addContext(container *daemon.Container, orig, dest string, dec
 	var (
 		err        error
 		destExists = true
-		origPath   = path.Join(b.contextPath, orig)
+		origPath   = filepath.Join(b.contextPath, orig)
 		destPath   string
 	)
 
@@ -708,7 +720,7 @@ func (b *Builder) addContext(container *daemon.Container, orig, dest string, dec
 		}
 	}
 
-	if err := os.MkdirAll(path.Dir(destPath), 0755); err != nil {
+	if err := system.MkdirAll(filepath.Dir(destPath), 0755); err != nil {
 		return err
 	}
 	if err := chrootarchive.CopyWithTar(origPath, destPath); err != nil {
@@ -717,7 +729,7 @@ func (b *Builder) addContext(container *daemon.Container, orig, dest string, dec
 
 	resPath := destPath
 	if destExists && destStat.IsDir() {
-		resPath = path.Join(destPath, path.Base(origPath))
+		resPath = filepath.Join(destPath, filepath.Base(origPath))
 	}
 
 	return fixPermissions(origPath, resPath, 0, 0, destExists)
@@ -728,38 +740,6 @@ func copyAsDirectory(source, destination string, destExisted bool) error {
 		return err
 	}
 	return fixPermissions(source, destination, 0, 0, destExisted)
-}
-
-func fixPermissions(source, destination string, uid, gid int, destExisted bool) error {
-	// If the destination didn't already exist, or the destination isn't a
-	// directory, then we should Lchown the destination. Otherwise, we shouldn't
-	// Lchown the destination.
-	destStat, err := os.Stat(destination)
-	if err != nil {
-		// This should *never* be reached, because the destination must've already
-		// been created while untar-ing the context.
-		return err
-	}
-	doChownDestination := !destExisted || !destStat.IsDir()
-
-	// We Walk on the source rather than on the destination because we don't
-	// want to change permissions on things we haven't created or modified.
-	return filepath.Walk(source, func(fullpath string, info os.FileInfo, err error) error {
-		// Do not alter the walk root iff. it existed before, as it doesn't fall under
-		// the domain of "things we should chown".
-		if !doChownDestination && (source == fullpath) {
-			return nil
-		}
-
-		// Path is prefixed by source: substitute with destination instead.
-		cleaned, err := filepath.Rel(source, fullpath)
-		if err != nil {
-			return err
-		}
-
-		fullpath = path.Join(destination, cleaned)
-		return os.Lchown(fullpath, uid, gid)
-	})
 }
 
 func (b *Builder) clearTmp() {
