@@ -88,15 +88,13 @@ func (s *DockerSuite) TestRunEchoStdoutWithCPUAndMemoryLimit(c *check.C) {
 
 // "test" should be printed
 func (s *DockerSuite) TestRunEchoStdoutWithCPUQuota(c *check.C) {
+	testRequires(c, CpuCfsQuota)
 	runCmd := exec.Command(dockerBinary, "run", "--cpu-quota", "8000", "--name", "test", "busybox", "echo", "test")
 	out, _, _, err := runCommandWithStdoutStderr(runCmd)
 	if err != nil {
 		c.Fatalf("failed to run container: %v, output: %q", err, out)
 	}
 	out = strings.TrimSpace(out)
-	if strings.Contains(out, "Your kernel does not support CPU cfs quota") {
-		c.Skip("Your kernel does not support CPU cfs quota, skip this test")
-	}
 	if out != "test" {
 		c.Errorf("container should've printed 'test'")
 	}
@@ -105,7 +103,7 @@ func (s *DockerSuite) TestRunEchoStdoutWithCPUQuota(c *check.C) {
 	c.Assert(err, check.IsNil)
 
 	if out != "8000" {
-		c.Errorf("setting the CPU CFS quota failed")
+		c.Fatalf("setting the CPU CFS quota failed")
 	}
 }
 
@@ -1116,20 +1114,16 @@ func (s *DockerSuite) TestRunProcWritableInPrivilegedContainers(c *check.C) {
 }
 
 func (s *DockerSuite) TestRunWithCpuPeriod(c *check.C) {
+	testRequires(c, CpuCfsPeriod)
 	runCmd := exec.Command(dockerBinary, "run", "--cpu-period", "50000", "--name", "test", "busybox", "true")
-	out, _, _, err := runCommandWithStdoutStderr(runCmd)
-	if err != nil {
-		c.Fatalf("failed to run container: %v, output: %q", err, out)
-	}
-	out = strings.TrimSpace(out)
-	if strings.Contains(out, "Your kernel does not support CPU cfs period") {
-		c.Skip("Your kernel does not support CPU cfs period, skip this test")
+	if _, err := runCommand(runCmd); err != nil {
+		c.Fatalf("failed to run container: %v", err)
 	}
 
-	out, err = inspectField("test", "HostConfig.CpuPeriod")
+	out, err := inspectField("test", "HostConfig.CpuPeriod")
 	c.Assert(err, check.IsNil)
 	if out != "50000" {
-		c.Errorf("setting the CPU CFS period failed")
+		c.Fatalf("setting the CPU CFS period failed")
 	}
 }
 
