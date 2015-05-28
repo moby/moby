@@ -35,7 +35,7 @@ publishing all Official Repositories content. This team works in collaboration
 with upstream software maintainers, security experts, and the broader Docker
 community.
 
-While it is preferrable to have upstream software authors maintaining their
+While it is preferable to have upstream software authors maintaining their
 corresponding Official Repositories, this is not a strict requirement. Creating
 and maintaining images for Official Repositories is a public process. It takes
 place openly on GitHub where participation is encouraged. Anyone can provide
@@ -92,9 +92,9 @@ Official Repository is "generally useful" to the large Python developer
 community, whereas an obscure text adventure game written in Python last week is
 not.
 
-When a new proposal is accepted, the author becomes responsibile for keeping
+When a new proposal is accepted, the author becomes responsible for keeping
 their images up-to-date and responding to user feedback.  The Official
-Repositories team becomes responsibile for publishing the images and
+Repositories team becomes responsible for publishing the images and
 documentation on Docker Hub.  Updates to the Official Repository follow the same
 pull request process, though with less review. The Official Repositories team
 ultimately acts as a gatekeeper for all changes, which helps mitigate the risk

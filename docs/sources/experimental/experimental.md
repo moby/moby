@@ -8,7 +8,7 @@ experimental as of the current release. Experimental features are **not** ready
 for production. They are provided for test and evaluation in your sandbox
 environments.  
 
-The information below describes each feature and the Github pull requests and
+The information below describes each feature and the GitHub pull requests and
 issues associated with it. If necessary, links are provided to additional
 documentation on an issue.  As an active Docker user and community member,
 please feel free to provide any feedback on these features you wish.

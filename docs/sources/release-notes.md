@@ -40,7 +40,7 @@ repository](https://github.com/docker/docker/issues/).
 An idiosyncrasy in AUFS prevented permissions from propagating predictably
 between upper and lower layers. This caused issues with accessing private
 keys, database instances, etc.  This issue was closed in this release:
-[Github Issue 783](https://github.com/docker/docker/issues/783).
+[GitHub Issue 783](https://github.com/docker/docker/issues/783).
 
 
 * *Docker Hub incompatible with Safari 8*

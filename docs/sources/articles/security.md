@@ -262,7 +262,7 @@ Docker containers are, by default, quite secure; especially if you take
 care of running your processes inside the containers as non-privileged
 users (i.e., non-`root`).
 
-You can add an extra layer of safety by enabling Apparmor, SELinux,
+You can add an extra layer of safety by enabling AppArmor, SELinux,
 GRSEC, or your favorite hardening solution.
 
 Last but not least, if you see interesting security features in other

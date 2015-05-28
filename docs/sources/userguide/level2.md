@@ -74,7 +74,7 @@ RUN apt-get install -y <input id="gcc" class="l_fill" type="text"><br>
 <input id="run6" class="l_fill" type="text">cd redis-stable && make && make install<br>
 &#35; launch redis when starting the image
 <input id="entrypoint" class="l_fill" type="text"> ["redis-server"]<br>
-&#35; run as user dameon
+&#35; run as user daemon
 <input id="user" class="l_fill" type="text"> daemon<br>
 &#35; expose port 6379
 <input id="expose" class="l_fill" type="text"> 6379

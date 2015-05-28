@@ -167,7 +167,7 @@ order ( and the corresponding representation of its value):
 * 'devmajor' - string of the integer
 * 'devminor' - string of the integer
 
-For >= Version1, the extented attribute headers ("SCHILY.xattr." prefixed pax
+For >= Version1, the extended attribute headers ("SCHILY.xattr." prefixed pax
 headers) included after the above list. These xattrs key/values are first
 sorted by the keys.
 

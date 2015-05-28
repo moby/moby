@@ -130,7 +130,7 @@ to you using:
 
     boot2docker ip
 
-Typically, it is 192.168.59.103, but it could get changed by Virtualbox's DHCP
+Typically, it is 192.168.59.103, but it could get changed by VirtualBox's DHCP
 implementation.
 
 For further information or to report issues, please see the [Boot2Docker site](http://boot2docker.io)

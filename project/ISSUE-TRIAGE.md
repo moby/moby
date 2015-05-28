@@ -1,4 +1,4 @@
-Triaging of issue
+Triaging of issues
 ------------------
 
 Triage provides an important way to contribute to an open source project.  Triage helps ensure issues resolve quickly by:  
@@ -9,7 +9,7 @@ Triage provides an important way to contribute to an open source project.  Triag
 
 - Lowering the issue count by preventing duplicate issues.
 
-- Streamling the development process by preventing duplicate discussions.
+- Streamlining the development process by preventing duplicate discussions.
 
 If you don't have time to code, consider helping with triage. The community will thank you for saving them time by spending some of yours.
 

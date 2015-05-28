@@ -87,7 +87,7 @@ To set the file's execute bit on Linux and OS X:
 
     $ chmod +x docker
 
-To get the list of stable release version numbers from Github, view the
+To get the list of stable release version numbers from GitHub, view the
 `docker/docker` [releases page](https://github.com/docker/docker/releases). 
 
 > **Note**
