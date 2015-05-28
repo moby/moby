@@ -3179,6 +3179,13 @@ func (s *DockerSuite) TestRunUnshareProc(c *check.C) {
 	if out, _, err := runCommandWithOutput(runCmd); err == nil || !strings.Contains(out, "Permission denied") {
 		c.Fatalf("unshare should have failed with permission denied, got: %s, %v", out, err)
 	}
+
+	/* Ensure still fails if running privileged with the default policy */
+	name = "crashoverride"
+	runCmd = exec.Command(dockerBinary, "run", "--privileged", "--security-opt", "apparmor:docker-default", "--name", name, "jess/unshare", "unshare", "-p", "-m", "-f", "-r", "mount", "-t", "proc", "none", "/proc")
+	if out, _, err := runCommandWithOutput(runCmd); err == nil || !strings.Contains(out, "Permission denied") {
+		c.Fatalf("unshare should have failed with permission denied, got: %s, %v", out, err)
+	}
 }
 
 func (s *DockerSuite) TestRunPublishPort(c *check.C) {
