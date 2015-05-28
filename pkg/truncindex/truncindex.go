@@ -6,6 +6,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/docker/docker/pkg/errtype"
 	"github.com/tchap/go-patricia/patricia"
 )
 
@@ -106,5 +107,5 @@ func (idx *TruncIndex) Get(s string) (string, error) {
 	if id != "" {
 		return id, nil
 	}
-	return "", fmt.Errorf("no such id: %s", s)
+	return "", errtype.NewNotFoundError("id", s)
 }

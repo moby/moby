@@ -210,8 +210,8 @@ func (s *DockerRegistrySuite) TestRemoveImageByDigest(c *check.C) {
 	// try to inspect again - it should error this time
 	if _, err := inspectField(imageReference, "Id"); err == nil {
 		c.Fatalf("unexpected nil err trying to inspect what should be a non-existent image")
-	} else if !strings.Contains(err.Error(), "No such image") {
-		c.Fatalf("expected 'No such image' output, got %v", err)
+	} else if !strings.Contains(err.Error(), "no such id") {
+		c.Fatalf("expected 'no such id' output, got %v", err)
 	}
 }
 

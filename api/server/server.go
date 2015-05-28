@@ -24,6 +24,7 @@ import (
 	"github.com/docker/docker/cliconfig"
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/graph"
+	"github.com/docker/docker/pkg/errtype"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/docker/docker/pkg/parsers"
@@ -215,7 +216,11 @@ func httpError(w http.ResponseWriter, err error) {
 		}
 	}
 
-	logrus.WithFields(logrus.Fields{"statusCode": statusCode, "err": err}).Error("HTTP Error")
+	if errtype.IsNotFound(err) {
+		logrus.WithFields(logrus.Fields{"statusCode": statusCode, "err": err}).Info("HTTP Error")
+	} else {
+		logrus.WithFields(logrus.Fields{"statusCode": statusCode, "err": err}).Error("HTTP Error")
+	}
 	http.Error(w, err.Error(), statusCode)
 }
 
@@ -1448,7 +1453,11 @@ func makeHttpHandler(logging bool, localMethod string, localRoute string, handle
 		}
 
 		if err := handlerFunc(version, w, r, mux.Vars(r)); err != nil {
-			logrus.Errorf("Handler for %s %s returned error: %s", localMethod, localRoute, err)
+			if errtype.IsNotFound(err) {
+				logrus.Infof("Handler for %s %s returned error: %s", localMethod, localRoute, err)
+			} else {
+				logrus.Errorf("Handler for %s %s returned error: %s", localMethod, localRoute, err)
+			}
 			httpError(w, err)
 		}
 	}

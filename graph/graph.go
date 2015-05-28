@@ -93,7 +93,8 @@ func (graph *Graph) Exists(id string) bool {
 func (graph *Graph) Get(name string) (*image.Image, error) {
 	id, err := graph.idIndex.Get(name)
 	if err != nil {
-		return nil, fmt.Errorf("could not find image: %v", err)
+		// Could not find image, return standard error
+		return nil, err
 	}
 	img, err := image.LoadImage(graph.ImageRoot(id))
 	if err != nil {
