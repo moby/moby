@@ -1,7 +1,5 @@
 #!/bin/bash
 
-DEST=$1
-
 PKGVERSION="${VERSION//-/'~'}"
 # if we have a "-dev" suffix or have change in Git, let's make this package version more complex so it works better
 if [[ "$VERSION" == *-dev ]] || [ -n "$(git status --porcelain)" ]; then
@@ -37,7 +35,7 @@ PACKAGE_LICENSE="Apache-2.0"
 # Build docker as an ubuntu package using FPM and REPREPRO (sue me).
 # bundle_binary must be called first.
 bundle_ubuntu() {
-	DIR=$DEST/build
+	DIR="$ABS_DEST/build"
 
 	# Include our udev rules
 	mkdir -p "$DIR/etc/udev/rules.d"
@@ -140,9 +138,9 @@ EOF
 		# create lxc-docker-VERSION package
 		fpm -s dir -C "$DIR" \
 			--name "lxc-docker-$VERSION" --version "$PKGVERSION" \
-			--after-install "$DEST/postinst" \
-			--before-remove "$DEST/prerm" \
-			--after-remove "$DEST/postrm" \
+			--after-install "$ABS_DEST/postinst" \
+			--before-remove "$ABS_DEST/prerm" \
+			--after-remove "$ABS_DEST/postrm" \
 			--architecture "$PACKAGE_ARCHITECTURE" \
 			--prefix / \
 			--depends iptables \
