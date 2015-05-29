@@ -1,8 +1,6 @@
 #!/bin/bash
 set -e
 
-DEST="$1"
-
 bundle_cover() {
 	coverprofiles=( "$DEST/../"*"/coverprofiles/"* )
 	for p in "${coverprofiles[@]}"; do
