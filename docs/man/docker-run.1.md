@@ -387,6 +387,7 @@ standard input.
 
 **-v**, **--volume**=[]
    Bind mount a volume (e.g., from the host: -v /host:/container, from Docker: -v /container)
+   Mount a tmpfs volume (e.g., -v tmpfs:/tmp, will mount a tmpfs at /tmp within the container, this command will copy the underlying content into the /tmpfs)
 
    The **-v** option can be used one or
 more times to add one or more mounts to a container. These mounts can then be
@@ -438,6 +439,15 @@ set a different default with the Dockerfile WORKDIR instruction. The operator
 can override the working directory by using the **-w** option.
 
 # EXAMPLES
+
+## Running container in Read-Only mode
+
+If you want to secure a container in such a way that the container content can
+not be modified you can use the --read-only switch.  You probably will need to
+mount tmpfs directories in /run and maybe /tmp so the applications have space
+to write temporary data.
+
+    # docker run -v --read-only -v tmpfs:/run -v tmpfs:/tmp -i -t fedora /bin/bash
 
 ## Exposing log messages from the container to the host's log
 

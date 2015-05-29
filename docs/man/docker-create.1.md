@@ -219,6 +219,7 @@ This value should always larger than **-m**, so you should always use this with 
 
 **-v**, **--volume**=[]
    Bind mount a volume (e.g., from the host: -v /host:/container, from Docker: -v /container)
+   Mount a tmpfs volume (e.g., -v tmpfs:/tmp, will mount a tmpfs at /tmp within the container, this command will copy the underlying content into the /tmpfs)
 
 **--volumes-from**=[]
    Mount volumes from the specified container(s)
