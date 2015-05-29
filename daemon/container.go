@@ -689,9 +689,14 @@ func (container *Container) getLogger() (logger.Logger, error) {
 		return nil, fmt.Errorf("Failed to get logging factory: %v", err)
 	}
 	ctx := logger.Context{
-		Config:        cfg.Config,
-		ContainerID:   container.ID,
-		ContainerName: container.Name,
+		Config:              cfg.Config,
+		ContainerID:         container.ID,
+		ContainerName:       container.Name,
+		ContainerEntrypoint: container.Path,
+		ContainerArgs:       container.Args,
+		ContainerImageID:    container.ImageID,
+		ContainerImageName:  container.Config.Image,
+		ContainerCreated:    container.Created,
 	}
 
 	// Set logging file for "json-logger"
