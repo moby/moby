@@ -74,7 +74,7 @@ func parseBindMount(spec string, mountLabel string, config *runconfig.Config) (*
 		return nil, fmt.Errorf("Invalid volume specification: %s", spec)
 	}
 
-	name, source, err := parseVolumeSource(arr[0], config)
+	name, source, err := parseVolumeSource(arr[0])
 	if err != nil {
 		return nil, err
 	}
@@ -238,9 +238,9 @@ func (daemon *Daemon) registerMountPoints(container *Container, hostConfig *runc
 	return nil
 }
 
-// verifyOldVolumesInfo ports volumes configured for the containers pre docker 1.7.
+// verifyVolumesInfo ports volumes configured for the containers pre docker 1.7.
 // It reads the container configuration and creates valid mount points for the old volumes.
-func (daemon *Daemon) verifyOldVolumesInfo(container *Container) error {
+func (daemon *Daemon) verifyVolumesInfo(container *Container) error {
 	jsonPath, err := container.jsonPath()
 	if err != nil {
 		return err
@@ -268,12 +268,19 @@ func (daemon *Daemon) verifyOldVolumesInfo(container *Container) error {
 
 	for destination, hostPath := range vols.Volumes {
 		vfsPath := filepath.Join(daemon.root, "vfs", "dir")
+		rw := vols.VolumesRW != nil && vols.VolumesRW[destination]
 
 		if strings.HasPrefix(hostPath, vfsPath) {
 			id := filepath.Base(hostPath)
-
-			rw := vols.VolumesRW != nil && vols.VolumesRW[destination]
 			container.addLocalMountPoint(id, destination, rw)
+		} else { // Bind mount
+			id, source, err := parseVolumeSource(hostPath)
+			// We should not find an error here coming
+			// from the old configuration, but who knows.
+			if err != nil {
+				return err
+			}
+			container.addBindMountPoint(id, source, destination, rw)
 		}
 	}
 

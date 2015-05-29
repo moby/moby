@@ -213,7 +213,7 @@ func (daemon *Daemon) register(container *Container, updateSuffixarray bool) err
 	// we'll waste time if we update it for every container
 	daemon.idIndex.Add(container.ID)
 
-	if err := daemon.verifyOldVolumesInfo(container); err != nil {
+	if err := daemon.verifyVolumesInfo(container); err != nil {
 		return err
 	}
 
