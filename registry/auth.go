@@ -74,6 +74,19 @@ func (auth *RequestAuthorization) getToken() (string, error) {
 	return "", nil
 }
 
+// Checks that requests to the v2 registry can be authorized.
+func (auth *RequestAuthorization) CanAuthorizeV2() bool {
+	if len(auth.registryEndpoint.AuthChallenges) == 0 {
+		return true
+	}
+	scope := fmt.Sprintf("%s:%s:%s", auth.resource, auth.scope, strings.Join(auth.actions, ","))
+	if _, err := loginV2(auth.authConfig, auth.registryEndpoint, scope); err != nil {
+		logrus.Debugf("Cannot authorize against V2 endpoint: %s", auth.registryEndpoint)
+		return false
+	}
+	return true
+}
+
 func (auth *RequestAuthorization) Authorize(req *http.Request) error {
 	token, err := auth.getToken()
 	if err != nil {
@@ -91,7 +104,7 @@ func (auth *RequestAuthorization) Authorize(req *http.Request) error {
 func Login(authConfig *cliconfig.AuthConfig, registryEndpoint *Endpoint) (string, error) {
 	// Separates the v2 registry login logic from the v1 logic.
 	if registryEndpoint.Version == APIVersion2 {
-		return loginV2(authConfig, registryEndpoint)
+		return loginV2(authConfig, registryEndpoint, "" /* scope */)
 	}
 	return loginV1(authConfig, registryEndpoint)
 }
@@ -209,7 +222,7 @@ func loginV1(authConfig *cliconfig.AuthConfig, registryEndpoint *Endpoint) (stri
 // now, users should create their account through other means like directly from a web page
 // served by the v2 registry service provider. Whether this will be supported in the future
 // is to be determined.
-func loginV2(authConfig *cliconfig.AuthConfig, registryEndpoint *Endpoint) (string, error) {
+func loginV2(authConfig *cliconfig.AuthConfig, registryEndpoint *Endpoint, scope string) (string, error) {
 	logrus.Debugf("attempting v2 login to registry endpoint %s", registryEndpoint)
 	var (
 		err       error
@@ -217,13 +230,18 @@ func loginV2(authConfig *cliconfig.AuthConfig, registryEndpoint *Endpoint) (stri
 	)
 
 	for _, challenge := range registryEndpoint.AuthChallenges {
-		logrus.Debugf("trying %q auth challenge with params %s", challenge.Scheme, challenge.Parameters)
+		params := make(map[string]string, len(challenge.Parameters)+1)
+		for k, v := range challenge.Parameters {
+			params[k] = v
+		}
+		params["scope"] = scope
+		logrus.Debugf("trying %q auth challenge with params %v", challenge.Scheme, params)
 
 		switch strings.ToLower(challenge.Scheme) {
 		case "basic":
-			err = tryV2BasicAuthLogin(authConfig, challenge.Parameters, registryEndpoint)
+			err = tryV2BasicAuthLogin(authConfig, params, registryEndpoint)
 		case "bearer":
-			err = tryV2TokenAuthLogin(authConfig, challenge.Parameters, registryEndpoint)
+			err = tryV2TokenAuthLogin(authConfig, params, registryEndpoint)
 		default:
 			// Unsupported challenge types are explicitly skipped.
 			err = fmt.Errorf("unsupported auth scheme: %q", challenge.Scheme)
