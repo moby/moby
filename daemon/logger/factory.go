@@ -2,7 +2,10 @@ package logger
 
 import (
 	"fmt"
+	"os"
+	"strings"
 	"sync"
+	"time"
 )
 
 // Creator is a method that builds a logging driver instance with given context
@@ -10,10 +13,32 @@ type Creator func(Context) (Logger, error)
 
 // Context provides enough information for a logging driver to do its function
 type Context struct {
-	Config        map[string]string
-	ContainerID   string
-	ContainerName string
-	LogPath       string
+	Config              map[string]string
+	ContainerID         string
+	ContainerName       string
+	ContainerEntrypoint string
+	ContainerArgs       []string
+	ContainerImageID    string
+	ContainerImageName  string
+	ContainerCreated    time.Time
+	LogPath             string
+}
+
+func (ctx *Context) Hostname() (string, error) {
+	hostname, err := os.Hostname()
+	if err != nil {
+		return "", fmt.Errorf("logger: can not resolve hostname: %v", err)
+	}
+	return hostname, nil
+}
+
+func (ctx *Context) Command() string {
+	terms := []string{ctx.ContainerEntrypoint}
+	for _, arg := range ctx.ContainerArgs {
+		terms = append(terms, arg)
+	}
+	command := strings.Join(terms, " ")
+	return command
 }
 
 type logdriverFactory struct {
