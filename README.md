@@ -58,7 +58,7 @@ takes place at the kernel level. Most modern operating system kernels
 now support the primitives necessary for containerization, including
 Linux with [openvz](https://openvz.org),
 [vserver](http://linux-vserver.org) and more recently
-[lxc](http://lxc.sourceforge.net), Solaris with
+[lxc](https://linuxcontainers.org/), Solaris with
 [zones](https://docs.oracle.com/cd/E26502_01/html/E29024/preface-1.html#scrolltoc),
 and FreeBSD with
 [Jails](https://www.freebsd.org/doc/handbook/jails.html).
