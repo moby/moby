@@ -322,6 +322,9 @@ func (s *TagStore) pushV2Repository(r *registry.Session, localRepo Repository, o
 	if err != nil {
 		return fmt.Errorf("error getting authorization: %s", err)
 	}
+	if !auth.CanAuthorizeV2() {
+		return ErrV2RegistryUnavailable
+	}
 
 	for _, tag := range tags {
 		logrus.Debugf("Pushing repository: %s:%s", repoInfo.CanonicalName, tag)
@@ -549,6 +552,7 @@ func (s *TagStore) Push(localName string, imagePushConfig *ImagePushConfig) erro
 		if err != ErrV2RegistryUnavailable {
 			return fmt.Errorf("Error pushing to registry: %s", err)
 		}
+		logrus.Debug("V2 registry is unavailable, falling back on V1")
 	}
 
 	if err := s.pushRepository(r, imagePushConfig.OutStream, repoInfo, localRepo, imagePushConfig.Tag, sf); err != nil {
