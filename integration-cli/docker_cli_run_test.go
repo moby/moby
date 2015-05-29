@@ -3117,7 +3117,10 @@ func (s *DockerSuite) TestRunWriteToProcAsound(c *check.C) {
 func (s *DockerSuite) TestRunReadProcTimer(c *check.C) {
 	testRequires(c, NativeExecDriver)
 	out, code, err := runCommandWithOutput(exec.Command(dockerBinary, "run", "busybox", "cat", "/proc/timer_stats"))
-	if err != nil || code != 0 {
+	if code != 0 {
+		return
+	}
+	if err != nil {
 		c.Fatal(err)
 	}
 	if strings.Trim(out, "\n ") != "" {
@@ -3134,7 +3137,10 @@ func (s *DockerSuite) TestRunReadProcLatency(c *check.C) {
 		return
 	}
 	out, code, err := runCommandWithOutput(exec.Command(dockerBinary, "run", "busybox", "cat", "/proc/latency_stats"))
-	if err != nil || code != 0 {
+	if code != 0 {
+		return
+	}
+	if err != nil {
 		c.Fatal(err)
 	}
 	if strings.Trim(out, "\n ") != "" {
