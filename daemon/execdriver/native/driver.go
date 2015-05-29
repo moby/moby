@@ -278,6 +278,101 @@ func (d *driver) Unpause(c *execdriver.Command) error {
 	return active.Resume()
 }
 
+func (d *driver) Checkpoint(c *execdriver.Command, opts *libcontainer.CriuOpts) error {
+	active := d.activeContainers[c.ID]
+	if active == nil {
+		return fmt.Errorf("active container for %s does not exist", c.ID)
+	}
+
+	d.Lock()
+	defer d.Unlock()
+	err := active.Checkpoint(opts)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (d *driver) Restore(c *execdriver.Command, pipes *execdriver.Pipes, restoreCallback execdriver.RestoreCallback, opts *libcontainer.CriuOpts, forceRestore bool) (execdriver.ExitStatus, error) {
+	var (
+		cont libcontainer.Container
+		err  error
+	)
+
+	cont, err = d.factory.Load(c.ID)
+	if err != nil {
+		if forceRestore {
+			var config *configs.Config
+			config, err = d.createContainer(c)
+			if err != nil {
+				return execdriver.ExitStatus{ExitCode: -1}, err
+			}
+			cont, err = d.factory.Create(c.ID, config)
+			if err != nil {
+				return execdriver.ExitStatus{ExitCode: -1}, err
+			}
+		} else {
+			return execdriver.ExitStatus{ExitCode: -1}, err
+		}
+	}
+
+	p := &libcontainer.Process{
+		Args: append([]string{c.ProcessConfig.Entrypoint}, c.ProcessConfig.Arguments...),
+		Env:  c.ProcessConfig.Env,
+		Cwd:  c.WorkingDir,
+		User: c.ProcessConfig.User,
+	}
+
+	config := cont.Config()
+	if err := setupPipes(&config, &c.ProcessConfig, p, pipes); err != nil {
+		return execdriver.ExitStatus{ExitCode: -1}, err
+	}
+
+	d.Lock()
+	d.activeContainers[c.ID] = cont
+	d.Unlock()
+	defer func() {
+		cont.Destroy()
+		d.cleanContainer(c.ID)
+	}()
+
+	if err := cont.Restore(p, opts); err != nil {
+		return execdriver.ExitStatus{ExitCode: -1}, err
+	}
+
+	// FIXME: no idea if any of this is needed...
+	if restoreCallback != nil {
+		pid, err := p.Pid()
+		if err != nil {
+			p.Signal(os.Kill)
+			p.Wait()
+			return execdriver.ExitStatus{ExitCode: -1}, err
+		}
+		restoreCallback(&c.ProcessConfig, pid)
+	}
+
+	oom := notifyOnOOM(cont)
+	waitF := p.Wait
+	if nss := cont.Config().Namespaces; !nss.Contains(configs.NEWPID) {
+		// we need such hack for tracking processes with inherited fds,
+		// because cmd.Wait() waiting for all streams to be copied
+		waitF = waitInPIDHost(p, cont)
+	}
+	ps, err := waitF()
+	if err != nil {
+		execErr, ok := err.(*exec.ExitError)
+		if !ok {
+			return execdriver.ExitStatus{ExitCode: -1}, err
+		}
+		ps = execErr.ProcessState
+	}
+
+	cont.Destroy()
+	_, oomKill := <-oom
+	return execdriver.ExitStatus{ExitCode: utils.ExitStatus(ps.Sys().(syscall.WaitStatus)), OOMKilled: oomKill}, nil
+}
+
 func (d *driver) Terminate(c *execdriver.Command) error {
 	defer d.cleanContainer(c.ID)
 	container, err := d.factory.Load(c.ID)
