@@ -63,7 +63,8 @@ func (daemon *Daemon) imgDeleteHelper(name string, list *[]types.ImageDelete, fi
 	repos := daemon.Repositories().ByID()[img.ID]
 
 	//If delete by id, see if the id belong only to one repository
-	if repoName == "" {
+	deleteByID := repoName == ""
+	if deleteByID {
 		for _, repoAndTag := range repos {
 			parsedRepo, parsedTag := parsers.ParseRepositoryTag(repoAndTag)
 			if repoName == "" || repoName == parsedRepo {
@@ -91,7 +92,7 @@ func (daemon *Daemon) imgDeleteHelper(name string, list *[]types.ImageDelete, fi
 		return nil
 	}
 
-	if len(repos) <= 1 {
+	if len(repos) <= 1 || (len(repoAndTags) <= 1 && deleteByID) {
 		if err := daemon.canDeleteImage(img.ID, force); err != nil {
 			return err
 		}
