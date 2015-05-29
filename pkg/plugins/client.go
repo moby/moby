@@ -68,6 +68,7 @@ func (c *Client) callWithRetry(serviceMethod string, args interface{}, ret inter
 			continue
 		}
 
+		defer resp.Body.Close()
 		if resp.StatusCode != http.StatusOK {
 			remoteErr, err := ioutil.ReadAll(resp.Body)
 			if err != nil {
