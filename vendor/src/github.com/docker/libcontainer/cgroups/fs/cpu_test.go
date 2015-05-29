@@ -1,3 +1,5 @@
+// +build linux
+
 package fs
 
 import (
@@ -42,19 +44,27 @@ func TestCpuSetBandWidth(t *testing.T) {
 	defer helper.cleanup()
 
 	const (
-		quotaBefore  = 8000
-		quotaAfter   = 5000
-		periodBefore = 10000
-		periodAfter  = 7000
+		quotaBefore     = 8000
+		quotaAfter      = 5000
+		periodBefore    = 10000
+		periodAfter     = 7000
+		rtRuntimeBefore = 8000
+		rtRuntimeAfter  = 5000
+		rtPeriodBefore  = 10000
+		rtPeriodAfter   = 7000
 	)
 
 	helper.writeFileContents(map[string]string{
 		"cpu.cfs_quota_us":  strconv.Itoa(quotaBefore),
 		"cpu.cfs_period_us": strconv.Itoa(periodBefore),
+		"cpu.rt_runtime_us": strconv.Itoa(rtRuntimeBefore),
+		"cpu.rt_period_us":  strconv.Itoa(rtPeriodBefore),
 	})
 
 	helper.CgroupData.c.CpuQuota = quotaAfter
 	helper.CgroupData.c.CpuPeriod = periodAfter
+	helper.CgroupData.c.CpuRtRuntime = rtRuntimeAfter
+	helper.CgroupData.c.CpuRtPeriod = rtPeriodAfter
 	cpu := &CpuGroup{}
 	if err := cpu.Set(helper.CgroupPath, helper.CgroupData.c); err != nil {
 		t.Fatal(err)
@@ -74,6 +84,20 @@ func TestCpuSetBandWidth(t *testing.T) {
 	}
 	if period != periodAfter {
 		t.Fatal("Got the wrong value, set cpu.cfs_period_us failed.")
+	}
+	rtRuntime, err := getCgroupParamUint(helper.CgroupPath, "cpu.rt_runtime_us")
+	if err != nil {
+		t.Fatalf("Failed to parse cpu.rt_runtime_us - %s", err)
+	}
+	if rtRuntime != rtRuntimeAfter {
+		t.Fatal("Got the wrong value, set cpu.rt_runtime_us failed.")
+	}
+	rtPeriod, err := getCgroupParamUint(helper.CgroupPath, "cpu.rt_period_us")
+	if err != nil {
+		t.Fatalf("Failed to parse cpu.rt_period_us - %s", err)
+	}
+	if rtPeriod != rtPeriodAfter {
+		t.Fatal("Got the wrong value, set cpu.rt_period_us failed.")
 	}
 }
 

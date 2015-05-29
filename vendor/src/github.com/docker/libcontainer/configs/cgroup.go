@@ -8,6 +8,9 @@ const (
 	Thawed    FreezerState = "THAWED"
 )
 
+// TODO Windows: This can be factored out in the future as Cgroups are not
+// supported on the Windows platform.
+
 type Cgroup struct {
 	Name string `json:"name"`
 
@@ -30,6 +33,9 @@ type Cgroup struct {
 	// Total memory usage (memory + swap); set `-1' to disable swap
 	MemorySwap int64 `json:"memory_swap"`
 
+	// Kernel memory limit (in bytes)
+	KernelMemory int64 `json:"kernel_memory"`
+
 	// CPU shares (relative weight vs. other containers)
 	CpuShares int64 `json:"cpu_shares"`
 
@@ -38,6 +44,12 @@ type Cgroup struct {
 
 	// CPU period to be used for hardcapping (in usecs). 0 to use system default.
 	CpuPeriod int64 `json:"cpu_period"`
+
+	// How many time CPU will use in realtime scheduling (in usecs).
+	CpuRtRuntime int64 `json:"cpu_quota"`
+
+	// CPU period to be used for realtime scheduling (in usecs).
+	CpuRtPeriod int64 `json:"cpu_period"`
 
 	// CPU to use
 	CpusetCpus string `json:"cpuset_cpus"`
@@ -71,4 +83,10 @@ type Cgroup struct {
 
 	// Whether to disable OOM Killer
 	OomKillDisable bool `json:"oom_kill_disable"`
+
+	// Set priority of network traffic for container
+	NetPrioIfpriomap []*IfPrioMap `json:"net_prio_ifpriomap"`
+
+	// Set class identifier for container's network packets
+	NetClsClassid string `json:"net_cls_classid"`
 }

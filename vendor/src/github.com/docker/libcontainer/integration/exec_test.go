@@ -182,14 +182,6 @@ func newTestRoot() (string, error) {
 	return dir, nil
 }
 
-func waitProcess(p *libcontainer.Process, t *testing.T) {
-	status, err := p.Wait()
-	ok(t, err)
-	if !status.Success() {
-		t.Fatal(status)
-	}
-}
-
 func TestEnter(t *testing.T) {
 	if testing.Short() {
 		return
@@ -430,20 +422,14 @@ func testFreeze(t *testing.T, systemd bool) {
 	stdinR, stdinW, err := os.Pipe()
 	ok(t, err)
 
-	pconfig := libcontainer.Process{
+	pconfig := &libcontainer.Process{
 		Args:  []string{"cat"},
 		Env:   standardEnvironment,
 		Stdin: stdinR,
 	}
-	err = container.Start(&pconfig)
+	err = container.Start(pconfig)
 	stdinR.Close()
 	defer stdinW.Close()
-	ok(t, err)
-
-	pid, err := pconfig.Pid()
-	ok(t, err)
-
-	process, err := os.FindProcess(pid)
 	ok(t, err)
 
 	err = container.Pause()
@@ -457,12 +443,7 @@ func testFreeze(t *testing.T, systemd bool) {
 	}
 
 	stdinW.Close()
-	s, err := process.Wait()
-	ok(t, err)
-
-	if !s.Success() {
-		t.Fatal(s.String())
-	}
+	waitProcess(pconfig, t)
 }
 
 func TestCpuShares(t *testing.T) {
@@ -547,7 +528,7 @@ func TestContainerState(t *testing.T) {
 		t.Fatal(err)
 	}
 	stdinR.Close()
-	defer p.Signal(os.Kill)
+	defer stdinW.Close()
 
 	st, err := container.State()
 	if err != nil {
@@ -562,7 +543,7 @@ func TestContainerState(t *testing.T) {
 		t.Fatal("Container using non-host ipc namespace")
 	}
 	stdinW.Close()
-	p.Wait()
+	waitProcess(p, t)
 }
 
 func TestPassExtraFiles(t *testing.T) {

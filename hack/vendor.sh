@@ -69,8 +69,11 @@ mv tmp-digest src/github.com/docker/distribution/digest
 mkdir -p src/github.com/docker/distribution/registry
 mv tmp-api src/github.com/docker/distribution/registry/api
 
-clone git github.com/docker/libcontainer a37b2a4f152e2a1c9de596f54c051cb889de0691
+clone git github.com/docker/libcontainer 60d043931be138062fb3f11e0f48fd6d71537714
 # libcontainer deps (see src/github.com/docker/libcontainer/update-vendor.sh)
+clone git github.com/codegangsta/cli 1.1.0
 clone git github.com/coreos/go-systemd v2
 clone git github.com/godbus/dbus v2
-clone git github.com/syndtr/gocapability 66ef2aa7a23ba682594e2b6f74cf40c0692b49fb
+clone git github.com/syndtr/gocapability 8e4cdcb
+clone git github.com/golang/protobuf 655cdfa588ea
+

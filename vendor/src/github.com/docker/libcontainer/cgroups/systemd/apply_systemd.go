@@ -20,6 +20,7 @@ import (
 )
 
 type Manager struct {
+	mu      sync.Mutex
 	Cgroups *configs.Cgroup
 	Paths   map[string]string
 }
@@ -41,6 +42,8 @@ var subsystems = map[string]subsystem{
 	"hugetlb":    &fs.HugetlbGroup{},
 	"perf_event": &fs.PerfEventGroup{},
 	"freezer":    &fs.FreezerGroup{},
+	"net_prio":   &fs.NetPrioGroup{},
+	"net_cls":    &fs.NetClsGroup{},
 }
 
 const (
@@ -199,17 +202,20 @@ func (m *Manager) Apply(pid int) error {
 		return err
 	}
 
-	// -1 disables memorySwap
-	if c.MemorySwap >= 0 && c.Memory != 0 {
-		if err := joinMemory(c, pid); err != nil {
-			return err
-		}
-
+	if err := joinMemory(c, pid); err != nil {
+		return err
 	}
 
-	// we need to manually join the freezer and cpuset cgroup in systemd
+	// we need to manually join the freezer, net_cls, net_prio and cpuset cgroup in systemd
 	// because it does not currently support it via the dbus api.
 	if err := joinFreezer(c, pid); err != nil {
+		return err
+	}
+
+	if err := joinNetPrio(c, pid); err != nil {
+		return err
+	}
+	if err := joinNetCls(c, pid); err != nil {
 		return err
 	}
 
@@ -248,11 +254,20 @@ func (m *Manager) Apply(pid int) error {
 }
 
 func (m *Manager) Destroy() error {
-	return cgroups.RemovePaths(m.Paths)
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if err := cgroups.RemovePaths(m.Paths); err != nil {
+		return err
+	}
+	m.Paths = make(map[string]string)
+	return nil
 }
 
 func (m *Manager) GetPaths() map[string]string {
-	return m.Paths
+	m.mu.Lock()
+	paths := m.Paths
+	m.mu.Unlock()
+	return paths
 }
 
 func writeFile(dir, file, data string) error {
@@ -294,15 +309,48 @@ func joinCpu(c *configs.Cgroup, pid int) error {
 			return err
 		}
 	}
+	if c.CpuRtPeriod != 0 {
+		if err = writeFile(path, "cpu.rt_period_us", strconv.FormatInt(c.CpuRtPeriod, 10)); err != nil {
+			return err
+		}
+	}
+	if c.CpuRtRuntime != 0 {
+		if err = writeFile(path, "cpu.rt_runtime_us", strconv.FormatInt(c.CpuRtRuntime, 10)); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
 func joinFreezer(c *configs.Cgroup, pid int) error {
-	if _, err := join(c, "freezer", pid); err != nil && !cgroups.IsNotFound(err) {
+	path, err := join(c, "freezer", pid)
+	if err != nil && !cgroups.IsNotFound(err) {
 		return err
 	}
 
-	return nil
+	freezer := subsystems["freezer"]
+	return freezer.Set(path, c)
+}
+
+func joinNetPrio(c *configs.Cgroup, pid int) error {
+	path, err := join(c, "net_prio", pid)
+	if err != nil && !cgroups.IsNotFound(err) {
+		return err
+	}
+	netPrio := subsystems["net_prio"]
+
+	return netPrio.Set(path, c)
+}
+
+func joinNetCls(c *configs.Cgroup, pid int) error {
+	path, err := join(c, "net_cls", pid)
+	if err != nil && !cgroups.IsNotFound(err) {
+		return err
+	}
+	netcls := subsystems["net_cls"]
+
+	return netcls.Set(path, c)
 }
 
 func getSubsystemPath(c *configs.Cgroup, subsystem string) (string, error) {
@@ -353,6 +401,8 @@ func (m *Manager) GetPids() ([]int, error) {
 }
 
 func (m *Manager) GetStats() (*cgroups.Stats, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	stats := cgroups.NewStats()
 	for name, path := range m.Paths {
 		sys, ok := subsystems[name]
@@ -409,19 +459,33 @@ func joinDevices(c *configs.Cgroup, pid int) error {
 }
 
 func joinMemory(c *configs.Cgroup, pid int) error {
-	memorySwap := c.MemorySwap
-
-	if memorySwap == 0 {
-		// By default, MemorySwap is set to twice the size of RAM.
-		memorySwap = c.Memory * 2
-	}
-
 	path, err := getSubsystemPath(c, "memory")
 	if err != nil && !cgroups.IsNotFound(err) {
 		return err
 	}
 
-	return writeFile(path, "memory.memsw.limit_in_bytes", strconv.FormatInt(memorySwap, 10))
+	// -1 disables memoryswap
+	if c.Memory != 0 && c.MemorySwap >= 0 {
+		memorySwap := c.MemorySwap
+
+		if memorySwap == 0 {
+			// By default, MemorySwap is set to twice the size of RAM.
+			memorySwap = c.Memory * 2
+		}
+		err = writeFile(path, "memory.memsw.limit_in_bytes", strconv.FormatInt(memorySwap, 10))
+		if err != nil {
+			return err
+		}
+	}
+
+	if c.KernelMemory > 0 {
+		err = writeFile(path, "memory.kmem.limit_in_bytes", strconv.FormatInt(c.KernelMemory, 10))
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // systemd does not atm set up the cpuset controller, so we must manually
