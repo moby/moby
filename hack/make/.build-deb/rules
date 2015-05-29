@@ -33,4 +33,4 @@ override_dh_installudev:
 	dh_installudev --priority=z80
 
 %:
-	dh $@ --with=systemd,bash-completion
+	dh $@ --with=bash-completion $(shell command -v dh_systemd_enable > /dev/null 2>&1 && echo --with=systemd)
