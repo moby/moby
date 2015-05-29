@@ -68,7 +68,11 @@ func sameFsTimeSpec(a, b syscall.Timespec) bool {
 // Changes walks the path rw and determines changes for the files in the path,
 // with respect to the parent layers
 func Changes(layers []string, rw string) ([]Change, error) {
-	var changes []Change
+	var (
+		changes     []Change
+		changedDirs = make(map[string]struct{})
+	)
+
 	err := filepath.Walk(rw, func(path string, f os.FileInfo, err error) error {
 		if err != nil {
 			return err
@@ -126,6 +130,21 @@ func Changes(layers []string, rw string) ([]Change, error) {
 					change.Kind = ChangeModify
 					break
 				}
+			}
+		}
+
+		// If /foo/bar/file.txt is modified, then /foo/bar must be part of the changed files.
+		// This block is here to ensure the change is recorded even if the
+		// modify time, mode and size of the parent directoriy in the rw and ro layers are all equal.
+		// Check https://github.com/docker/docker/pull/13590 for details.
+		if f.IsDir() {
+			changedDirs[path] = struct{}{}
+		}
+		if change.Kind == ChangeAdd || change.Kind == ChangeDelete {
+			parent := filepath.Dir(path)
+			if _, ok := changedDirs[parent]; !ok && parent != "/" {
+				changes = append(changes, Change{Path: parent, Kind: ChangeModify})
+				changedDirs[parent] = struct{}{}
 			}
 		}
 

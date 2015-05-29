@@ -6,7 +6,6 @@ import (
 	"os/exec"
 	"path"
 	"sort"
-	"syscall"
 	"testing"
 	"time"
 )
@@ -132,12 +131,23 @@ func TestChangesWithNoChanges(t *testing.T) {
 }
 
 func TestChangesWithChanges(t *testing.T) {
+	// Mock the readonly layer
+	layer, err := ioutil.TempDir("", "docker-changes-test-layer")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(layer)
+	createSampleDir(t, layer)
+	os.MkdirAll(path.Join(layer, "dir1/subfolder"), 0740)
+
+	// Mock the RW layer
 	rwLayer, err := ioutil.TempDir("", "docker-changes-test")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer os.RemoveAll(rwLayer)
-	// Create a folder
+
+	// Create a folder in RW layer
 	dir1 := path.Join(rwLayer, "dir1")
 	os.MkdirAll(dir1, 0740)
 	deletedFile := path.Join(dir1, ".wh.file1-2")
@@ -149,58 +159,76 @@ func TestChangesWithChanges(t *testing.T) {
 	os.MkdirAll(subfolder, 0740)
 	newFile := path.Join(subfolder, "newFile")
 	ioutil.WriteFile(newFile, []byte{}, 0740)
-	// Let's create folders that with have the role of layers with the same data
-	layer, err := ioutil.TempDir("", "docker-changes-test-layer")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(layer)
-	createSampleDir(t, layer)
-	os.MkdirAll(path.Join(layer, "dir1/subfolder"), 0740)
-
-	// Let's modify modtime for dir1 to be sure it's the same for the two layer (to not having false positive)
-	fi, err := os.Stat(dir1)
-	if err != nil {
-		return
-	}
-	mtime := fi.ModTime()
-	stat := fi.Sys().(*syscall.Stat_t)
-	atime := time.Unix(int64(stat.Atim.Sec), int64(stat.Atim.Nsec))
-
-	layerDir1 := path.Join(layer, "dir1")
-	os.Chtimes(layerDir1, atime, mtime)
 
 	changes, err := Changes([]string{layer}, rwLayer)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	sort.Sort(changesByPath(changes))
-
 	expectedChanges := []Change{
+		{"/dir1", ChangeModify},
 		{"/dir1/file1-1", ChangeModify},
 		{"/dir1/file1-2", ChangeDelete},
 		{"/dir1/subfolder", ChangeModify},
 		{"/dir1/subfolder/newFile", ChangeAdd},
 	}
+	checkChanges(expectedChanges, changes, t)
+}
 
-	for i := 0; i < max(len(changes), len(expectedChanges)); i++ {
-		if i >= len(expectedChanges) {
-			t.Fatalf("unexpected change %s\n", changes[i].String())
-		}
-		if i >= len(changes) {
-			t.Fatalf("no change for expected change %s\n", expectedChanges[i].String())
-		}
-		if changes[i].Path == expectedChanges[i].Path {
-			if changes[i] != expectedChanges[i] {
-				t.Fatalf("Wrong change for %s, expected %s, got %s\n", changes[i].Path, changes[i].String(), expectedChanges[i].String())
-			}
-		} else if changes[i].Path < expectedChanges[i].Path {
-			t.Fatalf("unexpected change %s\n", changes[i].String())
-		} else {
-			t.Fatalf("no change for expected change %s != %s\n", expectedChanges[i].String(), changes[i].String())
-		}
+// See https://github.com/docker/docker/pull/13590
+func TestChangesWithChangesGH13590(t *testing.T) {
+	baseLayer, err := ioutil.TempDir("", "docker-changes-test.")
+	defer os.RemoveAll(baseLayer)
+
+	dir3 := path.Join(baseLayer, "dir1/dir2/dir3")
+	os.MkdirAll(dir3, 07400)
+
+	file := path.Join(dir3, "file.txt")
+	ioutil.WriteFile(file, []byte("hello"), 0666)
+
+	layer, err := ioutil.TempDir("", "docker-changes-test2.")
+	defer os.RemoveAll(layer)
+
+	// Test creating a new file
+	if err := copyDir(baseLayer+"/dir1", layer+"/"); err != nil {
+		t.Fatalf("Cmd failed: %q", err)
 	}
+
+	os.Remove(path.Join(layer, "dir1/dir2/dir3/file.txt"))
+	file = path.Join(layer, "dir1/dir2/dir3/file1.txt")
+	ioutil.WriteFile(file, []byte("bye"), 0666)
+
+	changes, err := Changes([]string{baseLayer}, layer)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	expectedChanges := []Change{
+		{"/dir1/dir2/dir3", ChangeModify},
+		{"/dir1/dir2/dir3/file1.txt", ChangeAdd},
+	}
+	checkChanges(expectedChanges, changes, t)
+
+	// Now test changing a file
+	layer, err = ioutil.TempDir("", "docker-changes-test3.")
+	defer os.RemoveAll(layer)
+
+	if err := copyDir(baseLayer+"/dir1", layer+"/"); err != nil {
+		t.Fatalf("Cmd failed: %q", err)
+	}
+
+	file = path.Join(layer, "dir1/dir2/dir3/file.txt")
+	ioutil.WriteFile(file, []byte("bye"), 0666)
+
+	changes, err = Changes([]string{baseLayer}, layer)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	expectedChanges = []Change{
+		{"/dir1/dir2/dir3/file.txt", ChangeModify},
+	}
+	checkChanges(expectedChanges, changes, t)
 }
 
 // Create an directory, copy it, make sure we report no changes between the two
@@ -441,5 +469,27 @@ func TestChangesSize(t *testing.T) {
 	size := ChangesSize(parentPath, changes)
 	if size != 6 {
 		t.Fatalf("ChangesSizes with only delete changes should be 0, was %d", size)
+	}
+}
+
+func checkChanges(expectedChanges, changes []Change, t *testing.T) {
+	sort.Sort(changesByPath(expectedChanges))
+	sort.Sort(changesByPath(changes))
+	for i := 0; i < max(len(changes), len(expectedChanges)); i++ {
+		if i >= len(expectedChanges) {
+			t.Fatalf("unexpected change %s\n", changes[i].String())
+		}
+		if i >= len(changes) {
+			t.Fatalf("no change for expected change %s\n", expectedChanges[i].String())
+		}
+		if changes[i].Path == expectedChanges[i].Path {
+			if changes[i] != expectedChanges[i] {
+				t.Fatalf("Wrong change for %s, expected %s, got %s\n", changes[i].Path, changes[i].String(), expectedChanges[i].String())
+			}
+		} else if changes[i].Path < expectedChanges[i].Path {
+			t.Fatalf("unexpected change %s\n", changes[i].String())
+		} else {
+			t.Fatalf("no change for expected change %s != %s\n", expectedChanges[i].String(), changes[i].String())
+		}
 	}
 }
