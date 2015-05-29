@@ -175,6 +175,7 @@ expect an integer, and they can only be specified once.
       -l, --log-level="info"                 Set the logging level
       --label=[]                             Set key=value labels to the daemon
       --log-driver="json-file"               Default driver for container logs
+      --log-opt=[]                           Log driver specific options
       --mtu=0                                Set the containers network MTU
       -p, --pidfile="/var/run/docker.pid"    Path to use for daemon PID file
       --registry-mirror=[]                   Preferred Docker registry mirror
@@ -998,6 +999,7 @@ Creates a new container.
       --label-file=[]            Read in a line delimited file of labels
       --link=[]                  Add link to another container
       --log-driver=""            Logging driver for container
+      --log-opt=[]               Log driver specific options
       --lxc-conf=[]              Add custom lxc options
       -m, --memory=""            Memory limit
       --mac-address=""           Container MAC address (e.g. 92:d0:c6:0a:29:33)
@@ -1963,6 +1965,7 @@ To remove an image using its digest:
       --ipc=""                   IPC namespace to use
       --link=[]                  Add link to another container
       --log-driver=""            Logging driver for container
+      --log-opt=[]               Log driver specific options
       --lxc-conf=[]              Add custom lxc options
       -m, --memory=""            Memory limit
       -l, --label=[]             Set metadata on the container (e.g., --label=com.example.key=value)
