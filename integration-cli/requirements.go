@@ -7,10 +7,8 @@ import (
 	"log"
 	"net/http"
 	"os/exec"
-	"path"
 	"strings"
 
-	"github.com/docker/libcontainer/cgroups"
 	"github.com/go-check/check"
 )
 
@@ -97,32 +95,6 @@ var (
 			return false
 		},
 		"Test requires underlying root filesystem not be backed by overlay.",
-	}
-	CpuCfsPeriod = TestRequirement{
-		func() bool {
-			cgroupCpuMountpoint, err := cgroups.FindCgroupMountpoint("cpu")
-			if err != nil {
-				return false
-			}
-			if _, err := ioutil.ReadFile(path.Join(cgroupCpuMountpoint, "cpu.cfs_period_us")); err != nil {
-				return false
-			}
-			return true
-		},
-		"Test requires an environment that supports cgroup cfs period.",
-	}
-	CpuCfsQuota = TestRequirement{
-		func() bool {
-			cgroupCpuMountpoint, err := cgroups.FindCgroupMountpoint("cpu")
-			if err != nil {
-				return false
-			}
-			if _, err := ioutil.ReadFile(path.Join(cgroupCpuMountpoint, "cpu.cfs_quota_us")); err != nil {
-				return false
-			}
-			return true
-		},
-		"Test requires an environment that supports cgroup cfs quota.",
 	}
 )
 
