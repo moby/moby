@@ -10,7 +10,7 @@ func TestParseDigest(t *testing.T) {
 	for _, testcase := range []struct {
 		input     string
 		err       error
-		algorithm string
+		algorithm Algorithm
 		hex       string
 	}{
 		{

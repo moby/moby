@@ -60,7 +60,7 @@ clone git github.com/vishvananda/netns 008d17ae001344769b031375bdb38a86219154c6
 clone git github.com/vishvananda/netlink 8eb64238879fed52fd51c5b30ad20b928fb4c36c
 
 # get distribution packages
-clone git github.com/docker/distribution d957768537c5af40e4f4cd96871f7b2bde9e2923
+clone git github.com/docker/distribution b9eeb328080d367dbde850ec6e94f1e4ac2b5efe
 mv src/github.com/docker/distribution/digest tmp-digest
 mv src/github.com/docker/distribution/registry/api tmp-api
 rm -rf src/github.com/docker/distribution
