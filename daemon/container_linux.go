@@ -227,9 +227,10 @@ func populateCommand(c *Container, env []string) error {
 
 		userSpecifiedDevices = append(userSpecifiedDevices, devs...)
 	}
-	allowedDevices := append(configs.DefaultAllowedDevices, userSpecifiedDevices...)
 
-	autoCreatedDevices := append(configs.DefaultAutoCreatedDevices, userSpecifiedDevices...)
+	allowedDevices := mergeDevices(configs.DefaultAllowedDevices, userSpecifiedDevices)
+
+	autoCreatedDevices := mergeDevices(configs.DefaultAutoCreatedDevices, userSpecifiedDevices)
 
 	// TODO: this can be removed after lxc-conf is fully deprecated
 	lxcConfig, err := mergeLxcConfIntoOptions(c.hostConfig)
@@ -307,6 +308,25 @@ func populateCommand(c *Container, env []string) error {
 	}
 
 	return nil
+}
+
+func mergeDevices(defaultDevices, userDevices []*configs.Device) []*configs.Device {
+	if len(userDevices) == 0 {
+		return defaultDevices
+	}
+
+	paths := map[string]*configs.Device{}
+	for _, d := range userDevices {
+		paths[d.Path] = d
+	}
+
+	var devs []*configs.Device
+	for _, d := range defaultDevices {
+		if _, defined := paths[d.Path]; !defined {
+			devs = append(devs, d)
+		}
+	}
+	return append(devs, userDevices...)
 }
 
 // GetSize, return real size, virtual size
