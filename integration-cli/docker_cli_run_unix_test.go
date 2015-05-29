@@ -250,3 +250,38 @@ func (s *DockerSuite) TestRunAttachDetach(c *check.C) {
 		c.Fatal("timed out waiting for container to exit")
 	}
 }
+
+// "test" should be printed
+func (s *DockerSuite) TestRunEchoStdoutWithCPUQuota(c *check.C) {
+	testRequires(c, CpuCfsQuota)
+	runCmd := exec.Command(dockerBinary, "run", "--cpu-quota", "8000", "--name", "test", "busybox", "echo", "test")
+	out, _, _, err := runCommandWithStdoutStderr(runCmd)
+	if err != nil {
+		c.Fatalf("failed to run container: %v, output: %q", err, out)
+	}
+	out = strings.TrimSpace(out)
+	if out != "test" {
+		c.Errorf("container should've printed 'test'")
+	}
+
+	out, err = inspectField("test", "HostConfig.CpuQuota")
+	c.Assert(err, check.IsNil)
+
+	if out != "8000" {
+		c.Fatalf("setting the CPU CFS quota failed")
+	}
+}
+
+func (s *DockerSuite) TestRunWithCpuPeriod(c *check.C) {
+	testRequires(c, CpuCfsPeriod)
+	runCmd := exec.Command(dockerBinary, "run", "--cpu-period", "50000", "--name", "test", "busybox", "true")
+	if _, err := runCommand(runCmd); err != nil {
+		c.Fatalf("failed to run container: %v", err)
+	}
+
+	out, err := inspectField("test", "HostConfig.CpuPeriod")
+	c.Assert(err, check.IsNil)
+	if out != "50000" {
+		c.Fatalf("setting the CPU CFS period failed")
+	}
+}
