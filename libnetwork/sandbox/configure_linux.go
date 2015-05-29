@@ -156,7 +156,7 @@ func setInterfaceName(iface netlink.Link, settings *Interface) error {
 func setInterfaceRoutes(iface netlink.Link, settings *Interface) error {
 	for _, route := range settings.Routes {
 		err := netlink.RouteAdd(&netlink.Route{
-			Scope:     netlink.SCOPE_UNIVERSE,
+			Scope:     netlink.SCOPE_LINK,
 			LinkIndex: iface.Attrs().Index,
 			Dst:       route,
 		})
