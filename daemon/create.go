@@ -66,7 +66,7 @@ func (daemon *Daemon) Create(config *runconfig.Config, hostConfig *runconfig.Hos
 		imgID = img.ID
 	}
 
-	if warnings, err = daemon.mergeAndVerifyConfig(config, img); err != nil {
+	if err := daemon.mergeAndVerifyConfig(config, img); err != nil {
 		return nil, nil, err
 	}
 	if !config.NetworkDisabled && daemon.SystemConfig().IPv4ForwardingDisabled {

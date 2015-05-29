@@ -453,17 +453,9 @@ func expose(b *Builder, args []string, attributes map[string]bool, original stri
 		b.Config.ExposedPorts = make(nat.PortSet)
 	}
 
-	ports, bindingMap, err := nat.ParsePortSpecs(append(portsTab, b.Config.PortSpecs...))
+	ports, _, err := nat.ParsePortSpecs(portsTab)
 	if err != nil {
 		return err
-	}
-
-	for _, bindings := range bindingMap {
-		if bindings[0].HostIp != "" || bindings[0].HostPort != "" {
-			fmt.Fprintf(b.ErrStream, " ---> Using Dockerfile's EXPOSE instruction"+
-				"      to map host ports to container ports (ip:hostPort:containerPort) is deprecated.\n"+
-				"      Please use -p to publish the ports.\n")
-		}
 	}
 
 	// instead of using ports directly, we build a list of ports and sort it so
@@ -479,7 +471,6 @@ func expose(b *Builder, args []string, attributes map[string]bool, original stri
 		i++
 	}
 	sort.Strings(portList)
-	b.Config.PortSpecs = nil
 	return b.commit("", b.Config.Cmd, fmt.Sprintf("EXPOSE %s", strings.Join(portList, " ")))
 }
 

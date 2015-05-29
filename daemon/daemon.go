@@ -355,33 +355,16 @@ func (daemon *Daemon) restore() error {
 	return nil
 }
 
-func (daemon *Daemon) checkDeprecatedExpose(config *runconfig.Config) bool {
-	if config != nil {
-		if config.PortSpecs != nil {
-			for _, p := range config.PortSpecs {
-				if strings.Contains(p, ":") {
-					return true
-				}
-			}
-		}
-	}
-	return false
-}
-
-func (daemon *Daemon) mergeAndVerifyConfig(config *runconfig.Config, img *image.Image) ([]string, error) {
-	warnings := []string{}
-	if (img != nil && daemon.checkDeprecatedExpose(img.Config)) || daemon.checkDeprecatedExpose(config) {
-		warnings = append(warnings, "The mapping to public ports on your host via Dockerfile EXPOSE (host:port:port) has been deprecated. Use -p to publish the ports.")
-	}
+func (daemon *Daemon) mergeAndVerifyConfig(config *runconfig.Config, img *image.Image) error {
 	if img != nil && img.Config != nil {
 		if err := runconfig.Merge(config, img.Config); err != nil {
-			return nil, err
+			return err
 		}
 	}
 	if config.Entrypoint.Len() == 0 && config.Cmd.Len() == 0 {
-		return nil, fmt.Errorf("No command specified")
+		return fmt.Errorf("No command specified")
 	}
-	return warnings, nil
+	return nil
 }
 
 func (daemon *Daemon) generateIdAndName(name string) (string, string, error) {

@@ -642,16 +642,6 @@ func (container *Container) buildCreateEndpointOptions() ([]libnetwork.EndpointO
 		createOptions []libnetwork.EndpointOption
 	)
 
-	if container.Config.PortSpecs != nil {
-		if err := migratePortMappings(container.Config, container.hostConfig); err != nil {
-			return nil, err
-		}
-		container.Config.PortSpecs = nil
-		if err := container.WriteHostConfig(); err != nil {
-			return nil, err
-		}
-	}
-
 	if container.Config.ExposedPorts != nil {
 		portSpecs = container.Config.ExposedPorts
 	}
