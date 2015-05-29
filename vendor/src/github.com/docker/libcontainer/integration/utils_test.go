@@ -49,6 +49,19 @@ func ok(t testing.TB, err error) {
 	}
 }
 
+func waitProcess(p *libcontainer.Process, t *testing.T) {
+	_, file, line, _ := runtime.Caller(1)
+	status, err := p.Wait()
+
+	if err != nil {
+		t.Fatalf("%s:%d: unexpected error: %s\n\n", filepath.Base(file), line, err.Error())
+	}
+
+	if !status.Success() {
+		t.Fatalf("%s:%d: unexpected status: %s\n\n", filepath.Base(file), line, status.String())
+	}
+}
+
 // newRootfs creates a new tmp directory and copies the busybox root filesystem
 func newRootfs() (string, error) {
 	dir, err := ioutil.TempDir("", "")
