@@ -591,6 +591,38 @@ The copy obeys the following rules:
 - If `<dest>` doesn't exist, it is created along with all missing directories
   in its path.
 
+### Set ownership of content added by ADD 
+
+By default, all new files and directories added by the `ADD` instruction are
+created with a UID and GID of 0. To add files with a different owner, specify
+a user or uid using this form:
+
+    ADD --user=<uid_or_username> <src>... <dest>
+
+To add files with a different group, specify the group or gid using this form:
+
+    ADD --group=<gid_or_groupname> <src>... <dest>
+
+The add files with a different owner and group, specify a user or uid and a
+group or gid using this form:
+
+    ADD --user=<uid_or_username> --group=<gid_or_groupname> <src>... <dest>
+
+All files and directories added to the container will be owned by the
+specified `<uid_or_username>` and/or `<gid_or_groupname>`. Use of the `--user`
+and `--group` flags will only affect the current `ADD` command.
+
+For example, the following will add all files and folders from the `/proj/app`
+directory on the host to `/app` in the container. All files added to the
+container will be owned by user "foobar":
+
+    ADD --user=foobar /projects/app /app
+
+> **Note**:
+> The specified username and groupname must *exist* inside the container before
+> running the `ADD` command. Docker does not automatically create the user or
+> group.
+
 ## COPY
 
 COPY has two forms:
@@ -649,6 +681,38 @@ The copy obeys the following rules:
 
 - If `<dest>` doesn't exist, it is created along with all missing directories
   in its path.
+
+### Set ownership of content added by COPY
+
+By default, all new files and directories added by the `COPY` instruction are
+created with a UID and GID of 0. To copy files with a different owner, specify
+a user or uid using this form:
+
+    COPY --user=<uid_or_username> <src>... <dest>
+
+To copy files with a different group, specify the group or gid using this form:
+
+    COPY --group=<gid_or_groupname> <src>... <dest>
+
+The copy files with a different owner and group, specify a user or uid and a group
+or gid using this form:
+
+    COPY --user=<uid_or_username> --group=<gid_or_groupname> <src>... <dest>
+
+All files and directories copied to the container will be owned by the
+specified `<uid_or_username>` and/or `<gid_or_groupname>`. Use of the `--user` 
+and `--group` flags will only affect the current `COPY` command.
+
+For example, the following will copy all files and folders from the `/proj/app`
+directory on the host to `/app` in the container. All files copied to the
+container will be owned by user "foobar":
+
+    COPY --user=foobar /projects/app /app
+
+> **Note**:
+> The specified username and groupname must *exist* inside the container before 
+> running the `COPY` command. Docker does not automatically create the user or 
+> group.
 
 ## ENTRYPOINT
 
@@ -910,6 +974,12 @@ into the newly created volume.
 The `USER` instruction sets the user name or UID to use when running the image
 and for any `RUN`, `CMD` and `ENTRYPOINT` instructions that follow it in the
 `Dockerfile`.
+
+> **Note**:
+> The `USER` instruction does not affect `COPY` and `ADD` instructions.
+> Files copied using those instructions are always created with a UID and GID
+> of 0. For more information on setting the ownership of copied files, refer to
+> Set ownership of content added by [*COPY*](#set-ownership-of-content-added-by-copy) and [*ADD*](#set-ownership-of-content-added-by-add).
 
 ## WORKDIR
 
