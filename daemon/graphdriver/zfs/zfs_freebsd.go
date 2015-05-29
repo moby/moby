@@ -2,6 +2,7 @@ package zfs
 
 import (
 	"fmt"
+	"strings"
 	"syscall"
 
 	log "github.com/Sirupsen/logrus"
@@ -21,4 +22,17 @@ func checkRootdirFs(rootdir string) error {
 	}
 
 	return nil
+}
+
+func getMountpoint(id string) string {
+	maxlen := 12
+
+	// we need to preserve filesystem suffix
+	suffix := strings.SplitN(id, "-", 2)
+
+	if len(suffix) > 1 {
+		return id[:maxlen] + "-" + suffix[1]
+	}
+
+	return id[:maxlen]
 }
