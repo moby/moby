@@ -64,7 +64,7 @@ practice, work through the exercises on this page.
 
 3. Install Boot2Docker by double-clicking the package.
 
-    The installer places Boot2Docker in your "Applications" folder.
+    The installer places Boot2Docker and VirtualBox in your "Applications" folder.
 
 The installation places the `docker` and `boot2docker` binaries in your
 `/usr/local/bin` directory.
