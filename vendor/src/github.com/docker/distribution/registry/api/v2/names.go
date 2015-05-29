@@ -46,7 +46,7 @@ var (
 	// ErrRepositoryNameComponentShort is returned when a repository name
 	// contains a component which is shorter than
 	// RepositoryNameComponentMinLength
-	ErrRepositoryNameComponentShort = fmt.Errorf("respository name component must be %v or more characters", RepositoryNameComponentMinLength)
+	ErrRepositoryNameComponentShort = fmt.Errorf("repository name component must be %v or more characters", RepositoryNameComponentMinLength)
 
 	// ErrRepositoryNameMissingComponents is returned when a repository name
 	// contains fewer than RepositoryNameMinComponents components
@@ -61,7 +61,7 @@ var (
 	ErrRepositoryNameComponentInvalid = fmt.Errorf("repository name component must match %q", RepositoryNameComponentRegexp.String())
 )
 
-// ValidateRespositoryName ensures the repository name is valid for use in the
+// ValidateRepositoryName ensures the repository name is valid for use in the
 // registry. This function accepts a superset of what might be accepted by
 // docker core or docker hub. If the name does not pass validation, an error,
 // describing the conditions, is returned.
@@ -75,7 +75,7 @@ var (
 //
 // The result of the production, known as the "namespace", should be limited
 // to 255 characters.
-func ValidateRespositoryName(name string) error {
+func ValidateRepositoryName(name string) error {
 	if len(name) > RepositoryNameTotalLengthMax {
 		return ErrRepositoryNameLong
 	}

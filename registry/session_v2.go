@@ -68,10 +68,15 @@ func (r *Session) GetV2Authorization(ep *Endpoint, imageName string, readOnly bo
 //  1.c) if anything else, err
 // 2) PUT the created/signed manifest
 //
-func (r *Session) GetV2ImageManifest(ep *Endpoint, imageName, tagName string, auth *RequestAuthorization) ([]byte, string, error) {
+
+// GetV2ImageManifest simply fetches the bytes of a manifest and the remote
+// digest, if available in the request. Note that the application shouldn't
+// rely on the untrusted remoteDigest, and should also verify against a
+// locally provided digest, if applicable.
+func (r *Session) GetV2ImageManifest(ep *Endpoint, imageName, tagName string, auth *RequestAuthorization) (remoteDigest digest.Digest, p []byte, err error) {
 	routeURL, err := getV2Builder(ep).BuildManifestURL(imageName, tagName)
 	if err != nil {
-		return nil, "", err
+		return "", nil, err
 	}
 
 	method := "GET"
@@ -79,31 +84,45 @@ func (r *Session) GetV2ImageManifest(ep *Endpoint, imageName, tagName string, au
 
 	req, err := http.NewRequest(method, routeURL, nil)
 	if err != nil {
-		return nil, "", err
+		return "", nil, err
 	}
+
 	if err := auth.Authorize(req); err != nil {
-		return nil, "", err
+		return "", nil, err
 	}
+
 	res, err := r.client.Do(req)
 	if err != nil {
-		return nil, "", err
+		return "", nil, err
 	}
 	defer res.Body.Close()
+
 	if res.StatusCode != 200 {
 		if res.StatusCode == 401 {
-			return nil, "", errLoginRequired
+			return "", nil, errLoginRequired
 		} else if res.StatusCode == 404 {
-			return nil, "", ErrDoesNotExist
+			return "", nil, ErrDoesNotExist
 		}
-		return nil, "", httputils.NewHTTPRequestError(fmt.Sprintf("Server error: %d trying to fetch for %s:%s", res.StatusCode, imageName, tagName), res)
+		return "", nil, httputils.NewHTTPRequestError(fmt.Sprintf("Server error: %d trying to fetch for %s:%s", res.StatusCode, imageName, tagName), res)
 	}
 
-	manifestBytes, err := ioutil.ReadAll(res.Body)
+	p, err = ioutil.ReadAll(res.Body)
 	if err != nil {
-		return nil, "", fmt.Errorf("Error while reading the http response: %s", err)
+		return "", nil, fmt.Errorf("Error while reading the http response: %s", err)
 	}
 
-	return manifestBytes, res.Header.Get(DockerDigestHeader), nil
+	dgstHdr := res.Header.Get(DockerDigestHeader)
+	if dgstHdr != "" {
+		remoteDigest, err = digest.ParseDigest(dgstHdr)
+		if err != nil {
+			// NOTE(stevvooe): Including the remote digest is optional. We
+			// don't need to verify against it, but it is good practice.
+			remoteDigest = ""
+			logrus.Debugf("error parsing remote digest when fetching %v: %v", routeURL, err)
+		}
+	}
+
+	return
 }
 
 // - Succeeded to head image blob (already exists)

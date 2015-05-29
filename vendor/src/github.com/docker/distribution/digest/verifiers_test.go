@@ -80,7 +80,7 @@ func TestVerifierUnsupportedDigest(t *testing.T) {
 	}
 
 	if err != ErrDigestUnsupported {
-		t.Fatalf("incorrect error for unsupported digest: %v %p %p", err, ErrDigestUnsupported, err)
+		t.Fatalf("incorrect error for unsupported digest: %v", err)
 	}
 }
 

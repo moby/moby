@@ -6,10 +6,10 @@ import (
 	"regexp"
 )
 
-// TarSumRegexp defines a reguler expression to match tarsum identifiers.
+// TarSumRegexp defines a regular expression to match tarsum identifiers.
 var TarsumRegexp = regexp.MustCompile("tarsum(?:.[a-z0-9]+)?\\+[a-zA-Z0-9]+:[A-Fa-f0-9]+")
 
-// TarsumRegexpCapturing defines a reguler expression to match tarsum identifiers with
+// TarsumRegexpCapturing defines a regular expression to match tarsum identifiers with
 // capture groups corresponding to each component.
 var TarsumRegexpCapturing = regexp.MustCompile("(tarsum)(.([a-z0-9]+))?\\+([a-zA-Z0-9]+):([A-Fa-f0-9]+)")
 

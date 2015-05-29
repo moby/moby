@@ -2,7 +2,6 @@ package digest
 
 import (
 	"bytes"
-	"crypto/sha256"
 	"fmt"
 	"hash"
 	"io"
@@ -16,6 +15,7 @@ import (
 const (
 	// DigestTarSumV1EmptyTar is the digest for the empty tar file.
 	DigestTarSumV1EmptyTar = "tarsum.v1+sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+
 	// DigestSha256EmptyTar is the canonical sha256 digest of empty data
 	DigestSha256EmptyTar = "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
 )
@@ -39,7 +39,7 @@ const (
 type Digest string
 
 // NewDigest returns a Digest from alg and a hash.Hash object.
-func NewDigest(alg string, h hash.Hash) Digest {
+func NewDigest(alg Algorithm, h hash.Hash) Digest {
 	return Digest(fmt.Sprintf("%s:%x", alg, h.Sum(nil)))
 }
 
@@ -72,13 +72,13 @@ func ParseDigest(s string) (Digest, error) {
 
 // FromReader returns the most valid digest for the underlying content.
 func FromReader(rd io.Reader) (Digest, error) {
-	h := sha256.New()
+	digester := Canonical.New()
 
-	if _, err := io.Copy(h, rd); err != nil {
+	if _, err := io.Copy(digester.Hash(), rd); err != nil {
 		return "", err
 	}
 
-	return NewDigest("sha256", h), nil
+	return digester.Digest(), nil
 }
 
 // FromTarArchive produces a tarsum digest from reader rd.
@@ -131,8 +131,8 @@ func (d Digest) Validate() error {
 		return ErrDigestInvalidFormat
 	}
 
-	switch s[:i] {
-	case "sha256", "sha384", "sha512":
+	switch Algorithm(s[:i]) {
+	case SHA256, SHA384, SHA512:
 		break
 	default:
 		return ErrDigestUnsupported
@@ -143,8 +143,8 @@ func (d Digest) Validate() error {
 
 // Algorithm returns the algorithm portion of the digest. This will panic if
 // the underlying digest is not in a valid format.
-func (d Digest) Algorithm() string {
-	return string(d[:d.sepIndex()])
+func (d Digest) Algorithm() Algorithm {
+	return Algorithm(d[:d.sepIndex()])
 }
 
 // Hex returns the hex digest portion of the digest. This will panic if the
