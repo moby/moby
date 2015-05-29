@@ -699,9 +699,15 @@ func (s *TagStore) pullV2Tag(r *registry.Session, out io.Writer, endpoint *regis
 
 	out.Write(sf.FormatStatus("", "Digest: %s", localDigest))
 
-	// always set the digest so we can use the digest whether we pull by it or not.
-	if err = s.SetDigest(repoInfo.LocalName, localDigest.String(), downloads[0].img.ID); err != nil {
-		return false, err
+	if tag == localDigest.String() {
+		// TODO(stevvooe): Ideally, we should always set the digest so we can
+		// use the digest whether we pull by it or not. Unfortunately, the tag
+		// store treats the digest as a separate tag, meaning there may be an
+		// untagged digest image that would seem to be dangling by a user.
+
+		if err = s.SetDigest(repoInfo.LocalName, localDigest.String(), downloads[0].img.ID); err != nil {
+			return false, err
+		}
 	}
 
 	if !utils.DigestReference(tag) {
