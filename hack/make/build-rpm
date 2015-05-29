@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-# subshell so that we can export PATH and TZ without breaking other things
+# subshell so that we can export PATH without breaking other things
 (
 	export TZ=UTC # make sure our "date" variables are UTC-based
 
