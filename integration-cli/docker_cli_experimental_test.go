@@ -17,8 +17,13 @@ func (s *DockerSuite) TestExperimentalVersion(c *check.C) {
 	}
 
 	for _, line := range strings.Split(out, "\n") {
-		if strings.HasPrefix(line, "Client version:") || strings.HasPrefix(line, "Server version:") {
-			c.Assert(line, check.Matches, "*-experimental")
+		if strings.HasPrefix(line, "Experimental (client):") || strings.HasPrefix(line, "Experimental (server):") {
+			c.Assert(line, check.Matches, "*true")
 		}
+	}
+
+	versionCmd = exec.Command(dockerBinary, "-v")
+	if out, _, err = runCommandWithOutput(versionCmd); err != nil || !strings.Contains(out, ", experimental") {
+		c.Fatalf("docker version did not contain experimental: %s, %v", out, err)
 	}
 }

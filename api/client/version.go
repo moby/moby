@@ -9,6 +9,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/autogen/dockerversion"
 	flag "github.com/docker/docker/pkg/mflag"
+	"github.com/docker/docker/utils"
 )
 
 // CmdVersion shows Docker version information.
@@ -31,6 +32,9 @@ func (cli *DockerCli) CmdVersion(args ...string) error {
 		fmt.Fprintf(cli.out, "Git commit (client): %s\n", dockerversion.GITCOMMIT)
 	}
 	fmt.Fprintf(cli.out, "OS/Arch (client): %s/%s\n", runtime.GOOS, runtime.GOARCH)
+	if utils.ExperimentalBuild() {
+		fmt.Fprintf(cli.out, "Experimental (client): true\n")
+	}
 
 	stream, _, err := cli.call("GET", "/version", nil, nil)
 	if err != nil {
@@ -50,6 +54,8 @@ func (cli *DockerCli) CmdVersion(args ...string) error {
 	fmt.Fprintf(cli.out, "Go version (server): %s\n", v.GoVersion)
 	fmt.Fprintf(cli.out, "Git commit (server): %s\n", v.GitCommit)
 	fmt.Fprintf(cli.out, "OS/Arch (server): %s/%s\n", v.Os, v.Arch)
-
+	if v.Experimental {
+		fmt.Fprintf(cli.out, "Experimental (server): true\n")
+	}
 	return nil
 }

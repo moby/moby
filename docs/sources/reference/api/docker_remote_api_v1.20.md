@@ -1687,7 +1687,8 @@ Show the docker version information
          "GoVersion": "go1.4.1",
          "GitCommit": "a8a31ef",
          "Arch": "amd64",
-         "ApiVersion": "1.19"
+         "ApiVersion": "1.20",
+         "Experimental": false
     }
 
 Status Codes:
