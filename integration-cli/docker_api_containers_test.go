@@ -725,6 +725,57 @@ func (s *DockerSuite) TestContainerApiCommit(c *check.C) {
 	}
 }
 
+func (s *DockerSuite) TestContainerApiCommitWithLabelInConfig(c *check.C) {
+	cName := "testapicommitwithconfig"
+	out, err := exec.Command(dockerBinary, "run", "--name="+cName, "busybox", "/bin/sh", "-c", "touch /test").CombinedOutput()
+	if err != nil {
+		c.Fatal(err, out)
+	}
+
+	config := map[string]interface{}{
+		"Labels": map[string]string{"key1": "value1", "key2": "value2"},
+	}
+
+	name := "TestContainerApiCommitWithConfig"
+	status, b, err := sockRequest("POST", "/commit?repo="+name+"&container="+cName, config)
+	c.Assert(status, check.Equals, http.StatusCreated)
+	c.Assert(err, check.IsNil)
+
+	type resp struct {
+		Id string
+	}
+	var img resp
+	if err := json.Unmarshal(b, &img); err != nil {
+		c.Fatal(err)
+	}
+
+	label1, err := inspectFieldMap(img.Id, "Config.Labels", "key1")
+	if err != nil {
+		c.Fatal(err)
+	}
+	c.Assert(label1, check.Equals, "value1")
+
+	label2, err := inspectFieldMap(img.Id, "Config.Labels", "key2")
+	if err != nil {
+		c.Fatal(err)
+	}
+	c.Assert(label2, check.Equals, "value2")
+
+	cmd, err := inspectField(img.Id, "Config.Cmd")
+	if err != nil {
+		c.Fatal(err)
+	}
+	if cmd != "{[/bin/sh -c touch /test]}" {
+		c.Fatalf("got wrong Cmd from commit: %q", cmd)
+	}
+
+	// sanity check, make sure the image is what we think it is
+	out, err = exec.Command(dockerBinary, "run", img.Id, "ls", "/test").CombinedOutput()
+	if err != nil {
+		c.Fatalf("error checking committed image: %v - %q", err, string(out))
+	}
+}
+
 func (s *DockerSuite) TestContainerApiCreate(c *check.C) {
 	config := map[string]interface{}{
 		"Image": "busybox",
