@@ -574,8 +574,8 @@ use the proxy
 `--default-ulimit` allows you to set the default `ulimit` options to use for
 all containers. It takes the same options as `--ulimit` for `docker run`. If
 these defaults are not set, `ulimit` settings will be inherited, if not set on
-`docker run`, from the Docker daemon. Any `--ulimit` options passed to `docker
-run` will overwrite these defaults.
+`docker run`, from the Docker daemon. Any `--ulimit` options passed to 
+`docker run` will overwrite these defaults.
 
 ### Miscellaneous options
 
@@ -1029,8 +1029,8 @@ Creates a new container.
 The `docker create` command creates a writeable container layer over the
 specified image and prepares it for running the specified command.  The
 container ID is then printed to `STDOUT`.  This is similar to `docker run -d`
-except the container is never started.  You can then use the `docker start
-<container_id>` command to start the container at any point.
+except the container is never started.  You can then use the 
+`docker start <container_id>` command to start the container at any point.
 
 This is useful when you want to set up a container configuration ahead of time
 so that it is ready to start when you need it.
@@ -1125,8 +1125,8 @@ and Docker images will report:
 #### Filtering
 
 The filtering flag (`-f` or `--filter`) format is of "key=value". If you would
-like to use multiple filters, pass multiple flags (e.g., `--filter "foo=bar"
---filter "bif=baz"`)
+like to use multiple filters, pass multiple flags (e.g., 
+`--filter "foo=bar" --filter "bif=baz"`)
 
 Using the same filter multiple times will be handled as a *OR*; for example
 `--filter container=588a23dac085 --filter container=a8f7720b8c22` will display
@@ -1869,9 +1869,9 @@ The main process inside the container referenced under the link `/redis` will re
 
     $ docker rm $(docker ps -a -q)
 
-This command will delete all stopped containers. The command `docker ps
--a -q` will return all existing container IDs and pass them to the `rm`
-command which will delete them. Any running containers will not be
+This command will delete all stopped containers. The command 
+`docker ps -a -q` will return all existing container IDs and pass them to 
+the `rm` command which will delete them. Any running containers will not be
 deleted.
 
 ## rmi
