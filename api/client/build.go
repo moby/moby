@@ -175,7 +175,7 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 		}
 
 		if err := utils.ValidateContextDirectory(root, excludes); err != nil {
-			return fmt.Errorf("Error checking context is accessible: '%s'. Please check permissions and try again.", err)
+			return fmt.Errorf("Error checking context: '%s'.", err)
 		}
 		options := &archive.TarOptions{
 			Compression:     archive.Uncompressed,
