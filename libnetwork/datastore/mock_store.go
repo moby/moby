@@ -2,7 +2,6 @@ package datastore
 
 import (
 	"errors"
-	"time"
 
 	"github.com/docker/swarm/pkg/store"
 )
@@ -31,17 +30,17 @@ func NewMockStore() *MockStore {
 
 // Get the value at "key", returns the last modified index
 // to use in conjunction to CAS calls
-func (s *MockStore) Get(key string) (value []byte, lastIndex uint64, err error) {
+func (s *MockStore) Get(key string) (*store.KVPair, error) {
 	mData := s.db[key]
 	if mData == nil {
-		return nil, 0, nil
+		return nil, nil
 	}
-	return mData.Data, mData.Index, nil
+	return &store.KVPair{Value: mData.Data, LastIndex: mData.Index}, nil
 
 }
 
 // Put a value at "key"
-func (s *MockStore) Put(key string, value []byte) error {
+func (s *MockStore) Put(key string, value []byte, options *store.WriteOptions) error {
 	mData := s.db[key]
 	if mData == nil {
 		mData = &MockData{value, 0}
@@ -63,68 +62,50 @@ func (s *MockStore) Exists(key string) (bool, error) {
 	return ok, nil
 }
 
-// GetRange gets a range of values at "directory"
-func (s *MockStore) GetRange(prefix string) (values []store.KVEntry, err error) {
+// List gets a range of values at "directory"
+func (s *MockStore) List(prefix string) ([]*store.KVPair, error) {
 	return nil, ErrNotImplmented
 }
 
-// DeleteRange deletes a range of values at "directory"
-func (s *MockStore) DeleteRange(prefix string) error {
+// DeleteTree deletes a range of values at "directory"
+func (s *MockStore) DeleteTree(prefix string) error {
 	return ErrNotImplmented
 }
 
 // Watch a single key for modifications
-func (s *MockStore) Watch(key string, heartbeat time.Duration, callback store.WatchCallback) error {
-	return ErrNotImplmented
+func (s *MockStore) Watch(key string, stopCh <-chan struct{}) (<-chan *store.KVPair, error) {
+	return nil, ErrNotImplmented
 }
 
-// CancelWatch cancels a watch, sends a signal to the appropriate
-// stop channel
-func (s *MockStore) CancelWatch(key string) error {
-	return ErrNotImplmented
+// WatchTree triggers a watch on a range of values at "directory"
+func (s *MockStore) WatchTree(prefix string, stopCh <-chan struct{}) (<-chan []*store.KVPair, error) {
+	return nil, ErrNotImplmented
 }
 
-// Internal function to check if a key has changed
-func (s *MockStore) waitForChange(key string) <-chan uint64 {
-	return nil
-}
-
-// WatchRange triggers a watch on a range of values at "directory"
-func (s *MockStore) WatchRange(prefix string, filter string, heartbeat time.Duration, callback store.WatchCallback) error {
-	return ErrNotImplmented
-}
-
-// CancelWatchRange stops the watch on the range of values, sends
-// a signal to the appropriate stop channel
-func (s *MockStore) CancelWatchRange(prefix string) error {
-	return ErrNotImplmented
-}
-
-// Acquire the lock for "key"/"directory"
-func (s *MockStore) Acquire(key string, value []byte) (string, error) {
-	return "", ErrNotImplmented
-}
-
-// Release the lock for "key"/"directory"
-func (s *MockStore) Release(id string) error {
-	return ErrNotImplmented
+// NewLock exposed
+func (s *MockStore) NewLock(key string, options *store.LockOptions) (store.Locker, error) {
+	return nil, ErrNotImplmented
 }
 
 // AtomicPut put a value at "key" if the key has not been
 // modified in the meantime, throws an error if this is the case
-func (s *MockStore) AtomicPut(key string, _ []byte, newValue []byte, index uint64) (bool, error) {
+func (s *MockStore) AtomicPut(key string, newValue []byte, previous *store.KVPair, options *store.WriteOptions) (bool, *store.KVPair, error) {
 	mData := s.db[key]
-	if mData != nil && mData.Index != index {
-		return false, errInvalidAtomicRequest
+	if mData != nil && mData.Index != previous.LastIndex {
+		return false, nil, errInvalidAtomicRequest
 	}
-	return true, s.Put(key, newValue)
+	err := s.Put(key, newValue, nil)
+	if err != nil {
+		return false, nil, err
+	}
+	return true, &store.KVPair{Key: key, Value: newValue, LastIndex: s.db[key].Index}, nil
 }
 
 // AtomicDelete deletes a value at "key" if the key has not
 // been modified in the meantime, throws an error if this is the case
-func (s *MockStore) AtomicDelete(key string, oldValue []byte, index uint64) (bool, error) {
+func (s *MockStore) AtomicDelete(key string, previous *store.KVPair) (bool, error) {
 	mData := s.db[key]
-	if mData != nil && mData.Index != index {
+	if mData != nil && mData.Index != previous.LastIndex {
 		return false, errInvalidAtomicRequest
 	}
 	return true, s.Delete(key)

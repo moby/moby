@@ -24,7 +24,7 @@ import (
 	_ "github.com/docker/swarm/discovery/token"
 )
 
-const defaultHeartbeat = 10
+const defaultHeartbeat = time.Duration(10) * time.Second
 
 type hostDiscovery struct {
 	discovery discovery.Discovery
@@ -43,17 +43,17 @@ func (h *hostDiscovery) StartDiscovery(cfg *config.ClusterCfg, joinCallback Join
 		return fmt.Errorf("discovery requires a valid configuration")
 	}
 
-	hb := cfg.Heartbeat
+	hb := time.Duration(cfg.Heartbeat) * time.Second
 	if hb == 0 {
 		hb = defaultHeartbeat
 	}
-	d, err := discovery.New(cfg.Discovery, hb)
+	d, err := discovery.New(cfg.Discovery, hb, 3*hb)
 	if err != nil {
 		return err
 	}
 
 	if ip := net.ParseIP(cfg.Address); ip == nil {
-		return errors.New("Address config should be either ipv4 or ipv6 address")
+		return errors.New("address config should be either ipv4 or ipv6 address")
 	}
 
 	if err := d.Register(cfg.Address + ":0"); err != nil {
@@ -64,12 +64,23 @@ func (h *hostDiscovery) StartDiscovery(cfg *config.ClusterCfg, joinCallback Join
 	h.discovery = d
 	h.Unlock()
 
-	go d.Watch(func(entries []*discovery.Entry) {
-		h.processCallback(entries, joinCallback, leaveCallback)
-	})
-
-	go sustainHeartbeat(d, hb, cfg, h.stopChan)
+	discoveryCh, errCh := d.Watch(h.stopChan)
+	go h.monitorDiscovery(discoveryCh, errCh, joinCallback, leaveCallback)
+	go h.sustainHeartbeat(d, hb, cfg)
 	return nil
+}
+
+func (h *hostDiscovery) monitorDiscovery(ch <-chan discovery.Entries, errCh <-chan error, joinCallback JoinCallback, leaveCallback LeaveCallback) {
+	for {
+		select {
+		case entries := <-ch:
+			h.processCallback(entries, joinCallback, leaveCallback)
+		case err := <-errCh:
+			log.Errorf("discovery error: %v", err)
+		case <-h.stopChan:
+			return
+		}
+	}
 }
 
 func (h *hostDiscovery) StopDiscovery() error {
@@ -82,12 +93,12 @@ func (h *hostDiscovery) StopDiscovery() error {
 	return nil
 }
 
-func sustainHeartbeat(d discovery.Discovery, hb uint64, config *config.ClusterCfg, stopChan chan struct{}) {
+func (h *hostDiscovery) sustainHeartbeat(d discovery.Discovery, hb time.Duration, config *config.ClusterCfg) {
 	for {
 		select {
-		case <-stopChan:
+		case <-h.stopChan:
 			return
-		case <-time.After(time.Duration(hb) * time.Second):
+		case <-time.After(hb):
 			if err := d.Register(config.Address + ":0"); err != nil {
 				log.Warn(err)
 			}
@@ -95,7 +106,7 @@ func sustainHeartbeat(d discovery.Discovery, hb uint64, config *config.ClusterCf
 	}
 }
 
-func (h *hostDiscovery) processCallback(entries []*discovery.Entry, joinCallback JoinCallback, leaveCallback LeaveCallback) {
+func (h *hostDiscovery) processCallback(entries discovery.Entries, joinCallback JoinCallback, leaveCallback LeaveCallback) {
 	updated := hosts(entries)
 	h.Lock()
 	existing := h.nodes
@@ -125,23 +136,15 @@ func diff(existing mapset.Set, updated mapset.Set) (added []net.IP, removed []ne
 
 func (h *hostDiscovery) Fetch() ([]net.IP, error) {
 	h.Lock()
-	hd := h.discovery
-	h.Unlock()
-	if hd == nil {
-		return nil, errors.New("No Active Discovery")
-	}
-	entries, err := hd.Fetch()
-	if err != nil {
-		return nil, err
-	}
+	defer h.Unlock()
 	ips := []net.IP{}
-	for _, entry := range entries {
-		ips = append(ips, net.ParseIP(entry.Host))
+	for _, ipstr := range h.nodes.ToSlice() {
+		ips = append(ips, net.ParseIP(ipstr.(string)))
 	}
 	return ips, nil
 }
 
-func hosts(entries []*discovery.Entry) mapset.Set {
+func hosts(entries discovery.Entries) mapset.Set {
 	hosts := mapset.NewSet()
 	for _, entry := range entries {
 		hosts.Add(entry.Host)

@@ -2,16 +2,18 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"net"
 	"os"
 	"time"
+
+	log "github.com/Sirupsen/logrus"
 
 	"github.com/docker/libnetwork"
 	"github.com/docker/libnetwork/options"
 )
 
 func main() {
+	log.SetLevel(log.DebugLevel)
 	os.Setenv("LIBNETWORK_CFG", "libnetwork.toml")
 	controller, err := libnetwork.New("libnetwork.toml")
 	if err != nil {
@@ -27,9 +29,12 @@ func main() {
 	for i := 0; i < 100; i++ {
 		netw, err := controller.NewNetwork(netType, fmt.Sprintf("Gordon-%d", i))
 		if err != nil {
-			log.Fatal(err)
+			if _, ok := err.(libnetwork.NetworkNameError); !ok {
+				log.Fatal(err)
+			}
+		} else {
+			fmt.Println("Network Created Successfully :", netw)
 		}
-		fmt.Println("Network Created Successfully :", netw)
 		time.Sleep(10 * time.Second)
 	}
 }

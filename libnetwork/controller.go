@@ -61,7 +61,6 @@ import (
 	"github.com/docker/libnetwork/hostdiscovery"
 	"github.com/docker/libnetwork/sandbox"
 	"github.com/docker/libnetwork/types"
-	"github.com/docker/swarm/pkg/store"
 )
 
 // NetworkController provides the interface for controller instance which manages
@@ -104,6 +103,7 @@ type controller struct {
 	sandboxes sandboxTable
 	cfg       *config.Config
 	store     datastore.DataStore
+	stopChan  chan struct{}
 	sync.Mutex
 }
 
@@ -133,6 +133,7 @@ func New(configFile string) (NetworkController, error) {
 		// But without that, datastore cannot be initialized.
 		log.Debugf("Unable to Parse LibNetwork Config file : %v", err)
 	}
+	c.stopChan = make(chan struct{})
 
 	return c, nil
 }
@@ -172,9 +173,7 @@ func (c *controller) initDataStore() error {
 	c.Lock()
 	c.store = store
 	c.Unlock()
-	go c.watchNewNetworks()
-
-	return nil
+	return c.watchNewNetworks()
 }
 
 func (c *controller) initDiscovery() error {
@@ -242,17 +241,15 @@ func (c *controller) NewNetwork(networkType, name string, options ...NetworkOpti
 
 	// Construct the network object
 	network := &network{
-		name:      name,
-		id:        types.UUID(stringid.GenerateRandomID()),
-		ctrlr:     c,
-		driver:    d,
-		endpoints: endpointTable{},
+		name:        name,
+		networkType: networkType,
+		id:          types.UUID(stringid.GenerateRandomID()),
+		ctrlr:       c,
+		driver:      d,
+		endpoints:   endpointTable{},
 	}
 
 	network.processOptions(options...)
-	if err := c.addNetworkToStore(network); err != nil {
-		return nil, err
-	}
 	// Create the network
 	if err := d.CreateNetwork(network.id, network.generic); err != nil {
 		return nil, err
@@ -262,6 +259,10 @@ func (c *controller) NewNetwork(networkType, name string, options ...NetworkOpti
 	c.Lock()
 	c.networks[network.id] = network
 	c.Unlock()
+
+	if err := c.addNetworkToStore(network); err != nil {
+		return nil, err
+	}
 
 	return network, nil
 }
@@ -291,38 +292,53 @@ func (c *controller) addNetworkToStore(n *network) error {
 		log.Debugf("datastore not initialized. Network %s is not added to the store", n.Name())
 		return nil
 	}
-	return cs.PutObjectAtomic(n)
+
+	// Commenting out AtomicPut due to https://github.com/docker/swarm/issues/875,
+	// Also Network object is Keyed with UUID & hence an Atomic put is not mandatory.
+	// return cs.PutObjectAtomic(n)
+
+	return cs.PutObject(n)
 }
 
-func (c *controller) watchNewNetworks() {
+func (c *controller) watchNewNetworks() error {
 	c.Lock()
 	cs := c.store
 	c.Unlock()
 
-	cs.KVStore().WatchRange(datastore.Key(datastore.NetworkKeyPrefix), "", 0, func(kvi []store.KVEntry) {
-		for _, kve := range kvi {
-			var n network
-			err := json.Unmarshal(kve.Value(), &n)
-			if err != nil {
-				log.Error(err)
-				continue
-			}
-			n.dbIndex = kve.LastIndex()
-			c.Lock()
-			existing, ok := c.networks[n.id]
-			c.Unlock()
-			if ok && existing.dbIndex == n.dbIndex {
-				// Skip any watch notification for a network that has not changed
-				continue
-			} else if ok {
-				// Received an update for an existing network object
-				log.Debugf("Skipping network update for %s (%s)", n.name, n.id)
-				continue
-			}
+	kvPairs, err := cs.KVStore().WatchTree(datastore.Key(datastore.NetworkKeyPrefix), c.stopChan)
+	if err != nil {
+		return err
+	}
+	go func() {
+		for {
+			select {
+			case kvs := <-kvPairs:
+				for _, kve := range kvs {
+					var n network
+					err := json.Unmarshal(kve.Value, &n)
+					if err != nil {
+						log.Error(err)
+						continue
+					}
+					n.dbIndex = kve.LastIndex
+					c.Lock()
+					existing, ok := c.networks[n.id]
+					c.Unlock()
+					if ok && existing.dbIndex == n.dbIndex {
+						// Skip any watch notification for a network that has not changed
+						continue
+					} else if ok {
+						// Received an update for an existing network object
+						log.Debugf("Skipping network update for %s (%s)", n.name, n.id)
+						continue
+					}
 
-			c.newNetworkFromStore(&n)
+					c.newNetworkFromStore(&n)
+				}
+			}
 		}
-	})
+	}()
+	return nil
 }
 
 func (c *controller) Networks() []Network {

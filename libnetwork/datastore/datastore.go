@@ -53,7 +53,7 @@ var errInvalidAtomicRequest = errors.New("Invalid Atomic Request")
 
 // newClient used to connect to KV Store
 func newClient(kv string, addrs string) (DataStore, error) {
-	store, err := store.CreateStore(kv, []string{addrs}, store.Config{})
+	store, err := store.NewStore(store.Backend(kv), []string{addrs}, &store.Config{})
 	if err != nil {
 		return nil, err
 	}
@@ -89,16 +89,14 @@ func (ds *datastore) PutObjectAtomic(kvObject KV) error {
 	if kvObjValue == nil {
 		return errInvalidAtomicRequest
 	}
-	_, err := ds.store.AtomicPut(Key(kvObject.Key()...), []byte{}, kvObjValue, kvObject.Index())
+
+	previous := &store.KVPair{Key: Key(kvObject.Key()...), LastIndex: kvObject.Index()}
+	_, pair, err := ds.store.AtomicPut(Key(kvObject.Key()...), kvObjValue, previous, nil)
 	if err != nil {
 		return err
 	}
 
-	_, index, err := ds.store.Get(Key(kvObject.Key()...))
-	if err != nil {
-		return err
-	}
-	kvObject.SetIndex(index)
+	kvObject.SetIndex(pair.LastIndex)
 	return nil
 }
 
@@ -116,5 +114,5 @@ func (ds *datastore) putObjectWithKey(kvObject KV, key ...string) error {
 	if kvObjValue == nil {
 		return errors.New("Object must provide marshalled data for key : " + Key(kvObject.Key()...))
 	}
-	return ds.store.Put(Key(key...), kvObjValue)
+	return ds.store.Put(Key(key...), kvObjValue, nil)
 }

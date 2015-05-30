@@ -35,12 +35,12 @@ func TestKVObjectFlatKey(t *testing.T) {
 		t.Fatal(err)
 	}
 	keychain := []string{dummyKey, "1000"}
-	data, _, err := store.KVStore().Get(Key(keychain...))
+	data, err := store.KVStore().Get(Key(keychain...))
 	if err != nil {
 		t.Fatal(err)
 	}
 	var n dummyObject
-	json.Unmarshal(data, &n)
+	json.Unmarshal(data.Value, &n)
 	if n.Name != expected.Name {
 		t.Fatalf("Dummy object doesnt match the expected object")
 	}
@@ -63,14 +63,14 @@ func TestAtomicKVObjectFlatKey(t *testing.T) {
 
 	// Get the latest index and try PutObjectAtomic again for the same Key
 	// This must succeed as well
-	data, index, err := store.KVStore().Get(Key(expected.Key()...))
+	data, err := store.KVStore().Get(Key(expected.Key()...))
 	if err != nil {
 		t.Fatal(err)
 	}
 	n := dummyObject{}
-	json.Unmarshal(data, &n)
+	json.Unmarshal(data.Value, &n)
 	n.ID = "1111"
-	n.DBIndex = index
+	n.DBIndex = data.LastIndex
 	n.ReturnValue = true
 	err = store.PutObjectAtomic(&n)
 	if err != nil {
