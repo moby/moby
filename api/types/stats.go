@@ -84,6 +84,7 @@ type Network struct {
 type Stats struct {
 	Read        time.Time   `json:"read"`
 	Network     Network     `json:"network,omitempty"`
+	PreCpuStats CpuStats    `json:"precpu_stats,omitempty"`
 	CpuStats    CpuStats    `json:"cpu_stats,omitempty"`
 	MemoryStats MemoryStats `json:"memory_stats,omitempty"`
 	BlkioStats  BlkioStats  `json:"blkio_stats,omitempty"`
