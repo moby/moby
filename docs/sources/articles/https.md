@@ -31,10 +31,10 @@ it will only connect to servers with a certificate signed by that CA.
 
 First generate CA private and public keys:
 
-    $ openssl genrsa -aes256 -out ca-key.pem 2048
-    Generating RSA private key, 2048 bit long modulus
-    ......+++
-    ...............+++
+    $ openssl genrsa -aes256 -out ca-key.pem 4096
+    Generating RSA private key, 4096 bit long modulus
+    ............................................................................................................................................................................................++
+    ........++
     e is 65537 (0x10001)
     Enter pass phrase for ca-key.pem:
     Verifying - Enter pass phrase for ca-key.pem:
@@ -62,12 +62,12 @@ name) matches the hostname you will use to connect to Docker:
 > **Note**: replace all instances of `$HOST` in the following example with the
 > DNS name of your Docker daemon's host.
 
-    $ openssl genrsa -out server-key.pem 2048
-    Generating RSA private key, 2048 bit long modulus
-    ......................................................+++
-    ............................................+++
+    $ openssl genrsa -out server-key.pem 4096
+    Generating RSA private key, 4096 bit long modulus
+    .....................................................................++
+    .................................................................................................++
     e is 65537 (0x10001)
-    $ openssl req -subj "/CN=$HOST" -new -key server-key.pem -out server.csr
+    $ openssl req -subj "/CN=$HOST" -sha256 -new -key server-key.pem -out server.csr
 
 Next, we're going to sign the public key with our CA:
 
@@ -77,7 +77,7 @@ using `10.10.10.20` and `127.0.0.1`:
 
     $ echo subjectAltName = IP:10.10.10.20,IP:127.0.0.1 > extfile.cnf
 
-    $ openssl x509 -req -days 365 -in server.csr -CA ca.pem -CAkey ca-key.pem \
+    $ openssl x509 -req -days 365 -sha256 -in server.csr -CA ca.pem -CAkey ca-key.pem \
       -CAcreateserial -out server-cert.pem -extfile extfile.cnf
     Signature ok
     subject=/CN=your.host.com
@@ -87,10 +87,10 @@ using `10.10.10.20` and `127.0.0.1`:
 For client authentication, create a client key and certificate signing
 request:
 
-    $ openssl genrsa -out key.pem 2048
-    Generating RSA private key, 2048 bit long modulus
-    ...............................................+++
-    ...............................................................+++
+    $ openssl genrsa -out key.pem 4096
+    Generating RSA private key, 4096 bit long modulus
+    .........................................................++
+    ................++
     e is 65537 (0x10001)
     $ openssl req -subj '/CN=client' -new -key key.pem -out client.csr
 
@@ -101,7 +101,7 @@ config file:
 
 Now sign the public key:
 
-    $ openssl x509 -req -days 365 -in client.csr -CA ca.pem -CAkey ca-key.pem \
+    $ openssl x509 -req -days 365 -sha256 -in client.csr -CA ca.pem -CAkey ca-key.pem \
       -CAcreateserial -out cert.pem -extfile extfile.cnf
     Signature ok
     subject=/CN=client
