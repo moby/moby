@@ -2,9 +2,9 @@ package daemon
 
 import (
 	"encoding/json"
-	"io"
-
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/daemon/execdriver"
+	"io"
 )
 
 func (daemon *Daemon) ContainerStats(name string, stream bool, out io.Writer) error {
@@ -12,39 +12,28 @@ func (daemon *Daemon) ContainerStats(name string, stream bool, out io.Writer) er
 	if err != nil {
 		return err
 	}
-
-	var preCpuStats types.CpuStats
-	getStat := func(v interface{}) *types.Stats {
+	var pre_cpu_stats types.CpuStats
+	for first_v := range updates {
+		first_update := first_v.(*execdriver.ResourceStats)
+		first_stats := convertToAPITypes(first_update.Stats)
+		pre_cpu_stats = first_stats.CpuStats
+		pre_cpu_stats.SystemUsage = first_update.SystemUsage
+		break
+	}
+	enc := json.NewEncoder(out)
+	for v := range updates {
 		update := v.(*execdriver.ResourceStats)
 		// Retrieve the nw statistics from libnetwork and inject them in the Stats
 		if nwStats, err := daemon.getNetworkStats(name); err == nil {
 			update.Stats.Interfaces = nwStats
 		}
 		ss := convertToAPITypes(update.Stats)
-		ss.PreCpuStats = preCpuStats
+		ss.PreCpuStats = pre_cpu_stats
 		ss.MemoryStats.Limit = uint64(update.MemoryLimit)
 		ss.Read = update.Read
 		ss.CpuStats.SystemUsage = update.SystemUsage
-		preCpuStats = ss.CpuStats
-		return ss
-	}
-
-	enc := json.NewEncoder(out)
-
-	if !stream {
-		// prime the cpu stats so they aren't 0 in the final output
-		s := getStat(<-updates)
-
-		// now pull stats again with the cpu stats primed
-		s = getStat(<-updates)
-		err := enc.Encode(s)
-		daemon.UnsubscribeToContainerStats(name, updates)
-		return err
-	}
-
-	for v := range updates {
-		s := getStat(v)
-		if err := enc.Encode(s); err != nil {
+		pre_cpu_stats = ss.CpuStats
+		if err := enc.Encode(ss); err != nil {
 			// TODO: handle the specific broken pipe
 			daemon.UnsubscribeToContainerStats(name, updates)
 			return err
