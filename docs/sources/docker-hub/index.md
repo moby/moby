@@ -8,7 +8,7 @@ The [Docker Hub](https://hub.docker.com) provides a cloud-based platform service
 for distributed applications, including container image distribution and change
 management, user and team collaboration, and lifecycle workflow automation.
 
-![DockerHub](/docker-hub/hub-images/hub.png)
+![DockerHub](./hub-images/hub.png)
 
 ## [Finding and pulling images](./userguide.md)
 

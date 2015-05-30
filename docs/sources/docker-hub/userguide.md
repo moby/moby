@@ -7,7 +7,7 @@ page_keywords: Docker, docker, registry, Docker Hub, docs, documentation
 Docker Hub is used to find and pull Docker images to run or build upon, and to
 distribute and build images for other users to use.
 
-![your profile](/docker-hub/hub-images/dashboard.png)
+![your profile](./hub-images/dashboard.png)
 
 ## Finding repositories and images
 
