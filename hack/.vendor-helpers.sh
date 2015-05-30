@@ -70,15 +70,17 @@ clean() {
 		github.com/docker/docker/integration-cli # external tests
 	)
 
-	local dockerPlatforms=( linux/amd64 $(_dockerfile_env DOCKER_CROSSPLATFORMS) )
+	local dockerPlatforms=( linux/amd64 windows/amd64 $(_dockerfile_env DOCKER_CROSSPLATFORMS) )
 	local dockerBuildTags="$(_dockerfile_env DOCKER_BUILDTAGS)"
 	local buildTagCombos=(
 		''
 		'experimental'
 		"$dockerBuildTags"
 		"daemon $dockerBuildTags"
+		"daemon cgo $dockerBuildTags"
 		"experimental $dockerBuildTags"
 		"experimental daemon $dockerBuildTags"
+		"experimental daemon cgo $dockerBuildTags"
 	)
 
 	echo
@@ -98,7 +100,10 @@ clean() {
 	unset IFS
 
 	echo -n 'pruning unused packages, '
-	findArgs=()
+	findArgs=(
+		# This directory contains only .c and .h files which are necessary
+		-path vendor/src/github.com/mattn/go-sqlite3/code
+	)
 	for import in "${imports[@]}"; do
 		[ "${#findArgs[@]}" -eq 0 ] || findArgs+=( -or )
 		findArgs+=( -path "vendor/src/$import" )
@@ -107,12 +112,12 @@ clean() {
 	local prune=( $(find vendor -depth -type d -not '(' "${findArgs[@]}" ')') )
 	unset IFS
 	for dir in "${prune[@]}"; do
-		find "$dir" -maxdepth 1 -not -type d -exec rm -f '{}' +
+		find "$dir" -maxdepth 1 -not -type d -exec rm -v -f '{}' +
 		rmdir "$dir" 2>/dev/null || true
 	done
 
 	echo -n 'pruning unused files, '
-	find vendor -type f -name '*_test.go' -exec rm '{}' +
+	find vendor -type f -name '*_test.go' -exec rm -v '{}' +
 
 	echo done
 }
