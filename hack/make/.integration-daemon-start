@@ -2,7 +2,7 @@
 
 # see test-integration-cli for example usage of this script
 
-export PATH="$DEST/../binary:$DEST/../dynbinary:$DEST/../gccgo:$DEST/../dyngccgo:$PATH"
+export PATH="$ABS_DEST/../binary:$ABS_DEST/../dynbinary:$ABS_DEST/../gccgo:$ABS_DEST/../dyngccgo:$PATH"
 
 if ! command -v docker &> /dev/null; then
 	echo >&2 'error: binary or dynbinary must be run before .integration-daemon-start'

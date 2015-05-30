@@ -1,6 +1,5 @@
 #!/bin/bash
 
-DEST="$1"
 CROSS="$DEST/../cross"
 
 set -e

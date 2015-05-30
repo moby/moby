@@ -1,15 +1,9 @@
 #!/bin/bash
 set -e
 
-DEST=$1
 BINARY_NAME="docker-$VERSION"
 BINARY_EXTENSION="$(binary_extension)"
 BINARY_FULLNAME="$BINARY_NAME$BINARY_EXTENSION"
-
-# Cygdrive paths don't play well with go build -o.
-if [[ "$(uname -s)" == CYGWIN* ]]; then
-	DEST=$(cygpath -mw $DEST)
-fi
 
 source "${MAKEDIR}/.go-autogen"
 

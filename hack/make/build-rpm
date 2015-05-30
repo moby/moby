@@ -1,8 +1,6 @@
 #!/bin/bash
 set -e
 
-DEST=$1
-
 # subshell so that we can export PATH without breaking other things
 (
 	source "$(dirname "$BASH_SOURCE")/.integration-daemon-start"
