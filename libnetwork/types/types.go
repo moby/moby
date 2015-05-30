@@ -22,7 +22,7 @@ func (t *TransportPort) GetCopy() TransportPort {
 	return TransportPort{Proto: t.Proto, Port: t.Port}
 }
 
-// PortBinding represent a port binding between the container an the host
+// PortBinding represent a port binding between the container and the host
 type PortBinding struct {
 	Proto    Protocol
 	IP       net.IP
