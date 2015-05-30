@@ -1752,6 +1752,10 @@ Create a new image from a container's changes
          "Volumes": {
                  "/tmp": {}
          },
+         "Labels": {
+                 "key1": "value1",
+                 "key2": "value2"
+          },
          "WorkingDir": "",
          "NetworkDisabled": false,
          "ExposedPorts": {
