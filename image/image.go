@@ -33,6 +33,7 @@ type Image struct {
 	Config          *runconfig.Config `json:"config,omitempty"`
 	Architecture    string            `json:"architecture,omitempty"`
 	OS              string            `json:"os,omitempty"`
+	LastUsed        time.Time         `json:"last_used,omitempty"`
 	Size            int64
 
 	graph Graph
@@ -89,6 +90,36 @@ func StoreImage(img *Image, layerData archive.ArchiveReader, root string) (err e
 		}
 	}
 
+	return img.SaveMetadata(root)
+}
+
+func (img *Image) SetGraph(graph Graph) {
+	img.graph = graph
+}
+
+func (img *Image) UpdateLastUsed() error {
+	t := time.Now().UTC()
+
+	// Update all the graph
+	err := img.WalkHistory(
+		func(img *Image) error {
+			root := img.graph.ImageRoot(img.ID)
+			img.LastUsed = t
+			fmt.Println(root)
+			if err := img.SaveMetadata(root); err != nil {
+				return err
+			}
+			return nil
+		})
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// Saves image metadata (json file) in the directory root, also saves image size
+func (img *Image) SaveMetadata(root string) error {
+
 	if err := img.SaveSize(root); err != nil {
 		return err
 	}
@@ -101,10 +132,6 @@ func StoreImage(img *Image, layerData archive.ArchiveReader, root string) (err e
 	defer f.Close()
 
 	return json.NewEncoder(f).Encode(img)
-}
-
-func (img *Image) SetGraph(graph Graph) {
-	img.graph = graph
 }
 
 // SaveSize stores the current `size` value of `img` in the directory `root`.

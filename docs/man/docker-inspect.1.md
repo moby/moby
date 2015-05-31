@@ -257,7 +257,8 @@ on it.
         "Os": "linux",
         "Parent": "c2b774c744afc5bea603b5e6c5218539e506649326de3ea0135182f299d0519a",
         "Size": 0,
-        "VirtualSize": 613136466
+        "VirtualSize": 613136466,
+        "LastUsed": "2015-05-31T14:44:50.882592191Z"
     }]
 
 # HISTORY
@@ -265,3 +266,4 @@ April 2014, originally compiled by William Henry (whenry at redhat dot com)
 based on docker.com source material and internal work.
 June 2014, updated by Sven Dowideit <SvenDowideit@home.org.au>
 April 2015, updated by Qiang Huang <h.huangqiang@huawei.com>
+May 2015, updated by Xabier Larrakoetxea <slok69@gmail.com>

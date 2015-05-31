@@ -3,7 +3,9 @@ package main
 import (
 	"fmt"
 	"os/exec"
+	"regexp"
 	"strings"
+	"time"
 
 	"github.com/go-check/check"
 )
@@ -149,4 +151,38 @@ func (s *DockerSuite) TestPullScratchNotAllowed(c *check.C) {
 	if !strings.Contains(out, "'scratch' is a reserved name") {
 		c.Fatalf("unexpected output pulling scratch: %s", out)
 	}
+}
+
+func (s *DockerSuite) TestPullImageLastUsed(c *check.C) {
+	testRequires(c, Network)
+	imageName := "hello-world:latest"
+	re := regexp.MustCompile("\"LastUsed\": \"(.+)\"")
+
+	// ignore error if hasn't been pulled previously
+	rmiCmd := exec.Command(dockerBinary, "rmi", imageName)
+	runCommand(rmiCmd)
+
+	tBefore := time.Now().UTC()
+
+	pullCmd := exec.Command(dockerBinary, "pull", imageName)
+	_, _, err := runCommandWithOutput(pullCmd)
+	if err != nil {
+		c.Fatal(err)
+	}
+
+	cmd := exec.Command(dockerBinary, "inspect", imageName)
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		c.Fatal(out, err)
+	}
+
+	tAfter, err := time.Parse(time.RFC3339, re.FindAllStringSubmatch(out, -1)[0][1])
+	if err != nil {
+		c.Fatal(err)
+	}
+
+	if !tAfter.After(tBefore) {
+		c.Fatalf("Image last used should be in the future: %s > %s", tAfter, tBefore)
+	}
+
 }

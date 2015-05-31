@@ -270,6 +270,10 @@ func (container *Container) Start() (err error) {
 	}
 
 	container.command.Mounts = mounts
+
+	img, _ := container.GetImage()
+	img.UpdateLastUsed()
+
 	return container.waitForStart()
 }
 
@@ -462,6 +466,10 @@ func (container *Container) Kill() error {
 	}
 
 	container.WaitStop(-1 * time.Second)
+
+	img, _ := container.GetImage()
+	img.UpdateLastUsed()
+
 	return nil
 }
 
@@ -487,6 +495,9 @@ func (container *Container) Stop(seconds int) error {
 			return err
 		}
 	}
+
+	img, _ := container.GetImage()
+	img.UpdateLastUsed()
 
 	return nil
 }

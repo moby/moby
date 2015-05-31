@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os/exec"
 	"reflect"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -200,4 +201,46 @@ func (s *DockerSuite) TestImagesEnsureDanglingImageOnlyListedOnce(c *check.C) {
 		c.Fatalf("expected 1 dangling image, got %d: %s", a, out)
 	}
 
+}
+
+func (s *DockerSuite) TestImagesLastUsed(c *check.C) {
+	// Create the image
+	imageName := "images/images_last_used_test"
+	re := regexp.MustCompile("seconds? ago")
+
+	_, err := buildImage(imageName, `
+        FROM scratch
+        MAINTAINER dockertest`, true)
+	if err != nil {
+		c.Fatal(err)
+	}
+
+	// Get the images
+	cmd := exec.Command(dockerBinary, "images")
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		c.Fatal(err)
+	}
+
+	splitted := strings.Split(out, "\n")
+	r := regexp.MustCompile("  +") // Two spaces minimum
+	splittedHeaders := r.Split(splitted[0], -1)
+	splittedImage := r.Split(splitted[1], -1)
+
+	// Check LAST USED header
+	idxHeader := -1
+	for k, i := range splittedHeaders {
+		if i == "LAST USED" {
+			idxHeader = k
+		}
+	}
+
+	if !(idxHeader != -1 && splittedHeaders[idxHeader] == "LAST USED") {
+		c.Fatalf("Expected LAST USED header")
+	}
+
+	// Check just got build the image "less than a minute"
+	if !re.MatchString(splittedImage[idxHeader]) {
+		c.Fatalf("Expected a time less than a minute on LAST USED image information, got '%s'", splittedImage[idxHeader])
+	}
 }

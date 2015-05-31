@@ -105,6 +105,7 @@ func (s *TagStore) Images(config *ImagesConfig) ([]*types.Image, error) {
 					newImage.Size = int(image.Size)
 					newImage.VirtualSize = int(image.GetParentsSize(0) + image.Size)
 					newImage.Labels = image.ContainerConfig.Labels
+					newImage.LastUsed = int(image.LastUsed.Unix())
 
 					if utils.DigestReference(ref) {
 						newImage.RepoTags = []string{}
@@ -142,6 +143,7 @@ func (s *TagStore) Images(config *ImagesConfig) ([]*types.Image, error) {
 			newImage.Size = int(image.Size)
 			newImage.VirtualSize = int(image.GetParentsSize(0) + image.Size)
 			newImage.Labels = image.ContainerConfig.Labels
+			newImage.LastUsed = int(image.LastUsed.Unix())
 
 			images = append(images, newImage)
 		}

@@ -36,7 +36,7 @@ func (cli *DockerCli) CmdHistory(args ...string) error {
 
 	w := tabwriter.NewWriter(cli.out, 20, 1, 3, ' ', 0)
 	if !*quiet {
-		fmt.Fprintln(w, "IMAGE\tCREATED\tCREATED BY\tSIZE\tCOMMENT")
+		fmt.Fprintln(w, "IMAGE\tCREATED\tLAST USED\tCREATED BY\tSIZE\tCOMMENT")
 	}
 
 	for _, entry := range history {
@@ -50,6 +50,12 @@ func (cli *DockerCli) CmdHistory(args ...string) error {
 				fmt.Fprintf(w, "\t%s ago\t", units.HumanDuration(time.Now().UTC().Sub(time.Unix(entry.Created, 0))))
 			} else {
 				fmt.Fprintf(w, "\t%s\t", time.Unix(entry.Created, 0).Format(time.RFC3339))
+			}
+
+			if *human {
+				fmt.Fprintf(w, "%s ago\t", units.HumanDuration(time.Now().UTC().Sub(time.Unix(entry.LastUsed, 0))))
+			} else {
+				fmt.Fprintf(w, "%s\t", time.Unix(entry.LastUsed, 0).Format(time.RFC3339))
 			}
 
 			if *noTrunc {

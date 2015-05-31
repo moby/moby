@@ -129,6 +129,7 @@ func (graph *Graph) Create(layerData archive.ArchiveReader, containerID, contain
 		Config:        config,
 		Architecture:  runtime.GOARCH,
 		OS:            runtime.GOOS,
+		LastUsed:      time.Now().UTC(),
 	}
 
 	if containerID != "" {
@@ -194,6 +195,11 @@ func (graph *Graph) Register(img *image.Image, layerData archive.ArchiveReader) 
 		return err
 	}
 	graph.idIndex.Add(img.ID)
+
+	// finally set the last used timestamp to all the graph, we put here instead
+	// of in StoreImage to not update the whole graph in each layer creation of
+	// the build, pull, load or tag
+	img.UpdateLastUsed()
 	return nil
 }
 

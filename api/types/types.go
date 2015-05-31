@@ -55,6 +55,7 @@ type ImageHistory struct {
 	Tags      []string
 	Size      int64
 	Comment   string
+	LastUsed  int64
 }
 
 // DELETE "/images/{name:.*}"
@@ -73,6 +74,7 @@ type Image struct {
 	Size        int
 	VirtualSize int
 	Labels      map[string]string
+	LastUsed    int
 }
 
 // GET "/images/{name:.*}/json"
@@ -90,6 +92,7 @@ type ImageInspect struct {
 	Os              string
 	Size            int64
 	VirtualSize     int64
+	LastUsed        time.Time
 }
 
 // GET  "/containers/json"

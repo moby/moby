@@ -142,6 +142,10 @@ func (daemon *Daemon) Create(config *runconfig.Config, hostConfig *runconfig.Hos
 	if err := container.ToDisk(); err != nil {
 		return nil, nil, err
 	}
+
+	//Update image Last used
+	img.UpdateLastUsed()
+
 	return container, warnings, nil
 }
 

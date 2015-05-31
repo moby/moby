@@ -43,6 +43,7 @@ func (s *TagStore) Lookup(name string) (*types.ImageInspect, error) {
 		Os:              image.OS,
 		Size:            image.Size,
 		VirtualSize:     image.GetParentsSize(0) + image.Size,
+		LastUsed:        image.LastUsed,
 	}
 
 	return imageInspect, nil

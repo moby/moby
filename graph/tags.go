@@ -280,7 +280,14 @@ func (store *TagStore) SetLoad(repoName, tag, imageName string, force bool, out 
 		store.Repositories[repoName] = repo
 	}
 	repo[tag] = img.ID
-	return store.save()
+
+	err = store.save()
+	if err != nil {
+		return err
+	}
+
+	img.UpdateLastUsed()
+	return nil
 }
 
 // SetDigest creates a digest reference to an image ID.

@@ -2,7 +2,9 @@ package main
 
 import (
 	"os/exec"
+	"regexp"
 	"strings"
+	"time"
 
 	"github.com/docker/docker/pkg/stringutils"
 	"github.com/go-check/check"
@@ -173,5 +175,47 @@ func (s *DockerSuite) TestTagOfficialNames(c *check.C) {
 			continue
 		}
 		deleteImages("fooo/bar:latest")
+	}
+}
+
+func (s *DockerSuite) TestTagImageLastUsed(c *check.C) {
+	if err := pullImageIfNotExist("busybox:latest"); err != nil {
+		c.Fatal("couldn't find the busybox:latest image locally and failed to pull it")
+	}
+
+	repo := "tag-image-last-update"
+	repoOrig := "busybox:latest"
+	re := regexp.MustCompile("\"LastUsed\": \"(.+)\"")
+
+	cmd := exec.Command(dockerBinary, "inspect", repoOrig)
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		c.Fatal(out, err)
+	}
+	tBefore, err := time.Parse(time.RFC3339, re.FindAllStringSubmatch(out, -1)[0][1])
+	if err != nil {
+		c.Fatal(err)
+	}
+
+	tagCmd := exec.Command(dockerBinary, "tag", "busybox:latest", repo)
+	_, _, err = runCommandWithOutput(tagCmd)
+	if err != nil {
+		c.Fatal(err)
+	}
+	defer deleteImages(repo)
+
+	cmd = exec.Command(dockerBinary, "inspect", repoOrig)
+	out, _, err = runCommandWithOutput(cmd)
+	if err != nil {
+		c.Fatal(out, err)
+	}
+
+	tAfter, err := time.Parse(time.RFC3339, re.FindAllStringSubmatch(out, -1)[0][1])
+	if err != nil {
+		c.Fatal(err)
+	}
+
+	if !tAfter.After(tBefore) {
+		c.Fatalf("Image last used should be in the future: %s > %s", tAfter, tBefore)
 	}
 }

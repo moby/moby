@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"reflect"
+	"regexp"
 	"strings"
 	"time"
 
@@ -339,5 +340,46 @@ func (s *DockerSuite) TestCreateModeIpcContainer(c *check.C) {
 	out, _, err = runCommandWithOutput(cmd)
 	if err != nil {
 		c.Fatalf("Create container with ipc mode container should success with non running container: %s\n%s", out, err)
+	}
+}
+
+func (s *DockerSuite) TestCreateImageLastUsed(c *check.C) {
+
+	var cmd *exec.Cmd
+	imageName := "busybox"
+	containerName := "testLastUsedOnCreate"
+	re := regexp.MustCompile("\"LastUsed\": \"(.+)\"")
+
+	// Check last used of the image
+	cmd = exec.Command(dockerBinary, "inspect", imageName)
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		c.Fatal(out, err)
+	}
+	tBefore, err := time.Parse(time.RFC3339, re.FindAllStringSubmatch(out, -1)[0][1])
+	if err != nil {
+		c.Fatal(err)
+	}
+
+	// Sleep some time and create the container, the last used should be
+	// 2 seconds ahead (more or less)
+	time.Sleep(2 * time.Second)
+
+	cmd = exec.Command(dockerBinary, "create", "--name", containerName, imageName, "true")
+	runCommand(cmd)
+
+	cmd = exec.Command(dockerBinary, "inspect", imageName)
+	out, _, err = runCommandWithOutput(cmd)
+	if err != nil {
+		c.Fatal(out, err)
+	}
+	tAfter, err := time.Parse(time.RFC3339, re.FindAllStringSubmatch(out, -1)[0][1])
+	if err != nil {
+		c.Fatal(err)
+	}
+
+	// Check that the Last used inspect of future is after the inspect of the past
+	if !tAfter.After(tBefore) {
+		c.Fatalf("Image last used should be in the future: %s > %s", tAfter, tBefore)
 	}
 }
