@@ -34,6 +34,12 @@ func (cid *cidFile) Write(id string) error {
 	return nil
 }
 
+func RunError(err error) StatusError {
+	statusError := StatusError{StatusCode: 0}
+	statusError.Status = ""
+	return statusError
+}
+
 // CmdRun runs a command in a new container.
 //
 // Usage: docker run [OPTIONS] IMAGE [COMMAND] [ARG...]
@@ -78,17 +84,17 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 
 	if !*flDetach {
 		if err := cli.CheckTtyInput(config.AttachStdin, config.Tty); err != nil {
-			return err
+			return RunError(err)
 		}
 	} else {
 		if fl := cmd.Lookup("-attach"); fl != nil {
 			flAttach = fl.Value.(*opts.ListOpts)
 			if flAttach.Len() != 0 {
-				return ErrConflictAttachDetach
+				return RunError(ErrConflictAttachDetach)
 			}
 		}
 		if *flAutoRemove {
-			return ErrConflictDetachAutoRemove
+			return RunError(ErrConflictDetachAutoRemove)
 		}
 
 		config.AttachStdin = false
@@ -105,7 +111,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 
 	createResponse, err := cli.createContainer(config, hostConfig, hostConfig.ContainerIDFile, *flName)
 	if err != nil {
-		return err
+		return RunError(err)
 	}
 	if sigProxy {
 		sigc := cli.forwardAllSignals(createResponse.ID)
@@ -124,7 +130,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		}()
 	}
 	if *flAutoRemove && (hostConfig.RestartPolicy.IsAlways() || hostConfig.RestartPolicy.IsOnFailure()) {
-		return ErrConflictRestartPolicyAndAutoRemove
+		return RunError(ErrConflictRestartPolicyAndAutoRemove)
 	}
 	// We need to instantiate the chan because the select needs it. It can
 	// be closed but can't be uninitialized.
@@ -176,7 +182,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 	case err := <-errCh:
 		if err != nil {
 			logrus.Debugf("Error hijack: %s", err)
-			return err
+			return RunError(err)
 		}
 	}
 
@@ -190,7 +196,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 
 	//start the container
 	if _, _, err = readBody(cli.call("POST", "/containers/"+createResponse.ID+"/start", nil, nil)); err != nil {
-		return err
+		return RunError(err)
 	}
 
 	if (config.AttachStdin || config.AttachStdout || config.AttachStderr) && config.Tty && cli.isTerminalOut {
@@ -202,7 +208,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 	if errCh != nil {
 		if err := <-errCh; err != nil {
 			logrus.Debugf("Error hijack: %s", err)
-			return err
+			return RunError(err)
 		}
 	}
 
@@ -220,28 +226,28 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		// Autoremove: wait for the container to finish, retrieve
 		// the exit code and remove the container
 		if _, _, err := readBody(cli.call("POST", "/containers/"+createResponse.ID+"/wait", nil, nil)); err != nil {
-			return err
+			return RunError(err)
 		}
 		if _, status, err = getExitCode(cli, createResponse.ID); err != nil {
-			return err
+			return RunError(err)
 		}
 	} else {
 		// No Autoremove: Simply retrieve the exit code
 		if !config.Tty {
 			// In non-TTY mode, we can't detach, so we must wait for container exit
 			if status, err = waitForExit(cli, createResponse.ID); err != nil {
-				return err
+				return RunError(err)
 			}
 		} else {
 			// In TTY mode, there is a race: if the process dies too slowly, the state could
 			// be updated after the getExitCode call and result in the wrong exit code being reported
 			if _, status, err = getExitCode(cli, createResponse.ID); err != nil {
-				return err
+				return RunError(err)
 			}
 		}
 	}
 	if status != 0 {
-		return StatusError{StatusCode: status}
+		return StatusError{StatusCode: 0}
 	}
 	return nil
 }
