@@ -111,13 +111,13 @@ To check, or request access, go to your GitHub user's "Setting" page, select the
 "Applications" section from the left side bar, then click the "View" button for
 "Docker Hub Registry".
 
-![Check User access to GitHub](/docker-hub/hub-images/gh-check-user-org-dh-app-access.png)
+![Check User access to GitHub](./hub-images/gh-check-user-org-dh-app-access.png)
 
 The organization's administrators may need to go to the Organization's "Third
 party access" screen in "Settings" to Grant or Deny access to the Docker Hub
 Registry application. This change will apply to all organization members.
 
-![Check Docker Hub application access to Organization](/docker-hub/hub-images/gh-check-admin-org-dh-app-access.png)
+![Check Docker Hub application access to Organization](./hub-images/gh-check-admin-org-dh-app-access.png)
 
 More detailed access controls to specific users and GitHub repositories would be
 managed using the GitHub People and Teams interfaces.
@@ -174,31 +174,31 @@ can be limited to read-only access to just the repositories required to build.
   <tbody>
     <tr>
       <td>1.</td>
-      <td><img src="/docker-hub/hub-images/gh_org_members.png"></td>
+      <td><img src="./hub-images/gh_org_members.png"></td>
       <td>First, create the new account in GitHub. It should be given read-only
       access to the main repository and all submodules that are needed.</td>
     </tr>
     <tr>
       <td>2.</td>
-      <td><img src="/docker-hub/hub-images/gh_team_members.png"></td>
+      <td><img src="./hub-images/gh_team_members.png"></td>
       <td>This can be accomplished by adding the account to a read-only team in
       the organization(s) where the main GitHub repository and all submodule
       repositories are kept.</td>
     </tr>
     <tr>
       <td>3.</td>
-      <td><img src="/docker-hub/hub-images/gh_repo_deploy_key.png"></td>
+      <td><img src="./hub-images/gh_repo_deploy_key.png"></td>
       <td>Next, remove the deploy key from the main GitHub repository. This can be done in the GitHub repository's "Deploy keys" Settings section.</td>
     </tr>
     <tr>
       <td>4.</td>
-      <td><img src="/docker-hub/hub-images/deploy_key.png"></td>
+      <td><img src="./hub-images/deploy_key.png"></td>
       <td>Your automated build's deploy key is in the "Build Details" menu
       under "Deploy keys".</td>
     </tr>
     <tr>
       <td>5.</td>
-      <td><img src="/docker-hub/hub-images/gh_add_ssh_user_key.png"></td>
+      <td><img src="./hub-images/gh_add_ssh_user_key.png"></td>
       <td>In your dedicated GitHub User account, add the deploy key from your
       Docker Hub Automated Build.</td>
     </tr>
@@ -224,19 +224,19 @@ Follow the steps below to configure the GitHub Service hooks for your Automated 
   <tbody>
     <tr>
       <td>1.</td>
-      <td><img src="/docker-hub/hub-images/gh_settings.png"></td>
+      <td><img src="./hub-images/gh_settings.png"></td>
       <td>Log in to Github.com, and go to your Repository page. Click on "Settings" on
       the right side of the page. You must have admin privileges to the repository in order to do this.</td>
     </tr>
     <tr>
       <td>2.</td>
-      <td><img src="/docker-hub/hub-images/gh_menu.png" alt="Webhooks & Services"></td>
+      <td><img src="./hub-images/gh_menu.png" alt="Webhooks & Services"></td>
       <td>Click on "Webhooks & Services" on the left side of the page.</td></tr>
       <tr><td>3.</td>
-      <td><img src="/docker-hub/hub-images/gh_service_hook.png" alt="Find the service labeled Docker"></td>
+      <td><img src="./hub-images/gh_service_hook.png" alt="Find the service labeled Docker"></td>
       <td>Find the service labeled "Docker" (or click on "Add service") and click on it.</td></tr>
       <tr><td>4.</td>
-      <td><img src="/docker-hub/hub-images/gh_docker-service.png" alt="Activate Service Hooks"></td>
+      <td><img src="./hub-images/gh_docker-service.png" alt="Activate Service Hooks"></td>
       <td>Make sure the "Active" checkbox is selected and click the "Update service" button to save your changes.</td>
     </tr>
   </tbody>
@@ -282,18 +282,18 @@ Bitbucket hooks for your Automated Build:
   <tbody>
     <tr>
       <td>1.</td>
-      <td><img src="/docker-hub/hub-images/bb_menu.png" alt="Settings" width="180"></td>
+      <td><img src="./hub-images/bb_menu.png" alt="Settings" width="180"></td>
       <td>Log in to Bitbucket.org and go to your Repository page. Click on "Settings" on
       the far left side of the page, under "Navigation". You must have admin privileges
       to the repository in order to do this.</td>
     </tr>
     <tr>
       <td>2.</td>
-      <td><img src="/docker-hub/hub-images/bb_hooks.png" alt="Hooks" width="180"></td>
+      <td><img src="./hub-images/bb_hooks.png" alt="Hooks" width="180"></td>
       <td>Click on "Hooks" on the near left side of the page, under "Settings".</td></tr>
     <tr>
       <td>3.</td>
-      <td><img src="/docker-hub/hub-images/bb_post-hook.png" alt="Docker Post Hook"></td><td>You should now see a list of hooks associated with the repo, including a <code>POST</code> hook that points at
+      <td><img src="./hub-images/bb_post-hook.png" alt="Docker Post Hook"></td><td>You should now see a list of hooks associated with the repo, including a <code>POST</code> hook that points at
       registry.hub.docker.com/hooks/bitbucket.</td>
     </tr>
   </tbody>
@@ -328,7 +328,7 @@ This will trigger the Automated Build, much as with a GitHub webhook.
 Build triggers are available under the Settings menu of each Automated Build
 repository on the Docker Hub.
 
-![Build trigger screen](/docker-hub/hub-images/build-trigger.png)
+![Build trigger screen](./hub-images/build-trigger.png)
 
 You can use `curl` to trigger a build:
 

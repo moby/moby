@@ -47,7 +47,7 @@ https://hub.docker.com/account/organizations/) from the Account Settings
 tab. They are also listed below your user name on your repositories page
 and in your account profile.
 
-![organizations](/docker-hub/hub-images/orgs.png)
+![organizations](./hub-images/orgs.png)
 
 ### Organization groups
 
@@ -57,7 +57,7 @@ membership of groups.
 Unless they are the organization's `Owner`, users can only see groups of which they
 are members.
 
-![groups](/docker-hub/hub-images/groups.png)
+![groups](./hub-images/groups.png)
 
 ### Repository group permissions
 
@@ -78,6 +78,6 @@ repository access rights to groups:
 > `Read` access to the repository, regardless of the rights their group membership
 >  gives them.
 
-![Organization repository collaborators](/docker-hub/hub-images/org-repo-collaborators.png)
+![Organization repository collaborators](./hub-images/org-repo-collaborators.png)
 
 
