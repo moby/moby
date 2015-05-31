@@ -2,6 +2,7 @@ package libnetwork
 
 import (
 	"bytes"
+	"encoding/json"
 	"io/ioutil"
 	"os"
 	"path"
@@ -10,6 +11,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/ioutils"
+	"github.com/docker/libnetwork/datastore"
 	"github.com/docker/libnetwork/etchosts"
 	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/libnetwork/resolvconf"
@@ -108,7 +110,51 @@ type endpoint struct {
 	exposedPorts  []types.TransportPort
 	generic       map[string]interface{}
 	joinLeaveDone chan struct{}
+	dbIndex       uint64
 	sync.Mutex
+}
+
+func (ep *endpoint) MarshalJSON() ([]byte, error) {
+	epMap := make(map[string]interface{})
+	epMap["name"] = ep.name
+	epMap["id"] = string(ep.id)
+	epMap["network"] = ep.network
+	epMap["ep_iface"] = ep.iFaces
+	epMap["exposed_ports"] = ep.exposedPorts
+	epMap["generic"] = ep.generic
+	return json.Marshal(epMap)
+}
+
+func (ep *endpoint) UnmarshalJSON(b []byte) (err error) {
+	var epMap map[string]interface{}
+	if err := json.Unmarshal(b, &epMap); err != nil {
+		return err
+	}
+	ep.name = epMap["name"].(string)
+	ep.id = types.UUID(epMap["id"].(string))
+
+	nb, _ := json.Marshal(epMap["network"])
+	var n network
+	json.Unmarshal(nb, &n)
+	ep.network = &n
+
+	ib, _ := json.Marshal(epMap["ep_iface"])
+	var ifaces []endpointInterface
+	json.Unmarshal(ib, &ifaces)
+	ep.iFaces = make([]*endpointInterface, 0)
+	for _, iface := range ifaces {
+		ep.iFaces = append(ep.iFaces, &iface)
+	}
+
+	tb, _ := json.Marshal(epMap["exposed_ports"])
+	var tPorts []types.TransportPort
+	json.Unmarshal(tb, &tPorts)
+	ep.exposedPorts = tPorts
+
+	if epMap["generic"] != nil {
+		ep.generic = epMap["generic"].(map[string]interface{})
+	}
+	return nil
 }
 
 const defaultPrefix = "/var/lib/docker/network/files"
@@ -132,6 +178,26 @@ func (ep *endpoint) Network() string {
 	defer ep.Unlock()
 
 	return ep.network.name
+}
+
+func (ep *endpoint) Key() []string {
+	return []string{datastore.EndpointKeyPrefix, string(ep.network.id), string(ep.id)}
+}
+
+func (ep *endpoint) Value() []byte {
+	b, err := json.Marshal(ep)
+	if err != nil {
+		return nil
+	}
+	return b
+}
+
+func (ep *endpoint) Index() uint64 {
+	return ep.dbIndex
+}
+
+func (ep *endpoint) SetIndex(index uint64) {
+	ep.dbIndex = index
 }
 
 func (ep *endpoint) processOptions(options ...EndpointOption) {

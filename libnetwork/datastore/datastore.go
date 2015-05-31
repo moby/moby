@@ -37,6 +37,8 @@ type KV interface {
 const (
 	// NetworkKeyPrefix is the prefix for network key in the kv store
 	NetworkKeyPrefix = "network"
+	// EndpointKeyPrefix is the prefix for endpoint key in the kv store
+	EndpointKeyPrefix = "endpoint"
 )
 
 //Key provides convenient method to create a Key

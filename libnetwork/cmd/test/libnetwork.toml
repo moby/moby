@@ -4,7 +4,7 @@ title = "LibNetwork Configuration file"
   debug = false
 [cluster]
   discovery = "token://22aa23948f4f6b31230687689636959e"
-  Address = "2.1.1.1"
+  Address = "1.1.1.1"
 [datastore]
   embedded = false
 [datastore.client]

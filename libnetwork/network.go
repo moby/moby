@@ -191,6 +191,28 @@ func (n *network) Delete() error {
 	return nil
 }
 
+func (n *network) addEndpoint(ep *endpoint) error {
+	var err error
+	n.Lock()
+	n.endpoints[ep.id] = ep
+	d := n.driver
+	n.Unlock()
+
+	defer func() {
+		if err != nil {
+			n.Lock()
+			delete(n.endpoints, ep.id)
+			n.Unlock()
+		}
+	}()
+
+	err = d.CreateEndpoint(n.id, ep.id, ep, ep.generic)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func (n *network) CreateEndpoint(name string, options ...EndpointOption) (Endpoint, error) {
 	if name == "" {
 		return nil, ErrInvalidName(name)
@@ -205,15 +227,14 @@ func (n *network) CreateEndpoint(name string, options ...EndpointOption) (Endpoi
 	ep.network = n
 	ep.processOptions(options...)
 
-	d := n.driver
-	err := d.CreateEndpoint(n.id, ep.id, ep, ep.generic)
-	if err != nil {
+	if err := n.addEndpoint(ep); err != nil {
 		return nil, err
 	}
 
-	n.Lock()
-	n.endpoints[ep.id] = ep
-	n.Unlock()
+	if err := n.ctrlr.addEndpointToStore(ep); err != nil {
+		return nil, err
+	}
+
 	return ep, nil
 }
 

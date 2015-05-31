@@ -45,7 +45,6 @@ create network namespaces and allocate interfaces for containers to use.
 package libnetwork
 
 import (
-	"encoding/json"
 	"fmt"
 	"net"
 	"os"
@@ -161,21 +160,6 @@ func (c *controller) initConfig(configFile string) error {
 	return nil
 }
 
-func (c *controller) initDataStore() error {
-	if c.cfg == nil {
-		return fmt.Errorf("datastore initialization requires a valid configuration")
-	}
-
-	store, err := datastore.NewDataStore(&c.cfg.Datastore)
-	if err != nil {
-		return err
-	}
-	c.Lock()
-	c.store = store
-	c.Unlock()
-	return c.watchNewNetworks()
-}
-
 func (c *controller) initDiscovery() error {
 	if c.cfg == nil {
 		return fmt.Errorf("discovery initialization requires a valid configuration")
@@ -217,18 +201,6 @@ func (c *controller) NewNetwork(networkType, name string, options ...NetworkOpti
 	if name == "" {
 		return nil, ErrInvalidName(name)
 	}
-	// Check if a driver for the specified network type is available
-	c.Lock()
-	d, ok := c.drivers[networkType]
-	c.Unlock()
-	if !ok {
-		var err error
-		d, err = c.loadDriver(networkType)
-		if err != nil {
-			return nil, err
-		}
-	}
-
 	// Check if a network already exists with the specified network name
 	c.Lock()
 	for _, n := range c.networks {
@@ -245,20 +217,14 @@ func (c *controller) NewNetwork(networkType, name string, options ...NetworkOpti
 		networkType: networkType,
 		id:          types.UUID(stringid.GenerateRandomID()),
 		ctrlr:       c,
-		driver:      d,
 		endpoints:   endpointTable{},
 	}
 
 	network.processOptions(options...)
-	// Create the network
-	if err := d.CreateNetwork(network.id, network.generic); err != nil {
+
+	if err := c.addNetwork(network); err != nil {
 		return nil, err
 	}
-
-	// Store the network handler in controller
-	c.Lock()
-	c.networks[network.id] = network
-	c.Unlock()
 
 	if err := c.addNetworkToStore(network); err != nil {
 		return nil, err
@@ -267,77 +233,31 @@ func (c *controller) NewNetwork(networkType, name string, options ...NetworkOpti
 	return network, nil
 }
 
-func (c *controller) newNetworkFromStore(n *network) {
+func (c *controller) addNetwork(n *network) error {
+
 	c.Lock()
-	defer c.Unlock()
-
-	if _, ok := c.drivers[n.networkType]; !ok {
-		log.Warnf("Network driver unavailable for type=%s. ignoring network updates for %s", n.Type(), n.Name())
-		return
-	}
-	n.ctrlr = c
-	n.driver = c.drivers[n.networkType]
-	c.networks[n.id] = n
-	// TODO : Populate n.endpoints back from endpoint dbstore
-}
-
-func (c *controller) addNetworkToStore(n *network) error {
-	if isReservedNetwork(n.Name()) {
-		return nil
-	}
-	c.Lock()
-	cs := c.store
-	c.Unlock()
-	if cs == nil {
-		log.Debugf("datastore not initialized. Network %s is not added to the store", n.Name())
-		return nil
-	}
-
-	// Commenting out AtomicPut due to https://github.com/docker/swarm/issues/875,
-	// Also Network object is Keyed with UUID & hence an Atomic put is not mandatory.
-	// return cs.PutObjectAtomic(n)
-
-	return cs.PutObject(n)
-}
-
-func (c *controller) watchNewNetworks() error {
-	c.Lock()
-	cs := c.store
+	// Check if a driver for the specified network type is available
+	d, ok := c.drivers[n.networkType]
 	c.Unlock()
 
-	kvPairs, err := cs.KVStore().WatchTree(datastore.Key(datastore.NetworkKeyPrefix), c.stopChan)
-	if err != nil {
+	if !ok {
+		var err error
+		d, err = c.loadDriver(n.networkType)
+		if err != nil {
+			return err
+		}
+	}
+
+	n.driver = d
+
+	// Create the network
+	if err := d.CreateNetwork(n.id, n.generic); err != nil {
 		return err
 	}
-	go func() {
-		for {
-			select {
-			case kvs := <-kvPairs:
-				for _, kve := range kvs {
-					var n network
-					err := json.Unmarshal(kve.Value, &n)
-					if err != nil {
-						log.Error(err)
-						continue
-					}
-					n.dbIndex = kve.LastIndex
-					c.Lock()
-					existing, ok := c.networks[n.id]
-					c.Unlock()
-					if ok && existing.dbIndex == n.dbIndex {
-						// Skip any watch notification for a network that has not changed
-						continue
-					} else if ok {
-						// Received an update for an existing network object
-						log.Debugf("Skipping network update for %s (%s)", n.name, n.id)
-						continue
-					}
+	c.Lock()
+	c.networks[n.id] = n
+	c.Unlock()
 
-					c.newNetworkFromStore(&n)
-				}
-			}
-		}
-	}()
 	return nil
 }
 

@@ -35,6 +35,17 @@ func main() {
 		} else {
 			fmt.Println("Network Created Successfully :", netw)
 		}
+		netw, _ = controller.NetworkByName(fmt.Sprintf("Gordon-%d", i))
+		_, err = netw.CreateEndpoint(fmt.Sprintf("Gordon-Ep-%d", i), nil)
+		if err != nil {
+			log.Fatalf("Error creating endpoint 1 %v", err)
+		}
+
+		_, err = netw.CreateEndpoint(fmt.Sprintf("Gordon-Ep2-%d", i), nil)
+		if err != nil {
+			log.Fatalf("Error creating endpoint 2 %v", err)
+		}
+
 		time.Sleep(10 * time.Second)
 	}
 }
