@@ -317,7 +317,7 @@ maintainer to make a difference on the project!
 
 ### IRC meetings
 
-There are two monthly meetings taking place on #docker-dev IRC to accomodate all
+There are two monthly meetings taking place on #docker-dev IRC to accommodate all
 timezones. Anybody can propose a topic for discussion prior to the meeting.
 
 If you feel the conversation is going off-topic, feel free to point it out.

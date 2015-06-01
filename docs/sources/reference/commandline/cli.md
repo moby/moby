@@ -689,7 +689,7 @@ process is returned by the `docker attach` command to its caller too:
       --memory-swap=""         Total memory (memory + swap), `-1` to disable swap
       -c, --cpu-shares         CPU Shares (relative weight)
       --cpuset-mems=""         MEMs in which to allow execution, e.g. `0-3`, `0,1`
-      --cpuset-cpus=""         CPUs in which to allow exection, e.g. `0-3`, `0,1`
+      --cpuset-cpus=""         CPUs in which to allow execution, e.g. `0-3`, `0,1`
       --cgroup-parent=""       Optional parent cgroup for the container
 
 Builds Docker images from a Dockerfile and a "context". A build's context is
@@ -759,7 +759,7 @@ client is killed for any reason.
 
 > **Note:**
 > Currently only the "run" phase of the build can be canceled until pull
-> cancelation is implemented).
+> cancellation is implemented).
 
 ### Return code
 
