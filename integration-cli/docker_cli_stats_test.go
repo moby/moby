@@ -29,7 +29,7 @@ func (s *DockerSuite) TestCliStatsNoStream(c *check.C) {
 		if err != nil {
 			c.Fatalf("Error running stats: %v", err)
 		}
-	case <-time.After(2 * time.Second):
+	case <-time.After(3 * time.Second):
 		statsCmd.Process.Kill()
 		c.Fatalf("stats did not return immediately when not streaming")
 	}
