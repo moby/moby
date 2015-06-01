@@ -82,10 +82,15 @@ func (daemon *Daemon) SystemInfo() (*types.Info, error) {
 		InitSha1:           dockerversion.INITSHA1,
 		InitPath:           initPath,
 		NCPU:               runtime.NumCPU(),
-		MemTotal:           meminfo.MemTotal,
 		DockerRootDir:      daemon.Config().Root,
 		Labels:             daemon.Config().Labels,
 		ExperimentalBuild:  utils.ExperimentalBuild(),
+	}
+
+	// TODO Windows. system.ReadMemInfo isn't implemented, so attempting
+	// to access members of meminfo will cause a SIGSEGV.
+	if runtime.GOOS != "windows" {
+		v.MemTotal = meminfo.MemTotal
 	}
 
 	if httpProxy := os.Getenv("http_proxy"); httpProxy != "" {
