@@ -34,6 +34,7 @@ type CommonConfig struct {
 	TrustKeyPath   string
 	DefaultNetwork string
 	NetworkKVStore string
+	RootMount      string
 }
 
 // InstallCommonFlags adds command-line options to the top-level flag parser for
@@ -58,4 +59,5 @@ func (config *Config) InstallCommonFlags() {
 	opts.LabelListVar(&config.Labels, []string{"-label"}, "Set key=value labels to the daemon")
 	flag.StringVar(&config.LogConfig.Type, []string{"-log-driver"}, "json-file", "Default driver for container logs")
 	opts.LogOptsVar(config.LogConfig.Config, []string{"-log-opt"}, "Set log driver options")
+	flag.StringVar(&config.RootMount, []string{"-root-mount"}, runconfig.DefaultRootMount, "Rootfs mount propogation mode")
 }
