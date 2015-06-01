@@ -40,7 +40,6 @@ func CleanPatterns(patterns []string) ([]string, [][]string, bool, error) {
 		}
 		if Exclusion(pattern) {
 			if len(pattern) == 1 {
-				logrus.Errorf("Illegal exclusion pattern: %s", pattern)
 				return nil, nil, false, errors.New("Illegal exclusion pattern: !")
 			}
 			exceptions = true
@@ -94,7 +93,6 @@ func OptimizedMatches(file string, patterns []string, patDirs [][]string) (bool,
 
 		match, err := filepath.Match(pattern, file)
 		if err != nil {
-			logrus.Errorf("Error matching: %s (pattern: %s)", file, pattern)
 			return false, err
 		}
 
@@ -114,6 +112,7 @@ func OptimizedMatches(file string, patterns []string, patDirs [][]string) (bool,
 	if matched {
 		logrus.Debugf("Skipping excluded path: %s", file)
 	}
+
 	return matched, nil
 }
 
