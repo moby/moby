@@ -1722,7 +1722,7 @@ polling (using since).
 
 Docker containers report the following events:
 
-    create, destroy, die, exec_create, exec_start, export, kill, oom, pause, restart, start, stop, unpause
+    attach, commit, copy, create, destroy, die, exec_create, exec_start, export, kill, oom, pause, rename, resize, restart, start, stop, top, unpause
 
 and Docker images report:
 

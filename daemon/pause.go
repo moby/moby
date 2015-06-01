@@ -12,7 +12,6 @@ func (daemon *Daemon) ContainerPause(name string) error {
 	if err := container.Pause(); err != nil {
 		return fmt.Errorf("Cannot pause container %s: %s", name, err)
 	}
-	container.LogEvent("pause")
 
 	return nil
 }

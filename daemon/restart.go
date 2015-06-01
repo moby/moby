@@ -10,6 +10,5 @@ func (daemon *Daemon) ContainerRestart(name string, seconds int) error {
 	if err := container.Restart(seconds); err != nil {
 		return fmt.Errorf("Cannot restart container %s: %s\n", name, err)
 	}
-	container.LogEvent("restart")
 	return nil
 }

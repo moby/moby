@@ -39,7 +39,6 @@ func (daemon *Daemon) ContainerCreate(name string, config *runconfig.Config, hos
 		return "", warnings, err
 	}
 
-	container.LogEvent("create")
 	warnings = append(warnings, buildWarnings...)
 
 	return container.ID, warnings, nil
@@ -142,6 +141,7 @@ func (daemon *Daemon) Create(config *runconfig.Config, hostConfig *runconfig.Hos
 	if err := container.ToDisk(); err != nil {
 		return nil, nil, err
 	}
+	container.LogEvent("create")
 	return container, warnings, nil
 }
 
