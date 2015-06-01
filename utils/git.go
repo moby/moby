@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/docker/docker/pkg/symlink"
 	"github.com/docker/docker/pkg/urlutil"
 )
 
@@ -69,7 +70,11 @@ func checkoutGit(fragment, root string) (string, error) {
 	}
 
 	if len(refAndDir) > 1 && len(refAndDir[1]) != 0 {
-		newCtx := filepath.Join(root, refAndDir[1])
+		newCtx, err := symlink.FollowSymlinkInScope(filepath.Join(root, refAndDir[1]), root)
+		if err != nil {
+			return "", fmt.Errorf("Error setting git context, %q not within git root: %s", refAndDir[1], err)
+		}
+
 		fi, err := os.Stat(newCtx)
 		if err != nil {
 			return "", err
