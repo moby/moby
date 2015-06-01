@@ -452,11 +452,6 @@ func (ep *endpoint) buildHostsFiles() error {
 		}
 	}
 
-	name := container.config.hostName
-	if container.config.domainName != "" {
-		name = name + "." + container.config.domainName
-	}
-
 	for _, extraHost := range container.config.extraHosts {
 		extraContent = append(extraContent,
 			etchosts.Record{Hosts: extraHost.name, IP: extraHost.IP})
