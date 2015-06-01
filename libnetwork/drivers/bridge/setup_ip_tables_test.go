@@ -6,6 +6,7 @@ import (
 
 	"github.com/docker/libnetwork/iptables"
 	"github.com/docker/libnetwork/netutils"
+	"github.com/docker/libnetwork/portmapper"
 )
 
 const (
@@ -95,8 +96,9 @@ func assertIPTableChainProgramming(rule iptRule, descr string, t *testing.T) {
 
 // Assert function which pushes chains based on bridge config parameters.
 func assertBridgeConfig(config *networkConfiguration, br *bridgeInterface, t *testing.T) {
+	nw := bridgeNetwork{portMapper: portmapper.New()}
 	// Attempt programming of ip tables.
-	err := setupIPTables(config, br)
+	err := nw.setupIPTables(config, br)
 	if err != nil {
 		t.Fatalf("%v", err)
 	}

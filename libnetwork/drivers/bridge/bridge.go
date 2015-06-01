@@ -29,7 +29,6 @@ const (
 
 var (
 	ipAllocator *ipallocator.IPAllocator
-	portMapper  *portmapper.PortMapper
 )
 
 // configuration info for the "bridge" driver.
@@ -78,10 +77,11 @@ type bridgeEndpoint struct {
 }
 
 type bridgeNetwork struct {
-	id        types.UUID
-	bridge    *bridgeInterface // The bridge's L3 interface
-	config    *networkConfiguration
-	endpoints map[types.UUID]*bridgeEndpoint // key: endpoint id
+	id         types.UUID
+	bridge     *bridgeInterface // The bridge's L3 interface
+	config     *networkConfiguration
+	endpoints  map[types.UUID]*bridgeEndpoint // key: endpoint id
+	portMapper *portmapper.PortMapper
 	sync.Mutex
 }
 
@@ -94,7 +94,6 @@ type driver struct {
 
 func init() {
 	ipAllocator = ipallocator.New()
-	portMapper = portmapper.New()
 }
 
 // New constructs a new bridge driver
@@ -451,7 +450,12 @@ func (d *driver) CreateNetwork(id types.UUID, option map[string]interface{}) err
 	}
 
 	// Create and set network handler in driver
-	network := &bridgeNetwork{id: id, endpoints: make(map[types.UUID]*bridgeEndpoint), config: config}
+	network := &bridgeNetwork{
+		id:         id,
+		endpoints:  make(map[types.UUID]*bridgeEndpoint),
+		config:     config,
+		portMapper: portmapper.New(),
+	}
 	d.networks[id] = network
 	d.Unlock()
 
@@ -537,7 +541,7 @@ func (d *driver) CreateNetwork(id types.UUID, option map[string]interface{}) err
 		{!config.EnableUserlandProxy, setupLoopbackAdressesRouting},
 
 		// Setup IPTables.
-		{config.EnableIPTables, setupIPTables},
+		{config.EnableIPTables, network.setupIPTables},
 
 		// Setup DefaultGatewayIPv4
 		{config.DefaultGatewayIPv4 != nil, setupGatewayIPv4},
@@ -792,7 +796,7 @@ func (d *driver) CreateEndpoint(nid, eid types.UUID, epInfo driverapi.EndpointIn
 	}
 
 	// Program any required port mapping and store them in the endpoint
-	endpoint.portMapping, err = allocatePorts(epConfig, intf, config.DefaultBindingIP, config.EnableUserlandProxy)
+	endpoint.portMapping, err = n.allocatePorts(epConfig, intf, config.DefaultBindingIP, config.EnableUserlandProxy)
 	if err != nil {
 		return err
 	}
@@ -851,7 +855,7 @@ func (d *driver) DeleteEndpoint(nid, eid types.UUID) error {
 	}()
 
 	// Remove port mappings. Do not stop endpoint delete on unmap failure
-	releasePorts(ep)
+	n.releasePorts(ep)
 
 	// Release the v4 address allocated to this endpoint's sandbox interface
 	err = ipAllocator.ReleaseIP(n.bridge.bridgeIPv4, ep.intf.Address.IP)
