@@ -2206,18 +2206,18 @@ mount the volumes in read-only or read-write mode, respectively. By default,
 the volumes are mounted in the same mode (read write or read only) as
 the reference container.
 
-Labeling systems like SELinux require proper labels be placed on volume content
-mounted into a container, otherwise the security system might prevent the
-processes running inside the container from using the content. By default,
-volumes are not relabeled.
+Labeling systems like SELinux require that proper labels are placed on volume
+content mounted into a container. Without a label, the security system might
+prevent the processes running inside the container from using the content. By
+default, Docker does not change the labels set by the OS.
 
-Two suffixes :z or :Z can be added to the volume mount. These suffixes tell
-Docker to relabel file objects on the shared volumes. The 'z' option tells
-Docker that the volume content will be shared between containers. Docker will
-label the content with a shared content label. Shared volumes labels allow all
-containers to read/write content. The 'Z' option tells Docker to label the
-content with a private unshared label. Private volumes can only be used by the
-current container.
+To change the label in the container context, you can add either of two suffixes
+`:z` or `:Z` to the volume mount. These suffixes tell Docker to relabel file
+objects on the shared volumes. The `z` option tells Docker that two containers
+share the volume content. As a result, Docker labels the content with a shared
+content label. Shared volume labels allow all containers to read/write content.
+The `Z` option tells Docker to label the content with a private unshared label.
+Only the current container can use a private volume.
 
 The `-a` flag tells `docker run` to bind to the container's `STDIN`, `STDOUT`
 or `STDERR`. This makes it possible to manipulate the output and input as
