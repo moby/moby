@@ -3156,3 +3156,15 @@ func (s *DockerSuite) TestRunPublishPort(c *check.C) {
 		c.Fatalf("run without --publish-all should not publish port, out should be nil, but got: %s", out)
 	}
 }
+
+// Issue #10184.
+func (s *DockerSuite) TestDevicePermissions(c *check.C) {
+	const permissions = "crw-rw-rw-"
+	out, status := dockerCmd(c, "run", "--device", "/dev/fuse:/dev/fuse:mrw", "busybox:latest", "ls", "-l", "/dev/fuse")
+	if status != 0 {
+		c.Fatalf("expected status 0, got %d", status)
+	}
+	if !strings.HasPrefix(out, permissions) {
+		c.Fatalf("output should begin with %q, got %q", permissions, out)
+	}
+}
