@@ -200,23 +200,26 @@ func DockerHeaders(metaHeaders http.Header) []transport.RequestModifier {
 	return modifiers
 }
 
-type debugTransport struct{ http.RoundTripper }
+type debugTransport struct {
+	http.RoundTripper
+	log func(...interface{})
+}
 
 func (tr debugTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	dump, err := httputil.DumpRequestOut(req, false)
 	if err != nil {
-		fmt.Println("could not dump request")
+		tr.log("could not dump request")
 	}
-	fmt.Println(string(dump))
+	tr.log(string(dump))
 	resp, err := tr.RoundTripper.RoundTrip(req)
 	if err != nil {
 		return nil, err
 	}
 	dump, err = httputil.DumpResponse(resp, false)
 	if err != nil {
-		fmt.Println("could not dump response")
+		tr.log("could not dump response")
 	}
-	fmt.Println(string(dump))
+	tr.log(string(dump))
 	return resp, err
 }
 
