@@ -20,7 +20,6 @@ import (
 	sysinfo "github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/pkg/term"
 	"github.com/docker/libcontainer"
-	"github.com/docker/libcontainer/apparmor"
 	"github.com/docker/libcontainer/cgroups/systemd"
 	"github.com/docker/libcontainer/configs"
 	"github.com/docker/libcontainer/system"
@@ -48,10 +47,6 @@ func NewDriver(root, initPath string, options []string) (*driver, error) {
 	}
 
 	if err := sysinfo.MkdirAll(root, 0700); err != nil {
-		return nil, err
-	}
-	// native driver root is at docker_root/execdriver/native. Put apparmor at docker_root
-	if err := apparmor.InstallDefaultProfile(); err != nil {
 		return nil, err
 	}
 

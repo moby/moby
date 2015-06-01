@@ -1,0 +1,99 @@
+profile /usr/bin/docker flags=(attach_disconnected) {
+  #include <abstractions/base>
+
+  # Prevent following links to these files during container setup.
+  deny /etc/** mkl,
+  deny /dev/** kl,
+  deny /sys/** mkl,
+  deny /proc/** mkl,
+
+  signal (receive) peer=@{profile_name},
+  signal (receive) peer=unconfined,
+  signal (send),
+  ipc rw,
+  capability,
+
+  /etc/apparmor.d/docker rw,
+  /var/lib/docker/tmp/** rw,
+  /var/run/docker.sock rw,
+  /var/lib/docker/** rwklm,
+  /dev/** rw,
+  owner /** rw,
+
+  /sbin/apparmor_parser rCix,
+  /sbin/xtables-multi rCix,
+  /sbin/iptables rCx,
+  /sbin/modprobe rCx,
+  /usr/bin/docker rcx,
+  /sbin/auplink rCx,
+  /usr/bin/xz rCx,
+
+  # Transitions
+  change_profile -> docker-*,
+  change_profile -> unconfined,
+
+  # Applied to reexec
+  profile /usr/bin/docker flags=(attach_disconnected) {
+   deny /proc/* rw,
+   deny /proc/sys/** w,
+   deny /sys/** rw,
+
+   deny /etc/** mkl,
+   deny /dev/** kl,
+   deny /sys/** mkl,
+   deny /proc/** mkl,
+
+   signal (receive) peer=@{profile_name},
+   signal (receive) peer=/usr/bin/docker,
+   network,
+   file,
+   mount -> /,
+   mount -> /var/lib/docker/**,
+   umount,
+   pivot_root /var/lib/docker/**,
+
+   /usr/bin/docker rix,
+
+   capability chown,
+   capability fowner,
+   capability sys_chroot,
+   capability net_admin,
+   capability net_bind_service,
+   capability dac_override,
+   capability mknod,
+   capability sys_admin,
+  }
+  profile /sbin/iptables {
+   signal (receive) peer=/usr/bin/docker,
+   capability net_admin,
+  }
+  profile /sbin/auplink flags=(audit,attach_disconnected) {
+   signal (receive) peer=/usr/bin/docker,
+   capability sys_admin,
+   /var/lib/docker/aufs/** rw,
+   /lib/** r,
+   /apparmor/.null r,
+   /dev/null rw,
+   /etc/ld.so.cache r,
+   /sbin/auplink rm,
+   /proc/[0-9]*/mounts rw,
+   /proc/fs/aufs/** rw,
+   /sys/fs/aufs/** rw,
+  }
+  profile /sbin/modprobe {
+   signal (receive) peer=/usr/bin/docker,
+   capability sys_module,
+   file,
+  }
+  # xz works via pipes, so we do not need access to the filesystem.
+  profile /usr/bin/xz {
+   signal (receive) peer=/usr/bin/docker,
+  }
+
+  # Client requirements...
+  /var/run/docker.sock rw,
+  /proc/sys/net/core/somaxconn r,
+  /proc/sys/kernel/cap_last_cap r,
+  /run/docker.sock rw,
+  owner /** rw,
+}
