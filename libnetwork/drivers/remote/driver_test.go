@@ -144,7 +144,7 @@ func (test *testEndpoint) SetNames(src string, dst string) error {
 		test.t.Fatalf(`Wrong SrcName; expected "%s", got "%s"`, test.src, src)
 	}
 	if test.dst != dst {
-		test.t.Fatalf(`Wrong DstName; expected "%s", got "%s"`, test.dst, dst)
+		test.t.Fatalf(`Wrong DstPrefix; expected "%s", got "%s"`, test.dst, dst)
 	}
 	return nil
 }
@@ -217,8 +217,8 @@ func TestRemoteDriver(t *testing.T) {
 			"ResolvConfPath": ep.resolvConfPath,
 			"InterfaceNames": []map[string]interface{}{
 				map[string]interface{}{
-					"SrcName": ep.src,
-					"DstName": ep.dst,
+					"SrcName":   ep.src,
+					"DstPrefix": ep.dst,
 				},
 			},
 		}

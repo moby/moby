@@ -168,7 +168,7 @@ func (d *driver) Join(nid, eid types.UUID, sboxKey string, jinfo driverapi.JoinI
 			return fmt.Errorf("no correlating interface %d in supplied interface names", i)
 		}
 		supplied := ifaceNames[i]
-		if err := iface.SetNames(supplied.SrcName, supplied.DstName); err != nil {
+		if err := iface.SetNames(supplied.SrcName, supplied.DstPrefix); err != nil {
 			return errorWithRollback(fmt.Sprintf("failed to set interface name: %s", err), d.Leave(nid, eid))
 		}
 	}

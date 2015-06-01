@@ -120,8 +120,8 @@ type joinRequest struct {
 }
 
 type ifaceName struct {
-	SrcName string
-	DstName string
+	SrcName   string
+	DstPrefix string
 }
 
 type joinResponse struct {
