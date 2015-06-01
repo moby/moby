@@ -196,7 +196,7 @@ func calculateCPUPercent(previousCPU, previousSystem uint64, v *types.Stats) flo
 	)
 
 	if systemDelta > 0.0 && cpuDelta > 0.0 {
-		cpuPercent = (cpuDelta / systemDelta) * float64(len(v.CpuStats.CpuUsage.PercpuUsage)) * 100.0
+		cpuPercent = (cpuDelta / systemDelta) * 100.0
 	}
 	return cpuPercent
 }
