@@ -98,7 +98,11 @@ func (tr *authTransport) RoundTrip(orig *http.Request) (*http.Response, error) {
 	}
 	resp.Body = &transport.OnEOFReader{
 		Rc: resp.Body,
-		Fn: func() { delete(tr.modReq, orig) },
+		Fn: func() {
+			tr.mu.Lock()
+			delete(tr.modReq, orig)
+			tr.mu.Unlock()
+		},
 	}
 	return resp, nil
 }
