@@ -91,8 +91,6 @@ func NewDriver(root, initPath string, options []string) (*driver, error) {
 		}
 	}
 
-	logrus.Debugf("Using %v as native.cgroupdriver", cgm)
-
 	f, err := libcontainer.New(
 		root,
 		cgm,
