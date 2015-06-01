@@ -93,6 +93,10 @@ func (n *network) Key() []string {
 	return []string{datastore.NetworkKeyPrefix, string(n.id)}
 }
 
+func (n *network) KeyPrefix() []string {
+	return []string{datastore.NetworkKeyPrefix}
+}
+
 func (n *network) Value() []byte {
 	b, err := json.Marshal(n)
 	if err != nil {
@@ -175,7 +179,22 @@ func (n *network) Delete() error {
 		n.ctrlr.Unlock()
 		return &ActiveEndpointsError{name: n.name, id: string(n.id)}
 	}
+	n.ctrlr.Unlock()
 
+	if err = n.deleteNetwork(); err != nil {
+		return err
+	}
+
+	if err = n.ctrlr.deleteNetworkFromStore(n); err != nil {
+		log.Warnf("Delete network (%s - %v) failed from datastore : %v", n.name, n.id, err)
+	}
+
+	return nil
+}
+
+func (n *network) deleteNetwork() error {
+	var err error
+	n.ctrlr.Lock()
 	delete(n.ctrlr.networks, n.id)
 	n.ctrlr.Unlock()
 	if err := n.driver.DeleteNetwork(n.id); err != nil {

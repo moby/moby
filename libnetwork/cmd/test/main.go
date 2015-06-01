@@ -26,7 +26,7 @@ func main() {
 	options := options.Generic{"AddressIPv4": net}
 
 	err = controller.ConfigureNetworkDriver(netType, options)
-	for i := 0; i < 100; i++ {
+	for i := 0; i < 10; i++ {
 		netw, err := controller.NewNetwork(netType, fmt.Sprintf("Gordon-%d", i))
 		if err != nil {
 			if _, ok := err.(libnetwork.NetworkNameError); !ok {
@@ -46,6 +46,6 @@ func main() {
 			log.Fatalf("Error creating endpoint 2 %v", err)
 		}
 
-		time.Sleep(10 * time.Second)
+		time.Sleep(2 * time.Second)
 	}
 }

@@ -52,6 +52,29 @@ func (c *controller) addNetworkToStore(n *network) error {
 	return cs.PutObject(n)
 }
 
+func (c *controller) deleteNetworkFromStore(n *network) error {
+	if isReservedNetwork(n.Name()) {
+		return nil
+	}
+	c.Lock()
+	cs := c.store
+	c.Unlock()
+	if cs == nil {
+		log.Debugf("datastore not initialized. Network %s is not deleted from datastore", n.Name())
+		return nil
+	}
+
+	if err := cs.DeleteObject(n); err != nil {
+		return err
+	}
+
+	if err := cs.DeleteTree(&endpoint{network: n}); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (c *controller) getNetworkFromStore(nid types.UUID) (*network, error) {
 	n := network{id: nid}
 	if err := c.store.GetObject(datastore.Key(n.Key()...), &n); err != nil {
@@ -88,9 +111,11 @@ func (c *controller) newEndpointFromStore(ep *endpoint) {
 }
 
 func (c *controller) addEndpointToStore(ep *endpoint) error {
+	ep.Lock()
 	if isReservedNetwork(ep.network.name) {
 		return nil
 	}
+	ep.Unlock()
 	c.Lock()
 	cs := c.store
 	c.Unlock()
@@ -112,6 +137,25 @@ func (c *controller) getEndpointFromStore(eid types.UUID) (*endpoint, error) {
 		return nil, err
 	}
 	return &ep, nil
+}
+
+func (c *controller) deleteEndpointFromStore(ep *endpoint) error {
+	if isReservedNetwork(ep.network.Name()) {
+		return nil
+	}
+	c.Lock()
+	cs := c.store
+	c.Unlock()
+	if cs == nil {
+		log.Debugf("datastore not initialized. endpoint %s is not deleted from datastore", ep.Name())
+		return nil
+	}
+
+	if err := cs.DeleteObject(ep); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (c *controller) watchStore() error {
@@ -145,7 +189,7 @@ func (c *controller) watchStore() error {
 					if ok {
 						// Skip existing network update
 						if existing.dbIndex != n.dbIndex {
-							log.Debugf("Skipping network update for %s (%s)", n.name, n.id)
+							existing.dbIndex = n.dbIndex
 						}
 						continue
 					}
@@ -170,9 +214,11 @@ func (c *controller) watchStore() error {
 					if ok {
 						existing, _ := n.EndpointByID(string(ep.id))
 						if existing != nil {
+							ee := existing.(*endpoint)
 							// Skip existing endpoint update
-							if existing.(*endpoint).dbIndex != ep.dbIndex {
-								log.Debugf("Skipping endpoint update for %s (%s)", ep.name, ep.id)
+							if ee.dbIndex != ep.dbIndex {
+								ee.dbIndex = ep.dbIndex
+								ee.container = ep.container
 							}
 							continue
 						}

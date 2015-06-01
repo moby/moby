@@ -122,6 +122,9 @@ func (ep *endpoint) MarshalJSON() ([]byte, error) {
 	epMap["ep_iface"] = ep.iFaces
 	epMap["exposed_ports"] = ep.exposedPorts
 	epMap["generic"] = ep.generic
+	if ep.container != nil {
+		epMap["container"] = ep.container
+	}
 	return json.Marshal(epMap)
 }
 
@@ -150,6 +153,14 @@ func (ep *endpoint) UnmarshalJSON(b []byte) (err error) {
 	var tPorts []types.TransportPort
 	json.Unmarshal(tb, &tPorts)
 	ep.exposedPorts = tPorts
+
+	epc, ok := epMap["container"]
+	if ok {
+		cb, _ := json.Marshal(epc)
+		var cInfo containerInfo
+		json.Unmarshal(cb, &cInfo)
+		ep.container = &cInfo
+	}
 
 	if epMap["generic"] != nil {
 		ep.generic = epMap["generic"].(map[string]interface{})
@@ -182,6 +193,10 @@ func (ep *endpoint) Network() string {
 
 func (ep *endpoint) Key() []string {
 	return []string{datastore.EndpointKeyPrefix, string(ep.network.id), string(ep.id)}
+}
+
+func (ep *endpoint) KeyPrefix() []string {
+	return []string{datastore.EndpointKeyPrefix, string(ep.network.id)}
 }
 
 func (ep *endpoint) Value() []byte {
@@ -302,11 +317,13 @@ func (ep *endpoint) Join(containerID string, options ...EndpointOption) error {
 
 	ep.Unlock()
 	defer func() {
-		ep.Lock()
 		if err != nil {
+			ep.Lock()
 			ep.container = nil
+			ep.Unlock()
+		} else {
+			ep.network.ctrlr.addEndpointToStore(ep)
 		}
-		ep.Unlock()
 	}()
 
 	network.Lock()
@@ -410,14 +427,28 @@ func (ep *endpoint) Leave(containerID string, options ...EndpointOption) error {
 
 func (ep *endpoint) Delete() error {
 	ep.Lock()
-	epid := ep.id
-	name := ep.name
 	if ep.container != nil {
 		ep.Unlock()
-		return &ActiveContainerError{name: name, id: string(epid)}
+		return &ActiveContainerError{name: ep.name, id: string(ep.id)}
+	}
+	ep.Unlock()
+
+	if err := ep.deleteEndpoint(); err != nil {
+		return err
 	}
 
+	if err := ep.network.ctrlr.deleteEndpointFromStore(ep); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (ep *endpoint) deleteEndpoint() error {
+	var err error
+	ep.Lock()
 	n := ep.network
+	name := ep.name
+	epid := ep.id
 	ep.Unlock()
 
 	n.Lock()
