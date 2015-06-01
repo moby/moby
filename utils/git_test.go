@@ -103,6 +103,14 @@ func TestCheckoutGit(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	if err = os.Symlink("../subdir", filepath.Join(gitDir, "parentlink")); err != nil {
+		t.Fatal(err)
+	}
+
+	if err = os.Symlink("/subdir", filepath.Join(gitDir, "absolutelink")); err != nil {
+		t.Fatal(err)
+	}
+
 	if _, err = gitWithinDir(gitDir, "add", "-A"); err != nil {
 		t.Fatal(err)
 	}
@@ -147,6 +155,9 @@ func TestCheckoutGit(t *testing.T) {
 		{":Dockerfile", "", true}, // not a directory error
 		{"master:nosubdir", "", true},
 		{"master:subdir", "FROM scratch\nEXPOSE 5000", false},
+		{"master:parentlink", "FROM scratch\nEXPOSE 5000", false},
+		{"master:absolutelink", "FROM scratch\nEXPOSE 5000", false},
+		{"master:../subdir", "", true},
 		{"test", "FROM scratch\nEXPOSE 3000", false},
 		{"test:", "FROM scratch\nEXPOSE 3000", false},
 		{"test:subdir", "FROM busybox\nEXPOSE 5000", false},
