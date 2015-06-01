@@ -1,6 +1,7 @@
 package datastore
 
 import (
+	"encoding/json"
 	"errors"
 	"strings"
 
@@ -10,6 +11,8 @@ import (
 
 //DataStore exported
 type DataStore interface {
+	// GetObject gets data from datastore and unmarshals to the specified object
+	GetObject(key string, o interface{}) error
 	// PutObject adds a new Record based on an object into the datastore
 	PutObject(kvObject KV) error
 	// PutObjectAtomic provides an atomic add and update operation for a Record
@@ -117,4 +120,12 @@ func (ds *datastore) putObjectWithKey(kvObject KV, key ...string) error {
 		return errors.New("Object must provide marshalled data for key : " + Key(kvObject.Key()...))
 	}
 	return ds.store.Put(Key(key...), kvObjValue, nil)
+}
+
+func (ds *datastore) GetObject(key string, o interface{}) error {
+	kvPair, err := ds.store.Get(key)
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal(kvPair.Value, o)
 }

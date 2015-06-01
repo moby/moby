@@ -6,6 +6,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/libnetwork/datastore"
+	"github.com/docker/libnetwork/types"
 )
 
 func (c *controller) initDataStore() error {
@@ -23,13 +24,13 @@ func (c *controller) initDataStore() error {
 	return c.watchStore()
 }
 
-func (c *controller) newNetworkFromStore(n *network) {
+func (c *controller) newNetworkFromStore(n *network) error {
 	c.Lock()
 	n.ctrlr = c
 	c.Unlock()
 	n.endpoints = endpointTable{}
 
-	c.addNetwork(n)
+	return c.addNetwork(n)
 }
 
 func (c *controller) addNetworkToStore(n *network) error {
@@ -51,16 +52,34 @@ func (c *controller) addNetworkToStore(n *network) error {
 	return cs.PutObject(n)
 }
 
+func (c *controller) getNetworkFromStore(nid types.UUID) (*network, error) {
+	n := network{id: nid}
+	if err := c.store.GetObject(datastore.Key(n.Key()...), &n); err != nil {
+		return nil, err
+	}
+	return &n, nil
+}
+
 func (c *controller) newEndpointFromStore(ep *endpoint) {
 	c.Lock()
-	defer c.Unlock()
-
 	n, ok := c.networks[ep.network.id]
+	c.Unlock()
+
 	if !ok {
-		log.Warnf("Network (%s) unavailable for endpoint=%s. ignoring endpoint update", ep.network.id, ep.name)
-		// TODO : Get Network from Store and call newNetworkFromStore
-		return
+		// Possibly the watch event for the network has not shown up yet
+		// Try to get network from the store
+		var err error
+		n, err = c.getNetworkFromStore(ep.network.id)
+		if err != nil {
+			log.Warnf("Network (%s) unavailable for endpoint=%s", ep.network.id, ep.name)
+			return
+		}
+		if err := c.newNetworkFromStore(n); err != nil {
+			log.Warnf("Failed to add Network (%s - %s) from store", n.name, n.id)
+			return
+		}
 	}
+
 	ep.network = n
 	_, err := n.EndpointByID(string(ep.id))
 	if _, ok := err.(ErrNoSuchEndpoint); ok {
@@ -85,6 +104,14 @@ func (c *controller) addEndpointToStore(ep *endpoint) error {
 	// return cs.PutObjectAtomic(ep)
 
 	return cs.PutObject(ep)
+}
+
+func (c *controller) getEndpointFromStore(eid types.UUID) (*endpoint, error) {
+	ep := endpoint{id: eid}
+	if err := c.store.GetObject(datastore.Key(ep.Key()...), &ep); err != nil {
+		return nil, err
+	}
+	return &ep, nil
 }
 
 func (c *controller) watchStore() error {
@@ -123,7 +150,10 @@ func (c *controller) watchStore() error {
 						continue
 					}
 
-					c.newNetworkFromStore(&n)
+					if err = c.newNetworkFromStore(&n); err != nil {
+						log.Error(err)
+						continue
+					}
 				}
 			case eps := <-epPairs:
 				for _, epe := range eps {
