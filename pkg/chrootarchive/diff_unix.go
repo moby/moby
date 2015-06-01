@@ -1,3 +1,5 @@
+//+build !windows
+
 package chrootarchive
 
 import (
@@ -19,41 +21,35 @@ type applyLayerResponse struct {
 	LayerSize int64 `json:"layerSize"`
 }
 
+// applyLayer is the entry-point for docker-applylayer on re-exec. This is not
+// used on Windows as it does not support chroot, hence no point sandboxing
+// through chroot and rexec.
 func applyLayer() {
 
 	var (
-		root   = "/"
 		tmpDir = ""
 		err    error
 	)
-
 	runtime.LockOSThread()
 	flag.Parse()
 
-	if runtime.GOOS != "windows" {
-		if err := chroot(flag.Arg(0)); err != nil {
-			fatal(err)
-		}
-
-		// We need to be able to set any perms
-		oldmask, err := system.Umask(0)
-		defer system.Umask(oldmask)
-		if err != nil {
-			fatal(err)
-		}
-	} else {
-		// As Windows does not support chroot or umask, we use the directory
-		// passed in which will be <pathto>\docker-buildnnnnnnnn instead of
-		// the 'chroot-root', "/"
-		root = flag.Arg(0)
+	if err := chroot(flag.Arg(0)); err != nil {
+		fatal(err)
 	}
 
-	if tmpDir, err = ioutil.TempDir(root, "temp-docker-extract"); err != nil {
+	// We need to be able to set any perms
+	oldmask, err := system.Umask(0)
+	defer system.Umask(oldmask)
+	if err != nil {
+		fatal(err)
+	}
+
+	if tmpDir, err = ioutil.TempDir("/", "temp-docker-extract"); err != nil {
 		fatal(err)
 	}
 
 	os.Setenv("TMPDIR", tmpDir)
-	size, err := archive.UnpackLayer(root, os.Stdin)
+	size, err := archive.UnpackLayer("/", os.Stdin)
 	os.RemoveAll(tmpDir)
 	if err != nil {
 		fatal(err)
