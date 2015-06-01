@@ -314,7 +314,7 @@ made through a pull request.
 				"jfrazelle",
 				"crosbymichael"
 			]
-		
+
 		[Org.Operators.community]
 			people = [
 				"theadactyl"
@@ -326,7 +326,7 @@ made through a pull request.
 	# day of a new maintainer, the best advice should be "follow the C.M.'s example and you'll
 	# be fine".
 	"Chief Maintainer" = "crosbymichael"
-	
+
 	# The community manager is responsible for serving the project community, including users, 
 	# contributors and partners. This involves:
 	#	- facilitating communication between maintainers, contributors and users
@@ -335,7 +335,7 @@ made through a pull request.
 	#	- anything the project community needs to be successful
 	#
 	# The community manager is a point of contact for any contributor who has questions, concerns 
-	# or feedback about project operations. 
+	# or feedback about project operations.
 	"Community Manager" = "theadactyl"
 
 	[Org."Core maintainers"]
@@ -357,6 +357,7 @@ made through a pull request.
 
 
 		people = [
+			"calavera",
 			"crosbymichael",
 			"erikh",
 			"estesp",
@@ -536,6 +537,11 @@ made through a pull request.
 	Email = "ben@firshman.co.uk"
 	GitHub = "bfirsh"
 
+	[people.calavera]
+	Name = "David Calavera"
+	Email = "david.calavera@gmail.com"
+	GitHub = "calavera"
+
 	[people.cpuguy83]
 	Name = "Brian Goff"
 	Email = "cpuguy83@gmail.com"
@@ -650,7 +656,7 @@ made through a pull request.
 	Name = "Sebastiaan van Stijn"
 	Email = "github@gone.nl"
 	GitHub = "thaJeztah"
-	
+
 	[people.theadactyl]
 	Name = "Thea Lamkin"
 	Email = "thea@docker.com"
