@@ -7,9 +7,11 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"syscall"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/pools"
 	"github.com/docker/docker/pkg/system"
 )
@@ -40,12 +42,35 @@ func UnpackLayer(dest string, layer ArchiveReader) (size int64, err error) {
 		// Normalize name, for safety and for a simple is-root check
 		hdr.Name = filepath.Clean(hdr.Name)
 
-		if !strings.HasSuffix(hdr.Name, "/") {
+		// Windows does not support filenames with colons in them. Ignore
+		// these files. This is not a problem though (although it might
+		// appear that it is). Let's suppose a client is running docker pull.
+		// The daemon it points to is Windows. Would it make sense for the
+		// client to be doing a docker pull Ubuntu for example (which has files
+		// with colons in the name under /usr/share/man/man3)? No, absolutely
+		// not as it would really only make sense that they were pulling a
+		// Windows image. However, for development, it is necessary to be able
+		// to pull Linux images which are in the repository.
+		//
+		// TODO Windows. Once the registry is aware of what images are Windows-
+		// specific or Linux-specific, this warning should be changed to an error
+		// to cater for the situation where someone does manage to upload a Linux
+		// image but have it tagged as Windows inadvertantly.
+		if runtime.GOOS == "windows" {
+			if strings.Contains(hdr.Name, ":") {
+				logrus.Warnf("Windows: Ignoring %s (is this a Linux image?)", hdr.Name)
+				continue
+			}
+		}
+
+		// Note as these operations are platform specific, so must the slash be.
+		if !strings.HasSuffix(hdr.Name, string(os.PathSeparator)) {
 			// Not the root directory, ensure that the parent directory exists.
 			// This happened in some tests where an image had a tarfile without any
 			// parent directories.
 			parent := filepath.Dir(hdr.Name)
 			parentPath := filepath.Join(dest, parent)
+
 			if _, err := os.Lstat(parentPath); err != nil && os.IsNotExist(err) {
 				err = system.MkdirAll(parentPath, 0600)
 				if err != nil {
@@ -74,13 +99,14 @@ func UnpackLayer(dest string, layer ArchiveReader) (size int64, err error) {
 			}
 			continue
 		}
-
 		path := filepath.Join(dest, hdr.Name)
 		rel, err := filepath.Rel(dest, path)
 		if err != nil {
 			return 0, err
 		}
-		if strings.HasPrefix(rel, "../") {
+
+		// Note as these operations are platform specific, so must the slash be.
+		if strings.HasPrefix(rel, ".."+string(os.PathSeparator)) {
 			return 0, breakoutError(fmt.Errorf("%q is outside of %q", hdr.Name, dest))
 		}
 		base := filepath.Base(path)

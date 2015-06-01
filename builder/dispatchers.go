@@ -10,6 +10,7 @@ package builder
 import (
 	"fmt"
 	"io/ioutil"
+	"path"
 	"path/filepath"
 	"regexp"
 	"runtime"
@@ -39,9 +40,6 @@ func nullDispatch(b *Builder, args []string, attributes map[string]bool, origina
 // in the dockerfile available from the next statement on via ${foo}.
 //
 func env(b *Builder, args []string, attributes map[string]bool, original string) error {
-	if runtime.GOOS == "windows" {
-		return fmt.Errorf("ENV is not supported on Windows.")
-	}
 	if len(args) == 0 {
 		return fmt.Errorf("ENV requires at least one argument")
 	}
@@ -269,12 +267,39 @@ func workdir(b *Builder, args []string, attributes map[string]bool, original str
 		return err
 	}
 
+	// Note that workdir passed comes from the Dockerfile. Hence it is in
+	// Linux format using forward-slashes, even on Windows. However,
+	// b.Config.WorkingDir is in platform-specific notation (in other words
+	// on Windows will use `\`
 	workdir := args[0]
 
-	if !filepath.IsAbs(workdir) {
-		workdir = filepath.Join("/", b.Config.WorkingDir, workdir)
+	isAbs := false
+	if runtime.GOOS == "windows" {
+		// Alternate processing for Windows here is necessary as we can't call
+		// filepath.IsAbs(workDir) as that would verify Windows style paths,
+		// along with drive-letters (eg c:\pathto\file.txt). We (arguably
+		// correctly or not) check for both forward and back slashes as this
+		// is what the 1.4.2 GoLang implementation of IsAbs() does in the
+		// isSlash() function.
+		isAbs = workdir[0] == '\\' || workdir[0] == '/'
+	} else {
+		isAbs = filepath.IsAbs(workdir)
 	}
 
+	if !isAbs {
+		current := b.Config.WorkingDir
+		if runtime.GOOS == "windows" {
+			// Convert to Linux format before join
+			current = strings.Replace(current, "\\", "/", -1)
+		}
+		// Must use path.Join so works correctly on Windows, not filepath
+		workdir = path.Join("/", current, workdir)
+	}
+
+	// Convert to platform specific format
+	if runtime.GOOS == "windows" {
+		workdir = strings.Replace(workdir, "/", "\\", -1)
+	}
 	b.Config.WorkingDir = workdir
 
 	return b.commit("", b.Config.Cmd, fmt.Sprintf("WORKDIR %v", workdir))

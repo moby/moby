@@ -10,8 +10,9 @@ import (
 	"github.com/docker/docker/pkg/archive"
 )
 
-// TODO Windows. A reasonable default at the moment.
-const DefaultPathEnv = `c:\windows\system32;c:\windows\system32\WindowsPowerShell\v1.0`
+// This is deliberately empty on Windows as the default path will be set by
+// the container. Docker has no context of what the default path should be.
+const DefaultPathEnv = ""
 
 type Container struct {
 	CommonContainer
@@ -48,7 +49,8 @@ func (container *Container) setupLinkedContainers() ([]string, error) {
 }
 
 func (container *Container) createDaemonEnvironment(linkedEnv []string) []string {
-	return nil
+	// On Windows, nothing to link. Just return the container environment.
+	return container.Config.Env
 }
 
 func (container *Container) initializeNetworking() error {

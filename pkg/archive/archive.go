@@ -452,6 +452,7 @@ func TarWithOptions(srcPath string, options *TarOptions) (io.ReadCloser, error) 
 				}
 				seen[relFilePath] = true
 
+				// TODO Windows: Verify if this needs to be os.Pathseparator
 				// Rename the base resource
 				if options.Name != "" && filePath == srcPath+"/"+filepath.Base(relFilePath) {
 					renamedRelFilePath = relFilePath
@@ -503,7 +504,8 @@ loop:
 		}
 
 		// Normalize name, for safety and for a simple is-root check
-		// This keeps "../" as-is, but normalizes "/../" to "/"
+		// This keeps "../" as-is, but normalizes "/../" to "/". Or Windows:
+		// This keeps "..\" as-is, but normalizes "\..\" to "\".
 		hdr.Name = filepath.Clean(hdr.Name)
 
 		for _, exclude := range options.ExcludePatterns {
@@ -512,7 +514,10 @@ loop:
 			}
 		}
 
-		if !strings.HasSuffix(hdr.Name, "/") {
+		// After calling filepath.Clean(hdr.Name) above, hdr.Name will now be in
+		// the filepath format for the OS on which the daemon is running. Hence
+		// the check for a slash-suffix MUST be done in an OS-agnostic way.
+		if !strings.HasSuffix(hdr.Name, string(os.PathSeparator)) {
 			// Not the root directory, ensure that the parent directory exists
 			parent := filepath.Dir(hdr.Name)
 			parentPath := filepath.Join(dest, parent)
@@ -529,7 +534,7 @@ loop:
 		if err != nil {
 			return err
 		}
-		if strings.HasPrefix(rel, "../") {
+		if strings.HasPrefix(rel, ".."+string(os.PathSeparator)) {
 			return breakoutError(fmt.Errorf("%q is outside of %q", hdr.Name, dest))
 		}
 
@@ -658,10 +663,13 @@ func (archiver *Archiver) CopyFileWithTar(src, dst string) (err error) {
 	if err != nil {
 		return err
 	}
+
 	if srcSt.IsDir() {
 		return fmt.Errorf("Can't copy a directory")
 	}
-	// Clean up the trailing slash
+
+	// Clean up the trailing slash. This must be done in an operating
+	// system specific manner.
 	if dst[len(dst)-1] == os.PathSeparator {
 		dst = filepath.Join(dst, filepath.Base(src))
 	}
@@ -709,8 +717,10 @@ func (archiver *Archiver) CopyFileWithTar(src, dst string) (err error) {
 // for a single file. It copies a regular file from path `src` to
 // path `dst`, and preserves all its metadata.
 //
-// If `dst` ends with a trailing slash '/', the final destination path
-// will be `dst/base(src)`.
+// Destination handling is in an operating specific manner depending
+// where the daemon is running. If `dst` ends with a trailing slash
+// the final destination path will be `dst/base(src)`  (Linux) or
+// `dst\base(src)` (Windows).
 func CopyFileWithTar(src, dst string) (err error) {
 	return defaultArchiver.CopyFileWithTar(src, dst)
 }
