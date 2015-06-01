@@ -26,7 +26,7 @@ func spawnTestRegistrySession(t *testing.T) *Session {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var tr http.RoundTripper = debugTransport{NewTransport(ReceiveTimeout, endpoint.IsSecure)}
+	var tr http.RoundTripper = debugTransport{NewTransport(ReceiveTimeout, endpoint.IsSecure), t.Log}
 	tr = transport.NewTransport(AuthTransport(tr, authConfig, false), DockerHeaders(nil)...)
 	client := HTTPClient(tr)
 	r, err := NewSession(client, authConfig, endpoint)
