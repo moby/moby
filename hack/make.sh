@@ -96,7 +96,6 @@ fi
 if [ "$DOCKER_EXPERIMENTAL" ]; then
 	echo >&2 '# WARNING! DOCKER_EXPERIMENTAL is set: building experimental features'
 	echo >&2
-	VERSION+="-experimental"
 	DOCKER_BUILDTAGS+=" experimental"
 fi
 
