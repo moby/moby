@@ -5338,3 +5338,34 @@ func (s *DockerSuite) TestBuildRUNErrMsg(c *check.C) {
 		c.Fatalf("RUN doesn't have the correct output:\nGot:%s\nExpected:%s", out, exp)
 	}
 }
+
+func (s *DockerSuite) TestBuildImageLastUsed(c *check.C) {
+
+	name := "last_used_buil_test"
+	re := regexp.MustCompile("\"LastUsed\": \"(.+)\"")
+
+	tBefore := time.Now().UTC()
+
+	_, _, err := buildImageWithOut(name, `
+  		FROM busybox
+  		RUN echo "GNU/Linux Rules"
+  		MAINTAINER dockertest`, true)
+	if err != nil {
+		c.Fatal(err)
+	}
+
+	cmd := exec.Command(dockerBinary, "inspect", name)
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		c.Fatal(out, err)
+	}
+
+	tAfter, err := time.Parse(time.RFC3339, re.FindAllStringSubmatch(out, -1)[0][1])
+	if err != nil {
+		c.Fatal(err)
+	}
+
+	if !tAfter.After(tBefore) {
+		c.Fatalf("Image last used should be in the future: %s > %s", tAfter, tBefore)
+	}
+}

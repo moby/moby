@@ -158,3 +158,49 @@ func (s *DockerSuite) TestHistoryHumanOptionTrue(c *check.C) {
 		}
 	}
 }
+
+func (s *DockerSuite) TestHistoryLastUsedGraph(c *check.C) {
+	// Create the image
+	imageName := "images/images_last_used_parent"
+	_, err := buildImage(imageName, `
+        FROM busybox
+        MAINTAINER dockertest
+        RUN echo "D"
+		RUN echo "O"
+		RUN echo "C"
+		RUN echo "K"
+		RUN echo "E"
+		RUN echo "R"
+		RUN echo " "
+		RUN echo "R"
+		RUN echo "U"
+		RUN echo "L"
+		RUN echo "Z"`, true)
+	cmd := exec.Command(dockerBinary, "history", "--human=false", imageName)
+	out, _, err := runCommandWithOutput(cmd)
+
+	if err != nil {
+		c.Fatal(err)
+	}
+
+	splitted := strings.Split(out, "\n")
+	r := regexp.MustCompile("  +") // Two spaces minimum
+	splittedHeaders := r.Split(splitted[0], -1)
+
+	idxHeader := -1
+	for k, i := range splittedHeaders {
+		if i == "LAST USED" {
+			idxHeader = k
+		}
+	}
+
+	ts := r.Split(splitted[1], -1)[idxHeader]
+
+	// All the layers except have the same last used
+	for _, i := range splitted[1 : len(splitted)-1] {
+		splittedImage := r.Split(i, -1)
+		if ts != splittedImage[idxHeader] {
+			c.Fatalf("Updated timestamp doesn't match: %s != %s ", ts, splittedImage[idxHeader])
+		}
+	}
+}

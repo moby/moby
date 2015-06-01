@@ -7,8 +7,10 @@ import (
 	"os/exec"
 	"path/filepath"
 	"reflect"
+	"regexp"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/go-check/check"
 )
@@ -205,6 +207,9 @@ func (s *DockerSuite) TestSaveAndLoadRepoFlags(c *check.C) {
 
 	inspectCmd := exec.Command(dockerBinary, "inspect", repoName)
 	before, _, err := runCommandWithOutput(inspectCmd)
+	// The images will not be the same for the last used field
+	re := regexp.MustCompile("\"LastUsed\": \".+\"")
+	before = re.ReplaceAllString(before, "\"LastUsed\": ")
 	if err != nil {
 		c.Fatalf("the repo should exist before saving it: %s, %v", before, err)
 
@@ -219,6 +224,7 @@ func (s *DockerSuite) TestSaveAndLoadRepoFlags(c *check.C) {
 
 	inspectCmd = exec.Command(dockerBinary, "inspect", repoName)
 	after, _, err := runCommandWithOutput(inspectCmd)
+	after = re.ReplaceAllString(before, "\"LastUsed\": ")
 	if err != nil {
 		c.Fatalf("the repo should exist after loading it: %s, %v", after, err)
 	}
@@ -377,6 +383,42 @@ func (s *DockerSuite) TestSaveDirectoryPermissions(c *check.C) {
 
 	if !found {
 		c.Fatalf("failed to find the layer with the right content listing")
+	}
+
+}
+
+func (s *DockerSuite) TestSaveAndLoadImageLastUsed(c *check.C) {
+	imageName := "load-image-last-used"
+	re := regexp.MustCompile("\"LastUsed\": \"(.+)\"")
+
+	_, err := buildImage(imageName, `
+        FROM scratch
+        MAINTAINER dockertest`, true)
+	if err != nil {
+		c.Fatal(err)
+	}
+
+	tBefore := time.Now().UTC()
+	out, _, err := runCommandPipelineWithOutput(
+		exec.Command(dockerBinary, "save", imageName),
+		exec.Command(dockerBinary, "load"))
+	if err != nil {
+		c.Fatalf("failed to save and load repo: %s, %v", out, err)
+	}
+
+	cmd := exec.Command(dockerBinary, "inspect", imageName)
+	out, _, err = runCommandWithOutput(cmd)
+	if err != nil {
+		c.Fatal(out, err)
+	}
+
+	tAfter, err := time.Parse(time.RFC3339, re.FindAllStringSubmatch(out, -1)[0][1])
+	if err != nil {
+		c.Fatal(err)
+	}
+
+	if !tAfter.After(tBefore) {
+		c.Fatalf("Image last used should be in the future: %s > %s", tAfter, tBefore)
 	}
 
 }

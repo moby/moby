@@ -35,6 +35,7 @@ func (s *TagStore) History(name string) ([]*types.ImageHistory, error) {
 			Tags:      lookupMap[img.ID],
 			Size:      img.Size,
 			Comment:   img.Comment,
+			LastUsed:  img.LastUsed.Unix(),
 		})
 		return nil
 	})

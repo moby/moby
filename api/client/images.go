@@ -74,9 +74,9 @@ func (cli *DockerCli) CmdImages(args ...string) error {
 	w := tabwriter.NewWriter(cli.out, 20, 1, 3, ' ', 0)
 	if !*quiet {
 		if *showDigests {
-			fmt.Fprintln(w, "REPOSITORY\tTAG\tDIGEST\tIMAGE ID\tCREATED\tVIRTUAL SIZE")
+			fmt.Fprintln(w, "REPOSITORY\tTAG\tDIGEST\tIMAGE ID\tCREATED\tLAST USED\tVIRTUAL SIZE")
 		} else {
-			fmt.Fprintln(w, "REPOSITORY\tTAG\tIMAGE ID\tCREATED\tVIRTUAL SIZE")
+			fmt.Fprintln(w, "REPOSITORY\tTAG\tIMAGE ID\tCREATED\tLAST USED\tVIRTUAL SIZE")
 		}
 	}
 
@@ -109,9 +109,20 @@ func (cli *DockerCli) CmdImages(args ...string) error {
 
 			if !*quiet {
 				if *showDigests {
-					fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s ago\t%s\n", repo, tag, digest, ID, units.HumanDuration(time.Now().UTC().Sub(time.Unix(int64(image.Created), 0))), units.HumanSize(float64(image.VirtualSize)))
+					fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s ago\t%s ago\t%s\n",
+						repo,
+						tag, digest, ID,
+						units.HumanDuration(time.Now().UTC().Sub(time.Unix(int64(image.Created), 0))),
+						units.HumanDuration(time.Now().UTC().Sub(time.Unix(int64(image.LastUsed), 0))),
+						units.HumanSize(float64(image.VirtualSize)))
 				} else {
-					fmt.Fprintf(w, "%s\t%s\t%s\t%s ago\t%s\n", repo, tag, ID, units.HumanDuration(time.Now().UTC().Sub(time.Unix(int64(image.Created), 0))), units.HumanSize(float64(image.VirtualSize)))
+					fmt.Fprintf(w, "%s\t%s\t%s\t%s ago\t%s ago\t%s\n",
+						repo,
+						tag,
+						ID,
+						units.HumanDuration(time.Now().UTC().Sub(time.Unix(int64(image.Created), 0))),
+						units.HumanDuration(time.Now().UTC().Sub(time.Unix(int64(image.LastUsed), 0))),
+						units.HumanSize(float64(image.VirtualSize)))
 				}
 			} else {
 				fmt.Fprintln(w, ID)

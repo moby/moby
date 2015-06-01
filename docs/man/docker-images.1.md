@@ -59,7 +59,7 @@ To list the images in a local repository (not the registry) run:
 
 The list will contain the image repository name, a tag for the image, and an
 image ID, when it was created and its virtual size. Columns: REPOSITORY, TAG,
-IMAGE ID, CREATED, and VIRTUAL SIZE.
+IMAGE ID, CREATED, LAST USED and VIRTUAL SIZE.
 
 To get a verbose list of images which contains all the intermediate images
 used in builds use **-a**:
@@ -82,3 +82,4 @@ tools.
 April 2014, Originally compiled by William Henry (whenry at redhat dot com)
 based on docker.com source material and internal work.
 June 2014, updated by Sven Dowideit <SvenDowideit@home.org.au>
+May 2015, updated by Xabier Larrakoetxea <slok69@gmail.com>

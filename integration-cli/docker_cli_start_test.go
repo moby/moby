@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os/exec"
+	"regexp"
 	"strings"
 	"time"
 
@@ -229,4 +230,48 @@ func (s *DockerSuite) TestStartAttachMultipleContainers(c *check.C) {
 		}
 	}
 
+}
+
+func (s *DockerSuite) TestStartImageLastUsed(c *check.C) {
+
+	var cmd *exec.Cmd
+	imageName := "busybox"
+	containerName := "testLastUsed"
+	re := regexp.MustCompile("\"LastUsed\": \"(.+)\"")
+
+	cmd = exec.Command(dockerBinary, "run", "--name", containerName, imageName, "true")
+	runCommand(cmd)
+	cmd = exec.Command(dockerBinary, "stop", containerName)
+	runCommand(cmd)
+
+	// Check last used of the image
+	cmd = exec.Command(dockerBinary, "inspect", imageName)
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		c.Fatal(out, err)
+	}
+	tBefore, err := time.Parse(time.RFC3339, re.FindAllStringSubmatch(out, -1)[0][1])
+	if err != nil {
+		c.Fatal(err)
+	}
+	// Sleep some time and start the container, the last used should be
+	// 2 seconds ahead (more or less)
+	time.Sleep(2 * time.Second)
+	cmd = exec.Command(dockerBinary, "start", containerName)
+	runCommand(cmd)
+
+	cmd = exec.Command(dockerBinary, "inspect", imageName)
+	out, _, err = runCommandWithOutput(cmd)
+	if err != nil {
+		c.Fatal(out, err)
+	}
+	tAfter, err := time.Parse(time.RFC3339, re.FindAllStringSubmatch(out, -1)[0][1])
+	if err != nil {
+		c.Fatal(err)
+	}
+
+	// Check that the Last used inspect of future is after the inspect of the past
+	if !tAfter.After(tBefore) {
+		c.Fatalf("Image last used should be in the future: %s > %s", tAfter, tBefore)
+	}
 }

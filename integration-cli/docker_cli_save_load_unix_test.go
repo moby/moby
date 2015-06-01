@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"regexp"
 
 	"github.com/docker/docker/vendor/src/github.com/kr/pty"
 	"github.com/go-check/check"
@@ -30,6 +31,9 @@ func (s *DockerSuite) TestSaveAndLoadRepoStdout(c *check.C) {
 
 	inspectCmd := exec.Command(dockerBinary, "inspect", repoName)
 	before, _, err := runCommandWithOutput(inspectCmd)
+	// The images will not be the same for the last used field
+	re := regexp.MustCompile("\"LastUsed\": \".+\"")
+	before = re.ReplaceAllString(before, "\"LastUsed\": ")
 	if err != nil {
 		c.Fatalf("the repo should exist before saving it: %s, %v", before, err)
 	}
@@ -59,6 +63,8 @@ func (s *DockerSuite) TestSaveAndLoadRepoStdout(c *check.C) {
 
 	inspectCmd = exec.Command(dockerBinary, "inspect", repoName)
 	after, _, err := runCommandWithOutput(inspectCmd)
+	after = re.ReplaceAllString(after, "\"LastUsed\": ")
+
 	if err != nil {
 		c.Fatalf("the repo should exist after loading it: %s %v", after, err)
 	}
