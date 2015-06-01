@@ -838,20 +838,15 @@ func (container *Container) verifyDaemonSettings() {
 }
 
 func (container *Container) ExportRw() (archive.Archive, error) {
-	if err := container.Mount(); err != nil {
-		return nil, err
-	}
 	if container.daemon == nil {
 		return nil, fmt.Errorf("Can't load storage driver for unregistered container %s", container.ID)
 	}
 	archive, err := container.daemon.Diff(container)
 	if err != nil {
-		container.Unmount()
 		return nil, err
 	}
 	return ioutils.NewReadCloserWrapper(archive, func() error {
 			err := archive.Close()
-			container.Unmount()
 			return err
 		}),
 		nil
