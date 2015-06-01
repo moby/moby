@@ -9,7 +9,7 @@ Choose this installation if you are familiar with the command-line or plan to
 contribute to the Docker project on GitHub.
 
 [<img src="/installation/images/kitematic.png" alt="Download Kitematic"
-style="float:right;">](/kitematic/)
+style="float:right;">](https://kitematic.com/download)
 
 Alternatively, you may want to try <a id="inlinelink" href="https://kitematic.com/"
 target="_blank">Kitematic</a>, an application that lets you set up Docker and
