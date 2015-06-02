@@ -7,8 +7,6 @@ import (
 	"net"
 	"os"
 	"sync"
-
-	"github.com/Sirupsen/logrus"
 )
 
 const (
@@ -94,7 +92,6 @@ func Get() *PortAllocator {
 func newInstance() *PortAllocator {
 	start, end, err := getDynamicPortRange()
 	if err != nil {
-		logrus.Warn(err)
 		start, end = DefaultPortRangeStart, DefaultPortRangeEnd
 	}
 	return &PortAllocator{
