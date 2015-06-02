@@ -262,8 +262,10 @@ func TestChildren(t *testing.T) {
 
 func TestListZpool(t *testing.T) {
 	zpoolTest(t, func() {
-		_, err := zfs.ListZpools()
+		pools, err := zfs.ListZpools()
 		ok(t, err)
+		equals(t, "test", pools[0].Name)
+
 	})
 }
 
@@ -292,7 +294,7 @@ func TestRollback(t *testing.T) {
 		ok(t, err)
 
 		err = s1.Rollback(false)
-		assert(t, ok != nil, "should error when rolling back beyond most recent without destroyMoreRecent = true")
+		assert(t, err != nil, "should error when rolling back beyond most recent without destroyMoreRecent = true")
 
 		err = s1.Rollback(true)
 		ok(t, err)
