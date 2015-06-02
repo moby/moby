@@ -60,14 +60,23 @@ type network struct {
 }
 
 func (n *network) Name() string {
+	n.Lock()
+	defer n.Unlock()
+
 	return n.name
 }
 
 func (n *network) ID() string {
+	n.Lock()
+	defer n.Unlock()
+
 	return string(n.id)
 }
 
 func (n *network) Type() string {
+	n.Lock()
+	defer n.Unlock()
+
 	if n.driver == nil {
 		return ""
 	}
