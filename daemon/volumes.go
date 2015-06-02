@@ -56,7 +56,9 @@ func parseBindMount(spec string, mountLabel string, config *runconfig.Config) (*
 	bind := &mountPoint{
 		RW: true,
 	}
-	arr := strings.Split(spec, ":")
+
+	separator := volumeSeparator(spec)
+	arr := strings.Split(spec, separator)
 
 	switch len(arr) {
 	case 2:
@@ -98,7 +100,8 @@ func parseVolumesFrom(spec string) (string, string, error) {
 		return "", "", fmt.Errorf("malformed volumes-from specification: %s", spec)
 	}
 
-	specParts := strings.SplitN(spec, ":", 2)
+	separator := volumeSeparator(spec)
+	specParts := strings.SplitN(spec, separator, 2)
 	id := specParts[0]
 	mode := "rw"
 
@@ -301,4 +304,12 @@ func removeVolume(v volume.Volume) error {
 		return nil
 	}
 	return vd.Remove(v)
+}
+
+func volumeSeparator(spec string) string {
+	separator := ":"
+	if strings.Contains(spec, ";") {
+		separator = ";"
+	}
+	return separator
 }
