@@ -55,7 +55,7 @@ clone hg code.google.com/p/go.net 84a4013f96e0
 clone hg code.google.com/p/gosqlite 74691fb6f837
 
 #get libnetwork packages
-clone git github.com/docker/libnetwork 4ded6fe3641b71863cc5985652930ce40efc3af4
+clone git github.com/docker/libnetwork 005bc475ee49a36ef2ad9c112d1b5ccdaba277d4
 clone git github.com/vishvananda/netns 008d17ae001344769b031375bdb38a86219154c6
 clone git github.com/vishvananda/netlink 8eb64238879fed52fd51c5b30ad20b928fb4c36c
 
