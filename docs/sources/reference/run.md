@@ -898,7 +898,11 @@ remote server at `192.168.0.42` on port `123`
 
 #### Logging driver: journald
 
-Journald logging driver for Docker. Writes log messages to journald; the container id will be stored in the journal's `CONTAINER_ID` field. `docker logs` command is not available for this logging driver.  For detailed information on working with this logging driver, see [the journald logging driver](reference/logging/journald) reference documentation.
+Journald logging driver for Docker. Writes log messages to journald; the
+container id will be stored in the journal's `CONTAINER_ID` field. `docker logs`
+command is not available for this logging driver.  For detailed information on
+working with this logging driver, see [the journald logging driver](reference/logging/journald)
+reference documentation.
 
 The following logging options are supported for this logging driver: [none]
 
