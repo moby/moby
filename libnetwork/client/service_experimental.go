@@ -309,7 +309,7 @@ func serviceUsage(chain string) string {
 	help := "Commands:\n"
 
 	for _, cmd := range serviceCommands {
-		help += fmt.Sprintf("    %-10.10s%s\n", cmd, cmd.description)
+		help += fmt.Sprintf("    %-10.10s%s\n", cmd.name, cmd.description)
 	}
 
 	help += fmt.Sprintf("\nRun '%s service COMMAND --help' for more information on a command.", chain)
