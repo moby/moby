@@ -29,7 +29,10 @@ func init() {
 }
 
 func New(ctx logger.Context) (logger.Logger, error) {
-	tag := ctx.ContainerID[:12]
+	tag := ctx.Config["syslog-tag"]
+	if tag == "" {
+		tag = ctx.ContainerID[:12]
+	}
 
 	proto, address, err := parseAddress(ctx.Config["syslog-address"])
 	if err != nil {
