@@ -84,7 +84,13 @@ func (tr *authTransport) RoundTrip(orig *http.Request) (*http.Response, error) {
 	if req.Header.Get("Authorization") == "" {
 		if req.Header.Get("X-Docker-Token") == "true" && len(tr.Username) > 0 {
 			req.SetBasicAuth(tr.Username, tr.Password)
-		} else if len(tr.token) > 0 {
+		} else if len(tr.token) > 0 &&
+			// Authorization should not be set on 302 redirect for untrusted locations.
+			// This logic mirrors the behavior in AddRequiredHeadersToRedirectedRequests.
+			// As the authorization logic is currently implemented in RoundTrip,
+			// a 302 redirect is detected by looking at the Referer header as go http package adds said header.
+			// This is safe as Docker doesn't set Referer in other scenarios.
+			(req.Header.Get("Referer") == "" || trustedLocation(orig)) {
 			req.Header.Set("Authorization", "Token "+strings.Join(tr.token, ","))
 		}
 	}
