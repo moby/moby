@@ -273,14 +273,20 @@ func (s *Server) postContainersKill(version version.Version, w http.ResponseWrit
 	name := vars["name"]
 
 	// If we have a signal, look at it. Otherwise, do nothing
-	if sigStr := vars["signal"]; sigStr != "" {
+	if sigStr := r.Form.Get("signal"); sigStr != "" {
 		// Check if we passed the signal as a number:
 		// The largest legal signal is 31, so let's parse on 5 bits
-		sig, err := strconv.ParseUint(sigStr, 10, 5)
+		sigN, err := strconv.ParseUint(sigStr, 10, 5)
 		if err != nil {
 			// The signal is not a number, treat it as a string (either like
 			// "KILL" or like "SIGKILL")
-			sig = uint64(signal.SignalMap[strings.TrimPrefix(sigStr, "SIG")])
+			syscallSig, ok := signal.SignalMap[strings.TrimPrefix(sigStr, "SIG")]
+			if !ok {
+				return fmt.Errorf("Invalid signal: %s", sigStr)
+			}
+			sig = uint64(syscallSig)
+		} else {
+			sig = sigN
 		}
 
 		if sig == 0 {
