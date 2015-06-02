@@ -617,7 +617,8 @@ device to the container network:
 
 You have to execute the `ip -6 neigh add proxy ...` command for every IPv6
 address in your Docker subnet. Unfortunately there is no functionality for
-adding a whole subnet by executing one command.
+adding a whole subnet by executing one command. An alternative approach would be to
+use an NDP proxy daemon such as [ndppd](https://github.com/DanielAdolfsson/ndppd).
 
 ### Docker IPv6 cluster
 
