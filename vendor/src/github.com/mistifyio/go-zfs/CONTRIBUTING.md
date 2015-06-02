@@ -47,5 +47,14 @@ Push your feature branch to your fork.
 
 **Important:** By submitting a patch, you agree to allow the project owners to license your work under the [Apache 2.0 License](./LICENSE).
 
+### Go Tools ###
+For consistency and to catch minor issues for all of go code, please run the following:
+* goimports
+* go vet
+* golint
+* errcheck
+
+Many editors can execute the above on save.
+
 ----
 Guidelines based on http://azkaban.github.io/contributing.html

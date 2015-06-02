@@ -92,9 +92,6 @@ func ListZpools() ([]*Zpool, error) {
 		return nil, err
 	}
 
-	// there is no -H
-	out = out[1:]
-
 	var pools []*Zpool
 
 	for _, line := range out {
