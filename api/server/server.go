@@ -1141,6 +1141,14 @@ func (s *Server) getContainersByName(version version.Version, w http.ResponseWri
 		return fmt.Errorf("Missing parameter")
 	}
 
+	if version.LessThan("1.19") {
+		containerJSONRaw, err := s.daemon.ContainerInspectRaw(vars["name"])
+		if err != nil {
+			return err
+		}
+		return writeJSON(w, http.StatusOK, containerJSONRaw)
+	}
+
 	containerJSON, err := s.daemon.ContainerInspect(vars["name"])
 	if err != nil {
 		return err

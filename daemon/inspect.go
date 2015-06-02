@@ -15,6 +15,40 @@ func (daemon *Daemon) ContainerInspect(name string) (*types.ContainerJSON, error
 	container.Lock()
 	defer container.Unlock()
 
+	base, err := daemon.getInspectData(container)
+	if err != nil {
+		return nil, err
+	}
+
+	return &types.ContainerJSON{base, container.Config}, nil
+}
+
+func (daemon *Daemon) ContainerInspectRaw(name string) (*types.ContainerJSONRaw, error) {
+	container, err := daemon.Get(name)
+	if err != nil {
+		return nil, err
+	}
+
+	container.Lock()
+	defer container.Unlock()
+
+	base, err := daemon.getInspectData(container)
+	if err != nil {
+		return nil, err
+	}
+
+	config := &types.ContainerConfig{
+		container.Config,
+		container.hostConfig.Memory,
+		container.hostConfig.MemorySwap,
+		container.hostConfig.CpuShares,
+		container.hostConfig.CpusetCpus,
+	}
+
+	return &types.ContainerJSONRaw{base, config}, nil
+}
+
+func (daemon *Daemon) getInspectData(container *Container) (*types.ContainerJSONBase, error) {
 	// make a copy to play with
 	hostConfig := *container.hostConfig
 
@@ -50,12 +84,11 @@ func (daemon *Daemon) ContainerInspect(name string) (*types.ContainerJSON, error
 		volumesRW[m.Destination] = m.RW
 	}
 
-	contJSON := &types.ContainerJSON{
+	contJSONBase := &types.ContainerJSONBase{
 		Id:              container.ID,
 		Created:         container.Created,
 		Path:            container.Path,
 		Args:            container.Args,
-		Config:          container.Config,
 		State:           containerState,
 		Image:           container.ImageID,
 		NetworkSettings: container.NetworkSettings,
@@ -76,7 +109,7 @@ func (daemon *Daemon) ContainerInspect(name string) (*types.ContainerJSON, error
 		HostConfig:      &hostConfig,
 	}
 
-	return contJSON, nil
+	return contJSONBase, nil
 }
 
 func (daemon *Daemon) ContainerExecInspect(id string) (*execConfig, error) {
