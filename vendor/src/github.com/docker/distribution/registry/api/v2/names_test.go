@@ -80,7 +80,7 @@ func TestRepositoryNameRegexp(t *testing.T) {
 			t.Fail()
 		}
 
-		if err := ValidateRespositoryName(testcase.input); err != testcase.err {
+		if err := ValidateRepositoryName(testcase.input); err != testcase.err {
 			if testcase.err != nil {
 				if err != nil {
 					failf("unexpected error for invalid repository: got %v, expected %v", err, testcase.err)

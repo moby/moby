@@ -151,6 +151,12 @@ func TestBuilderFromRequest(t *testing.T) {
 	forwardedProtoHeader := make(http.Header, 1)
 	forwardedProtoHeader.Set("X-Forwarded-Proto", "https")
 
+	forwardedHostHeader1 := make(http.Header, 1)
+	forwardedHostHeader1.Set("X-Forwarded-Host", "first.example.com")
+
+	forwardedHostHeader2 := make(http.Header, 1)
+	forwardedHostHeader2.Set("X-Forwarded-Host", "first.example.com, proxy1.example.com")
+
 	testRequests := []struct {
 		request *http.Request
 		base    string
@@ -162,6 +168,14 @@ func TestBuilderFromRequest(t *testing.T) {
 		{
 			request: &http.Request{URL: u, Host: u.Host, Header: forwardedProtoHeader},
 			base:    "https://example.com",
+		},
+		{
+			request: &http.Request{URL: u, Host: u.Host, Header: forwardedHostHeader1},
+			base:    "http://first.example.com",
+		},
+		{
+			request: &http.Request{URL: u, Host: u.Host, Header: forwardedHostHeader2},
+			base:    "http://first.example.com",
 		},
 	}
 

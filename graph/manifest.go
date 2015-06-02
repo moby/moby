@@ -8,92 +8,164 @@ import (
 	"github.com/docker/distribution/digest"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/trust"
-	"github.com/docker/docker/utils"
 	"github.com/docker/libtrust"
 )
 
-// loadManifest loads a manifest from a byte array and verifies its content.
-// The signature must be verified or an error is returned. If the manifest
-// contains no signatures by a trusted key for the name in the manifest, the
-// image is not considered verified. The parsed manifest object and a boolean
-// for whether the manifest is verified is returned.
-func (s *TagStore) loadManifest(manifestBytes []byte, dgst, ref string) (*registry.ManifestData, bool, error) {
-	sig, err := libtrust.ParsePrettySignature(manifestBytes, "signatures")
+// loadManifest loads a manifest from a byte array and verifies its content,
+// returning the local digest, the manifest itself, whether or not it was
+// verified. If ref is a digest, rather than a tag, this will be treated as
+// the local digest. An error will be returned if the signature verification
+// fails, local digest verification fails and, if provided, the remote digest
+// verification fails. The boolean return will only be false without error on
+// the failure of signatures trust check.
+func (s *TagStore) loadManifest(manifestBytes []byte, ref string, remoteDigest digest.Digest) (digest.Digest, *registry.ManifestData, bool, error) {
+	payload, keys, err := unpackSignedManifest(manifestBytes)
 	if err != nil {
-		return nil, false, fmt.Errorf("error parsing payload: %s", err)
+		return "", nil, false, fmt.Errorf("error unpacking manifest: %v", err)
 	}
 
-	keys, err := sig.Verify()
-	if err != nil {
-		return nil, false, fmt.Errorf("error verifying payload: %s", err)
-	}
+	// TODO(stevvooe): It would be a lot better here to build up a stack of
+	// verifiers, then push the bytes one time for signatures and digests, but
+	// the manifests are typically small, so this optimization is not worth
+	// hacking this code without further refactoring.
 
-	payload, err := sig.Payload()
-	if err != nil {
-		return nil, false, fmt.Errorf("error retrieving payload: %s", err)
-	}
+	var localDigest digest.Digest
 
-	var manifestDigest digest.Digest
+	// Verify the local digest, if present in ref. ParseDigest will validate
+	// that the ref is a digest and verify against that if present. Otherwize
+	// (on error), we simply compute the localDigest and proceed.
+	if dgst, err := digest.ParseDigest(ref); err == nil {
+		// verify the manifest against local ref
+		if err := verifyDigest(dgst, payload); err != nil {
+			return "", nil, false, fmt.Errorf("verifying local digest: %v", err)
+		}
 
-	if dgst != "" {
-		manifestDigest, err = digest.ParseDigest(dgst)
+		localDigest = dgst
+	} else {
+		// We don't have a local digest, since we are working from a tag.
+		// Compute the digest of the payload and return that.
+		logrus.Debugf("provided manifest reference %q is not a digest: %v", ref, err)
+		localDigest, err = digest.FromBytes(payload)
 		if err != nil {
-			return nil, false, fmt.Errorf("invalid manifest digest from registry: %s", err)
-		}
-
-		dgstVerifier, err := digest.NewDigestVerifier(manifestDigest)
-		if err != nil {
-			return nil, false, fmt.Errorf("unable to verify manifest digest from registry: %s", err)
-		}
-
-		dgstVerifier.Write(payload)
-
-		if !dgstVerifier.Verified() {
-			computedDigest, _ := digest.FromBytes(payload)
-			return nil, false, fmt.Errorf("unable to verify manifest digest: registry has %q, computed %q", manifestDigest, computedDigest)
+			// near impossible
+			logrus.Errorf("error calculating local digest during tag pull: %v", err)
+			return "", nil, false, err
 		}
 	}
 
-	if utils.DigestReference(ref) && ref != manifestDigest.String() {
-		return nil, false, fmt.Errorf("mismatching image manifest digest: got %q, expected %q", manifestDigest, ref)
+	// verify against the remote digest, if available
+	if remoteDigest != "" {
+		if err := verifyDigest(remoteDigest, payload); err != nil {
+			return "", nil, false, fmt.Errorf("verifying remote digest: %v", err)
+		}
 	}
 
 	var manifest registry.ManifestData
 	if err := json.Unmarshal(payload, &manifest); err != nil {
-		return nil, false, fmt.Errorf("error unmarshalling manifest: %s", err)
+		return "", nil, false, fmt.Errorf("error unmarshalling manifest: %s", err)
 	}
-	if manifest.SchemaVersion != 1 {
-		return nil, false, fmt.Errorf("unsupported schema version: %d", manifest.SchemaVersion)
+
+	// validate the contents of the manifest
+	if err := validateManifest(&manifest); err != nil {
+		return "", nil, false, err
 	}
 
 	var verified bool
+	verified, err = s.verifyTrustedKeys(manifest.Name, keys)
+	if err != nil {
+		return "", nil, false, fmt.Errorf("error verifying trusted keys: %v", err)
+	}
+
+	return localDigest, &manifest, verified, nil
+}
+
+// unpackSignedManifest takes the raw, signed manifest bytes, unpacks the jws
+// and returns the payload and public keys used to signed the manifest.
+// Signatures are verified for authenticity but not against the trust store.
+func unpackSignedManifest(p []byte) ([]byte, []libtrust.PublicKey, error) {
+	sig, err := libtrust.ParsePrettySignature(p, "signatures")
+	if err != nil {
+		return nil, nil, fmt.Errorf("error parsing payload: %s", err)
+	}
+
+	keys, err := sig.Verify()
+	if err != nil {
+		return nil, nil, fmt.Errorf("error verifying payload: %s", err)
+	}
+
+	payload, err := sig.Payload()
+	if err != nil {
+		return nil, nil, fmt.Errorf("error retrieving payload: %s", err)
+	}
+
+	return payload, keys, nil
+}
+
+// verifyTrustedKeys checks the keys provided against the trust store,
+// ensuring that the provided keys are trusted for the namespace. The keys
+// provided from this method must come from the signatures provided as part of
+// the manifest JWS package, obtained from unpackSignedManifest or libtrust.
+func (s *TagStore) verifyTrustedKeys(namespace string, keys []libtrust.PublicKey) (verified bool, err error) {
+	if namespace[0] != '/' {
+		namespace = "/" + namespace
+	}
+
 	for _, key := range keys {
-		namespace := manifest.Name
-		if namespace[0] != '/' {
-			namespace = "/" + namespace
-		}
 		b, err := key.MarshalJSON()
 		if err != nil {
-			return nil, false, fmt.Errorf("error marshalling public key: %s", err)
+			return false, fmt.Errorf("error marshalling public key: %s", err)
 		}
 		// Check key has read/write permission (0x03)
 		v, err := s.trustService.CheckKey(namespace, b, 0x03)
 		if err != nil {
 			vErr, ok := err.(trust.NotVerifiedError)
 			if !ok {
-				return nil, false, fmt.Errorf("error running key check: %s", err)
+				return false, fmt.Errorf("error running key check: %s", err)
 			}
 			logrus.Debugf("Key check result: %v", vErr)
 		}
 		verified = v
-		if verified {
-			logrus.Debug("Key check result: verified")
-		}
 	}
-	return &manifest, verified, nil
+
+	if verified {
+		logrus.Debug("Key check result: verified")
+	}
+
+	return
 }
 
-func checkValidManifest(manifest *registry.ManifestData) error {
+// verifyDigest checks the contents of p against the provided digest. Note
+// that for manifests, this is the signed payload and not the raw bytes with
+// signatures.
+func verifyDigest(dgst digest.Digest, p []byte) error {
+	if err := dgst.Validate(); err != nil {
+		return fmt.Errorf("error validating  digest %q: %v", dgst, err)
+	}
+
+	verifier, err := digest.NewDigestVerifier(dgst)
+	if err != nil {
+		// There are not many ways this can go wrong: if it does, its
+		// fatal. Likley, the cause would be poor validation of the
+		// incoming reference.
+		return fmt.Errorf("error creating verifier for digest %q: %v", dgst, err)
+	}
+
+	if _, err := verifier.Write(p); err != nil {
+		return fmt.Errorf("error writing payload to digest verifier (verifier target %q): %v", dgst, err)
+	}
+
+	if !verifier.Verified() {
+		return fmt.Errorf("verification against digest %q failed", dgst)
+	}
+
+	return nil
+}
+
+func validateManifest(manifest *registry.ManifestData) error {
+	if manifest.SchemaVersion != 1 {
+		return fmt.Errorf("unsupported schema version: %d", manifest.SchemaVersion)
+	}
+
 	if len(manifest.FSLayers) != len(manifest.History) {
 		return fmt.Errorf("length of history not equal to number of layers")
 	}
