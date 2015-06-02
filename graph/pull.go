@@ -142,7 +142,6 @@ func makeMirrorRepoInfo(repoInfo *registry.RepositoryInfo, mirror string) *regis
 
 func configureV2Mirror(repoInfo *registry.RepositoryInfo, s *registry.Service) (*registry.Endpoint, *registry.RepositoryInfo, error) {
 	mirrors := repoInfo.Index.Mirrors
-
 	if len(mirrors) == 0 {
 		// no mirrors configured
 		return nil, nil, nil
@@ -151,13 +150,11 @@ func configureV2Mirror(repoInfo *registry.RepositoryInfo, s *registry.Service) (
 	v1MirrorCount := 0
 	var v2MirrorEndpoint *registry.Endpoint
 	var v2MirrorRepoInfo *registry.RepositoryInfo
-	var lastErr error
 	for _, mirror := range mirrors {
 		mirrorRepoInfo := makeMirrorRepoInfo(repoInfo, mirror)
 		endpoint, err := registry.NewEndpoint(mirrorRepoInfo.Index, nil)
 		if err != nil {
 			logrus.Errorf("Unable to create endpoint for %s: %s", mirror, err)
-			lastErr = err
 			continue
 		}
 		if endpoint.Version == 2 {
@@ -182,9 +179,11 @@ func configureV2Mirror(repoInfo *registry.RepositoryInfo, s *registry.Service) (
 		return v2MirrorEndpoint, v2MirrorRepoInfo, nil
 	}
 	if v2MirrorEndpoint != nil && v1MirrorCount > 0 {
-		lastErr = fmt.Errorf("v1 and v2 mirrors configured")
+		return nil, nil, fmt.Errorf("v1 and v2 mirrors configured")
 	}
-	return nil, nil, lastErr
+	// No endpoint could be established with the given mirror configurations
+	// Fallback to pulling from the hub as per v1 behavior.
+	return nil, nil, nil
 }
 
 func (s *TagStore) pullFromV2Mirror(mirrorEndpoint *registry.Endpoint, repoInfo *registry.RepositoryInfo,
