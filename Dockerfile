@@ -37,6 +37,7 @@ RUN apt-get update && apt-get install -y \
 	bash-completion \
 	btrfs-tools \
 	build-essential \
+	createrepo \
 	curl \
 	dpkg-sig \
 	git \
