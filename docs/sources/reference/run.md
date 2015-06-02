@@ -884,6 +884,7 @@ The following logging options are supported for this logging driver:
 
     --log-opt address=[tcp|udp]://host:port
     --log-opt address=unix://path
+    --log-opt syslog-tag="mailer"
 
 `address` specifies the remote syslog server address where the driver connects to.
 If not specified it defaults to the local unix socket of the running system.
@@ -892,6 +893,8 @@ The following example shows how to have the `syslog` driver connect to a `syslog
 remote server at `192.168.0.42` on port `123`
 
     $ docker run --log-driver=syslog --log-opt address=tcp://192.168.0.42:123
+
+`syslog-tag` specifies tag for syslog messages from container.
 
 #### Logging driver: journald
 
