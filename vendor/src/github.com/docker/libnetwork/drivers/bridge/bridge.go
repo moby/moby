@@ -3,9 +3,11 @@ package bridge
 import (
 	"errors"
 	"net"
+	"os/exec"
 	"strings"
 	"sync"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/ipallocator"
 	"github.com/docker/libnetwork/netlabel"
@@ -102,6 +104,12 @@ func newDriver() driverapi.Driver {
 
 // Init registers a new instance of bridge driver
 func Init(dc driverapi.DriverCallback) error {
+	// try to modprobe bridge first
+	// see gh#12177
+	if out, err := exec.Command("modprobe", "-va", "bridge", "nf_nat", "br_netfilter").Output(); err != nil {
+		logrus.Warnf("Running modprobe bridge nf_nat failed with message: %s, error: %v", out, err)
+	}
+
 	return dc.RegisterDriver(networkType, newDriver())
 }
 
@@ -287,6 +295,11 @@ func (d *driver) CreateNetwork(id types.UUID, option map[string]interface{}) err
 	// Even if a bridge exists try to setup IPv4.
 	bridgeSetup.queueStep(setupBridgeIPv4)
 
+	enableIPv6Forwarding := false
+	if d.config != nil && d.config.EnableIPForwarding && config.FixedCIDRv6 != nil {
+		enableIPv6Forwarding = true
+	}
+
 	// Conditionally queue setup steps depending on configuration values.
 	for _, step := range []struct {
 		Condition bool
@@ -309,6 +322,9 @@ func (d *driver) CreateNetwork(id types.UUID, option map[string]interface{}) err
 		// Setup the bridge to allocate containers global IPv6 addresses in the
 		// specified subnet.
 		{config.FixedCIDRv6 != nil, setupFixedCIDRv6},
+
+		// Enable IPv6 Forwarding
+		{enableIPv6Forwarding, setupIPv6Forwarding},
 
 		// Setup Loopback Adresses Routing
 		{!config.EnableUserlandProxy, setupLoopbackAdressesRouting},

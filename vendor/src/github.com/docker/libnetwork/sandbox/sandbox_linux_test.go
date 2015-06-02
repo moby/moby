@@ -33,7 +33,9 @@ func newKey(t *testing.T) (string, error) {
 	}
 
 	// Set the rpmCleanupPeriod to be low to make the test run quicker
+	gpmLock.Lock()
 	gpmCleanupPeriod = 2 * time.Second
+	gpmLock.Unlock()
 
 	return name, nil
 }
