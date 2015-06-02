@@ -59,7 +59,6 @@ import (
 	"github.com/docker/libnetwork/datastore"
 	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/hostdiscovery"
-	"github.com/docker/libnetwork/sandbox"
 	"github.com/docker/libnetwork/types"
 	"github.com/docker/swarm/pkg/store"
 )
@@ -90,11 +89,6 @@ type NetworkController interface {
 // NetworkWalker is a client provided function which will be used to walk the Networks.
 // When the function returns true, the walk will stop.
 type NetworkWalker func(nw Network) bool
-
-type sandboxData struct {
-	sandbox sandbox.Sandbox
-	refCnt  int
-}
 
 type networkTable map[types.UUID]*network
 type endpointTable map[types.UUID]*endpoint
@@ -380,51 +374,6 @@ func (c *controller) NetworkByID(id string) (Network, error) {
 		return n, nil
 	}
 	return nil, ErrNoSuchNetwork(id)
-}
-
-func (c *controller) sandboxAdd(key string, create bool) (sandbox.Sandbox, error) {
-	c.Lock()
-	defer c.Unlock()
-
-	sData, ok := c.sandboxes[key]
-	if !ok {
-		sb, err := sandbox.NewSandbox(key, create)
-		if err != nil {
-			return nil, err
-		}
-
-		sData = &sandboxData{sandbox: sb, refCnt: 1}
-		c.sandboxes[key] = sData
-		return sData.sandbox, nil
-	}
-
-	sData.refCnt++
-	return sData.sandbox, nil
-}
-
-func (c *controller) sandboxRm(key string) {
-	c.Lock()
-	defer c.Unlock()
-
-	sData := c.sandboxes[key]
-	sData.refCnt--
-
-	if sData.refCnt == 0 {
-		sData.sandbox.Destroy()
-		delete(c.sandboxes, key)
-	}
-}
-
-func (c *controller) sandboxGet(key string) sandbox.Sandbox {
-	c.Lock()
-	defer c.Unlock()
-
-	sData, ok := c.sandboxes[key]
-	if !ok {
-		return nil
-	}
-
-	return sData.sandbox
 }
 
 func (c *controller) loadDriver(networkType string) (driverapi.Driver, error) {

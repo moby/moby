@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"sync"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/libnetwork/etchosts"
 	"github.com/docker/libnetwork/netlabel"
@@ -78,6 +77,7 @@ type containerConfig struct {
 	resolvConfPathConfig
 	generic           map[string]interface{}
 	useDefaultSandBox bool
+	prio              int // higher the value, more the priority
 }
 
 type extraHost struct {
@@ -101,7 +101,6 @@ type endpoint struct {
 	name          string
 	id            types.UUID
 	network       *network
-	sandboxInfo   *sandbox.Info
 	iFaces        []*endpointInterface
 	joinInfo      *endpointJoinInfo
 	container     *containerInfo
@@ -233,8 +232,6 @@ func (ep *endpoint) Join(containerID string, options ...EndpointOption) error {
 	container := ep.container
 	network := ep.network
 	epid := ep.id
-	joinInfo := ep.joinInfo
-	ifaces := ep.iFaces
 
 	ep.Unlock()
 	defer func() {
@@ -278,48 +275,15 @@ func (ep *endpoint) Join(containerID string, options ...EndpointOption) error {
 		return err
 	}
 
-	sb, err := ctrlr.sandboxAdd(sboxKey, !container.config.useDefaultSandBox)
+	sb, err := ctrlr.sandboxAdd(sboxKey, !container.config.useDefaultSandBox, ep)
 	if err != nil {
 		return err
 	}
 	defer func() {
 		if err != nil {
-			ctrlr.sandboxRm(sboxKey)
+			ctrlr.sandboxRm(sboxKey, ep)
 		}
 	}()
-
-	for _, i := range ifaces {
-		iface := &sandbox.Interface{
-			SrcName: i.srcName,
-			DstName: i.dstPrefix,
-			Address: &i.addr,
-			Routes:  i.routes,
-		}
-		if i.addrv6.IP.To16() != nil {
-			iface.AddressIPv6 = &i.addrv6
-		}
-		err = sb.AddInterface(iface)
-		if err != nil {
-			return err
-		}
-	}
-	// Set up non-interface routes.
-	for _, r := range ep.joinInfo.StaticRoutes {
-		err = sb.AddStaticRoute(r)
-		if err != nil {
-			return err
-		}
-	}
-
-	err = sb.SetGateway(joinInfo.gw)
-	if err != nil {
-		return err
-	}
-
-	err = sb.SetGatewayIPv6(joinInfo.gw6)
-	if err != nil {
-		return err
-	}
 
 	container.data.SandboxKey = sb.Key()
 
@@ -372,26 +336,7 @@ func (ep *endpoint) Leave(containerID string, options ...EndpointOption) error {
 
 	err = driver.Leave(n.id, ep.id)
 
-	sb := ctrlr.sandboxGet(container.data.SandboxKey)
-	for _, i := range sb.Interfaces() {
-		// Only remove the interfaces owned by this endpoint from the sandbox.
-		if ep.hasInterface(i.SrcName) {
-			err = sb.RemoveInterface(i)
-			if err != nil {
-				logrus.Debugf("Remove interface failed: %v", err)
-			}
-		}
-	}
-
-	// Remove non-interface routes.
-	for _, r := range ep.joinInfo.StaticRoutes {
-		err = sb.RemoveStaticRoute(r)
-		if err != nil {
-			logrus.Debugf("Remove route failed: %v", err)
-		}
-	}
-
-	ctrlr.sandboxRm(container.data.SandboxKey)
+	ctrlr.sandboxRm(container.data.SandboxKey, ep)
 
 	return err
 }
@@ -645,6 +590,14 @@ func EndpointOptionGeneric(generic map[string]interface{}) EndpointOption {
 		for k, v := range generic {
 			ep.generic[k] = v
 		}
+	}
+}
+
+// JoinOptionPriority function returns an option setter for priority option to
+// be passed to endpoint Join method.
+func JoinOptionPriority(prio int) EndpointOption {
+	return func(ep *endpoint) {
+		ep.container.config.prio = prio
 	}
 }
 
