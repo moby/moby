@@ -76,13 +76,11 @@ func (s *DockerSuite) TestEventsContainerFailStartDie(c *check.C) {
 
 	out, _ := dockerCmd(c, "images", "-q")
 	image := strings.Split(out, "\n")[0]
-	eventsCmd := exec.Command(dockerBinary, "run", "--name", "testeventdie", image, "blerg")
-	_, _, err := runCommandWithOutput(eventsCmd)
-	if err == nil {
+	if err := exec.Command(dockerBinary, "run", "--name", "testeventdie", image, "blerg").Run(); err == nil {
 		c.Fatalf("Container run with command blerg should have failed, but it did not")
 	}
 
-	eventsCmd = exec.Command(dockerBinary, "events", "--since=0", fmt.Sprintf("--until=%d", daemonTime(c).Unix()))
+	eventsCmd := exec.Command(dockerBinary, "events", "--since=0", fmt.Sprintf("--until=%d", daemonTime(c).Unix()))
 	out, _, _ = runCommandWithOutput(eventsCmd)
 	events := strings.Split(out, "\n")
 	if len(events) <= 1 {
