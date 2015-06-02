@@ -42,4 +42,21 @@ func TestSortFileInfoSums(t *testing.T) {
 	if gotFis.Pos() != 4 {
 		t.Errorf("Expected %d, got %d", 4, gotFis.Pos())
 	}
+
+	fis = newFileInfoSums()
+	fis.SortByPos()
+	if fis[0].Pos() != 0 {
+		t.Errorf("sorted fileInfoSums by Pos should order them by position.")
+	}
+
+	fis = newFileInfoSums()
+	expected = "deadbeef1"
+	gotFileInfoSum := fis.GetFile("dup1")
+	if gotFileInfoSum.Sum() != expected {
+		t.Errorf("Expected %q, got %q", expected, gotFileInfoSum)
+	}
+	if fis.GetFile("noPresent") != nil {
+		t.Errorf("Should have return nil if name not found.")
+	}
+
 }

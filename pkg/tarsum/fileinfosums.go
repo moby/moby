@@ -51,15 +51,6 @@ func (fis FileInfoSums) GetAllFile(name string) FileInfoSums {
 	return f
 }
 
-func contains(s []string, e string) bool {
-	for _, a := range s {
-		if a == e {
-			return true
-		}
-	}
-	return false
-}
-
 func (fis FileInfoSums) GetDuplicatePaths() (dups FileInfoSums) {
 	seen := make(map[string]int, len(fis)) // allocate earl. no need to grow this map.
 	for i := range fis {

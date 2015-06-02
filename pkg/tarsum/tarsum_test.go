@@ -14,6 +14,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"strings"
 	"testing"
 )
 
@@ -175,6 +176,45 @@ func emptyTarSum(gzip bool) (TarSum, error) {
 	return NewTarSum(reader, !gzip, Version0)
 }
 
+// Test errors on NewTarsumForLabel
+func TestNewTarSumForLabelInvalid(t *testing.T) {
+	reader := strings.NewReader("")
+
+	if _, err := NewTarSumForLabel(reader, true, "invalidlabel"); err == nil {
+		t.Fatalf("Expected an error, got nothing.")
+	}
+
+	if _, err := NewTarSumForLabel(reader, true, "invalid+sha256"); err == nil {
+		t.Fatalf("Expected an error, got nothing.")
+	}
+	if _, err := NewTarSumForLabel(reader, true, "tarsum.v1+invalid"); err == nil {
+		t.Fatalf("Expected an error, got nothing.")
+	}
+}
+
+func TestNewTarSumForLabel(t *testing.T) {
+
+	layer := testLayers[0]
+
+	reader, err := os.Open(layer.filename)
+	if err != nil {
+		t.Fatal(err)
+	}
+	label := strings.Split(layer.tarsum, ":")[0]
+	ts, err := NewTarSumForLabel(reader, false, label)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Make sure it actually worked by reading a little bit of it
+	nbByteToRead := 8 * 1024
+	dBuf := make([]byte, nbByteToRead)
+	_, err = ts.Read(dBuf)
+	if err != nil {
+		t.Errorf("failed to read %vKB from %s: %s", nbByteToRead, layer.filename, err)
+	}
+}
+
 // TestEmptyTar tests that tarsum does not fail to read an empty tar
 // and correctly returns the hex digest of an empty hash.
 func TestEmptyTar(t *testing.T) {
@@ -251,6 +291,33 @@ var (
 	sha512Hash = NewTHash("sha512", sha512.New)
 )
 
+// Test all the build-in read size : buf8K, buf16K, buf32K and more
+func TestTarSumsReadSize(t *testing.T) {
+	// Test always on the same layer (that is big enough)
+	layer := testLayers[0]
+
+	for i := 0; i < 5; i++ {
+
+		reader, err := os.Open(layer.filename)
+		if err != nil {
+			t.Fatal(err)
+		}
+		ts, err := NewTarSum(reader, false, layer.version)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// Read and discard bytes so that it populates sums
+		nbByteToRead := (i + 1) * 8 * 1024
+		dBuf := make([]byte, nbByteToRead)
+		_, err = ts.Read(dBuf)
+		if err != nil {
+			t.Errorf("failed to read %vKB from %s: %s", nbByteToRead, layer.filename, err)
+			continue
+		}
+	}
+}
+
 func TestTarSums(t *testing.T) {
 	for _, layer := range testLayers {
 		var (
@@ -325,6 +392,15 @@ func TestTarSums(t *testing.T) {
 
 		if layer.tarsum != gotSum {
 			t.Errorf("expecting [%s], but got [%s]", layer.tarsum, gotSum)
+		}
+		var expectedHashName string
+		if layer.hash != nil {
+			expectedHashName = layer.hash.Name()
+		} else {
+			expectedHashName = DefaultTHash.Name()
+		}
+		if expectedHashName != ts.Hash().Name() {
+			t.Errorf("expecting hash [%v], but got [%s]", expectedHashName, ts.Hash().Name())
 		}
 	}
 }
