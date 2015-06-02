@@ -308,26 +308,72 @@ func (n *networkNamespace) AddInterface(i *Interface) error {
 }
 
 func (n *networkNamespace) SetGateway(gw net.IP) error {
+	// Silently return if the gateway is empty
 	if len(gw) == 0 {
 		return nil
 	}
 
-	err := programGateway(n.path, gw)
+	err := programGateway(n.path, gw, true)
 	if err == nil {
+		n.Lock()
 		n.sinfo.Gateway = gw
+		n.Unlock()
+	}
+
+	return err
+}
+
+func (n *networkNamespace) UnsetGateway() error {
+	n.Lock()
+	gw := n.sinfo.Gateway
+	n.Unlock()
+
+	// Silently return if the gateway is empty
+	if len(gw) == 0 {
+		return nil
+	}
+
+	err := programGateway(n.path, gw, false)
+	if err == nil {
+		n.Lock()
+		n.sinfo.Gateway = net.IP{}
+		n.Unlock()
 	}
 
 	return err
 }
 
 func (n *networkNamespace) SetGatewayIPv6(gw net.IP) error {
+	// Silently return if the gateway is empty
 	if len(gw) == 0 {
 		return nil
 	}
 
-	err := programGateway(n.path, gw)
+	err := programGateway(n.path, gw, true)
 	if err == nil {
+		n.Lock()
 		n.sinfo.GatewayIPv6 = gw
+		n.Unlock()
+	}
+
+	return err
+}
+
+func (n *networkNamespace) UnsetGatewayIPv6() error {
+	n.Lock()
+	gw := n.sinfo.GatewayIPv6
+	n.Unlock()
+
+	// Silently return if the gateway is empty
+	if len(gw) == 0 {
+		return nil
+	}
+
+	err := programGateway(n.path, gw, false)
+	if err == nil {
+		n.Lock()
+		n.sinfo.GatewayIPv6 = net.IP{}
+		n.Unlock()
 	}
 
 	return err

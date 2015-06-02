@@ -35,6 +35,12 @@ type Sandbox interface {
 	// Set default IPv6 gateway for the sandbox
 	SetGatewayIPv6(gw net.IP) error
 
+	// Unset the previously set default IPv4 gateway in the sandbox
+	UnsetGateway() error
+
+	// Unset the previously set default IPv6 gateway in the sandbox
+	UnsetGatewayIPv6() error
+
 	// Add a static route to the sandbox.
 	AddStaticRoute(*types.StaticRoute) error
 
