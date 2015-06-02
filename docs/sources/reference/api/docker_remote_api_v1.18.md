@@ -201,7 +201,7 @@ Json Parameters:
 -   **Env** - A list of environment variables in the form of `VAR=value`
 -   **Labels** - Adds a map of labels that to a container. To specify a map: `{"key":"value"[,"key2":"value2"]}`
 -   **Cmd** - Command to run specified as a string or an array of strings.
--   **Entrypoint** - Set the entrypoint for the container a a string or an array
+-   **Entrypoint** - Set the entrypoint for the container a string or an array
       of strings
 -   **Image** - String value containing the image name to use for the container
 -   **Volumes** – An object mapping mountpoint paths (strings) inside the
