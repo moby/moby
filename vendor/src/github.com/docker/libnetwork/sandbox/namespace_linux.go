@@ -51,7 +51,11 @@ func createBasePath() {
 }
 
 func removeUnusedPaths() {
-	for range time.Tick(gpmCleanupPeriod) {
+	gpmLock.Lock()
+	period := gpmCleanupPeriod
+	gpmLock.Unlock()
+
+	for range time.Tick(period) {
 		gpmLock.Lock()
 		pathList := make([]string, 0, len(garbagePathMap))
 		for path := range garbagePathMap {
