@@ -3183,6 +3183,7 @@ func (s *DockerSuite) TestRunContainerNetModeWithExposePort(c *check.C) {
 
 // Issue #10184.
 func (s *DockerSuite) TestDevicePermissions(c *check.C) {
+	testRequires(c, NativeExecDriver)
 	const permissions = "crw-rw-rw-"
 	out, status := dockerCmd(c, "run", "--device", "/dev/fuse:/dev/fuse:mrw", "busybox:latest", "ls", "-l", "/dev/fuse")
 	if status != 0 {
