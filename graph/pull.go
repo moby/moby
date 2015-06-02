@@ -251,6 +251,10 @@ func (s *TagStore) pullRepository(r *registry.Session, out io.Writer, repoInfo *
 	errors := make(chan error)
 
 	layersDownloaded := false
+	imgIDs := []string{}
+	defer func() {
+		s.graph.Release(imgIDs, r.ID())
+	}()
 	for _, image := range repoData.ImgList {
 		downloadImage := func(img *registry.ImgData) {
 			if askedTag != "" && img.Tag != askedTag {
@@ -277,6 +281,10 @@ func (s *TagStore) pullRepository(r *registry.Session, out io.Writer, repoInfo *
 				return
 			}
 			defer s.poolRemove("pull", "img:"+img.ID)
+
+			// we need to retain it until tagging
+			s.graph.Retain([]string{img.ID}, r.ID())
+			imgIDs = append(imgIDs, img.ID)
 
 			out.Write(sf.FormatProgress(stringid.TruncateID(img.ID), fmt.Sprintf("Pulling image (%s) from %s", img.Tag, repoInfo.CanonicalName), nil))
 			success := false
@@ -359,6 +367,10 @@ func (s *TagStore) pullImage(r *registry.Session, out io.Writer, imgID, endpoint
 	out.Write(sf.FormatProgress(stringid.TruncateID(imgID), "Pulling dependent layers", nil))
 	// FIXME: Try to stream the images?
 	// FIXME: Launch the getRemoteImage() in goroutines
+
+	// As imgID has been retained in pullRepository, no need to retain again
+	s.graph.Retain(history[1:], r.ID())
+	defer s.graph.Release(history[1:], r.ID())
 
 	layersDownloaded := false
 	for i := len(history) - 1; i >= 0; i-- {
@@ -538,6 +550,10 @@ func (s *TagStore) pullV2Tag(r *registry.Session, out io.Writer, endpoint *regis
 	}
 	out.Write(sf.FormatStatus(tag, "Pulling from %s", repoInfo.CanonicalName))
 
+	layerIDs := []string{}
+	defer func() {
+		s.graph.Release(layerIDs, r.ID())
+	}()
 	downloads := make([]downloadInfo, len(manifest.FSLayers))
 
 	for i := len(manifest.FSLayers) - 1; i >= 0; i-- {
@@ -551,6 +567,9 @@ func (s *TagStore) pullV2Tag(r *registry.Session, out io.Writer, endpoint *regis
 			return false, fmt.Errorf("failed to parse json: %s", err)
 		}
 		downloads[i].img = img
+
+		s.graph.Retain([]string{img.ID}, r.ID())
+		layerIDs = append(layerIDs, img.ID)
 
 		// Check if exists
 		if s.graph.Exists(img.ID) {

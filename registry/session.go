@@ -22,6 +22,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/cliconfig"
 	"github.com/docker/docker/pkg/httputils"
+	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/pkg/tarsum"
 	"github.com/docker/docker/pkg/transport"
 )
@@ -31,6 +32,7 @@ type Session struct {
 	client        *http.Client
 	// TODO(tiborvass): remove authConfig
 	authConfig *cliconfig.AuthConfig
+	id         string
 }
 
 type authTransport struct {
@@ -127,6 +129,7 @@ func NewSession(client *http.Client, authConfig *cliconfig.AuthConfig, endpoint 
 		authConfig:    authConfig,
 		client:        client,
 		indexEndpoint: endpoint,
+		id:            stringid.GenerateRandomID(),
 	}
 
 	var alwaysSetBasicAuth bool
@@ -154,6 +157,11 @@ func NewSession(client *http.Client, authConfig *cliconfig.AuthConfig, endpoint 
 	client.Jar = jar
 
 	return r, nil
+}
+
+// ID returns this registry session's ID.
+func (r *Session) ID() string {
+	return r.id
 }
 
 // Retrieve the history of a given image from the Registry.

@@ -92,7 +92,7 @@ func (s *DockerSuite) TestRmContainerOrphaning(c *check.C) {
 		c.Fatalf("Expected to error out removing the image, but succeeded: %s", out)
 	}
 	// check if we deleted the first image
-	out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "images", "-q", "--no-trunc"))
+	out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "images", "-q", "-a", "--no-trunc"))
 	if err != nil {
 		c.Fatalf("%v: %s", err, out)
 	}
