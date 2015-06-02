@@ -264,7 +264,7 @@ func parseInodeChanges(lines [][]string) ([]*InodeChange, error) {
 }
 
 func listByType(t, filter string) ([]*Dataset, error) {
-	args := []string{"get", "all", "-t", t, "-rHp"}
+	args := []string{"get", "-rHp", "-t", t, "all"}
 	if filter != "" {
 		args = append(args, filter)
 	}
