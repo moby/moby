@@ -46,14 +46,6 @@ func i2e(i interface{}) *endpointResource {
 	return s
 }
 
-func i2c(i interface{}) *libnetwork.ContainerData {
-	s, ok := i.(*libnetwork.ContainerData)
-	if !ok {
-		panic(fmt.Sprintf("Failed i2c for %v", i))
-	}
-	return s
-}
-
 func i2eL(i interface{}) []*endpointResource {
 	s, ok := i.([]*endpointResource)
 	if !ok {
@@ -803,13 +795,13 @@ func TestJoinLeave(t *testing.T) {
 	}
 
 	vars[urlEpName] = "endpoint"
-	cdi, errRsp := procJoinEndpoint(c, vars, jlb)
+	key, errRsp := procJoinEndpoint(c, vars, jlb)
 	if errRsp != &successResponse {
 		t.Fatalf("Expected failure, got: %v", errRsp)
 	}
 
-	cd := i2c(cdi)
-	if cd.SandboxKey == "" {
+	keyStr := i2s(key)
+	if keyStr == "" {
 		t.Fatalf("Empty sandbox key")
 	}
 	_, errRsp = procDeleteEndpoint(c, vars, nil)

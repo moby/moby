@@ -30,8 +30,8 @@ type Endpoint interface {
 
 	// Join creates a new sandbox for the given container ID and populates the
 	// network resources allocated for the endpoint and joins the sandbox to
-	// the endpoint. It returns the sandbox key to the caller
-	Join(containerID string, options ...EndpointOption) (*ContainerData, error)
+	// the endpoint.
+	Join(containerID string, options ...EndpointOption) error
 
 	// Leave removes the sandbox associated with  container ID and detaches
 	// the network resources populated in the sandbox
@@ -203,11 +203,11 @@ func (ep *endpoint) joinLeaveEnd() {
 	}
 }
 
-func (ep *endpoint) Join(containerID string, options ...EndpointOption) (*ContainerData, error) {
+func (ep *endpoint) Join(containerID string, options ...EndpointOption) error {
 	var err error
 
 	if containerID == "" {
-		return nil, InvalidContainerIDError(containerID)
+		return InvalidContainerIDError(containerID)
 	}
 
 	ep.joinLeaveStart()
@@ -216,7 +216,7 @@ func (ep *endpoint) Join(containerID string, options ...EndpointOption) (*Contai
 	ep.Lock()
 	if ep.container != nil {
 		ep.Unlock()
-		return nil, ErrInvalidJoin{}
+		return ErrInvalidJoin{}
 	}
 
 	ep.container = &containerInfo{
@@ -260,27 +260,27 @@ func (ep *endpoint) Join(containerID string, options ...EndpointOption) (*Contai
 
 	err = driver.Join(nid, epid, sboxKey, ep, container.config.generic)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	err = ep.buildHostsFiles()
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	err = ep.updateParentHosts()
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	err = ep.setupDNS()
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	sb, err := ctrlr.sandboxAdd(sboxKey, !container.config.useDefaultSandBox)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	defer func() {
 		if err != nil {
@@ -300,31 +300,30 @@ func (ep *endpoint) Join(containerID string, options ...EndpointOption) (*Contai
 		}
 		err = sb.AddInterface(iface)
 		if err != nil {
-			return nil, err
+			return err
 		}
 	}
 	// Set up non-interface routes.
 	for _, r := range ep.joinInfo.StaticRoutes {
 		err = sb.AddStaticRoute(r)
 		if err != nil {
-			return nil, err
+			return err
 		}
 	}
 
 	err = sb.SetGateway(joinInfo.gw)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	err = sb.SetGatewayIPv6(joinInfo.gw6)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	container.data.SandboxKey = sb.Key()
-	cData := container.data
 
-	return &cData, nil
+	return nil
 }
 
 func (ep *endpoint) Leave(containerID string, options ...EndpointOption) error {

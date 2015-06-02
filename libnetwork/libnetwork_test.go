@@ -97,7 +97,7 @@ func TestNull(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = ep.Join("null_container",
+	err = ep.Join("null_container",
 		libnetwork.JoinOptionHostname("test"),
 		libnetwork.JoinOptionDomainname("docker.io"),
 		libnetwork.JoinOptionExtraHost("web", "192.168.0.1"))
@@ -130,7 +130,7 @@ func TestHost(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = ep1.Join("host_container1",
+	err = ep1.Join("host_container1",
 		libnetwork.JoinOptionHostname("test1"),
 		libnetwork.JoinOptionDomainname("docker.io"),
 		libnetwork.JoinOptionExtraHost("web", "192.168.0.1"),
@@ -144,7 +144,7 @@ func TestHost(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = ep2.Join("host_container2",
+	err = ep2.Join("host_container2",
 		libnetwork.JoinOptionHostname("test2"),
 		libnetwork.JoinOptionDomainname("docker.io"),
 		libnetwork.JoinOptionExtraHost("web", "192.168.0.1"),
@@ -177,7 +177,7 @@ func TestHost(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = ep3.Join("host_container3",
+	err = ep3.Join("host_container3",
 		libnetwork.JoinOptionHostname("test3"),
 		libnetwork.JoinOptionDomainname("docker.io"),
 		libnetwork.JoinOptionExtraHost("web", "192.168.0.1"),
@@ -804,7 +804,7 @@ func TestEndpointJoin(t *testing.T) {
 		t.Fatalf("Expected an empty sandbox key for an empty endpoint. Instead found a non-empty sandbox key: %s", info.SandboxKey())
 	}
 
-	_, err = ep.Join(containerID,
+	err = ep.Join(containerID,
 		libnetwork.JoinOptionHostname("test"),
 		libnetwork.JoinOptionDomainname("docker.io"),
 		libnetwork.JoinOptionExtraHost("web", "192.168.0.1"))
@@ -847,7 +847,7 @@ func TestEndpointJoinInvalidContainerId(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = ep.Join("")
+	err = ep.Join("")
 	if err == nil {
 		t.Fatal("Expected to fail join with empty container id string")
 	}
@@ -872,7 +872,7 @@ func TestEndpointDeleteWithActiveContainer(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = ep.Join(containerID,
+	err = ep.Join(containerID,
 		libnetwork.JoinOptionHostname("test"),
 		libnetwork.JoinOptionDomainname("docker.io"),
 		libnetwork.JoinOptionExtraHost("web", "192.168.0.1"))
@@ -916,7 +916,7 @@ func TestEndpointMultipleJoins(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = ep.Join(containerID,
+	err = ep.Join(containerID,
 		libnetwork.JoinOptionHostname("test"),
 		libnetwork.JoinOptionDomainname("docker.io"),
 		libnetwork.JoinOptionExtraHost("web", "192.168.0.1"))
@@ -931,7 +931,7 @@ func TestEndpointMultipleJoins(t *testing.T) {
 		}
 	}()
 
-	_, err = ep.Join("container2")
+	err = ep.Join("container2")
 	if err == nil {
 		t.Fatal("Expected to fail multiple joins for the same endpoint")
 	}
@@ -967,7 +967,7 @@ func TestEndpointInvalidLeave(t *testing.T) {
 		}
 	}
 
-	_, err = ep.Join(containerID,
+	err = ep.Join(containerID,
 		libnetwork.JoinOptionHostname("test"),
 		libnetwork.JoinOptionDomainname("docker.io"),
 		libnetwork.JoinOptionExtraHost("web", "192.168.0.1"))
@@ -1017,7 +1017,7 @@ func TestEndpointUpdateParent(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = ep1.Join(containerID,
+	err = ep1.Join(containerID,
 		libnetwork.JoinOptionHostname("test1"),
 		libnetwork.JoinOptionDomainname("docker.io"),
 		libnetwork.JoinOptionExtraHost("web", "192.168.0.1"))
@@ -1037,7 +1037,7 @@ func TestEndpointUpdateParent(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = ep2.Join("container2",
+	err = ep2.Join("container2",
 		libnetwork.JoinOptionHostname("test2"),
 		libnetwork.JoinOptionDomainname("docker.io"),
 		libnetwork.JoinOptionHostsPath("/var/lib/docker/test_network/container2/hosts"),
@@ -1104,7 +1104,7 @@ func TestEnableIPv6(t *testing.T) {
 	resolvConfPath := "/tmp/libnetwork_test/resolv.conf"
 	defer os.Remove(resolvConfPath)
 
-	_, err = ep1.Join(containerID,
+	err = ep1.Join(containerID,
 		libnetwork.JoinOptionResolvConfPath(resolvConfPath))
 
 	if err != nil {
@@ -1171,7 +1171,7 @@ func TestResolvConf(t *testing.T) {
 	resolvConfPath := "/tmp/libnetwork_test/resolv.conf"
 	defer os.Remove(resolvConfPath)
 
-	_, err = ep1.Join(containerID,
+	err = ep1.Join(containerID,
 		libnetwork.JoinOptionResolvConfPath(resolvConfPath))
 	if err != nil {
 		t.Fatal(err)
@@ -1211,7 +1211,7 @@ func TestResolvConf(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = ep1.Join(containerID,
+	err = ep1.Join(containerID,
 		libnetwork.JoinOptionResolvConfPath(resolvConfPath))
 	if err != nil {
 		t.Fatal(err)
@@ -1235,7 +1235,7 @@ func TestResolvConf(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = ep1.Join(containerID,
+	err = ep1.Join(containerID,
 		libnetwork.JoinOptionResolvConfPath(resolvConfPath))
 	if err != nil {
 		t.Fatal(err)
@@ -1417,7 +1417,7 @@ func debugf(format string, a ...interface{}) (int, error) {
 
 func parallelJoin(t *testing.T, ep libnetwork.Endpoint, thrNumber int) {
 	debugf("J%d.", thrNumber)
-	_, err := ep.Join("racing_container")
+	err := ep.Join("racing_container")
 	runtime.LockOSThread()
 	if err != nil {
 		if _, ok := err.(libnetwork.ErrNoContainer); !ok {
