@@ -56,18 +56,7 @@ func removeUnusedPaths() {
 	period := gpmCleanupPeriod
 	gpmLock.Unlock()
 
-	ticker := time.NewTicker(period)
-	for {
-		var (
-			gc   chan struct{}
-			gcOk bool
-		)
-
-		select {
-		case <-ticker.C:
-		case gc, gcOk = <-gpmChan:
-		}
-
+	for range time.Tick(period) {
 		gpmLock.Lock()
 		pathList := make([]string, 0, len(garbagePathMap))
 		for path := range garbagePathMap {
