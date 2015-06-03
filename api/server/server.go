@@ -461,6 +461,12 @@ func (s *Server) getEvents(version version.Version, w http.ResponseWriter, r *ht
 			return err
 		}
 	}
+
+	var closeNotify <-chan bool
+	if closeNotifier, ok := w.(http.CloseNotifier); ok {
+		closeNotify = closeNotifier.CloseNotify()
+	}
+
 	for {
 		select {
 		case ev := <-l:
@@ -472,6 +478,9 @@ func (s *Server) getEvents(version version.Version, w http.ResponseWriter, r *ht
 				return err
 			}
 		case <-timer.C:
+			return nil
+		case <-closeNotify:
+			logrus.Debug("Client disconnected, stop sending events")
 			return nil
 		}
 	}
