@@ -5,7 +5,6 @@ import (
 	"net"
 	"os/exec"
 	"strconv"
-	"strings"
 	"sync"
 
 	"github.com/Sirupsen/logrus"
@@ -701,13 +700,13 @@ func (d *driver) CreateEndpoint(nid, eid types.UUID, epInfo driverapi.EndpointIn
 	}()
 
 	// Generate a name for what will be the host side pipe interface
-	name1, err := generateIfaceName()
+	name1, err := netutils.GenerateIfaceName(vethPrefix, vethLen)
 	if err != nil {
 		return err
 	}
 
 	// Generate a name for what will be the sandbox side pipe interface
-	name2, err := generateIfaceName()
+	name2, err := netutils.GenerateIfaceName(vethPrefix, vethLen)
 	if err != nil {
 		return err
 	}
@@ -1183,23 +1182,4 @@ func electMacAddress(epConfig *endpointConfiguration) net.HardwareAddr {
 		return epConfig.MacAddress
 	}
 	return netutils.GenerateRandomMAC()
-}
-
-// Generates a name to be used for a virtual ethernet
-// interface. The name is constructed by 'veth' appended
-// by a randomly generated hex value. (example: veth0f60e2c)
-func generateIfaceName() (string, error) {
-	for i := 0; i < 3; i++ {
-		name, err := netutils.GenerateRandomName(vethPrefix, vethLen)
-		if err != nil {
-			continue
-		}
-		if _, err := net.InterfaceByName(name); err != nil {
-			if strings.Contains(err.Error(), "no such") {
-				return name, nil
-			}
-			return "", err
-		}
-	}
-	return "", &ErrIfaceName{}
 }
