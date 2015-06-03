@@ -73,7 +73,10 @@ type CommonContainer struct {
 	MountLabel, ProcessLabel string
 	RestartCount             int
 	UpdateDns                bool
-	MountPoints              map[string]*mountPoint
+
+	MountPoints map[string]*mountPoint
+	Volumes     map[string]string // Deprecated since 1.7, kept for backwards compatibility
+	VolumesRW   map[string]bool   // Deprecated since 1.7, kept for backwards compatibility
 
 	hostConfig *runconfig.HostConfig
 	command    *execdriver.Command
