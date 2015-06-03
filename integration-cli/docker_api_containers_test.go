@@ -72,8 +72,6 @@ func (s *DockerSuite) TestContainerApiGetJSONNoFieldsOmitted(c *check.C) {
 		"Command",
 		"Created",
 		"Ports",
-		"SizeRw",
-		"SizeRootFs",
 		"Labels",
 		"Status",
 	}
