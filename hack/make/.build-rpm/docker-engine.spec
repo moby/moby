@@ -6,7 +6,7 @@ Summary: The open-source application container engine
 License: ASL 2.0
 Source: %{name}.tar.gz
 
-URL: https://dockerproject.com
+URL: https://dockerproject.org
 Vendor: Docker
 Packager: Docker <support@docker.com>
 
