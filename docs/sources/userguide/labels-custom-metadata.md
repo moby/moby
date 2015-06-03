@@ -38,7 +38,7 @@ notation. Use the following guidelines to name your keys:
   reverse DNS notation of a domain controlled by the author. For
   example, `com.example.some-label`.
 
-- The `com.docker.*`, `io.docker.*` and `com.dockerproject.*` namespaces are
+- The `com.docker.*`, `io.docker.*` and `org.dockerproject.*` namespaces are
   reserved for Docker's internal use.
 
 - Keys should only consist of lower-cased alphanumeric characters,

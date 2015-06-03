@@ -1,6 +1,6 @@
 Source: docker-engine
 Maintainer: Docker <support@docker.com>
-Homepage: https://dockerproject.com
+Homepage: https://dockerproject.org
 Vcs-Browser: https://github.com/docker/docker
 Vcs-Git: git://github.com/docker/docker.git
 
