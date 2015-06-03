@@ -88,6 +88,71 @@ func TestCreateFail(t *testing.T) {
 	}
 }
 
+func TestCreateMultipleNetworks(t *testing.T) {
+	defer netutils.SetupTestNetNS(t)()
+	d := newDriver()
+	dd, _ := d.(*driver)
+
+	config1 := &networkConfiguration{BridgeName: "net_test_1", AllowNonDefaultBridge: true, EnableIPTables: true}
+	genericOption := make(map[string]interface{})
+	genericOption[netlabel.GenericData] = config1
+	if err := d.CreateNetwork("1", genericOption); err != nil {
+		t.Fatalf("Failed to create bridge: %v", err)
+	}
+
+	config2 := &networkConfiguration{BridgeName: "net_test_2", AllowNonDefaultBridge: true, EnableIPTables: true}
+	genericOption[netlabel.GenericData] = config2
+	if err := d.CreateNetwork("2", genericOption); err != nil {
+		t.Fatalf("Failed to create bridge: %v", err)
+	}
+
+	config3 := &networkConfiguration{BridgeName: "net_test_3", AllowNonDefaultBridge: true, EnableIPTables: true}
+	genericOption[netlabel.GenericData] = config3
+	if err := d.CreateNetwork("3", genericOption); err != nil {
+		t.Fatalf("Failed to create bridge: %v", err)
+	}
+
+	// Verify the network isolation rules are installed, each network subnet should appear 4 times
+	verifyV4INCEntries(dd.networks, 4, t)
+
+	config4 := &networkConfiguration{BridgeName: "net_test_4", AllowNonDefaultBridge: true, EnableIPTables: true}
+	genericOption[netlabel.GenericData] = config4
+	if err := d.CreateNetwork("4", genericOption); err != nil {
+		t.Fatalf("Failed to create bridge: %v", err)
+	}
+
+	// Now 6 times
+	verifyV4INCEntries(dd.networks, 6, t)
+
+	d.DeleteNetwork("1")
+	verifyV4INCEntries(dd.networks, 4, t)
+
+	d.DeleteNetwork("2")
+	verifyV4INCEntries(dd.networks, 2, t)
+
+	d.DeleteNetwork("3")
+	verifyV4INCEntries(dd.networks, 0, t)
+
+	d.DeleteNetwork("4")
+	verifyV4INCEntries(dd.networks, 0, t)
+}
+
+func verifyV4INCEntries(networks map[types.UUID]*bridgeNetwork, numEntries int, t *testing.T) {
+	out, err := iptables.Raw("-L", "FORWARD")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, nw := range networks {
+		nt := types.GetIPNetCopy(nw.bridge.bridgeIPv4)
+		nt.IP = nt.IP.Mask(nt.Mask)
+		re := regexp.MustCompile(nt.String())
+		matches := re.FindAllString(string(out[:]), -1)
+		if len(matches) != numEntries {
+			t.Fatalf("Cannot find expected inter-network isolation rules in IP Tables:\n%s", string(out[:]))
+		}
+	}
+}
+
 type testInterface struct {
 	id      int
 	mac     net.HardwareAddr
