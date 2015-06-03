@@ -132,7 +132,7 @@ type Version struct {
 	Os            string
 	Arch          string
 	KernelVersion string `json:",omitempty"`
-	Experimental  bool
+	Experimental  bool   `json:",omitempty"`
 }
 
 // GET "/info"
