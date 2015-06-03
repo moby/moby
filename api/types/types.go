@@ -107,8 +107,8 @@ type Container struct {
 	Command    string
 	Created    int
 	Ports      []Port
-	SizeRw     int `json:",omitempty"`
-	SizeRootFs int `json:",omitempty"`
+	SizeRw     int
+	SizeRootFs int
 	Labels     map[string]string
 	Status     string
 }
