@@ -894,6 +894,7 @@ func (s *Server) postContainersCreate(version version.Version, w http.ResponseWr
 	if err != nil {
 		return err
 	}
+	adjustCpuShares(version, hostConfig)
 
 	containerId, warnings, err := s.daemon.ContainerCreate(name, config, hostConfig)
 	if err != nil {
