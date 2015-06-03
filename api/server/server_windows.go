@@ -54,3 +54,6 @@ func (s *Server) AcceptConnections(d *daemon.Daemon) {
 func allocateDaemonPort(addr string) error {
 	return nil
 }
+
+func adjustCpuShares(version version.Version, hostConfig *runconfig.HostConfig) {
+}
