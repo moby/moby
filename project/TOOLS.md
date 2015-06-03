@@ -5,7 +5,7 @@ the Docker project.
 
 ### CI
 
-The Docker project uses [Jenkins](https://jenkins.dockerproject.com/) as our
+The Docker project uses [Jenkins](https://jenkins.dockerproject.org/) as our
 continuous integration server. Each Pull Request to Docker is tested by running the 
 equivalent of `make all`. We chose Jenkins because we can host it ourselves and
 we run Docker in Docker to test.

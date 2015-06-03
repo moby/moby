@@ -108,7 +108,7 @@ It can take time to see a merged pull request in Docker's official release.
 A master build is available almost immediately though. Docker builds and
 updates its development binaries after each merge to `master`.
 
-1. Browse to <a href="https://master.dockerproject.com/" target="_blank">https://master.dockerproject.com/</a>.
+1. Browse to <a href="https://master.dockerproject.org/" target="_blank">https://master.dockerproject.org/</a>.
 
 2. Look for the binary appropriate to your system.
 
@@ -117,7 +117,7 @@ updates its development binaries after each merge to `master`.
     You might want to run the binary in a container though. This
     will keep your local host environment clean.
 
-4. View any documentation changes at <a href="http://docs.master.dockerproject.com/" target="_blank">docs.master.dockerproject.com</a>. 
+4. View any documentation changes at <a href="http://docs.master.dockerproject.org/" target="_blank">docs.master.dockerproject.org</a>. 
 
 Once you've verified everything merged, feel free to delete your feature branch
 from your fork. For information on how to do this, 

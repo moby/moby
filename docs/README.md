@@ -12,7 +12,7 @@ Docker has two primary branches for documentation:
 | Branch   | Description                    | URL (published via commit-hook)                                              |
 |----------|--------------------------------|------------------------------------------------------------------------------|
 | `docs`   | Official release documentation | [https://docs.docker.com](https://docs.docker.com)                             |
-| `master` | Merged but unreleased development work    | [http://docs.master.dockerproject.com](http://docs.master.dockerproject.com) |
+| `master` | Merged but unreleased development work    | [http://docs.master.dockerproject.org](http://docs.master.dockerproject.org) |
 
 Additions and updates to upcoming releases are made in a feature branch off of
 the `master` branch. The Docker maintainers also support a `docs` branch that
@@ -22,7 +22,7 @@ After a release, documentation updates are continually merged into `master` as
 they occur. This work includes new documentation for forthcoming features, bug
 fixes, and other updates. Docker's CI system automatically builds and updates
 the `master` documentation after each merge and posts it to
-[http://docs.master.dockerproject.com](http://docs.master.dockerproject.com). 
+[http://docs.master.dockerproject.org](http://docs.master.dockerproject.org). 
 
 Periodically, the Docker maintainers update `docs.docker.com` between official
 releases of Docker. They do this by cherry-picking commits from `master`,
