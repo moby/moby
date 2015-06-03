@@ -1824,24 +1824,23 @@ func (s *DockerSuite) TestRunVolumesCleanPaths(c *check.C) {
 
 	dockerCmd(c, "run", "-v", "/foo", "-v", "/bar/", "--name", "dark_helmet", "run_volumes_clean_paths")
 
-	out, err := inspectFieldMap("dark_helmet", "Volumes", "/foo/")
-	c.Assert(err, check.IsNil)
-	if out != "" {
+	out, err := inspectMountSourceField("dark_helmet", "/foo/")
+	if err != mountNotFound {
 		c.Fatalf("Found unexpected volume entry for '/foo/' in volumes\n%q", out)
 	}
 
-	out, err = inspectFieldMap("dark_helmet", "Volumes", "/foo")
+	out, err = inspectMountSourceField("dark_helmet", "/foo")
 	c.Assert(err, check.IsNil)
 	if !strings.Contains(out, volumesConfigPath) {
 		c.Fatalf("Volume was not defined for /foo\n%q", out)
 	}
 
-	out, err = inspectFieldMap("dark_helmet", "Volumes", "/bar/")
-	c.Assert(err, check.IsNil)
-	if out != "" {
+	out, err = inspectMountSourceField("dark_helmet", "/bar/")
+	if err != mountNotFound {
 		c.Fatalf("Found unexpected volume entry for '/bar/' in volumes\n%q", out)
 	}
-	out, err = inspectFieldMap("dark_helmet", "Volumes", "/bar")
+
+	out, err = inspectMountSourceField("dark_helmet", "/bar")
 	c.Assert(err, check.IsNil)
 	if !strings.Contains(out, volumesConfigPath) {
 		c.Fatalf("Volume was not defined for /bar\n%q", out)
@@ -2483,14 +2482,15 @@ func (s *DockerSuite) TestVolumeFromMixedRWOptions(c *check.C) {
 	dockerCmd(c, "run", "--volumes-from", "parent:ro", "--name", "test-volumes-1", "busybox", "true")
 	dockerCmd(c, "run", "--volumes-from", "parent:rw", "--name", "test-volumes-2", "busybox", "true")
 
-	testRO, err := inspectFieldMap("test-volumes-1", ".VolumesRW", "/test")
+	mRO, err := inspectMountPoint("test-volumes-1", "/test")
 	c.Assert(err, check.IsNil)
-	if testRO != "false" {
+	if mRO.RW {
 		c.Fatalf("Expected RO volume was RW")
 	}
-	testRW, err := inspectFieldMap("test-volumes-2", ".VolumesRW", "/test")
+
+	mRW, err := inspectMountPoint("test-volumes-2", "/test")
 	c.Assert(err, check.IsNil)
-	if testRW != "true" {
+	if !mRW.RW {
 		c.Fatalf("Expected RW volume was RO")
 	}
 }
