@@ -164,7 +164,10 @@ func TestUploadReadFrom(t *testing.T) {
 	} else if len(uploadErr) != 1 {
 		t.Fatalf("Unexpected number of errors: %d, expected 1", len(uploadErr))
 	} else {
-		v2Err := uploadErr[0]
+		v2Err, ok := uploadErr[0].(errcode.Error)
+		if !ok {
+			t.Fatalf("Not an 'Error' type: %#v", uploadErr[0])
+		}
 		if v2Err.Code != v2.ErrorCodeBlobUploadInvalid {
 			t.Fatalf("Unexpected error code: %s, expected %d", v2Err.Code.String(), v2.ErrorCodeBlobUploadInvalid)
 		}
