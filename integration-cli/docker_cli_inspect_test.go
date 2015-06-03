@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/docker/docker/api/types"
 	"github.com/go-check/check"
 )
 
@@ -18,7 +19,6 @@ func (s *DockerSuite) TestInspectImage(c *check.C) {
 	if id != imageTestID {
 		c.Fatalf("Expected id: %s for image: %s but received id: %s", imageTestID, imageTest, id)
 	}
-
 }
 
 func (s *DockerSuite) TestInspectInt64(c *check.C) {
@@ -263,5 +263,46 @@ func (s *DockerSuite) TestInspectContainerGraphDriver(c *check.C) {
 	_, err = strconv.ParseUint(deviceSize, 10, 64)
 	if err != nil {
 		c.Fatalf("failed to inspect DeviceSize of the image: %s, %v", deviceSize, err)
+	}
+}
+
+func (s *DockerSuite) TestInspectBindMountPoint(c *check.C) {
+	dockerCmd(c, "run", "-d", "--name", "test", "-v", "/data:/data:ro,z", "busybox", "cat")
+
+	vol, err := inspectFieldJSON("test", "Mounts")
+	c.Assert(err, check.IsNil)
+
+	var mp []types.MountPoint
+	err = unmarshalJSON([]byte(vol), &mp)
+	c.Assert(err, check.IsNil)
+
+	if len(mp) != 1 {
+		c.Fatalf("Expected 1 mount point, was %v\n", len(mp))
+	}
+
+	m := mp[0]
+
+	if m.Name != "" {
+		c.Fatal("Expected name to be empty")
+	}
+
+	if m.Driver != "" {
+		c.Fatal("Expected driver to be empty")
+	}
+
+	if m.Source != "/data" {
+		c.Fatalf("Expected source /data, was %s\n", m.Source)
+	}
+
+	if m.Destination != "/data" {
+		c.Fatalf("Expected destination /data, was %s\n", m.Destination)
+	}
+
+	if m.Mode != "ro,z" {
+		c.Fatalf("Expected mode `ro,z`, was %s\n", m.Mode)
+	}
+
+	if m.RW != false {
+		c.Fatalf("Expected rw to be false")
 	}
 }

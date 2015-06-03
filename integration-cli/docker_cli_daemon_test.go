@@ -67,23 +67,23 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithVolumesRefs(c *check.C) {
 	if out, err := s.d.Cmd("run", "-d", "--name", "volrestarttest1", "-v", "/foo", "busybox"); err != nil {
 		c.Fatal(err, out)
 	}
+
 	if err := s.d.Restart(); err != nil {
 		c.Fatal(err)
 	}
 	if _, err := s.d.Cmd("run", "-d", "--volumes-from", "volrestarttest1", "--name", "volrestarttest2", "busybox", "top"); err != nil {
 		c.Fatal(err)
 	}
+
 	if out, err := s.d.Cmd("rm", "-fv", "volrestarttest2"); err != nil {
 		c.Fatal(err, out)
 	}
-	v, err := s.d.Cmd("inspect", "--format", "{{ json .Volumes }}", "volrestarttest1")
-	if err != nil {
-		c.Fatal(err)
-	}
-	volumes := make(map[string]string)
-	json.Unmarshal([]byte(v), &volumes)
-	if _, err := os.Stat(volumes["/foo"]); err != nil {
-		c.Fatalf("Expected volume to exist: %s - %s", volumes["/foo"], err)
+
+	out, err := s.d.Cmd("inspect", "-f", "{{json .Mounts}}", "volrestarttest1")
+	c.Assert(err, check.IsNil)
+
+	if _, err := inspectMountPointJSON(out, "/foo"); err != nil {
+		c.Fatalf("Expected volume to exist: /foo, error: %v\n", err)
 	}
 }
 

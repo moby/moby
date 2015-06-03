@@ -190,7 +190,7 @@ func (s *DockerSuite) TestContainerApiStartVolumeBinds(c *check.C) {
 	c.Assert(err, check.IsNil)
 	c.Assert(status, check.Equals, http.StatusNoContent)
 
-	pth, err := inspectFieldMap(name, "Volumes", "/tmp")
+	pth, err := inspectMountSourceField(name, "/tmp")
 	if err != nil {
 		c.Fatal(err)
 	}
@@ -233,7 +233,7 @@ func (s *DockerSuite) TestContainerApiStartVolumesFrom(c *check.C) {
 
 	dockerCmd(c, "run", "-d", "--name", volName, "-v", volPath, "busybox")
 
-	name := "TestContainerApiStartDupVolumeBinds"
+	name := "TestContainerApiStartVolumesFrom"
 	config := map[string]interface{}{
 		"Image":   "busybox",
 		"Volumes": map[string]struct{}{volPath: {}},
@@ -250,11 +250,11 @@ func (s *DockerSuite) TestContainerApiStartVolumesFrom(c *check.C) {
 	c.Assert(err, check.IsNil)
 	c.Assert(status, check.Equals, http.StatusNoContent)
 
-	pth, err := inspectFieldMap(name, "Volumes", volPath)
+	pth, err := inspectMountSourceField(name, volPath)
 	if err != nil {
 		c.Fatal(err)
 	}
-	pth2, err := inspectFieldMap(volName, "Volumes", volPath)
+	pth2, err := inspectMountSourceField(volName, volPath)
 	if err != nil {
 		c.Fatal(err)
 	}
@@ -705,7 +705,7 @@ func (s *DockerSuite) TestBuildApiDockerfileSymlink(c *check.C) {
 func (s *DockerSuite) TestPostContainerBindNormalVolume(c *check.C) {
 	dockerCmd(c, "create", "-v", "/foo", "--name=one", "busybox")
 
-	fooDir, err := inspectFieldMap("one", "Volumes", "/foo")
+	fooDir, err := inspectMountSourceField("one", "/foo")
 	if err != nil {
 		c.Fatal(err)
 	}
@@ -717,7 +717,7 @@ func (s *DockerSuite) TestPostContainerBindNormalVolume(c *check.C) {
 	c.Assert(err, check.IsNil)
 	c.Assert(status, check.Equals, http.StatusNoContent)
 
-	fooDir2, err := inspectFieldMap("two", "Volumes", "/foo")
+	fooDir2, err := inspectMountSourceField("two", "/foo")
 	if err != nil {
 		c.Fatal(err)
 	}
@@ -1467,17 +1467,15 @@ func (s *DockerSuite) TestContainerApiDeleteRemoveVolume(c *check.C) {
 	id := strings.TrimSpace(out)
 	c.Assert(waitRun(id), check.IsNil)
 
-	vol, err := inspectFieldMap(id, "Volumes", "/testvolume")
-	c.Assert(err, check.IsNil)
-
-	_, err = os.Stat(vol)
+	source, err := inspectMountSourceField(id, "/testvolume")
+	_, err = os.Stat(source)
 	c.Assert(err, check.IsNil)
 
 	status, _, err := sockRequest("DELETE", "/containers/"+id+"?v=1&force=1", nil)
 	c.Assert(err, check.IsNil)
 	c.Assert(status, check.Equals, http.StatusNoContent)
 
-	if _, err := os.Stat(vol); !os.IsNotExist(err) {
+	if _, err := os.Stat(source); !os.IsNotExist(err) {
 		c.Fatalf("expected to get ErrNotExist error, got %v", err)
 	}
 }

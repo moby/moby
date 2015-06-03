@@ -20,6 +20,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/stringutils"
@@ -872,6 +873,46 @@ func inspectFieldJSON(name, field string) (string, error) {
 
 func inspectFieldMap(name, path, field string) (string, error) {
 	return inspectFilter(name, fmt.Sprintf("index .%s %q", path, field))
+}
+
+func inspectMountSourceField(name, destination string) (string, error) {
+	m, err := inspectMountPoint(name, destination)
+	if err != nil {
+		return "", err
+	}
+	return m.Source, nil
+}
+
+func inspectMountPoint(name, destination string) (types.MountPoint, error) {
+	out, err := inspectFieldJSON(name, "Mounts")
+	if err != nil {
+		return types.MountPoint{}, err
+	}
+
+	return inspectMountPointJSON(out, destination)
+}
+
+var mountNotFound = errors.New("mount point not found")
+
+func inspectMountPointJSON(j, destination string) (types.MountPoint, error) {
+	var mp []types.MountPoint
+	if err := unmarshalJSON([]byte(j), &mp); err != nil {
+		return types.MountPoint{}, err
+	}
+
+	var m *types.MountPoint
+	for _, c := range mp {
+		if c.Destination == destination {
+			m = &c
+			break
+		}
+	}
+
+	if m == nil {
+		return types.MountPoint{}, mountNotFound
+	}
+
+	return *m, nil
 }
 
 func getIDByName(name string) (string, error) {

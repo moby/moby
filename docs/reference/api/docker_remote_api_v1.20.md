@@ -140,9 +140,14 @@ Create a container
                    "com.example.license": "GPL",
                    "com.example.version": "1.0"
            },
-           "Volumes": {
-                   "/tmp": {}
-           },
+           "Mounts": [
+             {
+               "Source": "/data",
+               "Destination": "/data",
+               "Mode": "ro,Z",
+               "RW": false
+             }
+           ],
            "WorkingDir": "",
            "NetworkDisabled": false,
            "MacAddress": "12:34:56:78:9a:bc",
@@ -223,8 +228,7 @@ Json Parameters:
 -   **Entrypoint** - Set the entry point for the container as a string or an array
       of strings.
 -   **Image** - A string specifying the image name to use for the container.
--   **Volumes** – An object mapping mount point paths (strings) inside the
-      container to empty objects.
+-   **Mounts** - An array of mount points in the container.
 -   **WorkingDir** - A string specifying the working directory for commands to
       run in.
 -   **NetworkDisabled** - Boolean value, when true disables networking for the
@@ -420,8 +424,14 @@ Return low-level information on the container `id`
 			"Running": false,
 			"StartedAt": "2015-01-06T15:47:32.072697474Z"
 		},
-		"Volumes": {},
-		"VolumesRW": {}
+		"Mounts": [
+			{
+				"Source": "/data",
+				"Destination": "/data",
+				"Mode": "ro,Z",
+				"RW": false
+			}
+		]
 	}
 
 Status Codes:
@@ -1694,9 +1704,14 @@ Create a new image from a container's changes
          "Cmd": [
                  "date"
          ],
-         "Volumes": {
-                 "/tmp": {}
-         },
+         "Mounts": [
+           {
+             "Source": "/data",
+             "Destination": "/data",
+             "Mode": "ro,Z",
+             "RW": false
+           }
+         ],
          "Labels": {
                  "key1": "value1",
                  "key2": "value2"
@@ -2082,8 +2097,7 @@ Return low-level information about the `exec` command `id`.
         "ProcessLabel" : "",
         "AppArmorProfile" : "",
         "RestartCount" : 0,
-        "Volumes" : {},
-        "VolumesRW" : {}
+        "Mounts" : [],
       }
     }
 

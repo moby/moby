@@ -95,8 +95,14 @@ To get information on a container use its ID or instance name:
     "ExecDriver": "native-0.2",
     "MountLabel": "",
     "ProcessLabel": "",
-    "Volumes": {},
-    "VolumesRW": {},
+    "Mounts": [
+      {
+        "Source": "/data",
+        "Destination": "/data",
+        "Mode": "ro,Z",
+        "RW": false
+      }
+    ],
     "AppArmorProfile": "",
     "ExecIDs": null,
     "HostConfig": {
