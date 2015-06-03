@@ -51,6 +51,41 @@ func (s *DockerSuite) TestContainerApiGetAll(c *check.C) {
 	}
 }
 
+// regression test for empty json field being omitted #13691
+func (s *DockerSuite) TestContainerApiGetJSONNoFieldsOmitted(c *check.C) {
+	runCmd := exec.Command(dockerBinary, "run", "busybox", "true")
+	_, err := runCommand(runCmd)
+	c.Assert(err, check.IsNil)
+
+	status, body, err := sockRequest("GET", "/containers/json?all=1", nil)
+	c.Assert(status, check.Equals, http.StatusOK)
+	c.Assert(err, check.IsNil)
+
+	// empty Labels field triggered this bug, make sense to check for everything
+	// cause even Ports for instance can trigger this bug
+	// better safe than sorry..
+	fields := []string{
+		"Id",
+		"Names",
+		"Image",
+		"Command",
+		"Created",
+		"Ports",
+		"SizeRw",
+		"SizeRootFs",
+		"Labels",
+		"Status",
+	}
+
+	// decoding into types.Container do not work since it eventually unmarshal
+	// and empty field to an empty go map, so we just check for a string
+	for _, f := range fields {
+		if !strings.Contains(string(body), f) {
+			c.Fatalf("Field %s is missing and it shouldn't", f)
+		}
+	}
+}
+
 func (s *DockerSuite) TestContainerApiGetExport(c *check.C) {
 	name := "exportcontainer"
 	runCmd := exec.Command(dockerBinary, "run", "--name", name, "busybox", "touch", "/test")
