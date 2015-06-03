@@ -1,7 +1,3 @@
-page_title: Plugin API documentation
-page_description: Documentation for writing a Docker plugin.
-page_keywords: docker, plugins, api, extensions
-
 # Experimental: Docker Plugin API
 
 Docker plugins are out-of-process extensions which add capabilities to the
