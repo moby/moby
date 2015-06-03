@@ -109,6 +109,9 @@ func (cli *DockerCli) CmdInspect(args ...string) error {
 	indented.WriteString("]\n")
 
 	if tmpl == nil {
+		// Note that we will always write "[]" when "-f" isn't specified,
+		// to make sure the output would always be array, see
+		// https://github.com/docker/docker/pull/9500#issuecomment-65846734
 		if _, err := io.Copy(cli.out, indented); err != nil {
 			return err
 		}
