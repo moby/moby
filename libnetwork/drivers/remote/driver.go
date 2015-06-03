@@ -190,6 +190,17 @@ func (d *driver) Join(nid, eid types.UUID, sboxKey string, jinfo driverapi.JoinI
 			return errorWithRollback(fmt.Sprintf("failed to set gateway IPv6: %v", addr), d.Leave(nid, eid))
 		}
 	}
+	if len(res.StaticRoutes) > 0 {
+		routes, err := res.parseStaticRoutes()
+		if err != nil {
+			return err
+		}
+		for _, route := range routes {
+			if jinfo.AddStaticRoute(route.Destination, route.RouteType, route.NextHop, route.InterfaceID) != nil {
+				return errorWithRollback(fmt.Sprintf("failed to set static route: %v", route), d.Leave(nid, eid))
+			}
+		}
+	}
 	if jinfo.SetHostsPath(res.HostsPath) != nil {
 		return errorWithRollback(fmt.Sprintf("failed to set hosts path: %s", res.HostsPath), d.Leave(nid, eid))
 	}
