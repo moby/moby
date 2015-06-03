@@ -191,7 +191,7 @@ func TestUserSuppliedLevelFieldHasPrefix(t *testing.T) {
 		log.WithField("level", 1).Info("test")
 	}, func(fields Fields) {
 		assert.Equal(t, fields["level"], "info")
-		assert.Equal(t, fields["fields.level"], 1)
+		assert.Equal(t, fields["fields.level"], 1.0) // JSON has floats only
 	})
 }
 
