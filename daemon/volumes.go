@@ -1,16 +1,17 @@
 package daemon
 
 import (
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/chrootarchive"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/volume"
+	"github.com/docker/docker/volume/local"
 	"github.com/docker/libcontainer/label"
 )
 
@@ -50,6 +51,13 @@ func (m *mountPoint) Path() string {
 	}
 
 	return m.Source
+}
+
+// BackwardsCompatible decides whether this mount point can be
+// used in old versions of Docker or not.
+// Only bind mounts and local volumes can be used in old versions of Docker.
+func (m *mountPoint) BackwardsCompatible() bool {
+	return len(m.Source) > 0 || m.Driver == volume.DefaultDriverName
 }
 
 func parseBindMount(spec string, mountLabel string, config *runconfig.Config) (*mountPoint, error) {
@@ -231,8 +239,20 @@ func (daemon *Daemon) registerMountPoints(container *Container, hostConfig *runc
 		mountPoints[bind.Destination] = bind
 	}
 
+	// Keep backwards compatible structures
+	bcVolumes := map[string]string{}
+	bcVolumesRW := map[string]bool{}
+	for _, m := range mountPoints {
+		if m.BackwardsCompatible() {
+			bcVolumes[m.Destination] = m.Path()
+			bcVolumesRW[m.Destination] = m.RW
+		}
+	}
+
 	container.Lock()
 	container.MountPoints = mountPoints
+	container.Volumes = bcVolumes
+	container.VolumesRW = bcVolumesRW
 	container.Unlock()
 
 	return nil
@@ -241,53 +261,77 @@ func (daemon *Daemon) registerMountPoints(container *Container, hostConfig *runc
 // verifyVolumesInfo ports volumes configured for the containers pre docker 1.7.
 // It reads the container configuration and creates valid mount points for the old volumes.
 func (daemon *Daemon) verifyVolumesInfo(container *Container) error {
-	jsonPath, err := container.jsonPath()
-	if err != nil {
-		return err
-	}
-	f, err := os.Open(jsonPath)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil
-		}
-		return err
-	}
+	// Inspect old structures only when we're upgrading from old versions
+	// to versions >= 1.7 and the MountPoints has not been populated with volumes data.
+	if len(container.MountPoints) == 0 && len(container.Volumes) > 0 {
+		for destination, hostPath := range container.Volumes {
+			vfsPath := filepath.Join(daemon.root, "vfs", "dir")
+			rw := container.VolumesRW != nil && container.VolumesRW[destination]
 
-	type oldContVolCfg struct {
-		Volumes   map[string]string
-		VolumesRW map[string]bool
-	}
-
-	vols := oldContVolCfg{
-		Volumes:   make(map[string]string),
-		VolumesRW: make(map[string]bool),
-	}
-	if err := json.NewDecoder(f).Decode(&vols); err != nil {
-		return err
-	}
-
-	for destination, hostPath := range vols.Volumes {
-		vfsPath := filepath.Join(daemon.root, "vfs", "dir")
-		rw := vols.VolumesRW[destination]
-
-		if strings.HasPrefix(hostPath, vfsPath) {
-			id := filepath.Base(hostPath)
-			if err := daemon.migrateVolume(id, hostPath); err != nil {
-				return err
+			if strings.HasPrefix(hostPath, vfsPath) {
+				id := filepath.Base(hostPath)
+				if err := migrateVolume(id, hostPath); err != nil {
+					return err
+				}
+				container.addLocalMountPoint(id, destination, rw)
+			} else { // Bind mount
+				id, source, err := parseVolumeSource(hostPath)
+				// We should not find an error here coming
+				// from the old configuration, but who knows.
+				if err != nil {
+					return err
+				}
+				container.addBindMountPoint(id, source, destination, rw)
 			}
-			container.addLocalMountPoint(id, destination, rw)
-		} else { // Bind mount
-			id, source, err := parseVolumeSource(hostPath)
-			// We should not find an error here coming
-			// from the old configuration, but who knows.
+		}
+	} else if len(container.MountPoints) > 0 {
+		// Volumes created with a Docker version >= 1.7. We verify integrity in case of data created
+		// with Docker 1.7 RC versions that put the information in
+		// DOCKER_ROOT/volumes/VOLUME_ID rather than DOCKER_ROOT/volumes/VOLUME_ID/_container_data.
+		l, err := getVolumeDriver(volume.DefaultDriverName)
+		if err != nil {
+			return err
+		}
+
+		for _, m := range container.MountPoints {
+			if m.Driver != volume.DefaultDriverName {
+				continue
+			}
+			dataPath := l.(*local.Root).DataPath(m.Name)
+			volumePath := filepath.Dir(dataPath)
+
+			d, err := ioutil.ReadDir(volumePath)
 			if err != nil {
+				// If the volume directory doesn't exist yet it will be recreated,
+				// so we only return the error when there is a different issue.
+				if !os.IsNotExist(err) {
+					return err
+				}
+				// Do not check when the volume directory does not exist.
+				continue
+			}
+			if validVolumeLayout(d) {
+				continue
+			}
+
+			if err := os.Mkdir(dataPath, 0755); err != nil {
 				return err
 			}
-			container.addBindMountPoint(id, source, destination, rw)
+
+			// Move data inside the data directory
+			for _, f := range d {
+				oldp := filepath.Join(volumePath, f.Name())
+				newp := filepath.Join(dataPath, f.Name())
+				if err := os.Rename(oldp, newp); err != nil {
+					logrus.Errorf("Unable to move %s to %s\n", oldp, newp)
+				}
+			}
 		}
+
+		return container.ToDisk()
 	}
 
-	return container.ToDisk()
+	return nil
 }
 
 func createVolume(name, driverName string) (volume.Volume, error) {

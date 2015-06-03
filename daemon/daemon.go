@@ -50,8 +50,6 @@ import (
 	"github.com/docker/docker/volume/local"
 )
 
-const defaultVolumesPathName = "volumes"
-
 var (
 	validContainerNameChars   = `[a-zA-Z0-9][a-zA-Z0-9_.-]`
 	validContainerNamePattern = regexp.MustCompile(`^/?` + validContainerNameChars + `+$`)
@@ -158,12 +156,7 @@ func (daemon *Daemon) containerRoot(id string) string {
 // This is typically done at startup.
 func (daemon *Daemon) load(id string) (*Container, error) {
 	container := &Container{
-		CommonContainer: CommonContainer{
-			State:        NewState(),
-			root:         daemon.containerRoot(id),
-			MountPoints:  make(map[string]*mountPoint),
-			execCommands: newExecStore(),
-		},
+		CommonContainer: daemon.newBaseContainer(id),
 	}
 
 	if err := container.FromDisk(); err != nil {
@@ -509,25 +502,21 @@ func (daemon *Daemon) newContainer(name string, config *runconfig.Config, imgID 
 	daemon.generateHostname(id, config)
 	entrypoint, args := daemon.getEntrypointAndArgs(config.Entrypoint, config.Cmd)
 
+	base := daemon.newBaseContainer(id)
+	base.Created = time.Now().UTC()
+	base.Path = entrypoint
+	base.Args = args //FIXME: de-duplicate from config
+	base.Config = config
+	base.hostConfig = &runconfig.HostConfig{}
+	base.ImageID = imgID
+	base.NetworkSettings = &network.Settings{}
+	base.Name = name
+	base.Driver = daemon.driver.String()
+	base.ExecDriver = daemon.execDriver.Name()
+
 	container := &Container{
-		CommonContainer: CommonContainer{
-			ID:              id, // FIXME: we should generate the ID here instead of receiving it as an argument
-			Created:         time.Now().UTC(),
-			Path:            entrypoint,
-			Args:            args, //FIXME: de-duplicate from config
-			Config:          config,
-			hostConfig:      &runconfig.HostConfig{},
-			ImageID:         imgID,
-			NetworkSettings: &network.Settings{},
-			Name:            name,
-			Driver:          daemon.driver.String(),
-			ExecDriver:      daemon.execDriver.Name(),
-			State:           NewState(),
-			execCommands:    newExecStore(),
-			MountPoints:     map[string]*mountPoint{},
-		},
+		CommonContainer: base,
 	}
-	container.root = daemon.containerRoot(container.ID)
 
 	return container, err
 }
@@ -775,7 +764,7 @@ func NewDaemon(config *Config, registryService *registry.Service) (daemon *Daemo
 		return nil, err
 	}
 
-	volumesDriver, err := local.New(filepath.Join(config.Root, defaultVolumesPathName))
+	volumesDriver, err := local.New(config.Root)
 	if err != nil {
 		return nil, err
 	}
@@ -1243,4 +1232,16 @@ func (daemon *Daemon) setHostConfig(container *Container, hostConfig *runconfig.
 	container.hostConfig = hostConfig
 	container.toDisk()
 	return nil
+}
+
+func (daemon *Daemon) newBaseContainer(id string) CommonContainer {
+	return CommonContainer{
+		ID:           id,
+		State:        NewState(),
+		MountPoints:  make(map[string]*mountPoint),
+		Volumes:      make(map[string]string),
+		VolumesRW:    make(map[string]bool),
+		execCommands: newExecStore(),
+		root:         daemon.containerRoot(id),
+	}
 }
