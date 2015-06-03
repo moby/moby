@@ -882,20 +882,27 @@ command is not available for this logging driver
 
 The following logging options are supported for this logging driver:
 
-    --log-opt address=[tcp|udp]://host:port
-    --log-opt address=unix://path
+    --log-opt syslog-address=[tcp|udp]://host:port
+    --log-opt syslog-address=unix://path
+    --log-opt syslog-tag="mailer"
 
-`address` specifies the remote syslog server address where the driver connects to.
+`syslog-address` specifies the remote syslog server address where the driver connects to.
 If not specified it defaults to the local unix socket of the running system.
 If transport is either `tcp` or `udp` and `port` is not specified it defaults to `514`
 The following example shows how to have the `syslog` driver connect to a `syslog`
 remote server at `192.168.0.42` on port `123`
 
-    $ docker run --log-driver=syslog --log-opt address=tcp://192.168.0.42:123
+    $ docker run --log-driver=syslog --log-opt syslog-address=tcp://192.168.0.42:123
+
+`syslog-tag` specifies tag for syslog messages from container.
 
 #### Logging driver: journald
 
-Journald logging driver for Docker. Writes log messages to journald; the container id will be stored in the journal's `CONTAINER_ID` field. `docker logs` command is not available for this logging driver.  For detailed information on working with this logging driver, see [the journald logging driver](reference/logging/journald) reference documentation.
+Journald logging driver for Docker. Writes log messages to journald; the
+container id will be stored in the journal's `CONTAINER_ID` field. `docker logs`
+command is not available for this logging driver.  For detailed information on
+working with this logging driver, see [the journald logging driver](reference/logging/journald)
+reference documentation.
 
 The following logging options are supported for this logging driver: [none]
 
