@@ -3,6 +3,7 @@ package logrus_sentry
 import (
 	"fmt"
 	"time"
+	"net/http"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/getsentry/raven-go"
@@ -36,6 +37,22 @@ func getAndDel(d logrus.Fields, key string) (string, bool) {
 	return val, true
 }
 
+func getAndDelRequest(d logrus.Fields, key string) (*http.Request, bool) {
+	var (
+		ok  bool
+		v   interface{}
+		req *http.Request
+	)
+	if v, ok = d[key]; !ok {
+		return nil, false
+	}
+	if req, ok = v.(*http.Request); !ok || req == nil {
+		return nil, false
+	}
+	delete(d, key)
+	return req, true
+}
+
 // SentryHook delivers logs to a sentry server.
 type SentryHook struct {
 	// Timeout sets the time to wait for a delivery error from the sentry server.
@@ -61,7 +78,7 @@ func NewSentryHook(DSN string, levels []logrus.Level) (*SentryHook, error) {
 // Called when an event should be sent to sentry
 // Special fields that sentry uses to give more information to the server
 // are extracted from entry.Data (if they are found)
-// These fields are: logger and server_name
+// These fields are: logger, server_name and http_request
 func (hook *SentryHook) Fire(entry *logrus.Entry) error {
 	packet := &raven.Packet{
 		Message:   entry.Message,
@@ -77,6 +94,9 @@ func (hook *SentryHook) Fire(entry *logrus.Entry) error {
 	}
 	if serverName, ok := getAndDel(d, "server_name"); ok {
 		packet.ServerName = serverName
+	}
+	if req, ok := getAndDelRequest(d, "http_request"); ok {
+		packet.Interfaces = append(packet.Interfaces, raven.NewHttp(req))
 	}
 	packet.Extra = map[string]interface{}(d)
 
