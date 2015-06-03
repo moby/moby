@@ -716,7 +716,7 @@ func (b *Builder) addContext(container *daemon.Container, orig, dest string, dec
 		if err := chrootarchive.UntarPath(origPath, tarDest); err == nil {
 			return nil
 		} else if err != io.EOF {
-			logrus.Debugf("Couldn't untar %s to %s: %s", origPath, tarDest, err)
+			return fmt.Errorf("Couldn't untar %s to %s: %s", origPath, tarDest, err)
 		}
 	}
 
