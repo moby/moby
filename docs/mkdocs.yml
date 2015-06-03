@@ -27,11 +27,6 @@ pages:
 - ['index.md', 'About', 'Docker']
 - ['introduction/understanding-docker.md', 'About', 'Understanding Docker']
 - ['release-notes.md', 'About', 'Release notes']
-# Experimental
-- ['experimental/experimental.md', 'About', 'Experimental Features']
-- ['experimental/plugin_api.md', '**HIDDEN**']
-- ['experimental/plugins_volume.md', '**HIDDEN**']
-- ['experimental/plugins.md', '**HIDDEN**']
 - ['reference/glossary.md', 'About', 'Glossary']
 - ['introduction/index.md', '**HIDDEN**']
 
