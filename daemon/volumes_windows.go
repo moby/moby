@@ -17,6 +17,10 @@ func (container *Container) setupMounts() ([]execdriver.Mount, error) {
 	return nil, nil
 }
 
-func (daemon *Daemon) migrateVolume(id, vfs string) error {
+func migrateVolume(id, vfs string) error {
 	return nil
+}
+
+func validVolumeLayout(files []os.FileInfo) bool {
+	return true
 }
