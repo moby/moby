@@ -1459,6 +1459,13 @@ func makeHttpHandler(logging bool, localMethod string, localRoute string, handle
 
 		if strings.Contains(r.Header.Get("User-Agent"), "Docker-Client/") {
 			userAgent := strings.Split(r.Header.Get("User-Agent"), "/")
+
+			// v1.20 onwards includes the GOOS of the client after the version
+			// such as Docker/1.7.0 (linux)
+			if len(userAgent) == 2 && strings.Contains(userAgent[1], " ") {
+				userAgent[1] = strings.Split(userAgent[1], " ")[0]
+			}
+
 			if len(userAgent) == 2 && !dockerVersion.Equal(version.Version(userAgent[1])) {
 				logrus.Debugf("Warning: client and server don't have the same version (client: %s, server: %s)", userAgent[1], dockerVersion)
 			}
