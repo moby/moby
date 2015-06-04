@@ -189,9 +189,9 @@ do_install() {
 			(
 				set -x
 				if [ "https://get.docker.com/" = "$url" ]; then
-					$sh_c "apt-key adv --keyserver hkp://p80.pool.sks-keyservers.net:80 --recv-keys 36A1D7869245C8950F966E92D8576A8BA88D21E9"
+					$sh_c "apt-key adv --keyserver hkps.pool.sks-keyservers.net --recv-keys 36A1D7869245C8950F966E92D8576A8BA88D21E9"
 				elif [ "https://test.docker.com/" = "$url" ]; then
-					$sh_c "apt-key adv --keyserver hkp://p80.pool.sks-keyservers.net:80 --recv-keys 740B314AE3941731B942C66ADF4FD13717AAD7D6"
+					$sh_c "apt-key adv --keyserver hkps.pool.sks-keyservers.net --recv-keys 740B314AE3941731B942C66ADF4FD13717AAD7D6"
 				else
 					$sh_c "$curl ${url}gpg | apt-key add -"
 				fi
