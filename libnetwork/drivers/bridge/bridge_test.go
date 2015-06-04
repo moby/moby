@@ -159,7 +159,7 @@ func (te *testEndpoint) SetResolvConfPath(path string) error {
 }
 
 func (te *testEndpoint) AddStaticRoute(destination *net.IPNet, routeType int, nextHop net.IP, interfaceID int) error {
-	te.routes = append(te.routes, types.StaticRoute{destination, routeType, nextHop, interfaceID})
+	te.routes = append(te.routes, types.StaticRoute{Destination: destination, RouteType: routeType, NextHop: nextHop, InterfaceID: interfaceID})
 	return nil
 }
 
