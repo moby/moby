@@ -41,7 +41,7 @@ func (cli *DockerCli) CmdSave(args ...string) error {
 
 	if len(cmd.Args()) == 1 {
 		image := cmd.Arg(0)
-		if err := cli.stream("GET", "/images/"+image+"/get", sopts); err != nil {
+		if _, err := cli.stream("GET", "/images/"+image+"/get", sopts); err != nil {
 			return err
 		}
 	} else {
@@ -49,7 +49,7 @@ func (cli *DockerCli) CmdSave(args ...string) error {
 		for _, arg := range cmd.Args() {
 			v.Add("names", arg)
 		}
-		if err := cli.stream("GET", "/images/get?"+v.Encode(), sopts); err != nil {
+		if _, err := cli.stream("GET", "/images/get?"+v.Encode(), sopts); err != nil {
 			return err
 		}
 	}

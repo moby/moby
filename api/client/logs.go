@@ -65,5 +65,6 @@ func (cli *DockerCli) CmdLogs(args ...string) error {
 		err:         cli.err,
 	}
 
-	return cli.stream("GET", "/containers/"+name+"/logs?"+v.Encode(), sopts)
+	_, err = cli.stream("GET", "/containers/"+name+"/logs?"+v.Encode(), sopts)
+	return err
 }
