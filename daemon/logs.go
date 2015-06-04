@@ -25,6 +25,7 @@ type ContainerLogsConfig struct {
 	Since                time.Time
 	UseStdout, UseStderr bool
 	OutStream            io.Writer
+	Stop                 <-chan bool
 }
 
 func (daemon *Daemon) ContainerLogs(name string, config *ContainerLogsConfig) error {
@@ -119,7 +120,8 @@ func (daemon *Daemon) ContainerLogs(name string, config *ContainerLogsConfig) er
 	}
 
 	if config.Follow && container.IsRunning() {
-		chErr := make(chan error)
+		chErrStderr := make(chan error)
+		chErrStdout := make(chan error)
 		var stdoutPipe, stderrPipe io.ReadCloser
 
 		// write an empty chunk of data (this is to ensure that the
@@ -131,7 +133,7 @@ func (daemon *Daemon) ContainerLogs(name string, config *ContainerLogsConfig) er
 			stdoutPipe = container.StdoutLogPipe()
 			go func() {
 				logrus.Debug("logs: stdout stream begin")
-				chErr <- jsonlog.WriteLog(stdoutPipe, outStream, format, config.Since)
+				chErrStdout <- jsonlog.WriteLog(stdoutPipe, outStream, format, config.Since)
 				logrus.Debug("logs: stdout stream end")
 			}()
 		}
@@ -139,19 +141,33 @@ func (daemon *Daemon) ContainerLogs(name string, config *ContainerLogsConfig) er
 			stderrPipe = container.StderrLogPipe()
 			go func() {
 				logrus.Debug("logs: stderr stream begin")
-				chErr <- jsonlog.WriteLog(stderrPipe, errStream, format, config.Since)
+				chErrStderr <- jsonlog.WriteLog(stderrPipe, errStream, format, config.Since)
 				logrus.Debug("logs: stderr stream end")
 			}()
 		}
 
-		err = <-chErr
-		if stdoutPipe != nil {
-			stdoutPipe.Close()
+		select {
+		case err = <-chErrStderr:
+			if stdoutPipe != nil {
+				stdoutPipe.Close()
+				<-chErrStdout
+			}
+		case err = <-chErrStdout:
+			if stderrPipe != nil {
+				stderrPipe.Close()
+				<-chErrStderr
+			}
+		case <-config.Stop:
+			if stdoutPipe != nil {
+				stdoutPipe.Close()
+				<-chErrStdout
+			}
+			if stderrPipe != nil {
+				stderrPipe.Close()
+				<-chErrStderr
+			}
+			return nil
 		}
-		if stderrPipe != nil {
-			stderrPipe.Close()
-		}
-		<-chErr // wait for 2nd goroutine to exit, otherwise bad things will happen
 
 		if err != nil && err != io.EOF && err != io.ErrClosedPipe {
 			if e, ok := err.(*net.OpError); ok && e.Err != syscall.EPIPE {
