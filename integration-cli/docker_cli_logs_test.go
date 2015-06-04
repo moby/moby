@@ -425,3 +425,44 @@ func (s *DockerSuite) TestLogsFollowGoroutinesWithStdout(c *check.C) {
 		}
 	}
 }
+
+func (s *DockerSuite) TestLogsFollowGoroutinesNoOutput(c *check.C) {
+	out, _ := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "while true; do sleep 2; done")
+	id := strings.TrimSpace(out)
+	c.Assert(waitRun(id), check.IsNil)
+
+	type info struct {
+		NGoroutines int
+	}
+	getNGoroutines := func() int {
+		var i info
+		status, b, err := sockRequest("GET", "/info", nil)
+		c.Assert(err, check.IsNil)
+		c.Assert(status, check.Equals, 200)
+		c.Assert(json.Unmarshal(b, &i), check.IsNil)
+		return i.NGoroutines
+	}
+
+	nroutines := getNGoroutines()
+
+	cmd := exec.Command(dockerBinary, "logs", "-f", id)
+	c.Assert(cmd.Start(), check.IsNil)
+	time.Sleep(200 * time.Millisecond)
+	c.Assert(cmd.Process.Kill(), check.IsNil)
+
+	// NGoroutines is not updated right away, so we need to wait before failing
+	t := time.After(30 * time.Second)
+	for {
+		select {
+		case <-t:
+			if n := getNGoroutines(); n > nroutines {
+				c.Fatalf("leaked goroutines: expected less than or equal to %d, got: %d", nroutines, n)
+			}
+		default:
+			if n := getNGoroutines(); n <= nroutines {
+				return
+			}
+			time.Sleep(200 * time.Millisecond)
+		}
+	}
+}

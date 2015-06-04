@@ -597,6 +597,11 @@ func (s *Server) getContainersLogs(version version.Version, w http.ResponseWrite
 		since = time.Unix(s, 0)
 	}
 
+	var closeNotifier <-chan bool
+	if notifier, ok := w.(http.CloseNotifier); ok {
+		closeNotifier = notifier.CloseNotify()
+	}
+
 	logsConfig := &daemon.ContainerLogsConfig{
 		Follow:     boolValue(r, "follow"),
 		Timestamps: boolValue(r, "timestamps"),
@@ -605,6 +610,7 @@ func (s *Server) getContainersLogs(version version.Version, w http.ResponseWrite
 		UseStdout:  stdout,
 		UseStderr:  stderr,
 		OutStream:  ioutils.NewWriteFlusher(w),
+		Stop:       closeNotifier,
 	}
 
 	if err := s.daemon.ContainerLogs(vars["name"], logsConfig); err != nil {
