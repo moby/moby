@@ -5,7 +5,6 @@ import (
 	"io/ioutil"
 	"net"
 	"os"
-	"path"
 	"path/filepath"
 	"reflect"
 	"testing"
@@ -66,6 +65,7 @@ func TestFileSpecPlugin(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer os.RemoveAll(tmpdir)
 
 	cases := []struct {
 		path string
@@ -79,9 +79,6 @@ func TestFileSpecPlugin(t *testing.T) {
 	}
 
 	for _, c := range cases {
-		if err = os.MkdirAll(path.Dir(c.path), 0755); err != nil {
-			t.Fatal(err)
-		}
 		if err = ioutil.WriteFile(c.path, []byte(c.addr), 0644); err != nil {
 			t.Fatal(err)
 		}
@@ -103,6 +100,5 @@ func TestFileSpecPlugin(t *testing.T) {
 		if p.Addr != c.addr {
 			t.Fatalf("Expected plugin addr `%s`, got %s\n", c.addr, p.Addr)
 		}
-		os.Remove(c.path)
 	}
 }
