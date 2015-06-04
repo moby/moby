@@ -64,7 +64,7 @@ func (cli *DockerCli) clientRequest(method, path string, in io.Reader, headers m
 		req.Header.Set(k, v)
 	}
 
-	req.Header.Set("User-Agent", "Docker-Client/"+dockerversion.VERSION)
+	req.Header.Set("User-Agent", "Docker-Client/"+dockerversion.VERSION+" ("+runtime.GOOS+")")
 	req.URL.Host = cli.addr
 	req.URL.Scheme = cli.scheme
 

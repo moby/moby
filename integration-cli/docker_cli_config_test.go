@@ -7,7 +7,9 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 
+	"github.com/docker/docker/autogen/dockerversion"
 	"github.com/docker/docker/pkg/homedir"
 	"github.com/go-check/check"
 )
@@ -49,6 +51,14 @@ func (s *DockerSuite) TestConfigHttpHeader(c *check.C) {
 
 	cmd := exec.Command(dockerBinary, "-H="+server.URL[7:], "ps")
 	out, _, _ := runCommandWithOutput(cmd)
+
+	if headers["User-Agent"] == nil {
+		c.Fatalf("Missing User-Agent: %q\nout:%v", headers, out)
+	}
+
+	if headers["User-Agent"][0] != "Docker-Client/"+dockerversion.VERSION+" ("+runtime.GOOS+")" {
+		c.Fatalf("Badly formatted User-Agent: %q\nout:%v", headers, out)
+	}
 
 	if headers["Myheader"] == nil || headers["Myheader"][0] != "MyValue" {
 		c.Fatalf("Missing/bad header: %q\nout:%v", headers, out)
