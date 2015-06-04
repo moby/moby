@@ -269,7 +269,7 @@ func (daemon *Daemon) verifyVolumesInfo(container *Container) error {
 
 	for destination, hostPath := range vols.Volumes {
 		vfsPath := filepath.Join(daemon.root, "vfs", "dir")
-		rw := vols.VolumesRW != nil && vols.VolumesRW[destination]
+		rw := vols.VolumesRW[destination]
 
 		if strings.HasPrefix(hostPath, vfsPath) {
 			id := filepath.Base(hostPath)
