@@ -155,7 +155,7 @@ func (ep *endpoint) AddStaticRoute(destination *net.IPNet, routeType int, nextHo
 	ep.Lock()
 	defer ep.Unlock()
 
-	r := types.StaticRoute{destination, routeType, nextHop, interfaceID}
+	r := types.StaticRoute{Destination: destination, RouteType: routeType, NextHop: nextHop, InterfaceID: interfaceID}
 
 	if routeType == types.NEXTHOP {
 		// If the route specifies a next-hop, then it's loosely routed (i.e. not bound to a particular interface).
