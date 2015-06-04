@@ -31,9 +31,10 @@ import (
 
 // A Graph is a store for versioned filesystem images and the relationship between them.
 type Graph struct {
-	root    string
-	idIndex *truncindex.TruncIndex
-	driver  graphdriver.Driver
+	root       string
+	idIndex    *truncindex.TruncIndex
+	driver     graphdriver.Driver
+	imageMutex imageMutex // protect images in driver.
 }
 
 var (
