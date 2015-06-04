@@ -246,14 +246,18 @@ func (s *Server) postAuth(version version.Version, w http.ResponseWriter, r *htt
 
 func (s *Server) getVersion(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	v := &types.Version{
-		Version:      dockerversion.VERSION,
-		ApiVersion:   api.APIVERSION,
-		GitCommit:    dockerversion.GITCOMMIT,
-		GoVersion:    runtime.Version(),
-		Os:           runtime.GOOS,
-		Arch:         runtime.GOARCH,
-		Experimental: utils.ExperimentalBuild(),
+		Version:    dockerversion.VERSION,
+		ApiVersion: api.APIVERSION,
+		GitCommit:  dockerversion.GITCOMMIT,
+		GoVersion:  runtime.Version(),
+		Os:         runtime.GOOS,
+		Arch:       runtime.GOARCH,
 	}
+
+	if version.GreaterThanOrEqualTo("1.19") {
+		v.Experimental = utils.ExperimentalBuild()
+	}
+
 	if kernelVersion, err := kernel.GetKernelVersion(); err == nil {
 		v.KernelVersion = kernelVersion.String()
 	}
