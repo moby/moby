@@ -267,8 +267,7 @@ Architectures: amd64 i386
 EOF
 
 	# Add the DEB package to the APT repo
-	DEBFILE=( bundles/$VERSION/ubuntu/lxc-docker*.deb )
-	reprepro -b "$APTDIR" includedeb docker "$DEBFILE"
+	reprepro -b "$APTDIR" includedeb docker "${debfiles[@]}"
 
 	# Sign
 	for F in $(find $APTDIR -name Release); do
