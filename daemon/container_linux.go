@@ -513,13 +513,23 @@ func (container *Container) buildPortMapInfo(n libnetwork.Network, ep libnetwork
 		networkSettings.MacAddress = mac.(net.HardwareAddr).String()
 	}
 
+	networkSettings.Ports = nat.PortMap{}
+
+	if expData, ok := driverInfo[netlabel.ExposedPorts]; ok {
+		if exposedPorts, ok := expData.([]types.TransportPort); ok {
+			for _, tp := range exposedPorts {
+				natPort := nat.NewPort(tp.Proto.String(), strconv.Itoa(int(tp.Port)))
+				networkSettings.Ports[natPort] = nil
+			}
+		}
+	}
+
 	mapData, ok := driverInfo[netlabel.PortMap]
 	if !ok {
 		return networkSettings, nil
 	}
 
 	if portMapping, ok := mapData.([]types.PortBinding); ok {
-		networkSettings.Ports = nat.PortMap{}
 		for _, pp := range portMapping {
 			natPort := nat.NewPort(pp.Proto.String(), strconv.Itoa(int(pp.Port)))
 			natBndg := nat.PortBinding{HostIp: pp.HostIP.String(), HostPort: strconv.Itoa(int(pp.HostPort))}
