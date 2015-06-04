@@ -1,6 +1,3 @@
-page_title: Experimental feature - Volume plugins
-page_keywords: experimental, Docker, plugins, volume
-
 # Experimental: Docker volume plugins
 
 Docker volume plugins enable Docker deployments to be integrated with external
