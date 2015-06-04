@@ -686,6 +686,15 @@ func (d *driver) EndpointOperInfo(nid, eid types.UUID) (map[string]interface{}, 
 
 	m := make(map[string]interface{})
 
+	if ep.config.ExposedPorts != nil {
+		// Return a copy of the config data
+		epc := make([]types.TransportPort, 0, len(ep.config.ExposedPorts))
+		for _, tp := range ep.config.ExposedPorts {
+			epc = append(epc, tp.GetCopy())
+		}
+		m[netlabel.ExposedPorts] = epc
+	}
+
 	if ep.portMapping != nil {
 		// Return a copy of the operational data
 		pmc := make([]types.PortBinding, 0, len(ep.portMapping))
