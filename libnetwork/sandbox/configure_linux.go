@@ -30,7 +30,7 @@ func configureInterface(iface netlink.Link, settings *Interface) error {
 	return nil
 }
 
-func programGateway(path string, gw net.IP) error {
+func programGateway(path string, gw net.IP, isAdd bool) error {
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
 
@@ -57,7 +57,15 @@ func programGateway(path string, gw net.IP) error {
 		return fmt.Errorf("route for the gateway could not be found: %v", err)
 	}
 
-	return netlink.RouteAdd(&netlink.Route{
+	if isAdd {
+		return netlink.RouteAdd(&netlink.Route{
+			Scope:     netlink.SCOPE_UNIVERSE,
+			LinkIndex: gwRoutes[0].LinkIndex,
+			Gw:        gw,
+		})
+	}
+
+	return netlink.RouteDel(&netlink.Route{
 		Scope:     netlink.SCOPE_UNIVERSE,
 		LinkIndex: gwRoutes[0].LinkIndex,
 		Gw:        gw,
