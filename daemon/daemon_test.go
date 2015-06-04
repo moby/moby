@@ -129,12 +129,25 @@ func TestLoadWithVolume(t *testing.T) {
 
 	containerId := "d59df5276e7b219d510fe70565e0404bc06350e0d4b43fe961f22f339980170e"
 	containerPath := filepath.Join(tmp, containerId)
-	if err = os.MkdirAll(containerPath, 0755); err != nil {
+	if err := os.MkdirAll(containerPath, 0755); err != nil {
 		t.Fatal(err)
 	}
 
 	hostVolumeId := stringid.GenerateRandomID()
-	volumePath := filepath.Join(tmp, "vfs", "dir", hostVolumeId)
+	vfsPath := filepath.Join(tmp, "vfs", "dir", hostVolumeId)
+	volumePath := filepath.Join(tmp, "volumes", hostVolumeId)
+
+	if err := os.MkdirAll(vfsPath, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(volumePath, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	content := filepath.Join(vfsPath, "helo")
+	if err := ioutil.WriteFile(content, []byte("HELO"), 0644); err != nil {
+		t.Fatal(err)
+	}
 
 	config := `{"State":{"Running":true,"Paused":false,"Restarting":false,"OOMKilled":false,"Dead":false,"Pid":2464,"ExitCode":0,
 "Error":"","StartedAt":"2015-05-26T16:48:53.869308965Z","FinishedAt":"0001-01-01T00:00:00Z"},
@@ -152,7 +165,7 @@ func TestLoadWithVolume(t *testing.T) {
 "Name":"/ubuntu","Driver":"aufs","ExecDriver":"native-0.2","MountLabel":"","ProcessLabel":"","AppArmorProfile":"","RestartCount":0,
 "UpdateDns":false,"Volumes":{"/vol1":"%s"},"VolumesRW":{"/vol1":true},"AppliedVolumesFrom":null}`
 
-	cfg := fmt.Sprintf(config, volumePath)
+	cfg := fmt.Sprintf(config, vfsPath)
 	if err = ioutil.WriteFile(filepath.Join(containerPath, "config.json"), []byte(cfg), 0644); err != nil {
 		t.Fatal(err)
 	}
@@ -199,6 +212,15 @@ func TestLoadWithVolume(t *testing.T) {
 
 	if m.Driver != volume.DefaultDriverName {
 		t.Fatalf("Expected mount driver local, was %s\n", m.Driver)
+	}
+
+	newVolumeContent := filepath.Join(volumePath, "helo")
+	b, err := ioutil.ReadFile(newVolumeContent)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(b) != "HELO" {
+		t.Fatalf("Expected HELO, was %s\n", string(b))
 	}
 }
 
