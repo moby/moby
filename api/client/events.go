@@ -55,7 +55,7 @@ func (cli *DockerCli) CmdEvents(args ...string) error {
 		rawTerminal: true,
 		out:         cli.out,
 	}
-	if err := cli.stream("GET", "/events?"+v.Encode(), sopts); err != nil {
+	if _, err := cli.stream("GET", "/events?"+v.Encode(), sopts); err != nil {
 		return err
 	}
 	return nil
