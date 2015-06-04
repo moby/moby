@@ -1,6 +1,8 @@
 package digest
 
 import (
+	"crypto/sha256"
+	"crypto/sha512"
 	"hash"
 	"io"
 	"io/ioutil"
@@ -31,7 +33,7 @@ func NewDigestVerifier(d Digest) (Verifier, error) {
 	switch alg {
 	case "sha256", "sha384", "sha512":
 		return hashVerifier{
-			hash:   alg.Hash(),
+			hash:   newHash(alg),
 			digest: d,
 		}, nil
 	default:
@@ -91,6 +93,19 @@ func (lv *lengthVerifier) Write(p []byte) (n int, err error) {
 
 func (lv *lengthVerifier) Verified() bool {
 	return lv.expected == lv.len
+}
+
+func newHash(name string) hash.Hash {
+	switch name {
+	case "sha256":
+		return sha256.New()
+	case "sha384":
+		return sha512.New384()
+	case "sha512":
+		return sha512.New()
+	default:
+		panic("unsupport algorithm: " + name)
+	}
 }
 
 type hashVerifier struct {

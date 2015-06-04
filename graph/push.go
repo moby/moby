@@ -413,7 +413,7 @@ func (s *TagStore) pushV2Repository(r *registry.Session, localRepo Repository, o
 			m.History[i] = &registry.ManifestHistory{V1Compatibility: string(jsonData)}
 		}
 
-		if err := validateManifest(m); err != nil {
+		if err := checkValidManifest(m); err != nil {
 			return fmt.Errorf("invalid manifest: %s", err)
 		}
 

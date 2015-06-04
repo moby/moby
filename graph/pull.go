@@ -457,6 +457,17 @@ func WriteStatus(requestedTag string, out io.Writer, sf *streamformatter.StreamF
 	}
 }
 
+// downloadInfo is used to pass information from download to extractor
+type downloadInfo struct {
+	imgJSON    []byte
+	img        *image.Image
+	digest     digest.Digest
+	tmpFile    *os.File
+	length     int64
+	downloaded bool
+	err        chan error
+}
+
 func (s *TagStore) pullV2Repository(r *registry.Session, out io.Writer, repoInfo *registry.RepositoryInfo, tag string, sf *streamformatter.StreamFormatter) error {
 	endpoint, err := r.V2RegistryEndpoint(repoInfo.Index)
 	if err != nil {
@@ -506,33 +517,26 @@ func (s *TagStore) pullV2Repository(r *registry.Session, out io.Writer, repoInfo
 func (s *TagStore) pullV2Tag(r *registry.Session, out io.Writer, endpoint *registry.Endpoint, repoInfo *registry.RepositoryInfo, tag string, sf *streamformatter.StreamFormatter, auth *registry.RequestAuthorization) (bool, error) {
 	logrus.Debugf("Pulling tag from V2 registry: %q", tag)
 
-	remoteDigest, manifestBytes, err := r.GetV2ImageManifest(endpoint, repoInfo.RemoteName, tag, auth)
+	manifestBytes, manifestDigest, err := r.GetV2ImageManifest(endpoint, repoInfo.RemoteName, tag, auth)
 	if err != nil {
 		return false, err
 	}
 
 	// loadManifest ensures that the manifest payload has the expected digest
 	// if the tag is a digest reference.
-	localDigest, manifest, verified, err := s.loadManifest(manifestBytes, tag, remoteDigest)
+	manifest, verified, err := s.loadManifest(manifestBytes, manifestDigest, tag)
 	if err != nil {
 		return false, fmt.Errorf("error verifying manifest: %s", err)
+	}
+
+	if err := checkValidManifest(manifest); err != nil {
+		return false, err
 	}
 
 	if verified {
 		logrus.Printf("Image manifest for %s has been verified", utils.ImageReference(repoInfo.CanonicalName, tag))
 	}
 	out.Write(sf.FormatStatus(tag, "Pulling from %s", repoInfo.CanonicalName))
-
-	// downloadInfo is used to pass information from download to extractor
-	type downloadInfo struct {
-		imgJSON    []byte
-		img        *image.Image
-		digest     digest.Digest
-		tmpFile    *os.File
-		length     int64
-		downloaded bool
-		err        chan error
-	}
 
 	downloads := make([]downloadInfo, len(manifest.FSLayers))
 
@@ -606,7 +610,8 @@ func (s *TagStore) pullV2Tag(r *registry.Session, out io.Writer, endpoint *regis
 				out.Write(sf.FormatProgress(stringid.TruncateID(img.ID), "Verifying Checksum", nil))
 
 				if !verifier.Verified() {
-					return fmt.Errorf("image layer digest verification failed for %q", di.digest)
+					logrus.Infof("Image verification failed: checksum mismatch for %q", di.digest.String())
+					verified = false
 				}
 
 				out.Write(sf.FormatProgress(stringid.TruncateID(img.ID), "Download complete", nil))
@@ -683,33 +688,15 @@ func (s *TagStore) pullV2Tag(r *registry.Session, out io.Writer, endpoint *regis
 		out.Write(sf.FormatStatus(utils.ImageReference(repoInfo.CanonicalName, tag), "The image you are pulling has been verified. Important: image verification is a tech preview feature and should not be relied on to provide security."))
 	}
 
-	if localDigest != remoteDigest { // this is not a verification check.
-		// NOTE(stevvooe): This is a very defensive branch and should never
-		// happen, since all manifest digest implementations use the same
-		// algorithm.
-		logrus.WithFields(
-			logrus.Fields{
-				"local":  localDigest,
-				"remote": remoteDigest,
-			}).Debugf("local digest does not match remote")
-
-		out.Write(sf.FormatStatus("", "Remote Digest: %s", remoteDigest))
+	if manifestDigest != "" {
+		out.Write(sf.FormatStatus("", "Digest: %s", manifestDigest))
 	}
 
-	out.Write(sf.FormatStatus("", "Digest: %s", localDigest))
-
-	if tag == localDigest.String() {
-		// TODO(stevvooe): Ideally, we should always set the digest so we can
-		// use the digest whether we pull by it or not. Unfortunately, the tag
-		// store treats the digest as a separate tag, meaning there may be an
-		// untagged digest image that would seem to be dangling by a user.
-
-		if err = s.SetDigest(repoInfo.LocalName, localDigest.String(), downloads[0].img.ID); err != nil {
+	if utils.DigestReference(tag) {
+		if err = s.SetDigest(repoInfo.LocalName, tag, downloads[0].img.ID); err != nil {
 			return false, err
 		}
-	}
-
-	if !utils.DigestReference(tag) {
+	} else {
 		// only set the repository/tag -> image ID mapping when pulling by tag (i.e. not by digest)
 		if err = s.Tag(repoInfo.LocalName, tag, downloads[0].img.ID, true); err != nil {
 			return false, err

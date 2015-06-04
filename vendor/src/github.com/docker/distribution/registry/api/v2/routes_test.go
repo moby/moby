@@ -98,7 +98,6 @@ func TestRouter(t *testing.T) {
 			},
 		},
 		{
-			// support uuid proper
 			RouteName:  RouteNameBlobUploadChunk,
 			RequestURI: "/v2/foo/bar/blobs/uploads/D95306FA-FAD3-4E36-8D41-CF1C93EF8286",
 			Vars: map[string]string{
@@ -113,21 +112,6 @@ func TestRouter(t *testing.T) {
 				"name": "foo/bar",
 				"uuid": "RDk1MzA2RkEtRkFEMy00RTM2LThENDEtQ0YxQzkzRUY4Mjg2IA==",
 			},
-		},
-		{
-			// supports urlsafe base64
-			RouteName:  RouteNameBlobUploadChunk,
-			RequestURI: "/v2/foo/bar/blobs/uploads/RDk1MzA2RkEtRkFEMy00RTM2LThENDEtQ0YxQzkzRUY4Mjg2IA_-==",
-			Vars: map[string]string{
-				"name": "foo/bar",
-				"uuid": "RDk1MzA2RkEtRkFEMy00RTM2LThENDEtQ0YxQzkzRUY4Mjg2IA_-==",
-			},
-		},
-		{
-			// does not match
-			RouteName:  RouteNameBlobUploadChunk,
-			RequestURI: "/v2/foo/bar/blobs/uploads/totalandcompletejunk++$$-==",
-			StatusCode: http.StatusNotFound,
 		},
 		{
 			// Check ambiguity: ensure we can distinguish between tags for
