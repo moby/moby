@@ -627,6 +627,50 @@ func TestNetworkEndpointsWalkers(t *testing.T) {
 	}
 }
 
+func TestDuplicateEndpoint(t *testing.T) {
+	if !netutils.IsRunningInContainer() {
+		defer netutils.SetupTestNetNS(t)()
+	}
+
+	n, err := controller.NewNetwork(bridgeNetType, "testnetwork", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if err := n.Delete(); err != nil {
+			t.Fatal(err)
+		}
+	}()
+
+	ep, err := n.CreateEndpoint("ep1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if err := ep.Delete(); err != nil {
+			t.Fatal(err)
+		}
+	}()
+
+	ep2, err := n.CreateEndpoint("ep1")
+	defer func() {
+		// Cleanup ep2 as well, else network cleanup might fail for failure cases
+		if ep2 != nil {
+			if err := ep2.Delete(); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}()
+
+	if err == nil {
+		t.Fatal("Expected to fail. But instead succeeded")
+	}
+
+	if _, ok := err.(types.ForbiddenError); !ok {
+		t.Fatalf("Did not fail with expected error. Actual error: %v", err)
+	}
+}
+
 func TestControllerQuery(t *testing.T) {
 	if !netutils.IsRunningInContainer() {
 		defer netutils.SetupTestNetNS(t)()

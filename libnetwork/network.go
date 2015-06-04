@@ -195,6 +195,11 @@ func (n *network) CreateEndpoint(name string, options ...EndpointOption) (Endpoi
 	if name == "" {
 		return nil, ErrInvalidName(name)
 	}
+
+	if _, err := n.EndpointByName(name); err == nil {
+		return nil, types.ForbiddenErrorf("service endpoint with name %s already exists", name)
+	}
+
 	ep := &endpoint{name: name, iFaces: []*endpointInterface{}, generic: make(map[string]interface{})}
 	ep.id = types.UUID(stringid.GenerateRandomID())
 	ep.network = n
