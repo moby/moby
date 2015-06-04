@@ -8,8 +8,8 @@ import (
 	"os"
 	"os/exec"
 
-	"github.com/docker/docker/vendor/src/github.com/kr/pty"
 	"github.com/go-check/check"
+	"github.com/kr/pty"
 )
 
 // save a repo and try to load it using stdout
