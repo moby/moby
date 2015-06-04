@@ -183,7 +183,7 @@ func getDevicesFromPath(deviceMapping runconfig.DeviceMapping) (devs []*configs.
 
 func populateCommand(c *Container, env []string) error {
 	var en *execdriver.Network
-	if !c.daemon.config.DisableNetwork {
+	if !c.Config.NetworkDisabled {
 		en = &execdriver.Network{
 			NamespacePath: c.NetworkSettings.SandboxKey,
 		}
