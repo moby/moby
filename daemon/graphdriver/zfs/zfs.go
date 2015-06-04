@@ -212,7 +212,7 @@ func (d *Driver) ZfsPath(id string) string {
 }
 
 func (d *Driver) MountPath(id string) string {
-	return path.Join(d.options.mountPath, "graph", id)
+	return path.Join(d.options.mountPath, "graph", getMountpoint(id))
 }
 
 func (d *Driver) Create(id string, parent string) error {
