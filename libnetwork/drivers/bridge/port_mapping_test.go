@@ -64,7 +64,7 @@ func TestPortMappingConfig(t *testing.T) {
 		t.Fatalf("operational port mapping data not found on bridgeEndpoint")
 	}
 
-	err = releasePorts(ep)
+	err = network.releasePorts(ep)
 	if err != nil {
 		t.Fatalf("Failed to release mapped ports: %v", err)
 	}

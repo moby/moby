@@ -227,7 +227,7 @@ func testQueryEndpointInfo(t *testing.T, ulPxyEnabled bool) {
 	}
 
 	// Cleanup as host ports are there
-	err = releasePorts(ep)
+	err = network.releasePorts(ep)
 	if err != nil {
 		t.Fatalf("Failed to release mapped ports: %v", err)
 	}

@@ -13,7 +13,7 @@ const (
 	DockerChain = "DOCKER"
 )
 
-func setupIPTables(config *networkConfiguration, i *bridgeInterface) error {
+func (n *bridgeNetwork) setupIPTables(config *networkConfiguration, i *bridgeInterface) error {
 	// Sanity check.
 	if config.EnableIPTables == false {
 		return IPTableCfgError(config.BridgeName)
@@ -39,7 +39,7 @@ func setupIPTables(config *networkConfiguration, i *bridgeInterface) error {
 		return fmt.Errorf("Failed to create FILTER chain: %s", err.Error())
 	}
 
-	portMapper.SetIptablesChain(chain)
+	n.portMapper.SetIptablesChain(chain)
 
 	return nil
 }
