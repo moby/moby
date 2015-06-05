@@ -1,3 +1,4 @@
+no_version_dropdown: true
 page_title: Docker Hub Enterprise: Admin guide
 page_description: Documentation describing administration of Docker Hub Enterprise
 page_keywords: docker, documentation, about, technology, hub, enterprise
