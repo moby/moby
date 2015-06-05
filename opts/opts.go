@@ -193,6 +193,8 @@ func ValidateLink(val string) (string, error) {
 	return val, nil
 }
 
+// ValidatePath will make sure 'val' is in the form:
+//    [host-dir:]container-path[:rw|ro]  - but doesn't validate the mode part
 func ValidatePath(val string) (string, error) {
 	var containerPath string
 
