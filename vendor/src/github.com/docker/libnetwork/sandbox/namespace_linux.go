@@ -56,7 +56,18 @@ func removeUnusedPaths() {
 	period := gpmCleanupPeriod
 	gpmLock.Unlock()
 
-	for range time.Tick(period) {
+	ticker := time.NewTicker(period)
+	for {
+		var (
+			gc   chan struct{}
+			gcOk bool
+		)
+
+		select {
+		case <-ticker.C:
+		case gc, gcOk = <-gpmChan:
+		}
+
 		gpmLock.Lock()
 		pathList := make([]string, 0, len(garbagePathMap))
 		for path := range garbagePathMap {
@@ -92,20 +103,12 @@ func removeFromGarbagePaths(path string) {
 // GC triggers garbage collection of namespace path right away
 // and waits for it.
 func GC() {
-	gpmLock.Lock()
-	if len(garbagePathMap) == 0 {
-		// No need for GC if map is empty
-		gpmLock.Unlock()
-		return
-	}
-	gpmLock.Unlock()
-
-	// if content exists in the garbage paths
-	// we can trigger GC to run, providing a
-	// channel to be notified on completion
 	waitGC := make(chan struct{})
+
+	// Trigger GC now
 	gpmChan <- waitGC
-	// wait for GC completion
+
+	// wait for gc to complete
 	<-waitGC
 }
 
