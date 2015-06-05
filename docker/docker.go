@@ -2,9 +2,7 @@ package main
 
 import (
 	"crypto/tls"
-	"crypto/x509"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"runtime"
 	"strings"
@@ -16,6 +14,7 @@ import (
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/reexec"
 	"github.com/docker/docker/pkg/term"
+	"github.com/docker/docker/pkg/tlsconfig"
 	"github.com/docker/docker/utils"
 )
 
@@ -85,6 +84,12 @@ func main() {
 
 	setDefaultConfFlag(flTrustKey, defaultTrustKeyFile)
 
+	// Regardless of whether the user sets it to true or false, if they
+	// specify --tlsverify at all then we need to turn on tls
+	if flag.IsSet("-tlsverify") {
+		*flTls = true
+	}
+
 	if *flDaemon {
 		if *flHelp {
 			flag.Usage()
@@ -94,59 +99,35 @@ func main() {
 		return
 	}
 
+	// From here on, we assume we're a client, not a server.
+
 	if len(flHosts) > 1 {
 		fmt.Fprintf(os.Stderr, "Please specify only one -H")
 		os.Exit(0)
 	}
 	protoAddrParts := strings.SplitN(flHosts[0], "://", 2)
 
-	var (
-		cli       *client.DockerCli
-		tlsConfig tls.Config
-	)
-	tlsConfig.InsecureSkipVerify = true
-
-	// Regardless of whether the user sets it to true or false, if they
-	// specify --tlsverify at all then we need to turn on tls
-	if flag.IsSet("-tlsverify") {
-		*flTls = true
-	}
-
-	// If we should verify the server, we need to load a trusted ca
-	if *flTlsVerify {
-		certPool := x509.NewCertPool()
-		file, err := ioutil.ReadFile(*flCa)
+	var tlsConfig *tls.Config
+	if *flTls {
+		tlsOptions.InsecureSkipVerify = !*flTlsVerify
+		if !flag.IsSet("-tlscert") {
+			if _, err := os.Stat(tlsOptions.CertFile); os.IsNotExist(err) {
+				tlsOptions.CertFile = ""
+			}
+		}
+		if !flag.IsSet("-tlskey") {
+			if _, err := os.Stat(tlsOptions.KeyFile); os.IsNotExist(err) {
+				tlsOptions.KeyFile = ""
+			}
+		}
+		var err error
+		tlsConfig, err = tlsconfig.Client(tlsOptions)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Couldn't read ca cert %s: %s\n", *flCa, err)
+			fmt.Fprintln(stderr, err)
 			os.Exit(1)
 		}
-		certPool.AppendCertsFromPEM(file)
-		tlsConfig.RootCAs = certPool
-		tlsConfig.InsecureSkipVerify = false
 	}
-
-	// If tls is enabled, try to load and send client certificates
-	if *flTls || *flTlsVerify {
-		_, errCert := os.Stat(*flCert)
-		_, errKey := os.Stat(*flKey)
-		if errCert == nil && errKey == nil {
-			*flTls = true
-			cert, err := tls.LoadX509KeyPair(*flCert, *flKey)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Couldn't load X509 key pair: %q. Make sure the key is encrypted\n", err)
-				os.Exit(1)
-			}
-			tlsConfig.Certificates = []tls.Certificate{cert}
-		}
-		// Avoid fallback to SSL protocols < TLS1.0
-		tlsConfig.MinVersion = tls.VersionTLS10
-	}
-
-	if *flTls || *flTlsVerify {
-		cli = client.NewDockerCli(stdin, stdout, stderr, *flTrustKey, protoAddrParts[0], protoAddrParts[1], &tlsConfig)
-	} else {
-		cli = client.NewDockerCli(stdin, stdout, stderr, *flTrustKey, protoAddrParts[0], protoAddrParts[1], nil)
-	}
+	cli := client.NewDockerCli(stdin, stdout, stderr, *flTrustKey, protoAddrParts[0], protoAddrParts[1], tlsConfig)
 
 	if err := cli.Cmd(flag.Args()...); err != nil {
 		if sterr, ok := err.(client.StatusError); ok {
