@@ -27,8 +27,5 @@ func (o *IpOpt) Set(val string) error {
 }
 
 func (o *IpOpt) String() string {
-	if *o.IP == nil {
-		return ""
-	}
 	return o.IP.String()
 }
