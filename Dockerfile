@@ -83,7 +83,7 @@ ENV GO_VERSION 1.4.2
 RUN curl -sSL https://golang.org/dl/go${GO_VERSION}.src.tar.gz | tar -v -C /usr/local -xz \
 	&& mkdir -p /go/bin
 ENV PATH /go/bin:/usr/local/go/bin:$PATH
-ENV GOPATH /go:/go/src/github.com/docker/docker/vendor
+ENV GOPATH /go:/go/src/github.com/docker/docker/Godeps/_workspace
 RUN cd /usr/local/go/src && ./make.bash --no-clean 2>&1
 
 # Compile Go for cross compilation
@@ -178,8 +178,13 @@ RUN set -x \
 	&& git clone https://github.com/BurntSushi/toml.git /go/src/github.com/BurntSushi/toml \
 	&& (cd /go/src/github.com/BurntSushi/toml && git checkout -q $TOMLV_COMMIT)
 
+# Download godep & jq
+RUN go get github.com/tools/godep
+RUN curl -sSL http://stedolan.github.io/jq/download/linux64/jq -o /usr/local/bin/jq \
+   && chmod +x /usr/local/bin/jq
+
 # copy vendor/ because go-md2man needs golang.org/x/net
-COPY vendor /go/src/github.com/docker/docker/vendor
+RUN go get code.google.com/p/go.net/html
 RUN go install -v github.com/cpuguy83/go-md2man \
 	github.com/BurntSushi/toml/cmd/tomlv
 

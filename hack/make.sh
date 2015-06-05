@@ -84,7 +84,7 @@ if [ "$AUTO_GOPATH" ]; then
 	rm -rf .gopath
 	mkdir -p .gopath/src/"$(dirname "${DOCKER_PKG}")"
 	ln -sf ../../../.. .gopath/src/"${DOCKER_PKG}"
-	export GOPATH="${PWD}/.gopath:${PWD}/vendor"
+	export GOPATH="${PWD}/.gopath:${PWD}/Godeps/_workspace/"
 fi
 
 if [ ! "$GOPATH" ]; then
@@ -236,7 +236,7 @@ binary_extension() {
 find_dirs() {
 	find . -not \( \
 		\( \
-			-path './vendor/*' \
+			-path './Godeps/*' \
 			-o -path './integration-cli/*' \
 			-o -path './contrib/*' \
 			-o -path './pkg/mflag/example/*' \

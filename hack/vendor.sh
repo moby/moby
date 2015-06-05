@@ -5,7 +5,6 @@ cd "$(dirname "$BASH_SOURCE")/.."
 
 # Downloads dependencies into vendor/ directory
 mkdir -p vendor
-cd vendor
 
 clone() {
 	vcs=$1
@@ -13,7 +12,7 @@ clone() {
 	rev=$3
 
 	pkg_url=https://$pkg
-	target_dir=src/$pkg
+	target_dir=vendor/src/$pkg
 
 	echo -n "$pkg @ $rev: "
 
@@ -32,12 +31,6 @@ clone() {
 			hg clone --quiet --updaterev $rev $pkg_url $target_dir
 			;;
 	esac
-
-	echo -n 'rm VCS, '
-	( cd $target_dir && rm -rf .{git,hg} )
-
-	echo -n 'rm vendor, '
-	( cd $target_dir && rm -rf vendor Godeps/_workspace )
 
 	echo done
 }
@@ -61,13 +54,6 @@ clone git github.com/vishvananda/netlink 8eb64238879fed52fd51c5b30ad20b928fb4c36
 
 # get distribution packages
 clone git github.com/docker/distribution b9eeb328080d367dbde850ec6e94f1e4ac2b5efe
-mv src/github.com/docker/distribution/digest tmp-digest
-mv src/github.com/docker/distribution/registry/api tmp-api
-rm -rf src/github.com/docker/distribution
-mkdir -p src/github.com/docker/distribution
-mv tmp-digest src/github.com/docker/distribution/digest
-mkdir -p src/github.com/docker/distribution/registry
-mv tmp-api src/github.com/docker/distribution/registry/api
 
 clone git github.com/docker/libcontainer v2.1.0
 # libcontainer deps (see src/github.com/docker/libcontainer/update-vendor.sh)
@@ -75,3 +61,26 @@ clone git github.com/coreos/go-systemd v2
 clone git github.com/godbus/dbus v2
 clone git github.com/syndtr/gocapability 66ef2aa7a23ba682594e2b6f74cf40c0692b49fb
 clone git github.com/golang/protobuf 655cdfa588ea
+
+# List subpackages, exclusing contrib, and the project root
+DOCKER_PKG='github.com/docker/docker'
+DOCKER_PACKAGES=$(go list github.com/docker/docker/... | grep -v "contrib/" | grep -v "vendor/" | grep -v "^$DOCKER_PKG$")
+GODEPJSON_FILES=$(for i in $DOCKER_PACKAGES; do echo $i | sed "s/.*/\/go\/src\/&\/Godeps\/Godeps.json/"; done | tr '\n' ' ')
+
+# Generate Godeps in each subpackage
+for i in $DOCKER_PACKAGES; do echo $i && (cd /go/src/$i && GOPATH=/go/:/go/src/$DOCKER_PKG/vendor godep save $i); done
+
+# Merge all Godeps directories in one
+for i in $DOCKER_PACKAGES; do cp -R /go/src/$i/Godeps /go/src/$DOCKER_PKG; done
+
+# Merge all Godeps.json files in one
+jq --slurp "{
+		\"ImportPath\": \"$DOCKER_PKG\",
+		\"GoVersion\": \"go1.4.2\",
+		\"Deps\": map(.Deps | select(length > 0)) | add | unique_by(.ImportPath)
+	}" \
+	$GODEPJSON_FILES > Godeps/Godeps.json
+
+# Cleanup
+rm -rf vendor
+for i in $DOCKER_PACKAGES; do rm -rf /go/src/$i/Godeps; done
