@@ -1115,6 +1115,9 @@ and Docker images will report:
 
     untag, delete
 
+If you do not provide the --since option, the command
+returns only new and/or live events.
+
 #### Filtering
 
 The filtering flag (`-f` or `--filter`) format is of "key=value". If you would like to use

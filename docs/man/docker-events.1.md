@@ -63,7 +63,12 @@ Again the output container IDs have been shortened for the purposes of this docu
     2015-01-28T20:25:45.000000000-08:00 c21f6c22ba27: (from whenry/testimage:latest) die
     2015-01-28T20:25:46.000000000-08:00 c21f6c22ba27: (from whenry/testimage:latest) stop
 
+
+If you do not provide the --since option, the command returns only new and/or
+live events.
+
 # HISTORY
 April 2014, Originally compiled by William Henry (whenry at redhat dot com)
 based on docker.com source material and internal work.
 June 2014, updated by Sven Dowideit <SvenDowideit@home.org.au>
+June 2015, updated by Brian Goff <cpuguy83@gmail.com>
