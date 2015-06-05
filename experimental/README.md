@@ -42,7 +42,7 @@ Unlike the regular Docker binary, the experimental channels is built and updated
 
     This command downloads a test image and runs it in a container.
 
-## Experimental features in this Release
+## Current experimental features
 
 * [Support for Docker plugins](plugins.md)
 * [Volume plugins](plugins_volume.md)
