@@ -2,45 +2,7 @@
 set -e
 
 cd "$(dirname "$BASH_SOURCE")/.."
-
-# Downloads dependencies into vendor/ directory
-mkdir -p vendor
-cd vendor
-
-clone() {
-	vcs=$1
-	pkg=$2
-	rev=$3
-
-	pkg_url=https://$pkg
-	target_dir=src/$pkg
-
-	echo -n "$pkg @ $rev: "
-
-	if [ -d $target_dir ]; then
-		echo -n 'rm old, '
-		rm -fr $target_dir
-	fi
-
-	echo -n 'clone, '
-	case $vcs in
-		git)
-			git clone --quiet --no-checkout $pkg_url $target_dir
-			( cd $target_dir && git reset --quiet --hard $rev )
-			;;
-		hg)
-			hg clone --quiet --updaterev $rev $pkg_url $target_dir
-			;;
-	esac
-
-	echo -n 'rm VCS, '
-	( cd $target_dir && rm -rf .{git,hg} )
-
-	echo -n 'rm vendor, '
-	( cd $target_dir && rm -rf vendor Godeps/_workspace )
-
-	echo done
-}
+source 'hack/.vendor-helpers.sh'
 
 # the following lines are in sorted order, FYI
 clone git github.com/Sirupsen/logrus v0.8.2 # logrus is a common dependency among multiple deps
@@ -61,13 +23,6 @@ clone git github.com/vishvananda/netlink 8eb64238879fed52fd51c5b30ad20b928fb4c36
 
 # get distribution packages
 clone git github.com/docker/distribution b9eeb328080d367dbde850ec6e94f1e4ac2b5efe
-mv src/github.com/docker/distribution/digest tmp-digest
-mv src/github.com/docker/distribution/registry/api tmp-api
-rm -rf src/github.com/docker/distribution
-mkdir -p src/github.com/docker/distribution
-mv tmp-digest src/github.com/docker/distribution/digest
-mkdir -p src/github.com/docker/distribution/registry
-mv tmp-api src/github.com/docker/distribution/registry/api
 
 clone git github.com/docker/libcontainer v2.1.1
 # libcontainer deps (see src/github.com/docker/libcontainer/update-vendor.sh)
@@ -76,3 +31,5 @@ clone git github.com/godbus/dbus v2
 clone git github.com/syndtr/gocapability 66ef2aa7a23ba682594e2b6f74cf40c0692b49fb
 clone git github.com/golang/protobuf 655cdfa588ea
 clone git github.com/Graylog2/go-gelf 6c62a85f1d47a67f2a5144c0e745b325889a8120
+
+clean
