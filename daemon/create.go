@@ -59,7 +59,7 @@ func (daemon *Daemon) Create(config *runconfig.Config, hostConfig *runconfig.Hos
 		if err != nil {
 			return nil, nil, err
 		}
-		if err = img.CheckDepth(); err != nil {
+		if err = daemon.graph.CheckDepth(img); err != nil {
 			return nil, nil, err
 		}
 		imgID = img.ID

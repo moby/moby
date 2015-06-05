@@ -5,9 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
-	"path/filepath"
 	"sync"
 
 	"github.com/Sirupsen/logrus"
@@ -57,7 +55,7 @@ func (s *TagStore) getImageList(localRepo map[string]string, requestedTag string
 
 		tagsByImage[id] = append(tagsByImage[id], tag)
 
-		for img, err := s.graph.Get(id); img != nil; img, err = img.GetParent() {
+		for img, err := s.graph.Get(id); img != nil; img, err = s.graph.GetParent(img) {
 			if err != nil {
 				return nil, nil, err
 			}
@@ -248,7 +246,7 @@ func (s *TagStore) pushRepository(r *registry.Session, out io.Writer,
 
 func (s *TagStore) pushImage(r *registry.Session, out io.Writer, imgID, ep string, token []string, sf *streamformatter.StreamFormatter) (checksum string, err error) {
 	out = ioutils.NewWriteFlusher(out)
-	jsonRaw, err := ioutil.ReadFile(filepath.Join(s.graph.Root, imgID, "json"))
+	jsonRaw, err := s.graph.RawJSON(imgID)
 	if err != nil {
 		return "", fmt.Errorf("Cannot retrieve the path for {%s}: %s", imgID, err)
 	}
@@ -349,7 +347,7 @@ func (s *TagStore) pushV2Repository(r *registry.Session, localRepo Repository, o
 
 		layersSeen := make(map[string]bool)
 		layers := []*image.Image{layer}
-		for ; layer != nil; layer, err = layer.GetParent() {
+		for ; layer != nil; layer, err = s.graph.GetParent(layer) {
 			if err != nil {
 				return err
 			}
@@ -372,12 +370,12 @@ func (s *TagStore) pushV2Repository(r *registry.Session, localRepo Repository, o
 					return err
 				}
 			}
-			jsonData, err := layer.RawJson()
+			jsonData, err := s.graph.RawJSON(layer.ID)
 			if err != nil {
 				return fmt.Errorf("cannot retrieve the path for %s: %s", layer.ID, err)
 			}
 
-			checksum, err := layer.GetCheckSum(s.graph.ImageRoot(layer.ID))
+			checksum, err := s.graph.GetCheckSum(layer.ID)
 			if err != nil {
 				return fmt.Errorf("error getting image checksum: %s", err)
 			}
@@ -401,7 +399,7 @@ func (s *TagStore) pushV2Repository(r *registry.Session, localRepo Repository, o
 					return err
 				} else if cs != checksum {
 					// Cache new checksum
-					if err := layer.SaveCheckSum(s.graph.ImageRoot(layer.ID), cs); err != nil {
+					if err := s.graph.SetCheckSum(layer.ID, cs); err != nil {
 						return err
 					}
 					checksum = cs
@@ -456,7 +454,7 @@ func (s *TagStore) pushV2Image(r *registry.Session, img *image.Image, endpoint *
 	if err != nil {
 		return "", err
 	}
-	arch, err := image.TarLayer()
+	arch, err := s.graph.TarLayer(image)
 	if err != nil {
 		return "", err
 	}

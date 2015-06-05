@@ -57,7 +57,7 @@ func (s *TagStore) newManifest(localName, remoteName, tag string) ([]byte, error
 		metadata = *layer.Config
 	}
 
-	for ; layer != nil; layer, err = layer.GetParent() {
+	for ; layer != nil; layer, err = s.graph.GetParent(layer) {
 		if err != nil {
 			return nil, err
 		}
@@ -72,12 +72,12 @@ func (s *TagStore) newManifest(localName, remoteName, tag string) ([]byte, error
 			}
 		}
 
-		checksum, err := layer.GetCheckSum(s.graph.ImageRoot(layer.ID))
+		checksum, err := s.graph.GetCheckSum(layer.ID)
 		if err != nil {
 			return nil, fmt.Errorf("Error getting image checksum: %s", err)
 		}
 		if tarsum.VersionLabelForChecksum(checksum) != tarsum.Version1.String() {
-			archive, err := layer.TarLayer()
+			archive, err := s.graph.TarLayer(layer)
 			if err != nil {
 				return nil, err
 			}
@@ -95,12 +95,12 @@ func (s *TagStore) newManifest(localName, remoteName, tag string) ([]byte, error
 			checksum = tarSum.Sum(nil)
 
 			// Save checksum value
-			if err := layer.SaveCheckSum(s.graph.ImageRoot(layer.ID), checksum); err != nil {
+			if err := s.graph.SetCheckSum(layer.ID, checksum); err != nil {
 				return nil, err
 			}
 		}
 
-		jsonData, err := layer.RawJson()
+		jsonData, err := s.graph.RawJSON(layer.ID)
 		if err != nil {
 			return nil, fmt.Errorf("Cannot retrieve the path for {%s}: %s", layer.ID, err)
 		}
@@ -141,7 +141,7 @@ func TestManifestTarsumCache(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if cs, err := img.GetCheckSum(store.graph.ImageRoot(testManifestImageID)); err != nil {
+	if cs, err := store.graph.GetCheckSum(testManifestImageID); err != nil {
 		t.Fatal(err)
 	} else if cs != "" {
 		t.Fatalf("Non-empty checksum file after register")
@@ -153,7 +153,7 @@ func TestManifestTarsumCache(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	manifestChecksum, err := img.GetCheckSum(store.graph.ImageRoot(testManifestImageID))
+	manifestChecksum, err := store.graph.GetCheckSum(testManifestImageID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -175,7 +175,7 @@ func TestManifestTarsumCache(t *testing.T) {
 		t.Fatalf("Unexpected number of layer history, expecting 1: %d", len(manifest.History))
 	}
 
-	v1compat, err := img.RawJson()
+	v1compat, err := store.graph.RawJSON(img.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -207,7 +207,7 @@ func TestManifestDigestCheck(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if cs, err := img.GetCheckSum(store.graph.ImageRoot(testManifestImageID)); err != nil {
+	if cs, err := store.graph.GetCheckSum(testManifestImageID); err != nil {
 		t.Fatal(err)
 	} else if cs != "" {
 		t.Fatalf("Non-empty checksum file after register")

@@ -103,7 +103,7 @@ func (s *TagStore) Images(config *ImagesConfig) ([]*types.Image, error) {
 					newImage.ID = image.ID
 					newImage.Created = int(image.Created.Unix())
 					newImage.Size = int(image.Size)
-					newImage.VirtualSize = int(image.GetParentsSize(0) + image.Size)
+					newImage.VirtualSize = int(s.graph.GetParentsSize(image, 0) + image.Size)
 					newImage.Labels = image.ContainerConfig.Labels
 
 					if utils.DigestReference(ref) {
@@ -140,7 +140,7 @@ func (s *TagStore) Images(config *ImagesConfig) ([]*types.Image, error) {
 			newImage.ID = image.ID
 			newImage.Created = int(image.Created.Unix())
 			newImage.Size = int(image.Size)
-			newImage.VirtualSize = int(image.GetParentsSize(0) + image.Size)
+			newImage.VirtualSize = int(s.graph.GetParentsSize(image, 0) + image.Size)
 			newImage.Labels = image.ContainerConfig.Labels
 
 			images = append(images, newImage)
