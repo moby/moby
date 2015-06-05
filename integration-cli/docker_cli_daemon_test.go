@@ -526,6 +526,49 @@ func (s *DockerDaemonSuite) TestDaemonBridgeFixedCidr(c *check.C) {
 	}
 }
 
+func (s *DockerDaemonSuite) TestDaemonDefaultGatewayIPv4Implicit(c *check.C) {
+	defaultNetworkBridge := "docker0"
+	deleteInterface(c, defaultNetworkBridge)
+
+	d := s.d
+
+	bridgeIp := "192.169.1.1"
+	bridgeIpNet := fmt.Sprintf("%s/24", bridgeIp)
+
+	err := d.StartWithBusybox("--bip", bridgeIpNet)
+	c.Assert(err, check.IsNil)
+	defer d.Restart()
+
+	expectedMessage := fmt.Sprintf("default via %s dev", bridgeIp)
+	out, err := d.Cmd("run", "busybox", "ip", "-4", "route", "list", "0/0")
+	c.Assert(strings.Contains(out, expectedMessage), check.Equals, true,
+		check.Commentf("Implicit default gateway should be bridge IP %s, but default route was '%s'",
+			bridgeIp, strings.TrimSpace(out)))
+	deleteInterface(c, defaultNetworkBridge)
+}
+
+func (s *DockerDaemonSuite) TestDaemonDefaultGatewayIPv4Explicit(c *check.C) {
+	defaultNetworkBridge := "docker0"
+	deleteInterface(c, defaultNetworkBridge)
+
+	d := s.d
+
+	bridgeIp := "192.169.1.1"
+	bridgeIpNet := fmt.Sprintf("%s/24", bridgeIp)
+	gatewayIp := "192.169.1.254"
+
+	err := d.StartWithBusybox("--bip", bridgeIpNet, "--default-gateway", gatewayIp)
+	c.Assert(err, check.IsNil)
+	defer d.Restart()
+
+	expectedMessage := fmt.Sprintf("default via %s dev", gatewayIp)
+	out, err := d.Cmd("run", "busybox", "ip", "-4", "route", "list", "0/0")
+	c.Assert(strings.Contains(out, expectedMessage), check.Equals, true,
+		check.Commentf("Explicit default gateway should be %s, but default route was '%s'",
+			gatewayIp, strings.TrimSpace(out)))
+	deleteInterface(c, defaultNetworkBridge)
+}
+
 func (s *DockerDaemonSuite) TestDaemonIP(c *check.C) {
 	d := s.d
 
