@@ -1,3 +1,4 @@
+no_version_dropdown: true
 page_title: Docker Hub Enterprise: Install
 page_description: Installation instructions for Docker Hub Enterprise
 page_keywords: docker, documentation, about, technology, understanding, enterprise, hub, registry
@@ -19,6 +20,12 @@ Specifically, installation requires completion of these steps, in order:
 2. Install the commercially supported Docker Engine.
 3. Install DHE
 4. Add your license to your DHE instance
+
+> **Note:** This initial release of DHE has limited access. To get access,
+> you will need an account on [Docker Hub](https://hub.docker.com/). Once you're
+> logged in to the Hub with your account, visit the
+> [early access registration page](https://registry.hub.docker.com/earlyaccess/)
+> and follow the steps there to get signed up.
 
 ## Licensing
 
@@ -108,6 +115,8 @@ following to install commercially supported Docker Engine and its dependencies:
 
 ```
 $ sudo apt-get update && sudo apt-get upgrade
+$ sudo apt-get install -y linux-image-extra-virtual
+$ sudo reboot
 $ chmod 755 docker-cs-engine-deb.sh
 $ sudo ./docker-cs-engine-deb.sh
 $ sudo apt-get install docker-engine-cs
@@ -139,19 +148,25 @@ so upgrading the Engine only requires you to run the update commands on your ser
 
 ### RHEL 7.0/7.1 upgrade
 
-To upgrade CS Docker Engine, run the following command:
+The following commands will stop the running DHE, upgrade CS Docker Engine,
+and then start DHE again:
 
 ```
+    $ sudo bash -c "$(sudo docker run dockerhubenterprise/manager stop)"
     $ sudo yum update
     $ sudo systemctl daemon-reload && sudo systemctl restart docker
+    $ sudo bash -c "$(sudo docker run dockerhubenterprise/manager start)"
 ```
 
 ### Ubuntu 14.04 LTS upgrade
 
-To upgrade CS Docker Engine, run the following command:
+The following commands will stop the running DHE, upgrade CS Docker Engine,
+and then start DHE again:
 
 ```
-   $ sudo apt-get update && sudo apt-get dist-upgrade docker-engine-cs
+    $ sudo bash -c "$(sudo docker run dockerhubenterprise/manager stop)"
+    $ sudo apt-get update && sudo apt-get dist-upgrade docker-engine-cs
+    $ sudo bash -c "$(sudo docker run dockerhubenterprise/manager start)"
 ```
 
 ## Installing Docker Hub Enterprise
