@@ -41,6 +41,7 @@ func TestSandboxCreate(t *testing.T) {
 
 	for _, i := range tbox.Info().Interfaces() {
 		err = s.AddInterface(i.SrcName(), i.DstName(),
+			tbox.InterfaceOptions().Bridge(i.Bridge()),
 			tbox.InterfaceOptions().Address(i.Address()),
 			tbox.InterfaceOptions().AddressIPv6(i.AddressIPv6()))
 		if err != nil {
@@ -61,7 +62,7 @@ func TestSandboxCreate(t *testing.T) {
 	}
 	runtime.LockOSThread()
 
-	verifySandbox(t, s, []string{"0", "1"})
+	verifySandbox(t, s, []string{"0", "1", "2"})
 	runtime.LockOSThread()
 
 	s.Destroy()
@@ -134,6 +135,7 @@ func TestAddRemoveInterface(t *testing.T) {
 
 	for _, i := range tbox.Info().Interfaces() {
 		err = s.AddInterface(i.SrcName(), i.DstName(),
+			tbox.InterfaceOptions().Bridge(i.Bridge()),
 			tbox.InterfaceOptions().Address(i.Address()),
 			tbox.InterfaceOptions().AddressIPv6(i.AddressIPv6()))
 		if err != nil {
@@ -142,7 +144,7 @@ func TestAddRemoveInterface(t *testing.T) {
 		runtime.LockOSThread()
 	}
 
-	verifySandbox(t, s, []string{"0", "1"})
+	verifySandbox(t, s, []string{"0", "1", "2"})
 	runtime.LockOSThread()
 
 	interfaces := s.Info().Interfaces()
@@ -151,18 +153,19 @@ func TestAddRemoveInterface(t *testing.T) {
 	}
 	runtime.LockOSThread()
 
-	verifySandbox(t, s, []string{"1"})
+	verifySandbox(t, s, []string{"1", "2"})
 	runtime.LockOSThread()
 
 	i := tbox.Info().Interfaces()[0]
 	if err := s.AddInterface(i.SrcName(), i.DstName(),
+		tbox.InterfaceOptions().Bridge(i.Bridge()),
 		tbox.InterfaceOptions().Address(i.Address()),
 		tbox.InterfaceOptions().AddressIPv6(i.AddressIPv6())); err != nil {
 		t.Fatalf("Failed to add interfaces to sandbox: %v", err)
 	}
 	runtime.LockOSThread()
 
-	verifySandbox(t, s, []string{"1", "2"})
+	verifySandbox(t, s, []string{"1", "2", "3"})
 	runtime.LockOSThread()
 
 	s.Destroy()

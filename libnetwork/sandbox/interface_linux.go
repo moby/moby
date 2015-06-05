@@ -15,9 +15,12 @@ type IfaceOption func(i *nwIface)
 type nwIface struct {
 	srcName     string
 	dstName     string
+	master      string
+	dstMaster   string
 	address     *net.IPNet
 	addressIPv6 *net.IPNet
 	routes      []*net.IPNet
+	bridge      bool
 	ns          *networkNamespace
 	sync.Mutex
 }
@@ -169,6 +172,14 @@ func (n *networkNamespace) AddInterface(srcName, dstPrefix string, options ...If
 	i := &nwIface{srcName: srcName, dstName: dstPrefix, ns: n}
 	i.processInterfaceOptions(options...)
 
+	if i.master != "" {
+		i.dstMaster = n.findDstMaster(i.master)
+		if i.dstMaster == "" {
+			return fmt.Errorf("could not find an appropriate master %q for %q",
+				i.master, i.srcName)
+		}
+	}
+
 	n.Lock()
 	i.dstName = fmt.Sprintf("%s%d", i.dstName, n.nextIfIndex)
 	n.nextIfIndex++
@@ -176,6 +187,12 @@ func (n *networkNamespace) AddInterface(srcName, dstPrefix string, options ...If
 	n.Unlock()
 
 	return nsInvoke(path, func(nsFD int) error {
+		// If it is a bridge interface we have to create the bridge inside
+		// the namespace so don't try to lookup the interface using srcName
+		if i.bridge {
+			return nil
+		}
+
 		// Find the network interface identified by the SrcName attribute.
 		iface, err := netlink.LinkByName(i.srcName)
 		if err != nil {
@@ -189,6 +206,18 @@ func (n *networkNamespace) AddInterface(srcName, dstPrefix string, options ...If
 
 		return nil
 	}, func(callerFD int) error {
+		if i.bridge {
+			link := &netlink.Bridge{
+				LinkAttrs: netlink.LinkAttrs{
+					Name: i.srcName,
+				},
+			}
+
+			if err := netlink.LinkAdd(link); err != nil {
+				return fmt.Errorf("failed to create bridge %q: %v", i.srcName, err)
+			}
+		}
+
 		// Find the network interface identified by the SrcName attribute.
 		iface, err := netlink.LinkByName(i.srcName)
 		if err != nil {

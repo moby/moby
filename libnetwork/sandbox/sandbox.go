@@ -49,11 +49,19 @@ type Sandbox interface {
 
 // IfaceOptionSetter interface defines the option setter methods for interface options.
 type IfaceOptionSetter interface {
+	// Bridge returns an option setter to set if the interface is a bridge.
+	Bridge(bool) IfaceOption
+
 	// Address returns an option setter to set IPv4 address.
 	Address(*net.IPNet) IfaceOption
 
 	// Address returns an option setter to set IPv6 address.
 	AddressIPv6(*net.IPNet) IfaceOption
+
+	// Master returns an option setter to set the master interface if any for this
+	// interface. The master interface name should refer to the srcname of a
+	// previously added interface of type bridge.
+	Master(string) IfaceOption
 
 	// Address returns an option setter to set interface routes.
 	Routes([]*net.IPNet) IfaceOption
@@ -105,6 +113,12 @@ type Interface interface {
 
 	// IP routes for the interface.
 	Routes() []*net.IPNet
+
+	// Bridge returns true if the interface is a bridge
+	Bridge() bool
+
+	// Master returns the srcname of the master interface for this interface.
+	Master() string
 
 	// Remove an interface from the sandbox by renaming to original name
 	// and moving it out of the sandbox.

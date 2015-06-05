@@ -76,6 +76,11 @@ func newInfo(t *testing.T) (Sandbox, error) {
 
 	intf1.routes = []*net.IPNet{route}
 
+	intf2 := &nwIface{}
+	intf2.srcName = "testbridge"
+	intf2.dstName = sboxIfaceName
+	intf2.bridge = true
+
 	veth = &netlink.Veth{
 		LinkAttrs: netlink.LinkAttrs{Name: vethName3, TxQLen: 0},
 		PeerName:  vethName4}
@@ -84,27 +89,12 @@ func newInfo(t *testing.T) (Sandbox, error) {
 		return nil, err
 	}
 
-	intf2 := &nwIface{}
-	intf2.srcName = vethName4
-	intf2.dstName = sboxIfaceName
+	intf3 := &nwIface{}
+	intf3.srcName = vethName4
+	intf3.dstName = sboxIfaceName
+	intf3.master = "testbridge"
 
-	ip4, addr, err = net.ParseCIDR("192.168.2.100/24")
-	if err != nil {
-		return nil, err
-	}
-	intf2.address = addr
-	intf2.address.IP = ip4
-
-	// ip6, addrv6, err := net.ParseCIDR("2001:DB8::ABCD/48")
-	ip6, addrv6, err = net.ParseCIDR("fe80::3/64")
-
-	if err != nil {
-		return nil, err
-	}
-	intf2.addressIPv6 = addrv6
-	intf2.addressIPv6.IP = ip6
-
-	info := &networkNamespace{iFaces: []*nwIface{intf1, intf2}}
+	info := &networkNamespace{iFaces: []*nwIface{intf1, intf2, intf3}}
 
 	info.gw = net.ParseIP("192.168.1.1")
 	// sinfo.GatewayIPv6 = net.ParseIP("2001:DB8::1")
