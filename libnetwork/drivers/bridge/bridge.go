@@ -110,7 +110,6 @@ func Init(dc driverapi.DriverCallback) error {
 	if out, err := exec.Command("modprobe", "-va", "bridge", "nf_nat", "br_netfilter").Output(); err != nil {
 		logrus.Warnf("Running modprobe bridge nf_nat failed with message: %s, error: %v", out, err)
 	}
-
 	return dc.RegisterDriver(networkType, newDriver())
 }
 

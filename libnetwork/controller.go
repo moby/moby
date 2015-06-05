@@ -102,7 +102,6 @@ type controller struct {
 	sandboxes sandboxTable
 	cfg       *config.Config
 	store     datastore.DataStore
-	stopChan  chan struct{}
 	sync.Mutex
 }
 
@@ -132,7 +131,6 @@ func New(configFile string) (NetworkController, error) {
 		// But without that, datastore cannot be initialized.
 		log.Debugf("Unable to Parse LibNetwork Config file : %v", err)
 	}
-	c.stopChan = make(chan struct{})
 
 	return c, nil
 }
@@ -226,7 +224,10 @@ func (c *controller) NewNetwork(networkType, name string, options ...NetworkOpti
 		return nil, err
 	}
 
-	if err := c.addNetworkToStore(network); err != nil {
+	if err := c.updateNetworkToStore(network); err != nil {
+		if e := network.Delete(); e != nil {
+			log.Warnf("couldnt cleanup network %s: %v", network.name, err)
+		}
 		return nil, err
 	}
 

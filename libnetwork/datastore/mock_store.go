@@ -3,6 +3,7 @@ package datastore
 import (
 	"errors"
 
+	"github.com/docker/libnetwork/types"
 	"github.com/docker/swarm/pkg/store"
 )
 
@@ -69,7 +70,8 @@ func (s *MockStore) List(prefix string) ([]*store.KVPair, error) {
 
 // DeleteTree deletes a range of values at "directory"
 func (s *MockStore) DeleteTree(prefix string) error {
-	return ErrNotImplmented
+	delete(s.db, prefix)
+	return nil
 }
 
 // Watch a single key for modifications
@@ -92,7 +94,7 @@ func (s *MockStore) NewLock(key string, options *store.LockOptions) (store.Locke
 func (s *MockStore) AtomicPut(key string, newValue []byte, previous *store.KVPair, options *store.WriteOptions) (bool, *store.KVPair, error) {
 	mData := s.db[key]
 	if mData != nil && mData.Index != previous.LastIndex {
-		return false, nil, errInvalidAtomicRequest
+		return false, nil, types.BadRequestErrorf("atomic put failed due to mismatched Index")
 	}
 	err := s.Put(key, newValue, nil)
 	if err != nil {
@@ -106,7 +108,7 @@ func (s *MockStore) AtomicPut(key string, newValue []byte, previous *store.KVPai
 func (s *MockStore) AtomicDelete(key string, previous *store.KVPair) (bool, error) {
 	mData := s.db[key]
 	if mData != nil && mData.Index != previous.LastIndex {
-		return false, errInvalidAtomicRequest
+		return false, types.BadRequestErrorf("atomic delete failed due to mismatched Index")
 	}
 	return true, s.Delete(key)
 }

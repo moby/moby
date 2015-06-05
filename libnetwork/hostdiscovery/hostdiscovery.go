@@ -25,6 +25,7 @@ import (
 )
 
 const defaultHeartbeat = time.Duration(10) * time.Second
+const TTLFactor = 3
 
 type hostDiscovery struct {
 	discovery discovery.Discovery
@@ -47,7 +48,7 @@ func (h *hostDiscovery) StartDiscovery(cfg *config.ClusterCfg, joinCallback Join
 	if hb == 0 {
 		hb = defaultHeartbeat
 	}
-	d, err := discovery.New(cfg.Discovery, hb, 3*hb)
+	d, err := discovery.New(cfg.Discovery, hb, TTLFactor*hb)
 	if err != nil {
 		return err
 	}

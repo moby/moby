@@ -2,10 +2,11 @@ package datastore
 
 import (
 	"encoding/json"
-	"errors"
+	"reflect"
 	"strings"
 
 	"github.com/docker/libnetwork/config"
+	"github.com/docker/libnetwork/types"
 	"github.com/docker/swarm/pkg/store"
 )
 
@@ -52,17 +53,25 @@ const (
 	EndpointKeyPrefix = "endpoint"
 )
 
+var rootChain = []string{"docker", "libnetwork"}
+
 //Key provides convenient method to create a Key
 func Key(key ...string) string {
-	keychain := []string{"docker", "libnetwork"}
-	keychain = append(keychain, key...)
+	keychain := append(rootChain, key...)
 	str := strings.Join(keychain, "/")
 	return str + "/"
 }
 
-var errNewDatastore = errors.New("Error creating new Datastore")
-var errInvalidConfiguration = errors.New("Invalid Configuration passed to Datastore")
-var errInvalidAtomicRequest = errors.New("Invalid Atomic Request")
+//ParseKey provides convenient method to unpack the key to complement the Key function
+func ParseKey(key string) ([]string, error) {
+	chain := strings.Split(strings.Trim(key, "/"), "/")
+
+	// The key must atleast be equal to the rootChain in order to be considered as valid
+	if len(chain) <= len(rootChain) || !reflect.DeepEqual(chain[0:len(rootChain)], rootChain) {
+		return nil, types.BadRequestErrorf("invalid Key : %s", key)
+	}
+	return chain[len(rootChain):], nil
+}
 
 // newClient used to connect to KV Store
 func newClient(kv string, addrs string) (DataStore, error) {
@@ -77,7 +86,7 @@ func newClient(kv string, addrs string) (DataStore, error) {
 // NewDataStore creates a new instance of LibKV data store
 func NewDataStore(cfg *config.DatastoreCfg) (DataStore, error) {
 	if cfg == nil {
-		return nil, errInvalidConfiguration
+		return nil, types.BadRequestErrorf("invalid configuration passed to datastore")
 	}
 	// TODO : cfg.Embedded case
 	return newClient(cfg.Client.Provider, cfg.Client.Address)
@@ -95,12 +104,12 @@ func (ds *datastore) KVStore() store.Store {
 // PutObjectAtomic adds a new Record based on an object into the datastore
 func (ds *datastore) PutObjectAtomic(kvObject KV) error {
 	if kvObject == nil {
-		return errors.New("kvObject is nil")
+		return types.BadRequestErrorf("invalid KV Object : nil")
 	}
 	kvObjValue := kvObject.Value()
 
 	if kvObjValue == nil {
-		return errInvalidAtomicRequest
+		return types.BadRequestErrorf("invalid KV Object with a nil Value for key %s", Key(kvObject.Key()...))
 	}
 
 	previous := &store.KVPair{Key: Key(kvObject.Key()...), LastIndex: kvObject.Index()}
@@ -116,7 +125,7 @@ func (ds *datastore) PutObjectAtomic(kvObject KV) error {
 // PutObject adds a new Record based on an object into the datastore
 func (ds *datastore) PutObject(kvObject KV) error {
 	if kvObject == nil {
-		return errors.New("kvObject is nil")
+		return types.BadRequestErrorf("invalid KV Object : nil")
 	}
 	return ds.putObjectWithKey(kvObject, kvObject.Key()...)
 }
@@ -125,7 +134,7 @@ func (ds *datastore) putObjectWithKey(kvObject KV, key ...string) error {
 	kvObjValue := kvObject.Value()
 
 	if kvObjValue == nil {
-		return errors.New("Object must provide marshalled data for key : " + Key(kvObject.Key()...))
+		return types.BadRequestErrorf("invalid KV Object with a nil Value for key %s", Key(kvObject.Key()...))
 	}
 	return ds.store.Put(Key(key...), kvObjValue, nil)
 }
@@ -147,16 +156,12 @@ func (ds *datastore) DeleteObject(kvObject KV) error {
 // DeleteObjectAtomic performs atomic delete on a record
 func (ds *datastore) DeleteObjectAtomic(kvObject KV) error {
 	if kvObject == nil {
-		return errors.New("kvObject is nil")
+		return types.BadRequestErrorf("invalid KV Object : nil")
 	}
 
 	previous := &store.KVPair{Key: Key(kvObject.Key()...), LastIndex: kvObject.Index()}
 	_, err := ds.store.AtomicDelete(Key(kvObject.Key()...), previous)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return err
 }
 
 // DeleteTree unconditionally deletes a record from the store

@@ -10,11 +10,14 @@ import (
 )
 
 func (c *controller) initDataStore() error {
-	if c.cfg == nil {
+	c.Lock()
+	cfg := c.cfg
+	c.Unlock()
+	if cfg == nil {
 		return fmt.Errorf("datastore initialization requires a valid configuration")
 	}
 
-	store, err := datastore.NewDataStore(&c.cfg.Datastore)
+	store, err := datastore.NewDataStore(&cfg.Datastore)
 	if err != nil {
 		return err
 	}
@@ -25,15 +28,15 @@ func (c *controller) initDataStore() error {
 }
 
 func (c *controller) newNetworkFromStore(n *network) error {
-	c.Lock()
+	n.Lock()
 	n.ctrlr = c
-	c.Unlock()
 	n.endpoints = endpointTable{}
+	n.Unlock()
 
 	return c.addNetwork(n)
 }
 
-func (c *controller) addNetworkToStore(n *network) error {
+func (c *controller) updateNetworkToStore(n *network) error {
 	if isReservedNetwork(n.Name()) {
 		return nil
 	}
@@ -45,11 +48,7 @@ func (c *controller) addNetworkToStore(n *network) error {
 		return nil
 	}
 
-	// Commenting out AtomicPut due to https://github.com/docker/swarm/issues/875,
-	// Also Network object is Keyed with UUID & hence an Atomic put is not mandatory.
-	// return cs.PutObjectAtomic(n)
-
-	return cs.PutObject(n)
+	return cs.PutObjectAtomic(n)
 }
 
 func (c *controller) deleteNetworkFromStore(n *network) error {
@@ -64,11 +63,7 @@ func (c *controller) deleteNetworkFromStore(n *network) error {
 		return nil
 	}
 
-	if err := cs.DeleteObject(n); err != nil {
-		return err
-	}
-
-	if err := cs.DeleteTree(&endpoint{network: n}); err != nil {
+	if err := cs.DeleteObjectAtomic(n); err != nil {
 		return err
 	}
 
@@ -83,36 +78,42 @@ func (c *controller) getNetworkFromStore(nid types.UUID) (*network, error) {
 	return &n, nil
 }
 
-func (c *controller) newEndpointFromStore(ep *endpoint) {
-	c.Lock()
-	n, ok := c.networks[ep.network.id]
-	c.Unlock()
-
-	if !ok {
+func (c *controller) newEndpointFromStore(key string, ep *endpoint) error {
+	ep.Lock()
+	n := ep.network
+	id := ep.id
+	ep.Unlock()
+	if n == nil {
 		// Possibly the watch event for the network has not shown up yet
 		// Try to get network from the store
-		var err error
-		n, err = c.getNetworkFromStore(ep.network.id)
+		nid, err := networkIDFromEndpointKey(key, ep)
 		if err != nil {
-			log.Warnf("Network (%s) unavailable for endpoint=%s", ep.network.id, ep.name)
-			return
+			return err
+		}
+		n, err = c.getNetworkFromStore(nid)
+		if err != nil {
+			return err
 		}
 		if err := c.newNetworkFromStore(n); err != nil {
-			log.Warnf("Failed to add Network (%s - %s) from store", n.name, n.id)
-			return
+			return err
+		}
+		n = c.networks[nid]
+	}
+
+	_, err := n.EndpointByID(string(id))
+	if err != nil {
+		if _, ok := err.(ErrNoSuchEndpoint); ok {
+			return n.addEndpoint(ep)
 		}
 	}
-
-	ep.network = n
-	_, err := n.EndpointByID(string(ep.id))
-	if _, ok := err.(ErrNoSuchEndpoint); ok {
-		n.addEndpoint(ep)
-	}
+	return err
 }
 
-func (c *controller) addEndpointToStore(ep *endpoint) error {
+func (c *controller) updateEndpointToStore(ep *endpoint) error {
 	ep.Lock()
+	name := ep.name
 	if isReservedNetwork(ep.network.name) {
+		ep.Unlock()
 		return nil
 	}
 	ep.Unlock()
@@ -120,15 +121,11 @@ func (c *controller) addEndpointToStore(ep *endpoint) error {
 	cs := c.store
 	c.Unlock()
 	if cs == nil {
-		log.Debugf("datastore not initialized. endpoint %s is not added to the store", ep.name)
+		log.Debugf("datastore not initialized. endpoint %s is not added to the store", name)
 		return nil
 	}
 
-	// Commenting out AtomicPut due to https://github.com/docker/swarm/issues/875,
-	// Also Network object is Keyed with UUID & hence an Atomic put is not mandatory.
-	// return cs.PutObjectAtomic(ep)
-
-	return cs.PutObject(ep)
+	return cs.PutObjectAtomic(ep)
 }
 
 func (c *controller) getEndpointFromStore(eid types.UUID) (*endpoint, error) {
@@ -151,7 +148,7 @@ func (c *controller) deleteEndpointFromStore(ep *endpoint) error {
 		return nil
 	}
 
-	if err := cs.DeleteObject(ep); err != nil {
+	if err := cs.DeleteObjectAtomic(ep); err != nil {
 		return err
 	}
 
@@ -163,11 +160,11 @@ func (c *controller) watchStore() error {
 	cs := c.store
 	c.Unlock()
 
-	nwPairs, err := cs.KVStore().WatchTree(datastore.Key(datastore.NetworkKeyPrefix), c.stopChan)
+	nwPairs, err := cs.KVStore().WatchTree(datastore.Key(datastore.NetworkKeyPrefix), nil)
 	if err != nil {
 		return err
 	}
-	epPairs, err := cs.KVStore().WatchTree(datastore.Key(datastore.EndpointKeyPrefix), c.stopChan)
+	epPairs, err := cs.KVStore().WatchTree(datastore.Key(datastore.EndpointKeyPrefix), nil)
 	if err != nil {
 		return err
 	}
@@ -187,16 +184,18 @@ func (c *controller) watchStore() error {
 					existing, ok := c.networks[n.id]
 					c.Unlock()
 					if ok {
+						existing.Lock()
 						// Skip existing network update
 						if existing.dbIndex != n.dbIndex {
 							existing.dbIndex = n.dbIndex
+							existing.endpointCnt = n.endpointCnt
 						}
+						existing.Unlock()
 						continue
 					}
 
 					if err = c.newNetworkFromStore(&n); err != nil {
 						log.Error(err)
-						continue
 					}
 				}
 			case eps := <-epPairs:
@@ -208,26 +207,78 @@ func (c *controller) watchStore() error {
 						continue
 					}
 					ep.dbIndex = epe.LastIndex
-					c.Lock()
-					n, ok := c.networks[ep.network.id]
-					c.Unlock()
-					if ok {
-						existing, _ := n.EndpointByID(string(ep.id))
-						if existing != nil {
-							ee := existing.(*endpoint)
-							// Skip existing endpoint update
-							if ee.dbIndex != ep.dbIndex {
-								ee.dbIndex = ep.dbIndex
-								ee.container = ep.container
-							}
+					n, err := c.networkFromEndpointKey(epe.Key, &ep)
+					if err != nil {
+						if _, ok := err.(ErrNoSuchNetwork); !ok {
+							log.Error(err)
 							continue
 						}
 					}
-
-					c.newEndpointFromStore(&ep)
+					if n != nil {
+						ep.network = n.(*network)
+					}
+					if c.processEndpointUpdate(&ep) {
+						err = c.newEndpointFromStore(epe.Key, &ep)
+						if err != nil {
+							log.Error(err)
+						}
+					}
 				}
 			}
 		}
 	}()
 	return nil
+}
+
+func (c *controller) networkFromEndpointKey(key string, ep *endpoint) (Network, error) {
+	nid, err := networkIDFromEndpointKey(key, ep)
+	if err != nil {
+		return nil, err
+	}
+	return c.NetworkByID(string(nid))
+}
+
+func networkIDFromEndpointKey(key string, ep *endpoint) (types.UUID, error) {
+	eKey, err := datastore.ParseKey(key)
+	if err != nil {
+		return types.UUID(""), err
+	}
+	return ep.networkIDFromKey(eKey)
+}
+
+func (c *controller) processEndpointUpdate(ep *endpoint) bool {
+	nw := ep.network
+	if nw == nil {
+		return true
+	}
+	nw.Lock()
+	id := nw.id
+	nw.Unlock()
+
+	c.Lock()
+	n, ok := c.networks[id]
+	c.Unlock()
+	if !ok {
+		return true
+	}
+	existing, _ := n.EndpointByID(string(ep.id))
+	if existing == nil {
+		return true
+	}
+
+	ee := existing.(*endpoint)
+	ee.Lock()
+	if ee.dbIndex != ep.dbIndex {
+		ee.dbIndex = ep.dbIndex
+		if ee.container != nil && ep.container != nil {
+			// we care only about the container id
+			ee.container.id = ep.container.id
+		} else {
+			// we still care only about the container id, but this is a short-cut to communicate join or leave operation
+			ee.container = ep.container
+		}
+	}
+	ee.Unlock()
+
+	return false
 }

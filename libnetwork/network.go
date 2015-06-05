@@ -12,6 +12,7 @@ import (
 	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/libnetwork/options"
 	"github.com/docker/libnetwork/types"
+	"github.com/docker/swarm/pkg/store"
 )
 
 // A Network represents a logical connectivity zone that containers may
@@ -58,6 +59,7 @@ type network struct {
 	id          types.UUID
 	driver      driverapi.Driver
 	enableIPv6  bool
+	endpointCnt uint64
 	endpoints   endpointTable
 	generic     options.Generic
 	dbIndex     uint64
@@ -90,6 +92,8 @@ func (n *network) Type() string {
 }
 
 func (n *network) Key() []string {
+	n.Lock()
+	defer n.Unlock()
 	return []string{datastore.NetworkKeyPrefix, string(n.id)}
 }
 
@@ -98,6 +102,8 @@ func (n *network) KeyPrefix() []string {
 }
 
 func (n *network) Value() []byte {
+	n.Lock()
+	defer n.Unlock()
 	b, err := json.Marshal(n)
 	if err != nil {
 		return nil
@@ -106,11 +112,33 @@ func (n *network) Value() []byte {
 }
 
 func (n *network) Index() uint64 {
+	n.Lock()
+	defer n.Unlock()
 	return n.dbIndex
 }
 
 func (n *network) SetIndex(index uint64) {
+	n.Lock()
 	n.dbIndex = index
+	n.Unlock()
+}
+
+func (n *network) EndpointCnt() uint64 {
+	n.Lock()
+	defer n.Unlock()
+	return n.endpointCnt
+}
+
+func (n *network) IncEndpointCnt() {
+	n.Lock()
+	n.endpointCnt++
+	n.Unlock()
+}
+
+func (n *network) DecEndpointCnt() {
+	n.Lock()
+	n.endpointCnt--
+	n.Unlock()
 }
 
 // TODO : Can be made much more generic with the help of reflection (but has some golang limitations)
@@ -119,6 +147,7 @@ func (n *network) MarshalJSON() ([]byte, error) {
 	netMap["name"] = n.name
 	netMap["id"] = string(n.id)
 	netMap["networkType"] = n.networkType
+	netMap["endpointCnt"] = n.endpointCnt
 	netMap["enableIPv6"] = n.enableIPv6
 	netMap["generic"] = n.generic
 	return json.Marshal(netMap)
@@ -133,6 +162,7 @@ func (n *network) UnmarshalJSON(b []byte) (err error) {
 	n.name = netMap["name"].(string)
 	n.id = types.UUID(netMap["id"].(string))
 	n.networkType = netMap["networkType"].(string)
+	n.endpointCnt = uint64(netMap["endpointCnt"].(float64))
 	n.enableIPv6 = netMap["enableIPv6"].(bool)
 	if netMap["generic"] != nil {
 		n.generic = netMap["generic"].(map[string]interface{})
@@ -165,39 +195,51 @@ func (n *network) processOptions(options ...NetworkOption) {
 }
 
 func (n *network) Delete() error {
-	n.ctrlr.Lock()
-	_, ok := n.ctrlr.networks[n.id]
+	var err error
+
+	n.Lock()
+	ctrlr := n.ctrlr
+	n.Unlock()
+
+	ctrlr.Lock()
+	_, ok := ctrlr.networks[n.id]
+	ctrlr.Unlock()
+
 	if !ok {
-		n.ctrlr.Unlock()
 		return &UnknownNetworkError{name: n.name, id: string(n.id)}
 	}
 
-	n.Lock()
-	numEps := len(n.endpoints)
-	n.Unlock()
+	numEps := n.EndpointCnt()
 	if numEps != 0 {
-		n.ctrlr.Unlock()
 		return &ActiveEndpointsError{name: n.name, id: string(n.id)}
 	}
-	n.ctrlr.Unlock()
 
-	if err = n.deleteNetwork(); err != nil {
+	// deleteNetworkFromStore performs an atomic delete operation and the network.endpointCnt field will help
+	// prevent any possible race between endpoint join and network delete
+	if err = ctrlr.deleteNetworkFromStore(n); err != nil {
+		if err == store.ErrKeyModified {
+			return types.InternalErrorf("operation in progress. delete failed for network %s. Please try again.")
+		}
 		return err
 	}
 
-	if err = n.ctrlr.deleteNetworkFromStore(n); err != nil {
-		log.Warnf("Delete network (%s - %v) failed from datastore : %v", n.name, n.id, err)
+	if err = n.deleteNetwork(); err != nil {
+		return err
 	}
 
 	return nil
 }
 
 func (n *network) deleteNetwork() error {
-	var err error
+	n.Lock()
+	id := n.id
+	d := n.driver
 	n.ctrlr.Lock()
-	delete(n.ctrlr.networks, n.id)
+	delete(n.ctrlr.networks, id)
 	n.ctrlr.Unlock()
-	if err := n.driver.DeleteNetwork(n.id); err != nil {
+	n.Unlock()
+
+	if err := d.DeleteNetwork(n.id); err != nil {
 		// Forbidden Errors should be honored
 		if _, ok := err.(types.ForbiddenError); ok {
 			n.ctrlr.Lock()
@@ -233,11 +275,12 @@ func (n *network) addEndpoint(ep *endpoint) error {
 }
 
 func (n *network) CreateEndpoint(name string, options ...EndpointOption) (Endpoint, error) {
+	var err error
 	if name == "" {
 		return nil, ErrInvalidName(name)
 	}
 
-	if _, err := n.EndpointByName(name); err == nil {
+	if _, err = n.EndpointByName(name); err == nil {
 		return nil, types.ForbiddenErrorf("service endpoint with name %s already exists", name)
 	}
 
@@ -246,11 +289,34 @@ func (n *network) CreateEndpoint(name string, options ...EndpointOption) (Endpoi
 	ep.network = n
 	ep.processOptions(options...)
 
-	if err := n.addEndpoint(ep); err != nil {
+	n.Lock()
+	ctrlr := n.ctrlr
+	n.Unlock()
+
+	n.IncEndpointCnt()
+	if err = ctrlr.updateNetworkToStore(n); err != nil {
 		return nil, err
 	}
+	defer func() {
+		if err != nil {
+			n.DecEndpointCnt()
+			if err = ctrlr.updateNetworkToStore(n); err != nil {
+				log.Warnf("endpoint count cleanup failed when updating network for %s : %v", name, err)
+			}
+		}
+	}()
+	if err = n.addEndpoint(ep); err != nil {
+		return nil, err
+	}
+	defer func() {
+		if err != nil {
+			if e := ep.Delete(); ep != nil {
+				log.Warnf("cleaning up endpoint failed %s : %v", name, e)
+			}
+		}
+	}()
 
-	if err := n.ctrlr.addEndpointToStore(ep); err != nil {
+	if err = ctrlr.updateEndpointToStore(ep); err != nil {
 		return nil, err
 	}
 
