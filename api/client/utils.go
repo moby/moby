@@ -102,6 +102,10 @@ func (cli *DockerCli) clientRequest(method, path string, in io.Reader, headers m
 		if cli.tlsConfig == nil {
 			return serverResp, fmt.Errorf("%v.\n* Are you trying to connect to a TLS-enabled daemon without TLS?\n* Is your docker daemon up and running?", err)
 		}
+		if cli.tlsConfig != nil && strings.Contains(err.Error(), "remote error: bad certificate") {
+			return serverResp, fmt.Errorf("The server probably has client authentication (--tlsverify) enabled. Please check your TLS client certification settings: %v", err)
+		}
+
 		return serverResp, fmt.Errorf("An error occurred trying to connect: %v", err)
 	}
 
