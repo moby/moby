@@ -24,6 +24,7 @@ var (
 	gpmLock          sync.Mutex
 	gpmWg            sync.WaitGroup
 	gpmCleanupPeriod = 60 * time.Second
+	gpmChan          = make(chan chan struct{})
 )
 
 // The networkNamespace type is the linux implementation of the Sandbox
@@ -55,7 +56,18 @@ func removeUnusedPaths() {
 	period := gpmCleanupPeriod
 	gpmLock.Unlock()
 
-	for range time.Tick(period) {
+	ticker := time.NewTicker(period)
+	for {
+		var (
+			gc   chan struct{}
+			gcOk bool
+		)
+
+		select {
+		case <-ticker.C:
+		case gc, gcOk = <-gpmChan:
+		}
+
 		gpmLock.Lock()
 		pathList := make([]string, 0, len(garbagePathMap))
 		for path := range garbagePathMap {
@@ -70,6 +82,9 @@ func removeUnusedPaths() {
 		}
 
 		gpmWg.Done()
+		if gcOk {
+			close(gc)
+		}
 	}
 }
 
@@ -83,6 +98,18 @@ func removeFromGarbagePaths(path string) {
 	gpmLock.Lock()
 	delete(garbagePathMap, path)
 	gpmLock.Unlock()
+}
+
+// GC triggers garbage collection of namespace path right away
+// and waits for it.
+func GC() {
+	waitGC := make(chan struct{})
+
+	// Trigger GC now
+	gpmChan <- waitGC
+
+	// wait for gc to complete
+	<-waitGC
 }
 
 // GenerateKey generates a sandbox key based on the passed

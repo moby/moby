@@ -1,3 +1,5 @@
+// +build linux,arm
+
 package netns
 
 const (
