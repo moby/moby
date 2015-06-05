@@ -53,6 +53,7 @@ func (s *DockerSuite) TestRunEchoStdoutWithMemoryLimit(c *check.C) {
 
 // should run without memory swap
 func (s *DockerSuite) TestRunWithoutMemoryswapLimit(c *check.C) {
+	testRequires(c, NativeExecDriver)
 	runCmd := exec.Command(dockerBinary, "run", "-m", "16m", "--memory-swap", "-1", "busybox", "true")
 	out, _, err := runCommandWithOutput(runCmd)
 	if err != nil {
