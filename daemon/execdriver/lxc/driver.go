@@ -124,7 +124,7 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 		dataPath = d.containerDir(c.ID)
 	)
 
-	if c.Network.NamespacePath == "" && c.Network.ContainerID == "" {
+	if c.Network == nil || (c.Network.NamespacePath == "" && c.Network.ContainerID == "") {
 		return execdriver.ExitStatus{ExitCode: -1}, fmt.Errorf("empty namespace path for non-container network")
 	}
 
