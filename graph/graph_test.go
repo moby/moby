@@ -17,7 +17,7 @@ import (
 
 func TestMount(t *testing.T) {
 	graph, driver := tempGraph(t)
-	defer os.RemoveAll(graph.Root)
+	defer os.RemoveAll(graph.root)
 	defer driver.Cleanup()
 
 	archive, err := fakeTar()
@@ -52,7 +52,7 @@ func TestInit(t *testing.T) {
 	graph, _ := tempGraph(t)
 	defer nukeGraph(graph)
 	// Root should exist
-	if _, err := os.Stat(graph.Root); err != nil {
+	if _, err := os.Stat(graph.root); err != nil {
 		t.Fatal(err)
 	}
 	// Map() should be empty
@@ -301,6 +301,6 @@ func tempGraph(t *testing.T) (*Graph, graphdriver.Driver) {
 }
 
 func nukeGraph(graph *Graph) {
-	graph.Driver().Cleanup()
-	os.RemoveAll(graph.Root)
+	graph.driver.Cleanup()
+	os.RemoveAll(graph.root)
 }
