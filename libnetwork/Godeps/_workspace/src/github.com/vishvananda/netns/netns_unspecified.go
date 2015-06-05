@@ -10,26 +10,26 @@ var (
 	ErrNotImplemented = errors.New("not implemented")
 )
 
-func Set(ns Namespace) (err error) {
+func Set(ns NsHandle) (err error) {
 	return ErrNotImplemented
 }
 
-func New() (ns Namespace, err error) {
+func New() (ns NsHandle, err error) {
 	return -1, ErrNotImplemented
 }
 
-func Get() (Namespace, error) {
+func Get() (NsHandle, error) {
 	return -1, ErrNotImplemented
 }
 
-func GetFromName(name string) (Namespace, error) {
+func GetFromName(name string) (NsHandle, error) {
 	return -1, ErrNotImplemented
 }
 
-func GetFromPid(pid int) (Namespace, error) {
+func GetFromPid(pid int) (NsHandle, error) {
 	return -1, ErrNotImplemented
 }
 
-func GetFromDocker(id string) (Namespace, error) {
+func GetFromDocker(id string) (NsHandle, error) {
 	return -1, ErrNotImplemented
 }
