@@ -12,22 +12,12 @@ type Sandbox interface {
 	// The path where the network namespace is mounted.
 	Key() string
 
-	// The collection of Interface previously added with the AddInterface
-	// method. Note that this doesn't incude network interfaces added in any
-	// other way (such as the default loopback interface which are automatically
-	// created on creation of a sandbox).
-	Interfaces() []*Interface
-
 	// Add an existing Interface to this sandbox. The operation will rename
 	// from the Interface SrcName to DstName as it moves, and reconfigure the
 	// interface according to the specified settings. The caller is expected
 	// to only provide a prefix for DstName. The AddInterface api will auto-generate
 	// an appropriate suffix for the DstName to disambiguate.
-	AddInterface(*Interface) error
-
-	// Remove an interface from the sandbox by renaming to original name
-	// and moving it out of the sandbox.
-	RemoveInterface(*Interface) error
+	AddInterface(SrcName string, DstPrefix string, options ...IfaceOption) error
 
 	// Set default IPv4 gateway for the sandbox
 	SetGateway(gw net.IP) error
@@ -47,25 +37,47 @@ type Sandbox interface {
 	// Remove a static route from the sandbox.
 	RemoveStaticRoute(*types.StaticRoute) error
 
+	// Returns an interface with methods to set interface options.
+	InterfaceOptions() IfaceOptionSetter
+
+	// Returns an interface with methods to get sandbox state.
+	Info() Info
+
 	// Destroy the sandbox
 	Destroy() error
+}
+
+// IfaceOptionSetter interface defines the option setter methods for interface options.
+type IfaceOptionSetter interface {
+	// Address returns an option setter to set IPv4 address.
+	Address(*net.IPNet) IfaceOption
+
+	// Address returns an option setter to set IPv6 address.
+	AddressIPv6(*net.IPNet) IfaceOption
+
+	// Address returns an option setter to set interface routes.
+	Routes([]*net.IPNet) IfaceOption
 }
 
 // Info represents all possible information that
 // the driver wants to place in the sandbox which includes
 // interfaces, routes and gateway
-type Info struct {
-	Interfaces []*Interface
+type Info interface {
+	// The collection of Interface previously added with the AddInterface
+	// method. Note that this doesn't incude network interfaces added in any
+	// other way (such as the default loopback interface which are automatically
+	// created on creation of a sandbox).
+	Interfaces() []Interface
 
 	// IPv4 gateway for the sandbox.
-	Gateway net.IP
+	Gateway() net.IP
 
 	// IPv6 gateway for the sandbox.
-	GatewayIPv6 net.IP
+	GatewayIPv6() net.IP
 
 	// Additional static routes for the sandbox.  (Note that directly
 	// connected routes are stored on the particular interface they refer to.)
-	StaticRoutes []*types.StaticRoute
+	StaticRoutes() []*types.StaticRoute
 
 	// TODO: Add ip tables etc.
 }
@@ -75,140 +87,26 @@ type Info struct {
 // caller to use this information when moving interface SrcName from host
 // namespace to DstName in a different net namespace with the appropriate
 // network settings.
-type Interface struct {
+type Interface interface {
 	// The name of the interface in the origin network namespace.
-	SrcName string
+	SrcName() string
 
 	// The name that will be assigned to the interface once moves inside a
 	// network namespace. When the caller passes in a DstName, it is only
 	// expected to pass a prefix. The name will modified with an appropriately
 	// auto-generated suffix.
-	DstName string
+	DstName() string
 
 	// IPv4 address for the interface.
-	Address *net.IPNet
+	Address() *net.IPNet
 
 	// IPv6 address for the interface.
-	AddressIPv6 *net.IPNet
+	AddressIPv6() *net.IPNet
 
 	// IP routes for the interface.
-	Routes []*net.IPNet
-}
+	Routes() []*net.IPNet
 
-// GetCopy returns a copy of this Interface structure
-func (i *Interface) GetCopy() *Interface {
-	copiedRoutes := make([]*net.IPNet, len(i.Routes))
-
-	for index := range i.Routes {
-		copiedRoutes[index] = types.GetIPNetCopy(i.Routes[index])
-	}
-
-	return &Interface{
-		SrcName:     i.SrcName,
-		DstName:     i.DstName,
-		Address:     types.GetIPNetCopy(i.Address),
-		AddressIPv6: types.GetIPNetCopy(i.AddressIPv6),
-		Routes:      copiedRoutes,
-	}
-}
-
-// Equal checks if this instance of Interface is equal to the passed one
-func (i *Interface) Equal(o *Interface) bool {
-	if i == o {
-		return true
-	}
-
-	if o == nil {
-		return false
-	}
-
-	if i.SrcName != o.SrcName || i.DstName != o.DstName {
-		return false
-	}
-
-	if !types.CompareIPNet(i.Address, o.Address) {
-		return false
-	}
-
-	if !types.CompareIPNet(i.AddressIPv6, o.AddressIPv6) {
-		return false
-	}
-
-	if len(i.Routes) != len(o.Routes) {
-		return false
-	}
-
-	for index := range i.Routes {
-		if !types.CompareIPNet(i.Routes[index], o.Routes[index]) {
-			return false
-		}
-	}
-
-	return true
-}
-
-// GetCopy returns a copy of this SandboxInfo structure
-func (s *Info) GetCopy() *Info {
-	list := make([]*Interface, len(s.Interfaces))
-	for i, iface := range s.Interfaces {
-		list[i] = iface.GetCopy()
-	}
-	gw := types.GetIPCopy(s.Gateway)
-	gw6 := types.GetIPCopy(s.GatewayIPv6)
-
-	routes := make([]*types.StaticRoute, len(s.StaticRoutes))
-	for i, r := range s.StaticRoutes {
-		routes[i] = r.GetCopy()
-	}
-
-	return &Info{Interfaces: list,
-		Gateway:      gw,
-		GatewayIPv6:  gw6,
-		StaticRoutes: routes}
-}
-
-// Equal checks if this instance of SandboxInfo is equal to the passed one
-func (s *Info) Equal(o *Info) bool {
-	if s == o {
-		return true
-	}
-
-	if o == nil {
-		return false
-	}
-
-	if !s.Gateway.Equal(o.Gateway) {
-		return false
-	}
-
-	if !s.GatewayIPv6.Equal(o.GatewayIPv6) {
-		return false
-	}
-
-	if (s.Interfaces == nil && o.Interfaces != nil) ||
-		(s.Interfaces != nil && o.Interfaces == nil) ||
-		(len(s.Interfaces) != len(o.Interfaces)) {
-		return false
-	}
-
-	// Note: At the moment, the two lists must be in the same order
-	for i := 0; i < len(s.Interfaces); i++ {
-		if !s.Interfaces[i].Equal(o.Interfaces[i]) {
-			return false
-		}
-	}
-
-	for index := range s.StaticRoutes {
-		ss := s.StaticRoutes[index]
-		oo := o.StaticRoutes[index]
-		if !types.CompareIPNet(ss.Destination, oo.Destination) {
-			return false
-		}
-		if !ss.NextHop.Equal(oo.NextHop) {
-			return false
-		}
-	}
-
-	return true
-
+	// Remove an interface from the sandbox by renaming to original name
+	// and moving it out of the sandbox.
+	Remove() error
 }

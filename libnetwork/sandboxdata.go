@@ -83,17 +83,16 @@ func (s *sandboxData) addEndpoint(ep *endpoint) error {
 
 	sb := s.sandbox()
 	for _, i := range ifaces {
-		iface := &sandbox.Interface{
-			SrcName: i.srcName,
-			DstName: i.dstPrefix,
-			Address: &i.addr,
-			Routes:  i.routes,
-		}
+		var ifaceOptions []sandbox.IfaceOption
+
+		ifaceOptions = append(ifaceOptions, sb.InterfaceOptions().Address(&i.addr),
+			sb.InterfaceOptions().Routes(i.routes))
 		if i.addrv6.IP.To16() != nil {
-			iface.AddressIPv6 = &i.addrv6
+			ifaceOptions = append(ifaceOptions,
+				sb.InterfaceOptions().AddressIPv6(&i.addrv6))
 		}
 
-		if err := sb.AddInterface(iface); err != nil {
+		if err := sb.AddInterface(i.srcName, i.dstPrefix, ifaceOptions...); err != nil {
 			return err
 		}
 	}
@@ -131,10 +130,10 @@ func (s *sandboxData) rmEndpoint(ep *endpoint) int {
 	ep.Unlock()
 
 	sb := s.sandbox()
-	for _, i := range sb.Interfaces() {
+	for _, i := range sb.Info().Interfaces() {
 		// Only remove the interfaces owned by this endpoint from the sandbox.
-		if ep.hasInterface(i.SrcName) {
-			if err := sb.RemoveInterface(i); err != nil {
+		if ep.hasInterface(i.SrcName()) {
+			if err := i.Remove(); err != nil {
 				logrus.Debugf("Remove interface failed: %v", err)
 			}
 		}
