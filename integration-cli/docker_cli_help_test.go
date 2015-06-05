@@ -229,7 +229,7 @@ func (s *DockerSuite) TestHelpTextVerify(c *check.C) {
 
 		}
 
-		expected := 39
+		expected := 41
 		if len(cmds) != expected {
 			c.Fatalf("Wrong # of cmds(%d), it should be: %d\nThe list:\n%q",
 				len(cmds), expected, cmds)
