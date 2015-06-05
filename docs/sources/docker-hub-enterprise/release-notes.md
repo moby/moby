@@ -1,3 +1,4 @@
+no_version_dropdown: true
 page_title: Docker Hub Enterprise: Release notes
 page_description: Release notes for Docker Hub Enterprise
 page_keywords: docker, documentation, about, technology, understanding, enterprise, hub, registry, release

@@ -1,3 +1,4 @@
+no_version_dropdown: true
 page_title: Docker Hub Enterprise: Quick-start: Basic Workflow
 page_description: Brief tutorial on the basics of Docker Hub Enterprise user workflow
 page_keywords: docker, documentation, about, technology, understanding, enterprise, hub, registry, image, repository
@@ -8,7 +9,7 @@ page_keywords: docker, documentation, about, technology, understanding, enterpri
 ## Overview
 
 This Quick Start Guide will give you a hands-on look at the basics of using
-Docker Hub Enterprise (DHE), Docker’s on-premise image storage application.
+Docker Hub Enterprise (DHE), Docker's on-premise image storage application.
 This guide will walk you through using DHE to complete a typical, and critical,
 part of building a development pipeline: setting up a Jenkins instance. Once you
 complete the task, you should have a good idea of how DHE works and how it might
@@ -17,9 +18,9 @@ be useful to you.
 Specifically, this guide demonstrates the process of retrieving the
 [official Docker image for Jenkins](https://registry.hub.docker.com/_/jenkins/),
 customizing it to suit your needs, and then hosting it on your private instance
-of DHE located inside your enterprise’s firewalled environment. Your developers
+of DHE located inside your enterprise's firewalled environment. Your developers
 will then be able to retrieve the custom Jenkins image in order to use it to
-build CI/CD infrastructure for their projects, no matter the platform they’re
+build CI/CD infrastructure for their projects, no matter the platform they're
 working from, be it a laptop, a VM, or a cloud provider.
 
 The guide will walk you through the following steps:
@@ -72,12 +73,12 @@ Docker will start the process of pulling the image from the Hub. Once it has com
 
 ## Customizing the Jenkins image
 
-Now that you have a local copy of the Jenkins image, you’ll customize it so that
+Now that you have a local copy of the Jenkins image, you'll customize it so that
 the containers it builds will integrate with your infrastructure. To do this,
-you’ll create a custom Docker image that adds a Jenkins plugin that provides
-fine grained user management. You’ll also configure Jenkins to be more secure by
+you'll create a custom Docker image that adds a Jenkins plugin that provides
+fine grained user management. You'll also configure Jenkins to be more secure by
 disabling HTTP access and forcing it to use HTTPS.
-You’ll do this by using a `Dockerfile` and the `docker build` command.
+You'll do this by using a `Dockerfile` and the `docker build` command.
 
 > **Note:** These are obviously just a couple of examples of the many ways you
 > can modify and configure Jenkins. Feel free to add or substitute whatever
@@ -105,11 +106,11 @@ line:
 
 (The plugin version used above was the latest version at the time of writing.)
 
-2. You will also need to make copies of the server’s private key and certificate. Give the copies the following names — `https.key` and `https.pem`.
+2. You will also need to make copies of the server's private key and certificate. Give the copies the following names - `https.key` and `https.pem`.
 
 > **Note:** Because creating new keys varies widely by platform and
-> implementation, this guide won’t cover key generation. We assume you have
-> access to existing keys. If you don’t have access, or can’t generate keys
+> implementation, this guide won't cover key generation. We assume you have
+> access to existing keys. If you don't have access, or can't generate keys
 > yourself, feel free to skip the steps involving them and HTTPS config. The
 > guide will still walk you through building a custom Jenkins image and pushing
 > and pulling that image using DHE.
@@ -142,7 +143,7 @@ defining with the `Dockerfile`.
 The `RUN` instruction will execute the `/usr/local/bin/plugins.sh` script with
 the newly copied `plugins` file, which will install the listed plugin.
 
-The next two `COPY` instructions copy the server’s private key and certificate
+The next two `COPY` instructions copy the server's private key and certificate
 into the required directories within the new image.
 
 The `ENV` instruction creates an environment variable called `JENKINS_OPT` in
@@ -156,8 +157,8 @@ tell Jenkins to disable HTTP and operate over HTTPS.
 
 The `Dockerfile`, the `plugins` file, as well as the private key and
 certificate, must all be in the same directory because the `docker build`
-command uses the directory that contains the `Dockerfile` as its “build
-context”. Only files contained within that “build context” will be included in
+command uses the directory that contains the `Dockerfile` as its "build
+context". Only files contained within that "build context" will be included in
 the image being built.
 
 ### Building your custom image
@@ -169,7 +170,7 @@ custom image using the
 
     docker build -t dhe.yourdomain.com/ci-infrastructure/jnkns-img .
 
-> **Note:** Don’t miss the period (`.`) at the end of the command above. This
+> **Note:** Don't miss the period (`.`) at the end of the command above. This
 > tells the `docker build` command to use the current working directory as the
 > "build context".
 
@@ -214,7 +215,7 @@ image pulled earlier:
 >     ?scope=repository%3Ahello-world%3Apull%2Cpush&service=dhe.yourdomain.com
 >     request failed with status: 401 Unauthorized
 
-Now that you’ve created the custom image, it can be pushed to DHE using the
+Now that you've created the custom image, it can be pushed to DHE using the
 [`docker push`command](https://docs.docker.com/reference/commandline/cli/#push):
 
     $ docker push dhe.yourdomain.com/ci-infrastructure/jnkns-img
@@ -263,7 +264,7 @@ in the output of the `docker images` command:
 
 ## Launching a custom Jenkins container
 
-Now that you’ve successfully pulled the customized Jenkins image from DHE, you
+Now that you've successfully pulled the customized Jenkins image from DHE, you
 can create a container from it with the
 [`docker run` command](https://docs.docker.com/reference/commandline/cli/#run):
 
@@ -299,7 +300,7 @@ You can view the newly launched a container, called `jenkins01`, using the
 
 The previous `docker run` command mapped port `1973` on the container to port
 `1973` on the Docker host, so the Jenkins Web UI can be accessed at
-`https://<docker-host>:1973` (Don’t forget the `s` at the end of `https`.)
+`https://<docker-host>:1973` (Don't forget the `s` at the end of `https`.)
 
 > **Note:** If you are using a self-signed certificate, you may get a security
 > warning from your browser telling you that the certificate is self-signed and
@@ -315,7 +316,7 @@ plugin should be present with the `Uninstall` button available to the right.
 ![Jenkins plugin manager](../assets/jenkins-plugins.png)
 
 In another browser session, try to access Jenkins via the default HTTP port 8080
-— `http://<docker-host>:8080`. This should result in a “connection timeout,”
+ `http://<docker-host>:8080`. This should result in a "connection timeout",
 showing that Jenkins is not available on its default port 8080 over HTTP.
 
 This demonstration shows your Jenkins image has been configured correctly for

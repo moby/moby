@@ -1,3 +1,4 @@
+no_version_dropdown: true
 page_title: Docker Hub Enterprise: Configuration options
 page_description: Configuration instructions for Docker Hub Enterprise
 page_keywords: docker, documentation, about, technology, understanding, enterprise, hub, registry
@@ -136,11 +137,11 @@ Continue by following the steps corresponding to your chosen OS.
 
 ```
     $ export DOMAIN_NAME=dhe.yourdomain.com
-    $ openssl s_client -connect $DOMAIN_NAME:443 -showcerts </dev/null 2>/dev/null | openssl x509 -outform PEM | tee /usr/local/share/ca-certificates/$DOMAIN_NAME.crt
-    $ update-ca-certificates
+    $ openssl s_client -connect $DOMAIN_NAME:443 -showcerts </dev/null 2>/dev/null | openssl x509 -outform PEM | sudo tee /usr/local/share/ca-certificates/$DOMAIN_NAME.crt
+    $ sudo update-ca-certificates
     Updating certificates in /etc/ssl/certs... 1 added, 0 removed; done.
     Running hooks in /etc/ca-certificates/update.d....done.
-    $ service docker restart
+    $ sudo service docker restart
     docker stop/waiting
     docker start/running, process 29291
 ```
@@ -149,9 +150,9 @@ Continue by following the steps corresponding to your chosen OS.
 
 ```
     $ export DOMAIN_NAME=dhe.yourdomain.com
-    $ openssl s_client -connect $DOMAIN_NAME:443 -showcerts </dev/null 2>/dev/null | openssl x509 -outform PEM | tee /etc/pki/ca-trust/source/anchors/$DOMAIN_NAME.crt
-    $ update-ca-trust
-    $ /bin/systemctl restart docker.service
+    $ openssl s_client -connect $DOMAIN_NAME:443 -showcerts </dev/null 2>/dev/null | openssl x509 -outform PEM | sudo tee /etc/pki/ca-trust/source/anchors/$DOMAIN_NAME.crt
+    $ sudo update-ca-trust
+    $ sudo /bin/systemctl restart docker.service
 ```
 
 #### Boot2Docker 1.6.0
