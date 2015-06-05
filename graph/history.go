@@ -9,27 +9,13 @@ import (
 	"github.com/docker/docker/utils"
 )
 
-// History returns the list of all images used to create this image.
-func (graph *Graph) History(img *image.Image) ([]*image.Image, error) {
-	var parents []*image.Image
-	if err := graph.WalkHistory(img,
-		func(img *image.Image) error {
-			parents = append(parents, img)
-			return nil
-		},
-	); err != nil {
-		return nil, err
-	}
-	return parents, nil
-}
-
 // WalkHistory calls the handler function for each image in the
 // provided images lineage starting from immediate parent.
-func (graph *Graph) WalkHistory(img *image.Image, handler func(*image.Image) error) (err error) {
+func (graph *Graph) WalkHistory(img *image.Image, handler func(image.Image) error) (err error) {
 	currentImg := img
 	for currentImg != nil {
 		if handler != nil {
-			if err := handler(currentImg); err != nil {
+			if err := handler(*currentImg); err != nil {
 				return err
 			}
 		}
@@ -100,7 +86,7 @@ func (s *TagStore) History(name string) ([]*types.ImageHistory, error) {
 
 	history := []*types.ImageHistory{}
 
-	err = s.graph.WalkHistory(foundImage, func(img *image.Image) error {
+	err = s.graph.WalkHistory(foundImage, func(img image.Image) error {
 		history = append(history, &types.ImageHistory{
 			ID:        img.ID,
 			Created:   img.Created.Unix(),

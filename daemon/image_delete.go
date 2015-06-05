@@ -160,7 +160,7 @@ func (daemon *Daemon) canDeleteImage(imgID string, force bool) error {
 			return err
 		}
 
-		if err := daemon.graph.WalkHistory(parent, func(p *image.Image) error {
+		if err := daemon.graph.WalkHistory(parent, func(p image.Image) error {
 			if imgID == p.ID {
 				if container.IsRunning() {
 					if force {
