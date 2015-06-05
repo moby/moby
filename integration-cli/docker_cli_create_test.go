@@ -269,7 +269,7 @@ func (s *DockerSuite) TestCreateLabelFromImage(c *check.C) {
 	}
 
 	name := "test_create_labels_from_image"
-	expected := map[string]string{"k2": "x", "k3": "v3", "k1": "v1"}
+	expected := map[string]string{"k2": "x", "k3": "v3"}
 	if out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "create", "--name", name, "-l", "k2=x", "--label", "k3=v3", imageName)); err != nil {
 		c.Fatal(out, err)
 	}
