@@ -54,7 +54,7 @@ func TestSandboxCreate(t *testing.T) {
 
 	verifySandbox(t, s)
 	s.Destroy()
-	verifyCleanup(t, s)
+	verifyCleanup(t, s, true)
 }
 
 func TestSandboxCreateTwice(t *testing.T) {
@@ -75,6 +75,23 @@ func TestSandboxCreateTwice(t *testing.T) {
 		t.Fatalf("Failed to create a new sandbox: %v", err)
 	}
 	s.Destroy()
+}
+
+func TestSandboxGC(t *testing.T) {
+	key, err := newKey(t)
+	if err != nil {
+		t.Fatalf("Failed to obtain a key: %v", err)
+	}
+
+	s, err := NewSandbox(key, true)
+	if err != nil {
+		t.Fatalf("Failed to create a new sandbox: %v", err)
+	}
+
+	s.Destroy()
+
+	GC()
+	verifyCleanup(t, s, false)
 }
 
 func TestInterfaceEqual(t *testing.T) {

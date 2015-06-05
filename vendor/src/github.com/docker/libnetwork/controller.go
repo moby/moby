@@ -76,6 +76,9 @@ type NetworkController interface {
 
 	// NetworkByID returns the Network which has the passed id. If not found, the error ErrNoSuchNetwork is returned.
 	NetworkByID(id string) (Network, error)
+
+	// GC triggers immediate garbage collection of resources which are garbage collected.
+	GC()
 }
 
 // NetworkWalker is a client provided function which will be used to walk the Networks.
@@ -298,4 +301,8 @@ func (c *controller) loadDriver(networkType string) (driverapi.Driver, error) {
 		return nil, ErrInvalidNetworkDriver(networkType)
 	}
 	return d, nil
+}
+
+func (c *controller) GC() {
+	sandbox.GC()
 }

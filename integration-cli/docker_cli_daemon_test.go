@@ -1174,6 +1174,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithContainerRunning(t *check.C) {
 	if out, err := s.d.Cmd("run", "-ti", "-d", "--name", "test", "busybox"); err != nil {
 		t.Fatal(out, err)
 	}
+
 	if err := s.d.Restart(); err != nil {
 		t.Fatal(err)
 	}
@@ -1181,4 +1182,42 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithContainerRunning(t *check.C) {
 	if out, err := s.d.Cmd("rm", "test"); err != nil {
 		t.Fatal(out, err)
 	}
+}
+
+func (s *DockerDaemonSuite) TestDaemonRestartCleanupNetns(c *check.C) {
+	if err := s.d.StartWithBusybox(); err != nil {
+		c.Fatal(err)
+	}
+	out, err := s.d.Cmd("run", "--name", "netns", "-d", "busybox", "top")
+	if err != nil {
+		c.Fatal(out, err)
+	}
+	if out, err := s.d.Cmd("stop", "netns"); err != nil {
+		c.Fatal(out, err)
+	}
+
+	// Construct netns file name from container id
+	out = strings.TrimSpace(out)
+	nsFile := out[:12]
+
+	// Test if the file still exists
+	out, _, err = runCommandWithOutput(exec.Command("stat", "-c", "%n", "/var/run/docker/netns/"+nsFile))
+	out = strings.TrimSpace(out)
+	c.Assert(err, check.IsNil, check.Commentf("Output: %s", out))
+	c.Assert(out, check.Equals, "/var/run/docker/netns/"+nsFile, check.Commentf("Output: %s", out))
+
+	// Remove the container and restart the daemon
+	if out, err := s.d.Cmd("rm", "netns"); err != nil {
+		c.Fatal(out, err)
+	}
+
+	if err := s.d.Restart(); err != nil {
+		c.Fatal(err)
+	}
+
+	// Test again and see now the netns file does not exist
+	out, _, err = runCommandWithOutput(exec.Command("stat", "-c", "%n", "/var/run/docker/netns/"+nsFile))
+	out = strings.TrimSpace(out)
+	c.Assert(err, check.Not(check.IsNil), check.Commentf("Output: %s", out))
+	// c.Assert(out, check.Equals, "", check.Commentf("Output: %s", out))
 }

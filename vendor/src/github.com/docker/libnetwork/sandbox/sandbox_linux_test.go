@@ -144,9 +144,16 @@ func verifySandbox(t *testing.T, s Sandbox) {
 	}
 }
 
-func verifyCleanup(t *testing.T, s Sandbox) {
-	time.Sleep(time.Duration(gpmCleanupPeriod * 2))
+func verifyCleanup(t *testing.T, s Sandbox, wait bool) {
+	if wait {
+		time.Sleep(time.Duration(gpmCleanupPeriod * 2))
+	}
+
 	if _, err := os.Stat(s.Key()); err == nil {
-		t.Fatalf("The sandbox path %s is not getting cleanup event after twice the cleanup period", s.Key())
+		if wait {
+			t.Fatalf("The sandbox path %s is not getting cleaned up even after twice the cleanup period", s.Key())
+		} else {
+			t.Fatalf("The sandbox path %s is not cleaned up after running gc", s.Key())
+		}
 	}
 }
