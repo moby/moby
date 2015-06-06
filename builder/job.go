@@ -221,6 +221,10 @@ func Commit(d *daemon.Daemon, name string, c *daemon.ContainerCommitConfig) (str
 		return "", err
 	}
 
+	if c.Config == nil {
+		c.Config = &runconfig.Config{}
+	}
+
 	newConfig, err := BuildFromConfig(d, c.Config, c.Changes)
 	if err != nil {
 		return "", err
