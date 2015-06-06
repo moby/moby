@@ -2,7 +2,6 @@ package libnetwork
 
 import (
 	"encoding/json"
-	"strings"
 	"sync"
 
 	log "github.com/Sirupsen/logrus"
@@ -377,12 +376,9 @@ func (n *network) EndpointByID(id string) (Endpoint, error) {
 	return nil, ErrNoSuchEndpoint(id)
 }
 
-func isReservedNetwork(name string) bool {
-	reserved := []string{"bridge", "none", "host"}
-	for _, r := range reserved {
-		if strings.EqualFold(r, name) {
-			return true
-		}
-	}
-	return false
+func (n *network) isGlobalScoped() (bool, error) {
+	n.Lock()
+	c := n.ctrlr
+	n.Unlock()
+	return c.isDriverGlobalScoped(n.networkType)
 }

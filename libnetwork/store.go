@@ -37,8 +37,9 @@ func (c *controller) newNetworkFromStore(n *network) error {
 }
 
 func (c *controller) updateNetworkToStore(n *network) error {
-	if isReservedNetwork(n.Name()) {
-		return nil
+	global, err := n.isGlobalScoped()
+	if err != nil || !global {
+		return err
 	}
 	c.Lock()
 	cs := c.store
@@ -52,8 +53,9 @@ func (c *controller) updateNetworkToStore(n *network) error {
 }
 
 func (c *controller) deleteNetworkFromStore(n *network) error {
-	if isReservedNetwork(n.Name()) {
-		return nil
+	global, err := n.isGlobalScoped()
+	if err != nil || !global {
+		return err
 	}
 	c.Lock()
 	cs := c.store
@@ -111,12 +113,13 @@ func (c *controller) newEndpointFromStore(key string, ep *endpoint) error {
 
 func (c *controller) updateEndpointToStore(ep *endpoint) error {
 	ep.Lock()
+	n := ep.network
 	name := ep.name
-	if isReservedNetwork(ep.network.name) {
-		ep.Unlock()
-		return nil
-	}
 	ep.Unlock()
+	global, err := n.isGlobalScoped()
+	if err != nil || !global {
+		return err
+	}
 	c.Lock()
 	cs := c.store
 	c.Unlock()
@@ -137,9 +140,14 @@ func (c *controller) getEndpointFromStore(eid types.UUID) (*endpoint, error) {
 }
 
 func (c *controller) deleteEndpointFromStore(ep *endpoint) error {
-	if isReservedNetwork(ep.network.Name()) {
-		return nil
+	ep.Lock()
+	n := ep.network
+	ep.Unlock()
+	global, err := n.isGlobalScoped()
+	if err != nil || !global {
+		return err
 	}
+
 	c.Lock()
 	cs := c.store
 	c.Unlock()

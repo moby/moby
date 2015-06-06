@@ -118,5 +118,20 @@ type JoinInfo interface {
 // DriverCallback provides a Callback interface for Drivers into LibNetwork
 type DriverCallback interface {
 	// RegisterDriver provides a way for Remote drivers to dynamically register new NetworkType and associate with a driver instance
-	RegisterDriver(name string, driver Driver) error
+	RegisterDriver(name string, driver Driver, capability Capability) error
+}
+
+// Scope indicates the drivers scope capability
+type Scope int
+
+const (
+	// LocalScope represents the driver capable of providing networking services for containers in a single host
+	LocalScope Scope = iota
+	// GlobalScope represents the driver capable of providing networking services for containers across hosts
+	GlobalScope
+)
+
+// Capability represents the high level capabilities of the drivers which libnetwork can make use of
+type Capability struct {
+	Scope Scope
 }

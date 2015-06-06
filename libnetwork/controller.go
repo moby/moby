@@ -92,6 +92,12 @@ type NetworkController interface {
 // When the function returns true, the walk will stop.
 type NetworkWalker func(nw Network) bool
 
+type driverData struct {
+	driver     driverapi.Driver
+	capability driverapi.Capability
+}
+
+type driverTable map[string]*driverData
 type networkTable map[types.UUID]*network
 type endpointTable map[types.UUID]*endpoint
 type sandboxTable map[string]*sandboxData
@@ -175,21 +181,21 @@ func (c *controller) hostLeaveCallback(hosts []net.IP) {
 
 func (c *controller) ConfigureNetworkDriver(networkType string, options map[string]interface{}) error {
 	c.Lock()
-	d, ok := c.drivers[networkType]
+	dd, ok := c.drivers[networkType]
 	c.Unlock()
 	if !ok {
 		return NetworkTypeError(networkType)
 	}
-	return d.Config(options)
+	return dd.driver.Config(options)
 }
 
-func (c *controller) RegisterDriver(networkType string, driver driverapi.Driver) error {
+func (c *controller) RegisterDriver(networkType string, driver driverapi.Driver, capability driverapi.Capability) error {
 	c.Lock()
 	defer c.Unlock()
 	if _, ok := c.drivers[networkType]; ok {
 		return driverapi.ErrActiveRegistration(networkType)
 	}
-	c.drivers[networkType] = driver
+	c.drivers[networkType] = &driverData{driver, capability}
 	return nil
 }
 
@@ -238,18 +244,21 @@ func (c *controller) addNetwork(n *network) error {
 
 	c.Lock()
 	// Check if a driver for the specified network type is available
-	d, ok := c.drivers[n.networkType]
+	dd, ok := c.drivers[n.networkType]
 	c.Unlock()
 
 	if !ok {
 		var err error
-		d, err = c.loadDriver(n.networkType)
+		dd, err = c.loadDriver(n.networkType)
 		if err != nil {
 			return err
 		}
 	}
 
-	n.driver = d
+	n.Lock()
+	n.driver = dd.driver
+	d := n.driver
+	n.Unlock()
 
 	// Create the network
 	if err := d.CreateNetwork(n.id, n.generic); err != nil {
@@ -317,7 +326,7 @@ func (c *controller) NetworkByID(id string) (Network, error) {
 	return nil, ErrNoSuchNetwork(id)
 }
 
-func (c *controller) loadDriver(networkType string) (driverapi.Driver, error) {
+func (c *controller) loadDriver(networkType string) (*driverData, error) {
 	// Plugins pkg performs lazy loading of plugins that acts as remote drivers.
 	// As per the design, this Get call will result in remote driver discovery if there is a corresponding plugin available.
 	_, err := plugins.Get(networkType, driverapi.NetworkPluginEndpointType)
@@ -329,11 +338,24 @@ func (c *controller) loadDriver(networkType string) (driverapi.Driver, error) {
 	}
 	c.Lock()
 	defer c.Unlock()
-	d, ok := c.drivers[networkType]
+	dd, ok := c.drivers[networkType]
 	if !ok {
 		return nil, ErrInvalidNetworkDriver(networkType)
 	}
-	return d, nil
+	return dd, nil
+}
+
+func (c *controller) isDriverGlobalScoped(networkType string) (bool, error) {
+	c.Lock()
+	dd, ok := c.drivers[networkType]
+	c.Unlock()
+	if !ok {
+		return false, types.NotFoundErrorf("driver not found for %s", networkType)
+	}
+	if dd.capability.Scope == driverapi.GlobalScope {
+		return true, nil
+	}
+	return false, nil
 }
 
 func (c *controller) GC() {

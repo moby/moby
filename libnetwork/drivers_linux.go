@@ -8,8 +8,6 @@ import (
 	"github.com/docker/libnetwork/drivers/remote"
 )
 
-type driverTable map[string]driverapi.Driver
-
 func initDrivers(dc driverapi.DriverCallback) error {
 	for _, fn := range [](func(driverapi.DriverCallback) error){
 		bridge.Init,

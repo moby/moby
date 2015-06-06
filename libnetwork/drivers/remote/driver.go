@@ -23,7 +23,10 @@ func newDriver(name string, client *plugins.Client) driverapi.Driver {
 // plugin is activated.
 func Init(dc driverapi.DriverCallback) error {
 	plugins.Handle(driverapi.NetworkPluginEndpointType, func(name string, client *plugins.Client) {
-		if err := dc.RegisterDriver(name, newDriver(name, client)); err != nil {
+		c := driverapi.Capability{
+			Scope: driverapi.GlobalScope,
+		}
+		if err := dc.RegisterDriver(name, newDriver(name, client), c); err != nil {
 			log.Errorf("error registering driver for %s due to %v", name, err)
 		}
 	})
