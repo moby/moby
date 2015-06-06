@@ -4,6 +4,7 @@ import (
 	"compress/gzip"
 	"crypto/sha256"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -35,6 +36,13 @@ type Graph struct {
 	idIndex *truncindex.TruncIndex
 	driver  graphdriver.Driver
 }
+
+var (
+	// ErrDigestNotSet is used when request the digest for a layer
+	// but the layer has no digest value or content to compute the
+	// the digest.
+	ErrDigestNotSet = errors.New("digest is not set for layer")
+)
 
 // NewGraph instantiates a new graph at the given root path in the filesystem.
 // `root` will be created if it doesn't exist.
@@ -507,26 +515,26 @@ func (graph *Graph) saveSize(root string, size int) error {
 	return nil
 }
 
-// SetCheckSum sets the checksum for the image layer to the provided value.
-func (graph *Graph) SetCheckSum(id, checksum string) error {
+// SetDigest sets the digest for the image layer to the provided value.
+func (graph *Graph) SetDigest(id string, dgst digest.Digest) error {
 	root := graph.imageRoot(id)
-	if err := ioutil.WriteFile(filepath.Join(root, "checksum"), []byte(checksum), 0600); err != nil {
-		return fmt.Errorf("Error storing checksum in %s/checksum: %s", root, err)
+	if err := ioutil.WriteFile(filepath.Join(root, "checksum"), []byte(dgst.String()), 0600); err != nil {
+		return fmt.Errorf("Error storing digest in %s/checksum: %s", root, err)
 	}
 	return nil
 }
 
-// GetCheckSum gets the checksum for the provide image layer id.
-func (graph *Graph) GetCheckSum(id string) (string, error) {
+// GetDigest gets the digest for the provide image layer id.
+func (graph *Graph) GetDigest(id string) (digest.Digest, error) {
 	root := graph.imageRoot(id)
 	cs, err := ioutil.ReadFile(filepath.Join(root, "checksum"))
 	if err != nil {
 		if os.IsNotExist(err) {
-			return "", nil
+			return "", ErrDigestNotSet
 		}
 		return "", err
 	}
-	return string(cs), err
+	return digest.ParseDigest(string(cs))
 }
 
 // RawJSON returns the JSON representation for an image as a byte array.

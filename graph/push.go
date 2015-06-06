@@ -375,18 +375,13 @@ func (s *TagStore) pushV2Repository(r *registry.Session, localRepo Repository, o
 				return fmt.Errorf("cannot retrieve the path for %s: %s", layer.ID, err)
 			}
 
-			checksum, err := s.graph.GetCheckSum(layer.ID)
-			if err != nil {
-				return fmt.Errorf("error getting image checksum: %s", err)
-			}
-
 			var exists bool
-			if len(checksum) > 0 {
-				dgst, err := digest.ParseDigest(checksum)
-				if err != nil {
-					return fmt.Errorf("Invalid checksum %s: %s", checksum, err)
+			dgst, err := s.graph.GetDigest(layer.ID)
+			if err != nil {
+				if err != ErrDigestNotSet {
+					return fmt.Errorf("error getting image checksum: %s", err)
 				}
-
+			} else {
 				// Call mount blob
 				exists, err = r.HeadV2ImageBlob(endpoint, repoInfo.RemoteName, dgst, auth)
 				if err != nil {
@@ -395,19 +390,19 @@ func (s *TagStore) pushV2Repository(r *registry.Session, localRepo Repository, o
 				}
 			}
 			if !exists {
-				if cs, err := s.pushV2Image(r, layer, endpoint, repoInfo.RemoteName, sf, out, auth); err != nil {
+				if pushDigest, err := s.pushV2Image(r, layer, endpoint, repoInfo.RemoteName, sf, out, auth); err != nil {
 					return err
-				} else if cs != checksum {
+				} else if pushDigest != dgst {
 					// Cache new checksum
-					if err := s.graph.SetCheckSum(layer.ID, cs); err != nil {
+					if err := s.graph.SetDigest(layer.ID, pushDigest); err != nil {
 						return err
 					}
-					checksum = cs
+					dgst = pushDigest
 				}
 			} else {
 				out.Write(sf.FormatProgress(stringid.TruncateID(layer.ID), "Image already exists", nil))
 			}
-			m.FSLayers[i] = &registry.FSLayer{BlobSum: checksum}
+			m.FSLayers[i] = &registry.FSLayer{BlobSum: dgst.String()}
 			m.History[i] = &registry.ManifestHistory{V1Compatibility: string(jsonData)}
 		}
 
@@ -447,7 +442,7 @@ func (s *TagStore) pushV2Repository(r *registry.Session, localRepo Repository, o
 }
 
 // PushV2Image pushes the image content to the v2 registry, first buffering the contents to disk
-func (s *TagStore) pushV2Image(r *registry.Session, img *image.Image, endpoint *registry.Endpoint, imageName string, sf *streamformatter.StreamFormatter, out io.Writer, auth *registry.RequestAuthorization) (string, error) {
+func (s *TagStore) pushV2Image(r *registry.Session, img *image.Image, endpoint *registry.Endpoint, imageName string, sf *streamformatter.StreamFormatter, out io.Writer, auth *registry.RequestAuthorization) (digest.Digest, error) {
 	out.Write(sf.FormatProgress(stringid.TruncateID(img.ID), "Buffering to Disk", nil))
 
 	image, err := s.graph.Get(img.ID)
@@ -488,7 +483,7 @@ func (s *TagStore) pushV2Image(r *registry.Session, img *image.Image, endpoint *
 		return "", err
 	}
 	out.Write(sf.FormatProgress(stringid.TruncateID(img.ID), "Image successfully pushed", nil))
-	return dgst.String(), nil
+	return dgst, nil
 }
 
 // FIXME: Allow to interrupt current push when new push of same image is done.
