@@ -143,6 +143,10 @@ func (c ContainerConfigWrapper) HostConfig() *HostConfig {
 	return c.hostConfigWrapper.GetHostConfig()
 }
 
+// DecodeContainerConfig decodes a json encoded config into a ContainerConfigWrapper
+// struct and returns both a Config and an HostConfig struct
+// Be aware this function is not checking whether the resulted structs are nil,
+// it's your business to do so
 func DecodeContainerConfig(src io.Reader) (*Config, *HostConfig, error) {
 	decoder := json.NewDecoder(src)
 

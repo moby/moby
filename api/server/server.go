@@ -658,10 +658,6 @@ func (s *Server) postCommit(version version.Version, w http.ResponseWriter, r *h
 		return err
 	}
 
-	if c == nil {
-		c = &runconfig.Config{}
-	}
-
 	containerCommitConfig := &daemon.ContainerCommitConfig{
 		Pause:   pause,
 		Repo:    r.Form.Get("repo"),
