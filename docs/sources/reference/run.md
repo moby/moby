@@ -1122,8 +1122,10 @@ container's `/etc/hosts` entry will be automatically updated.
 
 ## VOLUME (shared filesystems)
 
-    -v=[]: Create a bind mount with: [host-dir]:[container-dir]:[rw|ro].
-           If "container-dir" is missing, then docker creates a new volume.
+    -v=[]: Create a bind mount with: [host-dir:]container-dir[:rw|ro].
+           If 'host-dir' is missing, then docker creates a new volume.
+		   If neither 'rw' or 'ro' is specified then the volume is mounted
+		   in read-write mode.
     --volumes-from="": Mount all volumes from the given container(s)
 
 The volumes commands are complex enough to have their own documentation
