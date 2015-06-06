@@ -946,6 +946,14 @@ func initNetworkController(config *Config) (libnetwork.NetworkController, error)
 		netOption["FixedCIDRv6"] = fCIDRv6
 	}
 
+	if config.Bridge.DefaultGatewayIPv4 != nil {
+		netOption["DefaultGatewayIPv4"] = config.Bridge.DefaultGatewayIPv4
+	}
+
+	if config.Bridge.DefaultGatewayIPv6 != nil {
+		netOption["DefaultGatewayIPv6"] = config.Bridge.DefaultGatewayIPv6
+	}
+
 	// --ip processing
 	if config.Bridge.DefaultIP != nil {
 		netOption["DefaultBindingIP"] = config.Bridge.DefaultIP
