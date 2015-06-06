@@ -1166,7 +1166,7 @@ func checkKernel() error {
 	return nil
 }
 
-func (daemon *Daemon) verifyHostConfig(hostConfig *runconfig.HostConfig) ([]string, error) {
+func (daemon *Daemon) verifyContainerSettings(hostConfig *runconfig.HostConfig) ([]string, error) {
 	var warnings []string
 
 	if hostConfig == nil {
@@ -1181,10 +1181,12 @@ func (daemon *Daemon) verifyHostConfig(hostConfig *runconfig.HostConfig) ([]stri
 	}
 	if hostConfig.Memory > 0 && !daemon.SystemConfig().MemoryLimit {
 		warnings = append(warnings, "Your kernel does not support memory limit capabilities. Limitation discarded.")
+		logrus.Warnf("Your kernel does not support memory limit capabilities. Limitation discarded.")
 		hostConfig.Memory = 0
 	}
 	if hostConfig.Memory > 0 && hostConfig.MemorySwap != -1 && !daemon.SystemConfig().SwapLimit {
 		warnings = append(warnings, "Your kernel does not support swap limit capabilities, memory limited without swap.")
+		logrus.Warnf("Your kernel does not support swap limit capabilities, memory limited without swap.")
 		hostConfig.MemorySwap = -1
 	}
 	if hostConfig.Memory > 0 && hostConfig.MemorySwap > 0 && hostConfig.MemorySwap < hostConfig.Memory {
@@ -1195,10 +1197,12 @@ func (daemon *Daemon) verifyHostConfig(hostConfig *runconfig.HostConfig) ([]stri
 	}
 	if hostConfig.CpuPeriod > 0 && !daemon.SystemConfig().CpuCfsPeriod {
 		warnings = append(warnings, "Your kernel does not support CPU cfs period. Period discarded.")
+		logrus.Warnf("Your kernel does not support CPU cfs period. Period discarded.")
 		hostConfig.CpuPeriod = 0
 	}
 	if hostConfig.CpuQuota > 0 && !daemon.SystemConfig().CpuCfsQuota {
 		warnings = append(warnings, "Your kernel does not support CPU cfs quota. Quota discarded.")
+		logrus.Warnf("Your kernel does not support CPU cfs quota. Quota discarded.")
 		hostConfig.CpuQuota = 0
 	}
 	if hostConfig.BlkioWeight > 0 && (hostConfig.BlkioWeight < 10 || hostConfig.BlkioWeight > 1000) {
@@ -1208,7 +1212,10 @@ func (daemon *Daemon) verifyHostConfig(hostConfig *runconfig.HostConfig) ([]stri
 		hostConfig.OomKillDisable = false
 		return warnings, fmt.Errorf("Your kernel does not support oom kill disable.")
 	}
-
+	if daemon.SystemConfig().IPv4ForwardingDisabled {
+		warnings = append(warnings, "IPv4 forwarding is disabled. Networking will not work.")
+		logrus.Warnf("IPv4 forwarding is disabled. Networking will not work")
+	}
 	return warnings, nil
 }
 

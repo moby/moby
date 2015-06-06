@@ -252,7 +252,6 @@ func (container *Container) Start() (err error) {
 	if err := container.initializeNetworking(); err != nil {
 		return err
 	}
-	container.verifyDaemonSettings()
 	linkedEnv, err := container.setupLinkedContainers()
 	if err != nil {
 		return err
