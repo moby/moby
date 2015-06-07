@@ -836,6 +836,19 @@ func (s *DockerSuite) TestContainerApiCreate(c *check.C) {
 	}
 }
 
+func (s *DockerSuite) TestContainerApiCreateEmptyConfig(c *check.C) {
+	config := map[string]interface{}{}
+
+	status, b, err := sockRequest("POST", "/containers/create", config)
+	c.Assert(err, check.IsNil)
+	c.Assert(status, check.Equals, http.StatusInternalServerError)
+
+	expected := "Config cannot be empty in order to create a container\n"
+	if body := string(b); body != expected {
+		c.Fatalf("Expected to get %q, got %q", expected, body)
+	}
+}
+
 func (s *DockerSuite) TestContainerApiCreateWithHostName(c *check.C) {
 	hostName := "test-host"
 	config := map[string]interface{}{
