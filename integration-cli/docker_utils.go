@@ -50,7 +50,7 @@ func enableUserlandProxy() bool {
 }
 
 // NewDaemon returns a Daemon instance to be used for testing.
-// This will create a directory such as daemon123456789 in the folder specified by $DEST.
+// This will create a directory such as d123456789 in the folder specified by $DEST.
 // The daemon will not automatically start.
 func NewDaemon(c *check.C) *Daemon {
 	dest := os.Getenv("DEST")
