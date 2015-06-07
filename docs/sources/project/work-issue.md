@@ -178,9 +178,9 @@ You should pull and rebase frequently as you work.
 
 6. Edit and save your commit message.
 
-		`git commit -s`
+        $ git commit -s
 
-		Make sure your message includes <a href="./set-up-git" target="_blank>your signature</a>.
+    Make sure your message includes <a href="../set-up-git" target="_blank">your signature</a>.
 
 7. Force push any changes to your fork on GitHub.
 

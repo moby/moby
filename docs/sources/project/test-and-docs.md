@@ -102,7 +102,7 @@ Run the entire test suite on your current repository:
 
     * creates a new binary
     * cross-compiles all the binaries for the various operating systems
-    * runs the all the tests in the system
+    * runs all the tests in the system
 
     It can take several minutes to run all the tests. When they complete
     successfully, you see the output concludes with something like this:
