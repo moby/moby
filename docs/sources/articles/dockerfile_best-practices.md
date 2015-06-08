@@ -103,7 +103,8 @@ a little more examination and explanation.
 being put into the image are examined. Specifically, a checksum is done
 of the file(s) and then that checksum is used during the cache lookup.
 If anything has changed in the file(s), including its metadata,
-then the cache is invalidated.
+then the cache is invalidated. The last-modified and last-accessed times of the
+file(s) are not considered in these checksums.
 
 * Aside from the `ADD` and `COPY` commands cache checking will not look at the
 files in the container to determine a cache match. For example, when processing
