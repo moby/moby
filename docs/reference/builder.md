@@ -497,12 +497,18 @@ change them using `docker run --env <key>=<value>`.
 
 ADD has two forms:
 
-- `ADD <src>... <dest>`
-- `ADD ["<src>",... "<dest>"]` (this form is required for paths containing
-whitespace)
+- `ADD [--ignore-error] <src>... <dest>`
+- `ADD [--ignore-error] ["<src>",... "<dest>"]` (this form is required for 
+paths containing whitespace)
 
-The `ADD` instruction copies new files, directories or remote file URLs from `<src>`
-and adds them to the filesystem of the container at the path `<dest>`.  
+The `ADD` instruction copies new files, directories or remote file URLs from 
+`<src>` and adds them to the filesystem of the container at the path `<dest>`.  
+
+The optional `--ignore-error` flag may be specified to indicate that
+any error while processing this Dockerfile command should be ignored and
+the processing of the Dockerfile will continue as if this line were not
+processed at all. When present this flag must appear before any `<src>`
+arguments.
 
 Multiple `<src>` resource may be specified but if they are files or 
 directories then they must be relative to the source directory that is 
@@ -601,12 +607,18 @@ The copy obeys the following rules:
 
 COPY has two forms:
 
-- `COPY <src>... <dest>`
-- `COPY ["<src>",... "<dest>"]` (this form is required for paths containing
-whitespace)
+- `COPY [--ignore-error] <src>... <dest>`
+- `COPY [--ignore-error] ["<src>",... "<dest>"]` (this form is required for 
+paths containing whitespace)
 
 The `COPY` instruction copies new files or directories from `<src>`
 and adds them to the filesystem of the container at the path `<dest>`.
+
+The optional `--ignore-error` flag may be specified to indicate that
+any error while processing this Dockerfile command should be ignored and
+the processing of the Dockerfile will continue as if this line were not
+processed at all. When present this flag must appear before any `<src>`
+arguments.
 
 Multiple `<src>` resource may be specified but they must be relative
 to the source directory that is being built (the context of the build).

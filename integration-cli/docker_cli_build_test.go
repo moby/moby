@@ -5358,3 +5358,60 @@ func (s *DockerSuite) TestBuildRUNErrMsg(c *check.C) {
 		c.Fatalf("RUN doesn't have the correct output:\nGot:%s\nExpected:%s", out, exp)
 	}
 }
+
+func (s *DockerSuite) TestBuildIgnoreError(c *check.C) {
+	dFile := `FROM busybox
+COPY %s foofoo /tmp/
+RUN cat /tmp/foofoo || echo not there`
+
+	ctx, err := fakeContext(fmt.Sprintf(dFile, ""),
+		map[string]string{
+			"Dockerfile": fmt.Sprintf(dFile, ""),
+		})
+	defer ctx.Close()
+	if err != nil {
+		c.Fatal(err)
+	}
+
+	// Make sure we have a bad build first
+	out, _, err := dockerCmdInDir(c, ctx.Dir, "build", ".")
+	if err == nil {
+		c.Fatalf("Build was supposed to fail: %s", out)
+	}
+
+	// Now, redo telling it to ignore the bad COPY
+	ctx.Add("Dockerfile", fmt.Sprintf(dFile, "--ignore-error"))
+	out, _, err = dockerCmdInDir(c, ctx.Dir, "build", ".")
+	if err != nil {
+		c.Fatalf("Build failed: %s %v", out, err)
+	}
+	if !strings.Contains(out, "Ignored errors") || !strings.Contains(out, "not there") {
+		c.Fatalf("Bad output: %s", out)
+	}
+
+	// Check to make sure the failed COPY doesn't change the image ID
+	lines := strings.Split(out, "\n")
+	prevID := ""
+	for _, line := range lines {
+		if !strings.Contains(line, " ---> ") {
+			continue
+		}
+		ID := strings.TrimSpace(line[6:])
+		if prevID != "" && prevID != ID {
+			c.Fatalf("IDs were supposed to match: %s %s", prevID, ID)
+		}
+		if prevID != "" {
+			break
+		}
+		prevID = ID
+	}
+
+	// Once again, w/ -q flag to hide error msg
+	out, _, err = dockerCmdInDir(c, ctx.Dir, "build", "-q", ".")
+	if err != nil {
+		c.Fatalf("Build failed: %s %v", out, err)
+	}
+	if strings.Contains(out, "Ignored errors") || !strings.Contains(out, "not there") {
+		c.Fatalf("Bad output: %s", out)
+	}
+}
