@@ -363,6 +363,7 @@ func (d *driver) Stats(id string) (*execdriver.ResourceStats, error) {
 
 type TtyConsole struct {
 	console libcontainer.Console
+	mu      sync.Mutex
 }
 
 func NewTtyConsole(console libcontainer.Console, pipes *execdriver.Pipes, rootuid int) (*TtyConsole, error) {
@@ -394,7 +395,9 @@ func (t *TtyConsole) AttachPipes(pipes *execdriver.Pipes) error {
 			defer wb.CloseWriters()
 		}
 
+		t.mu.Lock()
 		io.Copy(pipes.Stdout, t.console)
+		t.mu.Unlock()
 	}()
 
 	if pipes.Stdin != nil {
@@ -409,6 +412,8 @@ func (t *TtyConsole) AttachPipes(pipes *execdriver.Pipes) error {
 }
 
 func (t *TtyConsole) Close() error {
+	t.mu.Lock()
+	defer t.mu.Unlock()
 	return t.console.Close()
 }
 
