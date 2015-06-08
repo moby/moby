@@ -1,6 +1,6 @@
 [Unit]
 Description=Docker Application Container Engine
-Documentation=http://docs.docker.com
+Documentation=https://docs.docker.com
 After=network.target docker.socket
 Requires=docker.socket
 
