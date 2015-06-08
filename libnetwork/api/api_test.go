@@ -246,7 +246,14 @@ func TestGetNetworksAndEndpoints(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	nc := networkCreate{Name: "sh", NetworkType: bridgeNetType}
+	ops := options.Generic{
+		netlabel.GenericData: map[string]string{
+			"BridgeName":            "api_test_nw",
+			"AllowNonDefaultBridge": "true",
+		},
+	}
+
+	nc := networkCreate{Name: "sh", NetworkType: bridgeNetType, Options: ops}
 	body, err := json.Marshal(nc)
 	if err != nil {
 		t.Fatal(err)

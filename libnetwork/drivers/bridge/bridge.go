@@ -166,8 +166,7 @@ func (c *networkConfiguration) Conflict(o *networkConfiguration) bool {
 	}
 
 	// They must be in different subnets
-
-	if (c.AddressIPv4 != nil && o.AddressIPv4.IP != nil) &&
+	if (c.AddressIPv4 != nil && o.AddressIPv4 != nil) &&
 		(c.AddressIPv4.Contains(o.AddressIPv4.IP) || o.AddressIPv4.Contains(c.AddressIPv4.IP)) {
 		return true
 	}
@@ -496,7 +495,7 @@ func (d *driver) CreateNetwork(id types.UUID, option map[string]interface{}) err
 		// Basically we are checking if the two original configs were both empty.
 		if nw.config.BridgeName == config.BridgeName {
 			d.Unlock()
-			return types.ForbiddenErrorf("conflicts with network %s (%s)", nw.id, nw.config.BridgeName)
+			return types.ForbiddenErrorf("conflicts with network %s (%s) by bridge name", nw.id, nw.config.BridgeName)
 		}
 		// If this network config specifies the AddressIPv4, we need
 		// to make sure it does not conflict with any previously allocated
@@ -507,7 +506,7 @@ func (d *driver) CreateNetwork(id types.UUID, option map[string]interface{}) err
 			if nw.bridge.bridgeIPv4.Contains(config.AddressIPv4.IP) ||
 				config.AddressIPv4.Contains(nw.bridge.bridgeIPv4.IP) {
 				d.Unlock()
-				return types.ForbiddenErrorf("conflicts with network %s (%s)", nw.id, nw.config.BridgeName)
+				return types.ForbiddenErrorf("conflicts with network %s (%s) by ip network", nw.id, nw.config.BridgeName)
 			}
 		}
 	}
@@ -595,6 +594,12 @@ func (d *driver) DeleteNetwork(nid types.UUID) error {
 		d.Unlock()
 		return types.InternalMaskableErrorf("network %s does not exist", nid)
 	}
+
+	if n.config.BridgeName == DefaultBridgeName {
+		d.Unlock()
+		return types.ForbiddenErrorf("default network of type \"%s\" cannot be deleted", networkType)
+	}
+
 	delete(d.networks, nid)
 	d.Unlock()
 
