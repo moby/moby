@@ -5,7 +5,6 @@ import (
 	"net"
 	"os/exec"
 	"strconv"
-	"strings"
 	"sync"
 
 	"github.com/Sirupsen/logrus"
@@ -15,7 +14,6 @@ import (
 	"github.com/docker/libnetwork/netutils"
 	"github.com/docker/libnetwork/options"
 	"github.com/docker/libnetwork/portmapper"
-	"github.com/docker/libnetwork/sandbox"
 	"github.com/docker/libnetwork/types"
 	"github.com/vishvananda/netlink"
 )
@@ -71,7 +69,9 @@ type containerConfiguration struct {
 
 type bridgeEndpoint struct {
 	id              types.UUID
-	intf            *sandbox.Interface
+	srcName         string
+	addr            *net.IPNet
+	addrv6          *net.IPNet
 	macAddress      net.HardwareAddr
 	config          *endpointConfiguration // User specified parameters
 	containerConfig *containerConfiguration
@@ -701,13 +701,13 @@ func (d *driver) CreateEndpoint(nid, eid types.UUID, epInfo driverapi.EndpointIn
 	}()
 
 	// Generate a name for what will be the host side pipe interface
-	name1, err := generateIfaceName()
+	name1, err := netutils.GenerateIfaceName(vethPrefix, vethLen)
 	if err != nil {
 		return err
 	}
 
 	// Generate a name for what will be the sandbox side pipe interface
-	name2, err := generateIfaceName()
+	name2, err := netutils.GenerateIfaceName(vethPrefix, vethLen)
 	if err != nil {
 		return err
 	}
@@ -803,17 +803,12 @@ func (d *driver) CreateEndpoint(nid, eid types.UUID, epInfo driverapi.EndpointIn
 	}
 
 	// Create the sandbox side pipe interface
-	intf := &sandbox.Interface{}
-	intf.SrcName = name2
-	intf.DstName = containerVethPrefix
-	intf.Address = ipv4Addr
+	endpoint.srcName = name2
+	endpoint.addr = ipv4Addr
 
 	if config.EnableIPv6 {
-		intf.AddressIPv6 = ipv6Addr
+		endpoint.addrv6 = ipv6Addr
 	}
-
-	// Store the interface in endpoint, this is needed for cleanup on DeleteEndpoint()
-	endpoint.intf = intf
 
 	err = epInfo.AddInterface(ifaceID, endpoint.macAddress, *ipv4Addr, *ipv6Addr)
 	if err != nil {
@@ -821,7 +816,7 @@ func (d *driver) CreateEndpoint(nid, eid types.UUID, epInfo driverapi.EndpointIn
 	}
 
 	// Program any required port mapping and store them in the endpoint
-	endpoint.portMapping, err = n.allocatePorts(epConfig, intf, config.DefaultBindingIP, config.EnableUserlandProxy)
+	endpoint.portMapping, err = n.allocatePorts(epConfig, endpoint, config.DefaultBindingIP, config.EnableUserlandProxy)
 	if err != nil {
 		return err
 	}
@@ -883,14 +878,14 @@ func (d *driver) DeleteEndpoint(nid, eid types.UUID) error {
 	n.releasePorts(ep)
 
 	// Release the v4 address allocated to this endpoint's sandbox interface
-	err = ipAllocator.ReleaseIP(n.bridge.bridgeIPv4, ep.intf.Address.IP)
+	err = ipAllocator.ReleaseIP(n.bridge.bridgeIPv4, ep.addr.IP)
 	if err != nil {
 		return err
 	}
 
 	// Release the v6 address allocated to this endpoint's sandbox interface
 	if config.EnableIPv6 {
-		err := ipAllocator.ReleaseIP(n.bridge.bridgeIPv6, ep.intf.AddressIPv6.IP)
+		err := ipAllocator.ReleaseIP(n.bridge.bridgeIPv6, ep.addrv6.IP)
 		if err != nil {
 			return err
 		}
@@ -898,7 +893,7 @@ func (d *driver) DeleteEndpoint(nid, eid types.UUID) error {
 
 	// Try removal of link. Discard error: link pair might have
 	// already been deleted by sandbox delete.
-	link, err := netlink.LinkByName(ep.intf.SrcName)
+	link, err := netlink.LinkByName(ep.srcName)
 	if err == nil {
 		netlink.LinkDel(link)
 	}
@@ -982,7 +977,7 @@ func (d *driver) Join(nid, eid types.UUID, sboxKey string, jinfo driverapi.JoinI
 	for _, iNames := range jinfo.InterfaceNames() {
 		// Make sure to set names on the correct interface ID.
 		if iNames.ID() == ifaceID {
-			err = iNames.SetNames(endpoint.intf.SrcName, endpoint.intf.DstName)
+			err = iNames.SetNames(endpoint.srcName, containerVethPrefix)
 			if err != nil {
 				return err
 			}
@@ -1060,8 +1055,8 @@ func (d *driver) link(network *bridgeNetwork, endpoint *bridgeEndpoint, options 
 				return err
 			}
 
-			l := newLink(parentEndpoint.intf.Address.IP.String(),
-				endpoint.intf.Address.IP.String(),
+			l := newLink(parentEndpoint.addr.IP.String(),
+				endpoint.addr.IP.String(),
 				endpoint.config.ExposedPorts, network.config.BridgeName)
 			if enable {
 				err = l.Enable()
@@ -1093,8 +1088,8 @@ func (d *driver) link(network *bridgeNetwork, endpoint *bridgeEndpoint, options 
 			continue
 		}
 
-		l := newLink(endpoint.intf.Address.IP.String(),
-			childEndpoint.intf.Address.IP.String(),
+		l := newLink(endpoint.addr.IP.String(),
+			childEndpoint.addr.IP.String(),
 			childEndpoint.config.ExposedPorts, network.config.BridgeName)
 		if enable {
 			err = l.Enable()
@@ -1183,23 +1178,4 @@ func electMacAddress(epConfig *endpointConfiguration) net.HardwareAddr {
 		return epConfig.MacAddress
 	}
 	return netutils.GenerateRandomMAC()
-}
-
-// Generates a name to be used for a virtual ethernet
-// interface. The name is constructed by 'veth' appended
-// by a randomly generated hex value. (example: veth0f60e2c)
-func generateIfaceName() (string, error) {
-	for i := 0; i < 3; i++ {
-		name, err := netutils.GenerateRandomName(vethPrefix, vethLen)
-		if err != nil {
-			continue
-		}
-		if _, err := net.InterfaceByName(name); err != nil {
-			if strings.Contains(err.Error(), "no such") {
-				return name, nil
-			}
-			return "", err
-		}
-	}
-	return "", &ErrIfaceName{}
 }

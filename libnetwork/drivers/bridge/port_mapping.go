@@ -7,7 +7,6 @@ import (
 	"net"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/libnetwork/sandbox"
 	"github.com/docker/libnetwork/types"
 )
 
@@ -15,7 +14,7 @@ var (
 	defaultBindingIP = net.IPv4(0, 0, 0, 0)
 )
 
-func (n *bridgeNetwork) allocatePorts(epConfig *endpointConfiguration, intf *sandbox.Interface, reqDefBindIP net.IP, ulPxyEnabled bool) ([]types.PortBinding, error) {
+func (n *bridgeNetwork) allocatePorts(epConfig *endpointConfiguration, ep *bridgeEndpoint, reqDefBindIP net.IP, ulPxyEnabled bool) ([]types.PortBinding, error) {
 	if epConfig == nil || epConfig.PortBindings == nil {
 		return nil, nil
 	}
@@ -25,7 +24,7 @@ func (n *bridgeNetwork) allocatePorts(epConfig *endpointConfiguration, intf *san
 		defHostIP = reqDefBindIP
 	}
 
-	return n.allocatePortsInternal(epConfig.PortBindings, intf.Address.IP, defHostIP, ulPxyEnabled)
+	return n.allocatePortsInternal(epConfig.PortBindings, ep.addr.IP, defHostIP, ulPxyEnabled)
 }
 
 func (n *bridgeNetwork) allocatePortsInternal(bindings []types.PortBinding, containerIP, defHostIP net.IP, ulPxyEnabled bool) ([]types.PortBinding, error) {

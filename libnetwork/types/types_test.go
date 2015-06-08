@@ -1,10 +1,11 @@
 package types
 
 import (
+	"flag"
 	"testing"
-
-	_ "github.com/docker/libnetwork/netutils"
 )
+
+var runningInContainer = flag.Bool("incontainer", false, "Indicates if the test is running in a container")
 
 func TestErrorConstructors(t *testing.T) {
 	var err error

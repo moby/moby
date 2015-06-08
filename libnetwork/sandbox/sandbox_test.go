@@ -1,11 +1,12 @@
 package sandbox
 
 import (
-	"net"
 	"os"
+	"runtime"
 	"testing"
 
 	"github.com/docker/docker/pkg/reexec"
+	"github.com/docker/libnetwork/netutils"
 )
 
 func TestMain(m *testing.M) {
@@ -16,6 +17,8 @@ func TestMain(m *testing.M) {
 }
 
 func TestSandboxCreate(t *testing.T) {
+	defer netutils.SetupTestNetNS(t)()
+
 	key, err := newKey(t)
 	if err != nil {
 		t.Fatalf("Failed to obtain a key: %v", err)
@@ -25,39 +28,50 @@ func TestSandboxCreate(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create a new sandbox: %v", err)
 	}
+	runtime.LockOSThread()
 
 	if s.Key() != key {
 		t.Fatalf("s.Key() returned %s. Expected %s", s.Key(), key)
 	}
 
-	info, err := newInfo(t)
+	tbox, err := newInfo(t)
 	if err != nil {
 		t.Fatalf("Failed to generate new sandbox info: %v", err)
 	}
 
-	for _, i := range info.Interfaces {
-		err = s.AddInterface(i)
+	for _, i := range tbox.Info().Interfaces() {
+		err = s.AddInterface(i.SrcName(), i.DstName(),
+			tbox.InterfaceOptions().Bridge(i.Bridge()),
+			tbox.InterfaceOptions().Address(i.Address()),
+			tbox.InterfaceOptions().AddressIPv6(i.AddressIPv6()))
 		if err != nil {
 			t.Fatalf("Failed to add interfaces to sandbox: %v", err)
 		}
+		runtime.LockOSThread()
 	}
 
-	err = s.SetGateway(info.Gateway)
+	err = s.SetGateway(tbox.Info().Gateway())
 	if err != nil {
 		t.Fatalf("Failed to set gateway to sandbox: %v", err)
 	}
+	runtime.LockOSThread()
 
-	err = s.SetGatewayIPv6(info.GatewayIPv6)
+	err = s.SetGatewayIPv6(tbox.Info().GatewayIPv6())
 	if err != nil {
 		t.Fatalf("Failed to set ipv6 gateway to sandbox: %v", err)
 	}
+	runtime.LockOSThread()
 
-	verifySandbox(t, s)
+	verifySandbox(t, s, []string{"0", "1", "2"})
+	runtime.LockOSThread()
+
 	s.Destroy()
 	verifyCleanup(t, s, true)
 }
 
 func TestSandboxCreateTwice(t *testing.T) {
+	defer netutils.SetupTestNetNS(t)()
+
 	key, err := newKey(t)
 	if err != nil {
 		t.Fatalf("Failed to obtain a key: %v", err)
@@ -67,6 +81,7 @@ func TestSandboxCreateTwice(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create a new sandbox: %v", err)
 	}
+	runtime.LockOSThread()
 
 	// Create another sandbox with the same key to see if we handle it
 	// gracefully.
@@ -74,6 +89,7 @@ func TestSandboxCreateTwice(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create a new sandbox: %v", err)
 	}
+	runtime.LockOSThread()
 	s.Destroy()
 }
 
@@ -95,6 +111,8 @@ func TestSandboxGC(t *testing.T) {
 }
 
 func TestAddRemoveInterface(t *testing.T) {
+	defer netutils.SetupTestNetNS(t)()
+
 	key, err := newKey(t)
 	if err != nil {
 		t.Fatalf("Failed to obtain a key: %v", err)
@@ -104,128 +122,51 @@ func TestAddRemoveInterface(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create a new sandbox: %v", err)
 	}
+	runtime.LockOSThread()
 
 	if s.Key() != key {
 		t.Fatalf("s.Key() returned %s. Expected %s", s.Key(), key)
 	}
 
-	info, err := newInfo(t)
+	tbox, err := newInfo(t)
 	if err != nil {
 		t.Fatalf("Failed to generate new sandbox info: %v", err)
 	}
 
-	for _, i := range info.Interfaces {
-		err = s.AddInterface(i)
+	for _, i := range tbox.Info().Interfaces() {
+		err = s.AddInterface(i.SrcName(), i.DstName(),
+			tbox.InterfaceOptions().Bridge(i.Bridge()),
+			tbox.InterfaceOptions().Address(i.Address()),
+			tbox.InterfaceOptions().AddressIPv6(i.AddressIPv6()))
 		if err != nil {
 			t.Fatalf("Failed to add interfaces to sandbox: %v", err)
 		}
+		runtime.LockOSThread()
 	}
 
-	interfaces := s.Interfaces()
-	if !(interfaces[0].Equal(info.Interfaces[0]) && interfaces[1].Equal(info.Interfaces[1])) {
-		t.Fatalf("Failed to update Sandbox.sinfo.Interfaces in AddInterfaces")
-	}
+	verifySandbox(t, s, []string{"0", "1", "2"})
+	runtime.LockOSThread()
 
-	if err := s.RemoveInterface(info.Interfaces[0]); err != nil {
+	interfaces := s.Info().Interfaces()
+	if err := interfaces[0].Remove(); err != nil {
 		t.Fatalf("Failed to remove interfaces from sandbox: %v", err)
 	}
+	runtime.LockOSThread()
 
-	if !s.Interfaces()[0].Equal(info.Interfaces[1]) {
-		t.Fatalf("Failed to update the sanbox.sinfo.Interfaces in RemoveInterferce")
-	}
+	verifySandbox(t, s, []string{"1", "2"})
+	runtime.LockOSThread()
 
-	if err := s.AddInterface(info.Interfaces[0]); err != nil {
+	i := tbox.Info().Interfaces()[0]
+	if err := s.AddInterface(i.SrcName(), i.DstName(),
+		tbox.InterfaceOptions().Bridge(i.Bridge()),
+		tbox.InterfaceOptions().Address(i.Address()),
+		tbox.InterfaceOptions().AddressIPv6(i.AddressIPv6())); err != nil {
 		t.Fatalf("Failed to add interfaces to sandbox: %v", err)
 	}
+	runtime.LockOSThread()
 
-	interfaces = s.Interfaces()
-	if !(interfaces[0].Equal(info.Interfaces[1]) && interfaces[1].Equal(info.Interfaces[0])) {
-		t.Fatalf("Failed to update Sandbox.sinfo.Interfaces in AddInterfaces")
-	}
+	verifySandbox(t, s, []string{"1", "2", "3"})
+	runtime.LockOSThread()
 
 	s.Destroy()
-}
-
-func TestInterfaceEqual(t *testing.T) {
-	list := getInterfaceList()
-
-	if !list[0].Equal(list[0]) {
-		t.Fatalf("Interface.Equal() returned false negative")
-	}
-
-	if list[0].Equal(list[1]) {
-		t.Fatalf("Interface.Equal() returned false positive")
-	}
-
-	if list[0].Equal(list[1]) != list[1].Equal(list[0]) {
-		t.Fatalf("Interface.Equal() failed commutative check")
-	}
-}
-
-func TestSandboxInfoEqual(t *testing.T) {
-	si1 := &Info{Interfaces: getInterfaceList(), Gateway: net.ParseIP("192.168.1.254"), GatewayIPv6: net.ParseIP("2001:2345::abcd:8889")}
-	si2 := &Info{Interfaces: getInterfaceList(), Gateway: net.ParseIP("172.18.255.254"), GatewayIPv6: net.ParseIP("2001:2345::abcd:8888")}
-
-	if !si1.Equal(si1) {
-		t.Fatalf("Info.Equal() returned false negative")
-	}
-
-	if si1.Equal(si2) {
-		t.Fatalf("Info.Equal() returned false positive")
-	}
-
-	if si1.Equal(si2) != si2.Equal(si1) {
-		t.Fatalf("Info.Equal() failed commutative check")
-	}
-}
-
-func TestInterfaceCopy(t *testing.T) {
-	for _, iface := range getInterfaceList() {
-		cp := iface.GetCopy()
-
-		if !iface.Equal(cp) {
-			t.Fatalf("Failed to return a copy of Interface")
-		}
-
-		if iface == cp {
-			t.Fatalf("Failed to return a true copy of Interface")
-		}
-	}
-}
-
-func TestSandboxInfoCopy(t *testing.T) {
-	si := Info{Interfaces: getInterfaceList(), Gateway: net.ParseIP("192.168.1.254"), GatewayIPv6: net.ParseIP("2001:2345::abcd:8889")}
-	cp := si.GetCopy()
-
-	if !si.Equal(cp) {
-		t.Fatalf("Failed to return a copy of Info")
-	}
-
-	if &si == cp {
-		t.Fatalf("Failed to return a true copy of Info")
-	}
-}
-
-func getInterfaceList() []*Interface {
-	_, netv4a, _ := net.ParseCIDR("192.168.30.1/24")
-	_, netv4b, _ := net.ParseCIDR("172.18.255.2/23")
-	_, netv6a, _ := net.ParseCIDR("2001:2345::abcd:8888/80")
-	_, netv6b, _ := net.ParseCIDR("2001:2345::abcd:8889/80")
-
-	return []*Interface{
-		&Interface{
-			SrcName:     "veth1234567",
-			DstName:     "eth0",
-			Address:     netv4a,
-			AddressIPv6: netv6a,
-			Routes:      []*net.IPNet{netv4a, netv6a},
-		},
-		&Interface{
-			SrcName:     "veth7654321",
-			DstName:     "eth1",
-			Address:     netv4b,
-			AddressIPv6: netv6b,
-			Routes:      []*net.IPNet{netv4b, netv6b},
-		},
-	}
 }
