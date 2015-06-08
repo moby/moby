@@ -832,21 +832,6 @@ func (container *Container) initializeNetworking() error {
 	return container.buildHostnameFile()
 }
 
-// Make sure the config is compatible with the current kernel
-func (container *Container) verifyDaemonSettings() {
-	if container.hostConfig.Memory > 0 && !container.daemon.sysInfo.MemoryLimit {
-		logrus.Warnf("Your kernel does not support memory limit capabilities. Limitation discarded.")
-		container.hostConfig.Memory = 0
-	}
-	if container.hostConfig.Memory > 0 && container.hostConfig.MemorySwap != -1 && !container.daemon.sysInfo.SwapLimit {
-		logrus.Warnf("Your kernel does not support swap limit capabilities. Limitation discarded.")
-		container.hostConfig.MemorySwap = -1
-	}
-	if container.daemon.sysInfo.IPv4ForwardingDisabled {
-		logrus.Warnf("IPv4 forwarding is disabled. Networking will not work")
-	}
-}
-
 func (container *Container) ExportRw() (archive.Archive, error) {
 	if container.daemon == nil {
 		return nil, fmt.Errorf("Can't load storage driver for unregistered container %s", container.ID)

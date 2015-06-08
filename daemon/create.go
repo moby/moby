@@ -19,7 +19,7 @@ func (daemon *Daemon) ContainerCreate(name string, config *runconfig.Config, hos
 		return "", nil, fmt.Errorf("Config cannot be empty in order to create a container")
 	}
 
-	warnings, err := daemon.verifyHostConfig(hostConfig)
+	warnings, err := daemon.verifyContainerSettings(hostConfig)
 	if err != nil {
 		return "", warnings, err
 	}

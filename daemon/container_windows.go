@@ -59,9 +59,6 @@ func (container *Container) setupWorkingDirectory() error {
 	return nil
 }
 
-func (container *Container) verifyDaemonSettings() {
-}
-
 func populateCommand(c *Container, env []string) error {
 	en := &execdriver.Network{
 		Mtu:       c.daemon.config.Mtu,
