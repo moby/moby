@@ -12,3 +12,7 @@ func copyOwnership(source, destination string) error {
 func (container *Container) setupMounts() ([]execdriver.Mount, error) {
 	return nil, nil
 }
+
+func (daemon *Daemon) migrateVolume(id, vfs string) error {
+	return nil
+}
