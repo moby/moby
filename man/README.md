@@ -11,34 +11,23 @@ The recommended approach for generating the man pages is via a Docker
 container using the supplied `Dockerfile` to create an image with the correct
 environment. This uses `go-md2man`, a pure Go Markdown to man page generator.
 
-### Generate the man pages 
+## Building the md2man image
 
-On Linux installations, Docker includes a set of man pages you can access by typing `man command-name` on the command line. For example, `man docker` displays the `docker` man page. When using Docker on Mac OSX the man pages are not automatically included. 
+There is a `Dockerfile` provided in the `docker/docs/man` directory.
 
-You can generate and install the `man` pages yourself by following these steps:
+Using this `Dockerfile`, create a Docker image tagged `docker/md2man`:
 
-1. Checkout the `docker` source. 
+    docker build -t docker/md2man .
 
-        $ git clone https://github.com/docker/docker.git
-        
-  If you are using Boot2Docker, you must clone into your `/Users` directory
-  because Boot2Docker can only share this path with the docker containers.
-		
-2. Build the docker image.
-   
-        $ cd docker/man
-        $ docker build -t docker/md2man .
+## Utilizing the image
 
-3. Build the man pages.
+Once the image is built, run a container using the image with *volumes*:
 
-        $ docker run -v <path-to-git-dir>/docker/man:/man:rw -w /man -i docker/md2man /man/md2man-all.sh
-        
-  The `md2man` Docker container processes the Markdown files and generates
- a `man1` and `man5` subdirectories in the `docker/man` directory. 
+    docker run -v /<path-to-git-dir>/docker/docs/man:/docs:rw \
+    -w /docs -i docker/md2man /docs/md2man-all.sh
 
-4. Copy the generated man pages to `/usr/share/man`
-
-        $ cp -R man* /usr/share/man/
-
-
-
+The `md2man` Docker container will process the Markdown files and generate
+the man pages inside the `docker/docs/man/man1` directory using
+Docker volumes. For more information on Docker volumes see the man page for
+`docker run` and also look at the article [Sharing Directories via Volumes]
+(https://docs.docker.com/use/working_with_volumes/).
