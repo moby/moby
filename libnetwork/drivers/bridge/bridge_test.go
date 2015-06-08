@@ -57,6 +57,22 @@ func TestCreate(t *testing.T) {
 	if err := d.CreateNetwork("dummy", genericOption); err != nil {
 		t.Fatalf("Failed to create bridge: %v", err)
 	}
+
+	err := d.CreateNetwork("dummy", genericOption)
+	if err == nil {
+		t.Fatalf("Expected bridge driver to refuse creation of second network with default name")
+	}
+	if _, ok := err.(types.ForbiddenError); !ok {
+		t.Fatalf("Creation of second network with default name failed with unexpected error type")
+	}
+
+	err = d.DeleteNetwork("dummy")
+	if err == nil {
+		t.Fatalf("deletion of network with default name should fail on this driver")
+	}
+	if _, ok := err.(types.ForbiddenError); !ok {
+		t.Fatalf("deletion of network with default name failed with unexpected error type")
+	}
 }
 
 func TestCreateFail(t *testing.T) {
