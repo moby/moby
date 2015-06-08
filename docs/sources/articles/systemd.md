@@ -24,14 +24,28 @@ If you want Docker to start at boot, you should also:
 ## Custom Docker daemon options
 
 There are a number of ways to configure the daemon flags and environment variables
-for your Docker daemon. 
+for your Docker daemon.
 
 If the `docker.service` file is set to use an `EnvironmentFile`
 (often pointing to `/etc/sysconfig/docker`) then you can modify the
 referenced file.
 
-Or, you may need to edit the `docker.service` file, which can be in
-`/usr/lib/systemd/system`, `/etc/systemd/service`, or `/lib/systemd/system`.
+Check if the `docker.service` uses an `EnvironmentFile`:
+
+    $ sudo systemctl show docker | grep EnvironmentFile
+    EnvironmentFile=-/etc/sysconfig/docker (ignore_errors=yes)
+
+Alternatively, find out where the service file is located, and look for the
+property:
+
+    $ sudo systemctl status docker | grep Loaded
+       Loaded: loaded (/usr/lib/systemd/system/docker.service; enabled)
+    $ sudo grep EnvironmentFile /usr/lib/systemd/system/docker.service
+    EnvironmentFile=-/etc/sysconfig/docker
+
+You can customize the Docker daemon options using override files as explained in the
+[HTTP Proxy example](#http-proxy) below. The files located in `/usr/lib/systemd/system` 
+or `/lib/systemd/system` contain the default options and should not be edited.
 
 ### Runtime directory and storage driver
 
@@ -42,7 +56,7 @@ In this example, we'll assume that your `docker.service` file looks something li
 
     [Unit]
     Description=Docker Application Container Engine
-    Documentation=http://docs.docker.com
+    Documentation=https://docs.docker.com
     After=network.target docker.socket
     Requires=docker.socket
 
@@ -89,6 +103,11 @@ proxying you can specify them via the `NO_PROXY` environment variable:
 Flush changes:
 
     $ sudo systemctl daemon-reload
+
+Verify that the configuration has been loaded:
+
+    $ sudo systemctl show docker --property Environment
+    Environment=HTTP_PROXY=http://proxy.example.com:80/
 
 Restart Docker:
 
