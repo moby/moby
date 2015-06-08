@@ -5,7 +5,6 @@ description = "Style guide for Docker documentation describing standards and con
 keywords = ["style, guide, docker,  documentation"]
 [menu.main]
 parent = "mn_opensource"
-weight=100
 +++
 <![end-metadata]-->
 

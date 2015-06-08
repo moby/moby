@@ -5,7 +5,6 @@ description = "Basic workflow for Docker contributions"
 keywords = ["contribute, pull request, review, workflow, beginner, squash,  commit"]
 [menu.main]
 parent = "smn_contribute"
-weight=4
 +++
 <![end-metadata]-->
 

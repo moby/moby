@@ -1,6 +1,5 @@
 <!--[metadata]>
 +++
-draft = true
 title = "The Docker Hub Registry help"
 description = "The Docker Registry help documentation home"
 keywords = ["Docker, docker, registry, accounts, plans, Dockerfile, Docker Hub, docs,  documentation"]

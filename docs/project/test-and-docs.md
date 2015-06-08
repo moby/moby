@@ -4,8 +4,7 @@ title = "Run tests and test documentation"
 description = "Describes Docker's testing infrastructure"
 keywords = ["make test, make docs, Go tests, gofmt, contributing,  running tests"]
 [menu.main]
-parent = "smn_develop"
-weight=6
+parent = "smn_contribute"
 +++
 <![end-metadata]-->
 

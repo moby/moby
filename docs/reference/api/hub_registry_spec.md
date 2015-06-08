@@ -1,14 +1,14 @@
 <!--[metadata]>
 +++
-title = "The Docker Hub and the Registry v1"
+title = "Registry documentation"
 description = "Documentation for docker Registry and Registry API"
 keywords = ["docker, registry, api,  hub"]
 [menu.main]
-parent="smn_hub_ref"
+parent="smn_registry_ref"
 +++
 <![end-metadata]-->
 
-# The Docker Hub and the Registry v1
+# The Docker Hub and the Registry 1.0 spec
 
 ## The three roles
 

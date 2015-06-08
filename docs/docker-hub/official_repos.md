@@ -5,7 +5,6 @@ description = "Guidelines for Official Repositories on Docker Hub"
 keywords = ["Docker, docker, registry, accounts, plans, Dockerfile, Docker Hub, docs, official, image,  documentation"]
 [menu.main]
 parent = "smn_pubhub"
-weight = 4
 +++
 <![end-metadata]-->
 

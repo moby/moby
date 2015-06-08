@@ -1,6 +1,12 @@
-page_title: Installation on IBM SoftLayer 
-page_description: Installation instructions for Docker on IBM SoftLayer.
-page_keywords: IBM SoftLayer, virtualization, cloud, docker, documentation, installation
+<!--[metadata]>
++++
+title = "Installation on IBM SoftLayer "
+description = "Installation instructions for Docker on IBM Softlayer."
+keywords = ["IBM SoftLayer, virtualization, cloud, docker, documentation,  installation"]
+[menu.main]
+parent = "smn_cloud"
++++
+<![end-metadata]-->
 
 # IBM SoftLayer
 

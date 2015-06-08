@@ -12,185 +12,153 @@ parent = "smn_linux"
 
 Docker is supported on the following versions of CentOS:
 
-* CentOS 7.X 
-* CentOS 6.5 or higher 
+- [*CentOS 7 (64-bit)*](#installing-docker-centos-7)
+- [*CentOS 6.5 (64-bit)*](#installing-docker-centos-6.5) or later
 
-Installation on other binary compatible EL6/EL7 distributions such as Scientific
-Linux might succeed, but Docker does not test or support Docker on these
-distributions.
+These instructions are likely work for other binary compatible EL6/EL7 distributions
+such as Scientific Linux, but they haven't been tested.
 
-This page instructs you to install using Docker-managed release packages and
-installation mechanisms. Using these packages ensures you get the latest release
-of Docker. If you wish to install using CentOS-managed packages, consult your
-CentOS documentation.
+Please note that due to the current Docker limitations, Docker is able to
+run only on the **64 bit** architecture.
 
-## Prerequisites
+## Kernel support
 
-Docker requires a 64-bit installation regardless of your CentOS version. Also,
-your kernel must be 3.10 at minimum. CentOS 7 runs the 3.10 kernel, 6.5 does
-not. We make an exception for CentOS 6.5. To run Docker on
-[CentOS-6.5](https://www.centos.org) or later, you need kernel 2.6.32-431 or
-higher. 
+Currently the CentOS project will only support Docker when running on kernels
+shipped by the distribution. There are kernel changes which will cause issues
+if one decides to step outside that box and run non-distribution kernel packages.
 
-To check your current kernel version, open a terminal and use `uname -r` to
-display your kernel version:
+To run Docker on [CentOS-6.5](http://www.centos.org) or later, you will need
+kernel version 2.6.32-431 or higher as this has specific kernel fixes to allow
+Docker to run.
 
-    $ uname -r 
-    2.6.32-431.el6.x86_64
+## CentOS-7
 
-Finally, is it recommended that you fully update your system. Please keep in
-mind that CentOS 6 should be fully patched to fix any potential kernel bugs. Any
-reported kernel bugs may have already been fixed on the latest kernel packages 
+### Installation
 
-## Install
+Docker is included by default in the CentOS-Extras repository. To install
+run the following command:
 
-You use the same installation procedure for all versions of CentOS,
-only the package you install differs. There are two packages to choose from:
+    $ sudo yum install docker
 
-<table>
-  <tr>
-    <th>Version</th>
-    <th>Package name</th>
-  </tr>
-  <tr>
-    <td>6.5 and  higher</td>
-    <td>
-    <p>
-    <a href="https://get.docker.com/rpm/1.7.0/centos-6/RPMS/x86_64/docker-engine-1.7.0-1.el6.x86_64.rpm">
-    https://get.docker.com/rpm/1.7.0/centos-6/RPMS/x86_64/docker-engine-1.7.0-1.el6.x86_64.rpm</a>
-    <p>
-    <a href="https://get.docker.com/rpm/1.7.0/centos-6/SRPMS/docker-engine-1.7.0-1.el6.src.rpm">
-   https://get.docker.com/rpm/1.7.0/centos-6/SRPMS/docker-engine-1.7.0-1.el6.src.rpm</a>
-    <p>
-    </p>
-    </td>
-  </tr>
-  <tr>
-    <td>7.X</td>
-    <td>
-    <p>
-     <a href="https://get.docker.com/rpm/1.7.0/centos-7/RPMS/x86_64/docker-engine-1.7.0-1.el7.centos.x86_64.rpm">
-    https://get.docker.com/rpm/1.7.0/centos-7/RPMS/x86_64/docker-engine-1.7.0-1.el7.centos.x86_64.rpm</a>   
-    </p>
-    <p>
-     <a href="https://get.docker.com/rpm/1.7.0/centos-7/SRPMS/docker-engine-1.7.0-1.el7.centos.src.rpm">
-    https://get.docker.com/rpm/1.7.0/centos-7/SRPMS/docker-engine-1.7.0-1.el7.centos.src.rpm</a>   
-    </p>
-    </td>
-  </tr>
-</table>
+Please continue with the [Starting the Docker daemon](#starting-the-docker-daemon).
 
+### Uninstallation
 
-This procedure depicts an installation on version 6.5. If you are installing on
-7.X, substitute that package for your installation. 
+To uninstall the Docker package:
 
-1. Log into your machine as a user with `sudo` or `root` privileges.
+    $ sudo yum -y remove docker
 
-2. Make sure your existing packages are up-to-date.
+The above command will not remove images, containers, volumes, or user created
+configuration files on your host. If you wish to delete all images, containers,
+and volumes run the following command:
 
-		$ sudo yum update
-		
-3. Download the Docker RPM to the current directory.
-		
-		$ curl -O -sSL https://get.docker.com/rpm/1.7.0/centos-6/RPMS/x86_64/docker-engine-1.7.0-1.el6.x86_64.rpm
+    $ rm -rf /var/lib/docker
 
-4. Use `yum` to install the package.
+You must delete the user created configuration files manually.
 
-		$ sudo yum localinstall --nogpgcheck docker-engine-1.7.0-1.el6.x86_64.rpm
+## CentOS-6.5
 
-5. Start the Docker daemon.
+### Installation
 
-		$ sudo service docker start
+For CentOS-6.5, the Docker package is part of [Extra Packages
+for Enterprise Linux (EPEL)](https://fedoraproject.org/wiki/EPEL) repository,
+a community effort to create and maintain additional packages for the RHEL distribution.
 
-6. Verify `docker` is installed correctly by running a test image in a container.
+Firstly, you need to ensure you have the EPEL repository enabled. Please
+follow the [EPEL installation instructions](
+https://fedoraproject.org/wiki/EPEL#How_can_I_use_these_extra_packages.3F).
 
-		$ sudo docker run hello-world
-		Unable to find image 'hello-world:latest' locally
-		latest: Pulling from hello-world
-		a8219747be10: Pull complete 
-		91c95931e552: Already exists 
-		hello-world:latest: The image you are pulling has been verified. Important: image verification is a tech preview feature and should not be relied on to provide security.
-		Digest: sha256:aa03e5d0d5553b4c3473e89c8619cf79df368babd1.7.0cf5daeb82aab55838d
-		Status: Downloaded newer image for hello-world:latest
-		Hello from Docker.
-		This message shows that your installation appears to be working correctly.
+For CentOS-6, there is a package name conflict with a system tray application
+and its executable, so the Docker RPM package was called `docker-io`.
 
-		To generate this message, Docker took the following steps:
-		 1. The Docker client contacted the Docker daemon.
-		 2. The Docker daemon pulled the "hello-world" image from the Docker Hub.
-				(Assuming it was not already locally available.)
-		 3. The Docker daemon created a new container from that image which runs the
-				executable that produces the output you are currently reading.
-		 4. The Docker daemon streamed that output to the Docker client, which sent it
-				to your terminal.
+To proceed with `docker-io` installation on CentOS-6, you may need to remove the
+`docker` package first.
 
-		To try something more ambitious, you can run an Ubuntu container with:
-		 $ docker run -it ubuntu bash
+    $ sudo yum -y remove docker
 
-		For more examples and ideas, visit:
-		 http://docs.docker.com/userguide/
- 
-## Create a docker group		
+Next, let's install the `docker-io` package which will install Docker on our host.
 
-The `docker` daemon binds to a Unix socket instead of a TCP port. By default
-that Unix socket is owned by the user `root` and other users can access it with
-`sudo`. For this reason, `docker` daemon always runs as the `root` user.
+    $ sudo yum install docker-io
 
-To avoid having to use `sudo` when you use the `docker` command, create a Unix
-group called `docker` and add users to it. When the `docker` daemon starts, it
-makes the ownership of the Unix socket read/writable by the `docker` group.
+Please continue with the [Starting the Docker daemon](#starting-the-docker-daemon).
 
->**Warning**: The `docker` group is equivalent to the `root` user; For details
->on how this impacts security in your system, see [*Docker Daemon Attack
->Surface*](/articles/security/#docker-daemon-attack-surface) for details.
+### Uninstallation
 
-To create the `docker` group and add your user:
+To uninstall the Docker package:
 
-1. Log into Centos as a user with `sudo` privileges.
+    $ sudo yum -y remove docker-io
 
-2. Create the `docker` group and add your user.
+The above command will not remove images, containers, volumes, or user created
+configuration files on your host. If you wish to delete all images, containers,
+and volumes run the following command:
 
-    `sudo usermod -aG docker your_username`
+    $ rm -rf /var/lib/docker
 
-3. Log out and log back in.
+You must delete the user created configuration files manually.
 
-    This ensures your user is running with the correct permissions.
+## Manual installation of latest Docker release
 
-4. Verify your work by running `docker` without `sudo`.
+While using a package is the recommended way of installing Docker,
+the above package might not be the current release version. If you need the latest
+version, [you can install the binary directly](
+https://docs.docker.com/installation/binaries/).
 
-		$ docker run hello-world
- 
-## Start the docker daemon at boot
+When installing the binary without a package, you may want
+to integrate Docker with Systemd. For this, install the two unit files
+(service and socket) from [the GitHub
+repository](https://github.com/docker/docker/tree/master/contrib/init/systemd)
+to `/etc/systemd/system`.
 
-To ensure Docker starts when you boot your system, do the following:
+Please continue with the [Starting the Docker daemon](#starting-the-docker-daemon).
 
-      $ sudo chkconfig docker on
+## Starting the Docker daemon
+
+Once Docker is installed, you will need to start the docker daemon.
+
+    $ sudo service docker start
+
+If we want Docker to start at boot, we should also:
+
+    $ sudo chkconfig docker on
+
+Now let's verify that Docker is working. First we'll need to get the latest
+`centos` image.
+
+    $ sudo docker pull centos
+
+Next we'll make sure that we can see the image by running:
+
+    $ sudo docker images centos
+
+This should generate some output similar to:
+
+    $ sudo docker images centos
+    REPOSITORY      TAG             IMAGE ID          CREATED             VIRTUAL SIZE
+    centos          latest          0b443ba03958      2 hours ago         297.6 MB
+
+Run a simple bash shell to test the image:
+
+    $ sudo docker run -i -t centos /bin/bash
+
+If everything is working properly, you'll get a simple bash prompt. Type
+`exit` to continue.
+
+## Custom daemon options
 
 If you need to add an HTTP Proxy, set a different directory or partition for the
 Docker runtime files, or make other customizations, read our Systemd article to
 learn how to [customize your Systemd Docker daemon options](/articles/systemd/).
 
+## Dockerfiles
+The CentOS Project provides a number of sample Dockerfiles which you may use
+either as templates or to familiarize yourself with docker. These templates
+are available on GitHub at [https://github.com/CentOS/CentOS-Dockerfiles](
+https://github.com/CentOS/CentOS-Dockerfiles)
 
-## Uninstall
+**Done!** You can either continue with the [Docker User
+Guide](/userguide/) or explore and build on the images yourself.
 
-You can uninstall the Docker software with `yum`.  
+## Issues?
 
-1. List the package you have installed.
-
-		$ yum list installed | grep docker
-		yum list installed | grep docker
-		docker-engine.x86_64                1.7.0-1.el6
-																																								 @/docker-engine-1.7.0-1.el6.x86_64.rpm
-
-2. Remove the package.
-
-		$ sudo yum -y remove docker-engine.x86_64 
-
-	This command does not remove images, containers, volumes, or user-created
-	configuration files on your host. 
-
-3. To delete all images, containers, and volumes, run the following command:
-
-		$ rm -rf /var/lib/docker
-
-4. Locate and delete any user-created configuration files.
+If you have any issues - please report them directly in the
+[CentOS bug tracker](http://bugs.centos.org).

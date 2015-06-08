@@ -5,7 +5,6 @@ description = "Your Repositories on Docker Hub"
 keywords = ["Docker, docker, registry, accounts, plans, Dockerfile, Docker Hub, webhooks, docs,  documentation"]
 [menu.main]
 parent = "smn_pubhub"
-weight = 2
 +++
 <![end-metadata]-->
 

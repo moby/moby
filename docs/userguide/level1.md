@@ -1,8 +1,11 @@
 <!--[metadata]>
 +++
+draft = true
 title = "Docker images test"
 description = "How to work with Docker images."
 keywords = ["documentation, docs, the docker guide, docker guide, docker, docker platform, virtualization framework, docker.io, Docker images, Docker image, image management, Docker repos, Docker repositories, docker, docker tag, docker tags, Docker Hub,  collaboration"]
+[menu.main]
+parent = "identifier"
 +++
 <![end-metadata]-->
 

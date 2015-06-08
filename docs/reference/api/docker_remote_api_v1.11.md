@@ -1,6 +1,5 @@
 <!--[metadata]>
 +++
-draft = true
 title = "Remote API v1.11"
 description = "API Documentation for Docker"
 keywords = ["API, Docker, rcli, REST,  documentation"]

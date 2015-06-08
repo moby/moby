@@ -1,6 +1,12 @@
-page_title: Remote API v1.20
-page_description: API Documentation for Docker
-page_keywords: API, Docker, rcli, REST, documentation
+<!--[metadata]>
++++
+title = "Remote API v1.20"
+description = "API Documentation for Docker"
+keywords = ["API, Docker, rcli, REST,  documentation"]
+[menu.main]
+parent="smn_remoteapi"
++++
+<![end-metadata]-->
 
 # Docker Remote API v1.20
 

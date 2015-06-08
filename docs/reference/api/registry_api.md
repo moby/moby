@@ -1,7 +1,6 @@
 <!--[metadata]>
 +++
-draft = true
-title = "Registry v1 API"
+title = "Registry API"
 description = "API Documentation for Docker Registry"
 keywords = ["API, Docker, index, registry, REST,  documentation"]
 [menu.main]
