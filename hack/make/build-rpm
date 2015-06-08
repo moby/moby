@@ -38,7 +38,7 @@ set -e
 	rpmDate="$(date +'%a %b %d %Y')"
 
 	# if go-md2man is available, pre-generate the man pages
-	./docs/man/md2man-all.sh -q || true
+	./man/md2man-all.sh -q || true
 	# TODO decide if it's worth getting go-md2man in _each_ builder environment to avoid this
 
 	# TODO add a configurable knob for _which_ rpms to build so we don't have to modify the file or build all of them every time we need to test

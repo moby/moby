@@ -71,7 +71,7 @@ depending on a particular stack or provider.
 
 %build
 ./hack/make.sh dynbinary
-# ./docs/man/md2man-all.sh runs outside the build container (if at all), since we don't have go-md2man here
+# ./man/md2man-all.sh runs outside the build container (if at all), since we don't have go-md2man here
 
 %check
 ./bundles/%{_origversion}/dynbinary/docker -v
@@ -113,9 +113,9 @@ install -p -m 644 contrib/completion/fish/docker.fish $RPM_BUILD_ROOT/usr/share/
 
 # install manpages
 install -d %{buildroot}%{_mandir}/man1
-install -p -m 644 docs/man/man1/*.1 $RPM_BUILD_ROOT/%{_mandir}/man1
+install -p -m 644 man/man1/*.1 $RPM_BUILD_ROOT/%{_mandir}/man1
 install -d %{buildroot}%{_mandir}/man5
-install -p -m 644 docs/man/man5/*.5 $RPM_BUILD_ROOT/%{_mandir}/man5
+install -p -m 644 man/man5/*.5 $RPM_BUILD_ROOT/%{_mandir}/man5
 
 # add vimfiles
 install -d $RPM_BUILD_ROOT/usr/share/vim/vimfiles/doc
