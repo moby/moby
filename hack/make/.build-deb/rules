@@ -9,7 +9,7 @@ override_dh_gencontrol:
 
 override_dh_auto_build:
 	./hack/make.sh dynbinary
-	# ./docs/man/md2man-all.sh runs outside the build container (if at all), since we don't have go-md2man here
+	# ./man/md2man-all.sh runs outside the build container (if at all), since we don't have go-md2man here
 
 override_dh_auto_test:
 	./bundles/$(VERSION)/dynbinary/docker -v
