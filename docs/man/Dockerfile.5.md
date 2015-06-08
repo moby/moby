@@ -196,7 +196,7 @@ A Dockerfile is similar to a Makefile.
   ADD <src> <dest>
 
   # Required for paths with whitespace
-  ADD ["<src>", "<dest>"]
+  ADD ["<src>",... "<dest>"]
   ```
 
   The **ADD** instruction copies new files, directories
@@ -215,7 +215,7 @@ A Dockerfile is similar to a Makefile.
   COPY <src> <dest>
 
   # Required for paths with whitespace
-  COPY ["<src>", "<dest>"]
+  COPY ["<src>",... "<dest>"]
   ```
 
   The **COPY** instruction copies new files from `<src>` and
