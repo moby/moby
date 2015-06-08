@@ -3,6 +3,7 @@ package graph
 import (
 	"testing"
 
+	"github.com/docker/docker/pkg/progressreader"
 	"github.com/docker/docker/pkg/reexec"
 )
 
@@ -12,8 +13,8 @@ func init() {
 
 func TestPools(t *testing.T) {
 	s := &TagStore{
-		pullingPool: make(map[string]chan struct{}),
-		pushingPool: make(map[string]chan struct{}),
+		pullingPool: make(map[string]*progressreader.ProgressStatus),
+		pushingPool: make(map[string]*progressreader.ProgressStatus),
 	}
 
 	if _, err := s.poolAdd("pull", "test1"); err != nil {
