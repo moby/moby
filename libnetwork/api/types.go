@@ -52,6 +52,14 @@ type endpointJoin struct {
 	UseDefaultSandbox bool                   `json:"use_default_sandbox"`
 }
 
+// servicePublish represents the body of the "publish service" http request message
+type servicePublish struct {
+	Name         string                `json:"name"`
+	Network      string                `json:"network"`
+	ExposedPorts []types.TransportPort `json:"exposed_ports"`
+	PortMapping  []types.PortBinding   `json:"port_mapping"`
+}
+
 // EndpointExtraHost represents the extra host object
 type endpointExtraHost struct {
 	Name    string `json:"name"`

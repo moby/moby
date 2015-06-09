@@ -11,8 +11,8 @@ func (nsn ErrNoSuchNetwork) Error() string {
 	return fmt.Sprintf("network %s not found", string(nsn))
 }
 
-// BadRequest denotes the type of this error
-func (nsn ErrNoSuchNetwork) BadRequest() {}
+// NotFound denotes the type of this error
+func (nsn ErrNoSuchNetwork) NotFound() {}
 
 // ErrNoSuchEndpoint is returned when a endpoint query finds no result
 type ErrNoSuchEndpoint string
@@ -21,8 +21,8 @@ func (nse ErrNoSuchEndpoint) Error() string {
 	return fmt.Sprintf("endpoint %s not found", string(nse))
 }
 
-// BadRequest denotes the type of this error
-func (nse ErrNoSuchEndpoint) BadRequest() {}
+// NotFound denotes the type of this error
+func (nse ErrNoSuchEndpoint) NotFound() {}
 
 // ErrInvalidNetworkDriver is returned if an invalid driver
 // name is passed.

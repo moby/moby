@@ -91,16 +91,25 @@ func (h *httpHandler) initRouter() {
 			{"/networks/" + nwID + "/endpoints", []string{"partial-id", epPID}, procGetEndpoints},
 			{"/networks/" + nwID + "/endpoints", nil, procGetEndpoints},
 			{"/networks/" + nwID + "/endpoints/" + epID, nil, procGetEndpoint},
+			{"/services", []string{"network", nwName}, procGetServices},
+			{"/services", []string{"name", epName}, procGetServices},
+			{"/services", []string{"partial-id", epPID}, procGetServices},
+			{"/services", nil, procGetServices},
+			{"/services/" + epID, nil, procGetService},
 		},
 		"POST": {
 			{"/networks", nil, procCreateNetwork},
 			{"/networks/" + nwID + "/endpoints", nil, procCreateEndpoint},
 			{"/networks/" + nwID + "/endpoints/" + epID + "/containers", nil, procJoinEndpoint},
+			{"/services", nil, procPublishService},
+			{"/services/" + epID + "/backend", nil, procAttachBackend},
 		},
 		"DELETE": {
 			{"/networks/" + nwID, nil, procDeleteNetwork},
 			{"/networks/" + nwID + "/endpoints/" + epID, nil, procDeleteEndpoint},
 			{"/networks/" + nwID + "/endpoints/" + epID + "/containers/" + cnID, nil, procLeaveEndpoint},
+			{"/services/" + epID, nil, procUnpublishService},
+			{"/services/" + epID + "/backend/" + cnID, nil, procDetachBackend},
 		},
 	}
 
@@ -355,7 +364,7 @@ func procGetEndpoints(c libnetwork.NetworkController, vars map[string]string, bo
 			list = append(list, buildEndpointResource(ep))
 		}
 	} else if queryByPid {
-		// Return all the prefix-matching networks
+		// Return all the prefix-matching endpoints
 		l := func(ep libnetwork.Endpoint) bool {
 			if strings.HasPrefix(ep.ID(), shortID) {
 				list = append(list, buildEndpointResource(ep))
@@ -448,6 +457,153 @@ func procDeleteEndpoint(c libnetwork.NetworkController, vars map[string]string, 
 	return nil, &successResponse
 }
 
+/******************
+ Service interface
+*******************/
+func procGetServices(c libnetwork.NetworkController, vars map[string]string, body []byte) (interface{}, *responseStatus) {
+	// Look for query filters and validate
+	nwName, filterByNwName := vars[urlNwName]
+	svName, queryBySvName := vars[urlEpName]
+	shortID, queryBySvPID := vars[urlEpPID]
+
+	if filterByNwName && queryBySvName || filterByNwName && queryBySvPID || queryBySvName && queryBySvPID {
+		return nil, &badQueryResponse
+	}
+
+	var list []*endpointResource
+
+	switch {
+	case filterByNwName:
+		// return all service present on the specified network
+		nw, errRsp := findNetwork(c, nwName, byName)
+		if !errRsp.isOK() {
+			return list, &successResponse
+		}
+		for _, ep := range nw.Endpoints() {
+			epr := buildEndpointResource(ep)
+			list = append(list, epr)
+		}
+	case queryBySvName:
+		// Look in each network for the service with the specified name
+		l := func(ep libnetwork.Endpoint) bool {
+			if ep.Name() == svName {
+				list = append(list, buildEndpointResource(ep))
+				return true
+			}
+			return false
+		}
+		for _, nw := range c.Networks() {
+			nw.WalkEndpoints(l)
+		}
+	case queryBySvPID:
+		// Return all the prefix-matching services
+		l := func(ep libnetwork.Endpoint) bool {
+			if strings.HasPrefix(ep.ID(), shortID) {
+				list = append(list, buildEndpointResource(ep))
+			}
+			return false
+		}
+		for _, nw := range c.Networks() {
+			nw.WalkEndpoints(l)
+		}
+	default:
+		for _, nw := range c.Networks() {
+			for _, ep := range nw.Endpoints() {
+				epr := buildEndpointResource(ep)
+				list = append(list, epr)
+			}
+		}
+	}
+
+	return list, &successResponse
+}
+
+func procGetService(c libnetwork.NetworkController, vars map[string]string, body []byte) (interface{}, *responseStatus) {
+	epT, epBy := detectEndpointTarget(vars)
+	sv, errRsp := findService(c, epT, epBy)
+	if !errRsp.isOK() {
+		return nil, endpointToService(errRsp)
+	}
+	return buildEndpointResource(sv), &successResponse
+}
+
+func procPublishService(c libnetwork.NetworkController, vars map[string]string, body []byte) (interface{}, *responseStatus) {
+	var sp servicePublish
+
+	err := json.Unmarshal(body, &sp)
+	if err != nil {
+		return "", &responseStatus{Status: "Invalid body: " + err.Error(), StatusCode: http.StatusBadRequest}
+	}
+
+	n, errRsp := findNetwork(c, sp.Network, byName)
+	if !errRsp.isOK() {
+		return "", errRsp
+	}
+
+	var setFctList []libnetwork.EndpointOption
+	if sp.ExposedPorts != nil {
+		setFctList = append(setFctList, libnetwork.CreateOptionExposedPorts(sp.ExposedPorts))
+	}
+	if sp.PortMapping != nil {
+		setFctList = append(setFctList, libnetwork.CreateOptionPortMapping(sp.PortMapping))
+	}
+
+	ep, err := n.CreateEndpoint(sp.Name, setFctList...)
+	if err != nil {
+		return "", endpointToService(convertNetworkError(err))
+	}
+
+	return ep.ID(), &createdResponse
+}
+
+func procUnpublishService(c libnetwork.NetworkController, vars map[string]string, body []byte) (interface{}, *responseStatus) {
+	epT, epBy := detectEndpointTarget(vars)
+	sv, errRsp := findService(c, epT, epBy)
+	if !errRsp.isOK() {
+		return nil, errRsp
+	}
+	err := sv.Delete()
+	if err != nil {
+		return nil, endpointToService(convertNetworkError(err))
+	}
+	return nil, &successResponse
+}
+
+func procAttachBackend(c libnetwork.NetworkController, vars map[string]string, body []byte) (interface{}, *responseStatus) {
+	var bk endpointJoin
+	err := json.Unmarshal(body, &bk)
+	if err != nil {
+		return nil, &responseStatus{Status: "Invalid body: " + err.Error(), StatusCode: http.StatusBadRequest}
+	}
+
+	epT, epBy := detectEndpointTarget(vars)
+	sv, errRsp := findService(c, epT, epBy)
+	if !errRsp.isOK() {
+		return nil, errRsp
+	}
+
+	err = sv.Join(bk.ContainerID, bk.parseOptions()...)
+	if err != nil {
+		return nil, convertNetworkError(err)
+	}
+	return sv.Info().SandboxKey(), &successResponse
+}
+
+func procDetachBackend(c libnetwork.NetworkController, vars map[string]string, body []byte) (interface{}, *responseStatus) {
+	epT, epBy := detectEndpointTarget(vars)
+	sv, errRsp := findService(c, epT, epBy)
+	if !errRsp.isOK() {
+		return nil, errRsp
+	}
+
+	err := sv.Leave(vars[urlCnID])
+	if err != nil {
+		return nil, convertNetworkError(err)
+	}
+
+	return nil, &successResponse
+}
+
 /***********
   Utilities
 ************/
@@ -492,7 +648,7 @@ func findNetwork(c libnetwork.NetworkController, s string, by int) (libnetwork.N
 		panic(fmt.Sprintf("unexpected selector for network search: %d", by))
 	}
 	if err != nil {
-		if _, ok := err.(libnetwork.ErrNoSuchNetwork); ok {
+		if _, ok := err.(types.NotFoundError); ok {
 			return nil, &responseStatus{Status: "Resource not found: Network", StatusCode: http.StatusNotFound}
 		}
 		return nil, &responseStatus{Status: err.Error(), StatusCode: http.StatusBadRequest}
@@ -518,12 +674,40 @@ func findEndpoint(c libnetwork.NetworkController, ns, es string, nwBy, epBy int)
 		panic(fmt.Sprintf("unexpected selector for endpoint search: %d", epBy))
 	}
 	if err != nil {
-		if _, ok := err.(libnetwork.ErrNoSuchEndpoint); ok {
+		if _, ok := err.(types.NotFoundError); ok {
 			return nil, &responseStatus{Status: "Resource not found: Endpoint", StatusCode: http.StatusNotFound}
 		}
 		return nil, &responseStatus{Status: err.Error(), StatusCode: http.StatusBadRequest}
 	}
 	return ep, &successResponse
+}
+
+func findService(c libnetwork.NetworkController, svs string, svBy int) (libnetwork.Endpoint, *responseStatus) {
+	for _, nw := range c.Networks() {
+		var (
+			ep  libnetwork.Endpoint
+			err error
+		)
+		switch svBy {
+		case byID:
+			ep, err = nw.EndpointByID(svs)
+		case byName:
+			ep, err = nw.EndpointByName(svs)
+		default:
+			panic(fmt.Sprintf("unexpected selector for service search: %d", svBy))
+		}
+		if err == nil {
+			return ep, &successResponse
+		} else if _, ok := err.(types.NotFoundError); !ok {
+			return nil, convertNetworkError(err)
+		}
+	}
+	return nil, &responseStatus{Status: "Service not found", StatusCode: http.StatusNotFound}
+}
+
+func endpointToService(rsp *responseStatus) *responseStatus {
+	rsp.Status = strings.Replace(rsp.Status, "endpoint", "service", -1)
+	return rsp
 }
 
 func convertNetworkError(err error) *responseStatus {

@@ -81,7 +81,14 @@ func createTestNetwork(t *testing.T, network string) (libnetwork.NetworkControll
 		t.Fatal(err)
 	}
 
-	nw, err := c.NewNetwork(bridgeNetType, network, nil)
+	netOption := options.Generic{
+		netlabel.GenericData: options.Generic{
+			"BridgeName":            network,
+			"AllowNonDefaultBridge": true,
+		},
+	}
+	netGeneric := libnetwork.NetworkOptionGeneric(netOption)
+	nw, err := c.NewNetwork(bridgeNetType, network, netGeneric)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -507,6 +514,447 @@ func TestGetNetworksAndEndpoints(t *testing.T) {
 	}
 }
 
+func TestProcGetServices(t *testing.T) {
+	defer netutils.SetupTestNetNS(t)()
+
+	c, err := libnetwork.New("")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = c.ConfigureNetworkDriver(bridgeNetType, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Create 2 networks
+	netName1 := "production"
+	netOption := options.Generic{
+		netlabel.GenericData: options.Generic{
+			"BridgeName":            netName1,
+			"AllowNonDefaultBridge": true,
+		},
+	}
+	nw1, err := c.NewNetwork(bridgeNetType, netName1, libnetwork.NetworkOptionGeneric(netOption))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	netName2 := "work-dev"
+	netOption = options.Generic{
+		netlabel.GenericData: options.Generic{
+			"BridgeName":            netName2,
+			"AllowNonDefaultBridge": true,
+		},
+	}
+	nw2, err := c.NewNetwork(bridgeNetType, netName2, libnetwork.NetworkOptionGeneric(netOption))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	vars := make(map[string]string)
+	li, errRsp := procGetServices(c, vars, nil)
+	if !errRsp.isOK() {
+		t.Fatalf("Unexpected failure: %v", errRsp)
+	}
+	list := i2eL(li)
+	if len(list) != 0 {
+		t.Fatalf("Unexpected services in response: %v", list)
+	}
+
+	// Add a couple of services on one network and one on the other network
+	ep11, err := nw1.CreateEndpoint("db-prod")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ep12, err := nw1.CreateEndpoint("web-prod")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ep21, err := nw2.CreateEndpoint("db-dev")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	li, errRsp = procGetServices(c, vars, nil)
+	if !errRsp.isOK() {
+		t.Fatalf("Unexpected failure: %v", errRsp)
+	}
+	list = i2eL(li)
+	if len(list) != 3 {
+		t.Fatalf("Unexpected services in response: %v", list)
+	}
+
+	// Filter by network
+	vars[urlNwName] = netName1
+	li, errRsp = procGetServices(c, vars, nil)
+	if !errRsp.isOK() {
+		t.Fatalf("Unexpected failure: %v", errRsp)
+	}
+	list = i2eL(li)
+	if len(list) != 2 {
+		t.Fatalf("Unexpected services in response: %v", list)
+	}
+
+	vars[urlNwName] = netName2
+	li, errRsp = procGetServices(c, vars, nil)
+	if !errRsp.isOK() {
+		t.Fatalf("Unexpected failure: %v", errRsp)
+	}
+	list = i2eL(li)
+	if len(list) != 1 {
+		t.Fatalf("Unexpected services in response: %v", list)
+	}
+
+	vars[urlNwName] = "unknown-network"
+	li, errRsp = procGetServices(c, vars, nil)
+	if !errRsp.isOK() {
+		t.Fatalf("Unexpected failure: %v", errRsp)
+	}
+	list = i2eL(li)
+	if len(list) != 0 {
+		t.Fatalf("Unexpected services in response: %v", list)
+	}
+
+	// Query by name
+	delete(vars, urlNwName)
+	vars[urlEpName] = "db-prod"
+	li, errRsp = procGetServices(c, vars, nil)
+	if !errRsp.isOK() {
+		t.Fatalf("Unexpected failure: %v", errRsp)
+	}
+	list = i2eL(li)
+	if len(list) != 1 {
+		t.Fatalf("Unexpected services in response: %v", list)
+	}
+
+	vars[urlEpName] = "no-service"
+	li, errRsp = procGetServices(c, vars, nil)
+	if !errRsp.isOK() {
+		t.Fatalf("Unexpected failure: %v", errRsp)
+	}
+	list = i2eL(li)
+	if len(list) != 0 {
+		t.Fatalf("Unexpected services in response: %v", list)
+	}
+
+	// Query by id or partial id
+	delete(vars, urlEpName)
+	vars[urlEpPID] = ep12.ID()
+	li, errRsp = procGetServices(c, vars, nil)
+	if !errRsp.isOK() {
+		t.Fatalf("Unexpected failure: %v", errRsp)
+	}
+	list = i2eL(li)
+	if len(list) != 1 {
+		t.Fatalf("Unexpected services in response: %v", list)
+	}
+	if list[0].ID != ep12.ID() {
+		t.Fatalf("Unexpected element in response: %v", list)
+	}
+
+	vars[urlEpPID] = "non-id"
+	li, errRsp = procGetServices(c, vars, nil)
+	if !errRsp.isOK() {
+		t.Fatalf("Unexpected failure: %v", errRsp)
+	}
+	list = i2eL(li)
+	if len(list) != 0 {
+		t.Fatalf("Unexpected services in response: %v", list)
+	}
+
+	delete(vars, urlEpPID)
+	err = ep11.Delete()
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = ep12.Delete()
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = ep21.Delete()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	li, errRsp = procGetServices(c, vars, nil)
+	if !errRsp.isOK() {
+		t.Fatalf("Unexpected failure: %v", errRsp)
+	}
+	list = i2eL(li)
+	if len(list) != 0 {
+		t.Fatalf("Unexpected services in response: %v", list)
+	}
+}
+
+func TestProcGetService(t *testing.T) {
+	defer netutils.SetupTestNetNS(t)()
+
+	c, nw := createTestNetwork(t, "network")
+	ep1, err := nw.CreateEndpoint("db")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ep2, err := nw.CreateEndpoint("web")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	vars := map[string]string{urlEpID: ""}
+	_, errRsp := procGetService(c, vars, nil)
+	if errRsp.isOK() {
+		t.Fatalf("Expected failure, but suceeded")
+	}
+	if errRsp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("Expected %d, but got: %d", http.StatusBadRequest, errRsp.StatusCode)
+	}
+
+	vars[urlEpID] = "unknown-service-id"
+	_, errRsp = procGetService(c, vars, nil)
+	if errRsp.isOK() {
+		t.Fatalf("Expected failure, but suceeded")
+	}
+	if errRsp.StatusCode != http.StatusNotFound {
+		t.Fatalf("Expected %d, but got: %d. (%v)", http.StatusNotFound, errRsp.StatusCode, errRsp)
+	}
+
+	vars[urlEpID] = ep1.ID()
+	si, errRsp := procGetService(c, vars, nil)
+	if !errRsp.isOK() {
+		t.Fatalf("Unexpected failure: %v", errRsp)
+	}
+	sv := i2e(si)
+	if sv.ID != ep1.ID() {
+		t.Fatalf("Unexpected service resource returned: %v", sv)
+	}
+
+	vars[urlEpID] = ep2.ID()
+	si, errRsp = procGetService(c, vars, nil)
+	if !errRsp.isOK() {
+		t.Fatalf("Unexpected failure: %v", errRsp)
+	}
+	sv = i2e(si)
+	if sv.ID != ep2.ID() {
+		t.Fatalf("Unexpected service resource returned: %v", sv)
+	}
+}
+
+func TestProcPublishUnpublishService(t *testing.T) {
+	defer netutils.SetupTestNetNS(t)()
+
+	c, _ := createTestNetwork(t, "network")
+	vars := make(map[string]string)
+
+	vbad, err := json.Marshal("bad service create data")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, errRsp := procPublishService(c, vars, vbad)
+	if errRsp == &createdResponse {
+		t.Fatalf("Expected to fail but succeeded")
+	}
+	if errRsp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("Expected %d. Got: %v", http.StatusBadRequest, errRsp)
+	}
+
+	b, err := json.Marshal(servicePublish{Name: ""})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, errRsp = procPublishService(c, vars, b)
+	if errRsp == &createdResponse {
+		t.Fatalf("Expected to fail but succeeded")
+	}
+	if errRsp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("Expected %d. Got: %v", http.StatusBadRequest, errRsp)
+	}
+
+	b, err = json.Marshal(servicePublish{Name: "db"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, errRsp = procPublishService(c, vars, b)
+	if errRsp == &createdResponse {
+		t.Fatalf("Expected to fail but succeeded")
+	}
+	if errRsp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("Expected %d. Got: %v", http.StatusBadRequest, errRsp)
+	}
+
+	b, err = json.Marshal(servicePublish{Name: "db", Network: "unknown-network"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, errRsp = procPublishService(c, vars, b)
+	if errRsp == &createdResponse {
+		t.Fatalf("Expected to fail but succeeded")
+	}
+	if errRsp.StatusCode != http.StatusNotFound {
+		t.Fatalf("Expected %d. Got: %v", http.StatusNotFound, errRsp)
+	}
+
+	b, err = json.Marshal(servicePublish{Name: "", Network: "network"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, errRsp = procPublishService(c, vars, b)
+	if errRsp == &createdResponse {
+		t.Fatalf("Expected to fail but succeeded")
+	}
+	if errRsp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("Expected %d. Got: %v", http.StatusBadRequest, errRsp)
+	}
+
+	b, err = json.Marshal(servicePublish{Name: "db", Network: "network"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, errRsp = procPublishService(c, vars, b)
+	if errRsp != &createdResponse {
+		t.Fatalf("Unexpected failure: %v", errRsp)
+	}
+
+	sp := servicePublish{
+		Name:    "web",
+		Network: "network",
+		ExposedPorts: []types.TransportPort{
+			types.TransportPort{Proto: types.TCP, Port: uint16(6000)},
+			types.TransportPort{Proto: types.UDP, Port: uint16(500)},
+			types.TransportPort{Proto: types.TCP, Port: uint16(700)},
+		},
+		PortMapping: []types.PortBinding{
+			types.PortBinding{Proto: types.TCP, Port: uint16(1230), HostPort: uint16(37000)},
+			types.PortBinding{Proto: types.UDP, Port: uint16(1200), HostPort: uint16(36000)},
+			types.PortBinding{Proto: types.TCP, Port: uint16(1120), HostPort: uint16(35000)},
+		},
+	}
+	b, err = json.Marshal(sp)
+	if err != nil {
+		t.Fatal(err)
+	}
+	si, errRsp := procPublishService(c, vars, b)
+	if errRsp != &createdResponse {
+		t.Fatalf("Unexpected failure: %v", errRsp)
+	}
+	sid := i2s(si)
+
+	vars[urlEpID] = ""
+	_, errRsp = procUnpublishService(c, vars, nil)
+	if errRsp.isOK() {
+		t.Fatalf("Expected failure but succeeded")
+	}
+	if errRsp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("Expected %d. Got: %v", http.StatusBadRequest, errRsp)
+	}
+
+	vars[urlEpID] = "unknown-service-id"
+	_, errRsp = procUnpublishService(c, vars, nil)
+	if errRsp.isOK() {
+		t.Fatalf("Expected failure but succeeded")
+	}
+	if errRsp.StatusCode != http.StatusNotFound {
+		t.Fatalf("Expected %d. Got: %v", http.StatusNotFound, errRsp)
+	}
+
+	vars[urlEpID] = sid
+	_, errRsp = procUnpublishService(c, vars, nil)
+	if !errRsp.isOK() {
+		t.Fatalf("Unexpected failure: %v", errRsp)
+	}
+
+	_, errRsp = procGetService(c, vars, nil)
+	if errRsp.isOK() {
+		t.Fatalf("Expected failure, but suceeded")
+	}
+	if errRsp.StatusCode != http.StatusNotFound {
+		t.Fatalf("Expected %d, but got: %d. (%v)", http.StatusNotFound, errRsp.StatusCode, errRsp)
+	}
+}
+
+func TestAttachDetachBackend(t *testing.T) {
+	defer netutils.SetupTestNetNS(t)()
+
+	c, nw := createTestNetwork(t, "network")
+	ep1, err := nw.CreateEndpoint("db")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	vars := make(map[string]string)
+
+	vbad, err := json.Marshal("bad data")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, errRsp := procAttachBackend(c, vars, vbad)
+	if errRsp == &successResponse {
+		t.Fatalf("Expected failure, got: %v", errRsp)
+	}
+
+	vars[urlEpName] = "endpoint"
+	bad, err := json.Marshal(endpointJoin{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, errRsp = procAttachBackend(c, vars, bad)
+	if errRsp == &successResponse {
+		t.Fatalf("Expected failure, got: %v", errRsp)
+	}
+	if errRsp.StatusCode != http.StatusNotFound {
+		t.Fatalf("Expected %d. Got: %v", http.StatusNotFound, errRsp)
+	}
+
+	vars[urlEpName] = "db"
+	_, errRsp = procAttachBackend(c, vars, bad)
+	if errRsp == &successResponse {
+		t.Fatalf("Expected failure, got: %v", errRsp)
+	}
+	if errRsp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("Expected %d. Got: %v", http.StatusBadRequest, errRsp)
+	}
+
+	cid := "abcdefghi"
+	jl := endpointJoin{ContainerID: cid}
+	jlb, err := json.Marshal(jl)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, errRsp = procAttachBackend(c, vars, jlb)
+	if errRsp != &successResponse {
+		t.Fatalf("Unexpected failure, got: %v", errRsp)
+	}
+
+	vars[urlEpName] = "endpoint"
+	_, errRsp = procDetachBackend(c, vars, nil)
+	if errRsp == &successResponse {
+		t.Fatalf("Expected failure, got: %v", errRsp)
+	}
+	if errRsp.StatusCode != http.StatusNotFound {
+		t.Fatalf("Expected %d. Got: %v", http.StatusNotFound, errRsp)
+	}
+
+	vars[urlEpName] = "db"
+	_, errRsp = procDetachBackend(c, vars, nil)
+	if errRsp == &successResponse {
+		t.Fatalf("Expected failure, got: %v", errRsp)
+	}
+	if errRsp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("Expected %d. Got: %v", http.StatusBadRequest, errRsp)
+	}
+
+	vars[urlCnID] = cid
+	_, errRsp = procDetachBackend(c, vars, nil)
+	if errRsp != &successResponse {
+		t.Fatalf("Unexpected failure, got: %v", errRsp)
+	}
+
+	err = ep1.Delete()
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestDetectGetNetworksInvalidQueryComposition(t *testing.T) {
 	c, err := libnetwork.New("")
 	if err != nil {
@@ -532,14 +980,28 @@ func TestDetectGetEndpointsInvalidQueryComposition(t *testing.T) {
 	}
 }
 
+func TestDetectGetServicesInvalidQueryComposition(t *testing.T) {
+	defer netutils.SetupTestNetNS(t)()
+
+	c, _ := createTestNetwork(t, "network")
+
+	vars := map[string]string{urlNwName: "network", urlEpName: "x", urlEpPID: "y"}
+	_, errRsp := procGetServices(c, vars, nil)
+	if errRsp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("Expected %d. Got: %v", http.StatusBadRequest, errRsp)
+	}
+}
+
+func TestFindNetworkUtilPanic(t *testing.T) {
+	defer checkPanic(t)
+	findNetwork(nil, "", -1)
+}
+
 func TestFindNetworkUtil(t *testing.T) {
 	defer netutils.SetupTestNetNS(t)()
 
 	c, nw := createTestNetwork(t, "network")
 	nid := nw.ID()
-
-	defer checkPanic(t)
-	findNetwork(c, "", -1)
 
 	_, errRsp := findNetwork(c, "", byName)
 	if errRsp == &successResponse {
@@ -577,7 +1039,9 @@ func TestFindNetworkUtil(t *testing.T) {
 		t.Fatalf("Incorrect libnetwork.Network resource. It has different name: %v", n)
 	}
 
-	n.Delete()
+	if err := n.Delete(); err != nil {
+		t.Fatalf("Failed to delete the network: %s", err.Error())
+	}
 
 	_, errRsp = findNetwork(c, nid, byID)
 	if errRsp == &successResponse {
@@ -878,6 +1342,21 @@ func TestJoinLeave(t *testing.T) {
 	}
 }
 
+func TestFindEndpointUtilPanic(t *testing.T) {
+	defer netutils.SetupTestNetNS(t)()
+	defer checkPanic(t)
+	c, nw := createTestNetwork(t, "network")
+	nid := nw.ID()
+	findEndpoint(c, nid, "", byID, -1)
+}
+
+func TestFindServiceUtilPanic(t *testing.T) {
+	defer netutils.SetupTestNetNS(t)()
+	defer checkPanic(t)
+	c, _ := createTestNetwork(t, "network")
+	findService(c, "random_service", -1)
+}
+
 func TestFindEndpointUtil(t *testing.T) {
 	defer netutils.SetupTestNetNS(t)()
 
@@ -889,9 +1368,6 @@ func TestFindEndpointUtil(t *testing.T) {
 		t.Fatal(err)
 	}
 	eid := ep.ID()
-
-	defer checkPanic(t)
-	findEndpoint(c, nid, "", byID, -1)
 
 	_, errRsp := findEndpoint(c, nid, "", byID, byName)
 	if errRsp == &successResponse {
@@ -906,7 +1382,7 @@ func TestFindEndpointUtil(t *testing.T) {
 		t.Fatalf("Unexepected failure: %v", errRsp)
 	}
 
-	ep1, errRsp := findEndpoint(c, "second", "secondEp", byName, byName)
+	ep1, errRsp := findEndpoint(c, "network", "secondEp", byName, byName)
 	if errRsp != &successResponse {
 		t.Fatalf("Unexepected failure: %v", errRsp)
 	}
@@ -916,12 +1392,22 @@ func TestFindEndpointUtil(t *testing.T) {
 		t.Fatalf("Unexepected failure: %v", errRsp)
 	}
 
-	ep3, errRsp := findEndpoint(c, "second", eid, byName, byID)
+	ep3, errRsp := findEndpoint(c, "network", eid, byName, byID)
 	if errRsp != &successResponse {
 		t.Fatalf("Unexepected failure: %v", errRsp)
 	}
 
-	if ep0 != ep1 || ep0 != ep2 || ep0 != ep3 {
+	ep4, errRsp := findService(c, "secondEp", byName)
+	if errRsp != &successResponse {
+		t.Fatalf("Unexepected failure: %v", errRsp)
+	}
+
+	ep5, errRsp := findService(c, eid, byID)
+	if errRsp != &successResponse {
+		t.Fatalf("Unexepected failure: %v", errRsp)
+	}
+
+	if ep0 != ep1 || ep0 != ep2 || ep0 != ep3 || ep0 != ep4 || ep0 != ep5 {
 		t.Fatalf("Diffenrent queries returned different endpoints")
 	}
 
@@ -935,7 +1421,7 @@ func TestFindEndpointUtil(t *testing.T) {
 		t.Fatalf("Expected %d, but got: %d", http.StatusNotFound, errRsp.StatusCode)
 	}
 
-	_, errRsp = findEndpoint(c, "second", "secondEp", byName, byName)
+	_, errRsp = findEndpoint(c, "network", "secondEp", byName, byName)
 	if errRsp == &successResponse {
 		t.Fatalf("Expected failure, but got: %v", errRsp)
 	}
@@ -951,12 +1437,42 @@ func TestFindEndpointUtil(t *testing.T) {
 		t.Fatalf("Expected %d, but got: %d", http.StatusNotFound, errRsp.StatusCode)
 	}
 
-	_, errRsp = findEndpoint(c, "second", eid, byName, byID)
+	_, errRsp = findEndpoint(c, "network", eid, byName, byID)
 	if errRsp == &successResponse {
 		t.Fatalf("Expected failure, but got: %v", errRsp)
 	}
 	if errRsp.StatusCode != http.StatusNotFound {
 		t.Fatalf("Expected %d, but got: %d", http.StatusNotFound, errRsp.StatusCode)
+	}
+
+	_, errRsp = findService(c, "secondEp", byName)
+	if errRsp == &successResponse {
+		t.Fatalf("Expected failure, but got: %v", errRsp)
+	}
+	if errRsp.StatusCode != http.StatusNotFound {
+		t.Fatalf("Expected %d, but got: %d", http.StatusNotFound, errRsp.StatusCode)
+	}
+
+	_, errRsp = findService(c, eid, byID)
+	if errRsp == &successResponse {
+		t.Fatalf("Expected failure, but got: %v", errRsp)
+	}
+	if errRsp.StatusCode != http.StatusNotFound {
+		t.Fatalf("Expected %d, but got: %d", http.StatusNotFound, errRsp.StatusCode)
+	}
+}
+
+func TestEndpointToService(t *testing.T) {
+	r := &responseStatus{Status: "this is one endpoint", StatusCode: http.StatusOK}
+	r = endpointToService(r)
+	if r.Status != "this is one service" {
+		t.Fatalf("endpointToService returned unexpected status string: %s", r.Status)
+	}
+
+	r = &responseStatus{Status: "this is one network", StatusCode: http.StatusOK}
+	r = endpointToService(r)
+	if r.Status != "this is one network" {
+		t.Fatalf("endpointToService returned unexpected status string: %s", r.Status)
 	}
 }
 
