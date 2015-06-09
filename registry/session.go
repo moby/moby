@@ -70,6 +70,15 @@ func AuthTransport(base http.RoundTripper, authConfig *cliconfig.AuthConfig, alw
 }
 
 func (tr *authTransport) RoundTrip(orig *http.Request) (*http.Response, error) {
+	// Authorization should not be set on 302 redirect for untrusted locations.
+	// This logic mirrors the behavior in AddRequiredHeadersToRedirectedRequests.
+	// As the authorization logic is currently implemented in RoundTrip,
+	// a 302 redirect is detected by looking at the Referer header as go http package adds said header.
+	// This is safe as Docker doesn't set Referer in other scenarios.
+	if orig.Header.Get("Referer") != "" && !trustedLocation(orig) {
+		return tr.RoundTripper.RoundTrip(orig)
+	}
+
 	req := transport.CloneRequest(orig)
 	tr.mu.Lock()
 	tr.modReq[orig] = req
@@ -84,13 +93,7 @@ func (tr *authTransport) RoundTrip(orig *http.Request) (*http.Response, error) {
 	if req.Header.Get("Authorization") == "" {
 		if req.Header.Get("X-Docker-Token") == "true" && len(tr.Username) > 0 {
 			req.SetBasicAuth(tr.Username, tr.Password)
-		} else if len(tr.token) > 0 &&
-			// Authorization should not be set on 302 redirect for untrusted locations.
-			// This logic mirrors the behavior in AddRequiredHeadersToRedirectedRequests.
-			// As the authorization logic is currently implemented in RoundTrip,
-			// a 302 redirect is detected by looking at the Referer header as go http package adds said header.
-			// This is safe as Docker doesn't set Referer in other scenarios.
-			(req.Header.Get("Referer") == "" || trustedLocation(orig)) {
+		} else if len(tr.token) > 0 {
 			req.Header.Set("Authorization", "Token "+strings.Join(tr.token, ","))
 		}
 	}
@@ -151,7 +154,9 @@ func NewSession(client *http.Client, authConfig *cliconfig.AuthConfig, endpoint 
 		}
 	}
 
-	client.Transport = AuthTransport(client.Transport, authConfig, alwaysSetBasicAuth)
+	if endpoint.Version == APIVersion1 {
+		client.Transport = AuthTransport(client.Transport, authConfig, alwaysSetBasicAuth)
+	}
 
 	jar, err := cookiejar.New(nil)
 	if err != nil {
