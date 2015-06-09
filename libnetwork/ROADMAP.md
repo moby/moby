@@ -1,10 +1,6 @@
 # Roadmap
 
-Libnetwork is a young project and is still being defined.
-This document defines the high-level goals of the project and defines the release-relationship to the Docker Platform.
-
-* [Goals](#goals)
-* [Project Planning](#project-planning): release-relationship to the Docker Platform.
+This document defines the high-level goals of the libnetwork project. See [Project Planning](#project-planning) for information on Releases.
 
 ## Long-term Goal
 
@@ -18,12 +14,7 @@ libnetwork aims to satisfy that composable need for Networking in Containers.
 - Define a flexible model that allows local and remote drivers to provide networking to containers
 - Provide a stand-alone tool "dnet" for managing and testing libnetwork
 
-## Project Planning
+Project Planning
+================
 
-Libnetwork versions do not map 1:1 with Docker Platform releases.
-Milestones and Project Pages are used to define the set of features that are included in each release.
-
-| Platform Version | Libnetwork Version | Planning |
-|------------------|--------------------|----------|
-| Docker 1.7       | [0.3](https://github.com/docker/libnetwork/milestones/0.3) | [Project Page](https://github.com/docker/libnetwork/wiki/Docker-1.7-Project-Page) |
-| Docker 1.8       | [1.0](https://github.com/docker/libnetwork/milestones/1.0) | [Project Page](https://github.com/docker/libnetwork/wiki/Docker-1.8-Project-Page) |
+[Project Pages](https://github.com/docker/libnetwork/wiki) define the goals for each Milestone and identify the release-relationship to the Docker Platform.
