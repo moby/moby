@@ -330,6 +330,79 @@ func (n *bridgeNetwork) getEndpoint(eid types.UUID) (*bridgeEndpoint, error) {
 	return nil, nil
 }
 
+// Install/Removes the iptables rules needed to isolate this network
+// from each of the other networks
+func (n *bridgeNetwork) isolateNetwork(others []*bridgeNetwork, enable bool) error {
+	n.Lock()
+	thisV4 := n.bridge.bridgeIPv4
+	thisV6 := getV6Network(n.config, n.bridge)
+	n.Unlock()
+
+	// Install the rules to isolate this networks against each of the other networks
+	for _, o := range others {
+		o.Lock()
+		otherV4 := o.bridge.bridgeIPv4
+		otherV6 := getV6Network(o.config, o.bridge)
+		o.Unlock()
+
+		if !types.CompareIPNet(thisV4, otherV4) {
+			// It's ok to pass a.b.c.d/x, iptables will ignore the host subnet bits
+			if err := setINC(thisV4.String(), otherV4.String(), enable); err != nil {
+				return err
+			}
+		}
+
+		if thisV6 != nil && otherV6 != nil && !types.CompareIPNet(thisV6, otherV6) {
+			if err := setINC(thisV6.String(), otherV6.String(), enable); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+// Checks whether this network conflicts with any of the passed networks
+func (n *bridgeNetwork) conflicts(others []*bridgeNetwork) error {
+
+	n.Lock()
+	id := n.id
+	config := n.config
+	n.Unlock()
+
+	for _, nw := range others {
+
+		nw.Lock()
+		oid := nw.id
+		oconfig := nw.config
+		obridge := nw.bridge
+		nw.Unlock()
+
+		if oid == id {
+			continue
+		}
+		// Verify the name (which may have been set by newInterface()) does not conflict with
+		// existing bridge interfaces. Ironically the system chosen name gets stored in the config...
+		// Basically we are checking if the two original configs were both empty.
+		if oconfig.BridgeName == config.BridgeName {
+			return types.ForbiddenErrorf("conflicts with network %s (%s) by bridge name", oid, oconfig.BridgeName)
+		}
+		// If this network config specifies the AddressIPv4, we need
+		// to make sure it does not conflict with any previously allocated
+		// bridges. This could not be completely caught by the config conflict
+		// check, because networks which config does not specify the AddressIPv4
+		// get their address and subnet selected by the driver (see electBridgeIPv4())
+		if config.AddressIPv4 != nil {
+			if obridge.bridgeIPv4.Contains(config.AddressIPv4.IP) ||
+				config.AddressIPv4.Contains(obridge.bridgeIPv4.IP) {
+				return types.ForbiddenErrorf("conflicts with network %s (%s) by ip network", nw.id, nw.config.BridgeName)
+			}
+		}
+	}
+
+	return nil
+}
+
 func (d *driver) Config(option map[string]interface{}) error {
 	var config *configuration
 
@@ -434,28 +507,51 @@ func parseNetworkOptions(option options.Generic) (*networkConfiguration, error) 
 	return config, nil
 }
 
+// Returns the non link-local IPv6 subnet for the containers attached to this bridge if found, nil otherwise
+func getV6Network(config *networkConfiguration, i *bridgeInterface) *net.IPNet {
+	if config.FixedCIDRv6 != nil {
+		return config.FixedCIDRv6
+	}
+
+	if i.bridgeIPv6 != nil && i.bridgeIPv6.IP != nil && !i.bridgeIPv6.IP.IsLinkLocalUnicast() {
+		return i.bridgeIPv6
+	}
+
+	return nil
+}
+
+// Return a slice of networks over which caller can iterate safely
+func (d *driver) getNetworks() []*bridgeNetwork {
+	d.Lock()
+	defer d.Unlock()
+
+	ls := make([]*bridgeNetwork, 0, len(d.networks))
+	for _, nw := range d.networks {
+		ls = append(ls, nw)
+	}
+	return ls
+}
+
 // Create a new network using bridge plugin
 func (d *driver) CreateNetwork(id types.UUID, option map[string]interface{}) error {
 	var err error
 
-	// Driver must be configured
-	d.Lock()
-
 	// Sanity checks
+	d.Lock()
 	if _, ok := d.networks[id]; ok {
 		d.Unlock()
 		return types.ForbiddenErrorf("network %s exists", id)
 	}
+	d.Unlock()
 
 	// Parse and validate the config. It should not conflict with existing networks' config
 	config, err := parseNetworkOptions(option)
 	if err != nil {
-		d.Unlock()
 		return err
 	}
-	for _, nw := range d.networks {
+	networkList := d.getNetworks()
+	for _, nw := range networkList {
 		if nw.config.Conflict(config) {
-			d.Unlock()
 			return types.ForbiddenErrorf("conflicts with network %s (%s)", nw.id, nw.config.BridgeName)
 		}
 	}
@@ -467,6 +563,8 @@ func (d *driver) CreateNetwork(id types.UUID, option map[string]interface{}) err
 		config:     config,
 		portMapper: portmapper.New(),
 	}
+
+	d.Lock()
 	d.networks[id] = network
 	d.Unlock()
 
@@ -485,32 +583,22 @@ func (d *driver) CreateNetwork(id types.UUID, option map[string]interface{}) err
 
 	// Verify network does not conflict with previously configured networks
 	// on parameters that were chosen by the driver.
-	d.Lock()
-	for _, nw := range d.networks {
-		if nw.id == id {
-			continue
-		}
-		// Verify the name (which may have been set by newInterface()) does not conflict with
-		// existing bridge interfaces. Ironically the system chosen name gets stored in the config...
-		// Basically we are checking if the two original configs were both empty.
-		if nw.config.BridgeName == config.BridgeName {
-			d.Unlock()
-			return types.ForbiddenErrorf("conflicts with network %s (%s) by bridge name", nw.id, nw.config.BridgeName)
-		}
-		// If this network config specifies the AddressIPv4, we need
-		// to make sure it does not conflict with any previously allocated
-		// bridges. This could not be completely caught by the config conflict
-		// check, because networks which config does not specify the AddressIPv4
-		// get their address and subnet selected by the driver (see electBridgeIPv4())
-		if config.AddressIPv4 != nil {
-			if nw.bridge.bridgeIPv4.Contains(config.AddressIPv4.IP) ||
-				config.AddressIPv4.Contains(nw.bridge.bridgeIPv4.IP) {
-				d.Unlock()
-				return types.ForbiddenErrorf("conflicts with network %s (%s) by ip network", nw.id, nw.config.BridgeName)
-			}
-		}
+	if err := network.conflicts(networkList); err != nil {
+		return err
 	}
-	d.Unlock()
+
+	setupNetworkIsolationRules := func(config *networkConfiguration, i *bridgeInterface) error {
+		defer func() {
+			if err != nil {
+				if err := network.isolateNetwork(networkList, false); err != nil {
+					logrus.Warnf("Failed on removing the inter-network iptables rules on cleanup: %v", err)
+				}
+			}
+		}()
+
+		err := network.isolateNetwork(networkList, true)
+		return err
+	}
 
 	// Prepare the bridge setup configuration
 	bridgeSetup := newBridgeSetup(config, bridgeIface)
@@ -567,6 +655,9 @@ func (d *driver) CreateNetwork(id types.UUID, option map[string]interface{}) err
 
 		// Setup DefaultGatewayIPv6
 		{config.DefaultGatewayIPv6 != nil, setupGatewayIPv6},
+
+		// Add inter-network communication rules.
+		{config.EnableIPTables, setupNetworkIsolationRules},
 	} {
 		if step.Condition {
 			bridgeSetup.queueStep(step.Fn)
@@ -624,6 +715,22 @@ func (d *driver) DeleteNetwork(nid types.UUID) error {
 	// Cannot remove network if endpoints are still present
 	if len(n.endpoints) != 0 {
 		err = ActiveEndpointsError(n.id)
+		return err
+	}
+
+	// In case of failures after this point, restore the network isolation rules
+	nwList := d.getNetworks()
+	defer func() {
+		if err != nil {
+			if err := n.isolateNetwork(nwList, true); err != nil {
+				logrus.Warnf("Failed on restoring the inter-network iptables rules on cleanup: %v", err)
+			}
+		}
+	}()
+
+	// Remove inter-network communication rules.
+	err = n.isolateNetwork(nwList, false)
+	if err != nil {
 		return err
 	}
 

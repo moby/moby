@@ -171,3 +171,38 @@ func setIcc(bridgeIface string, iccEnable, insert bool) error {
 
 	return nil
 }
+
+// Control Inter Network Communication. Install/remove only if it is not/is present.
+func setINC(network1, network2 string, enable bool) error {
+	var (
+		table = iptables.Filter
+		chain = "FORWARD"
+		args  = [2][]string{{"-s", network1, "-d", network2, "-j", "DROP"}, {"-s", network2, "-d", network1, "-j", "DROP"}}
+	)
+
+	if enable {
+		for i := 0; i < 2; i++ {
+			if iptables.Exists(table, chain, args[i]...) {
+				continue
+			}
+			if output, err := iptables.Raw(append([]string{"-I", chain}, args[i]...)...); err != nil {
+				return fmt.Errorf("unable to add inter-network communication rule: %s", err.Error())
+			} else if len(output) != 0 {
+				return fmt.Errorf("error adding inter-network communication rule: %s", string(output))
+			}
+		}
+	} else {
+		for i := 0; i < 2; i++ {
+			if !iptables.Exists(table, chain, args[i]...) {
+				continue
+			}
+			if output, err := iptables.Raw(append([]string{"-D", chain}, args[i]...)...); err != nil {
+				return fmt.Errorf("unable to remove inter-network communication rule: %s", err.Error())
+			} else if len(output) != 0 {
+				return fmt.Errorf("error removing inter-network communication rule: %s", string(output))
+			}
+		}
+	}
+
+	return nil
+}
