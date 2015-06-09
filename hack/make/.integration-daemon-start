@@ -28,7 +28,7 @@ fi
 
 if [ -z "$DOCKER_TEST_HOST" ]; then
 	# Start apparmor if it is enabled
-	if [ "$(cat /sys/module/apparmor/parameters/enabled)" == "Y" ]; then
+	if [ -e "/sys/module/apparmor/parameters/enabled" ] && [ "$(cat /sys/module/apparmor/parameters/enabled)" == "Y" ]; then
 		# reset container variable so apparmor profile is applied to process
 		# see https://github.com/docker/libcontainer/blob/master/apparmor/apparmor.go#L16
 		export container=""

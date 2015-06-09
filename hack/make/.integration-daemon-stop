@@ -12,7 +12,7 @@ done
 
 if [ -z "$DOCKER_TEST_HOST" ]; then
 	# Stop apparmor if it is enabled
-	if [ "$(cat /sys/module/apparmor/parameters/enabled)" == "Y" ]; then
+	if [ -e "/sys/module/apparmor/parameters/enabled" ] && [ "$(cat /sys/module/apparmor/parameters/enabled)" == "Y" ]; then
 		(
 			set -x
 			/etc/init.d/apparmor stop
