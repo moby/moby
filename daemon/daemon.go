@@ -128,19 +128,16 @@ func (daemon *Daemon) Get(prefixOrName string) (*Container, error) {
 	}
 
 	// GetByName will match only an exact name provided; we ignore errors
-	containerByName, _ := daemon.GetByName(prefixOrName)
-	containerId, indexError := daemon.idIndex.Get(prefixOrName)
-
-	if containerByName != nil {
+	if containerByName, _ := daemon.GetByName(prefixOrName); containerByName != nil {
 		// prefix is an exact match to a full container Name
 		return containerByName, nil
 	}
 
-	if containerId != "" {
-		// prefix is a fuzzy match to a container ID
-		return daemon.containers.Get(containerId), nil
+	containerId, indexError := daemon.idIndex.Get(prefixOrName)
+	if indexError != nil {
+		return nil, indexError
 	}
-	return nil, indexError
+	return daemon.containers.Get(containerId), nil
 }
 
 // Exists returns a true if a container of the specified ID or name exists,
