@@ -13,7 +13,7 @@ type tokenResponse struct {
 	Token string `json:"token"`
 }
 
-func getToken(username, password string, params map[string]string, registryEndpoint *Endpoint) (token string, err error) {
+func getToken(username, password string, params map[string]string, registryEndpoint *Endpoint) (string, error) {
 	realm, ok := params["realm"]
 	if !ok {
 		return "", errors.New("no realm specified for token auth challenge")
