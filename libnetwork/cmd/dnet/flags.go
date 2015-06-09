@@ -23,6 +23,7 @@ var (
 
 	dnetCommands = []command{
 		{"network", "Network management commands"},
+		{"service", "Service management commands"},
 	}
 )
 
@@ -45,5 +46,5 @@ func init() {
 }
 
 func printUsage() {
-	fmt.Println("Usage: dnet network <subcommand> <OPTIONS>")
+	fmt.Println("Usage: dnet <OPTIONS> COMMAND [arg...]")
 }

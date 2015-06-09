@@ -1,5 +1,3 @@
-// +build experimental
-
 package client
 
 import (
@@ -13,7 +11,7 @@ func TestClientNetworkServiceInvalidCommand(t *testing.T) {
 	var out, errOut bytes.Buffer
 	cli := NewNetworkCli(&out, &errOut, callbackFunc)
 
-	err := cli.Cmd("docker", "network", "service", "invalid")
+	err := cli.Cmd("docker", "service", "invalid")
 	if err == nil {
 		t.Fatalf("Passing invalid commands must fail")
 	}
@@ -23,7 +21,7 @@ func TestClientNetworkServiceCreate(t *testing.T) {
 	var out, errOut bytes.Buffer
 	cli := NewNetworkCli(&out, &errOut, callbackFunc)
 
-	err := cli.Cmd("docker", "network", "service", "create", mockServiceName, mockNwName)
+	err := cli.Cmd("docker", "service", "create", mockServiceName, mockNwName)
 	if err != nil {
 		t.Fatal(err.Error())
 	}
@@ -33,7 +31,7 @@ func TestClientNetworkServiceRm(t *testing.T) {
 	var out, errOut bytes.Buffer
 	cli := NewNetworkCli(&out, &errOut, callbackFunc)
 
-	err := cli.Cmd("docker", "network", "service", "rm", mockServiceName, mockNwName)
+	err := cli.Cmd("docker", "service", "rm", mockServiceName, mockNwName)
 	if err != nil {
 		t.Fatal(err.Error())
 	}
@@ -43,7 +41,7 @@ func TestClientNetworkServiceLs(t *testing.T) {
 	var out, errOut bytes.Buffer
 	cli := NewNetworkCli(&out, &errOut, callbackFunc)
 
-	err := cli.Cmd("docker", "network", "service", "ls", mockNwName)
+	err := cli.Cmd("docker", "service", "ls", mockNwName)
 	if err != nil {
 		t.Fatal(err.Error())
 	}
@@ -53,7 +51,7 @@ func TestClientNetworkServiceInfo(t *testing.T) {
 	var out, errOut bytes.Buffer
 	cli := NewNetworkCli(&out, &errOut, callbackFunc)
 
-	err := cli.Cmd("docker", "network", "service", "info", mockServiceName, mockNwName)
+	err := cli.Cmd("docker", "service", "info", mockServiceName, mockNwName)
 	if err != nil {
 		t.Fatal(err.Error())
 	}
@@ -63,7 +61,7 @@ func TestClientNetworkServiceInfoById(t *testing.T) {
 	var out, errOut bytes.Buffer
 	cli := NewNetworkCli(&out, &errOut, callbackFunc)
 
-	err := cli.Cmd("docker", "network", "service", "info", mockServiceID, mockNwID)
+	err := cli.Cmd("docker", "service", "info", mockServiceID, mockNwID)
 	if err != nil {
 		t.Fatal(err.Error())
 	}
@@ -73,7 +71,7 @@ func TestClientNetworkServiceJoin(t *testing.T) {
 	var out, errOut bytes.Buffer
 	cli := NewNetworkCli(&out, &errOut, callbackFunc)
 
-	err := cli.Cmd("docker", "network", "service", "join", mockContainerID, mockServiceName, mockNwName)
+	err := cli.Cmd("docker", "service", "join", mockContainerID, mockServiceName, mockNwName)
 	if err != nil {
 		t.Fatal(err.Error())
 	}
@@ -83,7 +81,7 @@ func TestClientNetworkServiceLeave(t *testing.T) {
 	var out, errOut bytes.Buffer
 	cli := NewNetworkCli(&out, &errOut, callbackFunc)
 
-	err := cli.Cmd("docker", "network", "service", "leave", mockContainerID, mockServiceName, mockNwName)
+	err := cli.Cmd("docker", "service", "leave", mockContainerID, mockServiceName, mockNwName)
 	if err != nil {
 		t.Fatal(err.Error())
 	}
