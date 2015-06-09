@@ -492,7 +492,7 @@ change them using `docker run --env <key>=<value>`.
 ADD has two forms:
 
 - `ADD <src>... <dest>`
-- `ADD ["<src>"... "<dest>"]` (this form is required for paths containing
+- `ADD ["<src>",... "<dest>"]` (this form is required for paths containing
 whitespace)
 
 The `ADD` instruction copies new files, directories or remote file URLs from `<src>`
@@ -596,7 +596,7 @@ The copy obeys the following rules:
 COPY has two forms:
 
 - `COPY <src>... <dest>`
-- `COPY ["<src>"... "<dest>"]` (this form is required for paths containing
+- `COPY ["<src>",... "<dest>"]` (this form is required for paths containing
 whitespace)
 
 The `COPY` instruction copies new files or directories from `<src>`
