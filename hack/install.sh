@@ -133,6 +133,21 @@ do_install() {
 			exit 0
 			;;
 
+		'opensuse project'|opensuse|'suse linux'|sled)
+			(
+				set -x
+				$sh_c 'sleep 3; zypper -n install docker'
+			)
+			if command_exists docker && [ -e /var/run/docker.sock ]; then
+				(
+					set -x
+					$sh_c 'docker version'
+				) || true
+			fi
+			echo_docker_as_nonroot
+			exit 0
+			;;
+
 		ubuntu|debian|linuxmint|'elementary os'|kali)
 			export DEBIAN_FRONTEND=noninteractive
 
