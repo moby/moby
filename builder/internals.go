@@ -50,7 +50,7 @@ func (b *Builder) readContext(context io.Reader) error {
 		return err
 	}
 
-	if b.context, err = tarsum.NewTarSum(decompressedStream, true, tarsum.Version0); err != nil {
+	if b.context, err = tarsum.NewTarSum(decompressedStream, true, tarsum.Version1); err != nil {
 		return err
 	}
 
@@ -345,7 +345,7 @@ func calcCopyInfo(b *Builder, cmdName string, cInfos *[]*copyInfo, origPath stri
 		if err != nil {
 			return err
 		}
-		tarSum, err := tarsum.NewTarSum(r, true, tarsum.Version0)
+		tarSum, err := tarsum.NewTarSum(r, true, tarsum.Version1)
 		if err != nil {
 			return err
 		}
