@@ -61,21 +61,21 @@ func (s *DockerExternalVolumeSuite) SetUpSuite(c *check.C) {
 	mux.HandleFunc("/Plugin.Activate", func(w http.ResponseWriter, r *http.Request) {
 		s.ec.activations++
 
-		w.Header().Set("Content-Type", "appplication/vnd.docker.plugins.v1+json")
+		w.Header().Set("Content-Type", "application/vnd.docker.plugins.v1+json")
 		fmt.Fprintln(w, `{"Implements": ["VolumeDriver"]}`)
 	})
 
 	mux.HandleFunc("/VolumeDriver.Create", func(w http.ResponseWriter, r *http.Request) {
 		s.ec.creations++
 
-		w.Header().Set("Content-Type", "appplication/vnd.docker.plugins.v1+json")
+		w.Header().Set("Content-Type", "application/vnd.docker.plugins.v1+json")
 		fmt.Fprintln(w, `{}`)
 	})
 
 	mux.HandleFunc("/VolumeDriver.Remove", func(w http.ResponseWriter, r *http.Request) {
 		s.ec.removals++
 
-		w.Header().Set("Content-Type", "appplication/vnd.docker.plugins.v1+json")
+		w.Header().Set("Content-Type", "application/vnd.docker.plugins.v1+json")
 		fmt.Fprintln(w, `{}`)
 	})
 
@@ -89,7 +89,7 @@ func (s *DockerExternalVolumeSuite) SetUpSuite(c *check.C) {
 
 		p := hostVolumePath(pr.name)
 
-		w.Header().Set("Content-Type", "appplication/vnd.docker.plugins.v1+json")
+		w.Header().Set("Content-Type", "application/vnd.docker.plugins.v1+json")
 		fmt.Fprintln(w, fmt.Sprintf("{\"Mountpoint\": \"%s\"}", p))
 	})
 
@@ -110,7 +110,7 @@ func (s *DockerExternalVolumeSuite) SetUpSuite(c *check.C) {
 			http.Error(w, err.Error(), 500)
 		}
 
-		w.Header().Set("Content-Type", "appplication/vnd.docker.plugins.v1+json")
+		w.Header().Set("Content-Type", "application/vnd.docker.plugins.v1+json")
 		fmt.Fprintln(w, fmt.Sprintf("{\"Mountpoint\": \"%s\"}", p))
 	})
 
@@ -127,7 +127,7 @@ func (s *DockerExternalVolumeSuite) SetUpSuite(c *check.C) {
 			http.Error(w, err.Error(), 500)
 		}
 
-		w.Header().Set("Content-Type", "appplication/vnd.docker.plugins.v1+json")
+		w.Header().Set("Content-Type", "application/vnd.docker.plugins.v1+json")
 		fmt.Fprintln(w, `{}`)
 	})
 
