@@ -154,8 +154,8 @@ func (c *networkConfiguration) Validate() error {
 	return nil
 }
 
-// Conflict check if two NetworkConfiguration objects overlap in the multinetwork
-func (c *networkConfiguration) Conflict(o *networkConfiguration) bool {
+// Conflicts check if two NetworkConfiguration objects overlap
+func (c *networkConfiguration) Conflicts(o *networkConfiguration) bool {
 	if o == nil {
 		return false
 	}
@@ -362,40 +362,34 @@ func (n *bridgeNetwork) isolateNetwork(others []*bridgeNetwork, enable bool) err
 	return nil
 }
 
-// Checks whether this network conflicts with any of the passed networks
-func (n *bridgeNetwork) conflicts(others []*bridgeNetwork) error {
-
-	n.Lock()
-	id := n.id
-	config := n.config
-	n.Unlock()
-
+// Checks whether this network's configuration for the network with this id conflicts with any of the passed networks
+func (c *networkConfiguration) conflictsWithNetworks(id types.UUID, others []*bridgeNetwork) error {
 	for _, nw := range others {
 
 		nw.Lock()
-		oid := nw.id
-		oconfig := nw.config
-		obridge := nw.bridge
+		nwID := nw.id
+		nwConfig := nw.config
+		nwBridge := nw.bridge
 		nw.Unlock()
 
-		if oid == id {
+		if nwID == id {
 			continue
 		}
 		// Verify the name (which may have been set by newInterface()) does not conflict with
 		// existing bridge interfaces. Ironically the system chosen name gets stored in the config...
 		// Basically we are checking if the two original configs were both empty.
-		if oconfig.BridgeName == config.BridgeName {
-			return types.ForbiddenErrorf("conflicts with network %s (%s) by bridge name", oid, oconfig.BridgeName)
+		if nwConfig.BridgeName == c.BridgeName {
+			return types.ForbiddenErrorf("conflicts with network %s (%s) by bridge name", nwID, nwConfig.BridgeName)
 		}
 		// If this network config specifies the AddressIPv4, we need
 		// to make sure it does not conflict with any previously allocated
 		// bridges. This could not be completely caught by the config conflict
 		// check, because networks which config does not specify the AddressIPv4
 		// get their address and subnet selected by the driver (see electBridgeIPv4())
-		if config.AddressIPv4 != nil {
-			if obridge.bridgeIPv4.Contains(config.AddressIPv4.IP) ||
-				config.AddressIPv4.Contains(obridge.bridgeIPv4.IP) {
-				return types.ForbiddenErrorf("conflicts with network %s (%s) by ip network", nw.id, nw.config.BridgeName)
+		if c.AddressIPv4 != nil {
+			if nwBridge.bridgeIPv4.Contains(c.AddressIPv4.IP) ||
+				c.AddressIPv4.Contains(nwBridge.bridgeIPv4.IP) {
+				return types.ForbiddenErrorf("conflicts with network %s (%s) by ip network", nwID, nwConfig.BridgeName)
 			}
 		}
 	}
@@ -551,7 +545,10 @@ func (d *driver) CreateNetwork(id types.UUID, option map[string]interface{}) err
 	}
 	networkList := d.getNetworks()
 	for _, nw := range networkList {
-		if nw.config.Conflict(config) {
+		nw.Lock()
+		nwConfig := nw.config
+		nw.Unlock()
+		if nwConfig.Conflicts(config) {
 			return types.ForbiddenErrorf("conflicts with network %s (%s)", nw.id, nw.config.BridgeName)
 		}
 	}
@@ -581,9 +578,11 @@ func (d *driver) CreateNetwork(id types.UUID, option map[string]interface{}) err
 	bridgeIface := newInterface(config)
 	network.bridge = bridgeIface
 
-	// Verify network does not conflict with previously configured networks
-	// on parameters that were chosen by the driver.
-	if err := network.conflicts(networkList); err != nil {
+	// Verify the network configuration does not conflict with previously installed
+	// networks. This step is needed now because driver might have now set the bridge
+	// name on this config struct. And because we need to check for possible address
+	// conflicts, so we need to check against operationa lnetworks.
+	if err := config.conflictsWithNetworks(id, networkList); err != nil {
 		return err
 	}
 
@@ -681,16 +680,21 @@ func (d *driver) DeleteNetwork(nid types.UUID) error {
 	// Get network handler and remove it from driver
 	d.Lock()
 	n, ok := d.networks[nid]
+	d.Unlock()
+
 	if !ok {
-		d.Unlock()
 		return types.InternalMaskableErrorf("network %s does not exist", nid)
 	}
 
-	if n.config.BridgeName == DefaultBridgeName {
-		d.Unlock()
+	n.Lock()
+	config := n.config
+	n.Unlock()
+
+	if config.BridgeName == DefaultBridgeName {
 		return types.ForbiddenErrorf("default network of type \"%s\" cannot be deleted", networkType)
 	}
 
+	d.Lock()
 	delete(d.networks, nid)
 	d.Unlock()
 
@@ -757,12 +761,11 @@ func (d *driver) CreateEndpoint(nid, eid types.UUID, epInfo driverapi.EndpointIn
 	// Get the network handler and make sure it exists
 	d.Lock()
 	n, ok := d.networks[nid]
+	d.Unlock()
+
 	if !ok {
-		d.Unlock()
 		return types.NotFoundErrorf("network %s does not exist", nid)
 	}
-	config := n.config
-	d.Unlock()
 	if n == nil {
 		return driverapi.ErrNoNetwork(nid)
 	}
@@ -857,6 +860,10 @@ func (d *driver) CreateEndpoint(nid, eid types.UUID, epInfo driverapi.EndpointIn
 	}
 	endpoint.macAddress = mac
 
+	n.Lock()
+	config := n.config
+	n.Unlock()
+
 	// Add bridge inherited attributes to pipe interfaces
 	if config.Mtu != 0 {
 		err = netlink.LinkSetMTU(host, config.Mtu)
@@ -937,12 +944,11 @@ func (d *driver) DeleteEndpoint(nid, eid types.UUID) error {
 	// Get the network handler and make sure it exists
 	d.Lock()
 	n, ok := d.networks[nid]
+	d.Unlock()
+
 	if !ok {
-		d.Unlock()
 		return types.NotFoundErrorf("network %s does not exist", nid)
 	}
-	config := n.config
-	d.Unlock()
 	if n == nil {
 		return driverapi.ErrNoNetwork(nid)
 	}
@@ -990,6 +996,10 @@ func (d *driver) DeleteEndpoint(nid, eid types.UUID) error {
 		return err
 	}
 
+	n.Lock()
+	config := n.config
+	n.Unlock()
+
 	// Release the v6 address allocated to this endpoint's sandbox interface
 	if config.EnableIPv6 {
 		err := ipAllocator.ReleaseIP(n.bridge.bridgeIPv6, ep.addrv6.IP)
@@ -1012,11 +1022,10 @@ func (d *driver) EndpointOperInfo(nid, eid types.UUID) (map[string]interface{}, 
 	// Get the network handler and make sure it exists
 	d.Lock()
 	n, ok := d.networks[nid]
+	d.Unlock()
 	if !ok {
-		d.Unlock()
 		return nil, types.NotFoundErrorf("network %s does not exist", nid)
 	}
-	d.Unlock()
 	if n == nil {
 		return nil, driverapi.ErrNoNetwork(nid)
 	}
