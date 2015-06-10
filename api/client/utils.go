@@ -33,7 +33,7 @@ var (
 	errConnectionRefused = errors.New("Cannot connect to the Docker daemon. Is 'docker -d' running on this host?")
 )
 
-// HTTPClient creates a new HTP client with the cli's client transport instance.
+// HTTPClient creates a new HTTP client with the cli's client transport instance.
 func (cli *DockerCli) HTTPClient() *http.Client {
 	return &http.Client{Transport: cli.transport}
 }
