@@ -101,21 +101,38 @@ type PidMode string
 
 // IsPrivate indicates whether container use it's private pid stack
 func (n PidMode) IsPrivate() bool {
-	return !(n.IsHost())
+	return !(n.IsHost() || n.IsContainer())
 }
 
 func (n PidMode) IsHost() bool {
 	return n == "host"
 }
 
+func (n PidMode) IsContainer() bool {
+	parts := strings.SplitN(string(n), ":", 2)
+	return len(parts) > 1 && parts[0] == "container"
+}
+
 func (n PidMode) Valid() bool {
 	parts := strings.Split(string(n), ":")
 	switch mode := parts[0]; mode {
 	case "", "host":
+	case "container":
+		if len(parts) != 2 || parts[1] == "" {
+			return false
+		}
 	default:
 		return false
 	}
 	return true
+}
+
+func (n PidMode) Container() string {
+	parts := strings.SplitN(string(n), ":", 2)
+	if len(parts) > 1 {
+		return parts[1]
+	}
+	return ""
 }
 
 type DeviceMapping struct {

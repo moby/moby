@@ -2655,6 +2655,60 @@ func (s *DockerSuite) TestRunModePidHost(c *check.C) {
 	}
 }
 
+func (s *DockerSuite) TestRunModePidContainer(c *check.C) {
+	testRequires(c, SameHostDaemon)
+
+	cmd := exec.Command(dockerBinary, "run", "-d", "busybox", "top")
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		c.Fatal(err, out)
+	}
+	id := strings.TrimSpace(out)
+	state, err := inspectField(id, "State.Running")
+	c.Assert(err, check.IsNil)
+	c.Assert(state, check.Equals, "true")
+	pid1, err := inspectField(id, "State.Pid")
+	c.Assert(err, check.IsNil)
+
+	parentContainerPid, err := os.Readlink(fmt.Sprintf("/proc/%s/ns/pid", pid1))
+	c.Assert(err, check.IsNil)
+	cmd = exec.Command(dockerBinary, "run", fmt.Sprintf("--pid=container:%s", id), "busybox", "readlink", "/proc/self/ns/pid")
+	out2, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		c.Fatal(err, out2)
+	}
+
+	out2 = strings.Trim(out2, "\n")
+	if parentContainerPid != out2 {
+		c.Fatalf("PID different with --pid=container:%s %s != %s\n", id, parentContainerPid, out2)
+	}
+}
+
+func (s *DockerSuite) TestRunModePidContainerNotExists(c *check.C) {
+	cmd := exec.Command(dockerBinary, "run", "-d", "--pid", "container:abcd1234", "busybox", "top")
+	out, _, err := runCommandWithOutput(cmd)
+	if !strings.Contains(out, "abcd1234") || err == nil {
+		c.Fatalf("run PID from a non exists container should with correct error out")
+	}
+}
+
+func (s *DockerSuite) TestRunModePidContainerNotRunning(c *check.C) {
+	testRequires(c, SameHostDaemon)
+
+	cmd := exec.Command(dockerBinary, "create", "busybox")
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		c.Fatal(err, out)
+	}
+	id := strings.TrimSpace(out)
+
+	cmd = exec.Command(dockerBinary, "run", fmt.Sprintf("--pid=container:%s", id), "busybox")
+	out, _, err = runCommandWithOutput(cmd)
+	if err == nil {
+		c.Fatalf("Run container with pid mode container should fail with non running container: %s\n%s", out, err)
+	}
+}
+
 func (s *DockerSuite) TestRunModeUTSHost(c *check.C) {
 	testRequires(c, NativeExecDriver, SameHostDaemon)
 

@@ -84,7 +84,8 @@ type Ipc struct {
 
 // PID settings of the container
 type Pid struct {
-	HostPid bool `json:"host_pid"`
+	ContainerID string `json:"container_id"` // id of the container to join pid.
+	HostPid     bool   `json:"host_pid"`
 }
 
 // UTS settings of the container

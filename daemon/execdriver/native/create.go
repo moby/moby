@@ -149,6 +149,22 @@ func (d *driver) createPid(container *configs.Config, c *execdriver.Command) err
 		return nil
 	}
 
+	if c.Pid.ContainerID != "" {
+		d.Lock()
+		active := d.activeContainers[c.Pid.ContainerID]
+		d.Unlock()
+
+		if active == nil {
+			return fmt.Errorf("%s is not a valid running container to join", c.Pid.ContainerID)
+		}
+
+		state, err := active.State()
+		if err != nil {
+			return err
+		}
+		container.Namespaces.Add(configs.NEWPID, state.NamespacePaths[configs.NEWPID])
+	}
+
 	return nil
 }
 

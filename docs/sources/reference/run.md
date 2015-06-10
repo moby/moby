@@ -61,6 +61,7 @@ following options.
      - [Name (--name)](#name-name)
      - [PID Equivalent](#pid-equivalent)
  - [IPC Settings (--ipc)](#ipc-settings-ipc)
+ - [PID Settings (--pid)](#pid-settings-pid)
  - [Network Settings](#network-settings)
  - [Restart Policies (--restart)](#restart-policies-restart)
  - [Clean Up (--rm)](#clean-up-rm)
@@ -159,7 +160,8 @@ the digest value is predictable and referenceable.
 ## PID settings (--pid)
 
     --pid=""  : Set the PID (Process) Namespace mode for the container,
-           'host': use the host's PID namespace inside the container
+                 'container:<name|id>': reuses another container's PID namespace
+                 'host': use the host's PID namespace inside the container
 
 By default, all containers have the PID namespace enabled.
 
@@ -177,6 +179,15 @@ within the container.
 
 This command would allow you to use `strace` inside the container on pid 1234 on
 the host.
+
+For `--pid=container:<name|id>`, you could build a container with debugging
+tools like `strace` or `gdb`, and use these tools inside the container on
+processes in another container.
+
+    $ docker run --pid=container:test rhel7 strace -p 123
+
+This command would allow you to use `strace` inside the container on pid 123 in
+container test.
 
 ## UTS settings (--uts)
 

@@ -199,7 +199,6 @@ func populateCommand(c *Container, env []string) error {
 	}
 
 	ipc := &execdriver.Ipc{}
-
 	if c.hostConfig.IpcMode.IsContainer() {
 		ic, err := c.getIpcContainer()
 		if err != nil {
@@ -211,7 +210,15 @@ func populateCommand(c *Container, env []string) error {
 	}
 
 	pid := &execdriver.Pid{}
-	pid.HostPid = c.hostConfig.PidMode.IsHost()
+	if c.hostConfig.PidMode.IsContainer() {
+		pc, err := c.getPidContainer()
+		if err != nil {
+			return err
+		}
+		pid.ContainerID = pc.ID
+	} else {
+		pid.HostPid = c.hostConfig.PidMode.IsHost()
+	}
 
 	uts := &execdriver.UTS{
 		HostUTS: c.hostConfig.UTSMode.IsHost(),
@@ -855,6 +862,18 @@ func (container *Container) getIpcContainer() (*Container, error) {
 	}
 	if !c.IsRunning() {
 		return nil, fmt.Errorf("cannot join IPC of a non running container: %s", containerID)
+	}
+	return c, nil
+}
+
+func (container *Container) getPidContainer() (*Container, error) {
+	containerID := container.hostConfig.PidMode.Container()
+	c, err := container.daemon.Get(containerID)
+	if err != nil {
+		return nil, err
+	}
+	if !c.IsRunning() {
+		return nil, fmt.Errorf("cannot join PID of a non running container: %s", containerID)
 	}
 	return c, nil
 }
