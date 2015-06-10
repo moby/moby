@@ -26,6 +26,10 @@ import (
 	"github.com/docker/docker/pkg/transport"
 )
 
+var (
+	ErrRepoNotFound = errors.New("Repository not found")
+)
+
 type Session struct {
 	indexEndpoint *Endpoint
 	client        *http.Client
@@ -279,6 +283,38 @@ func (r *Session) GetRemoteImageLayer(imgID, registry string, imgSize int64) (io
 	return res.Body, nil
 }
 
+func (r *Session) GetRemoteTag(registries []string, repository string, askedTag string) (string, error) {
+	if strings.Count(repository, "/") == 0 {
+		// This will be removed once the Registry supports auto-resolution on
+		// the "library" namespace
+		repository = "library/" + repository
+	}
+	for _, host := range registries {
+		endpoint := fmt.Sprintf("%srepositories/%s/tags/%s", host, repository, askedTag)
+		res, err := r.client.Get(endpoint)
+		if err != nil {
+			return "", err
+		}
+
+		logrus.Debugf("Got status code %d from %s", res.StatusCode, endpoint)
+		defer res.Body.Close()
+
+		if res.StatusCode == 404 {
+			return "", ErrRepoNotFound
+		}
+		if res.StatusCode != 200 {
+			continue
+		}
+
+		var tagId string
+		if err := json.NewDecoder(res.Body).Decode(&tagId); err != nil {
+			return "", err
+		}
+		return tagId, nil
+	}
+	return "", fmt.Errorf("Could not reach any registry endpoint")
+}
+
 func (r *Session) GetRemoteTags(registries []string, repository string) (map[string]string, error) {
 	if strings.Count(repository, "/") == 0 {
 		// This will be removed once the Registry supports auto-resolution on
@@ -296,7 +332,7 @@ func (r *Session) GetRemoteTags(registries []string, repository string) (map[str
 		defer res.Body.Close()
 
 		if res.StatusCode == 404 {
-			return nil, fmt.Errorf("Repository not found")
+			return nil, ErrRepoNotFound
 		}
 		if res.StatusCode != 200 {
 			continue
