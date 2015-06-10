@@ -111,6 +111,26 @@ func (s *DockerSuite) TestRmInvalidContainer(c *check.C) {
 
 }
 
+func (s *DockerSuite) TestRmIgnoreError(c *check.C) {
+	if out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "rm", "-i", "unknown")); err != nil {
+		c.Fatalf("rm should have worked: %s\n%q", out, err)
+	}
+
+	if out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "rm", "--ignore", "unknown")); err != nil {
+		c.Fatalf("rm should have worked: %s\n%q", out, err)
+	}
+
+	createRunningContainer(c, "rmignoretest")
+
+	out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "rm", "-if", "unknown", "rmignoretest"))
+	if err != nil {
+		c.Fatalf("rm should have worked: %s\n%q", out, err)
+	}
+	if !strings.Contains(out, "rmignoretest") || strings.Contains(out, "unknown") {
+		c.Fatalf("Output is bad: %q", out)
+	}
+}
+
 func createRunningContainer(c *check.C, name string) {
 	cmd := exec.Command(dockerBinary, "run", "-dt", "--name", name, "busybox", "top")
 	if _, err := runCommand(cmd); err != nil {
