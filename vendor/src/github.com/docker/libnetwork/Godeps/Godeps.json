@@ -79,7 +79,7 @@
 		},
 		{
 			"ImportPath": "github.com/vishvananda/netns",
-			"Rev": "008d17ae001344769b031375bdb38a86219154c6"
+			"Rev": "5478c060110032f972e86a1f844fdb9a2f008f2c"
 		}
 	]
 }
