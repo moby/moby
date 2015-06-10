@@ -81,6 +81,7 @@ var (
 	testRepositories = map[string]map[string]string{
 		"foo42/bar": {
 			"latest": "42d718c941f5c532ac049bf0b0ab53f0062f09a03afd4aa4a02c098e46032b9d",
+			"test":   "42d718c941f5c532ac049bf0b0ab53f0062f09a03afd4aa4a02c098e46032b9d",
 		},
 	}
 	mockHosts = map[string][]net.IP{

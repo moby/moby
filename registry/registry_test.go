@@ -211,18 +211,33 @@ func TestGetRemoteImageLayer(t *testing.T) {
 	}
 }
 
+func TestGetRemoteTag(t *testing.T) {
+	r := spawnTestRegistrySession(t)
+	tag, err := r.GetRemoteTag([]string{makeURL("/v1/")}, REPO, "test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertEqual(t, tag, imageID, "Expected tag test to map to "+imageID)
+
+	_, err = r.GetRemoteTag([]string{makeURL("/v1/")}, "foo42/baz", "foo")
+	if err != ErrRepoNotFound {
+		t.Fatal("Expected ErrRepoNotFound error when fetching tag for bogus repo")
+	}
+}
+
 func TestGetRemoteTags(t *testing.T) {
 	r := spawnTestRegistrySession(t)
 	tags, err := r.GetRemoteTags([]string{makeURL("/v1/")}, REPO)
 	if err != nil {
 		t.Fatal(err)
 	}
-	assertEqual(t, len(tags), 1, "Expected one tag")
+	assertEqual(t, len(tags), 2, "Expected two tags")
 	assertEqual(t, tags["latest"], imageID, "Expected tag latest to map to "+imageID)
+	assertEqual(t, tags["test"], imageID, "Expected tag test to map to "+imageID)
 
 	_, err = r.GetRemoteTags([]string{makeURL("/v1/")}, "foo42/baz")
-	if err == nil {
-		t.Fatal("Expected error when fetching tags for bogus repo")
+	if err != ErrRepoNotFound {
+		t.Fatal("Expected ErrRepoNotFound error when fetching tags for bogus repo")
 	}
 }
 
