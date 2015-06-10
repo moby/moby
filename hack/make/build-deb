@@ -62,5 +62,5 @@ set -e
 		docker rmi "$tempImage"
 	done
 
-	bundle .test-integration-stop
+	bundle .integration-daemon-stop
 ) 2>&1 | tee -a "$DEST/test.log"
