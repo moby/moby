@@ -86,7 +86,7 @@ func Init(base string, opt []string) (graphdriver.Driver, error) {
 	}
 
 	if rootDataset == nil {
-		return nil, fmt.Errorf("BUG: zfs get all -t filesystems -rHp '%s' should contain '%s'", options.fsName, options.fsName)
+		return nil, fmt.Errorf("BUG: zfs get all -t filesystem -rHp '%s' should contain '%s'", options.fsName, options.fsName)
 	}
 
 	d := &Driver{
