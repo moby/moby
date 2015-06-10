@@ -70,7 +70,7 @@ func (graph *Graph) restore() error {
 		}
 	}
 	graph.idIndex = truncindex.NewTruncIndex(ids)
-	logrus.Debugf("Restored %d elements", len(dir))
+	logrus.Debugf("Restored %d elements", len(ids))
 	return nil
 }
 
