@@ -1,13 +1,20 @@
 package template
 
 import (
+	"strings"
 	"syscall"
 
+	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/libcontainer/apparmor"
 	"github.com/docker/libcontainer/configs"
 )
 
-const defaultMountFlags = syscall.MS_NOEXEC | syscall.MS_NOSUID | syscall.MS_NODEV
+const (
+	defaultMountFlags = syscall.MS_NOEXEC | syscall.MS_NOSUID | syscall.MS_NODEV
+	defaultHostRoot   = "/"
+	mountSharedOpt    = "shared"
+)
 
 // New returns the docker default configuration for libcontainer
 func New() *configs.Config {
@@ -99,5 +106,23 @@ func New() *configs.Config {
 		container.AppArmorProfile = "docker-default"
 	}
 
+	container.Privatefs = privateRootFs()
+
 	return container
+}
+
+func privateRootFs() bool {
+	mounts, err := mount.GetMounts()
+	if err != nil {
+		// Log the error and return the default behavior
+		logrus.Error(err)
+		return false
+	}
+
+	for _, m := range mounts {
+		if m.Mountpoint == defaultHostRoot {
+			return !strings.Contains(m.Opts, mountSharedOpt)
+		}
+	}
+	return false
 }
