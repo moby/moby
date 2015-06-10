@@ -795,6 +795,18 @@ func (daemon *Daemon) Shutdown() error {
 		}
 	}
 
+	if daemon.containerGraph != nil {
+		if err := daemon.containerGraph.Close(); err != nil {
+			logrus.Errorf("Error during container graph.Close(): %v", err)
+		}
+	}
+
+	if daemon.driver != nil {
+		if err := daemon.driver.Cleanup(); err != nil {
+			logrus.Errorf("Error during graph storage driver.Cleanup(): %v", err)
+		}
+	}
+
 	return nil
 }
 
