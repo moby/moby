@@ -1037,7 +1037,7 @@ variables automatically:
   </td>
  <tr>
   <td><code>TERM</code></td>
-  <td><code>xterm</code> if the container is allocated a psuedo-TTY</td>
+  <td><code>xterm</code> if the container is allocated a pseudo-TTY</td>
  </tr>
 </table>
 
