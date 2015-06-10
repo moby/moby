@@ -1,74 +1,149 @@
+// generated code - DO NOT EDIT
+
 package volumedrivers
 
-import "fmt"
+import "errors"
 
-// currently created by hand. generation tool would generate this like:
-// $ rpc-gen volume/drivers/api.go VolumeDriver > volume/drivers/proxy.go
-
-type volumeDriverRequest struct {
-	Name string
-}
-
-type volumeDriverResponse struct {
-	Mountpoint string `json:",omitempty"`
-	Err        string `json:",omitempty"`
+type client interface {
+	Call(string, interface{}, interface{}) error
 }
 
 type volumeDriverProxy struct {
-	c client
+	client
 }
 
-func (pp *volumeDriverProxy) Create(name string) error {
-	args := volumeDriverRequest{name}
-	var ret volumeDriverResponse
-	err := pp.c.Call("VolumeDriver.Create", args, &ret)
-	if err != nil {
-		return pp.fmtError(name, err.Error())
-	}
-	return pp.fmtError(name, ret.Err)
+type volumeDriverProxyCreateRequest struct {
+	Name string
 }
 
-func (pp *volumeDriverProxy) Remove(name string) error {
-	args := volumeDriverRequest{name}
-	var ret volumeDriverResponse
-	err := pp.c.Call("VolumeDriver.Remove", args, &ret)
-	if err != nil {
-		return pp.fmtError(name, err.Error())
-	}
-	return pp.fmtError(name, ret.Err)
+type volumeDriverProxyCreateResponse struct {
+	Err string
 }
 
-func (pp *volumeDriverProxy) Path(name string) (string, error) {
-	args := volumeDriverRequest{name}
-	var ret volumeDriverResponse
-	if err := pp.c.Call("VolumeDriver.Path", args, &ret); err != nil {
-		return "", pp.fmtError(name, err.Error())
+func (pp *volumeDriverProxy) Create(name string) (err error) {
+	var (
+		req volumeDriverProxyCreateRequest
+		ret volumeDriverProxyCreateResponse
+	)
+
+	req.Name = name
+	if err = pp.Call("VolumeDriver.Create", req, &ret); err != nil {
+		return
 	}
-	return ret.Mountpoint, pp.fmtError(name, ret.Err)
+
+	if ret.Err != "" {
+		err = errors.New(ret.Err)
+	}
+
+	return
 }
 
-func (pp *volumeDriverProxy) Mount(name string) (string, error) {
-	args := volumeDriverRequest{name}
-	var ret volumeDriverResponse
-	if err := pp.c.Call("VolumeDriver.Mount", args, &ret); err != nil {
-		return "", pp.fmtError(name, err.Error())
-	}
-	return ret.Mountpoint, pp.fmtError(name, ret.Err)
+type volumeDriverProxyRemoveRequest struct {
+	Name string
 }
 
-func (pp *volumeDriverProxy) Unmount(name string) error {
-	args := volumeDriverRequest{name}
-	var ret volumeDriverResponse
-	err := pp.c.Call("VolumeDriver.Unmount", args, &ret)
-	if err != nil {
-		return pp.fmtError(name, err.Error())
-	}
-	return pp.fmtError(name, ret.Err)
+type volumeDriverProxyRemoveResponse struct {
+	Err string
 }
 
-func (pp *volumeDriverProxy) fmtError(name string, err string) error {
-	if len(err) == 0 {
-		return nil
+func (pp *volumeDriverProxy) Remove(name string) (err error) {
+	var (
+		req volumeDriverProxyRemoveRequest
+		ret volumeDriverProxyRemoveResponse
+	)
+
+	req.Name = name
+	if err = pp.Call("VolumeDriver.Remove", req, &ret); err != nil {
+		return
 	}
-	return fmt.Errorf("External volume driver request failed for %s: %v", name, err)
+
+	if ret.Err != "" {
+		err = errors.New(ret.Err)
+	}
+
+	return
+}
+
+type volumeDriverProxyPathRequest struct {
+	Name string
+}
+
+type volumeDriverProxyPathResponse struct {
+	Mountpoint string
+	Err        string
+}
+
+func (pp *volumeDriverProxy) Path(name string) (mountpoint string, err error) {
+	var (
+		req volumeDriverProxyPathRequest
+		ret volumeDriverProxyPathResponse
+	)
+
+	req.Name = name
+	if err = pp.Call("VolumeDriver.Path", req, &ret); err != nil {
+		return
+	}
+
+	mountpoint = ret.Mountpoint
+
+	if ret.Err != "" {
+		err = errors.New(ret.Err)
+	}
+
+	return
+}
+
+type volumeDriverProxyMountRequest struct {
+	Name string
+}
+
+type volumeDriverProxyMountResponse struct {
+	Mountpoint string
+	Err        string
+}
+
+func (pp *volumeDriverProxy) Mount(name string) (mountpoint string, err error) {
+	var (
+		req volumeDriverProxyMountRequest
+		ret volumeDriverProxyMountResponse
+	)
+
+	req.Name = name
+	if err = pp.Call("VolumeDriver.Mount", req, &ret); err != nil {
+		return
+	}
+
+	mountpoint = ret.Mountpoint
+
+	if ret.Err != "" {
+		err = errors.New(ret.Err)
+	}
+
+	return
+}
+
+type volumeDriverProxyUnmountRequest struct {
+	Name string
+}
+
+type volumeDriverProxyUnmountResponse struct {
+	Err string
+}
+
+func (pp *volumeDriverProxy) Unmount(name string) (err error) {
+	var (
+		req volumeDriverProxyUnmountRequest
+		ret volumeDriverProxyUnmountResponse
+	)
+
+	req.Name = name
+	if err = pp.Call("VolumeDriver.Unmount", req, &ret); err != nil {
+		return
+	}
+
+	if ret.Err != "" {
+		err = errors.New(ret.Err)
+	}
+
+	return
 }
