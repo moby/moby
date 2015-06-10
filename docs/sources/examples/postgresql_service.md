@@ -21,7 +21,7 @@ Start by creating a new `Dockerfile`:
 > suitably secure.
 
     #
-    # example Dockerfile for http://docs.docker.com/examples/postgresql_service/
+    # example Dockerfile for https://docs.docker.com/examples/postgresql_service/
     #
 
     FROM ubuntu

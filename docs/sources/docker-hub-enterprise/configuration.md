@@ -258,7 +258,7 @@ API.
 * *Yaml configuration file*: This file (`/usr/local/etc/dhe/storage.yml`) is
 used to configure the image storage services. The editable text of the file is
 displayed in the dialog box. The schema of this file is identical to that used
-by the [Registry 2.0](http://docs.docker.com/registry/configuration/).
+by the [Registry 2.0](https://docs.docker.com/registry/configuration/).
 * If you are using the file system driver to provide local image storage, you will need to specify a root directory which will get mounted as a sub-path of
 `/var/local/dhe/image-storage`. The default value of this root directory is
 `/local`, so the full path to it is `/var/local/dhe/image-storage/local`.
