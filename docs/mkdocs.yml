@@ -1,5 +1,5 @@
 site_name: Docker Documentation
-#site_url: http://docs.docker.com/
+#site_url: https://docs.docker.com/
 site_url: /
 site_description: Documentation for fast and lightweight Docker container based virtualization framework.
 site_favicon: img/favicon.png

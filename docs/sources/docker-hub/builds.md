@@ -27,7 +27,7 @@ Automated Builds are supported for both public and private repositories
 on both [GitHub](http://github.com) and [Bitbucket](https://bitbucket.org/).
 
 To use Automated Builds, you must have an [account on Docker Hub](
-http://docs.docker.com/userguide/dockerhub/#creating-a-docker-hub-account)
+https://docs.docker.com/userguide/dockerhub/#creating-a-docker-hub-account)
 and on GitHub and/or Bitbucket. In either case, the account needs
 to be properly validated and activated before you can link to it.
 

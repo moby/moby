@@ -94,7 +94,7 @@ community.
 ## Features of Docker Hub
 
 Let's take a closer look at some of the features of Docker Hub. You can find more
-information [here](http://docs.docker.com/docker-hub/).
+information [here](https://docs.docker.com/docker-hub/).
 
 * Private repositories
 * Organizations and teams
@@ -163,7 +163,7 @@ a webhook you can specify a target URL and a JSON payload that will be
 delivered when the image is pushed.
 
 See the Docker Hub documentation for [more information on
-webhooks](http://docs.docker.com/docker-hub/repos/#webhooks)
+webhooks](https://docs.docker.com/docker-hub/repos/#webhooks)
 
 ## Next steps
 
