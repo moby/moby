@@ -979,16 +979,6 @@ func initNetworkController(config *Config) (libnetwork.NetworkController, error)
 }
 
 func (daemon *Daemon) Shutdown() error {
-	if daemon.containerGraph != nil {
-		if err := daemon.containerGraph.Close(); err != nil {
-			logrus.Errorf("Error during container graph.Close(): %v", err)
-		}
-	}
-	if daemon.driver != nil {
-		if err := daemon.driver.Cleanup(); err != nil {
-			logrus.Errorf("Error during graph storage driver.Cleanup(): %v", err)
-		}
-	}
 	if daemon.containers != nil {
 		group := sync.WaitGroup{}
 		logrus.Debug("starting clean shutdown of all containers...")
@@ -1014,6 +1004,18 @@ func (daemon *Daemon) Shutdown() error {
 		// trigger libnetwork GC only if it's initialized
 		if daemon.netController != nil {
 			daemon.netController.GC()
+		}
+	}
+
+	if daemon.containerGraph != nil {
+		if err := daemon.containerGraph.Close(); err != nil {
+			logrus.Errorf("Error during container graph.Close(): %v", err)
+		}
+	}
+
+	if daemon.driver != nil {
+		if err := daemon.driver.Cleanup(); err != nil {
+			logrus.Errorf("Error during graph storage driver.Cleanup(): %v", err)
 		}
 	}
 
