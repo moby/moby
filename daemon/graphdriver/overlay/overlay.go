@@ -16,6 +16,7 @@ import (
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/chrootarchive"
+	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/libcontainer/label"
 )
 
@@ -125,6 +126,10 @@ func Init(home string, options []string) (graphdriver.Driver, error) {
 
 	// Create the driver home dir
 	if err := os.MkdirAll(home, 0755); err != nil && !os.IsExist(err) {
+		return nil, err
+	}
+
+	if err := mount.MakePrivate(home); err != nil {
 		return nil, err
 	}
 
