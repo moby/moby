@@ -545,23 +545,13 @@ func (d *driver) CreateEndpoint(nid, eid types.UUID, epInfo driverapi.EndpointIn
 	}
 	ipv4Addr := &net.IPNet{IP: ip4, Mask: n.bridge.bridgeIPv4.Mask}
 
-	// Down the interface before configuring mac address.
-	if err := netlink.LinkSetDown(sbox); err != nil {
-		return fmt.Errorf("could not set link down for container interface %s: %v", containerIfName, err)
-	}
-
 	// Set the sbox's MAC. If specified, use the one configured by user, otherwise generate one based on IP.
 	mac := electMacAddress(epConfig, ip4)
 	err = netlink.LinkSetHardwareAddr(sbox, mac)
 	if err != nil {
-		return fmt.Errorf("could not set mac address for container interface %s: %v", containerIfName, err)
+		return err
 	}
 	endpoint.macAddress = mac
-
-	// Up the host interface after finishing all netlink configuration
-	if err := netlink.LinkSetUp(host); err != nil {
-		return fmt.Errorf("could not set link up for host interface %s: %v", hostIfName, err)
-	}
 
 	// v6 address for the sandbox side pipe interface
 	ipv6Addr = &net.IPNet{}
