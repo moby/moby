@@ -1125,7 +1125,8 @@ and Docker images will report:
 
 The `--since` and `--until` parameters can be Unix timestamps, RFC3339
 dates or Go duration strings (e.g. `10m`, `1h30m`) computed relative to
-client machine’s time.
+client machine’s time. If you do not provide the --since option, the command
+returns only new and/or live events.
 
 #### Filtering
 

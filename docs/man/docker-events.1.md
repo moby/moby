@@ -76,7 +76,11 @@ relative to the current time on the client machine:
     2015-05-12T15:53:45.999999999Z07:00  7805c1d35632: (from redis:2.8) die
     2015-05-12T15:54:03.999999999Z07:00  7805c1d35632: (from redis:2.8) stop
 
+If you do not provide the --since option, the command returns only new and/or
+live events.
+
 # HISTORY
 April 2014, Originally compiled by William Henry (whenry at redhat dot com)
 based on docker.com source material and internal work.
 June 2014, updated by Sven Dowideit <SvenDowideit@home.org.au>
+June 2015, updated by Brian Goff <cpuguy83@gmail.com>
