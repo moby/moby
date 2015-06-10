@@ -906,6 +906,25 @@ reference documentation.
 
 The following logging options are supported for this logging driver: [none]
 
+#### Logging driver: gelf
+
+Graylog Extended Log Format (GELF) logging driver for Docker. Writes log messages to a GELF endpoint like
+Graylog or Logstash. The `docker logs` command is not available for this logging driver.
+
+The GELF logging driver supports the following options:
+
+    --log-opt gelf-address=udp://host:port
+    --log-opt gelf-tag="database"
+
+The `gelf-address` option specifies the remote GELF server address that the
+driver connects to. Currently, only `udp` is supported as the transport and you must
+specify a `port` value. The following example shows how to connect the `gelf`
+driver to a GELF remote server at `192.168.0.42` on port `12201`
+
+    $ docker run --log-driver=gelf --log-opt gelf-address=udp://192.168.0.42:12201
+
+The `gelf-tag` option specifies a tag for easy container identification.
+
 ## Overriding Dockerfile image defaults
 
 When a developer builds an image from a [*Dockerfile*](/reference/builder)
