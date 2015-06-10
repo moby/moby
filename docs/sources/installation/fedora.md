@@ -6,14 +6,43 @@ page_keywords: Docker, Docker documentation, Fedora, requirements, linux
 
 Docker is supported on the following versions of Fedora:
 
+- [*Fedora 22 (64-bit)*](#fedora-22-installation)
+- [*Fedora 21 (64-bit)*](#fedora-21-installation)
 - [*Fedora 20 (64-bit)*](#fedora-20-installation)
-- [*Fedora 21 and later (64-bit)*](#fedora-21-and-later-installation)
 
 Currently the Fedora project will only support Docker when running on kernels
 shipped by the distribution. There are kernel changes which will cause issues
 if one decides to step outside that box and run non-distribution kernel packages.
 
-## Fedora 21 and later
+## Fedora 22
+
+### Installation
+
+Install the Docker package which will install Docker on our host.
+
+    $ sudo dnf -y install docker
+
+To update the Docker package:
+
+    $ sudo dnf -y update docker
+
+Please continue with the [Starting the Docker daemon](#starting-the-docker-daemon).
+
+### Uninstallation
+
+To uninstall the Docker package:
+
+    $ sudo dnf -y remove docker
+
+The above command will not remove images, containers, volumes, or user created
+configuration files on your host. If you wish to delete all images, containers,
+and volumes run the following command:
+
+    $ rm -rf /var/lib/docker
+
+You must delete the user created configuration files manually.
+
+## Fedora 21
 
 ### Installation
 
