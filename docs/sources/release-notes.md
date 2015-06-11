@@ -22,13 +22,13 @@ repository](https://github.com/docker/docker/blob/master/CHANGELOG.md).
 
 | Feature                      | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 |------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| Container and Image Labels   | Labels allow you to attach user-defined metadata to containers and images that can be used by your tools. For additional information on using labels, see [Apply custom metadata](http://docs.docker.com/userguide/labels-custom-metadata/#add-labels-to-images-the-label-instruction) in the documentation.                                                                                                                                                    |
+| Container and Image Labels   | Labels allow you to attach user-defined metadata to containers and images that can be used by your tools. For additional information on using labels, see [Apply custom metadata](https://docs.docker.com/userguide/labels-custom-metadata/#add-labels-to-images-the-label-instruction) in the documentation.                                                                                                                                                    |
 | Windows Client preview       | The Windows Client can be used just like the Mac OS X client is today with a remote host. Our testing infrastructure was scaled out to accommodate Windows Client testing on every PR to the Engine. See the Azure blog for [details on using this new client](http://azure.microsoft.com/blog/2015/04/16/docker-client-for-windows-is-now-available).                                                                                                           |
-| Logging drivers              | The new logging driver follows the exec driver and storage driver concepts already available in Engine today. There is a new option `--log-driver` to `docker run` command. See the `run` reference for a [description on how to use this option](http://docs.docker.com/reference/run/#logging-drivers-log-driver).                                                                                                                                            |
-| Image digests                | When you pull, build, or run images, you specify them in the form `namespace/repository:tag`, or even just `repository`. In this release, you are now able to pull, run, build and refer to images by a new content addressable identifier called a “digest” with the syntax `namespace/repo@digest`. See the the command line reference for [examples of using the digest](http://docs.docker.com/reference/commandline/cli/#listing-image-digests).           |
-| Custom cgroups               | Containers are made from a combination of namespaces, capabilities, and cgroups. Docker already supports custom namespaces and capabilities. Additionally, in this release we’ve added support for custom cgroups. Using the `--cgroup-parent` flag, you can pass a specific `cgroup` to run a container in. See [the command line reference for more information](http://docs.docker.com/reference/commandline/cli/#create).                                   |
-| Ulimits                      | You can now specify the default `ulimit` settings for all containers when configuring the daemon. For example:`docker -d --default-ulimit nproc=1024:2048` See [Default Ulimits](http://docs.docker.com/reference/commandline/cli/#default-ulimits) in this documentation.                                                                                                                                                                                   |
-| Commit and import Dockerfile | You can now make changes to images on the fly without having to re-build the entire image. The feature `commit --change` and `import --change` allows you to apply standard changes to a new image. These are expressed in the Dockerfile syntax and used to modify the image. For details on how to use these, see the [commit](http://docs.docker.com/reference/commandline/cli/#commit) and [import](http://docs.docker.com/reference/commandline/cli/#import). |
+| Logging drivers              | The new logging driver follows the exec driver and storage driver concepts already available in Engine today. There is a new option `--log-driver` to `docker run` command. See the `run` reference for a [description on how to use this option](https://docs.docker.com/reference/run/#logging-drivers-log-driver).                                                                                                                                            |
+| Image digests                | When you pull, build, or run images, you specify them in the form `namespace/repository:tag`, or even just `repository`. In this release, you are now able to pull, run, build and refer to images by a new content addressable identifier called a “digest” with the syntax `namespace/repo@digest`. See the the command line reference for [examples of using the digest](https://docs.docker.com/reference/commandline/cli/#listing-image-digests).           |
+| Custom cgroups               | Containers are made from a combination of namespaces, capabilities, and cgroups. Docker already supports custom namespaces and capabilities. Additionally, in this release we’ve added support for custom cgroups. Using the `--cgroup-parent` flag, you can pass a specific `cgroup` to run a container in. See [the command line reference for more information](https://docs.docker.com/reference/commandline/cli/#create).                                   |
+| Ulimits                      | You can now specify the default `ulimit` settings for all containers when configuring the daemon. For example:`docker -d --default-ulimit nproc=1024:2048` See [Default Ulimits](https://docs.docker.com/reference/commandline/cli/#default-ulimits) in this documentation.                                                                                                                                                                                   |
+| Commit and import Dockerfile | You can now make changes to images on the fly without having to re-build the entire image. The feature `commit --change` and `import --change` allows you to apply standard changes to a new image. These are expressed in the Dockerfile syntax and used to modify the image. For details on how to use these, see the [commit](https://docs.docker.com/reference/commandline/cli/#commit) and [import](https://docs.docker.com/reference/commandline/cli/#import). |
 
 ### Known issues in Engine
 
@@ -62,15 +62,15 @@ around a new set of distribution APIs
 - **Webhook notifications**: You can now configure the Registry to send Webhooks
 when images are pushed. Spin off a CI build, send a notification to IRC –
 whatever you want! Included in the documentation is a detailed [notification
-specification](http://docs.docker.com/registry/notifications/).
+specification](https://docs.docker.com/registry/notifications/).
 
 - **Native TLS support**: This release makes it easier to secure a registry with
 TLS.  This documentation includes [expanded examples of secure
-deployments](http://docs.docker.com/registry/deploying/).
+deployments](https://docs.docker.com/registry/deploying/).
 
 - **New Distribution APIs**: This release includes an expanded set of new
 distribution APIs. You can read the [detailed specification
-here](http://docs.docker.com/registry/spec/api/).
+here](https://docs.docker.com/registry/spec/api/).
 
 
 ## Docker Compose 1.2
@@ -86,7 +86,7 @@ with the keyword “extends”. With extends, you can refer to a service defined
 elsewhere and include its configuration in a locally-defined service, while also
 adding or overriding configuration as necessary. The documentation describes
 [how to use extends in your
-configuration](http://docs.docker.com/compose/extends/#extending-services-in-
+configuration](https://docs.docker.com/compose/extends/#extending-services-in-
 compose).
 
 - **Relative directory handling may cause breaking change**: Compose now treats
@@ -103,7 +103,7 @@ another directory.
 
 You'll find the [release for download on
 GitHub](https://github.com/docker/swarm/releases/tag/v0.2.0) and [the
-documentation here](http://docs.docker.com/swarm/).  This release includes the
+documentation here](https://docs.docker.com/swarm/).  This release includes the
 following features:
 
 - **Spread strategy**: A new strategy for scheduling containers on your cluster
@@ -119,7 +119,7 @@ make it possible to use Swarm with clustering systems such as Mesos.
 
 You'll find the [release for download on
 GitHub](https://github.com/docker/machine/releases) and [the documentation
-here](http://docs.docker.com/machine/).  For a complete list of machine changes
+here](https://docs.docker.com/machine/).  For a complete list of machine changes
 see [the changelog in the project
 repository](https://github.com/docker/machine/blob/master/CHANGES.md#020-2015-03
 -22).

@@ -110,7 +110,7 @@ Go to [Docker Swarm user guide](/swarm/).
 * [Docker homepage](http://www.docker.com/)
 * [Docker Hub](https://hub.docker.com)
 * [Docker blog](http://blog.docker.com/)
-* [Docker documentation](http://docs.docker.com/)
+* [Docker documentation](https://docs.docker.com/)
 * [Docker Getting Started Guide](http://www.docker.com/gettingstarted/)
 * [Docker code on GitHub](https://github.com/docker/docker)
 * [Docker mailing

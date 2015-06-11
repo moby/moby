@@ -45,7 +45,7 @@ You should be able to complete this guide in about thirty minutes.
 > **Note:** This guide assumes you are familiar with basic Docker concepts such
 > as images, containers, and registries. If you need to learn more about Docker
 > fundamentals, please consult the
-> [Docker user guide](http://docs.docker.com/userguide/).
+> [Docker user guide](https://docs.docker.com/userguide/).
 
 First, you will retrieve a copy of the official Jenkins image from the Docker Hub. By default, if
 Docker can't find an image locally, it will attempt to pull the image from the
