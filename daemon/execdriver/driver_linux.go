@@ -38,7 +38,7 @@ func InitContainer(c *Command) *configs.Config {
 
 func getEnv(key string, env []string) string {
 	for _, pair := range env {
-		parts := strings.Split(pair, "=")
+		parts := strings.SplitN(pair, "=", 2)
 		if parts[0] == key {
 			return parts[1]
 		}
