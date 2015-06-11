@@ -3,8 +3,8 @@ package datastore
 import (
 	"errors"
 
+	"github.com/docker/libkv/store"
 	"github.com/docker/libnetwork/types"
-	"github.com/docker/swarm/pkg/store"
 )
 
 var (

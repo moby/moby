@@ -86,6 +86,10 @@
 			"Rev": "a5b2e57496762cb6971eb65809b2e428cb179719"
 		},
 		{
+			"ImportPath": "github.com/docker/libkv",
+			"Rev": "ab16c3d4a8785a9877c62d0b11ea4441cf09120c"
+		},
+		{
 			"ImportPath": "github.com/godbus/dbus",
 			"Comment": "v2-3-g4160802",
 			"Rev": "41608027bdce7bfa8959d653a00b954591220e67"
@@ -106,6 +110,18 @@
 		{
 			"ImportPath": "github.com/samuel/go-zookeeper/zk",
 			"Rev": "d0e0d8e11f318e000a8cc434616d69e329edc374"
+		},
+		{
+			"ImportPath": "github.com/stretchr/objx",
+			"Rev": "cbeaeb16a013161a98496fad62933b1d21786672"
+		},
+		{
+			"ImportPath": "github.com/stretchr/testify/assert",
+			"Rev": "dab07ac62d4905d3e48d17dc549c684ac3b7c15a"
+		},
+		{
+			"ImportPath": "github.com/stretchr/testify/mock",
+			"Rev": "dab07ac62d4905d3e48d17dc549c684ac3b7c15a"
 		},
 		{
 			"ImportPath": "github.com/vishvananda/netlink",
