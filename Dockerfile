@@ -123,11 +123,12 @@ RUN gem install --no-rdoc --no-ri fpm --version 1.3.2
 # Install registry
 ENV REGISTRY_COMMIT d957768537c5af40e4f4cd96871f7b2bde9e2923
 RUN set -x \
-	&& git clone https://github.com/docker/distribution.git /go/src/github.com/docker/distribution \
-	&& (cd /go/src/github.com/docker/distribution && git checkout -q $REGISTRY_COMMIT) \
-	&& GOPATH=/go/src/github.com/docker/distribution/Godeps/_workspace:/go \
-		go build -o /go/bin/registry-v2 github.com/docker/distribution/cmd/registry \
-	&& rm -rf /go/src/github.com/docker/distribution/
+	&& export GOPATH="$(mktemp -d)" \
+	&& git clone https://github.com/docker/distribution.git "$GOPATH/src/github.com/docker/distribution" \
+	&& (cd "$GOPATH/src/github.com/docker/distribution" && git checkout -q "$REGISTRY_COMMIT") \
+	&& GOPATH="$GOPATH/src/github.com/docker/distribution/Godeps/_workspace:$GOPATH" \
+		go build -o /usr/local/bin/registry-v2 github.com/docker/distribution/cmd/registry \
+	&& rm -rf "$GOPATH"
 
 # Get the "docker-py" source so we can run their integration tests
 ENV DOCKER_PY_COMMIT 91985b239764fe54714fa0a93d52aa362357d251
@@ -169,19 +170,21 @@ RUN ./contrib/download-frozen-image.sh /docker-frozen-images \
 
 # Download man page generator
 RUN set -x \
-	&& git clone -b v1.0.1 https://github.com/cpuguy83/go-md2man.git /go/src/github.com/cpuguy83/go-md2man \
-	&& git clone -b v1.2 https://github.com/russross/blackfriday.git /go/src/github.com/russross/blackfriday
+	&& export GOPATH="$(mktemp -d)" \
+	&& git clone -b v1.0.1 https://github.com/cpuguy83/go-md2man.git "$GOPATH/src/github.com/cpuguy83/go-md2man" \
+	&& git clone -b v1.2 https://github.com/russross/blackfriday.git "$GOPATH/src/github.com/russross/blackfriday" \
+	&& go get -v -d github.com/cpuguy83/go-md2man \
+	&& go build -v -o /usr/local/bin/go-md2man github.com/cpuguy83/go-md2man \
+	&& rm -rf "$GOPATH"
 
 # Download toml validator
 ENV TOMLV_COMMIT 9baf8a8a9f2ed20a8e54160840c492f937eeaf9a
 RUN set -x \
-	&& git clone https://github.com/BurntSushi/toml.git /go/src/github.com/BurntSushi/toml \
-	&& (cd /go/src/github.com/BurntSushi/toml && git checkout -q $TOMLV_COMMIT)
-
-# copy vendor/ because go-md2man needs golang.org/x/net
-COPY vendor /go/src/github.com/docker/docker/vendor
-RUN go install -v github.com/cpuguy83/go-md2man \
-	github.com/BurntSushi/toml/cmd/tomlv
+	&& export GOPATH="$(mktemp -d)" \
+	&& git clone https://github.com/BurntSushi/toml.git "$GOPATH/src/github.com/BurntSushi/toml" \
+	&& (cd "$GOPATH/src/github.com/BurntSushi/toml" && git checkout -q "$TOMLV_COMMIT") \
+	&& go build -v -o /usr/local/bin/tomlv github.com/BurntSushi/toml/cmd/tomlv \
+	&& rm -rf "$GOPATH"
 
 # Build/install the tool for embedding resources in Windows binaries
 ENV RSRC_COMMIT e48dbf1b7fc464a9e85fcec450dddf80816b76e0
