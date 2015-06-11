@@ -5,6 +5,7 @@ import (
 	"strings"
 	"sync"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/libnetwork/datastore"
 	"github.com/docker/libnetwork/driverapi"
@@ -160,8 +161,6 @@ func (n *network) processOptions(options ...NetworkOption) {
 }
 
 func (n *network) Delete() error {
-	var err error
-
 	n.ctrlr.Lock()
 	_, ok := n.ctrlr.networks[n.id]
 	if !ok {
@@ -179,16 +178,17 @@ func (n *network) Delete() error {
 
 	delete(n.ctrlr.networks, n.id)
 	n.ctrlr.Unlock()
-	defer func() {
-		if err != nil {
+	if err := n.driver.DeleteNetwork(n.id); err != nil {
+		// Forbidden Errors should be honored
+		if _, ok := err.(types.ForbiddenError); ok {
 			n.ctrlr.Lock()
 			n.ctrlr.networks[n.id] = n
 			n.ctrlr.Unlock()
+			return err
 		}
-	}()
-
-	err = n.driver.DeleteNetwork(n.id)
-	return err
+		log.Warnf("driver error deleting network %s : %v", n.name, err)
+	}
+	return nil
 }
 
 func (n *network) CreateEndpoint(name string, options ...EndpointOption) (Endpoint, error) {

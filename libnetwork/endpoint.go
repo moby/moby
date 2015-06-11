@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"sync"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/libnetwork/etchosts"
 	"github.com/docker/libnetwork/netlabel"
@@ -342,8 +343,6 @@ func (ep *endpoint) Leave(containerID string, options ...EndpointOption) error {
 }
 
 func (ep *endpoint) Delete() error {
-	var err error
-
 	ep.Lock()
 	epid := ep.id
 	name := ep.name
@@ -366,16 +365,17 @@ func (ep *endpoint) Delete() error {
 	driver := n.driver
 	delete(n.endpoints, epid)
 	n.Unlock()
-	defer func() {
-		if err != nil {
+
+	if err := driver.DeleteEndpoint(nid, epid); err != nil {
+		if _, ok := err.(types.ForbiddenError); ok {
 			n.Lock()
 			n.endpoints[epid] = ep
 			n.Unlock()
+			return err
 		}
-	}()
-
-	err = driver.DeleteEndpoint(nid, epid)
-	return err
+		log.Warnf("driver error deleting endpoint %s : %v", name, err)
+	}
+	return nil
 }
 
 func (ep *endpoint) buildHostsFiles() error {
