@@ -117,6 +117,7 @@ type Resources struct {
 	BlkioWeight    int64            `json:"blkio_weight"`
 	Rlimits        []*ulimit.Rlimit `json:"rlimits"`
 	OomKillDisable bool             `json:"oom_kill_disable"`
+	MemSwappiness  int64            `json:"swappiness"`
 }
 
 type ResourceStats struct {

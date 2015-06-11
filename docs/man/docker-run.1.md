@@ -51,6 +51,7 @@ docker-run - Run a command in a new container
 [**--rm**[=*false*]]
 [**--security-opt**[=*[]*]]
 [**--sig-proxy**[=*true*]]
+[**--mem-swappiness**[=*60*]]
 [**-t**|**--tty**[=*false*]]
 [**-u**|**--user**[=*USER*]]
 [**-v**|**--volume**[=*[]*]]
@@ -370,6 +371,9 @@ its root filesystem mounted as read only prohibiting any writes.
 
 **--sig-proxy**=*true*|*false*
    Proxy received signals to the process (non-TTY mode only). SIGCHLD, SIGSTOP, and SIGKILL are not proxied. The default is *true*.
+
+**--mem-swappiness**=*60*
+   Tuning the memory swappiness of container. The value in the range of 0-100 is accepted.
 
 **-t**, **--tty**=*true*|*false*
    Allocate a pseudo-TTY. The default is *false*.

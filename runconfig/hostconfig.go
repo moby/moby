@@ -208,6 +208,7 @@ type HostConfig struct {
 	CpuQuota        int64
 	BlkioWeight     int64 // Block IO weight (relative weight vs. other containers)
 	OomKillDisable  bool  // Whether to disable OOM Killer or not
+	MemSwappiness   int64 // Tuning container memory swappiness behaviour
 	Privileged      bool
 	PortBindings    nat.PortMap
 	Links           []string

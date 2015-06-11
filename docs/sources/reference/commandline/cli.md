@@ -1020,6 +1020,7 @@ Creates a new container.
       --read-only=false          Mount the container's root filesystem as read only
       --restart="no"             Restart policy (no, on-failure[:max-retry], always)
       --security-opt=[]          Security options
+      --mem-swapiness=[]         Tuning container memory swappiness (accepted value 0-100)
       -t, --tty=false            Allocate a pseudo-TTY
       -u, --user=""              Username or UID
       -v, --volume=[]            Bind mount a volume

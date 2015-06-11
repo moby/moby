@@ -48,6 +48,7 @@ docker-create - Create a new container
 [**--read-only**[=*false*]]
 [**--restart**[=*RESTART*]]
 [**--security-opt**[=*[]*]]
+[**--mem-swappiness**[=*60*]]
 [**-t**|**--tty**[=*false*]]
 [**-u**|**--user**[=*USER*]]
 [**-v**|**--volume**[=*[]*]]
@@ -224,6 +225,9 @@ This value should always larger than **-m**, so you should always use this with 
 
 **--security-opt**=[]
    Security Options
+
+**--mem-swappiness**=*60*
+   Tuning the memory swappiness of container. The value in the range of 0-100 is accepted.
 
 **-t**, **--tty**=*true*|*false*
    Allocate a pseudo-TTY. The default is *false*.

@@ -10,4 +10,5 @@ type SysInfo struct {
 	IPv4ForwardingDisabled bool
 	AppArmor               bool
 	OomKillDisable         bool
+	MemSwappiness          bool
 }

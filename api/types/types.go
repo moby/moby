@@ -150,6 +150,7 @@ type Info struct {
 	Debug              bool
 	NFd                int
 	OomKillDisable     bool
+	MemSwappiness      bool
 	NGoroutines        int
 	SystemTime         string
 	ExecutionDriver    string

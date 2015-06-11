@@ -1203,6 +1203,9 @@ func (daemon *Daemon) verifyContainerSettings(hostConfig *runconfig.HostConfig) 
 		hostConfig.OomKillDisable = false
 		return warnings, fmt.Errorf("Your kernel does not support oom kill disable.")
 	}
+	if hostConfig.MemSwappiness < 0 || hostConfig.MemSwappiness > 100 {
+		return warnings, fmt.Errorf("Range of swappiness is from 0 to 100.")
+	}
 	if daemon.SystemConfig().IPv4ForwardingDisabled {
 		warnings = append(warnings, "IPv4 forwarding is disabled. Networking will not work.")
 		logrus.Warnf("IPv4 forwarding is disabled. Networking will not work")

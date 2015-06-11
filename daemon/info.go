@@ -70,6 +70,7 @@ func (daemon *Daemon) SystemInfo() (*types.Info, error) {
 		Debug:              os.Getenv("DEBUG") != "",
 		NFd:                fileutils.GetTotalUsedFds(),
 		OomKillDisable:     daemon.SystemConfig().OomKillDisable,
+		MemSwappiness:      daemon.SystemConfig().MemSwappiness,
 		NGoroutines:        runtime.NumGoroutine(),
 		SystemTime:         time.Now().Format(time.RFC3339Nano),
 		ExecutionDriver:    daemon.ExecutionDriver().Name(),

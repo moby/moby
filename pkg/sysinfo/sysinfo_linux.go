@@ -33,6 +33,11 @@ func New(quiet bool) *SysInfo {
 		if !sysInfo.OomKillDisable && !quiet {
 			logrus.Warnf("Your kernel does not support oom control.")
 		}
+		_, err = ioutil.ReadFile(path.Join(cgroupMemoryMountpoint, "memory.swappiness"))
+		sysInfo.MemSwappiness = err == nil
+		if !sysInfo.MemSwappiness && !quiet {
+			logrus.Warnf("Your kernel does not support container swappiness control.")
+		}
 	}
 
 	if cgroupCpuMountpoint, err := cgroups.FindCgroupMountpoint("cpu"); err != nil {

@@ -271,6 +271,7 @@ func populateCommand(c *Container, env []string) error {
 		BlkioWeight:    c.hostConfig.BlkioWeight,
 		Rlimits:        rlimits,
 		OomKillDisable: c.hostConfig.OomKillDisable,
+		MemSwappiness:  c.hostConfig.MemSwappiness,
 	}
 
 	processConfig := execdriver.ProcessConfig{
