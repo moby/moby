@@ -16,7 +16,10 @@ type driver struct {
 
 // Init registers a new instance of host driver
 func Init(dc driverapi.DriverCallback) error {
-	return dc.RegisterDriver(networkType, &driver{})
+	c := driverapi.Capability{
+		Scope: driverapi.LocalScope,
+	}
+	return dc.RegisterDriver(networkType, &driver{}, c)
 }
 
 func (d *driver) Config(option map[string]interface{}) error {

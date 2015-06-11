@@ -15,7 +15,7 @@ import (
 )
 
 func TestDiscovery(t *testing.T) {
-	_, err := net.Dial("tcp", "discovery-stage.hub.docker.com:80")
+	_, err := net.DialTimeout("tcp", "discovery-stage.hub.docker.com:80", 10*time.Second)
 	if err != nil {
 		t.Skip("Skipping Discovery test which need connectivity to discovery-stage.hub.docker.com")
 	}
@@ -52,7 +52,7 @@ func TestDiscovery(t *testing.T) {
 }
 
 func TestBadDiscovery(t *testing.T) {
-	_, err := net.Dial("tcp", "discovery-stage.hub.docker.com:80")
+	_, err := net.DialTimeout("tcp", "discovery-stage.hub.docker.com:80", 10*time.Second)
 	if err != nil {
 		t.Skip("Skipping Discovery test which need connectivity to discovery-stage.hub.docker.com")
 	}

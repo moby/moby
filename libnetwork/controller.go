@@ -45,7 +45,6 @@ create network namespaces and allocate interfaces for containers to use.
 package libnetwork
 
 import (
-	"encoding/json"
 	"fmt"
 	"net"
 	"os"
@@ -61,7 +60,6 @@ import (
 	"github.com/docker/libnetwork/hostdiscovery"
 	"github.com/docker/libnetwork/sandbox"
 	"github.com/docker/libnetwork/types"
-	"github.com/docker/swarm/pkg/store"
 )
 
 // NetworkController provides the interface for controller instance which manages
@@ -94,6 +92,12 @@ type NetworkController interface {
 // When the function returns true, the walk will stop.
 type NetworkWalker func(nw Network) bool
 
+type driverData struct {
+	driver     driverapi.Driver
+	capability driverapi.Capability
+}
+
+type driverTable map[string]*driverData
 type networkTable map[types.UUID]*network
 type endpointTable map[types.UUID]*endpoint
 type sandboxTable map[string]*sandboxData
@@ -160,23 +164,6 @@ func (c *controller) initConfig(configFile string) error {
 	return nil
 }
 
-func (c *controller) initDataStore() error {
-	if c.cfg == nil {
-		return fmt.Errorf("datastore initialization requires a valid configuration")
-	}
-
-	store, err := datastore.NewDataStore(&c.cfg.Datastore)
-	if err != nil {
-		return err
-	}
-	c.Lock()
-	c.store = store
-	c.Unlock()
-	go c.watchNewNetworks()
-
-	return nil
-}
-
 func (c *controller) initDiscovery() error {
 	if c.cfg == nil {
 		return fmt.Errorf("discovery initialization requires a valid configuration")
@@ -194,21 +181,21 @@ func (c *controller) hostLeaveCallback(hosts []net.IP) {
 
 func (c *controller) ConfigureNetworkDriver(networkType string, options map[string]interface{}) error {
 	c.Lock()
-	d, ok := c.drivers[networkType]
+	dd, ok := c.drivers[networkType]
 	c.Unlock()
 	if !ok {
 		return NetworkTypeError(networkType)
 	}
-	return d.Config(options)
+	return dd.driver.Config(options)
 }
 
-func (c *controller) RegisterDriver(networkType string, driver driverapi.Driver) error {
+func (c *controller) RegisterDriver(networkType string, driver driverapi.Driver, capability driverapi.Capability) error {
 	c.Lock()
 	defer c.Unlock()
 	if _, ok := c.drivers[networkType]; ok {
 		return driverapi.ErrActiveRegistration(networkType)
 	}
-	c.drivers[networkType] = driver
+	c.drivers[networkType] = &driverData{driver, capability}
 	return nil
 }
 
@@ -218,18 +205,6 @@ func (c *controller) NewNetwork(networkType, name string, options ...NetworkOpti
 	if name == "" {
 		return nil, ErrInvalidName(name)
 	}
-	// Check if a driver for the specified network type is available
-	c.Lock()
-	d, ok := c.drivers[networkType]
-	c.Unlock()
-	if !ok {
-		var err error
-		d, err = c.loadDriver(networkType)
-		if err != nil {
-			return nil, err
-		}
-	}
-
 	// Check if a network already exists with the specified network name
 	c.Lock()
 	for _, n := range c.networks {
@@ -242,87 +217,58 @@ func (c *controller) NewNetwork(networkType, name string, options ...NetworkOpti
 
 	// Construct the network object
 	network := &network{
-		name:      name,
-		id:        types.UUID(stringid.GenerateRandomID()),
-		ctrlr:     c,
-		driver:    d,
-		endpoints: endpointTable{},
+		name:        name,
+		networkType: networkType,
+		id:          types.UUID(stringid.GenerateRandomID()),
+		ctrlr:       c,
+		endpoints:   endpointTable{},
 	}
 
 	network.processOptions(options...)
-	if err := c.addNetworkToStore(network); err != nil {
-		return nil, err
-	}
-	// Create the network
-	if err := d.CreateNetwork(network.id, network.generic); err != nil {
+
+	if err := c.addNetwork(network); err != nil {
 		return nil, err
 	}
 
-	// Store the network handler in controller
-	c.Lock()
-	c.networks[network.id] = network
-	c.Unlock()
+	if err := c.updateNetworkToStore(network); err != nil {
+		if e := network.Delete(); e != nil {
+			log.Warnf("couldnt cleanup network %s: %v", network.name, err)
+		}
+		return nil, err
+	}
 
 	return network, nil
 }
 
-func (c *controller) newNetworkFromStore(n *network) {
-	c.Lock()
-	defer c.Unlock()
+func (c *controller) addNetwork(n *network) error {
 
-	if _, ok := c.drivers[n.networkType]; !ok {
-		log.Warnf("Network driver unavailable for type=%s. ignoring network updates for %s", n.Type(), n.Name())
-		return
-	}
-	n.ctrlr = c
-	n.driver = c.drivers[n.networkType]
-	c.networks[n.id] = n
-	// TODO : Populate n.endpoints back from endpoint dbstore
-}
-
-func (c *controller) addNetworkToStore(n *network) error {
-	if isReservedNetwork(n.Name()) {
-		return nil
-	}
 	c.Lock()
-	cs := c.store
-	c.Unlock()
-	if cs == nil {
-		log.Debugf("datastore not initialized. Network %s is not added to the store", n.Name())
-		return nil
-	}
-	return cs.PutObjectAtomic(n)
-}
-
-func (c *controller) watchNewNetworks() {
-	c.Lock()
-	cs := c.store
+	// Check if a driver for the specified network type is available
+	dd, ok := c.drivers[n.networkType]
 	c.Unlock()
 
-	cs.KVStore().WatchRange(datastore.Key(datastore.NetworkKeyPrefix), "", 0, func(kvi []store.KVEntry) {
-		for _, kve := range kvi {
-			var n network
-			err := json.Unmarshal(kve.Value(), &n)
-			if err != nil {
-				log.Error(err)
-				continue
-			}
-			n.dbIndex = kve.LastIndex()
-			c.Lock()
-			existing, ok := c.networks[n.id]
-			c.Unlock()
-			if ok && existing.dbIndex == n.dbIndex {
-				// Skip any watch notification for a network that has not changed
-				continue
-			} else if ok {
-				// Received an update for an existing network object
-				log.Debugf("Skipping network update for %s (%s)", n.name, n.id)
-				continue
-			}
-
-			c.newNetworkFromStore(&n)
+	if !ok {
+		var err error
+		dd, err = c.loadDriver(n.networkType)
+		if err != nil {
+			return err
 		}
-	})
+	}
+
+	n.Lock()
+	n.driver = dd.driver
+	d := n.driver
+	n.Unlock()
+
+	// Create the network
+	if err := d.CreateNetwork(n.id, n.generic); err != nil {
+		return err
+	}
+	c.Lock()
+	c.networks[n.id] = n
+	c.Unlock()
+
+	return nil
 }
 
 func (c *controller) Networks() []Network {
@@ -380,7 +326,7 @@ func (c *controller) NetworkByID(id string) (Network, error) {
 	return nil, ErrNoSuchNetwork(id)
 }
 
-func (c *controller) loadDriver(networkType string) (driverapi.Driver, error) {
+func (c *controller) loadDriver(networkType string) (*driverData, error) {
 	// Plugins pkg performs lazy loading of plugins that acts as remote drivers.
 	// As per the design, this Get call will result in remote driver discovery if there is a corresponding plugin available.
 	_, err := plugins.Get(networkType, driverapi.NetworkPluginEndpointType)
@@ -392,11 +338,24 @@ func (c *controller) loadDriver(networkType string) (driverapi.Driver, error) {
 	}
 	c.Lock()
 	defer c.Unlock()
-	d, ok := c.drivers[networkType]
+	dd, ok := c.drivers[networkType]
 	if !ok {
 		return nil, ErrInvalidNetworkDriver(networkType)
 	}
-	return d, nil
+	return dd, nil
+}
+
+func (c *controller) isDriverGlobalScoped(networkType string) (bool, error) {
+	c.Lock()
+	dd, ok := c.drivers[networkType]
+	c.Unlock()
+	if !ok {
+		return false, types.NotFoundErrorf("driver not found for %s", networkType)
+	}
+	if dd.capability.Scope == driverapi.GlobalScope {
+		return true, nil
+	}
+	return false, nil
 }
 
 func (c *controller) GC() {

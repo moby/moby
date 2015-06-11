@@ -2,16 +2,18 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"net"
 	"os"
 	"time"
+
+	log "github.com/Sirupsen/logrus"
 
 	"github.com/docker/libnetwork"
 	"github.com/docker/libnetwork/options"
 )
 
 func main() {
+	log.SetLevel(log.DebugLevel)
 	os.Setenv("LIBNETWORK_CFG", "libnetwork.toml")
 	controller, err := libnetwork.New("libnetwork.toml")
 	if err != nil {
@@ -24,12 +26,26 @@ func main() {
 	options := options.Generic{"AddressIPv4": net}
 
 	err = controller.ConfigureNetworkDriver(netType, options)
-	for i := 0; i < 100; i++ {
+	for i := 0; i < 10; i++ {
 		netw, err := controller.NewNetwork(netType, fmt.Sprintf("Gordon-%d", i))
 		if err != nil {
-			log.Fatal(err)
+			if _, ok := err.(libnetwork.NetworkNameError); !ok {
+				log.Fatal(err)
+			}
+		} else {
+			fmt.Println("Network Created Successfully :", netw)
 		}
-		fmt.Println("Network Created Successfully :", netw)
-		time.Sleep(10 * time.Second)
+		netw, _ = controller.NetworkByName(fmt.Sprintf("Gordon-%d", i))
+		_, err = netw.CreateEndpoint(fmt.Sprintf("Gordon-Ep-%d", i), nil)
+		if err != nil {
+			log.Fatalf("Error creating endpoint 1 %v", err)
+		}
+
+		_, err = netw.CreateEndpoint(fmt.Sprintf("Gordon-Ep2-%d", i), nil)
+		if err != nil {
+			log.Fatalf("Error creating endpoint 2 %v", err)
+		}
+
+		time.Sleep(2 * time.Second)
 	}
 }

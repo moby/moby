@@ -2,21 +2,27 @@ package nodes
 
 import (
 	"strings"
+	"time"
 
 	"github.com/docker/swarm/discovery"
 )
 
 // Discovery is exported
 type Discovery struct {
-	entries []*discovery.Entry
+	entries discovery.Entries
 }
 
 func init() {
+	Init()
+}
+
+// Init is exported
+func Init() {
 	discovery.Register("nodes", &Discovery{})
 }
 
 // Initialize is exported
-func (s *Discovery) Initialize(uris string, _ uint64) error {
+func (s *Discovery) Initialize(uris string, _ time.Duration, _ time.Duration) error {
 	for _, input := range strings.Split(uris, ",") {
 		for _, ip := range discovery.Generate(input) {
 			entry, err := discovery.NewEntry(ip)
@@ -30,13 +36,15 @@ func (s *Discovery) Initialize(uris string, _ uint64) error {
 	return nil
 }
 
-// Fetch is exported
-func (s *Discovery) Fetch() ([]*discovery.Entry, error) {
-	return s.entries, nil
-}
-
 // Watch is exported
-func (s *Discovery) Watch(callback discovery.WatchCallback) {
+func (s *Discovery) Watch(stopCh <-chan struct{}) (<-chan discovery.Entries, <-chan error) {
+	ch := make(chan discovery.Entries)
+	go func() {
+		defer close(ch)
+		ch <- s.entries
+		<-stopCh
+	}()
+	return ch, nil
 }
 
 // Register is exported

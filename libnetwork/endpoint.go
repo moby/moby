@@ -2,6 +2,8 @@ package libnetwork
 
 import (
 	"bytes"
+	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path"
@@ -10,6 +12,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/ioutils"
+	"github.com/docker/libnetwork/datastore"
 	"github.com/docker/libnetwork/etchosts"
 	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/libnetwork/resolvconf"
@@ -96,6 +99,7 @@ type containerInfo struct {
 	id     string
 	config containerConfig
 	data   ContainerData
+	sync.Mutex
 }
 
 type endpoint struct {
@@ -108,7 +112,82 @@ type endpoint struct {
 	exposedPorts  []types.TransportPort
 	generic       map[string]interface{}
 	joinLeaveDone chan struct{}
+	dbIndex       uint64
 	sync.Mutex
+}
+
+func (ci *containerInfo) MarshalJSON() ([]byte, error) {
+	ci.Lock()
+	defer ci.Unlock()
+
+	// We are just interested in the container ID. This can be expanded to include all of containerInfo if there is a need
+	return json.Marshal(ci.id)
+}
+
+func (ci *containerInfo) UnmarshalJSON(b []byte) (err error) {
+	ci.Lock()
+	defer ci.Unlock()
+
+	var id string
+	if err := json.Unmarshal(b, &id); err != nil {
+		return err
+	}
+	ci.id = id
+	return nil
+}
+
+func (ep *endpoint) MarshalJSON() ([]byte, error) {
+	ep.Lock()
+	defer ep.Unlock()
+
+	epMap := make(map[string]interface{})
+	epMap["name"] = ep.name
+	epMap["id"] = string(ep.id)
+	epMap["ep_iface"] = ep.iFaces
+	epMap["exposed_ports"] = ep.exposedPorts
+	epMap["generic"] = ep.generic
+	if ep.container != nil {
+		epMap["container"] = ep.container
+	}
+	return json.Marshal(epMap)
+}
+
+func (ep *endpoint) UnmarshalJSON(b []byte) (err error) {
+	ep.Lock()
+	defer ep.Unlock()
+
+	var epMap map[string]interface{}
+	if err := json.Unmarshal(b, &epMap); err != nil {
+		return err
+	}
+	ep.name = epMap["name"].(string)
+	ep.id = types.UUID(epMap["id"].(string))
+
+	ib, _ := json.Marshal(epMap["ep_iface"])
+	var ifaces []endpointInterface
+	json.Unmarshal(ib, &ifaces)
+	ep.iFaces = make([]*endpointInterface, 0)
+	for _, iface := range ifaces {
+		ep.iFaces = append(ep.iFaces, &iface)
+	}
+
+	tb, _ := json.Marshal(epMap["exposed_ports"])
+	var tPorts []types.TransportPort
+	json.Unmarshal(tb, &tPorts)
+	ep.exposedPorts = tPorts
+
+	epc, ok := epMap["container"]
+	if ok {
+		cb, _ := json.Marshal(epc)
+		var cInfo containerInfo
+		json.Unmarshal(cb, &cInfo)
+		ep.container = &cInfo
+	}
+
+	if epMap["generic"] != nil {
+		ep.generic = epMap["generic"].(map[string]interface{})
+	}
+	return nil
 }
 
 const defaultPrefix = "/var/lib/docker/network/files"
@@ -132,6 +211,52 @@ func (ep *endpoint) Network() string {
 	defer ep.Unlock()
 
 	return ep.network.name
+}
+
+// endpoint Key structure : endpoint/network-id/endpoint-id
+func (ep *endpoint) Key() []string {
+	ep.Lock()
+	n := ep.network
+	defer ep.Unlock()
+	return []string{datastore.EndpointKeyPrefix, string(n.id), string(ep.id)}
+}
+
+func (ep *endpoint) KeyPrefix() []string {
+	ep.Lock()
+	n := ep.network
+	defer ep.Unlock()
+	return []string{datastore.EndpointKeyPrefix, string(n.id)}
+}
+
+func (ep *endpoint) networkIDFromKey(key []string) (types.UUID, error) {
+	// endpoint Key structure : endpoint/network-id/endpoint-id
+	// its an invalid key if the key doesnt have all the 3 key elements above
+	if key == nil || len(key) < 3 || key[0] != datastore.EndpointKeyPrefix {
+		return types.UUID(""), fmt.Errorf("invalid endpoint key : %v", key)
+	}
+
+	// network-id is placed at index=1. pls refer to endpoint.Key() method
+	return types.UUID(key[1]), nil
+}
+
+func (ep *endpoint) Value() []byte {
+	b, err := json.Marshal(ep)
+	if err != nil {
+		return nil
+	}
+	return b
+}
+
+func (ep *endpoint) Index() uint64 {
+	ep.Lock()
+	defer ep.Unlock()
+	return ep.dbIndex
+}
+
+func (ep *endpoint) SetIndex(index uint64) {
+	ep.Lock()
+	defer ep.Unlock()
+	ep.dbIndex = index
 }
 
 func (ep *endpoint) processOptions(options ...EndpointOption) {
@@ -211,7 +336,14 @@ func (ep *endpoint) Join(containerID string, options ...EndpointOption) error {
 	}
 
 	ep.joinLeaveStart()
-	defer ep.joinLeaveEnd()
+	defer func() {
+		ep.joinLeaveEnd()
+		if err != nil {
+			if e := ep.Leave(containerID, options...); e != nil {
+				log.Warnf("couldnt leave endpoint : %v", ep.name, err)
+			}
+		}
+	}()
 
 	ep.Lock()
 	if ep.container != nil {
@@ -236,11 +368,11 @@ func (ep *endpoint) Join(containerID string, options ...EndpointOption) error {
 
 	ep.Unlock()
 	defer func() {
-		ep.Lock()
 		if err != nil {
+			ep.Lock()
 			ep.container = nil
+			ep.Unlock()
 		}
-		ep.Unlock()
 	}()
 
 	network.Lock()
@@ -286,8 +418,11 @@ func (ep *endpoint) Join(containerID string, options ...EndpointOption) error {
 		}
 	}()
 
-	container.data.SandboxKey = sb.Key()
+	if err := network.ctrlr.updateEndpointToStore(ep); err != nil {
+		return err
+	}
 
+	container.data.SandboxKey = sb.Key()
 	return nil
 }
 
@@ -316,7 +451,7 @@ func (ep *endpoint) Leave(containerID string, options ...EndpointOption) error {
 	container := ep.container
 	n := ep.network
 
-	if container == nil || container.id == "" ||
+	if container == nil || container.id == "" || container.data.SandboxKey == "" ||
 		containerID == "" || container.id != containerID {
 		if container == nil {
 			err = ErrNoContainer{}
@@ -335,6 +470,13 @@ func (ep *endpoint) Leave(containerID string, options ...EndpointOption) error {
 	ctrlr := n.ctrlr
 	n.Unlock()
 
+	if err := ctrlr.updateEndpointToStore(ep); err != nil {
+		ep.Lock()
+		ep.container = container
+		ep.Unlock()
+		return err
+	}
+
 	err = driver.Leave(n.id, ep.id)
 
 	ctrlr.sandboxRm(container.data.SandboxKey, ep)
@@ -343,15 +485,58 @@ func (ep *endpoint) Leave(containerID string, options ...EndpointOption) error {
 }
 
 func (ep *endpoint) Delete() error {
+	var err error
 	ep.Lock()
 	epid := ep.id
 	name := ep.name
+	n := ep.network
 	if ep.container != nil {
 		ep.Unlock()
 		return &ActiveContainerError{name: name, id: string(epid)}
 	}
+	n.Lock()
+	ctrlr := n.ctrlr
+	n.Unlock()
+	ep.Unlock()
 
+	if err = ctrlr.deleteEndpointFromStore(ep); err != nil {
+		return err
+	}
+	defer func() {
+		if err != nil {
+			ep.SetIndex(0)
+			if e := ctrlr.updateEndpointToStore(ep); e != nil {
+				log.Warnf("failed to recreate endpoint in store %s : %v", name, err)
+			}
+		}
+	}()
+
+	// Update the endpoint count in network and update it in the datastore
+	n.DecEndpointCnt()
+	if err = ctrlr.updateNetworkToStore(n); err != nil {
+		return err
+	}
+	defer func() {
+		if err != nil {
+			n.IncEndpointCnt()
+			if e := ctrlr.updateNetworkToStore(n); e != nil {
+				log.Warnf("failed to update network %s : %v", n.name, e)
+			}
+		}
+	}()
+
+	if err = ep.deleteEndpoint(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (ep *endpoint) deleteEndpoint() error {
+	ep.Lock()
 	n := ep.network
+	name := ep.name
+	epid := ep.id
 	ep.Unlock()
 
 	n.Lock()

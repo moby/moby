@@ -12,6 +12,7 @@ import (
 
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/parsers"
+	"github.com/docker/docker/pkg/reexec"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/term"
@@ -31,6 +32,10 @@ var (
 )
 
 func main() {
+	if reexec.Init() {
+		return
+	}
+
 	_, stdout, stderr := term.StdStreams()
 	logrus.SetOutput(stderr)
 

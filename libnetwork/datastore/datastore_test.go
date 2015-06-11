@@ -2,6 +2,7 @@ package datastore
 
 import (
 	"encoding/json"
+	"reflect"
 	"testing"
 
 	"github.com/docker/libnetwork/config"
@@ -14,6 +15,25 @@ var dummyKey = "dummy"
 // NewCustomDataStore can be used by other Tests in order to use custom datastore
 func NewTestDataStore() DataStore {
 	return &datastore{store: NewMockStore()}
+}
+
+func TestKey(t *testing.T) {
+	eKey := []string{"hello", "world"}
+	sKey := Key(eKey...)
+	if sKey != "docker/libnetwork/hello/world/" {
+		t.Fatalf("unexpected key : %s", sKey)
+	}
+}
+
+func TestParseKey(t *testing.T) {
+	keySlice, err := ParseKey("/docker/libnetwork/hello/world/")
+	if err != nil {
+		t.Fatal(err)
+	}
+	eKey := []string{"hello", "world"}
+	if len(keySlice) < 2 || !reflect.DeepEqual(eKey, keySlice) {
+		t.Fatalf("unexpected unkey : %s", keySlice)
+	}
 }
 
 func TestInvalidDataStore(t *testing.T) {
@@ -35,12 +55,12 @@ func TestKVObjectFlatKey(t *testing.T) {
 		t.Fatal(err)
 	}
 	keychain := []string{dummyKey, "1000"}
-	data, _, err := store.KVStore().Get(Key(keychain...))
+	data, err := store.KVStore().Get(Key(keychain...))
 	if err != nil {
 		t.Fatal(err)
 	}
 	var n dummyObject
-	json.Unmarshal(data, &n)
+	json.Unmarshal(data.Value, &n)
 	if n.Name != expected.Name {
 		t.Fatalf("Dummy object doesnt match the expected object")
 	}
@@ -63,14 +83,14 @@ func TestAtomicKVObjectFlatKey(t *testing.T) {
 
 	// Get the latest index and try PutObjectAtomic again for the same Key
 	// This must succeed as well
-	data, index, err := store.KVStore().Get(Key(expected.Key()...))
+	data, err := store.KVStore().Get(Key(expected.Key()...))
 	if err != nil {
 		t.Fatal(err)
 	}
 	n := dummyObject{}
-	json.Unmarshal(data, &n)
+	json.Unmarshal(data.Value, &n)
 	n.ID = "1111"
-	n.DBIndex = index
+	n.DBIndex = data.LastIndex
 	n.ReturnValue = true
 	err = store.PutObjectAtomic(&n)
 	if err != nil {
@@ -94,6 +114,11 @@ type dummyObject struct {
 func (n *dummyObject) Key() []string {
 	return []string{dummyKey, n.ID}
 }
+
+func (n *dummyObject) KeyPrefix() []string {
+	return []string{dummyKey}
+}
+
 func (n *dummyObject) Value() []byte {
 	if !n.ReturnValue {
 		return nil
