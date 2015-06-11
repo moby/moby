@@ -70,6 +70,14 @@ func i2nL(i interface{}) []*networkResource {
 	return s
 }
 
+func i2cL(i interface{}) []*containerResource {
+	s, ok := i.([]*containerResource)
+	if !ok {
+		panic(fmt.Sprintf("Failed i2cL for %v", i))
+	}
+	return s
+}
+
 func createTestNetwork(t *testing.T, network string) (libnetwork.NetworkController, libnetwork.Network) {
 	c, err := libnetwork.New("")
 	if err != nil {
@@ -904,6 +912,14 @@ func TestAttachDetachBackend(t *testing.T) {
 		t.Fatalf("Expected %d. Got: %v", http.StatusNotFound, errRsp)
 	}
 
+	_, errRsp = procGetContainers(c, vars, nil)
+	if errRsp.isOK() {
+		t.Fatalf("Expected failure. Got %v", errRsp)
+	}
+	if errRsp.StatusCode != http.StatusNotFound {
+		t.Fatalf("Expected %d. Got: %v", http.StatusNotFound, errRsp)
+	}
+
 	vars[urlEpName] = "db"
 	_, errRsp = procAttachBackend(c, vars, bad)
 	if errRsp == &successResponse {
@@ -923,6 +939,26 @@ func TestAttachDetachBackend(t *testing.T) {
 	_, errRsp = procAttachBackend(c, vars, jlb)
 	if errRsp != &successResponse {
 		t.Fatalf("Unexpected failure, got: %v", errRsp)
+	}
+
+	cli, errRsp := procGetContainers(c, vars, nil)
+	if errRsp != &successResponse {
+		t.Fatalf("Unexpected failure, got: %v", errRsp)
+	}
+	cl := i2cL(cli)
+	if len(cl) != 1 {
+		t.Fatalf("Did not find expected number of containers attached to the service: %d", len(cl))
+	}
+	if cl[0].ID != cid {
+		t.Fatalf("Did not find expected container attached to the service: %v", cl[0])
+	}
+
+	_, errRsp = procUnpublishService(c, vars, nil)
+	if errRsp.isOK() {
+		t.Fatalf("Expected failure but succeeded")
+	}
+	if errRsp.StatusCode != http.StatusForbidden {
+		t.Fatalf("Expected %d. Got: %v", http.StatusForbidden, errRsp)
 	}
 
 	vars[urlEpName] = "endpoint"
@@ -947,6 +983,15 @@ func TestAttachDetachBackend(t *testing.T) {
 	_, errRsp = procDetachBackend(c, vars, nil)
 	if errRsp != &successResponse {
 		t.Fatalf("Unexpected failure, got: %v", errRsp)
+	}
+
+	cli, errRsp = procGetContainers(c, vars, nil)
+	if errRsp != &successResponse {
+		t.Fatalf("Unexpected failure, got: %v", errRsp)
+	}
+	cl = i2cL(cli)
+	if len(cl) != 0 {
+		t.Fatalf("Did not find expected number of containers attached to the service: %d", len(cl))
 	}
 
 	err = ep1.Delete()

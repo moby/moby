@@ -39,8 +39,8 @@ func setupMockHTTPCallback() {
 	list = append(list, nw)
 	mockNwListJSON, _ = json.Marshal(list)
 
-	var srvList []endpointResource
-	ep := endpointResource{Name: mockServiceName, ID: mockServiceID, Network: mockNwName}
+	var srvList []serviceResource
+	ep := serviceResource{Name: mockServiceName, ID: mockServiceID, Network: mockNwName}
 	mockServiceJSON, _ = json.Marshal(ep)
 	srvList = append(srvList, ep)
 	mockServiceListJSON, _ = json.Marshal(srvList)
@@ -61,26 +61,26 @@ func setupMockHTTPCallback() {
 				rsp = string(mockNwListJSON)
 			} else if strings.HasSuffix(path, "networks/"+mockNwID) {
 				rsp = string(mockNwJSON)
-			} else if strings.Contains(path, fmt.Sprintf("endpoints?name=%s", mockServiceName)) {
+			} else if strings.Contains(path, fmt.Sprintf("services?name=%s", mockServiceName)) {
 				rsp = string(mockServiceListJSON)
-			} else if strings.Contains(path, "endpoints?name=") {
+			} else if strings.Contains(path, "services?name=") {
 				rsp = "[]"
-			} else if strings.Contains(path, fmt.Sprintf("endpoints?partial-id=%s", mockServiceID)) {
+			} else if strings.Contains(path, fmt.Sprintf("services?partial-id=%s", mockServiceID)) {
 				rsp = string(mockServiceListJSON)
-			} else if strings.Contains(path, "endpoints?partial-id=") {
+			} else if strings.Contains(path, "services?partial-id=") {
 				rsp = "[]"
-			} else if strings.HasSuffix(path, "endpoints") {
+			} else if strings.HasSuffix(path, "services") {
 				rsp = string(mockServiceListJSON)
-			} else if strings.HasSuffix(path, "endpoints/"+mockServiceID) {
+			} else if strings.HasSuffix(path, "services/"+mockServiceID) {
 				rsp = string(mockServiceJSON)
 			}
 		case "POST":
 			var data []byte
 			if strings.HasSuffix(path, "networks") {
 				data, _ = json.Marshal(mockNwID)
-			} else if strings.HasSuffix(path, "endpoints") {
+			} else if strings.HasSuffix(path, "services") {
 				data, _ = json.Marshal(mockServiceID)
-			} else if strings.HasSuffix(path, "containers") {
+			} else if strings.HasSuffix(path, "backend") {
 				data, _ = json.Marshal(mockContainerID)
 			}
 			rsp = string(data)

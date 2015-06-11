@@ -21,6 +21,12 @@ type endpointResource struct {
 	Network string `json:"network"`
 }
 
+// containerResource is the body of "get service backend" response message
+type containerResource struct {
+	ID string `json:"id"`
+	// will add more fields once labels change is in
+}
+
 /***********
   Body types
   ************/
@@ -55,7 +61,7 @@ type endpointJoin struct {
 // servicePublish represents the body of the "publish service" http request message
 type servicePublish struct {
 	Name         string                `json:"name"`
-	Network      string                `json:"network"`
+	Network      string                `json:"network_name"`
 	ExposedPorts []types.TransportPort `json:"exposed_ports"`
 	PortMapping  []types.PortBinding   `json:"port_mapping"`
 }

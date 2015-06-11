@@ -96,6 +96,7 @@ func (h *httpHandler) initRouter() {
 			{"/services", []string{"partial-id", epPID}, procGetServices},
 			{"/services", nil, procGetServices},
 			{"/services/" + epID, nil, procGetService},
+			{"/services/" + epID + "/backend", nil, procGetContainers},
 		},
 		"POST": {
 			{"/networks", nil, procCreateNetwork},
@@ -180,6 +181,14 @@ func buildEndpointResource(ep libnetwork.Endpoint) *endpointResource {
 		r.Name = ep.Name()
 		r.ID = ep.ID()
 		r.Network = ep.Network()
+	}
+	return r
+}
+
+func buildContainerResource(ci libnetwork.ContainerInfo) *containerResource {
+	r := &containerResource{}
+	if ci != nil {
+		r.ID = ci.ID()
 	}
 	return r
 }
@@ -525,6 +534,19 @@ func procGetService(c libnetwork.NetworkController, vars map[string]string, body
 		return nil, endpointToService(errRsp)
 	}
 	return buildEndpointResource(sv), &successResponse
+}
+
+func procGetContainers(c libnetwork.NetworkController, vars map[string]string, body []byte) (interface{}, *responseStatus) {
+	epT, epBy := detectEndpointTarget(vars)
+	sv, errRsp := findService(c, epT, epBy)
+	if !errRsp.isOK() {
+		return nil, endpointToService(errRsp)
+	}
+	var list []*containerResource
+	if sv.ContainerInfo() != nil {
+		list = append(list, buildContainerResource(sv.ContainerInfo()))
+	}
+	return list, &successResponse
 }
 
 func procPublishService(c libnetwork.NetworkController, vars map[string]string, body []byte) (interface{}, *responseStatus) {

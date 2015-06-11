@@ -177,10 +177,10 @@ func (cli *NetworkCli) CmdNetworkInfo(chain string, args ...string) error {
 	fmt.Fprintf(cli.out, "Network Id: %s\n", networkResource.ID)
 	fmt.Fprintf(cli.out, "Name: %s\n", networkResource.Name)
 	fmt.Fprintf(cli.out, "Type: %s\n", networkResource.Type)
-	if networkResource.Endpoints != nil {
-		for _, endpointResource := range networkResource.Endpoints {
-			fmt.Fprintf(cli.out, "  Service Id: %s\n", endpointResource.ID)
-			fmt.Fprintf(cli.out, "\tName: %s\n", endpointResource.Name)
+	if networkResource.Services != nil {
+		for _, serviceResource := range networkResource.Services {
+			fmt.Fprintf(cli.out, "  Service Id: %s\n", serviceResource.ID)
+			fmt.Fprintf(cli.out, "\tName: %s\n", serviceResource.Name)
 		}
 	}
 
