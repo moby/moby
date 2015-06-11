@@ -65,7 +65,10 @@ func TestSandboxCreate(t *testing.T) {
 	verifySandbox(t, s, []string{"0", "1", "2"})
 	runtime.LockOSThread()
 
-	s.Destroy()
+	err = s.Destroy()
+	if err != nil {
+		t.Fatal(err)
+	}
 	verifyCleanup(t, s, true)
 }
 
@@ -90,7 +93,13 @@ func TestSandboxCreateTwice(t *testing.T) {
 		t.Fatalf("Failed to create a new sandbox: %v", err)
 	}
 	runtime.LockOSThread()
-	s.Destroy()
+
+	err = s.Destroy()
+	if err != nil {
+		t.Fatal(err)
+	}
+	GC()
+	verifyCleanup(t, s, false)
 }
 
 func TestSandboxGC(t *testing.T) {
@@ -104,7 +113,10 @@ func TestSandboxGC(t *testing.T) {
 		t.Fatalf("Failed to create a new sandbox: %v", err)
 	}
 
-	s.Destroy()
+	err = s.Destroy()
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	GC()
 	verifyCleanup(t, s, false)
@@ -168,5 +180,11 @@ func TestAddRemoveInterface(t *testing.T) {
 	verifySandbox(t, s, []string{"1", "2", "3"})
 	runtime.LockOSThread()
 
-	s.Destroy()
+	err = s.Destroy()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	GC()
+	verifyCleanup(t, s, false)
 }

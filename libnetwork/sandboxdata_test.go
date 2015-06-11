@@ -1,6 +1,10 @@
 package libnetwork
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/docker/libnetwork/sandbox"
+)
 
 func createEmptyCtrlr() *controller {
 	return &controller{sandboxes: sandboxTable{}}
@@ -31,6 +35,8 @@ func TestSandboxAddEmpty(t *testing.T) {
 	if len(ctrlr.sandboxes) != 0 {
 		t.Fatalf("controller sandboxes is not empty. len = %d", len(ctrlr.sandboxes))
 	}
+
+	sandbox.GC()
 }
 
 func TestSandboxAddMultiPrio(t *testing.T) {
@@ -90,6 +96,8 @@ func TestSandboxAddMultiPrio(t *testing.T) {
 	if len(ctrlr.sandboxes) != 0 {
 		t.Fatalf("controller sandboxes is not empty. len = %d", len(ctrlr.sandboxes))
 	}
+
+	sandbox.GC()
 }
 
 func TestSandboxAddSamePrio(t *testing.T) {
@@ -127,4 +135,6 @@ func TestSandboxAddSamePrio(t *testing.T) {
 	if len(ctrlr.sandboxes) != 0 {
 		t.Fatalf("controller sandboxes is not empty. len = %d", len(ctrlr.sandboxes))
 	}
+
+	sandbox.GC()
 }
