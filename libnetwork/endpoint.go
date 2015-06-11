@@ -46,6 +46,9 @@ type Endpoint interface {
 	// DriverInfo returns a collection of driver operational data related to this endpoint retrieved from the driver
 	DriverInfo() (map[string]interface{}, error)
 
+	// ContainerInfo returns the info available at the endpoint about the attached container
+	ContainerInfo() ContainerInfo
+
 	// Delete and detaches this endpoint from the network.
 	Delete() error
 }
@@ -100,6 +103,14 @@ type containerInfo struct {
 	config containerConfig
 	data   ContainerData
 	sync.Mutex
+}
+
+func (ci *containerInfo) ID() string {
+	return ci.id
+}
+
+func (ci *containerInfo) Labels() map[string]interface{} {
+	return ci.config.generic
 }
 
 type endpoint struct {
