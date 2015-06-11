@@ -15,8 +15,8 @@ var (
 	serviceCommands = []command{
 		{"publish", "Publish a service"},
 		{"unpublish", "Remove a service"},
-		{"attach", "Attach a provider (container) to the service"},
-		{"detach", "Detach the provider from the service"},
+		{"attach", "Attach a backend (container) to the service"},
+		{"detach", "Detach the backend from the service"},
 		{"ls", "Lists all services"},
 		{"info", "Display information about a service"},
 	}
@@ -189,7 +189,7 @@ func (cli *NetworkCli) CmdServiceLs(chain string, args ...string) error {
 	wr := tabwriter.NewWriter(cli.out, 20, 1, 3, ' ', 0)
 	// unless quiet (-q) is specified, print field titles
 	if !*quiet {
-		fmt.Fprintln(wr, "SERVICE ID\tNAME\tNETWORK\tPROVIDER")
+		fmt.Fprintln(wr, "SERVICE ID\tNAME\tNETWORK\tCONTAINER")
 	}
 
 	for _, sr := range serviceResources {
@@ -228,7 +228,7 @@ func getBackendID(cli *NetworkCli, servID string) (string, error) {
 			}
 		} else {
 			// Only print a message, don't make the caller cli fail for this
-			fmt.Fprintf(cli.out, "Failed to retrieve provider list for service %s (%v)", servID, err)
+			fmt.Fprintf(cli.out, "Failed to retrieve backend list for service %s (%v)", servID, err)
 		}
 	}
 

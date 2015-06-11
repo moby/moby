@@ -19,6 +19,7 @@ var (
 	flHost     = flag.String([]string{"H", "-host"}, "", "Daemon socket to connect to")
 	flLogLevel = flag.String([]string{"l", "-log-level"}, "info", "Set the logging level")
 	flDebug    = flag.Bool([]string{"D", "-debug"}, false, "Enable debug mode")
+	flCfgFile  = flag.String([]string{"c", "-cfg-file"}, "/etc/default/libnetwork.toml", "Configuration file")
 	flHelp     = flag.Bool([]string{"h", "-help"}, false, "Print usage")
 
 	dnetCommands = []command{

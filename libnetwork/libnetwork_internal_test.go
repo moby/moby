@@ -9,7 +9,7 @@ import (
 
 func TestDriverRegistration(t *testing.T) {
 	bridgeNetType := "bridge"
-	c, err := New("")
+	c, err := New()
 	if err != nil {
 		t.Fatal(err)
 	}

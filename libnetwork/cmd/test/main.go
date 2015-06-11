@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"net"
-	"os"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
@@ -14,8 +13,7 @@ import (
 
 func main() {
 	log.SetLevel(log.DebugLevel)
-	os.Setenv("LIBNETWORK_CFG", "libnetwork.toml")
-	controller, err := libnetwork.New("libnetwork.toml")
+	controller, err := libnetwork.New()
 	if err != nil {
 		log.Fatal(err)
 	}

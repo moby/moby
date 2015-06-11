@@ -3,7 +3,7 @@ Package libnetwork provides the basic functionality and extension points to
 create network namespaces and allocate interfaces for containers to use.
 
         // Create a new controller instance
-        controller, _err := libnetwork.New("/etc/default/libnetwork.toml")
+        controller, _err := libnetwork.New(nil)
 
         // Select and configure the network driver
         networkType := "bridge"
@@ -47,8 +47,6 @@ package libnetwork
 import (
 	"fmt"
 	"net"
-	"os"
-	"strings"
 	"sync"
 
 	log "github.com/Sirupsen/logrus"
@@ -67,6 +65,9 @@ import (
 type NetworkController interface {
 	// ConfigureNetworkDriver applies the passed options to the driver instance for the specified network type
 	ConfigureNetworkDriver(networkType string, options map[string]interface{}) error
+
+	// Config method returns the bootup configuration for the controller
+	Config() config.Config
 
 	// Create a new network. The options parameter carries network specific options.
 	// Labels support will be added in the near future.
@@ -112,8 +113,14 @@ type controller struct {
 }
 
 // New creates a new instance of network controller.
-func New(configFile string) (NetworkController, error) {
+func New(cfgOptions ...config.Option) (NetworkController, error) {
+	var cfg *config.Config
+	if len(cfgOptions) > 0 {
+		cfg = &config.Config{}
+		cfg.ProcessOptions(cfgOptions...)
+	}
 	c := &controller{
+		cfg:       cfg,
 		networks:  networkTable{},
 		sandboxes: sandboxTable{},
 		drivers:   driverTable{}}
@@ -121,47 +128,27 @@ func New(configFile string) (NetworkController, error) {
 		return nil, err
 	}
 
-	if err := c.initConfig(configFile); err == nil {
+	if cfg != nil {
 		if err := c.initDataStore(); err != nil {
 			// Failing to initalize datastore is a bad situation to be in.
 			// But it cannot fail creating the Controller
-			log.Warnf("Failed to Initialize Datastore due to %v. Operating in non-clustered mode", err)
+			log.Debugf("Failed to Initialize Datastore due to %v. Operating in non-clustered mode", err)
 		}
 		if err := c.initDiscovery(); err != nil {
 			// Failing to initalize discovery is a bad situation to be in.
 			// But it cannot fail creating the Controller
-			log.Warnf("Failed to Initialize Discovery : %v", err)
+			log.Debugf("Failed to Initialize Discovery : %v", err)
 		}
-	} else {
-		// Missing Configuration file is not a failure scenario
-		// But without that, datastore cannot be initialized.
-		log.Debugf("Unable to Parse LibNetwork Config file : %v", err)
 	}
 
 	return c, nil
 }
 
-const (
-	cfgFileEnv     = "LIBNETWORK_CFG"
-	defaultCfgFile = "/etc/default/libnetwork.toml"
-)
-
-func (c *controller) initConfig(configFile string) error {
-	cfgFile := configFile
-	if strings.Trim(cfgFile, " ") == "" {
-		cfgFile = os.Getenv(cfgFileEnv)
-		if strings.Trim(cfgFile, " ") == "" {
-			cfgFile = defaultCfgFile
-		}
+func (c *controller) validateHostDiscoveryConfig() bool {
+	if c.cfg == nil || c.cfg.Cluster.Discovery == "" || c.cfg.Cluster.Address == "" {
+		return false
 	}
-	cfg, err := config.ParseConfig(cfgFile)
-	if err != nil {
-		return ErrInvalidConfigFile(cfgFile)
-	}
-	c.Lock()
-	c.cfg = cfg
-	c.Unlock()
-	return nil
+	return true
 }
 
 func (c *controller) initDiscovery() error {
@@ -177,6 +164,12 @@ func (c *controller) hostJoinCallback(hosts []net.IP) {
 }
 
 func (c *controller) hostLeaveCallback(hosts []net.IP) {
+}
+
+func (c *controller) Config() config.Config {
+	c.Lock()
+	defer c.Unlock()
+	return *c.cfg
 }
 
 func (c *controller) ConfigureNetworkDriver(networkType string, options map[string]interface{}) error {
