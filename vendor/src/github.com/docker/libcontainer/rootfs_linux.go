@@ -168,6 +168,10 @@ func mountToRootfs(m *configs.Mount, rootfs, mountLabel string) error {
 			if err := syscall.Mount("", dest, "none", uintptr(syscall.MS_PRIVATE), ""); err != nil {
 				return err
 			}
+		} else {
+			if err := syscall.Mount("", dest, "none", uintptr(syscall.MS_SLAVE), ""); err != nil {
+				return err
+			}
 		}
 	case "cgroup":
 		mounts, err := cgroups.GetCgroupMounts()
@@ -338,14 +342,15 @@ func mknodDevice(dest string, node *configs.Device) error {
 }
 
 func prepareRoot(config *configs.Config) error {
+	if err := syscall.Mount(config.Rootfs, config.Rootfs, "bind", syscall.MS_BIND|syscall.MS_REC, ""); err != nil {
+		return err
+	}
+
 	flag := syscall.MS_SLAVE | syscall.MS_REC
 	if config.Privatefs {
 		flag = syscall.MS_PRIVATE | syscall.MS_REC
 	}
-	if err := syscall.Mount("", "/", "", uintptr(flag), ""); err != nil {
-		return err
-	}
-	return syscall.Mount(config.Rootfs, config.Rootfs, "bind", syscall.MS_BIND|syscall.MS_REC, "")
+	return syscall.Mount("", config.Rootfs, "", uintptr(flag), "")
 }
 
 func setReadonly() error {
