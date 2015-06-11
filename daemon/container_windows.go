@@ -4,10 +4,14 @@ package daemon
 
 import (
 	"fmt"
+	"path/filepath"
 	"strings"
 
 	"github.com/docker/docker/daemon/execdriver"
+	"github.com/docker/docker/daemon/graphdriver/windows"
+	"github.com/docker/docker/graph"
 	"github.com/docker/docker/pkg/archive"
+	"github.com/microsoft/hcsshim"
 )
 
 // This is deliberately empty on Windows as the default path will be set by
@@ -102,6 +106,26 @@ func populateCommand(c *Container, env []string) error {
 
 	processConfig.Env = env
 
+	var layerFolder string
+	var layerPaths []string
+
+	// The following is specific to the Windows driver. We do this to
+	// enable VFS to continue operating for development purposes.
+	if wd, ok := c.daemon.driver.(*windows.WindowsGraphDriver); ok {
+		var err error
+		var img *graph.Image
+		var ids []string
+
+		if img, err = c.daemon.graph.Get(c.ImageID); err != nil {
+			return fmt.Errorf("Failed to graph.Get on ImageID %s - %s", c.ImageID, err)
+		}
+		if ids, err = c.daemon.graph.ParentLayerIds(img); err != nil {
+			return fmt.Errorf("Failed to get parentlayer ids %s", img.ID)
+		}
+		layerPaths = wd.LayerIdsToPaths(ids)
+		layerFolder = filepath.Join(wd.Info().HomeDir, filepath.Base(c.ID))
+	}
+
 	// TODO Windows: Factor out remainder of unused fields.
 	c.command = &execdriver.Command{
 		ID:             c.ID,
@@ -118,6 +142,8 @@ func populateCommand(c *Container, env []string) error {
 		ProcessLabel:   c.GetProcessLabel(),
 		MountLabel:     c.GetMountLabel(),
 		FirstStart:     !c.HasBeenStartedBefore,
+		LayerFolder:    layerFolder,
+		LayerPaths:     layerPaths,
 	}
 
 	return nil
@@ -163,5 +189,35 @@ func (container *Container) DisableLink(name string) {
 }
 
 func (container *Container) UnmountVolumes(forceSyscall bool) error {
+	return nil
+}
+
+func (container *Container) PrepareStorage() error {
+	if wd, ok := container.daemon.driver.(*windows.WindowsGraphDriver); ok {
+		// Get list of paths to parent layers.
+		var ids []string
+		if container.ImageID != "" {
+			img, err := container.daemon.graph.Get(container.ImageID)
+			if err != nil {
+				return err
+			}
+
+			ids, err = container.daemon.graph.ParentLayerIds(img)
+			if err != nil {
+				return err
+			}
+		}
+
+		if err := hcsshim.PrepareLayer(wd.Info(), container.ID, wd.LayerIdsToPaths(ids)); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (container *Container) CleanupStorage() error {
+	if wd, ok := container.daemon.driver.(*windows.WindowsGraphDriver); ok {
+		return hcsshim.UnprepareLayer(wd.Info(), container.ID)
+	}
 	return nil
 }

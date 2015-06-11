@@ -101,6 +101,7 @@ func GetDriver(name, home string, options []string) (Driver, error) {
 	if initFunc, exists := drivers[name]; exists {
 		return initFunc(filepath.Join(home, name), options)
 	}
+	logrus.Errorf("Failed to GetDriver graph %s %s", name, home)
 	return nil, ErrNotSupported
 }
 

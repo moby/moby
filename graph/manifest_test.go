@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/docker/distribution/digest"
-	"github.com/docker/docker/image"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/utils"
@@ -124,7 +123,7 @@ func TestManifestTarsumCache(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	img := &image.Image{ID: testManifestImageID}
+	img := &Image{ID: testManifestImageID}
 	if err := store.graph.Register(img, archive); err != nil {
 		t.Fatal(err)
 	}
@@ -190,7 +189,7 @@ func TestManifestDigestCheck(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	img := &image.Image{ID: testManifestImageID}
+	img := &Image{ID: testManifestImageID}
 	if err := store.graph.Register(img, archive); err != nil {
 		t.Fatal(err)
 	}
