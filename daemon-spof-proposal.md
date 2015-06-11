@@ -52,7 +52,6 @@ Both of these proposals require some sort of two-way communication mechanism bet
 
 * Daemon interacts with the monitor process using sockets or send direct signals to container process (monitor can communicate the container pid to daemon) for management (stop, start, pause, kill, etc).
 
-* It can use  
 
 * Once the container finishes its execution, the waiting monitor process can communicate the exit status to the daemon. There are two possibilities here 
     * Daemon is alive:- communication is straight forward and the monitoring process can exit after supplying the the status to the daemon 
