@@ -1,6 +1,6 @@
 # Docker Experimental Features 
 
-	This page contains a list of features in the Docker engine which are
+This page contains a list of features in the Docker engine which are
 experimental. Experimental features are **not** ready for production. They are
 provided for test and evaluation in your sandbox environments.  
 
@@ -11,7 +11,7 @@ please feel free to provide any feedback on these features you wish.
 
 ## Install Docker experimental 
 
-Unlike the regular Docker binary, the experimental channels is built and updated nightly on https://experimental.docker.com. From one day to the next, new features may appear, while existing experimental features may be refined or entirely removed.
+Unlike the regular Docker binary, the experimental channels is built and updated nightly on TO.BE.ANNOUNCED. From one day to the next, new features may appear, while existing experimental features may be refined or entirely removed.
 
 1. Verify that you have `wget` installed.
 
