@@ -97,6 +97,21 @@ implementation, check out the [Docker User Guide](/userguide/).
 A summary of the changes in each release in the current series can now be found
 on the separate [Release Notes page](/release-notes/)
 
+## Feature Deprecation Policy
+
+As changes are made to Docker there may be times when existing features
+will need to be removed or replace with newer features. Before an existing
+feature is removed it will be labeled as "deprecated" within the documentation
+and will remain in Docker for, usually, at least 2 releases. After that time
+it may be removed.
+
+Users are expected to take note of the list of deprecated features each
+release and plan their migration away from those features, and (if applicable)
+towards the replacement features as soon as possible.
+
+The complete list of deprecated features can be found on the
+[Deprecated Features page](deprecated).
+
 ## Licensing
 
 Docker is licensed under the Apache License, Version 2.0. See
