@@ -113,9 +113,19 @@ Drivers are essentially an extension of libnetwork and provides the actual imple
 * `driver.Join`
 * `driver.Leave` 
 
-These Driver facing APIs makes use of unique identifiers (`networkid`,`endpointid`,...) instead of names (as seen in user-facing APIs). 
+These Driver facing APIs makes use of unique identifiers (`networkid`,`endpointid`,...) instead of names (as seen in user-facing APIs).
 
 The APIs are still work in progress and there can be changes to these based on the driver requirements especially when it comes to Multi-host networking.
+
+### Driver semantics
+
+ * `Driver.CreateEndpoint`
+
+This method is passed an interface `EndpointInfo`, with methods `Interfaces` and `AddInterface`.
+
+If the slice returned by `Interfaces` is non-empty, the driver is expected to make use of the interface infomation therein (e.g., treating the address or addresses as statically supplied), and must return an error if it cannot. If the slice is empty, the driver should allocate zero or more _fresh_ interfaces, and use `AddInterface` to record them; or return an error if it cannot.
+
+It is forbidden to use `AddInterface` if `Interfaces` is non-empty.
 
 ## Implementations
 
