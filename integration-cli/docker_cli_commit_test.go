@@ -291,3 +291,26 @@ func (s *DockerSuite) TestCommitMergeConfigRun(c *check.C) {
 	}
 
 }
+
+func (s *DockerSuite) TestCommitExclude(c *check.C) {
+	defer deleteAllContainers()
+	cmd := exec.Command(dockerBinary, "run", "--name", "test", "busybox", "/bin/sh", "-c", "echo testing > /tmp/exclude")
+	if _, err := runCommand(cmd); err != nil {
+		c.Fatal(err)
+	}
+
+	cmd = exec.Command(dockerBinary, "commit",
+		"--exclude", "/tmp/exclude",
+		"test", "test-commit")
+	imageId, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		c.Fatal(imageId, err)
+	}
+	imageId = strings.Trim(imageId, "\r\n")
+	defer deleteImages(imageId)
+
+	cmd = exec.Command(dockerBinary, "run", "--rm", imageId, "/bin/sh", "-c", "[ ! -e /tmp/exclude ]")
+	if _, err := runCommand(cmd); err != nil {
+		c.Fatal(err)
+	}
+}

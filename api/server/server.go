@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
@@ -650,6 +651,12 @@ func (s *Server) postCommit(version version.Version, w http.ResponseWriter, r *h
 		return err
 	}
 
+	for _, exclude := range r.Form["excludes"] {
+		if !filepath.IsAbs(exclude) {
+			return fmt.Errorf("Bad parameters: exclude patterns must be absolute paths")
+		}
+	}
+
 	cont := r.Form.Get("container")
 
 	pause := boolValue(r, "pause")
@@ -663,13 +670,14 @@ func (s *Server) postCommit(version version.Version, w http.ResponseWriter, r *h
 	}
 
 	containerCommitConfig := &daemon.ContainerCommitConfig{
-		Pause:   pause,
-		Repo:    r.Form.Get("repo"),
-		Tag:     r.Form.Get("tag"),
-		Author:  r.Form.Get("author"),
-		Comment: r.Form.Get("comment"),
-		Changes: r.Form["changes"],
-		Config:  c,
+		Pause:    pause,
+		Repo:     r.Form.Get("repo"),
+		Tag:      r.Form.Get("tag"),
+		Author:   r.Form.Get("author"),
+		Comment:  r.Form.Get("comment"),
+		Changes:  r.Form["changes"],
+		Excludes: r.Form["excludes"],
+		Config:   c,
 	}
 
 	imgID, err := builder.Commit(s.daemon, cont, containerCommitConfig)

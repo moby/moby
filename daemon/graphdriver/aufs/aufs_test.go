@@ -339,7 +339,7 @@ func TestGetDiff(t *testing.T) {
 	}
 	f.Close()
 
-	a, err := d.Diff("1", "")
+	a, err := d.Diff("1", "", []string{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -611,7 +611,7 @@ func TestApplyDiff(t *testing.T) {
 	}
 	f.Close()
 
-	diff, err := d.Diff("1", "")
+	diff, err := d.Diff("1", "", []string{})
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -310,11 +310,17 @@ func (a *Driver) Put(id string) error {
 
 // Diff produces an archive of the changes between the specified
 // layer and its parent layer which may be "".
-func (a *Driver) Diff(id, parent string) (archive.Archive, error) {
+func (a *Driver) Diff(id, parent string, excludes []string) (archive.Archive, error) {
+	// archive.TarWithOptions uses relative path to compare excludes.
+	// So we have to strip the leading '/'.
+	newExcludes := make([]string, len(excludes))
+	for i, ex := range excludes {
+		newExcludes[i] = strings.TrimLeft(ex, "/")
+	}
 	// AUFS doesn't need the parent layer to produce a diff.
 	return archive.TarWithOptions(path.Join(a.rootPath(), "diff", id), &archive.TarOptions{
 		Compression:     archive.Uncompressed,
-		ExcludePatterns: []string{".wh..wh.*"},
+		ExcludePatterns: append(newExcludes, ".wh..wh.*"),
 	})
 }
 

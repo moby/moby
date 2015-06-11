@@ -24,6 +24,9 @@ Using an existing container's name or ID you can create a new image.
    Apply specified Dockerfile instructions while committing the image
    Supported Dockerfile instructions: `CMD`|`ENTRYPOINT`|`ENV`|`EXPOSE`|`ONBUILD`|`USER`|`VOLUME`|`WORKDIR`
 
+**--exclude**=[]
+   Absolute paths of files to exclude from the new image.
+
 **--help**
   Print usage statement
 

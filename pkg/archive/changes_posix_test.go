@@ -8,6 +8,7 @@ import (
 	"os"
 	"path"
 	"sort"
+	"strings"
 	"testing"
 )
 
@@ -102,6 +103,91 @@ func TestHardLinkOrder(t *testing.T) {
 		}
 	}
 
+}
+
+func TestExportChanges(t *testing.T) {
+	src, err := ioutil.TempDir("", "docker-changes-test")
+	defer os.RemoveAll(src)
+	dir := path.Join(src, "dir")
+	if err := os.Mkdir(dir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	names := []string{"file1.txt", "file2.txt", "dir/file3.txt"}
+	msg := []byte("orig")
+
+	for _, name := range names {
+		if err = ioutil.WriteFile(path.Join(src, name), msg, 0744); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// Create dest, with changes
+	dest, err := ioutil.TempDir("", "docker-changes-test-dest-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	os.RemoveAll(dest) // we just want the name, at first
+	if err := copyDir(src, dest); err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(dest)
+
+	// mock some changes
+	if err := ioutil.WriteFile(path.Join(dest, "file2.txt"), []byte("new"), 0744); err != nil {
+		t.Fatal(err)
+	}
+	if err := ioutil.WriteFile(path.Join(dest, "dir/file3.txt"), []byte("new"), 0744); err != nil {
+		t.Fatal(err)
+	}
+	if err := ioutil.WriteFile(path.Join(dest, "file4.txt"), []byte("new"), 0744); err != nil {
+		t.Fatal(err)
+	}
+
+	// get changes
+	changes, err := ChangesDirs(dest, src)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// export changes
+	ar, err := ExportChanges(dest, changes)
+	if err != nil {
+		t.Fatal(err)
+	}
+	hdrs, err := walkHeaders(ar)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(changes) != len(hdrs) {
+		t.Fatalf("changes length mismatch. expected %d, got %d", len(changes), len(hdrs))
+	}
+
+	// exclude files
+	excludes := []string{"/file*.txt"}
+	arEx, err := ExportChangesExcludes(dest, changes, excludes)
+	hdrs, err = walkHeaders(arEx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, hdr := range hdrs {
+		if hdr.Name == "file1.txt" || hdr.Name == "file4.txt" {
+			t.Fatalf("ExportChangesExcludes - file %s is expected to be excluded, but it's not", hdr.Name)
+		}
+	}
+
+	// exclude a directory
+	excludes = []string{"/dir"}
+	arEx, err = ExportChangesExcludes(dest, changes, excludes)
+	hdrs, err = walkHeaders(arEx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, hdr := range hdrs {
+		if strings.HasPrefix(hdr.Name, "dir") {
+			t.Fatalf("ExportChangesExcludes - file %s is expected to be excluded, but it's not", hdr.Name)
+		}
+	}
 }
 
 type tarHeaders []tar.Header

@@ -108,7 +108,7 @@ func (b *Builder) commit(id string, autoCmd *runconfig.Command, comment string) 
 	autoConfig.Cmd = autoCmd
 
 	// Commit the container
-	image, err := b.Daemon.Commit(container, "", "", "", b.maintainer, true, &autoConfig)
+	image, err := b.Daemon.Commit(container, "", "", "", b.maintainer, true, &autoConfig, []string{})
 	if err != nil {
 		return err
 	}

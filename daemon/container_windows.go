@@ -140,7 +140,7 @@ func (container *Container) AllocateNetwork() error {
 	return nil
 }
 
-func (container *Container) ExportRw() (archive.Archive, error) {
+func (container *Container) ExportRw(excludes []string) (archive.Archive, error) {
 	if container.IsRunning() {
 		return nil, fmt.Errorf("Cannot export a running container.")
 	}

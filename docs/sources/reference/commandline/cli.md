@@ -918,6 +918,7 @@ flag](/reference/run/#specifying-custom-cgroups).
 
       -a, --author=""     Author (e.g., "John Hannibal Smith <hannibal@a-team.com>")
       -c, --change=[]     Apply specified Dockerfile instructions while committing the image
+      --exclude=[]        Absolute paths of files to exclude from the new image
       -m, --message=""    Commit message
       -p, --pause=true    Pause container during commit
 
