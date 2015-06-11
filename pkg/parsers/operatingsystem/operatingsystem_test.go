@@ -9,8 +9,9 @@ import (
 
 func TestGetOperatingSystem(t *testing.T) {
 	var (
-		backup       = etcOsRelease
-		ubuntuTrusty = []byte(`NAME="Ubuntu"
+		backup        = etcOsRelease
+		backupRHFiles = redHatEtcOsFiles
+		ubuntuTrusty  = []byte(`NAME="Ubuntu"
 VERSION="14.04, Trusty Tahr"
 ID=ubuntu
 ID_LIKE=debian
@@ -35,32 +36,45 @@ VERSION_ID="14.04"
 HOME_URL="http://www.ubuntu.com/"
 SUPPORT_URL="http://help.ubuntu.com/"
 BUG_REPORT_URL="http://bugs.launchpad.net/ubuntu/"`)
+		centos6Release = []byte("CentOS release 6.5 (Final)")
 	)
 
 	dir := os.TempDir()
 	etcOsRelease = filepath.Join(dir, "etcOsRelease")
+	rhOsRelease := filepath.Join(dir, "redhat-release")
+	redHatEtcOsFiles = []string{rhOsRelease}
 
 	defer func() {
-		os.Remove(etcOsRelease)
 		etcOsRelease = backup
+		redHatEtcOsFiles = backupRHFiles
 	}()
 
-	for expect, osRelease := range map[string][]byte{
-		"Ubuntu 14.04 LTS": ubuntuTrusty,
-		"Gentoo/Linux":     gentoo,
-		"":                 noPrettyName,
-	} {
-		if err := ioutil.WriteFile(etcOsRelease, osRelease, 0600); err != nil {
-			t.Fatalf("failed to write to %s: %v", etcOsRelease, err)
+	cases := []struct {
+		expect      string
+		osRelease   []byte
+		releaseFile string
+	}{
+		{"Ubuntu 14.04 LTS", ubuntuTrusty, etcOsRelease},
+		{"Gentoo/Linux", gentoo, etcOsRelease},
+		{"", noPrettyName, etcOsRelease},
+		{"CentOS 6.5 (Final)", centos6Release, rhOsRelease},
+	}
+
+	for _, c := range cases {
+		if err := ioutil.WriteFile(c.releaseFile, c.osRelease, 0600); err != nil {
+			t.Fatalf("failed to write to %s: %v", c.releaseFile, err)
 		}
+
 		s, err := GetOperatingSystem()
-		if s != expect {
-			if expect == "" {
+		if s != c.expect {
+			if c.expect == "" {
 				t.Fatalf("Expected error 'PRETTY_NAME not found', but got %v", err)
 			} else {
-				t.Fatalf("Expected '%s', but got '%s'. Err=%v", expect, s, err)
+				t.Fatalf("Expected '%s', but got '%s'. Err=%v", c.expect, s, err)
 			}
 		}
+
+		os.Remove(c.releaseFile)
 	}
 }
 
