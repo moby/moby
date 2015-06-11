@@ -2,6 +2,7 @@ package opts
 
 import (
 	"fmt"
+	"net"
 	"strings"
 	"testing"
 )
@@ -175,6 +176,18 @@ func TestValidateExtraHosts(t *testing.T) {
 			if !strings.Contains(err.Error(), expectedError) {
 				t.Fatalf("ValidateExtraHost(`%q`) error should contain %q", extraHost, expectedError)
 			}
+		}
+	}
+}
+
+func TestIpOptString(t *testing.T) {
+	addresses := []string{"", "0.0.0.0"}
+	var ip net.IP
+
+	for _, address := range addresses {
+		stringAddress := NewIpOpt(&ip, address).String()
+		if stringAddress != address {
+			t.Fatalf("IpOpt string should be `%s`, not `%s`", address, stringAddress)
 		}
 	}
 }
