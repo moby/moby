@@ -5,9 +5,10 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/docker/libkv"
+	"github.com/docker/libkv/store"
 	"github.com/docker/libnetwork/config"
 	"github.com/docker/libnetwork/types"
-	"github.com/docker/swarm/pkg/store"
 )
 
 //DataStore exported
@@ -27,6 +28,9 @@ type DataStore interface {
 	// KVStore returns access to the KV Store
 	KVStore() store.Store
 }
+
+// ErrKeyModified is raised for an atomic update when the update is working on a stale state
+var ErrKeyModified = store.ErrKeyModified
 
 type datastore struct {
 	store store.Store
@@ -75,7 +79,7 @@ func ParseKey(key string) ([]string, error) {
 
 // newClient used to connect to KV Store
 func newClient(kv string, addrs string) (DataStore, error) {
-	store, err := store.NewStore(store.Backend(kv), []string{addrs}, &store.Config{})
+	store, err := libkv.NewStore(store.Backend(kv), []string{addrs}, &store.Config{})
 	if err != nil {
 		return nil, err
 	}

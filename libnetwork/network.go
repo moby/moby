@@ -11,7 +11,6 @@ import (
 	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/libnetwork/options"
 	"github.com/docker/libnetwork/types"
-	"github.com/docker/swarm/pkg/store"
 )
 
 // A Network represents a logical connectivity zone that containers may
@@ -216,7 +215,7 @@ func (n *network) Delete() error {
 	// deleteNetworkFromStore performs an atomic delete operation and the network.endpointCnt field will help
 	// prevent any possible race between endpoint join and network delete
 	if err = ctrlr.deleteNetworkFromStore(n); err != nil {
-		if err == store.ErrKeyModified {
+		if err == datastore.ErrKeyModified {
 			return types.InternalErrorf("operation in progress. delete failed for network %s. Please try again.")
 		}
 		return err
