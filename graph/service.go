@@ -3,6 +3,7 @@ package graph
 import (
 	"fmt"
 	"io"
+	"runtime"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types"
@@ -58,17 +59,21 @@ func (s *TagStore) Lookup(name string) (*types.ImageInspect, error) {
 // ImageTarLayer return the tarLayer of the image
 func (s *TagStore) ImageTarLayer(name string, dest io.Writer) error {
 	if image, err := s.LookupImage(name); err == nil && image != nil {
-		fs, err := s.graph.TarLayer(image)
-		if err != nil {
-			return err
-		}
-		defer fs.Close()
+		// On Windows, the base layer cannot be exported
+		if runtime.GOOS != "windows" || image.Parent != "" {
 
-		written, err := io.Copy(dest, fs)
-		if err != nil {
-			return err
+			fs, err := s.graph.TarLayer(image)
+			if err != nil {
+				return err
+			}
+			defer fs.Close()
+
+			written, err := io.Copy(dest, fs)
+			if err != nil {
+				return err
+			}
+			logrus.Debugf("rendered layer for %s of [%d] size", image.ID, written)
 		}
-		logrus.Debugf("rendered layer for %s of [%d] size", image.ID, written)
 		return nil
 	}
 	return fmt.Errorf("No such image: %s", name)
