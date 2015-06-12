@@ -877,7 +877,9 @@ func (d *driver) CreateEndpoint(nid, eid types.UUID, epInfo driverapi.EndpointIn
 	}
 
 	// v4 address for the sandbox side pipe interface
-	ip4, err := ipAllocator.RequestIP(n.bridge.bridgeIPv4, nil)
+	sub := types.GetIPNetCopy(n.bridge.bridgeIPv4)
+	sub.IP = sub.IP.Mask(sub.Mask)
+	ip4, err := ipAllocator.RequestIP(sub, nil)
 	if err != nil {
 		return err
 	}
