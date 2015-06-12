@@ -1,7 +1,6 @@
 package libkv
 
 import (
-	log "github.com/Sirupsen/logrus"
 	"github.com/docker/libkv/store"
 	"github.com/docker/libkv/store/consul"
 	"github.com/docker/libkv/store/etcd"
@@ -25,7 +24,6 @@ var (
 // NewStore creates a an instance of store
 func NewStore(backend store.Backend, addrs []string, options *store.Config) (store.Store, error) {
 	if init, exists := initializers[backend]; exists {
-		log.WithFields(log.Fields{"backend": backend}).Debug("Initializing store service")
 		return init(addrs, options)
 	}
 
