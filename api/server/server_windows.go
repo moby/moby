@@ -8,6 +8,8 @@ import (
 	"net/http"
 
 	"github.com/docker/docker/daemon"
+	"github.com/docker/docker/pkg/version"
+	"github.com/docker/docker/runconfig"
 )
 
 // NewServer sets up the required Server and does protocol specific checking.
