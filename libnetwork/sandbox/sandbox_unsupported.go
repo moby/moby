@@ -1,10 +1,11 @@
-// +build !linux
+// +build !linux,!windows
 
 package sandbox
 
 import "errors"
 
 var (
+	// ErrNotImplemented is for platforms which don't implement sandbox
 	ErrNotImplemented = errors.New("not implemented")
 )
 
