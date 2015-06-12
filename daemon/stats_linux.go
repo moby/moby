@@ -6,9 +6,9 @@ import (
 	"github.com/docker/libcontainer/cgroups"
 )
 
-// convertToAPITypes converts the libcontainer.Stats to the api specific
+// convertStatsToAPITypes converts the libcontainer.Stats to the api specific
 // structs.  This is done to preserve API compatibility and versioning.
-func convertToAPITypes(ls *libcontainer.Stats) *types.Stats {
+func convertStatsToAPITypes(ls *libcontainer.Stats) *types.Stats {
 	s := &types.Stats{}
 	if ls.Interfaces != nil {
 		s.Network = types.Network{}

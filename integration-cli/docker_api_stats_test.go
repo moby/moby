@@ -10,14 +10,16 @@ import (
 )
 
 func (s *DockerSuite) TestCliStatsNoStreamGetCpu(c *check.C) {
-	out, _ := dockerCmd(c, "run", "-d", "--cpu-quota=2000", "busybox", "/bin/sh", "-c", "while true;do echo 'Hello';done")
+	out, _ := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "while true;do echo 'Hello'; usleep 100000; done")
 
 	id := strings.TrimSpace(out)
 	err := waitRun(id)
 	c.Assert(err, check.IsNil)
 
-	_, body, err := sockRequestRaw("GET", fmt.Sprintf("/containers/%s/stats?stream=false", id), nil, "")
+	resp, body, err := sockRequestRaw("GET", fmt.Sprintf("/containers/%s/stats?stream=false", id), nil, "")
 	c.Assert(err, check.IsNil)
+	c.Assert(resp.ContentLength > 0, check.Equals, true, check.Commentf("should not use chunked encoding"))
+	c.Assert(resp.Header.Get("Content-Type"), check.Equals, "application/json")
 
 	var v *types.Stats
 	err = json.NewDecoder(body).Decode(&v)
