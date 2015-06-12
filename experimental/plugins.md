@@ -3,12 +3,12 @@
 You can extend the capabilities of the Docker Engine by loading third-party
 plugins. 
 
-This is an experimental feature. For information on installing and using experimental features, see [the experimental feature overview](experimental.md).
+This is an experimental feature. For information on installing and using experimental features, see [the experimental feature overview](README.md).
 
 ## Types of plugins
 
 Plugins extend Docker's functionality.  They come in specific types.  For
-example, a [volume plugin](/experimental/plugins_volume) might enable Docker
+example, a [volume plugin](/experimental/plugins_volume.md) might enable Docker
 volumes to persist across multiple Docker hosts.
 
 Currently Docker supports volume plugins. In the future it will support
@@ -35,7 +35,7 @@ of the plugin for help. The Docker team may not be able to assist you.
 ## Writing a plugin
 
 If you are interested in writing a plugin for Docker, or seeing how they work
-under the hood, see the [docker plugins reference](/experimental/plugin_api).
+under the hood, see the [docker plugins reference](/experimental/plugin_api.md).
 
 # Related GitHub PRs and issues
 

@@ -5,9 +5,9 @@ Docker Engine.
 
 This page is intended for people who want to develop their own Docker plugin.
 If you just want to learn about or use Docker plugins, look
-[here](/userguide/plugins).
+[here](/experimental/plugins.md).
 
-This is an experimental feature. For information on installing and using experimental features, see [the experimental feature overview](experimental.md).
+This is an experimental feature. For information on installing and using experimental features, see [the experimental feature overview](README.md).
 
 ## What plugins are
 
