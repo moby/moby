@@ -4,7 +4,6 @@ import (
 	"github.com/docker/libkv/store"
 	"github.com/docker/libkv/store/consul"
 	"github.com/docker/libkv/store/etcd"
-	"github.com/docker/libkv/store/mock"
 	"github.com/docker/libkv/store/zookeeper"
 )
 
@@ -14,10 +13,9 @@ type Initialize func(addrs []string, options *store.Config) (store.Store, error)
 var (
 	// Backend initializers
 	initializers = map[store.Backend]Initialize{
-		store.MOCK:   mock.InitializeMock,
-		store.CONSUL: consul.InitializeConsul,
-		store.ETCD:   etcd.InitializeEtcd,
-		store.ZK:     zookeeper.InitializeZookeeper,
+		store.CONSUL: consul.New,
+		store.ETCD:   etcd.New,
+		store.ZK:     zookeeper.New,
 	}
 )
 

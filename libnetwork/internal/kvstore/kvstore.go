@@ -10,8 +10,6 @@ import (
 type Backend string
 
 const (
-	// MOCK backend
-	MOCK Backend = "mock"
 	// CONSUL backend
 	CONSUL = "consul"
 	// ETCD backend
