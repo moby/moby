@@ -217,6 +217,12 @@ func (s *DockerSuite) TestRunWithBlkioInvalidWeight(c *check.C) {
 	c.Assert(out, checker.Contains, expected)
 }
 
+func (s *DockerSuite) TestRunWithBlkioInvalidWeightDevice(c *check.C) {
+	testRequires(c, blkioWeight)
+	out, _, err := dockerCmdWithError("run", "--blkio-weight-device", "/dev/sda:5", "busybox", "true")
+	c.Assert(err, check.NotNil, check.Commentf(out))
+}
+
 func (s *DockerSuite) TestRunOOMExitCode(c *check.C) {
 	testRequires(c, oomControl)
 	errChan := make(chan error)

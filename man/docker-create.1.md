@@ -9,6 +9,7 @@ docker-create - Create a new container
 [**-a**|**--attach**[=*[]*]]
 [**--add-host**[=*[]*]]
 [**--blkio-weight**[=*[BLKIO-WEIGHT]*]]
+[**--blkio-weight-device**[=*[]*]]
 [**--cpu-shares**[=*0*]]
 [**--cap-add**[=*[]*]]
 [**--cap-drop**[=*[]*]]
@@ -81,6 +82,9 @@ The initial status of the container created with **docker create** is 'created'.
 
 **--blkio-weight**=*0*
    Block IO weight (relative weight) accepts a weight value between 10 and 1000.
+
+**--blkio-weight-device**=[]
+   Block IO weight (relative device weight, format: `DEVICE_NAME:WEIGHT`).
 
 **--cpu-shares**=*0*
    CPU shares (relative weight)
