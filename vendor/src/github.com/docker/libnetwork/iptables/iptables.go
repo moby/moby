@@ -44,9 +44,10 @@ var (
 
 // Chain defines the iptables chain.
 type Chain struct {
-	Name   string
-	Bridge string
-	Table  Table
+	Name        string
+	Bridge      string
+	Table       Table
+	HairpinMode bool
 }
 
 // ChainError is returned to represent errors during ip table operation.
@@ -75,9 +76,10 @@ func initCheck() error {
 // NewChain adds a new chain to ip table.
 func NewChain(name, bridge string, table Table, hairpinMode bool) (*Chain, error) {
 	c := &Chain{
-		Name:   name,
-		Bridge: bridge,
-		Table:  table,
+		Name:        name,
+		Bridge:      bridge,
+		Table:       table,
+		HairpinMode: hairpinMode,
 	}
 
 	if string(c.Table) == "" {
@@ -151,12 +153,16 @@ func (c *Chain) Forward(action Action, ip net.IP, port int, proto, destAddr stri
 		// value" by both iptables and ip6tables.
 		daddr = "0/0"
 	}
-	if output, err := Raw("-t", string(Nat), string(action), c.Name,
+	args := []string{"-t", string(Nat), string(action), c.Name,
 		"-p", proto,
 		"-d", daddr,
 		"--dport", strconv.Itoa(port),
 		"-j", "DNAT",
-		"--to-destination", net.JoinHostPort(destAddr, strconv.Itoa(destPort))); err != nil {
+		"--to-destination", net.JoinHostPort(destAddr, strconv.Itoa(destPort))}
+	if !c.HairpinMode {
+		args = append(args, "!", "-i", c.Bridge)
+	}
+	if output, err := Raw(args...); err != nil {
 		return err
 	} else if len(output) != 0 {
 		return ChainError{Chain: "FORWARD", Output: output}
