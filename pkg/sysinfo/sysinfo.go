@@ -60,6 +60,9 @@ type cgroupCPUInfo struct {
 type cgroupBlkioInfo struct {
 	// Whether Block IO weight is supported or not
 	BlkioWeight bool
+
+	// Whether Block IO weight_device is supported or not
+	BlkioWeightDevice bool
 }
 
 type cgroupCpusetInfo struct {

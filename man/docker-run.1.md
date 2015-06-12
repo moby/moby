@@ -9,6 +9,7 @@ docker-run - Run a command in a new container
 [**-a**|**--attach**[=*[]*]]
 [**--add-host**[=*[]*]]
 [**--blkio-weight**[=*[BLKIO-WEIGHT]*]]
+[**--blkio-weight-device**[=*[]*]]
 [**--cpu-shares**[=*0*]]
 [**--cap-add**[=*[]*]]
 [**--cap-drop**[=*[]*]]
@@ -98,6 +99,9 @@ option can be set multiple times.
 
 **--blkio-weight**=*0*
    Block IO weight (relative weight) accepts a weight value between 10 and 1000.
+
+**--blkio-weight-device**=[]
+   Block IO weight (relative device weight, format: `DEVICE_NAME:WEIGHT`).
 
 **--cpu-shares**=*0*
    CPU shares (relative weight)
@@ -754,6 +758,13 @@ command:
 Note:
 
 You would have to write policy defining a `svirt_apache_t` type.
+
+## Setting device weight
+
+If you want to set `/dev/sda` device weight to `200`, you can specify the device
+weight by `--blkio-weight-device` flag. Use the following command:
+
+   # docker run -it --blkio-weight-device "/dev/sda:200" ubuntu
 
 # HISTORY
 April 2014, Originally compiled by William Henry (whenry at redhat dot com)

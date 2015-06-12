@@ -1355,6 +1355,7 @@ _docker_run() {
 		--add-host
 		--attach -a
 		--blkio-weight
+		--blkio-weight-device
 		--cap-add
 		--cap-drop
 		--cgroup-parent
