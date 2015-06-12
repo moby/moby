@@ -17,9 +17,12 @@ func TestFirewalldInit(t *testing.T) {
 
 func TestReloaded(t *testing.T) {
 	var err error
-	var fwdChain *Chain
+	var fwdChain *ChainInfo
 
-	fwdChain, err = NewChain("FWD", "lo", Filter, false)
+	fwdChain, err = NewChain("FWD", Filter, false)
+	bridgeName := "lo"
+
+	err = ProgramChain(fwdChain, bridgeName, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -31,17 +34,17 @@ func TestReloaded(t *testing.T) {
 	port := 1234
 	proto := "tcp"
 
-	err = fwdChain.Link(Append, ip1, ip2, port, proto)
+	err = fwdChain.Link(Append, ip1, ip2, port, proto, bridgeName)
 	if err != nil {
 		t.Fatal(err)
 	} else {
 		// to be re-called again later
-		OnReloaded(func() { fwdChain.Link(Append, ip1, ip2, port, proto) })
+		OnReloaded(func() { fwdChain.Link(Append, ip1, ip2, port, proto, bridgeName) })
 	}
 
 	rule1 := []string{
-		"-i", fwdChain.Bridge,
-		"-o", fwdChain.Bridge,
+		"-i", bridgeName,
+		"-o", bridgeName,
 		"-p", proto,
 		"-s", ip1.String(),
 		"-d", ip2.String(),

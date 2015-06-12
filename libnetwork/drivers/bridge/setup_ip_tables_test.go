@@ -37,26 +37,32 @@ func TestProgramIPTable(t *testing.T) {
 	}
 }
 
-func TestSetupIPTables(t *testing.T) {
+func TestSetupIPChains(t *testing.T) {
 	// Create a test bridge with a basic bridge configuration (name + IPv4).
 	defer netutils.SetupTestNetNS(t)()
+
+	driverconfig := &configuration{
+		EnableIPTables: true,
+	}
+	d := &driver{
+		config: driverconfig,
+	}
+	assertChainConfig(d, t)
+
 	config := getBasicTestConfig()
 	br := &bridgeInterface{}
-
 	createTestBridge(config, br, t)
 
-	// Modify iptables params in base configuration and apply them.
-	config.EnableIPTables = true
-	assertBridgeConfig(config, br, t)
+	assertBridgeConfig(config, br, d, t)
 
 	config.EnableIPMasquerade = true
-	assertBridgeConfig(config, br, t)
+	assertBridgeConfig(config, br, d, t)
 
 	config.EnableICC = true
-	assertBridgeConfig(config, br, t)
+	assertBridgeConfig(config, br, d, t)
 
 	config.EnableIPMasquerade = false
-	assertBridgeConfig(config, br, t)
+	assertBridgeConfig(config, br, d, t)
 }
 
 func getBasicTestConfig() *networkConfiguration {
@@ -94,9 +100,22 @@ func assertIPTableChainProgramming(rule iptRule, descr string, t *testing.T) {
 	}
 }
 
+// Assert function which create chains.
+func assertChainConfig(d *driver, t *testing.T) {
+	var err error
+
+	d.natChain, d.filterChain, err = setupIPChains(d.config)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
 // Assert function which pushes chains based on bridge config parameters.
-func assertBridgeConfig(config *networkConfiguration, br *bridgeInterface, t *testing.T) {
-	nw := bridgeNetwork{portMapper: portmapper.New()}
+func assertBridgeConfig(config *networkConfiguration, br *bridgeInterface, d *driver, t *testing.T) {
+	nw := bridgeNetwork{portMapper: portmapper.New(),
+		config: config}
+	nw.driver = d
+
 	// Attempt programming of ip tables.
 	err := nw.setupIPTables(config, br)
 	if err != nil {

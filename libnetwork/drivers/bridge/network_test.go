@@ -14,6 +14,10 @@ func TestLinkCreate(t *testing.T) {
 	d := newDriver()
 	dr := d.(*driver)
 
+	if err := d.Config(nil); err != nil {
+		t.Fatalf("Failed to setup driver config: %v", err)
+	}
+
 	mtu := 1490
 	config := &networkConfiguration{
 		BridgeName: DefaultBridgeName,
@@ -108,6 +112,10 @@ func TestLinkCreateTwo(t *testing.T) {
 	defer netutils.SetupTestNetNS(t)()
 	d := newDriver()
 
+	if err := d.Config(nil); err != nil {
+		t.Fatalf("Failed to setup driver config: %v", err)
+	}
+
 	config := &networkConfiguration{
 		BridgeName: DefaultBridgeName,
 		EnableIPv6: true}
@@ -140,6 +148,10 @@ func TestLinkCreateNoEnableIPv6(t *testing.T) {
 	defer netutils.SetupTestNetNS(t)()
 	d := newDriver()
 
+	if err := d.Config(nil); err != nil {
+		t.Fatalf("Failed to setup driver config: %v", err)
+	}
+
 	config := &networkConfiguration{
 		BridgeName: DefaultBridgeName}
 	genericOption := make(map[string]interface{})
@@ -169,6 +181,10 @@ func TestLinkCreateNoEnableIPv6(t *testing.T) {
 func TestLinkDelete(t *testing.T) {
 	defer netutils.SetupTestNetNS(t)()
 	d := newDriver()
+
+	if err := d.Config(nil); err != nil {
+		t.Fatalf("Failed to setup driver config: %v", err)
+	}
 
 	config := &networkConfiguration{
 		BridgeName: DefaultBridgeName,

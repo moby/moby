@@ -17,16 +17,15 @@ func init() {
 func TestSetIptablesChain(t *testing.T) {
 	pm := New()
 
-	c := &iptables.Chain{
-		Name:   "TEST",
-		Bridge: "192.168.1.1",
+	c := &iptables.ChainInfo{
+		Name: "TEST",
 	}
 
 	if pm.chain != nil {
 		t.Fatal("chain should be nil at init")
 	}
 
-	pm.SetIptablesChain(c)
+	pm.SetIptablesChain(c, "lo")
 	if pm.chain == nil {
 		t.Fatal("chain should not be nil after set")
 	}

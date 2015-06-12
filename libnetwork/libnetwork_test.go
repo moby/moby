@@ -251,10 +251,9 @@ func TestBridge(t *testing.T) {
 			"FixedCIDR":             cidr,
 			"FixedCIDRv6":           cidrv6,
 			"EnableIPv6":            true,
-			"EnableIPTables":        true,
-			"EnableIPMasquerade":    true,
 			"EnableICC":             true,
 			"AllowNonDefaultBridge": true,
+			"EnableIPMasquerade":    true,
 		},
 	}
 

@@ -21,6 +21,16 @@ func TestPortMappingConfig(t *testing.T) {
 	defer netutils.SetupTestNetNS(t)()
 	d := newDriver()
 
+	config := &configuration{
+		EnableIPTables: true,
+	}
+	genericOption := make(map[string]interface{})
+	genericOption[netlabel.GenericData] = config
+
+	if err := d.Config(genericOption); err != nil {
+		t.Fatalf("Failed to setup driver config: %v", err)
+	}
+
 	binding1 := types.PortBinding{Proto: types.UDP, Port: uint16(400), HostPort: uint16(54000)}
 	binding2 := types.PortBinding{Proto: types.TCP, Port: uint16(500), HostPort: uint16(65000)}
 	portBindings := []types.PortBinding{binding1, binding2}
@@ -29,8 +39,7 @@ func TestPortMappingConfig(t *testing.T) {
 	epOptions[netlabel.PortMap] = portBindings
 
 	netConfig := &networkConfiguration{
-		BridgeName:     DefaultBridgeName,
-		EnableIPTables: true,
+		BridgeName: DefaultBridgeName,
 	}
 	netOptions := make(map[string]interface{})
 	netOptions[netlabel.GenericData] = netConfig
