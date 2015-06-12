@@ -331,3 +331,45 @@ func TestPushReservation(t *testing.T) {
 		}
 	}
 }
+
+func TestSerializeDeserialize(t *testing.T) {
+	s := &Sequence{
+		Block: 0xffffffff,
+		Count: 1,
+		Next: &Sequence{
+			Block: 0xFF000000,
+			Count: 1,
+			Next: &Sequence{
+				Block: 0xffffffff,
+				Count: 6,
+				Next: &Sequence{
+					Block: 0xffffffff,
+					Count: 1,
+					Next: &Sequence{
+						Block: 0xFF800000,
+						Count: 1,
+						Next: &Sequence{
+							Block: 0xffffffff,
+							Count: 6,
+						},
+					},
+				},
+			},
+		},
+	}
+
+	data, err := s.ToByteArray()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	r := &Sequence{}
+	err = r.FromByteArray(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !s.Equal(r) {
+		t.Fatalf("Sequences are different: \n%v\n%v", s, r)
+	}
+}

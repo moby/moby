@@ -5,6 +5,8 @@ package bitseq
 
 import (
 	"fmt"
+
+	"github.com/docker/libnetwork/netutils"
 )
 
 // Block Sequence constants
@@ -72,6 +74,45 @@ func (s *Sequence) Equal(o *Sequence) bool {
 		return false
 	}
 	return true
+}
+
+// ToByteArray converts the sequence into a byte array
+// TODO (aboch): manage network/host order stuff
+func (s *Sequence) ToByteArray() ([]byte, error) {
+	var bb []byte
+
+	p := s
+	for p != nil {
+		bb = append(bb, netutils.U32ToA(p.Block)...)
+		bb = append(bb, netutils.U32ToA(p.Count)...)
+		p = p.Next
+	}
+
+	return bb, nil
+}
+
+// FromByteArray construct the sequence from the byte array
+// TODO (aboch): manage network/host order stuff
+func (s *Sequence) FromByteArray(data []byte) error {
+	l := len(data)
+	if l%8 != 0 {
+		return fmt.Errorf("cannot deserialize byte sequence of lenght %d", l)
+	}
+
+	p := s
+	i := 0
+	for {
+		p.Block = netutils.ATo32(data[i : i+4])
+		p.Count = netutils.ATo32(data[i+4 : i+8])
+		i += 8
+		if i == l {
+			break
+		}
+		p.Next = &Sequence{}
+		p = p.Next
+	}
+
+	return nil
 }
 
 // GetFirstAvailable looks for the first unset bit in passed mask
