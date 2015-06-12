@@ -9,7 +9,9 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"strings"
 
+	"github.com/docker/libnetwork/types"
 	"github.com/vishvananda/netlink"
 )
 
@@ -146,4 +148,23 @@ func GenerateRandomName(prefix string, size int) (string, error) {
 		return "", err
 	}
 	return prefix + hex.EncodeToString(id)[:size], nil
+}
+
+// GenerateIfaceName returns an interface name using the passed in
+// prefix and the length of random bytes. The api ensures that the
+// there are is no interface which exists with that name.
+func GenerateIfaceName(prefix string, len int) (string, error) {
+	for i := 0; i < 3; i++ {
+		name, err := GenerateRandomName(prefix, len)
+		if err != nil {
+			continue
+		}
+		if _, err := net.InterfaceByName(name); err != nil {
+			if strings.Contains(err.Error(), "no such") {
+				return name, nil
+			}
+			return "", err
+		}
+	}
+	return "", types.InternalErrorf("could not generate interface name")
 }

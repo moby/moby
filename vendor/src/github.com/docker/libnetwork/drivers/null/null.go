@@ -1,17 +1,25 @@
 package null
 
 import (
+	"sync"
+
 	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/types"
 )
 
 const networkType = "null"
 
-type driver struct{}
+type driver struct {
+	network types.UUID
+	sync.Mutex
+}
 
 // Init registers a new instance of null driver
 func Init(dc driverapi.DriverCallback) error {
-	return dc.RegisterDriver(networkType, &driver{})
+	c := driverapi.Capability{
+		Scope: driverapi.LocalScope,
+	}
+	return dc.RegisterDriver(networkType, &driver{}, c)
 }
 
 func (d *driver) Config(option map[string]interface{}) error {
@@ -19,11 +27,20 @@ func (d *driver) Config(option map[string]interface{}) error {
 }
 
 func (d *driver) CreateNetwork(id types.UUID, option map[string]interface{}) error {
+	d.Lock()
+	defer d.Unlock()
+
+	if d.network != "" {
+		return types.ForbiddenErrorf("only one instance of \"%s\" network is allowed", networkType)
+	}
+
+	d.network = id
+
 	return nil
 }
 
 func (d *driver) DeleteNetwork(nid types.UUID) error {
-	return nil
+	return types.ForbiddenErrorf("network of type \"%s\" cannot be deleted", networkType)
 }
 
 func (d *driver) CreateEndpoint(nid, eid types.UUID, epInfo driverapi.EndpointInfo, epOptions map[string]interface{}) error {

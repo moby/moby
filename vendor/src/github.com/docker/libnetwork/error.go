@@ -11,8 +11,8 @@ func (nsn ErrNoSuchNetwork) Error() string {
 	return fmt.Sprintf("network %s not found", string(nsn))
 }
 
-// BadRequest denotes the type of this error
-func (nsn ErrNoSuchNetwork) BadRequest() {}
+// NotFound denotes the type of this error
+func (nsn ErrNoSuchNetwork) NotFound() {}
 
 // ErrNoSuchEndpoint is returned when a endpoint query finds no result
 type ErrNoSuchEndpoint string
@@ -21,8 +21,8 @@ func (nse ErrNoSuchEndpoint) Error() string {
 	return fmt.Sprintf("endpoint %s not found", string(nse))
 }
 
-// BadRequest denotes the type of this error
-func (nse ErrNoSuchEndpoint) BadRequest() {}
+// NotFound denotes the type of this error
+func (nse ErrNoSuchEndpoint) NotFound() {}
 
 // ErrInvalidNetworkDriver is returned if an invalid driver
 // name is passed.
@@ -78,6 +78,13 @@ func (in ErrInvalidName) Error() string {
 
 // BadRequest denotes the type of this error
 func (in ErrInvalidName) BadRequest() {}
+
+// ErrInvalidConfigFile type is returned when an invalid LibNetwork config file is detected
+type ErrInvalidConfigFile string
+
+func (cf ErrInvalidConfigFile) Error() string {
+	return fmt.Sprintf("Invalid Config file %q", string(cf))
+}
 
 // NetworkTypeError type is returned when the network type string is not
 // known to libnetwork.

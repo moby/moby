@@ -26,7 +26,7 @@ func init() {
 	}
 }
 
-func setupBridgeIPv6(config *NetworkConfiguration, i *bridgeInterface) error {
+func setupBridgeIPv6(config *networkConfiguration, i *bridgeInterface) error {
 	// Enable IPv6 on the bridge
 	procFile := "/proc/sys/net/ipv6/conf/" + config.BridgeName + "/disable_ipv6"
 	if err := ioutil.WriteFile(procFile, []byte{'0', '\n'}, ipv6ForwardConfPerm); err != nil {
@@ -52,7 +52,7 @@ func setupBridgeIPv6(config *NetworkConfiguration, i *bridgeInterface) error {
 	return nil
 }
 
-func setupGatewayIPv6(config *NetworkConfiguration, i *bridgeInterface) error {
+func setupGatewayIPv6(config *networkConfiguration, i *bridgeInterface) error {
 	if config.FixedCIDRv6 == nil {
 		return &ErrInvalidContainerSubnet{}
 	}
@@ -69,7 +69,7 @@ func setupGatewayIPv6(config *NetworkConfiguration, i *bridgeInterface) error {
 	return nil
 }
 
-func setupIPv6Forwarding(config *NetworkConfiguration, i *bridgeInterface) error {
+func setupIPv6Forwarding(config *networkConfiguration, i *bridgeInterface) error {
 	// Enable IPv6 forwarding
 	if err := ioutil.WriteFile("/proc/sys/net/ipv6/conf/default/forwarding", []byte{'1', '\n'}, ipv6ForwardConfPerm); err != nil {
 		logrus.Warnf("Unable to enable IPv6 default forwarding: %v", err)
