@@ -3,14 +3,11 @@ package graph
 import (
 	"encoding/json"
 	"fmt"
-	"io"
-	"io/ioutil"
 	"os"
 	"testing"
 
 	"github.com/docker/distribution/digest"
 	"github.com/docker/docker/image"
-	"github.com/docker/docker/pkg/tarsum"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/utils"
@@ -57,7 +54,7 @@ func (s *TagStore) newManifest(localName, remoteName, tag string) ([]byte, error
 		metadata = *layer.Config
 	}
 
-	for ; layer != nil; layer, err = layer.GetParent() {
+	for ; layer != nil; layer, err = s.graph.GetParent(layer) {
 		if err != nil {
 			return nil, err
 		}
@@ -72,40 +69,34 @@ func (s *TagStore) newManifest(localName, remoteName, tag string) ([]byte, error
 			}
 		}
 
-		checksum, err := layer.GetCheckSum(s.graph.ImageRoot(layer.ID))
-		if err != nil {
-			return nil, fmt.Errorf("Error getting image checksum: %s", err)
-		}
-		if tarsum.VersionLabelForChecksum(checksum) != tarsum.Version1.String() {
-			archive, err := layer.TarLayer()
+		dgst, err := s.graph.GetDigest(layer.ID)
+		if err == ErrDigestNotSet {
+			archive, err := s.graph.TarLayer(layer)
 			if err != nil {
 				return nil, err
 			}
 
 			defer archive.Close()
 
-			tarSum, err := tarsum.NewTarSum(archive, true, tarsum.Version1)
+			dgst, err = digest.FromReader(archive)
 			if err != nil {
 				return nil, err
 			}
-			if _, err := io.Copy(ioutil.Discard, tarSum); err != nil {
-				return nil, err
-			}
-
-			checksum = tarSum.Sum(nil)
 
 			// Save checksum value
-			if err := layer.SaveCheckSum(s.graph.ImageRoot(layer.ID), checksum); err != nil {
+			if err := s.graph.SetDigest(layer.ID, dgst); err != nil {
 				return nil, err
 			}
+		} else if err != nil {
+			return nil, fmt.Errorf("Error getting image checksum: %s", err)
 		}
 
-		jsonData, err := layer.RawJson()
+		jsonData, err := s.graph.RawJSON(layer.ID)
 		if err != nil {
 			return nil, fmt.Errorf("Cannot retrieve the path for {%s}: %s", layer.ID, err)
 		}
 
-		manifest.FSLayers = append(manifest.FSLayers, &registry.FSLayer{BlobSum: checksum})
+		manifest.FSLayers = append(manifest.FSLayers, &registry.FSLayer{BlobSum: dgst.String()})
 
 		layersSeen[layer.ID] = true
 
@@ -141,10 +132,10 @@ func TestManifestTarsumCache(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if cs, err := img.GetCheckSum(store.graph.ImageRoot(testManifestImageID)); err != nil {
-		t.Fatal(err)
-	} else if cs != "" {
+	if _, err := store.graph.GetDigest(testManifestImageID); err == nil {
 		t.Fatalf("Non-empty checksum file after register")
+	} else if err != ErrDigestNotSet {
+		t.Fatal(err)
 	}
 
 	// Generate manifest
@@ -153,7 +144,7 @@ func TestManifestTarsumCache(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	manifestChecksum, err := img.GetCheckSum(store.graph.ImageRoot(testManifestImageID))
+	manifestChecksum, err := store.graph.GetDigest(testManifestImageID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -167,7 +158,7 @@ func TestManifestTarsumCache(t *testing.T) {
 		t.Fatalf("Unexpected number of layers, expecting 1: %d", len(manifest.FSLayers))
 	}
 
-	if manifest.FSLayers[0].BlobSum != manifestChecksum {
+	if manifest.FSLayers[0].BlobSum != manifestChecksum.String() {
 		t.Fatalf("Unexpected blob sum, expecting %q, got %q", manifestChecksum, manifest.FSLayers[0].BlobSum)
 	}
 
@@ -175,7 +166,7 @@ func TestManifestTarsumCache(t *testing.T) {
 		t.Fatalf("Unexpected number of layer history, expecting 1: %d", len(manifest.History))
 	}
 
-	v1compat, err := img.RawJson()
+	v1compat, err := store.graph.RawJSON(img.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -207,10 +198,10 @@ func TestManifestDigestCheck(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if cs, err := img.GetCheckSum(store.graph.ImageRoot(testManifestImageID)); err != nil {
-		t.Fatal(err)
-	} else if cs != "" {
+	if _, err := store.graph.GetDigest(testManifestImageID); err == nil {
 		t.Fatalf("Non-empty checksum file after register")
+	} else if err != ErrDigestNotSet {
+		t.Fatal(err)
 	}
 
 	// Generate manifest
