@@ -9,6 +9,7 @@ import (
 	"net/http/httputil"
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
 	"time"
 
@@ -82,6 +83,45 @@ func (s *DockerSuite) TestContainerApiGetJSONNoFieldsOmitted(c *check.C) {
 			c.Fatalf("Field %s is missing and it shouldn't", f)
 		}
 	}
+}
+
+type containerPs struct {
+	Names []string
+	Ports []map[string]interface{}
+}
+
+// regression test for non-empty fields from #13901
+func (s *DockerSuite) TestContainerPsOmitFields(c *check.C) {
+	name := "pstest"
+	port := 80
+	runCmd := exec.Command(dockerBinary, "run", "-d", "--name", name, "--expose", strconv.Itoa(port), "busybox", "sleep", "5")
+	_, err := runCommand(runCmd)
+	c.Assert(err, check.IsNil)
+
+	status, body, err := sockRequest("GET", "/containers/json?all=1", nil)
+	c.Assert(status, check.Equals, http.StatusOK)
+	c.Assert(err, check.IsNil)
+
+	var resp []containerPs
+	err = json.Unmarshal(body, &resp)
+	c.Assert(err, check.IsNil)
+
+	var foundContainer *containerPs
+	for _, container := range resp {
+		for _, testName := range container.Names {
+			if "/"+name == testName {
+				foundContainer = &container
+				break
+			}
+		}
+	}
+
+	c.Assert(len(foundContainer.Ports), check.Equals, 1)
+	c.Assert(foundContainer.Ports[0]["PrivatePort"], check.Equals, float64(port))
+	_, ok := foundContainer.Ports[0]["PublicPort"]
+	c.Assert(ok, check.Not(check.Equals), true)
+	_, ok = foundContainer.Ports[0]["IP"]
+	c.Assert(ok, check.Not(check.Equals), true)
 }
 
 func (s *DockerSuite) TestContainerApiGetExport(c *check.C) {
