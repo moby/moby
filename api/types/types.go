@@ -94,9 +94,9 @@ type ImageInspect struct {
 
 // GET  "/containers/json"
 type Port struct {
-	IP          string
+	IP          string `json:",omitempty"`
 	PrivatePort int
-	PublicPort  int
+	PublicPort  int `json:",omitempty"`
 	Type        string
 }
 
