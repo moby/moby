@@ -236,6 +236,72 @@ func TestPortAllocation(t *testing.T) {
 	}
 }
 
+func TestPortAllocationWithCustomRange(t *testing.T) {
+	p := Get()
+	defer resetPortAllocator()
+
+	start, end := 8081, 8082
+	specificPort := 8000
+
+	//get an ephemeral port.
+	port1, err := p.RequestPortInRange(defaultIP, "tcp", 0, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	//request invalid ranges
+	if _, err := p.RequestPortInRange(defaultIP, "tcp", 0, end); err == nil {
+		t.Fatalf("Expected error for invalid range %d-%d", 0, end)
+	}
+	if _, err := p.RequestPortInRange(defaultIP, "tcp", start, 0); err == nil {
+		t.Fatalf("Expected error for invalid range %d-%d", 0, end)
+	}
+	if _, err := p.RequestPortInRange(defaultIP, "tcp", 8081, 8080); err == nil {
+		t.Fatalf("Expected error for invalid range %d-%d", 0, end)
+	}
+
+	//request a single port
+	port, err := p.RequestPortInRange(defaultIP, "tcp", specificPort, specificPort)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if port != specificPort {
+		t.Fatalf("Expected port %d, got %d", specificPort, port)
+	}
+
+	//get a port from the range
+	port2, err := p.RequestPortInRange(defaultIP, "tcp", start, end)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if port2 < start || port2 > end {
+		t.Fatalf("Expected a port between %d and %d, got %d", start, end, port2)
+	}
+	//get another ephemeral port (should be > port1)
+	port3, err := p.RequestPortInRange(defaultIP, "tcp", 0, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if port3 < port1 {
+		t.Fatalf("Expected new port > %d in the ephemeral range, got %d", port1, port3)
+	}
+	//get another (and in this case the only other) port from the range
+	port4, err := p.RequestPortInRange(defaultIP, "tcp", start, end)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if port4 < start || port4 > end {
+		t.Fatalf("Expected a port between %d and %d, got %d", start, end, port4)
+	}
+	if port4 == port2 {
+		t.Fatal("Allocated the same port from a custom range")
+	}
+	//request 3rd port from the range of 2
+	if _, err := p.RequestPortInRange(defaultIP, "tcp", start, end); err != ErrAllPortsAllocated {
+		t.Fatalf("Expected error %s got %s", ErrAllPortsAllocated, err)
+	}
+}
+
 func TestNoDuplicateBPR(t *testing.T) {
 	p := Get()
 	defer resetPortAllocator()
