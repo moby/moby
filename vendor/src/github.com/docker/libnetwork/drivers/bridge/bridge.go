@@ -538,6 +538,13 @@ func (d *driver) CreateEndpoint(nid, eid types.UUID, epInfo driverapi.EndpointIn
 		}
 	}
 
+	if !config.EnableUserlandProxy {
+		err = netlink.LinkSetHairpin(host, true)
+		if err != nil {
+			return err
+		}
+	}
+
 	// v4 address for the sandbox side pipe interface
 	ip4, err := ipAllocator.RequestIP(n.bridge.bridgeIPv4, nil)
 	if err != nil {
