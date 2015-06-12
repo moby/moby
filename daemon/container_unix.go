@@ -26,6 +26,7 @@ import (
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/utils"
 	"github.com/docker/docker/volume"
+	"github.com/docker/docker/volume/drivers"
 	"github.com/docker/libnetwork"
 	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/libnetwork/options"
@@ -1162,7 +1163,7 @@ func (container *Container) addLocalMountPoint(name, destination string, rw bool
 	}
 }
 
-func (container *Container) addMountPointWithVolume(destination string, vol volume.Volume, rw bool) {
+func (container *Container) addMountPointWithVolume(destination string, vol volumedrivers.Volume, rw bool) {
 	container.MountPoints[destination] = &mountPoint{
 		Name:        vol.Name(),
 		Driver:      vol.DriverName(),

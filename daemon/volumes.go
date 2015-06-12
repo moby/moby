@@ -13,7 +13,7 @@ import (
 	"github.com/docker/docker/pkg/chrootarchive"
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/volume"
-	"github.com/docker/docker/volume/drivers"
+	volumedrivers "github.com/docker/docker/volume/drivers"
 )
 
 var (
@@ -34,7 +34,7 @@ type mountPoint struct {
 	Destination string
 	Driver      string
 	RW          bool
-	Volume      volume.Volume `json:"-"`
+	Volume      volumedrivers.Volume `json:"-"`
 	Source      string
 	Mode        string `json:"Relabel"` // Originally field was `Relabel`"
 }
@@ -102,7 +102,7 @@ func copyExistingContents(source, destination string) error {
 	return copyOwnership(source, destination)
 }
 
-func newVolumeStore(vols []volume.Volume) *volumeStore {
+func newVolumeStore(vols []volumedrivers.Volume) *volumeStore {
 	store := &volumeStore{
 		vols: make(map[string]*volumeCounter),
 	}
@@ -119,11 +119,11 @@ type volumeStore struct {
 }
 
 type volumeCounter struct {
-	volume.Volume
+	volumedrivers.Volume
 	count int
 }
 
-func getVolumeDriver(name string) (volume.Driver, error) {
+func getVolumeDriver(name string) (volumedrivers.Driver, error) {
 	if name == "" {
 		name = volume.DefaultDriverName
 	}
@@ -131,7 +131,7 @@ func getVolumeDriver(name string) (volume.Driver, error) {
 }
 
 // Create tries to find an existing volume with the given name or create a new one from the passed in driver
-func (s *volumeStore) Create(name, driverName string, opts map[string]string) (volume.Volume, error) {
+func (s *volumeStore) Create(name, driverName string, opts map[string]string) (volumedrivers.Volume, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -154,7 +154,7 @@ func (s *volumeStore) Create(name, driverName string, opts map[string]string) (v
 }
 
 // Get looks if a volume with the given name exists and returns it if so
-func (s *volumeStore) Get(name string) (volume.Volume, error) {
+func (s *volumeStore) Get(name string) (volumedrivers.Volume, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	vc, exists := s.vols[name]
@@ -165,7 +165,7 @@ func (s *volumeStore) Get(name string) (volume.Volume, error) {
 }
 
 // Remove removes the requested volume. A volume is not removed if the usage count is > 0
-func (s *volumeStore) Remove(v volume.Volume) error {
+func (s *volumeStore) Remove(v volumedrivers.Volume) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	name := v.Name()
@@ -190,7 +190,7 @@ func (s *volumeStore) Remove(v volume.Volume) error {
 }
 
 // Increment increments the usage count of the passed in volume by 1
-func (s *volumeStore) Increment(v volume.Volume) {
+func (s *volumeStore) Increment(v volumedrivers.Volume) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -204,7 +204,7 @@ func (s *volumeStore) Increment(v volume.Volume) {
 }
 
 // Decrement decrements the usage count of the passed in volume by 1
-func (s *volumeStore) Decrement(v volume.Volume) {
+func (s *volumeStore) Decrement(v volumedrivers.Volume) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -217,7 +217,7 @@ func (s *volumeStore) Decrement(v volume.Volume) {
 }
 
 // Count returns the usage count of the passed in volume
-func (s *volumeStore) Count(v volume.Volume) int {
+func (s *volumeStore) Count(v volumedrivers.Volume) int {
 	vc, exists := s.vols[v.Name()]
 	if !exists {
 		return 0
@@ -226,8 +226,8 @@ func (s *volumeStore) Count(v volume.Volume) int {
 }
 
 // List returns all the available volumes
-func (s *volumeStore) List() []volume.Volume {
-	var ls []volume.Volume
+func (s *volumeStore) List() []volumedrivers.Volume {
+	var ls []volumedrivers.Volume
 	for _, vc := range s.vols {
 		ls = append(ls, vc.Volume)
 	}
@@ -235,7 +235,7 @@ func (s *volumeStore) List() []volume.Volume {
 }
 
 // volumeToAPIType converts a volume.Volume to the type used by the remote API
-func volumeToAPIType(v volume.Volume) *types.Volume {
+func volumeToAPIType(v volumedrivers.Volume) *types.Volume {
 	return &types.Volume{
 		Name:       v.Name(),
 		Driver:     v.DriverName(),

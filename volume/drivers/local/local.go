@@ -12,7 +12,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/docker/docker/volume"
+	volumedrivers "github.com/docker/docker/volume/drivers"
 )
 
 // VolumeDataPathName is the name of the directory where the volume data is stored.
@@ -73,8 +73,8 @@ type Root struct {
 }
 
 // List lists all the volumes
-func (r *Root) List() []volume.Volume {
-	var ls []volume.Volume
+func (r *Root) List() []volumedrivers.Volume {
+	var ls []volumedrivers.Volume
 	for _, v := range r.volumes {
 		ls = append(ls, v)
 	}
@@ -88,13 +88,13 @@ func (r *Root) DataPath(volumeName string) string {
 
 // Name returns the name of Root, defined in the volume package in the DefaultDriverName constant.
 func (r *Root) Name() string {
-	return volume.DefaultDriverName
+	return "local"
 }
 
 // Create creates a new volume.Volume with the provided name, creating
 // the underlying directory tree required for this volume in the
 // process.
-func (r *Root) Create(name string, _ map[string]string) (volume.Volume, error) {
+func (r *Root) Create(name string, _ volumedrivers.Opts) (volumedrivers.Volume, error) {
 	r.m.Lock()
 	defer r.m.Unlock()
 
@@ -123,7 +123,7 @@ func (r *Root) Create(name string, _ map[string]string) (volume.Volume, error) {
 // given volume does not belong to this driver and an error is
 // returned. The volume is reference counted, if all references are
 // not released then the volume is not removed.
-func (r *Root) Remove(v volume.Volume) error {
+func (r *Root) Remove(v volumedrivers.Volume) error {
 	r.m.Lock()
 	defer r.m.Unlock()
 	lv, ok := v.(*localVolume)
@@ -148,7 +148,7 @@ func (r *Root) Remove(v volume.Volume) error {
 }
 
 // Get looks up the volume for the given name and returns it if found
-func (r *Root) Get(name string) (volume.Volume, error) {
+func (r *Root) Get(name string) (volumedrivers.Volume, error) {
 	r.m.Lock()
 	v, exists := r.volumes[name]
 	r.m.Unlock()
@@ -156,6 +156,13 @@ func (r *Root) Get(name string) (volume.Volume, error) {
 		return nil, ErrNotFound
 	}
 	return v, nil
+}
+
+func (r *Root) GetVolume(name string) volumedrivers.Volume {
+	if volume, ok := r.volumes[name]; ok {
+		return volume
+	}
+	return nil
 }
 
 // scopedPath verifies that the path where the volume is located
@@ -172,6 +179,10 @@ func (r *Root) scopedPath(realPath string) bool {
 	}
 
 	return false
+}
+
+func (a *Root) New(_ string, _ interface{}) volumedrivers.Driver {
+	return nil
 }
 
 // localVolume implements the Volume interface from the volume package and

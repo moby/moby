@@ -9,6 +9,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/Sirupsen/logrus"
 )
 
 var (
@@ -67,6 +69,7 @@ func readPluginInfo(name, path string) (*Plugin, error) {
 	}
 	addr := strings.TrimSpace(string(content))
 
+	logrus.Debugf("Loading extension from %s", addr)
 	u, err := url.Parse(addr)
 	if err != nil {
 		return nil, err

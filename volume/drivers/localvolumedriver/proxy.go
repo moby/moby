@@ -1,7 +1,6 @@
-// generated code - DO NOT EDIT
+package localvolumedriver
 
-package volumedrivers
-
+import volumedrivers "github.com/docker/docker/volume/drivers"
 import "errors"
 
 type client interface {
@@ -14,14 +13,14 @@ type volumeDriverProxy struct {
 
 type volumeDriverProxyCreateRequest struct {
 	Name string
-	Opts opts
+	Opts volumedrivers.Opts
 }
 
 type volumeDriverProxyCreateResponse struct {
 	Err string
 }
 
-func (pp *volumeDriverProxy) Create(name string, opts opts) (err error) {
+func (pp *volumeDriverProxy) Create(name string, opts volumedrivers.Opts) (err error) {
 	var (
 		req volumeDriverProxyCreateRequest
 		ret volumeDriverProxyCreateResponse
@@ -38,6 +37,10 @@ func (pp *volumeDriverProxy) Create(name string, opts opts) (err error) {
 	}
 
 	return
+}
+
+func NewProxy(c client) *volumeDriverProxy {
+	return &volumeDriverProxy{c}
 }
 
 type volumeDriverProxyRemoveRequest struct {
