@@ -78,7 +78,7 @@ test-docker-py: build
 	$(DOCKER_RUN_DOCKER) hack/make.sh binary test-docker-py
 
 validate: build
-	$(DOCKER_RUN_DOCKER) hack/make.sh validate-dco validate-gofmt validate-test validate-toml validate-vet
+	$(DOCKER_RUN_DOCKER) hack/make.sh validate-dco validate-gofmt validate-pkg validate-test validate-toml validate-vet
 
 shell: build
 	$(DOCKER_RUN_DOCKER) bash
