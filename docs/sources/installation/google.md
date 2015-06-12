@@ -35,7 +35,7 @@ page_keywords: Docker, Docker documentation, installation, google, Google Comput
 Read more about [deploying Containers on Google Cloud Platform][5].
 
 [1]: https://cloud.google.com/console
-[2]: https://developers.google.com/compute/docs/signup
-[3]: https://developers.google.com/cloud/sdk
-[4]: https://developers.google.com/compute/docs/containers#container-optimized_google_compute_engine_images
-[5]: https://developers.google.com/compute/docs/containers
+[2]: https://cloud.google.com/compute/docs/signup
+[3]: https://cloud.google.com/sdk
+[4]: https://cloud.google.com/compute/docs/containers/container_vms
+[5]: https://cloud.google.com/compute/docs/containers
