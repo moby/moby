@@ -4,7 +4,7 @@ import (
 	"errors"
 	"net"
 	"os/exec"
-	"strings"
+	"strconv"
 	"sync"
 
 	"github.com/Sirupsen/logrus"
@@ -14,7 +14,6 @@ import (
 	"github.com/docker/libnetwork/netutils"
 	"github.com/docker/libnetwork/options"
 	"github.com/docker/libnetwork/portmapper"
-	"github.com/docker/libnetwork/sandbox"
 	"github.com/docker/libnetwork/types"
 	"github.com/vishvananda/netlink"
 )
@@ -30,16 +29,15 @@ const (
 
 var (
 	ipAllocator *ipallocator.IPAllocator
-	portMapper  *portmapper.PortMapper
 )
 
-// Configuration info for the "bridge" driver.
-type Configuration struct {
+// configuration info for the "bridge" driver.
+type configuration struct {
 	EnableIPForwarding bool
 }
 
-// NetworkConfiguration for network specific configuration
-type NetworkConfiguration struct {
+// networkConfiguration for network specific configuration
+type networkConfiguration struct {
 	BridgeName            string
 	AddressIPv4           *net.IPNet
 	FixedCIDR             *net.IPNet
@@ -56,50 +54,53 @@ type NetworkConfiguration struct {
 	EnableUserlandProxy   bool
 }
 
-// EndpointConfiguration represents the user specified configuration for the sandbox endpoint
-type EndpointConfiguration struct {
+// endpointConfiguration represents the user specified configuration for the sandbox endpoint
+type endpointConfiguration struct {
 	MacAddress   net.HardwareAddr
 	PortBindings []types.PortBinding
 	ExposedPorts []types.TransportPort
 }
 
-// ContainerConfiguration represents the user specified configuration for a container
-type ContainerConfiguration struct {
+// containerConfiguration represents the user specified configuration for a container
+type containerConfiguration struct {
 	ParentEndpoints []string
 	ChildEndpoints  []string
 }
 
 type bridgeEndpoint struct {
 	id              types.UUID
-	intf            *sandbox.Interface
+	srcName         string
+	addr            *net.IPNet
+	addrv6          *net.IPNet
 	macAddress      net.HardwareAddr
-	config          *EndpointConfiguration // User specified parameters
-	containerConfig *ContainerConfiguration
+	config          *endpointConfiguration // User specified parameters
+	containerConfig *containerConfiguration
 	portMapping     []types.PortBinding // Operation port bindings
 }
 
 type bridgeNetwork struct {
-	id        types.UUID
-	bridge    *bridgeInterface // The bridge's L3 interface
-	config    *NetworkConfiguration
-	endpoints map[types.UUID]*bridgeEndpoint // key: endpoint id
+	id         types.UUID
+	bridge     *bridgeInterface // The bridge's L3 interface
+	config     *networkConfiguration
+	endpoints  map[types.UUID]*bridgeEndpoint // key: endpoint id
+	portMapper *portmapper.PortMapper
 	sync.Mutex
 }
 
 type driver struct {
-	config  *Configuration
-	network *bridgeNetwork
+	config   *configuration
+	network  *bridgeNetwork
+	networks map[types.UUID]*bridgeNetwork
 	sync.Mutex
 }
 
 func init() {
 	ipAllocator = ipallocator.New()
-	portMapper = portmapper.New()
 }
 
 // New constructs a new bridge driver
 func newDriver() driverapi.Driver {
-	return &driver{}
+	return &driver{networks: map[types.UUID]*bridgeNetwork{}}
 }
 
 // Init registers a new instance of bridge driver
@@ -109,13 +110,15 @@ func Init(dc driverapi.DriverCallback) error {
 	if out, err := exec.Command("modprobe", "-va", "bridge", "nf_nat", "br_netfilter").Output(); err != nil {
 		logrus.Warnf("Running modprobe bridge nf_nat failed with message: %s, error: %v", out, err)
 	}
-
-	return dc.RegisterDriver(networkType, newDriver())
+	c := driverapi.Capability{
+		Scope: driverapi.LocalScope,
+	}
+	return dc.RegisterDriver(networkType, newDriver(), c)
 }
 
 // Validate performs a static validation on the network configuration parameters.
 // Whatever can be assessed a priori before attempting any programming.
-func (c *NetworkConfiguration) Validate() error {
+func (c *networkConfiguration) Validate() error {
 	if c.Mtu < 0 {
 		return ErrInvalidMtu(c.Mtu)
 	}
@@ -153,6 +156,167 @@ func (c *NetworkConfiguration) Validate() error {
 	return nil
 }
 
+// Conflicts check if two NetworkConfiguration objects overlap
+func (c *networkConfiguration) Conflicts(o *networkConfiguration) bool {
+	if o == nil {
+		return false
+	}
+
+	// Also empty, becasue only one network with empty name is allowed
+	if c.BridgeName == o.BridgeName {
+		return true
+	}
+
+	// They must be in different subnets
+	if (c.AddressIPv4 != nil && o.AddressIPv4 != nil) &&
+		(c.AddressIPv4.Contains(o.AddressIPv4.IP) || o.AddressIPv4.Contains(c.AddressIPv4.IP)) {
+		return true
+	}
+
+	return false
+}
+
+// fromMap retrieve the configuration data from the map form.
+func (c *networkConfiguration) fromMap(data map[string]interface{}) error {
+	var err error
+
+	if i, ok := data["BridgeName"]; ok && i != nil {
+		if c.BridgeName, ok = i.(string); !ok {
+			return types.BadRequestErrorf("invalid type for BridgeName value")
+		}
+	}
+
+	if i, ok := data["Mtu"]; ok && i != nil {
+		if s, ok := i.(string); ok {
+			if c.Mtu, err = strconv.Atoi(s); err != nil {
+				return types.BadRequestErrorf("failed to parse Mtu value: %s", err.Error())
+			}
+		} else {
+			return types.BadRequestErrorf("invalid type for Mtu value")
+		}
+	}
+
+	if i, ok := data["EnableIPv6"]; ok && i != nil {
+		if s, ok := i.(string); ok {
+			if c.EnableIPv6, err = strconv.ParseBool(s); err != nil {
+				return types.BadRequestErrorf("failed to parse EnableIPv6 value: %s", err.Error())
+			}
+		} else {
+			return types.BadRequestErrorf("invalid type for EnableIPv6 value")
+		}
+	}
+
+	if i, ok := data["EnableIPTables"]; ok && i != nil {
+		if s, ok := i.(string); ok {
+			if c.EnableIPTables, err = strconv.ParseBool(s); err != nil {
+				return types.BadRequestErrorf("failed to parse EnableIPTables value: %s", err.Error())
+			}
+		} else {
+			return types.BadRequestErrorf("invalid type for EnableIPTables value")
+		}
+	}
+
+	if i, ok := data["EnableIPMasquerade"]; ok && i != nil {
+		if s, ok := i.(string); ok {
+			if c.EnableIPMasquerade, err = strconv.ParseBool(s); err != nil {
+				return types.BadRequestErrorf("failed to parse EnableIPMasquerade value: %s", err.Error())
+			}
+		} else {
+			return types.BadRequestErrorf("invalid type for EnableIPMasquerade value")
+		}
+	}
+
+	if i, ok := data["EnableICC"]; ok && i != nil {
+		if s, ok := i.(string); ok {
+			if c.EnableICC, err = strconv.ParseBool(s); err != nil {
+				return types.BadRequestErrorf("failed to parse EnableICC value: %s", err.Error())
+			}
+		} else {
+			return types.BadRequestErrorf("invalid type for EnableICC value")
+		}
+	}
+
+	if i, ok := data["AllowNonDefaultBridge"]; ok && i != nil {
+		if s, ok := i.(string); ok {
+			if c.AllowNonDefaultBridge, err = strconv.ParseBool(s); err != nil {
+				return types.BadRequestErrorf("failed to parse AllowNonDefaultBridge value: %s", err.Error())
+			}
+		} else {
+			return types.BadRequestErrorf("invalid type for AllowNonDefaultBridge value")
+		}
+	}
+
+	if i, ok := data["AddressIPv4"]; ok && i != nil {
+		if s, ok := i.(string); ok {
+			if ip, nw, e := net.ParseCIDR(s); e == nil {
+				nw.IP = ip
+				c.AddressIPv4 = nw
+			} else {
+				return types.BadRequestErrorf("failed to parse AddressIPv4 value")
+			}
+		} else {
+			return types.BadRequestErrorf("invalid type for AddressIPv4 value")
+		}
+	}
+
+	if i, ok := data["FixedCIDR"]; ok && i != nil {
+		if s, ok := i.(string); ok {
+			if ip, nw, e := net.ParseCIDR(s); e == nil {
+				nw.IP = ip
+				c.FixedCIDR = nw
+			} else {
+				return types.BadRequestErrorf("failed to parse FixedCIDR value")
+			}
+		} else {
+			return types.BadRequestErrorf("invalid type for FixedCIDR value")
+		}
+	}
+
+	if i, ok := data["FixedCIDRv6"]; ok && i != nil {
+		if s, ok := i.(string); ok {
+			if ip, nw, e := net.ParseCIDR(s); e == nil {
+				nw.IP = ip
+				c.FixedCIDRv6 = nw
+			} else {
+				return types.BadRequestErrorf("failed to parse FixedCIDRv6 value")
+			}
+		} else {
+			return types.BadRequestErrorf("invalid type for FixedCIDRv6 value")
+		}
+	}
+
+	if i, ok := data["DefaultGatewayIPv4"]; ok && i != nil {
+		if s, ok := i.(string); ok {
+			if c.DefaultGatewayIPv4 = net.ParseIP(s); c.DefaultGatewayIPv4 == nil {
+				return types.BadRequestErrorf("failed to parse DefaultGatewayIPv4 value")
+			}
+		} else {
+			return types.BadRequestErrorf("invalid type for DefaultGatewayIPv4 value")
+		}
+	}
+
+	if i, ok := data["DefaultGatewayIPv6"]; ok && i != nil {
+		if s, ok := i.(string); ok {
+			if c.DefaultGatewayIPv6 = net.ParseIP(s); c.DefaultGatewayIPv6 == nil {
+				return types.BadRequestErrorf("failed to parse DefaultGatewayIPv6 value")
+			}
+		} else {
+			return types.BadRequestErrorf("invalid type for DefaultGatewayIPv6 value")
+		}
+	}
+
+	if i, ok := data["DefaultBindingIP"]; ok && i != nil {
+		if s, ok := i.(string); ok {
+			if c.DefaultBindingIP = net.ParseIP(s); c.DefaultBindingIP == nil {
+				return types.BadRequestErrorf("failed to parse DefaultBindingIP value")
+			}
+		} else {
+			return types.BadRequestErrorf("invalid type for DefaultBindingIP value")
+		}
+	}
+	return nil
+}
+
 func (n *bridgeNetwork) getEndpoint(eid types.UUID) (*bridgeEndpoint, error) {
 	n.Lock()
 	defer n.Unlock()
@@ -168,8 +332,75 @@ func (n *bridgeNetwork) getEndpoint(eid types.UUID) (*bridgeEndpoint, error) {
 	return nil, nil
 }
 
+// Install/Removes the iptables rules needed to isolate this network
+// from each of the other networks
+func (n *bridgeNetwork) isolateNetwork(others []*bridgeNetwork, enable bool) error {
+	n.Lock()
+	thisV4 := n.bridge.bridgeIPv4
+	thisV6 := getV6Network(n.config, n.bridge)
+	n.Unlock()
+
+	// Install the rules to isolate this networks against each of the other networks
+	for _, o := range others {
+		o.Lock()
+		otherV4 := o.bridge.bridgeIPv4
+		otherV6 := getV6Network(o.config, o.bridge)
+		o.Unlock()
+
+		if !types.CompareIPNet(thisV4, otherV4) {
+			// It's ok to pass a.b.c.d/x, iptables will ignore the host subnet bits
+			if err := setINC(thisV4.String(), otherV4.String(), enable); err != nil {
+				return err
+			}
+		}
+
+		if thisV6 != nil && otherV6 != nil && !types.CompareIPNet(thisV6, otherV6) {
+			if err := setINC(thisV6.String(), otherV6.String(), enable); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+// Checks whether this network's configuration for the network with this id conflicts with any of the passed networks
+func (c *networkConfiguration) conflictsWithNetworks(id types.UUID, others []*bridgeNetwork) error {
+	for _, nw := range others {
+
+		nw.Lock()
+		nwID := nw.id
+		nwConfig := nw.config
+		nwBridge := nw.bridge
+		nw.Unlock()
+
+		if nwID == id {
+			continue
+		}
+		// Verify the name (which may have been set by newInterface()) does not conflict with
+		// existing bridge interfaces. Ironically the system chosen name gets stored in the config...
+		// Basically we are checking if the two original configs were both empty.
+		if nwConfig.BridgeName == c.BridgeName {
+			return types.ForbiddenErrorf("conflicts with network %s (%s) by bridge name", nwID, nwConfig.BridgeName)
+		}
+		// If this network config specifies the AddressIPv4, we need
+		// to make sure it does not conflict with any previously allocated
+		// bridges. This could not be completely caught by the config conflict
+		// check, because networks which config does not specify the AddressIPv4
+		// get their address and subnet selected by the driver (see electBridgeIPv4())
+		if c.AddressIPv4 != nil {
+			if nwBridge.bridgeIPv4.Contains(c.AddressIPv4.IP) ||
+				c.AddressIPv4.Contains(nwBridge.bridgeIPv4.IP) {
+				return types.ForbiddenErrorf("conflicts with network %s (%s) by ip network", nwID, nwConfig.BridgeName)
+			}
+		}
+	}
+
+	return nil
+}
+
 func (d *driver) Config(option map[string]interface{}) error {
-	var config *Configuration
+	var config *configuration
 
 	d.Lock()
 	defer d.Unlock()
@@ -182,12 +413,12 @@ func (d *driver) Config(option map[string]interface{}) error {
 	if ok && genericData != nil {
 		switch opt := genericData.(type) {
 		case options.Generic:
-			opaqueConfig, err := options.GenerateFromModel(opt, &Configuration{})
+			opaqueConfig, err := options.GenerateFromModel(opt, &configuration{})
 			if err != nil {
 				return err
 			}
-			config = opaqueConfig.(*Configuration)
-		case *Configuration:
+			config = opaqueConfig.(*configuration)
+		case *configuration:
 			config = opt
 		default:
 			return &ErrInvalidDriverConfig{}
@@ -195,7 +426,7 @@ func (d *driver) Config(option map[string]interface{}) error {
 
 		d.config = config
 	} else {
-		config = &Configuration{}
+		config = &configuration{}
 	}
 
 	if config.EnableIPForwarding {
@@ -206,81 +437,169 @@ func (d *driver) Config(option map[string]interface{}) error {
 }
 
 func (d *driver) getNetwork(id types.UUID) (*bridgeNetwork, error) {
-	// Just a dummy function to return the only network managed by Bridge driver.
-	// But this API makes the caller code unchanged when we move to support multiple networks.
 	d.Lock()
 	defer d.Unlock()
-	return d.network, nil
-}
 
-func parseNetworkOptions(option options.Generic) (*NetworkConfiguration, error) {
-	var config *NetworkConfiguration
-
-	genericData, ok := option[netlabel.GenericData]
-	if ok && genericData != nil {
-		switch opt := genericData.(type) {
-		case options.Generic:
-			opaqueConfig, err := options.GenerateFromModel(opt, &NetworkConfiguration{})
-			if err != nil {
-				return nil, err
-			}
-			config = opaqueConfig.(*NetworkConfiguration)
-		case *NetworkConfiguration:
-			config = opt
-		default:
-			return nil, &ErrInvalidNetworkConfig{}
-		}
-
-		if err := config.Validate(); err != nil {
-			return nil, err
-		}
-	} else {
-		config = &NetworkConfiguration{}
+	if id == "" {
+		return nil, types.BadRequestErrorf("invalid network id: %s", id)
 	}
 
+	if nw, ok := d.networks[id]; ok {
+		return nw, nil
+	}
+
+	return nil, nil
+}
+
+func parseNetworkGenericOptions(data interface{}) (*networkConfiguration, error) {
+	var (
+		err    error
+		config *networkConfiguration
+	)
+
+	switch opt := data.(type) {
+	case *networkConfiguration:
+		config = opt
+	case map[string]interface{}:
+		config = &networkConfiguration{
+			EnableICC:          true,
+			EnableIPTables:     true,
+			EnableIPMasquerade: true,
+		}
+		err = config.fromMap(opt)
+	case options.Generic:
+		var opaqueConfig interface{}
+		if opaqueConfig, err = options.GenerateFromModel(opt, config); err == nil {
+			config = opaqueConfig.(*networkConfiguration)
+		}
+	default:
+		err = types.BadRequestErrorf("do not recognize network configuration format: %T", opt)
+	}
+
+	return config, err
+}
+
+func parseNetworkOptions(option options.Generic) (*networkConfiguration, error) {
+	var err error
+	config := &networkConfiguration{}
+
+	// Parse generic label first, config will be re-assigned
+	if genData, ok := option[netlabel.GenericData]; ok && genData != nil {
+		if config, err = parseNetworkGenericOptions(genData); err != nil {
+			return nil, err
+		}
+	}
+
+	// Process well-known labels next
 	if _, ok := option[netlabel.EnableIPv6]; ok {
 		config.EnableIPv6 = option[netlabel.EnableIPv6].(bool)
 	}
 
+	// Finally validate the configuration
+	if err = config.Validate(); err != nil {
+		return nil, err
+	}
+
 	return config, nil
+}
+
+// Returns the non link-local IPv6 subnet for the containers attached to this bridge if found, nil otherwise
+func getV6Network(config *networkConfiguration, i *bridgeInterface) *net.IPNet {
+	if config.FixedCIDRv6 != nil {
+		return config.FixedCIDRv6
+	}
+
+	if i.bridgeIPv6 != nil && i.bridgeIPv6.IP != nil && !i.bridgeIPv6.IP.IsLinkLocalUnicast() {
+		return i.bridgeIPv6
+	}
+
+	return nil
+}
+
+// Return a slice of networks over which caller can iterate safely
+func (d *driver) getNetworks() []*bridgeNetwork {
+	d.Lock()
+	defer d.Unlock()
+
+	ls := make([]*bridgeNetwork, 0, len(d.networks))
+	for _, nw := range d.networks {
+		ls = append(ls, nw)
+	}
+	return ls
 }
 
 // Create a new network using bridge plugin
 func (d *driver) CreateNetwork(id types.UUID, option map[string]interface{}) error {
 	var err error
 
-	// Driver must be configured
-	d.Lock()
-
 	// Sanity checks
-	if d.network != nil {
+	d.Lock()
+	if _, ok := d.networks[id]; ok {
 		d.Unlock()
-		return &ErrNetworkExists{}
+		return types.ForbiddenErrorf("network %s exists", id)
+	}
+	d.Unlock()
+
+	// Parse and validate the config. It should not conflict with existing networks' config
+	config, err := parseNetworkOptions(option)
+	if err != nil {
+		return err
+	}
+	networkList := d.getNetworks()
+	for _, nw := range networkList {
+		nw.Lock()
+		nwConfig := nw.config
+		nw.Unlock()
+		if nwConfig.Conflicts(config) {
+			return types.ForbiddenErrorf("conflicts with network %s (%s)", nw.id, nw.config.BridgeName)
+		}
 	}
 
 	// Create and set network handler in driver
-	d.network = &bridgeNetwork{id: id, endpoints: make(map[types.UUID]*bridgeEndpoint)}
-	network := d.network
+	network := &bridgeNetwork{
+		id:         id,
+		endpoints:  make(map[types.UUID]*bridgeEndpoint),
+		config:     config,
+		portMapper: portmapper.New(),
+	}
+
+	d.Lock()
+	d.networks[id] = network
 	d.Unlock()
 
 	// On failure make sure to reset driver network handler to nil
 	defer func() {
 		if err != nil {
 			d.Lock()
-			d.network = nil
+			delete(d.networks, id)
 			d.Unlock()
 		}
 	}()
 
-	config, err := parseNetworkOptions(option)
-	if err != nil {
-		return err
-	}
-	network.config = config
-
 	// Create or retrieve the bridge L3 interface
 	bridgeIface := newInterface(config)
 	network.bridge = bridgeIface
+
+	// Verify the network configuration does not conflict with previously installed
+	// networks. This step is needed now because driver might have now set the bridge
+	// name on this config struct. And because we need to check for possible address
+	// conflicts, so we need to check against operationa lnetworks.
+	if err := config.conflictsWithNetworks(id, networkList); err != nil {
+		return err
+	}
+
+	setupNetworkIsolationRules := func(config *networkConfiguration, i *bridgeInterface) error {
+		defer func() {
+			if err != nil {
+				if err := network.isolateNetwork(networkList, false); err != nil {
+					logrus.Warnf("Failed on removing the inter-network iptables rules on cleanup: %v", err)
+				}
+			}
+		}()
+
+		err := network.isolateNetwork(networkList, true)
+		return err
+	}
 
 	// Prepare the bridge setup configuration
 	bridgeSetup := newBridgeSetup(config, bridgeIface)
@@ -330,13 +649,16 @@ func (d *driver) CreateNetwork(id types.UUID, option map[string]interface{}) err
 		{!config.EnableUserlandProxy, setupLoopbackAdressesRouting},
 
 		// Setup IPTables.
-		{config.EnableIPTables, setupIPTables},
+		{config.EnableIPTables, network.setupIPTables},
 
 		// Setup DefaultGatewayIPv4
 		{config.DefaultGatewayIPv4 != nil, setupGatewayIPv4},
 
 		// Setup DefaultGatewayIPv6
 		{config.DefaultGatewayIPv6 != nil, setupGatewayIPv6},
+
+		// Add inter-network communication rules.
+		{config.EnableIPTables, setupNetworkIsolationRules},
 	} {
 		if step.Condition {
 			bridgeSetup.queueStep(step.Fn)
@@ -359,8 +681,23 @@ func (d *driver) DeleteNetwork(nid types.UUID) error {
 
 	// Get network handler and remove it from driver
 	d.Lock()
-	n := d.network
-	d.network = nil
+	n, ok := d.networks[nid]
+	d.Unlock()
+
+	if !ok {
+		return types.InternalMaskableErrorf("network %s does not exist", nid)
+	}
+
+	n.Lock()
+	config := n.config
+	n.Unlock()
+
+	if config.BridgeName == DefaultBridgeName {
+		return types.ForbiddenErrorf("default network of type \"%s\" cannot be deleted", networkType)
+	}
+
+	d.Lock()
+	delete(d.networks, nid)
 	d.Unlock()
 
 	// On failure set network handler back in driver, but
@@ -368,8 +705,8 @@ func (d *driver) DeleteNetwork(nid types.UUID) error {
 	defer func() {
 		if err != nil {
 			d.Lock()
-			if d.network == nil {
-				d.network = n
+			if _, ok := d.networks[nid]; !ok {
+				d.networks[nid] = n
 			}
 			d.Unlock()
 		}
@@ -384,6 +721,22 @@ func (d *driver) DeleteNetwork(nid types.UUID) error {
 	// Cannot remove network if endpoints are still present
 	if len(n.endpoints) != 0 {
 		err = ActiveEndpointsError(n.id)
+		return err
+	}
+
+	// In case of failures after this point, restore the network isolation rules
+	nwList := d.getNetworks()
+	defer func() {
+		if err != nil {
+			if err := n.isolateNetwork(nwList, true); err != nil {
+				logrus.Warnf("Failed on restoring the inter-network iptables rules on cleanup: %v", err)
+			}
+		}
+	}()
+
+	// Remove inter-network communication rules.
+	err = n.isolateNetwork(nwList, false)
+	if err != nil {
 		return err
 	}
 
@@ -409,9 +762,12 @@ func (d *driver) CreateEndpoint(nid, eid types.UUID, epInfo driverapi.EndpointIn
 
 	// Get the network handler and make sure it exists
 	d.Lock()
-	n := d.network
-	config := n.config
+	n, ok := d.networks[nid]
 	d.Unlock()
+
+	if !ok {
+		return types.NotFoundErrorf("network %s does not exist", nid)
+	}
 	if n == nil {
 		return driverapi.ErrNoNetwork(nid)
 	}
@@ -457,13 +813,13 @@ func (d *driver) CreateEndpoint(nid, eid types.UUID, epInfo driverapi.EndpointIn
 	}()
 
 	// Generate a name for what will be the host side pipe interface
-	name1, err := generateIfaceName()
+	name1, err := netutils.GenerateIfaceName(vethPrefix, vethLen)
 	if err != nil {
 		return err
 	}
 
 	// Generate a name for what will be the sandbox side pipe interface
-	name2, err := generateIfaceName()
+	name2, err := netutils.GenerateIfaceName(vethPrefix, vethLen)
 	if err != nil {
 		return err
 	}
@@ -497,6 +853,10 @@ func (d *driver) CreateEndpoint(nid, eid types.UUID, epInfo driverapi.EndpointIn
 			netlink.LinkDel(sbox)
 		}
 	}()
+
+	n.Lock()
+	config := n.config
+	n.Unlock()
 
 	// Add bridge inherited attributes to pipe interfaces
 	if config.Mtu != 0 {
@@ -566,17 +926,12 @@ func (d *driver) CreateEndpoint(nid, eid types.UUID, epInfo driverapi.EndpointIn
 	}
 
 	// Create the sandbox side pipe interface
-	intf := &sandbox.Interface{}
-	intf.SrcName = name2
-	intf.DstName = containerVethPrefix
-	intf.Address = ipv4Addr
+	endpoint.srcName = name2
+	endpoint.addr = ipv4Addr
 
 	if config.EnableIPv6 {
-		intf.AddressIPv6 = ipv6Addr
+		endpoint.addrv6 = ipv6Addr
 	}
-
-	// Store the interface in endpoint, this is needed for cleanup on DeleteEndpoint()
-	endpoint.intf = intf
 
 	err = epInfo.AddInterface(ifaceID, endpoint.macAddress, *ipv4Addr, *ipv6Addr)
 	if err != nil {
@@ -584,7 +939,7 @@ func (d *driver) CreateEndpoint(nid, eid types.UUID, epInfo driverapi.EndpointIn
 	}
 
 	// Program any required port mapping and store them in the endpoint
-	endpoint.portMapping, err = allocatePorts(epConfig, intf, config.DefaultBindingIP, config.EnableUserlandProxy)
+	endpoint.portMapping, err = n.allocatePorts(epConfig, endpoint, config.DefaultBindingIP, config.EnableUserlandProxy)
 	if err != nil {
 		return err
 	}
@@ -597,9 +952,12 @@ func (d *driver) DeleteEndpoint(nid, eid types.UUID) error {
 
 	// Get the network handler and make sure it exists
 	d.Lock()
-	n := d.network
-	config := n.config
+	n, ok := d.networks[nid]
 	d.Unlock()
+
+	if !ok {
+		return types.NotFoundErrorf("network %s does not exist", nid)
+	}
 	if n == nil {
 		return driverapi.ErrNoNetwork(nid)
 	}
@@ -639,17 +997,21 @@ func (d *driver) DeleteEndpoint(nid, eid types.UUID) error {
 	}()
 
 	// Remove port mappings. Do not stop endpoint delete on unmap failure
-	releasePorts(ep)
+	n.releasePorts(ep)
 
 	// Release the v4 address allocated to this endpoint's sandbox interface
-	err = ipAllocator.ReleaseIP(n.bridge.bridgeIPv4, ep.intf.Address.IP)
+	err = ipAllocator.ReleaseIP(n.bridge.bridgeIPv4, ep.addr.IP)
 	if err != nil {
 		return err
 	}
 
+	n.Lock()
+	config := n.config
+	n.Unlock()
+
 	// Release the v6 address allocated to this endpoint's sandbox interface
 	if config.EnableIPv6 {
-		err := ipAllocator.ReleaseIP(n.bridge.bridgeIPv6, ep.intf.AddressIPv6.IP)
+		err := ipAllocator.ReleaseIP(n.bridge.bridgeIPv6, ep.addrv6.IP)
 		if err != nil {
 			return err
 		}
@@ -657,7 +1019,7 @@ func (d *driver) DeleteEndpoint(nid, eid types.UUID) error {
 
 	// Try removal of link. Discard error: link pair might have
 	// already been deleted by sandbox delete.
-	link, err := netlink.LinkByName(ep.intf.SrcName)
+	link, err := netlink.LinkByName(ep.srcName)
 	if err == nil {
 		netlink.LinkDel(link)
 	}
@@ -668,8 +1030,11 @@ func (d *driver) DeleteEndpoint(nid, eid types.UUID) error {
 func (d *driver) EndpointOperInfo(nid, eid types.UUID) (map[string]interface{}, error) {
 	// Get the network handler and make sure it exists
 	d.Lock()
-	n := d.network
+	n, ok := d.networks[nid]
 	d.Unlock()
+	if !ok {
+		return nil, types.NotFoundErrorf("network %s does not exist", nid)
+	}
 	if n == nil {
 		return nil, driverapi.ErrNoNetwork(nid)
 	}
@@ -737,7 +1102,7 @@ func (d *driver) Join(nid, eid types.UUID, sboxKey string, jinfo driverapi.JoinI
 	for _, iNames := range jinfo.InterfaceNames() {
 		// Make sure to set names on the correct interface ID.
 		if iNames.ID() == ifaceID {
-			err = iNames.SetNames(endpoint.intf.SrcName, endpoint.intf.DstName)
+			err = iNames.SetNames(endpoint.srcName, containerVethPrefix)
 			if err != nil {
 				return err
 			}
@@ -786,7 +1151,7 @@ func (d *driver) Leave(nid, eid types.UUID) error {
 
 func (d *driver) link(network *bridgeNetwork, endpoint *bridgeEndpoint, options map[string]interface{}, enable bool) error {
 	var (
-		cc  *ContainerConfiguration
+		cc  *containerConfiguration
 		err error
 	)
 
@@ -815,8 +1180,8 @@ func (d *driver) link(network *bridgeNetwork, endpoint *bridgeEndpoint, options 
 				return err
 			}
 
-			l := newLink(parentEndpoint.intf.Address.IP.String(),
-				endpoint.intf.Address.IP.String(),
+			l := newLink(parentEndpoint.addr.IP.String(),
+				endpoint.addr.IP.String(),
 				endpoint.config.ExposedPorts, network.config.BridgeName)
 			if enable {
 				err = l.Enable()
@@ -848,8 +1213,8 @@ func (d *driver) link(network *bridgeNetwork, endpoint *bridgeEndpoint, options 
 			continue
 		}
 
-		l := newLink(endpoint.intf.Address.IP.String(),
-			childEndpoint.intf.Address.IP.String(),
+		l := newLink(endpoint.addr.IP.String(),
+			childEndpoint.addr.IP.String(),
 			childEndpoint.config.ExposedPorts, network.config.BridgeName)
 		if enable {
 			err = l.Enable()
@@ -877,12 +1242,12 @@ func (d *driver) Type() string {
 	return networkType
 }
 
-func parseEndpointOptions(epOptions map[string]interface{}) (*EndpointConfiguration, error) {
+func parseEndpointOptions(epOptions map[string]interface{}) (*endpointConfiguration, error) {
 	if epOptions == nil {
 		return nil, nil
 	}
 
-	ec := &EndpointConfiguration{}
+	ec := &endpointConfiguration{}
 
 	if opt, ok := epOptions[netlabel.MacAddress]; ok {
 		if mac, ok := opt.(net.HardwareAddr); ok {
@@ -911,7 +1276,7 @@ func parseEndpointOptions(epOptions map[string]interface{}) (*EndpointConfigurat
 	return ec, nil
 }
 
-func parseContainerOptions(cOptions map[string]interface{}) (*ContainerConfiguration, error) {
+func parseContainerOptions(cOptions map[string]interface{}) (*containerConfiguration, error) {
 	if cOptions == nil {
 		return nil, nil
 	}
@@ -921,12 +1286,12 @@ func parseContainerOptions(cOptions map[string]interface{}) (*ContainerConfigura
 	}
 	switch opt := genericData.(type) {
 	case options.Generic:
-		opaqueConfig, err := options.GenerateFromModel(opt, &ContainerConfiguration{})
+		opaqueConfig, err := options.GenerateFromModel(opt, &containerConfiguration{})
 		if err != nil {
 			return nil, err
 		}
-		return opaqueConfig.(*ContainerConfiguration), nil
-	case *ContainerConfiguration:
+		return opaqueConfig.(*containerConfiguration), nil
+	case *containerConfiguration:
 		return opt, nil
 	default:
 		return nil, nil
@@ -958,28 +1323,9 @@ func generateMacAddr(ip net.IP) net.HardwareAddr {
 	return hw
 }
 
-func electMacAddress(epConfig *EndpointConfiguration, ip net.IP) net.HardwareAddr {
+func electMacAddress(epConfig *endpointConfiguration, ip net.IP) net.HardwareAddr {
 	if epConfig != nil && epConfig.MacAddress != nil {
 		return epConfig.MacAddress
 	}
 	return generateMacAddr(ip)
-}
-
-// Generates a name to be used for a virtual ethernet
-// interface. The name is constructed by 'veth' appended
-// by a randomly generated hex value. (example: veth0f60e2c)
-func generateIfaceName() (string, error) {
-	for i := 0; i < 3; i++ {
-		name, err := netutils.GenerateRandomName(vethPrefix, vethLen)
-		if err != nil {
-			continue
-		}
-		if _, err := net.InterfaceByName(name); err != nil {
-			if strings.Contains(err.Error(), "no such") {
-				return name, nil
-			}
-			return "", err
-		}
-	}
-	return "", &ErrIfaceName{}
 }

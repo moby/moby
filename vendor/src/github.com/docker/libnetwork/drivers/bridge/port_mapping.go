@@ -7,7 +7,6 @@ import (
 	"net"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/libnetwork/sandbox"
 	"github.com/docker/libnetwork/types"
 )
 
@@ -15,7 +14,7 @@ var (
 	defaultBindingIP = net.IPv4(0, 0, 0, 0)
 )
 
-func allocatePorts(epConfig *EndpointConfiguration, intf *sandbox.Interface, reqDefBindIP net.IP, ulPxyEnabled bool) ([]types.PortBinding, error) {
+func (n *bridgeNetwork) allocatePorts(epConfig *endpointConfiguration, ep *bridgeEndpoint, reqDefBindIP net.IP, ulPxyEnabled bool) ([]types.PortBinding, error) {
 	if epConfig == nil || epConfig.PortBindings == nil {
 		return nil, nil
 	}
@@ -25,16 +24,16 @@ func allocatePorts(epConfig *EndpointConfiguration, intf *sandbox.Interface, req
 		defHostIP = reqDefBindIP
 	}
 
-	return allocatePortsInternal(epConfig.PortBindings, intf.Address.IP, defHostIP, ulPxyEnabled)
+	return n.allocatePortsInternal(epConfig.PortBindings, ep.addr.IP, defHostIP, ulPxyEnabled)
 }
 
-func allocatePortsInternal(bindings []types.PortBinding, containerIP, defHostIP net.IP, ulPxyEnabled bool) ([]types.PortBinding, error) {
+func (n *bridgeNetwork) allocatePortsInternal(bindings []types.PortBinding, containerIP, defHostIP net.IP, ulPxyEnabled bool) ([]types.PortBinding, error) {
 	bs := make([]types.PortBinding, 0, len(bindings))
 	for _, c := range bindings {
 		b := c.GetCopy()
-		if err := allocatePort(&b, containerIP, defHostIP, ulPxyEnabled); err != nil {
+		if err := n.allocatePort(&b, containerIP, defHostIP, ulPxyEnabled); err != nil {
 			// On allocation failure, release previously allocated ports. On cleanup error, just log a warning message
-			if cuErr := releasePortsInternal(bs); cuErr != nil {
+			if cuErr := n.releasePortsInternal(bs); cuErr != nil {
 				logrus.Warnf("Upon allocation failure for %v, failed to clear previously allocated port bindings: %v", b, cuErr)
 			}
 			return nil, err
@@ -44,7 +43,7 @@ func allocatePortsInternal(bindings []types.PortBinding, containerIP, defHostIP 
 	return bs, nil
 }
 
-func allocatePort(bnd *types.PortBinding, containerIP, defHostIP net.IP, ulPxyEnabled bool) error {
+func (n *bridgeNetwork) allocatePort(bnd *types.PortBinding, containerIP, defHostIP net.IP, ulPxyEnabled bool) error {
 	var (
 		host net.Addr
 		err  error
@@ -66,7 +65,7 @@ func allocatePort(bnd *types.PortBinding, containerIP, defHostIP net.IP, ulPxyEn
 
 	// Try up to maxAllocatePortAttempts times to get a port that's not already allocated.
 	for i := 0; i < maxAllocatePortAttempts; i++ {
-		if host, err = portMapper.Map(container, bnd.HostIP, int(bnd.HostPort), ulPxyEnabled); err == nil {
+		if host, err = n.portMapper.Map(container, bnd.HostIP, int(bnd.HostPort), ulPxyEnabled); err == nil {
 			break
 		}
 		// There is no point in immediately retrying to map an explicitly chosen port.
@@ -94,16 +93,16 @@ func allocatePort(bnd *types.PortBinding, containerIP, defHostIP net.IP, ulPxyEn
 	}
 }
 
-func releasePorts(ep *bridgeEndpoint) error {
-	return releasePortsInternal(ep.portMapping)
+func (n *bridgeNetwork) releasePorts(ep *bridgeEndpoint) error {
+	return n.releasePortsInternal(ep.portMapping)
 }
 
-func releasePortsInternal(bindings []types.PortBinding) error {
+func (n *bridgeNetwork) releasePortsInternal(bindings []types.PortBinding) error {
 	var errorBuf bytes.Buffer
 
 	// Attempt to release all port bindings, do not stop on failure
 	for _, m := range bindings {
-		if err := releasePort(m); err != nil {
+		if err := n.releasePort(m); err != nil {
 			errorBuf.WriteString(fmt.Sprintf("\ncould not release %v because of %v", m, err))
 		}
 	}
@@ -114,11 +113,11 @@ func releasePortsInternal(bindings []types.PortBinding) error {
 	return nil
 }
 
-func releasePort(bnd types.PortBinding) error {
+func (n *bridgeNetwork) releasePort(bnd types.PortBinding) error {
 	// Construct the host side transport address
 	host, err := bnd.HostAddr()
 	if err != nil {
 		return err
 	}
-	return portMapper.Unmap(host)
+	return n.portMapper.Unmap(host)
 }

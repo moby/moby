@@ -652,7 +652,7 @@ func (container *Container) UpdateNetwork() error {
 		return fmt.Errorf("Update network failed: %v", err)
 	}
 
-	if _, err := ep.Join(container.ID, joinOptions...); err != nil {
+	if err := ep.Join(container.ID, joinOptions...); err != nil {
 		return fmt.Errorf("endpoint join failed: %v", err)
 	}
 
@@ -769,7 +769,7 @@ func (container *Container) AllocateNetwork() error {
 		return err
 	}
 
-	if _, err := ep.Join(container.ID, joinOptions...); err != nil {
+	if err := ep.Join(container.ID, joinOptions...); err != nil {
 		return err
 	}
 
