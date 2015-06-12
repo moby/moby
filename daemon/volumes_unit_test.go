@@ -2,7 +2,7 @@ package daemon
 
 import "testing"
 
-func TestParseVolumeFrom(t *testing.T) {
+func TestParseVolumeFromContainer(t *testing.T) {
 	cases := []struct {
 		spec    string
 		expId   string
@@ -17,7 +17,7 @@ func TestParseVolumeFrom(t *testing.T) {
 	}
 
 	for _, c := range cases {
-		id, mode, err := parseVolumesFrom(c.spec)
+		id, mode, err := parseVolumesFromContainer(c.spec)
 		if c.fail {
 			if err == nil {
 				t.Fatalf("Expected error, was nil, for spec %s\n", c.spec)

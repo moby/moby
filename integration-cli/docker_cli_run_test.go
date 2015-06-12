@@ -3202,5 +3202,20 @@ func (s *DockerSuite) TestRunContainerNetModeWithExposePort(c *check.C) {
 	if err == nil || !strings.Contains(out, "Conflicting options: --expose and the network mode (--expose)") {
 		c.Fatalf("run --net=container with --expose should error out")
 	}
+}
 
+func (s *DockerSuite) TestRunWithVolumesFromFile(c *check.C) {
+	tmp, _ := ioutil.TempDir("", "volumes-from-test-")
+	defer os.RemoveAll(tmp)
+
+	volumesFile := filepath.Join(tmp, "volumes.json")
+	data := []byte(`[{"Name": "data", "Destination": "/data"}]`)
+	err := ioutil.WriteFile(volumesFile, data, 0644)
+	c.Assert(err, check.IsNil)
+
+	runCmd := exec.Command(dockerBinary, "run", "--volumes-from", "@"+volumesFile, "busybox", "ls", "/data")
+	out, stderr, exitCode, err := runCommandWithStdoutStderr(runCmd)
+	if err != nil && exitCode != 0 {
+		c.Fatal("2", out, stderr, err)
+	}
 }

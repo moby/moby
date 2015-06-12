@@ -1,6 +1,7 @@
 package daemon
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -12,55 +13,9 @@ import (
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/volume"
 	"github.com/docker/docker/volume/local"
-	"github.com/docker/libcontainer/label"
 )
 
-type mountPoint struct {
-	Name        string
-	Destination string
-	Driver      string
-	RW          bool
-	Volume      volume.Volume `json:"-"`
-	Source      string
-	Relabel     string
-}
-
-func (m *mountPoint) Setup() (string, error) {
-	if m.Volume != nil {
-		return m.Volume.Mount()
-	}
-
-	if len(m.Source) > 0 {
-		if _, err := os.Stat(m.Source); err != nil {
-			if !os.IsNotExist(err) {
-				return "", err
-			}
-			if err := os.MkdirAll(m.Source, 0755); err != nil {
-				return "", err
-			}
-		}
-		return m.Source, nil
-	}
-
-	return "", fmt.Errorf("Unable to setup mount point, neither source nor volume defined")
-}
-
-func (m *mountPoint) Path() string {
-	if m.Volume != nil {
-		return m.Volume.Path()
-	}
-
-	return m.Source
-}
-
-// BackwardsCompatible decides whether this mount point can be
-// used in old versions of Docker or not.
-// Only bind mounts and local volumes can be used in old versions of Docker.
-func (m *mountPoint) BackwardsCompatible() bool {
-	return len(m.Source) > 0 || m.Driver == volume.DefaultDriverName
-}
-
-func parseBindMount(spec string, mountLabel string, config *runconfig.Config) (*mountPoint, error) {
+func parseBindMount(spec, containerVolumeDriver string) (*mountPoint, error) {
 	bind := &mountPoint{
 		RW: true,
 	}
@@ -88,7 +43,7 @@ func parseBindMount(spec string, mountLabel string, config *runconfig.Config) (*
 	}
 
 	if len(source) == 0 {
-		bind.Driver = config.VolumeDriver
+		bind.Driver = containerVolumeDriver
 		if len(bind.Driver) == 0 {
 			bind.Driver = volume.DefaultDriverName
 		}
@@ -101,7 +56,7 @@ func parseBindMount(spec string, mountLabel string, config *runconfig.Config) (*
 	return bind, nil
 }
 
-func parseVolumesFrom(spec string) (string, string, error) {
+func parseVolumesFromContainer(spec string) (string, string, error) {
 	if len(spec) == 0 {
 		return "", "", fmt.Errorf("malformed volumes-from specification: %s", spec)
 	}
@@ -167,8 +122,9 @@ func copyExistingContents(source, destination string) error {
 // It follows the next sequence to decide what to mount in each final destination:
 //
 // 1. Select the previously configured mount points for the containers, if any.
-// 2. Select the volumes mounted from another containers. Overrides previously configured mount point destination.
-// 3. Select the bind mounts set by the client. Overrides previously configured mount point destinations.
+// 2. Select the volumes mounted from another containers. Overrides previously configured mount point destinations.
+// 3. Select the volumes configured in a json file. Overrides previously configured mount point destinations.
+// 4. Select the bind mounts set by the client. Overrides previously configured mount point destinations.
 func (daemon *Daemon) registerMountPoints(container *Container, hostConfig *runconfig.HostConfig) error {
 	binds := map[string]bool{}
 	mountPoints := map[string]*mountPoint{}
@@ -179,37 +135,70 @@ func (daemon *Daemon) registerMountPoints(container *Container, hostConfig *runc
 	}
 
 	// 2. Read volumes from other containers.
+	//    Safe volumes from files for later to not change the configuration order.
+	var volumeFiles []string
 	for _, v := range hostConfig.VolumesFrom {
-		containerID, mode, err := parseVolumesFrom(v)
-		if err != nil {
-			return err
-		}
-
-		c, err := daemon.Get(containerID)
-		if err != nil {
-			return err
-		}
-
-		for _, m := range c.MountPoints {
-			cp := m
-			cp.RW = m.RW && mode != "ro"
-
-			if len(m.Source) == 0 {
-				v, err := createVolume(m.Name, m.Driver)
-				if err != nil {
-					return err
-				}
-				cp.Volume = v
+		if strings.HasPrefix(v, "@") {
+			volumeFiles = append(volumeFiles, v)
+		} else {
+			containerID, mode, err := parseVolumesFromContainer(v)
+			if err != nil {
+				return err
 			}
 
-			mountPoints[cp.Destination] = cp
+			c, err := daemon.Get(containerID)
+			if err != nil {
+				return err
+			}
+
+			for _, m := range c.MountPoints {
+				cp := m
+				cp.RW = m.RW && mode != "ro"
+
+				if !cp.isBindMount() {
+					v, err := createVolume(cp.Name, cp.Driver)
+					if err != nil {
+						return err
+					}
+					cp.Volume = v
+				}
+
+				mountPoints[cp.Destination] = cp
+			}
 		}
 	}
 
-	// 3. Read bind mounts
+	// 3. Read volumes from json configuration
+	for _, f := range volumeFiles {
+		mounts, err := parseVolumesFromFile(f, container.MountLabel, container.Config.VolumeDriver)
+		if err != nil {
+			return err
+		}
+
+		for _, bind := range mounts {
+			if binds[bind.Destination] {
+				return fmt.Errorf("Duplicate bind mount %s", bind.Destination)
+			}
+
+			if !bind.isBindMount() {
+				if err := bind.createVolume(); err != nil {
+					return err
+				}
+			}
+
+			if err := bind.applyLabel(container.MountLabel); err != nil {
+				return err
+			}
+
+			binds[bind.Destination] = true
+			mountPoints[bind.Destination] = bind
+		}
+	}
+
+	// 4. Read bind mounts
 	for _, b := range hostConfig.Binds {
 		// #10618
-		bind, err := parseBindMount(b, container.MountLabel, container.Config)
+		bind, err := parseBindMount(b, container.Config.VolumeDriver)
 		if err != nil {
 			return err
 		}
@@ -218,23 +207,16 @@ func (daemon *Daemon) registerMountPoints(container *Container, hostConfig *runc
 			return fmt.Errorf("Duplicate bind mount %s", bind.Destination)
 		}
 
-		if len(bind.Name) > 0 && len(bind.Driver) > 0 {
-			// create the volume
-			v, err := createVolume(bind.Name, bind.Driver)
-			if err != nil {
+		if !bind.isBindMount() {
+			if err := bind.createVolume(); err != nil {
 				return err
-			}
-			bind.Volume = v
-			bind.Source = v.Path()
-			// Since this is just a named volume and not a typical bind, set to shared mode `z`
-			if bind.Relabel == "" {
-				bind.Relabel = "z"
 			}
 		}
 
-		if err := label.Relabel(bind.Source, container.MountLabel, bind.Relabel); err != nil {
+		if err := bind.applyLabel(container.MountLabel); err != nil {
 			return err
 		}
+
 		binds[bind.Destination] = true
 		mountPoints[bind.Destination] = bind
 	}
@@ -243,7 +225,7 @@ func (daemon *Daemon) registerMountPoints(container *Container, hostConfig *runc
 	bcVolumes := map[string]string{}
 	bcVolumesRW := map[string]bool{}
 	for _, m := range mountPoints {
-		if m.BackwardsCompatible() {
+		if m.backwardsCompatible() {
 			bcVolumes[m.Destination] = m.Path()
 			bcVolumesRW[m.Destination] = m.RW
 		}
@@ -348,4 +330,56 @@ func removeVolume(v volume.Volume) error {
 		return nil
 	}
 	return vd.Remove(v)
+}
+
+func parseVolumesFromFile(fileID, containerMountLabel, containerVolumeDriver string) ([]*mountPoint, error) {
+	filePath := fileID[1:]
+	var mounts []mountPointExported
+
+	f, err := os.Open(filePath)
+	if err != nil {
+		return nil, err
+	}
+	if err := json.NewDecoder(f).Decode(&mounts); err != nil {
+		return nil, err
+	}
+
+	mountPoints := make([]*mountPoint, len(mounts))
+
+	for i, m := range mounts {
+		if len(m.Destination) == 0 {
+			return nil, fmt.Errorf("invalid empty mount point destination")
+		}
+		if len(m.Source) == 0 && len(m.Name) == 0 {
+			return nil, fmt.Errorf("invalid empty mount point source and name. Either Name or Source must be provided")
+		}
+
+		bind := &mountPoint{}
+
+		if len(m.Source) == 0 {
+			bind.Driver = containerVolumeDriver
+			if len(bind.Driver) == 0 {
+				bind.Driver = volume.DefaultDriverName
+			}
+		} else {
+			bind.Source = filepath.Clean(m.Source)
+		}
+
+		if len(m.Mode) == 0 {
+			m.Mode = "rw"
+		}
+
+		if !validMountMode(m.Mode) {
+			return nil, fmt.Errorf("invalid mode for mount point: %s", m.Mode)
+		}
+
+		bind.RW = rwModes[m.Mode]
+		bind.Relabel = m.Mode
+		bind.Name = m.Name
+		bind.Destination = filepath.Clean(m.Destination)
+
+		mountPoints[i] = bind
+	}
+
+	return mountPoints, nil
 }
