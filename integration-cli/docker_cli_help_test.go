@@ -238,7 +238,7 @@ func (s *DockerSuite) TestHelpTextVerify(c *check.C) {
 
 		}
 
-		expected := 39
+		expected := 40
 		if isLocalDaemon {
 			expected++ // for the daemon command
 		}

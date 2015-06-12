@@ -97,3 +97,11 @@ func (daemon *Daemon) ContainerExecInspect(id string) (*execConfig, error) {
 	}
 	return eConfig, nil
 }
+
+func (daemon *Daemon) VolumeInspect(name string) (*types.Volume, error) {
+	v, err := daemon.volumes.Get(name)
+	if err != nil {
+		return nil, err
+	}
+	return volumeToAPIType(v), nil
+}

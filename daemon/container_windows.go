@@ -169,7 +169,7 @@ func (container *Container) prepareMountPoints() error {
 }
 
 // removeMountPoints is a no-op on Windows.
-func (container *Container) removeMountPoints() error {
+func (container *Container) removeMountPoints(_ bool) error {
 	return nil
 }
 

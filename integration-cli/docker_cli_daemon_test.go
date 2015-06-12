@@ -71,6 +71,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithVolumesRefs(c *check.C) {
 	if err := s.d.Restart(); err != nil {
 		c.Fatal(err)
 	}
+
 	if _, err := s.d.Cmd("run", "-d", "--volumes-from", "volrestarttest1", "--name", "volrestarttest2", "busybox", "top"); err != nil {
 		c.Fatal(err)
 	}
@@ -1660,5 +1661,28 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithPausedContainer(c *check.C) {
 			c.Fatal(err)
 		}
 	}
+}
 
+func (s *DockerDaemonSuite) TestDaemonRestartRmVolumeInUse(c *check.C) {
+	c.Assert(s.d.StartWithBusybox(), check.IsNil)
+
+	out, err := s.d.Cmd("create", "-v", "test:/foo", "busybox")
+	c.Assert(err, check.IsNil, check.Commentf(out))
+
+	c.Assert(s.d.Restart(), check.IsNil)
+
+	out, err = s.d.Cmd("volume", "rm", "test")
+	c.Assert(err, check.Not(check.IsNil), check.Commentf("should not be able to remove in use volume after daemon restart"))
+	c.Assert(strings.Contains(out, "in use"), check.Equals, true)
+}
+
+func (s *DockerDaemonSuite) TestDaemonRestartLocalVolumes(c *check.C) {
+	c.Assert(s.d.Start(), check.IsNil)
+
+	_, err := s.d.Cmd("volume", "create", "--name", "test")
+	c.Assert(err, check.IsNil)
+	c.Assert(s.d.Restart(), check.IsNil)
+
+	_, err = s.d.Cmd("volume", "inspect", "test")
+	c.Assert(err, check.IsNil)
 }

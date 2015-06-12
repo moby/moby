@@ -54,10 +54,11 @@ func createContainerPlatformSpecificSettings(container *Container, config *runco
 			}
 		}
 
-		v, err := createVolume(name, volumeDriver)
+		v, err := container.daemon.createVolume(name, volumeDriver, nil)
 		if err != nil {
 			return err
 		}
+
 		if err := label.Relabel(v.Path(), container.MountLabel, "z"); err != nil {
 			return err
 		}

@@ -119,11 +119,6 @@ func (s *DockerExternalVolumeSuite) SetUpSuite(c *check.C) {
 			http.Error(w, err.Error(), 500)
 		}
 
-		p := hostVolumePath(pr.name)
-		if err := os.RemoveAll(p); err != nil {
-			http.Error(w, err.Error(), 500)
-		}
-
 		w.Header().Set("Content-Type", "application/vnd.docker.plugins.v1+json")
 		fmt.Fprintln(w, `{}`)
 	})
@@ -152,7 +147,7 @@ func (s *DockerExternalVolumeSuite) TestStartExternalNamedVolumeDriver(c *check.
 
 	out, err := s.d.Cmd("run", "--rm", "--name", "test-data", "-v", "external-volume-test:/tmp/external-volume-test", "--volume-driver", "test-external-volume-driver", "busybox:latest", "cat", "/tmp/external-volume-test/test")
 	if err != nil {
-		c.Fatal(err)
+		c.Fatal(out, err)
 	}
 
 	if !strings.Contains(out, s.server.URL) {
@@ -202,20 +197,17 @@ func (s DockerExternalVolumeSuite) TestStartExternalVolumeDriverVolumesFrom(c *c
 		c.Fatal(err)
 	}
 
-	if _, err := s.d.Cmd("run", "-d", "--name", "vol-test1", "-v", "/foo", "--volume-driver", "test-external-volume-driver", "busybox:latest"); err != nil {
-		c.Fatal(err)
-	}
+	out, err := s.d.Cmd("run", "-d", "--name", "vol-test1", "-v", "/foo", "--volume-driver", "test-external-volume-driver", "busybox:latest")
+	c.Assert(err, check.IsNil, check.Commentf(out))
 
-	if _, err := s.d.Cmd("run", "--rm", "--volumes-from", "vol-test1", "--name", "vol-test2", "busybox", "ls", "/tmp"); err != nil {
-		c.Fatal(err)
-	}
+	out, err = s.d.Cmd("run", "--rm", "--volumes-from", "vol-test1", "--name", "vol-test2", "busybox", "ls", "/tmp")
+	c.Assert(err, check.IsNil, check.Commentf(out))
 
-	if _, err := s.d.Cmd("rm", "-f", "vol-test1"); err != nil {
-		c.Fatal(err)
-	}
+	out, err = s.d.Cmd("rm", "-fv", "vol-test1")
+	c.Assert(err, check.IsNil, check.Commentf(out))
 
 	c.Assert(s.ec.activations, check.Equals, 1)
-	c.Assert(s.ec.creations, check.Equals, 2)
+	c.Assert(s.ec.creations, check.Equals, 1)
 	c.Assert(s.ec.removals, check.Equals, 1)
 	c.Assert(s.ec.mounts, check.Equals, 2)
 	c.Assert(s.ec.unmounts, check.Equals, 2)
@@ -226,12 +218,12 @@ func (s DockerExternalVolumeSuite) TestStartExternalVolumeDriverDeleteContainer(
 		c.Fatal(err)
 	}
 
-	if _, err := s.d.Cmd("run", "-d", "--name", "vol-test1", "-v", "/foo", "--volume-driver", "test-external-volume-driver", "busybox:latest"); err != nil {
-		c.Fatal(err)
+	if out, err := s.d.Cmd("run", "-d", "--name", "vol-test1", "-v", "/foo", "--volume-driver", "test-external-volume-driver", "busybox:latest"); err != nil {
+		c.Fatal(out, err)
 	}
 
-	if _, err := s.d.Cmd("rm", "-fv", "vol-test1"); err != nil {
-		c.Fatal(err)
+	if out, err := s.d.Cmd("rm", "-fv", "vol-test1"); err != nil {
+		c.Fatal(out, err)
 	}
 
 	c.Assert(s.ec.activations, check.Equals, 1)

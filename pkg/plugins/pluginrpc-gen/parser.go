@@ -7,7 +7,6 @@ import (
 	"go/parser"
 	"go/token"
 	"reflect"
-	"strings"
 )
 
 var ErrBadReturn = errors.New("found return arg with no name: all args must be named")
@@ -39,7 +38,7 @@ type arg struct {
 }
 
 func (a *arg) String() string {
-	return strings.ToLower(a.Name) + " " + strings.ToLower(a.ArgType)
+	return a.Name + " " + a.ArgType
 }
 
 // Parses the given file for an interface definition with the given name

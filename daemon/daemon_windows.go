@@ -74,9 +74,9 @@ func migrateIfDownlevel(driver graphdriver.Driver, root string) error {
 	return nil
 }
 
-func configureVolumes(config *Config) error {
+func configureVolumes(config *Config) (*volumeStore, error) {
 	// Windows does not support volumes at this time
-	return nil
+	return &volumeStore{}, nil
 }
 
 func configureSysInit(config *Config) (string, error) {

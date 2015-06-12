@@ -1197,7 +1197,7 @@ func (container *Container) isDestinationMounted(destination string) bool {
 func (container *Container) prepareMountPoints() error {
 	for _, config := range container.MountPoints {
 		if len(config.Driver) > 0 {
-			v, err := createVolume(config.Name, config.Driver)
+			v, err := container.daemon.createVolume(config.Name, config.Driver, nil)
 			if err != nil {
 				return err
 			}
@@ -1207,13 +1207,22 @@ func (container *Container) prepareMountPoints() error {
 	return nil
 }
 
-func (container *Container) removeMountPoints() error {
+func (container *Container) removeMountPoints(rm bool) error {
+	var rmErrors []string
 	for _, m := range container.MountPoints {
-		if m.Volume != nil {
-			if err := removeVolume(m.Volume); err != nil {
-				return err
+		if m.Volume == nil {
+			continue
+		}
+		container.daemon.volumes.Decrement(m.Volume)
+		if rm {
+			if err := container.daemon.volumes.Remove(m.Volume); err != nil {
+				rmErrors = append(rmErrors, fmt.Sprintf("%v\n", err))
+				continue
 			}
 		}
+	}
+	if len(rmErrors) > 0 {
+		return fmt.Errorf("Error removing volumes:\n%v", rmErrors)
 	}
 	return nil
 }

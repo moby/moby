@@ -13,7 +13,7 @@ import (
 	"github.com/docker/docker/pkg/truncindex"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/volume"
-	"github.com/docker/docker/volume/drivers"
+	volumedrivers "github.com/docker/docker/volume/drivers"
 	"github.com/docker/docker/volume/local"
 )
 
@@ -486,12 +486,12 @@ func TestRemoveLocalVolumesFollowingSymlinks(t *testing.T) {
 	}
 
 	m := c.MountPoints["/vol1"]
-	v, err := createVolume(m.Name, m.Driver)
+	_, err = daemon.VolumeCreate(m.Name, m.Driver, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if err := removeVolume(v); err != nil {
+	if err := daemon.VolumeRm(m.Name); err != nil {
 		t.Fatal(err)
 	}
 
@@ -505,6 +505,7 @@ func initDaemonForVolumesTest(tmp string) (*Daemon, error) {
 	daemon := &Daemon{
 		repository: tmp,
 		root:       tmp,
+		volumes:    newVolumeStore([]volume.Volume{}),
 	}
 
 	volumesDriver, err := local.New(tmp)

@@ -50,7 +50,7 @@ func TestVolumeRequestError(t *testing.T) {
 
 	driver := volumeDriverProxy{client}
 
-	if err = driver.Create("volume"); err == nil {
+	if err = driver.Create("volume", nil); err == nil {
 		t.Fatal("Expected error, was nil")
 	}
 

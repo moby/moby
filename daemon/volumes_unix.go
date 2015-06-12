@@ -15,7 +15,7 @@ import (
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/volume"
-	"github.com/docker/docker/volume/drivers"
+	volumedrivers "github.com/docker/docker/volume/drivers"
 	"github.com/docker/docker/volume/local"
 	"github.com/opencontainers/runc/libcontainer/label"
 )
@@ -138,7 +138,7 @@ func (m mounts) parts(i int) int {
 // It preserves the volume json configuration generated pre Docker 1.7 to be able to
 // downgrade from Docker 1.7 to Docker 1.6 without losing volume compatibility.
 func migrateVolume(id, vfs string) error {
-	l, err := getVolumeDriver(volume.DefaultDriverName)
+	l, err := volumedrivers.Lookup(volume.DefaultDriverName)
 	if err != nil {
 		return err
 	}
@@ -209,7 +209,7 @@ func (daemon *Daemon) verifyVolumesInfo(container *Container) error {
 		// Volumes created with a Docker version >= 1.7. We verify integrity in case of data created
 		// with Docker 1.7 RC versions that put the information in
 		// DOCKER_ROOT/volumes/VOLUME_ID rather than DOCKER_ROOT/volumes/VOLUME_ID/_container_data.
-		l, err := getVolumeDriver(volume.DefaultDriverName)
+		l, err := volumedrivers.Lookup(volume.DefaultDriverName)
 		if err != nil {
 			return err
 		}
@@ -311,7 +311,7 @@ func (daemon *Daemon) registerMountPoints(container *Container, hostConfig *runc
 			}
 
 			if len(cp.Source) == 0 {
-				v, err := createVolume(cp.Name, cp.Driver)
+				v, err := daemon.createVolume(cp.Name, cp.Driver, nil)
 				if err != nil {
 					return err
 				}
@@ -336,7 +336,7 @@ func (daemon *Daemon) registerMountPoints(container *Container, hostConfig *runc
 
 		if len(bind.Name) > 0 && len(bind.Driver) > 0 {
 			// create the volume
-			v, err := createVolume(bind.Name, bind.Driver)
+			v, err := daemon.createVolume(bind.Name, bind.Driver, nil)
 			if err != nil {
 				return err
 			}
@@ -362,6 +362,11 @@ func (daemon *Daemon) registerMountPoints(container *Container, hostConfig *runc
 		if m.BackwardsCompatible() {
 			bcVolumes[m.Destination] = m.Path()
 			bcVolumesRW[m.Destination] = m.RW
+
+			// This mountpoint is replacing an existing one, so the count needs to be decremented
+			if mp, exists := container.MountPoints[m.Destination]; exists && mp.Volume != nil {
+				daemon.volumes.Decrement(mp.Volume)
+			}
 		}
 	}
 
@@ -375,29 +380,13 @@ func (daemon *Daemon) registerMountPoints(container *Container, hostConfig *runc
 }
 
 // createVolume creates a volume.
-func createVolume(name, driverName string) (volume.Volume, error) {
-	vd, err := getVolumeDriver(driverName)
+func (daemon *Daemon) createVolume(name, driverName string, opts map[string]string) (volume.Volume, error) {
+	v, err := daemon.volumes.Create(name, driverName, opts)
 	if err != nil {
 		return nil, err
 	}
-	return vd.Create(name)
-}
-
-// removeVolume removes a volume.
-func removeVolume(v volume.Volume) error {
-	vd, err := getVolumeDriver(v.DriverName())
-	if err != nil {
-		return nil
-	}
-	return vd.Remove(v)
-}
-
-// getVolumeDriver returns the volume driver for the supplied name.
-func getVolumeDriver(name string) (volume.Driver, error) {
-	if name == "" {
-		name = volume.DefaultDriverName
-	}
-	return volumedrivers.Lookup(name)
+	daemon.volumes.Increment(v)
+	return v, nil
 }
 
 // parseVolumeSource parses the origin sources that's mounted into the container.

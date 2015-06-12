@@ -2781,3 +2781,13 @@ func (s *DockerSuite) TestRunCreateContainerFailedCleanUp(c *check.C) {
 	containerID, err := inspectField(name, "Id")
 	c.Assert(containerID, check.Equals, "", check.Commentf("Expected not to have this container: %s!", containerID))
 }
+
+func (s *DockerSuite) TestRunNamedVolume(c *check.C) {
+	dockerCmd(c, "run", "--name=test", "-v", "testing:/foo", "busybox", "sh", "-c", "echo hello > /foo/bar")
+
+	out, _ := dockerCmd(c, "run", "--volumes-from", "test", "busybox", "sh", "-c", "cat /foo/bar")
+	c.Assert(strings.TrimSpace(out), check.Equals, "hello")
+
+	out, _ = dockerCmd(c, "run", "-v", "testing:/foo", "busybox", "sh", "-c", "cat /foo/bar")
+	c.Assert(strings.TrimSpace(out), check.Equals, "hello")
+}
