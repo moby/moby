@@ -94,7 +94,7 @@ type containerPs struct {
 func (s *DockerSuite) TestContainerPsOmitFields(c *check.C) {
 	name := "pstest"
 	port := 80
-	runCmd := exec.Command(dockerBinary, "run", "-d", "--name", name, "--expose", strconv.Itoa(port), "busybox", "sleep", "5")
+	runCmd := exec.Command(dockerBinary, "run", "-d", "--name", name, "--expose", strconv.Itoa(port), "busybox", "top")
 	_, err := runCommand(runCmd)
 	c.Assert(err, check.IsNil)
 
