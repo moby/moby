@@ -321,7 +321,8 @@ func (s *DockerSuite) TestExecParseError(c *check.C) {
 }
 
 func (s *DockerSuite) TestExecStopNotHanging(c *check.C) {
-	if out, err := exec.Command(dockerBinary, "run", "-d", "--name", "testing", "busybox", "top").CombinedOutput(); err != nil {
+	runCmd := exec.Command(dockerBinary, "run", "-d", "--name", "testing", "busybox", "top")
+	if out, _, err := runCommandWithOutput(runCmd); err != nil {
 		c.Fatal(out, err)
 	}
 
