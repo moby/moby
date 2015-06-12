@@ -48,6 +48,7 @@ func TestForward(t *testing.T) {
 		"--dport", strconv.Itoa(port),
 		"-j", "DNAT",
 		"--to-destination", dstAddr + ":" + strconv.Itoa(dstPort),
+		"!", "-i", natChain.Bridge,
 	}
 
 	if !Exists(natChain.Table, natChain.Name, dnatRule...) {
