@@ -9,11 +9,18 @@ import (
 	"github.com/docker/libnetwork/types"
 )
 
+func (c *controller) validateDatastoreConfig() bool {
+	if c.cfg == nil || c.cfg.Datastore.Client.Provider == "" || c.cfg.Datastore.Client.Address == "" {
+		return false
+	}
+	return true
+}
+
 func (c *controller) initDataStore() error {
 	c.Lock()
 	cfg := c.cfg
 	c.Unlock()
-	if cfg == nil {
+	if !c.validateDatastoreConfig() {
 		return fmt.Errorf("datastore initialization requires a valid configuration")
 	}
 

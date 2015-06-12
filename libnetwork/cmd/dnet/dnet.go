@@ -19,16 +19,19 @@ import (
 	"github.com/docker/libnetwork"
 	"github.com/docker/libnetwork/api"
 	"github.com/docker/libnetwork/client"
+	"github.com/docker/libnetwork/config"
 	"github.com/gorilla/mux"
 )
 
-var (
+const (
 	// DefaultHTTPHost is used if only port is provided to -H flag e.g. docker -d -H tcp://:8080
 	DefaultHTTPHost = "127.0.0.1"
 	// DefaultHTTPPort is the default http port used by dnet
 	DefaultHTTPPort = 2385
 	// DefaultUnixSocket exported
 	DefaultUnixSocket = "/var/run/dnet.sock"
+	cfgFileEnv        = "LIBNETWORK_CFG"
+	defaultCfgFile    = "/etc/default/libnetwork.toml"
 )
 
 func main() {
@@ -43,6 +46,36 @@ func main() {
 	if err != nil {
 		os.Exit(1)
 	}
+}
+
+func parseConfig(cfgFile string) (*config.Config, error) {
+	if strings.Trim(cfgFile, " ") == "" {
+		cfgFile = os.Getenv(cfgFileEnv)
+		if strings.Trim(cfgFile, " ") == "" {
+			cfgFile = defaultCfgFile
+		}
+	}
+	return config.ParseConfig(cfgFile)
+}
+
+func processConfig(cfg *config.Config) []config.Option {
+	options := []config.Option{}
+	if cfg == nil {
+		return options
+	}
+	if strings.TrimSpace(cfg.Daemon.DefaultNetwork) != "" {
+		options = append(options, config.OptionDefaultNetwork(cfg.Daemon.DefaultNetwork))
+	}
+	if strings.TrimSpace(cfg.Daemon.DefaultDriver) != "" {
+		options = append(options, config.OptionDefaultDriver(cfg.Daemon.DefaultDriver))
+	}
+	if strings.TrimSpace(cfg.Datastore.Client.Provider) != "" {
+		options = append(options, config.OptionKVProvider(cfg.Datastore.Client.Provider))
+	}
+	if strings.TrimSpace(cfg.Datastore.Client.Address) != "" {
+		options = append(options, config.OptionKVProviderURL(cfg.Datastore.Client.Address))
+	}
+	return options
 }
 
 func dnetCommand(stdout, stderr io.Writer) error {
@@ -111,7 +144,12 @@ type dnetConnection struct {
 }
 
 func (d *dnetConnection) dnetDaemon() error {
-	controller, err := libnetwork.New("")
+	cfg, err := parseConfig(*flCfgFile)
+	var cOptions []config.Option
+	if err == nil {
+		cOptions = processConfig(cfg)
+	}
+	controller, err := libnetwork.New(cOptions...)
 	if err != nil {
 		fmt.Println("Error starting dnetDaemon :", err)
 		return err

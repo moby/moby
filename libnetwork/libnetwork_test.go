@@ -63,7 +63,7 @@ func TestMain(m *testing.M) {
 func createController() error {
 	var err error
 
-	controller, err = libnetwork.New("")
+	controller, err = libnetwork.New()
 	if err != nil {
 		return err
 	}
@@ -1665,7 +1665,7 @@ func TestInvalidRemoteDriver(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	controller, err := libnetwork.New("")
+	controller, err := libnetwork.New()
 	if err != nil {
 		t.Fatal(err)
 	}

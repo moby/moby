@@ -11,7 +11,7 @@ import (
 
 func main() {
 	// Create a new controller instance
-	controller, err := libnetwork.New("/etc/default/libnetwork.toml")
+	controller, err := libnetwork.New()
 	if err != nil {
 		return
 	}
