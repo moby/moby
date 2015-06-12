@@ -7,7 +7,7 @@ import (
 	_ "github.com/docker/libnetwork/netutils"
 )
 
-func TestClientNetworkServiceInvalidCommand(t *testing.T) {
+func TestClientServiceInvalidCommand(t *testing.T) {
 	var out, errOut bytes.Buffer
 	cli := NewNetworkCli(&out, &errOut, callbackFunc)
 
@@ -17,73 +17,73 @@ func TestClientNetworkServiceInvalidCommand(t *testing.T) {
 	}
 }
 
-func TestClientNetworkServiceCreate(t *testing.T) {
+func TestClientServiceCreate(t *testing.T) {
 	var out, errOut bytes.Buffer
 	cli := NewNetworkCli(&out, &errOut, callbackFunc)
 
-	err := cli.Cmd("docker", "service", "create", mockServiceName, mockNwName)
+	err := cli.Cmd("docker", "service", "publish", "-net="+mockNwName, mockServiceName)
 	if err != nil {
-		t.Fatal(err.Error())
+		t.Fatal(err)
 	}
 }
 
-func TestClientNetworkServiceRm(t *testing.T) {
+func TestClientServiceRm(t *testing.T) {
 	var out, errOut bytes.Buffer
 	cli := NewNetworkCli(&out, &errOut, callbackFunc)
 
-	err := cli.Cmd("docker", "service", "rm", mockServiceName, mockNwName)
+	err := cli.Cmd("docker", "service", "unpublish", "-net="+mockNwName, mockServiceName)
 	if err != nil {
-		t.Fatal(err.Error())
+		t.Fatal(err)
 	}
 }
 
-func TestClientNetworkServiceLs(t *testing.T) {
+func TestClientServiceLs(t *testing.T) {
 	var out, errOut bytes.Buffer
 	cli := NewNetworkCli(&out, &errOut, callbackFunc)
 
-	err := cli.Cmd("docker", "service", "ls", mockNwName)
+	err := cli.Cmd("docker", "service", "ls")
 	if err != nil {
-		t.Fatal(err.Error())
+		t.Fatal(err)
 	}
 }
 
-func TestClientNetworkServiceInfo(t *testing.T) {
+func TestClientServiceInfo(t *testing.T) {
 	var out, errOut bytes.Buffer
 	cli := NewNetworkCli(&out, &errOut, callbackFunc)
 
-	err := cli.Cmd("docker", "service", "info", mockServiceName, mockNwName)
+	err := cli.Cmd("docker", "service", "info", "-net="+mockNwName, mockServiceName)
 	if err != nil {
-		t.Fatal(err.Error())
+		t.Fatal(err)
 	}
 }
 
-func TestClientNetworkServiceInfoById(t *testing.T) {
+func TestClientServiceInfoById(t *testing.T) {
 	var out, errOut bytes.Buffer
 	cli := NewNetworkCli(&out, &errOut, callbackFunc)
 
-	err := cli.Cmd("docker", "service", "info", mockServiceID, mockNwID)
+	err := cli.Cmd("docker", "service", "info", "-net="+mockNwName, mockServiceID)
 	if err != nil {
-		t.Fatal(err.Error())
+		t.Fatal(err)
 	}
 }
 
-func TestClientNetworkServiceJoin(t *testing.T) {
+func TestClientServiceJoin(t *testing.T) {
 	var out, errOut bytes.Buffer
 	cli := NewNetworkCli(&out, &errOut, callbackFunc)
 
-	err := cli.Cmd("docker", "service", "join", mockContainerID, mockServiceName, mockNwName)
+	err := cli.Cmd("docker", "service", "attach", "-net="+mockNwName, mockContainerID, mockServiceName)
 	if err != nil {
-		t.Fatal(err.Error())
+		t.Fatal(err)
 	}
 }
 
-func TestClientNetworkServiceLeave(t *testing.T) {
+func TestClientServiceLeave(t *testing.T) {
 	var out, errOut bytes.Buffer
 	cli := NewNetworkCli(&out, &errOut, callbackFunc)
 
-	err := cli.Cmd("docker", "service", "leave", mockContainerID, mockServiceName, mockNwName)
+	err := cli.Cmd("docker", "service", "detach", "-net="+mockNwName, mockContainerID, mockServiceName)
 	if err != nil {
-		t.Fatal(err.Error())
+		t.Fatal(err)
 	}
 }
 

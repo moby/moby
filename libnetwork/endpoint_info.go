@@ -40,6 +40,14 @@ type InterfaceInfo interface {
 	AddressIPv6() net.IPNet
 }
 
+// ContainerInfo provides an interface to retrieve the info about the container attached to the endpoint
+type ContainerInfo interface {
+	// ID returns the ID of the container
+	ID() string
+	// Labels returns the container's labels
+	Labels() map[string]interface{}
+}
+
 type endpointInterface struct {
 	id        int
 	mac       net.HardwareAddr
@@ -109,6 +117,18 @@ type endpointJoinInfo struct {
 	hostsPath      string
 	resolvConfPath string
 	StaticRoutes   []*types.StaticRoute
+}
+
+func (ep *endpoint) ContainerInfo() ContainerInfo {
+	ep.Lock()
+	ci := ep.container
+	defer ep.Unlock()
+
+	// Need this since we return the interface
+	if ci == nil {
+		return nil
+	}
+	return ci
 }
 
 func (ep *endpoint) Info() EndpointInfo {

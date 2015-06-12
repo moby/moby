@@ -1045,6 +1045,11 @@ func TestEndpointJoin(t *testing.T) {
 		t.Fatalf("Expected an non-empty sandbox key for a joined endpoint. Instead found a empty sandbox key")
 	}
 
+	// Check endpoint provided container information
+	if ep1.ContainerInfo().ID() != containerID {
+		t.Fatalf("Endpoint ContainerInfo returned unexpected id: %s", ep1.ContainerInfo().ID())
+	}
+
 	// Now test the container joining another network
 	n2, err := createTestNetwork(bridgeNetType, "testnetwork2",
 		options.Generic{
@@ -1075,6 +1080,10 @@ func TestEndpointJoin(t *testing.T) {
 	err = ep2.Join(containerID)
 	if err != nil {
 		t.Fatal(err)
+	}
+
+	if ep1.ContainerInfo().ID() != ep2.ContainerInfo().ID() {
+		t.Fatalf("ep1 and ep2 returned different container info")
 	}
 
 	defer func() {
