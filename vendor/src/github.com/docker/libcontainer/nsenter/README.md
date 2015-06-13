@@ -18,7 +18,7 @@ which will give the process of the container that should be joined. Namespaces f
 be found from `/proc/[pid]/ns` and set by `setns` syscall.
 
 And then get the pipe number from `_LIBCONTAINER_INITPIPE`, error message could
-be transfered through it. If tty is added, `_LIBCONTAINER_CONSOLE_PATH` will 
+be transferred through it. If tty is added, `_LIBCONTAINER_CONSOLE_PATH` will 
 have value and start a console for output.
 
 Finally, `nsexec()` will clone a child process , exit the parent process and let 

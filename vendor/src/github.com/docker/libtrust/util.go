@@ -16,7 +16,7 @@ import (
 )
 
 // joseBase64UrlEncode encodes the given data using the standard base64 url
-// encoding format but with all trailing '=' characters ommitted in accordance
+// encoding format but with all trailing '=' characters omitted in accordance
 // with the jose specification.
 // http://tools.ietf.org/html/draft-ietf-jose-json-web-signature-31#section-2
 func joseBase64UrlEncode(b []byte) string {

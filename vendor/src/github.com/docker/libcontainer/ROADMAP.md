@@ -3,7 +3,7 @@
 This document is a high-level overview of where we want to take libcontainer next.
 It is a curated selection of planned improvements which are either important, difficult, or both.
 
-For a more complete view of planned and requested improvements, see [the Github issues](https://github.com/docker/libcontainer/issues).
+For a more complete view of planned and requested improvements, see [the GitHub issues](https://github.com/docker/libcontainer/issues).
 
 To suggest changes to the roadmap, including additions, please write the change as if it were already in effect, and make a pull request.
 

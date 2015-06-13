@@ -19,7 +19,7 @@
 #  -e GPG_PASSPHRASE=gloubiboulga \
 #  docker hack/release.sh
 #
-# Note: Apparmor used to mess with privileged mode, but this is no longer
+# Note: AppArmor used to mess with privileged mode, but this is no longer
 # the case. Therefore, you don't have to disable it anymore.
 #
 
