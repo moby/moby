@@ -737,17 +737,47 @@ func (container *Container) buildCreateEndpointOptions() ([]libnetwork.EndpointO
 	return createOptions, nil
 }
 
+func createDefaultNetwork(controller libnetwork.NetworkController) (libnetwork.Network, error) {
+	createOptions := []libnetwork.NetworkOption{}
+	genericOption := options.Generic{}
+	dnet := controller.Config().Daemon.DefaultNetwork
+	driver := controller.Config().Daemon.DefaultDriver
+
+	// Bridge driver is special due to legacy reasons
+	if runconfig.NetworkMode(driver).IsBridge() {
+		genericOption[netlabel.GenericData] = map[string]interface{}{
+			"BridgeName":            dnet,
+			"AllowNonDefaultBridge": "true",
+		}
+		networkOption := libnetwork.NetworkOptionGeneric(genericOption)
+		createOptions = append(createOptions, networkOption)
+	}
+
+	return controller.NewNetwork(driver, dnet, createOptions...)
+}
+
 func (container *Container) AllocateNetwork() error {
 	mode := container.hostConfig.NetworkMode
+	controller := container.daemon.netController
 	if container.Config.NetworkDisabled || mode.IsContainer() {
 		return nil
 	}
 
+	networkName := mode.NetworkName()
+	if mode.IsDefault() {
+		networkName = controller.Config().Daemon.DefaultNetwork
+	}
+
 	var err error
 
-	n, err := container.daemon.netController.NetworkByName(string(mode))
+	n, err := controller.NetworkByName(networkName)
 	if err != nil {
-		return fmt.Errorf("error locating network with name %s: %v", string(mode), err)
+		if !mode.IsDefault() {
+			return fmt.Errorf("error locating network with name %s: %v", networkName, err)
+		}
+		if n, err = createDefaultNetwork(controller); err != nil {
+			return err
+		}
 	}
 
 	createOptions, err := container.buildCreateEndpointOptions()
@@ -790,9 +820,8 @@ func (container *Container) initializeNetworking() error {
 	// Make sure NetworkMode has an acceptable value before
 	// initializing networking.
 	if container.hostConfig.NetworkMode == runconfig.NetworkMode("") {
-		container.hostConfig.NetworkMode = runconfig.NetworkMode("bridge")
+		container.hostConfig.NetworkMode = runconfig.NetworkMode("default")
 	}
-
 	if container.hostConfig.NetworkMode.IsContainer() {
 		// we need to get the hosts files from the container to join
 		nc, err := container.getNetworkedContainer()
