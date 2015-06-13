@@ -698,13 +698,13 @@ to any of the files in the context. For example, your build can use an
 [*ADD*](/reference/builder/#add) instruction to reference a file in the
 context.
 
-The `URL` parameter can specify the location of a Git repository; the
-repository acts as the build context. The system recursively clones the
-repository and its submodules using a `git clone --depth 1 --recursive`
-command. This command runs in a temporary directory on your local host. After
-the command succeeds, the directory is sent to the Docker daemon as the
-context. Local clones give you the ability to access private repositories using
-local user credentials, VPN's, and so forth.
+The `URL` parameter can specify the location of a Git repository; the repository
+acts as the build context. The system recursively clones the repository and its
+submodules using a `git clone --depth 1 --recursive` command. This command runs
+in a temporary directory on your local host. After the command succeeds, the
+directory is sent to the Docker daemon as the context. Local clones give you the
+ability to access private repositories using local user credentials, VPNs, and
+so forth.
 
 Git URLs accept context configuration in their fragment section, separated by a
 colon `:`.  The first part represents the reference that Git will check out,

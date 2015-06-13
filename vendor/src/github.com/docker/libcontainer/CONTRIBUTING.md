@@ -24,21 +24,21 @@ The following packages are required to compile libcontainer natively.
 - git
 - cgutils
 
-You can develop on OSX, but you are limited to Dockerfile-based builds only.
+You can develop on OS X, but you are limited to Dockerfile-based builds only.
 
 ### Building libcontainer from Dockerfile
 
     make all
 
 This is the easiest way of building libcontainer.
-As this build is done using Docker, you can even run this from [OSX](https://github.com/boot2docker/boot2docker)
+As this build is done using Docker, you can even run this from [OS X](https://github.com/boot2docker/boot2docker)
 
 ### Testing changes with "nsinit"
 
     make sh
 
 This will create an container that runs `nsinit exec sh` on a busybox rootfs with the configuration from ['minimal.json'](https://github.com/docker/libcontainer/blob/master/sample_configs/minimal.json).
-Like the previous command, you can run this on OSX too!
+Like the previous command, you can run this on OS X too!
 
 ### Building libcontainer directly
 

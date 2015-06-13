@@ -16,7 +16,7 @@ most out of Docker. To do this, it provides services such as:
 * User authentication.
 * Automated image builds and work-flow tools such as build triggers and web
   hooks.
-* Integration with GitHub and BitBucket.
+* Integration with GitHub and Bitbucket.
 
 In order to use Docker Hub, you will first need to register and create an account. Don't
 worry, creating an account is simple and free.

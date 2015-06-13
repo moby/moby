@@ -191,8 +191,8 @@ In this section, you install the Go language. Then, you build the source so that
 
 ## Get the Docker repository
 
-In this step, you start a Git `bash` terminal and get the Docker source code from
-Github. 
+In this step, you start a Git `bash` terminal and get the Docker source code 
+from GitHub. 
 
 1. Locate the **Git Bash** program and start it.
 

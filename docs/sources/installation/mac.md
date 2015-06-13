@@ -346,7 +346,7 @@ Use `boot2docker help` to list the full command line reference. For more
 information about using SSH or SCP to access the Boot2Docker VM, see the README
 at  [Boot2Docker repository](https://github.com/boot2docker/boot2docker).
 
-Thanks to Chris Jones whose [blog](http://goo.gl/Be6cCk)  inspired me to redo
-this page.
+Thanks to Chris Jones whose [blog](http://viget.com/extend/how-to-use-docker-on-os-x-the-missing-guide)  
+inspired me to redo this page.
 
 Continue with the [Docker User Guide](/userguide/).

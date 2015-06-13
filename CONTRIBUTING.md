@@ -220,7 +220,7 @@ set of patches that should be reviewed together: for example, upgrading the
 version of a vendored dependency and taking advantage of its now available new
 feature constitute two separate units of work. Implementing a new function and
 calling it in another file constitute a single logical unit of work. The very
-high majory of submissions should have a single commit, so if in doubt: squash
+high majority of submissions should have a single commit, so if in doubt: squash
 down to one.
 
 After every commit, [make sure the test suite passes]

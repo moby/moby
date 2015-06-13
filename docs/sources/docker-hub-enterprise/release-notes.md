@@ -22,8 +22,8 @@ page_keywords: docker, documentation, about, technology, understanding, enterpri
 ### CS Docker Engine 1.6.2-cs5
 (21 May 2015)
 
-For customers running Docker Engine on [supported versions of RedHat Enterprise
-Linux](https://www.docker.com/enterprise/support/) with [SELinux
+For customers running Docker Engine on [supported versions of Red Hat Enterprise
+Linux (RHEL)](https://www.docker.com/enterprise/support/) with [SELinux
 enabled](https://access.redhat.com/documentation/en-US/Red_Hat_Enterprise_Linux/
 6/html/Security-Enhanced_Linux/sect-Security-Enhanced_Linux-Working_with_SELinux
 -Enabling_and_Disabling_SELinux.html), the `docker build` and `docker run`
