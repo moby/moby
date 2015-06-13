@@ -225,7 +225,7 @@ Follow the steps below to configure the GitHub Service hooks for your Automated 
     <tr>
       <td>1.</td>
       <td><img src="/docker-hub/hub-images/gh_settings.png"></td>
-      <td>Log in to Github.com, and go to your Repository page. Click on "Settings" on
+      <td>Log in to GitHub.com, and go to your Repository page. Click on "Settings" on
       the right side of the page. You must have admin privileges to the repository in order to do this.</td>
     </tr>
     <tr>

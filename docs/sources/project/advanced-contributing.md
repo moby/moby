@@ -147,6 +147,6 @@ Making a pull request with a design proposal simplifies this process:
 * you can leave comments on specific design proposal line
 * replies around line are easy to track
 * as a proposal changes and is updated, pages reset as line items resolve
-* Github maintains the entire history
+* GitHub maintains the entire history
 
 While proposals in pull requests do not end up merged into a master repository, they provide a convenient tool for managing the design process.

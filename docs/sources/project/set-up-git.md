@@ -225,7 +225,7 @@ the branch to your fork on GitHub:
          * [new branch]      dry-run-test -> dry-run-test
         Branch dry-run-test set up to track remote branch dry-run-test from origin.
 
-9. Open your browser to Github.
+9. Open your browser to GitHub.
 
 10. Navigate to your Docker fork.
 

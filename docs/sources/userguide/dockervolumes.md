@@ -80,9 +80,9 @@ directory from your Docker daemon's host into a container.
 
 > **Note:**
 > If you are using Boot2Docker, your Docker daemon only has limited access to
-> your OSX/Windows filesystem. Boot2Docker tries to auto-share your `/Users`
-> (OSX) or `C:\Users` (Windows) directory - and so you can mount files or directories
-> using `docker run -v /Users/<path>:/<container path> ...` (OSX) or
+> your OS X/Windows filesystem. Boot2Docker tries to auto-share your `/Users`
+> (OS X) or `C:\Users` (Windows) directory - and so you can mount files or directories
+> using `docker run -v /Users/<path>:/<container path> ...` (OS X) or
 > `docker run -v /c/Users/<path>:/<container path ...` (Windows). All other paths
 > come from the Boot2Docker virtual machine's filesystem.
 

@@ -262,7 +262,7 @@ Here is the list of supported options:
     device. And devices automatically goes away when last user of device
     exits.
 
-    For example, when contianer exits, its associated thin device is
+    For example, when container exits, its associated thin device is
     removed. If that devices has leaked into some other mount namespace
     can can't be removed now, container exit will still be successful
     and this option will just schedule device for deferred removal and

@@ -4,7 +4,7 @@ We always welcome contributions to help make `go-zfs` better. Please take a mome
 
 ### Reporting issues ###
 
-We use [Github issues](https://github.com/mistifyio/go-zfs/issues) to track bug reports, feature requests, and submitting pull requests.
+We use [GitHub issues](https://github.com/mistifyio/go-zfs/issues) to track bug reports, feature requests, and submitting pull requests.
 
 If you find a bug:
 

@@ -200,9 +200,9 @@ into account Docker community conventions.
 
 ## Building an image using a URL
 
-This will clone the specified Github repository from the URL and use it
+This will clone the specified GitHub repository from the URL and use it
 as context. The Dockerfile at the root of the repository is used as
-Dockerfile. This only works if the Github repository is a dedicated
+Dockerfile. This only works if the GitHub repository is a dedicated
 repository.
 
     docker build github.com/scollier/Fedora-Dockerfiles/tree/master/apache
