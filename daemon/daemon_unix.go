@@ -112,8 +112,17 @@ func checkKernel() error {
 	return nil
 }
 
-func (daemon *Daemon) verifyContainerSettings(hostConfig *runconfig.HostConfig) ([]string, error) {
+func (daemon *Daemon) verifyContainerSettings(hostConfig *runconfig.HostConfig, config *runconfig.Config) ([]string, error) {
 	var warnings []string
+
+	if config != nil {
+		// The check for a valid workdir path is made on the server rather than in the
+		// client. This is because we don't know the type of path (Linux or Windows)
+		// to validate on the client.
+		if config.WorkingDir != "" && !filepath.IsAbs(config.WorkingDir) {
+			return warnings, fmt.Errorf("The working directory '%s' is invalid. It needs to be an absolute path.", config.WorkingDir)
+		}
+	}
 
 	if hostConfig == nil {
 		return warnings, nil
