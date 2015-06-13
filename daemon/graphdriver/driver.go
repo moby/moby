@@ -68,9 +68,12 @@ type Driver interface {
 	// Diff produces an archive of the changes between the specified
 	// layer and its parent layer which may be "".
 	Diff(id, parent string) (archive.Archive, error)
+	// DiffAncestor produces an archive of the changes between the
+	// specified layer and one of its ancestor layers which may be "".
+	DiffAncestor(id, ancestor string) (archive.Archive, error)
 	// Changes produces a list of changes between the specified layer
 	// and its parent layer. If parent is "", then all changes will be ADD changes.
-	Changes(id, parent string) ([]archive.Change, error)
+	Changes(id, ancestor string) ([]archive.Change, error)
 	// ApplyDiff extracts the changeset from the given diff into the
 	// layer with the specified id and parent, returning the size of the
 	// new layer in bytes.
