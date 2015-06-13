@@ -169,6 +169,9 @@ func (c *controller) hostLeaveCallback(hosts []net.IP) {
 func (c *controller) Config() config.Config {
 	c.Lock()
 	defer c.Unlock()
+	if c.cfg == nil {
+		return config.Config{}
+	}
 	return *c.cfg
 }
 
