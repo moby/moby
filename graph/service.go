@@ -26,7 +26,7 @@ func (s *TagStore) LookupRaw(name string) ([]byte, error) {
 func (s *TagStore) Lookup(name string) (*types.ImageInspect, error) {
 	image, err := s.LookupImage(name)
 	if err != nil || image == nil {
-		return nil, fmt.Errorf("No such image: %s", name)
+		return nil, err
 	}
 
 	imageInspect := &types.ImageInspect{

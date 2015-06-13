@@ -208,7 +208,7 @@ func waitInspect(name, expr, expected string, timeout int) error {
 		cmd := exec.Command(dockerBinary, "inspect", "-f", expr, name)
 		out, _, err := runCommandWithOutput(cmd)
 		if err != nil {
-			if !strings.Contains(out, "No such") {
+			if !strings.Contains(out, "no such id") {
 				return fmt.Errorf("error executing docker inspect: %v\n%s", err, out)
 			}
 			select {
