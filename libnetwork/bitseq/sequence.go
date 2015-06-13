@@ -18,6 +18,24 @@ const (
 	blockFirstBit = 1 << (blockLen - 1)
 )
 
+// Handle contains the sequece representing the bitmask and its identifier
+type Handle struct {
+	ID   string
+	Head *Sequence
+}
+
+// NewHandle returns an instance of the bitmask handler
+func NewHandle(id string, numElements uint32) *Handle {
+	return &Handle{
+		ID: id,
+		Head: &Sequence{
+			Block: 0x0,
+			Count: getNumBlocks(numElements),
+			Next:  nil,
+		},
+	}
+}
+
 // Sequence reresents a recurring sequence of 32 bits long bitmasks
 type Sequence struct {
 	Block uint32    // block representing 4 byte long allocation bitmask
@@ -25,8 +43,8 @@ type Sequence struct {
 	Next  *Sequence // next sequence
 }
 
-// New returns a sequence initialized to represent a bitmaks of numElements bits
-func New(numElements uint32) *Sequence {
+// NewSequence returns a sequence initialized to represent a bitmaks of numElements bits
+func NewSequence(numElements uint32) *Sequence {
 	return &Sequence{Block: 0x0, Count: getNumBlocks(numElements), Next: nil}
 }
 
@@ -113,6 +131,22 @@ func (s *Sequence) FromByteArray(data []byte) error {
 	}
 
 	return nil
+}
+
+// GetFirstAvailable returns the byte and bit position of the first unset bit
+func (h *Handle) GetFirstAvailable() (int, int) {
+	return GetFirstAvailable(h.Head)
+}
+
+// CheckIfAvailable checks if the bit correspondent to the specified ordinal is unset
+// If the ordinal is beyond the Sequence limits, a negative response is returned
+func (h *Handle) CheckIfAvailable(ordinal int) (int, int) {
+	return CheckIfAvailable(h.Head, ordinal)
+}
+
+// PushReservation pushes the bit reservation inside the bitmask.
+func (h *Handle) PushReservation(bytePos, bitPos int, release bool) {
+	h.Head = PushReservation(bytePos, bitPos, h.Head, release)
 }
 
 // GetFirstAvailable looks for the first unset bit in passed mask

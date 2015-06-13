@@ -52,7 +52,7 @@ func (s *subnetKey) String() string {
 // The bitmask is stored a run-length encoded seq.Sequence of 4 bytes blcoks.
 type bitmask struct {
 	subnet        *net.IPNet
-	addressMask   *bitseq.Sequence
+	addressMask   *bitseq.Handle
 	freeAddresses int
 }
 
@@ -102,7 +102,7 @@ func (a *Allocator) AddSubnet(addrSpace AddressSpace, subnetInfo *SubnetInfo) er
 		a.Lock()
 		a.addresses[smallKey] = &bitmask{
 			subnet:        sub,
-			addressMask:   bitseq.New(uint32(numAddresses)),
+			addressMask:   bitseq.NewHandle(smallKey.String(), uint32(numAddresses)),
 			freeAddresses: numAddresses,
 		}
 		a.Unlock()
@@ -293,7 +293,7 @@ func (a *Allocator) Release(addrSpace AddressSpace, address net.IP) {
 			space := a.addresses[subnetKey{addrSpace, sub.String()}]
 			ordinal := ipToInt(getHostPortionIP(address, space.subnet))
 			// Release it
-			space.addressMask = bitseq.PushReservation(ordinal/8, ordinal%8, space.addressMask, true)
+			space.addressMask.PushReservation(ordinal/8, ordinal%8, true)
 			space.freeAddresses++
 			return
 		}
@@ -362,17 +362,17 @@ again:
 		return nil, ErrNoAvailableIPs
 	}
 	if prefAddress == nil {
-		bytePos, bitPos = bitseq.GetFirstAvailable(smallSubnet.addressMask)
+		bytePos, bitPos = smallSubnet.addressMask.GetFirstAvailable()
 	} else {
 		ordinal := ipToInt(getHostPortionIP(prefAddress, smallSubnet.subnet))
-		bytePos, bitPos = bitseq.CheckIfAvailable(smallSubnet.addressMask, ordinal)
+		bytePos, bitPos = smallSubnet.addressMask.CheckIfAvailable(ordinal)
 	}
 	if bytePos == -1 {
 		return nil, ErrNoAvailableIPs
 	}
 
 	// Lock it
-	smallSubnet.addressMask = bitseq.PushReservation(bytePos, bitPos, smallSubnet.addressMask, false)
+	smallSubnet.addressMask.PushReservation(bytePos, bitPos, false)
 	smallSubnet.freeAddresses--
 
 	// Build IP ordinal
