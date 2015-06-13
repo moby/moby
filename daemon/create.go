@@ -19,16 +19,9 @@ func (daemon *Daemon) ContainerCreate(name string, config *runconfig.Config, hos
 		return "", nil, fmt.Errorf("Config cannot be empty in order to create a container")
 	}
 
-	warnings, err := daemon.verifyContainerSettings(hostConfig)
+	warnings, err := daemon.verifyContainerSettings(hostConfig, config)
 	if err != nil {
 		return "", warnings, err
-	}
-
-	// The check for a valid workdir path is made on the server rather than in the
-	// client. This is because we don't know the type of path (Linux or Windows)
-	// to validate on the client.
-	if config.WorkingDir != "" && !filepath.IsAbs(config.WorkingDir) {
-		return "", warnings, fmt.Errorf("The working directory '%s' is invalid. It needs to be an absolute path.", config.WorkingDir)
 	}
 
 	container, buildWarnings, err := daemon.Create(config, hostConfig, name)
