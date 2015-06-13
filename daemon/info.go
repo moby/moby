@@ -75,6 +75,8 @@ func (daemon *Daemon) SystemInfo() (*types.Info, error) {
 		KernelVersion:      kernelVersion,
 		OperatingSystem:    operatingSystem,
 		IndexServerAddress: registry.IndexServer,
+		OSType:             runtime.GOOS,
+		Architecture:       runtime.GOARCH,
 		RegistryConfig:     daemon.RegistryService.Config,
 		InitSha1:           dockerversion.InitSHA1,
 		InitPath:           initPath,
