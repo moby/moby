@@ -134,13 +134,13 @@ func (s *Sequence) FromByteArray(data []byte) error {
 }
 
 // GetFirstAvailable returns the byte and bit position of the first unset bit
-func (h *Handle) GetFirstAvailable() (int, int) {
+func (h *Handle) GetFirstAvailable() (int, int, error) {
 	return GetFirstAvailable(h.Head)
 }
 
 // CheckIfAvailable checks if the bit correspondent to the specified ordinal is unset
 // If the ordinal is beyond the Sequence limits, a negative response is returned
-func (h *Handle) CheckIfAvailable(ordinal int) (int, int) {
+func (h *Handle) CheckIfAvailable(ordinal int) (int, int, error) {
 	return CheckIfAvailable(h.Head, ordinal)
 }
 
@@ -150,23 +150,23 @@ func (h *Handle) PushReservation(bytePos, bitPos int, release bool) {
 }
 
 // GetFirstAvailable looks for the first unset bit in passed mask
-func GetFirstAvailable(head *Sequence) (int, int) {
+func GetFirstAvailable(head *Sequence) (int, int, error) {
 	byteIndex := 0
 	current := head
 	for current != nil {
 		if current.Block != blockMAX {
 			bytePos, bitPos := current.GetAvailableBit()
-			return byteIndex + bytePos, bitPos
+			return byteIndex + bytePos, bitPos, nil
 		}
 		byteIndex += int(current.Count * blockBytes)
 		current = current.Next
 	}
-	return -1, -1
+	return -1, -1, fmt.Errorf("no bit available")
 }
 
 // CheckIfAvailable checks if the bit correspondent to the specified ordinal is unset
 // If the ordinal is beyond the Sequence limits, a negative response is returned
-func CheckIfAvailable(head *Sequence, ordinal int) (int, int) {
+func CheckIfAvailable(head *Sequence, ordinal int) (int, int, error) {
 	bytePos := ordinal / 8
 	bitPos := ordinal % 8
 
@@ -177,11 +177,11 @@ func CheckIfAvailable(head *Sequence, ordinal int) (int, int) {
 		// Check whether the bit corresponding to the ordinal address is unset
 		bitSel := uint32(blockFirstBit >> uint(inBlockBytePos*8+bitPos))
 		if current.Block&bitSel == 0 {
-			return bytePos, bitPos
+			return bytePos, bitPos, nil
 		}
 	}
 
-	return -1, -1
+	return -1, -1, fmt.Errorf("requested bit is not available")
 }
 
 // Given the byte position and the sequences list head, return the pointer to the

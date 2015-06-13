@@ -127,7 +127,7 @@ func TestGetFirstAvailable(t *testing.T) {
 	}
 
 	for n, i := range input {
-		bytePos, bitPos := GetFirstAvailable(i.mask)
+		bytePos, bitPos, _ := GetFirstAvailable(i.mask)
 		if bytePos != i.bytePos || bitPos != i.bitPos {
 			t.Fatalf("Error in (%d) getFirstAvailable(). Expected (%d, %d). Got (%d, %d)", n, i.bytePos, i.bitPos, bytePos, bitPos)
 		}
@@ -201,7 +201,7 @@ func TestCheckIfAvailable(t *testing.T) {
 	}
 
 	for n, i := range input {
-		bytePos, bitPos := CheckIfAvailable(i.head, i.ordinal)
+		bytePos, bitPos, _ := CheckIfAvailable(i.head, i.ordinal)
 		if bytePos != i.bytePos || bitPos != i.bitPos {
 			t.Fatalf("Error in (%d) checkIfAvailable(ord:%d). Expected (%d, %d). Got (%d, %d)", n, i.ordinal, i.bytePos, i.bitPos, bytePos, bitPos)
 		}
