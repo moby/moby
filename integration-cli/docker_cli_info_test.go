@@ -17,6 +17,8 @@ func (s *DockerSuite) TestInfoEnsureSucceeds(c *check.C) {
 		"Containers:",
 		"Images:",
 		"Execution Driver:",
+		"OSType:",
+		"Architecture:",
 		"Logging Driver:",
 		"Operating System:",
 		"CPUs:",

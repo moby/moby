@@ -202,6 +202,8 @@ type Info struct {
 	NEventsListener    int
 	KernelVersion      string
 	OperatingSystem    string
+	OSType             string
+	Architecture       string
 	IndexServerAddress string
 	RegistryConfig     *registry.ServiceConfig
 	InitSha1           string
