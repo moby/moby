@@ -35,7 +35,7 @@ func (s *DockerSuite) TestVersionStatusCode(c *check.C) {
 
 	req, err := http.NewRequest("GET", "/v999.0/version", nil)
 	c.Assert(err, check.IsNil)
-	req.Header.Set("User-Agent", "Docker-Client/999.0")
+	req.Header.Set("User-Agent", "Docker-Client/999.0 (os)")
 
 	res, err := client.Do(req)
 	c.Assert(res.StatusCode, check.Equals, http.StatusBadRequest)
