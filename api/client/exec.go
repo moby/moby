@@ -23,7 +23,7 @@ func (cli *DockerCli) CmdExec(args ...string) error {
 		return StatusError{StatusCode: 1}
 	}
 
-	stream, _, err := cli.call("POST", "/containers/"+execConfig.Container+"/exec", execConfig, nil)
+	stream, _, _, err := cli.call("POST", "/containers/"+execConfig.Container+"/exec", execConfig, nil)
 	if err != nil {
 		return err
 	}

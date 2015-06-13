@@ -25,7 +25,7 @@ func (cli *DockerCli) CmdDiff(args ...string) error {
 		return fmt.Errorf("Container name cannot be empty")
 	}
 
-	rdr, _, err := cli.call("GET", "/containers/"+cmd.Arg(0)+"/changes", nil, nil)
+	rdr, _, _, err := cli.call("GET", "/containers/"+cmd.Arg(0)+"/changes", nil, nil)
 	if err != nil {
 		return err
 	}

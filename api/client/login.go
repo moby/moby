@@ -113,7 +113,7 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 	authconfig.ServerAddress = serverAddress
 	cli.configFile.AuthConfigs[serverAddress] = authconfig
 
-	stream, statusCode, err := cli.call("POST", "/auth", cli.configFile.AuthConfigs[serverAddress], nil)
+	stream, _, statusCode, err := cli.call("POST", "/auth", cli.configFile.AuthConfigs[serverAddress], nil)
 	if statusCode == 401 {
 		delete(cli.configFile.AuthConfigs, serverAddress)
 		if err2 := cli.configFile.Save(); err2 != nil {
