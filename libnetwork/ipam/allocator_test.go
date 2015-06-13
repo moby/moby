@@ -347,8 +347,8 @@ func TestRequest(t *testing.T) {
 		{"192.168.240.0/20", 16 * 254, "192.168.255.254"},
 
 		{"192.168.0.0/16", 256 * 254, "192.168.255.254"},
-		{"10.0.0.0/8", 256 * 254, "10.0.255.254"},
-		{"10.0.0.0/8", 257 * 254, "10.1.0.254"},
+		{"10.0.0.0/8", 2 * 254, "10.0.1.254"},
+		{"10.0.0.0/8", 5 * 254, "10.0.4.254"},
 		//{"10.0.0.0/8", 100 * 256 * 254, "10.99.255.254"},
 	}
 
@@ -367,7 +367,7 @@ func TestRelease(t *testing.T) {
 	_, sub, _ := net.ParseCIDR(subnet)
 	a := getAllocator(sub)
 	req = &AddressRequest{Subnet: *sub}
-	bm := a.addresses[isKey{"default", subnet}]
+	bm := a.addresses[subnetKey{"default", subnet}]
 
 	// Allocate all addresses
 	for err != ErrNoAvailableIPs {

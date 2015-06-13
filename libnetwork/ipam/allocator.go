@@ -23,17 +23,17 @@ type Allocator struct {
 	// The internal subnets host size
 	internalHostSize int
 	// Static subnet information
-	subnetsInfo map[subnetKey]*subnetData
+	subnetsInfo map[subnetKey]*SubnetInfo
 	// Allocated addresses in each address space's internal subnet
-	addresses map[isKey]*bitmask
+	addresses map[subnetKey]*bitmask
 	sync.Mutex
 }
 
 // NewAllocator returns an instance of libnetwork ipam
 func NewAllocator() *Allocator {
 	a := &Allocator{}
-	a.subnetsInfo = make(map[subnetKey]*subnetData)
-	a.addresses = make(map[isKey]*bitmask)
+	a.subnetsInfo = make(map[subnetKey]*SubnetInfo)
+	a.addresses = make(map[subnetKey]*bitmask)
 	a.internalHostSize = defaultInternalHostSize
 	return a
 }
@@ -44,14 +44,8 @@ type subnetKey struct {
 	subnet       string
 }
 
-// Pointer to the internal subnets in each address space
-type isKey subnetKey
-
-// The structs contains the configured subnet information
-// along with the pointers to the respective internal subnets
-type subnetData struct {
-	info        *SubnetInfo // Configured subnet
-	intSubKeyes []*isKey    // Pointers to child internal subnets
+func (s *subnetKey) String() string {
+	return fmt.Sprintf("%s/%s", s.addressSpace, s.subnet)
 }
 
 // The structs containing the address allocation bitmask for the internal subnet.
@@ -86,37 +80,27 @@ func (a *Allocator) AddSubnet(addrSpace AddressSpace, subnetInfo *SubnetInfo) er
 		return ErrOverlapSubnet
 	}
 
-	// Sanity check and size adjustment for v6
-	subnetToSplit, err := adjustAndCheckSubnetSize(subnetInfo.Subnet)
-	if err != nil {
-		return err
-	}
-
 	// Convert to smaller internal subnets (if needed)
-	subnetList, err := getInternalSubnets(subnetToSplit, a.internalHostSize)
+	subnetList, err := getInternalSubnets(subnetInfo.Subnet, a.internalHostSize)
 	if err != nil {
 		return err
 	}
 
 	// Store the configured subnet information
-	subnetKey := subnetKey{addrSpace, subnetInfo.Subnet.String()}
-	info := &subnetData{info: subnetInfo, intSubKeyes: make([]*isKey, len(subnetList))}
+	key := subnetKey{addrSpace, subnetInfo.Subnet.String()}
 	a.Lock()
-	a.subnetsInfo[subnetKey] = info
+	a.subnetsInfo[key] = subnetInfo
 	a.Unlock()
 
 	// Create and insert the internal subnet(s) addresses masks into the address database
-	for i, sub := range subnetList {
+	for _, sub := range subnetList {
 		ones, bits := sub.Mask.Size()
 		numAddresses := 1 << uint(bits-ones)
-
-		// Create and store internal subnet key into parent subnet handle
-		smallKey := &isKey{addrSpace, sub.String()}
-		info.intSubKeyes[i] = smallKey
+		smallKey := subnetKey{addrSpace, sub.String()}
 
 		// Add the new address masks
 		a.Lock()
-		a.addresses[*smallKey] = &bitmask{
+		a.addresses[smallKey] = &bitmask{
 			subnet:        sub,
 			addressMask:   bitseq.New(uint32(numAddresses)),
 			freeAddresses: numAddresses,
@@ -153,8 +137,8 @@ func (a *Allocator) contains(space AddressSpace, subInfo *SubnetInfo) bool {
 	defer a.Unlock()
 	for k, v := range a.subnetsInfo {
 		if space == k.addressSpace {
-			if subInfo.Subnet.Contains(v.info.Subnet.IP) ||
-				v.info.Subnet.Contains(subInfo.Subnet.IP) {
+			if subInfo.Subnet.Contains(v.Subnet.IP) ||
+				v.Subnet.Contains(subInfo.Subnet.IP) {
 				return true
 			}
 		}
@@ -165,8 +149,14 @@ func (a *Allocator) contains(space AddressSpace, subInfo *SubnetInfo) bool {
 // Splits the passed subnet into N internal subnets with host size equal to internalHostSize.
 // If the subnet's host size is equal to or smaller than internalHostSize, there won't be any
 // split and the return list will contain only the passed subnet.
-func getInternalSubnets(subnet *net.IPNet, internalHostSize int) ([]*net.IPNet, error) {
+func getInternalSubnets(inSubnet *net.IPNet, internalHostSize int) ([]*net.IPNet, error) {
 	var subnetList []*net.IPNet
+
+	// Sanity check and size adjustment for v6
+	subnet, err := adjustAndCheckSubnetSize(inSubnet)
+	if err != nil {
+		return subnetList, err
+	}
 
 	// Get network/host subnet information
 	netBits, bits := subnet.Mask.Size()
@@ -209,15 +199,21 @@ func (a *Allocator) RemoveSubnet(addrSpace AddressSpace, subnet *net.IPNet) erro
 	// Remove it along with the internal subnets
 	subKey := subnetKey{addrSpace, subnet.String()}
 	a.Lock()
-	subData, ok := a.subnetsInfo[subKey]
+	_, ok := a.subnetsInfo[subKey]
 	a.Unlock()
 	if !ok {
 		return ErrSubnetNotFound
 	}
 
-	for _, key := range subData.intSubKeyes {
+	// Get the list of smaller internal subnets
+	subnetList, err := getInternalSubnets(subnet, a.internalHostSize)
+	if err != nil {
+		return err
+	}
+
+	for _, s := range subnetList {
 		a.Lock()
-		delete(a.addresses, *key)
+		delete(a.addresses, subnetKey{addrSpace, s.String()})
 		a.Unlock()
 	}
 
@@ -274,7 +270,7 @@ func (a *Allocator) request(addrSpace AddressSpace, req *AddressRequest, version
 		// Populate response
 		response.Address = ip
 		a.Lock()
-		response.Subnet = *a.subnetsInfo[subnetKey{addrSpace, req.Subnet.String()}].info
+		response.Subnet = *a.subnetsInfo[subnetKey{addrSpace, req.Subnet.String()}]
 		a.Unlock()
 	}
 
@@ -291,10 +287,10 @@ func (a *Allocator) Release(addrSpace AddressSpace, address net.IP) {
 		address = address.To4()
 	}
 	for _, subKey := range a.getSubnetList(addrSpace, ver) {
-		sub := a.addresses[*subKey].subnet
+		sub := a.addresses[subKey].subnet
 		if sub.Contains(address) {
 			// Retrieve correspondent ordinal in the subnet
-			space := a.addresses[isKey{addrSpace, sub.String()}]
+			space := a.addresses[subnetKey{addrSpace, sub.String()}]
 			ordinal := ipToInt(getHostPortionIP(address, space.subnet))
 			// Release it
 			space.addressMask = bitseq.PushReservation(ordinal/8, ordinal%8, space.addressMask, true)
@@ -305,13 +301,18 @@ func (a *Allocator) Release(addrSpace AddressSpace, address net.IP) {
 }
 
 func (a *Allocator) reserveAddress(addrSpace AddressSpace, subnet *net.IPNet, prefAddress net.IP, ver ipVersion) (net.IP, *net.IPNet, error) {
-	var keyList []*isKey
+	var keyList []subnetKey
 
 	// Get the list of pointers to the internal subnets
 	if subnet != nil {
-		a.Lock()
-		keyList = a.subnetsInfo[subnetKey{addrSpace, subnet.String()}].intSubKeyes
-		a.Unlock()
+		// Get the list of smaller internal subnets
+		subnetList, err := getInternalSubnets(subnet, a.internalHostSize)
+		if err != nil {
+			return nil, nil, err
+		}
+		for _, s := range subnetList {
+			keyList = append(keyList, subnetKey{addrSpace, s.String()})
+		}
 	} else {
 		a.Lock()
 		keyList = a.getSubnetList(addrSpace, ver)
@@ -323,7 +324,7 @@ func (a *Allocator) reserveAddress(addrSpace AddressSpace, subnet *net.IPNet, pr
 
 	for _, key := range keyList {
 		a.Lock()
-		smallSubnet := a.addresses[*key]
+		smallSubnet := a.addresses[key]
 		a.Unlock()
 		address, err := a.getAddress(smallSubnet, prefAddress, ver)
 		if err == nil {
@@ -335,15 +336,15 @@ func (a *Allocator) reserveAddress(addrSpace AddressSpace, subnet *net.IPNet, pr
 }
 
 // Get the list of available internal subnets for the specified address space and the desired ip version
-func (a *Allocator) getSubnetList(addrSpace AddressSpace, ver ipVersion) []*isKey {
-	var list [1024]*isKey
+func (a *Allocator) getSubnetList(addrSpace AddressSpace, ver ipVersion) []subnetKey {
+	var list [1024]subnetKey
 	ind := 0
 	a.Lock()
 	for subKey := range a.addresses {
 		_, s, _ := net.ParseCIDR(subKey.subnet)
 		subVer := getAddressVersion(s.IP)
 		if subKey.addressSpace == addrSpace && subVer == ver {
-			list[ind] = &subKey
+			list[ind] = subKey
 			ind++
 		}
 	}
@@ -390,10 +391,12 @@ again:
 func (a *Allocator) DumpDatabase() {
 	a.Lock()
 	defer a.Unlock()
-	for _, config := range a.subnetsInfo {
-		fmt.Printf("\n\n%s:", config.info.Subnet.String())
-		for _, internKey := range config.intSubKeyes {
-			bm := a.addresses[*internKey]
+	for k, config := range a.subnetsInfo {
+		fmt.Printf("\n\n%s:", config.Subnet.String())
+		subnetList, _ := getInternalSubnets(config.Subnet, a.internalHostSize)
+		for _, s := range subnetList {
+			internKey := subnetKey{k.addressSpace, s.String()}
+			bm := a.addresses[internKey]
 			fmt.Printf("\n\t%s: %s\n\t%d", bm.subnet, bm.addressMask, bm.freeAddresses)
 		}
 	}
