@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/BurntSushi/toml"
+	"github.com/docker/libnetwork/netlabel"
 )
 
 // Config encapsulates configurations of various Libnetwork components
@@ -18,6 +19,7 @@ type DaemonCfg struct {
 	Debug          bool
 	DefaultNetwork string
 	DefaultDriver  string
+	Labels         []string
 }
 
 // ClusterCfg represents cluster configuration
@@ -63,6 +65,17 @@ func OptionDefaultNetwork(dn string) Option {
 func OptionDefaultDriver(dd string) Option {
 	return func(c *Config) {
 		c.Daemon.DefaultDriver = strings.TrimSpace(dd)
+	}
+}
+
+// OptionLabels function returns an option setter for labels
+func OptionLabels(labels []string) Option {
+	return func(c *Config) {
+		for _, label := range labels {
+			if strings.HasPrefix(label, netlabel.Prefix) {
+				c.Daemon.Labels = append(c.Daemon.Labels, label)
+			}
+		}
 	}
 }
 
