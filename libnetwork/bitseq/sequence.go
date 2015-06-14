@@ -5,6 +5,7 @@ package bitseq
 
 import (
 	"fmt"
+	"sync"
 
 	"github.com/docker/libnetwork/netutils"
 )
@@ -22,9 +23,10 @@ const (
 type Handle struct {
 	ID   string
 	Head *Sequence
+	sync.Mutex
 }
 
-// NewHandle returns an instance of the bitmask handler
+// NewHandle returns a thread-safe instance of the bitmask handler
 func NewHandle(id string, numElements uint32) *Handle {
 	return &Handle{
 		ID: id,
@@ -135,17 +137,23 @@ func (s *Sequence) FromByteArray(data []byte) error {
 
 // GetFirstAvailable returns the byte and bit position of the first unset bit
 func (h *Handle) GetFirstAvailable() (int, int, error) {
+	h.Lock()
+	defer h.Unlock()
 	return GetFirstAvailable(h.Head)
 }
 
 // CheckIfAvailable checks if the bit correspondent to the specified ordinal is unset
 // If the ordinal is beyond the Sequence limits, a negative response is returned
 func (h *Handle) CheckIfAvailable(ordinal int) (int, int, error) {
+	h.Lock()
+	defer h.Unlock()
 	return CheckIfAvailable(h.Head, ordinal)
 }
 
 // PushReservation pushes the bit reservation inside the bitmask.
 func (h *Handle) PushReservation(bytePos, bitPos int, release bool) {
+	h.Lock()
+	defer h.Unlock()
 	h.Head = PushReservation(bytePos, bitPos, h.Head, release)
 }
 
