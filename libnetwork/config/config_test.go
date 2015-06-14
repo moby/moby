@@ -41,3 +41,15 @@ func TestOptionsLabels(t *testing.T) {
 		}
 	}
 }
+
+func TestValidName(t *testing.T) {
+	if !IsValidName("test") {
+		t.Fatal("Name validation fails for a name that must be accepted")
+	}
+	if IsValidName("") {
+		t.Fatal("Name validation succeeds for a case when it is expected to fail")
+	}
+	if IsValidName("name.with.dots") {
+		t.Fatal("Name validation succeeds for a case when it is expected to fail")
+	}
+}

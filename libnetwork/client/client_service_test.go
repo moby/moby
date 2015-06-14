@@ -21,7 +21,7 @@ func TestClientServiceCreate(t *testing.T) {
 	var out, errOut bytes.Buffer
 	cli := NewNetworkCli(&out, &errOut, callbackFunc)
 
-	err := cli.Cmd("docker", "service", "publish", "-net="+mockNwName, mockServiceName)
+	err := cli.Cmd("docker", "service", "publish", mockServiceName+"."+mockNwName)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -31,7 +31,7 @@ func TestClientServiceRm(t *testing.T) {
 	var out, errOut bytes.Buffer
 	cli := NewNetworkCli(&out, &errOut, callbackFunc)
 
-	err := cli.Cmd("docker", "service", "unpublish", "-net="+mockNwName, mockServiceName)
+	err := cli.Cmd("docker", "service", "unpublish", mockServiceName+"."+mockNwName)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -51,7 +51,7 @@ func TestClientServiceInfo(t *testing.T) {
 	var out, errOut bytes.Buffer
 	cli := NewNetworkCli(&out, &errOut, callbackFunc)
 
-	err := cli.Cmd("docker", "service", "info", "-net="+mockNwName, mockServiceName)
+	err := cli.Cmd("docker", "service", "info", mockServiceName+"."+mockNwName)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -61,7 +61,7 @@ func TestClientServiceInfoById(t *testing.T) {
 	var out, errOut bytes.Buffer
 	cli := NewNetworkCli(&out, &errOut, callbackFunc)
 
-	err := cli.Cmd("docker", "service", "info", "-net="+mockNwName, mockServiceID)
+	err := cli.Cmd("docker", "service", "info", mockServiceID+"."+mockNwName)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -71,7 +71,7 @@ func TestClientServiceJoin(t *testing.T) {
 	var out, errOut bytes.Buffer
 	cli := NewNetworkCli(&out, &errOut, callbackFunc)
 
-	err := cli.Cmd("docker", "service", "attach", "-net="+mockNwName, mockContainerID, mockServiceName)
+	err := cli.Cmd("docker", "service", "attach", mockContainerID, mockServiceName+"."+mockNwName)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -81,7 +81,7 @@ func TestClientServiceLeave(t *testing.T) {
 	var out, errOut bytes.Buffer
 	cli := NewNetworkCli(&out, &errOut, callbackFunc)
 
-	err := cli.Cmd("docker", "service", "detach", "-net="+mockNwName, mockContainerID, mockServiceName)
+	err := cli.Cmd("docker", "service", "detach", mockContainerID, mockServiceName+"."+mockNwName)
 	if err != nil {
 		t.Fatal(err)
 	}

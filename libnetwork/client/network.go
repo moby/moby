@@ -9,11 +9,6 @@ import (
 
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/stringid"
-	"github.com/docker/libnetwork/netlabel"
-)
-
-const (
-	defaultDriverType = "bridge"
 )
 
 type command struct {
@@ -45,28 +40,16 @@ func (cli *NetworkCli) CmdNetwork(chain string, args ...string) error {
 // CmdNetworkCreate handles Network Create UI
 func (cli *NetworkCli) CmdNetworkCreate(chain string, args ...string) error {
 	cmd := cli.Subcmd(chain, "create", "NETWORK-NAME", "Creates a new network with a name specified by the user", false)
-	flDriver := cmd.String([]string{"d", "-driver"}, "bridge", "Driver to manage the Network")
-	cmd.Require(flag.Min, 1)
+	flDriver := cmd.String([]string{"d", "-driver"}, "", "Driver to manage the Network")
+	cmd.Require(flag.Exact, 1)
 	err := cmd.ParseFlags(args, true)
 	if err != nil {
 		return err
-	}
-	if *flDriver == "" {
-		*flDriver = defaultDriverType
 	}
 
 	// Construct network create request body
 	ops := make(map[string]interface{})
 	nc := networkCreate{Name: cmd.Arg(0), NetworkType: *flDriver, Options: ops}
-
-	// Set driver specific options
-	if *flDriver == "bridge" {
-		ops[netlabel.GenericData] = map[string]string{
-			"BridgeName":            cmd.Arg(0),
-			"AllowNonDefaultBridge": "true",
-		}
-	}
-
 	obj, _, err := readBody(cli.call("POST", "/networks", nc, nil))
 	if err != nil {
 		return err
@@ -83,7 +66,7 @@ func (cli *NetworkCli) CmdNetworkCreate(chain string, args ...string) error {
 // CmdNetworkRm handles Network Delete UI
 func (cli *NetworkCli) CmdNetworkRm(chain string, args ...string) error {
 	cmd := cli.Subcmd(chain, "rm", "NETWORK", "Deletes a network", false)
-	cmd.Require(flag.Min, 1)
+	cmd.Require(flag.Exact, 1)
 	err := cmd.ParseFlags(args, true)
 	if err != nil {
 		return err
@@ -155,7 +138,7 @@ func (cli *NetworkCli) CmdNetworkLs(chain string, args ...string) error {
 // CmdNetworkInfo handles Network Info UI
 func (cli *NetworkCli) CmdNetworkInfo(chain string, args ...string) error {
 	cmd := cli.Subcmd(chain, "info", "NETWORK", "Displays detailed information on a network", false)
-	cmd.Require(flag.Min, 1)
+	cmd.Require(flag.Exact, 1)
 	err := cmd.ParseFlags(args, true)
 	if err != nil {
 		return err

@@ -20,6 +20,8 @@ import (
 	"github.com/docker/libnetwork/api"
 	"github.com/docker/libnetwork/client"
 	"github.com/docker/libnetwork/config"
+	"github.com/docker/libnetwork/netlabel"
+	"github.com/docker/libnetwork/options"
 	"github.com/gorilla/mux"
 )
 
@@ -63,11 +65,20 @@ func processConfig(cfg *config.Config) []config.Option {
 	if cfg == nil {
 		return options
 	}
+	dn := "bridge"
 	if strings.TrimSpace(cfg.Daemon.DefaultNetwork) != "" {
-		options = append(options, config.OptionDefaultNetwork(cfg.Daemon.DefaultNetwork))
+		dn = cfg.Daemon.DefaultNetwork
 	}
+	options = append(options, config.OptionDefaultNetwork(dn))
+
+	dd := "bridge"
 	if strings.TrimSpace(cfg.Daemon.DefaultDriver) != "" {
-		options = append(options, config.OptionDefaultDriver(cfg.Daemon.DefaultDriver))
+		dd = cfg.Daemon.DefaultDriver
+	}
+	options = append(options, config.OptionDefaultDriver(dd))
+
+	if cfg.Daemon.Labels != nil {
+		options = append(options, config.OptionLabels(cfg.Daemon.Labels))
 	}
 	if strings.TrimSpace(cfg.Datastore.Client.Provider) != "" {
 		options = append(options, config.OptionKVProvider(cfg.Datastore.Client.Provider))
@@ -136,6 +147,29 @@ func dnetCommand(stdout, stderr io.Writer) error {
 	return nil
 }
 
+func createDefaultNetwork(c libnetwork.NetworkController) {
+	nw := c.Config().Daemon.DefaultNetwork
+	d := c.Config().Daemon.DefaultDriver
+	createOptions := []libnetwork.NetworkOption{}
+	genericOption := options.Generic{}
+
+	if nw != "" && d != "" {
+		// Bridge driver is special due to legacy reasons
+		if d == "bridge" {
+			genericOption[netlabel.GenericData] = map[string]interface{}{
+				"BridgeName":            nw,
+				"AllowNonDefaultBridge": "true",
+			}
+			networkOption := libnetwork.NetworkOptionGeneric(genericOption)
+			createOptions = append(createOptions, networkOption)
+		}
+		_, err := c.NewNetwork(d, nw, createOptions...)
+		if err != nil {
+			logrus.Errorf("Error creating default network : %s : %v", nw, err)
+		}
+	}
+}
+
 type dnetConnection struct {
 	// proto holds the client protocol i.e. unix.
 	proto string
@@ -154,6 +188,7 @@ func (d *dnetConnection) dnetDaemon() error {
 		fmt.Println("Error starting dnetDaemon :", err)
 		return err
 	}
+	createDefaultNetwork(controller)
 	httpHandler := api.NewHTTPHandler(controller)
 	r := mux.NewRouter().StrictSlash(false)
 	post := r.PathPrefix("/{.*}/networks").Subrouter()

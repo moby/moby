@@ -188,6 +188,9 @@ func (c *controller) ConfigureNetworkDriver(networkType string, options map[stri
 func (c *controller) RegisterDriver(networkType string, driver driverapi.Driver, capability driverapi.Capability) error {
 	c.Lock()
 	defer c.Unlock()
+	if !config.IsValidName(networkType) {
+		return ErrInvalidName(networkType)
+	}
 	if _, ok := c.drivers[networkType]; ok {
 		return driverapi.ErrActiveRegistration(networkType)
 	}
@@ -198,7 +201,7 @@ func (c *controller) RegisterDriver(networkType string, driver driverapi.Driver,
 // NewNetwork creates a new network of the specified network type. The options
 // are network specific and modeled in a generic way.
 func (c *controller) NewNetwork(networkType, name string, options ...NetworkOption) (Network, error) {
-	if name == "" {
+	if !config.IsValidName(name) {
 		return nil, ErrInvalidName(name)
 	}
 	// Check if a network already exists with the specified network name

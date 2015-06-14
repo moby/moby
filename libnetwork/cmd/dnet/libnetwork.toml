@@ -1,0 +1,11 @@
+title = "LibNetwork Configuration file"
+
+[daemon]
+  debug = false
+  DefaultNetwork = "bridge"
+  DefaultDriver = "bridge"
+[cluster]
+  discovery = "token://22aa23948f4f6b31230687689636959e"
+  Address = "1.1.1.1"
+[datastore]
+  embedded = false

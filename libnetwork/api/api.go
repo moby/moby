@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/docker/libnetwork"
+	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/libnetwork/types"
 	"github.com/gorilla/mux"
 )
@@ -39,6 +40,11 @@ const (
 	urlEpID   = "endpoint-id"
 	urlEpPID  = "endpoint-partial-id"
 	urlCnID   = "container-id"
+
+	// BridgeNetworkDriver is the built-in default for Network Driver
+	BridgeNetworkDriver = "bridge"
+	// BridgeDefaultNetwork is the built-in default for network name
+	BridgeDefaultNetwork = "bridge"
 )
 
 // NewHTTPHandler creates and initialize the HTTP handler to serve the requests for libnetwork
@@ -246,6 +252,30 @@ func (ej *endpointJoin) parseOptions() []libnetwork.EndpointOption {
  Process functions
 *******************/
 
+func processCreateDefaults(c libnetwork.NetworkController, nc *networkCreate) {
+	if nc.NetworkType == "" {
+		nc.NetworkType = c.Config().Daemon.DefaultDriver
+	}
+	if nc.NetworkType == BridgeNetworkDriver {
+		if nc.Options == nil {
+			nc.Options = make(map[string]interface{})
+		}
+		genericData, ok := nc.Options[netlabel.GenericData]
+		if !ok {
+			genericData = make(map[string]interface{})
+		}
+		gData := genericData.(map[string]interface{})
+
+		if _, ok := gData["BridgeName"]; !ok {
+			gData["BridgeName"] = nc.Name
+		}
+		if _, ok := gData["AllowNonDefaultBridge"]; !ok {
+			gData["AllowNonDefaultBridge"] = "true"
+		}
+		nc.Options[netlabel.GenericData] = genericData
+	}
+}
+
 /***************************
  NetworkController interface
 ****************************/
@@ -256,6 +286,7 @@ func procCreateNetwork(c libnetwork.NetworkController, vars map[string]string, b
 	if err != nil {
 		return "", &responseStatus{Status: "Invalid body: " + err.Error(), StatusCode: http.StatusBadRequest}
 	}
+	processCreateDefaults(c, &create)
 
 	nw, err := c.NewNetwork(create.NetworkType, create.Name, create.parseOptions()...)
 	if err != nil {
@@ -665,6 +696,9 @@ func findNetwork(c libnetwork.NetworkController, s string, by int) (libnetwork.N
 	case byID:
 		nw, err = c.NetworkByID(s)
 	case byName:
+		if s == "" {
+			s = c.Config().Daemon.DefaultNetwork
+		}
 		nw, err = c.NetworkByName(s)
 	default:
 		panic(fmt.Sprintf("unexpected selector for network search: %d", by))

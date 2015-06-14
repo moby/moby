@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 	"text/tabwriter"
 
 	flag "github.com/docker/docker/pkg/mflag"
@@ -34,6 +35,18 @@ func lookupServiceID(cli *NetworkCli, nwName, svNameID string) (string, error) {
 	}
 	if len(nwList) == 0 {
 		return "", fmt.Errorf("Network %s does not exist", nwName)
+	}
+
+	if nwName == "" {
+		obj, _, err := readBody(cli.call("GET", "/networks/"+nwList[0].ID, nil, nil))
+		if err != nil {
+			return "", err
+		}
+		networkResource := &networkResource{}
+		if err := json.NewDecoder(bytes.NewReader(obj)).Decode(networkResource); err != nil {
+			return "", err
+		}
+		nwName = networkResource.Name
 	}
 
 	// Query service by name
@@ -95,24 +108,30 @@ func (cli *NetworkCli) CmdService(chain string, args ...string) error {
 	return err
 }
 
+// Parse service name for "SERVICE[.NETWORK]" format
+func parseServiceName(name string) (string, string) {
+	s := strings.Split(name, ".")
+	var sName, nName string
+	if len(s) > 1 {
+		nName = s[len(s)-1]
+		sName = strings.Join(s[:len(s)-1], ".")
+	} else {
+		sName = s[0]
+	}
+	return sName, nName
+}
+
 // CmdServicePublish handles service create UI
 func (cli *NetworkCli) CmdServicePublish(chain string, args ...string) error {
-	cmd := cli.Subcmd(chain, "publish", "SERVICE", "Publish a new service on a network", false)
-	flNetwork := cmd.String([]string{"net", "-network"}, "", "Network where to publish the service")
-	cmd.Require(flag.Min, 1)
-
+	cmd := cli.Subcmd(chain, "publish", "SERVICE[.NETWORK]", "Publish a new service on a network", false)
+	cmd.Require(flag.Exact, 1)
 	err := cmd.ParseFlags(args, true)
 	if err != nil {
 		return err
 	}
 
-	// Default network changes will come later
-	nw := "docker0"
-	if *flNetwork != "" {
-		nw = *flNetwork
-	}
-
-	sc := serviceCreate{Name: cmd.Arg(0), Network: nw}
+	sn, nn := parseServiceName(cmd.Arg(0))
+	sc := serviceCreate{Name: sn, Network: nn}
 	obj, _, err := readBody(cli.call("POST", "/services", sc, nil))
 	if err != nil {
 		return err
@@ -130,22 +149,15 @@ func (cli *NetworkCli) CmdServicePublish(chain string, args ...string) error {
 
 // CmdServiceUnpublish handles service delete UI
 func (cli *NetworkCli) CmdServiceUnpublish(chain string, args ...string) error {
-	cmd := cli.Subcmd(chain, "unpublish", "SERVICE", "Removes a service", false)
-	flNetwork := cmd.String([]string{"net", "-network"}, "", "Network where to publish the service")
-	cmd.Require(flag.Min, 1)
-
+	cmd := cli.Subcmd(chain, "unpublish", "SERVICE[.NETWORK]", "Removes a service", false)
+	cmd.Require(flag.Exact, 1)
 	err := cmd.ParseFlags(args, true)
 	if err != nil {
 		return err
 	}
 
-	// Default network changes will come later
-	nw := "docker0"
-	if *flNetwork != "" {
-		nw = *flNetwork
-	}
-
-	serviceID, err := lookupServiceID(cli, nw, cmd.Arg(0))
+	sn, nn := parseServiceName(cmd.Arg(0))
+	serviceID, err := lookupServiceID(cli, nn, sn)
 	if err != nil {
 		return err
 	}
@@ -166,8 +178,6 @@ func (cli *NetworkCli) CmdServiceLs(chain string, args ...string) error {
 	if err != nil {
 		return err
 	}
-
-	cmd.Require(flag.Min, 1)
 
 	var obj []byte
 	if *flNetwork == "" {
@@ -237,8 +247,7 @@ func getBackendID(cli *NetworkCli, servID string) (string, error) {
 
 // CmdServiceInfo handles service info UI
 func (cli *NetworkCli) CmdServiceInfo(chain string, args ...string) error {
-	cmd := cli.Subcmd(chain, "info", "SERVICE", "Displays detailed information about a service", false)
-	flNetwork := cmd.String([]string{"net", "-network"}, "", "Network where to publish the service")
+	cmd := cli.Subcmd(chain, "info", "SERVICE[.NETWORK]", "Displays detailed information about a service", false)
 	cmd.Require(flag.Min, 1)
 
 	err := cmd.ParseFlags(args, true)
@@ -246,13 +255,8 @@ func (cli *NetworkCli) CmdServiceInfo(chain string, args ...string) error {
 		return err
 	}
 
-	// Default network changes will come later
-	nw := "docker0"
-	if *flNetwork != "" {
-		nw = *flNetwork
-	}
-
-	serviceID, err := lookupServiceID(cli, nw, cmd.Arg(0))
+	sn, nn := parseServiceName(cmd.Arg(0))
+	serviceID, err := lookupServiceID(cli, nn, sn)
 	if err != nil {
 		return err
 	}
@@ -276,19 +280,11 @@ func (cli *NetworkCli) CmdServiceInfo(chain string, args ...string) error {
 
 // CmdServiceAttach handles service attach UI
 func (cli *NetworkCli) CmdServiceAttach(chain string, args ...string) error {
-	cmd := cli.Subcmd(chain, "attach", "CONTAINER SERVICE", "Sets a container as a service backend", false)
-	flNetwork := cmd.String([]string{"net", "-network"}, "", "Network where to publish the service")
+	cmd := cli.Subcmd(chain, "attach", "CONTAINER SERVICE[.NETWORK]", "Sets a container as a service backend", false)
 	cmd.Require(flag.Min, 2)
-
 	err := cmd.ParseFlags(args, true)
 	if err != nil {
 		return err
-	}
-
-	// Default network changes will come later
-	nw := "docker0"
-	if *flNetwork != "" {
-		nw = *flNetwork
 	}
 
 	containerID, err := lookupContainerID(cli, cmd.Arg(0))
@@ -296,7 +292,8 @@ func (cli *NetworkCli) CmdServiceAttach(chain string, args ...string) error {
 		return err
 	}
 
-	serviceID, err := lookupServiceID(cli, nw, cmd.Arg(1))
+	sn, nn := parseServiceName(cmd.Arg(1))
+	serviceID, err := lookupServiceID(cli, nn, sn)
 	if err != nil {
 		return err
 	}
@@ -311,26 +308,19 @@ func (cli *NetworkCli) CmdServiceAttach(chain string, args ...string) error {
 // CmdServiceDetach handles service detach UI
 func (cli *NetworkCli) CmdServiceDetach(chain string, args ...string) error {
 	cmd := cli.Subcmd(chain, "detach", "CONTAINER SERVICE", "Removes a container from service backend", false)
-	flNetwork := cmd.String([]string{"net", "-network"}, "", "Network where to publish the service")
 	cmd.Require(flag.Min, 2)
-
 	err := cmd.ParseFlags(args, true)
 	if err != nil {
 		return err
 	}
 
-	// Default network changes will come later
-	nw := "docker0"
-	if *flNetwork != "" {
-		nw = *flNetwork
-	}
-
+	sn, nn := parseServiceName(cmd.Arg(1))
 	containerID, err := lookupContainerID(cli, cmd.Arg(0))
 	if err != nil {
 		return err
 	}
 
-	serviceID, err := lookupServiceID(cli, nw, cmd.Arg(1))
+	serviceID, err := lookupServiceID(cli, nn, sn)
 	if err != nil {
 		return err
 	}
