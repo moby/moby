@@ -312,49 +312,22 @@ __docker_signals() {
 	COMPREPLY=( $( compgen -W "${signals[*]} ${signals[*]#SIG}" -- "$( echo $cur | tr '[:lower:]' '[:upper:]')" ) )
 }
 
+# global options that may appear after the docker command
 _docker_docker() {
 	local boolean_options="
-		--daemon -d
 		--debug -D
 		--help -h
-		--icc
-		--ip-forward
-		--ip-masq
-		--iptables
-		--ipv6
-		--selinux-enabled
 		--tls
 		--tlsverify
-		--userland-proxy=false
 		--version -v
 	"
 
 	case "$prev" in
-		--exec-root|--graph|-g)
-			_filedir -d
-			return
-			;;
-		--log-driver)
-			__docker_log_drivers
-			return
-			;;
 		--log-level|-l)
 			COMPREPLY=( $( compgen -W "debug info warn error fatal" -- "$cur" ) )
 			return
 			;;
-		--log-opt)
-			__docker_log_driver_options
-			return
-			;;
-		--pidfile|-p|--tlscacert|--tlscert|--tlskey)
-			_filedir
-			return
-			;;
-		--storage-driver|-s)
-			COMPREPLY=( $( compgen -W "aufs devicemapper btrfs overlay" -- "$(echo $cur | tr '[:upper:]' '[:lower:]')" ) )
-			return
-			;;
-		$main_options_with_args_glob )
+		$(__docker_to_extglob "$global_options_with_args") )
 			return
 			;;
 	esac
@@ -363,7 +336,7 @@ _docker_docker() {
 
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "$boolean_options $main_options_with_args" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "$boolean_options $global_options_with_args" -- "$cur" ) )
 			;;
 		*)
 			local counter="$(__docker_pos_first_nonflag $main_options_with_args_glob)"
@@ -476,6 +449,79 @@ _docker_cp() {
 
 _docker_create() {
 	_docker_run
+}
+
+_docker_daemon() {
+	local boolean_options="
+		--help -h
+		--icc=false
+		--ip-forward=false
+		--ip-masq=false
+		--iptables=false
+		--ipv6
+		--selinux-enabled
+		--userland-proxy=false
+	"
+	local options_with_args="
+		--api-cors-header
+		--bip
+		--bridge -b
+		--default-gateway
+		--default-gateway-v6
+		--default-ulimit
+		--dns
+		--dns-search
+		--exec-driver -e
+		--exec-opt
+		--exec-root
+		--fixed-cidr
+		--fixed-cidr-v6
+		--graph -g
+		--group -G
+		--insecure-registry
+		--ip
+		--label
+		--log-driver
+		--log-opt
+		--mtu
+		--pidfile -p
+		--registry-mirror
+		--storage-driver -s
+		--storage-opt
+	"
+
+	case "$prev" in
+		--exec-root|--graph|-g)
+			_filedir -d
+			return
+			;;
+		--log-driver)
+			__docker_log_drivers
+			return
+			;;
+		--pidfile|-p|--tlscacert|--tlscert|--tlskey)
+			_filedir
+			return
+			;;
+		--storage-driver|-s)
+			COMPREPLY=( $( compgen -W "aufs devicemapper btrfs overlay" -- "$(echo $cur | tr '[:upper:]' '[:lower:]')" ) )
+			return
+			;;
+		--log-opt)
+			__docker_log_driver_options
+			return
+			;;
+		$(__docker_to_extglob "$options_with_args") )
+			return
+			;;
+		$main_options_with_args_glob )
+	esac
+
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "$boolean_options $options_with_args" -- "$cur" ) )
+			;;
+	esac
 }
 
 _docker_diff() {
@@ -1287,6 +1333,7 @@ _docker() {
 		commit
 		cp
 		create
+		daemon
 		diff
 		events
 		exec
@@ -1323,40 +1370,14 @@ _docker() {
 		wait
 	)
 
-	local main_options_with_args="
-		--api-cors-header
-		--bip
-		--bridge -b
-		--default-gateway
-		--default-gateway-v6
-		--default-ulimit
-		--dns
-		--dns-search
-		--exec-driver -e
-		--exec-opt
-		--exec-root
-		--fixed-cidr
-		--fixed-cidr-v6
-		--graph -g
-		--group -G
+	local global_options_with_args="
 		--host -H
-		--insecure-registry
-		--ip
-		--label
-		--log-driver
 		--log-level -l
-		--log-opt
-		--mtu
-		--pidfile -p
-		--registry-mirror
-		--storage-driver -s
-		--storage-opt
 		--tlscacert
 		--tlscert
 		--tlskey
 	"
 
-	local main_options_with_args_glob=$(__docker_to_extglob "$main_options_with_args")
 	local host
 
 	COMPREPLY=()
@@ -1372,7 +1393,7 @@ _docker() {
 				(( counter++ ))
 				host="${words[$counter]}"
 				;;
-			$main_options_with_args_glob )
+			$(__docker_to_extglob "$global_options_with_args") )
 				(( counter++ ))
 				;;
 			-*)
