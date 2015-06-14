@@ -6,11 +6,12 @@ Dockerfile syntax highlighting for TextMate and Sublime Text.
 
 ### Sublime Text
 
-Available for Sublime Text under [Package Control](https://sublime.wbond.net/packages/Dockerfile%20Syntax%20Highlighting).
+Available for Sublime Text under [package control](https://sublime.wbond.net/packages/Dockerfile%20Syntax%20Highlighting).
 Search for *Dockerfile Syntax Highlighting*
 
 ### TextMate 2
 
-Copy the directory `Docker.tmbundle` (shown as a Package in OS X) to `~/Library/Application Support/TextMate/Managed/Bundles`
+You can install this bundle in TextMate by opening the preferences and going to the bundles tab. After installation it will be automatically updated for you.
 
-Enjoy.
+enjoy.
+
