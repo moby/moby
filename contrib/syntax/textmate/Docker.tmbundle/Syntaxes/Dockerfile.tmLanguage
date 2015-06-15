@@ -1,54 +1,70 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple Computer//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<key>name</key>
-	<string>Dockerfile</string>
 	<key>fileTypes</key>
 	<array>
 		<string>Dockerfile</string>
 	</array>
+	<key>name</key>
+	<string>Dockerfile</string>
 	<key>patterns</key>
 	<array>
 		<dict>
-			<key>match</key>
-			<string>^\s*(ONBUILD\s+)?(FROM|MAINTAINER|RUN|EXPOSE|ENV|ADD|VOLUME|USER|LABEL|WORKDIR|COPY)\s</string>
 			<key>captures</key>
 			<dict>
-				<key>0</key>
+				<key>1</key>
 				<dict>
 					<key>name</key>
 					<string>keyword.control.dockerfile</string>
 				</dict>
-				<key>1</key>
+				<key>2</key>
 				<dict>
 					<key>name</key>
 					<string>keyword.other.special-method.dockerfile</string>
 				</dict>
 			</dict>
+			<key>match</key>
+			<string>^\s*(?:(ONBUILD)\s+)?(FROM|MAINTAINER|RUN|EXPOSE|ENV|ADD|VOLUME|USER|WORKDIR|COPY|LABEL)\s</string>
 		</dict>
 		<dict>
-			<key>match</key>
-			<string>^\s*(ONBUILD\s+)?(CMD|ENTRYPOINT)\s</string>
 			<key>captures</key>
 			<dict>
-				<key>0</key>
+				<key>1</key>
 				<dict>
 					<key>name</key>
 					<string>keyword.operator.dockerfile</string>
 				</dict>
-				<key>1</key>
+				<key>2</key>
 				<dict>
 					<key>name</key>
 					<string>keyword.other.special-method.dockerfile</string>
 				</dict>
 			</dict>
+			<key>match</key>
+			<string>^\s*(?:(ONBUILD)\s+)?(CMD|ENTRYPOINT)\s</string>
 		</dict>
 		<dict>
 			<key>begin</key>
 			<string>"</string>
+			<key>beginCaptures</key>
+			<dict>
+				<key>1</key>
+				<dict>
+					<key>name</key>
+					<string>punctuation.definition.string.begin.dockerfile</string>
+				</dict>
+			</dict>
 			<key>end</key>
 			<string>"</string>
+			<key>endCaptures</key>
+			<dict>
+				<key>1</key>
+				<dict>
+					<key>name</key>
+					<string>punctuation.definition.string.end.dockerfile</string>
+				</dict>
+			</dict>
 			<key>name</key>
 			<string>string.quoted.double.dockerfile</string>
 			<key>patterns</key>
@@ -64,8 +80,24 @@
 		<dict>
 			<key>begin</key>
 			<string>'</string>
+			<key>beginCaptures</key>
+			<dict>
+				<key>1</key>
+				<dict>
+					<key>name</key>
+					<string>punctuation.definition.string.begin.dockerfile</string>
+				</dict>
+			</dict>
 			<key>end</key>
 			<string>'</string>
+			<key>endCaptures</key>
+			<dict>
+				<key>1</key>
+				<dict>
+					<key>name</key>
+					<string>punctuation.definition.string.end.dockerfile</string>
+				</dict>
+			</dict>
 			<key>name</key>
 			<string>string.quoted.single.dockerfile</string>
 			<key>patterns</key>
@@ -79,10 +111,28 @@
 			</array>
 		</dict>
 		<dict>
+			<key>captures</key>
+			<dict>
+				<key>1</key>
+				<dict>
+					<key>name</key>
+					<string>punctuation.whitespace.comment.leading.dockerfile</string>
+				</dict>
+				<key>2</key>
+				<dict>
+					<key>name</key>
+					<string>comment.line.number-sign.dockerfile</string>
+				</dict>
+				<key>3</key>
+				<dict>
+					<key>name</key>
+					<string>punctuation.definition.comment.dockerfile</string>
+				</dict>
+			</dict>
+			<key>comment</key>
+			<string>comment.line</string>
 			<key>match</key>
-			<string>^\s*#.*$</string>
-			<key>name</key>
-			<string>comment.block.dockerfile</string>
+			<string>^(\s*)((#).*$\n?)</string>
 		</dict>
 	</array>
 	<key>scopeName</key>
