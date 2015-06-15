@@ -399,14 +399,14 @@ func (container *Container) Pause() error {
 	container.Lock()
 	defer container.Unlock()
 
+	// We cannot Pause the container which is not running
+	if !container.Running {
+		return fmt.Errorf("Container %s is not running, cannot pause a non-running container", container.ID)
+	}
+
 	// We cannot Pause the container which is already paused
 	if container.Paused {
 		return fmt.Errorf("Container %s is already paused", container.ID)
-	}
-
-	// We cannot Pause the container which is not running
-	if !container.Running {
-		return fmt.Errorf("Container %s is not running", container.ID)
 	}
 
 	if err := container.daemon.execDriver.Pause(container.command); err != nil {
@@ -421,14 +421,14 @@ func (container *Container) Unpause() error {
 	container.Lock()
 	defer container.Unlock()
 
-	// We cannot unpause the container which is not paused
-	if !container.Paused {
-		return fmt.Errorf("Container %s is not paused, so what", container.ID)
-	}
-
 	// We cannot unpause the container which is not running
 	if !container.Running {
-		return fmt.Errorf("Container %s is not running", container.ID)
+		return fmt.Errorf("Container %s is not running, cannot unpause a non-running container", container.ID)
+	}
+
+	// We cannot unpause the container which is not paused
+	if !container.Paused {
+		return fmt.Errorf("Container %s is not paused", container.ID)
 	}
 
 	if err := container.daemon.execDriver.Unpause(container.command); err != nil {
