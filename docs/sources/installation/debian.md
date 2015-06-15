@@ -7,28 +7,42 @@ page_keywords: Docker, Docker documentation, installation, debian
 Docker is supported on the following versions of Debian:
 
  - [*Debian 8.0 Jessie (64-bit)*](#debian-jessie-80-64-bit)
- - [*Debian 7.7 Wheezy (64-bit)*](#debian-wheezystable-7x-64-bit)
-
-## Debian Jessie 8.0 (64-bit)
-
-Debian 8 comes with a 3.16.0 Linux kernel, the `docker.io` package can be found in the `jessie-backports` repository. Reasoning behind this can be found <a href="https://lists.debian.org/debian-release/2015/03/msg00685.html" target="_blank">here</a>. Instructions how to enable the backports repository can be found <a href="http://backports.debian.org/Instructions/" target="_blank">here</a>.
+ - [*Debian 7.0 Wheezy (64-bit)*](#debian-wheezystable-7x-64-bit)
 
 > **Note**:
-> Debian contains a much older KDE3/GNOME2 package called ``docker``, so the
-> package and the executable are called ``docker.io``.
+> Debian 8 Jessie contains a much older KDE3/GNOME2 package called ``docker``,
+> so do not mistake this for the docker client or daemon.
 
 ### Installation
 
-Make sure you enabled the `jessie-backports` repository, as stated above.
+The docker package can be installed using the online installer with `curl`. To
+make sure that you have `curl` installed run the following as root:
 
-To install the latest Debian package (may not be the latest Docker release):
+    # apt-get install curl
 
-    $ sudo apt-get update
-    $ sudo apt-get install docker.io
+The docker package can be installed on `Debian 8 Jessie` using the docker
+install tool. Run the following as root user:
+
+    # curl -sSL https://get.docker.com/ | sh
+
+Follow the instructions in the terminal. Please note that the installer may ask
+you to perform additional steps, such as copying the client to the `/usr/bin`
+folder.
+
+If you would like to use docker with your normal user run the following as root,
+replacing `your-user` with your login user name:
+
+    # usermod -aG docker your-user
+
+You may need to logout and back in for the above changes to be made.
+
+Once installed restart your machine or start the daemon manually with:
+
+    # service docker start
 
 To verify that everything has worked as expected:
 
-    $ sudo docker run --rm hello-world
+    $ docker run --rm hello-world
 
 This command downloads and runs the `hello-world` image in a container. When the
 container runs, it prints an informational message. Then, it exits.
@@ -36,61 +50,6 @@ container runs, it prints an informational message. Then, it exits.
 > **Note**:
 > If you want to enable memory and swap accounting see
 > [this](/installation/ubuntulinux/#memory-and-swap-accounting).
-
-### Uninstallation
-
-To uninstall the Docker package:
-
-    $ sudo apt-get purge docker-io
-
-To uninstall the Docker package and dependencies that are no longer needed:
-
-    $ sudo apt-get autoremove --purge docker-io
-
-The above commands will not remove images, containers, volumes, or user created
-configuration files on your host. If you wish to delete all images, containers,
-and volumes run the following command:
-
-    $ rm -rf /var/lib/docker
-
-You must delete the user created configuration files manually.
-
-## Debian Wheezy/Stable 7.x (64-bit)
-
-Docker requires Kernel 3.8+, while Wheezy ships with Kernel 3.2 (for more details
-on why 3.8 is required, see discussion on
-[bug #407](https://github.com/docker/docker/issues/407)).
-
-Fortunately, wheezy-backports currently has [Kernel 3.16
-](https://packages.debian.org/search?suite=wheezy-backports&section=all&arch=any&searchon=names&keywords=linux-image-amd64),
-which is officially supported by Docker.
-
-### Installation
-
-1. Install Kernel from wheezy-backports
-
-    Add the following line to your `/etc/apt/sources.list`
-
-    `deb http://http.debian.net/debian wheezy-backports main`
-
-    then install the `linux-image-amd64` package (note the use of
-    `-t wheezy-backports`)
-
-        $ sudo apt-get update
-        $ sudo apt-get install -t wheezy-backports linux-image-amd64
-
-2. Restart your system. This is necessary for Debian to use your new kernel.
-
-3. Install Docker using the get.docker.com script:
-
-    `curl -sSL https://get.docker.com/ | sh`
-
->**Note**: If your company is behind a filtering proxy, you may find that the
->`apt-key`
->command fails for the Docker repo during installation. To work around this,
->add the key directly using the following:
->
->       $ wget -qO- https://get.docker.com/gpg | sudo apt-key add -
 
 ### Uninstallation
 
