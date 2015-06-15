@@ -18,6 +18,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/nat"
+	"github.com/docker/docker/pkg/chrootarchive"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/runconfig"
 )
@@ -335,9 +336,20 @@ func run(b *Builder, args []string, attributes map[string]bool, original string)
 		return nil
 	}
 
-	c, err := b.create()
-	if err != nil {
-		return err
+	c := b.buildContainer
+	if b.buildContainer == nil {
+		c, err = b.create()
+		if err != nil {
+			return err
+		}
+	} else {
+		c.Config.Cmd = config.Cmd
+		if config.Cmd.Len() > 0 {
+			// override the entry point that may have been picked up from the base image
+			s := config.Cmd.Slice()
+			c.Path = s[0]
+			c.Args = s[1:]
+		}
 	}
 
 	// Ensure that we keep the container mounted until the commit
@@ -472,6 +484,134 @@ func expose(b *Builder, args []string, attributes map[string]bool, original stri
 	}
 	sort.Strings(portList)
 	return b.commit("", b.Config.Cmd, fmt.Sprintf("EXPOSE %s", strings.Join(portList, " ")))
+}
+
+// Include image (name|hash)
+func dispatchInclude(b *Builder, args []string, attributes map[string]bool, original string) error {
+
+	if len(args) != 1 {
+		return fmt.Errorf("INCLUDE requires one argument %v", args)
+	}
+
+	if err := b.BuilderFlags.Parse(); err != nil {
+		return err
+	}
+
+	includeName := args[0]
+
+	includeImage, err := b.Daemon.Repositories().LookupImage(includeName)
+	if b.Pull {
+		includeImage, err = b.pullImage(includeName)
+		if err != nil {
+			return err
+		}
+	}
+	if err != nil {
+		if b.Daemon.Graph().IsNotExist(err, includeName) {
+			includeImage, err = b.pullImage(includeName)
+		}
+
+		// note that the top level err will still be !nil here if IsNotExist is
+		// not the error. This approach just simplifies the logic a bit.
+		if err != nil {
+			return err
+		}
+	}
+
+	logrus.Debugf("[INCLUDE] Command to be executed: %v", b.Config.Cmd)
+	currentImg, ierr := b.Daemon.Repositories().LookupImage(b.image)
+	if ierr != nil {
+		return ierr
+	}
+
+	cmd := b.Config.Cmd
+	defer func(cmd *runconfig.Command) { b.Config.Cmd = cmd }(cmd)
+
+	commitComment := fmt.Sprintf("INCLUDE %q %q", includeName, includeImage.ID)
+	var includeCmd *runconfig.Command
+	if runtime.GOOS != "windows" {
+		includeCmd = runconfig.NewCommand("/bin/sh", "-c", "#(nop) "+commitComment)
+	} else {
+		includeCmd = runconfig.NewCommand("cmd", "/S /C", "REM (nop) "+commitComment)
+	}
+	b.Config.Cmd = includeCmd
+
+	b.Config.Image = b.image
+	runconfig.Merge(b.Config, includeImage.Config)
+	onBuild := b.Config.OnBuild
+	b.Config.OnBuild = []string{}
+
+	hit, err := b.probeCache()
+	if err != nil {
+		return err
+	}
+	if hit {
+		return nil
+	}
+
+	// extract fs
+	b.Config.Image = includeName
+	fscontainer, _, err := b.Daemon.Create(b.Config, nil, "")
+	if err != nil {
+		return err
+	}
+
+	tmpFile, terr := ioutil.TempFile(b.contextPath, fmt.Sprintf("INCLUDE.%s.%s", includeName, includeImage.ID))
+	if terr != nil {
+		return terr
+	}
+
+	b.Daemon.ContainerExport(fscontainer.ID, tmpFile)
+	tmpFile.Close()
+	b.TmpContainers[fscontainer.ID] = struct{}{}
+
+	// Add config
+
+	b.Config.Image = currentImg.ID
+	container, err := b.create()
+	if err != nil {
+		return err
+	}
+	if err := container.Mount(); err != nil {
+		return err
+	}
+	defer container.Unmount()
+	if err := container.Start(); err != nil {
+		return err
+	}
+
+	var croot string
+	var rerr error
+	if croot, rerr = container.GetResourcePath("/"); rerr != nil {
+		return rerr
+	}
+
+	if err := chrootarchive.UntarPath(tmpFile.Name(), croot); err != nil {
+		return err
+	}
+
+	b.disableCommit = true
+	config := *b.Config
+	b.Config.OnBuild = append(onBuild, includeImage.Config.OnBuild...)
+
+	b.buildContainer = container
+	container.Stop(0)
+	b.processImageFrom(currentImg)
+
+	b.image = currentImg.ID
+	b.Config = &config
+	runconfig.Merge(b.Config, includeImage.Config)
+
+	b.buildContainer = nil
+	b.disableCommit = false
+	b.Config.Cmd = includeCmd
+
+	image, err := b.Daemon.Commit(container, "", "", "", b.maintainer, true, b.Config)
+	if err != nil {
+		return err
+	}
+	b.image = image.ID
+	return nil
 }
 
 // USER foo

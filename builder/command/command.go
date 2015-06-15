@@ -16,6 +16,7 @@ const (
 	Expose     = "expose"
 	Volume     = "volume"
 	User       = "user"
+	Include    = "include"
 )
 
 // Commands is list of all Dockerfile commands
@@ -34,4 +35,5 @@ var Commands = map[string]struct{}{
 	Expose:     {},
 	Volume:     {},
 	User:       {},
+	Include:    {},
 }

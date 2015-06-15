@@ -40,6 +40,7 @@ var validCommitCommands = map[string]bool{
 	"volume":     true,
 	"expose":     true,
 	"onbuild":    true,
+	"include":    true,
 }
 
 type Config struct {

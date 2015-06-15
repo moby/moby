@@ -483,10 +483,12 @@ func (b *Builder) pullImage(name string) (*imagepkg.Image, error) {
 }
 
 func (b *Builder) processImageFrom(img *imagepkg.Image) error {
-	b.image = img.ID
+	if b.buildContainer == nil {
+		b.image = img.ID
 
-	if img.Config != nil {
-		b.Config = img.Config
+		if img.Config != nil {
+			b.Config = img.Config
+		}
 	}
 
 	if len(b.Config.Env) == 0 {
