@@ -42,8 +42,9 @@ func testServerWithAuth(rrm testutil.RequestResponseMap, authenticate string, au
 	wrapper := &testAuthenticationWrapper{
 
 		headers: http.Header(map[string][]string{
-			"Docker-Distribution-API-Version": {"registry/2.0"},
-			"WWW-Authenticate":                {authenticate},
+			"X-API-Version":       {"registry/2.0"},
+			"X-Multi-API-Version": {"registry/2.0", "registry/2.1", "trust/1.0"},
+			"WWW-Authenticate":    {authenticate},
 		}),
 		authCheck: authCheck,
 		next:      h,
@@ -51,6 +52,18 @@ func testServerWithAuth(rrm testutil.RequestResponseMap, authenticate string, au
 
 	s := httptest.NewServer(wrapper)
 	return s.URL, s.Close
+}
+
+// ping pings the provided endpoint to determine its required authorization challenges.
+// If a version header is provided, the versions will be returned.
+func ping(endpoint, versionHeader string) ([]Challenge, []APIVersion, error) {
+	resp, err := http.Get(endpoint)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer resp.Body.Close()
+
+	return ResponseChallenges(resp), APIVersions(resp, versionHeader), err
 }
 
 type testCredentialStore struct {
@@ -112,9 +125,15 @@ func TestEndpointAuthorizeToken(t *testing.T) {
 	e, c := testServerWithAuth(m, authenicate, validCheck)
 	defer c()
 
-	challenges1, _, err := Ping(&http.Client{}, e+"/v2/", "")
+	challenges1, versions, err := ping(e+"/v2/", "x-api-version")
 	if err != nil {
 		t.Fatal(err)
+	}
+	if len(versions) != 1 {
+		t.Fatalf("Unexpected version count: %d, expected 1", len(versions))
+	}
+	if check := (APIVersion{Type: "registry", Version: "2.0"}); versions[0] != check {
+		t.Fatalf("Unexpected api version: %#v, expected %#v", versions[0], check)
 	}
 	challengeMap1 := map[string][]Challenge{
 		e + "/v2/": challenges1,
@@ -138,9 +157,21 @@ func TestEndpointAuthorizeToken(t *testing.T) {
 	e2, c2 := testServerWithAuth(m, authenicate, badCheck)
 	defer c2()
 
-	challenges2, _, err := Ping(&http.Client{}, e+"/v2/", "")
+	challenges2, versions, err := ping(e+"/v2/", "x-multi-api-version")
 	if err != nil {
 		t.Fatal(err)
+	}
+	if len(versions) != 3 {
+		t.Fatalf("Unexpected version count: %d, expected 3", len(versions))
+	}
+	if check := (APIVersion{Type: "registry", Version: "2.0"}); versions[0] != check {
+		t.Fatalf("Unexpected api version: %#v, expected %#v", versions[0], check)
+	}
+	if check := (APIVersion{Type: "registry", Version: "2.1"}); versions[1] != check {
+		t.Fatalf("Unexpected api version: %#v, expected %#v", versions[1], check)
+	}
+	if check := (APIVersion{Type: "trust", Version: "1.0"}); versions[2] != check {
+		t.Fatalf("Unexpected api version: %#v, expected %#v", versions[2], check)
 	}
 	challengeMap2 := map[string][]Challenge{
 		e + "/v2/": challenges2,
@@ -215,7 +246,7 @@ func TestEndpointAuthorizeTokenBasic(t *testing.T) {
 		password: password,
 	}
 
-	challenges, _, err := Ping(&http.Client{}, e+"/v2/", "")
+	challenges, _, err := ping(e+"/v2/", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -262,7 +293,7 @@ func TestEndpointAuthorizeBasic(t *testing.T) {
 		password: password,
 	}
 
-	challenges, _, err := Ping(&http.Client{}, e+"/v2/", "")
+	challenges, _, err := ping(e+"/v2/", "")
 	if err != nil {
 		t.Fatal(err)
 	}
