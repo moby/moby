@@ -1,13 +1,9 @@
 package auth
 
 import (
-	"fmt"
 	"net/http"
 	"strings"
 )
-
-// Octet types from RFC 2616.
-type octetType byte
 
 // Challenge carries information from a WWW-Authenticate response header.
 // See RFC 2617.
@@ -18,6 +14,9 @@ type Challenge struct {
 	// Parameters are the auth-params according to RFC 2617
 	Parameters map[string]string
 }
+
+// Octet types from RFC 2616.
+type octetType byte
 
 var octetTypes [256]octetType
 
@@ -58,36 +57,17 @@ func init() {
 	}
 }
 
-// Ping pings the provided endpoint to determine its required authorization challenges.
-// If a version header is provided, the versions will be returned.
-func Ping(client *http.Client, endpoint, versionHeader string) ([]Challenge, []string, error) {
-	req, err := http.NewRequest("GET", endpoint, nil)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, nil, err
-	}
-	defer resp.Body.Close()
-
-	versions := []string{}
-	if versionHeader != "" {
-		for _, supportedVersions := range resp.Header[http.CanonicalHeaderKey(versionHeader)] {
-			versions = append(versions, strings.Fields(supportedVersions)...)
-		}
-	}
-
+// ResponseChallenges returns a list of authorization challenges
+// for the given http Response. Challenges are only checked if
+// the response status code was a 401.
+func ResponseChallenges(resp *http.Response) []Challenge {
 	if resp.StatusCode == http.StatusUnauthorized {
 		// Parse the WWW-Authenticate Header and store the challenges
 		// on this endpoint object.
-		return parseAuthHeader(resp.Header), versions, nil
-	} else if resp.StatusCode != http.StatusOK {
-		return nil, versions, fmt.Errorf("unable to get valid ping response: %d", resp.StatusCode)
+		return parseAuthHeader(resp.Header)
 	}
 
-	return nil, versions, nil
+	return nil
 }
 
 func parseAuthHeader(header http.Header) []Challenge {
