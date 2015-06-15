@@ -114,6 +114,7 @@ type Config struct {
 	AttachStdout    bool
 	AttachStderr    bool
 	ExposedPorts    map[nat.Port]struct{}
+	PublishService  string
 	Tty             bool // Attach standard streams to a tty, including stdin if it is not closed.
 	OpenStdin       bool // Open stdin
 	StdinOnce       bool // If true, close stdin after the 1 attached client disconnects.
