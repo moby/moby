@@ -1,6 +1,7 @@
 package daemon
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -48,6 +49,7 @@ import (
 	"github.com/docker/docker/utils"
 	volumedrivers "github.com/docker/docker/volume/drivers"
 	"github.com/docker/docker/volume/local"
+	"github.com/docker/libcontainer/netlink"
 )
 
 var (
@@ -672,6 +674,8 @@ func NewDaemon(config *Config, registryService *registry.Service) (daemon *Daemo
 	if config.Bridge.Iface != "" && config.Bridge.IP != "" {
 		return nil, fmt.Errorf("You specified -b & --bip, mutually exclusive options. Please specify only one.")
 	}
+	setDefaultMtu(config)
+
 	if !config.Bridge.EnableIPTables && !config.Bridge.InterContainerCommunication {
 		return nil, fmt.Errorf("You specified --iptables=false with --icc=false. ICC uses iptables to function. Please set --icc or --iptables to true.")
 	}
@@ -1261,4 +1265,31 @@ func (daemon *Daemon) newBaseContainer(id string) CommonContainer {
 		execCommands: newExecStore(),
 		root:         daemon.containerRoot(id),
 	}
+}
+
+func setDefaultMtu(config *Config) {
+	// do nothing if the config does not have the default 0 value.
+	if config.Mtu != 0 {
+		return
+	}
+	config.Mtu = defaultNetworkMtu
+	if routeMtu, err := getDefaultRouteMtu(); err == nil {
+		config.Mtu = routeMtu
+	}
+}
+
+var errNoDefaultRoute = errors.New("no default route was found")
+
+// getDefaultRouteMtu returns the MTU for the default route's interface.
+func getDefaultRouteMtu() (int, error) {
+	routes, err := netlink.NetworkGetRoutes()
+	if err != nil {
+		return 0, err
+	}
+	for _, r := range routes {
+		if r.Default {
+			return r.Iface.MTU, nil
+		}
+	}
+	return 0, errNoDefaultRoute
 }
