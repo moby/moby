@@ -1,3 +1,3 @@
-// +build !linux
+// +build !linux,!windows
 
 package vfs
