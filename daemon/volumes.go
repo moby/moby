@@ -219,7 +219,6 @@ func (daemon *Daemon) registerMountPoints(container *Container, hostConfig *runc
 		}
 
 		if len(bind.Name) > 0 && len(bind.Driver) > 0 {
-			// create the volume
 			v, err := createVolume(bind.Name, bind.Driver)
 			if err != nil {
 				return err
@@ -336,6 +335,7 @@ func (daemon *Daemon) verifyVolumesInfo(container *Container) error {
 
 func createVolume(name, driverName string) (volume.Volume, error) {
 	vd, err := getVolumeDriver(driverName)
+
 	if err != nil {
 		return nil, err
 	}

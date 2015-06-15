@@ -3,6 +3,7 @@ package daemon
 import (
 	"github.com/docker/docker/opts"
 	flag "github.com/docker/docker/pkg/mflag"
+	"github.com/docker/docker/pkg/plugins"
 	"github.com/docker/docker/runconfig"
 )
 
@@ -14,24 +15,25 @@ const (
 // CommonConfig defines the configuration of a docker daemon which are
 // common across platforms.
 type CommonConfig struct {
-	AutoRestart    bool
-	Context        map[string][]string
-	CorsHeaders    string
-	DisableNetwork bool
-	Dns            []string
-	DnsSearch      []string
-	EnableCors     bool
-	ExecDriver     string
-	ExecOptions    []string
-	ExecRoot       string
-	GraphDriver    string
-	GraphOptions   []string
-	Labels         []string
-	LogConfig      runconfig.LogConfig
-	Mtu            int
-	Pidfile        string
-	Root           string
-	TrustKeyPath   string
+	AutoRestart         bool
+	Context             map[string][]string
+	CorsHeaders         string
+	DisableNetwork      bool
+	Dns                 []string
+	DnsSearch           []string
+	EnableCors          bool
+	ExecDriver          string
+	ExecOptions         []string
+	ExecRoot            string
+	GraphDriver         string
+	GraphOptions        []string
+	Labels              []string
+	LogConfig           runconfig.LogConfig
+	Mtu                 int
+	Pidfile             string
+	Root                string
+	TrustKeyPath        string
+	PluginsRegistryPath string
 }
 
 // InstallCommonFlags adds command-line options to the top-level flag parser for
@@ -56,4 +58,5 @@ func (config *Config) InstallCommonFlags() {
 	opts.LabelListVar(&config.Labels, []string{"-label"}, "Set key=value labels to the daemon")
 	flag.StringVar(&config.LogConfig.Type, []string{"-log-driver"}, "json-file", "Default driver for container logs")
 	opts.LogOptsVar(config.LogConfig.Config, []string{"-log-opt"}, "Set log driver options")
+	flag.StringVar(&config.PluginsRegistryPath, []string{"-plugin-root"}, plugins.DefaultLocalRegistry, "Root of the Docker plugins registry")
 }

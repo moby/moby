@@ -8,32 +8,51 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/Sirupsen/logrus"
 )
 
-const defaultLocalRegistry = "/usr/share/docker/plugins"
+const DefaultLocalRegistry = "/usr/share/docker/plugins"
 
 var (
 	ErrNotFound = errors.New("Plugin not found")
 )
 
 type Registry interface {
-	Plugins() ([]*Plugin, error)
-	Plugin(name string) (*Plugin, error)
+	Get(name, impl string) (*Plugin, error)
 }
 
 type LocalRegistry struct {
-	path string
+	storage plugins
+	path    string
 }
 
-func newLocalRegistry(path string) *LocalRegistry {
+func NewLocalRegistry(path string) Registry {
 	if len(path) == 0 {
-		path = defaultLocalRegistry
+		path = DefaultLocalRegistry
 	}
 
-	return &LocalRegistry{path}
+	return &LocalRegistry{
+		path:    path,
+		storage: plugins{plugins: make(map[string]*Plugin)},
+	}
 }
 
-func (l *LocalRegistry) Plugin(name string) (*Plugin, error) {
+func (l *LocalRegistry) Get(name, imp string) (*Plugin, error) {
+	pl, err := l.get(name)
+	if err != nil {
+		return nil, err
+	}
+	for _, driver := range pl.Manifest.Implements {
+		logrus.Debugf("%s implements: %s", name, driver)
+		if driver == imp {
+			return pl, nil
+		}
+	}
+	return nil, ErrNotImplements
+}
+
+func (l *LocalRegistry) plugin(name string) (*Plugin, error) {
 	filepath := filepath.Join(l.path, name)
 	specpath := filepath + ".spec"
 	if fi, err := os.Stat(specpath); err == nil {
@@ -46,6 +65,34 @@ func (l *LocalRegistry) Plugin(name string) (*Plugin, error) {
 	return nil, ErrNotFound
 }
 
+func (l *LocalRegistry) load(name string) (*Plugin, error) {
+	pl, err := l.plugin(name)
+	if err != nil {
+		return nil, err
+	}
+	if err := pl.activate(); err != nil {
+		return nil, err
+	}
+	return pl, nil
+}
+
+func (l *LocalRegistry) get(name string) (*Plugin, error) {
+	l.storage.Lock()
+	defer l.storage.Unlock()
+
+	pl, ok := l.storage.plugins[name]
+	if ok {
+		return pl, nil
+	}
+	pl, err := l.load(name)
+	if err != nil {
+		return nil, err
+	}
+
+	logrus.Debugf("Plugin: %v", pl)
+	l.storage.plugins[name] = pl
+	return pl, nil
+}
 func readPluginInfo(path string, fi os.FileInfo) (*Plugin, error) {
 	name := strings.Split(fi.Name(), ".")[0]
 
