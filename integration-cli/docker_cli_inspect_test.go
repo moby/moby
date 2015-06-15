@@ -89,3 +89,70 @@ func (s *DockerSuite) TestInspectContainerFilterInt(c *check.C) {
 		c.Fatalf("Expected exitcode: %d for container: %s", exitCode, id)
 	}
 }
+
+func (s *DockerSuite) TestInspectImageGraphDriver(c *check.C) {
+	imageTest := "emptyfs"
+	name, err := inspectField(imageTest, "GraphDriver.Name")
+	c.Assert(err, check.IsNil)
+
+	if name != "devicemapper" && name != "overlay" && name != "vfs" && name != "zfs" && name != "btrfs" && name != "aufs" {
+		c.Fatalf("%v is not a valid graph driver name", name)
+	}
+
+	if name != "devicemapper" {
+		return
+	}
+
+	deviceId, err := inspectField(imageTest, "GraphDriver.Data.DeviceId")
+	c.Assert(err, check.IsNil)
+
+	_, err = strconv.Atoi(deviceId)
+	if err != nil {
+		c.Fatalf("failed to inspect DeviceId of the image: %s, %v", deviceId, err)
+	}
+
+	deviceSize, err := inspectField(imageTest, "GraphDriver.Data.DeviceSize")
+	c.Assert(err, check.IsNil)
+
+	_, err = strconv.ParseUint(deviceSize, 10, 64)
+	if err != nil {
+		c.Fatalf("failed to inspect DeviceSize of the image: %s, %v", deviceSize, err)
+	}
+}
+
+func (s *DockerSuite) TestInspectContainerGraphDriver(c *check.C) {
+	runCmd := exec.Command(dockerBinary, "run", "-d", "busybox", "true")
+	out, _, _, err := runCommandWithStdoutStderr(runCmd)
+	if err != nil {
+		c.Fatalf("failed to run container: %v, output: %q", err, out)
+	}
+
+	out = strings.TrimSpace(out)
+
+	name, err := inspectField(out, "GraphDriver.Name")
+	c.Assert(err, check.IsNil)
+
+	if name != "devicemapper" && name != "overlay" && name != "vfs" && name != "zfs" && name != "btrfs" && name != "aufs" {
+		c.Fatalf("%v is not a valid graph driver name", name)
+	}
+
+	if name != "devicemapper" {
+		return
+	}
+
+	deviceId, err := inspectField(out, "GraphDriver.Data.DeviceId")
+	c.Assert(err, check.IsNil)
+
+	_, err = strconv.Atoi(deviceId)
+	if err != nil {
+		c.Fatalf("failed to inspect DeviceId of the image: %s, %v", deviceId, err)
+	}
+
+	deviceSize, err := inspectField(out, "GraphDriver.Data.DeviceSize")
+	c.Assert(err, check.IsNil)
+
+	_, err = strconv.ParseUint(deviceSize, 10, 64)
+	if err != nil {
+		c.Fatalf("failed to inspect DeviceSize of the image: %s, %v", deviceSize, err)
+	}
+}
