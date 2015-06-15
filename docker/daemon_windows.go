@@ -16,3 +16,8 @@ func setPlatformServerConfig(serverConfig *apiserver.ServerConfig, daemonCfg *da
 func currentUserIsOwner(f string) bool {
 	return false
 }
+
+// setDefaultUmask doesn't do anything on windows
+func setDefaultUmask() error {
+	return nil
+}

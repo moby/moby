@@ -91,6 +91,10 @@ func mainDaemon() {
 
 	logrus.SetFormatter(&logrus.TextFormatter{TimestampFormat: timeutils.RFC3339NanoFixed})
 
+	if err := setDefaultUmask(); err != nil {
+		logrus.Fatalf("Failed to set umask: %v", err)
+	}
+
 	var pfile *pidfile.PidFile
 	if daemonCfg.Pidfile != "" {
 		pf, err := pidfile.New(daemonCfg.Pidfile)
