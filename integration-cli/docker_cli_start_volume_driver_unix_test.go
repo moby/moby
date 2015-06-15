@@ -129,11 +129,11 @@ func (s *DockerExternalVolumeSuite) SetUpSuite(c *check.C) {
 		fmt.Fprintln(w, `{}`)
 	})
 
-	if err := os.MkdirAll("/usr/share/docker/plugins", 0755); err != nil {
+	if err := os.MkdirAll("/etc/docker/plugins", 0755); err != nil {
 		c.Fatal(err)
 	}
 
-	if err := ioutil.WriteFile("/usr/share/docker/plugins/test-external-volume-driver.spec", []byte(s.server.URL), 0644); err != nil {
+	if err := ioutil.WriteFile("/etc/docker/plugins/test-external-volume-driver.spec", []byte(s.server.URL), 0644); err != nil {
 		c.Fatal(err)
 	}
 }
@@ -141,7 +141,7 @@ func (s *DockerExternalVolumeSuite) SetUpSuite(c *check.C) {
 func (s *DockerExternalVolumeSuite) TearDownSuite(c *check.C) {
 	s.server.Close()
 
-	if err := os.RemoveAll("/usr/share/docker/plugins"); err != nil {
+	if err := os.RemoveAll("/etc/docker/plugins"); err != nil {
 		c.Fatal(err)
 	}
 }

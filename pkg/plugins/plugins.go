@@ -68,7 +68,7 @@ func (p *Plugin) activate() error {
 }
 
 func load(name string) (*Plugin, error) {
-	registry := newLocalRegistry("")
+	registry := newLocalRegistry()
 	pl, err := registry.Plugin(name)
 	if err != nil {
 		return nil, err
