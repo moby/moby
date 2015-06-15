@@ -91,6 +91,12 @@ func main() {
 	}
 
 	if *flDaemon {
+		// Check if the kernel version is supported for the daemon (GNU/Linux)
+		if ok, version := checkKernelVersion(); !ok {
+			fmt.Fprintf(os.Stderr, "The kernel version '%v' is not supported by Docker", version)
+			os.Exit(1)
+		}
+
 		if *flHelp {
 			flag.Usage()
 			return
