@@ -23,11 +23,6 @@ DOCKER_ENVS := \
 BIND_DIR := $(if $(BINDDIR),$(BINDDIR),$(if $(DOCKER_HOST),,bundles))
 DOCKER_MOUNT := $(if $(BIND_DIR),-v "$(CURDIR)/$(BIND_DIR):/go/src/github.com/docker/docker/$(BIND_DIR)")
 
-# to allow `make DOCSDIR=docs docs-shell` (to create a bind mount in docs)
-DOCS_MOUNT := $(if $(DOCSDIR),-v $(CURDIR)/$(DOCSDIR):/$(DOCSDIR))
-
-# to allow `make DOCSPORT=9000 docs`
-DOCSPORT := 8000
 
 GIT_BRANCH := $(shell git rev-parse --abbrev-ref HEAD 2>/dev/null)
 DOCKER_IMAGE := docker-dev$(if $(GIT_BRANCH),:$(GIT_BRANCH))
@@ -51,19 +46,6 @@ binary: build
 cross: build
 	$(DOCKER_RUN_DOCKER) hack/make.sh binary cross
 
-docs: docs-build
-	$(DOCKER_RUN_DOCS) -p $(if $(DOCSPORT),$(DOCSPORT):)8000 "$(DOCKER_DOCS_IMAGE)" mkdocs serve
-
-docs-shell: docs-build
-	$(DOCKER_RUN_DOCS) -p $(if $(DOCSPORT),$(DOCSPORT):)8000 "$(DOCKER_DOCS_IMAGE)" bash
-
-docs-release: docs-build
-	$(DOCKER_RUN_DOCS) -e OPTIONS -e BUILD_ROOT -e DISTRIBUTION_ID \
-		-v $(CURDIR)/docs/awsconfig:/docs/awsconfig \
-		"$(DOCKER_DOCS_IMAGE)" ./release.sh
-
-docs-test: docs-build
-	$(DOCKER_RUN_DOCS) "$(DOCKER_DOCS_IMAGE)" ./test.sh
 
 test: build
 	$(DOCKER_RUN_DOCKER) hack/make.sh binary cross test-unit test-integration-cli test-docker-py
@@ -85,14 +67,6 @@ shell: build
 
 build: bundles
 	docker build -t "$(DOCKER_IMAGE)" .
-
-docs-build:
-	cp ./VERSION docs/VERSION
-	echo "$(GIT_BRANCH)" > docs/GIT_BRANCH
-#	echo "$(AWS_S3_BUCKET)" > docs/AWS_S3_BUCKET
-	echo "$(GITCOMMIT)" > docs/GITCOMMIT
-	docker pull docs/base
-	docker build -t "$(DOCKER_DOCS_IMAGE)" docs
 
 bundles:
 	mkdir bundles

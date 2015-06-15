@@ -1,3 +1,9 @@
+<!--[metadata]>
++++
+draft = true
++++
+<![end-metadata]-->
+
 # Docker Documentation
 
 The source for Docker documentation is in this directory under `sources/`. Our
