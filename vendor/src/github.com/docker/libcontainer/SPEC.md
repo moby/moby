@@ -47,14 +47,14 @@ unmount all the mounts that were setup within that namespace.
 For a container to execute properly there are certain filesystems that 
 are required to be mounted within the rootfs that the runtime will setup.
 
-|     Path    |  Type  |                  Flags                 |                 Data                    |
-| ----------- | ------ | -------------------------------------- | --------------------------------------- |
-| /proc       | proc   | MS_NOEXEC,MS_NOSUID,MS_NODEV           |                                         |
-| /dev        | tmpfs  | MS_NOEXEC,MS_STRICTATIME               | mode=755                                |
-| /dev/shm    | shm    | MS_NOEXEC,MS_NOSUID,MS_NODEV           | mode=1777,size=65536k                   |
-| /dev/mqueue | mqueue | MS_NOEXEC,MS_NOSUID,MS_NODEV           |                                         |
-| /dev/pts    | devpts | MS_NOEXEC,MS_NOSUID                    | newinstance,ptmxmode=0666,mode=620,gid5 |
-| /sys        | sysfs  | MS_NOEXEC,MS_NOSUID,MS_NODEV,MS_RDONLY |                                         |
+|     Path    |  Type  |                  Flags                 |                 Data                     |
+| ----------- | ------ | -------------------------------------- | ---------------------------------------- |
+| /proc       | proc   | MS_NOEXEC,MS_NOSUID,MS_NODEV           |                                          |
+| /dev        | tmpfs  | MS_NOEXEC,MS_STRICTATIME               | mode=755                                 |
+| /dev/shm    | tmpfs  | MS_NOEXEC,MS_NOSUID,MS_NODEV           | mode=1777,size=65536k                    |
+| /dev/mqueue | mqueue | MS_NOEXEC,MS_NOSUID,MS_NODEV           |                                          |
+| /dev/pts    | devpts | MS_NOEXEC,MS_NOSUID                    | newinstance,ptmxmode=0666,mode=620,gid=5 |
+| /sys        | sysfs  | MS_NOEXEC,MS_NOSUID,MS_NODEV,MS_RDONLY |                                          |
 
 
 After a container's filesystems are mounted within the newly created 
