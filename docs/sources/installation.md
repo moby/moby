@@ -25,3 +25,4 @@ techniques for installing Docker all the time.
  - [Google Cloud Platform](google/)
  - [Joyent Compute Service](joyent/)
  - [Binaries](binaries/)
+ - [Raspberry Pi](raspberrypi/)
