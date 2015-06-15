@@ -9,12 +9,22 @@ import (
 	"github.com/go-check/check"
 )
 
-func isNetworkPresent(c *check.C, name string) bool {
+func assertNwIsAvailable(c *check.C, name string) {
+	if !isNwPresent(c, name) {
+		c.Fatalf("Network %s not found in network ls o/p", name)
+	}
+}
+
+func assertNwNotAvailable(c *check.C, name string) {
+	if isNwPresent(c, name) {
+		c.Fatalf("Found network %s in network ls o/p", name)
+	}
+}
+
+func isNwPresent(c *check.C, name string) bool {
 	runCmd := exec.Command(dockerBinary, "network", "ls")
 	out, _, _, err := runCommandWithStdoutStderr(runCmd)
-	if err != nil {
-		c.Fatal(out, err)
-	}
+	c.Assert(err, check.IsNil)
 	lines := strings.Split(out, "\n")
 	for i := 1; i < len(lines)-1; i++ {
 		if strings.Contains(lines[i], name) {
@@ -27,28 +37,18 @@ func isNetworkPresent(c *check.C, name string) bool {
 func (s *DockerSuite) TestDockerNetworkLsDefault(c *check.C) {
 	defaults := []string{"bridge", "host", "none"}
 	for _, nn := range defaults {
-		if !isNetworkPresent(c, nn) {
-			c.Fatalf("Missing Default network : %s", nn)
-		}
+		assertNwIsAvailable(c, nn)
 	}
 }
 
 func (s *DockerSuite) TestDockerNetworkCreateDelete(c *check.C) {
 	runCmd := exec.Command(dockerBinary, "network", "create", "test")
-	out, _, _, err := runCommandWithStdoutStderr(runCmd)
-	if err != nil {
-		c.Fatal(out, err)
-	}
-	if !isNetworkPresent(c, "test") {
-		c.Fatalf("Network test not found")
-	}
+	_, _, _, err := runCommandWithStdoutStderr(runCmd)
+	c.Assert(err, check.IsNil)
+	assertNwIsAvailable(c, "test")
 
 	runCmd = exec.Command(dockerBinary, "network", "rm", "test")
-	out, _, _, err = runCommandWithStdoutStderr(runCmd)
-	if err != nil {
-		c.Fatal(out, err)
-	}
-	if isNetworkPresent(c, "test") {
-		c.Fatalf("Network test is not removed")
-	}
+	_, _, _, err = runCommandWithStdoutStderr(runCmd)
+	c.Assert(err, check.IsNil)
+	assertNwNotAvailable(c, "test")
 }
