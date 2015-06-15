@@ -20,6 +20,8 @@ var (
 	ErrConflictHostNetworkAndLinks      = fmt.Errorf("Conflicting options: --net=host can't be used with links. This would result in undefined behavior")
 	ErrConflictContainerNetworkAndMac   = fmt.Errorf("Conflicting options: --mac-address and the network mode (--net)")
 	ErrConflictNetworkHosts             = fmt.Errorf("Conflicting options: --add-host and the network mode (--net)")
+	ErrConflictNetworkPublishPorts      = fmt.Errorf("Conflicting options: -p, -P, --publish-all, --publish and the network mode (--net)")
+	ErrConflictNetworkExposePorts       = fmt.Errorf("Conflicting options: --expose and the network mode (--expose)")
 )
 
 func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSet, error) {
@@ -143,6 +145,13 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		return nil, nil, cmd, ErrConflictContainerNetworkAndMac
 	}
 
+	if netMode.IsContainer() && (flPublish.Len() > 0 || *flPublishAll == true) {
+		return nil, nil, cmd, ErrConflictNetworkPublishPorts
+	}
+
+	if netMode.IsContainer() && flExpose.Len() > 0 {
+		return nil, nil, cmd, ErrConflictNetworkExposePorts
+	}
 	// Validate the input mac address
 	if *flMacAddress != "" {
 		if _, err := opts.ValidateMACAddress(*flMacAddress); err != nil {
