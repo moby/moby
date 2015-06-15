@@ -11,10 +11,10 @@ import (
 	"strings"
 )
 
-const defaultLocalRegistry = "/usr/share/docker/plugins"
-
 var (
 	ErrNotFound = errors.New("Plugin not found")
+	socketsPath = "/run/docker/plugins"
+	specsPaths  = []string{"/etc/docker/plugins", "/usr/lib/docker/plugins"}
 )
 
 type Registry interface {
@@ -22,41 +22,39 @@ type Registry interface {
 	Plugin(name string) (*Plugin, error)
 }
 
-type LocalRegistry struct {
-	path string
-}
+type LocalRegistry struct{}
 
-func newLocalRegistry(path string) *LocalRegistry {
-	if len(path) == 0 {
-		path = defaultLocalRegistry
-	}
-
-	return &LocalRegistry{path}
+func newLocalRegistry() LocalRegistry {
+	return LocalRegistry{}
 }
 
 func (l *LocalRegistry) Plugin(name string) (*Plugin, error) {
-	filepath := filepath.Join(l.path, name)
-	specpath := filepath + ".spec"
-	if fi, err := os.Stat(specpath); err == nil {
-		return readPluginSpecInfo(specpath, fi)
+	socketpaths := pluginPaths(socketsPath, name, ".sock")
+
+	for _, p := range socketpaths {
+		if fi, err := os.Stat(p); err == nil && fi.Mode()&os.ModeSocket != 0 {
+			return newLocalPlugin(name, "unix://"+p), nil
+		}
 	}
 
-	socketpath := filepath + ".sock"
-	if fi, err := os.Stat(socketpath); err == nil {
-		return readPluginSocketInfo(socketpath, fi)
+	var txtspecpaths []string
+	for _, p := range specsPaths {
+		txtspecpaths = append(txtspecpaths, pluginPaths(p, name, ".spec")...)
+		txtspecpaths = append(txtspecpaths, pluginPaths(p, name, ".json")...)
 	}
 
-	jsonpath := filepath + ".json"
-	if _, err := os.Stat(jsonpath); err == nil {
-		return readPluginJSONInfo(name, jsonpath)
+	for _, p := range txtspecpaths {
+		if _, err := os.Stat(p); err == nil {
+			if strings.HasSuffix(p, ".json") {
+				return readPluginJSONInfo(name, p)
+			}
+			return readPluginInfo(name, p)
+		}
 	}
-
 	return nil, ErrNotFound
 }
 
-func readPluginSpecInfo(path string, fi os.FileInfo) (*Plugin, error) {
-	name := strings.Split(fi.Name(), ".")[0]
-
+func readPluginInfo(name, path string) (*Plugin, error) {
 	content, err := ioutil.ReadFile(path)
 	if err != nil {
 		return nil, err
@@ -73,16 +71,6 @@ func readPluginSpecInfo(path string, fi os.FileInfo) (*Plugin, error) {
 	}
 
 	return newLocalPlugin(name, addr), nil
-}
-
-func readPluginSocketInfo(path string, fi os.FileInfo) (*Plugin, error) {
-	name := strings.Split(fi.Name(), ".")[0]
-
-	if fi.Mode()&os.ModeSocket == 0 {
-		return nil, fmt.Errorf("%s is not a socket", path)
-	}
-
-	return newLocalPlugin(name, "unix://"+path), nil
 }
 
 func readPluginJSONInfo(name, path string) (*Plugin, error) {
@@ -102,4 +90,11 @@ func readPluginJSONInfo(name, path string) (*Plugin, error) {
 	}
 
 	return &p, nil
+}
+
+func pluginPaths(base, name, ext string) []string {
+	return []string{
+		filepath.Join(base, name+ext),
+		filepath.Join(base, name, name+ext),
+	}
 }
