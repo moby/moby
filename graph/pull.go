@@ -658,7 +658,7 @@ func (s *TagStore) pullV2Tag(r *registry.Session, out io.Writer, endpoint *regis
 					return false, err
 				}
 
-				if err := d.img.SaveCheckSum(s.graph.ImageRoot(d.img.ID), d.digest.String()); err != nil {
+				if err := s.graph.SetDigest(d.img.ID, d.digest); err != nil {
 					return false, err
 				}
 
