@@ -37,14 +37,37 @@ type Sandbox interface {
 	// Remove a static route from the sandbox.
 	RemoveStaticRoute(*types.StaticRoute) error
 
+	// AddNeighbor adds a neighbor entry into the sandbox.
+	AddNeighbor(dstIP net.IP, dstMac net.HardwareAddr, option ...NeighOption) error
+
+	// DeleteNeighbor deletes neighbor entry from the sandbox.
+	DeleteNeighbor(dstIP net.IP, dstMac net.HardwareAddr) error
+
+	// Returns an interface with methods to set neighbor options.
+	NeighborOptions() NeighborOptionSetter
+
 	// Returns an interface with methods to set interface options.
 	InterfaceOptions() IfaceOptionSetter
+
+	//Invoke
+	InvokeFunc(func()) error
 
 	// Returns an interface with methods to get sandbox state.
 	Info() Info
 
 	// Destroy the sandbox
 	Destroy() error
+}
+
+// NeighborOptionSetter interfaces defines the option setter methods for interface options
+type NeighborOptionSetter interface {
+	// LinkName returns an option setter to set the srcName of the link that should
+	// be used in the neighbor entry
+	LinkName(string) NeighOption
+
+	// Family returns an option setter to set the address family for the neighbor
+	// entry. eg. AF_BRIDGE
+	Family(int) NeighOption
 }
 
 // IfaceOptionSetter interface defines the option setter methods for interface options.
