@@ -11,11 +11,11 @@ type Backend string
 
 const (
 	// CONSUL backend
-	CONSUL = "consul"
+	CONSUL Backend = "consul"
 	// ETCD backend
-	ETCD = "etcd"
+	ETCD Backend = "etcd"
 	// ZK backend
-	ZK = "zk"
+	ZK Backend = "zk"
 )
 
 var (
