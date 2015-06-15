@@ -52,10 +52,10 @@ func convertStatsToAPITypes(ls *libcontainer.Stats) *types.Stats {
 		}
 		mem := cs.MemoryStats
 		s.MemoryStats = types.MemoryStats{
-			Usage:    mem.Usage,
-			MaxUsage: mem.MaxUsage,
+			Usage:    mem.Usage.Usage,
+			MaxUsage: mem.Usage.MaxUsage,
 			Stats:    mem.Stats,
-			Failcnt:  mem.Failcnt,
+			Failcnt:  mem.Usage.Failcnt,
 		}
 	}
 

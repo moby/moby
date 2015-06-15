@@ -272,7 +272,7 @@ func reOpenDevNull(rootfs string) error {
 		}
 		if stat.Rdev == devNullStat.Rdev {
 			// Close and re-open the fd.
-			if err := syscall.Dup2(int(file.Fd()), fd); err != nil {
+			if err := syscall.Dup3(int(file.Fd()), fd, 0); err != nil {
 				return err
 			}
 		}

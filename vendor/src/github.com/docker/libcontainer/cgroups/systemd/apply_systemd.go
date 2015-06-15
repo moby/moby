@@ -20,6 +20,7 @@ import (
 )
 
 type Manager struct {
+	mu      sync.Mutex
 	Cgroups *configs.Cgroup
 	Paths   map[string]string
 }
@@ -222,6 +223,9 @@ func (m *Manager) Apply(pid int) error {
 		return err
 	}
 
+	if err := joinHugetlb(c, pid); err != nil {
+		return err
+	}
 	// FIXME: Systemd does have `BlockIODeviceWeight` property, but we got problem
 	// using that (at least on systemd 208, see https://github.com/docker/libcontainer/pull/354),
 	// so use fs work around for now.
@@ -253,11 +257,21 @@ func (m *Manager) Apply(pid int) error {
 }
 
 func (m *Manager) Destroy() error {
-	return cgroups.RemovePaths(m.Paths)
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	theConn.StopUnit(getUnitName(m.Cgroups), "replace")
+	if err := cgroups.RemovePaths(m.Paths); err != nil {
+		return err
+	}
+	m.Paths = make(map[string]string)
+	return nil
 }
 
 func (m *Manager) GetPaths() map[string]string {
-	return m.Paths
+	m.mu.Lock()
+	paths := m.Paths
+	m.mu.Unlock()
+	return paths
 }
 
 func writeFile(dir, file, data string) error {
@@ -391,6 +405,8 @@ func (m *Manager) GetPids() ([]int, error) {
 }
 
 func (m *Manager) GetStats() (*cgroups.Stats, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	stats := cgroups.NewStats()
 	for name, path := range m.Paths {
 		sys, ok := subsystems[name]
@@ -453,14 +469,8 @@ func joinMemory(c *configs.Cgroup, pid int) error {
 	}
 
 	// -1 disables memoryswap
-	if c.Memory != 0 && c.MemorySwap >= 0 {
-		memorySwap := c.MemorySwap
-
-		if memorySwap == 0 {
-			// By default, MemorySwap is set to twice the size of RAM.
-			memorySwap = c.Memory * 2
-		}
-		err = writeFile(path, "memory.memsw.limit_in_bytes", strconv.FormatInt(memorySwap, 10))
+	if c.MemorySwap > 0 {
+		err = writeFile(path, "memory.memsw.limit_in_bytes", strconv.FormatInt(c.MemorySwap, 10))
 		if err != nil {
 			return err
 		}
@@ -468,6 +478,12 @@ func joinMemory(c *configs.Cgroup, pid int) error {
 
 	if c.KernelMemory > 0 {
 		err = writeFile(path, "memory.kmem.limit_in_bytes", strconv.FormatInt(c.KernelMemory, 10))
+		if err != nil {
+			return err
+		}
+	}
+	if c.MemorySwappiness >= 0 && c.MemorySwappiness <= 100 {
+		err = writeFile(path, "memory.swappiness", strconv.FormatInt(c.MemorySwappiness, 10))
 		if err != nil {
 			return err
 		}
@@ -525,4 +541,14 @@ func joinBlkio(c *configs.Cgroup, pid int) error {
 	}
 
 	return nil
+}
+
+func joinHugetlb(c *configs.Cgroup, pid int) error {
+	path, err := join(c, "hugetlb", pid)
+	if err != nil && !cgroups.IsNotFound(err) {
+		return err
+	}
+
+	hugetlb := subsystems["hugetlb"]
+	return hugetlb.Set(path, c)
 }

@@ -1,4 +1,4 @@
-## libcontainer - reference implementation for containers [![Build Status](https://jenkins.dockerproject.com/buildStatus/icon?job=Libcontainer Master)](https://jenkins.dockerproject.com/job/Libcontainer%20Master/)
+## libcontainer - reference implementation for containers [![Build Status](https://jenkins.dockerproject.org/buildStatus/icon?job=Libcontainer%20Master)](https://jenkins.dockerproject.org/job/Libcontainer%20Master/)
 
 Libcontainer provides a native Go implementation for creating containers
 with namespaces, cgroups, capabilities, and filesystem access controls.

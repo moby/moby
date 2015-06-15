@@ -13,6 +13,40 @@ type IDMap struct {
 	Size        int `json:"size"`
 }
 
+type Seccomp struct {
+	Syscalls []*Syscall `json:"syscalls"`
+}
+
+type Action int
+
+const (
+	Kill Action = iota - 3
+	Trap
+	Allow
+)
+
+type Operator int
+
+const (
+	EqualTo Operator = iota
+	NotEqualTo
+	GreatherThan
+	LessThan
+	MaskEqualTo
+)
+
+type Arg struct {
+	Index int      `json:"index"`
+	Value uint32   `json:"value"`
+	Op    Operator `json:"op"`
+}
+
+type Syscall struct {
+	Value  int    `json:"value"`
+	Action Action `json:"action"`
+	Args   []*Arg `json:"args"`
+}
+
 // TODO Windows. Many of these fields should be factored out into those parts
 // which are common across platforms, and those which are platform specific.
 
@@ -85,7 +119,7 @@ type Config struct {
 
 	// AdditionalGroups specifies the gids that should be added to supplementary groups
 	// in addition to those that the user belongs to.
-	AdditionalGroups []int `json:"additional_groups"`
+	AdditionalGroups []string `json:"additional_groups"`
 
 	// UidMappings is an array of User ID mappings for User Namespaces
 	UidMappings []IDMap `json:"uid_mappings"`
@@ -104,4 +138,9 @@ type Config struct {
 	// SystemProperties is a map of properties and their values. It is the equivalent of using
 	// sysctl -w my.property.name value in Linux.
 	SystemProperties map[string]string `json:"system_properties"`
+
+	// Seccomp allows actions to be taken whenever a syscall is made within the container.
+	// By default, all syscalls are allowed with actions to allow, trap, kill, or return an errno
+	// can be specified on a per syscall basis.
+	Seccomp *Seccomp `json:"seccomp"`
 }
