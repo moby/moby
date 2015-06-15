@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"strings"
 	"testing"
@@ -24,7 +25,7 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-var callbackFunc func(method, path string, data interface{}, headers map[string][]string) (io.ReadCloser, int, error)
+var callbackFunc func(method, path string, data interface{}, headers map[string][]string) (io.ReadCloser, http.Header, int, error)
 var mockNwJSON, mockNwListJSON, mockServiceJSON, mockServiceListJSON []byte
 var mockNwName = "test"
 var mockNwID = "2a3456789"
@@ -45,7 +46,9 @@ func setupMockHTTPCallback() {
 	srvList = append(srvList, ep)
 	mockServiceListJSON, _ = json.Marshal(srvList)
 
-	callbackFunc = func(method, path string, data interface{}, headers map[string][]string) (io.ReadCloser, int, error) {
+	dummyHTTPHdr := http.Header{}
+
+	callbackFunc = func(method, path string, data interface{}, headers map[string][]string) (io.ReadCloser, http.Header, int, error) {
 		var rsp string
 		switch method {
 		case "GET":
@@ -74,7 +77,7 @@ func setupMockHTTPCallback() {
 			} else if strings.HasSuffix(path, "services/"+mockServiceID) {
 				rsp = string(mockServiceJSON)
 			} else if strings.Contains(path, "containers") {
-				return nopCloser{bytes.NewBufferString("")}, 400, fmt.Errorf("Bad Request")
+				return nopCloser{bytes.NewBufferString("")}, dummyHTTPHdr, 400, fmt.Errorf("Bad Request")
 			}
 		case "POST":
 			var data []byte
@@ -90,7 +93,7 @@ func setupMockHTTPCallback() {
 		case "DELETE":
 			rsp = ""
 		}
-		return nopCloser{bytes.NewBufferString(rsp)}, 200, nil
+		return nopCloser{bytes.NewBufferString(rsp)}, dummyHTTPHdr, 200, nil
 	}
 }
 

@@ -218,16 +218,16 @@ func newDnetConnection(val string) (*dnetConnection, error) {
 	return &dnetConnection{protoAddrParts[0], protoAddrParts[1]}, nil
 }
 
-func (d *dnetConnection) httpCall(method, path string, data interface{}, headers map[string][]string) (io.ReadCloser, int, error) {
+func (d *dnetConnection) httpCall(method, path string, data interface{}, headers map[string][]string) (io.ReadCloser, http.Header, int, error) {
 	var in io.Reader
 	in, err := encodeData(data)
 	if err != nil {
-		return nil, -1, err
+		return nil, nil, -1, err
 	}
 
 	req, err := http.NewRequest(method, fmt.Sprintf("%s", path), in)
 	if err != nil {
-		return nil, -1, err
+		return nil, nil, -1, err
 	}
 
 	setupRequestHeaders(method, data, req, headers)
@@ -242,18 +242,18 @@ func (d *dnetConnection) httpCall(method, path string, data interface{}, headers
 		statusCode = resp.StatusCode
 	}
 	if err != nil {
-		return nil, statusCode, fmt.Errorf("error when trying to connect: %v", err)
+		return nil, nil, statusCode, fmt.Errorf("error when trying to connect: %v", err)
 	}
 
 	if statusCode < 200 || statusCode >= 400 {
 		body, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
-			return nil, statusCode, err
+			return nil, nil, statusCode, err
 		}
-		return nil, statusCode, fmt.Errorf("error : %s", bytes.TrimSpace(body))
+		return nil, nil, statusCode, fmt.Errorf("error : %s", bytes.TrimSpace(body))
 	}
 
-	return resp.Body, statusCode, nil
+	return resp.Body, resp.Header, statusCode, nil
 }
 
 func setupRequestHeaders(method string, data interface{}, req *http.Request, headers map[string][]string) {
