@@ -167,6 +167,10 @@ func (d *Driver) Status() [][2]string {
 	}
 }
 
+func (d *Driver) GetMetadata(id string) (map[string]string, error) {
+	return nil, nil
+}
+
 func (d *Driver) Cleanup() error {
 	return nil
 }

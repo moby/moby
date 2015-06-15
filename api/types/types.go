@@ -75,6 +75,11 @@ type Image struct {
 	Labels      map[string]string
 }
 
+type GraphDriverData struct {
+	Name string
+	Data map[string]string
+}
+
 // GET "/images/{name:.*}/json"
 type ImageInspect struct {
 	Id              string
@@ -90,6 +95,7 @@ type ImageInspect struct {
 	Os              string
 	Size            int64
 	VirtualSize     int64
+	GraphDriver     GraphDriverData
 }
 
 // GET  "/containers/json"
@@ -218,6 +224,7 @@ type ContainerJSONBase struct {
 	AppArmorProfile string
 	ExecIDs         []string
 	HostConfig      *runconfig.HostConfig
+	GraphDriver     GraphDriverData
 }
 
 type ContainerJSON struct {
