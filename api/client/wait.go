@@ -12,7 +12,7 @@ import (
 //
 // Usage: docker wait CONTAINER [CONTAINER...]
 func (cli *DockerCli) CmdWait(args ...string) error {
-	cmd := cli.Subcmd("wait", "CONTAINER [CONTAINER...]", "Block until a container stops, then print its exit code.", true)
+	cmd := cli.Subcmd("wait", []string{"CONTAINER [CONTAINER...]"}, "Block until a container stops, then print its exit code.", true)
 	cmd.Require(flag.Min, 1)
 
 	cmd.ParseFlags(args, true)

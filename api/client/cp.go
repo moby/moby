@@ -16,7 +16,7 @@ import (
 //
 // Usage: docker cp CONTAINER:PATH HOSTDIR
 func (cli *DockerCli) CmdCp(args ...string) error {
-	cmd := cli.Subcmd("cp", "CONTAINER:PATH HOSTDIR|-", "Copy files/folders from a PATH on the container to a HOSTDIR on the host\nrunning the command. Use '-' to write the data as a tar file to STDOUT.", true)
+	cmd := cli.Subcmd("cp", []string{"CONTAINER:PATH HOSTDIR|-"}, "Copy files/folders from a PATH on the container to a HOSTDIR on the host\nrunning the command. Use '-' to write the data as a tar file to STDOUT.", true)
 	cmd.Require(flag.Exact, 2)
 
 	cmd.ParseFlags(args, true)

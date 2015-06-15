@@ -135,7 +135,7 @@ func (cli *DockerCli) createContainer(config *runconfig.Config, hostConfig *runc
 //
 // Usage: docker create [OPTIONS] IMAGE [COMMAND] [ARG...]
 func (cli *DockerCli) CmdCreate(args ...string) error {
-	cmd := cli.Subcmd("create", "IMAGE [COMMAND] [ARG...]", "Create a new container", true)
+	cmd := cli.Subcmd("create", []string{"IMAGE [COMMAND] [ARG...]"}, "Create a new container", true)
 
 	// These are flags not stored in Config/HostConfig
 	var (

@@ -12,7 +12,7 @@ import (
 //
 // Usage: docker stop [OPTIONS] CONTAINER [CONTAINER...]
 func (cli *DockerCli) CmdRestart(args ...string) error {
-	cmd := cli.Subcmd("restart", "CONTAINER [CONTAINER...]", "Restart a running container", true)
+	cmd := cli.Subcmd("restart", []string{"CONTAINER [CONTAINER...]"}, "Restart a running container", true)
 	nSeconds := cmd.Int([]string{"t", "-time"}, 10, "Seconds to wait for stop before killing the container")
 	cmd.Require(flag.Min, 1)
 

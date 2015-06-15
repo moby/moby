@@ -25,7 +25,7 @@ func (r ByStars) Less(i, j int) bool { return r[i].StarCount < r[j].StarCount }
 //
 // Usage: docker search [OPTIONS] TERM
 func (cli *DockerCli) CmdSearch(args ...string) error {
-	cmd := cli.Subcmd("search", "TERM", "Search the Docker Hub for images", true)
+	cmd := cli.Subcmd("search", []string{"TERM"}, "Search the Docker Hub for images", true)
 	noTrunc := cmd.Bool([]string{"#notrunc", "-no-trunc"}, false, "Don't truncate output")
 	trusted := cmd.Bool([]string{"#t", "#trusted", "#-trusted"}, false, "Only show trusted builds")
 	automated := cmd.Bool([]string{"-automated"}, false, "Only show automated builds")
