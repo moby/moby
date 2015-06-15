@@ -32,8 +32,10 @@ const (
 	epPID  = "{" + urlEpPID + ":" + regex + "}"
 	cnID   = "{" + urlCnID + ":" + regex + "}"
 
+	// Though this name can be anything, in order to support default network,
+	// we will keep it as name
+	urlNwName = "name"
 	// Internal URL variable name, they can be anything
-	urlNwName = "network-name"
 	urlNwID   = "network-id"
 	urlNwPID  = "network-partial-id"
 	urlEpName = "endpoint-name"
@@ -43,8 +45,6 @@ const (
 
 	// BridgeNetworkDriver is the built-in default for Network Driver
 	BridgeNetworkDriver = "bridge"
-	// BridgeDefaultNetwork is the built-in default for network name
-	BridgeDefaultNetwork = "bridge"
 )
 
 // NewHTTPHandler creates and initialize the HTTP handler to serve the requests for libnetwork
@@ -150,7 +150,18 @@ func makeHandler(ctrl libnetwork.NetworkController, fct processor) http.HandlerF
 			}
 		}
 
-		res, rsp := fct(ctrl, mux.Vars(req), body)
+		mvars := mux.Vars(req)
+		rvars := req.URL.Query()
+		// workaround a mux issue which filters out valid queries with empty value
+		for k := range rvars {
+			if _, ok := mvars[k]; !ok {
+				if rvars.Get(k) == "" {
+					mvars[k] = ""
+				}
+			}
+		}
+
+		res, rsp := fct(ctrl, mvars, body)
 		if !rsp.isOK() {
 			http.Error(w, rsp.Status, rsp.StatusCode)
 			return
