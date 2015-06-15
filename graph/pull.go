@@ -654,6 +654,10 @@ func (s *TagStore) pullV2Tag(r *registry.Session, out io.Writer, endpoint *regis
 					return false, err
 				}
 
+				if err := d.img.SaveCheckSum(s.graph.ImageRoot(d.img.ID), d.digest.String()); err != nil {
+					return false, err
+				}
+
 				// FIXME: Pool release here for parallel tag pull (ensures any downloads block until fully extracted)
 			}
 			out.Write(sf.FormatProgress(stringid.TruncateID(d.img.ID), "Pull complete", nil))
