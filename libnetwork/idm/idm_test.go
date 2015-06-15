@@ -5,17 +5,17 @@ import (
 )
 
 func TestNew(t *testing.T) {
-	_, err := New("", 0, 1)
+	_, err := New(nil, "", 0, 1)
 	if err == nil {
 		t.Fatalf("Expected failure, but succeeded")
 	}
 
-	_, err = New("myset", 1<<10, 0)
+	_, err = New(nil, "myset", 1<<10, 0)
 	if err == nil {
 		t.Fatalf("Expected failure, but succeeded")
 	}
 
-	i, err := New("myset", 0, 10)
+	i, err := New(nil, "myset", 0, 10)
 	if err != nil {
 		t.Fatalf("Unexpected failure: %v", err)
 	}
@@ -31,7 +31,7 @@ func TestNew(t *testing.T) {
 }
 
 func TestAllocate(t *testing.T) {
-	i, err := New("myids", 50, 52)
+	i, err := New(nil, "myids", 50, 52)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"github.com/docker/libnetwork/bitseq"
+	"github.com/docker/libnetwork/datastore"
 )
 
 const (
@@ -26,15 +27,18 @@ type Allocator struct {
 	subnetsInfo map[subnetKey]*SubnetInfo
 	// Allocated addresses in each address space's internal subnet
 	addresses map[subnetKey]*bitmask
+	// Datastore
+	store datastore.DataStore
 	sync.Mutex
 }
 
 // NewAllocator returns an instance of libnetwork ipam
-func NewAllocator() *Allocator {
+func NewAllocator(ds datastore.DataStore) *Allocator {
 	a := &Allocator{}
 	a.subnetsInfo = make(map[subnetKey]*SubnetInfo)
 	a.addresses = make(map[subnetKey]*bitmask)
 	a.internalHostSize = defaultInternalHostSize
+	a.store = ds
 	return a
 }
 
@@ -102,7 +106,7 @@ func (a *Allocator) AddSubnet(addrSpace AddressSpace, subnetInfo *SubnetInfo) er
 		a.Lock()
 		a.addresses[smallKey] = &bitmask{
 			subnet:        sub,
-			addressMask:   bitseq.NewHandle(smallKey.String(), uint32(numAddresses)),
+			addressMask:   bitseq.NewHandle("ipam", a.store, smallKey.String(), uint32(numAddresses)),
 			freeAddresses: numAddresses,
 		}
 		a.Unlock()

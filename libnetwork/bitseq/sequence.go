@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/docker/libnetwork/datastore"
 	"github.com/docker/libnetwork/netutils"
 )
 
@@ -21,21 +22,28 @@ const (
 
 // Handle contains the sequece representing the bitmask and its identifier
 type Handle struct {
-	ID   string
-	Head *Sequence
+	App     string
+	ID      string
+	Head    *Sequence
+	store   datastore.DataStore
+	dbIndex uint64
 	sync.Mutex
 }
 
 // NewHandle returns a thread-safe instance of the bitmask handler
-func NewHandle(id string, numElements uint32) *Handle {
-	return &Handle{
-		ID: id,
+func NewHandle(app string, ds datastore.DataStore, id string, numElements uint32) *Handle {
+	h := &Handle{
+		App:   app,
+		ID:    id,
+		store: ds,
 		Head: &Sequence{
 			Block: 0x0,
 			Count: getNumBlocks(numElements),
 			Next:  nil,
 		},
 	}
+	h.watchForChanges()
+	return h
 }
 
 // Sequence reresents a recurring sequence of 32 bits long bitmasks
@@ -151,10 +159,11 @@ func (h *Handle) CheckIfAvailable(ordinal int) (int, int, error) {
 }
 
 // PushReservation pushes the bit reservation inside the bitmask.
-func (h *Handle) PushReservation(bytePos, bitPos int, release bool) {
+func (h *Handle) PushReservation(bytePos, bitPos int, release bool) error {
 	h.Lock()
-	defer h.Unlock()
 	h.Head = PushReservation(bytePos, bitPos, h.Head, release)
+	h.Unlock()
+	return h.writeToStore()
 }
 
 // GetFirstAvailable looks for the first unset bit in passed mask
