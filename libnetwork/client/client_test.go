@@ -73,6 +73,8 @@ func setupMockHTTPCallback() {
 				rsp = string(mockServiceListJSON)
 			} else if strings.HasSuffix(path, "services/"+mockServiceID) {
 				rsp = string(mockServiceJSON)
+			} else if strings.Contains(path, "containers") {
+				return nopCloser{bytes.NewBufferString("")}, 400, fmt.Errorf("Bad Request")
 			}
 		case "POST":
 			var data []byte

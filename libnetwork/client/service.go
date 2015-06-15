@@ -92,8 +92,26 @@ func lookupServiceID(cli *NetworkCli, nwName, svNameID string) (string, error) {
 }
 
 func lookupContainerID(cli *NetworkCli, cnNameID string) (string, error) {
-	// TODO : containerID to sandbox-key ?
-	return cnNameID, nil
+	// Container is a Docker resource, ask docker about it.
+	// In case of connecton error, we assume we are running in dnet and return whatever was passed to us
+	obj, _, err := readBody(cli.call("GET", fmt.Sprintf("/containers/%s/json", cnNameID), nil, nil))
+	if err != nil {
+		// We are probably running outside of docker
+		return cnNameID, nil
+	}
+
+	var x map[string]interface{}
+	err = json.Unmarshal(obj, &x)
+	if err != nil {
+		return "", err
+	}
+	if iid, ok := x["Id"]; ok {
+		if id, ok := iid.(string); ok {
+			return id, nil
+		}
+		return "", fmt.Errorf("Unexpected data type for container ID in json response")
+	}
+	return "", fmt.Errorf("Cannot find container ID in json response")
 }
 
 // CmdService handles the service UI
