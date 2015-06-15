@@ -324,7 +324,7 @@ func (f *JSONFormatter) Format(entry *Entry) ([]byte, error) {
 
 #### Logger as an `io.Writer`
 
-Logrus can be transformed into an `io.Writer`. That writer is the end of an `io.Pipe` and it is your responsibility to close it.
+Logrus can be transormed into an `io.Writer`. That writer is the end of an `io.Pipe` and it is your responsibility to close it.
 
 ```go
 w := logger.Writer()
