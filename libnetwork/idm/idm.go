@@ -6,6 +6,7 @@ import (
 
 	"github.com/docker/libnetwork/bitseq"
 	"github.com/docker/libnetwork/datastore"
+	"github.com/docker/libnetwork/types"
 )
 
 // Idm manages the reservation/release of numerical ids from a contiguos set
@@ -23,7 +24,13 @@ func New(ds datastore.DataStore, id string, start, end uint32) (*Idm, error) {
 	if end <= start {
 		return nil, fmt.Errorf("Invalid set range: [%d, %d]", start, end)
 	}
-	return &Idm{start: start, end: end, handle: bitseq.NewHandle("idm", ds, id, uint32(1+end-start))}, nil
+
+	h, err := bitseq.NewHandle("idm", ds, id, uint32(1+end-start))
+	if err != nil {
+		return nil, err
+	}
+
+	return &Idm{start: start, end: end, handle: h}, nil
 }
 
 // GetID returns the first available id in the set
@@ -32,20 +39,27 @@ func (i *Idm) GetID() (uint32, error) {
 		return 0, fmt.Errorf("ID set is not initialized")
 	}
 
-	bytePos, bitPos, err := i.handle.GetFirstAvailable()
-	if err != nil {
-		return 0, fmt.Errorf("no available ids")
+	for {
+		bytePos, bitPos, err := i.handle.GetFirstAvailable()
+		if err != nil {
+			return 0, fmt.Errorf("no available ids")
+		}
+		id := i.start + uint32(bitPos+bytePos*8)
+
+		// for sets which length is non multiple of 32 this check is needed
+		if i.end < id {
+			return 0, fmt.Errorf("no available ids")
+		}
+
+		if err := i.handle.PushReservation(bytePos, bitPos, false); err != nil {
+			if _, ok := err.(types.RetryError); !ok {
+				return 0, fmt.Errorf("internal failure while reserving the id: %s", err.Error())
+			}
+			continue
+		}
+
+		return id, nil
 	}
-	id := i.start + uint32(bitPos+bytePos*8)
-
-	// for sets which length is non multiple of 32 this check is needed
-	if i.end < id {
-		return 0, fmt.Errorf("no available ids")
-	}
-
-	i.handle.PushReservation(bytePos, bitPos, false)
-
-	return id, nil
 }
 
 // GetSpecificID tries to reserve the specified id
@@ -58,12 +72,19 @@ func (i *Idm) GetSpecificID(id uint32) error {
 		return fmt.Errorf("Requested id does not belong to the set")
 	}
 
-	if bytePos, bitPos, err := i.handle.CheckIfAvailable(int(id - i.start)); err == nil {
-		i.handle.PushReservation(bytePos, bitPos, false)
+	for {
+		bytePos, bitPos, err := i.handle.CheckIfAvailable(int(id - i.start))
+		if err != nil {
+			return fmt.Errorf("requested id is not available")
+		}
+		if err := i.handle.PushReservation(bytePos, bitPos, false); err != nil {
+			if _, ok := err.(types.RetryError); !ok {
+				return fmt.Errorf("internal failure while reserving the id: %s", err.Error())
+			}
+			continue
+		}
 		return nil
 	}
-
-	return fmt.Errorf("requested id is not available")
 }
 
 // Release releases the specified id

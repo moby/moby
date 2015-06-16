@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/docker/libkv/store"
 	"github.com/docker/libnetwork/datastore"
 	"github.com/docker/libnetwork/netutils"
 )
@@ -22,28 +23,32 @@ const (
 
 // Handle contains the sequece representing the bitmask and its identifier
 type Handle struct {
-	App     string
-	ID      string
-	Head    *Sequence
-	store   datastore.DataStore
-	dbIndex uint64
+	bits       uint32
+	unselected uint32
+	head       *Sequence
+	app        string
+	id         string
+	dbIndex    uint64
+	store      datastore.DataStore
 	sync.Mutex
 }
 
 // NewHandle returns a thread-safe instance of the bitmask handler
-func NewHandle(app string, ds datastore.DataStore, id string, numElements uint32) *Handle {
+func NewHandle(app string, ds datastore.DataStore, id string, numElements uint32) (*Handle, error) {
 	h := &Handle{
-		App:   app,
-		ID:    id,
-		store: ds,
-		Head: &Sequence{
+		app:        app,
+		id:         id,
+		store:      ds,
+		bits:       numElements,
+		unselected: numElements,
+		head: &Sequence{
 			Block: 0x0,
 			Count: getNumBlocks(numElements),
 		},
 	}
 
 	if h.store == nil {
-		return h
+		return h, nil
 	}
 
 	// Register for status changes
@@ -56,10 +61,11 @@ func NewHandle(app string, ds datastore.DataStore, id string, numElements uint32
 	// node to go through a retry.
 	var bs []byte
 	if err := h.store.GetObject(datastore.Key(h.Key()...), bs); err == nil {
-		h.Head.FromByteArray(bs)
+		h.FromByteArray(bs)
+	} else if err != store.ErrKeyNotFound {
+		return nil, err
 	}
-
-	return h
+	return h, nil
 }
 
 // Sequence reresents a recurring sequence of 32 bits long bitmasks
@@ -176,7 +182,7 @@ func (s *Sequence) FromByteArray(data []byte) error {
 func (h *Handle) GetFirstAvailable() (int, int, error) {
 	h.Lock()
 	defer h.Unlock()
-	return GetFirstAvailable(h.Head)
+	return GetFirstAvailable(h.head)
 }
 
 // CheckIfAvailable checks if the bit correspondent to the specified ordinal is unset
@@ -184,27 +190,89 @@ func (h *Handle) GetFirstAvailable() (int, int, error) {
 func (h *Handle) CheckIfAvailable(ordinal int) (int, int, error) {
 	h.Lock()
 	defer h.Unlock()
-	return CheckIfAvailable(h.Head, ordinal)
+	return CheckIfAvailable(h.head, ordinal)
 }
 
 // PushReservation pushes the bit reservation inside the bitmask.
 func (h *Handle) PushReservation(bytePos, bitPos int, release bool) error {
 	// Create a copy of the current handler
 	h.Lock()
-	nh := &Handle{App: h.App, ID: h.ID, store: h.store, dbIndex: h.dbIndex, Head: h.Head.GetCopy()}
+	nh := &Handle{app: h.app, id: h.id, store: h.store, dbIndex: h.dbIndex, head: h.head.GetCopy()}
 	h.Unlock()
 
-	nh.Head = PushReservation(bytePos, bitPos, nh.Head, release)
+	nh.head = PushReservation(bytePos, bitPos, nh.head, release)
 
 	err := nh.writeToStore()
 	if err == nil {
 		// Commit went through, save locally
 		h.Lock()
-		h.Head = nh.Head
+		h.head = nh.head
+		if release {
+			h.unselected++
+		} else {
+			h.unselected--
+		}
 		h.Unlock()
 	}
 
 	return err
+}
+
+// Destroy removes from the datastore the data belonging to this handle
+func (h *Handle) Destroy() {
+	h.deleteFromStore()
+}
+
+// ToByteArray converts this handle's data into a byte array
+func (h *Handle) ToByteArray() ([]byte, error) {
+	ba := make([]byte, 8)
+
+	h.Lock()
+	defer h.Unlock()
+	copy(ba[0:4], netutils.U32ToA(h.bits))
+	copy(ba[4:8], netutils.U32ToA(h.unselected))
+	bm, err := h.head.ToByteArray()
+	if err != nil {
+		return nil, err
+	}
+	ba = append(ba, bm...)
+
+	return ba, nil
+}
+
+// FromByteArray reads his handle's data from a byte array
+func (h *Handle) FromByteArray(ba []byte) error {
+	nh := &Sequence{}
+	err := nh.FromByteArray(ba[8:])
+	if err != nil {
+		return err
+	}
+
+	h.Lock()
+	h.head = nh
+	h.bits = netutils.ATo32(ba[0:4])
+	h.unselected = netutils.ATo32(ba[4:8])
+	h.Unlock()
+
+	return nil
+}
+
+// Bits returns the length of the bit sequence
+func (h *Handle) Bits() uint32 {
+	return h.bits
+}
+
+// Unselected returns the number of bits which are not selected
+func (h *Handle) Unselected() uint32 {
+	h.Lock()
+	defer h.Unlock()
+	return h.unselected
+}
+
+func (h *Handle) getDBIndex() uint64 {
+	h.Lock()
+	defer h.Unlock()
+	return h.dbIndex
 }
 
 // GetFirstAvailable looks for the first unset bit in passed mask
@@ -373,16 +441,6 @@ func mergeSequences(seq *Sequence) {
 		// Move to Next
 		mergeSequences(seq.Next)
 	}
-}
-
-// Serialize converts the sequence into a byte array
-func Serialize(head *Sequence) ([]byte, error) {
-	return nil, nil
-}
-
-// Deserialize decodes the byte array into a sequence
-func Deserialize(data []byte) (*Sequence, error) {
-	return nil, nil
 }
 
 func getNumBlocks(numBits uint32) uint32 {

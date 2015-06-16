@@ -9,8 +9,11 @@ import (
 	"github.com/docker/libnetwork/bitseq"
 )
 
-func getAllocator(subnet *net.IPNet) *Allocator {
-	a := NewAllocator(nil)
+func getAllocator(t *testing.T, subnet *net.IPNet) *Allocator {
+	a, err := NewAllocator(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
 	a.AddSubnet("default", &SubnetInfo{Subnet: subnet})
 	return a
 }
@@ -90,10 +93,13 @@ func TestKeyString(t *testing.T) {
 }
 
 func TestAddSubnets(t *testing.T) {
-	a := NewAllocator(nil)
+	a, err := NewAllocator(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	_, sub0, _ := net.ParseCIDR("10.0.0.0/8")
-	err := a.AddSubnet("default", &SubnetInfo{Subnet: sub0})
+	err = a.AddSubnet("default", &SubnetInfo{Subnet: sub0})
 	if err != nil {
 		t.Fatalf("Unexpected failure in adding subent")
 	}
@@ -165,7 +171,10 @@ func TestAdjustAndCheckSubnet(t *testing.T) {
 }
 
 func TestRemoveSubnet(t *testing.T) {
-	a := NewAllocator(nil)
+	a, err := NewAllocator(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	input := []struct {
 		addrSpace AddressSpace
@@ -279,7 +288,10 @@ func TestGetAddress(t *testing.T) {
 }
 
 func TestGetSubnetList(t *testing.T) {
-	a := NewAllocator(nil)
+	a, err := NewAllocator(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
 	input := []struct {
 		addrSpace AddressSpace
 		subnet    string
@@ -327,10 +339,14 @@ func TestGetSubnetList(t *testing.T) {
 
 func TestRequestSyntaxCheck(t *testing.T) {
 	var (
-		a        = NewAllocator(nil)
 		subnet   = "192.168.0.0/16"
 		addSpace = AddressSpace("green")
 	)
+
+	a, err := NewAllocator(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// Add subnet and create base request
 	_, sub, _ := net.ParseCIDR(subnet)
@@ -338,7 +354,7 @@ func TestRequestSyntaxCheck(t *testing.T) {
 	req := &AddressRequest{Subnet: *sub}
 
 	// Empty address space request
-	_, err := a.Request("", req)
+	_, err = a.Request("", req)
 	if err == nil {
 		t.Fatalf("Failed to detect wrong request: empty address space")
 	}
@@ -397,7 +413,7 @@ func TestRelease(t *testing.T) {
 	)
 
 	_, sub, _ := net.ParseCIDR(subnet)
-	a := getAllocator(sub)
+	a := getAllocator(t, sub)
 	req = &AddressRequest{Subnet: *sub}
 	bm := a.addresses[subnetKey{"default", subnet, subnet}]
 
@@ -438,8 +454,8 @@ func TestRelease(t *testing.T) {
 	for i, inp := range toRelease {
 		address := net.ParseIP(inp.address)
 		a.Release("default", address)
-		if bm.freeAddresses != 1 {
-			t.Fatalf("Failed to update free address count after release. Expected %d, Found: %d", i+1, bm.freeAddresses)
+		if bm.Unselected() != 1 {
+			t.Fatalf("Failed to update free address count after release. Expected %d, Found: %d", i+1, bm.Unselected())
 		}
 
 		rsp, err := a.Request("default", req)
@@ -485,33 +501,29 @@ func assertGetAddress(t *testing.T, subnet string) {
 	zeroes := bits - ones
 	numAddresses := 1 << uint(zeroes)
 
-	var expectedMax uint32
-	if numAddresses >= 32 {
-		expectedMax = uint32(1<<32 - 1)
-	} else {
-		expectedMax = (1<<uint(numAddresses) - 1) << uint(32-numAddresses)
+	bm, err := bitseq.NewHandle("ipam_test", nil, "default/192.168.0.0/24", uint32(numAddresses))
+	if err != nil {
+		t.Fatal(err)
 	}
-
-	bm := &bitmask{
-		subnet:        sub,
-		addressMask:   bitseq.NewHandle("ipam_test", nil, "default/192.168.0.0/24", uint32(numAddresses)),
-		freeAddresses: numAddresses,
-	}
-	numBlocks := bm.addressMask.Head.Count
 
 	start := time.Now()
 	run := 0
 	for err != ErrNoAvailableIPs {
-		_, err = a.getAddress(bm, nil, v4)
+		_, err = a.getAddress(sub, bm, nil, v4)
 		run++
 	}
 	if printTime {
 		fmt.Printf("\nTaken %v, to allocate all addresses on %s. (nemAddresses: %d. Runs: %d)", time.Since(start), subnet, numAddresses, run)
 	}
-	if bm.addressMask.Head.Block != expectedMax || bm.addressMask.Head.Count != numBlocks {
-		t.Fatalf("Failed to effectively reserve all addresses on %s. Expected (0x%x, %d) as first sequence. Found (0x%x,%d)",
-			subnet, expectedMax, numBlocks, bm.addressMask.Head.Block, bm.addressMask.Head.Count)
+	if bm.Unselected() != 0 {
+		t.Fatalf("Unexpected free count after reserving all addresses: %d", bm.Unselected())
 	}
+	/*
+		if bm.Head.Block != expectedMax || bm.Head.Count != numBlocks {
+			t.Fatalf("Failed to effectively reserve all addresses on %s. Expected (0x%x, %d) as first sequence. Found (0x%x,%d)",
+				subnet, expectedMax, numBlocks, bm.Head.Block, bm.Head.Count)
+		}
+	*/
 }
 
 func assertNRequests(t *testing.T, subnet string, numReq int, lastExpectedIP string) {
@@ -525,7 +537,7 @@ func assertNRequests(t *testing.T, subnet string, numReq int, lastExpectedIP str
 	_, sub, _ := net.ParseCIDR(subnet)
 	lastIP := net.ParseIP(lastExpectedIP)
 
-	a := getAllocator(sub)
+	a := getAllocator(t, sub)
 	req = &AddressRequest{Subnet: *sub}
 
 	i := 0
@@ -545,7 +557,7 @@ func assertNRequests(t *testing.T, subnet string, numReq int, lastExpectedIP str
 func benchmarkRequest(subnet *net.IPNet) {
 	var err error
 
-	a := NewAllocator(nil)
+	a, _ := NewAllocator(nil)
 	a.internalHostSize = 20
 	a.AddSubnet("default", &SubnetInfo{Subnet: subnet})
 

@@ -9,25 +9,19 @@ import (
 func (h *Handle) Key() []string {
 	h.Lock()
 	defer h.Unlock()
-	return []string{h.App, h.ID}
+	return []string{h.app, h.id}
 }
 
 // KeyPrefix returns the immediate parent key that can be used for tree walk
 func (h *Handle) KeyPrefix() []string {
 	h.Lock()
 	defer h.Unlock()
-	return []string{h.App}
+	return []string{h.app}
 }
 
 // Value marshals the data to be stored in the KV store
 func (h *Handle) Value() []byte {
-	h.Lock()
-	defer h.Unlock()
-	head := h.Head
-	if head == nil {
-		return []byte{}
-	}
-	b, err := head.ToByteArray()
+	b, err := h.ToByteArray()
 	if err != nil {
 		return []byte{}
 	}
@@ -65,10 +59,13 @@ func (h *Handle) watchForChanges() error {
 		for {
 			select {
 			case kvPair := <-kvpChan:
-				h.Lock()
-				h.dbIndex = kvPair.LastIndex
-				h.Head.FromByteArray(kvPair.Value)
-				h.Unlock()
+				// Only process remote update
+				if kvPair != nil && (kvPair.LastIndex != h.getDBIndex()) {
+					h.Lock()
+					h.dbIndex = kvPair.LastIndex
+					h.Unlock()
+					h.FromByteArray(kvPair.Value)
+				}
 			}
 		}
 	}()
