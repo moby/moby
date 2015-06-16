@@ -274,7 +274,7 @@ make any changes just run these commands again.
 
 ## Build and test the documentation
 
-The Docker documentation source files are under `docs/sources`. The content is
+The Docker documentation source files are under `docs`. The content is
 written using extended Markdown. We use the static generator <a
 href="http://www.mkdocs.org/" target="_blank">MkDocs</a> to build Docker's
 documentation. Of course, you don't need to install this generator

@@ -6,7 +6,7 @@ draft = true
 
 # Docker Documentation
 
-The source for Docker documentation is in this directory under `sources/`. Our
+The source for Docker documentation is in this directory. Our
 documentation uses extended Markdown, as implemented by
 [MkDocs](http://mkdocs.org).  The current release of the Docker documentation
 resides on [https://docs.docker.com](https://docs.docker.com).
@@ -60,7 +60,7 @@ own.
 	release. It also allows docs maintainers to easily cherry-pick your changes
 	into the `docs` release branch. 
 
-4. Modify existing or add new `.md` files to the `docs/sources` directory.
+4. Modify existing or add new `.md` files to the `docs` directory.
 
 	If you add a new document (`.md`) file, you must also add it to the
 	appropriate section of the `docs/mkdocs.yml` file in this repository.
@@ -113,7 +113,7 @@ links that are referenced in the documentation&mdash;there should be none.
 ## Style guide
 
 If you have questions about how to write for Docker's documentation, please see
-the [style guide](sources/project/doc-style.md). The style guide provides
+the [style guide](project/doc-style.md). The style guide provides
 guidance about grammar, syntax, formatting, styling, language, or tone. If
 something isn't clear in the guide, please submit an issue to let us know or
 submit a pull request to help us improve it.
