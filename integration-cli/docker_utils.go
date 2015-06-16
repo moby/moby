@@ -366,8 +366,8 @@ func sockRequestRaw(method, endpoint string, data io.Reader, ct string) (*http.R
 		return nil, nil, fmt.Errorf("could not perform request: %v", err)
 	}
 	body := ioutils.NewReadCloserWrapper(resp.Body, func() error {
-		defer client.Close()
-		return resp.Body.Close()
+		defer resp.Body.Close()
+		return client.Close()
 	})
 
 	return resp, body, nil
