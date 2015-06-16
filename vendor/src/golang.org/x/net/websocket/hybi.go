@@ -385,21 +385,8 @@ func getNonceAccept(nonce []byte) (expected []byte, err error) {
 	return
 }
 
-func isHybiVersion(version int) bool {
-	switch version {
-	case ProtocolVersionHybi08, ProtocolVersionHybi13:
-		return true
-	default:
-	}
-	return false
-}
-
 // Client handshake described in draft-ietf-hybi-thewebsocket-protocol-17
 func hybiClientHandshake(config *Config, br *bufio.Reader, bw *bufio.Writer) (err error) {
-	if !isHybiVersion(config.Version) {
-		panic("wrong protocol version.")
-	}
-
 	bw.WriteString("GET " + config.Location.RequestURI() + " HTTP/1.1\r\n")
 
 	bw.WriteString("Host: " + config.Location.Host + "\r\n")
@@ -410,11 +397,12 @@ func hybiClientHandshake(config *Config, br *bufio.Reader, bw *bufio.Writer) (er
 		nonce = []byte(config.handshakeData["key"])
 	}
 	bw.WriteString("Sec-WebSocket-Key: " + string(nonce) + "\r\n")
-	if config.Version == ProtocolVersionHybi13 {
-		bw.WriteString("Origin: " + strings.ToLower(config.Origin.String()) + "\r\n")
-	} else if config.Version == ProtocolVersionHybi08 {
-		bw.WriteString("Sec-WebSocket-Origin: " + strings.ToLower(config.Origin.String()) + "\r\n")
+	bw.WriteString("Origin: " + strings.ToLower(config.Origin.String()) + "\r\n")
+
+	if config.Version != ProtocolVersionHybi13 {
+		return ErrBadProtocolVersion
 	}
+
 	bw.WriteString("Sec-WebSocket-Version: " + fmt.Sprintf("%d", config.Version) + "\r\n")
 	if len(config.Protocol) > 0 {
 		bw.WriteString("Sec-WebSocket-Protocol: " + strings.Join(config.Protocol, ", ") + "\r\n")
@@ -500,8 +488,6 @@ func (c *hybiServerHandshaker) ReadHandshake(buf *bufio.Reader, req *http.Reques
 	switch version {
 	case "13":
 		c.Version = ProtocolVersionHybi13
-	case "8":
-		c.Version = ProtocolVersionHybi08
 	default:
 		return http.StatusBadRequest, ErrBadWebSocketVersion
 	}
@@ -536,8 +522,6 @@ func Origin(config *Config, req *http.Request) (*url.URL, error) {
 	switch config.Version {
 	case ProtocolVersionHybi13:
 		origin = req.Header.Get("Origin")
-	case ProtocolVersionHybi08:
-		origin = req.Header.Get("Sec-Websocket-Origin")
 	}
 	if origin == "null" {
 		return nil, nil

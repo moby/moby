@@ -7,8 +7,7 @@ import (
 	"time"
 
 	"github.com/go-check/check"
-
-	"code.google.com/p/go.net/websocket"
+	"golang.org/x/net/websocket"
 )
 
 func (s *DockerSuite) TestGetContainersAttachWebsocket(c *check.C) {
