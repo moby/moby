@@ -471,7 +471,6 @@ Currently supported options of `devicemapper`:
     > Otherwise, set this flag for migrating existing Docker daemons to a
     > daemon with a supported environment.
 
-### Docker execdriver option
 Currently supported options of `zfs`:
 
  * `zfs.fsname`
@@ -484,8 +483,10 @@ Currently supported options of `zfs`:
 
        $ docker -d -s zfs --storage-opt zfs.fsname=zroot/docker
 
-The Docker daemon uses a specifically built `libcontainer` execution driver as its
-interface to the Linux kernel `namespaces`, `cgroups`, and `SELinux`.
+### Docker execdriver option
+
+The Docker daemon uses a specifically built `libcontainer` execution driver as
+its interface to the Linux kernel `namespaces`, `cgroups`, and `SELinux`.
 
 There is still legacy support for the original [LXC userspace tools](
 https://linuxcontainers.org/) via the `lxc` execution driver, however, this is
