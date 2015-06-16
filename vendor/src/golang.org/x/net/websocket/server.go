@@ -23,14 +23,6 @@ func newServerConn(rwc io.ReadWriteCloser, buf *bufio.ReadWriter, req *http.Requ
 		return
 	}
 	if err != nil {
-		hs = &hixie76ServerHandshaker{Config: config}
-		code, err = hs.ReadHandshake(buf.Reader, req)
-	}
-	if err != nil {
-		hs = &hixie75ServerHandshaker{Config: config}
-		code, err = hs.ReadHandshake(buf.Reader, req)
-	}
-	if err != nil {
 		fmt.Fprintf(buf, "HTTP/1.1 %03d %s\r\n", code, http.StatusText(code))
 		buf.WriteString("\r\n")
 		buf.WriteString(err.Error())
@@ -103,8 +95,8 @@ func (s Server) serveWebSocket(w http.ResponseWriter, req *http.Request) {
 // You might want to verify websocket.Conn.Config().Origin in the func.
 // If you use Server instead of Handler, you could call websocket.Origin and
 // check the origin in your Handshake func. So, if you want to accept
-// non-browser client, which doesn't send Origin header, you could use Server
-//. that doesn't check origin in its Handshake.
+// non-browser clients, which do not send an Origin header, set a
+// Server.Handshake that does not check the origin.
 type Handler func(*Conn)
 
 func checkOrigin(config *Config, req *http.Request) (err error) {

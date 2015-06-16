@@ -4,7 +4,7 @@
 
 // Package websocket implements a client and server for the WebSocket protocol
 // as specified in RFC 6455.
-package websocket
+package websocket // import "golang.org/x/net/websocket"
 
 import (
 	"bufio"
@@ -21,13 +21,9 @@ import (
 )
 
 const (
-	ProtocolVersionHixie75   = -75
-	ProtocolVersionHixie76   = -76
-	ProtocolVersionHybi00    = 0
-	ProtocolVersionHybi08    = 8
 	ProtocolVersionHybi13    = 13
 	ProtocolVersionHybi      = ProtocolVersionHybi13
-	SupportedProtocolVersion = "13, 8"
+	SupportedProtocolVersion = "13"
 
 	ContinuationFrame = 0
 	TextFrame         = 1
@@ -133,7 +129,7 @@ type frameReaderFactory interface {
 
 // frameWriter is an interface to write a WebSocket frame.
 type frameWriter interface {
-	// Writer is to write playload of the frame.
+	// Writer is to write payload of the frame.
 	io.WriteCloser
 }
 
@@ -220,10 +216,11 @@ func (ws *Conn) Write(msg []byte) (n int, err error) {
 // Close implements the io.Closer interface.
 func (ws *Conn) Close() error {
 	err := ws.frameHandler.WriteClose(ws.defaultCloseStatus)
+	err1 := ws.rwc.Close()
 	if err != nil {
 		return err
 	}
-	return ws.rwc.Close()
+	return err1
 }
 
 func (ws *Conn) IsClientConn() bool { return ws.request == nil }

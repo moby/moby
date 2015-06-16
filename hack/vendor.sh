@@ -2,6 +2,7 @@
 set -e
 
 cd "$(dirname "$BASH_SOURCE")/.."
+rm -rf vendor/
 source 'hack/.vendor-helpers.sh'
 
 # the following lines are in sorted order, FYI
@@ -13,7 +14,7 @@ clone git github.com/gorilla/mux e444e69cbd
 clone git github.com/kr/pty 5cf931ef8f
 clone git github.com/mistifyio/go-zfs v2.1.1
 clone git github.com/tchap/go-patricia v2.1.0
-clone hg code.google.com/p/go.net 84a4013f96e0
+clone git golang.org/x/net 3cffabab72adf04f8e3b01c5baf775361837b5fe https://github.com/golang/net.git
 clone hg code.google.com/p/gosqlite 74691fb6f837
 
 #get libnetwork packages

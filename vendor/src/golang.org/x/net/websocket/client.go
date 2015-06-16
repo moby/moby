@@ -43,26 +43,12 @@ func NewConfig(server, origin string) (config *Config, err error) {
 func NewClient(config *Config, rwc io.ReadWriteCloser) (ws *Conn, err error) {
 	br := bufio.NewReader(rwc)
 	bw := bufio.NewWriter(rwc)
-	switch config.Version {
-	case ProtocolVersionHixie75:
-		err = hixie75ClientHandshake(config, br, bw)
-	case ProtocolVersionHixie76, ProtocolVersionHybi00:
-		err = hixie76ClientHandshake(config, br, bw)
-	case ProtocolVersionHybi08, ProtocolVersionHybi13:
-		err = hybiClientHandshake(config, br, bw)
-	default:
-		err = ErrBadProtocolVersion
-	}
+	err = hybiClientHandshake(config, br, bw)
 	if err != nil {
 		return
 	}
 	buf := bufio.NewReadWriter(br, bw)
-	switch config.Version {
-	case ProtocolVersionHixie75, ProtocolVersionHixie76, ProtocolVersionHybi00:
-		ws = newHixieClientConn(config, buf, rwc)
-	case ProtocolVersionHybi08, ProtocolVersionHybi13:
-		ws = newHybiClientConn(config, buf, rwc)
-	}
+	ws = newHybiClientConn(config, buf, rwc)
 	return
 }
 
@@ -78,6 +64,20 @@ func Dial(url_, protocol, origin string) (ws *Conn, err error) {
 	return DialConfig(config)
 }
 
+var portMap = map[string]string{
+	"ws":  "80",
+	"wss": "443",
+}
+
+func parseAuthority(location *url.URL) string {
+	if _, ok := portMap[location.Scheme]; ok {
+		if _, _, err := net.SplitHostPort(location.Host); err != nil {
+			return net.JoinHostPort(location.Host, portMap[location.Scheme])
+		}
+	}
+	return location.Host
+}
+
 // DialConfig opens a new client connection to a WebSocket with a config.
 func DialConfig(config *Config) (ws *Conn, err error) {
 	var client net.Conn
@@ -89,10 +89,10 @@ func DialConfig(config *Config) (ws *Conn, err error) {
 	}
 	switch config.Location.Scheme {
 	case "ws":
-		client, err = net.Dial("tcp", config.Location.Host)
+		client, err = net.Dial("tcp", parseAuthority(config.Location))
 
 	case "wss":
-		client, err = tls.Dial("tcp", config.Location.Host, config.TlsConfig)
+		client, err = tls.Dial("tcp", parseAuthority(config.Location), config.TlsConfig)
 
 	default:
 		err = ErrBadScheme
@@ -103,6 +103,7 @@ func DialConfig(config *Config) (ws *Conn, err error) {
 
 	ws, err = NewClient(config, client)
 	if err != nil {
+		client.Close()
 		goto Error
 	}
 	return

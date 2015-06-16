@@ -14,8 +14,8 @@ import (
 	"strings"
 	"time"
 
-	"code.google.com/p/go.net/websocket"
 	"github.com/gorilla/mux"
+	"golang.org/x/net/websocket"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api"
