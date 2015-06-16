@@ -36,6 +36,7 @@ import (
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/trust"
+	"github.com/docker/libcontainer/netlink"
 	"github.com/docker/libnetwork"
 )
 
@@ -589,6 +590,8 @@ func (daemon *Daemon) RegisterLinks(container *Container, hostConfig *runconfig.
 }
 
 func NewDaemon(config *Config, registryService *registry.Service) (daemon *Daemon, err error) {
+	setDefaultMtu(config)
+
 	// Ensure we have compatible configuration options
 	if err := checkConfigOptions(config); err != nil {
 		return nil, err
@@ -980,4 +983,31 @@ func (daemon *Daemon) newBaseContainer(id string) CommonContainer {
 		execCommands: newExecStore(),
 		root:         daemon.containerRoot(id),
 	}
+}
+
+func setDefaultMtu(config *Config) {
+	// do nothing if the config does not have the default 0 value.
+	if config.Mtu != 0 {
+		return
+	}
+	config.Mtu = defaultNetworkMtu
+	if routeMtu, err := getDefaultRouteMtu(); err == nil {
+		config.Mtu = routeMtu
+	}
+}
+
+var errNoDefaultRoute = errors.New("no default route was found")
+
+// getDefaultRouteMtu returns the MTU for the default route's interface.
+func getDefaultRouteMtu() (int, error) {
+	routes, err := netlink.NetworkGetRoutes()
+	if err != nil {
+		return 0, err
+	}
+	for _, r := range routes {
+		if r.Default {
+			return r.Iface.MTU, nil
+		}
+	}
+	return 0, errNoDefaultRoute
 }
