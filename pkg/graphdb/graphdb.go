@@ -41,17 +41,25 @@ type Edge struct {
 	ParentID string
 }
 
+// Entities stores the list of entities
 type Entities map[string]*Entity
+
+// Edges stores the relationships between entities
 type Edges []*Edge
 
+// WalkFunc is a function invoked to process an individual entity
 type WalkFunc func(fullPath string, entity *Entity) error
 
-// Graph database for storing entities and their relationships
+// Database is a graph database for storing entities and their relationships
 type Database struct {
 	conn *sql.DB
 	mux  sync.RWMutex
 }
 
+// IsNonUniqueNameError processes the error to check if it's caused by
+// a constraint violation.
+// This is necessary because the error isn't the same across various
+// sqlite versions.
 func IsNonUniqueNameError(err error) bool {
 	str := err.Error()
 	// sqlite 3.7.17-1ubuntu1 returns:
@@ -72,7 +80,7 @@ func IsNonUniqueNameError(err error) bool {
 	return false
 }
 
-// Create a new graph database initialized with a root entity
+// NewDatabase creates a new graph database initialized with a root entity
 func NewDatabase(conn *sql.DB) (*Database, error) {
 	if conn == nil {
 		return nil, fmt.Errorf("Database connection cannot be nil")
@@ -163,7 +171,7 @@ func (db *Database) Set(fullPath, id string) (*Entity, error) {
 	return e, nil
 }
 
-// Return true if a name already exists in the database
+// Exists returns true if a name already exists in the database
 func (db *Database) Exists(name string) bool {
 	db.mux.RLock()
 	defer db.mux.RUnlock()
@@ -190,14 +198,14 @@ func (db *Database) setEdge(parentPath, name string, e *Entity, tx *sql.Tx) erro
 	return nil
 }
 
-// Return the root "/" entity for the database
+// RootEntity returns the root "/" entity for the database
 func (db *Database) RootEntity() *Entity {
 	return &Entity{
 		id: "0",
 	}
 }
 
-// Return the entity for a given path
+// Get returns the entity for a given path
 func (db *Database) Get(name string) *Entity {
 	db.mux.RLock()
 	defer db.mux.RUnlock()
@@ -274,7 +282,7 @@ func (db *Database) Walk(name string, walkFunc WalkFunc, depth int) error {
 	return nil
 }
 
-// Return the children of the specified entity
+// Children returns the children of the specified entity
 func (db *Database) Children(name string, depth int) ([]WalkMeta, error) {
 	db.mux.RLock()
 	defer db.mux.RUnlock()
@@ -287,7 +295,7 @@ func (db *Database) Children(name string, depth int) ([]WalkMeta, error) {
 	return db.children(e, name, depth, nil)
 }
 
-// Return the parents of a specified entity
+// Parents returns the parents of a specified entity
 func (db *Database) Parents(name string) ([]string, error) {
 	db.mux.RLock()
 	defer db.mux.RUnlock()
@@ -299,7 +307,7 @@ func (db *Database) Parents(name string) ([]string, error) {
 	return db.parents(e)
 }
 
-// Return the refrence count for a specified id
+// Refs returns the refrence count for a specified id
 func (db *Database) Refs(id string) int {
 	db.mux.RLock()
 	defer db.mux.RUnlock()
@@ -311,7 +319,7 @@ func (db *Database) Refs(id string) int {
 	return count
 }
 
-// Return all the id's path references
+// RefPaths returns all the id's path references
 func (db *Database) RefPaths(id string) Edges {
 	db.mux.RLock()
 	defer db.mux.RUnlock()
@@ -360,7 +368,7 @@ func (db *Database) Delete(name string) error {
 	return nil
 }
 
-// Remove the entity with the specified id
+// Purge removes the entity with the specified id
 // Walk the graph to make sure all references to the entity
 // are removed and return the number of references removed
 func (db *Database) Purge(id string) (int, error) {
@@ -480,7 +488,7 @@ func (db *Database) children(e *Entity, name string, depth int, entities []WalkM
 		if depth != 0 {
 			nDepth := depth
 			if depth != -1 {
-				nDepth -= 1
+				nDepth--
 			}
 			entities, err = db.children(child, meta.FullPath, nDepth, entities)
 			if err != nil {
@@ -523,12 +531,12 @@ func (db *Database) child(parent *Entity, name string) *Entity {
 	return &Entity{id}
 }
 
-// Return the id used to reference this entity
+// ID returns the id used to reference this entity
 func (e *Entity) ID() string {
 	return e.id
 }
 
-// Return the paths sorted by depth
+// Paths returns the paths sorted by depth
 func (e Entities) Paths() []string {
 	out := make([]string, len(e))
 	var i int

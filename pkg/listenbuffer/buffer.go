@@ -1,5 +1,5 @@
 /*
-listenbuffer uses the kernel's listening backlog functionality to queue
+Package listenbuffer uses the kernel's listening backlog functionality to queue
 connections, allowing applications to start listening immediately and handle
 connections later. This is signaled by closing the activation channel passed to
 the constructor.

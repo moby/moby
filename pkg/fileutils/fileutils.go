@@ -20,7 +20,7 @@ func Empty(pattern string) bool {
 	return pattern == ""
 }
 
-// Cleanpatterns takes a slice of patterns returns a new
+// CleanPatterns takes a slice of patterns returns a new
 // slice of patterns cleaned with filepath.Clean, stripped
 // of any empty patterns and lets the caller know whether the
 // slice contains any exception patterns (prefixed with !).
@@ -73,7 +73,7 @@ func Matches(file string, patterns []string) (bool, error) {
 	return OptimizedMatches(file, patterns, patDirs)
 }
 
-// Matches is basically the same as fileutils.Matches() but optimized for archive.go.
+// OptimizedMatches is basically the same as fileutils.Matches() but optimized for archive.go.
 // It will assume that the inputs have been preprocessed and therefore the function
 // doen't need to do as much error checking and clean-up. This was done to avoid
 // repeating these steps on each file being checked during the archive process.

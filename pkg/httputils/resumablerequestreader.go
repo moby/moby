@@ -26,6 +26,8 @@ func ResumableRequestReader(c *http.Client, r *http.Request, maxfail uint32, tot
 	return &resumableRequestReader{client: c, request: r, maxFailures: maxfail, totalSize: totalsize}
 }
 
+// ResumableRequestReaderWithInitialResponse makes it possible to resume
+// reading the body of an already initiated request.
 func ResumableRequestReaderWithInitialResponse(c *http.Client, r *http.Request, maxfail uint32, totalsize int64, initialResponse *http.Response) io.ReadCloser {
 	return &resumableRequestReader{client: c, request: r, maxFailures: maxfail, totalSize: totalsize, currentResponse: initialResponse}
 }
