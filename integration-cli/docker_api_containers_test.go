@@ -869,7 +869,7 @@ func (s *DockerSuite) TestContainerApiCreate(c *check.C) {
 
 	out, err := exec.Command(dockerBinary, "start", "-a", container.Id).CombinedOutput()
 	if err != nil {
-		c.Fatal(out, err)
+		c.Fatal(string(out), err)
 	}
 	if strings.TrimSpace(string(out)) != "/test" {
 		c.Fatalf("expected output `/test`, got %q", out)
