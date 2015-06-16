@@ -1,5 +1,37 @@
 # Changelog
 
+## 1.7.0 (2015-06-16)
+
+#### Runtime
++ Experimental feature: support for out-of-process volume plugins
+* The userland proxy can be disabled in favor of hairpin NAT using the daemon’s `--userland-proxy=false` flag
+* The `exec` command supports the `-u|--user` flag to specify the new process owner
++ Default gateway for containers can be specified daemon-wide using the `--default-gateway` and `--default-gateway-v6` flags
++ The CPU CFS (Completely Fair Scheduler) quota can be set in `docker run` using `--cpu-quota`
++ Container block IO can be controlled in `docker run` using`--blkio-weight`
++ ZFS support
++ The `docker logs` command supports a `--since` argument
++ UTS namespace can be shared with the host with `docker run --uts=host`
+
+#### Quality
+* Networking stack was entirely rewritten as part of the libnetwork effort
+* Engine internals refactoring
+* Volumes code was entirely rewritten to support the plugins effort
++ Sending SIGUSR1 to a daemon will dump all goroutines stacks without exiting
+
+#### Build
++ Support ${variable:-value} and ${variable:+value} syntax for environment variables
++ Support resource management flags `--cgroup-parent`, `--cpu-period`, `--cpu-quota`, `--cpuset-cpus`, `--cpuset-mems`
++ git context changes with branches and directories
+* The .dockerignore file support exclusion rules
+
+#### Distribution
++ Client support for v2 mirroring support for the official registry
+
+#### Bugfixes
+* Firewalld is now supported and will automatically be used when available
+* mounting --device recursively
+
 ## 1.6.2 (2015-05-13)
 
 ####  Runtime
