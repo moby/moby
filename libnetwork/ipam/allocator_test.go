@@ -57,6 +57,38 @@ func TestGetAddressVersion(t *testing.T) {
 	}
 }
 
+func TestKeyString(t *testing.T) {
+
+	k := &subnetKey{addressSpace: "default", subnet: "172.27.0.0/16"}
+	expected := "default/172.27.0.0/16"
+	if expected != k.String() {
+		t.Fatalf("Unexpected key string: %s", k.String())
+	}
+
+	k2 := &subnetKey{}
+	err := k2.FromString(expected)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if k2.addressSpace != k.addressSpace || k2.subnet != k.subnet {
+		t.Fatalf("subnetKey.FromString() failed. Expected %v. Got %v", k, k2)
+	}
+
+	expected = fmt.Sprintf("%s/%s", expected, "172.27.3.0/24")
+	k.childSubnet = "172.27.3.0/24"
+	if expected != k.String() {
+		t.Fatalf("Unexpected key string: %s", k.String())
+	}
+
+	err = k2.FromString(expected)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if k2.addressSpace != k.addressSpace || k2.subnet != k.subnet {
+		t.Fatalf("subnetKey.FromString() failed. Expected %v. Got %v", k, k2)
+	}
+}
+
 func TestAddSubnets(t *testing.T) {
 	a := NewAllocator(nil)
 
@@ -162,7 +194,7 @@ func TestRemoveSubnet(t *testing.T) {
 
 	_, sub, _ := net.ParseCIDR("172.17.0.0/16")
 	a.RemoveSubnet("default", sub)
-	if len(a.subnetsInfo) != 7 {
+	if len(a.subnets) != 7 {
 		t.Fatalf("Failed to remove subnet info")
 	}
 	list := a.getSubnetList("default", v4)
@@ -172,7 +204,7 @@ func TestRemoveSubnet(t *testing.T) {
 
 	_, sub, _ = net.ParseCIDR("2002:1:2:3:4:5:ffff::/112")
 	a.RemoveSubnet("default", sub)
-	if len(a.subnetsInfo) != 6 {
+	if len(a.subnets) != 6 {
 		t.Fatalf("Failed to remove subnet info")
 	}
 	list = a.getSubnetList("default", v6)
@@ -182,7 +214,7 @@ func TestRemoveSubnet(t *testing.T) {
 
 	_, sub, _ = net.ParseCIDR("2002:1:2:3:4:5:6::/112")
 	a.RemoveSubnet("splane", sub)
-	if len(a.subnetsInfo) != 5 {
+	if len(a.subnets) != 5 {
 		t.Fatalf("Failed to remove subnet info")
 	}
 	list = a.getSubnetList("splane", v6)
@@ -367,7 +399,7 @@ func TestRelease(t *testing.T) {
 	_, sub, _ := net.ParseCIDR(subnet)
 	a := getAllocator(sub)
 	req = &AddressRequest{Subnet: *sub}
-	bm := a.addresses[subnetKey{"default", subnet}]
+	bm := a.addresses[subnetKey{"default", subnet, subnet}]
 
 	// Allocate all addresses
 	for err != ErrNoAvailableIPs {
