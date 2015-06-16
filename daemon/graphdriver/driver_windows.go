@@ -1,11 +1,5 @@
 package graphdriver
 
-import (
-	_ "github.com/docker/docker/daemon/graphdriver/vfs"
-
-	// TODO Windows - Add references to real graph driver when PR'd
-)
-
 type DiffDiskDriver interface {
 	Driver
 	CopyDiff(id, sourceId string) error
