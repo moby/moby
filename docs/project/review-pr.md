@@ -83,8 +83,8 @@ To update your existing pull request:
         # Your branch is up-to-date with 'origin/11038-fix-rhel-link'.
         #
         # Changes to be committed:
-        #		modified:   docs/sources/installation/mac.md
-        #		modified:   docs/sources/installation/rhel.md
+        #		modified:   docs/installation/mac.md
+        #		modified:   docs/installation/rhel.md
 
 5. Force push the change to your origin.
 

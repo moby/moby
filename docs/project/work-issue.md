@@ -97,16 +97,16 @@ Follow this workflow as you work:
           (use "git add <file>..." to update what will be committed)
           (use "git checkout -- <file>..." to discard changes in working directory)
 
-        modified:   docs/sources/installation/mac.md
-        modified:   docs/sources/installation/rhel.md
+        modified:   docs/installation/mac.md
+        modified:   docs/installation/rhel.md
 
     The `status` command lists what changed in the repository. Make sure you see
     the changes you expect.
 
 7. Add your change to Git.
 
-        $ git add docs/sources/installation/mac.md
-        $ git add docs/sources/installation/rhel.md
+        $ git add docs/installation/mac.md
+        $ git add docs/installation/rhel.md
 
 
 8. Commit your changes making sure you use the `-s` flag to sign your work.
