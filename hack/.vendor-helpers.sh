@@ -12,8 +12,9 @@ clone() {
 	local vcs="$1"
 	local pkg="$2"
 	local rev="$3"
+	local url="$4"
 
-	local url="https://$pkg"
+	: ${url:=https://$pkg}
 	local target="vendor/src/$pkg"
 
 	echo -n "$pkg @ $rev: "
