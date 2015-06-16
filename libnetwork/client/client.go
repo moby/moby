@@ -83,6 +83,10 @@ func (cli *NetworkCli) Subcmd(chain, name, signature, description string, exitOn
 	}
 	flags := flag.NewFlagSet(name, errorHandling)
 	flags.Usage = func() {
+		flags.ShortUsage()
+		flags.PrintDefaults()
+	}
+	flags.ShortUsage = func() {
 		options := ""
 		if signature != "" {
 			signature = " " + signature
@@ -92,7 +96,6 @@ func (cli *NetworkCli) Subcmd(chain, name, signature, description string, exitOn
 		}
 		fmt.Fprintf(cli.out, "\nUsage: %s %s%s%s\n\n%s\n\n", chain, name, options, signature, description)
 		flags.SetOutput(cli.out)
-		flags.PrintDefaults()
 	}
 	return flags
 }
