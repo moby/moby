@@ -8,7 +8,7 @@ parent = "smn_linux"
 +++
 <![end-metadata]-->
 
-#Ubuntu
+# Ubuntu
 
 Docker is supported on these Ubuntu operating systems:
 

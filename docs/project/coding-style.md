@@ -4,7 +4,8 @@ title = "Coding style checklist"
 description = "List of guidelines for coding Docker contributions"
 keywords = ["change, commit, squash, request, pull request, test, unit test, integration tests, Go, gofmt,  LGTM"]
 [menu.main]
-parent = "mn_opensource"
+parent = "smn_contribute"
+weight=7
 +++
 <![end-metadata]-->
 

@@ -5,6 +5,7 @@ description = "How to use Docker's development environment"
 keywords = ["development, inception, container, image Dockerfile, dependencies, Go,  artifacts"]
 [menu.main]
 parent = "smn_develop"
+weight=5
 +++
 <![end-metadata]-->
 

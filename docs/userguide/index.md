@@ -1,6 +1,5 @@
 <!--[metadata]>
 +++
-draft = true
 title = "The Docker user guide"
 description = "The Docker user guide home page"
 keywords = ["docker, introduction, documentation, about, technology, docker.io, user, guide, user's, manual, platform, framework, virtualization, home,  intro"]

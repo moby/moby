@@ -1,10 +1,11 @@
 <!--[metadata]>
 +++
-title = "Make a project contribution"
+title = "Find and claim an issue"
 description = "Basic workflow for Docker contributions"
-keywords = ["contribute, pull request, review, workflow, beginner, expert, squash,  commit"]
+keywords = ["contribute, issue, review, workflow, beginner, expert, squash,  commit"]
 [menu.main]
 parent = "smn_contribute"
+weight=2
 +++
 <![end-metadata]-->
 

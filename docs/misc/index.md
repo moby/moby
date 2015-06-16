@@ -1,12 +1,10 @@
 <!--[metadata]>
 +++
-draft = true
-title = "Get started with Docker"
+title = "About Docker"
 description = "Introduction to Docker."
 keywords = ["docker, introduction, documentation, about, technology, understanding,  Dockerfile"]
 [menu.main]
 parent = "mn_use_docker"
-weight = 1
 +++
 <![end-metadata]-->
 

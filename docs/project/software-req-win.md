@@ -5,6 +5,7 @@ description = "How to set up a server to test Docker Windows client"
 keywords = ["development, inception, container, image Dockerfile, dependencies, Go, artifacts,  windows"]
 [menu.main]
 parent = "smn_develop"
+weight=3
 +++
 <![end-metadata]-->
 
