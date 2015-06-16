@@ -30,143 +30,144 @@ each result.
 
 To get information on a container use its ID or instance name:
 
-    $ docker inspect 1eb5fabf5a03
-    [{
-        "AppArmorProfile": "",
-        "Args": [],
-        "Config": {
-            "AttachStderr": false,
-            "AttachStdin": false,
-            "AttachStdout": false,
-            "Cmd": [
-                "/usr/sbin/nginx"
-            ],
-            "Domainname": "",
-            "Entrypoint": null,
-            "Env": [
-                "HOME=/",
-                "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-            ],
-            "ExposedPorts": {
-                "80/tcp": {}
-            },
-            "Hostname": "1eb5fabf5a03",
-            "Image": "summit/nginx",
-            "Labels": {
-                "com.example.vendor": "Acme",
-                "com.example.license": "GPL",
-                "com.example.version": "1.0"
-            },
-            "MacAddress": "",
-            "NetworkDisabled": false,
-            "OnBuild": null,
-            "OpenStdin": false,
-            "StdinOnce": false,
-            "Tty": true,
-            "User": "",
-            "Volumes": null,
-            "WorkingDir": "",
+    $ docker inspect d2cc496561d6
+[{
+    "Id": "d2cc496561d6d520cbc0236b4ba88c362c446a7619992123f11c809cded25b47",
+    "Created": "2015-06-08T16:18:02.505155285Z",
+    "Path": "bash",
+    "Args": [],
+    "State": {
+        "Running": false,
+        "Paused": false,
+        "Restarting": false,
+        "OOMKilled": false,
+        "Dead": false,
+        "Pid": 0,
+        "ExitCode": 0,
+        "Error": "",
+        "StartedAt": "2015-06-08T16:18:03.643865954Z",
+        "FinishedAt": "2015-06-08T16:57:06.448552862Z"
+    },
+    "Image": "ded7cd95e059788f2586a51c275a4f151653779d6a7f4dad77c2bd34601d94e4",
+    "NetworkSettings": {
+        "Bridge": "",
+        "EndpointID": "",
+        "Gateway": "",
+        "GlobalIPv6Address": "",
+        "GlobalIPv6PrefixLen": 0,
+        "HairpinMode": false,
+        "IPAddress": "",
+        "IPPrefixLen": 0,
+        "IPv6Gateway": "",
+        "LinkLocalIPv6Address": "",
+        "LinkLocalIPv6PrefixLen": 0,
+        "MacAddress": "",
+        "NetworkID": "",
+        "PortMapping": null,
+        "Ports": null,
+        "SandboxKey": "",
+        "SecondaryIPAddresses": null,
+        "SecondaryIPv6Addresses": null
+    },
+    "ResolvConfPath": "/var/lib/docker/containers/d2cc496561d6d520cbc0236b4ba88c362c446a7619992123f11c809cded25b47/resolv.conf",
+    "HostnamePath": "/var/lib/docker/containers/d2cc496561d6d520cbc0236b4ba88c362c446a7619992123f11c809cded25b47/hostname",
+    "HostsPath": "/var/lib/docker/containers/d2cc496561d6d520cbc0236b4ba88c362c446a7619992123f11c809cded25b47/hosts",
+    "LogPath": "/var/lib/docker/containers/d2cc496561d6d520cbc0236b4ba88c362c446a7619992123f11c809cded25b47/d2cc496561d6d520cbc0236b4ba88c362c446a7619992123f11c809cded25b47-json.log",
+    "Name": "/adoring_wozniak",
+    "RestartCount": 0,
+    "Driver": "devicemapper",
+    "ExecDriver": "native-0.2",
+    "MountLabel": "",
+    "ProcessLabel": "",
+    "Volumes": {},
+    "VolumesRW": {},
+    "AppArmorProfile": "",
+    "ExecIDs": null,
+    "HostConfig": {
+        "Binds": null,
+        "ContainerIDFile": "",
+        "LxcConf": [],
+        "Memory": 0,
+        "MemorySwap": 0,
+        "CpuShares": 0,
+        "CpuPeriod": 0,
+        "CpusetCpus": "",
+        "CpusetMems": "",
+        "CpuQuota": 0,
+        "BlkioWeight": 0,
+        "OomKillDisable": false,
+        "Privileged": false,
+        "PortBindings": {},
+        "Links": null,
+        "PublishAllPorts": false,
+        "Dns": null,
+        "DnsSearch": null,
+        "ExtraHosts": null,
+        "VolumesFrom": null,
+        "Devices": [],
+        "NetworkMode": "bridge",
+        "IpcMode": "",
+        "PidMode": "",
+        "UTSMode": "",
+        "CapAdd": null,
+        "CapDrop": null,
+        "RestartPolicy": {
+            "Name": "no",
+            "MaximumRetryCount": 0
         },
-        "Created": "2014-04-04T21:33:52.02361335Z",
-        "Driver": "devicemapper",
-        "ExecDriver": "native-0.1",
-        "ExecIDs": null,
-        "HostConfig": {
-            "Binds": null,
-            "CapAdd": null,
-            "CapDrop": null,
-            "CgroupParent": "",
-            "ContainerIDFile": "",
-            "CpuShares": 512,
-            "CpusetCpus": "0,1",
-            "CpusetMems": "",
-            "Devices": [],
-            "Dns": null,
-            "DnsSearch": null,
-            "ExtraHosts": null,
-            "IpcMode": "",
-            "Links": null,
-            "LogConfig": {
-                "Config": null,
-                "Type": "json-file"
-            },
-            "LxcConf": null,
-            "Memory": 16777216,
-            "MemorySwap": -1,
-            "NetworkMode": "",
-            "PidMode": "",
-            "PortBindings": {
-                "80/tcp": [
-                    {
-                        "HostIp": "0.0.0.0",
-                        "HostPort": "80"
-                    }
-                ]
-            },
-            "Privileged": false,
-            "PublishAllPorts": false,
-            "ReadonlyRootfs": false,
-            "RestartPolicy": {
-                "MaximumRetryCount": 0,
-                "Name": ""
-            },
-            "SecurityOpt": null,
-            "Ulimits": null,
-            "VolumesFrom": null
+        "SecurityOpt": null,
+        "ReadonlyRootfs": false,
+        "Ulimits": null,
+        "LogConfig": {
+            "Type": "json-file",
+            "Config": {}
+        },
+        "CgroupParent": ""
+    },
+    "GraphDriver": {
+        "Name": "devicemapper",
+        "Data": {
+            "DeviceId": "5",
+            "DeviceName": "docker-253:1-2763198-d2cc496561d6d520cbc0236b4ba88c362c446a7619992123f11c809cded25b47",
+            "DeviceSize": "171798691840"
         }
-        "HostnamePath": "/var/lib/docker/containers/1eb5fabf5a03807136561b3c00adcd2992b535d624d5e18b6cdc6a6844d9767b/hostname",
-        "HostsPath": "/var/lib/docker/containers/1eb5fabf5a03807136561b3c00adcd2992b535d624d5e18b6cdc6a6844d9767b/hosts",
-        "ID": "1eb5fabf5a03807136561b3c00adcd2992b535d624d5e18b6cdc6a6844d9767b",
-        "Image": "df53773a4390e25936f9fd3739e0c0e60a62d024ea7b669282b27e65ae8458e6",
-        "LogPath": "/var/lib/docker/containers/1eb5fabf5a03807136561b3c00adcd2992b535d624d5e18b6cdc6a6844d9767b/1eb5fabf5a03807136561b3c00adcd2992b535d624d5e18b6cdc6a6844d9767b-json.log",
-        "MountLabel": "",
-        "Name": "/ecstatic_ptolemy",
-        "NetworkSettings": {
-            "Bridge": "docker0",
-            "Gateway": "172.17.42.1",
-            "GlobalIPv6Address": "",
-            "GlobalIPv6PrefixLen": 0,
-            "IPAddress": "172.17.0.2",
-            "IPPrefixLen": 16,
-            "IPv6Gateway": "",
-            "LinkLocalIPv6Address": "",
-            "LinkLocalIPv6PrefixLen": 0,
-            "MacAddress": "",
-            "PortMapping": null,
-            "Ports": {
-                "80/tcp": [
-                    {
-                        "HostIp": "0.0.0.0",
-                        "HostPort": "80"
-                    }
-                ]
-            }
-        },
-        "Path": "/usr/sbin/nginx",
-        "ProcessLabel": "",
-        "ResolvConfPath": "/etc/resolv.conf",
-        "RestartCount": 0,
-        "State": {
-            "Dead": false,
-            "Error": "",
-            "ExitCode": 0,
-            "FinishedAt": "0001-01-01T00:00:00Z",
-            "OOMKilled": false,
-            "Paused": false,
-            "Pid": 858,
-            "Restarting": false,
-            "Running": true,
-            "StartedAt": "2014-04-04T21:33:54.16259207Z",
-        },
-        "Volumes": {},
-        "VolumesRW": {},
+    },
+    "Config": {
+        "Hostname": "d2cc496561d6",
+        "Domainname": "",
+        "User": "",
+        "AttachStdin": true,
+        "AttachStdout": true,
+        "AttachStderr": true,
+        "ExposedPorts": null,
+        "Tty": true,
+        "OpenStdin": true,
+        "StdinOnce": true,
+        "Env": null,
+        "Cmd": [
+            "bash"
+        ],
+        "Image": "fedora",
+        "Volumes": null,
+        "VolumeDriver": "",
+        "WorkingDir": "",
+        "Entrypoint": null,
+        "NetworkDisabled": false,
+        "MacAddress": "",
+        "OnBuild": null,
+        "Labels": {},
+        "Memory": 0,
+        "MemorySwap": 0,
+        "CpuShares": 0,
+        "Cpuset": ""
     }
-
+}
+]
 ## Getting the IP address of a container instance
 
 To get the IP address of a container use:
 
-    $ docker inspect --format='{{.NetworkSettings.IPAddress}}' 1eb5fabf5a03
+    $ docker inspect --format='{{.NetworkSettings.IPAddress}}' d2cc496561d6
     172.17.0.2
 
 ## Listing all port bindings
@@ -175,7 +176,7 @@ One can loop over arrays and maps in the results to produce simple text
 output:
 
     $ docker inspect --format='{{range $p, $conf := .NetworkSettings.Ports}} \
-      {{$p}} -> {{(index $conf 0).HostPort}} {{end}}' 1eb5fabf5a03
+      {{$p}} -> {{(index $conf 0).HostPort}} {{end}}' d2cc496561d6
       80/tcp -> 80
 
 You can get more information about how to write a go template from:
@@ -186,79 +187,79 @@ http://golang.org/pkg/text/template/.
 Use an image's ID or name (e.g., repository/name[:tag]) to get information
 on it.
 
-    $ docker inspect fc1203419df2
-    [{
-        "Architecture": "amd64",
-        "Author": "",
-        "Comment": "",
-        "Config": {
-            "AttachStderr": false,
-            "AttachStdin": false,
-            "AttachStdout": false,
-            "Cmd": [
-                "make",
-                "direct-test"
-            ],
-            "Domainname": "",
-            "Entrypoint": [
-                "/dind"
-            ],
-            "Env": [
-                "PATH=/go/bin:/usr/src/go/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
-            ],
-            "ExposedPorts": null,
-            "Hostname": "242978536a06",
-            "Image": "c2b774c744afc5bea603b5e6c5218539e506649326de3ea0135182f299d0519a",
-            "Labels": {},
-            "MacAddress": "",
-            "NetworkDisabled": false,
-            "OnBuild": [],
-            "OpenStdin": false,
-            "StdinOnce": false,
-            "Tty": false,
-            "User": "",
-            "Volumes": null,
-            "WorkingDir": "/go/src/github.com/docker/libcontainer"
-        },
-        "Container": "1c00417f3812a96d3ebc29e7fdee69f3d586d703ab89c8233fd4678d50707b39",
-        "ContainerConfig": {
-            "AttachStderr": false,
-            "AttachStdin": false,
-            "AttachStdout": false,
-            "Cmd": [
-                "/bin/sh",
-                "-c",
-                "#(nop) CMD [\"make\" \"direct-test\"]"
-            ],
-            "Domainname": "",
-            "Entrypoint": [
-                "/dind"
-            ],
-            "Env": [
-                "PATH=/go/bin:/usr/src/go/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
-            ],
-            "ExposedPorts": null,
-            "Hostname": "242978536a06",
-            "Image": "c2b774c744afc5bea603b5e6c5218539e506649326de3ea0135182f299d0519a",
-            "Labels": {},
-            "MacAddress": "",
-            "NetworkDisabled": false,
-            "OnBuild": [],
-            "OpenStdin": false,
-            "StdinOnce": false,
-            "Tty": false,
-            "User": "",
-            "Volumes": null,
-            "WorkingDir": "/go/src/github.com/docker/libcontainer"
-        },
-        "Created": "2015-04-07T05:34:39.079489206Z",
-        "DockerVersion": "1.5.0-dev",
-        "Id": "fc1203419df26ca82cad1dd04c709cb1b8a8a947bd5bcbdfbef8241a76f031db",
-        "Os": "linux",
-        "Parent": "c2b774c744afc5bea603b5e6c5218539e506649326de3ea0135182f299d0519a",
-        "Size": 0,
-        "VirtualSize": 613136466
-    }]
+    $ docker inspect ded7cd95e059
+[{
+    "Id": "ded7cd95e059788f2586a51c275a4f151653779d6a7f4dad77c2bd34601d94e4",
+    "Parent": "48ecf305d2cf7046c1f5f8fcbcd4994403173441d4a7f125b1bb0ceead9de731",
+    "Comment": "",
+    "Created": "2015-05-27T16:58:22.937503085Z",
+    "Container": "76cf7f67d83a7a047454b33007d03e32a8f474ad332c3a03c94537edd22b312b",
+    "ContainerConfig": {
+        "Hostname": "76cf7f67d83a",
+        "Domainname": "",
+        "User": "",
+        "AttachStdin": false,
+        "AttachStdout": false,
+        "AttachStderr": false,
+        "ExposedPorts": null,
+        "Tty": false,
+        "OpenStdin": false,
+        "StdinOnce": false,
+        "Env": null,
+        "Cmd": [
+            "/bin/sh",
+            "-c",
+            "#(nop) ADD file:4be46382bcf2b095fcb9fe8334206b584eff60bb3fad8178cbd97697fcb2ea83 in /"
+        ],
+        "Image": "48ecf305d2cf7046c1f5f8fcbcd4994403173441d4a7f125b1bb0ceead9de731",
+        "Volumes": null,
+        "VolumeDriver": "",
+        "WorkingDir": "",
+        "Entrypoint": null,
+        "NetworkDisabled": false,
+        "MacAddress": "",
+        "OnBuild": null,
+        "Labels": {}
+    },
+    "DockerVersion": "1.6.0",
+    "Author": "Lokesh Mandvekar \u003clsm5@fedoraproject.org\u003e",
+    "Config": {
+        "Hostname": "76cf7f67d83a",
+        "Domainname": "",
+        "User": "",
+        "AttachStdin": false,
+        "AttachStdout": false,
+        "AttachStderr": false,
+        "ExposedPorts": null,
+        "Tty": false,
+        "OpenStdin": false,
+        "StdinOnce": false,
+        "Env": null,
+        "Cmd": null,
+        "Image": "48ecf305d2cf7046c1f5f8fcbcd4994403173441d4a7f125b1bb0ceead9de731",
+        "Volumes": null,
+        "VolumeDriver": "",
+        "WorkingDir": "",
+        "Entrypoint": null,
+        "NetworkDisabled": false,
+        "MacAddress": "",
+        "OnBuild": null,
+        "Labels": {}
+    },
+    "Architecture": "amd64",
+    "Os": "linux",
+    "Size": 186507296,
+    "VirtualSize": 186507296,
+    "GraphDriver": {
+        "Name": "devicemapper",
+        "Data": {
+            "DeviceId": "3",
+            "DeviceName": "docker-253:1-2763198-ded7cd95e059788f2586a51c275a4f151653779d6a7f4dad77c2bd34601d94e4",
+            "DeviceSize": "171798691840"
+        }
+    }
+}
+]
 
 # HISTORY
 April 2014, originally compiled by William Henry (whenry at redhat dot com)
