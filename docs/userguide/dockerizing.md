@@ -15,7 +15,9 @@ parent = "smn_applied"
 Docker allows you to run applications inside containers. Running an
 application inside a container takes a single command: `docker run`.
 
-{{ include "no-remote-sudo.md" }}
+> **Note:** if you are using a remote Docker daemon, such as Boot2Docker, 
+> then _do not_ type the `sudo` before the `docker` commands shown in the
+> documentation's examples.
 
 ## Hello world
 

@@ -5,6 +5,7 @@ description = "Docker Hub Automated Builds"
 keywords = ["Docker, docker, registry, accounts, plans, Dockerfile, Docker Hub, docs, documentation, trusted, builds, trusted builds,  automated builds"]
 [menu.main]
 parent = "smn_pubhub"
+weight = 3
 +++
 <![end-metadata]-->
 

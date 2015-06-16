@@ -1,6 +1,6 @@
 <!--[metadata]>
 +++
-title = "The Docker Hub help"
+title = "The Docker Hub"
 description = "The Docker Help documentation home"
 keywords = ["Docker, docker, registry, accounts, plans, Dockerfile, Docker Hub, docs, documentation, accounts, organizations, repositories,  groups"]
 [menu.main]

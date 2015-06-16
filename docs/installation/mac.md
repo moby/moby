@@ -14,7 +14,7 @@ You can install Docker using Boot2Docker to run `docker` commands at your comman
 Choose this installation if you are familiar with the command-line or plan to
 contribute to the Docker project on GitHub.
 
-[<img src="/engine/installation/images/kitematic.png" alt="Download Kitematic"
+[<img src="/installation/images/kitematic.png" alt="Download Kitematic"
 style="float:right;">](https://kitematic.com/download)
 
 Alternatively, you may want to try <a id="inlinelink" href="https://kitematic.com/"
@@ -355,4 +355,4 @@ at  [Boot2Docker repository](https://github.com/boot2docker/boot2docker).
 Thanks to Chris Jones whose [blog](http://viget.com/extend/how-to-use-docker-on-os-x-the-missing-guide)  
 inspired me to redo this page.
 
-Continue with the [Docker User Guide](/userguide/).
+Continue with the [Docker User Guide](/userguide).

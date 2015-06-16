@@ -4,7 +4,8 @@ title = "Run a local registry mirror"
 description = "How to set up and run a local registry mirror"
 keywords = ["docker, registry, mirror,  examples"]
 [menu.main]
-parent = "smn_registry"
+parent = "mn_docker_hub"
+weight = 8
 +++
 <![end-metadata]-->
 

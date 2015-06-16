@@ -5,6 +5,7 @@ description = "Describes how to set up your local machine and repository"
 keywords = ["GitHub account, repository, clone, fork, branch, upstream, Git, Go, make "]
 [menu.main]
 parent = "smn_develop"
+weight=4
 +++
 <![end-metadata]-->
 
