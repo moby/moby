@@ -7,7 +7,7 @@ import (
 	"github.com/docker/docker/pkg/jsonmessage"
 )
 
-// Request a given URL and return an io.Reader
+// Download requests a given URL and returns an io.Reader
 func Download(url string) (resp *http.Response, err error) {
 	if resp, err = http.Get(url); err != nil {
 		return nil, err
@@ -18,6 +18,7 @@ func Download(url string) (resp *http.Response, err error) {
 	return resp, nil
 }
 
+// NewHTTPRequestError returns a JSON response error
 func NewHTTPRequestError(msg string, res *http.Response) error {
 	return &jsonmessage.JSONError{
 		Message: msg,

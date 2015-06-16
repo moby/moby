@@ -133,7 +133,7 @@ func testBreakout(untarFn string, tmpdir string, headers []*tar.Header) error {
 		helloStat.Size() != fi.Size() ||
 		!bytes.Equal(helloData, b) {
 		// codepath taken if hello has been modified
-		return fmt.Errorf("archive breakout: file %q has been modified. Contents: expected=%q, got=%q. FileInfo: expected=%#v, got=%#v.", hello, helloData, b, helloStat, fi)
+		return fmt.Errorf("archive breakout: file %q has been modified. Contents: expected=%q, got=%q. FileInfo: expected=%#v, got=%#v", hello, helloData, b, helloStat, fi)
 	}
 
 	// Check that nothing in dest/ has the same content as victim/hello.

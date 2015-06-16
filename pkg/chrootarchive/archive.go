@@ -58,6 +58,10 @@ func untar() {
 	os.Exit(0)
 }
 
+// Untar reads a stream of bytes from `archive`, parses it as a tar archive,
+// and unpacks it into the directory at `dest`.
+// The archive may be compressed with one of the following algorithms:
+//  identity (uncompressed), gzip, bzip2, xz.
 func Untar(tarArchive io.Reader, dest string, options *archive.TarOptions) error {
 	if tarArchive == nil {
 		return fmt.Errorf("Empty archive")
@@ -133,17 +137,18 @@ func Untar(tarArchive io.Reader, dest string, options *archive.TarOptions) error
 			return fmt.Errorf("Untar re-exec error: %v: output: %s", err, output)
 		}
 		return nil
-	} else {
-		cmd.Env = append(cmd.Env, fmt.Sprintf("OPT=%s", data))
-		out, err := cmd.CombinedOutput()
-		if err != nil {
-			return fmt.Errorf("Untar %s %s", err, out)
-		}
-		return nil
 	}
+	cmd.Env = append(cmd.Env, fmt.Sprintf("OPT=%s", data))
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("Untar %s %s", err, out)
+	}
+	return nil
 
 }
 
+// TarUntar is a convenience function which calls Tar and Untar, with the output of one piped into the other.
+// If either Tar or Untar fails, TarUntar aborts and returns the error.
 func TarUntar(src, dst string) error {
 	return chrootArchiver.TarUntar(src, dst)
 }
