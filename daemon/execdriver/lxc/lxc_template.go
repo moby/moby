@@ -46,7 +46,7 @@ lxc.cgroup.devices.allow = {{$allowedDevice.CgroupString}}
 # Use mnt.putold as per https://bugs.launchpad.net/ubuntu/+source/lxc/+bug/986385
 lxc.pivotdir = lxc_putold
 
-# lxc.autodev is not compativle with lxc --device switch
+# lxc.autodev is not compatible with lxc --device switch
 lxc.autodev = 0
 
 # NOTICE: These mounts must be applied within the namespace
