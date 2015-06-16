@@ -1264,3 +1264,14 @@ func (s *DockerDaemonSuite) TestDaemonRestartCleanupNetns(c *check.C) {
 	c.Assert(err, check.Not(check.IsNil), check.Commentf("Output: %s", out))
 	// c.Assert(out, check.Equals, "", check.Commentf("Output: %s", out))
 }
+
+// tests regression detailed in #13964 where DOCKER_TLS_VERIFY env is ignored
+func (s *DockerDaemonSuite) TestDaemonNoTlsCliTlsVerifyWithEnv(c *check.C) {
+	host := "tcp://localhost:4271"
+	c.Assert(s.d.Start("-H", host), check.IsNil)
+	cmd := exec.Command(dockerBinary, "-H", host, "info")
+	cmd.Env = []string{"DOCKER_TLS_VERIFY=1", "DOCKER_CERT_PATH=fixtures/https"}
+	out, _, err := runCommandWithOutput(cmd)
+	c.Assert(err, check.Not(check.IsNil), check.Commentf("%s", out))
+	c.Assert(strings.Contains(out, "error occurred trying to connect"), check.Equals, true)
+}
