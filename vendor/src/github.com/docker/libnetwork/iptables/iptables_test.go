@@ -48,6 +48,7 @@ func TestForward(t *testing.T) {
 		"--dport", strconv.Itoa(port),
 		"-j", "DNAT",
 		"--to-destination", dstAddr + ":" + strconv.Itoa(dstPort),
+		"!", "-i", natChain.Bridge,
 	}
 
 	if !Exists(natChain.Table, natChain.Name, dnatRule...) {
@@ -130,16 +131,11 @@ func TestPrerouting(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	rule := []string{
-		"-j", natChain.Name}
-
-	rule = append(rule, args...)
-
-	if !Exists(natChain.Table, "PREROUTING", rule...) {
+	if !Exists(natChain.Table, "PREROUTING", args...) {
 		t.Fatalf("rule does not exist")
 	}
 
-	delRule := append([]string{"-D", "PREROUTING", "-t", string(Nat)}, rule...)
+	delRule := append([]string{"-D", "PREROUTING", "-t", string(Nat)}, args...)
 	if _, err = Raw(delRule...); err != nil {
 		t.Fatal(err)
 	}
@@ -155,17 +151,12 @@ func TestOutput(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	rule := []string{
-		"-j", natChain.Name}
-
-	rule = append(rule, args...)
-
-	if !Exists(natChain.Table, "OUTPUT", rule...) {
+	if !Exists(natChain.Table, "OUTPUT", args...) {
 		t.Fatalf("rule does not exist")
 	}
 
 	delRule := append([]string{"-D", "OUTPUT", "-t",
-		string(natChain.Table)}, rule...)
+		string(natChain.Table)}, args...)
 	if _, err = Raw(delRule...); err != nil {
 		t.Fatal(err)
 	}
