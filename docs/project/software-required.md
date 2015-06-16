@@ -5,6 +5,7 @@ description = "Describes the software required to contribute to Docker"
 keywords = ["GitHub account, repository, Docker, Git, Go, make,  "]
 [menu.main]
 parent = "smn_develop"
+weight=2
 +++
 <![end-metadata]-->
 

@@ -53,7 +53,9 @@ is developed, you can launch only Linux containers from your Windows machine.
 
 ## Running Docker
 
-{{ include "no-remote-sudo.md" }}
+> **Note:** if you are using a remote Docker daemon, such as Boot2Docker, 
+> then _do not_ type the `sudo` before the `docker` commands shown in the
+> documentation's examples.
 
 **Boot2Docker Start** will automatically start a shell with environment variables
 correctly set so you can start using Docker right away:
