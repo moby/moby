@@ -87,6 +87,58 @@ func TestSequenceEqual(t *testing.T) {
 	}
 }
 
+func TestSequenceCopy(t *testing.T) {
+	s := &Sequence{
+		Block: 0x0,
+		Count: 8,
+		Next: &Sequence{
+			Block: 0x0,
+			Count: 8,
+			Next: &Sequence{
+				Block: 0x0,
+				Count: 0,
+				Next: &Sequence{
+					Block: 0x0,
+					Count: 0,
+					Next: &Sequence{
+						Block: 0x0,
+						Count: 2,
+						Next: &Sequence{
+							Block: 0x0,
+							Count: 1,
+							Next: &Sequence{
+								Block: 0x0,
+								Count: 1,
+								Next: &Sequence{
+									Block: 0x0,
+									Count: 2,
+									Next: &Sequence{
+										Block: 0x1,
+										Count: 1,
+										Next: &Sequence{
+											Block: 0x0,
+											Count: 2,
+											Next:  nil,
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	n := s.GetCopy()
+	if !s.Equal(n) {
+		t.Fatalf("copy of s failed")
+	}
+	if n == s {
+		t.Fatalf("not true copy of s")
+	}
+}
+
 func TestGetFirstAvailable(t *testing.T) {
 	input := []struct {
 		mask    *Sequence

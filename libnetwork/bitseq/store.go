@@ -19,7 +19,7 @@ func (h *Handle) KeyPrefix() []string {
 	return []string{h.App}
 }
 
-// Value marshala the data to be stored in the KV store
+// Value marshals the data to be stored in the KV store
 func (h *Handle) Value() []byte {
 	h.Lock()
 	defer h.Unlock()

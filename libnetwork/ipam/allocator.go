@@ -6,8 +6,10 @@ import (
 	"strings"
 	"sync"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/docker/libnetwork/bitseq"
 	"github.com/docker/libnetwork/datastore"
+	"github.com/docker/libnetwork/types"
 )
 
 const (
@@ -323,10 +325,22 @@ func (a *Allocator) Release(addrSpace AddressSpace, address net.IP) {
 			// Retrieve correspondent ordinal in the subnet
 			ordinal := ipToInt(getHostPortionIP(address, sub))
 			// Release it
-			space.addressMask.PushReservation(ordinal/8, ordinal%8, true)
+			for {
+				var err error
+				if err = space.addressMask.PushReservation(ordinal/8, ordinal%8, true); err == nil {
+					break
+				}
+				if _, ok := err.(types.RetryError); ok {
+					// bitmask must have changed, retry delete
+					continue
+				}
+				log.Warnf("Failed to release address %s because of internal error: %s", address.String(), err.Error())
+				return
+			}
 			space.freeAddresses++
 			return
 		}
+
 	}
 }
 
@@ -385,6 +399,7 @@ func (a *Allocator) getSubnetList(addrSpace AddressSpace, ver ipVersion) []subne
 func (a *Allocator) getAddress(smallSubnet *bitmask, prefAddress net.IP, ver ipVersion) (net.IP, error) {
 	var (
 		bytePos, bitPos int
+		ordinal         int
 		err             error
 	)
 	// Look for free IP, skip .0 and .255, they will be automatically reserved
@@ -395,19 +410,32 @@ again:
 	if prefAddress == nil {
 		bytePos, bitPos, err = smallSubnet.addressMask.GetFirstAvailable()
 	} else {
-		ordinal := ipToInt(getHostPortionIP(prefAddress, smallSubnet.subnet))
+		ordinal = ipToInt(getHostPortionIP(prefAddress, smallSubnet.subnet))
 		bytePos, bitPos, err = smallSubnet.addressMask.CheckIfAvailable(ordinal)
 	}
 	if err != nil {
 		return nil, ErrNoAvailableIPs
 	}
 
+pushsame:
 	// Lock it
-	smallSubnet.addressMask.PushReservation(bytePos, bitPos, false)
+	if err = smallSubnet.addressMask.PushReservation(bytePos, bitPos, false); err != nil {
+		if _, ok := err.(types.RetryError); !ok {
+			return nil, fmt.Errorf("internal failure while reserving the address: %s", err.Error())
+		}
+		// bitmask view must have changed. Selected address may or may no longer be available
+		if prefAddress != nil {
+			if _, _, err = smallSubnet.addressMask.CheckIfAvailable(ordinal); err == nil {
+				//still available
+				goto pushsame
+			}
+			goto again
+		}
+	}
 	smallSubnet.freeAddresses--
 
 	// Build IP ordinal
-	ordinal := bitPos + bytePos*8
+	ordinal = bitPos + bytePos*8
 
 	// For v4, let reservation of .0 and .255 happen automatically
 	if ver == v4 && !isValidIP(ordinal) {

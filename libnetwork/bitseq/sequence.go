@@ -39,10 +39,26 @@ func NewHandle(app string, ds datastore.DataStore, id string, numElements uint32
 		Head: &Sequence{
 			Block: 0x0,
 			Count: getNumBlocks(numElements),
-			Next:  nil,
 		},
 	}
+
+	if h.store == nil {
+		return h
+	}
+
+	// Register for status changes
 	h.watchForChanges()
+
+	// Get the initial status from the ds if present.
+	// We will be getting an instance without a dbIndex
+	// (GetObject() does not set it): It is ok for now,
+	// it will only cause the first allocation on this
+	// node to go through a retry.
+	var bs []byte
+	if err := h.store.GetObject(datastore.Key(h.Key()...), bs); err == nil {
+		h.Head.FromByteArray(bs)
+	}
+
 	return h
 }
 
@@ -81,6 +97,19 @@ func (s *Sequence) GetAvailableBit() (bytePos, bitPos int) {
 		bits++
 	}
 	return bits / 8, bits % 8
+}
+
+// GetCopy returns a copy of the linked list rooted at this node
+func (s *Sequence) GetCopy() *Sequence {
+	n := &Sequence{Block: s.Block, Count: s.Count}
+	pn := n
+	ps := s.Next
+	for ps != nil {
+		pn.Next = &Sequence{Block: ps.Block, Count: ps.Count}
+		pn = pn.Next
+		ps = ps.Next
+	}
+	return n
 }
 
 // Equal checks if this sequence is equal to the passed one
@@ -160,10 +189,22 @@ func (h *Handle) CheckIfAvailable(ordinal int) (int, int, error) {
 
 // PushReservation pushes the bit reservation inside the bitmask.
 func (h *Handle) PushReservation(bytePos, bitPos int, release bool) error {
+	// Create a copy of the current handler
 	h.Lock()
-	h.Head = PushReservation(bytePos, bitPos, h.Head, release)
+	nh := &Handle{App: h.App, ID: h.ID, store: h.store, dbIndex: h.dbIndex, Head: h.Head.GetCopy()}
 	h.Unlock()
-	return h.writeToStore()
+
+	nh.Head = PushReservation(bytePos, bitPos, nh.Head, release)
+
+	err := nh.writeToStore()
+	if err == nil {
+		// Commit went through, save locally
+		h.Lock()
+		h.Head = nh.Head
+		h.Unlock()
+	}
+
+	return err
 }
 
 // GetFirstAvailable looks for the first unset bit in passed mask
