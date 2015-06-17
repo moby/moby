@@ -247,7 +247,7 @@ func (s *Server) postAuth(version version.Version, w http.ResponseWriter, r *htt
 func (s *Server) getVersion(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	v := &types.Version{
 		Version:    dockerversion.VERSION,
-		ApiVersion: api.APIVERSION,
+		ApiVersion: api.Version,
 		GitCommit:  dockerversion.GITCOMMIT,
 		GoVersion:  runtime.Version(),
 		Os:         runtime.GOOS,
@@ -1473,14 +1473,18 @@ func makeHttpHandler(logging bool, localMethod string, localRoute string, handle
 		}
 		version := version.Version(mux.Vars(r)["version"])
 		if version == "" {
-			version = api.APIVERSION
+			version = api.Version
 		}
 		if corsHeaders != "" {
 			writeCorsHeaders(w, r, corsHeaders)
 		}
 
-		if version.GreaterThan(api.APIVERSION) {
-			http.Error(w, fmt.Errorf("client and server don't have same version (client API version: %s, server API version: %s)", version, api.APIVERSION).Error(), http.StatusBadRequest)
+		if version.GreaterThan(api.Version) {
+			http.Error(w, fmt.Errorf("client is newer than server (client API version: %s, server API version: %s)", version, api.Version).Error(), http.StatusBadRequest)
+			return
+		}
+		if version.LessThan(api.MinVersion) {
+			http.Error(w, fmt.Errorf("client is too old, minimum supported API version is %s, please upgrade your client to a newer version", api.MinVersion).Error(), http.StatusBadRequest)
 			return
 		}
 
