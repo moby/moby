@@ -63,6 +63,21 @@ func New(quiet bool) *SysInfo {
 		}
 	}
 
+	// Check if bridge-nf-call-iptables is disabled.
+	if data, err := ioutil.ReadFile("/proc/sys/net/bridge/bridge-nf-call-iptables"); os.IsNotExist(err) {
+		sysInfo.BridgeNfCallIptablesDisabled = true
+	} else {
+		enabled, _ := strconv.Atoi(strings.TrimSpace(string(data)))
+		sysInfo.BridgeNfCallIptablesDisabled = enabled == 0
+	}
+	// Check if bridge-nf-call-ip6tables is disabled.
+	if data, err := ioutil.ReadFile("/proc/sys/net/bridge/bridge-nf-call-ip6tables"); os.IsNotExist(err) {
+		sysInfo.BridgeNfCallIp6tablesDisabled = true
+	} else {
+		enabled, _ := strconv.Atoi(strings.TrimSpace(string(data)))
+		sysInfo.BridgeNfCallIp6tablesDisabled = enabled == 0
+	}
+
 	// Check if AppArmor is supported.
 	if _, err := os.Stat("/sys/kernel/security/apparmor"); os.IsNotExist(err) {
 		sysInfo.AppArmor = false
