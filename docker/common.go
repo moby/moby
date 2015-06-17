@@ -109,7 +109,9 @@ func validateAuthnOpt(option string) (string, error) {
 	if strings.HasPrefix(option, "plugins=") ||
 		strings.HasPrefix(option, "certmap=") ||
 		strings.HasPrefix(option, "local-auth=") ||
-		option == "local-auth" {
+		option == "local-auth" ||
+		strings.HasPrefix(option, "basic.username=") ||
+		strings.HasPrefix(option, "interactive=") {
 		return option, nil
 	}
 	return "", fmt.Errorf("invalid authentication option %s", option)

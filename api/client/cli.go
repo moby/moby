@@ -168,6 +168,7 @@ func NewDockerCli(in io.ReadCloser, out, err io.Writer, clientFlags *cli.ClientF
 
 		cli.authnOpts = clientFlags.Common.AuthnOpts
 		jar, _ := cookiejar.New(nil)
+		cli.authnOpts = clientFlags.Common.AuthnOpts
 		cli.jar = jar
 		client.SetAuth(cli)
 		client.SetLogger(cli)
