@@ -11,8 +11,8 @@ Plugins extend Docker's functionality.  They come in specific types.  For
 example, a [volume plugin](/experimental/plugins_volume.md) might enable Docker
 volumes to persist across multiple Docker hosts.
 
-Currently Docker supports volume plugins. In the future it will support
-additional plugin types.
+Currently Docker supports volume and network driver plugins. In the future it
+will support additional plugin types.
 
 ## Installing a plugin
 
@@ -23,9 +23,16 @@ Follow the instructions in the plugin's documentation.
 The following plugins exist:
 
 * The [Flocker plugin](https://clusterhq.com/docker-plugin/) is a volume plugin
-which provides multi-host portable volumes for Docker, enabling you to run
+  which provides multi-host portable volumes for Docker, enabling you to run
   databases and other stateful containers and move them around across a cluster
   of machines.
+
+* The [Weave plugin](https://github.com/weaveworks/docker-plugin) is a network
+  driver plugin which provides a virtual, multi-host network for containers.
+
+* The [Calico plugin](https://github.com/metaswitch/calico-docker) is a network
+  driver plugin which provides a multi-host network for containers with routes 
+  distributed by BGP.
 
 ## Troubleshooting a plugin
 
