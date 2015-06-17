@@ -1129,7 +1129,6 @@ func (s *Server) postContainersAttach(version version.Version, w http.ResponseWr
 		UseStderr: boolValue(r, "stderr"),
 		Logs:      boolValue(r, "logs"),
 		Stream:    boolValue(r, "stream"),
-		Multiplex: version.GreaterThanOrEqualTo("1.6"),
 	}
 
 	if err := s.daemon.ContainerAttachWithLogs(cont, attachWithLogsConfig); err != nil {
