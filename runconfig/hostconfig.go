@@ -249,6 +249,7 @@ type HostConfig struct {
 	UTSMode          UTSMode
 	CapAdd           *CapList
 	CapDrop          *CapList
+	GroupAdd         []string
 	RestartPolicy    RestartPolicy
 	SecurityOpt      []string
 	ReadonlyRootfs   bool
