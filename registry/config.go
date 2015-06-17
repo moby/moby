@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"net"
 	"net/url"
-	"regexp"
 	"strings"
 
+	"github.com/docker/distribution/registry/api/v2"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/opts"
 	flag "github.com/docker/docker/pkg/mflag"
@@ -32,8 +32,6 @@ const (
 var (
 	ErrInvalidRepositoryName = errors.New("Invalid repository name (ex: \"registry.domain.tld/myrepos\")")
 	emptyServiceConfig       = NewServiceConfig(nil)
-	validNamespaceChars      = regexp.MustCompile(`^([a-z0-9-_]*)$`)
-	validRepo                = regexp.MustCompile(`^([a-z0-9-_.]+)$`)
 )
 
 func IndexServerAddress() string {
@@ -206,42 +204,16 @@ func ValidateIndexName(val string) (string, error) {
 }
 
 func validateRemoteName(remoteName string) error {
-	var (
-		namespace string
-		name      string
-	)
-	nameParts := strings.SplitN(remoteName, "/", 2)
-	if len(nameParts) < 2 {
-		namespace = "library"
-		name = nameParts[0]
+
+	if !strings.Contains(remoteName, "/") {
 
 		// the repository name must not be a valid image ID
-		if err := image.ValidateID(name); err == nil {
-			return fmt.Errorf("Invalid repository name (%s), cannot specify 64-byte hexadecimal strings", name)
+		if err := image.ValidateID(remoteName); err == nil {
+			return fmt.Errorf("Invalid repository name (%s), cannot specify 64-byte hexadecimal strings", remoteName)
 		}
-	} else {
-		namespace = nameParts[0]
-		name = nameParts[1]
 	}
-	if !validNamespaceChars.MatchString(namespace) {
-		return fmt.Errorf("Invalid namespace name (%s). Only [a-z0-9-_] are allowed.", namespace)
-	}
-	if len(namespace) < 2 || len(namespace) > 255 {
-		return fmt.Errorf("Invalid namespace name (%s). Cannot be fewer than 2 or more than 255 characters.", namespace)
-	}
-	if strings.HasPrefix(namespace, "-") || strings.HasSuffix(namespace, "-") {
-		return fmt.Errorf("Invalid namespace name (%s). Cannot begin or end with a hyphen.", namespace)
-	}
-	if strings.Contains(namespace, "--") {
-		return fmt.Errorf("Invalid namespace name (%s). Cannot contain consecutive hyphens.", namespace)
-	}
-	if !validRepo.MatchString(name) {
-		return fmt.Errorf("Invalid repository name (%s), only [a-z0-9-_.] are allowed", name)
-	}
-	if strings.HasPrefix(name, "-") || strings.HasSuffix(name, "-") {
-		return fmt.Errorf("Invalid repository name (%s). Cannot begin or end with a hyphen.", name)
-	}
-	return nil
+
+	return v2.ValidateRepositoryName(remoteName)
 }
 
 func validateNoSchema(reposName string) error {
