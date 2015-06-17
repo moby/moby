@@ -18,6 +18,13 @@ parent = "smn_remoteapi"
    `curl --insecure --cert ~/.docker/cert.pem --key ~/.docker/key.pem https://boot2docker:2376/images/json`
    or 
    `wget --no-check-certificate --certificate=$DOCKER_CERT_PATH/cert.pem --private-key=$DOCKER_CERT_PATH/key.pem https://boot2docker:2376/images/json -O - -q`
+ - If the Docker daemon is set to require that clients authenticate to it when
+   interacting with it, then you need to add extra parameters to `curl` or
+   `wget` when making test API requests:
+   `curl --basic -u user:password https://dockerhost:2375/images/json`
+   `curl --negotiate -u : https://dockerhost:2376/images/json`
+   or
+   `wget --http-user=user --ask-password https://dockerhost:2376/images/json -O - -q`
  - If a group named `docker` exists on your system, docker will apply
    ownership of the socket to the group.
  - The API tends to be REST, but for some complex commands, like attach

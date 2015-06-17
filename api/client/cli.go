@@ -52,6 +52,8 @@ type DockerCli struct {
 	isTerminalOut bool
 	// transport holds the client transport instance.
 	transport *http.Transport
+	// authResponders provide ways to authenticate to servers
+	authResponders *map[string]*[]AuthResponder
 }
 
 var funcMap = template.FuncMap{
@@ -217,20 +219,23 @@ func NewDockerCli(in io.ReadCloser, out, err io.Writer, keyFile string, proto, a
 		fmt.Fprintf(err, "WARNING: Error loading config file:%v\n", e)
 	}
 
+	authResponders := createAuthResponders()
+
 	return &DockerCli{
-		proto:         proto,
-		addr:          addr,
-		configFile:    configFile,
-		in:            in,
-		out:           out,
-		err:           err,
-		keyFile:       keyFile,
-		inFd:          inFd,
-		outFd:         outFd,
-		isTerminalIn:  isTerminalIn,
-		isTerminalOut: isTerminalOut,
-		tlsConfig:     tlsConfig,
-		scheme:        scheme,
-		transport:     tr,
+		proto:          proto,
+		addr:           addr,
+		configFile:     configFile,
+		in:             in,
+		out:            out,
+		err:            err,
+		keyFile:        keyFile,
+		inFd:           inFd,
+		outFd:          outFd,
+		isTerminalIn:   isTerminalIn,
+		isTerminalOut:  isTerminalOut,
+		tlsConfig:      tlsConfig,
+		scheme:         scheme,
+		transport:      tr,
+		authResponders: &authResponders,
 	}
 }

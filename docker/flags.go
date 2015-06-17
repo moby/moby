@@ -25,8 +25,9 @@ func (a byName) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (a byName) Less(i, j int) bool { return a[i].name < a[j].name }
 
 var (
-	dockerCertPath  = os.Getenv("DOCKER_CERT_PATH")
-	dockerTlsVerify = os.Getenv("DOCKER_TLS_VERIFY") != ""
+	dockerCertPath     = os.Getenv("DOCKER_CERT_PATH")
+	dockerTlsVerify    = os.Getenv("DOCKER_TLS_VERIFY") != ""
+	dockerRequireAuthn = false
 
 	dockerCommands = []command{
 		{"attach", "Attach to a running container"},
@@ -86,13 +87,14 @@ func getDaemonConfDir() string {
 }
 
 var (
-	flVersion   = flag.Bool([]string{"v", "-version"}, false, "Print version information and quit")
-	flDaemon    = flag.Bool([]string{"d", "-daemon"}, false, "Enable daemon mode")
-	flDebug     = flag.Bool([]string{"D", "-debug"}, false, "Enable debug mode")
-	flLogLevel  = flag.String([]string{"l", "-log-level"}, "info", "Set the logging level")
-	flTls       = flag.Bool([]string{"-tls"}, false, "Use TLS; implied by --tlsverify")
-	flHelp      = flag.Bool([]string{"h", "-help"}, false, "Print usage")
-	flTlsVerify = flag.Bool([]string{"-tlsverify"}, dockerTlsVerify, "Use TLS and verify the remote")
+	flVersion      = flag.Bool([]string{"v", "-version"}, false, "Print version information and quit")
+	flDaemon       = flag.Bool([]string{"d", "-daemon"}, false, "Enable daemon mode")
+	flDebug        = flag.Bool([]string{"D", "-debug"}, false, "Enable debug mode")
+	flLogLevel     = flag.String([]string{"l", "-log-level"}, "info", "Set the logging level")
+	flTls          = flag.Bool([]string{"-tls"}, false, "Use TLS; implied by --tlsverify")
+	flHelp         = flag.Bool([]string{"h", "-help"}, false, "Print usage")
+	flTlsVerify    = flag.Bool([]string{"-tlsverify"}, dockerTlsVerify, "Use TLS and verify the remote")
+	flRequireAuthn = flag.Bool([]string{"a", "-authn"}, dockerRequireAuthn, "Require daemon clients to authenticate")
 
 	// these are initialized in init() below since their default values depend on dockerCertPath which isn't fully initialized until init() runs
 	tlsOptions tlsconfig.Options
