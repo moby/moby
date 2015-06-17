@@ -30,7 +30,10 @@ type DataStore interface {
 }
 
 // ErrKeyModified is raised for an atomic update when the update is working on a stale state
-var ErrKeyModified = store.ErrKeyModified
+var (
+	ErrKeyModified = store.ErrKeyModified
+	ErrKeyNotFound = store.ErrKeyNotFound
+)
 
 type datastore struct {
 	store store.Store

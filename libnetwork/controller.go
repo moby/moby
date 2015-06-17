@@ -263,6 +263,9 @@ func (c *controller) addNetwork(n *network) error {
 	if err := d.CreateNetwork(n.id, n.generic); err != nil {
 		return err
 	}
+	if err := n.watchEndpoints(); err != nil {
+		return err
+	}
 	c.Lock()
 	c.networks[n.id] = n
 	c.Unlock()

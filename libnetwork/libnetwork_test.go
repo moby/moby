@@ -547,15 +547,6 @@ func TestUnknownEndpoint(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = ep.Delete()
-	if err == nil {
-		t.Fatal("Expected to fail. But instead succeeded")
-	}
-
-	if _, ok := err.(*libnetwork.UnknownEndpointError); !ok {
-		t.Fatalf("Did not fail with expected error. Actual error: %v", err)
-	}
-
 	// Done testing. Now cleanup
 	if err := network.Delete(); err != nil {
 		t.Fatal(err)
