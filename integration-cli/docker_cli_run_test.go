@@ -948,6 +948,19 @@ func (s *DockerSuite) TestRunCapAddALLDropNetAdminCanDownInterface(c *check.C) {
 	}
 }
 
+func (s *DockerSuite) TestRunGroupAdd(c *check.C) {
+	cmd := exec.Command(dockerBinary, "run", "--group-add=audio", "--group-add=dbus", "--group-add=777", "busybox", "sh", "-c", "id")
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		c.Fatal(err, out)
+	}
+
+	groupsList := "uid=0(root) gid=0(root) groups=10(wheel),29(audio),81(dbus),777"
+	if actual := strings.Trim(out, "\r\n"); actual != groupsList {
+		c.Fatalf("expected output %s received %s", groupsList, actual)
+	}
+}
+
 func (s *DockerSuite) TestRunPrivilegedCanMount(c *check.C) {
 	cmd := exec.Command(dockerBinary, "run", "--privileged", "busybox", "sh", "-c", "mount -t tmpfs none /tmp && echo ok")
 	out, _, err := runCommandWithOutput(cmd)
