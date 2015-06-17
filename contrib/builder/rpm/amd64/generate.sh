@@ -68,6 +68,7 @@ for version in "${versions[@]}"; do
 		btrfs-progs-devel # for "btrfs/ioctl.h" (and "version.h" if possible)
 		device-mapper-devel # for "libdevmapper.h"
 		glibc-static
+		krb5-devel # for "gssapi.h"
 		libseccomp-devel # for "seccomp.h" & "libseccomp.so"
 		libselinux-devel # for "libselinux.so"
 		libtool-ltdl-devel # for pkcs11 "ltdl.h"

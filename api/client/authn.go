@@ -111,3 +111,11 @@ func (cli *DockerCli) GetBearerAuth(challenge string) (string, error) {
 	}
 	return token, nil
 }
+
+// GetNegotiateAuth checks if we want to try Negotiate auth if the server
+// offered it.  It is part of the authn.NegotiateAuther interface which the
+// http client looks for in the list of objects that we pass to its SetAuth()
+// method.  The answer is always yes.
+func (cli *DockerCli) GetNegotiateAuth() bool {
+	return true
+}

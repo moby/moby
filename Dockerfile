@@ -53,6 +53,7 @@ RUN apt-get update && apt-get install -y \
 	jq \
 	libapparmor-dev \
 	libcap-dev \
+	libkrb5-dev \
 	libltdl-dev \
 	libsqlite3-dev \
 	libsystemd-journal-dev \
