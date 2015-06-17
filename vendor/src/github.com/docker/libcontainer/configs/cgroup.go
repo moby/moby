@@ -78,11 +78,17 @@ type Cgroup struct {
 	// set the freeze value for the process
 	Freezer FreezerState `json:"freezer"`
 
+	// Hugetlb limit (in bytes)
+	HugetlbLimit []*HugepageLimit `json:"hugetlb_limit"`
+
 	// Parent slice to use for systemd TODO: remove in favor or parent
 	Slice string `json:"slice"`
 
 	// Whether to disable OOM Killer
 	OomKillDisable bool `json:"oom_kill_disable"`
+
+	// Tuning swappiness behaviour per cgroup
+	MemorySwappiness int64 `json:"memory_swappiness"`
 
 	// Set priority of network traffic for container
 	NetPrioIfpriomap []*IfPrioMap `json:"net_prio_ifpriomap"`

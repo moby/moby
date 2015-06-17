@@ -13,6 +13,7 @@ import (
 	"github.com/docker/libcontainer/cgroups"
 	"github.com/docker/libcontainer/configs"
 	"github.com/docker/libcontainer/netlink"
+	"github.com/docker/libcontainer/seccomp"
 	"github.com/docker/libcontainer/system"
 	"github.com/docker/libcontainer/user"
 	"github.com/docker/libcontainer/utils"
@@ -176,10 +177,20 @@ func setupUser(config *initConfig) error {
 	if err != nil {
 		return err
 	}
-	suppGroups := append(execUser.Sgids, config.Config.AdditionalGroups...)
+
+	var addGroups []int
+	if len(config.Config.AdditionalGroups) > 0 {
+		addGroups, err = user.GetAdditionalGroupsPath(config.Config.AdditionalGroups, groupPath)
+		if err != nil {
+			return err
+		}
+	}
+
+	suppGroups := append(execUser.Sgids, addGroups...)
 	if err := syscall.Setgroups(suppGroups); err != nil {
 		return err
 	}
+
 	if err := system.Setgid(execUser.Gid); err != nil {
 		return err
 	}
@@ -258,4 +269,62 @@ func killCgroupProcesses(m cgroups.Manager) error {
 		}
 	}
 	return nil
+}
+
+func finalizeSeccomp(config *initConfig) error {
+	if config.Config.Seccomp == nil {
+		return nil
+	}
+	context := seccomp.New()
+	for _, s := range config.Config.Seccomp.Syscalls {
+		ss := &seccomp.Syscall{
+			Value:  uint32(s.Value),
+			Action: seccompAction(s.Action),
+		}
+		if len(s.Args) > 0 {
+			ss.Args = seccompArgs(s.Args)
+		}
+		context.Add(ss)
+	}
+	return context.Load()
+}
+
+func seccompAction(a configs.Action) seccomp.Action {
+	switch a {
+	case configs.Kill:
+		return seccomp.Kill
+	case configs.Trap:
+		return seccomp.Trap
+	case configs.Allow:
+		return seccomp.Allow
+	}
+	return seccomp.Error(syscall.Errno(int(a)))
+}
+
+func seccompArgs(args []*configs.Arg) seccomp.Args {
+	var sa []seccomp.Arg
+	for _, a := range args {
+		sa = append(sa, seccomp.Arg{
+			Index: uint32(a.Index),
+			Op:    seccompOperator(a.Op),
+			Value: uint(a.Value),
+		})
+	}
+	return seccomp.Args{sa}
+}
+
+func seccompOperator(o configs.Operator) seccomp.Operator {
+	switch o {
+	case configs.EqualTo:
+		return seccomp.EqualTo
+	case configs.NotEqualTo:
+		return seccomp.NotEqualTo
+	case configs.GreatherThan:
+		return seccomp.GreatherThan
+	case configs.LessThan:
+		return seccomp.LessThan
+	case configs.MaskEqualTo:
+		return seccomp.MaskEqualTo
+	}
+	return 0
 }
