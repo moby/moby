@@ -58,6 +58,7 @@ for version in "${versions[@]}"; do
 		libdevmapper-dev # for "libdevmapper.h"
 		libkrb5-dev # for "gssapi.h"
 		libltdl-dev # for pkcs11 "ltdl.h"
+		libsasl2-dev # for "sasl/sasl.h"
 		libseccomp-dev  # for "seccomp.h" & "libseccomp.so"
 		libsqlite3-dev # for "sqlite3.h"
 		pkg-config # for detecting things like libsystemd-journal dynamically

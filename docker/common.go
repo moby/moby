@@ -110,6 +110,9 @@ func validateAuthnOpt(option string) (string, error) {
 		strings.HasPrefix(option, "certmap=") ||
 		strings.HasPrefix(option, "local-auth=") ||
 		option == "local-auth" ||
+		strings.HasPrefix(option, "realm=") ||
+		strings.HasPrefix(option, "libsasl2=") ||
+		option == "libsasl2" ||
 		strings.HasPrefix(option, "basic.username=") ||
 		strings.HasPrefix(option, "interactive=") ||
 		strings.HasPrefix(option, "bearer.token=") {
