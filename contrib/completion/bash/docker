@@ -829,6 +829,7 @@ _docker_run() {
 		--env -e
 		--env-file
 		--expose
+		--group-add
 		--hostname -h
 		--ipc
 		--label -l

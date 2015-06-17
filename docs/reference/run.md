@@ -737,6 +737,16 @@ weights of the two containers.
 > **Note:** The blkio weight setting is only available for direct IO. Buffered IO
 > is not currently supported.
 
+## Additional groups
+    --group-add: Add Linux capabilities
+
+By default, the docker container process runs with the supplementary groups looked
+up for the specified user. If one wants to add more to that list of groups, then
+one can use this flag:
+
+    $ docker run -ti --rm --group-add audio  --group-add dbus --group-add 777 busybox id
+    uid=0(root) gid=0(root) groups=10(wheel),29(audio),81(dbus),777
+
 ## Runtime privilege, Linux capabilities, and LXC configuration
 
     --cap-add: Add Linux capabilities
