@@ -1,0 +1,21 @@
+{
+    "distribution": "FROM fedora",
+    "dependencies":[ 
+      "  RUN yum -y update && yum install -y \\",
+      "  btrfs-progs-devel \\", 
+      "  gcc \\", 
+      "  glibc-static \\", 
+      "  libcap-devel \\", 
+      "  bsqlite3x-devel \\",
+      "  make \\",
+      "  python-websocket-client \\", 
+      "  ruby \\", 
+      "  ruby-dev \\", 
+      "  tar \\" ],
+    "buildtags": "ENV DOCKER_BUILDTAGS selinux",
+    "markers": [
+      "Cut for distribution specific",
+      "End dependencies cut",
+      "Cut for buildtags distribution",
+      "End buildtags cut" ]
+}
