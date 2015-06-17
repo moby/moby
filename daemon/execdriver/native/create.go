@@ -58,6 +58,8 @@ func (d *driver) createContainer(c *execdriver.Command) (*configs.Config, error)
 		}
 	}
 
+	container.AdditionalGroups = c.GroupAdd
+
 	if c.AppArmorProfile != "" {
 		container.AppArmorProfile = c.AppArmorProfile
 	}
