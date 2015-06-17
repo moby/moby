@@ -67,6 +67,8 @@ func (daemon *Daemon) SystemInfo() (*types.Info, error) {
 		CpuCfsPeriod:       daemon.SystemConfig().CpuCfsPeriod,
 		CpuCfsQuota:        daemon.SystemConfig().CpuCfsQuota,
 		IPv4Forwarding:     !daemon.SystemConfig().IPv4ForwardingDisabled,
+		BridgeNfIptables:   !daemon.SystemConfig().BridgeNfCallIptablesDisabled,
+		BridgeNfIp6tables:  !daemon.SystemConfig().BridgeNfCallIp6tablesDisabled,
 		Debug:              os.Getenv("DEBUG") != "",
 		NFd:                fileutils.GetTotalUsedFds(),
 		OomKillDisable:     daemon.SystemConfig().OomKillDisable,

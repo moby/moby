@@ -76,6 +76,12 @@ func (cli *DockerCli) CmdInfo(args ...string) error {
 	if !info.IPv4Forwarding {
 		fmt.Fprintf(cli.err, "WARNING: IPv4 forwarding is disabled.\n")
 	}
+	if !info.BridgeNfIptables {
+		fmt.Fprintf(cli.err, "WARNING: bridge-nf-call-iptables is disabled\n")
+	}
+	if !info.BridgeNfIp6tables {
+		fmt.Fprintf(cli.err, "WARNING: bridge-nf-call-ip6tables is disabled\n")
+	}
 	if info.Labels != nil {
 		fmt.Fprintln(cli.out, "Labels:")
 		for _, attribute := range info.Labels {

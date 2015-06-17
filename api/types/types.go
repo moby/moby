@@ -153,6 +153,8 @@ type Info struct {
 	CpuCfsPeriod       bool
 	CpuCfsQuota        bool
 	IPv4Forwarding     bool
+	BridgeNfIptables   bool
+	BridgeNfIp6tables  bool
 	Debug              bool
 	NFd                int
 	OomKillDisable     bool
