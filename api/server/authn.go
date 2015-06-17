@@ -111,6 +111,22 @@ func (s *Server) httpAuthenticate(w http.ResponseWriter, r *http.Request, option
 		}
 		return user, nil
 	}
+	user = getUserFromHTTPResponseWriter(w, options)
+	if user.Name != "" || user.HaveUID {
+		if user.Name != "" && user.HaveUID {
+			logrus.Infof("kernel identifies client as \"%s\"(UID %d)", user.Name, user.UID)
+		} else if user.Name != "" {
+			logrus.Infof("kernel identifies client as \"%s\"", user.Name)
+		} else {
+			logrus.Infof("kernel identifies client as UID %d", user.UID)
+		}
+		context.Set(r, AuthnUser, user)
+		if session != nil {
+			session.Values[User{}] = user
+			sessions.Save(r, w)
+		}
+		return user, nil
+	}
 	if len(s.authenticators) == 0 {
 		return User{}, errors.ErrorCodeNoAuthentication
 	}

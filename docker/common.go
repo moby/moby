@@ -107,7 +107,9 @@ func setDaemonLogLevel(logLevel string) {
 // client authentication option.
 func validateAuthnOpt(option string) (string, error) {
 	if strings.HasPrefix(option, "plugins=") ||
-		strings.HasPrefix(option, "certmap=") {
+		strings.HasPrefix(option, "certmap=") ||
+		strings.HasPrefix(option, "local-auth=") ||
+		option == "local-auth" {
 		return option, nil
 	}
 	return "", fmt.Errorf("invalid authentication option %s", option)
