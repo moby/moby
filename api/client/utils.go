@@ -132,6 +132,7 @@ func (cli *DockerCli) clientRequestAttemptLogin(method, path string, in io.Reade
 			// we may need to change the status code.
 			if strings.Contains(err.Error(), "Authentication is required") ||
 				strings.Contains(err.Error(), "Status 401") ||
+				strings.Contains(err.Error(), "401 Unauthorized") ||
 				strings.Contains(err.Error(), "status code 401") {
 				statusCode = http.StatusUnauthorized
 			}
