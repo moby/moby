@@ -105,7 +105,8 @@ type DeviceSet struct {
 	thinPoolDevice        string
 	Transaction           `json:"-"`
 	overrideUdevSyncCheck bool
-	deferredRemove        bool // use deferred removal
+	deferredRemove        bool   // use deferred removal
+	BaseDeviceUUID        string //save UUID of base device
 }
 
 type DiskUsage struct {
@@ -676,9 +677,70 @@ func (devices *DeviceSet) loadMetadata(hash string) *DevInfo {
 	return info
 }
 
+func getDeviceUUID(device string) (string, error) {
+	out, err := exec.Command("blkid", "-s", "UUID", "-o", "value", device).Output()
+	if err != nil {
+		logrus.Debugf("Failed to find uuid for device %s:%v", device, err)
+		return "", err
+	}
+
+	uuid := strings.TrimSuffix(string(out), "\n")
+	uuid = strings.TrimSpace(uuid)
+	logrus.Debugf("UUID for device: %s is:%s", device, uuid)
+	return uuid, nil
+}
+
+func (devices *DeviceSet) verifyBaseDeviceUUID(baseInfo *DevInfo) error {
+	if err := devices.activateDeviceIfNeeded(baseInfo); err != nil {
+		return err
+	}
+
+	defer devices.deactivateDevice(baseInfo)
+
+	uuid, err := getDeviceUUID(baseInfo.DevName())
+	if err != nil {
+		return err
+	}
+
+	if devices.BaseDeviceUUID != uuid {
+		return fmt.Errorf("Current Base Device UUID:%s does not match with stored UUID:%s", uuid, devices.BaseDeviceUUID)
+	}
+
+	return nil
+}
+
+func (devices *DeviceSet) saveBaseDeviceUUID(baseInfo *DevInfo) error {
+	if err := devices.activateDeviceIfNeeded(baseInfo); err != nil {
+		return err
+	}
+
+	defer devices.deactivateDevice(baseInfo)
+
+	uuid, err := getDeviceUUID(baseInfo.DevName())
+	if err != nil {
+		return err
+	}
+
+	devices.BaseDeviceUUID = uuid
+	devices.saveDeviceSetMetaData()
+	return nil
+}
+
 func (devices *DeviceSet) setupBaseImage() error {
 	oldInfo, _ := devices.lookupDevice("")
 	if oldInfo != nil && oldInfo.Initialized {
+		// If BaseDeviceUUID is nil (upgrade case), save it and
+		// return success.
+		if devices.BaseDeviceUUID == "" {
+			if err := devices.saveBaseDeviceUUID(oldInfo); err != nil {
+				return fmt.Errorf("Could not query and save base device UUID:%v", err)
+			}
+			return nil
+		}
+
+		if err := devices.verifyBaseDeviceUUID(oldInfo); err != nil {
+			return fmt.Errorf("Base Device UUID verification failed. Possibly using a different thin pool then last invocation:%v", err)
+		}
 		return nil
 	}
 
@@ -726,6 +788,10 @@ func (devices *DeviceSet) setupBaseImage() error {
 	if err := devices.saveMetadata(info); err != nil {
 		info.Initialized = false
 		return err
+	}
+
+	if err := devices.saveBaseDeviceUUID(info); err != nil {
+		return fmt.Errorf("Could not query and save base device UUID:%v", err)
 	}
 
 	return nil
