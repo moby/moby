@@ -4,7 +4,6 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
-	"strconv"
 	"strings"
 
 	"github.com/Sirupsen/logrus"
@@ -14,81 +13,78 @@ import (
 // New returns a new SysInfo, using the filesystem to detect which features the kernel supports.
 func New(quiet bool) *SysInfo {
 	sysInfo := &SysInfo{}
-	if cgroupMemoryMountpoint, err := cgroups.FindCgroupMountpoint("memory"); err != nil {
-		if !quiet {
-			logrus.Warnf("Your kernel does not support cgroup memory limit: %v", err)
-		}
-	} else {
-		// If memory cgroup is mounted, MemoryLimit is always enabled.
-		sysInfo.MemoryLimit = true
+	sysInfo.cgroupMemInfo = checkCgroupMem(quiet)
+	sysInfo.cgroupCpuInfo = checkCgroupCpu(quiet)
 
-		_, err1 := ioutil.ReadFile(path.Join(cgroupMemoryMountpoint, "memory.memsw.limit_in_bytes"))
-		sysInfo.SwapLimit = err1 == nil
-		if !sysInfo.SwapLimit && !quiet {
-			logrus.Warn("Your kernel does not support swap memory limit.")
-		}
+	_, err := cgroups.FindCgroupMountpoint("devices")
+	sysInfo.CgroupDevicesEnabled = err == nil
 
-		_, err = ioutil.ReadFile(path.Join(cgroupMemoryMountpoint, "memory.oom_control"))
-		sysInfo.OomKillDisable = err == nil
-		if !sysInfo.OomKillDisable && !quiet {
-			logrus.Warnf("Your kernel does not support oom control.")
-		}
-	}
-
-	if cgroupCpuMountpoint, err := cgroups.FindCgroupMountpoint("cpu"); err != nil {
-		if !quiet {
-			logrus.Warnf("%v", err)
-		}
-	} else {
-		_, err := ioutil.ReadFile(path.Join(cgroupCpuMountpoint, "cpu.cfs_period_us"))
-		sysInfo.CpuCfsPeriod = err == nil
-		if !sysInfo.CpuCfsPeriod && !quiet {
-			logrus.Warn("Your kernel does not support cgroup cfs period")
-		}
-		_, err = ioutil.ReadFile(path.Join(cgroupCpuMountpoint, "cpu.cfs_quota_us"))
-		sysInfo.CpuCfsQuota = err == nil
-		if !sysInfo.CpuCfsQuota && !quiet {
-			logrus.Warn("Your kernel does not support cgroup cfs quotas")
-		}
-	}
-
-	// Checek if ipv4_forward is disabled.
-	if data, err := ioutil.ReadFile("/proc/sys/net/ipv4/ip_forward"); os.IsNotExist(err) {
-		sysInfo.IPv4ForwardingDisabled = true
-	} else {
-		if enabled, _ := strconv.Atoi(strings.TrimSpace(string(data))); enabled == 0 {
-			sysInfo.IPv4ForwardingDisabled = true
-		} else {
-			sysInfo.IPv4ForwardingDisabled = false
-		}
-	}
-
-	// Check if bridge-nf-call-iptables is disabled.
-	if data, err := ioutil.ReadFile("/proc/sys/net/bridge/bridge-nf-call-iptables"); os.IsNotExist(err) {
-		sysInfo.BridgeNfCallIptablesDisabled = true
-	} else {
-		enabled, _ := strconv.Atoi(strings.TrimSpace(string(data)))
-		sysInfo.BridgeNfCallIptablesDisabled = enabled == 0
-	}
-	// Check if bridge-nf-call-ip6tables is disabled.
-	if data, err := ioutil.ReadFile("/proc/sys/net/bridge/bridge-nf-call-ip6tables"); os.IsNotExist(err) {
-		sysInfo.BridgeNfCallIp6tablesDisabled = true
-	} else {
-		enabled, _ := strconv.Atoi(strings.TrimSpace(string(data)))
-		sysInfo.BridgeNfCallIp6tablesDisabled = enabled == 0
-	}
+	sysInfo.IPv4ForwardingDisabled = !readProcBool("/proc/sys/net/ipv4/ip_forward")
+	sysInfo.BridgeNfCallIptablesDisabled = !readProcBool("/proc/sys/net/bridge/bridge-nf-call-iptables")
+	sysInfo.BridgeNfCallIp6tablesDisabled = !readProcBool("/proc/sys/net/bridge/bridge-nf-call-ip6tables")
 
 	// Check if AppArmor is supported.
-	if _, err := os.Stat("/sys/kernel/security/apparmor"); os.IsNotExist(err) {
-		sysInfo.AppArmor = false
-	} else {
+	if _, err := os.Stat("/sys/kernel/security/apparmor"); !os.IsNotExist(err) {
 		sysInfo.AppArmor = true
 	}
 
-	// Check if Devices cgroup is mounted, it is hard requirement for container security.
-	if _, err := cgroups.FindCgroupMountpoint("devices"); err != nil {
-		logrus.Fatalf("Error mounting devices cgroup: %v", err)
+	return sysInfo
+}
+
+func checkCgroupMem(quiet bool) *cgroupMemInfo {
+	info := &cgroupMemInfo{}
+	mountPoint, err := cgroups.FindCgroupMountpoint("memory")
+	if err != nil {
+		if !quiet {
+			logrus.Warnf("Your kernel does not support cgroup memory limit: %v", err)
+		}
+		return nil
+	}
+	info.MemoryLimit = true
+
+	info.SwapLimit = cgroupEnabled(mountPoint, "memory.memsw.limit_in_bytes")
+	if !quiet && !info.SwapLimit {
+		logrus.Warn("Your kernel does not support swap memory limit.")
+	}
+	info.OomKillDisable = cgroupEnabled(mountPoint, "memory.oom_control")
+	if !quiet && !info.OomKillDisable {
+		logrus.Warnf("Your kernel does not support oom control.")
 	}
 
-	return sysInfo
+	return info
+}
+
+func checkCgroupCpu(quiet bool) *cgroupCpuInfo {
+	info := &cgroupCpuInfo{}
+	mountPoint, err := cgroups.FindCgroupMountpoint("cpu")
+	if err != nil {
+		if !quiet {
+			logrus.Warn(err)
+		}
+		return nil
+	}
+
+	info.CpuCfsPeriod = cgroupEnabled(mountPoint, "cpu.cfs_period_us")
+	if !quiet && !info.CpuCfsPeriod {
+		logrus.Warn("Your kernel does not support cgroup cfs period")
+	}
+
+	info.CpuCfsQuota = cgroupEnabled(mountPoint, "cpu.cfs_quota_us")
+	if !quiet && !info.CpuCfsQuota {
+		logrus.Warn("Your kernel does not support cgroup cfs quotas")
+	}
+	return info
+}
+
+func cgroupEnabled(mountPoint, name string) bool {
+	_, err := os.Stat(path.Join(mountPoint, name))
+	return err == nil
+}
+
+func readProcBool(path string) bool {
+	val, err := ioutil.ReadFile(path)
+	if err != nil {
+		return false
+	}
+	return strings.TrimSpace(string(val)) == "1"
 }
