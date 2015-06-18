@@ -2,8 +2,8 @@ package mock
 
 import (
 	"fmt"
-	"github.com/docker/libnetwork/Godeps/_workspace/src/github.com/stretchr/objx"
-	"github.com/docker/libnetwork/Godeps/_workspace/src/github.com/stretchr/testify/assert"
+	"github.com/stretchr/objx"
+	"github.com/stretchr/testify/assert"
 	"reflect"
 	"runtime"
 	"strings"

@@ -1,6 +1,6 @@
 {
 	"ImportPath": "github.com/docker/libnetwork",
-	"GoVersion": "go1.4.1",
+	"GoVersion": "go1.4.2",
 	"Packages": [
 		"./..."
 	],
@@ -16,14 +16,13 @@
 			"Rev": "467d9d55c2d2c17248441a8fc661561161f40d5e"
 		},
 		{
+			"ImportPath": "github.com/armon/go-metrics",
+			"Rev": "eb0af217e5e9747e41dd5303755356b62d28e3ec"
+		},
+		{
 			"ImportPath": "github.com/coreos/go-etcd/etcd",
 			"Comment": "v2.0.0-7-g73a8ef7",
 			"Rev": "73a8ef737e8ea002281a28b4cb92a1de121ad4c6"
-		},
-		{
-			"ImportPath": "github.com/deckarep/golang-set",
-			"Comment": "v1-26-gef32fa3",
-			"Rev": "ef32fa3046d9f249d399f98ebaf9be944430fd1d"
 		},
 		{
 			"ImportPath": "github.com/docker/docker/pkg/homedir",
@@ -71,24 +70,9 @@
 			"Rev": "637023a5f8d8347a0e271c09d5c9bc84fbc97693"
 		},
 		{
-			"ImportPath": "github.com/docker/docker/api/client",
-			"Comment": "v1.4.1-4106-g637023a",
-			"Rev": "637023a5f8d8347a0e271c09d5c9bc84fbc97693"
-		},
-		{
 			"ImportPath": "github.com/docker/libcontainer/user",
 			"Comment": "v1.4.0-495-g3e66118",
 			"Rev": "3e661186ba24f259d3860f067df052c7f6904bee"
-		},
-		{
-			"ImportPath": "github.com/docker/swarm/discovery",
-			"Comment": "v0.3.0-rc2",
-			"Rev": "a5b2e57496762cb6971eb65809b2e428cb179719"
-		},
-		{
-			"ImportPath": "github.com/docker/swarm/pkg/store",
-			"Comment": "v0.3.0-rc2",
-			"Rev": "a5b2e57496762cb6971eb65809b2e428cb179719"
 		},
 		{
 			"ImportPath": "github.com/docker/libkv",
@@ -111,6 +95,19 @@
 			"ImportPath": "github.com/hashicorp/consul/api",
 			"Comment": "v0.5.0rc1-66-g954aec6",
 			"Rev": "954aec66231b79c161a4122b023fbcad13047f79"
+		},
+		{
+			"ImportPath": "github.com/hashicorp/go-msgpack/codec",
+			"Rev": "71c2886f5a673a35f909803f38ece5810165097b"
+		},
+		{
+			"ImportPath": "github.com/hashicorp/memberlist",
+			"Rev": "9a1e242e454d2443df330bdd51a436d5a9058fc4"
+		},
+		{
+			"ImportPath": "github.com/hashicorp/serf/serf",
+			"Comment": "v0.6.4",
+			"Rev": "7151adcef72687bf95f451a2e0ba15cb19412bf2"
 		},
 		{
 			"ImportPath": "github.com/samuel/go-zookeeper/zk",
