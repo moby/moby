@@ -73,6 +73,11 @@ func checkCgroupCpu(quiet bool) *cgroupCpuInfo {
 	if !quiet && !info.CpuCfsQuota {
 		logrus.Warn("Your kernel does not support cgroup cfs quotas")
 	}
+
+	info.CpuShares = cgroupEnabled(mountPoint, "cpu.shares")
+	if !quiet && !info.CpuShares {
+		logrus.Warn("Your kernel does not support cgroup cpu shares")
+	}
 	return info
 }
 

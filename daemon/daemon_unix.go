@@ -150,6 +150,11 @@ func (daemon *Daemon) verifyContainerSettings(hostConfig *runconfig.HostConfig, 
 	if hostConfig.Memory == 0 && hostConfig.MemorySwap > 0 {
 		return warnings, fmt.Errorf("You should always set the Memory limit when using Memoryswap limit, see usage.")
 	}
+	if hostConfig.CpuShares > 0 && !daemon.SystemConfig().CpuShares {
+		warnings = append(warnings, "Your kernel does not support CPU cfs shares. Shares discarded.")
+		logrus.Warnf("Your kernel does not support CPU cfs shares. Shares discarded.")
+		hostConfig.CpuShares = 0
+	}
 	if hostConfig.CpuPeriod > 0 && !daemon.SystemConfig().CpuCfsPeriod {
 		warnings = append(warnings, "Your kernel does not support CPU cfs period. Period discarded.")
 		logrus.Warnf("Your kernel does not support CPU cfs period. Period discarded.")

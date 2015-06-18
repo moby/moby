@@ -19,6 +19,7 @@ type cgroupMemInfo struct {
 }
 
 type cgroupCpuInfo struct {
+	CpuShares    bool
 	CpuCfsPeriod bool
 	CpuCfsQuota  bool
 }
