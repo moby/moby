@@ -27,7 +27,7 @@ func New(ds datastore.DataStore, id string, start, end uint32) (*Idm, error) {
 
 	h, err := bitseq.NewHandle("idm", ds, id, uint32(1+end-start))
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to initialize bit sequence handler: %s", err.Error())
 	}
 
 	return &Idm{start: start, end: end, handle: h}, nil
