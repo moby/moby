@@ -165,6 +165,12 @@ func (daemon *Daemon) verifyContainerSettings(hostConfig *runconfig.HostConfig, 
 		logrus.Warnf("Your kernel does not support CPU cfs quota. Quota discarded.")
 		hostConfig.CpuQuota = 0
 	}
+	if (hostConfig.CpusetCpus != "" || hostConfig.CpusetMems != "") && !daemon.SystemConfig().Cpuset {
+		warnings = append(warnings, "Your kernel does not support cpuset. Cpuset discarded.")
+		logrus.Warnf("Your kernel does not support cpuset. Cpuset discarded.")
+		hostConfig.CpusetCpus = ""
+		hostConfig.CpusetMems = ""
+	}
 	if hostConfig.BlkioWeight > 0 && !daemon.SystemConfig().BlkioWeight {
 		warnings = append(warnings, "Your kernel does not support Block I/O weight. Weight discarded.")
 		logrus.Warnf("Your kernel does not support Block I/O weight. Weight discarded.")

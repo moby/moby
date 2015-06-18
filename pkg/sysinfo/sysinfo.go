@@ -7,6 +7,7 @@ type SysInfo struct {
 	*cgroupMemInfo
 	*cgroupCpuInfo
 	*cgroupBlkioInfo
+	*cgroupCpusetInfo
 	IPv4ForwardingDisabled        bool
 	BridgeNfCallIptablesDisabled  bool
 	BridgeNfCallIp6tablesDisabled bool
@@ -27,4 +28,8 @@ type cgroupCpuInfo struct {
 
 type cgroupBlkioInfo struct {
 	BlkioWeight bool
+}
+
+type cgroupCpusetInfo struct {
+	Cpuset bool
 }

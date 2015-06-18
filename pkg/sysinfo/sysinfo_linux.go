@@ -99,6 +99,20 @@ func checkCgroupBlkioInfo(quiet bool) *cgroupBlkioInfo {
 	return info
 }
 
+func checkCgroupCpusetInfo(quiet bool) *cgroupCpusetInfo {
+	info := &cgroupCpusetInfo{}
+	_, err := cgroups.FindCgroupMountpoint("cpuset")
+	if err != nil {
+		if !quiet {
+			logrus.Warn(err)
+		}
+		return info
+	}
+
+	info.Cpuset = true
+	return info
+}
+
 func cgroupEnabled(mountPoint, name string) bool {
 	_, err := os.Stat(path.Join(mountPoint, name))
 	return err == nil
