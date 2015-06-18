@@ -62,6 +62,7 @@ type network struct {
 	endpoints   endpointTable
 	generic     options.Generic
 	dbIndex     uint64
+	stopWatchCh chan struct{}
 	sync.Mutex
 }
 
@@ -248,6 +249,7 @@ func (n *network) deleteNetwork() error {
 		}
 		log.Warnf("driver error deleting network %s : %v", n.name, err)
 	}
+	n.stopWatch()
 	return nil
 }
 

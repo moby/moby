@@ -554,7 +554,7 @@ func (ep *endpoint) deleteEndpoint() error {
 	_, ok := n.endpoints[epid]
 	if !ok {
 		n.Unlock()
-		return &UnknownEndpointError{name: name, id: string(epid)}
+		return nil
 	}
 
 	nid := n.id
