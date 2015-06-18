@@ -21,6 +21,17 @@ func TestErrorConstructors(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	err = RetryErrorf("Incy wincy %s went up the spout again", "spider")
+	if err.Error() != "Incy wincy spider went up the spout again" {
+		t.Fatal(err)
+	}
+	if _, ok := err.(RetryError); !ok {
+		t.Fatal(err)
+	}
+	if _, ok := err.(MaskableError); ok {
+		t.Fatal(err)
+	}
+
 	err = NotFoundErrorf("Can't find the %s", "keys")
 	if err.Error() != "Can't find the keys" {
 		t.Fatal(err)
