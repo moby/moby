@@ -290,7 +290,7 @@ things like:
 And instead, do something like:
 
     RUN mkdir -p /usr/src/things \
-        && curl -SL http://example.com/big.tar.gz \
+        && curl -SL http://example.com/big.tar.xz \
         | tar -xJC /usr/src/things \
         && make -C /usr/src/things all
 
