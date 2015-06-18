@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/docker/libkv/store"
 	"github.com/docker/libnetwork/datastore"
 	"github.com/docker/libnetwork/netutils"
 )
@@ -59,13 +58,16 @@ func NewHandle(app string, ds datastore.DataStore, id string, numElements uint32
 	// (GetObject() does not set it): It is ok for now,
 	// it will only cause the first allocation on this
 	// node to go through a retry.
-	var bs []byte
-	if err := h.store.GetObject(datastore.Key(h.Key()...), bs); err == nil {
-		h.FromByteArray(bs)
-	} else if err != store.ErrKeyNotFound {
-		return nil, err
+	var bah []byte
+	if err := h.store.GetObject(datastore.Key(h.Key()...), &bah); err != nil {
+		if err != datastore.ErrKeyNotFound {
+			return nil, err
+		}
+		return h, nil
 	}
-	return h, nil
+	err := h.FromByteArray(bah)
+
+	return h, err
 }
 
 // Sequence reresents a recurring sequence of 32 bits long bitmasks
@@ -159,7 +161,7 @@ func (s *Sequence) ToByteArray() ([]byte, error) {
 func (s *Sequence) FromByteArray(data []byte) error {
 	l := len(data)
 	if l%8 != 0 {
-		return fmt.Errorf("cannot deserialize byte sequence of lenght %d", l)
+		return fmt.Errorf("cannot deserialize byte sequence of lenght %d (%v)", l, data)
 	}
 
 	p := s
@@ -212,6 +214,7 @@ func (h *Handle) PushReservation(bytePos, bitPos int, release bool) error {
 		} else {
 			h.unselected--
 		}
+		h.dbIndex = nh.dbIndex
 		h.Unlock()
 	}
 
@@ -233,7 +236,7 @@ func (h *Handle) ToByteArray() ([]byte, error) {
 	copy(ba[4:8], netutils.U32ToA(h.unselected))
 	bm, err := h.head.ToByteArray()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to serialize head: %s", err.Error())
 	}
 	ba = append(ba, bm...)
 
@@ -242,10 +245,14 @@ func (h *Handle) ToByteArray() ([]byte, error) {
 
 // FromByteArray reads his handle's data from a byte array
 func (h *Handle) FromByteArray(ba []byte) error {
+	if ba == nil {
+		return fmt.Errorf("nil byte array")
+	}
+
 	nh := &Sequence{}
 	err := nh.FromByteArray(ba[8:])
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to deserialize head: %s", err.Error())
 	}
 
 	h.Lock()

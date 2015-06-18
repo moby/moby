@@ -1,6 +1,10 @@
 package bitseq
 
 import (
+	"encoding/json"
+	"fmt"
+
+	log "github.com/Sirupsen/logrus"
 	"github.com/docker/libnetwork/datastore"
 	"github.com/docker/libnetwork/types"
 )
@@ -23,9 +27,15 @@ func (h *Handle) KeyPrefix() []string {
 func (h *Handle) Value() []byte {
 	b, err := h.ToByteArray()
 	if err != nil {
+		log.Warnf("Failed to serialize Handle: %v", err)
+		b = []byte{}
+	}
+	jv, err := json.Marshal(b)
+	if err != nil {
+		log.Warnf("Failed to json encode bitseq handler byte array: %v", err)
 		return []byte{}
 	}
-	return b
+	return jv
 }
 
 // Index returns the latest DB Index as seen by this object
@@ -61,14 +71,29 @@ func (h *Handle) watchForChanges() error {
 			case kvPair := <-kvpChan:
 				// Only process remote update
 				if kvPair != nil && (kvPair.LastIndex != h.getDBIndex()) {
-					h.Lock()
-					h.dbIndex = kvPair.LastIndex
-					h.Unlock()
-					h.FromByteArray(kvPair.Value)
+					err := h.fromDsValue(kvPair.Value)
+					if err != nil {
+						log.Warnf("Failed to reconstruct bitseq handle from ds watch: %s", err.Error())
+					} else {
+						h.Lock()
+						h.dbIndex = kvPair.LastIndex
+						h.Unlock()
+					}
 				}
 			}
 		}
 	}()
+	return nil
+}
+
+func (h *Handle) fromDsValue(value []byte) error {
+	var ba []byte
+	if err := json.Unmarshal(value, &ba); err != nil {
+		return fmt.Errorf("failed to decode json: %s", err.Error())
+	}
+	if err := h.FromByteArray(ba); err != nil {
+		return fmt.Errorf("failed to decode handle: %s", err.Error())
+	}
 	return nil
 }
 
