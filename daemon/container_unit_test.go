@@ -1,8 +1,9 @@
 package daemon
 
 import (
-	"github.com/docker/docker/nat"
 	"testing"
+
+	"github.com/docker/docker/nat"
 )
 
 func TestParseNetworkOptsPrivateOnly(t *testing.T) {
@@ -192,6 +193,48 @@ func TestValidContainerNames(t *testing.T) {
 	for _, name := range validNames {
 		if !validContainerNamePattern.MatchString(name) {
 			t.Fatalf("%q is a valid container name and was returned as invalid.", name)
+		}
+	}
+}
+
+func TestFindSignificantParent(t *testing.T) {
+	cases := []struct {
+		paths []string
+		exp   string
+	}{
+		{
+			[]string{
+				"/etc/foo/bar/baz/qux",
+				"/etc/foo/qux",
+				"/etc/foo",
+				"/etc/foo/bar/baz",
+				"/etc/bar",
+				"/etc/foo/bar",
+			}, "/etc/",
+		},
+		{
+			[]string{
+				"/etc/foo/bar/baz/qux",
+				"/etc/foo/qux",
+				"/etc/foo",
+				"/etc/foo/bar/baz",
+				"/etc/foo/bar",
+			}, "/etc/",
+		},
+		{
+			[]string{
+				"/var/lib",
+				"/etc/bar/baz",
+			}, "/",
+		},
+		{
+			[]string{"/var/lib"}, "/var/",
+		},
+	}
+
+	for _, c := range cases {
+		if b := findSignificantParent(c.paths); b != c.exp {
+			t.Fatalf("Expected %s, was %s\n", c.exp, b)
 		}
 	}
 }

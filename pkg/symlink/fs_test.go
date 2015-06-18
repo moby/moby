@@ -400,3 +400,17 @@ func TestFollowSymlinkNoLexicalCleaning(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestFollowSymlinkWildcard(t *testing.T) {
+	tmpdir, err := ioutil.TempDir("", "TestFollowSymlinkWildcard")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpdir)
+	if err := makeFs(tmpdir, []dirOrLink{{path: "testdata/fs/a/d", target: "/b"}}); err != nil {
+		t.Fatal(err)
+	}
+	if err := testSymlink(tmpdir, "testdata/fs/a/d/c/*", "testdata/b/c/*", "testdata"); err != nil {
+		t.Fatal(err)
+	}
+}

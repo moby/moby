@@ -621,31 +621,31 @@ func (container *Container) Copy(resource string) (io.ReadCloser, error) {
 		if err != nil {
 			return nil, err
 		}
+
 		if err := mount.Mount(m.Source, dest, "bind", "rbind,ro"); err != nil {
 			return nil, err
 		}
 	}
+
+	if len(resource) == 0 { // Copying `/` we expand to copy its content
+		resource = "*"
+	}
+
 	basePath, err := container.GetResourcePath(resource)
 	if err != nil {
 		return nil, err
 	}
-	stat, err := os.Stat(basePath)
+
+	filter, err := archiveGlob(basePath)
 	if err != nil {
 		return nil, err
 	}
-	var filter []string
-	if !stat.IsDir() {
-		d, f := filepath.Split(basePath)
-		basePath = d
-		filter = []string{f}
-	} else {
-		filter = []string{filepath.Base(basePath)}
-		basePath = filepath.Dir(basePath)
-	}
-	archive, err := archive.TarWithOptions(basePath, &archive.TarOptions{
+
+	archive, err := archive.TarWithOptions(filter.basePath, &archive.TarOptions{
 		Compression:  archive.Uncompressed,
-		IncludeFiles: filter,
+		IncludeFiles: filter.files,
 	})
+
 	if err != nil {
 		return nil, err
 	}
@@ -1050,6 +1050,62 @@ func copyEscapable(dst io.Writer, src io.ReadCloser) (written int64, err error) 
 		}
 	}
 	return written, err
+}
+
+type archiveFilter struct {
+	basePath string
+	files    []string
+}
+
+func archiveGlob(basePath string) (*archiveFilter, error) {
+	paths, err := filepath.Glob(basePath)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(paths) == 0 {
+		return nil, os.ErrNotExist
+	}
+
+	baseDir := findSignificantParent(paths)
+
+	relative := make([]string, len(paths))
+
+	for i, f := range paths {
+		relative[i] = f[len(baseDir):]
+	}
+
+	return &archiveFilter{baseDir, relative}, nil
+}
+
+func findSignificantParent(paths []string) string {
+	sep := string(filepath.Separator)
+	res, resSep := "", ""
+
+	for _, dir := range paths {
+		if res != "" && strings.HasPrefix(dir, resSep) {
+			continue
+		}
+
+		for {
+			if dir == "" {
+				dir = sep
+			}
+			dir = filepath.Dir(dir)
+			if res == "" || dir == sep || strings.HasPrefix(resSep, dir+sep) {
+				res, resSep = dir, dir
+				if !strings.HasSuffix(resSep, sep) {
+					resSep += sep
+				}
+				break
+			}
+		}
+	}
+
+	if !strings.HasSuffix(res, sep) {
+		res += sep
+	}
+	return res
 }
 
 func (container *Container) networkMounts() []execdriver.Mount {
