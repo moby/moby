@@ -1,12 +1,11 @@
 package tarsum
 
 import (
+	"archive/tar"
 	"errors"
 	"sort"
 	"strconv"
 	"strings"
-
-	"github.com/docker/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
 )
 
 // versioning of the TarSum algorithm

@@ -1,21 +1,12 @@
 package daemon
 
-import (
-	"time"
+import "time"
 
-	"github.com/docker/docker/engine"
-)
-
-func (daemon *Daemon) ContainerWait(job *engine.Job) engine.Status {
-	if len(job.Args) != 1 {
-		return job.Errorf("Usage: %s", job.Name)
-	}
-	name := job.Args[0]
+func (daemon *Daemon) ContainerWait(name string, timeout time.Duration) (int, error) {
 	container, err := daemon.Get(name)
 	if err != nil {
-		return job.Errorf("%s: %v", job.Name, err)
+		return -1, err
 	}
-	status, _ := container.WaitStop(-1 * time.Second)
-	job.Printf("%d\n", status)
-	return engine.StatusOK
+
+	return container.WaitStop(timeout)
 }

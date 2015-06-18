@@ -1,6 +1,12 @@
 package logger
 
-import "time"
+import (
+	"errors"
+	"io"
+	"time"
+)
+
+var ReadLogsNotSupported = errors.New("configured logging reader does not support reading")
 
 // Message is datastructure that represents record from some container
 type Message struct {
@@ -15,4 +21,5 @@ type Logger interface {
 	Log(*Message) error
 	Name() string
 	Close() error
+	GetReader() (io.Reader, error)
 }

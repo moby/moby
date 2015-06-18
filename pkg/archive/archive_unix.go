@@ -3,11 +3,12 @@
 package archive
 
 import (
+	"archive/tar"
 	"errors"
 	"os"
 	"syscall"
 
-	"github.com/docker/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
+	"github.com/docker/docker/pkg/system"
 )
 
 // canonicalTarNameForPath returns platform-specific filepath
@@ -36,8 +37,8 @@ func setHeaderForSpecialDevice(hdr *tar.Header, ta *tarAppender, name string, st
 	inode = uint64(s.Ino)
 
 	// Currently go does not fil in the major/minors
-	if s.Mode&syscall.S_IFBLK == syscall.S_IFBLK ||
-		s.Mode&syscall.S_IFCHR == syscall.S_IFCHR {
+	if s.Mode&syscall.S_IFBLK != 0 ||
+		s.Mode&syscall.S_IFCHR != 0 {
 		hdr.Devmajor = int64(major(uint64(s.Rdev)))
 		hdr.Devminor = int64(minor(uint64(s.Rdev)))
 	}
@@ -51,4 +52,38 @@ func major(device uint64) uint64 {
 
 func minor(device uint64) uint64 {
 	return (device & 0xff) | ((device >> 12) & 0xfff00)
+}
+
+// handleTarTypeBlockCharFifo is an OS-specific helper function used by
+// createTarFile to handle the following types of header: Block; Char; Fifo
+func handleTarTypeBlockCharFifo(hdr *tar.Header, path string) error {
+	mode := uint32(hdr.Mode & 07777)
+	switch hdr.Typeflag {
+	case tar.TypeBlock:
+		mode |= syscall.S_IFBLK
+	case tar.TypeChar:
+		mode |= syscall.S_IFCHR
+	case tar.TypeFifo:
+		mode |= syscall.S_IFIFO
+	}
+
+	if err := system.Mknod(path, mode, int(system.Mkdev(hdr.Devmajor, hdr.Devminor))); err != nil {
+		return err
+	}
+	return nil
+}
+
+func handleLChmod(hdr *tar.Header, path string, hdrInfo os.FileInfo) error {
+	if hdr.Typeflag == tar.TypeLink {
+		if fi, err := os.Lstat(hdr.Linkname); err == nil && (fi.Mode()&os.ModeSymlink == 0) {
+			if err := os.Chmod(path, hdrInfo.Mode()); err != nil {
+				return err
+			}
+		}
+	} else if hdr.Typeflag != tar.TypeSymlink {
+		if err := os.Chmod(path, hdrInfo.Mode()); err != nil {
+			return err
+		}
+	}
+	return nil
 }

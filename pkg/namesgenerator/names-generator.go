@@ -3,7 +3,8 @@ package namesgenerator
 import (
 	"fmt"
 	"math/rand"
-	"time"
+
+	"github.com/docker/docker/pkg/random"
 )
 
 var (
@@ -119,6 +120,9 @@ var (
 		// Gerty Theresa Cori - American biochemist who became the third woman—and first American woman—to win a Nobel Prize in science, and the first woman to be awarded the Nobel Prize in Physiology or Medicine. Cori was born in Prague. https://en.wikipedia.org/wiki/Gerty_Cori
 		"cori",
 
+		// Seymour Roger Cray was an American electrical engineer and supercomputer architect who designed a series of computers that were the fastest in the world for decades. https://en.wikipedia.org/wiki/Seymour_Cray
+		"cray",
+
 		// Marie Curie discovered radioactivity. https://en.wikipedia.org/wiki/Marie_Curie.
 		"curie",
 
@@ -184,6 +188,12 @@ var (
 
 		// Karen Spärck Jones came up with the concept of inverse document frequency, which is used in most search engines today. https://en.wikipedia.org/wiki/Karen_Sp%C3%A4rck_Jones
 		"jones",
+
+		// Jack Kilby and Robert Noyce have invented silicone integrated circuits and gave Silicon Valley its name.
+		// - https://en.wikipedia.org/wiki/Jack_Kilby
+		// - https://en.wikipedia.org/wiki/Robert_Noyce
+		"kilby",
+		"noyce",
 
 		// Maria Kirch - German astronomer and first woman to discover a comet - https://en.wikipedia.org/wiki/Maria_Margarethe_Kirch
 		"kirch",
@@ -299,19 +309,19 @@ var (
 		// Ada Yonath - an Israeli crystallographer, the first woman from the Middle East to win a Nobel prize in the sciences. https://en.wikipedia.org/wiki/Ada_Yonath
 		"yonath",
 	}
+
+	rnd = rand.New(random.NewSource())
 )
 
 func GetRandomName(retry int) string {
-	rand.Seed(time.Now().UnixNano())
-
 begin:
-	name := fmt.Sprintf("%s_%s", left[rand.Intn(len(left))], right[rand.Intn(len(right))])
+	name := fmt.Sprintf("%s_%s", left[rnd.Intn(len(left))], right[rnd.Intn(len(right))])
 	if name == "boring_wozniak" /* Steve Wozniak is not boring */ {
 		goto begin
 	}
 
 	if retry > 0 {
-		name = fmt.Sprintf("%s%d", name, rand.Intn(10))
+		name = fmt.Sprintf("%s%d", name, rnd.Intn(10))
 	}
 	return name
 }

@@ -5,6 +5,7 @@ type SearchResult struct {
 	IsOfficial  bool   `json:"is_official"`
 	Name        string `json:"name"`
 	IsTrusted   bool   `json:"is_trusted"`
+	IsAutomated bool   `json:"is_automated"`
 	Description string `json:"description"`
 }
 

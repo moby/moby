@@ -8,24 +8,36 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/docker/docker/api"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/ulimit"
-	"github.com/docker/docker/utils"
 )
 
 var (
-	alphaRegexp  = regexp.MustCompile(`[a-zA-Z]`)
-	domainRegexp = regexp.MustCompile(`^(:?(:?[a-zA-Z0-9]|(:?[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9]))(:?\.(:?[a-zA-Z0-9]|(:?[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])))*)\.?\s*$`)
+	alphaRegexp     = regexp.MustCompile(`[a-zA-Z]`)
+	domainRegexp    = regexp.MustCompile(`^(:?(:?[a-zA-Z0-9]|(:?[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9]))(:?\.(:?[a-zA-Z0-9]|(:?[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])))*)\.?\s*$`)
+	DefaultHTTPHost = "127.0.0.1" // Default HTTP Host used if only port is provided to -H flag e.g. docker -d -H tcp://:8080
+	// TODO Windows. DefaultHTTPPort is only used on Windows if a -H parameter
+	// is not supplied. A better longer term solution would be to use a named
+	// pipe as the default on the Windows daemon.
+	DefaultHTTPPort   = 2375                   // Default HTTP Port
+	DefaultUnixSocket = "/var/run/docker.sock" // Docker daemon by default always listens on the default unix socket
 )
 
 func ListVar(values *[]string, names []string, usage string) {
 	flag.Var(newListOptsRef(values, nil), names, usage)
 }
 
+func MapVar(values map[string]string, names []string, usage string) {
+	flag.Var(newMapOpt(values, nil), names, usage)
+}
+
+func LogOptsVar(values map[string]string, names []string, usage string) {
+	flag.Var(newMapOpt(values, nil), names, usage)
+}
+
 func HostListVar(values *[]string, names []string, usage string) {
-	flag.Var(newListOptsRef(values, api.ValidateHost), names, usage)
+	flag.Var(newListOptsRef(values, ValidateHost), names, usage)
 }
 
 func IPListVar(values *[]string, names []string, usage string) {
@@ -126,6 +138,40 @@ func (opts *ListOpts) Len() int {
 	return len((*opts.values))
 }
 
+//MapOpts type
+type MapOpts struct {
+	values    map[string]string
+	validator ValidatorFctType
+}
+
+func (opts *MapOpts) Set(value string) error {
+	if opts.validator != nil {
+		v, err := opts.validator(value)
+		if err != nil {
+			return err
+		}
+		value = v
+	}
+	vals := strings.SplitN(value, "=", 2)
+	if len(vals) == 1 {
+		(opts.values)[vals[0]] = ""
+	} else {
+		(opts.values)[vals[0]] = vals[1]
+	}
+	return nil
+}
+
+func (opts *MapOpts) String() string {
+	return fmt.Sprintf("%v", map[string]string((opts.values)))
+}
+
+func newMapOpt(values map[string]string, validator ValidatorFctType) *MapOpts {
+	return &MapOpts{
+		values:    values,
+		validator: validator,
+	}
+}
+
 // Validators
 type ValidatorFctType func(val string) (string, error)
 type ValidatorFctListType func(val string) ([]string, error)
@@ -141,12 +187,14 @@ func ValidateAttach(val string) (string, error) {
 }
 
 func ValidateLink(val string) (string, error) {
-	if _, err := parsers.PartParser("name:alias", val); err != nil {
+	if _, _, err := parsers.ParseLink(val); err != nil {
 		return val, err
 	}
 	return val, nil
 }
 
+// ValidatePath will make sure 'val' is in the form:
+//    [host-dir:]container-path[:rw|ro]  - but doesn't validate the mode part
 func ValidatePath(val string) (string, error) {
 	var containerPath string
 
@@ -174,7 +222,7 @@ func ValidateEnv(val string) (string, error) {
 	if len(arr) > 1 {
 		return val, nil
 	}
-	if !utils.DoesEnvExist(val) {
+	if !doesEnvExist(val) {
 		return val, nil
 	}
 	return fmt.Sprintf("%s=%s", val, os.Getenv(val)), nil
@@ -192,9 +240,8 @@ func ValidateMACAddress(val string) (string, error) {
 	_, err := net.ParseMAC(strings.TrimSpace(val))
 	if err != nil {
 		return "", err
-	} else {
-		return val, nil
 	}
+	return val, nil
 }
 
 // Validates domain for resolvconf search configuration.
@@ -234,4 +281,22 @@ func ValidateLabel(val string) (string, error) {
 		return "", fmt.Errorf("bad attribute format: %s", val)
 	}
 	return val, nil
+}
+
+func ValidateHost(val string) (string, error) {
+	host, err := parsers.ParseHost(DefaultHTTPHost, DefaultUnixSocket, val)
+	if err != nil {
+		return val, err
+	}
+	return host, nil
+}
+
+func doesEnvExist(name string) bool {
+	for _, entry := range os.Environ() {
+		parts := strings.SplitN(entry, "=", 2)
+		if parts[0] == name {
+			return true
+		}
+	}
+	return false
 }

@@ -29,6 +29,7 @@ type Node struct {
 	Children   []*Node         // the children of this sexp
 	Attributes map[string]bool // special attributes for this node
 	Original   string          // original line used before parsing
+	Flags      []string        // only top Node should have this set
 }
 
 var (
@@ -60,7 +61,6 @@ func init() {
 		command.Entrypoint: parseMaybeJSON,
 		command.Expose:     parseStringsWhitespaceDelimited,
 		command.Volume:     parseMaybeJSONToList,
-		command.Insert:     parseIgnore,
 	}
 }
 
@@ -75,7 +75,7 @@ func parseLine(line string) (string, *Node, error) {
 		return line, nil, nil
 	}
 
-	cmd, args, err := splitCommand(line)
+	cmd, flags, args, err := splitCommand(line)
 	if err != nil {
 		return "", nil, err
 	}
@@ -91,6 +91,7 @@ func parseLine(line string) (string, *Node, error) {
 	node.Next = sexp
 	node.Attributes = attrs
 	node.Original = line
+	node.Flags = flags
 
 	return "", node, nil
 }

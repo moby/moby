@@ -5,11 +5,7 @@
 
 package patricia
 
-// Max prefix length that is kept in a single trie node.
-var MaxPrefixPerNode = 10
-
-// Max children to keep in a node in the sparse mode.
-const MaxChildrenPerSparseNode = 8
+import "sort"
 
 type childList interface {
 	length() int
@@ -21,13 +17,28 @@ type childList interface {
 	walk(prefix *Prefix, visitor VisitorFunc) error
 }
 
-type sparseChildList struct {
-	children []*Trie
+type tries []*Trie
+
+func (t tries) Len() int {
+	return len(t)
 }
 
-func newSparseChildList() childList {
+func (t tries) Less(i, j int) bool {
+	strings := sort.StringSlice{string(t[i].prefix), string(t[j].prefix)}
+	return strings.Less(0, 1)
+}
+
+func (t tries) Swap(i, j int) {
+	t[i], t[j] = t[j], t[i]
+}
+
+type sparseChildList struct {
+	children tries
+}
+
+func newSparseChildList(maxChildrenPerSparseNode int) childList {
 	return &sparseChildList{
-		children: make([]*Trie, 0, MaxChildrenPerSparseNode),
+		children: make(tries, 0, DefaultMaxChildrenPerSparseNode),
 	}
 }
 
@@ -82,6 +93,9 @@ func (list *sparseChildList) next(b byte) *Trie {
 }
 
 func (list *sparseChildList) walk(prefix *Prefix, visitor VisitorFunc) error {
+
+	sort.Sort(list.children)
+
 	for _, child := range list.children {
 		*prefix = append(*prefix, child.prefix...)
 		if child.item != nil {

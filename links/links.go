@@ -2,10 +2,10 @@ package links
 
 import (
 	"fmt"
-	"github.com/docker/docker/engine"
-	"github.com/docker/docker/nat"
 	"path"
 	"strings"
+
+	"github.com/docker/docker/nat"
 )
 
 type Link struct {
@@ -15,10 +15,9 @@ type Link struct {
 	ChildEnvironment []string
 	Ports            []nat.Port
 	IsEnabled        bool
-	eng              *engine.Engine
 }
 
-func NewLink(parentIP, childIP, name string, env []string, exposedPorts map[nat.Port]struct{}, eng *engine.Engine) (*Link, error) {
+func NewLink(parentIP, childIP, name string, env []string, exposedPorts map[nat.Port]struct{}) (*Link, error) {
 
 	var (
 		i     int
@@ -36,7 +35,6 @@ func NewLink(parentIP, childIP, name string, env []string, exposedPorts map[nat.
 		ParentIP:         parentIP,
 		ChildEnvironment: env,
 		Ports:            ports,
-		eng:              eng,
 	}
 	return l, nil
 
@@ -107,8 +105,8 @@ func (l *Link) ToEnv() []string {
 
 	if l.ChildEnvironment != nil {
 		for _, v := range l.ChildEnvironment {
-			parts := strings.Split(v, "=")
-			if len(parts) != 2 {
+			parts := strings.SplitN(v, "=", 2)
+			if len(parts) < 2 {
 				continue
 			}
 			// Ignore a few variables that are added during docker build (and not really relevant to linked containers)
@@ -140,39 +138,10 @@ func (l *Link) getDefaultPort() *nat.Port {
 }
 
 func (l *Link) Enable() error {
-	// -A == iptables append flag
-	if err := l.toggle("-A", false); err != nil {
-		return err
-	}
 	l.IsEnabled = true
 	return nil
 }
 
 func (l *Link) Disable() {
-	// We do not care about errors here because the link may not
-	// exist in iptables
-	// -D == iptables delete flag
-	l.toggle("-D", true)
-
 	l.IsEnabled = false
-}
-
-func (l *Link) toggle(action string, ignoreErrors bool) error {
-	job := l.eng.Job("link", action)
-
-	job.Setenv("ParentIP", l.ParentIP)
-	job.Setenv("ChildIP", l.ChildIP)
-	job.SetenvBool("IgnoreErrors", ignoreErrors)
-
-	out := make([]string, len(l.Ports))
-	for i, p := range l.Ports {
-		out[i] = string(p)
-	}
-	job.SetenvList("Ports", out)
-
-	if err := job.Run(); err != nil {
-		// TODO: get ouput from job
-		return err
-	}
-	return nil
 }

@@ -1,26 +1,51 @@
+// +build linux
+
 package syslog
 
 import (
-	"fmt"
+	"io"
 	"log/syslog"
+	"net"
+	"net/url"
 	"os"
 	"path"
-	"sync"
+	"strings"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/logger"
+	"github.com/docker/docker/pkg/urlutil"
 )
+
+const name = "syslog"
 
 type Syslog struct {
 	writer *syslog.Writer
-	tag    string
-	mu     sync.Mutex
 }
 
-func New(tag string) (logger.Logger, error) {
-	log, err := syslog.New(syslog.LOG_DAEMON, fmt.Sprintf("%s/%s", path.Base(os.Args[0]), tag))
+func init() {
+	if err := logger.RegisterLogDriver(name, New); err != nil {
+		logrus.Fatal(err)
+	}
+}
+
+func New(ctx logger.Context) (logger.Logger, error) {
+	tag := ctx.ContainerID[:12]
+
+	proto, address, err := parseAddress(ctx.Config["syslog-address"])
 	if err != nil {
 		return nil, err
 	}
+
+	log, err := syslog.Dial(
+		proto,
+		address,
+		syslog.LOG_DAEMON,
+		path.Base(os.Args[0])+"/"+tag,
+	)
+	if err != nil {
+		return nil, err
+	}
+
 	return &Syslog{
 		writer: log,
 	}, nil
@@ -34,12 +59,43 @@ func (s *Syslog) Log(msg *logger.Message) error {
 }
 
 func (s *Syslog) Close() error {
-	if s.writer != nil {
-		return s.writer.Close()
-	}
-	return nil
+	return s.writer.Close()
 }
 
 func (s *Syslog) Name() string {
-	return "Syslog"
+	return name
+}
+
+func (s *Syslog) GetReader() (io.Reader, error) {
+	return nil, logger.ReadLogsNotSupported
+}
+
+func parseAddress(address string) (string, string, error) {
+	if urlutil.IsTransportURL(address) {
+		url, err := url.Parse(address)
+		if err != nil {
+			return "", "", err
+		}
+
+		// unix socket validation
+		if url.Scheme == "unix" {
+			if _, err := os.Stat(url.Path); err != nil {
+				return "", "", err
+			}
+			return url.Scheme, url.Path, nil
+		}
+
+		// here we process tcp|udp
+		host := url.Host
+		if _, _, err := net.SplitHostPort(host); err != nil {
+			if !strings.Contains(err.Error(), "missing port in address") {
+				return "", "", err
+			}
+			host = host + ":514"
+		}
+
+		return url.Scheme, host, nil
+	}
+
+	return "", "", nil
 }

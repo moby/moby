@@ -1,7 +1,5 @@
 #!/bin/bash
 
-DEST=$1
-
 PKGVERSION="${VERSION//-/'~'}"
 # if we have a "-dev" suffix or have change in Git, let's make this package version more complex so it works better
 if [[ "$VERSION" == *-dev ]] || [ -n "$(git status --porcelain)" ]; then
@@ -23,7 +21,7 @@ fi
 # ie, 1.5.0 > 1.5.0~rc1 > 1.5.0~git20150128.112847.17e840a > 1.5.0~dev~git20150128.112847.17e840a
 
 PACKAGE_ARCHITECTURE="$(dpkg-architecture -qDEB_HOST_ARCH)"
-PACKAGE_URL="http://www.docker.com/"
+PACKAGE_URL="https://www.docker.com/"
 PACKAGE_MAINTAINER="support@docker.com"
 PACKAGE_DESCRIPTION="Linux container runtime
 Docker complements LXC with a high-level API which operates at the process
@@ -37,35 +35,35 @@ PACKAGE_LICENSE="Apache-2.0"
 # Build docker as an ubuntu package using FPM and REPREPRO (sue me).
 # bundle_binary must be called first.
 bundle_ubuntu() {
-	DIR=$DEST/build
+	DIR="$ABS_DEST/build"
 
 	# Include our udev rules
-	mkdir -p $DIR/etc/udev/rules.d
-	cp contrib/udev/80-docker.rules $DIR/etc/udev/rules.d/
+	mkdir -p "$DIR/etc/udev/rules.d"
+	cp contrib/udev/80-docker.rules "$DIR/etc/udev/rules.d/"
 
 	# Include our init scripts
-	mkdir -p $DIR/etc/init
-	cp contrib/init/upstart/docker.conf $DIR/etc/init/
-	mkdir -p $DIR/etc/init.d
-	cp contrib/init/sysvinit-debian/docker $DIR/etc/init.d/
-	mkdir -p $DIR/etc/default
-	cp contrib/init/sysvinit-debian/docker.default $DIR/etc/default/docker
-	mkdir -p $DIR/lib/systemd/system
-	cp contrib/init/systemd/docker.{service,socket} $DIR/lib/systemd/system/
+	mkdir -p "$DIR/etc/init"
+	cp contrib/init/upstart/docker.conf "$DIR/etc/init/"
+	mkdir -p "$DIR/etc/init.d"
+	cp contrib/init/sysvinit-debian/docker "$DIR/etc/init.d/"
+	mkdir -p "$DIR/etc/default"
+	cp contrib/init/sysvinit-debian/docker.default "$DIR/etc/default/docker"
+	mkdir -p "$DIR/lib/systemd/system"
+	cp contrib/init/systemd/docker.{service,socket} "$DIR/lib/systemd/system/"
 
 	# Include contributed completions
-	mkdir -p $DIR/etc/bash_completion.d
-	cp contrib/completion/bash/docker $DIR/etc/bash_completion.d/
-	mkdir -p $DIR/usr/share/zsh/vendor-completions
-	cp contrib/completion/zsh/_docker $DIR/usr/share/zsh/vendor-completions/
-	mkdir -p $DIR/etc/fish/completions
-	cp contrib/completion/fish/docker.fish $DIR/etc/fish/completions/
+	mkdir -p "$DIR/etc/bash_completion.d"
+	cp contrib/completion/bash/docker "$DIR/etc/bash_completion.d/"
+	mkdir -p "$DIR/usr/share/zsh/vendor-completions"
+	cp contrib/completion/zsh/_docker "$DIR/usr/share/zsh/vendor-completions/"
+	mkdir -p "$DIR/etc/fish/completions"
+	cp contrib/completion/fish/docker.fish "$DIR/etc/fish/completions/"
 
 	# Include contributed man pages
-	docs/man/md2man-all.sh -q
+	man/md2man-all.sh -q
 	manRoot="$DIR/usr/share/man"
 	mkdir -p "$manRoot"
-	for manDir in docs/man/man?; do
+	for manDir in man/man?; do
 		manBase="$(basename "$manDir")" # "man1"
 		for manFile in "$manDir"/*; do
 			manName="$(basename "$manFile")" # "docker-build.1"
@@ -76,11 +74,11 @@ bundle_ubuntu() {
 
 	# Copy the binary
 	# This will fail if the binary bundle hasn't been built
-	mkdir -p $DIR/usr/bin
-	cp $DEST/../binary/docker-$VERSION $DIR/usr/bin/docker
+	mkdir -p "$DIR/usr/bin"
+	cp "$DEST/../binary/docker-$VERSION" "$DIR/usr/bin/docker"
 
 	# Generate postinst/prerm/postrm scripts
-	cat > $DEST/postinst <<'EOF'
+	cat > "$DEST/postinst" <<'EOF'
 #!/bin/sh
 set -e
 set -u
@@ -104,7 +102,7 @@ service docker $_dh_action 2>/dev/null || true
 
 #DEBHELPER#
 EOF
-	cat > $DEST/prerm <<'EOF'
+	cat > "$DEST/prerm" <<'EOF'
 #!/bin/sh
 set -e
 set -u
@@ -113,7 +111,7 @@ service docker stop 2>/dev/null || true
 
 #DEBHELPER#
 EOF
-	cat > $DEST/postrm <<'EOF'
+	cat > "$DEST/postrm" <<'EOF'
 #!/bin/sh
 set -e
 set -u
@@ -131,18 +129,18 @@ fi
 #DEBHELPER#
 EOF
 	# TODO swaths of these were borrowed from debhelper's auto-inserted stuff, because we're still using fpm - we need to use debhelper instead, and somehow reconcile Ubuntu that way
-	chmod +x $DEST/postinst $DEST/prerm $DEST/postrm
+	chmod +x "$DEST/postinst" "$DEST/prerm" "$DEST/postrm"
 
 	(
 		# switch directories so we create *.deb in the right folder
-		cd $DEST
+		cd "$DEST"
 
 		# create lxc-docker-VERSION package
-		fpm -s dir -C $DIR \
-			--name lxc-docker-$VERSION --version "$PKGVERSION" \
-			--after-install $DEST/postinst \
-			--before-remove $DEST/prerm \
-			--after-remove $DEST/postrm \
+		fpm -s dir -C "$DIR" \
+			--name "lxc-docker-$VERSION" --version "$PKGVERSION" \
+			--after-install "$ABS_DEST/postinst" \
+			--before-remove "$ABS_DEST/prerm" \
+			--after-remove "$ABS_DEST/postrm" \
 			--architecture "$PACKAGE_ARCHITECTURE" \
 			--prefix / \
 			--depends iptables \
@@ -184,8 +182,8 @@ EOF
 	)
 
 	# clean up after ourselves so we have a clean output directory
-	rm $DEST/postinst $DEST/prerm $DEST/postrm
-	rm -r $DIR
+	rm "$DEST/postinst" "$DEST/prerm" "$DEST/postrm"
+	rm -r "$DIR"
 }
 
 bundle_ubuntu

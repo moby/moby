@@ -1,7 +1,9 @@
 package runconfig
 
 import (
+	"bytes"
 	"fmt"
+	"io/ioutil"
 	"strings"
 	"testing"
 
@@ -42,13 +44,6 @@ func TestParseRunLinks(t *testing.T) {
 	}
 	if _, hostConfig := mustParse(t, ""); len(hostConfig.Links) != 0 {
 		t.Fatalf("Error parsing links. No link expected, received: %v", hostConfig.Links)
-	}
-
-	if _, _, err := parse(t, "--link a"); err == nil {
-		t.Fatalf("Error parsing links. `--link a` should be an error but is not")
-	}
-	if _, _, err := parse(t, "--link"); err == nil {
-		t.Fatalf("Error parsing links. `--link` should be an error but is not")
 	}
 }
 
@@ -102,7 +97,7 @@ func TestParseRunVolumes(t *testing.T) {
 	if config, hostConfig := mustParse(t, "-v /tmp -v /var"); hostConfig.Binds != nil {
 		t.Fatalf("Error parsing volume flags, `-v /tmp -v /var` should not mount-bind anything. Received %v", hostConfig.Binds)
 	} else if _, exists := config.Volumes["/tmp"]; !exists {
-		t.Fatalf("Error parsing volume flags, `-v /tmp` is missing from volumes. Recevied %v", config.Volumes)
+		t.Fatalf("Error parsing volume flags, `-v /tmp` is missing from volumes. Received %v", config.Volumes)
 	} else if _, exists := config.Volumes["/var"]; !exists {
 		t.Fatalf("Error parsing volume flags, `-v /var` is missing from volumes. Received %v", config.Volumes)
 	}
@@ -117,6 +112,14 @@ func TestParseRunVolumes(t *testing.T) {
 
 	if _, hostConfig := mustParse(t, "-v /hostTmp:/containerTmp:ro -v /hostVar:/containerVar:rw"); hostConfig.Binds == nil || compareRandomizedStrings(hostConfig.Binds[0], hostConfig.Binds[1], "/hostTmp:/containerTmp:ro", "/hostVar:/containerVar:rw") != nil {
 		t.Fatalf("Error parsing volume flags, `-v /hostTmp:/containerTmp:ro -v /hostVar:/containerVar:rw` should mount-bind /hostTmp into /containeTmp and /hostVar into /hostContainer. Received %v", hostConfig.Binds)
+	}
+
+	if _, hostConfig := mustParse(t, "-v /hostTmp:/containerTmp:roZ -v /hostVar:/containerVar:rwZ"); hostConfig.Binds == nil || compareRandomizedStrings(hostConfig.Binds[0], hostConfig.Binds[1], "/hostTmp:/containerTmp:roZ", "/hostVar:/containerVar:rwZ") != nil {
+		t.Fatalf("Error parsing volume flags, `-v /hostTmp:/containerTmp:roZ -v /hostVar:/containerVar:rwZ` should mount-bind /hostTmp into /containeTmp and /hostVar into /hostContainer. Received %v", hostConfig.Binds)
+	}
+
+	if _, hostConfig := mustParse(t, "-v /hostTmp:/containerTmp:Z -v /hostVar:/containerVar:z"); hostConfig.Binds == nil || compareRandomizedStrings(hostConfig.Binds[0], hostConfig.Binds[1], "/hostTmp:/containerTmp:Z", "/hostVar:/containerVar:z") != nil {
+		t.Fatalf("Error parsing volume flags, `-v /hostTmp:/containerTmp:Z -v /hostVar:/containerVar:z` should mount-bind /hostTmp into /containeTmp and /hostVar into /hostContainer. Received %v", hostConfig.Binds)
 	}
 
 	if config, hostConfig := mustParse(t, "-v /hostTmp:/containerTmp -v /containerVar"); hostConfig.Binds == nil || len(hostConfig.Binds) > 1 || hostConfig.Binds[0] != "/hostTmp:/containerTmp" {
@@ -260,5 +263,39 @@ func TestMerge(t *testing.T) {
 			t.Fatalf("Expected %q or %q or %q or %q, found %s", 0, 1111, 2222, 3333, portSpecs)
 		}
 	}
+}
 
+func TestDecodeContainerConfig(t *testing.T) {
+	fixtures := []struct {
+		file       string
+		entrypoint *Entrypoint
+	}{
+		{"fixtures/container_config_1_14.json", NewEntrypoint()},
+		{"fixtures/container_config_1_17.json", NewEntrypoint("bash")},
+		{"fixtures/container_config_1_19.json", NewEntrypoint("bash")},
+	}
+
+	for _, f := range fixtures {
+		b, err := ioutil.ReadFile(f.file)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		c, h, err := DecodeContainerConfig(bytes.NewReader(b))
+		if err != nil {
+			t.Fatal(fmt.Errorf("Error parsing %s: %v", f, err))
+		}
+
+		if c.Image != "ubuntu" {
+			t.Fatalf("Expected ubuntu image, found %s\n", c.Image)
+		}
+
+		if c.Entrypoint.Len() != f.entrypoint.Len() {
+			t.Fatalf("Expected %v, found %v\n", f.entrypoint, c.Entrypoint)
+		}
+
+		if h.Memory != 1000 {
+			t.Fatalf("Expected memory to be 1000, found %d\n", h.Memory)
+		}
+	}
 }

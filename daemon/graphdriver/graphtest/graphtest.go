@@ -24,7 +24,7 @@ type Driver struct {
 // InitLoopbacks ensures that the loopback devices are properly created within
 // the system running the device mapper tests.
 func InitLoopbacks() error {
-	stat_t, err := getBaseLoopStats()
+	statT, err := getBaseLoopStats()
 	if err != nil {
 		return err
 	}
@@ -34,10 +34,10 @@ func InitLoopbacks() error {
 		// only create new loopback files if they don't exist
 		if _, err := os.Stat(loopPath); err != nil {
 			if mkerr := syscall.Mknod(loopPath,
-				uint32(stat_t.Mode|syscall.S_IFBLK), int((7<<8)|(i&0xff)|((i&0xfff00)<<12))); mkerr != nil {
+				uint32(statT.Mode|syscall.S_IFBLK), int((7<<8)|(i&0xff)|((i&0xfff00)<<12))); mkerr != nil {
 				return mkerr
 			}
-			os.Chown(loopPath, int(stat_t.Uid), int(stat_t.Gid))
+			os.Chown(loopPath, int(statT.Uid), int(statT.Gid))
 		}
 	}
 	return nil

@@ -1,8 +1,6 @@
 #!/bin/bash
 set -e
 
-DEST=$1
-
 # explicit list of os/arch combos that support being a daemon
 declare -A daemonSupporting
 daemonSupporting=(
@@ -21,13 +19,15 @@ fi
 
 for platform in $DOCKER_CROSSPLATFORMS; do
 	(
-		mkdir -p "$DEST/$platform" # bundles/VERSION/cross/GOOS/GOARCH/docker-VERSION
+		export DEST="$DEST/$platform" # bundles/VERSION/cross/GOOS/GOARCH/docker-VERSION
+		mkdir -p "$DEST"
+		ABS_DEST="$(cd "$DEST" && pwd -P)"
 		export GOOS=${platform%/*}
 		export GOARCH=${platform##*/}
 		if [ -z "${daemonSupporting[$platform]}" ]; then
 			export LDFLAGS_STATIC_DOCKER="" # we just need a simple client for these platforms
 			export BUILDFLAGS=( "${ORIG_BUILDFLAGS[@]/ daemon/}" ) # remove the "daemon" build tag from platforms that aren't supported
 		fi
-		source "$(dirname "$BASH_SOURCE")/binary" "$DEST/$platform"
+		source "${MAKEDIR}/binary"
 	)
 done

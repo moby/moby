@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"strings"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/graphdriver/devmapper"
 	"github.com/docker/docker/pkg/devicemapper"
 )
@@ -63,7 +63,7 @@ func main() {
 
 	if *flDebug {
 		os.Setenv("DEBUG", "1")
-		log.SetLevel(log.DebugLevel)
+		logrus.SetLevel(logrus.DebugLevel)
 	}
 
 	if flag.NArg() < 1 {
@@ -125,7 +125,7 @@ func main() {
 
 		err = devices.ResizePool(size)
 		if err != nil {
-			fmt.Println("Error resizeing pool: ", err)
+			fmt.Println("Error resizing pool: ", err)
 			os.Exit(1)
 		}
 

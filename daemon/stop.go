@@ -1,30 +1,18 @@
 package daemon
 
-import (
-	"github.com/docker/docker/engine"
-)
+import "fmt"
 
-func (daemon *Daemon) ContainerStop(job *engine.Job) engine.Status {
-	if len(job.Args) != 1 {
-		return job.Errorf("Usage: %s CONTAINER\n", job.Name)
-	}
-	var (
-		name = job.Args[0]
-		t    = 10
-	)
-	if job.EnvExists("t") {
-		t = job.GetenvInt("t")
-	}
+func (daemon *Daemon) ContainerStop(name string, seconds int) error {
 	container, err := daemon.Get(name)
 	if err != nil {
-		return job.Error(err)
+		return err
 	}
 	if !container.IsRunning() {
-		return job.Errorf("Container already stopped")
+		return fmt.Errorf("Container already stopped")
 	}
-	if err := container.Stop(int(t)); err != nil {
-		return job.Errorf("Cannot stop container %s: %s\n", name, err)
+	if err := container.Stop(seconds); err != nil {
+		return fmt.Errorf("Cannot stop container %s: %s\n", name, err)
 	}
 	container.LogEvent("stop")
-	return engine.StatusOK
+	return nil
 }

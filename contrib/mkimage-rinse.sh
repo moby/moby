@@ -80,7 +80,7 @@ sudo mkdir -m 755 dev
 # effectively: febootstrap-minimize --keep-zoneinfo --keep-rpmdb --keep-services "$target"
 #  locales
 sudo rm -rf usr/{{lib,share}/locale,{lib,lib64}/gconv,bin/localedef,sbin/build-locale-archive}
-#  docs
+#  docs and man pages
 sudo rm -rf usr/share/{man,doc,info,gnome/help}
 #  cracklib
 sudo rm -rf usr/share/cracklib

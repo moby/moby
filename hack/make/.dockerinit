@@ -2,7 +2,7 @@
 set -e
 
 IAMSTATIC="true"
-source "$(dirname "$BASH_SOURCE")/.go-autogen"
+source "${MAKEDIR}/.go-autogen"
 
 # dockerinit still needs to be a static binary, even if docker is dynamic
 go build \
@@ -30,4 +30,4 @@ else
 fi
 
 # sha1 our new dockerinit to ensure separate docker and dockerinit always run in a perfect pair compiled for one another
-export DOCKER_INITSHA1="$($sha1sum $DEST/dockerinit-$VERSION | cut -d' ' -f1)"
+export DOCKER_INITSHA1=$($sha1sum "$DEST/dockerinit-$VERSION" | cut -d' ' -f1)

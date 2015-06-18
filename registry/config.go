@@ -9,9 +9,9 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/docker/docker/image"
 	"github.com/docker/docker/opts"
 	flag "github.com/docker/docker/pkg/mflag"
-	"github.com/docker/docker/utils"
 )
 
 // Options holds command line options.
@@ -60,10 +60,10 @@ func (ipnet *netIPNet) MarshalJSON() ([]byte, error) {
 }
 
 func (ipnet *netIPNet) UnmarshalJSON(b []byte) (err error) {
-	var ipnet_str string
-	if err = json.Unmarshal(b, &ipnet_str); err == nil {
+	var ipnetStr string
+	if err = json.Unmarshal(b, &ipnetStr); err == nil {
 		var cidr *net.IPNet
-		if _, cidr, err = net.ParseCIDR(ipnet_str); err == nil {
+		if _, cidr, err = net.ParseCIDR(ipnetStr); err == nil {
 			*ipnet = netIPNet(*cidr)
 		}
 	}
@@ -189,7 +189,7 @@ func ValidateMirror(val string) (string, error) {
 		return "", fmt.Errorf("Unsupported path/query/fragment at end of the URI")
 	}
 
-	return fmt.Sprintf("%s://%s/v1/", uri.Scheme, uri.Host), nil
+	return fmt.Sprintf("%s://%s/", uri.Scheme, uri.Host), nil
 }
 
 // ValidateIndexName validates an index name.
@@ -197,6 +197,9 @@ func ValidateIndexName(val string) (string, error) {
 	// 'index.docker.io' => 'docker.io'
 	if val == "index."+IndexServerName() {
 		val = IndexServerName()
+	}
+	if strings.HasPrefix(val, "-") || strings.HasSuffix(val, "-") {
+		return "", fmt.Errorf("Invalid index name (%s). Cannot begin or end with a hyphen.", val)
 	}
 	// *TODO: Check if valid hostname[:port]/ip[:port]?
 	return val, nil
@@ -213,7 +216,7 @@ func validateRemoteName(remoteName string) error {
 		name = nameParts[0]
 
 		// the repository name must not be a valid image ID
-		if err := utils.ValidateID(name); err == nil {
+		if err := image.ValidateID(name); err == nil {
 			return fmt.Errorf("Invalid repository name (%s), cannot specify 64-byte hexadecimal strings", name)
 		}
 	} else {
@@ -234,6 +237,9 @@ func validateRemoteName(remoteName string) error {
 	}
 	if !validRepo.MatchString(name) {
 		return fmt.Errorf("Invalid repository name (%s), only [a-z0-9-_.] are allowed", name)
+	}
+	if strings.HasPrefix(name, "-") || strings.HasSuffix(name, "-") {
+		return fmt.Errorf("Invalid repository name (%s). Cannot begin or end with a hyphen.", name)
 	}
 	return nil
 }
@@ -352,7 +358,9 @@ func (config *ServiceConfig) NewRepositoryInfo(reposName string) (*RepositoryInf
 		// *TODO: Decouple index name from hostname (via registry configuration?)
 		repoInfo.LocalName = repoInfo.Index.Name + "/" + repoInfo.RemoteName
 		repoInfo.CanonicalName = repoInfo.LocalName
+
 	}
+
 	return repoInfo, nil
 }
 

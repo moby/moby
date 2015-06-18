@@ -34,6 +34,9 @@ func NewPort(proto, port string) Port {
 }
 
 func ParsePort(rawPort string) (int, error) {
+	if len(rawPort) == 0 {
+		return 0, nil
+	}
 	port, err := strconv.ParseUint(rawPort, 10, 16)
 	if err != nil {
 		return 0, err

@@ -1,7 +1,6 @@
 #!/bin/bash
 set -e
 
-DEST=$1
 : ${PARALLEL_JOBS:=$(nproc 2>/dev/null || echo 1)} # if nproc fails (usually because we don't have it), let's not parallelize by default
 
 RED=$'\033[31m'
@@ -12,7 +11,7 @@ TEXTRESET=$'\033[0m' # reset the foreground colour
 # If $TESTFLAGS is set in the environment, it is passed as extra arguments to 'go test'.
 # You can use this to select certain tests to run, eg.
 #
-#   TESTFLAGS='-run ^TestBuild$' ./hack/make.sh test-unit
+#   TESTFLAGS='-test.run ^TestBuild$' ./hack/make.sh test-unit
 #
 bundle_test_unit() {
 	{
@@ -26,10 +25,9 @@ bundle_test_unit() {
 			export LDFLAGS
 			export TESTFLAGS
 			export HAVE_GO_TEST_COVER
-			export DEST
 
 			# some hack to export array variables
-			export BUILDFLAGS_FILE="buildflags_file"
+			export BUILDFLAGS_FILE="$DEST/buildflags-file"
 			( IFS=$'\n'; echo "${BUILDFLAGS[*]}" ) > "$BUILDFLAGS_FILE"
 
 			if command -v parallel &> /dev/null; then
@@ -39,12 +37,12 @@ bundle_test_unit() {
 				mkdir -p "$HOME/.parallel"
 				touch "$HOME/.parallel/ignored_vars"
 
-				echo "$TESTDIRS" | parallel --jobs "$PARALLEL_JOBS" --env _ "$(dirname "$BASH_SOURCE")/.go-compile-test-dir"
+				echo "$TESTDIRS" | parallel --jobs "$PARALLEL_JOBS" --env _ "${MAKEDIR}/.go-compile-test-dir"
 				rm -rf "$HOME"
 			else
 				# aww, no "parallel" available - fall back to boring
 				for test_dir in $TESTDIRS; do
-					"$(dirname "$BASH_SOURCE")/.go-compile-test-dir" "$test_dir" || true
+					"${MAKEDIR}/.go-compile-test-dir" "$test_dir" || true
 					# don't let one directory that fails to build tank _all_ our tests!
 				done
 			fi
@@ -59,7 +57,7 @@ go_run_test_dir() {
 	while read dir; do
 		echo
 		echo '+ go test' $TESTFLAGS "${DOCKER_PKG}${dir#.}"
-		precompiled="$DEST/precompiled/$dir.test$(binary_extension)"
+		precompiled="$ABS_DEST/precompiled/$dir.test$(binary_extension)"
 		if ! ( cd "$dir" && test_env "$precompiled" $TESTFLAGS ); then
 			TESTS_FAILED+=("$dir")
 			echo
@@ -85,4 +83,4 @@ go_run_test_dir() {
 	fi
 }
 
-bundle_test_unit 2>&1 | tee -a $DEST/test.log
+bundle_test_unit 2>&1 | tee -a "$DEST/test.log"

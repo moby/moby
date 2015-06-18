@@ -4,48 +4,29 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/docker/docker/utils"
+	"github.com/docker/docker/pkg/stringutils"
 	"github.com/syndtr/gocapability/capability"
 )
 
-var capabilityList = Capabilities{
-	{Key: "SETPCAP", Value: capability.CAP_SETPCAP},
-	{Key: "SYS_MODULE", Value: capability.CAP_SYS_MODULE},
-	{Key: "SYS_RAWIO", Value: capability.CAP_SYS_RAWIO},
-	{Key: "SYS_PACCT", Value: capability.CAP_SYS_PACCT},
-	{Key: "SYS_ADMIN", Value: capability.CAP_SYS_ADMIN},
-	{Key: "SYS_NICE", Value: capability.CAP_SYS_NICE},
-	{Key: "SYS_RESOURCE", Value: capability.CAP_SYS_RESOURCE},
-	{Key: "SYS_TIME", Value: capability.CAP_SYS_TIME},
-	{Key: "SYS_TTY_CONFIG", Value: capability.CAP_SYS_TTY_CONFIG},
-	{Key: "MKNOD", Value: capability.CAP_MKNOD},
-	{Key: "AUDIT_WRITE", Value: capability.CAP_AUDIT_WRITE},
-	{Key: "AUDIT_CONTROL", Value: capability.CAP_AUDIT_CONTROL},
-	{Key: "MAC_OVERRIDE", Value: capability.CAP_MAC_OVERRIDE},
-	{Key: "MAC_ADMIN", Value: capability.CAP_MAC_ADMIN},
-	{Key: "NET_ADMIN", Value: capability.CAP_NET_ADMIN},
-	{Key: "SYSLOG", Value: capability.CAP_SYSLOG},
-	{Key: "CHOWN", Value: capability.CAP_CHOWN},
-	{Key: "NET_RAW", Value: capability.CAP_NET_RAW},
-	{Key: "DAC_OVERRIDE", Value: capability.CAP_DAC_OVERRIDE},
-	{Key: "FOWNER", Value: capability.CAP_FOWNER},
-	{Key: "DAC_READ_SEARCH", Value: capability.CAP_DAC_READ_SEARCH},
-	{Key: "FSETID", Value: capability.CAP_FSETID},
-	{Key: "KILL", Value: capability.CAP_KILL},
-	{Key: "SETGID", Value: capability.CAP_SETGID},
-	{Key: "SETUID", Value: capability.CAP_SETUID},
-	{Key: "LINUX_IMMUTABLE", Value: capability.CAP_LINUX_IMMUTABLE},
-	{Key: "NET_BIND_SERVICE", Value: capability.CAP_NET_BIND_SERVICE},
-	{Key: "NET_BROADCAST", Value: capability.CAP_NET_BROADCAST},
-	{Key: "IPC_LOCK", Value: capability.CAP_IPC_LOCK},
-	{Key: "IPC_OWNER", Value: capability.CAP_IPC_OWNER},
-	{Key: "SYS_CHROOT", Value: capability.CAP_SYS_CHROOT},
-	{Key: "SYS_PTRACE", Value: capability.CAP_SYS_PTRACE},
-	{Key: "SYS_BOOT", Value: capability.CAP_SYS_BOOT},
-	{Key: "LEASE", Value: capability.CAP_LEASE},
-	{Key: "SETFCAP", Value: capability.CAP_SETFCAP},
-	{Key: "WAKE_ALARM", Value: capability.CAP_WAKE_ALARM},
-	{Key: "BLOCK_SUSPEND", Value: capability.CAP_BLOCK_SUSPEND},
+var capabilityList Capabilities
+
+func init() {
+	last := capability.CAP_LAST_CAP
+	// hack for RHEL6 which has no /proc/sys/kernel/cap_last_cap
+	if last == capability.Cap(63) {
+		last = capability.CAP_BLOCK_SUSPEND
+	}
+	for _, cap := range capability.List() {
+		if cap > last {
+			continue
+		}
+		capabilityList = append(capabilityList,
+			&CapabilityMapping{
+				Key:   strings.ToUpper(cap.String()),
+				Value: cap,
+			},
+		)
+	}
 }
 
 type (
@@ -89,17 +70,17 @@ func TweakCapabilities(basics, adds, drops []string) ([]string, error) {
 		if strings.ToLower(cap) == "all" {
 			continue
 		}
-		if !utils.StringsContainsNoCase(allCaps, cap) {
+		if !stringutils.InSlice(allCaps, cap) {
 			return nil, fmt.Errorf("Unknown capability drop: %q", cap)
 		}
 	}
 
 	// handle --cap-add=all
-	if utils.StringsContainsNoCase(adds, "all") {
+	if stringutils.InSlice(adds, "all") {
 		basics = allCaps
 	}
 
-	if !utils.StringsContainsNoCase(drops, "all") {
+	if !stringutils.InSlice(drops, "all") {
 		for _, cap := range basics {
 			// skip `all` aready handled above
 			if strings.ToLower(cap) == "all" {
@@ -107,7 +88,7 @@ func TweakCapabilities(basics, adds, drops []string) ([]string, error) {
 			}
 
 			// if we don't drop `all`, add back all the non-dropped caps
-			if !utils.StringsContainsNoCase(drops, cap) {
+			if !stringutils.InSlice(drops, cap) {
 				newCaps = append(newCaps, strings.ToUpper(cap))
 			}
 		}
@@ -119,12 +100,12 @@ func TweakCapabilities(basics, adds, drops []string) ([]string, error) {
 			continue
 		}
 
-		if !utils.StringsContainsNoCase(allCaps, cap) {
+		if !stringutils.InSlice(allCaps, cap) {
 			return nil, fmt.Errorf("Unknown capability to add: %q", cap)
 		}
 
 		// add cap if not already in the list
-		if !utils.StringsContainsNoCase(newCaps, cap) {
+		if !stringutils.InSlice(newCaps, cap) {
 			newCaps = append(newCaps, strings.ToUpper(cap))
 		}
 	}

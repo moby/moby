@@ -5,7 +5,7 @@ the Docker project.
 
 ### CI
 
-The Docker project uses [Jenkins](https://jenkins.dockerproject.com/) as our
+The Docker project uses [Jenkins](https://jenkins.dockerproject.org/) as our
 continuous integration server. Each Pull Request to Docker is tested by running the 
 equivalent of `make all`. We chose Jenkins because we can host it ourselves and
 we run Docker in Docker to test.
@@ -14,11 +14,11 @@ we run Docker in Docker to test.
 
 Leeroy is a Go application which integrates Jenkins with 
 GitHub pull requests. Leeroy uses 
-[GitHub hooks](http://developer.github.com/v3/repos/hooks/) 
+[GitHub hooks](https://developer.github.com/v3/repos/hooks/) 
 to listen for pull request notifications and starts jobs on your Jenkins 
 server.  Using the Jenkins [notification plugin][jnp], Leeroy updates the 
 pull request using GitHub's 
-[status API](http://developer.github.com/v3/repos/statuses/)
+[status API](https://developer.github.com/v3/repos/statuses/)
 with pending, success, failure, or error statuses.
 
 The leeroy repository is maintained at

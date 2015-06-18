@@ -4,102 +4,119 @@ package server
 
 import (
 	"fmt"
+	"net"
 	"net/http"
-	"os"
-	"syscall"
+	"strconv"
 
-	"github.com/docker/docker/engine"
+	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/daemon"
+	"github.com/docker/docker/pkg/sockets"
 	"github.com/docker/docker/pkg/systemd"
+	"github.com/docker/docker/pkg/version"
+	"github.com/docker/docker/runconfig"
+	"github.com/docker/libnetwork/portallocator"
 )
 
-// NewServer sets up the required Server and does protocol specific checking.
-func NewServer(proto, addr string, job *engine.Job) (Server, error) {
-	// Basic error and sanity checking
+const (
+	// See http://git.kernel.org/cgit/linux/kernel/git/tip/tip.git/tree/kernel/sched/sched.h?id=8cd9234c64c584432f6992fe944ca9e46ca8ea76#n269
+	linuxMinCpuShares = 2
+	linuxMaxCpuShares = 262144
+)
+
+// newServer sets up the required serverClosers and does protocol specific checking.
+func (s *Server) newServer(proto, addr string) ([]serverCloser, error) {
+	var (
+		err error
+		ls  []net.Listener
+	)
 	switch proto {
 	case "fd":
-		return nil, serveFd(addr, job)
-	case "tcp":
-		return setupTcpHttp(addr, job)
-	case "unix":
-		return setupUnixHttp(addr, job)
-	default:
-		return nil, fmt.Errorf("Invalid protocol format.")
-	}
-}
-
-func setupUnixHttp(addr string, job *engine.Job) (*HttpServer, error) {
-	r := createRouter(job.Eng, job.GetenvBool("Logging"), job.GetenvBool("EnableCors"), job.Getenv("CorsHeaders"), job.Getenv("Version"))
-
-	if err := syscall.Unlink(addr); err != nil && !os.IsNotExist(err) {
-		return nil, err
-	}
-	mask := syscall.Umask(0777)
-	defer syscall.Umask(mask)
-
-	l, err := newListener("unix", addr, job.GetenvBool("BufferRequests"))
-	if err != nil {
-		return nil, err
-	}
-
-	if err := setSocketGroup(addr, job.Getenv("SocketGroup")); err != nil {
-		return nil, err
-	}
-
-	if err := os.Chmod(addr, 0660); err != nil {
-		return nil, err
-	}
-
-	return &HttpServer{&http.Server{Addr: addr, Handler: r}, l}, nil
-}
-
-// serveFd creates an http.Server and sets it up to serve given a socket activated
-// argument.
-func serveFd(addr string, job *engine.Job) error {
-	r := createRouter(job.Eng, job.GetenvBool("Logging"), job.GetenvBool("EnableCors"), job.Getenv("CorsHeaders"), job.Getenv("Version"))
-
-	ls, e := systemd.ListenFD(addr)
-	if e != nil {
-		return e
-	}
-
-	chErrors := make(chan error, len(ls))
-
-	// We don't want to start serving on these sockets until the
-	// daemon is initialized and installed. Otherwise required handlers
-	// won't be ready.
-	<-activationLock
-
-	// Since ListenFD will return one or more sockets we have
-	// to create a go func to spawn off multiple serves
-	for i := range ls {
-		listener := ls[i]
-		go func() {
-			httpSrv := http.Server{Handler: r}
-			chErrors <- httpSrv.Serve(listener)
-		}()
-	}
-
-	for i := 0; i < len(ls); i++ {
-		err := <-chErrors
+		ls, err = systemd.ListenFD(addr)
 		if err != nil {
-			return err
+			return nil, err
+		}
+		// We don't want to start serving on these sockets until the
+		// daemon is initialized and installed. Otherwise required handlers
+		// won't be ready.
+		<-s.start
+	case "tcp":
+		l, err := s.initTcpSocket(addr)
+		if err != nil {
+			return nil, err
+		}
+		ls = append(ls, l)
+	case "unix":
+		l, err := sockets.NewUnixSocket(addr, s.cfg.SocketGroup, s.start)
+		if err != nil {
+			return nil, err
+		}
+		ls = append(ls, l)
+	default:
+		return nil, fmt.Errorf("Invalid protocol format: %q", proto)
+	}
+	var res []serverCloser
+	for _, l := range ls {
+		res = append(res, &HttpServer{
+			&http.Server{
+				Addr:    addr,
+				Handler: s.router,
+			},
+			l,
+		})
+	}
+	return res, nil
+}
+
+func (s *Server) AcceptConnections(d *daemon.Daemon) {
+	// Tell the init daemon we are accepting requests
+	s.daemon = d
+	go systemd.SdNotify("READY=1")
+	// close the lock so the listeners start accepting connections
+	select {
+	case <-s.start:
+	default:
+		close(s.start)
+	}
+}
+
+func allocateDaemonPort(addr string) error {
+	host, port, err := net.SplitHostPort(addr)
+	if err != nil {
+		return err
+	}
+
+	intPort, err := strconv.Atoi(port)
+	if err != nil {
+		return err
+	}
+
+	var hostIPs []net.IP
+	if parsedIP := net.ParseIP(host); parsedIP != nil {
+		hostIPs = append(hostIPs, parsedIP)
+	} else if hostIPs, err = net.LookupIP(host); err != nil {
+		return fmt.Errorf("failed to lookup %s address in host specification", host)
+	}
+
+	pa := portallocator.Get()
+	for _, hostIP := range hostIPs {
+		if _, err := pa.RequestPort(hostIP, "tcp", intPort); err != nil {
+			return fmt.Errorf("failed to allocate daemon listening port %d (err: %v)", intPort, err)
 		}
 	}
-
 	return nil
 }
 
-// Called through eng.Job("acceptconnections")
-func AcceptConnections(job *engine.Job) engine.Status {
-	// Tell the init daemon we are accepting requests
-	go systemd.SdNotify("READY=1")
-
-	// close the lock so the listeners start accepting connections
-	select {
-	case <-activationLock:
-	default:
-		close(activationLock)
+func adjustCpuShares(version version.Version, hostConfig *runconfig.HostConfig) {
+	if version.LessThan("1.19") {
+		if hostConfig.CpuShares > 0 {
+			// Handle unsupported CpuShares
+			if hostConfig.CpuShares < linuxMinCpuShares {
+				logrus.Warnf("Changing requested CpuShares of %d to minimum allowed of %d", hostConfig.CpuShares, linuxMinCpuShares)
+				hostConfig.CpuShares = linuxMinCpuShares
+			} else if hostConfig.CpuShares > linuxMaxCpuShares {
+				logrus.Warnf("Changing requested CpuShares of %d to maximum allowed of %d", hostConfig.CpuShares, linuxMaxCpuShares)
+				hostConfig.CpuShares = linuxMaxCpuShares
+			}
+		}
 	}
-
-	return engine.StatusOK
 }

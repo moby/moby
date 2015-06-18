@@ -68,6 +68,7 @@ func (p *Publisher) Publish(v interface{}) {
 func (p *Publisher) Close() {
 	p.m.Lock()
 	for sub := range p.subscribers {
+		delete(p.subscribers, sub)
 		close(sub)
 	}
 	p.m.Unlock()

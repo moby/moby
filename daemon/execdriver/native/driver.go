@@ -3,10 +3,8 @@
 package native
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -15,8 +13,9 @@ import (
 	"syscall"
 	"time"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/execdriver"
+	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/reexec"
 	sysinfo "github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/pkg/term"
@@ -42,23 +41,57 @@ type driver struct {
 	sync.Mutex
 }
 
-func NewDriver(root, initPath string) (*driver, error) {
+func NewDriver(root, initPath string, options []string) (*driver, error) {
 	meminfo, err := sysinfo.ReadMemInfo()
 	if err != nil {
 		return nil, err
 	}
 
-	if err := os.MkdirAll(root, 0700); err != nil {
+	if err := sysinfo.MkdirAll(root, 0700); err != nil {
 		return nil, err
 	}
 	// native driver root is at docker_root/execdriver/native. Put apparmor at docker_root
 	if err := apparmor.InstallDefaultProfile(); err != nil {
 		return nil, err
 	}
+
+	// choose cgroup manager
+	// this makes sure there are no breaking changes to people
+	// who upgrade from versions without native.cgroupdriver opt
 	cgm := libcontainer.Cgroupfs
 	if systemd.UseSystemd() {
 		cgm = libcontainer.SystemdCgroups
 	}
+
+	// parse the options
+	for _, option := range options {
+		key, val, err := parsers.ParseKeyValueOpt(option)
+		if err != nil {
+			return nil, err
+		}
+		key = strings.ToLower(key)
+		switch key {
+		case "native.cgroupdriver":
+			// override the default if they set options
+			switch val {
+			case "systemd":
+				if systemd.UseSystemd() {
+					cgm = libcontainer.SystemdCgroups
+				} else {
+					// warn them that they chose the wrong driver
+					logrus.Warn("You cannot use systemd as native.cgroupdriver, using cgroupfs instead")
+				}
+			case "cgroupfs":
+				cgm = libcontainer.Cgroupfs
+			default:
+				return nil, fmt.Errorf("Unknown native.cgroupdriver given %q. try cgroupfs or systemd", val)
+			}
+		default:
+			return nil, fmt.Errorf("Unknown option %s\n", key)
+		}
+	}
+
+	logrus.Debugf("Using %v as native.cgroupdriver", cgm)
 
 	f, err := libcontainer.New(
 		root,
@@ -90,8 +123,6 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 		return execdriver.ExitStatus{ExitCode: -1}, err
 	}
 
-	var term execdriver.Terminal
-
 	p := &libcontainer.Process{
 		Args: append([]string{c.ProcessConfig.Entrypoint}, c.ProcessConfig.Arguments...),
 		Env:  c.ProcessConfig.Env,
@@ -99,36 +130,9 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 		User: c.ProcessConfig.User,
 	}
 
-	if c.ProcessConfig.Tty {
-		rootuid, err := container.HostUID()
-		if err != nil {
-			return execdriver.ExitStatus{ExitCode: -1}, err
-		}
-		cons, err := p.NewConsole(rootuid)
-		if err != nil {
-			return execdriver.ExitStatus{ExitCode: -1}, err
-		}
-		term, err = NewTtyConsole(cons, pipes, rootuid)
-	} else {
-		p.Stdout = pipes.Stdout
-		p.Stderr = pipes.Stderr
-		r, w, err := os.Pipe()
-		if err != nil {
-			return execdriver.ExitStatus{ExitCode: -1}, err
-		}
-		if pipes.Stdin != nil {
-			go func() {
-				io.Copy(w, pipes.Stdin)
-				w.Close()
-			}()
-			p.Stdin = r
-		}
-		term = &execdriver.StdConsole{}
-	}
-	if err != nil {
+	if err := setupPipes(container, &c.ProcessConfig, p, pipes); err != nil {
 		return execdriver.ExitStatus{ExitCode: -1}, err
 	}
-	c.ProcessConfig.Terminal = term
 
 	cont, err := d.factory.Create(c.ID, container)
 	if err != nil {
@@ -159,7 +163,7 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 	oom := notifyOnOOM(cont)
 	waitF := p.Wait
 	if nss := cont.Config().Namespaces; !nss.Contains(configs.NEWPID) {
-		// we need such hack for tracking processes with inerited fds,
+		// we need such hack for tracking processes with inherited fds,
 		// because cmd.Wait() waiting for all streams to be copied
 		waitF = waitInPIDHost(p, cont)
 	}
@@ -182,7 +186,7 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 func notifyOnOOM(container libcontainer.Container) <-chan struct{} {
 	oom, err := container.NotifyOOM()
 	if err != nil {
-		log.Warnf("Your kernel does not support OOM notifications: %s", err)
+		logrus.Warnf("Your kernel does not support OOM notifications: %s", err)
 		c := make(chan struct{})
 		close(c)
 		return c
@@ -193,27 +197,27 @@ func notifyOnOOM(container libcontainer.Container) <-chan struct{} {
 func killCgroupProcs(c libcontainer.Container) {
 	var procs []*os.Process
 	if err := c.Pause(); err != nil {
-		log.Warn(err)
+		logrus.Warn(err)
 	}
 	pids, err := c.Processes()
 	if err != nil {
 		// don't care about childs if we can't get them, this is mostly because cgroup already deleted
-		log.Warnf("Failed to get processes from container %s: %v", c.ID(), err)
+		logrus.Warnf("Failed to get processes from container %s: %v", c.ID(), err)
 	}
 	for _, pid := range pids {
 		if p, err := os.FindProcess(pid); err == nil {
 			procs = append(procs, p)
 			if err := p.Kill(); err != nil {
-				log.Warn(err)
+				logrus.Warn(err)
 			}
 		}
 	}
 	if err := c.Resume(); err != nil {
-		log.Warn(err)
+		logrus.Warn(err)
 	}
 	for _, p := range procs {
 		if _, err := p.Wait(); err != nil {
-			log.Warn(err)
+			logrus.Warn(err)
 		}
 	}
 }
@@ -241,7 +245,9 @@ func waitInPIDHost(p *libcontainer.Process, c libcontainer.Container) func() (*o
 }
 
 func (d *driver) Kill(c *execdriver.Command, sig int) error {
+	d.Lock()
 	active := d.activeContainers[c.ID]
+	d.Unlock()
 	if active == nil {
 		return fmt.Errorf("active container for %s does not exist", c.ID)
 	}
@@ -253,7 +259,9 @@ func (d *driver) Kill(c *execdriver.Command, sig int) error {
 }
 
 func (d *driver) Pause(c *execdriver.Command) error {
+	d.Lock()
 	active := d.activeContainers[c.ID]
+	d.Unlock()
 	if active == nil {
 		return fmt.Errorf("active container for %s does not exist", c.ID)
 	}
@@ -261,7 +269,9 @@ func (d *driver) Pause(c *execdriver.Command) error {
 }
 
 func (d *driver) Unpause(c *execdriver.Command) error {
+	d.Lock()
 	active := d.activeContainers[c.ID]
+	d.Unlock()
 	if active == nil {
 		return fmt.Errorf("active container for %s does not exist", c.ID)
 	}
@@ -313,14 +323,6 @@ func (d *driver) GetPidsForContainer(id string) ([]int, error) {
 	return active.Processes()
 }
 
-func (d *driver) writeContainerFile(container *configs.Config, id string) error {
-	data, err := json.Marshal(container)
-	if err != nil {
-		return err
-	}
-	return ioutil.WriteFile(filepath.Join(d.root, id, "container.json"), data, 0655)
-}
-
 func (d *driver) cleanContainer(id string) error {
 	d.Lock()
 	delete(d.activeContainers, id)
@@ -337,7 +339,9 @@ func (d *driver) Clean(id string) error {
 }
 
 func (d *driver) Stats(id string) (*execdriver.ResourceStats, error) {
+	d.Lock()
 	c := d.activeContainers[id]
+	d.Unlock()
 	if c == nil {
 		return nil, execdriver.ErrNotRunning
 	}
@@ -357,16 +361,6 @@ func (d *driver) Stats(id string) (*execdriver.ResourceStats, error) {
 		Read:        now,
 		MemoryLimit: memoryLimit,
 	}, nil
-}
-
-func getEnv(key string, env []string) string {
-	for _, pair := range env {
-		parts := strings.Split(pair, "=")
-		if parts[0] == key {
-			return parts[1]
-		}
-	}
-	return ""
 }
 
 type TtyConsole struct {
@@ -418,4 +412,41 @@ func (t *TtyConsole) AttachPipes(pipes *execdriver.Pipes) error {
 
 func (t *TtyConsole) Close() error {
 	return t.console.Close()
+}
+
+func setupPipes(container *configs.Config, processConfig *execdriver.ProcessConfig, p *libcontainer.Process, pipes *execdriver.Pipes) error {
+	var term execdriver.Terminal
+	var err error
+
+	if processConfig.Tty {
+		rootuid, err := container.HostUID()
+		if err != nil {
+			return err
+		}
+		cons, err := p.NewConsole(rootuid)
+		if err != nil {
+			return err
+		}
+		term, err = NewTtyConsole(cons, pipes, rootuid)
+	} else {
+		p.Stdout = pipes.Stdout
+		p.Stderr = pipes.Stderr
+		r, w, err := os.Pipe()
+		if err != nil {
+			return err
+		}
+		if pipes.Stdin != nil {
+			go func() {
+				io.Copy(w, pipes.Stdin)
+				w.Close()
+			}()
+			p.Stdin = r
+		}
+		term = &execdriver.StdConsole{}
+	}
+	if err != nil {
+		return err
+	}
+	processConfig.Terminal = term
+	return nil
 }

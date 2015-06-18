@@ -138,7 +138,7 @@ func TestAssertEqualBytesNegative(t *testing.T) {
 	AssertBytesEqual(t, []byte{1, 2, 3}, []byte{1, 1, 1}, "content mismatch")
 }*/
 
-// Checks that the calls recieved
+// Checks that the calls received
 func assertHandlerOutput(t *testing.T, mock *mockTerminal, plainText string, commands ...string) {
 	text := make([]byte, 0, 3*len(plainText))
 	cmdIndex := 0

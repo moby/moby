@@ -37,7 +37,7 @@ project from a great one.
 		text = """
 Docker follows the timeless, highly efficient and totally unfair system
 known as [Benevolent dictator for
-life](http://en.wikipedia.org/wiki/Benevolent_Dictator_for_Life), with
+life](https://en.wikipedia.org/wiki/Benevolent_Dictator_for_Life), with
 yours truly, Solomon Hykes, in the role of BDFL. This means that all
 decisions are made, by default, by Solomon. Since making every decision
 myself would be highly un-scalable, in practice decisions are spread
@@ -113,7 +113,7 @@ It is the responsibility of the subsystem maintainers to process patches affecti
 manner.
 
 * If the change affects areas of the code which are not part of a subsystem,
-or if subsystem maintainers are unable to reach a timely decision, it must be approved by 
+or if subsystem maintainers are unable to reach a timely decision, it must be approved by
 the core maintainers.
 
 * If the change affects the UI or public APIs, or if it represents a major change in architecture,
@@ -131,7 +131,7 @@ for each.
 """
 
 		# Triage
-		[Rules.review.states.0-triage]
+		[Rules.review.states.0-needs-triage]
 
 			# Maintainers are expected to triage new incoming pull requests by removing
 			# the `0-triage` label and adding the correct labels (e.g. `1-design-review`)
@@ -149,7 +149,7 @@ for each.
 			1-design-review = "general case"
 
 		# Design review
-		[Rules.review.states.1-design-review]
+		[Rules.review.states.1-needs-design-review]
 
 			# Maintainers are expected to comment on the design of the pull request.
 			# Review of documentation is expected only in the context of design validation,
@@ -166,7 +166,7 @@ for each.
 			2-code-review = "general case"
 
 		# Code review
-		[Rules.review.states.2-code-review]
+		[Rules.review.states.2-needs-code-review]
 
 			# Maintainers are expected to review the code and ensure that it is good
 			# quality and in accordance with the documentation in the PR.
@@ -184,7 +184,7 @@ for each.
 			3-docs-review = "general case"
 
 		# Docs review
-		[Rules.review.states.3-docs-review]
+		[Rules.review.states.3-needs-docs-review]
 
 			# Maintainers are expected to review the documentation in its bigger context,
 			# ensuring consistency, completeness, validity, and breadth of coverage across
@@ -193,6 +193,11 @@ for each.
 			# They should ask for any editorial change that makes the documentation more
 			# consistent and easier to understand.
 			#
+			# Changes and additions to docs must be reviewed and approved (LGTM'd) by a minimum of
+			# two docs sub-project maintainers. If the docs change originates with a docs
+			# maintainer, only one additional LGTM is required (since we assume a docs maintainer
+			# approves of their own PR).
+			#
 			# Once documentation is approved (see below), a maintainer should make sure to remove this
 			# label and add the next one.
 
@@ -200,14 +205,9 @@ for each.
 			2-code-review = "requires more code changes"
 			1-design-review = "raises design concerns"
 			4-merge = "general case"
-			
-		# Docs approval
-		[Rules.review.docs-approval]
-			# Changes and additions to docs must be reviewed and approved (LGTM'd) by a minimum of two docs sub-project maintainers.
-			# If the docs change originates with a docs maintainer, only one additional LGTM is required (since we assume a docs maintainer approves of their own PR). 	
 
 		# Merge
-		[Rules.review.states.4-merge]
+		[Rules.review.states.4-needs-merge]
 
 			# Maintainers are expected to merge this pull request as soon as possible.
 			# They can ask for a rebase, or carry the pull request themselves.
@@ -268,7 +268,7 @@ made through a pull request.
 
 	# The chief architect is responsible for the overall integrity of the technical architecture
 	# across all subsystems, and the consistency of APIs and UI.
-	# 
+	#
 	# Changes to UI, public APIs and overall architecture (for example a plugin system) must
 	# be approved by the chief architect.
 	"Chief Architect" = "shykes"
@@ -296,7 +296,9 @@ made through a pull request.
 		[Org.Operators.security]
 
 			people = [
-				"erw"
+				"erw",
+				"diogomonica",
+				"nathanmccauley"
 			]
 
 		[Org.Operators."monthly meetings"]
@@ -312,13 +314,29 @@ made through a pull request.
 				"jfrazelle",
 				"crosbymichael"
 			]
+		
+		[Org.Operators.community]
+			people = [
+				"theadactyl"
+			]
 
 	# The chief maintainer is responsible for all aspects of quality for the project including
-	# code reviews, usability, stability, security, performance, etc. 
+	# code reviews, usability, stability, security, performance, etc.
 	# The most important function of the chief maintainer is to lead by example. On the first
 	# day of a new maintainer, the best advice should be "follow the C.M.'s example and you'll
 	# be fine".
 	"Chief Maintainer" = "crosbymichael"
+	
+	# The community manager is responsible for serving the project community, including users, 
+	# contributors and partners. This involves:
+	#	- facilitating communication between maintainers, contributors and users
+	#	- organizing contributor and maintainer events
+	#	- helping new contributors get involved
+	#	- anything the project community needs to be successful
+	#
+	# The community manager is a point of contact for any contributor who has questions, concerns 
+	# or feedback about project operations. 
+	"Community Manager" = "theadactyl"
 
 	[Org."Core maintainers"]
 
@@ -339,14 +357,15 @@ made through a pull request.
 
 
 		people = [
-			"unclejack",
 			"crosbymichael",
 			"erikh",
 			"estesp",
 			"icecrime",
 			"jfrazelle",
 			"lk4d4",
+			"runcom",
 			"tibor",
+			"unclejack",
 			"vbatts",
 			"vieux",
 			"vishh"
@@ -359,80 +378,81 @@ made through a pull request.
 	# has a dedicated group of maintainers, which are dedicated to that subsytem and responsible
 	# for its quality.
 	# This "cellular division" is the primary mechanism for scaling maintenance of the project as it grows.
-	# 
+	#
 	# The maintainers of each subsytem are responsible for:
-	# 
+	#
 	# 1. Exposing a clear road map for improving their subsystem.
 	# 2. Deliver prompt feedback and decisions on pull requests affecting their subsystem.
 	# 3. Be available to anyone with questions, bug reports, criticism etc.
-	#   on their component. This includes IRC, GitHub requests and the mailing
-	#   list.
+	#	on their component. This includes IRC, GitHub requests and the mailing
+	#	list.
 	# 4. Make sure their subsystem respects the philosophy, design and
-	#   road map of the project.
+	#	road map of the project.
 	#
 	# #### How to review patches to your subsystem
-	# 
+	#
 	# Accepting pull requests:
-	# 
-	#   - If the pull request appears to be ready to merge, give it a `LGTM`, which
-	#     stands for "Looks Good To Me".
-	#   - If the pull request has some small problems that need to be changed, make
-	#     a comment adressing the issues.
-	#   - If the changes needed to a PR are small, you can add a "LGTM once the
-	#     following comments are adressed..." this will reduce needless back and
-	#     forth.
-	#   - If the PR only needs a few changes before being merged, any MAINTAINER can
-	#     make a replacement PR that incorporates the existing commits and fixes the
-	#     problems before a fast track merge.
-	# 
+	#
+	#	- If the pull request appears to be ready to merge, give it a `LGTM`, which
+	#	  stands for "Looks Good To Me".
+	#	- If the pull request has some small problems that need to be changed, make
+	#	  a comment adressing the issues.
+	#	- If the changes needed to a PR are small, you can add a "LGTM once the
+	#	  following comments are adressed..." this will reduce needless back and
+	#	  forth.
+	#	- If the PR only needs a few changes before being merged, any MAINTAINER can
+	#	  make a replacement PR that incorporates the existing commits and fixes the
+	#	  problems before a fast track merge.
+	#
 	# Closing pull requests:
-	# 
-	#   - If a PR appears to be abandoned, after having attempted to contact the
-	#     original contributor, then a replacement PR may be made.  Once the
-	#     replacement PR is made, any contributor may close the original one.
-	#   - If you are not sure if the pull request implements a good feature or you
-	#     do not understand the purpose of the PR, ask the contributor to provide
-	#     more documentation.  If the contributor is not able to adequately explain
-	#     the purpose of the PR, the PR may be closed by any MAINTAINER.
-	#   - If a MAINTAINER feels that the pull request is sufficiently architecturally
-	#     flawed, or if the pull request needs significantly more design discussion
-	#     before being considered, the MAINTAINER should close the pull request with
-	#     a short explanation of what discussion still needs to be had.  It is
-	#     important not to leave such pull requests open, as this will waste both the
-	#     MAINTAINER's time and the contributor's time.  It is not good to string a
-	#     contributor on for weeks or months, having them make many changes to a PR
-	#     that will eventually be rejected.
+	#
+	#	- If a PR appears to be abandoned, after having attempted to contact the
+	#	  original contributor, then a replacement PR may be made. Once the
+	#	  replacement PR is made, any contributor may close the original one.
+	#	- If you are not sure if the pull request implements a good feature or you
+	#	  do not understand the purpose of the PR, ask the contributor to provide
+	#	  more documentation.  If the contributor is not able to adequately explain
+	#	  the purpose of the PR, the PR may be closed by any MAINTAINER.
+	#	- If a MAINTAINER feels that the pull request is sufficiently architecturally
+	#	  flawed, or if the pull request needs significantly more design discussion
+	#	  before being considered, the MAINTAINER should close the pull request with
+	#	  a short explanation of what discussion still needs to be had.  It is
+	#	  important not to leave such pull requests open, as this will waste both the
+	#	  MAINTAINER's time and the contributor's time.  It is not good to string a
+	#	  contributor on for weeks or months, having them make many changes to a PR
+	#	  that will eventually be rejected.
 
 		[Org.Subsystems.Documentation]
 
 			people = [
 				"fredlf",
 				"james",
-				"sven",
+				"moxiegirl",
+				"thaJeztah",
+				"jamtur01",
 				"spf13",
-				"mary"
+				"sven"
 			]
 
 		[Org.Subsystems.libcontainer]
 
 			people = [
 				"crosbymichael",
-				"vmarmol",
-				"mpatel",
 				"jnagal",
-				"lk4d4"
+				"lk4d4",
+				"mpatel",
+				"vmarmol"
 			]
 
 		[Org.Subsystems.registry]
 
 			people = [
+				"dmcg",
 				"dmp42",
-				"vbatts",
-				"joffrey",
+				"jlhawn",
 				"samalba",
 				"sday",
-				"jlhawn",
-				"dmcg"
+				"vbatts"
 			]
 
 		[Org.Subsystems."build tools"]
@@ -471,10 +491,26 @@ made through a pull request.
 		[Org.Subsystem.builder]
 
 			people = [
+				"duglin",
 				"erikh",
-				"tibor",
-				"duglin"
+				"tibor"
 			]
+
+	[Org.Curators]
+
+	# The curators help ensure that incoming issues and pull requests are properly triaged and
+	# that our various contribution and reviewing processes are respected. With their knowledge of
+	# the repository activity, they can also guide contributors to relevant material or
+	# discussions.
+	#
+	# They are neither code nor docs reviewers, so they are never expected to merge. They can
+	# however:
+	# - close an issue or pull request when it's an exact duplicate
+	# - close an issue or pull request when it's inappropriate or off-topic
+
+	people = [
+		"thajeztah"
+	]
 
 
 [people]
@@ -500,10 +536,20 @@ made through a pull request.
 	Email = "ben@firshman.co.uk"
 	GitHub = "bfirsh"
 
+	[people.cpuguy83]
+	Name = "Brian Goff"
+	Email = "cpuguy83@gmail.com"
+	Github = "cpuguy83"
+
 	[people.crosbymichael]
 	Name = "Michael Crosby"
 	Email = "crosbymichael@gmail.com"
 	GitHub = "crosbymichael"
+
+	[people.diogomonica]
+	Name = "Diogo Monica"
+	Email = "diogo@docker.com"
+	GitHub = "diogomonica"
 
 	[people.duglin]
 	Name = "Doug Davis"
@@ -552,7 +598,7 @@ made through a pull request.
 
 	[people.jfrazelle]
 	Name = "Jessie Frazelle"
-	Email = "jess@docker.com"
+	Email = "j@docker.com"
 	GitHub = "jfrazelle"
 
 	[people.jlhawn]
@@ -560,20 +606,25 @@ made through a pull request.
 	Email = "josh.hawn@docker.com"
 	Github = "jlhawn"
 
-	[people.joffrey]
-	Name = "Joffrey Fuhrer"
-	Email = "joffrey@docker.com"
-	Github = "shin-"
-
 	[people.lk4d4]
 	Name = "Alexander Morozov"
 	Email = "lk4d4@docker.com"
 	GitHub = "lk4d4"
 
-	[people.mary]
+	[people.moxiegirl]
 	Name = "Mary Anthony"
 	Email = "mary.anthony@docker.com"
 	GitHub = "moxiegirl"
+
+	[people.nathanmccauley]
+	Name = "Nathan McCauley"
+	Email = "nathan.mccauley@docker.com"
+	GitHub = "nathanmccauley"
+
+	[people.runcom]
+	Name = "Antonio Murdaca"
+	Email = "me@runcom.ninja"
+	GitHub = "runcom"
 
 	[people.sday]
 	Name = "Stephen Day"
@@ -584,16 +635,26 @@ made through a pull request.
 	Name = "Solomon Hykes"
 	Email = "solomon@docker.com"
 	GitHub = "shykes"
-    
+
 	[people.spf13]
 	Name = "Steve Francia"
 	Email = "steve.francia@gmail.com"
 	GitHub = "spf13"
-	
+
 	[people.sven]
 	Name = "Sven Dowideit"
 	Email = "SvenDowideit@home.org.au"
 	GitHub = "SvenDowideit"
+
+	[people.thajeztah]
+	Name = "Sebastiaan van Stijn"
+	Email = "github@gone.nl"
+	GitHub = "thaJeztah"
+	
+	[people.theadactyl]
+	Name = "Thea Lamkin"
+	Email = "thea@docker.com"
+	GitHub = "theadactyl"
 
 	[people.tianon]
 	Name = "Tianon Gravi"

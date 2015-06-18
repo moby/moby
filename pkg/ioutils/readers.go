@@ -3,6 +3,8 @@ package ioutils
 import (
 	"bytes"
 	"crypto/rand"
+	"crypto/sha256"
+	"encoding/hex"
 	"io"
 	"math/big"
 	"sync"
@@ -214,4 +216,12 @@ func (r *bufReader) Close() error {
 		return nil
 	}
 	return closer.Close()
+}
+
+func HashData(src io.Reader) (string, error) {
+	h := sha256.New()
+	if _, err := io.Copy(h, src); err != nil {
+		return "", err
+	}
+	return "sha256:" + hex.EncodeToString(h.Sum(nil)), nil
 }

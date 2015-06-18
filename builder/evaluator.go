@@ -1,4 +1,4 @@
-// builder is the evaluation step in the Dockerfile parse/evaluate pipeline.
+// Package builder is the evaluation step in the Dockerfile parse/evaluate pipeline.
 //
 // It incorporates a dispatch table based on the parser.Node values (see the
 // parser package for more information) that are yielded from the parser itself.
@@ -20,30 +20,25 @@
 package builder
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/builder/command"
 	"github.com/docker/docker/builder/parser"
+	"github.com/docker/docker/cliconfig"
 	"github.com/docker/docker/daemon"
-	"github.com/docker/docker/engine"
-	"github.com/docker/docker/pkg/common"
 	"github.com/docker/docker/pkg/fileutils"
+	"github.com/docker/docker/pkg/streamformatter"
+	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/pkg/symlink"
 	"github.com/docker/docker/pkg/tarsum"
-	"github.com/docker/docker/registry"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/utils"
-)
-
-var (
-	ErrDockerfileEmpty = errors.New("Dockerfile cannot be empty")
 )
 
 // Environment variable interpolation will happen on these statements only.
@@ -76,7 +71,6 @@ func init() {
 		command.Expose:     expose,
 		command.Volume:     volume,
 		command.User:       user,
-		command.Insert:     insert,
 	}
 }
 
@@ -84,7 +78,6 @@ func init() {
 // processing as it evaluates the parsing result.
 type Builder struct {
 	Daemon *daemon.Daemon
-	Engine *engine.Engine
 
 	// effectively stdio for the run. Because it is not stdio, I said
 	// "Effectively". Do not use stdio anywhere in this package for any reason.
@@ -105,12 +98,12 @@ type Builder struct {
 	// the final configs of the Dockerfile but dont want the layers
 	disableCommit bool
 
-	AuthConfig     *registry.AuthConfig
-	AuthConfigFile *registry.ConfigFile
+	AuthConfig *cliconfig.AuthConfig
+	ConfigFile *cliconfig.ConfigFile
 
 	// Deprecated, original writer used for ImagePull. To be removed.
 	OutOld          io.Writer
-	StreamFormatter *utils.StreamFormatter
+	StreamFormatter *streamformatter.StreamFormatter
 
 	Config *runconfig.Config // runconfig for cmd, run, entrypoint etc.
 
@@ -122,15 +115,20 @@ type Builder struct {
 	image          string        // image name for commit processing
 	maintainer     string        // maintainer name. could probably be removed.
 	cmdSet         bool          // indicates is CMD was set in current Dockerfile
+	BuilderFlags   *BuilderFlags // current cmd's BuilderFlags - temporary
 	context        tarsum.TarSum // the context is a tarball that is uploaded by the client
 	contextPath    string        // the path of the temporary directory the local context is unpacked to (server side)
 	noBaseImage    bool          // indicates that this build does not start from any base image, but is being built from an empty file system.
 
 	// Set resource restrictions for build containers
-	cpuSetCpus string
-	cpuShares  int64
-	memory     int64
-	memorySwap int64
+	cpuSetCpus   string
+	cpuSetMems   string
+	cpuShares    int64
+	cpuPeriod    int64
+	cpuQuota     int64
+	cgroupParent string
+	memory       int64
+	memorySwap   int64
 
 	cancelled <-chan struct{} // When closed, job was cancelled.
 }
@@ -154,7 +152,7 @@ func (b *Builder) Run(context io.Reader) (string, error) {
 
 	defer func() {
 		if err := os.RemoveAll(b.contextPath); err != nil {
-			log.Debugf("[BUILDER] failed to remove temporary context: %s", err)
+			logrus.Debugf("[BUILDER] failed to remove temporary context: %s", err)
 		}
 	}()
 
@@ -170,7 +168,7 @@ func (b *Builder) Run(context io.Reader) (string, error) {
 	for i, n := range b.dockerfile.Children {
 		select {
 		case <-b.cancelled:
-			log.Debug("Builder: build cancelled!")
+			logrus.Debug("Builder: build cancelled!")
 			fmt.Fprintf(b.OutStream, "Build cancelled")
 			return "", fmt.Errorf("Build cancelled")
 		default:
@@ -182,7 +180,7 @@ func (b *Builder) Run(context io.Reader) (string, error) {
 			}
 			return "", err
 		}
-		fmt.Fprintf(b.OutStream, " ---> %s\n", common.TruncateID(b.image))
+		fmt.Fprintf(b.OutStream, " ---> %s\n", stringid.TruncateID(b.image))
 		if b.Remove {
 			b.clearTmp()
 		}
@@ -192,7 +190,7 @@ func (b *Builder) Run(context io.Reader) (string, error) {
 		return "", fmt.Errorf("No image was generated. Is your Dockerfile empty?")
 	}
 
-	fmt.Fprintf(b.OutStream, "Successfully built %s\n", common.TruncateID(b.image))
+	fmt.Fprintf(b.OutStream, "Successfully built %s\n", stringid.TruncateID(b.image))
 	return b.image, nil
 }
 
@@ -225,7 +223,7 @@ func (b *Builder) readDockerfile() error {
 		return fmt.Errorf("Cannot locate specified Dockerfile: %s", origFile)
 	}
 	if fi.Size() == 0 {
-		return ErrDockerfileEmpty
+		return fmt.Errorf("The Dockerfile (%s) cannot be empty", origFile)
 	}
 
 	f, err := os.Open(filename)
@@ -280,8 +278,13 @@ func (b *Builder) dispatch(stepN int, ast *parser.Node) error {
 	cmd := ast.Value
 	attrs := ast.Attributes
 	original := ast.Original
+	flags := ast.Flags
 	strs := []string{}
 	msg := fmt.Sprintf("Step %d : %s", stepN, strings.ToUpper(cmd))
+
+	if len(ast.Flags) > 0 {
+		msg += " " + strings.Join(ast.Flags, " ")
+	}
 
 	if cmd == "onbuild" {
 		if ast.Next == nil {
@@ -290,6 +293,11 @@ func (b *Builder) dispatch(stepN int, ast *parser.Node) error {
 		ast = ast.Next.Children[0]
 		strs = append(strs, ast.Value)
 		msg += " " + ast.Value
+
+		if len(ast.Flags) > 0 {
+			msg += " " + strings.Join(ast.Flags, " ")
+		}
+
 	}
 
 	// count the number of nodes that we are going to traverse first
@@ -329,6 +337,8 @@ func (b *Builder) dispatch(stepN int, ast *parser.Node) error {
 	// XXX yes, we skip any cmds that are not valid; the parser should have
 	// picked these out already.
 	if f, ok := evaluateTable[cmd]; ok {
+		b.BuilderFlags = NewBuilderFlags()
+		b.BuilderFlags.Args = flags
 		return f(b, strList, attrs, original)
 	}
 

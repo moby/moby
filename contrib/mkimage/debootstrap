@@ -19,7 +19,7 @@ shift
 chrootPath="$(type -P chroot)"
 rootfs_chroot() {
 	# "chroot" doesn't set PATH, so we need to set it explicitly to something our new debootstrap chroot can use appropriately!
-	
+
 	# set PATH and chroot away!
 	PATH='/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin' \
 		"$chrootPath" "$rootfsDir" "$@"
@@ -37,7 +37,7 @@ rootfs_chroot() {
 
 # prevent init scripts from running during install/update
 echo >&2 "+ echo exit 101 > '$rootfsDir/usr/sbin/policy-rc.d'"
-cat > "$rootfsDir/usr/sbin/policy-rc.d" <<'EOF'
+cat > "$rootfsDir/usr/sbin/policy-rc.d" <<-'EOF'
 	#!/bin/sh
 
 	# For most Docker users, "apt-get install" only happens during "docker build",
@@ -176,11 +176,19 @@ if [ -z "$DONT_TOUCH_SOURCES_LIST" ]; then
 						s/ $suite / ${suite}-updates /
 					" "$rootfsDir/etc/apt/sources.list"
 					echo "deb http://security.debian.org $suite/updates main" >> "$rootfsDir/etc/apt/sources.list"
-					# LTS
-					if [ "$suite" = 'squeeze' -o "$suite" = 'oldstable' ]; then
-						head -1 "$rootfsDir/etc/apt/sources.list" \
-							| sed "s/ $suite / squeeze-lts /" \
-								>> "$rootfsDir/etc/apt/sources.list"
+					# squeeze-lts
+					if [ -f "$rootfsDir/etc/debian_version" ]; then
+						ltsSuite=
+						case "$(cat "$rootfsDir/etc/debian_version")" in
+							6.*) ltsSuite='squeeze-lts' ;;
+							#7.*) ltsSuite='wheezy-lts' ;;
+							#8.*) ltsSuite='jessie-lts' ;;
+						esac
+						if [ "$ltsSuite" ]; then
+							head -1 "$rootfsDir/etc/apt/sources.list" \
+								| sed "s/ $suite / $ltsSuite /" \
+									>> "$rootfsDir/etc/apt/sources.list"
+						fi
 					fi
 				)
 			fi
@@ -220,13 +228,13 @@ fi
 
 (
 	set -x
-	
+
 	# make sure we're fully up-to-date
 	rootfs_chroot sh -xc 'apt-get update && apt-get dist-upgrade -y'
-	
+
 	# delete all the apt list files since they're big and get stale quickly
 	rm -rf "$rootfsDir/var/lib/apt/lists"/*
 	# this forces "apt-get update" in dependent images, which is also good
-	
+
 	mkdir "$rootfsDir/var/lib/apt/lists/partial" # Lucid... "E: Lists directory /var/lib/apt/lists/partial is missing."
 )
