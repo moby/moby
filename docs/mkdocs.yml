@@ -104,6 +104,7 @@ pages:
 - ['examples/running_ssh_service.md', 'Examples', 'Dockerizing an SSH service']
 - ['examples/couchdb_data_volumes.md', 'Examples', 'Dockerizing a CouchDB service']
 - ['examples/apt-cacher-ng.md', 'Examples', 'Dockerizing an Apt-Cacher-ng service']
+- ['examples/getting_started_with_compose_and_osclass.md', 'Examples', 'Getting started with Compose and Osclass']
 - ['compose/django.md', 'Examples', 'Getting started with Compose and Django']
 - ['compose/rails.md', 'Examples', 'Getting started with Compose and Rails']
 - ['compose/wordpress.md', 'Examples', 'Getting started with Compose and Wordpress']
