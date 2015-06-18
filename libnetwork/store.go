@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/docker/libkv/store"
 	"github.com/docker/libnetwork/datastore"
 	"github.com/docker/libnetwork/types"
 )
@@ -31,7 +32,21 @@ func (c *controller) initDataStore() error {
 	c.Lock()
 	c.store = store
 	c.Unlock()
+
+	nws, err := c.getNetworksFromStore()
+	if err == nil {
+		c.processNetworkUpdate(nws, nil)
+	} else if err != datastore.ErrKeyNotFound {
+		log.Warnf("failed to read networks from datastore during init : %v", err)
+	}
 	return c.watchNetworks()
+}
+
+func (c *controller) getNetworksFromStore() ([]*store.KVPair, error) {
+	c.Lock()
+	cs := c.store
+	c.Unlock()
+	return cs.KVStore().List(datastore.Key(datastore.NetworkKeyPrefix))
 }
 
 func (c *controller) newNetworkFromStore(n *network) error {
@@ -178,34 +193,7 @@ func (c *controller) watchNetworks() error {
 				for k, v := range lview {
 					tmpview[k] = v
 				}
-				for _, kve := range nws {
-					var n network
-					err := json.Unmarshal(kve.Value, &n)
-					if err != nil {
-						log.Error(err)
-						continue
-					}
-					delete(tmpview, n.id)
-					n.dbIndex = kve.LastIndex
-					c.Lock()
-					existing, ok := c.networks[n.id]
-					c.Unlock()
-					if ok {
-						existing.Lock()
-						// Skip existing network update
-						if existing.dbIndex != n.dbIndex {
-							existing.dbIndex = n.dbIndex
-							existing.endpointCnt = n.endpointCnt
-						}
-						existing.Unlock()
-						continue
-					}
-
-					if err = c.newNetworkFromStore(&n); err != nil {
-						log.Error(err)
-					}
-
-				}
+				c.processNetworkUpdate(nws, &tmpview)
 				// Delete processing
 				for k := range tmpview {
 					c.Lock()
@@ -303,6 +291,38 @@ func (n *network) stopWatch() {
 		n.stopWatchCh = nil
 	}
 	n.Unlock()
+}
+
+func (c *controller) processNetworkUpdate(nws []*store.KVPair, prune *networkTable) {
+	for _, kve := range nws {
+		var n network
+		err := json.Unmarshal(kve.Value, &n)
+		if err != nil {
+			log.Error(err)
+			continue
+		}
+		if prune != nil {
+			delete(*prune, n.id)
+		}
+		n.dbIndex = kve.LastIndex
+		c.Lock()
+		existing, ok := c.networks[n.id]
+		c.Unlock()
+		if ok {
+			existing.Lock()
+			// Skip existing network update
+			if existing.dbIndex != n.dbIndex {
+				existing.dbIndex = n.dbIndex
+				existing.endpointCnt = n.endpointCnt
+			}
+			existing.Unlock()
+			continue
+		}
+
+		if err = c.newNetworkFromStore(&n); err != nil {
+			log.Error(err)
+		}
+	}
 }
 
 func (c *controller) processEndpointUpdate(ep *endpoint) bool {
