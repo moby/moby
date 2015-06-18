@@ -5,6 +5,7 @@ description = "Docker Hub accounts"
 keywords = ["Docker, docker, registry, accounts, plans, Dockerfile, Docker Hub, docs,  documentation"]
 [menu.main]
 parent = "smn_pubhub"
+weight = 1
 +++
 <![end-metadata]-->
 

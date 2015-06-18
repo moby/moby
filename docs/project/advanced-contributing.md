@@ -5,6 +5,7 @@ description = "Explains workflows for refactor and design proposals"
 keywords = ["contribute, project, design, refactor,  proposal"]
 [menu.main]
 parent = "smn_contribute"
+weight=6
 +++
 <![end-metadata]-->
 

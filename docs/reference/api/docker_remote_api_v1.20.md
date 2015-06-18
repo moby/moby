@@ -5,6 +5,7 @@ description = "API Documentation for Docker"
 keywords = ["API, Docker, rcli, REST,  documentation"]
 [menu.main]
 parent="smn_remoteapi"
+weight = 1
 +++
 <![end-metadata]-->
 
