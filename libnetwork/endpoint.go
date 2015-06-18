@@ -124,6 +124,7 @@ type endpoint struct {
 	generic       map[string]interface{}
 	joinLeaveDone chan struct{}
 	dbIndex       uint64
+	dbExists      bool
 	sync.Mutex
 }
 
@@ -258,6 +259,10 @@ func (ep *endpoint) Value() []byte {
 	return b
 }
 
+func (ep *endpoint) SetValue(value []byte) error {
+	return json.Unmarshal(value, ep)
+}
+
 func (ep *endpoint) Index() uint64 {
 	ep.Lock()
 	defer ep.Unlock()
@@ -268,6 +273,13 @@ func (ep *endpoint) SetIndex(index uint64) {
 	ep.Lock()
 	defer ep.Unlock()
 	ep.dbIndex = index
+	ep.dbExists = true
+}
+
+func (ep *endpoint) Exists() bool {
+	ep.Lock()
+	defer ep.Unlock()
+	return ep.dbExists
 }
 
 func (ep *endpoint) processOptions(options ...EndpointOption) {

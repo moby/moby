@@ -8,6 +8,7 @@ import (
 	"github.com/docker/libnetwork/config"
 	_ "github.com/docker/libnetwork/netutils"
 	"github.com/docker/libnetwork/options"
+	"github.com/stretchr/testify/assert"
 )
 
 var dummyKey = "dummy"
@@ -69,16 +70,18 @@ func TestKVObjectFlatKey(t *testing.T) {
 func TestAtomicKVObjectFlatKey(t *testing.T) {
 	store := NewTestDataStore()
 	expected := dummyKVObject("1111", true)
+	assert.False(t, expected.Exists())
 	err := store.PutObjectAtomic(expected)
 	if err != nil {
 		t.Fatal(err)
 	}
+	assert.True(t, expected.Exists())
 
 	// PutObjectAtomic automatically sets the Index again. Hence the following must pass.
 
 	err = store.PutObjectAtomic(expected)
 	if err != nil {
-		t.Fatal("Atomic update with an older Index must fail")
+		t.Fatal("Atomic update should succeed.")
 	}
 
 	// Get the latest index and try PutObjectAtomic again for the same Key
@@ -90,12 +93,22 @@ func TestAtomicKVObjectFlatKey(t *testing.T) {
 	n := dummyObject{}
 	json.Unmarshal(data.Value, &n)
 	n.ID = "1111"
-	n.DBIndex = data.LastIndex
+	n.SetIndex(data.LastIndex)
 	n.ReturnValue = true
 	err = store.PutObjectAtomic(&n)
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	// Get the Object using GetObject, then set again.
+	newObj := dummyObject{}
+	err = store.GetObject(Key(expected.Key()...), &newObj)
+	assert.True(t, newObj.Exists())
+	err = store.PutObjectAtomic(&n)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 }
 
 // dummy data used to test the datastore
@@ -108,6 +121,7 @@ type dummyObject struct {
 	Generic     options.Generic       `kv:"iterative"`
 	ID          string
 	DBIndex     uint64
+	DBExists    bool
 	ReturnValue bool
 }
 
@@ -131,12 +145,21 @@ func (n *dummyObject) Value() []byte {
 	return b
 }
 
+func (n *dummyObject) SetValue(value []byte) error {
+	return json.Unmarshal(value, n)
+}
+
 func (n *dummyObject) Index() uint64 {
 	return n.DBIndex
 }
 
 func (n *dummyObject) SetIndex(index uint64) {
 	n.DBIndex = index
+	n.DBExists = true
+}
+
+func (n *dummyObject) Exists() bool {
+	return n.DBExists
 }
 
 func (n *dummyObject) MarshalJSON() ([]byte, error) {
@@ -162,10 +185,11 @@ func (n *dummyObject) UnmarshalJSON(b []byte) (err error) {
 
 // dummy structure to test "recursive" cases
 type recStruct struct {
-	Name    string            `kv:"leaf"`
-	Field1  int               `kv:"leaf"`
-	Dict    map[string]string `kv:"iterative"`
-	DBIndex uint64
+	Name     string            `kv:"leaf"`
+	Field1   int               `kv:"leaf"`
+	Dict     map[string]string `kv:"iterative"`
+	DBIndex  uint64
+	DBExists bool
 }
 
 func (r *recStruct) Key() []string {
@@ -179,12 +203,21 @@ func (r *recStruct) Value() []byte {
 	return b
 }
 
+func (r *recStruct) SetValue(value []byte) error {
+	return json.Unmarshal(value, r)
+}
+
 func (r *recStruct) Index() uint64 {
 	return r.DBIndex
 }
 
 func (r *recStruct) SetIndex(index uint64) {
 	r.DBIndex = index
+	r.DBExists = true
+}
+
+func (r *recStruct) Exists() bool {
+	return r.DBExists
 }
 
 func dummyKVObject(id string, retValue bool) *dummyObject {
@@ -195,12 +228,13 @@ func dummyKVObject(id string, retValue bool) *dummyObject {
 		Name:        "testNw",
 		NetworkType: "bridge",
 		EnableIPv6:  true,
-		Rec:         &recStruct{"gen", 5, cDict, 0},
+		Rec:         &recStruct{"gen", 5, cDict, 0, false},
 		ID:          id,
 		DBIndex:     0,
-		ReturnValue: retValue}
+		ReturnValue: retValue,
+		DBExists:    false}
 	generic := make(map[string]interface{})
-	generic["label1"] = &recStruct{"value1", 1, cDict, 0}
+	generic["label1"] = &recStruct{"value1", 1, cDict, 0, false}
 	generic["label2"] = "subnet=10.1.1.0/16"
 	n.Generic = generic
 	return &n
