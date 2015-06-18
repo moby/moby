@@ -165,6 +165,11 @@ func (daemon *Daemon) verifyContainerSettings(hostConfig *runconfig.HostConfig, 
 		logrus.Warnf("Your kernel does not support CPU cfs quota. Quota discarded.")
 		hostConfig.CpuQuota = 0
 	}
+	if hostConfig.BlkioWeight > 0 && !daemon.SystemConfig().BlkioWeight {
+		warnings = append(warnings, "Your kernel does not support Block I/O weight. Weight discarded.")
+		logrus.Warnf("Your kernel does not support Block I/O weight. Weight discarded.")
+		hostConfig.BlkioWeight = 0
+	}
 	if hostConfig.BlkioWeight > 0 && (hostConfig.BlkioWeight < 10 || hostConfig.BlkioWeight > 1000) {
 		return warnings, fmt.Errorf("Range of blkio weight is from 10 to 1000.")
 	}

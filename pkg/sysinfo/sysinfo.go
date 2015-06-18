@@ -6,6 +6,7 @@ type SysInfo struct {
 	AppArmor bool
 	*cgroupMemInfo
 	*cgroupCpuInfo
+	*cgroupBlkioInfo
 	IPv4ForwardingDisabled        bool
 	BridgeNfCallIptablesDisabled  bool
 	BridgeNfCallIp6tablesDisabled bool
@@ -22,4 +23,8 @@ type cgroupCpuInfo struct {
 	CpuShares    bool
 	CpuCfsPeriod bool
 	CpuCfsQuota  bool
+}
+
+type cgroupBlkioInfo struct {
+	BlkioWeight bool
 }
