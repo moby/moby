@@ -92,7 +92,7 @@ write_to_s3() {
 
 s3_url() {
 	case "$BUCKET" in
-		get.docker.com|test.docker.com)
+		get.docker.com|test.docker.com|experimental.docker.com)
 			echo "https://$BUCKET"
 			;;
 		*)
