@@ -743,6 +743,11 @@ func NewDaemon(config *Config, registryService *registry.Service) (daemon *Daemo
 	}
 
 	sysInfo := sysinfo.New(false)
+	// Check if Devices cgroup is mounted, it is hard requirement for container security.
+	if !sysInfo.CgroupDevicesEnabled {
+		return nil, fmt.Errorf("Devices cgroup isn't mounted")
+	}
+
 	ed, err := execdrivers.NewDriver(config.ExecDriver, config.ExecOptions, config.ExecRoot, config.Root, sysInitPath, sysInfo)
 	if err != nil {
 		return nil, err
