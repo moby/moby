@@ -52,10 +52,14 @@ func handleErrorResponse(resp *http.Response) error {
 	if resp.StatusCode == 401 {
 		err := parseHTTPErrorResponse(resp.Body)
 		if uErr, ok := err.(*UnexpectedHTTPResponseError); ok {
-			return &errcode.Error{
-				Code:   v2.ErrorCodeUnauthorized,
-				Detail: uErr.Response,
-			}
+			return v2.ErrorCodeUnauthorized.WithDetail(uErr.Response)
+			/*
+				return &errcode.Error{
+					Code:    v2.ErrorCodeUnauthorized,
+					Message: v2.ErrorCodeUnauthorized.Message(),
+					Detail:  uErr.Response,
+				}
+			*/
 		}
 		return err
 	}

@@ -669,14 +669,14 @@ func TestManifestUnauthorized(t *testing.T) {
 	if err == nil {
 		t.Fatal("Expected error fetching manifest")
 	}
-	v2Err, ok := err.(*errcode.Error)
+	v2Err, ok := err.(errcode.Error)
 	if !ok {
 		t.Fatalf("Unexpected error type: %#v", err)
 	}
 	if v2Err.Code != v2.ErrorCodeUnauthorized {
 		t.Fatalf("Unexpected error code: %s", v2Err.Code.String())
 	}
-	if expected := errcode.ErrorCode(v2.ErrorCodeUnauthorized).Message(); v2Err.Message() != expected {
-		t.Fatalf("Unexpected message value: %s, expected %s", v2Err.Message(), expected)
+	if expected := v2.ErrorCodeUnauthorized.Message(); v2Err.Message != expected {
+		t.Fatalf("Unexpected message value: %q, expected %q", v2Err.Message, expected)
 	}
 }
