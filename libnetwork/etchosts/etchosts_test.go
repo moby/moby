@@ -134,3 +134,82 @@ func TestUpdate(t *testing.T) {
 		t.Fatalf("Expected to find '%s' got '%s'", expected, content)
 	}
 }
+
+func TestAdd(t *testing.T) {
+	file, err := ioutil.TempFile("", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(file.Name())
+
+	err = Build(file.Name(), "", "", "", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := Add(file.Name(), []Record{
+		Record{
+			Hosts: "testhostname",
+			IP:    "2.2.2.2",
+		},
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	content, err := ioutil.ReadFile(file.Name())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if expected := "2.2.2.2\ttesthostname\n"; !bytes.Contains(content, []byte(expected)) {
+		t.Fatalf("Expected to find '%s' got '%s'", expected, content)
+	}
+}
+
+func TestDelete(t *testing.T) {
+	file, err := ioutil.TempFile("", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(file.Name())
+
+	err = Build(file.Name(), "", "", "", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := Add(file.Name(), []Record{
+		Record{
+			Hosts: "testhostname1",
+			IP:    "1.1.1.1",
+		},
+		Record{
+			Hosts: "testhostname2",
+			IP:    "2.2.2.2",
+		},
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := Delete(file.Name(), []Record{
+		Record{
+			Hosts: "testhostname1",
+			IP:    "1.1.1.1",
+		},
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	content, err := ioutil.ReadFile(file.Name())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if expected := "2.2.2.2\ttesthostname2\n"; !bytes.Contains(content, []byte(expected)) {
+		t.Fatalf("Expected to find '%s' got '%s'", expected, content)
+	}
+
+	if expected := "1.1.1.1\ttesthostname1\n"; bytes.Contains(content, []byte(expected)) {
+		t.Fatalf("Did not expect to find '%s' got '%s'", expected, content)
+	}
+}
