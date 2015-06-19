@@ -90,6 +90,7 @@ func TestUploadReadFrom(t *testing.T) {
 						[
 							{
 								"code": "BLOB_UPLOAD_INVALID",
+								"message": "invalid upload identifier",
 								"detail": "more detail"
 							}
 						]
