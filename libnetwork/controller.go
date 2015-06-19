@@ -284,6 +284,7 @@ func (c *controller) addNetwork(n *network) error {
 	}
 
 	n.Lock()
+	n.svcRecords = svcMap{}
 	n.driver = dd.driver
 	d := n.driver
 	n.Unlock()
