@@ -158,9 +158,9 @@ func NewSession(client *http.Client, authConfig *cliconfig.AuthConfig, endpoint 
 		}
 	}
 
-	if endpoint.Version == APIVersion1 {
-		client.Transport = AuthTransport(client.Transport, authConfig, alwaysSetBasicAuth)
-	}
+	// Annotate the transport unconditionally so that v2 can
+	// properly fallback on v1 when an image is not found.
+	client.Transport = AuthTransport(client.Transport, authConfig, alwaysSetBasicAuth)
 
 	jar, err := cookiejar.New(nil)
 	if err != nil {
