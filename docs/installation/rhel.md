@@ -85,11 +85,11 @@ This procedure depicts an installation on version 6.6.  If you are installing on
 
 2. Download the Docker RPM to the current directory.
 		
-		$ curl -O -sSL http://get.docker.com/docker/1.7.0/rpms/centos-6/RPMS/x86_64/docker-engine-1.7.0-0.1.el6.x86_64.rpm
+		$ curl -O -sSL https://get.docker.com/rpm/1.7.0/centos-6/RPMS/x86_64/docker-engine-1.7.0-1.el6.x86_64.rpm
 
 3. Use `yum` to install the package.
 
-		$ sudo yum localinstall --nogpgcheck docker-engine-1.7.0-0.1.el6.x86_64.rpm
+		$ sudo yum localinstall --nogpgcheck docker-engine-1.7.0-1.el6.x86_64.rpm
 
 5. Start the Docker daemon.
 
