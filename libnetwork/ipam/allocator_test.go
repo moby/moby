@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/docker/libnetwork/bitseq"
+	_ "github.com/docker/libnetwork/netutils"
 )
 
 func getAllocator(t *testing.T, subnet *net.IPNet) *Allocator {

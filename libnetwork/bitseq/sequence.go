@@ -4,11 +4,11 @@
 package bitseq
 
 import (
+	"encoding/binary"
 	"fmt"
 	"sync"
 
 	"github.com/docker/libnetwork/datastore"
-	"github.com/docker/libnetwork/netutils"
 )
 
 // Block Sequence constants
@@ -134,14 +134,15 @@ func (s *Sequence) Equal(o *Sequence) bool {
 }
 
 // ToByteArray converts the sequence into a byte array
-// TODO (aboch): manage network/host order stuff
 func (s *Sequence) ToByteArray() ([]byte, error) {
 	var bb []byte
 
 	p := s
 	for p != nil {
-		bb = append(bb, netutils.U32ToA(p.Block)...)
-		bb = append(bb, netutils.U32ToA(p.Count)...)
+		b := make([]byte, 8)
+		binary.BigEndian.PutUint32(b[0:], p.Block)
+		binary.BigEndian.PutUint32(b[4:], p.Count)
+		bb = append(bb, b...)
 		p = p.Next
 	}
 
@@ -149,7 +150,6 @@ func (s *Sequence) ToByteArray() ([]byte, error) {
 }
 
 // FromByteArray construct the sequence from the byte array
-// TODO (aboch): manage network/host order stuff
 func (s *Sequence) FromByteArray(data []byte) error {
 	l := len(data)
 	if l%8 != 0 {
@@ -159,8 +159,8 @@ func (s *Sequence) FromByteArray(data []byte) error {
 	p := s
 	i := 0
 	for {
-		p.Block = netutils.ATo32(data[i : i+4])
-		p.Count = netutils.ATo32(data[i+4 : i+8])
+		p.Block = binary.BigEndian.Uint32(data[i : i+4])
+		p.Count = binary.BigEndian.Uint32(data[i+4 : i+8])
 		i += 8
 		if i == l {
 			break
@@ -229,12 +229,12 @@ func (h *Handle) Destroy() {
 
 // ToByteArray converts this handle's data into a byte array
 func (h *Handle) ToByteArray() ([]byte, error) {
-	ba := make([]byte, 8)
 
 	h.Lock()
 	defer h.Unlock()
-	copy(ba[0:4], netutils.U32ToA(h.bits))
-	copy(ba[4:8], netutils.U32ToA(h.unselected))
+	ba := make([]byte, 8)
+	binary.BigEndian.PutUint32(ba[0:], h.bits)
+	binary.BigEndian.PutUint32(ba[4:], h.unselected)
 	bm, err := h.head.ToByteArray()
 	if err != nil {
 		return nil, fmt.Errorf("failed to serialize head: %s", err.Error())
@@ -258,8 +258,8 @@ func (h *Handle) FromByteArray(ba []byte) error {
 
 	h.Lock()
 	h.head = nh
-	h.bits = netutils.ATo32(ba[0:4])
-	h.unselected = netutils.ATo32(ba[4:8])
+	h.bits = binary.BigEndian.Uint32(ba[0:4])
+	h.unselected = binary.BigEndian.Uint32(ba[4:8])
 	h.Unlock()
 
 	return nil
