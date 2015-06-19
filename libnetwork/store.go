@@ -191,7 +191,10 @@ func (c *controller) watchNetworks() error {
 				lview := c.networks
 				c.Unlock()
 				for k, v := range lview {
-					tmpview[k] = v
+					global, _ := v.isGlobalScoped()
+					if global {
+						tmpview[k] = v
+					}
 				}
 				c.processNetworkUpdate(nws, &tmpview)
 				// Delete processing
@@ -243,7 +246,10 @@ func (n *network) watchEndpoints() error {
 				lview := n.endpoints
 				n.Unlock()
 				for k, v := range lview {
-					tmpview[k] = v
+					global, _ := v.network.isGlobalScoped()
+					if global {
+						tmpview[k] = v
+					}
 				}
 				for _, epe := range eps {
 					var ep endpoint
