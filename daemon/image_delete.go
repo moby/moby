@@ -55,10 +55,7 @@ func (daemon *Daemon) imgDeleteHelper(name string, list *[]types.ImageDelete, fi
 		tag = ""
 	}
 
-	byParents, err := daemon.Graph().ByParent()
-	if err != nil {
-		return err
-	}
+	byParents := daemon.Graph().ByParent()
 
 	repos := daemon.Repositories().ByID()[img.ID]
 
