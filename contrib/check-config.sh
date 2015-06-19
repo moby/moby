@@ -200,6 +200,16 @@ flags=(
 )
 check_flags "${flags[@]}"
 
+check_flags EXT3_FS EXT3_FS_XATTR EXT3_FS_POSIX_ACL EXT3_FS_SECURITY
+if ! is_set EXT3_FS || ! is_set EXT3_FS_XATTR || ! is_set EXT3_FS_POSIX_ACL || ! is_set EXT3_FS_SECURITY; then
+	echo "    $(wrap_color '(enable these ext3 configs if you are using ext3 as backing filesystem)' bold black)"
+fi
+
+check_flags EXT4_FS EXT4_FS_POSIX_ACL EXT4_FS_SECURITY
+if ! is_set EXT4_FS || ! is_set EXT4_FS_POSIX_ACL || ! is_set EXT4_FS_SECURITY; then
+	echo "    $(wrap_color 'enable these ext4 configs if you are using ext4 as backing filesystem' bold black)"
+fi
+
 echo '- Storage Drivers:'
 {
 	echo '- "'$(wrap_color 'aufs' blue)'":'
@@ -207,16 +217,15 @@ echo '- Storage Drivers:'
 	if ! is_set AUFS_FS && grep -q aufs /proc/filesystems; then
 		echo "    $(wrap_color '(note that some kernels include AUFS patches but not the AUFS_FS flag)' bold black)"
 	fi
-	check_flags EXT4_FS_POSIX_ACL EXT4_FS_SECURITY | sed 's/^/  /'
 
 	echo '- "'$(wrap_color 'btrfs' blue)'":'
 	check_flags BTRFS_FS | sed 's/^/  /'
 
 	echo '- "'$(wrap_color 'devicemapper' blue)'":'
-	check_flags BLK_DEV_DM DM_THIN_PROVISIONING EXT4_FS EXT4_FS_POSIX_ACL EXT4_FS_SECURITY | sed 's/^/  /'
+	check_flags BLK_DEV_DM DM_THIN_PROVISIONING | sed 's/^/  /'
 
 	echo '- "'$(wrap_color 'overlay' blue)'":'
-	check_flags OVERLAY_FS EXT4_FS_SECURITY EXT4_FS_POSIX_ACL | sed 's/^/  /'
+	check_flags OVERLAY_FS | sed 's/^/  /'
 
 	echo '- "'$(wrap_color 'zfs' blue)'":'
 	echo "  - $(check_device /dev/zfs)"
