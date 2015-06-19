@@ -211,7 +211,7 @@ func (c *controller) RegisterDriver(networkType string, driver driverapi.Driver,
 		}
 	}
 
-	if capability.Scope == driverapi.GlobalScope {
+	if capability.Scope == driverapi.GlobalScope && c.validateDatastoreConfig() {
 		opt[netlabel.KVProvider] = c.cfg.Datastore.Client.Provider
 		opt[netlabel.KVProviderURL] = c.cfg.Datastore.Client.Address
 	}
