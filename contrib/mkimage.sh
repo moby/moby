@@ -4,7 +4,7 @@ set -e
 mkimg="$(basename "$0")"
 
 usage() {
-	echo >&2 "usage: $mkimg [-d dir] [-t tag] script [script-args]"
+	echo >&2 "usage: $mkimg [-d dir] [-t tag] [-c compression] script [script-args]"
 	echo >&2 "   ie: $mkimg -t someuser/debian debootstrap --variant=minbase jessie"
 	echo >&2 "       $mkimg -t someuser/ubuntu debootstrap --include=ubuntu-minimal --components=main,universe trusty"
 	echo >&2 "       $mkimg -t someuser/busybox busybox-static"
@@ -16,16 +16,19 @@ usage() {
 
 scriptDir="$(dirname "$(readlink -f "$BASH_SOURCE")")/mkimage"
 
-optTemp=$(getopt --options '+d:t:h' --longoptions 'dir:,tag:,help' --name "$mkimg" -- "$@")
+optTemp=$(getopt --options '+d:t:c:hC' --longoptions 'dir:,tag:,compression:,no-compression,help' --name "$mkimg" -- "$@")
 eval set -- "$optTemp"
 unset optTemp
 
 dir=
 tag=
+compression="auto"
 while true; do
 	case "$1" in
 		-d|--dir) dir="$2" ; shift 2 ;;
 		-t|--tag) tag="$2" ; shift 2 ;;
+		-c|--compression) compression="$2" ; shift 2 ;;
+		-C|--no-compression) compression="none" ; shift 1 ;;
 		-h|--help) usage ;;
 		--) shift ; break ;;
 	esac
@@ -34,6 +37,18 @@ done
 script="$1"
 [ "$script" ] || usage
 shift
+
+if [ "$compression" == "auto" ] || [ -z "$compression" ]
+then
+	compression="xz"
+fi
+
+if [ "$compression" == "none" ]
+then
+	compression=""
+else
+	compression=".${compression}"
+fi
 
 if [ ! -x "$scriptDir/$script" ]; then
 	echo >&2 "error: $script does not exist or is not executable"
@@ -71,18 +86,18 @@ nameserver 8.8.8.8
 nameserver 8.8.4.4
 EOF
 
-tarFile="$dir/rootfs.tar"
+tarFile="$dir/rootfs.tar${compression}"
 touch "$tarFile"
 
 (
 	set -x
-	tar --numeric-owner -cf "$tarFile" -C "$rootfsDir" --transform='s,^./,,' .
+	tar --numeric-owner --create --auto-compress --file "$tarFile" --directory "$rootfsDir" --transform='s,^./,,' .
 )
 
 echo >&2 "+ cat > '$dir/Dockerfile'"
-cat > "$dir/Dockerfile" <<'EOF'
+cat > "$dir/Dockerfile" <<EOF
 FROM scratch
-ADD rootfs.tar /
+ADD $tarFile /
 EOF
 
 # if our generated image has a decent shell, let's set a default command
