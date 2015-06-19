@@ -86,12 +86,14 @@ func TestUploadReadFrom(t *testing.T) {
 			Response: testutil.Response{
 				StatusCode: http.StatusBadRequest,
 				Body: []byte(`
-					[
-						{
-							"code": "BLOB_UPLOAD_INVALID",
-							"detail": "more detail"
-						}
-					] `),
+					{ "errors":
+						[
+							{
+								"code": "BLOB_UPLOAD_INVALID",
+								"detail": "more detail"
+							}
+						]
+					} `),
 			},
 		},
 		// Test 400 invalid json
