@@ -23,17 +23,21 @@ func (cli *DockerCli) CmdVersion(args ...string) error {
 
 	cmd.ParseFlags(args, true)
 
+	fmt.Println("Client:")
 	if dockerversion.VERSION != "" {
-		fmt.Fprintf(cli.out, "Client version: %s\n", dockerversion.VERSION)
+		fmt.Fprintf(cli.out, " Version:      %s\n", dockerversion.VERSION)
 	}
-	fmt.Fprintf(cli.out, "Client API version: %s\n", api.Version)
-	fmt.Fprintf(cli.out, "Go version (client): %s\n", runtime.Version())
+	fmt.Fprintf(cli.out, " API version:  %s\n", api.Version)
+	fmt.Fprintf(cli.out, " Go version:   %s\n", runtime.Version())
 	if dockerversion.GITCOMMIT != "" {
-		fmt.Fprintf(cli.out, "Git commit (client): %s\n", dockerversion.GITCOMMIT)
+		fmt.Fprintf(cli.out, " Git commit:   %s\n", dockerversion.GITCOMMIT)
 	}
-	fmt.Fprintf(cli.out, "OS/Arch (client): %s/%s\n", runtime.GOOS, runtime.GOARCH)
+	if dockerversion.BUILDTIME != "" {
+		fmt.Fprintf(cli.out, " Built:        %s\n", dockerversion.BUILDTIME)
+	}
+	fmt.Fprintf(cli.out, " OS/Arch:      %s/%s\n", runtime.GOOS, runtime.GOARCH)
 	if utils.ExperimentalBuild() {
-		fmt.Fprintf(cli.out, "Experimental (client): true\n")
+		fmt.Fprintf(cli.out, " Experimental: true\n")
 	}
 
 	stream, _, _, err := cli.call("GET", "/version", nil, nil)
@@ -47,15 +51,20 @@ func (cli *DockerCli) CmdVersion(args ...string) error {
 		return err
 	}
 
-	fmt.Fprintf(cli.out, "Server version: %s\n", v.Version)
+	fmt.Println("\nServer:")
+	fmt.Fprintf(cli.out, " Version:      %s\n", v.Version)
 	if v.ApiVersion != "" {
-		fmt.Fprintf(cli.out, "Server API version: %s\n", v.ApiVersion)
+		fmt.Fprintf(cli.out, " API version:  %s\n", v.ApiVersion)
 	}
-	fmt.Fprintf(cli.out, "Go version (server): %s\n", v.GoVersion)
-	fmt.Fprintf(cli.out, "Git commit (server): %s\n", v.GitCommit)
-	fmt.Fprintf(cli.out, "OS/Arch (server): %s/%s\n", v.Os, v.Arch)
+	fmt.Fprintf(cli.out, " Go version:   %s\n", v.GoVersion)
+	fmt.Fprintf(cli.out, " Git commit:   %s\n", v.GitCommit)
+	if len(v.BuildTime) > 0 {
+		fmt.Fprintf(cli.out, " Built:        %s\n", v.BuildTime)
+	}
+	fmt.Fprintf(cli.out, " OS/Arch:      %s/%s\n", v.Os, v.Arch)
 	if v.Experimental {
-		fmt.Fprintf(cli.out, "Experimental (server): true\n")
+		fmt.Fprintf(cli.out, " Experimental: true\n")
 	}
+	fmt.Fprintf(cli.out, "\n")
 	return nil
 }
