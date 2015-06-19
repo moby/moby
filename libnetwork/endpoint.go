@@ -350,7 +350,7 @@ func (ep *endpoint) Join(containerID string, options ...EndpointOption) error {
 	defer func() {
 		ep.joinLeaveEnd()
 		if err != nil {
-			if e := ep.Leave(containerID, options...); e != nil {
+			if e := ep.Leave(containerID); e != nil {
 				log.Warnf("couldnt leave endpoint : %v", ep.name, err)
 			}
 		}
