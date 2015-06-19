@@ -876,10 +876,7 @@ func (daemon *Daemon) ContainerGraph() *graphdb.Database {
 
 func (daemon *Daemon) ImageGetCached(imgID string, config *runconfig.Config) (*image.Image, error) {
 	// Retrieve all images
-	images, err := daemon.Graph().Map()
-	if err != nil {
-		return nil, err
-	}
+	images := daemon.Graph().Map()
 
 	// Store the tree in a map of map (map[parentId][childId])
 	imageMap := make(map[string]map[string]struct{})

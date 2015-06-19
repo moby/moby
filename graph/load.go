@@ -31,10 +31,7 @@ func (s *TagStore) Load(inTar io.ReadCloser, outStream io.Writer) error {
 	if err := os.Mkdir(repoDir, os.ModeDir); err != nil {
 		return err
 	}
-	images, err := s.graph.Map()
-	if err != nil {
-		return err
-	}
+	images := s.graph.Map()
 	excludes := make([]string, len(images))
 	i := 0
 	for k := range images {

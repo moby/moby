@@ -17,7 +17,7 @@ import (
 )
 
 func (daemon *Daemon) SystemInfo() (*types.Info, error) {
-	images, _ := daemon.Graph().Map()
+	images := daemon.Graph().Map()
 	var imgcount int
 	if images == nil {
 		imgcount = 0
