@@ -70,3 +70,6 @@ build: bundles
 
 bundles:
 	mkdir bundles
+
+docs:
+	$(MAKE) -C docs docs
