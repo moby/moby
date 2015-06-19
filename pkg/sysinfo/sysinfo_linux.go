@@ -38,7 +38,7 @@ func checkCgroupMem(quiet bool) *cgroupMemInfo {
 		if !quiet {
 			logrus.Warnf("Your kernel does not support cgroup memory limit: %v", err)
 		}
-		return nil
+		return info
 	}
 	info.MemoryLimit = true
 
@@ -61,7 +61,7 @@ func checkCgroupCpu(quiet bool) *cgroupCpuInfo {
 		if !quiet {
 			logrus.Warn(err)
 		}
-		return nil
+		return info
 	}
 
 	info.CpuCfsPeriod = cgroupEnabled(mountPoint, "cpu.cfs_period_us")
