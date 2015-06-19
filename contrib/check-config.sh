@@ -113,7 +113,7 @@ check_device() {
 }
 
 if [ ! -e "$CONFIG" ]; then
-	wrap_warning "warning: $CONFIG does not exist, searching other paths for kernel config..."
+	wrap_warning "warning: $CONFIG does not exist, searching other paths for kernel config ..."
 	for tryConfig in "${possibleConfigs[@]}"; do
 		if [ -e "$tryConfig" ]; then
 			CONFIG="$tryConfig"
@@ -167,7 +167,7 @@ fi
 flags=(
 	NAMESPACES {NET,PID,IPC,UTS}_NS
 	DEVPTS_MULTIPLE_INSTANCES
-	CGROUPS CGROUP_CPUACCT CGROUP_DEVICE CGROUP_FREEZER CGROUP_SCHED CPUSETS
+	CGROUPS CGROUP_CPUACCT CGROUP_DEVICE CGROUP_FREEZER CGROUP_SCHED CPUSETS MEMCG
 	MACVLAN VETH BRIDGE BRIDGE_NETFILTER
 	NF_NAT_IPV4 IP_NF_FILTER IP_NF_TARGET_MASQUERADE
 	NETFILTER_XT_MATCH_{ADDRTYPE,CONNTRACK}
@@ -181,8 +181,7 @@ echo
 
 echo 'Optional Features:'
 {
-	check_flags MEMCG_SWAP 
-	check_flags MEMCG_SWAP_ENABLED
+	check_flags MEMCG_KMEM MEMCG_SWAP MEMCG_SWAP_ENABLED
 	if  is_set MEMCG_SWAP && ! is_set MEMCG_SWAP_ENABLED; then
 		echo "    $(wrap_color '(note that cgroup swap accounting is not enabled in your kernel config, you can enable it by setting boot option "swapaccount=1")' bold black)"
 	fi
@@ -193,10 +192,11 @@ if [ "$kernelMajor" -lt 3 ] || [ "$kernelMajor" -eq 3 -a "$kernelMinor" -le 18 ]
 fi
 
 flags=(
-	BLK_CGROUP
-	IOSCHED_CFQ
+	BLK_CGROUP IOSCHED_CFQ
 	CGROUP_PERF
-	CFS_BANDWIDTH
+	CGROUP_HUGETLB
+	NET_CLS_CGROUP NETPRIO_CGROUP
+	CFS_BANDWIDTH FAIR_GROUP_SCHED RT_GROUP_SCHED
 )
 check_flags "${flags[@]}"
 
