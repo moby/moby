@@ -763,20 +763,20 @@ func (container *Container) AllocateNetwork() error {
 		return nil
 	}
 
-	networkName := mode.NetworkName()
-	if mode.IsDefault() {
-		networkName = controller.Config().Daemon.DefaultNetwork
-	}
-
-	var err error
-
-	n, err := controller.NetworkByName(networkName)
+	n, err := controller.NetworkByName(string(mode))
 	if err != nil {
-		if !mode.IsDefault() {
-			return fmt.Errorf("error locating network with name %s: %v", networkName, err)
+		networkName := mode.NetworkName()
+		if mode.IsDefault() {
+			networkName = controller.Config().Daemon.DefaultNetwork
 		}
-		if n, err = createDefaultNetwork(controller); err != nil {
-			return err
+		n, err = controller.NetworkByName(networkName)
+		if err != nil {
+			if !mode.IsDefault() {
+				return fmt.Errorf("error locating network with name %s: %v", networkName, err)
+			}
+			if n, err = createDefaultNetwork(controller); err != nil {
+				return err
+			}
 		}
 	}
 
