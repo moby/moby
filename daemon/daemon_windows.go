@@ -12,8 +12,6 @@ import (
 	"github.com/docker/libnetwork"
 )
 
-var runDir = os.Getenv("TEMP")
-
 func (daemon *Daemon) Changes(container *Container) ([]archive.Change, error) {
 	return daemon.driver.Changes(container.ID, container.ImageID)
 }
