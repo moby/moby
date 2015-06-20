@@ -87,6 +87,9 @@ type NetworkController interface {
 	// NetworkByID returns the Network which has the passed id. If not found, the error ErrNoSuchNetwork is returned.
 	NetworkByID(id string) (Network, error)
 
+	// LeaveAll accepts a container id and attempts to leave all endpoints that the container has joined
+	LeaveAll(id string) error
+
 	// GC triggers immediate garbage collection of resources which are garbage collected.
 	GC()
 }

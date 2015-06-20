@@ -1009,6 +1009,8 @@ func TestEndpointJoin(t *testing.T) {
 		t.Fatalf("Expected an empty sandbox key for an empty endpoint. Instead found a non-empty sandbox key: %s", info.SandboxKey())
 	}
 
+	defer controller.LeaveAll(containerID)
+
 	err = ep1.Join(containerID,
 		libnetwork.JoinOptionHostname("test"),
 		libnetwork.JoinOptionDomainname("docker.io"),
@@ -1017,7 +1019,6 @@ func TestEndpointJoin(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-
 	defer func() {
 		err = ep1.Leave(containerID)
 		runtime.LockOSThread()
@@ -1072,19 +1073,21 @@ func TestEndpointJoin(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	if ep1.ContainerInfo().ID() != ep2.ContainerInfo().ID() {
-		t.Fatalf("ep1 and ep2 returned different container info")
-	}
-
+	runtime.LockOSThread()
 	defer func() {
 		err = ep2.Leave(containerID)
+		runtime.LockOSThread()
 		if err != nil {
 			t.Fatal(err)
 		}
 	}()
 
+	if ep1.ContainerInfo().ID() != ep2.ContainerInfo().ID() {
+		t.Fatalf("ep1 and ep2 returned different container info")
+	}
+
 	checkSandbox(t, info)
+
 }
 
 func TestEndpointJoinInvalidContainerId(t *testing.T) {
@@ -1151,6 +1154,14 @@ func TestEndpointDeleteWithActiveContainer(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer func() {
+		err = ep.Delete()
+		if err != nil {
+			t.Fatal(err)
+		}
+	}()
+
+	defer controller.LeaveAll(containerID)
 
 	err = ep.Join(containerID,
 		libnetwork.JoinOptionHostname("test"),
@@ -1163,11 +1174,6 @@ func TestEndpointDeleteWithActiveContainer(t *testing.T) {
 	defer func() {
 		err = ep.Leave(containerID)
 		runtime.LockOSThread()
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		err = ep.Delete()
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -1213,6 +1219,8 @@ func TestEndpointMultipleJoins(t *testing.T) {
 		}
 	}()
 
+	defer controller.LeaveAll(containerID)
+
 	err = ep.Join(containerID,
 		libnetwork.JoinOptionHostname("test"),
 		libnetwork.JoinOptionDomainname("docker.io"),
@@ -1237,6 +1245,71 @@ func TestEndpointMultipleJoins(t *testing.T) {
 	if _, ok := err.(libnetwork.ErrInvalidJoin); !ok {
 		t.Fatalf("Failed for unexpected reason: %v", err)
 	}
+}
+
+func TestLeaveAll(t *testing.T) {
+	if !netutils.IsRunningInContainer() {
+		defer netutils.SetupTestNetNS(t)()
+	}
+
+	n, err := createTestNetwork(bridgeNetType, "testnetwork", options.Generic{
+		netlabel.GenericData: options.Generic{
+			"BridgeName":            "testnetwork",
+			"AllowNonDefaultBridge": true,
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if err := n.Delete(); err != nil {
+			t.Fatal(err)
+		}
+	}()
+
+	ep1, err := n.CreateEndpoint("ep1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if err := ep1.Delete(); err != nil {
+			t.Fatal(err)
+		}
+	}()
+
+	ep2, err := n.CreateEndpoint("ep2")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if err := ep2.Delete(); err != nil {
+			t.Fatal(err)
+		}
+	}()
+
+	err = ep1.Join("leaveall")
+	if err != nil {
+		t.Fatalf("Failed to join ep1: %v", err)
+	}
+	runtime.LockOSThread()
+
+	err = ep2.Join("leaveall")
+	if err != nil {
+		t.Fatalf("Failed to join ep2: %v", err)
+	}
+	runtime.LockOSThread()
+
+	err = ep1.Leave("leaveall")
+	if err != nil {
+		t.Fatalf("Failed to leave ep1: %v", err)
+	}
+	runtime.LockOSThread()
+
+	err = controller.LeaveAll("leaveall")
+	if err != nil {
+		t.Fatal(err)
+	}
+	runtime.LockOSThread()
 }
 
 func TestEndpointInvalidLeave(t *testing.T) {
@@ -1280,6 +1353,8 @@ func TestEndpointInvalidLeave(t *testing.T) {
 		}
 	}
 
+	defer controller.LeaveAll(containerID)
+
 	err = ep.Join(containerID,
 		libnetwork.JoinOptionHostname("test"),
 		libnetwork.JoinOptionDomainname("docker.io"),
@@ -1313,7 +1388,6 @@ func TestEndpointInvalidLeave(t *testing.T) {
 	if _, ok := err.(libnetwork.InvalidContainerIDError); !ok {
 		t.Fatalf("Failed for unexpected reason: %v", err)
 	}
-
 }
 
 func TestEndpointUpdateParent(t *testing.T) {
@@ -1346,6 +1420,7 @@ func TestEndpointUpdateParent(t *testing.T) {
 		}
 	}()
 
+	defer controller.LeaveAll(containerID)
 	err = ep1.Join(containerID,
 		libnetwork.JoinOptionHostname("test1"),
 		libnetwork.JoinOptionDomainname("docker.io"),
@@ -1372,6 +1447,7 @@ func TestEndpointUpdateParent(t *testing.T) {
 		}
 	}()
 
+	defer controller.LeaveAll("container2")
 	err = ep2.Join("container2",
 		libnetwork.JoinOptionHostname("test2"),
 		libnetwork.JoinOptionDomainname("docker.io"),
@@ -1382,13 +1458,11 @@ func TestEndpointUpdateParent(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	defer func() {
-		err = ep2.Leave("container2")
-		runtime.LockOSThread()
-		if err != nil {
-			t.Fatal(err)
-		}
-	}()
+	err = ep2.Leave("container2")
+	runtime.LockOSThread()
+	if err != nil {
+		t.Fatal(err)
+	}
 
 }
 
@@ -1452,6 +1526,7 @@ func TestEnableIPv6(t *testing.T) {
 	resolvConfPath := "/tmp/libnetwork_test/resolv.conf"
 	defer os.Remove(resolvConfPath)
 
+	defer controller.LeaveAll(containerID)
 	err = ep1.Join(containerID,
 		libnetwork.JoinOptionResolvConfPath(resolvConfPath))
 	runtime.LockOSThread()
@@ -1536,6 +1611,7 @@ func TestResolvConf(t *testing.T) {
 	resolvConfPath := "/tmp/libnetwork_test/resolv.conf"
 	defer os.Remove(resolvConfPath)
 
+	defer controller.LeaveAll(containerID)
 	err = ep1.Join(containerID,
 		libnetwork.JoinOptionResolvConfPath(resolvConfPath))
 	runtime.LockOSThread()

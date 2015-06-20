@@ -349,11 +349,6 @@ func (ep *endpoint) Join(containerID string, options ...EndpointOption) error {
 	ep.joinLeaveStart()
 	defer func() {
 		ep.joinLeaveEnd()
-		if err != nil {
-			if e := ep.Leave(containerID); e != nil {
-				log.Warnf("couldnt leave endpoint : %v", ep.name, err)
-			}
-		}
 	}()
 
 	ep.Lock()
@@ -403,6 +398,13 @@ func (ep *endpoint) Join(containerID string, options ...EndpointOption) error {
 	if err != nil {
 		return err
 	}
+	defer func() {
+		if err != nil {
+			if err = driver.Leave(nid, epid); err != nil {
+				log.Warnf("driver leave failed while rolling back join: %v", err)
+			}
+		}
+	}()
 
 	err = ep.buildHostsFiles()
 	if err != nil {
@@ -421,7 +423,7 @@ func (ep *endpoint) Join(containerID string, options ...EndpointOption) error {
 
 	sb, err := ctrlr.sandboxAdd(sboxKey, !container.config.useDefaultSandBox, ep)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed sandbox add: %v", err)
 	}
 	defer func() {
 		if err != nil {
