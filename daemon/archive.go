@@ -2,9 +2,11 @@ package daemon
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/pkg/archive"
@@ -120,6 +122,14 @@ func (container *Container) StatPath(path string) (stat *types.ContainerPathStat
 		Mode:  lstat.Mode(),
 		Mtime: lstat.ModTime(),
 	}, nil
+}
+
+// ContainerGlobMatches finds all filesystem paths in the specified container
+// which match the given glob pattern.
+func (daemon *Daemon) ContainerGlobMatches(name, globPattern string) (matches []string, err error) {
+	container, err := daemon.Get(name)
+
+	return container.GlobMatches(globPattern)
 }
 
 // ArchivePath creates an archive of the filesystem resource at the specified
@@ -294,4 +304,86 @@ func (container *Container) ExtractToDir(path string, noOverwriteDirNonDir bool,
 	container.LogEvent("extract-to-dir")
 
 	return nil
+}
+
+// GlobMatches finds all filesystem paths in this container which match the
+// given glob pattern.
+func (container *Container) GlobMatches(globPattern string) (matches []string, err error) {
+	container.Lock()
+	defer container.Unlock()
+
+	if err = container.Mount(); err != nil {
+		return nil, err
+	}
+	defer container.Unmount()
+
+	err = container.mountVolumes()
+	defer container.UnmountVolumes(true)
+	if err != nil {
+		return nil, err
+	}
+
+	// Consider the given glob pattern as an absolute path in the container.
+	containerRoot, err := container.GetResourcePath("")
+
+	if !filepath.IsAbs(globPattern) {
+		// Make the glob pattern an absolute path.
+		globPattern = fmt.Sprintf("%c%s", filepath.Separator, globPattern)
+	}
+
+	// Clean the glob pattern, eliminating ".." elements that begin at the
+	// rooted path. filepath.Clean will also trim trailing "." or separators
+	// meaning it it won't match a trailing '.' or separator. This will need to
+	// be added back and checked later.
+	cleanedGlobPattern := filepath.Clean(globPattern)
+
+	absMatches, err := filepath.Glob(filepath.Join(containerRoot, cleanedGlobPattern))
+	if err != nil {
+		return nil, err
+	}
+
+	// Get the matches relative to the root of the container FS.
+	relMatches := make([]string, 0, len(absMatches))
+	for _, match := range absMatches {
+		// Add the cleaned off parts back to the match because `filepath.Glob`
+		// doesn't check for `.` dir entries and always cleans results.
+		match = archive.PreserveTrailingDotOrSeparator(match, globPattern)
+
+		// With the cleaned off parts added back, the match might not exist
+		// anymore. For example, if glob pattern was "/etc/*/." then everything
+		// matching "/etc/*" would be given but we only want directories in
+		// "/etc" followed by a ".". Stat the match to be sure.
+		stat, err := os.Lstat(match)
+		if err != nil {
+			continue // The un-cleaned pattern didn't match.
+		}
+
+		// While stat-ing a symlink with a trailing separator always resolves
+		// the symlink, shell globs should not match them unless they actually
+		// resolve to a directory.
+		if archive.HasTrailingPathSeparator(match) && !stat.IsDir() {
+			continue // The match is a resolved symlink to a non-directory.
+		}
+
+		rel, err := filepath.Rel(containerRoot, match)
+		if err != nil {
+			continue // Unable to make it relative for some reason.
+		}
+
+		if strings.HasPrefix(rel, "..") {
+			// Ignore attempts to match paths that are outside the container.
+			continue
+		}
+
+		// Make the relative path absolute (from container root).
+		if rel == "." {
+			rel = string(filepath.Separator) // It is the root directory.
+		} else {
+			rel = fmt.Sprintf("%c%s", filepath.Separator, rel)
+		}
+
+		relMatches = append(relMatches, archive.PreserveTrailingDotOrSeparator(rel, match))
+	}
+
+	return relMatches, nil
 }

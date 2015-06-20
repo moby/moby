@@ -34,8 +34,8 @@ func (s *DockerSuite) TestCpFromErrSrcNotExists(c *check.C) {
 		c.Fatal("expected IsNotExist error, but got nil instead")
 	}
 
-	if !isCpNotExist(err) {
-		c.Fatalf("expected IsNotExist error, but got %T: %s", err, err)
+	if !isCpNoMatches(err) {
+		c.Fatalf("expected cpNoMatches error, but got %T: %s", err, err)
 	}
 }
 
@@ -53,8 +53,8 @@ func (s *DockerSuite) TestCpFromErrSrcNotDir(c *check.C) {
 		c.Fatal("expected IsNotDir error, but got nil instead")
 	}
 
-	if !isCpNotDir(err) {
-		c.Fatalf("expected IsNotDir error, but got %T: %s", err, err)
+	if !isCpNoMatches(err) {
+		c.Fatalf("expected cpNoMatches error, but got %T: %s", err, err)
 	}
 }
 

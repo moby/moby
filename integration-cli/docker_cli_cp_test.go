@@ -30,7 +30,7 @@ func (s *DockerSuite) TestCpLocalOnly(c *check.C) {
 		c.Fatal("expected failure, got success")
 	}
 
-	if !strings.Contains(err.Error(), "must specify at least one container source") {
+	if !strings.Contains(err.Error(), "must specify a container in source or destination") {
 		c.Fatalf("unexpected output: %s", err.Error())
 	}
 }

@@ -24,6 +24,19 @@ const (
 	acrossContainers = fromContainer | toContainer
 )
 
+type cpArg struct {
+	container string
+	path      string
+}
+
+func (a cpArg) String() string {
+	if a.container == "" {
+		return a.path
+	}
+
+	return fmt.Sprintf("%s:%s", a.container, a.path)
+}
+
 // CmdCp copies files/folders to or from a path in a container.
 //
 // When copying from a container, if LOCALPATH is '-' the data is written as a
@@ -36,10 +49,17 @@ const (
 // Usage:
 // 	docker cp CONTAINER:PATH LOCALPATH|-
 // 	docker cp LOCALPATH|- CONTAINER:PATH
+// 	docker cp CONTAINER:PATH ... LOCALDIR
+// 	docker cp LOCALPATH ... CONTAINER:DIR
 func (cli *DockerCli) CmdCp(args ...string) error {
 	cmd := cli.Subcmd(
 		"cp",
-		[]string{"CONTAINER:PATH LOCALPATH|-", "LOCALPATH|- CONTAINER:PATH"},
+		[]string{
+			"CONTAINER:PATH LOCALPATH|-",
+			"LOCALPATH|- CONTAINER:PATH",
+			"CONTAINER:PATH ... LOCALDIR",
+			"LOCALPATH ... CONTAINER:DIR",
+		},
 		strings.Join([]string{
 			"Copy files/folders between a container and your host.\n",
 			"Use '-' as the source to read a tar archive from stdin\n",
@@ -50,39 +70,94 @@ func (cli *DockerCli) CmdCp(args ...string) error {
 		true,
 	)
 
-	cmd.Require(flag.Exact, 2)
+	cmd.Require(flag.Min, 2)
 	cmd.ParseFlags(args, true)
 
-	if cmd.Arg(0) == "" {
-		return fmt.Errorf("source can not be empty")
+	// Handle multiple arguments.
+	srcArgs := cmd.Args()[:cmd.NArg()-1]
+	dstArg := cmd.Arg(cmd.NArg() - 1)
+
+	// Ensure that none of the arguments are empty
+	for _, srcArg := range srcArgs {
+		if srcArg == "" {
+			return fmt.Errorf("source can not be empty")
+		}
 	}
-	if cmd.Arg(1) == "" {
+	if dstArg == "" {
 		return fmt.Errorf("destination can not be empty")
 	}
 
-	srcContainer, srcPath := splitCpArg(cmd.Arg(0))
-	dstContainer, dstPath := splitCpArg(cmd.Arg(1))
+	cpDestination := splitCpArg(dstArg)
 
-	var direction copyDirection
-	if srcContainer != "" {
-		direction |= fromContainer
-	}
-	if dstContainer != "" {
-		direction |= toContainer
+	var (
+		err         error
+		errOccurred bool
+	)
+
+	// Prepare source arguments.
+	cpSourceArgs := make([]cpArg, 0, 2*len(srcArgs))
+	for _, srcArg := range srcArgs {
+		cpSource := splitCpArg(srcArg)
+
+		if cpSource.container == "" {
+			cpSourceArgs = append(cpSourceArgs, cpSource)
+			continue // Skip to next source.
+		}
+
+		// Expand container paths as shell globs.
+		var matches []string
+		matches, err = cli.matchContainerGlob(cpSource.container, cpSource.path)
+		if err != nil {
+			fmt.Fprintf(cli.Out(), "unable to get matching files for %q: %v\n", cpSource, err)
+			errOccurred = true
+			continue
+		}
+
+		if len(matches) == 0 {
+			fmt.Fprintf(cli.Out(), "unable to match any container files: %s\n", cpSource)
+			errOccurred = true
+		}
+
+		for _, match := range matches {
+			cpSourceArgs = append(cpSourceArgs, cpArg{cpSource.container, match})
+		}
 	}
 
-	switch direction {
-	case fromContainer:
-		return cli.copyFromContainer(srcContainer, srcPath, dstPath)
-	case toContainer:
-		return cli.copyToContainer(srcPath, dstContainer, dstPath)
-	case acrossContainers:
-		// Copying between containers isn't supported.
-		return fmt.Errorf("copying between containers is not supported")
-	default:
-		// User didn't specify any container.
-		return fmt.Errorf("must specify at least one container source")
+	// Attempt to copy all args and error out only at the end.
+	dstMustBeDir := len(cpSourceArgs) > 1
+	for _, cpSource := range cpSourceArgs {
+		var direction copyDirection
+		if cpSource.container != "" {
+			direction |= fromContainer
+		}
+		if cpDestination.container != "" {
+			direction |= toContainer
+		}
+
+		switch direction {
+		case fromContainer:
+			err = cli.copyFromContainer(cpSource.container, cpSource.path, cpDestination.path, dstMustBeDir)
+		case toContainer:
+			err = cli.copyToContainer(cpSource.path, cpDestination.container, cpDestination.path, dstMustBeDir)
+		case acrossContainers:
+			// Copying between containers isn't supported.
+			err = fmt.Errorf("copying between containers is not supported")
+		default:
+			// User didn't specify any container.
+			err = fmt.Errorf("must specify a container in source or destination")
+		}
+
+		if err != nil {
+			errOccurred = true
+			fmt.Fprintf(cli.Out(), "cannot copy %q to %q: %v\n", cpSource, cpDestination, err)
+		}
 	}
+
+	if errOccurred {
+		return fmt.Errorf("unable to perform one or more copy operations")
+	}
+
+	return nil
 }
 
 // We use `:` as a delimiter between CONTAINER and PATH, but `:` could also be
@@ -99,10 +174,10 @@ func (cli *DockerCli) CmdCp(args ...string) error {
 // so we have to check for a `/` or `.` prefix. Also, in the case of a Windows
 // client, a `:` could be part of an absolute Windows path, in which case it
 // is immediately proceeded by a backslash.
-func splitCpArg(arg string) (container, path string) {
+func splitCpArg(arg string) cpArg {
 	if filepath.IsAbs(arg) {
 		// Explicit local absolute path, e.g., `C:\foo` or `/foo`.
-		return "", arg
+		return cpArg{path: arg}
 	}
 
 	parts := strings.SplitN(arg, ":", 2)
@@ -110,10 +185,36 @@ func splitCpArg(arg string) (container, path string) {
 	if len(parts) == 1 || strings.HasPrefix(parts[0], ".") {
 		// Either there's no `:` in the arg
 		// OR it's an explicit local relative path like `./file:name.txt`.
-		return "", arg
+		return cpArg{path: arg}
 	}
 
-	return parts[0], parts[1]
+	return cpArg{
+		container: parts[0],
+		path:      parts[1],
+	}
+}
+
+func (cli *DockerCli) matchContainerGlob(container, pattern string) (matches []string, err error) {
+	query := make(url.Values, 1)
+	query.Set("pattern", filepath.ToSlash(pattern))
+
+	urlStr := fmt.Sprintf("/containers/%s/glob-matches?%s", container, query.Encode())
+	response, err := cli.call("GET", urlStr, nil, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer response.body.Close()
+
+	if response.statusCode != http.StatusOK {
+		return nil, fmt.Errorf("unexpected status code from daemon: %d", response.statusCode)
+	}
+
+	var matchResponse types.ContainerGlobMatchesResponse
+	if err = json.NewDecoder(response.body).Decode(&matchResponse); err != nil {
+		return nil, fmt.Errorf("unable to decode container glob pattern matches: %v", err)
+	}
+
+	return matchResponse.Matches, nil
 }
 
 func (cli *DockerCli) statContainerPath(containerName, path string) (types.ContainerPathStat, error) {
@@ -159,7 +260,20 @@ func resolveLocalPath(localPath string) (absPath string, err error) {
 	return archive.PreserveTrailingDotOrSeparator(absPath, localPath), nil
 }
 
-func (cli *DockerCli) copyFromContainer(srcContainer, srcPath, dstPath string) (err error) {
+func (cli *DockerCli) copyFromContainer(srcContainer, srcPath, dstPath string, dstMustBeDir bool) (err error) {
+	if dstMustBeDir {
+		if dstPath == "-" {
+			return fmt.Errorf("cannot copy to stdout with multiple sources")
+		}
+		stat, err := os.Lstat(dstPath)
+		if err != nil {
+			return fmt.Errorf("unable to stat destination: %s", err)
+		}
+		if !stat.IsDir() {
+			return fmt.Errorf("destination must be a directory when there are multiple sources")
+		}
+	}
+
 	if dstPath != "-" {
 		// Get an absolute destination path.
 		dstPath, err = resolveLocalPath(dstPath)
@@ -214,7 +328,7 @@ func (cli *DockerCli) copyFromContainer(srcContainer, srcPath, dstPath string) (
 	return archive.CopyTo(response.body, srcInfo, dstPath)
 }
 
-func (cli *DockerCli) copyToContainer(srcPath, dstContainer, dstPath string) (err error) {
+func (cli *DockerCli) copyToContainer(srcPath, dstContainer, dstPath string, dstMustBeDir bool) (err error) {
 	if srcPath != "-" {
 		// Get an absolute source path.
 		srcPath, err = resolveLocalPath(srcPath)
@@ -239,6 +353,10 @@ func (cli *DockerCli) copyToContainer(srcPath, dstContainer, dstPath string) (er
 	// succeed.
 	if err == nil {
 		dstInfo.Exists, dstInfo.IsDir = true, dstStat.Mode.IsDir()
+	}
+
+	if dstMustBeDir && !dstInfo.IsDir {
+		return fmt.Errorf("container destination must be an existing directory")
 	}
 
 	var content io.Reader
