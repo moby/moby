@@ -3,9 +3,11 @@
 package graph
 
 import (
+	"compress/gzip"
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/graphdriver/windows"
@@ -115,7 +117,29 @@ func (graph *Graph) storeImage(img *image.Image, layerData archive.ArchiveReader
 
 		// Store the layer. If layerData is not nil, unpack it into the new layer
 		if layerData != nil {
-			if img.Size, err = graph.driver.ApplyDiff(img.ID, img.Parent, layerData); err != nil {
+			// this is saving the tar-split metadata
+			mf, err := os.OpenFile(filepath.Join(root, "tar-data.json.gz"), os.O_CREATE|os.O_WRONLY|os.O_TRUNC, os.FileMode(0600))
+			if err != nil {
+				return err
+			}
+			defer mf.Close()
+			mfz := gzip.NewWriter(mf)
+			defer mfz.Close()
+			metaPacker := storage.NewJSONPacker(mf)
+
+			inflatedLayerData, err := archive.DecompressStream(layerData)
+			if err != nil {
+				return err
+			}
+
+			// we're passing nil here for the file putter, because the ApplyDiff will
+			// handle the extraction of the archive
+			its, err := asm.NewInputTarStream(inflatedLayerData, metaPacker, nil)
+			if err != nil {
+				return err
+			}
+
+			if img.Size, err = graph.driver.ApplyDiff(img.ID, img.Parent, archive.ArchiveReader(its)); err != nil {
 				return err
 			}
 		}
