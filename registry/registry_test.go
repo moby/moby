@@ -3,6 +3,7 @@ package registry
 import (
 	"fmt"
 	"net/http"
+	"net/http/httputil"
 	"net/url"
 	"strings"
 	"testing"
@@ -910,4 +911,27 @@ func TestIsSecureIndex(t *testing.T) {
 			t.Errorf("isSecureIndex failed for %q %v, expected %v got %v", tt.addr, tt.insecureRegistries, tt.expected, sec)
 		}
 	}
+}
+
+type debugTransport struct {
+	http.RoundTripper
+	log func(...interface{})
+}
+
+func (tr debugTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	dump, err := httputil.DumpRequestOut(req, false)
+	if err != nil {
+		tr.log("could not dump request")
+	}
+	tr.log(string(dump))
+	resp, err := tr.RoundTripper.RoundTrip(req)
+	if err != nil {
+		return nil, err
+	}
+	dump, err = httputil.DumpResponse(resp, false)
+	if err != nil {
+		tr.log("could not dump response")
+	}
+	tr.log(string(dump))
+	return resp, err
 }

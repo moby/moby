@@ -270,20 +270,6 @@ func bufferToFile(f *os.File, src io.Reader) (int64, digest.Digest, error) {
 	return n, digest.NewDigest("sha256", h), nil
 }
 
-// Check if given error is "not empty".
-// Note: this is the way golang does it internally with os.IsNotExists.
-func isNotEmpty(err error) bool {
-	switch pe := err.(type) {
-	case nil:
-		return false
-	case *os.PathError:
-		err = pe.Err
-	case *os.LinkError:
-		err = pe.Err
-	}
-	return strings.Contains(err.Error(), " not empty")
-}
-
 // Delete atomically removes an image from the graph.
 func (graph *Graph) Delete(name string) error {
 	id, err := graph.idIndex.Get(name)
