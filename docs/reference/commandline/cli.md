@@ -1457,7 +1457,7 @@ NOTE: Docker will warn you if any containers exist that are using these untagged
 
 ## import
 
-    Usage: docker import URL|- [REPOSITORY[:TAG]]
+    Usage: docker import file|URL|- [REPOSITORY[:TAG]]
 
     Create an empty filesystem image and import the contents of the
 	tarball (.tar, .tar.gz, .tgz, .bzip, .tar.xz, .txz) into it, then
@@ -1465,10 +1465,14 @@ NOTE: Docker will warn you if any containers exist that are using these untagged
 
       -c, --change=[]     Apply specified Dockerfile instructions while importing the image
 
-URLs must start with `http` and point to a single file archive (.tar,
-.tar.gz, .tgz, .bzip, .tar.xz, or .txz) containing a root filesystem. If
-you would like to import from a local directory or archive, you can use
-the `-` parameter to take the data from `STDIN`.
+You can specify a `URL` or `-` (dash) to take data directly from `STDIN`. The
+`URL` can point to an archive (.tar, .tar.gz, .tgz, .bzip, .tar.xz, or .txz)
+containing a fileystem or to an individual file on the Docker host.  If you
+specify an archive, Docker untars it in the container relative to the `/`
+(root). If you specify an individual file, you must specify the full path within
+the host. To import from a remote location, specify a `URI` that begins with the
+`http://` or `https://` protocol.
+
 
 The `--change` option will apply `Dockerfile` instructions to the image
 that is created.
@@ -1476,6 +1480,10 @@ Supported `Dockerfile` instructions:
 `CMD`|`ENTRYPOINT`|`ENV`|`EXPOSE`|`ONBUILD`|`USER`|`VOLUME`|`WORKDIR`
 
 #### Examples
+
+**Import from a local file archive:**
+
+    $ sudo docker import /local/path/to/exampleimage.tgz exampleimagedir
 
 **Import from a remote location:**
 
