@@ -659,7 +659,7 @@ func (s *Server) postCommit(version version.Version, w http.ResponseWriter, r *h
 		return err
 	}
 
-	cont := r.Form.Get("container")
+	cname := r.Form.Get("container")
 
 	pause := boolValue(r, "pause")
 	if r.FormValue("pause") == "" && version.GreaterThanOrEqualTo("1.13") {
@@ -671,7 +671,7 @@ func (s *Server) postCommit(version version.Version, w http.ResponseWriter, r *h
 		return err
 	}
 
-	containerCommitConfig := &daemon.ContainerCommitConfig{
+	commitCfg := &builder.BuilderCommitConfig{
 		Pause:   pause,
 		Repo:    r.Form.Get("repo"),
 		Tag:     r.Form.Get("tag"),
@@ -681,7 +681,7 @@ func (s *Server) postCommit(version version.Version, w http.ResponseWriter, r *h
 		Config:  c,
 	}
 
-	imgID, err := builder.Commit(s.daemon, cont, containerCommitConfig)
+	imgID, err := builder.Commit(cname, s.daemon, commitCfg)
 	if err != nil {
 		return err
 	}

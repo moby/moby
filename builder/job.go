@@ -215,7 +215,17 @@ func BuildFromConfig(d *daemon.Daemon, c *runconfig.Config, changes []string) (*
 	return builder.Config, nil
 }
 
-func Commit(d *daemon.Daemon, name string, c *daemon.ContainerCommitConfig) (string, error) {
+type BuilderCommitConfig struct {
+	Pause   bool
+	Repo    string
+	Tag     string
+	Author  string
+	Comment string
+	Changes []string
+	Config  *runconfig.Config
+}
+
+func Commit(name string, d *daemon.Daemon, c *BuilderCommitConfig) (string, error) {
 	container, err := d.Get(name)
 	if err != nil {
 		return "", err
@@ -234,7 +244,16 @@ func Commit(d *daemon.Daemon, name string, c *daemon.ContainerCommitConfig) (str
 		return "", err
 	}
 
-	img, err := d.Commit(container, c.Repo, c.Tag, c.Comment, c.Author, c.Pause, newConfig)
+	commitCfg := &daemon.ContainerCommitConfig{
+		Pause:   c.Pause,
+		Repo:    c.Repo,
+		Tag:     c.Tag,
+		Author:  c.Author,
+		Comment: c.Comment,
+		Config:  newConfig,
+	}
+
+	img, err := d.Commit(container, commitCfg)
 	if err != nil {
 		return "", err
 	}

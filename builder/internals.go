@@ -107,8 +107,14 @@ func (b *Builder) commit(id string, autoCmd *runconfig.Command, comment string) 
 	autoConfig := *b.Config
 	autoConfig.Cmd = autoCmd
 
+	commitCfg := &daemon.ContainerCommitConfig{
+		Author: b.maintainer,
+		Pause:  true,
+		Config: &autoConfig,
+	}
+
 	// Commit the container
-	image, err := b.Daemon.Commit(container, "", "", "", b.maintainer, true, &autoConfig)
+	image, err := b.Daemon.Commit(container, commitCfg)
 	if err != nil {
 		return err
 	}
