@@ -282,14 +282,16 @@ EOF
 	s3cmd --acl-public put "bundles/$VERSION/ubuntu/gpg" "s3://$BUCKET/gpg"
 
 	local gpgFingerprint=36A1D7869245C8950F966E92D8576A8BA88D21E9
+	local s3Headers=
 	if [[ $BUCKET == test* ]]; then
 		gpgFingerprint=740B314AE3941731B942C66ADF4FD13717AAD7D6
 	elif [[ $BUCKET == experimental* ]]; then
 		gpgFingerprint=E33FF7BF5C91D50A6F91FFFD4CC38D40F9A96B49
+		s3Headers='--add-header=Cache-Control:no-cache'
 	fi
 
 	# Upload repo
-	s3cmd --acl-public sync "$APTDIR/" "s3://$BUCKET/ubuntu/"
+	s3cmd --acl-public "$s3Headers" sync "$APTDIR/" "s3://$BUCKET/ubuntu/"
 	cat <<EOF | write_to_s3 s3://$BUCKET/ubuntu/index
 # Check that HTTPS transport is available to APT
 if [ ! -e /usr/lib/apt/methods/https ]; then
