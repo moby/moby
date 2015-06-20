@@ -768,6 +768,20 @@ func createNetwork(controller libnetwork.NetworkController, dnet string, driver 
 	return controller.NewNetwork(driver, dnet, createOptions...)
 }
 
+func (container *Container) secondaryNetworkRequired(primaryNetworkType string) bool {
+	switch primaryNetworkType {
+	case "bridge", "none", "host", "container":
+		return false
+	}
+	if container.Config.ExposedPorts != nil && len(container.Config.ExposedPorts) > 0 {
+		return true
+	}
+	if container.hostConfig.PortBindings != nil && len(container.hostConfig.PortBindings) > 0 {
+		return true
+	}
+	return false
+}
+
 func (container *Container) AllocateNetwork() error {
 	mode := container.hostConfig.NetworkMode
 	controller := container.daemon.netController
@@ -775,7 +789,7 @@ func (container *Container) AllocateNetwork() error {
 		return nil
 	}
 
-	var networkDriver string
+	networkDriver := string(mode)
 	service := container.Config.PublishService
 	networkName := mode.NetworkName()
 	if mode.IsDefault() {
@@ -797,12 +811,25 @@ func (container *Container) AllocateNetwork() error {
 		service = strings.Replace(service, "/", "", -1)
 	}
 
-	var err error
+	if container.secondaryNetworkRequired(networkDriver) {
+		// Configure Bridge as secondary network for port binding purposes
+		if err := container.configureNetwork("bridge", service, "bridge", false); err != nil {
+			return err
+		}
+	}
 
+	if err := container.configureNetwork(networkName, service, networkDriver, mode.IsDefault()); err != nil {
+		return err
+	}
+
+	return container.WriteHostConfig()
+}
+
+func (container *Container) configureNetwork(networkName, service, networkDriver string, canCreateNetwork bool) error {
+	controller := container.daemon.netController
 	n, err := controller.NetworkByName(networkName)
 	if err != nil {
-		// Create Network automatically only in default mode
-		if _, ok := err.(libnetwork.ErrNoSuchNetwork); !ok || !mode.IsDefault() {
+		if _, ok := err.(libnetwork.ErrNoSuchNetwork); !ok || !canCreateNetwork {
 			return err
 		}
 
@@ -843,10 +870,6 @@ func (container *Container) AllocateNetwork() error {
 
 	if err := container.updateJoinInfo(ep); err != nil {
 		return fmt.Errorf("Updating join info failed: %v", err)
-	}
-
-	if err := container.WriteHostConfig(); err != nil {
-		return err
 	}
 
 	return nil
