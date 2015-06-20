@@ -884,6 +884,16 @@ container's logging driver. The following options are supported:
 driver.  For detailed information on working with logging drivers, see
 [Configure a logging driver](reference/logging/).
 
+#### Logging driver: fluentd
+
+Fluentd logging driver for Docker. Writes log messages to fluentd (forward input). `docker logs`
+command is not available for this logging driver.
+
+Some options are supported by specifying `--log-opt` as many as needed, like `--log-opt fluentd-address=localhost:24224`.
+
+ - `fluentd-address`: specify `host:port` to connect [localhost:24224]
+ - `fluentd-tag`: specify tag for fluentd message, which interpret some markup, ex `{{.ID}}`, `{{.FullID}}` or `{{.Name}}` [docker.{{.ID}}]
+
 ## Overriding Dockerfile image defaults
 
 When a developer builds an image from a [*Dockerfile*](/reference/builder)
