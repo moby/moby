@@ -775,10 +775,19 @@ func (container *Container) AllocateNetwork() error {
 		return nil
 	}
 
+	var networkName string
+	networkByName = false
+	n, err := controller.NetworkByName(string(mode))
+	if err == nil {
+		networkName = runconfig.NetworkMode("bridge")
+		networkByName = true
+	} else {
+		networkName = mode.NetworkName()
+	}
+
 	var networkDriver string
 	service := container.Config.PublishService
-	networkName := mode.NetworkName()
-	if mode.IsDefault() {
+	if !networkByName && mode.IsDefault() {
 		if service != "" {
 			service, networkName, networkDriver = parseService(controller, service)
 		} else {
