@@ -51,7 +51,7 @@ func (ij ErrInvalidJoin) BadRequest() {}
 type ErrNoContainer struct{}
 
 func (nc ErrNoContainer) Error() string {
-	return "a container has already joined the endpoint"
+	return "no container is attached to the endpoint"
 }
 
 // Maskable denotes the type of this error

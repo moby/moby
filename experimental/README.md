@@ -45,7 +45,8 @@ Unlike the regular Docker binary, the experimental channels is built and updated
 ## Current experimental features
 
 * [Support for Docker plugins](plugins.md)
-* [Volume plugins](plugins_volume.md)
+  * [Volume plugins](plugins_volume.md)
+* [Native Multi-host networking](networking.md)
 
 ## How to comment on an experimental feature
 

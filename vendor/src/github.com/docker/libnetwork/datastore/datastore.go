@@ -15,6 +15,8 @@ import (
 type DataStore interface {
 	// GetObject gets data from datastore and unmarshals to the specified object
 	GetObject(key string, o interface{}) error
+	// GetUpdatedObject gets data from datastore along with its index and unmarshals to the specified object
+	GetUpdatedObject(key string, o interface{}) (uint64, error)
 	// PutObject adds a new Record based on an object into the datastore
 	PutObject(kvObject KV) error
 	// PutObjectAtomic provides an atomic add and update operation for a Record
@@ -30,7 +32,10 @@ type DataStore interface {
 }
 
 // ErrKeyModified is raised for an atomic update when the update is working on a stale state
-var ErrKeyModified = store.ErrKeyModified
+var (
+	ErrKeyModified = store.ErrKeyModified
+	ErrKeyNotFound = store.ErrKeyNotFound
+)
 
 type datastore struct {
 	store store.Store
@@ -150,6 +155,18 @@ func (ds *datastore) GetObject(key string, o interface{}) error {
 		return err
 	}
 	return json.Unmarshal(kvPair.Value, o)
+}
+
+// GetUpdateObject returns a record matching the key
+func (ds *datastore) GetUpdatedObject(key string, o interface{}) (uint64, error) {
+	kvPair, err := ds.store.Get(key)
+	if err != nil {
+		return 0, err
+	}
+	if err := json.Unmarshal(kvPair.Value, o); err != nil {
+		return 0, err
+	}
+	return kvPair.LastIndex, nil
 }
 
 // DeleteObject unconditionally deletes a record from the store

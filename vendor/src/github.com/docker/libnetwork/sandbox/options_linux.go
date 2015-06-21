@@ -2,6 +2,26 @@ package sandbox
 
 import "net"
 
+func (nh *neigh) processNeighOptions(options ...NeighOption) {
+	for _, opt := range options {
+		if opt != nil {
+			opt(nh)
+		}
+	}
+}
+
+func (n *networkNamespace) LinkName(name string) NeighOption {
+	return func(nh *neigh) {
+		nh.linkName = name
+	}
+}
+
+func (n *networkNamespace) Family(family int) NeighOption {
+	return func(nh *neigh) {
+		nh.family = family
+	}
+}
+
 func (i *nwIface) processInterfaceOptions(options ...IfaceOption) {
 	for _, opt := range options {
 		if opt != nil {

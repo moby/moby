@@ -228,6 +228,12 @@ type MaskableError interface {
 	Maskable()
 }
 
+// RetryError is an interface for errors which might get resolved through retry
+type RetryError interface {
+	// Retry makes implementer into RetryError type
+	Retry()
+}
+
 // BadRequestError is an interface for errors originated by a bad request
 type BadRequestError interface {
 	// BadRequest makes implementer into BadRequestError type
@@ -271,7 +277,7 @@ type InternalError interface {
 }
 
 /******************************
- * Weel-known Error Formatters
+ * Well-known Error Formatters
  ******************************/
 
 // BadRequestErrorf creates an instance of BadRequestError
@@ -312,6 +318,11 @@ func InternalErrorf(format string, params ...interface{}) error {
 // InternalMaskableErrorf creates an instance of InternalError and MaskableError
 func InternalMaskableErrorf(format string, params ...interface{}) error {
 	return maskInternal(fmt.Sprintf(format, params...))
+}
+
+// RetryErrorf creates an instance of RetryError
+func RetryErrorf(format string, params ...interface{}) error {
+	return retry(fmt.Sprintf(format, params...))
 }
 
 /***********************
@@ -377,3 +388,10 @@ func (mnt maskInternal) Error() string {
 }
 func (mnt maskInternal) Internal() {}
 func (mnt maskInternal) Maskable() {}
+
+type retry string
+
+func (r retry) Error() string {
+	return string(r)
+}
+func (r retry) Retry() {}

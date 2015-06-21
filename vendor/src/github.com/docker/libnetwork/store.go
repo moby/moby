@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/docker/libkv/store"
 	"github.com/docker/libnetwork/datastore"
 	"github.com/docker/libnetwork/types"
 )
@@ -31,7 +32,21 @@ func (c *controller) initDataStore() error {
 	c.Lock()
 	c.store = store
 	c.Unlock()
-	return c.watchStore()
+
+	nws, err := c.getNetworksFromStore()
+	if err == nil {
+		c.processNetworkUpdate(nws, nil)
+	} else if err != datastore.ErrKeyNotFound {
+		log.Warnf("failed to read networks from datastore during init : %v", err)
+	}
+	return c.watchNetworks()
+}
+
+func (c *controller) getNetworksFromStore() ([]*store.KVPair, error) {
+	c.Lock()
+	cs := c.store
+	c.Unlock()
+	return cs.KVStore().List(datastore.Key(datastore.NetworkKeyPrefix))
 }
 
 func (c *controller) newNetworkFromStore(n *network) error {
@@ -92,22 +107,6 @@ func (c *controller) newEndpointFromStore(key string, ep *endpoint) error {
 	n := ep.network
 	id := ep.id
 	ep.Unlock()
-	if n == nil {
-		// Possibly the watch event for the network has not shown up yet
-		// Try to get network from the store
-		nid, err := networkIDFromEndpointKey(key, ep)
-		if err != nil {
-			return err
-		}
-		n, err = c.getNetworkFromStore(nid)
-		if err != nil {
-			return err
-		}
-		if err := c.newNetworkFromStore(n); err != nil {
-			return err
-		}
-		n = c.networks[nid]
-	}
 
 	_, err := n.EndpointByID(string(id))
 	if err != nil {
@@ -170,7 +169,11 @@ func (c *controller) deleteEndpointFromStore(ep *endpoint) error {
 	return nil
 }
 
-func (c *controller) watchStore() error {
+func (c *controller) watchNetworks() error {
+	if !c.validateDatastoreConfig() {
+		return nil
+	}
+
 	c.Lock()
 	cs := c.store
 	c.Unlock()
@@ -179,64 +182,35 @@ func (c *controller) watchStore() error {
 	if err != nil {
 		return err
 	}
-	epPairs, err := cs.KVStore().WatchTree(datastore.Key(datastore.EndpointKeyPrefix), nil)
-	if err != nil {
-		return err
-	}
 	go func() {
 		for {
 			select {
 			case nws := <-nwPairs:
-				for _, kve := range nws {
-					var n network
-					err := json.Unmarshal(kve.Value, &n)
-					if err != nil {
-						log.Error(err)
-						continue
-					}
-					n.dbIndex = kve.LastIndex
-					c.Lock()
-					existing, ok := c.networks[n.id]
-					c.Unlock()
-					if ok {
-						existing.Lock()
-						// Skip existing network update
-						if existing.dbIndex != n.dbIndex {
-							existing.dbIndex = n.dbIndex
-							existing.endpointCnt = n.endpointCnt
-						}
-						existing.Unlock()
-						continue
-					}
-
-					if err = c.newNetworkFromStore(&n); err != nil {
-						log.Error(err)
+				c.Lock()
+				tmpview := networkTable{}
+				lview := c.networks
+				c.Unlock()
+				for k, v := range lview {
+					global, _ := v.isGlobalScoped()
+					if global {
+						tmpview[k] = v
 					}
 				}
-			case eps := <-epPairs:
-				for _, epe := range eps {
-					var ep endpoint
-					err := json.Unmarshal(epe.Value, &ep)
-					if err != nil {
-						log.Error(err)
+				c.processNetworkUpdate(nws, &tmpview)
+				// Delete processing
+				for k := range tmpview {
+					c.Lock()
+					existing, ok := c.networks[k]
+					c.Unlock()
+					if !ok {
 						continue
 					}
-					ep.dbIndex = epe.LastIndex
-					n, err := c.networkFromEndpointKey(epe.Key, &ep)
-					if err != nil {
-						if _, ok := err.(ErrNoSuchNetwork); !ok {
-							log.Error(err)
-							continue
-						}
+					tmp := network{}
+					if err := c.store.GetObject(datastore.Key(existing.Key()...), &tmp); err != datastore.ErrKeyNotFound {
+						continue
 					}
-					if n != nil {
-						ep.network = n.(*network)
-					}
-					if c.processEndpointUpdate(&ep) {
-						err = c.newEndpointFromStore(epe.Key, &ep)
-						if err != nil {
-							log.Error(err)
-						}
+					if err := existing.deleteNetwork(); err != nil {
+						log.Debugf("Delete failed %s: %s", existing.name, err)
 					}
 				}
 			}
@@ -245,20 +219,116 @@ func (c *controller) watchStore() error {
 	return nil
 }
 
-func (c *controller) networkFromEndpointKey(key string, ep *endpoint) (Network, error) {
-	nid, err := networkIDFromEndpointKey(key, ep)
-	if err != nil {
-		return nil, err
+func (n *network) watchEndpoints() error {
+	if !n.ctrlr.validateDatastoreConfig() {
+		return nil
 	}
-	return c.NetworkByID(string(nid))
+
+	n.Lock()
+	cs := n.ctrlr.store
+	tmp := endpoint{network: n}
+	n.stopWatchCh = make(chan struct{})
+	stopCh := n.stopWatchCh
+	n.Unlock()
+
+	epPairs, err := cs.KVStore().WatchTree(datastore.Key(tmp.KeyPrefix()...), stopCh)
+	if err != nil {
+		return err
+	}
+	go func() {
+		for {
+			select {
+			case <-stopCh:
+				return
+			case eps := <-epPairs:
+				n.Lock()
+				tmpview := endpointTable{}
+				lview := n.endpoints
+				n.Unlock()
+				for k, v := range lview {
+					global, _ := v.network.isGlobalScoped()
+					if global {
+						tmpview[k] = v
+					}
+				}
+				for _, epe := range eps {
+					var ep endpoint
+					err := json.Unmarshal(epe.Value, &ep)
+					if err != nil {
+						log.Error(err)
+						continue
+					}
+					delete(tmpview, ep.id)
+					ep.dbIndex = epe.LastIndex
+					ep.network = n
+					if n.ctrlr.processEndpointUpdate(&ep) {
+						err = n.ctrlr.newEndpointFromStore(epe.Key, &ep)
+						if err != nil {
+							log.Error(err)
+						}
+					}
+				}
+				// Delete processing
+				for k := range tmpview {
+					n.Lock()
+					existing, ok := n.endpoints[k]
+					n.Unlock()
+					if !ok {
+						continue
+					}
+					tmp := endpoint{}
+					if err := cs.GetObject(datastore.Key(existing.Key()...), &tmp); err != datastore.ErrKeyNotFound {
+						continue
+					}
+					if err := existing.deleteEndpoint(); err != nil {
+						log.Debugf("Delete failed %s: %s", existing.name, err)
+					}
+				}
+			}
+		}
+	}()
+	return nil
 }
 
-func networkIDFromEndpointKey(key string, ep *endpoint) (types.UUID, error) {
-	eKey, err := datastore.ParseKey(key)
-	if err != nil {
-		return types.UUID(""), err
+func (n *network) stopWatch() {
+	n.Lock()
+	if n.stopWatchCh != nil {
+		close(n.stopWatchCh)
+		n.stopWatchCh = nil
 	}
-	return ep.networkIDFromKey(eKey)
+	n.Unlock()
+}
+
+func (c *controller) processNetworkUpdate(nws []*store.KVPair, prune *networkTable) {
+	for _, kve := range nws {
+		var n network
+		err := json.Unmarshal(kve.Value, &n)
+		if err != nil {
+			log.Error(err)
+			continue
+		}
+		if prune != nil {
+			delete(*prune, n.id)
+		}
+		n.dbIndex = kve.LastIndex
+		c.Lock()
+		existing, ok := c.networks[n.id]
+		c.Unlock()
+		if ok {
+			existing.Lock()
+			// Skip existing network update
+			if existing.dbIndex != n.dbIndex {
+				existing.dbIndex = n.dbIndex
+				existing.endpointCnt = n.endpointCnt
+			}
+			existing.Unlock()
+			continue
+		}
+
+		if err = c.newNetworkFromStore(&n); err != nil {
+			log.Error(err)
+		}
+	}
 }
 
 func (c *controller) processEndpointUpdate(ep *endpoint) bool {

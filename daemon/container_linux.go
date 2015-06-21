@@ -790,7 +790,11 @@ func (container *Container) AllocateNetwork() error {
 	}
 
 	if service == "" {
+		// dot character "." has a special meaning to support SERVICE[.NETWORK] format.
+		// For backward compatiblity, replacing "." with "-", instead of failing
 		service = strings.Replace(container.Name, ".", "-", -1)
+		// Service names dont like "/" in them. removing it instead of failing for backward compatibility
+		service = strings.Replace(service, "/", "", -1)
 	}
 
 	var err error

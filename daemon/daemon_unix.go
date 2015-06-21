@@ -285,6 +285,16 @@ func networkOptions(dconfig *Config) ([]nwconfig.Option, error) {
 		options = append(options, nwconfig.OptionDefaultDriver(string(dd)))
 		options = append(options, nwconfig.OptionDefaultNetwork(dn))
 	}
+
+	if strings.TrimSpace(dconfig.NetworkKVStore) != "" {
+		kv := strings.Split(dconfig.NetworkKVStore, ":")
+		if len(kv) < 2 {
+			return nil, fmt.Errorf("kv store daemon config must be of the form KV-PROVIDER:KV-URL")
+		}
+		options = append(options, nwconfig.OptionKVProvider(kv[0]))
+		options = append(options, nwconfig.OptionKVProviderURL(strings.Join(kv[1:], ":")))
+	}
+
 	options = append(options, nwconfig.OptionLabels(dconfig.Labels))
 	return options, nil
 }
