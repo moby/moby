@@ -162,6 +162,11 @@ The instructions that handle environment variables in the `Dockerfile` are:
 * `VOLUME`
 * `USER`
 
+The special environment variables `HTTP_PROXY`, `HTTPS_PROXY`, and `NO_PROXY`
+will be automatically propigated from the Docker daemon's environment for `RUN`
+commands only. These values are only used for the duration of the build and are
+not included in the image configuration.
+
 `ONBUILD` instructions are **NOT** supported for environment replacement, even
 the instructions above.
 

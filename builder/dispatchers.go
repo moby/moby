@@ -10,6 +10,7 @@ package builder
 import (
 	"fmt"
 	"io/ioutil"
+	"os"
 	"path/filepath"
 	"regexp"
 	"runtime"
@@ -345,10 +346,23 @@ func run(b *Builder, args []string, attributes map[string]bool, original string)
 	c.Mount()
 	defer c.Unmount()
 
+	// have container inherit host proxy settings
+	// but we don't want this to be commited to the image
+	httpProxyEnv := []string{
+		"HTTP_PROXY=" + os.Getenv("HTTP_PROXY"),
+		"HTTPS_PROXY=" + os.Getenv("HTTPS_PROXY"),
+		"NO_PROXY=" + os.Getenv("NO_PROXY"),
+	}
+
+	env := b.Config.Env
+	b.Config.Env = append(env, httpProxyEnv...)
+
 	err = b.run(c)
 	if err != nil {
 		return err
 	}
+	// set the env back to the original config without the proxy settings so they don't get commited to the image
+	b.Config.Env = env
 	if err := b.commit(c.ID, cmd, "run"); err != nil {
 		return err
 	}
