@@ -507,6 +507,22 @@ func parseNetworkOptions(option options.Generic) (*networkConfiguration, error) 
 	if _, ok := option["ifname"]; ok {
 		config.IfName = option["ifname"].(string)
 	}
+	if _, ok := option["AddressIPv4"]; ok {
+		_, bipNet, err := net.ParseCIDR(option["AddressIPv4"].(string))
+		if err != nil {
+			return nil, err
+		}
+		config.AddressIPv4 = bipNet
+		logrus.Infof("config.AddressIPv4: %#v", config.AddressIPv4)
+	}
+	if _, ok := option["FixedCIDR"]; ok {
+		_, fCIDR, err := net.ParseCIDR(option["FixedCIDR"].(string))
+		if err != nil {
+			return nil, err
+		}
+		config.FixedCIDR = fCIDR
+		logrus.Infof("config.FixedCIDR: %#v", config.FixedCIDR)
+	}
 
 	// Finally validate the configuration
 	if err = config.Validate(); err != nil {

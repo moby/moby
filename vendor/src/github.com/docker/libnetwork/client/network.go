@@ -43,6 +43,8 @@ func (cli *NetworkCli) CmdNetworkCreate(chain string, args ...string) error {
 	flDriver := cmd.String([]string{"d", "-driver"}, "", "Driver to manage the Network")
 	vlanid := cmd.Int([]string{"v", "-vlanid"}, 0, "Vlan ID")
 	ifname := cmd.String([]string{"i", "-ifname"}, "", "The name of network interface to create sub-interface")
+	bip := cmd.String([]string{"-bip"}, "", "Specify network bridge IP")
+	cidr := cmd.String([]string{"-fixed-cidr"}, "", "IPv4 subnet for fixed IPs")
 	cmd.Require(flag.Exact, 1)
 	err := cmd.ParseFlags(args, true)
 	if err != nil {
@@ -53,6 +55,8 @@ func (cli *NetworkCli) CmdNetworkCreate(chain string, args ...string) error {
 	ops := make(map[string]interface{})
 	ops["vlanid"] = vlanid
 	ops["ifname"] = ifname
+	ops["AddressIPv4"] = bip
+	ops["FixedCIDR"] = cidr
 	nc := networkCreate{Name: cmd.Arg(0), NetworkType: *flDriver, Options: ops}
 	obj, _, err := readBody(cli.call("POST", "/networks", nc, nil))
 	if err != nil {
