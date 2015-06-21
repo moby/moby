@@ -558,7 +558,7 @@ func (d *driver) CreateNetwork(id types.UUID, option map[string]interface{}) err
 	if err != nil {
 		return err
 	}
-	logrus.Infof("network config parsed: %#v", config)
+
 	networkList := d.getNetworks()
 	for _, nw := range networkList {
 		nw.Lock()
@@ -706,7 +706,7 @@ func newVlanInterface(name string) error {
 	cmd := "ip"
 	intSplit := strings.Split(name, ".")
 	if len(intSplit) != 2 {
-		return errors.New("invalid interface name, ie. eth0.100")
+		return errors.New("invalid interface name, ie. eth0")
 	}
 
 	args := []string{"link", "add", "link", intSplit[0], "name", name, "type", "vlan", "id", intSplit[1]}
@@ -716,7 +716,7 @@ func newVlanInterface(name string) error {
 			return errors.New(fmt.Sprintf((fmt.Sprint(err) + ": " + string(output))))
 		}
 	}
-	fmt.Println("Successfully created interface")
+	logrus.Infof("Created interface %s", name)
 	return nil
 }
 
@@ -727,7 +727,7 @@ func attachVlanInterface(name, bridgeName string) error {
 	if output, err := exec.Command(cmd, args...).CombinedOutput(); err != nil {
 		return errors.New(fmt.Sprintf((fmt.Sprint(err) + ": " + string(output))))
 	}
-	fmt.Println("Successfully added interface to bridge")
+	logrus.Infof("Added interface %s to bridge %s", name, bridgeName)
 	return nil
 }
 
