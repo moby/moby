@@ -687,12 +687,13 @@ func (d *driver) CreateNetwork(id types.UUID, option map[string]interface{}) err
 		return err
 	}
 
-	if config.BridgeName == "testing" {
-		if err := newVlanInterface("eth0.100"); err != nil {
+	if config.VlanId != 0 && config.IfName != "" {
+		ifnamevlan := strings.Join([]string{config.IfName, strconv.Itoa(config.VlanId)}, ".")
+		if err := newVlanInterface(ifnamevlan); err != nil {
 			return err
 		}
 
-		if err := attachVlanInterface("eth0.100", "testing"); err != nil {
+		if err := attachVlanInterface(ifnamevlan, config.BridgeName); err != nil {
 			return err
 		}
 	}
