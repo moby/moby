@@ -285,3 +285,205 @@ Status Codes:
 -   **200** – no error
 -   **404** – not found
 -   **500** – server error
+
+# Services API
+
+### Publish a Service
+
+`POST /services`
+
+Publish a service
+
+**Example Request**
+
+        POST /services HTTP/1.1
+        Content-Type: application/json
+
+        {
+          "name": "bar",
+          "network_name": "foo",
+          "exposed_ports": null,
+          "port_mapping": null
+        }
+
+**Example Response**
+
+        HTTP/1.1 200 OK
+        Content-Type: application/json
+
+        "0aee0899e6c5e903cf3ef2bdc28a1c9aaf639c8c8c331fa4ae26344d9e32c1ff"
+
+Status Codes:
+
+-   **200** – no error
+-   **400** – bad parameter
+-   **500** – server error
+
+### Get a Service
+
+`GET /services/0aee0899e6c5e903cf3ef2bdc28a1c9aaf639c8c8c331fa4ae26344d9e32c1ff`
+
+Get a service
+
+**Example Request**:
+
+        GET /services/0aee0899e6c5e903cf3ef2bdc28a1c9aaf639c8c8c331fa4ae26344d9e32c1ff HTTP/1.1
+
+**Example Response**:
+
+        HTTP/1.1 200 OK
+        Content-Type: application/json
+
+        {
+          "name": "bar",
+          "id": "0aee0899e6c5e903cf3ef2bdc28a1c9aaf639c8c8c331fa4ae26344d9e32c1ff",
+          "network": "foo"
+        }
+
+Status Codes:
+
+-   **200** – no error
+-   **400** – bad parameter
+-   **404** - not found
+-   **500** – server error
+
+### Attach a backend to a service
+
+`POST /services/0aee0899e6c5e903cf3ef2bdc28a1c9aaf639c8c8c331fa4ae26344d9e32c1ff/backend`
+
+Attach a backend to a service
+
+**Example Request**:
+
+        POST /services/0aee0899e6c5e903cf3ef2bdc28a1c9aaf639c8c8c331fa4ae26344d9e32c1ff/backend HTTP/1.1
+        Content-Type: application/json
+
+        {
+          "container_id": "98c5241f9475e9efc17e7198e931fb48166010b80f96d48df204e251378ca547",
+          "host_name": "",
+          "domain_name": "",
+          "hosts_path": "",
+          "resolv_conf_path": "",
+          "dns": null,
+          "extra_hosts": null,
+          "parent_updates": null,
+          "use_default_sandbox": false
+        }
+
+**Example Response**:
+
+        HTTP/1.1 200 OK
+        Content-Type: application/json
+
+        "/var/run/docker/netns/98c5241f9475"
+
+Status Codes:
+
+-   **200** – no error
+-   **400** – bad parameter
+-   **500** – server error
+
+### Get Backends for a Service
+
+Get all backends for a given service
+
+**Example Request**
+
+        GET /services/0aee0899e6c5e903cf3ef2bdc28a1c9aaf639c8c8c331fa4ae26344d9e32c1ff/backend HTTP/1.1
+
+**Example Response**
+
+        HTTP/1.1 200 OK
+        Content-Type: application/json
+
+        [
+          {
+            "id": "98c5241f9475e9efc17e7198e931fb48166010b80f96d48df204e251378ca547"
+          }
+        ]
+
+Status Codes:
+
+-   **200** – no error
+-   **400** – bad parameter
+-   **500** – server error
+
+### List Services
+
+`GET /services`
+
+List services
+
+**Example request**:
+
+        GET /services HTTP/1.1
+
+**Example response**:
+
+        HTTP/1.1 200 OK
+        Content-Type: application/json
+
+        [
+          {
+            "name": "/stupefied_stallman",
+            "id": "c826b26bf736fb4a77db33f83562e59f9a770724e259ab9c3d50d948f8233ae4",
+            "network": "bridge"
+          },
+          {
+            "name": "bar",
+            "id": "0aee0899e6c5e903cf3ef2bdc28a1c9aaf639c8c8c331fa4ae26344d9e32c1ff",
+            "network": "foo"
+          }
+        ]
+
+Query Parameters:
+
+-   **name** – Filter results with the given name
+-   **partial-id** – Filter results using the partial network ID
+-   **network** - Filter results by the given network
+
+Status Codes:
+
+-   **200** – no error
+-   **400** – bad parameter
+-   **500** – server error
+
+### Detach a Backend from a Service
+
+`DELETE /services/0aee0899e6c5e903cf3ef2bdc28a1c9aaf639c8c8c331fa4ae26344d9e32c1ff/backend/98c5241f9475e9efc17e7198e931fb48166010b80f96d48df204e251378ca547`
+
+Detach a backend from a service
+
+**Example Request**
+
+        DELETE /services/0aee0899e6c5e903cf3ef2bdc28a1c9aaf639c8c8c331fa4ae26344d9e32c1ff/backend/98c5241f9475e9efc17e7198e931fb48166010b80f96d48df204e251378ca547 HTTP/1.1
+
+**Example Response**
+
+        HTTP/1.1 200 OK
+
+Status Codes:
+
+-   **200** – no error
+-   **400** – bad parameter
+-   **500** – server error
+
+### Un-Publish a Service
+
+`DELETE /services/0aee0899e6c5e903cf3ef2bdc28a1c9aaf639c8c8c331fa4ae26344d9e32c1ff`
+
+Unpublish a service
+
+**Example Request**
+
+        DELETE /services/0aee0899e6c5e903cf3ef2bdc28a1c9aaf639c8c8c331fa4ae26344d9e32c1ff HTTP/1.1
+
+**Example Response**
+
+        HTTP/1.1 200 OK
+
+Status Codes:
+
+-   **200** – no error
+-   **400** – bad parameter
+-   **500** – server error
