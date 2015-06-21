@@ -52,6 +52,8 @@ type networkConfiguration struct {
 	DefaultBindingIP      net.IP
 	AllowNonDefaultBridge bool
 	EnableUserlandProxy   bool
+	VlanId                int
+	IfName                string
 }
 
 // endpointConfiguration represents the user specified configuration for the sandbox endpoint
@@ -495,6 +497,14 @@ func parseNetworkOptions(option options.Generic) (*networkConfiguration, error) 
 		config.EnableIPv6 = option[netlabel.EnableIPv6].(bool)
 	}
 
+	// Process VLAN related options
+	if _, ok := option["vlanid"]; ok {
+		config.VlanId = int(option["vlanid"].(float64))
+	}
+	if _, ok := option["ifname"]; ok {
+		config.IfName = option["ifname"].(string)
+	}
+
 	// Finally validate the configuration
 	if err = config.Validate(); err != nil {
 		return nil, err
@@ -545,6 +555,7 @@ func (d *driver) CreateNetwork(id types.UUID, option map[string]interface{}) err
 	if err != nil {
 		return err
 	}
+	logrus.Infof("network config parsed: %#v", config)
 	networkList := d.getNetworks()
 	for _, nw := range networkList {
 		nw.Lock()
