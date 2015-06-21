@@ -534,6 +534,91 @@ RUN find /tmp/`,
 	}
 }
 
+func (s *DockerSuite) TestBuildApiRemoteTarballContext(c *check.C) {
+	buffer := new(bytes.Buffer)
+	tw := tar.NewWriter(buffer)
+	defer tw.Close()
+
+	dockerfile := []byte("FROM busybox")
+	if err := tw.WriteHeader(&tar.Header{
+		Name: "Dockerfile",
+		Size: int64(len(dockerfile)),
+	}); err != nil {
+		c.Fatalf("failed to write tar file header: %v", err)
+	}
+	if _, err := tw.Write(dockerfile); err != nil {
+		c.Fatalf("failed to write tar file content: %v", err)
+	}
+	if err := tw.Close(); err != nil {
+		c.Fatalf("failed to close tar archive: %v", err)
+	}
+
+	server, err := fakeBinaryStorage(map[string]*bytes.Buffer{
+		"testT.tar": buffer,
+	})
+	c.Assert(err, check.IsNil)
+
+	defer server.Close()
+
+	res, _, err := sockRequestRaw("POST", "/build?remote="+server.URL()+"/testT.tar", nil, "application/tar")
+	c.Assert(err, check.IsNil)
+	c.Assert(res.StatusCode, check.Equals, http.StatusOK)
+}
+
+func (s *DockerSuite) TestBuildApiRemoteTarballContextWithCustomDockerfile(c *check.C) {
+	buffer := new(bytes.Buffer)
+	tw := tar.NewWriter(buffer)
+	defer tw.Close()
+
+	dockerfile := []byte(`FROM busybox
+RUN echo 'wrong'`)
+	if err := tw.WriteHeader(&tar.Header{
+		Name: "Dockerfile",
+		Size: int64(len(dockerfile)),
+	}); err != nil {
+		c.Fatalf("failed to write tar file header: %v", err)
+	}
+	if _, err := tw.Write(dockerfile); err != nil {
+		c.Fatalf("failed to write tar file content: %v", err)
+	}
+
+	custom := []byte(`FROM busybox
+RUN echo 'right'
+`)
+	if err := tw.WriteHeader(&tar.Header{
+		Name: "custom",
+		Size: int64(len(custom)),
+	}); err != nil {
+		c.Fatalf("failed to write tar file header: %v", err)
+	}
+	if _, err := tw.Write(custom); err != nil {
+		c.Fatalf("failed to write tar file content: %v", err)
+	}
+
+	if err := tw.Close(); err != nil {
+		c.Fatalf("failed to close tar archive: %v", err)
+	}
+
+	server, err := fakeBinaryStorage(map[string]*bytes.Buffer{
+		"testT.tar": buffer,
+	})
+	c.Assert(err, check.IsNil)
+
+	defer server.Close()
+	url := "/build?dockerfile=custom&remote=" + server.URL() + "/testT.tar"
+	res, body, err := sockRequestRaw("POST", url, nil, "application/tar")
+	c.Assert(err, check.IsNil)
+	c.Assert(res.StatusCode, check.Equals, http.StatusOK)
+
+	defer body.Close()
+	content, err := readBody(body)
+	c.Assert(err, check.IsNil)
+
+	if strings.Contains(string(content), "wrong") {
+		c.Fatalf("Build used the wrong dockerfile.")
+	}
+}
+
 func (s *DockerSuite) TestBuildApiLowerDockerfile(c *check.C) {
 	git, err := fakeGIT("repo", map[string]string{
 		"dockerfile": `FROM busybox

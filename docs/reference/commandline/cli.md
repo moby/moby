@@ -706,13 +706,17 @@ to any of the files in the context. For example, your build can use an
 [*ADD*](/reference/builder/#add) instruction to reference a file in the
 context.
 
-The `URL` parameter can specify the location of a Git repository; the repository
-acts as the build context. The system recursively clones the repository and its
-submodules using a `git clone --depth 1 --recursive` command. This command runs
-in a temporary directory on your local host. After the command succeeds, the
-directory is sent to the Docker daemon as the context. Local clones give you the
-ability to access private repositories using local user credentials, VPNs, and
-so forth.
+The `URL` parameter can refer to three kinds of resources: Git repositories,
+pre-packaged tarball contexts and plain text files. 
+
+#### Git repositories
+When the `URL` parameter points to the location of a Git repository, the
+repository acts as the build context. The system recursively clones the
+repository and its submodules using a `git clone --depth 1 --recursive`
+command. This command runs in a temporary directory on your local host. After
+the command succeeds, the directory is sent to the Docker daemon as the
+context. Local clones give you the ability to access private repositories using
+local user credentials, VPN's, and so forth.
 
 Git URLs accept context configuration in their fragment section, separated by a
 colon `:`.  The first part represents the reference that Git will check out,
@@ -739,21 +743,34 @@ Build Syntax Suffix | Commit Used | Build Context Used
 `myrepo.git#mybranch:myfolder` | `refs/heads/mybranch` | `/myfolder`
 `myrepo.git#abcdef:myfolder` | `sha1 = abcdef` | `/myfolder`
 
-Instead of specifying a context, you can pass a single Dockerfile in the `URL`
-or pipe the file in via `STDIN`. To pipe a Dockerfile from `STDIN`:
+#### Tarball contexts
+If you pass an URL to a remote tarball, the URL itself is sent to the daemon:
 
-    docker build - < Dockerfile
+    $ docker build http://server/context.tar.gz
 
-If you use STDIN or specify a `URL`, the system places the contents into a file
-called `Dockerfile`, and any `-f`, `--file` option is ignored. In this
-scenario, there is no context.
+The download operation will be performed on the host the Docker daemon is
+running on, which is not necessarily the same host from which the build command
+is being issued. The Docker daemon will fetch `context.tar.gz` and use it as the
+build context. Tarball contexts must be tar archives conforming to the standard
+`tar` UNIX format and can be compressed with any one of the 'xz', 'bzip2',
+'gzip' or 'identity' (no compression) formats.
+
+#### Text files
+Instead of specifying a context, you can pass a single `Dockerfile` in the
+`URL` or pipe the file in via `STDIN`. To pipe a `Dockerfile` from `STDIN`:
+
+    $ docker build - < Dockerfile
+
+If you use `STDIN` or specify a `URL` pointing to a plain text file, the system
+places the contents into a file called `Dockerfile`, and any `-f`, `--file`
+option is ignored. In this scenario, there is no context.
 
 By default the `docker build` command will look for a `Dockerfile` at the root
 of the build context. The `-f`, `--file`, option lets you specify the path to
 an alternative file to use instead. This is useful in cases where the same set
 of files are used for multiple builds. The path must be to a file within the
-build context. If a relative path is specified then it must to be relative to
-the current directory.
+build context. If a relative path is specified then it is interpreted as
+relative to the root of the context.
 
 In most cases, it's best to put each Dockerfile in an empty directory. Then,
 add to that directory only the files needed for building the Dockerfile. To
@@ -882,6 +899,29 @@ This will clone the GitHub repository and use the cloned repository as context.
 The Dockerfile at the root of the repository is used as Dockerfile. Note that
 you can specify an arbitrary Git repository by using the `git://` or `git@`
 schema.
+
+
+    $ docker build -f ctx/Dockerfile http://server/ctx.tar.gz
+    Downloading context: http://server/ctx.tar.gz [===================>]    240 B/240 B
+    Step 0 : FROM busybox
+     ---> 8c2e06607696
+    Step 1 : ADD ctx/container.cfg /
+     ---> e7829950cee3
+    Removing intermediate container b35224abf821
+    Step 2 : CMD /bin/ls
+     ---> Running in fbc63d321d73
+     ---> 3286931702ad
+    Removing intermediate container fbc63d321d73
+    Successfully built 377c409b35e4
+
+
+This will send the URL `http://server/ctx.tar.gz` to the Docker daemon, which
+will download and extract the referenced tarball. The `-f ctx/Dockerfile`
+parameter specifies a path inside `ctx.tar.gz` to the `Dockerfile` that will
+be used to build the image. Any `ADD` commands in that `Dockerfile` that
+refer to local paths must be relative to the root of the contents inside
+`ctx.tar.gz`. In the example above, the tarball contains a directory `ctx/`,
+so the `ADD ctx/container.cfg /` operation works as expected.
 
     $ docker build -f Dockerfile.debug .
 
