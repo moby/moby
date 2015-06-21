@@ -2,15 +2,14 @@ package bridge
 
 import (
 	"errors"
-	"fmt"
 	"net"
 	"os/exec"
-	"regexp"
 	"strconv"
 	"strings"
 	"sync"
 
 	"github.com/Sirupsen/logrus"
+	dnetlink "github.com/docker/libcontainer/netlink"
 	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/ipallocator"
 	"github.com/docker/libnetwork/netlabel"
@@ -704,36 +703,34 @@ func (d *driver) CreateNetwork(id types.UUID, option map[string]interface{}) err
 
 func newVlanInterface(name string) error {
 
-	cmd := "ip"
 	intSplit := strings.Split(name, ".")
 	if len(intSplit) != 2 {
 		return errors.New("invalid interface name, ie. eth0")
 	}
 
-	args := []string{"link", "add", "link", intSplit[0], "name", name, "type", "vlan", "id", intSplit[1]}
-	if output, err := exec.Command(cmd, args...).CombinedOutput(); err != nil {
-		r, _ := regexp.Compile("File exists")
-		if !r.MatchString(string(output)) {
-			return errors.New(fmt.Sprintf((fmt.Sprint(err) + ": " + string(output))))
-		}
+	vlanID, _ := strconv.Atoi(intSplit[1])
+
+	err := dnetlink.NetworkLinkAddVlan(intSplit[0], name, uint16(vlanID))
+	if err != nil && err.Error() == "file exists" {
+		return nil
+	} else if err != nil {
+		return err
 	}
-	logrus.Infof("Created interface %s", name)
 	return nil
 }
 
 func attachVlanInterface(name, bridgeName string) error {
-
-	cmd := "ip"
-	args := []string{"link", "set", name, "master", bridgeName}
-
-	// cmd := "brctl"
-	// args := []string{"add", name, bridgeName}
-
-	if output, err := exec.Command(cmd, args...).CombinedOutput(); err != nil {
-		return errors.New(fmt.Sprintf((fmt.Sprint(err) + ": " + string(output))))
+	int1, err := net.InterfaceByName(name)
+	if err != nil {
+		return err
 	}
-	logrus.Infof("Added interface %s to bridge %s", name, bridgeName)
-	return nil
+
+	int2, err := net.InterfaceByName(bridgeName)
+	if err != nil {
+		return err
+	}
+
+	return dnetlink.NetworkSetMaster(int1, int2)
 }
 
 func (d *driver) DeleteNetwork(nid types.UUID) error {
