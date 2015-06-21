@@ -77,6 +77,7 @@ type resolvConfPathConfig struct {
 	resolvConfPath string
 	dnsList        []string
 	dnsSearchList  []string
+	dnsOptionsList []string
 }
 
 type containerConfig struct {
@@ -759,10 +760,12 @@ func (ep *endpoint) setupDNS() error {
 	}
 
 	if len(container.config.dnsList) > 0 ||
-		len(container.config.dnsSearchList) > 0 {
+		len(container.config.dnsSearchList) > 0 ||
+		len(container.config.dnsOptionsList) > 0 {
 		var (
-			dnsList       = resolvconf.GetNameservers(resolvConf)
-			dnsSearchList = resolvconf.GetSearchDomains(resolvConf)
+			dnsList        = resolvconf.GetNameservers(resolvConf)
+			dnsSearchList  = resolvconf.GetSearchDomains(resolvConf)
+			dnsOptionsList = resolvconf.GetOptions(resolvConf)
 		)
 
 		if len(container.config.dnsList) > 0 {
@@ -773,7 +776,11 @@ func (ep *endpoint) setupDNS() error {
 			dnsSearchList = container.config.dnsSearchList
 		}
 
-		return resolvconf.Build(container.config.resolvConfPath, dnsList, dnsSearchList)
+		if len(container.config.dnsOptionsList) > 0 {
+			dnsOptionsList = container.config.dnsOptionsList
+		}
+
+		return resolvconf.Build(container.config.resolvConfPath, dnsList, dnsSearchList, dnsOptionsList)
 	}
 
 	return ep.updateDNS(resolvConf)
@@ -858,6 +865,14 @@ func JoinOptionDNS(dns string) EndpointOption {
 func JoinOptionDNSSearch(search string) EndpointOption {
 	return func(ep *endpoint) {
 		ep.container.config.dnsSearchList = append(ep.container.config.dnsSearchList, search)
+	}
+}
+
+// JoinOptionDNSOptions function returns an option setter for dns options entry option to
+// be passed to endpoint Join method.
+func JoinOptionDNSOptions(options string) EndpointOption {
+	return func(ep *endpoint) {
+		ep.container.config.dnsOptionsList = append(ep.container.config.dnsOptionsList, options)
 	}
 }
 

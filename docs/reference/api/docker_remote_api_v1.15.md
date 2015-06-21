@@ -155,6 +155,7 @@ Create a container
                "Privileged": false,
                "Dns": ["8.8.8.8"],
                "DnsSearch": [""],
+               "DnsOptions": [""],
                "ExtraHosts": null,
                "VolumesFrom": ["parent", "other:ro"],
                "CapAdd": ["NET_ADMIN"],
@@ -525,6 +526,7 @@ Start the container `id`
              "Privileged": false,
              "Dns": ["8.8.8.8"],
              "DnsSearch": [""],
+             "DnsOptions": [""],
              "VolumesFrom": ["parent", "other:ro"],
              "CapAdd": ["NET_ADMIN"],
              "CapDrop": ["MKNOD"],
@@ -558,6 +560,7 @@ Json Parameters:
       a boolean value.
 -   **Dns** - A list of dns servers for the container to use.
 -   **DnsSearch** - A list of DNS search domains
+-   **DnsOptions** - A list of DNS options
 -   **VolumesFrom** - A list of volumes to inherit from another container.
       Specified in the form `<container name>[:<ro|rw>]`
 -   **CapAdd** - A list of kernel capabilities to add to the container.

@@ -793,6 +793,7 @@ _docker_run() {
 		--cpu-shares -c
 		--device
 		--dns
+		--dns-option
 		--dns-search
 		--entrypoint
 		--env -e
@@ -1172,6 +1173,7 @@ _docker() {
 		--default-gateway-v6
 		--default-ulimit
 		--dns
+		--dns-option
 		--dns-search
 		--exec-driver -e
 		--exec-opt

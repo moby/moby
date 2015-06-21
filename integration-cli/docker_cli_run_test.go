@@ -1269,6 +1269,7 @@ func (s *DockerSuite) TestRunDnsDefaultOptions(c *check.C) {
 	}
 }
 
+//FIXME: tests for DNS options
 func (s *DockerSuite) TestRunDnsOptions(c *check.C) {
 	cmd := exec.Command(dockerBinary, "run", "--dns=127.0.0.1", "--dns-search=mydomain", "busybox", "cat", "/etc/resolv.conf")
 

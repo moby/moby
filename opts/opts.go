@@ -48,6 +48,10 @@ func DnsSearchListVar(values *[]string, names []string, usage string) {
 	flag.Var(newListOptsRef(values, ValidateDnsSearch), names, usage)
 }
 
+func DnsOptionListVar(values *[]string, names []string, usage string) {
+	flag.Var(newListOptsRef(values, nil), names, usage)
+}
+
 func IPVar(value *net.IP, names []string, defaultValue, usage string) {
 	flag.Var(NewIpOpt(value, defaultValue), names, usage)
 }
