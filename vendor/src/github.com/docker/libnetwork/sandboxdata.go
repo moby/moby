@@ -108,14 +108,14 @@ func (s *sandboxData) addEndpoint(ep *endpoint) error {
 
 	s.Lock()
 	heap.Push(&s.endpoints, ep)
-	highEp := s.endpoints[0]
+//	highEp := s.endpoints[0]
 	s.Unlock()
 
-	if ep == highEp {
-		if err := s.updateGateway(ep); err != nil {
-			return err
-		}
-	}
+//	if ep == highEp {
+//		if err := s.updateGateway(ep); err != nil {
+//			return err
+//		}
+//	}
 
 	s.Lock()
 	s.refCnt++

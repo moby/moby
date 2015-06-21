@@ -124,7 +124,7 @@ Finally, several networking options can only be provided when calling
     [Configuring DNS](#dns) and
     [Communication between containers](#between-containers)
 
- *  `--net=bridge|none|container:NAME_or_ID|host` — see
+ *  `--net=bridge|none|container:NAME_or_ID|host|networkname|networkname:staticip` — see
     [How Docker networks a container](#container-networking)
 
  *  `--mac-address=MACADDRESS...` — see
@@ -141,11 +141,11 @@ To supply networking options to the Docker server at startup, use the
 variable in `/etc/default/docker` or `/etc/sysconfig/docker` for CentOS.
 
 The following example illustrates how to configure Docker on Ubuntu to recognize a
-newly built bridge. 
+newly built bridge.
 
 Edit the `/etc/default/docker` file:
 
-    $ echo 'DOCKER_OPTS="-b=bridge0"' >> /etc/default/docker 
+    $ echo 'DOCKER_OPTS="-b=bridge0"' >> /etc/default/docker
 
 Then restart the Docker server.
 
@@ -223,7 +223,7 @@ the daemon filters out all localhost IP address `nameserver` entries from
 the host's original file.
 
 Filtering is necessary because all localhost addresses on the host are
-unreachable from the container's network.  After this filtering, if there 
+unreachable from the container's network.  After this filtering, if there
 are no more `nameserver` entries left in the container's `/etc/resolv.conf`
 file, the daemon adds public Google DNS nameservers
 (8.8.8.8 and 8.8.4.4) to the container's DNS configuration.  If IPv6 is
@@ -241,7 +241,7 @@ notifier active which will watch for changes to the host DNS configuration.
 
 > **Note**:
 > The file change notifier relies on the Linux kernel's inotify feature.
-> Because this feature is currently incompatible with the overlay filesystem 
+> Because this feature is currently incompatible with the overlay filesystem
 > driver, a Docker daemon using "overlay" will not be able to take advantage
 > of the `/etc/resolv.conf` auto-update feature.
 
@@ -253,7 +253,7 @@ of a facility to ensure atomic writes of the `resolv.conf` file while the
 container is running. If the container's `resolv.conf` has been edited since
 it was started with the default configuration, no replacement will be
 attempted as it would overwrite the changes performed by the container.
-If the options (`--dns` or `--dns-search`) have been used to modify the 
+If the options (`--dns` or `--dns-search`) have been used to modify the
 default host configuration, then the replacement with an updated host's
 `/etc/resolv.conf` will not happen as well.
 
@@ -689,7 +689,7 @@ on every host.
 
 In this scenario containers of the same host can communicate directly with each
 other. The traffic between containers on different hosts will be routed via
-their hosts and the router. For example packet from `Container1-1` to 
+their hosts and the router. For example packet from `Container1-1` to
 `Container2-1` will be routed through `Host1`, `Router` and `Host2` until it
 arrives at `Container2-1`.
 
@@ -947,6 +947,15 @@ values.
     network stack but not to take any steps to configure its network,
     leaving you free to build any of the custom configurations explored
     in the last few sections of this document.
+
+ *  `--net=networkname` - Connects the container to the network bridge
+    that was for the specified `networkname` instead of the default
+    bridge.
+
+ *  `--net=networkname:ipaddress` - Connects the container to the network
+    bridge as above but also assigns a static IP address to the container.
+    The static IP address must not be used by another container and must
+    match the ip range that was created with the network.
 
 To get an idea of the steps that are necessary if you use `--net=none`
 as described in that last bullet point, here are the commands that you

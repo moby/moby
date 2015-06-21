@@ -21,4 +21,7 @@ const (
 
 	//EnableIPv6 constant represents enabling IPV6 at network level
 	EnableIPv6 = Prefix + ".enable_ipv6"
+
+	//IPv4
+	IPAddressv4 = Prefix + ".endpoint.ipaddressv4"
 )
