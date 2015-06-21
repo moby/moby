@@ -31,9 +31,6 @@ import (
 	"github.com/docker/libnetwork/options"
 )
 
-const runDir = "/var/run/docker"
-const defaultVolumesPathName = "volumes"
-
 func (daemon *Daemon) Changes(container *Container) ([]archive.Change, error) {
 	initID := fmt.Sprintf("%s-init", container.ID)
 	return daemon.driver.Changes(container.ID, initID)

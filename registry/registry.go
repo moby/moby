@@ -8,7 +8,6 @@ import (
 	"io/ioutil"
 	"net"
 	"net/http"
-	"net/http/httputil"
 	"os"
 	"path"
 	"path/filepath"
@@ -198,29 +197,6 @@ func DockerHeaders(metaHeaders http.Header) []transport.RequestModifier {
 		modifiers = append(modifiers, transport.NewHeaderRequestModifier(metaHeaders))
 	}
 	return modifiers
-}
-
-type debugTransport struct {
-	http.RoundTripper
-	log func(...interface{})
-}
-
-func (tr debugTransport) RoundTrip(req *http.Request) (*http.Response, error) {
-	dump, err := httputil.DumpRequestOut(req, false)
-	if err != nil {
-		tr.log("could not dump request")
-	}
-	tr.log(string(dump))
-	resp, err := tr.RoundTripper.RoundTrip(req)
-	if err != nil {
-		return nil, err
-	}
-	dump, err = httputil.DumpResponse(resp, false)
-	if err != nil {
-		tr.log("could not dump response")
-	}
-	tr.log(string(dump))
-	return resp, err
 }
 
 func HTTPClient(transport http.RoundTripper) *http.Client {
