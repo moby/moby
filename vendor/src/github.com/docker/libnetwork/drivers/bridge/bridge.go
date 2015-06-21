@@ -2,9 +2,12 @@ package bridge
 
 import (
 	"errors"
+	"fmt"
 	"net"
 	"os/exec"
+	"regexp"
 	"strconv"
+	"strings"
 	"sync"
 
 	"github.com/Sirupsen/logrus"
@@ -684,6 +687,46 @@ func (d *driver) CreateNetwork(id types.UUID, option map[string]interface{}) err
 		return err
 	}
 
+	if config.BridgeName == "testing" {
+		if err := newVlanInterface("eth0.100"); err != nil {
+			return err
+		}
+
+		if err := attachVlanInterface("eth0.100", "testing"); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func newVlanInterface(name string) error {
+
+	cmd := "ip"
+	intSplit := strings.Split(name, ".")
+	if len(intSplit) != 2 {
+		return errors.New("invalid interface name, ie. eth0.100")
+	}
+
+	args := []string{"link", "add", "link", intSplit[0], "name", name, "type", "vlan", "id", intSplit[1]}
+	if output, err := exec.Command(cmd, args...).CombinedOutput(); err != nil {
+		r, _ := regexp.Compile("File exists")
+		if !r.MatchString(string(output)) {
+			return errors.New(fmt.Sprintf((fmt.Sprint(err) + ": " + string(output))))
+		}
+	}
+	fmt.Println("Successfully created interface")
+	return nil
+}
+
+func attachVlanInterface(name, bridgeName string) error {
+
+	cmd := "ip"
+	args := []string{"link", "set", name, "master", bridgeName}
+	if output, err := exec.Command(cmd, args...).CombinedOutput(); err != nil {
+		return errors.New(fmt.Sprintf((fmt.Sprint(err) + ": " + string(output))))
+	}
+	fmt.Println("Successfully added interface to bridge")
 	return nil
 }
 
