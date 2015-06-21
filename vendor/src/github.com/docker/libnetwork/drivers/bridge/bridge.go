@@ -508,20 +508,32 @@ func parseNetworkOptions(option options.Generic) (*networkConfiguration, error) 
 		config.IfName = option["ifname"].(string)
 	}
 	if _, ok := option["AddressIPv4"]; ok {
-		_, bipNet, err := net.ParseCIDR(option["AddressIPv4"].(string))
-		if err != nil {
-			return nil, err
+
+		addressIPv4 := option["AddressIPv4"].(string)
+		if addressIPv4 != "" {
+			ip, netv4, err := net.ParseCIDR(option["AddressIPv4"].(string))
+			if err != nil {
+				return nil, err
+			}
+			bipNet := &net.IPNet{
+				IP:   ip,
+				Mask: netv4.Mask,
+			}
+
+			config.AddressIPv4 = bipNet
+			logrus.Infof("config.AddressIPv4: %#v", config.AddressIPv4)
 		}
-		config.AddressIPv4 = bipNet
-		logrus.Infof("config.AddressIPv4: %#v", config.AddressIPv4)
 	}
 	if _, ok := option["FixedCIDR"]; ok {
-		_, fCIDR, err := net.ParseCIDR(option["FixedCIDR"].(string))
-		if err != nil {
-			return nil, err
+		fixedCIDR := option["FixedCIDR"].(string)
+		if fixedCIDR != "" {
+			_, fCIDR, err := net.ParseCIDR(option["FixedCIDR"].(string))
+			if err != nil {
+				return nil, err
+			}
+			config.FixedCIDR = fCIDR
+			logrus.Infof("config.FixedCIDR: %#v", config.FixedCIDR)
 		}
-		config.FixedCIDR = fCIDR
-		logrus.Infof("config.FixedCIDR: %#v", config.FixedCIDR)
 	}
 
 	// Finally validate the configuration
