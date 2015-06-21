@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"os"
 	"regexp"
 )
 
@@ -63,6 +64,45 @@ func Build(path, IP, hostname, domainname string, extraContent []Record) error {
 	}
 
 	return ioutil.WriteFile(path, content.Bytes(), 0644)
+}
+
+// Add adds an arbitrary number of Records to an already existing /etc/hosts file
+func Add(path string, recs []Record) error {
+	f, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+
+	content := bytes.NewBuffer(nil)
+
+	_, err = content.ReadFrom(f)
+	if err != nil {
+		return err
+	}
+
+	for _, r := range recs {
+		if _, err := r.WriteTo(content); err != nil {
+			return err
+		}
+	}
+
+	return ioutil.WriteFile(path, content.Bytes(), 0644)
+}
+
+// Delete deletes an arbitrary number of Records already existing in /etc/hosts file
+func Delete(path string, recs []Record) error {
+	old, err := ioutil.ReadFile(path)
+	if err != nil {
+		return err
+	}
+
+	regexpStr := fmt.Sprintf("\\S*\\t%s\\n", regexp.QuoteMeta(recs[0].Hosts))
+	for _, r := range recs[1:] {
+		regexpStr = regexpStr + "|" + fmt.Sprintf("\\S*\\t%s\\n", regexp.QuoteMeta(r.Hosts))
+	}
+
+	var re = regexp.MustCompile(regexpStr)
+	return ioutil.WriteFile(path, re.ReplaceAll(old, []byte("")), 0644)
 }
 
 // Update all IP addresses where hostname matches.

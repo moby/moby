@@ -84,13 +84,15 @@ func (epi *endpointInterface) UnmarshalJSON(b []byte) (err error) {
 	mac, _ := net.ParseMAC(epMap["mac"].(string))
 	epi.mac = mac
 
-	_, ipnet, _ := net.ParseCIDR(epMap["addr"].(string))
+	ip, ipnet, _ := net.ParseCIDR(epMap["addr"].(string))
 	if ipnet != nil {
+		ipnet.IP = ip
 		epi.addr = *ipnet
 	}
 
-	_, ipnet, _ = net.ParseCIDR(epMap["addrv6"].(string))
+	ip, ipnet, _ = net.ParseCIDR(epMap["addrv6"].(string))
 	if ipnet != nil {
+		ipnet.IP = ip
 		epi.addrv6 = *ipnet
 	}
 
@@ -102,8 +104,9 @@ func (epi *endpointInterface) UnmarshalJSON(b []byte) (err error) {
 	json.Unmarshal(rb, &routes)
 	epi.routes = make([]*net.IPNet, 0)
 	for _, route := range routes {
-		_, ipr, err := net.ParseCIDR(route)
+		ip, ipr, err := net.ParseCIDR(route)
 		if err == nil {
+			ipr.IP = ip
 			epi.routes = append(epi.routes, ipr)
 		}
 	}

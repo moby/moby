@@ -37,6 +37,7 @@ type networkNamespace struct {
 	gw           net.IP
 	gwv6         net.IP
 	staticRoutes []*types.StaticRoute
+	neighbors    []*neigh
 	nextIfIndex  int
 	sync.Mutex
 }
@@ -150,6 +151,10 @@ func (n *networkNamespace) InterfaceOptions() IfaceOptionSetter {
 	return n
 }
 
+func (n *networkNamespace) NeighborOptions() NeighborOptionSetter {
+	return n
+}
+
 func reexecCreateNamespace() {
 	if len(os.Args) < 2 {
 		log.Fatal("no namespace path provided")
@@ -228,6 +233,13 @@ func loopbackUp() error {
 		return err
 	}
 	return netlink.LinkSetUp(iface)
+}
+
+func (n *networkNamespace) InvokeFunc(f func()) error {
+	return nsInvoke(n.nsPath(), func(nsFD int) error { return nil }, func(callerFD int) error {
+		f()
+		return nil
+	})
 }
 
 func nsInvoke(path string, prefunc func(nsFD int) error, postfunc func(callerFD int) error) error {

@@ -1,5 +1,7 @@
 package netlabel
 
+import "strings"
+
 const (
 	// Prefix constant marks the reserved label space for libnetwork
 	Prefix = "com.docker.network"
@@ -21,4 +23,30 @@ const (
 
 	//EnableIPv6 constant represents enabling IPV6 at network level
 	EnableIPv6 = Prefix + ".enable_ipv6"
+
+	// KVProvider constant represents the KV provider backend
+	KVProvider = DriverPrefix + ".kv_provider"
+
+	// KVProviderURL constant represents the KV provider URL
+	KVProviderURL = DriverPrefix + ".kv_provider_url"
+
+	// OverlayBindInterface constant represents overlay driver bind interface
+	OverlayBindInterface = DriverPrefix + ".overlay.bind_interface"
+
+	// OverlayNeighborIP constant represents overlay driver neighbor IP
+	OverlayNeighborIP = DriverPrefix + ".overlay.neighbor_ip"
 )
+
+// Key extracts the key portion of the label
+func Key(label string) string {
+	kv := strings.SplitN(label, "=", 2)
+
+	return kv[0]
+}
+
+// Value extracts the value portion of the label
+func Value(label string) string {
+	kv := strings.SplitN(label, "=", 2)
+
+	return kv[1]
+}

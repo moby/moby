@@ -2,51 +2,52 @@
 Package libnetwork provides the basic functionality and extension points to
 create network namespaces and allocate interfaces for containers to use.
 
-        // Create a new controller instance
-        controller, _err := libnetwork.New(nil)
+	// Create a new controller instance
+	controller, _err := libnetwork.New(nil)
 
-        // Select and configure the network driver
-        networkType := "bridge"
+	// Select and configure the network driver
+	networkType := "bridge"
 
-        driverOptions := options.Generic{}
-        genericOption := make(map[string]interface{})
-        genericOption[netlabel.GenericData] = driverOptions
-        err := controller.ConfigureNetworkDriver(networkType, genericOption)
-        if err != nil {
-                return
-        }
+	driverOptions := options.Generic{}
+	genericOption := make(map[string]interface{})
+	genericOption[netlabel.GenericData] = driverOptions
+	err := controller.ConfigureNetworkDriver(networkType, genericOption)
+	if err != nil {
+		return
+	}
 
-        // Create a network for containers to join.
-        // NewNetwork accepts Variadic optional arguments that libnetwork and Drivers can make of
-        network, err := controller.NewNetwork(networkType, "network1")
-        if err != nil {
-                return
-        }
+	// Create a network for containers to join.
+	// NewNetwork accepts Variadic optional arguments that libnetwork and Drivers can make of
+	network, err := controller.NewNetwork(networkType, "network1")
+	if err != nil {
+		return
+	}
 
-        // For each new container: allocate IP and interfaces. The returned network
-        // settings will be used for container infos (inspect and such), as well as
-        // iptables rules for port publishing. This info is contained or accessible
-        // from the returned endpoint.
-        ep, err := network.CreateEndpoint("Endpoint1")
-        if err != nil {
-                return
-        }
+	// For each new container: allocate IP and interfaces. The returned network
+	// settings will be used for container infos (inspect and such), as well as
+	// iptables rules for port publishing. This info is contained or accessible
+	// from the returned endpoint.
+	ep, err := network.CreateEndpoint("Endpoint1")
+	if err != nil {
+		return
+	}
 
-        // A container can join the endpoint by providing the container ID to the join
-        // api.
-        // Join acceps Variadic arguments which will be made use of by libnetwork and Drivers
-        err = ep.Join("container1",
-                libnetwork.JoinOptionHostname("test"),
-                libnetwork.JoinOptionDomainname("docker.io"))
-        if err != nil {
-                return
-        }
+	// A container can join the endpoint by providing the container ID to the join
+	// api.
+	// Join acceps Variadic arguments which will be made use of by libnetwork and Drivers
+	err = ep.Join("container1",
+		libnetwork.JoinOptionHostname("test"),
+		libnetwork.JoinOptionDomainname("docker.io"))
+	if err != nil {
+		return
+	}
 */
 package libnetwork
 
 import (
 	"fmt"
 	"net"
+	"strings"
 	"sync"
 
 	log "github.com/Sirupsen/logrus"
@@ -56,6 +57,7 @@ import (
 	"github.com/docker/libnetwork/datastore"
 	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/hostdiscovery"
+	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/libnetwork/sandbox"
 	"github.com/docker/libnetwork/types"
 )
@@ -84,6 +86,9 @@ type NetworkController interface {
 
 	// NetworkByID returns the Network which has the passed id. If not found, the error ErrNoSuchNetwork is returned.
 	NetworkByID(id string) (Network, error)
+
+	// LeaveAll accepts a container id and attempts to leave all endpoints that the container has joined
+	LeaveAll(id string) error
 
 	// GC triggers immediate garbage collection of resources which are garbage collected.
 	GC()
@@ -187,14 +192,41 @@ func (c *controller) ConfigureNetworkDriver(networkType string, options map[stri
 
 func (c *controller) RegisterDriver(networkType string, driver driverapi.Driver, capability driverapi.Capability) error {
 	c.Lock()
-	defer c.Unlock()
 	if !config.IsValidName(networkType) {
+		c.Unlock()
 		return ErrInvalidName(networkType)
 	}
 	if _, ok := c.drivers[networkType]; ok {
+		c.Unlock()
 		return driverapi.ErrActiveRegistration(networkType)
 	}
 	c.drivers[networkType] = &driverData{driver, capability}
+
+	if c.cfg == nil {
+		c.Unlock()
+		return nil
+	}
+
+	opt := make(map[string]interface{})
+	for _, label := range c.cfg.Daemon.Labels {
+		if strings.HasPrefix(label, netlabel.DriverPrefix+"."+networkType) {
+			opt[netlabel.Key(label)] = netlabel.Value(label)
+		}
+	}
+
+	if capability.Scope == driverapi.GlobalScope && c.validateDatastoreConfig() {
+		opt[netlabel.KVProvider] = c.cfg.Datastore.Client.Provider
+		opt[netlabel.KVProviderURL] = c.cfg.Datastore.Client.Address
+	}
+
+	c.Unlock()
+
+	if len(opt) != 0 {
+		if err := driver.Config(opt); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
@@ -255,12 +287,16 @@ func (c *controller) addNetwork(n *network) error {
 	}
 
 	n.Lock()
+	n.svcRecords = svcMap{}
 	n.driver = dd.driver
 	d := n.driver
 	n.Unlock()
 
 	// Create the network
 	if err := d.CreateNetwork(n.id, n.generic); err != nil {
+		return err
+	}
+	if err := n.watchEndpoints(); err != nil {
 		return err
 	}
 	c.Lock()

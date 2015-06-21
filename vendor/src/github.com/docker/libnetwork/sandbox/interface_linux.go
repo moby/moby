@@ -153,14 +153,14 @@ func (i *nwIface) Remove() error {
 	})
 }
 
-func (n *networkNamespace) findDstMaster(srcName string) string {
+func (n *networkNamespace) findDst(srcName string, isBridge bool) string {
 	n.Lock()
 	defer n.Unlock()
 
 	for _, i := range n.iFaces {
 		// The master should match the srcname of the interface and the
-		// master interface should be of type bridge.
-		if i.SrcName() == srcName && i.Bridge() {
+		// master interface should be of type bridge, if searching for a bridge type
+		if i.SrcName() == srcName && (!isBridge || i.Bridge()) {
 			return i.DstName()
 		}
 	}
@@ -173,7 +173,7 @@ func (n *networkNamespace) AddInterface(srcName, dstPrefix string, options ...If
 	i.processInterfaceOptions(options...)
 
 	if i.master != "" {
-		i.dstMaster = n.findDstMaster(i.master)
+		i.dstMaster = n.findDst(i.master, true)
 		if i.dstMaster == "" {
 			return fmt.Errorf("could not find an appropriate master %q for %q",
 				i.master, i.srcName)

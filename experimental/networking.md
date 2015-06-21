@@ -3,9 +3,13 @@
 In this feature:
 
 - `network` and `service` become a first class objects in the Docker UI
-- You can create networks and attach containers to them
-- We introduce the concept of `services`
-  - This is an entry-point in to a given network that is also published via Service Discovery
+  - one can now create networks, publish services on that network and attach containers to the services
+- Natice multi-host networking
+  - `network` and `service` objects are globally significant and provides multi-host container connectivity natively
+- Inbuilt simple Service Discovery
+  - With multi-host networking and top-level `service` object, Docker now provides out of the box simple Service Discovery for containers running in a network
+- Batteries included but removable
+  - Docker provides inbuilt native multi-host networking by default & can be swapped by any remote driver provided by external plugins.
 
 This is an experimental feature. For information on installing and using experimental features, see [the experimental feature overview](experimental.md).
 
@@ -62,11 +66,14 @@ If you no longer have need of a network, you can delete it with `docker network 
         bd61375b6993        host                host
         cc455abccfeb        bridge              bridge
 
-Docker daemon supports a configuration flag `--default-network` which takes configuration value of format `NETWORK:DRIVER`, where,
-`NETWORK` is the name of the network created using the `docker network create` command and 
+## User-Defined default network
+
+Docker daemon supports a configuration flag `--default-network` which takes configuration value of format `DRIVER:NETWORK`, where,
 `DRIVER` represents the in-built drivers such as bridge, overlay, container, host and none. or Remote drivers via Network Plugins.
+`NETWORK` is the name of the network created using the `docker network create` command
 When a container is created and if the network mode (`--net`) is not specified, then this default network will be used to connect
 the container. If `--default-network` is not specified, the default network will be the `bridge` driver.
+Example : `docker -d --default-network=overlay:multihost`
 
 ## Using Services
 
@@ -109,6 +116,20 @@ To remove the a service:
         $ docker service detach a0ebc12d3e48 my-service.foo
         $ docker service unpublish my-service.foo
 
-Send us feedback and comments on [#](https://github.com/docker/docker/issues/?),
+
+## Native Multi-host networking
+
+There is a lot to talk about the native multi-host networking and the `overlay` driver that makes it happen. The technical details are documented under https://github.com/docker/libnetwork/blob/master/docs/overlay.md.
+Using the above experimental UI `docker network`, `docker service` and `--publish-service`, the user can exercise the power of multi-host networking.
+
+Since `network` and `service` objects are globally significant, this feature requires distributed states provided by the `libkv` project.
+Using `libkv`, the user can plug any of the supported Key-Value store (such as consul, etcd or zookeeper).
+User can specify the Key-Value store of choice using the `--kv-store` daemon flag, which takes configuration value of format `PROVIDER:URL`, where
+`PROVIDER` is the name of the Key-Value store (such as consul, etcd or zookeeper) and
+`URL` is the url to reach the Key-Value store.
+Example : `docker -d --kv-store=consul:localhost:8500`
+
+
+Send us feedback and comments on [#14083](https://github.com/docker/docker/issues/14083)
 or on the usual Google Groups (docker-user, docker-dev) and IRC channels.
 
