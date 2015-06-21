@@ -64,6 +64,7 @@ type endpointConfiguration struct {
 	MacAddress   net.HardwareAddr
 	PortBindings []types.PortBinding
 	ExposedPorts []types.TransportPort
+	IPAddressv4  net.IP
 }
 
 // containerConfiguration represents the user specified configuration for a container
@@ -724,6 +725,10 @@ func attachVlanInterface(name, bridgeName string) error {
 
 	cmd := "ip"
 	args := []string{"link", "set", name, "master", bridgeName}
+
+	// cmd := "brctl"
+	// args := []string{"add", name, bridgeName}
+
 	if output, err := exec.Command(cmd, args...).CombinedOutput(); err != nil {
 		return errors.New(fmt.Sprintf((fmt.Sprint(err) + ": " + string(output))))
 	}
@@ -939,7 +944,7 @@ func (d *driver) CreateEndpoint(nid, eid types.UUID, epInfo driverapi.EndpointIn
 	}
 
 	// v4 address for the sandbox side pipe interface
-	ip4, err := ipAllocator.RequestIP(n.bridge.bridgeIPv4, nil)
+	ip4, err := ipAllocator.RequestIP(n.bridge.bridgeIPv4, epConfig.IPAddressv4)
 	if err != nil {
 		return err
 	}
@@ -1323,6 +1328,15 @@ func parseEndpointOptions(epOptions map[string]interface{}) (*endpointConfigurat
 	if opt, ok := epOptions[netlabel.ExposedPorts]; ok {
 		if ports, ok := opt.([]types.TransportPort); ok {
 			ec.ExposedPorts = ports
+		} else {
+			return nil, &ErrInvalidEndpointConfig{}
+		}
+	}
+
+	if opt, ok := epOptions[netlabel.IPAddressv4]; ok {
+
+		if ipAddress, ok := opt.(string); ok {
+			ec.IPAddressv4 = net.ParseIP(ipAddress)
 		} else {
 			return nil, &ErrInvalidEndpointConfig{}
 		}

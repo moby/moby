@@ -3,6 +3,7 @@
 package daemon
 
 import (
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net"
@@ -734,6 +735,20 @@ func (container *Container) buildCreateEndpointOptions() ([]libnetwork.EndpointO
 		createOptions = append(createOptions, libnetwork.EndpointOptionGeneric(genericOption))
 	}
 
+	var ipAddress string
+	if container.hostConfig.NetworkMode.HasIp() {
+		parts := strings.Split(string(container.hostConfig.NetworkMode), ":")
+		ipAddress = parts[1]
+	}
+
+	if ipAddress != "" {
+		genericOption := options.Generic{
+			netlabel.IPAddressv4: ipAddress,
+		}
+
+		createOptions = append(createOptions, libnetwork.EndpointOptionGeneric(genericOption))
+	}
+
 	return createOptions, nil
 }
 
@@ -775,11 +790,23 @@ func (container *Container) AllocateNetwork() error {
 		return nil
 	}
 
+	parts := strings.Split(string(mode), ":")
+
+	switch {
+	case len(parts) == 0:
+		return nil
+	case len(parts) == 1:
+	case len(parts) == 2:
+	default:
+		return errors.New("networkname:ip not specified")
+	}
+
+	mode = runconfig.NetworkMode(parts[0])
 	var networkName string
 	networkByName = false
 	n, err := controller.NetworkByName(string(mode))
 	if err == nil {
-		networkName = runconfig.NetworkMode("bridge")
+		networkName = string(mode)
 		networkByName = true
 	} else {
 		networkName = mode.NetworkName()
@@ -787,7 +814,7 @@ func (container *Container) AllocateNetwork() error {
 
 	var networkDriver string
 	service := container.Config.PublishService
-	if !networkByName && mode.IsDefault() {
+	if ! networkByName && mode.IsDefault() {
 		if service != "" {
 			service, networkName, networkDriver = parseService(controller, service)
 		} else {
@@ -804,7 +831,9 @@ func (container *Container) AllocateNetwork() error {
 
 	var err error
 
-	n, err := controller.NetworkByName(networkName)
+	if ! networkByName {
+		n, err = controller.NetworkByName(networkName)
+	}
 	if err != nil {
 		// Create Network automatically only in default mode
 		if _, ok := err.(libnetwork.ErrNoSuchNetwork); !ok || !mode.IsDefault() {

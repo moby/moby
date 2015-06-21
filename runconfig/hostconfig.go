@@ -61,6 +61,14 @@ func (n NetworkMode) IsNone() bool {
 	return n == "none"
 }
 
+func (n NetworkMode) HasIp() bool {
+	parts := strings.Split(string(n), ":")
+	if len(parts) == 2 {
+		return true
+	}
+	return false
+}
+
 type IpcMode string
 
 // IsPrivate indicates whether container use it's private ipc stack
