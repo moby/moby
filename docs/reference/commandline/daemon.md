@@ -178,24 +178,7 @@ Particular storage-driver can be configured with options specified with
 `--storage-opt` flags. Options for `devicemapper` are prefixed with `dm` and
 options for `zfs` start with `zfs`.
 
-*  `dm.thinpooldev`
-
-     Specifies a custom block storage device to use for the thin pool.
-
-     If using a block device for device mapper storage, it is best to use `lvm`
-     to create and manage the thin-pool volume. This volume is then handed to Docker
-     to exclusively create snapshot volumes needed for images and containers.  
-
-     Managing the thin-pool outside of Docker makes for the most feature-rich
-     method of having Docker utilize device mapper thin provisioning as the
-     backing storage for Docker's containers. The highlights of the lvm-based
-     thin-pool management feature include: automatic or interactive thin-pool
-     resize support, dynamically changing thin-pool features, automatic thinp
-     metadata checking when lvm activates the thin-pool, etc.
-
-     Example use:
-
-        docker -d --storage-opt dm.thinpooldev=/dev/mapper/thin-pool
+Currently supported options of `devicemapper`:
 
  *  `dm.basesize`
 
@@ -205,9 +188,9 @@ options for `zfs` start with `zfs`.
     10 GB of space on the pool. However, the filesystem will use more space for
     the empty case the larger the device is.
 
-    This value affects the system-wide "base" empty filesystem
-    that may already be initialized and inherited by pulled images. Typically,
-    a change to this value requires additional steps to take effect:
+     **Warning:** This value affects the system-wide "base" empty filesystem
+     that may already be initialized and inherited by pulled images. Typically,
+     a change to this value will require additional steps to take effect:
 
         $ sudo service docker stop
         $ sudo rm -rf /var/lib/docker
@@ -219,12 +202,9 @@ options for `zfs` start with `zfs`.
 
  *  `dm.loopdatasize`
 
-    >**Note**: This option configures devicemapper loopback, which should not be used in production.
-		
-    Specifies the size to use when creating the loopback file for the
-    "data" device which is used for the thin pool. The default size is
-    100G. The file is sparse, so it will not initially take up this
-    much space.
+    Specifies the size to use when creating the loopback file for the "data"
+    device which is used for the thin pool. The default size is 100G. Note that
+    the file is sparse, so it will not initially take up this much space.
 
     Example use:
 
@@ -232,12 +212,10 @@ options for `zfs` start with `zfs`.
 
  *  `dm.loopmetadatasize`
 
-    >**Note**: This option configures devicemapper loopback, which should not be used in production.
-
     Specifies the size to use when creating the loopback file for the
-    "metadadata" device which is used for the thin pool. The default size
-    is 2G. The file is sparse, so it will not initially take up
-    this much space.
+    "metadata" device which is used for the thin pool. The default size is 2G.
+    Note that the file is sparse, so it will not initially take up this much
+    space.
 
     Example use:
 
@@ -270,8 +248,6 @@ options for `zfs` start with `zfs`.
 
  *  `dm.datadev`
 
-    (Deprecated, use `dm.thinpooldev`)
-
     Specifies a custom blockdevice to use for data for the thin pool.
 
     If using a block device for device mapper storage, ideally both datadev and
@@ -280,11 +256,11 @@ options for `zfs` start with `zfs`.
 
     Example use:
 
-        $ docker -d --storage-opt dm.datadev=/dev/sdb1 --storage-opt dm.metadatadev=/dev/sdc1
+        $ docker -d \
+            --storage-opt dm.datadev=/dev/sdb1 \
+            --storage-opt dm.metadatadev=/dev/sdc1
 
  *  `dm.metadatadev`
-
-    (Deprecated, use `dm.thinpooldev`)
 
     Specifies a custom blockdevice to use for metadata for the thin pool.
 
@@ -294,11 +270,13 @@ options for `zfs` start with `zfs`.
     If setting up a new metadata pool it is required to be valid. This can be
     achieved by zeroing the first 4k to indicate empty metadata, like this:
 
-	$ dd if=/dev/zero of=$metadata_dev bs=4096 count=1
+        $ dd if=/dev/zero of=$metadata_dev bs=4096 count=1
 
     Example use:
 
-        $ docker -d --storage-opt dm.datadev=/dev/sdb1 --storage-opt dm.metadatadev=/dev/sdc1
+        $ docker -d \
+            --storage-opt dm.datadev=/dev/sdb1 \
+            --storage-opt dm.metadatadev=/dev/sdc1
 
  *  `dm.blocksize`
 
@@ -359,7 +337,6 @@ options for `zfs` start with `zfs`.
     > Otherwise, set this flag for migrating existing Docker daemons to
     > a daemon with a supported environment.
 
-
 ## Docker execdriver option
 
 Currently supported options of `zfs`:
@@ -373,8 +350,6 @@ Currently supported options of `zfs`:
     Example use:
 
         $ docker -d -s zfs --storage-opt zfs.fsname=zroot/docker
-
-## Docker execdriver option
 
 The Docker daemon uses a specifically built `libcontainer` execution driver as
 its interface to the Linux kernel `namespaces`, `cgroups`, and `SELinux`.
