@@ -803,7 +803,7 @@ func (container *Container) AllocateNetwork() error {
 
 	mode = runconfig.NetworkMode(parts[0])
 	var networkName string
-	networkByName = false
+	var networkByName = false
 	n, err := controller.NetworkByName(string(mode))
 	if err == nil {
 		networkName = string(mode)
@@ -828,8 +828,6 @@ func (container *Container) AllocateNetwork() error {
 	if service == "" {
 		service = strings.Replace(container.Name, ".", "-", -1)
 	}
-
-	var err error
 
 	if ! networkByName {
 		n, err = controller.NetworkByName(networkName)
