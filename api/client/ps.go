@@ -38,6 +38,7 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 		since    = cmd.String([]string{"#sinceId", "#-since-id", "-since"}, "", "Show created since Id or Name, include non-running")
 		before   = cmd.String([]string{"#beforeId", "#-before-id", "-before"}, "", "Show only container created before Id or Name")
 		last     = cmd.Int([]string{"n"}, -1, "Show n last created containers, include non-running")
+		fields   = cmd.String([]string{"-fields"}, "c,i,m,t,s,p,n", "Choose fields to print, and order (c,i,m,t,s,p,n,z)")
 		flFilter = opts.NewListOpts(nil)
 	)
 	cmd.Require(flag.Exact, 0)
@@ -97,13 +98,51 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 	}
 
 	w := tabwriter.NewWriter(cli.out, 20, 1, 3, ' ', 0)
-	if !*quiet {
-		fmt.Fprint(w, "CONTAINER ID\tIMAGE\tCOMMAND\tCREATED\tSTATUS\tPORTS\tNAMES")
+	if *quiet {
+		*fields = "c"
+	}
 
-		if *size {
-			fmt.Fprintln(w, "\tSIZE")
-		} else {
-			fmt.Fprint(w, "\n")
+	if *size {
+		*fields = *fields + ",z"
+	}
+
+	defaultLabels := map[string]string{
+		"c": "CONTAINER ID",
+		"i": "IMAGE",
+		"m": "COMMAND",
+		"s": "STATUS",
+		"t": "CREATED",
+		"p": "PORTS",
+		"n": "NAMES",
+		"z": "SIZE",
+	}
+
+	type fieldentry struct {
+		label string
+		name  string
+	}
+	fieldorder := make([]fieldentry, 0)
+	for _, v := range strings.Split(*fields, ",") {
+		var fe fieldentry
+		eqv := strings.Split(v, "=")
+		fe.name = eqv[0]
+		if l, ok := defaultLabels[fe.name]; ok {
+			fe.label = l
+		}
+		if len(eqv) > 1 {
+			fe.label = eqv[1]
+		}
+		fieldorder = append(fieldorder, fe)
+	}
+
+	if !*quiet {
+		headers := make([]string, 0)
+		for _, v := range fieldorder {
+			headers = append(headers, v.label)
+		}
+
+		if len(headers) > 0 {
+			fmt.Fprint(w, strings.Join(headers, "\t")+"\n")
 		}
 	}
 
@@ -115,56 +154,83 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 		return ss
 	}
 
+	type containerMeta struct {
+		c string
+		i string
+		m string
+		t string
+		s string
+		p string
+		n string
+		z string
+	}
+
+	outp := make([]containerMeta, 0)
 	for _, container := range containers {
-		ID := container.ID
-
-		if !*noTrunc {
-			ID = stringid.TruncateID(ID)
+		next := containerMeta{
+			c: container.ID,
+			n: "",
+			m: strconv.Quote(container.Command),
+			i: container.Image,
+			t: units.HumanDuration(time.Now().UTC().Sub(time.Unix(int64(container.Created), 0))) + " ago",
+			s: container.Status,
+			p: api.DisplayablePorts(container.Ports),
+			z: fmt.Sprintf("%s", units.HumanSize(float64(container.SizeRw))),
 		}
 
-		if *quiet {
-			fmt.Fprintln(w, ID)
-
-			continue
-		}
-
-		var (
-			names   = stripNamePrefix(container.Names)
-			command = strconv.Quote(container.Command)
-		)
-
+		// handle truncation
+		outNames := stripNamePrefix(container.Names)
 		if !*noTrunc {
-			command = stringutils.Truncate(command, 20)
-
+			next.c = stringid.TruncateID(next.c)
+			next.m = stringutils.Truncate(next.m, 20)
 			// only display the default name for the container with notrunc is passed
-			for _, name := range names {
+			for _, name := range outNames {
 				if len(strings.Split(name, "/")) == 1 {
-					names = []string{name}
+					outNames = []string{name}
 					break
 				}
 			}
 		}
+		next.n = strings.Join(outNames, ",")
 
-		image := container.Image
-		if image == "" {
-			image = "<no image>"
+		if next.i == "" {
+			next.i = "<no image>"
 		}
 
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s ago\t%s\t%s\t%s\t", ID, image, command,
-			units.HumanDuration(time.Now().UTC().Sub(time.Unix(int64(container.Created), 0))),
-			container.Status, api.DisplayablePorts(container.Ports), strings.Join(names, ","))
+		// handle rootfs sizing
+		if container.SizeRootFs > 0 {
+			next.z = next.z + fmt.Sprintf(" (virtual %s)", units.HumanSize(float64(container.SizeRootFs)))
+		}
 
-		if *size {
-			if container.SizeRootFs > 0 {
-				fmt.Fprintf(w, "%s (virtual %s)\n", units.HumanSize(float64(container.SizeRw)), units.HumanSize(float64(container.SizeRootFs)))
-			} else {
-				fmt.Fprintf(w, "%s\n", units.HumanSize(float64(container.SizeRw)))
+		outp = append(outp, next)
+	}
+
+	for _, out := range outp {
+		of := make([]string, 0)
+		for _, v := range fieldorder {
+			switch v.name {
+			case "c":
+				of = append(of, out.c)
+			case "i":
+				of = append(of, out.i)
+			case "m":
+				of = append(of, out.m)
+			case "t":
+				of = append(of, out.t)
+			case "s":
+				of = append(of, out.s)
+			case "p":
+				of = append(of, out.p)
+			case "n":
+				of = append(of, out.n)
+			case "z":
+				of = append(of, out.z)
+
 			}
-
-			continue
 		}
-
-		fmt.Fprint(w, "\n")
+		if len(of) > 0 {
+			fmt.Fprintf(w, "%s\n", strings.Join(of, "\t"))
+		}
 	}
 
 	if !*quiet {
