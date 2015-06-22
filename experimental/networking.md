@@ -4,7 +4,7 @@ In this feature:
 
 - `network` and `service` become a first class objects in the Docker UI
   - one can now create networks, publish services on that network and attach containers to the services
-- Natice multi-host networking
+- Native multi-host networking
   - `network` and `service` objects are globally significant and provides multi-host container connectivity natively
 - Inbuilt simple Service Discovery
   - With multi-host networking and top-level `service` object, Docker now provides out of the box simple Service Discovery for containers running in a network
