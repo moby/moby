@@ -2,6 +2,7 @@ package libnetwork
 
 import (
 	"encoding/json"
+	"net"
 	"sync"
 
 	log "github.com/Sirupsen/logrus"
@@ -9,6 +10,7 @@ import (
 	"github.com/docker/libnetwork/config"
 	"github.com/docker/libnetwork/datastore"
 	"github.com/docker/libnetwork/driverapi"
+	"github.com/docker/libnetwork/etchosts"
 	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/libnetwork/options"
 	"github.com/docker/libnetwork/types"
@@ -51,6 +53,8 @@ type Network interface {
 // When the function returns true, the walk will stop.
 type EndpointWalker func(ep Endpoint) bool
 
+type svcMap map[string]net.IP
+
 type network struct {
 	ctrlr       *controller
 	name        string
@@ -62,6 +66,8 @@ type network struct {
 	endpoints   endpointTable
 	generic     options.Generic
 	dbIndex     uint64
+	svcRecords  svcMap
+	stopWatchCh chan struct{}
 	sync.Mutex
 }
 
@@ -248,6 +254,7 @@ func (n *network) deleteNetwork() error {
 		}
 		log.Warnf("driver error deleting network %s : %v", n.name, err)
 	}
+	n.stopWatch()
 	return nil
 }
 
@@ -270,6 +277,8 @@ func (n *network) addEndpoint(ep *endpoint) error {
 	if err != nil {
 		return err
 	}
+
+	n.updateSvcRecord(ep, true)
 	return nil
 }
 
@@ -381,4 +390,63 @@ func (n *network) isGlobalScoped() (bool, error) {
 	c := n.ctrlr
 	n.Unlock()
 	return c.isDriverGlobalScoped(n.networkType)
+}
+
+func (n *network) updateSvcRecord(ep *endpoint, isAdd bool) {
+	n.Lock()
+	var recs []etchosts.Record
+	for _, iface := range ep.InterfaceList() {
+		if isAdd {
+			n.svcRecords[ep.Name()] = iface.Address().IP
+			n.svcRecords[ep.Name()+"."+n.name] = iface.Address().IP
+		} else {
+			delete(n.svcRecords, ep.Name())
+			delete(n.svcRecords, ep.Name()+"."+n.name)
+		}
+
+		recs = append(recs, etchosts.Record{
+			Hosts: ep.Name(),
+			IP:    iface.Address().IP.String(),
+		})
+
+		recs = append(recs, etchosts.Record{
+			Hosts: ep.Name() + "." + n.name,
+			IP:    iface.Address().IP.String(),
+		})
+	}
+	n.Unlock()
+
+	var epList []*endpoint
+	n.WalkEndpoints(func(e Endpoint) bool {
+		cEp := e.(*endpoint)
+		cEp.Lock()
+		if cEp.container != nil {
+			epList = append(epList, cEp)
+		}
+		cEp.Unlock()
+		return false
+	})
+
+	for _, cEp := range epList {
+		if isAdd {
+			cEp.addHostEntries(recs)
+		} else {
+			cEp.deleteHostEntries(recs)
+		}
+	}
+}
+
+func (n *network) getSvcRecords() []etchosts.Record {
+	n.Lock()
+	defer n.Unlock()
+
+	var recs []etchosts.Record
+	for h, ip := range n.svcRecords {
+		recs = append(recs, etchosts.Record{
+			Hosts: h,
+			IP:    ip.String(),
+		})
+	}
+
+	return recs
 }

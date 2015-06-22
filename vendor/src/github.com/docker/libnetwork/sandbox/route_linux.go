@@ -81,7 +81,7 @@ func programGateway(path string, gw net.IP, isAdd bool) error {
 	return nsInvoke(path, func(nsFD int) error { return nil }, func(callerFD int) error {
 		gwRoutes, err := netlink.RouteGet(gw)
 		if err != nil {
-			return fmt.Errorf("route for the gateway could not be found: %v", err)
+			return fmt.Errorf("route for the gateway %s could not be found: %v", gw, err)
 		}
 
 		if isAdd {
@@ -105,7 +105,7 @@ func programRoute(path string, dest *net.IPNet, nh net.IP) error {
 	return nsInvoke(path, func(nsFD int) error { return nil }, func(callerFD int) error {
 		gwRoutes, err := netlink.RouteGet(nh)
 		if err != nil {
-			return fmt.Errorf("route for the next hop could not be found: %v", err)
+			return fmt.Errorf("route for the next hop %s could not be found: %v", nh, err)
 		}
 
 		return netlink.RouteAdd(&netlink.Route{

@@ -569,7 +569,6 @@ func (b *Builder) create() (*daemon.Container, error) {
 		CgroupParent: b.cgroupParent,
 		Memory:       b.memory,
 		MemorySwap:   b.memorySwap,
-		NetworkMode:  "bridge",
 	}
 
 	config := *b.Config

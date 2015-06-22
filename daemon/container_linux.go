@@ -768,6 +768,20 @@ func createNetwork(controller libnetwork.NetworkController, dnet string, driver 
 	return controller.NewNetwork(driver, dnet, createOptions...)
 }
 
+func (container *Container) secondaryNetworkRequired(primaryNetworkType string) bool {
+	switch primaryNetworkType {
+	case "bridge", "none", "host", "container":
+		return false
+	}
+	if container.Config.ExposedPorts != nil && len(container.Config.ExposedPorts) > 0 {
+		return true
+	}
+	if container.hostConfig.PortBindings != nil && len(container.hostConfig.PortBindings) > 0 {
+		return true
+	}
+	return false
+}
+
 func (container *Container) AllocateNetwork() error {
 	mode := container.hostConfig.NetworkMode
 	controller := container.daemon.netController
@@ -775,7 +789,7 @@ func (container *Container) AllocateNetwork() error {
 		return nil
 	}
 
-	var networkDriver string
+	networkDriver := string(mode)
 	service := container.Config.PublishService
 	networkName := mode.NetworkName()
 	if mode.IsDefault() {
@@ -790,15 +804,32 @@ func (container *Container) AllocateNetwork() error {
 	}
 
 	if service == "" {
+		// dot character "." has a special meaning to support SERVICE[.NETWORK] format.
+		// For backward compatiblity, replacing "." with "-", instead of failing
 		service = strings.Replace(container.Name, ".", "-", -1)
+		// Service names dont like "/" in them. removing it instead of failing for backward compatibility
+		service = strings.Replace(service, "/", "", -1)
 	}
 
-	var err error
+	if container.secondaryNetworkRequired(networkDriver) {
+		// Configure Bridge as secondary network for port binding purposes
+		if err := container.configureNetwork("bridge", service, "bridge", false); err != nil {
+			return err
+		}
+	}
 
+	if err := container.configureNetwork(networkName, service, networkDriver, mode.IsDefault()); err != nil {
+		return err
+	}
+
+	return container.WriteHostConfig()
+}
+
+func (container *Container) configureNetwork(networkName, service, networkDriver string, canCreateNetwork bool) error {
+	controller := container.daemon.netController
 	n, err := controller.NetworkByName(networkName)
 	if err != nil {
-		// Create Network automatically only in default mode
-		if _, ok := err.(libnetwork.ErrNoSuchNetwork); !ok || !mode.IsDefault() {
+		if _, ok := err.(libnetwork.ErrNoSuchNetwork); !ok || !canCreateNetwork {
 			return err
 		}
 
@@ -839,10 +870,6 @@ func (container *Container) AllocateNetwork() error {
 
 	if err := container.updateJoinInfo(ep); err != nil {
 		return fmt.Errorf("Updating join info failed: %v", err)
-	}
-
-	if err := container.WriteHostConfig(); err != nil {
-		return err
 	}
 
 	return nil
@@ -976,33 +1003,33 @@ func (container *Container) ReleaseNetwork() {
 		return
 	}
 
-	// If the container is not attached to any network do not try
-	// to release network and generate spurious error messages.
-	if container.NetworkSettings.NetworkID == "" {
-		return
-	}
-
-	n, err := container.daemon.netController.NetworkByID(container.NetworkSettings.NetworkID)
+	err := container.daemon.netController.LeaveAll(container.ID)
 	if err != nil {
-		logrus.Errorf("error locating network id %s: %v", container.NetworkSettings.NetworkID, err)
+		logrus.Errorf("Leave all failed for  %s: %v", container.ID, err)
 		return
 	}
 
-	ep, err := n.EndpointByID(container.NetworkSettings.EndpointID)
-	if err != nil {
-		logrus.Errorf("error locating endpoint id %s: %v", container.NetworkSettings.EndpointID, err)
-		return
-	}
-
-	if err := ep.Leave(container.ID); err != nil {
-		logrus.Errorf("leaving endpoint failed: %v", err)
-	}
-
-	if err := ep.Delete(); err != nil {
-		logrus.Errorf("deleting endpoint failed: %v", err)
-	}
+	eid := container.NetworkSettings.EndpointID
+	nid := container.NetworkSettings.NetworkID
 
 	container.NetworkSettings = &network.Settings{}
+
+	// In addition to leaving all endpoints, delete implicitly created endpoint
+	if container.Config.PublishService == "" && eid != "" && nid != "" {
+		n, err := container.daemon.netController.NetworkByID(nid)
+		if err != nil {
+			logrus.Errorf("error locating network id %s: %v", nid, err)
+			return
+		}
+		ep, err := n.EndpointByID(eid)
+		if err != nil {
+			logrus.Errorf("error locating endpoint id %s: %v", eid, err)
+			return
+		}
+		if err := ep.Delete(); err != nil {
+			logrus.Errorf("deleting endpoint failed: %v", err)
+		}
+	}
 }
 
 func disableAllActiveLinks(container *Container) {
