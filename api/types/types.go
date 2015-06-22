@@ -117,6 +117,9 @@ type Container struct {
 	SizeRootFs int `json:",omitempty"`
 	Labels     map[string]string
 	Status     string
+	HostConfig struct {
+		NetworkMode string `json:",omitempty"`
+	}
 }
 
 // POST "/containers/"+containerID+"/copy"
