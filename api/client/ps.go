@@ -129,8 +129,9 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 		}
 
 		var (
-			names   = stripNamePrefix(container.Names)
-			command = strconv.Quote(container.Command)
+			names       = stripNamePrefix(container.Names)
+			command     = strconv.Quote(container.Command)
+			displayPort string
 		)
 
 		if !*noTrunc {
@@ -150,9 +151,15 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 			image = "<no image>"
 		}
 
+		if container.HostConfig.NetworkMode == "host" {
+			displayPort = "*/tcp, */udp"
+		} else {
+			displayPort = api.DisplayablePorts(container.Ports)
+		}
+
 		fmt.Fprintf(w, "%s\t%s\t%s\t%s ago\t%s\t%s\t%s\t", ID, image, command,
 			units.HumanDuration(time.Now().UTC().Sub(time.Unix(int64(container.Created), 0))),
-			container.Status, api.DisplayablePorts(container.Ports), strings.Join(names, ","))
+			container.Status, displayPort, strings.Join(names, ","))
 
 		if *size {
 			if container.SizeRootFs > 0 {
