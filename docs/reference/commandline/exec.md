@@ -17,7 +17,7 @@ weight=1
 
       -d, --detach=false         Detached mode: run command in the background
       -i, --interactive=false    Keep STDIN open even if not attached
-      --privileged=false         Give extended privileges to the command
+      --privileged=false         Give extended Linux capabilities to the command
       -t, --tty=false            Allocate a pseudo-TTY
       -u, --user=                Username or UID (format: <name|uid>[:<group|gid>])
 
@@ -53,4 +53,3 @@ This will create a new file `/tmp/execWorks` inside the running container
     $ docker exec -it ubuntu_bash bash
 
 This will create a new Bash session in the container `ubuntu_bash`.
-

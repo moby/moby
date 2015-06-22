@@ -16,7 +16,7 @@ CONTAINER COMMAND [ARG...]
 
 # DESCRIPTION
 
-Run a process in a running container. 
+Run a process in a running container.
 
 The command started using `docker exec` will only run while the container's primary
 process (`PID 1`) is running, and will not be restarted if the container is restarted.
@@ -35,11 +35,12 @@ container is unpaused, and then run
    Keep STDIN open even if not attached. The default is *false*.
 
 **--privileged**=*true*|*false*
-   Give extended privileges to the process to run in a running container. The default is *false*.
+   Give the process extended [Linux capabilities](http://man7.org/linux/man-pages/man7/capabilities.7.html)
+when running in a container. The default is *false*.
 
-   By default, the process run by docker exec in a running container
-have the same capabilities of the container. By setting --privileged will give
-all the capabilities to the process.
+   Without this flag, the process run by `docker exec` in a running container has
+the same capabilities as the container, which may be limited. Set
+`--privileged` to give all capabilities to the process.
 
 **-t**, **--tty**=*true*|*false*
    Allocate a pseudo-TTY. The default is *false*.
