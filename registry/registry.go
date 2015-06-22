@@ -19,7 +19,6 @@ import (
 	"github.com/docker/distribution/registry/api/v2"
 	"github.com/docker/distribution/registry/client/transport"
 	"github.com/docker/docker/autogen/dockerversion"
-	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/docker/docker/pkg/tlsconfig"
 	"github.com/docker/docker/pkg/useragent"
 )
@@ -40,9 +39,6 @@ func init() {
 	httpVersion = append(httpVersion, useragent.VersionInfo{"docker", dockerversion.VERSION})
 	httpVersion = append(httpVersion, useragent.VersionInfo{"go", runtime.Version()})
 	httpVersion = append(httpVersion, useragent.VersionInfo{"git-commit", dockerversion.GITCOMMIT})
-	if kernelVersion, err := kernel.GetKernelVersion(); err == nil {
-		httpVersion = append(httpVersion, useragent.VersionInfo{"kernel", kernelVersion.String()})
-	}
 	httpVersion = append(httpVersion, useragent.VersionInfo{"os", runtime.GOOS})
 	httpVersion = append(httpVersion, useragent.VersionInfo{"arch", runtime.GOARCH})
 
