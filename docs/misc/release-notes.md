@@ -1,5 +1,6 @@
 <!--[metadata]>
 +++
+draft=true
 title = "Docker Engine"
 description = "Release notes for Docker 1.x."
 keywords = ["docker, documentation, about, technology, understanding,  release"]
@@ -17,6 +18,13 @@ formal release announcement, see [the Docker
 blog](https://blog.docker.com/2015/04/docker-release-1-6/).
 
 
+
+## Docker Engine 1.6.0 features
+
+For a complete list of engine patches, fixes, and other improvements, see the
+[merge PR on GitHub](https://github.com/docker/docker/pull/11635). You'll also
+find [a changelog in the project
+repository](https://github.com/docker/docker/blob/master/CHANGELOG.md).
 
 ## Docker Engine 1.6.0 features
 
