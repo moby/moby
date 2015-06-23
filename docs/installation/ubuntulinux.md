@@ -21,7 +21,7 @@ installation mechanisms. Using these packages ensures you get the latest release
 of Docker. If you wish to install using Ubuntu-managed packages, consult your
 Ubuntu documentation.
 
-##Prerequisites
+## Prerequisites
 
 Docker requires a 64-bit installation regardless of your Ubuntu version.
 Additionally, your kernel must be 3.10 at minimum. The latest 3.10 minor version
@@ -41,11 +41,11 @@ your kernel version:
 >run Docker, see the prerequisites on this page that apply to your Ubuntu
 >version.
 
-###For Trusty 14.04
+### For Trusty 14.04
 
 There are no prerequisites for this version.
 
-###For Precise 12.04 (LTS)
+### For Precise 12.04 (LTS)
 
 For Ubuntu Precise, Docker requires the 3.13 kernel version. If your kernel
 version is older than 3.13, you must upgrade it. Refer to this table to see
@@ -93,12 +93,12 @@ To upgrade your kernel and install the additional packages, do the following:
 5. After your system reboots, go ahead and [install Docker](#installing-docker-on-ubuntu).
 
 
-###For Saucy 13.10 (64 bit)
+### For Saucy 13.10 (64 bit)
 
 Docker uses AUFS as the default storage backend. If you don't have this
 prerequisite installed, Docker's installation process adds it.
 
-##Installation
+## Installation
 
 Make sure you have installed the prerequisites for your Ubuntu version. Then,
 install Docker using the following:
