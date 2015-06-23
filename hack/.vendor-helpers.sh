@@ -3,10 +3,13 @@
 # Downloads dependencies into vendor/ directory
 mkdir -p vendor
 
-rm -rf .gopath
-mkdir -p .gopath/src/github.com/docker
-ln -sf ../../../.. .gopath/src/github.com/docker/docker
-export GOPATH="${PWD}/.gopath:${PWD}/vendor"
+if ! go list github.com/docker/docker/docker &> /dev/null; then
+	rm -rf .gopath
+	mkdir -p .gopath/src/github.com/docker
+	ln -sf ../../../.. .gopath/src/github.com/docker/docker
+	export GOPATH="${PWD}/.gopath"
+fi
+export GOPATH="$GOPATH:${PWD}/vendor"
 
 clone() {
 	local vcs="$1"
