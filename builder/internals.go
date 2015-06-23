@@ -489,7 +489,8 @@ func (b *Builder) processImageFrom(img *imagepkg.Image) error {
 		b.Config = img.Config
 	}
 
-	if len(b.Config.Env) == 0 {
+	// The default path will be blank on Windows (set by HCS)
+	if len(b.Config.Env) == 0 && daemon.DefaultPathEnv != "" {
 		b.Config.Env = append(b.Config.Env, "PATH="+daemon.DefaultPathEnv)
 	}
 

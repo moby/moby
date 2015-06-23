@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
+	"strings"
 
 	"github.com/docker/docker/pkg/system"
 )
@@ -48,9 +50,20 @@ func collectFileInfo(sourceDir string) (*FileInfo, error) {
 		if err != nil {
 			return err
 		}
-		relPath = filepath.Join("/", relPath)
 
-		if relPath == "/" {
+		// As this runs on the daemon side, file paths are OS specific.
+		relPath = filepath.Join(string(os.PathSeparator), relPath)
+
+		// See https://github.com/golang/go/issues/9168 - bug in filepath.Join.
+		// Temporary workaround. If the returned path starts with two backslashes,
+		// trim it down to a single backslash. Only relevant on Windows.
+		if runtime.GOOS == "windows" {
+			if strings.HasPrefix(relPath, `\\`) {
+				relPath = relPath[1:]
+			}
+		}
+
+		if relPath == string(os.PathSeparator) {
 			return nil
 		}
 

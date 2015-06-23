@@ -258,6 +258,7 @@ func (daemon *Daemon) registerMountPoints(container *Container, hostConfig *runc
 	return nil
 }
 
+// TODO Windows. Factor out as not relevant (as Windows daemon support not in pre-1.7)
 // verifyVolumesInfo ports volumes configured for the containers pre docker 1.7.
 // It reads the container configuration and creates valid mount points for the old volumes.
 func (daemon *Daemon) verifyVolumesInfo(container *Container) error {

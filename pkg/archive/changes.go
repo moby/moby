@@ -84,15 +84,17 @@ func Changes(layers []string, rw string) ([]Change, error) {
 		if err != nil {
 			return err
 		}
-		path = filepath.Join("/", path)
+
+		// As this runs on the daemon side, file paths are OS specific.
+		path = filepath.Join(string(os.PathSeparator), path)
 
 		// Skip root
-		if path == "/" {
+		if path == string(os.PathSeparator) {
 			return nil
 		}
 
 		// Skip AUFS metadata
-		if matched, err := filepath.Match("/.wh..wh.*", path); err != nil || matched {
+		if matched, err := filepath.Match(string(os.PathSeparator)+".wh..wh.*", path); err != nil || matched {
 			return err
 		}
 
@@ -169,12 +171,13 @@ type FileInfo struct {
 }
 
 func (root *FileInfo) LookUp(path string) *FileInfo {
+	// As this runs on the daemon side, file paths are OS specific.
 	parent := root
-	if path == "/" {
+	if path == string(os.PathSeparator) {
 		return root
 	}
 
-	pathElements := strings.Split(path, "/")
+	pathElements := strings.Split(path, string(os.PathSeparator))
 	for _, elem := range pathElements {
 		if elem != "" {
 			child := parent.children[elem]
@@ -189,7 +192,8 @@ func (root *FileInfo) LookUp(path string) *FileInfo {
 
 func (info *FileInfo) path() string {
 	if info.parent == nil {
-		return "/"
+		// As this runs on the daemon side, file paths are OS specific.
+		return string(os.PathSeparator)
 	}
 	return filepath.Join(info.parent.path(), info.name)
 }
@@ -257,7 +261,8 @@ func (info *FileInfo) addChanges(oldInfo *FileInfo, changes *[]Change) {
 
 	// If there were changes inside this directory, we need to add it, even if the directory
 	// itself wasn't changed. This is needed to properly save and restore filesystem permissions.
-	if len(*changes) > sizeAtEntry && info.isDir() && !info.added && info.path() != "/" {
+	// As this runs on the daemon side, file paths are OS specific.
+	if len(*changes) > sizeAtEntry && info.isDir() && !info.added && info.path() != string(os.PathSeparator) {
 		change := Change{
 			Path: info.path(),
 			Kind: ChangeModify,
@@ -279,8 +284,9 @@ func (info *FileInfo) Changes(oldInfo *FileInfo) []Change {
 }
 
 func newRootFileInfo() *FileInfo {
+	// As this runs on the daemon side, file paths are OS specific.
 	root := &FileInfo{
-		name:     "/",
+		name:     string(os.PathSeparator),
 		children: make(map[string]*FileInfo),
 	}
 	return root
