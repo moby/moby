@@ -67,22 +67,17 @@ func populateCommand(c *Container, env []string) error {
 		Interface: nil,
 	}
 
-	// TODO Windows. Appropriate network mode (will refactor as part of
-	// libnetwork. For now, even through bridge not used, let it succeed to
-	// allow the Windows daemon to limp during its bring-up
 	parts := strings.SplitN(string(c.hostConfig.NetworkMode), ":", 2)
 	switch parts[0] {
+
 	case "none":
-	case "bridge", "": // empty string to support existing containers
+	case "default", "": // empty string to support existing containers
 		if !c.Config.NetworkDisabled {
 			network := c.NetworkSettings
 			en.Interface = &execdriver.NetworkInterface{
-				Bridge:     network.Bridge,
 				MacAddress: network.MacAddress,
 			}
 		}
-	case "host", "container":
-		return fmt.Errorf("unsupported network mode: %s", c.hostConfig.NetworkMode)
 	default:
 		return fmt.Errorf("invalid network mode: %s", c.hostConfig.NetworkMode)
 	}
