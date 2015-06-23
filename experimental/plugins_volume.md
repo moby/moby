@@ -9,7 +9,7 @@ This is an experimental feature. For information on installing and using experim
 
 # Command-line changes
 
-This experimental features introduces two changes to the `docker run` command:
+This experimental feature introduces two changes to the `docker run` command:
 
 - The `--volume-driver` flag is introduced.
 - The `-v` syntax is changed to accept a volume name a first component.
