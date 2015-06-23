@@ -5398,3 +5398,31 @@ func (s *DockerSuite) TestBuildRUNErrMsg(c *check.C) {
 		c.Fatalf("RUN doesn't have the correct output:\nGot:%s\nExpected:%s", out, exp)
 	}
 }
+
+func (s *DockerSuite) TestBuildWithHttpProxy(c *check.C) {
+	_, out, err := buildImageWithOut("testbuildhttpproxy", `
+	FROM busybox
+	RUN env
+	`, false)
+
+	proxyStrings := []string{"HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY"}
+	for _, str := range proxyStrings {
+		if !strings.Contains(out, str+"=") {
+			c.Fatalf("expected env in build container to include HTTP_PROXY, HTTPS_PROXY, and NO_PROXY values")
+		}
+	}
+
+	out, err = inspectFieldJSON("testbuildhttpproxy", "Config.Env")
+	c.Assert(err, check.IsNil)
+
+	var cfg []string
+	c.Assert(json.Unmarshal([]byte(out), &cfg), check.IsNil)
+
+	for _, e := range cfg {
+		for _, proxy := range proxyStrings {
+			if strings.Contains(e, proxy) {
+				c.Fatalf("HTTP_PROXY settings were commited to the image:\n%v", cfg)
+			}
+		}
+	}
+}
