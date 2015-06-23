@@ -118,7 +118,7 @@ func (graph *Graph) storeImage(img *image.Image, layerData archive.ArchiveReader
 		// Store the layer. If layerData is not nil, unpack it into the new layer
 		if layerData != nil {
 			// this is saving the tar-split metadata
-			mf, err := os.OpenFile(filepath.Join(root, "tar-data.json.gz"), os.O_CREATE|os.O_WRONLY|os.O_TRUNC, os.FileMode(0600))
+			mf, err := os.OpenFile(filepath.Join(root, tardataFileName), os.O_CREATE|os.O_WRONLY|os.O_TRUNC, os.FileMode(0600))
 			if err != nil {
 				return err
 			}
@@ -180,6 +180,7 @@ func (graph *Graph) TarLayer(img *image.Image) (arch archive.Archive, err error)
 		// We keep this functionality here so that we can still work with the VFS
 		// driver during development. VFS is not supported (and just will not work)
 		// for Windows containers.
+		// TODO(vbatts) let's reassemble!
 		return graph.driver.Diff(img.ID, img.Parent)
 	}
 }
