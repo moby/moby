@@ -116,7 +116,7 @@ Now that you’ve got a swarm up and running, you can create containers on it ju
 If you run `docker ps -a`, you can see what node that container was started on by looking at its name (here it’s swarm-3):
 
     $ docker ps -a
-    CONTAINER ID        IMAGE                      COMMAND                CREATED              STATUS                      PORTS                                   NAMES
+    CONTAINER ID        IMAGE                      COMMAND                CREATED              STATUS                      PORTS                                   NAME
     41f59749737b        busybox                    "echo hello world"     15 seconds ago       Exited (0) 13 seconds ago                                           swarm-3/trusting_leakey
 
 As you start more containers, they’ll be placed on different nodes across the cluster, thanks to Swarm’s default “spread” scheduling strategy.
@@ -218,7 +218,7 @@ Now start the app:
 Swarm has created containers for both web and redis, and placed them on different nodes, which you can check with `docker ps`:
 
     $ docker ps
-    CONTAINER ID        IMAGE                      COMMAND                CREATED             STATUS              PORTS                                  NAMES
+    CONTAINER ID        IMAGE                      COMMAND                CREATED             STATUS              PORTS                                  NAME
     92faad2135c9        redis                      "/entrypoint.sh redi   43 seconds ago      Up 42 seconds                                              swarm-2/composetest_redis_1
     adb809e5cdac        username/counter           "/bin/sh -c 'python    55 seconds ago      Up 54 seconds       45.67.8.9:80->5000/tcp                 swarm-1/composetest_web_1
 

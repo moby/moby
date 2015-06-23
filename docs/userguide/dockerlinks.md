@@ -38,7 +38,7 @@ range* on your Docker host. Next, when `docker ps` was run, you saw that port
 5000 in the container was bound to port 49155 on the host.
 
     $ docker ps nostalgic_morse
-    CONTAINER ID  IMAGE                   COMMAND       CREATED        STATUS        PORTS                    NAMES
+    CONTAINER ID  IMAGE                   COMMAND       CREATED        STATUS        PORTS                    NAME
     bc533791f3f5  training/webapp:latest  python app.py 5 seconds ago  Up 2 seconds  0.0.0.0:49155->5000/tcp  nostalgic_morse
 
 You also saw how you can bind a container's ports to a specific port using
@@ -113,7 +113,7 @@ name the container `web`. You can see the container's name using the
 `docker ps` command.
 
     $ docker ps -l
-    CONTAINER ID  IMAGE                  COMMAND        CREATED       STATUS       PORTS                    NAMES
+    CONTAINER ID  IMAGE                  COMMAND        CREATED       STATUS       PORTS                    NAME
     aed84ee21bde  training/webapp:latest python app.py  12 hours ago  Up 2 seconds 0.0.0.0:49154->5000/tcp  web
 
 You can also use `docker inspect` to return the container's name.

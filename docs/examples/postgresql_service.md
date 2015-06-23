@@ -111,7 +111,7 @@ to find out what local host port the container is mapped to
 first:
 
     $ docker ps
-    CONTAINER ID        IMAGE                  COMMAND                CREATED             STATUS              PORTS                                      NAMES
+    CONTAINER ID        IMAGE                  COMMAND                CREATED             STATUS              PORTS                                      NAME
     5e24362f27f6        eg_postgresql:latest   /usr/lib/postgresql/   About an hour ago   Up About an hour    0.0.0.0:49153->5432/tcp                    pg_test
     $ psql -h localhost -p 49153 -d docker -U docker --password
 

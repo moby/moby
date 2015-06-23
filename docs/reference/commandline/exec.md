@@ -31,7 +31,7 @@ If the container is paused, then the `docker exec` command will fail with an err
     $ docker pause test
     test
     $ docker ps
-    CONTAINER ID        IMAGE               COMMAND             CREATED             STATUS                   PORTS               NAMES
+    CONTAINER ID        IMAGE               COMMAND             CREATED             STATUS                   PORTS               NAME
     1ae3b36715d2        ubuntu:latest       "bash"              17 seconds ago      Up 16 seconds (Paused)                       test
     $ docker exec test ls
     FATA[0000] Error response from daemon: Container test is paused, unpause the container before exec

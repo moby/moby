@@ -100,7 +100,7 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 
 	w := tabwriter.NewWriter(cli.out, 20, 1, 3, ' ', 0)
 	if !*quiet {
-		fmt.Fprint(w, "CONTAINER ID\tIMAGE\tCOMMAND\tCREATED\tSTATUS\tPORTS\tNAMES")
+		fmt.Fprint(w, "CONTAINER ID\tIMAGE\tCOMMAND\tCREATED\tSTATUS\tPORTS\tNAME")
 
 		if *size {
 			fmt.Fprintln(w, "\tSIZE")

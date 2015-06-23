@@ -144,7 +144,7 @@ the Docker daemon for information about all the containers it knows
 about.
 
     $ docker ps
-    CONTAINER ID  IMAGE         COMMAND               CREATED        STATUS       PORTS NAMES
+    CONTAINER ID  IMAGE         COMMAND               CREATED        STATUS       PORTS NAME
     1e5535038e28  ubuntu:14.04  /bin/sh -c 'while tr  2 minutes ago  Up 1 minute        insane_babbage
 
 Here we can see our daemonized container. The `docker ps` has returned some useful
@@ -189,7 +189,7 @@ has just stopped.
 Let's check it worked with the `docker ps` command.
 
     $ docker ps
-    CONTAINER ID  IMAGE         COMMAND               CREATED        STATUS       PORTS NAMES
+    CONTAINER ID  IMAGE         COMMAND               CREATED        STATUS       PORTS NAME
 
 Excellent. Our container has been stopped.
 

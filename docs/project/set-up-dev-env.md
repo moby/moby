@@ -50,7 +50,7 @@ To remove unnecessary artifacts,
         <th>CREATED</th>
         <th>STATUS</th>
         <th>PORTS</th>
-        <th>NAMES</th>
+        <th>NAME</th>
       </tr>
     </table>
 
@@ -305,7 +305,7 @@ with the `make.sh` script.
         <th>CREATED</th>
         <th>STATUS</th>
         <th>PORTS</th>
-        <th>NAMES</th>
+        <th>NAME</th>
       </tr>
       <tr>
         <td>474f07652525</td>

@@ -113,7 +113,7 @@ Lastly, we've specified a command for our container to run: `python app.py`. Thi
 Now let's see our running container using the `docker ps` command.
 
     $ docker ps -l
-    CONTAINER ID  IMAGE                   COMMAND       CREATED        STATUS        PORTS                    NAMES
+    CONTAINER ID  IMAGE                   COMMAND       CREATED        STATUS        PORTS                    NAME
     bc533791f3f5  training/webapp:latest  python app.py 5 seconds ago  Up 2 seconds  0.0.0.0:49155->5000/tcp  nostalgic_morse
 
 You can see we've specified a new flag, `-l`, for the `docker ps`

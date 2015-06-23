@@ -192,7 +192,7 @@ Work through this section to try some practical container tasks using `boot2dock
 
 2. Display your running container with `docker ps` command
 
-        CONTAINER ID        IMAGE               COMMAND                CREATED             STATUS              PORTS                                           NAMES
+        CONTAINER ID        IMAGE               COMMAND                CREATED             STATUS              PORTS                                           NAME
         5fb65ff765e9        nginx:latest        "nginx -g 'daemon of   3 minutes ago       Up 3 minutes        0.0.0.0:49156->443/tcp, 0.0.0.0:49157->80/tcp   web  
 
     At this point, you can see `nginx` is running as a daemon.
