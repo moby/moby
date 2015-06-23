@@ -637,14 +637,15 @@ func (s *DockerSuite) TestExecWithUser(c *check.C) {
 }
 
 func (s *DockerSuite) TestExecWithPrivileged(c *check.C) {
-
-	runCmd := exec.Command(dockerBinary, "run", "-d", "--name", "parent", "--cap-drop=ALL", "busybox", "top")
-	if out, _, err := runCommandWithOutput(runCmd); err != nil {
+	test_script := "attempt_mknod() { mknod /tmp/sdc b 8 0; }; trap attempt_mknod 1; while true; do sleep 1; done"
+	runCmd := exec.Command(dockerBinary, "run", "-d", "--name", "parent", "--cap-drop=ALL", "busybox", "sh", "-c", test_script)
+	out, _, err := runCommandWithOutput(runCmd)
+	if err != nil {
 		c.Fatal(out, err)
 	}
 
 	cmd := exec.Command(dockerBinary, "exec", "parent", "sh", "-c", "mknod /tmp/sda b 8 0")
-	out, _, err := runCommandWithOutput(cmd)
+	out, _, err = runCommandWithOutput(cmd)
 	if err == nil || !strings.Contains(out, "Operation not permitted") {
 		c.Fatalf("exec mknod in --cap-drop=ALL container without --privileged should failed")
 	}
@@ -659,4 +660,22 @@ func (s *DockerSuite) TestExecWithPrivileged(c *check.C) {
 		c.Fatalf("exec mknod in --cap-drop=ALL container with --privileged failed: %v, output: %q", err, out)
 	}
 
+	// If we re-exec without --privileged, we should not be able to run mknod
+	cmd = exec.Command(dockerBinary, "exec", "parent", "sh", "-c", "mknod /tmp/sdb b 8 0")
+	out, _, err = runCommandWithOutput(cmd)
+	if err == nil || !strings.Contains(out, "Operation not permitted") {
+		c.Fatalf("exec mknod in --cap-drop=ALL container without --privileged should failed")
+	}
+
+	// And if we send a HUP to the original script and check its output, we should also get a permission error
+	cmd = exec.Command(dockerBinary, "kill", "--signal", "1", "parent")
+	if out, _, err = runCommandWithOutput(cmd); err != nil {
+		c.Fatal(out, err)
+	}
+
+	time.Sleep(1 * time.Second)
+	cmd = exec.Command(dockerBinary, "logs", "parent")
+	if out, _, err = runCommandWithOutput(cmd); err != nil || !strings.Contains(out, "Operation not permitted") {
+		c.Fatal(out, err)
+	}
 }
