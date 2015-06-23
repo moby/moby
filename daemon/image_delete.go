@@ -90,7 +90,7 @@ func (daemon *Daemon) imgDeleteHelper(name string, list *[]types.ImageDelete, fi
 		return nil
 	}
 
-	if len(repos) <= 1 || (len(repoAndTags) <= 1 && deleteByID) {
+	if len(repos) <= 1 || deleteByID {
 		if err := daemon.canDeleteImage(img.ID, force); err != nil {
 			return err
 		}
