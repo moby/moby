@@ -29,7 +29,6 @@ import (
 	"github.com/docker/docker/pkg/graphdb"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/namesgenerator"
-	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/docker/docker/pkg/system"
@@ -549,43 +548,6 @@ func (daemon *Daemon) RegisterLink(parent, child *Container, alias string) error
 	if !daemon.containerGraph.Exists(fullName) {
 		_, err := daemon.containerGraph.Set(fullName, child.ID)
 		return err
-	}
-	return nil
-}
-
-func (daemon *Daemon) RegisterLinks(container *Container, hostConfig *runconfig.HostConfig) error {
-	if hostConfig != nil && hostConfig.Links != nil {
-		for _, l := range hostConfig.Links {
-			name, alias, err := parsers.ParseLink(l)
-			if err != nil {
-				return err
-			}
-			child, err := daemon.Get(name)
-			if err != nil {
-				//An error from daemon.Get() means this name could not be found
-				return fmt.Errorf("Could not get container for %s", name)
-			}
-			for child.hostConfig.NetworkMode.IsContainer() {
-				parts := strings.SplitN(string(child.hostConfig.NetworkMode), ":", 2)
-				child, err = daemon.Get(parts[1])
-				if err != nil {
-					return fmt.Errorf("Could not get container for %s", parts[1])
-				}
-			}
-			if child.hostConfig.NetworkMode.IsHost() {
-				return runconfig.ErrConflictHostNetworkAndLinks
-			}
-			if err := daemon.RegisterLink(container, child, alias); err != nil {
-				return err
-			}
-		}
-
-		// After we load all the links into the daemon
-		// set them to nil on the hostconfig
-		hostConfig.Links = nil
-		if err := container.WriteHostConfig(); err != nil {
-			return err
-		}
 	}
 	return nil
 }
