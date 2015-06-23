@@ -53,8 +53,7 @@ type Config struct {
 	CpuSetCpus     string
 	CpuSetMems     string
 	CgroupParent   string
-	AuthConfig     *cliconfig.AuthConfig
-	ConfigFile     *cliconfig.ConfigFile
+	AuthConfigs    map[string]cliconfig.AuthConfig
 
 	Stdout  io.Writer
 	Context io.ReadCloser
@@ -79,9 +78,8 @@ func (b *Config) WaitCancelled() <-chan struct{} {
 
 func NewBuildConfig() *Config {
 	return &Config{
-		AuthConfig: &cliconfig.AuthConfig{},
-		ConfigFile: &cliconfig.ConfigFile{},
-		cancelled:  make(chan struct{}),
+		AuthConfigs: map[string]cliconfig.AuthConfig{},
+		cancelled:   make(chan struct{}),
 	}
 }
 
@@ -160,8 +158,7 @@ func Build(d *daemon.Daemon, buildConfig *Config) error {
 		Pull:            buildConfig.Pull,
 		OutOld:          buildConfig.Stdout,
 		StreamFormatter: sf,
-		AuthConfig:      buildConfig.AuthConfig,
-		ConfigFile:      buildConfig.ConfigFile,
+		AuthConfigs:     buildConfig.AuthConfigs,
 		dockerfileName:  buildConfig.DockerfileName,
 		cpuShares:       buildConfig.CpuShares,
 		cpuPeriod:       buildConfig.CpuPeriod,
