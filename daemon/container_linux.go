@@ -803,6 +803,11 @@ func (container *Container) AllocateNetwork() error {
 		return fmt.Errorf("conflicting options: publishing a service and network mode")
 	}
 
+	if mode.IsNetwork() {
+		parts := strings.SplitN(string(mode), ":", 2)
+		networkName = parts[1]
+	}
+
 	if service == "" {
 		// dot character "." has a special meaning to support SERVICE[.NETWORK] format.
 		// For backward compatiblity, replacing "." with "-", instead of failing
