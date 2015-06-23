@@ -123,14 +123,14 @@ images for your use. These can be images you create yourself or you
 can use images that others have previously created. Docker registries are the 
 **distribution** component of Docker.
 
-####Docker containers
+#### Docker containers
 Docker containers are similar to a directory. A Docker container holds everything that
 is needed for an application to run. Each container is created from a Docker
 image. Docker containers can be run, started, stopped, moved, and deleted. Each
 container is an isolated and secure application platform. Docker containers are the
  **run** component of Docker.
 
-##So how does Docker work? 
+## So how does Docker work? 
 So far, we've learned that:
 
 1. You can build Docker images that hold your applications.
