@@ -82,6 +82,14 @@ type Graph struct {
 	retained   *retainedLayers
 }
 
+// file names for ./graph/<ID>/
+const (
+	jsonFileName      = "json"
+	layersizeFileName = "layersize"
+	digestFileName    = "checksum"
+	tardataFileName   = "tar-data.json.gz"
+)
+
 var (
 	// ErrDigestNotSet is used when request the digest for a layer
 	// but the layer has no digest value or content to compute the
@@ -456,7 +464,7 @@ func (graph *Graph) loadImage(id string) (*image.Image, error) {
 		return nil, err
 	}
 
-	if buf, err := ioutil.ReadFile(filepath.Join(root, "layersize")); err != nil {
+	if buf, err := ioutil.ReadFile(filepath.Join(root, layersizeFileName)); err != nil {
 		if !os.IsNotExist(err) {
 			return nil, err
 		}
@@ -479,8 +487,8 @@ func (graph *Graph) loadImage(id string) (*image.Image, error) {
 
 // saveSize stores the `size` in the provided graph `img` directory `root`.
 func (graph *Graph) saveSize(root string, size int) error {
-	if err := ioutil.WriteFile(filepath.Join(root, "layersize"), []byte(strconv.Itoa(size)), 0600); err != nil {
-		return fmt.Errorf("Error storing image size in %s/layersize: %s", root, err)
+	if err := ioutil.WriteFile(filepath.Join(root, layersizeFileName), []byte(strconv.Itoa(size)), 0600); err != nil {
+		return fmt.Errorf("Error storing image size in %s/%s: %s", root, layersizeFileName, err)
 	}
 	return nil
 }
@@ -488,8 +496,8 @@ func (graph *Graph) saveSize(root string, size int) error {
 // SetDigest sets the digest for the image layer to the provided value.
 func (graph *Graph) SetDigest(id string, dgst digest.Digest) error {
 	root := graph.imageRoot(id)
-	if err := ioutil.WriteFile(filepath.Join(root, "checksum"), []byte(dgst.String()), 0600); err != nil {
-		return fmt.Errorf("Error storing digest in %s/checksum: %s", root, err)
+	if err := ioutil.WriteFile(filepath.Join(root, digestFileName), []byte(dgst.String()), 0600); err != nil {
+		return fmt.Errorf("Error storing digest in %s/%s: %s", root, digestFileName, err)
 	}
 	return nil
 }
@@ -497,7 +505,7 @@ func (graph *Graph) SetDigest(id string, dgst digest.Digest) error {
 // GetDigest gets the digest for the provide image layer id.
 func (graph *Graph) GetDigest(id string) (digest.Digest, error) {
 	root := graph.imageRoot(id)
-	cs, err := ioutil.ReadFile(filepath.Join(root, "checksum"))
+	cs, err := ioutil.ReadFile(filepath.Join(root, digestFileName))
 	if err != nil {
 		if os.IsNotExist(err) {
 			return "", ErrDigestNotSet
@@ -520,5 +528,5 @@ func (graph *Graph) RawJSON(id string) ([]byte, error) {
 }
 
 func jsonPath(root string) string {
-	return filepath.Join(root, "json")
+	return filepath.Join(root, jsonFileName)
 }

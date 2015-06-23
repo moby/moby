@@ -92,7 +92,7 @@ func (graph *Graph) storeImage(img *image.Image, layerData archive.ArchiveReader
 	// Store the layer. If layerData is not nil, unpack it into the new layer
 	if layerData != nil {
 		// this is saving the tar-split metadata
-		mf, err := os.OpenFile(filepath.Join(root, "tar-data.json.gz"), os.O_CREATE|os.O_WRONLY|os.O_TRUNC, os.FileMode(0600))
+		mf, err := os.OpenFile(filepath.Join(root, tardataFileName), os.O_CREATE|os.O_WRONLY|os.O_TRUNC, os.FileMode(0600))
 		if err != nil {
 			return err
 		}
@@ -134,5 +134,6 @@ func (graph *Graph) storeImage(img *image.Image, layerData archive.ArchiveReader
 
 // TarLayer returns a tar archive of the image's filesystem layer.
 func (graph *Graph) TarLayer(img *image.Image) (arch archive.Archive, err error) {
+	// TODO(vbatts) let's reassemble!
 	return graph.driver.Diff(img.ID, img.Parent)
 }
