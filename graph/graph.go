@@ -87,7 +87,7 @@ const (
 	jsonFileName      = "json"
 	layersizeFileName = "layersize"
 	digestFileName    = "checksum"
-	tardataFileName   = "tar-data.json.gz"
+	tarDataFileName   = "tar-data.json.gz"
 )
 
 var (
