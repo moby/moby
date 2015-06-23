@@ -249,6 +249,7 @@ func (s *Server) getVersion(version version.Version, w http.ResponseWriter, r *h
 		GoVersion:  runtime.Version(),
 		Os:         runtime.GOOS,
 		Arch:       runtime.GOARCH,
+		BuildTime:  dockerversion.BUILDTIME,
 	}
 
 	if version.GreaterThanOrEqualTo("1.19") {
