@@ -34,12 +34,22 @@ func newLocalRegistry(path string) *LocalRegistry {
 }
 
 func (l *LocalRegistry) Plugin(name string) (*Plugin, error) {
-	filepath := filepath.Join(l.path, name)
-	specpath := filepath + ".spec"
+	basepath := filepath.Join(l.path, name, name)
+	specpath := basepath + ".spec"
 	if fi, err := os.Stat(specpath); err == nil {
 		return readPluginInfo(specpath, fi)
 	}
-	socketpath := filepath + ".sock"
+	socketpath := basepath + ".sock"
+	if fi, err := os.Stat(socketpath); err == nil {
+		return readPluginInfo(socketpath, fi)
+	}
+
+	basepath = filepath.Join(l.path, name)
+	specpath = basepath + ".spec"
+	if fi, err := os.Stat(specpath); err == nil {
+		return readPluginInfo(specpath, fi)
+	}
+	socketpath = basepath + ".sock"
 	if fi, err := os.Stat(socketpath); err == nil {
 		return readPluginInfo(socketpath, fi)
 	}
