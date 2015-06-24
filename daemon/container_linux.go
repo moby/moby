@@ -1003,33 +1003,47 @@ func (container *Container) ReleaseNetwork() {
 		return
 	}
 
-	err := container.daemon.netController.LeaveAll(container.ID)
-	if err != nil {
-		logrus.Errorf("Leave all failed for  %s: %v", container.ID, err)
-		return
-	}
-
 	eid := container.NetworkSettings.EndpointID
 	nid := container.NetworkSettings.NetworkID
 
 	container.NetworkSettings = &network.Settings{}
 
+	if nid == "" || eid == "" {
+		return
+	}
+
+	n, err := container.daemon.netController.NetworkByID(nid)
+	if err != nil {
+		logrus.Errorf("error locating network id %s: %v", nid, err)
+		return
+	}
+
+	ep, err := n.EndpointByID(eid)
+	if err != nil {
+		logrus.Errorf("error locating endpoint id %s: %v", eid, err)
+		return
+	}
+
+	switch {
+	case container.hostConfig.NetworkMode.IsHost():
+		if err := ep.Leave(container.ID); err != nil {
+			logrus.Errorf("Error leaving endpoint id %s for container %s: %v", eid, container.ID, err)
+			return
+		}
+	default:
+		if err := container.daemon.netController.LeaveAll(container.ID); err != nil {
+			logrus.Errorf("Leave all failed for  %s: %v", container.ID, err)
+			return
+		}
+	}
+
 	// In addition to leaving all endpoints, delete implicitly created endpoint
-	if container.Config.PublishService == "" && eid != "" && nid != "" {
-		n, err := container.daemon.netController.NetworkByID(nid)
-		if err != nil {
-			logrus.Errorf("error locating network id %s: %v", nid, err)
-			return
-		}
-		ep, err := n.EndpointByID(eid)
-		if err != nil {
-			logrus.Errorf("error locating endpoint id %s: %v", eid, err)
-			return
-		}
+	if container.Config.PublishService == "" {
 		if err := ep.Delete(); err != nil {
 			logrus.Errorf("deleting endpoint failed: %v", err)
 		}
 	}
+
 }
 
 func disableAllActiveLinks(container *Container) {

@@ -1480,10 +1480,10 @@ func (s *DockerSuite) TestRunResolvconfUpdate(c *check.C) {
 		c.Fatalf("Restarted container does not have updated resolv.conf; expected %q, got %q", tmpResolvConf, string(containerResolv))
 	}
 
-	/* 	//make a change to resolv.conf (in this case replacing our tmp copy with orig copy)
-	   	if err := ioutil.WriteFile("/etc/resolv.conf", resolvConfSystem, 0644); err != nil {
-	   		c.Fatal(err)
-	   	} */
+	/*	//make a change to resolv.conf (in this case replacing our tmp copy with orig copy)
+		if err := ioutil.WriteFile("/etc/resolv.conf", resolvConfSystem, 0644); err != nil {
+			c.Fatal(err)
+		} */
 	//2. test that a restarting container does not receive resolv.conf updates
 	//   if it modified the container copy of the starting point resolv.conf
 	cmd = exec.Command(dockerBinary, "run", "--name='second'", "busybox", "sh", "-c", "echo 'search mylittlepony.com' >>/etc/resolv.conf")
@@ -1793,7 +1793,7 @@ func (s *DockerSuite) TestRunCleanupCmdOnEntrypoint(c *check.C) {
 	if _, err := buildImage(name,
 		`FROM busybox
 		ENTRYPOINT ["echo"]
-        CMD ["testingpoint"]`,
+	CMD ["testingpoint"]`,
 		true); err != nil {
 		c.Fatal(err)
 	}
@@ -2817,6 +2817,22 @@ func (s *DockerSuite) TestRunNetHost(c *check.C) {
 	out2 = strings.Trim(out2, "\n")
 	if hostNet == out2 {
 		c.Fatalf("Net namespace should be different without --net=host %s == %s\n", hostNet, out2)
+	}
+}
+
+func (s *DockerSuite) TestRunNetHostTwiceSameName(c *check.C) {
+	testRequires(c, SameHostDaemon)
+
+	cmd := exec.Command(dockerBinary, "run", "--rm", "--name=thost", "--net=host", "busybox", "true")
+	out2, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		c.Fatal(err, out2)
+	}
+
+	cmd = exec.Command(dockerBinary, "run", "--rm", "--name=thost", "--net=host", "busybox", "true")
+	out2, _, err = runCommandWithOutput(cmd)
+	if err != nil {
+		c.Fatal(err, out2)
 	}
 }
 
