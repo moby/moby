@@ -186,26 +186,6 @@ func (h *Handle) getCopy() *Handle {
 	}
 }
 
-// GetFirstAvailable returns the byte and bit position of the first unset bit
-// @Deprecated Use SetAny() instead
-func (h *Handle) GetFirstAvailable() (uint32, uint32, error) {
-	h.Lock()
-	defer h.Unlock()
-	return getFirstAvailable(h.head)
-}
-
-// CheckIfAvailable checks if the bit correspondent to the specified ordinal is unset
-// If the ordinal is beyond the sequence limits, a negative response is returned
-// @Deprecated Use IsSet() instead
-func (h *Handle) CheckIfAvailable(ordinal uint32) (uint32, uint32, error) {
-	if err := h.validateOrdinal(ordinal); err != nil {
-		return invalidPos, invalidPos, err
-	}
-	h.Lock()
-	defer h.Unlock()
-	return checkIfAvailable(h.head, ordinal)
-}
-
 // SetAny atomically sets the first unset bit in the sequence and returns the corresponding ordinal
 func (h *Handle) SetAny() (uint32, error) {
 	if h.Unselected() == 0 {
@@ -315,40 +295,6 @@ func (h *Handle) validateOrdinal(ordinal uint32) error {
 	return nil
 }
 
-// PushReservation pushes the bit reservation inside the bitmask.
-// @Deprecated Use Set() instead
-func (h *Handle) PushReservation(bytePos, bitPos uint32, release bool) error {
-	// Create a private copy of h and work on it, also copy the current db index
-	h.Lock()
-	nh := h.getCopy()
-	ci := h.dbIndex
-	h.Unlock()
-
-	nh.head = pushReservation(bytePos, bitPos, nh.head, release)
-	if release {
-		nh.unselected++
-	} else {
-		nh.unselected--
-	}
-
-	// Attempt to write private copy to store
-	if err := nh.writeToStore(); err != nil {
-		return err
-	}
-
-	// Unless unexpected error, save private copy to local copy
-	h.Lock()
-	defer h.Unlock()
-	if h.dbIndex != ci {
-		return fmt.Errorf("unexected database index change")
-	}
-	h.unselected = nh.unselected
-	h.head = nh.head
-	h.dbExists = nh.dbExists
-	h.dbIndex = nh.dbIndex
-	return nil
-}
-
 // Destroy removes from the datastore the data belonging to this handle
 func (h *Handle) Destroy() {
 	h.deleteFromStore()
@@ -402,6 +348,13 @@ func (h *Handle) Unselected() uint32 {
 	h.Lock()
 	defer h.Unlock()
 	return h.unselected
+}
+
+func (h *Handle) String() string {
+	h.Lock()
+	defer h.Unlock()
+	return fmt.Sprintf("App: %s, ID: %s, DBIndex: 0x%x, bits: %d, unselected: %d, sequence: %s",
+		h.app, h.id, h.dbIndex, h.bits, h.unselected, h.head.toString())
 }
 
 // getFirstAvailable looks for the first unset bit in passed mask

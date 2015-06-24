@@ -433,21 +433,11 @@ func (a *Allocator) Release(addrSpace AddressSpace, address net.IP) {
 			// Retrieve correspondent ordinal in the subnet
 			ordinal := ipToUint32(getHostPortionIP(address, sub))
 			// Release it
-			for {
-				var err error
-				if err = space.PushReservation(ordinal/8, ordinal%8, true); err == nil {
-					break
-				}
-				if _, ok := err.(types.RetryError); ok {
-					// bitmask must have changed, retry delete
-					continue
-				}
+			if err := space.Unset(ordinal); err != nil {
 				log.Warnf("Failed to release address %s because of internal error: %s", address.String(), err.Error())
-				return
 			}
 			return
 		}
-
 	}
 }
 
@@ -509,9 +499,8 @@ func (a *Allocator) getSubnetList(addrSpace AddressSpace, ver ipVersion) []subne
 
 func (a *Allocator) getAddress(subnet *net.IPNet, bitmask *bitseq.Handle, prefAddress net.IP, ver ipVersion) (net.IP, error) {
 	var (
-		bytePos, bitPos uint32
-		ordinal         uint32
-		err             error
+		ordinal uint32
+		err     error
 	)
 
 	// Look for free IP, skip .0 and .255, they will be automatically reserved
@@ -520,25 +509,13 @@ func (a *Allocator) getAddress(subnet *net.IPNet, bitmask *bitseq.Handle, prefAd
 			return nil, ErrNoAvailableIPs
 		}
 		if prefAddress == nil {
-			bytePos, bitPos, err = bitmask.GetFirstAvailable()
+			ordinal, err = bitmask.SetAny()
 		} else {
-			ordinal = ipToUint32(getHostPortionIP(prefAddress, subnet))
-			bytePos, bitPos, err = bitmask.CheckIfAvailable(ordinal)
+			err = bitmask.Set(ipToUint32(getHostPortionIP(prefAddress, subnet)))
 		}
 		if err != nil {
 			return nil, ErrNoAvailableIPs
 		}
-
-		// Lock it
-		if err = bitmask.PushReservation(bytePos, bitPos, false); err != nil {
-			if _, ok := err.(types.RetryError); !ok {
-				return nil, fmt.Errorf("internal failure while reserving the address: %s", err.Error())
-			}
-			continue
-		}
-
-		// Build IP ordinal
-		ordinal = bitPos + bytePos*8
 
 		// For v4, let reservation of .0 and .255 happen automatically
 		if ver == v4 && !isValidIP(ordinal) {
