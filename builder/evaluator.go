@@ -47,6 +47,7 @@ var replaceEnvAllowed = map[string]struct{}{
 	command.Label:   {},
 	command.Add:     {},
 	command.Copy:    {},
+	command.Layer:   {},
 	command.Workdir: {},
 	command.Expose:  {},
 	command.Volume:  {},
@@ -62,6 +63,7 @@ func init() {
 		command.Maintainer: maintainer,
 		command.Add:        add,
 		command.Copy:       dispatchCopy, // copy() is a go builtin
+		command.Layer:      layer,        // copy() is a go builtin
 		command.From:       from,
 		command.Onbuild:    onbuild,
 		command.Workdir:    workdir,

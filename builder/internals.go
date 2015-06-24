@@ -124,13 +124,23 @@ type copyInfo struct {
 	tmpDir     string
 }
 
-func (b *Builder) runContextCommand(args []string, allowRemote bool, allowDecompression bool, cmdName string) error {
+func (b *Builder) runContextCommand(args []string, allowRemote bool, allowDecompression bool, cmdName string, sum string) error {
 	if b.context == nil {
 		return fmt.Errorf("No context given. Impossible to use %s", cmdName)
 	}
 
-	if len(args) < 2 {
+	if len(args) < 2 && cmdName != "LAYER" {
 		return fmt.Errorf("Invalid %s format - at least two arguments required", cmdName)
+	}
+
+	if sum != "" {
+		parts := strings.SplitN(sum, ":", 2)
+		if len(parts) != 2 {
+			return fmt.Errorf("Invalid %s checksum format - got: %q, expected: %q", cmdName, sum, "hashtype:checksum")
+		}
+		if parts[0] != "sha256" {
+			return fmt.Errorf("Unsupported %s checksum format - %q", cmdName, parts[0])
+		}
 	}
 
 	dest := args[len(args)-1] // last one is always the dest
@@ -180,6 +190,9 @@ func (b *Builder) runContextCommand(args []string, allowRemote bool, allowDecomp
 
 	if len(copyInfos) == 1 {
 		srcHash = copyInfos[0].hash
+		if cmdName == "LAYER" && sum != "" && srcHash != sum {
+			return fmt.Errorf("Bad checksum: expected %q, got %q", sum, srcHash)
+		}
 		origPaths = copyInfos[0].origPath
 	} else {
 		var hashs []string
@@ -263,7 +276,7 @@ func calcCopyInfo(b *Builder, cmdName string, cInfos *[]*copyInfo, origPath stri
 		ci.origPath = origPath
 		ci.hash = origPath // default to this but can change
 		ci.destPath = destPath
-		ci.decompress = false
+		ci.decompress = cmdName == "LAYER"
 		*cInfos = append(*cInfos, &ci)
 
 		// Initiate the download
@@ -323,7 +336,7 @@ func calcCopyInfo(b *Builder, cmdName string, cInfos *[]*copyInfo, origPath stri
 		ci.origPath = filepath.Join(filepath.Base(tmpDirName), filepath.Base(tmpFileName))
 
 		// If the destination is a directory, figure out the filename.
-		if strings.HasSuffix(ci.destPath, "/") {
+		if strings.HasSuffix(ci.destPath, "/") && cmdName != "LAYER" {
 			u, err := url.Parse(origPath)
 			if err != nil {
 				return err
@@ -338,6 +351,20 @@ func calcCopyInfo(b *Builder, cmdName string, cInfos *[]*copyInfo, origPath stri
 				return fmt.Errorf("cannot determine filename from url: %s", u)
 			}
 			ci.destPath = ci.destPath + filename
+		}
+
+		if cmdName == "LAYER" {
+			f, err := os.Open(tmpFileName)
+			if err != nil {
+				return fmt.Errorf("failed to open temp file %q: %v", tmpFileName, err)
+			}
+			defer f.Close()
+			h := sha256.New()
+			if _, err := io.Copy(h, f); err != nil {
+				return fmt.Errorf("failed to read temp file %q: %v", tmpFileName, err)
+			}
+			ci.hash = fmt.Sprintf("sha256:%x", h.Sum(nil))
+			return nil
 		}
 
 		// Calc the checksum, even if we're using the cache
