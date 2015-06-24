@@ -20,10 +20,10 @@ func getAllocator(t *testing.T, subnet *net.IPNet) *Allocator {
 }
 
 func TestInt2IP2IntConversion(t *testing.T) {
-	for i := 0; i < 256*256*256; i++ {
+	for i := uint32(0); i < 256*256*256; i++ {
 		var array [4]byte // new array at each cycle
 		addIntToIP(array[:], i)
-		j := ipToInt(array[:])
+		j := ipToUint32(array[:])
 		if j != i {
 			t.Fatalf("Failed to convert ordinal %d to IP % x and back to ordinal. Got %d", i, array, j)
 		}
@@ -31,14 +31,14 @@ func TestInt2IP2IntConversion(t *testing.T) {
 }
 
 func TestIsValid(t *testing.T) {
-	list := []int{0, 255, 256, 511, 512, 767, 768}
+	list := []uint32{0, 255, 256, 511, 512, 767, 768}
 	for _, i := range list {
 		if isValidIP(i) {
 			t.Fatalf("Failed to detect invalid IPv4 ordinal: %d", i)
 		}
 	}
 
-	list = []int{1, 254, 257, 258, 510, 513, 769, 770}
+	list = []uint32{1, 254, 257, 258, 510, 513, 769, 770}
 	for _, i := range list {
 		if !isValidIP(i) {
 			t.Fatalf("Marked valid ipv4 as invalid: %d", i)
@@ -474,7 +474,7 @@ func assertInternalSubnet(t *testing.T, hostSize int, bigSubnet, firstSmall, las
 	list, _ := getInternalSubnets(subnet, hostSize)
 	count := 1
 	ones, bits := subnet.Mask.Size()
-	diff := bits - ones - hostSize
+	diff := bits - ones - int(hostSize)
 	if diff > 0 {
 		count <<= uint(diff)
 	}

@@ -297,7 +297,7 @@ func getInternalSubnets(inSubnet *net.IPNet, internalHostSize int) ([]*net.IPNet
 		for i := 0; i < numIntSubs; i++ {
 			intIP := make([]byte, len(subnet.IP))
 			copy(intIP, subnet.IP) // IPv6 is too big, just work on the extra portion
-			addIntToIP(intIP, i<<uint(internalHostSize))
+			addIntToIP(intIP, uint32(i<<uint(internalHostSize)))
 			subnetList[i] = &net.IPNet{IP: intIP, Mask: intMask}
 		}
 	}
@@ -431,7 +431,7 @@ func (a *Allocator) Release(addrSpace AddressSpace, address net.IP) {
 		sub := subKey.canonicalChildSubnet()
 		if sub.Contains(address) {
 			// Retrieve correspondent ordinal in the subnet
-			ordinal := ipToInt(getHostPortionIP(address, sub))
+			ordinal := ipToUint32(getHostPortionIP(address, sub))
 			// Release it
 			for {
 				var err error
@@ -509,8 +509,8 @@ func (a *Allocator) getSubnetList(addrSpace AddressSpace, ver ipVersion) []subne
 
 func (a *Allocator) getAddress(subnet *net.IPNet, bitmask *bitseq.Handle, prefAddress net.IP, ver ipVersion) (net.IP, error) {
 	var (
-		bytePos, bitPos int
-		ordinal         int
+		bytePos, bitPos uint32
+		ordinal         uint32
 		err             error
 	)
 
@@ -522,7 +522,7 @@ func (a *Allocator) getAddress(subnet *net.IPNet, bitmask *bitseq.Handle, prefAd
 		if prefAddress == nil {
 			bytePos, bitPos, err = bitmask.GetFirstAvailable()
 		} else {
-			ordinal = ipToInt(getHostPortionIP(prefAddress, subnet))
+			ordinal = ipToUint32(getHostPortionIP(prefAddress, subnet))
 			bytePos, bitPos, err = bitmask.CheckIfAvailable(ordinal)
 		}
 		if err != nil {
@@ -568,7 +568,7 @@ func (a *Allocator) DumpDatabase() {
 
 // It generates the ip address in the passed subnet specified by
 // the passed host address ordinal
-func generateAddress(ordinal int, network *net.IPNet) net.IP {
+func generateAddress(ordinal uint32, network *net.IPNet) net.IP {
 	var address [16]byte
 
 	// Get network portion of IP
@@ -592,14 +592,14 @@ func getAddressVersion(ip net.IP) ipVersion {
 }
 
 // .0 and .255 will return false
-func isValidIP(i int) bool {
+func isValidIP(i uint32) bool {
 	lastByte := i & 0xff
 	return lastByte != 0xff && lastByte != 0
 }
 
 // Adds the ordinal IP to the current array
 // 192.168.0.0 + 53 => 192.168.53
-func addIntToIP(array []byte, ordinal int) {
+func addIntToIP(array []byte, ordinal uint32) {
 	for i := len(array) - 1; i >= 0; i-- {
 		array[i] |= (byte)(ordinal & 0xff)
 		ordinal >>= 8
@@ -607,11 +607,11 @@ func addIntToIP(array []byte, ordinal int) {
 }
 
 // Convert an ordinal to the respective IP address
-func ipToInt(ip []byte) int {
-	value := 0
+func ipToUint32(ip []byte) uint32 {
+	value := uint32(0)
 	for i := 0; i < len(ip); i++ {
 		j := len(ip) - 1 - i
-		value += int(ip[i]) << uint(j*8)
+		value += uint32(ip[i]) << uint(j*8)
 	}
 	return value
 }

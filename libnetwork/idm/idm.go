@@ -73,7 +73,7 @@ func (i *Idm) GetSpecificID(id uint32) error {
 	}
 
 	for {
-		bytePos, bitPos, err := i.handle.CheckIfAvailable(int(id - i.start))
+		bytePos, bitPos, err := i.handle.CheckIfAvailable(id - i.start)
 		if err != nil {
 			return fmt.Errorf("requested id is not available")
 		}
@@ -90,5 +90,5 @@ func (i *Idm) GetSpecificID(id uint32) error {
 // Release releases the specified id
 func (i *Idm) Release(id uint32) {
 	ordinal := id - i.start
-	i.handle.PushReservation(int(ordinal/8), int(ordinal%8), true)
+	i.handle.PushReservation(ordinal/8, ordinal%8, true)
 }

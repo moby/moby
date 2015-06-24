@@ -14,10 +14,11 @@ import (
 // block sequence constants
 // If needed we can think of making these configurable
 const (
-	blockLen      = 32
+	blockLen      = uint32(32)
 	blockBytes    = blockLen / 8
-	blockMAX      = 1<<blockLen - 1
-	blockFirstBit = 1 << (blockLen - 1)
+	blockMAX      = uint32(1<<blockLen - 1)
+	blockFirstBit = uint32(1) << (blockLen - 1)
+	invalidPos    = blockMAX
 )
 
 // Handle contains the sequece representing the bitmask and its identifier
@@ -81,17 +82,17 @@ func (s *sequence) toString() string {
 }
 
 // GetAvailableBit returns the position of the first unset bit in the bitmask represented by this sequence
-func (s *sequence) getAvailableBit() (bytePos, bitPos int) {
+func (s *sequence) getAvailableBit() (uint32, uint32, error) {
 	if s.block == blockMAX || s.count == 0 {
-		return -1, -1
+		return invalidPos, invalidPos, fmt.Errorf("no available bit")
 	}
-	bits := 0
-	bitSel := uint32(blockFirstBit)
+	bits := uint32(0)
+	bitSel := blockFirstBit
 	for bitSel > 0 && s.block&bitSel != 0 {
 		bitSel >>= 1
 		bits++
 	}
-	return bits / 8, bits % 8
+	return bits / 8, bits % 8, nil
 }
 
 // GetCopy returns a copy of the linked list rooted at this node
@@ -168,7 +169,7 @@ func (s *sequence) fromByteArray(data []byte) error {
 }
 
 // GetFirstAvailable returns the byte and bit position of the first unset bit
-func (h *Handle) GetFirstAvailable() (int, int, error) {
+func (h *Handle) GetFirstAvailable() (uint32, uint32, error) {
 	h.Lock()
 	defer h.Unlock()
 	return getFirstAvailable(h.head)
@@ -176,14 +177,14 @@ func (h *Handle) GetFirstAvailable() (int, int, error) {
 
 // CheckIfAvailable checks if the bit correspondent to the specified ordinal is unset
 // If the ordinal is beyond the sequence limits, a negative response is returned
-func (h *Handle) CheckIfAvailable(ordinal int) (int, int, error) {
+func (h *Handle) CheckIfAvailable(ordinal uint32) (uint32, uint32, error) {
 	h.Lock()
 	defer h.Unlock()
 	return checkIfAvailable(h.head, ordinal)
 }
 
 // PushReservation pushes the bit reservation inside the bitmask.
-func (h *Handle) PushReservation(bytePos, bitPos int, release bool) error {
+func (h *Handle) PushReservation(bytePos, bitPos uint32, release bool) error {
 	// Create a copy of the current handler
 	h.Lock()
 	nh := &Handle{
@@ -273,63 +274,62 @@ func (h *Handle) Unselected() uint32 {
 }
 
 // getFirstAvailable looks for the first unset bit in passed mask
-func getFirstAvailable(head *sequence) (int, int, error) {
-	byteIndex := 0
+func getFirstAvailable(head *sequence) (uint32, uint32, error) {
+	byteIndex := uint32(0)
 	current := head
 	for current != nil {
 		if current.block != blockMAX {
-			bytePos, bitPos := current.getAvailableBit()
-			return byteIndex + bytePos, bitPos, nil
+			bytePos, bitPos, err := current.getAvailableBit()
+			return byteIndex + bytePos, bitPos, err
 		}
-		byteIndex += int(current.count * blockBytes)
+		byteIndex += current.count * blockBytes
 		current = current.next
 	}
-	return -1, -1, fmt.Errorf("no bit available")
+	return invalidPos, invalidPos, fmt.Errorf("no bit available")
 }
 
 // checkIfAvailable checks if the bit correspondent to the specified ordinal is unset
 // If the ordinal is beyond the sequence limits, a negative response is returned
-func checkIfAvailable(head *sequence, ordinal int) (int, int, error) {
+func checkIfAvailable(head *sequence, ordinal uint32) (uint32, uint32, error) {
 	bytePos := ordinal / 8
 	bitPos := ordinal % 8
 
 	// Find the sequence containing this byte
 	current, _, _, inBlockBytePos := findSequence(head, bytePos)
-
 	if current != nil {
 		// Check whether the bit corresponding to the ordinal address is unset
-		bitSel := uint32(blockFirstBit >> uint(inBlockBytePos*8+bitPos))
+		bitSel := blockFirstBit >> (inBlockBytePos*8 + bitPos)
 		if current.block&bitSel == 0 {
 			return bytePos, bitPos, nil
 		}
 	}
 
-	return -1, -1, fmt.Errorf("requested bit is not available")
+	return invalidPos, invalidPos, fmt.Errorf("requested bit is not available")
 }
 
 // Given the byte position and the sequences list head, return the pointer to the
 // sequence containing the byte (current), the pointer to the previous sequence,
 // the number of blocks preceding the block containing the byte inside the current sequence.
-// If bytePos is outside of the list, function will return (nil, nil, 0, -1)
-func findSequence(head *sequence, bytePos int) (*sequence, *sequence, uint32, int) {
+// If bytePos is outside of the list, function will return (nil, nil, 0, invalidPos)
+func findSequence(head *sequence, bytePos uint32) (*sequence, *sequence, uint32, uint32) {
 	// Find the sequence containing this byte
 	previous := head
 	current := head
 	n := bytePos
-	for current.next != nil && n >= int(current.count*blockBytes) { // Nil check for less than 32 addresses masks
-		n -= int(current.count * blockBytes)
+	for current.next != nil && n >= (current.count*blockBytes) { // Nil check for less than 32 addresses masks
+		n -= (current.count * blockBytes)
 		previous = current
 		current = current.next
 	}
 
 	// If byte is outside of the list, let caller know
-	if n >= int(current.count*blockBytes) {
-		return nil, nil, 0, -1
+	if n >= (current.count * blockBytes) {
+		return nil, nil, 0, invalidPos
 	}
 
 	// Find the byte position inside the block and the number of blocks
 	// preceding the block containing the byte inside this sequence
-	precBlocks := uint32(n / blockBytes)
+	precBlocks := n / blockBytes
 	inBlockBytePos := bytePos % blockBytes
 
 	return current, previous, precBlocks, inBlockBytePos
@@ -352,7 +352,7 @@ func findSequence(head *sequence, bytePos int) (*sequence, *sequence, uint32, in
 // A) block is first in current:         [prev seq] [new] [modified current seq] [next seq]
 // B) block is last in current:          [prev seq] [modified current seq] [new] [next seq]
 // C) block is in the middle of current: [prev seq] [curr pre] [new] [curr post] [next seq]
-func pushReservation(bytePos, bitPos int, head *sequence, release bool) *sequence {
+func pushReservation(bytePos, bitPos uint32, head *sequence, release bool) *sequence {
 	// Store list's head
 	newHead := head
 

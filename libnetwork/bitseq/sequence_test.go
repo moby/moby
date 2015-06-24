@@ -9,58 +9,58 @@ import (
 func TestSequenceGetAvailableBit(t *testing.T) {
 	input := []struct {
 		head    *sequence
-		bytePos int
-		bitPos  int
+		bytePos uint32
+		bitPos  uint32
 	}{
-		{&sequence{block: 0x0, count: 0}, -1, -1},
+		{&sequence{block: 0x0, count: 0}, invalidPos, invalidPos},
 		{&sequence{block: 0x0, count: 1}, 0, 0},
 		{&sequence{block: 0x0, count: 100}, 0, 0},
 
-		{&sequence{block: 0x80000000, count: 0}, -1, -1},
+		{&sequence{block: 0x80000000, count: 0}, invalidPos, invalidPos},
 		{&sequence{block: 0x80000000, count: 1}, 0, 1},
 		{&sequence{block: 0x80000000, count: 100}, 0, 1},
 
-		{&sequence{block: 0xFF000000, count: 0}, -1, -1},
+		{&sequence{block: 0xFF000000, count: 0}, invalidPos, invalidPos},
 		{&sequence{block: 0xFF000000, count: 1}, 1, 0},
 		{&sequence{block: 0xFF000000, count: 100}, 1, 0},
 
-		{&sequence{block: 0xFF800000, count: 0}, -1, -1},
+		{&sequence{block: 0xFF800000, count: 0}, invalidPos, invalidPos},
 		{&sequence{block: 0xFF800000, count: 1}, 1, 1},
 		{&sequence{block: 0xFF800000, count: 100}, 1, 1},
 
-		{&sequence{block: 0xFFC0FF00, count: 0}, -1, -1},
+		{&sequence{block: 0xFFC0FF00, count: 0}, invalidPos, invalidPos},
 		{&sequence{block: 0xFFC0FF00, count: 1}, 1, 2},
 		{&sequence{block: 0xFFC0FF00, count: 100}, 1, 2},
 
-		{&sequence{block: 0xFFE0FF00, count: 0}, -1, -1},
+		{&sequence{block: 0xFFE0FF00, count: 0}, invalidPos, invalidPos},
 		{&sequence{block: 0xFFE0FF00, count: 1}, 1, 3},
 		{&sequence{block: 0xFFE0FF00, count: 100}, 1, 3},
 
-		{&sequence{block: 0xFFFEFF00, count: 0}, -1, -1},
+		{&sequence{block: 0xFFFEFF00, count: 0}, invalidPos, invalidPos},
 		{&sequence{block: 0xFFFEFF00, count: 1}, 1, 7},
 		{&sequence{block: 0xFFFEFF00, count: 100}, 1, 7},
 
-		{&sequence{block: 0xFFFFC0FF, count: 0}, -1, -1},
+		{&sequence{block: 0xFFFFC0FF, count: 0}, invalidPos, invalidPos},
 		{&sequence{block: 0xFFFFC0FF, count: 1}, 2, 2},
 		{&sequence{block: 0xFFFFC0FF, count: 100}, 2, 2},
 
-		{&sequence{block: 0xFFFFFF00, count: 0}, -1, -1},
+		{&sequence{block: 0xFFFFFF00, count: 0}, invalidPos, invalidPos},
 		{&sequence{block: 0xFFFFFF00, count: 1}, 3, 0},
 		{&sequence{block: 0xFFFFFF00, count: 100}, 3, 0},
 
-		{&sequence{block: 0xFFFFFFFE, count: 0}, -1, -1},
+		{&sequence{block: 0xFFFFFFFE, count: 0}, invalidPos, invalidPos},
 		{&sequence{block: 0xFFFFFFFE, count: 1}, 3, 7},
 		{&sequence{block: 0xFFFFFFFE, count: 100}, 3, 7},
 
-		{&sequence{block: 0xFFFFFFFF, count: 0}, -1, -1},
-		{&sequence{block: 0xFFFFFFFF, count: 1}, -1, -1},
-		{&sequence{block: 0xFFFFFFFF, count: 100}, -1, -1},
+		{&sequence{block: 0xFFFFFFFF, count: 0}, invalidPos, invalidPos},
+		{&sequence{block: 0xFFFFFFFF, count: 1}, invalidPos, invalidPos},
+		{&sequence{block: 0xFFFFFFFF, count: 100}, invalidPos, invalidPos},
 	}
 
 	for n, i := range input {
-		b, bb := i.head.getAvailableBit()
+		b, bb, err := i.head.getAvailableBit()
 		if b != i.bytePos || bb != i.bitPos {
-			t.Fatalf("Error in sequence.getAvailableBit() (%d).\nExp: (%d, %d)\nGot: (%d, %d),", n, i.bytePos, i.bitPos, b, bb)
+			t.Fatalf("Error in sequence.getAvailableBit() (%d).\nExp: (%d, %d)\nGot: (%d, %d), err: %v", n, i.bytePos, i.bitPos, b, bb, err)
 		}
 	}
 }
@@ -144,10 +144,10 @@ func TestSequenceCopy(t *testing.T) {
 func TestGetFirstAvailable(t *testing.T) {
 	input := []struct {
 		mask    *sequence
-		bytePos int
-		bitPos  int
+		bytePos uint32
+		bitPos  uint32
 	}{
-		{&sequence{block: 0xffffffff, count: 2048}, -1, -1},
+		{&sequence{block: 0xffffffff, count: 2048}, invalidPos, invalidPos},
 		{&sequence{block: 0x0, count: 8}, 0, 0},
 		{&sequence{block: 0x80000000, count: 8}, 0, 1},
 		{&sequence{block: 0xC0000000, count: 8}, 0, 2},
@@ -191,18 +191,18 @@ func TestGetFirstAvailable(t *testing.T) {
 func TestFindSequence(t *testing.T) {
 	input := []struct {
 		head           *sequence
-		bytePos        int
+		bytePos        uint32
 		precBlocks     uint32
-		inBlockBytePos int
+		inBlockBytePos uint32
 	}{
-		{&sequence{block: 0xffffffff, count: 0}, 0, 0, -1},
-		{&sequence{block: 0xffffffff, count: 0}, 31, 0, -1},
-		{&sequence{block: 0xffffffff, count: 0}, 100, 0, -1},
+		{&sequence{block: 0xffffffff, count: 0}, 0, 0, invalidPos},
+		{&sequence{block: 0xffffffff, count: 0}, 31, 0, invalidPos},
+		{&sequence{block: 0xffffffff, count: 0}, 100, 0, invalidPos},
 
 		{&sequence{block: 0x0, count: 1}, 0, 0, 0},
 		{&sequence{block: 0x0, count: 1}, 1, 0, 1},
-		{&sequence{block: 0x0, count: 1}, 31, 0, -1},
-		{&sequence{block: 0x0, count: 1}, 60, 0, -1},
+		{&sequence{block: 0x0, count: 1}, 31, 0, invalidPos},
+		{&sequence{block: 0x0, count: 1}, 60, 0, invalidPos},
 
 		{&sequence{block: 0xffffffff, count: 10}, 0, 0, 0},
 		{&sequence{block: 0xffffffff, count: 10}, 3, 0, 3},
@@ -212,7 +212,7 @@ func TestFindSequence(t *testing.T) {
 		{&sequence{block: 0xffffffff, count: 10}, 39, 9, 3},
 
 		{&sequence{block: 0xffffffff, count: 10, next: &sequence{block: 0xcc000000, count: 10}}, 79, 9, 3},
-		{&sequence{block: 0xffffffff, count: 10, next: &sequence{block: 0xcc000000, count: 10}}, 80, 0, -1},
+		{&sequence{block: 0xffffffff, count: 10, next: &sequence{block: 0xcc000000, count: 10}}, 80, 0, invalidPos},
 	}
 
 	for n, i := range input {
@@ -226,38 +226,38 @@ func TestFindSequence(t *testing.T) {
 func TestCheckIfAvailable(t *testing.T) {
 	input := []struct {
 		head    *sequence
-		ordinal int
-		bytePos int
-		bitPos  int
+		ordinal uint32
+		bytePos uint32
+		bitPos  uint32
 	}{
-		{&sequence{block: 0xffffffff, count: 0}, 0, -1, -1},
-		{&sequence{block: 0xffffffff, count: 0}, 31, -1, -1},
-		{&sequence{block: 0xffffffff, count: 0}, 100, -1, -1},
+		{&sequence{block: 0xffffffff, count: 0}, 0, invalidPos, invalidPos},
+		{&sequence{block: 0xffffffff, count: 0}, 31, invalidPos, invalidPos},
+		{&sequence{block: 0xffffffff, count: 0}, 100, invalidPos, invalidPos},
 
 		{&sequence{block: 0x0, count: 1}, 0, 0, 0},
 		{&sequence{block: 0x0, count: 1}, 1, 0, 1},
 		{&sequence{block: 0x0, count: 1}, 31, 3, 7},
-		{&sequence{block: 0x0, count: 1}, 60, -1, -1},
+		{&sequence{block: 0x0, count: 1}, 60, invalidPos, invalidPos},
 
-		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0x800000ff, count: 1}}, 31, -1, -1},
-		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0x800000ff, count: 1}}, 32, -1, -1},
+		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0x800000ff, count: 1}}, 31, invalidPos, invalidPos},
+		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0x800000ff, count: 1}}, 32, invalidPos, invalidPos},
 		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0x800000ff, count: 1}}, 33, 4, 1},
-		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xC00000ff, count: 1}}, 33, -1, -1},
+		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xC00000ff, count: 1}}, 33, invalidPos, invalidPos},
 		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xC00000ff, count: 1}}, 34, 4, 2},
 
 		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xC00000ff, count: 1, next: &sequence{block: 0x0, count: 1}}}, 55, 6, 7},
-		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xC00000ff, count: 1, next: &sequence{block: 0x0, count: 1}}}, 56, -1, -1},
-		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xC00000ff, count: 1, next: &sequence{block: 0x0, count: 1}}}, 63, -1, -1},
+		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xC00000ff, count: 1, next: &sequence{block: 0x0, count: 1}}}, 56, invalidPos, invalidPos},
+		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xC00000ff, count: 1, next: &sequence{block: 0x0, count: 1}}}, 63, invalidPos, invalidPos},
 
 		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xC00000ff, count: 1, next: &sequence{block: 0x0, count: 1}}}, 64, 8, 0},
 		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xC00000ff, count: 1, next: &sequence{block: 0x0, count: 1}}}, 95, 11, 7},
-		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xC00000ff, count: 1, next: &sequence{block: 0x0, count: 1}}}, 96, -1, -1},
+		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xC00000ff, count: 1, next: &sequence{block: 0x0, count: 1}}}, 96, invalidPos, invalidPos},
 	}
 
 	for n, i := range input {
-		bytePos, bitPos, _ := checkIfAvailable(i.head, i.ordinal)
+		bytePos, bitPos, err := checkIfAvailable(i.head, i.ordinal)
 		if bytePos != i.bytePos || bitPos != i.bitPos {
-			t.Fatalf("Error in (%d) checkIfAvailable(ord:%d). Expected (%d, %d). Got (%d, %d)", n, i.ordinal, i.bytePos, i.bitPos, bytePos, bitPos)
+			t.Fatalf("Error in (%d) checkIfAvailable(ord:%d). Expected (%d, %d). Got (%d, %d). err: %v", n, i.ordinal, i.bytePos, i.bitPos, bytePos, bitPos, err)
 		}
 	}
 }
@@ -298,8 +298,8 @@ func TestMergeSequences(t *testing.T) {
 func TestPushReservation(t *testing.T) {
 	input := []struct {
 		mask    *sequence
-		bytePos int
-		bitPos  int
+		bytePos uint32
+		bitPos  uint32
 		newMask *sequence
 	}{
 		// Create first sequence and fill in 8 addresses starting from address 0
