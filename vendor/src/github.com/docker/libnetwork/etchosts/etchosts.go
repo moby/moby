@@ -68,6 +68,10 @@ func Build(path, IP, hostname, domainname string, extraContent []Record) error {
 
 // Add adds an arbitrary number of Records to an already existing /etc/hosts file
 func Add(path string, recs []Record) error {
+	if len(recs) == 0 {
+		return nil
+	}
+
 	f, err := os.Open(path)
 	if err != nil {
 		return err
@@ -91,6 +95,10 @@ func Add(path string, recs []Record) error {
 
 // Delete deletes an arbitrary number of Records already existing in /etc/hosts file
 func Delete(path string, recs []Record) error {
+	if len(recs) == 0 {
+		return nil
+	}
+
 	old, err := ioutil.ReadFile(path)
 	if err != nil {
 		return err

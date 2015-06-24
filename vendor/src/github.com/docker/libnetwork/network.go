@@ -416,6 +416,11 @@ func (n *network) updateSvcRecord(ep *endpoint, isAdd bool) {
 	}
 	n.Unlock()
 
+	// If there are no records to add or delete then simply return here
+	if len(recs) == 0 {
+		return
+	}
+
 	var epList []*endpoint
 	n.WalkEndpoints(func(e Endpoint) bool {
 		cEp := e.(*endpoint)
