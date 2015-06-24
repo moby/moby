@@ -1875,7 +1875,7 @@ Sets up an exec instance in a running container `id`
        "Tty": false,
        "Cmd": [
                      "date"
-             ],
+             ]
       }
 
 **Example response**:
@@ -1917,7 +1917,7 @@ interactive session with the `exec` command.
 
     {
      "Detach": false,
-     "Tty": false,
+     "Tty": false
     }
 
 **Example response**:
