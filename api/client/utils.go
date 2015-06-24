@@ -89,7 +89,7 @@ func (cli *DockerCli) clientRequest(method, path string, in io.Reader, headers m
 		}
 
 		if cli.tlsConfig == nil {
-			return nil, nil, statusCode, fmt.Errorf("%v. Are you trying to connect to a TLS-enabled daemon without TLS?", err)
+			return nil, nil, statusCode, fmt.Errorf("%v.\n* Are you trying to connect to a TLS-enabled daemon without TLS?\n* Is your docker daemon up and running?", err)
 		}
 		return nil, nil, statusCode, fmt.Errorf("An error occurred trying to connect: %v", err)
 	}
