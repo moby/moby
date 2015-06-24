@@ -47,7 +47,7 @@ RUN apt-get update && apt-get install -y \
 	mercurial \
 	parallel \
 	python-mock \
-	python-pip \
+	python-pip=1.5.4-1 \
 	python-websocket \
 	reprepro \
 	ruby1.9.1 \
