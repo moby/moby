@@ -9,6 +9,7 @@ import (
 	"sync"
 
 	"github.com/docker/libnetwork/datastore"
+	"github.com/docker/libnetwork/types"
 )
 
 // block sequence constants
@@ -19,6 +20,10 @@ const (
 	blockMAX      = uint32(1<<blockLen - 1)
 	blockFirstBit = uint32(1) << (blockLen - 1)
 	invalidPos    = blockMAX
+)
+
+var (
+	errNoBitAvailable = fmt.Errorf("no bit available")
 )
 
 // Handle contains the sequece representing the bitmask and its identifier
@@ -145,7 +150,7 @@ func (s *sequence) toByteArray() ([]byte, error) {
 	return bb, nil
 }
 
-// FromByteArray construct the sequence from the byte array
+// fromByteArray construct the sequence from the byte array
 func (s *sequence) fromByteArray(data []byte) error {
 	l := len(data)
 	if l%8 != 0 {
@@ -168,7 +173,21 @@ func (s *sequence) fromByteArray(data []byte) error {
 	return nil
 }
 
+func (h *Handle) getCopy() *Handle {
+	return &Handle{
+		bits:       h.bits,
+		unselected: h.unselected,
+		head:       h.head.getCopy(),
+		app:        h.app,
+		id:         h.id,
+		dbIndex:    h.dbIndex,
+		dbExists:   h.dbExists,
+		store:      h.store,
+	}
+}
+
 // GetFirstAvailable returns the byte and bit position of the first unset bit
+// @Deprecated Use SetAny() instead
 func (h *Handle) GetFirstAvailable() (uint32, uint32, error) {
 	h.Lock()
 	defer h.Unlock()
@@ -177,45 +196,157 @@ func (h *Handle) GetFirstAvailable() (uint32, uint32, error) {
 
 // CheckIfAvailable checks if the bit correspondent to the specified ordinal is unset
 // If the ordinal is beyond the sequence limits, a negative response is returned
+// @Deprecated Use IsSet() instead
 func (h *Handle) CheckIfAvailable(ordinal uint32) (uint32, uint32, error) {
+	if err := h.validateOrdinal(ordinal); err != nil {
+		return invalidPos, invalidPos, err
+	}
 	h.Lock()
 	defer h.Unlock()
 	return checkIfAvailable(h.head, ordinal)
 }
 
-// PushReservation pushes the bit reservation inside the bitmask.
-func (h *Handle) PushReservation(bytePos, bitPos uint32, release bool) error {
-	// Create a copy of the current handler
-	h.Lock()
-	nh := &Handle{
-		app:      h.app,
-		id:       h.id,
-		store:    h.store,
-		dbIndex:  h.dbIndex,
-		head:     h.head.GetCopy(),
-		dbExists: h.dbExists,
+// SetAny atomically sets the first unset bit in the sequence and returns the corresponding ordinal
+func (h *Handle) SetAny() (uint32, error) {
+	if h.Unselected() == 0 {
+		return invalidPos, errNoBitAvailable
 	}
+	return h.set(0, true, false)
+}
+
+// Set atomically sets the corresponding bit in the sequence
+func (h *Handle) Set(ordinal uint32) error {
+	if err := h.validateOrdinal(ordinal); err != nil {
+		return err
+	}
+	_, err := h.set(ordinal, false, false)
+	return err
+}
+
+// Unset atomically unsets the corresponding bit in the sequence
+func (h *Handle) Unset(ordinal uint32) error {
+	if err := h.validateOrdinal(ordinal); err != nil {
+		return err
+	}
+	_, err := h.set(ordinal, false, true)
+	return err
+}
+
+// IsSet atomically checks if the ordinal bit is set. In case ordinal
+// is outside of the bit sequence limits, false is returned.
+func (h *Handle) IsSet(ordinal uint32) bool {
+	if err := h.validateOrdinal(ordinal); err != nil {
+		return false
+	}
+	h.Lock()
+	_, _, err := checkIfAvailable(h.head, ordinal)
+	h.Unlock()
+	return err != nil
+}
+
+// set/reset the bit
+func (h *Handle) set(ordinal uint32, any bool, release bool) (uint32, error) {
+	var (
+		bitPos  uint32
+		bytePos uint32
+		ret     uint32
+		err     error
+	)
+
+	for {
+		h.Lock()
+		// Get position if available
+		if release {
+			bytePos, bitPos = ordinalToPos(ordinal)
+		} else {
+			if any {
+				bytePos, bitPos, err = getFirstAvailable(h.head)
+				ret = posToOrdinal(bytePos, bitPos)
+			} else {
+				bytePos, bitPos, err = checkIfAvailable(h.head, ordinal)
+				ret = ordinal
+			}
+		}
+		if err != nil {
+			h.Unlock()
+			return ret, err
+		}
+
+		// Create a private copy of h and work on it, also copy the current db index
+		nh := h.getCopy()
+		ci := h.dbIndex
+		h.Unlock()
+
+		nh.head = pushReservation(bytePos, bitPos, nh.head, release)
+		if release {
+			nh.unselected++
+		} else {
+			nh.unselected--
+		}
+
+		// Attempt to write private copy to store
+		if err := nh.writeToStore(); err != nil {
+			if _, ok := err.(types.RetryError); !ok {
+				return ret, fmt.Errorf("internal failure while setting the bit: %v", err)
+			}
+			// Retry
+			continue
+		}
+
+		// Unless unexpected error, save private copy to local copy
+		h.Lock()
+		defer h.Unlock()
+		if h.dbIndex != ci {
+			return ret, fmt.Errorf("unexected database index change")
+		}
+		h.unselected = nh.unselected
+		h.head = nh.head
+		h.dbExists = nh.dbExists
+		h.dbIndex = nh.dbIndex
+		return ret, nil
+	}
+}
+
+// checks is needed because to cover the case where the number of bits is not a multiple of blockLen
+func (h *Handle) validateOrdinal(ordinal uint32) error {
+	if ordinal > h.bits {
+		return fmt.Errorf("bit does not belong to the sequence")
+	}
+	return nil
+}
+
+// PushReservation pushes the bit reservation inside the bitmask.
+// @Deprecated Use Set() instead
+func (h *Handle) PushReservation(bytePos, bitPos uint32, release bool) error {
+	// Create a private copy of h and work on it, also copy the current db index
+	h.Lock()
+	nh := h.getCopy()
+	ci := h.dbIndex
 	h.Unlock()
 
 	nh.head = pushReservation(bytePos, bitPos, nh.head, release)
-
-	err := nh.writeToStore()
-	if err == nil {
-		// Commit went through, save locally
-		h.Lock()
-		h.head = nh.head
-		if release {
-			h.unselected++
-		} else {
-			h.unselected--
-		}
-		// Can't use SetIndex() since we're locked.
-		h.dbIndex = nh.Index()
-		h.dbExists = true
-		h.Unlock()
+	if release {
+		nh.unselected++
+	} else {
+		nh.unselected--
 	}
 
-	return err
+	// Attempt to write private copy to store
+	if err := nh.writeToStore(); err != nil {
+		return err
+	}
+
+	// Unless unexpected error, save private copy to local copy
+	h.Lock()
+	defer h.Unlock()
+	if h.dbIndex != ci {
+		return fmt.Errorf("unexected database index change")
+	}
+	h.unselected = nh.unselected
+	h.head = nh.head
+	h.dbExists = nh.dbExists
+	h.dbIndex = nh.dbIndex
+	return nil
 }
 
 // Destroy removes from the datastore the data belonging to this handle
@@ -285,7 +416,7 @@ func getFirstAvailable(head *sequence) (uint32, uint32, error) {
 		byteIndex += current.count * blockBytes
 		current = current.next
 	}
-	return invalidPos, invalidPos, fmt.Errorf("no bit available")
+	return invalidPos, invalidPos, errNoBitAvailable
 }
 
 // checkIfAvailable checks if the bit correspondent to the specified ordinal is unset
@@ -363,7 +494,7 @@ func pushReservation(bytePos, bitPos uint32, head *sequence, release bool) *sequ
 	}
 
 	// Construct updated block
-	bitSel := uint32(blockFirstBit >> uint(inBlockBytePos*8+bitPos))
+	bitSel := blockFirstBit >> (inBlockBytePos*8 + bitPos)
 	newBlock := current.block
 	if release {
 		newBlock &^= bitSel
@@ -446,4 +577,12 @@ func getNumBlocks(numBits uint32) uint32 {
 		numBlocks++
 	}
 	return numBlocks
+}
+
+func ordinalToPos(ordinal uint32) (uint32, uint32) {
+	return ordinal / 8, ordinal % 8
+}
+
+func posToOrdinal(bytePos, bitPos uint32) uint32 {
+	return bytePos*8 + bitPos
 }

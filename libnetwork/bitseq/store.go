@@ -122,7 +122,7 @@ func (h *Handle) writeToStore() error {
 	}
 	err := store.PutObjectAtomic(h)
 	if err == datastore.ErrKeyModified {
-		return types.RetryErrorf("failed to perform atomic write (%v). retry might fix the error", err)
+		return types.RetryErrorf("failed to perform atomic write (%v). Retry might fix the error", err)
 	}
 	return err
 }

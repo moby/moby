@@ -90,48 +90,7 @@ func TestSequenceEqual(t *testing.T) {
 }
 
 func TestSequenceCopy(t *testing.T) {
-	s := &sequence{
-		block: 0x0,
-		count: 8,
-		next: &sequence{
-			block: 0x0,
-			count: 8,
-			next: &sequence{
-				block: 0x0,
-				count: 0,
-				next: &sequence{
-					block: 0x0,
-					count: 0,
-					next: &sequence{
-						block: 0x0,
-						count: 2,
-						next: &sequence{
-							block: 0x0,
-							count: 1,
-							next: &sequence{
-								block: 0x0,
-								count: 1,
-								next: &sequence{
-									block: 0x0,
-									count: 2,
-									next: &sequence{
-										block: 0x1,
-										count: 1,
-										next: &sequence{
-											block: 0x0,
-											count: 2,
-											next:  nil,
-										},
-									},
-								},
-							},
-						},
-					},
-				},
-			},
-		},
-	}
-
+	s := getTestSequence()
 	n := s.getCopy()
 	if !s.equal(n) {
 		t.Fatalf("copy of s failed")
@@ -388,30 +347,7 @@ func TestPushReservation(t *testing.T) {
 }
 
 func TestSerializeDeserialize(t *testing.T) {
-	s := &sequence{
-		block: 0xffffffff,
-		count: 1,
-		next: &sequence{
-			block: 0xFF000000,
-			count: 1,
-			next: &sequence{
-				block: 0xffffffff,
-				count: 6,
-				next: &sequence{
-					block: 0xffffffff,
-					count: 1,
-					next: &sequence{
-						block: 0xFF800000,
-						count: 1,
-						next: &sequence{
-							block: 0xffffffff,
-							count: 6,
-						},
-					},
-				},
-			},
-		},
-	}
+	s := getTestSequence()
 
 	data, err := s.toByteArray()
 	if err != nil {
@@ -426,5 +362,136 @@ func TestSerializeDeserialize(t *testing.T) {
 
 	if !s.equal(r) {
 		t.Fatalf("Sequences are different: \n%v\n%v", s, r)
+	}
+}
+
+func getTestSequence() *sequence {
+	// Returns a custom sequence of 1024 * 32 bits
+	return &sequence{
+		block: 0XFFFFFFFF,
+		count: 100,
+		next: &sequence{
+			block: 0xFFFFFFFE,
+			count: 1,
+			next: &sequence{
+				block: 0xFF000000,
+				count: 10,
+				next: &sequence{
+					block: 0XFFFFFFFF,
+					count: 50,
+					next: &sequence{
+						block: 0XFFFFFFFC,
+						count: 1,
+						next: &sequence{
+							block: 0xFF800000,
+							count: 1,
+							next: &sequence{
+								block: 0XFFFFFFFF,
+								count: 87,
+								next: &sequence{
+									block: 0x0,
+									count: 150,
+									next: &sequence{
+										block: 0XFFFFFFFF,
+										count: 200,
+										next: &sequence{
+											block: 0x0000FFFF,
+											count: 1,
+											next: &sequence{
+												block: 0x0,
+												count: 399,
+												next: &sequence{
+													block: 0XFFFFFFFF,
+													count: 23,
+													next: &sequence{
+														block: 0x1,
+														count: 1,
+													},
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func TestSet(t *testing.T) {
+	hnd, err := NewHandle("", nil, "", 1024*32)
+	if err != nil {
+		t.Fatal(err)
+	}
+	hnd.head = getTestSequence()
+
+	firstAv := uint32(32*100 + 31)
+	last := uint32(1024*32 - 1)
+
+	if hnd.IsSet(100000) {
+		t.Fatal("IsSet() returned wrong result")
+	}
+
+	if !hnd.IsSet(0) {
+		t.Fatal("IsSet() returned wrong result")
+	}
+
+	if hnd.IsSet(firstAv) {
+		t.Fatal("IsSet() returned wrong result")
+	}
+
+	if !hnd.IsSet(last) {
+		t.Fatal("IsSet() returned wrong result")
+	}
+
+	if err := hnd.Set(0); err == nil {
+		t.Fatalf("Expected failure, but succeeded")
+	}
+
+	os, err := hnd.SetAny()
+	if err != nil {
+		t.Fatalf("Unexpected failure: %v", err)
+	}
+	if os != firstAv {
+		t.Fatalf("SetAny returned unexpected ordinal. Expected %d. Got %d.", firstAv, os)
+	}
+	if !hnd.IsSet(firstAv) {
+		t.Fatal("IsSet() returned wrong result")
+	}
+
+	if err := hnd.Unset(firstAv); err != nil {
+		t.Fatalf("Unexpected failure: %v", err)
+	}
+
+	if hnd.IsSet(firstAv) {
+		t.Fatal("IsSet() returned wrong result")
+	}
+
+	if err := hnd.Set(firstAv); err != nil {
+		t.Fatalf("Unexpected failure: %v", err)
+	}
+
+	if err := hnd.Set(last); err == nil {
+		t.Fatalf("Expected failure, but succeeded")
+	}
+}
+
+func TestSetUnset(t *testing.T) {
+	numBits := uint32(64 * 1024)
+	hnd, err := NewHandle("", nil, "", numBits)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// set and unset all one by one
+	for hnd.Unselected() > 0 {
+		hnd.SetAny()
+	}
+	i := uint32(0)
+	for hnd.Unselected() < numBits {
+		hnd.Unset(i)
+		i++
 	}
 }
