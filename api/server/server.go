@@ -249,6 +249,7 @@ func (s *Server) getVersion(version version.Version, w http.ResponseWriter, r *h
 		GoVersion:  runtime.Version(),
 		Os:         runtime.GOOS,
 		Arch:       runtime.GOARCH,
+		BuildTime:  dockerversion.BUILDTIME,
 	}
 
 	if version.GreaterThanOrEqualTo("1.19") {
@@ -581,7 +582,18 @@ func (s *Server) getContainersStats(version version.Version, w http.ResponseWrit
 		out = ioutils.NewWriteFlusher(w)
 	}
 
-	return s.daemon.ContainerStats(vars["name"], stream, out)
+	var closeNotifier <-chan bool
+	if notifier, ok := w.(http.CloseNotifier); ok {
+		closeNotifier = notifier.CloseNotify()
+	}
+
+	config := &daemon.ContainerStatsConfig{
+		Stream:    stream,
+		OutStream: out,
+		Stop:      closeNotifier,
+	}
+
+	return s.daemon.ContainerStats(vars["name"], config)
 }
 
 func (s *Server) getContainersLogs(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {

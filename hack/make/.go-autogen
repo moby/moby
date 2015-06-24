@@ -10,6 +10,7 @@ package dockerversion
 var (
 	GITCOMMIT string = "$GITCOMMIT"
 	VERSION   string = "$VERSION"
+	BUILDTIME string = "$BUILDTIME"
 
 	IAMSTATIC string = "${IAMSTATIC:-true}"
 	INITSHA1  string = "$DOCKER_INITSHA1"

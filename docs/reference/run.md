@@ -891,6 +891,7 @@ The following logging options are supported for this logging driver:
 
     --log-opt syslog-address=[tcp|udp]://host:port
     --log-opt syslog-address=unix://path
+    --log-opt syslog-facility=daemon
     --log-opt syslog-tag="mailer"
 
 `syslog-address` specifies the remote syslog server address where the driver connects to.
@@ -901,7 +902,34 @@ remote server at `192.168.0.42` on port `123`
 
     $ docker run --log-driver=syslog --log-opt syslog-address=tcp://192.168.0.42:123
 
-`syslog-tag` specifies tag for syslog messages from container.
+The `syslog-facility` option configures the syslog facility. By default, the system uses the
+`daemon` value. To override this behavior, you can provide an integer of 0 to 23 or any of
+the following named facilities:
+
+* `kern`
+* `user`
+* `mail`
+* `daemon`
+* `auth`
+* `syslog`
+* `lpr`
+* `news`
+* `uucp`
+* `cron`
+* `authpriv`
+* `ftp`
+* `local0`
+* `local1`
+* `local2`
+* `local3`
+* `local4`
+* `local5`
+* `local6`
+* `local7`
+
+The `syslog-tag` specifies a tag that identifies the container's syslog messages. By default,
+the system uses the first 12 characters of the container id. To override this behavior, specify
+a `syslog-tag` option
 
 #### Logging driver: journald
 
