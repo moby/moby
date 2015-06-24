@@ -624,11 +624,3 @@ func getHostPortionIP(address net.IP, subnet *net.IPNet) net.IP {
 	}
 	return hostPortion
 }
-
-func printLine(head *bitseq.Sequence) {
-	fmt.Println()
-	for head != nil {
-		fmt.Printf("-")
-		head = head.Next
-	}
-}

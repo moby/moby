@@ -8,119 +8,119 @@ import (
 
 func TestSequenceGetAvailableBit(t *testing.T) {
 	input := []struct {
-		head    *Sequence
+		head    *sequence
 		bytePos int
 		bitPos  int
 	}{
-		{&Sequence{Block: 0x0, Count: 0}, -1, -1},
-		{&Sequence{Block: 0x0, Count: 1}, 0, 0},
-		{&Sequence{Block: 0x0, Count: 100}, 0, 0},
+		{&sequence{block: 0x0, count: 0}, -1, -1},
+		{&sequence{block: 0x0, count: 1}, 0, 0},
+		{&sequence{block: 0x0, count: 100}, 0, 0},
 
-		{&Sequence{Block: 0x80000000, Count: 0}, -1, -1},
-		{&Sequence{Block: 0x80000000, Count: 1}, 0, 1},
-		{&Sequence{Block: 0x80000000, Count: 100}, 0, 1},
+		{&sequence{block: 0x80000000, count: 0}, -1, -1},
+		{&sequence{block: 0x80000000, count: 1}, 0, 1},
+		{&sequence{block: 0x80000000, count: 100}, 0, 1},
 
-		{&Sequence{Block: 0xFF000000, Count: 0}, -1, -1},
-		{&Sequence{Block: 0xFF000000, Count: 1}, 1, 0},
-		{&Sequence{Block: 0xFF000000, Count: 100}, 1, 0},
+		{&sequence{block: 0xFF000000, count: 0}, -1, -1},
+		{&sequence{block: 0xFF000000, count: 1}, 1, 0},
+		{&sequence{block: 0xFF000000, count: 100}, 1, 0},
 
-		{&Sequence{Block: 0xFF800000, Count: 0}, -1, -1},
-		{&Sequence{Block: 0xFF800000, Count: 1}, 1, 1},
-		{&Sequence{Block: 0xFF800000, Count: 100}, 1, 1},
+		{&sequence{block: 0xFF800000, count: 0}, -1, -1},
+		{&sequence{block: 0xFF800000, count: 1}, 1, 1},
+		{&sequence{block: 0xFF800000, count: 100}, 1, 1},
 
-		{&Sequence{Block: 0xFFC0FF00, Count: 0}, -1, -1},
-		{&Sequence{Block: 0xFFC0FF00, Count: 1}, 1, 2},
-		{&Sequence{Block: 0xFFC0FF00, Count: 100}, 1, 2},
+		{&sequence{block: 0xFFC0FF00, count: 0}, -1, -1},
+		{&sequence{block: 0xFFC0FF00, count: 1}, 1, 2},
+		{&sequence{block: 0xFFC0FF00, count: 100}, 1, 2},
 
-		{&Sequence{Block: 0xFFE0FF00, Count: 0}, -1, -1},
-		{&Sequence{Block: 0xFFE0FF00, Count: 1}, 1, 3},
-		{&Sequence{Block: 0xFFE0FF00, Count: 100}, 1, 3},
+		{&sequence{block: 0xFFE0FF00, count: 0}, -1, -1},
+		{&sequence{block: 0xFFE0FF00, count: 1}, 1, 3},
+		{&sequence{block: 0xFFE0FF00, count: 100}, 1, 3},
 
-		{&Sequence{Block: 0xFFFEFF00, Count: 0}, -1, -1},
-		{&Sequence{Block: 0xFFFEFF00, Count: 1}, 1, 7},
-		{&Sequence{Block: 0xFFFEFF00, Count: 100}, 1, 7},
+		{&sequence{block: 0xFFFEFF00, count: 0}, -1, -1},
+		{&sequence{block: 0xFFFEFF00, count: 1}, 1, 7},
+		{&sequence{block: 0xFFFEFF00, count: 100}, 1, 7},
 
-		{&Sequence{Block: 0xFFFFC0FF, Count: 0}, -1, -1},
-		{&Sequence{Block: 0xFFFFC0FF, Count: 1}, 2, 2},
-		{&Sequence{Block: 0xFFFFC0FF, Count: 100}, 2, 2},
+		{&sequence{block: 0xFFFFC0FF, count: 0}, -1, -1},
+		{&sequence{block: 0xFFFFC0FF, count: 1}, 2, 2},
+		{&sequence{block: 0xFFFFC0FF, count: 100}, 2, 2},
 
-		{&Sequence{Block: 0xFFFFFF00, Count: 0}, -1, -1},
-		{&Sequence{Block: 0xFFFFFF00, Count: 1}, 3, 0},
-		{&Sequence{Block: 0xFFFFFF00, Count: 100}, 3, 0},
+		{&sequence{block: 0xFFFFFF00, count: 0}, -1, -1},
+		{&sequence{block: 0xFFFFFF00, count: 1}, 3, 0},
+		{&sequence{block: 0xFFFFFF00, count: 100}, 3, 0},
 
-		{&Sequence{Block: 0xFFFFFFFE, Count: 0}, -1, -1},
-		{&Sequence{Block: 0xFFFFFFFE, Count: 1}, 3, 7},
-		{&Sequence{Block: 0xFFFFFFFE, Count: 100}, 3, 7},
+		{&sequence{block: 0xFFFFFFFE, count: 0}, -1, -1},
+		{&sequence{block: 0xFFFFFFFE, count: 1}, 3, 7},
+		{&sequence{block: 0xFFFFFFFE, count: 100}, 3, 7},
 
-		{&Sequence{Block: 0xFFFFFFFF, Count: 0}, -1, -1},
-		{&Sequence{Block: 0xFFFFFFFF, Count: 1}, -1, -1},
-		{&Sequence{Block: 0xFFFFFFFF, Count: 100}, -1, -1},
+		{&sequence{block: 0xFFFFFFFF, count: 0}, -1, -1},
+		{&sequence{block: 0xFFFFFFFF, count: 1}, -1, -1},
+		{&sequence{block: 0xFFFFFFFF, count: 100}, -1, -1},
 	}
 
 	for n, i := range input {
-		b, bb := i.head.GetAvailableBit()
+		b, bb := i.head.getAvailableBit()
 		if b != i.bytePos || bb != i.bitPos {
-			t.Fatalf("Error in Sequence.getAvailableBit() (%d).\nExp: (%d, %d)\nGot: (%d, %d),", n, i.bytePos, i.bitPos, b, bb)
+			t.Fatalf("Error in sequence.getAvailableBit() (%d).\nExp: (%d, %d)\nGot: (%d, %d),", n, i.bytePos, i.bitPos, b, bb)
 		}
 	}
 }
 
 func TestSequenceEqual(t *testing.T) {
 	input := []struct {
-		first    *Sequence
-		second   *Sequence
+		first    *sequence
+		second   *sequence
 		areEqual bool
 	}{
-		{&Sequence{Block: 0x0, Count: 8, Next: nil}, &Sequence{Block: 0x0, Count: 8}, true},
-		{&Sequence{Block: 0x0, Count: 0, Next: nil}, &Sequence{Block: 0x0, Count: 0}, true},
-		{&Sequence{Block: 0x0, Count: 2, Next: nil}, &Sequence{Block: 0x0, Count: 1, Next: &Sequence{Block: 0x0, Count: 1}}, false},
-		{&Sequence{Block: 0x0, Count: 2, Next: &Sequence{Block: 0x1, Count: 1}}, &Sequence{Block: 0x0, Count: 2}, false},
+		{&sequence{block: 0x0, count: 8, next: nil}, &sequence{block: 0x0, count: 8}, true},
+		{&sequence{block: 0x0, count: 0, next: nil}, &sequence{block: 0x0, count: 0}, true},
+		{&sequence{block: 0x0, count: 2, next: nil}, &sequence{block: 0x0, count: 1, next: &sequence{block: 0x0, count: 1}}, false},
+		{&sequence{block: 0x0, count: 2, next: &sequence{block: 0x1, count: 1}}, &sequence{block: 0x0, count: 2}, false},
 
-		{&Sequence{Block: 0x12345678, Count: 8, Next: nil}, &Sequence{Block: 0x12345678, Count: 8}, true},
-		{&Sequence{Block: 0x12345678, Count: 8, Next: nil}, &Sequence{Block: 0x12345678, Count: 9}, false},
-		{&Sequence{Block: 0x12345678, Count: 1, Next: &Sequence{Block: 0XFFFFFFFF, Count: 1}}, &Sequence{Block: 0x12345678, Count: 1}, false},
-		{&Sequence{Block: 0x12345678, Count: 1}, &Sequence{Block: 0x12345678, Count: 1, Next: &Sequence{Block: 0XFFFFFFFF, Count: 1}}, false},
+		{&sequence{block: 0x12345678, count: 8, next: nil}, &sequence{block: 0x12345678, count: 8}, true},
+		{&sequence{block: 0x12345678, count: 8, next: nil}, &sequence{block: 0x12345678, count: 9}, false},
+		{&sequence{block: 0x12345678, count: 1, next: &sequence{block: 0XFFFFFFFF, count: 1}}, &sequence{block: 0x12345678, count: 1}, false},
+		{&sequence{block: 0x12345678, count: 1}, &sequence{block: 0x12345678, count: 1, next: &sequence{block: 0XFFFFFFFF, count: 1}}, false},
 	}
 
 	for n, i := range input {
-		if i.areEqual != i.first.Equal(i.second) {
-			t.Fatalf("Error in Sequence.Equal() (%d).\nExp: %t\nGot: %t,", n, i.areEqual, !i.areEqual)
+		if i.areEqual != i.first.equal(i.second) {
+			t.Fatalf("Error in sequence.equal() (%d).\nExp: %t\nGot: %t,", n, i.areEqual, !i.areEqual)
 		}
 	}
 }
 
 func TestSequenceCopy(t *testing.T) {
-	s := &Sequence{
-		Block: 0x0,
-		Count: 8,
-		Next: &Sequence{
-			Block: 0x0,
-			Count: 8,
-			Next: &Sequence{
-				Block: 0x0,
-				Count: 0,
-				Next: &Sequence{
-					Block: 0x0,
-					Count: 0,
-					Next: &Sequence{
-						Block: 0x0,
-						Count: 2,
-						Next: &Sequence{
-							Block: 0x0,
-							Count: 1,
-							Next: &Sequence{
-								Block: 0x0,
-								Count: 1,
-								Next: &Sequence{
-									Block: 0x0,
-									Count: 2,
-									Next: &Sequence{
-										Block: 0x1,
-										Count: 1,
-										Next: &Sequence{
-											Block: 0x0,
-											Count: 2,
-											Next:  nil,
+	s := &sequence{
+		block: 0x0,
+		count: 8,
+		next: &sequence{
+			block: 0x0,
+			count: 8,
+			next: &sequence{
+				block: 0x0,
+				count: 0,
+				next: &sequence{
+					block: 0x0,
+					count: 0,
+					next: &sequence{
+						block: 0x0,
+						count: 2,
+						next: &sequence{
+							block: 0x0,
+							count: 1,
+							next: &sequence{
+								block: 0x0,
+								count: 1,
+								next: &sequence{
+									block: 0x0,
+									count: 2,
+									next: &sequence{
+										block: 0x1,
+										count: 1,
+										next: &sequence{
+											block: 0x0,
+											count: 2,
+											next:  nil,
 										},
 									},
 								},
@@ -132,8 +132,8 @@ func TestSequenceCopy(t *testing.T) {
 		},
 	}
 
-	n := s.GetCopy()
-	if !s.Equal(n) {
+	n := s.getCopy()
+	if !s.equal(n) {
 		t.Fatalf("copy of s failed")
 	}
 	if n == s {
@@ -143,45 +143,45 @@ func TestSequenceCopy(t *testing.T) {
 
 func TestGetFirstAvailable(t *testing.T) {
 	input := []struct {
-		mask    *Sequence
+		mask    *sequence
 		bytePos int
 		bitPos  int
 	}{
-		{&Sequence{Block: 0xffffffff, Count: 2048}, -1, -1},
-		{&Sequence{Block: 0x0, Count: 8}, 0, 0},
-		{&Sequence{Block: 0x80000000, Count: 8}, 0, 1},
-		{&Sequence{Block: 0xC0000000, Count: 8}, 0, 2},
-		{&Sequence{Block: 0xE0000000, Count: 8}, 0, 3},
-		{&Sequence{Block: 0xF0000000, Count: 8}, 0, 4},
-		{&Sequence{Block: 0xF8000000, Count: 8}, 0, 5},
-		{&Sequence{Block: 0xFC000000, Count: 8}, 0, 6},
-		{&Sequence{Block: 0xFE000000, Count: 8}, 0, 7},
+		{&sequence{block: 0xffffffff, count: 2048}, -1, -1},
+		{&sequence{block: 0x0, count: 8}, 0, 0},
+		{&sequence{block: 0x80000000, count: 8}, 0, 1},
+		{&sequence{block: 0xC0000000, count: 8}, 0, 2},
+		{&sequence{block: 0xE0000000, count: 8}, 0, 3},
+		{&sequence{block: 0xF0000000, count: 8}, 0, 4},
+		{&sequence{block: 0xF8000000, count: 8}, 0, 5},
+		{&sequence{block: 0xFC000000, count: 8}, 0, 6},
+		{&sequence{block: 0xFE000000, count: 8}, 0, 7},
 
-		{&Sequence{Block: 0xffffffff, Count: 1, Next: &Sequence{Block: 0x00000000, Count: 1, Next: &Sequence{Block: 0xffffffff, Count: 6}}}, 4, 0},
-		{&Sequence{Block: 0xffffffff, Count: 1, Next: &Sequence{Block: 0x80000000, Count: 1, Next: &Sequence{Block: 0xffffffff, Count: 6}}}, 4, 1},
-		{&Sequence{Block: 0xffffffff, Count: 1, Next: &Sequence{Block: 0xC0000000, Count: 1, Next: &Sequence{Block: 0xffffffff, Count: 6}}}, 4, 2},
-		{&Sequence{Block: 0xffffffff, Count: 1, Next: &Sequence{Block: 0xE0000000, Count: 1, Next: &Sequence{Block: 0xffffffff, Count: 6}}}, 4, 3},
-		{&Sequence{Block: 0xffffffff, Count: 1, Next: &Sequence{Block: 0xF0000000, Count: 1, Next: &Sequence{Block: 0xffffffff, Count: 6}}}, 4, 4},
-		{&Sequence{Block: 0xffffffff, Count: 1, Next: &Sequence{Block: 0xF8000000, Count: 1, Next: &Sequence{Block: 0xffffffff, Count: 6}}}, 4, 5},
-		{&Sequence{Block: 0xffffffff, Count: 1, Next: &Sequence{Block: 0xFC000000, Count: 1, Next: &Sequence{Block: 0xffffffff, Count: 6}}}, 4, 6},
-		{&Sequence{Block: 0xffffffff, Count: 1, Next: &Sequence{Block: 0xFE000000, Count: 1, Next: &Sequence{Block: 0xffffffff, Count: 6}}}, 4, 7},
+		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0x00000000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}, 4, 0},
+		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0x80000000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}, 4, 1},
+		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xC0000000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}, 4, 2},
+		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xE0000000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}, 4, 3},
+		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xF0000000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}, 4, 4},
+		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xF8000000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}, 4, 5},
+		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xFC000000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}, 4, 6},
+		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xFE000000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}, 4, 7},
 
-		{&Sequence{Block: 0xffffffff, Count: 1, Next: &Sequence{Block: 0xFF000000, Count: 1, Next: &Sequence{Block: 0xffffffff, Count: 6}}}, 5, 0},
-		{&Sequence{Block: 0xffffffff, Count: 1, Next: &Sequence{Block: 0xFF800000, Count: 1, Next: &Sequence{Block: 0xffffffff, Count: 6}}}, 5, 1},
-		{&Sequence{Block: 0xffffffff, Count: 1, Next: &Sequence{Block: 0xFFC00000, Count: 1, Next: &Sequence{Block: 0xffffffff, Count: 6}}}, 5, 2},
-		{&Sequence{Block: 0xffffffff, Count: 1, Next: &Sequence{Block: 0xFFE00000, Count: 1, Next: &Sequence{Block: 0xffffffff, Count: 6}}}, 5, 3},
-		{&Sequence{Block: 0xffffffff, Count: 1, Next: &Sequence{Block: 0xFFF00000, Count: 1, Next: &Sequence{Block: 0xffffffff, Count: 6}}}, 5, 4},
-		{&Sequence{Block: 0xffffffff, Count: 1, Next: &Sequence{Block: 0xFFF80000, Count: 1, Next: &Sequence{Block: 0xffffffff, Count: 6}}}, 5, 5},
-		{&Sequence{Block: 0xffffffff, Count: 1, Next: &Sequence{Block: 0xFFFC0000, Count: 1, Next: &Sequence{Block: 0xffffffff, Count: 6}}}, 5, 6},
-		{&Sequence{Block: 0xffffffff, Count: 1, Next: &Sequence{Block: 0xFFFE0000, Count: 1, Next: &Sequence{Block: 0xffffffff, Count: 6}}}, 5, 7},
+		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xFF000000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}, 5, 0},
+		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xFF800000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}, 5, 1},
+		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xFFC00000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}, 5, 2},
+		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xFFE00000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}, 5, 3},
+		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xFFF00000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}, 5, 4},
+		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xFFF80000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}, 5, 5},
+		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xFFFC0000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}, 5, 6},
+		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xFFFE0000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}, 5, 7},
 
-		{&Sequence{Block: 0xffffffff, Count: 1, Next: &Sequence{Block: 0xfffffffe, Count: 1, Next: &Sequence{Block: 0xffffffff, Count: 6}}}, 7, 7},
+		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xfffffffe, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}, 7, 7},
 
-		{&Sequence{Block: 0xffffffff, Count: 2, Next: &Sequence{Block: 0x0, Count: 6}}, 8, 0},
+		{&sequence{block: 0xffffffff, count: 2, next: &sequence{block: 0x0, count: 6}}, 8, 0},
 	}
 
 	for n, i := range input {
-		bytePos, bitPos, _ := GetFirstAvailable(i.mask)
+		bytePos, bitPos, _ := getFirstAvailable(i.mask)
 		if bytePos != i.bytePos || bitPos != i.bitPos {
 			t.Fatalf("Error in (%d) getFirstAvailable(). Expected (%d, %d). Got (%d, %d)", n, i.bytePos, i.bitPos, bytePos, bitPos)
 		}
@@ -190,29 +190,29 @@ func TestGetFirstAvailable(t *testing.T) {
 
 func TestFindSequence(t *testing.T) {
 	input := []struct {
-		head           *Sequence
+		head           *sequence
 		bytePos        int
 		precBlocks     uint32
 		inBlockBytePos int
 	}{
-		{&Sequence{Block: 0xffffffff, Count: 0}, 0, 0, -1},
-		{&Sequence{Block: 0xffffffff, Count: 0}, 31, 0, -1},
-		{&Sequence{Block: 0xffffffff, Count: 0}, 100, 0, -1},
+		{&sequence{block: 0xffffffff, count: 0}, 0, 0, -1},
+		{&sequence{block: 0xffffffff, count: 0}, 31, 0, -1},
+		{&sequence{block: 0xffffffff, count: 0}, 100, 0, -1},
 
-		{&Sequence{Block: 0x0, Count: 1}, 0, 0, 0},
-		{&Sequence{Block: 0x0, Count: 1}, 1, 0, 1},
-		{&Sequence{Block: 0x0, Count: 1}, 31, 0, -1},
-		{&Sequence{Block: 0x0, Count: 1}, 60, 0, -1},
+		{&sequence{block: 0x0, count: 1}, 0, 0, 0},
+		{&sequence{block: 0x0, count: 1}, 1, 0, 1},
+		{&sequence{block: 0x0, count: 1}, 31, 0, -1},
+		{&sequence{block: 0x0, count: 1}, 60, 0, -1},
 
-		{&Sequence{Block: 0xffffffff, Count: 10}, 0, 0, 0},
-		{&Sequence{Block: 0xffffffff, Count: 10}, 3, 0, 3},
-		{&Sequence{Block: 0xffffffff, Count: 10}, 4, 1, 0},
-		{&Sequence{Block: 0xffffffff, Count: 10}, 7, 1, 3},
-		{&Sequence{Block: 0xffffffff, Count: 10}, 8, 2, 0},
-		{&Sequence{Block: 0xffffffff, Count: 10}, 39, 9, 3},
+		{&sequence{block: 0xffffffff, count: 10}, 0, 0, 0},
+		{&sequence{block: 0xffffffff, count: 10}, 3, 0, 3},
+		{&sequence{block: 0xffffffff, count: 10}, 4, 1, 0},
+		{&sequence{block: 0xffffffff, count: 10}, 7, 1, 3},
+		{&sequence{block: 0xffffffff, count: 10}, 8, 2, 0},
+		{&sequence{block: 0xffffffff, count: 10}, 39, 9, 3},
 
-		{&Sequence{Block: 0xffffffff, Count: 10, Next: &Sequence{Block: 0xcc000000, Count: 10}}, 79, 9, 3},
-		{&Sequence{Block: 0xffffffff, Count: 10, Next: &Sequence{Block: 0xcc000000, Count: 10}}, 80, 0, -1},
+		{&sequence{block: 0xffffffff, count: 10, next: &sequence{block: 0xcc000000, count: 10}}, 79, 9, 3},
+		{&sequence{block: 0xffffffff, count: 10, next: &sequence{block: 0xcc000000, count: 10}}, 80, 0, -1},
 	}
 
 	for n, i := range input {
@@ -225,37 +225,37 @@ func TestFindSequence(t *testing.T) {
 
 func TestCheckIfAvailable(t *testing.T) {
 	input := []struct {
-		head    *Sequence
+		head    *sequence
 		ordinal int
 		bytePos int
 		bitPos  int
 	}{
-		{&Sequence{Block: 0xffffffff, Count: 0}, 0, -1, -1},
-		{&Sequence{Block: 0xffffffff, Count: 0}, 31, -1, -1},
-		{&Sequence{Block: 0xffffffff, Count: 0}, 100, -1, -1},
+		{&sequence{block: 0xffffffff, count: 0}, 0, -1, -1},
+		{&sequence{block: 0xffffffff, count: 0}, 31, -1, -1},
+		{&sequence{block: 0xffffffff, count: 0}, 100, -1, -1},
 
-		{&Sequence{Block: 0x0, Count: 1}, 0, 0, 0},
-		{&Sequence{Block: 0x0, Count: 1}, 1, 0, 1},
-		{&Sequence{Block: 0x0, Count: 1}, 31, 3, 7},
-		{&Sequence{Block: 0x0, Count: 1}, 60, -1, -1},
+		{&sequence{block: 0x0, count: 1}, 0, 0, 0},
+		{&sequence{block: 0x0, count: 1}, 1, 0, 1},
+		{&sequence{block: 0x0, count: 1}, 31, 3, 7},
+		{&sequence{block: 0x0, count: 1}, 60, -1, -1},
 
-		{&Sequence{Block: 0xffffffff, Count: 1, Next: &Sequence{Block: 0x800000ff, Count: 1}}, 31, -1, -1},
-		{&Sequence{Block: 0xffffffff, Count: 1, Next: &Sequence{Block: 0x800000ff, Count: 1}}, 32, -1, -1},
-		{&Sequence{Block: 0xffffffff, Count: 1, Next: &Sequence{Block: 0x800000ff, Count: 1}}, 33, 4, 1},
-		{&Sequence{Block: 0xffffffff, Count: 1, Next: &Sequence{Block: 0xC00000ff, Count: 1}}, 33, -1, -1},
-		{&Sequence{Block: 0xffffffff, Count: 1, Next: &Sequence{Block: 0xC00000ff, Count: 1}}, 34, 4, 2},
+		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0x800000ff, count: 1}}, 31, -1, -1},
+		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0x800000ff, count: 1}}, 32, -1, -1},
+		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0x800000ff, count: 1}}, 33, 4, 1},
+		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xC00000ff, count: 1}}, 33, -1, -1},
+		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xC00000ff, count: 1}}, 34, 4, 2},
 
-		{&Sequence{Block: 0xffffffff, Count: 1, Next: &Sequence{Block: 0xC00000ff, Count: 1, Next: &Sequence{Block: 0x0, Count: 1}}}, 55, 6, 7},
-		{&Sequence{Block: 0xffffffff, Count: 1, Next: &Sequence{Block: 0xC00000ff, Count: 1, Next: &Sequence{Block: 0x0, Count: 1}}}, 56, -1, -1},
-		{&Sequence{Block: 0xffffffff, Count: 1, Next: &Sequence{Block: 0xC00000ff, Count: 1, Next: &Sequence{Block: 0x0, Count: 1}}}, 63, -1, -1},
+		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xC00000ff, count: 1, next: &sequence{block: 0x0, count: 1}}}, 55, 6, 7},
+		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xC00000ff, count: 1, next: &sequence{block: 0x0, count: 1}}}, 56, -1, -1},
+		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xC00000ff, count: 1, next: &sequence{block: 0x0, count: 1}}}, 63, -1, -1},
 
-		{&Sequence{Block: 0xffffffff, Count: 1, Next: &Sequence{Block: 0xC00000ff, Count: 1, Next: &Sequence{Block: 0x0, Count: 1}}}, 64, 8, 0},
-		{&Sequence{Block: 0xffffffff, Count: 1, Next: &Sequence{Block: 0xC00000ff, Count: 1, Next: &Sequence{Block: 0x0, Count: 1}}}, 95, 11, 7},
-		{&Sequence{Block: 0xffffffff, Count: 1, Next: &Sequence{Block: 0xC00000ff, Count: 1, Next: &Sequence{Block: 0x0, Count: 1}}}, 96, -1, -1},
+		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xC00000ff, count: 1, next: &sequence{block: 0x0, count: 1}}}, 64, 8, 0},
+		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xC00000ff, count: 1, next: &sequence{block: 0x0, count: 1}}}, 95, 11, 7},
+		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xC00000ff, count: 1, next: &sequence{block: 0x0, count: 1}}}, 96, -1, -1},
 	}
 
 	for n, i := range input {
-		bytePos, bitPos, _ := CheckIfAvailable(i.head, i.ordinal)
+		bytePos, bitPos, _ := checkIfAvailable(i.head, i.ordinal)
 		if bytePos != i.bytePos || bitPos != i.bitPos {
 			t.Fatalf("Error in (%d) checkIfAvailable(ord:%d). Expected (%d, %d). Got (%d, %d)", n, i.ordinal, i.bytePos, i.bitPos, bytePos, bitPos)
 		}
@@ -264,147 +264,148 @@ func TestCheckIfAvailable(t *testing.T) {
 
 func TestMergeSequences(t *testing.T) {
 	input := []struct {
-		original *Sequence
-		merged   *Sequence
+		original *sequence
+		merged   *sequence
 	}{
-		{&Sequence{Block: 0xFE000000, Count: 8, Next: &Sequence{Block: 0xFE000000, Count: 2}}, &Sequence{Block: 0xFE000000, Count: 10}},
-		{&Sequence{Block: 0xFFFFFFFF, Count: 8, Next: &Sequence{Block: 0xFFFFFFFF, Count: 1}}, &Sequence{Block: 0xFFFFFFFF, Count: 9}},
-		{&Sequence{Block: 0xFFFFFFFF, Count: 1, Next: &Sequence{Block: 0xFFFFFFFF, Count: 8}}, &Sequence{Block: 0xFFFFFFFF, Count: 9}},
+		{&sequence{block: 0xFE000000, count: 8, next: &sequence{block: 0xFE000000, count: 2}}, &sequence{block: 0xFE000000, count: 10}},
+		{&sequence{block: 0xFFFFFFFF, count: 8, next: &sequence{block: 0xFFFFFFFF, count: 1}}, &sequence{block: 0xFFFFFFFF, count: 9}},
+		{&sequence{block: 0xFFFFFFFF, count: 1, next: &sequence{block: 0xFFFFFFFF, count: 8}}, &sequence{block: 0xFFFFFFFF, count: 9}},
 
-		{&Sequence{Block: 0xFFFFFFF0, Count: 8, Next: &Sequence{Block: 0xFFFFFFF0, Count: 1}}, &Sequence{Block: 0xFFFFFFF0, Count: 9}},
-		{&Sequence{Block: 0xFFFFFFF0, Count: 1, Next: &Sequence{Block: 0xFFFFFFF0, Count: 8}}, &Sequence{Block: 0xFFFFFFF0, Count: 9}},
+		{&sequence{block: 0xFFFFFFF0, count: 8, next: &sequence{block: 0xFFFFFFF0, count: 1}}, &sequence{block: 0xFFFFFFF0, count: 9}},
+		{&sequence{block: 0xFFFFFFF0, count: 1, next: &sequence{block: 0xFFFFFFF0, count: 8}}, &sequence{block: 0xFFFFFFF0, count: 9}},
 
-		{&Sequence{Block: 0xFE, Count: 8, Next: &Sequence{Block: 0xFE, Count: 1, Next: &Sequence{Block: 0xFE, Count: 5}}}, &Sequence{Block: 0xFE, Count: 14}},
-		{&Sequence{Block: 0xFE, Count: 8, Next: &Sequence{Block: 0xFE, Count: 1, Next: &Sequence{Block: 0xFE, Count: 5, Next: &Sequence{Block: 0xFF, Count: 1}}}},
-			&Sequence{Block: 0xFE, Count: 14, Next: &Sequence{Block: 0xFF, Count: 1}}},
+		{&sequence{block: 0xFE, count: 8, next: &sequence{block: 0xFE, count: 1, next: &sequence{block: 0xFE, count: 5}}}, &sequence{block: 0xFE, count: 14}},
+		{&sequence{block: 0xFE, count: 8, next: &sequence{block: 0xFE, count: 1, next: &sequence{block: 0xFE, count: 5, next: &sequence{block: 0xFF, count: 1}}}},
+			&sequence{block: 0xFE, count: 14, next: &sequence{block: 0xFF, count: 1}}},
 
 		// No merge
-		{&Sequence{Block: 0xFE, Count: 8, Next: &Sequence{Block: 0xF8, Count: 1, Next: &Sequence{Block: 0xFE, Count: 5}}},
-			&Sequence{Block: 0xFE, Count: 8, Next: &Sequence{Block: 0xF8, Count: 1, Next: &Sequence{Block: 0xFE, Count: 5}}}},
+		{&sequence{block: 0xFE, count: 8, next: &sequence{block: 0xF8, count: 1, next: &sequence{block: 0xFE, count: 5}}},
+			&sequence{block: 0xFE, count: 8, next: &sequence{block: 0xF8, count: 1, next: &sequence{block: 0xFE, count: 5}}}},
 
-		// No merge from head: // Merge function tries to merge from passed head. If it can't merge with Next, it does not reattempt with Next as head
-		{&Sequence{Block: 0xFE, Count: 8, Next: &Sequence{Block: 0xFF, Count: 1, Next: &Sequence{Block: 0xFF, Count: 5}}},
-			&Sequence{Block: 0xFE, Count: 8, Next: &Sequence{Block: 0xFF, Count: 6}}},
+		// No merge from head: // Merge function tries to merge from passed head. If it can't merge with next, it does not reattempt with next as head
+		{&sequence{block: 0xFE, count: 8, next: &sequence{block: 0xFF, count: 1, next: &sequence{block: 0xFF, count: 5}}},
+			&sequence{block: 0xFE, count: 8, next: &sequence{block: 0xFF, count: 6}}},
 	}
 
 	for n, i := range input {
 		mergeSequences(i.original)
-		for !i.merged.Equal(i.original) {
-			t.Fatalf("Error in (%d) mergeSequences().\nExp: %s\nGot: %s,", n, i.merged, i.original)
+		for !i.merged.equal(i.original) {
+			t.Fatalf("Error in (%d) mergeSequences().\nExp: %s\nGot: %s,", n, i.merged.toString(), i.original.toString())
 		}
 	}
 }
 
 func TestPushReservation(t *testing.T) {
 	input := []struct {
-		mask    *Sequence
+		mask    *sequence
 		bytePos int
 		bitPos  int
-		newMask *Sequence
+		newMask *sequence
 	}{
-		// Create first Sequence and fill in 8 addresses starting from address 0
-		{&Sequence{Block: 0x0, Count: 8, Next: nil}, 0, 0, &Sequence{Block: 0x80000000, Count: 1, Next: &Sequence{Block: 0x0, Count: 7, Next: nil}}},
-		{&Sequence{Block: 0x80000000, Count: 8}, 0, 1, &Sequence{Block: 0xC0000000, Count: 1, Next: &Sequence{Block: 0x80000000, Count: 7, Next: nil}}},
-		{&Sequence{Block: 0xC0000000, Count: 8}, 0, 2, &Sequence{Block: 0xE0000000, Count: 1, Next: &Sequence{Block: 0xC0000000, Count: 7, Next: nil}}},
-		{&Sequence{Block: 0xE0000000, Count: 8}, 0, 3, &Sequence{Block: 0xF0000000, Count: 1, Next: &Sequence{Block: 0xE0000000, Count: 7, Next: nil}}},
-		{&Sequence{Block: 0xF0000000, Count: 8}, 0, 4, &Sequence{Block: 0xF8000000, Count: 1, Next: &Sequence{Block: 0xF0000000, Count: 7, Next: nil}}},
-		{&Sequence{Block: 0xF8000000, Count: 8}, 0, 5, &Sequence{Block: 0xFC000000, Count: 1, Next: &Sequence{Block: 0xF8000000, Count: 7, Next: nil}}},
-		{&Sequence{Block: 0xFC000000, Count: 8}, 0, 6, &Sequence{Block: 0xFE000000, Count: 1, Next: &Sequence{Block: 0xFC000000, Count: 7, Next: nil}}},
-		{&Sequence{Block: 0xFE000000, Count: 8}, 0, 7, &Sequence{Block: 0xFF000000, Count: 1, Next: &Sequence{Block: 0xFE000000, Count: 7, Next: nil}}},
+		// Create first sequence and fill in 8 addresses starting from address 0
+		{&sequence{block: 0x0, count: 8, next: nil}, 0, 0, &sequence{block: 0x80000000, count: 1, next: &sequence{block: 0x0, count: 7, next: nil}}},
+		{&sequence{block: 0x80000000, count: 8}, 0, 1, &sequence{block: 0xC0000000, count: 1, next: &sequence{block: 0x80000000, count: 7, next: nil}}},
+		{&sequence{block: 0xC0000000, count: 8}, 0, 2, &sequence{block: 0xE0000000, count: 1, next: &sequence{block: 0xC0000000, count: 7, next: nil}}},
+		{&sequence{block: 0xE0000000, count: 8}, 0, 3, &sequence{block: 0xF0000000, count: 1, next: &sequence{block: 0xE0000000, count: 7, next: nil}}},
+		{&sequence{block: 0xF0000000, count: 8}, 0, 4, &sequence{block: 0xF8000000, count: 1, next: &sequence{block: 0xF0000000, count: 7, next: nil}}},
+		{&sequence{block: 0xF8000000, count: 8}, 0, 5, &sequence{block: 0xFC000000, count: 1, next: &sequence{block: 0xF8000000, count: 7, next: nil}}},
+		{&sequence{block: 0xFC000000, count: 8}, 0, 6, &sequence{block: 0xFE000000, count: 1, next: &sequence{block: 0xFC000000, count: 7, next: nil}}},
+		{&sequence{block: 0xFE000000, count: 8}, 0, 7, &sequence{block: 0xFF000000, count: 1, next: &sequence{block: 0xFE000000, count: 7, next: nil}}},
 
-		{&Sequence{Block: 0x80000000, Count: 1, Next: &Sequence{Block: 0x0, Count: 7}}, 0, 1, &Sequence{Block: 0xC0000000, Count: 1, Next: &Sequence{Block: 0x0, Count: 7, Next: nil}}},
+		{&sequence{block: 0x80000000, count: 1, next: &sequence{block: 0x0, count: 7}}, 0, 1, &sequence{block: 0xC0000000, count: 1, next: &sequence{block: 0x0, count: 7, next: nil}}},
 
-		// Create second Sequence and fill in 8 addresses starting from address 32
-		{&Sequence{Block: 0xffffffff, Count: 1, Next: &Sequence{Block: 0x00000000, Count: 1, Next: &Sequence{Block: 0xffffffff, Count: 6, Next: nil}}}, 4, 0,
-			&Sequence{Block: 0xffffffff, Count: 1, Next: &Sequence{Block: 0x80000000, Count: 1, Next: &Sequence{Block: 0xffffffff, Count: 6}}}},
-		{&Sequence{Block: 0xffffffff, Count: 1, Next: &Sequence{Block: 0x80000000, Count: 1, Next: &Sequence{Block: 0xffffffff, Count: 6}}}, 4, 1,
-			&Sequence{Block: 0xffffffff, Count: 1, Next: &Sequence{Block: 0xC0000000, Count: 1, Next: &Sequence{Block: 0xffffffff, Count: 6}}}},
-		{&Sequence{Block: 0xffffffff, Count: 1, Next: &Sequence{Block: 0xC0000000, Count: 1, Next: &Sequence{Block: 0xffffffff, Count: 6}}}, 4, 2,
-			&Sequence{Block: 0xffffffff, Count: 1, Next: &Sequence{Block: 0xE0000000, Count: 1, Next: &Sequence{Block: 0xffffffff, Count: 6}}}},
-		{&Sequence{Block: 0xffffffff, Count: 1, Next: &Sequence{Block: 0xE0000000, Count: 1, Next: &Sequence{Block: 0xffffffff, Count: 6}}}, 4, 3,
-			&Sequence{Block: 0xffffffff, Count: 1, Next: &Sequence{Block: 0xF0000000, Count: 1, Next: &Sequence{Block: 0xffffffff, Count: 6}}}},
-		{&Sequence{Block: 0xffffffff, Count: 1, Next: &Sequence{Block: 0xF0000000, Count: 1, Next: &Sequence{Block: 0xffffffff, Count: 6}}}, 4, 4,
-			&Sequence{Block: 0xffffffff, Count: 1, Next: &Sequence{Block: 0xF8000000, Count: 1, Next: &Sequence{Block: 0xffffffff, Count: 6}}}},
-		{&Sequence{Block: 0xffffffff, Count: 1, Next: &Sequence{Block: 0xF8000000, Count: 1, Next: &Sequence{Block: 0xffffffff, Count: 6}}}, 4, 5,
-			&Sequence{Block: 0xffffffff, Count: 1, Next: &Sequence{Block: 0xFC000000, Count: 1, Next: &Sequence{Block: 0xffffffff, Count: 6}}}},
-		{&Sequence{Block: 0xffffffff, Count: 1, Next: &Sequence{Block: 0xFC000000, Count: 1, Next: &Sequence{Block: 0xffffffff, Count: 6}}}, 4, 6,
-			&Sequence{Block: 0xffffffff, Count: 1, Next: &Sequence{Block: 0xFE000000, Count: 1, Next: &Sequence{Block: 0xffffffff, Count: 6}}}},
-		{&Sequence{Block: 0xffffffff, Count: 1, Next: &Sequence{Block: 0xFE000000, Count: 1, Next: &Sequence{Block: 0xffffffff, Count: 6}}}, 4, 7,
-			&Sequence{Block: 0xffffffff, Count: 1, Next: &Sequence{Block: 0xFF000000, Count: 1, Next: &Sequence{Block: 0xffffffff, Count: 6}}}},
+		// Create second sequence and fill in 8 addresses starting from address 32
+		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0x00000000, count: 1, next: &sequence{block: 0xffffffff, count: 6, next: nil}}}, 4, 0,
+			&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0x80000000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}},
+		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0x80000000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}, 4, 1,
+			&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xC0000000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}},
+		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xC0000000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}, 4, 2,
+			&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xE0000000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}},
+		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xE0000000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}, 4, 3,
+			&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xF0000000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}},
+		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xF0000000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}, 4, 4,
+			&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xF8000000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}},
+		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xF8000000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}, 4, 5,
+			&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xFC000000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}},
+		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xFC000000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}, 4, 6,
+			&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xFE000000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}},
+		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xFE000000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}, 4, 7,
+			&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xFF000000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}},
 		// fill in 8 addresses starting from address 40
-		{&Sequence{Block: 0xffffffff, Count: 1, Next: &Sequence{Block: 0xFF000000, Count: 1, Next: &Sequence{Block: 0xffffffff, Count: 6}}}, 5, 0,
-			&Sequence{Block: 0xffffffff, Count: 1, Next: &Sequence{Block: 0xFF800000, Count: 1, Next: &Sequence{Block: 0xffffffff, Count: 6}}}},
-		{&Sequence{Block: 0xffffffff, Count: 1, Next: &Sequence{Block: 0xFF800000, Count: 1, Next: &Sequence{Block: 0xffffffff, Count: 6}}}, 5, 1,
-			&Sequence{Block: 0xffffffff, Count: 1, Next: &Sequence{Block: 0xFFC00000, Count: 1, Next: &Sequence{Block: 0xffffffff, Count: 6}}}},
-		{&Sequence{Block: 0xffffffff, Count: 1, Next: &Sequence{Block: 0xFFC00000, Count: 1, Next: &Sequence{Block: 0xffffffff, Count: 6}}}, 5, 2,
-			&Sequence{Block: 0xffffffff, Count: 1, Next: &Sequence{Block: 0xFFE00000, Count: 1, Next: &Sequence{Block: 0xffffffff, Count: 6}}}},
-		{&Sequence{Block: 0xffffffff, Count: 1, Next: &Sequence{Block: 0xFFE00000, Count: 1, Next: &Sequence{Block: 0xffffffff, Count: 6}}}, 5, 3,
-			&Sequence{Block: 0xffffffff, Count: 1, Next: &Sequence{Block: 0xFFF00000, Count: 1, Next: &Sequence{Block: 0xffffffff, Count: 6}}}},
-		{&Sequence{Block: 0xffffffff, Count: 1, Next: &Sequence{Block: 0xFFF00000, Count: 1, Next: &Sequence{Block: 0xffffffff, Count: 6}}}, 5, 4,
-			&Sequence{Block: 0xffffffff, Count: 1, Next: &Sequence{Block: 0xFFF80000, Count: 1, Next: &Sequence{Block: 0xffffffff, Count: 6}}}},
-		{&Sequence{Block: 0xffffffff, Count: 1, Next: &Sequence{Block: 0xFFF80000, Count: 1, Next: &Sequence{Block: 0xffffffff, Count: 6}}}, 5, 5,
-			&Sequence{Block: 0xffffffff, Count: 1, Next: &Sequence{Block: 0xFFFC0000, Count: 1, Next: &Sequence{Block: 0xffffffff, Count: 6}}}},
-		{&Sequence{Block: 0xffffffff, Count: 1, Next: &Sequence{Block: 0xFFFC0000, Count: 1, Next: &Sequence{Block: 0xffffffff, Count: 6}}}, 5, 6,
-			&Sequence{Block: 0xffffffff, Count: 1, Next: &Sequence{Block: 0xFFFE0000, Count: 1, Next: &Sequence{Block: 0xffffffff, Count: 6}}}},
-		{&Sequence{Block: 0xffffffff, Count: 1, Next: &Sequence{Block: 0xFFFE0000, Count: 1, Next: &Sequence{Block: 0xffffffff, Count: 6}}}, 5, 7,
-			&Sequence{Block: 0xffffffff, Count: 1, Next: &Sequence{Block: 0xFFFF0000, Count: 1, Next: &Sequence{Block: 0xffffffff, Count: 6}}}},
+		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xFF000000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}, 5, 0,
+			&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xFF800000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}},
+		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xFF800000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}, 5, 1,
+			&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xFFC00000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}},
+		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xFFC00000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}, 5, 2,
+			&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xFFE00000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}},
+		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xFFE00000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}, 5, 3,
+			&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xFFF00000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}},
+		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xFFF00000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}, 5, 4,
+			&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xFFF80000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}},
+		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xFFF80000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}, 5, 5,
+			&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xFFFC0000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}},
+		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xFFFC0000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}, 5, 6,
+			&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xFFFE0000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}},
+		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xFFFE0000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}, 5, 7,
+			&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xFFFF0000, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}},
 
-		// Insert new Sequence
-		{&Sequence{Block: 0xffffffff, Count: 2, Next: &Sequence{Block: 0x0, Count: 6}}, 8, 0,
-			&Sequence{Block: 0xffffffff, Count: 2, Next: &Sequence{Block: 0x80000000, Count: 1, Next: &Sequence{Block: 0x0, Count: 5}}}},
-		{&Sequence{Block: 0xffffffff, Count: 2, Next: &Sequence{Block: 0x80000000, Count: 1, Next: &Sequence{Block: 0x0, Count: 5}}}, 8, 1,
-			&Sequence{Block: 0xffffffff, Count: 2, Next: &Sequence{Block: 0xC0000000, Count: 1, Next: &Sequence{Block: 0x0, Count: 5}}}},
+		// Insert new sequence
+		{&sequence{block: 0xffffffff, count: 2, next: &sequence{block: 0x0, count: 6}}, 8, 0,
+			&sequence{block: 0xffffffff, count: 2, next: &sequence{block: 0x80000000, count: 1, next: &sequence{block: 0x0, count: 5}}}},
+		{&sequence{block: 0xffffffff, count: 2, next: &sequence{block: 0x80000000, count: 1, next: &sequence{block: 0x0, count: 5}}}, 8, 1,
+			&sequence{block: 0xffffffff, count: 2, next: &sequence{block: 0xC0000000, count: 1, next: &sequence{block: 0x0, count: 5}}}},
 
-		// Merge affected with Next
-		{&Sequence{Block: 0xffffffff, Count: 7, Next: &Sequence{Block: 0xfffffffe, Count: 2, Next: &Sequence{Block: 0xffffffff, Count: 1}}}, 31, 7,
-			&Sequence{Block: 0xffffffff, Count: 8, Next: &Sequence{Block: 0xfffffffe, Count: 1, Next: &Sequence{Block: 0xffffffff, Count: 1}}}},
-		{&Sequence{Block: 0xffffffff, Count: 1, Next: &Sequence{Block: 0xfffffffc, Count: 1, Next: &Sequence{Block: 0xfffffffe, Count: 6}}}, 7, 6,
-			&Sequence{Block: 0xffffffff, Count: 1, Next: &Sequence{Block: 0xfffffffe, Count: 7}}},
+		// Merge affected with next
+		{&sequence{block: 0xffffffff, count: 7, next: &sequence{block: 0xfffffffe, count: 2, next: &sequence{block: 0xffffffff, count: 1}}}, 31, 7,
+			&sequence{block: 0xffffffff, count: 8, next: &sequence{block: 0xfffffffe, count: 1, next: &sequence{block: 0xffffffff, count: 1}}}},
+		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xfffffffc, count: 1, next: &sequence{block: 0xfffffffe, count: 6}}}, 7, 6,
+			&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xfffffffe, count: 7}}},
 
-		// Merge affected with Next and Next.Next
-		{&Sequence{Block: 0xffffffff, Count: 7, Next: &Sequence{Block: 0xfffffffe, Count: 1, Next: &Sequence{Block: 0xffffffff, Count: 1}}}, 31, 7,
-			&Sequence{Block: 0xffffffff, Count: 9}},
-		{&Sequence{Block: 0xffffffff, Count: 7, Next: &Sequence{Block: 0xfffffffe, Count: 1}}, 31, 7,
-			&Sequence{Block: 0xffffffff, Count: 8}},
+		// Merge affected with next and next.next
+		{&sequence{block: 0xffffffff, count: 7, next: &sequence{block: 0xfffffffe, count: 1, next: &sequence{block: 0xffffffff, count: 1}}}, 31, 7,
+			&sequence{block: 0xffffffff, count: 9}},
+		{&sequence{block: 0xffffffff, count: 7, next: &sequence{block: 0xfffffffe, count: 1}}, 31, 7,
+			&sequence{block: 0xffffffff, count: 8}},
 
-		// Merge affected with previous and Next
-		{&Sequence{Block: 0xffffffff, Count: 7, Next: &Sequence{Block: 0xfffffffe, Count: 1, Next: &Sequence{Block: 0xffffffff, Count: 1}}}, 31, 7,
-			&Sequence{Block: 0xffffffff, Count: 9}},
+		// Merge affected with previous and next
+		{&sequence{block: 0xffffffff, count: 7, next: &sequence{block: 0xfffffffe, count: 1, next: &sequence{block: 0xffffffff, count: 1}}}, 31, 7,
+			&sequence{block: 0xffffffff, count: 9}},
 
 		// Redundant push: No change
-		{&Sequence{Block: 0xffff0000, Count: 1}, 0, 0, &Sequence{Block: 0xffff0000, Count: 1}},
-		{&Sequence{Block: 0xffff0000, Count: 7}, 25, 7, &Sequence{Block: 0xffff0000, Count: 7}},
-		{&Sequence{Block: 0xffffffff, Count: 7, Next: &Sequence{Block: 0xfffffffe, Count: 1, Next: &Sequence{Block: 0xffffffff, Count: 1}}}, 7, 7,
-			&Sequence{Block: 0xffffffff, Count: 7, Next: &Sequence{Block: 0xfffffffe, Count: 1, Next: &Sequence{Block: 0xffffffff, Count: 1}}}},
+		{&sequence{block: 0xffff0000, count: 1}, 0, 0, &sequence{block: 0xffff0000, count: 1}},
+		{&sequence{block: 0xffff0000, count: 7}, 25, 7, &sequence{block: 0xffff0000, count: 7}},
+		{&sequence{block: 0xffffffff, count: 7, next: &sequence{block: 0xfffffffe, count: 1, next: &sequence{block: 0xffffffff, count: 1}}}, 7, 7,
+			&sequence{block: 0xffffffff, count: 7, next: &sequence{block: 0xfffffffe, count: 1, next: &sequence{block: 0xffffffff, count: 1}}}},
 	}
 
 	for n, i := range input {
-		mask := PushReservation(i.bytePos, i.bitPos, i.mask, false)
-		if !mask.Equal(i.newMask) {
-			t.Fatalf("Error in (%d) pushReservation():\n%s + (%d,%d):\nExp: %s\nGot: %s,", n, i.mask, i.bytePos, i.bitPos, i.newMask, mask)
+		mask := pushReservation(i.bytePos, i.bitPos, i.mask, false)
+		if !mask.equal(i.newMask) {
+			t.Fatalf("Error in (%d) pushReservation():\n%s + (%d,%d):\nExp: %s\nGot: %s,",
+				n, i.mask.toString(), i.bytePos, i.bitPos, i.newMask.toString(), mask.toString())
 		}
 	}
 }
 
 func TestSerializeDeserialize(t *testing.T) {
-	s := &Sequence{
-		Block: 0xffffffff,
-		Count: 1,
-		Next: &Sequence{
-			Block: 0xFF000000,
-			Count: 1,
-			Next: &Sequence{
-				Block: 0xffffffff,
-				Count: 6,
-				Next: &Sequence{
-					Block: 0xffffffff,
-					Count: 1,
-					Next: &Sequence{
-						Block: 0xFF800000,
-						Count: 1,
-						Next: &Sequence{
-							Block: 0xffffffff,
-							Count: 6,
+	s := &sequence{
+		block: 0xffffffff,
+		count: 1,
+		next: &sequence{
+			block: 0xFF000000,
+			count: 1,
+			next: &sequence{
+				block: 0xffffffff,
+				count: 6,
+				next: &sequence{
+					block: 0xffffffff,
+					count: 1,
+					next: &sequence{
+						block: 0xFF800000,
+						count: 1,
+						next: &sequence{
+							block: 0xffffffff,
+							count: 6,
 						},
 					},
 				},
@@ -412,18 +413,18 @@ func TestSerializeDeserialize(t *testing.T) {
 		},
 	}
 
-	data, err := s.ToByteArray()
+	data, err := s.toByteArray()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	r := &Sequence{}
-	err = r.FromByteArray(data)
+	r := &sequence{}
+	err = r.fromByteArray(data)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if !s.Equal(r) {
+	if !s.equal(r) {
 		t.Fatalf("Sequences are different: \n%v\n%v", s, r)
 	}
 }

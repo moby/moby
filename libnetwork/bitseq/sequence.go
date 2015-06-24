@@ -11,7 +11,7 @@ import (
 	"github.com/docker/libnetwork/datastore"
 )
 
-// Block Sequence constants
+// block sequence constants
 // If needed we can think of making these configurable
 const (
 	blockLen      = 32
@@ -24,7 +24,7 @@ const (
 type Handle struct {
 	bits       uint32
 	unselected uint32
-	head       *Sequence
+	head       *sequence
 	app        string
 	id         string
 	dbIndex    uint64
@@ -41,9 +41,9 @@ func NewHandle(app string, ds datastore.DataStore, id string, numElements uint32
 		store:      ds,
 		bits:       numElements,
 		unselected: numElements,
-		head: &Sequence{
-			Block: 0x0,
-			Count: getNumBlocks(numElements),
+		head: &sequence{
+			block: 0x0,
+			count: getNumBlocks(numElements),
 		},
 	}
 
@@ -62,37 +62,32 @@ func NewHandle(app string, ds datastore.DataStore, id string, numElements uint32
 	return h, nil
 }
 
-// Sequence reresents a recurring sequence of 32 bits long bitmasks
-type Sequence struct {
-	Block uint32    // block representing 4 byte long allocation bitmask
-	Count uint32    // number of consecutive blocks
-	Next  *Sequence // next sequence
-}
-
-// NewSequence returns a sequence initialized to represent a bitmaks of numElements bits
-func NewSequence(numElements uint32) *Sequence {
-	return &Sequence{Block: 0x0, Count: getNumBlocks(numElements), Next: nil}
+// sequence represents a recurring sequence of 32 bits long bitmasks
+type sequence struct {
+	block uint32    // block is a symbol representing 4 byte long allocation bitmask
+	count uint32    // number of consecutive blocks (symbols)
+	next  *sequence // next sequence
 }
 
 // String returns a string representation of the block sequence starting from this block
-func (s *Sequence) String() string {
+func (s *sequence) toString() string {
 	var nextBlock string
-	if s.Next == nil {
+	if s.next == nil {
 		nextBlock = "end"
 	} else {
-		nextBlock = s.Next.String()
+		nextBlock = s.next.toString()
 	}
-	return fmt.Sprintf("(0x%x, %d)->%s", s.Block, s.Count, nextBlock)
+	return fmt.Sprintf("(0x%x, %d)->%s", s.block, s.count, nextBlock)
 }
 
 // GetAvailableBit returns the position of the first unset bit in the bitmask represented by this sequence
-func (s *Sequence) GetAvailableBit() (bytePos, bitPos int) {
-	if s.Block == blockMAX || s.Count == 0 {
+func (s *sequence) getAvailableBit() (bytePos, bitPos int) {
+	if s.block == blockMAX || s.count == 0 {
 		return -1, -1
 	}
 	bits := 0
 	bitSel := uint32(blockFirstBit)
-	for bitSel > 0 && s.Block&bitSel != 0 {
+	for bitSel > 0 && s.block&bitSel != 0 {
 		bitSel >>= 1
 		bits++
 	}
@@ -100,31 +95,31 @@ func (s *Sequence) GetAvailableBit() (bytePos, bitPos int) {
 }
 
 // GetCopy returns a copy of the linked list rooted at this node
-func (s *Sequence) GetCopy() *Sequence {
-	n := &Sequence{Block: s.Block, Count: s.Count}
+func (s *sequence) getCopy() *sequence {
+	n := &sequence{block: s.block, count: s.count}
 	pn := n
-	ps := s.Next
+	ps := s.next
 	for ps != nil {
-		pn.Next = &Sequence{Block: ps.Block, Count: ps.Count}
-		pn = pn.Next
-		ps = ps.Next
+		pn.next = &sequence{block: ps.block, count: ps.count}
+		pn = pn.next
+		ps = ps.next
 	}
 	return n
 }
 
 // Equal checks if this sequence is equal to the passed one
-func (s *Sequence) Equal(o *Sequence) bool {
+func (s *sequence) equal(o *sequence) bool {
 	this := s
 	other := o
 	for this != nil {
 		if other == nil {
 			return false
 		}
-		if this.Block != other.Block || this.Count != other.Count {
+		if this.block != other.block || this.count != other.count {
 			return false
 		}
-		this = this.Next
-		other = other.Next
+		this = this.next
+		other = other.next
 	}
 	// Check if other is longer than this
 	if other != nil {
@@ -134,23 +129,23 @@ func (s *Sequence) Equal(o *Sequence) bool {
 }
 
 // ToByteArray converts the sequence into a byte array
-func (s *Sequence) ToByteArray() ([]byte, error) {
+func (s *sequence) toByteArray() ([]byte, error) {
 	var bb []byte
 
 	p := s
 	for p != nil {
 		b := make([]byte, 8)
-		binary.BigEndian.PutUint32(b[0:], p.Block)
-		binary.BigEndian.PutUint32(b[4:], p.Count)
+		binary.BigEndian.PutUint32(b[0:], p.block)
+		binary.BigEndian.PutUint32(b[4:], p.count)
 		bb = append(bb, b...)
-		p = p.Next
+		p = p.next
 	}
 
 	return bb, nil
 }
 
 // FromByteArray construct the sequence from the byte array
-func (s *Sequence) FromByteArray(data []byte) error {
+func (s *sequence) fromByteArray(data []byte) error {
 	l := len(data)
 	if l%8 != 0 {
 		return fmt.Errorf("cannot deserialize byte sequence of lenght %d (%v)", l, data)
@@ -159,14 +154,14 @@ func (s *Sequence) FromByteArray(data []byte) error {
 	p := s
 	i := 0
 	for {
-		p.Block = binary.BigEndian.Uint32(data[i : i+4])
-		p.Count = binary.BigEndian.Uint32(data[i+4 : i+8])
+		p.block = binary.BigEndian.Uint32(data[i : i+4])
+		p.count = binary.BigEndian.Uint32(data[i+4 : i+8])
 		i += 8
 		if i == l {
 			break
 		}
-		p.Next = &Sequence{}
-		p = p.Next
+		p.next = &sequence{}
+		p = p.next
 	}
 
 	return nil
@@ -176,15 +171,15 @@ func (s *Sequence) FromByteArray(data []byte) error {
 func (h *Handle) GetFirstAvailable() (int, int, error) {
 	h.Lock()
 	defer h.Unlock()
-	return GetFirstAvailable(h.head)
+	return getFirstAvailable(h.head)
 }
 
 // CheckIfAvailable checks if the bit correspondent to the specified ordinal is unset
-// If the ordinal is beyond the Sequence limits, a negative response is returned
+// If the ordinal is beyond the sequence limits, a negative response is returned
 func (h *Handle) CheckIfAvailable(ordinal int) (int, int, error) {
 	h.Lock()
 	defer h.Unlock()
-	return CheckIfAvailable(h.head, ordinal)
+	return checkIfAvailable(h.head, ordinal)
 }
 
 // PushReservation pushes the bit reservation inside the bitmask.
@@ -201,7 +196,7 @@ func (h *Handle) PushReservation(bytePos, bitPos int, release bool) error {
 	}
 	h.Unlock()
 
-	nh.head = PushReservation(bytePos, bitPos, nh.head, release)
+	nh.head = pushReservation(bytePos, bitPos, nh.head, release)
 
 	err := nh.writeToStore()
 	if err == nil {
@@ -235,7 +230,7 @@ func (h *Handle) ToByteArray() ([]byte, error) {
 	ba := make([]byte, 8)
 	binary.BigEndian.PutUint32(ba[0:], h.bits)
 	binary.BigEndian.PutUint32(ba[4:], h.unselected)
-	bm, err := h.head.ToByteArray()
+	bm, err := h.head.toByteArray()
 	if err != nil {
 		return nil, fmt.Errorf("failed to serialize head: %s", err.Error())
 	}
@@ -250,8 +245,8 @@ func (h *Handle) FromByteArray(ba []byte) error {
 		return fmt.Errorf("nil byte array")
 	}
 
-	nh := &Sequence{}
-	err := nh.FromByteArray(ba[8:])
+	nh := &sequence{}
+	err := nh.fromByteArray(ba[8:])
 	if err != nil {
 		return fmt.Errorf("failed to deserialize head: %s", err.Error())
 	}
@@ -277,34 +272,34 @@ func (h *Handle) Unselected() uint32 {
 	return h.unselected
 }
 
-// GetFirstAvailable looks for the first unset bit in passed mask
-func GetFirstAvailable(head *Sequence) (int, int, error) {
+// getFirstAvailable looks for the first unset bit in passed mask
+func getFirstAvailable(head *sequence) (int, int, error) {
 	byteIndex := 0
 	current := head
 	for current != nil {
-		if current.Block != blockMAX {
-			bytePos, bitPos := current.GetAvailableBit()
+		if current.block != blockMAX {
+			bytePos, bitPos := current.getAvailableBit()
 			return byteIndex + bytePos, bitPos, nil
 		}
-		byteIndex += int(current.Count * blockBytes)
-		current = current.Next
+		byteIndex += int(current.count * blockBytes)
+		current = current.next
 	}
 	return -1, -1, fmt.Errorf("no bit available")
 }
 
-// CheckIfAvailable checks if the bit correspondent to the specified ordinal is unset
-// If the ordinal is beyond the Sequence limits, a negative response is returned
-func CheckIfAvailable(head *Sequence, ordinal int) (int, int, error) {
+// checkIfAvailable checks if the bit correspondent to the specified ordinal is unset
+// If the ordinal is beyond the sequence limits, a negative response is returned
+func checkIfAvailable(head *sequence, ordinal int) (int, int, error) {
 	bytePos := ordinal / 8
 	bitPos := ordinal % 8
 
-	// Find the Sequence containing this byte
+	// Find the sequence containing this byte
 	current, _, _, inBlockBytePos := findSequence(head, bytePos)
 
 	if current != nil {
 		// Check whether the bit corresponding to the ordinal address is unset
 		bitSel := uint32(blockFirstBit >> uint(inBlockBytePos*8+bitPos))
-		if current.Block&bitSel == 0 {
+		if current.block&bitSel == 0 {
 			return bytePos, bitPos, nil
 		}
 	}
@@ -316,19 +311,19 @@ func CheckIfAvailable(head *Sequence, ordinal int) (int, int, error) {
 // sequence containing the byte (current), the pointer to the previous sequence,
 // the number of blocks preceding the block containing the byte inside the current sequence.
 // If bytePos is outside of the list, function will return (nil, nil, 0, -1)
-func findSequence(head *Sequence, bytePos int) (*Sequence, *Sequence, uint32, int) {
-	// Find the Sequence containing this byte
+func findSequence(head *sequence, bytePos int) (*sequence, *sequence, uint32, int) {
+	// Find the sequence containing this byte
 	previous := head
 	current := head
 	n := bytePos
-	for current.Next != nil && n >= int(current.Count*blockBytes) { // Nil check for less than 32 addresses masks
-		n -= int(current.Count * blockBytes)
+	for current.next != nil && n >= int(current.count*blockBytes) { // Nil check for less than 32 addresses masks
+		n -= int(current.count * blockBytes)
 		previous = current
-		current = current.Next
+		current = current.next
 	}
 
 	// If byte is outside of the list, let caller know
-	if n >= int(current.Count*blockBytes) {
+	if n >= int(current.count*blockBytes) {
 		return nil, nil, 0, -1
 	}
 
@@ -343,25 +338,25 @@ func findSequence(head *Sequence, bytePos int) (*Sequence, *Sequence, uint32, in
 // PushReservation pushes the bit reservation inside the bitmask.
 // Given byte and bit positions, identify the sequence (current) which holds the block containing the affected bit.
 // Create a new block with the modified bit according to the operation (allocate/release).
-// Create a new Sequence containing the new Block and insert it in the proper position.
+// Create a new sequence containing the new block and insert it in the proper position.
 // Remove current sequence if empty.
-// Check if new Sequence can be merged with neighbour (previous/Next) sequences.
+// Check if new sequence can be merged with neighbour (previous/next) sequences.
 //
 //
-// Identify "current" Sequence containing block:
-//                                      [prev seq] [current seq] [Next seq]
+// Identify "current" sequence containing block:
+//                                      [prev seq] [current seq] [next seq]
 //
 // Based on block position, resulting list of sequences can be any of three forms:
 //
-//        Block position                        Resulting list of sequences
-// A) Block is first in current:         [prev seq] [new] [modified current seq] [Next seq]
-// B) Block is last in current:          [prev seq] [modified current seq] [new] [Next seq]
-// C) Block is in the middle of current: [prev seq] [curr pre] [new] [curr post] [Next seq]
-func PushReservation(bytePos, bitPos int, head *Sequence, release bool) *Sequence {
+//        block position                        Resulting list of sequences
+// A) block is first in current:         [prev seq] [new] [modified current seq] [next seq]
+// B) block is last in current:          [prev seq] [modified current seq] [new] [next seq]
+// C) block is in the middle of current: [prev seq] [curr pre] [new] [curr post] [next seq]
+func pushReservation(bytePos, bitPos int, head *sequence, release bool) *sequence {
 	// Store list's head
 	newHead := head
 
-	// Find the Sequence containing this byte
+	// Find the sequence containing this byte
 	current, previous, precBlocks, inBlockBytePos := findSequence(head, bytePos)
 	if current == nil {
 		return newHead
@@ -369,7 +364,7 @@ func PushReservation(bytePos, bitPos int, head *Sequence, release bool) *Sequenc
 
 	// Construct updated block
 	bitSel := uint32(blockFirstBit >> uint(inBlockBytePos*8+bitPos))
-	newBlock := current.Block
+	newBlock := current.block
 	if release {
 		newBlock &^= bitSel
 	} else {
@@ -377,40 +372,40 @@ func PushReservation(bytePos, bitPos int, head *Sequence, release bool) *Sequenc
 	}
 
 	// Quit if it was a redundant request
-	if current.Block == newBlock {
+	if current.block == newBlock {
 		return newHead
 	}
 
-	// Current Sequence inevitably looses one block, upadate Count
-	current.Count--
+	// Current sequence inevitably looses one block, upadate count
+	current.count--
 
 	// Create new sequence
-	newSequence := &Sequence{Block: newBlock, Count: 1}
+	newSequence := &sequence{block: newBlock, count: 1}
 
 	// Insert the new sequence in the list based on block position
 	if precBlocks == 0 { // First in sequence (A)
-		newSequence.Next = current
+		newSequence.next = current
 		if current == head {
 			newHead = newSequence
 			previous = newHead
 		} else {
-			previous.Next = newSequence
+			previous.next = newSequence
 		}
 		removeCurrentIfEmpty(&newHead, newSequence, current)
 		mergeSequences(previous)
-	} else if precBlocks == current.Count-2 { // Last in sequence (B)
-		newSequence.Next = current.Next
-		current.Next = newSequence
+	} else if precBlocks == current.count-2 { // Last in sequence (B)
+		newSequence.next = current.next
+		current.next = newSequence
 		mergeSequences(current)
 	} else { // In between the sequence (C)
-		currPre := &Sequence{Block: current.Block, Count: precBlocks, Next: newSequence}
+		currPre := &sequence{block: current.block, count: precBlocks, next: newSequence}
 		currPost := current
-		currPost.Count -= precBlocks
-		newSequence.Next = currPost
+		currPost.count -= precBlocks
+		newSequence.next = currPost
 		if currPost == head {
 			newHead = currPre
 		} else {
-			previous.Next = currPre
+			previous.next = currPre
 		}
 		// No merging or empty current possible here
 	}
@@ -419,29 +414,29 @@ func PushReservation(bytePos, bitPos int, head *Sequence, release bool) *Sequenc
 }
 
 // Removes the current sequence from the list if empty, adjusting the head pointer if needed
-func removeCurrentIfEmpty(head **Sequence, previous, current *Sequence) {
-	if current.Count == 0 {
+func removeCurrentIfEmpty(head **sequence, previous, current *sequence) {
+	if current.count == 0 {
 		if current == *head {
-			*head = current.Next
+			*head = current.next
 		} else {
-			previous.Next = current.Next
-			current = current.Next
+			previous.next = current.next
+			current = current.next
 		}
 	}
 }
 
-// Given a pointer to a Sequence, it checks if it can be merged with any following sequences
+// Given a pointer to a sequence, it checks if it can be merged with any following sequences
 // It stops when no more merging is possible.
 // TODO: Optimization: only attempt merge from start to end sequence, no need to scan till the end of the list
-func mergeSequences(seq *Sequence) {
+func mergeSequences(seq *sequence) {
 	if seq != nil {
 		// Merge all what possible from seq
-		for seq.Next != nil && seq.Block == seq.Next.Block {
-			seq.Count += seq.Next.Count
-			seq.Next = seq.Next.Next
+		for seq.next != nil && seq.block == seq.next.block {
+			seq.count += seq.next.count
+			seq.next = seq.next.next
 		}
-		// Move to Next
-		mergeSequences(seq.Next)
+		// Move to next
+		mergeSequences(seq.next)
 	}
 }
 
