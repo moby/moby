@@ -31,7 +31,7 @@ type StdWriter struct {
 func (w *StdWriter) Write(buf []byte) (n int, err error) {
 	var n1, n2 int
 	if w == nil || w.Writer == nil {
-		return 0, errors.New("Writer not instanciated")
+		return 0, errors.New("Writer not instantiated")
 	}
 	binary.BigEndian.PutUint32(w.prefix[4:], uint32(len(buf)))
 	n1, err = w.Writer.Write(w.prefix[:])
@@ -47,7 +47,7 @@ func (w *StdWriter) Write(buf []byte) (n int, err error) {
 	return
 }
 
-// NewStdWriter instanciates a new Writer.
+// NewStdWriter instantiates a new Writer.
 // Everything written to it will be encapsulated using a custom format,
 // and written to the underlying `w` stream.
 // This allows multiple write streams (e.g. stdout and stderr) to be muxed into a single connection.
