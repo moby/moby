@@ -2,7 +2,7 @@
 
 In this feature:
 
-- `network` and `service` become a first class objects in the Docker UI
+- `network` and `service` become first class objects in the Docker UI
   - one can now create networks, publish services on that network and attach containers to the services
 - Native multi-host networking
   - `network` and `service` objects are globally significant and provides multi-host container connectivity natively
