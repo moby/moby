@@ -135,6 +135,23 @@ func TestUpdate(t *testing.T) {
 	}
 }
 
+func TestAddEmpty(t *testing.T) {
+	file, err := ioutil.TempFile("", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(file.Name())
+
+	err = Build(file.Name(), "", "", "", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := Add(file.Name(), []Record{}); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestAdd(t *testing.T) {
 	file, err := ioutil.TempFile("", "")
 	if err != nil {
@@ -163,6 +180,23 @@ func TestAdd(t *testing.T) {
 
 	if expected := "2.2.2.2\ttesthostname\n"; !bytes.Contains(content, []byte(expected)) {
 		t.Fatalf("Expected to find '%s' got '%s'", expected, content)
+	}
+}
+
+func TestDeleteEmpty(t *testing.T) {
+	file, err := ioutil.TempFile("", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(file.Name())
+
+	err = Build(file.Name(), "", "", "", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := Delete(file.Name(), []Record{}); err != nil {
+		t.Fatal(err)
 	}
 }
 
