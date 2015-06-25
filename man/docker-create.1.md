@@ -18,6 +18,7 @@ docker-create - Create a new container
 [**--cpuset-mems**[=*CPUSET-MEMS*]]
 [**--cpu-quota**[=*0*]]
 [**--device**[=*[]*]]
+[**--dns-option**[=*[]*]]
 [**--dns-search**[=*[]*]]
 [**--dns**[=*[]*]]
 [**-e**|**--env**[=*[]*]]
@@ -109,6 +110,9 @@ two memory nodes.
 
 **--device**=[]
    Add a host device to the container (e.g. --device=/dev/sdc:/dev/xvdc:rwm)
+
+**--dns-option**=[]
+   Set custom DNS options (Use --dns-option='' if you don't wish to set options)
 
 **--dns-search**=[]
    Set custom DNS search domains (Use --dns-search=. if you don't wish to set the search domain)

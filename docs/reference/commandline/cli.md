@@ -162,6 +162,7 @@ expect an integer, and they can only be specified once.
       --default-gateway=""                   Container default gateway IPv4 address
       --default-gateway-v6=""                Container default gateway IPv6 address
       --dns=[]                               DNS server to use
+      --dns-option=[]                        DNS options to use
       --dns-search=[]                        DNS search domains to use
       --default-ulimit=[]                    Set default ulimit settings for containers
       -e, --exec-driver="native"             Exec driver to use
@@ -521,6 +522,9 @@ To set the DNS server for all Docker containers, use
 
 To set the DNS search domain for all Docker containers, use
 `docker -d --dns-search example.com`.
+
+To set the DNS options for all Docker containers, use
+`docker -d --dns-options ndots:3`.
 
 ### Insecure registries
 
@@ -1041,6 +1045,7 @@ Creates a new container.
       --cpu-quota=0              Limit the CPU CFS (Completely Fair Scheduler) quota
       --device=[]                Add a host device to the container
       --dns=[]                   Set custom DNS servers
+      --dns-option=[]            Set custom DNS options
       --dns-search=[]            Set custom DNS search domains
       -e, --env=[]               Set environment variables
       --entrypoint=""            Overwrite the default ENTRYPOINT of the image
@@ -2048,6 +2053,7 @@ To remove an image using its digest:
       -d, --detach=false         Run container in background and print container ID
       --device=[]                Add a host device to the container
       --dns=[]                   Set custom DNS servers
+      --dns-option=[]            Set custom DNS options
       --dns-search=[]            Set custom DNS search domains
       -e, --env=[]               Set environment variables
       --entrypoint=""            Overwrite the default ENTRYPOINT of the image

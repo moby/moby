@@ -30,6 +30,7 @@ var (
 	nsIPv6Regexp      = regexp.MustCompile(`(?m)^nameserver\s+` + ipv6Address + `\s*\n*`)
 	nsRegexp          = regexp.MustCompile(`^\s*nameserver\s*((` + ipv4Address + `)|(` + ipv6Address + `))\s*$`)
 	searchRegexp      = regexp.MustCompile(`^\s*search\s*(([^\s]+\s*)*)$`)
+	optionsRegexp     = regexp.MustCompile(`^\s*options\s*(([^\s]+\s*)*)$`)
 )
 
 var lastModified struct {
@@ -165,10 +166,25 @@ func GetSearchDomains(resolvConf []byte) []string {
 	return domains
 }
 
+// GetOptions returns options (if any) listed in /etc/resolv.conf
+// If more than one options line is encountered, only the contents of the last
+// one is returned.
+func GetOptions(resolvConf []byte) []string {
+	options := []string{}
+	for _, line := range getLines(resolvConf, []byte("#")) {
+		match := optionsRegexp.FindSubmatch(line)
+		if match == nil {
+			continue
+		}
+		options = strings.Fields(string(match[1]))
+	}
+	return options
+}
+
 // Build writes a configuration file to path containing a "nameserver" entry
-// for every element in dns, and a "search" entry for every element in
-// dnsSearch.
-func Build(path string, dns, dnsSearch []string) error {
+// for every element in dns, a "search" entry for every element in
+// dnsSearch, and an "options" entry for every element in dnsOptions.
+func Build(path string, dns, dnsSearch, dnsOptions []string) error {
 	content := bytes.NewBuffer(nil)
 	for _, dns := range dns {
 		if _, err := content.WriteString("nameserver " + dns + "\n"); err != nil {
@@ -178,6 +194,13 @@ func Build(path string, dns, dnsSearch []string) error {
 	if len(dnsSearch) > 0 {
 		if searchString := strings.Join(dnsSearch, " "); strings.Trim(searchString, " ") != "." {
 			if _, err := content.WriteString("search " + searchString + "\n"); err != nil {
+				return err
+			}
+		}
+	}
+	if len(dnsOptions) > 0 {
+		if optsString := strings.Join(dnsOptions, " "); strings.Trim(optsString, " ") != "" {
+			if _, err := content.WriteString("options " + optsString + "\n"); err != nil {
 				return err
 			}
 		}

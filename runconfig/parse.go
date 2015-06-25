@@ -41,6 +41,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		flExpose      = opts.NewListOpts(nil)
 		flDns         = opts.NewListOpts(opts.ValidateIPAddress)
 		flDnsSearch   = opts.NewListOpts(opts.ValidateDnsSearch)
+		flDnsOptions  = opts.NewListOpts(nil)
 		flExtraHosts  = opts.NewListOpts(opts.ValidateExtraHost)
 		flVolumesFrom = opts.NewListOpts(nil)
 		flLxcOpts     = opts.NewListOpts(nil)
@@ -93,6 +94,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 	cmd.Var(&flExpose, []string{"#expose", "-expose"}, "Expose a port or a range of ports")
 	cmd.Var(&flDns, []string{"#dns", "-dns"}, "Set custom DNS servers")
 	cmd.Var(&flDnsSearch, []string{"-dns-search"}, "Set custom DNS search domains")
+	cmd.Var(&flDnsOptions, []string{"-dns-option"}, "Set DNS options")
 	cmd.Var(&flExtraHosts, []string{"-add-host"}, "Add a custom host-to-IP mapping (host:ip)")
 	cmd.Var(&flVolumesFrom, []string{"#volumes-from", "-volumes-from"}, "Mount volumes from the specified container(s)")
 	cmd.Var(&flLxcOpts, []string{"#lxc-conf", "-lxc-conf"}, "Add custom lxc options")
@@ -348,6 +350,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		PublishAllPorts: *flPublishAll,
 		Dns:             flDns.GetAll(),
 		DnsSearch:       flDnsSearch.GetAll(),
+		DnsOptions:      flDnsOptions.GetAll(),
 		ExtraHosts:      flExtraHosts.GetAll(),
 		VolumesFrom:     flVolumesFrom.GetAll(),
 		NetworkMode:     netMode,

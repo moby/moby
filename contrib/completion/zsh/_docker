@@ -494,6 +494,7 @@ __docker_subcommand () {
                 '(-d --detach)'{-d,--detach}'[Run container in background and print container ID]' \
                 '*--device=-[Add a host device to the container]:device:_files' \
                 '*--dns=-[Set custom dns servers]:dns server: ' \
+                '*--dns-option=-[Set custom DNS options]:dns options: ' \
                 '*--dns-search=-[Set custom DNS search domains]:dns domains: ' \
                 '*'{-e,--env=-}'[Set environment variables]:environment variable: ' \
                 '--entrypoint=-[Overwrite the default ENTRYPOINT of the image]:entry point: ' \

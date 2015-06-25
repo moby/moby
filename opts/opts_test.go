@@ -91,6 +91,7 @@ func TestListOpts(t *testing.T) {
 	}
 }
 
+//FIXME: test for DnsOption
 func TestValidateDnsSearch(t *testing.T) {
 	valid := []string{
 		`.`,

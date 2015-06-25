@@ -19,6 +19,7 @@ type CommonConfig struct {
 	CorsHeaders    string
 	DisableNetwork bool
 	Dns            []string
+	DnsOptions     []string
 	DnsSearch      []string
 	EnableCors     bool
 	ExecDriver     string
@@ -54,6 +55,7 @@ func (config *Config) InstallCommonFlags() {
 	flag.StringVar(&config.CorsHeaders, []string{"-api-cors-header"}, "", "Set CORS headers in the remote API")
 	// FIXME: why the inconsistency between "hosts" and "sockets"?
 	opts.IPListVar(&config.Dns, []string{"#dns", "-dns"}, "DNS server to use")
+	opts.DnsOptionListVar(&config.DnsOptions, []string{"-dns-option"}, "DNS options to use")
 	opts.DnsSearchListVar(&config.DnsSearch, []string{"-dns-search"}, "DNS search domains to use")
 	opts.LabelListVar(&config.Labels, []string{"-label"}, "Set key=value labels to the daemon")
 	flag.StringVar(&config.LogConfig.Type, []string{"-log-driver"}, "json-file", "Default driver for container logs")

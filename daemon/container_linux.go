@@ -379,6 +379,7 @@ func (container *Container) buildJoinOptions() ([]libnetwork.EndpointOption, err
 		err         error
 		dns         []string
 		dnsSearch   []string
+		dnsOptions  []string
 	)
 
 	joinOptions = append(joinOptions, libnetwork.JoinOptionHostname(container.Config.Hostname),
@@ -418,6 +419,16 @@ func (container *Container) buildJoinOptions() ([]libnetwork.EndpointOption, err
 
 	for _, ds := range dnsSearch {
 		joinOptions = append(joinOptions, libnetwork.JoinOptionDNSSearch(ds))
+	}
+
+	if len(container.hostConfig.DnsOptions) > 0 {
+		dnsOptions = container.hostConfig.DnsOptions
+	} else if len(container.daemon.config.DnsOptions) > 0 {
+		dnsOptions = container.daemon.config.DnsOptions
+	}
+
+	for _, ds := range dnsOptions {
+		joinOptions = append(joinOptions, libnetwork.JoinOptionDNSOptions(ds))
 	}
 
 	if container.NetworkSettings.SecondaryIPAddresses != nil {

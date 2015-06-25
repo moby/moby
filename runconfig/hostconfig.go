@@ -237,6 +237,7 @@ type HostConfig struct {
 	PublishAllPorts bool
 	Dns             []string
 	DnsSearch       []string
+	DnsOptions      []string
 	ExtraHosts      []string
 	VolumesFrom     []string
 	Devices         []DeviceMapping
