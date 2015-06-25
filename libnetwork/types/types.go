@@ -197,6 +197,59 @@ func CompareIPNet(a, b *net.IPNet) bool {
 	return a.IP.Equal(b.IP) && bytes.Equal(a.Mask, b.Mask)
 }
 
+// GetMinimalIP returns the address in its shortest form
+func GetMinimalIP(ip net.IP) net.IP {
+	if ip != nil && ip.To4() != nil {
+		return ip.To4()
+	}
+	return ip
+}
+
+// GetMinimalIPNet returns a copy of the passed IP Network with congruent ip and mask notation
+func GetMinimalIPNet(nw *net.IPNet) *net.IPNet {
+	if nw == nil {
+		return nil
+	}
+	if len(nw.IP) == 16 && nw.IP.To4() != nil {
+		m := nw.Mask
+		if len(m) == 16 {
+			m = m[12:16]
+		}
+		return &net.IPNet{IP: nw.IP.To4(), Mask: m}
+	}
+	return nw
+}
+
+var v4inV6MaskPrefix = []byte{0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff}
+
+// GetHostPartIP returns the host portion of the ip address identified by the mask.
+// IP address representation is not modified. If address and mask are not compatible
+// an error is returned.
+func GetHostPartIP(ip net.IP, mask net.IPMask) (net.IP, error) {
+	// Find the effective starting of address and mask
+	is := 0
+	ms := 0
+	if len(ip) == net.IPv6len && ip.To4() != nil {
+		is = 12
+	}
+	if len(ip[is:]) == net.IPv4len && len(mask) == net.IPv6len && bytes.Equal(mask[:12], v4inV6MaskPrefix) {
+		ms = 12
+	}
+
+	// Check if address and mask are semantically compatible
+	if len(ip[is:]) != len(mask[ms:]) {
+		return nil, fmt.Errorf("cannot compute host portion ip address as ip and mask are not compatible: (%#v, %#v)", ip, mask)
+	}
+
+	// Compute host portion
+	out := GetIPCopy(ip)
+	for i := 0; i < len(mask[ms:]); i++ {
+		out[is+i] &= ^mask[ms+i]
+	}
+
+	return out, nil
+}
+
 const (
 	// NEXTHOP indicates a StaticRoute with an IP next hop.
 	NEXTHOP = iota

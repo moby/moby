@@ -21,7 +21,7 @@ const (
 	minNetSizeV6Eff = 96
 	// The size of the host subnet used internally, it's the most granular sequence addresses
 	defaultInternalHostSize = 16
-	// datastore keyes for ipam obkects
+	// datastore keyes for ipam objects
 	dsConfigKey = "ipam-config" // ipam-config/<domain>/<map of subent configs>
 	dsDataKey   = "ipam-data"   // ipam-data/<domain>/<subnet>/<child-sudbnet>/<bitmask>
 )
@@ -80,8 +80,7 @@ func NewAllocator(ds datastore.DataStore) (*Allocator, error) {
 				if err != nil {
 					return fmt.Errorf("failed to load address bitmask for configured subnet %s because of %s", v.Subnet.String(), err.Error())
 				}
-				a.insertAddressMasks(k, subnetList)
-				return nil
+				return a.insertAddressMasks(k, subnetList)
 			})
 	}
 	a.Unlock()
@@ -417,27 +416,47 @@ func (a *Allocator) request(addrSpace AddressSpace, req *AddressRequest, version
 
 // Release allows releasing the address from the specified address space
 func (a *Allocator) Release(addrSpace AddressSpace, address net.IP) {
+	var (
+		space *bitseq.Handle
+		sub   *net.IPNet
+	)
+
 	if address == nil {
+		log.Debugf("Requested to remove nil address from address space %s", addrSpace)
 		return
 	}
+
 	ver := getAddressVersion(address)
 	if ver == v4 {
 		address = address.To4()
 	}
+
+	// Find the subnet containing the address
 	for _, subKey := range a.getSubnetList(addrSpace, ver) {
-		a.Lock()
-		space := a.addresses[subKey]
-		a.Unlock()
-		sub := subKey.canonicalChildSubnet()
+		sub = subKey.canonicalChildSubnet()
 		if sub.Contains(address) {
-			// Retrieve correspondent ordinal in the subnet
-			ordinal := ipToUint32(getHostPortionIP(address, sub))
-			// Release it
-			if err := space.Unset(ordinal); err != nil {
-				log.Warnf("Failed to release address %s because of internal error: %s", address.String(), err.Error())
-			}
-			return
+			a.Lock()
+			space = a.addresses[subKey]
+			a.Unlock()
+			break
 		}
+	}
+	if space == nil {
+		log.Debugf("Could not find subnet on address space %s containing %s on release", addrSpace, address.String())
+		return
+	}
+
+	// Retrieve correspondent ordinal in the subnet
+	hostPart, err := types.GetHostPartIP(address, sub.Mask)
+	if err != nil {
+		log.Warnf("Failed to release address %s on address space %s because of internal error: %v", address.String(), addrSpace, err)
+		return
+	}
+	ordinal := ipToUint32(hostPart)
+
+	// Release it
+	if err := space.Unset(ordinal); err != nil {
+		log.Warnf("Failed to release address %s on address space %s because of internal error: %v", address.String(), addrSpace, err)
 	}
 }
 
@@ -468,7 +487,7 @@ func (a *Allocator) reserveAddress(addrSpace AddressSpace, subnet *net.IPNet, pr
 		bitmask, ok := a.addresses[key]
 		a.Unlock()
 		if !ok {
-			fmt.Printf("\nDid not find a bitmask for subnet key: %s", key.String())
+			log.Warnf("Did not find a bitmask for subnet key: %s", key.String())
 			continue
 		}
 		address, err := a.getAddress(key.canonicalChildSubnet(), bitmask, prefAddress, ver)
@@ -511,7 +530,12 @@ func (a *Allocator) getAddress(subnet *net.IPNet, bitmask *bitseq.Handle, prefAd
 		if prefAddress == nil {
 			ordinal, err = bitmask.SetAny()
 		} else {
-			err = bitmask.Set(ipToUint32(getHostPortionIP(prefAddress, subnet)))
+			hostPart, e := types.GetHostPartIP(prefAddress, subnet.Mask)
+			if e != nil {
+				return nil, fmt.Errorf("failed to allocate preferred address %s: %v", prefAddress.String(), e)
+			}
+			ordinal = ipToUint32(types.GetMinimalIP(hostPart))
+			err = bitmask.Set(ordinal)
 		}
 		if err != nil {
 			return nil, ErrNoAvailableIPs
@@ -549,7 +573,7 @@ func generateAddress(ordinal uint32, network *net.IPNet) net.IP {
 	var address [16]byte
 
 	// Get network portion of IP
-	if network.IP.To4() != nil {
+	if getAddressVersion(network.IP) == v4 {
 		copy(address[:], network.IP.To4())
 	} else {
 		copy(address[:], network.IP)
@@ -591,13 +615,4 @@ func ipToUint32(ip []byte) uint32 {
 		value += uint32(ip[i]) << uint(j*8)
 	}
 	return value
-}
-
-// Given an address and subnet, returns the host portion address
-func getHostPortionIP(address net.IP, subnet *net.IPNet) net.IP {
-	hostPortion := make([]byte, len(address))
-	for i := 0; i < len(subnet.Mask); i++ {
-		hostPortion[i] = address[i] &^ subnet.Mask[i]
-	}
-	return hostPortion
 }

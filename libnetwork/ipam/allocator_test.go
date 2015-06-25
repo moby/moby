@@ -3,15 +3,31 @@ package ipam
 import (
 	"fmt"
 	"net"
+	"os"
 	"testing"
 	"time"
 
 	"github.com/docker/libnetwork/bitseq"
+	"github.com/docker/libnetwork/config"
+	"github.com/docker/libnetwork/datastore"
 	_ "github.com/docker/libnetwork/netutils"
 )
 
+var ds datastore.DataStore
+
+// enable w/ upper case
+func testMain(m *testing.M) {
+	var err error
+	ds, err = datastore.NewDataStore(&config.DatastoreCfg{Embedded: false, Client: config.DatastoreClientCfg{Provider: "consul", Address: "127.0.0.1:8500"}})
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	os.Exit(m.Run())
+}
+
 func getAllocator(t *testing.T, subnet *net.IPNet) *Allocator {
-	a, err := NewAllocator(nil)
+	a, err := NewAllocator(ds)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -273,7 +289,32 @@ func TestGetInternalSubnets(t *testing.T) {
 	for _, d := range input {
 		assertInternalSubnet(t, d.internalHostSize, d.parentSubnet, d.firstIntSubnet, d.lastIntSubnet)
 	}
+}
 
+func TestGetSameAddress(t *testing.T) {
+	a, err := NewAllocator(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	addSpace := AddressSpace("giallo")
+	_, subnet, _ := net.ParseCIDR("192.168.100.0/24")
+	if err := a.AddSubnet(addSpace, &SubnetInfo{Subnet: subnet}); err != nil {
+		t.Fatal(err)
+	}
+
+	ip := net.ParseIP("192.168.100.250")
+	req := &AddressRequest{Subnet: *subnet, Address: ip}
+
+	_, err = a.Request(addSpace, req)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = a.Request(addSpace, req)
+	if err == nil {
+		t.Fatal(err)
+	}
 }
 
 func TestGetAddress(t *testing.T) {
