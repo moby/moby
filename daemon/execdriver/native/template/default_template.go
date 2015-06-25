@@ -36,8 +36,9 @@ func New() *configs.Config {
 			{Type: "NEWNET"},
 		}),
 		Cgroups: &configs.Cgroup{
-			Parent:          "docker",
-			AllowAllDevices: false,
+			Parent:           "docker",
+			AllowAllDevices:  false,
+			MemorySwappiness: -1,
 		},
 		Mounts: []*configs.Mount{
 			{
