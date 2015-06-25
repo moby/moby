@@ -41,6 +41,11 @@ type ContainerCommitResponse struct {
 	ID string `json:"Id"`
 }
 
+// ImageSquashResponse is returned by POST "/images/{name:.*}/squash"
+type ImageSquashResponse struct {
+	ID string `json:"id"`
+}
+
 // GET "/containers/{name:.*}/changes"
 type ContainerChange struct {
 	Kind int

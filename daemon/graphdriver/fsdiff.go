@@ -24,6 +24,7 @@ type naiveDiffDriver struct {
 // given ProtoDriver and adds the capability of the following methods which
 // it may or may not support on its own:
 //     Diff(id, parent string) (archive.Archive, error)
+//     DiffAncestor(id, ancestor string) (archive.Archive, error)
 //     Changes(id, parent string) ([]archive.Change, error)
 //     ApplyDiff(id, parent string, diff archive.ArchiveReader) (size int64, err error)
 //     DiffSize(id, parent string) (size int64, err error)
@@ -34,6 +35,14 @@ func NaiveDiffDriver(driver ProtoDriver) Driver {
 // Diff produces an archive of the changes between the specified
 // layer and its parent layer which may be "".
 func (gdw *naiveDiffDriver) Diff(id, parent string) (arch archive.Archive, err error) {
+	// For a naiveDiffDriver, diffing from the direct
+	// parent is the same logic as diffing from any ancestor.
+	return gdw.DiffAncestor(id, parent)
+}
+
+// DiffAncestor produces an archive of the changes between the
+// specified layer and one of its ancestor layers which may be "".
+func (gdw *naiveDiffDriver) DiffAncestor(id, ancestor string) (arch archive.Archive, err error) {
 	driver := gdw.ProtoDriver
 
 	layerFs, err := driver.Get(id, "")
@@ -47,7 +56,7 @@ func (gdw *naiveDiffDriver) Diff(id, parent string) (arch archive.Archive, err e
 		}
 	}()
 
-	if parent == "" {
+	if ancestor == "" {
 		archive, err := archive.Tar(layerFs, archive.Uncompressed)
 		if err != nil {
 			return nil, err
@@ -59,13 +68,13 @@ func (gdw *naiveDiffDriver) Diff(id, parent string) (arch archive.Archive, err e
 		}), nil
 	}
 
-	parentFs, err := driver.Get(parent, "")
+	ancestorFs, err := driver.Get(ancestor, "")
 	if err != nil {
 		return nil, err
 	}
-	defer driver.Put(parent)
+	defer driver.Put(ancestor)
 
-	changes, err := archive.ChangesDirs(layerFs, parentFs)
+	changes, err := archive.ChangesDirs(layerFs, ancestorFs)
 	if err != nil {
 		return nil, err
 	}

@@ -1442,6 +1442,44 @@ Status Codes:
 -   **409** – conflict
 -   **500** – server error
 
+### Squash image layers
+
+`POST /images/(name)/squash`
+
+Create a new image by consolidating intermediate layers of another image.
+
+**Example request**
+
+    POST /images/463a6ff37134/squash?ancestor=c12da83ee7c1 HTTP/1.1
+
+This request will combine all of the filesystem layers between `463a6ff37134`
+and its ancestor layer `c12da83ee7c1` into a new image layer.
+
+**Example response**
+
+    HTTP/1.1 201 Created
+    Content-Type: application/json
+
+    {"id": "7773c5ae0808468c66d260cf641c0fadf40f203211744918bef12f9553e32509"}
+
+On success, the response body will contain a JSON object containing the `id` of
+the new image.
+
+Query Parameters:
+
+- **ancestor** - The ancestor image layer to squash up to. All layers between
+    *name* and *ancestor* will be combined into a single layer. If omitted, all
+    layers in the image's ancestory will be squashed.
+- **tag** - Apply the given repository tag to the resulting squashed image.
+
+Status Codes:
+
+-   **200** - success, image ID of squashed layer is returned.
+-   **400** - client error. The image must be a decendant of *ancestor*, if
+    provided.
+-   **404** - no such image.
+-   **500** - server error.
+
 ### Search images
 
 `GET /images/search`

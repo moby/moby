@@ -312,6 +312,15 @@ func (a *Driver) Put(id string) error {
 	return nil
 }
 
+// DiffAncestor produces an archive of the changes between the
+// specified layer and one of its ancestor layers which may be "".
+func (a *Driver) DiffAncestor(id, ancestor string) (archive.Archive, error) {
+	// AUFS doesn't have any clever structure which makes this
+	// task trivial in the way that it can with `Diff', so it can
+	// just be wrapped in a `naiveDiffDriver` for this task.
+	return graphdriver.NaiveDiffDriver(a).DiffAncestor(id, ancestor)
+}
+
 // Diff produces an archive of the changes between the specified
 // layer and its parent layer which may be "".
 func (a *Driver) Diff(id, parent string) (archive.Archive, error) {

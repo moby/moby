@@ -68,6 +68,11 @@ Running `docker rmi` emits an **untag** event when removing an image name.  The 
 
 ### What's new
 
+`POST /images/(name)/squash`
+
+**New!**
+Create a new image by consolidating intermediate layers of another image.
+
 ## v1.19
 
 ### Full documentation

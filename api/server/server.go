@@ -662,6 +662,29 @@ func (s *Server) postImagesTag(version version.Version, w http.ResponseWriter, r
 	return nil
 }
 
+func (s *Server) postImagesSquash(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if err := parseForm(r); err != nil {
+		return err
+	}
+	if vars == nil {
+		return fmt.Errorf("Missing parameter")
+	}
+
+	imgName := vars["name"]
+	ancestorName := r.Form.Get("ancestor")
+	tag := r.Form.Get("tag")
+
+	newImage, err := s.daemon.Repositories().Squash(imgName, ancestorName, tag)
+	if err != nil {
+		return err
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+
+	return json.NewEncoder(w).Encode(types.ImageSquashResponse{ID: newImage.ID})
+}
+
 func (s *Server) postCommit(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := parseForm(r); err != nil {
 		return err
@@ -1548,6 +1571,7 @@ func createRouter(s *Server) *mux.Router {
 			"/images/load":                  s.postImagesLoad,
 			"/images/{name:.*}/push":        s.postImagesPush,
 			"/images/{name:.*}/tag":         s.postImagesTag,
+			"/images/{name:.*}/squash":      s.postImagesSquash,
 			"/containers/create":            s.postContainersCreate,
 			"/containers/{name:.*}/kill":    s.postContainersKill,
 			"/containers/{name:.*}/pause":   s.postContainersPause,
