@@ -197,6 +197,7 @@ func (c *controller) watchNetworks() error {
 					}
 				}
 				c.processNetworkUpdate(nws, &tmpview)
+
 				// Delete processing
 				for k := range tmpview {
 					c.Lock()
@@ -259,7 +260,7 @@ func (n *network) watchEndpoints() error {
 						continue
 					}
 					delete(tmpview, ep.id)
-					ep.dbIndex = epe.LastIndex
+					ep.SetIndex(epe.LastIndex)
 					ep.network = n
 					if n.ctrlr.processEndpointUpdate(&ep) {
 						err = n.ctrlr.newEndpointFromStore(epe.Key, &ep)
@@ -310,15 +311,17 @@ func (c *controller) processNetworkUpdate(nws []*store.KVPair, prune *networkTab
 		if prune != nil {
 			delete(*prune, n.id)
 		}
-		n.dbIndex = kve.LastIndex
+		n.SetIndex(kve.LastIndex)
 		c.Lock()
 		existing, ok := c.networks[n.id]
 		c.Unlock()
 		if ok {
 			existing.Lock()
 			// Skip existing network update
-			if existing.dbIndex != n.dbIndex {
-				existing.dbIndex = n.dbIndex
+			if existing.dbIndex != n.Index() {
+				// Can't use SetIndex() since existing is locked.
+				existing.dbIndex = n.Index()
+				existing.dbExists = true
 				existing.endpointCnt = n.endpointCnt
 			}
 			existing.Unlock()
@@ -353,8 +356,10 @@ func (c *controller) processEndpointUpdate(ep *endpoint) bool {
 
 	ee := existing.(*endpoint)
 	ee.Lock()
-	if ee.dbIndex != ep.dbIndex {
-		ee.dbIndex = ep.dbIndex
+	if ee.dbIndex != ep.Index() {
+		// Can't use SetIndex() because ee is locked.
+		ee.dbIndex = ep.Index()
+		ee.dbExists = true
 		if ee.container != nil && ep.container != nil {
 			// we care only about the container id
 			ee.container.id = ep.container.id

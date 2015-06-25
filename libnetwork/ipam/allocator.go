@@ -35,10 +35,11 @@ type Allocator struct {
 	// Allocated addresses in each address space's internal subnet
 	addresses map[subnetKey]*bitseq.Handle
 	// Datastore
-	store   datastore.DataStore
-	App     string
-	ID      string
-	dbIndex uint64
+	store    datastore.DataStore
+	App      string
+	ID       string
+	dbIndex  uint64
+	dbExists bool
 	sync.Mutex
 }
 
@@ -100,6 +101,7 @@ func (a *Allocator) subnetConfigFromStore(kvPair *store.KVPair) {
 	if a.dbIndex < kvPair.LastIndex {
 		a.subnets = byteArrayToSubnets(kvPair.Value)
 		a.dbIndex = kvPair.LastIndex
+		a.dbExists = true
 	}
 	a.Unlock()
 }

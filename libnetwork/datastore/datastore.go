@@ -1,7 +1,6 @@
 package datastore
 
 import (
-	"encoding/json"
 	"reflect"
 	"strings"
 
@@ -14,9 +13,7 @@ import (
 //DataStore exported
 type DataStore interface {
 	// GetObject gets data from datastore and unmarshals to the specified object
-	GetObject(key string, o interface{}) error
-	// GetUpdatedObject gets data from datastore along with its index and unmarshals to the specified object
-	GetUpdatedObject(key string, o interface{}) (uint64, error)
+	GetObject(key string, o KV) error
 	// PutObject adds a new Record based on an object into the datastore
 	PutObject(kvObject KV) error
 	// PutObjectAtomic provides an atomic add and update operation for a Record
@@ -49,10 +46,15 @@ type KV interface {
 	KeyPrefix() []string
 	// Value method lets an object to marshal its content to be stored in the KV store
 	Value() []byte
+	// SetValue is used by the datastore to set the object's value when loaded from the data store.
+	SetValue([]byte) error
 	// Index method returns the latest DB Index as seen by the object
 	Index() uint64
 	// SetIndex method allows the datastore to store the latest DB Index into the object
 	SetIndex(uint64)
+	// True if the object exists in the datastore, false if it hasn't been stored yet.
+	// When SetIndex() is called, the object has been stored.
+	Exists() bool
 }
 
 const (
@@ -121,7 +123,12 @@ func (ds *datastore) PutObjectAtomic(kvObject KV) error {
 		return types.BadRequestErrorf("invalid KV Object with a nil Value for key %s", Key(kvObject.Key()...))
 	}
 
-	previous := &store.KVPair{Key: Key(kvObject.Key()...), LastIndex: kvObject.Index()}
+	var previous *store.KVPair
+	if kvObject.Exists() {
+		previous = &store.KVPair{Key: Key(kvObject.Key()...), LastIndex: kvObject.Index()}
+	} else {
+		previous = nil
+	}
 	_, pair, err := ds.store.AtomicPut(Key(kvObject.Key()...), kvObjValue, previous, nil)
 	if err != nil {
 		return err
@@ -149,24 +156,20 @@ func (ds *datastore) putObjectWithKey(kvObject KV, key ...string) error {
 }
 
 // GetObject returns a record matching the key
-func (ds *datastore) GetObject(key string, o interface{}) error {
+func (ds *datastore) GetObject(key string, o KV) error {
 	kvPair, err := ds.store.Get(key)
 	if err != nil {
 		return err
 	}
-	return json.Unmarshal(kvPair.Value, o)
-}
-
-// GetUpdateObject returns a record matching the key
-func (ds *datastore) GetUpdatedObject(key string, o interface{}) (uint64, error) {
-	kvPair, err := ds.store.Get(key)
+	err = o.SetValue(kvPair.Value)
 	if err != nil {
-		return 0, err
+		return err
 	}
-	if err := json.Unmarshal(kvPair.Value, o); err != nil {
-		return 0, err
-	}
-	return kvPair.LastIndex, nil
+
+	// Make sure the object has a correct view of the DB index in case we need to modify it
+	// and update the DB.
+	o.SetIndex(kvPair.LastIndex)
+	return nil
 }
 
 // DeleteObject unconditionally deletes a record from the store

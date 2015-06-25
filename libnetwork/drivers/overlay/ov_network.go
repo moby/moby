@@ -22,6 +22,7 @@ type network struct {
 	id          types.UUID
 	vni         uint32
 	dbIndex     uint64
+	dbExists    bool
 	sbox        sandbox.Sandbox
 	endpoints   endpointTable
 	ipAllocator *ipallocator.IPAllocator
@@ -260,6 +261,20 @@ func (n *network) Index() uint64 {
 
 func (n *network) SetIndex(index uint64) {
 	n.dbIndex = index
+	n.dbExists = true
+}
+
+func (n *network) Exists() bool {
+	return n.dbExists
+}
+
+func (n *network) SetValue(value []byte) error {
+	var vni uint32
+	err := json.Unmarshal(value, &vni)
+	if err == nil {
+		n.setVxlanID(vni)
+	}
+	return err
 }
 
 func (n *network) writeToStore() error {
@@ -297,8 +312,7 @@ func (n *network) obtainVxlanID() error {
 
 	for {
 		var vxlanID uint32
-		if err := n.driver.store.GetObject(datastore.Key(n.Key()...),
-			&vxlanID); err != nil {
+		if err := n.driver.store.GetObject(datastore.Key(n.Key()...), n); err != nil {
 			if err == datastore.ErrKeyNotFound {
 				vxlanID, err = n.driver.vxlanIdm.GetID()
 				if err != nil {
@@ -318,8 +332,6 @@ func (n *network) obtainVxlanID() error {
 			}
 			return fmt.Errorf("failed to obtain vxlan id from data store: %v", err)
 		}
-
-		n.setVxlanID(vxlanID)
 		return nil
 	}
 }

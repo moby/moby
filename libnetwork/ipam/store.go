@@ -39,6 +39,12 @@ func (a *Allocator) Value() []byte {
 	return b
 }
 
+// SetValue unmarshalls the data from the KV store.
+func (a *Allocator) SetValue(value []byte) error {
+	a.subnets = byteArrayToSubnets(value)
+	return nil
+}
+
 func subnetsToByteArray(m map[subnetKey]*SubnetInfo) ([]byte, error) {
 	if m == nil {
 		return nil, nil
@@ -94,7 +100,15 @@ func (a *Allocator) Index() uint64 {
 func (a *Allocator) SetIndex(index uint64) {
 	a.Lock()
 	a.dbIndex = index
+	a.dbExists = true
 	a.Unlock()
+}
+
+// Exists method is true if this object has been stored in the DB.
+func (a *Allocator) Exists() bool {
+	a.Lock()
+	defer a.Unlock()
+	return a.dbExists
 }
 
 func (a *Allocator) watchForChanges() error {

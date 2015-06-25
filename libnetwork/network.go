@@ -67,6 +67,7 @@ type network struct {
 	generic     options.Generic
 	dbIndex     uint64
 	svcRecords  svcMap
+	dbExists    bool
 	stopWatchCh chan struct{}
 	sync.Mutex
 }
@@ -116,6 +117,10 @@ func (n *network) Value() []byte {
 	return b
 }
 
+func (n *network) SetValue(value []byte) error {
+	return json.Unmarshal(value, n)
+}
+
 func (n *network) Index() uint64 {
 	n.Lock()
 	defer n.Unlock()
@@ -125,7 +130,14 @@ func (n *network) Index() uint64 {
 func (n *network) SetIndex(index uint64) {
 	n.Lock()
 	n.dbIndex = index
+	n.dbExists = true
 	n.Unlock()
+}
+
+func (n *network) Exists() bool {
+	n.Lock()
+	defer n.Unlock()
+	return n.dbExists
 }
 
 func (n *network) EndpointCnt() uint64 {
@@ -292,7 +304,9 @@ func (n *network) CreateEndpoint(name string, options ...EndpointOption) (Endpoi
 		return nil, types.ForbiddenErrorf("service endpoint with name %s already exists", name)
 	}
 
-	ep := &endpoint{name: name, iFaces: []*endpointInterface{}, generic: make(map[string]interface{})}
+	ep := &endpoint{name: name,
+		iFaces:  []*endpointInterface{},
+		generic: make(map[string]interface{})}
 	ep.id = types.UUID(stringid.GenerateRandomID())
 	ep.network = n
 	ep.processOptions(options...)
