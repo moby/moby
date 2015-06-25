@@ -11,10 +11,7 @@ import (
 )
 
 func (c *controller) validateDatastoreConfig() bool {
-	if c.cfg == nil || c.cfg.Datastore.Client.Provider == "" || c.cfg.Datastore.Client.Address == "" {
-		return false
-	}
-	return true
+	return c.cfg != nil && c.cfg.Datastore.Client.Provider != "" && c.cfg.Datastore.Client.Address != ""
 }
 
 func (c *controller) initDataStore() error {
