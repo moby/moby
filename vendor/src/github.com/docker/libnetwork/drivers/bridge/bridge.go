@@ -5,6 +5,7 @@ import (
 	"net"
 	"os/exec"
 	"strconv"
+	"strings"
 	"sync"
 
 	"github.com/Sirupsen/logrus"
@@ -108,8 +109,8 @@ func newDriver() driverapi.Driver {
 func Init(dc driverapi.DriverCallback) error {
 	// try to modprobe bridge first
 	// see gh#12177
-	if out, err := exec.Command("modprobe", "-va", "bridge", "nf_nat", "br_netfilter").Output(); err != nil {
-		logrus.Warnf("Running modprobe bridge nf_nat failed with message: %s, error: %v", out, err)
+	if out, err := exec.Command("modprobe", "-va", "bridge", "nf_nat", "br_netfilter").CombinedOutput(); err != nil {
+		logrus.Warnf("Running modprobe bridge nf_nat failed with message: `%s`, error: %v", strings.TrimSpace(string(out)), err)
 	}
 	if err := iptables.RemoveExistingChain(DockerChain, iptables.Nat); err != nil {
 		logrus.Warnf("Failed to remove existing iptables entries in %s : %v", DockerChain, err)
