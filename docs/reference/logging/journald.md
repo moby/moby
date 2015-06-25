@@ -1,3 +1,13 @@
+<!--[metadata]>
++++
+title = "journald logging driver"
+description = "Describes how to use the fluentd logging driver."
+keywords = ["Fluentd, docker, logging, driver"]
+[menu.main]
+parent = "smn_logging"
++++
+<![end-metadata]-->
+
 # Journald logging driver
 
 The `journald` logging driver sends container logs to the [systemd

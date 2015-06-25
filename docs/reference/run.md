@@ -866,99 +866,23 @@ familiar with using LXC directly.
 > you can use `--lxc-conf` to set a container's IP address, but this will not be
 > reflected in the `/etc/hosts` file.
 
-## Logging drivers (--log-driver)
+# Logging drivers (--log-driver)
 
-You can specify a different logging driver for the container than for the daemon.
+The container can have a different logging driver than the Docker daemon. Use
+the `--log-driver=VALUE` with the `docker run` command to configure the
+container's logging driver. The following options are supported:
 
-#### Logging driver: none
+| `none`      | Disables any logging for the container. `docker logs` won't be available with this driver.                                    |
+|-------------|-------------------------------------------------------------------------------------------------------------------------------|
+| `json-file` | Default logging driver for Docker. Writes JSON messages to file.  No logging options are supported for this driver.           |
+| `syslog`    | Syslog logging driver for Docker. Writes log messages to syslog.                                                              |
+| `journald`  | Journald logging driver for Docker. Writes log messages to `journald`.                                                        |
+| `gelf`      | Graylog Extended Log Format (GELF) logging driver for Docker. Writes log messages to a GELF endpoint likeGraylog or Logstash. |
+| `fluentd`   | Fluentd logging driver for Docker. Writes log messages to `fluentd` (forward input).                                          |
 
-Disables any logging for the container. `docker logs` won't be available with
-this driver.
-
-#### Logging driver: json-file
-
-Default logging driver for Docker. Writes JSON messages to file. `docker logs`
-command is available only for this logging driver
-
-The following logging options are supported for this logging driver: [none]
-
-#### Logging driver: syslog
-
-Syslog logging driver for Docker. Writes log messages to syslog. `docker logs`
-command is not available for this logging driver
-
-The following logging options are supported for this logging driver:
-
-    --log-opt syslog-address=[tcp|udp]://host:port
-    --log-opt syslog-address=unix://path
-    --log-opt syslog-facility=daemon
-    --log-opt syslog-tag="mailer"
-
-`syslog-address` specifies the remote syslog server address where the driver connects to.
-If not specified it defaults to the local unix socket of the running system.
-If transport is either `tcp` or `udp` and `port` is not specified it defaults to `514`
-The following example shows how to have the `syslog` driver connect to a `syslog`
-remote server at `192.168.0.42` on port `123`
-
-    $ docker run --log-driver=syslog --log-opt syslog-address=tcp://192.168.0.42:123
-
-The `syslog-facility` option configures the syslog facility. By default, the system uses the
-`daemon` value. To override this behavior, you can provide an integer of 0 to 23 or any of
-the following named facilities:
-
-* `kern`
-* `user`
-* `mail`
-* `daemon`
-* `auth`
-* `syslog`
-* `lpr`
-* `news`
-* `uucp`
-* `cron`
-* `authpriv`
-* `ftp`
-* `local0`
-* `local1`
-* `local2`
-* `local3`
-* `local4`
-* `local5`
-* `local6`
-* `local7`
-
-The `syslog-tag` specifies a tag that identifies the container's syslog messages. By default,
-the system uses the first 12 characters of the container id. To override this behavior, specify
-a `syslog-tag` option
-
-#### Logging driver: journald
-
-Journald logging driver for Docker. Writes log messages to journald; the
-container id will be stored in the journal's `CONTAINER_ID` field. `docker logs`
-command is not available for this logging driver.  For detailed information on
-working with this logging driver, see [the journald logging driver](reference/logging/journald)
-reference documentation.
-
-The following logging options are supported for this logging driver: [none]
-
-#### Logging driver: gelf
-
-Graylog Extended Log Format (GELF) logging driver for Docker. Writes log messages to a GELF endpoint like
-Graylog or Logstash. The `docker logs` command is not available for this logging driver.
-
-The GELF logging driver supports the following options:
-
-    --log-opt gelf-address=udp://host:port
-    --log-opt gelf-tag="database"
-
-The `gelf-address` option specifies the remote GELF server address that the
-driver connects to. Currently, only `udp` is supported as the transport and you must
-specify a `port` value. The following example shows how to connect the `gelf`
-driver to a GELF remote server at `192.168.0.42` on port `12201`
-
-    $ docker run --log-driver=gelf --log-opt gelf-address=udp://192.168.0.42:12201
-
-The `gelf-tag` option specifies a tag for easy container identification.
+	The `docker logs`command is available only for the `json-file` logging
+driver.  For detailed information on working with logging drivers, see
+[Configure a logging driver](reference/logging/).
 
 ## Overriding Dockerfile image defaults
 
