@@ -453,7 +453,7 @@ func (d *driver) getNetwork(id types.UUID) (*bridgeNetwork, error) {
 		return nw, nil
 	}
 
-	return nil, nil
+	return nil, types.NotFoundErrorf("network not found: %s", id)
 }
 
 func parseNetworkGenericOptions(data interface{}) (*networkConfiguration, error) {
