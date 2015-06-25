@@ -286,3 +286,8 @@ func ImageReference(repo, ref string) string {
 func DigestReference(ref string) bool {
 	return strings.Contains(ref, ":")
 }
+
+func RunningInsideDockerContainer() bool {
+	_, err := os.Stat("/.dockerinit")
+	return !os.IsNotExist(err)
+}
