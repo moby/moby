@@ -168,7 +168,31 @@ func (d *Driver) Status() [][2]string {
 }
 
 func (d *Driver) GetMetadata(id string) (map[string]string, error) {
-	return nil, nil
+	dir := d.dir(id)
+	if _, err := os.Stat(dir); err != nil {
+		return nil, err
+	}
+
+	metadata := make(map[string]string)
+
+	// If id has a root, it is an image
+	rootDir := path.Join(dir, "root")
+	if _, err := os.Stat(rootDir); err == nil {
+		metadata["RootDir"] = rootDir
+		return metadata, nil
+	}
+
+	lowerId, err := ioutil.ReadFile(path.Join(dir, "lower-id"))
+	if err != nil {
+		return nil, err
+	}
+
+	metadata["LowerDir"] = path.Join(d.dir(string(lowerId)), "root")
+	metadata["UpperDir"] = path.Join(dir, "upper")
+	metadata["WorkDir"] = path.Join(dir, "work")
+	metadata["MergedDir"] = path.Join(dir, "merged")
+
+	return metadata, nil
 }
 
 func (d *Driver) Cleanup() error {
