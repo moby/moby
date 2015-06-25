@@ -56,7 +56,7 @@ only the package you install differs. There are two packages to choose from:
     </td>
         <p>
     <a href="https://get.docker.com/rpm/1.7.0/fedora-20/SRPMS/docker-engine-1.7.0-1.fc20.src.rpm">
-    https://get.docker.com/rpm/1.7.0/fedora-20/SRPMS/docker-engine-1.7.0-1.fc20.src.rpm/a>
+    https://get.docker.com/rpm/1.7.0/fedora-20/SRPMS/docker-engine-1.7.0-1.fc20.src.rpm</a>
         </p>
     </td>
   </tr>
@@ -70,7 +70,7 @@ only the package you install differs. There are two packages to choose from:
     </td>
         <p>
     <a href="https://get.docker.com/rpm/1.7.0/fedora-21/SRPMS/docker-engine-1.7.0-1.fc21.src.rpm">
-    https://get.docker.com/rpm/1.7.0/fedora-21/SRPMS/docker-engine-1.7.0-1.fc21.src.rpm/a>
+    https://get.docker.com/rpm/1.7.0/fedora-21/SRPMS/docker-engine-1.7.0-1.fc21.src.rpm</a>
         </p>
     </td>
   </tr>
@@ -84,7 +84,7 @@ only the package you install differs. There are two packages to choose from:
     </td>
         <p>
     <a href="https://get.docker.com/rpm/1.7.0/fedora-22/SRPMS/docker-engine-1.7.0-1.fc22.src.rpm">
-    https://get.docker.com/rpm/1.7.0/fedora-22/SRPMS/docker-engine-1.7.0-1.fc22.src.rpm/a>
+    https://get.docker.com/rpm/1.7.0/fedora-22/SRPMS/docker-engine-1.7.0-1.fc22.src.rpm</a>
         </p>
     </td>
   </tr> 
