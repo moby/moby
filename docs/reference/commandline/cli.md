@@ -1845,6 +1845,21 @@ The currently supported filters are:
 
 This shows all the containers that have exited with status of '0'
 
+##### Killed containers
+
+You can use a filter to locate containers that exited with status of `137` meaning a `SIGKILL(9)` killed them.
+
+    $ docker ps -a --filter 'exited=137'
+    CONTAINER ID        IMAGE               COMMAND                CREATED             STATUS                       PORTS               NAMES
+    b3e1c0ed5bfe        ubuntu:latest       "sleep 1000"           12 seconds ago      Exited (137) 5 seconds ago                       grave_kowalevski
+    a2eb5558d669        redis:latest        "/entrypoint.sh redi   2 hours ago         Exited (137) 2 hours ago                         sharp_lalande
+
+Any of these events a result in `137` status:
+
+* the `init` process of the container is killed manually
+* `docker kill` kills the container
+* Docker daemon restarts which kills all old running containers
+
 ## pull
 
     Usage: docker pull [OPTIONS] NAME[:TAG] | [REGISTRY_HOST[:REGISTRY_PORT]/]NAME[:TAG]
