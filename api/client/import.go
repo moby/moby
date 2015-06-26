@@ -71,5 +71,6 @@ func (cli *DockerCli) CmdImport(args ...string) error {
 		out:         cli.out,
 	}
 
-	return cli.stream("POST", "/images/create?"+v.Encode(), sopts)
+	_, err := cli.stream("POST", "/images/create?"+v.Encode(), sopts)
+	return err
 }

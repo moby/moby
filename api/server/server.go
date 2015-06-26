@@ -1502,6 +1502,8 @@ func makeHttpHandler(logging bool, localMethod string, localRoute string, handle
 			return
 		}
 
+		w.Header().Set("Server", "Docker/"+dockerversion.VERSION+" ("+runtime.GOOS+")")
+
 		if err := handlerFunc(version, w, r, mux.Vars(r)); err != nil {
 			logrus.Errorf("Handler for %s %s returned error: %s", localMethod, localRoute, err)
 			httpError(w, err)
