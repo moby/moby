@@ -289,7 +289,7 @@ system
 * [Docker Compose](https://github.com/docker/compose) (formerly Fig): 
 Define and run multi-container apps
 * [Kitematic](https://github.com/kitematic/kitematic): The easiest way to use 
-Docker on a Mac
+Docker on Mac and Windows
 
 If you know of another project underway that should be listed here, please help 
 us keep this list up-to-date by submitting a PR.
