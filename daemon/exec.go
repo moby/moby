@@ -109,7 +109,6 @@ func (d *Daemon) getActiveContainer(name string) (*Container, error) {
 }
 
 func (d *Daemon) ContainerExecCreate(config *runconfig.ExecConfig) (string, error) {
-
 	// Not all drivers support Exec (LXC for example)
 	if err := checkExecSupport(d.execDriver.Name()); err != nil {
 		return "", err
@@ -123,11 +122,16 @@ func (d *Daemon) ContainerExecCreate(config *runconfig.ExecConfig) (string, erro
 	cmd := runconfig.NewCommand(config.Cmd...)
 	entrypoint, args := d.getEntrypointAndArgs(runconfig.NewEntrypoint(), cmd)
 
+	user := config.User
+	if len(user) == 0 {
+		user = container.Config.User
+	}
+
 	processConfig := execdriver.ProcessConfig{
 		Tty:        config.Tty,
 		Entrypoint: entrypoint,
 		Arguments:  args,
-		User:       config.User,
+		User:       user,
 	}
 
 	execConfig := &execConfig{
