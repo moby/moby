@@ -131,7 +131,7 @@
 		},
 		{
 			"ImportPath": "github.com/vishvananda/netns",
-			"Rev": "5478c060110032f972e86a1f844fdb9a2f008f2c"
+			"Rev": "b7a04d6db3dce92b370e6d5b6ab9e2361a3c53e1"
 		}
 	]
 }
