@@ -1636,3 +1636,48 @@ func (s *DockerSuite) TestPostContainerStop(c *check.C) {
 		c.Fatal(err)
 	}
 }
+
+// #14170
+func (s *DockerSuite) TestPostContainersCreateWithStringOrSliceEntrypoint(c *check.C) {
+	config := struct {
+		Image      string
+		Entrypoint string
+		Cmd        []string
+	}{"busybox", "echo", []string{"hello", "world"}}
+	_, _, err := sockRequest("POST", "/containers/create?name=echotest", config)
+	c.Assert(err, check.IsNil)
+	out, _ := dockerCmd(c, "start", "-a", "echotest")
+	c.Assert(strings.TrimSpace(out), check.Equals, "hello world")
+
+	config2 := struct {
+		Image      string
+		Entrypoint []string
+		Cmd        []string
+	}{"busybox", []string{"echo"}, []string{"hello", "world"}}
+	_, _, err = sockRequest("POST", "/containers/create?name=echotest2", config2)
+	c.Assert(err, check.IsNil)
+	out, _ = dockerCmd(c, "start", "-a", "echotest2")
+	c.Assert(strings.TrimSpace(out), check.Equals, "hello world")
+}
+
+// #14170
+func (s *DockerSuite) TestPostContainersCreateWithStringOrSliceCmd(c *check.C) {
+	config := struct {
+		Image      string
+		Entrypoint string
+		Cmd        string
+	}{"busybox", "echo", "hello world"}
+	_, _, err := sockRequest("POST", "/containers/create?name=echotest", config)
+	c.Assert(err, check.IsNil)
+	out, _ := dockerCmd(c, "start", "-a", "echotest")
+	c.Assert(strings.TrimSpace(out), check.Equals, "hello world")
+
+	config2 := struct {
+		Image string
+		Cmd   []string
+	}{"busybox", []string{"echo", "hello", "world"}}
+	_, _, err = sockRequest("POST", "/containers/create?name=echotest2", config2)
+	c.Assert(err, check.IsNil)
+	out, _ = dockerCmd(c, "start", "-a", "echotest2")
+	c.Assert(strings.TrimSpace(out), check.Equals, "hello world")
+}
