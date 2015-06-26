@@ -71,6 +71,7 @@ func init() {
 		command.Expose:     expose,
 		command.Volume:     volume,
 		command.User:       user,
+		command.Include:    dispatchInclude,
 	}
 }
 
@@ -130,7 +131,8 @@ type Builder struct {
 	memory       int64
 	memorySwap   int64
 
-	cancelled <-chan struct{} // When closed, job was cancelled.
+	cancelled      <-chan struct{} // When closed, job was cancelled.
+	buildContainer *daemon.Container
 }
 
 // Run the builder with the context. This is the lynchpin of this package. This
