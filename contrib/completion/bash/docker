@@ -527,11 +527,16 @@ _docker_inspect() {
 		--format|-f)
 			return
 			;;
+		--type)
+                     COMPREPLY=( $( compgen -W "image container" -- "$cur" ) )
+                     return
+                        ;;
+
 	esac
 
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--format -f --help" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--format -f --type --help" -- "$cur" ) )
 			;;
 		*)
 			__docker_containers_and_images

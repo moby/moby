@@ -18,17 +18,25 @@ import (
 func (cli *DockerCli) CmdInspect(args ...string) error {
 	cmd := cli.Subcmd("inspect", []string{"CONTAINER|IMAGE [CONTAINER|IMAGE...]"}, "Return low-level information on a container or image", true)
 	tmplStr := cmd.String([]string{"f", "#format", "-format"}, "", "Format the output using the given go template")
+	inspectType := cmd.String([]string{"-type"}, "", "Return JSON for specified type, (e.g image or container)")
+
 	cmd.Require(flag.Min, 1)
 
 	cmd.ParseFlags(args, true)
 
 	var tmpl *template.Template
+	var err error
+	var obj []byte
+
 	if *tmplStr != "" {
-		var err error
 		if tmpl, err = template.New("").Funcs(funcMap).Parse(*tmplStr); err != nil {
 			return StatusError{StatusCode: 64,
 				Status: "Template parsing error: " + err.Error()}
 		}
+	}
+
+	if *inspectType != "" && *inspectType != "container" && *inspectType != "image" {
+		return fmt.Errorf("%q is not a valid value for --type", *inspectType)
 	}
 
 	indented := new(bytes.Buffer)
@@ -37,13 +45,12 @@ func (cli *DockerCli) CmdInspect(args ...string) error {
 	isImage := false
 
 	for _, name := range cmd.Args() {
-		obj, _, err := readBody(cli.call("GET", "/containers/"+name+"/json", nil, nil))
-		if err != nil {
-			obj, _, err = readBody(cli.call("GET", "/images/"+name+"/json", nil, nil))
-			isImage = true
-			if err != nil {
+
+		if *inspectType == "" || *inspectType == "container" {
+			obj, _, err = readBody(cli.call("GET", "/containers/"+name+"/json", nil, nil))
+			if err != nil && *inspectType == "container" {
 				if strings.Contains(err.Error(), "No such") {
-					fmt.Fprintf(cli.err, "Error: No such image or container: %s\n", name)
+					fmt.Fprintf(cli.err, "Error: No such container: %s\n", name)
 				} else {
 					fmt.Fprintf(cli.err, "%s", err)
 				}
@@ -52,8 +59,27 @@ func (cli *DockerCli) CmdInspect(args ...string) error {
 			}
 		}
 
+		if obj == nil && (*inspectType == "" || *inspectType == "image") {
+			obj, _, err = readBody(cli.call("GET", "/images/"+name+"/json", nil, nil))
+			isImage = true
+			if err != nil {
+				if strings.Contains(err.Error(), "No such") {
+					if *inspectType == "" {
+						fmt.Fprintf(cli.err, "Error: No such image or container: %s\n", name)
+					} else {
+						fmt.Fprintf(cli.err, "Error: No such image: %s\n", name)
+					}
+				} else {
+					fmt.Fprintf(cli.err, "%s", err)
+				}
+				status = 1
+				continue
+			}
+
+		}
+
 		if tmpl == nil {
-			if err = json.Indent(indented, obj, "", "    "); err != nil {
+			if err := json.Indent(indented, obj, "", "    "); err != nil {
 				fmt.Fprintf(cli.err, "%s\n", err)
 				status = 1
 				continue
