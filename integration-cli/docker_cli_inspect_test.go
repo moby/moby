@@ -38,6 +38,115 @@ func (s *DockerSuite) TestInspectInt64(c *check.C) {
 	}
 }
 
+func (s *DockerSuite) TestInspectDefault(c *check.C) {
+
+	//Both the container and image are named busybox. docker inspect will fetch the container JSON.
+	//If the container JSON is not available, it will go for the image JSON.
+
+	runCmd := exec.Command(dockerBinary, "run", "--name=busybox", "-d", "busybox", "true")
+	out, _, _, err := runCommandWithStdoutStderr(runCmd)
+	if err != nil {
+		c.Fatalf("failed to run container: %v, output: %q", err, out)
+	}
+
+	inspectCmd := exec.Command(dockerBinary, "inspect", "busybox")
+
+	_, exitCode, err := runCommandWithOutput(inspectCmd)
+	if exitCode != 0 || err != nil {
+		c.Fatalf("failed to inspect container: %s, %v", out, err)
+	}
+}
+
+func (s *DockerSuite) TestInspectTypeFlagContainer(c *check.C) {
+
+	//Both the container and image are named busybox. docker inspect will fetch container
+	//JSON State.Running field. If the field is true, it's a container.
+
+	runCmd := exec.Command(dockerBinary, "run", "--name=busybox", "-d", "busybox", "top")
+	out, _, _, err := runCommandWithStdoutStderr(runCmd)
+	if err != nil {
+		c.Fatalf("failed to run container: %v, output: %q", err, out)
+	}
+
+	formatStr := fmt.Sprintf("--format='{{.State.Running}}'")
+	inspectCmd := exec.Command(dockerBinary, "inspect", "--type=container", formatStr, "busybox")
+
+	out, exitCode, err := runCommandWithOutput(inspectCmd)
+	if exitCode != 0 || err != nil {
+		c.Fatalf("failed to inspect container: %s, %v", out, err)
+	}
+
+	if out != "true\n" {
+		c.Fatal("not a container JSON")
+	}
+}
+
+func (s *DockerSuite) TestInspectTypeFlagWithNoContainer(c *check.C) {
+
+	//Run this test on an image named busybox. docker inspect will try to fetch container
+	//JSON. Since there is no container named busybox and --type=container, docker inspect will
+	//not try to get the image JSON. It will throw an error.
+
+	runCmd := exec.Command(dockerBinary, "run", "-d", "busybox", "true")
+	out, _, _, err := runCommandWithStdoutStderr(runCmd)
+	if err != nil {
+		c.Fatalf("failed to run container: %v, output: %q", err, out)
+	}
+
+	inspectCmd := exec.Command(dockerBinary, "inspect", "--type=container", "busybox")
+
+	_, exitCode, err := runCommandWithOutput(inspectCmd)
+	if exitCode == 0 || err == nil {
+		c.Fatalf("docker inspect should have failed, as there is no container named busybox")
+	}
+}
+
+func (s *DockerSuite) TestInspectTypeFlagWithImage(c *check.C) {
+
+	//Both the container and image are named busybox. docker inspect will fetch image
+	//JSON as --type=image. if there is no image with name busybox, docker inspect
+	//will throw an error.
+
+	runCmd := exec.Command(dockerBinary, "run", "--name=busybox", "-d", "busybox", "true")
+	out, _, _, err := runCommandWithStdoutStderr(runCmd)
+	if err != nil {
+		c.Fatalf("failed to run container: %v, output: %q", err, out)
+	}
+
+	inspectCmd := exec.Command(dockerBinary, "inspect", "--type=image", "busybox")
+
+	out, exitCode, err := runCommandWithOutput(inspectCmd)
+	if exitCode != 0 || err != nil {
+		c.Fatalf("failed to inspect image: %s, %v", out, err)
+	}
+
+	if strings.Contains(out, "State") {
+		c.Fatal("not an image JSON")
+	}
+
+}
+
+func (s *DockerSuite) TestInspectTypeFlagWithInvalidValue(c *check.C) {
+
+	//Both the container and image are named busybox. docker inspect will fail
+	//as --type=foobar is not a valid value for the flag.
+
+	runCmd := exec.Command(dockerBinary, "run", "--name=busybox", "-d", "busybox", "true")
+	out, _, _, err := runCommandWithStdoutStderr(runCmd)
+	if err != nil {
+		c.Fatalf("failed to run container: %v, output: %q", err, out)
+	}
+
+	inspectCmd := exec.Command(dockerBinary, "inspect", "--type=foobar", "busybox")
+
+	out, exitCode, err := runCommandWithOutput(inspectCmd)
+	if exitCode != 0 || err != nil {
+		if !strings.Contains(out, "not a valid value for --type") {
+			c.Fatalf("failed to inspect image: %s, %v", out, err)
+		}
+	}
+}
+
 func (s *DockerSuite) TestInspectImageFilterInt(c *check.C) {
 	imageTest := "emptyfs"
 	out, err := inspectField(imageTest, "Size")
