@@ -51,7 +51,7 @@ In most cases, it's best to put each Dockerfile in an empty directory. Then,
 only add the files needed for building the Dockerfile to the directory. To
 increase the build's performance, you can exclude files and directories by
 adding a `.dockerignore` file to the directory.  For information about how to
-[create a `.dockerignore` file](#the-dockerignore-file) on this page.
+[create a `.dockerignore` file](#dockerignore-file) on this page.
 
 You can specify a repository and tag at which to save the new image if
 the build succeeds:
