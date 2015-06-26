@@ -12,6 +12,7 @@ parent = "smn_linux"
 
 Docker is supported on these Ubuntu operating systems:
 
+- Ubuntu Vivid 15.04 
 - Ubuntu Trusty 14.04 (LTS) 
 - Ubuntu Precise 12.04 (LTS) 
 - Ubuntu Saucy 13.10
@@ -41,6 +42,10 @@ your kernel version:
 >run Docker, see the prerequisites on this page that apply to your Ubuntu
 >version.
 
+
+### For Vivid 15.04
+
+There are no prerequisites for this version.
 
 ### For Trusty 14.04
 
@@ -143,6 +148,7 @@ better with Docker.
 * [Adjust memory and swap accounting](#adjust-memory-and-swap-accounting) 
 * [Enable UFW forwarding](#enable-ufw-forwarding) 
 * [Configure a DNS server for use by Docker](#configure-a-dns-server-for-docker)
+* [Configure Docker to start on boot](#configure-docker-to-start-on-boot)
 
 ### Create a Docker group		
 
@@ -316,6 +322,19 @@ NetworkManager (this might slow your network).
 
         $ sudo restart network-manager $ sudo restart docker
 
+### Configure Docker to start on boot
+
+Ubuntu uses `systemd` as its boot and service manager `15.04` onwards and `upstart`
+for versions `14.10` and below.
+
+For `15.04` and up, to configure the `docker` daemon to start on boot, run
+
+    $ sudo systemctl enable docker
+
+&nbsp;
+
+For `14.10` and below the above installation method automatically configures `upstart`
+to start the docker daemon on boot
 
 ## Upgrade Docker
 
