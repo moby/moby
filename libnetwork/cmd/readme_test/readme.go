@@ -45,7 +45,7 @@ func main() {
 
 	// A container can join the endpoint by providing the container ID to the join
 	// api.
-	// Join acceps Variadic arguments which will be made use of by libnetwork and Drivers
+	// Join accepts Variadic arguments which will be made use of by libnetwork and Drivers
 	err = ep.Join("container1",
 		libnetwork.JoinOptionHostname("test"),
 		libnetwork.JoinOptionDomainname("docker.io"))
@@ -53,7 +53,7 @@ func main() {
 		return
 	}
 
-	// libentwork client can check the endpoint's operational data via the Info() API
+	// libnetwork client can check the endpoint's operational data via the Info() API
 	epInfo, err := ep.DriverInfo()
 	mapData, ok := epInfo[netlabel.PortMap]
 	if ok {

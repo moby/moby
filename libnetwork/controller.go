@@ -34,7 +34,7 @@ create network namespaces and allocate interfaces for containers to use.
 
 	// A container can join the endpoint by providing the container ID to the join
 	// api.
-	// Join acceps Variadic arguments which will be made use of by libnetwork and Drivers
+	// Join accepts Variadic arguments which will be made use of by libnetwork and Drivers
 	err = ep.Join("container1",
 		libnetwork.JoinOptionHostname("test"),
 		libnetwork.JoinOptionDomainname("docker.io"))

@@ -242,7 +242,7 @@ func (ep *endpoint) KeyPrefix() []string {
 
 func (ep *endpoint) networkIDFromKey(key []string) (types.UUID, error) {
 	// endpoint Key structure : endpoint/network-id/endpoint-id
-	// its an invalid key if the key doesnt have all the 3 key elements above
+	// it's an invalid key if the key doesn't have all the 3 key elements above
 	if key == nil || len(key) < 3 || key[0] != datastore.EndpointKeyPrefix {
 		return types.UUID(""), fmt.Errorf("invalid endpoint key : %v", key)
 	}
