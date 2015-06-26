@@ -2,8 +2,8 @@ package client
 
 import (
 	"encoding/json"
-	"fmt"
 	"runtime"
+	"text/template"
 
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types"
@@ -12,33 +12,70 @@ import (
 	"github.com/docker/docker/utils"
 )
 
+var VersionTemplate = `Client:
+ Version:      {{.Client.Version}}
+ API version:  {{.Client.ApiVersion}}
+ Go version:   {{.Client.GoVersion}}
+ Git commit:   {{.Client.GitCommit}}
+ Built:        {{.Client.BuildTime}}
+ OS/Arch:      {{.Client.Os}}/{{.Client.Arch}}{{if .Client.Experimental}}
+ Experimental: {{.Client.Experimental}}{{end}}{{if .ServerOK}}
+
+Server:
+ Version:      {{.Server.Version}}
+ API version:  {{.Server.ApiVersion}}
+ Go version:   {{.Server.GoVersion}}
+ Git commit:   {{.Server.GitCommit}}
+ Built:        {{.Server.BuildTime}}
+ OS/Arch:      {{.Server.Os}}/{{.Server.Arch}}{{if .Server.Experimental}}
+ Experimental: {{.Server.Experimental}}{{end}}{{end}}`
+
+type VersionData struct {
+	Client   types.Version
+	ServerOK bool
+	Server   types.Version
+}
+
 // CmdVersion shows Docker version information.
 //
 // Available version information is shown for: client Docker version, client API version, client Go version, client Git commit, client OS/Arch, server Docker version, server API version, server Go version, server Git commit, and server OS/Arch.
 //
 // Usage: docker version
-func (cli *DockerCli) CmdVersion(args ...string) error {
+func (cli *DockerCli) CmdVersion(args ...string) (err error) {
 	cmd := cli.Subcmd("version", nil, "Show the Docker version information.", true)
+	tmplStr := cmd.String([]string{"f", "#format", "-format"}, "", "Format the output using the given go template")
 	cmd.Require(flag.Exact, 0)
 
 	cmd.ParseFlags(args, true)
+	if *tmplStr == "" {
+		*tmplStr = VersionTemplate
+	}
 
-	fmt.Println("Client:")
-	if dockerversion.VERSION != "" {
-		fmt.Fprintf(cli.out, " Version:      %s\n", dockerversion.VERSION)
+	var tmpl *template.Template
+	if tmpl, err = template.New("").Funcs(funcMap).Parse(*tmplStr); err != nil {
+		return StatusError{StatusCode: 64,
+			Status: "Template parsing error: " + err.Error()}
 	}
-	fmt.Fprintf(cli.out, " API version:  %s\n", api.Version)
-	fmt.Fprintf(cli.out, " Go version:   %s\n", runtime.Version())
-	if dockerversion.GITCOMMIT != "" {
-		fmt.Fprintf(cli.out, " Git commit:   %s\n", dockerversion.GITCOMMIT)
+
+	vd := VersionData{
+		Client: types.Version{
+			Version:      dockerversion.VERSION,
+			ApiVersion:   api.Version,
+			GoVersion:    runtime.Version(),
+			GitCommit:    dockerversion.GITCOMMIT,
+			BuildTime:    dockerversion.BUILDTIME,
+			Os:           runtime.GOOS,
+			Arch:         runtime.GOARCH,
+			Experimental: utils.ExperimentalBuild(),
+		},
 	}
-	if dockerversion.BUILDTIME != "" {
-		fmt.Fprintf(cli.out, " Built:        %s\n", dockerversion.BUILDTIME)
-	}
-	fmt.Fprintf(cli.out, " OS/Arch:      %s/%s\n", runtime.GOOS, runtime.GOARCH)
-	if utils.ExperimentalBuild() {
-		fmt.Fprintf(cli.out, " Experimental: true\n")
-	}
+
+	defer func() {
+		if err2 := tmpl.Execute(cli.out, vd); err2 != nil && err == nil {
+			err = err2
+		}
+		cli.out.Write([]byte{'\n'})
+	}()
 
 	serverResp, err := cli.call("GET", "/version", nil, nil)
 	if err != nil {
@@ -47,26 +84,12 @@ func (cli *DockerCli) CmdVersion(args ...string) error {
 
 	defer serverResp.body.Close()
 
-	var v types.Version
-	if err := json.NewDecoder(serverResp.body).Decode(&v); err != nil {
-		fmt.Fprintf(cli.err, "Error reading remote version: %s\n", err)
-		return err
+	if err = json.NewDecoder(serverResp.body).Decode(&vd.Server); err != nil {
+		return StatusError{StatusCode: 1,
+			Status: "Error reading remote version: " + err.Error()}
 	}
 
-	fmt.Println("\nServer:")
-	fmt.Fprintf(cli.out, " Version:      %s\n", v.Version)
-	if v.ApiVersion != "" {
-		fmt.Fprintf(cli.out, " API version:  %s\n", v.ApiVersion)
-	}
-	fmt.Fprintf(cli.out, " Go version:   %s\n", v.GoVersion)
-	fmt.Fprintf(cli.out, " Git commit:   %s\n", v.GitCommit)
-	if len(v.BuildTime) > 0 {
-		fmt.Fprintf(cli.out, " Built:        %s\n", v.BuildTime)
-	}
-	fmt.Fprintf(cli.out, " OS/Arch:      %s/%s\n", v.Os, v.Arch)
-	if v.Experimental {
-		fmt.Fprintf(cli.out, " Experimental: true\n")
-	}
-	fmt.Fprintf(cli.out, "\n")
-	return nil
+	vd.ServerOK = true
+
+	return
 }
