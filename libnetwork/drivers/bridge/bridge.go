@@ -111,6 +111,9 @@ func Init(dc driverapi.DriverCallback) error {
 	if out, err := exec.Command("modprobe", "-va", "bridge", "nf_nat", "br_netfilter").CombinedOutput(); err != nil {
 		logrus.Warnf("Running modprobe bridge nf_nat br_netfilter failed with message: %s, error: %v", out, err)
 	}
+	if err := iptables.FirewalldInit(); err != nil {
+		logrus.Debugf("Fail to initialize firewalld: %v, using raw iptables instead", err)
+	}
 	if err := iptables.RemoveExistingChain(DockerChain, iptables.Nat); err != nil {
 		logrus.Warnf("Failed to remove existing iptables entries in %s : %v", DockerChain, err)
 	}
