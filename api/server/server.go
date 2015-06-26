@@ -1221,18 +1221,17 @@ func (s *Server) getImagesByName(version version.Version, w http.ResponseWriter,
 
 func (s *Server) postBuild(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	var (
-		authConfig        = &cliconfig.AuthConfig{}
-		configFileEncoded = r.Header.Get("X-Registry-Config")
-		configFile        = &cliconfig.ConfigFile{}
-		buildConfig       = builder.NewBuildConfig()
+		authConfigs        = map[string]cliconfig.AuthConfig{}
+		authConfigsEncoded = r.Header.Get("X-Registry-Config")
+		buildConfig        = builder.NewBuildConfig()
 	)
 
-	if configFileEncoded != "" {
-		configFileJson := base64.NewDecoder(base64.URLEncoding, strings.NewReader(configFileEncoded))
-		if err := json.NewDecoder(configFileJson).Decode(configFile); err != nil {
+	if authConfigsEncoded != "" {
+		authConfigsJSON := base64.NewDecoder(base64.URLEncoding, strings.NewReader(authConfigsEncoded))
+		if err := json.NewDecoder(authConfigsJSON).Decode(&authConfigs); err != nil {
 			// for a pull it is not an error if no auth was given
-			// to increase compatibility with the existing api it is defaulting to be empty
-			configFile = &cliconfig.ConfigFile{}
+			// to increase compatibility with the existing api it is defaulting
+			// to be empty.
 		}
 	}
 
@@ -1259,8 +1258,7 @@ func (s *Server) postBuild(version version.Version, w http.ResponseWriter, r *ht
 	buildConfig.SuppressOutput = boolValue(r, "q")
 	buildConfig.NoCache = boolValue(r, "nocache")
 	buildConfig.ForceRemove = boolValue(r, "forcerm")
-	buildConfig.AuthConfig = authConfig
-	buildConfig.ConfigFile = configFile
+	buildConfig.AuthConfigs = authConfigs
 	buildConfig.MemorySwap = int64ValueOrZero(r, "memswap")
 	buildConfig.Memory = int64ValueOrZero(r, "memory")
 	buildConfig.CpuShares = int64ValueOrZero(r, "cpushares")
