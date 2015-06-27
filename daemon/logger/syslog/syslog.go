@@ -4,6 +4,7 @@ package syslog
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"log/syslog"
 	"net"
@@ -112,8 +113,12 @@ func parseAddress(address string) (string, string, error) {
 
 		// unix socket validation
 		if url.Scheme == "unix" {
-			if _, err := os.Stat(url.Path); err != nil {
+			fi, err := os.Stat(url.Path)
+			if err != nil {
 				return "", "", err
+			}
+			if fi.Mode()&os.ModeSocket == 0 {
+				return "", "", fmt.Errorf("%s is not a socket file", url.Path)
 			}
 			return url.Scheme, url.Path, nil
 		}
