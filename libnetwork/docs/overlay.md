@@ -34,7 +34,7 @@ In this example we will use `consul`
 Install:
 
 ```
-$ curl -OL https://dl.bintray.com/mitchellh/consul/#0.5.2_linux_amd64.zip
+$ curl -OL https://dl.bintray.com/mitchellh/consul/0.5.2_linux_amd64.zip
 $ unzip 0.5.2_linux_amd64.zip
 $ mv consul /usr/local/bin/
 ```
