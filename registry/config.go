@@ -25,8 +25,6 @@ const (
 	INDEXSERVER    = "https://index.docker.io/v1/"
 	REGISTRYSERVER = "https://registry-1.docker.io/v2/"
 	INDEXNAME      = "docker.io"
-
-	// INDEXSERVER = "https://registry-stage.hub.docker.com/v1/"
 )
 
 var (
