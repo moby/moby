@@ -485,6 +485,14 @@ func (container *Container) buildJoinOptions() ([]libnetwork.EndpointOption, err
 		},
 	}
 
+	err = container.walkLabels(func(l, v string) {
+		linkOptions[l] = v
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
 	joinOptions = append(joinOptions, libnetwork.JoinOptionGeneric(linkOptions))
 
 	return joinOptions, nil
@@ -721,18 +729,26 @@ func (container *Container) buildCreateEndpointOptions() ([]libnetwork.EndpointO
 		libnetwork.CreateOptionPortMapping(pbList),
 		libnetwork.CreateOptionExposedPorts(exposeList))
 
+	genericOption := options.Generic{}
 	if container.Config.MacAddress != "" {
 		mac, err := net.ParseMAC(container.Config.MacAddress)
 		if err != nil {
 			return nil, err
 		}
 
-		genericOption := options.Generic{
-			netlabel.MacAddress: mac,
-		}
+		genericOption[netlabel.MacAddress] = mac
 
-		createOptions = append(createOptions, libnetwork.EndpointOptionGeneric(genericOption))
 	}
+
+	err := container.walkLabels(func(l, v string) {
+		genericOption[l] = v
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	createOptions = append(createOptions, libnetwork.EndpointOptionGeneric(genericOption))
 
 	return createOptions, nil
 }
