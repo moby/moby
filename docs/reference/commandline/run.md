@@ -480,3 +480,19 @@ available in the default container, you can set these using the `--ulimit` flag.
 
 The values are sent to the appropriate `syscall` as they are set.
 Docker doesn't perform any byte conversion. Take this into account when setting the values.
+
+#### For `nproc` usage:
+
+Be careful setting `nproc` with the `ulimit` flag as `nproc` is designed by Linux to set the
+maximum number of processes available to a user, not to a container.  For example, start four
+containers with `daemon` user:
+
+
+    docker run -d -u daemon --ulimit nproc=3 busybox top
+    docker run -d -u daemon --ulimit nproc=3 busybox top
+    docker run -d -u daemon --ulimit nproc=3 busybox top
+    docker run -d -u daemon --ulimit nproc=3 busybox top
+
+The 4th container fails and reports "[8] System error: resource temporarily unavailable" error. 
+This fails because the caller set `nproc=3` resulting in the first three containers using up 
+the three processes quota set for the `daemon` user.
