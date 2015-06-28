@@ -1134,6 +1134,30 @@ func (s *DockerSuite) TestContainerApiVerifyHeader(c *check.C) {
 	body.Close()
 }
 
+//Issue 14230. daemon should return 500 for invalid port syntax
+func (s *DockerSuite) TestContainerApiInvalidPortSyntax(c *check.C) {
+	config := `{
+				  "Image": "busybox",
+				  "HostConfig": {
+					"PortBindings": {
+					  "19039;1230": [
+						{}
+					  ]
+					}
+				  }
+				}`
+
+	res, body, err := sockRequestRaw("POST", "/containers/create", strings.NewReader(config), "application/json")
+	c.Assert(res.StatusCode, check.Equals, http.StatusInternalServerError)
+	c.Assert(err, check.IsNil)
+
+	b, err := readBody(body)
+	if err != nil {
+		c.Fatal(err)
+	}
+	c.Assert(strings.Contains(string(b[:]), "Invalid port"), check.Equals, true)
+}
+
 // Issue 7941 - test to make sure a "null" in JSON is just ignored.
 // W/o this fix a null in JSON would be parsed into a string var as "null"
 func (s *DockerSuite) TestContainerApiPostCreateNull(c *check.C) {
