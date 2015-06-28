@@ -92,6 +92,13 @@ directory from your Docker daemon's host into a container.
 > using `docker run -v /Users/<path>:/<container path> ...` (OS X) or
 > `docker run -v /c/Users/<path>:/<container path ...` (Windows). All other paths
 > come from the Boot2Docker virtual machine's filesystem.
+>
+> You have to be aware that the source path in the following command is the one on the 
+> virtual box, which happens to match the one on your drive in the case of the Users
+> directory, as it is mounted by default. If you want to have a folder other than
+> the Users folder available for sharing from the virtualbox, you will need to make it 
+> available as a shared folder in virtualbox, and mount it in the vm as explained in 
+> [boot2docker's doc](https://github.com/boot2docker/boot2docker#virtualbox-guest-additions)
 
     $ docker run -d -P --name web -v /src/webapp:/opt/webapp training/webapp python app.py
 
