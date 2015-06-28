@@ -102,6 +102,10 @@ This will mount the host directory, `/src/webapp`, into the container at
 > If the path `/opt/webapp` already exists inside the container's image, its
 > contents will be replaced by the contents of `/src/webapp` on the host to stay
 > consistent with the expected behavior of `mount`
+>
+> When using Boot2Docker on Windows through git bash, there might be an issue with the 
+> way the source directory name is parsed. You can fix it by using a double slash at
+> the beginning of the source directory name as explained in [issue #12751](https://github.com/docker/docker/issues/12751)
 
 This is very useful for testing, for example we can
 mount our source code inside the container and see our application at work as
