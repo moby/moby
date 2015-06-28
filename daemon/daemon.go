@@ -32,6 +32,7 @@ import (
 	"github.com/docker/docker/daemon/network"
 	"github.com/docker/docker/graph"
 	"github.com/docker/docker/image"
+	"github.com/docker/docker/nat"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/broadcastwriter"
 	"github.com/docker/docker/pkg/fileutils"
@@ -1188,6 +1189,13 @@ func (daemon *Daemon) verifyHostConfig(hostConfig *runconfig.HostConfig) ([]stri
 
 	if hostConfig == nil {
 		return warnings, nil
+	}
+
+	for port := range hostConfig.PortBindings {
+		_, portStr := nat.SplitProtoPort(string(port))
+		if _, err := nat.ParsePort(portStr); err != nil {
+			return warnings, fmt.Errorf("Invalid port specification: %s", portStr)
+		}
 	}
 
 	if hostConfig.LxcConf.Len() > 0 && !strings.Contains(daemon.ExecutionDriver().Name(), "lxc") {
