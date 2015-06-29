@@ -8,6 +8,7 @@ docker-inspect - Return low-level information on a container or image
 **docker inspect**
 [**--help**]
 [**-f**|**--format**[=*FORMAT*]]
+[**-r**|**--remote**[=*false*]]
 [**--type**=*container*|*image*]
 CONTAINER|IMAGE [CONTAINER|IMAGE...]
 
@@ -24,6 +25,14 @@ each result.
 
 **-f**, **--format**=""
     Format the output using the given go template.
+
+**-r**, **--remote**=*true*|*false*
+    Inspect remote images.
+
+    Image name can be suffixed with [:TAG]. If short name is given, all
+additional registries will be searched until a match is found. The default is
+*false*. To see image's digest string and its source registry, pass **-D**
+option to Docker client. Implies **--type=image**.
 
 **--type**=*container*|*image*
     Return JSON for specified type, permissible values are "image" or "container"
