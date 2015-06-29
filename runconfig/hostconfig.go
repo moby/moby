@@ -36,6 +36,8 @@ func (n NetworkMode) NetworkName() string {
 		return "host"
 	} else if n.IsContainer() {
 		return "container"
+	} else if n.IsNetwork() {
+		return "network"
 	} else if n.IsNone() {
 		return "none"
 	} else if n.IsDefault() {
@@ -55,6 +57,11 @@ func (n NetworkMode) IsHost() bool {
 func (n NetworkMode) IsContainer() bool {
 	parts := strings.SplitN(string(n), ":", 2)
 	return len(parts) > 1 && parts[0] == "container"
+}
+
+func (n NetworkMode) IsNetwork() bool {
+	parts := strings.SplitN(string(n), ":", 2)
+	return len(parts) > 1 && parts[0] == "network"
 }
 
 func (n NetworkMode) IsNone() bool {
