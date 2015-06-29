@@ -2,7 +2,9 @@ package sandbox
 
 import (
 	"fmt"
+	"io/ioutil"
 	"net"
+	"regexp"
 	"sync"
 
 	"github.com/docker/libnetwork/types"
@@ -151,6 +153,33 @@ func (i *nwIface) Remove() error {
 
 		return nil
 	})
+}
+
+// Returns the sandbox's side veth interface statistics
+func (i *nwIface) Statistics() (*InterfaceStatistics, error) {
+	i.Lock()
+	n := i.ns
+	i.Unlock()
+
+	n.Lock()
+	path := n.path
+	n.Unlock()
+
+	s := &InterfaceStatistics{}
+
+	err := nsInvoke(path, func(nsFD int) error { return nil }, func(callerFD int) error {
+		data, err := ioutil.ReadFile(netStatsFile)
+		if err != nil {
+			return fmt.Errorf("failed to open %s: %v", netStatsFile, err)
+		}
+		return scanInterfaceStats(string(data), i.DstName(), s)
+	})
+
+	if err != nil {
+		err = fmt.Errorf("failed to retrieve the statistics for %s in netns %s: %v", i.DstName(), path, err)
+	}
+
+	return s, err
 }
 
 func (n *networkNamespace) findDst(srcName string, isBridge bool) string {
@@ -310,4 +339,29 @@ func setInterfaceRoutes(iface netlink.Link, i *nwIface) error {
 		}
 	}
 	return nil
+}
+
+// In older kernels (like the one in Centos 6.6 distro) sysctl does not have netns support. Therefore
+// we cannot gather the statistics from /sys/class/net/<dev>/statistics/<counter> files. Per-netns stats
+// are naturally found in /proc/net/dev in kernels which support netns (ifconfig relyes on that).
+const (
+	netStatsFile = "/proc/net/dev"
+	base         = "[ ]*%s:([ ]+[0-9]+){16}"
+)
+
+func scanInterfaceStats(data, ifName string, i *InterfaceStatistics) error {
+	var (
+		bktStr string
+		bkt    uint64
+	)
+
+	regex := fmt.Sprintf(base, ifName)
+	re := regexp.MustCompile(regex)
+	line := re.FindString(data)
+
+	_, err := fmt.Sscanf(line, "%s %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d",
+		&bktStr, &i.RxBytes, &i.RxPackets, &i.RxErrors, &i.RxDropped, &bkt, &bkt, &bkt,
+		&bkt, &i.TxBytes, &i.TxPackets, &i.TxErrors, &i.TxDropped, &bkt, &bkt, &bkt, &bkt)
+
+	return err
 }

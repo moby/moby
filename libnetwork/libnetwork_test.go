@@ -1042,6 +1042,15 @@ func TestEndpointJoin(t *testing.T) {
 		t.Fatalf("Endpoint ContainerInfo returned unexpected id: %s", ep1.ContainerInfo().ID())
 	}
 
+	// Attempt retrieval of endpoint interfaces statistics
+	stats, err := ep1.Statistics()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := stats["eth0"]; !ok {
+		t.Fatalf("Did not find eth0 statistics")
+	}
+
 	// Now test the container joining another network
 	n2, err := createTestNetwork(bridgeNetType, "testnetwork2",
 		options.Generic{
