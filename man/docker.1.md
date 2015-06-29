@@ -297,79 +297,198 @@ inside it)
 
 # STORAGE DRIVER OPTIONS
 
-Options to storage backend can be specified with **--storage-opt** flags. The
-only backend which currently takes options is *devicemapper*. Therefore use these
+Docker uses storage backends (known as "graphdrivers" in the Docker
+internals) to create writable containers from images.  Many of these
+backends use operating system level technologies and can be
+configured.
+
+Specify options to the storage backend with **--storage-opt** flags. The only
+backend that currently takes options is *devicemapper*. Therefore use these
 flags with **-s=**devicemapper.
+
+Specifically for devicemapper, the default is a "loopback" model which
+requires no pre-configuration, but is extremely inefficient.  Do not
+use it in production.
+
+To make the best use of Docker with the devicemapper backend, you must
+have a recent version of LVM.  Use `lvm` to create a thin pool; for
+more information see `man lvmthin`.  Then, use `--storage-opt
+dm.thinpooldev` to tell the Docker engine to use that pool for
+allocating images and container snapshots.
 
 Here is the list of *devicemapper* options:
 
+#### dm.thinpooldev
+
+Specifies a custom block storage device to use for the thin pool.
+
+If using a block device for device mapper storage, it is best to use
+`lvm` to create and manage the thin-pool volume. This volume is then
+handed to Docker to create snapshot volumes needed for images and
+containers.
+
+Managing the thin-pool outside of Docker makes for the most feature-rich method
+of having Docker utilize device mapper thin provisioning as the backing storage
+for Docker's containers. The highlights of the LVM-based thin-pool management
+feature include: automatic or interactive thin-pool resize support, dynamically
+changing thin-pool features, automatic thinp metadata checking when lvm activates
+the thin-pool, etc.
+
+Example use: `docker -d --storage-opt dm.thinpooldev=/dev/mapper/thin-pool`
+
 #### dm.basesize
-Specifies the size to use when creating the base device, which limits the size
-of images and containers. The default value is 10G. Note, thin devices are
-inherently "sparse", so a 10G device which is mostly empty doesn't use 10 GB
-of space on the pool. However, the filesystem will use more space for the empty
-case the larger the device is. **Warning**: This value affects the system-wide
-"base" empty filesystem that may already be initialized and inherited by pulled
-images.
 
-#### dm.loopdatasize
-Specifies the size to use when creating the loopback file for the "data"
-device which is used for the thin pool. The default size is 100G. Note that the
-file is sparse, so it will not initially take up this much space.
+Specifies the size to use when creating the base device, which limits
+the size of images and containers. The default value is 10G. Note,
+thin devices are inherently "sparse", so a 10G device which is mostly
+empty doesn't use 10 GB of space on the pool. However, the filesystem
+will use more space for base images the larger the device
+is. 
 
-#### dm.loopmetadatasize
-Specifies the size to use when creating the loopback file for the "metadadata"
-device which is used for the thin pool. The default size is 2G. Note that the
-file is sparse, so it will not initially take up this much space.
+This value affects the system-wide "base" empty filesystem that may already
+be initialized and inherited by pulled images. Typically, a change to this
+value requires additional steps to take effect:
+
+        $ sudo service docker stop
+        $ sudo rm -rf /var/lib/docker
+        $ sudo service docker start
+
+Example use: `docker -d --storage-opt dm.basesize=20G`
 
 #### dm.fs
-Specifies the filesystem type to use for the base device. The supported
-options are "ext4" and "xfs". The default is "ext4"
+
+Specifies the filesystem type to use for the base device. The
+supported options are `ext4` and `xfs`. The default is `ext4`.
+
+Example use: `docker -d --storage-opt dm.fs=xfs`
 
 #### dm.mkfsarg
+
 Specifies extra mkfs arguments to be used when creating the base device.
 
+Example use: `docker -d --storage-opt "dm.mkfsarg=-O ^has_journal"`
+
 #### dm.mountopt
+
 Specifies extra mount options used when mounting the thin devices.
 
-#### dm.datadev
-Specifies a custom blockdevice to use for data for the thin pool.
+Example use: `docker -d --storage-opt dm.mountopt=nodiscard`
 
-If using a block device for device mapper storage, ideally both datadev and
-metadatadev should be specified to completely avoid using the loopback device.
+#### dm.use_deferred_removal
+
+Enables use of deferred device removal if `libdm` and the kernel driver
+support the mechanism.
+
+Deferred device removal means that if device is busy when devices are
+being removed/deactivated, then a deferred removal is scheduled on
+device. And devices automatically go away when last user of the device
+exits.
+
+For example, when a container exits, its associated thin device is removed. If
+that device has leaked into some other mount namespace and can't be removed,
+the container exit still succeeds and this option causes the system to schedule
+the device for deferred removal. It does not wait in a loop trying to remove a busy
+device.
+
+Example use: `docker -d --storage-opt dm.use_deferred_removal=true`
+
+#### dm.loopdatasize
+
+**Note**: This option configures devicemapper loopback, which should not be used in production.
+
+Specifies the size to use when creating the loopback file for the
+"data" device which is used for the thin pool. The default size is
+100G. The file is sparse, so it will not initially take up
+this much space.
+
+Example use: `docker -d --storage-opt dm.loopdatasize=200G`
+
+#### dm.loopmetadatasize
+
+**Note**: This option configures devicemapper loopback, which should not be used in production.
+
+Specifies the size to use when creating the loopback file for the
+"metadadata" device which is used for the thin pool. The default size
+is 2G. The file is sparse, so it will not initially take up
+this much space.
+
+Example use: `docker -d --storage-opt dm.loopmetadatasize=4G`
+
+#### dm.datadev
+
+(Deprecated, use `dm.thinpooldev`)
+
+Specifies a custom blockdevice to use for data for a
+Docker-managed thin pool.  It is better to use `dm.thinpooldev` - see
+the documentation for it above for discussion of the advantages.
 
 #### dm.metadatadev
-Specifies a custom blockdevice to use for metadata for the thin pool.
 
-For best performance the metadata should be on a different spindle than the
-data, or even better on an SSD.
+(Deprecated, use `dm.thinpooldev`)
 
-If setting up a new metadata pool it is required to be valid. This can be
-achieved by zeroing the first 4k to indicate empty metadata, like this:
-
-    dd if=/dev/zero of=/dev/metadata_dev bs=4096 count=1
+Specifies a custom blockdevice to use for metadata for a
+Docker-managed thin pool.  See `dm.datadev` for why this is
+deprecated.
 
 #### dm.blocksize
-Specifies a custom blocksize to use for the thin pool. The default blocksize
-is 64K.
+
+Specifies a custom blocksize to use for the thin pool.  The default
+blocksize is 64K.
+
+Example use: `docker -d --storage-opt dm.blocksize=512K`
 
 #### dm.blkdiscard
-Enables or disables the use of blkdiscard when removing devicemapper devices.
-This is enabled by default (only) if using loopback devices and is required to
-resparsify the loopback file on image/container removal.
 
-Disabling this on loopback can lead to *much* faster container removal times,
-but will prevent the space used in `/var/lib/docker` directory from being returned to
-the system for other use when containers are removed.
+Enables or disables the use of `blkdiscard` when removing devicemapper
+devices.  This is disabled by default due to the additional latency,
+but as a special case with loopback devices it will be enabled, in
+order to re-sparsify the loopback file on image/container removal.
 
-# EXAMPLES
-Launching docker daemon with *devicemapper* backend with particular block devices
-for data and metadata:
+Disabling this on loopback can lead to *much* faster container removal
+times, but it also prevents the space used in `/var/lib/docker` directory
+from being returned to the system for other use when containers are
+removed.
 
-    docker -d -s=devicemapper \
-      --storage-opt dm.datadev=/dev/vdb \
-      --storage-opt dm.metadatadev=/dev/vdc \
-      --storage-opt dm.basesize=20G
+Example use: `docker -d --storage-opt dm.blkdiscard=false`
+
+#### dm.override_udev_sync_check
+
+By default, the devicemapper backend attempts to synchronize with the
+`udev` device manager for the Linux kernel.  This option allows
+disabling that synchronization, to continue even though the
+configuration may be buggy.
+
+To view the `udev` sync support of a Docker daemon that is using the
+`devicemapper` driver, run:
+
+        $ docker info
+	[...]
+	 Udev Sync Supported: true
+	[...]
+
+When `udev` sync support is `true`, then `devicemapper` and `udev` can
+coordinate the activation and deactivation of devices for containers.
+
+When `udev` sync support is `false`, a race condition occurs between
+the`devicemapper` and `udev` during create and cleanup. The race
+condition results in errors and failures. (For information on these
+failures, see
+[docker#4036](https://github.com/docker/docker/issues/4036))
+
+To allow the `docker` daemon to start, regardless of whether `udev` sync is
+`false`, set `dm.override_udev_sync_check` to true:
+
+        $ docker -d --storage-opt dm.override_udev_sync_check=true
+
+When this value is `true`, the driver continues and simply warns you
+the errors are happening.
+
+**Note**: The ideal is to pursue a `docker` daemon and environment
+that does support synchronizing with `udev`. For further discussion on
+this topic, see
+[docker#4036](https://github.com/docker/docker/issues/4036).
+Otherwise, set this flag for migrating existing Docker daemons to a
+daemon with a supported environment.
 
 # EXEC DRIVER OPTIONS
 
