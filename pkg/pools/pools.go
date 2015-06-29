@@ -57,6 +57,14 @@ func (bufPool *BufioReaderPool) Put(b *bufio.Reader) {
 	bufPool.pool.Put(b)
 }
 
+// Copy is a convenience wrapper which uses a buffer to avoid allocation in io.Copy
+func Copy(dst io.Writer, src io.Reader) (written int64, err error) {
+	buf := BufioReader32KPool.Get(src)
+	written, err = io.Copy(dst, buf)
+	BufioReader32KPool.Put(buf)
+	return
+}
+
 // NewReadCloserWrapper returns a wrapper which puts the bufio.Reader back
 // into the pool and closes the reader if it's an io.ReadCloser.
 func (bufPool *BufioReaderPool) NewReadCloserWrapper(buf *bufio.Reader, r io.Reader) io.ReadCloser {
