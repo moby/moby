@@ -8,7 +8,7 @@ parent = "smn_containers"
 +++
 <![end-metadata]-->
 
-# "Get started with containers
+# Get started with containers
 
 This guide assumes you have a working installation of Docker. To check
 your Docker install, run the following command:
