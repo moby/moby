@@ -2,14 +2,17 @@ package graph
 
 import (
 	"fmt"
-	"log"
 	"path"
 	"sort"
 	"strings"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/cliconfig"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/parsers/filters"
+	"github.com/docker/docker/pkg/transport"
+	"github.com/docker/docker/registry"
 	"github.com/docker/docker/utils"
 )
 
@@ -29,6 +32,17 @@ type ByCreated []*types.Image
 func (r ByCreated) Len() int           { return len(r) }
 func (r ByCreated) Swap(i, j int)      { r[i], r[j] = r[j], r[i] }
 func (r ByCreated) Less(i, j int) bool { return r[i].Created < r[j].Created }
+
+type ByTagName []*types.RepositoryTag
+
+func (r ByTagName) Len() int           { return len(r) }
+func (r ByTagName) Swap(i, j int)      { r[i], r[j] = r[j], r[i] }
+func (r ByTagName) Less(i, j int) bool { return r[i].Tag < r[j].Tag }
+
+type TagsConfig struct {
+	MetaHeaders map[string][]string
+	AuthConfig  *cliconfig.AuthConfig
+}
 
 func (s *TagStore) Images(config *ImagesConfig) ([]*types.Image, error) {
 	var (
@@ -79,7 +93,7 @@ func (s *TagStore) Images(config *ImagesConfig) ([]*types.Image, error) {
 			imgRef := utils.ImageReference(repoName, ref)
 			image, err := s.graph.Get(id)
 			if err != nil {
-				log.Printf("Warning: couldn't load %s from %s: %s", id, imgRef, err)
+				logrus.Printf("Warning: couldn't load %s from %s: %s", id, imgRef, err)
 				continue
 			}
 
@@ -150,4 +164,103 @@ func (s *TagStore) Images(config *ImagesConfig) ([]*types.Image, error) {
 	sort.Sort(sort.Reverse(ByCreated(images)))
 
 	return images, nil
+}
+
+func (s *TagStore) Tags(name string, config *TagsConfig) (*types.RepositoryTagList, error) {
+	// Resolve the Repository name from fqn to RepositoryInfo
+	repoInfo, err := s.registryService.ResolveRepository(name)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := validateRepoName(repoInfo.LocalName); err != nil {
+		return nil, err
+	}
+
+	endpoint, err := repoInfo.GetEndpoint(config.MetaHeaders)
+	if err != nil {
+		return nil, err
+	}
+
+	tr := transport.NewTransport(
+		registry.NewTransport(registry.ReceiveTimeout, endpoint.IsSecure),
+		registry.DockerHeaders(config.MetaHeaders)...,
+	)
+	client := registry.HTTPClient(tr)
+	r, err := registry.NewSession(client, config.AuthConfig, endpoint)
+	if err != nil {
+		return nil, err
+	}
+
+	tagList := &types.RepositoryTagList{}
+	tagList.Name = repoInfo.CanonicalName
+
+	// first try v1 endpoint because it gives us tags with associated IDs
+	tagList.TagList, err = s.getRemoteV1TagList(r, repoInfo, config.AuthConfig)
+	if err != nil && endpoint.Version == registry.APIVersion1 {
+		return nil, err
+	}
+	if err == nil {
+		sort.Sort(ByTagName(tagList.TagList))
+		return tagList, err
+	}
+	tagList.TagList, err = s.getRemoteV2TagList(r, repoInfo)
+	if err != nil {
+		return nil, err
+	}
+	sort.Sort(ByTagName(tagList.TagList))
+	return tagList, nil
+}
+
+func (s *TagStore) getRemoteV1TagList(r *registry.Session, repoInfo *registry.RepositoryInfo, auth *cliconfig.AuthConfig) ([]*types.RepositoryTag, error) {
+	repoData, err := r.GetRepositoryData(repoInfo.RemoteName)
+	if err != nil {
+		if strings.Contains(err.Error(), "HTTP code: 404") {
+			return nil, fmt.Errorf("Error: repository %s not found", repoInfo.RemoteName)
+		}
+		// Unexpected HTTP error
+		return nil, err
+	}
+
+	logrus.Debugf("Retrieving the tag list from V1 endpoints")
+	tagsList, err := r.GetRemoteTags(repoData.Endpoints, repoInfo.RemoteName)
+	if err != nil {
+		logrus.Errorf("Unable to get remote tags: %s", err)
+		return nil, err
+	}
+	if len(tagsList) < 1 {
+		return nil, fmt.Errorf("No tags available for remote repository %s", repoInfo.CanonicalName)
+	}
+
+	tagList := make([]*types.RepositoryTag, 0, len(tagsList))
+	for tag, imageID := range tagsList {
+		tagList = append(tagList, &types.RepositoryTag{Tag: tag, ImageID: imageID})
+	}
+
+	return tagList, nil
+}
+
+func (s *TagStore) getRemoteV2TagList(r *registry.Session, repoInfo *registry.RepositoryInfo) ([]*types.RepositoryTag, error) {
+	endpoint, err := r.V2RegistryEndpoint(repoInfo.Index)
+	if err != nil {
+		if repoInfo.Index.Official {
+			logrus.Debugf("Unable to get remote tags from V2 registry: %v", err)
+			return nil, ErrV2RegistryUnavailable
+		}
+		return nil, fmt.Errorf("error getting registry endpoint: %s", err)
+	}
+	auth, err := r.GetV2Authorization(endpoint, repoInfo.RemoteName, true)
+	if err != nil {
+		return nil, fmt.Errorf("error getting authorization: %s", err)
+	}
+	logrus.Debugf("Retrieving the tag list from V2 endpoint %v", endpoint.URL)
+	tags, err := r.GetV2RemoteTags(endpoint, repoInfo.RemoteName, auth)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to get remote tags: %v", err)
+	}
+	tagList := make([]*types.RepositoryTag, len(tags))
+	for i, tag := range tags {
+		tagList[i] = &types.RepositoryTag{Tag: tag}
+	}
+	return tagList, nil
 }

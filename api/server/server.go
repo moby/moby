@@ -1215,8 +1215,37 @@ func (s *Server) getImagesByName(version version.Version, w http.ResponseWriter,
 	if err != nil {
 		return err
 	}
-
 	return writeJSON(w, http.StatusOK, imageInspect)
+}
+
+func (s *Server) getImagesTags(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	name := vars["name"]
+	authEncoded := r.Header.Get("X-Registry-Auth")
+	authConfig := &cliconfig.AuthConfig{}
+	if authEncoded != "" {
+		authJson := base64.NewDecoder(base64.URLEncoding, strings.NewReader(authEncoded))
+		if err := json.NewDecoder(authJson).Decode(authConfig); err != nil {
+			// for a pull it is not an error if no auth was given
+			// to increase compatibility with the existing api it is defaulting to be empty
+			authConfig = &cliconfig.AuthConfig{}
+		}
+	}
+
+	metaHeaders := map[string][]string{}
+	for k, v := range r.Header {
+		if strings.HasPrefix(k, "X-Meta-") {
+			metaHeaders[k] = v
+		}
+	}
+	tagsConfig := &graph.TagsConfig{
+		MetaHeaders: metaHeaders,
+		AuthConfig:  authConfig,
+	}
+	tagList, err := s.daemon.Repositories().Tags(name, tagsConfig)
+	if err != nil {
+		return err
+	}
+	return writeJSON(w, http.StatusOK, tagList)
 }
 
 func (s *Server) postBuild(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
@@ -1529,6 +1558,7 @@ func createRouter(s *Server) *mux.Router {
 			"/images/{name:.*}/get":           s.getImagesGet,
 			"/images/{name:.*}/history":       s.getImagesHistory,
 			"/images/{name:.*}/json":          s.getImagesByName,
+			"/images/{name:.*}/tags":          s.getImagesTags,
 			"/containers/ps":                  s.getContainersJSON,
 			"/containers/json":                s.getContainersJSON,
 			"/containers/{name:.*}/export":    s.getContainersExport,

@@ -253,3 +253,15 @@ type ContainerConfig struct {
 	CpuShares  int64
 	Cpuset     string
 }
+
+type RepositoryTag struct {
+	Tag     string
+	ImageID string
+}
+
+// GET "/images/{name:.*}/tags"
+type RepositoryTagList struct {
+	// Fully qualified repository name
+	Name    string
+	TagList []*RepositoryTag
+}

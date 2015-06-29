@@ -375,6 +375,7 @@ complete -c docker -A -f -n '__fish_seen_subcommand_from stop' -a '(__fish_print
 # tag
 complete -c docker -f -n '__fish_docker_no_subcommand' -a tag -d 'Tag an image into a repository'
 complete -c docker -A -f -n '__fish_seen_subcommand_from tag' -s f -l force -d 'Force'
+complete -c docker -A -f -n '__fish_seen_subcommand_from tag' -s l -l list -d 'List tags of remote repositories'
 complete -c docker -A -f -n '__fish_seen_subcommand_from tag' -l help -d 'Print usage'
 
 # top
