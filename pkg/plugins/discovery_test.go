@@ -60,6 +60,46 @@ func TestLocalSocket(t *testing.T) {
 	}
 }
 
+func TestLocalSocketDir(t *testing.T) {
+	tmpdir, err := ioutil.TempDir("", "docker-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpdir)
+	pluginDir := filepath.Join(tmpdir, "echo")
+	if err := os.MkdirAll(pluginDir, 0755); err != nil {
+		t.Fatalf("failed to create plugin directory %q: %v", pluginDir, err)
+	}
+	l, err := net.Listen("unix", filepath.Join(pluginDir, "echo.sock"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer l.Close()
+
+	r := newLocalRegistry(tmpdir)
+	p, err := r.Plugin("echo")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	pp, err := r.Plugin("echo")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(p, pp) {
+		t.Fatalf("Expected %v, was %v\n", p, pp)
+	}
+
+	if p.Name != "echo" {
+		t.Fatalf("Expected plugin `echo`, got %s\n", p.Name)
+	}
+
+	addr := fmt.Sprintf("unix://%s/echo/echo.sock", tmpdir)
+	if p.Addr != addr {
+		t.Fatalf("Expected plugin addr `%s`, got %s\n", addr, p.Addr)
+	}
+}
+
 func TestFileSpecPlugin(t *testing.T) {
 	tmpdir, err := ioutil.TempDir("", "docker-test")
 	if err != nil {
