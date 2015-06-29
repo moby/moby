@@ -2,6 +2,7 @@ package runconfig
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"strings"
@@ -308,5 +309,85 @@ func TestDecodeContainerConfig(t *testing.T) {
 		if h.Memory != 1000 {
 			t.Fatalf("Expected memory to be 1000, found %d\n", h.Memory)
 		}
+	}
+}
+
+func TestEntrypointUnmarshalString(t *testing.T) {
+	var e *Entrypoint
+	echo, err := json.Marshal("echo")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal(echo, &e); err != nil {
+		t.Fatal(err)
+	}
+
+	slice := e.Slice()
+	if len(slice) != 1 {
+		t.Fatalf("expected 1 element after unmarshal: %q", slice)
+	}
+
+	if slice[0] != "echo" {
+		t.Fatalf("expected `echo`, got: %q", slice[0])
+	}
+}
+
+func TestEntrypointUnmarshalSlice(t *testing.T) {
+	var e *Entrypoint
+	echo, err := json.Marshal([]string{"echo"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal(echo, &e); err != nil {
+		t.Fatal(err)
+	}
+
+	slice := e.Slice()
+	if len(slice) != 1 {
+		t.Fatalf("expected 1 element after unmarshal: %q", slice)
+	}
+
+	if slice[0] != "echo" {
+		t.Fatalf("expected `echo`, got: %q", slice[0])
+	}
+}
+
+func TestCommandUnmarshalSlice(t *testing.T) {
+	var e *Command
+	echo, err := json.Marshal([]string{"echo"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal(echo, &e); err != nil {
+		t.Fatal(err)
+	}
+
+	slice := e.Slice()
+	if len(slice) != 1 {
+		t.Fatalf("expected 1 element after unmarshal: %q", slice)
+	}
+
+	if slice[0] != "echo" {
+		t.Fatalf("expected `echo`, got: %q", slice[0])
+	}
+}
+
+func TestCommandUnmarshalString(t *testing.T) {
+	var e *Command
+	echo, err := json.Marshal("echo")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal(echo, &e); err != nil {
+		t.Fatal(err)
+	}
+
+	slice := e.Slice()
+	if len(slice) != 1 {
+		t.Fatalf("expected 1 element after unmarshal: %q", slice)
+	}
+
+	if slice[0] != "echo" {
+		t.Fatalf("expected `echo`, got: %q", slice[0])
 	}
 }
