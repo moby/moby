@@ -9,6 +9,7 @@ import (
 	"syscall"
 
 	"github.com/docker/docker/daemon/execdriver"
+	tools "github.com/docker/docker/utils"
 	"github.com/docker/libcontainer"
 	_ "github.com/docker/libcontainer/nsenter"
 	"github.com/docker/libcontainer/utils"
@@ -21,9 +22,11 @@ func (d *driver) Exec(c *execdriver.Command, processConfig *execdriver.ProcessCo
 		return -1, fmt.Errorf("No active container exists with ID %s", c.ID)
 	}
 
+	env := tools.ReplaceOrAppendEnvValues(c.ProcessConfig.Env, processConfig.Env)
+
 	p := &libcontainer.Process{
 		Args: append([]string{processConfig.Entrypoint}, processConfig.Arguments...),
-		Env:  c.ProcessConfig.Env,
+		Env:  env,
 		Cwd:  c.WorkingDir,
 		User: processConfig.User,
 	}

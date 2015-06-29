@@ -635,3 +635,135 @@ func (s *DockerSuite) TestExecWithUser(c *check.C) {
 	}
 
 }
+
+func (s *DockerSuite) TestExecWithEnv(c *check.C) {
+
+	runCmd := exec.Command(dockerBinary, "run", "-h", "testing", "-d", "--name", "exectest", "busybox", "top")
+	if out, _, err := runCommandWithOutput(runCmd); err != nil {
+		c.Fatal(out, err)
+	}
+
+	cmd := exec.Command(dockerBinary, "exec", "-e=FALSE=true", "-e=TRUE", "-e=TRICKY", "-e=HOME=", "exectest", "env")
+	cmd.Env = append(os.Environ(),
+		"TRUE=false",
+		"TRICKY=tri\ncky\n",
+	)
+
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		c.Fatal(err, out)
+	}
+
+	actualEnvLxc := strings.Split(strings.TrimSpace(out), "\n")
+	actualEnv := []string{}
+	for i := range actualEnvLxc {
+		if actualEnvLxc[i] != "container=lxc" {
+			actualEnv = append(actualEnv, actualEnvLxc[i])
+		}
+	}
+	sort.Strings(actualEnv)
+
+	goodEnv := []string{
+		"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+		"HOSTNAME=testing",
+		"FALSE=true",
+		"TRUE=false",
+		"TRICKY=tri",
+		"cky",
+		"",
+		"HOME=/root",
+	}
+	sort.Strings(goodEnv)
+	if len(goodEnv) != len(actualEnv) {
+		c.Fatalf("Wrong environment: should be %d variables, not: %q\n", len(goodEnv), strings.Join(actualEnv, ", "))
+	}
+	for i := range goodEnv {
+		if actualEnv[i] != goodEnv[i] {
+			c.Fatalf("Wrong environment variable: should be %s, not %s", goodEnv[i], actualEnv[i])
+		}
+	}
+}
+
+func (s *DockerSuite) TestExecWithEnvErase(c *check.C) {
+	// Test to make sure that when we use -e on env vars that are
+	// not set in our local env that they're removed (if present) in
+	// the container
+
+	runCmd := exec.Command(dockerBinary, "run", "-d", "--name", "exectest", "busybox", "top")
+	if out, _, err := runCommandWithOutput(runCmd); err != nil {
+		c.Fatal(out, err)
+	}
+
+	cmd := exec.Command(dockerBinary, "exec", "-e", "FOO", "-e", "HOSTNAME", "exectest", "env")
+	cmd.Env = appendBaseEnv([]string{})
+
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		c.Fatal(err, out)
+	}
+
+	actualEnvLxc := strings.Split(strings.TrimSpace(out), "\n")
+	actualEnv := []string{}
+	for i := range actualEnvLxc {
+		if actualEnvLxc[i] != "container=lxc" {
+			actualEnv = append(actualEnv, actualEnvLxc[i])
+		}
+	}
+	sort.Strings(actualEnv)
+
+	goodEnv := []string{
+		"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+		"HOME=/root",
+	}
+	sort.Strings(goodEnv)
+	if len(goodEnv) != len(actualEnv) {
+		c.Fatalf("Wrong environment: should be %d variables, not: %q\n", len(goodEnv), strings.Join(actualEnv, ", "))
+	}
+	for i := range goodEnv {
+		if actualEnv[i] != goodEnv[i] {
+			c.Fatalf("Wrong environment variable: should be %s, not %s", goodEnv[i], actualEnv[i])
+		}
+	}
+}
+
+func (s *DockerSuite) TestExecWithEnvOverride(c *check.C) {
+	// Test to make sure that when we use -e on env vars that are
+	// already in the env that we're overriding them
+
+	runCmd := exec.Command(dockerBinary, "run", "-d", "--name", "exectest", "busybox", "top")
+	if out, _, err := runCommandWithOutput(runCmd); err != nil {
+		c.Fatal(out, err)
+	}
+
+	cmd := exec.Command(dockerBinary, "exec", "-e", "HOSTNAME", "-e", "HOME=/root2", "exectest", "env")
+	cmd.Env = appendBaseEnv([]string{"HOSTNAME=bar"})
+
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		c.Fatal(err, out)
+	}
+
+	actualEnvLxc := strings.Split(strings.TrimSpace(out), "\n")
+	actualEnv := []string{}
+	for i := range actualEnvLxc {
+		if actualEnvLxc[i] != "container=lxc" {
+			actualEnv = append(actualEnv, actualEnvLxc[i])
+		}
+	}
+	sort.Strings(actualEnv)
+
+	goodEnv := []string{
+		"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+		"HOME=/root2",
+		"HOSTNAME=bar",
+	}
+	sort.Strings(goodEnv)
+	if len(goodEnv) != len(actualEnv) {
+		c.Fatalf("Wrong environment: should be %d variables, not: %q\n", len(goodEnv), strings.Join(actualEnv, ", "))
+	}
+	for i := range goodEnv {
+		if actualEnv[i] != goodEnv[i] {
+			c.Fatalf("Wrong environment variable: should be %s, not %s", goodEnv[i], actualEnv[i])
+		}
+	}
+}

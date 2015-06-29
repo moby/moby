@@ -140,6 +140,7 @@ type ProcessConfig struct {
 
 	Privileged bool     `json:"privileged"`
 	User       string   `json:"user"`
+	Env        []string `json:"env"`
 	Tty        bool     `json:"tty"`
 	Entrypoint string   `json:"entrypoint"`
 	Arguments  []string `json:"arguments"`

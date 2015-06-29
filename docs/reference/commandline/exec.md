@@ -19,6 +19,8 @@ weight=1
       -i, --interactive=false    Keep STDIN open even if not attached
       -t, --tty=false            Allocate a pseudo-TTY
       -u, --user=                Username or UID (format: <name|uid>[:<group|gid>])
+      -e, --env=[]               Set environment variables
+      --env-file=[]              Read in a file of environment variables
 
 The `docker exec` command runs a new command in a running container.
 
