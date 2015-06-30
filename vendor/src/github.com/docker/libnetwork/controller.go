@@ -262,6 +262,7 @@ func (c *controller) NewNetwork(networkType, name string, options ...NetworkOpti
 	}
 
 	if err := c.updateNetworkToStore(network); err != nil {
+		log.Warnf("couldnt create network %s: %v", network.name, err)
 		if e := network.Delete(); e != nil {
 			log.Warnf("couldnt cleanup network %s: %v", network.name, err)
 		}
