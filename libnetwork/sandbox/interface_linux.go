@@ -2,8 +2,8 @@ package sandbox
 
 import (
 	"fmt"
-	"io/ioutil"
 	"net"
+	"os/exec"
 	"regexp"
 	"sync"
 
@@ -168,9 +168,12 @@ func (i *nwIface) Statistics() (*InterfaceStatistics, error) {
 	s := &InterfaceStatistics{}
 
 	err := nsInvoke(path, func(nsFD int) error { return nil }, func(callerFD int) error {
-		data, err := ioutil.ReadFile(netStatsFile)
+		// For some reason ioutil.ReadFile(netStatsFile) reads the file in
+		// the default netns when this code is invoked from docker.
+		// Executing "cat <netStatsFile>" works as expected.
+		data, err := exec.Command("cat", netStatsFile).Output()
 		if err != nil {
-			return fmt.Errorf("failed to open %s: %v", netStatsFile, err)
+			return fmt.Errorf("failure opening %s: %v", netStatsFile, err)
 		}
 		return scanInterfaceStats(string(data), i.DstName(), s)
 	})
