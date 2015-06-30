@@ -182,7 +182,10 @@ func (s *TagStore) Tags(name string) (*types.RepositoryTagList, error) {
 	}
 
 	for ref, id := range repo {
-		tagList.TagList = append(tagList.TagList, &types.RepositoryTag{ref, id})
+		tagList.TagList = append(tagList.TagList, &types.RepositoryTag{
+			Tag:     ref,
+			ImageID: id,
+		})
 	}
 
 	sort.Sort(ByTagName(tagList.TagList))
