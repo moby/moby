@@ -1,6 +1,6 @@
 package network
 
-import "github.com/docker/docker/nat"
+import "github.com/docker/docker/pkg/nat"
 
 type Address struct {
 	Addr      string
