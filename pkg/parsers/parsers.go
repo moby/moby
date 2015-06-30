@@ -24,6 +24,10 @@ func ParseHost(defaultTCPAddr, defaultUnixAddr, addr string) (string, error) {
 	}
 
 	switch addrParts[0] {
+	case "http":
+		return ParseHTTPAddr("http", addrParts[1], defaultTCPAddr, 80)
+	case "https":
+		return ParseHTTPAddr("https", addrParts[1], defaultTCPAddr, 443)
 	case "tcp":
 		return ParseTCPAddr(addrParts[1], defaultTCPAddr)
 	case "unix":
@@ -66,6 +70,39 @@ func ParseTCPAddr(addr string, defaultAddr string) (string, error) {
 		return "", fmt.Errorf("Invalid bind address format: %s", addr)
 	}
 	return fmt.Sprintf("tcp://%s:%d", host, p), nil
+}
+
+func ParseHTTPAddr(proto string, addr string, defaultAddr string, defaultPort int) (string, error) {
+	addr = strings.TrimPrefix(addr, proto+"://")
+	if strings.Contains(addr, "://") || addr == "" {
+		return "", fmt.Errorf("Invalid proto, expected %s: %s", proto, addr)
+	}
+
+	addrParts := strings.SplitN(addr, "/", 2)
+	hostParts := strings.Split(addrParts[0], ":")
+	if len(hostParts) > 2 {
+		return "", fmt.Errorf("Invalid bind address format: %s", addr)
+	}
+	host := hostParts[0]
+	if host == "" {
+		host = defaultAddr
+	}
+
+	port := defaultPort
+	if len(hostParts) == 2 {
+		p, err := strconv.Atoi(hostParts[1])
+		if err != nil && p == 0 {
+			return "", fmt.Errorf("Invalid bind address format: %s", addr)
+		}
+		port = p
+	}
+
+	path := ""
+	if len(addrParts) == 2 {
+		path = "/" + addrParts[1]
+	}
+
+	return fmt.Sprintf(proto+"://%s:%d%s", host, port, path), nil
 }
 
 // Get a repos name and returns the right reposName + tag|digest

@@ -1275,3 +1275,57 @@ func (s *DockerDaemonSuite) TestDaemonNoTlsCliTlsVerifyWithEnv(c *check.C) {
 	c.Assert(err, check.Not(check.IsNil), check.Commentf("%s", out))
 	c.Assert(strings.Contains(out, "error occurred trying to connect"), check.Equals, true)
 }
+
+func (s *DockerDaemonSuite) TestDaemonHTTPClient(c *check.C) {
+	if err := s.d.Start("-H", "tcp://127.0.0.1:80"); err != nil {
+		c.Fatal(err)
+	}
+
+	// Test with http
+	cmd := exec.Command(dockerBinary, "-H", "http://127.0.0.1:80", "info")
+	if out, _, err := runCommandWithOutput(cmd); err != nil {
+		c.Fatal(err, out)
+	}
+	cmd = exec.Command(dockerBinary, "-H", "http://127.0.0.1", "info")
+	if out, _, err := runCommandWithOutput(cmd); err != nil {
+		c.Fatal(err, out)
+	}
+
+	cmd = exec.Command(dockerBinary, "info")
+	cmd.Env = []string{"DOCKER_HOST=http://127.0.0.1:80"}
+	if out, _, err := runCommandWithOutput(cmd); err != nil {
+		c.Fatal(err, out)
+	}
+	cmd = exec.Command(dockerBinary, "info")
+	cmd.Env = []string{"DOCKER_HOST=http://127.0.0.1"}
+	if out, _, err := runCommandWithOutput(cmd); err != nil {
+		c.Fatal(err, out)
+	}
+}
+
+func (s *DockerDaemonSuite) TestDaemonHTTPSClient(c *check.C) {
+	if err := s.d.Start("-H", "tcp://127.0.0.1:443"); err != nil {
+		c.Fatal(err)
+	}
+
+	// Test with http
+	cmd := exec.Command(dockerBinary, "-H", "https://127.0.0.1:443", "info")
+	if out, _, err := runCommandWithOutput(cmd); err != nil {
+		c.Fatal(err, out)
+	}
+	cmd = exec.Command(dockerBinary, "-H", "https://127.0.0.1", "info")
+	if out, _, err := runCommandWithOutput(cmd); err != nil {
+		c.Fatal(err, out)
+	}
+
+	cmd = exec.Command(dockerBinary, "info")
+	cmd.Env = []string{"DOCKER_HOST=https://127.0.0.1:443"}
+	if out, _, err := runCommandWithOutput(cmd); err != nil {
+		c.Fatal(err, out)
+	}
+	cmd = exec.Command(dockerBinary, "info")
+	cmd.Env = []string{"DOCKER_HOST=https://127.0.0.1"}
+	if out, _, err := runCommandWithOutput(cmd); err != nil {
+		c.Fatal(err, out)
+	}
+}
