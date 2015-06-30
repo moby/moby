@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/autogen/dockerversion"
 	"github.com/docker/docker/pkg/archive"
 )
 
@@ -22,9 +23,10 @@ var (
 	// All registred drivers
 	drivers map[string]InitFunc
 
-	ErrNotSupported   = errors.New("driver not supported")
-	ErrPrerequisites  = errors.New("prerequisites for driver not satisfied (wrong filesystem?)")
-	ErrIncompatibleFS = fmt.Errorf("backing file system is unsupported for this graph driver")
+	ErrNotSupported                 = errors.New("driver not supported")
+	ErrPrerequisites                = errors.New("prerequisites for driver not satisfied (wrong filesystem?)")
+	ErrIncompatibleFS               = fmt.Errorf("backing file system is unsupported for this graph driver")
+	ErrDeviceMapperWithStaticDocker = fmt.Errorf("devicemapper storage driver cannot reliably be used with a statically linked docker binary: please either pick a different storage driver, install a dynamically linked docker binary, or force this unreliable setup anyway by specifying --storage-driver=devicemapper")
 )
 
 type InitFunc func(root string, options []string) (Driver, error)
@@ -113,36 +115,35 @@ func New(root string, options []string) (driver Driver, err error) {
 	}
 
 	// Guess for prior driver
-	priorDrivers := scanPriorDrivers(root)
-	for _, name := range priority {
-		if name == "vfs" {
-			// don't use vfs even if there is state present.
-			continue
+	priorDriver, err := scanPriorDrivers(root)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(priorDriver) != 0 {
+		// Do not allow devicemapper when it's not explicit and the Docker binary was built statically.
+		if staticWithDeviceMapper(priorDriver) {
+			return nil, ErrDeviceMapperWithStaticDocker
 		}
-		for _, prior := range priorDrivers {
-			// of the state found from prior drivers, check in order of our priority
-			// which we would prefer
-			if prior == name {
-				driver, err = GetDriver(name, root, options)
-				if err != nil {
-					// unlike below, we will return error here, because there is prior
-					// state, and now it is no longer supported/prereq/compatible, so
-					// something changed and needs attention. Otherwise the daemon's
-					// images would just "disappear".
-					logrus.Errorf("[graphdriver] prior storage driver %q failed: %s", name, err)
-					return nil, err
-				}
-				if err := checkPriorDriver(name, root); err != nil {
-					return nil, err
-				}
-				logrus.Infof("[graphdriver] using prior storage driver %q", name)
-				return driver, nil
-			}
+
+		driver, err = GetDriver(priorDriver, root, options)
+		if err != nil {
+			// unlike below, we will return error here, because there is prior
+			// state, and now it is no longer supported/prereq/compatible, so
+			// something changed and needs attention. Otherwise the daemon's
+			// images would just "disappear".
+			logrus.Errorf("[graphdriver] prior storage driver %q failed: %s", priorDriver, err)
+			return nil, err
 		}
+		logrus.Infof("[graphdriver] using prior storage driver %q", priorDriver)
+		return driver, nil
 	}
 
 	// Check for priority drivers first
 	for _, name := range priority {
+		if staticWithDeviceMapper(name) {
+			continue
+		}
 		driver, err = GetDriver(name, root, options)
 		if err != nil {
 			if err == ErrNotSupported || err == ErrPrerequisites || err == ErrIncompatibleFS {
@@ -154,7 +155,10 @@ func New(root string, options []string) (driver Driver, err error) {
 	}
 
 	// Check all registered drivers if no priority driver is found
-	for _, initFunc := range drivers {
+	for name, initFunc := range drivers {
+		if staticWithDeviceMapper(name) {
+			continue
+		}
 		if driver, err = initFunc(root, options); err != nil {
 			if err == ErrNotSupported || err == ErrPrerequisites || err == ErrIncompatibleFS {
 				continue
@@ -166,31 +170,31 @@ func New(root string, options []string) (driver Driver, err error) {
 	return nil, fmt.Errorf("No supported storage backend found")
 }
 
-// scanPriorDrivers returns an un-ordered scan of directories of prior storage drivers
-func scanPriorDrivers(root string) []string {
-	priorDrivers := []string{}
+// scanPriorDrivers returns a previosly used driver.
+// it returns an error when there are several drivers scanned.
+func scanPriorDrivers(root string) (string, error) {
+	var priorDrivers []string
 	for driver := range drivers {
 		p := filepath.Join(root, driver)
-		if _, err := os.Stat(p); err == nil {
+		if _, err := os.Stat(p); err == nil && driver != "vfs" {
 			priorDrivers = append(priorDrivers, driver)
 		}
 	}
-	return priorDrivers
+
+	if len(priorDrivers) > 1 {
+		return "", multipleDriversError(root, priorDrivers)
+	}
+
+	if len(priorDrivers) == 0 {
+		return "", nil
+	}
+	return priorDrivers[0], nil
 }
 
-func checkPriorDriver(name, root string) error {
-	priorDrivers := []string{}
-	for _, prior := range scanPriorDrivers(root) {
-		if prior != name && prior != "vfs" {
-			if _, err := os.Stat(filepath.Join(root, prior)); err == nil {
-				priorDrivers = append(priorDrivers, prior)
-			}
-		}
-	}
+func multipleDriversError(root string, drivers []string) error {
+	return fmt.Errorf("%q contains several graphdrivers: %s; Please cleanup or explicitly choose storage driver (--storage-driver <DRIVER>)", root, strings.Join(drivers, ", "))
+}
 
-	if len(priorDrivers) > 0 {
-
-		return errors.New(fmt.Sprintf("%q contains other graphdrivers: %s; Please cleanup or explicitly choose storage driver (-s <DRIVER>)", root, strings.Join(priorDrivers, ",")))
-	}
-	return nil
+func staticWithDeviceMapper(name string) bool {
+	return name == "devicemapper" && dockerversion.IAMSTATIC == "true"
 }

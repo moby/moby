@@ -451,45 +451,6 @@ removed.
 
 Example use: `docker -d --storage-opt dm.blkdiscard=false`
 
-#### dm.override_udev_sync_check
-
-By default, the devicemapper backend attempts to synchronize with the
-`udev` device manager for the Linux kernel.  This option allows
-disabling that synchronization, to continue even though the
-configuration may be buggy.
-
-To view the `udev` sync support of a Docker daemon that is using the
-`devicemapper` driver, run:
-
-        $ docker info
-	[...]
-	 Udev Sync Supported: true
-	[...]
-
-When `udev` sync support is `true`, then `devicemapper` and `udev` can
-coordinate the activation and deactivation of devices for containers.
-
-When `udev` sync support is `false`, a race condition occurs between
-the`devicemapper` and `udev` during create and cleanup. The race
-condition results in errors and failures. (For information on these
-failures, see
-[docker#4036](https://github.com/docker/docker/issues/4036))
-
-To allow the `docker` daemon to start, regardless of whether `udev` sync is
-`false`, set `dm.override_udev_sync_check` to true:
-
-        $ docker -d --storage-opt dm.override_udev_sync_check=true
-
-When this value is `true`, the driver continues and simply warns you
-the errors are happening.
-
-**Note**: The ideal is to pursue a `docker` daemon and environment
-that does support synchronizing with `udev`. For further discussion on
-this topic, see
-[docker#4036](https://github.com/docker/docker/issues/4036).
-Otherwise, set this flag for migrating existing Docker daemons to a
-daemon with a supported environment.
-
 # EXEC DRIVER OPTIONS
 
 Use the **--exec-opt** flags to specify options to the exec-driver. The only
