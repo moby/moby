@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/nat"
+	"github.com/docker/docker/pkg/nat"
 )
 
 func parse(t *testing.T, args string) (*Config, *HostConfig, error) {
