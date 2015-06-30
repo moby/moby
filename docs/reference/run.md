@@ -506,7 +506,7 @@ The operator can also adjust the performance parameters of the
 container:
 
     -m, --memory="": Memory limit (format: <number><optional unit>, where unit = b, k, m or g)
-    -memory-swap="": Total memory limit (memory + swap, format: <number><optional unit>, where unit = b, k, m or g)
+    --memory-swap="": Total memory limit (memory + swap, format: <number><optional unit>, where unit = b, k, m or g)
     -c, --cpu-shares=0: CPU shares (relative weight)
     --cpu-period=0: Limit the CPU CFS (Completely Fair Scheduler) period
     --cpuset-cpus="": CPUs in which to allow execution (0-3, 0,1)
