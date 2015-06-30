@@ -56,14 +56,18 @@ func testServerWithAuth(rrm testutil.RequestResponseMap, authenticate string, au
 
 // ping pings the provided endpoint to determine its required authorization challenges.
 // If a version header is provided, the versions will be returned.
-func ping(endpoint, versionHeader string) ([]Challenge, []APIVersion, error) {
+func ping(manager ChallengeManager, endpoint, versionHeader string) ([]APIVersion, error) {
 	resp, err := http.Get(endpoint)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	defer resp.Body.Close()
 
-	return ResponseChallenges(resp), APIVersions(resp, versionHeader), err
+	if err := manager.AddResponse(resp); err != nil {
+		return nil, err
+	}
+
+	return APIVersions(resp, versionHeader), err
 }
 
 type testCredentialStore struct {
@@ -125,7 +129,8 @@ func TestEndpointAuthorizeToken(t *testing.T) {
 	e, c := testServerWithAuth(m, authenicate, validCheck)
 	defer c()
 
-	challenges1, versions, err := ping(e+"/v2/", "x-api-version")
+	challengeManager1 := NewSimpleChallengeManager()
+	versions, err := ping(challengeManager1, e+"/v2/", "x-api-version")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -135,10 +140,7 @@ func TestEndpointAuthorizeToken(t *testing.T) {
 	if check := (APIVersion{Type: "registry", Version: "2.0"}); versions[0] != check {
 		t.Fatalf("Unexpected api version: %#v, expected %#v", versions[0], check)
 	}
-	challengeMap1 := map[string][]Challenge{
-		e + "/v2/": challenges1,
-	}
-	transport1 := transport.NewTransport(nil, NewAuthorizer(challengeMap1, NewTokenHandler(nil, nil, repo1, "pull", "push")))
+	transport1 := transport.NewTransport(nil, NewAuthorizer(challengeManager1, NewTokenHandler(nil, nil, repo1, "pull", "push")))
 	client := &http.Client{Transport: transport1}
 
 	req, _ := http.NewRequest("GET", e+"/v2/hello", nil)
@@ -157,7 +159,8 @@ func TestEndpointAuthorizeToken(t *testing.T) {
 	e2, c2 := testServerWithAuth(m, authenicate, badCheck)
 	defer c2()
 
-	challenges2, versions, err := ping(e+"/v2/", "x-multi-api-version")
+	challengeManager2 := NewSimpleChallengeManager()
+	versions, err = ping(challengeManager2, e+"/v2/", "x-multi-api-version")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -173,10 +176,7 @@ func TestEndpointAuthorizeToken(t *testing.T) {
 	if check := (APIVersion{Type: "trust", Version: "1.0"}); versions[2] != check {
 		t.Fatalf("Unexpected api version: %#v, expected %#v", versions[2], check)
 	}
-	challengeMap2 := map[string][]Challenge{
-		e + "/v2/": challenges2,
-	}
-	transport2 := transport.NewTransport(nil, NewAuthorizer(challengeMap2, NewTokenHandler(nil, nil, repo2, "pull", "push")))
+	transport2 := transport.NewTransport(nil, NewAuthorizer(challengeManager2, NewTokenHandler(nil, nil, repo2, "pull", "push")))
 	client2 := &http.Client{Transport: transport2}
 
 	req, _ = http.NewRequest("GET", e2+"/v2/hello", nil)
@@ -246,14 +246,12 @@ func TestEndpointAuthorizeTokenBasic(t *testing.T) {
 		password: password,
 	}
 
-	challenges, _, err := ping(e+"/v2/", "")
+	challengeManager := NewSimpleChallengeManager()
+	_, err := ping(challengeManager, e+"/v2/", "")
 	if err != nil {
 		t.Fatal(err)
 	}
-	challengeMap := map[string][]Challenge{
-		e + "/v2/": challenges,
-	}
-	transport1 := transport.NewTransport(nil, NewAuthorizer(challengeMap, NewTokenHandler(nil, creds, repo, "pull", "push"), NewBasicHandler(creds)))
+	transport1 := transport.NewTransport(nil, NewAuthorizer(challengeManager, NewTokenHandler(nil, creds, repo, "pull", "push"), NewBasicHandler(creds)))
 	client := &http.Client{Transport: transport1}
 
 	req, _ := http.NewRequest("GET", e+"/v2/hello", nil)
@@ -293,14 +291,12 @@ func TestEndpointAuthorizeBasic(t *testing.T) {
 		password: password,
 	}
 
-	challenges, _, err := ping(e+"/v2/", "")
+	challengeManager := NewSimpleChallengeManager()
+	_, err := ping(challengeManager, e+"/v2/", "")
 	if err != nil {
 		t.Fatal(err)
 	}
-	challengeMap := map[string][]Challenge{
-		e + "/v2/": challenges,
-	}
-	transport1 := transport.NewTransport(nil, NewAuthorizer(challengeMap, NewBasicHandler(creds)))
+	transport1 := transport.NewTransport(nil, NewAuthorizer(challengeManager, NewBasicHandler(creds)))
 	client := &http.Client{Transport: transport1}
 
 	req, _ := http.NewRequest("GET", e+"/v2/hello", nil)
