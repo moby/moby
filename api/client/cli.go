@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"path/filepath"
+	"net/url"
 	"reflect"
 	"strings"
 	"text/template"
@@ -26,6 +26,8 @@ type DockerCli struct {
 	proto string
 	// addr holds the client address.
 	addr string
+	// basePath holds the path to prepend to the requests
+	basePath string
 
 	// configFile has the client configuration file
 	configFile *cliconfig.ConfigFile
@@ -189,6 +191,7 @@ func NewDockerCli(in io.ReadCloser, out, err io.Writer, keyFile string, proto, a
 		isTerminalIn  = false
 		isTerminalOut = false
 		scheme        = "http"
+		basePath      = ""
 	)
 
 	if tlsConfig != nil {
@@ -217,9 +220,17 @@ func NewDockerCli(in io.ReadCloser, out, err io.Writer, keyFile string, proto, a
 		fmt.Fprintf(err, "WARNING: Error loading config file:%v\n", e)
 	}
 
+	if proto == "tcp" {
+		// error is checked in pkg/parsers already
+		parsed, _ := url.Parse("tcp://" + addr)
+		addr = parsed.Host
+		basePath = parsed.Path
+	}
+
 	return &DockerCli{
 		proto:         proto,
 		addr:          addr,
+		basePath:      basePath,
 		configFile:    configFile,
 		in:            in,
 		out:           out,
