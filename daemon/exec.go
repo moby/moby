@@ -11,6 +11,7 @@ import (
 	"github.com/docker/docker/daemon/execdriver"
 	"github.com/docker/docker/pkg/broadcastwriter"
 	"github.com/docker/docker/pkg/ioutils"
+	"github.com/docker/docker/pkg/pools"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/runconfig"
 )
@@ -187,7 +188,7 @@ func (d *Daemon) ContainerExecStart(execName string, stdin io.ReadCloser, stdout
 		go func() {
 			defer w.Close()
 			defer logrus.Debugf("Closing buffered stdin pipe")
-			io.Copy(w, stdin)
+			pools.Copy(w, stdin)
 		}()
 		cStdin = r
 	}
