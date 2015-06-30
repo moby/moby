@@ -36,15 +36,15 @@ type CredentialStore interface {
 // schemes. The handlers are tried in order, the higher priority authentication
 // methods should be first. The challengeMap holds a list of challenges for
 // a given root API endpoint (for example "https://registry-1.docker.io/v2/").
-func NewAuthorizer(challengeMap map[string][]Challenge, handlers ...AuthenticationHandler) transport.RequestModifier {
+func NewAuthorizer(manager ChallengeManager, handlers ...AuthenticationHandler) transport.RequestModifier {
 	return &endpointAuthorizer{
-		challenges: challengeMap,
+		challenges: manager,
 		handlers:   handlers,
 	}
 }
 
 type endpointAuthorizer struct {
-	challenges map[string][]Challenge
+	challenges ChallengeManager
 	handlers   []AuthenticationHandler
 	transport  http.RoundTripper
 }
@@ -63,18 +63,20 @@ func (ea *endpointAuthorizer) ModifyRequest(req *http.Request) error {
 
 	pingEndpoint := ping.String()
 
-	challenges, ok := ea.challenges[pingEndpoint]
-	if !ok {
-		return nil
+	challenges, err := ea.challenges.GetChallenges(pingEndpoint)
+	if err != nil {
+		return err
 	}
 
-	for _, handler := range ea.handlers {
-		for _, challenge := range challenges {
-			if challenge.Scheme != handler.Scheme() {
-				continue
-			}
-			if err := handler.AuthorizeRequest(req, challenge.Parameters); err != nil {
-				return err
+	if len(challenges) > 0 {
+		for _, handler := range ea.handlers {
+			for _, challenge := range challenges {
+				if challenge.Scheme != handler.Scheme() {
+					continue
+				}
+				if err := handler.AuthorizeRequest(req, challenge.Parameters); err != nil {
+					return err
+				}
 			}
 		}
 	}

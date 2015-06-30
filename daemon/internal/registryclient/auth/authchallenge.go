@@ -1,7 +1,9 @@
 package auth
 
 import (
+	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 )
 
@@ -13,6 +15,57 @@ type Challenge struct {
 
 	// Parameters are the auth-params according to RFC 2617
 	Parameters map[string]string
+}
+
+// ChallengeManager manages the challenges for endpoints.
+// The challenges are pulled out of HTTP responses. Only
+// responses which expect challenges should be added to
+// the manager, since a non-unauthorized request will be
+// viewed as not requiring challenges.
+type ChallengeManager interface {
+	// GetChallenges returns the challenges for the given
+	// endpoint URL.
+	GetChallenges(endpoint string) ([]Challenge, error)
+
+	// AddResponse adds the response to the challenge
+	// manager. The challenges will be parsed out of
+	// the WWW-Authenicate headers and added to the
+	// URL which was produced the response. If the
+	// response was authorized, any challenges for the
+	// endpoint will be cleared.
+	AddResponse(resp *http.Response) error
+}
+
+// NewSimpleChallengeManager returns an instance of
+// ChallengeManger which only maps endpoints to challenges
+// based on the responses which have been added the
+// manager. The simple manager will make no attempt to
+// perform requests on the endpoints or cache the responses
+// to a backend.
+func NewSimpleChallengeManager() ChallengeManager {
+	return simpleChallengeManager{}
+}
+
+type simpleChallengeManager map[string][]Challenge
+
+func (m simpleChallengeManager) GetChallenges(endpoint string) ([]Challenge, error) {
+	challenges := m[endpoint]
+	return challenges, nil
+}
+
+func (m simpleChallengeManager) AddResponse(resp *http.Response) error {
+	challenges := ResponseChallenges(resp)
+	if resp.Request == nil {
+		return fmt.Errorf("missing request reference")
+	}
+	urlCopy := url.URL{
+		Path:   resp.Request.URL.Path,
+		Host:   resp.Request.URL.Host,
+		Scheme: resp.Request.URL.Scheme,
+	}
+	m[urlCopy.String()] = challenges
+
+	return nil
 }
 
 // Octet types from RFC 2616.
