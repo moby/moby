@@ -75,7 +75,7 @@ Consumers of the CNM, like Docker for example, interact through the CNM Objects 
 
 4. `network.CreateEndpoint()` can be called to create a new Endpoint in a given network. This API also accepts optional `options` parameter which drivers can make use of. These 'options' carry both well-known labels and driver-specific labels. Drivers will in turn be called with `driver.CreateEndpoint` and it can choose to reserve IPv4/IPv6 addresses when an `Endpoint` is created in a `Network`. The `Driver` will assign these addresses using `InterfaceInfo` interface defined in the `driverapi`. The IP/IPv6 are needed to complete the endpoint as service definition along with the ports the endpoint exposes since essentially a service endpoint is nothing but a network address and the port number that the application container is listening on.
 
-5. `endpoint.Join()` can be used to attach a container to an `Endpoint`. The Join operation will create a `Sandbox` if it doesnt exist already for that container. The Drivers can make use of the Sandbox Key to identify multiple endpoints attached to a same container. This API also accepts optional `options` parameter which drivers can make use of.
+5. `endpoint.Join()` can be used to attach a container to an `Endpoint`. The Join operation will create a `Sandbox` if it doesn't exist already for that container. The Drivers can make use of the Sandbox Key to identify multiple endpoints attached to a same container. This API also accepts optional `options` parameter which drivers can make use of.
   * Though it is not a direct design issue of LibNetwork, it is highly encouraged to have users like `Docker` to call the endpoint.Join() during Container's `Start()` lifecycle that is invoked *before* the container is made operational. As part of Docker integration, this will be taken care of.
   * One of a FAQ on endpoint join() API is that, why do we need an API to create an Endpoint and another to join the endpoint.
     - The answer is based on the fact that Endpoint represents a Service which may or may not be backed by a Container. When an Endpoint is created, it will have its resources reserved so that any container can get attached to the endpoint later and get a consistent networking behaviour.
@@ -104,7 +104,7 @@ Netlink is also used to manage the routing table in the namespace.
 
 ## API
 
-Drivers are essentially an extension of libnetwork and provides the actual implementation for all of the LibNetwork APIs defined above. Hence there is an 1-1 correspondance for all the `Network` and `Endpoint` APIs, which includes :
+Drivers are essentially an extension of libnetwork and provides the actual implementation for all of the LibNetwork APIs defined above. Hence there is an 1-1 correspondence for all the `Network` and `Endpoint` APIs, which includes :
 * `driver.Config`
 * `driver.CreateNetwork`
 * `driver.DeleteNetwork`
@@ -123,7 +123,7 @@ The APIs are still work in progress and there can be changes to these based on t
 
 This method is passed an interface `EndpointInfo`, with methods `Interfaces` and `AddInterface`.
 
-If the slice returned by `Interfaces` is non-empty, the driver is expected to make use of the interface infomation therein (e.g., treating the address or addresses as statically supplied), and must return an error if it cannot. If the slice is empty, the driver should allocate zero or more _fresh_ interfaces, and use `AddInterface` to record them; or return an error if it cannot.
+If the slice returned by `Interfaces` is non-empty, the driver is expected to make use of the interface information therein (e.g., treating the address or addresses as statically supplied), and must return an error if it cannot. If the slice is empty, the driver should allocate zero or more _fresh_ interfaces, and use `AddInterface` to record them; or return an error if it cannot.
 
 It is forbidden to use `AddInterface` if `Interfaces` is non-empty.
 
