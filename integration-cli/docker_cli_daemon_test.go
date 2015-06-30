@@ -1420,3 +1420,57 @@ func teardownV6() error {
 	}
 	return nil
 }
+
+func (s *DockerDaemonSuite) TestDaemonHTTPClient(c *check.C) {
+	if err := s.d.Start("-H", "tcp://127.0.0.1:80"); err != nil {
+		c.Fatal(err)
+	}
+
+	// Test with http
+	cmd := exec.Command(dockerBinary, "-H", "http://127.0.0.1:80", "info")
+	if out, _, err := runCommandWithOutput(cmd); err != nil {
+		c.Fatal(err, out)
+	}
+	cmd = exec.Command(dockerBinary, "-H", "http://127.0.0.1", "info")
+	if out, _, err := runCommandWithOutput(cmd); err != nil {
+		c.Fatal(err, out)
+	}
+
+	cmd = exec.Command(dockerBinary, "info")
+	cmd.Env = []string{"DOCKER_HOST=http://127.0.0.1:80"}
+	if out, _, err := runCommandWithOutput(cmd); err != nil {
+		c.Fatal(err, out)
+	}
+	cmd = exec.Command(dockerBinary, "info")
+	cmd.Env = []string{"DOCKER_HOST=http://127.0.0.1"}
+	if out, _, err := runCommandWithOutput(cmd); err != nil {
+		c.Fatal(err, out)
+	}
+}
+
+func (s *DockerDaemonSuite) TestDaemonHTTPSClient(c *check.C) {
+	if err := s.d.Start("-H", "tcp://127.0.0.1:443"); err != nil {
+		c.Fatal(err)
+	}
+
+	// Test with http
+	cmd := exec.Command(dockerBinary, "-H", "https://127.0.0.1:443", "info")
+	if out, _, err := runCommandWithOutput(cmd); err != nil {
+		c.Fatal(err, out)
+	}
+	cmd = exec.Command(dockerBinary, "-H", "https://127.0.0.1", "info")
+	if out, _, err := runCommandWithOutput(cmd); err != nil {
+		c.Fatal(err, out)
+	}
+
+	cmd = exec.Command(dockerBinary, "info")
+	cmd.Env = []string{"DOCKER_HOST=https://127.0.0.1:443"}
+	if out, _, err := runCommandWithOutput(cmd); err != nil {
+		c.Fatal(err, out)
+	}
+	cmd = exec.Command(dockerBinary, "info")
+	cmd.Env = []string{"DOCKER_HOST=https://127.0.0.1"}
+	if out, _, err := runCommandWithOutput(cmd); err != nil {
+		c.Fatal(err, out)
+	}
+}
