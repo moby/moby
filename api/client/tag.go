@@ -14,12 +14,17 @@ import (
 	"github.com/docker/docker/registry"
 )
 
-func (cli *DockerCli) listRemoteTags(names ...string) error {
+func (cli *DockerCli) listRemoteTags(justRemotes bool, names ...string) error {
 	var (
 		err          error
 		rdr          io.ReadCloser
 		repoTagLists []*types.RepositoryTagList
+		v            = url.Values{}
 	)
+
+	if justRemotes {
+		v.Set("remote", "1")
+	}
 
 	for _, name := range names {
 		_, tag := parsers.ParseRepositoryTag(name)
@@ -33,7 +38,7 @@ func (cli *DockerCli) listRemoteTags(names ...string) error {
 			logrus.Warnf("Failed to parse repository info %q: %v", name, err)
 			continue
 		}
-		rdr, _, err = cli.clientRequestAttemptLogin("GET", "/images/"+name+"/tags", nil, nil, repoInfo.Index, "tag")
+		rdr, _, err = cli.clientRequestAttemptLogin("GET", "/images/"+name+"/tags?"+v.Encode(), nil, nil, repoInfo.Index, "tag")
 		if err != nil {
 			logrus.Warnf("Failed to get remote tag list for %q: %v", name, err)
 			continue
@@ -70,10 +75,11 @@ func (cli *DockerCli) listRemoteTags(names ...string) error {
 func (cli *DockerCli) CmdTag(args ...string) error {
 	cmd := cli.Subcmd("tag", []string{
 		"IMAGE[:TAG] [REGISTRYHOST/][USERNAME/]NAME[:TAG]",
-		"-l [REGISTRYHOST/][USERNAME/]NAME...",
-	}, "Tag an image or list remote tags", true)
+		"-l [-r] [REGISTRYHOST/][USERNAME/]NAME...",
+	}, "Tag an image or list repository tags", true)
 	force := cmd.Bool([]string{"f", "#force", "-force"}, false, "Force")
-	list := cmd.Bool([]string{"l", "#list", "-list"}, false, "List tags of remote repositories")
+	list := cmd.Bool([]string{"l", "#list", "-list"}, false, "List repository tags")
+	remote := cmd.Bool([]string{"r", "#remote", "-remote"}, false, "Force listing of remote repositories only")
 	cmd.Require(flag.Min, 1)
 
 	cmd.ParseFlags(args, true)
@@ -82,7 +88,7 @@ func (cli *DockerCli) CmdTag(args ...string) error {
 	}
 
 	if *list {
-		return cli.listRemoteTags(cmd.Args()...)
+		return cli.listRemoteTags(*remote, cmd.Args()...)
 	} else {
 		var (
 			repository, tag = parsers.ParseRepositoryTag(cmd.Arg(1))

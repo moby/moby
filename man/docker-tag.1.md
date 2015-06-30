@@ -29,7 +29,10 @@ listed.
    When set to true, force the alias. The default is *false*.
 
 **-l**, **--list**=*true*|*false*
-   List tags of remote repositories. The default is *false*.
+   List repository tags. The default is *false*.
+
+**-r**, **--remote**=*true*|*false*
+   Force listing of remote repositories only.
 
 **REGISTRYHOST**
    The hostname of the registry if required. This may also include the port

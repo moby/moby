@@ -1231,17 +1231,29 @@ func (s *Server) getImagesTags(version version.Version, w http.ResponseWriter, r
 		}
 	}
 
-	metaHeaders := map[string][]string{}
-	for k, v := range r.Header {
-		if strings.HasPrefix(k, "X-Meta-") {
-			metaHeaders[k] = v
+	var (
+		tagList *types.RepositoryTagList
+		err     error
+	)
+	if !boolValue(r, "remote") {
+		tagList, err = s.daemon.Repositories().Tags(name)
+		if err != nil {
+			logrus.Warnf("failed to get local tags for %q", name)
 		}
 	}
-	tagsConfig := &graph.TagsConfig{
-		MetaHeaders: metaHeaders,
-		AuthConfig:  authConfig,
+	if tagList == nil || err != nil {
+		metaHeaders := map[string][]string{}
+		for k, v := range r.Header {
+			if strings.HasPrefix(k, "X-Meta-") {
+				metaHeaders[k] = v
+			}
+		}
+		tagsConfig := &graph.RemoteTagsConfig{
+			MetaHeaders: metaHeaders,
+			AuthConfig:  authConfig,
+		}
+		tagList, err = s.daemon.Repositories().RemoteTags(name, tagsConfig)
 	}
-	tagList, err := s.daemon.Repositories().Tags(name, tagsConfig)
 	if err != nil {
 		return err
 	}

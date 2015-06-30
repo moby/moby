@@ -2,9 +2,7 @@ package main
 
 import (
 	"fmt"
-	"os"
 	"os/exec"
-	"path/filepath"
 	"regexp"
 	"strings"
 
@@ -195,12 +193,18 @@ func tagLinesEqual(expected, actual []string, allowEmptyImageID bool) bool {
 	return true
 }
 
-func assertTagListEqual(c *check.C, d *Daemon, allowEmptyImageID bool, names []string, expectedString string) {
+func assertTagListEqual(c *check.C, remote, allowEmptyImageID bool, names []string, expectedString string) {
 	var (
 		reLine = regexp.MustCompile(`^(\S+)\s+(\S+)\s+(\w+)?`)
 		reLog  = regexp.MustCompile(`(DEBU|WARN|ERR|INFO|FATA)|(level=(warn|info|err|fata|debu))`)
 	)
-	out, err := d.Cmd("tag", append([]string{"-l"}, names...)...)
+	args := []string{"tag", "-l"}
+	if remote {
+		args = append(args, "-r")
+	}
+	args = append(args, names...)
+	cmd := exec.Command(dockerBinary, args...)
+	out, _, err := runCommandWithOutput(cmd)
 	if err != nil {
 		c.Fatalf("Failed to list remote tags for %s: %v", strings.Join(names, " "), err)
 	}
@@ -238,128 +242,135 @@ func assertTagListEqual(c *check.C, d *Daemon, allowEmptyImageID bool, names []s
 		for i, strs := range actual {
 			c.Logf("		#%3d: %s", i, strings.Join(strs, "\t"))
 		}
-		//time.Sleep(time.Minute * 10000)
 	} else {
 		errorReported := false
 		for i := range actual {
 			if !tagLinesEqual(expected[i], actual[i], allowEmptyImageID) {
 				if !errorReported {
-					c.Errorf("Expected line #%3d: %s", i, strings.Join(expected[i], "\t"))
-					//time.Sleep(time.Minute * 10000)
+					c.Errorf("Expected line #%-3d: %s", i, strings.Join(expected[i], "\t"))
 					errorReported = true
 				} else {
-					c.Logf("Expected line #%3d: %s", i, strings.Join(expected[i], "\t"))
+					c.Logf("Expected line #%-3d: %s", i, strings.Join(expected[i], "\t"))
 				}
-				c.Logf("Actual line #%3d  : %s", i, strings.Join(actual[i], "\t"))
+				c.Logf("Actual line #%-3d  : %s", i, strings.Join(actual[i], "\t"))
 			}
 		}
 	}
 }
 
-func (s *DockerRegistriesSuite) TestTagListRemoteRepository(c *check.C) {
-	d := NewDaemon(c)
-	daemonArgs := []string{"--add-registry=" + s.reg2.url}
-	if err := d.StartWithBusybox(daemonArgs...); err != nil {
-		c.Fatalf("we should have been able to start the daemon with passing { %s } flags: %v", strings.Join(daemonArgs, ", "), err)
+func (s *DockerRegistrySuite) TestTagListRemoteRepository(c *check.C) {
+	getImageIdOf := func(imageName string) string {
+		cmd := exec.Command(dockerBinary, "images", "-q", "--no-trunc", imageName)
+		out, _, err := runCommandWithOutput(cmd)
+		if err != nil {
+			c.Fatalf("failed to get image id for %q: %v", imageName, err)
+		}
+		ids := strings.Split(out, "\n")
+		if len(ids) < 1 {
+			c.Fatalf("image %q not found", imageName)
+		}
+		return ids[0]
 	}
-	defer d.Stop()
+	busyboxID := getImageIdOf("busybox")
+	helloWorldID := getImageIdOf("hello-world")
 
-	{ // load hello-world
-		bb := filepath.Join(d.folder, "hello-world.tar")
-		if _, err := os.Stat(bb); err != nil {
-			if !os.IsNotExist(err) {
-				c.Fatalf("unexpected error on hello-world.tar stat: %v", err)
-			}
-			// saving busybox image from main daemon
-			if err := exec.Command(dockerBinary, "save", "--output", bb, "hello-world:frozen").Run(); err != nil {
-				c.Fatalf("could not save hello-world:frozen image to %q: %v", bb, err)
-			}
-		}
-		// loading hello-world image to this daemon
-		if _, err := d.Cmd("load", "--input", bb); err != nil {
-			c.Fatalf("could not load hello-world image: %v", err)
-		}
-		if err := os.Remove(bb); err != nil {
-			d.c.Logf("could not remove %s: %v", bb, err)
-		}
-	}
-	busyboxID := d.getAndTestImageEntry(c, 2, "busybox", "").id
-	helloWorldID := d.getAndTestImageEntry(c, 2, "hello-world", "").id
-
-	for _, tag := range []string{"1.1-busy", "1.2-busy", "1.3-busy"} {
-		dest := s.reg1.url + "/foo/busybox:" + tag
-		if out, err := d.Cmd("tag", "busybox", dest); err != nil {
-			c.Fatalf("failed to tag image %q as %q: error %v, output %q", "busybox", dest, err, out)
-		}
-	}
-	for _, tag := range []string{"1.4-hell", "1.5-hell"} {
-		dest := s.reg1.url + "/foo/busybox:" + tag
-		if out, err := d.Cmd("tag", "hello-world:frozen", dest); err != nil {
-			c.Fatalf("failed to tag image %q as %q: error %v, output %q", "busybox", dest, err, out)
-		}
-	}
-	for _, tag := range []string{"2.1-busy", "2.2-busy", "2.3-busy"} {
-		dest := s.reg2.url + "/foo/busybox:" + tag
-		if out, err := d.Cmd("tag", "busybox", dest); err != nil {
-			c.Fatalf("failed to tag image %q as %q: error %v, output %q", "busybox", dest, err, out)
-		}
-	}
-	for _, tag := range []string{"2.4-hell", "2.5-hell"} {
-		dest := s.reg2.url + "/foo/busybox:" + tag
-		if out, err := d.Cmd("tag", "hello-world:frozen", dest); err != nil {
-			c.Fatalf("failed to tag image %q as %q: error %v, output %q", "busybox", dest, err, out)
-		}
-	}
+	/* Create tags:
+	 * - <private>/foo/busybox:1-busy     B
+	 * - <private>/foo/busybox:2-busy   U B
+	 * - <private>/foo/busybox:3-busy   U B
+	 * - <private>/foo/busybox:4-hell     H
+	 * - <private>/foo/busybox:5-hell   U H
+	 * - <private>/bar/busybox:6-hell   U H
+	 * - <private>/bar/busybox:7-busy     B
+	 * U - upload this tag to private registry
+	 * B - tag points to local busybox image
+	 * H - tag points to local hello-world image
+	 */
+	namespaces := []string{"foo", "bar"}
+	imgNames := []string{"busybox", "hello-world"}
+	imgTags := []string{"busy", "hell"}
 	localTags := []string{}
-	for ri, reg := range []*testRegistryV2{s.reg1, s.reg2} {
-		for i := 0; i < 5; i++ {
-			imgNames := []string{"busy", "hell"}
-			if (ri+i)%3 == 0 {
-				continue // upload 2/3 of registries
-			}
-			tag := fmt.Sprintf("%s/foo/busybox:%d.%d-%s", reg.url, ri+1, i+1, imgNames[i/3])
-			if out, err := d.Cmd("push", tag); err != nil {
-				c.Fatalf("push of %q should have succeeded: %v, output: %s", tag, err, out)
-			}
-			localTags = append(localTags, tag)
+	for i := 0; i < 7; i++ {
+		src := []string{imgNames[0], imgNames[1] + ":" + "frozen"}[(i/3)%2]
+		dest := fmt.Sprintf("%s/%s/busybox:%d-%s", privateRegistryURL, namespaces[i/5], i+1, imgTags[(i/3)%2])
+		cmd := exec.Command(dockerBinary, "tag", src, dest)
+		if out, _, err := runCommandWithOutput(cmd); err != nil {
+			c.Fatalf("failed to tag image %q as %q: error %v, output %q", src, dest, err, out)
+		}
+		localTags = append(localTags, dest)
+		if i%3 == 0 {
+			continue // push 2/3 of all tags
+		}
+		cmd = exec.Command(dockerBinary, "push", dest)
+		if out, _, err := runCommandWithOutput(cmd); err != nil {
+			c.Fatalf("push of %q should have succeeded: %v, output: %s", dest, err, out)
 		}
 	}
 
-	assertTagListEqual(c, d, true, []string{s.reg1.url + "/foo/busybox"},
-		fmt.Sprintf("%s/foo/busybox		1.2-busy		%s\n", s.reg1.url, busyboxID)+
-			fmt.Sprintf("%s/foo/busybox		1.3-busy		%s\n", s.reg1.url, busyboxID)+
-			fmt.Sprintf("%s/foo/busybox		1.5-hell		%s\n", s.reg1.url, helloWorldID))
+	// list remote tags
+	assertTagListEqual(c, true, true, []string{privateRegistryURL + "/foo/busybox"},
+		fmt.Sprintf("%s/foo/busybox		2-busy		%s\n", privateRegistryURL, busyboxID)+
+			fmt.Sprintf("%s/foo/busybox		3-busy		%s\n", privateRegistryURL, busyboxID)+
+			fmt.Sprintf("%s/foo/busybox		5-hell		%s\n", privateRegistryURL, helloWorldID))
 
-	assertTagListEqual(c, d, true, []string{s.reg2.url + "/foo/busybox"},
-		fmt.Sprintf("%s/foo/busybox		2.1-busy		%s\n", s.reg2.url, busyboxID)+
-			fmt.Sprintf("%s/foo/busybox		2.2-busy		%s\n", s.reg2.url, busyboxID)+
-			fmt.Sprintf("%s/foo/busybox		2.4-hell		%s\n", s.reg2.url, helloWorldID)+
-			fmt.Sprintf("%s/foo/busybox		2.5-hell		%s\n", s.reg2.url, helloWorldID))
+	// list local tags
+	assertTagListEqual(c, false, true, []string{privateRegistryURL + "/foo/busybox"},
+		fmt.Sprintf("%s/foo/busybox		1-busy		%s\n", privateRegistryURL, busyboxID)+
+			fmt.Sprintf("%s/foo/busybox		2-busy		%s\n", privateRegistryURL, busyboxID)+
+			fmt.Sprintf("%s/foo/busybox		3-busy		%s\n", privateRegistryURL, busyboxID)+
+			fmt.Sprintf("%s/foo/busybox		4-hell		%s\n", privateRegistryURL, helloWorldID)+
+			fmt.Sprintf("%s/foo/busybox		5-hell		%s\n", privateRegistryURL, helloWorldID))
 
-	assertTagListEqual(c, d, true, []string{"foo/busybox"},
-		fmt.Sprintf("%s/foo/busybox		2.1-busy		%s\n", s.reg2.url, busyboxID)+
-			fmt.Sprintf("%s/foo/busybox		2.2-busy		%s\n", s.reg2.url, busyboxID)+
-			fmt.Sprintf("%s/foo/busybox		2.4-hell		%s\n", s.reg2.url, helloWorldID)+
-			fmt.Sprintf("%s/foo/busybox		2.5-hell		%s\n", s.reg2.url, helloWorldID))
+	deleteImages(localTags...)
 
-	// now delete all local images
-	if out, err := d.Cmd("rmi", localTags...); err != nil {
-		c.Fatalf("failed to remove images %v: %v, output: %s", localTags, err, out)
-	}
+	// and try to list remote tags again
+	assertTagListEqual(c, true, true, []string{privateRegistryURL + "/foo/busybox"},
+		fmt.Sprintf("%s/foo/busybox		2-busy		%s\n", privateRegistryURL, busyboxID)+
+			fmt.Sprintf("%s/foo/busybox		3-busy		%s\n", privateRegistryURL, busyboxID)+
+			fmt.Sprintf("%s/foo/busybox		5-hell		%s\n", privateRegistryURL, helloWorldID))
 
-	// and try again
-	assertTagListEqual(c, d, true, []string{"foo/busybox", s.reg1.url + "/foo/busybox"},
-		fmt.Sprintf("%s/foo/busybox		2.1-busy		%s\n", s.reg2.url, busyboxID)+
-			fmt.Sprintf("%s/foo/busybox		2.2-busy		%s\n", s.reg2.url, busyboxID)+
-			fmt.Sprintf("%s/foo/busybox		2.4-hell		%s\n", s.reg2.url, helloWorldID)+
-			fmt.Sprintf("%s/foo/busybox		2.5-hell		%s\n", s.reg2.url, helloWorldID)+
-			fmt.Sprintf("%s/foo/busybox		1.2-busy		%s\n", s.reg1.url, busyboxID)+
-			fmt.Sprintf("%s/foo/busybox		1.3-busy		%s\n", s.reg1.url, busyboxID)+
-			fmt.Sprintf("%s/foo/busybox		1.5-hell		%s\n", s.reg1.url, helloWorldID))
+	// and now local ones - this should fallback to remote query
+	assertTagListEqual(c, false, true, []string{privateRegistryURL + "/foo/busybox"},
+		fmt.Sprintf("%s/foo/busybox		2-busy		%s\n", privateRegistryURL, busyboxID)+
+			fmt.Sprintf("%s/foo/busybox		3-busy		%s\n", privateRegistryURL, busyboxID)+
+			fmt.Sprintf("%s/foo/busybox		5-hell		%s\n", privateRegistryURL, helloWorldID))
 
 	// skip over bad repositories
-	assertTagListEqual(c, d, true, []string{"foo/.us&box", "notexistent/busybox", s.reg1.url + "/foo/busybox"},
-		fmt.Sprintf("%s/foo/busybox		1.2-busy		%s\n", s.reg1.url, busyboxID)+
-			fmt.Sprintf("%s/foo/busybox		1.3-busy		%s\n", s.reg1.url, busyboxID)+
-			fmt.Sprintf("%s/foo/busybox		1.5-hell		%s\n", s.reg1.url, helloWorldID))
+	assertTagListEqual(c, true, true, []string{
+		privateRegistryURL + "/foo/.us&box",
+		privateRegistryURL + "/bar/busybox", // match
+		privateRegistryURL + "/notexistent/busybox",
+		privateRegistryURL + "/foo/busybox", // match
+	}, fmt.Sprintf("%s/bar/busybox		6-hell		%s\n", privateRegistryURL, helloWorldID)+
+		fmt.Sprintf("%s/foo/busybox		2-busy		%s\n", privateRegistryURL, busyboxID)+
+		fmt.Sprintf("%s/foo/busybox		3-busy		%s\n", privateRegistryURL, busyboxID)+
+		fmt.Sprintf("%s/foo/busybox		5-hell		%s\n", privateRegistryURL, helloWorldID))
+}
+
+func (s *DockerRegistrySuite) TestTagListNotExistentRepository(c *check.C) {
+	getImageIdOf := func(imageName string) string {
+		cmd := exec.Command(dockerBinary, "images", "-q", "--no-trunc", imageName)
+		out, _, err := runCommandWithOutput(cmd)
+		if err != nil {
+			c.Fatalf("failed to get image id for %q: %v", imageName, err)
+		}
+		ids := strings.Split(out, "\n")
+		if len(ids) < 1 {
+			c.Fatalf("image %q not found", imageName)
+		}
+		return ids[0]
+	}
+	busyboxID := getImageIdOf("busybox")
+
+	dest := fmt.Sprintf("%s/foo/busybox", privateRegistryURL)
+	cmd := exec.Command(dockerBinary, "tag", "busybox", dest)
+	if out, _, err := runCommandWithOutput(cmd); err != nil {
+		c.Fatalf("failed to tag image %q as %q: error %v, output %q", "busybox", dest, err, out)
+	}
+	// list remote tags - shall list nothing
+	assertTagListEqual(c, true, true, []string{dest}, "")
+
+	// list local tags
+	assertTagListEqual(c, false, true, []string{dest},
+		fmt.Sprintf("%s/foo/busybox		latest		%s\n", privateRegistryURL, busyboxID))
 }
