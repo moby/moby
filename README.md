@@ -168,9 +168,9 @@ Under the hood
 Under the hood, Docker is built on the following components:
 
 * The
-  [cgroup](https://en.wikipedia.org/wiki/Cgroups)
+  [cgroups](https://www.kernel.org/doc/Documentation/cgroups/cgroups.txt)
   and
-  [namespacing](http://man7.org/linux/man-pages/man7/namespaces.7.html)
+  [namespaces](http://man7.org/linux/man-pages/man7/namespaces.7.html)
   capabilities of the Linux kernel
 * The [Go](https://golang.org) programming language
 * The [Docker Image Specification](https://github.com/docker/docker/blob/master/image/spec/v1.md)
