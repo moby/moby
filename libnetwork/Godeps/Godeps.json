@@ -132,7 +132,7 @@
 		},
 		{
 			"ImportPath": "github.com/vishvananda/netlink",
-			"Rev": "8eb64238879fed52fd51c5b30ad20b928fb4c36c"
+			"Rev": "20397a138846e4d6590e01783ed023ed7e1c38a6"
 		},
 		{
 			"ImportPath": "github.com/vishvananda/netns",

@@ -14,8 +14,8 @@ type Addr struct {
 }
 
 // String returns $ip/$netmask $label
-func (addr Addr) String() string {
-	return fmt.Sprintf("%s %s", addr.IPNet, addr.Label)
+func (a Addr) String() string {
+	return fmt.Sprintf("%s %s", a.IPNet, a.Label)
 }
 
 // ParseAddr parses the string representation of an address in the
