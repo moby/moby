@@ -926,6 +926,11 @@ func (d *driver) CreateEndpoint(nid, eid types.UUID, epInfo driverapi.EndpointIn
 	}
 	endpoint.macAddress = mac
 
+	// Up the host interface after finishing all netlink configuration
+	if err := netlink.LinkSetUp(host); err != nil {
+		return fmt.Errorf("could not set link up for host interface %s: %v", hostIfName, err)
+	}
+
 	// v6 address for the sandbox side pipe interface
 	ipv6Addr = &net.IPNet{}
 	if config.EnableIPv6 {
