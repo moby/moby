@@ -561,7 +561,7 @@ func NewDaemon(config *Config, registryService *registry.Service) (daemon *Daemo
 	}
 
 	// Do we have a disabled network?
-	config.DisableNetwork = isNetworkDisabled(config)
+	config.DisableBridge = isBridgeNetworkDisabled(config)
 
 	// Check that the system is supported and we have sufficient privileges
 	if err := checkSystem(); err != nil {
@@ -684,11 +684,9 @@ func NewDaemon(config *Config, registryService *registry.Service) (daemon *Daemo
 		return nil, fmt.Errorf("Couldn't create Tag store: %s", err)
 	}
 
-	if !config.DisableNetwork {
-		d.netController, err = initNetworkController(config)
-		if err != nil {
-			return nil, fmt.Errorf("Error initializing network controller: %v", err)
-		}
+	d.netController, err = initNetworkController(config)
+	if err != nil {
+		return nil, fmt.Errorf("Error initializing network controller: %v", err)
 	}
 
 	graphdbPath := filepath.Join(config.Root, "linkgraph.db")

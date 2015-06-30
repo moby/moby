@@ -469,7 +469,7 @@ func (container *Container) buildJoinOptions() ([]libnetwork.EndpointOption, err
 			logrus.Error(err)
 		}
 
-		if c != nil && !container.daemon.config.DisableNetwork && container.hostConfig.NetworkMode.IsPrivate() {
+		if c != nil && !container.daemon.config.DisableBridge && container.hostConfig.NetworkMode.IsPrivate() {
 			logrus.Debugf("Update /etc/hosts of %s for alias %s with ip %s", c.ID, ref.Name, container.NetworkSettings.IPAddress)
 			joinOptions = append(joinOptions, libnetwork.JoinOptionParentUpdate(c.NetworkSettings.EndpointID, ref.Name, container.NetworkSettings.IPAddress))
 			if c.NetworkSettings.EndpointID != "" {
@@ -773,6 +773,11 @@ func (container *Container) secondaryNetworkRequired(primaryNetworkType string) 
 	case "bridge", "none", "host", "container":
 		return false
 	}
+
+	if container.daemon.config.DisableBridge {
+		return false
+	}
+
 	if container.Config.ExposedPorts != nil && len(container.Config.ExposedPorts) > 0 {
 		return true
 	}
@@ -801,6 +806,11 @@ func (container *Container) AllocateNetwork() error {
 		}
 	} else if service != "" {
 		return fmt.Errorf("conflicting options: publishing a service and network mode")
+	}
+
+	if runconfig.NetworkMode(networkDriver).IsBridge() && container.daemon.config.DisableBridge {
+		container.Config.NetworkDisabled = true
+		return nil
 	}
 
 	if service == "" {
@@ -895,10 +905,6 @@ func (container *Container) initializeNetworking() error {
 		container.Config.Hostname = nc.Config.Hostname
 		container.Config.Domainname = nc.Config.Domainname
 		return nil
-	}
-
-	if container.daemon.config.DisableNetwork {
-		container.Config.NetworkDisabled = true
 	}
 
 	if container.hostConfig.NetworkMode.IsHost() {
@@ -999,7 +1005,7 @@ func (container *Container) getNetworkedContainer() (*Container, error) {
 }
 
 func (container *Container) ReleaseNetwork() {
-	if container.hostConfig.NetworkMode.IsContainer() || container.daemon.config.DisableNetwork {
+	if container.hostConfig.NetworkMode.IsContainer() || container.Config.NetworkDisabled {
 		return
 	}
 
