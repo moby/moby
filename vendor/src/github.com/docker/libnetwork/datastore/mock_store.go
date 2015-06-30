@@ -93,8 +93,18 @@ func (s *MockStore) NewLock(key string, options *store.LockOptions) (store.Locke
 // modified in the meantime, throws an error if this is the case
 func (s *MockStore) AtomicPut(key string, newValue []byte, previous *store.KVPair, options *store.WriteOptions) (bool, *store.KVPair, error) {
 	mData := s.db[key]
-	if mData != nil && mData.Index != previous.LastIndex {
-		return false, nil, types.BadRequestErrorf("atomic put failed due to mismatched Index")
+
+	if previous == nil {
+		if mData != nil {
+			return false, nil, types.BadRequestErrorf("atomic put failed because key exists")
+		} // Else OK.
+	} else {
+		if mData == nil {
+			return false, nil, types.BadRequestErrorf("atomic put failed because key exists")
+		}
+		if mData != nil && mData.Index != previous.LastIndex {
+			return false, nil, types.BadRequestErrorf("atomic put failed due to mismatched Index")
+		} // Else OK.
 	}
 	err := s.Put(key, newValue, nil)
 	if err != nil {
