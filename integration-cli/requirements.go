@@ -96,6 +96,17 @@ var (
 		},
 		"Test requires underlying root filesystem not be backed by overlay.",
 	}
+	IPv6 = TestRequirement{
+		func() bool {
+			cmd := exec.Command("test", "-f", "/proc/net/if_inet6")
+
+			if err := cmd.Run(); err != nil {
+				return true
+			}
+			return false
+		},
+		"Test requires support for IPv6",
+	}
 )
 
 // testRequires checks if the environment satisfies the requirements
