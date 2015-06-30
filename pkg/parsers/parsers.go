@@ -2,6 +2,7 @@ package parsers
 
 import (
 	"fmt"
+	"net/url"
 	"runtime"
 	"strconv"
 	"strings"
@@ -52,7 +53,11 @@ func ParseTCPAddr(addr string, defaultAddr string) (string, error) {
 		return "", fmt.Errorf("Invalid proto, expected tcp: %s", addr)
 	}
 
-	hostParts := strings.Split(addr, ":")
+	u, err := url.Parse("tcp://" + addr)
+	if err != nil {
+		return "", err
+	}
+	hostParts := strings.Split(u.Host, ":")
 	if len(hostParts) != 2 {
 		return "", fmt.Errorf("Invalid bind address format: %s", addr)
 	}
@@ -65,7 +70,7 @@ func ParseTCPAddr(addr string, defaultAddr string) (string, error) {
 	if err != nil && p == 0 {
 		return "", fmt.Errorf("Invalid bind address format: %s", addr)
 	}
-	return fmt.Sprintf("tcp://%s:%d", host, p), nil
+	return fmt.Sprintf("tcp://%s:%d%s", host, p, u.Path), nil
 }
 
 // Get a repos name and returns the right reposName + tag|digest
