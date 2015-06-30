@@ -561,7 +561,7 @@ func NewDaemon(config *Config, registryService *registry.Service) (daemon *Daemo
 	}
 
 	// Do we have a disabled network?
-	config.DisableNetwork = isNetworkDisabled(config)
+	config.DisableBridge = isBridgeNetworkDisabled(config)
 
 	// Check that the system is supported and we have sufficient privileges
 	if err := checkSystem(); err != nil {

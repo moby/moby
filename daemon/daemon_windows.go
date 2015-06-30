@@ -96,7 +96,7 @@ func configureSysInit(config *Config) (string, error) {
 	return os.Getenv("TEMP"), nil
 }
 
-func isNetworkDisabled(config *Config) bool {
+func isBridgeNetworkDisabled(config *Config) bool {
 	return false
 }
 

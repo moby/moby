@@ -17,7 +17,7 @@ type CommonConfig struct {
 	AutoRestart    bool
 	Context        map[string][]string
 	CorsHeaders    string
-	DisableNetwork bool
+	DisableBridge  bool
 	Dns            []string
 	DnsSearch      []string
 	EnableCors     bool

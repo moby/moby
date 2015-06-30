@@ -773,6 +773,11 @@ func (container *Container) secondaryNetworkRequired(primaryNetworkType string) 
 	case "bridge", "none", "host", "container":
 		return false
 	}
+
+	if container.daemon.config.DisableBridge {
+		return false
+	}
+
 	if container.Config.ExposedPorts != nil && len(container.Config.ExposedPorts) > 0 {
 		return true
 	}
@@ -801,6 +806,11 @@ func (container *Container) AllocateNetwork() error {
 		}
 	} else if service != "" {
 		return fmt.Errorf("conflicting options: publishing a service and network mode")
+	}
+
+	if runconfig.NetworkMode(networkDriver).IsBridge() && container.daemon.config.DisableBridge {
+		container.Config.NetworkDisabled = true
+		return nil
 	}
 
 	if service == "" {
@@ -996,12 +1006,6 @@ func (container *Container) getNetworkedContainer() (*Container, error) {
 
 func (container *Container) ReleaseNetwork() {
 	if container.hostConfig.NetworkMode.IsContainer() || container.Config.NetworkDisabled {
-		return
-	}
-
-	// If the container is not attached to any network do not try
-	// to release network and generate spurious error messages.
-	if container.NetworkSettings.NetworkID == "" {
 		return
 	}
 
