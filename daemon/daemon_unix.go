@@ -268,7 +268,7 @@ func configureSysInit(config *Config) (string, error) {
 	return sysInitPath, nil
 }
 
-func isNetworkDisabled(config *Config) bool {
+func isBridgeNetworkDisabled(config *Config) bool {
 	return config.Bridge.Iface == disableNetworkBridge
 }
 
@@ -336,12 +336,22 @@ func initNetworkController(config *Config) (libnetwork.NetworkController, error)
 		return nil, fmt.Errorf("Error creating default \"host\" network: %v", err)
 	}
 
-	// Initialize default driver "bridge"
+	if !config.DisableBridge {
+		// Initialize default driver "bridge"
+		if err := initBridgeDriver(controller, config); err != nil {
+			return nil, err
+		}
+	}
+
+	return controller, nil
+}
+
+func initBridgeDriver(controller libnetwork.NetworkController, config *Config) error {
 	option := options.Generic{
 		"EnableIPForwarding": config.Bridge.EnableIPForward}
 
 	if err := controller.ConfigureNetworkDriver("bridge", options.Generic{netlabel.GenericData: option}); err != nil {
-		return nil, fmt.Errorf("Error initializing bridge driver: %v", err)
+		return fmt.Errorf("Error initializing bridge driver: %v", err)
 	}
 
 	netOption := options.Generic{
@@ -356,7 +366,7 @@ func initNetworkController(config *Config) (libnetwork.NetworkController, error)
 	if config.Bridge.IP != "" {
 		ip, bipNet, err := net.ParseCIDR(config.Bridge.IP)
 		if err != nil {
-			return nil, err
+			return err
 		}
 
 		bipNet.IP = ip
@@ -366,7 +376,7 @@ func initNetworkController(config *Config) (libnetwork.NetworkController, error)
 	if config.Bridge.FixedCIDR != "" {
 		_, fCIDR, err := net.ParseCIDR(config.Bridge.FixedCIDR)
 		if err != nil {
-			return nil, err
+			return err
 		}
 
 		netOption["FixedCIDR"] = fCIDR
@@ -375,7 +385,7 @@ func initNetworkController(config *Config) (libnetwork.NetworkController, error)
 	if config.Bridge.FixedCIDRv6 != "" {
 		_, fCIDRv6, err := net.ParseCIDR(config.Bridge.FixedCIDRv6)
 		if err != nil {
-			return nil, err
+			return err
 		}
 
 		netOption["FixedCIDRv6"] = fCIDRv6
@@ -395,16 +405,15 @@ func initNetworkController(config *Config) (libnetwork.NetworkController, error)
 	}
 
 	// Initialize default network on "bridge" with the same name
-	_, err = controller.NewNetwork("bridge", "bridge",
+	_, err := controller.NewNetwork("bridge", "bridge",
 		libnetwork.NetworkOptionGeneric(options.Generic{
 			netlabel.GenericData: netOption,
 			netlabel.EnableIPv6:  config.Bridge.EnableIPv6,
 		}))
 	if err != nil {
-		return nil, fmt.Errorf("Error creating default \"bridge\" network: %v", err)
+		return fmt.Errorf("Error creating default \"bridge\" network: %v", err)
 	}
-
-	return controller, nil
+	return nil
 }
 
 // setupInitLayer populates a directory with mountpoints suitable
