@@ -51,6 +51,9 @@ type Endpoint interface {
 
 	// Delete and detaches this endpoint from the network.
 	Delete() error
+
+	// Retrieve the interfaces' statistics from the sandbox
+	Statistics() (map[string]*sandbox.InterfaceStatistics, error)
 }
 
 // EndpointOption is a option setter function type used to pass varios options to Network
@@ -124,6 +127,7 @@ type endpoint struct {
 	generic       map[string]interface{}
 	joinLeaveDone chan struct{}
 	dbIndex       uint64
+	dbExists      bool
 	sync.Mutex
 }
 
@@ -241,7 +245,7 @@ func (ep *endpoint) KeyPrefix() []string {
 
 func (ep *endpoint) networkIDFromKey(key []string) (types.UUID, error) {
 	// endpoint Key structure : endpoint/network-id/endpoint-id
-	// its an invalid key if the key doesnt have all the 3 key elements above
+	// it's an invalid key if the key doesn't have all the 3 key elements above
 	if key == nil || len(key) < 3 || key[0] != datastore.EndpointKeyPrefix {
 		return types.UUID(""), fmt.Errorf("invalid endpoint key : %v", key)
 	}
@@ -258,6 +262,10 @@ func (ep *endpoint) Value() []byte {
 	return b
 }
 
+func (ep *endpoint) SetValue(value []byte) error {
+	return json.Unmarshal(value, ep)
+}
+
 func (ep *endpoint) Index() uint64 {
 	ep.Lock()
 	defer ep.Unlock()
@@ -268,6 +276,13 @@ func (ep *endpoint) SetIndex(index uint64) {
 	ep.Lock()
 	defer ep.Unlock()
 	ep.dbIndex = index
+	ep.dbExists = true
+}
+
+func (ep *endpoint) Exists() bool {
+	ep.Lock()
+	defer ep.Unlock()
+	return ep.dbExists
 }
 
 func (ep *endpoint) processOptions(options ...EndpointOption) {
@@ -543,6 +558,33 @@ func (ep *endpoint) Delete() error {
 	}
 
 	return nil
+}
+
+func (ep *endpoint) Statistics() (map[string]*sandbox.InterfaceStatistics, error) {
+	m := make(map[string]*sandbox.InterfaceStatistics)
+
+	ep.Lock()
+	n := ep.network
+	skey := ep.container.data.SandboxKey
+	ep.Unlock()
+
+	n.Lock()
+	c := n.ctrlr
+	n.Unlock()
+
+	sbox := c.sandboxGet(skey)
+	if sbox == nil {
+		return m, nil
+	}
+
+	var err error
+	for _, i := range sbox.Info().Interfaces() {
+		if m[i.DstName()], err = i.Statistics(); err != nil {
+			return m, err
+		}
+	}
+
+	return m, nil
 }
 
 func (ep *endpoint) deleteEndpoint() error {
