@@ -5,9 +5,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/docker/docker/nat"
 	"github.com/docker/docker/opts"
 	flag "github.com/docker/docker/pkg/mflag"
+	"github.com/docker/docker/pkg/nat"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/ulimit"
 	"github.com/docker/docker/pkg/units"

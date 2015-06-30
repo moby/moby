@@ -5,7 +5,7 @@ import (
 	"path"
 	"strings"
 
-	"github.com/docker/docker/nat"
+	"github.com/docker/docker/pkg/nat"
 )
 
 type Link struct {

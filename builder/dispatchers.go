@@ -18,8 +18,8 @@ import (
 	"strings"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/docker/nat"
 	flag "github.com/docker/docker/pkg/mflag"
+	"github.com/docker/docker/pkg/nat"
 	"github.com/docker/docker/runconfig"
 )
 

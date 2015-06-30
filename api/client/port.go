@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/docker/docker/nat"
 	flag "github.com/docker/docker/pkg/mflag"
+	"github.com/docker/docker/pkg/nat"
 )
 
 // CmdPort lists port mappings for a container.
