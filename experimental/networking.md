@@ -11,7 +11,7 @@ In this feature:
 - Batteries included but removable
   - Docker provides inbuilt native multi-host networking by default & can be swapped by any remote driver provided by external plugins.
 
-This is an experimental feature. For information on installing and using experimental features, see [the experimental feature overview](experimental.md).
+This is an experimental feature. For information on installing and using experimental features, see [the experimental feature overview](README.md).
 
 ## Using Networks
 
