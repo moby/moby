@@ -39,55 +39,40 @@ reported kernel bugs may have already been fixed on the latest kernel packages
 ## Install
 
 You use the same installation procedure for all versions of Fedora,
-only the package you install differs. There are two packages to choose from:
+only the package you install differs. 
 
 <table>
-  <tr>
-    <th>Version</th>
-    <th>Package name</th>
-  </tr>
-  <tr>
-    <td>Fedora 20</td>
-    <td>
-    <p>
-    <a href="https://get.docker.com/rpm/1.7.0/fedora-20/RPMS/x86_64/docker-engine-1.7.0-1.fc20.x86_64.rpm">
-    https://get.docker.com/rpm/1.7.0/fedora-20/RPMS/x86_64/docker-engine-1.7.0-1.fc20.x86_64.rpm</a>
-        </p>
-    </td>
-        <p>
-    <a href="https://get.docker.com/rpm/1.7.0/fedora-20/SRPMS/docker-engine-1.7.0-1.fc20.src.rpm">
-    https://get.docker.com/rpm/1.7.0/fedora-20/SRPMS/docker-engine-1.7.0-1.fc20.src.rpm</a>
-        </p>
-    </td>
-  </tr>
-  <tr>
-    <td>Fedora 21</td>
-    <td>
-    <p>
-    <a href="https://get.docker.com/rpm/1.7.0/fedora-21/RPMS/x86_64/docker-engine-1.7.0-1.fc21.x86_64.rpm">
-    https://get.docker.com/rpm/1.7.0/fedora-21/RPMS/x86_64/docker-engine-1.7.0-1.fc21.x86_64.rpm</a>
-        </p>
-    </td>
-        <p>
-    <a href="https://get.docker.com/rpm/1.7.0/fedora-21/SRPMS/docker-engine-1.7.0-1.fc21.src.rpm">
-    https://get.docker.com/rpm/1.7.0/fedora-21/SRPMS/docker-engine-1.7.0-1.fc21.src.rpm</a>
-        </p>
-    </td>
-  </tr>
-   <tr>
-    <td>Fedora 22</td>
-    <td>
-    <p>
-    <a href="https://get.docker.com/rpm/1.7.0/fedora-22/RPMS/x86_64/docker-engine-1.7.0-1.fc22.x86_64.rpm">
-    https://get.docker.com/rpm/1.7.0/fedora-22/RPMS/x86_64/docker-engine-1.7.0-1.fc22.x86_64.rpm</a>
-        </p>
-    </td>
-        <p>
-    <a href="https://get.docker.com/rpm/1.7.0/fedora-22/SRPMS/docker-engine-1.7.0-1.fc22.src.rpm">
-    https://get.docker.com/rpm/1.7.0/fedora-22/SRPMS/docker-engine-1.7.0-1.fc22.src.rpm</a>
-        </p>
-    </td>
-  </tr> 
+    <tr>
+        <th>Version</th>
+        <th>Package name</th>
+    </tr>
+    <tr>
+        <td>Fedora 20</td>
+        <td>
+            <p>
+                <a href="https://get.docker.com/rpm/1.7.0/fedora-20/RPMS/x86_64/docker-engine-1.7.0-1.fc20.x86_64.rpm">
+                https://get.docker.com/rpm/1.7.0/fedora-20/RPMS/x86_64/docker-engine-1.7.0-1.fc20.x86_64.rpm</a>
+            </p>
+        </td>
+    </tr>
+    <tr>
+        <td>Fedora 21</td>
+        <td>
+            <p>
+                <a href="https://get.docker.com/rpm/1.7.0/fedora-21/RPMS/x86_64/docker-engine-1.7.0-1.fc21.x86_64.rpm">
+                https://get.docker.com/rpm/1.7.0/fedora-21/RPMS/x86_64/docker-engine-1.7.0-1.fc21.x86_64.rpm</a>
+            </p>
+        </td>
+    </tr>
+    <tr>
+        <td>Fedora 22</td>
+        <td>
+            <p>
+                <a href="https://get.docker.com/rpm/1.7.0/fedora-22/RPMS/x86_64/docker-engine-1.7.0-1.fc22.x86_64.rpm">
+                https://get.docker.com/rpm/1.7.0/fedora-22/RPMS/x86_64/docker-engine-1.7.0-1.fc22.x86_64.rpm</a>
+            </p>
+        </td>
+    </tr>
 </table>
 
 
