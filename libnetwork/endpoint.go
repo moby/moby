@@ -811,9 +811,19 @@ func (ep *endpoint) updateDNS(resolvConf []byte) error {
 	return os.Rename(tmpResolvFile.Name(), container.config.resolvConfPath)
 }
 
+func copyFile(src, dst string) error {
+	sBytes, err := ioutil.ReadFile(src)
+	if err != nil {
+		return err
+	}
+
+	return ioutil.WriteFile(dst, sBytes, 0644)
+}
+
 func (ep *endpoint) setupDNS() error {
 	ep.Lock()
 	container := ep.container
+	joinInfo := ep.joinInfo
 	ep.Unlock()
 
 	if container == nil {
@@ -828,6 +838,14 @@ func (ep *endpoint) setupDNS() error {
 	err := createBasePath(dir)
 	if err != nil {
 		return err
+	}
+
+	if joinInfo.resolvConfPath != "" {
+		if err := copyFile(joinInfo.resolvConfPath, container.config.resolvConfPath); err != nil {
+			return fmt.Errorf("could not copy source resolv.conf file %s to %s: %v", joinInfo.resolvConfPath, container.config.resolvConfPath, err)
+		}
+
+		return nil
 	}
 
 	resolvConf, err := resolvconf.Get()
