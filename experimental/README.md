@@ -64,7 +64,8 @@ After downloading the appropriate binary, you can follow the instructions
 * [Support for Docker plugins](plugins.md)
 * [Volume plugins](plugins_volume.md)
 * [Network plugins](plugins_network.md)
-* [Native Multi-host networking](networking.md)
+* [Networking and Services UI](networking.md)
+* [Native multi-host networking](network_overlay.md)
 * [Compose, Swarm and networking integration](compose_swarm_networking.md)
 
 ## How to comment on an experimental feature
