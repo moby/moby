@@ -323,9 +323,6 @@ options for `zfs` start with `zfs`.
 
         $ docker -d --storage-opt dm.blkdiscard=false
 
-
-## Docker execdriver option
-
 Currently supported options of `zfs`:
 
  * `zfs.fsname`
@@ -337,6 +334,8 @@ Currently supported options of `zfs`:
     Example use:
 
         $ docker -d -s zfs --storage-opt zfs.fsname=zroot/docker
+
+## Docker execdriver option
 
 The Docker daemon uses a specifically built `libcontainer` execution driver as
 its interface to the Linux kernel `namespaces`, `cgroups`, and `SELinux`.
