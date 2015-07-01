@@ -12,8 +12,7 @@ func TestDownload(t *testing.T) {
 	}
 
 	// Expected status code = 404
-	_, err = Download("http://docker.com/abc1234567")
-	if err == nil {
+	if _, err = Download("http://docker.com/abc1234567"); err == nil {
 		t.Errorf("Expected error to exist when Download(http://docker.com/abc1234567)")
 	}
 }
@@ -21,9 +20,7 @@ func TestDownload(t *testing.T) {
 func TestNewHTTPRequestError(t *testing.T) {
 	errorMessage := "Some error message"
 	httpResponse, _ := Download("http://docker.com")
-	err := NewHTTPRequestError(errorMessage, httpResponse)
-
-	if err.Error() != errorMessage {
+	if err := NewHTTPRequestError(errorMessage, httpResponse); err.Error() != errorMessage {
 		t.Errorf("Expected err to equal error Message")
 	}
 }
@@ -34,17 +31,18 @@ func TestParseServerHeader(t *testing.T) {
 		t.Errorf("Should fail when header can not be parsed")
 	}
 
-	serverHeader, err = ParseServerHeader("(bad header)")
-	if err.Error() != "Bad header: '/' missing" {
+	if serverHeader, err = ParseServerHeader("(bad header)"); err.Error() != "Bad header: '/' missing" {
 		t.Errorf("Should fail when header can not be parsed")
 	}
 
-	serverHeader, err = ParseServerHeader("(without/spaces)")
-	if err.Error() != "Bad header: Expected single space" {
+	if serverHeader, err = ParseServerHeader("(without/spaces)"); err.Error() != "Bad header: Expected single space" {
 		t.Errorf("Should fail when header can not be parsed")
 	}
 
-	serverHeader, err = ParseServerHeader("(header/with space)")
+	if serverHeader, err = ParseServerHeader("(header/with space)"); err != nil {
+		t.Errorf("Expected err to not exist when ParseServerHeader(\"(header/with space)\")")
+	}
+
 	if serverHeader.App != "(header" {
 		t.Errorf("Expected serverHeader.App to equal \"(header\"")
 	}
