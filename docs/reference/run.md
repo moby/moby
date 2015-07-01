@@ -773,7 +773,7 @@ capabilities using `--cap-add` and `--cap-drop`. By default, Docker has a defaul
 list of capabilities that are kept. The following table lists the Linux capability options which can be added or dropped.
 
 | Capability Key | Capability Description |
-| :----------------- | :---------------| :-------------------- |
+| -------------- | ---------------------- |
 | SETPCAP | Modify process capabilities. |
 | SYS_MODULE| Load and unload kernel modules. |
 | SYS_RAWIO | Perform I/O port operations (iopl(2) and ioperm(2)). |
