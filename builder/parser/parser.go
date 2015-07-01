@@ -56,6 +56,7 @@ func init() {
 		command.From:       parseString,
 		command.Add:        parseMaybeJSONToList,
 		command.Copy:       parseMaybeJSONToList,
+		command.Layer:      parseMaybeJSONToList,
 		command.Run:        parseMaybeJSON,
 		command.Cmd:        parseMaybeJSON,
 		command.Entrypoint: parseMaybeJSON,

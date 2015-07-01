@@ -7,6 +7,7 @@ const (
 	Maintainer = "maintainer"
 	Add        = "add"
 	Copy       = "copy"
+	Layer      = "layer"
 	From       = "from"
 	Onbuild    = "onbuild"
 	Workdir    = "workdir"
@@ -25,6 +26,7 @@ var Commands = map[string]struct{}{
 	Maintainer: {},
 	Add:        {},
 	Copy:       {},
+	Layer:      {},
 	From:       {},
 	Onbuild:    {},
 	Workdir:    {},

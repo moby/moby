@@ -160,7 +160,7 @@ func add(b *Builder, args []string, attributes map[string]bool, original string)
 		return err
 	}
 
-	return b.runContextCommand(args, true, true, "ADD")
+	return b.runContextCommand(args, true, true, "ADD", "")
 }
 
 // COPY foo /path
@@ -176,7 +176,33 @@ func dispatchCopy(b *Builder, args []string, attributes map[string]bool, origina
 		return err
 	}
 
-	return b.runContextCommand(args, false, false, "COPY")
+	return b.runContextCommand(args, false, false, "COPY", "")
+}
+
+// LAYER foo [sha256:sum]
+//
+// Add the layer to the root filesystem. Tarball argument is required
+// and Remote URL (git, http) handling exist here, if present checksum
+// is verified.
+//
+func layer(b *Builder, args []string, attributes map[string]bool, original string) error {
+	if len(args) < 1 {
+		return fmt.Errorf("LAYER requires at least one argument")
+	}
+	if len(args) > 2 {
+		return fmt.Errorf("LAYER requires no more than two arguments")
+	}
+
+	if err := b.BuilderFlags.Parse(); err != nil {
+		return err
+	}
+
+	sum := ""
+	if len(args) == 2 {
+		sum = args[1]
+	}
+	args = append(args[:1], "/")
+	return b.runContextCommand(args, true, true, "LAYER", sum)
 }
 
 // FROM imagename
