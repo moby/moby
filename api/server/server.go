@@ -1101,6 +1101,11 @@ func (s *Server) postContainersAttach(version version.Version, w http.ResponseWr
 		return fmt.Errorf("Missing parameter")
 	}
 
+	cont, err := s.daemon.Get(vars["name"])
+	if err != nil {
+		return err
+	}
+
 	inStream, outStream, err := hijackServer(w)
 	if err != nil {
 		return err
@@ -1124,7 +1129,7 @@ func (s *Server) postContainersAttach(version version.Version, w http.ResponseWr
 		Multiplex: version.GreaterThanOrEqualTo("1.6"),
 	}
 
-	if err := s.daemon.ContainerAttachWithLogs(vars["name"], attachWithLogsConfig); err != nil {
+	if err := s.daemon.ContainerAttachWithLogs(cont, attachWithLogsConfig); err != nil {
 		fmt.Fprintf(outStream, "Error attaching: %s\n", err)
 	}
 
@@ -1139,6 +1144,11 @@ func (s *Server) wsContainersAttach(version version.Version, w http.ResponseWrit
 		return fmt.Errorf("Missing parameter")
 	}
 
+	cont, err := s.daemon.Get(vars["name"])
+	if err != nil {
+		return err
+	}
+
 	h := websocket.Handler(func(ws *websocket.Conn) {
 		defer ws.Close()
 
@@ -1150,7 +1160,7 @@ func (s *Server) wsContainersAttach(version version.Version, w http.ResponseWrit
 			Stream:    boolValue(r, "stream"),
 		}
 
-		if err := s.daemon.ContainerWsAttachWithLogs(vars["name"], wsAttachWithLogsConfig); err != nil {
+		if err := s.daemon.ContainerWsAttachWithLogs(cont, wsAttachWithLogsConfig); err != nil {
 			logrus.Errorf("Error attaching websocket: %s", err)
 		}
 	})
