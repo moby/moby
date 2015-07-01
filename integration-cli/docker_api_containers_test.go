@@ -1705,3 +1705,24 @@ func (s *DockerSuite) TestPostContainersCreateWithStringOrSliceCmd(c *check.C) {
 	out, _ = dockerCmd(c, "start", "-a", "echotest2")
 	c.Assert(strings.TrimSpace(out), check.Equals, "hello world")
 }
+
+// regression #14318
+func (s *DockerSuite) TestPostContainersCreateWithStringOrSliceCapAddDrop(c *check.C) {
+	config := struct {
+		Image   string
+		CapAdd  string
+		CapDrop string
+	}{"busybox", "NET_ADMIN", "SYS_ADMIN"}
+	status, _, err := sockRequest("POST", "/containers/create?name=capaddtest0", config)
+	c.Assert(err, check.IsNil)
+	c.Assert(status, check.Equals, http.StatusCreated)
+
+	config2 := struct {
+		Image   string
+		CapAdd  []string
+		CapDrop []string
+	}{"busybox", []string{"NET_ADMIN", "SYS_ADMIN"}, []string{"SETGID"}}
+	status, _, err = sockRequest("POST", "/containers/create?name=capaddtest1", config2)
+	c.Assert(err, check.IsNil)
+	c.Assert(status, check.Equals, http.StatusCreated)
+}
