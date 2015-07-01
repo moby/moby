@@ -223,6 +223,13 @@ func (s *DockerSuite) TestCommitChange(c *check.C) {
 		"--change", "ENV DEBUG true",
 		"--change", "ENV test 1",
 		"--change", "ENV PATH /foo",
+		"--change", "LABEL foo bar",
+		"--change", "CMD [\"/bin/sh\"]",
+		"--change", "WORKDIR /opt",
+		"--change", "ENTRYPOINT [\"/bin/sh\"]",
+		"--change", "USER testuser",
+		"--change", "VOLUME /var/lib/docker",
+		"--change", "ONBUILD /usr/local/bin/python-build --dir /app/src",
 		"test", "test-commit")
 	imageId, _, err := runCommandWithOutput(cmd)
 	if err != nil {
@@ -233,6 +240,13 @@ func (s *DockerSuite) TestCommitChange(c *check.C) {
 	expected := map[string]string{
 		"Config.ExposedPorts": "map[8080/tcp:{}]",
 		"Config.Env":          "[DEBUG=true test=1 PATH=/foo]",
+		"Config.Labels":       "map[foo:bar]",
+		"Config.Cmd":          "{[/bin/sh]}",
+		"Config.WorkingDir":   "/opt",
+		"Config.Entrypoint":   "{[/bin/sh]}",
+		"Config.User":         "testuser",
+		"Config.Volumes":      "map[/var/lib/docker:{}]",
+		"Config.OnBuild":      "[/usr/local/bin/python-build --dir /app/src]",
 	}
 
 	for conf, value := range expected {
