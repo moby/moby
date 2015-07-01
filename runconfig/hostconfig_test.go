@@ -2,6 +2,7 @@ package runconfig
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"testing"
@@ -254,12 +255,49 @@ func TestDecodeHostConfig(t *testing.T) {
 			t.Fatalf("Expected 1 bind, found %v\n", c.Binds)
 		}
 
-		if len(c.CapAdd) != 1 && c.CapAdd[0] != "NET_ADMIN" {
+		if c.CapAdd.Len() != 1 && c.CapAdd.Slice()[0] != "NET_ADMIN" {
 			t.Fatalf("Expected CapAdd NET_ADMIN, got %v", c.CapAdd)
 		}
 
-		if len(c.CapDrop) != 1 && c.CapDrop[0] != "NET_ADMIN" {
+		if c.CapDrop.Len() != 1 && c.CapDrop.Slice()[0] != "NET_ADMIN" {
 			t.Fatalf("Expected CapDrop MKNOD, got %v", c.CapDrop)
 		}
+	}
+}
+
+func TestCapListUnmarshalSliceAndString(t *testing.T) {
+	var cl *CapList
+	cap0, err := json.Marshal([]string{"CAP_SOMETHING"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal(cap0, &cl); err != nil {
+		t.Fatal(err)
+	}
+
+	slice := cl.Slice()
+	if len(slice) != 1 {
+		t.Fatalf("expected 1 element after unmarshal: %q", slice)
+	}
+
+	if slice[0] != "CAP_SOMETHING" {
+		t.Fatalf("expected `CAP_SOMETHING`, got: %q", slice[0])
+	}
+
+	cap1, err := json.Marshal("CAP_SOMETHING")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal(cap1, &cl); err != nil {
+		t.Fatal(err)
+	}
+
+	slice = cl.Slice()
+	if len(slice) != 1 {
+		t.Fatalf("expected 1 element after unmarshal: %q", slice)
+	}
+
+	if slice[0] != "CAP_SOMETHING" {
+		t.Fatalf("expected `CAP_SOMETHING`, got: %q", slice[0])
 	}
 }
