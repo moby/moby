@@ -422,7 +422,6 @@ func parseLoggingOpts(loggingDriver string, loggingOpts []string) (map[string]st
 	if loggingDriver == "none" && len(loggingOpts) > 0 {
 		return map[string]string{}, fmt.Errorf("Invalid logging opts for driver %s", loggingDriver)
 	}
-	//TODO - validation step
 	return loggingOptsMap, nil
 }
 

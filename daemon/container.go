@@ -710,7 +710,10 @@ func (container *Container) SetHostConfig(hostConfig *runconfig.HostConfig) {
 
 func (container *Container) getLogConfig() runconfig.LogConfig {
 	cfg := container.hostConfig.LogConfig
-	if cfg.Type != "" { // container has log driver configured
+	if cfg.Type != "" || len(cfg.Config) > 0 { // container has log driver configured
+		if cfg.Type == "" {
+			cfg.Type = jsonfilelog.Name
+		}
 		return cfg
 	}
 	// Use daemon's default log config for containers
@@ -719,6 +722,9 @@ func (container *Container) getLogConfig() runconfig.LogConfig {
 
 func (container *Container) getLogger() (logger.Logger, error) {
 	cfg := container.getLogConfig()
+	if err := logger.ValidateLogOpts(cfg.Type, cfg.Config); err != nil {
+		return nil, err
+	}
 	c, err := logger.GetLogDriver(cfg.Type)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to get logging factory: %v", err)
@@ -891,28 +897,32 @@ func (c *Container) AttachWithLogs(stdin io.ReadCloser, stdout, stderr io.Writer
 
 	if logs {
 		logDriver, err := c.getLogger()
-		cLog, err := logDriver.GetReader()
-
 		if err != nil {
-			logrus.Errorf("Error reading logs: %s", err)
-		} else if c.LogDriverType() != jsonfilelog.Name {
-			logrus.Errorf("Reading logs not implemented for driver %s", c.LogDriverType())
+			logrus.Errorf("Error obtaining the logger %v", err)
+			return err
+		}
+		if _, ok := logDriver.(logger.Reader); !ok {
+			logrus.Errorf("cannot read logs for [%s] driver", logDriver.Name())
 		} else {
-			dec := json.NewDecoder(cLog)
-			for {
-				l := &jsonlog.JSONLog{}
+			if cLog, err := logDriver.(logger.Reader).ReadLog(); err != nil {
+				logrus.Errorf("Error reading logs %v", err)
+			} else {
+				dec := json.NewDecoder(cLog)
+				for {
+					l := &jsonlog.JSONLog{}
 
-				if err := dec.Decode(l); err == io.EOF {
-					break
-				} else if err != nil {
-					logrus.Errorf("Error streaming logs: %s", err)
-					break
-				}
-				if l.Stream == "stdout" && stdout != nil {
-					io.WriteString(stdout, l.Log)
-				}
-				if l.Stream == "stderr" && stderr != nil {
-					io.WriteString(stderr, l.Log)
+					if err := dec.Decode(l); err == io.EOF {
+						break
+					} else if err != nil {
+						logrus.Errorf("Error streaming logs: %s", err)
+						break
+					}
+					if l.Stream == "stdout" && stdout != nil {
+						io.WriteString(stdout, l.Log)
+					}
+					if l.Stream == "stderr" && stderr != nil {
+						io.WriteString(stderr, l.Log)
+					}
 				}
 			}
 		}

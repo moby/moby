@@ -11,6 +11,9 @@ import (
 // Creator is a method that builds a logging driver instance with given context
 type Creator func(Context) (Logger, error)
 
+//LogOptValidator is a method that validates the log opts provided
+type LogOptValidator func(cfg map[string]string) error
+
 // Context provides enough information for a logging driver to do its function
 type Context struct {
 	Config              map[string]string
@@ -42,8 +45,9 @@ func (ctx *Context) Command() string {
 }
 
 type logdriverFactory struct {
-	registry map[string]Creator
-	m        sync.Mutex
+	registry     map[string]Creator
+	optValidator map[string]LogOptValidator
+	m            sync.Mutex
 }
 
 func (lf *logdriverFactory) register(name string, c Creator) error {
@@ -54,6 +58,17 @@ func (lf *logdriverFactory) register(name string, c Creator) error {
 		return fmt.Errorf("logger: log driver named '%s' is already registered", name)
 	}
 	lf.registry[name] = c
+	return nil
+}
+
+func (lf *logdriverFactory) registerLogOptValidator(name string, l LogOptValidator) error {
+	lf.m.Lock()
+	defer lf.m.Unlock()
+
+	if _, ok := lf.optValidator[name]; ok {
+		return fmt.Errorf("logger: log driver named '%s' is already registered", name)
+	}
+	lf.optValidator[name] = l
 	return nil
 }
 
@@ -68,7 +83,15 @@ func (lf *logdriverFactory) get(name string) (Creator, error) {
 	return c, nil
 }
 
-var factory = &logdriverFactory{registry: make(map[string]Creator)} // global factory instance
+func (lf *logdriverFactory) getLogOptValidator(name string) LogOptValidator {
+	lf.m.Lock()
+	defer lf.m.Unlock()
+
+	c, _ := lf.optValidator[name]
+	return c
+}
+
+var factory = &logdriverFactory{registry: make(map[string]Creator), optValidator: make(map[string]LogOptValidator)} // global factory instance
 
 // RegisterLogDriver registers the given logging driver builder with given logging
 // driver name.
@@ -76,7 +99,19 @@ func RegisterLogDriver(name string, c Creator) error {
 	return factory.register(name, c)
 }
 
+func RegisterLogOptValidator(name string, l LogOptValidator) error {
+	return factory.registerLogOptValidator(name, l)
+}
+
 // GetLogDriver provides the logging driver builder for a logging driver name.
 func GetLogDriver(name string) (Creator, error) {
 	return factory.get(name)
+}
+
+func ValidateLogOpts(name string, cfg map[string]string) error {
+	l := factory.getLogOptValidator(name)
+	if l != nil {
+		return l(cfg)
+	}
+	return fmt.Errorf("Log Opts are not valid for [%s] driver", name)
 }

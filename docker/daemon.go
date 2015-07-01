@@ -15,6 +15,7 @@ import (
 	"github.com/docker/docker/autogen/dockerversion"
 	"github.com/docker/docker/cliconfig"
 	"github.com/docker/docker/daemon"
+	"github.com/docker/docker/daemon/logger"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/pidfile"
 	"github.com/docker/docker/pkg/signal"
@@ -92,6 +93,12 @@ func mainDaemon() {
 
 	if err := setDefaultUmask(); err != nil {
 		logrus.Fatalf("Failed to set umask: %v", err)
+	}
+
+	if len(daemonCfg.LogConfig.Config) > 0 {
+		if err := logger.ValidateLogOpts(daemonCfg.LogConfig.Type, daemonCfg.LogConfig.Config); err != nil {
+			logrus.Fatalf("Failed to set log opts: %v", err)
+		}
 	}
 
 	var pfile *pidfile.PidFile

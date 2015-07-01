@@ -4,7 +4,7 @@ package syslog
 
 import (
 	"errors"
-	"io"
+	"fmt"
 	"log/syslog"
 	"net"
 	"net/url"
@@ -49,6 +49,9 @@ type Syslog struct {
 
 func init() {
 	if err := logger.RegisterLogDriver(name, New); err != nil {
+		logrus.Fatal(err)
+	}
+	if err := logger.RegisterLogOptValidator(name, ValidateLogOpt); err != nil {
 		logrus.Fatal(err)
 	}
 }
@@ -99,10 +102,6 @@ func (s *Syslog) Name() string {
 	return name
 }
 
-func (s *Syslog) GetReader() (io.Reader, error) {
-	return nil, logger.ReadLogsNotSupported
-}
-
 func parseAddress(address string) (string, string, error) {
 	if urlutil.IsTransportURL(address) {
 		url, err := url.Parse(address)
@@ -131,6 +130,19 @@ func parseAddress(address string) (string, string, error) {
 	}
 
 	return "", "", nil
+}
+
+func ValidateLogOpt(cfg map[string]string) error {
+	for key := range cfg {
+		switch key {
+		case "syslog-address":
+		case "syslog-tag":
+		case "syslog-facility":
+		default:
+			return fmt.Errorf("unknown log opt '%s' for syslog log driver", key)
+		}
+	}
+	return nil
 }
 
 func parseFacility(facility string) (syslog.Priority, error) {
