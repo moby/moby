@@ -34,7 +34,6 @@ func NewRepository(ctx context.Context, name, baseURL string, transport http.Rou
 
 	client := &http.Client{
 		Transport: transport,
-		Timeout:   1 * time.Minute,
 		// TODO(dmcgowan): create cookie jar
 	}
 
