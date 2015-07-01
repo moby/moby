@@ -2,7 +2,7 @@ package fluentd
 
 import (
 	"bytes"
-	"io"
+	"fmt"
 	"math"
 	"net"
 	"strconv"
@@ -36,6 +36,9 @@ const (
 
 func init() {
 	if err := logger.RegisterLogDriver(name, New); err != nil {
+		logrus.Fatal(err)
+	}
+	if err := logger.RegisterLogOptValidator(name, ValidateLogOpt); err != nil {
 		logrus.Fatal(err)
 	}
 }
@@ -116,14 +119,22 @@ func (f *Fluentd) Log(msg *logger.Message) error {
 	return f.writer.PostWithTime(f.tag, msg.Timestamp, data)
 }
 
+func ValidateLogOpt(cfg map[string]string) error {
+	for key := range cfg {
+		switch key {
+		case "fluentd-address":
+		case "fluentd-tag":
+		default:
+			return fmt.Errorf("unknown log opt '%s' for fluentd log driver", key)
+		}
+	}
+	return nil
+}
+
 func (f *Fluentd) Close() error {
 	return f.writer.Close()
 }
 
 func (f *Fluentd) Name() string {
 	return name
-}
-
-func (s *Fluentd) GetReader() (io.Reader, error) {
-	return nil, logger.ReadLogsNotSupported
 }

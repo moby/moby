@@ -21,5 +21,9 @@ type Logger interface {
 	Log(*Message) error
 	Name() string
 	Close() error
-	GetReader() (io.Reader, error)
+}
+
+//Reader is an interface for docker logging drivers that support reading
+type Reader interface {
+	ReadLog(args ...string) (io.Reader, error)
 }
