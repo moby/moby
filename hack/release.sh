@@ -293,6 +293,11 @@ EOF
 	# Upload repo
 	s3cmd --acl-public "$s3Headers" sync "$APTDIR/" "s3://$BUCKET/ubuntu/"
 	cat <<EOF | write_to_s3 s3://$BUCKET/ubuntu/index
+echo "# WARNING! This script is not going to install aufs on your"
+echo "# system. If you want to use aufs please check the script"
+echo "# at https://get.docker.com"
+echo "# You may press Ctrl+C to abort this script."
+(set -x; sleep 20)
 # Check that HTTPS transport is available to APT
 if [ ! -e /usr/lib/apt/methods/https ]; then
 	apt-get update
