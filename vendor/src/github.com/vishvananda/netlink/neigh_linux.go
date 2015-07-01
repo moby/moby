@@ -141,7 +141,7 @@ func NeighList(linkIndex, family int) ([]Neigh, error) {
 		return nil, err
 	}
 
-	res := make([]Neigh, 0)
+	var res []Neigh
 	for _, m := range msgs {
 		ndm := deserializeNdmsg(m)
 		if linkIndex != 0 && int(ndm.Index) != linkIndex {

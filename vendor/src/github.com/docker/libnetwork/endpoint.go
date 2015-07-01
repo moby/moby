@@ -2,6 +2,7 @@ package libnetwork
 
 import (
 	"bytes"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path"
@@ -45,6 +46,9 @@ type Endpoint interface {
 
 	// Delete and detaches this endpoint from the network.
 	Delete() error
+
+	// Retrieve the interfaces' statistics from the sandbox
+	Statistics() (map[string]*sandbox.InterfaceStatistics, error)
 }
 
 // EndpointOption is a option setter function type used to pass varios options to Network
@@ -402,6 +406,33 @@ func (ep *endpoint) Delete() error {
 	return err
 }
 
+func (ep *endpoint) Statistics() (map[string]*sandbox.InterfaceStatistics, error) {
+	m := make(map[string]*sandbox.InterfaceStatistics)
+
+	ep.Lock()
+	n := ep.network
+	skey := ep.container.data.SandboxKey
+	ep.Unlock()
+
+	n.Lock()
+	c := n.ctrlr
+	n.Unlock()
+
+	sbox := c.sandboxGet(skey)
+	if sbox == nil {
+		return m, nil
+	}
+
+	var err error
+	for _, i := range sbox.Interfaces() {
+		if m[i.DstName], err = i.Statistics(); err != nil {
+			return m, err
+		}
+	}
+
+	return m, nil
+}
+
 func (ep *endpoint) buildHostsFiles() error {
 	var extraContent []etchosts.Record
 
@@ -567,9 +598,19 @@ func (ep *endpoint) updateDNS(resolvConf []byte) error {
 	return os.Rename(tmpResolvFile.Name(), container.config.resolvConfPath)
 }
 
+func copyFile(src, dst string) error {
+	sBytes, err := ioutil.ReadFile(src)
+	if err != nil {
+		return err
+	}
+
+	return ioutil.WriteFile(dst, sBytes, 0644)
+}
+
 func (ep *endpoint) setupDNS() error {
 	ep.Lock()
 	container := ep.container
+	joinInfo := ep.joinInfo
 	ep.Unlock()
 
 	if container == nil {
@@ -584,6 +625,14 @@ func (ep *endpoint) setupDNS() error {
 	err := createBasePath(dir)
 	if err != nil {
 		return err
+	}
+
+	if joinInfo.resolvConfPath != "" {
+		if err := copyFile(joinInfo.resolvConfPath, container.config.resolvConfPath); err != nil {
+			return fmt.Errorf("could not copy source resolv.conf file %s to %s: %v", joinInfo.resolvConfPath, container.config.resolvConfPath, err)
+		}
+
+		return nil
 	}
 
 	resolvConf, err := resolvconf.Get()
