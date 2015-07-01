@@ -9,7 +9,7 @@ This example is to provision two Docker Hosts with the **experimental** Libnetwo
 
 ### Pre-Requisites
 
-- Kernel >= 3.1.6
+- Kernel >= 3.16
 - Experimental Docker client
 
 ### Install Docker Experimental
