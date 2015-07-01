@@ -6,6 +6,8 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/daemon/execdriver"
+	"github.com/docker/libcontainer"
+	"github.com/docker/libnetwork/sandbox"
 )
 
 type ContainerStatsConfig struct {
@@ -27,6 +29,10 @@ func (daemon *Daemon) ContainerStats(name string, config *ContainerStatsConfig) 
 	var preCpuStats types.CpuStats
 	getStat := func(v interface{}) *types.Stats {
 		update := v.(*execdriver.ResourceStats)
+		// Retrieve the nw statistics from libnetwork and inject them in the Stats
+		if nwStats, err := daemon.getNetworkStats(name); err == nil {
+			update.Stats.Interfaces = nwStats
+		}
 		ss := convertStatsToAPITypes(update.Stats)
 		ss.PreCpuStats = preCpuStats
 		ss.MemoryStats.Limit = uint64(update.MemoryLimit)
@@ -66,4 +72,47 @@ func (daemon *Daemon) ContainerStats(name string, config *ContainerStatsConfig) 
 			return nil
 		}
 	}
+}
+
+func (daemon *Daemon) getNetworkStats(name string) ([]*libcontainer.NetworkInterface, error) {
+	var list []*libcontainer.NetworkInterface
+
+	c, err := daemon.Get(name)
+	if err != nil {
+		return list, err
+	}
+
+	nw, err := daemon.netController.NetworkByID(c.NetworkSettings.NetworkID)
+	if err != nil {
+		return list, err
+	}
+	ep, err := nw.EndpointByID(c.NetworkSettings.EndpointID)
+	if err != nil {
+		return list, err
+	}
+
+	stats, err := ep.Statistics()
+	if err != nil {
+		return list, err
+	}
+
+	// Convert libnetwork nw stats into libcontainer nw stats
+	for ifName, ifStats := range stats {
+		list = append(list, convertLnNetworkStats(ifName, ifStats))
+	}
+
+	return list, nil
+}
+
+func convertLnNetworkStats(name string, stats *sandbox.InterfaceStatistics) *libcontainer.NetworkInterface {
+	n := &libcontainer.NetworkInterface{Name: name}
+	n.RxBytes = stats.RxBytes
+	n.RxPackets = stats.RxPackets
+	n.RxErrors = stats.RxErrors
+	n.RxDropped = stats.RxDropped
+	n.TxBytes = stats.TxBytes
+	n.TxPackets = stats.TxPackets
+	n.TxErrors = stats.TxErrors
+	n.TxDropped = stats.TxDropped
+	return n
 }
