@@ -34,6 +34,7 @@ separated by a ':'
 **TAG**
    The tag you are assigning to the image.  Though this is arbitrary it is
 recommended to be used for a version to distinguish images with the same name.
+Also, for consistency tags should only include a-z0-9-_. .
 Note that here TAG is a part of the overall name or "tag".
 
 # OPTIONS
@@ -62,4 +63,4 @@ based on docker.com source material and internal work.
 June 2014, updated by Sven Dowideit <SvenDowideit@home.org.au>
 July 2014, updated by Sven Dowideit <SvenDowideit@home.org.au>
 April 2015, updated by Mary Anthony for v2 <mary@docker.com>
-
+June 2015, updated by Sally O'Malley <somalley@redhat.com>
