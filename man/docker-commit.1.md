@@ -50,6 +50,9 @@ create a new image run `docker ps` to find the container's ID and then run:
     # docker commit -m="Added Apache to Fedora base image" \
       -a="A D Ministrator" 98bd7fc99854 fedora/fedora_httpd:20
 
+Note that only a-z0-9-_. are allowed when naming images from an 
+existing container.
+
 ## Apply specified Dockerfile instructions while committing the image
 If an existing container was created without the DEBUG environment
 variable set to "true", you can create a new image based on that
@@ -64,3 +67,4 @@ based on docker.com source material and in
 June 2014, updated by Sven Dowideit <SvenDowideit@home.org.au>
 July 2014, updated by Sven Dowideit <SvenDowideit@home.org.au>
 Oct 2014, updated by Daniel, Dao Quang Minh <daniel at nitrous dot io>
+June 2015, updated by Sally O'Malley <somalley@redhat.com>
