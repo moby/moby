@@ -6,6 +6,10 @@ set -e
 # or:
 #   'wget -qO- https://get.docker.com/ | sh'
 #
+# If you're interested in the daily experimental build:
+#   'curl -sSL https://experimental.docker.com/ | sh'
+# or:
+#   'wget -qO- https://experimental.docker.com/ | sh'
 #
 # Docker Maintainers:
 #   To update this script on https://get.docker.com,
