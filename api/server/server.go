@@ -430,7 +430,9 @@ func (s *Server) getEvents(version version.Version, w http.ResponseWriter, r *ht
 	d := s.daemon
 	es := d.EventsService
 	w.Header().Set("Content-Type", "application/json")
-	enc := json.NewEncoder(ioutils.NewWriteFlusher(w))
+	outStream := ioutils.NewWriteFlusher(w)
+	outStream.Write(nil) // make sure response is sent immediately
+	enc := json.NewEncoder(outStream)
 
 	getContainerId := func(cn string) string {
 		c, err := d.Get(cn)
