@@ -6,13 +6,13 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"log"
 	"os"
 	"os/exec"
 	"runtime"
 	"strings"
 	"syscall"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/reexec"
 )
 
@@ -50,7 +50,7 @@ func initializer() {
 	args := getArgs()
 
 	if err := setupNamespace(args); err != nil {
-		log.Fatal(err)
+		logrus.Fatal(err)
 	}
 }
 
@@ -65,7 +65,7 @@ func setupNamespace(args *InitArgs) error {
 
 	path, err := exec.LookPath(args.Args[0])
 	if err != nil {
-		log.Printf("Unable to locate %v", args.Args[0])
+		logrus.Infof("Unable to locate %v", args.Args[0])
 		os.Exit(127)
 	}
 
