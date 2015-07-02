@@ -4,6 +4,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"os/exec"
@@ -25,5 +26,26 @@ func (s *DockerSuite) TestExecApiCreateNoCmd(c *check.C) {
 
 	if !bytes.Contains(body, []byte("No exec command specified")) {
 		c.Fatalf("Expected message when creating exec command with no Cmd specified")
+	}
+}
+
+func (s *DockerSuite) TestExecApiCreateNoValidContentType(c *check.C) {
+	name := "exec_test"
+	dockerCmd(c, "run", "-d", "-t", "--name", name, "busybox", "/bin/sh")
+
+	jsonData := bytes.NewBuffer(nil)
+	if err := json.NewEncoder(jsonData).Encode(map[string]interface{}{"Cmd": nil}); err != nil {
+		c.Fatalf("Can not encode data to json %s", err)
+	}
+
+	res, body, err := sockRequestRaw("POST", fmt.Sprintf("/containers/%s/exec", name), jsonData, "text/plain")
+	c.Assert(err, check.IsNil)
+	c.Assert(res.StatusCode, check.Equals, http.StatusInternalServerError)
+
+	b, err := readBody(body)
+	c.Assert(err, check.IsNil)
+
+	if !bytes.Contains(b, []byte("Content-Type specified")) {
+		c.Fatalf("Expected message when creating exec command with invalid Content-Type specified")
 	}
 }
