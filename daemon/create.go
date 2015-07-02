@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/graph"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/parsers"
@@ -136,6 +137,7 @@ func (daemon *Daemon) Create(config *runconfig.Config, hostConfig *runconfig.Hos
 		container.addMountPointWithVolume(destination, v, true)
 	}
 	if err := container.ToDisk(); err != nil {
+		logrus.Errorf("Error saving new container to disk: %v", err)
 		return nil, nil, err
 	}
 	container.LogEvent("create")

@@ -92,7 +92,9 @@ func (daemon *Daemon) rm(container *Container, forceRemove bool) (err error) {
 	// Save container state to disk. So that if error happens before
 	// container meta file got removed from disk, then a restart of
 	// docker should not make a dead container alive.
-	container.ToDisk()
+	if err := container.ToDisk(); err != nil {
+		logrus.Errorf("Error saving dying container to disk: %v", err)
+	}
 
 	// If force removal is required, delete container from various
 	// indexes even if removal failed.
