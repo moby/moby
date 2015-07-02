@@ -323,42 +323,6 @@ options for `zfs` start with `zfs`.
 
         $ docker -d --storage-opt dm.blkdiscard=false
 
- *  `dm.override_udev_sync_check`
-
-    Overrides the `udev` synchronization checks between `devicemapper` and `udev`.
-    `udev` is the device manager for the Linux kernel.
-
-    To view the `udev` sync support of a Docker daemon that is using the
-    `devicemapper` driver, run:
-
-        $ docker info
-        [...]
-        Udev Sync Supported: true
-        [...]
-
-    When `udev` sync support is `true`, then `devicemapper` and udev can
-    coordinate the activation and deactivation of devices for containers.
-
-    When `udev` sync support is `false`, a race condition occurs between
-    the`devicemapper` and `udev` during create and cleanup. The race condition
-    results in errors and failures. (For information on these failures, see
-    [docker#4036](https://github.com/docker/docker/issues/4036))
-
-    To allow the `docker` daemon to start, regardless of `udev` sync not being
-    supported, set `dm.override_udev_sync_check` to true:
-
-	$ docker -d --storage-opt dm.override_udev_sync_check=true
-
-    When this value is `true`, the  `devicemapper` continues and simply warns
-    you the errors are happening.
-
-    > **Note:**
-    > The ideal is to pursue a `docker` daemon and environment that does
-    > support synchronizing with `udev`. For further discussion on this
-    > topic, see [docker#4036](https://github.com/docker/docker/issues/4036).
-    > Otherwise, set this flag for migrating existing Docker daemons to
-    > a daemon with a supported environment.
-
 
 ## Docker execdriver option
 
