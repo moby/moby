@@ -1,5 +1,31 @@
 # Changelog
 
+## 1.7.1 (2015-07-02)
+
+#### Runtime
+
+- Fix default user spawning exec process with `docker exec`
+- Make `--bridge=none` to not configure the network bridge
+- Publish networking stats properly
+- Fix implicit devicemapper selection with static binaries
+- Fix socket connections that hanged internitently
+- Fix bridge interface creation on CentOS/RHEL 6.6
+- Fix local dns lookups added to resolv.conf
+- Fix copy command mounting volumes
+
+#### Remote API
+
+- Fix unmarshalling of Command and Entrypoint
+- Set limit for minimum client version supported
+- Validate port specification
+- Return proper errors when attach/reattach fail
+
+#### Distribution
+
+- Fix pulling private images
+- Fix fallback between registry V2 and V1
+
+
 ## 1.7.0 (2015-06-16)
 
 #### Runtime
