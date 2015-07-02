@@ -13,7 +13,7 @@ weight=1
 
     Usage: docker load [OPTIONS]
 
-    Load an image from a tar archive on STDIN
+    Load an image from a tar archive or STDIN
 
       -i, --input=""     Read from a tar archive file, instead of STDIN
 

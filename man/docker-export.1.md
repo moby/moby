@@ -2,7 +2,7 @@
 % Docker Community
 % JUNE 2014
 # NAME
-docker-export - Export the contents of a filesystem as a tar archive to STDOUT
+docker-export - Export the contents of a container's filesystem as a tar archive
 
 # SYNOPSIS
 **docker export**
