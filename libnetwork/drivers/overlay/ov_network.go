@@ -155,7 +155,7 @@ func (n *network) initSandbox() error {
 
 func (n *network) watchMiss(nlSock *nl.NetlinkSocket) {
 	for {
-		msgs, err := nlSock.Recieve()
+		msgs, err := nlSock.Receive()
 		if err != nil {
 			logrus.Errorf("Failed to receive from netlink: %v ", err)
 			continue

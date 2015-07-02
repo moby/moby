@@ -57,7 +57,11 @@ func (d *driver) EndpointOperInfo(nid, eid types.UUID) (map[string]interface{}, 
 
 // Join method is invoked when a Sandbox is attached to an endpoint.
 func (d *driver) Join(nid, eid types.UUID, sboxKey string, jinfo driverapi.JoinInfo, options map[string]interface{}) error {
-	return (jinfo.SetHostsPath("/etc/hosts"))
+	if err := jinfo.SetHostsPath("/etc/hosts"); err != nil {
+		return err
+	}
+
+	return jinfo.SetResolvConfPath("/etc/resolv.conf")
 }
 
 // Leave method is invoked when a Sandbox detaches from an endpoint.
