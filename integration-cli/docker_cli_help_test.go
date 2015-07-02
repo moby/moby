@@ -123,7 +123,13 @@ func (s *DockerSuite) TestHelpTextVerify(c *check.C) {
 
 			// Check each line for lots of stuff
 			lines := strings.Split(out, "\n")
+			parsingUsage := false
 			for _, line := range lines {
+				if strings.HasPrefix(line, "Usage:") {
+					parsingUsage = true
+				} else if parsingUsage && line == "" {
+					parsingUsage = false
+				}
 				if len(line) > 80 {
 					c.Fatalf("Help for %q is too long(%d chars):\n%s", cmd,
 						len(line), line)
@@ -141,7 +147,7 @@ func (s *DockerSuite) TestHelpTextVerify(c *check.C) {
 				// If a line starts with 4 spaces then assume someone
 				// added a multi-line description for an option and we need
 				// to flag it
-				if strings.HasPrefix(line, "    ") {
+				if strings.HasPrefix(line, "    ") && !parsingUsage {
 					c.Fatalf("Help for %q should not have a multi-line option: %s", cmd, line)
 				}
 
