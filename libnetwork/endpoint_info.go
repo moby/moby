@@ -22,10 +22,8 @@ type EndpointInfo interface {
 	// This will only return a valid value if a container has joined the endpoint.
 	GatewayIPv6() net.IP
 
-	// SandboxKey returns the sanbox key for the container which has joined
-	// the endpoint. If there is no container joined then this will return an
-	// empty string.
-	SandboxKey() string
+	// Sandbox returns the attached sandbox if there, nil otherwise.
+	Sandbox() Sandbox
 }
 
 // InterfaceInfo provides an interface to retrieve interface addresses bound to the endpoint.
@@ -38,14 +36,6 @@ type InterfaceInfo interface {
 
 	// AddressIPv6 returns the IPv6 address assigned to the endpoint.
 	AddressIPv6() net.IPNet
-}
-
-// ContainerInfo provides an interface to retrieve the info about the container attached to the endpoint
-type ContainerInfo interface {
-	// ID returns the ID of the container
-	ID() string
-	// Labels returns the container's labels
-	Labels() map[string]interface{}
 }
 
 type endpointInterface struct {
@@ -115,23 +105,9 @@ func (epi *endpointInterface) UnmarshalJSON(b []byte) (err error) {
 }
 
 type endpointJoinInfo struct {
-	gw             net.IP
-	gw6            net.IP
-	hostsPath      string
-	resolvConfPath string
-	StaticRoutes   []*types.StaticRoute
-}
-
-func (ep *endpoint) ContainerInfo() ContainerInfo {
-	ep.Lock()
-	ci := ep.container
-	defer ep.Unlock()
-
-	// Need this since we return the interface
-	if ci == nil {
-		return nil
-	}
-	return ci
+	gw           net.IP
+	gw6          net.IP
+	StaticRoutes []*types.StaticRoute
 }
 
 func (ep *endpoint) Info() EndpointInfo {
@@ -257,15 +233,12 @@ func (ep *endpoint) addInterfaceRoute(route *types.StaticRoute) error {
 		route.InterfaceID)
 }
 
-func (ep *endpoint) SandboxKey() string {
-	ep.Lock()
-	defer ep.Unlock()
-
-	if ep.container == nil {
-		return ""
+func (ep *endpoint) Sandbox() Sandbox {
+	cnt, ok := ep.getSandbox()
+	if !ok {
+		return nil
 	}
-
-	return ep.container.data.SandboxKey
+	return cnt
 }
 
 func (ep *endpoint) Gateway() net.IP {
@@ -303,21 +276,5 @@ func (ep *endpoint) SetGatewayIPv6(gw6 net.IP) error {
 	defer ep.Unlock()
 
 	ep.joinInfo.gw6 = types.GetIPCopy(gw6)
-	return nil
-}
-
-func (ep *endpoint) SetHostsPath(path string) error {
-	ep.Lock()
-	defer ep.Unlock()
-
-	ep.joinInfo.hostsPath = path
-	return nil
-}
-
-func (ep *endpoint) SetResolvConfPath(path string) error {
-	ep.Lock()
-	defer ep.Unlock()
-
-	ep.joinInfo.resolvConfPath = path
 	return nil
 }

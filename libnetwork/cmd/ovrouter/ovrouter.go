@@ -10,7 +10,6 @@ import (
 	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/drivers/overlay"
 	"github.com/docker/libnetwork/netlabel"
-	"github.com/docker/libnetwork/types"
 	"github.com/vishvananda/netlink"
 )
 
@@ -68,14 +67,6 @@ func (ep *endpoint) AddStaticRoute(destination *net.IPNet, routeType int,
 	return nil
 }
 
-func (ep *endpoint) SetHostsPath(string) error {
-	return nil
-}
-
-func (ep *endpoint) SetResolvConfPath(string) error {
-	return nil
-}
-
 func main() {
 	if reexec.Init() {
 		return
@@ -103,20 +94,20 @@ func main() {
 
 	r.d.Config(opt)
 
-	if err := r.d.CreateNetwork(types.UUID("testnetwork"),
+	if err := r.d.CreateNetwork("testnetwork",
 		map[string]interface{}{}); err != nil {
 		fmt.Printf("Failed to create network in the driver: %v\n", err)
 		os.Exit(1)
 	}
 
 	ep := &endpoint{}
-	if err := r.d.CreateEndpoint(types.UUID("testnetwork"), types.UUID("testep"),
+	if err := r.d.CreateEndpoint("testnetwork", "testep",
 		ep, map[string]interface{}{}); err != nil {
 		fmt.Printf("Failed to create endpoint in the driver: %v\n", err)
 		os.Exit(1)
 	}
 
-	if err := r.d.Join(types.UUID("testnetwork"), types.UUID("testep"),
+	if err := r.d.Join("testnetwork", "testep",
 		"", ep, map[string]interface{}{}); err != nil {
 		fmt.Printf("Failed to join an endpoint in the driver: %v\n", err)
 		os.Exit(1)
@@ -141,7 +132,7 @@ func main() {
 	for {
 		select {
 		case <-sigCh:
-			r.d.Leave(types.UUID("testnetwork"), types.UUID("testep"))
+			r.d.Leave("testnetwork", "testep")
 			overlay.Fini(r.d)
 			os.Exit(0)
 		}

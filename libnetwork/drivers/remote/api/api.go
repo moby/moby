@@ -127,8 +127,6 @@ type JoinResponse struct {
 	InterfaceNames []*InterfaceName
 	Gateway        string
 	GatewayIPv6    string
-	HostsPath      string
-	ResolvConfPath string
 	StaticRoutes   []StaticRoute
 }
 

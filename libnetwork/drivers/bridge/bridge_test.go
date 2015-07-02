@@ -176,7 +176,7 @@ func TestCreateMultipleNetworks(t *testing.T) {
 	verifyV4INCEntries(dd.networks, 0, t)
 }
 
-func verifyV4INCEntries(networks map[types.UUID]*bridgeNetwork, numEntries int, t *testing.T) {
+func verifyV4INCEntries(networks map[string]*bridgeNetwork, numEntries int, t *testing.T) {
 	out, err := iptables.Raw("-L", "FORWARD")
 	if err != nil {
 		t.Fatal(err)
@@ -265,16 +265,6 @@ func (te *testEndpoint) SetGateway(gw net.IP) error {
 
 func (te *testEndpoint) SetGatewayIPv6(gw6 net.IP) error {
 	te.gw6 = gw6
-	return nil
-}
-
-func (te *testEndpoint) SetHostsPath(path string) error {
-	te.hostsPath = path
-	return nil
-}
-
-func (te *testEndpoint) SetResolvConfPath(path string) error {
-	te.resolvConfPath = path
 	return nil
 }
 

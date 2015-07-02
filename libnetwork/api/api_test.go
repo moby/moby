@@ -71,10 +71,18 @@ func i2nL(i interface{}) []*networkResource {
 	return s
 }
 
-func i2cL(i interface{}) []*containerResource {
-	s, ok := i.([]*containerResource)
+func i2sb(i interface{}) *sandboxResource {
+	s, ok := i.(*sandboxResource)
 	if !ok {
-		panic(fmt.Sprintf("Failed i2cL for %v", i))
+		panic(fmt.Sprintf("Failed i2sb for %v", i))
+	}
+	return s
+}
+
+func i2sbL(i interface{}) []*sandboxResource {
+	s, ok := i.([]*sandboxResource)
+	if !ok {
+		panic(fmt.Sprintf("Failed i2sbL for %v", i))
 	}
 	return s
 }
@@ -112,30 +120,27 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-func TestJoinOptionParser(t *testing.T) {
+func TestSandboxOptionParser(t *testing.T) {
 	hn := "host1"
 	dn := "docker.com"
 	hp := "/etc/hosts"
 	rc := "/etc/resolv.conf"
 	dnss := []string{"8.8.8.8", "172.28.34.5"}
-	ehs := []endpointExtraHost{endpointExtraHost{Name: "extra1", Address: "172.28.9.1"}, endpointExtraHost{Name: "extra2", Address: "172.28.9.2"}}
-	pus := []endpointParentUpdate{endpointParentUpdate{EndpointID: "abc123def456", Name: "serv1", Address: "172.28.30.123"}}
+	ehs := []extraHost{extraHost{Name: "extra1", Address: "172.28.9.1"}, extraHost{Name: "extra2", Address: "172.28.9.2"}}
 
-	ej := endpointJoin{
+	sb := sandboxCreate{
 		HostName:          hn,
 		DomainName:        dn,
 		HostsPath:         hp,
 		ResolvConfPath:    rc,
 		DNS:               dnss,
 		ExtraHosts:        ehs,
-		ParentUpdates:     pus,
 		UseDefaultSandbox: true,
 	}
 
-	if len(ej.parseOptions()) != 10 {
-		t.Fatalf("Failed to generate all libnetwork.EndpointJoinOption methods libnetwork.EndpointJoinOption method")
+	if len(sb.parseOptions()) != 9 {
+		t.Fatalf("Failed to generate all libnetwork.SandboxOption methods")
 	}
-
 }
 
 func TestJson(t *testing.T) {
@@ -155,7 +160,7 @@ func TestJson(t *testing.T) {
 		t.Fatalf("Incorrect networkCreate after json encoding/deconding: %v", ncp)
 	}
 
-	jl := endpointJoin{ContainerID: "abcdef456789"}
+	jl := endpointJoin{SandboxID: "abcdef456789"}
 	b, err = json.Marshal(jl)
 	if err != nil {
 		t.Fatal(err)
@@ -167,7 +172,7 @@ func TestJson(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if jl.ContainerID != jld.ContainerID {
+	if jl.SandboxID != jld.SandboxID {
 		t.Fatalf("Incorrect endpointJoin after json encoding/deconding: %v", jld)
 	}
 }
@@ -913,7 +918,8 @@ func TestAttachDetachBackend(t *testing.T) {
 		t.Fatalf("Expected %d. Got: %v", http.StatusNotFound, errRsp)
 	}
 
-	_, errRsp = procGetContainers(c, vars, nil)
+	vars[urlEpID] = "db"
+	_, errRsp = procGetSandbox(c, vars, nil)
 	if errRsp.isOK() {
 		t.Fatalf("Expected failure. Got %v", errRsp)
 	}
@@ -931,7 +937,11 @@ func TestAttachDetachBackend(t *testing.T) {
 	}
 
 	cid := "abcdefghi"
-	jl := endpointJoin{ContainerID: cid}
+	sbox, err := c.NewSandbox(cid)
+	sid := sbox.ID()
+	defer sbox.Delete()
+
+	jl := endpointJoin{SandboxID: sid}
 	jlb, err := json.Marshal(jl)
 	if err != nil {
 		t.Fatal(err)
@@ -942,16 +952,16 @@ func TestAttachDetachBackend(t *testing.T) {
 		t.Fatalf("Unexpected failure, got: %v", errRsp)
 	}
 
-	cli, errRsp := procGetContainers(c, vars, nil)
+	sli, errRsp := procGetSandboxes(c, vars, nil)
 	if errRsp != &successResponse {
 		t.Fatalf("Unexpected failure, got: %v", errRsp)
 	}
-	cl := i2cL(cli)
-	if len(cl) != 1 {
-		t.Fatalf("Did not find expected number of containers attached to the service: %d", len(cl))
+	sl := i2sbL(sli)
+	if len(sl) != 1 {
+		t.Fatalf("Did not find expected number of sandboxes attached to the service: %d", len(sl))
 	}
-	if cl[0].ID != cid {
-		t.Fatalf("Did not find expected container attached to the service: %v", cl[0])
+	if sl[0].ContainerID != cid {
+		t.Fatalf("Did not find expected sandbox attached to the service: %v", sl[0])
 	}
 
 	_, errRsp = procUnpublishService(c, vars, nil)
@@ -980,19 +990,20 @@ func TestAttachDetachBackend(t *testing.T) {
 		t.Fatalf("Expected %d. Got: %v", http.StatusBadRequest, errRsp)
 	}
 
-	vars[urlCnID] = cid
+	vars[urlSbID] = sid
 	_, errRsp = procDetachBackend(c, vars, nil)
 	if errRsp != &successResponse {
 		t.Fatalf("Unexpected failure, got: %v", errRsp)
 	}
 
-	cli, errRsp = procGetContainers(c, vars, nil)
+	delete(vars, urlEpID)
+	si, errRsp := procGetSandbox(c, vars, nil)
 	if errRsp != &successResponse {
 		t.Fatalf("Unexpected failure, got: %v", errRsp)
 	}
-	cl = i2cL(cli)
-	if len(cl) != 0 {
-		t.Fatalf("Did not find expected number of containers attached to the service: %d", len(cl))
+	sb := i2sb(si)
+	if sb.ContainerID != cid {
+		t.Fatalf("Did not find expected sandbox. Got %v", sb)
 	}
 
 	err = ep1.Delete()
@@ -1284,7 +1295,10 @@ func TestJoinLeave(t *testing.T) {
 	}
 
 	cid := "abcdefghi"
-	jl := endpointJoin{ContainerID: cid}
+	sb, err := c.NewSandbox(cid)
+	defer sb.Delete()
+
+	jl := endpointJoin{SandboxID: sb.ID()}
 	jlb, err := json.Marshal(jl)
 	if err != nil {
 		t.Fatal(err)
@@ -1314,7 +1328,7 @@ func TestJoinLeave(t *testing.T) {
 	vars[urlEpName] = "endpoint"
 	key, errRsp := procJoinEndpoint(c, vars, jlb)
 	if errRsp != &successResponse {
-		t.Fatalf("Expected failure, got: %v", errRsp)
+		t.Fatalf("Unexepected failure, got: %v", errRsp)
 	}
 
 	keyStr := i2s(key)
@@ -1371,7 +1385,7 @@ func TestJoinLeave(t *testing.T) {
 		t.Fatalf("Expected failure, got: %v", errRsp)
 	}
 
-	vars[urlCnID] = cid
+	vars[urlSbID] = sb.ID()
 	_, errRsp = procLeaveEndpoint(c, vars, jlb)
 	if errRsp != &successResponse {
 		t.Fatalf("Unexepected failure: %v", errRsp)
@@ -2064,6 +2078,164 @@ func TestEndToEnd(t *testing.T) {
 	}
 	if epr.Name != "ep-TwentyTwo" || epr.ID != eid {
 		t.Fatalf("Incongruent resource found: %v", epr)
+	}
+
+	// Store two container ids and one partial ids
+	cid1 := "container10010000000"
+	cid2 := "container20010000000"
+	chars = []byte(cid1)
+	cpid1 := string(chars[0 : len(chars)/2])
+
+	// Create sandboxes
+	sb1, err := json.Marshal(sandboxCreate{ContainerID: cid1})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	lr = newLocalReader(sb1)
+	req, err = http.NewRequest("POST", "/v5.22/sandboxes", lr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	handleRequest(rsp, req)
+	if rsp.statusCode != http.StatusCreated {
+		t.Fatalf("Unexpectded status code. Expected (%d). Got (%d): %s.", http.StatusCreated, rsp.statusCode, string(rsp.body))
+	}
+	if len(rsp.body) == 0 {
+		t.Fatalf("Empty response body")
+	}
+	// Get sandbox id and partial id
+	var sid1 string
+	err = json.Unmarshal(rsp.body, &sid1)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	sb2, err := json.Marshal(sandboxCreate{ContainerID: cid2})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	lr = newLocalReader(sb2)
+	req, err = http.NewRequest("POST", "/v5.22/sandboxes", lr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	handleRequest(rsp, req)
+	if rsp.statusCode != http.StatusCreated {
+		t.Fatalf("Unexpectded status code. Expected (%d). Got (%d): %s.", http.StatusCreated, rsp.statusCode, string(rsp.body))
+	}
+	if len(rsp.body) == 0 {
+		t.Fatalf("Empty response body")
+	}
+	// Get sandbox id and partial id
+	var sid2 string
+	err = json.Unmarshal(rsp.body, &sid2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	chars = []byte(sid2)
+	spid2 := string(chars[0 : len(chars)/2])
+
+	// Query sandboxes
+	req, err = http.NewRequest("GET", "/sandboxes", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	handleRequest(rsp, req)
+	if rsp.statusCode != http.StatusOK {
+		t.Fatalf("Expected StatusOK. Got (%d): %s", rsp.statusCode, rsp.body)
+	}
+
+	var sbList []*sandboxResource
+	err = json.Unmarshal(rsp.body, &sbList)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(sbList) != 2 {
+		t.Fatalf("Expected 2 elements in list. Got %v", sbList)
+	}
+
+	// Get sandbox by id
+	req, err = http.NewRequest("GET", "/sandboxes/"+sid1, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	handleRequest(rsp, req)
+	if rsp.statusCode != http.StatusOK {
+		t.Fatalf("Unexpectded failure: (%d): %s", rsp.statusCode, rsp.body)
+	}
+
+	var sbr sandboxResource
+	err = json.Unmarshal(rsp.body, &sbr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if sbr.ContainerID != cid1 {
+		t.Fatalf("Incongruent resource found: %v", sbr)
+	}
+
+	// Query sandbox by partial sandbox id
+	req, err = http.NewRequest("GET", "/sandboxes?partial-id="+spid2, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	handleRequest(rsp, req)
+	if rsp.statusCode != http.StatusOK {
+		t.Fatalf("Unexpectded failure: (%d): %s", rsp.statusCode, rsp.body)
+	}
+
+	err = json.Unmarshal(rsp.body, &sbList)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(sbList) == 0 {
+		t.Fatalf("Empty response body")
+	}
+	if sbList[0].ID != sid2 {
+		t.Fatalf("Incongruent resource found: %v", sbList[0])
+	}
+
+	// Query sandbox by container id
+	req, err = http.NewRequest("GET", "/sandboxes?container-id="+cid2, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	handleRequest(rsp, req)
+	if rsp.statusCode != http.StatusOK {
+		t.Fatalf("Unexpectded failure: (%d): %s", rsp.statusCode, rsp.body)
+	}
+
+	err = json.Unmarshal(rsp.body, &sbList)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(sbList) == 0 {
+		t.Fatalf("Empty response body")
+	}
+	if sbList[0].ContainerID != cid2 {
+		t.Fatalf("Incongruent resource found: %v", sbList[0])
+	}
+
+	// Query sandbox by partial container id
+	req, err = http.NewRequest("GET", "/sandboxes?partial-container-id="+cpid1, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	handleRequest(rsp, req)
+	if rsp.statusCode != http.StatusOK {
+		t.Fatalf("Unexpectded failure: (%d): %s", rsp.statusCode, rsp.body)
+	}
+
+	err = json.Unmarshal(rsp.body, &sbList)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(sbList) == 0 {
+		t.Fatalf("Empty response body")
+	}
+	if sbList[0].ContainerID != cid1 {
+		t.Fatalf("Incongruent resource found: %v", sbList[0])
 	}
 }
 

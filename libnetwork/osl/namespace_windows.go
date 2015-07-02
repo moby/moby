@@ -1,4 +1,4 @@
-package sandbox
+package osl
 
 // GenerateKey generates a sandbox key based on the passed
 // container id.

@@ -168,20 +168,25 @@ func GetSearchDomains(resolvConf []byte) []string {
 // Build writes a configuration file to path containing a "nameserver" entry
 // for every element in dns, and a "search" entry for every element in
 // dnsSearch.
-func Build(path string, dns, dnsSearch []string) error {
+func Build(path string, dns, dnsSearch []string) (string, error) {
 	content := bytes.NewBuffer(nil)
-	for _, dns := range dns {
-		if _, err := content.WriteString("nameserver " + dns + "\n"); err != nil {
-			return err
-		}
-	}
 	if len(dnsSearch) > 0 {
 		if searchString := strings.Join(dnsSearch, " "); strings.Trim(searchString, " ") != "." {
 			if _, err := content.WriteString("search " + searchString + "\n"); err != nil {
-				return err
+				return "", err
 			}
 		}
 	}
+	for _, dns := range dns {
+		if _, err := content.WriteString("nameserver " + dns + "\n"); err != nil {
+			return "", err
+		}
+	}
 
-	return ioutil.WriteFile(path, content.Bytes(), 0644)
+	hash, err := ioutils.HashData(bytes.NewReader(content.Bytes()))
+	if err != nil {
+		return "", err
+	}
+
+	return hash, ioutil.WriteFile(path, content.Bytes(), 0644)
 }
