@@ -1349,6 +1349,9 @@ func (s *Server) postContainerExecCreate(version version.Version, w http.Respons
 	if err := parseForm(r); err != nil {
 		return err
 	}
+	if err := checkForJson(r); err != nil {
+		return err
+	}
 	name := vars["name"]
 
 	execConfig := &runconfig.ExecConfig{}
