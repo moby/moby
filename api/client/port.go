@@ -23,6 +23,8 @@ func (cli *DockerCli) CmdPort(args ...string) error {
 		return err
 	}
 
+	defer stream.Close()
+
 	var c struct {
 		NetworkSettings struct {
 			Ports nat.PortMap

@@ -45,6 +45,8 @@ func (cli *DockerCli) CmdVersion(args ...string) error {
 		return err
 	}
 
+	defer stream.Close()
+
 	var v types.Version
 	if err := json.NewDecoder(stream).Decode(&v); err != nil {
 		fmt.Fprintf(cli.err, "Error reading remote version: %s\n", err)

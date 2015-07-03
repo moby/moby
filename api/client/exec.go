@@ -28,6 +28,8 @@ func (cli *DockerCli) CmdExec(args ...string) error {
 		return err
 	}
 
+	defer stream.Close()
+
 	var response types.ContainerExecCreateResponse
 	if err := json.NewDecoder(stream).Decode(&response); err != nil {
 		return err
