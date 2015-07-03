@@ -33,6 +33,7 @@ func Merge(userConf, imageConf *Config) error {
 				userEnvKey := strings.Split(userEnv, "=")[0]
 				if imageEnvKey == userEnvKey {
 					found = true
+					break
 				}
 			}
 			if !found {
