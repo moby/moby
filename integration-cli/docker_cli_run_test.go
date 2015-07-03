@@ -3220,15 +3220,14 @@ func (s *DockerSuite) TestRunContainerNetModeWithExposePort(c *check.C) {
 
 }
 
-// Issue #10184.
-func (s *DockerSuite) TestDevicePermissions(c *check.C) {
-	testRequires(c, NativeExecDriver)
-	const permissions = "crw-rw-rw-"
-	out, status := dockerCmd(c, "run", "--device", "/dev/fuse:/dev/fuse:mrw", "busybox:latest", "ls", "-l", "/dev/fuse")
-	if status != 0 {
-		c.Fatalf("expected status 0, got %d", status)
+func (s *DockerSuite) TestRunCapAddCHOWN(c *check.C) {
+	cmd := exec.Command(dockerBinary, "run", "--cap-drop=ALL", "--cap-add=CHOWN", "busybox", "sh", "-c", "adduser -D -H newuser && chown newuser /home && echo ok")
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		c.Fatal(err, out)
 	}
-	if !strings.HasPrefix(out, permissions) {
-		c.Fatalf("output should begin with %q, got %q", permissions, out)
+
+	if actual := strings.Trim(out, "\r\n"); actual != "ok" {
+		c.Fatalf("expected output ok received %s", actual)
 	}
 }
