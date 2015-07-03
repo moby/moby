@@ -68,23 +68,19 @@ are members.
 
 ### Repository group permissions
 
-Use organization groups to manage who can interact with your repositories.
+Use organization groups to manage the users that can interact with your repositories.
 
-You need to be a member of the organization's `Owners` group to create a new group,
-Hub repository or automated build. As an `Owner`, you then delegate the following
+You must be in an organization's `Owners` group to create a new group, Hub
+repository, or automated build. As an `Owner`, you then delegate the following
 repository access rights to groups:
 
-- `Read` access allows a user to view, search, and pull a private repository in the
-  same way as they can a public repository.
-- `Write` access users are able to push to non-automated repositories on the Docker
-  Hub.
-- `Admin` access allows the user to modify the repositories "Description", "Collaborators" rights,
-  "Mark as unlisted", "Public/Private" status and "Delete".
+| Access Right | Description                                                                                                                                                                                                                                                                |
+|--------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `Read`       | Users with this right can view, search, and pull a private repository.                                                                                                                                                                                                     |
+| `Write`      | Users with this right can push to non-automated repositories on the Docker Hub.                                                                                                                                                                                            |
+| `Admin`      | Users with this right can modify a repository's "Description", "Collaborators" rights. They can also mark a repository as unlisted, change its  "Public/Private" status and "Delete" the repository. Finally, `Admin` rights are required to read the build log on a repo. |
+|              |                                                                                                                                                                                                                                                                            |
 
-> **Note**: A User who has not yet verified their email address will only have
-> `Read` access to the repository, regardless of the rights their group membership
->  gives them.
-
-![Organization repository collaborators](/docker-hub/hub-images/org-repo-collaborators.png)
-
-
+Regardless of their actual access rights, users with unverified email addresses
+have `Read` access to the repository. Once they have verified their address,
+they have their full access rights as granted on the organization.
