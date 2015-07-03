@@ -27,6 +27,7 @@ type Context struct {
 	LogPath             string
 }
 
+// Hostname returns the hostname from the underlying OS
 func (ctx *Context) Hostname() (string, error) {
 	hostname, err := os.Hostname()
 	if err != nil {
@@ -35,6 +36,7 @@ func (ctx *Context) Hostname() (string, error) {
 	return hostname, nil
 }
 
+// Command returns the command that the container being logged was started with
 func (ctx *Context) Command() string {
 	terms := []string{ctx.ContainerEntrypoint}
 	for _, arg := range ctx.ContainerArgs {

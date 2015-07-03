@@ -25,7 +25,6 @@ import (
 	"github.com/docker/docker/pkg/broadcastwriter"
 	"github.com/docker/docker/pkg/fileutils"
 	"github.com/docker/docker/pkg/ioutils"
-	"github.com/docker/docker/pkg/jsonlog"
 	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/nat"
 	"github.com/docker/docker/pkg/promise"
@@ -721,6 +720,9 @@ func (container *Container) getLogConfig() runconfig.LogConfig {
 }
 
 func (container *Container) getLogger() (logger.Logger, error) {
+	if container.logDriver != nil && container.IsRunning() {
+		return container.logDriver, nil
+	}
 	cfg := container.getLogConfig()
 	if err := logger.ValidateLogOpts(cfg.Type, cfg.Config); err != nil {
 		return nil, err
@@ -894,36 +896,33 @@ func (c *Container) Attach(stdin io.ReadCloser, stdout io.Writer, stderr io.Writ
 }
 
 func (c *Container) AttachWithLogs(stdin io.ReadCloser, stdout, stderr io.Writer, logs, stream bool) error {
-
 	if logs {
 		logDriver, err := c.getLogger()
 		if err != nil {
-			logrus.Errorf("Error obtaining the logger %v", err)
 			return err
 		}
-		if _, ok := logDriver.(logger.Reader); !ok {
-			logrus.Errorf("cannot read logs for [%s] driver", logDriver.Name())
-		} else {
-			if cLog, err := logDriver.(logger.Reader).ReadLog(); err != nil {
-				logrus.Errorf("Error reading logs %v", err)
-			} else {
-				dec := json.NewDecoder(cLog)
-				for {
-					l := &jsonlog.JSONLog{}
+		cLog, ok := logDriver.(logger.LogReader)
+		if !ok {
+			return logger.ErrReadLogsNotSupported
+		}
+		logs := cLog.ReadLogs(logger.ReadConfig{Tail: -1})
 
-					if err := dec.Decode(l); err == io.EOF {
-						break
-					} else if err != nil {
-						logrus.Errorf("Error streaming logs: %s", err)
-						break
-					}
-					if l.Stream == "stdout" && stdout != nil {
-						io.WriteString(stdout, l.Log)
-					}
-					if l.Stream == "stderr" && stderr != nil {
-						io.WriteString(stderr, l.Log)
-					}
+	LogLoop:
+		for {
+			select {
+			case msg, ok := <-logs.Msg:
+				if !ok {
+					break LogLoop
 				}
+				if msg.Source == "stdout" && stdout != nil {
+					stdout.Write(msg.Line)
+				}
+				if msg.Source == "stderr" && stderr != nil {
+					stderr.Write(msg.Line)
+				}
+			case err := <-logs.Err:
+				logrus.Errorf("Error streaming logs: %v", err)
+				break LogLoop
 			}
 		}
 	}

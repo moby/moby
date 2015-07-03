@@ -29,7 +29,7 @@ The `docker logs --follow` command will continue streaming the new output from
 the container's `STDOUT` and `STDERR`.
 
 Passing a negative number or a non-integer to `--tail` is invalid and the
-value is set to `latest` in that case.
+value is set to `all` in that case.
 
 The `docker logs --timestamp` commands will add an RFC3339Nano
 timestamp, for example `2014-09-16T06:17:46.000000000Z`, to each
