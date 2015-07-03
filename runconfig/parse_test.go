@@ -456,23 +456,19 @@ func TestParseRestartPolicy(t *testing.T) {
 	invalids := map[string]string{
 		"something":          "invalid restart policy something",
 		"always:2":           "maximum restart count not valid with restart policy of \"always\"",
+		"always:2:3":         "maximum restart count not valid with restart policy of \"always\"",
 		"on-failure:invalid": `strconv.ParseInt: parsing "invalid": invalid syntax`,
+		"on-failure:2:5":     "restart count format is not valid, usage: 'on-failure:N' or 'on-failure'",
 	}
 	valids := map[string]RestartPolicy{
 		"": {},
-		// FIXME This feels not right
-		"always:1:2": {
+		"always": {
 			Name:              "always",
 			MaximumRetryCount: 0,
 		},
 		"on-failure:1": {
 			Name:              "on-failure",
 			MaximumRetryCount: 1,
-		},
-		// FIXME This doesn't feel right
-		"on-failure:1:2": {
-			Name:              "on-failure",
-			MaximumRetryCount: 0,
 		},
 	}
 	for restart, expectedError := range invalids {
