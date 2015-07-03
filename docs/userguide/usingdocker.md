@@ -83,9 +83,8 @@ To see usage for a specific command, specify the command with the `--help` flag:
 
 So now we've learnt a bit more about the `docker` client let's move onto
 the important stuff: running more containers. So far none of the
-containers we've run did anything particularly useful though. So let's
-build on that experience by running an example web application in
-Docker.
+containers we've run did anything particularly useful, so let's
+change that by running an example web application in Docker.
 
 For our web application we're going to run a Python Flask application.
 Let's start with a `docker run` command.
@@ -303,7 +302,7 @@ And now our container is stopped and deleted.
 # Next steps
 
 Until now we've only used images that we've downloaded from
-[Docker Hub](https://hub.docker.com) now let's get introduced to
+[Docker Hub](https://hub.docker.com). Next, let's get introduced to
 building and sharing our own images.
 
 Go to [Working with Docker Images](/userguide/dockerimages).
