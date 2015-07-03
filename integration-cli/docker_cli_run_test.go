@@ -3220,3 +3220,15 @@ func (s *DockerSuite) TestRunContainerNetModeWithExposePort(c *check.C) {
 	}
 
 }
+
+func (s *DockerSuite) TestRunCapAddCHOWN(c *check.C) {
+	cmd := exec.Command(dockerBinary, "run", "--cap-drop=ALL", "--cap-add=CHOWN", "busybox", "sh", "-c", "adduser -D -H newuser && chown newuser /home && echo ok")
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		c.Fatal(err, out)
+	}
+
+	if actual := strings.Trim(out, "\r\n"); actual != "ok" {
+		c.Fatalf("expected output ok received %s", actual)
+	}
+}
