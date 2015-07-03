@@ -251,6 +251,8 @@ func waitForExit(cli *DockerCli, containerID string) (int, error) {
 		return -1, err
 	}
 
+	defer stream.Close()
+
 	var res types.ContainerWaitResponse
 	if err := json.NewDecoder(stream).Decode(&res); err != nil {
 		return -1, err
@@ -271,6 +273,8 @@ func getExitCode(cli *DockerCli, containerID string) (bool, int, error) {
 		return false, -1, nil
 	}
 
+	defer stream.Close()
+
 	var c types.ContainerJSON
 	if err := json.NewDecoder(stream).Decode(&c); err != nil {
 		return false, -1, err
@@ -290,6 +294,8 @@ func getExecExitCode(cli *DockerCli, execID string) (bool, int, error) {
 		}
 		return false, -1, nil
 	}
+
+	defer stream.Close()
 
 	//TODO: Should we reconsider having a type in api/types?
 	//this is a response to exex/id/json not container

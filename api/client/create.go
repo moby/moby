@@ -116,6 +116,8 @@ func (cli *DockerCli) createContainer(config *runconfig.Config, hostConfig *runc
 		return nil, err
 	}
 
+	defer stream.Close()
+
 	var response types.ContainerCreateResponse
 	if err := json.NewDecoder(stream).Decode(&response); err != nil {
 		return nil, err

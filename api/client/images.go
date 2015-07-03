@@ -66,6 +66,8 @@ func (cli *DockerCli) CmdImages(args ...string) error {
 		return err
 	}
 
+	defer rdr.Close()
+
 	images := []types.Image{}
 	if err := json.NewDecoder(rdr).Decode(&images); err != nil {
 		return err

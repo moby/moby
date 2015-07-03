@@ -42,7 +42,9 @@ func (s *containerStats) Collect(cli *DockerCli, streamStats bool) {
 		s.mu.Unlock()
 		return
 	}
+
 	defer stream.Close()
+
 	var (
 		previousCPU    uint64
 		previousSystem uint64

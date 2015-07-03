@@ -125,6 +125,8 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 		return err
 	}
 
+	defer stream.Close()
+
 	var response types.AuthResponse
 	if err := json.NewDecoder(stream).Decode(&response); err != nil {
 		// Upon error, remove entry

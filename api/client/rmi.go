@@ -36,6 +36,8 @@ func (cli *DockerCli) CmdRmi(args ...string) error {
 			fmt.Fprintf(cli.err, "%s\n", err)
 			errNames = append(errNames, name)
 		} else {
+			defer rdr.Close()
+
 			dels := []types.ImageDelete{}
 			if err := json.NewDecoder(rdr).Decode(&dels); err != nil {
 				fmt.Fprintf(cli.err, "%s\n", err)

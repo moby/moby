@@ -30,6 +30,8 @@ func (cli *DockerCli) CmdDiff(args ...string) error {
 		return err
 	}
 
+	defer rdr.Close()
+
 	changes := []types.ContainerChange{}
 	if err := json.NewDecoder(rdr).Decode(&changes); err != nil {
 		return err
