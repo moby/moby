@@ -16,17 +16,14 @@ import (
 //
 // Usage: docker attach [OPTIONS] CONTAINER
 func (cli *DockerCli) CmdAttach(args ...string) error {
-	var (
-		cmd     = cli.Subcmd("attach", []string{"CONTAINER"}, "Attach to a running container", true)
-		noStdin = cmd.Bool([]string{"#nostdin", "-no-stdin"}, false, "Do not attach STDIN")
-		proxy   = cmd.Bool([]string{"#sig-proxy", "-sig-proxy"}, true, "Proxy all received signals to the process")
-	)
+	cmd := cli.Subcmd("attach", []string{"CONTAINER"}, "Attach to a running container", true)
+	noStdin := cmd.Bool([]string{"#nostdin", "-no-stdin"}, false, "Do not attach STDIN")
+	proxy := cmd.Bool([]string{"#sig-proxy", "-sig-proxy"}, true, "Proxy all received signals to the process")
 	cmd.Require(flag.Exact, 1)
 
 	cmd.ParseFlags(args, true)
-	name := cmd.Arg(0)
 
-	stream, _, _, err := cli.call("GET", "/containers/"+name+"/json", nil, nil)
+	stream, _, _, err := cli.call("GET", "/containers/"+cmd.Arg(0)+"/json", nil, nil)
 	if err != nil {
 		return err
 	}
