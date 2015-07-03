@@ -13,12 +13,11 @@ import (
 //
 // Usage: docker rmi [OPTIONS] IMAGE [IMAGE...]
 func (cli *DockerCli) CmdRmi(args ...string) error {
-	var (
-		cmd     = cli.Subcmd("rmi", []string{"IMAGE [IMAGE...]"}, "Remove one or more images", true)
-		force   = cmd.Bool([]string{"f", "-force"}, false, "Force removal of the image")
-		noprune = cmd.Bool([]string{"-no-prune"}, false, "Do not delete untagged parents")
-	)
+	cmd := cli.Subcmd("rmi", []string{"IMAGE [IMAGE...]"}, "Remove one or more images", true)
+	force := cmd.Bool([]string{"f", "-force"}, false, "Force removal of the image")
+	noprune := cmd.Bool([]string{"-no-prune"}, false, "Do not delete untagged parents")
 	cmd.Require(flag.Min, 1)
+
 	cmd.ParseFlags(args, true)
 
 	v := url.Values{}
