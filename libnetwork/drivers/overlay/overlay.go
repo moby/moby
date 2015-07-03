@@ -21,6 +21,7 @@ const (
 	vethLen      = 7
 	vxlanIDStart = 256
 	vxlanIDEnd   = 1000
+	vxlanPort    = 4789
 )
 
 type driver struct {

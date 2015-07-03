@@ -54,6 +54,7 @@ func createVxlan(vni uint32) (string, error) {
 		LinkAttrs: netlink.LinkAttrs{Name: name},
 		VxlanId:   int(vni),
 		Learning:  true,
+		Port:      vxlanPort,
 		Proxy:     true,
 		L3miss:    true,
 		L2miss:    true,
