@@ -39,9 +39,14 @@ reported kernel bugs may have already been fixed on the latest kernel packages
 ## Install
 
 You use the same installation procedure for all versions of Fedora,
-only the package you install differs. There are two packages to choose from:
+only the package you install differs. Choose from these packages:
 
-<table>
+<style type="text/css">
+  .tg  {border-collapse:collapse;border-spacing:0;}
+   td{font-family:Arial, sans-serif;font-size:14px;padding:10px 5px;border-style:solid;border-width:1px;overflow:hidden;word-break:normal;vertical-align: top;}
+   th{font-family:Arial, sans-serif;font-size:14px;font-weight:normal;padding:10px 5px;border-style:solid;border-width:1px;overflow:hidden;word-break:normal;vertical-align: top;}
+</style>
+<table class="tg">
   <tr>
     <th>Version</th>
     <th>Package name</th>
@@ -49,14 +54,13 @@ only the package you install differs. There are two packages to choose from:
   <tr>
     <td>Fedora 20</td>
     <td>
-    <p>
+        <p>
     <a href="https://get.docker.com/rpm/1.7.0/fedora-20/RPMS/x86_64/docker-engine-1.7.0-1.fc20.x86_64.rpm">
-    https://get.docker.com/rpm/1.7.0/fedora-20/RPMS/x86_64/docker-engine-1.7.0-1.fc20.x86_64.rpm</a>
+    docker-engine-1.7.0-1.fc20.x86_64.rpm</a>
         </p>
-    </td>
         <p>
     <a href="https://get.docker.com/rpm/1.7.0/fedora-20/SRPMS/docker-engine-1.7.0-1.fc20.src.rpm">
-    https://get.docker.com/rpm/1.7.0/fedora-20/SRPMS/docker-engine-1.7.0-1.fc20.src.rpm</a>
+   docker-engine-1.7.0-1.fc20.src.rpm</a>
         </p>
     </td>
   </tr>
@@ -65,12 +69,11 @@ only the package you install differs. There are two packages to choose from:
     <td>
     <p>
     <a href="https://get.docker.com/rpm/1.7.0/fedora-21/RPMS/x86_64/docker-engine-1.7.0-1.fc21.x86_64.rpm">
-    https://get.docker.com/rpm/1.7.0/fedora-21/RPMS/x86_64/docker-engine-1.7.0-1.fc21.x86_64.rpm</a>
+    docker-engine-1.7.0-1.fc21.x86_64.rpm</a>
         </p>
-    </td>
         <p>
     <a href="https://get.docker.com/rpm/1.7.0/fedora-21/SRPMS/docker-engine-1.7.0-1.fc21.src.rpm">
-    https://get.docker.com/rpm/1.7.0/fedora-21/SRPMS/docker-engine-1.7.0-1.fc21.src.rpm</a>
+  docker-engine-1.7.0-1.fc21.src.rpm</a>
         </p>
     </td>
   </tr>
@@ -79,12 +82,11 @@ only the package you install differs. There are two packages to choose from:
     <td>
     <p>
     <a href="https://get.docker.com/rpm/1.7.0/fedora-22/RPMS/x86_64/docker-engine-1.7.0-1.fc22.x86_64.rpm">
-    https://get.docker.com/rpm/1.7.0/fedora-22/RPMS/x86_64/docker-engine-1.7.0-1.fc22.x86_64.rpm</a>
+    docker-engine-1.7.0-1.fc22.x86_64.rpm</a>
         </p>
-    </td>
         <p>
     <a href="https://get.docker.com/rpm/1.7.0/fedora-22/SRPMS/docker-engine-1.7.0-1.fc22.src.rpm">
-    https://get.docker.com/rpm/1.7.0/fedora-22/SRPMS/docker-engine-1.7.0-1.fc22.src.rpm</a>
+    docker-engine-1.7.0-1.fc22.src.rpm</a>
         </p>
     </td>
   </tr> 
