@@ -136,6 +136,8 @@ two memory nodes.
 
 **-i**, **--interactive**=*true*|*false*
    Keep STDIN open even if not attached. The default is *false*.
+   
+   Note:  If set to true but not attached to STDIN, input may be silently discarded (see example below).
 
 **--ipc**=""
    Default is to create a private IPC namespace (POSIX SysV IPC) for the container
@@ -239,6 +241,22 @@ This value should always larger than **-m**, so you should always use this with 
 
 **-w**, **--workdir**=""
    Working directory inside the container
+
+# EXAMPLES
+
+## Running a container with --interactive and without attaching to STDIN
+
+Input will be silently discarded if STDIN is not attached, resulting in 
+possibly unexpected behavior.
+
+    # docker run -a stderr -a stdout -i --sig-proxy=true ubuntu bash
+
+In this example, tty-generated signals (ctrl-c, etc) will appear to be ignored, despite 
+use of --interactive and --sig-proxy.  Note, if --sig-proxy=false (the default) all 
+tty-signals are generated and the client responds (not the container).  Because 
+of this possibly confusing behavior, unless there is a specific use for running with 
+--interactive without attaching to STDIN, it is recommended to run -i with -a stdin 
+or leave the -a out to attach to STDIN by default.
 
 # HISTORY
 August 2014, updated by Sven Dowideit <SvenDowideit@home.org.au>

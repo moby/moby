@@ -111,6 +111,17 @@ specify to which of the three standard streams (`STDIN`, `STDOUT`,
 
     $ docker run -a stdin -a stdout -i -t ubuntu /bin/bash
 
+If you specify `-i` without STDIN attached, you may encounter unexpected results.  
+Consider the following example:
+
+    $ docker run -a stderr -a stdout -i --sig-proxy=true ubuntu bash
+
+Any tty-generated signals (ctrl-c, etc) will appear to be ignored.  Note, 
+however, when --sig-proxy=false tty signals are generated and the client 
+responds (not the container).  For this reason, unless you have a use for 
+running -i without STDIN attached, it is recommended to run -i with 
+-a stdin or leave the -a out to attach to STDIN by default.
+
 For interactive processes (like a shell), you must use `-i -t` together in
 order to allocate a tty for the container process. `-i -t` is often written `-it`
 as you'll see in later examples.  Specifying `-t` is forbidden when the client
