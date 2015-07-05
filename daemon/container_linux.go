@@ -1076,6 +1076,7 @@ func (container *Container) DisableLink(name string) {
 
 func (container *Container) UnmountVolumes(forceSyscall bool) error {
 	var volumeMounts []mountPoint
+	var usermounts = make(map[string]bool)
 
 	for _, mntPoint := range container.MountPoints {
 		dest, err := container.GetResourcePath(mntPoint.Destination)
@@ -1084,9 +1085,10 @@ func (container *Container) UnmountVolumes(forceSyscall bool) error {
 		}
 
 		volumeMounts = append(volumeMounts, mountPoint{Destination: dest, Volume: mntPoint.Volume})
+		usermounts[mntPoint.Destination] = true
 	}
 
-	for _, mnt := range container.networkMounts() {
+	for _, mnt := range container.networkMounts(usermounts) {
 		dest, err := container.GetResourcePath(mnt.Destination)
 		if err != nil {
 			return err
