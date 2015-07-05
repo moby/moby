@@ -13,7 +13,6 @@
 .git/
 .gopath/
 .hg/
-.idea
 .vagrant*
 Vagrantfile
 a.out
