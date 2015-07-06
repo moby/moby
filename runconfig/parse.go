@@ -156,14 +156,13 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 			return nil, nil, cmd, fmt.Errorf("%s is not a valid mac address", *flMacAddress)
 		}
 	}
-
-	// If neither -d or -a are set, attach to everything by default
+	if *flStdin {
+		attachStdin = true
+	}
+	// If -a is not set attach to the output stdio
 	if flAttach.Len() == 0 {
 		attachStdout = true
 		attachStderr = true
-		if *flStdin {
-			attachStdin = true
-		}
 	}
 
 	var flMemory int64
