@@ -123,7 +123,7 @@ func New(root string, options []string) (driver Driver, err error) {
 	if len(priorDriver) != 0 {
 		// Do not allow devicemapper when it's not explicit and the Docker binary was built statically.
 		if staticWithDeviceMapper(priorDriver) {
-			return nil, ErrDeviceMapperWithStaticDocker
+			logrus.Warn(ErrDeviceMapperWithStaticDocker)
 		}
 
 		driver, err = GetDriver(priorDriver, root, options)
@@ -142,7 +142,7 @@ func New(root string, options []string) (driver Driver, err error) {
 	// Check for priority drivers first
 	for _, name := range priority {
 		if staticWithDeviceMapper(name) {
-			continue
+			logrus.Warn(ErrDeviceMapperWithStaticDocker)
 		}
 		driver, err = GetDriver(name, root, options)
 		if err != nil {
@@ -157,7 +157,7 @@ func New(root string, options []string) (driver Driver, err error) {
 	// Check all registered drivers if no priority driver is found
 	for name, initFunc := range drivers {
 		if staticWithDeviceMapper(name) {
-			continue
+			logrus.Warn(ErrDeviceMapperWithStaticDocker)
 		}
 		if driver, err = initFunc(root, options); err != nil {
 			if err == ErrNotSupported || err == ErrPrerequisites || err == ErrIncompatibleFS {
