@@ -55,12 +55,11 @@ func NewHandle(app string, ds datastore.DataStore, id string, numElements uint32
 	h.watchForChanges()
 
 	// Get the initial status from the ds if present.
-	err := h.store.GetObject(datastore.Key(h.Key()...), h)
-	if err != datastore.ErrKeyNotFound {
+	if err := h.store.GetObject(datastore.Key(h.Key()...), h); err != nil && err != datastore.ErrKeyNotFound {
 		return nil, err
 	}
 
-	return h, err
+	return h, nil
 }
 
 // Sequence reresents a recurring sequence of 32 bits long bitmasks

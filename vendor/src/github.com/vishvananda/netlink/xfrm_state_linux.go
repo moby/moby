@@ -118,7 +118,7 @@ func XfrmStateList(family int) ([]XfrmState, error) {
 		return nil, err
 	}
 
-	res := make([]XfrmState, 0)
+	var res []XfrmState
 	for _, m := range msgs {
 		msg := nl.DeserializeXfrmUsersaInfo(m)
 

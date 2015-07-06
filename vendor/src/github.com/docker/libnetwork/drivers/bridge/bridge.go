@@ -2,12 +2,14 @@ package bridge
 
 import (
 	"errors"
+	"fmt"
 	"net"
 	"os/exec"
 	"strconv"
 	"sync"
 
 	"github.com/Sirupsen/logrus"
+	bri "github.com/docker/libcontainer/netlink"
 	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/ipallocator"
 	"github.com/docker/libnetwork/iptables"
@@ -754,6 +756,20 @@ func (d *driver) DeleteNetwork(nid types.UUID) error {
 	return err
 }
 
+func addToBridge(ifaceName, bridgeName string) error {
+	iface, err := net.InterfaceByName(ifaceName)
+	if err != nil {
+		return fmt.Errorf("could not find interface %s: %v", ifaceName, err)
+	}
+
+	master, err := net.InterfaceByName(bridgeName)
+	if err != nil {
+		return fmt.Errorf("could not find bridge %s: %v", bridgeName, err)
+	}
+
+	return bri.AddToBridge(iface, master)
+}
+
 func (d *driver) CreateEndpoint(nid, eid types.UUID, epInfo driverapi.EndpointInfo, epOptions map[string]interface{}) error {
 	var (
 		ipv6Addr *net.IPNet
@@ -821,27 +837,27 @@ func (d *driver) CreateEndpoint(nid, eid types.UUID, epInfo driverapi.EndpointIn
 	}()
 
 	// Generate a name for what will be the host side pipe interface
-	name1, err := netutils.GenerateIfaceName(vethPrefix, vethLen)
+	hostIfName, err := netutils.GenerateIfaceName(vethPrefix, vethLen)
 	if err != nil {
 		return err
 	}
 
 	// Generate a name for what will be the sandbox side pipe interface
-	name2, err := netutils.GenerateIfaceName(vethPrefix, vethLen)
+	containerIfName, err := netutils.GenerateIfaceName(vethPrefix, vethLen)
 	if err != nil {
 		return err
 	}
 
 	// Generate and add the interface pipe host <-> sandbox
 	veth := &netlink.Veth{
-		LinkAttrs: netlink.LinkAttrs{Name: name1, TxQLen: 0},
-		PeerName:  name2}
+		LinkAttrs: netlink.LinkAttrs{Name: hostIfName, TxQLen: 0},
+		PeerName:  containerIfName}
 	if err = netlink.LinkAdd(veth); err != nil {
 		return err
 	}
 
 	// Get the host side pipe interface handler
-	host, err := netlink.LinkByName(name1)
+	host, err := netlink.LinkByName(hostIfName)
 	if err != nil {
 		return err
 	}
@@ -852,7 +868,7 @@ func (d *driver) CreateEndpoint(nid, eid types.UUID, epInfo driverapi.EndpointIn
 	}()
 
 	// Get the sandbox side pipe interface handler
-	sbox, err := netlink.LinkByName(name2)
+	sbox, err := netlink.LinkByName(containerIfName)
 	if err != nil {
 		return err
 	}
@@ -879,9 +895,8 @@ func (d *driver) CreateEndpoint(nid, eid types.UUID, epInfo driverapi.EndpointIn
 	}
 
 	// Attach host side pipe interface into the bridge
-	if err = netlink.LinkSetMaster(host,
-		&netlink.Bridge{LinkAttrs: netlink.LinkAttrs{Name: config.BridgeName}}); err != nil {
-		return err
+	if err = addToBridge(hostIfName, config.BridgeName); err != nil {
+		return fmt.Errorf("adding interface %s to bridge %s failed: %v", hostIfName, config.BridgeName, err)
 	}
 
 	if !config.EnableUserlandProxy {
@@ -898,13 +913,23 @@ func (d *driver) CreateEndpoint(nid, eid types.UUID, epInfo driverapi.EndpointIn
 	}
 	ipv4Addr := &net.IPNet{IP: ip4, Mask: n.bridge.bridgeIPv4.Mask}
 
+	// Down the interface before configuring mac address.
+	if err := netlink.LinkSetDown(sbox); err != nil {
+		return fmt.Errorf("could not set link down for container interface %s: %v", containerIfName, err)
+	}
+
 	// Set the sbox's MAC. If specified, use the one configured by user, otherwise generate one based on IP.
 	mac := electMacAddress(epConfig, ip4)
 	err = netlink.LinkSetHardwareAddr(sbox, mac)
 	if err != nil {
-		return err
+		return fmt.Errorf("could not set mac address for container interface %s: %v", containerIfName, err)
 	}
 	endpoint.macAddress = mac
+
+	// Up the host interface after finishing all netlink configuration
+	if err := netlink.LinkSetUp(host); err != nil {
+		return fmt.Errorf("could not set link up for host interface %s: %v", hostIfName, err)
+	}
 
 	// v6 address for the sandbox side pipe interface
 	ipv6Addr = &net.IPNet{}
@@ -934,7 +959,7 @@ func (d *driver) CreateEndpoint(nid, eid types.UUID, epInfo driverapi.EndpointIn
 	}
 
 	// Create the sandbox side pipe interface
-	endpoint.srcName = name2
+	endpoint.srcName = containerIfName
 	endpoint.addr = ipv4Addr
 
 	if config.EnableIPv6 {

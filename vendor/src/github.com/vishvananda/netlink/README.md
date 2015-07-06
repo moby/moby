@@ -43,13 +43,19 @@ import (
 )
 
 func main() {
-    mybridge := &netlink.Bridge{netlink.LinkAttrs{Name: "foo"}}
+    la := netlink.NewLinkAttrs()
+    la.Name = "foo"
+    mybridge := &netlink.Bridge{la}}
     _ := netlink.LinkAdd(mybridge)
     eth1, _ := netlink.LinkByName("eth1")
     netlink.LinkSetMaster(eth1, mybridge)
 }
 
 ```
+Note `NewLinkAttrs` constructor, it sets default values in structure. For now
+it sets only `TxQLen` to `-1`, so kernel will set default by itself. If you're
+using simple initialization(`LinkAttrs{Name: "foo"}`) `TxQLen` will be set to
+`0` unless you specify it like `LinkAttrs{Name: "foo", TxQLen: 1000}`.
 
 Add a new ip address to loopback:
 

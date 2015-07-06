@@ -10,16 +10,29 @@ type Link interface {
 	Type() string
 }
 
+type (
+	NsPid int
+	NsFd  int
+)
+
 // LinkAttrs represents data shared by most link types
 type LinkAttrs struct {
 	Index        int
 	MTU          int
-	TxQLen       uint32 // Transmit Queue Length
+	TxQLen       int // Transmit Queue Length
 	Name         string
 	HardwareAddr net.HardwareAddr
 	Flags        net.Flags
-	ParentIndex  int // index of the parent link device
-	MasterIndex  int // must be the index of a bridge
+	ParentIndex  int         // index of the parent link device
+	MasterIndex  int         // must be the index of a bridge
+	Namespace    interface{} // nil | NsPid | NsFd
+}
+
+// NewLinkAttrs returns LinkAttrs structure filled with default values
+func NewLinkAttrs() LinkAttrs {
+	return LinkAttrs{
+		TxQLen: -1,
+	}
 }
 
 // Device links cannot be created via netlink. These links
@@ -76,9 +89,21 @@ func (vlan *Vlan) Type() string {
 	return "vlan"
 }
 
+type MacvlanMode uint16
+
+const (
+	MACVLAN_MODE_DEFAULT MacvlanMode = iota
+	MACVLAN_MODE_PRIVATE
+	MACVLAN_MODE_VEPA
+	MACVLAN_MODE_BRIDGE
+	MACVLAN_MODE_PASSTHRU
+	MACVLAN_MODE_SOURCE
+)
+
 // Macvlan links have ParentIndex set in their Attrs()
 type Macvlan struct {
 	LinkAttrs
+	Mode MacvlanMode
 }
 
 func (macvlan *Macvlan) Attrs() *LinkAttrs {

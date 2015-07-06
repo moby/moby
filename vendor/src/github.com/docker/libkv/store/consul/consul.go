@@ -99,8 +99,9 @@ func (s *Consul) refreshSession(pair *api.KVPair) error {
 
 	if session == "" {
 		entry := &api.SessionEntry{
-			Behavior: api.SessionBehaviorDelete,
-			TTL:      s.ephemeralTTL.String(),
+			Behavior:  api.SessionBehaviorDelete,       // Delete the key when the session expires
+			TTL:       ((s.ephemeralTTL) / 2).String(), // Consul multiplies the TTL by 2x
+			LockDelay: 1 * time.Millisecond,            // Virtually disable lock delay
 		}
 
 		// Create the key session
@@ -108,19 +109,19 @@ func (s *Consul) refreshSession(pair *api.KVPair) error {
 		if err != nil {
 			return err
 		}
-	}
 
-	lockOpts := &api.LockOptions{
-		Key:     pair.Key,
-		Session: session,
-	}
+		lockOpts := &api.LockOptions{
+			Key:     pair.Key,
+			Session: session,
+		}
 
-	// Lock and ignore if lock is held
-	// It's just a placeholder for the
-	// ephemeral behavior
-	lock, _ := s.client.LockOpts(lockOpts)
-	if lock != nil {
-		lock.Lock(nil)
+		// Lock and ignore if lock is held
+		// It's just a placeholder for the
+		// ephemeral behavior
+		lock, _ := s.client.LockOpts(lockOpts)
+		if lock != nil {
+			lock.Lock(nil)
+		}
 	}
 
 	_, _, err = s.client.Session().Renew(session, nil)
@@ -321,18 +322,18 @@ func (s *Consul) WatchTree(directory string, stopCh <-chan struct{}) (<-chan []*
 			opts.WaitIndex = meta.LastIndex
 
 			// Return children KV pairs to the channel
-			kv := []*store.KVPair{}
+			kvpairs := []*store.KVPair{}
 			for _, pair := range pairs {
 				if pair.Key == directory {
 					continue
 				}
-				kv = append(kv, &store.KVPair{
+				kvpairs = append(kvpairs, &store.KVPair{
 					Key:       pair.Key,
 					Value:     pair.Value,
 					LastIndex: pair.ModifyIndex,
 				})
 			}
-			watchCh <- kv
+			watchCh <- kvpairs
 		}
 	}()
 
@@ -374,11 +375,16 @@ func (l *consulLock) Unlock() error {
 // AtomicPut put a value at "key" if the key has not been
 // modified in the meantime, throws an error if this is the case
 func (s *Consul) AtomicPut(key string, value []byte, previous *store.KVPair, options *store.WriteOptions) (bool, *store.KVPair, error) {
+
+	p := &api.KVPair{Key: s.normalize(key), Value: value}
+
 	if previous == nil {
-		return false, nil, store.ErrPreviousNotSpecified
+		// Consul interprets ModifyIndex = 0 as new key.
+		p.ModifyIndex = 0
+	} else {
+		p.ModifyIndex = previous.LastIndex
 	}
 
-	p := &api.KVPair{Key: s.normalize(key), Value: value, ModifyIndex: previous.LastIndex}
 	if work, _, err := s.client.KV().CAS(p, nil); err != nil {
 		return false, nil, err
 	} else if !work {
