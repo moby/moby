@@ -9,6 +9,7 @@ import (
 	"sync"
 
 	"github.com/Sirupsen/logrus"
+	bri "github.com/docker/libcontainer/netlink"
 	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/ipallocator"
 	"github.com/docker/libnetwork/iptables"
@@ -836,13 +837,13 @@ func (d *driver) CreateEndpoint(nid, eid types.UUID, epInfo driverapi.EndpointIn
 	}()
 
 	// Generate a name for what will be the host side pipe interface
-	name1, err := netutils.GenerateIfaceName(vethPrefix, vethLen)
+	hostIfName, err := netutils.GenerateIfaceName(vethPrefix, vethLen)
 	if err != nil {
 		return err
 	}
 
 	// Generate a name for what will be the sandbox side pipe interface
-	name2, err := netutils.GenerateIfaceName(vethPrefix, vethLen)
+	containerIfName, err := netutils.GenerateIfaceName(vethPrefix, vethLen)
 	if err != nil {
 		return err
 	}
@@ -905,13 +906,6 @@ func (d *driver) CreateEndpoint(nid, eid types.UUID, epInfo driverapi.EndpointIn
 		}
 	}
 
-	if !config.EnableUserlandProxy {
-		err = netlink.LinkSetHairpin(host, true)
-		if err != nil {
-			return err
-		}
-	}
-
 	// v4 address for the sandbox side pipe interface
 	ip4, err := ipAllocator.RequestIP(n.bridge.bridgeIPv4, nil)
 	if err != nil {
@@ -919,13 +913,23 @@ func (d *driver) CreateEndpoint(nid, eid types.UUID, epInfo driverapi.EndpointIn
 	}
 	ipv4Addr := &net.IPNet{IP: ip4, Mask: n.bridge.bridgeIPv4.Mask}
 
+	// Down the interface before configuring mac address.
+	if err := netlink.LinkSetDown(sbox); err != nil {
+		return fmt.Errorf("could not set link down for container interface %s: %v", containerIfName, err)
+	}
+
 	// Set the sbox's MAC. If specified, use the one configured by user, otherwise generate one based on IP.
 	mac := electMacAddress(epConfig, ip4)
 	err = netlink.LinkSetHardwareAddr(sbox, mac)
 	if err != nil {
-		return err
+		return fmt.Errorf("could not set mac address for container interface %s: %v", containerIfName, err)
 	}
 	endpoint.macAddress = mac
+
+	// Up the host interface after finishing all netlink configuration
+	if err := netlink.LinkSetUp(host); err != nil {
+		return fmt.Errorf("could not set link up for host interface %s: %v", hostIfName, err)
+	}
 
 	// v6 address for the sandbox side pipe interface
 	ipv6Addr = &net.IPNet{}
@@ -955,7 +959,7 @@ func (d *driver) CreateEndpoint(nid, eid types.UUID, epInfo driverapi.EndpointIn
 	}
 
 	// Create the sandbox side pipe interface
-	endpoint.srcName = name2
+	endpoint.srcName = containerIfName
 	endpoint.addr = ipv4Addr
 
 	if config.EnableIPv6 {

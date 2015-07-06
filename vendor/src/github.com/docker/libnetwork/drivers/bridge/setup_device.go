@@ -2,13 +2,14 @@ package bridge
 
 import (
 	"github.com/docker/docker/pkg/parsers/kernel"
-	"github.com/docker/libnetwork/netutils"
-	"github.com/docker/libnetwork/types"
+	bri "github.com/docker/libcontainer/netlink"
 	"github.com/vishvananda/netlink"
 )
 
 // SetupDevice create a new bridge interface/
 func setupDevice(config *networkConfiguration, i *bridgeInterface) error {
+	var setMac bool
+
 	// We only attempt to create the bridge when the requested device name is
 	// the default one.
 	if config.BridgeName != DefaultBridgeName && !config.AllowNonDefaultBridge {
@@ -29,11 +30,7 @@ func setupDevice(config *networkConfiguration, i *bridgeInterface) error {
 		setMac = true
 	}
 
-	// Call out to netlink to create the device.
-	if err = netlink.LinkAdd(i.Link); err != nil {
-		return types.InternalErrorf("Failed to program bridge link: %s", err.Error())
-	}
-	return nil
+	return bri.CreateBridge(config.BridgeName, setMac)
 }
 
 // SetupDeviceUp ups the given bridge interface.

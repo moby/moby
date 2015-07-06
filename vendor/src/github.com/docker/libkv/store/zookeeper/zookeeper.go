@@ -265,23 +265,47 @@ func (s *Zookeeper) DeleteTree(directory string) error {
 // AtomicPut put a value at "key" if the key has not been
 // modified in the meantime, throws an error if this is the case
 func (s *Zookeeper) AtomicPut(key string, value []byte, previous *store.KVPair, _ *store.WriteOptions) (bool, *store.KVPair, error) {
-	if previous == nil {
-		return false, nil, store.ErrPreviousNotSpecified
-	}
 
-	meta, err := s.client.Set(store.Normalize(key), value, int32(previous.LastIndex))
-	if err != nil {
-		// Compare Failed
-		if err == zk.ErrBadVersion {
-			return false, nil, store.ErrKeyModified
+	var lastIndex uint64
+	if previous != nil {
+		meta, err := s.client.Set(store.Normalize(key), value, int32(previous.LastIndex))
+		if err != nil {
+			// Compare Failed
+			if err == zk.ErrBadVersion {
+				return false, nil, store.ErrKeyModified
+			}
+			return false, nil, err
 		}
-		return false, nil, err
+		lastIndex = uint64(meta.Version)
+	} else {
+		// Interpret previous == nil as create operation.
+		_, err := s.client.Create(store.Normalize(key), value, 0, zk.WorldACL(zk.PermAll))
+		if err != nil {
+			// Zookeeper will complain if the directory doesn't exist.
+			if err == zk.ErrNoNode {
+				// Create the directory
+				parts := store.SplitKey(key)
+				parts = parts[:len(parts)-1]
+				if err = s.createFullPath(parts, false); err != nil {
+					// Failed to create the directory.
+					return false, nil, err
+				}
+				if _, err := s.client.Create(store.Normalize(key), value, 0, zk.WorldACL(zk.PermAll)); err != nil {
+					return false, nil, err
+				}
+
+			} else {
+				// Unhandled error
+				return false, nil, err
+			}
+		}
+		lastIndex = 0 // Newly created nodes have version 0.
 	}
 
 	pair := &store.KVPair{
 		Key:       key,
 		Value:     value,
-		LastIndex: uint64(meta.Version),
+		LastIndex: lastIndex,
 	}
 
 	return true, pair, nil
