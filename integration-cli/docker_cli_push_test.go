@@ -12,7 +12,7 @@ import (
 	"github.com/go-check/check"
 )
 
-// pulling an image from the central registry should work
+// Pushing an image to a private registry.
 func (s *DockerRegistrySuite) TestPushBusyboxImage(c *check.C) {
 	repoName := fmt.Sprintf("%v/dockercli/busybox", privateRegistryURL)
 	// tag the image to upload it to the private registry
