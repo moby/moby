@@ -30,7 +30,8 @@ var (
 	DefaultDataLoopbackSize     int64  = 100 * 1024 * 1024 * 1024
 	DefaultMetaDataLoopbackSize int64  = 2 * 1024 * 1024 * 1024
 	DefaultBaseFsSize           uint64 = 10 * 1024 * 1024 * 1024
-	DefaultThinpBlockSize       uint32 = 128      // 64K = 128 512b sectors
+	DefaultThinpBlockSize       uint32 = 128 // 64K = 128 512b sectors
+	DefaultUdevSyncOverride     bool   = false
 	MaxDeviceId                 int    = 0xffffff // 24 bit, pool limit
 	DeviceIdMapSz               int    = (MaxDeviceId + 1) / 8
 	// We retry device removal so many a times that even error messages
@@ -89,22 +90,23 @@ type DeviceSet struct {
 	deviceIdMap   []byte
 
 	// Options
-	dataLoopbackSize     int64
-	metaDataLoopbackSize int64
-	baseFsSize           uint64
-	filesystem           string
-	mountOptions         string
-	mkfsArgs             []string
-	dataDevice           string // block or loop dev
-	dataLoopFile         string // loopback file, if used
-	metadataDevice       string // block or loop dev
-	metadataLoopFile     string // loopback file, if used
-	doBlkDiscard         bool
-	thinpBlockSize       uint32
-	thinPoolDevice       string
-	Transaction          `json:"-"`
-	deferredRemove       bool   // use deferred removal
-	BaseDeviceUUID       string //save UUID of base device
+	dataLoopbackSize      int64
+	metaDataLoopbackSize  int64
+	baseFsSize            uint64
+	filesystem            string
+	mountOptions          string
+	mkfsArgs              []string
+	dataDevice            string // block or loop dev
+	dataLoopFile          string // loopback file, if used
+	metadataDevice        string // block or loop dev
+	metadataLoopFile      string // loopback file, if used
+	doBlkDiscard          bool
+	thinpBlockSize        uint32
+	thinPoolDevice        string
+	Transaction           `json:"-"`
+	overrideUdevSyncCheck bool
+	deferredRemove        bool   // use deferred removal
+	BaseDeviceUUID        string //save UUID of base device
 }
 
 type DiskUsage struct {
@@ -1104,7 +1106,10 @@ func (devices *DeviceSet) initDevmapper(doInit bool) error {
 
 	// https://github.com/docker/docker/issues/4036
 	if supported := devicemapper.UdevSetSyncSupport(true); !supported {
-		logrus.Warn("Udev sync is not supported. This will lead to unexpected behavior, data loss and errors. For more information, see https://docs.docker.com/reference/commandline/cli/#daemon-storage-driver-option")
+		logrus.Errorf("Udev sync is not supported. This will lead to unexpected behavior, data loss and errors. For more information, see https://docs.docker.com/reference/commandline/cli/#daemon-storage-driver-option")
+		if !devices.overrideUdevSyncCheck {
+			return graphdriver.ErrNotSupported
+		}
 	}
 
 	if err := os.MkdirAll(devices.metadataDir(), 0700); err != nil && !os.IsExist(err) {
@@ -1786,15 +1791,16 @@ func NewDeviceSet(root string, doInit bool, options []string) (*DeviceSet, error
 	devicemapper.SetDevDir("/dev")
 
 	devices := &DeviceSet{
-		root:                 root,
-		MetaData:             MetaData{Devices: make(map[string]*DevInfo)},
-		dataLoopbackSize:     DefaultDataLoopbackSize,
-		metaDataLoopbackSize: DefaultMetaDataLoopbackSize,
-		baseFsSize:           DefaultBaseFsSize,
-		filesystem:           "ext4",
-		doBlkDiscard:         true,
-		thinpBlockSize:       DefaultThinpBlockSize,
-		deviceIdMap:          make([]byte, DeviceIdMapSz),
+		root:                  root,
+		MetaData:              MetaData{Devices: make(map[string]*DevInfo)},
+		dataLoopbackSize:      DefaultDataLoopbackSize,
+		metaDataLoopbackSize:  DefaultMetaDataLoopbackSize,
+		baseFsSize:            DefaultBaseFsSize,
+		overrideUdevSyncCheck: DefaultUdevSyncOverride,
+		filesystem:            "ext4",
+		doBlkDiscard:          true,
+		thinpBlockSize:        DefaultThinpBlockSize,
+		deviceIdMap:           make([]byte, DeviceIdMapSz),
 	}
 
 	foundBlkDiscard := false
@@ -1851,6 +1857,12 @@ func NewDeviceSet(root string, doInit bool, options []string) (*DeviceSet, error
 			}
 			// convert to 512b sectors
 			devices.thinpBlockSize = uint32(size) >> 9
+		case "dm.override_udev_sync_check":
+			devices.overrideUdevSyncCheck, err = strconv.ParseBool(val)
+			if err != nil {
+				return nil, err
+			}
+
 		case "dm.use_deferred_removal":
 			EnableDeferredRemoval, err = strconv.ParseBool(val)
 			if err != nil {
