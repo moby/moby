@@ -10,7 +10,7 @@ import (
 	psignal "github.com/docker/docker/pkg/signal"
 )
 
-func setupSigusr1Trap() {
+func setupDumpStackTrap() {
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, syscall.SIGUSR1)
 	go func() {
