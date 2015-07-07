@@ -10,6 +10,7 @@ import (
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/promise"
 	"github.com/docker/docker/pkg/signal"
+	"github.com/docker/docker/pkg/systemd"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/libnetwork/resolvconf/dns"
 )
@@ -47,6 +48,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		flSigProxy   = cmd.Bool([]string{"-sig-proxy"}, true, "Proxy received signals to the process")
 		flName       = cmd.String([]string{"-name"}, "", "Assign a name to the container")
 		flAttach     *opts.ListOpts
+		v            = url.Values{}
 
 		ErrConflictAttachDetach               = fmt.Errorf("Conflicting options: -a and -d")
 		ErrConflictRestartPolicyAndAutoRemove = fmt.Errorf("Conflicting options: --restart and --rm")
@@ -140,7 +142,6 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		var (
 			out, stderr io.Writer
 			in          io.ReadCloser
-			v           = url.Values{}
 		)
 		v.Set("stream", "1")
 		if config.AttachStdin {
@@ -188,9 +189,17 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		}
 	}()
 
+	if os.Getenv("NOTIFY_SOCKET") != "" {
+		v.Set("goSdNotify", "1")
+	}
+
 	//start the container
-	if _, _, err = readBody(cli.call("POST", "/containers/"+createResponse.ID+"/start", nil, nil)); err != nil {
+	if obj, _, err := readBody(cli.call("POST", "/containers/"+createResponse.ID+"/start?"+v.Encode(), nil, nil)); err != nil {
 		return err
+	} else if obj != nil && v.Get("goSdNotify") == "1" {
+		if err := systemd.SdNotify(string(obj[:])); err != nil {
+			return err
+		}
 	}
 
 	if (config.AttachStdin || config.AttachStdout || config.AttachStderr) && config.Tty && cli.isTerminalOut {

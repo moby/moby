@@ -1042,14 +1042,15 @@ func (s *Server) postContainersStart(version version.Version, w http.ResponseWri
 		hostConfig = c
 	}
 
-	if err := s.daemon.ContainerStart(vars["name"], hostConfig); err != nil {
+	sdNotifyFlag := boolValue(r, "goSdNotify")
+
+	if err := s.daemon.ContainerStart(vars["name"], hostConfig, w, sdNotifyFlag); err != nil {
 		if err.Error() == "Container already started" {
 			w.WriteHeader(http.StatusNotModified)
 			return nil
 		}
 		return err
 	}
-	w.WriteHeader(http.StatusNoContent)
 	return nil
 }
 
