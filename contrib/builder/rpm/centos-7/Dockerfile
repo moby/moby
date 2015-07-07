@@ -5,6 +5,7 @@
 FROM centos:7
 
 RUN yum groupinstall -y "Development Tools"
+RUN yum -y swap -- remove systemd-container systemd-container-libs -- install systemd systemd-libs
 RUN yum install -y btrfs-progs-devel device-mapper-devel glibc-static libselinux-devel sqlite-devel tar
 
 ENV GO_VERSION 1.4.2
