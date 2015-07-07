@@ -168,7 +168,7 @@ func scanPriorDrivers(root string) []string {
 	priorDrivers := []string{}
 	for driver := range drivers {
 		p := filepath.Join(root, driver)
-		if _, err := os.Stat(p); err == nil {
+		if _, err := os.Stat(p); err == nil && driver != "vfs" {
 			priorDrivers = append(priorDrivers, driver)
 		}
 	}
