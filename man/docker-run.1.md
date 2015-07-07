@@ -225,8 +225,8 @@ ENTRYPOINT.
 
 **-i**, **--interactive**=*true*|*false*
    Keep STDIN open even if not attached. The default is *false*.
-
-   When set to true, keep stdin open even if not attached. The default is false.
+   
+   Note:  If set to true but not attached to STDIN, input may be silently discarded (see example below).
 
 **--ipc**=""
    Default is to create a private IPC namespace (POSIX SysV IPC) for the container
@@ -469,6 +469,20 @@ If you do not specify -a then Docker will attach everything (stdin,stdout,stderr
 you’d like to connect instead, as in:
 
     # docker run -a stdin -a stdout -i -t fedora /bin/bash
+
+## Running a container with --interactive and without attaching to STDIN
+
+Input will be silently discarded if STDIN is not attached, resulting in 
+possibly unexpected behavior.
+
+    # docker run -a stderr -a stdout -i --sig-proxy=true ubuntu bash
+
+In this example, any tty-generated signals (ctrl-c, etc) will appear to be ignored, despite 
+use of --interactive and sig-proxy.  Note, if --sig-proxy=false (the default) all 
+tty-signals are generated and the client responds (not the container).  Because of this 
+possibly confusing behavior, unless there is a specific use for running with --interactive 
+without attaching to STDIN, it is recommended to run -i with -a stdin or leave the -a out to 
+attach to STDIN by default.
 
 ## Sharing IPC between containers
 
