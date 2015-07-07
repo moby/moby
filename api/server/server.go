@@ -819,6 +819,10 @@ func (s *Server) getImagesSearch(version version.Version, w http.ResponseWriter,
 }
 
 func (s *Server) postImagesPush(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if runtime.GOOS == "windows" {
+		return fmt.Errorf("The preview release of the Windows docker daemon does not support push")
+	}
+
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
 	}
