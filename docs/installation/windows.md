@@ -19,7 +19,7 @@ Client** to control the virtualized Docker Engine to build, run, and manage
 Docker containers.
 
 To make this process easier, we've designed a helper application called
-[Boot2Docker](https://github.com/boot2docker/boot2docker) creates a Linux virtual
+[Boot2Docker](https://github.com/boot2docker/boot2docker) which creates a Linux virtual
 machine on Windows to run Docker on a Linux operating system.
 
 Although you will be using Windows Docker client, the docker engine hosting the
@@ -87,13 +87,14 @@ to your console window and you are ready to run docker commands such as
 
 ## Using Docker from PowerShell
 
-Launch a PowerShell window, then you need to add `ssh.exe` to your PATH:
+Launch a PowerShell window, then add `ssh.exe` to your PATH:
 
     $Env:Path = "${Env:Path};c:\Program Files (x86)\Git\bin"
 
-and after running `boot2docker start` command it will print PowerShell commands
-to set the environment variables to connect Docker running inside VM. Run these
-commands and you are ready to run docker commands such as `docker ps`:
+and after running the `boot2docker start` command it will print PowerShell
+commands to set the environment variables to connect to the Docker daemon
+running inside the VM. Run these commands and you are ready to run docker
+commands such as `docker ps`:
 
 ![](/installation/images/windows-boot2docker-powershell.png)
 
