@@ -568,8 +568,9 @@ func NewDaemon(config *Config, registryService *registry.Service) (daemon *Daemo
 		return nil, err
 	}
 
-	// set up SIGUSR1 handler to dump Go routine stacks
-	setupSigusr1Trap()
+	// set up SIGUSR1 handler on Unix-like systems, or a Win32 global event
+	// on Windows to dump Go routine stacks
+	setupDumpStackTrap()
 
 	// get the canonical path to the Docker root directory
 	var realRoot string
