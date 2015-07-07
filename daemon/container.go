@@ -628,14 +628,6 @@ func (container *Container) Copy(resource string) (io.ReadCloser, error) {
 		if err != nil {
 			return nil, err
 		}
-		var stat os.FileInfo
-		stat, err = os.Stat(m.Source)
-		if err != nil {
-			return nil, err
-		}
-		if err = fileutils.CreateIfNotExists(dest, stat.IsDir()); err != nil {
-			return nil, err
-		}
 		if err = mount.Mount(m.Source, dest, "bind", "rbind,ro"); err != nil {
 			return nil, err
 		}
