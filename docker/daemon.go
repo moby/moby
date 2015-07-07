@@ -115,6 +115,8 @@ func mainDaemon() {
 	}
 	serverConfig = setPlatformServerConfig(serverConfig, daemonCfg)
 
+	serverConfig.AuthOptions.RequireAuthn = *flRequireAuthn
+
 	if *flTls {
 		if *flTlsVerify {
 			tlsOptions.ClientAuth = tls.RequireAndVerifyClientCert

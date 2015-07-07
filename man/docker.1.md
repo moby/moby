@@ -26,6 +26,9 @@ To see the man page for a command run **man docker <command>**.
 **-h**, **--help**
   Print usage statement
 
+**-a**, **--authn**=*true*|*false*
+  Require clients to authenticate to the docker daemon when issuing requests; the historical default is false
+
 **--api-cors-header**=""
   Set CORS headers in the remote API. Default is cors disabled. Give urls like "http://foo, http://bar, ...". Give "*" to allow all.
 
