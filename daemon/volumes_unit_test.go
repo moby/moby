@@ -14,6 +14,9 @@ func TestParseVolumeFrom(t *testing.T) {
 		{"foobar:rw", "foobar", "rw", false},
 		{"foobar:ro", "foobar", "ro", false},
 		{"foobar:baz", "", "", true},
+		{"foobar;rw", "foobar", "rw", false},
+		{"foobar;ro", "foobar", "ro", false},
+		{"foobar;baz", "", "", true},
 	}
 
 	for _, c := range cases {
