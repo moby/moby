@@ -779,7 +779,7 @@ func (s *DockerSuite) TestEventsTop(c *check.C) {
 
 // #13753
 func (s *DockerSuite) TestEventsDefaultEmpty(c *check.C) {
-	dockerCmd(c, "run", "-d", "busybox")
+	dockerCmd(c, "run", "busybox")
 	out, _ := dockerCmd(c, "events", fmt.Sprintf("--until=%d", daemonTime(c).Unix()))
 	c.Assert(strings.TrimSpace(out), check.Equals, "")
 }
