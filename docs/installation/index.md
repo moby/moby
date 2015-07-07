@@ -1,6 +1,6 @@
 <!--[metadata]>
 +++
-title = "Supported instllation"
+title = "Supported installation"
 description = "Lists the installation methods"
 keywords = ["Docker install "]
 +++
@@ -28,6 +28,6 @@ Docker supports installation on the following:
 * [Red Hat Enterprise Linux](rhel)
 * [IBM SoftLayer](softlayer)
 * [openSUSE and SUSE Linux Enterprise](SUSE)
-* [Ubuntu ](ubuntulinux)
+* [Ubuntu](ubuntulinux)
 * [Windows](windows)
 
