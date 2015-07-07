@@ -86,17 +86,18 @@ and linking containers.
 ## Examples
 
     $ docker run --name test -it debian
-    $$ exit 13
-    exit
+    root@d6c0fe130dba:/# exit 13
     $ echo $?
     13
     $ docker ps -a | grep test
-    275c44472aeb        debian:7            "/bin/bash"         26 seconds ago      Exited (13) 17 seconds ago                         test
+    d6c0fe130dba        debian:7            "/bin/bash"         26 seconds ago      Exited (13) 17 seconds ago                         test
 
-In this example, we are running `bash` interactively in the `debian:latest` image, and giving
-the container the name `test`. We then quit `bash` by running `exit 13`, which means `bash`
-will have an exit code of `13`. This is then passed on to the caller of `docker run`, and
-is recorded in the `test` container metadata.
+This example runs a container named `test` using the `debian:latest` 
+image. The `-it` instructs Docker to allocate a pseudo-TTY connected to
+the container's stdin; creating an interactive `bash` shell in the container.
+In the example, the `bash` shell is quit by entering
+`exit 13`. This exit code is passed on to the caller of
+`docker run`, and is recorded in the `test` container's metadata.
 
     $ docker run --cidfile /tmp/docker_test.cid ubuntu echo "test"
 
