@@ -349,7 +349,7 @@ func (s *TagStore) pushV2Repository(r *registry.Session, localRepo Repository, o
 		}
 
 		layersSeen := make(map[string]bool)
-		layers := []*image.Image{layer}
+		layers := []*image.Image{}
 		for ; layer != nil; layer, err = s.graph.GetParent(layer) {
 			if err != nil {
 				return err
