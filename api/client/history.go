@@ -3,6 +3,7 @@ package client
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 	"text/tabwriter"
 	"time"
 
@@ -57,9 +58,9 @@ func (cli *DockerCli) CmdHistory(args ...string) error {
 			}
 
 			if *noTrunc {
-				fmt.Fprintf(w, "%s\t", entry.CreatedBy)
+				fmt.Fprintf(w, "%s\t", strings.Replace(entry.CreatedBy, "\t", " ", -1))
 			} else {
-				fmt.Fprintf(w, "%s\t", stringutils.Truncate(entry.CreatedBy, 45))
+				fmt.Fprintf(w, "%s\t", stringutils.Truncate(strings.Replace(entry.CreatedBy, "\t", " ", -1), 45))
 			}
 
 			if *human {
