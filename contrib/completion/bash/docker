@@ -391,7 +391,33 @@ _docker_events() {
 			return
 			;;
 		*event=*)
-			COMPREPLY=( $( compgen -W "create destroy die export kill pause restart start stop unpause" -- "${cur#=}" ) )
+			COMPREPLY=( $( compgen -W "
+				attach
+				commit
+				copy
+				create
+				delete
+				destroy
+				die
+				exec_create
+				exec_start
+				export
+				import
+				kill
+				oom
+				pause
+				pull
+				push
+				rename
+				resize
+				restart
+				start
+				stop
+				tag
+				top
+				unpause
+				untag
+			" -- "${cur#=}" ) )
 			return
 			;;
 		*image=*)
