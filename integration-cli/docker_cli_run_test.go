@@ -2883,6 +2883,7 @@ func (s *DockerSuite) TestRunAllowPortRangeThroughPublish(c *check.C) {
 }
 
 func (s *DockerSuite) TestRunOOMExitCode(c *check.C) {
+	testRequires(c, OomControl)
 	errChan := make(chan error)
 	go func() {
 		defer close(errChan)
