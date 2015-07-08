@@ -633,6 +633,8 @@ container:
 | `--blkio-weight-device=""` | Block IO weight (relative device weight, format: `DEVICE_NAME:WEIGHT`)                                                                          |
 | `--device-read-bps=""`     | Limit read rate from a device (format: `<device-path>:<number>[<unit>]`). Number is a positive integer. Unit can be one of `kb`, `mb`, or `gb`. |
 | `--device-write-bps=""`    | Limit write rate to a device (format: `<device-path>:<number>[<unit>]`). Number is a positive integer. Unit can be one of `kb`, `mb`, or `gb`.  |
+| `--device-read-iops="" `   | Limit read rate (IO per second) from a device (format: `<device-path>:<number>`). Number is a positive integer.                                 |
+| `--device-write-iops="" `  | Limit write rate (IO per second) to a device (format: `<device-path>:<number>`). Number is a positive integer.                                  |
 | `--oom-kill-disable=false` | Whether to disable OOM Killer for the container or not.                                                                                         |
 | `--memory-swappiness=""`   | Tune a container's memory swappiness behavior. Accepts an integer between 0 and 100.                                                            |
 | `--shm-size=""`            | Size of `/dev/shm`. The format is `<number><unit>`. `number` must be greater than `0`. Unit is optional and can be `b` (bytes), `k` (kilobytes), `m` (megabytes), or `g` (gigabytes). If you omit the unit, the system uses bytes. If you omit the size entirely, the system uses `64m`. |
@@ -984,21 +986,36 @@ on `/dev/sda` setting that weight to `200`:
         --blkio-weight-device "/dev/sda:200" \
         ubuntu
 
-The `--device-read-bps` flag limits the read rate from a device. For example,
-this command creates a container and limits the read rate to `1mb` per second
-from `/dev/sda`:
+The `--device-read-bps` flag limits the read rate (bytes per second) from a device.
+For example, this command creates a container and limits the read rate to `1mb`
+per second from `/dev/sda`:
 
     $ docker run -it --device-read-bps /dev/sda:1mb ubuntu
 
-The `--device-write-bps` flag limits the write rate to a device. For example,
-this command creates a container and limits the write rate to `1mb` per second
-for `/dev/sda`: 
+The `--device-write-bps` flag limits the write rate (bytes per second)to a device.
+For example, this command creates a container and limits the write rate to `1mb`
+per second for `/dev/sda`: 
 
     $ docker run -it --device-write-bps /dev/sda:1mb ubuntu
 
 Both flags take limits in the `<device-path>:<limit>[unit]` format. Both read
 and write rates must be a positive integer. You can specify the rate in `kb`
 (kilobytes), `mb` (megabytes), or `gb` (gigabytes).
+
+The `--device-read-iops` flag limits read rate (IO per second) from a device.
+For example, this command creates a container and limits the read rate to
+`1000` IO per second from `/dev/sda`:
+
+    $ docker run -ti --device-read-iops /dev/sda:1000 ubuntu
+
+The `--device-write-iops` flag limits write rate (IO per second) to a device.
+For example, this command creates a container and limits the write rate to
+`1000` IO per second to `/dev/sda`:
+
+    $ docker run -ti --device-write-iops /dev/sda:1000 ubuntu
+
+Both flags take limits in the `<device-path>:<limit>` format. Both read and
+write rates must be a positive integer.
 
 ## Additional groups
     --group-add: Add Linux capabilities

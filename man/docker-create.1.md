@@ -21,7 +21,9 @@ docker-create - Create a new container
 [**--cpuset-mems**[=*CPUSET-MEMS*]]
 [**--device**[=*[]*]]
 [**--device-read-bps**[=*[]*]]
+[**--device-read-iops**[=*[]*]]
 [**--device-write-bps**[=*[]*]]
+[**--device-write-iops**[=*[]*]]
 [**--dns**[=*[]*]]
 [**--dns-search**[=*[]*]]
 [**--dns-opt**[=*[]*]]
@@ -130,8 +132,14 @@ two memory nodes.
 **--device-read-bps**=[]
     Limit read rate (bytes per second) from a device (e.g. --device-read-bps=/dev/sda:1mb)
 
+**--device-read-iops**=[]
+    Limit read rate (IO per second) from a device (e.g. --device-read-iops=/dev/sda:1000)
+
 **--device-write-bps**=[]
     Limit write rate (bytes per second) to a device (e.g. --device-write-bps=/dev/sda:1mb)
+
+**--device-write-iops**=[]
+    Limit write rate (IO per second) to a device (e.g. --device-write-iops=/dev/sda:1000)
 
 **--dns**=[]
    Set custom DNS servers
