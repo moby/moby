@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/execdriver"
@@ -246,4 +247,35 @@ func (d *Daemon) Exec(c *Container, execConfig *execConfig, pipes *execdriver.Pi
 	execConfig.Running = false
 
 	return exitStatus, err
+}
+
+// execCommandGC runs a ticker to clean up the daemon references
+// of exec configs that are no longer part of the container.
+func (d *Daemon) execCommandGC() {
+	for range time.Tick(5 * time.Minute) {
+		var (
+			cleaned          int
+			liveExecCommands = d.containerExecIds()
+			ids              = d.execCommands.List()
+		)
+		for _, id := range ids {
+			if _, exists := liveExecCommands[id]; !exists {
+				cleaned++
+				d.execCommands.Delete(id)
+			}
+		}
+		logrus.Debugf("clean %d unused exec commands", cleaned)
+	}
+}
+
+// containerExecIds returns a list of all the current exec ids that are in use
+// and running inside a container.
+func (d *Daemon) containerExecIds() map[string]struct{} {
+	ids := map[string]struct{}{}
+	for _, c := range d.containers.List() {
+		for _, id := range c.execCommands.List() {
+			ids[id] = struct{}{}
+		}
+	}
+	return ids
 }
