@@ -12,7 +12,7 @@ type APIVersion struct {
 	// such as "registry"
 	Type string
 
-	// Version is the vesion of the API specification implemented,
+	// Version is the version of the API specification implemented,
 	// This may omit the revision number and only include
 	// the major and minor version, such as "2.0"
 	Version string
