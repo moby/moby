@@ -150,3 +150,43 @@ func (s *DockerSuite) TestPullScratchNotAllowed(c *check.C) {
 		c.Fatalf("unexpected output pulling scratch: %s", out)
 	}
 }
+
+// pulling an image with --all-tags=true
+func (s *DockerSuite) TestPullImageWithAllTagFromCentralRegistry(c *check.C) {
+	//testRequires(c, Network)
+	pullCmd := exec.Command(dockerBinary, "pull", "busybox")
+	if out, _, err := runCommandWithOutput(pullCmd); err != nil {
+		c.Fatalf("pulling the busybox image from the registry has failed: %s, %v", out, err)
+	}
+
+	ImageCmd := exec.Command(dockerBinary, "images", "busybox")
+	outImageCmd, _, err := runCommandWithOutput(ImageCmd)
+
+	c.Assert(err, check.IsNil)
+
+	pullAllTagCmd := exec.Command(dockerBinary, "pull", "--all-tags=true", "busybox")
+	if out, _, err := runCommandWithOutput(pullAllTagCmd); err != nil {
+		c.Fatalf("pulling the busybox image with all tags from the registry has failed: %s, %v", out, err)
+	}
+
+	ImageCmd1 := exec.Command(dockerBinary, "images", "busybox")
+	outImageAllTagCmd, _, err := runCommandWithOutput(ImageCmd1)
+	c.Assert(err, check.IsNil)
+
+	if strings.Count(outImageCmd, "busybox") >= strings.Count(outImageAllTagCmd, "busybox") {
+		c.Fatalf("Pulling with all tags should get more images")
+	}
+
+	pullAllTagCmd = exec.Command(dockerBinary, "pull", "-a", "busybox")
+	if out, _, err := runCommandWithOutput(pullAllTagCmd); err != nil {
+		c.Fatalf("pulling the busybox image with all tags from the registry has failed: %s, %v", out, err)
+	}
+
+	ImageCmd2 := exec.Command(dockerBinary, "images", "busybox")
+	outImageAllTagCmd, _, err = runCommandWithOutput(ImageCmd2)
+	c.Assert(err, check.IsNil)
+
+	if strings.Count(outImageCmd, "busybox") >= strings.Count(outImageAllTagCmd, "busybox") {
+		c.Fatalf("Pulling with all tags should get more images")
+	}
+}
