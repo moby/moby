@@ -7,11 +7,9 @@ import (
 	"log"
 	"net/http"
 	"os/exec"
-	"path"
 	"strings"
 	"time"
 
-	"github.com/docker/libcontainer/cgroups"
 	"github.com/go-check/check"
 )
 
@@ -120,24 +118,6 @@ var (
 			return false
 		},
 		"Test requires support for IPv6",
-	}
-	OomControl = TestRequirement{
-		func() bool {
-			cgroupMemoryMountpoint, err := cgroups.FindCgroupMountpoint("memory")
-			if err != nil {
-				return false
-			}
-			if _, err := ioutil.ReadFile(path.Join(cgroupMemoryMountpoint, "memory.memsw.limit_in_bytes")); err != nil {
-				return false
-			}
-
-			if _, err = ioutil.ReadFile(path.Join(cgroupMemoryMountpoint, "memory.oom_control")); err != nil {
-				return false
-			}
-			return true
-
-		},
-		"Test requires Oom control enabled.",
 	}
 )
 

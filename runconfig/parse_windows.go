@@ -8,7 +8,7 @@ import (
 func parseNetMode(netMode string) (NetworkMode, error) {
 	parts := strings.Split(netMode, ":")
 	switch mode := parts[0]; mode {
-	case "default":
+	case "default", "none":
 	default:
 		return "", fmt.Errorf("invalid --net: %s", netMode)
 	}
