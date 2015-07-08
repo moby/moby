@@ -632,3 +632,20 @@ func (s *DockerSuite) TestCopyAndRestart(c *check.C) {
 		c.Fatalf("expected %q but got %q", expectedMsg, msg)
 	}
 }
+
+func (s *DockerSuite) TestCopyCreatedContainer(c *check.C) {
+	out, err := exec.Command(dockerBinary, "create", "--name", "test_cp", "-v", "/test", "busybox").CombinedOutput()
+	if err != nil {
+		c.Fatalf(string(out), err)
+	}
+
+	tmpDir, err := ioutil.TempDir("", "test")
+	if err != nil {
+		c.Fatalf("unable to make temporary directory: %s", err)
+	}
+	defer os.RemoveAll(tmpDir)
+	out, err = exec.Command(dockerBinary, "cp", "test_cp:/bin/sh", tmpDir).CombinedOutput()
+	if err != nil {
+		c.Fatalf(string(out), err)
+	}
+}
