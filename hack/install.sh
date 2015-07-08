@@ -6,6 +6,10 @@ set -e
 # or:
 #   'wget -qO- https://get.docker.com/ | sh'
 #
+# If you're interested in the daily experimental build:
+#   'curl -sSL https://experimental.docker.com/ | sh'
+# or:
+#   'wget -qO- https://experimental.docker.com/ | sh'
 #
 # Docker Maintainers:
 #   To update this script on https://get.docker.com,
@@ -183,7 +187,7 @@ do_install() {
 			# install apparmor utils if they're missing and apparmor is enabled in the kernel
 			# otherwise Docker will fail to start
 			if [ "$(cat /sys/module/apparmor/parameters/enabled 2>/dev/null)" = 'Y' ]; then
-				if command -v apparmor_parser &> /dev/null; then
+				if command -v apparmor_parser >/dev/null 2>&1; then
 					echo 'apparmor is enabled in the kernel and apparmor utils were already installed'
 				else
 					echo 'apparmor is enabled in the kernel, but apparmor_parser missing'
