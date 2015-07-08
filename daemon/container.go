@@ -622,11 +622,12 @@ func (container *Container) Copy(resource string) (io.ReadCloser, error) {
 		return nil, err
 	}
 	for _, m := range mounts {
-		dest, err := container.GetResourcePath(m.Destination)
+		var dest string
+		dest, err = container.GetResourcePath(m.Destination)
 		if err != nil {
 			return nil, err
 		}
-		if err := mount.Mount(m.Source, dest, "bind", "rbind,ro"); err != nil {
+		if err = mount.Mount(m.Source, dest, "bind", "rbind,ro"); err != nil {
 			return nil, err
 		}
 	}
