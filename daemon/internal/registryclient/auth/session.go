@@ -1,4 +1,4 @@
-package transport
+package auth
 
 import (
 	"encoding/json"
@@ -9,6 +9,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/docker/distribution/registry/client/transport"
 )
 
 // AuthenticationHandler is an interface for authorizing a request from
@@ -32,71 +34,24 @@ type CredentialStore interface {
 
 // NewAuthorizer creates an authorizer which can handle multiple authentication
 // schemes. The handlers are tried in order, the higher priority authentication
-// methods should be first.
-func NewAuthorizer(transport http.RoundTripper, handlers ...AuthenticationHandler) RequestModifier {
-	return &tokenAuthorizer{
-		challenges: map[string]map[string]authorizationChallenge{},
+// methods should be first. The challengeMap holds a list of challenges for
+// a given root API endpoint (for example "https://registry-1.docker.io/v2/").
+func NewAuthorizer(manager ChallengeManager, handlers ...AuthenticationHandler) transport.RequestModifier {
+	return &endpointAuthorizer{
+		challenges: manager,
 		handlers:   handlers,
-		transport:  transport,
 	}
 }
 
-type tokenAuthorizer struct {
-	challenges map[string]map[string]authorizationChallenge
+type endpointAuthorizer struct {
+	challenges ChallengeManager
 	handlers   []AuthenticationHandler
 	transport  http.RoundTripper
 }
 
-func (ta *tokenAuthorizer) ping(endpoint string) (map[string]authorizationChallenge, error) {
-	req, err := http.NewRequest("GET", endpoint, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	client := &http.Client{
-		Transport: ta.transport,
-		// Ping should fail fast
-		Timeout: 5 * time.Second,
-	}
-
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	// TODO(dmcgowan): Add version string which would allow skipping this section
-	var supportsV2 bool
-HeaderLoop:
-	for _, supportedVersions := range resp.Header[http.CanonicalHeaderKey("Docker-Distribution-API-Version")] {
-		for _, versionName := range strings.Fields(supportedVersions) {
-			if versionName == "registry/2.0" {
-				supportsV2 = true
-				break HeaderLoop
-			}
-		}
-	}
-
-	if !supportsV2 {
-		return nil, fmt.Errorf("%s does not appear to be a v2 registry endpoint", endpoint)
-	}
-
-	if resp.StatusCode == http.StatusUnauthorized {
-		// Parse the WWW-Authenticate Header and store the challenges
-		// on this endpoint object.
-		return parseAuthHeader(resp.Header), nil
-	} else if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("unable to get valid ping response: %d", resp.StatusCode)
-	}
-
-	return nil, nil
-}
-
-func (ta *tokenAuthorizer) ModifyRequest(req *http.Request) error {
+func (ea *endpointAuthorizer) ModifyRequest(req *http.Request) error {
 	v2Root := strings.Index(req.URL.Path, "/v2/")
-	// Test if /v2/ does not exist or not at beginning
-	// TODO(dmcgowan) support v2 endpoints which have a prefix before /v2/
-	if v2Root == -1 || v2Root > 0 {
+	if v2Root == -1 {
 		return nil
 	}
 
@@ -108,21 +63,20 @@ func (ta *tokenAuthorizer) ModifyRequest(req *http.Request) error {
 
 	pingEndpoint := ping.String()
 
-	challenges, ok := ta.challenges[pingEndpoint]
-	if !ok {
-		var err error
-		challenges, err = ta.ping(pingEndpoint)
-		if err != nil {
-			return err
-		}
-		ta.challenges[pingEndpoint] = challenges
+	challenges, err := ea.challenges.GetChallenges(pingEndpoint)
+	if err != nil {
+		return err
 	}
 
-	for _, handler := range ta.handlers {
-		challenge, ok := challenges[handler.Scheme()]
-		if ok {
-			if err := handler.AuthorizeRequest(req, challenge.Parameters); err != nil {
-				return err
+	if len(challenges) > 0 {
+		for _, handler := range ea.handlers {
+			for _, challenge := range challenges {
+				if challenge.Scheme != handler.Scheme() {
+					continue
+				}
+				if err := handler.AuthorizeRequest(req, challenge.Parameters); err != nil {
+					return err
+				}
 			}
 		}
 	}
@@ -133,7 +87,7 @@ func (ta *tokenAuthorizer) ModifyRequest(req *http.Request) error {
 type tokenHandler struct {
 	header    http.Header
 	creds     CredentialStore
-	scope     TokenScope
+	scope     tokenScope
 	transport http.RoundTripper
 
 	tokenLock       sync.Mutex
@@ -141,25 +95,29 @@ type tokenHandler struct {
 	tokenExpiration time.Time
 }
 
-// TokenScope represents the scope at which a token will be requested.
+// tokenScope represents the scope at which a token will be requested.
 // This represents a specific action on a registry resource.
-type TokenScope struct {
+type tokenScope struct {
 	Resource string
 	Scope    string
 	Actions  []string
 }
 
-func (ts TokenScope) String() string {
+func (ts tokenScope) String() string {
 	return fmt.Sprintf("%s:%s:%s", ts.Resource, ts.Scope, strings.Join(ts.Actions, ","))
 }
 
 // NewTokenHandler creates a new AuthenicationHandler which supports
 // fetching tokens from a remote token server.
-func NewTokenHandler(transport http.RoundTripper, creds CredentialStore, scope TokenScope) AuthenticationHandler {
+func NewTokenHandler(transport http.RoundTripper, creds CredentialStore, scope string, actions ...string) AuthenticationHandler {
 	return &tokenHandler{
 		transport: transport,
 		creds:     creds,
-		scope:     scope,
+		scope: tokenScope{
+			Resource: "repository",
+			Scope:    scope,
+			Actions:  actions,
+		},
 	}
 }
 
