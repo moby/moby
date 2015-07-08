@@ -430,7 +430,7 @@ You cannot set any restart policy in combination with
 ["clean up (--rm)"](#clean-up-rm). Setting both `--restart` and `--rm`
 results in an error.
 
-###Examples
+### Examples
 
     $ docker run --restart=always redis
 
