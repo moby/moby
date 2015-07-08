@@ -112,7 +112,7 @@ func (s *DockerSuite) TestRestartWithVolumes(c *check.C) {
 		c.Errorf("expect 1 volume received %s", out)
 	}
 
-	volumes, err := inspectField(cleanedContainerID, ".Volumes")
+	volumes, err := inspectField(cleanedContainerID, "Volumes")
 	c.Assert(err, check.IsNil)
 
 	runCmd = exec.Command(dockerBinary, "restart", cleanedContainerID)
@@ -130,7 +130,7 @@ func (s *DockerSuite) TestRestartWithVolumes(c *check.C) {
 		c.Errorf("expect 1 volume after restart received %s", out)
 	}
 
-	volumesAfterRestart, err := inspectField(cleanedContainerID, ".Volumes")
+	volumesAfterRestart, err := inspectField(cleanedContainerID, "Volumes")
 	c.Assert(err, check.IsNil)
 
 	if volumes != volumesAfterRestart {
