@@ -485,7 +485,7 @@ func (s *DockerRegistrySuite) TestDeleteImageByIDOnlyPulledByDigest(c *check.C) 
 	}
 	// just in case...
 
-	imageID, err := inspectField(imageReference, ".Id")
+	imageID, err := inspectField(imageReference, "Id")
 	if err != nil {
 		c.Fatalf("error inspecting image id: %v", err)
 	}
