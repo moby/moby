@@ -1,5 +1,3 @@
-// +build !windows
-
 package runconfig
 
 func (n NetworkMode) IsDefault() bool {
