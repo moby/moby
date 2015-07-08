@@ -124,6 +124,5 @@ func (daemon *Daemon) ContainerExecInspect(id string) (*execConfig, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	return eConfig, nil
 }
