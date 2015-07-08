@@ -51,7 +51,7 @@ In most cases, it's best to put each Dockerfile in an empty directory. Then,
 only add the files needed for building the Dockerfile to the directory. To
 increase the build's performance, you can exclude files and directories by
 adding a `.dockerignore` file to the directory.  For information about how to
-[create a `.dockerignore` file](#the-dockerignore-file) on this page.
+[create a `.dockerignore` file](#dockerignore-file) on this page.
 
 You can specify a repository and tag at which to save the new image if
 the build succeeds:
@@ -208,11 +208,11 @@ This file causes the following build behavior:
 
 | Rule           | Behavior                                                                                                                                                                     |
 |----------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `*/temp*`      | Exclude all files with names starting with`temp` in any subdirectory below the root directory. For example, a file named`/somedir/temporary.txt` is ignored.              |
+| `*/temp*`      | Exclude all files with names starting with`temp` in any subdirectory below the root directory. For example, a file named`/somedir/temporary.txt` is ignored.                 |
 | `*/*/temp*`    | Exclude files starting with name `temp` from any subdirectory that is two levels below the root directory. For example, the file `/somedir/subdir/temporary.txt` is ignored. |
-| `temp?`        | Exclude the files that match the pattern in the root directory. For example, the files `tempa`, `tempb` in the root directory are ignored.                               |
-| `*.md `        | Exclude all markdown files.                                                                                                                                                  |
-| `!LICENSE.md` | Exception to the exclude all Markdown files is this file,  `LICENSE.md`, include this file in the build.                                                                     |
+| `temp?`        | Exclude the files that match the pattern in the root directory. For example, the files `tempa`, `tempb` in the root directory are ignored.                                   |
+| `*.md `        | Exclude all markdown files in the root directory.                                                                                                                            |
+| `!LICENSE.md`  | Exception to the Markdown files exclusion is this file,  `LICENSE.md`, Include this file in the build.                                                                       |
 
 The placement of  `!` exception rules influences the matching algorithm; the
 last line of the `.dockerignore` that matches a particular file determines
@@ -229,8 +229,9 @@ example:
 ```
 
 The build would exclude `LICENSE.md` because the last `*.md` rule adds all
-Markdown files back onto the ignore list. The `!LICENSE.md` rule has no effect
-because the subsequent `*.md` rule overrides it.
+Markdown files in the root directory back onto the ignore list. The
+`!LICENSE.md` rule has no effect because the subsequent `*.md` rule overrides
+it.
 
 You can even use the  `.dockerignore` file to ignore the `Dockerfile` and
 `.dockerignore` files. This is useful if you are copying files from the root of
