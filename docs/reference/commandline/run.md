@@ -65,6 +65,7 @@ weight=1
       -t, --tty=false            Allocate a pseudo-TTY
       -u, --user=""              Username or UID (format: <name|uid>[:<group|gid>])
       --ulimit=[]                Ulimit options
+      --untrusted=true           Skip image verification
       --uts=""                   UTS namespace to use
       -v, --volume=[]            Bind mount a volume
       --volumes-from=[]          Mount volumes from the specified container(s)

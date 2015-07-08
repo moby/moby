@@ -61,6 +61,7 @@ Creates a new container.
       --restart="no"             Restart policy (no, on-failure[:max-retry], always)
       --security-opt=[]          Security options
       -t, --tty=false            Allocate a pseudo-TTY
+      --untrusted=true           Skip image verification
       -u, --user=""              Username or UID
       --ulimit=[]                Ulimit options
       --uts=""                   UTS namespace to use
