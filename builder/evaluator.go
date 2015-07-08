@@ -334,12 +334,37 @@ func (b *Builder) dispatch(stepN int, ast *parser.Node) error {
 	msg += " " + strings.Join(msgList, " ")
 	fmt.Fprintln(b.OutStream, msg)
 
+	// Define the commands that support '--ignore-error'
+	ignores := map[string]struct{}{
+		"add":  {},
+		"copy": {},
+	}
+
 	// XXX yes, we skip any cmds that are not valid; the parser should have
 	// picked these out already.
 	if f, ok := evaluateTable[cmd]; ok {
+		var ignoreFlag *Flag
+
 		b.BuilderFlags = NewBuilderFlags()
 		b.BuilderFlags.Args = flags
-		return f(b, strList, attrs, original)
+
+		if _, ok := ignores[cmd]; ok {
+			ignoreFlag = b.BuilderFlags.AddBool("ignore-error", false)
+		}
+
+		// Actually run the Dockerfile command
+		err := f(b, strList, attrs, original)
+
+		// If --ignore-error was specified then ignore any errors but
+		// also warn the user about it
+		if err != nil && ignoreFlag != nil && ignoreFlag.IsTrue() {
+			if b.Verbose {
+				fmt.Fprintf(b.OutStream, "%v\n** Ignored errors\n", err)
+			}
+			err = nil
+		}
+
+		return err
 	}
 
 	return fmt.Errorf("Unknown instruction: %s", strings.ToUpper(cmd))
