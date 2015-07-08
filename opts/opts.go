@@ -219,6 +219,29 @@ func ValidateThrottleBpsDevice(val string) (*blkiodev.ThrottleDevice, error) {
 	}, nil
 }
 
+// ValidateThrottleIOpsDevice validates that the specified string has a valid device-rate format.
+func ValidateThrottleIOpsDevice(val string) (*blkiodev.ThrottleDevice, error) {
+	split := strings.SplitN(val, ":", 2)
+	if len(split) != 2 {
+		return nil, fmt.Errorf("bad format: %s", val)
+	}
+	if !strings.HasPrefix(split[0], "/dev/") {
+		return nil, fmt.Errorf("bad format for device path: %s", val)
+	}
+	rate, err := strconv.ParseUint(split[1], 10, 64)
+	if err != nil {
+		return nil, fmt.Errorf("invalid rate for device: %s. The correct format is <device-path>:<number>. Number must be a positive integer", val)
+	}
+	if rate < 0 {
+		return nil, fmt.Errorf("invalid rate for device: %s. The correct format is <device-path>:<number>. Number must be a positive integer", val)
+	}
+
+	return &blkiodev.ThrottleDevice{
+		Path: split[0],
+		Rate: uint64(rate),
+	}, nil
+}
+
 // ValidateEnv validates an environment variable and returns it.
 // If no value is specified, it returns the current value using os.Getenv.
 //

@@ -38,6 +38,14 @@ func parseSecurityOpt(container *container.Container, config *runconfig.HostConf
 	return nil
 }
 
+func getBlkioReadIOpsDevices(config *runconfig.HostConfig) ([]*blkiodev.ThrottleDevice, error) {
+	return nil, nil
+}
+
+func getBlkioWriteIOpsDevices(config *runconfig.HostConfig) ([]*blkiodev.ThrottleDevice, error) {
+	return nil, nil
+}
+
 func getBlkioReadBpsDevices(config *runconfig.HostConfig) ([]*blkiodev.ThrottleDevice, error) {
 	return nil, nil
 }

@@ -1389,7 +1389,9 @@ _docker_run() {
 		--cpu-shares
 		--device
 		--device-read-bps
+		--device-read-iops
 		--device-write-bps
+		--device-write-iops
 		--dns
 		--dns-opt
 		--dns-search
