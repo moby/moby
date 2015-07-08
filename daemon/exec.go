@@ -21,7 +21,7 @@ type execConfig struct {
 	ID            string
 	Running       bool
 	ExitCode      int
-	ProcessConfig execdriver.ProcessConfig
+	ProcessConfig *execdriver.ProcessConfig
 	StreamConfig
 	OpenStdin  bool
 	OpenStderr bool
@@ -128,7 +128,7 @@ func (d *Daemon) ContainerExecCreate(config *runconfig.ExecConfig) (string, erro
 		user = container.Config.User
 	}
 
-	processConfig := execdriver.ProcessConfig{
+	processConfig := &execdriver.ProcessConfig{
 		Tty:        config.Tty,
 		Entrypoint: entrypoint,
 		Arguments:  args,
@@ -221,7 +221,6 @@ func (d *Daemon) ContainerExecStart(execName string, stdin io.ReadCloser, stdout
 			execErr <- fmt.Errorf("Cannot run exec command %s in container %s: %s", execName, container.ID, err)
 		}
 	}()
-
 	select {
 	case err := <-attachErr:
 		if err != nil {
@@ -236,7 +235,7 @@ func (d *Daemon) ContainerExecStart(execName string, stdin io.ReadCloser, stdout
 }
 
 func (d *Daemon) Exec(c *Container, execConfig *execConfig, pipes *execdriver.Pipes, startCallback execdriver.StartCallback) (int, error) {
-	exitStatus, err := d.execDriver.Exec(c.command, &execConfig.ProcessConfig, pipes, startCallback)
+	exitStatus, err := d.execDriver.Exec(c.command, execConfig.ProcessConfig, pipes, startCallback)
 
 	// On err, make sure we don't leave ExitCode at zero
 	if err != nil && exitStatus == 0 {
