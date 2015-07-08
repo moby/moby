@@ -410,6 +410,9 @@ func (s *Server) getEvents(version version.Version, w http.ResponseWriter, r *ht
 	}
 
 	isFiltered := func(field string, filter []string) bool {
+		if len(field) == 0 {
+			return false
+		}
 		if len(filter) == 0 {
 			return false
 		}
@@ -448,8 +451,8 @@ func (s *Server) getEvents(version version.Version, w http.ResponseWriter, r *ht
 			ef["container"][i] = getContainerId(cn)
 		}
 
-		if isFiltered(ev.Status, ef["event"]) || isFiltered(ev.From, ef["image"]) ||
-			isFiltered(ev.ID, ef["container"]) {
+		if isFiltered(ev.Status, ef["event"]) || (isFiltered(ev.ID, ef["image"]) &&
+			isFiltered(ev.From, ef["image"])) || isFiltered(ev.ID, ef["container"]) {
 			return nil
 		}
 
