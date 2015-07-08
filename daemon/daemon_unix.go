@@ -85,6 +85,36 @@ func parseSecurityOpt(container *container.Container, config *runconfig.HostConf
 	return err
 }
 
+func getBlkioReadIOpsDevices(config *runconfig.HostConfig) ([]*blkiodev.ThrottleDevice, error) {
+	var blkioReadIOpsDevice []*blkiodev.ThrottleDevice
+	var stat syscall.Stat_t
+
+	for _, iopsDevice := range config.BlkioDeviceReadIOps {
+		if err := syscall.Stat(iopsDevice.Path, &stat); err != nil {
+			return nil, err
+		}
+		readIOpsDevice := blkiodev.NewThrottleDevice(int64(stat.Rdev/256), int64(stat.Rdev%256), iopsDevice.Rate)
+		blkioReadIOpsDevice = append(blkioReadIOpsDevice, readIOpsDevice)
+	}
+
+	return blkioReadIOpsDevice, nil
+}
+
+func getBlkioWriteIOpsDevices(config *runconfig.HostConfig) ([]*blkiodev.ThrottleDevice, error) {
+	var blkioWriteIOpsDevice []*blkiodev.ThrottleDevice
+	var stat syscall.Stat_t
+
+	for _, iopsDevice := range config.BlkioDeviceWriteIOps {
+		if err := syscall.Stat(iopsDevice.Path, &stat); err != nil {
+			return nil, err
+		}
+		writeIOpsDevice := blkiodev.NewThrottleDevice(int64(stat.Rdev/256), int64(stat.Rdev%256), iopsDevice.Rate)
+		blkioWriteIOpsDevice = append(blkioWriteIOpsDevice, writeIOpsDevice)
+	}
+
+	return blkioWriteIOpsDevice, nil
+}
+
 func getBlkioReadBpsDevices(config *runconfig.HostConfig) ([]*blkiodev.ThrottleDevice, error) {
 	var blkioReadBpsDevice []*blkiodev.ThrottleDevice
 	var stat syscall.Stat_t
@@ -299,6 +329,16 @@ func verifyContainerResources(resources *runconfig.Resources) ([]string, error) 
 		logrus.Warnf("Your kernel does not support Block I/O write limit in bytes per second. --device-write-bps discarded.")
 		resources.BlkioDeviceWriteBps = []*pblkiodev.ThrottleDevice{}
 	}
+	if len(resources.BlkioDeviceReadIOps) > 0 && !sysInfo.BlkioReadIOpsDevice {
+		warnings = append(warnings, "Your kernel does not support Block read limit in IO per second.")
+		logrus.Warnf("Your kernel does not support Block I/O read limit in IO per second. -device-read-iops discarded.")
+		resources.BlkioDeviceReadIOps = []*pblkiodev.ThrottleDevice{}
+	}
+	if len(resources.BlkioDeviceWriteIOps) > 0 && !sysInfo.BlkioWriteIOpsDevice {
+		warnings = append(warnings, "Your kernel does not support Block write limit in IO per second.")
+		logrus.Warnf("Your kernel does not support Block I/O write limit in IO per second. --device-write-iops discarded.")
+		resources.BlkioDeviceWriteIOps = []*pblkiodev.ThrottleDevice{}
+	}
 
 	return warnings, nil
 }
@@ -328,7 +368,6 @@ func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *runconfig.HostC
 		hostConfig.OomKillDisable = false
 		return warnings, fmt.Errorf("Your kernel does not support oom kill disable.")
 	}
-
 	if hostConfig.OomScoreAdj < -1000 || hostConfig.OomScoreAdj > 1000 {
 		return warnings, fmt.Errorf("Invalid value %d, range for oom score adj is [-1000, 1000].", hostConfig.OomScoreAdj)
 	}
