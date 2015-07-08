@@ -1,19 +1,75 @@
-package transport
+package auth
 
 import (
+	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 )
 
-// Octet types from RFC 2616.
-type octetType byte
+// Challenge carries information from a WWW-Authenticate response header.
+// See RFC 2617.
+type Challenge struct {
+	// Scheme is the auth-scheme according to RFC 2617
+	Scheme string
 
-// authorizationChallenge carries information
-// from a WWW-Authenticate response header.
-type authorizationChallenge struct {
-	Scheme     string
+	// Parameters are the auth-params according to RFC 2617
 	Parameters map[string]string
 }
+
+// ChallengeManager manages the challenges for endpoints.
+// The challenges are pulled out of HTTP responses. Only
+// responses which expect challenges should be added to
+// the manager, since a non-unauthorized request will be
+// viewed as not requiring challenges.
+type ChallengeManager interface {
+	// GetChallenges returns the challenges for the given
+	// endpoint URL.
+	GetChallenges(endpoint string) ([]Challenge, error)
+
+	// AddResponse adds the response to the challenge
+	// manager. The challenges will be parsed out of
+	// the WWW-Authenicate headers and added to the
+	// URL which was produced the response. If the
+	// response was authorized, any challenges for the
+	// endpoint will be cleared.
+	AddResponse(resp *http.Response) error
+}
+
+// NewSimpleChallengeManager returns an instance of
+// ChallengeManger which only maps endpoints to challenges
+// based on the responses which have been added the
+// manager. The simple manager will make no attempt to
+// perform requests on the endpoints or cache the responses
+// to a backend.
+func NewSimpleChallengeManager() ChallengeManager {
+	return simpleChallengeManager{}
+}
+
+type simpleChallengeManager map[string][]Challenge
+
+func (m simpleChallengeManager) GetChallenges(endpoint string) ([]Challenge, error) {
+	challenges := m[endpoint]
+	return challenges, nil
+}
+
+func (m simpleChallengeManager) AddResponse(resp *http.Response) error {
+	challenges := ResponseChallenges(resp)
+	if resp.Request == nil {
+		return fmt.Errorf("missing request reference")
+	}
+	urlCopy := url.URL{
+		Path:   resp.Request.URL.Path,
+		Host:   resp.Request.URL.Host,
+		Scheme: resp.Request.URL.Scheme,
+	}
+	m[urlCopy.String()] = challenges
+
+	return nil
+}
+
+// Octet types from RFC 2616.
+type octetType byte
 
 var octetTypes [256]octetType
 
@@ -54,12 +110,25 @@ func init() {
 	}
 }
 
-func parseAuthHeader(header http.Header) map[string]authorizationChallenge {
-	challenges := map[string]authorizationChallenge{}
+// ResponseChallenges returns a list of authorization challenges
+// for the given http Response. Challenges are only checked if
+// the response status code was a 401.
+func ResponseChallenges(resp *http.Response) []Challenge {
+	if resp.StatusCode == http.StatusUnauthorized {
+		// Parse the WWW-Authenticate Header and store the challenges
+		// on this endpoint object.
+		return parseAuthHeader(resp.Header)
+	}
+
+	return nil
+}
+
+func parseAuthHeader(header http.Header) []Challenge {
+	challenges := []Challenge{}
 	for _, h := range header[http.CanonicalHeaderKey("WWW-Authenticate")] {
 		v, p := parseValueAndParams(h)
 		if v != "" {
-			challenges[v] = authorizationChallenge{Scheme: v, Parameters: p}
+			challenges = append(challenges, Challenge{Scheme: v, Parameters: p})
 		}
 	}
 	return challenges
