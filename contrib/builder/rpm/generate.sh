@@ -43,6 +43,10 @@ for version in "${versions[@]}"; do
 				echo 'RUN yum -y swap -- remove systemd-container systemd-container-libs -- install systemd systemd-libs' >> "$version/Dockerfile"
 			fi
 			;;
+		oraclelinux:*)
+			# get "Development Tools" packages and dependencies
+			echo 'RUN yum groupinstall -y "Development Tools"' >> "$version/Dockerfile"
+			;;
 		*)
 			echo 'RUN yum install -y @development-tools fedora-packager' >> "$version/Dockerfile"
 			;;
@@ -57,7 +61,11 @@ for version in "${versions[@]}"; do
 		sqlite-devel # for "sqlite3.h"
 		tar # older versions of dev-tools don't have tar
 	)
-	echo "RUN yum install -y ${packages[*]}" >> "$version/Dockerfile"
+	if [ "$from" == "oraclelinux:7" ]; then
+		echo "RUN yum install --enablerepo=ol7_optional_latest -y ${packages[*]}" >> "$version/Dockerfile"
+	else
+		echo "RUN yum install -y ${packages[*]}" >> "$version/Dockerfile"
+	fi
 
 	echo >> "$version/Dockerfile"
 
