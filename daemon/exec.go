@@ -246,5 +246,11 @@ func (d *Daemon) Exec(c *Container, execConfig *execConfig, pipes *execdriver.Pi
 	execConfig.ExitCode = exitStatus
 	execConfig.Running = false
 
+	// There is no use in keeping the execConfig structure alive is the job is running detached,
+	// because the CLI doesn't output the ExecID and there is no way to attach to it.
+	if !execConfig.OpenStdin && !execConfig.OpenStdout && !execConfig.OpenStderr {
+		d.unregisterExecCommand(execConfig)
+	}
+
 	return exitStatus, err
 }
