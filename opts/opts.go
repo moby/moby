@@ -11,6 +11,7 @@ import (
 
 	"github.com/docker/docker/pkg/blkiodev"
 	"github.com/docker/docker/pkg/parsers"
+	"github.com/docker/docker/pkg/units"
 )
 
 var (
@@ -173,6 +174,9 @@ type ValidatorFctType func(val string) (string, error)
 // ValidatorWeightFctType defines a validator function that returns a validated struct and/or an error.
 type ValidatorWeightFctType func(val string) (*blkiodev.WeightDevice, error)
 
+// ValidatorThrottleFctType defines a validator function that returns a validated struct and/or an error.
+type ValidatorThrottleFctType func(val string) (*blkiodev.ThrottleDevice, error)
+
 // ValidatorFctListType defines a validator function that returns a validated list of string and/or an error
 type ValidatorFctListType func(val string) ([]string, error)
 
@@ -207,6 +211,29 @@ func ValidateWeightDevice(val string) (*blkiodev.WeightDevice, error) {
 	return &blkiodev.WeightDevice{
 		Path:   split[0],
 		Weight: uint16(weight),
+	}, nil
+}
+
+// ValidateThrottleBpsDevice validates that the specified string has a valid device-rate format.
+func ValidateThrottleBpsDevice(val string) (*blkiodev.ThrottleDevice, error) {
+	split := strings.SplitN(val, ":", 2)
+	if len(split) != 2 {
+		return nil, fmt.Errorf("bad format: %s", val)
+	}
+	if !strings.HasPrefix(split[0], "/dev/") {
+		return nil, fmt.Errorf("bad format for device path: %s", val)
+	}
+	rate, err := units.RAMInBytes(split[1])
+	if err != nil {
+		return nil, fmt.Errorf("invalid rate for device: %s. The correct format is <device-path>:<number>[<unit>]. Number must be a positive integer. Unit is optional and can be kb, mb, or gb", val)
+	}
+	if rate < 0 {
+		return nil, fmt.Errorf("invalid rate for device: %s. The correct format is <device-path>:<number>[<unit>]. Number must be a positive integer. Unit is optional and can be kb, mb, or gb", val)
+	}
+
+	return &blkiodev.ThrottleDevice{
+		Path: split[0],
+		Rate: uint64(rate),
 	}, nil
 }
 

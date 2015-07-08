@@ -188,6 +188,8 @@ Create a container
              "CpusetMems": "0,1",
              "BlkioWeight": 300,
              "BlkioWeightDevice": [{}],
+             "BlkioDeviceReadBps": [{}],
+             "BlkioDeviceWriteBps": [{}],
              "MemorySwappiness": 60,
              "OomKillDisable": false,
              "OomScoreAdj": 500,
@@ -245,6 +247,10 @@ Json Parameters:
 -   **CpusetMems** - Memory nodes (MEMs) in which to allow execution (0-3, 0,1). Only effective on NUMA systems.
 -   **BlkioWeight** - Block IO weight (relative weight) accepts a weight value between 10 and 1000.
 -   **BlkioWeightDevice** - Block IO weight (relative device weight) in the form of:        `"BlkioWeightDevice": [{"Path": "device_path", "Weight": weight}]`
+-   **BlkioDeviceReadBps** - Limit read rate from a device in form of:	`"BlkioDeviceReadBps": [{"Path": "device_path", "Rate": rate}]`, for example:
+	`"BlkioDeviceReadBps": [{"Path": "/dev/sda", "Rate": "1024"}]"`
+-   **BlkioDeviceWriteBps** - Limit write rate to a device in the form of:	`"BlkioDeviceWriteBps": [{"Path": "deivce_path", "Rate": rate}]`, for example:
+	`"BlkioDeviceWriteBps": [{"Path": "/dev/sda", "Rate": "1024"}]"`
 -   **MemorySwappiness** - Tune a container's memory swappiness behavior. Accepts an integer between 0 and 100.
 -   **OomKillDisable** - Boolean value, whether to disable OOM Killer for the container or not.
 -   **OomScoreAdj** - An integer value containing the score given to the container in order to tune OOM killer preferences.
@@ -398,6 +404,8 @@ Return low-level information on the container `id`
 			"Binds": null,
 			"BlkioWeight": 0,
 			"BlkioWeightDevice": [{}],
+			"BlkioDeviceReadBps": [{}],
+			"BlkioDeviceWriteBps": [{}],
 			"CapAdd": null,
 			"CapDrop": null,
 			"ContainerIDFile": "",

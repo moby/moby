@@ -38,16 +38,18 @@ type Resources struct {
 
 	// Fields below here are platform specific
 
-	BlkioWeightDevice []*blkiodev.WeightDevice `json:"blkio_weight_device"`
-	MemorySwap        int64                    `json:"memory_swap"`
-	KernelMemory      int64                    `json:"kernel_memory"`
-	CPUQuota          int64                    `json:"cpu_quota"`
-	CpusetCpus        string                   `json:"cpuset_cpus"`
-	CpusetMems        string                   `json:"cpuset_mems"`
-	CPUPeriod         int64                    `json:"cpu_period"`
-	Rlimits           []*ulimit.Rlimit         `json:"rlimits"`
-	OomKillDisable    bool                     `json:"oom_kill_disable"`
-	MemorySwappiness  int64                    `json:"memory_swappiness"`
+	BlkioWeightDevice           []*blkiodev.WeightDevice   `json:"blkio_weight_device"`
+	BlkioThrottleReadBpsDevice  []*blkiodev.ThrottleDevice `json:"blkio_throttle_read_bps_device"`
+	BlkioThrottleWriteBpsDevice []*blkiodev.ThrottleDevice `json:"blkio_throttle_write_bps_device"`
+	MemorySwap                  int64                      `json:"memory_swap"`
+	KernelMemory                int64                      `json:"kernel_memory"`
+	CPUQuota                    int64                      `json:"cpu_quota"`
+	CpusetCpus                  string                     `json:"cpuset_cpus"`
+	CpusetMems                  string                     `json:"cpuset_mems"`
+	CPUPeriod                   int64                      `json:"cpu_period"`
+	Rlimits                     []*ulimit.Rlimit           `json:"rlimits"`
+	OomKillDisable              bool                       `json:"oom_kill_disable"`
+	MemorySwappiness            int64                      `json:"memory_swappiness"`
 }
 
 // ProcessConfig is the platform specific structure that describes a process
@@ -170,6 +172,8 @@ func SetupCgroups(container *configs.Config, c *Command) error {
 		container.Cgroups.CpuQuota = c.Resources.CPUQuota
 		container.Cgroups.BlkioWeight = c.Resources.BlkioWeight
 		container.Cgroups.BlkioWeightDevice = c.Resources.BlkioWeightDevice
+		container.Cgroups.BlkioThrottleReadBpsDevice = c.Resources.BlkioThrottleReadBpsDevice
+		container.Cgroups.BlkioThrottleWriteBpsDevice = c.Resources.BlkioThrottleWriteBpsDevice
 		container.Cgroups.OomKillDisable = c.Resources.OomKillDisable
 		container.Cgroups.MemorySwappiness = c.Resources.MemorySwappiness
 	}

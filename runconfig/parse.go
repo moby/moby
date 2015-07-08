@@ -53,6 +53,8 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		flVolumes           = opts.NewListOpts(nil)
 		flTmpfs             = opts.NewListOpts(nil)
 		flBlkioWeightDevice = opts.NewWeightdeviceOpt(opts.ValidateWeightDevice)
+		flDeviceReadBps     = opts.NewThrottledeviceOpt(opts.ValidateThrottleBpsDevice)
+		flDeviceWriteBps    = opts.NewThrottledeviceOpt(opts.ValidateThrottleBpsDevice)
 		flLinks             = opts.NewListOpts(opts.ValidateLink)
 		flEnv               = opts.NewListOpts(opts.ValidateEnv)
 		flLabels            = opts.NewListOpts(opts.ValidateEnv)
@@ -113,6 +115,8 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 
 	cmd.Var(&flAttach, []string{"a", "-attach"}, "Attach to STDIN, STDOUT or STDERR")
 	cmd.Var(&flBlkioWeightDevice, []string{"-blkio-weight-device"}, "Block IO weight (relative device weight)")
+	cmd.Var(&flDeviceReadBps, []string{"-device-read-bps"}, "Limit read rate (bytes per second) from a device")
+	cmd.Var(&flDeviceWriteBps, []string{"-device-write-bps"}, "Limit write rate (bytes per second) to a device")
 	cmd.Var(&flVolumes, []string{"v", "-volume"}, "Bind mount a volume")
 	cmd.Var(&flTmpfs, []string{"-tmpfs"}, "Mount a tmpfs directory")
 	cmd.Var(&flLinks, []string{"-link"}, "Add link to another container")
@@ -338,21 +342,23 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 	}
 
 	resources := Resources{
-		CgroupParent:      *flCgroupParent,
-		Memory:            flMemory,
-		MemoryReservation: MemoryReservation,
-		MemorySwap:        memorySwap,
-		MemorySwappiness:  flSwappiness,
-		KernelMemory:      KernelMemory,
-		CPUShares:         *flCPUShares,
-		CPUPeriod:         *flCPUPeriod,
-		CpusetCpus:        *flCpusetCpus,
-		CpusetMems:        *flCpusetMems,
-		CPUQuota:          *flCPUQuota,
-		BlkioWeight:       *flBlkioWeight,
-		BlkioWeightDevice: flBlkioWeightDevice.GetList(),
-		Ulimits:           flUlimits.GetList(),
-		Devices:           deviceMappings,
+		CgroupParent:        *flCgroupParent,
+		Memory:              flMemory,
+		MemoryReservation:   MemoryReservation,
+		MemorySwap:          memorySwap,
+		MemorySwappiness:    flSwappiness,
+		KernelMemory:        KernelMemory,
+		CPUShares:           *flCPUShares,
+		CPUPeriod:           *flCPUPeriod,
+		CpusetCpus:          *flCpusetCpus,
+		CpusetMems:          *flCpusetMems,
+		CPUQuota:            *flCPUQuota,
+		BlkioWeight:         *flBlkioWeight,
+		BlkioWeightDevice:   flBlkioWeightDevice.GetList(),
+		BlkioDeviceReadBps:  flDeviceReadBps.GetList(),
+		BlkioDeviceWriteBps: flDeviceWriteBps.GetList(),
+		Ulimits:             flUlimits.GetList(),
+		Devices:             deviceMappings,
 	}
 
 	config := &Config{

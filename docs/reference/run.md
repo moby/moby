@@ -624,6 +624,10 @@ container:
 | `--cpu-quota=0`            | Limit the CPU CFS (Completely Fair Scheduler) quota                                         |
 | `--blkio-weight=0`         | Block IO weight (relative weight) accepts a weight value between 10 and 1000.               |
 | `--blkio-weight-device=""` | Block IO weight (relative device weight, format: `DEVICE_NAME:WEIGHT`)                                                |
+| `--device-read-bps="" `    | Limit read rate from a device (format: `<device-path>:<number>[<unit>]`.                    |
+|                            | Number is a positive integer. Unit can be one of kb, mb, or gb.                             |
+| `--device-write-bps="" `   | Limit write rate to a device (format: `<device-path>:<number>[<unit>]`.                     |
+|                            | Number is a positive integer. Unit can be one of kb, mb, or gb.                             |
 | `--oom-kill-disable=false` | Whether to disable OOM Killer for the container or not.                                     |
 | `--memory-swappiness=""  ` | Tune a container's memory swappiness behavior. Accepts an integer between 0 and 100.        |
 | `--shm-size=""  `          | Size of `/dev/shm`. The format is `<number><unit>`. `number` must be greater than `0`.      |
@@ -977,6 +981,18 @@ $ docker run -it \
     --blkio-weight 300 \
     --blkio-weight-device "/dev/sda:200" \
     ubuntu
+
+The `--device-read-bps` flag can limit read rate from a device.
+For example, the command creates a container and limits theread rate to `1mb` per second from `/dev/sda`:
+
+    $ docker run -ti --device-read-bps /dev/sda:1mb ubuntu
+
+The `--device-write-bps` flag can limit write rate to a device.
+For example, the command creates a container and limits write rate to `1mb` per second to `/dev/sda`:
+
+    $ docker run -ti --device-write-bps /dev/sda:1mb ubuntu
+
+Both flags take limits in the `<device-path>:<limit>[unit]` format. Both read and write rates must be a positive integer. You can specify the rate in `kb` (kilobytes), `mb` (megabytes), or `gb` (gigabytes).
 
 ## Additional groups
     --group-add: Add Linux capabilities

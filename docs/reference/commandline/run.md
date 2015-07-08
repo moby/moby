@@ -29,6 +29,8 @@ parent = "smn_cli"
       --cpuset-mems=""              Memory nodes (MEMs) in which to allow execution (0-3, 0,1)
       -d, --detach=false            Run container in background and print container ID
       --device=[]                   Add a host device to the container
+      --device-read-bps=[]          Limit read rate (bytes per second) from a device (e.g., --device-read-bps=/dev/sda:1mb)
+      --device-write-bps=[]         Limit write rate (bytes per second) to a device (e.g., --device-write-bps=/dev/sda:1mb)
       --disable-content-trust=true  Skip image verification
       --dns=[]                      Set custom DNS servers
       --dns-opt=[]                  Set custom DNS options
