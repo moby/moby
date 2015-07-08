@@ -31,6 +31,8 @@ func (cli *DockerCli) CmdAttach(args ...string) error {
 		return err
 	}
 
+	defer stream.Close()
+
 	var c types.ContainerJSON
 	if err := json.NewDecoder(stream).Decode(&c); err != nil {
 		return err

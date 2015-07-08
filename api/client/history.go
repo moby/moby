@@ -29,6 +29,8 @@ func (cli *DockerCli) CmdHistory(args ...string) error {
 		return err
 	}
 
+	defer rdr.Close()
+
 	history := []types.ImageHistory{}
 	if err := json.NewDecoder(rdr).Decode(&history); err != nil {
 		return err

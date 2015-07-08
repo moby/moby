@@ -30,6 +30,8 @@ func (cli *DockerCli) CmdTop(args ...string) error {
 		return err
 	}
 
+	defer stream.Close()
+
 	procList := types.ContainerProcessList{}
 	if err := json.NewDecoder(stream).Decode(&procList); err != nil {
 		return err

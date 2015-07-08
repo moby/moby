@@ -23,6 +23,8 @@ func (cli *DockerCli) CmdInfo(args ...string) error {
 		return err
 	}
 
+	defer rdr.Close()
+
 	info := &types.Info{}
 	if err := json.NewDecoder(rdr).Decode(info); err != nil {
 		return fmt.Errorf("Error reading remote info: %v", err)

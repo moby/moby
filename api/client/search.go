@@ -50,6 +50,8 @@ func (cli *DockerCli) CmdSearch(args ...string) error {
 		return err
 	}
 
+	defer rdr.Close()
+
 	results := ByStars{}
 	if err := json.NewDecoder(rdr).Decode(&results); err != nil {
 		return err

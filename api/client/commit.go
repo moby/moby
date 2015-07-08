@@ -71,6 +71,8 @@ func (cli *DockerCli) CmdCommit(args ...string) error {
 		return err
 	}
 
+	defer stream.Close()
+
 	if err := json.NewDecoder(stream).Decode(&response); err != nil {
 		return err
 	}
