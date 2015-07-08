@@ -61,10 +61,16 @@ func (s *containerStats) Collect(cli *DockerCli, streamStats bool) {
 				u <- err
 				return
 			}
-			var (
+
+			var memPercent = 0.0
+			var cpuPercent = 0.0
+
+			// MemoryStats.Limit will never be 0 unless the container is not running and we havn't
+			// got any data from cgroup
+			if v.MemoryStats.Limit != 0 {
 				memPercent = float64(v.MemoryStats.Usage) / float64(v.MemoryStats.Limit) * 100.0
-				cpuPercent = 0.0
-			)
+			}
+
 			previousCPU = v.PreCPUStats.CPUUsage.TotalUsage
 			previousSystem = v.PreCPUStats.SystemUsage
 			cpuPercent = calculateCPUPercent(previousCPU, previousSystem, v)
