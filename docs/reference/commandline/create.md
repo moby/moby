@@ -59,6 +59,7 @@ Creates a new container.
       --restart="no"             Restart policy (no, on-failure[:max-retry], always)
       --security-opt=[]          Security options
       -t, --tty=false            Allocate a pseudo-TTY
+      --untrusted                Skip image verification
       -u, --user=""              Username or UID
       -v, --volume=[]            Bind mount a volume
       --volumes-from=[]          Mount volumes from the specified container(s)
