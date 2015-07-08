@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os/exec"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -73,6 +74,7 @@ func (s *DockerSuite) TestStoppedContainerStatsGoroutines(c *check.C) {
 }
 
 func (s *DockerSuite) TestApiNetworkStats(c *check.C) {
+	testRequires(c, SameHostDaemon)
 	// Run container for 30 secs
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
 	id := strings.TrimSpace(out)
@@ -85,7 +87,12 @@ func (s *DockerSuite) TestApiNetworkStats(c *check.C) {
 
 	// Get the container networking stats before and after pinging the container
 	nwStatsPre := getNetworkStats(c, id)
-	_, err = exec.Command("ping", contIP, "-c", strconv.Itoa(numPings)).Output()
+	countParam := "-c"
+	if runtime.GOOS == "windows" {
+		countParam = "-n" // Ping count parameter is -n on Windows
+	}
+	pingout, err := exec.Command("ping", contIP, countParam, strconv.Itoa(numPings)).Output()
+	pingouts := string(pingout[:])
 	c.Assert(err, check.IsNil)
 	nwStatsPost := getNetworkStats(c, id)
 
@@ -93,9 +100,9 @@ func (s *DockerSuite) TestApiNetworkStats(c *check.C) {
 	expRxPkts := 1 + nwStatsPre.RxPackets + uint64(numPings)
 	expTxPkts := 1 + nwStatsPre.TxPackets + uint64(numPings)
 	c.Assert(nwStatsPost.TxPackets >= expTxPkts, check.Equals, true,
-		check.Commentf("Reported less TxPackets than expected. Expected >= %d. Found %d", expTxPkts, nwStatsPost.TxPackets))
+		check.Commentf("Reported less TxPackets than expected. Expected >= %d. Found %d. %s", expTxPkts, nwStatsPost.TxPackets, pingouts))
 	c.Assert(nwStatsPost.RxPackets >= expRxPkts, check.Equals, true,
-		check.Commentf("Reported less Txbytes than expected. Expected >= %d. Found %d", expRxPkts, nwStatsPost.RxPackets))
+		check.Commentf("Reported less Txbytes than expected. Expected >= %d. Found %d. %s", expRxPkts, nwStatsPost.RxPackets, pingouts))
 }
 
 func getNetworkStats(c *check.C, id string) types.Network {
