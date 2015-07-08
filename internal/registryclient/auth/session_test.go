@@ -1,4 +1,4 @@
-package transport
+package auth
 
 import (
 	"encoding/base64"
@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"testing"
 
+	"github.com/docker/distribution/registry/client/transport"
 	"github.com/docker/distribution/testutil"
 )
 
@@ -41,8 +42,9 @@ func testServerWithAuth(rrm testutil.RequestResponseMap, authenticate string, au
 	wrapper := &testAuthenticationWrapper{
 
 		headers: http.Header(map[string][]string{
-			"Docker-Distribution-API-Version": {"registry/2.0"},
-			"WWW-Authenticate":                {authenticate},
+			"X-API-Version":       {"registry/2.0"},
+			"X-Multi-API-Version": {"registry/2.0", "registry/2.1", "trust/1.0"},
+			"WWW-Authenticate":    {authenticate},
 		}),
 		authCheck: authCheck,
 		next:      h,
@@ -50,6 +52,22 @@ func testServerWithAuth(rrm testutil.RequestResponseMap, authenticate string, au
 
 	s := httptest.NewServer(wrapper)
 	return s.URL, s.Close
+}
+
+// ping pings the provided endpoint to determine its required authorization challenges.
+// If a version header is provided, the versions will be returned.
+func ping(manager ChallengeManager, endpoint, versionHeader string) ([]APIVersion, error) {
+	resp, err := http.Get(endpoint)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if err := manager.AddResponse(resp); err != nil {
+		return nil, err
+	}
+
+	return APIVersions(resp, versionHeader), err
 }
 
 type testCredentialStore struct {
@@ -67,17 +85,6 @@ func TestEndpointAuthorizeToken(t *testing.T) {
 	repo2 := "other/registry"
 	scope1 := fmt.Sprintf("repository:%s:pull,push", repo1)
 	scope2 := fmt.Sprintf("repository:%s:pull,push", repo2)
-	tokenScope1 := TokenScope{
-		Resource: "repository",
-		Scope:    repo1,
-		Actions:  []string{"pull", "push"},
-	}
-	tokenScope2 := TokenScope{
-		Resource: "repository",
-		Scope:    repo2,
-		Actions:  []string{"pull", "push"},
-	}
-
 	tokenMap := testutil.RequestResponseMap([]testutil.RequestResponseMapping{
 		{
 			Request: testutil.Request{
@@ -122,7 +129,18 @@ func TestEndpointAuthorizeToken(t *testing.T) {
 	e, c := testServerWithAuth(m, authenicate, validCheck)
 	defer c()
 
-	transport1 := NewTransport(nil, NewAuthorizer(nil, NewTokenHandler(nil, nil, tokenScope1)))
+	challengeManager1 := NewSimpleChallengeManager()
+	versions, err := ping(challengeManager1, e+"/v2/", "x-api-version")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(versions) != 1 {
+		t.Fatalf("Unexpected version count: %d, expected 1", len(versions))
+	}
+	if check := (APIVersion{Type: "registry", Version: "2.0"}); versions[0] != check {
+		t.Fatalf("Unexpected api version: %#v, expected %#v", versions[0], check)
+	}
+	transport1 := transport.NewTransport(nil, NewAuthorizer(challengeManager1, NewTokenHandler(nil, nil, repo1, "pull", "push")))
 	client := &http.Client{Transport: transport1}
 
 	req, _ := http.NewRequest("GET", e+"/v2/hello", nil)
@@ -141,7 +159,24 @@ func TestEndpointAuthorizeToken(t *testing.T) {
 	e2, c2 := testServerWithAuth(m, authenicate, badCheck)
 	defer c2()
 
-	transport2 := NewTransport(nil, NewAuthorizer(nil, NewTokenHandler(nil, nil, tokenScope2)))
+	challengeManager2 := NewSimpleChallengeManager()
+	versions, err = ping(challengeManager2, e+"/v2/", "x-multi-api-version")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(versions) != 3 {
+		t.Fatalf("Unexpected version count: %d, expected 3", len(versions))
+	}
+	if check := (APIVersion{Type: "registry", Version: "2.0"}); versions[0] != check {
+		t.Fatalf("Unexpected api version: %#v, expected %#v", versions[0], check)
+	}
+	if check := (APIVersion{Type: "registry", Version: "2.1"}); versions[1] != check {
+		t.Fatalf("Unexpected api version: %#v, expected %#v", versions[1], check)
+	}
+	if check := (APIVersion{Type: "trust", Version: "1.0"}); versions[2] != check {
+		t.Fatalf("Unexpected api version: %#v, expected %#v", versions[2], check)
+	}
+	transport2 := transport.NewTransport(nil, NewAuthorizer(challengeManager2, NewTokenHandler(nil, nil, repo2, "pull", "push")))
 	client2 := &http.Client{Transport: transport2}
 
 	req, _ = http.NewRequest("GET", e2+"/v2/hello", nil)
@@ -166,11 +201,6 @@ func TestEndpointAuthorizeTokenBasic(t *testing.T) {
 	scope := fmt.Sprintf("repository:%s:pull,push", repo)
 	username := "tokenuser"
 	password := "superSecretPa$$word"
-	tokenScope := TokenScope{
-		Resource: "repository",
-		Scope:    repo,
-		Actions:  []string{"pull", "push"},
-	}
 
 	tokenMap := testutil.RequestResponseMap([]testutil.RequestResponseMapping{
 		{
@@ -216,7 +246,12 @@ func TestEndpointAuthorizeTokenBasic(t *testing.T) {
 		password: password,
 	}
 
-	transport1 := NewTransport(nil, NewAuthorizer(nil, NewTokenHandler(nil, creds, tokenScope), NewBasicHandler(creds)))
+	challengeManager := NewSimpleChallengeManager()
+	_, err := ping(challengeManager, e+"/v2/", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	transport1 := transport.NewTransport(nil, NewAuthorizer(challengeManager, NewTokenHandler(nil, creds, repo, "pull", "push"), NewBasicHandler(creds)))
 	client := &http.Client{Transport: transport1}
 
 	req, _ := http.NewRequest("GET", e+"/v2/hello", nil)
@@ -256,7 +291,12 @@ func TestEndpointAuthorizeBasic(t *testing.T) {
 		password: password,
 	}
 
-	transport1 := NewTransport(nil, NewAuthorizer(nil, NewBasicHandler(creds)))
+	challengeManager := NewSimpleChallengeManager()
+	_, err := ping(challengeManager, e+"/v2/", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	transport1 := transport.NewTransport(nil, NewAuthorizer(challengeManager, NewBasicHandler(creds)))
 	client := &http.Client{Transport: transport1}
 
 	req, _ := http.NewRequest("GET", e+"/v2/hello", nil)
