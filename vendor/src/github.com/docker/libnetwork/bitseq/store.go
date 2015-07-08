@@ -40,7 +40,12 @@ func (h *Handle) Value() []byte {
 
 // SetValue unmarshals the data from the KV store
 func (h *Handle) SetValue(value []byte) error {
-	return h.FromByteArray(value)
+	var b []byte
+	if err := json.Unmarshal(value, &b); err != nil {
+		return err
+	}
+
+	return h.FromByteArray(b)
 }
 
 // Index returns the latest DB Index as seen by this object

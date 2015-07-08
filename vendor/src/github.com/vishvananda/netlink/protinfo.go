@@ -16,7 +16,7 @@ type Protinfo struct {
 
 // String returns a list of enabled flags
 func (prot *Protinfo) String() string {
-	boolStrings := make([]string, 0)
+	var boolStrings []string
 	if prot.Hairpin {
 		boolStrings = append(boolStrings, "Hairpin")
 	}
