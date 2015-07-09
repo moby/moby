@@ -45,7 +45,7 @@ func TestReaderErrWrapperReadOnError(t *testing.T) {
 func TestReaderErrWrapperRead(t *testing.T) {
 	reader := strings.NewReader("a string reader.")
 	wrapper := NewReaderErrWrapper(reader, func() {
-		t.Fatalf("readErrWrapper should not have called the anonymous function on failure")
+		t.Fatalf("readErrWrapper should not have called the anonymous function")
 	})
 	// Read 20 byte (should be ok with the string above)
 	num, err := wrapper.Read(make([]byte, 20))

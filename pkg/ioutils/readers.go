@@ -189,6 +189,7 @@ func (r *bufReader) drain() {
 		reuseCount++
 		r.wait.Signal()
 		r.Unlock()
+		callSchedulerIfNecessary()
 		if err != nil {
 			break
 		}
