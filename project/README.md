@@ -15,7 +15,7 @@ If you're a maintainer in charge of a *release*, you should read RELEASE-CHECKLI
 
 ## Roadmap
 
-A high-level roadmap is available at ROADMAP.md.
+A high-level roadmap is available at [ROADMAP.md](../ROADMAP.md).
 
 
 ## Build tools
