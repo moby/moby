@@ -152,7 +152,7 @@ do_install() {
 			exit 0
 			;;
 
-		ubuntu|debian|linuxmint|'elementary os'|kali)
+		ubuntu|debian|linuxmint|'elementary os'|kali|'cumulus networks')
 			export DEBIAN_FRONTEND=noninteractive
 
 			did_apt_get_update=
