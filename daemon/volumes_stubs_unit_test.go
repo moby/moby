@@ -7,7 +7,6 @@ import (
 	"os"
 	"testing"
 
-	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/volume"
 	"github.com/docker/docker/volume/drivers"
 	"github.com/docker/docker/volume/local"
@@ -54,8 +53,7 @@ func TestParseBindMount(t *testing.T) {
 	}
 
 	for _, c := range cases {
-		conf := &runconfig.Config{}
-		m, err := parseBindMount(c.bind, c.mountLabel, conf)
+		m, err := parseBindMount(c.bind, "")
 		if c.fail {
 			if err == nil {
 				t.Fatalf("Expected error, was nil, for spec %s\n", c.bind)
