@@ -471,6 +471,10 @@ these defaults are not set, `ulimit` settings will be inherited, if not set on
 `docker run`, from the Docker daemon. Any `--ulimit` options passed to 
 `docker run` will overwrite these defaults.
 
+Be careful setting `nproc` with the `ulimit` flag as `nproc` is designed by Linux to
+set the maximum number of processes available to a user, not to a container. For details
+please check the [run](run.md) reference.
+
 ## Miscellaneous options
 
 IP masquerading uses address translation to allow containers without a public
