@@ -32,16 +32,15 @@ const maxPreambleLength = 100
 
 // whitelist of commands allowed for a commit/import
 var validCommitCommands = map[string]bool{
-	"entrypoint": true,
 	"cmd":        true,
-	"user":       true,
-	"workdir":    true,
+	"entrypoint": true,
 	"env":        true,
-	"volume":     true,
 	"expose":     true,
-	"onbuild":    true,
 	"label":      true,
-	"maintainer": true,
+	"onbuild":    true,
+	"user":       true,
+	"volume":     true,
+	"workdir":    true,
 }
 
 type Config struct {
