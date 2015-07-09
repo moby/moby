@@ -1093,6 +1093,7 @@ func writeFile(dst, content string, c *check.C) {
 	if err != nil {
 		c.Fatal(err)
 	}
+	defer f.Close()
 	// Write content (truncate if it exists)
 	if _, err := io.Copy(f, strings.NewReader(content)); err != nil {
 		c.Fatal(err)
