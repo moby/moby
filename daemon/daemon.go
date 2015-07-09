@@ -698,9 +698,13 @@ func NewDaemon(config *Config, registryService *registry.Service) (daemon *Daemo
 
 	d.containerGraph = graph
 
-	sysInitPath, err := configureSysInit(config)
-	if err != nil {
-		return nil, err
+	var sysInitPath string
+	if config.ExecDriver == "lxc" {
+		initPath, err := configureSysInit(config)
+		if err != nil {
+			return nil, err
+		}
+		sysInitPath = initPath
 	}
 
 	sysInfo := sysinfo.New(false)
