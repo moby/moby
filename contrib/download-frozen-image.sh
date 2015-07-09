@@ -62,6 +62,9 @@ while [ $# -gt 0 ]; do
 	ancestry=( ${ancestryJson//[\[\] \"]/} )
 	unset IFS
 
+	repo="${image%/*}"
+	image="${image#*/}"
+	imageFile=$image
 	if [ -s "$dir/tags-$imageFile.tmp" ]; then
 		echo -n ', ' >> "$dir/tags-$imageFile.tmp"
 	else
