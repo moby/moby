@@ -158,44 +158,6 @@ type Config struct {
 	Labels          map[string]string     // List of labels set to this container
 }
 
-// ContainerConfigWrapper is a Config wrapper that hold the container Config (portable)
-// and the corresponding HostConfig (non-portable).
-type ContainerConfigWrapper struct {
-	*Config
-	InnerHostConfig *HostConfig `json:"HostConfig,omitempty"`
-	Cpuset          string      `json:",omitempty"` // Deprecated. Exported for backwards compatibility.
-	*HostConfig                 // Deprecated. Exported to read attrubutes from json that are not in the inner host config structure.
-
-}
-
-// GetHostConfig gets the HostConfig of the Config.
-// It's mostly there to handle Deprecated fields of the ContainerConfigWrapper
-func (w *ContainerConfigWrapper) GetHostConfig() *HostConfig {
-	hc := w.HostConfig
-
-	if hc == nil && w.InnerHostConfig != nil {
-		hc = w.InnerHostConfig
-	} else if w.InnerHostConfig != nil {
-		if hc.Memory != 0 && w.InnerHostConfig.Memory == 0 {
-			w.InnerHostConfig.Memory = hc.Memory
-		}
-		if hc.MemorySwap != 0 && w.InnerHostConfig.MemorySwap == 0 {
-			w.InnerHostConfig.MemorySwap = hc.MemorySwap
-		}
-		if hc.CPUShares != 0 && w.InnerHostConfig.CPUShares == 0 {
-			w.InnerHostConfig.CPUShares = hc.CPUShares
-		}
-
-		hc = w.InnerHostConfig
-	}
-
-	if hc != nil && w.Cpuset != "" && hc.CpusetCpus == "" {
-		hc.CpusetCpus = w.Cpuset
-	}
-
-	return hc
-}
-
 // DecodeContainerConfig decodes a json encoded config into a ContainerConfigWrapper
 // struct and returns both a Config and an HostConfig struct
 // Be aware this function is not checking whether the resulted structs are nil,
@@ -208,5 +170,13 @@ func DecodeContainerConfig(src io.Reader) (*Config, *HostConfig, error) {
 		return nil, nil, err
 	}
 
-	return w.Config, w.GetHostConfig(), nil
+	hc := w.getHostConfig()
+
+	// Certain parameters need daemon-side validation that cannot be done
+	// on the client, as only the daemon knows what is valid for the platform.
+	if err := ValidateNetMode(w.Config, hc); err != nil {
+		return nil, nil, err
+	}
+
+	return w.Config, hc, nil
 }

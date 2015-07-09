@@ -18,3 +18,12 @@ func (n NetworkMode) NetworkName() string {
 	}
 	return ""
 }
+
+// MergeConfigs merges the specified container Config and HostConfig.
+// It creates a ContainerConfigWrapper.
+func MergeConfigs(config *Config, hostConfig *HostConfig) *ContainerConfigWrapper {
+	return &ContainerConfigWrapper{
+		config,
+		hostConfig,
+	}
+}

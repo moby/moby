@@ -1,3 +1,5 @@
+// +build !windows
+
 package runconfig
 
 import (
@@ -8,6 +10,7 @@ import (
 	"testing"
 )
 
+// TODO Windows: This will need addressing for a Windows daemon.
 func TestNetworkModeTest(t *testing.T) {
 	networkModes := map[NetworkMode][]bool{
 		// private, bridge, host, container, none, default
