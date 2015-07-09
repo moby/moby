@@ -43,6 +43,10 @@ for version in "${versions[@]}"; do
 				echo 'RUN yum -y swap -- remove systemd-container systemd-container-libs -- install systemd systemd-libs' >> "$version/Dockerfile"
 			fi
 			;;
+		oraclelinux:*)
+			# get "Development Tools" packages and dependencies
+			echo 'RUN yum groupinstall -y "Development Tools"' >> "$version/Dockerfile"
+			;;
 		*)
 			echo 'RUN yum install -y @development-tools fedora-packager' >> "$version/Dockerfile"
 			;;
@@ -55,8 +59,15 @@ for version in "${versions[@]}"; do
 		glibc-static
 		libselinux-devel # for "libselinux.so"
 		sqlite-devel # for "sqlite3.h"
-		tar # older versions of dev-tools don't have tar
+		tar # older versions of dev-tools do not have tar
 	)
+
+	case "$from" in
+		oraclelinux:7)
+			# Enable the optional repository
+			packages=( --enablerepo=ol7_optional_latest "${packages[*]}" )
+			;;
+	esac
 	echo "RUN yum install -y ${packages[*]}" >> "$version/Dockerfile"
 
 	echo >> "$version/Dockerfile"
