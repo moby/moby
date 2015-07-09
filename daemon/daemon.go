@@ -735,6 +735,7 @@ func NewDaemon(config *Config, registryService *registry.Service) (daemon *Daemo
 	d.RegistryService = registryService
 	d.EventsService = eventsService
 	d.root = config.Root
+	go d.execCommandGC()
 
 	if err := d.restore(); err != nil {
 		return nil, err

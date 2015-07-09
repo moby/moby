@@ -835,13 +835,11 @@ func (container *Container) monitorExec(execConfig *execConfig, callback execdri
 		err      error
 		exitCode int
 	)
-
 	pipes := execdriver.NewPipes(execConfig.StreamConfig.stdin, execConfig.StreamConfig.stdout, execConfig.StreamConfig.stderr, execConfig.OpenStdin)
 	exitCode, err = container.daemon.Exec(container, execConfig, pipes, callback)
 	if err != nil {
 		logrus.Errorf("Error running command in existing container %s: %s", container.ID, err)
 	}
-
 	logrus.Debugf("Exec task in container %s exited with code %d", container.ID, exitCode)
 	if execConfig.OpenStdin {
 		if err := execConfig.StreamConfig.stdin.Close(); err != nil {
@@ -859,7 +857,9 @@ func (container *Container) monitorExec(execConfig *execConfig, callback execdri
 			logrus.Errorf("Error closing terminal while running in container %s: %s", container.ID, err)
 		}
 	}
-
+	// remove the exec command from the container's store only and not the
+	// daemon's store so that the exec command can be inspected.
+	container.execCommands.Delete(execConfig.ID)
 	return err
 }
 

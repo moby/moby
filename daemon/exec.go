@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/execdriver"
@@ -21,12 +22,13 @@ type execConfig struct {
 	ID            string
 	Running       bool
 	ExitCode      int
-	ProcessConfig execdriver.ProcessConfig
+	ProcessConfig *execdriver.ProcessConfig
 	StreamConfig
 	OpenStdin  bool
 	OpenStderr bool
 	OpenStdout bool
 	Container  *Container
+	canRemove  bool
 }
 
 type execStore struct {
@@ -128,7 +130,7 @@ func (d *Daemon) ContainerExecCreate(config *runconfig.ExecConfig) (string, erro
 		user = container.Config.User
 	}
 
-	processConfig := execdriver.ProcessConfig{
+	processConfig := &execdriver.ProcessConfig{
 		Tty:        config.Tty,
 		Entrypoint: entrypoint,
 		Arguments:  args,
@@ -221,7 +223,6 @@ func (d *Daemon) ContainerExecStart(execName string, stdin io.ReadCloser, stdout
 			execErr <- fmt.Errorf("Cannot run exec command %s in container %s: %s", execName, container.ID, err)
 		}
 	}()
-
 	select {
 	case err := <-attachErr:
 		if err != nil {
@@ -236,7 +237,7 @@ func (d *Daemon) ContainerExecStart(execName string, stdin io.ReadCloser, stdout
 }
 
 func (d *Daemon) Exec(c *Container, execConfig *execConfig, pipes *execdriver.Pipes, startCallback execdriver.StartCallback) (int, error) {
-	exitStatus, err := d.execDriver.Exec(c.command, &execConfig.ProcessConfig, pipes, startCallback)
+	exitStatus, err := d.execDriver.Exec(c.command, execConfig.ProcessConfig, pipes, startCallback)
 
 	// On err, make sure we don't leave ExitCode at zero
 	if err != nil && exitStatus == 0 {
@@ -247,4 +248,38 @@ func (d *Daemon) Exec(c *Container, execConfig *execConfig, pipes *execdriver.Pi
 	execConfig.Running = false
 
 	return exitStatus, err
+}
+
+// execCommandGC runs a ticker to clean up the daemon references
+// of exec configs that are no longer part of the container.
+func (d *Daemon) execCommandGC() {
+	for range time.Tick(5 * time.Minute) {
+		var (
+			cleaned          int
+			liveExecCommands = d.containerExecIds()
+		)
+		for id, config := range d.execCommands.s {
+			if config.canRemove {
+				cleaned++
+				d.execCommands.Delete(id)
+			} else {
+				if _, exists := liveExecCommands[id]; !exists {
+					config.canRemove = true
+				}
+			}
+		}
+		logrus.Debugf("clean %d unused exec commands", cleaned)
+	}
+}
+
+// containerExecIds returns a list of all the current exec ids that are in use
+// and running inside a container.
+func (d *Daemon) containerExecIds() map[string]struct{} {
+	ids := map[string]struct{}{}
+	for _, c := range d.containers.List() {
+		for _, id := range c.execCommands.List() {
+			ids[id] = struct{}{}
+		}
+	}
+	return ids
 }
