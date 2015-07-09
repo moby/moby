@@ -28,6 +28,7 @@ type execConfig struct {
 	OpenStderr bool
 	OpenStdout bool
 	Container  *Container
+	canRemove  bool
 }
 
 type execStore struct {
@@ -256,12 +257,15 @@ func (d *Daemon) execCommandGC() {
 		var (
 			cleaned          int
 			liveExecCommands = d.containerExecIds()
-			ids              = d.execCommands.List()
 		)
-		for _, id := range ids {
-			if _, exists := liveExecCommands[id]; !exists {
+		for id, config := range d.execCommands.s {
+			if config.canRemove {
 				cleaned++
 				d.execCommands.Delete(id)
+			} else {
+				if _, exists := liveExecCommands[id]; !exists {
+					config.canRemove = true
+				}
 			}
 		}
 		logrus.Debugf("clean %d unused exec commands", cleaned)
