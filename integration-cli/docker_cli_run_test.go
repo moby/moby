@@ -3233,3 +3233,21 @@ func (s *DockerSuite) TestRunCapAddCHOWN(c *check.C) {
 		c.Fatalf("expected output ok received %s", actual)
 	}
 }
+
+// https://github.com/docker/docker/pull/14498
+func (s *DockerSuite) TestVolumeFromMixedRWOptions(c *check.C) {
+	dockerCmd(c, "run", "--name", "parent", "-v", "/test", "busybox", "true")
+	dockerCmd(c, "run", "--volumes-from", "parent:ro", "--name", "test-volumes-1", "busybox", "true")
+	dockerCmd(c, "run", "--volumes-from", "parent:rw", "--name", "test-volumes-2", "busybox", "true")
+
+	testRO, err := inspectFieldMap("test-volumes-1", ".VolumesRW", "/test")
+	c.Assert(err, check.IsNil)
+	if testRO != "false" {
+		c.Fatalf("Expected RO volume was RW")
+	}
+	testRW, err := inspectFieldMap("test-volumes-2", ".VolumesRW", "/test")
+	c.Assert(err, check.IsNil)
+	if testRW != "true" {
+		c.Fatalf("Expected RW volume was RO")
+	}
+}

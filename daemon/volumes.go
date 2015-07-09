@@ -191,11 +191,16 @@ func (daemon *Daemon) registerMountPoints(container *Container, hostConfig *runc
 		}
 
 		for _, m := range c.MountPoints {
-			cp := m
-			cp.RW = m.RW && mode != "ro"
+			cp := &mountPoint{
+				Name:        m.Name,
+				Source:      m.Source,
+				RW:          m.RW && mode != "ro",
+				Driver:      m.Driver,
+				Destination: m.Destination,
+			}
 
-			if len(m.Source) == 0 {
-				v, err := createVolume(m.Name, m.Driver)
+			if len(cp.Source) == 0 {
+				v, err := createVolume(cp.Name, cp.Driver)
 				if err != nil {
 					return err
 				}
