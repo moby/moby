@@ -59,13 +59,16 @@ for version in "${versions[@]}"; do
 		glibc-static
 		libselinux-devel # for "libselinux.so"
 		sqlite-devel # for "sqlite3.h"
-		tar # older versions of dev-tools don't have tar
+		tar # older versions of dev-tools do not have tar
 	)
-	if [ "$from" == "oraclelinux:7" ]; then
-		echo "RUN yum install --enablerepo=ol7_optional_latest -y ${packages[*]}" >> "$version/Dockerfile"
-	else
-		echo "RUN yum install -y ${packages[*]}" >> "$version/Dockerfile"
-	fi
+
+	case "$from" in
+		oraclelinux:7)
+			# Enable the optional repository
+			packages=( --enablerepo=ol7_optional_latest "${packages[*]}" )
+			;;
+	esac
+	echo "RUN yum install -y ${packages[*]}" >> "$version/Dockerfile"
 
 	echo >> "$version/Dockerfile"
 
