@@ -15,13 +15,11 @@ import (
 //
 // docker logs [OPTIONS] CONTAINER
 func (cli *DockerCli) CmdLogs(args ...string) error {
-	var (
-		cmd    = cli.Subcmd("logs", []string{"CONTAINER"}, "Fetch the logs of a container", true)
-		follow = cmd.Bool([]string{"f", "-follow"}, false, "Follow log output")
-		since  = cmd.String([]string{"-since"}, "", "Show logs since timestamp")
-		times  = cmd.Bool([]string{"t", "-timestamps"}, false, "Show timestamps")
-		tail   = cmd.String([]string{"-tail"}, "all", "Number of lines to show from the end of the logs")
-	)
+	cmd := cli.Subcmd("logs", []string{"CONTAINER"}, "Fetch the logs of a container", true)
+	follow := cmd.Bool([]string{"f", "-follow"}, false, "Follow log output")
+	since := cmd.String([]string{"-since"}, "", "Show logs since timestamp")
+	times := cmd.Bool([]string{"t", "-timestamps"}, false, "Show timestamps")
+	tail := cmd.String([]string{"-tail"}, "all", "Number of lines to show from the end of the logs")
 	cmd.Require(flag.Exact, 1)
 
 	cmd.ParseFlags(args, true)

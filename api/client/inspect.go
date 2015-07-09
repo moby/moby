@@ -19,7 +19,6 @@ func (cli *DockerCli) CmdInspect(args ...string) error {
 	cmd := cli.Subcmd("inspect", []string{"CONTAINER|IMAGE [CONTAINER|IMAGE...]"}, "Return low-level information on a container or image", true)
 	tmplStr := cmd.String([]string{"f", "#format", "-format"}, "", "Format the output using the given go template")
 	inspectType := cmd.String([]string{"-type"}, "", "Return JSON for specified type, (e.g image or container)")
-
 	cmd.Require(flag.Min, 1)
 
 	cmd.ParseFlags(args, true)

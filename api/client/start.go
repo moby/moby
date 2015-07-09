@@ -44,17 +44,17 @@ func (cli *DockerCli) forwardAllSignals(cid string) chan os.Signal {
 //
 // Usage: docker start [OPTIONS] CONTAINER [CONTAINER...]
 func (cli *DockerCli) CmdStart(args ...string) error {
+	cmd := cli.Subcmd("start", []string{"CONTAINER [CONTAINER...]"}, "Start one or more stopped containers", true)
+	attach := cmd.Bool([]string{"a", "-attach"}, false, "Attach STDOUT/STDERR and forward signals")
+	openStdin := cmd.Bool([]string{"i", "-interactive"}, false, "Attach container's STDIN")
+	cmd.Require(flag.Min, 1)
+
+	cmd.ParseFlags(args, true)
+
 	var (
 		cErr chan error
 		tty  bool
-
-		cmd       = cli.Subcmd("start", []string{"CONTAINER [CONTAINER...]"}, "Start one or more stopped containers", true)
-		attach    = cmd.Bool([]string{"a", "-attach"}, false, "Attach STDOUT/STDERR and forward signals")
-		openStdin = cmd.Bool([]string{"i", "-interactive"}, false, "Attach container's STDIN")
 	)
-
-	cmd.Require(flag.Min, 1)
-	cmd.ParseFlags(args, true)
 
 	if *attach || *openStdin {
 		if cmd.NArg() > 1 {
