@@ -669,6 +669,9 @@ func (d *driver) CreateNetwork(id types.UUID, option map[string]interface{}) err
 
 		// Add inter-network communication rules.
 		{config.EnableIPTables, setupNetworkIsolationRules},
+
+		//Configure bridge networking filtering if ICC is off and IP tables are enabled
+		{!config.EnableICC && config.EnableIPTables, setupBridgeNetFiltering},
 	} {
 		if step.Condition {
 			bridgeSetup.queueStep(step.Fn)
