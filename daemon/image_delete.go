@@ -151,7 +151,7 @@ func (daemon *Daemon) canDeleteImage(imgID string, force bool) error {
 		parent, err := daemon.Repositories().LookupImage(container.ImageID)
 		if err != nil {
 			if daemon.Graph().IsNotExist(err, container.ImageID) {
-				return nil
+				continue
 			}
 			return err
 		}
