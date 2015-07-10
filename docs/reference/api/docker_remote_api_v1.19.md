@@ -104,7 +104,7 @@ Query Parameters:
 -   **filters** - a JSON encoded value of the filters (a `map[string][]string`) to process on the containers list. Available filters:
   -   `exited=<int>`; -- containers with exit code of  `<int>` ;
   -   `status=`(`restarting`|`running`|`paused`|`exited`)
-  -   `label=key` or `key=value` of a container label
+  -   `label=key` or `label="key=value"` of a container label
 
 Status Codes:
 
@@ -1145,7 +1145,7 @@ Query Parameters:
 -   **all** – 1/True/true or 0/False/false, default false
 -   **filters** – a JSON encoded value of the filters (a map[string][]string) to process on the images list. Available filters:
   -   `dangling=true`
-  -   `label=key` or `key=value` of an image label
+  -   `label=key` or `label="key=value"` of an image label
 -   **filter** - only return images with the specified name
 
 ### Build image from a Dockerfile
