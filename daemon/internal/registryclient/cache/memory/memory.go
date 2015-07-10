@@ -6,7 +6,7 @@ import (
 	"github.com/docker/distribution"
 	"github.com/docker/distribution/context"
 	"github.com/docker/distribution/digest"
-	"github.com/docker/distribution/registry/api/v2"
+	"github.com/docker/distribution/reference"
 	"github.com/docker/distribution/registry/storage/cache"
 )
 
@@ -25,8 +25,8 @@ func NewInMemoryBlobDescriptorCacheProvider() cache.BlobDescriptorCacheProvider 
 	}
 }
 
-func (imbdcp *inMemoryBlobDescriptorCacheProvider) RepositoryScoped(repo string) (distribution.BlobDescriptorService, error) {
-	if err := v2.ValidateRepositoryName(repo); err != nil {
+func (imbdcp *inMemoryBlobDescriptorCacheProvider) RepositoryScoped(canonicalName string) (distribution.BlobDescriptorService, error) {
+	if _, err := reference.NewRepository(canonicalName); err != nil {
 		return nil, err
 	}
 
@@ -34,9 +34,9 @@ func (imbdcp *inMemoryBlobDescriptorCacheProvider) RepositoryScoped(repo string)
 	defer imbdcp.mu.RUnlock()
 
 	return &repositoryScopedInMemoryBlobDescriptorCache{
-		repo:       repo,
+		repo:       canonicalName,
 		parent:     imbdcp,
-		repository: imbdcp.repositories[repo],
+		repository: imbdcp.repositories[canonicalName],
 	}, nil
 }
 
