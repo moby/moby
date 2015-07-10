@@ -80,6 +80,12 @@ func New() *configs.Config {
 				Device:      "sysfs",
 				Flags:       defaultMountFlags | syscall.MS_RDONLY,
 			},
+			{
+				Source:      "cgroup",
+				Destination: "/sys/fs/cgroup",
+				Device:      "cgroup",
+				Flags:       defaultMountFlags | syscall.MS_RDONLY,
+			},
 		},
 		MaskPaths: []string{
 			"/proc/kcore",
