@@ -29,7 +29,7 @@ people.
 
 **-c** , **--change**=[]
    Apply specified Dockerfile instructions while committing the image
-   Supported Dockerfile instructions: `CMD`|`ENTRYPOINT`|`ENV`|`EXPOSE`|`ONBUILD`|`USER`|`VOLUME`|`WORKDIR`
+   Supported Dockerfile instructions: `CMD`|`ENTRYPOINT`|`ENV`|`EXPOSE`|`LABEL`|`ONBUILD`|`USER`|`VOLUME`|`WORKDIR`
 
 **--help**
   Print usage statement
