@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/url"
 	"os"
+	"runtime"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/opts"
@@ -101,6 +102,13 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 	sigProxy := *flSigProxy
 	if config.Tty {
 		sigProxy = false
+	}
+
+	// Telling the Windows daemon the initial size of the tty during start makes
+	// a far better user experience rather than relying on subsequent resizes
+	// to cause things to catch up.
+	if runtime.GOOS == "windows" {
+		hostConfig.ConsoleSize[0], hostConfig.ConsoleSize[1] = cli.getTtySize()
 	}
 
 	createResponse, err := cli.createContainer(config, hostConfig, hostConfig.ContainerIDFile, *flName)
