@@ -268,3 +268,29 @@ func (s *DockerSuite) TestRmiBlank(c *check.C) {
 		c.Fatalf("Expected error message not generated: %s", out)
 	}
 }
+
+func (s *DockerSuite) TestRmiContainerImageNotFound(c *check.C) {
+	// Build 2 images for testing.
+	imageNames := []string{"test1", "test2"}
+	imageIds := make([]string, 2)
+	for i, name := range imageNames {
+		dockerfile := fmt.Sprintf("FROM busybox\nMAINTAINER %s\nRUN echo %s\n", name, name)
+		id, err := buildImage(name, dockerfile, false)
+		c.Assert(err, check.IsNil)
+		imageIds[i] = id
+	}
+
+	// Create a long-running container.
+	dockerCmd(c, "run", "-d", imageNames[0], "top")
+
+	// Create a stopped container, and then force remove its image.
+	dockerCmd(c, "run", imageNames[1], "true")
+	dockerCmd(c, "rmi", "-f", imageIds[1])
+
+	// Try to remove the image of the running container and see if it fails as expected.
+	out, _, err := dockerCmdWithError(c, "rmi", "-f", imageIds[0])
+	if err == nil || !strings.Contains(out, "is using it") {
+		c.Log(out)
+		c.Fatal("The image of the running container should not be removed.")
+	}
+}
