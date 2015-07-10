@@ -34,7 +34,7 @@ clone git github.com/coreos/go-etcd v2.0.0
 clone git github.com/hashicorp/consul v0.5.2
 
 # get distribution packages
-clone git github.com/docker/distribution b9eeb328080d367dbde850ec6e94f1e4ac2b5efe
+clone git github.com/docker/distribution 419bbc2da637d9b2a812be78ef8436df7caac70d
 
 clone git github.com/docker/libcontainer v2.2.1
 # libcontainer deps (see src/github.com/docker/libcontainer/update-vendor.sh)
