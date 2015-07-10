@@ -20,7 +20,7 @@ do not specify a `SERVER`, the command uses Docker's public registry located at
 
 You can log into any public or private repository for which you have
 credentials.  When you log in, the command stores encoded credentials in
-`$HOME/.dockercfg` on Linux or `%USERPROFILE%/.dockercfg` on Windows.
+`$HOME/.docker/config.json` on Linux or `%USERPROFILE%/.docker/config.json` on Windows.
 
 # OPTIONS
 **-e**, **--email**=""
