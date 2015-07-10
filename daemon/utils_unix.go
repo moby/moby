@@ -1,3 +1,5 @@
+// +build linux
+
 package daemon
 
 import (
@@ -6,7 +8,20 @@ import (
 	"strings"
 
 	"github.com/docker/docker/runconfig"
+	"github.com/docker/libcontainer/selinux"
 )
+
+func selinuxSetDisabled() {
+	selinux.SetDisabled()
+}
+
+func selinuxFreeLxcContexts(label string) {
+	selinux.FreeLxcContexts(label)
+}
+
+func selinuxEnabled() bool {
+	return selinux.SelinuxEnabled()
+}
 
 func mergeLxcConfIntoOptions(hostConfig *runconfig.HostConfig) ([]string, error) {
 	if hostConfig == nil {
