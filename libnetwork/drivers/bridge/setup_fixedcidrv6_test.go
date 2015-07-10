@@ -29,9 +29,16 @@ func TestSetupFixedCIDRv6(t *testing.T) {
 		t.Fatalf("Failed to setup bridge FixedCIDRv6: %v", err)
 	}
 
+	var ip net.IP
 	if ip, err := ipAllocator.RequestIP(config.FixedCIDRv6, nil); err != nil {
 		t.Fatalf("Failed to request IP to allocator: %v", err)
 	} else if expected := "2002:db8::1"; ip.String() != expected {
 		t.Fatalf("Expected allocated IP %s, got %s", expected, ip)
+	}
+
+	if err := ipAllocator.ReleaseIP(config.FixedCIDRv6, ip); err != nil {
+		t.Fatalf("Failed to release IP from allocator: %v", err)
+	} else if _, err := ipAllocator.RequestIP(config.FixedCIDRv6, ip); err != nil {
+		t.Fatalf("Failed to request a released IP: %v", err)
 	}
 }
