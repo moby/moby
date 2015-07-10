@@ -62,15 +62,15 @@ func (cli *DockerCli) CmdImages(args ...string) error {
 		v.Set("all", "1")
 	}
 
-	rdr, _, _, err := cli.call("GET", "/images/json?"+v.Encode(), nil, nil)
+	serverResp, err := cli.call("GET", "/images/json?"+v.Encode(), nil, nil)
 	if err != nil {
 		return err
 	}
 
-	defer rdr.Close()
+	defer serverResp.body.Close()
 
 	images := []types.Image{}
-	if err := json.NewDecoder(rdr).Decode(&images); err != nil {
+	if err := json.NewDecoder(serverResp.body).Decode(&images); err != nil {
 		return err
 	}
 

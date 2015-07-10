@@ -26,13 +26,13 @@ func (cli *DockerCli) CmdLogs(args ...string) error {
 
 	name := cmd.Arg(0)
 
-	stream, _, _, err := cli.call("GET", "/containers/"+name+"/json", nil, nil)
+	serverResp, err := cli.call("GET", "/containers/"+name+"/json", nil, nil)
 	if err != nil {
 		return err
 	}
 
 	var c types.ContainerJSON
-	if err := json.NewDecoder(stream).Decode(&c); err != nil {
+	if err := json.NewDecoder(serverResp.body).Decode(&c); err != nil {
 		return err
 	}
 

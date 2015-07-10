@@ -95,9 +95,9 @@ func (cli *DockerCli) createContainer(config *runconfig.Config, hostConfig *runc
 	}
 
 	//create the container
-	stream, _, statusCode, err := cli.call("POST", "/containers/create?"+containerValues.Encode(), mergedConfig, nil)
+	serverResp, err := cli.call("POST", "/containers/create?"+containerValues.Encode(), mergedConfig, nil)
 	//if image not found try to pull it
-	if statusCode == 404 && strings.Contains(err.Error(), config.Image) {
+	if serverResp.statusCode == 404 && strings.Contains(err.Error(), config.Image) {
 		repo, tag := parsers.ParseRepositoryTag(config.Image)
 		if tag == "" {
 			tag = tags.DEFAULTTAG
@@ -109,17 +109,17 @@ func (cli *DockerCli) createContainer(config *runconfig.Config, hostConfig *runc
 			return nil, err
 		}
 		// Retry
-		if stream, _, _, err = cli.call("POST", "/containers/create?"+containerValues.Encode(), mergedConfig, nil); err != nil {
+		if serverResp, err = cli.call("POST", "/containers/create?"+containerValues.Encode(), mergedConfig, nil); err != nil {
 			return nil, err
 		}
 	} else if err != nil {
 		return nil, err
 	}
 
-	defer stream.Close()
+	defer serverResp.body.Close()
 
 	var response types.ContainerCreateResponse
-	if err := json.NewDecoder(stream).Decode(&response); err != nil {
+	if err := json.NewDecoder(serverResp.body).Decode(&response); err != nil {
 		return nil, err
 	}
 	for _, warning := range response.Warnings {

@@ -170,10 +170,20 @@ func (cli *DockerCli) clientRequestAttemptLogin(method, path string, in io.Reade
 	return body, statusCode, err
 }
 
-func (cli *DockerCli) call(method, path string, data interface{}, headers map[string][]string) (io.ReadCloser, http.Header, int, error) {
+func (cli *DockerCli) callWrapper(method, path string, data interface{}, headers map[string][]string) (io.ReadCloser, http.Header, int, error) {
+	sr, err := cli.call(method, path, data, headers)
+	return sr.body, sr.header, sr.statusCode, err
+}
+
+func (cli *DockerCli) call(method, path string, data interface{}, headers map[string][]string) (*serverResponse, error) {
 	params, err := cli.encodeData(data)
 	if err != nil {
-		return nil, nil, -1, err
+		sr := &serverResponse{
+			body:       nil,
+			header:     nil,
+			statusCode: -1,
+		}
+		return sr, nil
 	}
 
 	if data != nil {
@@ -184,7 +194,7 @@ func (cli *DockerCli) call(method, path string, data interface{}, headers map[st
 	}
 
 	serverResp, err := cli.clientRequest(method, path, params, headers)
-	return serverResp.body, serverResp.header, serverResp.statusCode, err
+	return serverResp, err
 }
 
 type streamOpts struct {
@@ -245,15 +255,15 @@ func (cli *DockerCli) resizeTty(id string, isExec bool) {
 }
 
 func waitForExit(cli *DockerCli, containerID string) (int, error) {
-	stream, _, _, err := cli.call("POST", "/containers/"+containerID+"/wait", nil, nil)
+	serverResp, err := cli.call("POST", "/containers/"+containerID+"/wait", nil, nil)
 	if err != nil {
 		return -1, err
 	}
 
-	defer stream.Close()
+	defer serverResp.body.Close()
 
 	var res types.ContainerWaitResponse
-	if err := json.NewDecoder(stream).Decode(&res); err != nil {
+	if err := json.NewDecoder(serverResp.body).Decode(&res); err != nil {
 		return -1, err
 	}
 
@@ -263,7 +273,7 @@ func waitForExit(cli *DockerCli, containerID string) (int, error) {
 // getExitCode perform an inspect on the container. It returns
 // the running state and the exit code.
 func getExitCode(cli *DockerCli, containerID string) (bool, int, error) {
-	stream, _, _, err := cli.call("GET", "/containers/"+containerID+"/json", nil, nil)
+	serverResp, err := cli.call("GET", "/containers/"+containerID+"/json", nil, nil)
 	if err != nil {
 		// If we can't connect, then the daemon probably died.
 		if err != errConnectionRefused {
@@ -272,10 +282,10 @@ func getExitCode(cli *DockerCli, containerID string) (bool, int, error) {
 		return false, -1, nil
 	}
 
-	defer stream.Close()
+	defer serverResp.body.Close()
 
 	var c types.ContainerJSON
-	if err := json.NewDecoder(stream).Decode(&c); err != nil {
+	if err := json.NewDecoder(serverResp.body).Decode(&c); err != nil {
 		return false, -1, err
 	}
 
@@ -285,7 +295,7 @@ func getExitCode(cli *DockerCli, containerID string) (bool, int, error) {
 // getExecExitCode perform an inspect on the exec command. It returns
 // the running state and the exit code.
 func getExecExitCode(cli *DockerCli, execID string) (bool, int, error) {
-	stream, _, _, err := cli.call("GET", "/exec/"+execID+"/json", nil, nil)
+	serverResp, err := cli.call("GET", "/exec/"+execID+"/json", nil, nil)
 	if err != nil {
 		// If we can't connect, then the daemon probably died.
 		if err != errConnectionRefused {
@@ -294,7 +304,7 @@ func getExecExitCode(cli *DockerCli, execID string) (bool, int, error) {
 		return false, -1, nil
 	}
 
-	defer stream.Close()
+	defer serverResp.body.Close()
 
 	//TODO: Should we reconsider having a type in api/types?
 	//this is a response to exex/id/json not container
@@ -303,7 +313,7 @@ func getExecExitCode(cli *DockerCli, execID string) (bool, int, error) {
 		ExitCode int
 	}
 
-	if err := json.NewDecoder(stream).Decode(&c); err != nil {
+	if err := json.NewDecoder(serverResp.body).Decode(&c); err != nil {
 		return false, -1, err
 	}
 
@@ -353,16 +363,16 @@ func (cli *DockerCli) getTtySize() (int, int) {
 	return int(ws.Height), int(ws.Width)
 }
 
-func readBody(stream io.ReadCloser, hdr http.Header, statusCode int, err error) ([]byte, int, error) {
-	if stream != nil {
-		defer stream.Close()
+func readBody(serverResp *serverResponse, err error) ([]byte, int, error) {
+	if serverResp.body != nil {
+		defer serverResp.body.Close()
 	}
 	if err != nil {
-		return nil, statusCode, err
+		return nil, serverResp.statusCode, err
 	}
-	body, err := ioutil.ReadAll(stream)
+	body, err := ioutil.ReadAll(serverResp.body)
 	if err != nil {
 		return nil, -1, err
 	}
-	return body, statusCode, nil
+	return body, serverResp.statusCode, nil
 }
