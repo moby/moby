@@ -5,6 +5,7 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -427,19 +428,58 @@ func (s *DockerSuite) TestInspectExecID(c *check.C) {
 		c.Fatalf("ExecIDs should be empty, got: %s", out)
 	}
 
-	exitCode, err = runCommand(exec.Command(dockerBinary, "exec", "-d", id, "top"))
-	if exitCode != 0 || err != nil {
-		c.Fatalf("failed to exec in container: %s, %v", out, err)
+	// Start an exec, have it block waiting for input so we can do some checking
+	cmd := exec.Command(dockerBinary, "exec", "-i", id, "sh", "-c", "read a")
+	execStdin, _ := cmd.StdinPipe()
+
+	if err = cmd.Start(); err != nil {
+		c.Fatalf("failed to start the exec cmd: %q", err)
 	}
 
+	// Since its still running we should see the exec as part of the container
+	out, err = inspectField(id, "ExecIDs")
+	if err != nil {
+		c.Fatalf("failed to inspect container: %s, %v", out, err)
+	}
+
+	// Give the exec 10 chances/seconds to start then give up and stop the test
+	tries := 10
+	for i := 0; i < tries; i++ {
+		out = strings.TrimSuffix(out, "\n")
+		if out != "[]" && out != "<no value>" {
+			break
+		}
+		if i == tries {
+			c.Fatalf("ExecIDs should not be empty, got: %s", out)
+		}
+		time.Sleep(1 * time.Second)
+	}
+
+	// Save execID for later
+	execID, err := inspectFilter(id, "index .ExecIDs 0")
+	if err != nil {
+		c.Fatalf("failed to get the exec id")
+	}
+
+	// End the exec by closing its stdin, and wait for it to end
+	execStdin.Close()
+	cmd.Wait()
+
+	// All execs for the container should be gone now
 	out, err = inspectField(id, "ExecIDs")
 	if err != nil {
 		c.Fatalf("failed to inspect container: %s, %v", out, err)
 	}
 
 	out = strings.TrimSuffix(out, "\n")
-	if out == "[]" || out == "<no value>" {
-		c.Fatalf("ExecIDs should not be empty, got: %s", out)
+	if out != "[]" && out != "<no value>" {
+		c.Fatalf("ExecIDs should be empty, got: %s", out)
+	}
+
+	// But we should still be able to query the execID
+	sc, body, err := sockRequest("GET", "/exec/"+execID+"/json", nil)
+	if sc != http.StatusOK {
+		c.Fatalf("received status != 200 OK: %s\n%s", sc, body)
 	}
 }
 
