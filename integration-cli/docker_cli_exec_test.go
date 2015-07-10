@@ -427,7 +427,7 @@ func (s *DockerSuite) TestInspectExecID(c *check.C) {
 		c.Fatalf("ExecIDs should be empty, got: %s", out)
 	}
 
-	exitCode, err = runCommand(exec.Command(dockerBinary, "exec", "-d", id, "ls", "/"))
+	exitCode, err = runCommand(exec.Command(dockerBinary, "exec", "-d", id, "top"))
 	if exitCode != 0 || err != nil {
 		c.Fatalf("failed to exec in container: %s, %v", out, err)
 	}
@@ -441,7 +441,6 @@ func (s *DockerSuite) TestInspectExecID(c *check.C) {
 	if out == "[]" || out == "<no value>" {
 		c.Fatalf("ExecIDs should not be empty, got: %s", out)
 	}
-
 }
 
 func (s *DockerSuite) TestLinksPingLinkedContainersOnRename(c *check.C) {
