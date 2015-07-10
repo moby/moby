@@ -86,6 +86,18 @@ func (s *State) StateString() string {
 	return "exited"
 }
 
+func isValidStateString(s string) bool {
+	if s != "paused" &&
+		s != "restarting" &&
+		s != "running" &&
+		s != "dead" &&
+		s != "created" &&
+		s != "exited" {
+		return false
+	}
+	return true
+}
+
 func wait(waitChan <-chan struct{}, timeout time.Duration) error {
 	if timeout < 0 {
 		<-waitChan
