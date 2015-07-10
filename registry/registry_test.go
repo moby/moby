@@ -760,6 +760,10 @@ func TestValidRemoteName(t *testing.T) {
 
 		//Username doc and image name docker being tested.
 		"doc/docker",
+
+		// single character names are now allowed.
+		"d/docker",
+		"jess/t",
 	}
 	for _, repositoryName := range validRepositoryNames {
 		if err := validateRemoteName(repositoryName); err != nil {
@@ -792,9 +796,6 @@ func TestValidRemoteName(t *testing.T) {
 
 		// No repository.
 		"docker/",
-
-		//namespace too short
-		"d/docker",
 
 		//namespace too long
 		"this_is_not_a_valid_namespace_because_its_lenth_is_greater_than_255_this_is_not_a_valid_namespace_because_its_lenth_is_greater_than_255_this_is_not_a_valid_namespace_because_its_lenth_is_greater_than_255_this_is_not_a_valid_namespace_because_its_lenth_is_greater_than_255/docker",
