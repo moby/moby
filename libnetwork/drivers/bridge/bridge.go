@@ -1047,7 +1047,11 @@ func (d *driver) DeleteEndpoint(nid, eid types.UUID) error {
 
 	// Release the v6 address allocated to this endpoint's sandbox interface
 	if config.EnableIPv6 {
-		err := ipAllocator.ReleaseIP(n.bridge.bridgeIPv6, ep.addrv6.IP)
+		network := n.bridge.bridgeIPv6
+		if config.FixedCIDRv6 != nil {
+			network = config.FixedCIDRv6
+		}
+		err := ipAllocator.ReleaseIP(network, ep.addrv6.IP)
 		if err != nil {
 			return err
 		}
