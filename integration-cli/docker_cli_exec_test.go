@@ -481,6 +481,17 @@ func (s *DockerSuite) TestInspectExecID(c *check.C) {
 	if sc != http.StatusOK {
 		c.Fatalf("received status != 200 OK: %s\n%s", sc, body)
 	}
+
+	// Now delete the container and then an 'inspect' on the exec should
+	// result in a 404 (not 'container not running')
+	out, ec := dockerCmd(c, "rm", "-f", id)
+	if ec != 0 {
+		c.Fatalf("error removing container: %s", out)
+	}
+	sc, body, err = sockRequest("GET", "/exec/"+execID+"/json", nil)
+	if sc != http.StatusNotFound {
+		c.Fatalf("received status != 404: %s\n%s", sc, body)
+	}
 }
 
 func (s *DockerSuite) TestLinksPingLinkedContainersOnRename(c *check.C) {
