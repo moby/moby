@@ -47,6 +47,11 @@ Requires: xz
 # Resolves: rhbz#1165615
 Requires: device-mapper-libs >= 1.02.90-1
 %endif
+%if 0%{?oraclelinux} == 6
+# Require Oracle Unbreakable Enterprise Kernel R3 and newer device-mapper
+Requires: kernel-uek >= 3.8
+Requires: device-mapper >= 1.02.90-2
+%endif
 
 # conflicting packages
 Conflicts: docker
