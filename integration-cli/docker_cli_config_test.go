@@ -64,3 +64,85 @@ func (s *DockerSuite) TestConfigHttpHeader(c *check.C) {
 		c.Fatalf("Missing/bad header: %q\nout:%v", headers, out)
 	}
 }
+
+func (s *DockerSuite) TestConfigDir(c *check.C) {
+	cDir, _ := ioutil.TempDir("", "fake-home")
+
+	// First make sure pointing to empty dir doesn't generate an error
+	cmd := exec.Command(dockerBinary, "--config", cDir, "ps")
+	out, rc, err := runCommandWithOutput(cmd)
+
+	if rc != 0 || err != nil {
+		c.Fatalf("ps1 didn't work:\nrc:%d\nout%s\nerr:%v", rc, out, err)
+	}
+
+	// Test with env var too
+	cmd = exec.Command(dockerBinary, "ps")
+	cmd.Env = append(os.Environ(), "DOCKER_CONFIG="+cDir)
+	out, rc, err = runCommandWithOutput(cmd)
+
+	if rc != 0 || err != nil {
+		c.Fatalf("ps2 didn't work:\nrc:%d\nout%s\nerr:%v", rc, out, err)
+	}
+
+	// Start a server so we can check to see if the config file was
+	// loaded properly
+	var headers map[string][]string
+
+	server := httptest.NewServer(http.HandlerFunc(
+		func(w http.ResponseWriter, r *http.Request) {
+			headers = r.Header
+		}))
+	defer server.Close()
+
+	// Create a dummy config file in our new config dir
+	data := `{
+		"HttpHeaders": { "MyHeader": "MyValue" }
+	}`
+
+	tmpCfg := filepath.Join(cDir, "config.json")
+	err = ioutil.WriteFile(tmpCfg, []byte(data), 0600)
+	if err != nil {
+		c.Fatalf("Err creating file(%s): %v", tmpCfg, err)
+	}
+
+	cmd = exec.Command(dockerBinary, "--config", cDir, "-H="+server.URL[7:], "ps")
+	out, _, _ = runCommandWithOutput(cmd)
+
+	if headers["Myheader"] == nil || headers["Myheader"][0] != "MyValue" {
+		c.Fatalf("ps3 - Missing header: %q\nout:%v", headers, out)
+	}
+
+	// Reset headers and try again using env var this time
+	headers = map[string][]string{}
+	cmd = exec.Command(dockerBinary, "-H="+server.URL[7:], "ps")
+	cmd.Env = append(os.Environ(), "DOCKER_CONFIG="+cDir)
+	out, _, _ = runCommandWithOutput(cmd)
+
+	if headers["Myheader"] == nil || headers["Myheader"][0] != "MyValue" {
+		c.Fatalf("ps4 - Missing header: %q\nout:%v", headers, out)
+	}
+
+	// Reset headers and make sure flag overrides the env var
+	headers = map[string][]string{}
+	cmd = exec.Command(dockerBinary, "--config", cDir, "-H="+server.URL[7:], "ps")
+	cmd.Env = append(os.Environ(), "DOCKER_CONFIG=MissingDir")
+	out, _, _ = runCommandWithOutput(cmd)
+
+	if headers["Myheader"] == nil || headers["Myheader"][0] != "MyValue" {
+		c.Fatalf("ps5 - Missing header: %q\nout:%v", headers, out)
+	}
+
+	// Reset headers and make sure flag overrides the env var.
+	// Almost same as previous but make sure the "MissingDir" isn't
+	// ignore - we don't want to default back to the env var.
+	headers = map[string][]string{}
+	cmd = exec.Command(dockerBinary, "--config", "MissingDir", "-H="+server.URL[7:], "ps")
+	cmd.Env = append(os.Environ(), "DOCKER_CONFIG="+cDir)
+	out, _, _ = runCommandWithOutput(cmd)
+
+	if headers["Myheader"] != nil {
+		c.Fatalf("ps6 - Headers are there but shouldn't be: %q\nout:%v", headers, out)
+	}
+
+}

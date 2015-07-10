@@ -13,8 +13,8 @@ import (
 	"github.com/Sirupsen/logrus"
 	apiserver "github.com/docker/docker/api/server"
 	"github.com/docker/docker/autogen/dockerversion"
+	"github.com/docker/docker/cliconfig"
 	"github.com/docker/docker/daemon"
-	"github.com/docker/docker/pkg/homedir"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/pidfile"
 	"github.com/docker/docker/pkg/signal"
@@ -39,7 +39,7 @@ func init() {
 
 func migrateKey() (err error) {
 	// Migrate trust key if exists at ~/.docker/key.json and owned by current user
-	oldPath := filepath.Join(homedir.Get(), ".docker", defaultTrustKeyFile)
+	oldPath := filepath.Join(cliconfig.ConfigDir(), defaultTrustKeyFile)
 	newPath := filepath.Join(getDaemonConfDir(), defaultTrustKeyFile)
 	if _, statErr := os.Stat(newPath); os.IsNotExist(statErr) && currentUserIsOwner(oldPath) {
 		defer func() {
