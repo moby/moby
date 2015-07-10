@@ -51,7 +51,7 @@ property:
     EnvironmentFile=-/etc/sysconfig/docker
 
 You can customize the Docker daemon options using override files as explained in the
-[HTTP Proxy example](#http-proxy) below. The files located in `/usr/lib/systemd/system` 
+[HTTP Proxy example](#http-proxy) below. The files located in `/usr/lib/systemd/system`
 or `/lib/systemd/system` contain the default options and should not be edited.
 
 ### Runtime directory and storage driver
@@ -84,6 +84,17 @@ setting `OPTIONS`:
 
 You can also set other environment variables in this file, for example, the
 `HTTP_PROXY` environment variables described below.
+
+To modify the ExecStart configuration, specify an empty configuration followed
+by a new configuration as follows:
+
+    [Service]
+    ExecStart=
+    ExecStart=/usr/bin/docker -d -H fd:// --bip=172.17.42.1/16
+
+If you fail to specify an empty configuration, Docker reports an error such as:
+
+    docker.service has more than one ExecStart= setting, which is only allowed for Type=oneshot services. Refusing.
 
 ### HTTP proxy
 
@@ -127,5 +138,3 @@ to integrate Docker with systemd. For this, simply install the two unit files
 (service and socket) from [the github
 repository](https://github.com/docker/docker/tree/master/contrib/init/systemd)
 to `/etc/systemd/system`.
-
-
