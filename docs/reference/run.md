@@ -590,7 +590,7 @@ would be 2*300M, so processes can use 300M swap memory as well.
 We set both memory and swap memory, so the processes in the container can use
 300M memory and 700M swap memory.
 
-By default, Docker kills processes in a container if an out-of-memory (OOM)
+By default, kernel kills processes in a container if an out-of-memory (OOM)
 error occurs. To change this behaviour, use the `--oom-kill-disable` option.
 Only disable the OOM killer on containers where you have also set the
 `-m/--memory` option. If the `-m` flag is not set, this can result in the host
