@@ -67,14 +67,14 @@ func (cli *DockerCli) CmdCommit(args ...string) error {
 			return err
 		}
 	}
-	stream, _, _, err := cli.call("POST", "/commit?"+v.Encode(), config, nil)
+	serverResp, err := cli.call("POST", "/commit?"+v.Encode(), config, nil)
 	if err != nil {
 		return err
 	}
 
-	defer stream.Close()
+	defer serverResp.body.Close()
 
-	if err := json.NewDecoder(stream).Decode(&response); err != nil {
+	if err := json.NewDecoder(serverResp.body).Decode(&response); err != nil {
 		return err
 	}
 

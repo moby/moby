@@ -23,15 +23,15 @@ func (cli *DockerCli) CmdExec(args ...string) error {
 		return StatusError{StatusCode: 1}
 	}
 
-	stream, _, _, err := cli.call("POST", "/containers/"+execConfig.Container+"/exec", execConfig, nil)
+	serverResp, err := cli.call("POST", "/containers/"+execConfig.Container+"/exec", execConfig, nil)
 	if err != nil {
 		return err
 	}
 
-	defer stream.Close()
+	defer serverResp.body.Close()
 
 	var response types.ContainerExecCreateResponse
-	if err := json.NewDecoder(stream).Decode(&response); err != nil {
+	if err := json.NewDecoder(serverResp.body).Decode(&response); err != nil {
 		return err
 	}
 

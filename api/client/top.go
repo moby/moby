@@ -25,15 +25,15 @@ func (cli *DockerCli) CmdTop(args ...string) error {
 		val.Set("ps_args", strings.Join(cmd.Args()[1:], " "))
 	}
 
-	stream, _, _, err := cli.call("GET", "/containers/"+cmd.Arg(0)+"/top?"+val.Encode(), nil, nil)
+	serverResp, err := cli.call("GET", "/containers/"+cmd.Arg(0)+"/top?"+val.Encode(), nil, nil)
 	if err != nil {
 		return err
 	}
 
-	defer stream.Close()
+	defer serverResp.body.Close()
 
 	procList := types.ContainerProcessList{}
-	if err := json.NewDecoder(stream).Decode(&procList); err != nil {
+	if err := json.NewDecoder(serverResp.body).Decode(&procList); err != nil {
 		return err
 	}
 
