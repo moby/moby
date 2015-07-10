@@ -13,7 +13,6 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/digest"
 	"github.com/docker/docker/cliconfig"
-	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/progressreader"
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/pkg/stringid"
@@ -387,7 +386,7 @@ func (s *TagStore) pullImage(r *registry.Session, out io.Writer, imgID, endpoint
 				imgJSON []byte
 				imgSize int
 				err     error
-				img     *image.Image
+				img     *Image
 			)
 			retries := 5
 			for j := 1; j <= retries; j++ {
@@ -399,7 +398,7 @@ func (s *TagStore) pullImage(r *registry.Session, out io.Writer, imgID, endpoint
 					time.Sleep(time.Duration(j) * 500 * time.Millisecond)
 					continue
 				}
-				img, err = image.NewImgJSON(imgJSON)
+				img, err = NewImgJSON(imgJSON)
 				layersDownloaded = true
 				if err != nil && j == retries {
 					out.Write(sf.FormatProgress(stringid.TruncateID(id), "Error pulling dependent layers", nil))
@@ -540,7 +539,7 @@ func (s *TagStore) pullV2Tag(r *registry.Session, out io.Writer, endpoint *regis
 	// downloadInfo is used to pass information from download to extractor
 	type downloadInfo struct {
 		imgJSON    []byte
-		img        *image.Image
+		img        *Image
 		digest     digest.Digest
 		tmpFile    *os.File
 		length     int64
@@ -556,7 +555,7 @@ func (s *TagStore) pullV2Tag(r *registry.Session, out io.Writer, endpoint *regis
 			imgJSON = []byte(manifest.History[i].V1Compatibility)
 		)
 
-		img, err := image.NewImgJSON(imgJSON)
+		img, err := NewImgJSON(imgJSON)
 		if err != nil {
 			return false, fmt.Errorf("failed to parse json: %s", err)
 		}

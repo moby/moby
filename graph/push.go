@@ -11,7 +11,6 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/digest"
 	"github.com/docker/docker/cliconfig"
-	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/progressreader"
 	"github.com/docker/docker/pkg/streamformatter"
@@ -349,7 +348,7 @@ func (s *TagStore) pushV2Repository(r *registry.Session, localRepo Repository, o
 		}
 
 		layersSeen := make(map[string]bool)
-		layers := []*image.Image{}
+		layers := []*Image{}
 		for ; layer != nil; layer, err = s.graph.GetParent(layer) {
 			if err != nil {
 				return err
@@ -445,7 +444,7 @@ func (s *TagStore) pushV2Repository(r *registry.Session, localRepo Repository, o
 }
 
 // PushV2Image pushes the image content to the v2 registry, first buffering the contents to disk
-func (s *TagStore) pushV2Image(r *registry.Session, img *image.Image, endpoint *registry.Endpoint, imageName string, sf *streamformatter.StreamFormatter, out io.Writer, auth *registry.RequestAuthorization) (digest.Digest, error) {
+func (s *TagStore) pushV2Image(r *registry.Session, img *Image, endpoint *registry.Endpoint, imageName string, sf *streamformatter.StreamFormatter, out io.Writer, auth *registry.RequestAuthorization) (digest.Digest, error) {
 	out.Write(sf.FormatProgress(stringid.TruncateID(img.ID), "Buffering to Disk", nil))
 
 	image, err := s.graph.Get(img.ID)

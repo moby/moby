@@ -9,6 +9,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/chrootarchive"
+	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/volume"
 	"github.com/docker/docker/volume/local"
@@ -35,7 +36,7 @@ func (m *mountPoint) Setup() (string, error) {
 			if !os.IsNotExist(err) {
 				return "", err
 			}
-			if err := os.MkdirAll(m.Source, 0755); err != nil {
+			if err := system.MkdirAll(m.Source, 0755); err != nil {
 				return "", err
 			}
 		}

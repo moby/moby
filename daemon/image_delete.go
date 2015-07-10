@@ -7,7 +7,6 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/graph"
-	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/utils"
@@ -160,7 +159,7 @@ func (daemon *Daemon) canDeleteImage(imgID string, force bool) error {
 			return err
 		}
 
-		if err := daemon.graph.WalkHistory(parent, func(p image.Image) error {
+		if err := daemon.graph.WalkHistory(parent, func(p graph.Image) error {
 			if imgID == p.ID {
 				if container.IsRunning() {
 					if force {

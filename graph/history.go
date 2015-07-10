@@ -5,13 +5,12 @@ import (
 	"strings"
 
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/image"
 	"github.com/docker/docker/utils"
 )
 
 // WalkHistory calls the handler function for each image in the
 // provided images lineage starting from immediate parent.
-func (graph *Graph) WalkHistory(img *image.Image, handler func(image.Image) error) (err error) {
+func (graph *Graph) WalkHistory(img *Image, handler func(Image) error) (err error) {
 	currentImg := img
 	for currentImg != nil {
 		if handler != nil {
@@ -29,7 +28,7 @@ func (graph *Graph) WalkHistory(img *image.Image, handler func(image.Image) erro
 
 // depth returns the number of parents for a
 // current image
-func (graph *Graph) depth(img *image.Image) (int, error) {
+func (graph *Graph) depth(img *Image) (int, error) {
 	var (
 		count  = 0
 		parent = img
@@ -54,7 +53,7 @@ const MaxImageDepth = 127
 // CheckDepth returns an error if the depth of an image, as returned
 // by ImageDepth, is too large to support creating a container from it
 // on this daemon.
-func (graph *Graph) CheckDepth(img *image.Image) error {
+func (graph *Graph) CheckDepth(img *Image) error {
 	// We add 2 layers to the depth because the container's rw and
 	// init layer add to the restriction
 	depth, err := graph.depth(img)
@@ -86,7 +85,7 @@ func (s *TagStore) History(name string) ([]*types.ImageHistory, error) {
 
 	history := []*types.ImageHistory{}
 
-	err = s.graph.WalkHistory(foundImage, func(img image.Image) error {
+	err = s.graph.WalkHistory(foundImage, func(img Image) error {
 		history = append(history, &types.ImageHistory{
 			ID:        img.ID,
 			Created:   img.Created.Unix(),
@@ -101,14 +100,14 @@ func (s *TagStore) History(name string) ([]*types.ImageHistory, error) {
 	return history, err
 }
 
-func (graph *Graph) GetParent(img *image.Image) (*image.Image, error) {
+func (graph *Graph) GetParent(img *Image) (*Image, error) {
 	if img.Parent == "" {
 		return nil, nil
 	}
 	return graph.Get(img.Parent)
 }
 
-func (graph *Graph) GetParentsSize(img *image.Image, size int64) int64 {
+func (graph *Graph) GetParentsSize(img *Image, size int64) int64 {
 	parentImage, err := graph.GetParent(img)
 	if err != nil || parentImage == nil {
 		return size

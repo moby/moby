@@ -6,11 +6,14 @@ import (
 	"runtime"
 	"syscall"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/graphdriver"
+	"github.com/docker/docker/daemon/graphdriver/windows"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/libnetwork"
+	"github.com/microsoft/hcsshim"
 )
 
 func (daemon *Daemon) Changes(container *Container) ([]archive.Change, error) {
@@ -31,8 +34,36 @@ func (daemon *Daemon) createRootfs(container *Container) error {
 	if err := os.Mkdir(container.root, 0700); err != nil {
 		return err
 	}
-	if err := daemon.driver.Create(container.ID, container.ImageID); err != nil {
-		return err
+
+	if wd, ok := daemon.driver.(*windows.WindowsGraphDriver); ok {
+		if container.ImageID != "" {
+			// Get list of paths to parent layers.
+			logrus.Debugln("createRootfs: Container has parent image:", container.ImageID)
+			img, err := daemon.graph.Get(container.ImageID)
+			if err != nil {
+				return err
+			}
+
+			ids, err := daemon.graph.ParentLayerIds(img)
+			if err != nil {
+				return err
+			}
+			logrus.Debugf("Got image ids: %d", len(ids))
+
+			if err := hcsshim.CreateSandboxLayer(wd.Info(), container.ID, container.ImageID, wd.LayerIdsToPaths(ids)); err != nil {
+				return err
+			}
+		} else {
+			if err := daemon.driver.Create(container.ID, container.ImageID); err != nil {
+				return err
+			}
+		}
+	} else {
+		// Fall-back code path to allow the use of the VFS driver for development
+		if err := daemon.driver.Create(container.ID, container.ImageID); err != nil {
+			return err
+		}
+
 	}
 	return nil
 }

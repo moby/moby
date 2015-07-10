@@ -37,6 +37,22 @@ type Graph struct {
 	imageMutex imageMutex // protect images in driver.
 }
 
+type Image struct {
+	ID              string            `json:"id"`
+	Parent          string            `json:"parent,omitempty"`
+	Comment         string            `json:"comment,omitempty"`
+	Created         time.Time         `json:"created"`
+	Container       string            `json:"container,omitempty"`
+	ContainerConfig runconfig.Config  `json:"container_config,omitempty"`
+	DockerVersion   string            `json:"docker_version,omitempty"`
+	Author          string            `json:"author,omitempty"`
+	Config          *runconfig.Config `json:"config,omitempty"`
+	Architecture    string            `json:"architecture,omitempty"`
+	OS              string            `json:"os,omitempty"`
+	Size            int64
+	graph           Graph
+}
+
 var (
 	// ErrDigestNotSet is used when request the digest for a layer
 	// but the layer has no digest value or content to compute the
@@ -79,6 +95,13 @@ func (graph *Graph) restore() error {
 			ids = append(ids, id)
 		}
 	}
+
+	baseIds, err := graph.restoreBaseImages()
+	if err != nil {
+		return err
+	}
+	ids = append(ids, baseIds...)
+
 	graph.idIndex = truncindex.NewTruncIndex(ids)
 	logrus.Debugf("Restored %d elements", len(ids))
 	return nil
@@ -100,7 +123,7 @@ func (graph *Graph) Exists(id string) bool {
 }
 
 // Get returns the image with the given id, or an error if the image doesn't exist.
-func (graph *Graph) Get(name string) (*image.Image, error) {
+func (graph *Graph) Get(name string) (*Image, error) {
 	id, err := graph.idIndex.Get(name)
 	if err != nil {
 		return nil, fmt.Errorf("could not find image: %v", err)
@@ -128,8 +151,8 @@ func (graph *Graph) Get(name string) (*image.Image, error) {
 }
 
 // Create creates a new image and registers it in the graph.
-func (graph *Graph) Create(layerData archive.ArchiveReader, containerID, containerImage, comment, author string, containerConfig, config *runconfig.Config) (*image.Image, error) {
-	img := &image.Image{
+func (graph *Graph) Create(layerData archive.ArchiveReader, containerID, containerImage, comment, author string, containerConfig, config *runconfig.Config) (*Image, error) {
+	img := &Image{
 		ID:            stringid.GenerateRandomID(),
 		Comment:       comment,
 		Created:       time.Now().UTC(),
@@ -153,7 +176,7 @@ func (graph *Graph) Create(layerData archive.ArchiveReader, containerID, contain
 }
 
 // Register imports a pre-existing image into the graph.
-func (graph *Graph) Register(img *image.Image, layerData archive.ArchiveReader) (err error) {
+func (graph *Graph) Register(img *Image, layerData archive.ArchiveReader) (err error) {
 	if err := image.ValidateID(img.ID); err != nil {
 		return err
 	}
@@ -197,9 +220,10 @@ func (graph *Graph) Register(img *image.Image, layerData archive.ArchiveReader) 
 	}
 
 	// Create root filesystem in the driver
-	if err := graph.driver.Create(img.ID, img.Parent); err != nil {
-		return fmt.Errorf("Driver %s failed to create image rootfs %s: %s", graph.driver, img.ID, err)
+	if err := createRootFilesystemInDriver(graph, img, layerData); err != nil {
+		return err
 	}
+
 	// Apply the diff/layer
 	if err := graph.storeImage(img, layerData, tmp); err != nil {
 		return err
@@ -303,9 +327,9 @@ func (graph *Graph) Delete(name string) error {
 }
 
 // Map returns a list of all images in the graph, addressable by ID.
-func (graph *Graph) Map() (map[string]*image.Image, error) {
-	images := make(map[string]*image.Image)
-	err := graph.walkAll(func(image *image.Image) {
+func (graph *Graph) Map() (map[string]*Image, error) {
+	images := make(map[string]*Image)
+	err := graph.walkAll(func(image *Image) {
 		images[image.ID] = image
 	})
 	if err != nil {
@@ -316,7 +340,7 @@ func (graph *Graph) Map() (map[string]*image.Image, error) {
 
 // walkAll iterates over each image in the graph, and passes it to a handler.
 // The walking order is undetermined.
-func (graph *Graph) walkAll(handler func(*image.Image)) error {
+func (graph *Graph) walkAll(handler func(*Image)) error {
 	files, err := ioutil.ReadDir(graph.root)
 	if err != nil {
 		return err
@@ -336,9 +360,9 @@ func (graph *Graph) walkAll(handler func(*image.Image)) error {
 // If an image of id ID has 3 children images, then the value for key ID
 // will be a list of 3 images.
 // If an image has no children, it will not have an entry in the table.
-func (graph *Graph) ByParent() (map[string][]*image.Image, error) {
-	byParent := make(map[string][]*image.Image)
-	err := graph.walkAll(func(img *image.Image) {
+func (graph *Graph) ByParent() (map[string][]*Image, error) {
+	byParent := make(map[string][]*Image)
+	err := graph.walkAll(func(img *Image) {
 		parent, err := graph.Get(img.Parent)
 		if err != nil {
 			return
@@ -346,7 +370,7 @@ func (graph *Graph) ByParent() (map[string][]*image.Image, error) {
 		if children, exists := byParent[parent.ID]; exists {
 			byParent[parent.ID] = append(children, img)
 		} else {
-			byParent[parent.ID] = []*image.Image{img}
+			byParent[parent.ID] = []*Image{img}
 		}
 	})
 	return byParent, err
@@ -354,13 +378,13 @@ func (graph *Graph) ByParent() (map[string][]*image.Image, error) {
 
 // Heads returns all heads in the graph, keyed by id.
 // A head is an image which is not the parent of another image in the graph.
-func (graph *Graph) Heads() (map[string]*image.Image, error) {
-	heads := make(map[string]*image.Image)
+func (graph *Graph) Heads() (map[string]*Image, error) {
+	heads := make(map[string]*Image)
 	byParent, err := graph.ByParent()
 	if err != nil {
 		return nil, err
 	}
-	err = graph.walkAll(func(image *image.Image) {
+	err = graph.walkAll(func(image *Image) {
 		// If it's not in the byParent lookup table, then
 		// it's not a parent -> so it's a head!
 		if _, exists := byParent[image.ID]; !exists {
@@ -374,33 +398,8 @@ func (graph *Graph) imageRoot(id string) string {
 	return filepath.Join(graph.root, id)
 }
 
-// storeImage stores file system layer data for the given image to the
-// graph's storage driver. Image metadata is stored in a file
-// at the specified root directory.
-func (graph *Graph) storeImage(img *image.Image, layerData archive.ArchiveReader, root string) (err error) {
-	// Store the layer. If layerData is not nil, unpack it into the new layer
-	if layerData != nil {
-		if img.Size, err = graph.driver.ApplyDiff(img.ID, img.Parent, layerData); err != nil {
-			return err
-		}
-	}
-
-	if err := graph.saveSize(root, int(img.Size)); err != nil {
-		return err
-	}
-
-	f, err := os.OpenFile(jsonPath(root), os.O_CREATE|os.O_WRONLY|os.O_TRUNC, os.FileMode(0600))
-	if err != nil {
-		return err
-	}
-
-	defer f.Close()
-
-	return json.NewEncoder(f).Encode(img)
-}
-
 // loadImage fetches the image with the given id from the graph.
-func (graph *Graph) loadImage(id string) (*image.Image, error) {
+func (graph *Graph) loadImage(id string) (*Image, error) {
 	root := graph.imageRoot(id)
 
 	// Open the JSON file to decode by streaming
@@ -410,7 +409,7 @@ func (graph *Graph) loadImage(id string) (*image.Image, error) {
 	}
 	defer jsonSource.Close()
 
-	img := &image.Image{}
+	img := &Image{}
 	dec := json.NewDecoder(jsonSource)
 
 	// Decode the JSON data
@@ -488,7 +487,13 @@ func jsonPath(root string) string {
 	return filepath.Join(root, "json")
 }
 
-// TarLayer returns a tar archive of the image's filesystem layer.
-func (graph *Graph) TarLayer(img *image.Image) (arch archive.Archive, err error) {
-	return graph.driver.Diff(img.ID, img.Parent)
+// Build an Image object from raw json data
+func NewImgJSON(src []byte) (*Image, error) {
+	ret := &Image{}
+
+	// FIXME: Is there a cleaner way to "purify" the input json?
+	if err := json.Unmarshal(src, ret); err != nil {
+		return nil, err
+	}
+	return ret, nil
 }
