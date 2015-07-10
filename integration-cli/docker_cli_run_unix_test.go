@@ -159,6 +159,21 @@ func (s *DockerSuite) TestRunContainerWithCgroupParentAbsPath(c *check.C) {
 	}
 }
 
+func (s *DockerSuite) TestRunContainerWithCgroupMountRO(c *check.C) {
+	testRequires(c, NativeExecDriver)
+
+	filename := "/sys/fs/cgroup/devices/test123"
+	cmd := exec.Command(dockerBinary, "run", "busybox", "touch", filename)
+	out, _, err := runCommandWithOutput(cmd)
+	if err == nil {
+		c.Fatal("expected cgroup mount point to be read-only, touch file should fail")
+	}
+	expected := "Read-only file system"
+	if !strings.Contains(out, expected) {
+		c.Fatalf("expected output from failure to contain %s but contains %s", expected, out)
+	}
+}
+
 func (s *DockerSuite) TestRunDeviceDirectory(c *check.C) {
 	testRequires(c, NativeExecDriver)
 	cmd := exec.Command(dockerBinary, "run", "--device", "/dev/snd:/dev/snd", "busybox", "sh", "-c", "ls /dev/snd/")
