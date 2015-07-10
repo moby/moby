@@ -843,10 +843,6 @@ func (daemon *Daemon) UnsubscribeToContainerStats(name string, ch chan interface
 	return nil
 }
 
-// FIXME: this is a convenience function for integration tests
-// which need direct access to daemon.graph.
-// Once the tests switch to using engine and jobs, this method
-// can go away.
 func (daemon *Daemon) Graph() *graph.Graph {
 	return daemon.graph
 }
