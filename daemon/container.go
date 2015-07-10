@@ -1069,9 +1069,9 @@ func copyEscapable(dst io.Writer, src io.ReadCloser) (written int64, err error) 
 	return written, err
 }
 
-func (container *Container) networkMounts() []execdriver.Mount {
+func (container *Container) networkMounts(usermounts map[string]bool) []execdriver.Mount {
 	var mounts []execdriver.Mount
-	if container.ResolvConfPath != "" {
+	if _, given := usermounts["/etc/resolv.conf"]; given != true && container.ResolvConfPath != "" {
 		label.SetFileLabel(container.ResolvConfPath, container.MountLabel)
 		mounts = append(mounts, execdriver.Mount{
 			Source:      container.ResolvConfPath,
@@ -1080,7 +1080,7 @@ func (container *Container) networkMounts() []execdriver.Mount {
 			Private:     true,
 		})
 	}
-	if container.HostnamePath != "" {
+	if _, given := usermounts["/etc/hostname"]; given != true && container.HostnamePath != "" {
 		label.SetFileLabel(container.HostnamePath, container.MountLabel)
 		mounts = append(mounts, execdriver.Mount{
 			Source:      container.HostnamePath,
@@ -1089,7 +1089,7 @@ func (container *Container) networkMounts() []execdriver.Mount {
 			Private:     true,
 		})
 	}
-	if container.HostsPath != "" {
+	if _, given := usermounts["/etc/hosts"]; given != true && container.HostsPath != "" {
 		label.SetFileLabel(container.HostsPath, container.MountLabel)
 		mounts = append(mounts, execdriver.Mount{
 			Source:      container.HostsPath,
