@@ -2789,8 +2789,22 @@ func (s *DockerSuite) TestRunContainerWithWritableRootfs(c *check.C) {
 func (s *DockerSuite) TestRunContainerWithReadonlyRootfs(c *check.C) {
 	testRequires(c, NativeExecDriver)
 
-	for _, f := range []string{"/file", "/etc/hosts", "/etc/resolv.conf", "/etc/hostname"} {
+	for _, f := range []string{"/file", "/etc/hosts", "/etc/resolv.conf", "/etc/hostname", "/proc/uptime", "/sys/kernel", "/dev/.dont.touch.me"} {
 		testReadOnlyFile(f, c)
+	}
+}
+
+func (s *DockerSuite) TestPermissionsPtsReadonlyRootfs(c *check.C) {
+	testRequires(c, NativeExecDriver)
+
+	// Ensure we have not broken writing /dev/pts
+	out, status := dockerCmd(c, "run", "--read-only", "--rm", "busybox", "mount")
+	if status != 0 {
+		c.Fatal("Could not obtain mounts when checking /dev/pts mntpnt.")
+	}
+	expected := "type devpts (rw,"
+	if !strings.Contains(string(out), expected) {
+		c.Fatalf("expected output to contain %s but contains %s", expected, out)
 	}
 }
 
@@ -2802,6 +2816,15 @@ func testReadOnlyFile(filename string, c *check.C) {
 		c.Fatal("expected container to error on run with read only error")
 	}
 	expected := "Read-only file system"
+	if !strings.Contains(string(out), expected) {
+		c.Fatalf("expected output from failure to contain %s but contains %s", expected, out)
+	}
+
+	out, err = exec.Command(dockerBinary, "run", "--read-only", "--privileged", "--rm", "busybox", "touch", filename).CombinedOutput()
+	if err == nil {
+		c.Fatal("expected container to error on run with read only error")
+	}
+	expected = "Read-only file system"
 	if !strings.Contains(string(out), expected) {
 		c.Fatalf("expected output from failure to contain %s but contains %s", expected, out)
 	}
