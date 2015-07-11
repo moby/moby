@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"syscall"
 
@@ -197,13 +196,8 @@ func checkConfigOptions(config *Config) error {
 	return nil
 }
 
-// checkSystem validates the system is supported and we have sufficient privileges
+// checkSystem validates platform-specific requirements
 func checkSystem() error {
-	// TODO Windows. Once daemon is running on Windows, move this code back to
-	// NewDaemon() in daemon.go, and extend the check to support Windows.
-	if runtime.GOOS != "linux" {
-		return ErrSystemNotSupported
-	}
 	if os.Geteuid() != 0 {
 		return fmt.Errorf("The Docker daemon needs to be run as root")
 	}

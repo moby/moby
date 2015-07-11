@@ -3,7 +3,6 @@ package daemon
 import (
 	"fmt"
 	"os"
-	"runtime"
 	"syscall"
 
 	"github.com/Sirupsen/logrus"
@@ -82,15 +81,9 @@ func checkConfigOptions(config *Config) error {
 	return nil
 }
 
-// checkSystem validates the system is supported and we have sufficient privileges
+// checkSystem validates platform-specific requirements
 func checkSystem() error {
 	var dwVersion uint32
-
-	// TODO Windows. Once daemon is running on Windows, move this code back to
-	// NewDaemon() in daemon.go, and extend the check to support Windows.
-	if runtime.GOOS != "linux" && runtime.GOOS != "windows" {
-		return ErrSystemNotSupported
-	}
 
 	// TODO Windows. May need at some point to ensure have elevation and
 	// possibly LocalSystem.
