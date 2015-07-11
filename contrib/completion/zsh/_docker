@@ -45,7 +45,7 @@ __docker_get_containers() {
     shift
     [[ $kind = (stopped|all) ]] && args=($args -a)
 
-    lines=(${(f)"$(_call_program commands docker ps ${args})"})
+    lines=(${(f)"$(_call_program commands docker $docker_options ps ${args})"})
 
     # Parse header line to find columns
     local i=1 j=1 k header=${lines[1]}
@@ -108,15 +108,15 @@ __docker_containers () {
 __docker_images () {
     local expl
     declare -a images
-    images=(${${${${(f)"$(_call_program commands docker images)"}[2,-1]}/ ##/\\:}%% *})
-    images=(${${images%\\:<none>}#<none>} ${${${(f)"$(_call_program commands docker images)"}[2,-1]}/(#b)([^ ]##) ##([^ ]##) ##([^ ]##)*/${match[3]}:${(r:15:: :::)match[2]} in ${match[1]}})
+    images=(${${${${(f)"$(_call_program commands docker $docker_options images)"}[2,-1]}/ ##/\\:}%% *})
+    images=(${${images%\\:<none>}#<none>} ${${${(f)"$(_call_program commands docker $docker_options images)"}[2,-1]}/(#b)([^ ]##) ##([^ ]##) ##([^ ]##)*/${match[3]}:${(r:15:: :::)match[2]} in ${match[1]}})
     _describe -t docker-images "images" images
 }
 
 __docker_tags() {
     local expl
     declare -a tags
-    tags=(${${${${${(f)"$(_call_program commands docker images)"}#* }## #}%% *}[2,-1]})
+    tags=(${${${${${(f)"$(_call_program commands docker $docker_options images)"}#* }## #}%% *}[2,-1]})
     _describe -t docker-tags "tags" tags
 }
 
@@ -145,7 +145,7 @@ __docker_search() {
     if ( [[ ${(P)+cachename} -eq 0 ]] || _cache_invalid ${cachename#_} ) \
         && ! _retrieve_cache ${cachename#_}; then
         _message "Searching for ${searchterm}..."
-        result=(${${${(f)"$(_call_program commands docker search $searchterm)"}%% *}[2,-1]})
+        result=(${${${(f)"$(_call_program commands docker $docker_options search $searchterm)"}%% *}[2,-1]})
         _store_cache ${cachename#_} result
     fi
     _wanted dockersearch expl 'available images' compadd -a result
@@ -161,7 +161,7 @@ __docker_caching_policy()
 __docker_repositories () {
     local expl
     declare -a repos
-    repos=(${${${(f)"$(_call_program commands docker images)"}%% *}[2,-1]})
+    repos=(${${${(f)"$(_call_program commands docker $docker_options images)"}%% *}[2,-1]})
     _describe -t docker-repos "repositories" repos "$@"
 }
 
@@ -178,7 +178,7 @@ __docker_commands () {
         && ! _retrieve_cache docker_subcommands;
     then
         local -a lines
-        lines=(${(f)"$(_call_program commands docker 2>&1)"})
+        lines=(${(f)"$(_call_program commands docker $docker_options 2>&1)"})
         _docker_subcommands=(${${${lines[$((${lines[(i)Commands:]} + 1)),${lines[(I)    *]}]}## #}/ ##/:})
         _docker_subcommands=($_docker_subcommands 'help:Show help for a command')
         _store_cache docker_subcommands _docker_subcommands
@@ -269,7 +269,7 @@ __docker_subcommand () {
                 '*'{-l,--label=-}'[Set meta data on a container]:Label: ' \
                 '*--label-file=-[Read in a line delimited file of labels]' \
                 '*--link=-[Add link to another container]:link:->link' \
-                '--log-driver=-[Logging driver for container]:Logging driver: ' \
+                '--log-driver=-[Logging driver for container]:Logging driver:(json-file syslog journald gelf fluentd none)' \
                 '*--log-opt=-[Log driver options]:Log driver options: ' \
                 '*--lxc-conf=-[Add custom lxc options]:lxc options: ' \
                 '(-m --memory)'{-m,--memory=-}'[Memory limit (in bytes)]:Memory limit: ' \
@@ -380,6 +380,7 @@ __docker_subcommand () {
             _arguments \
                 '(-f --format)'{-f,--format=-}'[Format the output using the given go template]:template: ' \
                 '(- :)--help[Print usage]' \
+                '--type=-[Return JSON for specified type, permissible values are "image" or "container"]:type:(image container)' \
                 '*:containers:__docker_containers' && ret=0
             ;;
         (kill)
@@ -418,7 +419,7 @@ __docker_subcommand () {
         (pause|unpause)
             _arguments \
                 '(- :)--help[Print usage]' \
-                '1:containers:__docker_runningcontainers' && ret=0
+                '*:containers:__docker_runningcontainers' && ret=0
             ;;
         (port)
             _arguments \
@@ -507,7 +508,7 @@ __docker_subcommand () {
                 '*'{-l,--label=-}'[Set meta data on a container]:Label: ' \
                 '*--label-file=-[Read in a line delimited file of labels]' \
                 '*--link=-[Add link to another container]:link:->link' \
-                '--log-driver=-[Logging driver for container]:Logging driver: ' \
+                '--log-driver=-[Logging driver for container]:Logging driver:(json-file syslog journald gelf fluentd none)' \
                 '*--log-opt=-[Log driver options]:Log driver options: ' \
                 '*--lxc-conf=-[Add custom lxc options]:lxc options: ' \
                 '(-m --memory)'{-m,--memory=-}'[Memory limit (in bytes)]:Memory limit: ' \
@@ -647,7 +648,7 @@ _docker () {
         '--ipv6[Enable IPv6 networking]' \
         '(-l --log-level)'{-l,--log-level=-}'[Set the logging level]:level:(debug info warn error fatal)' \
         '*--label=-[Set key=value labels to the daemon]:label: ' \
-        '--log-driver=-[Default driver for container logs (default: json-file)]:driver:(json-file syslog journald gelf none)' \
+        '--log-driver=-[Default driver for container logs (default: json-file)]:Logging driver:(json-file syslog journald gelf fluentd none)' \
         '*--log-opt=-[Log driver specific options]:log driver options: ' \
         '--mtu=-[Set the containers network MTU (default: 0)]' \
         '(-p --pidfile)'{-p,--pidfile=-}'[Path to use for daemon PID file (default: /var/run/docker.pid)]:PID file PATH: ' \
@@ -668,6 +669,21 @@ _docker () {
     if (( CURRENT == 1 )); then
 
     fi
+
+    local counter=1
+    while [ $counter -lt ${#words} ]; do
+        case "${words[$counter]}" in
+            --host|-H)
+                (( counter++ ))
+                host="${words[$counter]}"
+                ;;
+            *)
+                ;;
+        esac
+        (( counter++ ))
+    done
+    docker_options=${host:+-H "$host"}
+
     case $state in
         (command)
             __docker_commands && ret=0
