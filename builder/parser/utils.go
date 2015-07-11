@@ -2,35 +2,20 @@ package parser
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
+	"unicode"
 )
-
-// QuoteString walks characters (after trimming), escapes any quotes and
-// escapes, then wraps the whole thing in quotes. Very useful for generating
-// argument output in nodes.
-func QuoteString(str string) string {
-	result := ""
-	chars := strings.Split(strings.TrimSpace(str), "")
-
-	for _, char := range chars {
-		switch char {
-		case `"`:
-			result += `\"`
-		case `\`:
-			result += `\\`
-		default:
-			result += char
-		}
-	}
-
-	return `"` + result + `"`
-}
 
 // dumps the AST defined by `node` as a list of sexps. Returns a string
 // suitable for printing.
 func (node *Node) Dump() string {
 	str := ""
 	str += node.Value
+
+	if len(node.Flags) > 0 {
+		str += fmt.Sprintf(" %q", node.Flags)
+	}
 
 	for _, n := range node.Children {
 		str += "(" + n.Dump() + ")\n"
@@ -41,7 +26,7 @@ func (node *Node) Dump() string {
 			if len(n.Children) > 0 {
 				str += " " + n.Dump()
 			} else {
-				str += " " + QuoteString(n.Value)
+				str += " " + strconv.Quote(n.Value)
 			}
 		}
 	}
@@ -69,17 +54,23 @@ func fullDispatch(cmd, args string) (*Node, map[string]bool, error) {
 
 // splitCommand takes a single line of text and parses out the cmd and args,
 // which are used for dispatching to more exact parsing functions.
-func splitCommand(line string) (string, string, error) {
-	cmdline := TOKEN_WHITESPACE.Split(line, 2)
+func splitCommand(line string) (string, []string, string, error) {
+	var args string
+	var flags []string
 
-	if len(cmdline) != 2 {
-		return "", "", fmt.Errorf("We do not understand this file. Please ensure it is a valid Dockerfile. Parser error at %q", line)
+	// Make sure we get the same results irrespective of leading/trailing spaces
+	cmdline := TOKEN_WHITESPACE.Split(strings.TrimSpace(line), 2)
+	cmd := strings.ToLower(cmdline[0])
+
+	if len(cmdline) == 2 {
+		var err error
+		args, flags, err = extractBuilderFlags(cmdline[1])
+		if err != nil {
+			return "", nil, "", err
+		}
 	}
 
-	cmd := strings.ToLower(cmdline[0])
-	// the cmd should never have whitespace, but it's possible for the args to
-	// have trailing whitespace.
-	return cmd, strings.TrimSpace(cmdline[1]), nil
+	return cmd, flags, strings.TrimSpace(args), nil
 }
 
 // covers comments and empty lines. Lines should be trimmed before passing to
@@ -91,4 +82,95 @@ func stripComments(line string) string {
 	}
 
 	return line
+}
+
+func extractBuilderFlags(line string) (string, []string, error) {
+	// Parses the BuilderFlags and returns the remaining part of the line
+
+	const (
+		inSpaces = iota // looking for start of a word
+		inWord
+		inQuote
+	)
+
+	words := []string{}
+	phase := inSpaces
+	word := ""
+	quote := '\000'
+	blankOK := false
+	var ch rune
+
+	for pos := 0; pos <= len(line); pos++ {
+		if pos != len(line) {
+			ch = rune(line[pos])
+		}
+
+		if phase == inSpaces { // Looking for start of word
+			if pos == len(line) { // end of input
+				break
+			}
+			if unicode.IsSpace(ch) { // skip spaces
+				continue
+			}
+
+			// Only keep going if the next word starts with --
+			if ch != '-' || pos+1 == len(line) || rune(line[pos+1]) != '-' {
+				return line[pos:], words, nil
+			}
+
+			phase = inWord // found someting with "--", fall thru
+		}
+		if (phase == inWord || phase == inQuote) && (pos == len(line)) {
+			if word != "--" && (blankOK || len(word) > 0) {
+				words = append(words, word)
+			}
+			break
+		}
+		if phase == inWord {
+			if unicode.IsSpace(ch) {
+				phase = inSpaces
+				if word == "--" {
+					return line[pos:], words, nil
+				}
+				if blankOK || len(word) > 0 {
+					words = append(words, word)
+				}
+				word = ""
+				blankOK = false
+				continue
+			}
+			if ch == '\'' || ch == '"' {
+				quote = ch
+				blankOK = true
+				phase = inQuote
+				continue
+			}
+			if ch == '\\' {
+				if pos+1 == len(line) {
+					continue // just skip \ at end
+				}
+				pos++
+				ch = rune(line[pos])
+			}
+			word += string(ch)
+			continue
+		}
+		if phase == inQuote {
+			if ch == quote {
+				phase = inWord
+				continue
+			}
+			if ch == '\\' {
+				if pos+1 == len(line) {
+					phase = inWord
+					continue // just skip \ at end
+				}
+				pos++
+				ch = rune(line[pos])
+			}
+			word += string(ch)
+		}
+	}
+
+	return "", words, nil
 }

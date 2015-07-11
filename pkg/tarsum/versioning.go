@@ -1,12 +1,11 @@
 package tarsum
 
 import (
+	"archive/tar"
 	"errors"
 	"sort"
 	"strconv"
 	"strings"
-
-	"github.com/docker/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
 )
 
 // versioning of the TarSum algorithm
@@ -22,6 +21,18 @@ const (
 	VersionDev
 )
 
+// VersionLabelForChecksum returns the label for the given tarsum
+// checksum, i.e., everything before the first `+` character in
+// the string or an empty string if no label separator is found.
+func VersionLabelForChecksum(checksum string) string {
+	// Checksums are in the form: {versionLabel}+{hashID}:{hex}
+	sepIndex := strings.Index(checksum, "+")
+	if sepIndex < 0 {
+		return ""
+	}
+	return checksum[:sepIndex]
+}
+
 // Get a list of all known tarsum Version
 func GetVersions() []Version {
 	v := []Version{}
@@ -31,11 +42,18 @@ func GetVersions() []Version {
 	return v
 }
 
-var tarSumVersions = map[Version]string{
-	Version0:   "tarsum",
-	Version1:   "tarsum.v1",
-	VersionDev: "tarsum.dev",
-}
+var (
+	tarSumVersions = map[Version]string{
+		Version0:   "tarsum",
+		Version1:   "tarsum.v1",
+		VersionDev: "tarsum.dev",
+	}
+	tarSumVersionsByName = map[string]Version{
+		"tarsum":     Version0,
+		"tarsum.v1":  Version1,
+		"tarsum.dev": VersionDev,
+	}
+)
 
 func (tsv Version) String() string {
 	return tarSumVersions[tsv]

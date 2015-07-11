@@ -10,22 +10,25 @@ import (
 	"net/http"
 	"os"
 	"path"
-	"regexp"
+	"path/filepath"
+	"runtime"
 	"strings"
+	"sync"
 	"time"
 
-	log "github.com/Sirupsen/logrus"
-	"github.com/docker/docker/utils"
+	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/autogen/dockerversion"
+	"github.com/docker/docker/pkg/parsers/kernel"
+	"github.com/docker/docker/pkg/timeoutconn"
+	"github.com/docker/docker/pkg/tlsconfig"
+	"github.com/docker/docker/pkg/transport"
+	"github.com/docker/docker/pkg/useragent"
 )
 
 var (
-	ErrAlreadyExists         = errors.New("Image already exists")
-	ErrInvalidRepositoryName = errors.New("Invalid repository name (ex: \"registry.domain.tld/myrepos\")")
-	ErrDoesNotExist          = errors.New("Image does not exist")
-	errLoginRequired         = errors.New("Authentication is required.")
-	validHex                 = regexp.MustCompile(`^([a-f0-9]{64})$`)
-	validNamespace           = regexp.MustCompile(`^([a-z0-9_]{4,30})$`)
-	validRepo                = regexp.MustCompile(`^([a-z0-9-_.]+)$`)
+	ErrAlreadyExists = errors.New("Image already exists")
+	ErrDoesNotExist  = errors.New("Image does not exist")
+	errLoginRequired = errors.New("Authentication is required.")
 )
 
 type TimeoutType uint32
@@ -36,29 +39,124 @@ const (
 	ConnectTimeout
 )
 
-func newClient(jar http.CookieJar, roots *x509.CertPool, certs []tls.Certificate, timeout TimeoutType, secure bool) *http.Client {
-	tlsConfig := tls.Config{
-		RootCAs: roots,
+// dockerUserAgent is the User-Agent the Docker client uses to identify itself.
+// It is populated on init(), comprising version information of different components.
+var dockerUserAgent string
+
+func init() {
+	httpVersion := make([]useragent.VersionInfo, 0, 6)
+	httpVersion = append(httpVersion, useragent.VersionInfo{"docker", dockerversion.VERSION})
+	httpVersion = append(httpVersion, useragent.VersionInfo{"go", runtime.Version()})
+	httpVersion = append(httpVersion, useragent.VersionInfo{"git-commit", dockerversion.GITCOMMIT})
+	if kernelVersion, err := kernel.GetKernelVersion(); err == nil {
+		httpVersion = append(httpVersion, useragent.VersionInfo{"kernel", kernelVersion.String()})
+	}
+	httpVersion = append(httpVersion, useragent.VersionInfo{"os", runtime.GOOS})
+	httpVersion = append(httpVersion, useragent.VersionInfo{"arch", runtime.GOARCH})
+
+	dockerUserAgent = useragent.AppendVersions("", httpVersion...)
+}
+
+type httpsRequestModifier struct {
+	mu        sync.Mutex
+	tlsConfig *tls.Config
+}
+
+// DRAGONS(tiborvass): If someone wonders why do we set tlsconfig in a roundtrip,
+// it's because it's so as to match the current behavior in master: we generate the
+// certpool on every-goddam-request. It's not great, but it allows people to just put
+// the certs in /etc/docker/certs.d/.../ and let docker "pick it up" immediately. Would
+// prefer an fsnotify implementation, but that was out of scope of my refactoring.
+func (m *httpsRequestModifier) ModifyRequest(req *http.Request) error {
+	var (
+		roots   *x509.CertPool
+		certs   []tls.Certificate
+		hostDir string
+	)
+
+	if req.URL.Scheme == "https" {
+		hasFile := func(files []os.FileInfo, name string) bool {
+			for _, f := range files {
+				if f.Name() == name {
+					return true
+				}
+			}
+			return false
+		}
+
+		if runtime.GOOS == "windows" {
+			hostDir = path.Join(os.TempDir(), "/docker/certs.d", req.URL.Host)
+		} else {
+			hostDir = path.Join("/etc/docker/certs.d", req.URL.Host)
+		}
+		logrus.Debugf("hostDir: %s", hostDir)
+		fs, err := ioutil.ReadDir(hostDir)
+		if err != nil && !os.IsNotExist(err) {
+			return nil
+		}
+
+		for _, f := range fs {
+			if strings.HasSuffix(f.Name(), ".crt") {
+				if roots == nil {
+					roots = x509.NewCertPool()
+				}
+				logrus.Debugf("crt: %s", hostDir+"/"+f.Name())
+				data, err := ioutil.ReadFile(filepath.Join(hostDir, f.Name()))
+				if err != nil {
+					return err
+				}
+				roots.AppendCertsFromPEM(data)
+			}
+			if strings.HasSuffix(f.Name(), ".cert") {
+				certName := f.Name()
+				keyName := certName[:len(certName)-5] + ".key"
+				logrus.Debugf("cert: %s", hostDir+"/"+f.Name())
+				if !hasFile(fs, keyName) {
+					return fmt.Errorf("Missing key %s for certificate %s", keyName, certName)
+				}
+				cert, err := tls.LoadX509KeyPair(filepath.Join(hostDir, certName), path.Join(hostDir, keyName))
+				if err != nil {
+					return err
+				}
+				certs = append(certs, cert)
+			}
+			if strings.HasSuffix(f.Name(), ".key") {
+				keyName := f.Name()
+				certName := keyName[:len(keyName)-4] + ".cert"
+				logrus.Debugf("key: %s", hostDir+"/"+f.Name())
+				if !hasFile(fs, certName) {
+					return fmt.Errorf("Missing certificate %s for key %s", certName, keyName)
+				}
+			}
+		}
+		m.mu.Lock()
+		m.tlsConfig.RootCAs = roots
+		m.tlsConfig.Certificates = certs
+		m.mu.Unlock()
+	}
+	return nil
+}
+
+func NewTransport(timeout TimeoutType, secure bool) http.RoundTripper {
+	tlsConfig := &tls.Config{
 		// Avoid fallback to SSL protocols < TLS1.0
-		MinVersion:   tls.VersionTLS10,
-		Certificates: certs,
+		MinVersion:         tls.VersionTLS10,
+		InsecureSkipVerify: !secure,
+		CipherSuites:       tlsconfig.DefaultServerAcceptedCiphers,
 	}
 
-	if !secure {
-		tlsConfig.InsecureSkipVerify = true
-	}
-
-	httpTransport := &http.Transport{
+	tr := &http.Transport{
 		DisableKeepAlives: true,
 		Proxy:             http.ProxyFromEnvironment,
-		TLSClientConfig:   &tlsConfig,
+		TLSClientConfig:   tlsConfig,
 	}
 
 	switch timeout {
 	case ConnectTimeout:
-		httpTransport.Dial = func(proto string, addr string) (net.Conn, error) {
-			// Set the connect timeout to 5 seconds
-			d := net.Dialer{Timeout: 5 * time.Second, DualStack: true}
+		tr.Dial = func(proto string, addr string) (net.Conn, error) {
+			// Set the connect timeout to 30 seconds to allow for slower connection
+			// times...
+			d := net.Dialer{Timeout: 30 * time.Second, DualStack: true}
 
 			conn, err := d.Dial(proto, addr)
 			if err != nil {
@@ -69,147 +167,49 @@ func newClient(jar http.CookieJar, roots *x509.CertPool, certs []tls.Certificate
 			return conn, nil
 		}
 	case ReceiveTimeout:
-		httpTransport.Dial = func(proto string, addr string) (net.Conn, error) {
+		tr.Dial = func(proto string, addr string) (net.Conn, error) {
 			d := net.Dialer{DualStack: true}
 
 			conn, err := d.Dial(proto, addr)
 			if err != nil {
 				return nil, err
 			}
-			conn = utils.NewTimeoutConn(conn, 1*time.Minute)
+			conn = timeoutconn.New(conn, 1*time.Minute)
 			return conn, nil
 		}
 	}
 
+	if secure {
+		// note: httpsTransport also handles http transport
+		// but for HTTPS, it sets up the certs
+		return transport.NewTransport(tr, &httpsRequestModifier{tlsConfig: tlsConfig})
+	}
+
+	return tr
+}
+
+// DockerHeaders returns request modifiers that ensure requests have
+// the User-Agent header set to dockerUserAgent and that metaHeaders
+// are added.
+func DockerHeaders(metaHeaders http.Header) []transport.RequestModifier {
+	modifiers := []transport.RequestModifier{
+		transport.NewHeaderRequestModifier(http.Header{"User-Agent": []string{dockerUserAgent}}),
+	}
+	if metaHeaders != nil {
+		modifiers = append(modifiers, transport.NewHeaderRequestModifier(metaHeaders))
+	}
+	return modifiers
+}
+
+func HTTPClient(transport http.RoundTripper) *http.Client {
+	if transport == nil {
+		transport = NewTransport(ConnectTimeout, true)
+	}
+
 	return &http.Client{
-		Transport:     httpTransport,
+		Transport:     transport,
 		CheckRedirect: AddRequiredHeadersToRedirectedRequests,
-		Jar:           jar,
 	}
-}
-
-func doRequest(req *http.Request, jar http.CookieJar, timeout TimeoutType, secure bool) (*http.Response, *http.Client, error) {
-	var (
-		pool  *x509.CertPool
-		certs []tls.Certificate
-	)
-
-	if secure && req.URL.Scheme == "https" {
-		hasFile := func(files []os.FileInfo, name string) bool {
-			for _, f := range files {
-				if f.Name() == name {
-					return true
-				}
-			}
-			return false
-		}
-
-		hostDir := path.Join("/etc/docker/certs.d", req.URL.Host)
-		log.Debugf("hostDir: %s", hostDir)
-		fs, err := ioutil.ReadDir(hostDir)
-		if err != nil && !os.IsNotExist(err) {
-			return nil, nil, err
-		}
-
-		for _, f := range fs {
-			if strings.HasSuffix(f.Name(), ".crt") {
-				if pool == nil {
-					pool = x509.NewCertPool()
-				}
-				log.Debugf("crt: %s", hostDir+"/"+f.Name())
-				data, err := ioutil.ReadFile(path.Join(hostDir, f.Name()))
-				if err != nil {
-					return nil, nil, err
-				}
-				pool.AppendCertsFromPEM(data)
-			}
-			if strings.HasSuffix(f.Name(), ".cert") {
-				certName := f.Name()
-				keyName := certName[:len(certName)-5] + ".key"
-				log.Debugf("cert: %s", hostDir+"/"+f.Name())
-				if !hasFile(fs, keyName) {
-					return nil, nil, fmt.Errorf("Missing key %s for certificate %s", keyName, certName)
-				}
-				cert, err := tls.LoadX509KeyPair(path.Join(hostDir, certName), path.Join(hostDir, keyName))
-				if err != nil {
-					return nil, nil, err
-				}
-				certs = append(certs, cert)
-			}
-			if strings.HasSuffix(f.Name(), ".key") {
-				keyName := f.Name()
-				certName := keyName[:len(keyName)-4] + ".cert"
-				log.Debugf("key: %s", hostDir+"/"+f.Name())
-				if !hasFile(fs, certName) {
-					return nil, nil, fmt.Errorf("Missing certificate %s for key %s", certName, keyName)
-				}
-			}
-		}
-	}
-
-	if len(certs) == 0 {
-		client := newClient(jar, pool, nil, timeout, secure)
-		res, err := client.Do(req)
-		if err != nil {
-			return nil, nil, err
-		}
-		return res, client, nil
-	}
-
-	client := newClient(jar, pool, certs, timeout, secure)
-	res, err := client.Do(req)
-	return res, client, err
-}
-
-func validateRepositoryName(repositoryName string) error {
-	var (
-		namespace string
-		name      string
-	)
-	nameParts := strings.SplitN(repositoryName, "/", 2)
-	if len(nameParts) < 2 {
-		namespace = "library"
-		name = nameParts[0]
-
-		if validHex.MatchString(name) {
-			return fmt.Errorf("Invalid repository name (%s), cannot specify 64-byte hexadecimal strings", name)
-		}
-	} else {
-		namespace = nameParts[0]
-		name = nameParts[1]
-	}
-	if !validNamespace.MatchString(namespace) {
-		return fmt.Errorf("Invalid namespace name (%s), only [a-z0-9_] are allowed, size between 4 and 30", namespace)
-	}
-	if !validRepo.MatchString(name) {
-		return fmt.Errorf("Invalid repository name (%s), only [a-z0-9-_.] are allowed", name)
-	}
-	return nil
-}
-
-// Resolves a repository name to a hostname + name
-func ResolveRepositoryName(reposName string) (string, string, error) {
-	if strings.Contains(reposName, "://") {
-		// It cannot contain a scheme!
-		return "", "", ErrInvalidRepositoryName
-	}
-	nameParts := strings.SplitN(reposName, "/", 2)
-	if len(nameParts) == 1 || (!strings.Contains(nameParts[0], ".") && !strings.Contains(nameParts[0], ":") &&
-		nameParts[0] != "localhost") {
-		// This is a Docker Index repos (ex: samalba/hipache or ubuntu)
-		err := validateRepositoryName(reposName)
-		return IndexServerAddress(), reposName, err
-	}
-	hostname := nameParts[0]
-	reposName = nameParts[1]
-	if strings.Contains(hostname, "index.docker.io") {
-		return "", "", fmt.Errorf("Invalid repository name, try \"%s\" instead", reposName)
-	}
-	if err := validateRepositoryName(reposName); err != nil {
-		return "", "", err
-	}
-
-	return hostname, reposName, nil
 }
 
 func trustedLocation(req *http.Request) bool {

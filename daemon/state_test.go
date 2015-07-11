@@ -49,7 +49,7 @@ func TestStateRunStop(t *testing.T) {
 			atomic.StoreInt64(&exit, int64(exitCode))
 			close(stopped)
 		}()
-		s.SetStopped(&execdriver.ExitStatus{i, false})
+		s.SetStopped(&execdriver.ExitStatus{ExitCode: i})
 		if s.IsRunning() {
 			t.Fatal("State is running")
 		}

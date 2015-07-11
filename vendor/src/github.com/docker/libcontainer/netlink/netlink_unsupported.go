@@ -47,6 +47,10 @@ func NetworkSetMTU(iface *net.Interface, mtu int) error {
 	return ErrNotImplemented
 }
 
+func NetworkSetTxQueueLen(iface *net.Interface, txQueueLen int) error {
+	return ErrNotImplemented
+}
+
 func NetworkCreateVethPair(name1, name2 string, txQueueLen int) error {
 	return ErrNotImplemented
 }

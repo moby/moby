@@ -2,75 +2,83 @@ package parsers
 
 import (
 	"fmt"
+	"runtime"
 	"strconv"
 	"strings"
 )
 
 // FIXME: Change this not to receive default value as parameter
-func ParseHost(defaultHost string, defaultUnix, addr string) (string, error) {
-	var (
-		proto string
-		host  string
-		port  int
-	)
+func ParseHost(defaultTCPAddr, defaultUnixAddr, addr string) (string, error) {
 	addr = strings.TrimSpace(addr)
-	switch {
-	case addr == "tcp://":
-		return "", fmt.Errorf("Invalid bind address format: %s", addr)
-	case strings.HasPrefix(addr, "unix://"):
-		proto = "unix"
-		addr = strings.TrimPrefix(addr, "unix://")
-		if addr == "" {
-			addr = defaultUnix
+	if addr == "" {
+		if runtime.GOOS != "windows" {
+			addr = fmt.Sprintf("unix://%s", defaultUnixAddr)
+		} else {
+			// Note - defaultTCPAddr already includes tcp:// prefix
+			addr = fmt.Sprintf("%s", defaultTCPAddr)
 		}
-	case strings.HasPrefix(addr, "tcp://"):
-		proto = "tcp"
-		addr = strings.TrimPrefix(addr, "tcp://")
-	case strings.HasPrefix(addr, "fd://"):
+	}
+	addrParts := strings.Split(addr, "://")
+	if len(addrParts) == 1 {
+		addrParts = []string{"tcp", addrParts[0]}
+	}
+
+	switch addrParts[0] {
+	case "tcp":
+		return ParseTCPAddr(addrParts[1], defaultTCPAddr)
+	case "unix":
+		return ParseUnixAddr(addrParts[1], defaultUnixAddr)
+	case "fd":
 		return addr, nil
-	case addr == "":
-		proto = "unix"
-		addr = defaultUnix
 	default:
-		if strings.Contains(addr, "://") {
-			return "", fmt.Errorf("Invalid bind address protocol: %s", addr)
-		}
-		proto = "tcp"
-	}
-
-	if proto != "unix" && strings.Contains(addr, ":") {
-		hostParts := strings.Split(addr, ":")
-		if len(hostParts) != 2 {
-			return "", fmt.Errorf("Invalid bind address format: %s", addr)
-		}
-		if hostParts[0] != "" {
-			host = hostParts[0]
-		} else {
-			host = defaultHost
-		}
-
-		if p, err := strconv.Atoi(hostParts[1]); err == nil && p != 0 {
-			port = p
-		} else {
-			return "", fmt.Errorf("Invalid bind address format: %s", addr)
-		}
-
-	} else if proto == "tcp" && !strings.Contains(addr, ":") {
 		return "", fmt.Errorf("Invalid bind address format: %s", addr)
-	} else {
-		host = addr
 	}
-	if proto == "unix" {
-		return fmt.Sprintf("%s://%s", proto, host), nil
-	}
-	return fmt.Sprintf("%s://%s:%d", proto, host, port), nil
 }
 
-// Get a repos name and returns the right reposName + tag
+func ParseUnixAddr(addr string, defaultAddr string) (string, error) {
+	addr = strings.TrimPrefix(addr, "unix://")
+	if strings.Contains(addr, "://") {
+		return "", fmt.Errorf("Invalid proto, expected unix: %s", addr)
+	}
+	if addr == "" {
+		addr = defaultAddr
+	}
+	return fmt.Sprintf("unix://%s", addr), nil
+}
+
+func ParseTCPAddr(addr string, defaultAddr string) (string, error) {
+	addr = strings.TrimPrefix(addr, "tcp://")
+	if strings.Contains(addr, "://") || addr == "" {
+		return "", fmt.Errorf("Invalid proto, expected tcp: %s", addr)
+	}
+
+	hostParts := strings.Split(addr, ":")
+	if len(hostParts) != 2 {
+		return "", fmt.Errorf("Invalid bind address format: %s", addr)
+	}
+	host := hostParts[0]
+	if host == "" {
+		host = defaultAddr
+	}
+
+	p, err := strconv.Atoi(hostParts[1])
+	if err != nil && p == 0 {
+		return "", fmt.Errorf("Invalid bind address format: %s", addr)
+	}
+	return fmt.Sprintf("tcp://%s:%d", host, p), nil
+}
+
+// Get a repos name and returns the right reposName + tag|digest
 // The tag can be confusing because of a port in a repository name.
 //     Ex: localhost.localdomain:5000/samalba/hipache:latest
+//     Digest ex: localhost:5000/foo/bar@sha256:bc8813ea7b3603864987522f02a76101c17ad122e1c46d790efc0fca78ca7bfb
 func ParseRepositoryTag(repos string) (string, string) {
-	n := strings.LastIndex(repos, ":")
+	n := strings.Index(repos, "@")
+	if n >= 0 {
+		parts := strings.Split(repos, "@")
+		return parts[0], parts[1]
+	}
+	n = strings.LastIndex(repos, ":")
 	if n < 0 {
 		return repos, ""
 	}
@@ -107,4 +115,43 @@ func ParseKeyValueOpt(opt string) (string, string, error) {
 		return "", "", fmt.Errorf("Unable to parse key/value option: %s", opt)
 	}
 	return strings.TrimSpace(parts[0]), strings.TrimSpace(parts[1]), nil
+}
+
+func ParsePortRange(ports string) (uint64, uint64, error) {
+	if ports == "" {
+		return 0, 0, fmt.Errorf("Empty string specified for ports.")
+	}
+	if !strings.Contains(ports, "-") {
+		start, err := strconv.ParseUint(ports, 10, 16)
+		end := start
+		return start, end, err
+	}
+
+	parts := strings.Split(ports, "-")
+	start, err := strconv.ParseUint(parts[0], 10, 16)
+	if err != nil {
+		return 0, 0, err
+	}
+	end, err := strconv.ParseUint(parts[1], 10, 16)
+	if err != nil {
+		return 0, 0, err
+	}
+	if end < start {
+		return 0, 0, fmt.Errorf("Invalid range specified for the Port: %s", ports)
+	}
+	return start, end, nil
+}
+
+func ParseLink(val string) (string, string, error) {
+	if val == "" {
+		return "", "", fmt.Errorf("empty string specified for links")
+	}
+	arr := strings.Split(val, ":")
+	if len(arr) > 2 {
+		return "", "", fmt.Errorf("bad format for links: %s", val)
+	}
+	if len(arr) == 1 {
+		return val, val, nil
+	}
+	return arr[0], arr[1], nil
 }

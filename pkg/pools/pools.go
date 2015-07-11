@@ -1,5 +1,3 @@
-// +build go1.3
-
 // Package pools provides a collection of pools which provide various
 // data types with buffers. These can be used to lower the number of
 // memory allocations and reuse buffers.
@@ -57,6 +55,14 @@ func (bufPool *BufioReaderPool) Get(r io.Reader) *bufio.Reader {
 func (bufPool *BufioReaderPool) Put(b *bufio.Reader) {
 	b.Reset(nil)
 	bufPool.pool.Put(b)
+}
+
+// Copy is a convenience wrapper which uses a buffer to avoid allocation in io.Copy
+func Copy(dst io.Writer, src io.Reader) (written int64, err error) {
+	buf := BufioReader32KPool.Get(src)
+	written, err = io.Copy(dst, buf)
+	BufioReader32KPool.Put(buf)
+	return
 }
 
 // NewReadCloserWrapper returns a wrapper which puts the bufio.Reader back

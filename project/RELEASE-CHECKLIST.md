@@ -49,7 +49,17 @@ git cherry-pick <commit-id>
 ...
 ```
 
-### 2. Update CHANGELOG.md
+### 2. Bump the API version on master
+
+We don't want to stop contributions to master just because we are releasing. At
+the same time, now that the release branch exists, we don't want API changes to
+go to the now frozen API version.
+
+Create a new entry in `docs/reference/api/` by copying the latest and
+bumping the version number (in both the file's name and content), and submit
+this in a PR against master.
+
+### 3. Update CHANGELOG.md
 
 You can run this command for reference with git 2.0:
 
@@ -124,13 +134,17 @@ git log --format='%aN <%aE>' v0.7.0...bump_v0.8.0 | sort -uf
 Obviously, you'll need to adjust version numbers as necessary.  If you just need
 a count, add a simple `| wc -l`.
 
-### 3. Change the contents of the VERSION file
+### 4. Change the contents of the VERSION file
+
+Before the big thing, you'll want to make successive release candidates and get
+people to test. The release candidate number `N` should be part of the version:
 
 ```bash
-echo ${VERSION#v} > VERSION
+export RC_VERSION=${VERSION}-rcN
+echo ${RC_VERSION#v} > VERSION
 ```
 
-### 4. Test the docs
+### 5. Test the docs
 
 Make sure that your tree includes documentation for any modified or
 new features, syntax or semantic changes.
@@ -141,7 +155,7 @@ To test locally:
 make docs
 ```
 
-To make a shared test at http://beta-docs.docker.io:
+To make a shared test at https://beta-docs.docker.io:
 
 (You will need the `awsconfig` file added to the `docs/` dir)
 
@@ -149,7 +163,7 @@ To make a shared test at http://beta-docs.docker.io:
 make AWS_S3_BUCKET=beta-docs.docker.io BUILD_ROOT=yes docs-release
 ```
 
-### 5. Commit and create a pull request to the "release" branch
+### 6. Commit and create a pull request to the "release" branch
 
 ```bash
 git add VERSION CHANGELOG.md
@@ -162,11 +176,10 @@ That last command will give you the proper link to visit to ensure that you
 open the PR against the "release" branch instead of accidentally against
 "master" (like so many brave souls before you already have).
 
-### 6. Get 2 other maintainers to validate the pull request
+### 7. Publish release candidate binaries
 
-### 7. Publish binaries
-
-To run this you will need access to the release credentials. Get them from the Core maintainers.
+To run this you will need access to the release credentials. Get them from the
+Core maintainers.
 
 Replace "..." with the respective credentials:
 
@@ -182,17 +195,23 @@ docker run \
        hack/release.sh
 ```
 
-It will run the test suite, build the binaries and packages,
-and upload to the specified bucket (you should use test.docker.com for
-general testing, and once everything is fine, switch to get.docker.com as
-noted below).
+It will run the test suite, build the binaries and packages, and upload to the
+specified bucket, so this is a good time to verify that you're running against
+**test**.docker.com.
 
 After the binaries and packages are uploaded to test.docker.com, make sure
 they get tested in both Ubuntu and Debian for any obvious installation
 issues or runtime issues.
 
-Announcing on IRC in both `#docker` and `#docker-dev` is a great way to get
-help testing!  An easy way to get some useful links for sharing:
+If everything looks good, it's time to create a git tag for this candidate:
+
+```bash
+git tag -a $RC_VERSION -m $RC_VERSION bump_$VERSION
+git push origin $RC_VERSION
+```
+
+Announcing on multiple medias is the best way to get some help testing! An easy
+way to get some useful links for sharing:
 
 ```bash
 echo "Ubuntu/Debian: https://test.docker.com/ubuntu or curl -sSL https://test.docker.com/ | sh"
@@ -202,21 +221,15 @@ echo "Darwin/OSX 32bit client binary: https://test.docker.com/builds/Darwin/i386
 echo "Linux 64bit tgz: https://test.docker.com/builds/Linux/x86_64/docker-${VERSION#v}.tgz"
 ```
 
-Once they're tested and reasonably believed to be working, run against
-get.docker.com:
+We recommend announcing the release candidate on:
 
-```bash
-docker run \
-       -e AWS_S3_BUCKET=get.docker.com \
-       -e AWS_ACCESS_KEY="..." \
-       -e AWS_SECRET_KEY="..." \
-       -e GPG_PASSPHRASE="..." \
-       -i -t --privileged \
-       docker \
-       hack/release.sh
-```
+- IRC on #docker, #docker-dev, #docker-maintainers
+- In a comment on the pull request to notify subscribed people on GitHub
+- The [docker-dev](https://groups.google.com/forum/#!forum/docker-dev) group
+- The [docker-maintainers](https://groups.google.com/a/dockerproject.org/forum/#!forum/maintainers) group
+- Any social media that can bring some attention to the release candidate
 
-### 8. Breakathon
+### 8. Iterate on successive release candidates
 
 Spend several days along with the community explicitly investing time and
 resources to try and break Docker in every possible way, documenting any
@@ -232,7 +245,75 @@ by the book.
 Any issues found may still remain issues for this release, but they should be
 documented and give appropriate warnings.
 
-### 9. Apply tag
+During this phase, the `bump_$VERSION` branch will keep evolving as you will
+produce new release candidates. The frequency of new candidates is up to the
+release manager: use your best judgement taking into account the severity of
+reported issues, testers availability, and time to scheduled release date.
+
+Each time you'll want to produce a new release candidate, you will start by
+adding commits to the branch, usually by cherry-picking from master:
+
+```bash
+git cherry-pick -x -m0 <commit_id>
+```
+
+You want your "bump commit" (the one that updates the CHANGELOG and VERSION
+files) to remain on top, so you'll have to `git rebase -i` to bring it back up.
+
+Now that your bump commit is back on top, you will need to update the CHANGELOG
+file (if appropriate for this particular release candidate), and update the
+VERSION file to increment the RC number:
+
+```bash
+export RC_VERSION=$VERSION-rcN
+echo $RC_VERSION > VERSION
+```
+
+You can now amend your last commit and update the bump branch:
+
+```bash
+git commit --amend
+git push -f $GITHUBUSER bump_$VERSION
+```
+
+Repeat step 6 to tag the code, publish new binaries, announce availability, and
+get help testing.
+
+### 9. Finalize the bump branch
+
+When you're happy with the quality of a release candidate, you can move on and
+create the real thing.
+
+You will first have to amend the "bump commit" to drop the release candidate
+suffix in the VERSION file:
+
+```bash
+echo $VERSION > VERSION
+git add VERSION
+git commit --amend
+```
+
+You will then repeat step 6 to publish the binaries to test
+
+### 10. Get 2 other maintainers to validate the pull request
+
+### 11. Publish final binaries
+
+Once they're tested and reasonably believed to be working, run against
+get.docker.com:
+
+```bash
+docker run \
+       -e AWS_S3_BUCKET=get.docker.com \
+       -e AWS_ACCESS_KEY="..." \
+       -e AWS_SECRET_KEY="..." \
+       -e GPG_PASSPHRASE="..." \
+       -i -t --privileged \
+       docker \
+       hack/release.sh
+```
+
+### 12. Apply tag
 
 It's very important that we don't make the tag until after the official
 release is uploaded to get.docker.com!
@@ -242,18 +323,18 @@ git tag -a $VERSION -m $VERSION bump_$VERSION
 git push origin $VERSION
 ```
 
-### 10. Go to github to merge the `bump_$VERSION` branch into release
+### 13. Go to github to merge the `bump_$VERSION` branch into release
 
 Don't forget to push that pretty blue button to delete the leftover
 branch afterwards!
 
-### 11. Update the docs branch
+### 14. Update the docs branch
 
 If this is a MAJOR.MINOR.0 release, you need to make an branch for the previous release's
 documentation:
 
 ```bash
-git checkout -b docs-$PREVIOUS_MAJOR_MINOR docs
+git checkout -b docs-$PREVIOUS_MAJOR_MINOR
 git fetch
 git reset --hard origin/docs
 git push -f origin docs-$PREVIOUS_MAJOR_MINOR
@@ -267,26 +348,25 @@ git checkout -b docs release || git checkout docs
 git fetch
 git reset --hard origin/release
 git push -f origin docs
-make AWS_S3_BUCKET=docs.docker.com BUILD_ROOT=yes docs-release
+make AWS_S3_BUCKET=docs.docker.com BUILD_ROOT=yes DISTRIBUTION_ID=C2K6......FL2F docs-release
 ```
 
-The docs will appear on http://docs.docker.com/ (though there may be cached
+The docs will appear on https://docs.docker.com/ (though there may be cached
 versions, so its worth checking http://docs.docker.com.s3-website-us-east-1.amazonaws.com/).
 For more information about documentation releases, see `docs/README.md`.
 
-Ask Sven, or JohnC to invalidate the cloudfront cache using the CND Planet chrome applet.
+Note that the new docs will not appear live on the site until the cache (a complex,
+distributed CDN system) is flushed. The `make docs-release` command will do this
+_if_ the `DISTRIBUTION_ID` is set correctly - this will take at least 15 minutes to run
+and you can check its progress with the CDN Cloudfront Chrome addin.
 
-### 12. Create a new pull request to merge release back into master
+### 15. Create a new pull request to merge your bump commit back into master
 
 ```bash
 git checkout master
 git fetch
 git reset --hard origin/master
-git merge origin/release
-git checkout -b merge_release_$VERSION
-echo ${VERSION#v}-dev > VERSION
-git add VERSION
-git commit -m "Change version to $(cat VERSION)"
+git cherry-pick $VERSION
 git push $GITHUBUSER merge_release_$VERSION
 echo "https://github.com/$GITHUBUSER/docker/compare/docker:master...$GITHUBUSER:merge_release_$VERSION?expand=1"
 ```
@@ -294,10 +374,18 @@ echo "https://github.com/$GITHUBUSER/docker/compare/docker:master...$GITHUBUSER:
 Again, get two maintainers to validate, then merge, then push that pretty
 blue button to delete your branch.
 
-### 13. Rejoice and Evangelize!
+### 16. Update the VERSION files
+
+Now that version X.Y.Z is out, time to start working on the next! Update the
+content of the `VERSION` file to be the next minor (incrementing Y) and add the
+`-dev` suffix. For example, after 1.5.0 release, the `VERSION` file gets
+updated to `1.6.0-dev` (as in "1.6.0 in the making").
+
+### 17. Rejoice and Evangelize!
 
 Congratulations! You're done.
 
 Go forth and announce the glad tidings of the new release in `#docker`,
-`#docker-dev`, on the [mailing list](https://groups.google.com/forum/#!forum/docker-dev),
+`#docker-dev`, on the [dev mailing list](https://groups.google.com/forum/#!forum/docker-dev),
+the [announce mailing list](https://groups.google.com/forum/#!forum/docker-announce),
 and on Twitter!

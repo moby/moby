@@ -1,3 +1,5 @@
+// +build linux
+
 package fs
 
 import (
@@ -8,17 +10,35 @@ import (
 	"strconv"
 
 	"github.com/docker/libcontainer/cgroups"
+	"github.com/docker/libcontainer/configs"
 )
 
 type CpusetGroup struct {
 }
 
-func (s *CpusetGroup) Set(d *data) error {
+func (s *CpusetGroup) Apply(d *data) error {
 	dir, err := d.path("cpuset")
-	if err != nil {
+	if err != nil && !cgroups.IsNotFound(err) {
 		return err
 	}
-	return s.SetDir(dir, d.c.CpusetCpus, d.pid)
+
+	return s.ApplyDir(dir, d.c, d.pid)
+}
+
+func (s *CpusetGroup) Set(path string, cgroup *configs.Cgroup) error {
+	if cgroup.CpusetCpus != "" {
+		if err := writeFile(path, "cpuset.cpus", cgroup.CpusetCpus); err != nil {
+			return err
+		}
+	}
+
+	if cgroup.CpusetMems != "" {
+		if err := writeFile(path, "cpuset.mems", cgroup.CpusetMems); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (s *CpusetGroup) Remove(d *data) error {
@@ -29,7 +49,12 @@ func (s *CpusetGroup) GetStats(path string, stats *cgroups.Stats) error {
 	return nil
 }
 
-func (s *CpusetGroup) SetDir(dir, value string, pid int) error {
+func (s *CpusetGroup) ApplyDir(dir string, cgroup *configs.Cgroup, pid int) error {
+	// This might happen if we have no cpuset cgroup mounted.
+	// Just do nothing and don't fail.
+	if dir == "" {
+		return nil
+	}
 	if err := s.ensureParent(dir); err != nil {
 		return err
 	}
@@ -40,12 +65,10 @@ func (s *CpusetGroup) SetDir(dir, value string, pid int) error {
 		return err
 	}
 
-	// If we don't use --cpuset, the default cpuset.cpus is set in
-	// s.ensureParent, otherwise, use the value we set
-	if value != "" {
-		if err := writeFile(dir, "cpuset.cpus", value); err != nil {
-			return err
-		}
+	// the default values inherit from parent cgroup are already set in
+	// s.ensureParent, cover these if we have our own
+	if err := s.Set(dir, cgroup); err != nil {
+		return err
 	}
 
 	return nil

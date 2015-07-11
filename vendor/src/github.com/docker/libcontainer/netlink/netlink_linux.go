@@ -7,9 +7,9 @@ import (
 	"math/rand"
 	"net"
 	"os"
-	"path/filepath"
 	"sync/atomic"
 	"syscall"
+	"time"
 	"unsafe"
 )
 
@@ -23,9 +23,11 @@ const (
 	IFLA_VLAN_ID      = 1
 	IFLA_NET_NS_FD    = 28
 	IFLA_ADDRESS      = 1
+	IFLA_BRPORT_MODE  = 4
 	SIOC_BRADDBR      = 0x89a0
 	SIOC_BRDELBR      = 0x89a1
 	SIOC_BRADDIF      = 0x89a2
+	SIOC_BRDELIF      = 0x89a3
 )
 
 const (
@@ -53,6 +55,8 @@ type ifreqFlags struct {
 }
 
 var native binary.ByteOrder
+
+var rnd = rand.New(rand.NewSource(time.Now().UnixNano()))
 
 func init() {
 	var x uint32 = 0x01020304
@@ -522,11 +526,10 @@ func NetworkSetMacAddress(iface *net.Interface, macaddr string) error {
 
 	var (
 		MULTICAST byte = 0x1
-		LOCALOUI  byte = 0x2
 	)
 
-	if hwaddr[0]&0x1 == MULTICAST || hwaddr[0]&0x2 != LOCALOUI {
-		return fmt.Errorf("Incorrect Local MAC Address specified: %s", macaddr)
+	if hwaddr[0]&0x1 == MULTICAST {
+		return fmt.Errorf("Multicast MAC Address is not supported: %s", macaddr)
 	}
 
 	wb := newNetlinkRequest(syscall.RTM_SETLINK, syscall.NLM_F_ACK)
@@ -569,6 +572,31 @@ func NetworkSetMTU(iface *net.Interface, mtu int) error {
 	msg.Change = DEFAULT_CHANGE
 	wb.AddData(msg)
 	wb.AddData(uint32Attr(syscall.IFLA_MTU, uint32(mtu)))
+
+	if err := s.Send(wb); err != nil {
+		return err
+	}
+	return s.HandleAck(wb.Seq)
+}
+
+// Set link queue length
+// This is identical to running: ip link set dev $name txqueuelen $QLEN
+func NetworkSetTxQueueLen(iface *net.Interface, txQueueLen int) error {
+	s, err := getNetlinkSocket()
+	if err != nil {
+		return err
+	}
+	defer s.Close()
+
+	wb := newNetlinkRequest(syscall.RTM_SETLINK, syscall.NLM_F_ACK)
+
+	msg := newIfInfomsg(syscall.AF_UNSPEC)
+	msg.Type = syscall.RTM_SETLINK
+	msg.Flags = syscall.NLM_F_REQUEST
+	msg.Index = int32(iface.Index)
+	msg.Change = DEFAULT_CHANGE
+	wb.AddData(msg)
+	wb.AddData(uint32Attr(syscall.IFLA_TXQLEN, uint32(txQueueLen)))
 
 	if err := s.Send(wb); err != nil {
 		return err
@@ -635,7 +663,7 @@ func networkSetNsAction(iface *net.Interface, rtattr *RtAttr) error {
 }
 
 // Move a particular network interface to a particular network namespace
-// specified by PID. This is idential to running: ip link set dev $name netns $pid
+// specified by PID. This is identical to running: ip link set dev $name netns $pid
 func NetworkSetNsPid(iface *net.Interface, nspid int) error {
 	data := uint32Attr(syscall.IFLA_NET_NS_PID, uint32(nspid))
 	return networkSetNsAction(iface, data)
@@ -649,7 +677,7 @@ func NetworkSetNsFd(iface *net.Interface, fd int) error {
 	return networkSetNsAction(iface, data)
 }
 
-// Rname a particular interface to a different name
+// Rename a particular interface to a different name
 // !!! Note that you can't rename an active interface. You need to bring it down before renaming it.
 // This is identical to running: ip link set dev ${oldName} name ${newName}
 func NetworkChangeName(iface *net.Interface, newName string) error {
@@ -769,26 +797,38 @@ func NetworkLinkAddVlan(masterDev, vlanDev string, vlanId uint16) error {
 	return s.HandleAck(wb.Seq)
 }
 
-// Add MAC VLAN network interface with masterDev as its upper device
-// This is identical to running:
-// ip link add name $name link $masterdev type macvlan mode $mode
-func NetworkLinkAddMacVlan(masterDev, macVlanDev string, mode string) error {
-	s, err := getNetlinkSocket()
-	if err != nil {
-		return err
-	}
-	defer s.Close()
+// MacVlan link has LowerDev, UpperDev and operates in Mode mode
+// This simplifies the code when creating MacVlan or MacVtap interface
+type MacVlanLink struct {
+	MasterDev string
+	SlaveDev  string
+	mode      string
+}
 
-	macVlan := map[string]uint32{
+func (m MacVlanLink) Mode() uint32 {
+	modeMap := map[string]uint32{
 		"private":  MACVLAN_MODE_PRIVATE,
 		"vepa":     MACVLAN_MODE_VEPA,
 		"bridge":   MACVLAN_MODE_BRIDGE,
 		"passthru": MACVLAN_MODE_PASSTHRU,
 	}
 
+	return modeMap[m.mode]
+}
+
+// Add MAC VLAN network interface with masterDev as its upper device
+// This is identical to running:
+// ip link add name $name link $masterdev type macvlan mode $mode
+func networkLinkMacVlan(dev_type string, mcvln *MacVlanLink) error {
+	s, err := getNetlinkSocket()
+	if err != nil {
+		return err
+	}
+	defer s.Close()
+
 	wb := newNetlinkRequest(syscall.RTM_NEWLINK, syscall.NLM_F_CREATE|syscall.NLM_F_EXCL|syscall.NLM_F_ACK)
 
-	masterDevIfc, err := net.InterfaceByName(masterDev)
+	masterDevIfc, err := net.InterfaceByName(mcvln.MasterDev)
 	if err != nil {
 		return err
 	}
@@ -797,21 +837,37 @@ func NetworkLinkAddMacVlan(masterDev, macVlanDev string, mode string) error {
 	wb.AddData(msg)
 
 	nest1 := newRtAttr(syscall.IFLA_LINKINFO, nil)
-	newRtAttrChild(nest1, IFLA_INFO_KIND, nonZeroTerminated("macvlan"))
+	newRtAttrChild(nest1, IFLA_INFO_KIND, nonZeroTerminated(dev_type))
 
 	nest2 := newRtAttrChild(nest1, IFLA_INFO_DATA, nil)
 	macVlanData := make([]byte, 4)
-	native.PutUint32(macVlanData, macVlan[mode])
+	native.PutUint32(macVlanData, mcvln.Mode())
 	newRtAttrChild(nest2, IFLA_MACVLAN_MODE, macVlanData)
 	wb.AddData(nest1)
 
 	wb.AddData(uint32Attr(syscall.IFLA_LINK, uint32(masterDevIfc.Index)))
-	wb.AddData(newRtAttr(syscall.IFLA_IFNAME, zeroTerminated(macVlanDev)))
+	wb.AddData(newRtAttr(syscall.IFLA_IFNAME, zeroTerminated(mcvln.SlaveDev)))
 
 	if err := s.Send(wb); err != nil {
 		return err
 	}
 	return s.HandleAck(wb.Seq)
+}
+
+func NetworkLinkAddMacVlan(masterDev, macVlanDev string, mode string) error {
+	return networkLinkMacVlan("macvlan", &MacVlanLink{
+		MasterDev: masterDev,
+		SlaveDev:  macVlanDev,
+		mode:      mode,
+	})
+}
+
+func NetworkLinkAddMacVtap(masterDev, macVlanDev string, mode string) error {
+	return networkLinkMacVlan("macvtap", &MacVlanLink{
+		MasterDev: masterDev,
+		SlaveDev:  macVlanDev,
+		mode:      mode,
+	})
 }
 
 func networkLinkIpAction(action, flags int, ifa IfAddr) error {
@@ -1136,9 +1192,7 @@ func DeleteBridge(name string) error {
 	return nil
 }
 
-// Add a slave to abridge device.  This is more backward-compatible than
-// netlink.NetworkSetMaster and works on RHEL 6.
-func AddToBridge(iface, master *net.Interface) error {
+func ifIoctBridge(iface, master *net.Interface, op uintptr) error {
 	if len(master.Name) >= IFNAMSIZ {
 		return fmt.Errorf("Interface name %s too long", master.Name)
 	}
@@ -1153,17 +1207,29 @@ func AddToBridge(iface, master *net.Interface) error {
 	copy(ifr.IfrnName[:len(ifr.IfrnName)-1], master.Name)
 	ifr.IfruIndex = int32(iface.Index)
 
-	if _, _, err := syscall.Syscall(syscall.SYS_IOCTL, uintptr(s), SIOC_BRADDIF, uintptr(unsafe.Pointer(&ifr))); err != 0 {
+	if _, _, err := syscall.Syscall(syscall.SYS_IOCTL, uintptr(s), op, uintptr(unsafe.Pointer(&ifr))); err != 0 {
 		return err
 	}
 
 	return nil
 }
 
+// Add a slave to a bridge device.  This is more backward-compatible than
+// netlink.NetworkSetMaster and works on RHEL 6.
+func AddToBridge(iface, master *net.Interface) error {
+	return ifIoctBridge(iface, master, SIOC_BRADDIF)
+}
+
+// Detach a slave from a bridge device.  This is more backward-compatible than
+// netlink.NetworkSetMaster and works on RHEL 6.
+func DelFromBridge(iface, master *net.Interface) error {
+	return ifIoctBridge(iface, master, SIOC_BRDELIF)
+}
+
 func randMacAddr() string {
 	hw := make(net.HardwareAddr, 6)
 	for i := 0; i < 6; i++ {
-		hw[i] = byte(rand.Intn(255))
+		hw[i] = byte(rnd.Intn(255))
 	}
 	hw[0] &^= 0x1 // clear multicast bit
 	hw[0] |= 0x2  // set local assignment bit (IEEE802)
@@ -1201,25 +1267,33 @@ func SetMacAddress(name, addr string) error {
 }
 
 func SetHairpinMode(iface *net.Interface, enabled bool) error {
-	sysPath := filepath.Join("/sys/class/net", iface.Name, "brport/hairpin_mode")
-
-	sysFile, err := os.OpenFile(sysPath, os.O_WRONLY, 0)
+	s, err := getNetlinkSocket()
 	if err != nil {
 		return err
 	}
-	defer sysFile.Close()
+	defer s.Close()
+	req := newNetlinkRequest(syscall.RTM_SETLINK, syscall.NLM_F_ACK)
 
-	var writeVal []byte
+	msg := newIfInfomsg(syscall.AF_BRIDGE)
+	msg.Type = syscall.RTM_SETLINK
+	msg.Flags = syscall.NLM_F_REQUEST
+	msg.Index = int32(iface.Index)
+	msg.Change = DEFAULT_CHANGE
+	req.AddData(msg)
+
+	mode := []byte{0}
 	if enabled {
-		writeVal = []byte("1")
-	} else {
-		writeVal = []byte("0")
+		mode[0] = byte(1)
 	}
-	if _, err := sysFile.Write(writeVal); err != nil {
+
+	br := newRtAttr(syscall.IFLA_PROTINFO|syscall.NLA_F_NESTED, nil)
+	newRtAttrChild(br, IFLA_BRPORT_MODE, mode)
+	req.AddData(br)
+	if err := s.Send(req); err != nil {
 		return err
 	}
 
-	return nil
+	return s.HandleAck(req.Seq)
 }
 
 func ChangeName(iface *net.Interface, newName string) error {

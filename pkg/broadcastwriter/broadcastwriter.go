@@ -6,8 +6,9 @@ import (
 	"sync"
 	"time"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/jsonlog"
+	"github.com/docker/docker/pkg/timeutils"
 )
 
 // BroadcastWriter accumulate multiple io.WriteCloser by stream.
@@ -33,7 +34,6 @@ func (w *BroadcastWriter) AddWriter(writer io.WriteCloser, stream string) {
 // Write writes bytes to all writers. Failed writers will be evicted during
 // this call.
 func (w *BroadcastWriter) Write(p []byte) (n int, err error) {
-	created := time.Now().UTC()
 	w.Lock()
 	if writers, ok := w.streams[""]; ok {
 		for sw := range writers {
@@ -42,26 +42,47 @@ func (w *BroadcastWriter) Write(p []byte) (n int, err error) {
 				delete(writers, sw)
 			}
 		}
+		if len(w.streams) == 1 {
+			if w.buf.Len() >= 4096 {
+				w.buf.Reset()
+			} else {
+				w.buf.Write(p)
+			}
+			w.Unlock()
+			return len(p), nil
+		}
 	}
 	if w.jsLogBuf == nil {
 		w.jsLogBuf = new(bytes.Buffer)
 		w.jsLogBuf.Grow(1024)
 	}
+	var timestamp string
+	created := time.Now().UTC()
 	w.buf.Write(p)
 	for {
-		line, err := w.buf.ReadString('\n')
-		if err != nil {
-			w.buf.Write([]byte(line))
+		if n := w.buf.Len(); n == 0 {
 			break
 		}
+		i := bytes.IndexByte(w.buf.Bytes(), '\n')
+		if i < 0 {
+			break
+		}
+		lineBytes := w.buf.Next(i + 1)
+		if timestamp == "" {
+			timestamp, err = timeutils.FastMarshalJSON(created)
+			if err != nil {
+				continue
+			}
+		}
+
 		for stream, writers := range w.streams {
 			if stream == "" {
 				continue
 			}
-			jsonLog := jsonlog.JSONLog{Log: line, Stream: stream, Created: created}
+			jsonLog := jsonlog.JSONLogBytes{Log: lineBytes, Stream: stream, Created: timestamp}
 			err = jsonLog.MarshalJSONBuf(w.jsLogBuf)
 			if err != nil {
-				log.Errorf("Error making JSON log line: %s", err)
+				logrus.Errorf("Error making JSON log line: %s", err)
 				continue
 			}
 			w.jsLogBuf.WriteByte('\n')

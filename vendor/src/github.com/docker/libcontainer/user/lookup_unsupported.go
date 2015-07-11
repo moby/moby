@@ -4,7 +4,7 @@ package user
 
 import "io"
 
-func GetPasswdFile() (string, error) {
+func GetPasswdPath() (string, error) {
 	return "", ErrUnsupported
 }
 
@@ -12,7 +12,7 @@ func GetPasswd() (io.ReadCloser, error) {
 	return nil, ErrUnsupported
 }
 
-func GetGroupFile() (string, error) {
+func GetGroupPath() (string, error) {
 	return "", ErrUnsupported
 }
 

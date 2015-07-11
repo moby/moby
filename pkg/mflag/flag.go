@@ -1,4 +1,4 @@
-// Copyright 2014 The Docker & Go Authors. All rights reserved.
+// Copyright 2014-2015 The Docker & Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -23,12 +23,16 @@
 		flag.Var(&flagVal, []string{"name"}, "help message for flagname")
 	For such flags, the default value is just the initial value of the variable.
 
-	You can also add "deprecated" flags, they are still usable, bur are not shown
-	in the usage and will display a warning when you try to use them:
-		var ip = flag.Int([]string{"f", "#flagname", "-flagname"}, 1234, "help message for flagname")
-	this will display: `Warning: '-flagname' is deprecated, it will be replaced by '--flagname' soon. See usage.` and
+	You can also add "deprecated" flags, they are still usable, but are not shown
+	in the usage and will display a warning when you try to use them. `#` before
+	an option means this option is deprecated, if there is an following option
+	without `#` ahead, then that's the replacement, if not, it will just be removed:
+		var ip = flag.Int([]string{"#f", "#flagname", "-flagname"}, 1234, "help message for flagname")
+	this will display: `Warning: '-f' is deprecated, it will be replaced by '--flagname' soon. See usage.` or
+	this will display: `Warning: '-flagname' is deprecated, it will be replaced by '--flagname' soon. See usage.`
 		var ip = flag.Int([]string{"f", "#flagname"}, 1234, "help message for flagname")
-	will display: `Warning: '-t' is deprecated, it will be removed soon. See usage.`
+	will display: `Warning: '-flagname' is deprecated, it will be removed soon. See usage.`
+	so you can only use `-f`.
 
 	You can also group one letter flags, bif you declare
 		var v = flag.Bool([]string{"v", "-verbose"}, false, "help message for verbose")
@@ -82,11 +86,14 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
 	"text/tabwriter"
 	"time"
+
+	"github.com/docker/docker/pkg/homedir"
 )
 
 // ErrHelp is the error returned if the flag -help is invoked but no such flag is defined.
@@ -282,15 +289,17 @@ type FlagSet struct {
 	// Usage is the function called when an error occurs while parsing flags.
 	// The field is a function (not a method) that may be changed to point to
 	// a custom error handler.
-	Usage func()
+	Usage      func()
+	ShortUsage func()
 
-	name          string
-	parsed        bool
-	actual        map[string]*Flag
-	formal        map[string]*Flag
-	args          []string // arguments after flags
-	errorHandling ErrorHandling
-	output        io.Writer // nil means stderr; use out() accessor
+	name             string
+	parsed           bool
+	actual           map[string]*Flag
+	formal           map[string]*Flag
+	args             []string // arguments after flags
+	errorHandling    ErrorHandling
+	output           io.Writer // nil means stderr; use Out() accessor
+	nArgRequirements []nArgRequirement
 }
 
 // A Flag represents the state of a flag.
@@ -348,7 +357,13 @@ func sortFlags(flags map[string]*Flag) []*Flag {
 	return result
 }
 
-func (f *FlagSet) out() io.Writer {
+// Name returns the name of the FlagSet.
+func (f *FlagSet) Name() string {
+	return f.name
+}
+
+// Out returns the destination for usage and error messages.
+func (f *FlagSet) Out() io.Writer {
 	if f.output == nil {
 		return os.Stderr
 	}
@@ -410,14 +425,69 @@ func IsSet(name string) bool {
 	return CommandLine.IsSet(name)
 }
 
+type nArgRequirementType int
+
+// Indicator used to pass to BadArgs function
+const (
+	Exact nArgRequirementType = iota
+	Max
+	Min
+)
+
+type nArgRequirement struct {
+	Type nArgRequirementType
+	N    int
+}
+
+// Require adds a requirement about the number of arguments for the FlagSet.
+// The first parameter can be Exact, Max, or Min to respectively specify the exact,
+// the maximum, or the minimal number of arguments required.
+// The actual check is done in FlagSet.CheckArgs().
+func (f *FlagSet) Require(nArgRequirementType nArgRequirementType, nArg int) {
+	f.nArgRequirements = append(f.nArgRequirements, nArgRequirement{nArgRequirementType, nArg})
+}
+
+// CheckArgs uses the requirements set by FlagSet.Require() to validate
+// the number of arguments. If the requirements are not met,
+// an error message string is returned.
+func (f *FlagSet) CheckArgs() (message string) {
+	for _, req := range f.nArgRequirements {
+		var arguments string
+		if req.N == 1 {
+			arguments = "1 argument"
+		} else {
+			arguments = fmt.Sprintf("%d arguments", req.N)
+		}
+
+		str := func(kind string) string {
+			return fmt.Sprintf("%q requires %s%s", f.name, kind, arguments)
+		}
+
+		switch req.Type {
+		case Exact:
+			if f.NArg() != req.N {
+				return str("")
+			}
+		case Max:
+			if f.NArg() > req.N {
+				return str("a maximum of ")
+			}
+		case Min:
+			if f.NArg() < req.N {
+				return str("a minimum of ")
+			}
+		}
+	}
+	return ""
+}
+
 // Set sets the value of the named flag.
 func (f *FlagSet) Set(name, value string) error {
 	flag, ok := f.formal[name]
 	if !ok {
 		return fmt.Errorf("no such flag -%v", name)
 	}
-	err := flag.Value.Set(value)
-	if err != nil {
+	if err := flag.Value.Set(value); err != nil {
 		return err
 	}
 	if f.actual == nil {
@@ -435,13 +505,21 @@ func Set(name, value string) error {
 // PrintDefaults prints, to standard error unless configured
 // otherwise, the default values of all defined flags in the set.
 func (f *FlagSet) PrintDefaults() {
-	writer := tabwriter.NewWriter(f.out(), 20, 1, 3, ' ', 0)
+	writer := tabwriter.NewWriter(f.Out(), 20, 1, 3, ' ', 0)
+	home := homedir.Get()
+
+	// Don't substitute when HOME is /
+	if runtime.GOOS != "windows" && home == "/" {
+		home = ""
+	}
+
+	// Add a blank line between cmd description and list of options
+	if f.FlagCount() > 0 {
+		fmt.Fprintln(writer, "")
+	}
+
 	f.VisitAll(func(flag *Flag) {
 		format := "  -%s=%s"
-		if _, ok := flag.Value.(*stringValue); ok {
-			// put quotes on the value
-			format = "  -%s=%q"
-		}
 		names := []string{}
 		for _, name := range flag.Names {
 			if name[0] != '#' {
@@ -449,7 +527,13 @@ func (f *FlagSet) PrintDefaults() {
 			}
 		}
 		if len(names) > 0 {
-			fmt.Fprintf(writer, format, strings.Join(names, ", -"), flag.DefValue)
+			val := flag.DefValue
+
+			if home != "" && strings.HasPrefix(val, home) {
+				val = homedir.GetShortcutString() + val[len(home):]
+			}
+
+			fmt.Fprintf(writer, format, strings.Join(names, ", -"), val)
 			for i, line := range strings.Split(flag.Usage, "\n") {
 				if i != 0 {
 					line = "  " + line
@@ -469,9 +553,9 @@ func PrintDefaults() {
 // defaultUsage is the default function to print a usage message.
 func defaultUsage(f *FlagSet) {
 	if f.name == "" {
-		fmt.Fprintf(f.out(), "Usage:\n")
+		fmt.Fprintf(f.Out(), "Usage:\n")
 	} else {
-		fmt.Fprintf(f.out(), "Usage of %s:\n", f.name)
+		fmt.Fprintf(f.Out(), "Usage of %s:\n", f.name)
 	}
 	f.PrintDefaults()
 }
@@ -483,8 +567,14 @@ func defaultUsage(f *FlagSet) {
 // Usage prints to standard error a usage message documenting all defined command-line flags.
 // The function is a variable that may be changed to point to a custom function.
 var Usage = func() {
-	fmt.Fprintf(os.Stderr, "Usage of %s:\n", os.Args[0])
+	fmt.Fprintf(CommandLine.Out(), "Usage of %s:\n", os.Args[0])
 	PrintDefaults()
+}
+
+// Usage prints to standard error a usage message documenting the standard command layout
+// The function is a variable that may be changed to point to a custom function.
+var ShortUsage = func() {
+	fmt.Fprintf(CommandLine.output, "Usage of %s:\n", os.Args[0])
 }
 
 // FlagCount returns the number of flags that have been defined.
@@ -764,7 +854,7 @@ func (f *FlagSet) Var(value Value, names []string, usage string) {
 			} else {
 				msg = fmt.Sprintf("%s flag redefined: %s", f.name, name)
 			}
-			fmt.Fprintln(f.out(), msg)
+			fmt.Fprintln(f.Out(), msg)
 			panic(msg) // Happens only if flags are declared with identical names
 		}
 		if f.formal == nil {
@@ -788,8 +878,12 @@ func Var(value Value, names []string, usage string) {
 // returns the error.
 func (f *FlagSet) failf(format string, a ...interface{}) error {
 	err := fmt.Errorf(format, a...)
-	fmt.Fprintln(f.out(), err)
-	f.usage()
+	fmt.Fprintln(f.Out(), err)
+	if os.Args[0] == f.name {
+		fmt.Fprintf(f.Out(), "See '%s --help'.\n", os.Args[0])
+	} else {
+		fmt.Fprintf(f.Out(), "See '%s %s --help'.\n", os.Args[0], f.name)
+	}
 	return err
 }
 
@@ -859,11 +953,11 @@ func (f *FlagSet) parseOne() (bool, string, error) {
 
 	// it's a flag. does it have an argument?
 	f.args = f.args[1:]
-	has_value := false
+	hasValue := false
 	value := ""
 	if i := strings.Index(name, "="); i != -1 {
 		value = trimQuotes(name[i+1:])
-		has_value = true
+		hasValue = true
 		name = name[:i]
 	}
 
@@ -880,7 +974,7 @@ func (f *FlagSet) parseOne() (bool, string, error) {
 		return false, name, ErrRetry
 	}
 	if fv, ok := flag.Value.(boolFlag); ok && fv.IsBoolFlag() { // special case: doesn't need an arg
-		if has_value {
+		if hasValue {
 			if err := fv.Set(value); err != nil {
 				return false, "", f.failf("invalid boolean value %q for  -%s: %v", value, name, err)
 			}
@@ -889,12 +983,12 @@ func (f *FlagSet) parseOne() (bool, string, error) {
 		}
 	} else {
 		// It must have a value, which might be the next argument.
-		if !has_value && len(f.args) > 0 {
+		if !hasValue && len(f.args) > 0 {
 			// value is the next arg
-			has_value = true
+			hasValue = true
 			value, f.args = f.args[0], f.args[1:]
 		}
-		if !has_value {
+		if !hasValue {
 			return false, "", f.failf("flag needs an argument: -%s", name)
 		}
 		if err := flag.Value.Set(value); err != nil {
@@ -915,9 +1009,9 @@ func (f *FlagSet) parseOne() (bool, string, error) {
 				}
 			}
 			if replacement != "" {
-				fmt.Fprintf(f.out(), "Warning: '-%s' is deprecated, it will be replaced by '-%s' soon. See usage.\n", name, replacement)
+				fmt.Fprintf(f.Out(), "Warning: '-%s' is deprecated, it will be replaced by '-%s' soon. See usage.\n", name, replacement)
 			} else {
-				fmt.Fprintf(f.out(), "Warning: '-%s' is deprecated, it will be removed soon. See usage.\n", name)
+				fmt.Fprintf(f.Out(), "Warning: '-%s' is deprecated, it will be removed soon. See usage.\n", name)
 			}
 		}
 	}
@@ -970,6 +1064,44 @@ func (f *FlagSet) Parse(arguments []string) error {
 		}
 	}
 	return nil
+}
+
+// ParseFlags is a utility function that adds a help flag if withHelp is true,
+// calls cmd.Parse(args) and prints a relevant error message if there are
+// incorrect number of arguments. It returns error only if error handling is
+// set to ContinueOnError and parsing fails. If error handling is set to
+// ExitOnError, it's safe to ignore the return value.
+func (cmd *FlagSet) ParseFlags(args []string, withHelp bool) error {
+	var help *bool
+	if withHelp {
+		help = cmd.Bool([]string{"#help", "-help"}, false, "Print usage")
+	}
+	if err := cmd.Parse(args); err != nil {
+		return err
+	}
+	if help != nil && *help {
+		cmd.SetOutput(os.Stdout)
+		cmd.Usage()
+		os.Exit(0)
+	}
+	if str := cmd.CheckArgs(); str != "" {
+		cmd.SetOutput(os.Stderr)
+		cmd.ReportError(str, withHelp)
+		cmd.ShortUsage()
+		os.Exit(1)
+	}
+	return nil
+}
+
+func (cmd *FlagSet) ReportError(str string, withHelp bool) {
+	if withHelp {
+		if os.Args[0] == cmd.Name() {
+			str += ".\nSee '" + os.Args[0] + " --help'"
+		} else {
+			str += ".\nSee '" + os.Args[0] + " " + cmd.Name() + " --help'"
+		}
+	}
+	fmt.Fprintf(cmd.Out(), "docker: %s.\n", str)
 }
 
 // Parsed reports whether f.Parse has been called.

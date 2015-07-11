@@ -5,6 +5,7 @@ import (
 	"testing"
 )
 
+// TestLstat tests Lstat for existing and non existing files
 func TestLstat(t *testing.T) {
 	file, invalid, _, dir := prepareFiles(t)
 	defer os.RemoveAll(dir)

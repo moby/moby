@@ -1,3 +1,5 @@
+// +build linux
+
 package cgroups
 
 import (
@@ -9,12 +11,36 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/docker/docker/pkg/mount"
+	"github.com/docker/docker/pkg/units"
 )
 
 // https://www.kernel.org/doc/Documentation/cgroups/cgroups.txt
 func FindCgroupMountpoint(subsystem string) (string, error) {
+	f, err := os.Open("/proc/self/mountinfo")
+	if err != nil {
+		return "", err
+	}
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		txt := scanner.Text()
+		fields := strings.Split(txt, " ")
+		for _, opt := range strings.Split(fields[len(fields)-1], ",") {
+			if opt == subsystem {
+				return fields[4], nil
+			}
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		return "", err
+	}
+
+	return "", NewNotFoundError(subsystem)
+}
+
+func FindCgroupMountpointDir() (string, error) {
 	mounts, err := mount.GetMounts()
 	if err != nil {
 		return "", err
@@ -22,15 +48,11 @@ func FindCgroupMountpoint(subsystem string) (string, error) {
 
 	for _, mount := range mounts {
 		if mount.Fstype == "cgroup" {
-			for _, opt := range strings.Split(mount.VfsOpts, ",") {
-				if opt == subsystem {
-					return mount.Mountpoint, nil
-				}
-			}
+			return filepath.Dir(mount.Mountpoint), nil
 		}
 	}
 
-	return "", NewNotFoundError(subsystem)
+	return "", NewNotFoundError("cgroup")
 }
 
 type Mount struct {
@@ -173,7 +195,7 @@ func ParseCgroupFile(subsystem string, r io.Reader) (string, error) {
 	return "", NewNotFoundError(subsystem)
 }
 
-func pathExists(path string) bool {
+func PathExists(path string) bool {
 	if _, err := os.Stat(path); err != nil {
 		return false
 	}
@@ -182,7 +204,7 @@ func pathExists(path string) bool {
 
 func EnterPid(cgroupPaths map[string]string, pid int) error {
 	for _, path := range cgroupPaths {
-		if pathExists(path) {
+		if PathExists(path) {
 			if err := ioutil.WriteFile(filepath.Join(path, "cgroup.procs"),
 				[]byte(strconv.Itoa(pid)), 0700); err != nil {
 				return err
@@ -193,13 +215,50 @@ func EnterPid(cgroupPaths map[string]string, pid int) error {
 }
 
 // RemovePaths iterates over the provided paths removing them.
-// If an error is encountered the removal proceeds and the first error is
-// returned to ensure a partial removal is not possible.
+// We trying to remove all paths five times with increasing delay between tries.
+// If after all there are not removed cgroups - appropriate error will be
+// returned.
 func RemovePaths(paths map[string]string) (err error) {
-	for _, path := range paths {
-		if rerr := os.RemoveAll(path); err == nil {
-			err = rerr
+	delay := 10 * time.Millisecond
+	for i := 0; i < 5; i++ {
+		if i != 0 {
+			time.Sleep(delay)
+			delay *= 2
+		}
+		for s, p := range paths {
+			os.RemoveAll(p)
+			// TODO: here probably should be logging
+			_, err := os.Stat(p)
+			// We need this strange way of checking cgroups existence because
+			// RemoveAll almost always returns error, even on already removed
+			// cgroups
+			if os.IsNotExist(err) {
+				delete(paths, s)
+			}
+		}
+		if len(paths) == 0 {
+			return nil
 		}
 	}
-	return err
+	return fmt.Errorf("Failed to remove paths: %s", paths)
+}
+
+func GetHugePageSize() ([]string, error) {
+	var pageSizes []string
+	sizeList := []string{"B", "kB", "MB", "GB", "TB", "PB"}
+	files, err := ioutil.ReadDir("/sys/kernel/mm/hugepages")
+	if err != nil {
+		return pageSizes, err
+	}
+	for _, st := range files {
+		nameArray := strings.Split(st.Name(), "-")
+		pageSize, err := units.RAMInBytes(nameArray[1])
+		if err != nil {
+			return []string{}, err
+		}
+		sizeString := units.CustomSize("%g%s", float64(pageSize), 1024.0, sizeList)
+		pageSizes = append(pageSizes, sizeString)
+	}
+
+	return pageSizes, nil
 }

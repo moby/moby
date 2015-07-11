@@ -72,7 +72,7 @@ REL=${REL:-edge}
 MIRROR=${MIRROR:-http://nl.alpinelinux.org/alpine}
 SAVE=${SAVE:-0}
 REPO=$MIRROR/$REL/main
-ARCH=$(uname -m)
+ARCH=${ARCH:-$(uname -m)}
 
 tmp
 getapk

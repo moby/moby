@@ -87,16 +87,36 @@ func SetFileLabel(path string, fileLabel string) error {
 	return nil
 }
 
+// Tell the kernel the label for all files to be created
+func SetFileCreateLabel(fileLabel string) error {
+	if selinux.SelinuxEnabled() {
+		return selinux.Setfscreatecon(fileLabel)
+	}
+	return nil
+}
+
 // Change the label of path to the filelabel string.  If the relabel string
 // is "z", relabel will change the MCS label to s0.  This will allow all
 // containers to share the content.  If the relabel string is a "Z" then
 // the MCS label should continue to be used.  SELinux will use this field
 // to make sure the content can not be shared by other containes.
 func Relabel(path string, fileLabel string, relabel string) error {
+	exclude_path := []string{"/", "/usr", "/etc"}
 	if fileLabel == "" {
 		return nil
 	}
-	if relabel == "z" {
+	if !strings.ContainsAny(relabel, "zZ") {
+		return nil
+	}
+	for _, p := range exclude_path {
+		if path == p {
+			return fmt.Errorf("Relabeling of %s is not allowed", path)
+		}
+	}
+	if strings.Contains(relabel, "z") && strings.Contains(relabel, "Z") {
+		return fmt.Errorf("Bad SELinux option z and Z can not be used together")
+	}
+	if strings.Contains(relabel, "z") {
 		c := selinux.NewContext(fileLabel)
 		c["level"] = "s0"
 		fileLabel = c.Get()

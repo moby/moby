@@ -9,7 +9,7 @@ import (
 	"testing"
 )
 
-// nothing is propogated in or out
+// nothing is propagated in or out
 func TestSubtreePrivate(t *testing.T) {
 	tmp := path.Join(os.TempDir(), "mount-tests")
 	if err := os.MkdirAll(tmp, 0777); err != nil {
@@ -312,7 +312,7 @@ func TestSubtreeUnbindable(t *testing.T) {
 	if err := Mount(sourceDir, targetDir, "none", "bind,rw"); err != nil && err != syscall.EINVAL {
 		t.Fatal(err)
 	} else if err == nil {
-		t.Fatalf("%q should not have been bindable")
+		t.Fatalf("%q should not have been bindable", sourceDir)
 	}
 	defer func() {
 		if err := Unmount(targetDir); err != nil {

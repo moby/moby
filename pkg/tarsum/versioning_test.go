@@ -4,6 +4,25 @@ import (
 	"testing"
 )
 
+func TestVersionLabelForChecksum(t *testing.T) {
+	version := VersionLabelForChecksum("tarsum+sha256:deadbeef")
+	if version != "tarsum" {
+		t.Fatalf("Version should have been 'tarsum', was %v", version)
+	}
+	version = VersionLabelForChecksum("tarsum.v1+sha256:deadbeef")
+	if version != "tarsum.v1" {
+		t.Fatalf("Version should have been 'tarsum.v1', was %v", version)
+	}
+	version = VersionLabelForChecksum("something+somethingelse")
+	if version != "something" {
+		t.Fatalf("Version should have been 'something', was %v", version)
+	}
+	version = VersionLabelForChecksum("invalidChecksum")
+	if version != "" {
+		t.Fatalf("Version should have been empty, was %v", version)
+	}
+}
+
 func TestVersion(t *testing.T) {
 	expected := "tarsum"
 	var v Version
@@ -52,4 +71,28 @@ func TestGetVersion(t *testing.T) {
 	if err != ErrNotVersion {
 		t.Fatalf("%q : %s", err, str)
 	}
+}
+
+func TestGetVersions(t *testing.T) {
+	expected := []Version{
+		Version0,
+		Version1,
+		VersionDev,
+	}
+	versions := GetVersions()
+	if len(versions) != len(expected) {
+		t.Fatalf("Expected %v versions, got %v", len(expected), len(versions))
+	}
+	if !containsVersion(versions, expected[0]) || !containsVersion(versions, expected[1]) || !containsVersion(versions, expected[2]) {
+		t.Fatalf("Expected [%v], got [%v]", expected, versions)
+	}
+}
+
+func containsVersion(versions []Version, version Version) bool {
+	for _, v := range versions {
+		if v == version {
+			return true
+		}
+	}
+	return false
 }

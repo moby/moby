@@ -8,6 +8,7 @@ package btrfs
 func BtrfsBuildVersion() string {
 	return "-"
 }
+
 func BtrfsLibVersion() int {
 	return -1
 }

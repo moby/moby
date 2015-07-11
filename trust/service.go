@@ -4,71 +4,50 @@ import (
 	"fmt"
 	"time"
 
-	log "github.com/Sirupsen/logrus"
-	"github.com/docker/docker/engine"
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/libtrust"
 )
 
-func (t *TrustStore) Install(eng *engine.Engine) error {
-	for name, handler := range map[string]engine.Handler{
-		"trust_key_check":   t.CmdCheckKey,
-		"trust_update_base": t.CmdUpdateBase,
-	} {
-		if err := eng.Register(name, handler); err != nil {
-			return fmt.Errorf("Could not register %q: %v", name, err)
-		}
-	}
-	return nil
+type NotVerifiedError string
+
+func (e NotVerifiedError) Error() string {
+	return string(e)
 }
 
-func (t *TrustStore) CmdCheckKey(job *engine.Job) engine.Status {
-	if n := len(job.Args); n != 1 {
-		return job.Errorf("Usage: %s NAMESPACE", job.Name)
+func (t *TrustStore) CheckKey(ns string, key []byte, perm uint16) (bool, error) {
+	if len(key) == 0 {
+		return false, fmt.Errorf("Missing PublicKey")
 	}
-	var (
-		namespace = job.Args[0]
-		keyBytes  = job.Getenv("PublicKey")
-	)
-
-	if keyBytes == "" {
-		return job.Errorf("Missing PublicKey")
-	}
-	pk, err := libtrust.UnmarshalPublicKeyJWK([]byte(keyBytes))
+	pk, err := libtrust.UnmarshalPublicKeyJWK(key)
 	if err != nil {
-		return job.Errorf("Error unmarshalling public key: %s", err)
+		return false, fmt.Errorf("Error unmarshalling public key: %v", err)
 	}
 
-	permission := uint16(job.GetenvInt("Permission"))
-	if permission == 0 {
-		permission = 0x03
+	if perm == 0 {
+		perm = 0x03
 	}
 
 	t.RLock()
 	defer t.RUnlock()
 	if t.graph == nil {
-		job.Stdout.Write([]byte("no graph"))
-		return engine.StatusOK
+		return false, NotVerifiedError("no graph")
 	}
 
 	// Check if any expired grants
-	verified, err := t.graph.Verify(pk, namespace, permission)
+	verified, err := t.graph.Verify(pk, ns, perm)
 	if err != nil {
-		return job.Errorf("Error verifying key to namespace: %s", namespace)
+		return false, fmt.Errorf("Error verifying key to namespace: %s", ns)
 	}
 	if !verified {
-		log.Debugf("Verification failed for %s using key %s", namespace, pk.KeyID())
-		job.Stdout.Write([]byte("not verified"))
-	} else if t.expiration.Before(time.Now()) {
-		job.Stdout.Write([]byte("expired"))
-	} else {
-		job.Stdout.Write([]byte("verified"))
+		logrus.Debugf("Verification failed for %s using key %s", ns, pk.KeyID())
+		return false, NotVerifiedError("not verified")
 	}
-
-	return engine.StatusOK
+	if t.expiration.Before(time.Now()) {
+		return false, NotVerifiedError("expired")
+	}
+	return true, nil
 }
 
-func (t *TrustStore) CmdUpdateBase(job *engine.Job) engine.Status {
+func (t *TrustStore) UpdateBase() {
 	t.fetch()
-
-	return engine.StatusOK
 }

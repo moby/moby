@@ -3,15 +3,18 @@ package registry
 import (
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"testing"
+
+	"github.com/docker/docker/cliconfig"
 )
 
 func TestEncodeAuth(t *testing.T) {
-	newAuthConfig := &AuthConfig{Username: "ken", Password: "test", Email: "test@example.com"}
-	authStr := encodeAuth(newAuthConfig)
-	decAuthConfig := &AuthConfig{}
+	newAuthConfig := &cliconfig.AuthConfig{Username: "ken", Password: "test", Email: "test@example.com"}
+	authStr := cliconfig.EncodeAuth(newAuthConfig)
+	decAuthConfig := &cliconfig.AuthConfig{}
 	var err error
-	decAuthConfig.Username, decAuthConfig.Password, err = decodeAuth(authStr)
+	decAuthConfig.Username, decAuthConfig.Password, err = cliconfig.DecodeAuth(authStr)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -26,18 +29,16 @@ func TestEncodeAuth(t *testing.T) {
 	}
 }
 
-func setupTempConfigFile() (*ConfigFile, error) {
+func setupTempConfigFile() (*cliconfig.ConfigFile, error) {
 	root, err := ioutil.TempDir("", "docker-test-auth")
 	if err != nil {
 		return nil, err
 	}
-	configFile := &ConfigFile{
-		rootPath: root,
-		Configs:  make(map[string]AuthConfig),
-	}
+	root = filepath.Join(root, cliconfig.CONFIGFILE)
+	configFile := cliconfig.NewConfigFile(root)
 
 	for _, registry := range []string{"testIndex", IndexServerAddress()} {
-		configFile.Configs[registry] = AuthConfig{
+		configFile.AuthConfigs[registry] = cliconfig.AuthConfig{
 			Username: "docker-user",
 			Password: "docker-pass",
 			Email:    "docker@docker.io",
@@ -52,14 +53,14 @@ func TestSameAuthDataPostSave(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer os.RemoveAll(configFile.rootPath)
+	defer os.RemoveAll(configFile.Filename())
 
-	err = SaveConfig(configFile)
+	err = configFile.Save()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	authConfig := configFile.Configs["testIndex"]
+	authConfig := configFile.AuthConfigs["testIndex"]
 	if authConfig.Username != "docker-user" {
 		t.Fail()
 	}
@@ -79,14 +80,22 @@ func TestResolveAuthConfigIndexServer(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer os.RemoveAll(configFile.rootPath)
+	defer os.RemoveAll(configFile.Filename())
 
-	for _, registry := range []string{"", IndexServerAddress()} {
-		resolved := configFile.ResolveAuthConfig(registry)
-		if resolved != configFile.Configs[IndexServerAddress()] {
-			t.Fail()
-		}
+	indexConfig := configFile.AuthConfigs[IndexServerAddress()]
+
+	officialIndex := &IndexInfo{
+		Official: true,
 	}
+	privateIndex := &IndexInfo{
+		Official: false,
+	}
+
+	resolved := ResolveAuthConfig(configFile, officialIndex)
+	assertEqual(t, resolved, indexConfig, "Expected ResolveAuthConfig to return IndexServerAddress()")
+
+	resolved = ResolveAuthConfig(configFile, privateIndex)
+	assertNotEqual(t, resolved, indexConfig, "Expected ResolveAuthConfig to not return IndexServerAddress()")
 }
 
 func TestResolveAuthConfigFullURL(t *testing.T) {
@@ -94,30 +103,39 @@ func TestResolveAuthConfigFullURL(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer os.RemoveAll(configFile.rootPath)
+	defer os.RemoveAll(configFile.Filename())
 
-	registryAuth := AuthConfig{
+	registryAuth := cliconfig.AuthConfig{
 		Username: "foo-user",
 		Password: "foo-pass",
 		Email:    "foo@example.com",
 	}
-	localAuth := AuthConfig{
+	localAuth := cliconfig.AuthConfig{
 		Username: "bar-user",
 		Password: "bar-pass",
 		Email:    "bar@example.com",
 	}
-	configFile.Configs["https://registry.example.com/v1/"] = registryAuth
-	configFile.Configs["http://localhost:8000/v1/"] = localAuth
-	configFile.Configs["registry.com"] = registryAuth
+	officialAuth := cliconfig.AuthConfig{
+		Username: "baz-user",
+		Password: "baz-pass",
+		Email:    "baz@example.com",
+	}
+	configFile.AuthConfigs[IndexServerAddress()] = officialAuth
+
+	expectedAuths := map[string]cliconfig.AuthConfig{
+		"registry.example.com": registryAuth,
+		"localhost:8000":       localAuth,
+		"registry.com":         localAuth,
+	}
 
 	validRegistries := map[string][]string{
-		"https://registry.example.com/v1/": {
+		"registry.example.com": {
 			"https://registry.example.com/v1/",
 			"http://registry.example.com/v1/",
 			"registry.example.com",
 			"registry.example.com/v1/",
 		},
-		"http://localhost:8000/v1/": {
+		"localhost:8000": {
 			"https://localhost:8000/v1/",
 			"http://localhost:8000/v1/",
 			"localhost:8000",
@@ -132,17 +150,23 @@ func TestResolveAuthConfigFullURL(t *testing.T) {
 	}
 
 	for configKey, registries := range validRegistries {
+		configured, ok := expectedAuths[configKey]
+		if !ok || configured.Email == "" {
+			t.Fail()
+		}
+		index := &IndexInfo{
+			Name: configKey,
+		}
 		for _, registry := range registries {
-			var (
-				configured AuthConfig
-				ok         bool
-			)
-			resolved := configFile.ResolveAuthConfig(registry)
-			if configured, ok = configFile.Configs[configKey]; !ok {
-				t.Fail()
-			}
+			configFile.AuthConfigs[registry] = configured
+			resolved := ResolveAuthConfig(configFile, index)
 			if resolved.Email != configured.Email {
 				t.Errorf("%s -> %q != %q\n", registry, resolved.Email, configured.Email)
+			}
+			delete(configFile.AuthConfigs, registry)
+			resolved = ResolveAuthConfig(configFile, index)
+			if resolved.Email == configured.Email {
+				t.Errorf("%s -> %q == %q\n", registry, resolved.Email, configured.Email)
 			}
 		}
 	}

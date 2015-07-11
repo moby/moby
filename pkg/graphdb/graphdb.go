@@ -41,17 +41,25 @@ type Edge struct {
 	ParentID string
 }
 
+// Entities stores the list of entities
 type Entities map[string]*Entity
+
+// Edges stores the relationships between entities
 type Edges []*Edge
 
+// WalkFunc is a function invoked to process an individual entity
 type WalkFunc func(fullPath string, entity *Entity) error
 
-// Graph database for storing entities and their relationships
+// Database is a graph database for storing entities and their relationships
 type Database struct {
 	conn *sql.DB
 	mux  sync.RWMutex
 }
 
+// IsNonUniqueNameError processes the error to check if it's caused by
+// a constraint violation.
+// This is necessary because the error isn't the same across various
+// sqlite versions.
 func IsNonUniqueNameError(err error) bool {
 	str := err.Error()
 	// sqlite 3.7.17-1ubuntu1 returns:
@@ -72,46 +80,53 @@ func IsNonUniqueNameError(err error) bool {
 	return false
 }
 
-// Create a new graph database initialized with a root entity
-func NewDatabase(conn *sql.DB, init bool) (*Database, error) {
+// NewDatabase creates a new graph database initialized with a root entity
+func NewDatabase(conn *sql.DB) (*Database, error) {
 	if conn == nil {
 		return nil, fmt.Errorf("Database connection cannot be nil")
 	}
 	db := &Database{conn: conn}
 
-	if init {
-		if _, err := conn.Exec(createEntityTable); err != nil {
-			return nil, err
-		}
-		if _, err := conn.Exec(createEdgeTable); err != nil {
-			return nil, err
-		}
-		if _, err := conn.Exec(createEdgeIndices); err != nil {
-			return nil, err
-		}
-
-		rollback := func() {
-			conn.Exec("ROLLBACK")
-		}
-
-		// Create root entities
-		if _, err := conn.Exec("BEGIN"); err != nil {
-			return nil, err
-		}
-		if _, err := conn.Exec("INSERT INTO entity (id) VALUES (?);", "0"); err != nil {
-			rollback()
-			return nil, err
-		}
-
-		if _, err := conn.Exec("INSERT INTO edge (entity_id, name) VALUES(?,?);", "0", "/"); err != nil {
-			rollback()
-			return nil, err
-		}
-
-		if _, err := conn.Exec("COMMIT"); err != nil {
-			return nil, err
-		}
+	// Create root entities
+	tx, err := conn.Begin()
+	if err != nil {
+		return nil, err
 	}
+
+	if _, err := tx.Exec(createEntityTable); err != nil {
+		return nil, err
+	}
+	if _, err := tx.Exec(createEdgeTable); err != nil {
+		return nil, err
+	}
+	if _, err := tx.Exec(createEdgeIndices); err != nil {
+		return nil, err
+	}
+
+	if _, err := tx.Exec("DELETE FROM entity where id = ?", "0"); err != nil {
+		tx.Rollback()
+		return nil, err
+	}
+
+	if _, err := tx.Exec("INSERT INTO entity (id) VALUES (?);", "0"); err != nil {
+		tx.Rollback()
+		return nil, err
+	}
+
+	if _, err := tx.Exec("DELETE FROM edge where entity_id=? and name=?", "0", "/"); err != nil {
+		tx.Rollback()
+		return nil, err
+	}
+
+	if _, err := tx.Exec("INSERT INTO edge (entity_id, name) VALUES(?,?);", "0", "/"); err != nil {
+		tx.Rollback()
+		return nil, err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+
 	return db, nil
 }
 
@@ -125,39 +140,38 @@ func (db *Database) Set(fullPath, id string) (*Entity, error) {
 	db.mux.Lock()
 	defer db.mux.Unlock()
 
-	rollback := func() {
-		db.conn.Exec("ROLLBACK")
-	}
-	if _, err := db.conn.Exec("BEGIN EXCLUSIVE"); err != nil {
+	tx, err := db.conn.Begin()
+	if err != nil {
 		return nil, err
 	}
+
 	var entityID string
-	if err := db.conn.QueryRow("SELECT id FROM entity WHERE id = ?;", id).Scan(&entityID); err != nil {
+	if err := tx.QueryRow("SELECT id FROM entity WHERE id = ?;", id).Scan(&entityID); err != nil {
 		if err == sql.ErrNoRows {
-			if _, err := db.conn.Exec("INSERT INTO entity (id) VALUES(?);", id); err != nil {
-				rollback()
+			if _, err := tx.Exec("INSERT INTO entity (id) VALUES(?);", id); err != nil {
+				tx.Rollback()
 				return nil, err
 			}
 		} else {
-			rollback()
+			tx.Rollback()
 			return nil, err
 		}
 	}
 	e := &Entity{id}
 
 	parentPath, name := splitPath(fullPath)
-	if err := db.setEdge(parentPath, name, e); err != nil {
-		rollback()
+	if err := db.setEdge(parentPath, name, e, tx); err != nil {
+		tx.Rollback()
 		return nil, err
 	}
 
-	if _, err := db.conn.Exec("COMMIT"); err != nil {
+	if err := tx.Commit(); err != nil {
 		return nil, err
 	}
 	return e, nil
 }
 
-// Return true if a name already exists in the database
+// Exists returns true if a name already exists in the database
 func (db *Database) Exists(name string) bool {
 	db.mux.RLock()
 	defer db.mux.RUnlock()
@@ -169,7 +183,7 @@ func (db *Database) Exists(name string) bool {
 	return e != nil
 }
 
-func (db *Database) setEdge(parentPath, name string, e *Entity) error {
+func (db *Database) setEdge(parentPath, name string, e *Entity, tx *sql.Tx) error {
 	parent, err := db.get(parentPath)
 	if err != nil {
 		return err
@@ -178,20 +192,20 @@ func (db *Database) setEdge(parentPath, name string, e *Entity) error {
 		return fmt.Errorf("Cannot set self as child")
 	}
 
-	if _, err := db.conn.Exec("INSERT INTO edge (parent_id, name, entity_id) VALUES (?,?,?);", parent.id, name, e.id); err != nil {
+	if _, err := tx.Exec("INSERT INTO edge (parent_id, name, entity_id) VALUES (?,?,?);", parent.id, name, e.id); err != nil {
 		return err
 	}
 	return nil
 }
 
-// Return the root "/" entity for the database
+// RootEntity returns the root "/" entity for the database
 func (db *Database) RootEntity() *Entity {
 	return &Entity{
 		id: "0",
 	}
 }
 
-// Return the entity for a given path
+// Get returns the entity for a given path
 func (db *Database) Get(name string) *Entity {
 	db.mux.RLock()
 	defer db.mux.RUnlock()
@@ -268,7 +282,7 @@ func (db *Database) Walk(name string, walkFunc WalkFunc, depth int) error {
 	return nil
 }
 
-// Return the children of the specified entity
+// Children returns the children of the specified entity
 func (db *Database) Children(name string, depth int) ([]WalkMeta, error) {
 	db.mux.RLock()
 	defer db.mux.RUnlock()
@@ -281,7 +295,7 @@ func (db *Database) Children(name string, depth int) ([]WalkMeta, error) {
 	return db.children(e, name, depth, nil)
 }
 
-// Return the parents of a specified entity
+// Parents returns the parents of a specified entity
 func (db *Database) Parents(name string) ([]string, error) {
 	db.mux.RLock()
 	defer db.mux.RUnlock()
@@ -293,7 +307,7 @@ func (db *Database) Parents(name string) ([]string, error) {
 	return db.parents(e)
 }
 
-// Return the refrence count for a specified id
+// Refs returns the refrence count for a specified id
 func (db *Database) Refs(id string) int {
 	db.mux.RLock()
 	defer db.mux.RUnlock()
@@ -305,7 +319,7 @@ func (db *Database) Refs(id string) int {
 	return count
 }
 
-// Return all the id's path references
+// RefPaths returns all the id's path references
 func (db *Database) RefPaths(id string) Edges {
 	db.mux.RLock()
 	defer db.mux.RUnlock()
@@ -354,43 +368,51 @@ func (db *Database) Delete(name string) error {
 	return nil
 }
 
-// Remove the entity with the specified id
+// Purge removes the entity with the specified id
 // Walk the graph to make sure all references to the entity
 // are removed and return the number of references removed
 func (db *Database) Purge(id string) (int, error) {
 	db.mux.Lock()
 	defer db.mux.Unlock()
 
-	rollback := func() {
-		db.conn.Exec("ROLLBACK")
-	}
-
-	if _, err := db.conn.Exec("BEGIN"); err != nil {
+	tx, err := db.conn.Begin()
+	if err != nil {
 		return -1, err
 	}
 
 	// Delete all edges
-	rows, err := db.conn.Exec("DELETE FROM edge WHERE entity_id = ?;", id)
+	rows, err := tx.Exec("DELETE FROM edge WHERE entity_id = ?;", id)
 	if err != nil {
-		rollback()
+		tx.Rollback()
 		return -1, err
 	}
-
 	changes, err := rows.RowsAffected()
 	if err != nil {
 		return -1, err
 	}
 
-	// Delete entity
-	if _, err := db.conn.Exec("DELETE FROM entity where id = ?;", id); err != nil {
-		rollback()
+	// Clear who's using this id as parent
+	refs, err := tx.Exec("DELETE FROM edge WHERE parent_id = ?;", id)
+	if err != nil {
+		tx.Rollback()
+		return -1, err
+	}
+	refsCount, err := refs.RowsAffected()
+	if err != nil {
 		return -1, err
 	}
 
-	if _, err := db.conn.Exec("COMMIT"); err != nil {
+	// Delete entity
+	if _, err := tx.Exec("DELETE FROM entity where id = ?;", id); err != nil {
+		tx.Rollback()
 		return -1, err
 	}
-	return int(changes), nil
+
+	if err := tx.Commit(); err != nil {
+		return -1, err
+	}
+
+	return int(changes + refsCount), nil
 }
 
 // Rename an edge for a given path
@@ -466,7 +488,7 @@ func (db *Database) children(e *Entity, name string, depth int, entities []WalkM
 		if depth != 0 {
 			nDepth := depth
 			if depth != -1 {
-				nDepth -= 1
+				nDepth--
 			}
 			entities, err = db.children(child, meta.FullPath, nDepth, entities)
 			if err != nil {
@@ -509,12 +531,12 @@ func (db *Database) child(parent *Entity, name string) *Entity {
 	return &Entity{id}
 }
 
-// Return the id used to reference this entity
+// ID returns the id used to reference this entity
 func (e *Entity) ID() string {
 	return e.id
 }
 
-// Return the paths sorted by depth
+// Paths returns the paths sorted by depth
 func (e Entities) Paths() []string {
 	out := make([]string, len(e))
 	var i int

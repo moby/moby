@@ -3,50 +3,109 @@ package api
 import (
 	"fmt"
 	"mime"
-	"os"
-	"path"
+	"path/filepath"
+	"sort"
 	"strings"
 
-	log "github.com/Sirupsen/logrus"
-	"github.com/docker/docker/engine"
-	"github.com/docker/docker/pkg/parsers"
+	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/pkg/version"
-	"github.com/docker/docker/vendor/src/github.com/docker/libtrust"
+	"github.com/docker/libtrust"
 )
 
+// Common constants for daemon and client.
 const (
-	APIVERSION        version.Version = "1.16"
-	DEFAULTHTTPHOST                   = "127.0.0.1"
-	DEFAULTUNIXSOCKET                 = "/var/run/docker.sock"
+	// Current REST API version
+	Version version.Version = "1.20"
+
+	// Minimun REST API version supported
+	MinVersion version.Version = "1.12"
+
+	// Default filename with Docker commands, read by docker build
+	DefaultDockerfileName string = "Dockerfile"
 )
 
-func ValidateHost(val string) (string, error) {
-	host, err := parsers.ParseHost(DEFAULTHTTPHOST, DEFAULTUNIXSOCKET, val)
-	if err != nil {
-		return val, err
+type ByPrivatePort []types.Port
+
+func (r ByPrivatePort) Len() int           { return len(r) }
+func (r ByPrivatePort) Swap(i, j int)      { r[i], r[j] = r[j], r[i] }
+func (r ByPrivatePort) Less(i, j int) bool { return r[i].PrivatePort < r[j].PrivatePort }
+
+func DisplayablePorts(ports []types.Port) string {
+	var (
+		result          = []string{}
+		hostMappings    = []string{}
+		firstInGroupMap map[string]int
+		lastInGroupMap  map[string]int
+	)
+	firstInGroupMap = make(map[string]int)
+	lastInGroupMap = make(map[string]int)
+	sort.Sort(ByPrivatePort(ports))
+	for _, port := range ports {
+		var (
+			current      = port.PrivatePort
+			portKey      = port.Type
+			firstInGroup int
+			lastInGroup  int
+		)
+		if port.IP != "" {
+			if port.PublicPort != current {
+				hostMappings = append(hostMappings, fmt.Sprintf("%s:%d->%d/%s", port.IP, port.PublicPort, port.PrivatePort, port.Type))
+				continue
+			}
+			portKey = fmt.Sprintf("%s/%s", port.IP, port.Type)
+		}
+		firstInGroup = firstInGroupMap[portKey]
+		lastInGroup = lastInGroupMap[portKey]
+
+		if firstInGroup == 0 {
+			firstInGroupMap[portKey] = current
+			lastInGroupMap[portKey] = current
+			continue
+		}
+
+		if current == (lastInGroup + 1) {
+			lastInGroupMap[portKey] = current
+			continue
+		}
+		result = append(result, FormGroup(portKey, firstInGroup, lastInGroup))
+		firstInGroupMap[portKey] = current
+		lastInGroupMap[portKey] = current
 	}
-	return host, nil
+	for portKey, firstInGroup := range firstInGroupMap {
+		result = append(result, FormGroup(portKey, firstInGroup, lastInGroupMap[portKey]))
+	}
+	result = append(result, hostMappings...)
+	return strings.Join(result, ", ")
 }
 
-//TODO remove, used on < 1.5 in getContainersJSON
-func DisplayablePorts(ports *engine.Table) string {
-	result := []string{}
-	ports.SetKey("PublicPort")
-	ports.Sort()
-	for _, port := range ports.Data {
-		if port.Get("IP") == "" {
-			result = append(result, fmt.Sprintf("%d/%s", port.GetInt("PrivatePort"), port.Get("Type")))
-		} else {
-			result = append(result, fmt.Sprintf("%s:%d->%d/%s", port.Get("IP"), port.GetInt("PublicPort"), port.GetInt("PrivatePort"), port.Get("Type")))
-		}
+func FormGroup(key string, start, last int) string {
+	var (
+		group     string
+		parts     = strings.Split(key, "/")
+		groupType = parts[0]
+		ip        = ""
+	)
+	if len(parts) > 1 {
+		ip = parts[0]
+		groupType = parts[1]
 	}
-	return strings.Join(result, ", ")
+	if start == last {
+		group = fmt.Sprintf("%d", start)
+	} else {
+		group = fmt.Sprintf("%d-%d", start, last)
+	}
+	if ip != "" {
+		group = fmt.Sprintf("%s:%s->%s", ip, group, group)
+	}
+	return fmt.Sprintf("%s/%s", group, groupType)
 }
 
 func MatchesContentType(contentType, expectedType string) bool {
 	mimetype, _, err := mime.ParseMediaType(contentType)
 	if err != nil {
-		log.Errorf("Error parsing media type: %s error: %s", contentType, err.Error())
+		logrus.Errorf("Error parsing media type: %s error: %v", contentType, err)
 	}
 	return err == nil && mimetype == expectedType
 }
@@ -54,7 +113,7 @@ func MatchesContentType(contentType, expectedType string) bool {
 // LoadOrCreateTrustKey attempts to load the libtrust key at the given path,
 // otherwise generates a new one
 func LoadOrCreateTrustKey(trustKeyPath string) (libtrust.PrivateKey, error) {
-	err := os.MkdirAll(path.Dir(trustKeyPath), 0700)
+	err := system.MkdirAll(filepath.Dir(trustKeyPath), 0700)
 	if err != nil {
 		return nil, err
 	}
@@ -68,7 +127,7 @@ func LoadOrCreateTrustKey(trustKeyPath string) (libtrust.PrivateKey, error) {
 			return nil, fmt.Errorf("Error saving key file: %s", err)
 		}
 	} else if err != nil {
-		return nil, fmt.Errorf("Error loading key file: %s", err)
+		return nil, fmt.Errorf("Error loading key file %s: %s", trustKeyPath, err)
 	}
 	return trustKey, nil
 }

@@ -40,7 +40,7 @@ func ParseEnvFile(filename string) ([]string, error) {
 			}
 		}
 	}
-	return lines, nil
+	return lines, scanner.Err()
 }
 
 var whiteSpaces = " \t"

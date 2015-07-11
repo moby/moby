@@ -4,36 +4,33 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/docker/docker/engine"
+	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/graph"
-	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/parsers"
+	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/utils"
 )
 
-func (daemon *Daemon) ImageDelete(job *engine.Job) engine.Status {
-	if n := len(job.Args); n != 1 {
-		return job.Errorf("Usage: %s IMAGE", job.Name)
+// FIXME: remove ImageDelete's dependency on Daemon, then move to graph/
+func (daemon *Daemon) ImageDelete(name string, force, noprune bool) ([]types.ImageDelete, error) {
+	list := []types.ImageDelete{}
+	if err := daemon.imgDeleteHelper(name, &list, true, force, noprune); err != nil {
+		return nil, err
 	}
-	imgs := engine.NewTable("", 0)
-	if err := daemon.DeleteImage(job.Eng, job.Args[0], imgs, true, job.GetenvBool("force"), job.GetenvBool("noprune")); err != nil {
-		return job.Error(err)
+	if len(list) == 0 {
+		return nil, fmt.Errorf("Conflict, %s wasn't deleted", name)
 	}
-	if len(imgs.Data) == 0 {
-		return job.Errorf("Conflict, %s wasn't deleted", job.Args[0])
-	}
-	if _, err := imgs.WriteListTo(job.Stdout); err != nil {
-		return job.Error(err)
-	}
-	return engine.StatusOK
+
+	return list, nil
 }
 
-// FIXME: make this private and use the job instead
-func (daemon *Daemon) DeleteImage(eng *engine.Engine, name string, imgs *engine.Table, first, force, noprune bool) error {
+func (daemon *Daemon) imgDeleteHelper(name string, list *[]types.ImageDelete, first, force, noprune bool) error {
 	var (
 		repoName, tag string
 		tags          = []string{}
 	)
+	repoAndTags := make(map[string][]string)
 
 	// FIXME: please respect DRY and centralize repo+tag parsing in a single central place! -- shykes
 	repoName, tag = parsers.ParseRepositoryTag(name)
@@ -41,10 +38,14 @@ func (daemon *Daemon) DeleteImage(eng *engine.Engine, name string, imgs *engine.
 		tag = graph.DEFAULTTAG
 	}
 
+	if name == "" {
+		return fmt.Errorf("Image name can not be blank")
+	}
+
 	img, err := daemon.Repositories().LookupImage(name)
 	if err != nil {
 		if r, _ := daemon.Repositories().Get(repoName); r != nil {
-			return fmt.Errorf("No such image: %s:%s", repoName, tag)
+			return fmt.Errorf("No such image: %s", utils.ImageReference(repoName, tag))
 		}
 		return fmt.Errorf("No such image: %s", name)
 	}
@@ -62,45 +63,54 @@ func (daemon *Daemon) DeleteImage(eng *engine.Engine, name string, imgs *engine.
 	repos := daemon.Repositories().ByID()[img.ID]
 
 	//If delete by id, see if the id belong only to one repository
-	if repoName == "" {
+	deleteByID := repoName == ""
+	if deleteByID {
 		for _, repoAndTag := range repos {
 			parsedRepo, parsedTag := parsers.ParseRepositoryTag(repoAndTag)
 			if repoName == "" || repoName == parsedRepo {
 				repoName = parsedRepo
 				if parsedTag != "" {
-					tags = append(tags, parsedTag)
+					repoAndTags[repoName] = append(repoAndTags[repoName], parsedTag)
 				}
-			} else if repoName != parsedRepo && !force {
+			} else if repoName != parsedRepo && !force && first {
 				// the id belongs to multiple repos, like base:latest and user:test,
 				// in that case return conflict
 				return fmt.Errorf("Conflict, cannot delete image %s because it is tagged in multiple repositories, use -f to force", name)
+			} else {
+				//the id belongs to multiple repos, with -f just delete all
+				repoName = parsedRepo
+				if parsedTag != "" {
+					repoAndTags[repoName] = append(repoAndTags[repoName], parsedTag)
+				}
 			}
 		}
 	} else {
-		tags = append(tags, tag)
+		repoAndTags[repoName] = append(repoAndTags[repoName], tag)
 	}
 
-	if !first && len(tags) > 0 {
+	if !first && len(repoAndTags) > 0 {
 		return nil
 	}
 
-	if len(repos) <= 1 {
+	if len(repos) <= 1 || (len(repoAndTags) <= 1 && deleteByID) {
 		if err := daemon.canDeleteImage(img.ID, force); err != nil {
 			return err
 		}
 	}
 
 	// Untag the current image
-	for _, tag := range tags {
-		tagDeleted, err := daemon.Repositories().Delete(repoName, tag)
-		if err != nil {
-			return err
-		}
-		if tagDeleted {
-			out := &engine.Env{}
-			out.Set("Untagged", repoName+":"+tag)
-			imgs.Add(out)
-			eng.Job("log", "untag", img.ID, "").Run()
+	for repoName, tags := range repoAndTags {
+		for _, tag := range tags {
+			tagDeleted, err := daemon.Repositories().Delete(repoName, tag)
+			if err != nil {
+				return err
+			}
+			if tagDeleted {
+				*list = append(*list, types.ImageDelete{
+					Untagged: utils.ImageReference(repoName, tag),
+				})
+				daemon.EventsService.Log("untag", img.ID, "")
+			}
 		}
 	}
 	tags = daemon.Repositories().ByID()[img.ID]
@@ -112,12 +122,12 @@ func (daemon *Daemon) DeleteImage(eng *engine.Engine, name string, imgs *engine.
 			if err := daemon.Graph().Delete(img.ID); err != nil {
 				return err
 			}
-			out := &engine.Env{}
-			out.Set("Deleted", img.ID)
-			imgs.Add(out)
-			eng.Job("log", "delete", img.ID, "").Run()
+			*list = append(*list, types.ImageDelete{
+				Deleted: img.ID,
+			})
+			daemon.EventsService.Log("delete", img.ID, "")
 			if img.Parent != "" && !noprune {
-				err := daemon.DeleteImage(eng, img.Parent, imgs, false, force, noprune)
+				err := daemon.imgDeleteHelper(img.Parent, list, false, force, noprune)
 				if first {
 					return err
 				}
@@ -131,23 +141,33 @@ func (daemon *Daemon) DeleteImage(eng *engine.Engine, name string, imgs *engine.
 
 func (daemon *Daemon) canDeleteImage(imgID string, force bool) error {
 	for _, container := range daemon.List() {
-		parent, err := daemon.Repositories().LookupImage(container.Image)
+		if container.ImageID == "" {
+			// This technically should never happen, but if the container
+			// has no ImageID then log the situation and move on.
+			// If we allowed processing to continue then the code later
+			// on would fail with a "Prefix can't be empty" error even
+			// though the bad container has nothing to do with the image
+			// we're trying to delete.
+			logrus.Errorf("Container %q has no image associated with it!", container.ID)
+			continue
+		}
+		parent, err := daemon.Repositories().LookupImage(container.ImageID)
 		if err != nil {
-			if daemon.Graph().IsNotExist(err) {
+			if daemon.Graph().IsNotExist(err, container.ImageID) {
 				return nil
 			}
 			return err
 		}
 
-		if err := parent.WalkHistory(func(p *image.Image) error {
+		if err := daemon.graph.WalkHistory(parent, func(p graph.Image) error {
 			if imgID == p.ID {
 				if container.IsRunning() {
 					if force {
-						return fmt.Errorf("Conflict, cannot force delete %s because the running container %s is using it, stop it and retry", utils.TruncateID(imgID), utils.TruncateID(container.ID))
+						return fmt.Errorf("Conflict, cannot force delete %s because the running container %s is using it, stop it and retry", stringid.TruncateID(imgID), stringid.TruncateID(container.ID))
 					}
-					return fmt.Errorf("Conflict, cannot delete %s because the running container %s is using it, stop it and use -f to force", utils.TruncateID(imgID), utils.TruncateID(container.ID))
+					return fmt.Errorf("Conflict, cannot delete %s because the running container %s is using it, stop it and use -f to force", stringid.TruncateID(imgID), stringid.TruncateID(container.ID))
 				} else if !force {
-					return fmt.Errorf("Conflict, cannot delete %s because the container %s is using it, use -f to force", utils.TruncateID(imgID), utils.TruncateID(container.ID))
+					return fmt.Errorf("Conflict, cannot delete %s because the container %s is using it, use -f to force", stringid.TruncateID(imgID), stringid.TruncateID(container.ID))
 				}
 			}
 			return nil

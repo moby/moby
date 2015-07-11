@@ -3,10 +3,13 @@ package execdriver
 import (
 	"errors"
 	"io"
-	"os"
 	"os/exec"
+	"time"
 
-	"github.com/docker/libcontainer/devices"
+	// TODO Windows: Factor out ulimit
+	"github.com/docker/docker/pkg/ulimit"
+	"github.com/docker/libcontainer"
+	"github.com/docker/libcontainer/configs"
 )
 
 // Context is a generic key value pair that allows
@@ -14,7 +17,7 @@ import (
 type Context map[string]string
 
 var (
-	ErrNotRunning              = errors.New("Process could not be started")
+	ErrNotRunning              = errors.New("Container is not running")
 	ErrWaitTimeoutReached      = errors.New("Wait timeout reached")
 	ErrDriverAlreadyRegistered = errors.New("A driver already registered this docker init function")
 	ErrDriverNotFound          = errors.New("The requested docker init has not been found")
@@ -37,7 +40,7 @@ type Terminal interface {
 }
 
 type TtyTerminal interface {
-	Master() *os.File
+	Master() libcontainer.Console
 }
 
 // ExitStatus provides exit reasons for a container.
@@ -61,6 +64,7 @@ type Driver interface {
 	GetPidsForContainer(id string) ([]int, error) // Returns a list of pids for the given container.
 	Terminate(c *Command) error                   // kill it with fire
 	Clean(id string) error                        // clean all traces of container exec
+	Stats(id string) (*ResourceStats, error)      // Get resource stats for a running container
 }
 
 // Network settings of the container
@@ -68,6 +72,7 @@ type Network struct {
 	Interface      *NetworkInterface `json:"interface"` // if interface is nil then networking is disabled
 	Mtu            int               `json:"mtu"`
 	ContainerID    string            `json:"container_id"` // id of the container to join network.
+	NamespacePath  string            `json:"namespace_path"`
 	HostNetworking bool              `json:"host_networking"`
 }
 
@@ -77,19 +82,48 @@ type Ipc struct {
 	HostIpc     bool   `json:"host_ipc"`
 }
 
-type NetworkInterface struct {
-	Gateway     string `json:"gateway"`
-	IPAddress   string `json:"ip"`
-	IPPrefixLen int    `json:"ip_prefix_len"`
-	MacAddress  string `json:"mac_address"`
-	Bridge      string `json:"bridge"`
+// PID settings of the container
+type Pid struct {
+	HostPid bool `json:"host_pid"`
 }
 
+// UTS settings of the container
+type UTS struct {
+	HostUTS bool `json:"host_uts"`
+}
+
+type NetworkInterface struct {
+	Gateway              string `json:"gateway"`
+	IPAddress            string `json:"ip"`
+	IPPrefixLen          int    `json:"ip_prefix_len"`
+	MacAddress           string `json:"mac"`
+	Bridge               string `json:"bridge"`
+	GlobalIPv6Address    string `json:"global_ipv6"`
+	LinkLocalIPv6Address string `json:"link_local_ipv6"`
+	GlobalIPv6PrefixLen  int    `json:"global_ipv6_prefix_len"`
+	IPv6Gateway          string `json:"ipv6_gateway"`
+	HairpinMode          bool   `json:"hairpin_mode"`
+}
+
+// TODO Windows: Factor out ulimit.Rlimit
 type Resources struct {
-	Memory     int64  `json:"memory"`
-	MemorySwap int64  `json:"memory_swap"`
-	CpuShares  int64  `json:"cpu_shares"`
-	Cpuset     string `json:"cpuset"`
+	Memory         int64            `json:"memory"`
+	MemorySwap     int64            `json:"memory_swap"`
+	CpuShares      int64            `json:"cpu_shares"`
+	CpusetCpus     string           `json:"cpuset_cpus"`
+	CpusetMems     string           `json:"cpuset_mems"`
+	CpuPeriod      int64            `json:"cpu_period"`
+	CpuQuota       int64            `json:"cpu_quota"`
+	BlkioWeight    int64            `json:"blkio_weight"`
+	Rlimits        []*ulimit.Rlimit `json:"rlimits"`
+	OomKillDisable bool             `json:"oom_kill_disable"`
+}
+
+type ResourceStats struct {
+	*libcontainer.Stats
+	Read        time.Time `json:"read"`
+	MemoryLimit int64     `json:"memory_limit"`
+	SystemUsage uint64    `json:"system_usage"`
 }
 
 type Mount struct {
@@ -104,28 +138,35 @@ type Mount struct {
 type ProcessConfig struct {
 	exec.Cmd `json:"-"`
 
-	Privileged bool     `json:"privileged"`
-	User       string   `json:"user"`
-	Tty        bool     `json:"tty"`
-	Entrypoint string   `json:"entrypoint"`
-	Arguments  []string `json:"arguments"`
-	Terminal   Terminal `json:"-"` // standard or tty terminal
-	Console    string   `json:"-"` // dev/console path
+	Privileged  bool     `json:"privileged"`
+	User        string   `json:"user"`
+	Tty         bool     `json:"tty"`
+	Entrypoint  string   `json:"entrypoint"`
+	Arguments   []string `json:"arguments"`
+	Terminal    Terminal `json:"-"` // standard or tty terminal
+	Console     string   `json:"-"` // dev/console path
+	ConsoleSize [2]int   `json:"-"` // h,w of initial console size
 }
 
+// TODO Windows: Factor out unused fields such as LxcConfig, AppArmorProfile,
+// and CgroupParent.
+//
 // Process wrapps an os/exec.Cmd to add more metadata
 type Command struct {
 	ID                 string            `json:"id"`
-	Rootfs             string            `json:"rootfs"`   // root fs of the container
+	Rootfs             string            `json:"rootfs"` // root fs of the container
+	ReadonlyRootfs     bool              `json:"readonly_rootfs"`
 	InitPath           string            `json:"initpath"` // dockerinit
 	WorkingDir         string            `json:"working_dir"`
 	ConfigPath         string            `json:"config_path"` // this should be able to be removed when the lxc template is moved into the driver
 	Network            *Network          `json:"network"`
 	Ipc                *Ipc              `json:"ipc"`
+	Pid                *Pid              `json:"pid"`
+	UTS                *UTS              `json:"uts"`
 	Resources          *Resources        `json:"resources"`
 	Mounts             []Mount           `json:"mounts"`
-	AllowedDevices     []*devices.Device `json:"allowed_devices"`
-	AutoCreatedDevices []*devices.Device `json:"autocreated_devices"`
+	AllowedDevices     []*configs.Device `json:"allowed_devices"`
+	AutoCreatedDevices []*configs.Device `json:"autocreated_devices"`
 	CapAdd             []string          `json:"cap_add"`
 	CapDrop            []string          `json:"cap_drop"`
 	ContainerPid       int               `json:"container_pid"`  // the pid for the process inside a container
@@ -134,4 +175,8 @@ type Command struct {
 	MountLabel         string            `json:"mount_label"`
 	LxcConfig          []string          `json:"lxc_config"`
 	AppArmorProfile    string            `json:"apparmor_profile"`
+	CgroupParent       string            `json:"cgroup_parent"` // The parent cgroup for this command.
+	FirstStart         bool              `json:"first_start"`
+	LayerPaths         []string          `json:"layer_paths"` // Windows needs to know the layer paths and folder for a command
+	LayerFolder        string            `json:"layer_folder"`
 }

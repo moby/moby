@@ -44,12 +44,12 @@ need to package Docker your way, without denaturing it in the process.
 
 To build Docker, you will need the following:
 
-* A recent version of git and mercurial
-* Go version 1.3 or later
+* A recent version of Git and Mercurial
+* Go version 1.4 or later
 * A clean checkout of the source added to a valid [Go
-  workspace](http://golang.org/doc/code.html#Workspaces) under the path
+  workspace](https://golang.org/doc/code.html#Workspaces) under the path
   *src/github.com/docker/docker* (unless you plan to use `AUTO_GOPATH`,
-  explained in more detail below).
+  explained in more detail below)
 
 To build the Docker daemon, you will additionally need:
 
@@ -57,8 +57,8 @@ To build the Docker daemon, you will additionally need:
 * SQLite version 3.7.9 or later
 * libdevmapper version 1.02.68-cvs (2012-01-26) or later from lvm2 version
   2.02.89 or later
-* btrfs-progs version 3.8 or later (including commit e5cb128 from 2013-01-07)
-  for the necessary btrfs headers
+* btrfs-progs version 3.16.1 or later (unless using an older version is
+  absolutely necessary, in which case 3.8 is the minimum)
 
 Be sure to also check out Docker's Dockerfile for the most up-to-date list of
 these build-time dependencies.
@@ -162,12 +162,6 @@ SELinux, you will need to use the `selinux` build tag:
 export DOCKER_BUILDTAGS='selinux'
 ```
 
-If your version of btrfs-progs is < 3.16.1 (also called btrfs-tools), then you
-will need the following tag to not check for btrfs version headers:
-```bash
-export DOCKER_BUILDTAGS='btrfs_noversion'
-```
-
 There are build tags for disabling graphdrivers as well. By default, support
 for all graphdrivers are built in.
 
@@ -243,9 +237,9 @@ are as follows (in order):
   installed at "/usr/bin/docker", then "/usr/bin/dockerinit" will be the first
   place this file is searched for)
 * "/usr/libexec/docker/dockerinit" or "/usr/local/libexec/docker/dockerinit"
-  ([FHS 3.0 Draft](http://www.linuxbase.org/betaspecs/fhs/fhs.html#usrlibexec))
+  ([FHS 3.0 Draft](https://www.linuxbase.org/betaspecs/fhs/fhs.html#usrlibexec))
 * "/usr/lib/docker/dockerinit" or "/usr/local/lib/docker/dockerinit" ([FHS
-  2.3](http://refspecs.linuxfoundation.org/FHS_2.3/fhs-2.3.html#USRLIBLIBRARIESFORPROGRAMMINGANDPA))
+  2.3](https://refspecs.linuxfoundation.org/FHS_2.3/fhs-2.3.html#USRLIBLIBRARIESFORPROGRAMMINGANDPA))
 
 If (and please, only if) one of the paths above is insufficient due to distro
 policy or similar issues, you may use the `DOCKER_INITPATH` environment variable
@@ -305,10 +299,11 @@ the client will even run on alternative platforms such as Mac OS X / Darwin.
 Some of Docker's features are activated by using optional command-line flags or
 by having support for them in the kernel or userspace. A few examples include:
 
-* LXC execution driver (requires version 1.0 or later of the LXC utility scripts)
+* LXC execution driver (requires version 1.0.7 or later of lxc and the lxc-libs)
 * AUFS graph driver (requires AUFS patches/support enabled in the kernel, and at
   least the "auplink" utility from aufs-tools)
 * BTRFS graph driver (requires BTRFS support enabled in the kernel)
+* ZFS graph driver (requires userspace zfs-utils and a corresponding kernel module)
 
 ## Daemon Init Script
 

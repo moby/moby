@@ -8,6 +8,7 @@ import (
 	"testing"
 )
 
+// prepareFiles creates files for testing in the temp directory
 func prepareFiles(t *testing.T) (string, string, string, string) {
 	dir, err := ioutil.TempDir("", "docker-system-test")
 	if err != nil {

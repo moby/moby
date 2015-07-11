@@ -7,8 +7,9 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"strconv"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/pkg/devicemapper"
 	"github.com/docker/docker/pkg/mount"
@@ -29,7 +30,17 @@ type Driver struct {
 	home string
 }
 
+var backingFs = "<unknown>"
+
 func Init(home string, options []string) (graphdriver.Driver, error) {
+	fsMagic, err := graphdriver.GetFSMagic(home)
+	if err != nil {
+		return nil, err
+	}
+	if fsName, ok := graphdriver.FsNames[fsMagic]; ok {
+		backingFs = fsName
+	}
+
 	deviceSet, err := NewDeviceSet(home, true, options)
 	if err != nil {
 		return nil, err
@@ -56,18 +67,43 @@ func (d *Driver) Status() [][2]string {
 
 	status := [][2]string{
 		{"Pool Name", s.PoolName},
-		{"Pool Blocksize", fmt.Sprintf("%s", units.HumanSize(int64(s.SectorSize)))},
-		{"Data file", s.DataLoopback},
-		{"Metadata file", s.MetadataLoopback},
-		{"Data Space Used", fmt.Sprintf("%s", units.HumanSize(int64(s.Data.Used)))},
-		{"Data Space Total", fmt.Sprintf("%s", units.HumanSize(int64(s.Data.Total)))},
-		{"Metadata Space Used", fmt.Sprintf("%s", units.HumanSize(int64(s.Metadata.Used)))},
-		{"Metadata Space Total", fmt.Sprintf("%s", units.HumanSize(int64(s.Metadata.Total)))},
+		{"Pool Blocksize", fmt.Sprintf("%s", units.HumanSize(float64(s.SectorSize)))},
+		{"Backing Filesystem", backingFs},
+		{"Data file", s.DataFile},
+		{"Metadata file", s.MetadataFile},
+		{"Data Space Used", fmt.Sprintf("%s", units.HumanSize(float64(s.Data.Used)))},
+		{"Data Space Total", fmt.Sprintf("%s", units.HumanSize(float64(s.Data.Total)))},
+		{"Data Space Available", fmt.Sprintf("%s", units.HumanSize(float64(s.Data.Available)))},
+		{"Metadata Space Used", fmt.Sprintf("%s", units.HumanSize(float64(s.Metadata.Used)))},
+		{"Metadata Space Total", fmt.Sprintf("%s", units.HumanSize(float64(s.Metadata.Total)))},
+		{"Metadata Space Available", fmt.Sprintf("%s", units.HumanSize(float64(s.Metadata.Available)))},
+		{"Udev Sync Supported", fmt.Sprintf("%v", s.UdevSyncSupported)},
+		{"Deferred Removal Enabled", fmt.Sprintf("%v", s.DeferredRemoveEnabled)},
+	}
+	if len(s.DataLoopback) > 0 {
+		status = append(status, [2]string{"Data loop file", s.DataLoopback})
+	}
+	if len(s.MetadataLoopback) > 0 {
+		status = append(status, [2]string{"Metadata loop file", s.MetadataLoopback})
 	}
 	if vStr, err := devicemapper.GetLibraryVersion(); err == nil {
 		status = append(status, [2]string{"Library Version", vStr})
 	}
 	return status
+}
+
+func (d *Driver) GetMetadata(id string) (map[string]string, error) {
+	m, err := d.DeviceSet.ExportDeviceMetadata(id)
+
+	if err != nil {
+		return nil, err
+	}
+
+	metadata := make(map[string]string)
+	metadata["DeviceId"] = strconv.Itoa(m.deviceId)
+	metadata["DeviceSize"] = strconv.FormatUint(m.deviceSize, 10)
+	metadata["DeviceName"] = m.deviceName
+	return metadata, nil
 }
 
 func (d *Driver) Cleanup() error {
@@ -141,10 +177,12 @@ func (d *Driver) Get(id, mountLabel string) (string, error) {
 	return rootFs, nil
 }
 
-func (d *Driver) Put(id string) {
-	if err := d.DeviceSet.UnmountDevice(id); err != nil {
-		log.Errorf("Warning: error unmounting device %s: %s", id, err)
+func (d *Driver) Put(id string) error {
+	err := d.DeviceSet.UnmountDevice(id)
+	if err != nil {
+		logrus.Errorf("Error unmounting device %s: %s", id, err)
 	}
+	return err
 }
 
 func (d *Driver) Exists(id string) bool {

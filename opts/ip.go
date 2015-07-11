@@ -22,10 +22,13 @@ func (o *IpOpt) Set(val string) error {
 	if ip == nil {
 		return fmt.Errorf("%s is not an ip address", val)
 	}
-	(*o.IP) = net.ParseIP(val)
+	*o.IP = ip
 	return nil
 }
 
 func (o *IpOpt) String() string {
-	return (*o.IP).String()
+	if *o.IP == nil {
+		return ""
+	}
+	return o.IP.String()
 }

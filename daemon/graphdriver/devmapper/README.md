@@ -28,129 +28,57 @@ containers. All base images are snapshots of this device and those
 images are then in turn used as snapshots for other images and
 eventually containers.
 
-### options
+### Information on `docker info`
+
+As of docker-1.4.1, `docker info` when using the `devicemapper` storage driver
+will display something like:
+
+	$ sudo docker info
+	[...]
+	Storage Driver: devicemapper
+	 Pool Name: docker-253:1-17538953-pool
+	 Pool Blocksize: 65.54 kB
+	 Data file: /dev/loop4
+	 Metadata file: /dev/loop4
+	 Data Space Used: 2.536 GB
+	 Data Space Total: 107.4 GB
+	 Data Space Available: 104.8 GB
+	 Metadata Space Used: 7.93 MB
+	 Metadata Space Total: 2.147 GB
+	 Metadata Space Available: 2.14 GB
+	 Udev Sync Supported: true
+	 Data loop file: /home/docker/devicemapper/devicemapper/data
+	 Metadata loop file: /home/docker/devicemapper/devicemapper/metadata
+	 Library Version: 1.02.82-git (2013-10-04)
+	[...]
+
+#### status items
+
+Each item in the indented section under `Storage Driver: devicemapper` are
+status information about the driver.
+ *  `Pool Name` name of the devicemapper pool for this driver.
+ *  `Pool Blocksize` tells the blocksize the thin pool was initialized with. This only changes on creation.
+ *  `Data file` blockdevice file used for the devicemapper data
+ *  `Metadata file` blockdevice file used for the devicemapper metadata
+ *  `Data Space Used` tells how much of `Data file` is currently used
+ *  `Data Space Total` tells max size the `Data file`
+ *  `Data Space Available` tells how much free space there is in the `Data file`. If you are using a loop device this will report the actual space available to the loop device on the underlying filesystem.
+ *  `Metadata Space Used` tells how much of `Metadata file` is currently used
+ *  `Metadata Space Total` tells max size the `Metadata file`
+ *  `Metadata Space Available` tells how much free space there is in the `Metadata file`. If you are using a loop device this will report the actual space available to the loop device on the underlying filesystem.
+ *  `Udev Sync Supported` tells whether devicemapper is able to sync with Udev. Should be `true`.
+ *  `Data loop file` file attached to `Data file`, if loopback device is used
+ *  `Metadata loop file` file attached to `Metadata file`, if loopback device is used
+ *  `Library Version` from the libdevmapper used
+
+### About the devicemapper options
 
 The devicemapper backend supports some options that you can specify
 when starting the docker daemon using the `--storage-opt` flags.
 This uses the `dm` prefix and would be used something like `docker -d --storage-opt dm.foo=bar`.
 
-Here is the list of supported options:
-
- *  `dm.basesize`
-
-    Specifies the size to use when creating the base device, which
-    limits the size of images and containers. The default value is
-    10G. Note, thin devices are inherently "sparse", so a 10G device
-    which is mostly empty doesn't use 10 GB of space on the
-    pool. However, the filesystem will use more space for the empty
-    case the larger the device is. **Warning**: This value affects the
-    system-wide "base" empty filesystem that may already be
-    initialized and inherited by pulled images.  Typically, a change
-    to this value will require additional steps to take effect: 1)
-    stop `docker -d`, 2) `rm -rf /var/lib/docker`, 3) start `docker -d`.
-
-    Example use:
-
-    ``docker -d --storage-opt dm.basesize=20G``
-
- *  `dm.loopdatasize`
-
-    Specifies the size to use when creating the loopback file for the
-    "data" device which is used for the thin pool. The default size is
-    100G. Note that the file is sparse, so it will not initially take
-    up this much space.
-
-    Example use:
-
-    ``docker -d --storage-opt dm.loopdatasize=200G``
-
- *  `dm.loopmetadatasize`
-
-    Specifies the size to use when creating the loopback file for the
-    "metadadata" device which is used for the thin pool. The default size is
-    2G. Note that the file is sparse, so it will not initially take
-    up this much space.
-
-    Example use:
-
-    ``docker -d --storage-opt dm.loopmetadatasize=4G``
-
- *  `dm.fs`
-
-    Specifies the filesystem type to use for the base device. The supported
-    options are "ext4" and "xfs". The default is "ext4"
-
-    Example use:
-
-    ``docker -d --storage-opt dm.fs=xfs``
-
- *  `dm.mkfsarg`
-
-    Specifies extra mkfs arguments to be used when creating the base device.
-
-    Example use:
-
-    ``docker -d --storage-opt "dm.mkfsarg=-O ^has_journal"``
-
- *  `dm.mountopt`
-
-    Specifies extra mount options used when mounting the thin devices.
-
-    Example use:
-
-    ``docker -d --storage-opt dm.mountopt=nodiscard``
-
- *  `dm.datadev`
-
-    Specifies a custom blockdevice to use for data for the thin pool.
-
-    If using a block device for device mapper storage, ideally both
-    datadev and metadatadev should be specified to completely avoid
-    using the loopback device.
-
-    Example use:
-
-    ``docker -d --storage-opt dm.datadev=/dev/sdb1 --storage-opt dm.metadatadev=/dev/sdc1``
-
- *  `dm.metadatadev`
-
-    Specifies a custom blockdevice to use for metadata for the thin
-    pool.
-
-    For best performance the metadata should be on a different spindle
-    than the data, or even better on an SSD.
-
-    If setting up a new metadata pool it is required to be valid. This
-    can be achieved by zeroing the first 4k to indicate empty
-    metadata, like this:
-
-    ``dd if=/dev/zero of=$metadata_dev bs=4096 count=1```
-
-    Example use:
-
-    ``docker -d --storage-opt dm.datadev=/dev/sdb1 --storage-opt dm.metadatadev=/dev/sdc1``
-
- *  `dm.blocksize`
-
-    Specifies a custom blocksize to use for the thin pool.  The default
-    blocksize is 64K.
-
-    Example use:
-
-    ``docker -d --storage-opt dm.blocksize=512K``
-
- *  `dm.blkdiscard`
-
-    Enables or disables the use of blkdiscard when removing
-    devicemapper devices. This is enabled by default (only) if using
-    loopback devices and is required to res-parsify the loopback file
-    on image/container removal.
-
-    Disabling this on loopback can lead to *much* faster container
-    removal times, but will make the space used in /var/lib/docker
-    directory not be returned to the system for other use when
-    containers are removed.
-
-    Example use:
-
-    ``docker -d --storage-opt dm.blkdiscard=false``
+These options are currently documented both in [the man
+page](../../../man/docker.1.md) and in [the online
+documentation](https://docs.docker.com/reference/commandline/daemon/#docker-
+execdriver-option).  If you add an options, update both the `man` page and the
+documentation.

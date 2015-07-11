@@ -4,6 +4,7 @@ package term
 
 import (
 	"errors"
+	"io"
 	"os"
 	"os/signal"
 	"syscall"
@@ -23,6 +24,20 @@ type Winsize struct {
 	Width  uint16
 	x      uint16
 	y      uint16
+}
+
+func StdStreams() (stdIn io.ReadCloser, stdOut, stdErr io.Writer) {
+	return os.Stdin, os.Stdout, os.Stderr
+}
+
+func GetFdInfo(in interface{}) (uintptr, bool) {
+	var inFd uintptr
+	var isTerminalIn bool
+	if file, ok := in.(*os.File); ok {
+		inFd = file.Fd()
+		isTerminalIn = IsTerminal(inFd)
+	}
+	return inFd, isTerminalIn
 }
 
 func GetWinsize(fd uintptr) (*Winsize, error) {
@@ -47,8 +62,7 @@ func SetWinsize(fd uintptr, ws *Winsize) error {
 // IsTerminal returns true if the given file descriptor is a terminal.
 func IsTerminal(fd uintptr) bool {
 	var termios Termios
-	_, _, err := syscall.Syscall(syscall.SYS_IOCTL, fd, uintptr(getTermios), uintptr(unsafe.Pointer(&termios)))
-	return err == 0
+	return tcget(fd, &termios) == 0
 }
 
 // Restore restores the terminal connected to the given file descriptor to a
@@ -57,8 +71,7 @@ func RestoreTerminal(fd uintptr, state *State) error {
 	if state == nil {
 		return ErrInvalidState
 	}
-	_, _, err := syscall.Syscall(syscall.SYS_IOCTL, fd, uintptr(setTermios), uintptr(unsafe.Pointer(&state.termios)))
-	if err != 0 {
+	if err := tcset(fd, &state.termios); err != 0 {
 		return err
 	}
 	return nil
@@ -66,7 +79,7 @@ func RestoreTerminal(fd uintptr, state *State) error {
 
 func SaveState(fd uintptr) (*State, error) {
 	var oldState State
-	if _, _, err := syscall.Syscall(syscall.SYS_IOCTL, fd, getTermios, uintptr(unsafe.Pointer(&oldState.termios))); err != 0 {
+	if err := tcget(fd, &oldState.termios); err != 0 {
 		return nil, err
 	}
 
@@ -77,7 +90,7 @@ func DisableEcho(fd uintptr, state *State) error {
 	newState := state.termios
 	newState.Lflag &^= syscall.ECHO
 
-	if _, _, err := syscall.Syscall(syscall.SYS_IOCTL, fd, setTermios, uintptr(unsafe.Pointer(&newState))); err != 0 {
+	if err := tcset(fd, &newState); err != 0 {
 		return err
 	}
 	handleInterrupt(fd, state)

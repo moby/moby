@@ -1,3 +1,5 @@
+// +build linux
+
 package fs
 
 import (
@@ -9,15 +11,56 @@ import (
 	"strings"
 
 	"github.com/docker/libcontainer/cgroups"
+	"github.com/docker/libcontainer/configs"
 )
 
 type BlkioGroup struct {
 }
 
-func (s *BlkioGroup) Set(d *data) error {
-	// we just want to join this group even though we don't set anything
-	if _, err := d.join("blkio"); err != nil && !cgroups.IsNotFound(err) {
+func (s *BlkioGroup) Apply(d *data) error {
+	dir, err := d.join("blkio")
+	if err != nil && !cgroups.IsNotFound(err) {
 		return err
+	}
+
+	if err := s.Set(dir, d.c); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (s *BlkioGroup) Set(path string, cgroup *configs.Cgroup) error {
+	if cgroup.BlkioWeight != 0 {
+		if err := writeFile(path, "blkio.weight", strconv.FormatInt(cgroup.BlkioWeight, 10)); err != nil {
+			return err
+		}
+	}
+
+	if cgroup.BlkioWeightDevice != "" {
+		if err := writeFile(path, "blkio.weight_device", cgroup.BlkioWeightDevice); err != nil {
+			return err
+		}
+	}
+	if cgroup.BlkioThrottleReadBpsDevice != "" {
+		if err := writeFile(path, "blkio.throttle.read_bps_device", cgroup.BlkioThrottleReadBpsDevice); err != nil {
+			return err
+		}
+	}
+	if cgroup.BlkioThrottleWriteBpsDevice != "" {
+		if err := writeFile(path, "blkio.throttle.write_bps_device", cgroup.BlkioThrottleWriteBpsDevice); err != nil {
+			return err
+		}
+	}
+	if cgroup.BlkioThrottleReadIOpsDevice != "" {
+		if err := writeFile(path, "blkio.throttle.read_iops_device", cgroup.BlkioThrottleReadIOpsDevice); err != nil {
+			return err
+		}
+	}
+	if cgroup.BlkioThrottleWriteIOpsDevice != "" {
+		if err := writeFile(path, "blkio.throttle.write_iops_device", cgroup.BlkioThrottleWriteIOpsDevice); err != nil {
+			return err
+		}
 	}
 
 	return nil

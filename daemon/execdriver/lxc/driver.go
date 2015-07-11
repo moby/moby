@@ -1,3 +1,5 @@
+// +build linux
+
 package lxc
 
 import (
@@ -10,19 +12,26 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
-	"github.com/kr/pty"
-
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/execdriver"
+	"github.com/docker/docker/pkg/stringutils"
+	sysinfo "github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/pkg/term"
-	"github.com/docker/docker/utils"
+	"github.com/docker/docker/pkg/version"
+	"github.com/docker/libcontainer"
 	"github.com/docker/libcontainer/cgroups"
-	"github.com/docker/libcontainer/mount/nodes"
+	"github.com/docker/libcontainer/configs"
+	"github.com/docker/libcontainer/system"
+	"github.com/docker/libcontainer/user"
+	"github.com/kr/pty"
+	"github.com/vishvananda/netns"
 )
 
 const DriverName = "lxc"
@@ -30,23 +39,41 @@ const DriverName = "lxc"
 var ErrExec = errors.New("Unsupported: Exec is not supported by the lxc driver")
 
 type driver struct {
-	root       string // root path for the driver to use
-	initPath   string
-	apparmor   bool
-	sharedRoot bool
+	root             string // root path for the driver to use
+	libPath          string
+	initPath         string
+	apparmor         bool
+	sharedRoot       bool
+	activeContainers map[string]*activeContainer
+	machineMemory    int64
+	sync.Mutex
 }
 
-func NewDriver(root, initPath string, apparmor bool) (*driver, error) {
+type activeContainer struct {
+	container *configs.Config
+	cmd       *exec.Cmd
+}
+
+func NewDriver(root, libPath, initPath string, apparmor bool) (*driver, error) {
+	if err := os.MkdirAll(root, 0700); err != nil {
+		return nil, err
+	}
 	// setup unconfined symlink
 	if err := linkLxcStart(root); err != nil {
 		return nil, err
 	}
-
+	meminfo, err := sysinfo.ReadMemInfo()
+	if err != nil {
+		return nil, err
+	}
 	return &driver{
-		apparmor:   apparmor,
-		root:       root,
-		initPath:   initPath,
-		sharedRoot: rootIsShared(),
+		apparmor:         apparmor,
+		root:             root,
+		libPath:          libPath,
+		initPath:         initPath,
+		sharedRoot:       rootIsShared(),
+		activeContainers: make(map[string]*activeContainer),
+		machineMemory:    meminfo.MemTotal,
 	}, nil
 }
 
@@ -55,18 +82,73 @@ func (d *driver) Name() string {
 	return fmt.Sprintf("%s-%s", DriverName, version)
 }
 
+func setupNetNs(nsPath string) (*os.Process, error) {
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+
+	origns, err := netns.Get()
+	if err != nil {
+		return nil, err
+	}
+	defer origns.Close()
+
+	f, err := os.OpenFile(nsPath, os.O_RDONLY, 0)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get network namespace %q: %v", nsPath, err)
+	}
+	defer f.Close()
+
+	nsFD := f.Fd()
+	if err := netns.Set(netns.NsHandle(nsFD)); err != nil {
+		return nil, fmt.Errorf("failed to set network namespace %q: %v", nsPath, err)
+	}
+	defer netns.Set(origns)
+
+	cmd := exec.Command("/bin/sh", "-c", "while true; do sleep 1; done")
+	if err := cmd.Start(); err != nil {
+		return nil, fmt.Errorf("failed to start netns process: %v", err)
+	}
+
+	return cmd.Process, nil
+}
+
+func killNetNsProc(proc *os.Process) {
+	proc.Kill()
+	proc.Wait()
+}
+
 func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallback execdriver.StartCallback) (execdriver.ExitStatus, error) {
 	var (
-		term execdriver.Terminal
-		err  error
+		term     execdriver.Terminal
+		err      error
+		dataPath = d.containerDir(c.ID)
 	)
+
+	if c.Network == nil || (c.Network.NamespacePath == "" && c.Network.ContainerID == "") {
+		return execdriver.ExitStatus{ExitCode: -1}, fmt.Errorf("empty namespace path for non-container network")
+	}
+
+	container, err := d.createContainer(c)
+	if err != nil {
+		return execdriver.ExitStatus{ExitCode: -1}, err
+	}
 
 	if c.ProcessConfig.Tty {
 		term, err = NewTtyConsole(&c.ProcessConfig, pipes)
 	} else {
 		term, err = execdriver.NewStdConsole(&c.ProcessConfig, pipes)
 	}
+	if err != nil {
+		return execdriver.ExitStatus{ExitCode: -1}, err
+	}
 	c.ProcessConfig.Terminal = term
+
+	d.Lock()
+	d.activeContainers[c.ID] = &activeContainer{
+		container: container,
+		cmd:       &c.ProcessConfig.Cmd,
+	}
+	d.Unlock()
 
 	c.Mounts = append(c.Mounts, execdriver.Mount{
 		Source:      d.initPath,
@@ -76,35 +158,55 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 	})
 
 	if err := d.generateEnvConfig(c); err != nil {
-		return execdriver.ExitStatus{-1, false}, err
+		return execdriver.ExitStatus{ExitCode: -1}, err
 	}
 	configPath, err := d.generateLXCConfig(c)
 	if err != nil {
-		return execdriver.ExitStatus{-1, false}, err
+		return execdriver.ExitStatus{ExitCode: -1}, err
 	}
 	params := []string{
 		"lxc-start",
 		"-n", c.ID,
 		"-f", configPath,
+		"-q",
 	}
+
+	// From lxc>=1.1 the default behavior is to daemonize containers after start
+	lxcVersion := version.Version(d.version())
+	if lxcVersion.GreaterThanOrEqualTo(version.Version("1.1")) {
+		params = append(params, "-F")
+	}
+
+	proc := &os.Process{}
 	if c.Network.ContainerID != "" {
 		params = append(params,
 			"--share-net", c.Network.ContainerID,
 		)
+	} else {
+		proc, err = setupNetNs(c.Network.NamespacePath)
+		if err != nil {
+			return execdriver.ExitStatus{ExitCode: -1}, err
+		}
+
+		pidStr := fmt.Sprintf("%d", proc.Pid)
+		params = append(params,
+			"--share-net", pidStr)
+	}
+	if c.Ipc != nil {
+		if c.Ipc.ContainerID != "" {
+			params = append(params,
+				"--share-ipc", c.Ipc.ContainerID,
+			)
+		} else if c.Ipc.HostIpc {
+			params = append(params,
+				"--share-ipc", "1",
+			)
+		}
 	}
 
 	params = append(params,
 		"--",
 		c.InitPath,
-	)
-	if c.Network.Interface != nil {
-		params = append(params,
-			"-g", c.Network.Interface.Gateway,
-			"-i", fmt.Sprintf("%s/%d", c.Network.Interface.IPAddress, c.Network.Interface.IPPrefixLen),
-		)
-	}
-	params = append(params,
-		"-mtu", strconv.Itoa(c.Network.Mtu),
 	)
 
 	if c.ProcessConfig.User != "" {
@@ -123,14 +225,6 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 		params = append(params, "-w", c.WorkingDir)
 	}
 
-	if len(c.CapAdd) > 0 {
-		params = append(params, fmt.Sprintf("-cap-add=%s", strings.Join(c.CapAdd, ":")))
-	}
-
-	if len(c.CapDrop) > 0 {
-		params = append(params, fmt.Sprintf("-cap-drop=%s", strings.Join(c.CapDrop, ":")))
-	}
-
 	params = append(params, "--", c.ProcessConfig.Entrypoint)
 	params = append(params, c.ProcessConfig.Arguments...)
 
@@ -143,13 +237,13 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 		// without exec in go we have to do this horrible shell hack...
 		shellString :=
 			"mount --make-rslave /; exec " +
-				utils.ShellQuoteArguments(params)
+				stringutils.ShellQuoteArguments(params)
 
 		params = []string{
 			"unshare", "-m", "--", "/bin/sh", "-c", shellString,
 		}
 	}
-
+	logrus.Debugf("lxc params %s", params)
 	var (
 		name = params[0]
 		arg  = params[1:]
@@ -161,12 +255,14 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 	c.ProcessConfig.Path = aname
 	c.ProcessConfig.Args = append([]string{name}, arg...)
 
-	if err := nodes.CreateDeviceNodes(c.Rootfs, c.AutoCreatedDevices); err != nil {
-		return execdriver.ExitStatus{-1, false}, err
+	if err := createDeviceNodes(c.Rootfs, c.AutoCreatedDevices); err != nil {
+		killNetNsProc(proc)
+		return execdriver.ExitStatus{ExitCode: -1}, err
 	}
 
 	if err := c.ProcessConfig.Start(); err != nil {
-		return execdriver.ExitStatus{-1, false}, err
+		killNetNsProc(proc)
+		return execdriver.ExitStatus{ExitCode: -1}, err
 	}
 
 	var (
@@ -183,25 +279,231 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 		close(waitLock)
 	}()
 
-	// Poll lxc for RUNNING status
-	pid, err := d.waitForStart(c, waitLock)
-	if err != nil {
+	terminate := func(terr error) (execdriver.ExitStatus, error) {
 		if c.ProcessConfig.Process != nil {
 			c.ProcessConfig.Process.Kill()
 			c.ProcessConfig.Wait()
 		}
-		return execdriver.ExitStatus{-1, false}, err
+		return execdriver.ExitStatus{ExitCode: -1}, terr
+	}
+	// Poll lxc for RUNNING status
+	pid, err := d.waitForStart(c, waitLock)
+	if err != nil {
+		killNetNsProc(proc)
+		return terminate(err)
+	}
+	killNetNsProc(proc)
+
+	cgroupPaths, err := cgroupPaths(c.ID)
+	if err != nil {
+		return terminate(err)
+	}
+
+	state := &libcontainer.State{
+		InitProcessPid: pid,
+		CgroupPaths:    cgroupPaths,
+	}
+
+	f, err := os.Create(filepath.Join(dataPath, "state.json"))
+	if err != nil {
+		return terminate(err)
+	}
+	defer f.Close()
+
+	if err := json.NewEncoder(f).Encode(state); err != nil {
+		return terminate(err)
 	}
 
 	c.ContainerPid = pid
 
 	if startCallback != nil {
+		logrus.Debugf("Invoking startCallback")
 		startCallback(&c.ProcessConfig, pid)
 	}
 
-	<-waitLock
+	oomKill := false
+	oomKillNotification, err := notifyOnOOM(cgroupPaths)
 
-	return execdriver.ExitStatus{getExitCode(c), false}, waitErr
+	<-waitLock
+	exitCode := getExitCode(c)
+
+	if err == nil {
+		_, oomKill = <-oomKillNotification
+		logrus.Debugf("oomKill error: %v, waitErr: %v", oomKill, waitErr)
+	} else {
+		logrus.Warnf("Your kernel does not support OOM notifications: %s", err)
+	}
+
+	// check oom error
+	if oomKill {
+		exitCode = 137
+	}
+
+	return execdriver.ExitStatus{ExitCode: exitCode, OOMKilled: oomKill}, waitErr
+}
+
+// copy from libcontainer
+func notifyOnOOM(paths map[string]string) (<-chan struct{}, error) {
+	dir := paths["memory"]
+	if dir == "" {
+		return nil, fmt.Errorf("There is no path for %q in state", "memory")
+	}
+	oomControl, err := os.Open(filepath.Join(dir, "memory.oom_control"))
+	if err != nil {
+		return nil, err
+	}
+	fd, _, syserr := syscall.RawSyscall(syscall.SYS_EVENTFD2, 0, syscall.FD_CLOEXEC, 0)
+	if syserr != 0 {
+		oomControl.Close()
+		return nil, syserr
+	}
+
+	eventfd := os.NewFile(fd, "eventfd")
+
+	eventControlPath := filepath.Join(dir, "cgroup.event_control")
+	data := fmt.Sprintf("%d %d", eventfd.Fd(), oomControl.Fd())
+	if err := ioutil.WriteFile(eventControlPath, []byte(data), 0700); err != nil {
+		eventfd.Close()
+		oomControl.Close()
+		return nil, err
+	}
+	ch := make(chan struct{})
+	go func() {
+		defer func() {
+			close(ch)
+			eventfd.Close()
+			oomControl.Close()
+		}()
+		buf := make([]byte, 8)
+		for {
+			if _, err := eventfd.Read(buf); err != nil {
+				return
+			}
+			// When a cgroup is destroyed, an event is sent to eventfd.
+			// So if the control path is gone, return instead of notifying.
+			if _, err := os.Lstat(eventControlPath); os.IsNotExist(err) {
+				return
+			}
+			ch <- struct{}{}
+		}
+	}()
+	return ch, nil
+}
+
+// createContainer populates and configures the container type with the
+// data provided by the execdriver.Command
+func (d *driver) createContainer(c *execdriver.Command) (*configs.Config, error) {
+	container := execdriver.InitContainer(c)
+	if err := execdriver.SetupCgroups(container, c); err != nil {
+		return nil, err
+	}
+	return container, nil
+}
+
+// Return an map of susbystem -> container cgroup
+func cgroupPaths(containerId string) (map[string]string, error) {
+	subsystems, err := cgroups.GetAllSubsystems()
+	if err != nil {
+		return nil, err
+	}
+	logrus.Debugf("subsystems: %s", subsystems)
+	paths := make(map[string]string)
+	for _, subsystem := range subsystems {
+		cgroupRoot, cgroupDir, err := findCgroupRootAndDir(subsystem)
+		logrus.Debugf("cgroup path %s %s", cgroupRoot, cgroupDir)
+		if err != nil {
+			//unsupported subystem
+			continue
+		}
+		path := filepath.Join(cgroupRoot, cgroupDir, "lxc", containerId)
+		paths[subsystem] = path
+	}
+
+	return paths, nil
+}
+
+// this is copy from old libcontainer nodes.go
+func createDeviceNodes(rootfs string, nodesToCreate []*configs.Device) error {
+	oldMask := syscall.Umask(0000)
+	defer syscall.Umask(oldMask)
+
+	for _, node := range nodesToCreate {
+		if err := createDeviceNode(rootfs, node); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// Creates the device node in the rootfs of the container.
+func createDeviceNode(rootfs string, node *configs.Device) error {
+	var (
+		dest   = filepath.Join(rootfs, node.Path)
+		parent = filepath.Dir(dest)
+	)
+
+	if err := os.MkdirAll(parent, 0755); err != nil {
+		return err
+	}
+
+	fileMode := node.FileMode
+	switch node.Type {
+	case 'c':
+		fileMode |= syscall.S_IFCHR
+	case 'b':
+		fileMode |= syscall.S_IFBLK
+	default:
+		return fmt.Errorf("%c is not a valid device type for device %s", node.Type, node.Path)
+	}
+
+	if err := syscall.Mknod(dest, uint32(fileMode), node.Mkdev()); err != nil && !os.IsExist(err) {
+		return fmt.Errorf("mknod %s %s", node.Path, err)
+	}
+
+	if err := syscall.Chown(dest, int(node.Uid), int(node.Gid)); err != nil {
+		return fmt.Errorf("chown %s to %d:%d", node.Path, node.Uid, node.Gid)
+	}
+
+	return nil
+}
+
+// setupUser changes the groups, gid, and uid for the user inside the container
+// copy from libcontainer, cause not it's private
+func setupUser(userSpec string) error {
+	// Set up defaults.
+	defaultExecUser := user.ExecUser{
+		Uid:  syscall.Getuid(),
+		Gid:  syscall.Getgid(),
+		Home: "/",
+	}
+	passwdPath, err := user.GetPasswdPath()
+	if err != nil {
+		return err
+	}
+	groupPath, err := user.GetGroupPath()
+	if err != nil {
+		return err
+	}
+	execUser, err := user.GetExecUserPath(userSpec, &defaultExecUser, passwdPath, groupPath)
+	if err != nil {
+		return err
+	}
+	if err := syscall.Setgroups(execUser.Sgids); err != nil {
+		return err
+	}
+	if err := system.Setgid(execUser.Gid); err != nil {
+		return err
+	}
+	if err := system.Setuid(execUser.Uid); err != nil {
+		return err
+	}
+	// if we didn't get HOME already, set it based on the user's HOME
+	if envHome := os.Getenv("HOME"); envHome == "" {
+		if err := os.Setenv("HOME", execUser.Home); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 /// Return the exit code of the process
@@ -214,7 +516,11 @@ func getExitCode(c *execdriver.Command) int {
 }
 
 func (d *driver) Kill(c *execdriver.Command, sig int) error {
-	return KillLxc(c.ID, sig)
+	if sig == 9 || c.ProcessConfig.Process == nil {
+		return KillLxc(c.ID, sig)
+	}
+
+	return c.ProcessConfig.Process.Signal(syscall.Signal(sig))
 }
 
 func (d *driver) Pause(c *execdriver.Command) error {
@@ -274,7 +580,8 @@ func KillLxc(id string, sig int) error {
 	if err == nil {
 		output, err = exec.Command("lxc-kill", "-n", id, strconv.Itoa(sig)).CombinedOutput()
 	} else {
-		output, err = exec.Command("lxc-stop", "-k", "-n", id, strconv.Itoa(sig)).CombinedOutput()
+		// lxc-stop does not take arbitrary signals like lxc-kill does
+		output, err = exec.Command("lxc-stop", "-k", "-n", id).CombinedOutput()
 	}
 	if err != nil {
 		return fmt.Errorf("Err: %s Output: %s", err, output)
@@ -329,7 +636,7 @@ func (i *info) IsRunning() bool {
 
 	output, err := i.driver.getInfo(i.ID)
 	if err != nil {
-		log.Errorf("Error getting info for lxc container %s: %s (%s)", i.ID, err, output)
+		logrus.Errorf("Error getting info for lxc container %s: %s (%s)", i.ID, err, output)
 		return false
 	}
 	if strings.Contains(string(output), "RUNNING") {
@@ -345,17 +652,25 @@ func (d *driver) Info(id string) execdriver.Info {
 	}
 }
 
+func findCgroupRootAndDir(subsystem string) (string, string, error) {
+	cgroupRoot, err := cgroups.FindCgroupMountpoint(subsystem)
+	if err != nil {
+		return "", "", err
+	}
+
+	cgroupDir, err := cgroups.GetThisCgroupDir(subsystem)
+	if err != nil {
+		return "", "", err
+	}
+	return cgroupRoot, cgroupDir, nil
+}
+
 func (d *driver) GetPidsForContainer(id string) ([]int, error) {
 	pids := []int{}
 
 	// cpu is chosen because it is the only non optional subsystem in cgroups
 	subsystem := "cpu"
-	cgroupRoot, err := cgroups.FindCgroupMountpoint(subsystem)
-	if err != nil {
-		return pids, err
-	}
-
-	cgroupDir, err := cgroups.GetThisCgroupDir(subsystem)
+	cgroupRoot, cgroupDir, err := findCgroupRootAndDir(subsystem)
 	if err != nil {
 		return pids, err
 	}
@@ -415,8 +730,12 @@ func rootIsShared() bool {
 	return true
 }
 
+func (d *driver) containerDir(containerId string) string {
+	return path.Join(d.libPath, "containers", containerId)
+}
+
 func (d *driver) generateLXCConfig(c *execdriver.Command) (string, error) {
-	root := path.Join(d.root, "containers", c.ID, "config.lxc")
+	root := path.Join(d.containerDir(c.ID), "config.lxc")
 
 	fo, err := os.Create(root)
 	if err != nil {
@@ -442,7 +761,7 @@ func (d *driver) generateEnvConfig(c *execdriver.Command) error {
 	if err != nil {
 		return err
 	}
-	p := path.Join(d.root, "containers", c.ID, "config.env")
+	p := path.Join(d.libPath, "containers", c.ID, "config.env")
 	c.Mounts = append(c.Mounts, execdriver.Mount{
 		Source:      p,
 		Destination: "/.dockerenv",
@@ -531,4 +850,11 @@ func (t *TtyConsole) Close() error {
 
 func (d *driver) Exec(c *execdriver.Command, processConfig *execdriver.ProcessConfig, pipes *execdriver.Pipes, startCallback execdriver.StartCallback) (int, error) {
 	return -1, ErrExec
+}
+
+func (d *driver) Stats(id string) (*execdriver.ResourceStats, error) {
+	if _, ok := d.activeContainers[id]; !ok {
+		return nil, fmt.Errorf("%s is not a key in active containers", id)
+	}
+	return execdriver.Stats(d.containerDir(id), d.activeContainers[id].container.Cgroups.Memory, d.machineMemory)
 }

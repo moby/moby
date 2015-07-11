@@ -1,14 +1,15 @@
+// +build linux windows
+
 package vfs
 
 import (
-	"bytes"
 	"fmt"
 	"os"
-	"os/exec"
-	"path"
+	"path/filepath"
 
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/pkg/chrootarchive"
+	"github.com/docker/docker/pkg/system"
 	"github.com/docker/libcontainer/label"
 )
 
@@ -35,21 +36,17 @@ func (d *Driver) Status() [][2]string {
 	return nil
 }
 
+func (d *Driver) GetMetadata(id string) (map[string]string, error) {
+	return nil, nil
+}
+
 func (d *Driver) Cleanup() error {
 	return nil
 }
 
-func isGNUcoreutils() bool {
-	if stdout, err := exec.Command("cp", "--version").Output(); err == nil {
-		return bytes.Contains(stdout, []byte("GNU coreutils"))
-	}
-
-	return false
-}
-
 func (d *Driver) Create(id, parent string) error {
 	dir := d.dir(id)
-	if err := os.MkdirAll(path.Dir(dir), 0700); err != nil {
+	if err := system.MkdirAll(filepath.Dir(dir), 0700); err != nil {
 		return err
 	}
 	if err := os.Mkdir(dir, 0755); err != nil {
@@ -57,7 +54,7 @@ func (d *Driver) Create(id, parent string) error {
 	}
 	opts := []string{"level:s0"}
 	if _, mountLabel, err := label.InitLabels(opts); err == nil {
-		label.Relabel(dir, mountLabel, "")
+		label.SetFileLabel(dir, mountLabel)
 	}
 	if parent == "" {
 		return nil
@@ -73,7 +70,7 @@ func (d *Driver) Create(id, parent string) error {
 }
 
 func (d *Driver) dir(id string) string {
-	return path.Join(d.home, "dir", path.Base(id))
+	return filepath.Join(d.home, "dir", filepath.Base(id))
 }
 
 func (d *Driver) Remove(id string) error {
@@ -93,9 +90,10 @@ func (d *Driver) Get(id, mountLabel string) (string, error) {
 	return dir, nil
 }
 
-func (d *Driver) Put(id string) {
+func (d *Driver) Put(id string) error {
 	// The vfs driver has no runtime resources (e.g. mounts)
 	// to clean up, so we don't need anything here
+	return nil
 }
 
 func (d *Driver) Exists(id string) bool {

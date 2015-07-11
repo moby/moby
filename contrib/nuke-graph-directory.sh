@@ -50,9 +50,10 @@ for mount in $(awk '{ print $5 }' /proc/self/mountinfo); do
 done
 
 # now, let's go destroy individual btrfs subvolumes, if any exist
-if command -v btrfs &> /dev/null; then
+if command -v btrfs > /dev/null 2>&1; then
 	root="$(df "$dir" | awk 'NR>1 { print $NF }')"
-	for subvol in $(btrfs subvolume list -o "$root" 2>/dev/null | awk -F' path ' '{ print $2 }'); do
+	root="${root#/}" # if root is "/", we want it to become ""
+	for subvol in $(btrfs subvolume list -o "$root/" 2>/dev/null | awk -F' path ' '{ print $2 }' | sort -r); do
 		subvolDir="$root/$subvol"
 		if dir_in_dir "$subvolDir" "$dir"; then
 			( set -x; btrfs subvolume delete "$subvolDir" )

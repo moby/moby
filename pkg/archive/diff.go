@@ -1,38 +1,22 @@
 package archive
 
 import (
+	"archive/tar"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"syscall"
 
-	"github.com/docker/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
-
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/pools"
 	"github.com/docker/docker/pkg/system"
 )
 
-// ApplyLayer parses a diff in the standard layer format from `layer`, and
-// applies it to the directory `dest`.
-func ApplyLayer(dest string, layer ArchiveReader) error {
-	dest = filepath.Clean(dest)
-
-	// We need to be able to set any perms
-	oldmask, err := system.Umask(0)
-	if err != nil {
-		return err
-	}
-
-	defer system.Umask(oldmask) // ignore err, ErrNotSupportedPlatform
-
-	layer, err = DecompressStream(layer)
-	if err != nil {
-		return err
-	}
-
+func UnpackLayer(dest string, layer ArchiveReader) (size int64, err error) {
 	tr := tar.NewReader(layer)
 	trBuf := pools.BufioReader32KPool.Get(tr)
 	defer pools.BufioReader32KPool.Put(trBuf)
@@ -50,22 +34,47 @@ func ApplyLayer(dest string, layer ArchiveReader) error {
 			break
 		}
 		if err != nil {
-			return err
+			return 0, err
 		}
+
+		size += hdr.Size
 
 		// Normalize name, for safety and for a simple is-root check
 		hdr.Name = filepath.Clean(hdr.Name)
 
-		if !strings.HasSuffix(hdr.Name, "/") {
+		// Windows does not support filenames with colons in them. Ignore
+		// these files. This is not a problem though (although it might
+		// appear that it is). Let's suppose a client is running docker pull.
+		// The daemon it points to is Windows. Would it make sense for the
+		// client to be doing a docker pull Ubuntu for example (which has files
+		// with colons in the name under /usr/share/man/man3)? No, absolutely
+		// not as it would really only make sense that they were pulling a
+		// Windows image. However, for development, it is necessary to be able
+		// to pull Linux images which are in the repository.
+		//
+		// TODO Windows. Once the registry is aware of what images are Windows-
+		// specific or Linux-specific, this warning should be changed to an error
+		// to cater for the situation where someone does manage to upload a Linux
+		// image but have it tagged as Windows inadvertantly.
+		if runtime.GOOS == "windows" {
+			if strings.Contains(hdr.Name, ":") {
+				logrus.Warnf("Windows: Ignoring %s (is this a Linux image?)", hdr.Name)
+				continue
+			}
+		}
+
+		// Note as these operations are platform specific, so must the slash be.
+		if !strings.HasSuffix(hdr.Name, string(os.PathSeparator)) {
 			// Not the root directory, ensure that the parent directory exists.
 			// This happened in some tests where an image had a tarfile without any
 			// parent directories.
 			parent := filepath.Dir(hdr.Name)
 			parentPath := filepath.Join(dest, parent)
+
 			if _, err := os.Lstat(parentPath); err != nil && os.IsNotExist(err) {
-				err = os.MkdirAll(parentPath, 0600)
+				err = system.MkdirAll(parentPath, 0600)
 				if err != nil {
-					return err
+					return 0, err
 				}
 			}
 		}
@@ -80,30 +89,33 @@ func ApplyLayer(dest string, layer ArchiveReader) error {
 				aufsHardlinks[basename] = hdr
 				if aufsTempdir == "" {
 					if aufsTempdir, err = ioutil.TempDir("", "dockerplnk"); err != nil {
-						return err
+						return 0, err
 					}
 					defer os.RemoveAll(aufsTempdir)
 				}
 				if err := createTarFile(filepath.Join(aufsTempdir, basename), dest, hdr, tr, true); err != nil {
-					return err
+					return 0, err
 				}
 			}
 			continue
 		}
-
 		path := filepath.Join(dest, hdr.Name)
-		base := filepath.Base(path)
-
-		// Prevent symlink breakout
-		if !strings.HasPrefix(path, dest) {
-			return breakoutError(fmt.Errorf("%q is outside of %q", path, dest))
+		rel, err := filepath.Rel(dest, path)
+		if err != nil {
+			return 0, err
 		}
+
+		// Note as these operations are platform specific, so must the slash be.
+		if strings.HasPrefix(rel, ".."+string(os.PathSeparator)) {
+			return 0, breakoutError(fmt.Errorf("%q is outside of %q", hdr.Name, dest))
+		}
+		base := filepath.Base(path)
 
 		if strings.HasPrefix(base, ".wh.") {
 			originalBase := base[len(".wh."):]
 			originalPath := filepath.Join(filepath.Dir(path), originalBase)
 			if err := os.RemoveAll(originalPath); err != nil {
-				return err
+				return 0, err
 			}
 		} else {
 			// If path exits we almost always just want to remove and replace it.
@@ -113,7 +125,7 @@ func ApplyLayer(dest string, layer ArchiveReader) error {
 			if fi, err := os.Lstat(path); err == nil {
 				if !(fi.IsDir() && hdr.Typeflag == tar.TypeDir) {
 					if err := os.RemoveAll(path); err != nil {
-						return err
+						return 0, err
 					}
 				}
 			}
@@ -128,18 +140,18 @@ func ApplyLayer(dest string, layer ArchiveReader) error {
 				linkBasename := filepath.Base(hdr.Linkname)
 				srcHdr = aufsHardlinks[linkBasename]
 				if srcHdr == nil {
-					return fmt.Errorf("Invalid aufs hardlink")
+					return 0, fmt.Errorf("Invalid aufs hardlink")
 				}
 				tmpFile, err := os.Open(filepath.Join(aufsTempdir, linkBasename))
 				if err != nil {
-					return err
+					return 0, err
 				}
 				defer tmpFile.Close()
 				srcData = tmpFile
 			}
 
 			if err := createTarFile(path, dest, srcHdr, srcData, true); err != nil {
-				return err
+				return 0, err
 			}
 
 			// Directory mtimes must be handled at the end to avoid further
@@ -154,9 +166,29 @@ func ApplyLayer(dest string, layer ArchiveReader) error {
 		path := filepath.Join(dest, hdr.Name)
 		ts := []syscall.Timespec{timeToTimespec(hdr.AccessTime), timeToTimespec(hdr.ModTime)}
 		if err := syscall.UtimesNano(path, ts); err != nil {
-			return err
+			return 0, err
 		}
 	}
 
-	return nil
+	return size, nil
+}
+
+// ApplyLayer parses a diff in the standard layer format from `layer`, and
+// applies it to the directory `dest`. Returns the size in bytes of the
+// contents of the layer.
+func ApplyLayer(dest string, layer ArchiveReader) (int64, error) {
+	dest = filepath.Clean(dest)
+
+	// We need to be able to set any perms
+	oldmask, err := system.Umask(0)
+	if err != nil {
+		return 0, err
+	}
+	defer system.Umask(oldmask) // ignore err, ErrNotSupportedPlatform
+
+	layer, err = DecompressStream(layer)
+	if err != nil {
+		return 0, err
+	}
+	return UnpackLayer(dest, layer)
 }
