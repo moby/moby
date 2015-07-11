@@ -216,6 +216,7 @@ do_install() {
 				else
 					$sh_c "$curl ${url}gpg | apt-key add -"
 				fi
+				$sh_c "mkdir -p /etc/apt/sources.list.d"
 				$sh_c "echo deb ${url}ubuntu docker main > /etc/apt/sources.list.d/docker.list"
 				$sh_c 'sleep 3; apt-get update; apt-get install -y -q lxc-docker'
 			)
