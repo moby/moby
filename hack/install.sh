@@ -109,6 +109,9 @@ do_install() {
 	if [ -z "$lsb_dist" ] && [ -r /etc/fedora-release ]; then
 		lsb_dist='fedora'
 	fi
+	if [ -z "$lsb_dist" ] && [ -r /etc/centos-release ]; then
+		lsb_dist='centos'
+	fi
 	if [ -z "$lsb_dist" ] && [ -r /etc/os-release ]; then
 		lsb_dist="$(. /etc/os-release && echo "$ID")"
 	fi
