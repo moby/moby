@@ -514,6 +514,7 @@ container:
     --cpu-quota=0: Limit the CPU CFS (Completely Fair Scheduler) quota
     --blkio-weight=0: Block IO weight (relative weight) accepts a weight value between 10 and 1000.
     --oom-kill-disable=true|false: Whether to disable OOM Killer for the container or not.
+    --memory-swappiness="": Tune a container's memory swappiness behavior. Accepts an integer between 0 and 100.
 
 ### Memory constraints
 
@@ -610,6 +611,20 @@ The following example, illustrates a dangerous way to use the flag:
 
 The container has unlimited memory which can cause the host to run out memory
 and require killing system processes to free memory.
+
+### Swappiness constraint
+
+By default, a container's kernel can swap out a percentage of anonymous pages.
+To set this percentage for a container, specify a `--memory-swappiness` value
+between 0 and 100. A value of 0 turns off anonymous page swapping. A value of
+100 sets all anonymous pages as swappable.
+
+For example, you can set:
+
+    $ docker run -ti --memory-swappiness=0 ubuntu:14.04 /bin/bash
+
+Setting the `--memory-swappiness` option is helpful when you want to retain the
+container's working set and to avoid swapping performance penalties.
 
 ### CPU share constraint
 

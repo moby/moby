@@ -57,6 +57,7 @@ Creates a new container.
       --privileged=false         Give extended privileges to this container
       --read-only=false          Mount the container's root filesystem as read only
       --restart="no"             Restart policy (no, on-failure[:max-retry], always)
+      --memory-swappiness=""     Tune a container's memory swappiness behavior. Accepts an integer between 0 and 100.
       --security-opt=[]          Security options
       -t, --tty=false            Allocate a pseudo-TTY
       -u, --user=""              Username or UID

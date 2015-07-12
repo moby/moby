@@ -13,9 +13,10 @@ type SysInfo struct {
 }
 
 type cgroupMemInfo struct {
-	MemoryLimit    bool
-	SwapLimit      bool
-	OomKillDisable bool
+	MemoryLimit      bool
+	SwapLimit        bool
+	OomKillDisable   bool
+	MemorySwappiness bool
 }
 
 type cgroupCpuInfo struct {
