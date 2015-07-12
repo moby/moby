@@ -479,7 +479,7 @@ func (s *DockerSuite) TestInspectExecID(c *check.C) {
 	// But we should still be able to query the execID
 	sc, body, err := sockRequest("GET", "/exec/"+execID+"/json", nil)
 	if sc != http.StatusOK {
-		c.Fatalf("received status != 200 OK: %s\n%s", sc, body)
+		c.Fatalf("received status != 200 OK: %d\n%s", sc, body)
 	}
 }
 

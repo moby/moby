@@ -2,9 +2,10 @@ package runconfig
 
 import (
 	"fmt"
-	flag "github.com/docker/docker/pkg/mflag"
 	"io/ioutil"
 	"testing"
+
+	flag "github.com/docker/docker/pkg/mflag"
 )
 
 type arguments struct {
@@ -118,11 +119,10 @@ func compareExecConfig(config1 *ExecConfig, config2 *ExecConfig) bool {
 	}
 	if len(config1.Cmd) != len(config2.Cmd) {
 		return false
-	} else {
-		for index, value := range config1.Cmd {
-			if value != config2.Cmd[index] {
-				return false
-			}
+	}
+	for index, value := range config1.Cmd {
+		if value != config2.Cmd[index] {
+			return false
 		}
 	}
 	return true
