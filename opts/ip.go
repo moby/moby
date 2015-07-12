@@ -5,6 +5,7 @@ import (
 	"net"
 )
 
+// IpOpt type that hold an IP
 type IpOpt struct {
 	*net.IP
 }
