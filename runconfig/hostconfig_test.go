@@ -248,11 +248,11 @@ func TestDecodeHostConfig(t *testing.T) {
 		}
 
 		if c.Privileged != false {
-			t.Fatalf("Expected privileged false, found %s\n", c.Privileged)
+			t.Fatalf("Expected privileged false, found %v\n", c.Privileged)
 		}
 
-		if len(c.Binds) != 1 {
-			t.Fatalf("Expected 1 bind, found %v\n", c.Binds)
+		if l := len(c.Binds); l != 1 {
+			t.Fatalf("Expected 1 bind, found %d\n", l)
 		}
 
 		if c.CapAdd.Len() != 1 && c.CapAdd.Slice()[0] != "NET_ADMIN" {
