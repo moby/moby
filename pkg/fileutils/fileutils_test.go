@@ -4,6 +4,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"path/filepath"
 	"testing"
 )
 
@@ -268,7 +269,7 @@ func TestSingleExclamationError(t *testing.T) {
 
 // A string preceded with a ! should return true from Exclusion.
 func TestExclusion(t *testing.T) {
-	exclusion := Exclusion("!")
+	exclusion := exclusion("!")
 	if !exclusion {
 		t.Errorf("failed to get true for a single !, got %v", exclusion)
 	}
@@ -298,7 +299,7 @@ func TestMatchesWithMalformedPatterns(t *testing.T) {
 
 // An empty string should return true from Empty.
 func TestEmpty(t *testing.T) {
-	empty := Empty("")
+	empty := empty("")
 	if !empty {
 		t.Errorf("failed to get true for an empty string, got %v", empty)
 	}
@@ -353,5 +354,49 @@ func TestCleanPatternsFolderSplit(t *testing.T) {
 	}
 	if dirs[0][1] != "config" {
 		t.Errorf("expected first element in dirs slice to be config, got %v", dirs[0][1])
+	}
+}
+
+func TestCreateIfNotExistsDir(t *testing.T) {
+	tempFolder, err := ioutil.TempDir("", "docker-fileutils-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tempFolder)
+
+	folderToCreate := filepath.Join(tempFolder, "tocreate")
+
+	if err := CreateIfNotExists(folderToCreate, true); err != nil {
+		t.Fatal(err)
+	}
+	fileinfo, err := os.Stat(folderToCreate)
+	if err != nil {
+		t.Fatalf("Should have create a folder, got %v", err)
+	}
+
+	if !fileinfo.IsDir() {
+		t.Fatalf("Should have been a dir, seems it's not")
+	}
+}
+
+func TestCreateIfNotExistsFile(t *testing.T) {
+	tempFolder, err := ioutil.TempDir("", "docker-fileutils-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tempFolder)
+
+	fileToCreate := filepath.Join(tempFolder, "file/to/create")
+
+	if err := CreateIfNotExists(fileToCreate, false); err != nil {
+		t.Fatal(err)
+	}
+	fileinfo, err := os.Stat(fileToCreate)
+	if err != nil {
+		t.Fatalf("Should have create a file, got %v", err)
+	}
+
+	if fileinfo.IsDir() {
+		t.Fatalf("Should have been a file, seems it's not")
 	}
 }
