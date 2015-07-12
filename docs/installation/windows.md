@@ -9,122 +9,309 @@ parent = "smn_engine"
 <![end-metadata]-->
 
 # Windows
-> **Note:**
-> Docker has been tested on Windows 7 and 8.1; it may also run on older versions.
-> Your processor needs to support hardware virtualization.
 
-The Docker Engine uses Linux-specific kernel features, so to run it on Windows
-we need to use a lightweight virtual machine (VM).  You use the **Windows Docker
-Client** to control the virtualized Docker Engine to build, run, and manage
-Docker containers.
+> **Note**: This release of Docker deprecates the Boot2Docker command line in
+> favor of Docker Machine.  Use the Docker Toolbox to install Docker Machine as
+> well as the other Docker tools.
 
-To make this process easier, we've designed a helper application called
-[Boot2Docker](https://github.com/boot2docker/boot2docker) which creates a Linux virtual
-machine on Windows to run Docker on a Linux operating system.
+You install Docker using Docker Toolbox. Docker Toolbox includes the following Docker tools:
 
-Although you will be using Windows Docker client, the docker engine hosting the
-containers will still be running on Linux. Until the Docker engine for Windows
-is developed, you can launch only Linux containers from your Windows machine.
+* Docker Machine for running the `docker-machine` binary
+* Docker Engine for running the `docker` binary
+* Kitematic, the Docker GUI
+* a shell preconfigured for a Docker command-line environment
+* Oracle VM VirtualBox 
+
+Because the Docker daemon uses Linux-specific kernel features, you can't run
+Docker natively in Windows. Instead, you must use `docker-machine` to create and attach to a Docker VM on your machine. This VM hosts Docker for you on your Windows system.
+
+The Docker VM is lightweight Linux virtual machine made specifically to run the
+Docker daemon on Windows. The VirtualBox VM runs completely from RAM, is a
+small ~24MB download, and boots in approximately 5s.
+
+
+
+## Requirements
+
+Your machine must be running Windows 7.1, 8/8.1 or newer to run Docker. 
+To find out what version of Windows you have:
+
+1. Right click the Windows message and choose **System**. 
+
+    ![Which version](/installation/images/win_ver.png)
+    
+    If you aren't using a supported version, you could consider upgrading your
+    operating system.
+
+2. Make sure your Windows system supports Hardware Virtualization Technology and that virtualization is enabled.
+
+    #### For Windows 8 or 8.1
+
+	  Choose **Start > Task Manager** and navigate to the **Performance** tab.          
+	  Under **CPU** you should see the following:
+
+      ![Release page](/installation/images/virtualization.png)
+    
+    If virtualization is not enabled on your system, follow the manufacturer's instructions for enabling it.
+    
+    ### For Windows 7 
+    
+	  Run the <a
+	  href="http://www.microsoft.com/en-us/download/details.aspx?id=592"
+	  target="_blank"> Microsoft® Hardware-Assisted Virtualization Detection
+	  Tool</a> and follow the on-screen instructions.
+
+
+> **Note**: If you have Docker hosts running and you don't wish to do a Docker Toolbox
+installation, you can install the `docker.exe` using the *unofficial* Windows package
+manager Chocolately. For information on how to do this, see [Docker package on
+Chocolatey](http://chocolatey.org/packages/docker).
+
+### Learn the key concepts before installing
+
+In a Docker installation on Linux, your machine is both the localhost and the
+Docker host. In networking, localhost means your computer. The Docker host is
+the machine on which the containers run.
+
+On a typical Linux installation, the Docker client, the Docker daemon, and any
+containers run directly on your localhost. This means you can address ports on a
+Docker container using standard localhost addressing such as `localhost:8000` or
+`0.0.0.0:8376`.
+
+![Linux Architecture Diagram](/installation/images/linux_docker_host.svg)
+
+In an Windows installation, the `docker` daemon is running inside a Linux virtual
+machine. You use the Windows Docker client to talk to the Docker host VM. Your
+Docker containers run inside this host. 
 
 ![Windows Architecture Diagram](/installation/images/win_docker_host.svg)
 
-## Demonstration
+In Windows, the Docker host address is the address of the Linux VM. When you
+start the VM with `docker-machine` it is assigned an IP address. When you start
+a container, the ports on a container map to ports on the VM. To see this in
+practice, work through the exercises on this page.
 
-<iframe width="640" height="480" src="//www.youtube.com/embed/TjMU3bDX4vo?rel=0" frameborder="0" allowfullscreen></iframe>
 
-## Installation
+### Installation
 
-1. Download the latest release of the
-   [Docker for Windows Installer](https://github.com/boot2docker/windows-installer/releases/latest).
-2. Run the installer, which will install Docker Client for Windows, VirtualBox,
-   Git for Windows (MSYS-git), the boot2docker Linux ISO, and the Boot2Docker
-   management tool.
-   ![](/installation/images/windows-installer.png)
-3. Run the **Boot2Docker Start** shortcut from your Desktop or “Program Files →
-   Boot2Docker for Windows”.
-   The Start script will ask you to enter an ssh key passphrase - the simplest
-   (but least secure) is to just hit [Enter].
+If you have VirtualBox running, you must shut it down before running the
+installer. 
 
-4. The **Boot2Docker Start** will start a unix shell already configured to manage
-   Docker running inside the virtual machine. Run `docker version` to see
-   if it is working correctly:
+1. Go to the [Docker Toolbox](https://www.docker.com/toolbox) page.
 
-![](/installation/images/windows-boot2docker-start.png)
+2. Click the installer link to download.
 
-## Running Docker
+3. Install Docker Toolbox by double-clicking the installer.
 
-> **Note:** if you are using a remote Docker daemon, such as Boot2Docker, 
-> then _do not_ type the `sudo` before the `docker` commands shown in the
-> documentation's examples.
+    The installer launches the "Setup - Docker Toolbox" dialog.
+    
+    ![Install Docker Toolbox](/installation/images/win-welcome.png)
 
-**Boot2Docker Start** will automatically start a shell with environment variables
-correctly set so you can start using Docker right away:
+4. Press "Next" to install the toolbox.
 
-Let's try the `hello-world` example image. Run
+    The installer presents you with options to customize the standard
+    installation. By default, the standard Docker Toolbox installation:
+  
+    * installs executables for the Docker tools in `C:\Program Files\Docker Toolbox` 
+    * updates any existing VirtualBox installation 
+    * adds a Docker Inc. folder to your program shortcuts
+    * updates your `PATH` environment variable
+    * adds desktop icons for the Docker Quickstart Terminal and Kitematic
 
-    $ docker run hello-world
+    This installation assumes the defaults are acceptable.
 
-This should download the very small `hello-world` image and print a
-`Hello from Docker.` message.
+5. Press "Next" until you reach the "Ready to Install" page.
+
+     The system prompts you for your password.
+   
+     ![Install](/installation/images/win-page-6.png)
+     
+6. Press "Install"  to continue with the installation.
+
+     When it completes, the installer provides you with some information you can
+     use to complete some common tasks.
+   
+     ![All finished](/installation/images/windows-finish.png)
+   
+7. Press "Close" to exit.
+
+
+## Running a Docker Container
+
+To run a Docker container, you:
+
+* create a new (or start an existing) Docker virtual machine 
+* switch your environment to your new VM
+* use the `docker` client to create, load, and manage containers
+
+Once you create a machine, you can reuse it as often as you like. Like any
+VirtualBox VM, it maintains its configuration between uses.
+
+There are several ways to use the installed tools, from the Docker Quickstart Terminal or
+[from your shell](#from-your-shell).
+
+### From the Docker Quickstart Terminal
+
+1. Find the Docker Quickstart Terminal icon on your Desktop and double-click to launch it.
+
+    The application:
+
+    * opens a terminal window
+    * creates a `docker-vm` if it doesn't exist, starts the VM if it does
+    * points the terminal environment to this VM
+
+    Once the launch completes, you can run `docker` commands. 
+
+3. Verify your setup succeeded by running the `hello-world` container.
+
+        $ docker run hello-world
+        Unable to find image 'hello-world:latest' locally
+        511136ea3c5a: Pull complete
+        31cbccb51277: Pull complete
+        e45a5af57b00: Pull complete
+        hello-world:latest: The image you are pulling has been verified.
+        Important: image verification is a tech preview feature and should not be
+        relied on to provide security.
+        Status: Downloaded newer image for hello-world:latest
+        Hello from Docker.
+        This message shows that your installation appears to be working correctly.
+
+        To generate this message, Docker took the following steps:
+        1. The Docker client contacted the Docker daemon.
+        2. The Docker daemon pulled the "hello-world" image from the Docker Hub.
+           (Assuming it was not already locally available.)
+        3. The Docker daemon created a new container from that image which runs the
+           executable that produces the output you are currently reading.
+        4. The Docker daemon streamed that output to the Docker client, which sent it
+           to your terminal.
+
+        To try something more ambitious, you can run an Ubuntu container with:
+        $ docker run -it ubuntu bash
+
+        For more examples and ideas, visit:
+        http://docs.docker.com/userguide/
+
 
 ## Using Docker from Windows Command Line Prompt (cmd.exe)
 
-Launch a Windows Command Line Prompt (cmd.exe).
+1. Launch a Windows Command Line Prompt (cmd.exe).
 
-Boot2Docker command requires `ssh.exe` to be in the PATH, therefore we need to
-include `bin` folder of the Git installation (which has ssh.exe) to the `%PATH%`
-environment variable by running:
+    The `docker-machine` command requires `ssh.exe` in your `PATH` environment
+    variable. This `.exe` is in the MsysGit `bin` folder. 
 
-    set PATH=%PATH%;"c:\Program Files (x86)\Git\bin"
+2. Add this to the `%PATH%` environment variable by running:
 
-and then we can run the `boot2docker start` command to start the Boot2Docker VM.
-(Run `boot2docker init` command if you get an error saying machine does not
-exist.) Then copy the instructions for cmd.exe to set the environment variables
-to your console window and you are ready to run docker commands such as
-`docker ps`:
+        set PATH=%PATH%;"c:\Program Files (x86)\Git\bin"
+        
+3. Create a new Docker VM.
 
-![](/installation/images/windows-boot2docker-cmd.png)
+        docker-machine create --driver virtualbox my-docker-vm
+        Creating VirtualBox VM...
+        Creating SSH key...
+        Starting VirtualBox VM...
+        Starting VM...
+        To see how to connect Docker to this machine, run: docker-machine env my-docker-vm
+
+    The command also creates a machine configuration in the
+    `C:\USERS\USERNAME\.docker\machine\machines` directory. You only need to run the `create`
+    command once. Then, you can use `docker-machine` to start, stop, query, and
+    otherwise manage the VM from the command line.
+    
+4. List your available machines.
+
+        C:\Users\mary> docker-machine ls
+        NAME                ACTIVE   DRIVER       STATE     URL                         SWARM
+        my-docker-vm        *        virtualbox   Running   tcp://192.168.99.101:2376  
+        
+    If you have previously installed the deprecated Boot2Docker application or
+    run the Docker Quickstart Terminal, you may have a `dev` VM as well.  
+
+5. Get the environment commands for your new VM.
+
+        C:\Users\mary> docker-machine env --shell cmd my-docker-vm
+    
+6. Connect your shell to the `my-docker-vm` machine.
+
+        C:\Users\mary> eval "$(docker-machine env my-docker-vm)"
+
+7. Run the `hello-world` container to verify your setup.
+
+        C:\Users\mary> docker run hello-world
 
 ## Using Docker from PowerShell
 
-Launch a PowerShell window, then add `ssh.exe` to your PATH:
+1. Launch a Windows PowerShell window.
 
-    $Env:Path = "${Env:Path};c:\Program Files (x86)\Git\bin"
+2. Add `ssh.exe` to your PATH:
 
-and after running the `boot2docker start` command it will print PowerShell
-commands to set the environment variables to connect to the Docker daemon
-running inside the VM. Run these commands and you are ready to run docker
-commands such as `docker ps`:
+        PS C:\Users\mary> $Env:Path = "${Env:Path};c:\Program Files (x86)\Git\bin"
+        
+3. Create a new Docker VM.
 
-![](/installation/images/windows-boot2docker-powershell.png)
+        PS C:\Users\mary> docker-machine create --driver virtualbox my-docker-vm
+    
+4. List your available machines.
 
-> NOTE: You can alternatively run `boot2docker shellinit | Invoke-Expression`
-> command to set the environment variables instead of copying and pasting on
-> PowerShell.
+        C:\Users\mary> docker-machine ls
+        NAME                ACTIVE   DRIVER       STATE     URL                         SWARM
+        my-docker-vm        *        virtualbox   Running   tcp://192.168.99.101:2376  
+      
+5. Get the environment commands for your new VM.
 
-# Further Details
+        C:\Users\mary> docker-machine env --shell powershell my-docker-vm
+    
+6. Connect your shell to the `my-docker-vm` machine.
 
-The Boot2Docker management tool provides several commands:
+        C:\Users\mary> eval "$(docker-machine env my-docker-vm)"
 
-    $ boot2docker
-    Usage: boot2docker.exe [<options>] {help|init|up|ssh|save|down|poweroff|reset|restart|config|status|info|ip|shellinit|delete|download|upgrade|version} [<args>]
+7. Run the `hello-world` container to verify your setup.
 
-## Upgrading
+        C:\Users\mary> docker run hello-world
 
-1. Download the latest release of the [Docker for Windows Installer](
-   https://github.com/boot2docker/windows-installer/releases/latest)
 
-2. Run the installer, which will update the Boot2Docker management tool.
+## Learn about your Toolbox installation
 
-3. To upgrade your existing virtual machine, open a terminal and run:
+Toolbox installs the Docker Engine binary in the `C:\Program Files\Docker
+Toolbox` directory. When you use the Docker Quickstart Terminal or create a
+`docker-vm` manually, Docker Machine updates the
+`C:\USERS\USERNAME\.docker\machine\machines\docker-vm` folder to your
+system. This folder contains the configuration for the VM.
 
-        boot2docker stop
-        boot2docker download
-        boot2docker start
+You can create multiple VMs on your system with Docker Machine. So, you may have
+more than one VM folder if you have more than one VM. To remove a VM, use the
+`docker-machine rm <machine-name>` command.
+      
+The `docker-machine` subcommands are slightly different than the `boot2docker`
+subcommands. The table below lists the equivalent `docker-machine` subcommand
+and what it does:
+
+|  `boot2docker` | `docker-machine` | `docker-machine` description                             |
+|----------------|------------------|----------------------------------------------------------|
+| init           | create           | Creates a new docker host.                               |
+| up             | start            | Starts a stopped machine.                                |
+| ssh            | ssh              | Runs a command or interactive ssh session on the machine.|
+| save           | -                | Not applicable.                                          |
+| down           | stop             | Stops a running machine.                                 |
+| poweroff       | stop             | Stops a running machine.                                 |
+| reset          | restart          | Restarts a running machine.                              |
+| config         | inspect          | Prints machine configuration details.                    |
+| status         | ls               | Lists all machines and their status.                     |
+| info           | inspect          | Displays a machine's details.                            |
+| ip             | ip               | Displays the machine's ip address.                       |
+| shellinit      | env              | Displays shell commands needed to configure your shell to interact with a machine |
+| delete         | rm               | Removes a machine.                                       |
+| download       | -                | Not applicable.                                          |
+| upgrade        | upgrade          | Upgrades a machine's Docker client to the latest stable release. |
+
+
+## Upgrade Docker Toolbox
+
+To upgrade Docker Toolbox, download an re-run [the Docker Toolbox
+installer](https://www.docker.com/toolbox).
 
 ## Container port redirection
 
-If you are curious, the username for the boot2docker default user is `docker`
+If you are curious, the username for the Docker default user is `docker`
 and the password is `tcuser`.
 
 The latest version of `boot2docker` sets up a host only network adaptor which
@@ -161,13 +348,12 @@ You can do this with
 
 ## Uninstallation
 
-You can uninstall Boot2Docker using Window's standard process for removing programs.
-This process does not remove the `docker-install.exe` file. You must delete that file
-yourself.
+You can uninstall Docker Toolbox using Window's standard process for removing
+programs. This process does not remove the `docker-install.exe` file. You must
+delete that file yourself.
 
-## References
+## Learn more
 
-If you have Docker hosts running and if you don't wish to do a 
-Boot2Docker installation, you can install the docker.exe using
-unofficial Windows package manager Chocolately. For information
-on how to do this, see [Docker package on Chocolatey](http://chocolatey.org/packages/docker).
+You can continue with the [Docker User Guide](/userguide). If you are
+interested in using the Kitematic GUI, see the [Kitermatic user
+guide](/kitematic/userguide/).

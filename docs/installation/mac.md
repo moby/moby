@@ -10,37 +10,34 @@ parent = "smn_engine"
 
 # Mac OS X
 
-You can install Docker using Boot2Docker to run `docker` commands at your command-line.
-Choose this installation if you are familiar with the command-line or plan to
-contribute to the Docker project on GitHub.
+> **Note**: This release of Docker deprecates the Boot2Docker command line in
+> favor of Docker Machine.  Use the Docker Toolbox to install Docker Machine as
+> well as the other Docker tools.
 
-[<img src="/installation/images/kitematic.png" alt="Download Kitematic"
-style="float:right;">](https://kitematic.com/download)
+You install Docker using Docker Toolbox. Docker Toolbox includes the following Docker tools:
 
-Alternatively, you may want to try <a id="inlinelink" href="https://kitematic.com/"
-target="_blank">Kitematic</a>, an application that lets you set up Docker and
-run containers using a graphical user interface (GUI).
-
-## Command-line Docker with Boot2Docker
+* Docker Machine for running the `docker-machine` binary
+* Docker Engine for running the `docker` binary
+* Docker Compose for running the `docker-compose` binary
+* Kitematic, the Docker GUI
+* a shell preconfigured for a Docker command-line environment
+* Oracle VM VirtualBox 
 
 Because the Docker daemon uses Linux-specific kernel features, you can't run
-Docker natively in OS X. Instead, you must install the Boot2Docker application.
-The application includes a VirtualBox Virtual Machine (VM), Docker itself, and the
-Boot2Docker management tool.
-
-The Boot2Docker management tool is a lightweight Linux virtual machine made
-specifically to run the Docker daemon on Mac OS X. The VirtualBox VM runs
-completely from RAM, is a small ~24MB download, and boots in approximately 5s.
+Docker natively in OS X. Instead, you must use `docker-machine` to create and
+attach to a virtual machine (VM). This machine is a Linux VM that hosts Docker
+for you on your Mac.
 
 **Requirements**
 
-Your Mac must be running OS X 10.6 "Snow Leopard" or newer to run Boot2Docker.
+Your Mac must be running OS X 10.8 "Mountain Lion" or newer to install the
+Docker Toolbox.
 
 ### Learn the key concepts before installing
 
-In a Docker installation on Linux, your machine is both the localhost and the
-Docker host. In networking, localhost means your computer. The Docker host is
-the machine on which the containers run.
+In a Docker installation on Linux, your physical machine is both the localhost
+and the Docker host. In networking, localhost means your computer. The Docker
+host is the computer on which the containers run.
 
 On a typical Linux installation, the Docker client, the Docker daemon, and any
 containers run directly on your localhost. This means you can address ports on a
@@ -49,135 +46,229 @@ Docker container using standard localhost addressing such as `localhost:8000` or
 
 ![Linux Architecture Diagram](/installation/images/linux_docker_host.svg)
 
-In an OS X installation, the `docker` daemon is running inside a Linux virtual
-machine provided by Boot2Docker.
+In an OS X installation, the `docker` daemon is running inside a Linux VM called
+`docker-vm`. The `docker-vm` is a lightweight Linux VM made specifically to run
+the Docker daemon on Mac OS X. The VM runs completely from RAM, is a small ~24MB
+download, and boots in approximately 5s.
 
 ![OSX Architecture Diagram](/installation/images/mac_docker_host.svg)
 
-In OS X, the Docker host address is the address of the Linux VM.
-When you start the `boot2docker` process, the VM is assigned an IP address. Under
-`boot2docker` ports on a container map to ports on the VM. To see this in
+In OS X, the Docker host address is the address of the Linux VM. When you start
+the VM with `docker-machine` it is assigned an IP address. When you start a
+container, the ports on a container map to ports on the VM. To see this in
 practice, work through the exercises on this page.
 
 
 ### Installation
 
-1. Go to the [boot2docker/osx-installer ](
-   https://github.com/boot2docker/osx-installer/releases/latest) release page.
+If you have VirtualBox running, you must shut it down before running the
+installer. 
 
-4. Download Boot2Docker by clicking `Boot2Docker-x.x.x.pkg` in the "Downloads"
-   section.
+1. Go to the [Docker Toolbox](https://www.docker.com/toolbox) page.
 
-3. Install Boot2Docker by double-clicking the package.
+2. Click the installer link to download.
 
-    The installer places Boot2Docker and VirtualBox in your "Applications" folder.
+3. Install Docker Toolbox by double-clicking the package or by right-clicking
+and choosing "Open" from the pop-up menu.
 
-The installation places the `docker` and `boot2docker` binaries in your
-`/usr/local/bin` directory.
+    The installer launches the "Install Docker Toolbox" dialog.
+    
+    ![Install Docker Toolbox](/installation/images/mac-welcome-page.png)
 
+4. Press "Continue" to install the toolbox.
 
-## Start the Boot2Docker Application
+    The installer presents you with options to customize the standard
+    installation. 
+  
+    ![Standard install](/installation/images/mac-page-two.png)
+  
+    By default, the standard Docker Toolbox installation:
+  
+    * installs binaries for the Docker tools in `/usr/local/bin` 
+    * makes these binaries available to all users 
+    * updates any existing VirtualBox installation 
+  
+    Change these defaults by pressing "Customize" or "Change
+    Install Location."  
 
-To run a Docker container, you first start the `boot2docker` VM and then issue
-`docker` commands to create, load, and manage containers. You can launch
-`boot2docker` from your Applications folder or from the command line.
+5. Press "Install" to perform the standard installation.
 
-> **NOTE**: Boot2Docker is designed as a development tool. You should not use
->  it in production environments.
+     The system prompts you for your password.
+   
+     ![Password prompt](/installation/images/mac-password-prompt.png)
+   
+6. Provide your password to continue with the installation.
 
-### From the Applications folder
-
-When you launch the "Boot2Docker" application from your "Applications" folder, the
-application:
-
-* opens a terminal window
-
-* creates a $HOME/.boot2docker directory
-
-* creates a VirtualBox ISO and certs
-
-* starts a VirtualBox VM running the `docker` daemon
-
-Once the launch completes, you can run `docker` commands. A good way to verify
-your setup succeeded is to run the `hello-world` container.
-
-    $ docker run hello-world
-    Unable to find image 'hello-world:latest' locally
-    511136ea3c5a: Pull complete
-    31cbccb51277: Pull complete
-    e45a5af57b00: Pull complete
-    hello-world:latest: The image you are pulling has been verified.
-    Important: image verification is a tech preview feature and should not be
-    relied on to provide security.
-    Status: Downloaded newer image for hello-world:latest
-    Hello from Docker.
-    This message shows that your installation appears to be working correctly.
-
-    To generate this message, Docker took the following steps:
-    1. The Docker client contacted the Docker daemon.
-    2. The Docker daemon pulled the "hello-world" image from the Docker Hub.
-       (Assuming it was not already locally available.)
-    3. The Docker daemon created a new container from that image which runs the
-       executable that produces the output you are currently reading.
-    4. The Docker daemon streamed that output to the Docker client, which sent it
-       to your terminal.
-
-    To try something more ambitious, you can run an Ubuntu container with:
-    $ docker run -it ubuntu bash
-
-    For more examples and ideas, visit:
-    http://docs.docker.com/userguide/
+     When it completes, the installer provides you with some information you can
+     use to complete some common tasks.
+   
+     ![All finished](/installation/images/mac-page-finished.png)
+   
+7. Press "Close" to exit.
 
 
-A more typical way to start and stop `boot2docker` is using the command line.
+## Running a Docker Container
 
-### From your command line
+To run a Docker container, you:
 
-Initialize and run `boot2docker` from the command line, do the following:
+* create a new (or start an existing) Docker virtual machine 
+* switch your environment to your new VM
+* use the `docker` client to create, load, and manage containers
 
-1. Create a new Boot2Docker VM.
+Once you create a machine, you can reuse it as often as you like. Like any
+VirtualBox VM, it maintains its configuration between uses.
 
-        $ boot2docker init
+There are two ways to use the installed tools, from the Docker Quickstart Terminal or
+[from your shell](#from-your-shell).
 
-    This creates a new virtual machine. You only need to run this command once.
+### From the Docker Quickstart Terminal
 
-2. Start the `boot2docker` VM.
+1. Open the "Applications" folder or the "Launchpad".
 
-        $ boot2docker start
+2. Find the Docker Quickstart Terminal  and double-click to launch it.
 
-3. Display the environment variables for the Docker client.
+    The application:
 
-        $ boot2docker shellinit
-        Writing /Users/mary/.boot2docker/certs/boot2docker-vm/ca.pem
-        Writing /Users/mary/.boot2docker/certs/boot2docker-vm/cert.pem
-        Writing /Users/mary/.boot2docker/certs/boot2docker-vm/key.pem
-            export DOCKER_HOST=tcp://192.168.59.103:2376
-            export DOCKER_CERT_PATH=/Users/mary/.boot2docker/certs/boot2docker-vm
-            export DOCKER_TLS_VERIFY=1
+    * opens a terminal window
+    * creates a VM called `docker-vm` if it doesn't exists, starts the VM if it does
+    * points the terminal environment to this VM
 
-    The specific paths and address on your machine will be different.
+    Once the launch completes, the Docker Quickstart Terminal reports:
+    
+     ![All finished](/installation/images/mac-success.png)
+     
+    Now, you can run `docker` commands. 
 
-4. To set the environment variables in your shell do the following:
+3. Verify your setup succeeded by running the `hello-world` container.
 
-        $ eval "$(boot2docker shellinit)"
+        $ docker run hello-world
+        Unable to find image 'hello-world:latest' locally
+        511136ea3c5a: Pull complete
+        31cbccb51277: Pull complete
+        e45a5af57b00: Pull complete
+        hello-world:latest: The image you are pulling has been verified.
+        Important: image verification is a tech preview feature and should not be
+        relied on to provide security.
+        Status: Downloaded newer image for hello-world:latest
+        Hello from Docker.
+        This message shows that your installation appears to be working correctly.
 
-    You can also set them manually by using the `export` commands `boot2docker`
-    returns.
+        To generate this message, Docker took the following steps:
+        1. The Docker client contacted the Docker daemon.
+        2. The Docker daemon pulled the "hello-world" image from the Docker Hub.
+           (Assuming it was not already locally available.)
+        3. The Docker daemon created a new container from that image which runs the
+           executable that produces the output you are currently reading.
+        4. The Docker daemon streamed that output to the Docker client, which sent it
+           to your terminal.
+
+        To try something more ambitious, you can run an Ubuntu container with:
+        $ docker run -it ubuntu bash
+
+        For more examples and ideas, visit:
+        http://docs.docker.com/userguide/
+
+
+A more typical way to interact with the Docker tools is from your regular shell command line.
+
+### From your shell
+
+This section assumes you are running a Bash shell. You may be running a
+different shell such as C Shell but the commands are the same.
+
+1. Create a new Docker VM.
+
+        $ docker-machine create --driver virtualbox docker-vm
+        Creating VirtualBox VM...
+        Creating SSH key...
+        Starting VirtualBox VM...
+        Starting VM...
+        To see how to connect Docker to this machine, run: docker-machine env docker-vm
+
+    This creates a new `docker-vm` in VirtualBox.
+    
+    ![docker-vm](/installation/images/docker-vm.png)
+
+    The command also creates a machine configuration in the
+    `~/.docker/machine/machines/docker-vm` directory. You only need to run the
+    `create` command once. Then, you can use `docker-machine` to start, stop,
+    query, and otherwise manage the VM from the command line.
+    
+2. List your available machines.
+
+        $ docker-machine ls
+        NAME                ACTIVE   DRIVER       STATE     URL                         SWARM
+        docker-vm        *        virtualbox   Running   tcp://192.168.99.101:2376  
+        
+    If you have previously installed the deprecated Boot2Docker application or
+    run the Docker Quickstart Terminal, you may have a `dev` VM as well.  When you
+    created `docker-vm`, the `docker-machine` command provided instructions
+    for learning how to connect the VM.
+
+3. Get the environment commands for your new VM.
+
+        $ docker-machine env docker-vm
+        export DOCKER_TLS_VERIFY="1"
+        export DOCKER_HOST="tcp://192.168.99.101:2376"
+        export DOCKER_CERT_PATH="/Users/mary/.docker/machine/machines/docker-vm"
+        export DOCKER_MACHINE_NAME="docker-vm"
+        # Run this command to configure your shell: 
+        # eval "$(docker-machine env docker-vm)"
+    
+4. Connect your shell to the `docker-vm` machine.
+
+        $ eval "$(docker-machine env docker-vm)"
 
 5. Run the `hello-world` container to verify your setup.
 
         $ docker run hello-world
 
 
-## Basic Boot2Docker exercises
+## Learn about your Toolbox installation
 
-At this point, you should have `boot2docker` running and the `docker` client
-environment initialized. To verify this, run the following commands:
+Toolbox installs the Docker Engine binary, the Docker binary on your system. When you
+use the Docker Quickstart Terminal or create a `docker-vm` manually, Docker
+Machine updates the `~/.docker/machine/machines/docker-vm` folder to your
+system. This folder contains the configuration for the VM.
 
-    $ boot2docker status
-    $ docker version
+You can create multiple VMs on your system with Docker Machine. So, you may have
+more than one VM folder if you have more than one VM. To remove a VM, use the
+`docker-machine rm <machine-name>` command.
+      
+The `docker-machine` subcommands are slightly different than the `boot2docker`
+subcommands. The table below lists the equivalent `docker-machine` subcommand
+and what it does:
 
-Work through this section to try some practical container tasks using `boot2docker` VM.
+|  `boot2docker` | `docker-machine` | `docker-machine` description                             |
+|----------------|------------------|----------------------------------------------------------|
+| init           | create           | Creates a new docker host.                               |
+| up             | start            | Starts a stopped machine.                                |
+| ssh            | ssh              | Runs a command or interactive ssh session on the machine.|
+| save           | -                | Not applicable.                                          |
+| down           | stop             | Stops a running machine.                                 |
+| poweroff       | stop             | Stops a running machine.                                 |
+| reset          | restart          | Restarts a running machine.                              |
+| config         | inspect          | Prints machine configuration details.                    |
+| status         | ls               | Lists all machines and their status.                     |
+| info           | inspect          | Displays a machine's details.                            |
+| ip             | ip               | Displays the machine's ip address.                       |
+| shellinit      | env              | Displays shell commands needed to configure your shell to interact with a machine |
+| delete         | rm               | Removes a machine.                                       |
+| download       | -                | Not applicable.                                          |
+| upgrade        | upgrade          | Upgrades a machine's Docker client to the latest stable release. |
+
+
+## Example of Docker on Mac OS X
+
+Work through this section to try some practical container tasks on a VM. At this
+point, you should have a VM running and be connected to it through your shell.
+To verify this, run the following commands:
+
+    $ docker-machine ls
+    NAME                ACTIVE   DRIVER       STATE     URL                         SWARM
+    dev                 *        virtualbox   Running   tcp://192.168.99.100:2376   
+
+The `ACTIVE` machine, in this case `dev`, is the one your environment is pointing to.
 
 ### Access container ports
 
@@ -212,11 +303,11 @@ Work through this section to try some practical container tasks using `boot2dock
 
     This didn't work. The reason it doesn't work is your `DOCKER_HOST` address is
     not the localhost address (0.0.0.0) but is instead the address of the
-    `boot2docker` VM.
+    your Docker VM.
 
-5. Get the address of the `boot2docker` VM.
+5. Get the address of the `dev` VM.
 
-        $ boot2docker ip
+        $ docker-machine ip dev
         192.168.59.103
 
 6. Enter the `http://192.168.59.103:49157` address in your browser:
@@ -232,7 +323,7 @@ Work through this section to try some practical container tasks using `boot2dock
 
 ### Mount a volume on the container
 
-When you start `boot2docker`, it automatically shares your `/Users` directory
+When you start a container it automatically shares your `/Users/username` directory
 with the VM. You can use this share point to mount directories onto your container.
 The next exercise demonstrates how to do this.
 
@@ -274,85 +365,53 @@ The next exercise demonstrates how to do this.
 
     ![Cool page](/installation/images/cool_view.png)
 
-9. Stop and then remove your running `mysite` container.
+10. Stop and then remove your running `mysite` container.
 
         $ docker stop mysite
         $ docker rm mysite
 
-## Upgrade Boot2Docker
 
-If you running Boot2Docker 1.4.1 or greater, you can upgrade Boot2Docker from
-the command line. If you are running an older version, you should use the
-package provided by the `boot2docker` repository.
+## Upgrade Docker Toolbox
 
-### From the command line
-
-To upgrade from 1.4.1 or greater, you can do this:
-
-1. Open a terminal on your local machine.
-
-2. Stop the `boot2docker` application.
-
-        $ boot2docker stop
-
-3. Run the upgrade command.
-
-        $ boot2docker upgrade
+To upgrade Docker Toolbox, download an re-run [the Docker Toolbox
+installer](https://docker.com/toolbox/).
 
 
-### Use the installer
+## Uninstall Docker Toolbox 
 
-To upgrade any version of Boot2Docker, do this:
+To uninstall, do the following:
 
-1. Open a terminal on your local machine.
+1. List your machines.
 
-2. Stop the `boot2docker` application.
+        $ docker-machine ls
+        NAME                ACTIVE   DRIVER       STATE     URL                         SWARM
+        dev                 *        virtualbox   Running   tcp://192.168.99.100:2376   
+        my-docker-machine            virtualbox   Stopped                               
+        docker-vm                 virtualbox   Stopped  
 
-        $ boot2docker stop
+2. Remove each machine.
 
-3. Go to the [boot2docker/osx-installer ](
-   https://github.com/boot2docker/osx-installer/releases/latest) release page.
+        $ docker-machine rm dev
+        Successfully removed dev
+    
+     Removing a machine deletes its VM from VirtualBox and from the
+     `~/.docker/machine/machines` directory.
 
-4. Download Boot2Docker by clicking `Boot2Docker-x.x.x.pkg` in the "Downloads"
-   section.
+3. Remove the Docker Quickstart Terminal and Kitematic from your "Applications" folder.
 
-2. Install Boot2Docker by double-clicking the package.
+4. Remove the `docker`, `docker-compose`, and `docker-machine` commands from the `/usr/local/bin` folder.
 
-    The installer places Boot2Docker in your "Applications" folder.
-
-
-## Uninstallation 
-
-1. Go to the [boot2docker/osx-installer ](
-   https://github.com/boot2docker/osx-installer/releases/latest) release page. 
-
-2. Download the source code by clicking `Source code (zip)` or
-   `Source code (tar.gz)` in the "Downloads" section.
-
-3. Extract the source code.
-
-4. Open a terminal on your local machine.
-
-5. Change to the directory where you extracted the source code:
-
-        $ cd <path to extracted source code>
-
-6. Make sure the uninstall.sh script is executable:
-
-        $ chmod +x uninstall.sh
-
-7. Run the uninstall.sh script:
-
-        $ ./uninstall.sh
+        $ rm /usr/local/bin/docker
+      
+5. Delete the `~/.docker` folder from your system.
 
 
-## Learning more and acknowledgement
+## Learning more 
 
-Use `boot2docker help` to list the full command line reference. For more
-information about using SSH or SCP to access the Boot2Docker VM, see the README
-at  [Boot2Docker repository](https://github.com/boot2docker/boot2docker).
+Use `docker-machine help` to list the full command line reference for Docker Machine. For more
+information about using SSH or SCP to access a VM, see [the Docker Machine
+documentation](https://docs.docker.com/machine/).
 
-Thanks to Chris Jones whose [blog](http://viget.com/extend/how-to-use-docker-on-os-x-the-missing-guide)  
-inspired me to redo this page.
-
-Continue with the [Docker User Guide](/userguide).
+You can continue with the [Docker User Guide](/userguide). If you are
+interested in using the Kitematic GUI, see the [Kitermatic user
+guide](/kitematic/userguide/).
