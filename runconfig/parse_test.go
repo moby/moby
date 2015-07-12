@@ -124,8 +124,12 @@ func TestParseRunVolumes(t *testing.T) {
 		t.Fatalf("Error parsing volume flags, `-v /hostTmp:/containerTmp:ro -v /hostVar:/containerVar:rw` should mount-bind /hostTmp into /containeTmp and /hostVar into /hostContainer. Received %v", hostConfig.Binds)
 	}
 
-	if _, hostConfig := mustParse(t, "-v /hostTmp:/containerTmp:roZ -v /hostVar:/containerVar:rwZ"); hostConfig.Binds == nil || compareRandomizedStrings(hostConfig.Binds[0], hostConfig.Binds[1], "/hostTmp:/containerTmp:roZ", "/hostVar:/containerVar:rwZ") != nil {
-		t.Fatalf("Error parsing volume flags, `-v /hostTmp:/containerTmp:roZ -v /hostVar:/containerVar:rwZ` should mount-bind /hostTmp into /containeTmp and /hostVar into /hostContainer. Received %v", hostConfig.Binds)
+	if _, hostConfig := mustParse(t, "-v /containerTmp:ro -v /containerVar:rw"); hostConfig.Binds == nil || compareRandomizedStrings(hostConfig.Binds[0], hostConfig.Binds[1], "/containerTmp:ro", "/containerVar:rw") != nil {
+		t.Fatalf("Error parsing volume flags, `-v /hostTmp:/containerTmp:ro -v /hostVar:/containerVar:rw` should mount-bind /hostTmp into /containeTmp and /hostVar into /hostContainer. Received %v", hostConfig.Binds)
+	}
+
+	if _, hostConfig := mustParse(t, "-v /hostTmp:/containerTmp:ro,Z -v /hostVar:/containerVar:rw,Z"); hostConfig.Binds == nil || compareRandomizedStrings(hostConfig.Binds[0], hostConfig.Binds[1], "/hostTmp:/containerTmp:ro,Z", "/hostVar:/containerVar:rw,Z") != nil {
+		t.Fatalf("Error parsing volume flags, `-v /hostTmp:/containerTmp:ro,Z -v /hostVar:/containerVar:rw,Z` should mount-bind /hostTmp into /containeTmp and /hostVar into /hostContainer. Received %v", hostConfig.Binds)
 	}
 
 	if _, hostConfig := mustParse(t, "-v /hostTmp:/containerTmp:Z -v /hostVar:/containerVar:z"); hostConfig.Binds == nil || compareRandomizedStrings(hostConfig.Binds[0], hostConfig.Binds[1], "/hostTmp:/containerTmp:Z", "/hostVar:/containerVar:z") != nil {
@@ -156,9 +160,6 @@ func TestParseRunVolumes(t *testing.T) {
 	}
 	if _, _, err := parse(t, "-v /tmp:"); err == nil {
 		t.Fatalf("Error parsing volume flags, `-v /tmp:` should fail but didn't")
-	}
-	if _, _, err := parse(t, "-v /tmp:ro"); err == nil {
-		t.Fatalf("Error parsing volume flags, `-v /tmp:ro` should fail but didn't")
 	}
 	if _, _, err := parse(t, "-v /tmp::"); err == nil {
 		t.Fatalf("Error parsing volume flags, `-v /tmp::` should fail but didn't")
