@@ -50,6 +50,10 @@ func checkCgroupMem(quiet bool) *cgroupMemInfo {
 	if !quiet && !info.OomKillDisable {
 		logrus.Warnf("Your kernel does not support oom control.")
 	}
+	info.MemorySwappiness = cgroupEnabled(mountPoint, "memory.swappiness")
+	if !quiet && !info.MemorySwappiness {
+		logrus.Warnf("Your kernel does not support memory swappiness.")
+	}
 
 	return info
 }

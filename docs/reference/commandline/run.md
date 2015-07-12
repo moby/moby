@@ -58,6 +58,7 @@ weight=1
       --read-only=false          Mount the container's root filesystem as read only
       --restart="no"             Restart policy (no, on-failure[:max-retry], always)
       --rm=false                 Automatically remove the container when it exits
+      --memory-swappiness=""     Tune a container's memory swappiness behavior. Accepts an integer between 0 and 100.
       --security-opt=[]          Security Options
       --sig-proxy=true           Proxy received signals to the process
       -t, --tty=false            Allocate a pseudo-TTY

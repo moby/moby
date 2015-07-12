@@ -58,6 +58,7 @@ func SetupCgroups(container *configs.Config, c *Command) error {
 		container.Cgroups.CpuQuota = c.Resources.CpuQuota
 		container.Cgroups.BlkioWeight = c.Resources.BlkioWeight
 		container.Cgroups.OomKillDisable = c.Resources.OomKillDisable
+		container.Cgroups.MemorySwappiness = c.Resources.MemorySwappiness
 	}
 
 	return nil
