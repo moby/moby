@@ -63,6 +63,7 @@ weight=1
       --sig-proxy=true           Proxy received signals to the process
       -t, --tty=false            Allocate a pseudo-TTY
       -u, --user=""              Username or UID (format: <name|uid>[:<group|gid>])
+      --untrusted                Skip image verification
       -v, --volume=[]            Bind mount a volume
       --volumes-from=[]          Mount volumes from the specified container(s)
       -w, --workdir=""           Working directory inside the container
