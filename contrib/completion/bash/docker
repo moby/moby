@@ -116,6 +116,25 @@ __docker_pos_first_nonflag() {
 	echo $counter
 }
 
+# Returns the value of the first option matching option_glob.
+# Valid values for option_glob are option names like '--log-level' and
+# globs like '--log-level|-l'
+# Only positions between the command and the current word are considered.
+__docker_value_of_option() {
+	local option_glob=$1
+
+	local counter=$((command_pos + 1))
+	while [ $counter -lt $cword ]; do
+		case ${words[$counter]} in
+			$option_glob )
+				echo ${words[$counter + 1]}
+				break
+				;;
+		esac
+		(( counter++ ))
+	done
+}
+
 # Transforms a multiline list of strings into a single line string
 # with the words separated by "|".
 # This is used to prepare arguments to __docker_pos_first_nonflag().
@@ -193,6 +212,26 @@ __docker_log_drivers() {
 	" -- "$cur" ) )
 }
 
+__docker_log_driver_options() {
+	# see docs/reference/logging/index.md
+	case $(__docker_value_of_option --log-driver) in
+		fluentd)
+			COMPREPLY=( $( compgen -W "fluentd-address fluentd-tag" -S = -- "$cur" ) )
+			;;
+		gelf)
+			COMPREPLY=( $( compgen -W "gelf-address gelf-tag" -S = -- "$cur" ) )
+			;;
+		syslog)
+			COMPREPLY=( $( compgen -W "syslog-address syslog-facility syslog-tag" -S = -- "$cur" ) )
+			;;
+		*)
+			return
+			;;
+	esac
+
+	compopt -o nospace
+}
+
 # a selection of the available signals that is most likely of interest in the
 # context of docker containers.
 __docker_signals() {
@@ -238,6 +277,10 @@ _docker_docker() {
 			;;
 		--log-level|-l)
 			COMPREPLY=( $( compgen -W "debug info warn error fatal" -- "$cur" ) )
+			return
+			;;
+		--log-opt)
+			__docker_log_driver_options
 			return
 			;;
 		--pidfile|-p|--tlscacert|--tlscert|--tlskey)
@@ -847,6 +890,7 @@ _docker_run() {
 		--label-file
 		--link
 		--log-driver
+		--log-opt
 		--lxc-conf
 		--mac-address
 		--memory -m
@@ -953,6 +997,10 @@ _docker_run() {
 			;;
 		--log-driver)
 			__docker_log_drivers
+			return
+			;;
+		--log-opt)
+			__docker_log_driver_options
 			return
 			;;
 		--net)
@@ -1229,6 +1277,7 @@ _docker() {
 		--label
 		--log-driver
 		--log-level -l
+		--log-opt
 		--mtu
 		--pidfile -p
 		--registry-mirror
