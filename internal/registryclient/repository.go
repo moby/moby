@@ -444,3 +444,71 @@ func (bs *blobStatter) Stat(ctx context.Context, dgst digest.Digest) (distributi
 		return distribution.Descriptor{}, handleErrorResponse(resp)
 	}
 }
+
+// NewCatalog can be used to get a list of repositories
+func NewCatalog(ctx context.Context, baseURL string, transport http.RoundTripper) (distribution.CatalogService, error) {
+	ub, err := v2.NewURLBuilderFromString(baseURL)
+	if err != nil {
+		return nil, err
+	}
+
+	client := &http.Client{
+		Transport: transport,
+		Timeout:   1 * time.Minute,
+	}
+
+	return &catalog{
+		client:  client,
+		ub:      ub,
+		context: ctx,
+	}, nil
+}
+
+type catalog struct {
+	client  *http.Client
+	ub      *v2.URLBuilder
+	context context.Context
+}
+
+func (c *catalog) Get(maxEntries int, last string) ([]string, bool, error) {
+	var repos []string
+
+	values := url.Values{}
+
+	if maxEntries > 0 {
+		values.Add("n", strconv.Itoa(maxEntries))
+	}
+
+	if last != "" {
+		values.Add("last", last)
+	}
+
+	u, err := c.ub.BuildCatalogURL(values)
+	if err != nil {
+		return nil, false, err
+	}
+
+	resp, err := c.client.Get(u)
+	if err != nil {
+		return nil, false, err
+	}
+	defer resp.Body.Close()
+
+	switch resp.StatusCode {
+	case http.StatusOK:
+		var ctlg struct {
+			Repositories []string `json:"repositories"`
+		}
+		decoder := json.NewDecoder(resp.Body)
+
+		if err := decoder.Decode(&ctlg); err != nil {
+			return nil, false, err
+		}
+
+		repos = ctlg.Repositories
+	default:
+		return nil, false, handleErrorResponse(resp)
+	}
+
+	return repos, false, nil
+}
