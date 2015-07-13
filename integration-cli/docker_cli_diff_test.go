@@ -108,3 +108,10 @@ func (s *DockerSuite) TestDiffEnsureOnlyKmsgAndPtmx(c *check.C) {
 		}
 	}
 }
+
+// https://github.com/docker/docker/pull/14381#discussion_r33859347
+func (s *DockerSuite) TestDiffEmptyArgClientError(c *check.C) {
+	out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "diff", ""))
+	c.Assert(err, check.NotNil)
+	c.Assert(strings.TrimSpace(out), check.Equals, "Container name cannot be empty")
+}
