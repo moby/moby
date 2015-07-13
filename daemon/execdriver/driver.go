@@ -177,4 +177,5 @@ type Command struct {
 	FirstStart         bool              `json:"first_start"`
 	LayerPaths         []string          `json:"layer_paths"` // Windows needs to know the layer paths and folder for a command
 	LayerFolder        string            `json:"layer_folder"`
+	TmpDir             string            `json:"tmpdir"` // Directory used to store docker tmpdirs.
 }
