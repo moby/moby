@@ -73,7 +73,7 @@ a `syslog-tag` option
 
 ## Specify journald options
 
-The `journald` logging driver sotres the container id in the journal's `CONTAINER_ID` field. For detailed information on
+The `journald` logging driver stores the container id in the journal's `CONTAINER_ID` field. For detailed information on
 working with this logging driver, see [the journald logging driver](/reference/logging/journald/)
 reference documentation.
 
