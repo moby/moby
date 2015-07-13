@@ -80,6 +80,7 @@ func populateCommand(c *Container, env []string) error {
 			network := c.NetworkSettings
 			en.Interface = &execdriver.NetworkInterface{
 				MacAddress: network.MacAddress,
+				Bridge:     c.daemon.config.Bridge.VirtualSwitchName,
 			}
 		}
 	default:
@@ -156,12 +157,6 @@ func (container *Container) GetSize() (int64, int64) {
 }
 
 func (container *Container) AllocateNetwork() error {
-
-	// TODO Windows. This needs reworking with libnetwork. In the
-	// proof-of-concept for //build conference, the Windows daemon
-	// invoked eng.Job("allocate_interface) passing through
-	// RequestedMac.
-
 	return nil
 }
 
@@ -174,11 +169,9 @@ func (container *Container) ExportRw() (archive.Archive, error) {
 }
 
 func (container *Container) ReleaseNetwork() {
-	// TODO Windows. Rework with libnetwork
 }
 
 func (container *Container) RestoreNetwork() error {
-	// TODO Windows. Rework with libnetwork
 	return nil
 }
 

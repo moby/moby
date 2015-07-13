@@ -15,6 +15,7 @@ const (
 // common across platforms.
 type CommonConfig struct {
 	AutoRestart    bool
+	Bridge         bridgeConfig // Bridge holds bridge network specific configuration.
 	Context        map[string][]string
 	CorsHeaders    string
 	DisableBridge  bool

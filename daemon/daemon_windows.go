@@ -15,6 +15,8 @@ import (
 	"github.com/microsoft/hcsshim"
 )
 
+const DefaultVirtualSwitch = "Virtual Switch"
+
 func (daemon *Daemon) Changes(container *Container) ([]archive.Change, error) {
 	return daemon.driver.Changes(container.ID, container.ImageID)
 }
@@ -125,7 +127,10 @@ func isBridgeNetworkDisabled(config *Config) bool {
 }
 
 func initNetworkController(config *Config) (libnetwork.NetworkController, error) {
-	// TODO Windows
+	// Set the name of the virtual switch if not specified by -b on daemon start
+	if config.Bridge.VirtualSwitchName == "" {
+		config.Bridge.VirtualSwitchName = DefaultVirtualSwitch
+	}
 	return nil, nil
 }
 
