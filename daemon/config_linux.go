@@ -22,8 +22,6 @@ type Config struct {
 
 	// Fields below here are platform specific.
 
-	// Bridge holds bridge network specific configuration.
-	Bridge               bridgeConfig
 	EnableSelinuxSupport bool
 	SocketGroup          string
 	Ulimits              map[string]*ulimit.Ulimit
