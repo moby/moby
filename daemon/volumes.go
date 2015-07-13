@@ -195,7 +195,7 @@ func (daemon *Daemon) registerMountPoints(container *Container, hostConfig *runc
 			cp := &mountPoint{
 				Name:        m.Name,
 				Source:      m.Source,
-				RW:          m.RW && mode != "ro",
+				RW:          m.RW && !roModes[mode],
 				Driver:      m.Driver,
 				Destination: m.Destination,
 			}
