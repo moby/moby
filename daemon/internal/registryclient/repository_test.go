@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -72,6 +73,23 @@ func addTestFetch(repo string, dgst digest.Digest, content []byte, m *testutil.R
 			Headers: http.Header(map[string][]string{
 				"Content-Length": {fmt.Sprint(len(content))},
 				"Last-Modified":  {time.Now().Add(-1 * time.Second).Format(time.ANSIC)},
+			}),
+		},
+	})
+}
+
+func addTestCatalog(content []byte, m *testutil.RequestResponseMap) {
+	*m = append(*m, testutil.RequestResponseMapping{
+		Request: testutil.Request{
+			Method: "GET",
+			Route:  "/v2/_catalog",
+		},
+		Response: testutil.Response{
+			StatusCode: http.StatusOK,
+			Body:       content,
+			Headers: http.Header(map[string][]string{
+				"Content-Length": {strconv.Itoa(len(content))},
+				"Content-Type":   {"application/json; charset=utf-8"},
 			}),
 		},
 	})
@@ -730,5 +748,28 @@ func TestManifestUnauthorized(t *testing.T) {
 	}
 	if expected := v2.ErrorCodeUnauthorized.Message(); v2Err.Message != expected {
 		t.Fatalf("Unexpected message value: %q, expected %q", v2Err.Message, expected)
+	}
+}
+
+func TestCatalog(t *testing.T) {
+	var m testutil.RequestResponseMap
+	addTestCatalog([]byte("{\"repositories\":[\"foo\", \"bar\", \"baz\"]}"), &m)
+
+	e, c := testServer(m)
+	defer c()
+
+	ctx := context.Background()
+	ctlg, err := NewCatalog(ctx, e, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	repos, _, err := ctlg.Get(0, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(repos) != 3 {
+		t.Fatalf("Got wrong number of repos")
 	}
 }
