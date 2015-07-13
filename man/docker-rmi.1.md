@@ -31,7 +31,7 @@ a registry. You cannot remove an image of a running container unless you use the
 
 ## Removing an image
 
-Here is an example of removing and image:
+Here is an example of removing an image:
 
     docker rmi fedora/httpd
 
