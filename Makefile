@@ -46,6 +46,11 @@ binary: build
 cross: build
 	$(DOCKER_RUN_DOCKER) hack/make.sh binary cross
 
+deb: build
+	$(DOCKER_RUN_DOCKER) hack/make.sh binary build-deb
+
+rpm: build
+	$(DOCKER_RUN_DOCKER) hack/make.sh binary build-rpm
 
 test: build
 	$(DOCKER_RUN_DOCKER) hack/make.sh binary cross test-unit test-integration-cli test-docker-py
