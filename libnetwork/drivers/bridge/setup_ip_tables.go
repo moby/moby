@@ -25,7 +25,12 @@ func (n *bridgeNetwork) setupIPTables(config *networkConfiguration, i *bridgeInt
 	if err != nil {
 		return fmt.Errorf("Failed to setup IP tables, cannot acquire Interface address: %s", err.Error())
 	}
-	if err = setupIPTablesInternal(config.BridgeName, addrv4, config.EnableICC, config.EnableIPMasquerade, hairpinMode, true); err != nil {
+	ipnet := addrv4.(*net.IPNet)
+	maskedAddrv4 := &net.IPNet{
+		IP:   ipnet.IP.Mask(ipnet.Mask),
+		Mask: ipnet.Mask,
+	}
+	if err = setupIPTablesInternal(config.BridgeName, maskedAddrv4, config.EnableICC, config.EnableIPMasquerade, hairpinMode, true); err != nil {
 		return fmt.Errorf("Failed to Setup IP tables: %s", err.Error())
 	}
 
