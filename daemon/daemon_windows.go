@@ -72,6 +72,10 @@ func checkKernel() error {
 	return nil
 }
 
+func (daemon *Daemon) adaptContainerSettings(hostConfig *runconfig.HostConfig) {
+	// TODO Windows.
+}
+
 func (daemon *Daemon) verifyContainerSettings(hostConfig *runconfig.HostConfig, config *runconfig.Config) ([]string, error) {
 	// TODO Windows. Verifications TBC
 	return nil, nil
