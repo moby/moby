@@ -1156,7 +1156,6 @@ func (s *DockerSuite) TestBuildCopyWildcardNoFind(c *check.C) {
 
 func (s *DockerSuite) TestBuildCopyWildcardInName(c *check.C) {
 	name := "testcopywildcardinname"
-	defer deleteImages(name)
 	ctx, err := fakeContext(`FROM busybox
 	COPY *.txt /tmp/
 	RUN [ "$(cat /tmp/\*.txt)" = 'hi there' ]
@@ -3444,7 +3443,6 @@ func (s *DockerSuite) TestBuildDockerignoreCleanPaths(c *check.C) {
 
 func (s *DockerSuite) TestBuildDockerignoreExceptions(c *check.C) {
 	name := "testbuilddockerignoreexceptions"
-	defer deleteImages(name)
 	dockerfile := `
         FROM busybox
         ADD . /bla
@@ -4140,7 +4138,6 @@ func (s *DockerSuite) TestBuildFromGIT(c *check.C) {
 
 func (s *DockerSuite) TestBuildFromGITWithContext(c *check.C) {
 	name := "testbuildfromgit"
-	defer deleteImages(name)
 	git, err := fakeGIT("repo", map[string]string{
 		"docker/Dockerfile": `FROM busybox
 					ADD first /first
@@ -5323,7 +5320,6 @@ func (s *DockerSuite) TestBuildEmptyStringVolume(c *check.C) {
 func (s *DockerSuite) TestBuildContainerWithCgroupParent(c *check.C) {
 	testRequires(c, NativeExecDriver)
 	testRequires(c, SameHostDaemon)
-	defer deleteImages()
 
 	cgroupParent := "test"
 	data, err := ioutil.ReadFile("/proc/self/cgroup")
