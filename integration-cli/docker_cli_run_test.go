@@ -61,6 +61,27 @@ func (s *DockerSuite) TestRunWithoutMemoryswapLimit(c *check.C) {
 	}
 }
 
+func (s *DockerSuite) TestRunWithSwappiness(c *check.C) {
+	runCmd := exec.Command(dockerBinary, "run", "--memory-swappiness", "0", "busybox", "true")
+	out, _, err := runCommandWithOutput(runCmd)
+	if err != nil {
+		c.Fatalf("failed to run container, output: %q", out)
+	}
+}
+
+func (s *DockerSuite) TestRunWithSwappinessInvalid(c *check.C) {
+	runCmd := exec.Command(dockerBinary, "run", "--memory-swappiness", "101", "busybox", "true")
+	out, _, err := runCommandWithOutput(runCmd)
+	if err == nil {
+		c.Fatalf("failed. test was able to set invalid value, output: %q", out)
+	}
+	runCmd = exec.Command(dockerBinary, "run", "--memory-swappiness", "-1", "busybox", "true")
+	out, _, err = runCommandWithOutput(runCmd)
+	if err == nil {
+		c.Fatalf("failed. test was able to set invalid value, output: %q", out)
+	}
+}
+
 // "test" should be printed
 func (s *DockerSuite) TestRunEchoStdoutWitCPULimit(c *check.C) {
 	runCmd := exec.Command(dockerBinary, "run", "-c", "1000", "busybox", "echo", "test")

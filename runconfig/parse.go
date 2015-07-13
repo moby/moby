@@ -72,6 +72,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		flStdin           = cmd.Bool([]string{"i", "-interactive"}, false, "Keep STDIN open even if not attached")
 		flTty             = cmd.Bool([]string{"t", "-tty"}, false, "Allocate a pseudo-TTY")
 		flOomKillDisable  = cmd.Bool([]string{"-oom-kill-disable"}, false, "Disable OOM Killer")
+		flSwappinessStr   = cmd.String([]string{"-memory-swappiness"}, "", "Tuning container memory swappiness (0 to 100)")
 		flContainerIDFile = cmd.String([]string{"#cidfile", "-cidfile"}, "", "Write the container ID to the file")
 		flEntrypoint      = cmd.String([]string{"#entrypoint", "-entrypoint"}, "", "Overwrite the default ENTRYPOINT of the image")
 		flHostname        = cmd.String([]string{"h", "-hostname"}, "", "Container host name")
@@ -185,6 +186,19 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 			}
 			MemorySwap = parsedMemorySwap
 		}
+	}
+
+	var parsedSwappiness int64
+	var flSwappiness int64
+
+	if *flSwappinessStr != "" {
+		parsedSwappiness, err = strconv.ParseInt(*flSwappinessStr, 10, 64)
+		if err != nil || parsedSwappiness < 0 || parsedSwappiness > 100 {
+			return nil, nil, cmd, fmt.Errorf("invalid value:%s. valid memory swappiness range is 0-100", *flSwappinessStr)
+		}
+		flSwappiness = parsedSwappiness
+	} else {
+		flSwappiness = -1
 	}
 
 	var binds []string
@@ -327,39 +341,40 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 	}
 
 	hostConfig := &HostConfig{
-		Binds:           binds,
-		ContainerIDFile: *flContainerIDFile,
-		LxcConf:         lxcConf,
-		Memory:          flMemory,
-		MemorySwap:      MemorySwap,
-		CpuShares:       *flCpuShares,
-		CpuPeriod:       *flCpuPeriod,
-		CpusetCpus:      *flCpusetCpus,
-		CpusetMems:      *flCpusetMems,
-		CpuQuota:        *flCpuQuota,
-		BlkioWeight:     *flBlkioWeight,
-		OomKillDisable:  *flOomKillDisable,
-		Privileged:      *flPrivileged,
-		PortBindings:    portBindings,
-		Links:           flLinks.GetAll(),
-		PublishAllPorts: *flPublishAll,
-		Dns:             flDns.GetAll(),
-		DnsSearch:       flDnsSearch.GetAll(),
-		ExtraHosts:      flExtraHosts.GetAll(),
-		VolumesFrom:     flVolumesFrom.GetAll(),
-		NetworkMode:     netMode,
-		IpcMode:         ipcMode,
-		PidMode:         pidMode,
-		UTSMode:         utsMode,
-		Devices:         deviceMappings,
-		CapAdd:          NewCapList(flCapAdd.GetAll()),
-		CapDrop:         NewCapList(flCapDrop.GetAll()),
-		RestartPolicy:   restartPolicy,
-		SecurityOpt:     flSecurityOpt.GetAll(),
-		ReadonlyRootfs:  *flReadonlyRootfs,
-		Ulimits:         flUlimits.GetList(),
-		LogConfig:       LogConfig{Type: *flLoggingDriver, Config: loggingOpts},
-		CgroupParent:    *flCgroupParent,
+		Binds:            binds,
+		ContainerIDFile:  *flContainerIDFile,
+		LxcConf:          lxcConf,
+		Memory:           flMemory,
+		MemorySwap:       MemorySwap,
+		CpuShares:        *flCpuShares,
+		CpuPeriod:        *flCpuPeriod,
+		CpusetCpus:       *flCpusetCpus,
+		CpusetMems:       *flCpusetMems,
+		CpuQuota:         *flCpuQuota,
+		BlkioWeight:      *flBlkioWeight,
+		OomKillDisable:   *flOomKillDisable,
+		MemorySwappiness: flSwappiness,
+		Privileged:       *flPrivileged,
+		PortBindings:     portBindings,
+		Links:            flLinks.GetAll(),
+		PublishAllPorts:  *flPublishAll,
+		Dns:              flDns.GetAll(),
+		DnsSearch:        flDnsSearch.GetAll(),
+		ExtraHosts:       flExtraHosts.GetAll(),
+		VolumesFrom:      flVolumesFrom.GetAll(),
+		NetworkMode:      netMode,
+		IpcMode:          ipcMode,
+		PidMode:          pidMode,
+		UTSMode:          utsMode,
+		Devices:          deviceMappings,
+		CapAdd:           NewCapList(flCapAdd.GetAll()),
+		CapDrop:          NewCapList(flCapDrop.GetAll()),
+		RestartPolicy:    restartPolicy,
+		SecurityOpt:      flSecurityOpt.GetAll(),
+		ReadonlyRootfs:   *flReadonlyRootfs,
+		Ulimits:          flUlimits.GetList(),
+		LogConfig:        LogConfig{Type: *flLoggingDriver, Config: loggingOpts},
+		CgroupParent:     *flCgroupParent,
 	}
 
 	applyExperimentalFlags(expFlags, config, hostConfig)
