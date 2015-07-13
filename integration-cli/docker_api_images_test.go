@@ -91,7 +91,6 @@ func (s *DockerSuite) TestApiImagesDelete(c *check.C) {
 	if err != nil {
 		c.Fatal(err)
 	}
-	defer deleteImages(name)
 	id := strings.TrimSpace(out)
 
 	if out, err := exec.Command(dockerBinary, "tag", name, "test:tag1").CombinedOutput(); err != nil {
@@ -117,7 +116,6 @@ func (s *DockerSuite) TestApiImagesHistory(c *check.C) {
 	out, err := buildImage(name, "FROM hello-world\nENV FOO bar", false)
 	c.Assert(err, check.IsNil)
 
-	defer deleteImages(name)
 	id := strings.TrimSpace(out)
 
 	status, body, err := sockRequest("GET", "/images/"+id+"/history", nil)
