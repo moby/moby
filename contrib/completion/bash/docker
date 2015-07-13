@@ -94,13 +94,19 @@ __docker_containers_and_images() {
 	COMPREPLY+=( "${containers[@]}" )
 }
 
+# Finds the position of the first word that is neither option nor an option's argument.
+# If there are options that require arguments, you should pass a glob describing those
+# options, e.g. "--option1|-o|--option2"
+# Use this function to restrict completions to exact positions after the argument list.
 __docker_pos_first_nonflag() {
 	local argument_flags=$1
 
-	local counter=$cpos
+	local counter=$((command_pos + 1))
 	while [ $counter -le $cword ]; do
 		if [ -n "$argument_flags" ] && eval "case '${words[$counter]}' in $argument_flags) true ;; *) false ;; esac"; then
 			(( counter++ ))
+			# eat "=" in case of --option=arg syntax
+			[ "${words[$counter]}" = "=" ] && (( counter++ ))
 		else
 			case "${words[$counter]}" in
 				-*)
@@ -110,6 +116,13 @@ __docker_pos_first_nonflag() {
 					;;
 			esac
 		fi
+
+		# Bash splits words at "=", retaining "=" as a word, examples:
+		# "--debug=false" => 3 words, "--log-opt syslog-facility=daemon" => 4 words
+		while [ "${words[$counter + 1]}" = "=" ] ; do
+			counter=$(( counter + 2))
+		done
+
 		(( counter++ ))
 	done
 
@@ -1295,7 +1308,7 @@ _docker() {
 	local cur prev words cword
 	_get_comp_words_by_ref -n : cur prev words cword
 
-	local command='docker' cpos=0
+	local command='docker' command_pos=0
 	local counter=1
 	while [ $counter -lt $cword ]; do
 		case "${words[$counter]}" in
@@ -1314,8 +1327,7 @@ _docker() {
 				;;
 			*)
 				command="${words[$counter]}"
-				cpos=$counter
-				(( cpos++ ))
+				command_pos=$counter
 				break
 				;;
 		esac
