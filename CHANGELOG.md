@@ -1,5 +1,37 @@
 # Changelog
 
+## 1.7.0 (2015-06-16)
+
+#### Runtime
++ Experimental feature: support for out-of-process volume plugins
+* The userland proxy can be disabled in favor of hairpin NAT using the daemon’s `--userland-proxy=false` flag
+* The `exec` command supports the `-u|--user` flag to specify the new process owner
++ Default gateway for containers can be specified daemon-wide using the `--default-gateway` and `--default-gateway-v6` flags
++ The CPU CFS (Completely Fair Scheduler) quota can be set in `docker run` using `--cpu-quota`
++ Container block IO can be controlled in `docker run` using`--blkio-weight`
++ ZFS support
++ The `docker logs` command supports a `--since` argument
++ UTS namespace can be shared with the host with `docker run --uts=host`
+
+#### Quality
+* Networking stack was entirely rewritten as part of the libnetwork effort
+* Engine internals refactoring
+* Volumes code was entirely rewritten to support the plugins effort
++ Sending SIGUSR1 to a daemon will dump all goroutines stacks without exiting
+
+#### Build
++ Support ${variable:-value} and ${variable:+value} syntax for environment variables
++ Support resource management flags `--cgroup-parent`, `--cpu-period`, `--cpu-quota`, `--cpuset-cpus`, `--cpuset-mems`
++ git context changes with branches and directories
+* The .dockerignore file support exclusion rules
+
+#### Distribution
++ Client support for v2 mirroring support for the official registry
+
+#### Bugfixes
+* Firewalld is now supported and will automatically be used when available
+* mounting --device recursively
+
 ## 1.6.2 (2015-05-13)
 
 ####  Runtime
@@ -15,7 +47,7 @@
 - Prohibit mount of /sys
 
 #### Runtime
-- Update Apparmor policy to not allow mounts
+- Update AppArmor policy to not allow mounts
 
 ## 1.6.0 (2015-04-07)
 
@@ -309,7 +341,7 @@
 
 #### Hack
 * Clean up "go test" output from "make test" to be much more readable/scannable.
-* Excluse more "definitely not unit tested Go source code" directories from hack/make/test.
+* Exclude more "definitely not unit tested Go source code" directories from hack/make/test.
 + Generate md5 and sha256 hashes when building, and upload them via hack/release.sh.
 - Include contributed completions in Ubuntu PPA.
 + Add cli integration tests.
@@ -589,7 +621,7 @@ With the ongoing changes to the networking and execution subsystems of docker te
 * The ADD instruction now supports caching, which avoids unnecessarily re-uploading the same source content again and again when it hasn’t changed
 * The new ONBUILD instruction adds to your image a “trigger” instruction to be executed at a later time, when the image is used as the base for another build
 * Docker now ships with an experimental storage driver which uses the BTRFS filesystem for copy-on-write
-* Docker is officially supported on Mac OSX
+* Docker is officially supported on Mac OS X
 * The Docker daemon supports systemd socket activation
 
 ## 0.7.6 (2014-01-14)
@@ -643,12 +675,12 @@ With the ongoing changes to the networking and execution subsystems of docker te
 - Fix ADD caching issue with . prefixed path
 - Fix docker build on devicemapper by reverting sparse file tar option
 - Fix issue with file caching and prevent wrong cache hit
-* Use same error handling while unmarshalling  CMD and ENTRYPOINT
+* Use same error handling while unmarshalling CMD and ENTRYPOINT
 
 #### Documentation
 
 * Simplify and streamline Amazon Quickstart
-* Install instructions use unprefixed fedora image
+* Install instructions use unprefixed Fedora image
 * Update instructions for mtu flag for Docker on GCE
 + Add Ubuntu Saucy to installation
 - Fix for wrong version warning on master instead of latest
@@ -823,7 +855,7 @@ With the ongoing changes to the networking and execution subsystems of docker te
 * Improve unit tests
 * The test suite now runs all tests even if one fails
 * Refactor C in Go (Devmapper)
-- Fix OSX compilation
+- Fix OS X compilation
 
 ## 0.7.0 (2013-11-25)
 
@@ -841,7 +873,7 @@ With the ongoing changes to the networking and execution subsystems of docker te
 
 #### Runtime
 
-* Improve stability, fixes some race conditons
+* Improve stability, fixes some race conditions
 * Skip the volumes mounted when deleting the volumes of container.
 * Fix layer size computation: handle hard links correctly
 * Use the work Path for docker cp CONTAINER:PATH

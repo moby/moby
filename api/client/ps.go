@@ -29,7 +29,7 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 		psFilterArgs = filters.Args{}
 		v            = url.Values{}
 
-		cmd      = cli.Subcmd("ps", "", "List containers", true)
+		cmd      = cli.Subcmd("ps", nil, "List containers", true)
 		quiet    = cmd.Bool([]string{"q", "-quiet"}, false, "Only display numeric IDs")
 		size     = cmd.Bool([]string{"s", "-size"}, false, "Display total file sizes")
 		all      = cmd.Bool([]string{"a", "-all"}, false, "Show all containers (default shows just running)")
@@ -86,10 +86,12 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 		v.Set("filters", filterJSON)
 	}
 
-	rdr, _, err := cli.call("GET", "/containers/json?"+v.Encode(), nil, nil)
+	rdr, _, _, err := cli.call("GET", "/containers/json?"+v.Encode(), nil, nil)
 	if err != nil {
 		return err
 	}
+
+	defer rdr.Close()
 
 	containers := []types.Container{}
 	if err := json.NewDecoder(rdr).Decode(&containers); err != nil {
@@ -129,8 +131,9 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 		}
 
 		var (
-			names   = stripNamePrefix(container.Names)
-			command = strconv.Quote(container.Command)
+			names       = stripNamePrefix(container.Names)
+			command     = strconv.Quote(container.Command)
+			displayPort string
 		)
 
 		if !*noTrunc {
@@ -150,9 +153,15 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 			image = "<no image>"
 		}
 
+		if container.HostConfig.NetworkMode == "host" {
+			displayPort = "*/tcp, */udp"
+		} else {
+			displayPort = api.DisplayablePorts(container.Ports)
+		}
+
 		fmt.Fprintf(w, "%s\t%s\t%s\t%s ago\t%s\t%s\t%s\t", ID, image, command,
 			units.HumanDuration(time.Now().UTC().Sub(time.Unix(int64(container.Created), 0))),
-			container.Status, api.DisplayablePorts(container.Ports), strings.Join(names, ","))
+			container.Status, displayPort, strings.Join(names, ","))
 
 		if *size {
 			if container.SizeRootFs > 0 {

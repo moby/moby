@@ -14,8 +14,8 @@ import (
 	"strings"
 	"time"
 
-	"code.google.com/p/go.net/websocket"
 	"github.com/gorilla/mux"
+	"golang.org/x/net/websocket"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api"
@@ -244,11 +244,12 @@ func (s *Server) postAuth(version version.Version, w http.ResponseWriter, r *htt
 func (s *Server) getVersion(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	v := &types.Version{
 		Version:    dockerversion.VERSION,
-		ApiVersion: api.APIVERSION,
+		ApiVersion: api.Version,
 		GitCommit:  dockerversion.GITCOMMIT,
 		GoVersion:  runtime.Version(),
 		Os:         runtime.GOOS,
 		Arch:       runtime.GOARCH,
+		BuildTime:  dockerversion.BUILDTIME,
 	}
 
 	if version.GreaterThanOrEqualTo("1.19") {
@@ -409,6 +410,9 @@ func (s *Server) getEvents(version version.Version, w http.ResponseWriter, r *ht
 	}
 
 	isFiltered := func(field string, filter []string) bool {
+		if len(field) == 0 {
+			return false
+		}
 		if len(filter) == 0 {
 			return false
 		}
@@ -429,7 +433,9 @@ func (s *Server) getEvents(version version.Version, w http.ResponseWriter, r *ht
 	d := s.daemon
 	es := d.EventsService
 	w.Header().Set("Content-Type", "application/json")
-	enc := json.NewEncoder(ioutils.NewWriteFlusher(w))
+	outStream := ioutils.NewWriteFlusher(w)
+	outStream.Write(nil) // make sure response is sent immediately
+	enc := json.NewEncoder(outStream)
 
 	getContainerId := func(cn string) string {
 		c, err := d.Get(cn)
@@ -445,8 +451,8 @@ func (s *Server) getEvents(version version.Version, w http.ResponseWriter, r *ht
 			ef["container"][i] = getContainerId(cn)
 		}
 
-		if isFiltered(ev.Status, ef["event"]) || isFiltered(ev.From, ef["image"]) ||
-			isFiltered(ev.ID, ef["container"]) {
+		if isFiltered(ev.Status, ef["event"]) || (isFiltered(ev.ID, ef["image"]) &&
+			isFiltered(ev.From, ef["image"])) || isFiltered(ev.ID, ef["container"]) {
 			return nil
 		}
 
@@ -572,7 +578,27 @@ func (s *Server) getContainersStats(version version.Version, w http.ResponseWrit
 		return fmt.Errorf("Missing parameter")
 	}
 
-	return s.daemon.ContainerStats(vars["name"], boolValueOrDefault(r, "stream", true), ioutils.NewWriteFlusher(w))
+	stream := boolValueOrDefault(r, "stream", true)
+	var out io.Writer
+	if !stream {
+		w.Header().Set("Content-Type", "application/json")
+		out = w
+	} else {
+		out = ioutils.NewWriteFlusher(w)
+	}
+
+	var closeNotifier <-chan bool
+	if notifier, ok := w.(http.CloseNotifier); ok {
+		closeNotifier = notifier.CloseNotify()
+	}
+
+	config := &daemon.ContainerStatsConfig{
+		Stream:    stream,
+		OutStream: out,
+		Stop:      closeNotifier,
+	}
+
+	return s.daemon.ContainerStats(vars["name"], config)
 }
 
 func (s *Server) getContainersLogs(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
@@ -650,7 +676,7 @@ func (s *Server) postCommit(version version.Version, w http.ResponseWriter, r *h
 		return err
 	}
 
-	cont := r.Form.Get("container")
+	cname := r.Form.Get("container")
 
 	pause := boolValue(r, "pause")
 	if r.FormValue("pause") == "" && version.GreaterThanOrEqualTo("1.13") {
@@ -662,7 +688,7 @@ func (s *Server) postCommit(version version.Version, w http.ResponseWriter, r *h
 		return err
 	}
 
-	containerCommitConfig := &daemon.ContainerCommitConfig{
+	commitCfg := &builder.BuilderCommitConfig{
 		Pause:   pause,
 		Repo:    r.Form.Get("repo"),
 		Tag:     r.Form.Get("tag"),
@@ -672,7 +698,7 @@ func (s *Server) postCommit(version version.Version, w http.ResponseWriter, r *h
 		Config:  c,
 	}
 
-	imgID, err := builder.Commit(s.daemon, cont, containerCommitConfig)
+	imgID, err := builder.Commit(cname, s.daemon, commitCfg)
 	if err != nil {
 		return err
 	}
@@ -897,6 +923,7 @@ func (s *Server) postContainersCreate(version version.Version, w http.ResponseWr
 	if err != nil {
 		return err
 	}
+	adjustCpuShares(version, hostConfig)
 
 	containerId, warnings, err := s.daemon.ContainerCreate(name, config, hostConfig)
 	if err != nil {
@@ -1094,6 +1121,11 @@ func (s *Server) postContainersAttach(version version.Version, w http.ResponseWr
 		return fmt.Errorf("Missing parameter")
 	}
 
+	cont, err := s.daemon.Get(vars["name"])
+	if err != nil {
+		return err
+	}
+
 	inStream, outStream, err := hijackServer(w)
 	if err != nil {
 		return err
@@ -1114,10 +1146,9 @@ func (s *Server) postContainersAttach(version version.Version, w http.ResponseWr
 		UseStderr: boolValue(r, "stderr"),
 		Logs:      boolValue(r, "logs"),
 		Stream:    boolValue(r, "stream"),
-		Multiplex: version.GreaterThanOrEqualTo("1.6"),
 	}
 
-	if err := s.daemon.ContainerAttachWithLogs(vars["name"], attachWithLogsConfig); err != nil {
+	if err := s.daemon.ContainerAttachWithLogs(cont, attachWithLogsConfig); err != nil {
 		fmt.Fprintf(outStream, "Error attaching: %s\n", err)
 	}
 
@@ -1132,6 +1163,11 @@ func (s *Server) wsContainersAttach(version version.Version, w http.ResponseWrit
 		return fmt.Errorf("Missing parameter")
 	}
 
+	cont, err := s.daemon.Get(vars["name"])
+	if err != nil {
+		return err
+	}
+
 	h := websocket.Handler(func(ws *websocket.Conn) {
 		defer ws.Close()
 
@@ -1143,7 +1179,7 @@ func (s *Server) wsContainersAttach(version version.Version, w http.ResponseWrit
 			Stream:    boolValue(r, "stream"),
 		}
 
-		if err := s.daemon.ContainerWsAttachWithLogs(vars["name"], wsAttachWithLogsConfig); err != nil {
+		if err := s.daemon.ContainerWsAttachWithLogs(cont, wsAttachWithLogsConfig); err != nil {
 			logrus.Errorf("Error attaching websocket: %s", err)
 		}
 	})
@@ -1200,18 +1236,17 @@ func (s *Server) getImagesByName(version version.Version, w http.ResponseWriter,
 
 func (s *Server) postBuild(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	var (
-		authConfig        = &cliconfig.AuthConfig{}
-		configFileEncoded = r.Header.Get("X-Registry-Config")
-		configFile        = &cliconfig.ConfigFile{}
-		buildConfig       = builder.NewBuildConfig()
+		authConfigs        = map[string]cliconfig.AuthConfig{}
+		authConfigsEncoded = r.Header.Get("X-Registry-Config")
+		buildConfig        = builder.NewBuildConfig()
 	)
 
-	if configFileEncoded != "" {
-		configFileJson := base64.NewDecoder(base64.URLEncoding, strings.NewReader(configFileEncoded))
-		if err := json.NewDecoder(configFileJson).Decode(configFile); err != nil {
+	if authConfigsEncoded != "" {
+		authConfigsJSON := base64.NewDecoder(base64.URLEncoding, strings.NewReader(authConfigsEncoded))
+		if err := json.NewDecoder(authConfigsJSON).Decode(&authConfigs); err != nil {
 			// for a pull it is not an error if no auth was given
-			// to increase compatibility with the existing api it is defaulting to be empty
-			configFile = &cliconfig.ConfigFile{}
+			// to increase compatibility with the existing api it is defaulting
+			// to be empty.
 		}
 	}
 
@@ -1238,8 +1273,7 @@ func (s *Server) postBuild(version version.Version, w http.ResponseWriter, r *ht
 	buildConfig.SuppressOutput = boolValue(r, "q")
 	buildConfig.NoCache = boolValue(r, "nocache")
 	buildConfig.ForceRemove = boolValue(r, "forcerm")
-	buildConfig.AuthConfig = authConfig
-	buildConfig.ConfigFile = configFile
+	buildConfig.AuthConfigs = authConfigs
 	buildConfig.MemorySwap = int64ValueOrZero(r, "memswap")
 	buildConfig.Memory = int64ValueOrZero(r, "memory")
 	buildConfig.CpuShares = int64ValueOrZero(r, "cpushares")
@@ -1316,6 +1350,9 @@ func (s *Server) postContainersCopy(version version.Version, w http.ResponseWrit
 
 func (s *Server) postContainerExecCreate(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := parseForm(r); err != nil {
+		return err
+	}
+	if err := checkForJson(r); err != nil {
 		return err
 	}
 	name := vars["name"]
@@ -1455,22 +1492,35 @@ func makeHttpHandler(logging bool, localMethod string, localRoute string, handle
 
 		if strings.Contains(r.Header.Get("User-Agent"), "Docker-Client/") {
 			userAgent := strings.Split(r.Header.Get("User-Agent"), "/")
+
+			// v1.20 onwards includes the GOOS of the client after the version
+			// such as Docker/1.7.0 (linux)
+			if len(userAgent) == 2 && strings.Contains(userAgent[1], " ") {
+				userAgent[1] = strings.Split(userAgent[1], " ")[0]
+			}
+
 			if len(userAgent) == 2 && !dockerVersion.Equal(version.Version(userAgent[1])) {
 				logrus.Debugf("Warning: client and server don't have the same version (client: %s, server: %s)", userAgent[1], dockerVersion)
 			}
 		}
 		version := version.Version(mux.Vars(r)["version"])
 		if version == "" {
-			version = api.APIVERSION
+			version = api.Version
 		}
 		if corsHeaders != "" {
 			writeCorsHeaders(w, r, corsHeaders)
 		}
 
-		if version.GreaterThan(api.APIVERSION) {
-			http.Error(w, fmt.Errorf("client is newer than server (client API version: %s, server API version: %s)", version, api.APIVERSION).Error(), http.StatusBadRequest)
+		if version.GreaterThan(api.Version) {
+			http.Error(w, fmt.Errorf("client is newer than server (client API version: %s, server API version: %s)", version, api.Version).Error(), http.StatusBadRequest)
 			return
 		}
+		if version.LessThan(api.MinVersion) {
+			http.Error(w, fmt.Errorf("client is too old, minimum supported API version is %s, please upgrade your client to a newer version", api.MinVersion).Error(), http.StatusBadRequest)
+			return
+		}
+
+		w.Header().Set("Server", "Docker/"+dockerversion.VERSION+" ("+runtime.GOOS+")")
 
 		if err := handlerFunc(version, w, r, mux.Vars(r)); err != nil {
 			logrus.Errorf("Handler for %s %s returned error: %s", localMethod, localRoute, err)

@@ -98,3 +98,20 @@ func (s *DockerSuite) TestNetworkLocalhostTCPNat(c *check.C) {
 		c.Fatalf("Expected message %q but received %q", msg, final)
 	}
 }
+
+func (s *DockerSuite) TestNetworkLoopbackNat(c *check.C) {
+	testRequires(c, SameHostDaemon, NativeExecDriver)
+	msg := "it works"
+	startServerContainer(c, msg, 8080)
+	endpoint := getExternalAddress(c)
+	runCmd := exec.Command(dockerBinary, "run", "-t", "--net=container:server", "busybox",
+		"sh", "-c", fmt.Sprintf("stty raw && nc -w 5 %s 8080", endpoint.String()))
+	out, _, err := runCommandWithOutput(runCmd)
+	if err != nil {
+		c.Fatal(out, err)
+	}
+	final := strings.TrimRight(string(out), "\n")
+	if final != msg {
+		c.Fatalf("Expected message %q but received %q", msg, final)
+	}
+}

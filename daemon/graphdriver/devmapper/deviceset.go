@@ -105,7 +105,8 @@ type DeviceSet struct {
 	thinPoolDevice        string
 	Transaction           `json:"-"`
 	overrideUdevSyncCheck bool
-	deferredRemove        bool // use deferred removal
+	deferredRemove        bool   // use deferred removal
+	BaseDeviceUUID        string //save UUID of base device
 }
 
 type DiskUsage struct {
@@ -125,6 +126,13 @@ type Status struct {
 	SectorSize            uint64
 	UdevSyncSupported     bool
 	DeferredRemoveEnabled bool
+}
+
+// Structure used to export image/container metadata in docker inspect.
+type DeviceMetadata struct {
+	deviceId   int
+	deviceSize uint64 // size in bytes
+	deviceName string // Device name as used during activation
 }
 
 type DevStatus struct {
@@ -669,9 +677,76 @@ func (devices *DeviceSet) loadMetadata(hash string) *DevInfo {
 	return info
 }
 
+func getDeviceUUID(device string) (string, error) {
+	out, err := exec.Command("blkid", "-s", "UUID", "-o", "value", device).Output()
+	if err != nil {
+		logrus.Debugf("Failed to find uuid for device %s:%v", device, err)
+		return "", err
+	}
+
+	uuid := strings.TrimSuffix(string(out), "\n")
+	uuid = strings.TrimSpace(uuid)
+	logrus.Debugf("UUID for device: %s is:%s", device, uuid)
+	return uuid, nil
+}
+
+func (devices *DeviceSet) verifyBaseDeviceUUID(baseInfo *DevInfo) error {
+	devices.Lock()
+	defer devices.Unlock()
+
+	if err := devices.activateDeviceIfNeeded(baseInfo); err != nil {
+		return err
+	}
+
+	defer devices.deactivateDevice(baseInfo)
+
+	uuid, err := getDeviceUUID(baseInfo.DevName())
+	if err != nil {
+		return err
+	}
+
+	if devices.BaseDeviceUUID != uuid {
+		return fmt.Errorf("Current Base Device UUID:%s does not match with stored UUID:%s", uuid, devices.BaseDeviceUUID)
+	}
+
+	return nil
+}
+
+func (devices *DeviceSet) saveBaseDeviceUUID(baseInfo *DevInfo) error {
+	devices.Lock()
+	defer devices.Unlock()
+
+	if err := devices.activateDeviceIfNeeded(baseInfo); err != nil {
+		return err
+	}
+
+	defer devices.deactivateDevice(baseInfo)
+
+	uuid, err := getDeviceUUID(baseInfo.DevName())
+	if err != nil {
+		return err
+	}
+
+	devices.BaseDeviceUUID = uuid
+	devices.saveDeviceSetMetaData()
+	return nil
+}
+
 func (devices *DeviceSet) setupBaseImage() error {
 	oldInfo, _ := devices.lookupDevice("")
 	if oldInfo != nil && oldInfo.Initialized {
+		// If BaseDeviceUUID is nil (upgrade case), save it and
+		// return success.
+		if devices.BaseDeviceUUID == "" {
+			if err := devices.saveBaseDeviceUUID(oldInfo); err != nil {
+				return fmt.Errorf("Could not query and save base device UUID:%v", err)
+			}
+			return nil
+		}
+
+		if err := devices.verifyBaseDeviceUUID(oldInfo); err != nil {
+			return fmt.Errorf("Base Device UUID verification failed. Possibly using a different thin pool then last invocation:%v", err)
+		}
 		return nil
 	}
 
@@ -719,6 +794,10 @@ func (devices *DeviceSet) setupBaseImage() error {
 	if err := devices.saveMetadata(info); err != nil {
 		info.Initialized = false
 		return err
+	}
+
+	if err := devices.saveBaseDeviceUUID(info); err != nil {
+		return fmt.Errorf("Could not query and save base device UUID:%v", err)
 	}
 
 	return nil
@@ -1033,10 +1112,7 @@ func (devices *DeviceSet) initDevmapper(doInit bool) error {
 
 	// https://github.com/docker/docker/issues/4036
 	if supported := devicemapper.UdevSetSyncSupport(true); !supported {
-		logrus.Errorf("Udev sync is not supported. This will lead to unexpected behavior, data loss and errors. For more information, see https://docs.docker.com/reference/commandline/cli/#daemon-storage-driver-option")
-		if !devices.overrideUdevSyncCheck {
-			return graphdriver.ErrNotSupported
-		}
+		logrus.Warn("Udev sync is not supported. This will lead to unexpected behavior, data loss and errors. For more information, see https://docs.docker.com/reference/commandline/cli/#daemon-storage-driver-option")
 	}
 
 	if err := os.MkdirAll(devices.metadataDir(), 0700); err != nil && !os.IsExist(err) {
@@ -1698,6 +1774,20 @@ func (devices *DeviceSet) Status() *Status {
 	}
 
 	return status
+}
+
+// Status returns the current status of this deviceset
+func (devices *DeviceSet) ExportDeviceMetadata(hash string) (*DeviceMetadata, error) {
+	info, err := devices.lookupDevice(hash)
+	if err != nil {
+		return nil, err
+	}
+
+	info.lock.Lock()
+	defer info.lock.Unlock()
+
+	metadata := &DeviceMetadata{info.DeviceId, info.Size, info.Name()}
+	return metadata, nil
 }
 
 func NewDeviceSet(root string, doInit bool, options []string) (*DeviceSet, error) {

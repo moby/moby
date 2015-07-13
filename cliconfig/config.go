@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/docker/docker/pkg/homedir"
+	"github.com/docker/docker/pkg/system"
 )
 
 const (
@@ -25,8 +26,23 @@ const (
 )
 
 var (
+	configDir            = os.Getenv("DOCKER_CONFIG")
 	ErrConfigFileMissing = errors.New("The Auth config file is missing")
 )
+
+func init() {
+	if configDir == "" {
+		configDir = filepath.Join(homedir.Get(), ".docker")
+	}
+}
+
+func ConfigDir() string {
+	return configDir
+}
+
+func SetConfigDir(dir string) {
+	configDir = dir
+}
 
 // Registry Auth Info
 type AuthConfig struct {
@@ -56,7 +72,7 @@ func NewConfigFile(fn string) *ConfigFile {
 // FIXME: use the internal golang config parser
 func Load(configDir string) (*ConfigFile, error) {
 	if configDir == "" {
-		configDir = filepath.Join(homedir.Get(), ".docker")
+		configDir = ConfigDir()
 	}
 
 	configFile := ConfigFile{
@@ -162,7 +178,7 @@ func (configFile *ConfigFile) Save() error {
 		return err
 	}
 
-	if err := os.MkdirAll(filepath.Dir(configFile.filename), 0700); err != nil {
+	if err := system.MkdirAll(filepath.Dir(configFile.filename), 0700); err != nil {
 		return err
 	}
 

@@ -13,7 +13,6 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/digest"
 	"github.com/docker/docker/cliconfig"
-	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/progressreader"
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/pkg/stringid"
@@ -219,8 +218,18 @@ func (s *TagStore) pullRepository(r *registry.Session, out io.Writer, repoInfo *
 	}
 
 	logrus.Debugf("Retrieving the tag list")
-	tagsList, err := r.GetRemoteTags(repoData.Endpoints, repoInfo.RemoteName)
+	tagsList := make(map[string]string)
+	if askedTag == "" {
+		tagsList, err = r.GetRemoteTags(repoData.Endpoints, repoInfo.RemoteName)
+	} else {
+		var tagId string
+		tagId, err = r.GetRemoteTag(repoData.Endpoints, repoInfo.RemoteName, askedTag)
+		tagsList[askedTag] = tagId
+	}
 	if err != nil {
+		if err == registry.ErrRepoNotFound && askedTag != "" {
+			return fmt.Errorf("Tag %s not found in repository %s", askedTag, repoInfo.CanonicalName)
+		}
 		logrus.Errorf("unable to get remote tags: %s", err)
 		return err
 	}
@@ -377,7 +386,7 @@ func (s *TagStore) pullImage(r *registry.Session, out io.Writer, imgID, endpoint
 				imgJSON []byte
 				imgSize int
 				err     error
-				img     *image.Image
+				img     *Image
 			)
 			retries := 5
 			for j := 1; j <= retries; j++ {
@@ -389,7 +398,7 @@ func (s *TagStore) pullImage(r *registry.Session, out io.Writer, imgID, endpoint
 					time.Sleep(time.Duration(j) * 500 * time.Millisecond)
 					continue
 				}
-				img, err = image.NewImgJSON(imgJSON)
+				img, err = NewImgJSON(imgJSON)
 				layersDownloaded = true
 				if err != nil && j == retries {
 					out.Write(sf.FormatProgress(stringid.TruncateID(id), "Error pulling dependent layers", nil))
@@ -470,6 +479,10 @@ func (s *TagStore) pullV2Repository(r *registry.Session, out io.Writer, repoInfo
 	if err != nil {
 		return fmt.Errorf("error getting authorization: %s", err)
 	}
+	if !auth.CanAuthorizeV2() {
+		return ErrV2RegistryUnavailable
+	}
+
 	var layersDownloaded bool
 	if tag == "" {
 		logrus.Debugf("Pulling tag list from V2 registry for %s", repoInfo.CanonicalName)
@@ -526,7 +539,7 @@ func (s *TagStore) pullV2Tag(r *registry.Session, out io.Writer, endpoint *regis
 	// downloadInfo is used to pass information from download to extractor
 	type downloadInfo struct {
 		imgJSON    []byte
-		img        *image.Image
+		img        *Image
 		digest     digest.Digest
 		tmpFile    *os.File
 		length     int64
@@ -542,7 +555,7 @@ func (s *TagStore) pullV2Tag(r *registry.Session, out io.Writer, endpoint *regis
 			imgJSON = []byte(manifest.History[i].V1Compatibility)
 		)
 
-		img, err := image.NewImgJSON(imgJSON)
+		img, err := NewImgJSON(imgJSON)
 		if err != nil {
 			return false, fmt.Errorf("failed to parse json: %s", err)
 		}
@@ -651,6 +664,10 @@ func (s *TagStore) pullV2Tag(r *registry.Session, out io.Writer, endpoint *regis
 						Action:    "Extracting",
 					}))
 				if err != nil {
+					return false, err
+				}
+
+				if err := s.graph.SetDigest(d.img.ID, d.digest); err != nil {
 					return false, err
 				}
 

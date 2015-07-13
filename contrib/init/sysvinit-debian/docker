@@ -30,7 +30,6 @@ DOCKER_SSD_PIDFILE=/var/run/$BASE-ssd.pid
 DOCKER_LOGFILE=/var/log/$BASE.log
 DOCKER_OPTS=
 DOCKER_DESC="Docker"
-UNSHARE=${UNSHARE:-/usr/bin/unshare}
 
 # Get lsb functions
 . /lib/lsb/init-functions
@@ -104,11 +103,11 @@ case "$1" in
 		log_begin_msg "Starting $DOCKER_DESC: $BASE"
 		start-stop-daemon --start --background \
 			--no-close \
-			--exec "$UNSHARE" \
+			--exec "$DOCKER" \
 			--pidfile "$DOCKER_SSD_PIDFILE" \
 			--make-pidfile \
-			-- --mount \
-			-- "$DOCKER" -d -p "$DOCKER_PIDFILE" \
+			-- \
+				-d -p "$DOCKER_PIDFILE" \
 				$DOCKER_OPTS \
 					>> "$DOCKER_LOGFILE" 2>&1
 		log_end_msg $?

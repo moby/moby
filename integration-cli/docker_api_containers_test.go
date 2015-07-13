@@ -9,6 +9,7 @@ import (
 	"net/http/httputil"
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
 	"time"
 
@@ -32,8 +33,8 @@ func (s *DockerSuite) TestContainerApiGetAll(c *check.C) {
 	}
 
 	status, body, err := sockRequest("GET", "/containers/json?all=1", nil)
-	c.Assert(status, check.Equals, http.StatusOK)
 	c.Assert(err, check.IsNil)
+	c.Assert(status, check.Equals, http.StatusOK)
 
 	var inspectJSON []struct {
 		Names []string
@@ -58,8 +59,8 @@ func (s *DockerSuite) TestContainerApiGetJSONNoFieldsOmitted(c *check.C) {
 	c.Assert(err, check.IsNil)
 
 	status, body, err := sockRequest("GET", "/containers/json?all=1", nil)
-	c.Assert(status, check.Equals, http.StatusOK)
 	c.Assert(err, check.IsNil)
+	c.Assert(status, check.Equals, http.StatusOK)
 
 	// empty Labels field triggered this bug, make sense to check for everything
 	// cause even Ports for instance can trigger this bug
@@ -84,6 +85,45 @@ func (s *DockerSuite) TestContainerApiGetJSONNoFieldsOmitted(c *check.C) {
 	}
 }
 
+type containerPs struct {
+	Names []string
+	Ports []map[string]interface{}
+}
+
+// regression test for non-empty fields from #13901
+func (s *DockerSuite) TestContainerPsOmitFields(c *check.C) {
+	name := "pstest"
+	port := 80
+	runCmd := exec.Command(dockerBinary, "run", "-d", "--name", name, "--expose", strconv.Itoa(port), "busybox", "top")
+	_, err := runCommand(runCmd)
+	c.Assert(err, check.IsNil)
+
+	status, body, err := sockRequest("GET", "/containers/json?all=1", nil)
+	c.Assert(err, check.IsNil)
+	c.Assert(status, check.Equals, http.StatusOK)
+
+	var resp []containerPs
+	err = json.Unmarshal(body, &resp)
+	c.Assert(err, check.IsNil)
+
+	var foundContainer *containerPs
+	for _, container := range resp {
+		for _, testName := range container.Names {
+			if "/"+name == testName {
+				foundContainer = &container
+				break
+			}
+		}
+	}
+
+	c.Assert(len(foundContainer.Ports), check.Equals, 1)
+	c.Assert(foundContainer.Ports[0]["PrivatePort"], check.Equals, float64(port))
+	_, ok := foundContainer.Ports[0]["PublicPort"]
+	c.Assert(ok, check.Not(check.Equals), true)
+	_, ok = foundContainer.Ports[0]["IP"]
+	c.Assert(ok, check.Not(check.Equals), true)
+}
+
 func (s *DockerSuite) TestContainerApiGetExport(c *check.C) {
 	name := "exportcontainer"
 	runCmd := exec.Command(dockerBinary, "run", "--name", name, "busybox", "touch", "/test")
@@ -93,8 +133,8 @@ func (s *DockerSuite) TestContainerApiGetExport(c *check.C) {
 	}
 
 	status, body, err := sockRequest("GET", "/containers/"+name+"/export", nil)
-	c.Assert(status, check.Equals, http.StatusOK)
 	c.Assert(err, check.IsNil)
+	c.Assert(status, check.Equals, http.StatusOK)
 
 	found := false
 	for tarReader := tar.NewReader(bytes.NewReader(body)); ; {
@@ -125,8 +165,8 @@ func (s *DockerSuite) TestContainerApiGetChanges(c *check.C) {
 	}
 
 	status, body, err := sockRequest("GET", "/containers/"+name+"/changes", nil)
-	c.Assert(status, check.Equals, http.StatusOK)
 	c.Assert(err, check.IsNil)
+	c.Assert(status, check.Equals, http.StatusOK)
 
 	changes := []struct {
 		Kind int
@@ -156,16 +196,16 @@ func (s *DockerSuite) TestContainerApiStartVolumeBinds(c *check.C) {
 	}
 
 	status, _, err := sockRequest("POST", "/containers/create?name="+name, config)
-	c.Assert(status, check.Equals, http.StatusCreated)
 	c.Assert(err, check.IsNil)
+	c.Assert(status, check.Equals, http.StatusCreated)
 
 	bindPath := randomUnixTmpDirPath("test")
 	config = map[string]interface{}{
 		"Binds": []string{bindPath + ":/tmp"},
 	}
 	status, _, err = sockRequest("POST", "/containers/"+name+"/start", config)
-	c.Assert(status, check.Equals, http.StatusNoContent)
 	c.Assert(err, check.IsNil)
+	c.Assert(status, check.Equals, http.StatusNoContent)
 
 	pth, err := inspectFieldMap(name, "Volumes", "/tmp")
 	if err != nil {
@@ -186,8 +226,8 @@ func (s *DockerSuite) TestContainerApiStartDupVolumeBinds(c *check.C) {
 	}
 
 	status, _, err := sockRequest("POST", "/containers/create?name="+name, config)
-	c.Assert(status, check.Equals, http.StatusCreated)
 	c.Assert(err, check.IsNil)
+	c.Assert(status, check.Equals, http.StatusCreated)
 
 	bindPath1 := randomUnixTmpDirPath("test1")
 	bindPath2 := randomUnixTmpDirPath("test2")
@@ -196,8 +236,8 @@ func (s *DockerSuite) TestContainerApiStartDupVolumeBinds(c *check.C) {
 		"Binds": []string{bindPath1 + ":/tmp", bindPath2 + ":/tmp"},
 	}
 	status, body, err := sockRequest("POST", "/containers/"+name+"/start", config)
-	c.Assert(status, check.Equals, http.StatusInternalServerError)
 	c.Assert(err, check.IsNil)
+	c.Assert(status, check.Equals, http.StatusInternalServerError)
 
 	if !strings.Contains(string(body), "Duplicate bind") {
 		c.Fatalf("Expected failure due to duplicate bind mounts to same path, instead got: %q with error: %v", string(body), err)
@@ -219,15 +259,15 @@ func (s *DockerSuite) TestContainerApiStartVolumesFrom(c *check.C) {
 	}
 
 	status, _, err := sockRequest("POST", "/containers/create?name="+name, config)
-	c.Assert(status, check.Equals, http.StatusCreated)
 	c.Assert(err, check.IsNil)
+	c.Assert(status, check.Equals, http.StatusCreated)
 
 	config = map[string]interface{}{
 		"VolumesFrom": []string{volName},
 	}
 	status, _, err = sockRequest("POST", "/containers/"+name+"/start", config)
-	c.Assert(status, check.Equals, http.StatusNoContent)
 	c.Assert(err, check.IsNil)
+	c.Assert(status, check.Equals, http.StatusNoContent)
 
 	pth, err := inspectFieldMap(name, "Volumes", volPath)
 	if err != nil {
@@ -421,8 +461,8 @@ func (s *DockerSuite) TestGetStoppedContainerStats(c *check.C) {
 		// We'll never get return for GET stats from sockRequest as of now,
 		// just send request and see if panic or error would happen on daemon side.
 		status, _, err := sockRequest("GET", "/containers/"+name+"/stats", nil)
-		c.Assert(status, check.Equals, http.StatusOK)
 		c.Assert(err, check.IsNil)
+		c.Assert(status, check.Equals, http.StatusOK)
 	}()
 
 	// allow some time to send request and let daemon deal with it
@@ -451,8 +491,8 @@ func (s *DockerSuite) TestBuildApiDockerfilePath(c *check.C) {
 	}
 
 	res, body, err := sockRequestRaw("POST", "/build?dockerfile=../Dockerfile", buffer, "application/x-tar")
-	c.Assert(res.StatusCode, check.Equals, http.StatusInternalServerError)
 	c.Assert(err, check.IsNil)
+	c.Assert(res.StatusCode, check.Equals, http.StatusInternalServerError)
 
 	out, err := readBody(body)
 	if err != nil {
@@ -477,8 +517,8 @@ RUN find /tmp/`,
 	defer server.Close()
 
 	res, body, err := sockRequestRaw("POST", "/build?dockerfile=baz&remote="+server.URL()+"/testD", nil, "application/json")
-	c.Assert(res.StatusCode, check.Equals, http.StatusOK)
 	c.Assert(err, check.IsNil)
+	c.Assert(res.StatusCode, check.Equals, http.StatusOK)
 
 	buf, err := readBody(body)
 	if err != nil {
@@ -494,6 +534,91 @@ RUN find /tmp/`,
 	}
 }
 
+func (s *DockerSuite) TestBuildApiRemoteTarballContext(c *check.C) {
+	buffer := new(bytes.Buffer)
+	tw := tar.NewWriter(buffer)
+	defer tw.Close()
+
+	dockerfile := []byte("FROM busybox")
+	if err := tw.WriteHeader(&tar.Header{
+		Name: "Dockerfile",
+		Size: int64(len(dockerfile)),
+	}); err != nil {
+		c.Fatalf("failed to write tar file header: %v", err)
+	}
+	if _, err := tw.Write(dockerfile); err != nil {
+		c.Fatalf("failed to write tar file content: %v", err)
+	}
+	if err := tw.Close(); err != nil {
+		c.Fatalf("failed to close tar archive: %v", err)
+	}
+
+	server, err := fakeBinaryStorage(map[string]*bytes.Buffer{
+		"testT.tar": buffer,
+	})
+	c.Assert(err, check.IsNil)
+
+	defer server.Close()
+
+	res, _, err := sockRequestRaw("POST", "/build?remote="+server.URL()+"/testT.tar", nil, "application/tar")
+	c.Assert(err, check.IsNil)
+	c.Assert(res.StatusCode, check.Equals, http.StatusOK)
+}
+
+func (s *DockerSuite) TestBuildApiRemoteTarballContextWithCustomDockerfile(c *check.C) {
+	buffer := new(bytes.Buffer)
+	tw := tar.NewWriter(buffer)
+	defer tw.Close()
+
+	dockerfile := []byte(`FROM busybox
+RUN echo 'wrong'`)
+	if err := tw.WriteHeader(&tar.Header{
+		Name: "Dockerfile",
+		Size: int64(len(dockerfile)),
+	}); err != nil {
+		c.Fatalf("failed to write tar file header: %v", err)
+	}
+	if _, err := tw.Write(dockerfile); err != nil {
+		c.Fatalf("failed to write tar file content: %v", err)
+	}
+
+	custom := []byte(`FROM busybox
+RUN echo 'right'
+`)
+	if err := tw.WriteHeader(&tar.Header{
+		Name: "custom",
+		Size: int64(len(custom)),
+	}); err != nil {
+		c.Fatalf("failed to write tar file header: %v", err)
+	}
+	if _, err := tw.Write(custom); err != nil {
+		c.Fatalf("failed to write tar file content: %v", err)
+	}
+
+	if err := tw.Close(); err != nil {
+		c.Fatalf("failed to close tar archive: %v", err)
+	}
+
+	server, err := fakeBinaryStorage(map[string]*bytes.Buffer{
+		"testT.tar": buffer,
+	})
+	c.Assert(err, check.IsNil)
+
+	defer server.Close()
+	url := "/build?dockerfile=custom&remote=" + server.URL() + "/testT.tar"
+	res, body, err := sockRequestRaw("POST", url, nil, "application/tar")
+	c.Assert(err, check.IsNil)
+	c.Assert(res.StatusCode, check.Equals, http.StatusOK)
+
+	defer body.Close()
+	content, err := readBody(body)
+	c.Assert(err, check.IsNil)
+
+	if strings.Contains(string(content), "wrong") {
+		c.Fatalf("Build used the wrong dockerfile.")
+	}
+}
+
 func (s *DockerSuite) TestBuildApiLowerDockerfile(c *check.C) {
 	git, err := fakeGIT("repo", map[string]string{
 		"dockerfile": `FROM busybox
@@ -505,8 +630,8 @@ RUN echo from dockerfile`,
 	defer git.Close()
 
 	res, body, err := sockRequestRaw("POST", "/build?remote="+git.RepoURL, nil, "application/json")
-	c.Assert(res.StatusCode, check.Equals, http.StatusOK)
 	c.Assert(err, check.IsNil)
+	c.Assert(res.StatusCode, check.Equals, http.StatusOK)
 
 	buf, err := readBody(body)
 	if err != nil {
@@ -533,8 +658,8 @@ RUN echo from Dockerfile`,
 
 	// Make sure it tries to 'dockerfile' query param value
 	res, body, err := sockRequestRaw("POST", "/build?dockerfile=baz&remote="+git.RepoURL, nil, "application/json")
-	c.Assert(res.StatusCode, check.Equals, http.StatusOK)
 	c.Assert(err, check.IsNil)
+	c.Assert(res.StatusCode, check.Equals, http.StatusOK)
 
 	buf, err := readBody(body)
 	if err != nil {
@@ -562,8 +687,8 @@ RUN echo from dockerfile`,
 
 	// Make sure it tries to 'dockerfile' query param value
 	res, body, err := sockRequestRaw("POST", "/build?remote="+git.RepoURL, nil, "application/json")
-	c.Assert(res.StatusCode, check.Equals, http.StatusOK)
 	c.Assert(err, check.IsNil)
+	c.Assert(res.StatusCode, check.Equals, http.StatusOK)
 
 	buf, err := readBody(body)
 	if err != nil {
@@ -595,8 +720,8 @@ func (s *DockerSuite) TestBuildApiDockerfileSymlink(c *check.C) {
 	}
 
 	res, body, err := sockRequestRaw("POST", "/build", buffer, "application/x-tar")
-	c.Assert(res.StatusCode, check.Equals, http.StatusInternalServerError)
 	c.Assert(err, check.IsNil)
+	c.Assert(res.StatusCode, check.Equals, http.StatusInternalServerError)
 
 	out, err := readBody(body)
 	if err != nil {
@@ -631,8 +756,8 @@ func (s *DockerSuite) TestPostContainerBindNormalVolume(c *check.C) {
 
 	bindSpec := map[string][]string{"Binds": {fooDir + ":/foo"}}
 	status, _, err := sockRequest("POST", "/containers/two/start", bindSpec)
-	c.Assert(status, check.Equals, http.StatusNoContent)
 	c.Assert(err, check.IsNil)
+	c.Assert(status, check.Equals, http.StatusNoContent)
 
 	fooDir2, err := inspectFieldMap("two", "Volumes", "/foo")
 	if err != nil {
@@ -655,8 +780,8 @@ func (s *DockerSuite) TestContainerApiPause(c *check.C) {
 	ContainerID := strings.TrimSpace(out)
 
 	status, _, err := sockRequest("POST", "/containers/"+ContainerID+"/pause", nil)
-	c.Assert(status, check.Equals, http.StatusNoContent)
 	c.Assert(err, check.IsNil)
+	c.Assert(status, check.Equals, http.StatusNoContent)
 
 	pausedContainers, err := getSliceOfPausedContainers()
 
@@ -669,8 +794,8 @@ func (s *DockerSuite) TestContainerApiPause(c *check.C) {
 	}
 
 	status, _, err = sockRequest("POST", "/containers/"+ContainerID+"/unpause", nil)
-	c.Assert(status, check.Equals, http.StatusNoContent)
 	c.Assert(err, check.IsNil)
+	c.Assert(status, check.Equals, http.StatusNoContent)
 
 	pausedContainers, err = getSliceOfPausedContainers()
 
@@ -699,8 +824,8 @@ func (s *DockerSuite) TestContainerApiTop(c *check.C) {
 	}
 	var top topResp
 	status, b, err := sockRequest("GET", "/containers/"+id+"/top?ps_args=aux", nil)
-	c.Assert(status, check.Equals, http.StatusOK)
 	c.Assert(err, check.IsNil)
+	c.Assert(status, check.Equals, http.StatusOK)
 
 	if err := json.Unmarshal(b, &top); err != nil {
 		c.Fatal(err)
@@ -733,8 +858,8 @@ func (s *DockerSuite) TestContainerApiCommit(c *check.C) {
 
 	name := "TestContainerApiCommit"
 	status, b, err := sockRequest("POST", "/commit?repo="+name+"&testtag=tag&container="+cName, nil)
-	c.Assert(status, check.Equals, http.StatusCreated)
 	c.Assert(err, check.IsNil)
+	c.Assert(status, check.Equals, http.StatusCreated)
 
 	type resp struct {
 		Id string
@@ -771,8 +896,8 @@ func (s *DockerSuite) TestContainerApiCommitWithLabelInConfig(c *check.C) {
 
 	name := "TestContainerApiCommitWithConfig"
 	status, b, err := sockRequest("POST", "/commit?repo="+name+"&container="+cName, config)
-	c.Assert(status, check.Equals, http.StatusCreated)
 	c.Assert(err, check.IsNil)
+	c.Assert(status, check.Equals, http.StatusCreated)
 
 	type resp struct {
 		Id string
@@ -816,8 +941,8 @@ func (s *DockerSuite) TestContainerApiCreate(c *check.C) {
 	}
 
 	status, b, err := sockRequest("POST", "/containers/create", config)
-	c.Assert(status, check.Equals, http.StatusCreated)
 	c.Assert(err, check.IsNil)
+	c.Assert(status, check.Equals, http.StatusCreated)
 
 	type createResp struct {
 		Id string
@@ -829,7 +954,7 @@ func (s *DockerSuite) TestContainerApiCreate(c *check.C) {
 
 	out, err := exec.Command(dockerBinary, "start", "-a", container.Id).CombinedOutput()
 	if err != nil {
-		c.Fatal(out, err)
+		c.Fatal(string(out), err)
 	}
 	if strings.TrimSpace(string(out)) != "/test" {
 		c.Fatalf("expected output `/test`, got %q", out)
@@ -1009,6 +1134,30 @@ func (s *DockerSuite) TestContainerApiVerifyHeader(c *check.C) {
 	body.Close()
 }
 
+//Issue 14230. daemon should return 500 for invalid port syntax
+func (s *DockerSuite) TestContainerApiInvalidPortSyntax(c *check.C) {
+	config := `{
+				  "Image": "busybox",
+				  "HostConfig": {
+					"PortBindings": {
+					  "19039;1230": [
+						{}
+					  ]
+					}
+				  }
+				}`
+
+	res, body, err := sockRequestRaw("POST", "/containers/create", strings.NewReader(config), "application/json")
+	c.Assert(err, check.IsNil)
+	c.Assert(res.StatusCode, check.Equals, http.StatusInternalServerError)
+
+	b, err := readBody(body)
+	if err != nil {
+		c.Fatal(err)
+	}
+	c.Assert(strings.Contains(string(b[:]), "Invalid port"), check.Equals, true)
+}
+
 // Issue 7941 - test to make sure a "null" in JSON is just ignored.
 // W/o this fix a null in JSON would be parsed into a string var as "null"
 func (s *DockerSuite) TestContainerApiPostCreateNull(c *check.C) {
@@ -1036,8 +1185,8 @@ func (s *DockerSuite) TestContainerApiPostCreateNull(c *check.C) {
 		"OnBuild":null}`
 
 	res, body, err := sockRequestRaw("POST", "/containers/create", strings.NewReader(config), "application/json")
-	c.Assert(res.StatusCode, check.Equals, http.StatusCreated)
 	c.Assert(err, check.IsNil)
+	c.Assert(res.StatusCode, check.Equals, http.StatusCreated)
 
 	b, err := readBody(body)
 	if err != nil {
@@ -1080,7 +1229,8 @@ func (s *DockerSuite) TestCreateWithTooLowMemoryLimit(c *check.C) {
 		"Memory":    524287
 	}`
 
-	res, body, _ := sockRequestRaw("POST", "/containers/create", strings.NewReader(config), "application/json")
+	res, body, err := sockRequestRaw("POST", "/containers/create", strings.NewReader(config), "application/json")
+	c.Assert(err, check.IsNil)
 	b, err2 := readBody(body)
 	if err2 != nil {
 		c.Fatal(err2)
@@ -1103,7 +1253,8 @@ func (s *DockerSuite) TestStartWithTooLowMemoryLimit(c *check.C) {
                 "Memory":    524287
         }`
 
-	res, body, _ := sockRequestRaw("POST", "/containers/"+containerID+"/start", strings.NewReader(config), "application/json")
+	res, body, err := sockRequestRaw("POST", "/containers/"+containerID+"/start", strings.NewReader(config), "application/json")
+	c.Assert(err, check.IsNil)
 	b, err2 := readBody(body)
 	if err2 != nil {
 		c.Fatal(err2)
@@ -1121,10 +1272,9 @@ func (s *DockerSuite) TestContainerApiRename(c *check.C) {
 	containerID := strings.TrimSpace(out)
 	newName := "TestContainerApiRenameNew"
 	statusCode, _, err := sockRequest("POST", "/containers/"+containerID+"/rename?name="+newName, nil)
-
+	c.Assert(err, check.IsNil)
 	// 204 No Content is expected, not 200
 	c.Assert(statusCode, check.Equals, http.StatusNoContent)
-	c.Assert(err, check.IsNil)
 
 	name, err := inspectField(containerID, "Name")
 	if name != "/"+newName {
@@ -1141,8 +1291,8 @@ func (s *DockerSuite) TestContainerApiKill(c *check.C) {
 	}
 
 	status, _, err := sockRequest("POST", "/containers/"+name+"/kill", nil)
-	c.Assert(status, check.Equals, http.StatusNoContent)
 	c.Assert(err, check.IsNil)
+	c.Assert(status, check.Equals, http.StatusNoContent)
 
 	state, err := inspectField(name, "State.Running")
 	if err != nil {
@@ -1162,8 +1312,8 @@ func (s *DockerSuite) TestContainerApiRestart(c *check.C) {
 	}
 
 	status, _, err := sockRequest("POST", "/containers/"+name+"/restart?t=1", nil)
-	c.Assert(status, check.Equals, http.StatusNoContent)
 	c.Assert(err, check.IsNil)
+	c.Assert(status, check.Equals, http.StatusNoContent)
 
 	if err := waitInspect(name, "{{ .State.Restarting  }} {{ .State.Running  }}", "false true", 5); err != nil {
 		c.Fatal(err)
@@ -1181,8 +1331,8 @@ func (s *DockerSuite) TestContainerApiRestartNotimeoutParam(c *check.C) {
 	c.Assert(waitRun(id), check.IsNil)
 
 	status, _, err := sockRequest("POST", "/containers/"+name+"/restart", nil)
-	c.Assert(status, check.Equals, http.StatusNoContent)
 	c.Assert(err, check.IsNil)
+	c.Assert(status, check.Equals, http.StatusNoContent)
 
 	if err := waitInspect(name, "{{ .State.Restarting  }} {{ .State.Running  }}", "false true", 5); err != nil {
 		c.Fatal(err)
@@ -1198,18 +1348,18 @@ func (s *DockerSuite) TestContainerApiStart(c *check.C) {
 	}
 
 	status, _, err := sockRequest("POST", "/containers/create?name="+name, config)
-	c.Assert(status, check.Equals, http.StatusCreated)
 	c.Assert(err, check.IsNil)
+	c.Assert(status, check.Equals, http.StatusCreated)
 
 	conf := make(map[string]interface{})
 	status, _, err = sockRequest("POST", "/containers/"+name+"/start", conf)
-	c.Assert(status, check.Equals, http.StatusNoContent)
 	c.Assert(err, check.IsNil)
+	c.Assert(status, check.Equals, http.StatusNoContent)
 
 	// second call to start should give 304
 	status, _, err = sockRequest("POST", "/containers/"+name+"/start", conf)
-	c.Assert(status, check.Equals, http.StatusNotModified)
 	c.Assert(err, check.IsNil)
+	c.Assert(status, check.Equals, http.StatusNotModified)
 }
 
 func (s *DockerSuite) TestContainerApiStop(c *check.C) {
@@ -1221,8 +1371,8 @@ func (s *DockerSuite) TestContainerApiStop(c *check.C) {
 	}
 
 	status, _, err := sockRequest("POST", "/containers/"+name+"/stop?t=1", nil)
-	c.Assert(status, check.Equals, http.StatusNoContent)
 	c.Assert(err, check.IsNil)
+	c.Assert(status, check.Equals, http.StatusNoContent)
 
 	if err := waitInspect(name, "{{ .State.Running  }}", "false", 5); err != nil {
 		c.Fatal(err)
@@ -1230,8 +1380,8 @@ func (s *DockerSuite) TestContainerApiStop(c *check.C) {
 
 	// second call to start should give 304
 	status, _, err = sockRequest("POST", "/containers/"+name+"/stop?t=1", nil)
-	c.Assert(status, check.Equals, http.StatusNotModified)
 	c.Assert(err, check.IsNil)
+	c.Assert(status, check.Equals, http.StatusNotModified)
 }
 
 func (s *DockerSuite) TestContainerApiWait(c *check.C) {
@@ -1243,8 +1393,8 @@ func (s *DockerSuite) TestContainerApiWait(c *check.C) {
 	}
 
 	status, body, err := sockRequest("POST", "/containers/"+name+"/wait", nil)
-	c.Assert(status, check.Equals, http.StatusOK)
 	c.Assert(err, check.IsNil)
+	c.Assert(status, check.Equals, http.StatusOK)
 
 	if err := waitInspect(name, "{{ .State.Running  }}", "false", 5); err != nil {
 		c.Fatal(err)
@@ -1413,8 +1563,8 @@ func (s *DockerSuite) TestContainerApiDeleteConflict(c *check.C) {
 	c.Assert(waitRun(id), check.IsNil)
 
 	status, _, err := sockRequest("DELETE", "/containers/"+id, nil)
-	c.Assert(status, check.Equals, http.StatusConflict)
 	c.Assert(err, check.IsNil)
+	c.Assert(status, check.Equals, http.StatusConflict)
 }
 
 func (s *DockerSuite) TestContainerApiDeleteRemoveVolume(c *check.C) {
@@ -1434,8 +1584,8 @@ func (s *DockerSuite) TestContainerApiDeleteRemoveVolume(c *check.C) {
 	c.Assert(err, check.IsNil)
 
 	status, _, err := sockRequest("DELETE", "/containers/"+id+"?v=1&force=1", nil)
-	c.Assert(status, check.Equals, http.StatusNoContent)
 	c.Assert(err, check.IsNil)
+	c.Assert(status, check.Equals, http.StatusNoContent)
 
 	if _, err := os.Stat(vol); !os.IsNotExist(err) {
 		c.Fatalf("expected to get ErrNotExist error, got %v", err)
@@ -1502,12 +1652,77 @@ func (s *DockerSuite) TestPostContainerStop(c *check.C) {
 	c.Assert(waitRun(containerID), check.IsNil)
 
 	statusCode, _, err := sockRequest("POST", "/containers/"+containerID+"/stop", nil)
-
+	c.Assert(err, check.IsNil)
 	// 204 No Content is expected, not 200
 	c.Assert(statusCode, check.Equals, http.StatusNoContent)
-	c.Assert(err, check.IsNil)
 
 	if err := waitInspect(containerID, "{{ .State.Running  }}", "false", 5); err != nil {
 		c.Fatal(err)
 	}
+}
+
+// #14170
+func (s *DockerSuite) TestPostContainersCreateWithStringOrSliceEntrypoint(c *check.C) {
+	config := struct {
+		Image      string
+		Entrypoint string
+		Cmd        []string
+	}{"busybox", "echo", []string{"hello", "world"}}
+	_, _, err := sockRequest("POST", "/containers/create?name=echotest", config)
+	c.Assert(err, check.IsNil)
+	out, _ := dockerCmd(c, "start", "-a", "echotest")
+	c.Assert(strings.TrimSpace(out), check.Equals, "hello world")
+
+	config2 := struct {
+		Image      string
+		Entrypoint []string
+		Cmd        []string
+	}{"busybox", []string{"echo"}, []string{"hello", "world"}}
+	_, _, err = sockRequest("POST", "/containers/create?name=echotest2", config2)
+	c.Assert(err, check.IsNil)
+	out, _ = dockerCmd(c, "start", "-a", "echotest2")
+	c.Assert(strings.TrimSpace(out), check.Equals, "hello world")
+}
+
+// #14170
+func (s *DockerSuite) TestPostContainersCreateWithStringOrSliceCmd(c *check.C) {
+	config := struct {
+		Image      string
+		Entrypoint string
+		Cmd        string
+	}{"busybox", "echo", "hello world"}
+	_, _, err := sockRequest("POST", "/containers/create?name=echotest", config)
+	c.Assert(err, check.IsNil)
+	out, _ := dockerCmd(c, "start", "-a", "echotest")
+	c.Assert(strings.TrimSpace(out), check.Equals, "hello world")
+
+	config2 := struct {
+		Image string
+		Cmd   []string
+	}{"busybox", []string{"echo", "hello", "world"}}
+	_, _, err = sockRequest("POST", "/containers/create?name=echotest2", config2)
+	c.Assert(err, check.IsNil)
+	out, _ = dockerCmd(c, "start", "-a", "echotest2")
+	c.Assert(strings.TrimSpace(out), check.Equals, "hello world")
+}
+
+// regression #14318
+func (s *DockerSuite) TestPostContainersCreateWithStringOrSliceCapAddDrop(c *check.C) {
+	config := struct {
+		Image   string
+		CapAdd  string
+		CapDrop string
+	}{"busybox", "NET_ADMIN", "SYS_ADMIN"}
+	status, _, err := sockRequest("POST", "/containers/create?name=capaddtest0", config)
+	c.Assert(err, check.IsNil)
+	c.Assert(status, check.Equals, http.StatusCreated)
+
+	config2 := struct {
+		Image   string
+		CapAdd  []string
+		CapDrop []string
+	}{"busybox", []string{"NET_ADMIN", "SYS_ADMIN"}, []string{"SETGID"}}
+	status, _, err = sockRequest("POST", "/containers/create?name=capaddtest1", config2)
+	c.Assert(err, check.IsNil)
+	c.Assert(status, check.Equals, http.StatusCreated)
 }

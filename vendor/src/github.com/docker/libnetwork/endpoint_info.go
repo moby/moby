@@ -1,6 +1,7 @@
 package libnetwork
 
 import (
+	"encoding/json"
 	"net"
 
 	"github.com/docker/libnetwork/driverapi"
@@ -39,6 +40,14 @@ type InterfaceInfo interface {
 	AddressIPv6() net.IPNet
 }
 
+// ContainerInfo provides an interface to retrieve the info about the container attached to the endpoint
+type ContainerInfo interface {
+	// ID returns the ID of the container
+	ID() string
+	// Labels returns the container's labels
+	Labels() map[string]interface{}
+}
+
 type endpointInterface struct {
 	id        int
 	mac       net.HardwareAddr
@@ -46,6 +55,63 @@ type endpointInterface struct {
 	addrv6    net.IPNet
 	srcName   string
 	dstPrefix string
+	routes    []*net.IPNet
+}
+
+func (epi *endpointInterface) MarshalJSON() ([]byte, error) {
+	epMap := make(map[string]interface{})
+	epMap["id"] = epi.id
+	epMap["mac"] = epi.mac.String()
+	epMap["addr"] = epi.addr.String()
+	epMap["addrv6"] = epi.addrv6.String()
+	epMap["srcName"] = epi.srcName
+	epMap["dstPrefix"] = epi.dstPrefix
+	var routes []string
+	for _, route := range epi.routes {
+		routes = append(routes, route.String())
+	}
+	epMap["routes"] = routes
+	return json.Marshal(epMap)
+}
+
+func (epi *endpointInterface) UnmarshalJSON(b []byte) (err error) {
+	var epMap map[string]interface{}
+	if err := json.Unmarshal(b, &epMap); err != nil {
+		return err
+	}
+	epi.id = int(epMap["id"].(float64))
+
+	mac, _ := net.ParseMAC(epMap["mac"].(string))
+	epi.mac = mac
+
+	ip, ipnet, _ := net.ParseCIDR(epMap["addr"].(string))
+	if ipnet != nil {
+		ipnet.IP = ip
+		epi.addr = *ipnet
+	}
+
+	ip, ipnet, _ = net.ParseCIDR(epMap["addrv6"].(string))
+	if ipnet != nil {
+		ipnet.IP = ip
+		epi.addrv6 = *ipnet
+	}
+
+	epi.srcName = epMap["srcName"].(string)
+	epi.dstPrefix = epMap["dstPrefix"].(string)
+
+	rb, _ := json.Marshal(epMap["routes"])
+	var routes []string
+	json.Unmarshal(rb, &routes)
+	epi.routes = make([]*net.IPNet, 0)
+	for _, route := range routes {
+		ip, ipr, err := net.ParseCIDR(route)
+		if err == nil {
+			ipr.IP = ip
+			epi.routes = append(epi.routes, ipr)
+		}
+	}
+
+	return nil
 }
 
 type endpointJoinInfo struct {
@@ -53,6 +119,19 @@ type endpointJoinInfo struct {
 	gw6            net.IP
 	hostsPath      string
 	resolvConfPath string
+	StaticRoutes   []*types.StaticRoute
+}
+
+func (ep *endpoint) ContainerInfo() ContainerInfo {
+	ep.Lock()
+	ci := ep.container
+	defer ep.Unlock()
+
+	// Need this since we return the interface
+	if ci == nil {
+		return nil
+	}
+	return ci
 }
 
 func (ep *endpoint) Info() EndpointInfo {
@@ -114,25 +193,25 @@ func (ep *endpoint) AddInterface(id int, mac net.HardwareAddr, ipv4 net.IPNet, i
 	return nil
 }
 
-func (i *endpointInterface) ID() int {
-	return i.id
+func (epi *endpointInterface) ID() int {
+	return epi.id
 }
 
-func (i *endpointInterface) MacAddress() net.HardwareAddr {
-	return types.GetMacCopy(i.mac)
+func (epi *endpointInterface) MacAddress() net.HardwareAddr {
+	return types.GetMacCopy(epi.mac)
 }
 
-func (i *endpointInterface) Address() net.IPNet {
-	return (*types.GetIPNetCopy(&i.addr))
+func (epi *endpointInterface) Address() net.IPNet {
+	return (*types.GetIPNetCopy(&epi.addr))
 }
 
-func (i *endpointInterface) AddressIPv6() net.IPNet {
-	return (*types.GetIPNetCopy(&i.addrv6))
+func (epi *endpointInterface) AddressIPv6() net.IPNet {
+	return (*types.GetIPNetCopy(&epi.addrv6))
 }
 
-func (i *endpointInterface) SetNames(srcName string, dstPrefix string) error {
-	i.srcName = srcName
-	i.dstPrefix = dstPrefix
+func (epi *endpointInterface) SetNames(srcName string, dstPrefix string) error {
+	epi.srcName = srcName
+	epi.dstPrefix = dstPrefix
 	return nil
 }
 
@@ -147,6 +226,35 @@ func (ep *endpoint) InterfaceNames() []driverapi.InterfaceNameInfo {
 	}
 
 	return iList
+}
+
+func (ep *endpoint) AddStaticRoute(destination *net.IPNet, routeType int, nextHop net.IP, interfaceID int) error {
+	ep.Lock()
+	defer ep.Unlock()
+
+	r := types.StaticRoute{Destination: destination, RouteType: routeType, NextHop: nextHop, InterfaceID: interfaceID}
+
+	if routeType == types.NEXTHOP {
+		// If the route specifies a next-hop, then it's loosely routed (i.e. not bound to a particular interface).
+		ep.joinInfo.StaticRoutes = append(ep.joinInfo.StaticRoutes, &r)
+	} else {
+		// If the route doesn't specify a next-hop, it must be a connected route, bound to an interface.
+		if err := ep.addInterfaceRoute(&r); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (ep *endpoint) addInterfaceRoute(route *types.StaticRoute) error {
+	for _, iface := range ep.iFaces {
+		if iface.id == route.InterfaceID {
+			iface.routes = append(iface.routes, route.Destination)
+			return nil
+		}
+	}
+	return types.BadRequestErrorf("Interface with ID %d doesn't exist.",
+		route.InterfaceID)
 }
 
 func (ep *endpoint) SandboxKey() string {

@@ -3,7 +3,7 @@ package runconfig
 import (
 	"strings"
 
-	"github.com/docker/docker/nat"
+	"github.com/docker/docker/pkg/nat"
 )
 
 func Merge(userConf, imageConf *Config) error {
@@ -33,6 +33,7 @@ func Merge(userConf, imageConf *Config) error {
 				userEnvKey := strings.Split(userEnv, "=")[0]
 				if imageEnvKey == userEnvKey {
 					found = true
+					break
 				}
 			}
 			if !found {

@@ -13,14 +13,12 @@ import (
 //
 // Usage: docker push NAME[:TAG]
 func (cli *DockerCli) CmdPush(args ...string) error {
-	cmd := cli.Subcmd("push", "NAME[:TAG]", "Push an image or a repository to the registry", true)
+	cmd := cli.Subcmd("push", []string{"NAME[:TAG]"}, "Push an image or a repository to a registry", true)
 	cmd.Require(flag.Exact, 1)
 
 	cmd.ParseFlags(args, true)
 
-	name := cmd.Arg(0)
-
-	remote, tag := parsers.ParseRepositoryTag(name)
+	remote, tag := parsers.ParseRepositoryTag(cmd.Arg(0))
 
 	// Resolve the Repository name from fqn to RepositoryInfo
 	repoInfo, err := registry.ParseRepositoryInfo(remote)

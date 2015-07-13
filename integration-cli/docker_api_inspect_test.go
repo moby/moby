@@ -28,7 +28,7 @@ func (s *DockerSuite) TestInspectApiContainerResponse(c *check.C) {
 		c.Fatalf("unable to unmarshal body for latest version: %v", err)
 	}
 
-	keys := []string{"State", "Created", "Path", "Args", "Config", "Image", "NetworkSettings", "ResolvConfPath", "HostnamePath", "HostsPath", "LogPath", "Name", "Driver", "ExecDriver", "MountLabel", "ProcessLabel", "Volumes", "VolumesRW"}
+	keys := []string{"State", "Created", "Path", "Args", "Config", "Image", "NetworkSettings", "ResolvConfPath", "HostnamePath", "HostsPath", "LogPath", "Name", "Driver", "ExecDriver", "MountLabel", "ProcessLabel", "Volumes", "VolumesRW", "GraphDriver"}
 
 	keys = append(keys, "Id")
 

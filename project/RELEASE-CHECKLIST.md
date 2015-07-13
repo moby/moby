@@ -55,7 +55,7 @@ We don't want to stop contributions to master just because we are releasing. At
 the same time, now that the release branch exists, we don't want API changes to
 go to the now frozen API version.
 
-Create a new entry in `docs/sources/reference/api/` by copying the latest and
+Create a new entry in `docs/reference/api/` by copying the latest and
 bumping the version number (in both the file's name and content), and submit
 this in a PR against master.
 

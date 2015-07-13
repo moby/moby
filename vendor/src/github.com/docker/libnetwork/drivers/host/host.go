@@ -1,17 +1,25 @@
 package host
 
 import (
+	"sync"
+
 	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/types"
 )
 
 const networkType = "host"
 
-type driver struct{}
+type driver struct {
+	network types.UUID
+	sync.Mutex
+}
 
 // Init registers a new instance of host driver
 func Init(dc driverapi.DriverCallback) error {
-	return dc.RegisterDriver(networkType, &driver{})
+	c := driverapi.Capability{
+		Scope: driverapi.LocalScope,
+	}
+	return dc.RegisterDriver(networkType, &driver{}, c)
 }
 
 func (d *driver) Config(option map[string]interface{}) error {
@@ -19,11 +27,20 @@ func (d *driver) Config(option map[string]interface{}) error {
 }
 
 func (d *driver) CreateNetwork(id types.UUID, option map[string]interface{}) error {
+	d.Lock()
+	defer d.Unlock()
+
+	if d.network != "" {
+		return types.ForbiddenErrorf("only one instance of \"%s\" network is allowed", networkType)
+	}
+
+	d.network = id
+
 	return nil
 }
 
 func (d *driver) DeleteNetwork(nid types.UUID) error {
-	return nil
+	return types.ForbiddenErrorf("network of type \"%s\" cannot be deleted", networkType)
 }
 
 func (d *driver) CreateEndpoint(nid, eid types.UUID, epInfo driverapi.EndpointInfo, epOptions map[string]interface{}) error {
@@ -40,7 +57,11 @@ func (d *driver) EndpointOperInfo(nid, eid types.UUID) (map[string]interface{}, 
 
 // Join method is invoked when a Sandbox is attached to an endpoint.
 func (d *driver) Join(nid, eid types.UUID, sboxKey string, jinfo driverapi.JoinInfo, options map[string]interface{}) error {
-	return (jinfo.SetHostsPath("/etc/hosts"))
+	if err := jinfo.SetHostsPath("/etc/hosts"); err != nil {
+		return err
+	}
+
+	return jinfo.SetResolvConfPath("/etc/resolv.conf")
 }
 
 // Leave method is invoked when a Sandbox detaches from an endpoint.

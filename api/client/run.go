@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/url"
 	"os"
+	"runtime"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/opts"
@@ -38,7 +39,7 @@ func (cid *cidFile) Write(id string) error {
 //
 // Usage: docker run [OPTIONS] IMAGE [COMMAND] [ARG...]
 func (cli *DockerCli) CmdRun(args ...string) error {
-	cmd := cli.Subcmd("run", "IMAGE [COMMAND] [ARG...]", "Run a command in a new container", true)
+	cmd := cli.Subcmd("run", []string{"IMAGE [COMMAND] [ARG...]"}, "Run a command in a new container", true)
 
 	// These are flags not stored in Config/HostConfig
 	var (
@@ -101,6 +102,13 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 	sigProxy := *flSigProxy
 	if config.Tty {
 		sigProxy = false
+	}
+
+	// Telling the Windows daemon the initial size of the tty during start makes
+	// a far better user experience rather than relying on subsequent resizes
+	// to cause things to catch up.
+	if runtime.GOOS == "windows" {
+		hostConfig.ConsoleSize[0], hostConfig.ConsoleSize[1] = cli.getTtySize()
 	}
 
 	createResponse, err := cli.createContainer(config, hostConfig, hostConfig.ContainerIDFile, *flName)

@@ -3,6 +3,7 @@ package registry
 import (
 	"fmt"
 	"net/http"
+	"net/http/httputil"
 	"net/url"
 	"strings"
 	"testing"
@@ -211,18 +212,33 @@ func TestGetRemoteImageLayer(t *testing.T) {
 	}
 }
 
+func TestGetRemoteTag(t *testing.T) {
+	r := spawnTestRegistrySession(t)
+	tag, err := r.GetRemoteTag([]string{makeURL("/v1/")}, REPO, "test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertEqual(t, tag, imageID, "Expected tag test to map to "+imageID)
+
+	_, err = r.GetRemoteTag([]string{makeURL("/v1/")}, "foo42/baz", "foo")
+	if err != ErrRepoNotFound {
+		t.Fatal("Expected ErrRepoNotFound error when fetching tag for bogus repo")
+	}
+}
+
 func TestGetRemoteTags(t *testing.T) {
 	r := spawnTestRegistrySession(t)
 	tags, err := r.GetRemoteTags([]string{makeURL("/v1/")}, REPO)
 	if err != nil {
 		t.Fatal(err)
 	}
-	assertEqual(t, len(tags), 1, "Expected one tag")
+	assertEqual(t, len(tags), 2, "Expected two tags")
 	assertEqual(t, tags["latest"], imageID, "Expected tag latest to map to "+imageID)
+	assertEqual(t, tags["test"], imageID, "Expected tag test to map to "+imageID)
 
 	_, err = r.GetRemoteTags([]string{makeURL("/v1/")}, "foo42/baz")
-	if err == nil {
-		t.Fatal("Expected error when fetching tags for bogus repo")
+	if err != ErrRepoNotFound {
+		t.Fatal("Expected ErrRepoNotFound error when fetching tags for bogus repo")
 	}
 }
 
@@ -742,11 +758,12 @@ func TestValidRemoteName(t *testing.T) {
 		// Allow embedded hyphens.
 		"docker-rules/docker",
 
-		// Allow underscores everywhere (as opposed to hyphens).
-		"____/____",
-
 		//Username doc and image name docker being tested.
 		"doc/docker",
+
+		// single character names are now allowed.
+		"d/docker",
+		"jess/t",
 	}
 	for _, repositoryName := range validRepositoryNames {
 		if err := validateRemoteName(repositoryName); err != nil {
@@ -769,14 +786,16 @@ func TestValidRemoteName(t *testing.T) {
 		"docker-/docker",
 		"-docker-/docker",
 
+		// Don't allow underscores everywhere (as opposed to hyphens).
+		"____/____",
+
+		"_docker/_docker",
+
 		// Disallow consecutive hyphens.
 		"dock--er/docker",
 
 		// No repository.
 		"docker/",
-
-		//namespace too short
-		"d/docker",
 
 		//namespace too long
 		"this_is_not_a_valid_namespace_because_its_lenth_is_greater_than_255_this_is_not_a_valid_namespace_because_its_lenth_is_greater_than_255_this_is_not_a_valid_namespace_because_its_lenth_is_greater_than_255_this_is_not_a_valid_namespace_because_its_lenth_is_greater_than_255/docker",
@@ -893,4 +912,27 @@ func TestIsSecureIndex(t *testing.T) {
 			t.Errorf("isSecureIndex failed for %q %v, expected %v got %v", tt.addr, tt.insecureRegistries, tt.expected, sec)
 		}
 	}
+}
+
+type debugTransport struct {
+	http.RoundTripper
+	log func(...interface{})
+}
+
+func (tr debugTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	dump, err := httputil.DumpRequestOut(req, false)
+	if err != nil {
+		tr.log("could not dump request")
+	}
+	tr.log(string(dump))
+	resp, err := tr.RoundTripper.RoundTrip(req)
+	if err != nil {
+		return nil, err
+	}
+	dump, err = httputil.DumpResponse(resp, false)
+	if err != nil {
+		tr.log("could not dump response")
+	}
+	tr.log(string(dump))
+	return resp, err
 }

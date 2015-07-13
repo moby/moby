@@ -15,20 +15,18 @@ import (
 //
 // docker logs [OPTIONS] CONTAINER
 func (cli *DockerCli) CmdLogs(args ...string) error {
-	var (
-		cmd    = cli.Subcmd("logs", "CONTAINER", "Fetch the logs of a container", true)
-		follow = cmd.Bool([]string{"f", "-follow"}, false, "Follow log output")
-		since  = cmd.String([]string{"-since"}, "", "Show logs since timestamp")
-		times  = cmd.Bool([]string{"t", "-timestamps"}, false, "Show timestamps")
-		tail   = cmd.String([]string{"-tail"}, "all", "Number of lines to show from the end of the logs")
-	)
+	cmd := cli.Subcmd("logs", []string{"CONTAINER"}, "Fetch the logs of a container", true)
+	follow := cmd.Bool([]string{"f", "-follow"}, false, "Follow log output")
+	since := cmd.String([]string{"-since"}, "", "Show logs since timestamp")
+	times := cmd.Bool([]string{"t", "-timestamps"}, false, "Show timestamps")
+	tail := cmd.String([]string{"-tail"}, "all", "Number of lines to show from the end of the logs")
 	cmd.Require(flag.Exact, 1)
 
 	cmd.ParseFlags(args, true)
 
 	name := cmd.Arg(0)
 
-	stream, _, err := cli.call("GET", "/containers/"+name+"/json", nil, nil)
+	stream, _, _, err := cli.call("GET", "/containers/"+name+"/json", nil, nil)
 	if err != nil {
 		return err
 	}
@@ -65,5 +63,6 @@ func (cli *DockerCli) CmdLogs(args ...string) error {
 		err:         cli.err,
 	}
 
-	return cli.stream("GET", "/containers/"+name+"/logs?"+v.Encode(), sopts)
+	_, err = cli.stream("GET", "/containers/"+name+"/logs?"+v.Encode(), sopts)
+	return err
 }

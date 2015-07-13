@@ -14,7 +14,14 @@ docker-commit - Create a new image from a container's changes
 CONTAINER [REPOSITORY[:TAG]]
 
 # DESCRIPTION
-Using an existing container's name or ID you can create a new image.
+Create a new image from an existing container specified by name or
+container ID.  The new image will contain the contents of the
+container filesystem, *excluding* any data volumes.
+
+While the `docker commit` command is a convenient way of extending an
+existing image, you should prefer the use of a Dockerfile and `docker
+build` for generating images that you intend to share with other
+people.
 
 # OPTIONS
 **-a**, **--author**=""
@@ -22,7 +29,7 @@ Using an existing container's name or ID you can create a new image.
 
 **-c** , **--change**=[]
    Apply specified Dockerfile instructions while committing the image
-   Supported Dockerfile instructions: `CMD`|`ENTRYPOINT`|`ENV`|`EXPOSE`|`ONBUILD`|`USER`|`VOLUME`|`WORKDIR`
+   Supported Dockerfile instructions: `CMD`|`ENTRYPOINT`|`ENV`|`EXPOSE`|`LABEL`|`ONBUILD`|`USER`|`VOLUME`|`WORKDIR`
 
 **--help**
   Print usage statement

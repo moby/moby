@@ -5,6 +5,7 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -321,7 +322,8 @@ func (s *DockerSuite) TestExecParseError(c *check.C) {
 }
 
 func (s *DockerSuite) TestExecStopNotHanging(c *check.C) {
-	if out, err := exec.Command(dockerBinary, "run", "-d", "--name", "testing", "busybox", "top").CombinedOutput(); err != nil {
+	runCmd := exec.Command(dockerBinary, "run", "-d", "--name", "testing", "busybox", "top")
+	if out, _, err := runCommandWithOutput(runCmd); err != nil {
 		c.Fatal(out, err)
 	}
 
@@ -426,25 +428,62 @@ func (s *DockerSuite) TestInspectExecID(c *check.C) {
 		c.Fatalf("ExecIDs should be empty, got: %s", out)
 	}
 
-	exitCode, err = runCommand(exec.Command(dockerBinary, "exec", "-d", id, "ls", "/"))
-	if exitCode != 0 || err != nil {
-		c.Fatalf("failed to exec in container: %s, %v", out, err)
+	// Start an exec, have it block waiting for input so we can do some checking
+	cmd := exec.Command(dockerBinary, "exec", "-i", id, "sh", "-c", "read a")
+	execStdin, _ := cmd.StdinPipe()
+
+	if err = cmd.Start(); err != nil {
+		c.Fatalf("failed to start the exec cmd: %q", err)
 	}
 
+	// Since its still running we should see the exec as part of the container
+	out, err = inspectField(id, "ExecIDs")
+	if err != nil {
+		c.Fatalf("failed to inspect container: %s, %v", out, err)
+	}
+
+	// Give the exec 10 chances/seconds to start then give up and stop the test
+	tries := 10
+	for i := 0; i < tries; i++ {
+		out = strings.TrimSuffix(out, "\n")
+		if out != "[]" && out != "<no value>" {
+			break
+		}
+		if i == tries {
+			c.Fatalf("ExecIDs should not be empty, got: %s", out)
+		}
+		time.Sleep(1 * time.Second)
+	}
+
+	// Save execID for later
+	execID, err := inspectFilter(id, "index .ExecIDs 0")
+	if err != nil {
+		c.Fatalf("failed to get the exec id")
+	}
+
+	// End the exec by closing its stdin, and wait for it to end
+	execStdin.Close()
+	cmd.Wait()
+
+	// All execs for the container should be gone now
 	out, err = inspectField(id, "ExecIDs")
 	if err != nil {
 		c.Fatalf("failed to inspect container: %s, %v", out, err)
 	}
 
 	out = strings.TrimSuffix(out, "\n")
-	if out == "[]" || out == "<no value>" {
-		c.Fatalf("ExecIDs should not be empty, got: %s", out)
+	if out != "[]" && out != "<no value>" {
+		c.Fatalf("ExecIDs should be empty, got: %s", out)
 	}
 
+	// But we should still be able to query the execID
+	sc, body, err := sockRequest("GET", "/exec/"+execID+"/json", nil)
+	if sc != http.StatusOK {
+		c.Fatalf("received status != 200 OK: %d\n%s", sc, body)
+	}
 }
 
 func (s *DockerSuite) TestLinksPingLinkedContainersOnRename(c *check.C) {
-
 	var out string
 	out, _ = dockerCmd(c, "run", "-d", "--name", "container1", "busybox", "top")
 	idA := strings.TrimSpace(out)
@@ -609,7 +648,6 @@ func (s *DockerSuite) TestRunMutableNetworkFiles(c *check.C) {
 }
 
 func (s *DockerSuite) TestExecWithUser(c *check.C) {
-
 	runCmd := exec.Command(dockerBinary, "run", "-d", "--name", "parent", "busybox", "top")
 	if out, _, err := runCommandWithOutput(runCmd); err != nil {
 		c.Fatal(out, err)
@@ -633,4 +671,23 @@ func (s *DockerSuite) TestExecWithUser(c *check.C) {
 		c.Fatalf("exec with user by root expected root user got %s", out)
 	}
 
+}
+
+func (s *DockerSuite) TestExecWithImageUser(c *check.C) {
+	name := "testbuilduser"
+	_, err := buildImage(name,
+		`FROM busybox
+		RUN echo 'dockerio:x:1001:1001::/bin:/bin/false' >> /etc/passwd
+		USER dockerio`,
+		true)
+	if err != nil {
+		c.Fatalf("Could not build image %s: %v", name, err)
+	}
+
+	dockerCmd(c, "run", "-d", "--name", "dockerioexec", name, "top")
+
+	out, _ := dockerCmd(c, "exec", "dockerioexec", "whoami")
+	if !strings.Contains(out, "dockerio") {
+		c.Fatalf("exec with user by id expected dockerio user got %s", out)
+	}
 }

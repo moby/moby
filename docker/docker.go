@@ -10,6 +10,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/client"
 	"github.com/docker/docker/autogen/dockerversion"
+	"github.com/docker/docker/cliconfig"
 	"github.com/docker/docker/opts"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/reexec"
@@ -41,6 +42,10 @@ func main() {
 	if *flVersion {
 		showVersion()
 		return
+	}
+
+	if *flConfigDir != "" {
+		cliconfig.SetConfigDir(*flConfigDir)
 	}
 
 	if *flLogLevel != "" {
@@ -86,7 +91,8 @@ func main() {
 
 	// Regardless of whether the user sets it to true or false, if they
 	// specify --tlsverify at all then we need to turn on tls
-	if flag.IsSet("-tlsverify") {
+	// *flTlsVerify can be true even if not set due to DOCKER_TLS_VERIFY env var, so we need to check that here as well
+	if flag.IsSet("-tlsverify") || *flTlsVerify {
 		*flTls = true
 	}
 

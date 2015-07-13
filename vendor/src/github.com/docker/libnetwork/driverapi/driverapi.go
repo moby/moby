@@ -104,6 +104,10 @@ type JoinInfo interface {
 	// SetGatewayIPv6 sets the default IPv6 gateway when a container joins the endpoint.
 	SetGatewayIPv6(net.IP) error
 
+	// AddStaticRoute adds a routes to the sandbox.
+	// It may be used in addtion to or instead of a default gateway (as above).
+	AddStaticRoute(destination *net.IPNet, routeType int, nextHop net.IP, interfaceID int) error
+
 	// SetHostsPath sets the overriding /etc/hosts path to use for the container.
 	SetHostsPath(string) error
 
@@ -114,5 +118,20 @@ type JoinInfo interface {
 // DriverCallback provides a Callback interface for Drivers into LibNetwork
 type DriverCallback interface {
 	// RegisterDriver provides a way for Remote drivers to dynamically register new NetworkType and associate with a driver instance
-	RegisterDriver(name string, driver Driver) error
+	RegisterDriver(name string, driver Driver, capability Capability) error
+}
+
+// Scope indicates the drivers scope capability
+type Scope int
+
+const (
+	// LocalScope represents the driver capable of providing networking services for containers in a single host
+	LocalScope Scope = iota
+	// GlobalScope represents the driver capable of providing networking services for containers across hosts
+	GlobalScope
+)
+
+// Capability represents the high level capabilities of the drivers which libnetwork can make use of
+type Capability struct {
+	Scope Scope
 }

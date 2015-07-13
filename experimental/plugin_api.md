@@ -5,9 +5,9 @@ Docker Engine.
 
 This page is intended for people who want to develop their own Docker plugin.
 If you just want to learn about or use Docker plugins, look
-[here](/userguide/plugins).
+[here](/experimental/plugins.md).
 
-This is an experimental feature. For information on installing and using experimental features, see [the experimental feature overview](experimental.md).
+This is an experimental feature. For information on installing and using experimental features, see [the experimental feature overview](README.md).
 
 ## What plugins are
 
@@ -26,18 +26,35 @@ containers is recommended.
 Docker discovers plugins by looking for them in the plugin directory whenever a
 user or container tries to use one by name.
 
-There are two types of files which can be put in the plugin directory.
+There are three types of files which can be put in the plugin directory.
 
 * `.sock` files are UNIX domain sockets.
 * `.spec` files are text files containing a URL, such as `unix:///other.sock`.
+* `.json` files are text files containing a full json specification for the plugin.
 
 The name of the file (excluding the extension) determines the plugin name.
 
 For example, the `flocker` plugin might create a UNIX socket at
 `/usr/share/docker/plugins/flocker.sock`.
 
-Plugins must be run locally on the same machine as the Docker daemon.  UNIX
-domain sockets are strongly encouraged for security reasons.
+### JSON specification
+
+This is the JSON format for a plugin:
+
+```json
+{
+  "Name": "plugin-example",
+  "Addr": "https://example.com/docker/plugin",
+  "TLSConfig": {
+    "InsecureSkipVerify": false,
+    "CAFile": "/usr/shared/docker/certs/example-ca.pem",
+    "CertFile": "/usr/shared/docker/certs/example-cert.pem",
+    "KeyFile": "/usr/shared/docker/certs/example-key.pem",
+  }
+}
+```
+
+The `TLSConfig` field is optional and TLS will only be verified if this configuration is present.
 
 ## Plugin lifecycle
 
@@ -94,124 +111,6 @@ Plugins are activated via the following "handshake" API call.
 
 Responds with a list of Docker subsystems which this plugin implements.
 After activation, the plugin will then be sent events from this subsystem.
-
-## Volume API
-
-If a plugin registers itself as a `VolumeDriver` (see above) then it is
-expected to provide writeable paths on the host filesystem for the Docker
-daemon to provide to containers to consume.
-
-The Docker daemon handles bind-mounting the provided paths into user
-containers.
-
-### /VolumeDriver.Create
-
-**Request**:
-```
-{
-    "Name": "volume_name"
-}
-```
-
-Instruct the plugin that the user wants to create a volume, given a user
-specified volume name.  The plugin does not need to actually manifest the
-volume on the filesystem yet (until Mount is called).
-
-**Response**:
-```
-{
-    "Err": null
-}
-```
-
-Respond with a string error if an error occurred.
-
-### /VolumeDriver.Remove
-
-**Request**:
-```
-{
-    "Name": "volume_name"
-}
-```
-
-Create a volume, given a user specified volume name.
-
-**Response**:
-```
-{
-    "Err": null
-}
-```
-
-Respond with a string error if an error occurred.
-
-### /VolumeDriver.Mount
-
-**Request**:
-```
-{
-    "Name": "volume_name"
-}
-```
-
-Docker requires the plugin to provide a volume, given a user specified volume
-name. This is called once per container start.
-
-**Response**:
-```
-{
-    "Mountpoint": "/path/to/directory/on/host",
-    "Err": null
-}
-```
-
-Respond with the path on the host filesystem where the volume has been made
-available, and/or a string error if an error occurred.
-
-### /VolumeDriver.Path
-
-**Request**:
-```
-{
-    "Name": "volume_name"
-}
-```
-
-Docker needs reminding of the path to the volume on the host.
-
-**Response**:
-```
-{
-    "Mountpoint": "/path/to/directory/on/host",
-    "Err": null
-}
-```
-
-Respond with the path on the host filesystem where the volume has been made
-available, and/or a string error if an error occurred.
-
-### /VolumeDriver.Unmount
-
-**Request**:
-```
-{
-    "Name": "volume_name"
-}
-```
-
-Indication that Docker no longer is using the named volume. This is called once
-per container stop.  Plugin may deduce that it is safe to deprovision it at
-this point.
-
-**Response**:
-```
-{
-    "Err": null
-}
-```
-
-Respond with a string error if an error occurred.
 
 ## Plugin retries
 

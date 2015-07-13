@@ -17,7 +17,7 @@ import (
 //
 // Usage: docker commit [OPTIONS] CONTAINER [REPOSITORY[:TAG]]
 func (cli *DockerCli) CmdCommit(args ...string) error {
-	cmd := cli.Subcmd("commit", "CONTAINER [REPOSITORY[:TAG]]", "Create a new image from a container's changes", true)
+	cmd := cli.Subcmd("commit", []string{"CONTAINER [REPOSITORY[:TAG]]"}, "Create a new image from a container's changes", true)
 	flPause := cmd.Bool([]string{"p", "-pause"}, true, "Pause container during commit")
 	flComment := cmd.String([]string{"m", "-message"}, "", "Commit message")
 	flAuthor := cmd.String([]string{"a", "#author", "-author"}, "", "Author (e.g., \"John Hannibal Smith <hannibal@a-team.com>\")")
@@ -27,6 +27,7 @@ func (cli *DockerCli) CmdCommit(args ...string) error {
 	flConfig := cmd.String([]string{"#run", "#-run"}, "", "This option is deprecated and will be removed in a future version in favor of inline Dockerfile-compatible commands")
 	cmd.Require(flag.Max, 2)
 	cmd.Require(flag.Min, 1)
+
 	cmd.ParseFlags(args, true)
 
 	var (
@@ -66,10 +67,12 @@ func (cli *DockerCli) CmdCommit(args ...string) error {
 			return err
 		}
 	}
-	stream, _, err := cli.call("POST", "/commit?"+v.Encode(), config, nil)
+	stream, _, _, err := cli.call("POST", "/commit?"+v.Encode(), config, nil)
 	if err != nil {
 		return err
 	}
+
+	defer stream.Close()
 
 	if err := json.NewDecoder(stream).Decode(&response); err != nil {
 		return err

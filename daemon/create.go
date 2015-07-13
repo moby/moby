@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/graph"
-	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/runconfig"
@@ -19,16 +19,9 @@ func (daemon *Daemon) ContainerCreate(name string, config *runconfig.Config, hos
 		return "", nil, fmt.Errorf("Config cannot be empty in order to create a container")
 	}
 
-	warnings, err := daemon.verifyContainerSettings(hostConfig)
+	warnings, err := daemon.verifyContainerSettings(hostConfig, config)
 	if err != nil {
 		return "", warnings, err
-	}
-
-	// The check for a valid workdir path is made on the server rather than in the
-	// client. This is because we don't know the type of path (Linux or Windows)
-	// to validate on the client.
-	if config.WorkingDir != "" && !filepath.IsAbs(config.WorkingDir) {
-		return "", warnings, fmt.Errorf("The working directory '%s' is invalid. It needs to be an absolute path.", config.WorkingDir)
 	}
 
 	container, buildWarnings, err := daemon.Create(config, hostConfig, name)
@@ -53,7 +46,7 @@ func (daemon *Daemon) Create(config *runconfig.Config, hostConfig *runconfig.Hos
 	var (
 		container *Container
 		warnings  []string
-		img       *image.Image
+		img       *graph.Image
 		imgID     string
 		err       error
 	)
@@ -63,7 +56,7 @@ func (daemon *Daemon) Create(config *runconfig.Config, hostConfig *runconfig.Hos
 		if err != nil {
 			return nil, nil, err
 		}
-		if err = img.CheckDepth(); err != nil {
+		if err = daemon.graph.CheckDepth(img); err != nil {
 			return nil, nil, err
 		}
 		imgID = img.ID
@@ -143,6 +136,7 @@ func (daemon *Daemon) Create(config *runconfig.Config, hostConfig *runconfig.Hos
 		container.addMountPointWithVolume(destination, v, true)
 	}
 	if err := container.ToDisk(); err != nil {
+		logrus.Errorf("Error saving new container to disk: %v", err)
 		return nil, nil, err
 	}
 	container.LogEvent("create")

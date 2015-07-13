@@ -4,7 +4,7 @@ Want to hack on Docker? Awesome!  We have a contributor's guide that explains
 [setting up a Docker development environment and the contribution
 process](https://docs.docker.com/project/who-written-for/). 
 
-![Contributors guide](docs/sources/static_files/contributors.png)
+![Contributors guide](docs/static_files/contributors.png)
 
 This page contains information about reporting issues as well as some tips and
 guidelines useful to experienced open source contributors. Finally, make sure
@@ -28,8 +28,8 @@ Please **DO NOT** file a public issue, instead send your report privately to
 [security@docker.com](mailto:security@docker.com), 
 
 Security reports are greatly appreciated and we will publicly thank you for it.
-We also like to send gifts&mdash;if you're into Docker schwag make sure to let
-us know We currently do not offer a paid security bounty program, but are not
+We also like to send gifts&mdash;if you're into Docker schwag, make sure to let
+us know. We currently do not offer a paid security bounty program, but are not
 ruling it out in the future.
 
 
@@ -220,7 +220,7 @@ set of patches that should be reviewed together: for example, upgrading the
 version of a vendored dependency and taking advantage of its now available new
 feature constitute two separate units of work. Implementing a new function and
 calling it in another file constitute a single logical unit of work. The very
-high majory of submissions should have a single commit, so if in doubt: squash
+high majority of submissions should have a single commit, so if in doubt: squash
 down to one.
 
 After every commit, [make sure the test suite passes]

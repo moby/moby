@@ -252,4 +252,19 @@ func (s *DockerSuite) TestRmiBlank(c *check.C) {
 	if strings.Contains(out, "No such image") {
 		c.Fatalf("Wrong error message generated: %s", out)
 	}
+
+	if !strings.Contains(out, "Image name can not be blank") {
+		c.Fatalf("Expected error message not generated: %s", out)
+	}
+
+	runCmd = exec.Command(dockerBinary, "rmi", " ")
+	out, _, err = runCommandWithOutput(runCmd)
+
+	if err == nil {
+		c.Fatal("Should have failed to delete '' image")
+	}
+
+	if !strings.Contains(out, "No such image") {
+		c.Fatalf("Expected error message not generated: %s", out)
+	}
 }

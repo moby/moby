@@ -18,7 +18,7 @@ It benefits directly from the experience accumulated over several years
 of large-scale operation and support of hundreds of thousands of
 applications and databases.
 
-![Docker L](docs/sources/static_files/docker-logo-compressed.png "Docker")
+![Docker L](docs/static_files/docker-logo-compressed.png "Docker")
 
 ## Security Disclosure
 
@@ -30,7 +30,7 @@ security@docker.com and not by creating a github issue.
 
 A common method for distributing applications and sandboxing their
 execution is to use virtual machines, or VMs. Typical VM formats are
-VMware's vmdk, Oracle Virtualbox's vdi, and Amazon EC2's ami. In theory
+VMware's vmdk, Oracle VirtualBox's vdi, and Amazon EC2's ami. In theory
 these formats should allow every developer to automatically package
 their application into a "machine" for easy distribution and deployment.
 In practice, that almost never happens, for a few reasons:
@@ -168,9 +168,9 @@ Under the hood
 Under the hood, Docker is built on the following components:
 
 * The
-  [cgroup](http://blog.dotcloud.com/kernel-secrets-from-the-paas-garage-part-24-c)
+  [cgroups](https://www.kernel.org/doc/Documentation/cgroups/cgroups.txt)
   and
-  [namespacing](http://blog.dotcloud.com/under-the-hood-linux-kernels-on-dotcloud-part)
+  [namespaces](http://man7.org/linux/man-pages/man7/namespaces.7.html)
   capabilities of the Linux kernel
 * The [Go](https://golang.org) programming language
 * The [Docker Image Specification](https://github.com/docker/docker/blob/master/image/spec/v1.md)
@@ -289,7 +289,7 @@ system
 * [Docker Compose](https://github.com/docker/compose) (formerly Fig): 
 Define and run multi-container apps
 * [Kitematic](https://github.com/kitematic/kitematic): The easiest way to use 
-Docker on a Mac
+Docker on Mac and Windows
 
 If you know of another project underway that should be listed here, please help 
 us keep this list up-to-date by submitting a PR.

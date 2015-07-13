@@ -1,14 +1,15 @@
 package bridge
 
 import (
-	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/parsers/kernel"
-	"github.com/docker/libnetwork/netutils"
+	bri "github.com/docker/libcontainer/netlink"
 	"github.com/vishvananda/netlink"
 )
 
 // SetupDevice create a new bridge interface/
-func setupDevice(config *NetworkConfiguration, i *bridgeInterface) error {
+func setupDevice(config *networkConfiguration, i *bridgeInterface) error {
+	var setMac bool
+
 	// We only attempt to create the bridge when the requested device name is
 	// the default one.
 	if config.BridgeName != DefaultBridgeName && !config.AllowNonDefaultBridge {
@@ -26,16 +27,14 @@ func setupDevice(config *NetworkConfiguration, i *bridgeInterface) error {
 	// was not supported before that.
 	kv, err := kernel.GetKernelVersion()
 	if err == nil && (kv.Kernel >= 3 && kv.Major >= 3) {
-		i.Link.Attrs().HardwareAddr = netutils.GenerateRandomMAC()
-		log.Debugf("Setting bridge mac address to %s", i.Link.Attrs().HardwareAddr)
+		setMac = true
 	}
 
-	// Call out to netlink to create the device.
-	return netlink.LinkAdd(i.Link)
+	return bri.CreateBridge(config.BridgeName, setMac)
 }
 
 // SetupDeviceUp ups the given bridge interface.
-func setupDeviceUp(config *NetworkConfiguration, i *bridgeInterface) error {
+func setupDeviceUp(config *networkConfiguration, i *bridgeInterface) error {
 	err := netlink.LinkSetUp(i.Link)
 	if err != nil {
 		return err

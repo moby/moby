@@ -36,8 +36,9 @@ func New() *configs.Config {
 			{Type: "NEWNET"},
 		}),
 		Cgroups: &configs.Cgroup{
-			Parent:          "docker",
-			AllowAllDevices: false,
+			Parent:           "docker",
+			AllowAllDevices:  false,
+			MemorySwappiness: -1,
 		},
 		Mounts: []*configs.Mount{
 			{
@@ -77,6 +78,12 @@ func New() *configs.Config {
 				Source:      "sysfs",
 				Destination: "/sys",
 				Device:      "sysfs",
+				Flags:       defaultMountFlags | syscall.MS_RDONLY,
+			},
+			{
+				Source:      "cgroup",
+				Destination: "/sys/fs/cgroup",
+				Device:      "cgroup",
 				Flags:       defaultMountFlags | syscall.MS_RDONLY,
 			},
 		},

@@ -21,7 +21,7 @@ import (
 //
 // Usage: docker login SERVER
 func (cli *DockerCli) CmdLogin(args ...string) error {
-	cmd := cli.Subcmd("login", "[SERVER]", "Register or log in to a Docker registry server, if no server is\nspecified \""+registry.IndexServerAddress()+"\" is the default.", true)
+	cmd := cli.Subcmd("login", []string{"[SERVER]"}, "Register or log in to a Docker registry server, if no server is\nspecified \""+registry.IndexServerAddress()+"\" is the default.", true)
 	cmd.Require(flag.Max, 1)
 
 	var username, password, email string
@@ -113,7 +113,7 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 	authconfig.ServerAddress = serverAddress
 	cli.configFile.AuthConfigs[serverAddress] = authconfig
 
-	stream, statusCode, err := cli.call("POST", "/auth", cli.configFile.AuthConfigs[serverAddress], nil)
+	stream, _, statusCode, err := cli.call("POST", "/auth", cli.configFile.AuthConfigs[serverAddress], nil)
 	if statusCode == 401 {
 		delete(cli.configFile.AuthConfigs, serverAddress)
 		if err2 := cli.configFile.Save(); err2 != nil {
@@ -124,6 +124,8 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 	if err != nil {
 		return err
 	}
+
+	defer stream.Close()
 
 	var response types.AuthResponse
 	if err := json.NewDecoder(stream).Decode(&response); err != nil {

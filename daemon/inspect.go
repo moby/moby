@@ -109,6 +109,13 @@ func (daemon *Daemon) getInspectData(container *Container) (*types.ContainerJSON
 		HostConfig:      &hostConfig,
 	}
 
+	contJSONBase.GraphDriver.Name = container.Driver
+	graphDriverData, err := daemon.driver.GetMetadata(container.ID)
+	if err != nil {
+		return nil, err
+	}
+	contJSONBase.GraphDriver.Data = graphDriverData
+
 	return contJSONBase, nil
 }
 
@@ -117,6 +124,5 @@ func (daemon *Daemon) ContainerExecInspect(id string) (*execConfig, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	return eConfig, nil
 }

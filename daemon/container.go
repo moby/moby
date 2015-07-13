@@ -20,13 +20,14 @@ import (
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/daemon/logger/jsonfilelog"
 	"github.com/docker/docker/daemon/network"
-	"github.com/docker/docker/image"
-	"github.com/docker/docker/nat"
+	"github.com/docker/docker/graph"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/broadcastwriter"
+	"github.com/docker/docker/pkg/fileutils"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/jsonlog"
 	"github.com/docker/docker/pkg/mount"
+	"github.com/docker/docker/pkg/nat"
 	"github.com/docker/docker/pkg/promise"
 	"github.com/docker/docker/pkg/symlink"
 	"github.com/docker/docker/runconfig"
@@ -73,6 +74,7 @@ type CommonContainer struct {
 	MountLabel, ProcessLabel string
 	RestartCount             int
 	UpdateDns                bool
+	HasBeenStartedBefore     bool
 
 	MountPoints map[string]*mountPoint
 	Volumes     map[string]string // Deprecated since 1.7, kept for backwards compatibility
@@ -201,8 +203,11 @@ func (container *Container) LogEvent(action string) {
 //       symlinking to a different path) between using this method and using the
 //       path. See symlink.FollowSymlinkInScope for more details.
 func (container *Container) GetResourcePath(path string) (string, error) {
-	cleanPath := filepath.Join("/", path)
-	return symlink.FollowSymlinkInScope(filepath.Join(container.basefs, cleanPath), container.basefs)
+	// IMPORTANT - These are paths on the OS where the daemon is running, hence
+	// any filepath operations must be done in an OS agnostic way.
+	cleanPath := filepath.Join(string(os.PathSeparator), path)
+	r, e := symlink.FollowSymlinkInScope(filepath.Join(container.basefs, cleanPath), container.basefs)
+	return r, e
 }
 
 // Evaluates `path` in the scope of the container's root, with proper path
@@ -218,7 +223,9 @@ func (container *Container) GetResourcePath(path string) (string, error) {
 //       symlinking to a different path) between using this method and using the
 //       path. See symlink.FollowSymlinkInScope for more details.
 func (container *Container) GetRootResourcePath(path string) (string, error) {
-	cleanPath := filepath.Join("/", path)
+	// IMPORTANT - These are paths on the OS where the daemon is running, hence
+	// any filepath operations must be done in an OS agnostic way.
+	cleanPath := filepath.Join(string(os.PathSeparator), path)
 	return symlink.FollowSymlinkInScope(filepath.Join(container.root, cleanPath), container.root)
 }
 
@@ -252,6 +259,13 @@ func (container *Container) Start() (err error) {
 	if err := container.Mount(); err != nil {
 		return err
 	}
+
+	// No-op if non-Windows. Once the container filesystem is mounted,
+	// prepare the layer to boot using the Windows driver.
+	if err := container.PrepareStorage(); err != nil {
+		return err
+	}
+
 	if err := container.initializeNetworking(); err != nil {
 		return err
 	}
@@ -280,6 +294,7 @@ func (container *Container) Run() error {
 	if err := container.Start(); err != nil {
 		return err
 	}
+	container.HasBeenStartedBefore = true
 	container.WaitStop(-1 * time.Second)
 	return nil
 }
@@ -342,6 +357,10 @@ func (container *Container) cleanup() {
 
 	disableAllActiveLinks(container)
 
+	if err := container.CleanupStorage(); err != nil {
+		logrus.Errorf("%v: Failed to cleanup storage: %v", container.ID, err)
+	}
+
 	if err := container.Unmount(); err != nil {
 		logrus.Errorf("%v: Failed to umount filesystem: %v", container.ID, err)
 	}
@@ -399,14 +418,14 @@ func (container *Container) Pause() error {
 	container.Lock()
 	defer container.Unlock()
 
+	// We cannot Pause the container which is not running
+	if !container.Running {
+		return fmt.Errorf("Container %s is not running, cannot pause a non-running container", container.ID)
+	}
+
 	// We cannot Pause the container which is already paused
 	if container.Paused {
 		return fmt.Errorf("Container %s is already paused", container.ID)
-	}
-
-	// We cannot Pause the container which is not running
-	if !container.Running {
-		return fmt.Errorf("Container %s is not running", container.ID)
 	}
 
 	if err := container.daemon.execDriver.Pause(container.command); err != nil {
@@ -421,14 +440,14 @@ func (container *Container) Unpause() error {
 	container.Lock()
 	defer container.Unlock()
 
-	// We cannot unpause the container which is not paused
-	if !container.Paused {
-		return fmt.Errorf("Container %s is not paused, so what", container.ID)
-	}
-
 	// We cannot unpause the container which is not running
 	if !container.Running {
-		return fmt.Errorf("Container %s is not running", container.ID)
+		return fmt.Errorf("Container %s is not running, cannot unpause a non-running container", container.ID)
+	}
+
+	// We cannot unpause the container which is not paused
+	if !container.Paused {
+		return fmt.Errorf("Container %s is not paused", container.ID)
 	}
 
 	if err := container.daemon.execDriver.Unpause(container.command); err != nil {
@@ -565,7 +584,7 @@ func (container *Container) Changes() ([]archive.Change, error) {
 	return container.changes()
 }
 
-func (container *Container) GetImage() (*image.Image, error) {
+func (container *Container) GetImage() (*graph.Image, error) {
 	if container.daemon == nil {
 		return nil, fmt.Errorf("Can't get image of unregistered container")
 	}
@@ -617,11 +636,20 @@ func (container *Container) Copy(resource string) (io.ReadCloser, error) {
 		return nil, err
 	}
 	for _, m := range mounts {
-		dest, err := container.GetResourcePath(m.Destination)
+		var dest string
+		dest, err = container.GetResourcePath(m.Destination)
 		if err != nil {
 			return nil, err
 		}
-		if err := mount.Mount(m.Source, dest, "bind", "rbind,ro"); err != nil {
+		var stat os.FileInfo
+		stat, err = os.Stat(m.Source)
+		if err != nil {
+			return nil, err
+		}
+		if err = fileutils.CreateIfNotExists(dest, stat.IsDir()); err != nil {
+			return nil, err
+		}
+		if err = mount.Mount(m.Source, dest, "bind", "rbind,ro"); err != nil {
 			return nil, err
 		}
 	}
@@ -649,8 +677,15 @@ func (container *Container) Copy(resource string) (io.ReadCloser, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	if err := container.PrepareStorage(); err != nil {
+		container.Unmount()
+		return nil, err
+	}
+
 	reader := ioutils.NewReadCloserWrapper(archive, func() error {
 		err := archive.Close()
+		container.CleanupStorage()
 		container.UnmountVolumes(true)
 		container.Unmount()
 		return err
@@ -820,13 +855,11 @@ func (container *Container) monitorExec(execConfig *execConfig, callback execdri
 		err      error
 		exitCode int
 	)
-
 	pipes := execdriver.NewPipes(execConfig.StreamConfig.stdin, execConfig.StreamConfig.stdout, execConfig.StreamConfig.stderr, execConfig.OpenStdin)
 	exitCode, err = container.daemon.Exec(container, execConfig, pipes, callback)
 	if err != nil {
 		logrus.Errorf("Error running command in existing container %s: %s", container.ID, err)
 	}
-
 	logrus.Debugf("Exec task in container %s exited with code %d", container.ID, exitCode)
 	if execConfig.OpenStdin {
 		if err := execConfig.StreamConfig.stdin.Close(); err != nil {
@@ -844,7 +877,9 @@ func (container *Container) monitorExec(execConfig *execConfig, callback execdri
 			logrus.Errorf("Error closing terminal while running in container %s: %s", container.ID, err)
 		}
 	}
-
+	// remove the exec command from the container's store only and not the
+	// daemon's store so that the exec command can be inspected.
+	container.execCommands.Delete(execConfig.ID)
 	return err
 }
 

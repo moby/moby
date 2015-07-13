@@ -17,7 +17,7 @@ import (
 
 func TestMount(t *testing.T) {
 	graph, driver := tempGraph(t)
-	defer os.RemoveAll(graph.Root)
+	defer os.RemoveAll(graph.root)
 	defer driver.Cleanup()
 
 	archive, err := fakeTar()
@@ -52,7 +52,7 @@ func TestInit(t *testing.T) {
 	graph, _ := tempGraph(t)
 	defer nukeGraph(graph)
 	// Root should exist
-	if _, err := os.Stat(graph.Root); err != nil {
+	if _, err := os.Stat(graph.root); err != nil {
 		t.Fatal(err)
 	}
 	// Map() should be empty
@@ -68,7 +68,7 @@ func TestInterruptedRegister(t *testing.T) {
 	graph, _ := tempGraph(t)
 	defer nukeGraph(graph)
 	badArchive, w := io.Pipe() // Use a pipe reader as a fake archive which never yields data
-	image := &image.Image{
+	image := &Image{
 		ID:      stringid.GenerateRandomID(),
 		Comment: "testing",
 		Created: time.Now(),
@@ -128,7 +128,7 @@ func TestRegister(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	image := &image.Image{
+	image := &Image{
 		ID:      stringid.GenerateRandomID(),
 		Comment: "testing",
 		Created: time.Now(),
@@ -232,19 +232,19 @@ func TestByParent(t *testing.T) {
 
 	graph, _ := tempGraph(t)
 	defer nukeGraph(graph)
-	parentImage := &image.Image{
+	parentImage := &Image{
 		ID:      stringid.GenerateRandomID(),
 		Comment: "parent",
 		Created: time.Now(),
 		Parent:  "",
 	}
-	childImage1 := &image.Image{
+	childImage1 := &Image{
 		ID:      stringid.GenerateRandomID(),
 		Comment: "child1",
 		Created: time.Now(),
 		Parent:  parentImage.ID,
 	}
-	childImage2 := &image.Image{
+	childImage2 := &Image{
 		ID:      stringid.GenerateRandomID(),
 		Comment: "child2",
 		Created: time.Now(),
@@ -264,7 +264,7 @@ func TestByParent(t *testing.T) {
 	}
 }
 
-func createTestImage(graph *Graph, t *testing.T) *image.Image {
+func createTestImage(graph *Graph, t *testing.T) *Image {
 	archive, err := fakeTar()
 	if err != nil {
 		t.Fatal(err)
@@ -301,6 +301,6 @@ func tempGraph(t *testing.T) (*Graph, graphdriver.Driver) {
 }
 
 func nukeGraph(graph *Graph) {
-	graph.Driver().Cleanup()
-	os.RemoveAll(graph.Root)
+	graph.driver.Cleanup()
+	os.RemoveAll(graph.root)
 }

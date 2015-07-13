@@ -2,7 +2,7 @@
 % Docker Community
 % JUNE 2014
 # NAME
-docker-load - Load an image from a tar archive on STDIN
+docker-load - Load an image from a tar archive or STDIN
 
 # SYNOPSIS
 **docker load**

@@ -3,16 +3,16 @@
 You can extend the capabilities of the Docker Engine by loading third-party
 plugins. 
 
-This is an experimental feature. For information on installing and using experimental features, see [the experimental feature overview](experimental.md).
+This is an experimental feature. For information on installing and using experimental features, see [the experimental feature overview](README.md).
 
 ## Types of plugins
 
 Plugins extend Docker's functionality.  They come in specific types.  For
-example, a [volume plugin](/experimental/plugins_volume) might enable Docker
+example, a [volume plugin](/experimental/plugins_volume.md) might enable Docker
 volumes to persist across multiple Docker hosts.
 
-Currently Docker supports volume plugins. In the future it will support
-additional plugin types.
+Currently Docker supports volume and network driver plugins. In the future it
+will support additional plugin types.
 
 ## Installing a plugin
 
@@ -23,9 +23,16 @@ Follow the instructions in the plugin's documentation.
 The following plugins exist:
 
 * The [Flocker plugin](https://clusterhq.com/docker-plugin/) is a volume plugin
-which provides multi-host portable volumes for Docker, enabling you to run
+  which provides multi-host portable volumes for Docker, enabling you to run
   databases and other stateful containers and move them around across a cluster
   of machines.
+
+* The [Weave plugin](https://github.com/weaveworks/docker-plugin) is a network
+  driver plugin which provides a virtual, multi-host network for containers.
+
+* The [Calico plugin](https://github.com/metaswitch/calico-docker) is a network
+  driver plugin which provides a multi-host network for containers with routes 
+  distributed by BGP.
 
 ## Troubleshooting a plugin
 
@@ -35,7 +42,7 @@ of the plugin for help. The Docker team may not be able to assist you.
 ## Writing a plugin
 
 If you are interested in writing a plugin for Docker, or seeing how they work
-under the hood, see the [docker plugins reference](/experimental/plugin_api).
+under the hood, see the [docker plugins reference](/experimental/plugin_api.md).
 
 # Related GitHub PRs and issues
 

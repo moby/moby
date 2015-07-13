@@ -84,7 +84,7 @@ func XfrmPolicyList(family int) ([]XfrmPolicy, error) {
 		return nil, err
 	}
 
-	res := make([]XfrmPolicy, 0)
+	var res []XfrmPolicy
 	for _, m := range msgs {
 		msg := nl.DeserializeXfrmUserpolicyInfo(m)
 

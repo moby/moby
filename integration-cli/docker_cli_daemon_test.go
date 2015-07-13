@@ -203,6 +203,123 @@ func (s *DockerDaemonSuite) TestDaemonIptablesCreate(c *check.C) {
 	}
 }
 
+// TestDaemonIPv6Enabled checks that when the daemon is started with --ipv6=true that the docker0 bridge
+// has the fe80::1 address and that a container is assigned a link-local address
+func (s *DockerSuite) TestDaemonIPv6Enabled(c *check.C) {
+	testRequires(c, IPv6)
+
+	if err := setupV6(); err != nil {
+		c.Fatal("Could not set up host for IPv6 tests")
+	}
+
+	d := NewDaemon(c)
+
+	if err := d.StartWithBusybox("--ipv6"); err != nil {
+		c.Fatal(err)
+	}
+	defer d.Stop()
+
+	iface, err := net.InterfaceByName("docker0")
+	if err != nil {
+		c.Fatalf("Error getting docker0 interface: %v", err)
+	}
+
+	addrs, err := iface.Addrs()
+	if err != nil {
+		c.Fatalf("Error getting addresses for docker0 interface: %v", err)
+	}
+
+	var found bool
+	expected := "fe80::1/64"
+
+	for i := range addrs {
+		if addrs[i].String() == expected {
+			found = true
+		}
+	}
+
+	if !found {
+		c.Fatalf("Bridge does not have an IPv6 Address")
+	}
+
+	if out, err := d.Cmd("run", "-itd", "--name=ipv6test", "busybox:latest"); err != nil {
+		c.Fatalf("Could not run container: %s, %v", out, err)
+	}
+
+	out, err := d.Cmd("inspect", "--format", "'{{.NetworkSettings.LinkLocalIPv6Address}}'", "ipv6test")
+	out = strings.Trim(out, " \r\n'")
+
+	if err != nil {
+		c.Fatalf("Error inspecting container: %s, %v", out, err)
+	}
+
+	if ip := net.ParseIP(out); ip == nil {
+		c.Fatalf("Container should have a link-local IPv6 address")
+	}
+
+	out, err = d.Cmd("inspect", "--format", "'{{.NetworkSettings.GlobalIPv6Address}}'", "ipv6test")
+	out = strings.Trim(out, " \r\n'")
+
+	if err != nil {
+		c.Fatalf("Error inspecting container: %s, %v", out, err)
+	}
+
+	if ip := net.ParseIP(out); ip != nil {
+		c.Fatalf("Container should not have a global IPv6 address: %v", out)
+	}
+
+	if err := teardownV6(); err != nil {
+		c.Fatal("Could not perform teardown for IPv6 tests")
+	}
+
+}
+
+// TestDaemonIPv6FixedCIDR checks that when the daemon is started with --ipv6=true and a fixed CIDR
+// that running containers are given a link-local and global IPv6 address
+func (s *DockerSuite) TestDaemonIPv6FixedCIDR(c *check.C) {
+	testRequires(c, IPv6)
+
+	if err := setupV6(); err != nil {
+		c.Fatal("Could not set up host for IPv6 tests")
+	}
+
+	d := NewDaemon(c)
+
+	if err := d.StartWithBusybox("--ipv6", "--fixed-cidr-v6='2001:db8:1::/64'"); err != nil {
+		c.Fatalf("Could not start daemon with busybox: %v", err)
+	}
+	defer d.Stop()
+
+	if out, err := d.Cmd("run", "-itd", "--name=ipv6test", "busybox:latest"); err != nil {
+		c.Fatalf("Could not run container: %s, %v", out, err)
+	}
+
+	out, err := d.Cmd("inspect", "--format", "'{{.NetworkSettings.LinkLocalIPv6Address}}'", "ipv6test")
+	out = strings.Trim(out, " \r\n'")
+
+	if err != nil {
+		c.Fatalf("Error inspecting container: %s, %v", out, err)
+	}
+
+	if ip := net.ParseIP(out); ip == nil {
+		c.Fatalf("Container should have a link-local IPv6 address")
+	}
+
+	out, err = d.Cmd("inspect", "--format", "'{{.NetworkSettings.GlobalIPv6Address}}'", "ipv6test")
+	out = strings.Trim(out, " \r\n'")
+
+	if err != nil {
+		c.Fatalf("Error inspecting container: %s, %v", out, err)
+	}
+
+	if ip := net.ParseIP(out); ip == nil {
+		c.Fatalf("Container should have a global IPv6 address")
+	}
+	if err := teardownV6(); err != nil {
+		c.Fatal("Could not perform teardown for IPv6 tests")
+	}
+}
+
 func (s *DockerDaemonSuite) TestDaemonLogLevelWrong(c *check.C) {
 	c.Assert(s.d.Start("--log-level=bogus"), check.NotNil, check.Commentf("Daemon shouldn't start with wrong log level"))
 }
@@ -1207,7 +1324,17 @@ func (s *DockerDaemonSuite) TestRunContainerWithBridgeNone(c *check.C) {
 	out, err := s.d.Cmd("run", "--rm", "busybox", "ip", "l")
 	c.Assert(err, check.IsNil, check.Commentf("Output: %s", out))
 	c.Assert(strings.Contains(out, "eth0"), check.Equals, false,
-		check.Commentf("There shouldn't be eth0 in container when network is disabled: %s", out))
+		check.Commentf("There shouldn't be eth0 in container in default(bridge) mode when bridge network is disabled: %s", out))
+
+	out, err = s.d.Cmd("run", "--rm", "--net=bridge", "busybox", "ip", "l")
+	c.Assert(err, check.IsNil, check.Commentf("Output: %s", out))
+	c.Assert(strings.Contains(out, "eth0"), check.Equals, false,
+		check.Commentf("There shouldn't be eth0 in container in bridge mode when bridge network is disabled: %s", out))
+
+	out, err = s.d.Cmd("run", "--rm", "--net=host", "busybox", "ip", "l")
+	c.Assert(err, check.IsNil, check.Commentf("Output: %s", out))
+	c.Assert(strings.Contains(out, "eth0"), check.Equals, true,
+		check.Commentf("There should be eth0 in container when --net=host when bridge network is disabled: %s", out))
 }
 
 func (s *DockerDaemonSuite) TestDaemonRestartWithContainerRunning(t *check.C) {
@@ -1263,4 +1390,33 @@ func (s *DockerDaemonSuite) TestDaemonRestartCleanupNetns(c *check.C) {
 	out = strings.TrimSpace(out)
 	c.Assert(err, check.Not(check.IsNil), check.Commentf("Output: %s", out))
 	// c.Assert(out, check.Equals, "", check.Commentf("Output: %s", out))
+}
+
+// tests regression detailed in #13964 where DOCKER_TLS_VERIFY env is ignored
+func (s *DockerDaemonSuite) TestDaemonNoTlsCliTlsVerifyWithEnv(c *check.C) {
+	host := "tcp://localhost:4271"
+	c.Assert(s.d.Start("-H", host), check.IsNil)
+	cmd := exec.Command(dockerBinary, "-H", host, "info")
+	cmd.Env = []string{"DOCKER_TLS_VERIFY=1", "DOCKER_CERT_PATH=fixtures/https"}
+	out, _, err := runCommandWithOutput(cmd)
+	c.Assert(err, check.Not(check.IsNil), check.Commentf("%s", out))
+	c.Assert(strings.Contains(out, "error occurred trying to connect"), check.Equals, true)
+
+}
+
+func setupV6() error {
+	// Hack to get the right IPv6 address on docker0, which has already been created
+	err := exec.Command("ip", "addr", "add", "fe80::1/64", "dev", "docker0").Run()
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func teardownV6() error {
+	err := exec.Command("ip", "addr", "del", "fe80::1/64", "dev", "docker0").Run()
+	if err != nil {
+		return err
+	}
+	return nil
 }

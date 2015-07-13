@@ -9,6 +9,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/chrootarchive"
+	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/volume"
 	"github.com/docker/docker/volume/local"
@@ -35,7 +36,7 @@ func (m *mountPoint) Setup() (string, error) {
 			if !os.IsNotExist(err) {
 				return "", err
 			}
-			if err := os.MkdirAll(m.Source, 0755); err != nil {
+			if err := system.MkdirAll(m.Source, 0755); err != nil {
 				return "", err
 			}
 		}
@@ -191,11 +192,16 @@ func (daemon *Daemon) registerMountPoints(container *Container, hostConfig *runc
 		}
 
 		for _, m := range c.MountPoints {
-			cp := m
-			cp.RW = m.RW && mode != "ro"
+			cp := &mountPoint{
+				Name:        m.Name,
+				Source:      m.Source,
+				RW:          m.RW && !roModes[mode],
+				Driver:      m.Driver,
+				Destination: m.Destination,
+			}
 
-			if len(m.Source) == 0 {
-				v, err := createVolume(m.Name, m.Driver)
+			if len(cp.Source) == 0 {
+				v, err := createVolume(cp.Name, cp.Driver)
 				if err != nil {
 					return err
 				}
@@ -258,6 +264,7 @@ func (daemon *Daemon) registerMountPoints(container *Container, hostConfig *runc
 	return nil
 }
 
+// TODO Windows. Factor out as not relevant (as Windows daemon support not in pre-1.7)
 // verifyVolumesInfo ports volumes configured for the containers pre docker 1.7.
 // It reads the container configuration and creates valid mount points for the old volumes.
 func (daemon *Daemon) verifyVolumesInfo(container *Container) error {

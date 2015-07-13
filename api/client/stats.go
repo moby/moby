@@ -35,14 +35,16 @@ func (s *containerStats) Collect(cli *DockerCli, streamStats bool) {
 	} else {
 		v.Set("stream", "0")
 	}
-	stream, _, err := cli.call("GET", "/containers/"+s.Name+"/stats?"+v.Encode(), nil, nil)
+	stream, _, _, err := cli.call("GET", "/containers/"+s.Name+"/stats?"+v.Encode(), nil, nil)
 	if err != nil {
 		s.mu.Lock()
 		s.err = err
 		s.mu.Unlock()
 		return
 	}
+
 	defer stream.Close()
+
 	var (
 		previousCPU    uint64
 		previousSystem uint64
@@ -122,9 +124,10 @@ func (s *containerStats) Display(w io.Writer) error {
 //
 // Usage: docker stats CONTAINER [CONTAINER...]
 func (cli *DockerCli) CmdStats(args ...string) error {
-	cmd := cli.Subcmd("stats", "CONTAINER [CONTAINER...]", "Display a live stream of one or more containers' resource usage statistics", true)
+	cmd := cli.Subcmd("stats", []string{"CONTAINER [CONTAINER...]"}, "Display a live stream of one or more containers' resource usage statistics", true)
 	noStream := cmd.Bool([]string{"-no-stream"}, false, "Disable streaming stats and only pull the first result")
 	cmd.Require(flag.Min, 1)
+
 	cmd.ParseFlags(args, true)
 
 	names := cmd.Args()

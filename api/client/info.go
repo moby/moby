@@ -14,14 +14,17 @@ import (
 //
 // Usage: docker info
 func (cli *DockerCli) CmdInfo(args ...string) error {
-	cmd := cli.Subcmd("info", "", "Display system-wide information", true)
+	cmd := cli.Subcmd("info", nil, "Display system-wide information", true)
 	cmd.Require(flag.Exact, 0)
+
 	cmd.ParseFlags(args, true)
 
-	rdr, _, err := cli.call("GET", "/info", nil, nil)
+	rdr, _, _, err := cli.call("GET", "/info", nil, nil)
 	if err != nil {
 		return err
 	}
+
+	defer rdr.Close()
 
 	info := &types.Info{}
 	if err := json.NewDecoder(rdr).Decode(info); err != nil {
@@ -75,6 +78,12 @@ func (cli *DockerCli) CmdInfo(args ...string) error {
 	}
 	if !info.IPv4Forwarding {
 		fmt.Fprintf(cli.err, "WARNING: IPv4 forwarding is disabled.\n")
+	}
+	if !info.BridgeNfIptables {
+		fmt.Fprintf(cli.err, "WARNING: bridge-nf-call-iptables is disabled\n")
+	}
+	if !info.BridgeNfIp6tables {
+		fmt.Fprintf(cli.err, "WARNING: bridge-nf-call-ip6tables is disabled\n")
 	}
 	if info.Labels != nil {
 		fmt.Fprintln(cli.out, "Labels:")

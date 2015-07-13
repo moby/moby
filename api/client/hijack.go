@@ -138,7 +138,7 @@ func (cli *DockerCli) hijack(method, path string, setRawTerminal bool, in io.Rea
 	if err != nil {
 		return err
 	}
-	req, err := http.NewRequest(method, fmt.Sprintf("/v%s%s", api.APIVERSION, path), params)
+	req, err := http.NewRequest(method, fmt.Sprintf("/v%s%s", api.Version, path), params)
 	if err != nil {
 		return err
 	}
@@ -149,7 +149,7 @@ func (cli *DockerCli) hijack(method, path string, setRawTerminal bool, in io.Rea
 		req.Header.Set(k, v)
 	}
 
-	req.Header.Set("User-Agent", "Docker-Client/"+dockerversion.VERSION)
+	req.Header.Set("User-Agent", "Docker-Client/"+dockerversion.VERSION+" ("+runtime.GOOS+")")
 	req.Header.Set("Content-Type", "text/plain")
 	req.Header.Set("Connection", "Upgrade")
 	req.Header.Set("Upgrade", "tcp")

@@ -779,7 +779,32 @@ func (s *DockerSuite) TestEventsTop(c *check.C) {
 
 // #13753
 func (s *DockerSuite) TestEventsDefaultEmpty(c *check.C) {
-	dockerCmd(c, "run", "-d", "busybox")
+	dockerCmd(c, "run", "busybox")
 	out, _ := dockerCmd(c, "events", fmt.Sprintf("--until=%d", daemonTime(c).Unix()))
 	c.Assert(strings.TrimSpace(out), check.Equals, "")
+}
+
+// #14316
+func (s *DockerRegistrySuite) TestEventsImageFilterPush(c *check.C) {
+	testRequires(c, Network)
+	since := daemonTime(c).Unix()
+	repoName := fmt.Sprintf("%v/dockercli/testf", privateRegistryURL)
+
+	runCmd := exec.Command(dockerBinary, "run", "-d", "busybox", "top")
+	out, _, err := runCommandWithOutput(runCmd)
+	c.Assert(err, check.IsNil)
+	cID := strings.TrimSpace(out)
+	c.Assert(waitRun(cID), check.IsNil)
+
+	dockerCmd(c, "commit", cID, repoName)
+	dockerCmd(c, "stop", cID)
+	dockerCmd(c, "push", repoName)
+
+	cmd := exec.Command(dockerBinary, "events", "--since=0", "-f", "image="+repoName, "-f", "event=push", "--until="+strconv.Itoa(int(since)))
+	out, _, err = runCommandWithOutput(cmd)
+	c.Assert(err, check.IsNil)
+
+	if !strings.Contains(out, repoName+": push\n") {
+		c.Fatalf("Missing 'push' log event for image %s\n%s", repoName, out)
+	}
 }

@@ -1,11 +1,11 @@
-// +build linux
+// +build linux windows
 
 package vfs
 
 import (
 	"fmt"
 	"os"
-	"path"
+	"path/filepath"
 
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/pkg/chrootarchive"
@@ -36,13 +36,17 @@ func (d *Driver) Status() [][2]string {
 	return nil
 }
 
+func (d *Driver) GetMetadata(id string) (map[string]string, error) {
+	return nil, nil
+}
+
 func (d *Driver) Cleanup() error {
 	return nil
 }
 
 func (d *Driver) Create(id, parent string) error {
 	dir := d.dir(id)
-	if err := system.MkdirAll(path.Dir(dir), 0700); err != nil {
+	if err := system.MkdirAll(filepath.Dir(dir), 0700); err != nil {
 		return err
 	}
 	if err := os.Mkdir(dir, 0755); err != nil {
@@ -66,7 +70,7 @@ func (d *Driver) Create(id, parent string) error {
 }
 
 func (d *Driver) dir(id string) string {
-	return path.Join(d.home, "dir", path.Base(id))
+	return filepath.Join(d.home, "dir", filepath.Base(id))
 }
 
 func (d *Driver) Remove(id string) error {

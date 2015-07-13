@@ -1,10 +1,16 @@
 package libnetwork
 
 import (
+	"encoding/json"
+	"net"
 	"sync"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/stringid"
+	"github.com/docker/libnetwork/config"
+	"github.com/docker/libnetwork/datastore"
 	"github.com/docker/libnetwork/driverapi"
+	"github.com/docker/libnetwork/etchosts"
 	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/libnetwork/options"
 	"github.com/docker/libnetwork/types"
@@ -47,6 +53,8 @@ type Network interface {
 // When the function returns true, the walk will stop.
 type EndpointWalker func(ep Endpoint) bool
 
+type svcMap map[string]net.IP
+
 type network struct {
 	ctrlr       *controller
 	name        string
@@ -54,8 +62,13 @@ type network struct {
 	id          types.UUID
 	driver      driverapi.Driver
 	enableIPv6  bool
+	endpointCnt uint64
 	endpoints   endpointTable
 	generic     options.Generic
+	dbIndex     uint64
+	svcRecords  svcMap
+	dbExists    bool
+	stopWatchCh chan struct{}
 	sync.Mutex
 }
 
@@ -82,6 +95,96 @@ func (n *network) Type() string {
 	}
 
 	return n.driver.Type()
+}
+
+func (n *network) Key() []string {
+	n.Lock()
+	defer n.Unlock()
+	return []string{datastore.NetworkKeyPrefix, string(n.id)}
+}
+
+func (n *network) KeyPrefix() []string {
+	return []string{datastore.NetworkKeyPrefix}
+}
+
+func (n *network) Value() []byte {
+	n.Lock()
+	defer n.Unlock()
+	b, err := json.Marshal(n)
+	if err != nil {
+		return nil
+	}
+	return b
+}
+
+func (n *network) SetValue(value []byte) error {
+	return json.Unmarshal(value, n)
+}
+
+func (n *network) Index() uint64 {
+	n.Lock()
+	defer n.Unlock()
+	return n.dbIndex
+}
+
+func (n *network) SetIndex(index uint64) {
+	n.Lock()
+	n.dbIndex = index
+	n.dbExists = true
+	n.Unlock()
+}
+
+func (n *network) Exists() bool {
+	n.Lock()
+	defer n.Unlock()
+	return n.dbExists
+}
+
+func (n *network) EndpointCnt() uint64 {
+	n.Lock()
+	defer n.Unlock()
+	return n.endpointCnt
+}
+
+func (n *network) IncEndpointCnt() {
+	n.Lock()
+	n.endpointCnt++
+	n.Unlock()
+}
+
+func (n *network) DecEndpointCnt() {
+	n.Lock()
+	n.endpointCnt--
+	n.Unlock()
+}
+
+// TODO : Can be made much more generic with the help of reflection (but has some golang limitations)
+func (n *network) MarshalJSON() ([]byte, error) {
+	netMap := make(map[string]interface{})
+	netMap["name"] = n.name
+	netMap["id"] = string(n.id)
+	netMap["networkType"] = n.networkType
+	netMap["endpointCnt"] = n.endpointCnt
+	netMap["enableIPv6"] = n.enableIPv6
+	netMap["generic"] = n.generic
+	return json.Marshal(netMap)
+}
+
+// TODO : Can be made much more generic with the help of reflection (but has some golang limitations)
+func (n *network) UnmarshalJSON(b []byte) (err error) {
+	var netMap map[string]interface{}
+	if err := json.Unmarshal(b, &netMap); err != nil {
+		return err
+	}
+	n.name = netMap["name"].(string)
+	n.id = types.UUID(netMap["id"].(string))
+	n.networkType = netMap["networkType"].(string)
+	n.endpointCnt = uint64(netMap["endpointCnt"].(float64))
+	n.enableIPv6 = netMap["enableIPv6"].(bool)
+	if netMap["generic"] != nil {
+		n.generic = netMap["generic"].(map[string]interface{})
+	}
+	return nil
 }
 
 // NetworkOption is a option setter function type used to pass varios options to
@@ -111,53 +214,134 @@ func (n *network) processOptions(options ...NetworkOption) {
 func (n *network) Delete() error {
 	var err error
 
-	n.ctrlr.Lock()
-	_, ok := n.ctrlr.networks[n.id]
+	n.Lock()
+	ctrlr := n.ctrlr
+	n.Unlock()
+
+	ctrlr.Lock()
+	_, ok := ctrlr.networks[n.id]
+	ctrlr.Unlock()
+
 	if !ok {
-		n.ctrlr.Unlock()
 		return &UnknownNetworkError{name: n.name, id: string(n.id)}
 	}
 
-	n.Lock()
-	numEps := len(n.endpoints)
-	n.Unlock()
+	numEps := n.EndpointCnt()
 	if numEps != 0 {
-		n.ctrlr.Unlock()
 		return &ActiveEndpointsError{name: n.name, id: string(n.id)}
 	}
 
-	delete(n.ctrlr.networks, n.id)
+	// deleteNetworkFromStore performs an atomic delete operation and the network.endpointCnt field will help
+	// prevent any possible race between endpoint join and network delete
+	if err = ctrlr.deleteNetworkFromStore(n); err != nil {
+		if err == datastore.ErrKeyModified {
+			return types.InternalErrorf("operation in progress. delete failed for network %s. Please try again.")
+		}
+		return err
+	}
+
+	if err = n.deleteNetwork(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (n *network) deleteNetwork() error {
+	n.Lock()
+	id := n.id
+	d := n.driver
+	n.ctrlr.Lock()
+	delete(n.ctrlr.networks, id)
 	n.ctrlr.Unlock()
-	defer func() {
-		if err != nil {
+	n.Unlock()
+
+	if err := d.DeleteNetwork(n.id); err != nil {
+		// Forbidden Errors should be honored
+		if _, ok := err.(types.ForbiddenError); ok {
 			n.ctrlr.Lock()
 			n.ctrlr.networks[n.id] = n
 			n.ctrlr.Unlock()
+			return err
+		}
+		log.Warnf("driver error deleting network %s : %v", n.name, err)
+	}
+	n.stopWatch()
+	return nil
+}
+
+func (n *network) addEndpoint(ep *endpoint) error {
+	var err error
+	n.Lock()
+	n.endpoints[ep.id] = ep
+	d := n.driver
+	n.Unlock()
+
+	defer func() {
+		if err != nil {
+			n.Lock()
+			delete(n.endpoints, ep.id)
+			n.Unlock()
 		}
 	}()
 
-	err = n.driver.DeleteNetwork(n.id)
-	return err
+	err = d.CreateEndpoint(n.id, ep.id, ep, ep.generic)
+	if err != nil {
+		return err
+	}
+
+	n.updateSvcRecord(ep, true)
+	return nil
 }
 
 func (n *network) CreateEndpoint(name string, options ...EndpointOption) (Endpoint, error) {
-	if name == "" {
+	var err error
+	if !config.IsValidName(name) {
 		return nil, ErrInvalidName(name)
 	}
-	ep := &endpoint{name: name, iFaces: []*endpointInterface{}, generic: make(map[string]interface{})}
+
+	if _, err = n.EndpointByName(name); err == nil {
+		return nil, types.ForbiddenErrorf("service endpoint with name %s already exists", name)
+	}
+
+	ep := &endpoint{name: name,
+		iFaces:  []*endpointInterface{},
+		generic: make(map[string]interface{})}
 	ep.id = types.UUID(stringid.GenerateRandomID())
 	ep.network = n
 	ep.processOptions(options...)
 
-	d := n.driver
-	err := d.CreateEndpoint(n.id, ep.id, ep, ep.generic)
-	if err != nil {
+	n.Lock()
+	ctrlr := n.ctrlr
+	n.Unlock()
+
+	n.IncEndpointCnt()
+	if err = ctrlr.updateNetworkToStore(n); err != nil {
+		return nil, err
+	}
+	defer func() {
+		if err != nil {
+			n.DecEndpointCnt()
+			if err = ctrlr.updateNetworkToStore(n); err != nil {
+				log.Warnf("endpoint count cleanup failed when updating network for %s : %v", name, err)
+			}
+		}
+	}()
+	if err = n.addEndpoint(ep); err != nil {
+		return nil, err
+	}
+	defer func() {
+		if err != nil {
+			if e := ep.Delete(); ep != nil {
+				log.Warnf("cleaning up endpoint failed %s : %v", name, e)
+			}
+		}
+	}()
+
+	if err = ctrlr.updateEndpointToStore(ep); err != nil {
 		return nil, err
 	}
 
-	n.Lock()
-	n.endpoints[ep.id] = ep
-	n.Unlock()
 	return ep, nil
 }
 
@@ -213,4 +397,75 @@ func (n *network) EndpointByID(id string) (Endpoint, error) {
 		return e, nil
 	}
 	return nil, ErrNoSuchEndpoint(id)
+}
+
+func (n *network) isGlobalScoped() (bool, error) {
+	n.Lock()
+	c := n.ctrlr
+	n.Unlock()
+	return c.isDriverGlobalScoped(n.networkType)
+}
+
+func (n *network) updateSvcRecord(ep *endpoint, isAdd bool) {
+	n.Lock()
+	var recs []etchosts.Record
+	for _, iface := range ep.InterfaceList() {
+		if isAdd {
+			n.svcRecords[ep.Name()] = iface.Address().IP
+			n.svcRecords[ep.Name()+"."+n.name] = iface.Address().IP
+		} else {
+			delete(n.svcRecords, ep.Name())
+			delete(n.svcRecords, ep.Name()+"."+n.name)
+		}
+
+		recs = append(recs, etchosts.Record{
+			Hosts: ep.Name(),
+			IP:    iface.Address().IP.String(),
+		})
+
+		recs = append(recs, etchosts.Record{
+			Hosts: ep.Name() + "." + n.name,
+			IP:    iface.Address().IP.String(),
+		})
+	}
+	n.Unlock()
+
+	// If there are no records to add or delete then simply return here
+	if len(recs) == 0 {
+		return
+	}
+
+	var epList []*endpoint
+	n.WalkEndpoints(func(e Endpoint) bool {
+		cEp := e.(*endpoint)
+		cEp.Lock()
+		if cEp.container != nil {
+			epList = append(epList, cEp)
+		}
+		cEp.Unlock()
+		return false
+	})
+
+	for _, cEp := range epList {
+		if isAdd {
+			cEp.addHostEntries(recs)
+		} else {
+			cEp.deleteHostEntries(recs)
+		}
+	}
+}
+
+func (n *network) getSvcRecords() []etchosts.Record {
+	n.Lock()
+	defer n.Unlock()
+
+	var recs []etchosts.Record
+	for h, ip := range n.svcRecords {
+		recs = append(recs, etchosts.Record{
+			Hosts: h,
+			IP:    ip.String(),
+		})
+	}
+
+	return recs
 }

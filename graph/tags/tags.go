@@ -18,7 +18,7 @@ func ValidateTagName(name string) error {
 		return fmt.Errorf("tag name can't be empty")
 	}
 	if !validTagName.MatchString(name) {
-		return fmt.Errorf("Illegal tag name (%s): only [A-Za-z0-9_.-] are allowed, minimum 1, maximum 128 in length", name)
+		return fmt.Errorf("Illegal tag name (%s): only [A-Za-z0-9_.-] are allowed ('.' and '-' are NOT allowed in the initial), minimum 1, maximum 128 in length", name)
 	}
 	return nil
 }

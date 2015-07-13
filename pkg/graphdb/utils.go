@@ -10,7 +10,7 @@ func split(p string) []string {
 	return strings.Split(p, "/")
 }
 
-// Returns the depth or number of / in a given path
+// PathDepth returns the depth or number of / in a given path
 func PathDepth(p string) int {
 	parts := split(p)
 	if len(parts) == 2 && parts[1] == "" {

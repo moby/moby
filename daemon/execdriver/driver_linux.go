@@ -38,7 +38,7 @@ func InitContainer(c *Command) *configs.Config {
 
 func getEnv(key string, env []string) string {
 	for _, pair := range env {
-		parts := strings.Split(pair, "=")
+		parts := strings.SplitN(pair, "=", 2)
 		if parts[0] == key {
 			return parts[1]
 		}
@@ -58,6 +58,7 @@ func SetupCgroups(container *configs.Config, c *Command) error {
 		container.Cgroups.CpuQuota = c.Resources.CpuQuota
 		container.Cgroups.BlkioWeight = c.Resources.BlkioWeight
 		container.Cgroups.OomKillDisable = c.Resources.OomKillDisable
+		container.Cgroups.MemorySwappiness = c.Resources.MemorySwappiness
 	}
 
 	return nil

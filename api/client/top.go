@@ -15,7 +15,7 @@ import (
 //
 // Usage: docker top CONTAINER
 func (cli *DockerCli) CmdTop(args ...string) error {
-	cmd := cli.Subcmd("top", "CONTAINER [ps OPTIONS]", "Display the running processes of a container", true)
+	cmd := cli.Subcmd("top", []string{"CONTAINER [ps OPTIONS]"}, "Display the running processes of a container", true)
 	cmd.Require(flag.Min, 1)
 
 	cmd.ParseFlags(args, true)
@@ -25,10 +25,12 @@ func (cli *DockerCli) CmdTop(args ...string) error {
 		val.Set("ps_args", strings.Join(cmd.Args()[1:], " "))
 	}
 
-	stream, _, err := cli.call("GET", "/containers/"+cmd.Arg(0)+"/top?"+val.Encode(), nil, nil)
+	stream, _, _, err := cli.call("GET", "/containers/"+cmd.Arg(0)+"/top?"+val.Encode(), nil, nil)
 	if err != nil {
 		return err
 	}
+
+	defer stream.Close()
 
 	procList := types.ContainerProcessList{}
 	if err := json.NewDecoder(stream).Decode(&procList); err != nil {

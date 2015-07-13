@@ -8,7 +8,6 @@ import (
 	"io/ioutil"
 	"net"
 	"net/http"
-	"net/http/httputil"
 	"os"
 	"path"
 	"path/filepath"
@@ -21,6 +20,7 @@ import (
 	"github.com/docker/docker/autogen/dockerversion"
 	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/docker/docker/pkg/timeoutconn"
+	"github.com/docker/docker/pkg/tlsconfig"
 	"github.com/docker/docker/pkg/transport"
 	"github.com/docker/docker/pkg/useragent"
 )
@@ -142,6 +142,7 @@ func NewTransport(timeout TimeoutType, secure bool) http.RoundTripper {
 		// Avoid fallback to SSL protocols < TLS1.0
 		MinVersion:         tls.VersionTLS10,
 		InsecureSkipVerify: !secure,
+		CipherSuites:       tlsconfig.DefaultServerAcceptedCiphers,
 	}
 
 	tr := &http.Transport{
@@ -198,29 +199,6 @@ func DockerHeaders(metaHeaders http.Header) []transport.RequestModifier {
 		modifiers = append(modifiers, transport.NewHeaderRequestModifier(metaHeaders))
 	}
 	return modifiers
-}
-
-type debugTransport struct {
-	http.RoundTripper
-	log func(...interface{})
-}
-
-func (tr debugTransport) RoundTrip(req *http.Request) (*http.Response, error) {
-	dump, err := httputil.DumpRequestOut(req, false)
-	if err != nil {
-		tr.log("could not dump request")
-	}
-	tr.log(string(dump))
-	resp, err := tr.RoundTripper.RoundTrip(req)
-	if err != nil {
-		return nil, err
-	}
-	dump, err = httputil.DumpResponse(resp, false)
-	if err != nil {
-		tr.log("could not dump response")
-	}
-	tr.log(string(dump))
-	return resp, err
 }
 
 func HTTPClient(transport http.RoundTripper) *http.Client {

@@ -2,13 +2,12 @@ package graph
 
 import (
 	"fmt"
-	"log"
 	"path"
 	"sort"
 	"strings"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/parsers/filters"
 	"github.com/docker/docker/utils"
 )
@@ -32,7 +31,7 @@ func (r ByCreated) Less(i, j int) bool { return r[i].Created < r[j].Created }
 
 func (s *TagStore) Images(config *ImagesConfig) ([]*types.Image, error) {
 	var (
-		allImages  map[string]*image.Image
+		allImages  map[string]*Image
 		err        error
 		filtTagged = true
 		filtLabel  = false
@@ -79,7 +78,7 @@ func (s *TagStore) Images(config *ImagesConfig) ([]*types.Image, error) {
 			imgRef := utils.ImageReference(repoName, ref)
 			image, err := s.graph.Get(id)
 			if err != nil {
-				log.Printf("Warning: couldn't load %s from %s: %s", id, imgRef, err)
+				logrus.Warnf("couldn't load %s from %s: %s", id, imgRef, err)
 				continue
 			}
 
@@ -103,7 +102,7 @@ func (s *TagStore) Images(config *ImagesConfig) ([]*types.Image, error) {
 					newImage.ID = image.ID
 					newImage.Created = int(image.Created.Unix())
 					newImage.Size = int(image.Size)
-					newImage.VirtualSize = int(image.GetParentsSize(0) + image.Size)
+					newImage.VirtualSize = int(s.graph.GetParentsSize(image, 0) + image.Size)
 					newImage.Labels = image.ContainerConfig.Labels
 
 					if utils.DigestReference(ref) {
@@ -140,7 +139,7 @@ func (s *TagStore) Images(config *ImagesConfig) ([]*types.Image, error) {
 			newImage.ID = image.ID
 			newImage.Created = int(image.Created.Unix())
 			newImage.Size = int(image.Size)
-			newImage.VirtualSize = int(image.GetParentsSize(0) + image.Size)
+			newImage.VirtualSize = int(s.graph.GetParentsSize(image, 0) + image.Size)
 			newImage.Labels = image.ContainerConfig.Labels
 
 			images = append(images, newImage)

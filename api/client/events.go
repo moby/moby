@@ -14,7 +14,7 @@ import (
 //
 // Usage: docker events [OPTIONS]
 func (cli *DockerCli) CmdEvents(args ...string) error {
-	cmd := cli.Subcmd("events", "", "Get real time events from the server", true)
+	cmd := cli.Subcmd("events", nil, "Get real time events from the server", true)
 	since := cmd.String([]string{"#since", "-since"}, "", "Show all events created since timestamp")
 	until := cmd.String([]string{"-until"}, "", "Stream events until this timestamp")
 	flFilter := opts.NewListOpts(nil)
@@ -55,7 +55,7 @@ func (cli *DockerCli) CmdEvents(args ...string) error {
 		rawTerminal: true,
 		out:         cli.out,
 	}
-	if err := cli.stream("GET", "/events?"+v.Encode(), sopts); err != nil {
+	if _, err := cli.stream("GET", "/events?"+v.Encode(), sopts); err != nil {
 		return err
 	}
 	return nil

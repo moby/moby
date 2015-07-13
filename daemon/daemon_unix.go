@@ -5,31 +5,32 @@ package daemon
 import (
 	"fmt"
 	"net"
+	"net/http"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
+	"syscall"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/autogen/dockerversion"
 	"github.com/docker/docker/daemon/graphdriver"
-	_ "github.com/docker/docker/daemon/graphdriver/vfs"
-	"github.com/docker/docker/graph"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/fileutils"
+	"github.com/docker/docker/pkg/nat"
+	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/parsers/kernel"
+	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/utils"
 	volumedrivers "github.com/docker/docker/volume/drivers"
 	"github.com/docker/docker/volume/local"
 	"github.com/docker/libcontainer/label"
 	"github.com/docker/libnetwork"
+	nwapi "github.com/docker/libnetwork/api"
+	nwconfig "github.com/docker/libnetwork/config"
 	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/libnetwork/options"
 )
-
-const runDir = "/var/run/docker"
-const defaultVolumesPathName = "volumes"
 
 func (daemon *Daemon) Changes(container *Container) ([]archive.Change, error) {
 	initID := fmt.Sprintf("%s-init", container.ID)
@@ -82,7 +83,7 @@ func (daemon *Daemon) createRootfs(container *Container) error {
 	}
 	defer daemon.driver.Put(initID)
 
-	if err := graph.SetupInitLayer(initPath); err != nil {
+	if err := setupInitLayer(initPath); err != nil {
 		return err
 	}
 
@@ -112,13 +113,28 @@ func checkKernel() error {
 	return nil
 }
 
-func (daemon *Daemon) verifyContainerSettings(hostConfig *runconfig.HostConfig) ([]string, error) {
+func (daemon *Daemon) verifyContainerSettings(hostConfig *runconfig.HostConfig, config *runconfig.Config) ([]string, error) {
 	var warnings []string
+
+	if config != nil {
+		// The check for a valid workdir path is made on the server rather than in the
+		// client. This is because we don't know the type of path (Linux or Windows)
+		// to validate on the client.
+		if config.WorkingDir != "" && !filepath.IsAbs(config.WorkingDir) {
+			return warnings, fmt.Errorf("The working directory '%s' is invalid. It needs to be an absolute path.", config.WorkingDir)
+		}
+	}
 
 	if hostConfig == nil {
 		return warnings, nil
 	}
 
+	for port := range hostConfig.PortBindings {
+		_, portStr := nat.SplitProtoPort(string(port))
+		if _, err := nat.ParsePort(portStr); err != nil {
+			return warnings, fmt.Errorf("Invalid port specification: %s", portStr)
+		}
+	}
 	if hostConfig.LxcConf.Len() > 0 && !strings.Contains(daemon.ExecutionDriver().Name(), "lxc") {
 		return warnings, fmt.Errorf("Cannot use --lxc-conf with execdriver: %s", daemon.ExecutionDriver().Name())
 	}
@@ -180,13 +196,8 @@ func checkConfigOptions(config *Config) error {
 	return nil
 }
 
-// checkSystem validates the system is supported and we have sufficient privileges
+// checkSystem validates platform-specific requirements
 func checkSystem() error {
-	// TODO Windows. Once daemon is running on Windows, move this code back to
-	// NewDaemon() in daemon.go, and extend the check to support Windows.
-	if runtime.GOOS != "linux" {
-		return ErrSystemNotSupported
-	}
 	if os.Geteuid() != 0 {
 		return fmt.Errorf("The Docker daemon needs to be run as root")
 	}
@@ -251,12 +262,49 @@ func configureSysInit(config *Config) (string, error) {
 	return sysInitPath, nil
 }
 
-func isNetworkDisabled(config *Config) bool {
+func isBridgeNetworkDisabled(config *Config) bool {
 	return config.Bridge.Iface == disableNetworkBridge
 }
 
+func networkOptions(dconfig *Config) ([]nwconfig.Option, error) {
+	options := []nwconfig.Option{}
+	if dconfig == nil {
+		return options, nil
+	}
+	if strings.TrimSpace(dconfig.DefaultNetwork) != "" {
+		dn := strings.Split(dconfig.DefaultNetwork, ":")
+		if len(dn) < 2 {
+			return nil, fmt.Errorf("default network daemon config must be of the form NETWORKDRIVER:NETWORKNAME")
+		}
+		options = append(options, nwconfig.OptionDefaultDriver(dn[0]))
+		options = append(options, nwconfig.OptionDefaultNetwork(strings.Join(dn[1:], ":")))
+	} else {
+		dd := runconfig.DefaultDaemonNetworkMode()
+		dn := runconfig.DefaultDaemonNetworkMode().NetworkName()
+		options = append(options, nwconfig.OptionDefaultDriver(string(dd)))
+		options = append(options, nwconfig.OptionDefaultNetwork(dn))
+	}
+
+	if strings.TrimSpace(dconfig.NetworkKVStore) != "" {
+		kv := strings.Split(dconfig.NetworkKVStore, ":")
+		if len(kv) < 2 {
+			return nil, fmt.Errorf("kv store daemon config must be of the form KV-PROVIDER:KV-URL")
+		}
+		options = append(options, nwconfig.OptionKVProvider(kv[0]))
+		options = append(options, nwconfig.OptionKVProviderURL(strings.Join(kv[1:], ":")))
+	}
+
+	options = append(options, nwconfig.OptionLabels(dconfig.Labels))
+	return options, nil
+}
+
 func initNetworkController(config *Config) (libnetwork.NetworkController, error) {
-	controller, err := libnetwork.New()
+	netOptions, err := networkOptions(config)
+	if err != nil {
+		return nil, err
+	}
+
+	controller, err := libnetwork.New(netOptions...)
 	if err != nil {
 		return nil, fmt.Errorf("error obtaining controller instance: %v", err)
 	}
@@ -282,12 +330,22 @@ func initNetworkController(config *Config) (libnetwork.NetworkController, error)
 		return nil, fmt.Errorf("Error creating default \"host\" network: %v", err)
 	}
 
-	// Initialize default driver "bridge"
+	if !config.DisableBridge {
+		// Initialize default driver "bridge"
+		if err := initBridgeDriver(controller, config); err != nil {
+			return nil, err
+		}
+	}
+
+	return controller, nil
+}
+
+func initBridgeDriver(controller libnetwork.NetworkController, config *Config) error {
 	option := options.Generic{
 		"EnableIPForwarding": config.Bridge.EnableIPForward}
 
 	if err := controller.ConfigureNetworkDriver("bridge", options.Generic{netlabel.GenericData: option}); err != nil {
-		return nil, fmt.Errorf("Error initializing bridge driver: %v", err)
+		return fmt.Errorf("Error initializing bridge driver: %v", err)
 	}
 
 	netOption := options.Generic{
@@ -302,7 +360,7 @@ func initNetworkController(config *Config) (libnetwork.NetworkController, error)
 	if config.Bridge.IP != "" {
 		ip, bipNet, err := net.ParseCIDR(config.Bridge.IP)
 		if err != nil {
-			return nil, err
+			return err
 		}
 
 		bipNet.IP = ip
@@ -312,7 +370,7 @@ func initNetworkController(config *Config) (libnetwork.NetworkController, error)
 	if config.Bridge.FixedCIDR != "" {
 		_, fCIDR, err := net.ParseCIDR(config.Bridge.FixedCIDR)
 		if err != nil {
-			return nil, err
+			return err
 		}
 
 		netOption["FixedCIDR"] = fCIDR
@@ -321,7 +379,7 @@ func initNetworkController(config *Config) (libnetwork.NetworkController, error)
 	if config.Bridge.FixedCIDRv6 != "" {
 		_, fCIDRv6, err := net.ParseCIDR(config.Bridge.FixedCIDRv6)
 		if err != nil {
-			return nil, err
+			return err
 		}
 
 		netOption["FixedCIDRv6"] = fCIDRv6
@@ -341,14 +399,116 @@ func initNetworkController(config *Config) (libnetwork.NetworkController, error)
 	}
 
 	// Initialize default network on "bridge" with the same name
-	_, err = controller.NewNetwork("bridge", "bridge",
+	_, err := controller.NewNetwork("bridge", "bridge",
 		libnetwork.NetworkOptionGeneric(options.Generic{
 			netlabel.GenericData: netOption,
 			netlabel.EnableIPv6:  config.Bridge.EnableIPv6,
 		}))
 	if err != nil {
-		return nil, fmt.Errorf("Error creating default \"bridge\" network: %v", err)
+		return fmt.Errorf("Error creating default \"bridge\" network: %v", err)
+	}
+	return nil
+}
+
+// setupInitLayer populates a directory with mountpoints suitable
+// for bind-mounting dockerinit into the container. The mountpoint is simply an
+// empty file at /.dockerinit
+//
+// This extra layer is used by all containers as the top-most ro layer. It protects
+// the container from unwanted side-effects on the rw layer.
+func setupInitLayer(initLayer string) error {
+	for pth, typ := range map[string]string{
+		"/dev/pts":         "dir",
+		"/dev/shm":         "dir",
+		"/proc":            "dir",
+		"/sys":             "dir",
+		"/.dockerinit":     "file",
+		"/.dockerenv":      "file",
+		"/etc/resolv.conf": "file",
+		"/etc/hosts":       "file",
+		"/etc/hostname":    "file",
+		"/dev/console":     "file",
+		"/etc/mtab":        "/proc/mounts",
+	} {
+		parts := strings.Split(pth, "/")
+		prev := "/"
+		for _, p := range parts[1:] {
+			prev = filepath.Join(prev, p)
+			syscall.Unlink(filepath.Join(initLayer, prev))
+		}
+
+		if _, err := os.Stat(filepath.Join(initLayer, pth)); err != nil {
+			if os.IsNotExist(err) {
+				if err := system.MkdirAll(filepath.Join(initLayer, filepath.Dir(pth)), 0755); err != nil {
+					return err
+				}
+				switch typ {
+				case "dir":
+					if err := system.MkdirAll(filepath.Join(initLayer, pth), 0755); err != nil {
+						return err
+					}
+				case "file":
+					f, err := os.OpenFile(filepath.Join(initLayer, pth), os.O_CREATE, 0755)
+					if err != nil {
+						return err
+					}
+					f.Close()
+				default:
+					if err := os.Symlink(typ, filepath.Join(initLayer, pth)); err != nil {
+						return err
+					}
+				}
+			} else {
+				return err
+			}
+		}
 	}
 
-	return controller, nil
+	// Layer is ready to use, if it wasn't before.
+	return nil
+}
+
+func (daemon *Daemon) NetworkApiRouter() func(w http.ResponseWriter, req *http.Request) {
+	return nwapi.NewHTTPHandler(daemon.netController)
+}
+
+func (daemon *Daemon) RegisterLinks(container *Container, hostConfig *runconfig.HostConfig) error {
+
+	if hostConfig == nil || hostConfig.Links == nil {
+		return nil
+	}
+
+	for _, l := range hostConfig.Links {
+		name, alias, err := parsers.ParseLink(l)
+		if err != nil {
+			return err
+		}
+		child, err := daemon.Get(name)
+		if err != nil {
+			//An error from daemon.Get() means this name could not be found
+			return fmt.Errorf("Could not get container for %s", name)
+		}
+		for child.hostConfig.NetworkMode.IsContainer() {
+			parts := strings.SplitN(string(child.hostConfig.NetworkMode), ":", 2)
+			child, err = daemon.Get(parts[1])
+			if err != nil {
+				return fmt.Errorf("Could not get container for %s", parts[1])
+			}
+		}
+		if child.hostConfig.NetworkMode.IsHost() {
+			return runconfig.ErrConflictHostNetworkAndLinks
+		}
+		if err := daemon.RegisterLink(container, child, alias); err != nil {
+			return err
+		}
+	}
+
+	// After we load all the links into the daemon
+	// set them to nil on the hostconfig
+	hostConfig.Links = nil
+	if err := container.WriteHostConfig(); err != nil {
+		return err
+	}
+
+	return nil
 }

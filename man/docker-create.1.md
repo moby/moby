@@ -48,6 +48,7 @@ docker-create - Create a new container
 [**--read-only**[=*false*]]
 [**--restart**[=*RESTART*]]
 [**--security-opt**[=*[]*]]
+[**--memory-swappiness**[=*MEMORY-SWAPPINESS*]]
 [**-t**|**--tty**[=*false*]]
 [**-u**|**--user**[=*USER*]]
 [**-v**|**--volume**[=*[]*]]
@@ -91,7 +92,7 @@ The initial status of the container created with **docker create** is 'created'.
 **--cgroup-parent**=""
    Path to cgroups under which the cgroup for the container will be created. If the path is not absolute, the path is considered to be relative to the cgroups path of the init process. Cgroups will be created if they do not already exist.
 
-**--cpu-peroid**=0
+**--cpu-period**=0
     Limit the CPU CFS (Completely Fair Scheduler) period
 
 **--cpuset-cpus**=""
@@ -155,7 +156,7 @@ two memory nodes.
 **--lxc-conf**=[]
    (lxc exec-driver only) Add custom lxc options --lxc-conf="lxc.cgroup.cpuset.cpus = 0,1"
 
-**--log-driver**="|*json-file*|*syslog*|*journald*|*gelf*|*none*"
+**--log-driver**="|*json-file*|*syslog*|*journald*|*gelf*|*fluentd*|*none*"
   Logging driver for container. Default is defined by daemon `--log-driver` flag.
   **Warning**: `docker logs` command works only for `json-file` logging driver.
 
@@ -224,6 +225,9 @@ This value should always larger than **-m**, so you should always use this with 
 
 **--security-opt**=[]
    Security Options
+
+**--memory-swappiness**=""
+   Tune a container's memory swappiness behavior. Accepts an integer between 0 and 100.
 
 **-t**, **--tty**=*true*|*false*
    Allocate a pseudo-TTY. The default is *false*.

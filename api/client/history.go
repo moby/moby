@@ -17,17 +17,20 @@ import (
 //
 // Usage: docker history [OPTIONS] IMAGE
 func (cli *DockerCli) CmdHistory(args ...string) error {
-	cmd := cli.Subcmd("history", "IMAGE", "Show the history of an image", true)
+	cmd := cli.Subcmd("history", []string{"IMAGE"}, "Show the history of an image", true)
 	human := cmd.Bool([]string{"H", "-human"}, true, "Print sizes and dates in human readable format")
 	quiet := cmd.Bool([]string{"q", "-quiet"}, false, "Only show numeric IDs")
 	noTrunc := cmd.Bool([]string{"#notrunc", "-no-trunc"}, false, "Don't truncate output")
 	cmd.Require(flag.Exact, 1)
+
 	cmd.ParseFlags(args, true)
 
-	rdr, _, err := cli.call("GET", "/images/"+cmd.Arg(0)+"/history", nil, nil)
+	rdr, _, _, err := cli.call("GET", "/images/"+cmd.Arg(0)+"/history", nil, nil)
 	if err != nil {
 		return err
 	}
+
+	defer rdr.Close()
 
 	history := []types.ImageHistory{}
 	if err := json.NewDecoder(rdr).Decode(&history); err != nil {

@@ -686,12 +686,25 @@ func DeleteDevice(poolName string, deviceId int) error {
 }
 
 func ActivateDevice(poolName string, name string, deviceId int, size uint64) error {
+	return activateDevice(poolName, name, deviceId, size, "")
+}
+
+func ActivateDeviceWithExternal(poolName string, name string, deviceId int, size uint64, external string) error {
+	return activateDevice(poolName, name, deviceId, size, external)
+}
+
+func activateDevice(poolName string, name string, deviceId int, size uint64, external string) error {
 	task, err := TaskCreateNamed(DeviceCreate, name)
 	if task == nil {
 		return err
 	}
 
-	params := fmt.Sprintf("%s %d", poolName, deviceId)
+	var params string
+	if len(external) > 0 {
+		params = fmt.Sprintf("%s %d %s", poolName, deviceId, external)
+	} else {
+		params = fmt.Sprintf("%s %d", poolName, deviceId)
+	}
 	if err := task.AddTarget(0, size/512, "thin", params); err != nil {
 		return fmt.Errorf("Can't add target %s", err)
 	}

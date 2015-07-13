@@ -30,6 +30,7 @@ var (
 		"freezer":    &FreezerGroup{},
 	}
 	CgroupProcesses = "cgroup.procs"
+	HugePageSizes, _ = cgroups.GetHugePageSize()
 )
 
 type subsystem interface {
@@ -44,6 +45,7 @@ type subsystem interface {
 }
 
 type Manager struct {
+	mu      sync.Mutex
 	Cgroups *configs.Cgroup
 	Paths   map[string]string
 }
@@ -82,7 +84,6 @@ type data struct {
 }
 
 func (m *Manager) Apply(pid int) error {
-
 	if m.Cgroups == nil {
 		return nil
 	}
@@ -128,14 +129,25 @@ func (m *Manager) Apply(pid int) error {
 }
 
 func (m *Manager) Destroy() error {
-	return cgroups.RemovePaths(m.Paths)
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if err := cgroups.RemovePaths(m.Paths); err != nil {
+		return err
+	}
+	m.Paths = make(map[string]string)
+	return nil
 }
 
 func (m *Manager) GetPaths() map[string]string {
-	return m.Paths
+	m.mu.Lock()
+	paths := m.Paths
+	m.mu.Unlock()
+	return paths
 }
 
 func (m *Manager) GetStats() (*cgroups.Stats, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	stats := cgroups.NewStats()
 	for name, path := range m.Paths {
 		sys, ok := subsystems[name]

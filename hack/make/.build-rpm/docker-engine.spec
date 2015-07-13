@@ -2,6 +2,7 @@ Name: docker-engine
 Version: %{_version}
 Release: %{_release}%{?dist}
 Summary: The open-source application container engine
+Group: Tools/Docker
 
 License: ASL 2.0
 Source: %{name}.tar.gz
@@ -36,10 +37,7 @@ Requires(preun): initscripts
 # required packages on install
 Requires: /bin/sh
 Requires: iptables
-Requires: libc.so.6
 Requires: libcgroup
-Requires: libpthread.so.0
-Requires: libsqlite3.so.0
 Requires: tar
 Requires: xz
 %if 0%{?fedora} >= 21

@@ -7,8 +7,8 @@ import (
 	"runtime"
 	"sort"
 
+	"github.com/docker/docker/cliconfig"
 	"github.com/docker/docker/opts"
-	"github.com/docker/docker/pkg/homedir"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/tlsconfig"
 )
@@ -32,40 +32,40 @@ var (
 		{"attach", "Attach to a running container"},
 		{"build", "Build an image from a Dockerfile"},
 		{"commit", "Create a new image from a container's changes"},
-		{"cp", "Copy files/folders from a container's filesystem to the host path"},
+		{"cp", "Copy files/folders from a container to a HOSTDIR or to STDOUT"},
 		{"create", "Create a new container"},
 		{"diff", "Inspect changes on a container's filesystem"},
 		{"events", "Get real time events from the server"},
 		{"exec", "Run a command in a running container"},
-		{"export", "Stream the contents of a container as a tar archive"},
+		{"export", "Export a container's filesystem as a tar archive"},
 		{"history", "Show the history of an image"},
 		{"images", "List images"},
-		{"import", "Create a new filesystem image from the contents of a tarball"},
+		{"import", "Import the contents from a tarball to create a filesystem image"},
 		{"info", "Display system-wide information"},
 		{"inspect", "Return low-level information on a container or image"},
 		{"kill", "Kill a running container"},
-		{"load", "Load an image from a tar archive"},
-		{"login", "Register or log in to a Docker registry server"},
-		{"logout", "Log out from a Docker registry server"},
+		{"load", "Load an image from a tar archive or STDIN"},
+		{"login", "Register or log in to a Docker registry"},
+		{"logout", "Log out from a Docker registry"},
 		{"logs", "Fetch the logs of a container"},
-		{"port", "Lookup the public-facing port that is NAT-ed to PRIVATE_PORT"},
+		{"port", "List port mappings or a specific mapping for the CONTAINER"},
 		{"pause", "Pause all processes within a container"},
 		{"ps", "List containers"},
-		{"pull", "Pull an image or a repository from a Docker registry server"},
-		{"push", "Push an image or a repository to a Docker registry server"},
-		{"rename", "Rename an existing container"},
+		{"pull", "Pull an image or a repository from a registry"},
+		{"push", "Push an image or a repository to a registry"},
+		{"rename", "Rename a container"},
 		{"restart", "Restart a running container"},
 		{"rm", "Remove one or more containers"},
 		{"rmi", "Remove one or more images"},
 		{"run", "Run a command in a new container"},
-		{"save", "Save an image to a tar archive"},
-		{"search", "Search for an image on the Docker Hub"},
-		{"start", "Start a stopped container"},
-		{"stats", "Display a stream of a containers' resource usage statistics"},
+		{"save", "Save an image(s) to a tar archive"},
+		{"search", "Search the Docker Hub for images"},
+		{"start", "Start one or more stopped containers"},
+		{"stats", "Display a live stream of container(s) resource usage statistics"},
 		{"stop", "Stop a running container"},
 		{"tag", "Tag an image into a repository"},
-		{"top", "Lookup the running processes of a container"},
-		{"unpause", "Unpause a paused container"},
+		{"top", "Display the running processes of a container"},
+		{"unpause", "Unpause all processes within a container"},
 		{"version", "Show the Docker version information"},
 		{"wait", "Block until a container stops, then print its exit code"},
 	}
@@ -73,19 +73,20 @@ var (
 
 func init() {
 	if dockerCertPath == "" {
-		dockerCertPath = filepath.Join(homedir.Get(), ".docker")
+		dockerCertPath = cliconfig.ConfigDir()
 	}
 }
 
 func getDaemonConfDir() string {
 	// TODO: update for Windows daemon
 	if runtime.GOOS == "windows" {
-		return filepath.Join(homedir.Get(), ".docker")
+		return cliconfig.ConfigDir()
 	}
 	return "/etc/docker"
 }
 
 var (
+	flConfigDir = flag.String([]string{"-config"}, cliconfig.ConfigDir(), "Location of client config files")
 	flVersion   = flag.Bool([]string{"v", "-version"}, false, "Print version information and quit")
 	flDaemon    = flag.Bool([]string{"d", "-daemon"}, false, "Enable daemon mode")
 	flDebug     = flag.Bool([]string{"D", "-debug"}, false, "Enable debug mode")
@@ -105,7 +106,7 @@ func setDefaultConfFlag(flag *string, def string) {
 		if *flDaemon {
 			*flag = filepath.Join(getDaemonConfDir(), def)
 		} else {
-			*flag = filepath.Join(homedir.Get(), ".docker", def)
+			*flag = filepath.Join(cliconfig.ConfigDir(), def)
 		}
 	}
 }
@@ -121,7 +122,7 @@ func init() {
 	opts.HostListVar(&flHosts, []string{"H", "-host"}, "Daemon socket(s) to connect to")
 
 	flag.Usage = func() {
-		fmt.Fprint(os.Stdout, "Usage: docker [OPTIONS] COMMAND [arg...]\n\nA self-sufficient runtime for linux containers.\n\nOptions:\n")
+		fmt.Fprint(os.Stdout, "Usage: docker [OPTIONS] COMMAND [arg...]\n\nA self-sufficient runtime for containers.\n\nOptions:\n")
 
 		flag.CommandLine.SetOutput(os.Stdout)
 		flag.PrintDefaults()

@@ -17,7 +17,7 @@ type CommonConfig struct {
 	AutoRestart    bool
 	Context        map[string][]string
 	CorsHeaders    string
-	DisableNetwork bool
+	DisableBridge  bool
 	Dns            []string
 	DnsSearch      []string
 	EnableCors     bool
@@ -32,6 +32,8 @@ type CommonConfig struct {
 	Pidfile        string
 	Root           string
 	TrustKeyPath   string
+	DefaultNetwork string
+	NetworkKVStore string
 }
 
 // InstallCommonFlags adds command-line options to the top-level flag parser for

@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/docker/docker/nat"
+	"github.com/docker/docker/pkg/nat"
 	"github.com/go-check/check"
 )
 

@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os/exec"
 	"strings"
+	"time"
 
 	"github.com/go-check/check"
 )
@@ -37,7 +38,18 @@ var (
 	}
 	Network = TestRequirement{
 		func() bool {
-			resp, err := http.Get("http://hub.docker.com")
+			// Set a timeout on the GET at 15s
+			var timeout = time.Duration(15 * time.Second)
+			var url = "https://hub.docker.com"
+
+			client := http.Client{
+				Timeout: timeout,
+			}
+
+			resp, err := client.Get(url)
+			if err != nil && strings.Contains(err.Error(), "use of closed network connection") {
+				panic(fmt.Sprintf("Timeout for GET request on %s", url))
+			}
 			if resp != nil {
 				resp.Body.Close()
 			}
@@ -95,6 +107,17 @@ var (
 			return false
 		},
 		"Test requires underlying root filesystem not be backed by overlay.",
+	}
+	IPv6 = TestRequirement{
+		func() bool {
+			cmd := exec.Command("test", "-f", "/proc/net/if_inet6")
+
+			if err := cmd.Run(); err != nil {
+				return true
+			}
+			return false
+		},
+		"Test requires support for IPv6",
 	}
 )
 
