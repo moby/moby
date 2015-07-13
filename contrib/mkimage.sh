@@ -27,8 +27,8 @@ while true; do
 	case "$1" in
 		-d|--dir) dir="$2" ; shift 2 ;;
 		-t|--tag) tag="$2" ; shift 2 ;;
-		-c|--compression) compression="$2" ; shift 2 ;;
-		-C|--no-compression) compression="none" ; shift 1 ;;
+		--compression)    compression="$2"   ; shift 2 ;;
+		--no-compression) compression="none" ; shift 1 ;;
 		-h|--help) usage ;;
 		--) shift ; break ;;
 	esac
@@ -38,17 +38,12 @@ script="$1"
 [ "$script" ] || usage
 shift
 
-if [ "$compression" == "auto" ] || [ -z "$compression" ]
+if [ "$compression" == 'auto' ] || [ -z "$compression" ]
 then
-	compression="xz"
+    compression='xz'
 fi
 
-if [ "$compression" == "none" ]
-then
-	compression=""
-else
-	compression=".${compression}"
-fi
+[ "$compression" == 'none' ] && compression=''
 
 if [ ! -x "$scriptDir/$script" ]; then
 	echo >&2 "error: $script does not exist or is not executable"
@@ -86,7 +81,7 @@ nameserver 8.8.8.8
 nameserver 8.8.4.4
 EOF
 
-tarFile="$dir/rootfs.tar${compression}"
+tarFile="$dir/rootfs.tar${compression:+.$compression}"
 touch "$tarFile"
 
 (
@@ -97,7 +92,7 @@ touch "$tarFile"
 echo >&2 "+ cat > '$dir/Dockerfile'"
 cat > "$dir/Dockerfile" <<EOF
 FROM scratch
-ADD $tarFile /
+ADD $(basename "$tarFile") /
 EOF
 
 # if our generated image has a decent shell, let's set a default command
