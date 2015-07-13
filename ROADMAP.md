@@ -140,12 +140,12 @@ definitive move, we temporarily won't accept more patches to the Dockerfile synt
 reasons:
 
 - Long term impact of syntax changes is a sensitive matter that require an amount of attention
-the volume of Engine codebase and activity today doesn't allow us to provide
+the volume of Engine codebase and activity today doesn't allow us to provide.
 - Allowing the Builder to be implemented as a separate utility consuming the Engine's API will
 open the door for many possibilities, such as offering alternate syntaxes or DSL for existing
-languages without cluttering the Engine's codebase
+languages without cluttering the Engine's codebase.
 - A standalone Builder will also offer the opportunity for a better dedicated group of maintainers
-to own the Dockerfile syntax and decide collectively on the direction to give it
+to own the Dockerfile syntax and decide collectively on the direction to give it.
 - Our experience with official images tend to show that no new instruction or syntax expansion is
 *strictly* necessary for the majority of use cases, and although we are aware many things are still
 lacking for many, we cannot make it a priority yet for the above reasons.
