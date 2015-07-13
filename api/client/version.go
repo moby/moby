@@ -40,15 +40,15 @@ func (cli *DockerCli) CmdVersion(args ...string) error {
 		fmt.Fprintf(cli.out, " Experimental: true\n")
 	}
 
-	stream, _, _, err := cli.call("GET", "/version", nil, nil)
+	serverResp, err := cli.call("GET", "/version", nil, nil)
 	if err != nil {
 		return err
 	}
 
-	defer stream.Close()
+	defer serverResp.body.Close()
 
 	var v types.Version
-	if err := json.NewDecoder(stream).Decode(&v); err != nil {
+	if err := json.NewDecoder(serverResp.body).Decode(&v); err != nil {
 		fmt.Fprintf(cli.err, "Error reading remote version: %s\n", err)
 		return err
 	}

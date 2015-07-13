@@ -113,8 +113,8 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 	authconfig.ServerAddress = serverAddress
 	cli.configFile.AuthConfigs[serverAddress] = authconfig
 
-	stream, _, statusCode, err := cli.call("POST", "/auth", cli.configFile.AuthConfigs[serverAddress], nil)
-	if statusCode == 401 {
+	serverResp, err := cli.call("POST", "/auth", cli.configFile.AuthConfigs[serverAddress], nil)
+	if serverResp.statusCode == 401 {
 		delete(cli.configFile.AuthConfigs, serverAddress)
 		if err2 := cli.configFile.Save(); err2 != nil {
 			fmt.Fprintf(cli.out, "WARNING: could not save config file: %v\n", err2)
@@ -125,10 +125,10 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 		return err
 	}
 
-	defer stream.Close()
+	defer serverResp.body.Close()
 
 	var response types.AuthResponse
-	if err := json.NewDecoder(stream).Decode(&response); err != nil {
+	if err := json.NewDecoder(serverResp.body).Decode(&response); err != nil {
 		// Upon error, remove entry
 		delete(cli.configFile.AuthConfigs, serverAddress)
 		return err

@@ -9,7 +9,7 @@ import (
 )
 
 func (cli *DockerCli) CmdService(args ...string) error {
-	nCli := nwclient.NewNetworkCli(cli.out, cli.err, nwclient.CallFunc(cli.call))
+	nCli := nwclient.NewNetworkCli(cli.out, cli.err, nwclient.CallFunc(cli.callWrapper))
 	args = append([]string{"service"}, args...)
 	return nCli.Cmd(os.Args[0], args...)
 }
