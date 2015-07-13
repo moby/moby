@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/daemon/graphdriver"
+	"github.com/docker/docker/pkg/devicemapper"
 )
 
 var (
@@ -74,7 +75,7 @@ func newDriver(t *testing.T, name string) *Driver {
 	d, err := graphdriver.GetDriver(name, root, nil)
 	if err != nil {
 		t.Logf("graphdriver: %v\n", err)
-		if err == graphdriver.ErrNotSupported || err == graphdriver.ErrPrerequisites || err == graphdriver.ErrIncompatibleFS {
+		if err == graphdriver.ErrNotSupported || err == graphdriver.ErrPrerequisites || err == graphdriver.ErrIncompatibleFS || (name == "devicemapper" && !devicemapper.UdevSetSyncSupport(true)) {
 			t.Skipf("Driver %s not supported", name)
 		}
 		t.Fatal(err)
