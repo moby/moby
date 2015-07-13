@@ -182,6 +182,17 @@ __docker_capabilities() {
 	" -- "$cur" ) )
 }
 
+__docker_log_drivers() {
+	COMPREPLY=( $( compgen -W "
+		fluentd
+		gelf
+		journald
+		json-file
+		none
+		syslog
+	" -- "$cur" ) )
+}
+
 # a selection of the available signals that is most likely of interest in the
 # context of docker containers.
 __docker_signals() {
@@ -222,7 +233,7 @@ _docker_docker() {
 			return
 			;;
 		--log-driver)
-			COMPREPLY=( $( compgen -W "json-file syslog none" -- "$cur" ) )
+			__docker_log_drivers
 			return
 			;;
 		--log-level|-l)
@@ -941,7 +952,7 @@ _docker_run() {
 			return
 			;;
 		--log-driver)
-			COMPREPLY=( $( compgen -W "json-file syslog none" -- "$cur") )
+			__docker_log_drivers
 			return
 			;;
 		--net)
