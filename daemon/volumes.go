@@ -73,10 +73,11 @@ func parseBindMount(spec string, mountLabel string, config *runconfig.Config) (*
 	case 3:
 		bind.Destination = arr[1]
 		mode := arr[2]
-		if !validMountMode(mode) {
+		isValid, isRw := volume.ValidateMountMode(mode)
+		if !isValid {
 			return nil, fmt.Errorf("invalid mode for volumes-from: %s", mode)
 		}
-		bind.RW = rwModes[mode]
+		bind.RW = isRw
 		// Relabel will apply a SELinux label, if necessary
 		bind.Relabel = mode
 	default:
@@ -113,35 +114,11 @@ func parseVolumesFrom(spec string) (string, string, error) {
 
 	if len(specParts) == 2 {
 		mode = specParts[1]
-		if !validMountMode(mode) {
+		if isValid, _ := volume.ValidateMountMode(mode); !isValid {
 			return "", "", fmt.Errorf("invalid mode for volumes-from: %s", mode)
 		}
 	}
 	return id, mode, nil
-}
-
-// read-write modes
-var rwModes = map[string]bool{
-	"rw":   true,
-	"rw,Z": true,
-	"rw,z": true,
-	"z,rw": true,
-	"Z,rw": true,
-	"Z":    true,
-	"z":    true,
-}
-
-// read-only modes
-var roModes = map[string]bool{
-	"ro":   true,
-	"ro,Z": true,
-	"ro,z": true,
-	"z,ro": true,
-	"Z,ro": true,
-}
-
-func validMountMode(mode string) bool {
-	return roModes[mode] || rwModes[mode]
 }
 
 func copyExistingContents(source, destination string) error {
