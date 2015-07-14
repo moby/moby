@@ -76,10 +76,7 @@ func (s *DockerSuite) TestAttachMultipleAndRestart(c *check.C) {
 		c.Fatalf("Attaches did not initialize properly")
 	}
 
-	cmd := exec.Command(dockerBinary, "kill", "attacher")
-	if _, err := runCommand(cmd); err != nil {
-		c.Fatal(err)
-	}
+	dockerCmd(c, "kill", "attacher")
 
 	select {
 	case <-endDone:
@@ -90,11 +87,7 @@ func (s *DockerSuite) TestAttachMultipleAndRestart(c *check.C) {
 }
 
 func (s *DockerSuite) TestAttachTtyWithoutStdin(c *check.C) {
-	cmd := exec.Command(dockerBinary, "run", "-d", "-ti", "busybox")
-	out, _, err := runCommandWithOutput(cmd)
-	if err != nil {
-		c.Fatalf("failed to start container: %v (%v)", out, err)
-	}
+	out, _ := dockerCmd(c, "run", "-d", "-ti", "busybox")
 
 	id := strings.TrimSpace(out)
 	if err := waitRun(id); err != nil {
