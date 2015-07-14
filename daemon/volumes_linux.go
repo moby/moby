@@ -31,6 +31,7 @@ func copyOwnership(source, destination string) error {
 
 func (container *Container) setupMounts() ([]execdriver.Mount, error) {
 	var mounts []execdriver.Mount
+	var usermounts = make(map[string]string)
 	for _, m := range container.MountPoints {
 		path, err := m.Setup()
 		if err != nil {
@@ -42,8 +43,10 @@ func (container *Container) setupMounts() ([]execdriver.Mount, error) {
 			Destination: m.Destination,
 			Writable:    m.RW,
 		})
+		usermounts[m.Destination] = path
 	}
 
+	container.fixupNetworkMounts(usermounts)
 	mounts = sortMounts(mounts)
 	return append(mounts, container.networkMounts()...), nil
 }
