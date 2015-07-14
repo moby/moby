@@ -363,6 +363,21 @@ func (container *Container) GetSize() (int64, int64) {
 	return sizeRw, sizeRootfs
 }
 
+// If the user provides bind-mounts for the network files, we make sure
+// that the container sees those files
+func (container *Container) fixupNetworkMounts(usermounts map[string]string) {
+	if path, given := usermounts["/etc/resolv.conf"]; given == true {
+		container.ResolvConfPath = path
+	}
+	if path, given := usermounts["/etc/hostname"]; given == true {
+		container.HostnamePath = path
+	}
+	if path, given := usermounts["/etc/hosts"]; given == true {
+		container.HostsPath = path
+	}
+}
+
+
 func (container *Container) buildHostnameFile() error {
 	hostnamePath, err := container.GetRootResourcePath("hostname")
 	if err != nil {
