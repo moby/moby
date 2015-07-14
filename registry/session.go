@@ -676,7 +676,14 @@ func shouldRedirect(response *http.Response) bool {
 func (r *Session) SearchRepositories(term string) (*SearchResults, error) {
 	logrus.Debugf("Index server: %s", r.indexEndpoint)
 	u := r.indexEndpoint.VersionString(1) + "search?q=" + url.QueryEscape(term)
-	res, err := r.client.Get(u)
+
+	req, err := http.NewRequest("GET", u, nil)
+	if err != nil {
+		return nil, fmt.Errorf("Error while getting from the server: %v", err)
+	}
+	// Have the AuthTransport send authentication, when logged in.
+	req.Header.Set("X-Docker-Token", "true")
+	res, err := r.client.Do(req)
 	if err != nil {
 		return nil, err
 	}
