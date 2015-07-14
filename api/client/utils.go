@@ -65,7 +65,7 @@ func (cli *DockerCli) clientRequest(method, path string, in io.Reader, headers m
 	if expectedPayload && in == nil {
 		in = bytes.NewReader([]byte{})
 	}
-	req, err := http.NewRequest(method, fmt.Sprintf("/v%s%s", api.Version, path), in)
+	req, err := http.NewRequest(method, fmt.Sprintf("%s/v%s%s", cli.basePath, api.Version, path), in)
 	if err != nil {
 		return serverResp, err
 	}
