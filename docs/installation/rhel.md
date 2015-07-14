@@ -54,11 +54,11 @@ only the package you install differs.  There are two packages to choose from:
     <td>6.6 and  higher</td>
     <td>
     <p>
-    <a href="https://get.docker.com/rpm/1.7.0/centos-6/RPMS/x86_64/docker-engine-1.7.0-1.el6.x86_64.rpm">
-    https://get.docker.com/rpm/1.7.0/centos-6/RPMS/x86_64/docker-engine-1.7.0-1.el6.x86_64.rpm</a>
+    <a href="https://get.docker.com/rpm/1.7.1/centos-6/RPMS/x86_64/docker-engine-1.7.1-1.el6.x86_64.rpm">
+    https://get.docker.com/rpm/1.7.1/centos-6/RPMS/x86_64/docker-engine-1.7.1-1.el6.x86_64.rpm</a>
     <p>
-    <a href="https://get.docker.com/rpm/1.7.0/centos-6/SRPMS/docker-engine-1.7.0-1.el6.src.rpm">
-   https://get.docker.com/rpm/1.7.0/centos-6/SRPMS/docker-engine-1.7.0-1.el6.src.rpm</a>
+    <a href="https://get.docker.com/rpm/1.7.1/centos-6/SRPMS/docker-engine-1.7.1-1.el6.src.rpm">
+   https://get.docker.com/rpm/1.7.1/centos-6/SRPMS/docker-engine-1.7.1-1.el6.src.rpm</a>
     <p>
     </p>
     </td>
@@ -67,12 +67,12 @@ only the package you install differs.  There are two packages to choose from:
     <td>7.X</td>
     <td>
     <p>
-     <a href="https://get.docker.com/rpm/1.7.0/centos-7/RPMS/x86_64/docker-engine-1.7.0-1.el7.centos.x86_64.rpm">
-    https://get.docker.com/rpm/1.7.0/centos-7/RPMS/x86_64/docker-engine-1.7.0-1.el7.centos.x86_64.rpm</a>   
+     <a href="https://get.docker.com/rpm/1.7.1/centos-7/RPMS/x86_64/docker-engine-1.7.1-1.el7.centos.x86_64.rpm">
+    https://get.docker.com/rpm/1.7.1/centos-7/RPMS/x86_64/docker-engine-1.7.1-1.el7.centos.x86_64.rpm</a>   
     </p>
     <p>
-     <a href="https://get.docker.com/rpm/1.7.0/centos-7/SRPMS/docker-engine-1.7.0-1.el7.centos.src.rpm">
-    https://get.docker.com/rpm/1.7.0/centos-7/SRPMS/docker-engine-1.7.0-1.el7.centos.src.rpm</a>   
+     <a href="https://get.docker.com/rpm/1.7.1/centos-7/SRPMS/docker-engine-1.7.1-1.el7.centos.src.rpm">
+    https://get.docker.com/rpm/1.7.1/centos-7/SRPMS/docker-engine-1.7.1-1.el7.centos.src.rpm</a>   
     </p>
     </td>
   </tr>
@@ -85,11 +85,11 @@ This procedure depicts an installation on version 6.6.  If you are installing on
 
 2. Download the Docker RPM to the current directory.
 		
-		$ curl -O -sSL https://get.docker.com/rpm/1.7.0/centos-6/RPMS/x86_64/docker-engine-1.7.0-1.el6.x86_64.rpm
+		$ curl -O -sSL https://get.docker.com/rpm/1.7.1/centos-6/RPMS/x86_64/docker-engine-1.7.1-1.el6.x86_64.rpm
 
 3. Use `yum` to install the package.
 
-		$ sudo yum localinstall --nogpgcheck docker-engine-1.7.0-1.el6.x86_64.rpm
+		$ sudo yum localinstall --nogpgcheck docker-engine-1.7.1-1.el6.x86_64.rpm
 
 5. Start the Docker daemon.
 
@@ -172,8 +172,8 @@ You can uninstall the Docker software with `yum`.
 
 		$ yum list installed | grep docker
 		yum list installed | grep docker
-		docker-engine.x86_64                1.7.0-0.1.el6
-																																					 @/docker-engine-1.7.0-0.1.el6.x86_64
+		docker-engine.x86_64                1.7.1-0.1.el6
+																																					 @/docker-engine-1.7.1-0.1.el6.x86_64
 
 2. Remove the package.
 
