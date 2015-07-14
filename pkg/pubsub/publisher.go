@@ -19,6 +19,8 @@ func NewPublisher(publishTimeout time.Duration, buffer int) *Publisher {
 
 type subscriber chan interface{}
 
+// Publisher is basic pub/sub structure. Allows to send events and subscribe
+// to them. Can be safely used from multiple goroutines.
 type Publisher struct {
 	m           sync.RWMutex
 	buffer      int
