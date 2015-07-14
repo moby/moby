@@ -2516,3 +2516,25 @@ func (s *DockerSuite) TestRunWriteFilteredProc(c *check.C) {
 		}
 	}
 }
+
+func (s *DockerSuite) TestRunNetworkFilesBindMount(c *check.C) {
+	testRequires(c, SameHostDaemon)
+	name := "test-nwfiles-mount"
+
+	f, err := ioutil.TempFile("", name)
+	c.Assert(err, check.IsNil)
+
+	filename := f.Name()
+	defer os.Remove(filename)
+
+	expected := "test123"
+
+	err = ioutil.WriteFile(filename, []byte(expected), 0644)
+	c.Assert(err, check.IsNil)
+
+	var actual string
+	actual, _ = dockerCmd(c, "run", "-v", filename+":/etc/resolv.conf", "busybox", "cat", "/etc/resolv.conf")
+	if actual != expected {
+		c.Fatalf("expected resolv.conf be: %q, but was: %q", expected, actual)
+	}
+}

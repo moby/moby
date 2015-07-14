@@ -363,6 +363,26 @@ func (container *Container) GetSize() (int64, int64) {
 	return sizeRw, sizeRootfs
 }
 
+// Attempt to set the network mounts given a provided destination and
+// the path to use for it; return true if the given destination was a
+// network mount file
+func (container *Container) trySetNetworkMount(destination string, path string) bool {
+	if destination == "/etc/resolv.conf" {
+		container.ResolvConfPath = path
+		return true
+	}
+	if destination == "/etc/hostname" {
+		container.HostnamePath = path
+		return true
+	}
+	if destination == "/etc/hosts" {
+		container.HostsPath = path
+		return true
+	}
+
+	return false
+}
+
 func (container *Container) buildHostnameFile() error {
 	hostnamePath, err := container.GetRootResourcePath("hostname")
 	if err != nil {
