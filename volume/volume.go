@@ -50,3 +50,8 @@ var roModes = map[string]bool{
 func ValidateMountMode(mode string) (bool, bool) {
 	return roModes[mode] || rwModes[mode], rwModes[mode]
 }
+
+// ReadOnly tells you if a mode string is a valid read-only mode or not.
+func ReadWrite(mode string) bool {
+	return rwModes[mode]
+}
