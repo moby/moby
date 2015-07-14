@@ -14,12 +14,7 @@ type ContainerAttachWithLogsConfig struct {
 	Multiplex                      bool
 }
 
-func (daemon *Daemon) ContainerAttachWithLogs(name string, c *ContainerAttachWithLogsConfig) error {
-	container, err := daemon.Get(name)
-	if err != nil {
-		return err
-	}
-
+func (daemon *Daemon) ContainerAttachWithLogs(container *Container, c *ContainerAttachWithLogsConfig) error {
 	var errStream io.Writer
 
 	if !container.Config.Tty && c.Multiplex {
@@ -51,11 +46,6 @@ type ContainerWsAttachWithLogsConfig struct {
 	Logs, Stream         bool
 }
 
-func (daemon *Daemon) ContainerWsAttachWithLogs(name string, c *ContainerWsAttachWithLogsConfig) error {
-	container, err := daemon.Get(name)
-	if err != nil {
-		return err
-	}
-
+func (daemon *Daemon) ContainerWsAttachWithLogs(container *Container, c *ContainerWsAttachWithLogsConfig) error {
 	return container.AttachWithLogs(c.InStream, c.OutStream, c.ErrStream, c.Logs, c.Stream)
 }

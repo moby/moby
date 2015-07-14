@@ -817,6 +817,15 @@ func TestEndpointJoin(t *testing.T) {
 		t.Fatalf("Expected an non-empty sandbox key for a joined endpoint. Instead found a empty sandbox key")
 	}
 
+	// Attempt retrieval of endpoint interfaces statistics
+	stats, err := ep.Statistics()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := stats["eth0"]; !ok {
+		t.Fatalf("Did not find eth0 statistics")
+	}
+
 	checkSandbox(t, info)
 }
 
@@ -1116,6 +1125,74 @@ func TestEnableIPv6(t *testing.T) {
 
 	if err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestResolvConfHost(t *testing.T) {
+	if !netutils.IsRunningInContainer() {
+		defer netutils.SetupTestNetNS(t)()
+	}
+
+	tmpResolvConf := []byte("search localhost.net\nnameserver 127.0.0.1\nnameserver 2001:4860:4860::8888")
+
+	//take a copy of resolv.conf for restoring after test completes
+	resolvConfSystem, err := ioutil.ReadFile("/etc/resolv.conf")
+	if err != nil {
+		t.Fatal(err)
+	}
+	//cleanup
+	defer func() {
+		if err := ioutil.WriteFile("/etc/resolv.conf", resolvConfSystem, 0644); err != nil {
+			t.Fatal(err)
+		}
+	}()
+
+	n, err := createTestNetwork("host", "testnetwork", options.Generic{}, options.Generic{})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ep1, err := n.CreateEndpoint("ep1", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := ioutil.WriteFile("/etc/resolv.conf", tmpResolvConf, 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	resolvConfPath := "/tmp/libnetwork_test/resolv.conf"
+	defer os.Remove(resolvConfPath)
+
+	_, err = ep1.Join(containerID,
+		libnetwork.JoinOptionResolvConfPath(resolvConfPath))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		err = ep1.Leave(containerID)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}()
+
+	finfo, err := os.Stat(resolvConfPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	fmode := (os.FileMode)(0644)
+	if finfo.Mode() != fmode {
+		t.Fatalf("Expected file mode %s, got %s", fmode.String(), finfo.Mode().String())
+	}
+
+	content, err := ioutil.ReadFile(resolvConfPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !bytes.Equal(content, tmpResolvConf) {
+		t.Fatalf("Expected %s, Got %s", string(tmpResolvConf), string(content))
 	}
 }
 

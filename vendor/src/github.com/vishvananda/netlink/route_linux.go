@@ -119,7 +119,7 @@ func RouteList(link Link, family int) ([]Route, error) {
 	}
 
 	native := nl.NativeEndian()
-	res := make([]Route, 0)
+	var res []Route
 	for _, m := range msgs {
 		msg := nl.DeserializeRtMsg(m)
 
@@ -193,7 +193,7 @@ func RouteGet(destination net.IP) ([]Route, error) {
 	}
 
 	native := nl.NativeEndian()
-	res := make([]Route, 0)
+	var res []Route
 	for _, m := range msgs {
 		msg := nl.DeserializeRtMsg(m)
 		attrs, err := nl.ParseRouteAttr(m[msg.Len():])

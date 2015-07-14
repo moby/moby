@@ -276,6 +276,7 @@ func (n *networkNamespace) AddInterface(i *Interface) error {
 	n.Lock()
 	i.DstName = fmt.Sprintf("%s%d", i.DstName, n.nextIfIndex)
 	n.nextIfIndex++
+	path := n.path
 	n.Unlock()
 
 	runtime.LockOSThread()
@@ -287,9 +288,9 @@ func (n *networkNamespace) AddInterface(i *Interface) error {
 	}
 	defer origns.Close()
 
-	f, err := os.OpenFile(n.path, os.O_RDONLY, 0)
+	f, err := os.OpenFile(path, os.O_RDONLY, 0)
 	if err != nil {
-		return fmt.Errorf("failed get network namespace %q: %v", n.path, err)
+		return fmt.Errorf("failed get network namespace %q: %v", path, err)
 	}
 	defer f.Close()
 
@@ -324,6 +325,8 @@ func (n *networkNamespace) AddInterface(i *Interface) error {
 	if err := netlink.LinkSetUp(iface); err != nil {
 		return err
 	}
+
+	i.sandboxKey = path
 
 	n.Lock()
 	n.sinfo.Interfaces = append(n.sinfo.Interfaces, i)

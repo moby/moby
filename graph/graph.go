@@ -29,9 +29,10 @@ import (
 
 // A Graph is a store for versioned filesystem images and the relationship between them.
 type Graph struct {
-	Root    string
-	idIndex *truncindex.TruncIndex
-	driver  graphdriver.Driver
+	Root       string
+	idIndex    *truncindex.TruncIndex
+	driver     graphdriver.Driver
+	imageMutex imageMutex // protect images in driver.
 }
 
 // NewGraph instantiates a new graph at the given root path in the filesystem.
@@ -145,6 +146,15 @@ func (graph *Graph) Create(layerData archive.ArchiveReader, containerID, contain
 
 // Register imports a pre-existing image into the graph.
 func (graph *Graph) Register(img *image.Image, layerData archive.ArchiveReader) (err error) {
+	if err := image.ValidateID(img.ID); err != nil {
+		return err
+	}
+
+	// We need this entire operation to be atomic within the engine. Note that
+	// this doesn't mean Register is fully safe yet.
+	graph.imageMutex.Lock(img.ID)
+	defer graph.imageMutex.Unlock(img.ID)
+
 	defer func() {
 		// If any error occurs, remove the new dir from the driver.
 		// Don't check for errors since the dir might not have been created.
@@ -153,9 +163,7 @@ func (graph *Graph) Register(img *image.Image, layerData archive.ArchiveReader) 
 			graph.driver.Remove(img.ID)
 		}
 	}()
-	if err := image.ValidateID(img.ID); err != nil {
-		return err
-	}
+
 	// (This is a convenience to save time. Race conditions are taken care of by os.Rename)
 	if graph.Exists(img.ID) {
 		return fmt.Errorf("Image %s already exists", img.ID)

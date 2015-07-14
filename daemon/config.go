@@ -14,24 +14,24 @@ const (
 // CommonConfig defines the configuration of a docker daemon which are
 // common across platforms.
 type CommonConfig struct {
-	AutoRestart    bool
-	Context        map[string][]string
-	CorsHeaders    string
-	DisableNetwork bool
-	Dns            []string
-	DnsSearch      []string
-	EnableCors     bool
-	ExecDriver     string
-	ExecOptions    []string
-	ExecRoot       string
-	GraphDriver    string
-	GraphOptions   []string
-	Labels         []string
-	LogConfig      runconfig.LogConfig
-	Mtu            int
-	Pidfile        string
-	Root           string
-	TrustKeyPath   string
+	AutoRestart   bool
+	Context       map[string][]string
+	CorsHeaders   string
+	DisableBridge bool
+	Dns           []string
+	DnsSearch     []string
+	EnableCors    bool
+	ExecDriver    string
+	ExecOptions   []string
+	ExecRoot      string
+	GraphDriver   string
+	GraphOptions  []string
+	Labels        []string
+	LogConfig     runconfig.LogConfig
+	Mtu           int
+	Pidfile       string
+	Root          string
+	TrustKeyPath  string
 }
 
 // InstallCommonFlags adds command-line options to the top-level flag parser for

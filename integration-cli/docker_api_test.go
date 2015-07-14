@@ -3,15 +3,18 @@ package main
 import (
 	"net/http"
 	"net/http/httputil"
+	"strconv"
+	"strings"
 	"time"
 
+	"github.com/docker/docker/api"
 	"github.com/go-check/check"
 )
 
 func (s *DockerSuite) TestApiOptionsRoute(c *check.C) {
 	status, _, err := sockRequest("OPTIONS", "/", nil)
-	c.Assert(status, check.Equals, http.StatusOK)
 	c.Assert(err, check.IsNil)
+	c.Assert(status, check.Equals, http.StatusOK)
 }
 
 func (s *DockerSuite) TestApiGetEnabledCors(c *check.C) {
@@ -26,7 +29,7 @@ func (s *DockerSuite) TestApiGetEnabledCors(c *check.C) {
 	//c.Assert(res.Header.Get("Access-Control-Allow-Headers"), check.Equals, "Origin, X-Requested-With, Content-Type, Accept, X-Registry-Auth")
 }
 
-func (s *DockerSuite) TestVersionStatusCode(c *check.C) {
+func (s *DockerSuite) TestApiVersionStatusCode(c *check.C) {
 	conn, err := sockConn(time.Duration(10 * time.Second))
 	c.Assert(err, check.IsNil)
 
@@ -39,4 +42,32 @@ func (s *DockerSuite) TestVersionStatusCode(c *check.C) {
 
 	res, err := client.Do(req)
 	c.Assert(res.StatusCode, check.Equals, http.StatusBadRequest)
+}
+
+func (s *DockerSuite) TestApiClientVersionNewerThanServer(c *check.C) {
+	v := strings.Split(string(api.Version), ".")
+	vMinInt, err := strconv.Atoi(v[1])
+	c.Assert(err, check.IsNil)
+	vMinInt++
+	v[1] = strconv.Itoa(vMinInt)
+	version := strings.Join(v, ".")
+
+	status, body, err := sockRequest("GET", "/v"+version+"/version", nil)
+	c.Assert(err, check.IsNil)
+	c.Assert(status, check.Equals, http.StatusBadRequest)
+	c.Assert(len(string(body)), check.Not(check.Equals), 0) // Expected not empty body
+}
+
+func (s *DockerSuite) TestApiClientVersionOldNotSupported(c *check.C) {
+	v := strings.Split(string(api.MinVersion), ".")
+	vMinInt, err := strconv.Atoi(v[1])
+	c.Assert(err, check.IsNil)
+	vMinInt--
+	v[1] = strconv.Itoa(vMinInt)
+	version := strings.Join(v, ".")
+
+	status, body, err := sockRequest("GET", "/v"+version+"/version", nil)
+	c.Assert(err, check.IsNil)
+	c.Assert(status, check.Equals, http.StatusBadRequest)
+	c.Assert(len(string(body)), check.Not(check.Equals), 0) // Expected not empty body
 }

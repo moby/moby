@@ -81,7 +81,7 @@ func AddrList(link Link, family int) ([]Addr, error) {
 		index = base.Index
 	}
 
-	res := make([]Addr, 0)
+	var res []Addr
 	for _, m := range msgs {
 		msg := nl.DeserializeIfAddrmsg(m)
 
@@ -95,11 +95,17 @@ func AddrList(link Link, family int) ([]Addr, error) {
 			return nil, err
 		}
 
+		var local, dst *net.IPNet
 		var addr Addr
 		for _, attr := range attrs {
 			switch attr.Attr.Type {
 			case syscall.IFA_ADDRESS:
-				addr.IPNet = &net.IPNet{
+				dst = &net.IPNet{
+					IP:   attr.Value,
+					Mask: net.CIDRMask(int(msg.Prefixlen), 8*len(attr.Value)),
+				}
+			case syscall.IFA_LOCAL:
+				local = &net.IPNet{
 					IP:   attr.Value,
 					Mask: net.CIDRMask(int(msg.Prefixlen), 8*len(attr.Value)),
 				}
@@ -107,6 +113,14 @@ func AddrList(link Link, family int) ([]Addr, error) {
 				addr.Label = string(attr.Value[:len(attr.Value)-1])
 			}
 		}
+
+		// IFA_LOCAL should be there but if not, fall back to IFA_ADDRESS
+		if local != nil {
+			addr.IPNet = local
+		} else {
+			addr.IPNet = dst
+		}
+
 		res = append(res, addr)
 	}
 

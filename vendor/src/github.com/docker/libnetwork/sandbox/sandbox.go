@@ -1,9 +1,15 @@
 package sandbox
 
 import (
+	"fmt"
 	"net"
+	"os"
+	"os/exec"
+	"regexp"
+	"runtime"
 
 	"github.com/docker/libnetwork/types"
+	"github.com/vishvananda/netns"
 )
 
 // Sandbox represents a network sandbox, identified by a specific key.  It
@@ -74,6 +80,9 @@ type Interface struct {
 
 	// IPv6 address for the interface.
 	AddressIPv6 *net.IPNet
+
+	// Parent sandbox's key
+	sandboxKey string
 }
 
 // GetCopy returns a copy of this Interface structure
@@ -156,4 +165,96 @@ func (s *Info) Equal(o *Info) bool {
 
 	return true
 
+}
+
+func nsInvoke(path string, inNsfunc func(callerFD int) error) error {
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+
+	origns, err := netns.Get()
+	if err != nil {
+		return err
+	}
+	defer origns.Close()
+
+	f, err := os.OpenFile(path, os.O_RDONLY, 0)
+	if err != nil {
+		return fmt.Errorf("failed get network namespace %q: %v", path, err)
+	}
+	defer f.Close()
+
+	nsFD := f.Fd()
+
+	if err = netns.Set(netns.NsHandle(nsFD)); err != nil {
+		return err
+	}
+	defer netns.Set(origns)
+
+	// Invoked after the namespace switch.
+	return inNsfunc(int(origns))
+}
+
+// Statistics returns the statistics for this interface
+func (i *Interface) Statistics() (*InterfaceStatistics, error) {
+
+	s := &InterfaceStatistics{}
+
+	err := nsInvoke(i.sandboxKey, func(callerFD int) error {
+		// For some reason ioutil.ReadFile(netStatsFile) reads the file in
+		// the default netns when this code is invoked from docker.
+		// Executing "cat <netStatsFile>" works as expected.
+		data, err := exec.Command("cat", netStatsFile).Output()
+		if err != nil {
+			return fmt.Errorf("failed to open %s: %v", netStatsFile, err)
+		}
+		return scanInterfaceStats(string(data), i.DstName, s)
+	})
+
+	if err != nil {
+		err = fmt.Errorf("failed to retrieve the statistics for %s in netns %s: %v", i.DstName, i.sandboxKey, err)
+	}
+
+	return s, err
+}
+
+// InterfaceStatistics represents the interface's statistics
+type InterfaceStatistics struct {
+	RxBytes   uint64
+	RxPackets uint64
+	RxErrors  uint64
+	RxDropped uint64
+	TxBytes   uint64
+	TxPackets uint64
+	TxErrors  uint64
+	TxDropped uint64
+}
+
+func (is *InterfaceStatistics) String() string {
+	return fmt.Sprintf("\nRxBytes: %d, RxPackets: %d, RxErrors: %d, RxDropped: %d, TxBytes: %d, TxPackets: %d, TxErrors: %d, TxDropped: %d",
+		is.RxBytes, is.RxPackets, is.RxErrors, is.RxDropped, is.TxBytes, is.TxPackets, is.TxErrors, is.TxDropped)
+}
+
+// In older kernels (like the one in Centos 6.6 distro) sysctl does not have netns support. Therefore
+// we cannot gather the statistics from /sys/class/net/<dev>/statistics/<counter> files. Per-netns stats
+// are naturally found in /proc/net/dev in kernels which support netns (ifconfig relyes on that).
+const (
+	netStatsFile = "/proc/net/dev"
+	base         = "[ ]*%s:([ ]+[0-9]+){16}"
+)
+
+func scanInterfaceStats(data, ifName string, i *InterfaceStatistics) error {
+	var (
+		bktStr string
+		bkt    uint64
+	)
+
+	regex := fmt.Sprintf(base, ifName)
+	re := regexp.MustCompile(regex)
+	line := re.FindString(data)
+
+	_, err := fmt.Sscanf(line, "%s %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d",
+		&bktStr, &i.RxBytes, &i.RxPackets, &i.RxErrors, &i.RxDropped, &bkt, &bkt, &bkt,
+		&bkt, &i.TxBytes, &i.TxPackets, &i.TxErrors, &i.TxDropped, &bkt, &bkt, &bkt, &bkt)
+
+	return err
 }

@@ -247,7 +247,7 @@ func (s *Server) postAuth(version version.Version, w http.ResponseWriter, r *htt
 func (s *Server) getVersion(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	v := &types.Version{
 		Version:    dockerversion.VERSION,
-		ApiVersion: api.APIVERSION,
+		ApiVersion: api.Version,
 		GitCommit:  dockerversion.GITCOMMIT,
 		GoVersion:  runtime.Version(),
 		Os:         runtime.GOOS,
@@ -1101,6 +1101,11 @@ func (s *Server) postContainersAttach(version version.Version, w http.ResponseWr
 		return fmt.Errorf("Missing parameter")
 	}
 
+	cont, err := s.daemon.Get(vars["name"])
+	if err != nil {
+		return err
+	}
+
 	inStream, outStream, err := hijackServer(w)
 	if err != nil {
 		return err
@@ -1124,7 +1129,7 @@ func (s *Server) postContainersAttach(version version.Version, w http.ResponseWr
 		Multiplex: version.GreaterThanOrEqualTo("1.6"),
 	}
 
-	if err := s.daemon.ContainerAttachWithLogs(vars["name"], attachWithLogsConfig); err != nil {
+	if err := s.daemon.ContainerAttachWithLogs(cont, attachWithLogsConfig); err != nil {
 		fmt.Fprintf(outStream, "Error attaching: %s\n", err)
 	}
 
@@ -1139,6 +1144,11 @@ func (s *Server) wsContainersAttach(version version.Version, w http.ResponseWrit
 		return fmt.Errorf("Missing parameter")
 	}
 
+	cont, err := s.daemon.Get(vars["name"])
+	if err != nil {
+		return err
+	}
+
 	h := websocket.Handler(func(ws *websocket.Conn) {
 		defer ws.Close()
 
@@ -1150,7 +1160,7 @@ func (s *Server) wsContainersAttach(version version.Version, w http.ResponseWrit
 			Stream:    boolValue(r, "stream"),
 		}
 
-		if err := s.daemon.ContainerWsAttachWithLogs(vars["name"], wsAttachWithLogsConfig); err != nil {
+		if err := s.daemon.ContainerWsAttachWithLogs(cont, wsAttachWithLogsConfig); err != nil {
 			logrus.Errorf("Error attaching websocket: %s", err)
 		}
 	})
@@ -1207,18 +1217,17 @@ func (s *Server) getImagesByName(version version.Version, w http.ResponseWriter,
 
 func (s *Server) postBuild(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	var (
-		authConfig        = &cliconfig.AuthConfig{}
-		configFileEncoded = r.Header.Get("X-Registry-Config")
-		configFile        = &cliconfig.ConfigFile{}
-		buildConfig       = builder.NewBuildConfig()
+		authConfigs        = map[string]cliconfig.AuthConfig{}
+		authConfigsEncoded = r.Header.Get("X-Registry-Config")
+		buildConfig        = builder.NewBuildConfig()
 	)
 
-	if configFileEncoded != "" {
-		configFileJson := base64.NewDecoder(base64.URLEncoding, strings.NewReader(configFileEncoded))
-		if err := json.NewDecoder(configFileJson).Decode(configFile); err != nil {
+	if authConfigsEncoded != "" {
+		authConfigsJSON := base64.NewDecoder(base64.URLEncoding, strings.NewReader(authConfigsEncoded))
+		if err := json.NewDecoder(authConfigsJSON).Decode(&authConfigs); err != nil {
 			// for a pull it is not an error if no auth was given
-			// to increase compatibility with the existing api it is defaulting to be empty
-			configFile = &cliconfig.ConfigFile{}
+			// to increase compatibility with the existing api it is defaulting
+			// to be empty.
 		}
 	}
 
@@ -1245,8 +1254,7 @@ func (s *Server) postBuild(version version.Version, w http.ResponseWriter, r *ht
 	buildConfig.SuppressOutput = boolValue(r, "q")
 	buildConfig.NoCache = boolValue(r, "nocache")
 	buildConfig.ForceRemove = boolValue(r, "forcerm")
-	buildConfig.AuthConfig = authConfig
-	buildConfig.ConfigFile = configFile
+	buildConfig.AuthConfigs = authConfigs
 	buildConfig.MemorySwap = int64ValueOrZero(r, "memswap")
 	buildConfig.Memory = int64ValueOrZero(r, "memory")
 	buildConfig.CpuShares = int64ValueOrZero(r, "cpushares")
@@ -1475,14 +1483,18 @@ func makeHttpHandler(logging bool, localMethod string, localRoute string, handle
 		}
 		version := version.Version(mux.Vars(r)["version"])
 		if version == "" {
-			version = api.APIVERSION
+			version = api.Version
 		}
 		if corsHeaders != "" {
 			writeCorsHeaders(w, r, corsHeaders)
 		}
 
-		if version.GreaterThan(api.APIVERSION) {
-			http.Error(w, fmt.Errorf("client and server don't have same version (client API version: %s, server API version: %s)", version, api.APIVERSION).Error(), http.StatusBadRequest)
+		if version.GreaterThan(api.Version) {
+			http.Error(w, fmt.Errorf("client is newer than server (client API version: %s, server API version: %s)", version, api.Version).Error(), http.StatusBadRequest)
+			return
+		}
+		if version.LessThan(api.MinVersion) {
+			http.Error(w, fmt.Errorf("client is too old, minimum supported API version is %s, please upgrade your client to a newer version", api.MinVersion).Error(), http.StatusBadRequest)
 			return
 		}
 

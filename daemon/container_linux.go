@@ -469,7 +469,7 @@ func (container *Container) buildJoinOptions() ([]libnetwork.EndpointOption, err
 			logrus.Error(err)
 		}
 
-		if c != nil && !container.daemon.config.DisableNetwork && container.hostConfig.NetworkMode.IsPrivate() {
+		if c != nil && !container.daemon.config.DisableBridge && container.hostConfig.NetworkMode.IsPrivate() {
 			logrus.Debugf("Update /etc/hosts of %s for alias %s with ip %s", c.ID, ref.Name, container.NetworkSettings.IPAddress)
 			joinOptions = append(joinOptions, libnetwork.JoinOptionParentUpdate(c.NetworkSettings.EndpointID, ref.Name, container.NetworkSettings.IPAddress))
 			if c.NetworkSettings.EndpointID != "" {
@@ -753,6 +753,11 @@ func (container *Container) AllocateNetwork() error {
 		return nil
 	}
 
+	if mode.IsBridge() && container.daemon.config.DisableBridge {
+		container.Config.NetworkDisabled = true
+		return nil
+	}
+
 	var err error
 
 	n, err := container.daemon.netController.NetworkByName(string(mode))
@@ -815,10 +820,6 @@ func (container *Container) initializeNetworking() error {
 		container.Config.Hostname = nc.Config.Hostname
 		container.Config.Domainname = nc.Config.Domainname
 		return nil
-	}
-
-	if container.daemon.config.DisableNetwork {
-		container.Config.NetworkDisabled = true
 	}
 
 	if container.hostConfig.NetworkMode.IsHost() {
@@ -939,7 +940,7 @@ func (container *Container) getNetworkedContainer() (*Container, error) {
 }
 
 func (container *Container) ReleaseNetwork() {
-	if container.hostConfig.NetworkMode.IsContainer() || container.daemon.config.DisableNetwork {
+	if container.hostConfig.NetworkMode.IsContainer() || container.Config.NetworkDisabled {
 		return
 	}
 

@@ -104,9 +104,8 @@ func (x *XfrmAddress) ToIPNet(prefixlen uint8) *net.IPNet {
 	ip := x.ToIP()
 	if GetIPFamily(ip) == FAMILY_V4 {
 		return &net.IPNet{IP: ip, Mask: net.CIDRMask(int(prefixlen), 32)}
-	} else {
-		return &net.IPNet{IP: ip, Mask: net.CIDRMask(int(prefixlen), 128)}
 	}
+	return &net.IPNet{IP: ip, Mask: net.CIDRMask(int(prefixlen), 128)}
 }
 
 func (x *XfrmAddress) FromIP(ip net.IP) {
@@ -125,8 +124,8 @@ func DeserializeXfrmAddress(b []byte) *XfrmAddress {
 	return (*XfrmAddress)(unsafe.Pointer(&b[0:SizeofXfrmAddress][0]))
 }
 
-func (msg *XfrmAddress) Serialize() []byte {
-	return (*(*[SizeofXfrmAddress]byte)(unsafe.Pointer(msg)))[:]
+func (x *XfrmAddress) Serialize() []byte {
+	return (*(*[SizeofXfrmAddress]byte)(unsafe.Pointer(x)))[:]
 }
 
 // struct xfrm_selector {

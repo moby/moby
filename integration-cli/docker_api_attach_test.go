@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"net/http"
 	"os/exec"
 	"strings"
 	"time"
@@ -75,5 +76,26 @@ func (s *DockerSuite) TestGetContainersAttachWebsocket(c *check.C) {
 
 	if !bytes.Equal(expected, actual) {
 		c.Fatal("Expected output on websocket to match input")
+	}
+}
+
+// regression gh14320
+func (s *DockerSuite) TestPostContainersAttachContainerNotFound(c *check.C) {
+	status, body, err := sockRequest("POST", "/containers/doesnotexist/attach", nil)
+	c.Assert(status, check.Equals, http.StatusNotFound)
+	c.Assert(err, check.IsNil)
+	expected := "no such id: doesnotexist\n"
+	if !strings.Contains(string(body), expected) {
+		c.Fatalf("Expected response body to contain %q", expected)
+	}
+}
+
+func (s *DockerSuite) TestGetContainersWsAttachContainerNotFound(c *check.C) {
+	status, body, err := sockRequest("GET", "/containers/doesnotexist/attach/ws", nil)
+	c.Assert(status, check.Equals, http.StatusNotFound)
+	c.Assert(err, check.IsNil)
+	expected := "no such id: doesnotexist\n"
+	if !strings.Contains(string(body), expected) {
+		c.Fatalf("Expected response body to contain %q", expected)
 	}
 }

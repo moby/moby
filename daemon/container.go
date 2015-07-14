@@ -24,6 +24,7 @@ import (
 	"github.com/docker/docker/nat"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/broadcastwriter"
+	"github.com/docker/docker/pkg/fileutils"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/jsonlog"
 	"github.com/docker/docker/pkg/mount"
@@ -599,11 +600,20 @@ func (container *Container) Copy(resource string) (io.ReadCloser, error) {
 		return nil, err
 	}
 	for _, m := range mounts {
-		dest, err := container.GetResourcePath(m.Destination)
+		var dest string
+		dest, err = container.GetResourcePath(m.Destination)
 		if err != nil {
 			return nil, err
 		}
-		if err := mount.Mount(m.Source, dest, "bind", "rbind,ro"); err != nil {
+		var stat os.FileInfo
+		stat, err = os.Stat(m.Source)
+		if err != nil {
+			return nil, err
+		}
+		if err = fileutils.CreateIfNotExists(dest, stat.IsDir()); err != nil {
+			return nil, err
+		}
+		if err = mount.Mount(m.Source, dest, "bind", "rbind,ro"); err != nil {
 			return nil, err
 		}
 	}

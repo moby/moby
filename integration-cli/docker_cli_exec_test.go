@@ -444,7 +444,6 @@ func (s *DockerSuite) TestInspectExecID(c *check.C) {
 }
 
 func (s *DockerSuite) TestLinksPingLinkedContainersOnRename(c *check.C) {
-
 	var out string
 	out, _ = dockerCmd(c, "run", "-d", "--name", "container1", "busybox", "top")
 	idA := strings.TrimSpace(out)
@@ -609,7 +608,6 @@ func (s *DockerSuite) TestRunMutableNetworkFiles(c *check.C) {
 }
 
 func (s *DockerSuite) TestExecWithUser(c *check.C) {
-
 	runCmd := exec.Command(dockerBinary, "run", "-d", "--name", "parent", "busybox", "top")
 	if out, _, err := runCommandWithOutput(runCmd); err != nil {
 		c.Fatal(out, err)
@@ -633,4 +631,23 @@ func (s *DockerSuite) TestExecWithUser(c *check.C) {
 		c.Fatalf("exec with user by root expected root user got %s", out)
 	}
 
+}
+
+func (s *DockerSuite) TestExecWithImageUser(c *check.C) {
+	name := "testbuilduser"
+	_, err := buildImage(name,
+		`FROM busybox
+		RUN echo 'dockerio:x:1001:1001::/bin:/bin/false' >> /etc/passwd
+		USER dockerio`,
+		true)
+	if err != nil {
+		c.Fatalf("Could not build image %s: %v", name, err)
+	}
+
+	dockerCmd(c, "run", "-d", "--name", "dockerioexec", name, "top")
+
+	out, _ := dockerCmd(c, "exec", "dockerioexec", "whoami")
+	if !strings.Contains(out, "dockerio") {
+		c.Fatalf("exec with user by id expected dockerio user got %s", out)
+	}
 }
