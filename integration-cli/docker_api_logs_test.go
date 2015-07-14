@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"fmt"
 	"net/http"
-	"os/exec"
 	"strings"
 	"time"
 
@@ -46,10 +45,7 @@ func (s *DockerSuite) TestLogsApiWithStdout(c *check.C) {
 
 func (s *DockerSuite) TestLogsApiNoStdoutNorStderr(c *check.C) {
 	name := "logs_test"
-	runCmd := exec.Command(dockerBinary, "run", "-d", "-t", "--name", name, "busybox", "/bin/sh")
-	if out, _, err := runCommandWithOutput(runCmd); err != nil {
-		c.Fatal(out, err)
-	}
+	dockerCmd(c, "run", "-d", "-t", "--name", name, "busybox", "/bin/sh")
 
 	status, body, err := sockRequest("GET", fmt.Sprintf("/containers/%s/logs", name), nil)
 	c.Assert(status, check.Equals, http.StatusBadRequest)
@@ -65,10 +61,7 @@ func (s *DockerSuite) TestLogsApiNoStdoutNorStderr(c *check.C) {
 func (s *DockerSuite) TestLogsApiFollowEmptyOutput(c *check.C) {
 	name := "logs_test"
 	t0 := time.Now()
-	runCmd := exec.Command(dockerBinary, "run", "-d", "-t", "--name", name, "busybox", "sleep", "10")
-	if out, _, err := runCommandWithOutput(runCmd); err != nil {
-		c.Fatal(out, err)
-	}
+	dockerCmd(c, "run", "-d", "-t", "--name", name, "busybox", "sleep", "10")
 
 	_, body, err := sockRequestRaw("GET", fmt.Sprintf("/containers/%s/logs?follow=1&stdout=1&stderr=1&tail=all", name), bytes.NewBuffer(nil), "")
 	t1 := time.Now()

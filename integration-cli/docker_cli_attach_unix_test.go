@@ -16,11 +16,7 @@ import (
 // #9860
 func (s *DockerSuite) TestAttachClosedOnContainerStop(c *check.C) {
 
-	cmd := exec.Command(dockerBinary, "run", "-dti", "busybox", "sleep", "2")
-	out, _, err := runCommandWithOutput(cmd)
-	if err != nil {
-		c.Fatalf("failed to start container: %v (%v)", out, err)
-	}
+	out, _ := dockerCmd(c, "run", "-dti", "busybox", "sleep", "2")
 
 	id := strings.TrimSpace(out)
 	if err := waitRun(id); err != nil {
@@ -47,10 +43,8 @@ func (s *DockerSuite) TestAttachClosedOnContainerStop(c *check.C) {
 		}
 	}()
 
-	waitCmd := exec.Command(dockerBinary, "wait", id)
-	if out, _, err = runCommandWithOutput(waitCmd); err != nil {
-		c.Fatalf("error thrown while waiting for container: %s, %v", out, err)
-	}
+	dockerCmd(c, "wait", id)
+
 	select {
 	case err := <-errChan:
 		c.Assert(err, check.IsNil)

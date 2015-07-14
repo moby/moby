@@ -3,18 +3,13 @@ package main
 import (
 	"encoding/json"
 	"net/http"
-	"os/exec"
 	"strings"
 
 	"github.com/go-check/check"
 )
 
 func (s *DockerSuite) TestInspectApiContainerResponse(c *check.C) {
-	runCmd := exec.Command(dockerBinary, "run", "-d", "busybox", "true")
-	out, _, err := runCommandWithOutput(runCmd)
-	if err != nil {
-		c.Fatalf("failed to create a container: %s, %v", out, err)
-	}
+	out, _ := dockerCmd(c, "run", "-d", "busybox", "true")
 
 	cleanedContainerID := strings.TrimSpace(out)
 

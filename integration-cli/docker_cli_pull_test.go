@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"os/exec"
 	"strings"
 
 	"github.com/go-check/check"
@@ -19,30 +18,19 @@ func (s *DockerRegistrySuite) TestPullImageWithAliases(c *check.C) {
 
 	// Tag and push the same image multiple times.
 	for _, repo := range repos {
-		if out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "tag", "busybox", repo)); err != nil {
-			c.Fatalf("Failed to tag image %v: error %v, output %q", repos, err, out)
-		}
-		if out, err := exec.Command(dockerBinary, "push", repo).CombinedOutput(); err != nil {
-			c.Fatalf("Failed to push image %v: error %v, output %q", repo, err, string(out))
-		}
+		dockerCmd(c, "tag", "busybox", repo)
+		dockerCmd(c, "push", repo)
 	}
 
 	// Clear local images store.
 	args := append([]string{"rmi"}, repos...)
-	if out, err := exec.Command(dockerBinary, args...).CombinedOutput(); err != nil {
-		c.Fatalf("Failed to clean images: error %v, output %q", err, string(out))
-	}
+	dockerCmd(c, args...)
 
 	// Pull a single tag and verify it doesn't bring down all aliases.
-	pullCmd := exec.Command(dockerBinary, "pull", repos[0])
-	if out, _, err := runCommandWithOutput(pullCmd); err != nil {
-		c.Fatalf("Failed to pull %v: error %v, output %q", repoName, err, out)
-	}
-	if err := exec.Command(dockerBinary, "inspect", repos[0]).Run(); err != nil {
-		c.Fatalf("Image %v was not pulled down", repos[0])
-	}
+	dockerCmd(c, "pull", repos[0])
+	dockerCmd(c, "inspect", repos[0])
 	for _, repo := range repos[1:] {
-		if err := exec.Command(dockerBinary, "inspect", repo).Run(); err == nil {
+		if _, _, err := dockerCmdWithError(c, "inspect", repo); err == nil {
 			c.Fatalf("Image %v shouldn't have been pulled down", repo)
 		}
 	}
@@ -59,8 +47,7 @@ func (s *DockerSuite) TestPullVerified(c *check.C) {
 
 	// pull it
 	expected := "The image you are pulling has been verified"
-	pullCmd := exec.Command(dockerBinary, "pull", verifiedName)
-	if out, exitCode, err := runCommandWithOutput(pullCmd); err != nil || !strings.Contains(out, expected) {
+	if out, exitCode, err := dockerCmdWithError(c, "pull", verifiedName); err != nil || !strings.Contains(out, expected) {
 		if err != nil || exitCode != 0 {
 			c.Skip(fmt.Sprintf("pulling the '%s' image from the registry has failed: %v", verifiedName, err))
 		}
@@ -68,8 +55,7 @@ func (s *DockerSuite) TestPullVerified(c *check.C) {
 	}
 
 	// pull it again
-	pullCmd = exec.Command(dockerBinary, "pull", verifiedName)
-	if out, exitCode, err := runCommandWithOutput(pullCmd); err != nil || strings.Contains(out, expected) {
+	if out, exitCode, err := dockerCmdWithError(c, "pull", verifiedName); err != nil || strings.Contains(out, expected) {
 		if err != nil || exitCode != 0 {
 			c.Skip(fmt.Sprintf("pulling the '%s' image from the registry has failed: %v", verifiedName, err))
 		}
@@ -82,10 +68,7 @@ func (s *DockerSuite) TestPullVerified(c *check.C) {
 func (s *DockerSuite) TestPullImageFromCentralRegistry(c *check.C) {
 	testRequires(c, Network)
 
-	pullCmd := exec.Command(dockerBinary, "pull", "hello-world")
-	if out, _, err := runCommandWithOutput(pullCmd); err != nil {
-		c.Fatalf("pulling the hello-world image from the registry has failed: %s, %v", out, err)
-	}
+	dockerCmd(c, "pull", "hello-world")
 }
 
 // pulling a non-existing image from the central registry should return a non-zero exit code
@@ -93,8 +76,7 @@ func (s *DockerSuite) TestPullNonExistingImage(c *check.C) {
 	testRequires(c, Network)
 
 	name := "sadfsadfasdf"
-	pullCmd := exec.Command(dockerBinary, "pull", name)
-	out, _, err := runCommandWithOutput(pullCmd)
+	out, _, err := dockerCmdWithError(c, "pull", name)
 
 	if err == nil || !strings.Contains(out, fmt.Sprintf("Error: image library/%s:latest not found", name)) {
 		c.Fatalf("expected non-zero exit status when pulling non-existing image: %s", out)
@@ -114,19 +96,15 @@ func (s *DockerSuite) TestPullImageOfficialNames(c *check.C) {
 		"index.docker.io/library/hello-world",
 	}
 	for _, name := range names {
-		pullCmd := exec.Command(dockerBinary, "pull", name)
-		out, exitCode, err := runCommandWithOutput(pullCmd)
+		out, exitCode, err := dockerCmdWithError(c, "pull", name)
 		if err != nil || exitCode != 0 {
 			c.Errorf("pulling the '%s' image from the registry has failed: %s", name, err)
 			continue
 		}
 
 		// ensure we don't have multiple image names.
-		imagesCmd := exec.Command(dockerBinary, "images")
-		out, _, err = runCommandWithOutput(imagesCmd)
-		if err != nil {
-			c.Errorf("listing images failed with errors: %v", err)
-		} else if strings.Contains(out, name) {
+		out, _ = dockerCmd(c, "images")
+		if strings.Contains(out, name) {
 			c.Errorf("images should not have listed '%s'", name)
 		}
 	}
@@ -135,8 +113,7 @@ func (s *DockerSuite) TestPullImageOfficialNames(c *check.C) {
 func (s *DockerSuite) TestPullScratchNotAllowed(c *check.C) {
 	testRequires(c, Network)
 
-	pullCmd := exec.Command(dockerBinary, "pull", "scratch")
-	out, exitCode, err := runCommandWithOutput(pullCmd)
+	out, exitCode, err := dockerCmdWithError(c, "pull", "scratch")
 	if err == nil {
 		c.Fatal("expected pull of scratch to fail, but it didn't")
 	}
@@ -153,38 +130,24 @@ func (s *DockerSuite) TestPullScratchNotAllowed(c *check.C) {
 
 // pulling an image with --all-tags=true
 func (s *DockerSuite) TestPullImageWithAllTagFromCentralRegistry(c *check.C) {
-	//testRequires(c, Network)
-	pullCmd := exec.Command(dockerBinary, "pull", "busybox")
-	if out, _, err := runCommandWithOutput(pullCmd); err != nil {
-		c.Fatalf("pulling the busybox image from the registry has failed: %s, %v", out, err)
-	}
+	testRequires(c, Network)
 
-	ImageCmd := exec.Command(dockerBinary, "images", "busybox")
-	outImageCmd, _, err := runCommandWithOutput(ImageCmd)
+	dockerCmd(c, "pull", "busybox")
 
-	c.Assert(err, check.IsNil)
+	outImageCmd, _ := dockerCmd(c, "images", "busybox")
 
-	pullAllTagCmd := exec.Command(dockerBinary, "pull", "--all-tags=true", "busybox")
-	if out, _, err := runCommandWithOutput(pullAllTagCmd); err != nil {
-		c.Fatalf("pulling the busybox image with all tags from the registry has failed: %s, %v", out, err)
-	}
+	dockerCmd(c, "pull", "--all-tags=true", "busybox")
 
-	ImageCmd1 := exec.Command(dockerBinary, "images", "busybox")
-	outImageAllTagCmd, _, err := runCommandWithOutput(ImageCmd1)
-	c.Assert(err, check.IsNil)
+	outImageAllTagCmd, _ := dockerCmd(c, "images", "busybox")
 
 	if strings.Count(outImageCmd, "busybox") >= strings.Count(outImageAllTagCmd, "busybox") {
 		c.Fatalf("Pulling with all tags should get more images")
 	}
 
-	pullAllTagCmd = exec.Command(dockerBinary, "pull", "-a", "busybox")
-	if out, _, err := runCommandWithOutput(pullAllTagCmd); err != nil {
-		c.Fatalf("pulling the busybox image with all tags from the registry has failed: %s, %v", out, err)
-	}
+	// FIXME has probably no effect (tags already pushed)
+	dockerCmd(c, "pull", "-a", "busybox")
 
-	ImageCmd2 := exec.Command(dockerBinary, "images", "busybox")
-	outImageAllTagCmd, _, err = runCommandWithOutput(ImageCmd2)
-	c.Assert(err, check.IsNil)
+	outImageAllTagCmd, _ = dockerCmd(c, "images", "busybox")
 
 	if strings.Count(outImageCmd, "busybox") >= strings.Count(outImageAllTagCmd, "busybox") {
 		c.Fatalf("Pulling with all tags should get more images")
