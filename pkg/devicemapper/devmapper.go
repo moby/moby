@@ -587,6 +587,31 @@ func GetStatus(name string) (uint64, uint64, string, string, error) {
 	return start, length, targetType, params, nil
 }
 
+func GetTable(name string) (uint64, uint64, string, string, error) {
+	task, err := TaskCreateNamed(DeviceTable, name)
+	if task == nil {
+		logrus.Debugf("GetTable: Error TaskCreateNamed: %s", err)
+		return 0, 0, "", "", err
+	}
+	if err := task.Run(); err != nil {
+		logrus.Debugf("GetTable: Error Run: %s", err)
+		return 0, 0, "", "", err
+	}
+
+	devinfo, err := task.GetInfo()
+	if err != nil {
+		logrus.Debugf("GetTable: Error GetInfo: %s", err)
+		return 0, 0, "", "", err
+	}
+	if devinfo.Exists == 0 {
+		logrus.Debugf("GetTable: Non existing device %s", name)
+		return 0, 0, "", "", fmt.Errorf("Non existing device %s", name)
+	}
+
+	_, start, length, targetType, params := task.GetNextTarget(unsafe.Pointer(nil))
+	return start, length, targetType, params, nil
+}
+
 func SetTransactionId(poolName string, oldId uint64, newId uint64) error {
 	task, err := TaskCreateNamed(DeviceTargetMsg, poolName)
 	if task == nil {
