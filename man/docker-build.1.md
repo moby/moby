@@ -171,8 +171,8 @@ instruction into the specified target.
 
 ## Building an image and naming that image
 
-A good practice is to give a name to the image you are building. There are
-no hard rules here but it is best to give the names consideration. 
+A good practice is to give a name to the image you are building. Note that 
+only a-z0-9-_. should be used for consistency.  There are no hard rules here but it is best to give the names consideration. 
 
 The **-t**/**--tag** flag is used to rename an image. Here are some examples:
 
@@ -190,7 +190,7 @@ and give it the version 1.0:
 The next example is for the "whenry" user repository and uses Fedora and
 JBoss and gives it the version 2.1 :
 
-    docker build -t whenry/fedora-jboss:V2.1
+    docker build -t whenry/fedora-jboss:v2.1
 
 If you do not provide a version tag then Docker will assign `latest`:
 
@@ -229,3 +229,4 @@ Note: supported compression formats are 'xz', 'bzip2', 'gzip' and 'identity' (no
 March 2014, Originally compiled by William Henry (whenry at redhat dot com)
 based on docker.com source material and internal work.
 June 2014, updated by Sven Dowideit <SvenDowideit@home.org.au>
+June 2015, updated by Sally O'Malley <somalley@redhat.com>
