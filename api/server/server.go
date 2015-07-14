@@ -30,6 +30,7 @@ import (
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/parsers/filters"
 	"github.com/docker/docker/pkg/parsers/kernel"
+	"github.com/docker/docker/pkg/rpm"
 	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/docker/pkg/sockets"
 	"github.com/docker/docker/pkg/stdcopy"
@@ -260,6 +261,9 @@ func (s *Server) getVersion(version version.Version, w http.ResponseWriter, r *h
 		v.KernelVersion = kernelVersion.String()
 	}
 
+	if out, err := rpm.Version("/usr/bin/docker"); err == nil {
+		v.PackageVersion = out
+	}
 	return writeJSON(w, http.StatusOK, v)
 }
 
