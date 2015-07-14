@@ -75,6 +75,7 @@ func (r *repository) Manifests() distribution.ManifestService {
 		name:   r.Name(),
 		ub:     r.ub,
 		client: r.client,
+		etags:  make(map[string]string),
 	}
 }
 
@@ -104,6 +105,7 @@ type manifests struct {
 	name   string
 	ub     *v2.URLBuilder
 	client *http.Client
+	etags  map[string]string
 }
 
 func (ms *manifests) Tags() ([]string, error) {
@@ -173,13 +175,40 @@ func (ms *manifests) Get(dgst digest.Digest) (*manifest.SignedManifest, error) {
 	return ms.GetByTag(dgst.String())
 }
 
-func (ms *manifests) GetByTag(tag string) (*manifest.SignedManifest, error) {
+// AddEtagToTag allows a client to supply an eTag to GetByTag which will
+// be used for a conditional HTTP request.  If the eTag matches, a nil
+// manifest and nil error will be returned.
+func AddEtagToTag(tagName, dgst string) distribution.ManifestServiceOption {
+	return func(ms distribution.ManifestService) error {
+		if ms, ok := ms.(*manifests); ok {
+			ms.etags[tagName] = dgst
+			return nil
+		}
+		return fmt.Errorf("etag options is a client-only option")
+	}
+}
+
+func (ms *manifests) GetByTag(tag string, options ...distribution.ManifestServiceOption) (*manifest.SignedManifest, error) {
+	for _, option := range options {
+		err := option(ms)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	u, err := ms.ub.BuildManifestURL(ms.name, tag)
 	if err != nil {
 		return nil, err
 	}
+	req, err := http.NewRequest("GET", u, nil)
+	if err != nil {
+		return nil, err
+	}
 
-	resp, err := ms.client.Get(u)
+	if _, ok := ms.etags[tag]; ok {
+		req.Header.Set("eTag", ms.etags[tag])
+	}
+	resp, err := ms.client.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -193,8 +222,9 @@ func (ms *manifests) GetByTag(tag string) (*manifest.SignedManifest, error) {
 		if err := decoder.Decode(&sm); err != nil {
 			return nil, err
 		}
-
 		return &sm, nil
+	case http.StatusNotModified:
+		return nil, nil
 	default:
 		return nil, handleErrorResponse(resp)
 	}

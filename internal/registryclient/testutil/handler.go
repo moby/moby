@@ -21,8 +21,6 @@ type RequestResponseMapping struct {
 	Response Response
 }
 
-// TODO(bbland): add support for request headers
-
 // Request is a simplified http.Request object
 type Request struct {
 	// Method is the http method of the request, for example GET
@@ -36,6 +34,9 @@ type Request struct {
 
 	// Body is the byte contents of the http request
 	Body []byte
+
+	// Headers are the header for this request
+	Headers http.Header
 }
 
 func (r Request) String() string {
@@ -54,7 +55,22 @@ func (r Request) String() string {
 		}
 		queryString = "?" + strings.Join(queryParts, "&")
 	}
-	return fmt.Sprintf("%s %s%s\n%s", r.Method, r.Route, queryString, r.Body)
+	var headers []string
+	if len(r.Headers) > 0 {
+		var headerKeys []string
+		for k := range r.Headers {
+			headerKeys = append(headerKeys, k)
+		}
+		sort.Strings(headerKeys)
+
+		for _, k := range headerKeys {
+			for _, val := range r.Headers[k] {
+				headers = append(headers, fmt.Sprintf("%s:%s", k, val))
+			}
+		}
+
+	}
+	return fmt.Sprintf("%s %s%s\n%s\n%s", r.Method, r.Route, queryString, headers, r.Body)
 }
 
 // Response is a simplified http.Response object
@@ -101,6 +117,14 @@ func (app *testHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		Route:       r.URL.Path,
 		QueryParams: r.URL.Query(),
 		Body:        requestBody,
+		Headers:     make(map[string][]string),
+	}
+
+	// Add headers of interest here
+	for k, v := range r.Header {
+		if k == "Etag" {
+			request.Headers[k] = v
+		}
 	}
 
 	responses, ok := app.responseMap[request.String()]
