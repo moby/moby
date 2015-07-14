@@ -5,7 +5,6 @@ import (
 	"io"
 	"net/http"
 	"net/http/httputil"
-	"os/exec"
 	"strings"
 	"time"
 
@@ -14,11 +13,7 @@ import (
 )
 
 func (s *DockerSuite) TestGetContainersAttachWebsocket(c *check.C) {
-	runCmd := exec.Command(dockerBinary, "run", "-dit", "busybox", "cat")
-	out, _, err := runCommandWithOutput(runCmd)
-	if err != nil {
-		c.Fatalf(out, err)
-	}
+	out, _ := dockerCmd(c, "run", "-dit", "busybox", "cat")
 
 	rwc, err := sockConn(time.Duration(10 * time.Second))
 	if err != nil {
@@ -102,9 +97,7 @@ func (s *DockerSuite) TestGetContainersWsAttachContainerNotFound(c *check.C) {
 }
 
 func (s *DockerSuite) TestPostContainersAttach(c *check.C) {
-	runCmd := exec.Command(dockerBinary, "run", "-dit", "busybox", "cat")
-	out, _, err := runCommandWithOutput(runCmd)
-	c.Assert(err, check.IsNil)
+	out, _ := dockerCmd(c, "run", "-dit", "busybox", "cat")
 
 	r, w := io.Pipe()
 	defer r.Close()
@@ -167,9 +160,7 @@ func (s *DockerSuite) TestPostContainersAttach(c *check.C) {
 }
 
 func (s *DockerSuite) TestPostContainersAttachStderr(c *check.C) {
-	runCmd := exec.Command(dockerBinary, "run", "-dit", "busybox", "/bin/sh", "-c", "cat >&2")
-	out, _, err := runCommandWithOutput(runCmd)
-	c.Assert(err, check.IsNil)
+	out, _ := dockerCmd(c, "run", "-dit", "busybox", "/bin/sh", "-c", "cat >&2")
 
 	r, w := io.Pipe()
 	defer r.Close()

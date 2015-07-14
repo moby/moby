@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/url"
-	"os/exec"
 	"strings"
 
 	"github.com/docker/docker/api/types"
@@ -16,9 +15,7 @@ func (s *DockerSuite) TestApiImagesFilter(c *check.C) {
 	name2 := "utest/docker:tag2"
 	name3 := "utest:5000/docker:tag3"
 	for _, n := range []string{name, name2, name3} {
-		if out, err := exec.Command(dockerBinary, "tag", "busybox", n).CombinedOutput(); err != nil {
-			c.Fatal(err, out)
-		}
+		dockerCmd(c, "tag", "busybox", n)
 	}
 	type image types.Image
 	getImages := func(filter string) []image {
@@ -65,9 +62,7 @@ func (s *DockerSuite) TestApiImagesSaveAndLoad(c *check.C) {
 
 	defer body.Close()
 
-	if out, err := exec.Command(dockerBinary, "rmi", id).CombinedOutput(); err != nil {
-		c.Fatal(err, out)
-	}
+	dockerCmd(c, "rmi", id)
 
 	res, loadBody, err := sockRequestRaw("POST", "/images/load", body, "application/x-tar")
 	c.Assert(err, check.IsNil)
@@ -75,10 +70,7 @@ func (s *DockerSuite) TestApiImagesSaveAndLoad(c *check.C) {
 
 	defer loadBody.Close()
 
-	inspectOut, err := exec.Command(dockerBinary, "inspect", "--format='{{ .Id }}'", id).CombinedOutput()
-	if err != nil {
-		c.Fatal(err, inspectOut)
-	}
+	inspectOut, _ := dockerCmd(c, "inspect", "--format='{{ .Id }}'", id)
 	if strings.TrimSpace(string(inspectOut)) != id {
 		c.Fatal("load did not work properly")
 	}
@@ -93,9 +85,7 @@ func (s *DockerSuite) TestApiImagesDelete(c *check.C) {
 	}
 	id := strings.TrimSpace(out)
 
-	if out, err := exec.Command(dockerBinary, "tag", name, "test:tag1").CombinedOutput(); err != nil {
-		c.Fatal(err, out)
-	}
+	dockerCmd(c, "tag", name, "test:tag1")
 
 	status, _, err := sockRequest("DELETE", "/images/"+id, nil)
 	c.Assert(status, check.Equals, http.StatusConflict)
