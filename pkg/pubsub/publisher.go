@@ -58,9 +58,16 @@ func (p *Publisher) Publish(v interface{}) {
 	p.m.RLock()
 	for sub := range p.subscribers {
 		// send under a select as to not block if the receiver is unavailable
+		if p.timeout > 0 {
+			select {
+			case sub <- v:
+			case <-time.After(p.timeout):
+			}
+			continue
+		}
 		select {
 		case sub <- v:
-		case <-time.After(p.timeout):
+		default:
 		}
 	}
 	p.m.RUnlock()
