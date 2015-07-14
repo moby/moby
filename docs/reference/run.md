@@ -21,7 +21,7 @@ executes `docker run`, she starts a process with its own file system,
 its own networking, and its own isolated process tree.  The
 [*Image*](/reference/glossary/#image) which starts the process may define
 defaults related to the binary to run, the networking to expose, and
-more, but `docker run` gives final control to the operator who starts
+more, but `docker run` gives additional control to the operator who starts
 the container from the image. That's the main reason
 [*run*](/reference/commandline/run) has more options than any
 other `docker` command.
@@ -43,11 +43,10 @@ settings affect:
  * network settings
  * runtime constraints on CPU and memory
  * privileges and LXC configuration
-
-An image developer may set defaults for these same settings when they create the
-image using the `docker build` command. Operators, however, can override all
-defaults set by the developer using the `run` options.  And, operators can also
-override nearly all the defaults set by the Docker runtime itself.
+ 
+An image developer may set defaults for these same settings when she creates the
+image using the `docker build` command. Operators can use the `run` options to override most of the
+defaults set by the developer. And, operators can override nearly all the defaults set by the Docker runtime itself.
 
 Finally, depending on your Docker system configuration, you may be required to
 preface each `docker` command with `sudo`. To avoid having to use `sudo` with
@@ -973,12 +972,11 @@ or two examples of how to pass more parameters to that ENTRYPOINT:
 ### EXPOSE (incoming ports)
 
 The Dockerfile doesn't give much control over networking, only providing
-the `EXPOSE` instruction to give a hint to the operator about what
-incoming ports might provide services. The following options work with
-or override the Dockerfile's exposed defaults:
+the `EXPOSE` instruction to specify incoming ports that provide services.
+The following `run` command options work with container networking:
 
-    --expose=[]: Expose a port or a range of ports from the container
-                without publishing it to your host
+    --expose=[]: Expose a port or a range of ports from the container,
+                in addition to ports exposed by the `EXPOSE` Dockerfile instruction
     -P=false   : Publish all exposed ports to the host interfaces
     -p=[]      : Publish a container᾿s port or a range of ports to the host
                    format: ip:hostPort:containerPort | ip::containerPort | hostPort:containerPort | containerPort
