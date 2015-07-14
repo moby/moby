@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto"
 	"crypto/elliptic"
+	"crypto/tls"
 	"crypto/x509"
 	"encoding/base32"
 	"encoding/base64"
@@ -12,8 +13,143 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"net/url"
+	"os"
+	"path/filepath"
 	"strings"
+	"time"
 )
+
+// LoadOrCreateTrustKey will load a PrivateKey from the specified path
+func LoadOrCreateTrustKey(trustKeyPath string) (PrivateKey, error) {
+	if err := os.MkdirAll(filepath.Dir(trustKeyPath), 0700); err != nil {
+		return nil, err
+	}
+
+	trustKey, err := LoadKeyFile(trustKeyPath)
+	if err == ErrKeyFileDoesNotExist {
+		trustKey, err = GenerateECP256PrivateKey()
+		if err != nil {
+			return nil, fmt.Errorf("error generating key: %s", err)
+		}
+
+		if err := SaveKey(trustKeyPath, trustKey); err != nil {
+			return nil, fmt.Errorf("error saving key file: %s", err)
+		}
+
+		dir, file := filepath.Split(trustKeyPath)
+		if err := SavePublicKey(filepath.Join(dir, "public-"+file), trustKey.PublicKey()); err != nil {
+			return nil, fmt.Errorf("error saving public key file: %s", err)
+		}
+	} else if err != nil {
+		return nil, fmt.Errorf("error loading key file: %s", err)
+	}
+	return trustKey, nil
+}
+
+// NewIdentityAuthTLSClientConfig returns a tls.Config configured to use identity
+// based authentication from the specified dockerUrl, the rootConfigPath and
+// the server name to which it is connecting.
+// If trustUnknownHosts is true it will automatically add the host to the
+// known-hosts.json in rootConfigPath.
+func NewIdentityAuthTLSClientConfig(dockerUrl string, trustUnknownHosts bool, rootConfigPath string, serverName string) (*tls.Config, error) {
+	tlsConfig := newTLSConfig()
+
+	trustKeyPath := filepath.Join(rootConfigPath, "key.json")
+	knownHostsPath := filepath.Join(rootConfigPath, "known-hosts.json")
+
+	u, err := url.Parse(dockerUrl)
+	if err != nil {
+		return nil, fmt.Errorf("unable to parse machine url")
+	}
+
+	if u.Scheme == "unix" {
+		return nil, nil
+	}
+
+	addr := u.Host
+	proto := "tcp"
+
+	trustKey, err := LoadOrCreateTrustKey(trustKeyPath)
+	if err != nil {
+		return nil, fmt.Errorf("unable to load trust key: %s", err)
+	}
+
+	knownHosts, err := LoadKeySetFile(knownHostsPath)
+	if err != nil {
+		return nil, fmt.Errorf("could not load trusted hosts file: %s", err)
+	}
+
+	allowedHosts, err := FilterByHosts(knownHosts, addr, false)
+	if err != nil {
+		return nil, fmt.Errorf("error filtering hosts: %s", err)
+	}
+
+	certPool, err := GenerateCACertPool(trustKey, allowedHosts)
+	if err != nil {
+		return nil, fmt.Errorf("Could not create CA pool: %s", err)
+	}
+
+	tlsConfig.ServerName = serverName
+	tlsConfig.RootCAs = certPool
+
+	x509Cert, err := GenerateSelfSignedClientCert(trustKey)
+	if err != nil {
+		return nil, fmt.Errorf("certificate generation error: %s", err)
+	}
+
+	tlsConfig.Certificates = []tls.Certificate{{
+		Certificate: [][]byte{x509Cert.Raw},
+		PrivateKey:  trustKey.CryptoPrivateKey(),
+		Leaf:        x509Cert,
+	}}
+
+	tlsConfig.InsecureSkipVerify = true
+
+	testConn, err := tls.Dial(proto, addr, tlsConfig)
+	if err != nil {
+		return nil, fmt.Errorf("tls Handshake error: %s", err)
+	}
+
+	opts := x509.VerifyOptions{
+		Roots:         tlsConfig.RootCAs,
+		CurrentTime:   time.Now(),
+		DNSName:       tlsConfig.ServerName,
+		Intermediates: x509.NewCertPool(),
+	}
+
+	certs := testConn.ConnectionState().PeerCertificates
+	for i, cert := range certs {
+		if i == 0 {
+			continue
+		}
+		opts.Intermediates.AddCert(cert)
+	}
+
+	if _, err := certs[0].Verify(opts); err != nil {
+		if _, ok := err.(x509.UnknownAuthorityError); ok {
+			if trustUnknownHosts {
+				pubKey, err := FromCryptoPublicKey(certs[0].PublicKey)
+				if err != nil {
+					return nil, fmt.Errorf("error extracting public key from cert: %s", err)
+				}
+
+				pubKey.AddExtendedField("hosts", []string{addr})
+
+				if err := AddKeySetFile(knownHostsPath, pubKey); err != nil {
+					return nil, fmt.Errorf("error adding machine to known hosts: %s", err)
+				}
+			} else {
+				return nil, fmt.Errorf("unable to connect.  unknown host: %s", addr)
+			}
+		}
+	}
+
+	testConn.Close()
+	tlsConfig.InsecureSkipVerify = false
+
+	return tlsConfig, nil
+}
 
 // joseBase64UrlEncode encodes the given data using the standard base64 url
 // encoding format but with all trailing '=' characters ommitted in accordance
@@ -28,6 +164,8 @@ func joseBase64UrlEncode(b []byte) string {
 // accordance with the jose specification.
 // http://tools.ietf.org/html/draft-ietf-jose-json-web-signature-31#section-2
 func joseBase64UrlDecode(s string) ([]byte, error) {
+	s = strings.Replace(s, "\n", "", -1)
+	s = strings.Replace(s, " ", "", -1)
 	switch len(s) % 4 {
 	case 0:
 	case 2:
