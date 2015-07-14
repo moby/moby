@@ -550,6 +550,10 @@ func pullImageIfNotExist(image string) (err error) {
 	return
 }
 
+func dockerCmdWithError(c *check.C, args ...string) (string, int, error) {
+	return runCommandWithOutput(exec.Command(dockerBinary, args...))
+}
+
 func dockerCmd(c *check.C, args ...string) (string, int) {
 	out, status, err := runCommandWithOutput(exec.Command(dockerBinary, args...))
 	c.Assert(err, check.IsNil, check.Commentf("%q failed with errors: %s, %v", strings.Join(args, " "), out, err))
