@@ -173,9 +173,9 @@ type ContainerConfigWrapper struct {
 func (w *ContainerConfigWrapper) GetHostConfig() *HostConfig {
 	hc := w.HostConfig
 
-	if hc == nil && w.InnerHostConfig != nil {
+	if hc == nil {
 		hc = w.InnerHostConfig
-	} else if w.InnerHostConfig != nil {
+	} else {
 		if hc.Memory != 0 && w.InnerHostConfig.Memory == 0 {
 			w.InnerHostConfig.Memory = hc.Memory
 		}
@@ -189,7 +189,7 @@ func (w *ContainerConfigWrapper) GetHostConfig() *HostConfig {
 		hc = w.InnerHostConfig
 	}
 
-	if hc != nil && w.Cpuset != "" && hc.CpusetCpus == "" {
+	if w.Cpuset != "" && hc.CpusetCpus == "" {
 		hc.CpusetCpus = w.Cpuset
 	}
 
@@ -204,6 +204,12 @@ func DecodeContainerConfig(src io.Reader) (*Config, *HostConfig, error) {
 	decoder := json.NewDecoder(src)
 
 	var w ContainerConfigWrapper
+
+	// Decode will assign type initial values to these absent fields, but for
+	// some json fields, type initial values have some meaning, we need to assign
+	// real default values before Decode them.
+	w.InnerHostConfig = &HostConfig{}
+	w.InnerHostConfig.MemorySwappiness = -1
 	if err := decoder.Decode(&w); err != nil {
 		return nil, nil, err
 	}

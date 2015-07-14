@@ -251,6 +251,10 @@ func TestDecodeHostConfig(t *testing.T) {
 			t.Fatalf("Expected privileged false, found %v\n", c.Privileged)
 		}
 
+		if c.MemorySwappiness != -1 {
+			t.Fatalf("Expected MemorySwappiness -1, found %v\n", c.MemorySwappiness)
+		}
+
 		if l := len(c.Binds); l != 1 {
 			t.Fatalf("Expected 1 bind, found %d\n", l)
 		}
