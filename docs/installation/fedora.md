@@ -55,12 +55,12 @@ only the package you install differs. Choose from these packages:
     <td>Fedora 20</td>
     <td>
         <p>
-    <a href="https://get.docker.com/rpm/1.7.0/fedora-20/RPMS/x86_64/docker-engine-1.7.0-1.fc20.x86_64.rpm">
-    docker-engine-1.7.0-1.fc20.x86_64.rpm</a>
+    <a href="https://get.docker.com/rpm/1.7.1/fedora-20/RPMS/x86_64/docker-engine-1.7.1-1.fc20.x86_64.rpm">
+    docker-engine-1.7.1-1.fc20.x86_64.rpm</a>
         </p>
         <p>
-    <a href="https://get.docker.com/rpm/1.7.0/fedora-20/SRPMS/docker-engine-1.7.0-1.fc20.src.rpm">
-   docker-engine-1.7.0-1.fc20.src.rpm</a>
+    <a href="https://get.docker.com/rpm/1.7.1/fedora-20/SRPMS/docker-engine-1.7.1-1.fc20.src.rpm">
+   docker-engine-1.7.1-1.fc20.src.rpm</a>
         </p>
     </td>
   </tr>
@@ -68,12 +68,12 @@ only the package you install differs. Choose from these packages:
     <td>Fedora 21</td>
     <td>
     <p>
-    <a href="https://get.docker.com/rpm/1.7.0/fedora-21/RPMS/x86_64/docker-engine-1.7.0-1.fc21.x86_64.rpm">
-    docker-engine-1.7.0-1.fc21.x86_64.rpm</a>
+    <a href="https://get.docker.com/rpm/1.7.1/fedora-21/RPMS/x86_64/docker-engine-1.7.1-1.fc21.x86_64.rpm">
+    docker-engine-1.7.1-1.fc21.x86_64.rpm</a>
         </p>
         <p>
-    <a href="https://get.docker.com/rpm/1.7.0/fedora-21/SRPMS/docker-engine-1.7.0-1.fc21.src.rpm">
-  docker-engine-1.7.0-1.fc21.src.rpm</a>
+    <a href="https://get.docker.com/rpm/1.7.1/fedora-21/SRPMS/docker-engine-1.7.1-1.fc21.src.rpm">
+  docker-engine-1.7.1-1.fc21.src.rpm</a>
         </p>
     </td>
   </tr>
@@ -81,12 +81,12 @@ only the package you install differs. Choose from these packages:
     <td>Fedora 22</td>
     <td>
     <p>
-    <a href="https://get.docker.com/rpm/1.7.0/fedora-22/RPMS/x86_64/docker-engine-1.7.0-1.fc22.x86_64.rpm">
-    docker-engine-1.7.0-1.fc22.x86_64.rpm</a>
+    <a href="https://get.docker.com/rpm/1.7.1/fedora-22/RPMS/x86_64/docker-engine-1.7.1-1.fc22.x86_64.rpm">
+    docker-engine-1.7.1-1.fc22.x86_64.rpm</a>
         </p>
         <p>
-    <a href="https://get.docker.com/rpm/1.7.0/fedora-22/SRPMS/docker-engine-1.7.0-1.fc22.src.rpm">
-    docker-engine-1.7.0-1.fc22.src.rpm</a>
+    <a href="https://get.docker.com/rpm/1.7.1/fedora-22/SRPMS/docker-engine-1.7.1-1.fc22.src.rpm">
+    docker-engine-1.7.1-1.fc22.src.rpm</a>
         </p>
     </td>
   </tr> 
@@ -106,11 +106,11 @@ This procedure depicts an installation on version 21. If you are installing on
 
 3. Download the Docker RPM to the current directory.
 		
-		$ curl -O -sSL https://url_to_package/docker-engine-1.7.0-0.1.fc21.x86_64.rpm
+		$ curl -O -sSL https://url_to_package/docker-engine-1.7.1-0.1.fc21.x86_64.rpm
 
 4. Use `yum` to install the package.
 
-		$ sudo yum localinstall --nogpgcheck docker-engine-1.7.0-0.1.fc21.x86_64.rpm
+		$ sudo yum localinstall --nogpgcheck docker-engine-1.7.1-0.1.fc21.x86_64.rpm
 
 5. Start the Docker daemon.
 
@@ -217,8 +217,8 @@ You can uninstall the Docker software with `yum`.
 
 		$ yum list installed | grep docker
 		yum list installed | grep docker
-		docker-engine.x86_64                1.7.0-0.1.fc20
-																																								 @/docker-engine-1.7.0-0.1.fc20.el6.x86_64
+		docker-engine.x86_64                1.7.1-0.1.fc20
+																																								 @/docker-engine-1.7.1-0.1.fc20.el6.x86_64
 
 2. Remove the package.
 
