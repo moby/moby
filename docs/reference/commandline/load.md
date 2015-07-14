@@ -15,14 +15,14 @@ weight=1
 
     Load an image from a tar archive or STDIN
 
-      -i, --input=""     Read from a tar archive file, instead of STDIN
+      -i, --input=""     Read from a tar archive file, instead of STDIN. The tarball may be compressed with gzip, bzip, or xz
 
 Loads a tarred repository from a file or the standard input stream.
 Restores both images and tags.
 
     $ docker images
     REPOSITORY          TAG                 IMAGE ID            CREATED             VIRTUAL SIZE
-    $ docker load < busybox.tar
+    $ docker load < busybox.tar.gz
     $ docker images
     REPOSITORY          TAG                 IMAGE ID            CREATED             VIRTUAL SIZE
     busybox             latest              769b9341d937        7 weeks ago         2.489 MB
