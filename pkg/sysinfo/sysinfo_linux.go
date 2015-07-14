@@ -15,6 +15,7 @@ func New(quiet bool) *SysInfo {
 	sysInfo := &SysInfo{}
 	sysInfo.cgroupMemInfo = checkCgroupMem(quiet)
 	sysInfo.cgroupCpuInfo = checkCgroupCpu(quiet)
+	sysInfo.cgroupBlkioInfo = checkCgroupBlkioInfo(quiet)
 
 	_, err := cgroups.FindCgroupMountpoint("devices")
 	sysInfo.CgroupDevicesEnabled = err == nil
@@ -77,6 +78,42 @@ func checkCgroupCpu(quiet bool) *cgroupCpuInfo {
 	if !quiet && !info.CpuCfsQuota {
 		logrus.Warn("Your kernel does not support cgroup cfs quotas")
 	}
+
+	info.CpuShares = cgroupEnabled(mountPoint, "cpu.shares")
+	if !quiet && !info.CpuShares {
+		logrus.Warn("Your kernel does not support cgroup cpu shares")
+	}
+	return info
+}
+
+func checkCgroupBlkioInfo(quiet bool) *cgroupBlkioInfo {
+	info := &cgroupBlkioInfo{}
+	mountPoint, err := cgroups.FindCgroupMountpoint("blkio")
+	if err != nil {
+		if !quiet {
+			logrus.Warn(err)
+		}
+		return info
+	}
+
+	info.BlkioWeight = cgroupEnabled(mountPoint, "blkio.weight")
+	if !quiet && !info.BlkioWeight {
+		logrus.Warn("Your kernel does not support cgroup blkio weight")
+	}
+	return info
+}
+
+func checkCgroupCpusetInfo(quiet bool) *cgroupCpusetInfo {
+	info := &cgroupCpusetInfo{}
+	_, err := cgroups.FindCgroupMountpoint("cpuset")
+	if err != nil {
+		if !quiet {
+			logrus.Warn(err)
+		}
+		return info
+	}
+
+	info.Cpuset = true
 	return info
 }
 

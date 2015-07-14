@@ -157,6 +157,11 @@ func (daemon *Daemon) verifyContainerSettings(hostConfig *runconfig.HostConfig, 
 	if hostConfig.Memory == 0 && hostConfig.MemorySwap > 0 {
 		return warnings, fmt.Errorf("You should always set the Memory limit when using Memoryswap limit, see usage.")
 	}
+	if hostConfig.CpuShares > 0 && !daemon.SystemConfig().CpuShares {
+		warnings = append(warnings, "Your kernel does not support CPU cfs shares. Shares discarded.")
+		logrus.Warnf("Your kernel does not support CPU cfs shares. Shares discarded.")
+		hostConfig.CpuShares = 0
+	}
 	if hostConfig.CpuPeriod > 0 && !daemon.SystemConfig().CpuCfsPeriod {
 		warnings = append(warnings, "Your kernel does not support CPU cfs period. Period discarded.")
 		logrus.Warnf("Your kernel does not support CPU cfs period. Period discarded.")
@@ -166,6 +171,17 @@ func (daemon *Daemon) verifyContainerSettings(hostConfig *runconfig.HostConfig, 
 		warnings = append(warnings, "Your kernel does not support CPU cfs quota. Quota discarded.")
 		logrus.Warnf("Your kernel does not support CPU cfs quota. Quota discarded.")
 		hostConfig.CpuQuota = 0
+	}
+	if (hostConfig.CpusetCpus != "" || hostConfig.CpusetMems != "") && !daemon.SystemConfig().Cpuset {
+		warnings = append(warnings, "Your kernel does not support cpuset. Cpuset discarded.")
+		logrus.Warnf("Your kernel does not support cpuset. Cpuset discarded.")
+		hostConfig.CpusetCpus = ""
+		hostConfig.CpusetMems = ""
+	}
+	if hostConfig.BlkioWeight > 0 && !daemon.SystemConfig().BlkioWeight {
+		warnings = append(warnings, "Your kernel does not support Block I/O weight. Weight discarded.")
+		logrus.Warnf("Your kernel does not support Block I/O weight. Weight discarded.")
+		hostConfig.BlkioWeight = 0
 	}
 	if hostConfig.BlkioWeight > 0 && (hostConfig.BlkioWeight < 10 || hostConfig.BlkioWeight > 1000) {
 		return warnings, fmt.Errorf("Range of blkio weight is from 10 to 1000.")
