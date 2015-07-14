@@ -121,7 +121,7 @@ RUN git clone https://github.com/golang/tools.git /go/src/golang.org/x/tools \
 RUN gem install --no-rdoc --no-ri fpm --version 1.3.2
 
 # Install registry
-ENV REGISTRY_COMMIT d957768537c5af40e4f4cd96871f7b2bde9e2923
+ENV REGISTRY_COMMIT 2317f721a3d8428215a2b65da4ae85212ed473b4
 RUN set -x \
 	&& export GOPATH="$(mktemp -d)" \
 	&& git clone https://github.com/docker/distribution.git "$GOPATH/src/github.com/docker/distribution" \
