@@ -11,7 +11,9 @@ please feel free to provide any feedback on these features you wish.
 
 ## Install Docker experimental
 
-Unlike the regular Docker binary, the experimental channels is built and updated nightly on TO.BE.ANNOUNCED. From one day to the next, new features may appear, while existing experimental features may be refined or entirely removed.
+Unlike the regular Docker binary, the experimental channels is built and updated nightly on TO.BE.ANNOUNCED. From one day to the next, new features may appear, while existing experimental features may be refined or entirely removed. 
+
+__Note:__ This script will only install the current version of docker, not an experimental version at this time. Monitor #13680 for updates. 
 
 1. Verify that you have `wget` installed.
 
