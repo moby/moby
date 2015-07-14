@@ -48,6 +48,13 @@ func (d *driver) createContainer(c *execdriver.Command) (*configs.Config, error)
 			container.ReadonlyPaths = nil
 		}
 
+		// clear readonly for cgroup
+		for i := range container.Mounts {
+			if container.Mounts[i].Device == "cgroup" {
+				container.Mounts[i].Flags &= ^syscall.MS_RDONLY
+			}
+		}
+
 		container.MaskPaths = nil
 		if err := d.setPrivileged(container); err != nil {
 			return nil, err
