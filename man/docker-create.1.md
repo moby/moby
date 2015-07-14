@@ -12,14 +12,15 @@ docker-create - Create a new container
 [**-c**|**--cpu-shares**[=*0*]]
 [**--cap-add**[=*[]*]]
 [**--cap-drop**[=*[]*]]
+[**--cgroup-parent**[=*CGROUP-PATH*]]
 [**--cidfile**[=*CIDFILE*]]
 [**--cpu-period**[=*0*]]
+[**--cpu-quota**[=*0*]]
 [**--cpuset-cpus**[=*CPUSET-CPUS*]]
 [**--cpuset-mems**[=*CPUSET-MEMS*]]
-[**--cpu-quota**[=*0*]]
 [**--device**[=*[]*]]
-[**--dns-search**[=*[]*]]
 [**--dns**[=*[]*]]
+[**--dns-search**[=*[]*]]
 [**-e**|**--env**[=*[]*]]
 [**--entrypoint**[=*ENTRYPOINT*]]
 [**--env-file**[=*[]*]]
@@ -32,30 +33,30 @@ docker-create - Create a new container
 [**-l**|**--label**[=*[]*]]
 [**--label-file**[=*[]*]]
 [**--link**[=*[]*]]
-[**--lxc-conf**[=*[]*]]
 [**--log-driver**[=*[]*]]
 [**--log-opt**[=*[]*]]
+[**--lxc-conf**[=*[]*]]
 [**-m**|**--memory**[=*MEMORY*]]
-[**--memory-swap**[=*MEMORY-SWAP*]]
 [**--mac-address**[=*MAC-ADDRESS*]]
+[**--memory-swap**[=*MEMORY-SWAP*]]
+[**--memory-swappiness**[=*MEMORY-SWAPPINESS*]]
 [**--name**[=*NAME*]]
 [**--net**[=*"bridge"*]]
 [**--oom-kill-disable**[=*false*]]
 [**-P**|**--publish-all**[=*false*]]
 [**-p**|**--publish**[=*[]*]]
 [**--pid**[=*[]*]]
-[**--uts**[=*[]*]]
 [**--privileged**[=*false*]]
 [**--read-only**[=*false*]]
 [**--restart**[=*RESTART*]]
 [**--security-opt**[=*[]*]]
-[**--memory-swappiness**[=*MEMORY-SWAPPINESS*]]
 [**-t**|**--tty**[=*false*]]
 [**-u**|**--user**[=*USER*]]
+[**--ulimit**[=*[]*]]
+[**--uts**[=*[]*]]
 [**-v**|**--volume**[=*[]*]]
 [**--volumes-from**[=*[]*]]
 [**-w**|**--workdir**[=*WORKDIR*]]
-[**--cgroup-parent**[=*CGROUP-PATH*]]
 IMAGE [COMMAND] [ARG...]
 
 # DESCRIPTION
@@ -238,6 +239,9 @@ This value should always larger than **-m**, so you should always use this with 
 
 **-u**, **--user**=""
    Username or UID
+
+**--ulimit**=[]
+   Ulimit options
 
 **-v**, **--volume**=[]
    Bind mount a volume (e.g., from the host: -v /host:/container, from Docker: -v /container)
