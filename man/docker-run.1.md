@@ -25,6 +25,7 @@ docker-run - Run a command in a new container
 [**--entrypoint**[=*ENTRYPOINT*]]
 [**--env-file**[=*[]*]]
 [**--expose**[=*[]*]]
+[**--group-add**[=*[]*]]
 [**-h**|**--hostname**[=*HOSTNAME*]]
 [**--help**]
 [**-i**|**--interactive**[=*false*]]
@@ -215,6 +216,9 @@ ENTRYPOINT.
 
 **--expose**=[]
    Expose a port, or a range of ports (e.g. --expose=3300-3310), from the container without publishing it to your host
+
+**--group-add**=[]
+   Add additional groups to run as
 
 **-h**, **--hostname**=""
    Container host name

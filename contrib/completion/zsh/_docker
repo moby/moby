@@ -499,6 +499,7 @@ __docker_subcommand () {
                 '--entrypoint=-[Overwrite the default ENTRYPOINT of the image]:entry point: ' \
                 '*--env-file=-[Read in a file of environment variables]:environment file:_files' \
                 '*--expose=-[Expose a port or a range of ports]:port or a range of ports: ' \
+                '*--group-add=-[Add additional groups to run as]:group: ' \
                 '(-h --hostname)'{-h,--hostname=-}'[Container host name]:hostname:_hosts' \
                 '(- :)--help[Print usage]' \
                 '(-i --interactive)'{-i,--interactive}'[Keep STDIN open even if not attached]' \

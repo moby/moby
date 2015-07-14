@@ -68,6 +68,10 @@ Running `docker rmi` emits an **untag** event when removing an image name.  The 
 
 ### What's new
 
+**New!**
+The `hostConfig` option now accepts the field `GroupAdd`, which specifies a list of additional
+groups that the container process will run as.
+
 ## v1.19
 
 ### Full documentation

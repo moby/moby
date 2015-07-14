@@ -301,6 +301,7 @@ func populateCommand(c *Container, env []string) error {
 		AutoCreatedDevices: autoCreatedDevices,
 		CapAdd:             c.hostConfig.CapAdd.Slice(),
 		CapDrop:            c.hostConfig.CapDrop.Slice(),
+		GroupAdd:           c.hostConfig.GroupAdd,
 		ProcessConfig:      processConfig,
 		ProcessLabel:       c.GetProcessLabel(),
 		MountLabel:         c.GetMountLabel(),
