@@ -90,7 +90,7 @@ func TestUploadReadFrom(t *testing.T) {
 						[
 							{
 								"code": "BLOB_UPLOAD_INVALID",
-								"message": "invalid upload identifier",
+								"message": "blob upload invalid",
 								"detail": "more detail"
 							}
 						]
@@ -174,11 +174,11 @@ func TestUploadReadFrom(t *testing.T) {
 		if v2Err.Code != v2.ErrorCodeBlobUploadInvalid {
 			t.Fatalf("Unexpected error code: %s, expected %d", v2Err.Code.String(), v2.ErrorCodeBlobUploadInvalid)
 		}
-		if expected := "blob upload invalid"; v2Err.Message() != expected {
-			t.Fatalf("Unexpected error message: %s, expected %s", v2Err.Message(), expected)
+		if expected := "blob upload invalid"; v2Err.Message != expected {
+			t.Fatalf("Unexpected error message: %q, expected %q", v2Err.Message, expected)
 		}
 		if expected := "more detail"; v2Err.Detail.(string) != expected {
-			t.Fatalf("Unexpected error message: %s, expected %s", v2Err.Detail.(string), expected)
+			t.Fatalf("Unexpected error message: %q, expected %q", v2Err.Detail.(string), expected)
 		}
 	}
 
