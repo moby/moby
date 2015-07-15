@@ -435,7 +435,7 @@ func TarWithOptions(srcPath string, options *TarOptions) (io.ReadCloser, error) 
 				if include != relFilePath {
 					skip, err = fileutils.OptimizedMatches(relFilePath, patterns, patDirs)
 					if err != nil {
-						logrus.Debugf("Error matching %s", relFilePath, err)
+						logrus.Debugf("Error matching %s: %v", relFilePath, err)
 						return err
 					}
 				}

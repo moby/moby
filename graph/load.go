@@ -89,22 +89,22 @@ func (s *TagStore) recursiveLoad(address, tmpImageDir string) error {
 
 		imageJson, err := ioutil.ReadFile(filepath.Join(tmpImageDir, "repo", address, "json"))
 		if err != nil {
-			logrus.Debugf("Error reading json", err)
+			logrus.Debugf("Error reading json: %v", err)
 			return err
 		}
 
 		layer, err := os.Open(filepath.Join(tmpImageDir, "repo", address, "layer.tar"))
 		if err != nil {
-			logrus.Debugf("Error reading embedded tar", err)
+			logrus.Debugf("Error reading embedded tar: %v", err)
 			return err
 		}
 		img, err := NewImgJSON(imageJson)
 		if err != nil {
-			logrus.Debugf("Error unmarshalling json", err)
+			logrus.Debugf("Error unmarshalling json: %v", err)
 			return err
 		}
 		if err := image.ValidateID(img.ID); err != nil {
-			logrus.Debugf("Error validating ID: %s", err)
+			logrus.Debugf("Error validating ID: %v", err)
 			return err
 		}
 
