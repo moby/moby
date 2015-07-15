@@ -70,18 +70,20 @@ func (r *repository) Blobs(ctx context.Context) distribution.BlobStore {
 	}
 }
 
-func (r *repository) Manifests() distribution.ManifestService {
+func (r *repository) Manifests(ctx context.Context, options ...distribution.ManifestServiceOption) (distribution.ManifestService, error) {
+	// todo(richardscothern): options should be sent over the wire
 	return &manifests{
 		name:   r.Name(),
 		ub:     r.ub,
 		client: r.client,
 		etags:  make(map[string]string),
-	}
+	}, nil
 }
 
 func (r *repository) Signatures() distribution.SignatureService {
+	ms, _ := r.Manifests(r.context)
 	return &signatures{
-		manifests: r.Manifests(),
+		manifests: ms,
 	}
 }
 
@@ -235,6 +237,8 @@ func (ms *manifests) Put(m *manifest.SignedManifest) error {
 	if err != nil {
 		return err
 	}
+
+	// todo(richardscothern): do something with options here when they become applicable
 
 	putRequest, err := http.NewRequest("PUT", manifestURL, bytes.NewReader(m.Raw))
 	if err != nil {
