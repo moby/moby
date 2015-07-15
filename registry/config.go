@@ -324,10 +324,8 @@ func (config *ServiceConfig) NewRepositoryInfo(reposName string) (*RepositoryInf
 			repoInfo.RemoteName = "library/" + normalizedName
 		}
 
-		// *TODO: Prefix this with 'docker.io/'.
-		repoInfo.CanonicalName = repoInfo.LocalName
+		repoInfo.CanonicalName = "docker.io/" + repoInfo.RemoteName
 	} else {
-		// *TODO: Decouple index name from hostname (via registry configuration?)
 		repoInfo.LocalName = repoInfo.Index.Name + "/" + repoInfo.RemoteName
 		repoInfo.CanonicalName = repoInfo.LocalName
 
