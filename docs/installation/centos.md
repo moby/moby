@@ -41,51 +41,28 @@ packages.
 
 ## Install
 
-You use the same installation procedure for all versions of CentOS,
-only the package you install differs. There are two packages to choose from:
+There are two ways to install Docker Engine.  You can use `curl` with the  `get.docker.com` site. This method runs an installation script which installs via the `yum` package manager. Or you can install with the `yum` package manager directly yourself.
 
-<table>
-  <tr>
-    <th>Version</th>
-    <th>Package name</th>
-  </tr>
-  <tr>
-    <td>7.X</td>
-    <td>
-    <p>
-     <a href="https://get.docker.com/rpm/1.7.1/centos-7/RPMS/x86_64/docker-engine-1.7.1-1.el7.centos.x86_64.rpm">
-    https://get.docker.com/rpm/1.7.1/centos-7/RPMS/x86_64/docker-engine-1.7.1-1.el7.centos.x86_64.rpm</a>   
-    </p>
-    <p>
-     <a href="https://get.docker.com/rpm/1.7.1/centos-7/SRPMS/docker-engine-1.7.1-1.el7.centos.src.rpm">
-    https://get.docker.com/rpm/1.7.1/centos-7/SRPMS/docker-engine-1.7.1-1.el7.centos.src.rpm</a>   
-    </p>
-    </td>
-  </tr>
-</table>
+### Install with the script
 
-
-Installation procedure:
 
 1. Log into your machine as a user with `sudo` or `root` privileges.
 
-2. Make sure your existing packages are up-to-date.
+2. Make sure your existing yum packages are up-to-date.
 
 		$ sudo yum update
 		
-3. Download the Docker RPM to the current directory.
+3. Run the Docker installation script.
 		
-		$ curl -O -sSL https://get.docker.com/rpm/1.7.1/centos-7/RPMS/x86_64/docker-engine-1.7.1-1.el7.x86_64.rpm
+		$ curl -sSL https://get.docker.com/ | sh
+		
+		This script adds the `docker.repo` repository and installs Docker.
 
-4. Use `yum` to install the package.
-
-		$ sudo yum localinstall --nogpgcheck docker-engine-1.7.1-1.el7.x86_64.rpm
-
-5. Start the Docker daemon.
+4. Start the Docker daemon.
 
 		$ sudo service docker start
 
-6. Verify `docker` is installed correctly by running a test image in a container.
+5. Verify `docker` is installed correctly by running a test image in a container.
 
 		$ sudo docker run hello-world
 		Unable to find image 'hello-world:latest' locally
@@ -112,6 +89,39 @@ Installation procedure:
 
 		For more examples and ideas, visit:
 		 http://docs.docker.com/userguide/
+
+### Install without the script
+
+1. Log into your machine as a user with `sudo` or `root` privileges.
+
+2. Make sure your existing yum packages are up-to-date.
+
+        $ sudo yum update
+    
+3. Add the yum repo yourself.
+
+    For CentOS 7 run:
+
+        $ cat >/etc/yum.repos.d/docker.repo <<-EOF
+        [dockerrepo]
+        name=Docker Repository
+        baseurl=https://yum.dockerproject.org/repo/main/centos/7
+        enabled=1
+        gpgcheck=1
+        gpgkey=https://yum.dockerproject.org/gpg
+        EOF
+
+4. Install the Docker package.
+
+        $ sudo yum install docker-engine
+        
+5. Start the Docker daemon.
+
+        $ sudo service docker start
+
+6. Verify `docker` is installed correctly by running a test image in a container.
+
+        $ sudo docker run hello-world
  
 ## Create a docker group		
 
