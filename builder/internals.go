@@ -39,27 +39,37 @@ import (
 	"github.com/docker/docker/runconfig"
 )
 
-func (b *Builder) readContext(context io.Reader) error {
+func (b *Builder) readContext(context io.Reader) (err error) {
 	tmpdirPath, err := ioutil.TempDir("", "docker-build")
 	if err != nil {
-		return err
+		return
 	}
+
+	// Make sure we clean-up upon error.  In the happy case the caller
+	// is expected to manage the clean-up
+	defer func() {
+		if err != nil {
+			if e := os.RemoveAll(tmpdirPath); e != nil {
+				logrus.Debugf("[BUILDER] failed to remove temporary context: %s", e)
+			}
+		}
+	}()
 
 	decompressedStream, err := archive.DecompressStream(context)
 	if err != nil {
-		return err
+		return
 	}
 
 	if b.context, err = tarsum.NewTarSum(decompressedStream, true, tarsum.Version1); err != nil {
-		return err
+		return
 	}
 
-	if err := chrootarchive.Untar(b.context, tmpdirPath, nil); err != nil {
-		return err
+	if err = chrootarchive.Untar(b.context, tmpdirPath, nil); err != nil {
+		return
 	}
 
 	b.contextPath = tmpdirPath
-	return nil
+	return
 }
 
 func (b *Builder) commit(id string, autoCmd *runconfig.Command, comment string) error {
