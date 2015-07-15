@@ -10,8 +10,9 @@ import (
 )
 
 var (
-	repoName    = fmt.Sprintf("%v/dockercli/busybox-by-dgst", privateRegistryURL)
-	digestRegex = regexp.MustCompile("Digest: ([^\n]+)")
+	repoName        = fmt.Sprintf("%v/dockercli/busybox-by-dgst", privateRegistryURL)
+	pushDigestRegex = regexp.MustCompile("[\\S]+: digest: ([\\S]+) size: [0-9]+")
+	digestRegex     = regexp.MustCompile("Digest: ([\\S]+)")
 )
 
 func setupImage(c *check.C) (string, error) {
@@ -45,8 +46,7 @@ func setupImageWithTag(c *check.C, tag string) (string, error) {
 		return "", fmt.Errorf("error deleting images prior to real test: %s, %v", rmiout, err)
 	}
 
-	// the push output includes "Digest: <digest>", so find that
-	matches := digestRegex.FindStringSubmatch(out)
+	matches := pushDigestRegex.FindStringSubmatch(out)
 	if len(matches) != 2 {
 		return "", fmt.Errorf("unable to parse digest from push output: %s", out)
 	}

@@ -288,7 +288,7 @@ func (p *v2Puller) pullV2Tag(tag, taggedName string) (bool, error) {
 		}
 	}
 
-	manifestDigest, err := digestFromManifest(manifest, p.repoInfo.LocalName)
+	manifestDigest, _, err := digestFromManifest(manifest, p.repoInfo.LocalName)
 	if err != nil {
 		return false, err
 	}

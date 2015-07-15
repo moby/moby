@@ -2,10 +2,14 @@ package registry
 
 import (
 	"crypto/tls"
+	"crypto/x509"
 	"errors"
+	"fmt"
+	"io/ioutil"
 	"net"
 	"net/http"
 	"os"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"time"
@@ -52,6 +56,54 @@ func hasFile(files []os.FileInfo, name string) bool {
 		}
 	}
 	return false
+}
+
+// ReadCertsDirectory reads the directory for TLS certificates
+// including roots and certificate pairs and updates the
+// provided TLS configuration.
+func ReadCertsDirectory(tlsConfig *tls.Config, directory string) error {
+	fs, err := ioutil.ReadDir(directory)
+	if err != nil && !os.IsNotExist(err) {
+		return err
+	}
+
+	for _, f := range fs {
+		if strings.HasSuffix(f.Name(), ".crt") {
+			if tlsConfig.RootCAs == nil {
+				// TODO(dmcgowan): Copy system pool
+				tlsConfig.RootCAs = x509.NewCertPool()
+			}
+			logrus.Debugf("crt: %s", filepath.Join(directory, f.Name()))
+			data, err := ioutil.ReadFile(filepath.Join(directory, f.Name()))
+			if err != nil {
+				return err
+			}
+			tlsConfig.RootCAs.AppendCertsFromPEM(data)
+		}
+		if strings.HasSuffix(f.Name(), ".cert") {
+			certName := f.Name()
+			keyName := certName[:len(certName)-5] + ".key"
+			logrus.Debugf("cert: %s", filepath.Join(directory, f.Name()))
+			if !hasFile(fs, keyName) {
+				return fmt.Errorf("Missing key %s for certificate %s", keyName, certName)
+			}
+			cert, err := tls.LoadX509KeyPair(filepath.Join(directory, certName), filepath.Join(directory, keyName))
+			if err != nil {
+				return err
+			}
+			tlsConfig.Certificates = append(tlsConfig.Certificates, cert)
+		}
+		if strings.HasSuffix(f.Name(), ".key") {
+			keyName := f.Name()
+			certName := keyName[:len(keyName)-4] + ".cert"
+			logrus.Debugf("key: %s", filepath.Join(directory, f.Name()))
+			if !hasFile(fs, certName) {
+				return fmt.Errorf("Missing certificate %s for key %s", certName, keyName)
+			}
+		}
+	}
+
+	return nil
 }
 
 // DockerHeaders returns request modifiers that ensure requests have
