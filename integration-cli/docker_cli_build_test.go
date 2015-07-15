@@ -76,16 +76,7 @@ func (s *DockerSuite) TestBuildShCmdJSONEntrypoint(c *check.C) {
 		c.Fatal(err)
 	}
 
-	out, _, err := runCommandWithOutput(
-		exec.Command(
-			dockerBinary,
-			"run",
-			"--rm",
-			name))
-
-	if err != nil {
-		c.Fatal(err)
-	}
+	out, _ := dockerCmd(c, "run", "--rm", name)
 
 	if strings.TrimSpace(out) != "/bin/sh -c echo test" {
 		c.Fatal("CMD did not contain /bin/sh -c")
@@ -420,11 +411,11 @@ func (s *DockerSuite) TestBuildEnvEscapes(c *check.C) {
     `,
 		true)
 
-	out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "run", "-t", name))
-
 	if err != nil {
 		c.Fatal(err)
 	}
+
+	out, _ := dockerCmd(c, "run", "-t", name)
 
 	if strings.TrimSpace(out) != "$" {
 		c.Fatalf("Env TEST was not overwritten with bar when foo was supplied to dockerfile: was %q", strings.TrimSpace(out))
@@ -447,11 +438,7 @@ func (s *DockerSuite) TestBuildEnvOverwrite(c *check.C) {
 		c.Fatal(err)
 	}
 
-	out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "run", "-e", "TEST=bar", "-t", name))
-
-	if err != nil {
-		c.Fatal(err)
-	}
+	out, _ := dockerCmd(c, "run", "-e", "TEST=bar", "-t", name)
 
 	if strings.TrimSpace(out) != "bar" {
 		c.Fatalf("Env TEST was not overwritten with bar when foo was supplied to dockerfile: was %q", strings.TrimSpace(out))
@@ -462,21 +449,13 @@ func (s *DockerSuite) TestBuildEnvOverwrite(c *check.C) {
 func (s *DockerSuite) TestBuildOnBuildForbiddenMaintainerInSourceImage(c *check.C) {
 	name := "testbuildonbuildforbiddenmaintainerinsourceimage"
 
-	createCmd := exec.Command(dockerBinary, "create", "busybox", "true")
-	out, _, _, err := runCommandWithStdoutStderr(createCmd)
-	if err != nil {
-		c.Fatal(out, err)
-	}
+	out, _ := dockerCmd(c, "create", "busybox", "true")
 
 	cleanedContainerID := strings.TrimSpace(out)
 
-	commitCmd := exec.Command(dockerBinary, "commit", "--run", "{\"OnBuild\":[\"MAINTAINER docker.io\"]}", cleanedContainerID, "onbuild")
+	dockerCmd(c, "commit", "--run", "{\"OnBuild\":[\"MAINTAINER docker.io\"]}", cleanedContainerID, "onbuild")
 
-	if _, err := runCommand(commitCmd); err != nil {
-		c.Fatal(err)
-	}
-
-	_, err = buildImage(name,
+	_, err := buildImage(name,
 		`FROM onbuild`,
 		true)
 	if err != nil {
@@ -492,21 +471,13 @@ func (s *DockerSuite) TestBuildOnBuildForbiddenMaintainerInSourceImage(c *check.
 func (s *DockerSuite) TestBuildOnBuildForbiddenFromInSourceImage(c *check.C) {
 	name := "testbuildonbuildforbiddenfrominsourceimage"
 
-	createCmd := exec.Command(dockerBinary, "create", "busybox", "true")
-	out, _, _, err := runCommandWithStdoutStderr(createCmd)
-	if err != nil {
-		c.Fatal(out, err)
-	}
+	out, _ := dockerCmd(c, "create", "busybox", "true")
 
 	cleanedContainerID := strings.TrimSpace(out)
 
-	commitCmd := exec.Command(dockerBinary, "commit", "--run", "{\"OnBuild\":[\"FROM busybox\"]}", cleanedContainerID, "onbuild")
+	dockerCmd(c, "commit", "--run", "{\"OnBuild\":[\"FROM busybox\"]}", cleanedContainerID, "onbuild")
 
-	if _, err := runCommand(commitCmd); err != nil {
-		c.Fatal(err)
-	}
-
-	_, err = buildImage(name,
+	_, err := buildImage(name,
 		`FROM onbuild`,
 		true)
 	if err != nil {
@@ -522,21 +493,13 @@ func (s *DockerSuite) TestBuildOnBuildForbiddenFromInSourceImage(c *check.C) {
 func (s *DockerSuite) TestBuildOnBuildForbiddenChainedInSourceImage(c *check.C) {
 	name := "testbuildonbuildforbiddenchainedinsourceimage"
 
-	createCmd := exec.Command(dockerBinary, "create", "busybox", "true")
-	out, _, _, err := runCommandWithStdoutStderr(createCmd)
-	if err != nil {
-		c.Fatal(out, err)
-	}
+	out, _ := dockerCmd(c, "create", "busybox", "true")
 
 	cleanedContainerID := strings.TrimSpace(out)
 
-	commitCmd := exec.Command(dockerBinary, "commit", "--run", "{\"OnBuild\":[\"ONBUILD RUN ls\"]}", cleanedContainerID, "onbuild")
+	dockerCmd(c, "commit", "--run", "{\"OnBuild\":[\"ONBUILD RUN ls\"]}", cleanedContainerID, "onbuild")
 
-	if _, err := runCommand(commitCmd); err != nil {
-		c.Fatal(err)
-	}
-
-	_, err = buildImage(name,
+	_, err := buildImage(name,
 		`FROM onbuild`,
 		true)
 	if err != nil {
@@ -570,10 +533,7 @@ ONBUILD RUN ["true"]`,
 		c.Fatal(err)
 	}
 
-	out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "run", "-t", name2))
-	if err != nil {
-		c.Fatal(err)
-	}
+	out, _ := dockerCmd(c, "run", "-t", name2)
 
 	if !regexp.MustCompile(`(?m)^hello world`).MatchString(out) {
 		c.Fatal("did not get echo output from onbuild", out)
@@ -600,10 +560,7 @@ ONBUILD ENTRYPOINT ["echo"]`,
 		c.Fatal(err)
 	}
 
-	out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "run", "-t", name2))
-	if err != nil {
-		c.Fatal(err)
-	}
+	out, _ := dockerCmd(c, "run", "-t", name2)
 
 	if !regexp.MustCompile(`(?m)^hello world`).MatchString(out) {
 		c.Fatal("got malformed output from onbuild", out)
@@ -1827,11 +1784,7 @@ func (s *DockerSuite) TestBuildForceRm(c *check.C) {
 	}
 	defer ctx.Close()
 
-	buildCmd := exec.Command(dockerBinary, "build", "-t", name, "--force-rm", ".")
-	buildCmd.Dir = ctx.Dir
-	if out, _, err := runCommandWithOutput(buildCmd); err == nil {
-		c.Fatalf("failed to build the image: %s, %v", out, err)
-	}
+	dockerCmdInDir(c, ctx.Dir, "build", "-t", name, "--force-rm", ".")
 
 	containerCountAfter, err := getContainerCount()
 	if err != nil {
@@ -3100,11 +3053,7 @@ func (s *DockerSuite) TestBuildWithVolumeOwnership(c *check.C) {
 		c.Fatal(err)
 	}
 
-	cmd := exec.Command(dockerBinary, "run", "--rm", "testbuildimg", "ls", "-la", "/test")
-	out, _, err := runCommandWithOutput(cmd)
-	if err != nil {
-		c.Fatal(out, err)
-	}
+	out, _ := dockerCmd(c, "run", "--rm", "testbuildimg", "ls", "-la", "/test")
 
 	if expected := "drw-------"; !strings.Contains(out, expected) {
 		c.Fatalf("expected %s received %s", expected, out)
@@ -3349,6 +3298,9 @@ func (s *DockerSuite) TestBuildEscapeWhitespace(c *check.C) {
 IO <io@\
 docker.com>"
   `, true)
+	if err != nil {
+		c.Fatal(err)
+	}
 
 	res, err := inspectField(name, "Author")
 
@@ -3371,10 +3323,11 @@ func (s *DockerSuite) TestBuildVerifyIntString(c *check.C) {
   MAINTAINER 123
   `, true)
 
-	out, rc, err := runCommandWithOutput(exec.Command(dockerBinary, "inspect", name))
-	if rc != 0 || err != nil {
-		c.Fatalf("Unexpected error from inspect: rc: %v  err: %v", rc, err)
+	if err != nil {
+		c.Fatal(err)
 	}
+
+	out, _ := dockerCmd(c, "inspect", name)
 
 	if !strings.Contains(out, "\"123\"") {
 		c.Fatalf("Output does not contain the int as a string:\n%s", out)
@@ -4030,6 +3983,7 @@ func (s *DockerSuite) TestBuildAddTarXz(c *check.C) {
 		if err := tw.Close(); err != nil {
 			c.Fatalf("failed to close tar archive: %v", err)
 		}
+
 		xzCompressCmd := exec.Command("xz", "-k", "test.tar")
 		xzCompressCmd.Dir = tmpDir
 		out, _, err := runCommandWithOutput(xzCompressCmd)
@@ -4389,9 +4343,7 @@ func (s *DockerSuite) TestBuildEntrypointInheritance(c *check.C) {
 		c.Fatal(err)
 	}
 
-	status, _ := runCommand(exec.Command(dockerBinary, "run", "parent"))
-
-	if status != 130 {
+	if _, status, _ := dockerCmdWithError(c, "run", "parent"); status != 130 {
 		c.Fatalf("expected exit code 130 but received %d", status)
 	}
 
@@ -4402,9 +4354,7 @@ func (s *DockerSuite) TestBuildEntrypointInheritance(c *check.C) {
 		c.Fatal(err)
 	}
 
-	status, _ = runCommand(exec.Command(dockerBinary, "run", "child"))
-
-	if status != 5 {
+	if _, status, _ := dockerCmdWithError(c, "run", "child"); status != 5 {
 		c.Fatalf("expected exit code 5 but received %d", status)
 	}
 
@@ -4434,10 +4384,7 @@ func (s *DockerSuite) TestBuildEntrypointInheritanceInspect(c *check.C) {
 		c.Fatalf("Expected value %s not in Config.Entrypoint: %s", expected, res)
 	}
 
-	out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "run", "-t", name2))
-	if err != nil {
-		c.Fatal(err, out)
-	}
+	out, _ := dockerCmd(c, "run", "-t", name2)
 
 	expected = "quux"
 
@@ -4457,12 +4404,7 @@ func (s *DockerSuite) TestBuildRunShEntrypoint(c *check.C) {
 		c.Fatal(err)
 	}
 
-	out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "run", "--rm", name))
-
-	if err != nil {
-		c.Fatal(err, out)
-	}
-
+	dockerCmd(c, "run", "--rm", name)
 }
 
 func (s *DockerSuite) TestBuildExoticShellInterpolation(c *check.C) {
@@ -4501,13 +4443,14 @@ func (s *DockerSuite) TestBuildVerifySingleQuoteFails(c *check.C) {
 	// it should barf on it.
 	name := "testbuildsinglequotefails"
 
-	_, err := buildImage(name,
+	if _, err := buildImage(name,
 		`FROM busybox
 		CMD [ '/bin/sh', '-c', 'echo hi' ]`,
-		true)
-	_, _, err = runCommandWithOutput(exec.Command(dockerBinary, "run", "--rm", name))
+		true); err != nil {
+		c.Fatal(err)
+	}
 
-	if err == nil {
+	if _, _, err := dockerCmdWithError(c, "run", "--rm", name); err == nil {
 		c.Fatal("The image was not supposed to be able to run")
 	}
 
@@ -4771,10 +4714,7 @@ CMD cat /foo/file`,
 		c.Fatal(err)
 	}
 
-	out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "run", "--rm", name))
-	if err != nil {
-		c.Fatal(err)
-	}
+	out, _ := dockerCmd(c, "run", "--rm", name)
 	if out != expected {
 		c.Fatalf("expected file contents for /foo/file to be %q but received %q", expected, out)
 	}
@@ -5056,7 +4996,7 @@ func (s *DockerSuite) TestBuildDockerfileOutsideContext(c *check.C) {
 		filepath.Join(ctx, "dockerfile1"),
 		filepath.Join(ctx, "dockerfile2"),
 	} {
-		out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "build", "-t", name, "--no-cache", "-f", dockerfilePath, "."))
+		out, _, err := dockerCmdWithError(c, "build", "-t", name, "--no-cache", "-f", dockerfilePath, ".")
 		if err == nil {
 			c.Fatalf("Expected error with %s. Out: %s", dockerfilePath, out)
 		}
@@ -5070,7 +5010,7 @@ func (s *DockerSuite) TestBuildDockerfileOutsideContext(c *check.C) {
 
 	// Path to Dockerfile should be resolved relative to working directory, not relative to context.
 	// There is a Dockerfile in the context, but since there is no Dockerfile in the current directory, the following should fail
-	out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "build", "-t", name, "--no-cache", "-f", "Dockerfile", ctx))
+	out, _, err := dockerCmdWithError(c, "build", "-t", name, "--no-cache", "-f", "Dockerfile", ctx)
 	if err == nil {
 		c.Fatalf("Expected error. Out: %s", out)
 	}
@@ -5257,9 +5197,7 @@ func (s *DockerSuite) TestBuildNotVerbose(c *check.C) {
 	defer ctx.Close()
 
 	// First do it w/verbose - baseline
-	buildCmd := exec.Command(dockerBinary, "build", "--no-cache", "-t", "verbose", ".")
-	buildCmd.Dir = ctx.Dir
-	out, _, err := runCommandWithOutput(buildCmd)
+	out, _, err := dockerCmdInDir(c, ctx.Dir, "build", "--no-cache", "-t", "verbose", ".")
 	if err != nil {
 		c.Fatalf("failed to build the image w/o -q: %s, %v", out, err)
 	}
@@ -5268,9 +5206,7 @@ func (s *DockerSuite) TestBuildNotVerbose(c *check.C) {
 	}
 
 	// Now do it w/o verbose
-	buildCmd = exec.Command(dockerBinary, "build", "--no-cache", "-q", "-t", "verbose", ".")
-	buildCmd.Dir = ctx.Dir
-	out, _, err = runCommandWithOutput(buildCmd)
+	out, _, err = dockerCmdInDir(c, ctx.Dir, "build", "--no-cache", "-q", "-t", "verbose", ".")
 	if err != nil {
 		c.Fatalf("failed to build the image w/ -q: %s, %v", out, err)
 	}
@@ -5290,9 +5226,7 @@ RUN [ "/hello" ]`, map[string]string{})
 	}
 	defer ctx.Close()
 
-	buildCmd := exec.Command(dockerBinary, "build", "--no-cache", "-t", name, ".")
-	buildCmd.Dir = ctx.Dir
-	out, _, err := runCommandWithOutput(buildCmd)
+	out, _, err := dockerCmdInDir(c, ctx.Dir, "build", "--no-cache", "-t", name, ".")
 	if err != nil {
 		c.Fatalf("failed to build the image: %s, %v", out, err)
 	}

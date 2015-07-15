@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"os/exec"
 
 	"github.com/go-check/check"
 )
@@ -15,10 +14,7 @@ import (
 // Regression test for #9414
 func (s *DockerSuite) TestExecApiCreateNoCmd(c *check.C) {
 	name := "exec_test"
-	runCmd := exec.Command(dockerBinary, "run", "-d", "-t", "--name", name, "busybox", "/bin/sh")
-	if out, _, err := runCommandWithOutput(runCmd); err != nil {
-		c.Fatal(out, err)
-	}
+	dockerCmd(c, "run", "-d", "-t", "--name", name, "busybox", "/bin/sh")
 
 	status, body, err := sockRequest("POST", fmt.Sprintf("/containers/%s/exec", name), map[string]interface{}{"Cmd": nil})
 	c.Assert(status, check.Equals, http.StatusInternalServerError)

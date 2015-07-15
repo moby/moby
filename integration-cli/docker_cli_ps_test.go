@@ -337,8 +337,7 @@ func (s *DockerSuite) TestPsListContainersFilterExited(c *check.C) {
 		c.Fatal(err)
 	}
 
-	runCmd := exec.Command(dockerBinary, "run", "--name", "nonzero1", "busybox", "false")
-	if out, _, err := runCommandWithOutput(runCmd); err == nil {
+	if out, _, err := dockerCmdWithError(c, "run", "--name", "nonzero1", "busybox", "false"); err == nil {
 		c.Fatal("Should fail.", out, err)
 	}
 
@@ -347,8 +346,7 @@ func (s *DockerSuite) TestPsListContainersFilterExited(c *check.C) {
 		c.Fatal(err)
 	}
 
-	runCmd = exec.Command(dockerBinary, "run", "--name", "nonzero2", "busybox", "false")
-	if out, _, err := runCommandWithOutput(runCmd); err == nil {
+	if out, _, err := dockerCmdWithError(c, "run", "--name", "nonzero2", "busybox", "false"); err == nil {
 		c.Fatal("Should fail.", out, err)
 	}
 	secondNonZero, err := getIDByName("nonzero2")
@@ -385,42 +383,25 @@ func (s *DockerSuite) TestPsListContainersFilterExited(c *check.C) {
 
 func (s *DockerSuite) TestPsRightTagName(c *check.C) {
 	tag := "asybox:shmatest"
-	if out, err := exec.Command(dockerBinary, "tag", "busybox", tag).CombinedOutput(); err != nil {
-		c.Fatalf("Failed to tag image: %s, out: %q", err, out)
-	}
+	dockerCmd(c, "tag", "busybox", tag)
 
 	var id1 string
-	if out, err := exec.Command(dockerBinary, "run", "-d", "busybox", "top").CombinedOutput(); err != nil {
-		c.Fatalf("Failed to run container: %s, out: %q", err, out)
-	} else {
-		id1 = strings.TrimSpace(string(out))
-	}
+	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
+	id1 = strings.TrimSpace(string(out))
 
 	var id2 string
-	if out, err := exec.Command(dockerBinary, "run", "-d", tag, "top").CombinedOutput(); err != nil {
-		c.Fatalf("Failed to run container: %s, out: %q", err, out)
-	} else {
-		id2 = strings.TrimSpace(string(out))
-	}
+	out, _ = dockerCmd(c, "run", "-d", tag, "top")
+	id2 = strings.TrimSpace(string(out))
 
 	var imageID string
-	if out, err := exec.Command(dockerBinary, "inspect", "-f", "{{.Id}}", "busybox").CombinedOutput(); err != nil {
-		c.Fatalf("failed to get the image ID of busybox: %s, %v", out, err)
-	} else {
-		imageID = strings.TrimSpace(string(out))
-	}
+	out, _ = dockerCmd(c, "inspect", "-f", "{{.Id}}", "busybox")
+	imageID = strings.TrimSpace(string(out))
 
 	var id3 string
-	if out, err := exec.Command(dockerBinary, "run", "-d", imageID, "top").CombinedOutput(); err != nil {
-		c.Fatalf("Failed to run container: %s, out: %q", err, out)
-	} else {
-		id3 = strings.TrimSpace(string(out))
-	}
+	out, _ = dockerCmd(c, "run", "-d", imageID, "top")
+	id3 = strings.TrimSpace(string(out))
 
-	out, err := exec.Command(dockerBinary, "ps", "--no-trunc").CombinedOutput()
-	if err != nil {
-		c.Fatalf("Failed to run 'ps': %s, out: %q", err, out)
-	}
+	out, _ = dockerCmd(c, "ps", "--no-trunc")
 	lines := strings.Split(strings.TrimSpace(string(out)), "\n")
 	// skip header
 	lines = lines[1:]
@@ -449,16 +430,10 @@ func (s *DockerSuite) TestPsRightTagName(c *check.C) {
 }
 
 func (s *DockerSuite) TestPsLinkedWithNoTrunc(c *check.C) {
-	if out, err := exec.Command(dockerBinary, "run", "--name=first", "-d", "busybox", "top").CombinedOutput(); err != nil {
-		c.Fatalf("Output: %s, err: %s", out, err)
-	}
-	if out, err := exec.Command(dockerBinary, "run", "--name=second", "--link=first:first", "-d", "busybox", "top").CombinedOutput(); err != nil {
-		c.Fatalf("Output: %s, err: %s", out, err)
-	}
-	out, err := exec.Command(dockerBinary, "ps", "--no-trunc").CombinedOutput()
-	if err != nil {
-		c.Fatalf("Output: %s, err: %s", out, err)
-	}
+	dockerCmd(c, "run", "--name=first", "-d", "busybox", "top")
+	dockerCmd(c, "run", "--name=second", "--link=first:first", "-d", "busybox", "top")
+
+	out, _ := dockerCmd(c, "ps", "--no-trunc")
 	lines := strings.Split(strings.TrimSpace(string(out)), "\n")
 	// strip header
 	lines = lines[1:]
@@ -488,14 +463,9 @@ func (s *DockerSuite) TestPsGroupPortRange(c *check.C) {
 }
 
 func (s *DockerSuite) TestPsWithSize(c *check.C) {
-	out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "run", "-d", "--name", "sizetest", "busybox", "top"))
-	if err != nil {
-		c.Fatal(out, err)
-	}
-	out, _, err = runCommandWithOutput(exec.Command(dockerBinary, "ps", "--size"))
-	if err != nil {
-		c.Fatal(out, err)
-	}
+	dockerCmd(c, "run", "-d", "--name", "sizetest", "busybox", "top")
+
+	out, _ := dockerCmd(c, "ps", "--size")
 	if !strings.Contains(out, "virtual") {
 		c.Fatalf("docker ps with --size should show virtual size of container")
 	}
@@ -503,28 +473,18 @@ func (s *DockerSuite) TestPsWithSize(c *check.C) {
 
 func (s *DockerSuite) TestPsListContainersFilterCreated(c *check.C) {
 	// create a container
-	createCmd := exec.Command(dockerBinary, "create", "busybox")
-	out, _, err := runCommandWithOutput(createCmd)
-	if err != nil {
-		c.Fatal(out, err)
-	}
+	out, _ := dockerCmd(c, "create", "busybox")
 	cID := strings.TrimSpace(out)
 	shortCID := cID[:12]
 
 	// Make sure it DOESN'T show up w/o a '-a' for normal 'ps'
-	runCmd := exec.Command(dockerBinary, "ps", "-q")
-	if out, _, err = runCommandWithOutput(runCmd); err != nil {
-		c.Fatal(out, err)
-	}
+	out, _ = dockerCmd(c, "ps", "-q")
 	if strings.Contains(out, shortCID) {
 		c.Fatalf("Should have not seen '%s' in ps output:\n%s", shortCID, out)
 	}
 
 	// Make sure it DOES show up as 'Created' for 'ps -a'
-	runCmd = exec.Command(dockerBinary, "ps", "-a")
-	if out, _, err = runCommandWithOutput(runCmd); err != nil {
-		c.Fatal(out, err)
-	}
+	out, _ = dockerCmd(c, "ps", "-a")
 
 	hits := 0
 	for _, line := range strings.Split(out, "\n") {
@@ -542,10 +502,7 @@ func (s *DockerSuite) TestPsListContainersFilterCreated(c *check.C) {
 	}
 
 	// filter containers by 'create' - note, no -a needed
-	runCmd = exec.Command(dockerBinary, "ps", "-q", "-f", "status=created")
-	if out, _, err = runCommandWithOutput(runCmd); err != nil {
-		c.Fatal(out, err)
-	}
+	out, _ = dockerCmd(c, "ps", "-q", "-f", "status=created")
 	containerOut := strings.TrimSpace(out)
 	if !strings.HasPrefix(cID, containerOut) {
 		c.Fatalf("Expected id %s, got %s for filter, out: %s", cID, containerOut, out)
