@@ -102,11 +102,11 @@ which is officially supported by Docker.
 
 To uninstall the Docker package:
 
-    $ sudo apt-get purge lxc-docker
+    $ sudo apt-get purge docker-engine
 
 To uninstall the Docker package and dependencies that are no longer needed:
 
-    $ sudo apt-get autoremove --purge lxc-docker
+    $ sudo apt-get autoremove --purge docker-engine
 
 The above commands will not remove images, containers, volumes, or user created
 configuration files on your host. If you wish to delete all images, containers,
