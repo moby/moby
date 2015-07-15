@@ -183,7 +183,7 @@ Contributing to Docker
 [![Jenkins Build Status](https://jenkins.dockerproject.org/job/Docker%20Master/badge/icon)](https://jenkins.dockerproject.org/job/Docker%20Master/)
 
 Want to hack on Docker? Awesome! We have [instructions to help you get
-started contributing code or documentation.](https://docs.docker.com/project/who-written-for/).
+started contributing code or documentation](https://docs.docker.com/project/who-written-for/).
 
 These instructions are probably not perfect, please let us know if anything
 feels wrong or incomplete. Better yet, submit a PR and improve them yourself.
