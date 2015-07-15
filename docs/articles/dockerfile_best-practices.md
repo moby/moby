@@ -382,7 +382,7 @@ Or, it can be used to run Postgres and pass parameters to the server:
 
     $ docker run postgres postgres --help
 
-Lastly, it could also be used to start a totally different tool, such Bash:
+Lastly, it could also be used to start a totally different tool, such as Bash:
 
     $ docker run --rm -it postgres bash
 
