@@ -38,85 +38,28 @@ reported kernel bugs may have already been fixed on the latest kernel packages
 
 ## Install
 
-You use the same installation procedure for all versions of Fedora,
-only the package you install differs. Choose from these packages:
+There are two ways to install Docker Engine.  You can use `curl` with the  `get.docker.com` site. This method runs an installation script which installs via the `yum` package manager. Or you can install with the `yum` package manager directly yourself.
 
-<style type="text/css">
-  .tg  {border-collapse:collapse;border-spacing:0;}
-   td{font-family:Arial, sans-serif;font-size:14px;padding:10px 5px;border-style:solid;border-width:1px;overflow:hidden;word-break:normal;vertical-align: top;}
-   th{font-family:Arial, sans-serif;font-size:14px;font-weight:normal;padding:10px 5px;border-style:solid;border-width:1px;overflow:hidden;word-break:normal;vertical-align: top;}
-</style>
-<table class="tg">
-  <tr>
-    <th>Version</th>
-    <th>Package name</th>
-  </tr>
-  <tr>
-    <td>Fedora 20</td>
-    <td>
-        <p>
-    <a href="https://get.docker.com/rpm/1.7.1/fedora-20/RPMS/x86_64/docker-engine-1.7.1-1.fc20.x86_64.rpm">
-    docker-engine-1.7.1-1.fc20.x86_64.rpm</a>
-        </p>
-        <p>
-    <a href="https://get.docker.com/rpm/1.7.1/fedora-20/SRPMS/docker-engine-1.7.1-1.fc20.src.rpm">
-   docker-engine-1.7.1-1.fc20.src.rpm</a>
-        </p>
-    </td>
-  </tr>
-  <tr>
-    <td>Fedora 21</td>
-    <td>
-    <p>
-    <a href="https://get.docker.com/rpm/1.7.1/fedora-21/RPMS/x86_64/docker-engine-1.7.1-1.fc21.x86_64.rpm">
-    docker-engine-1.7.1-1.fc21.x86_64.rpm</a>
-        </p>
-        <p>
-    <a href="https://get.docker.com/rpm/1.7.1/fedora-21/SRPMS/docker-engine-1.7.1-1.fc21.src.rpm">
-  docker-engine-1.7.1-1.fc21.src.rpm</a>
-        </p>
-    </td>
-  </tr>
-   <tr>
-    <td>Fedora 22</td>
-    <td>
-    <p>
-    <a href="https://get.docker.com/rpm/1.7.1/fedora-22/RPMS/x86_64/docker-engine-1.7.1-1.fc22.x86_64.rpm">
-    docker-engine-1.7.1-1.fc22.x86_64.rpm</a>
-        </p>
-        <p>
-    <a href="https://get.docker.com/rpm/1.7.1/fedora-22/SRPMS/docker-engine-1.7.1-1.fc22.src.rpm">
-    docker-engine-1.7.1-1.fc22.src.rpm</a>
-        </p>
-    </td>
-  </tr> 
-</table>
+### Install with the script
 
-
-This procedure depicts an installation on version 21. If you are installing on
-20 or 22, substitute that package for your installation. 
 
 1. Log into your machine as a user with `sudo` or `root` privileges.
 
-2. Make sure you don't have an older version of Docker installed.
+2. Make sure your existing yum packages are up-to-date.
 
-		$ yum list installed | grep docker
-	  
-	If you have an older version, remove it using the `yum -y remove <packagename>` command.
-
-3. Download the Docker RPM to the current directory.
+		$ sudo yum update
 		
-		$ curl -O -sSL https://url_to_package/docker-engine-1.7.1-0.1.fc21.x86_64.rpm
+3. Run the Docker installation script.
+		
+		$ curl -sSL https://get.docker.com/ | sh
+		
+		This script adds the `docker.repo` repository and installs Docker.
 
-4. Use `yum` to install the package.
-
-		$ sudo yum localinstall --nogpgcheck docker-engine-1.7.1-0.1.fc21.x86_64.rpm
-
-5. Start the Docker daemon.
+4. Start the Docker daemon.
 
 		$ sudo service docker start
 
-6. Verify `docker` is installed correctly by running a test image in a container.
+5. Verify `docker` is installed correctly by running a test image in a container.
 
 		$ sudo docker run hello-world
 		Unable to find image 'hello-world:latest' locally
@@ -124,7 +67,7 @@ This procedure depicts an installation on version 21. If you are installing on
 		a8219747be10: Pull complete 
 		91c95931e552: Already exists 
 		hello-world:latest: The image you are pulling has been verified. Important: image verification is a tech preview feature and should not be relied on to provide security.
-		Digest: sha256:aa03e5d0d5553b4c3473e89c8619cf79df368babd18681cf5daeb82aab55838d
+		Digest: sha256:aa03e5d0d5553b4c3473e89c8619cf79df368babd1.7.1cf5daeb82aab55838d
 		Status: Downloaded newer image for hello-world:latest
 		Hello from Docker.
 		This message shows that your installation appears to be working correctly.
@@ -143,6 +86,61 @@ This procedure depicts an installation on version 21. If you are installing on
 
 		For more examples and ideas, visit:
 		 http://docs.docker.com/userguide/
+
+### Install without the script
+
+1. Log into your machine as a user with `sudo` or `root` privileges.
+
+2. Make sure your existing yum packages are up-to-date.
+
+		$ sudo yum update
+    
+3. Add the yum repo yourself.
+
+    For Fedora 20 run:
+
+        $ cat >/etc/yum.repos.d/docker.repo <<-EOF
+        [dockerrepo]
+        name=Docker Repository
+        baseurl=https://yum.dockerproject.org/repo/main/fedora/20
+        enabled=1
+        gpgcheck=1
+        gpgkey=https://yum.dockerproject.org/gpg
+        EOF
+
+    For Fedora 21 run:
+
+        $ cat >/etc/yum.repos.d/docker.repo <<-EOF
+        [dockerrepo]
+        name=Docker Repository
+        baseurl=https://yum.dockerproject.org/repo/main/fedora/21
+        enabled=1
+        gpgcheck=1
+        gpgkey=https://yum.dockerproject.org/gpg
+        EOF
+
+    For Fedora 22 run:
+
+		$ cat >/etc/yum.repos.d/docker.repo <<-EOF
+        [dockerrepo]
+        name=Docker Repository
+        baseurl=https://yum.dockerproject.org/repo/main/fedora/22
+        enabled=1
+        gpgcheck=1
+        gpgkey=https://yum.dockerproject.org/gpg
+        EOF
+
+4. Install the Docker package.
+
+        $ sudo yum install docker-engine
+        
+5. Start the Docker daemon.
+
+		$ sudo service docker start
+
+6. Verify `docker` is installed correctly by running a test image in a container.
+
+		$ sudo docker run hello-world
  
 ## Create a docker group		
 
