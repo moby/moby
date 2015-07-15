@@ -1,14 +1,23 @@
-# Experimental: Extend Docker with a plugin 
+<!--[metadata]>
++++
+title = "Extending Docker with plugins"
+description = "How to add additional functionality to Docker with plugins extensions"
+keywords = ["Examples, Usage, plugins, docker, documentation, user guide"]
+[menu.main]
+parent = "mn_extend"
+weight=-1
++++
+<![end-metadata]-->
+
+# Understand Docker plugins
 
 You can extend the capabilities of the Docker Engine by loading third-party
-plugins. 
-
-This is an experimental feature. For information on installing and using experimental features, see [the experimental feature overview](README.md).
+plugins.
 
 ## Types of plugins
 
 Plugins extend Docker's functionality.  They come in specific types.  For
-example, a [volume plugin](/experimental/plugins_volume.md) might enable Docker
+example, a [volume plugin](plugins_volume.md) might enable Docker
 volumes to persist across multiple Docker hosts.
 
 Currently Docker supports volume and network driver plugins. In the future it
@@ -27,12 +36,13 @@ The following plugins exist:
   databases and other stateful containers and move them around across a cluster
   of machines.
 
-* The [Weave plugin](https://github.com/weaveworks/docker-plugin) is a network
-  driver plugin which provides a virtual, multi-host network for containers.
+* The [GlusterFS plugin](https://github.com/calavera/docker-volume-glusterfs) is
+  another volume plugin that provides multi-host volumes management for Docker
+  using GlusterFS.
 
-* The [Calico plugin](https://github.com/metaswitch/calico-docker) is a network
-  driver plugin which provides a multi-host network for containers with routes 
-  distributed by BGP.
+* The [Keywhiz plugin](https://github.com/calavera/docker-volume-keywhiz) is
+  a plugin that provides credentials and secret management using Keywhiz as
+  a central repository.
 
 ## Troubleshooting a plugin
 
@@ -42,11 +52,4 @@ of the plugin for help. The Docker team may not be able to assist you.
 ## Writing a plugin
 
 If you are interested in writing a plugin for Docker, or seeing how they work
-under the hood, see the [docker plugins reference](/experimental/plugin_api.md).
-
-# Related GitHub PRs and issues
-
-- [#13222](https://github.com/docker/docker/pull/13222) Plugins plumbing
-
-Send us feedback and comments on [#13419](https://github.com/docker/docker/issues/13419),
-or on the usual Google Groups (docker-user, docker-dev) and IRC channels.
+under the hood, see the [docker plugins reference](plugin_api.md).
