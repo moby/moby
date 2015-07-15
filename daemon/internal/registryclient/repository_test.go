@@ -492,6 +492,7 @@ func checkEqualManifest(m1, m2 *manifest.SignedManifest) error {
 }
 
 func TestManifestFetch(t *testing.T) {
+	ctx := context.Background()
 	repo := "test.example.com/repo"
 	m1, dgst := newRandomSchemaV1Manifest(repo, "latest", 6)
 	var m testutil.RequestResponseMap
@@ -504,7 +505,10 @@ func TestManifestFetch(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ms := r.Manifests()
+	ms, err := r.Manifests(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	ok, err := ms.Exists(dgst)
 	if err != nil {
@@ -536,8 +540,12 @@ func TestManifestFetchWithEtag(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	ctx := context.Background()
+	ms, err := r.Manifests(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	ms := r.Manifests()
 	m2, err := ms.GetByTag("latest", AddEtagToTag("latest", d1.String()))
 	if err != nil {
 		t.Fatal(err)
@@ -572,8 +580,12 @@ func TestManifestDelete(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	ctx := context.Background()
+	ms, err := r.Manifests(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	ms := r.Manifests()
 	if err := ms.Delete(dgst1); err != nil {
 		t.Fatal(err)
 	}
@@ -609,8 +621,12 @@ func TestManifestPut(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	ctx := context.Background()
+	ms, err := r.Manifests(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	ms := r.Manifests()
 	if err := ms.Put(m1); err != nil {
 		t.Fatal(err)
 	}
@@ -653,8 +669,12 @@ func TestManifestTags(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	ctx := context.Background()
+	ms, err := r.Manifests(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	ms := r.Manifests()
 	tags, err := ms.Tags()
 	if err != nil {
 		t.Fatal(err)
@@ -691,7 +711,11 @@ func TestManifestUnauthorized(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ms := r.Manifests()
+	ctx := context.Background()
+	ms, err := r.Manifests(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	_, err = ms.Get(dgst)
 	if err == nil {
