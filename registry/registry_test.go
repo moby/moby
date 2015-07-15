@@ -337,7 +337,7 @@ func TestParseRepositoryInfo(t *testing.T) {
 			},
 			RemoteName:    "fooo/bar",
 			LocalName:     "fooo/bar",
-			CanonicalName: "fooo/bar",
+			CanonicalName: "docker.io/fooo/bar",
 			Official:      false,
 		},
 		"library/ubuntu": {
@@ -347,7 +347,7 @@ func TestParseRepositoryInfo(t *testing.T) {
 			},
 			RemoteName:    "library/ubuntu",
 			LocalName:     "ubuntu",
-			CanonicalName: "ubuntu",
+			CanonicalName: "docker.io/library/ubuntu",
 			Official:      true,
 		},
 		"nonlibrary/ubuntu": {
@@ -357,7 +357,7 @@ func TestParseRepositoryInfo(t *testing.T) {
 			},
 			RemoteName:    "nonlibrary/ubuntu",
 			LocalName:     "nonlibrary/ubuntu",
-			CanonicalName: "nonlibrary/ubuntu",
+			CanonicalName: "docker.io/nonlibrary/ubuntu",
 			Official:      false,
 		},
 		"ubuntu": {
@@ -367,7 +367,7 @@ func TestParseRepositoryInfo(t *testing.T) {
 			},
 			RemoteName:    "library/ubuntu",
 			LocalName:     "ubuntu",
-			CanonicalName: "ubuntu",
+			CanonicalName: "docker.io/library/ubuntu",
 			Official:      true,
 		},
 		"other/library": {
@@ -377,7 +377,7 @@ func TestParseRepositoryInfo(t *testing.T) {
 			},
 			RemoteName:    "other/library",
 			LocalName:     "other/library",
-			CanonicalName: "other/library",
+			CanonicalName: "docker.io/other/library",
 			Official:      false,
 		},
 		"127.0.0.1:8000/private/moonbase": {
@@ -487,7 +487,7 @@ func TestParseRepositoryInfo(t *testing.T) {
 			},
 			RemoteName:    "public/moonbase",
 			LocalName:     "public/moonbase",
-			CanonicalName: "public/moonbase",
+			CanonicalName: "docker.io/public/moonbase",
 			Official:      false,
 		},
 		"index." + IndexServerName() + "/public/moonbase": {
@@ -497,7 +497,7 @@ func TestParseRepositoryInfo(t *testing.T) {
 			},
 			RemoteName:    "public/moonbase",
 			LocalName:     "public/moonbase",
-			CanonicalName: "public/moonbase",
+			CanonicalName: "docker.io/public/moonbase",
 			Official:      false,
 		},
 		IndexServerName() + "/public/moonbase": {
@@ -507,7 +507,7 @@ func TestParseRepositoryInfo(t *testing.T) {
 			},
 			RemoteName:    "public/moonbase",
 			LocalName:     "public/moonbase",
-			CanonicalName: "public/moonbase",
+			CanonicalName: "docker.io/public/moonbase",
 			Official:      false,
 		},
 		"ubuntu-12.04-base": {
@@ -517,7 +517,7 @@ func TestParseRepositoryInfo(t *testing.T) {
 			},
 			RemoteName:    "library/ubuntu-12.04-base",
 			LocalName:     "ubuntu-12.04-base",
-			CanonicalName: "ubuntu-12.04-base",
+			CanonicalName: "docker.io/library/ubuntu-12.04-base",
 			Official:      true,
 		},
 		IndexServerName() + "/ubuntu-12.04-base": {
@@ -527,7 +527,7 @@ func TestParseRepositoryInfo(t *testing.T) {
 			},
 			RemoteName:    "library/ubuntu-12.04-base",
 			LocalName:     "ubuntu-12.04-base",
-			CanonicalName: "ubuntu-12.04-base",
+			CanonicalName: "docker.io/library/ubuntu-12.04-base",
 			Official:      true,
 		},
 		IndexServerName() + "/ubuntu-12.04-base": {
@@ -537,7 +537,7 @@ func TestParseRepositoryInfo(t *testing.T) {
 			},
 			RemoteName:    "library/ubuntu-12.04-base",
 			LocalName:     "ubuntu-12.04-base",
-			CanonicalName: "ubuntu-12.04-base",
+			CanonicalName: "docker.io/library/ubuntu-12.04-base",
 			Official:      true,
 		},
 		"index." + IndexServerName() + "/ubuntu-12.04-base": {
@@ -547,7 +547,7 @@ func TestParseRepositoryInfo(t *testing.T) {
 			},
 			RemoteName:    "library/ubuntu-12.04-base",
 			LocalName:     "ubuntu-12.04-base",
-			CanonicalName: "ubuntu-12.04-base",
+			CanonicalName: "docker.io/library/ubuntu-12.04-base",
 			Official:      true,
 		},
 	}

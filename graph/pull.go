@@ -352,9 +352,9 @@ func (s *TagStore) pullRepository(r *registry.Session, out io.Writer, repoInfo *
 		}
 	}
 
-	requestedTag := repoInfo.CanonicalName
+	requestedTag := repoInfo.LocalName
 	if len(askedTag) > 0 {
-		requestedTag = utils.ImageReference(repoInfo.CanonicalName, askedTag)
+		requestedTag = utils.ImageReference(repoInfo.LocalName, askedTag)
 	}
 	WriteStatus(requestedTag, out, sf, layersDownloaded)
 	return nil
@@ -508,9 +508,9 @@ func (s *TagStore) pullV2Repository(r *registry.Session, out io.Writer, repoInfo
 		}
 	}
 
-	requestedTag := repoInfo.CanonicalName
+	requestedTag := repoInfo.LocalName
 	if len(tag) > 0 {
-		requestedTag = utils.ImageReference(repoInfo.CanonicalName, tag)
+		requestedTag = utils.ImageReference(repoInfo.LocalName, tag)
 	}
 	WriteStatus(requestedTag, out, sf, layersDownloaded)
 	return nil
