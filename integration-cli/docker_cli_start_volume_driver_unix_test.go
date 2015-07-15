@@ -1,4 +1,3 @@
-// +build experimental
 // +build !windows
 
 package main

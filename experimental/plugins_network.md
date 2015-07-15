@@ -18,7 +18,7 @@ commands. For example,
 
     docker network create -d weave mynet
 
-Some network driver plugins are listed in [plugins.md](plugins.md)
+Some network driver plugins are listed in [plugins.md](/docs/extend/plugins.md)
 
 The network thus created is owned by the plugin, so subsequent commands
 referring to that network will also be run through the plugin.
