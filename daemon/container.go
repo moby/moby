@@ -13,7 +13,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/docker/libcontainer/label"
+	"github.com/opencontainers/runc/libcontainer/label"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/execdriver"

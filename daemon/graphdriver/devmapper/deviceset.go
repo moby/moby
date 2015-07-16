@@ -23,7 +23,7 @@ import (
 	"github.com/docker/docker/pkg/devicemapper"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/units"
-	"github.com/docker/libcontainer/label"
+	"github.com/opencontainers/runc/libcontainer/label"
 )
 
 var (
