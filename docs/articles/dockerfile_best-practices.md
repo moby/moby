@@ -158,7 +158,10 @@ updated, use `apt-get install -y foo` and it will update automatically.
 
 * Do write instructions like:
 
-    RUN apt-get update && apt-get install -y package-bar package-foo package-baz
+        RUN apt-get update && apt-get install -y \
+            package-bar \
+            package-baz \
+            package-foo
 
 Writing the instruction this way not only makes it easier to read
 and maintain, but also, by including `apt-get update`, ensures that the cache
