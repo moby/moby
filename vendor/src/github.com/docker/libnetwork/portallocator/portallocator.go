@@ -108,6 +108,9 @@ func getDynamicPortRange() (start int, end int, err error) {
 	if err != nil {
 		return 0, 0, fmt.Errorf("port allocator - %s due to error: %v", portRangeFallback, err)
 	}
+
+	defer file.Close()
+
 	n, err := fmt.Fscanf(bufio.NewReader(file), "%d\t%d", &start, &end)
 	if n != 2 || err != nil {
 		if err == nil {

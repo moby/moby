@@ -9,7 +9,6 @@ import (
 	"sync"
 
 	"github.com/Sirupsen/logrus"
-	bri "github.com/docker/libcontainer/netlink"
 	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/ipallocator"
 	"github.com/docker/libnetwork/iptables"
@@ -669,6 +668,9 @@ func (d *driver) CreateNetwork(id types.UUID, option map[string]interface{}) err
 
 		// Add inter-network communication rules.
 		{config.EnableIPTables, setupNetworkIsolationRules},
+
+		//Configure bridge networking filtering if ICC is off and IP tables are enabled
+		{!config.EnableICC && config.EnableIPTables, setupBridgeNetFiltering},
 	} {
 		if step.Condition {
 			bridgeSetup.queueStep(step.Fn)
@@ -767,7 +769,7 @@ func addToBridge(ifaceName, bridgeName string) error {
 		return fmt.Errorf("could not find bridge %s: %v", bridgeName, err)
 	}
 
-	return bri.AddToBridge(iface, master)
+	return ioctlAddToBridge(iface, master)
 }
 
 func (d *driver) CreateEndpoint(nid, eid types.UUID, epInfo driverapi.EndpointInfo, epOptions map[string]interface{}) error {
@@ -1044,7 +1046,11 @@ func (d *driver) DeleteEndpoint(nid, eid types.UUID) error {
 
 	// Release the v6 address allocated to this endpoint's sandbox interface
 	if config.EnableIPv6 {
-		err := ipAllocator.ReleaseIP(n.bridge.bridgeIPv6, ep.addrv6.IP)
+		network := n.bridge.bridgeIPv6
+		if config.FixedCIDRv6 != nil {
+			network = config.FixedCIDRv6
+		}
+		err := ipAllocator.ReleaseIP(network, ep.addrv6.IP)
 		if err != nil {
 			return err
 		}

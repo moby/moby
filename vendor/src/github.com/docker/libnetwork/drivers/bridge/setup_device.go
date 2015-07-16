@@ -2,7 +2,6 @@ package bridge
 
 import (
 	"github.com/docker/docker/pkg/parsers/kernel"
-	bri "github.com/docker/libcontainer/netlink"
 	"github.com/vishvananda/netlink"
 )
 
@@ -30,7 +29,7 @@ func setupDevice(config *networkConfiguration, i *bridgeInterface) error {
 		setMac = true
 	}
 
-	return bri.CreateBridge(config.BridgeName, setMac)
+	return ioctlCreateBridge(config.BridgeName, setMac)
 }
 
 // SetupDeviceUp ups the given bridge interface.
