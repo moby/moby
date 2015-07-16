@@ -9,7 +9,6 @@ import (
 	"sync"
 
 	"github.com/Sirupsen/logrus"
-	bri "github.com/docker/libcontainer/netlink"
 	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/ipallocator"
 	"github.com/docker/libnetwork/iptables"
@@ -770,7 +769,7 @@ func addToBridge(ifaceName, bridgeName string) error {
 		return fmt.Errorf("could not find bridge %s: %v", bridgeName, err)
 	}
 
-	return bri.AddToBridge(iface, master)
+	return ioctlAddToBridge(iface, master)
 }
 
 func (d *driver) CreateEndpoint(nid, eid types.UUID, epInfo driverapi.EndpointInfo, epOptions map[string]interface{}) error {

@@ -1,6 +1,6 @@
-// +build !arm
+// +build !arm,!ppc64
 
-package netlink
+package bridge
 
 func ifrDataByte(b byte) int8 {
 	return int8(b)

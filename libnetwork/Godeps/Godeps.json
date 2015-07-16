@@ -131,10 +131,6 @@
 			"Rev": "dab07ac62d4905d3e48d17dc549c684ac3b7c15a"
 		},
 		{
-			"ImportPath": "github.com/vishvananda/netlink",
-			"Rev": "20397a138846e4d6590e01783ed023ed7e1c38a6"
-		},
-		{
 			"ImportPath": "github.com/vishvananda/netns",
 			"Rev": "493029407eeb434d0c2d44e02ea072ff2488d322"
 		}
