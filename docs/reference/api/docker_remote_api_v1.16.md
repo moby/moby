@@ -43,6 +43,7 @@ List containers
         [
              {
                      "Id": "8dfafdbc3a40",
+                     "Names":["/boring_feynman"],
                      "Image": "ubuntu:latest",
                      "Command": "echo 1",
                      "Created": 1367854155,
@@ -53,6 +54,7 @@ List containers
              },
              {
                      "Id": "9cd87474be90",
+                     "Names":["/coolName"],
                      "Image": "ubuntu:latest",
                      "Command": "echo 222222",
                      "Created": 1367854155,
@@ -63,6 +65,7 @@ List containers
              },
              {
                      "Id": "3176a2479c92",
+                     "Names":["/sleep_dog"],
                      "Image": "ubuntu:latest",
                      "Command": "echo 3333333333333333",
                      "Created": 1367854154,
@@ -73,6 +76,7 @@ List containers
              },
              {
                      "Id": "4cb07b47f9fb",
+                     "Names":["/running_cat"],
                      "Image": "ubuntu:latest",
                      "Command": "echo 444444444444444444444444444444444",
                      "Created": 1367854152,
