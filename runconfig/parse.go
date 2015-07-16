@@ -267,7 +267,10 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 			return nil, nil, cmd, fmt.Errorf("Invalid range format for --expose: %s, error: %s", e, err)
 		}
 		for i := start; i <= end; i++ {
-			p := nat.NewPort(proto, strconv.FormatUint(i, 10))
+			p, err := nat.NewPort(proto, strconv.FormatUint(i, 10))
+			if err != nil {
+				return nil, nil, cmd, err
+			}
 			if _, exists := ports[p]; !exists {
 				ports[p] = struct{}{}
 			}

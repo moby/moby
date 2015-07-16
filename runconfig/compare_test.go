@@ -6,17 +6,23 @@ import (
 	"github.com/docker/docker/pkg/nat"
 )
 
+// Just to make life easier
+func newPortNoError(proto, port string) nat.Port {
+	p, _ := nat.NewPort(proto, port)
+	return p
+}
+
 func TestCompare(t *testing.T) {
 	ports1 := make(nat.PortSet)
-	ports1[nat.Port("1111/tcp")] = struct{}{}
-	ports1[nat.Port("2222/tcp")] = struct{}{}
+	ports1[newPortNoError("tcp", "1111")] = struct{}{}
+	ports1[newPortNoError("tcp", "2222")] = struct{}{}
 	ports2 := make(nat.PortSet)
-	ports2[nat.Port("3333/tcp")] = struct{}{}
-	ports2[nat.Port("4444/tcp")] = struct{}{}
+	ports2[newPortNoError("tcp", "3333")] = struct{}{}
+	ports2[newPortNoError("tcp", "4444")] = struct{}{}
 	ports3 := make(nat.PortSet)
-	ports3[nat.Port("1111/tcp")] = struct{}{}
-	ports3[nat.Port("2222/tcp")] = struct{}{}
-	ports3[nat.Port("5555/tcp")] = struct{}{}
+	ports3[newPortNoError("tcp", "1111")] = struct{}{}
+	ports3[newPortNoError("tcp", "2222")] = struct{}{}
+	ports3[newPortNoError("tcp", "5555")] = struct{}{}
 	volumes1 := make(map[string]struct{})
 	volumes1["/test1"] = struct{}{}
 	volumes2 := make(map[string]struct{})

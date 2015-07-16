@@ -872,6 +872,32 @@ func (s *DockerSuite) TestContainerApiCommitWithLabelInConfig(c *check.C) {
 	dockerCmd(c, "run", img.Id, "ls", "/test")
 }
 
+func (s *DockerSuite) TestContainerApiBadPort(c *check.C) {
+	config := map[string]interface{}{
+		"Image": "busybox",
+		"Cmd":   []string{"/bin/sh", "-c", "echo test"},
+		"PortBindings": map[string]interface{}{
+			"8080/tcp": []map[string]interface{}{
+				{
+					"HostIp":   "",
+					"HostPort": "aa80",
+				},
+			},
+		},
+	}
+
+	jsonData := bytes.NewBuffer(nil)
+	json.NewEncoder(jsonData).Encode(config)
+
+	status, b, err := sockRequest("POST", "/containers/create", config)
+	c.Assert(err, check.IsNil)
+	c.Assert(status, check.Equals, http.StatusInternalServerError)
+
+	if strings.TrimSpace(string(b)) != `Invalid port specification: "aa80"` {
+		c.Fatalf("Incorrect error msg: %s", string(b))
+	}
+}
+
 func (s *DockerSuite) TestContainerApiCreate(c *check.C) {
 	config := map[string]interface{}{
 		"Image": "busybox",
