@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/libcontainer/cgroups"
+	"github.com/opencontainers/runc/libcontainer/cgroups"
 )
 
 // New returns a new SysInfo, using the filesystem to detect which features the kernel supports.

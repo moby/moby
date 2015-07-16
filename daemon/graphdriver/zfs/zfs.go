@@ -17,8 +17,8 @@ import (
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/parsers"
-	"github.com/docker/libcontainer/label"
 	zfs "github.com/mistifyio/go-zfs"
+	"github.com/opencontainers/runc/libcontainer/label"
 )
 
 type ZfsOptions struct {
