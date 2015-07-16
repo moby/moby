@@ -6,17 +6,16 @@ import (
 	"sync"
 )
 
+// RequestModifier represents an object which will do an inplace
+// modification of an HTTP request.
 type RequestModifier interface {
 	ModifyRequest(*http.Request) error
 }
 
 type headerModifier http.Header
 
-// NewHeaderRequestModifier returns a RequestModifier that merges the HTTP headers
-// passed as an argument, with the HTTP headers of a request.
-//
-// If the same key is present in both, the modifying header values for that key,
-// are appended to the values for that same key in the request header.
+// NewHeaderRequestModifier returns a new RequestModifier which will
+// add the given headers to a request.
 func NewHeaderRequestModifier(header http.Header) RequestModifier {
 	return headerModifier(header)
 }
@@ -29,9 +28,8 @@ func (h headerModifier) ModifyRequest(req *http.Request) error {
 	return nil
 }
 
-// NewTransport returns an http.RoundTripper that modifies requests according to
-// the RequestModifiers passed in the arguments, before sending the requests to
-// the base http.RoundTripper (which, if nil, defaults to http.DefaultTransport).
+// NewTransport creates a new transport which will apply modifiers to
+// the request on a RoundTrip call.
 func NewTransport(base http.RoundTripper, modifiers ...RequestModifier) http.RoundTripper {
 	return &transport{
 		Modifiers: modifiers,
@@ -49,8 +47,11 @@ type transport struct {
 	modReq map[*http.Request]*http.Request // original -> modified
 }
 
+// RoundTrip authorizes and authenticates the request with an
+// access token. If no token exists or token is expired,
+// tries to refresh/fetch a new token.
 func (t *transport) RoundTrip(req *http.Request) (*http.Response, error) {
-	req2 := CloneRequest(req)
+	req2 := cloneRequest(req)
 	for _, modifier := range t.Modifiers {
 		if err := modifier.ModifyRequest(req2); err != nil {
 			return nil, err
@@ -63,9 +64,9 @@ func (t *transport) RoundTrip(req *http.Request) (*http.Response, error) {
 		t.setModReq(req, nil)
 		return nil, err
 	}
-	res.Body = &OnEOFReader{
-		Rc: res.Body,
-		Fn: func() { t.setModReq(req, nil) },
+	res.Body = &onEOFReader{
+		rc: res.Body,
+		fn: func() { t.setModReq(req, nil) },
 	}
 	return res, nil
 }
@@ -104,9 +105,9 @@ func (t *transport) setModReq(orig, mod *http.Request) {
 	}
 }
 
-// CloneRequest returns a clone of the provided *http.Request.
+// cloneRequest returns a clone of the provided *http.Request.
 // The clone is a shallow copy of the struct and its Header map.
-func CloneRequest(r *http.Request) *http.Request {
+func cloneRequest(r *http.Request) *http.Request {
 	// shallow copy of the struct
 	r2 := new(http.Request)
 	*r2 = *r
@@ -119,30 +120,28 @@ func CloneRequest(r *http.Request) *http.Request {
 	return r2
 }
 
-// OnEOFReader ensures a callback function is called
-// on Close() and when the underlying Reader returns an io.EOF error
-type OnEOFReader struct {
-	Rc io.ReadCloser
-	Fn func()
+type onEOFReader struct {
+	rc io.ReadCloser
+	fn func()
 }
 
-func (r *OnEOFReader) Read(p []byte) (n int, err error) {
-	n, err = r.Rc.Read(p)
+func (r *onEOFReader) Read(p []byte) (n int, err error) {
+	n, err = r.rc.Read(p)
 	if err == io.EOF {
 		r.runFunc()
 	}
 	return
 }
 
-func (r *OnEOFReader) Close() error {
-	err := r.Rc.Close()
+func (r *onEOFReader) Close() error {
+	err := r.rc.Close()
 	r.runFunc()
 	return err
 }
 
-func (r *OnEOFReader) runFunc() {
-	if fn := r.Fn; fn != nil {
+func (r *onEOFReader) runFunc() {
+	if fn := r.fn; fn != nil {
 		fn()
-		r.Fn = nil
+		r.fn = nil
 	}
 }

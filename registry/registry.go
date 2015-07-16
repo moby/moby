@@ -2,26 +2,21 @@ package registry
 
 import (
 	"crypto/tls"
-	"crypto/x509"
 	"errors"
-	"fmt"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"os"
-	"path"
-	"path/filepath"
 	"runtime"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/distribution/registry/api/errcode"
+	"github.com/docker/distribution/registry/api/v2"
+	"github.com/docker/distribution/registry/client/transport"
 	"github.com/docker/docker/autogen/dockerversion"
 	"github.com/docker/docker/pkg/parsers/kernel"
-	"github.com/docker/docker/pkg/timeoutconn"
 	"github.com/docker/docker/pkg/tlsconfig"
-	"github.com/docker/docker/pkg/transport"
 	"github.com/docker/docker/pkg/useragent"
 )
 
@@ -57,135 +52,13 @@ func init() {
 	dockerUserAgent = useragent.AppendVersions("", httpVersion...)
 }
 
-type httpsRequestModifier struct {
-	mu        sync.Mutex
-	tlsConfig *tls.Config
-}
-
-// DRAGONS(tiborvass): If someone wonders why do we set tlsconfig in a roundtrip,
-// it's because it's so as to match the current behavior in master: we generate the
-// certpool on every-goddam-request. It's not great, but it allows people to just put
-// the certs in /etc/docker/certs.d/.../ and let docker "pick it up" immediately. Would
-// prefer an fsnotify implementation, but that was out of scope of my refactoring.
-func (m *httpsRequestModifier) ModifyRequest(req *http.Request) error {
-	var (
-		roots   *x509.CertPool
-		certs   []tls.Certificate
-		hostDir string
-	)
-
-	if req.URL.Scheme == "https" {
-		hasFile := func(files []os.FileInfo, name string) bool {
-			for _, f := range files {
-				if f.Name() == name {
-					return true
-				}
-			}
-			return false
-		}
-
-		if runtime.GOOS == "windows" {
-			hostDir = path.Join(os.TempDir(), "/docker/certs.d", req.URL.Host)
-		} else {
-			hostDir = path.Join("/etc/docker/certs.d", req.URL.Host)
-		}
-		logrus.Debugf("hostDir: %s", hostDir)
-		fs, err := ioutil.ReadDir(hostDir)
-		if err != nil && !os.IsNotExist(err) {
-			return nil
-		}
-
-		for _, f := range fs {
-			if strings.HasSuffix(f.Name(), ".crt") {
-				if roots == nil {
-					roots = x509.NewCertPool()
-				}
-				logrus.Debugf("crt: %s", hostDir+"/"+f.Name())
-				data, err := ioutil.ReadFile(filepath.Join(hostDir, f.Name()))
-				if err != nil {
-					return err
-				}
-				roots.AppendCertsFromPEM(data)
-			}
-			if strings.HasSuffix(f.Name(), ".cert") {
-				certName := f.Name()
-				keyName := certName[:len(certName)-5] + ".key"
-				logrus.Debugf("cert: %s", hostDir+"/"+f.Name())
-				if !hasFile(fs, keyName) {
-					return fmt.Errorf("Missing key %s for certificate %s", keyName, certName)
-				}
-				cert, err := tls.LoadX509KeyPair(filepath.Join(hostDir, certName), path.Join(hostDir, keyName))
-				if err != nil {
-					return err
-				}
-				certs = append(certs, cert)
-			}
-			if strings.HasSuffix(f.Name(), ".key") {
-				keyName := f.Name()
-				certName := keyName[:len(keyName)-4] + ".cert"
-				logrus.Debugf("key: %s", hostDir+"/"+f.Name())
-				if !hasFile(fs, certName) {
-					return fmt.Errorf("Missing certificate %s for key %s", certName, keyName)
-				}
-			}
-		}
-		m.mu.Lock()
-		m.tlsConfig.RootCAs = roots
-		m.tlsConfig.Certificates = certs
-		m.mu.Unlock()
-	}
-	return nil
-}
-
-func NewTransport(timeout TimeoutType, secure bool) http.RoundTripper {
-	tlsConfig := &tls.Config{
-		// Avoid fallback to SSL protocols < TLS1.0
-		MinVersion:         tls.VersionTLS10,
-		InsecureSkipVerify: !secure,
-		CipherSuites:       tlsconfig.DefaultServerAcceptedCiphers,
-	}
-
-	tr := &http.Transport{
-		DisableKeepAlives: true,
-		Proxy:             http.ProxyFromEnvironment,
-		TLSClientConfig:   tlsConfig,
-	}
-
-	switch timeout {
-	case ConnectTimeout:
-		tr.Dial = func(proto string, addr string) (net.Conn, error) {
-			// Set the connect timeout to 30 seconds to allow for slower connection
-			// times...
-			d := net.Dialer{Timeout: 30 * time.Second, DualStack: true}
-
-			conn, err := d.Dial(proto, addr)
-			if err != nil {
-				return nil, err
-			}
-			// Set the recv timeout to 10 seconds
-			conn.SetDeadline(time.Now().Add(10 * time.Second))
-			return conn, nil
-		}
-	case ReceiveTimeout:
-		tr.Dial = func(proto string, addr string) (net.Conn, error) {
-			d := net.Dialer{DualStack: true}
-
-			conn, err := d.Dial(proto, addr)
-			if err != nil {
-				return nil, err
-			}
-			conn = timeoutconn.New(conn, 1*time.Minute)
-			return conn, nil
+func hasFile(files []os.FileInfo, name string) bool {
+	for _, f := range files {
+		if f.Name() == name {
+			return true
 		}
 	}
-
-	if secure {
-		// note: httpsTransport also handles http transport
-		// but for HTTPS, it sets up the certs
-		return transport.NewTransport(tr, &httpsRequestModifier{tlsConfig: tlsConfig})
-	}
-
-	return tr
+	return false
 }
 
 // DockerHeaders returns request modifiers that ensure requests have
@@ -202,10 +75,6 @@ func DockerHeaders(metaHeaders http.Header) []transport.RequestModifier {
 }
 
 func HTTPClient(transport http.RoundTripper) *http.Client {
-	if transport == nil {
-		transport = NewTransport(ConnectTimeout, true)
-	}
-
 	return &http.Client{
 		Transport:     transport,
 		CheckRedirect: AddRequiredHeadersToRedirectedRequests,
@@ -244,4 +113,53 @@ func AddRequiredHeadersToRedirectedRequests(req *http.Request, via []*http.Reque
 		}
 	}
 	return nil
+}
+
+func shouldV2Fallback(err errcode.Error) bool {
+	logrus.Debugf("v2 error: %T %v", err, err)
+	switch err.Code {
+	case v2.ErrorCodeUnauthorized, v2.ErrorCodeManifestUnknown:
+		return true
+	}
+	return false
+}
+
+type ErrNoSupport struct{ Err error }
+
+func (e ErrNoSupport) Error() string {
+	if e.Err == nil {
+		return "not supported"
+	}
+	return e.Err.Error()
+}
+
+func ContinueOnError(err error) bool {
+	switch v := err.(type) {
+	case errcode.Errors:
+		return ContinueOnError(v[0])
+	case ErrNoSupport:
+		return ContinueOnError(v.Err)
+	case errcode.Error:
+		return shouldV2Fallback(v)
+	}
+	return false
+}
+
+func NewTransport(tlsConfig *tls.Config) *http.Transport {
+	if tlsConfig == nil {
+		var cfg = tlsconfig.ServerDefault
+		tlsConfig = &cfg
+	}
+	return &http.Transport{
+		Proxy: http.ProxyFromEnvironment,
+		Dial: (&net.Dialer{
+			Timeout:   30 * time.Second,
+			KeepAlive: 30 * time.Second,
+			DualStack: true,
+		}).Dial,
+		TLSHandshakeTimeout: 10 * time.Second,
+		TLSClientConfig:     tlsConfig,
+		// TODO(dmcgowan): Call close idle connections when complete and use keep alive
+		DisableKeepAlives: true,
+	}
 }

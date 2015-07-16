@@ -1,0 +1,38 @@
+image: dmp42/go:stable
+
+script:
+  # To be spoofed back into the test image
+  - go get github.com/modocache/gover
+
+  - go get -t ./...
+
+  # Go fmt
+  - test -z "$(gofmt -s -l -w .     | tee /dev/stderr)"
+  # Go lint
+  - test -z "$(golint ./...          | tee /dev/stderr)"
+  # Go vet
+  - go vet ./...
+  # Go test
+  - go test -v -race -cover ./...
+  # Helper to concatenate reports
+  - gover
+  # Send to coverall
+  - goveralls -service drone.io -coverprofile=gover.coverprofile -repotoken {{COVERALLS_TOKEN}}
+
+  # Do we want these as well?
+  # - go get code.google.com/p/go.tools/cmd/goimports
+  # - test -z "$(goimports -l -w ./... | tee /dev/stderr)"
+  # http://labix.org/gocheck
+
+notify:
+    email:
+        recipients:
+            - distribution@docker.com
+
+    slack:
+        team: docker
+        channel: "#dt"
+        username: mom
+        token: {{SLACK_TOKEN}}
+        on_success: true
+        on_failure: true
