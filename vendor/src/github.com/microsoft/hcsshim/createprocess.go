@@ -54,7 +54,7 @@ func CreateProcessInComputeSystem(id string, params CreateProcessParams) (proces
 
 	paramsJson, err := json.Marshal(params)
 	if err != nil {
-		err = fmt.Errorf(title+" - Failed to marshall params %s %s", params, err)
+		err = fmt.Errorf(title+" - Failed to marshall params %v %s", params, err)
 		return 0, err
 	}
 
@@ -79,7 +79,7 @@ func CreateProcessInComputeSystem(id string, params CreateProcessParams) (proces
 	use(unsafe.Pointer(paramsJsonp))
 
 	if r1 != 0 {
-		err = fmt.Errorf(title+" - Win32 API call returned error r1=%d err=%s id=%s params=%s", r1, syscall.Errno(r1), id, params)
+		err = fmt.Errorf(title+" - Win32 API call returned error r1=%d err=%s id=%s params=%v", r1, syscall.Errno(r1), id, params)
 		logrus.Error(err)
 		return 0, err
 	}

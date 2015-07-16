@@ -23,19 +23,6 @@ func CreateComputeSystem(id string, configuration string) error {
 		return err
 	}
 
-	/*
-		Example configuration JSON below. RootDevicePath MUST use \\ not \ as path
-		separator. TODO Windows: Update this JSON sample with final API.
-
-		{
-		    "SystemType" : "Container",
-			"Name" : "ContainerName",
-		    "RootDevicePath" : "C:\\Containers\\test",
-			"IsDummy" : true
-		}
-
-	*/
-
 	// Convert id to uint16 pointers for calling the procedure
 	idp, err := syscall.UTF16PtrFromString(id)
 	if err != nil {
