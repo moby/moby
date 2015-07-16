@@ -11,10 +11,10 @@ for i in ls -l /docs/content/*
         y=${i##*/}
         find $i -type f -name "*.md" -exec sed -i.old \
         -e '/^<!.*metadata]>/g' \
+	-e '/(https:\/\//!s/(\([^)]*\.md\))/({{< relref "\1" >}})/g' \
         -e '/^<!.*end-metadata.*>/g' {} \;
     fi
 done
-
 
 
 
