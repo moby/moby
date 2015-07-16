@@ -42,7 +42,11 @@ func TestParsePort(t *testing.T) {
 }
 
 func TestPort(t *testing.T) {
-	p := NewPort("tcp", "1234")
+	p, err := NewPort("tcp", "1234")
+
+	if err != nil {
+		t.Fatalf("tcp, 1234 had a parsing issue: %v", err)
+	}
 
 	if string(p) != "1234/tcp" {
 		t.Fatal("tcp, 1234 did not result in the string 1234/tcp")
@@ -58,6 +62,11 @@ func TestPort(t *testing.T) {
 
 	if p.Int() != 1234 {
 		t.Fatal("port int value was not 1234")
+	}
+
+	p, err = NewPort("tcp", "asd1234")
+	if err == nil {
+		t.Fatal("tcp, asd1234 was supposed to fail")
 	}
 }
 
