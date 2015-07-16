@@ -4,7 +4,7 @@ import (
 	"os"
 	"runtime"
 
-	"github.com/docker/libcontainer/user"
+	"github.com/opencontainers/runc/libcontainer/user"
 )
 
 // Key returns the env var name for the user's home dir based on
