@@ -537,14 +537,15 @@ func (s *TagStore) pullV2Tag(r *registry.Session, out io.Writer, endpoint *regis
 	out.Write(sf.FormatStatus(tag, "Pulling from %s", repoInfo.CanonicalName))
 
 	// downloadInfo is used to pass information from download to extractor
+	// tmpFile will be set if and only if the download was successful
 	type downloadInfo struct {
-		imgJSON    []byte
-		img        *Image
-		digest     digest.Digest
-		tmpFile    *os.File
-		length     int64
-		downloaded bool
-		err        chan error
+		imgJSON           []byte
+		img               *Image
+		digest            digest.Digest
+		tmpFile           *os.File
+		length            int64
+		shouldReleaseLock bool
+		err               chan error
 	}
 
 	downloads := make([]downloadInfo, len(manifest.FSLayers))
@@ -587,7 +588,7 @@ func (s *TagStore) pullV2Tag(r *registry.Session, out io.Writer, endpoint *regis
 					logrus.Debugf("Image (id: %s) pull is already running, skipping: %v", img.ID, err)
 				}
 			} else {
-				defer s.poolRemove("pull", "img:"+img.ID)
+				di.shouldReleaseLock = true
 				tmpFile, err := ioutil.TempFile("", "GetV2ImageBlob")
 				if err != nil {
 					return err
@@ -627,7 +628,6 @@ func (s *TagStore) pullV2Tag(r *registry.Session, out io.Writer, endpoint *regis
 				logrus.Debugf("Downloaded %s to tempfile %s", img.ID, tmpFile.Name())
 				di.tmpFile = tmpFile
 				di.length = l
-				di.downloaded = true
 			}
 			di.imgJSON = imgJSON
 
@@ -640,20 +640,35 @@ func (s *TagStore) pullV2Tag(r *registry.Session, out io.Writer, endpoint *regis
 		}(&downloads[i])
 	}
 
+	// Register the images serially. We must wait for all downloads to complete if one fails,
+	// in order to cleanup the others.
+	var firstErr error
 	var tagUpdated bool
 	for i := len(downloads) - 1; i >= 0; i-- {
-		d := &downloads[i]
-		if d.err != nil {
-			if err := <-d.err; err != nil {
-				return false, err
+		registerFunc := func(d *downloadInfo, pullAborted bool) error {
+			// Cleanup is guaranteed to be invoked only after the download routine exits.
+			defer func() {
+				if d.shouldReleaseLock {
+					s.poolRemove("pull", "img:"+d.img.ID)
+				}
+				if d.tmpFile != nil {
+					d.tmpFile.Close()
+					os.Remove(d.tmpFile.Name())
+				}
+			}()
+
+			if d.err != nil {
+				if err := <-d.err; err != nil {
+					return err
+				}
 			}
-		}
-		if d.downloaded {
-			// if tmpFile is empty assume download and extracted elsewhere
-			defer os.Remove(d.tmpFile.Name())
-			defer d.tmpFile.Close()
-			d.tmpFile.Seek(0, 0)
+
+			if pullAborted {
+				return nil
+			}
+
 			if d.tmpFile != nil {
+				d.tmpFile.Seek(0, 0)
 				err = s.graph.Register(d.img,
 					progressreader.New(progressreader.Config{
 						In:        d.tmpFile,
@@ -664,21 +679,26 @@ func (s *TagStore) pullV2Tag(r *registry.Session, out io.Writer, endpoint *regis
 						Action:    "Extracting",
 					}))
 				if err != nil {
-					return false, err
+					return err
 				}
-
 				if err := s.graph.SetDigest(d.img.ID, d.digest); err != nil {
-					return false, err
+					return err
 				}
-
-				// FIXME: Pool release here for parallel tag pull (ensures any downloads block until fully extracted)
+				out.Write(sf.FormatProgress(stringid.TruncateID(d.img.ID), "Pull complete", nil))
+				tagUpdated = true
+			} else {
+				out.Write(sf.FormatProgress(stringid.TruncateID(d.img.ID), "Already exists", nil))
 			}
-			out.Write(sf.FormatProgress(stringid.TruncateID(d.img.ID), "Pull complete", nil))
-			tagUpdated = true
-		} else {
-			out.Write(sf.FormatProgress(stringid.TruncateID(d.img.ID), "Already exists", nil))
+			return nil
 		}
+		err := registerFunc(&downloads[i], firstErr != nil)
+		if firstErr == nil {
+			firstErr = err
+		}
+	}
 
+	if firstErr != nil {
+		return false, firstErr
 	}
 
 	// Check for new tag if no layers downloaded
