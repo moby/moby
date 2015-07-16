@@ -112,4 +112,4 @@ For example, to specify both additional options:
 
 If container cannot connect to the Fluentd daemon on the specified address,
 the container stops immediately. For detailed information on working with this
-logging driver, see [the journald logging driver](/reference/logging/fluentd/)
+logging driver, see [the fluentd logging driver](/reference/logging/fluentd/)
