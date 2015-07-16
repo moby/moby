@@ -111,7 +111,7 @@ func programRoute(path string, dest *net.IPNet, nh net.IP) error {
 		return netlink.RouteAdd(&netlink.Route{
 			Scope:     netlink.SCOPE_UNIVERSE,
 			LinkIndex: gwRoutes[0].LinkIndex,
-			Gw:        gwRoutes[0].Gw,
+			Gw:        nh,
 			Dst:       dest,
 		})
 	})
@@ -128,7 +128,7 @@ func removeRoute(path string, dest *net.IPNet, nh net.IP) error {
 		return netlink.RouteDel(&netlink.Route{
 			Scope:     netlink.SCOPE_UNIVERSE,
 			LinkIndex: gwRoutes[0].LinkIndex,
-			Gw:        gwRoutes[0].Gw,
+			Gw:        nh,
 			Dst:       dest,
 		})
 	})
