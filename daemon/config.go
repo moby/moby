@@ -17,11 +17,9 @@ type CommonConfig struct {
 	AutoRestart    bool
 	Bridge         bridgeConfig // Bridge holds bridge network specific configuration.
 	Context        map[string][]string
-	CorsHeaders    string
 	DisableBridge  bool
 	Dns            []string
 	DnsSearch      []string
-	EnableCors     bool
 	ExecDriver     string
 	ExecOptions    []string
 	ExecRoot       string
@@ -51,8 +49,6 @@ func (config *Config) InstallCommonFlags(cmd *flag.FlagSet, usageFn func(string)
 	cmd.StringVar(&config.GraphDriver, []string{"s", "-storage-driver"}, "", usageFn("Storage driver to use"))
 	cmd.StringVar(&config.ExecDriver, []string{"e", "-exec-driver"}, defaultExec, usageFn("Exec driver to use"))
 	cmd.IntVar(&config.Mtu, []string{"#mtu", "-mtu"}, 0, usageFn("Set the containers network MTU"))
-	cmd.BoolVar(&config.EnableCors, []string{"#api-enable-cors", "#-api-enable-cors"}, false, usageFn("Enable CORS headers in the remote API, this is deprecated by --api-cors-header"))
-	cmd.StringVar(&config.CorsHeaders, []string{"-api-cors-header"}, "", usageFn("Set CORS headers in the remote API"))
 	// FIXME: why the inconsistency between "hosts" and "sockets"?
 	cmd.Var(opts.NewListOptsRef(&config.Dns, opts.ValidateIPAddress), []string{"#dns", "-dns"}, usageFn("DNS server to use"))
 	cmd.Var(opts.NewListOptsRef(&config.DnsSearch, opts.ValidateDNSSearch), []string{"-dns-search"}, usageFn("DNS search domains to use"))

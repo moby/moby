@@ -60,3 +60,9 @@ func allocateDaemonPort(addr string) error {
 
 func adjustCpuShares(version version.Version, hostConfig *runconfig.HostConfig) {
 }
+
+// getContainersByNameDownlevel performs processing for pre 1.20 APIs. This
+// is only relevant on non-Windows daemons.
+func getContainersByNameDownlevel(w http.ResponseWriter, s *Server, namevar string) error {
+	return nil
+}

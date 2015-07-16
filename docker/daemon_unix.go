@@ -17,6 +17,9 @@ import (
 
 func setPlatformServerConfig(serverConfig *apiserver.ServerConfig, daemonCfg *daemon.Config) *apiserver.ServerConfig {
 	serverConfig.SocketGroup = daemonCfg.SocketGroup
+	serverConfig.EnableCors = daemonCfg.EnableCors
+	serverConfig.CorsHeaders = daemonCfg.CorsHeaders
+
 	return serverConfig
 }
 

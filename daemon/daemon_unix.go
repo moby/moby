@@ -539,3 +539,17 @@ func (daemon *Daemon) RegisterLinks(container *Container, hostConfig *runconfig.
 
 	return nil
 }
+
+func (daemon *Daemon) newBaseContainer(id string) Container {
+	return Container{
+		CommonContainer: CommonContainer{
+			ID:           id,
+			State:        NewState(),
+			execCommands: newExecStore(),
+			root:         daemon.containerRoot(id),
+		},
+		MountPoints: make(map[string]*mountPoint),
+		Volumes:     make(map[string]string),
+		VolumesRW:   make(map[string]bool),
+	}
+}
