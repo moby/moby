@@ -48,7 +48,11 @@ func (cli *DockerCli) CmdPort(args ...string) error {
 			proto = parts[1]
 		}
 		natPort := port + "/" + proto
-		if frontends, exists := c.NetworkSettings.Ports[nat.Port(port+"/"+proto)]; exists && frontends != nil {
+		newP, err := nat.NewPort(proto, port)
+		if err != nil {
+			return err
+		}
+		if frontends, exists := c.NetworkSettings.Ports[newP]; exists && frontends != nil {
 			for _, frontend := range frontends {
 				fmt.Fprintf(cli.out, "%s:%s\n", frontend.HostIp, frontend.HostPort)
 			}
