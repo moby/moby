@@ -89,13 +89,16 @@ func (tr *authTransport) RoundTrip(orig *http.Request) (*http.Response, error) {
 	tr.mu.Unlock()
 
 	if tr.alwaysSetBasicAuth {
+		if tr.AuthConfig == nil {
+			return nil, errors.New("unexpected error: empty auth config")
+		}
 		req.SetBasicAuth(tr.Username, tr.Password)
 		return tr.RoundTripper.RoundTrip(req)
 	}
 
 	// Don't override
 	if req.Header.Get("Authorization") == "" {
-		if req.Header.Get("X-Docker-Token") == "true" && len(tr.Username) > 0 {
+		if req.Header.Get("X-Docker-Token") == "true" && tr.AuthConfig != nil && len(tr.Username) > 0 {
 			req.SetBasicAuth(tr.Username, tr.Password)
 		} else if len(tr.token) > 0 {
 			req.Header.Set("Authorization", "Token "+strings.Join(tr.token, ","))
