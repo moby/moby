@@ -17,7 +17,7 @@ import (
 // path does not refer to a directory.
 var ErrExtractPointNotDirectory = errors.New("extraction point is not a directory")
 
-// ContainerCopy performs a depracated operation of archiving the resource at
+// ContainerCopy performs a deprecated operation of archiving the resource at
 // the specified path in the conatiner identified by the given name.
 func (daemon *Daemon) ContainerCopy(name string, res string) (io.ReadCloser, error) {
 	container, err := daemon.Get(name)
@@ -25,7 +25,7 @@ func (daemon *Daemon) ContainerCopy(name string, res string) (io.ReadCloser, err
 		return nil, err
 	}
 
-	if res[0] == '/' {
+	if res[0] == '/' || res[0] == '\\' {
 		res = res[1:]
 	}
 
@@ -90,7 +90,7 @@ func (container *Container) StatPath(path string) (stat *types.ContainerPathStat
 	// Consider the given path as an absolute path in the container.
 	absPath := path
 	if !filepath.IsAbs(absPath) {
-		absPath = archive.PreserveTrailingDotOrSeparator(filepath.Join("/", path), path)
+		absPath = archive.PreserveTrailingDotOrSeparator(filepath.Join(string(os.PathSeparator), path), path)
 	}
 
 	resolvedPath, err := container.GetResourcePath(absPath)
@@ -157,7 +157,7 @@ func (container *Container) ArchivePath(path string) (content io.ReadCloser, sta
 	// Consider the given path as an absolute path in the container.
 	absPath := path
 	if !filepath.IsAbs(absPath) {
-		absPath = archive.PreserveTrailingDotOrSeparator(filepath.Join("/", path), path)
+		absPath = archive.PreserveTrailingDotOrSeparator(filepath.Join(string(os.PathSeparator), path), path)
 	}
 
 	resolvedPath, err := container.GetResourcePath(absPath)
@@ -230,7 +230,7 @@ func (container *Container) ExtractToDir(path string, noOverwriteDirNonDir bool,
 	// Consider the given path as an absolute path in the container.
 	absPath := path
 	if !filepath.IsAbs(absPath) {
-		absPath = archive.PreserveTrailingDotOrSeparator(filepath.Join("/", path), path)
+		absPath = archive.PreserveTrailingDotOrSeparator(filepath.Join(string(os.PathSeparator), path), path)
 	}
 
 	resolvedPath, err := container.GetResourcePath(absPath)
@@ -261,19 +261,14 @@ func (container *Container) ExtractToDir(path string, noOverwriteDirNonDir bool,
 	if err != nil {
 		return err
 	}
-	absPath = filepath.Join("/", baseRel)
+	absPath = filepath.Join(string(os.PathSeparator), baseRel)
 
 	// Need to check if the path is in a volume. If it is, it cannot be in a
 	// read-only volume. If it is not in a volume, the container cannot be
 	// configured with a read-only rootfs.
-	var toVolume bool
-	for _, mnt := range container.MountPoints {
-		if toVolume = mnt.hasResource(absPath); toVolume {
-			if mnt.RW {
-				break
-			}
-			return ErrVolumeReadonly
-		}
+	toVolume, err := checkIfPathIsInAVolume(container, absPath)
+	if err != nil {
+		return err
 	}
 
 	if !toVolume && container.hostConfig.ReadonlyRootfs {

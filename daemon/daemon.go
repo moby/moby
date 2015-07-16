@@ -144,19 +144,17 @@ func (daemon *Daemon) containerRoot(id string) string {
 // Load reads the contents of a container from disk
 // This is typically done at startup.
 func (daemon *Daemon) load(id string) (*Container, error) {
-	container := &Container{
-		CommonContainer: daemon.newBaseContainer(id),
-	}
+	container := daemon.newBaseContainer(id)
 
 	if err := container.FromDisk(); err != nil {
 		return nil, err
 	}
 
 	if container.ID != id {
-		return container, fmt.Errorf("Container %s is stored at %s", container.ID, id)
+		return &container, fmt.Errorf("Container %s is stored at %s", container.ID, id)
 	}
 
-	return container, nil
+	return &container, nil
 }
 
 // Register makes a container object usable by the daemon as <container.ID>
@@ -478,11 +476,7 @@ func (daemon *Daemon) newContainer(name string, config *runconfig.Config, imgID 
 	base.Driver = daemon.driver.String()
 	base.ExecDriver = daemon.execDriver.Name()
 
-	container := &Container{
-		CommonContainer: base,
-	}
-
-	return container, err
+	return &base, err
 }
 
 func GetFullContainerName(name string) (string, error) {
@@ -945,18 +939,6 @@ func (daemon *Daemon) setHostConfig(container *Container, hostConfig *runconfig.
 	container.hostConfig = hostConfig
 	container.toDisk()
 	return nil
-}
-
-func (daemon *Daemon) newBaseContainer(id string) CommonContainer {
-	return CommonContainer{
-		ID:           id,
-		State:        NewState(),
-		MountPoints:  make(map[string]*mountPoint),
-		Volumes:      make(map[string]string),
-		VolumesRW:    make(map[string]bool),
-		execCommands: newExecStore(),
-		root:         daemon.containerRoot(id),
-	}
 }
 
 func setDefaultMtu(config *Config) {
