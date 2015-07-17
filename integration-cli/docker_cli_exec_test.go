@@ -449,7 +449,7 @@ func (s *DockerSuite) TestInspectExecID(c *check.C) {
 		if out != "[]" && out != "<no value>" {
 			break
 		}
-		if i == tries {
+		if i+1 == tries {
 			c.Fatalf("ExecIDs should not be empty, got: %s", out)
 		}
 		time.Sleep(1 * time.Second)
