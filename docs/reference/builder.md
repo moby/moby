@@ -25,31 +25,36 @@ Dockerfile knowledge with the [Dockerfile tutorial](/userguide/level1).
 
 ## Usage
 
-To [*build*](/reference/commandline/cli/#build) an image from a source repository,
-create a description file called `Dockerfile` at the root of your repository.
-This file will describe the steps to assemble the image.
+The `Dockerfile` is used by
+[`docker build`](/reference/commandline/cli/#build) to assemble an image.
 
-Then call `docker build` with the path of your source repository as the argument
-(for example, `.`):
+Call [`docker build`](/reference/commandline/cli/#build) with the
+`PATH` (for example, `.`) containing the `Dockerfile`:
 
     $ docker build .
 
-The path to the source repository defines where to find the *context* of
-the build. The build is run by the Docker daemon, not by the CLI, so the
+The `PATH` defines where to find the *context* of the build. The
+context determines what the build can refer to during assembly of an
+image. The build is run by the Docker daemon, not by the CLI, so the
 whole context must be transferred to the daemon. The Docker CLI reports
 "Sending build context to Docker daemon" when the context is sent to the daemon.
 
 > **Warning**
-> Avoid using your root directory, `/`, as the root of the source repository. The 
-> `docker build` command will use whatever directory contains the Dockerfile as the build
+> Avoid using your root directory, `/`, as the `PATH`. The 
+> `docker build` command will use the `PATH` as the build 
 > context (including all of its subdirectories). The build context will be sent to the
-> Docker daemon before building the image, which means if you use `/` as the source
-> repository, the entire contents of your hard drive will get sent to the daemon (and
+> Docker daemon before building the image, which means if you use `/` as the `PATH`,
+> the entire contents of your hard drive will get sent to the daemon (and
 > thus to the machine running the daemon). You probably don't want that.
 
-In most cases, it's best to put each Dockerfile in an empty directory. Then,
-only add the files needed for building the Dockerfile to the directory. To
-increase the build's performance, you can exclude files and directories by
+In most cases, it's best to start with empty directory as context and keep
+your Dockerfile in that directory. Add only the files needed for
+building the Dockerfile.
+
+> **Note**: The `Dockerfile` can be located outside of the `PATH` and
+    referred to with the `-f` flag to `docker build`.
+
+To increase the build's performance, you can exclude files and directories by
 adding a `.dockerignore` file to the directory.  For information about how to
 [create a `.dockerignore` file](#dockerignore-file) on this page.
 
