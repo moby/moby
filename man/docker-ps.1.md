@@ -16,7 +16,7 @@ docker-ps - List containers
 [**-q**|**--quiet**[=*false*]]
 [**-s**|**--size**[=*false*]]
 [**--since**[=*SINCE*]]
-[**-F**|**--format**=*"TEMPLATE"*]
+[**--format**=*"TEMPLATE"*]
 
 
 # DESCRIPTION
@@ -60,7 +60,7 @@ the running containers.
 **--since**=""
    Show only containers created since Id or Name, include non-running ones.
 
-**-F**, **--format**=*"TEMPLATE"*
+**--format**=*"TEMPLATE"*
    Pretty-print containers using a Go template.
    Valid placeholders:
       .ID - Container ID

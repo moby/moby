@@ -31,7 +31,7 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 		since    = cmd.String([]string{"#sinceId", "#-since-id", "-since"}, "", "Show created since Id or Name, include non-running")
 		before   = cmd.String([]string{"#beforeId", "#-before-id", "-before"}, "", "Show only container created before Id or Name")
 		last     = cmd.Int([]string{"n"}, -1, "Show n last created containers, include non-running")
-		format   = cmd.String([]string{"F", "-format"}, "", "Pretty-print containers using a Go template")
+		format   = cmd.String([]string{"-format"}, "", "Pretty-print containers using a Go template")
 		flFilter = opts.NewListOpts(nil)
 	)
 	cmd.Require(flag.Exact, 0)

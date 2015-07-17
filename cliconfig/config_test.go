@@ -158,7 +158,7 @@ func TestNewJson(t *testing.T) {
 
 func TestJsonWithPsFormat(t *testing.T) {
 	tmpHome, _ := ioutil.TempDir("", "config-test")
-	fn := filepath.Join(tmpHome, CONFIGFILE)
+	fn := filepath.Join(tmpHome, ConfigFileName)
 	js := `{
 		"auths": { "https://index.docker.io/v1/": { "auth": "am9lam9lOmhlbGxv", "email": "user@example.com" } },
 		"psFormat": "table {{.ID}}\\t{{.Label \"com.docker.label.cpu\"}}"
@@ -180,7 +180,7 @@ func TestJsonWithPsFormat(t *testing.T) {
 		t.Fatalf("Failed to save: %q", err)
 	}
 
-	buf, err := ioutil.ReadFile(filepath.Join(tmpHome, CONFIGFILE))
+	buf, err := ioutil.ReadFile(filepath.Join(tmpHome, ConfigFileName))
 	if !strings.Contains(string(buf), `"psFormat":`) ||
 		!strings.Contains(string(buf), "{{.ID}}") {
 		t.Fatalf("Should have save in new form: %s", string(buf))
