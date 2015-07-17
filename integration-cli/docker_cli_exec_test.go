@@ -458,7 +458,7 @@ func (s *DockerSuite) TestInspectExecID(c *check.C) {
 	// Save execID for later
 	execID, err := inspectFilter(id, "index .ExecIDs 0")
 	if err != nil {
-		c.Fatalf("failed to get the exec id")
+		c.Fatalf("failed to get the exec id: %v", err)
 	}
 
 	// End the exec by closing its stdin, and wait for it to end
