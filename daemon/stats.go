@@ -6,8 +6,8 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/daemon/execdriver"
-	"github.com/docker/libcontainer"
 	"github.com/docker/libnetwork/sandbox"
+	"github.com/opencontainers/runc/libcontainer"
 )
 
 type ContainerStatsConfig struct {

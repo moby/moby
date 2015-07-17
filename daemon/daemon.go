@@ -35,8 +35,8 @@ import (
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/trust"
-	"github.com/docker/libcontainer/netlink"
 	"github.com/docker/libnetwork"
+	"github.com/opencontainers/runc/libcontainer/netlink"
 )
 
 var (
