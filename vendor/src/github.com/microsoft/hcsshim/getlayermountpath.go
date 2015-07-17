@@ -75,7 +75,7 @@ func GetLayerMountPath(info DriverInfo, id string) (string, error) {
 	use(unsafe.Pointer(idp))
 
 	if r1 != 0 {
-		err = fmt.Errorf(title+" - Second Win32 API call returned error r1=%d errno=%d id=%s flavour=%d",
+		err = fmt.Errorf(title+" - Second Win32 API call returned error r1=%d err=%s id=%s flavour=%d",
 			r1, syscall.Errno(r1), id, info.Flavour)
 		logrus.Error(err)
 		return "", err
