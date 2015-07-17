@@ -29,6 +29,8 @@ image was built exactly as specified.
 your repository on the Docker Hub registry.
 * Because the process is automated, Automated Builds help to
 make sure that your repository is always up to date.
+* Not having to push local Docker images to Docker Hub saves 
+you both network bandwidth and time.
 
 Automated Builds are supported for both public and private repositories
 on both [GitHub](http://github.com) and [Bitbucket](https://bitbucket.org/).
