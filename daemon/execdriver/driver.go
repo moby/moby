@@ -155,7 +155,8 @@ type ProcessConfig struct {
 // Process wrapps an os/exec.Cmd to add more metadata
 type Command struct {
 	ID                 string            `json:"id"`
-	Rootfs             string            `json:"rootfs"` // root fs of the container
+	Rootfs             string            `json:"rootfs"`     // root fs of the container
+	RootMount          string            `json:"root_mount"` // rootfs mount propogation mode
 	ReadonlyRootfs     bool              `json:"readonly_rootfs"`
 	InitPath           string            `json:"initpath"` // dockerinit
 	WorkingDir         string            `json:"working_dir"`

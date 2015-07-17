@@ -137,6 +137,7 @@ type Config struct {
 	MacAddress      string
 	OnBuild         []string
 	Labels          map[string]string
+	RootMount       string // rootfs mount propogation mode: shared/slave/private
 }
 
 type ContainerConfigWrapper struct {
