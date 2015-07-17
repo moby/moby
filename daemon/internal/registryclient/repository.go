@@ -445,34 +445,7 @@ func (bs *blobStatter) Stat(ctx context.Context, dgst digest.Digest) (distributi
 	}
 }
 
-// NewCatalog can be used to get a list of repositories
-func NewCatalog(ctx context.Context, baseURL string, transport http.RoundTripper) (distribution.CatalogService, error) {
-	ub, err := v2.NewURLBuilderFromString(baseURL)
-	if err != nil {
-		return nil, err
-	}
-
-	client := &http.Client{
-		Transport: transport,
-		Timeout:   1 * time.Minute,
-	}
-
-	return &catalog{
-		client:  client,
-		ub:      ub,
-		context: ctx,
-	}, nil
-}
-
-type catalog struct {
-	client  *http.Client
-	ub      *v2.URLBuilder
-	context context.Context
-}
-
-func (c *catalog) Get(maxEntries int, last string) ([]string, bool, error) {
-	var repos []string
-
+func buildCatalogValues(maxEntries int, last string) url.Values {
 	values := url.Values{}
 
 	if maxEntries > 0 {
@@ -483,14 +456,35 @@ func (c *catalog) Get(maxEntries int, last string) ([]string, bool, error) {
 		values.Add("last", last)
 	}
 
-	u, err := c.ub.BuildCatalogURL(values)
+	return values
+}
+
+// Repositories returns a lexigraphically sorted catalog given a base URL.  The 'entries' slice will be filled up to the size
+// of the slice, starting at the value provided in 'last'.  The number of entries will be returned along with io.EOF if there
+// are no more entries
+func Repositories(ctx context.Context, baseURL string, entries []string, last string, transport http.RoundTripper) (int, error) {
+	var numFilled int
+	var returnErr error
+
+	ub, err := v2.NewURLBuilderFromString(baseURL)
 	if err != nil {
-		return nil, false, err
+		return 0, err
 	}
 
-	resp, err := c.client.Get(u)
+	client := &http.Client{
+		Transport: transport,
+		Timeout:   1 * time.Minute,
+	}
+
+	values := buildCatalogValues(len(entries), last)
+	u, err := ub.BuildCatalogURL(values)
 	if err != nil {
-		return nil, false, err
+		return 0, err
+	}
+
+	resp, err := client.Get(u)
+	if err != nil {
+		return 0, err
 	}
 	defer resp.Body.Close()
 
@@ -502,13 +496,22 @@ func (c *catalog) Get(maxEntries int, last string) ([]string, bool, error) {
 		decoder := json.NewDecoder(resp.Body)
 
 		if err := decoder.Decode(&ctlg); err != nil {
-			return nil, false, err
+			return 0, err
 		}
 
-		repos = ctlg.Repositories
+		for cnt := range ctlg.Repositories {
+			entries[cnt] = ctlg.Repositories[cnt]
+		}
+		numFilled = len(ctlg.Repositories)
+
+		link := resp.Header.Get("Link")
+		if link == "" {
+			returnErr = io.EOF
+		}
+
 	default:
-		return nil, false, handleErrorResponse(resp)
+		return 0, handleErrorResponse(resp)
 	}
 
-	return repos, false, nil
+	return numFilled, returnErr
 }
