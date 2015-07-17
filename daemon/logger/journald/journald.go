@@ -4,7 +4,6 @@ package journald
 
 import (
 	"fmt"
-	"io"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/coreos/go-systemd/journal"
@@ -53,8 +52,4 @@ func (s *Journald) Close() error {
 
 func (s *Journald) Name() string {
 	return name
-}
-
-func (s *Journald) GetReader() (io.Reader, error) {
-	return nil, logger.ReadLogsNotSupported
 }
