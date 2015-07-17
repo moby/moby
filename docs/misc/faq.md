@@ -36,9 +36,9 @@ Windows*](../installation/windows/#windows) installation guides. The small Linux
 distribution boot2docker can be run inside virtual machines on these two
 operating systems.
 
-> **Note:** if you are using a remote Docker daemon, such as Boot2Docker, 
-> then _do not_ type the `sudo` before the `docker` commands shown in the
-> documentation's examples.
+>**Note:** if you are using a remote Docker daemon on a VM through Docker
+>Machine, then _do not_ type the `sudo` before the `docker` commands shown in
+>the documentation's examples.
 
 ### How do containers compare to virtual machines?
 

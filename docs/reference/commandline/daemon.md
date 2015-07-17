@@ -477,15 +477,15 @@ please check the [run](run.md) reference.
 
 IP masquerading uses address translation to allow containers without a public
 IP to talk to other machines on the Internet. This may interfere with some
-network topologies and can be disabled with --ip-masq=false.
+network topologies and can be disabled with `--ip-masq=false`.
 
 Docker supports softlinks for the Docker data directory (`/var/lib/docker`) and
 for `/var/lib/docker/tmp`. The `DOCKER_TMPDIR` and the data directory can be
 set like this:
 
-    DOCKER_TMPDIR=/mnt/disk2/tmp /usr/local/bin/docker daemon -D -g /var/lib/docker -H unix:// > /var/lib/boot2docker/docker.log 2>&1
+    DOCKER_TMPDIR=/mnt/disk2/tmp /usr/local/bin/docker daemon -D -g /var/lib/docker -H unix:// > /var/lib/docker-machine/docker.log 2>&1
     # or
     export DOCKER_TMPDIR=/mnt/disk2/tmp
-    /usr/local/bin/docker daemon -D -g /var/lib/docker -H unix:// > /var/lib/boot2docker/docker.log 2>&1
+    /usr/local/bin/docker daemon -D -g /var/lib/docker -H unix:// > /var/lib/docker-machine/docker.log 2>&1
 
 

@@ -158,8 +158,8 @@ as daemon process(es).
     # Usage: mongo --port <port you get from `docker ps`> 
     $ mongo --port 27017
 
-    # If using boot2docker
-    # Usage: mongo --port <port you get from `docker ps`>  --host <ip address from `boot2docker ip`>
+    # If using docker-machine
+    # Usage: mongo --port <port you get from `docker ps`>  --host <ip address from `docker-machine ip VM_NAME`>
     $ mongo --port 27017 --host 192.168.59.103
 
 > **Tip:**
