@@ -42,6 +42,28 @@ func FindCgroupMountpoint(subsystem string) (string, error) {
 	return "", NewNotFoundError(subsystem)
 }
 
+func FindCgroupMountpointAndSource(subsystem string) (string, string, error) {
+	f, err := os.Open("/proc/self/mountinfo")
+	if err != nil {
+		return "", "", err
+	}
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		txt := scanner.Text()
+		fields := strings.Split(txt, " ")
+		for _, opt := range strings.Split(fields[len(fields)-1], ",") {
+			if opt == subsystem {
+				return fields[4], fields[3], nil
+			}
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		return "", "", err
+	}
+
+	return "", "", NewNotFoundError(subsystem)
+}
+
 func FindCgroupMountpointDir() (string, error) {
 	mounts, err := mount.GetMounts()
 	if err != nil {
