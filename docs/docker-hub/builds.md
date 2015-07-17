@@ -449,7 +449,7 @@ The following parameters are recognized in callback data:
 ## Repository links
 
 Repository links are a way to associate one Automated Build with
-another. If one gets updated,the linking system triggers a rebuild
+another. If one gets updated, the linking system triggers a rebuild
 for the other Automated Build. This makes it easy to keep all your
 Automated Builds up to date.
 
