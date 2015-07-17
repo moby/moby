@@ -12,8 +12,7 @@ This is an experimental feature. For information on installing and using experim
 ## What plugins are
 
 A plugin is a process running on the same docker host as the docker daemon,
-which registers itself by placing a file in `/usr/share/docker/plugins` (the
-"plugin directory").
+which registers itself by placing a file in one of the plugin directories described in [Plugin discovery](#plugin-discovery).
 
 Plugins have human-readable names, which are short, lowercase strings. For
 example, `flocker` or `weave`.
@@ -32,10 +31,21 @@ There are three types of files which can be put in the plugin directory.
 * `.spec` files are text files containing a URL, such as `unix:///other.sock`.
 * `.json` files are text files containing a full json specification for the plugin.
 
+UNIX domain socket files must be located under `/run/docker/plugins`, whereas
+spec files can be located either under `/etc/docker/plugins` or `/usr/lib/docker/plugins`.
+
 The name of the file (excluding the extension) determines the plugin name.
 
 For example, the `flocker` plugin might create a UNIX socket at
-`/usr/share/docker/plugins/flocker.sock`.
+`/run/docker/plugins/flocker.sock`.
+
+You can define each plugin into a separated subdirectory if you want to isolate definitions from each other.
+For example, you can create the `flocker` socket under `/run/docker/plugins/flocker/flocker.sock` and only
+mount `/run/docker/plugins/flocker` inside the `flocker` container.
+
+Docker always searches for unix sockets in `/run/docker/plugins` first. It checks for spec or json files under
+`/etc/docker/plugins` and `/usr/lib/docker/plugins` if the socket doesn't exist. The directory scan stops as
+soon as it finds the first plugin definition with the given name.
 
 ### JSON specification
 
