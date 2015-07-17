@@ -85,18 +85,26 @@ mechanisms, you must keep in mind the order of precedence among them. Command
 line options override environment variables and environment variables override
 properties you specify in a `config.json` file.
 
-The `config.json` file stores a JSON encoding of a single `HttpHeaders`
-property. The property specifies a set of headers to include in all messages
+The `config.json` file stores a JSON encoding of several properties:
+
+The property `HttpHeaders` specifies a set of headers to include in all messages
 sent from the Docker client to the daemon. Docker does not try to interpret or
 understand these header; it simply puts them into the messages. Docker does
 not allow these headers to change any headers it sets for itself.
+
+The property `psFormat` specifies the default format for `docker ps` output.
+When the `--format` flag is not provided with the `docker ps` command,
+Docker's client uses this property. If this property is not set, the client
+falls back to the default table format. For a list of supported formatting
+directives, see the [**Formatting** section in the `docker ps` documentation](../ps)
 
 Following is a sample `config.json` file:
 
     {
       "HttpHeaders: {
         "MyHeader": "MyValue"
-      }
+      },
+      "psFormat": "table {{.ID}}\\t{{.Image}}\\t{{.Command}}\\t{{.Labels}}"
     }
 
 ## Help
