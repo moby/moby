@@ -218,7 +218,7 @@ You can uninstall the Docker software with `yum`.
 		$ yum list installed | grep docker
 		yum list installed | grep docker
 		docker-engine.x86_64                1.7.1-0.1.fc20
-																																								 @/docker-engine-1.7.1-0.1.fc20.el6.x86_64
+																																								 @/docker-engine-1.7.1-0.1.fc20.el7.x86_64
 
 2. Remove the package.
 
