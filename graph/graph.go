@@ -13,6 +13,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/Sirupsen/logrus"
@@ -29,12 +30,56 @@ import (
 	"github.com/docker/docker/runconfig"
 )
 
+// The type is used to protect pulling or building related image
+// layers from deleteing when filtered by dangling=true
+// The key of layers is the images ID which is pulling or building
+// The value of layers is a slice which hold layer IDs referenced to
+// pulling or building images
+type retainedLayers struct {
+	layerHolders map[string]map[string]struct{} // map[layerID]map[sessionID]
+	sync.Mutex
+}
+
+func (r *retainedLayers) Add(sessionID string, layerIDs []string) {
+	r.Lock()
+	defer r.Unlock()
+	for _, layerID := range layerIDs {
+		if r.layerHolders[layerID] == nil {
+			r.layerHolders[layerID] = map[string]struct{}{}
+		}
+		r.layerHolders[layerID][sessionID] = struct{}{}
+	}
+}
+
+func (r *retainedLayers) Delete(sessionID string, layerIDs []string) {
+	r.Lock()
+	defer r.Unlock()
+	for _, layerID := range layerIDs {
+		holders, ok := r.layerHolders[layerID]
+		if !ok {
+			continue
+		}
+		delete(holders, sessionID)
+		if len(holders) == 0 {
+			delete(r.layerHolders, layerID) // Delete any empty reference set.
+		}
+	}
+}
+
+func (r *retainedLayers) Exists(layerID string) bool {
+	r.Lock()
+	_, exists := r.layerHolders[layerID]
+	r.Unlock()
+	return exists
+}
+
 // A Graph is a store for versioned filesystem images and the relationship between them.
 type Graph struct {
 	root       string
 	idIndex    *truncindex.TruncIndex
 	driver     graphdriver.Driver
 	imageMutex imageMutex // protect images in driver.
+	retained   *retainedLayers
 }
 
 type Image struct {
@@ -73,14 +118,20 @@ func NewGraph(root string, driver graphdriver.Driver) (*Graph, error) {
 	}
 
 	graph := &Graph{
-		root:    abspath,
-		idIndex: truncindex.NewTruncIndex([]string{}),
-		driver:  driver,
+		root:     abspath,
+		idIndex:  truncindex.NewTruncIndex([]string{}),
+		driver:   driver,
+		retained: &retainedLayers{layerHolders: make(map[string]map[string]struct{})},
 	}
 	if err := graph.restore(); err != nil {
 		return nil, err
 	}
 	return graph, nil
+}
+
+// IsHeld returns whether the given layerID is being used by an ongoing pull or build.
+func (graph *Graph) IsHeld(layerID string) bool {
+	return graph.retained.Exists(layerID)
 }
 
 func (graph *Graph) restore() error {
@@ -367,6 +418,17 @@ func (graph *Graph) ByParent() map[string][]*Image {
 		}
 	})
 	return byParent
+}
+
+// If the images and layers are in pulling chain, retain them.
+// If not, they may be deleted by rmi with dangling condition.
+func (graph *Graph) Retain(sessionID string, layerIDs ...string) {
+	graph.retained.Add(sessionID, layerIDs)
+}
+
+// Release removes the referenced image id from the provided set of layers.
+func (graph *Graph) Release(sessionID string, layerIDs ...string) {
+	graph.retained.Delete(sessionID, layerIDs)
 }
 
 // Heads returns all heads in the graph, keyed by id.

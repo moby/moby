@@ -137,6 +137,9 @@ func (daemon *Daemon) imgDeleteHelper(name string, list *[]types.ImageDelete, fi
 }
 
 func (daemon *Daemon) canDeleteImage(imgID string, force bool) error {
+	if daemon.Graph().IsHeld(imgID) {
+		return fmt.Errorf("Conflict, cannot delete because %s is held by an ongoing pull or build", stringid.TruncateID(imgID))
+	}
 	for _, container := range daemon.List() {
 		if container.ImageID == "" {
 			// This technically should never happen, but if the container
