@@ -36,7 +36,7 @@ clone git github.com/hashicorp/consul v0.5.2
 # get distribution packages
 clone git github.com/docker/distribution 419bbc2da637d9b2a812be78ef8436df7caac70d
 
-clone git github.com/opencontainers/runc v0.0.1 # libcontainer
+clone git github.com/opencontainers/runc v0.0.2 # libcontainer
 # libcontainer deps (see src/github.com/docker/libcontainer/update-vendor.sh)
 clone git github.com/coreos/go-systemd v2
 clone git github.com/godbus/dbus v2
