@@ -177,6 +177,7 @@ func (graph *Graph) Create(layerData archive.ArchiveReader, containerID, contain
 
 // Register imports a pre-existing image into the graph.
 func (graph *Graph) Register(img *Image, layerData archive.ArchiveReader) (err error) {
+
 	if err := image.ValidateID(img.ID); err != nil {
 		return err
 	}
@@ -186,10 +187,11 @@ func (graph *Graph) Register(img *Image, layerData archive.ArchiveReader) (err e
 	graph.imageMutex.Lock(img.ID)
 	defer graph.imageMutex.Unlock(img.ID)
 
+	// The returned `error` must be named in this function's signature so that
+	// `err` is not shadowed in this deferred cleanup.
 	defer func() {
 		// If any error occurs, remove the new dir from the driver.
 		// Don't check for errors since the dir might not have been created.
-		// FIXME: this leaves a possible race condition.
 		if err != nil {
 			graph.driver.Remove(img.ID)
 		}
