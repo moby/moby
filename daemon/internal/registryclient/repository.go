@@ -343,7 +343,7 @@ func (bs *blobs) Open(ctx context.Context, dgst digest.Digest) (distribution.Rea
 		return nil, err
 	}
 
-	return transport.NewHTTPReadSeeker(bs.client, blobURL, stat.Length), nil
+	return transport.NewHTTPReadSeeker(bs.client, blobURL, stat.Size), nil
 }
 
 func (bs *blobs) ServeBlob(ctx context.Context, w http.ResponseWriter, r *http.Request, dgst digest.Digest) error {
@@ -366,7 +366,7 @@ func (bs *blobs) Put(ctx context.Context, mediaType string, p []byte) (distribut
 
 	desc := distribution.Descriptor{
 		MediaType: mediaType,
-		Length:    int64(len(p)),
+		Size:      int64(len(p)),
 		Digest:    dgstr.Digest(),
 	}
 
@@ -435,7 +435,7 @@ func (bs *blobStatter) Stat(ctx context.Context, dgst digest.Digest) (distributi
 
 		return distribution.Descriptor{
 			MediaType: resp.Header.Get("Content-Type"),
-			Length:    length,
+			Size:      length,
 			Digest:    dgst,
 		}, nil
 	case http.StatusNotFound:
