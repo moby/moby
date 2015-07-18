@@ -121,6 +121,7 @@ install Docker using the following:
 
     The system prompts you for your `sudo` password. Then, it downloads and
     installs Docker and its dependencies.
+
 >**Note**: If your company is behind a filtering proxy, you may find that the
 >`apt-key`
 >command fails for the Docker repo during installation. To work around this,
