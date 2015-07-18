@@ -554,6 +554,12 @@ func dockerCmdWithError(c *check.C, args ...string) (string, int, error) {
 	return runCommandWithOutput(exec.Command(dockerBinary, args...))
 }
 
+func dockerCmdWithStdoutStderr(c *check.C, args ...string) (string, string, int) {
+	stdout, stderr, status, err := runCommandWithStdoutStderr(exec.Command(dockerBinary, args...))
+	c.Assert(err, check.IsNil, check.Commentf("%q failed with errors: %s, %v", strings.Join(args, " "), stderr, err))
+	return stdout, stderr, status
+}
+
 func dockerCmd(c *check.C, args ...string) (string, int) {
 	out, status, err := runCommandWithOutput(exec.Command(dockerBinary, args...))
 	c.Assert(err, check.IsNil, check.Commentf("%q failed with errors: %s, %v", strings.Join(args, " "), out, err))
