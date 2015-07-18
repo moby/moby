@@ -436,15 +436,15 @@ func (s *DockerSuite) TestInspectExecID(c *check.C) {
 		c.Fatalf("failed to start the exec cmd: %q", err)
 	}
 
-	// Since its still running we should see the exec as part of the container
-	out, err = inspectField(id, "ExecIDs")
-	if err != nil {
-		c.Fatalf("failed to inspect container: %s, %v", out, err)
-	}
-
 	// Give the exec 10 chances/seconds to start then give up and stop the test
 	tries := 10
 	for i := 0; i < tries; i++ {
+		// Since its still running we should see exec as part of the container
+		out, err = inspectField(id, "ExecIDs")
+		if err != nil {
+			c.Fatalf("failed to inspect container: %s, %v", out, err)
+		}
+
 		out = strings.TrimSuffix(out, "\n")
 		if out != "[]" && out != "<no value>" {
 			break
