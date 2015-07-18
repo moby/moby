@@ -127,8 +127,8 @@ func TestBlobExists(t *testing.T) {
 		t.Fatalf("Unexpected digest: %s, expected %s", stat.Digest, d1)
 	}
 
-	if stat.Length != int64(len(b1)) {
-		t.Fatalf("Unexpected length: %d, expected %d", stat.Length, len(b1))
+	if stat.Size != int64(len(b1)) {
+		t.Fatalf("Unexpected length: %d, expected %d", stat.Size, len(b1))
 	}
 
 	// TODO(dmcgowan): Test error cases and ErrBlobUnknown case
@@ -244,14 +244,14 @@ func TestBlobUploadChunked(t *testing.T) {
 
 	blob, err := upload.Commit(ctx, distribution.Descriptor{
 		Digest: dgst,
-		Length: int64(len(b1)),
+		Size:   int64(len(b1)),
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if blob.Length != int64(len(b1)) {
-		t.Fatalf("Unexpected blob size: %d; expected: %d", blob.Length, len(b1))
+	if blob.Size != int64(len(b1)) {
+		t.Fatalf("Unexpected blob size: %d; expected: %d", blob.Size, len(b1))
 	}
 }
 
@@ -352,14 +352,14 @@ func TestBlobUploadMonolithic(t *testing.T) {
 
 	blob, err := upload.Commit(ctx, distribution.Descriptor{
 		Digest: dgst,
-		Length: int64(len(b1)),
+		Size:   int64(len(b1)),
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if blob.Length != int64(len(b1)) {
-		t.Fatalf("Unexpected blob size: %d; expected: %d", blob.Length, len(b1))
+	if blob.Size != int64(len(b1)) {
+		t.Fatalf("Unexpected blob size: %d; expected: %d", blob.Size, len(b1))
 	}
 }
 
