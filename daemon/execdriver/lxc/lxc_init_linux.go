@@ -5,7 +5,7 @@ package lxc
 import (
 	"fmt"
 
-	"github.com/opencontainers/runc/libcontainer/utils"
+	"github.com/docker/libcontainer/utils"
 )
 
 func finalizeNamespace(args *InitArgs) error {

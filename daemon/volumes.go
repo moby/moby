@@ -13,7 +13,7 @@ import (
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/volume"
 	"github.com/docker/docker/volume/local"
-	"github.com/opencontainers/runc/libcontainer/label"
+	"github.com/docker/libcontainer/label"
 )
 
 type mountPoint struct {

@@ -14,7 +14,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/execdriver"
 	"github.com/docker/docker/pkg/pubsub"
-	"github.com/opencontainers/runc/libcontainer/system"
+	"github.com/docker/libcontainer/system"
 )
 
 // newStatsCollector returns a new statsCollector that collections
