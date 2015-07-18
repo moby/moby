@@ -23,8 +23,8 @@ func ValidateDescriptor(desc distribution.Descriptor) error {
 		return err
 	}
 
-	if desc.Length < 0 {
-		return fmt.Errorf("cache: invalid length in descriptor: %v < 0", desc.Length)
+	if desc.Size < 0 {
+		return fmt.Errorf("cache: invalid length in descriptor: %v < 0", desc.Size)
 	}
 
 	if desc.MediaType == "" {
