@@ -10,7 +10,7 @@ import (
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/pkg/chrootarchive"
 	"github.com/docker/docker/pkg/system"
-	"github.com/opencontainers/runc/libcontainer/label"
+	"github.com/docker/libcontainer/label"
 )
 
 func init() {

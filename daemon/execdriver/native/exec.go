@@ -9,9 +9,9 @@ import (
 	"syscall"
 
 	"github.com/docker/docker/daemon/execdriver"
-	"github.com/opencontainers/runc/libcontainer"
-	_ "github.com/opencontainers/runc/libcontainer/nsenter"
-	"github.com/opencontainers/runc/libcontainer/utils"
+	"github.com/docker/libcontainer"
+	_ "github.com/docker/libcontainer/nsenter"
+	"github.com/docker/libcontainer/utils"
 )
 
 // TODO(vishh): Add support for running in privileged mode.

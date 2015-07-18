@@ -8,8 +8,8 @@ import (
 
 	// TODO Windows: Factor out ulimit
 	"github.com/docker/docker/pkg/ulimit"
-	"github.com/opencontainers/runc/libcontainer"
-	"github.com/opencontainers/runc/libcontainer/configs"
+	"github.com/docker/libcontainer"
+	"github.com/docker/libcontainer/configs"
 )
 
 // Context is a generic key value pair that allows

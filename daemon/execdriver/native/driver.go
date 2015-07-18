@@ -20,11 +20,12 @@ import (
 	"github.com/docker/docker/pkg/reexec"
 	sysinfo "github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/pkg/term"
-	"github.com/opencontainers/runc/libcontainer"
-	"github.com/opencontainers/runc/libcontainer/cgroups/systemd"
-	"github.com/opencontainers/runc/libcontainer/configs"
-	"github.com/opencontainers/runc/libcontainer/system"
-	"github.com/opencontainers/runc/libcontainer/utils"
+	"github.com/docker/libcontainer"
+	"github.com/docker/libcontainer/apparmor"
+	"github.com/docker/libcontainer/cgroups/systemd"
+	"github.com/docker/libcontainer/configs"
+	"github.com/docker/libcontainer/system"
+	"github.com/docker/libcontainer/utils"
 )
 
 const (
@@ -51,7 +52,7 @@ func NewDriver(root, initPath string, options []string) (*driver, error) {
 		return nil, err
 	}
 	// native driver root is at docker_root/execdriver/native. Put apparmor at docker_root
-	if err := installApparmorProfile(); err != nil {
+	if err := apparmor.InstallDefaultProfile(); err != nil {
 		return nil, err
 	}
 
