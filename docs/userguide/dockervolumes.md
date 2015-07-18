@@ -59,6 +59,11 @@ This will create a new volume inside a container at `/webapp`.
 > You can also use the `VOLUME` instruction in a `Dockerfile` to add one or
 > more new volumes to any container created from that image.
 
+Docker volumes default to mount in read-write mode, but you can also set it to be mounted read-only.
+
+    $ docker run -d -P --name web -v /opt/webapp:ro training/webapp python app.py
+
+
 ### Locating a volume
 
 You can locate the volume on the host by utilizing the 'docker inspect' command.
@@ -119,8 +124,7 @@ create it for you.
 > host-dependent, so a host directory specified in a `Dockerfile` probably
 > wouldn't work on all hosts.
 
-Docker defaults to a read-write volume but we can also mount a directory
-read-only.
+Docker volumes default to mount in read-write mode, but you can also set it to be mounted read-only.
 
     $ docker run -d -P --name web -v /src/webapp:/opt/webapp:ro training/webapp python app.py
 
@@ -191,7 +195,7 @@ allows you to upgrade, or effectively migrate data volumes between containers.
 > volumes that are no longer referenced by a container.
 > Dangling volumes are difficult to get rid of and can take up a large amount
 > of disk space. We're working on improving volume management and you can check
-> progress on this in [pull request #8484](https://github.com/docker/docker/pull/8484)
+> progress on this in [pull request #14214](https://github.com/docker/docker/pull/14214)
 
 ## Backup, restore, or migrate data volumes
 
