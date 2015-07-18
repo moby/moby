@@ -105,12 +105,12 @@ not, the cache is invalidated.
 of the child images is sufficient.  However, certain instructions require
 a little more examination and explanation.
 
-* In the case of the `ADD` and `COPY` instructions, the contents of the file(s)
-being put into the image are examined. Specifically, a checksum is done
-of the file(s) and then that checksum is used during the cache lookup.
-If anything has changed in the file(s), including its metadata,
-then the cache is invalidated. The last-modified and last-accessed times of the
-file(s) are not considered in these checksums.
+* For the `ADD` and `COPY` instructions, the contents of the file(s) 
+in the image are examined and a checksum is calculated for each file. 
+The last-modified and last-accessed times of the file(s) are not considered in 
+these checksums. During the cache lookup, the checksum is compared against the 
+checksum in the existing images. If anything has changed in the file(s), such 
+as the contents and metadata, then the cache is invalidated. 
 
 * Aside from the `ADD` and `COPY` commands cache checking will not look at the
 files in the container to determine a cache match. For example, when processing
