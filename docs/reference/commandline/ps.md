@@ -28,7 +28,7 @@ weight=1
 Running `docker ps --no-trunc` showing 2 linked containers.
 
     $ docker ps
-    CONTAINER ID        IMAGE                        COMMAND                CREATED              STATUS              PORTS               NAMES
+    CONTAINER ID        IMAGE                        COMMAND                CREATED              STATUS              PORTS               NAME
     4c01db0b339c        ubuntu:12.04                 bash                   17 seconds ago       Up 16 seconds       3300-3310/tcp       webapp
     d7886598dbe2        crosbymichael/redis:latest   /redis-server --dir    33 minutes ago       Up 33 minutes       6379/tcp            redis,webapp/db
 
@@ -53,7 +53,7 @@ The currently supported filters are:
 ## Successfully exited containers
 
     $ docker ps -a --filter 'exited=0'
-    CONTAINER ID        IMAGE             COMMAND                CREATED             STATUS                   PORTS                      NAMES
+    CONTAINER ID        IMAGE             COMMAND                CREATED             STATUS                   PORTS                      NAME
     ea09c3c82f6e        registry:latest   /srv/run.sh            2 weeks ago         Exited (0) 2 weeks ago   127.0.0.1:5000->5000/tcp   desperate_leakey
     106ea823fe4e        fedora:latest     /bin/sh -c 'bash -l'   2 weeks ago         Exited (0) 2 weeks ago                              determined_albattani
     48ee228c9464        fedora:20         bash                   2 weeks ago         Exited (0) 2 weeks ago                              tender_torvalds

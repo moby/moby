@@ -1086,7 +1086,7 @@ container running Redis:
 
     # The redis-name container exposed port 6379
     $ docker ps
-    CONTAINER ID        IMAGE                        COMMAND                CREATED             STATUS              PORTS               NAMES
+    CONTAINER ID        IMAGE                        COMMAND                CREATED             STATUS              PORTS               NAME
     4241164edf6f        $ dockerfiles/redis:latest   /redis-stable/src/re   5 seconds ago       Up 4 seconds        6379/tcp            redis-name
 
     # Note that there are no public ports exposed since we didn᾿t use -p or -P

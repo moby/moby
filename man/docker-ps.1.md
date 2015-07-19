@@ -63,7 +63,7 @@ the running containers.
 # Display all containers, including non-running
 
     # docker ps -a
-    CONTAINER ID        IMAGE                 COMMAND                CREATED             STATUS      PORTS    NAMES
+    CONTAINER ID        IMAGE                 COMMAND                CREATED             STATUS      PORTS    NAME
     a87ecb4f327c        fedora:20             /bin/sh -c #(nop) MA   20 minutes ago      Exit 0               desperate_brattain
     01946d9d34d8        vpavlin/rhel7:latest  /bin/sh -c #(nop) MA   33 minutes ago      Exit 0               thirsty_bell
     c1d3b0166030        acffc0358b9e          /bin/sh -c yum -y up   2 weeks ago         Exit 1               determined_torvalds
