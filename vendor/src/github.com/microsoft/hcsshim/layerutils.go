@@ -4,6 +4,7 @@ package hcsshim
 // functionality.
 
 import (
+	"path/filepath"
 	"syscall"
 
 	"github.com/Sirupsen/logrus"
@@ -84,9 +85,14 @@ func layerPathsToDescriptors(parentLayerPaths []string) ([]WC_LAYER_DESCRIPTOR, 
 	var layers []WC_LAYER_DESCRIPTOR
 
 	for i := 0; i < len(parentLayerPaths); i++ {
-		// Create a layer descriptor, using the folder path
+		// Create a layer descriptor, using the folder name
 		// as the source for a GUID LayerId
-		g := NewGUID(parentLayerPaths[i])
+		_, folderName := filepath.Split(parentLayerPaths[i])
+		g, err := NameToGuid(folderName)
+		if err != nil {
+			logrus.Debugf("Failed to convert name to guid %s", err)
+			return nil, err
+		}
 
 		p, err := syscall.UTF16PtrFromString(parentLayerPaths[i])
 		if err != nil {
@@ -95,7 +101,7 @@ func layerPathsToDescriptors(parentLayerPaths []string) ([]WC_LAYER_DESCRIPTOR, 
 		}
 
 		layers = append(layers, WC_LAYER_DESCRIPTOR{
-			LayerId: *g,
+			LayerId: g,
 			Flags:   0,
 			Pathp:   p,
 		})
