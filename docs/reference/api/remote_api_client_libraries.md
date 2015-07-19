@@ -68,9 +68,15 @@ will add the libraries here.
       <td>Active</td>
     </tr>
     <tr>
+      <td>Gradle</td>
+      <td>gradle-docker-plugin</td>
+      <td><a class="reference external" href="https://github.com/gesellix/gradle-docker-plugin">https://github.com/gesellix/gradle-docker-plugin</a></td>
+      <td>Active</td>
+    </tr>
+    <tr>
       <td>Groovy</td>
       <td>docker-client</td>
-      <td><a class="reference external" href="https://github.com/gesellix-docker/docker-client">https://github.com/gesellix-docker/docker-client</a></td>
+      <td><a class="reference external" href="https://github.com/gesellix/docker-client">https://github.com/gesellix/docker-client</a></td>
       <td>Active</td>
     </tr>
     <tr>
