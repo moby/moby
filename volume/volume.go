@@ -5,8 +5,8 @@ const DefaultDriverName = "local"
 type Driver interface {
 	// Name returns the name of the volume driver.
 	Name() string
-	// Create makes a new volume with the given id.
-	Create(string) (Volume, error)
+	// Create makes a new volume with the given name and id.
+	Create(string, string) (Volume, error)
 	// Remove deletes the volume.
 	Remove(Volume) error
 }
@@ -14,6 +14,8 @@ type Driver interface {
 type Volume interface {
 	// Name returns the name of the volume
 	Name() string
+	// Id returns the unique volume UID
+	Id() string
 	// DriverName returns the name of the driver which owns this volume.
 	DriverName() string
 	// Path returns the absolute path to the volume.

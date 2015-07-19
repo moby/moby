@@ -12,9 +12,10 @@ import (
 
 type fakeDriver struct{}
 
-func (fakeDriver) Name() string                              { return "fake" }
-func (fakeDriver) Create(name string) (volume.Volume, error) { return nil, nil }
-func (fakeDriver) Remove(v volume.Volume) error              { return nil }
+func (fakeDriver) Name() string                                  { return "fake" }
+func (fakeDriver) Id() string                                    { return "fake" }
+func (fakeDriver) Create(name, id string) (volume.Volume, error) { return nil, nil }
+func (fakeDriver) Remove(v volume.Volume) error                  { return nil }
 
 func TestGetVolumeDriver(t *testing.T) {
 	_, err := getVolumeDriver("missing")

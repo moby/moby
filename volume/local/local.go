@@ -66,7 +66,7 @@ func (r *Root) Name() string {
 	return "local"
 }
 
-func (r *Root) Create(name string) (volume.Volume, error) {
+func (r *Root) Create(name, id string) (volume.Volume, error) {
 	r.m.Lock()
 	defer r.m.Unlock()
 
@@ -82,6 +82,7 @@ func (r *Root) Create(name string) (volume.Volume, error) {
 		v = &Volume{
 			driverName: r.Name(),
 			name:       name,
+			id:         id,
 			path:       path,
 		}
 		r.volumes[name] = v
@@ -138,6 +139,8 @@ type Volume struct {
 	usedCount int
 	// unique name of the volume
 	name string
+	// unique uid of the volume
+	id string
 	// path is the path on the host where the data lives
 	path string
 	// driverName is the name of the driver that created the volume.
@@ -146,6 +149,10 @@ type Volume struct {
 
 func (v *Volume) Name() string {
 	return v.name
+}
+
+func (v *Volume) Id() string {
+	return v.id
 }
 
 func (v *Volume) DriverName() string {

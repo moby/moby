@@ -29,6 +29,7 @@ import (
 	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/nat"
 	"github.com/docker/docker/pkg/promise"
+	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/pkg/symlink"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/volume"
@@ -1132,6 +1133,7 @@ func (container *Container) networkMounts() []execdriver.Mount {
 func (container *Container) addBindMountPoint(name, source, destination string, rw bool) {
 	container.MountPoints[destination] = &mountPoint{
 		Name:        name,
+		ID:          stringid.GenerateRandomID(),
 		Source:      source,
 		Destination: destination,
 		RW:          rw,
@@ -1141,6 +1143,7 @@ func (container *Container) addBindMountPoint(name, source, destination string, 
 func (container *Container) addLocalMountPoint(name, destination string, rw bool) {
 	container.MountPoints[destination] = &mountPoint{
 		Name:        name,
+		ID:          stringid.GenerateRandomID(),
 		Driver:      volume.DefaultDriverName,
 		Destination: destination,
 		RW:          rw,
@@ -1150,6 +1153,7 @@ func (container *Container) addLocalMountPoint(name, destination string, rw bool
 func (container *Container) addMountPointWithVolume(destination string, vol volume.Volume, rw bool) {
 	container.MountPoints[destination] = &mountPoint{
 		Name:        vol.Name(),
+		ID:          stringid.GenerateRandomID(),
 		Driver:      vol.DriverName(),
 		Destination: destination,
 		RW:          rw,
@@ -1164,7 +1168,7 @@ func (container *Container) isDestinationMounted(destination string) bool {
 func (container *Container) prepareMountPoints() error {
 	for _, config := range container.MountPoints {
 		if len(config.Driver) > 0 {
-			v, err := createVolume(config.Name, config.Driver)
+			v, err := createVolume(config.Name, config.ID, config.Driver)
 			if err != nil {
 				return err
 			}

@@ -9,6 +9,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/chrootarchive"
+	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/volume"
@@ -18,6 +19,7 @@ import (
 
 type mountPoint struct {
 	Name        string
+	ID          string
 	Destination string
 	Driver      string
 	RW          bool
@@ -171,6 +173,7 @@ func (daemon *Daemon) registerMountPoints(container *Container, hostConfig *runc
 		for _, m := range c.MountPoints {
 			cp := &mountPoint{
 				Name:        m.Name,
+				ID:          m.ID,
 				Source:      m.Source,
 				RW:          m.RW && volume.ReadWrite(mode),
 				Driver:      m.Driver,
@@ -178,7 +181,7 @@ func (daemon *Daemon) registerMountPoints(container *Container, hostConfig *runc
 			}
 
 			if len(cp.Source) == 0 {
-				v, err := createVolume(cp.Name, cp.Driver)
+				v, err := createVolume(cp.Name, cp.ID, cp.Driver)
 				if err != nil {
 					return err
 				}
@@ -203,7 +206,7 @@ func (daemon *Daemon) registerMountPoints(container *Container, hostConfig *runc
 
 		if len(bind.Name) > 0 && len(bind.Driver) > 0 {
 			// create the volume
-			v, err := createVolume(bind.Name, bind.Driver)
+			v, err := createVolume(bind.Name, stringid.GenerateRandomID(), bind.Driver)
 			if err != nil {
 				return err
 			}
@@ -318,12 +321,12 @@ func (daemon *Daemon) verifyVolumesInfo(container *Container) error {
 	return nil
 }
 
-func createVolume(name, driverName string) (volume.Volume, error) {
+func createVolume(name, id, driverName string) (volume.Volume, error) {
 	vd, err := getVolumeDriver(driverName)
 	if err != nil {
 		return nil, err
 	}
-	return vd.Create(name)
+	return vd.Create(name, id)
 }
 
 func removeVolume(v volume.Volume) error {
