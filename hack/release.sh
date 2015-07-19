@@ -41,6 +41,7 @@ EOF
 [ "$AWS_ACCESS_KEY" ] || usage
 [ "$AWS_SECRET_KEY" ] || usage
 [ "$GPG_PASSPHRASE" ] || usage
+[ -d "$HOME/.gnupg" ] || usage
 [ -d /go/src/github.com/docker/docker ] || usage
 cd /go/src/github.com/docker/docker
 [ -x hack/make.sh ] || usage
@@ -49,7 +50,9 @@ RELEASE_BUNDLES=(
 	binary
 	cross
 	tgz
-	ubuntu
+	release-deb
+	release-rpm
+	sign-repos
 )
 
 if [ "$1" != '--release-regardless-of-test-failure' ]; then
@@ -242,89 +245,6 @@ release_build() {
 	upload_release_build "$tgzDir/$tgz" "$s3Dir/$tgz" "$latestTgz"
 }
 
-# Upload the 'ubuntu' bundle to S3:
-# 1. A full APT repository is published at $BUCKET/ubuntu/
-# 2. Instructions for using the APT repository are uploaded at $BUCKET/ubuntu/index
-release_ubuntu() {
-	[ -e "bundles/$VERSION/ubuntu" ] || {
-		echo >&2 './hack/make.sh must be run before release_ubuntu'
-		exit 1
-	}
-
-	local debfiles=( "bundles/$VERSION/ubuntu/"*.deb )
-
-	# Sign our packages
-	dpkg-sig -g "--passphrase $GPG_PASSPHRASE" -k releasedocker --sign builder "${debfiles[@]}"
-
-	# Setup the APT repo
-	APTDIR=bundles/$VERSION/ubuntu/apt
-	mkdir -p "$APTDIR/conf" "$APTDIR/db"
-	s3cmd sync "s3://$BUCKET/ubuntu/db/" "$APTDIR/db/" || true
-	cat > "$APTDIR/conf/distributions" <<EOF
-Codename: docker
-Components: main
-Architectures: amd64 i386
-EOF
-
-	# Add the DEB package to the APT repo
-	reprepro -b "$APTDIR" includedeb docker "${debfiles[@]}"
-
-	# Sign
-	for F in $(find $APTDIR -name Release); do
-		gpg -u releasedocker --passphrase "$GPG_PASSPHRASE" \
-			--armor --sign --detach-sign \
-			--output "$F.gpg" "$F"
-	done
-
-	# Upload keys
-	s3cmd sync "$HOME/.gnupg/" "s3://$BUCKET/ubuntu/.gnupg/"
-	gpg --armor --export releasedocker > "bundles/$VERSION/ubuntu/gpg"
-	s3cmd --acl-public put "bundles/$VERSION/ubuntu/gpg" "s3://$BUCKET/gpg"
-
-	local gpgFingerprint=36A1D7869245C8950F966E92D8576A8BA88D21E9
-	local s3Headers=
-	if [[ $BUCKET == test* ]]; then
-		gpgFingerprint=740B314AE3941731B942C66ADF4FD13717AAD7D6
-	elif [[ $BUCKET == experimental* ]]; then
-		gpgFingerprint=E33FF7BF5C91D50A6F91FFFD4CC38D40F9A96B49
-		s3Headers='--add-header=Cache-Control:no-cache'
-	fi
-
-	# Upload repo
-	s3cmd --acl-public "$s3Headers" sync "$APTDIR/" "s3://$BUCKET/ubuntu/"
-	cat <<EOF | write_to_s3 s3://$BUCKET/ubuntu/index
-echo "# WARNING! This script is not going to install aufs on your"
-echo "# system. If you want to use aufs please check the script"
-echo "# at https://get.docker.com"
-echo "# You may press Ctrl+C to abort this script."
-(set -x; sleep 20)
-# Check that HTTPS transport is available to APT
-if [ ! -e /usr/lib/apt/methods/https ]; then
-	apt-get update
-	apt-get install -y apt-transport-https
-fi
-
-# Add the repository to your APT sources
-echo deb $(s3_url)/ubuntu docker main > /etc/apt/sources.list.d/docker.list
-
-# Then import the repository key
-apt-key adv --keyserver hkp://p80.pool.sks-keyservers.net:80 --recv-keys $gpgFingerprint
-
-# Install docker
-apt-get update
-apt-get install -y lxc-docker
-
-#
-# Alternatively, just use the curl-able install.sh script provided at $(s3_url)
-#
-EOF
-
-	# Add redirect at /ubuntu/info for URL-backwards-compatibility
-	rm -rf /tmp/emptyfile && touch /tmp/emptyfile
-	s3cmd --acl-public --add-header='x-amz-website-redirect-location:/ubuntu/' --mime-type='text/plain' put /tmp/emptyfile "s3://$BUCKET/ubuntu/info"
-
-	echo "APT repository uploaded. Instructions available at $(s3_url)/ubuntu"
-}
 
 # Upload binaries and tgz files to S3
 release_binaries() {
@@ -369,30 +289,10 @@ release_test() {
 	fi
 }
 
-setup_gpg() {
-	# Make sure that we have our keys
-	mkdir -p "$HOME/.gnupg/"
-	s3cmd sync "s3://$BUCKET/ubuntu/.gnupg/" "$HOME/.gnupg/" || true
-	gpg --list-keys releasedocker >/dev/null || {
-		gpg --gen-key --batch <<EOF
-Key-Type: RSA
-Key-Length: 4096
-Passphrase: $GPG_PASSPHRASE
-Name-Real: Docker Release Tool
-Name-Email: docker@docker.com
-Name-Comment: releasedocker
-Expire-Date: 0
-%commit
-EOF
-	}
-}
-
 main() {
 	build_all
 	setup_s3
-	setup_gpg
 	release_binaries
-	release_ubuntu
 	release_index
 	release_test
 }
