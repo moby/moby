@@ -63,7 +63,6 @@ DEFAULT_BUNDLES=(
 	cover
 	cross
 	tgz
-	ubuntu
 )
 
 VERSION=$(< ./VERSION)
