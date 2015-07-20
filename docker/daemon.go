@@ -123,8 +123,8 @@ func mainDaemon() {
 	}
 	serverConfig = setPlatformServerConfig(serverConfig, daemonCfg)
 
-	if *flTls {
-		if *flTlsVerify {
+	if *flTLS {
+		if *flTLSVerify {
 			tlsOptions.ClientAuth = tls.RequireAndVerifyClientCert
 		}
 		tlsConfig, err := tlsconfig.Server(tlsOptions)

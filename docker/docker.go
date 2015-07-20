@@ -92,8 +92,8 @@ func main() {
 	// Regardless of whether the user sets it to true or false, if they
 	// specify --tlsverify at all then we need to turn on tls
 	// *flTlsVerify can be true even if not set due to DOCKER_TLS_VERIFY env var, so we need to check that here as well
-	if flag.IsSet("-tlsverify") || *flTlsVerify {
-		*flTls = true
+	if flag.IsSet("-tlsverify") || *flTLSVerify {
+		*flTLS = true
 	}
 
 	if *flDaemon {
@@ -114,8 +114,8 @@ func main() {
 	protoAddrParts := strings.SplitN(flHosts[0], "://", 2)
 
 	var tlsConfig *tls.Config
-	if *flTls {
-		tlsOptions.InsecureSkipVerify = !*flTlsVerify
+	if *flTLS {
+		tlsOptions.InsecureSkipVerify = !*flTLSVerify
 		if !flag.IsSet("-tlscert") {
 			if _, err := os.Stat(tlsOptions.CertFile); os.IsNotExist(err) {
 				tlsOptions.CertFile = ""
