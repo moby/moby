@@ -9,6 +9,7 @@ import (
 	"github.com/docker/distribution"
 	"github.com/docker/distribution/digest"
 	"github.com/docker/distribution/manifest"
+	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/progressreader"
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/pkg/stringid"
@@ -190,7 +191,7 @@ func (p *v2Pusher) pushV2Tag(tag string) error {
 	return p.repo.Manifests().Put(signed)
 }
 
-func (p *v2Pusher) pushV2Image(bs distribution.BlobService, img *Image) (digest.Digest, error) {
+func (p *v2Pusher) pushV2Image(bs distribution.BlobService, img *image.Image) (digest.Digest, error) {
 	out := p.config.OutStream
 
 	out.Write(p.sf.FormatProgress(stringid.TruncateID(img.ID), "Buffering to Disk", nil))

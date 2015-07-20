@@ -10,6 +10,7 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/system"
 )
@@ -72,7 +73,7 @@ func SetupInitLayer(initLayer string) error {
 	return nil
 }
 
-func createRootFilesystemInDriver(graph *Graph, img *Image, layerData archive.ArchiveReader) error {
+func createRootFilesystemInDriver(graph *Graph, img *image.Image, layerData archive.ArchiveReader) error {
 	if err := graph.driver.Create(img.ID, img.Parent); err != nil {
 		return fmt.Errorf("Driver %s failed to create image rootfs %s: %s", graph.driver, img.ID, err)
 	}
@@ -86,7 +87,7 @@ func (graph *Graph) restoreBaseImages() ([]string, error) {
 // storeImage stores file system layer data for the given image to the
 // graph's storage driver. Image metadata is stored in a file
 // at the specified root directory.
-func (graph *Graph) storeImage(img *Image, layerData archive.ArchiveReader, root string) (err error) {
+func (graph *Graph) storeImage(img *image.Image, layerData archive.ArchiveReader, root string) (err error) {
 	// Store the layer. If layerData is not nil, unpack it into the new layer
 	if layerData != nil {
 		if img.Size, err = graph.driver.ApplyDiff(img.ID, img.Parent, layerData); err != nil {
@@ -109,6 +110,6 @@ func (graph *Graph) storeImage(img *Image, layerData archive.ArchiveReader, root
 }
 
 // TarLayer returns a tar archive of the image's filesystem layer.
-func (graph *Graph) TarLayer(img *Image) (arch archive.Archive, err error) {
+func (graph *Graph) TarLayer(img *image.Image) (arch archive.Archive, err error) {
 	return graph.driver.Diff(img.ID, img.Parent)
 }

@@ -95,7 +95,7 @@ func (s *TagStore) recursiveLoad(address, tmpImageDir string) error {
 			logrus.Debugf("Error reading embedded tar: %v", err)
 			return err
 		}
-		img, err := NewImgJSON(imageJson)
+		img, err := image.NewImgJSON(imageJson)
 		if err != nil {
 			logrus.Debugf("Error unmarshalling json: %v", err)
 			return err

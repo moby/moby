@@ -9,7 +9,7 @@ import (
 
 	"github.com/docker/docker/daemon/execdriver"
 	"github.com/docker/docker/daemon/graphdriver/windows"
-	"github.com/docker/docker/graph"
+	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/microsoft/hcsshim"
 )
@@ -114,7 +114,7 @@ func populateCommand(c *Container, env []string) error {
 	// enable VFS to continue operating for development purposes.
 	if wd, ok := c.daemon.driver.(*windows.WindowsGraphDriver); ok {
 		var err error
-		var img *graph.Image
+		var img *image.Image
 		var ids []string
 
 		if img, err = c.daemon.graph.Get(c.ImageID); err != nil {
