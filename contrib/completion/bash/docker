@@ -245,6 +245,49 @@ __docker_log_driver_options() {
 	compopt -o nospace
 }
 
+__docker_complete_log_driver_options() {
+	# "=" gets parsed to a word and assigned to either $cur or $prev depending on whether
+	# it is the last character or not. So we search for "xxx=" in the the last two words.
+	case "${words[$cword-2]}$prev=" in
+		*gelf-address=*)
+			COMPREPLY=( $( compgen -W "udp" -S "://" -- "${cur#=}" ) )
+			compopt -o nospace
+			return
+			;;
+		*syslog-address=*)
+			COMPREPLY=( $( compgen -W "tcp udp unix" -S "://" -- "${cur#=}" ) )
+			compopt -o nospace
+			return
+			;;
+		*syslog-facility=*)
+			COMPREPLY=( $( compgen -W "
+				auth
+				authpriv
+				cron
+				daemon
+				ftp
+				kern
+				local0
+				local1
+				local2
+				local3
+				local4
+				local5
+				local6
+				local7
+				lpr
+				mail
+				news
+				syslog
+				user
+				uucp
+			" -- "${cur#=}" ) )
+			return
+			;;
+	esac
+	return 1
+}
+
 # a selection of the available signals that is most likely of interest in the
 # context of docker containers.
 __docker_signals() {
@@ -308,6 +351,8 @@ _docker_docker() {
 			return
 			;;
 	esac
+
+	__docker_complete_log_driver_options && return
 
 	case "$cur" in
 		-*)
@@ -449,8 +494,6 @@ _docker_events() {
 			;;
 	esac
 
-	# "=" gets parsed to a word and assigned to either $cur or $prev depending on whether
-	# it is the last character or not. So we search for "xxx=" in the the last two words.
 	case "${words[$cword-2]}$prev=" in
 		*container=*)
 			cur="${cur#=}"
@@ -1067,6 +1110,8 @@ _docker_run() {
 			return
 			;;
 	esac
+
+	__docker_complete_log_driver_options && return
 
 	case "$cur" in
 		-*)
