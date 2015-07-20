@@ -1276,13 +1276,12 @@ func pingContainers(c *check.C, d *Daemon, expectFailure bool) {
 	}
 
 	args := append(dargs, "run", "-d", "--name", "container1", "busybox", "top")
-	_, err := runCommand(exec.Command(dockerBinary, args...))
-	c.Assert(err, check.IsNil)
+	dockerCmd(c, args...)
 
 	args = append(dargs, "run", "--rm", "--link", "container1:alias1", "busybox", "sh", "-c")
 	pingCmd := "ping -c 1 %s -W 1"
 	args = append(args, fmt.Sprintf(pingCmd, "alias1"))
-	_, err = runCommand(exec.Command(dockerBinary, args...))
+	_, _, err := dockerCmdWithError(c, args...)
 
 	if expectFailure {
 		c.Assert(err, check.NotNil)
@@ -1291,7 +1290,7 @@ func pingContainers(c *check.C, d *Daemon, expectFailure bool) {
 	}
 
 	args = append(dargs, "rm", "-f", "container1")
-	runCommand(exec.Command(dockerBinary, args...))
+	dockerCmd(c, args...)
 }
 
 func (s *DockerDaemonSuite) TestDaemonRestartWithSocketAsVolume(c *check.C) {

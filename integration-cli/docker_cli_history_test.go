@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"os/exec"
 	"regexp"
 	"strconv"
 	"strings"
@@ -47,11 +46,7 @@ RUN echo "Z"`,
 		c.Fatal(err)
 	}
 
-	out, exitCode, err := runCommandWithOutput(exec.Command(dockerBinary, "history", "testbuildhistory"))
-	if err != nil || exitCode != 0 {
-		c.Fatalf("failed to get image history: %s, %v", out, err)
-	}
-
+	out, _ := dockerCmd(c, "history", "testbuildhistory")
 	actualValues := strings.Split(out, "\n")[1:27]
 	expectedValues := [26]string{"Z", "Y", "X", "W", "V", "U", "T", "S", "R", "Q", "P", "O", "N", "M", "L", "K", "J", "I", "H", "G", "F", "E", "D", "C", "B", "A"}
 
@@ -67,18 +62,13 @@ RUN echo "Z"`,
 }
 
 func (s *DockerSuite) TestHistoryExistentImage(c *check.C) {
-	historyCmd := exec.Command(dockerBinary, "history", "busybox")
-	_, exitCode, err := runCommandWithOutput(historyCmd)
-	if err != nil || exitCode != 0 {
-		c.Fatal("failed to get image history")
-	}
+	dockerCmd(c, "history", "busybox")
 }
 
 func (s *DockerSuite) TestHistoryNonExistentImage(c *check.C) {
-	historyCmd := exec.Command(dockerBinary, "history", "testHistoryNonExistentImage")
-	_, exitCode, err := runCommandWithOutput(historyCmd)
-	if err == nil || exitCode == 0 {
-		c.Fatal("history on a non-existent image didn't result in a non-zero exit status")
+	_, _, err := dockerCmdWithError(c, "history", "testHistoryNonExistentImage")
+	if err == nil {
+		c.Fatal("history on a non-existent image should fail.")
 	}
 }
 
@@ -86,44 +76,26 @@ func (s *DockerSuite) TestHistoryImageWithComment(c *check.C) {
 	name := "testhistoryimagewithcomment"
 
 	// make a image through docker commit <container id> [ -m messages ]
-	//runCmd := exec.Command(dockerBinary, "run", "-i", "-a", "stdin", "busybox", "echo", "foo")
-	runCmd := exec.Command(dockerBinary, "run", "--name", name, "busybox", "true")
-	out, _, err := runCommandWithOutput(runCmd)
-	if err != nil {
-		c.Fatalf("failed to run container: %s, %v", out, err)
-	}
 
-	waitCmd := exec.Command(dockerBinary, "wait", name)
-	if out, _, err := runCommandWithOutput(waitCmd); err != nil {
-		c.Fatalf("error thrown while waiting for container: %s, %v", out, err)
-	}
+	dockerCmd(c, "run", "--name", name, "busybox", "true")
+	dockerCmd(c, "wait", name)
 
 	comment := "This_is_a_comment"
-
-	commitCmd := exec.Command(dockerBinary, "commit", "-m="+comment, name, name)
-	if out, _, err := runCommandWithOutput(commitCmd); err != nil {
-		c.Fatalf("failed to commit container to image: %s, %v", out, err)
-	}
+	dockerCmd(c, "commit", "-m="+comment, name, name)
 
 	// test docker history <image id> to check comment messages
-	historyCmd := exec.Command(dockerBinary, "history", name)
-	out, exitCode, err := runCommandWithOutput(historyCmd)
-	if err != nil || exitCode != 0 {
-		c.Fatalf("failed to get image history: %s, %v", out, err)
-	}
 
+	out, _ := dockerCmd(c, "history", name)
 	outputTabs := strings.Fields(strings.Split(out, "\n")[1])
-	//outputTabs := regexp.MustCompile("  +").Split(outputLine, -1)
 	actualValue := outputTabs[len(outputTabs)-1]
 
 	if !strings.Contains(actualValue, comment) {
 		c.Fatalf("Expected comments %q, but found %q", comment, actualValue)
 	}
-
 }
 
 func (s *DockerSuite) TestHistoryHumanOptionFalse(c *check.C) {
-	out, _, _ := runCommandWithOutput(exec.Command(dockerBinary, "history", "--human=false", "busybox"))
+	out, _ := dockerCmd(c, "history", "--human=false", "busybox")
 	lines := strings.Split(out, "\n")
 	sizeColumnRegex, _ := regexp.Compile("SIZE +")
 	indices := sizeColumnRegex.FindStringIndex(lines[0])
@@ -141,7 +113,7 @@ func (s *DockerSuite) TestHistoryHumanOptionFalse(c *check.C) {
 }
 
 func (s *DockerSuite) TestHistoryHumanOptionTrue(c *check.C) {
-	out, _, _ := runCommandWithOutput(exec.Command(dockerBinary, "history", "--human=true", "busybox"))
+	out, _ := dockerCmd(c, "history", "--human=true", "busybox")
 	lines := strings.Split(out, "\n")
 	sizeColumnRegex, _ := regexp.Compile("SIZE +")
 	humanSizeRegex, _ := regexp.Compile("^\\d+.*B$") // Matches human sizes like 10 MB, 3.2 KB, etc
