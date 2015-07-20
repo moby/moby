@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/http/cookiejar"
 	"os"
 	"runtime"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cliconfig"
@@ -47,6 +49,10 @@ type DockerCli struct {
 	client client.APIClient
 	// state holds the terminal state
 	state *term.State
+	// authnOpts collects authentication options from the command line
+	authnOpts map[string]string
+	// jar is a cookie jar that we'll let the http client ask us for
+	jar http.CookieJar
 }
 
 // Initialize calls the init function that will setup the configuration for the client
@@ -118,7 +124,6 @@ func NewDockerCli(in io.ReadCloser, out, err io.Writer, clientFlags *cli.ClientF
 		err:     err,
 		keyFile: clientFlags.Common.TrustKey,
 	}
-
 	cli.init = func() error {
 		clientFlags.PostParse()
 		configFile, e := cliconfig.Load(cliconfig.ConfigDir())
@@ -161,10 +166,37 @@ func NewDockerCli(in io.ReadCloser, out, err io.Writer, clientFlags *cli.ClientF
 			cli.outFd, cli.isTerminalOut = term.GetFdInfo(cli.out)
 		}
 
+		cli.authnOpts = clientFlags.Common.AuthnOpts
+		jar, _ := cookiejar.New(nil)
+		cli.jar = jar
+		client.SetAuth(cli)
+		client.SetLogger(cli)
+
 		return nil
 	}
 
 	return cli
+}
+
+// Debug logs a message at debug level.  This is one of the three functions in
+// the authn.Logger interface which the http client looks for in the object
+// that we pass to its SetLogger() method.
+func (cli *DockerCli) Debug(formatted string) {
+	// logrus.Debug(formatted)
+}
+
+// Info logs a message at info level.  This is one of the three functions in
+// the authn.Logger interface which the http client looks for in the object
+// that we pass to its SetLogger() method.
+func (cli *DockerCli) Info(formatted string) {
+	logrus.Info(formatted)
+}
+
+// Error logs a message at error level.  This is one of the three functions in
+// the authn.Logger interface which the http client looks for in the object
+// that we pass to its SetLogger() method.
+func (cli *DockerCli) Error(formatted string) {
+	logrus.Error(formatted)
 }
 
 func getServerHost(hosts []string, tlsOptions *tlsconfig.Options) (host string, err error) {

@@ -51,6 +51,9 @@ func init() {
 	cmd.StringVar(&tlsOptions.KeyFile, []string{"-tlskey"}, filepath.Join(dockerCertPath, defaultKeyFile), "Path to TLS key file")
 
 	cmd.Var(opts.NewNamedListOptsRef("hosts", &commonFlags.Hosts, opts.ValidateHost), []string{"H", "-host"}, "Daemon socket(s) to connect to")
+
+	commonFlags.AuthnOpts = make(map[string]string)
+	cmd.Var(opts.NewMapOpts(commonFlags.AuthnOpts, validateAuthnOpt), []string{"-authn-opt"}, "Authentication options to use")
 }
 
 func postParseCommon() {
@@ -97,4 +100,10 @@ func setDaemonLogLevel(logLevel string) {
 	} else {
 		logrus.SetLevel(logrus.InfoLevel)
 	}
+}
+
+// validateAuthnOpt checks if a passed-in option value is a recognized
+// client authentication option.
+func validateAuthnOpt(option string) (string, error) {
+	return "", fmt.Errorf("invalid authentication option %s", option)
 }

@@ -5,13 +5,16 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/http"
 	"net/http/httputil"
 	"net/url"
 	"strings"
 	"time"
 
+	"github.com/docker/engine-api/client/transport/cancellable"
 	"github.com/docker/engine-api/types"
 	"github.com/docker/go-connections/sockets"
+	"golang.org/x/net/context"
 )
 
 // tlsClientCon holds tls information and a dialed connection.
@@ -67,7 +70,15 @@ func (cli *Client) postHijacked(path string, query url.Values, body interface{},
 	defer clientconn.Close()
 
 	// Server hijacks the connection, error 'connection closed' expected
-	clientconn.Do(req)
+	resp, err := cli.doWithMiddlewares(cancellable.Do)(context.TODO(), clientconn, req)
+
+	if resp.StatusCode != http.StatusSwitchingProtocols {
+		cli.debugf("[hijack] Error %d hijacking", resp.StatusCode)
+		if err != nil {
+			return types.HijackedResponse{}, err
+		}
+		return types.HijackedResponse{}, fmt.Errorf("Error hijacking connection to the Docker daemon (expected status %d, got %d)", http.StatusSwitchingProtocols, resp.StatusCode)
+	}
 
 	rwc, br := clientconn.Hijack()
 

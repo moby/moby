@@ -64,6 +64,7 @@ func TestAuthZRequestPlugin(t *testing.T) {
 
 	request := Request{
 		User:           "user",
+		UID:            "1234",
 		RequestBody:    []byte("sample body"),
 		RequestURI:     "www.authz.com",
 		RequestMethod:  "GET",

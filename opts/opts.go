@@ -240,3 +240,33 @@ func ValidateLabel(val string) (string, error) {
 	}
 	return val, nil
 }
+
+// AuthnOptionValidater validates a passed-in authentication option, returning
+// an error if the option is invalid
+type AuthnOptionValidater func(option string) (validated string, err error)
+
+var authnOptionValidaters = []AuthnOptionValidater{}
+
+// RegisterAuthnOptionValidater registers a function which will be called by
+// ValidateAuthnOpt() to validate passed-in authentication options
+func RegisterAuthnOptionValidater(ov AuthnOptionValidater) {
+	authnOptionValidaters = append(authnOptionValidaters, ov)
+}
+
+// ValidateAuthnOpt asks each known authenticator, in turn, to validate the
+// specified option.  If any of them succeeds, then the validation is
+// successful.  If not, validation fails.
+func ValidateAuthnOpt(option string) (validated string, err error) {
+	err = fmt.Errorf("invalid authentication option: %s", option)
+	for _, ov := range authnOptionValidaters {
+		validated, err = ov(option)
+		if err == nil {
+			return validated, err
+		}
+	}
+	validated = ""
+	if err == nil {
+		err = fmt.Errorf("invalid authentication option: %s", option)
+	}
+	return validated, err
+}
