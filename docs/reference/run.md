@@ -617,7 +617,8 @@ and require killing system processes to free memory.
 By default, a container's kernel can swap out a percentage of anonymous pages.
 To set this percentage for a container, specify a `--memory-swappiness` value
 between 0 and 100. A value of 0 turns off anonymous page swapping. A value of
-100 sets all anonymous pages as swappable.
+100 sets all anonymous pages as swappable. By default, if you are not using
+`--memory-swappiness`, memory swappiness value will be inherited from the parent.
 
 For example, you can set:
 

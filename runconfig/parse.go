@@ -73,7 +73,6 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		flStdin           = cmd.Bool([]string{"i", "-interactive"}, false, "Keep STDIN open even if not attached")
 		flTty             = cmd.Bool([]string{"t", "-tty"}, false, "Allocate a pseudo-TTY")
 		flOomKillDisable  = cmd.Bool([]string{"-oom-kill-disable"}, false, "Disable OOM Killer")
-		flSwappinessStr   = cmd.String([]string{"-memory-swappiness"}, "", "Tuning container memory swappiness (0 to 100)")
 		flContainerIDFile = cmd.String([]string{"#cidfile", "-cidfile"}, "", "Write the container ID to the file")
 		flEntrypoint      = cmd.String([]string{"#entrypoint", "-entrypoint"}, "", "Overwrite the default ENTRYPOINT of the image")
 		flHostname        = cmd.String([]string{"h", "-hostname"}, "", "Container host name")
@@ -87,6 +86,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		flCpusetCpus      = cmd.String([]string{"#-cpuset", "-cpuset-cpus"}, "", "CPUs in which to allow execution (0-3, 0,1)")
 		flCpusetMems      = cmd.String([]string{"-cpuset-mems"}, "", "MEMs in which to allow execution (0-3, 0,1)")
 		flBlkioWeight     = cmd.Int64([]string{"-blkio-weight"}, 0, "Block IO (relative weight), between 10 and 1000")
+		flSwappiness      = cmd.Int64([]string{"-memory-swappiness"}, -1, "Tuning container memory swappiness (0 to 100)")
 		flNetMode         = cmd.String([]string{"-net"}, "default", "Set the Network mode for the container")
 		flMacAddress      = cmd.String([]string{"-mac-address"}, "", "Container MAC address (e.g. 92:d0:c6:0a:29:33)")
 		flIpcMode         = cmd.String([]string{"-ipc"}, "", "IPC namespace to use")
@@ -190,17 +190,9 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		}
 	}
 
-	var parsedSwappiness int64
-	var flSwappiness int64
-
-	if *flSwappinessStr != "" {
-		parsedSwappiness, err = strconv.ParseInt(*flSwappinessStr, 10, 64)
-		if err != nil || parsedSwappiness < 0 || parsedSwappiness > 100 {
-			return nil, nil, cmd, fmt.Errorf("invalid value:%s. valid memory swappiness range is 0-100", *flSwappinessStr)
-		}
-		flSwappiness = parsedSwappiness
-	} else {
-		flSwappiness = -1
+	swappiness := *flSwappiness
+	if swappiness != -1 && (swappiness < 0 || swappiness > 100) {
+		return nil, nil, cmd, fmt.Errorf("Invalid value: %d. Valid memory swappiness range is 0-100", swappiness)
 	}
 
 	var binds []string
@@ -355,7 +347,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		CpuQuota:         *flCpuQuota,
 		BlkioWeight:      *flBlkioWeight,
 		OomKillDisable:   *flOomKillDisable,
-		MemorySwappiness: flSwappiness,
+		MemorySwappiness: swappiness,
 		Privileged:       *flPrivileged,
 		PortBindings:     portBindings,
 		Links:            flLinks.GetAll(),
