@@ -93,9 +93,9 @@ More info from the always handy [Grammar Girl site](http://www.quickanddirtytips
 
 ### Pronouns
 
-It's okay to use first and second person pronouns. Specifically, use "we" to
+It's okay to use first and second person pronouns, especially if it lets you avoid a passive construction. Specifically, always use "we" to
 refer to Docker and "you" to refer to the user. For example, "We built the
-`exec` command so you can resize a TTY session."
+`exec` command so you can resize a TTY session." That said, in general, try to write simple, imperative sentences that avoid the use of pronouns altogether. Say "Now, enter your SSH key" rather than "You can now enter your SSH key."
 
 As much as possible, avoid using gendered pronouns ("he" and "she", etc.).
 Either recast the sentence so the pronoun is not needed or, less preferably,
@@ -128,7 +128,7 @@ capitalized (and words that would normally be capitalized in a sentence, e.g.,
 "Docker"). Do not use Title Case (i.e., capitalizing every word) for headings. Generally, we adhere to [AP style
 for titles](http://www.quickanddirtytips.com/education/grammar/capitalizing-titles).
 
-## Periods
+### Periods
 
 We prefer one space after a period at the end of a sentence, not two. 
 
