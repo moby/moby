@@ -26,7 +26,7 @@ func (a byName) Less(i, j int) bool { return a[i].name < a[j].name }
 
 var (
 	dockerCertPath  = os.Getenv("DOCKER_CERT_PATH")
-	dockerTlsVerify = os.Getenv("DOCKER_TLS_VERIFY") != ""
+	dockerTlSVerify = os.Getenv("DOCKER_TLS_VERIFY") != ""
 
 	dockerCommands = []command{
 		{"attach", "Attach to a running container"},
@@ -91,9 +91,9 @@ var (
 	flDaemon    = flag.Bool([]string{"d", "-daemon"}, false, "Enable daemon mode")
 	flDebug     = flag.Bool([]string{"D", "-debug"}, false, "Enable debug mode")
 	flLogLevel  = flag.String([]string{"l", "-log-level"}, "info", "Set the logging level")
-	flTls       = flag.Bool([]string{"-tls"}, false, "Use TLS; implied by --tlsverify")
+	flTlS       = flag.Bool([]string{"-tls"}, false, "Use TLS; implied by --tlsverify")
 	flHelp      = flag.Bool([]string{"h", "-help"}, false, "Print usage")
-	flTlsVerify = flag.Bool([]string{"-tlsverify"}, dockerTlsVerify, "Use TLS and verify the remote")
+	flTlSVerify = flag.Bool([]string{"-tlsverify"}, dockerTlSVerify, "Use TLS and verify the remote")
 
 	// these are initialized in init() below since their default values depend on dockerCertPath which isn't fully initialized until init() runs
 	tlsOptions tlsconfig.Options
