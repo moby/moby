@@ -10,6 +10,7 @@ import (
 	"github.com/docker/distribution"
 	"github.com/docker/distribution/digest"
 	"github.com/docker/distribution/manifest"
+	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/progressreader"
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/pkg/stringid"
@@ -94,7 +95,7 @@ func (p *v2Puller) pullV2Repository(tag string) (err error) {
 
 // downloadInfo is used to pass information from download to extractor
 type downloadInfo struct {
-	img      *Image
+	img      *image.Image
 	tmpFile  *os.File
 	digest   digest.Digest
 	layer    distribution.ReadSeekCloser
@@ -208,7 +209,7 @@ func (p *v2Puller) pullV2Tag(tag, taggedName string) (bool, error) {
 	}()
 
 	for i := len(manifest.FSLayers) - 1; i >= 0; i-- {
-		img, err := NewImgJSON([]byte(manifest.History[i].V1Compatibility))
+		img, err := image.NewImgJSON([]byte(manifest.History[i].V1Compatibility))
 		if err != nil {
 			logrus.Debugf("error getting image v1 json: %v", err)
 			return false, err

@@ -10,6 +10,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/registry/client/transport"
+	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/progressreader"
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/pkg/stringid"
@@ -257,7 +258,7 @@ func (p *v1Puller) pullImage(imgID, endpoint string, token []string) (bool, erro
 				imgJSON []byte
 				imgSize int
 				err     error
-				img     *Image
+				img     *image.Image
 			)
 			retries := 5
 			for j := 1; j <= retries; j++ {
@@ -269,7 +270,7 @@ func (p *v1Puller) pullImage(imgID, endpoint string, token []string) (bool, erro
 					time.Sleep(time.Duration(j) * 500 * time.Millisecond)
 					continue
 				}
-				img, err = NewImgJSON(imgJSON)
+				img, err = image.NewImgJSON(imgJSON)
 				layersDownloaded = true
 				if err != nil && j == retries {
 					out.Write(p.sf.FormatProgress(stringid.TruncateID(id), "Error pulling dependent layers", nil))
