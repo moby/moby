@@ -69,17 +69,16 @@ func (s *DockerSuite) TestConfigDir(c *check.C) {
 	cDir, _ := ioutil.TempDir("", "fake-home")
 
 	// First make sure pointing to empty dir doesn't generate an error
-	cmd := exec.Command(dockerBinary, "--config", cDir, "ps")
-	out, rc, err := runCommandWithOutput(cmd)
+	out, rc := dockerCmd(c, "--config", cDir, "ps")
 
-	if rc != 0 || err != nil {
-		c.Fatalf("ps1 didn't work:\nrc:%d\nout%s\nerr:%v", rc, out, err)
+	if rc != 0 {
+		c.Fatalf("ps1 didn't work:\nrc:%d\nout%s", rc, out)
 	}
 
 	// Test with env var too
-	cmd = exec.Command(dockerBinary, "ps")
+	cmd := exec.Command(dockerBinary, "ps")
 	cmd.Env = append(os.Environ(), "DOCKER_CONFIG="+cDir)
-	out, rc, err = runCommandWithOutput(cmd)
+	out, rc, err := runCommandWithOutput(cmd)
 
 	if rc != 0 || err != nil {
 		c.Fatalf("ps2 didn't work:\nrc:%d\nout%s\nerr:%v", rc, out, err)

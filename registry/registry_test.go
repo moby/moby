@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/docker/distribution/registry/client/transport"
 	"github.com/docker/docker/cliconfig"
-	"github.com/docker/docker/pkg/transport"
 )
 
 var (
@@ -27,7 +27,7 @@ func spawnTestRegistrySession(t *testing.T) *Session {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var tr http.RoundTripper = debugTransport{NewTransport(ReceiveTimeout, endpoint.IsSecure), t.Log}
+	var tr http.RoundTripper = debugTransport{NewTransport(nil), t.Log}
 	tr = transport.NewTransport(AuthTransport(tr, authConfig, false), DockerHeaders(nil)...)
 	client := HTTPClient(tr)
 	r, err := NewSession(client, authConfig, endpoint)
@@ -332,52 +332,52 @@ func TestParseRepositoryInfo(t *testing.T) {
 	expectedRepoInfos := map[string]RepositoryInfo{
 		"fooo/bar": {
 			Index: &IndexInfo{
-				Name:     IndexServerName(),
+				Name:     INDEXNAME,
 				Official: true,
 			},
 			RemoteName:    "fooo/bar",
 			LocalName:     "fooo/bar",
-			CanonicalName: "fooo/bar",
+			CanonicalName: "docker.io/fooo/bar",
 			Official:      false,
 		},
 		"library/ubuntu": {
 			Index: &IndexInfo{
-				Name:     IndexServerName(),
+				Name:     INDEXNAME,
 				Official: true,
 			},
 			RemoteName:    "library/ubuntu",
 			LocalName:     "ubuntu",
-			CanonicalName: "ubuntu",
+			CanonicalName: "docker.io/library/ubuntu",
 			Official:      true,
 		},
 		"nonlibrary/ubuntu": {
 			Index: &IndexInfo{
-				Name:     IndexServerName(),
+				Name:     INDEXNAME,
 				Official: true,
 			},
 			RemoteName:    "nonlibrary/ubuntu",
 			LocalName:     "nonlibrary/ubuntu",
-			CanonicalName: "nonlibrary/ubuntu",
+			CanonicalName: "docker.io/nonlibrary/ubuntu",
 			Official:      false,
 		},
 		"ubuntu": {
 			Index: &IndexInfo{
-				Name:     IndexServerName(),
+				Name:     INDEXNAME,
 				Official: true,
 			},
 			RemoteName:    "library/ubuntu",
 			LocalName:     "ubuntu",
-			CanonicalName: "ubuntu",
+			CanonicalName: "docker.io/library/ubuntu",
 			Official:      true,
 		},
 		"other/library": {
 			Index: &IndexInfo{
-				Name:     IndexServerName(),
+				Name:     INDEXNAME,
 				Official: true,
 			},
 			RemoteName:    "other/library",
 			LocalName:     "other/library",
-			CanonicalName: "other/library",
+			CanonicalName: "docker.io/other/library",
 			Official:      false,
 		},
 		"127.0.0.1:8000/private/moonbase": {
@@ -480,74 +480,54 @@ func TestParseRepositoryInfo(t *testing.T) {
 			CanonicalName: "localhost/privatebase",
 			Official:      false,
 		},
-		IndexServerName() + "/public/moonbase": {
+		INDEXNAME + "/public/moonbase": {
 			Index: &IndexInfo{
-				Name:     IndexServerName(),
+				Name:     INDEXNAME,
 				Official: true,
 			},
 			RemoteName:    "public/moonbase",
 			LocalName:     "public/moonbase",
-			CanonicalName: "public/moonbase",
+			CanonicalName: "docker.io/public/moonbase",
 			Official:      false,
 		},
-		"index." + IndexServerName() + "/public/moonbase": {
+		"index." + INDEXNAME + "/public/moonbase": {
 			Index: &IndexInfo{
-				Name:     IndexServerName(),
+				Name:     INDEXNAME,
 				Official: true,
 			},
 			RemoteName:    "public/moonbase",
 			LocalName:     "public/moonbase",
-			CanonicalName: "public/moonbase",
-			Official:      false,
-		},
-		IndexServerName() + "/public/moonbase": {
-			Index: &IndexInfo{
-				Name:     IndexServerName(),
-				Official: true,
-			},
-			RemoteName:    "public/moonbase",
-			LocalName:     "public/moonbase",
-			CanonicalName: "public/moonbase",
+			CanonicalName: "docker.io/public/moonbase",
 			Official:      false,
 		},
 		"ubuntu-12.04-base": {
 			Index: &IndexInfo{
-				Name:     IndexServerName(),
+				Name:     INDEXNAME,
 				Official: true,
 			},
 			RemoteName:    "library/ubuntu-12.04-base",
 			LocalName:     "ubuntu-12.04-base",
-			CanonicalName: "ubuntu-12.04-base",
+			CanonicalName: "docker.io/library/ubuntu-12.04-base",
 			Official:      true,
 		},
-		IndexServerName() + "/ubuntu-12.04-base": {
+		INDEXNAME + "/ubuntu-12.04-base": {
 			Index: &IndexInfo{
-				Name:     IndexServerName(),
+				Name:     INDEXNAME,
 				Official: true,
 			},
 			RemoteName:    "library/ubuntu-12.04-base",
 			LocalName:     "ubuntu-12.04-base",
-			CanonicalName: "ubuntu-12.04-base",
+			CanonicalName: "docker.io/library/ubuntu-12.04-base",
 			Official:      true,
 		},
-		IndexServerName() + "/ubuntu-12.04-base": {
+		"index." + INDEXNAME + "/ubuntu-12.04-base": {
 			Index: &IndexInfo{
-				Name:     IndexServerName(),
+				Name:     INDEXNAME,
 				Official: true,
 			},
 			RemoteName:    "library/ubuntu-12.04-base",
 			LocalName:     "ubuntu-12.04-base",
-			CanonicalName: "ubuntu-12.04-base",
-			Official:      true,
-		},
-		"index." + IndexServerName() + "/ubuntu-12.04-base": {
-			Index: &IndexInfo{
-				Name:     IndexServerName(),
-				Official: true,
-			},
-			RemoteName:    "library/ubuntu-12.04-base",
-			LocalName:     "ubuntu-12.04-base",
-			CanonicalName: "ubuntu-12.04-base",
+			CanonicalName: "docker.io/library/ubuntu-12.04-base",
 			Official:      true,
 		},
 	}
@@ -585,14 +565,14 @@ func TestNewIndexInfo(t *testing.T) {
 	config := NewServiceConfig(nil)
 	noMirrors := make([]string, 0)
 	expectedIndexInfos := map[string]*IndexInfo{
-		IndexServerName(): {
-			Name:     IndexServerName(),
+		INDEXNAME: {
+			Name:     INDEXNAME,
 			Official: true,
 			Secure:   true,
 			Mirrors:  noMirrors,
 		},
-		"index." + IndexServerName(): {
-			Name:     IndexServerName(),
+		"index." + INDEXNAME: {
+			Name:     INDEXNAME,
 			Official: true,
 			Secure:   true,
 			Mirrors:  noMirrors,
@@ -616,14 +596,14 @@ func TestNewIndexInfo(t *testing.T) {
 	config = makeServiceConfig(publicMirrors, []string{"example.com"})
 
 	expectedIndexInfos = map[string]*IndexInfo{
-		IndexServerName(): {
-			Name:     IndexServerName(),
+		INDEXNAME: {
+			Name:     INDEXNAME,
 			Official: true,
 			Secure:   true,
 			Mirrors:  publicMirrors,
 		},
-		"index." + IndexServerName(): {
-			Name:     IndexServerName(),
+		"index." + INDEXNAME: {
+			Name:     INDEXNAME,
 			Official: true,
 			Secure:   true,
 			Mirrors:  publicMirrors,
@@ -880,7 +860,7 @@ func TestIsSecureIndex(t *testing.T) {
 		insecureRegistries []string
 		expected           bool
 	}{
-		{IndexServerName(), nil, true},
+		{INDEXNAME, nil, true},
 		{"example.com", []string{}, true},
 		{"example.com", []string{"example.com"}, false},
 		{"localhost", []string{"localhost:5000"}, false},

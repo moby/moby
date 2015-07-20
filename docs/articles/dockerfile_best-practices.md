@@ -158,7 +158,10 @@ updated, use `apt-get install -y foo` and it will update automatically.
 
 * Do write instructions like:
 
-    RUN apt-get update && apt-get install -y package-bar package-foo package-baz
+        RUN apt-get update && apt-get install -y \
+            package-bar \
+            package-baz \
+            package-foo
 
 Writing the instruction this way not only makes it easier to read
 and maintain, but also, by including `apt-get update`, ensures that the cache
@@ -382,7 +385,7 @@ Or, it can be used to run Postgres and pass parameters to the server:
 
     $ docker run postgres postgres --help
 
-Lastly, it could also be used to start a totally different tool, such Bash:
+Lastly, it could also be used to start a totally different tool, such as Bash:
 
     $ docker run --rm -it postgres bash
 

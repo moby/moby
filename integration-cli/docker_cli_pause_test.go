@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"os/exec"
 	"strings"
 
 	"github.com/go-check/check"
@@ -27,8 +26,7 @@ func (s *DockerSuite) TestPause(c *check.C) {
 
 	dockerCmd(c, "unpause", name)
 
-	eventsCmd := exec.Command(dockerBinary, "events", "--since=0", fmt.Sprintf("--until=%d", daemonTime(c).Unix()))
-	out, _, _ = runCommandWithOutput(eventsCmd)
+	out, _ = dockerCmd(c, "events", "--since=0", fmt.Sprintf("--until=%d", daemonTime(c).Unix()))
 	events := strings.Split(out, "\n")
 	if len(events) <= 1 {
 		c.Fatalf("Missing expected event")
@@ -69,8 +67,7 @@ func (s *DockerSuite) TestPauseMultipleContainers(c *check.C) {
 
 	dockerCmd(c, append([]string{"unpause"}, containers...)...)
 
-	eventsCmd := exec.Command(dockerBinary, "events", "--since=0", fmt.Sprintf("--until=%d", daemonTime(c).Unix()))
-	out, _, _ = runCommandWithOutput(eventsCmd)
+	out, _ = dockerCmd(c, "events", "--since=0", fmt.Sprintf("--until=%d", daemonTime(c).Unix()))
 	events := strings.Split(out, "\n")
 	if len(events) <= len(containers)*3-2 {
 		c.Fatalf("Missing expected event")

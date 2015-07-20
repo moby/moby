@@ -24,12 +24,12 @@ import (
 	"github.com/docker/docker/utils"
 	volumedrivers "github.com/docker/docker/volume/drivers"
 	"github.com/docker/docker/volume/local"
-	"github.com/docker/libcontainer/label"
 	"github.com/docker/libnetwork"
 	nwapi "github.com/docker/libnetwork/api"
 	nwconfig "github.com/docker/libnetwork/config"
 	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/libnetwork/options"
+	"github.com/opencontainers/runc/libcontainer/label"
 )
 
 func (daemon *Daemon) Changes(container *Container) ([]archive.Change, error) {

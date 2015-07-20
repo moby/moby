@@ -3,7 +3,6 @@
 package main
 
 import (
-	"os/exec"
 	"strings"
 
 	"github.com/go-check/check"
@@ -22,9 +21,7 @@ func assertNwNotAvailable(c *check.C, name string) {
 }
 
 func isNwPresent(c *check.C, name string) bool {
-	runCmd := exec.Command(dockerBinary, "network", "ls")
-	out, _, _, err := runCommandWithStdoutStderr(runCmd)
-	c.Assert(err, check.IsNil)
+	out, _ := dockerCmd(c, "network", "ls")
 	lines := strings.Split(out, "\n")
 	for i := 1; i < len(lines)-1; i++ {
 		if strings.Contains(lines[i], name) {
@@ -42,13 +39,9 @@ func (s *DockerSuite) TestDockerNetworkLsDefault(c *check.C) {
 }
 
 func (s *DockerSuite) TestDockerNetworkCreateDelete(c *check.C) {
-	runCmd := exec.Command(dockerBinary, "network", "create", "test")
-	_, _, _, err := runCommandWithStdoutStderr(runCmd)
-	c.Assert(err, check.IsNil)
+	dockerCmd(c, "network", "create", "test")
 	assertNwIsAvailable(c, "test")
 
-	runCmd = exec.Command(dockerBinary, "network", "rm", "test")
-	_, _, _, err = runCommandWithStdoutStderr(runCmd)
-	c.Assert(err, check.IsNil)
+	dockerCmd(c, "network", "rm", "test")
 	assertNwNotAvailable(c, "test")
 }

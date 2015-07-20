@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/docker/docker/runconfig"
-	"github.com/docker/libcontainer/selinux"
+	"github.com/opencontainers/runc/libcontainer/selinux"
 )
 
 func selinuxSetDisabled() {

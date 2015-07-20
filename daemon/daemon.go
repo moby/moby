@@ -35,8 +35,8 @@ import (
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/trust"
-	"github.com/docker/libcontainer/netlink"
 	"github.com/docker/libnetwork"
+	"github.com/opencontainers/runc/libcontainer/netlink"
 )
 
 var (
@@ -884,10 +884,7 @@ func (daemon *Daemon) ContainerGraph() *graphdb.Database {
 
 func (daemon *Daemon) ImageGetCached(imgID string, config *runconfig.Config) (*graph.Image, error) {
 	// Retrieve all images
-	images, err := daemon.Graph().Map()
-	if err != nil {
-		return nil, err
-	}
+	images := daemon.Graph().Map()
 
 	// Store the tree in a map of map (map[parentId][childId])
 	imageMap := make(map[string]map[string]struct{})

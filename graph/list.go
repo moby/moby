@@ -58,12 +58,9 @@ func (s *TagStore) Images(config *ImagesConfig) ([]*types.Image, error) {
 	_, filtLabel = imageFilters["label"]
 
 	if config.All && filtTagged {
-		allImages, err = s.graph.Map()
+		allImages = s.graph.Map()
 	} else {
-		allImages, err = s.graph.Heads()
-	}
-	if err != nil {
-		return nil, err
+		allImages = s.graph.Heads()
 	}
 
 	lookup := make(map[string]*types.Image)

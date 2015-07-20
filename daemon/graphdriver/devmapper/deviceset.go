@@ -23,13 +23,13 @@ import (
 	"github.com/docker/docker/pkg/devicemapper"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/units"
-	"github.com/docker/libcontainer/label"
+	"github.com/opencontainers/runc/libcontainer/label"
 )
 
 var (
 	DefaultDataLoopbackSize     int64  = 100 * 1024 * 1024 * 1024
 	DefaultMetaDataLoopbackSize int64  = 2 * 1024 * 1024 * 1024
-	DefaultBaseFsSize           uint64 = 10 * 1024 * 1024 * 1024
+	DefaultBaseFsSize           uint64 = 100 * 1024 * 1024 * 1024
 	DefaultThinpBlockSize       uint32 = 128 // 64K = 128 512b sectors
 	DefaultUdevSyncOverride     bool   = false
 	MaxDeviceId                 int    = 0xffffff // 24 bit, pool limit
@@ -1550,7 +1550,7 @@ func (devices *DeviceSet) cancelDeferredRemoval(info *DevInfo) error {
 	}
 
 	logrus.Debugf("[devmapper] cancelDeferredRemoval START(%s)", info.Name())
-	defer logrus.Debugf("[devmapper] cancelDeferredRemoval END(%s)", info.Name)
+	defer logrus.Debugf("[devmapper] cancelDeferredRemoval END(%s)", info.Name())
 
 	devinfo, err := devicemapper.GetInfoWithDeferred(info.Name())
 

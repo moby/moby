@@ -12,20 +12,13 @@ import (
 func (s *DockerSuite) TestExportContainerAndImportImage(c *check.C) {
 	containerID := "testexportcontainerandimportimage"
 
-	runCmd := exec.Command(dockerBinary, "run", "--name", containerID, "busybox", "true")
-	out, _, err := runCommandWithOutput(runCmd)
-	if err != nil {
-		c.Fatal("failed to create a container", out, err)
-	}
+	dockerCmd(c, "run", "--name", containerID, "busybox", "true")
 
-	exportCmd := exec.Command(dockerBinary, "export", containerID)
-	if out, _, err = runCommandWithOutput(exportCmd); err != nil {
-		c.Fatalf("failed to export container: %s, %v", out, err)
-	}
+	out, _ := dockerCmd(c, "export", containerID)
 
 	importCmd := exec.Command(dockerBinary, "import", "-", "repo/testexp:v1")
 	importCmd.Stdin = strings.NewReader(out)
-	out, _, err = runCommandWithOutput(importCmd)
+	out, _, err := runCommandWithOutput(importCmd)
 	if err != nil {
 		c.Fatalf("failed to import image: %s, %v", out, err)
 	}
@@ -40,20 +33,11 @@ func (s *DockerSuite) TestExportContainerAndImportImage(c *check.C) {
 func (s *DockerSuite) TestExportContainerWithOutputAndImportImage(c *check.C) {
 	containerID := "testexportcontainerwithoutputandimportimage"
 
-	runCmd := exec.Command(dockerBinary, "run", "--name", containerID, "busybox", "true")
-	out, _, err := runCommandWithOutput(runCmd)
-	if err != nil {
-		c.Fatal("failed to create a container", out, err)
-	}
-
+	dockerCmd(c, "run", "--name", containerID, "busybox", "true")
+	dockerCmd(c, "export", "--output=testexp.tar", containerID)
 	defer os.Remove("testexp.tar")
 
-	exportCmd := exec.Command(dockerBinary, "export", "--output=testexp.tar", containerID)
-	if out, _, err = runCommandWithOutput(exportCmd); err != nil {
-		c.Fatalf("failed to export container: %s, %v", out, err)
-	}
-
-	out, _, err = runCommandWithOutput(exec.Command("cat", "testexp.tar"))
+	out, _, err := runCommandWithOutput(exec.Command("cat", "testexp.tar"))
 	if err != nil {
 		c.Fatal(out, err)
 	}

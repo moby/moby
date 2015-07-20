@@ -81,10 +81,6 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 	}
 
 	if c.Network.Interface != nil {
-
-		// TODO Windows: Temporary
-		c.Network.Interface.Bridge = "Virtual Switch"
-
 		dev := device{
 			DeviceType: "Network",
 			Connection: &networkConnection{
@@ -101,7 +97,11 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 			}
 		}
 
+		logrus.Debugf("Virtual switch '%s', mac='%s'", c.Network.Interface.Bridge, c.Network.Interface.MacAddress)
+
 		cu.Devices = append(cu.Devices, dev)
+	} else {
+		logrus.Debugln("No network interface")
 	}
 
 	configurationb, err := json.Marshal(cu)

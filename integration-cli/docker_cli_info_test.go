@@ -1,7 +1,6 @@
 package main
 
 import (
-	"os/exec"
 	"strings"
 
 	"github.com/docker/docker/utils"
@@ -10,11 +9,7 @@ import (
 
 // ensure docker info succeeds
 func (s *DockerSuite) TestInfoEnsureSucceeds(c *check.C) {
-	versionCmd := exec.Command(dockerBinary, "info")
-	out, exitCode, err := runCommandWithOutput(versionCmd)
-	if err != nil || exitCode != 0 {
-		c.Fatalf("failed to execute docker info: %s, %v", out, err)
-	}
+	out, _ := dockerCmd(c, "info")
 
 	// always shown fields
 	stringsToCheck := []string{

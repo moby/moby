@@ -5,7 +5,6 @@ package gelf
 import (
 	"bytes"
 	"fmt"
-	"io"
 	"net"
 	"net/url"
 	"time"
@@ -37,6 +36,9 @@ type GelfFields struct {
 
 func init() {
 	if err := logger.RegisterLogDriver(name, New); err != nil {
+		logrus.Fatal(err)
+	}
+	if err := logger.RegisterLogOptValidator(name, ValidateLogOpt); err != nil {
 		logrus.Fatal(err)
 	}
 }
@@ -113,16 +115,24 @@ func (s *GelfLogger) Log(msg *logger.Message) error {
 	return nil
 }
 
-func (s *GelfLogger) GetReader() (io.Reader, error) {
-	return nil, logger.ReadLogsNotSupported
-}
-
 func (s *GelfLogger) Close() error {
 	return s.writer.Close()
 }
 
 func (s *GelfLogger) Name() string {
 	return name
+}
+
+func ValidateLogOpt(cfg map[string]string) error {
+	for key := range cfg {
+		switch key {
+		case "gelf-address":
+		case "gelf-tag":
+		default:
+			return fmt.Errorf("unknown log opt '%s' for gelf log driver", key)
+		}
+	}
+	return nil
 }
 
 func parseAddress(address string) (string, error) {

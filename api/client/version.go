@@ -15,7 +15,7 @@ import (
 
 var VersionTemplate = `Client:
  Version:      {{.Client.Version}}
- Package Version: {{.Client.PackageVersion}}
+ Package version: {{.Client.PackageVersion}}
  API version:  {{.Client.ApiVersion}}
  Go version:   {{.Client.GoVersion}}
  Git commit:   {{.Client.GitCommit}}
@@ -25,7 +25,7 @@ var VersionTemplate = `Client:
 
 Server:
  Version:      {{.Server.Version}}
- Package Version: {{.Server.PackageVersion}}
+ Package version: {{.Server.PackageVersion}}
  API version:  {{.Server.ApiVersion}}
  Go version:   {{.Server.GoVersion}}
  Git commit:   {{.Server.GitCommit}}

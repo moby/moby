@@ -10,10 +10,10 @@ import (
 	"syscall"
 
 	"github.com/docker/docker/daemon/execdriver"
-	"github.com/docker/libcontainer/apparmor"
-	"github.com/docker/libcontainer/configs"
-	"github.com/docker/libcontainer/devices"
-	"github.com/docker/libcontainer/utils"
+	"github.com/opencontainers/runc/libcontainer/apparmor"
+	"github.com/opencontainers/runc/libcontainer/configs"
+	"github.com/opencontainers/runc/libcontainer/devices"
+	"github.com/opencontainers/runc/libcontainer/utils"
 )
 
 // createContainer populates and configures the container type with the
@@ -46,6 +46,13 @@ func (d *driver) createContainer(c *execdriver.Command) (*configs.Config, error)
 				}
 			}
 			container.ReadonlyPaths = nil
+		}
+
+		// clear readonly for cgroup
+		for i := range container.Mounts {
+			if container.Mounts[i].Device == "cgroup" {
+				container.Mounts[i].Flags &= ^syscall.MS_RDONLY
+			}
 		}
 
 		container.MaskPaths = nil

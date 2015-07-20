@@ -6,7 +6,7 @@ import (
 	"io/ioutil"
 	"path"
 
-	"github.com/docker/libcontainer/cgroups"
+	"github.com/opencontainers/runc/libcontainer/cgroups"
 )
 
 var (

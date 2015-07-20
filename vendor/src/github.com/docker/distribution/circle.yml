@@ -1,0 +1,122 @@
+# Pony-up!
+machine:
+  pre:
+  # Install gvm
+    - bash < <(curl -s -S -L https://raw.githubusercontent.com/moovweb/gvm/1.0.22/binscripts/gvm-installer)
+  # Install ceph to test rados driver & create pool
+    - sudo -i ~/distribution/contrib/ceph/ci-setup.sh
+    - ceph osd pool create docker-distribution 1
+
+  post:
+  # Install many go versions
+    # - gvm install go1.3.3 -B --name=old
+    - gvm install go1.4.2 -B --name=stable
+    # - gvm install tip --name=bleed
+
+  environment:
+  # Convenient shortcuts to "common" locations
+    CHECKOUT: /home/ubuntu/$CIRCLE_PROJECT_REPONAME
+    BASE_DIR: src/github.com/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME
+  # Trick circle brainflat "no absolute path" behavior
+    BASE_OLD: ../../../$HOME/.gvm/pkgsets/old/global/$BASE_DIR
+    BASE_STABLE: ../../../$HOME/.gvm/pkgsets/stable/global/$BASE_DIR
+  # BASE_BLEED: ../../../$HOME/.gvm/pkgsets/bleed/global/$BASE_DIR
+    DOCKER_BUILDTAGS: "include_rados"
+  # Workaround Circle parsing dumb bugs and/or YAML wonkyness
+    CIRCLE_PAIN: "mode: set"
+  # Ceph config
+    RADOS_POOL: "docker-distribution"
+
+  hosts:
+  # Not used yet
+    fancy: 127.0.0.1
+
+dependencies:
+  pre:
+  # Copy the code to the gopath of all go versions
+    # - >
+    #   gvm use old &&
+    #   mkdir -p "$(dirname $BASE_OLD)" &&
+    #   cp -R "$CHECKOUT" "$BASE_OLD"
+
+    - >
+      gvm use stable &&
+      mkdir -p "$(dirname $BASE_STABLE)" &&
+      cp -R "$CHECKOUT" "$BASE_STABLE"
+
+    # - >
+    #   gvm use bleed &&
+    #   mkdir -p "$(dirname $BASE_BLEED)" &&
+    #   cp -R "$CHECKOUT" "$BASE_BLEED"
+
+  override:
+  # Install dependencies for every copied clone/go version
+    # - gvm use old && go get github.com/tools/godep:
+    #     pwd: $BASE_OLD
+
+    - gvm use stable && go get github.com/tools/godep:
+        pwd: $BASE_STABLE
+
+    # - gvm use bleed && go get github.com/tools/godep:
+    #   pwd: $BASE_BLEED
+
+  post:
+  # For the stable go version, additionally install linting tools
+    - >
+      gvm use stable &&
+      go get github.com/axw/gocov/gocov github.com/golang/lint/golint
+  # Disabling goveralls for now
+  # go get github.com/axw/gocov/gocov github.com/mattn/goveralls github.com/golang/lint/golint
+
+test:
+  pre:
+  # Output the go versions we are going to test
+    # - gvm use old && go version
+    - gvm use stable && go version
+    # - gvm use bleed && go version
+
+  # FMT
+    - gvm use stable && test -z "$(gofmt -s -l . | grep -v Godeps/_workspace/src/ | tee /dev/stderr)":
+        pwd: $BASE_STABLE
+
+  # VET
+    - gvm use stable && go vet ./...:
+        pwd: $BASE_STABLE
+
+  # LINT
+    - gvm use stable && test -z "$(golint ./... | grep -v Godeps/_workspace/src/ | tee /dev/stderr)":
+        pwd: $BASE_STABLE
+
+  override:
+  # Test every version we have (but stable)
+    # - gvm use old; godep go test -test.v -test.short ./...:
+    #     timeout: 600
+    #     pwd: $BASE_OLD
+
+    # - gvm use bleed; go test -test.v -test.short ./...:
+    #     timeout: 600
+    #     pwd: $BASE_BLEED
+
+  # Test stable, and report
+  # Preset the goverall report file
+    - echo "$CIRCLE_PAIN" > ~/goverage.report
+    - gvm use stable; go list ./... | xargs -L 1 -I{} rm -f $GOPATH/src/{}/coverage.out:
+        pwd: $BASE_STABLE
+    - gvm use stable; go list -tags "$DOCKER_BUILDTAGS" ./... | xargs -L 1 -I{} godep go test -tags "$DOCKER_BUILDTAGS" -test.short -coverprofile=$GOPATH/src/{}/coverage.out {}:
+        timeout: 600
+        pwd: $BASE_STABLE
+
+  post:
+  # Aggregate and report to coveralls
+    - gvm use stable; go list ./... | xargs -L 1 -I{} cat "$GOPATH/src/{}/coverage.out" | grep -v "$CIRCLE_PAIN" >> ~/goverage.report:
+        pwd: $BASE_STABLE
+#    - gvm use stable; goveralls -service circleci -coverprofile=/home/ubuntu/goverage.report -repotoken $COVERALLS_TOKEN:
+#        pwd: $BASE_STABLE
+
+  ## Notes
+  # Disabled coveralls reporting: build breaking sending coverage data to coveralls
+  # Disabled the -race detector due to massive memory usage.
+  # Do we want these as well?
+  # - go get code.google.com/p/go.tools/cmd/goimports
+  # - test -z "$(goimports -l -w ./... | tee /dev/stderr)"
+  # http://labix.org/gocheck

@@ -189,6 +189,7 @@ func (r *bufReader) drain() {
 		reuseCount++
 		r.wait.Signal()
 		r.Unlock()
+		callSchedulerIfNecessary()
 		if err != nil {
 			break
 		}
@@ -224,4 +225,30 @@ func HashData(src io.Reader) (string, error) {
 		return "", err
 	}
 	return "sha256:" + hex.EncodeToString(h.Sum(nil)), nil
+}
+
+type OnEOFReader struct {
+	Rc io.ReadCloser
+	Fn func()
+}
+
+func (r *OnEOFReader) Read(p []byte) (n int, err error) {
+	n, err = r.Rc.Read(p)
+	if err == io.EOF {
+		r.runFunc()
+	}
+	return
+}
+
+func (r *OnEOFReader) Close() error {
+	err := r.Rc.Close()
+	r.runFunc()
+	return err
+}
+
+func (r *OnEOFReader) runFunc() {
+	if fn := r.Fn; fn != nil {
+		fn()
+		r.Fn = nil
+	}
 }

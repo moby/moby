@@ -11,15 +11,11 @@ import (
 
 // non-blocking wait with 0 exit code
 func (s *DockerSuite) TestWaitNonBlockedExitZero(c *check.C) {
-
-	runCmd := exec.Command(dockerBinary, "run", "-d", "busybox", "sh", "-c", "true")
-	out, _, err := runCommandWithOutput(runCmd)
-	if err != nil {
-		c.Fatal(out, err)
-	}
+	out, _ := dockerCmd(c, "run", "-d", "busybox", "sh", "-c", "true")
 	containerID := strings.TrimSpace(out)
 
 	status := "true"
+	var err error
 	for i := 0; status != "false"; i++ {
 		status, err = inspectField(containerID, "State.Running")
 		c.Assert(err, check.IsNil)
@@ -30,11 +26,9 @@ func (s *DockerSuite) TestWaitNonBlockedExitZero(c *check.C) {
 		}
 	}
 
-	runCmd = exec.Command(dockerBinary, "wait", containerID)
-	out, _, err = runCommandWithOutput(runCmd)
-
-	if err != nil || strings.TrimSpace(out) != "0" {
-		c.Fatal("failed to set up container", out, err)
+	out, _ = dockerCmd(c, "wait", containerID)
+	if strings.TrimSpace(out) != "0" {
+		c.Fatal("failed to set up container", out)
 	}
 
 }
@@ -70,15 +64,11 @@ func (s *DockerSuite) TestWaitBlockedExitZero(c *check.C) {
 
 // non-blocking wait with random exit code
 func (s *DockerSuite) TestWaitNonBlockedExitRandom(c *check.C) {
-
-	runCmd := exec.Command(dockerBinary, "run", "-d", "busybox", "sh", "-c", "exit 99")
-	out, _, err := runCommandWithOutput(runCmd)
-	if err != nil {
-		c.Fatal(out, err)
-	}
+	out, _ := dockerCmd(c, "run", "-d", "busybox", "sh", "-c", "exit 99")
 	containerID := strings.TrimSpace(out)
 
 	status := "true"
+	var err error
 	for i := 0; status != "false"; i++ {
 		status, err = inspectField(containerID, "State.Running")
 		c.Assert(err, check.IsNil)
@@ -89,11 +79,9 @@ func (s *DockerSuite) TestWaitNonBlockedExitRandom(c *check.C) {
 		}
 	}
 
-	runCmd = exec.Command(dockerBinary, "wait", containerID)
-	out, _, err = runCommandWithOutput(runCmd)
-
-	if err != nil || strings.TrimSpace(out) != "99" {
-		c.Fatal("failed to set up container", out, err)
+	out, _ = dockerCmd(c, "wait", containerID)
+	if strings.TrimSpace(out) != "99" {
+		c.Fatal("failed to set up container", out)
 	}
 
 }
