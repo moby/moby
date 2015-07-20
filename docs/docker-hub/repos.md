@@ -135,9 +135,8 @@ similar to the example shown below.
 
 For testing, you can try an HTTP request tool like [requestb.in](http://requestb.in/).
 
-> **Note**: The Docker Hub servers are currently in the IP range
-> `162.242.195.64 - 162.242.195.127`, so you can restrict your webhooks to
-> accept webhook requests from that set of IP addresses.
+> **Note**: The Docker Hub servers use an elastic IP range, so you can't
+> filter requests by IP.
 
 ### Webhook chains
 

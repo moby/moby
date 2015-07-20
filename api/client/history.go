@@ -25,15 +25,15 @@ func (cli *DockerCli) CmdHistory(args ...string) error {
 
 	cmd.ParseFlags(args, true)
 
-	rdr, _, _, err := cli.call("GET", "/images/"+cmd.Arg(0)+"/history", nil, nil)
+	serverResp, err := cli.call("GET", "/images/"+cmd.Arg(0)+"/history", nil, nil)
 	if err != nil {
 		return err
 	}
 
-	defer rdr.Close()
+	defer serverResp.body.Close()
 
 	history := []types.ImageHistory{}
-	if err := json.NewDecoder(rdr).Decode(&history); err != nil {
+	if err := json.NewDecoder(serverResp.body).Decode(&history); err != nil {
 		return err
 	}
 

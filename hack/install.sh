@@ -109,6 +109,9 @@ do_install() {
 	if [ -z "$lsb_dist" ] && [ -r /etc/fedora-release ]; then
 		lsb_dist='fedora'
 	fi
+	if [ -z "$lsb_dist" ] && [ -r /etc/centos-release ]; then
+		lsb_dist='centos'
+	fi
 	if [ -z "$lsb_dist" ] && [ -r /etc/os-release ]; then
 		lsb_dist="$(. /etc/os-release && echo "$ID")"
 	fi
@@ -216,6 +219,7 @@ do_install() {
 				else
 					$sh_c "$curl ${url}gpg | apt-key add -"
 				fi
+				$sh_c "mkdir -p /etc/apt/sources.list.d"
 				$sh_c "echo deb ${url}ubuntu docker main > /etc/apt/sources.list.d/docker.list"
 				$sh_c 'sleep 3; apt-get update; apt-get install -y -q lxc-docker'
 			)

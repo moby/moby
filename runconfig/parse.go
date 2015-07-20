@@ -45,7 +45,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		flLinks   = opts.NewListOpts(opts.ValidateLink)
 		flEnv     = opts.NewListOpts(opts.ValidateEnv)
 		flLabels  = opts.NewListOpts(opts.ValidateEnv)
-		flDevices = opts.NewListOpts(opts.ValidatePath)
+		flDevices = opts.NewListOpts(opts.ValidateDevice)
 
 		ulimits   = make(map[string]*ulimit.Ulimit)
 		flUlimits = opts.NewUlimitOpt(ulimits)
@@ -53,13 +53,14 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		flPublish     = opts.NewListOpts(nil)
 		flExpose      = opts.NewListOpts(nil)
 		flDns         = opts.NewListOpts(opts.ValidateIPAddress)
-		flDnsSearch   = opts.NewListOpts(opts.ValidateDnsSearch)
+		flDnsSearch   = opts.NewListOpts(opts.ValidateDNSSearch)
 		flExtraHosts  = opts.NewListOpts(opts.ValidateExtraHost)
 		flVolumesFrom = opts.NewListOpts(nil)
 		flLxcOpts     = opts.NewListOpts(nil)
 		flEnvFile     = opts.NewListOpts(nil)
 		flCapAdd      = opts.NewListOpts(nil)
 		flCapDrop     = opts.NewListOpts(nil)
+		flGroupAdd    = opts.NewListOpts(nil)
 		flSecurityOpt = opts.NewListOpts(nil)
 		flLabelsFile  = opts.NewListOpts(nil)
 		flLoggingOpts = opts.NewListOpts(nil)
@@ -72,7 +73,6 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		flStdin           = cmd.Bool([]string{"i", "-interactive"}, false, "Keep STDIN open even if not attached")
 		flTty             = cmd.Bool([]string{"t", "-tty"}, false, "Allocate a pseudo-TTY")
 		flOomKillDisable  = cmd.Bool([]string{"-oom-kill-disable"}, false, "Disable OOM Killer")
-		flSwappinessStr   = cmd.String([]string{"-memory-swappiness"}, "", "Tuning container memory swappiness (0 to 100)")
 		flContainerIDFile = cmd.String([]string{"#cidfile", "-cidfile"}, "", "Write the container ID to the file")
 		flEntrypoint      = cmd.String([]string{"#entrypoint", "-entrypoint"}, "", "Overwrite the default ENTRYPOINT of the image")
 		flHostname        = cmd.String([]string{"h", "-hostname"}, "", "Container host name")
@@ -82,10 +82,11 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		flWorkingDir      = cmd.String([]string{"w", "-workdir"}, "", "Working directory inside the container")
 		flCpuShares       = cmd.Int64([]string{"c", "-cpu-shares"}, 0, "CPU shares (relative weight)")
 		flCpuPeriod       = cmd.Int64([]string{"-cpu-period"}, 0, "Limit CPU CFS (Completely Fair Scheduler) period")
+		flCpuQuota        = cmd.Int64([]string{"-cpu-quota"}, 0, "Limit CPU CFS (Completely Fair Scheduler) quota")
 		flCpusetCpus      = cmd.String([]string{"#-cpuset", "-cpuset-cpus"}, "", "CPUs in which to allow execution (0-3, 0,1)")
 		flCpusetMems      = cmd.String([]string{"-cpuset-mems"}, "", "MEMs in which to allow execution (0-3, 0,1)")
-		flCpuQuota        = cmd.Int64([]string{"-cpu-quota"}, 0, "Limit the CPU CFS quota")
 		flBlkioWeight     = cmd.Int64([]string{"-blkio-weight"}, 0, "Block IO (relative weight), between 10 and 1000")
+		flSwappiness      = cmd.Int64([]string{"-memory-swappiness"}, -1, "Tuning container memory swappiness (0 to 100)")
 		flNetMode         = cmd.String([]string{"-net"}, "default", "Set the Network mode for the container")
 		flMacAddress      = cmd.String([]string{"-mac-address"}, "", "Container MAC address (e.g. 92:d0:c6:0a:29:33)")
 		flIpcMode         = cmd.String([]string{"-ipc"}, "", "IPC namespace to use")
@@ -112,6 +113,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 	cmd.Var(&flLxcOpts, []string{"#lxc-conf", "-lxc-conf"}, "Add custom lxc options")
 	cmd.Var(&flCapAdd, []string{"-cap-add"}, "Add Linux capabilities")
 	cmd.Var(&flCapDrop, []string{"-cap-drop"}, "Drop Linux capabilities")
+	cmd.Var(&flGroupAdd, []string{"-group-add"}, "Add additional groups to join")
 	cmd.Var(&flSecurityOpt, []string{"-security-opt"}, "Security Options")
 	cmd.Var(flUlimits, []string{"-ulimit"}, "Ulimit options")
 	cmd.Var(&flLoggingOpts, []string{"-log-opt"}, "Log driver options")
@@ -188,17 +190,9 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		}
 	}
 
-	var parsedSwappiness int64
-	var flSwappiness int64
-
-	if *flSwappinessStr != "" {
-		parsedSwappiness, err = strconv.ParseInt(*flSwappinessStr, 10, 64)
-		if err != nil || parsedSwappiness < 0 || parsedSwappiness > 100 {
-			return nil, nil, cmd, fmt.Errorf("invalid value:%s. valid memory swappiness range is 0-100", *flSwappinessStr)
-		}
-		flSwappiness = parsedSwappiness
-	} else {
-		flSwappiness = -1
+	swappiness := *flSwappiness
+	if swappiness != -1 && (swappiness < 0 || swappiness > 100) {
+		return nil, nil, cmd, fmt.Errorf("Invalid value: %d. Valid memory swappiness range is 0-100", swappiness)
 	}
 
 	var binds []string
@@ -353,7 +347,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		CpuQuota:         *flCpuQuota,
 		BlkioWeight:      *flBlkioWeight,
 		OomKillDisable:   *flOomKillDisable,
-		MemorySwappiness: flSwappiness,
+		MemorySwappiness: swappiness,
 		Privileged:       *flPrivileged,
 		PortBindings:     portBindings,
 		Links:            flLinks.GetAll(),
@@ -369,6 +363,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		Devices:          deviceMappings,
 		CapAdd:           NewCapList(flCapAdd.GetAll()),
 		CapDrop:          NewCapList(flCapDrop.GetAll()),
+		GroupAdd:         flGroupAdd.GetAll(),
 		RestartPolicy:    restartPolicy,
 		SecurityOpt:      flSecurityOpt.GetAll(),
 		ReadonlyRootfs:   *flReadonlyRootfs,
@@ -422,7 +417,6 @@ func parseLoggingOpts(loggingDriver string, loggingOpts []string) (map[string]st
 	if loggingDriver == "none" && len(loggingOpts) > 0 {
 		return map[string]string{}, fmt.Errorf("Invalid logging opts for driver %s", loggingDriver)
 	}
-	//TODO - validation step
 	return loggingOptsMap, nil
 }
 

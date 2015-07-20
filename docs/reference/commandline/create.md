@@ -25,10 +25,10 @@ Creates a new container.
       --cap-drop=[]              Drop Linux capabilities
       --cgroup-parent=""         Optional parent cgroup for the container
       --cidfile=""               Write the container ID to the file
+      --cpu-period=0             Limit CPU CFS (Completely Fair Scheduler) period
+      --cpu-quota=0              Limit CPU CFS (Completely Fair Scheduler) quota
       --cpuset-cpus=""           CPUs in which to allow execution (0-3, 0,1)
       --cpuset-mems=""           Memory nodes (MEMs) in which to allow execution (0-3, 0,1)
-      --cpu-period=0             Limit the CPU CFS (Completely Fair Scheduler) period
-      --cpu-quota=0              Limit the CPU CFS (Completely Fair Scheduler) quota
       --device=[]                Add a host device to the container
       --dns=[]                   Set custom DNS servers
       --dns-search=[]            Set custom DNS search domains
@@ -37,6 +37,7 @@ Creates a new container.
       --env-file=[]              Read in a file of environment variables
       --expose=[]                Expose a port or a range of ports
       -h, --hostname=""          Container host name
+      --help=false               Print usage
       -i, --interactive=false    Keep STDIN open even if not attached
       --ipc=""                   IPC namespace to use
       -l, --label=[]             Set metadata on the container (e.g., --label=com.example.key=value)
@@ -47,20 +48,22 @@ Creates a new container.
       --lxc-conf=[]              Add custom lxc options
       -m, --memory=""            Memory limit
       --mac-address=""           Container MAC address (e.g. 92:d0:c6:0a:29:33)
+      --memory-swap=""           Total memory (memory + swap), '-1' to disable swap
+      --memory-swappiness=""     Tune a container's memory swappiness behavior. Accepts an integer between 0 and 100.
       --name=""                  Assign a name to the container
       --net="bridge"             Set the Network mode for the container
       --oom-kill-disable=false   Whether to disable OOM Killer for the container or not
       -P, --publish-all=false    Publish all exposed ports to random ports
       -p, --publish=[]           Publish a container's port(s) to the host
       --pid=""                   PID namespace to use
-      --uts=""                   UTS namespace to use
       --privileged=false         Give extended privileges to this container
       --read-only=false          Mount the container's root filesystem as read only
       --restart="no"             Restart policy (no, on-failure[:max-retry], always)
-      --memory-swappiness=""     Tune a container's memory swappiness behavior. Accepts an integer between 0 and 100.
       --security-opt=[]          Security options
       -t, --tty=false            Allocate a pseudo-TTY
       -u, --user=""              Username or UID
+      --ulimit=[]                Ulimit options
+      --uts=""                   UTS namespace to use
       -v, --volume=[]            Bind mount a volume
       --volumes-from=[]          Mount volumes from the specified container(s)
       -w, --workdir=""           Working directory inside the container

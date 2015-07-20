@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"os"
-	"os/exec"
 	"strconv"
 	"strings"
 	"time"
@@ -26,11 +25,7 @@ func (s *DockerSuite) TestContainerApiGetAll(c *check.C) {
 	}
 
 	name := "getall"
-	runCmd := exec.Command(dockerBinary, "run", "--name", name, "busybox", "true")
-	out, _, err := runCommandWithOutput(runCmd)
-	if err != nil {
-		c.Fatalf("Error on container creation: %v, output: %q", err, out)
-	}
+	dockerCmd(c, "run", "--name", name, "busybox", "true")
 
 	status, body, err := sockRequest("GET", "/containers/json?all=1", nil)
 	c.Assert(err, check.IsNil)
@@ -54,9 +49,7 @@ func (s *DockerSuite) TestContainerApiGetAll(c *check.C) {
 
 // regression test for empty json field being omitted #13691
 func (s *DockerSuite) TestContainerApiGetJSONNoFieldsOmitted(c *check.C) {
-	runCmd := exec.Command(dockerBinary, "run", "busybox", "true")
-	_, err := runCommand(runCmd)
-	c.Assert(err, check.IsNil)
+	dockerCmd(c, "run", "busybox", "true")
 
 	status, body, err := sockRequest("GET", "/containers/json?all=1", nil)
 	c.Assert(err, check.IsNil)
@@ -94,9 +87,7 @@ type containerPs struct {
 func (s *DockerSuite) TestContainerPsOmitFields(c *check.C) {
 	name := "pstest"
 	port := 80
-	runCmd := exec.Command(dockerBinary, "run", "-d", "--name", name, "--expose", strconv.Itoa(port), "busybox", "top")
-	_, err := runCommand(runCmd)
-	c.Assert(err, check.IsNil)
+	dockerCmd(c, "run", "-d", "--name", name, "--expose", strconv.Itoa(port), "busybox", "top")
 
 	status, body, err := sockRequest("GET", "/containers/json?all=1", nil)
 	c.Assert(err, check.IsNil)
@@ -126,11 +117,7 @@ func (s *DockerSuite) TestContainerPsOmitFields(c *check.C) {
 
 func (s *DockerSuite) TestContainerApiGetExport(c *check.C) {
 	name := "exportcontainer"
-	runCmd := exec.Command(dockerBinary, "run", "--name", name, "busybox", "touch", "/test")
-	out, _, err := runCommandWithOutput(runCmd)
-	if err != nil {
-		c.Fatalf("Error on container creation: %v, output: %q", err, out)
-	}
+	dockerCmd(c, "run", "--name", name, "busybox", "touch", "/test")
 
 	status, body, err := sockRequest("GET", "/containers/"+name+"/export", nil)
 	c.Assert(err, check.IsNil)
@@ -158,11 +145,7 @@ func (s *DockerSuite) TestContainerApiGetExport(c *check.C) {
 
 func (s *DockerSuite) TestContainerApiGetChanges(c *check.C) {
 	name := "changescontainer"
-	runCmd := exec.Command(dockerBinary, "run", "--name", name, "busybox", "rm", "/etc/passwd")
-	out, _, err := runCommandWithOutput(runCmd)
-	if err != nil {
-		c.Fatalf("Error on container creation: %v, output: %q", err, out)
-	}
+	dockerCmd(c, "run", "--name", name, "busybox", "rm", "/etc/passwd")
 
 	status, body, err := sockRequest("GET", "/containers/"+name+"/changes", nil)
 	c.Assert(err, check.IsNil)
@@ -248,9 +231,7 @@ func (s *DockerSuite) TestContainerApiStartVolumesFrom(c *check.C) {
 	volName := "voltst"
 	volPath := "/tmp"
 
-	if out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "run", "-d", "--name", volName, "-v", volPath, "busybox")); err != nil {
-		c.Fatal(out, err)
-	}
+	dockerCmd(c, "run", "-d", "--name", volName, "-v", volPath, "busybox")
 
 	name := "TestContainerApiStartDupVolumeBinds"
 	config := map[string]interface{}{
@@ -285,13 +266,10 @@ func (s *DockerSuite) TestContainerApiStartVolumesFrom(c *check.C) {
 
 func (s *DockerSuite) TestGetContainerStats(c *check.C) {
 	var (
-		name   = "statscontainer"
-		runCmd = exec.Command(dockerBinary, "run", "-d", "--name", name, "busybox", "top")
+		name = "statscontainer"
 	)
-	out, _, err := runCommandWithOutput(runCmd)
-	if err != nil {
-		c.Fatalf("Error on container creation: %v, output: %q", err, out)
-	}
+	dockerCmd(c, "run", "-d", "--name", name, "busybox", "top")
+
 	type b struct {
 		status int
 		body   []byte
@@ -305,9 +283,7 @@ func (s *DockerSuite) TestGetContainerStats(c *check.C) {
 
 	// allow some time to stream the stats from the container
 	time.Sleep(4 * time.Second)
-	if _, err := runCommand(exec.Command(dockerBinary, "rm", "-f", name)); err != nil {
-		c.Fatal(err)
-	}
+	dockerCmd(c, "rm", "-f", name)
 
 	// collect the results from the stats stream or timeout and fail
 	// if the stream was not disconnected.
@@ -353,7 +329,7 @@ func (s *DockerSuite) TestGetContainerStatsRmRunning(c *check.C) {
 	c.Assert(err, check.IsNil)
 
 	// Now remove without `-f` and make sure we are still pulling stats
-	_, err = runCommand(exec.Command(dockerBinary, "rm", id))
+	_, _, err = dockerCmdWithError(c, "rm", id)
 	c.Assert(err, check.Not(check.IsNil), check.Commentf("rm should have failed but didn't"))
 	_, err = buf.ReadTimeout(b, 2*time.Second)
 	c.Assert(err, check.IsNil)
@@ -368,9 +344,7 @@ func (s *DockerSuite) TestGetContainerStatsRmRunning(c *check.C) {
 // stream false always return one stat)
 func (s *DockerSuite) TestGetContainerStatsStream(c *check.C) {
 	name := "statscontainer"
-	runCmd := exec.Command(dockerBinary, "run", "-d", "--name", name, "busybox", "top")
-	_, err := runCommand(runCmd)
-	c.Assert(err, check.IsNil)
+	dockerCmd(c, "run", "-d", "--name", name, "busybox", "top")
 
 	type b struct {
 		status int
@@ -385,9 +359,7 @@ func (s *DockerSuite) TestGetContainerStatsStream(c *check.C) {
 
 	// allow some time to stream the stats from the container
 	time.Sleep(4 * time.Second)
-	if _, err := runCommand(exec.Command(dockerBinary, "rm", "-f", name)); err != nil {
-		c.Fatal(err)
-	}
+	dockerCmd(c, "rm", "-f", name)
 
 	// collect the results from the stats stream or timeout and fail
 	// if the stream was not disconnected.
@@ -408,9 +380,7 @@ func (s *DockerSuite) TestGetContainerStatsStream(c *check.C) {
 
 func (s *DockerSuite) TestGetContainerStatsNoStream(c *check.C) {
 	name := "statscontainer"
-	runCmd := exec.Command(dockerBinary, "run", "-d", "--name", name, "busybox", "top")
-	_, err := runCommand(runCmd)
-	c.Assert(err, check.IsNil)
+	dockerCmd(c, "run", "-d", "--name", name, "busybox", "top")
 
 	type b struct {
 		status int
@@ -425,9 +395,7 @@ func (s *DockerSuite) TestGetContainerStatsNoStream(c *check.C) {
 
 	// allow some time to stream the stats from the container
 	time.Sleep(4 * time.Second)
-	if _, err := runCommand(exec.Command(dockerBinary, "rm", "-f", name)); err != nil {
-		c.Fatal(err)
-	}
+	dockerCmd(c, "rm", "-f", name)
 
 	// collect the results from the stats stream or timeout and fail
 	// if the stream was not disconnected.
@@ -449,13 +417,9 @@ func (s *DockerSuite) TestGetContainerStatsNoStream(c *check.C) {
 func (s *DockerSuite) TestGetStoppedContainerStats(c *check.C) {
 	// TODO: this test does nothing because we are c.Assert'ing in goroutine
 	var (
-		name   = "statscontainer"
-		runCmd = exec.Command(dockerBinary, "create", "--name", name, "busybox", "top")
+		name = "statscontainer"
 	)
-	out, _, err := runCommandWithOutput(runCmd)
-	if err != nil {
-		c.Fatalf("Error on container creation: %v, output: %q", err, out)
-	}
+	dockerCmd(c, "create", "--name", name, "busybox", "top")
 
 	go func() {
 		// We'll never get return for GET stats from sockRequest as of now,
@@ -739,20 +703,14 @@ func (s *DockerSuite) TestBuildApiDockerfileSymlink(c *check.C) {
 
 // #9981 - Allow a docker created volume (ie, one in /var/lib/docker/volumes) to be used to overwrite (via passing in Binds on api start) an existing volume
 func (s *DockerSuite) TestPostContainerBindNormalVolume(c *check.C) {
-	out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "create", "-v", "/foo", "--name=one", "busybox"))
-	if err != nil {
-		c.Fatal(err, out)
-	}
+	dockerCmd(c, "create", "-v", "/foo", "--name=one", "busybox")
 
 	fooDir, err := inspectFieldMap("one", "Volumes", "/foo")
 	if err != nil {
 		c.Fatal(err)
 	}
 
-	out, _, err = runCommandWithOutput(exec.Command(dockerBinary, "create", "-v", "/foo", "--name=two", "busybox"))
-	if err != nil {
-		c.Fatal(err, out)
-	}
+	dockerCmd(c, "create", "-v", "/foo", "--name=two", "busybox")
 
 	bindSpec := map[string][]string{"Binds": {fooDir + ":/foo"}}
 	status, _, err := sockRequest("POST", "/containers/two/start", bindSpec)
@@ -771,12 +729,7 @@ func (s *DockerSuite) TestPostContainerBindNormalVolume(c *check.C) {
 
 func (s *DockerSuite) TestContainerApiPause(c *check.C) {
 	defer unpauseAllContainers()
-	runCmd := exec.Command(dockerBinary, "run", "-d", "busybox", "sleep", "30")
-	out, _, err := runCommandWithOutput(runCmd)
-
-	if err != nil {
-		c.Fatalf("failed to create a container: %s, %v", out, err)
-	}
+	out, _ := dockerCmd(c, "run", "-d", "busybox", "sleep", "30")
 	ContainerID := strings.TrimSpace(out)
 
 	status, _, err := sockRequest("POST", "/containers/"+ContainerID+"/pause", nil)
@@ -809,10 +762,7 @@ func (s *DockerSuite) TestContainerApiPause(c *check.C) {
 }
 
 func (s *DockerSuite) TestContainerApiTop(c *check.C) {
-	out, err := exec.Command(dockerBinary, "run", "-d", "busybox", "/bin/sh", "-c", "top").CombinedOutput()
-	if err != nil {
-		c.Fatal(err, out)
-	}
+	out, _ := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "top")
 	id := strings.TrimSpace(string(out))
 	if err := waitRun(id); err != nil {
 		c.Fatal(err)
@@ -851,10 +801,7 @@ func (s *DockerSuite) TestContainerApiTop(c *check.C) {
 
 func (s *DockerSuite) TestContainerApiCommit(c *check.C) {
 	cName := "testapicommit"
-	out, err := exec.Command(dockerBinary, "run", "--name="+cName, "busybox", "/bin/sh", "-c", "touch /test").CombinedOutput()
-	if err != nil {
-		c.Fatal(err, out)
-	}
+	dockerCmd(c, "run", "--name="+cName, "busybox", "/bin/sh", "-c", "touch /test")
 
 	name := "TestContainerApiCommit"
 	status, b, err := sockRequest("POST", "/commit?repo="+name+"&testtag=tag&container="+cName, nil)
@@ -877,18 +824,12 @@ func (s *DockerSuite) TestContainerApiCommit(c *check.C) {
 		c.Fatalf("got wrong Cmd from commit: %q", cmd)
 	}
 	// sanity check, make sure the image is what we think it is
-	out, err = exec.Command(dockerBinary, "run", img.Id, "ls", "/test").CombinedOutput()
-	if err != nil {
-		c.Fatalf("error checking committed image: %v - %q", err, string(out))
-	}
+	dockerCmd(c, "run", img.Id, "ls", "/test")
 }
 
 func (s *DockerSuite) TestContainerApiCommitWithLabelInConfig(c *check.C) {
 	cName := "testapicommitwithconfig"
-	out, err := exec.Command(dockerBinary, "run", "--name="+cName, "busybox", "/bin/sh", "-c", "touch /test").CombinedOutput()
-	if err != nil {
-		c.Fatal(err, out)
-	}
+	dockerCmd(c, "run", "--name="+cName, "busybox", "/bin/sh", "-c", "touch /test")
 
 	config := map[string]interface{}{
 		"Labels": map[string]string{"key1": "value1", "key2": "value2"},
@@ -928,10 +869,7 @@ func (s *DockerSuite) TestContainerApiCommitWithLabelInConfig(c *check.C) {
 	}
 
 	// sanity check, make sure the image is what we think it is
-	out, err = exec.Command(dockerBinary, "run", img.Id, "ls", "/test").CombinedOutput()
-	if err != nil {
-		c.Fatalf("error checking committed image: %v - %q", err, string(out))
-	}
+	dockerCmd(c, "run", img.Id, "ls", "/test")
 }
 
 func (s *DockerSuite) TestContainerApiCreate(c *check.C) {
@@ -952,11 +890,8 @@ func (s *DockerSuite) TestContainerApiCreate(c *check.C) {
 		c.Fatal(err)
 	}
 
-	out, err := exec.Command(dockerBinary, "start", "-a", container.Id).CombinedOutput()
-	if err != nil {
-		c.Fatal(string(out), err)
-	}
-	if strings.TrimSpace(string(out)) != "/test" {
+	out, _ := dockerCmd(c, "start", "-a", container.Id)
+	if strings.TrimSpace(out) != "/test" {
 		c.Fatalf("expected output `/test`, got %q", out)
 	}
 }
@@ -1241,10 +1176,7 @@ func (s *DockerSuite) TestCreateWithTooLowMemoryLimit(c *check.C) {
 }
 
 func (s *DockerSuite) TestStartWithTooLowMemoryLimit(c *check.C) {
-	out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "create", "busybox"))
-	if err != nil {
-		c.Fatal(err, out)
-	}
+	out, _ := dockerCmd(c, "create", "busybox")
 
 	containerID := strings.TrimSpace(out)
 
@@ -1265,9 +1197,7 @@ func (s *DockerSuite) TestStartWithTooLowMemoryLimit(c *check.C) {
 }
 
 func (s *DockerSuite) TestContainerApiRename(c *check.C) {
-	runCmd := exec.Command(dockerBinary, "run", "--name", "TestContainerApiRename", "-d", "busybox", "sh")
-	out, _, err := runCommandWithOutput(runCmd)
-	c.Assert(err, check.IsNil)
+	out, _ := dockerCmd(c, "run", "--name", "TestContainerApiRename", "-d", "busybox", "sh")
 
 	containerID := strings.TrimSpace(out)
 	newName := "TestContainerApiRenameNew"
@@ -1284,11 +1214,7 @@ func (s *DockerSuite) TestContainerApiRename(c *check.C) {
 
 func (s *DockerSuite) TestContainerApiKill(c *check.C) {
 	name := "test-api-kill"
-	runCmd := exec.Command(dockerBinary, "run", "-di", "--name", name, "busybox", "top")
-	out, _, err := runCommandWithOutput(runCmd)
-	if err != nil {
-		c.Fatalf("Error on container creation: %v, output: %q", err, out)
-	}
+	dockerCmd(c, "run", "-di", "--name", name, "busybox", "top")
 
 	status, _, err := sockRequest("POST", "/containers/"+name+"/kill", nil)
 	c.Assert(err, check.IsNil)
@@ -1305,11 +1231,7 @@ func (s *DockerSuite) TestContainerApiKill(c *check.C) {
 
 func (s *DockerSuite) TestContainerApiRestart(c *check.C) {
 	name := "test-api-restart"
-	runCmd := exec.Command(dockerBinary, "run", "-di", "--name", name, "busybox", "top")
-	out, _, err := runCommandWithOutput(runCmd)
-	if err != nil {
-		c.Fatalf("Error on container creation: %v, output: %q", err, out)
-	}
+	dockerCmd(c, "run", "-di", "--name", name, "busybox", "top")
 
 	status, _, err := sockRequest("POST", "/containers/"+name+"/restart?t=1", nil)
 	c.Assert(err, check.IsNil)
@@ -1322,11 +1244,7 @@ func (s *DockerSuite) TestContainerApiRestart(c *check.C) {
 
 func (s *DockerSuite) TestContainerApiRestartNotimeoutParam(c *check.C) {
 	name := "test-api-restart-no-timeout-param"
-	runCmd := exec.Command(dockerBinary, "run", "-di", "--name", name, "busybox", "top")
-	out, _, err := runCommandWithOutput(runCmd)
-	if err != nil {
-		c.Fatalf("Error on container creation: %v, output: %q", err, out)
-	}
+	out, _ := dockerCmd(c, "run", "-di", "--name", name, "busybox", "top")
 	id := strings.TrimSpace(out)
 	c.Assert(waitRun(id), check.IsNil)
 
@@ -1364,11 +1282,7 @@ func (s *DockerSuite) TestContainerApiStart(c *check.C) {
 
 func (s *DockerSuite) TestContainerApiStop(c *check.C) {
 	name := "test-api-stop"
-	runCmd := exec.Command(dockerBinary, "run", "-di", "--name", name, "busybox", "top")
-	out, _, err := runCommandWithOutput(runCmd)
-	if err != nil {
-		c.Fatalf("Error on container creation: %v, output: %q", err, out)
-	}
+	dockerCmd(c, "run", "-di", "--name", name, "busybox", "top")
 
 	status, _, err := sockRequest("POST", "/containers/"+name+"/stop?t=1", nil)
 	c.Assert(err, check.IsNil)
@@ -1386,11 +1300,7 @@ func (s *DockerSuite) TestContainerApiStop(c *check.C) {
 
 func (s *DockerSuite) TestContainerApiWait(c *check.C) {
 	name := "test-api-wait"
-	runCmd := exec.Command(dockerBinary, "run", "--name", name, "busybox", "sleep", "5")
-	out, _, err := runCommandWithOutput(runCmd)
-	if err != nil {
-		c.Fatalf("Error on container creation: %v, output: %q", err, out)
-	}
+	dockerCmd(c, "run", "--name", name, "busybox", "sleep", "5")
 
 	status, body, err := sockRequest("POST", "/containers/"+name+"/wait", nil)
 	c.Assert(err, check.IsNil)
@@ -1412,9 +1322,7 @@ func (s *DockerSuite) TestContainerApiWait(c *check.C) {
 
 func (s *DockerSuite) TestContainerApiCopy(c *check.C) {
 	name := "test-container-api-copy"
-	runCmd := exec.Command(dockerBinary, "run", "--name", name, "busybox", "touch", "/test.txt")
-	_, err := runCommand(runCmd)
-	c.Assert(err, check.IsNil)
+	dockerCmd(c, "run", "--name", name, "busybox", "touch", "/test.txt")
 
 	postData := types.CopyConfig{
 		Resource: "/test.txt",
@@ -1443,9 +1351,7 @@ func (s *DockerSuite) TestContainerApiCopy(c *check.C) {
 
 func (s *DockerSuite) TestContainerApiCopyResourcePathEmpty(c *check.C) {
 	name := "test-container-api-copy-resource-empty"
-	runCmd := exec.Command(dockerBinary, "run", "--name", name, "busybox", "touch", "/test.txt")
-	_, err := runCommand(runCmd)
-	c.Assert(err, check.IsNil)
+	dockerCmd(c, "run", "--name", name, "busybox", "touch", "/test.txt")
 
 	postData := types.CopyConfig{
 		Resource: "",
@@ -1459,9 +1365,7 @@ func (s *DockerSuite) TestContainerApiCopyResourcePathEmpty(c *check.C) {
 
 func (s *DockerSuite) TestContainerApiCopyResourcePathNotFound(c *check.C) {
 	name := "test-container-api-copy-resource-not-found"
-	runCmd := exec.Command(dockerBinary, "run", "--name", name, "busybox")
-	_, err := runCommand(runCmd)
-	c.Assert(err, check.IsNil)
+	dockerCmd(c, "run", "--name", name, "busybox")
 
 	postData := types.CopyConfig{
 		Resource: "/notexist",
@@ -1484,16 +1388,12 @@ func (s *DockerSuite) TestContainerApiCopyContainerNotFound(c *check.C) {
 }
 
 func (s *DockerSuite) TestContainerApiDelete(c *check.C) {
-	runCmd := exec.Command(dockerBinary, "run", "-d", "busybox", "top")
-	out, _, err := runCommandWithOutput(runCmd)
-	c.Assert(err, check.IsNil)
+	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
 
 	id := strings.TrimSpace(out)
 	c.Assert(waitRun(id), check.IsNil)
 
-	stopCmd := exec.Command(dockerBinary, "stop", id)
-	_, err = runCommand(stopCmd)
-	c.Assert(err, check.IsNil)
+	dockerCmd(c, "stop", id)
 
 	status, _, err := sockRequest("DELETE", "/containers/"+id, nil)
 	c.Assert(err, check.IsNil)
@@ -1508,9 +1408,7 @@ func (s *DockerSuite) TestContainerApiDeleteNotExist(c *check.C) {
 }
 
 func (s *DockerSuite) TestContainerApiDeleteForce(c *check.C) {
-	runCmd := exec.Command(dockerBinary, "run", "-d", "busybox", "top")
-	out, _, err := runCommandWithOutput(runCmd)
-	c.Assert(err, check.IsNil)
+	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
 
 	id := strings.TrimSpace(out)
 	c.Assert(waitRun(id), check.IsNil)
@@ -1521,16 +1419,12 @@ func (s *DockerSuite) TestContainerApiDeleteForce(c *check.C) {
 }
 
 func (s *DockerSuite) TestContainerApiDeleteRemoveLinks(c *check.C) {
-	runCmd := exec.Command(dockerBinary, "run", "-d", "--name", "tlink1", "busybox", "top")
-	out, _, err := runCommandWithOutput(runCmd)
-	c.Assert(err, check.IsNil)
+	out, _ := dockerCmd(c, "run", "-d", "--name", "tlink1", "busybox", "top")
 
 	id := strings.TrimSpace(out)
 	c.Assert(waitRun(id), check.IsNil)
 
-	runCmd = exec.Command(dockerBinary, "run", "--link", "tlink1:tlink1", "--name", "tlink2", "-d", "busybox", "top")
-	out, _, err = runCommandWithOutput(runCmd)
-	c.Assert(err, check.IsNil)
+	out, _ = dockerCmd(c, "run", "--link", "tlink1:tlink1", "--name", "tlink2", "-d", "busybox", "top")
 
 	id2 := strings.TrimSpace(out)
 	c.Assert(waitRun(id2), check.IsNil)
@@ -1555,9 +1449,7 @@ func (s *DockerSuite) TestContainerApiDeleteRemoveLinks(c *check.C) {
 }
 
 func (s *DockerSuite) TestContainerApiDeleteConflict(c *check.C) {
-	runCmd := exec.Command(dockerBinary, "run", "-d", "busybox", "top")
-	out, _, err := runCommandWithOutput(runCmd)
-	c.Assert(err, check.IsNil)
+	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
 
 	id := strings.TrimSpace(out)
 	c.Assert(waitRun(id), check.IsNil)
@@ -1570,9 +1462,7 @@ func (s *DockerSuite) TestContainerApiDeleteConflict(c *check.C) {
 func (s *DockerSuite) TestContainerApiDeleteRemoveVolume(c *check.C) {
 	testRequires(c, SameHostDaemon)
 
-	runCmd := exec.Command(dockerBinary, "run", "-d", "-v", "/testvolume", "busybox", "top")
-	out, _, err := runCommandWithOutput(runCmd)
-	c.Assert(err, check.IsNil)
+	out, _ := dockerCmd(c, "run", "-d", "-v", "/testvolume", "busybox", "top")
 
 	id := strings.TrimSpace(out)
 	c.Assert(waitRun(id), check.IsNil)
@@ -1644,9 +1534,7 @@ func (s *DockerSuite) TestContainersApiChunkedEncoding(c *check.C) {
 }
 
 func (s *DockerSuite) TestPostContainerStop(c *check.C) {
-	runCmd := exec.Command(dockerBinary, "run", "-d", "busybox", "top")
-	out, _, err := runCommandWithOutput(runCmd)
-	c.Assert(err, check.IsNil)
+	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
 
 	containerID := strings.TrimSpace(out)
 	c.Assert(waitRun(containerID), check.IsNil)

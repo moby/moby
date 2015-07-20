@@ -102,5 +102,5 @@ func backoff(retries int) time.Duration {
 }
 
 func abort(start time.Time, timeOff time.Duration) bool {
-	return timeOff+time.Since(start) > time.Duration(defaultTimeOut)*time.Second
+	return timeOff+time.Since(start) >= time.Duration(defaultTimeOut)*time.Second
 }

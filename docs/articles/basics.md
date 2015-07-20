@@ -83,12 +83,14 @@ Similarly, the Docker client can use `-H` to connect to a custom port.
 
 `-H` accepts host and port assignment in the following format:
 
-    tcp://[host][:port] or unix://path
+    tcp://[host][:port][path] or unix://path
 
 For example:
 
 -   `tcp://host:2375` -> TCP connection on
     host:2375
+-   `tcp://host:2375/path` -> TCP connection on
+    host:2375 and prepend path to all requests
 -   `unix://path/to/socket` -> Unix socket located
     at `path/to/socket`
 

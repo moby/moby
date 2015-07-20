@@ -3,8 +3,8 @@ package template
 import (
 	"syscall"
 
-	"github.com/docker/libcontainer/apparmor"
-	"github.com/docker/libcontainer/configs"
+	"github.com/opencontainers/runc/libcontainer/apparmor"
+	"github.com/opencontainers/runc/libcontainer/configs"
 )
 
 const defaultMountFlags = syscall.MS_NOEXEC | syscall.MS_NOSUID | syscall.MS_NODEV

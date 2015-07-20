@@ -19,20 +19,20 @@ func (cli *DockerCli) CmdLogs(args ...string) error {
 	follow := cmd.Bool([]string{"f", "-follow"}, false, "Follow log output")
 	since := cmd.String([]string{"-since"}, "", "Show logs since timestamp")
 	times := cmd.Bool([]string{"t", "-timestamps"}, false, "Show timestamps")
-	tail := cmd.String([]string{"-tail"}, "all", "Number of lines to show from the end of the logs")
+	tail := cmd.String([]string{"-tail"}, "latest", "Number of lines to show from the end of the logs")
 	cmd.Require(flag.Exact, 1)
 
 	cmd.ParseFlags(args, true)
 
 	name := cmd.Arg(0)
 
-	stream, _, _, err := cli.call("GET", "/containers/"+name+"/json", nil, nil)
+	serverResp, err := cli.call("GET", "/containers/"+name+"/json", nil, nil)
 	if err != nil {
 		return err
 	}
 
 	var c types.ContainerJSON
-	if err := json.NewDecoder(stream).Decode(&c); err != nil {
+	if err := json.NewDecoder(serverResp.body).Decode(&c); err != nil {
 		return err
 	}
 

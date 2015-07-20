@@ -4,7 +4,6 @@ package main
 
 import (
 	"encoding/json"
-	"os/exec"
 	"strings"
 
 	"github.com/go-check/check"
@@ -22,14 +21,9 @@ func (s *DockerSuite) TestBuildResourceConstraintsAreUsed(c *check.C) {
 		c.Fatal(err)
 	}
 
-	cmd := exec.Command(dockerBinary, "build", "--no-cache", "--rm=false", "--memory=64m", "--memory-swap=-1", "--cpuset-cpus=0", "--cpuset-mems=0", "--cpu-shares=100", "--cpu-quota=8000", "-t", name, ".")
-	cmd.Dir = ctx.Dir
+	dockerCmdInDir(c, ctx.Dir, "build", "--no-cache", "--rm=false", "--memory=64m", "--memory-swap=-1", "--cpuset-cpus=0", "--cpuset-mems=0", "--cpu-shares=100", "--cpu-quota=8000", "-t", name, ".")
 
-	out, _, err := runCommandWithOutput(cmd)
-	if err != nil {
-		c.Fatal(err, out)
-	}
-	out, _ = dockerCmd(c, "ps", "-lq")
+	out, _ := dockerCmd(c, "ps", "-lq")
 
 	cID := strings.TrimSpace(out)
 
@@ -57,7 +51,7 @@ func (s *DockerSuite) TestBuildResourceConstraintsAreUsed(c *check.C) {
 	}
 
 	// Make sure constraints aren't saved to image
-	_, _ = dockerCmd(c, "run", "--name=test", name)
+	dockerCmd(c, "run", "--name=test", name)
 
 	cfg, err = inspectFieldJSON("test", "HostConfig")
 	if err != nil {

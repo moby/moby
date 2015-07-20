@@ -3,7 +3,6 @@ package logger
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"io"
 	"testing"
 	"time"
@@ -19,10 +18,6 @@ func (l *TestLoggerJSON) Close() error { return nil }
 
 func (l *TestLoggerJSON) Name() string { return "json" }
 
-func (l *TestLoggerJSON) GetReader() (io.Reader, error) {
-	return nil, errors.New("not used in the test")
-}
-
 type TestLoggerText struct {
 	*bytes.Buffer
 }
@@ -35,10 +30,6 @@ func (l *TestLoggerText) Log(m *Message) error {
 func (l *TestLoggerText) Close() error { return nil }
 
 func (l *TestLoggerText) Name() string { return "text" }
-
-func (l *TestLoggerText) GetReader() (io.Reader, error) {
-	return nil, errors.New("not used in the test")
-}
 
 func TestCopier(t *testing.T) {
 	stdoutLine := "Line that thinks that it is log line from docker stdout"

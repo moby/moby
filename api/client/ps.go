@@ -86,15 +86,15 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 		v.Set("filters", filterJSON)
 	}
 
-	rdr, _, _, err := cli.call("GET", "/containers/json?"+v.Encode(), nil, nil)
+	serverResp, err := cli.call("GET", "/containers/json?"+v.Encode(), nil, nil)
 	if err != nil {
 		return err
 	}
 
-	defer rdr.Close()
+	defer serverResp.body.Close()
 
 	containers := []types.Container{}
-	if err := json.NewDecoder(rdr).Decode(&containers); err != nil {
+	if err := json.NewDecoder(serverResp.body).Decode(&containers); err != nil {
 		return err
 	}
 

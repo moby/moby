@@ -617,7 +617,8 @@ and require killing system processes to free memory.
 By default, a container's kernel can swap out a percentage of anonymous pages.
 To set this percentage for a container, specify a `--memory-swappiness` value
 between 0 and 100. A value of 0 turns off anonymous page swapping. A value of
-100 sets all anonymous pages as swappable.
+100 sets all anonymous pages as swappable. By default, if you are not using
+`--memory-swappiness`, memory swappiness value will be inherited from the parent.
 
 For example, you can set:
 
@@ -736,6 +737,16 @@ weights of the two containers.
 
 > **Note:** The blkio weight setting is only available for direct IO. Buffered IO
 > is not currently supported.
+
+## Additional groups
+    --group-add: Add Linux capabilities
+
+By default, the docker container process runs with the supplementary groups looked
+up for the specified user. If one wants to add more to that list of groups, then
+one can use this flag:
+
+    $ docker run -ti --rm --group-add audio  --group-add dbus --group-add 777 busybox id
+    uid=0(root) gid=0(root) groups=10(wheel),29(audio),81(dbus),777
 
 ## Runtime privilege, Linux capabilities, and LXC configuration
 

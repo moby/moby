@@ -1,6 +1,7 @@
 package registry
 
 import (
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -11,7 +12,8 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/registry/api/v2"
-	"github.com/docker/docker/pkg/transport"
+	"github.com/docker/distribution/registry/client/transport"
+	"github.com/docker/docker/pkg/tlsconfig"
 )
 
 // for mocking in unit tests
@@ -44,7 +46,9 @@ func scanForAPIVersion(address string) (string, APIVersion) {
 // NewEndpoint parses the given address to return a registry endpoint.
 func NewEndpoint(index *IndexInfo, metaHeaders http.Header) (*Endpoint, error) {
 	// *TODO: Allow per-registry configuration of endpoints.
-	endpoint, err := newEndpoint(index.GetAuthConfigKey(), index.Secure, metaHeaders)
+	tlsConfig := tlsconfig.ServerDefault
+	tlsConfig.InsecureSkipVerify = !index.Secure
+	endpoint, err := newEndpoint(index.GetAuthConfigKey(), &tlsConfig, metaHeaders)
 	if err != nil {
 		return nil, err
 	}
@@ -82,7 +86,7 @@ func validateEndpoint(endpoint *Endpoint) error {
 	return nil
 }
 
-func newEndpoint(address string, secure bool, metaHeaders http.Header) (*Endpoint, error) {
+func newEndpoint(address string, tlsConfig *tls.Config, metaHeaders http.Header) (*Endpoint, error) {
 	var (
 		endpoint       = new(Endpoint)
 		trimmedAddress string
@@ -93,13 +97,16 @@ func newEndpoint(address string, secure bool, metaHeaders http.Header) (*Endpoin
 		address = "https://" + address
 	}
 
+	endpoint.IsSecure = (tlsConfig == nil || !tlsConfig.InsecureSkipVerify)
+
 	trimmedAddress, endpoint.Version = scanForAPIVersion(address)
 
 	if endpoint.URL, err = url.Parse(trimmedAddress); err != nil {
 		return nil, err
 	}
-	endpoint.IsSecure = secure
-	tr := NewTransport(ConnectTimeout, endpoint.IsSecure)
+
+	// TODO(tiborvass): make sure a ConnectTimeout transport is used
+	tr := NewTransport(tlsConfig)
 	endpoint.client = HTTPClient(transport.NewTransport(tr, DockerHeaders(metaHeaders)...))
 	return endpoint, nil
 }
@@ -166,7 +173,7 @@ func (e *Endpoint) Ping() (RegistryInfo, error) {
 func (e *Endpoint) pingV1() (RegistryInfo, error) {
 	logrus.Debugf("attempting v1 ping for registry endpoint %s", e)
 
-	if e.String() == IndexServerAddress() {
+	if e.String() == INDEXSERVER {
 		// Skip the check, we know this one is valid
 		// (and we never want to fallback to http in case of error)
 		return RegistryInfo{Standalone: false}, nil

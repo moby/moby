@@ -17,7 +17,7 @@ import (
 )
 
 func (daemon *Daemon) SystemInfo() (*types.Info, error) {
-	images, _ := daemon.Graph().Map()
+	images := daemon.Graph().Map()
 	var imgcount int
 	if images == nil {
 		imgcount = 0
@@ -74,7 +74,7 @@ func (daemon *Daemon) SystemInfo() (*types.Info, error) {
 		NEventsListener:    daemon.EventsService.SubscribersCount(),
 		KernelVersion:      kernelVersion,
 		OperatingSystem:    operatingSystem,
-		IndexServerAddress: registry.IndexServerAddress(),
+		IndexServerAddress: registry.INDEXSERVER,
 		RegistryConfig:     daemon.RegistryService.Config,
 		InitSha1:           dockerversion.INITSHA1,
 		InitPath:           initPath,

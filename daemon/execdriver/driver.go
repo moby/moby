@@ -8,8 +8,8 @@ import (
 
 	// TODO Windows: Factor out ulimit
 	"github.com/docker/docker/pkg/ulimit"
-	"github.com/docker/libcontainer"
-	"github.com/docker/libcontainer/configs"
+	"github.com/opencontainers/runc/libcontainer"
+	"github.com/opencontainers/runc/libcontainer/configs"
 )
 
 // Context is a generic key value pair that allows
@@ -170,6 +170,7 @@ type Command struct {
 	AutoCreatedDevices []*configs.Device `json:"autocreated_devices"`
 	CapAdd             []string          `json:"cap_add"`
 	CapDrop            []string          `json:"cap_drop"`
+	GroupAdd           []string          `json:"group_add"`
 	ContainerPid       int               `json:"container_pid"`  // the pid for the process inside a container
 	ProcessConfig      ProcessConfig     `json:"process_config"` // Describes the init process of the container.
 	ProcessLabel       string            `json:"process_label"`

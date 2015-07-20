@@ -24,12 +24,12 @@ import (
 	"github.com/docker/docker/utils"
 	volumedrivers "github.com/docker/docker/volume/drivers"
 	"github.com/docker/docker/volume/local"
-	"github.com/docker/libcontainer/label"
 	"github.com/docker/libnetwork"
 	nwapi "github.com/docker/libnetwork/api"
 	nwconfig "github.com/docker/libnetwork/config"
 	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/libnetwork/options"
+	"github.com/opencontainers/runc/libcontainer/label"
 )
 
 func (daemon *Daemon) Changes(container *Container) ([]archive.Change, error) {
@@ -156,6 +156,14 @@ func (daemon *Daemon) verifyContainerSettings(hostConfig *runconfig.HostConfig, 
 	}
 	if hostConfig.Memory == 0 && hostConfig.MemorySwap > 0 {
 		return warnings, fmt.Errorf("You should always set the Memory limit when using Memoryswap limit, see usage.")
+	}
+	if hostConfig.MemorySwappiness != -1 && !daemon.SystemConfig().MemorySwappiness {
+		warnings = append(warnings, "Your kernel does not support memory swappiness capabilities, memory swappiness discarded.")
+		logrus.Warnf("Your kernel does not support memory swappiness capabilities, memory swappiness discarded.")
+		hostConfig.MemorySwappiness = -1
+	}
+	if hostConfig.MemorySwappiness != -1 && (hostConfig.MemorySwappiness < 0 || hostConfig.MemorySwappiness > 100) {
+		return warnings, fmt.Errorf("Invalid value: %d, valid memory swappiness range is 0-100.", hostConfig.MemorySwappiness)
 	}
 	if hostConfig.CpuPeriod > 0 && !daemon.SystemConfig().CpuCfsPeriod {
 		warnings = append(warnings, "Your kernel does not support CPU cfs period. Period discarded.")

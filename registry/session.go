@@ -22,8 +22,9 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/cliconfig"
 	"github.com/docker/docker/pkg/httputils"
+	"github.com/docker/docker/pkg/ioutils"
+	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/pkg/tarsum"
-	"github.com/docker/docker/pkg/transport"
 )
 
 var (
@@ -35,6 +36,7 @@ type Session struct {
 	client        *http.Client
 	// TODO(tiborvass): remove authConfig
 	authConfig *cliconfig.AuthConfig
+	id         string
 }
 
 type authTransport struct {
@@ -73,6 +75,21 @@ func AuthTransport(base http.RoundTripper, authConfig *cliconfig.AuthConfig, alw
 	}
 }
 
+// cloneRequest returns a clone of the provided *http.Request.
+// The clone is a shallow copy of the struct and its Header map.
+func cloneRequest(r *http.Request) *http.Request {
+	// shallow copy of the struct
+	r2 := new(http.Request)
+	*r2 = *r
+	// deep copy of the Header
+	r2.Header = make(http.Header, len(r.Header))
+	for k, s := range r.Header {
+		r2.Header[k] = append([]string(nil), s...)
+	}
+
+	return r2
+}
+
 func (tr *authTransport) RoundTrip(orig *http.Request) (*http.Response, error) {
 	// Authorization should not be set on 302 redirect for untrusted locations.
 	// This logic mirrors the behavior in AddRequiredHeadersToRedirectedRequests.
@@ -83,19 +100,22 @@ func (tr *authTransport) RoundTrip(orig *http.Request) (*http.Response, error) {
 		return tr.RoundTripper.RoundTrip(orig)
 	}
 
-	req := transport.CloneRequest(orig)
+	req := cloneRequest(orig)
 	tr.mu.Lock()
 	tr.modReq[orig] = req
 	tr.mu.Unlock()
 
 	if tr.alwaysSetBasicAuth {
+		if tr.AuthConfig == nil {
+			return nil, errors.New("unexpected error: empty auth config")
+		}
 		req.SetBasicAuth(tr.Username, tr.Password)
 		return tr.RoundTripper.RoundTrip(req)
 	}
 
 	// Don't override
 	if req.Header.Get("Authorization") == "" {
-		if req.Header.Get("X-Docker-Token") == "true" && len(tr.Username) > 0 {
+		if req.Header.Get("X-Docker-Token") == "true" && tr.AuthConfig != nil && len(tr.Username) > 0 {
 			req.SetBasicAuth(tr.Username, tr.Password)
 		} else if len(tr.token) > 0 {
 			req.Header.Set("Authorization", "Token "+strings.Join(tr.token, ","))
@@ -109,7 +129,7 @@ func (tr *authTransport) RoundTrip(orig *http.Request) (*http.Response, error) {
 	if len(resp.Header["X-Docker-Token"]) > 0 {
 		tr.token = resp.Header["X-Docker-Token"]
 	}
-	resp.Body = &transport.OnEOFReader{
+	resp.Body = &ioutils.OnEOFReader{
 		Rc: resp.Body,
 		Fn: func() {
 			tr.mu.Lock()
@@ -140,18 +160,18 @@ func NewSession(client *http.Client, authConfig *cliconfig.AuthConfig, endpoint 
 		authConfig:    authConfig,
 		client:        client,
 		indexEndpoint: endpoint,
+		id:            stringid.GenerateRandomID(),
 	}
 
 	var alwaysSetBasicAuth bool
 
 	// If we're working with a standalone private registry over HTTPS, send Basic Auth headers
 	// alongside all our requests.
-	if endpoint.VersionString(1) != IndexServerAddress() && endpoint.URL.Scheme == "https" {
+	if endpoint.VersionString(1) != INDEXSERVER && endpoint.URL.Scheme == "https" {
 		info, err := endpoint.Ping()
 		if err != nil {
 			return nil, err
 		}
-
 		if info.Standalone && authConfig != nil {
 			logrus.Debugf("Endpoint %s is eligible for private registry. Enabling decorator.", endpoint.String())
 			alwaysSetBasicAuth = true
@@ -169,6 +189,11 @@ func NewSession(client *http.Client, authConfig *cliconfig.AuthConfig, endpoint 
 	client.Jar = jar
 
 	return r, nil
+}
+
+// ID returns this registry session's ID.
+func (r *Session) ID() string {
+	return r.id
 }
 
 // Retrieve the history of a given image from the Registry.
@@ -247,7 +272,7 @@ func (r *Session) GetRemoteImageLayer(imgID, registry string, imgSize int64) (io
 	if err != nil {
 		return nil, fmt.Errorf("Error while getting from the server: %v", err)
 	}
-	// TODO: why are we doing retries at this level?
+	// TODO(tiborvass): why are we doing retries at this level?
 	// These retries should be generic to both v1 and v2
 	for i := 1; i <= retries; i++ {
 		statusCode = 0
@@ -414,7 +439,7 @@ func (r *Session) GetRepositoryData(remote string) (*RepositoryData, error) {
 	}
 
 	// Forge a better object from the retrieved data
-	imgsData := make(map[string]*ImgData)
+	imgsData := make(map[string]*ImgData, len(remoteChecksums))
 	for _, elem := range remoteChecksums {
 		imgsData[elem.ID] = elem
 	}
@@ -676,7 +701,14 @@ func shouldRedirect(response *http.Response) bool {
 func (r *Session) SearchRepositories(term string) (*SearchResults, error) {
 	logrus.Debugf("Index server: %s", r.indexEndpoint)
 	u := r.indexEndpoint.VersionString(1) + "search?q=" + url.QueryEscape(term)
-	res, err := r.client.Get(u)
+
+	req, err := http.NewRequest("GET", u, nil)
+	if err != nil {
+		return nil, fmt.Errorf("Error while getting from the server: %v", err)
+	}
+	// Have the AuthTransport send authentication, when logged in.
+	req.Header.Set("X-Docker-Token", "true")
+	res, err := r.client.Do(req)
 	if err != nil {
 		return nil, err
 	}

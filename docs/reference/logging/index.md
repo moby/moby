@@ -17,13 +17,27 @@ container's logging driver. The following options are supported:
 
 | `none`      | Disables any logging for the container. `docker logs` won't be available with this driver.                                    |
 |-------------|-------------------------------------------------------------------------------------------------------------------------------|
-| `json-file` | Default logging driver for Docker. Writes JSON messages to file.  No logging options are supported for this driver.           |
+| `json-file` | Default logging driver for Docker. Writes JSON messages to file.                                                              |
 | `syslog`    | Syslog logging driver for Docker. Writes log messages to syslog.                                                              |
 | `journald`  | Journald logging driver for Docker. Writes log messages to `journald`.                                                        |
 | `gelf`      | Graylog Extended Log Format (GELF) logging driver for Docker. Writes log messages to a GELF endpoint likeGraylog or Logstash. |
 | `fluentd`   | Fluentd logging driver for Docker. Writes log messages to `fluentd` (forward input).                                          |
 
 The `docker logs`command is available only for the `json-file` logging driver.  
+
+### The json-file options
+
+The following logging options are supported for the `json-file` logging driver:
+
+    --log-opt max-size=[0-9+][k|m|g]
+    --log-opt max-file=[0-9+]
+
+Logs that reach `max-size` are rolled over. You can set the size in kilobytes(k), megabytes(m), or gigabytes(g). eg `--log-opt max-size=50m`. If `max-size` is not set, then logs are not rolled over.
+
+
+`max-file` specifies the maximum number of files that a log is rolled over before being discarded. eg `--log-opt max-file=100`. If `max-size` is not set, then `max-file` is not honored.
+
+If `max-size` and `max-file` are set, `docker logs` only returns the log lines from the newest log file. 
 
 ### The syslog options
 
@@ -73,7 +87,7 @@ a `syslog-tag` option
 
 ## Specify journald options
 
-The `journald` logging driver sotres the container id in the journal's `CONTAINER_ID` field. For detailed information on
+The `journald` logging driver stores the container id in the journal's `CONTAINER_ID` field. For detailed information on
 working with this logging driver, see [the journald logging driver](/reference/logging/journald/)
 reference documentation.
 
@@ -112,4 +126,4 @@ For example, to specify both additional options:
 
 If container cannot connect to the Fluentd daemon on the specified address,
 the container stops immediately. For detailed information on working with this
-logging driver, see [the journald logging driver](/reference/logging/fluentd/)
+logging driver, see [the fluentd logging driver](/reference/logging/fluentd/)

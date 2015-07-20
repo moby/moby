@@ -18,7 +18,6 @@ func (s *DockerSuite) TestInspectImage(c *check.C) {
 	if id != imageTestID {
 		c.Fatalf("Expected id: %s for image: %s but received id: %s", imageTestID, imageTest, id)
 	}
-
 }
 
 func (s *DockerSuite) TestInspectInt64(c *check.C) {
@@ -27,7 +26,6 @@ func (s *DockerSuite) TestInspectInt64(c *check.C) {
 	if err != nil {
 		c.Fatalf("failed to run container: %v, output: %q", err, out)
 	}
-
 	out = strings.TrimSpace(out)
 
 	inspectOut, err := inspectField(out, "HostConfig.Memory")
@@ -43,18 +41,8 @@ func (s *DockerSuite) TestInspectDefault(c *check.C) {
 	//Both the container and image are named busybox. docker inspect will fetch the container JSON.
 	//If the container JSON is not available, it will go for the image JSON.
 
-	runCmd := exec.Command(dockerBinary, "run", "--name=busybox", "-d", "busybox", "true")
-	out, _, _, err := runCommandWithStdoutStderr(runCmd)
-	if err != nil {
-		c.Fatalf("failed to run container: %v, output: %q", err, out)
-	}
-
-	inspectCmd := exec.Command(dockerBinary, "inspect", "busybox")
-
-	_, exitCode, err := runCommandWithOutput(inspectCmd)
-	if exitCode != 0 || err != nil {
-		c.Fatalf("failed to inspect container: %s, %v", out, err)
-	}
+	dockerCmd(c, "run", "--name=busybox", "-d", "busybox", "true")
+	dockerCmd(c, "inspect", "busybox")
 }
 
 func (s *DockerSuite) TestInspectTypeFlagContainer(c *check.C) {
@@ -62,16 +50,10 @@ func (s *DockerSuite) TestInspectTypeFlagContainer(c *check.C) {
 	//Both the container and image are named busybox. docker inspect will fetch container
 	//JSON State.Running field. If the field is true, it's a container.
 
-	runCmd := exec.Command(dockerBinary, "run", "--name=busybox", "-d", "busybox", "top")
-	out, _, _, err := runCommandWithStdoutStderr(runCmd)
-	if err != nil {
-		c.Fatalf("failed to run container: %v, output: %q", err, out)
-	}
+	dockerCmd(c, "run", "--name=busybox", "-d", "busybox", "top")
 
 	formatStr := fmt.Sprintf("--format='{{.State.Running}}'")
-	inspectCmd := exec.Command(dockerBinary, "inspect", "--type=container", formatStr, "busybox")
-
-	out, exitCode, err := runCommandWithOutput(inspectCmd)
+	out, exitCode, err := dockerCmdWithError(c, "inspect", "--type=container", formatStr, "busybox")
 	if exitCode != 0 || err != nil {
 		c.Fatalf("failed to inspect container: %s, %v", out, err)
 	}
@@ -87,15 +69,9 @@ func (s *DockerSuite) TestInspectTypeFlagWithNoContainer(c *check.C) {
 	//JSON. Since there is no container named busybox and --type=container, docker inspect will
 	//not try to get the image JSON. It will throw an error.
 
-	runCmd := exec.Command(dockerBinary, "run", "-d", "busybox", "true")
-	out, _, _, err := runCommandWithStdoutStderr(runCmd)
-	if err != nil {
-		c.Fatalf("failed to run container: %v, output: %q", err, out)
-	}
+	dockerCmd(c, "run", "-d", "busybox", "true")
 
-	inspectCmd := exec.Command(dockerBinary, "inspect", "--type=container", "busybox")
-
-	_, exitCode, err := runCommandWithOutput(inspectCmd)
+	_, exitCode, err := dockerCmdWithError(c, "inspect", "--type=container", "busybox")
 	if exitCode == 0 || err == nil {
 		c.Fatalf("docker inspect should have failed, as there is no container named busybox")
 	}
@@ -107,15 +83,9 @@ func (s *DockerSuite) TestInspectTypeFlagWithImage(c *check.C) {
 	//JSON as --type=image. if there is no image with name busybox, docker inspect
 	//will throw an error.
 
-	runCmd := exec.Command(dockerBinary, "run", "--name=busybox", "-d", "busybox", "true")
-	out, _, _, err := runCommandWithStdoutStderr(runCmd)
-	if err != nil {
-		c.Fatalf("failed to run container: %v, output: %q", err, out)
-	}
+	dockerCmd(c, "run", "--name=busybox", "-d", "busybox", "true")
 
-	inspectCmd := exec.Command(dockerBinary, "inspect", "--type=image", "busybox")
-
-	out, exitCode, err := runCommandWithOutput(inspectCmd)
+	out, exitCode, err := dockerCmdWithError(c, "inspect", "--type=image", "busybox")
 	if exitCode != 0 || err != nil {
 		c.Fatalf("failed to inspect image: %s, %v", out, err)
 	}
@@ -123,7 +93,6 @@ func (s *DockerSuite) TestInspectTypeFlagWithImage(c *check.C) {
 	if strings.Contains(out, "State") {
 		c.Fatal("not an image JSON")
 	}
-
 }
 
 func (s *DockerSuite) TestInspectTypeFlagWithInvalidValue(c *check.C) {
@@ -131,15 +100,9 @@ func (s *DockerSuite) TestInspectTypeFlagWithInvalidValue(c *check.C) {
 	//Both the container and image are named busybox. docker inspect will fail
 	//as --type=foobar is not a valid value for the flag.
 
-	runCmd := exec.Command(dockerBinary, "run", "--name=busybox", "-d", "busybox", "true")
-	out, _, _, err := runCommandWithStdoutStderr(runCmd)
-	if err != nil {
-		c.Fatalf("failed to run container: %v, output: %q", err, out)
-	}
+	dockerCmd(c, "run", "--name=busybox", "-d", "busybox", "true")
 
-	inspectCmd := exec.Command(dockerBinary, "inspect", "--type=foobar", "busybox")
-
-	out, exitCode, err := runCommandWithOutput(inspectCmd)
+	out, exitCode, err := dockerCmdWithError(c, "inspect", "--type=foobar", "busybox")
 	if exitCode != 0 || err != nil {
 		if !strings.Contains(out, "not a valid value for --type") {
 			c.Fatalf("failed to inspect image: %s, %v", out, err)
@@ -159,8 +122,7 @@ func (s *DockerSuite) TestInspectImageFilterInt(c *check.C) {
 
 	//now see if the size turns out to be the same
 	formatStr := fmt.Sprintf("--format='{{eq .Size %d}}'", size)
-	imagesCmd := exec.Command(dockerBinary, "inspect", formatStr, imageTest)
-	out, exitCode, err := runCommandWithOutput(imagesCmd)
+	out, exitCode, err := dockerCmdWithError(c, "inspect", formatStr, imageTest)
 	if exitCode != 0 || err != nil {
 		c.Fatalf("failed to inspect image: %s, %v", out, err)
 	}
@@ -189,11 +151,7 @@ func (s *DockerSuite) TestInspectContainerFilterInt(c *check.C) {
 
 	//now get the exit code to verify
 	formatStr := fmt.Sprintf("--format='{{eq .State.ExitCode %d}}'", exitCode)
-	runCmd = exec.Command(dockerBinary, "inspect", formatStr, id)
-	out, _, err = runCommandWithOutput(runCmd)
-	if err != nil {
-		c.Fatalf("failed to inspect container: %s, %v", out, err)
-	}
+	out, _ = dockerCmd(c, "inspect", formatStr, id)
 	if result, err := strconv.ParseBool(strings.TrimSuffix(out, "\n")); err != nil || !result {
 		c.Fatalf("Expected exitcode: %d for container: %s", exitCode, id)
 	}
@@ -230,12 +188,7 @@ func (s *DockerSuite) TestInspectImageGraphDriver(c *check.C) {
 }
 
 func (s *DockerSuite) TestInspectContainerGraphDriver(c *check.C) {
-	runCmd := exec.Command(dockerBinary, "run", "-d", "busybox", "true")
-	out, _, _, err := runCommandWithStdoutStderr(runCmd)
-	if err != nil {
-		c.Fatalf("failed to run container: %v, output: %q", err, out)
-	}
-
+	out, _ := dockerCmd(c, "run", "-d", "busybox", "true")
 	out = strings.TrimSpace(out)
 
 	name, err := inspectField(out, "GraphDriver.Name")

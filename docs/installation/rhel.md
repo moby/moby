@@ -12,8 +12,7 @@ parent = "smn_linux"
 
 Docker is supported on the following versions of RHEL:
 
-- Red Hat Enterprise Linux 7 
-- Red Hat Enterprise Linux 6.6 or later
+- Red Hat Enterprise Linux 7
 
 This page instructs you to install using Docker-managed release packages and
 installation mechanisms. Using these packages ensures you get the latest release
@@ -23,10 +22,7 @@ Red Hat release documentation for information on Red Hat's Docker support.
 ## Prerequisites
 
 Docker requires a 64-bit installation regardless of your Red Hat version. Docker
-requires that your kernel must be 3.10 at minimum. Red Hat 7 runs the 3.10
-kernel, 6.6 does not. We make an exception for Red Hat 6.6. To run Docker on
-[Red Hat-6.6](http://www.centos.org) or later, you need kernel 2.6.32-431 or
-higher. 
+requires that your kernel must be 3.10 at minimum, which Red Hat 7 runs.
 
 To check your current kernel version, open a terminal and use `uname -r` to
 display your kernel version:
@@ -37,8 +33,7 @@ display your kernel version:
 Finally, is it recommended that you fully update your system. Please keep in
 mind that your system should be fully patched to fix any potential kernel bugs.
 Any reported kernel bugs may have already been fixed on the latest kernel
-packages 
-
+packages.
 
 ## Install
 
@@ -51,45 +46,31 @@ only the package you install differs.  There are two packages to choose from:
     <th>Package name</th>
   </tr>
   <tr>
-    <td>6.6 and  higher</td>
-    <td>
-    <p>
-    <a href="https://get.docker.com/rpm/1.7.0/centos-6/RPMS/x86_64/docker-engine-1.7.0-1.el6.x86_64.rpm">
-    https://get.docker.com/rpm/1.7.0/centos-6/RPMS/x86_64/docker-engine-1.7.0-1.el6.x86_64.rpm</a>
-    <p>
-    <a href="https://get.docker.com/rpm/1.7.0/centos-6/SRPMS/docker-engine-1.7.0-1.el6.src.rpm">
-   https://get.docker.com/rpm/1.7.0/centos-6/SRPMS/docker-engine-1.7.0-1.el6.src.rpm</a>
-    <p>
-    </p>
-    </td>
-  </tr>
-  <tr>
     <td>7.X</td>
     <td>
     <p>
-     <a href="https://get.docker.com/rpm/1.7.0/centos-7/RPMS/x86_64/docker-engine-1.7.0-1.el7.centos.x86_64.rpm">
-    https://get.docker.com/rpm/1.7.0/centos-7/RPMS/x86_64/docker-engine-1.7.0-1.el7.centos.x86_64.rpm</a>   
+     <a href="https://get.docker.com/rpm/1.7.1/centos-7/RPMS/x86_64/docker-engine-1.7.1-1.el7.centos.x86_64.rpm">
+    https://get.docker.com/rpm/1.7.1/centos-7/RPMS/x86_64/docker-engine-1.7.1-1.el7.centos.x86_64.rpm</a>   
     </p>
     <p>
-     <a href="https://get.docker.com/rpm/1.7.0/centos-7/SRPMS/docker-engine-1.7.0-1.el7.centos.src.rpm">
-    https://get.docker.com/rpm/1.7.0/centos-7/SRPMS/docker-engine-1.7.0-1.el7.centos.src.rpm</a>   
+     <a href="https://get.docker.com/rpm/1.7.1/centos-7/SRPMS/docker-engine-1.7.1-1.el7.centos.src.rpm">
+    https://get.docker.com/rpm/1.7.1/centos-7/SRPMS/docker-engine-1.7.1-1.el7.centos.src.rpm</a>   
     </p>
     </td>
   </tr>
 </table>
 
-This procedure depicts an installation on version 6.6.  If you are installing on
-7.X, substitute that package for your installation. 
+Installation procedure:
 
 1. Log into your machine as a user with `sudo` or `root` privileges.
 
 2. Download the Docker RPM to the current directory.
 		
-		$ curl -O -sSL https://get.docker.com/rpm/1.7.0/centos-6/RPMS/x86_64/docker-engine-1.7.0-1.el6.x86_64.rpm
+		$ curl -O -sSL https://get.docker.com/rpm/1.7.1/centos-7/RPMS/x86_64/docker-engine-1.7.1-1.el7.x86_64.rpm
 
 3. Use `yum` to install the package.
 
-		$ sudo yum localinstall --nogpgcheck docker-engine-1.7.0-1.el6.x86_64.rpm
+		$ sudo yum localinstall --nogpgcheck docker-engine-1.7.1-1.el7.x86_64.rpm
 
 5. Start the Docker daemon.
 
@@ -172,8 +153,8 @@ You can uninstall the Docker software with `yum`.
 
 		$ yum list installed | grep docker
 		yum list installed | grep docker
-		docker-engine.x86_64                1.7.0-0.1.el6
-																																					 @/docker-engine-1.7.0-0.1.el6.x86_64
+		docker-engine.x86_64                1.7.1-0.1.el7
+																																					 @/docker-engine-1.7.1-0.1.el7.x86_64
 
 2. Remove the package.
 

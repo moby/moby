@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"os/exec"
 	"reflect"
 	"strings"
 	"time"
@@ -15,19 +14,11 @@ import (
 
 // Make sure we can create a simple container with some args
 func (s *DockerSuite) TestCreateArgs(c *check.C) {
-	runCmd := exec.Command(dockerBinary, "create", "busybox", "command", "arg1", "arg2", "arg with space")
-	out, _, _, err := runCommandWithStdoutStderr(runCmd)
-	if err != nil {
-		c.Fatal(out, err)
-	}
+	out, _ := dockerCmd(c, "create", "busybox", "command", "arg1", "arg2", "arg with space")
 
 	cleanedContainerID := strings.TrimSpace(out)
 
-	inspectCmd := exec.Command(dockerBinary, "inspect", cleanedContainerID)
-	out, _, err = runCommandWithOutput(inspectCmd)
-	if err != nil {
-		c.Fatalf("out should've been a container id: %s, %v", out, err)
-	}
+	out, _ = dockerCmd(c, "inspect", cleanedContainerID)
 
 	containers := []struct {
 		ID      string
@@ -65,19 +56,11 @@ func (s *DockerSuite) TestCreateArgs(c *check.C) {
 // Make sure we can set hostconfig options too
 func (s *DockerSuite) TestCreateHostConfig(c *check.C) {
 
-	runCmd := exec.Command(dockerBinary, "create", "-P", "busybox", "echo")
-	out, _, _, err := runCommandWithStdoutStderr(runCmd)
-	if err != nil {
-		c.Fatal(out, err)
-	}
+	out, _ := dockerCmd(c, "create", "-P", "busybox", "echo")
 
 	cleanedContainerID := strings.TrimSpace(out)
 
-	inspectCmd := exec.Command(dockerBinary, "inspect", cleanedContainerID)
-	out, _, err = runCommandWithOutput(inspectCmd)
-	if err != nil {
-		c.Fatalf("out should've been a container id: %s, %v", out, err)
-	}
+	out, _ = dockerCmd(c, "inspect", cleanedContainerID)
 
 	containers := []struct {
 		HostConfig *struct {
@@ -104,19 +87,11 @@ func (s *DockerSuite) TestCreateHostConfig(c *check.C) {
 
 func (s *DockerSuite) TestCreateWithPortRange(c *check.C) {
 
-	runCmd := exec.Command(dockerBinary, "create", "-p", "3300-3303:3300-3303/tcp", "busybox", "echo")
-	out, _, _, err := runCommandWithStdoutStderr(runCmd)
-	if err != nil {
-		c.Fatal(out, err)
-	}
+	out, _ := dockerCmd(c, "create", "-p", "3300-3303:3300-3303/tcp", "busybox", "echo")
 
 	cleanedContainerID := strings.TrimSpace(out)
 
-	inspectCmd := exec.Command(dockerBinary, "inspect", cleanedContainerID)
-	out, _, err = runCommandWithOutput(inspectCmd)
-	if err != nil {
-		c.Fatalf("out should've been a container id: %s, %v", out, err)
-	}
+	out, _ = dockerCmd(c, "inspect", cleanedContainerID)
 
 	containers := []struct {
 		HostConfig *struct {
@@ -151,19 +126,11 @@ func (s *DockerSuite) TestCreateWithPortRange(c *check.C) {
 
 func (s *DockerSuite) TestCreateWithiLargePortRange(c *check.C) {
 
-	runCmd := exec.Command(dockerBinary, "create", "-p", "1-65535:1-65535/tcp", "busybox", "echo")
-	out, _, _, err := runCommandWithStdoutStderr(runCmd)
-	if err != nil {
-		c.Fatal(out, err)
-	}
+	out, _ := dockerCmd(c, "create", "-p", "1-65535:1-65535/tcp", "busybox", "echo")
 
 	cleanedContainerID := strings.TrimSpace(out)
 
-	inspectCmd := exec.Command(dockerBinary, "inspect", cleanedContainerID)
-	out, _, err = runCommandWithOutput(inspectCmd)
-	if err != nil {
-		c.Fatalf("out should've been a container id: %s, %v", out, err)
-	}
+	out, _ = dockerCmd(c, "inspect", cleanedContainerID)
 
 	containers := []struct {
 		HostConfig *struct {
@@ -199,19 +166,11 @@ func (s *DockerSuite) TestCreateWithiLargePortRange(c *check.C) {
 // "test123" should be printed by docker create + start
 func (s *DockerSuite) TestCreateEchoStdout(c *check.C) {
 
-	runCmd := exec.Command(dockerBinary, "create", "busybox", "echo", "test123")
-	out, _, _, err := runCommandWithStdoutStderr(runCmd)
-	if err != nil {
-		c.Fatal(out, err)
-	}
+	out, _ := dockerCmd(c, "create", "busybox", "echo", "test123")
 
 	cleanedContainerID := strings.TrimSpace(out)
 
-	runCmd = exec.Command(dockerBinary, "start", "-ai", cleanedContainerID)
-	out, _, _, err = runCommandWithStdoutStderr(runCmd)
-	if err != nil {
-		c.Fatal(out, err)
-	}
+	out, _ = dockerCmd(c, "start", "-ai", cleanedContainerID)
 
 	if out != "test123\n" {
 		c.Errorf("container should've printed 'test123', got %q", out)
@@ -223,9 +182,8 @@ func (s *DockerSuite) TestCreateVolumesCreated(c *check.C) {
 	testRequires(c, SameHostDaemon)
 
 	name := "test_create_volume"
-	if out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "create", "--name", name, "-v", "/foo", "busybox")); err != nil {
-		c.Fatal(out, err)
-	}
+	dockerCmd(c, "create", "--name", name, "-v", "/foo", "busybox")
+
 	dir, err := inspectFieldMap(name, "Volumes", "/foo")
 	if err != nil {
 		c.Fatalf("Error getting volume host path: %q", err)
@@ -243,9 +201,7 @@ func (s *DockerSuite) TestCreateVolumesCreated(c *check.C) {
 func (s *DockerSuite) TestCreateLabels(c *check.C) {
 	name := "test_create_labels"
 	expected := map[string]string{"k1": "v1", "k2": "v2"}
-	if out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "create", "--name", name, "-l", "k1=v1", "--label", "k2=v2", "busybox")); err != nil {
-		c.Fatal(out, err)
-	}
+	dockerCmd(c, "create", "--name", name, "-l", "k1=v1", "--label", "k2=v2", "busybox")
 
 	actual := make(map[string]string)
 	err := inspectFieldAndMarshall(name, "Config.Labels", &actual)
@@ -270,9 +226,7 @@ func (s *DockerSuite) TestCreateLabelFromImage(c *check.C) {
 
 	name := "test_create_labels_from_image"
 	expected := map[string]string{"k2": "x", "k3": "v3"}
-	if out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "create", "--name", name, "-l", "k2=x", "--label", "k3=v3", imageName)); err != nil {
-		c.Fatal(out, err)
-	}
+	dockerCmd(c, "create", "--name", name, "-l", "k2=x", "--label", "k3=v3", imageName)
 
 	actual := make(map[string]string)
 	err = inspectFieldAndMarshall(name, "Config.Labels", &actual)
@@ -297,47 +251,23 @@ func (s *DockerSuite) TestCreateRM(c *check.C) {
 	// "Created" state, and has ever been run. Test "rm -f" too.
 
 	// create a container
-	createCmd := exec.Command(dockerBinary, "create", "busybox")
-	out, _, err := runCommandWithOutput(createCmd)
-	if err != nil {
-		c.Fatalf("Failed to create container:%s\n%s", out, err)
-	}
+	out, _ := dockerCmd(c, "create", "busybox")
 	cID := strings.TrimSpace(out)
 
-	rmCmd := exec.Command(dockerBinary, "rm", cID)
-	out, _, err = runCommandWithOutput(rmCmd)
-	if err != nil {
-		c.Fatalf("Failed to rm container:%s\n%s", out, err)
-	}
+	dockerCmd(c, "rm", cID)
 
 	// Now do it again so we can "rm -f" this time
-	createCmd = exec.Command(dockerBinary, "create", "busybox")
-	out, _, err = runCommandWithOutput(createCmd)
-	if err != nil {
-		c.Fatalf("Failed to create 2nd container:%s\n%s", out, err)
-	}
+	out, _ = dockerCmd(c, "create", "busybox")
 
 	cID = strings.TrimSpace(out)
-	rmCmd = exec.Command(dockerBinary, "rm", "-f", cID)
-	out, _, err = runCommandWithOutput(rmCmd)
-	if err != nil {
-		c.Fatalf("Failed to rm -f container:%s\n%s", out, err)
-	}
+	dockerCmd(c, "rm", "-f", cID)
 }
 
 func (s *DockerSuite) TestCreateModeIpcContainer(c *check.C) {
 	testRequires(c, SameHostDaemon)
 
-	cmd := exec.Command(dockerBinary, "create", "busybox")
-	out, _, err := runCommandWithOutput(cmd)
-	if err != nil {
-		c.Fatal(err, out)
-	}
+	out, _ := dockerCmd(c, "create", "busybox")
 	id := strings.TrimSpace(out)
 
-	cmd = exec.Command(dockerBinary, "create", fmt.Sprintf("--ipc=container:%s", id), "busybox")
-	out, _, err = runCommandWithOutput(cmd)
-	if err != nil {
-		c.Fatalf("Create container with ipc mode container should success with non running container: %s\n%s", out, err)
-	}
+	dockerCmd(c, "create", fmt.Sprintf("--ipc=container:%s", id), "busybox")
 }

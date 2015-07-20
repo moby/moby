@@ -26,15 +26,15 @@ func (cli *DockerCli) CmdDiff(args ...string) error {
 		return fmt.Errorf("Container name cannot be empty")
 	}
 
-	rdr, _, _, err := cli.call("GET", "/containers/"+cmd.Arg(0)+"/changes", nil, nil)
+	serverResp, err := cli.call("GET", "/containers/"+cmd.Arg(0)+"/changes", nil, nil)
 	if err != nil {
 		return err
 	}
 
-	defer rdr.Close()
+	defer serverResp.body.Close()
 
 	changes := []types.ContainerChange{}
-	if err := json.NewDecoder(rdr).Decode(&changes); err != nil {
+	if err := json.NewDecoder(serverResp.body).Decode(&changes); err != nil {
 		return err
 	}
 

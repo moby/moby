@@ -96,6 +96,29 @@ func TestTruncIndex(t *testing.T) {
 	assertIndexGet(t, index, id[:7], id, false)
 	assertIndexGet(t, index, id[:15], id, false)
 	assertIndexGet(t, index, id, id, false)
+
+	assertIndexIterate(t)
+}
+
+func assertIndexIterate(t *testing.T) {
+	ids := []string{
+		"19b36c2c326ccc11e726eee6ee78a0baf166ef96",
+		"28b36c2c326ccc11e726eee6ee78a0baf166ef96",
+		"37b36c2c326ccc11e726eee6ee78a0baf166ef96",
+		"46b36c2c326ccc11e726eee6ee78a0baf166ef96",
+	}
+
+	index := NewTruncIndex(ids)
+
+	index.Iterate(func(targetId string) {
+		for _, id := range ids {
+			if targetId == id {
+				return
+			}
+		}
+
+		t.Fatalf("An unknown ID '%s'", targetId)
+	})
 }
 
 func assertIndexGet(t *testing.T, index *TruncIndex, input, expectedResult string, expectError bool) {

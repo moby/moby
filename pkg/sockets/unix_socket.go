@@ -11,7 +11,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/listenbuffer"
-	"github.com/docker/libcontainer/user"
+	"github.com/opencontainers/runc/libcontainer/user"
 )
 
 func NewUnixSocket(path, group string, activate <-chan struct{}) (net.Listener, error) {

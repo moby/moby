@@ -2,7 +2,7 @@ package daemon
 
 import (
 	"github.com/docker/docker/api/types"
-	"github.com/docker/libcontainer"
+	"github.com/opencontainers/runc/libcontainer"
 )
 
 // convertStatsToAPITypes converts the libcontainer.Stats to the api specific

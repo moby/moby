@@ -268,7 +268,9 @@ func (d *Daemon) execCommandGC() {
 				}
 			}
 		}
-		logrus.Debugf("clean %d unused exec commands", cleaned)
+		if cleaned > 0 {
+			logrus.Debugf("clean %d unused exec commands", cleaned)
+		}
 	}
 }
 

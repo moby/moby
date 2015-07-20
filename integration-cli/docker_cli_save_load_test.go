@@ -57,9 +57,6 @@ func (s *DockerSuite) TestSaveXzAndLoadRepoStdout(c *check.C) {
 	if err == nil {
 		c.Fatalf("the repo should not exist: %v", after)
 	}
-
-	deleteImages(repoName)
-
 }
 
 // save a repo using xz+gz compression and try to load it using stdout

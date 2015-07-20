@@ -23,15 +23,15 @@ func (cli *DockerCli) CmdAttach(args ...string) error {
 
 	cmd.ParseFlags(args, true)
 
-	stream, _, _, err := cli.call("GET", "/containers/"+cmd.Arg(0)+"/json", nil, nil)
+	serverResp, err := cli.call("GET", "/containers/"+cmd.Arg(0)+"/json", nil, nil)
 	if err != nil {
 		return err
 	}
 
-	defer stream.Close()
+	defer serverResp.body.Close()
 
 	var c types.ContainerJSON
-	if err := json.NewDecoder(stream).Decode(&c); err != nil {
+	if err := json.NewDecoder(serverResp.body).Decode(&c); err != nil {
 		return err
 	}
 

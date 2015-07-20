@@ -393,14 +393,11 @@ payload:
 }
 ```
 
-Webhooks are available under the Settings menu of each Repository.
+Webhooks are available under the Settings menu of each Repository.  
+Use a tool like [requestb.in](http://requestb.in/) to test your webhook.
 
-> **Note:** If you want to test your webhook out we recommend using
-> a tool like [requestb.in](http://requestb.in/).
-
-> **Note**: The Docker Hub servers are currently in the IP range
-> `162.242.195.64 - 162.242.195.127`, so you can restrict your webhooks to
-> accept webhook requests from that set of IP addresses.
+> **Note**: The Docker Hub servers use an elastic IP range, so you can't
+> filter requests by IP.
 
 ### Webhook chains
 
@@ -452,7 +449,7 @@ The following parameters are recognized in callback data:
 ## Repository links
 
 Repository links are a way to associate one Automated Build with
-another. If one gets updated,the linking system triggers a rebuild
+another. If one gets updated, the linking system triggers a rebuild
 for the other Automated Build. This makes it easy to keep all your
 Automated Builds up to date.
 

@@ -34,11 +34,7 @@ func (s *DockerSuite) TestEventsTimestampFormats(c *check.C) {
 	// --since=$start must contain only the 'untag' event
 	for _, f := range []func(time.Time) string{unixTs, rfc3339, duration} {
 		since, until := f(start), f(end)
-		cmd := exec.Command(dockerBinary, "events", "--since="+since, "--until="+until)
-		out, _, err := runCommandWithOutput(cmd)
-		if err != nil {
-			c.Fatalf("docker events cmd failed: %v\nout=%s", err, out)
-		}
+		out, _ := dockerCmd(c, "events", "--since="+since, "--until="+until)
 		events := strings.Split(strings.TrimSpace(out), "\n")
 		if len(events) != 2 {
 			c.Fatalf("unexpected events, was expecting only 2 events tag/untag (since=%s, until=%s) out=%s", since, until, out)
@@ -77,12 +73,11 @@ func (s *DockerSuite) TestEventsContainerFailStartDie(c *check.C) {
 
 	out, _ := dockerCmd(c, "images", "-q")
 	image := strings.Split(out, "\n")[0]
-	if err := exec.Command(dockerBinary, "run", "--name", "testeventdie", image, "blerg").Run(); err == nil {
+	if _, _, err := dockerCmdWithError(c, "run", "--name", "testeventdie", image, "blerg"); err == nil {
 		c.Fatalf("Container run with command blerg should have failed, but it did not")
 	}
 
-	eventsCmd := exec.Command(dockerBinary, "events", "--since=0", fmt.Sprintf("--until=%d", daemonTime(c).Unix()))
-	out, _, _ = runCommandWithOutput(eventsCmd)
+	out, _ = dockerCmd(c, "events", "--since=0", fmt.Sprintf("--until=%d", daemonTime(c).Unix()))
 	events := strings.Split(out, "\n")
 	if len(events) <= 1 {
 		c.Fatalf("Missing expected event")
@@ -123,8 +118,7 @@ func (s *DockerSuite) TestEventsLimit(c *check.C) {
 		}
 	}
 
-	eventsCmd := exec.Command(dockerBinary, "events", "--since=0", fmt.Sprintf("--until=%d", daemonTime(c).Unix()))
-	out, _, _ := runCommandWithOutput(eventsCmd)
+	out, _ := dockerCmd(c, "events", "--since=0", fmt.Sprintf("--until=%d", daemonTime(c).Unix()))
 	events := strings.Split(out, "\n")
 	nEvents := len(events) - 1
 	if nEvents != 64 {
@@ -134,11 +128,7 @@ func (s *DockerSuite) TestEventsLimit(c *check.C) {
 
 func (s *DockerSuite) TestEventsContainerEvents(c *check.C) {
 	dockerCmd(c, "run", "--rm", "busybox", "true")
-	eventsCmd := exec.Command(dockerBinary, "events", "--since=0", fmt.Sprintf("--until=%d", daemonTime(c).Unix()))
-	out, exitCode, err := runCommandWithOutput(eventsCmd)
-	if exitCode != 0 || err != nil {
-		c.Fatalf("Failed to get events with exit code %d: %s", exitCode, err)
-	}
+	out, _ := dockerCmd(c, "events", "--since=0", fmt.Sprintf("--until=%d", daemonTime(c).Unix()))
 	events := strings.Split(out, "\n")
 	events = events[:len(events)-1]
 	if len(events) < 5 {
@@ -171,12 +161,8 @@ func (s *DockerSuite) TestEventsContainerEventsSinceUnixEpoch(c *check.C) {
 	dockerCmd(c, "run", "--rm", "busybox", "true")
 	timeBeginning := time.Unix(0, 0).Format(time.RFC3339Nano)
 	timeBeginning = strings.Replace(timeBeginning, "Z", ".000000000Z", -1)
-	eventsCmd := exec.Command(dockerBinary, "events", fmt.Sprintf("--since='%s'", timeBeginning),
+	out, _ := dockerCmd(c, "events", fmt.Sprintf("--since='%s'", timeBeginning),
 		fmt.Sprintf("--until=%d", daemonTime(c).Unix()))
-	out, exitCode, err := runCommandWithOutput(eventsCmd)
-	if exitCode != 0 || err != nil {
-		c.Fatalf("Failed to get events with exit code %d: %s", exitCode, err)
-	}
 	events := strings.Split(out, "\n")
 	events = events[:len(events)-1]
 	if len(events) < 5 {
@@ -217,11 +203,7 @@ func (s *DockerSuite) TestEventsImageUntagDelete(c *check.C) {
 	if err := deleteImages(name); err != nil {
 		c.Fatal(err)
 	}
-	eventsCmd := exec.Command(dockerBinary, "events", "--since=0", fmt.Sprintf("--until=%d", daemonTime(c).Unix()))
-	out, exitCode, err := runCommandWithOutput(eventsCmd)
-	if exitCode != 0 || err != nil {
-		c.Fatalf("Failed to get events with exit code %d: %s", exitCode, err)
-	}
+	out, _ := dockerCmd(c, "events", "--since=0", fmt.Sprintf("--until=%d", daemonTime(c).Unix()))
 	events := strings.Split(out, "\n")
 
 	events = events[:len(events)-1]
@@ -244,11 +226,9 @@ func (s *DockerSuite) TestEventsImageTag(c *check.C) {
 	image := "testimageevents:tag"
 	dockerCmd(c, "tag", "busybox", image)
 
-	eventsCmd := exec.Command(dockerBinary, "events",
+	out, _ := dockerCmd(c, "events",
 		fmt.Sprintf("--since=%d", since),
 		fmt.Sprintf("--until=%d", daemonTime(c).Unix()))
-	out, _, err := runCommandWithOutput(eventsCmd)
-	c.Assert(err, check.IsNil)
 
 	events := strings.Split(strings.TrimSpace(out), "\n")
 	if len(events) != 1 {
@@ -267,15 +247,11 @@ func (s *DockerSuite) TestEventsImagePull(c *check.C) {
 	since := daemonTime(c).Unix()
 	testRequires(c, Network)
 
-	pullCmd := exec.Command(dockerBinary, "pull", "hello-world")
-	if out, _, err := runCommandWithOutput(pullCmd); err != nil {
-		c.Fatalf("pulling the hello-world image from has failed: %s, %v", out, err)
-	}
+	dockerCmd(c, "pull", "hello-world")
 
-	eventsCmd := exec.Command(dockerBinary, "events",
+	out, _ := dockerCmd(c, "events",
 		fmt.Sprintf("--since=%d", since),
 		fmt.Sprintf("--until=%d", daemonTime(c).Unix()))
-	out, _, _ := runCommandWithOutput(eventsCmd)
 
 	events := strings.Split(strings.TrimSpace(out), "\n")
 	event := strings.TrimSpace(events[len(events)-1])
@@ -313,11 +289,7 @@ func (s *DockerSuite) TestEventsImageImport(c *check.C) {
 		}
 	}()
 
-	runCmd := exec.Command(dockerBinary, "run", "-d", "busybox", "true")
-	out, _, err := runCommandWithOutput(runCmd)
-	if err != nil {
-		c.Fatal("failed to create a container", out, err)
-	}
+	out, _ := dockerCmd(c, "run", "-d", "busybox", "true")
 	cleanedContainerID := strings.TrimSpace(out)
 
 	out, _, err = runCommandPipelineWithOutput(
@@ -352,24 +324,12 @@ func (s *DockerSuite) TestEventsFilters(c *check.C) {
 	}
 
 	since := daemonTime(c).Unix()
-	out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "run", "--rm", "busybox", "true"))
-	if err != nil {
-		c.Fatal(out, err)
-	}
-	out, _, err = runCommandWithOutput(exec.Command(dockerBinary, "run", "--rm", "busybox", "true"))
-	if err != nil {
-		c.Fatal(out, err)
-	}
-	out, _, err = runCommandWithOutput(exec.Command(dockerBinary, "events", fmt.Sprintf("--since=%d", since), fmt.Sprintf("--until=%d", daemonTime(c).Unix()), "--filter", "event=die"))
-	if err != nil {
-		c.Fatalf("Failed to get events: %s", err)
-	}
+	dockerCmd(c, "run", "--rm", "busybox", "true")
+	dockerCmd(c, "run", "--rm", "busybox", "true")
+	out, _ := dockerCmd(c, "events", fmt.Sprintf("--since=%d", since), fmt.Sprintf("--until=%d", daemonTime(c).Unix()), "--filter", "event=die")
 	parseEvents(out, "die")
 
-	out, _, err = runCommandWithOutput(exec.Command(dockerBinary, "events", fmt.Sprintf("--since=%d", since), fmt.Sprintf("--until=%d", daemonTime(c).Unix()), "--filter", "event=die", "--filter", "event=start"))
-	if err != nil {
-		c.Fatalf("Failed to get events: %s", err)
-	}
+	out, _ = dockerCmd(c, "events", fmt.Sprintf("--since=%d", since), fmt.Sprintf("--until=%d", daemonTime(c).Unix()), "--filter", "event=die", "--filter", "event=start")
 	parseEvents(out, "((die)|(start))")
 
 	// make sure we at least got 2 start events
@@ -383,24 +343,14 @@ func (s *DockerSuite) TestEventsFilters(c *check.C) {
 func (s *DockerSuite) TestEventsFilterImageName(c *check.C) {
 	since := daemonTime(c).Unix()
 
-	out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "run", "--name", "container_1", "-d", "busybox:latest", "true"))
-	if err != nil {
-		c.Fatal(out, err)
-	}
+	out, _ := dockerCmd(c, "run", "--name", "container_1", "-d", "busybox:latest", "true")
 	container1 := strings.TrimSpace(out)
 
-	out, _, err = runCommandWithOutput(exec.Command(dockerBinary, "run", "--name", "container_2", "-d", "busybox", "true"))
-	if err != nil {
-		c.Fatal(out, err)
-	}
+	out, _ = dockerCmd(c, "run", "--name", "container_2", "-d", "busybox", "true")
 	container2 := strings.TrimSpace(out)
 
 	name := "busybox"
-	eventsCmd := exec.Command(dockerBinary, "events", fmt.Sprintf("--since=%d", since), fmt.Sprintf("--until=%d", daemonTime(c).Unix()), "--filter", fmt.Sprintf("image=%s", name))
-	out, _, err = runCommandWithOutput(eventsCmd)
-	if err != nil {
-		c.Fatalf("Failed to get events, error: %s(%s)", err, out)
-	}
+	out, _ = dockerCmd(c, "events", fmt.Sprintf("--since=%d", since), fmt.Sprintf("--until=%d", daemonTime(c).Unix()), "--filter", fmt.Sprintf("image=%s", name))
 	events := strings.Split(out, "\n")
 	events = events[:len(events)-1]
 	if len(events) == 0 {
@@ -427,10 +377,7 @@ func (s *DockerSuite) TestEventsFilterContainer(c *check.C) {
 	nameID := make(map[string]string)
 
 	for _, name := range []string{"container_1", "container_2"} {
-		out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "run", "--name", name, "busybox", "true"))
-		if err != nil {
-			c.Fatalf("Error: %v, Output: %s", err, out)
-		}
+		dockerCmd(c, "run", "--name", name, "busybox", "true")
 		id, err := inspectField(name, "Id")
 		if err != nil {
 			c.Fatal(err)
@@ -461,30 +408,19 @@ func (s *DockerSuite) TestEventsFilterContainer(c *check.C) {
 
 	for name, ID := range nameID {
 		// filter by names
-		eventsCmd := exec.Command(dockerBinary, "events", "--since", since, "--until", until, "--filter", "container="+name)
-		out, _, err := runCommandWithOutput(eventsCmd)
-		if err != nil {
-			c.Fatal(err)
-		}
-
+		out, _ := dockerCmd(c, "events", "--since", since, "--until", until, "--filter", "container="+name)
 		events := strings.Split(strings.TrimSuffix(out, "\n"), "\n")
 		if err := checkEvents(ID, events); err != nil {
 			c.Fatal(err)
 		}
 
 		// filter by ID's
-		eventsCmd = exec.Command(dockerBinary, "events", "--since", since, "--until", until, "--filter", "container="+ID)
-		out, _, err = runCommandWithOutput(eventsCmd)
-		if err != nil {
-			c.Fatal(err)
-		}
-
+		out, _ = dockerCmd(c, "events", "--since", since, "--until", until, "--filter", "container="+ID)
 		events = strings.Split(strings.TrimSuffix(out, "\n"), "\n")
 		if err := checkEvents(ID, events); err != nil {
 			c.Fatal(err)
 		}
 	}
-
 }
 
 func (s *DockerSuite) TestEventsStreaming(c *check.C) {
@@ -529,11 +465,7 @@ func (s *DockerSuite) TestEventsStreaming(c *check.C) {
 		}
 	}()
 
-	runCmd := exec.Command(dockerBinary, "run", "-d", "busybox:latest", "true")
-	out, _, err := runCommandWithOutput(runCmd)
-	if err != nil {
-		c.Fatal(out, err)
-	}
+	out, _ := dockerCmd(c, "run", "-d", "busybox:latest", "true")
 	cleanedContainerID := strings.TrimSpace(out)
 	id <- cleanedContainerID
 
@@ -558,11 +490,7 @@ func (s *DockerSuite) TestEventsStreaming(c *check.C) {
 		// ignore, done
 	}
 
-	rmCmd := exec.Command(dockerBinary, "rm", cleanedContainerID)
-	out, _, err = runCommandWithOutput(rmCmd)
-	if err != nil {
-		c.Fatal(out, err)
-	}
+	dockerCmd(c, "rm", cleanedContainerID)
 
 	select {
 	case <-time.After(5 * time.Second):
@@ -575,32 +503,14 @@ func (s *DockerSuite) TestEventsStreaming(c *check.C) {
 func (s *DockerSuite) TestEventsCommit(c *check.C) {
 	since := daemonTime(c).Unix()
 
-	runCmd := exec.Command(dockerBinary, "run", "-d", "busybox", "top")
-	out, _, err := runCommandWithOutput(runCmd)
-	if err != nil {
-		c.Fatalf("Couldn't run top: %s\n%q", out, err)
-	}
+	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
 	cID := strings.TrimSpace(out)
 	c.Assert(waitRun(cID), check.IsNil)
 
-	cmd := exec.Command(dockerBinary, "commit", "-m", "test", cID)
-	out, _, err = runCommandWithOutput(cmd)
-	if err != nil {
-		c.Fatalf("Couldn't commit: %s\n%q", out, err)
-	}
+	dockerCmd(c, "commit", "-m", "test", cID)
+	dockerCmd(c, "stop", cID)
 
-	cmd = exec.Command(dockerBinary, "stop", cID)
-	out, _, err = runCommandWithOutput(cmd)
-	if err != nil {
-		c.Fatalf("Couldn't stop: %s\n%q", out, err)
-	}
-
-	cmd = exec.Command(dockerBinary, "events", "--since=0", "-f", "container="+cID, "--until="+strconv.Itoa(int(since)))
-	out, _, err = runCommandWithOutput(cmd)
-	if err != nil {
-		c.Fatalf("Couldn't get events: %s\n%q", out, err)
-	}
-
+	out, _ = dockerCmd(c, "events", "--since=0", "-f", "container="+cID, "--until="+strconv.Itoa(int(since)))
 	if !strings.Contains(out, " commit\n") {
 		c.Fatalf("Missing 'commit' log event\n%s", out)
 	}
@@ -616,24 +526,10 @@ func (s *DockerSuite) TestEventsCopy(c *check.C) {
 		c.Fatalf("Couldn't create image: %q", err)
 	}
 
-	runCmd := exec.Command(dockerBinary, "run", "--name=cptest", id, "true")
-	out, _, err := runCommandWithOutput(runCmd)
-	if err != nil {
-		c.Fatalf("Couldn't run top: %s\n%q", out, err)
-	}
+	dockerCmd(c, "run", "--name=cptest", id, "true")
+	dockerCmd(c, "cp", "cptest:/tmp/file", "-")
 
-	cmd := exec.Command(dockerBinary, "cp", "cptest:/tmp/file", "-")
-	out, _, err = runCommandWithOutput(cmd)
-	if err != nil {
-		c.Fatalf("Failed getting file:%q\n%q", out, err)
-	}
-
-	cmd = exec.Command(dockerBinary, "events", "--since=0", "-f", "container=cptest", "--until="+strconv.Itoa(int(since)))
-	out, _, err = runCommandWithOutput(cmd)
-	if err != nil {
-		c.Fatalf("Couldn't get events: %s\n%q", out, err)
-	}
-
+	out, _ := dockerCmd(c, "events", "--since=0", "-f", "container=cptest", "--until="+strconv.Itoa(int(since)))
 	if !strings.Contains(out, " copy\n") {
 		c.Fatalf("Missing 'copy' log event\n%s", out)
 	}
@@ -642,11 +538,7 @@ func (s *DockerSuite) TestEventsCopy(c *check.C) {
 func (s *DockerSuite) TestEventsResize(c *check.C) {
 	since := daemonTime(c).Unix()
 
-	runCmd := exec.Command(dockerBinary, "run", "-d", "busybox", "top")
-	out, _, err := runCommandWithOutput(runCmd)
-	if err != nil {
-		c.Fatalf("Couldn't run top: %s\n%q", out, err)
-	}
+	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
 	cID := strings.TrimSpace(out)
 	c.Assert(waitRun(cID), check.IsNil)
 
@@ -655,18 +547,9 @@ func (s *DockerSuite) TestEventsResize(c *check.C) {
 	c.Assert(status, check.Equals, http.StatusOK)
 	c.Assert(err, check.IsNil)
 
-	cmd := exec.Command(dockerBinary, "stop", cID)
-	out, _, err = runCommandWithOutput(cmd)
-	if err != nil {
-		c.Fatalf("Couldn't stop: %s\n%q", out, err)
-	}
+	dockerCmd(c, "stop", cID)
 
-	cmd = exec.Command(dockerBinary, "events", "--since=0", "-f", "container="+cID, "--until="+strconv.Itoa(int(since)))
-	out, _, err = runCommandWithOutput(cmd)
-	if err != nil {
-		c.Fatalf("Couldn't get events: %s\n%q", out, err)
-	}
-
+	out, _ = dockerCmd(c, "events", "--since=0", "-f", "container="+cID, "--until="+strconv.Itoa(int(since)))
 	if !strings.Contains(out, " resize\n") {
 		c.Fatalf("Missing 'resize' log event\n%s", out)
 	}
@@ -700,18 +583,9 @@ func (s *DockerSuite) TestEventsAttach(c *check.C) {
 
 	c.Assert(stdin.Close(), check.IsNil)
 
-	cmd = exec.Command(dockerBinary, "stop", cID)
-	out, _, err = runCommandWithOutput(cmd)
-	if err != nil {
-		c.Fatalf("Couldn't stop: %s\n%q", out, err)
-	}
+	dockerCmd(c, "stop", cID)
 
-	cmd = exec.Command(dockerBinary, "events", "--since=0", "-f", "container="+cID, "--until="+strconv.Itoa(int(since)))
-	out, _, err = runCommandWithOutput(cmd)
-	if err != nil {
-		c.Fatalf("Couldn't get events: %s\n%q", out, err)
-	}
-
+	out, _ = dockerCmd(c, "events", "--since=0", "-f", "container="+cID, "--until="+strconv.Itoa(int(since)))
 	if !strings.Contains(out, " attach\n") {
 		c.Fatalf("Missing 'attach' log event\n%s", out)
 	}
@@ -720,24 +594,10 @@ func (s *DockerSuite) TestEventsAttach(c *check.C) {
 func (s *DockerSuite) TestEventsRename(c *check.C) {
 	since := daemonTime(c).Unix()
 
-	runCmd := exec.Command(dockerBinary, "run", "--name", "oldName", "busybox", "true")
-	out, _, err := runCommandWithOutput(runCmd)
-	if err != nil {
-		c.Fatalf("Couldn't run true: %s\n%q", out, err)
-	}
+	dockerCmd(c, "run", "--name", "oldName", "busybox", "true")
+	dockerCmd(c, "rename", "oldName", "newName")
 
-	renameCmd := exec.Command(dockerBinary, "rename", "oldName", "newName")
-	out, _, err = runCommandWithOutput(renameCmd)
-	if err != nil {
-		c.Fatalf("Couldn't rename: %s\n%q", out, err)
-	}
-
-	cmd := exec.Command(dockerBinary, "events", "--since=0", "-f", "container=newName", "--until="+strconv.Itoa(int(since)))
-	out, _, err = runCommandWithOutput(cmd)
-	if err != nil {
-		c.Fatalf("Couldn't get events: %s\n%q", out, err)
-	}
-
+	out, _ := dockerCmd(c, "events", "--since=0", "-f", "container=newName", "--until="+strconv.Itoa(int(since)))
 	if !strings.Contains(out, " rename\n") {
 		c.Fatalf("Missing 'rename' log event\n%s", out)
 	}
@@ -746,32 +606,14 @@ func (s *DockerSuite) TestEventsRename(c *check.C) {
 func (s *DockerSuite) TestEventsTop(c *check.C) {
 	since := daemonTime(c).Unix()
 
-	runCmd := exec.Command(dockerBinary, "run", "-d", "busybox", "top")
-	out, _, err := runCommandWithOutput(runCmd)
-	if err != nil {
-		c.Fatalf("Couldn't run true: %s\n%q", out, err)
-	}
+	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
 	cID := strings.TrimSpace(out)
 	c.Assert(waitRun(cID), check.IsNil)
 
-	cmd := exec.Command(dockerBinary, "top", cID)
-	out, _, err = runCommandWithOutput(cmd)
-	if err != nil {
-		c.Fatalf("Couldn't run docker top: %s\n%q", out, err)
-	}
+	dockerCmd(c, "top", cID)
+	dockerCmd(c, "stop", cID)
 
-	cmd = exec.Command(dockerBinary, "stop", cID)
-	out, _, err = runCommandWithOutput(cmd)
-	if err != nil {
-		c.Fatalf("Couldn't stop: %s\n%q", out, err)
-	}
-
-	cmd = exec.Command(dockerBinary, "events", "--since=0", "-f", "container="+cID, "--until="+strconv.Itoa(int(since)))
-	out, _, err = runCommandWithOutput(cmd)
-	if err != nil {
-		c.Fatalf("Couldn't get events: %s\n%q", out, err)
-	}
-
+	out, _ = dockerCmd(c, "events", "--since=0", "-f", "container="+cID, "--until="+strconv.Itoa(int(since)))
 	if !strings.Contains(out, " top\n") {
 		c.Fatalf("Missing 'top' log event\n%s", out)
 	}
@@ -790,9 +632,7 @@ func (s *DockerRegistrySuite) TestEventsImageFilterPush(c *check.C) {
 	since := daemonTime(c).Unix()
 	repoName := fmt.Sprintf("%v/dockercli/testf", privateRegistryURL)
 
-	runCmd := exec.Command(dockerBinary, "run", "-d", "busybox", "top")
-	out, _, err := runCommandWithOutput(runCmd)
-	c.Assert(err, check.IsNil)
+	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
 	cID := strings.TrimSpace(out)
 	c.Assert(waitRun(cID), check.IsNil)
 
@@ -800,10 +640,7 @@ func (s *DockerRegistrySuite) TestEventsImageFilterPush(c *check.C) {
 	dockerCmd(c, "stop", cID)
 	dockerCmd(c, "push", repoName)
 
-	cmd := exec.Command(dockerBinary, "events", "--since=0", "-f", "image="+repoName, "-f", "event=push", "--until="+strconv.Itoa(int(since)))
-	out, _, err = runCommandWithOutput(cmd)
-	c.Assert(err, check.IsNil)
-
+	out, _ = dockerCmd(c, "events", "--since=0", "-f", "image="+repoName, "-f", "event=push", "--until="+strconv.Itoa(int(since)))
 	if !strings.Contains(out, repoName+": push\n") {
 		c.Fatalf("Missing 'push' log event for image %s\n%s", repoName, out)
 	}

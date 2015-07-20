@@ -125,7 +125,7 @@ func loginV1(authConfig *cliconfig.AuthConfig, registryEndpoint *Endpoint) (stri
 		return "", fmt.Errorf("Server Error: Server Address not set.")
 	}
 
-	loginAgainstOfficialIndex := serverAddress == IndexServerAddress()
+	loginAgainstOfficialIndex := serverAddress == INDEXSERVER
 
 	// to avoid sending the server address to the server it should be removed before being marshalled
 	authCopy := *authConfig
@@ -180,6 +180,9 @@ func loginV1(authConfig *cliconfig.AuthConfig, registryEndpoint *Endpoint) (stri
 				}
 				// *TODO: Use registry configuration to determine what this says, if anything?
 				return "", fmt.Errorf("Login: Account is not Active. Please see the documentation of the registry %s for instructions how to activate it.", serverAddress)
+			} else if resp.StatusCode == 500 { // Issue #14326
+				logrus.Errorf("%s returned status code %d. Response Body :\n%s", req.URL.String(), resp.StatusCode, body)
+				return "", fmt.Errorf("Internal Server Error")
 			}
 			return "", fmt.Errorf("Login: %s (Code: %d; Headers: %s)", body, resp.StatusCode, resp.Header)
 		}

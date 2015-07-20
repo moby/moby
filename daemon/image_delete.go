@@ -55,10 +55,7 @@ func (daemon *Daemon) imgDeleteHelper(name string, list *[]types.ImageDelete, fi
 		tag = ""
 	}
 
-	byParents, err := daemon.Graph().ByParent()
-	if err != nil {
-		return err
-	}
+	byParents := daemon.Graph().ByParent()
 
 	repos := daemon.Repositories().ByID()[img.ID]
 
@@ -140,6 +137,9 @@ func (daemon *Daemon) imgDeleteHelper(name string, list *[]types.ImageDelete, fi
 }
 
 func (daemon *Daemon) canDeleteImage(imgID string, force bool) error {
+	if daemon.Graph().IsHeld(imgID) {
+		return fmt.Errorf("Conflict, cannot delete because %s is held by an ongoing pull or build", stringid.TruncateID(imgID))
+	}
 	for _, container := range daemon.List() {
 		if container.ImageID == "" {
 			// This technically should never happen, but if the container
@@ -154,7 +154,7 @@ func (daemon *Daemon) canDeleteImage(imgID string, force bool) error {
 		parent, err := daemon.Repositories().LookupImage(container.ImageID)
 		if err != nil {
 			if daemon.Graph().IsNotExist(err, container.ImageID) {
-				return nil
+				continue
 			}
 			return err
 		}
