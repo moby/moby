@@ -8,7 +8,7 @@ parent = "smn_develop"
 +++
 <![end-metadata]-->
 
-# README first 
+# README first
 
 This section of the documentation contains a guide for Docker users who want to
 contribute code or documentation to the Docker project. As a community, we
@@ -20,7 +20,7 @@ target="_blank">community guidelines</a> before continuing.
 
 The Docker project consists of not just one but several repositories on GitHub.
 So, in addition to the `docker/docker` repository, there is the
-`docker/libcontainer` repo, the `docker/machine` repo, and several more.
+`docker/compose` repo, the `docker/machine` repo, and several more.
 Contribute to any of these and you contribute to the Docker project.
 
 Not all Docker repositories use the Go language. Also, each repository has its
