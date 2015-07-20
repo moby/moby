@@ -8,17 +8,22 @@ import (
 	"github.com/docker/docker/pkg/nat"
 )
 
+// Link struct holds informations about parent/child linked container
 type Link struct {
-	ParentIP         string
-	ChildIP          string
-	Name             string
+	// Parent container IP address
+	ParentIP string
+	// Child container IP address
+	ChildIP string
+	// Link name
+	Name string
+	// Child environments variables
 	ChildEnvironment []string
-	Ports            []nat.Port
-	IsEnabled        bool
+	// Child exposed ports
+	Ports []nat.Port
 }
 
-func NewLink(parentIP, childIP, name string, env []string, exposedPorts map[nat.Port]struct{}) (*Link, error) {
-
+// NewLink initializes a new Link struct with the provided options.
+func NewLink(parentIP, childIP, name string, env []string, exposedPorts map[nat.Port]struct{}) *Link {
 	var (
 		i     int
 		ports = make([]nat.Port, len(exposedPorts))
@@ -29,39 +34,23 @@ func NewLink(parentIP, childIP, name string, env []string, exposedPorts map[nat.
 		i++
 	}
 
-	l := &Link{
+	return &Link{
 		Name:             name,
 		ChildIP:          childIP,
 		ParentIP:         parentIP,
 		ChildEnvironment: env,
 		Ports:            ports,
 	}
-	return l, nil
-
 }
 
-func (l *Link) Alias() string {
-	_, alias := path.Split(l.Name)
-	return alias
-}
-
-func nextContiguous(ports []nat.Port, value int, index int) int {
-	if index+1 == len(ports) {
-		return index
-	}
-	for i := index + 1; i < len(ports); i++ {
-		if ports[i].Int() > value+1 {
-			return i - 1
-		}
-
-		value++
-	}
-	return len(ports) - 1
-}
-
+// ToEnv creates a string's slice containing child container informations in
+// the form of environment variables which will be later exported on container
+// startup.
 func (l *Link) ToEnv() []string {
 	env := []string{}
-	alias := strings.Replace(strings.ToUpper(l.Alias()), "-", "_", -1)
+
+	_, n := path.Split(l.Name)
+	alias := strings.Replace(strings.ToUpper(n), "-", "_", -1)
 
 	if p := l.getDefaultPort(); p != nil {
 		env = append(env, fmt.Sprintf("%s_PORT=%s://%s:%s", alias, p.Proto(), l.ChildIP, p.Port()))
@@ -119,6 +108,20 @@ func (l *Link) ToEnv() []string {
 	return env
 }
 
+func nextContiguous(ports []nat.Port, value int, index int) int {
+	if index+1 == len(ports) {
+		return index
+	}
+	for i := index + 1; i < len(ports); i++ {
+		if ports[i].Int() > value+1 {
+			return i - 1
+		}
+
+		value++
+	}
+	return len(ports) - 1
+}
+
 // Default port rules
 func (l *Link) getDefaultPort() *nat.Port {
 	var p nat.Port
@@ -135,13 +138,4 @@ func (l *Link) getDefaultPort() *nat.Port {
 	}
 	p = l.Ports[0]
 	return &p
-}
-
-func (l *Link) Enable() error {
-	l.IsEnabled = true
-	return nil
-}
-
-func (l *Link) Disable() {
-	l.IsEnabled = false
 }

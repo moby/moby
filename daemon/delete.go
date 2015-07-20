@@ -32,14 +32,16 @@ func (daemon *Daemon) ContainerRm(name string, config *ContainerRmConfig) error 
 		if pe == nil {
 			return fmt.Errorf("Cannot get parent %s for name %s", parent, name)
 		}
-		parentContainer, _ := daemon.Get(pe.ID())
 
 		if err := daemon.ContainerGraph().Delete(name); err != nil {
 			return err
 		}
 
+		parentContainer, _ := daemon.Get(pe.ID())
 		if parentContainer != nil {
-			parentContainer.DisableLink(n)
+			if err := parentContainer.UpdateNetwork(); err != nil {
+				logrus.Debugf("Could not update network to remove link %s: %v", n, err)
+			}
 		}
 
 		return nil

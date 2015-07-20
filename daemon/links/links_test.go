@@ -18,10 +18,7 @@ func TestLinkNaming(t *testing.T) {
 	ports := make(nat.PortSet)
 	ports[newPortNoError("tcp", "6379")] = struct{}{}
 
-	link, err := NewLink("172.0.17.3", "172.0.17.2", "/db/docker-1", nil, ports)
-	if err != nil {
-		t.Fatal(err)
-	}
+	link := NewLink("172.0.17.3", "172.0.17.2", "/db/docker-1", nil, ports)
 
 	rawEnv := link.ToEnv()
 	env := make(map[string]string, len(rawEnv))
@@ -48,18 +45,9 @@ func TestLinkNew(t *testing.T) {
 	ports := make(nat.PortSet)
 	ports[newPortNoError("tcp", "6379")] = struct{}{}
 
-	link, err := NewLink("172.0.17.3", "172.0.17.2", "/db/docker", nil, ports)
-	if err != nil {
-		t.Fatal(err)
-	}
+	link := NewLink("172.0.17.3", "172.0.17.2", "/db/docker", nil, ports)
 
-	if link == nil {
-		t.FailNow()
-	}
 	if link.Name != "/db/docker" {
-		t.Fail()
-	}
-	if link.Alias() != "docker" {
 		t.Fail()
 	}
 	if link.ParentIP != "172.0.17.3" {
@@ -79,10 +67,7 @@ func TestLinkEnv(t *testing.T) {
 	ports := make(nat.PortSet)
 	ports[newPortNoError("tcp", "6379")] = struct{}{}
 
-	link, err := NewLink("172.0.17.3", "172.0.17.2", "/db/docker", []string{"PASSWORD=gordon"}, ports)
-	if err != nil {
-		t.Fatal(err)
-	}
+	link := NewLink("172.0.17.3", "172.0.17.2", "/db/docker", []string{"PASSWORD=gordon"}, ports)
 
 	rawEnv := link.ToEnv()
 	env := make(map[string]string, len(rawEnv))
@@ -122,10 +107,7 @@ func TestLinkMultipleEnv(t *testing.T) {
 	ports[newPortNoError("tcp", "6380")] = struct{}{}
 	ports[newPortNoError("tcp", "6381")] = struct{}{}
 
-	link, err := NewLink("172.0.17.3", "172.0.17.2", "/db/docker", []string{"PASSWORD=gordon"}, ports)
-	if err != nil {
-		t.Fatal(err)
-	}
+	link := NewLink("172.0.17.3", "172.0.17.2", "/db/docker", []string{"PASSWORD=gordon"}, ports)
 
 	rawEnv := link.ToEnv()
 	env := make(map[string]string, len(rawEnv))
@@ -171,10 +153,7 @@ func TestLinkPortRangeEnv(t *testing.T) {
 	ports[newPortNoError("tcp", "6380")] = struct{}{}
 	ports[newPortNoError("tcp", "6381")] = struct{}{}
 
-	link, err := NewLink("172.0.17.3", "172.0.17.2", "/db/docker", []string{"PASSWORD=gordon"}, ports)
-	if err != nil {
-		t.Fatal(err)
-	}
+	link := NewLink("172.0.17.3", "172.0.17.2", "/db/docker", []string{"PASSWORD=gordon"}, ports)
 
 	rawEnv := link.ToEnv()
 	env := make(map[string]string, len(rawEnv))

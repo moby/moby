@@ -155,17 +155,15 @@ func (container *Container) ExportRw() (archive.Archive, error) {
 	return nil, nil
 }
 
+func (container *Container) UpdateNetwork() error {
+	return nil
+}
+
 func (container *Container) ReleaseNetwork() {
 }
 
 func (container *Container) RestoreNetwork() error {
 	return nil
-}
-
-func disableAllActiveLinks(container *Container) {
-}
-
-func (container *Container) DisableLink(name string) {
 }
 
 func (container *Container) UnmountVolumes(forceSyscall bool) error {

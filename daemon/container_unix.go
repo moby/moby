@@ -16,8 +16,8 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/execdriver"
+	"github.com/docker/docker/daemon/links"
 	"github.com/docker/docker/daemon/network"
-	"github.com/docker/docker/links"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/directory"
 	"github.com/docker/docker/pkg/ioutils"
@@ -81,40 +81,18 @@ func (container *Container) setupLinkedContainers() ([]string, error) {
 	}
 
 	if len(children) > 0 {
-		container.activeLinks = make(map[string]*links.Link, len(children))
-
-		// If we encounter an error make sure that we rollback any network
-		// config and iptables changes
-		rollback := func() {
-			for _, link := range container.activeLinks {
-				link.Disable()
-			}
-			container.activeLinks = nil
-		}
-
 		for linkAlias, child := range children {
 			if !child.IsRunning() {
 				return nil, fmt.Errorf("Cannot link to a non running container: %s AS %s", child.Name, linkAlias)
 			}
 
-			link, err := links.NewLink(
+			link := links.NewLink(
 				container.NetworkSettings.IPAddress,
 				child.NetworkSettings.IPAddress,
 				linkAlias,
 				child.Config.Env,
 				child.Config.ExposedPorts,
 			)
-
-			if err != nil {
-				rollback()
-				return nil, err
-			}
-
-			container.activeLinks[link.Alias()] = link
-			if err := link.Enable(); err != nil {
-				rollback()
-				return nil, err
-			}
 
 			for _, envVar := range link.ToEnv() {
 				env = append(env, envVar)
@@ -668,6 +646,8 @@ func (container *Container) updateNetworkSettings(n libnetwork.Network, ep libne
 	return nil
 }
 
+// UpdateNetwork is used to update the container's network (e.g. when linked containers
+// get removed/unlinked).
 func (container *Container) UpdateNetwork() error {
 	n, err := container.daemon.netController.NetworkByID(container.NetworkSettings.NetworkID)
 	if err != nil {
@@ -1088,29 +1068,6 @@ func (container *Container) ReleaseNetwork() {
 	if container.Config.PublishService == "" {
 		if err := ep.Delete(); err != nil {
 			logrus.Errorf("deleting endpoint failed: %v", err)
-		}
-	}
-
-}
-
-func disableAllActiveLinks(container *Container) {
-	if container.activeLinks != nil {
-		for _, link := range container.activeLinks {
-			link.Disable()
-		}
-	}
-}
-
-func (container *Container) DisableLink(name string) {
-	if container.activeLinks != nil {
-		if link, exists := container.activeLinks[name]; exists {
-			link.Disable()
-			delete(container.activeLinks, name)
-			if err := container.UpdateNetwork(); err != nil {
-				logrus.Debugf("Could not update network to remove link: %v", err)
-			}
-		} else {
-			logrus.Debugf("Could not find active link for %s", name)
 		}
 	}
 }
