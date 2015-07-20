@@ -14,7 +14,7 @@ TERM
 
 # DESCRIPTION
 
-Search Docker Hub for an image with that matches the specified `TERM`. The table
+Search Docker Hub for images that match the specified `TERM`. The table
 of images returned displays the name, description (truncated by default), number
 of stars awarded, whether the image is official, and whether it is automated.
 

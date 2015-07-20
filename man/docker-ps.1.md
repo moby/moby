@@ -20,7 +20,7 @@ docker-ps - List containers
 
 # DESCRIPTION
 
-List the containers in the local repository. By default this show only
+List the containers in the local repository. By default this shows only
 the running containers.
 
 # OPTIONS
@@ -28,7 +28,7 @@ the running containers.
    Show all containers. Only running containers are shown by default. The default is *false*.
 
 **--before**=""
-   Show only container created before Id or Name, include non-running ones.
+   Show only containers created before Id or Name, including non-running containers.
 
 **--help**
   Print usage statement
