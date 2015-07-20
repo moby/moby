@@ -1,11 +1,14 @@
 package server
 
 import (
+	"encoding/gob"
 	"net/http"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/errors"
 	"github.com/gorilla/context"
+	"github.com/gorilla/securecookie"
+	"github.com/gorilla/sessions"
 )
 
 // User represents an authenticated remote user.  We know at least one of the
@@ -71,7 +74,27 @@ func createAuthenticators(c *Config) []Authenticator {
 	return authenticators
 }
 
+// We use cookies to cache successful authentications.
+var cookies *sessions.CookieStore
+
 func (s *Server) httpAuthenticate(w http.ResponseWriter, r *http.Request, options map[string]string) (User, error) {
+	var session *sessions.Session
+	if cookies != nil {
+		session, _ = cookies.Get(r, "docker")
+		if user, ok := session.Values[User{}].(User); ok {
+			if user.Name != "" || user.HaveUID {
+				if user.Name != "" && user.HaveUID {
+					logrus.Infof("accepted cookie authentication for \"%s\"(UID %d)", user.Name, user.UID)
+				} else if user.Name != "" {
+					logrus.Infof("accepted cookie authentication for \"%s\"", user.Name)
+				} else {
+					logrus.Infof("accepted cookie authentication for UID %d", user.UID)
+				}
+				context.Set(r, AuthnUser, user)
+				return user, nil
+			}
+		}
+	}
 	if len(s.authenticators) == 0 {
 		return User{}, errors.ErrorCodeNoAuthentication
 	}
@@ -95,6 +118,10 @@ func (s *Server) httpAuthenticate(w http.ResponseWriter, r *http.Request, option
 					logrus.Infof("client is UID %d", user.UID)
 				}
 				context.Set(r, AuthnUser, user)
+				if session != nil {
+					session.Values[User{}] = user
+					sessions.Save(r, w)
+				}
 				return user, nil
 			}
 		}
@@ -105,4 +132,10 @@ func (s *Server) httpAuthenticate(w http.ResponseWriter, r *http.Request, option
 		logrus.Error("authentication failed for request")
 	}
 	return User{}, errors.ErrorCodeMustAuthenticate
+}
+
+func init() {
+	key := securecookie.GenerateRandomKey(32)
+	cookies = sessions.NewCookieStore(key)
+	gob.Register(User{})
 }
