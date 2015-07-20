@@ -91,9 +91,9 @@ var (
 	flDaemon    = flag.Bool([]string{"d", "-daemon"}, false, "Enable daemon mode")
 	flDebug     = flag.Bool([]string{"D", "-debug"}, false, "Enable debug mode")
 	flLogLevel  = flag.String([]string{"l", "-log-level"}, "info", "Set the logging level")
-	flTlS       = flag.Bool([]string{"-tls"}, false, "Use TLS; implied by --tlsverify")
+	flTLS       = flag.Bool([]string{"-tls"}, false, "Use TLS; implied by --tlsverify")
 	flHelp      = flag.Bool([]string{"h", "-help"}, false, "Print usage")
-	flTlSVerify = flag.Bool([]string{"-tlsverify"}, dockerTlSVerify, "Use TLS and verify the remote")
+	flTLSVerify = flag.Bool([]string{"-tlsverify"}, dockerTlSVerify, "Use TLS and verify the remote")
 
 	// these are initialized in init() below since their default values depend on dockerCertPath which isn't fully initialized until init() runs
 	tlsOptions tlsconfig.Options
