@@ -75,11 +75,6 @@ func (s *DockerSuite) TestRunWithSwappinessInvalid(c *check.C) {
 	if err == nil {
 		c.Fatalf("failed. test was able to set invalid value, output: %q", out)
 	}
-	runCmd = exec.Command(dockerBinary, "run", "--memory-swappiness", "-1", "busybox", "true")
-	out, _, err = runCommandWithOutput(runCmd)
-	if err == nil {
-		c.Fatalf("failed. test was able to set invalid value, output: %q", out)
-	}
 }
 
 // "test" should be printed
