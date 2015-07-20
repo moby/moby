@@ -34,7 +34,7 @@ func setupTempConfigFile() (*cliconfig.ConfigFile, error) {
 	if err != nil {
 		return nil, err
 	}
-	root = filepath.Join(root, cliconfig.CONFIGFILE)
+	root = filepath.Join(root, cliconfig.ConfigFileName)
 	configFile := cliconfig.NewConfigFile(root)
 
 	for _, registry := range []string{"testIndex", INDEXSERVER} {
