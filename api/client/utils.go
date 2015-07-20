@@ -72,7 +72,7 @@ func (cli *DockerCli) clientRequest(method, path string, in io.Reader, headers m
 
 	// Add CLI Config's HTTP Headers BEFORE we set the Docker headers
 	// then the user can't change OUR headers
-	for k, v := range cli.configFile.HttpHeaders {
+	for k, v := range cli.configFile.HTTPHeaders {
 		req.Header.Set(k, v)
 	}
 
