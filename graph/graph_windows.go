@@ -9,6 +9,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/graphdriver/windows"
+	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/archive"
 )
 
@@ -18,7 +19,7 @@ func SetupInitLayer(initLayer string) error {
 	return nil
 }
 
-func createRootFilesystemInDriver(graph *Graph, img *Image, layerData archive.ArchiveReader) error {
+func createRootFilesystemInDriver(graph *Graph, img *image.Image, layerData archive.ArchiveReader) error {
 	if wd, ok := graph.driver.(*windows.WindowsGraphDriver); ok {
 		if img.Container != "" && layerData == nil {
 			logrus.Debugf("Copying from container %s.", img.Container)
@@ -59,7 +60,7 @@ func (graph *Graph) restoreBaseImages() ([]string, error) {
 }
 
 // ParentLayerIds returns a list of all parent image IDs for the given image.
-func (graph *Graph) ParentLayerIds(img *Image) (ids []string, err error) {
+func (graph *Graph) ParentLayerIds(img *image.Image) (ids []string, err error) {
 	for i := img; i != nil && err == nil; i, err = graph.GetParent(i) {
 		ids = append(ids, i.ID)
 	}
@@ -70,7 +71,7 @@ func (graph *Graph) ParentLayerIds(img *Image) (ids []string, err error) {
 // storeImage stores file system layer data for the given image to the
 // graph's storage driver. Image metadata is stored in a file
 // at the specified root directory.
-func (graph *Graph) storeImage(img *Image, layerData archive.ArchiveReader, root string) (err error) {
+func (graph *Graph) storeImage(img *image.Image, layerData archive.ArchiveReader, root string) (err error) {
 
 	if wd, ok := graph.driver.(*windows.WindowsGraphDriver); ok {
 		// Store the layer. If layerData is not nil and this isn't a base image,
@@ -135,7 +136,7 @@ func (graph *Graph) storeImage(img *Image, layerData archive.ArchiveReader, root
 }
 
 // TarLayer returns a tar archive of the image's filesystem layer.
-func (graph *Graph) TarLayer(img *Image) (arch archive.Archive, err error) {
+func (graph *Graph) TarLayer(img *image.Image) (arch archive.Archive, err error) {
 	if wd, ok := graph.driver.(*windows.WindowsGraphDriver); ok {
 		var ids []string
 		if img.Parent != "" {

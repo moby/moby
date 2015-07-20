@@ -24,6 +24,7 @@ import (
 	"github.com/docker/docker/cliconfig"
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/graph"
+	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/chrootarchive"
 	"github.com/docker/docker/pkg/httputils"
@@ -486,7 +487,7 @@ func ContainsWildcards(name string) bool {
 	return false
 }
 
-func (b *Builder) pullImage(name string) (*graph.Image, error) {
+func (b *Builder) pullImage(name string) (*image.Image, error) {
 	remote, tag := parsers.ParseRepositoryTag(name)
 	if tag == "" {
 		tag = "latest"
@@ -524,7 +525,7 @@ func (b *Builder) pullImage(name string) (*graph.Image, error) {
 	return image, nil
 }
 
-func (b *Builder) processImageFrom(img *graph.Image) error {
+func (b *Builder) processImageFrom(img *image.Image) error {
 	b.image = img.ID
 
 	if img.Config != nil {

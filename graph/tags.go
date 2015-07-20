@@ -15,6 +15,7 @@ import (
 	"github.com/docker/distribution/digest"
 	"github.com/docker/docker/daemon/events"
 	"github.com/docker/docker/graph/tags"
+	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/registry"
@@ -120,7 +121,7 @@ func (store *TagStore) reload() error {
 	return nil
 }
 
-func (store *TagStore) LookupImage(name string) (*Image, error) {
+func (store *TagStore) LookupImage(name string) (*image.Image, error) {
 	// FIXME: standardize on returning nil when the image doesn't exist, and err for everything else
 	// (so we can pass all errors here)
 	repoName, ref := parsers.ParseRepositoryTag(name)
@@ -129,7 +130,7 @@ func (store *TagStore) LookupImage(name string) (*Image, error) {
 	}
 	var (
 		err error
-		img *Image
+		img *image.Image
 	)
 
 	img, err = store.GetImage(repoName, ref)
@@ -331,7 +332,7 @@ func (store *TagStore) Get(repoName string) (Repository, error) {
 	return nil, nil
 }
 
-func (store *TagStore) GetImage(repoName, refOrID string) (*Image, error) {
+func (store *TagStore) GetImage(repoName, refOrID string) (*image.Image, error) {
 	repo, err := store.Get(repoName)
 
 	if err != nil {

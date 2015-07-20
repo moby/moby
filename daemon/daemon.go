@@ -23,6 +23,7 @@ import (
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/daemon/network"
 	"github.com/docker/docker/graph"
+	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/broadcastwriter"
 	"github.com/docker/docker/pkg/fileutils"
 	"github.com/docker/docker/pkg/graphdb"
@@ -336,7 +337,7 @@ func (daemon *Daemon) restore() error {
 	return nil
 }
 
-func (daemon *Daemon) mergeAndVerifyConfig(config *runconfig.Config, img *graph.Image) error {
+func (daemon *Daemon) mergeAndVerifyConfig(config *runconfig.Config, img *image.Image) error {
 	if img != nil && img.Config != nil {
 		if err := runconfig.Merge(config, img.Config); err != nil {
 			return err
@@ -882,7 +883,7 @@ func (daemon *Daemon) ContainerGraph() *graphdb.Database {
 	return daemon.containerGraph
 }
 
-func (daemon *Daemon) ImageGetCached(imgID string, config *runconfig.Config) (*graph.Image, error) {
+func (daemon *Daemon) ImageGetCached(imgID string, config *runconfig.Config) (*image.Image, error) {
 	// Retrieve all images
 	images := daemon.Graph().Map()
 
@@ -896,7 +897,7 @@ func (daemon *Daemon) ImageGetCached(imgID string, config *runconfig.Config) (*g
 	}
 
 	// Loop on the children of the given image and check the config
-	var match *graph.Image
+	var match *image.Image
 	for elem := range imageMap[imgID] {
 		img, ok := images[elem]
 		if !ok {
