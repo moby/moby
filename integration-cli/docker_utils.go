@@ -1260,6 +1260,27 @@ func setupRegistry(c *check.C) *testRegistryV2 {
 	return reg
 }
 
+func setupNotary(c *check.C) *testNotary {
+	testRequires(c, NotaryHosting)
+	ts, err := newTestNotary(c)
+	if err != nil {
+		c.Fatal(err)
+	}
+
+	// Wait for notary to be ready to serve requests.
+	for i := 1; i <= 5; i++ {
+		if err = ts.Ping(); err == nil {
+			break
+		}
+		time.Sleep(10 * time.Millisecond * time.Duration(i*i))
+	}
+
+	if err != nil {
+		c.Fatalf("Timeout waiting for test notary to become available: %s", err)
+	}
+	return ts
+}
+
 // appendBaseEnv appends the minimum set of environment variables to exec the
 // docker cli binary for testing with correct configuration to the given env
 // list.

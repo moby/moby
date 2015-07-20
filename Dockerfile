@@ -136,6 +136,16 @@ RUN set -x \
 		go build -o /usr/local/bin/registry-v2 github.com/docker/distribution/cmd/registry \
 	&& rm -rf "$GOPATH"
 
+# Install notary server
+ENV NOTARY_COMMIT 77bced079e83d80f40c1f0a544b1a8a3b97fb052
+RUN set -x \
+	&& export GOPATH="$(mktemp -d)" \
+	&& git clone https://github.com/docker/notary.git "$GOPATH/src/github.com/docker/notary" \
+	&& (cd "$GOPATH/src/github.com/docker/notary" && git checkout -q "$NOTARY_COMMIT") \
+	&& GOPATH="$GOPATH/src/github.com/docker/notary/Godeps/_workspace:$GOPATH" \
+		go build -o /usr/local/bin/notary-server github.com/docker/notary/cmd/notary-server \
+	&& rm -rf "$GOPATH"
+
 # Get the "docker-py" source so we can run their integration tests
 ENV DOCKER_PY_COMMIT 8a87001d09852058f08a807ab6e8491d57ca1e88
 RUN git clone https://github.com/docker/docker-py.git /docker-py \

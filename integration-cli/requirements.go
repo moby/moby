@@ -74,6 +74,16 @@ var (
 		},
 		fmt.Sprintf("Test requires an environment that can host %s in the same host", v2binary),
 	}
+	NotaryHosting = testRequirement{
+		func() bool {
+			// for now notary binary is built only if we're running inside
+			// container through `make test`. Figure that out by testing if
+			// notary-server binary is in PATH.
+			_, err := exec.LookPath(notaryBinary)
+			return err == nil
+		},
+		fmt.Sprintf("Test requires an environment that can host %s in the same host", notaryBinary),
+	}
 	NativeExecDriver = testRequirement{
 		func() bool {
 			if daemonExecDriver == "" {

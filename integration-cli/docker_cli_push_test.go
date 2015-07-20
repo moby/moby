@@ -143,3 +143,19 @@ func (s *DockerRegistrySuite) TestPushEmptyLayer(c *check.C) {
 		c.Fatalf("pushing the image to the private registry has failed: %s, %v", out, err)
 	}
 }
+
+func (s *DockerTrustSuite) TestTrustedPush(c *check.C) {
+	repoName := fmt.Sprintf("%v/dockercli/trusted:latest", privateRegistryURL)
+	// tag the image and upload it to the private registry
+	dockerCmd(c, "tag", "busybox", repoName)
+
+	pushCmd := exec.Command(dockerBinary, "push", repoName)
+	s.trustedCmd(pushCmd)
+	out, _, err := runCommandWithOutput(pushCmd)
+	if err != nil {
+		c.Fatalf("Error running trusted push: %s\n%s", err, out)
+	}
+	if !strings.Contains(string(out), "Signing and pushing trust metadata") {
+		c.Fatalf("Missing expected output on trusted push:\n%s", out)
+	}
+}
