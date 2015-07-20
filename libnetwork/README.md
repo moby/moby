@@ -18,7 +18,10 @@ There are many networking solutions available to suit a broad range of use-cases
 
 ```go
         // Create a new controller instance
-        controller := libnetwork.New()
+        controller, err := libnetwork.New()
+        if err != nil {
+                return
+        }
 
         // Select and configure the network driver
         networkType := "bridge"
