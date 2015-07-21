@@ -27,7 +27,7 @@ func (s *DockerSuite) TestLinksEtcHostsContentMatch(c *check.C) {
 	}
 
 	if out != string(hosts) {
-		c.Errorf("container")
+		c.Errorf("container: %s\n\nhost:%s", out, hosts)
 	}
 
 }
