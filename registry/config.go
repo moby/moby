@@ -21,24 +21,33 @@ type Options struct {
 }
 
 const (
-	DEFAULT_NAMESPACE               = "docker.io"
-	DEFAULT_V2_REGISTRY             = "https://registry-1.docker.io"
-	DEFAULT_REGISTRY_VERSION_HEADER = "Docker-Distribution-Api-Version"
-	DEFAULT_V1_REGISTRY             = "https://index.docker.io"
+	// DefaultNamespace is the default namespace
+	DefaultNamespace = "docker.io"
+	// DefaultV2Registry is the URI of the default v2 registry
+	DefaultV2Registry = "https://registry-1.docker.io"
+	// DefaultRegistryVersionHeader is the name of the default HTTP header
+	// that carries Registry version info
+	DefaultRegistryVersionHeader = "Docker-Distribution-Api-Version"
+	// DefaultV1Registry is the URI of the default v1 registry
+	DefaultV1Registry = "https://index.docker.io"
 
-	CERTS_DIR = "/etc/docker/certs.d"
+	// CertsDir is the directory where certificates are stored
+	CertsDir = "/etc/docker/certs.d"
 
-	// Only used for user auth + account creation
-	REGISTRYSERVER = DEFAULT_V2_REGISTRY
-	INDEXSERVER    = DEFAULT_V1_REGISTRY + "/v1/"
-	INDEXNAME      = "docker.io"
+	// IndexServer is the v1 registry server used for user auth + account creation
+	IndexServer = DefaultV1Registry + "/v1/"
+	// IndexName is the name of the index
+	IndexName = "docker.io"
 
-	// INDEXSERVER = "https://registry-stage.hub.docker.com/v1/"
+	// IndexServer = "https://registry-stage.hub.docker.com/v1/"
 )
 
 var (
+	// ErrInvalidRepositoryName is an error returned if the repository name did
+	// not have the correct form
 	ErrInvalidRepositoryName = errors.New("Invalid repository name (ex: \"registry.domain.tld/myrepos\")")
-	emptyServiceConfig       = NewServiceConfig(nil)
+
+	emptyServiceConfig = NewServiceConfig(nil)
 )
 
 // InstallFlags adds command-line options to the top-level flag parser for
@@ -116,8 +125,8 @@ func NewServiceConfig(options *Options) *ServiceConfig {
 	}
 
 	// Configure public registry.
-	config.IndexConfigs[INDEXNAME] = &IndexInfo{
-		Name:     INDEXNAME,
+	config.IndexConfigs[IndexName] = &IndexInfo{
+		Name:     IndexName,
 		Mirrors:  config.Mirrors,
 		Secure:   true,
 		Official: true,
@@ -196,8 +205,8 @@ func ValidateMirror(val string) (string, error) {
 // ValidateIndexName validates an index name.
 func ValidateIndexName(val string) (string, error) {
 	// 'index.docker.io' => 'docker.io'
-	if val == "index."+INDEXNAME {
-		val = INDEXNAME
+	if val == "index."+IndexName {
+		val = IndexName
 	}
 	if strings.HasPrefix(val, "-") || strings.HasSuffix(val, "-") {
 		return "", fmt.Errorf("Invalid index name (%s). Cannot begin or end with a hyphen.", val)
@@ -267,7 +276,7 @@ func (config *ServiceConfig) NewIndexInfo(indexName string) (*IndexInfo, error) 
 // index as the AuthConfig key, and uses the (host)name[:port] for private indexes.
 func (index *IndexInfo) GetAuthConfigKey() string {
 	if index.Official {
-		return INDEXSERVER
+		return IndexServer
 	}
 	return index.Name
 }
@@ -280,7 +289,7 @@ func splitReposName(reposName string) (string, string) {
 		!strings.Contains(nameParts[0], ":") && nameParts[0] != "localhost") {
 		// This is a Docker Index repos (ex: samalba/hipache or ubuntu)
 		// 'docker.io'
-		indexName = INDEXNAME
+		indexName = IndexName
 		remoteName = reposName
 	} else {
 		indexName = nameParts[0]

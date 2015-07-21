@@ -29,7 +29,7 @@ type v1Pusher struct {
 }
 
 func (p *v1Pusher) Push() (fallback bool, err error) {
-	tlsConfig, err := p.registryService.TlsConfig(p.repoInfo.Index.Name)
+	tlsConfig, err := p.registryService.TLSConfig(p.repoInfo.Index.Name)
 	if err != nil {
 		return false, err
 	}

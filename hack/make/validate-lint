@@ -36,6 +36,7 @@ packages=(
 	pkg/tlsconfig
 	pkg/urlutil
 	pkg/version
+	registry
 	utils
 )
 

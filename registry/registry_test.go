@@ -63,7 +63,7 @@ func TestPingRegistryEndpoint(t *testing.T) {
 	}
 
 	testPing(makeIndex("/v1/"), true, "Expected standalone to be true (default)")
-	testPing(makeHttpsIndex("/v1/"), true, "Expected standalone to be true (default)")
+	testPing(makeHTTPSIndex("/v1/"), true, "Expected standalone to be true (default)")
 	testPing(makePublicIndex(), false, "Expected standalone to be false for public index")
 }
 
@@ -119,7 +119,7 @@ func TestEndpoint(t *testing.T) {
 	}
 	assertInsecureIndex(index)
 
-	index.Name = makeHttpsURL("/v1/")
+	index.Name = makeHTTPSURL("/v1/")
 	endpoint = expandEndpoint(index)
 	assertEqual(t, endpoint.String(), index.Name, "Expected endpoint to be "+index.Name)
 	if endpoint.Version != APIVersion1 {
@@ -127,7 +127,7 @@ func TestEndpoint(t *testing.T) {
 	}
 	assertSecureIndex(index)
 
-	index.Name = makeHttpsURL("")
+	index.Name = makeHTTPSURL("")
 	endpoint = expandEndpoint(index)
 	assertEqual(t, endpoint.String(), index.Name+"/v1/", index.Name+": Expected endpoint to be "+index.Name+"/v1/")
 	if endpoint.Version != APIVersion1 {
@@ -135,7 +135,7 @@ func TestEndpoint(t *testing.T) {
 	}
 	assertSecureIndex(index)
 
-	httpsURL := makeHttpsURL("")
+	httpsURL := makeHTTPSURL("")
 	index.Name = strings.SplitN(httpsURL, "://", 2)[1]
 	endpoint = expandEndpoint(index)
 	assertEqual(t, endpoint.String(), httpsURL+"/v1/", index.Name+": Expected endpoint to be "+httpsURL+"/v1/")
@@ -332,7 +332,7 @@ func TestParseRepositoryInfo(t *testing.T) {
 	expectedRepoInfos := map[string]RepositoryInfo{
 		"fooo/bar": {
 			Index: &IndexInfo{
-				Name:     INDEXNAME,
+				Name:     IndexName,
 				Official: true,
 			},
 			RemoteName:    "fooo/bar",
@@ -342,7 +342,7 @@ func TestParseRepositoryInfo(t *testing.T) {
 		},
 		"library/ubuntu": {
 			Index: &IndexInfo{
-				Name:     INDEXNAME,
+				Name:     IndexName,
 				Official: true,
 			},
 			RemoteName:    "library/ubuntu",
@@ -352,7 +352,7 @@ func TestParseRepositoryInfo(t *testing.T) {
 		},
 		"nonlibrary/ubuntu": {
 			Index: &IndexInfo{
-				Name:     INDEXNAME,
+				Name:     IndexName,
 				Official: true,
 			},
 			RemoteName:    "nonlibrary/ubuntu",
@@ -362,7 +362,7 @@ func TestParseRepositoryInfo(t *testing.T) {
 		},
 		"ubuntu": {
 			Index: &IndexInfo{
-				Name:     INDEXNAME,
+				Name:     IndexName,
 				Official: true,
 			},
 			RemoteName:    "library/ubuntu",
@@ -372,7 +372,7 @@ func TestParseRepositoryInfo(t *testing.T) {
 		},
 		"other/library": {
 			Index: &IndexInfo{
-				Name:     INDEXNAME,
+				Name:     IndexName,
 				Official: true,
 			},
 			RemoteName:    "other/library",
@@ -480,9 +480,9 @@ func TestParseRepositoryInfo(t *testing.T) {
 			CanonicalName: "localhost/privatebase",
 			Official:      false,
 		},
-		INDEXNAME + "/public/moonbase": {
+		IndexName + "/public/moonbase": {
 			Index: &IndexInfo{
-				Name:     INDEXNAME,
+				Name:     IndexName,
 				Official: true,
 			},
 			RemoteName:    "public/moonbase",
@@ -490,9 +490,9 @@ func TestParseRepositoryInfo(t *testing.T) {
 			CanonicalName: "docker.io/public/moonbase",
 			Official:      false,
 		},
-		"index." + INDEXNAME + "/public/moonbase": {
+		"index." + IndexName + "/public/moonbase": {
 			Index: &IndexInfo{
-				Name:     INDEXNAME,
+				Name:     IndexName,
 				Official: true,
 			},
 			RemoteName:    "public/moonbase",
@@ -502,7 +502,7 @@ func TestParseRepositoryInfo(t *testing.T) {
 		},
 		"ubuntu-12.04-base": {
 			Index: &IndexInfo{
-				Name:     INDEXNAME,
+				Name:     IndexName,
 				Official: true,
 			},
 			RemoteName:    "library/ubuntu-12.04-base",
@@ -510,9 +510,9 @@ func TestParseRepositoryInfo(t *testing.T) {
 			CanonicalName: "docker.io/library/ubuntu-12.04-base",
 			Official:      true,
 		},
-		INDEXNAME + "/ubuntu-12.04-base": {
+		IndexName + "/ubuntu-12.04-base": {
 			Index: &IndexInfo{
-				Name:     INDEXNAME,
+				Name:     IndexName,
 				Official: true,
 			},
 			RemoteName:    "library/ubuntu-12.04-base",
@@ -520,9 +520,9 @@ func TestParseRepositoryInfo(t *testing.T) {
 			CanonicalName: "docker.io/library/ubuntu-12.04-base",
 			Official:      true,
 		},
-		"index." + INDEXNAME + "/ubuntu-12.04-base": {
+		"index." + IndexName + "/ubuntu-12.04-base": {
 			Index: &IndexInfo{
-				Name:     INDEXNAME,
+				Name:     IndexName,
 				Official: true,
 			},
 			RemoteName:    "library/ubuntu-12.04-base",
@@ -563,16 +563,16 @@ func TestNewIndexInfo(t *testing.T) {
 	}
 
 	config := NewServiceConfig(nil)
-	noMirrors := make([]string, 0)
+	noMirrors := []string{}
 	expectedIndexInfos := map[string]*IndexInfo{
-		INDEXNAME: {
-			Name:     INDEXNAME,
+		IndexName: {
+			Name:     IndexName,
 			Official: true,
 			Secure:   true,
 			Mirrors:  noMirrors,
 		},
-		"index." + INDEXNAME: {
-			Name:     INDEXNAME,
+		"index." + IndexName: {
+			Name:     IndexName,
 			Official: true,
 			Secure:   true,
 			Mirrors:  noMirrors,
@@ -596,14 +596,14 @@ func TestNewIndexInfo(t *testing.T) {
 	config = makeServiceConfig(publicMirrors, []string{"example.com"})
 
 	expectedIndexInfos = map[string]*IndexInfo{
-		INDEXNAME: {
-			Name:     INDEXNAME,
+		IndexName: {
+			Name:     IndexName,
 			Official: true,
 			Secure:   true,
 			Mirrors:  publicMirrors,
 		},
-		"index." + INDEXNAME: {
-			Name:     INDEXNAME,
+		"index." + IndexName: {
+			Name:     IndexName,
 			Official: true,
 			Secure:   true,
 			Mirrors:  publicMirrors,
@@ -814,7 +814,7 @@ func TestAddRequiredHeadersToRedirectedRequests(t *testing.T) {
 		reqFrom.Header.Add("Authorization", "super_secret")
 		reqTo, _ := http.NewRequest("GET", urls[1], nil)
 
-		AddRequiredHeadersToRedirectedRequests(reqTo, []*http.Request{reqFrom})
+		addRequiredHeadersToRedirectedRequests(reqTo, []*http.Request{reqFrom})
 
 		if len(reqTo.Header) != 1 {
 			t.Fatalf("Expected 1 headers, got %d", len(reqTo.Header))
@@ -838,7 +838,7 @@ func TestAddRequiredHeadersToRedirectedRequests(t *testing.T) {
 		reqFrom.Header.Add("Authorization", "super_secret")
 		reqTo, _ := http.NewRequest("GET", urls[1], nil)
 
-		AddRequiredHeadersToRedirectedRequests(reqTo, []*http.Request{reqFrom})
+		addRequiredHeadersToRedirectedRequests(reqTo, []*http.Request{reqFrom})
 
 		if len(reqTo.Header) != 2 {
 			t.Fatalf("Expected 2 headers, got %d", len(reqTo.Header))
@@ -860,7 +860,7 @@ func TestIsSecureIndex(t *testing.T) {
 		insecureRegistries []string
 		expected           bool
 	}{
-		{INDEXNAME, nil, true},
+		{IndexName, nil, true},
 		{"example.com", []string{}, true},
 		{"example.com", []string{"example.com"}, false},
 		{"localhost", []string{"localhost:5000"}, false},
