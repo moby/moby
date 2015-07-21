@@ -19,7 +19,7 @@ import (
 	"github.com/docker/docker/pkg/stringid"
 )
 
-// Figure out the absolute path of our own binary (if it's still around).
+// SelfPath figures out the absolute path of our own binary (if it's still around).
 func SelfPath() string {
 	path, err := exec.LookPath(os.Args[0])
 	if err != nil {
@@ -79,7 +79,7 @@ func isValidDockerInitPath(target string, selfPath string) bool { // target and 
 	return dockerversion.INITSHA1 != "" && dockerInitSha1(target) == dockerversion.INITSHA1
 }
 
-// Figure out the path of our dockerinit (which may be SelfPath())
+// DockerInitPath figures out the path of our dockerinit (which may be SelfPath())
 func DockerInitPath(localCopy string) string {
 	selfPath := SelfPath()
 	if isValidDockerInitPath(selfPath, selfPath) {
@@ -157,7 +157,7 @@ func GetCallerName(depth int) string {
 	return callerShortName
 }
 
-// ReplaceOrAppendValues returns the defaults with the overrides either
+// ReplaceOrAppendEnvValues returns the defaults with the overrides either
 // replaced by env key or appended to the list
 func ReplaceOrAppendEnvValues(defaults, overrides []string) []string {
 	cache := make(map[string]int, len(defaults))
@@ -239,7 +239,7 @@ func ValidateContextDirectory(srcPath string, excludes []string) error {
 	})
 }
 
-// Reads a .dockerignore file and returns the list of file patterns
+// ReadDockerIgnore reads a .dockerignore file and returns the list of file patterns
 // to ignore. Note this will trim whitespace from each line as well
 // as use GO's "clean" func to get the shortest/cleanest path for each.
 func ReadDockerIgnore(path string) ([]string, error) {
