@@ -49,8 +49,8 @@ type Descriptor struct {
 	// encoded as utf-8.
 	MediaType string `json:"mediaType,omitempty"`
 
-	// Length in bytes of content.
-	Length int64 `json:"length,omitempty"`
+	// Size in bytes of content.
+	Size int64 `json:"size,omitempty"`
 
 	// Digest uniquely identifies the content. A byte stream can be verified
 	// against against this digest.
