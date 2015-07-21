@@ -197,22 +197,6 @@ func (s *Service) LookupEndpoints(repoName string) (endpoints []APIEndpoint, err
 			TrimHostname: true,
 			TLSConfig:    tlsConfig,
 		})
-		// v1 mirrors
-		// TODO(tiborvass): shouldn't we remove v1 mirrors from here, since v1 mirrors are kinda special?
-		for _, mirror := range s.Config.Mirrors {
-			mirrorTlsConfig, err := s.tlsConfigForMirror(mirror)
-			if err != nil {
-				return nil, err
-			}
-			endpoints = append(endpoints, APIEndpoint{
-				URL: mirror,
-				// guess mirrors are v1
-				Version:      APIVersion1,
-				Mirror:       true,
-				TrimHostname: true,
-				TLSConfig:    mirrorTlsConfig,
-			})
-		}
 		// v1 registry
 		endpoints = append(endpoints, APIEndpoint{
 			URL:          DEFAULT_V1_REGISTRY,
