@@ -178,7 +178,7 @@ func (daemon *Daemon) Containers(config *ContainersConfig) ([]*types.Container, 
 					PrivatePort: p,
 					PublicPort:  h,
 					Type:        port.Proto(),
-					IP:          binding.HostIp,
+					IP:          binding.HostIP,
 				})
 			}
 		}

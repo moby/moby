@@ -59,10 +59,10 @@ func TestSortPortMap(t *testing.T) {
 		},
 		Port("6379/tcp"): []PortBinding{
 			{},
-			{HostIp: "0.0.0.0", HostPort: "32749"},
+			{HostIP: "0.0.0.0", HostPort: "32749"},
 		},
 		Port("9999/tcp"): []PortBinding{
-			{HostIp: "0.0.0.0", HostPort: "40000"},
+			{HostIP: "0.0.0.0", HostPort: "40000"},
 		},
 	}
 
@@ -77,7 +77,7 @@ func TestSortPortMap(t *testing.T) {
 		t.Errorf("failed to prioritize port with explicit mappings, got %v", ports)
 	}
 	if pm := portMap[Port("6379/tcp")]; !reflect.DeepEqual(pm, []PortBinding{
-		{HostIp: "0.0.0.0", HostPort: "32749"},
+		{HostIP: "0.0.0.0", HostPort: "32749"},
 		{},
 	}) {
 		t.Errorf("failed to prioritize bindings with explicit mappings, got %v", pm)
