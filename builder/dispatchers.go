@@ -18,6 +18,7 @@ import (
 	"strings"
 
 	"github.com/Sirupsen/logrus"
+	derr "github.com/docker/docker/api/errors"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/nat"
 	"github.com/docker/docker/runconfig"
@@ -41,12 +42,12 @@ func nullDispatch(b *builder, args []string, attributes map[string]bool, origina
 //
 func env(b *builder, args []string, attributes map[string]bool, original string) error {
 	if len(args) == 0 {
-		return fmt.Errorf("ENV requires at least one argument")
+		return derr.ErrorCodeAtLeastOneArg.WithArgs("ENV")
 	}
 
 	if len(args)%2 != 0 {
 		// should never get here, but just in case
-		return fmt.Errorf("Bad input to ENV, too many args")
+		return derr.ErrorCodeTooManyArgs.WithArgs("ENV")
 	}
 
 	if err := b.BuilderFlags.Parse(); err != nil {
@@ -100,7 +101,7 @@ func env(b *builder, args []string, attributes map[string]bool, original string)
 // Sets the maintainer metadata.
 func maintainer(b *builder, args []string, attributes map[string]bool, original string) error {
 	if len(args) != 1 {
-		return fmt.Errorf("MAINTAINER requires exactly one argument")
+		return derr.ErrorCodeExactlyOneArg.WithArgs("MAINTAINER")
 	}
 
 	if err := b.BuilderFlags.Parse(); err != nil {
@@ -117,11 +118,11 @@ func maintainer(b *builder, args []string, attributes map[string]bool, original 
 //
 func label(b *builder, args []string, attributes map[string]bool, original string) error {
 	if len(args) == 0 {
-		return fmt.Errorf("LABEL requires at least one argument")
+		return derr.ErrorCodeAtLeastOneArg.WithArgs("LABEL")
 	}
 	if len(args)%2 != 0 {
 		// should never get here, but just in case
-		return fmt.Errorf("Bad input to LABEL, too many args")
+		return derr.ErrorCodeTooManyArgs.WithArgs("LABEL")
 	}
 
 	if err := b.BuilderFlags.Parse(); err != nil {
@@ -153,7 +154,7 @@ func label(b *builder, args []string, attributes map[string]bool, original strin
 //
 func add(b *builder, args []string, attributes map[string]bool, original string) error {
 	if len(args) < 2 {
-		return fmt.Errorf("ADD requires at least two arguments")
+		return derr.ErrorCodeAtLeastTwoArgs.WithArgs("ADD")
 	}
 
 	if err := b.BuilderFlags.Parse(); err != nil {
@@ -169,7 +170,7 @@ func add(b *builder, args []string, attributes map[string]bool, original string)
 //
 func dispatchCopy(b *builder, args []string, attributes map[string]bool, original string) error {
 	if len(args) < 2 {
-		return fmt.Errorf("COPY requires at least two arguments")
+		return derr.ErrorCodeAtLeastTwoArgs.WithArgs("COPY")
 	}
 
 	if err := b.BuilderFlags.Parse(); err != nil {
@@ -185,7 +186,7 @@ func dispatchCopy(b *builder, args []string, attributes map[string]bool, origina
 //
 func from(b *builder, args []string, attributes map[string]bool, original string) error {
 	if len(args) != 1 {
-		return fmt.Errorf("FROM requires one argument")
+		return derr.ErrorCodeExactlyOneArg.WithArgs("FROM")
 	}
 
 	if err := b.BuilderFlags.Parse(); err != nil {
@@ -233,7 +234,7 @@ func from(b *builder, args []string, attributes map[string]bool, original string
 //
 func onbuild(b *builder, args []string, attributes map[string]bool, original string) error {
 	if len(args) == 0 {
-		return fmt.Errorf("ONBUILD requires at least one argument")
+		return derr.ErrorCodeAtLeastOneArg.WithArgs("ONBUILD")
 	}
 
 	if err := b.BuilderFlags.Parse(); err != nil {
@@ -243,9 +244,9 @@ func onbuild(b *builder, args []string, attributes map[string]bool, original str
 	triggerInstruction := strings.ToUpper(strings.TrimSpace(args[0]))
 	switch triggerInstruction {
 	case "ONBUILD":
-		return fmt.Errorf("Chaining ONBUILD via `ONBUILD ONBUILD` isn't allowed")
+		return derr.ErrorCodeChainOnBuild
 	case "MAINTAINER", "FROM":
-		return fmt.Errorf("%s isn't allowed as an ONBUILD trigger", triggerInstruction)
+		return derr.ErrorCodeBadOnBuildCmd.WithArgs(triggerInstruction)
 	}
 
 	original = regexp.MustCompile(`(?i)^\s*ONBUILD\s*`).ReplaceAllString(original, "")
@@ -260,7 +261,7 @@ func onbuild(b *builder, args []string, attributes map[string]bool, original str
 //
 func workdir(b *builder, args []string, attributes map[string]bool, original string) error {
 	if len(args) != 1 {
-		return fmt.Errorf("WORKDIR requires exactly one argument")
+		return derr.ErrorCodeExactlyOneArg.WithArgs("WORKDIR")
 	}
 
 	if err := b.BuilderFlags.Parse(); err != nil {
@@ -317,7 +318,7 @@ func workdir(b *builder, args []string, attributes map[string]bool, original str
 //
 func run(b *builder, args []string, attributes map[string]bool, original string) error {
 	if b.image == "" && !b.noBaseImage {
-		return fmt.Errorf("Please provide a source image with `from` prior to run")
+		return derr.ErrorCodeMissingFrom
 	}
 
 	if err := b.BuilderFlags.Parse(); err != nil {
@@ -467,7 +468,7 @@ func expose(b *builder, args []string, attributes map[string]bool, original stri
 	portsTab := args
 
 	if len(args) == 0 {
-		return fmt.Errorf("EXPOSE requires at least one argument")
+		return derr.ErrorCodeAtLeastOneArg.WithArgs("EXPOSE")
 	}
 
 	if err := b.BuilderFlags.Parse(); err != nil {
@@ -506,11 +507,11 @@ func expose(b *builder, args []string, attributes map[string]bool, original stri
 //
 func user(b *builder, args []string, attributes map[string]bool, original string) error {
 	if runtime.GOOS == "windows" {
-		return fmt.Errorf("USER is not supported on Windows")
+		return derr.ErrorCodeNotOnWindows.WithArgs("USER")
 	}
 
 	if len(args) != 1 {
-		return fmt.Errorf("USER requires exactly one argument")
+		return derr.ErrorCodeExactlyOneArg.WithArgs("USER")
 	}
 
 	if err := b.BuilderFlags.Parse(); err != nil {
@@ -527,10 +528,10 @@ func user(b *builder, args []string, attributes map[string]bool, original string
 //
 func volume(b *builder, args []string, attributes map[string]bool, original string) error {
 	if runtime.GOOS == "windows" {
-		return fmt.Errorf("VOLUME is not supported on Windows")
+		return derr.ErrorCodeNotOnWindows.WithArgs("VOLUME")
 	}
 	if len(args) == 0 {
-		return fmt.Errorf("VOLUME requires at least one argument")
+		return derr.ErrorCodeAtLeastOneArg.WithArgs("VOLUME")
 	}
 
 	if err := b.BuilderFlags.Parse(); err != nil {
@@ -543,7 +544,7 @@ func volume(b *builder, args []string, attributes map[string]bool, original stri
 	for _, v := range args {
 		v = strings.TrimSpace(v)
 		if v == "" {
-			return fmt.Errorf("Volume specified can not be an empty string")
+			return derr.ErrorCodeVolumeEmpty
 		}
 		b.Config.Volumes[v] = struct{}{}
 	}
