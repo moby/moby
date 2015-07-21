@@ -33,12 +33,7 @@ func (s *DockerSuite) TestRunEchoStdout(c *check.C) {
 
 // "test" should be printed
 func (s *DockerSuite) TestRunEchoStdoutWithMemoryLimit(c *check.C) {
-	runCmd := exec.Command(dockerBinary, "run", "-m", "16m", "busybox", "echo", "test")
-	out, _, _, err := runCommandWithStdoutStderr(runCmd)
-	if err != nil {
-		c.Fatalf("failed to run container: %v, output: %q", err, out)
-	}
-
+	out, _, _ := dockerCmdWithStdoutStderr(c, "run", "-m", "16m", "busybox", "echo", "test")
 	out = strings.Trim(out, "\r\n")
 
 	if expected := "test"; out != expected {
@@ -73,12 +68,7 @@ func (s *DockerSuite) TestRunEchoStdoutWitCPULimit(c *check.C) {
 
 // "test" should be printed
 func (s *DockerSuite) TestRunEchoStdoutWithCPUAndMemoryLimit(c *check.C) {
-	runCmd := exec.Command(dockerBinary, "run", "-c", "1000", "-m", "16m", "busybox", "echo", "test")
-	out, _, _, err := runCommandWithStdoutStderr(runCmd)
-	if err != nil {
-		c.Fatalf("failed to run container: %v, output: %q", err, out)
-	}
-
+	out, _, _ := dockerCmdWithStdoutStderr(c, "run", "-c", "1000", "-m", "16m", "busybox", "echo", "test")
 	if out != "test\n" {
 		c.Errorf("container should've printed 'test', got %q instead", out)
 	}
@@ -931,12 +921,7 @@ func (s *DockerSuite) TestRunDnsDefaultOptions(c *check.C) {
 }
 
 func (s *DockerSuite) TestRunDnsOptions(c *check.C) {
-	cmd := exec.Command(dockerBinary, "run", "--dns=127.0.0.1", "--dns-search=mydomain", "busybox", "cat", "/etc/resolv.conf")
-
-	out, stderr, _, err := runCommandWithStdoutStderr(cmd)
-	if err != nil {
-		c.Fatal(err, out)
-	}
+	out, stderr, _ := dockerCmdWithStdoutStderr(c, "run", "--dns=127.0.0.1", "--dns-search=mydomain", "busybox", "cat", "/etc/resolv.conf")
 
 	// The client will get a warning on stderr when setting DNS to a localhost address; verify this:
 	if !strings.Contains(stderr, "Localhost DNS setting") {
@@ -948,12 +933,7 @@ func (s *DockerSuite) TestRunDnsOptions(c *check.C) {
 		c.Fatalf("expected 'nameserver 127.0.0.1 search mydomain', but says: %q", actual)
 	}
 
-	cmd = exec.Command(dockerBinary, "run", "--dns=127.0.0.1", "--dns-search=.", "busybox", "cat", "/etc/resolv.conf")
-
-	out, _, _, err = runCommandWithStdoutStderr(cmd)
-	if err != nil {
-		c.Fatal(err, out)
-	}
+	out, stderr, _ = dockerCmdWithStdoutStderr(c, "run", "--dns=127.0.0.1", "--dns-search=.", "busybox", "cat", "/etc/resolv.conf")
 
 	actual = strings.Replace(strings.Trim(strings.Trim(out, "\r\n"), " "), "\n", " ", -1)
 	if actual != "nameserver 127.0.0.1" {
@@ -1923,15 +1903,11 @@ func (s *DockerSuite) TestRunExposePort(c *check.C) {
 
 func (s *DockerSuite) TestRunUnknownCommand(c *check.C) {
 	testRequires(c, NativeExecDriver)
-	runCmd := exec.Command(dockerBinary, "create", "busybox", "/bin/nada")
-	cID, _, _, err := runCommandWithStdoutStderr(runCmd)
-	if err != nil {
-		c.Fatalf("Failed to create container: %v, output: %q", err, cID)
-	}
-	cID = strings.TrimSpace(cID)
+	out, _, _ := dockerCmdWithStdoutStderr(c, "create", "busybox", "/bin/nada")
 
-	runCmd = exec.Command(dockerBinary, "start", cID)
-	_, _, _, _ = runCommandWithStdoutStderr(runCmd)
+	cID := strings.TrimSpace(out)
+	_, _, err := dockerCmdWithError(c, "start", cID)
+	c.Assert(err, check.NotNil)
 
 	rc, err := inspectField(cID, "State.ExitCode")
 	c.Assert(err, check.IsNil)
