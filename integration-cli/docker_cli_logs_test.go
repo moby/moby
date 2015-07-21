@@ -115,7 +115,7 @@ func (s *DockerSuite) TestLogsStderrInStdout(c *check.C) {
 
 	stdout, stderr, _ := dockerCmdWithStdoutStderr(c, "logs", cleanedContainerID)
 	if stderr != "" {
-		c.Fatalf("Expected empty stderr stream, got %v", stdout)
+		c.Fatalf("Expected empty stderr stream, got %v", stderr)
 	}
 
 	stdout = strings.TrimSpace(stdout)
