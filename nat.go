@@ -29,8 +29,16 @@ type PortSet map[Port]struct{}
 // 80/tcp
 type Port string
 
-func NewPort(proto, port string) Port {
-	return Port(fmt.Sprintf("%s/%s", port, proto))
+func NewPort(proto, port string) (Port, error) {
+	// Check for parsing issues on "port" now so we can avoid having
+	// to check it later on.
+
+	portInt, err := ParsePort(port)
+	if err != nil {
+		return "", err
+	}
+
+	return Port(fmt.Sprintf("%d/%s", portInt, proto)), nil
 }
 
 func ParsePort(rawPort string) (int, error) {
@@ -55,11 +63,15 @@ func (p Port) Port() string {
 }
 
 func (p Port) Int() int {
-	port, err := ParsePort(p.Port())
-	if err != nil {
-		panic(err)
+	portStr := p.Port()
+	if len(portStr) == 0 {
+		return 0
 	}
-	return port
+
+	// We don't need to check for an error because we're going to
+	// assume that any error would have been found, and reported, in NewPort()
+	port, _ := strconv.ParseUint(portStr, 10, 16)
+	return int(port)
 }
 
 // Splits a port in the format of proto/port
@@ -152,7 +164,10 @@ func ParsePortSpecs(ports []string) (map[Port]struct{}, map[Port][]PortBinding, 
 			if len(hostPort) > 0 {
 				hostPort = strconv.FormatUint(startHostPort+i, 10)
 			}
-			port := NewPort(strings.ToLower(proto), containerPort)
+			port, err := NewPort(strings.ToLower(proto), containerPort)
+			if err != nil {
+				return nil, nil, err
+			}
 			if _, exists := exposedPorts[port]; !exists {
 				exposedPorts[port] = struct{}{}
 			}
