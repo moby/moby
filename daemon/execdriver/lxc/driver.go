@@ -808,10 +808,6 @@ func NewTtyConsole(processConfig *execdriver.ProcessConfig, pipes *execdriver.Pi
 	return tty, nil
 }
 
-func (t *TtyConsole) Master() *os.File {
-	return t.MasterPty
-}
-
 func (t *TtyConsole) Resize(h, w int) error {
 	return term.SetWinsize(t.MasterPty.Fd(), &term.Winsize{Height: uint16(h), Width: uint16(w)})
 }
