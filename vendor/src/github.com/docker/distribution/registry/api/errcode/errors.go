@@ -106,7 +106,7 @@ func (e Error) ErrorCode() ErrorCode {
 func (e Error) Error() string {
 	return fmt.Sprintf("%s: %s",
 		strings.ToLower(strings.Replace(e.Code.String(), "_", " ", -1)),
-		e.Code.Message())
+		e.Message)
 }
 
 // WithDetail will return a new Error, based on the current one, but with

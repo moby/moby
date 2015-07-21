@@ -35,6 +35,12 @@ type Namespace interface {
 	// registry may or may not have the repository but should always return a
 	// reference.
 	Repository(ctx context.Context, name string) (Repository, error)
+
+	// Repositories fills 'repos' with a lexigraphically sorted catalog of repositories
+	// up to the size of 'repos' and returns the value 'n' for the number of entries
+	// which were filled.  'last' contains an offset in the catalog, and 'err' will be
+	// set to io.EOF if there are no more entries to obtain.
+	Repositories(ctx context.Context, repos []string, last string) (n int, err error)
 }
 
 // ManifestServiceOption is a function argument for Manifest Service methods

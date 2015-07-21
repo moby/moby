@@ -16,6 +16,7 @@ import (
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/utils"
+	"golang.org/x/net/context"
 )
 
 type v2Pusher struct {
@@ -191,7 +192,11 @@ func (p *v2Pusher) pushV2Tag(tag string) error {
 		out.Write(p.sf.FormatStatus("", "Digest: %s", manifestDigest))
 	}
 
-	return p.repo.Manifests().Put(signed)
+	manSvc, err := p.repo.Manifests(context.Background())
+	if err != nil {
+		return err
+	}
+	return manSvc.Put(signed)
 }
 
 func (p *v2Pusher) pushV2Image(bs distribution.BlobService, img *image.Image) (digest.Digest, error) {

@@ -87,6 +87,30 @@ var (
 		Format:      "<digest>",
 	}
 
+	linkHeader = ParameterDescriptor{
+		Name:        "Link",
+		Type:        "link",
+		Description: "RFC5988 compliant rel='next' with URL to next result set, if available",
+		Format:      `<<url>?n=<last n value>&last=<last entry from response>>; rel="next"`,
+	}
+
+	paginationParameters = []ParameterDescriptor{
+		{
+			Name:        "n",
+			Type:        "integer",
+			Description: "Limit the number of entries in each response. It not present, all entries will be returned.",
+			Format:      "<integer>",
+			Required:    false,
+		},
+		{
+			Name:        "last",
+			Type:        "string",
+			Description: "Result set will include values lexically after last.",
+			Format:      "<integer>",
+			Required:    false,
+		},
+	}
+
 	unauthorizedResponse = ResponseDescriptor{
 		Description: "The client does not have access to the repository.",
 		StatusCode:  http.StatusUnauthorized,
@@ -269,6 +293,9 @@ type ResponseDescriptor struct {
 	// Headers covers any headers that may be returned from the response.
 	Headers []ParameterDescriptor
 
+	// Fields describes any fields that may be present in the response.
+	Fields []ParameterDescriptor
+
 	// ErrorCodes enumerates the error codes that may be returned along with
 	// the response.
 	ErrorCodes []errcode.ErrorCode
@@ -423,6 +450,36 @@ var routeDescriptors = []RouteDescriptor{
 								},
 								ErrorCodes: []errcode.ErrorCode{
 									ErrorCodeUnauthorized,
+								},
+							},
+						},
+					},
+					{
+						Description:     "Return a portion of the tags for the specified repository.",
+						PathParameters:  []ParameterDescriptor{nameParameterDescriptor},
+						QueryParameters: paginationParameters,
+						Successes: []ResponseDescriptor{
+							{
+								StatusCode:  http.StatusOK,
+								Description: "A list of tags for the named repository.",
+								Headers: []ParameterDescriptor{
+									{
+										Name:        "Content-Length",
+										Type:        "integer",
+										Description: "Length of the JSON response body.",
+										Format:      "<length>",
+									},
+									linkHeader,
+								},
+								Body: BodyDescriptor{
+									ContentType: "application/json; charset=utf-8",
+									Format: `{
+    "name": <name>,
+    "tags": [
+        <tag>,
+        ...
+    ],
+}`,
 								},
 							},
 						},
@@ -1312,6 +1369,76 @@ var routeDescriptors = []RouteDescriptor{
 								Body: BodyDescriptor{
 									ContentType: "application/json; charset=utf-8",
 									Format:      errorsBody,
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	},
+	{
+		Name:        RouteNameCatalog,
+		Path:        "/v2/_catalog",
+		Entity:      "Catalog",
+		Description: "List a set of available repositories in the local registry cluster. Does not provide any indication of what may be available upstream. Applications can only determine if a repository is available but not if it is not available.",
+		Methods: []MethodDescriptor{
+			{
+				Method:      "GET",
+				Description: "Retrieve a sorted, json list of repositories available in the registry.",
+				Requests: []RequestDescriptor{
+					{
+						Name:        "Catalog Fetch Complete",
+						Description: "Request an unabridged list of repositories available.",
+						Successes: []ResponseDescriptor{
+							{
+								Description: "Returns the unabridged list of repositories as a json response.",
+								StatusCode:  http.StatusOK,
+								Headers: []ParameterDescriptor{
+									{
+										Name:        "Content-Length",
+										Type:        "integer",
+										Description: "Length of the JSON response body.",
+										Format:      "<length>",
+									},
+								},
+								Body: BodyDescriptor{
+									ContentType: "application/json; charset=utf-8",
+									Format: `{
+	"repositories": [
+		<name>,
+		...
+	]
+}`,
+								},
+							},
+						},
+					},
+					{
+						Name:            "Catalog Fetch Paginated",
+						Description:     "Return the specified portion of repositories.",
+						QueryParameters: paginationParameters,
+						Successes: []ResponseDescriptor{
+							{
+								StatusCode: http.StatusOK,
+								Body: BodyDescriptor{
+									ContentType: "application/json; charset=utf-8",
+									Format: `{
+	"repositories": [
+		<name>,
+		...
+	]
+	"next": "<url>?last=<name>&n=<last value of n>"
+}`,
+								},
+								Headers: []ParameterDescriptor{
+									{
+										Name:        "Content-Length",
+										Type:        "integer",
+										Description: "Length of the JSON response body.",
+										Format:      "<length>",
+									},
+									linkHeader,
 								},
 							},
 						},
