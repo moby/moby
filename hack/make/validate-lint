@@ -25,6 +25,7 @@ packages=(
 	daemon/execdriver/native
 	daemon/execdriver/native/template
 	daemon/execdriver/windows
+	daemon/graphdriver
 	daemon/graphdriver/aufs
 	daemon/graphdriver/devmapper
 	daemon/graphdriver/overlay
