@@ -481,7 +481,6 @@ func (daemon *Daemon) NetworkApiRouter() func(w http.ResponseWriter, req *http.R
 }
 
 func (daemon *Daemon) RegisterLinks(container *Container, hostConfig *runconfig.HostConfig) error {
-
 	if hostConfig == nil || hostConfig.Links == nil {
 		return nil
 	}
