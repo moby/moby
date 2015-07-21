@@ -1,0 +1,30 @@
+language: go
+
+branches:
+  except:
+    - gh-pages
+
+before_install:
+  - ssh-keygen -f $HOME/.ssh/id_rsa -t rsa -N ''
+  - cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
+  - chmod 600 ~/.ssh/authorized_keys
+  - sudo pip install ceph-deploy
+  - ceph-deploy install --release giant `hostname`
+  - ceph-deploy pkg --install librados-dev `hostname`
+  - ceph-deploy pkg --install librbd-dev `hostname`
+  - ceph-deploy pkg --install libcephfs-dev `hostname`
+  - bash ci/micro-osd.sh /tmp/micro-ceph
+  - export CEPH_CONF=/tmp/micro-ceph/ceph.conf
+  - ceph status
+
+script:
+    - go get -t -v ./...
+    - go test -v ./...
+    - go fmt ./...
+
+notifications:
+  recipients:
+    - noahwatkins@gmail.com
+  email:
+    on_success: always
+    on_failure: always
