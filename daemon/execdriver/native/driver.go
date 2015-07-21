@@ -50,10 +50,6 @@ func NewDriver(root, initPath string, options []string) (*driver, error) {
 	if err := sysinfo.MkdirAll(root, 0700); err != nil {
 		return nil, err
 	}
-	// native driver root is at docker_root/execdriver/native. Put apparmor at docker_root
-	if err := installApparmorProfile(); err != nil {
-		return nil, err
-	}
 
 	// choose cgroup manager
 	// this makes sure there are no breaking changes to people
