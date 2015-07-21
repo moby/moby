@@ -18,18 +18,24 @@ var acceptedImageFilterTags = map[string]struct{}{
 	"label":    {},
 }
 
+// ImagesConfig defines the criteria to obtain a list of images.
 type ImagesConfig struct {
+	// Filters is supported list of filters used to get list of images.
 	Filters string
-	Filter  string
-	All     bool
+	// Filter the list of images by name.
+	Filter string
+	// All inditest that all the images will be returned in the list, if set to true.
+	All bool
 }
 
-type ByCreated []*types.Image
+// byCreated is a temporary type used to sort list of images on their field 'Created'.
+type byCreated []*types.Image
 
-func (r ByCreated) Len() int           { return len(r) }
-func (r ByCreated) Swap(i, j int)      { r[i], r[j] = r[j], r[i] }
-func (r ByCreated) Less(i, j int) bool { return r[i].Created < r[j].Created }
+func (r byCreated) Len() int           { return len(r) }
+func (r byCreated) Swap(i, j int)      { r[i], r[j] = r[j], r[i] }
+func (r byCreated) Less(i, j int) bool { return r[i].Created < r[j].Created }
 
+// Images provide list of images based on selection criteria.
 func (s *TagStore) Images(config *ImagesConfig) ([]*types.Image, error) {
 	var (
 		allImages  map[string]*image.Image
@@ -144,7 +150,7 @@ func (s *TagStore) Images(config *ImagesConfig) ([]*types.Image, error) {
 		}
 	}
 
-	sort.Sort(sort.Reverse(ByCreated(images)))
+	sort.Sort(sort.Reverse(byCreated(images)))
 
 	return images, nil
 }

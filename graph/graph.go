@@ -152,6 +152,7 @@ func (graph *Graph) restore() error {
 	return nil
 }
 
+// IsNotExist detects whether an image exists by parsing the incoming error message.
 // FIXME: Implement error subclass instead of looking at the error text
 // Note: This is the way golang implements os.IsNotExists on Plan9
 func (graph *Graph) IsNotExist(err error, id string) bool {
@@ -414,7 +415,7 @@ func (graph *Graph) ByParent() map[string][]*image.Image {
 	return byParent
 }
 
-// If the images and layers are in pulling chain, retain them.
+// Retain keeps the images and layers that are in pulling chain so that they are not deleted.
 // If not, they may be deleted by rmi with dangling condition.
 func (graph *Graph) Retain(sessionID string, layerIDs ...string) {
 	graph.retained.Add(sessionID, layerIDs)

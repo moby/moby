@@ -13,13 +13,21 @@ import (
 	"github.com/docker/docker/utils"
 )
 
+// ImageImportConfig holds configuration to import a image.
 type ImageImportConfig struct {
-	Changes         []string
-	InConfig        io.ReadCloser
-	OutStream       io.Writer
+	// Changes are the container changes written to top layer.
+	Changes []string
+	// InConfig is the input stream containers layered data.
+	InConfig io.ReadCloser
+	// OutStream is the output stream where the image is written.
+	OutStream io.Writer
+	// ContainerConfig is the configuration of commit container.
 	ContainerConfig *runconfig.Config
 }
 
+// Import allows to download image from  a archive.
+// If the src is a URL, the content is downloaded from the archive. If the source is '-' then the imageImportConfig.InConfig
+// reader will be used to load the image. Once all the layers required are loaded locally, image is then tagged using the tag specified.
 func (s *TagStore) Import(src string, repo string, tag string, imageImportConfig *ImageImportConfig) error {
 	var (
 		sf      = streamformatter.NewJSONStreamFormatter()

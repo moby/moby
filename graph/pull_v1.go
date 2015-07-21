@@ -80,9 +80,9 @@ func (p *v1Puller) pullRepository(askedTag string) error {
 	if askedTag == "" {
 		tagsList, err = p.session.GetRemoteTags(repoData.Endpoints, p.repoInfo.RemoteName)
 	} else {
-		var tagId string
-		tagId, err = p.session.GetRemoteTag(repoData.Endpoints, p.repoInfo.RemoteName, askedTag)
-		tagsList[askedTag] = tagId
+		var tagID string
+		tagID, err = p.session.GetRemoteTag(repoData.Endpoints, p.repoInfo.RemoteName, askedTag)
+		tagsList[askedTag] = tagID
 	}
 	if err != nil {
 		if err == registry.ErrRepoNotFound && askedTag != "" {
@@ -222,7 +222,7 @@ func (p *v1Puller) pullRepository(askedTag string) error {
 	if len(askedTag) > 0 {
 		requestedTag = utils.ImageReference(p.repoInfo.LocalName, askedTag)
 	}
-	WriteStatus(requestedTag, out, p.sf, layersDownloaded)
+	writeStatus(requestedTag, out, p.sf, layersDownloaded)
 	return nil
 }
 

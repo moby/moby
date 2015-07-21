@@ -27,7 +27,7 @@ func (daemon *Daemon) ContainerCreate(name string, config *runconfig.Config, hos
 		if daemon.Graph().IsNotExist(err, config.Image) {
 			_, tag := parsers.ParseRepositoryTag(config.Image)
 			if tag == "" {
-				tag = graph.DEFAULTTAG
+				tag = graph.DefaultTag
 			}
 			return "", warnings, fmt.Errorf("No such image: %s (tag: %s)", config.Image, tag)
 		}

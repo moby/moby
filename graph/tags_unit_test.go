@@ -119,17 +119,17 @@ func TestLookupImage(t *testing.T) {
 		testOfficialImageName + ":" + testOfficialImageID,
 		testOfficialImageName + ":" + testOfficialImageIDShort,
 		testOfficialImageName,
-		testOfficialImageName + ":" + DEFAULTTAG,
+		testOfficialImageName + ":" + DefaultTag,
 		"docker.io/" + testOfficialImageName,
-		"docker.io/" + testOfficialImageName + ":" + DEFAULTTAG,
+		"docker.io/" + testOfficialImageName + ":" + DefaultTag,
 		"index.docker.io/" + testOfficialImageName,
-		"index.docker.io/" + testOfficialImageName + ":" + DEFAULTTAG,
+		"index.docker.io/" + testOfficialImageName + ":" + DefaultTag,
 		"library/" + testOfficialImageName,
-		"library/" + testOfficialImageName + ":" + DEFAULTTAG,
+		"library/" + testOfficialImageName + ":" + DefaultTag,
 		"docker.io/library/" + testOfficialImageName,
-		"docker.io/library/" + testOfficialImageName + ":" + DEFAULTTAG,
+		"docker.io/library/" + testOfficialImageName + ":" + DefaultTag,
 		"index.docker.io/library/" + testOfficialImageName,
-		"index.docker.io/library/" + testOfficialImageName + ":" + DEFAULTTAG,
+		"index.docker.io/library/" + testOfficialImageName + ":" + DefaultTag,
 	}
 
 	privateLookups := []string{
@@ -138,7 +138,7 @@ func TestLookupImage(t *testing.T) {
 		testPrivateImageName + ":" + testPrivateImageID,
 		testPrivateImageName + ":" + testPrivateImageIDShort,
 		testPrivateImageName,
-		testPrivateImageName + ":" + DEFAULTTAG,
+		testPrivateImageName + ":" + DefaultTag,
 	}
 
 	invalidLookups := []string{

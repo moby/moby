@@ -10,7 +10,7 @@ import (
 	"github.com/docker/docker/api/types"
 )
 
-func (s *TagStore) LookupRaw(name string) ([]byte, error) {
+func (s *TagStore) lookupRaw(name string) ([]byte, error) {
 	image, err := s.LookupImage(name)
 	if err != nil || image == nil {
 		return nil, fmt.Errorf("No such image %s", name)

@@ -36,7 +36,7 @@ func (daemon *Daemon) imgDeleteHelper(name string, list *[]types.ImageDelete, fi
 	// FIXME: please respect DRY and centralize repo+tag parsing in a single central place! -- shykes
 	repoName, tag = parsers.ParseRepositoryTag(name)
 	if tag == "" {
-		tag = graph.DEFAULTTAG
+		tag = graph.DefaultTag
 	}
 
 	if name == "" {
