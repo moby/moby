@@ -1,5 +1,7 @@
 // +build linux
 
+// Package journald provides the log driver for forwarding server logs
+// to endpoints that receive the systemd format.
 package journald
 
 import (
@@ -12,7 +14,7 @@ import (
 
 const name = "journald"
 
-type Journald struct {
+type journald struct {
 	Jmap map[string]string
 }
 
@@ -22,6 +24,9 @@ func init() {
 	}
 }
 
+// New creates a journald logger using the configuration passed in on
+// the context. Supported context configuration variables are
+// syslog-address, syslog-facility, & syslog-tag.
 func New(ctx logger.Context) (logger.Logger, error) {
 	if !journal.Enabled() {
 		return nil, fmt.Errorf("journald is not enabled on this host")
@@ -36,20 +41,20 @@ func New(ctx logger.Context) (logger.Logger, error) {
 		"CONTAINER_ID":      ctx.ContainerID[:12],
 		"CONTAINER_ID_FULL": ctx.ContainerID,
 		"CONTAINER_NAME":    name}
-	return &Journald{Jmap: jmap}, nil
+	return &journald{Jmap: jmap}, nil
 }
 
-func (s *Journald) Log(msg *logger.Message) error {
+func (s *journald) Log(msg *logger.Message) error {
 	if msg.Source == "stderr" {
 		return journal.Send(string(msg.Line), journal.PriErr, s.Jmap)
 	}
 	return journal.Send(string(msg.Line), journal.PriInfo, s.Jmap)
 }
 
-func (s *Journald) Close() error {
+func (s *journald) Close() error {
 	return nil
 }
 
-func (s *Journald) Name() string {
+func (s *journald) Name() string {
 	return name
 }
