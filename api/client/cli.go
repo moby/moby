@@ -58,6 +58,8 @@ type DockerCli struct {
 	transport *http.Transport
 }
 
+// Initialize calls the init function that will setup the configuration for the client
+// such as the TLS, tcp and other parameters used to run the client.
 func (cli *DockerCli) Initialize() error {
 	if cli.init == nil {
 		return nil
@@ -77,6 +79,8 @@ func (cli *DockerCli) CheckTtyInput(attachStdin, ttyMode bool) error {
 	return nil
 }
 
+// PsFormat returns the format string specified in the configuration.
+// String contains columns and format specification, for example {{ID}\t{{Name}}.
 func (cli *DockerCli) PsFormat() string {
 	return cli.configFile.PsFormat
 }

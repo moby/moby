@@ -13,7 +13,7 @@ import (
 	"github.com/docker/docker/utils"
 )
 
-var VersionTemplate = `Client:
+var versionTemplate = `Client:
  Version:      {{.Client.Version}}
  API version:  {{.Client.ApiVersion}}
  Go version:   {{.Client.GoVersion}}
@@ -31,7 +31,7 @@ Server:
  OS/Arch:      {{.Server.Os}}/{{.Server.Arch}}{{if .Server.Experimental}}
  Experimental: {{.Server.Experimental}}{{end}}{{end}}`
 
-type VersionData struct {
+type versionData struct {
 	Client   types.Version
 	ServerOK bool
 	Server   types.Version
@@ -49,7 +49,7 @@ func (cli *DockerCli) CmdVersion(args ...string) (err error) {
 
 	cmd.ParseFlags(args, true)
 	if *tmplStr == "" {
-		*tmplStr = VersionTemplate
+		*tmplStr = versionTemplate
 	}
 
 	var tmpl *template.Template
@@ -58,7 +58,7 @@ func (cli *DockerCli) CmdVersion(args ...string) (err error) {
 			Status: "Template parsing error: " + err.Error()}
 	}
 
-	vd := VersionData{
+	vd := versionData{
 		Client: types.Version{
 			Version:      dockerversion.VERSION,
 			ApiVersion:   api.Version,
