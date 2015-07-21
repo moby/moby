@@ -190,9 +190,13 @@ func (d *driver) peerDbUpdateSandbox(nid types.UUID) {
 			continue
 		}
 
+		// Go captures variables by reference. The pEntry could be
+		// pointing to the same memory location for every iteration. Make
+		// a copy of pEntry before capturing it in the following closure.
+		entry := pEntry
 		op := func() {
-			if err := d.peerAdd(nid, pEntry.eid, pKey.peerIP,
-				pKey.peerMac, pEntry.vtep,
+			if err := d.peerAdd(nid, entry.eid, pKey.peerIP,
+				pKey.peerMac, entry.vtep,
 				false); err != nil {
 				fmt.Printf("peerdbupdate in sandbox failed for ip %s and mac %s: %v",
 					pKey.peerIP, pKey.peerMac, err)
