@@ -100,17 +100,9 @@ func (s *DockerSuite) TestRunContainerWithCgroupParent(c *check.C) {
 	testRequires(c, NativeExecDriver)
 
 	cgroupParent := "test"
-	data, err := ioutil.ReadFile("/proc/self/cgroup")
-	if err != nil {
-		c.Fatalf("failed to read '/proc/self/cgroup - %v", err)
-	}
-	selfCgroupPaths := parseCgroupPaths(string(data))
-	selfCpuCgroup, found := selfCgroupPaths["memory"]
-	if !found {
-		c.Fatalf("unable to find self cpu cgroup path. CgroupsPath: %v", selfCgroupPaths)
-	}
+	name := "cgroup-test"
 
-	out, _, err := dockerCmdWithError(c, "run", "--cgroup-parent", cgroupParent, "--rm", "busybox", "cat", "/proc/self/cgroup")
+	out, _, err := dockerCmdWithError(c, "run", "--cgroup-parent", cgroupParent, "--name", name, "busybox", "cat", "/proc/self/cgroup")
 	if err != nil {
 		c.Fatalf("unexpected failure when running container with --cgroup-parent option - %s\n%v", string(out), err)
 	}
@@ -118,16 +110,18 @@ func (s *DockerSuite) TestRunContainerWithCgroupParent(c *check.C) {
 	if len(cgroupPaths) == 0 {
 		c.Fatalf("unexpected output - %q", string(out))
 	}
-	found = false
-	expectedCgroupPrefix := path.Join(selfCpuCgroup, cgroupParent)
+	id, err := getIDByName(name)
+	c.Assert(err, check.IsNil)
+	expectedCgroup := path.Join(cgroupParent, id)
+	found := false
 	for _, path := range cgroupPaths {
-		if strings.HasPrefix(path, expectedCgroupPrefix) {
+		if strings.HasSuffix(path, expectedCgroup) {
 			found = true
 			break
 		}
 	}
 	if !found {
-		c.Fatalf("unexpected cgroup paths. Expected at least one cgroup path to have prefix %q. Cgroup Paths: %v", expectedCgroupPrefix, cgroupPaths)
+		c.Fatalf("unexpected cgroup paths. Expected at least one cgroup path to have suffix %q. Cgroup Paths: %v", expectedCgroup, cgroupPaths)
 	}
 }
 
@@ -135,7 +129,8 @@ func (s *DockerSuite) TestRunContainerWithCgroupParentAbsPath(c *check.C) {
 	testRequires(c, NativeExecDriver)
 
 	cgroupParent := "/cgroup-parent/test"
-	out, _, err := dockerCmdWithError(c, "run", "--cgroup-parent", cgroupParent, "--rm", "busybox", "cat", "/proc/self/cgroup")
+	name := "cgroup-test"
+	out, _, err := dockerCmdWithError(c, "run", "--cgroup-parent", cgroupParent, "--name", name, "busybox", "cat", "/proc/self/cgroup")
 	if err != nil {
 		c.Fatalf("unexpected failure when running container with --cgroup-parent option - %s\n%v", string(out), err)
 	}
@@ -143,15 +138,18 @@ func (s *DockerSuite) TestRunContainerWithCgroupParentAbsPath(c *check.C) {
 	if len(cgroupPaths) == 0 {
 		c.Fatalf("unexpected output - %q", string(out))
 	}
+	id, err := getIDByName(name)
+	c.Assert(err, check.IsNil)
+	expectedCgroup := path.Join(cgroupParent, id)
 	found := false
 	for _, path := range cgroupPaths {
-		if strings.HasPrefix(path, cgroupParent) {
+		if strings.HasSuffix(path, expectedCgroup) {
 			found = true
 			break
 		}
 	}
 	if !found {
-		c.Fatalf("unexpected cgroup paths. Expected at least one cgroup path to have prefix %q. Cgroup Paths: %v", cgroupParent, cgroupPaths)
+		c.Fatalf("unexpected cgroup paths. Expected at least one cgroup path to have suffix %q. Cgroup Paths: %v", expectedCgroup, cgroupPaths)
 	}
 }
 
