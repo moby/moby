@@ -599,12 +599,37 @@ func (graph *Graph) assembleTarLayer(img *image.Image) (archive.Archive, error) 
 		metaUnpacker := storage.NewJSONUnpacker(mfz)
 		fileGetter := storage.NewPathFileGetter(fsLayer)
 		logrus.Debugf("[graph] %s is at %q", img.ID, fsLayer)
+
 		ots := asm.NewOutputTarStream(fileGetter, metaUnpacker)
 		defer ots.Close()
-		if _, err := io.Copy(pW, ots); err != nil {
+
+		// get a digest to validate against, if present.
+		var (
+			rdr           io.Reader = ots // default will be a pass-through to the tar stream
+			digestPresent bool
+			verifier      digest.Verifier
+		)
+		dgst, err := graph.GetDigest(img.ID)
+		if err != ErrDigestNotSet {
+			digestPresent = true
+			verifier, err = digest.NewDigestVerifier(dgst)
+			if err == nil {
+				rdr = io.TeeReader(ots, verifier)
+			} else {
+				digestPresent = false
+				logrus.Warnf("[graph] unable to get digest verifier for %s", dgst)
+			}
+		}
+
+		if _, err := io.Copy(pW, rdr); err != nil {
 			pW.CloseWithError(err)
 			return
 		}
+		if digestPresent && !verifier.Verified() {
+			pW.CloseWithError(fmt.Errorf("failed digest verification of reassembled layer data"))
+			return
+		}
+
 		pW.Close()
 	}()
 	return pR, nil
