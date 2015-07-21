@@ -21,8 +21,6 @@ func NewTtyConsole(id string, processid uint32) *TtyConsole {
 }
 
 func (t *TtyConsole) Resize(h, w int) error {
-	// TODO Windows: This is not implemented in HCS. Needs plumbing through
-	// along with mechanism for buffering
 	return hcsshim.ResizeConsoleInComputeSystem(t.id, t.processid, h, w)
 }
 
