@@ -26,6 +26,9 @@ func (s *portSorter) Less(i, j int) bool {
 	return s.by(ip, jp)
 }
 
+// Sort sorts a list of ports using the provided predicate
+// This function should compare `i` and `j`, returning true if `i` is
+// considered to be less than `j`
 func Sort(ports []Port, predicate func(i, j Port) bool) {
 	s := &portSorter{ports, predicate}
 	sort.Sort(s)
