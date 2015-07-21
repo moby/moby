@@ -1640,3 +1640,48 @@ func (s *DockerSuite) TestPostContainersCreateWithStringOrSliceCapAddDrop(c *che
 	c.Assert(err, check.IsNil)
 	c.Assert(status, check.Equals, http.StatusCreated)
 }
+
+// #14640
+func (s *DockerSuite) TestPostContainersStartWithoutLinksInHostConfig(c *check.C) {
+	name := "test-host-config-links"
+	dockerCmd(c, "create", "--name", name, "busybox", "top")
+
+	hc, err := inspectFieldJSON(name, "HostConfig")
+	c.Assert(err, check.IsNil)
+	config := `{"HostConfig":` + hc + `}`
+
+	res, _, err := sockRequestRaw("POST", "/containers/"+name+"/start", strings.NewReader(config), "application/json")
+	c.Assert(err, check.IsNil)
+	c.Assert(res.StatusCode, check.Equals, http.StatusNoContent)
+}
+
+// #14640
+func (s *DockerSuite) TestPostContainersStartWithLinksInHostConfig(c *check.C) {
+	name := "test-host-config-links"
+	dockerCmd(c, "run", "--name", "foo", "-d", "busybox", "top")
+	dockerCmd(c, "create", "--name", name, "--link", "foo:bar", "busybox", "top")
+
+	hc, err := inspectFieldJSON(name, "HostConfig")
+	c.Assert(err, check.IsNil)
+	config := `{"HostConfig":` + hc + `}`
+
+	res, _, err := sockRequestRaw("POST", "/containers/"+name+"/start", strings.NewReader(config), "application/json")
+	c.Assert(err, check.IsNil)
+	c.Assert(res.StatusCode, check.Equals, http.StatusNoContent)
+}
+
+// #14640
+func (s *DockerSuite) TestPostContainersStartWithLinksInHostConfigIdLinked(c *check.C) {
+	name := "test-host-config-links"
+	out, _ := dockerCmd(c, "run", "--name", "link0", "-d", "busybox", "top")
+	id := strings.TrimSpace(out)
+	dockerCmd(c, "create", "--name", name, "--link", id, "busybox", "top")
+
+	hc, err := inspectFieldJSON(name, "HostConfig")
+	c.Assert(err, check.IsNil)
+	config := `{"HostConfig":` + hc + `}`
+
+	res, _, err := sockRequestRaw("POST", "/containers/"+name+"/start", strings.NewReader(config), "application/json")
+	c.Assert(err, check.IsNil)
+	c.Assert(res.StatusCode, check.Equals, http.StatusNoContent)
+}
