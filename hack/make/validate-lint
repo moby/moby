@@ -1,0 +1,51 @@
+#!/bin/bash
+
+source "${MAKEDIR}/.validate"
+
+# We will eventually get to the point when packages should be the complete list
+# of subpackages, vendoring excluded, as given by:
+#  go list ./... | grep -v "^github.com/docker/docker/vendor"
+packages=(
+	builder/parser/dumper
+	daemon/events
+	daemon/execdriver/native/template
+	daemon/network
+	cliconfig
+	docker
+	dockerinit
+	pkg/chrootarchive
+	pkg/directory
+	pkg/fileutils
+	pkg/homedir
+	pkg/listenbuffer
+	pkg/mflag/example
+	pkg/promise
+	pkg/pubsub
+	pkg/random
+	pkg/symlink
+	pkg/timeutils
+	pkg/tlsconfig
+	pkg/urlutil
+	pkg/version
+)
+
+errors=()
+for p in "$packages"; do
+	failedLint=$(golint "github.com/docker/docker/$p")
+	if [ "$failedLint" ]; then
+		errors+=( "$failedLint"  )
+	fi
+done
+
+if [ ${#errors[@]} -eq 0 ]; then
+	echo 'Congratulations!  All Go source files have been linted.'
+else
+	{
+		echo "Errors from golint:"
+		echo "${errors[@]}"
+		echo
+		echo 'Please fix the above errors. You can test via "golint" and commit the result.'
+		echo
+	} >&2
+	false
+fi
