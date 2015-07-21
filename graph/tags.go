@@ -122,6 +122,28 @@ func (store *TagStore) reload() error {
 }
 
 func (store *TagStore) LookupImage(name string) (*image.Image, error) {
+
+	img, err := store.LookupImageByTag(name)
+	if err != nil {
+		return nil, err
+	}
+
+	if img != nil {
+		return img, nil
+	}
+
+	// name must be an image ID.
+	store.Lock()
+	defer store.Unlock()
+	if img, err = store.graph.Get(name); err != nil {
+		return nil, err
+	}
+
+	return img, nil
+}
+
+func (store *TagStore) LookupImageByTag(name string) (*image.Image, error) {
+
 	// FIXME: standardize on returning nil when the image doesn't exist, and err for everything else
 	// (so we can pass all errors here)
 	repoName, ref := parsers.ParseRepositoryTag(name)
@@ -135,17 +157,6 @@ func (store *TagStore) LookupImage(name string) (*image.Image, error) {
 
 	img, err = store.GetImage(repoName, ref)
 	if err != nil {
-		return nil, err
-	}
-
-	if img != nil {
-		return img, err
-	}
-
-	// name must be an image ID.
-	store.Lock()
-	defer store.Unlock()
-	if img, err = store.graph.Get(name); err != nil {
 		return nil, err
 	}
 

@@ -2,6 +2,7 @@ package graph
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
@@ -54,7 +55,7 @@ func (s *TagStore) ImageExport(imageExportConfig *ImageExportConfig) error {
 				}
 			}
 		} else {
-			img, err := s.LookupImage(name)
+			img, err := s.LookupImageByTag(name)
 			if err != nil {
 				return err
 			}
@@ -73,10 +74,8 @@ func (s *TagStore) ImageExport(imageExportConfig *ImageExportConfig) error {
 				}
 
 			} else {
-				// this must be an ID that didn't get looked up just right?
-				if err := s.exportImage(name, tempdir); err != nil {
-					return err
-				}
+				// this must be an ID
+				return fmt.Errorf("docker save by image id (%s) is not allowed. See man page for more details.", name)
 			}
 		}
 		logrus.Debugf("End Serializing %s", name)

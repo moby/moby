@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/url"
+	"os/exec"
 	"strings"
 
 	"github.com/docker/docker/api/types"
@@ -55,14 +56,19 @@ func (s *DockerSuite) TestApiImagesSaveAndLoad(c *check.C) {
 		c.Fatal(err)
 	}
 	id := strings.TrimSpace(out)
+	tagCmd := exec.Command(dockerBinary, "tag", id, "hello-new")
+	out, _, err = runCommandWithOutput(tagCmd)
+	if err != nil {
+		c.Fatalf("failed to tag repo: %s, %v", out, err)
+	}
 
-	res, body, err := sockRequestRaw("GET", "/images/"+id+"/get", nil, "")
+	res, body, err := sockRequestRaw("GET", "/images/hello-new"+"/get", nil, "")
 	c.Assert(err, check.IsNil)
 	c.Assert(res.StatusCode, check.Equals, http.StatusOK)
 
 	defer body.Close()
 
-	dockerCmd(c, "rmi", id)
+	dockerCmd(c, "rmi", "-f", id)
 
 	res, loadBody, err := sockRequestRaw("POST", "/images/load", body, "application/x-tar")
 	c.Assert(err, check.IsNil)
