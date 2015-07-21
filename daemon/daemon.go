@@ -686,7 +686,7 @@ func NewDaemon(config *Config, registryService *registry.Service) (daemon *Daemo
 	}
 	repositories, err := graph.NewTagStore(filepath.Join(config.Root, "repositories-"+d.driver.String()), tagCfg)
 	if err != nil {
-		return nil, fmt.Errorf("Couldn't create Tag store: %s", err)
+		return nil, fmt.Errorf("Couldn't create Tag store %s: %s", "repositories-"+d.driver.String(), err)
 	}
 
 	d.netController, err = initNetworkController(config)
