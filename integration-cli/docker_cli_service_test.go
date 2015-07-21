@@ -4,7 +4,6 @@ package main
 
 import (
 	"fmt"
-	"os/exec"
 	"strings"
 
 	"github.com/go-check/check"
@@ -23,9 +22,7 @@ func assertSrvNotAvailable(c *check.C, sname, name string) {
 }
 
 func isSrvPresent(c *check.C, sname, name string) bool {
-	runCmd := exec.Command(dockerBinary, "service", "ls")
-	out, _, _, err := runCommandWithStdoutStderr(runCmd)
-	c.Assert(err, check.IsNil)
+	out, _, _ := dockerCmdWithStdoutStderr(c, "service", "ls")
 	lines := strings.Split(out, "\n")
 	for i := 1; i < len(lines)-1; i++ {
 		if strings.Contains(lines[i], sname) && strings.Contains(lines[i], name) {
@@ -36,9 +33,7 @@ func isSrvPresent(c *check.C, sname, name string) bool {
 }
 
 func isCntPresent(c *check.C, cname, sname, name string) bool {
-	runCmd := exec.Command(dockerBinary, "service", "ls", "--no-trunc")
-	out, _, _, err := runCommandWithStdoutStderr(runCmd)
-	c.Assert(err, check.IsNil)
+	out, _, _ := dockerCmdWithStdoutStderr(c, "service", "ls", "--no-trunc")
 	lines := strings.Split(out, "\n")
 	for i := 1; i < len(lines)-1; i++ {
 		fmt.Println(lines)
@@ -50,37 +45,25 @@ func isCntPresent(c *check.C, cname, sname, name string) bool {
 }
 
 func (s *DockerSuite) TestDockerServiceCreateDelete(c *check.C) {
-	runCmd := exec.Command(dockerBinary, "network", "create", "test")
-	_, _, _, err := runCommandWithStdoutStderr(runCmd)
-	c.Assert(err, check.IsNil)
+	dockerCmdWithStdoutStderr(c, "network", "create", "test")
 	assertNwIsAvailable(c, "test")
 
-	runCmd = exec.Command(dockerBinary, "service", "publish", "s1.test")
-	_, _, _, err = runCommandWithStdoutStderr(runCmd)
-	c.Assert(err, check.IsNil)
+	dockerCmdWithStdoutStderr(c, "service", "publish", "s1.test")
 	assertSrvIsAvailable(c, "s1", "test")
 
-	runCmd = exec.Command(dockerBinary, "service", "unpublish", "s1.test")
-	_, _, _, err = runCommandWithStdoutStderr(runCmd)
-	c.Assert(err, check.IsNil)
+	dockerCmdWithStdoutStderr(c, "service", "unpublish", "s1.test")
 	assertSrvNotAvailable(c, "s1", "test")
 
-	runCmd = exec.Command(dockerBinary, "network", "rm", "test")
-	_, _, _, err = runCommandWithStdoutStderr(runCmd)
-	c.Assert(err, check.IsNil)
+	dockerCmdWithStdoutStderr(c, "network", "rm", "test")
 	assertNwNotAvailable(c, "test")
 }
 
 func (s *DockerSuite) TestDockerPublishServiceFlag(c *check.C) {
 	// Run saying the container is the backend for the specified service on the specified network
-	runCmd := exec.Command(dockerBinary, "run", "-d", "--expose=23", "--publish-service", "telnet.production", "busybox", "top")
-	out, _, err := runCommandWithOutput(runCmd)
-	c.Assert(err, check.IsNil)
+	out, _ := dockerCmd(c, "run", "-d", "--expose=23", "--publish-service", "telnet.production", "busybox", "top")
 	cid := strings.TrimSpace(out)
 
 	// Verify container is attached in service ps o/p
 	assertSrvIsAvailable(c, "telnet", "production")
-	runCmd = exec.Command(dockerBinary, "rm", "-f", cid)
-	out, _, err = runCommandWithOutput(runCmd)
-	c.Assert(err, check.IsNil)
+	dockerCmd(c, "rm", "-f", cid)
 }
