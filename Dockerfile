@@ -118,6 +118,16 @@ RUN git clone https://github.com/golang/tools.git /go/src/golang.org/x/tools \
 	&& go install -v golang.org/x/tools/cmd/cover \
 	&& go install -v golang.org/x/tools/cmd/vet
 
+# Grab Sevki's Joker tool
+RUN curl -L -o /go/bin/joker https://github.com/sevki/joker/releases/download/v0.0.6/linux_amd64_joker \
+    	&& chmod +x /go/bin/joker
+
+# Grab Go's lint tool
+ENV GO_LINT_COMMIT f42f5c1c440621302702cb0741e9d2ca547ae80f
+RUN git clone https://github.com/golang/lint.git /go/src/github.com/golang/lint \
+	&& (cd /go/src/github.com/golang/lint && git checkout -q $GO_LINT_COMMIT) \
+	&& go install -v github.com/golang/lint/golint
+
 # TODO replace FPM with some very minimal debhelper stuff
 RUN gem install --no-rdoc --no-ri fpm --version 1.3.2
 
