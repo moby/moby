@@ -133,8 +133,8 @@ func TestParsePortSpecs(t *testing.T) {
 			t.Fatalf("%s should have exactly one binding", portspec)
 		}
 
-		if bindings[0].HostIp != "" {
-			t.Fatalf("HostIp should not be set for %s", portspec)
+		if bindings[0].HostIP != "" {
+			t.Fatalf("HostIP should not be set for %s", portspec)
 		}
 
 		if bindings[0].HostPort != "" {
@@ -163,8 +163,8 @@ func TestParsePortSpecs(t *testing.T) {
 			t.Fatalf("%s should have exactly one binding", portspec)
 		}
 
-		if bindings[0].HostIp != "" {
-			t.Fatalf("HostIp should not be set for %s", portspec)
+		if bindings[0].HostIP != "" {
+			t.Fatalf("HostIP should not be set for %s", portspec)
 		}
 
 		if bindings[0].HostPort != port {
@@ -193,8 +193,8 @@ func TestParsePortSpecs(t *testing.T) {
 			t.Fatalf("%s should have exactly one binding", portspec)
 		}
 
-		if bindings[0].HostIp != "0.0.0.0" {
-			t.Fatalf("HostIp is not 0.0.0.0 for %s", portspec)
+		if bindings[0].HostIP != "0.0.0.0" {
+			t.Fatalf("HostIP is not 0.0.0.0 for %s", portspec)
 		}
 
 		if bindings[0].HostPort != port {
@@ -235,8 +235,8 @@ func TestParsePortSpecsWithRange(t *testing.T) {
 			t.Fatalf("%s should have exactly one binding", portspec)
 		}
 
-		if bindings[0].HostIp != "" {
-			t.Fatalf("HostIp should not be set for %s", portspec)
+		if bindings[0].HostIP != "" {
+			t.Fatalf("HostIP should not be set for %s", portspec)
 		}
 
 		if bindings[0].HostPort != "" {
@@ -264,8 +264,8 @@ func TestParsePortSpecsWithRange(t *testing.T) {
 			t.Fatalf("%s should have exactly one binding", portspec)
 		}
 
-		if bindings[0].HostIp != "" {
-			t.Fatalf("HostIp should not be set for %s", portspec)
+		if bindings[0].HostIP != "" {
+			t.Fatalf("HostIP should not be set for %s", portspec)
 		}
 
 		if bindings[0].HostPort != port {
@@ -289,7 +289,7 @@ func TestParsePortSpecsWithRange(t *testing.T) {
 
 	for portspec, bindings := range bindingMap {
 		_, port := SplitProtoPort(string(portspec))
-		if len(bindings) != 1 || bindings[0].HostIp != "0.0.0.0" || bindings[0].HostPort != port {
+		if len(bindings) != 1 || bindings[0].HostIP != "0.0.0.0" || bindings[0].HostPort != port {
 			t.Fatalf("Expect single binding to port %s but found %s", port, bindings)
 		}
 	}
@@ -337,7 +337,7 @@ func TestParseNetworkOptsPrivateOnly(t *testing.T) {
 			t.Logf("Expected \"\" got %s", s.HostPort)
 			t.Fail()
 		}
-		if s.HostIp != "192.168.1.100" {
+		if s.HostIP != "192.168.1.100" {
 			t.Fail()
 		}
 	}
@@ -379,7 +379,7 @@ func TestParseNetworkOptsPublic(t *testing.T) {
 			t.Logf("Expected 8080 got %s", s.HostPort)
 			t.Fail()
 		}
-		if s.HostIp != "192.168.1.100" {
+		if s.HostIP != "192.168.1.100" {
 			t.Fail()
 		}
 	}
@@ -454,7 +454,7 @@ func TestParseNetworkOptsUdp(t *testing.T) {
 			t.Logf("Expected \"\" got %s", s.HostPort)
 			t.Fail()
 		}
-		if s.HostIp != "192.168.1.100" {
+		if s.HostIP != "192.168.1.100" {
 			t.Fail()
 		}
 	}
