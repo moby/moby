@@ -7,26 +7,37 @@ source "${MAKEDIR}/.validate"
 #  go list ./... | grep -v "^github.com/docker/docker/vendor"
 packages=(
 	builder/parser/dumper
-	daemon/events
-	daemon/execdriver/native/template
-	daemon/network
 	cliconfig
+	daemon/events
+	daemon/execdriver/execdrivers
+	daemon/execdriver/native/template
+	daemon/execdriver/windows
+	daemon/graphdriver/btrfs
+	daemon/network
 	docker
 	dockerinit
+	pkg/broadcastwriter
 	pkg/chrootarchive
 	pkg/directory
 	pkg/fileutils
 	pkg/homedir
 	pkg/listenbuffer
 	pkg/mflag/example
+	pkg/namesgenerator
 	pkg/promise
 	pkg/pubsub
 	pkg/random
+	pkg/reexec
+	pkg/stringid
 	pkg/symlink
+	pkg/tailfile
+	pkg/timeoutconn
 	pkg/timeutils
 	pkg/tlsconfig
+	pkg/units
 	pkg/urlutil
 	pkg/version
+	utils
 )
 
 errors=()
