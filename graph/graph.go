@@ -28,6 +28,8 @@ import (
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/pkg/truncindex"
 	"github.com/docker/docker/runconfig"
+	"github.com/vbatts/tar-split/tar/asm"
+	"github.com/vbatts/tar-split/tar/storage"
 )
 
 // The type is used to protect pulling or building related image
@@ -529,4 +531,81 @@ func (graph *Graph) RawJSON(id string) ([]byte, error) {
 
 func jsonPath(root string) string {
 	return filepath.Join(root, jsonFileName)
+}
+
+func (graph *Graph) disassembleAndApplyTarLayer(img *image.Image, layerData archive.ArchiveReader, root string) error {
+	// this is saving the tar-split metadata
+	mf, err := os.OpenFile(filepath.Join(root, tarDataFileName), os.O_CREATE|os.O_WRONLY|os.O_TRUNC, os.FileMode(0600))
+	if err != nil {
+		return err
+	}
+	mfz := gzip.NewWriter(mf)
+	metaPacker := storage.NewJSONPacker(mfz)
+	defer mf.Close()
+	defer mfz.Close()
+
+	inflatedLayerData, err := archive.DecompressStream(layerData)
+	if err != nil {
+		return err
+	}
+
+	// we're passing nil here for the file putter, because the ApplyDiff will
+	// handle the extraction of the archive
+	rdr, err := asm.NewInputTarStream(inflatedLayerData, metaPacker, nil)
+	if err != nil {
+		return err
+	}
+
+	if img.Size, err = graph.driver.ApplyDiff(img.ID, img.Parent, archive.ArchiveReader(rdr)); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (graph *Graph) assembleTarLayer(img *image.Image) (archive.Archive, error) {
+	root := graph.imageRoot(img.ID)
+	mFileName := filepath.Join(root, tarDataFileName)
+	mf, err := os.Open(mFileName)
+	if err != nil {
+		if !os.IsNotExist(err) {
+			logrus.Errorf("failed to open %q: %s", mFileName, err)
+		}
+		return nil, err
+	}
+	pR, pW := io.Pipe()
+	// this will need to be in a goroutine, as we are returning the stream of a
+	// tar archive, but can not close the metadata reader early (when this
+	// function returns)...
+	go func() {
+		defer mf.Close()
+		// let's reassemble!
+		logrus.Debugf("[graph] TarLayer with reassembly: %s", img.ID)
+		mfz, err := gzip.NewReader(mf)
+		if err != nil {
+			pW.CloseWithError(fmt.Errorf("[graph] error with %s:  %s", mFileName, err))
+			return
+		}
+		defer mfz.Close()
+
+		// get our relative path to the container
+		fsLayer, err := graph.driver.Get(img.ID, "")
+		if err != nil {
+			pW.CloseWithError(err)
+			return
+		}
+		defer graph.driver.Put(img.ID)
+
+		metaUnpacker := storage.NewJSONUnpacker(mfz)
+		fileGetter := storage.NewPathFileGetter(fsLayer)
+		logrus.Debugf("[graph] %s is at %q", img.ID, fsLayer)
+		ots := asm.NewOutputTarStream(fileGetter, metaUnpacker)
+		defer ots.Close()
+		if _, err := io.Copy(pW, ots); err != nil {
+			pW.CloseWithError(err)
+			return
+		}
+		pW.Close()
+	}()
+	return pR, nil
 }
