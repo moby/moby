@@ -67,6 +67,9 @@ test-docker-py: build
 validate: build
 	$(DOCKER_RUN_DOCKER) hack/make.sh validate-dco validate-gofmt validate-pkg validate-lint validate-test validate-toml validate-vet
 
+github: build
+	$(DOCKER_RUN_DOCKER) hack/github.sh $(PR) $(GH_TOKEN)
+
 shell: build
 	$(DOCKER_RUN_DOCKER) bash
 
