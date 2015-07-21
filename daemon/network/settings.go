@@ -2,11 +2,13 @@ package network
 
 import "github.com/docker/docker/pkg/nat"
 
+// Address represents an IP address
 type Address struct {
 	Addr      string
 	PrefixLen int
 }
 
+// Settings stores configuration details about the daemon network config
 type Settings struct {
 	Bridge                 string
 	EndpointID             string
