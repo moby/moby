@@ -17,6 +17,7 @@ packages=(
 	daemon/network
 	docker
 	dockerinit
+	image
 	integration-cli
 	pkg/chrootarchive
 	pkg/directory
