@@ -521,7 +521,10 @@ func (container *Container) buildPortMapInfo(n libnetwork.Network, ep libnetwork
 	if expData, ok := driverInfo[netlabel.ExposedPorts]; ok {
 		if exposedPorts, ok := expData.([]types.TransportPort); ok {
 			for _, tp := range exposedPorts {
-				natPort := nat.NewPort(tp.Proto.String(), strconv.Itoa(int(tp.Port)))
+				natPort, err := nat.NewPort(tp.Proto.String(), strconv.Itoa(int(tp.Port)))
+				if err != nil {
+					return nil, fmt.Errorf("Error parsing Port value(%s):%v", tp.Port, err)
+				}
 				networkSettings.Ports[natPort] = nil
 			}
 		}
@@ -534,7 +537,10 @@ func (container *Container) buildPortMapInfo(n libnetwork.Network, ep libnetwork
 
 	if portMapping, ok := mapData.([]types.PortBinding); ok {
 		for _, pp := range portMapping {
-			natPort := nat.NewPort(pp.Proto.String(), strconv.Itoa(int(pp.Port)))
+			natPort, err := nat.NewPort(pp.Proto.String(), strconv.Itoa(int(pp.Port)))
+			if err != nil {
+				return nil, err
+			}
 			natBndg := nat.PortBinding{HostIp: pp.HostIP.String(), HostPort: strconv.Itoa(int(pp.HostPort))}
 			networkSettings.Ports[natPort] = append(networkSettings.Ports[natPort], natBndg)
 		}
@@ -710,7 +716,11 @@ func (container *Container) buildCreateEndpointOptions() ([]libnetwork.EndpointO
 		binding := bindings[port]
 		for i := 0; i < len(binding); i++ {
 			pbCopy := pb.GetCopy()
-			pbCopy.HostPort = uint16(nat.Port(binding[i].HostPort).Int())
+			newP, err := nat.NewPort(nat.SplitProtoPort(binding[i].HostPort))
+			if err != nil {
+				return nil, fmt.Errorf("Error parsing HostPort value(%s):%v", binding[i].HostPort, err)
+			}
+			pbCopy.HostPort = uint16(newP.Int())
 			pbCopy.HostIP = net.ParseIP(binding[i].HostIp)
 			pbList = append(pbList, pbCopy)
 		}
