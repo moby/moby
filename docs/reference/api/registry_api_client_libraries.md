@@ -26,20 +26,20 @@ project and we will add the libraries here.
     <col width="11%">
   </colgroup>
   <thead valign="bottom">
-    <tr class="row-odd"><th class="head">Language/Framework</th>
+    <tr><th class="head">Language/Framework</th>
       <th class="head">Name</th>
       <th class="head">Repository</th>
       <th class="head">Status</th>
     </tr>
   </thead>
   <tbody valign = "top">
-    <tr class="row-even">
+    <tr>
       <td>JavaScript (AngularJS) <strong>WebUI</strong></td>
       <td>docker-registry-frontend</td>
       <td><a class="reference external" href="https://github.com/kwk/docker-registry-frontend">https://github.com/kwk/docker-registry-frontend</a></td>
       <td>Active</td>
     </tr>
-    <tr class="row-odd">
+    <tr>
       <td>Go</td>
       <td>docker-reg-client</td>
       <td><a class="reference external" href="https://github.com/CenturyLinkLabs/docker-reg-client">https://github.com/CenturyLinkLabs/docker-reg-client</a></td>
