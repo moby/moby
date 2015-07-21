@@ -1,13 +1,22 @@
-# Experimental: Docker Plugin API
+<!--[metadata]>
++++
+title = "Plugins API"
+description = "How to write Docker plugins extensions "
+keywords = ["API, Usage, plugins, documentation, developer"]
+[menu.main]
+parent = "mn_extend"
+weight=1
++++
+<![end-metadata]-->
+
+# Docker Plugin API
 
 Docker plugins are out-of-process extensions which add capabilities to the
 Docker Engine.
 
 This page is intended for people who want to develop their own Docker plugin.
 If you just want to learn about or use Docker plugins, look
-[here](/experimental/plugins.md).
-
-This is an experimental feature. For information on installing and using experimental features, see [the experimental feature overview](README.md).
+[here](plugins.md).
 
 ## What plugins are
 
@@ -76,10 +85,6 @@ manage startup and shutdown order.
 
 When upgrading a plugin, you should first stop the Docker daemon, upgrade the
 plugin, then start Docker again.
-
-If a plugin is packaged as a container, this may cause issues. Plugins as
-containers are currently considered experimental due to these shutdown/startup
-ordering issues. These issues are mitigated by plugin retries (see below).
 
 ## Plugin activation
 
