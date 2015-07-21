@@ -35,14 +35,14 @@ func checkBlobDescriptorCacheEmptyRepository(t *testing.T, ctx context.Context, 
 
 	if err := cache.SetDescriptor(ctx, "", distribution.Descriptor{
 		Digest:    "sha384:abc",
-		Length:    10,
+		Size:      10,
 		MediaType: "application/octet-stream"}); err != digest.ErrDigestInvalidFormat {
 		t.Fatalf("expected error with invalid digest: %v", err)
 	}
 
 	if err := cache.SetDescriptor(ctx, "sha384:abc", distribution.Descriptor{
 		Digest:    "",
-		Length:    10,
+		Size:      10,
 		MediaType: "application/octet-stream"}); err == nil {
 		t.Fatalf("expected error setting value on invalid descriptor")
 	}
@@ -60,7 +60,7 @@ func checkBlobDescriptorCacheSetAndRead(t *testing.T, ctx context.Context, provi
 	localDigest := digest.Digest("sha384:abc")
 	expected := distribution.Descriptor{
 		Digest:    "sha256:abc",
-		Length:    10,
+		Size:      10,
 		MediaType: "application/octet-stream"}
 
 	cache, err := provider.RepositoryScoped("foo/bar")

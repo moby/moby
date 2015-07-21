@@ -37,13 +37,17 @@ type Namespace interface {
 	Repository(ctx context.Context, name string) (Repository, error)
 }
 
+// ManifestServiceOption is a function argument for Manifest Service methods
+type ManifestServiceOption func(ManifestService) error
+
 // Repository is a named collection of manifests and layers.
 type Repository interface {
 	// Name returns the name of the repository.
 	Name() string
 
 	// Manifests returns a reference to this repository's manifest service.
-	Manifests() ManifestService
+	// with the supplied options applied.
+	Manifests(ctx context.Context, options ...ManifestServiceOption) (ManifestService, error)
 
 	// Blobs returns a reference to this repository's blob service.
 	Blobs(ctx context.Context) BlobStore
@@ -84,7 +88,7 @@ type ManifestService interface {
 	ExistsByTag(tag string) (bool, error)
 
 	// GetByTag retrieves the named manifest, if it exists.
-	GetByTag(tag string) (*manifest.SignedManifest, error)
+	GetByTag(tag string, options ...ManifestServiceOption) (*manifest.SignedManifest, error)
 
 	// TODO(stevvooe): There are several changes that need to be done to this
 	// interface:

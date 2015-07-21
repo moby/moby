@@ -70,17 +70,20 @@ func (r *repository) Blobs(ctx context.Context) distribution.BlobStore {
 	}
 }
 
-func (r *repository) Manifests() distribution.ManifestService {
+func (r *repository) Manifests(ctx context.Context, options ...distribution.ManifestServiceOption) (distribution.ManifestService, error) {
+	// todo(richardscothern): options should be sent over the wire
 	return &manifests{
 		name:   r.Name(),
 		ub:     r.ub,
 		client: r.client,
-	}
+		etags:  make(map[string]string),
+	}, nil
 }
 
 func (r *repository) Signatures() distribution.SignatureService {
+	ms, _ := r.Manifests(r.context)
 	return &signatures{
-		manifests: r.Manifests(),
+		manifests: ms,
 	}
 }
 
@@ -104,6 +107,7 @@ type manifests struct {
 	name   string
 	ub     *v2.URLBuilder
 	client *http.Client
+	etags  map[string]string
 }
 
 func (ms *manifests) Tags() ([]string, error) {
@@ -173,13 +177,40 @@ func (ms *manifests) Get(dgst digest.Digest) (*manifest.SignedManifest, error) {
 	return ms.GetByTag(dgst.String())
 }
 
-func (ms *manifests) GetByTag(tag string) (*manifest.SignedManifest, error) {
+// AddEtagToTag allows a client to supply an eTag to GetByTag which will
+// be used for a conditional HTTP request.  If the eTag matches, a nil
+// manifest and nil error will be returned.
+func AddEtagToTag(tagName, dgst string) distribution.ManifestServiceOption {
+	return func(ms distribution.ManifestService) error {
+		if ms, ok := ms.(*manifests); ok {
+			ms.etags[tagName] = dgst
+			return nil
+		}
+		return fmt.Errorf("etag options is a client-only option")
+	}
+}
+
+func (ms *manifests) GetByTag(tag string, options ...distribution.ManifestServiceOption) (*manifest.SignedManifest, error) {
+	for _, option := range options {
+		err := option(ms)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	u, err := ms.ub.BuildManifestURL(ms.name, tag)
 	if err != nil {
 		return nil, err
 	}
+	req, err := http.NewRequest("GET", u, nil)
+	if err != nil {
+		return nil, err
+	}
 
-	resp, err := ms.client.Get(u)
+	if _, ok := ms.etags[tag]; ok {
+		req.Header.Set("eTag", ms.etags[tag])
+	}
+	resp, err := ms.client.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -193,8 +224,9 @@ func (ms *manifests) GetByTag(tag string) (*manifest.SignedManifest, error) {
 		if err := decoder.Decode(&sm); err != nil {
 			return nil, err
 		}
-
 		return &sm, nil
+	case http.StatusNotModified:
+		return nil, nil
 	default:
 		return nil, handleErrorResponse(resp)
 	}
@@ -205,6 +237,8 @@ func (ms *manifests) Put(m *manifest.SignedManifest) error {
 	if err != nil {
 		return err
 	}
+
+	// todo(richardscothern): do something with options here when they become applicable
 
 	putRequest, err := http.NewRequest("PUT", manifestURL, bytes.NewReader(m.Raw))
 	if err != nil {
@@ -309,7 +343,7 @@ func (bs *blobs) Open(ctx context.Context, dgst digest.Digest) (distribution.Rea
 		return nil, err
 	}
 
-	return transport.NewHTTPReadSeeker(bs.client, blobURL, stat.Length), nil
+	return transport.NewHTTPReadSeeker(bs.client, blobURL, stat.Size), nil
 }
 
 func (bs *blobs) ServeBlob(ctx context.Context, w http.ResponseWriter, r *http.Request, dgst digest.Digest) error {
@@ -332,7 +366,7 @@ func (bs *blobs) Put(ctx context.Context, mediaType string, p []byte) (distribut
 
 	desc := distribution.Descriptor{
 		MediaType: mediaType,
-		Length:    int64(len(p)),
+		Size:      int64(len(p)),
 		Digest:    dgstr.Digest(),
 	}
 
@@ -401,7 +435,7 @@ func (bs *blobStatter) Stat(ctx context.Context, dgst digest.Digest) (distributi
 
 		return distribution.Descriptor{
 			MediaType: resp.Header.Get("Content-Type"),
-			Length:    length,
+			Size:      length,
 			Digest:    dgst,
 		}, nil
 	case http.StatusNotFound:
