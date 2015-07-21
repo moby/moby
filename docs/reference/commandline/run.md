@@ -208,19 +208,39 @@ An example of a file passed with `--env-file`
     # this is a comment
     TEST_APP_DEST_HOST=10.10.0.127
     TEST_APP_DEST_PORT=8888
+    _TEST_BAR=FOO
+    TEST_APP_42=magic
+    helloWorld=true
+    # 123qwe=bar <- is not valid
 
     # pass through this variable from the caller
     TEST_PASSTHROUGH
-    $ sudo TEST_PASSTHROUGH=howdy docker run --env-file ./env.list busybox env
-    HOME=/
+    $ TEST_PASSTHROUGH=howdy docker run --env-file ./env.list busybox env
     PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
     HOSTNAME=5198e0745561
     TEST_FOO=BAR
     TEST_APP_DEST_HOST=10.10.0.127
     TEST_APP_DEST_PORT=8888
+    _TEST_BAR=FOO
+    TEST_APP_42=magic
+    helloWorld=true
     TEST_PASSTHROUGH=howdy
+    HOME=/root
 
-    $ docker run --name console -t -i ubuntu bash
+    $ docker run --env-file ./env.list busybox env
+    PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+    HOSTNAME=5198e0745561
+    TEST_FOO=BAR
+    TEST_APP_DEST_HOST=10.10.0.127
+    TEST_APP_DEST_PORT=8888
+    _TEST_BAR=FOO
+    TEST_APP_42=magic
+    helloWorld=true
+    TEST_PASSTHROUGH=
+    HOME=/root
+
+> **Note**: Environment variables names must consist solely of letters, numbers,
+> and underscores - and cannot start with a number.
 
 A label is a a `key=value` pair that applies metadata to a container. To label a container with two labels:
 
