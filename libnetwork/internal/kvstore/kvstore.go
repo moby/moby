@@ -107,10 +107,6 @@ type LockOptions struct {
 	TTL   time.Duration // Optional, expiration ttl associated with the lock
 }
 
-// WatchCallback is used for watch methods on keys
-// and is triggered on key change
-type WatchCallback func(entries ...*KVPair)
-
 // Locker provides locking mechanism on top of the store.
 // Similar to `sync.Lock` except it may return errors.
 type Locker interface {
