@@ -122,7 +122,8 @@ func (daemon *Daemon) Create(config *runconfig.Config, hostConfig *runconfig.Hos
 			return nil, nil, fmt.Errorf("cannot mount volume over existing file, file exists %s", path)
 		}
 
-		v, err := createVolume(name, config.VolumeDriver)
+		id := stringid.GenerateRandomID()
+		v, err := createVolume(name, id, config.VolumeDriver)
 		if err != nil {
 			return nil, nil, err
 		}

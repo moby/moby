@@ -11,7 +11,7 @@ func NewVolumeDriver(name string, c client) volume.Driver {
 
 type VolumeDriver interface {
 	// Create a volume with the given name
-	Create(name string) (err error)
+	Create(name, id string) (err error)
 	// Remove the volume with the given name
 	Remove(name string) (err error)
 	// Get the mountpoint of the given volume

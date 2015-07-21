@@ -50,7 +50,7 @@ func TestVolumeRequestError(t *testing.T) {
 
 	driver := volumeDriverProxy{client}
 
-	if err = driver.Create("volume"); err == nil {
+	if err = driver.Create("volume", "id"); err == nil {
 		t.Fatal("Expected error, was nil")
 	}
 
@@ -58,7 +58,7 @@ func TestVolumeRequestError(t *testing.T) {
 		t.Fatalf("Unexpected error: %v\n", err)
 	}
 
-	_, err = driver.Mount("volume")
+	_, err = driver.Mount("volume", "id")
 	if err == nil {
 		t.Fatal("Expected error, was nil")
 	}
@@ -67,7 +67,7 @@ func TestVolumeRequestError(t *testing.T) {
 		t.Fatalf("Unexpected error: %v\n", err)
 	}
 
-	err = driver.Unmount("volume")
+	err = driver.Unmount("volume", "id")
 	if err == nil {
 		t.Fatal("Expected error, was nil")
 	}
@@ -76,7 +76,7 @@ func TestVolumeRequestError(t *testing.T) {
 		t.Fatalf("Unexpected error: %v\n", err)
 	}
 
-	err = driver.Remove("volume")
+	err = driver.Remove("volume", "id")
 	if err == nil {
 		t.Fatal("Expected error, was nil")
 	}
@@ -85,7 +85,7 @@ func TestVolumeRequestError(t *testing.T) {
 		t.Fatalf("Unexpected error: %v\n", err)
 	}
 
-	_, err = driver.Path("volume")
+	_, err = driver.Path("volume", "id")
 	if err == nil {
 		t.Fatal("Expected error, was nil")
 	}
