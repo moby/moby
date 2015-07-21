@@ -374,10 +374,6 @@ func NewTtyConsole(console libcontainer.Console, pipes *execdriver.Pipes, rootui
 	return tty, nil
 }
 
-func (t *TtyConsole) Master() libcontainer.Console {
-	return t.console
-}
-
 func (t *TtyConsole) Resize(h, w int) error {
 	return term.SetWinsize(t.console.Fd(), &term.Winsize{Height: uint16(h), Width: uint16(w)})
 }
