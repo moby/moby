@@ -21,6 +21,7 @@ import (
 	sysinfo "github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/pkg/term"
 	"github.com/opencontainers/runc/libcontainer"
+	"github.com/opencontainers/runc/libcontainer/apparmor"
 	"github.com/opencontainers/runc/libcontainer/cgroups/systemd"
 	"github.com/opencontainers/runc/libcontainer/configs"
 	"github.com/opencontainers/runc/libcontainer/system"
@@ -49,6 +50,15 @@ func NewDriver(root, initPath string, options []string) (*driver, error) {
 
 	if err := sysinfo.MkdirAll(root, 0700); err != nil {
 		return nil, err
+	}
+
+	if apparmor.IsEnabled() {
+		apparmor_policies := []string{"docker-default", "docker-unconfined"}
+		for _, policy := range apparmor_policies {
+			if err := hasAppArmorProfileLoaded(policy); err != nil {
+				return nil, fmt.Errorf("AppArmor enabled on system but the %s profile is not loaded. Install policies from contrib/apparmor (https://goo.gl/CjGtgC) and try again.", policy)
+			}
+		}
 	}
 
 	// choose cgroup manager
