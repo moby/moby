@@ -28,9 +28,12 @@ import (
 )
 
 var (
+	// ErrRepoNotFound is returned if the repository didn't exist on the
+	// remote side
 	ErrRepoNotFound = errors.New("Repository not found")
 )
 
+// A Session is used to communicate with a V1 registry
 type Session struct {
 	indexEndpoint *Endpoint
 	client        *http.Client
@@ -90,9 +93,11 @@ func cloneRequest(r *http.Request) *http.Request {
 	return r2
 }
 
+// RoundTrip changes a HTTP request's headers to add the necessary
+// authentication-related headers
 func (tr *authTransport) RoundTrip(orig *http.Request) (*http.Response, error) {
 	// Authorization should not be set on 302 redirect for untrusted locations.
-	// This logic mirrors the behavior in AddRequiredHeadersToRedirectedRequests.
+	// This logic mirrors the behavior in addRequiredHeadersToRedirectedRequests.
 	// As the authorization logic is currently implemented in RoundTrip,
 	// a 302 redirect is detected by looking at the Referer header as go http package adds said header.
 	// This is safe as Docker doesn't set Referer in other scenarios.
@@ -154,6 +159,7 @@ func (tr *authTransport) CancelRequest(req *http.Request) {
 	}
 }
 
+// NewSession creates a new session
 // TODO(tiborvass): remove authConfig param once registry client v2 is vendored
 func NewSession(client *http.Client, authConfig *cliconfig.AuthConfig, endpoint *Endpoint) (r *Session, err error) {
 	r = &Session{
@@ -167,7 +173,7 @@ func NewSession(client *http.Client, authConfig *cliconfig.AuthConfig, endpoint 
 
 	// If we're working with a standalone private registry over HTTPS, send Basic Auth headers
 	// alongside all our requests.
-	if endpoint.VersionString(1) != INDEXSERVER && endpoint.URL.Scheme == "https" {
+	if endpoint.VersionString(1) != IndexServer && endpoint.URL.Scheme == "https" {
 		info, err := endpoint.Ping()
 		if err != nil {
 			return nil, err
@@ -196,8 +202,8 @@ func (r *Session) ID() string {
 	return r.id
 }
 
-// Retrieve the history of a given image from the Registry.
-// Return a list of the parent's json (requested image included)
+// GetRemoteHistory retrieves the history of a given image from the registry.
+// It returns a list of the parent's JSON files (including the requested image).
 func (r *Session) GetRemoteHistory(imgID, registry string) ([]string, error) {
 	res, err := r.client.Get(registry + "images/" + imgID + "/ancestry")
 	if err != nil {
@@ -220,7 +226,7 @@ func (r *Session) GetRemoteHistory(imgID, registry string) ([]string, error) {
 	return history, nil
 }
 
-// Check if an image exists in the Registry
+// LookupRemoteImage checks if an image exists in the registry
 func (r *Session) LookupRemoteImage(imgID, registry string) error {
 	res, err := r.client.Get(registry + "images/" + imgID + "/json")
 	if err != nil {
@@ -233,7 +239,7 @@ func (r *Session) LookupRemoteImage(imgID, registry string) error {
 	return nil
 }
 
-// Retrieve an image from the Registry.
+// GetRemoteImageJSON retrieves an image's JSON metadata from the registry.
 func (r *Session) GetRemoteImageJSON(imgID, registry string) ([]byte, int, error) {
 	res, err := r.client.Get(registry + "images/" + imgID + "/json")
 	if err != nil {
@@ -259,6 +265,7 @@ func (r *Session) GetRemoteImageJSON(imgID, registry string) ([]byte, int, error
 	return jsonString, imageSize, nil
 }
 
+// GetRemoteImageLayer retrieves an image layer from the registry
 func (r *Session) GetRemoteImageLayer(imgID, registry string, imgSize int64) (io.ReadCloser, error) {
 	var (
 		retries    = 5
@@ -308,9 +315,13 @@ func (r *Session) GetRemoteImageLayer(imgID, registry string, imgSize int64) (io
 	return res.Body, nil
 }
 
+// GetRemoteTag retrieves the tag named in the askedTag argument from the given
+// repository. It queries each of the registries supplied in the registries
+// argument, and returns data from the first one that answers the query
+// successfully.
 func (r *Session) GetRemoteTag(registries []string, repository string, askedTag string) (string, error) {
 	if strings.Count(repository, "/") == 0 {
-		// This will be removed once the Registry supports auto-resolution on
+		// This will be removed once the registry supports auto-resolution on
 		// the "library" namespace
 		repository = "library/" + repository
 	}
@@ -331,18 +342,22 @@ func (r *Session) GetRemoteTag(registries []string, repository string, askedTag 
 			continue
 		}
 
-		var tagId string
-		if err := json.NewDecoder(res.Body).Decode(&tagId); err != nil {
+		var tagID string
+		if err := json.NewDecoder(res.Body).Decode(&tagID); err != nil {
 			return "", err
 		}
-		return tagId, nil
+		return tagID, nil
 	}
 	return "", fmt.Errorf("Could not reach any registry endpoint")
 }
 
+// GetRemoteTags retrieves all tags from the given repository. It queries each
+// of the registries supplied in the registries argument, and returns data from
+// the first one that answers the query successfully. It returns a map with
+// tag names as the keys and image IDs as the values.
 func (r *Session) GetRemoteTags(registries []string, repository string) (map[string]string, error) {
 	if strings.Count(repository, "/") == 0 {
-		// This will be removed once the Registry supports auto-resolution on
+		// This will be removed once the registry supports auto-resolution on
 		// the "library" namespace
 		repository = "library/" + repository
 	}
@@ -379,7 +394,7 @@ func buildEndpointsList(headers []string, indexEp string) ([]string, error) {
 		return nil, err
 	}
 	var urlScheme = parsedURL.Scheme
-	// The Registry's URL scheme has to match the Index'
+	// The registry's URL scheme has to match the Index'
 	for _, ep := range headers {
 		epList := strings.Split(ep, ",")
 		for _, epListElement := range epList {
@@ -391,6 +406,7 @@ func buildEndpointsList(headers []string, indexEp string) ([]string, error) {
 	return endpoints, nil
 }
 
+// GetRepositoryData returns lists of images and endpoints for the repository
 func (r *Session) GetRepositoryData(remote string) (*RepositoryData, error) {
 	repositoryTarget := fmt.Sprintf("%srepositories/%s/images", r.indexEndpoint.VersionString(1), remote)
 
@@ -457,8 +473,8 @@ func (r *Session) GetRepositoryData(remote string) (*RepositoryData, error) {
 	}, nil
 }
 
+// PushImageChecksumRegistry uploads checksums for an image
 func (r *Session) PushImageChecksumRegistry(imgData *ImgData, registry string) error {
-
 	u := registry + "images/" + imgData.ID + "/checksum"
 
 	logrus.Debugf("[registry] Calling PUT %s", u)
@@ -494,7 +510,7 @@ func (r *Session) PushImageChecksumRegistry(imgData *ImgData, registry string) e
 	return nil
 }
 
-// Push a local image to the registry
+// PushImageJSONRegistry pushes JSON metadata for a local image to the registry
 func (r *Session) PushImageJSONRegistry(imgData *ImgData, jsonRaw []byte, registry string) error {
 
 	u := registry + "images/" + imgData.ID + "/json"
@@ -531,8 +547,8 @@ func (r *Session) PushImageJSONRegistry(imgData *ImgData, jsonRaw []byte, regist
 	return nil
 }
 
+// PushImageLayerRegistry sends the checksum of an image layer to the registry
 func (r *Session) PushImageLayerRegistry(imgID string, layer io.Reader, registry string, jsonRaw []byte) (checksum string, checksumPayload string, err error) {
-
 	u := registry + "images/" + imgID + "/layer"
 
 	logrus.Debugf("[registry] Calling PUT %s", u)
@@ -576,7 +592,7 @@ func (r *Session) PushImageLayerRegistry(imgID string, layer io.Reader, registry
 	return tarsumLayer.Sum(jsonRaw), checksumPayload, nil
 }
 
-// push a tag on the registry.
+// PushRegistryTag pushes a tag on the registry.
 // Remote has the format '<user>/<repo>
 func (r *Session) PushRegistryTag(remote, revision, tag, registry string) error {
 	// "jsonify" the string
@@ -600,6 +616,7 @@ func (r *Session) PushRegistryTag(remote, revision, tag, registry string) error 
 	return nil
 }
 
+// PushImageJSONIndex uploads an image list to the repository
 func (r *Session) PushImageJSONIndex(remote string, imgList []*ImgData, validate bool, regs []string) (*RepositoryData, error) {
 	cleanImgList := []*ImgData{}
 	if validate {
@@ -705,6 +722,7 @@ func shouldRedirect(response *http.Response) bool {
 	return response.StatusCode >= 300 && response.StatusCode < 400
 }
 
+// SearchRepositories performs a search against the remote repository
 func (r *Session) SearchRepositories(term string) (*SearchResults, error) {
 	logrus.Debugf("Index server: %s", r.indexEndpoint)
 	u := r.indexEndpoint.VersionString(1) + "search?q=" + url.QueryEscape(term)
@@ -727,6 +745,7 @@ func (r *Session) SearchRepositories(term string) (*SearchResults, error) {
 	return result, json.NewDecoder(res.Body).Decode(result)
 }
 
+// GetAuthConfig returns the authentication settings for a session
 // TODO(tiborvass): remove this once registry client v2 is vendored
 func (r *Session) GetAuthConfig(withPasswd bool) *cliconfig.AuthConfig {
 	password := ""

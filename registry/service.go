@@ -17,12 +17,14 @@ import (
 	"github.com/docker/docker/pkg/tlsconfig"
 )
 
+// Service is a registry service. It tracks configuration data such as a list
+// of mirrors.
 type Service struct {
 	Config *ServiceConfig
 }
 
 // NewService returns a new instance of Service ready to be
-// installed no an engine.
+// installed into an engine.
 func NewService(options *Options) *Service {
 	return &Service{
 		Config: NewServiceConfig(options),
@@ -36,7 +38,7 @@ func (s *Service) Auth(authConfig *cliconfig.AuthConfig) (string, error) {
 	addr := authConfig.ServerAddress
 	if addr == "" {
 		// Use the official registry address if not specified.
-		addr = INDEXSERVER
+		addr = IndexServer
 	}
 	index, err := s.ResolveIndex(addr)
 	if err != nil {
@@ -81,6 +83,7 @@ func (s *Service) ResolveIndex(name string) (*IndexInfo, error) {
 	return s.Config.NewIndexInfo(name)
 }
 
+// APIEndpoint represents a remote API endpoint
 type APIEndpoint struct {
 	Mirror        bool
 	URL           string
@@ -92,12 +95,13 @@ type APIEndpoint struct {
 	Versions      []auth.APIVersion
 }
 
+// ToV1Endpoint returns a V1 API endpoint based on the APIEndpoint
 func (e APIEndpoint) ToV1Endpoint(metaHeaders http.Header) (*Endpoint, error) {
 	return newEndpoint(e.URL, e.TLSConfig, metaHeaders)
 }
 
-func (s *Service) TlsConfig(hostname string) (*tls.Config, error) {
-	// we construct a client tls config from server defaults
+// TLSConfig constructs a client TLS configuration based on server defaults
+func (s *Service) TLSConfig(hostname string) (*tls.Config, error) {
 	// PreferredServerCipherSuites should have no effect
 	tlsConfig := tlsconfig.ServerDefault
 
@@ -115,7 +119,7 @@ func (s *Service) TlsConfig(hostname string) (*tls.Config, error) {
 			return false
 		}
 
-		hostDir := filepath.Join(CERTS_DIR, hostname)
+		hostDir := filepath.Join(CertsDir, hostname)
 		logrus.Debugf("hostDir: %s", hostDir)
 		fs, err := ioutil.ReadDir(hostDir)
 		if err != nil && !os.IsNotExist(err) {
@@ -163,20 +167,23 @@ func (s *Service) TlsConfig(hostname string) (*tls.Config, error) {
 }
 
 func (s *Service) tlsConfigForMirror(mirror string) (*tls.Config, error) {
-	mirrorUrl, err := url.Parse(mirror)
+	mirrorURL, err := url.Parse(mirror)
 	if err != nil {
 		return nil, err
 	}
-	return s.TlsConfig(mirrorUrl.Host)
+	return s.TLSConfig(mirrorURL.Host)
 }
 
+// LookupEndpoints creates an list of endpoints to try, in order of preference.
+// It gives preference to v2 endpoints over v1, mirrors over the actual
+// registry, and HTTPS over plain HTTP.
 func (s *Service) LookupEndpoints(repoName string) (endpoints []APIEndpoint, err error) {
 	var cfg = tlsconfig.ServerDefault
 	tlsConfig := &cfg
-	if strings.HasPrefix(repoName, DEFAULT_NAMESPACE+"/") {
+	if strings.HasPrefix(repoName, DefaultNamespace+"/") {
 		// v2 mirrors
 		for _, mirror := range s.Config.Mirrors {
-			mirrorTlsConfig, err := s.tlsConfigForMirror(mirror)
+			mirrorTLSConfig, err := s.tlsConfigForMirror(mirror)
 			if err != nil {
 				return nil, err
 			}
@@ -186,12 +193,12 @@ func (s *Service) LookupEndpoints(repoName string) (endpoints []APIEndpoint, err
 				Version:      APIVersion2,
 				Mirror:       true,
 				TrimHostname: true,
-				TLSConfig:    mirrorTlsConfig,
+				TLSConfig:    mirrorTLSConfig,
 			})
 		}
 		// v2 registry
 		endpoints = append(endpoints, APIEndpoint{
-			URL:          DEFAULT_V2_REGISTRY,
+			URL:          DefaultV2Registry,
 			Version:      APIVersion2,
 			Official:     true,
 			TrimHostname: true,
@@ -199,7 +206,7 @@ func (s *Service) LookupEndpoints(repoName string) (endpoints []APIEndpoint, err
 		})
 		// v1 registry
 		endpoints = append(endpoints, APIEndpoint{
-			URL:          DEFAULT_V1_REGISTRY,
+			URL:          DefaultV1Registry,
 			Version:      APIVersion1,
 			Official:     true,
 			TrimHostname: true,
@@ -214,7 +221,7 @@ func (s *Service) LookupEndpoints(repoName string) (endpoints []APIEndpoint, err
 	}
 	hostname := repoName[:slashIndex]
 
-	tlsConfig, err = s.TlsConfig(hostname)
+	tlsConfig, err = s.TLSConfig(hostname)
 	if err != nil {
 		return nil, err
 	}
@@ -232,7 +239,7 @@ func (s *Service) LookupEndpoints(repoName string) (endpoints []APIEndpoint, err
 			Version:       APIVersion2,
 			TrimHostname:  true,
 			TLSConfig:     tlsConfig,
-			VersionHeader: DEFAULT_REGISTRY_VERSION_HEADER,
+			VersionHeader: DefaultRegistryVersionHeader,
 			Versions:      v2Versions,
 		},
 		{
@@ -250,7 +257,7 @@ func (s *Service) LookupEndpoints(repoName string) (endpoints []APIEndpoint, err
 			TrimHostname: true,
 			// used to check if supposed to be secure via InsecureSkipVerify
 			TLSConfig:     tlsConfig,
-			VersionHeader: DEFAULT_REGISTRY_VERSION_HEADER,
+			VersionHeader: DefaultRegistryVersionHeader,
 			Versions:      v2Versions,
 		}, APIEndpoint{
 			URL:          "http://" + hostname,

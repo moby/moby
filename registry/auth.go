@@ -36,7 +36,7 @@ func loginV1(authConfig *cliconfig.AuthConfig, registryEndpoint *Endpoint) (stri
 		return "", fmt.Errorf("Server Error: Server Address not set.")
 	}
 
-	loginAgainstOfficialIndex := serverAddress == INDEXSERVER
+	loginAgainstOfficialIndex := serverAddress == IndexServer
 
 	// to avoid sending the server address to the server it should be removed before being marshalled
 	authCopy := *authConfig
@@ -220,7 +220,7 @@ func tryV2TokenAuthLogin(authConfig *cliconfig.AuthConfig, params map[string]str
 	return nil
 }
 
-// this method matches a auth configuration to a server address or a url
+// ResolveAuthConfig matches an auth configuration to a server address or a URL
 func ResolveAuthConfig(config *cliconfig.ConfigFile, index *IndexInfo) cliconfig.AuthConfig {
 	configKey := index.GetAuthConfigKey()
 	// First try the happy case

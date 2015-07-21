@@ -33,7 +33,7 @@ func (p *v1Puller) Pull(tag string) (fallback bool, err error) {
 		return true, registry.ErrNoSupport{errors.New("Cannot pull by digest with v1 registry")}
 	}
 
-	tlsConfig, err := p.registryService.TlsConfig(p.repoInfo.Index.Name)
+	tlsConfig, err := p.registryService.TLSConfig(p.repoInfo.Index.Name)
 	if err != nil {
 		return false, err
 	}
