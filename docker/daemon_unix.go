@@ -15,7 +15,7 @@ import (
 	_ "github.com/docker/docker/daemon/execdriver/native"
 )
 
-func setPlatformServerConfig(serverConfig *apiserver.ServerConfig, daemonCfg *daemon.Config) *apiserver.ServerConfig {
+func setPlatformServerConfig(serverConfig *apiserver.Config, daemonCfg *daemon.Config) *apiserver.Config {
 	serverConfig.SocketGroup = daemonCfg.SocketGroup
 	serverConfig.EnableCors = daemonCfg.EnableCors
 	serverConfig.CorsHeaders = daemonCfg.CorsHeaders

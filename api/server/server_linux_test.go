@@ -9,60 +9,60 @@ import (
 	"github.com/docker/docker/runconfig"
 )
 
-func TestAdjustCpuSharesOldApi(t *testing.T) {
+func TestAdjustCPUSharesOldApi(t *testing.T) {
 	apiVersion := version.Version("1.18")
 	hostConfig := &runconfig.HostConfig{
-		CPUShares: linuxMinCpuShares - 1,
+		CPUShares: linuxMinCPUShares - 1,
 	}
-	adjustCpuShares(apiVersion, hostConfig)
-	if hostConfig.CPUShares != linuxMinCpuShares {
-		t.Errorf("Expected CpuShares to be %d", linuxMinCpuShares)
+	adjustCPUShares(apiVersion, hostConfig)
+	if hostConfig.CPUShares != linuxMinCPUShares {
+		t.Errorf("Expected CPUShares to be %d", linuxMinCPUShares)
 	}
 
-	hostConfig.CPUShares = linuxMaxCpuShares + 1
-	adjustCpuShares(apiVersion, hostConfig)
-	if hostConfig.CPUShares != linuxMaxCpuShares {
-		t.Errorf("Expected CpuShares to be %d", linuxMaxCpuShares)
+	hostConfig.CPUShares = linuxMaxCPUShares + 1
+	adjustCPUShares(apiVersion, hostConfig)
+	if hostConfig.CPUShares != linuxMaxCPUShares {
+		t.Errorf("Expected CPUShares to be %d", linuxMaxCPUShares)
 	}
 
 	hostConfig.CPUShares = 0
-	adjustCpuShares(apiVersion, hostConfig)
+	adjustCPUShares(apiVersion, hostConfig)
 	if hostConfig.CPUShares != 0 {
-		t.Error("Expected CpuShares to be unchanged")
+		t.Error("Expected CPUShares to be unchanged")
 	}
 
 	hostConfig.CPUShares = 1024
-	adjustCpuShares(apiVersion, hostConfig)
+	adjustCPUShares(apiVersion, hostConfig)
 	if hostConfig.CPUShares != 1024 {
-		t.Error("Expected CpuShares to be unchanged")
+		t.Error("Expected CPUShares to be unchanged")
 	}
 }
 
-func TestAdjustCpuSharesNoAdjustment(t *testing.T) {
+func TestAdjustCPUSharesNoAdjustment(t *testing.T) {
 	apiVersion := version.Version("1.19")
 	hostConfig := &runconfig.HostConfig{
-		CPUShares: linuxMinCpuShares - 1,
+		CPUShares: linuxMinCPUShares - 1,
 	}
-	adjustCpuShares(apiVersion, hostConfig)
-	if hostConfig.CPUShares != linuxMinCpuShares-1 {
-		t.Errorf("Expected CpuShares to be %d", linuxMinCpuShares-1)
+	adjustCPUShares(apiVersion, hostConfig)
+	if hostConfig.CPUShares != linuxMinCPUShares-1 {
+		t.Errorf("Expected CPUShares to be %d", linuxMinCPUShares-1)
 	}
 
-	hostConfig.CPUShares = linuxMaxCpuShares + 1
-	adjustCpuShares(apiVersion, hostConfig)
-	if hostConfig.CPUShares != linuxMaxCpuShares+1 {
-		t.Errorf("Expected CpuShares to be %d", linuxMaxCpuShares+1)
+	hostConfig.CPUShares = linuxMaxCPUShares + 1
+	adjustCPUShares(apiVersion, hostConfig)
+	if hostConfig.CPUShares != linuxMaxCPUShares+1 {
+		t.Errorf("Expected CPUShares to be %d", linuxMaxCPUShares+1)
 	}
 
 	hostConfig.CPUShares = 0
-	adjustCpuShares(apiVersion, hostConfig)
+	adjustCPUShares(apiVersion, hostConfig)
 	if hostConfig.CPUShares != 0 {
-		t.Error("Expected CpuShares to be unchanged")
+		t.Error("Expected CPUShares to be unchanged")
 	}
 
 	hostConfig.CPUShares = 1024
-	adjustCpuShares(apiVersion, hostConfig)
+	adjustCPUShares(apiVersion, hostConfig)
 	if hostConfig.CPUShares != 1024 {
-		t.Error("Expected CpuShares to be unchanged")
+		t.Error("Expected CPUShares to be unchanged")
 	}
 }
