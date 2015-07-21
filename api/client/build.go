@@ -1,6 +1,7 @@
 package client
 
 import (
+	"archive/tar"
 	"bufio"
 	"encoding/base64"
 	"encoding/json"
@@ -13,6 +14,7 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
@@ -112,6 +114,14 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 		contextDir = tempDir
 	}
 
+	// Resolve the FROM lines in the Dockerfile to trusted digest references
+	// using Notary.
+	newDockerfile, err := rewriteDockerfileFrom(filepath.Join(contextDir, relDockerfile), cli.trustedReference)
+	if err != nil {
+		return fmt.Errorf("unable to process Dockerfile: %v", err)
+	}
+	defer newDockerfile.Close()
+
 	// And canonicalize dockerfile name to a platform-independent one
 	relDockerfile, err = archive.CanonicalTarNameForPath(relDockerfile)
 	if err != nil {
@@ -142,13 +152,18 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 		includes = append(includes, ".dockerignore", relDockerfile)
 	}
 
-	if context, err = archive.TarWithOptions(contextDir, &archive.TarOptions{
+	context, err = archive.TarWithOptions(contextDir, &archive.TarOptions{
 		Compression:     archive.Uncompressed,
 		ExcludePatterns: excludes,
 		IncludeFiles:    includes,
-	}); err != nil {
+	})
+	if err != nil {
 		return err
 	}
+
+	// Wrap the tar archive to replace the Dockerfile entry with the rewritten
+	// Dockerfile which uses trusted pulls.
+	context = replaceDockerfileTarWrapper(context, newDockerfile, relDockerfile)
 
 	// Setup an upload progress bar
 	// FIXME: ProgressReader shouldn't be this annoying to use
@@ -438,4 +453,134 @@ func getContextFromLocalDir(localDir, dockerfileName string) (absContextDir, rel
 	}
 
 	return getDockerfileRelPath(localDir, dockerfileName)
+}
+
+var dockerfileFromLinePattern = regexp.MustCompile(`(?i)^[\s]*FROM[ \f\r\t\v]+(?P<image>[^ \f\r\t\v\n#]+)`)
+
+type trustedDockerfile struct {
+	*os.File
+	size int64
+}
+
+func (td *trustedDockerfile) Close() error {
+	td.File.Close()
+	return os.Remove(td.File.Name())
+}
+
+// rewriteDockerfileFrom rewrites the given Dockerfile by resolving images in
+// "FROM <image>" instructions to a digest reference. `translator` is a
+// function that takes a repository name and tag reference and returns a
+// trusted digest reference.
+func rewriteDockerfileFrom(dockerfileName string, translator func(string, registry.Reference) (registry.Reference, error)) (newDockerfile *trustedDockerfile, err error) {
+	dockerfile, err := os.Open(dockerfileName)
+	if err != nil {
+		return nil, fmt.Errorf("unable to open Dockerfile: %v", err)
+	}
+	defer dockerfile.Close()
+
+	scanner := bufio.NewScanner(dockerfile)
+
+	// Make a tempfile to store the rewritten Dockerfile.
+	tempFile, err := ioutil.TempFile("", "trusted-dockerfile-")
+	if err != nil {
+		return nil, fmt.Errorf("unable to make temporary trusted Dockerfile: %v", err)
+	}
+
+	trustedFile := &trustedDockerfile{
+		File: tempFile,
+	}
+
+	defer func() {
+		if err != nil {
+			// Close the tempfile if there was an error during Notary lookups.
+			// Otherwise the caller should close it.
+			trustedFile.Close()
+		}
+	}()
+
+	// Scan the lines of the Dockerfile, looking for a "FROM" line.
+	for scanner.Scan() {
+		line := scanner.Text()
+
+		matches := dockerfileFromLinePattern.FindStringSubmatch(line)
+		if matches != nil && matches[1] != "scratch" {
+			// Replace the line with a resolved "FROM repo@digest"
+			repo, tag := parsers.ParseRepositoryTag(matches[1])
+			if tag == "" {
+				tag = tags.DEFAULTTAG
+			}
+			ref := registry.ParseReference(tag)
+
+			if !ref.HasDigest() && isTrusted() {
+				trustedRef, err := translator(repo, ref)
+				if err != nil {
+					return nil, err
+				}
+
+				line = dockerfileFromLinePattern.ReplaceAllLiteralString(line, fmt.Sprintf("FROM %s", trustedRef.ImageName(repo)))
+			}
+		}
+
+		n, err := fmt.Fprintln(tempFile, line)
+		if err != nil {
+			return nil, err
+		}
+
+		trustedFile.size += int64(n)
+	}
+
+	tempFile.Seek(0, os.SEEK_SET)
+
+	return trustedFile, scanner.Err()
+}
+
+// replaceDockerfileTarWrapper wraps the given input tar archive stream and
+// replaces the entry with the given Dockerfile name with the contents of the
+// new Dockerfile. Returns a new tar archive stream with the replaced
+// Dockerfile.
+func replaceDockerfileTarWrapper(inputTarStream io.ReadCloser, newDockerfile *trustedDockerfile, dockerfileName string) io.ReadCloser {
+	pipeReader, pipeWriter := io.Pipe()
+
+	go func() {
+		tarReader := tar.NewReader(inputTarStream)
+		tarWriter := tar.NewWriter(pipeWriter)
+
+		defer inputTarStream.Close()
+
+		for {
+			hdr, err := tarReader.Next()
+			if err == io.EOF {
+				// Signals end of archive.
+				tarWriter.Close()
+				pipeWriter.Close()
+				return
+			}
+			if err != nil {
+				pipeWriter.CloseWithError(err)
+				return
+			}
+
+			var content io.Reader = tarReader
+
+			if hdr.Name == dockerfileName {
+				// This entry is the Dockerfile. Since the tar archive was
+				// generated from a directory on the local filesystem, the
+				// Dockerfile will only appear once in the archive.
+				hdr.Size = newDockerfile.size
+				content = newDockerfile
+			}
+
+			if err := tarWriter.WriteHeader(hdr); err != nil {
+				pipeWriter.CloseWithError(err)
+				return
+			}
+
+			if _, err := io.Copy(tarWriter, content); err != nil {
+				pipeWriter.CloseWithError(err)
+				return
+			}
+		}
+	}()
+
+	return pipeReader
 }
