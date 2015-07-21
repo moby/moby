@@ -4,13 +4,15 @@ source "${MAKEDIR}/.validate"
 
 # We will eventually get to the point when packages should be the complete list
 # of subpackages, vendoring excluded, as given by:
-#  go list ./... | grep -v "^github.com/docker/docker/vendor"
+#
+# packages=( $(go list ./... 2> /dev/null | grep -vE "^github.com/docker/docker/vendor" || true ) )
+
 packages=(
 	builder/parser/dumper
 	daemon/events
 	daemon/execdriver/native/template
+	daemon/graphdriver/btrfs
 	daemon/network
-	cliconfig
 	docker
 	dockerinit
 	pkg/chrootarchive
@@ -19,21 +21,24 @@ packages=(
 	pkg/homedir
 	pkg/listenbuffer
 	pkg/mflag/example
+	pkg/namesgenerator
 	pkg/promise
 	pkg/pubsub
 	pkg/random
+	pkg/reexec
 	pkg/symlink
 	pkg/timeutils
 	pkg/tlsconfig
 	pkg/urlutil
 	pkg/version
+	utils
 )
 
 errors=()
-for p in "$packages"; do
-	failedLint=$(golint "github.com/docker/docker/$p")
+for p in "${packages[@]}"; do
+	failedLint=$(golint "$p")
 	if [ "$failedLint" ]; then
-		errors+=( "$failedLint"  )
+		errors+=( "$failedLint" )
 	fi
 done
 
@@ -42,7 +47,9 @@ if [ ${#errors[@]} -eq 0 ]; then
 else
 	{
 		echo "Errors from golint:"
-		echo "${errors[@]}"
+		for err in "${errors[@]}"; do
+			echo "$err"
+		done
 		echo
 		echo 'Please fix the above errors. You can test via "golint" and commit the result.'
 		echo
