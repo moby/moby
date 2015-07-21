@@ -63,6 +63,9 @@ packages=(
 	registry
 	runconfig
 	utils
+	volume
+	volume/local
+	volume/drivers
 )
 
 errors=()

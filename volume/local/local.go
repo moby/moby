@@ -1,3 +1,6 @@
+// Package local provides the default implementation for volumes. It
+// is used to mount data volume containers and directories local to
+// the host server.
 package local
 
 import (
@@ -13,7 +16,7 @@ import (
 )
 
 // VolumeDataPathName is the name of the directory where the volume data is stored.
-// It uses a very distintive name to avoid colissions migrating data between
+// It uses a very distintive name to avoid collisions migrating data between
 // Docker versions.
 const (
 	VolumeDataPathName = "_data"
@@ -22,6 +25,9 @@ const (
 
 var oldVfsDir = filepath.Join("vfs", "dir")
 
+// New instantiates a new Root instance with the provided scope. Scope
+// is the base path that the Root instance uses to store its
+// volumes. The base path is created here if it does not exist.
 func New(scope string) (*Root, error) {
 	rootDirectory := filepath.Join(scope, volumesPathName)
 
@@ -32,7 +38,7 @@ func New(scope string) (*Root, error) {
 	r := &Root{
 		scope:   scope,
 		path:    rootDirectory,
-		volumes: make(map[string]*Volume),
+		volumes: make(map[string]*localVolume),
 	}
 
 	dirs, err := ioutil.ReadDir(rootDirectory)
@@ -42,7 +48,7 @@ func New(scope string) (*Root, error) {
 
 	for _, d := range dirs {
 		name := filepath.Base(d.Name())
-		r.volumes[name] = &Volume{
+		r.volumes[name] = &localVolume{
 			driverName: r.Name(),
 			name:       name,
 			path:       r.DataPath(name),
@@ -51,21 +57,29 @@ func New(scope string) (*Root, error) {
 	return r, nil
 }
 
+// Root implements the Driver interface for the volume package and
+// manages the creation/removal of volumes. It uses only standard vfs
+// commands to create/remove dirs within its provided scope.
 type Root struct {
 	m       sync.Mutex
 	scope   string
 	path    string
-	volumes map[string]*Volume
+	volumes map[string]*localVolume
 }
 
+// DataPath returns the constructed path of this volume.
 func (r *Root) DataPath(volumeName string) string {
 	return filepath.Join(r.path, volumeName, VolumeDataPathName)
 }
 
+// Name returns the name of Root, defined in the volume package in the DefaultDriverName constant.
 func (r *Root) Name() string {
-	return "local"
+	return volume.DefaultDriverName
 }
 
+// Create creates a new volume.Volume with the provided name, creating
+// the underlying directory tree required for this volume in the
+// process.
 func (r *Root) Create(name string) (volume.Volume, error) {
 	r.m.Lock()
 	defer r.m.Unlock()
@@ -79,7 +93,7 @@ func (r *Root) Create(name string) (volume.Volume, error) {
 			}
 			return nil, err
 		}
-		v = &Volume{
+		v = &localVolume{
 			driverName: r.Name(),
 			name:       name,
 			path:       path,
@@ -90,10 +104,14 @@ func (r *Root) Create(name string) (volume.Volume, error) {
 	return v, nil
 }
 
+// Remove removes the specified volume and all underlying data. If the
+// given volume does not belong to this driver and an error is
+// returned. The volume is reference counted, if all references are
+// not released then the volume is not removed.
 func (r *Root) Remove(v volume.Volume) error {
 	r.m.Lock()
 	defer r.m.Unlock()
-	lv, ok := v.(*Volume)
+	lv, ok := v.(*localVolume)
 	if !ok {
 		return errors.New("unknown volume type")
 	}
@@ -133,7 +151,9 @@ func (r *Root) scopedPath(realPath string) bool {
 	return false
 }
 
-type Volume struct {
+// localVolume implements the Volume interface from the volume package and
+// represents the volumes created by Root.
+type localVolume struct {
 	m         sync.Mutex
 	usedCount int
 	// unique name of the volume
@@ -144,33 +164,38 @@ type Volume struct {
 	driverName string
 }
 
-func (v *Volume) Name() string {
+// Name returns the name of the given Volume.
+func (v *localVolume) Name() string {
 	return v.name
 }
 
-func (v *Volume) DriverName() string {
+// DriverName returns the driver that created the given Volume.
+func (v *localVolume) DriverName() string {
 	return v.driverName
 }
 
-func (v *Volume) Path() string {
+// Path returns the data location.
+func (v *localVolume) Path() string {
 	return v.path
 }
 
-func (v *Volume) Mount() (string, error) {
+// Mount implements the localVolume interface, returning the data location.
+func (v *localVolume) Mount() (string, error) {
 	return v.path, nil
 }
 
-func (v *Volume) Unmount() error {
+// Umount is for satisfying the localVolume interface and does not do anything in this driver.
+func (v *localVolume) Unmount() error {
 	return nil
 }
 
-func (v *Volume) use() {
+func (v *localVolume) use() {
 	v.m.Lock()
 	v.usedCount++
 	v.m.Unlock()
 }
 
-func (v *Volume) release() {
+func (v *localVolume) release() {
 	v.m.Lock()
 	v.usedCount--
 	v.m.Unlock()

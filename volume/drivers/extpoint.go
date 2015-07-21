@@ -18,6 +18,8 @@ type driverExtpoint struct {
 	sync.Mutex
 }
 
+// Register associates the given driver to the given name, checking if
+// the name is already associated
 func Register(extension volume.Driver, name string) bool {
 	drivers.Lock()
 	defer drivers.Unlock()
@@ -32,6 +34,7 @@ func Register(extension volume.Driver, name string) bool {
 	return true
 }
 
+// Unregister dissociates the name from it's driver, if the association exists.
 func Unregister(name string) bool {
 	drivers.Lock()
 	defer drivers.Unlock()
@@ -43,6 +46,9 @@ func Unregister(name string) bool {
 	return true
 }
 
+// Lookup returns the driver associated with the given name. If a
+// driver with the given name has not been registered it checks if
+// there is a VolumeDriver plugin available with the given name.
 func Lookup(name string) (volume.Driver, error) {
 	drivers.Lock()
 	defer drivers.Unlock()
