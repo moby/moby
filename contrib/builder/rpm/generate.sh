@@ -80,9 +80,5 @@ for version in "${versions[@]}"; do
 
 	echo 'ENV AUTO_GOPATH 1' >> "$version/Dockerfile"
 
-	if [ "$from" == "centos:6" ]; then
-		echo 'ENV DOCKER_BUILDTAGS selinux exclude_graphdriver_btrfs' >> "$version/Dockerfile"
-	else
-		echo 'ENV DOCKER_BUILDTAGS selinux' >> "$version/Dockerfile"
-	fi
+	echo 'ENV DOCKER_BUILDTAGS selinux' >> "$version/Dockerfile"
 done
