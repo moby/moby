@@ -26,6 +26,7 @@ packages=(
 	daemon/execdriver/windows
 	daemon/graphdriver/aufs
 	daemon/graphdriver/devmapper
+	daemon/graphdriver/vfs
 	daemon/graphdriver/zfs
 	daemon/logger
 	daemon/logger/fluentd
@@ -37,7 +38,7 @@ packages=(
 	docker
 	dockerinit
 	graph
-	daemon/graphdriver/vfs
+	graph/tags
 	image
 	integration-cli
 	pkg/broadcastwriter
