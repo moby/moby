@@ -3,7 +3,9 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"io/ioutil"
 	"net/http"
+	"os"
 	"os/exec"
 	"regexp"
 	"strconv"
@@ -519,6 +521,7 @@ func (s *DockerSuite) TestEventsCommit(c *check.C) {
 func (s *DockerSuite) TestEventsCopy(c *check.C) {
 	since := daemonTime(c).Unix()
 
+	// Build a test image.
 	id, err := buildImage("cpimg", `
 		  FROM busybox
 		  RUN echo HI > /tmp/file`, true)
@@ -526,12 +529,31 @@ func (s *DockerSuite) TestEventsCopy(c *check.C) {
 		c.Fatalf("Couldn't create image: %q", err)
 	}
 
-	dockerCmd(c, "run", "--name=cptest", id, "true")
-	dockerCmd(c, "cp", "cptest:/tmp/file", "-")
+	// Create an empty test file.
+	tempFile, err := ioutil.TempFile("", "test-events-copy-")
+	if err != nil {
+		c.Fatal(err)
+	}
+	defer os.Remove(tempFile.Name())
+
+	if err := tempFile.Close(); err != nil {
+		c.Fatal(err)
+	}
+
+	dockerCmd(c, "create", "--name=cptest", id)
+
+	dockerCmd(c, "cp", "cptest:/tmp/file", tempFile.Name())
 
 	out, _ := dockerCmd(c, "events", "--since=0", "-f", "container=cptest", "--until="+strconv.Itoa(int(since)))
-	if !strings.Contains(out, " copy\n") {
-		c.Fatalf("Missing 'copy' log event\n%s", out)
+	if !strings.Contains(out, " archive-path\n") {
+		c.Fatalf("Missing 'archive-path' log event\n%s", out)
+	}
+
+	dockerCmd(c, "cp", tempFile.Name(), "cptest:/tmp/filecopy")
+
+	out, _ = dockerCmd(c, "events", "--since=0", "-f", "container=cptest", "--until="+strconv.Itoa(int(since)))
+	if !strings.Contains(out, " extract-to-dir\n") {
+		c.Fatalf("Missing 'extract-to-dir' log event\n%s", out)
 	}
 }
 
