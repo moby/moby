@@ -1267,17 +1267,6 @@ func setupNotary(c *check.C) *testNotary {
 		c.Fatal(err)
 	}
 
-	// Wait for notary to be ready to serve requests.
-	for i := 1; i <= 5; i++ {
-		if err = ts.Ping(); err == nil {
-			break
-		}
-		time.Sleep(10 * time.Millisecond * time.Duration(i*i))
-	}
-
-	if err != nil {
-		c.Fatalf("Timeout waiting for test notary to become available: %s", err)
-	}
 	return ts
 }
 
