@@ -1,6 +1,7 @@
 package server
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -26,4 +27,30 @@ func int64ValueOrZero(r *http.Request, k string) int64 {
 		return 0
 	}
 	return val
+}
+
+type archiveOptions struct {
+	name string
+	path string
+}
+
+func archiveFormValues(r *http.Request, vars map[string]string) (archiveOptions, error) {
+	if vars == nil {
+		return archiveOptions{}, fmt.Errorf("Missing parameter")
+	}
+	if err := parseForm(r); err != nil {
+		return archiveOptions{}, err
+	}
+
+	name := vars["name"]
+	path := r.Form.Get("path")
+
+	switch {
+	case name == "":
+		return archiveOptions{}, fmt.Errorf("bad parameter: 'name' cannot be empty")
+	case path == "":
+		return archiveOptions{}, fmt.Errorf("bad parameter: 'path' cannot be empty")
+	}
+
+	return archiveOptions{name, path}, nil
 }
