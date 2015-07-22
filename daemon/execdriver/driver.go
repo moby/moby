@@ -39,10 +39,6 @@ type Terminal interface {
 	Resize(height, width int) error
 }
 
-type TtyTerminal interface {
-	Master() libcontainer.Console
-}
-
 // ExitStatus provides exit reasons for a container.
 type ExitStatus struct {
 	// The exit code with which the container exited.

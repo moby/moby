@@ -25,15 +25,23 @@ import (
 )
 
 type (
-	Archive       io.ReadCloser
-	ArchiveReader io.Reader
-	Compression   int
-	TarOptions    struct {
-		IncludeFiles    []string
-		ExcludePatterns []string
-		Compression     Compression
-		NoLchown        bool
-		Name            string
+	Archive         io.ReadCloser
+	ArchiveReader   io.Reader
+	Compression     int
+	TarChownOptions struct {
+		UID, GID int
+	}
+	TarOptions struct {
+		IncludeFiles     []string
+		ExcludePatterns  []string
+		Compression      Compression
+		NoLchown         bool
+		ChownOpts        *TarChownOptions
+		Name             string
+		IncludeSourceDir bool
+		// When unpacking, specifies whether overwriting a directory with a
+		// non-directory is allowed and vice versa.
+		NoOverwriteDirNonDir bool
 	}
 
 	// Archiver allows the reuse of most utility functions of this package
@@ -262,7 +270,7 @@ func (ta *tarAppender) addTarFile(path, name string) error {
 	return nil
 }
 
-func createTarFile(path, extractDir string, hdr *tar.Header, reader io.Reader, Lchown bool) error {
+func createTarFile(path, extractDir string, hdr *tar.Header, reader io.Reader, Lchown bool, chownOpts *TarChownOptions) error {
 	// hdr.Mode is in linux format, which we can use for sycalls,
 	// but for os.Foo() calls we need the mode converted to os.FileMode,
 	// so use hdrInfo.Mode() (they differ for e.g. setuid bits)
@@ -328,9 +336,12 @@ func createTarFile(path, extractDir string, hdr *tar.Header, reader io.Reader, L
 		return fmt.Errorf("Unhandled tar header type %d\n", hdr.Typeflag)
 	}
 
-	// Lchown is not supported on Windows
-	if runtime.GOOS != "windows" {
-		if err := os.Lchown(path, hdr.Uid, hdr.Gid); err != nil && Lchown {
+	// Lchown is not supported on Windows.
+	if Lchown && runtime.GOOS != "windows" {
+		if chownOpts == nil {
+			chownOpts = &TarChownOptions{UID: hdr.Uid, GID: hdr.Gid}
+		}
+		if err := os.Lchown(path, chownOpts.UID, chownOpts.GID); err != nil {
 			return err
 		}
 	}
@@ -396,6 +407,20 @@ func TarWithOptions(srcPath string, options *TarOptions) (io.ReadCloser, error) 
 			Buffer:    pools.BufioWriter32KPool.Get(nil),
 			SeenFiles: make(map[uint64]string),
 		}
+
+		defer func() {
+			// Make sure to check the error on Close.
+			if err := ta.TarWriter.Close(); err != nil {
+				logrus.Debugf("Can't close tar writer: %s", err)
+			}
+			if err := compressWriter.Close(); err != nil {
+				logrus.Debugf("Can't close compress writer: %s", err)
+			}
+			if err := pipeWriter.Close(); err != nil {
+				logrus.Debugf("Can't close pipe writer: %s", err)
+			}
+		}()
+
 		// this buffer is needed for the duration of this piped stream
 		defer pools.BufioWriter32KPool.Put(ta.Buffer)
 
@@ -404,7 +429,26 @@ func TarWithOptions(srcPath string, options *TarOptions) (io.ReadCloser, error) 
 		// mutating the filesystem and we can see transient errors
 		// from this
 
-		if options.IncludeFiles == nil {
+		stat, err := os.Lstat(srcPath)
+		if err != nil {
+			return
+		}
+
+		if !stat.IsDir() {
+			// We can't later join a non-dir with any includes because the
+			// 'walk' will error if "file/." is stat-ed and "file" is not a
+			// directory. So, we must split the source path and use the
+			// basename as the include.
+			if len(options.IncludeFiles) > 0 {
+				logrus.Warn("Tar: Can't archive a file with includes")
+			}
+
+			dir, base := SplitPathDirEntry(srcPath)
+			srcPath = dir
+			options.IncludeFiles = []string{base}
+		}
+
+		if len(options.IncludeFiles) == 0 {
 			options.IncludeFiles = []string{"."}
 		}
 
@@ -412,17 +456,24 @@ func TarWithOptions(srcPath string, options *TarOptions) (io.ReadCloser, error) 
 
 		var renamedRelFilePath string // For when tar.Options.Name is set
 		for _, include := range options.IncludeFiles {
-			filepath.Walk(filepath.Join(srcPath, include), func(filePath string, f os.FileInfo, err error) error {
+			// We can't use filepath.Join(srcPath, include) because this will
+			// clean away a trailing "." or "/" which may be important.
+			walkRoot := strings.Join([]string{srcPath, include}, string(filepath.Separator))
+			filepath.Walk(walkRoot, func(filePath string, f os.FileInfo, err error) error {
 				if err != nil {
 					logrus.Debugf("Tar: Can't stat file %s to tar: %s", srcPath, err)
 					return nil
 				}
 
 				relFilePath, err := filepath.Rel(srcPath, filePath)
-				if err != nil || (relFilePath == "." && f.IsDir()) {
+				if err != nil || (!options.IncludeSourceDir && relFilePath == "." && f.IsDir()) {
 					// Error getting relative path OR we are looking
-					// at the root path. Skip in both situations.
+					// at the source directory path. Skip in both situations.
 					return nil
+				}
+
+				if options.IncludeSourceDir && include == "." && relFilePath != "." {
+					relFilePath = strings.Join([]string{".", relFilePath}, string(filepath.Separator))
 				}
 
 				skip := false
@@ -467,17 +518,6 @@ func TarWithOptions(srcPath string, options *TarOptions) (io.ReadCloser, error) 
 				}
 				return nil
 			})
-		}
-
-		// Make sure to check the error on Close.
-		if err := ta.TarWriter.Close(); err != nil {
-			logrus.Debugf("Can't close tar writer: %s", err)
-		}
-		if err := compressWriter.Close(); err != nil {
-			logrus.Debugf("Can't close compress writer: %s", err)
-		}
-		if err := pipeWriter.Close(); err != nil {
-			logrus.Debugf("Can't close pipe writer: %s", err)
 		}
 	}()
 
@@ -543,9 +583,22 @@ loop:
 		// the layer is also a directory. Then we want to merge them (i.e.
 		// just apply the metadata from the layer).
 		if fi, err := os.Lstat(path); err == nil {
+			if options.NoOverwriteDirNonDir && fi.IsDir() && hdr.Typeflag != tar.TypeDir {
+				// If NoOverwriteDirNonDir is true then we cannot replace
+				// an existing directory with a non-directory from the archive.
+				return fmt.Errorf("cannot overwrite directory %q with non-directory %q", path, dest)
+			}
+
+			if options.NoOverwriteDirNonDir && !fi.IsDir() && hdr.Typeflag == tar.TypeDir {
+				// If NoOverwriteDirNonDir is true then we cannot replace
+				// an existing non-directory with a directory from the archive.
+				return fmt.Errorf("cannot overwrite non-directory %q with directory %q", path, dest)
+			}
+
 			if fi.IsDir() && hdr.Name == "." {
 				continue
 			}
+
 			if !(fi.IsDir() && hdr.Typeflag == tar.TypeDir) {
 				if err := os.RemoveAll(path); err != nil {
 					return err
@@ -553,7 +606,8 @@ loop:
 			}
 		}
 		trBuf.Reset(tr)
-		if err := createTarFile(path, dest, hdr, trBuf, !options.NoLchown); err != nil {
+
+		if err := createTarFile(path, dest, hdr, trBuf, !options.NoLchown, options.ChownOpts); err != nil {
 			return err
 		}
 

@@ -521,7 +521,10 @@ func (container *Container) buildPortMapInfo(n libnetwork.Network, ep libnetwork
 	if expData, ok := driverInfo[netlabel.ExposedPorts]; ok {
 		if exposedPorts, ok := expData.([]types.TransportPort); ok {
 			for _, tp := range exposedPorts {
-				natPort := nat.NewPort(tp.Proto.String(), strconv.Itoa(int(tp.Port)))
+				natPort, err := nat.NewPort(tp.Proto.String(), strconv.Itoa(int(tp.Port)))
+				if err != nil {
+					return nil, fmt.Errorf("Error parsing Port value(%s):%v", tp.Port, err)
+				}
 				networkSettings.Ports[natPort] = nil
 			}
 		}
@@ -534,8 +537,11 @@ func (container *Container) buildPortMapInfo(n libnetwork.Network, ep libnetwork
 
 	if portMapping, ok := mapData.([]types.PortBinding); ok {
 		for _, pp := range portMapping {
-			natPort := nat.NewPort(pp.Proto.String(), strconv.Itoa(int(pp.Port)))
-			natBndg := nat.PortBinding{HostIp: pp.HostIP.String(), HostPort: strconv.Itoa(int(pp.HostPort))}
+			natPort, err := nat.NewPort(pp.Proto.String(), strconv.Itoa(int(pp.Port)))
+			if err != nil {
+				return nil, err
+			}
+			natBndg := nat.PortBinding{HostIP: pp.HostIP.String(), HostPort: strconv.Itoa(int(pp.HostPort))}
 			networkSettings.Ports[natPort] = append(networkSettings.Ports[natPort], natBndg)
 		}
 	}
@@ -684,7 +690,7 @@ func (container *Container) buildCreateEndpointOptions() ([]libnetwork.EndpointO
 			bindings[p] = []nat.PortBinding{}
 			for _, bb := range b {
 				bindings[p] = append(bindings[p], nat.PortBinding{
-					HostIp:   bb.HostIp,
+					HostIP:   bb.HostIP,
 					HostPort: bb.HostPort,
 				})
 			}
@@ -710,8 +716,12 @@ func (container *Container) buildCreateEndpointOptions() ([]libnetwork.EndpointO
 		binding := bindings[port]
 		for i := 0; i < len(binding); i++ {
 			pbCopy := pb.GetCopy()
-			pbCopy.HostPort = uint16(nat.Port(binding[i].HostPort).Int())
-			pbCopy.HostIP = net.ParseIP(binding[i].HostIp)
+			newP, err := nat.NewPort(nat.SplitProtoPort(binding[i].HostPort))
+			if err != nil {
+				return nil, fmt.Errorf("Error parsing HostPort value(%s):%v", binding[i].HostPort, err)
+			}
+			pbCopy.HostPort = uint16(newP.Int())
+			pbCopy.HostIP = net.ParseIP(binding[i].HostIP)
 			pbList = append(pbList, pbCopy)
 		}
 

@@ -190,7 +190,7 @@ func (s *DockerSuite) TestContainerApiStartVolumeBinds(c *check.C) {
 	c.Assert(err, check.IsNil)
 	c.Assert(status, check.Equals, http.StatusNoContent)
 
-	pth, err := inspectFieldMap(name, "Volumes", "/tmp")
+	pth, err := inspectMountSourceField(name, "/tmp")
 	if err != nil {
 		c.Fatal(err)
 	}
@@ -233,7 +233,7 @@ func (s *DockerSuite) TestContainerApiStartVolumesFrom(c *check.C) {
 
 	dockerCmd(c, "run", "-d", "--name", volName, "-v", volPath, "busybox")
 
-	name := "TestContainerApiStartDupVolumeBinds"
+	name := "TestContainerApiStartVolumesFrom"
 	config := map[string]interface{}{
 		"Image":   "busybox",
 		"Volumes": map[string]struct{}{volPath: {}},
@@ -250,11 +250,11 @@ func (s *DockerSuite) TestContainerApiStartVolumesFrom(c *check.C) {
 	c.Assert(err, check.IsNil)
 	c.Assert(status, check.Equals, http.StatusNoContent)
 
-	pth, err := inspectFieldMap(name, "Volumes", volPath)
+	pth, err := inspectMountSourceField(name, volPath)
 	if err != nil {
 		c.Fatal(err)
 	}
-	pth2, err := inspectFieldMap(volName, "Volumes", volPath)
+	pth2, err := inspectMountSourceField(volName, volPath)
 	if err != nil {
 		c.Fatal(err)
 	}
@@ -705,7 +705,7 @@ func (s *DockerSuite) TestBuildApiDockerfileSymlink(c *check.C) {
 func (s *DockerSuite) TestPostContainerBindNormalVolume(c *check.C) {
 	dockerCmd(c, "create", "-v", "/foo", "--name=one", "busybox")
 
-	fooDir, err := inspectFieldMap("one", "Volumes", "/foo")
+	fooDir, err := inspectMountSourceField("one", "/foo")
 	if err != nil {
 		c.Fatal(err)
 	}
@@ -717,7 +717,7 @@ func (s *DockerSuite) TestPostContainerBindNormalVolume(c *check.C) {
 	c.Assert(err, check.IsNil)
 	c.Assert(status, check.Equals, http.StatusNoContent)
 
-	fooDir2, err := inspectFieldMap("two", "Volumes", "/foo")
+	fooDir2, err := inspectMountSourceField("two", "/foo")
 	if err != nil {
 		c.Fatal(err)
 	}
@@ -870,6 +870,32 @@ func (s *DockerSuite) TestContainerApiCommitWithLabelInConfig(c *check.C) {
 
 	// sanity check, make sure the image is what we think it is
 	dockerCmd(c, "run", img.Id, "ls", "/test")
+}
+
+func (s *DockerSuite) TestContainerApiBadPort(c *check.C) {
+	config := map[string]interface{}{
+		"Image": "busybox",
+		"Cmd":   []string{"/bin/sh", "-c", "echo test"},
+		"PortBindings": map[string]interface{}{
+			"8080/tcp": []map[string]interface{}{
+				{
+					"HostIP":   "",
+					"HostPort": "aa80",
+				},
+			},
+		},
+	}
+
+	jsonData := bytes.NewBuffer(nil)
+	json.NewEncoder(jsonData).Encode(config)
+
+	status, b, err := sockRequest("POST", "/containers/create", config)
+	c.Assert(err, check.IsNil)
+	c.Assert(status, check.Equals, http.StatusInternalServerError)
+
+	if strings.TrimSpace(string(b)) != `Invalid port specification: "aa80"` {
+		c.Fatalf("Incorrect error msg: %s", string(b))
+	}
 }
 
 func (s *DockerSuite) TestContainerApiCreate(c *check.C) {
@@ -1467,17 +1493,15 @@ func (s *DockerSuite) TestContainerApiDeleteRemoveVolume(c *check.C) {
 	id := strings.TrimSpace(out)
 	c.Assert(waitRun(id), check.IsNil)
 
-	vol, err := inspectFieldMap(id, "Volumes", "/testvolume")
-	c.Assert(err, check.IsNil)
-
-	_, err = os.Stat(vol)
+	source, err := inspectMountSourceField(id, "/testvolume")
+	_, err = os.Stat(source)
 	c.Assert(err, check.IsNil)
 
 	status, _, err := sockRequest("DELETE", "/containers/"+id+"?v=1&force=1", nil)
 	c.Assert(err, check.IsNil)
 	c.Assert(status, check.Equals, http.StatusNoContent)
 
-	if _, err := os.Stat(vol); !os.IsNotExist(err) {
+	if _, err := os.Stat(source); !os.IsNotExist(err) {
 		c.Fatalf("expected to get ErrNotExist error, got %v", err)
 	}
 }
@@ -1613,4 +1637,49 @@ func (s *DockerSuite) TestPostContainersCreateWithStringOrSliceCapAddDrop(c *che
 	status, _, err = sockRequest("POST", "/containers/create?name=capaddtest1", config2)
 	c.Assert(err, check.IsNil)
 	c.Assert(status, check.Equals, http.StatusCreated)
+}
+
+// #14640
+func (s *DockerSuite) TestPostContainersStartWithoutLinksInHostConfig(c *check.C) {
+	name := "test-host-config-links"
+	dockerCmd(c, "create", "--name", name, "busybox", "top")
+
+	hc, err := inspectFieldJSON(name, "HostConfig")
+	c.Assert(err, check.IsNil)
+	config := `{"HostConfig":` + hc + `}`
+
+	res, _, err := sockRequestRaw("POST", "/containers/"+name+"/start", strings.NewReader(config), "application/json")
+	c.Assert(err, check.IsNil)
+	c.Assert(res.StatusCode, check.Equals, http.StatusNoContent)
+}
+
+// #14640
+func (s *DockerSuite) TestPostContainersStartWithLinksInHostConfig(c *check.C) {
+	name := "test-host-config-links"
+	dockerCmd(c, "run", "--name", "foo", "-d", "busybox", "top")
+	dockerCmd(c, "create", "--name", name, "--link", "foo:bar", "busybox", "top")
+
+	hc, err := inspectFieldJSON(name, "HostConfig")
+	c.Assert(err, check.IsNil)
+	config := `{"HostConfig":` + hc + `}`
+
+	res, _, err := sockRequestRaw("POST", "/containers/"+name+"/start", strings.NewReader(config), "application/json")
+	c.Assert(err, check.IsNil)
+	c.Assert(res.StatusCode, check.Equals, http.StatusNoContent)
+}
+
+// #14640
+func (s *DockerSuite) TestPostContainersStartWithLinksInHostConfigIdLinked(c *check.C) {
+	name := "test-host-config-links"
+	out, _ := dockerCmd(c, "run", "--name", "link0", "-d", "busybox", "top")
+	id := strings.TrimSpace(out)
+	dockerCmd(c, "create", "--name", name, "--link", id, "busybox", "top")
+
+	hc, err := inspectFieldJSON(name, "HostConfig")
+	c.Assert(err, check.IsNil)
+	config := `{"HostConfig":` + hc + `}`
+
+	res, _, err := sockRequestRaw("POST", "/containers/"+name+"/start", strings.NewReader(config), "application/json")
+	c.Assert(err, check.IsNil)
+	c.Assert(res.StatusCode, check.Equals, http.StatusNoContent)
 }

@@ -1,6 +1,7 @@
 package daemon
 
 import (
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -12,9 +13,14 @@ import (
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/volume"
+	"github.com/docker/docker/volume/drivers"
 	"github.com/docker/docker/volume/local"
 	"github.com/opencontainers/runc/libcontainer/label"
 )
+
+// ErrVolumeReadonly is used to signal an error when trying to copy data into
+// a volume mount that is not writable.
+var ErrVolumeReadonly = errors.New("mounted volume is marked read-only")
 
 type mountPoint struct {
 	Name        string
@@ -44,6 +50,16 @@ func (m *mountPoint) Setup() (string, error) {
 	}
 
 	return "", fmt.Errorf("Unable to setup mount point, neither source nor volume defined")
+}
+
+// hasResource checks whether the given absolute path for a container is in
+// this mount point. If the relative path starts with `../` then the resource
+// is outside of this mount point, but we can't simply check for this prefix
+// because it misses `..` which is also outside of the mount, so check both.
+func (m *mountPoint) hasResource(absolutePath string) bool {
+	relPath, err := filepath.Rel(m.Destination, absolutePath)
+
+	return err == nil && relPath != ".." && !strings.HasPrefix(relPath, fmt.Sprintf("..%c", filepath.Separator))
 }
 
 func (m *mountPoint) Path() string {
@@ -332,4 +348,19 @@ func removeVolume(v volume.Volume) error {
 		return nil
 	}
 	return vd.Remove(v)
+}
+
+func getVolumeDriver(name string) (volume.Driver, error) {
+	if name == "" {
+		name = volume.DefaultDriverName
+	}
+	return volumedrivers.Lookup(name)
+}
+
+func parseVolumeSource(spec string) (string, string, error) {
+	if !filepath.IsAbs(spec) {
+		return spec, "", nil
+	}
+
+	return "", spec, nil
 }

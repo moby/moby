@@ -77,9 +77,8 @@ func populateCommand(c *Container, env []string) error {
 	case "none":
 	case "default", "": // empty string to support existing containers
 		if !c.Config.NetworkDisabled {
-			network := c.NetworkSettings
 			en.Interface = &execdriver.NetworkInterface{
-				MacAddress: network.MacAddress,
+				MacAddress: c.Config.MacAddress,
 				Bridge:     c.daemon.config.Bridge.VirtualSwitchName,
 			}
 		}

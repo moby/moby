@@ -20,10 +20,22 @@ func (daemon *Daemon) ContainerInspect(name string) (*types.ContainerJSON, error
 		return nil, err
 	}
 
-	return &types.ContainerJSON{base, container.Config}, nil
+	mountPoints := make([]types.MountPoint, 0, len(container.MountPoints))
+	for _, m := range container.MountPoints {
+		mountPoints = append(mountPoints, types.MountPoint{
+			Name:        m.Name,
+			Source:      m.Path(),
+			Destination: m.Destination,
+			Driver:      m.Driver,
+			Mode:        m.Relabel,
+			RW:          m.RW,
+		})
+	}
+
+	return &types.ContainerJSON{base, mountPoints, container.Config}, nil
 }
 
-func (daemon *Daemon) ContainerInspectRaw(name string) (*types.ContainerJSONRaw, error) {
+func (daemon *Daemon) ContainerInspectPre120(name string) (*types.ContainerJSONPre120, error) {
 	container, err := daemon.Get(name)
 	if err != nil {
 		return nil, err
@@ -37,6 +49,13 @@ func (daemon *Daemon) ContainerInspectRaw(name string) (*types.ContainerJSONRaw,
 		return nil, err
 	}
 
+	volumes := make(map[string]string)
+	volumesRW := make(map[string]bool)
+	for _, m := range container.MountPoints {
+		volumes[m.Destination] = m.Path()
+		volumesRW[m.Destination] = m.RW
+	}
+
 	config := &types.ContainerConfig{
 		container.Config,
 		container.hostConfig.Memory,
@@ -45,7 +64,7 @@ func (daemon *Daemon) ContainerInspectRaw(name string) (*types.ContainerJSONRaw,
 		container.hostConfig.CpusetCpus,
 	}
 
-	return &types.ContainerJSONRaw{base, config}, nil
+	return &types.ContainerJSONPre120{base, volumes, volumesRW, config}, nil
 }
 
 func (daemon *Daemon) getInspectData(container *Container) (*types.ContainerJSONBase, error) {
@@ -76,14 +95,6 @@ func (daemon *Daemon) getInspectData(container *Container) (*types.ContainerJSON
 		FinishedAt: container.State.FinishedAt,
 	}
 
-	volumes := make(map[string]string)
-	volumesRW := make(map[string]bool)
-
-	for _, m := range container.MountPoints {
-		volumes[m.Destination] = m.Path()
-		volumesRW[m.Destination] = m.RW
-	}
-
 	contJSONBase := &types.ContainerJSONBase{
 		Id:              container.ID,
 		Created:         container.Created,
@@ -102,8 +113,6 @@ func (daemon *Daemon) getInspectData(container *Container) (*types.ContainerJSON
 		ExecDriver:      container.ExecDriver,
 		MountLabel:      container.MountLabel,
 		ProcessLabel:    container.ProcessLabel,
-		Volumes:         volumes,
-		VolumesRW:       volumesRW,
 		AppArmorProfile: container.AppArmorProfile,
 		ExecIDs:         container.GetExecIDs(),
 		HostConfig:      &hostConfig,

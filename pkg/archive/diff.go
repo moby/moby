@@ -93,7 +93,7 @@ func UnpackLayer(dest string, layer ArchiveReader) (size int64, err error) {
 					}
 					defer os.RemoveAll(aufsTempdir)
 				}
-				if err := createTarFile(filepath.Join(aufsTempdir, basename), dest, hdr, tr, true); err != nil {
+				if err := createTarFile(filepath.Join(aufsTempdir, basename), dest, hdr, tr, true, nil); err != nil {
 					return 0, err
 				}
 			}
@@ -150,7 +150,7 @@ func UnpackLayer(dest string, layer ArchiveReader) (size int64, err error) {
 				srcData = tmpFile
 			}
 
-			if err := createTarFile(path, dest, srcHdr, srcData, true); err != nil {
+			if err := createTarFile(path, dest, srcHdr, srcData, true, nil); err != nil {
 				return 0, err
 			}
 

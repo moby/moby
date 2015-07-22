@@ -33,12 +33,7 @@ func (s *DockerSuite) TestRunEchoStdout(c *check.C) {
 
 // "test" should be printed
 func (s *DockerSuite) TestRunEchoStdoutWithMemoryLimit(c *check.C) {
-	runCmd := exec.Command(dockerBinary, "run", "-m", "16m", "busybox", "echo", "test")
-	out, _, _, err := runCommandWithStdoutStderr(runCmd)
-	if err != nil {
-		c.Fatalf("failed to run container: %v, output: %q", err, out)
-	}
-
+	out, _, _ := dockerCmdWithStdoutStderr(c, "run", "-m", "16m", "busybox", "echo", "test")
 	out = strings.Trim(out, "\r\n")
 
 	if expected := "test"; out != expected {
@@ -73,12 +68,7 @@ func (s *DockerSuite) TestRunEchoStdoutWitCPULimit(c *check.C) {
 
 // "test" should be printed
 func (s *DockerSuite) TestRunEchoStdoutWithCPUAndMemoryLimit(c *check.C) {
-	runCmd := exec.Command(dockerBinary, "run", "-c", "1000", "-m", "16m", "busybox", "echo", "test")
-	out, _, _, err := runCommandWithStdoutStderr(runCmd)
-	if err != nil {
-		c.Fatalf("failed to run container: %v, output: %q", err, out)
-	}
-
+	out, _, _ := dockerCmdWithStdoutStderr(c, "run", "-c", "1000", "-m", "16m", "busybox", "echo", "test")
 	if out != "test\n" {
 		c.Errorf("container should've printed 'test', got %q instead", out)
 	}
@@ -931,12 +921,7 @@ func (s *DockerSuite) TestRunDnsDefaultOptions(c *check.C) {
 }
 
 func (s *DockerSuite) TestRunDnsOptions(c *check.C) {
-	cmd := exec.Command(dockerBinary, "run", "--dns=127.0.0.1", "--dns-search=mydomain", "busybox", "cat", "/etc/resolv.conf")
-
-	out, stderr, _, err := runCommandWithStdoutStderr(cmd)
-	if err != nil {
-		c.Fatal(err, out)
-	}
+	out, stderr, _ := dockerCmdWithStdoutStderr(c, "run", "--dns=127.0.0.1", "--dns-search=mydomain", "busybox", "cat", "/etc/resolv.conf")
 
 	// The client will get a warning on stderr when setting DNS to a localhost address; verify this:
 	if !strings.Contains(stderr, "Localhost DNS setting") {
@@ -948,12 +933,7 @@ func (s *DockerSuite) TestRunDnsOptions(c *check.C) {
 		c.Fatalf("expected 'nameserver 127.0.0.1 search mydomain', but says: %q", actual)
 	}
 
-	cmd = exec.Command(dockerBinary, "run", "--dns=127.0.0.1", "--dns-search=.", "busybox", "cat", "/etc/resolv.conf")
-
-	out, _, _, err = runCommandWithStdoutStderr(cmd)
-	if err != nil {
-		c.Fatal(err, out)
-	}
+	out, stderr, _ = dockerCmdWithStdoutStderr(c, "run", "--dns=127.0.0.1", "--dns-search=.", "busybox", "cat", "/etc/resolv.conf")
 
 	actual = strings.Replace(strings.Trim(strings.Trim(out, "\r\n"), " "), "\n", " ", -1)
 	if actual != "nameserver 127.0.0.1" {
@@ -1844,24 +1824,23 @@ func (s *DockerSuite) TestRunVolumesCleanPaths(c *check.C) {
 
 	dockerCmd(c, "run", "-v", "/foo", "-v", "/bar/", "--name", "dark_helmet", "run_volumes_clean_paths")
 
-	out, err := inspectFieldMap("dark_helmet", "Volumes", "/foo/")
-	c.Assert(err, check.IsNil)
-	if out != "" {
+	out, err := inspectMountSourceField("dark_helmet", "/foo/")
+	if err != mountNotFound {
 		c.Fatalf("Found unexpected volume entry for '/foo/' in volumes\n%q", out)
 	}
 
-	out, err = inspectFieldMap("dark_helmet", "Volumes", "/foo")
+	out, err = inspectMountSourceField("dark_helmet", "/foo")
 	c.Assert(err, check.IsNil)
 	if !strings.Contains(out, volumesConfigPath) {
 		c.Fatalf("Volume was not defined for /foo\n%q", out)
 	}
 
-	out, err = inspectFieldMap("dark_helmet", "Volumes", "/bar/")
-	c.Assert(err, check.IsNil)
-	if out != "" {
+	out, err = inspectMountSourceField("dark_helmet", "/bar/")
+	if err != mountNotFound {
 		c.Fatalf("Found unexpected volume entry for '/bar/' in volumes\n%q", out)
 	}
-	out, err = inspectFieldMap("dark_helmet", "Volumes", "/bar")
+
+	out, err = inspectMountSourceField("dark_helmet", "/bar")
 	c.Assert(err, check.IsNil)
 	if !strings.Contains(out, volumesConfigPath) {
 		c.Fatalf("Volume was not defined for /bar\n%q", out)
@@ -1923,15 +1902,11 @@ func (s *DockerSuite) TestRunExposePort(c *check.C) {
 
 func (s *DockerSuite) TestRunUnknownCommand(c *check.C) {
 	testRequires(c, NativeExecDriver)
-	runCmd := exec.Command(dockerBinary, "create", "busybox", "/bin/nada")
-	cID, _, _, err := runCommandWithStdoutStderr(runCmd)
-	if err != nil {
-		c.Fatalf("Failed to create container: %v, output: %q", err, cID)
-	}
-	cID = strings.TrimSpace(cID)
+	out, _, _ := dockerCmdWithStdoutStderr(c, "create", "busybox", "/bin/nada")
 
-	runCmd = exec.Command(dockerBinary, "start", cID)
-	_, _, _, _ = runCommandWithStdoutStderr(runCmd)
+	cID := strings.TrimSpace(out)
+	_, _, err := dockerCmdWithError(c, "start", cID)
+	c.Assert(err, check.NotNil)
 
 	rc, err := inspectField(cID, "State.ExitCode")
 	c.Assert(err, check.IsNil)
@@ -2507,14 +2482,37 @@ func (s *DockerSuite) TestVolumeFromMixedRWOptions(c *check.C) {
 	dockerCmd(c, "run", "--volumes-from", "parent:ro", "--name", "test-volumes-1", "busybox", "true")
 	dockerCmd(c, "run", "--volumes-from", "parent:rw", "--name", "test-volumes-2", "busybox", "true")
 
-	testRO, err := inspectFieldMap("test-volumes-1", ".VolumesRW", "/test")
+	mRO, err := inspectMountPoint("test-volumes-1", "/test")
 	c.Assert(err, check.IsNil)
-	if testRO != "false" {
+	if mRO.RW {
 		c.Fatalf("Expected RO volume was RW")
 	}
-	testRW, err := inspectFieldMap("test-volumes-2", ".VolumesRW", "/test")
+
+	mRW, err := inspectMountPoint("test-volumes-2", "/test")
 	c.Assert(err, check.IsNil)
-	if testRW != "true" {
+	if !mRW.RW {
 		c.Fatalf("Expected RW volume was RO")
+	}
+}
+
+func (s *DockerSuite) TestRunWriteFilteredProc(c *check.C) {
+	testRequires(c, Apparmor)
+
+	testWritePaths := []string{
+		/* modprobe and core_pattern should both be denied by generic
+		 * policy of denials for /proc/sys/kernel. These files have been
+		 * picked to be checked as they are particularly sensitive to writes */
+		"/proc/sys/kernel/modprobe",
+		"/proc/sys/kernel/core_pattern",
+		"/proc/sysrq-trigger",
+	}
+	for i, filePath := range testWritePaths {
+		name := fmt.Sprintf("writeprocsieve-%d", i)
+
+		shellCmd := fmt.Sprintf("exec 3>%s", filePath)
+		runCmd := exec.Command(dockerBinary, "run", "--privileged", "--security-opt", "apparmor:docker-default", "--name", name, "busybox", "sh", "-c", shellCmd)
+		if out, exitCode, err := runCommandWithOutput(runCmd); err == nil || exitCode == 0 {
+			c.Fatalf("Open FD for write should have failed with permission denied, got: %s, %v", out, err)
+		}
 	}
 }

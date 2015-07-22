@@ -117,6 +117,11 @@ RUN git clone https://github.com/golang/tools.git /go/src/golang.org/x/tools \
 	&& (cd /go/src/golang.org/x/tools && git checkout -q $GO_TOOLS_COMMIT) \
 	&& go install -v golang.org/x/tools/cmd/cover \
 	&& go install -v golang.org/x/tools/cmd/vet
+# Grab Go's lint tool
+ENV GO_LINT_COMMIT f42f5c1c440621302702cb0741e9d2ca547ae80f
+RUN git clone https://github.com/golang/lint.git /go/src/github.com/golang/lint \
+	&& (cd /go/src/github.com/golang/lint && git checkout -q $GO_LINT_COMMIT) \
+	&& go install -v github.com/golang/lint/golint
 
 # TODO replace FPM with some very minimal debhelper stuff
 RUN gem install --no-rdoc --no-ri fpm --version 1.3.2
@@ -172,7 +177,7 @@ RUN ./contrib/download-frozen-image.sh /docker-frozen-images \
 # Download man page generator
 RUN set -x \
 	&& export GOPATH="$(mktemp -d)" \
-	&& git clone -b v1.0.1 https://github.com/cpuguy83/go-md2man.git "$GOPATH/src/github.com/cpuguy83/go-md2man" \
+	&& git clone -b v1.0.3 https://github.com/cpuguy83/go-md2man.git "$GOPATH/src/github.com/cpuguy83/go-md2man" \
 	&& git clone -b v1.2 https://github.com/russross/blackfriday.git "$GOPATH/src/github.com/russross/blackfriday" \
 	&& go get -v -d github.com/cpuguy83/go-md2man \
 	&& go build -v -o /usr/local/bin/go-md2man github.com/cpuguy83/go-md2man \

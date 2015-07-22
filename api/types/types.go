@@ -1,6 +1,7 @@
 package types
 
 import (
+	"os"
 	"time"
 
 	"github.com/docker/docker/daemon/network"
@@ -127,6 +128,18 @@ type CopyConfig struct {
 	Resource string
 }
 
+// ContainerPathStat is used to encode the header from
+// 	GET /containers/{name:.*}/archive
+// "name" is the file or directory name.
+// "path" is the absolute path to the resource in the container.
+type ContainerPathStat struct {
+	Name  string      `json:"name"`
+	Path  string      `json:"path"`
+	Size  int64       `json:"size"`
+	Mode  os.FileMode `json:"mode"`
+	Mtime time.Time   `json:"mtime"`
+}
+
 // GET "/containers/{name:.*}/top"
 type ContainerProcessList struct {
 	Processes [][]string
@@ -225,8 +238,6 @@ type ContainerJSONBase struct {
 	ExecDriver      string
 	MountLabel      string
 	ProcessLabel    string
-	Volumes         map[string]string
-	VolumesRW       map[string]bool
 	AppArmorProfile string
 	ExecIDs         []string
 	HostConfig      *runconfig.HostConfig
@@ -235,13 +246,16 @@ type ContainerJSONBase struct {
 
 type ContainerJSON struct {
 	*ContainerJSONBase
+	Mounts []MountPoint
 	Config *runconfig.Config
 }
 
 // backcompatibility struct along with ContainerConfig
-type ContainerJSONRaw struct {
+type ContainerJSONPre120 struct {
 	*ContainerJSONBase
-	Config *ContainerConfig
+	Volumes   map[string]string
+	VolumesRW map[string]bool
+	Config    *ContainerConfig
 }
 
 type ContainerConfig struct {
@@ -252,4 +266,14 @@ type ContainerConfig struct {
 	MemorySwap int64
 	CpuShares  int64
 	Cpuset     string
+}
+
+// MountPoint represents a mount point configuration inside the container.
+type MountPoint struct {
+	Name        string `json:",omitempty"`
+	Source      string
+	Destination string
+	Driver      string `json:",omitempty"`
+	Mode        string // this is internally named `Relabel`
+	RW          bool
 }

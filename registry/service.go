@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -161,19 +162,31 @@ func (s *Service) TlsConfig(hostname string) (*tls.Config, error) {
 	return &tlsConfig, nil
 }
 
+func (s *Service) tlsConfigForMirror(mirror string) (*tls.Config, error) {
+	mirrorUrl, err := url.Parse(mirror)
+	if err != nil {
+		return nil, err
+	}
+	return s.TlsConfig(mirrorUrl.Host)
+}
+
 func (s *Service) LookupEndpoints(repoName string) (endpoints []APIEndpoint, err error) {
 	var cfg = tlsconfig.ServerDefault
 	tlsConfig := &cfg
 	if strings.HasPrefix(repoName, DEFAULT_NAMESPACE+"/") {
 		// v2 mirrors
 		for _, mirror := range s.Config.Mirrors {
+			mirrorTlsConfig, err := s.tlsConfigForMirror(mirror)
+			if err != nil {
+				return nil, err
+			}
 			endpoints = append(endpoints, APIEndpoint{
 				URL: mirror,
 				// guess mirrors are v2
 				Version:      APIVersion2,
 				Mirror:       true,
 				TrimHostname: true,
-				TLSConfig:    tlsConfig,
+				TLSConfig:    mirrorTlsConfig,
 			})
 		}
 		// v2 registry
@@ -184,18 +197,6 @@ func (s *Service) LookupEndpoints(repoName string) (endpoints []APIEndpoint, err
 			TrimHostname: true,
 			TLSConfig:    tlsConfig,
 		})
-		// v1 mirrors
-		// TODO(tiborvass): shouldn't we remove v1 mirrors from here, since v1 mirrors are kinda special?
-		for _, mirror := range s.Config.Mirrors {
-			endpoints = append(endpoints, APIEndpoint{
-				URL: mirror,
-				// guess mirrors are v1
-				Version:      APIVersion1,
-				Mirror:       true,
-				TrimHostname: true,
-				TLSConfig:    tlsConfig,
-			})
-		}
 		// v1 registry
 		endpoints = append(endpoints, APIEndpoint{
 			URL:          DEFAULT_V1_REGISTRY,

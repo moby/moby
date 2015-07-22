@@ -6,99 +6,10 @@ import (
 	"io/ioutil"
 	"net/http"
 	"strings"
-	"sync"
-	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/cliconfig"
 )
-
-type RequestAuthorization struct {
-	authConfig       *cliconfig.AuthConfig
-	registryEndpoint *Endpoint
-	resource         string
-	scope            string
-	actions          []string
-
-	tokenLock       sync.Mutex
-	tokenCache      string
-	tokenExpiration time.Time
-}
-
-func NewRequestAuthorization(authConfig *cliconfig.AuthConfig, registryEndpoint *Endpoint, resource, scope string, actions []string) *RequestAuthorization {
-	return &RequestAuthorization{
-		authConfig:       authConfig,
-		registryEndpoint: registryEndpoint,
-		resource:         resource,
-		scope:            scope,
-		actions:          actions,
-	}
-}
-
-func (auth *RequestAuthorization) getToken() (string, error) {
-	auth.tokenLock.Lock()
-	defer auth.tokenLock.Unlock()
-	now := time.Now()
-	if now.Before(auth.tokenExpiration) {
-		logrus.Debugf("Using cached token for %s", auth.authConfig.Username)
-		return auth.tokenCache, nil
-	}
-
-	for _, challenge := range auth.registryEndpoint.AuthChallenges {
-		switch strings.ToLower(challenge.Scheme) {
-		case "basic":
-			// no token necessary
-		case "bearer":
-			logrus.Debugf("Getting bearer token with %s for %s", challenge.Parameters, auth.authConfig.Username)
-			params := map[string]string{}
-			for k, v := range challenge.Parameters {
-				params[k] = v
-			}
-			params["scope"] = fmt.Sprintf("%s:%s:%s", auth.resource, auth.scope, strings.Join(auth.actions, ","))
-			token, err := getToken(auth.authConfig.Username, auth.authConfig.Password, params, auth.registryEndpoint)
-			if err != nil {
-				return "", err
-			}
-			auth.tokenCache = token
-			auth.tokenExpiration = now.Add(time.Minute)
-
-			return token, nil
-		default:
-			logrus.Infof("Unsupported auth scheme: %q", challenge.Scheme)
-		}
-	}
-
-	// Do not expire cache since there are no challenges which use a token
-	auth.tokenExpiration = time.Now().Add(time.Hour * 24)
-
-	return "", nil
-}
-
-// Checks that requests to the v2 registry can be authorized.
-func (auth *RequestAuthorization) CanAuthorizeV2() bool {
-	if len(auth.registryEndpoint.AuthChallenges) == 0 {
-		return true
-	}
-	scope := fmt.Sprintf("%s:%s:%s", auth.resource, auth.scope, strings.Join(auth.actions, ","))
-	if _, err := loginV2(auth.authConfig, auth.registryEndpoint, scope); err != nil {
-		logrus.Debugf("Cannot authorize against V2 endpoint: %s", auth.registryEndpoint)
-		return false
-	}
-	return true
-}
-
-func (auth *RequestAuthorization) Authorize(req *http.Request) error {
-	token, err := auth.getToken()
-	if err != nil {
-		return err
-	}
-	if token != "" {
-		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
-	} else if auth.authConfig.Username != "" && auth.authConfig.Password != "" {
-		req.SetBasicAuth(auth.authConfig.Username, auth.authConfig.Password)
-	}
-	return nil
-}
 
 // Login tries to register/login to the registry server.
 func Login(authConfig *cliconfig.AuthConfig, registryEndpoint *Endpoint) (string, error) {

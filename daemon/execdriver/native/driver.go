@@ -50,10 +50,6 @@ func NewDriver(root, initPath string, options []string) (*driver, error) {
 	if err := sysinfo.MkdirAll(root, 0700); err != nil {
 		return nil, err
 	}
-	// native driver root is at docker_root/execdriver/native. Put apparmor at docker_root
-	if err := installApparmorProfile(); err != nil {
-		return nil, err
-	}
 
 	// choose cgroup manager
 	// this makes sure there are no breaking changes to people
@@ -365,7 +361,7 @@ type TtyConsole struct {
 	console libcontainer.Console
 }
 
-func NewTtyConsole(console libcontainer.Console, pipes *execdriver.Pipes, rootuid int) (*TtyConsole, error) {
+func NewTtyConsole(console libcontainer.Console, pipes *execdriver.Pipes) (*TtyConsole, error) {
 	tty := &TtyConsole{
 		console: console,
 	}
@@ -376,10 +372,6 @@ func NewTtyConsole(console libcontainer.Console, pipes *execdriver.Pipes, rootui
 	}
 
 	return tty, nil
-}
-
-func (t *TtyConsole) Master() libcontainer.Console {
-	return t.console
 }
 
 func (t *TtyConsole) Resize(h, w int) error {
@@ -425,7 +417,7 @@ func setupPipes(container *configs.Config, processConfig *execdriver.ProcessConf
 		if err != nil {
 			return err
 		}
-		term, err = NewTtyConsole(cons, pipes, rootuid)
+		term, err = NewTtyConsole(cons, pipes)
 	} else {
 		p.Stdout = pipes.Stdout
 		p.Stderr = pipes.Stderr

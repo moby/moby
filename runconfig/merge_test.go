@@ -11,8 +11,8 @@ func TestMerge(t *testing.T) {
 	volumesImage["/test1"] = struct{}{}
 	volumesImage["/test2"] = struct{}{}
 	portsImage := make(nat.PortSet)
-	portsImage[nat.Port("1111/tcp")] = struct{}{}
-	portsImage[nat.Port("2222/tcp")] = struct{}{}
+	portsImage[newPortNoError("tcp", "1111")] = struct{}{}
+	portsImage[newPortNoError("tcp", "2222")] = struct{}{}
 	configImage := &Config{
 		ExposedPorts: portsImage,
 		Env:          []string{"VAR1=1", "VAR2=2"},
@@ -20,8 +20,8 @@ func TestMerge(t *testing.T) {
 	}
 
 	portsUser := make(nat.PortSet)
-	portsUser[nat.Port("2222/tcp")] = struct{}{}
-	portsUser[nat.Port("3333/tcp")] = struct{}{}
+	portsUser[newPortNoError("tcp", "2222")] = struct{}{}
+	portsUser[newPortNoError("tcp", "3333")] = struct{}{}
 	volumesUser := make(map[string]struct{})
 	volumesUser["/test3"] = struct{}{}
 	configUser := &Config{

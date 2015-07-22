@@ -158,7 +158,10 @@ func (daemon *Daemon) Containers(config *ContainersConfig) ([]*types.Container, 
 
 		newC.Ports = []types.Port{}
 		for port, bindings := range container.NetworkSettings.Ports {
-			p, _ := nat.ParsePort(port.Port())
+			p, err := nat.ParsePort(port.Port())
+			if err != nil {
+				return err
+			}
 			if len(bindings) == 0 {
 				newC.Ports = append(newC.Ports, types.Port{
 					PrivatePort: p,
@@ -167,12 +170,15 @@ func (daemon *Daemon) Containers(config *ContainersConfig) ([]*types.Container, 
 				continue
 			}
 			for _, binding := range bindings {
-				h, _ := nat.ParsePort(binding.HostPort)
+				h, err := nat.ParsePort(binding.HostPort)
+				if err != nil {
+					return err
+				}
 				newC.Ports = append(newC.Ports, types.Port{
 					PrivatePort: p,
 					PublicPort:  h,
 					Type:        port.Proto(),
-					IP:          binding.HostIp,
+					IP:          binding.HostIP,
 				})
 			}
 		}

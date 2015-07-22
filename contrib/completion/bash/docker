@@ -94,13 +94,19 @@ __docker_containers_and_images() {
 	COMPREPLY+=( "${containers[@]}" )
 }
 
+# Finds the position of the first word that is neither option nor an option's argument.
+# If there are options that require arguments, you should pass a glob describing those
+# options, e.g. "--option1|-o|--option2"
+# Use this function to restrict completions to exact positions after the argument list.
 __docker_pos_first_nonflag() {
 	local argument_flags=$1
 
-	local counter=$cpos
+	local counter=$((command_pos + 1))
 	while [ $counter -le $cword ]; do
 		if [ -n "$argument_flags" ] && eval "case '${words[$counter]}' in $argument_flags) true ;; *) false ;; esac"; then
 			(( counter++ ))
+			# eat "=" in case of --option=arg syntax
+			[ "${words[$counter]}" = "=" ] && (( counter++ ))
 		else
 			case "${words[$counter]}" in
 				-*)
@@ -110,10 +116,36 @@ __docker_pos_first_nonflag() {
 					;;
 			esac
 		fi
+
+		# Bash splits words at "=", retaining "=" as a word, examples:
+		# "--debug=false" => 3 words, "--log-opt syslog-facility=daemon" => 4 words
+		while [ "${words[$counter + 1]}" = "=" ] ; do
+			counter=$(( counter + 2))
+		done
+
 		(( counter++ ))
 	done
 
 	echo $counter
+}
+
+# Returns the value of the first option matching option_glob.
+# Valid values for option_glob are option names like '--log-level' and
+# globs like '--log-level|-l'
+# Only positions between the command and the current word are considered.
+__docker_value_of_option() {
+	local option_glob=$1
+
+	local counter=$((command_pos + 1))
+	while [ $counter -lt $cword ]; do
+		case ${words[$counter]} in
+			$option_glob )
+				echo ${words[$counter + 1]}
+				break
+				;;
+		esac
+		(( counter++ ))
+	done
 }
 
 # Transforms a multiline list of strings into a single line string
@@ -182,6 +214,80 @@ __docker_capabilities() {
 	" -- "$cur" ) )
 }
 
+__docker_log_drivers() {
+	COMPREPLY=( $( compgen -W "
+		fluentd
+		gelf
+		journald
+		json-file
+		none
+		syslog
+	" -- "$cur" ) )
+}
+
+__docker_log_driver_options() {
+	# see docs/reference/logging/index.md
+	case $(__docker_value_of_option --log-driver) in
+		fluentd)
+			COMPREPLY=( $( compgen -W "fluentd-address fluentd-tag" -S = -- "$cur" ) )
+			;;
+		gelf)
+			COMPREPLY=( $( compgen -W "gelf-address gelf-tag" -S = -- "$cur" ) )
+			;;
+		syslog)
+			COMPREPLY=( $( compgen -W "syslog-address syslog-facility syslog-tag" -S = -- "$cur" ) )
+			;;
+		*)
+			return
+			;;
+	esac
+
+	compopt -o nospace
+}
+
+__docker_complete_log_driver_options() {
+	# "=" gets parsed to a word and assigned to either $cur or $prev depending on whether
+	# it is the last character or not. So we search for "xxx=" in the the last two words.
+	case "${words[$cword-2]}$prev=" in
+		*gelf-address=*)
+			COMPREPLY=( $( compgen -W "udp" -S "://" -- "${cur#=}" ) )
+			compopt -o nospace
+			return
+			;;
+		*syslog-address=*)
+			COMPREPLY=( $( compgen -W "tcp udp unix" -S "://" -- "${cur#=}" ) )
+			compopt -o nospace
+			return
+			;;
+		*syslog-facility=*)
+			COMPREPLY=( $( compgen -W "
+				auth
+				authpriv
+				cron
+				daemon
+				ftp
+				kern
+				local0
+				local1
+				local2
+				local3
+				local4
+				local5
+				local6
+				local7
+				lpr
+				mail
+				news
+				syslog
+				user
+				uucp
+			" -- "${cur#=}" ) )
+			return
+			;;
+	esac
+	return 1
+}
+
 # a selection of the available signals that is most likely of interest in the
 # context of docker containers.
 __docker_signals() {
@@ -222,11 +328,15 @@ _docker_docker() {
 			return
 			;;
 		--log-driver)
-			COMPREPLY=( $( compgen -W "json-file syslog none" -- "$cur" ) )
+			__docker_log_drivers
 			return
 			;;
 		--log-level|-l)
 			COMPREPLY=( $( compgen -W "debug info warn error fatal" -- "$cur" ) )
+			return
+			;;
+		--log-opt)
+			__docker_log_driver_options
 			return
 			;;
 		--pidfile|-p|--tlscacert|--tlscert|--tlskey)
@@ -241,6 +351,8 @@ _docker_docker() {
 			return
 			;;
 	esac
+
+	__docker_complete_log_driver_options && return
 
 	case "$cur" in
 		-*)
@@ -382,8 +494,6 @@ _docker_events() {
 			;;
 	esac
 
-	# "=" gets parsed to a word and assigned to either $cur or $prev depending on whether
-	# it is the last character or not. So we search for "xxx=" in the the last two words.
 	case "${words[$cword-2]}$prev=" in
 		*container=*)
 			cur="${cur#=}"
@@ -836,6 +946,7 @@ _docker_run() {
 		--label-file
 		--link
 		--log-driver
+		--log-opt
 		--lxc-conf
 		--mac-address
 		--memory -m
@@ -941,7 +1052,11 @@ _docker_run() {
 			return
 			;;
 		--log-driver)
-			COMPREPLY=( $( compgen -W "json-file syslog none" -- "$cur") )
+			__docker_log_drivers
+			return
+			;;
+		--log-opt)
+			__docker_log_driver_options
 			return
 			;;
 		--net)
@@ -995,6 +1110,8 @@ _docker_run() {
 			return
 			;;
 	esac
+
+	__docker_complete_log_driver_options && return
 
 	case "$cur" in
 		-*)
@@ -1218,6 +1335,7 @@ _docker() {
 		--label
 		--log-driver
 		--log-level -l
+		--log-opt
 		--mtu
 		--pidfile -p
 		--registry-mirror
@@ -1235,7 +1353,7 @@ _docker() {
 	local cur prev words cword
 	_get_comp_words_by_ref -n : cur prev words cword
 
-	local command='docker' cpos=0
+	local command='docker' command_pos=0
 	local counter=1
 	while [ $counter -lt $cword ]; do
 		case "${words[$counter]}" in
@@ -1254,8 +1372,7 @@ _docker() {
 				;;
 			*)
 				command="${words[$counter]}"
-				cpos=$counter
-				(( cpos++ ))
+				command_pos=$counter
 				break
 				;;
 		esac

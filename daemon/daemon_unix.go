@@ -132,7 +132,13 @@ func (daemon *Daemon) verifyContainerSettings(hostConfig *runconfig.HostConfig, 
 	for port := range hostConfig.PortBindings {
 		_, portStr := nat.SplitProtoPort(string(port))
 		if _, err := nat.ParsePort(portStr); err != nil {
-			return warnings, fmt.Errorf("Invalid port specification: %s", portStr)
+			return warnings, fmt.Errorf("Invalid port specification: %q", portStr)
+		}
+		for _, pb := range hostConfig.PortBindings[port] {
+			_, err := nat.NewPort(nat.SplitProtoPort(pb.HostPort))
+			if err != nil {
+				return warnings, fmt.Errorf("Invalid port specification: %q", pb.HostPort)
+			}
 		}
 	}
 	if hostConfig.LxcConf.Len() > 0 && !strings.Contains(daemon.ExecutionDriver().Name(), "lxc") {
@@ -481,7 +487,6 @@ func (daemon *Daemon) NetworkApiRouter() func(w http.ResponseWriter, req *http.R
 }
 
 func (daemon *Daemon) RegisterLinks(container *Container, hostConfig *runconfig.HostConfig) error {
-
 	if hostConfig == nil || hostConfig.Links == nil {
 		return nil
 	}
