@@ -54,27 +54,27 @@ func (s *DockerSuite) TestRestartWithVolumes(c *check.C) {
 	out, _ := dockerCmd(c, "run", "-d", "-v", "/test", "busybox", "top")
 
 	cleanedContainerID := strings.TrimSpace(out)
-	out, _ = dockerCmd(c, "inspect", "--format", "{{ len .Volumes }}", cleanedContainerID)
+	out, _ = dockerCmd(c, "inspect", "--format", "{{ len .Mounts }}", cleanedContainerID)
 
 	if out = strings.Trim(out, " \n\r"); out != "1" {
 		c.Errorf("expect 1 volume received %s", out)
 	}
 
-	volumes, err := inspectField(cleanedContainerID, "Volumes")
+	source, err := inspectMountSourceField(cleanedContainerID, "/test")
 	c.Assert(err, check.IsNil)
 
 	dockerCmd(c, "restart", cleanedContainerID)
 
-	out, _ = dockerCmd(c, "inspect", "--format", "{{ len .Volumes }}", cleanedContainerID)
+	out, _ = dockerCmd(c, "inspect", "--format", "{{ len .Mounts }}", cleanedContainerID)
 	if out = strings.Trim(out, " \n\r"); out != "1" {
 		c.Errorf("expect 1 volume after restart received %s", out)
 	}
 
-	volumesAfterRestart, err := inspectField(cleanedContainerID, "Volumes")
+	sourceAfterRestart, err := inspectMountSourceField(cleanedContainerID, "/test")
 	c.Assert(err, check.IsNil)
 
-	if volumes != volumesAfterRestart {
-		c.Errorf("expected volume path: %s Actual path: %s", volumes, volumesAfterRestart)
+	if source != sourceAfterRestart {
+		c.Errorf("expected volume path: %s Actual path: %s", source, sourceAfterRestart)
 	}
 }
 

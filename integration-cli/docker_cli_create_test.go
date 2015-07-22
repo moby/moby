@@ -184,7 +184,7 @@ func (s *DockerSuite) TestCreateVolumesCreated(c *check.C) {
 	name := "test_create_volume"
 	dockerCmd(c, "create", "--name", name, "-v", "/foo", "busybox")
 
-	dir, err := inspectFieldMap(name, "Volumes", "/foo")
+	dir, err := inspectMountSourceField(name, "/foo")
 	if err != nil {
 		c.Fatalf("Error getting volume host path: %q", err)
 	}
