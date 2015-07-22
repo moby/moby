@@ -13,7 +13,7 @@ func selectAcceptableMIME(ct string) string {
 	return mimeRe.FindString(ct)
 }
 
-func handleJsonArgs(args []string, attributes map[string]bool) []string {
+func handleJSONArgs(args []string, attributes map[string]bool) []string {
 	if len(args) == 0 {
 		return []string{}
 	}

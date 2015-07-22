@@ -5,6 +5,7 @@ import (
 	"strings"
 )
 
+// FlagType is the type of the build flag
 type FlagType int
 
 const (
@@ -12,28 +13,32 @@ const (
 	stringType
 )
 
-type BuilderFlags struct {
+// BFlags contains all flags information for the builder
+type BFlags struct {
 	Args  []string // actual flags/args from cmd line
 	flags map[string]*Flag
 	used  map[string]*Flag
 	Err   error
 }
 
+// Flag contains all information for a flag
 type Flag struct {
-	bf       *BuilderFlags
+	bf       *BFlags
 	name     string
 	flagType FlagType
 	Value    string
 }
 
-func NewBuilderFlags() *BuilderFlags {
-	return &BuilderFlags{
+// NewBFlags return the new BFlags struct
+func NewBFlags() *BFlags {
+	return &BFlags{
 		flags: make(map[string]*Flag),
 		used:  make(map[string]*Flag),
 	}
 }
 
-func (bf *BuilderFlags) AddBool(name string, def bool) *Flag {
+// AddBool adds a bool flag to BFlags
+func (bf *BFlags) AddBool(name string, def bool) *Flag {
 	flag := bf.addFlag(name, boolType)
 	if flag == nil {
 		return nil
@@ -46,7 +51,8 @@ func (bf *BuilderFlags) AddBool(name string, def bool) *Flag {
 	return flag
 }
 
-func (bf *BuilderFlags) AddString(name string, def string) *Flag {
+// AddString adds a string flag to BFlags
+func (bf *BFlags) AddString(name string, def string) *Flag {
 	flag := bf.addFlag(name, stringType)
 	if flag == nil {
 		return nil
@@ -55,7 +61,7 @@ func (bf *BuilderFlags) AddString(name string, def string) *Flag {
 	return flag
 }
 
-func (bf *BuilderFlags) addFlag(name string, flagType FlagType) *Flag {
+func (bf *BFlags) addFlag(name string, flagType FlagType) *Flag {
 	if _, ok := bf.flags[name]; ok {
 		bf.Err = fmt.Errorf("Duplicate flag defined: %s", name)
 		return nil
@@ -71,6 +77,7 @@ func (bf *BuilderFlags) addFlag(name string, flagType FlagType) *Flag {
 	return newFlag
 }
 
+// IsUsed checks if the flag is used
 func (fl *Flag) IsUsed() bool {
 	if _, ok := fl.bf.used[fl.name]; ok {
 		return true
@@ -78,6 +85,7 @@ func (fl *Flag) IsUsed() bool {
 	return false
 }
 
+// IsTrue checks if a bool flag is true
 func (fl *Flag) IsTrue() bool {
 	if fl.flagType != boolType {
 		// Should never get here
@@ -86,7 +94,8 @@ func (fl *Flag) IsTrue() bool {
 	return fl.Value == "true"
 }
 
-func (bf *BuilderFlags) Parse() error {
+// Parse parses and checks if the BFlags is valid
+func (bf *BFlags) Parse() error {
 	// If there was an error while defining the possible flags
 	// go ahead and bubble it back up here since we didn't do it
 	// earlier in the processing

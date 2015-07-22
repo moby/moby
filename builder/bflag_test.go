@@ -10,7 +10,7 @@ func TestBuilderFlags(t *testing.T) {
 
 	// ---
 
-	bf := NewBuilderFlags()
+	bf := NewBFlags()
 	bf.Args = []string{}
 	if err := bf.Parse(); err != nil {
 		t.Fatalf("Test1 of %q was supposed to work: %s", bf.Args, err)
@@ -18,7 +18,7 @@ func TestBuilderFlags(t *testing.T) {
 
 	// ---
 
-	bf = NewBuilderFlags()
+	bf = NewBFlags()
 	bf.Args = []string{"--"}
 	if err := bf.Parse(); err != nil {
 		t.Fatalf("Test2 of %q was supposed to work: %s", bf.Args, err)
@@ -26,7 +26,7 @@ func TestBuilderFlags(t *testing.T) {
 
 	// ---
 
-	bf = NewBuilderFlags()
+	bf = NewBFlags()
 	flStr1 := bf.AddString("str1", "")
 	flBool1 := bf.AddBool("bool1", false)
 	bf.Args = []string{}
@@ -43,7 +43,7 @@ func TestBuilderFlags(t *testing.T) {
 
 	// ---
 
-	bf = NewBuilderFlags()
+	bf = NewBFlags()
 	flStr1 = bf.AddString("str1", "HI")
 	flBool1 = bf.AddBool("bool1", false)
 	bf.Args = []string{}
@@ -67,7 +67,7 @@ func TestBuilderFlags(t *testing.T) {
 
 	// ---
 
-	bf = NewBuilderFlags()
+	bf = NewBFlags()
 	flStr1 = bf.AddString("str1", "HI")
 	bf.Args = []string{"--str1"}
 
@@ -77,7 +77,7 @@ func TestBuilderFlags(t *testing.T) {
 
 	// ---
 
-	bf = NewBuilderFlags()
+	bf = NewBFlags()
 	flStr1 = bf.AddString("str1", "HI")
 	bf.Args = []string{"--str1="}
 
@@ -92,7 +92,7 @@ func TestBuilderFlags(t *testing.T) {
 
 	// ---
 
-	bf = NewBuilderFlags()
+	bf = NewBFlags()
 	flStr1 = bf.AddString("str1", "HI")
 	bf.Args = []string{"--str1=BYE"}
 
@@ -107,7 +107,7 @@ func TestBuilderFlags(t *testing.T) {
 
 	// ---
 
-	bf = NewBuilderFlags()
+	bf = NewBFlags()
 	flBool1 = bf.AddBool("bool1", false)
 	bf.Args = []string{"--bool1"}
 
@@ -121,7 +121,7 @@ func TestBuilderFlags(t *testing.T) {
 
 	// ---
 
-	bf = NewBuilderFlags()
+	bf = NewBFlags()
 	flBool1 = bf.AddBool("bool1", false)
 	bf.Args = []string{"--bool1=true"}
 
@@ -135,7 +135,7 @@ func TestBuilderFlags(t *testing.T) {
 
 	// ---
 
-	bf = NewBuilderFlags()
+	bf = NewBFlags()
 	flBool1 = bf.AddBool("bool1", false)
 	bf.Args = []string{"--bool1=false"}
 
@@ -149,7 +149,7 @@ func TestBuilderFlags(t *testing.T) {
 
 	// ---
 
-	bf = NewBuilderFlags()
+	bf = NewBFlags()
 	flBool1 = bf.AddBool("bool1", false)
 	bf.Args = []string{"--bool1=false1"}
 
@@ -159,7 +159,7 @@ func TestBuilderFlags(t *testing.T) {
 
 	// ---
 
-	bf = NewBuilderFlags()
+	bf = NewBFlags()
 	flBool1 = bf.AddBool("bool1", false)
 	bf.Args = []string{"--bool2"}
 
@@ -169,7 +169,7 @@ func TestBuilderFlags(t *testing.T) {
 
 	// ---
 
-	bf = NewBuilderFlags()
+	bf = NewBFlags()
 	flStr1 = bf.AddString("str1", "HI")
 	flBool1 = bf.AddBool("bool1", false)
 	bf.Args = []string{"--bool1", "--str1=BYE"}
