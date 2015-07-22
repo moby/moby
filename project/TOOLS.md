@@ -22,7 +22,7 @@ pull request using GitHub's
 with pending, success, failure, or error statuses.
 
 The leeroy repository is maintained at
-[github.com/jfrazelle/leeroy](https://github.com/jfrazelle/leeroy).
+[github.com/docker/leeroy](https://github.com/docker/leeroy).
 
 #### GordonTheTurtle IRC Bot
 
