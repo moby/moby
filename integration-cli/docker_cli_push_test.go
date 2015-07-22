@@ -246,7 +246,7 @@ func (s *DockerTrustSuite) TestTrustedPushWithIncorrectRootPassphrase(c *check.C
 	// s.trustedCmdWithPassphrases(pushCmd, "87654321", "", "")
 	out, _, _ = runCommandWithOutput(pushCmd)
 	fmt.Println("OUTPUT2:", out)
-	c.Fail()
+	//c.Fail()
 }
 
 func (s *DockerTrustSuite) TestTrustedPushWithShortPassphraseForNonRoot(c *check.C) {

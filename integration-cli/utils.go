@@ -334,3 +334,17 @@ func (c *channelBuffer) ReadTimeout(p []byte, n time.Duration) (int, error) {
 		return -1, fmt.Errorf("timeout reading from channel")
 	}
 }
+
+func runAtDifferentDate(date time.Time, block func()) {
+	// Layout for date. MMDDhhmmYYYY
+	const timeLayout = "010203042006"
+	// Ensure we bring time back to now
+	now := time.Now().Format(timeLayout)
+	dateReset := exec.Command("date", now)
+	defer runCommand(dateReset)
+
+	dateChange := exec.Command("date", date.Format(timeLayout))
+	runCommand(dateChange)
+	block()
+	return
+}

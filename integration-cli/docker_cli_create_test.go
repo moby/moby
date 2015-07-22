@@ -10,6 +10,7 @@ import (
 
 	"github.com/docker/docker/pkg/nat"
 	"github.com/go-check/check"
+	"os/exec"
 )
 
 // Make sure we can create a simple container with some args
@@ -270,4 +271,117 @@ func (s *DockerSuite) TestCreateModeIpcContainer(c *check.C) {
 	id := strings.TrimSpace(out)
 
 	dockerCmd(c, "create", fmt.Sprintf("--ipc=container:%s", id), "busybox")
+}
+
+func (s *DockerTrustSuite) TestTrustedCreate(c *check.C) {
+	repoName := fmt.Sprintf("%v/dockercli/trusted:latest", privateRegistryURL)
+	// tag the image and upload it to the private registry
+	dockerCmd(c, "tag", "busybox", repoName)
+
+	pushCmd := exec.Command(dockerBinary, "push", repoName)
+	s.trustedCmd(pushCmd)
+	out, _, err := runCommandWithOutput(pushCmd)
+	if err != nil {
+		c.Fatalf("Error running trusted push: %s\n%s", err, out)
+	}
+	if !strings.Contains(string(out), "Signing and pushing trust metadata") {
+		c.Fatalf("Missing expected output on trusted push:\n%s", out)
+	}
+
+	dockerCmd(c, "rmi", repoName)
+
+	// Try create
+	createCmd := exec.Command(dockerBinary, "create", repoName)
+	s.trustedCmd(createCmd)
+	out, _, err = runCommandWithOutput(createCmd)
+	if err != nil {
+		c.Fatalf("Error running trusted create: %s\n%s", err, out)
+	}
+
+	if !strings.Contains(string(out), "Tagging") {
+		c.Fatalf("Missing expected output on trusted push:\n%s", out)
+	}
+
+	dockerCmd(c, "rmi", repoName)
+
+	// Try untrusted create to ensure we pushed the tag to the registry
+	createCmd = exec.Command(dockerBinary, "create", "--untrusted=true", repoName)
+	s.trustedCmd(createCmd)
+	out, _, err = runCommandWithOutput(createCmd)
+	if err != nil {
+		c.Fatalf("Error running trusted create: %s\n%s", err, out)
+	}
+
+	if !strings.Contains(string(out), "Status: Downloaded") {
+		c.Fatalf("Missing expected output on trusted create with --untrusted:\n%s", out)
+	}
+}
+
+func (s *DockerTrustSuite) TestUntrustedCreate(c *check.C) {
+	repoName := fmt.Sprintf("%v/dockercli/trusted:latest", privateRegistryURL)
+	// tag the image and upload it to the private registry
+	dockerCmd(c, "tag", "busybox", repoName)
+	dockerCmd(c, "push", repoName)
+	dockerCmd(c, "rmi", repoName)
+
+	// Try trusted create on untrusted tag
+	createCmd := exec.Command(dockerBinary, "create", repoName)
+	s.trustedCmd(createCmd)
+	out, _, err := runCommandWithOutput(createCmd)
+	if err == nil {
+		c.Fatalf("Error expected when running trusted create with:\n%s", out)
+	}
+
+	if !strings.Contains(string(out), "no trust data available") {
+		c.Fatalf("Missing expected output on trusted create:\n%s", out)
+	}
+}
+
+func (s *DockerTrustSuite) TestCreateWhenCertExpired(c *check.C) {
+	repoName := fmt.Sprintf("%v/dockercli/trusted:latest", privateRegistryURL)
+	// tag the image and upload it to the private registry
+	dockerCmd(c, "tag", "busybox", repoName)
+
+	pushCmd := exec.Command(dockerBinary, "push", repoName)
+	s.trustedCmd(pushCmd)
+	out, _, err := runCommandWithOutput(pushCmd)
+	if err != nil {
+		c.Fatalf("Error running trusted push: %s\n%s", err, out)
+	}
+	if !strings.Contains(string(out), "Signing and pushing trust metadata") {
+		c.Fatalf("Missing expected output on trusted push:\n%s", out)
+	}
+
+	dockerCmd(c, "rmi", repoName)
+
+	// Certificates have 10 years of expiration
+	elevenYearsFromNow := time.Now().Add(time.Hour * 24 * 365 * 11)
+
+	runAtDifferentDate(elevenYearsFromNow, func() {
+		// Try create
+		createCmd := exec.Command(dockerBinary, "create", repoName)
+		s.trustedCmd(createCmd)
+		out, _, err = runCommandWithOutput(createCmd)
+		if err == nil {
+			c.Fatalf("Error running trusted create in the distant future: %s\n%s", err, out)
+		}
+
+		if !strings.Contains(string(out), "could not validate the path to a trusted root") {
+			c.Fatalf("Missing expected output on trusted create in the distant future:\n%s", out)
+		}
+	})
+
+	runAtDifferentDate(elevenYearsFromNow, func() {
+		// Try create
+		createCmd := exec.Command(dockerBinary, "create", "--untrusted", repoName)
+		s.trustedCmd(createCmd)
+		out, _, err = runCommandWithOutput(createCmd)
+		if err != nil {
+			c.Fatalf("Error running untrusted create in the distant future: %s\n%s", err, out)
+		}
+
+		if !strings.Contains(string(out), "Status: Downloaded") {
+			c.Fatalf("Missing expected output on untrusted create in the distant future:\n%s", out)
+		}
+	})
 }
