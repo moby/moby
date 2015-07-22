@@ -8,9 +8,10 @@ import (
 	"strings"
 	"time"
 
+	"os/exec"
+
 	"github.com/docker/docker/pkg/nat"
 	"github.com/go-check/check"
-	"os/exec"
 )
 
 // Make sure we can create a simple container with some args
@@ -274,7 +275,7 @@ func (s *DockerSuite) TestCreateModeIpcContainer(c *check.C) {
 }
 
 func (s *DockerTrustSuite) TestTrustedCreate(c *check.C) {
-	repoName := fmt.Sprintf("%v/dockercli/trusted:latest", privateRegistryURL)
+	repoName := fmt.Sprintf("%v/dockerclicreate/trusted:latest", privateRegistryURL)
 	// tag the image and upload it to the private registry
 	dockerCmd(c, "tag", "busybox", repoName)
 
