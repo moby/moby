@@ -27,7 +27,7 @@ func (daemon *Daemon) ContainerInspect(name string) (*types.ContainerJSON, error
 			Source:      m.Path(),
 			Destination: m.Destination,
 			Driver:      m.Driver,
-			Mode:        m.Relabel,
+			Mode:        m.Mode,
 			RW:          m.RW,
 		})
 	}

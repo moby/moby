@@ -274,6 +274,6 @@ type MountPoint struct {
 	Source      string
 	Destination string
 	Driver      string `json:",omitempty"`
-	Mode        string // this is internally named `Relabel`
+	Mode        string
 	RW          bool
 }

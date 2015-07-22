@@ -29,7 +29,7 @@ type mountPoint struct {
 	RW          bool
 	Volume      volume.Volume `json:"-"`
 	Source      string
-	Relabel     string
+	Mode        string `json:"Relabel"` // Originally field was `Relabel`"
 }
 
 func (m *mountPoint) Setup() (string, error) {
@@ -94,8 +94,8 @@ func parseBindMount(spec string, mountLabel string, config *runconfig.Config) (*
 			return nil, fmt.Errorf("invalid mode for volumes-from: %s", mode)
 		}
 		bind.RW = isRw
-		// Relabel will apply a SELinux label, if necessary
-		bind.Relabel = mode
+		// Mode field is used by SELinux to decide whether to apply label
+		bind.Mode = mode
 	default:
 		return nil, fmt.Errorf("Invalid volume specification: %s", spec)
 	}
@@ -226,12 +226,12 @@ func (daemon *Daemon) registerMountPoints(container *Container, hostConfig *runc
 			bind.Volume = v
 			bind.Source = v.Path()
 			// Since this is just a named volume and not a typical bind, set to shared mode `z`
-			if bind.Relabel == "" {
-				bind.Relabel = "z"
+			if bind.Mode == "" {
+				bind.Mode = "z"
 			}
 		}
 
-		if err := label.Relabel(bind.Source, container.MountLabel, bind.Relabel); err != nil {
+		if err := label.Relabel(bind.Source, container.MountLabel, bind.Mode); err != nil {
 			return err
 		}
 		binds[bind.Destination] = true
