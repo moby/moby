@@ -8,6 +8,7 @@ source "${MAKEDIR}/.validate"
 # packages=( $(go list ./... 2> /dev/null | grep -vE "^github.com/docker/docker/vendor" || true ) )
 
 packages=(
+	api
 	api/server
 	api/client
 	api/client/ps

@@ -16,22 +16,26 @@ import (
 
 // Common constants for daemon and client.
 const (
-	// Current REST API version
+	// Version of Current REST API
 	Version version.Version = "1.21"
 
-	// Minimun REST API version supported
+	// MinVersion represents Minimun REST API version supported
 	MinVersion version.Version = "1.12"
 
-	// Default filename with Docker commands, read by docker build
+	// DefaultDockerfileName is the Default filename with Docker commands, read by docker build
 	DefaultDockerfileName string = "Dockerfile"
 )
 
-type ByPrivatePort []types.Port
+// byPrivatePort is temporary type used to sort types.Port by PrivatePort
+type byPrivatePort []types.Port
 
-func (r ByPrivatePort) Len() int           { return len(r) }
-func (r ByPrivatePort) Swap(i, j int)      { r[i], r[j] = r[j], r[i] }
-func (r ByPrivatePort) Less(i, j int) bool { return r[i].PrivatePort < r[j].PrivatePort }
+func (r byPrivatePort) Len() int           { return len(r) }
+func (r byPrivatePort) Swap(i, j int)      { r[i], r[j] = r[j], r[i] }
+func (r byPrivatePort) Less(i, j int) bool { return r[i].PrivatePort < r[j].PrivatePort }
 
+// DisplayablePorts returns formatted string representing open ports of container
+// e.g. "0.0.0.0:80->9090/tcp, 9988/tcp"
+// it's used by command 'docker ps'
 func DisplayablePorts(ports []types.Port) string {
 	var (
 		result          = []string{}
@@ -41,7 +45,7 @@ func DisplayablePorts(ports []types.Port) string {
 	)
 	firstInGroupMap = make(map[string]int)
 	lastInGroupMap = make(map[string]int)
-	sort.Sort(ByPrivatePort(ports))
+	sort.Sort(byPrivatePort(ports))
 	for _, port := range ports {
 		var (
 			current      = port.PrivatePort
@@ -69,18 +73,18 @@ func DisplayablePorts(ports []types.Port) string {
 			lastInGroupMap[portKey] = current
 			continue
 		}
-		result = append(result, FormGroup(portKey, firstInGroup, lastInGroup))
+		result = append(result, formGroup(portKey, firstInGroup, lastInGroup))
 		firstInGroupMap[portKey] = current
 		lastInGroupMap[portKey] = current
 	}
 	for portKey, firstInGroup := range firstInGroupMap {
-		result = append(result, FormGroup(portKey, firstInGroup, lastInGroupMap[portKey]))
+		result = append(result, formGroup(portKey, firstInGroup, lastInGroupMap[portKey]))
 	}
 	result = append(result, hostMappings...)
 	return strings.Join(result, ", ")
 }
 
-func FormGroup(key string, start, last int) string {
+func formGroup(key string, start, last int) string {
 	var (
 		group     string
 		parts     = strings.Split(key, "/")
@@ -102,6 +106,7 @@ func FormGroup(key string, start, last int) string {
 	return fmt.Sprintf("%s/%s", group, groupType)
 }
 
+// MatchesContentType validates the content type against the expected one
 func MatchesContentType(contentType, expectedType string) bool {
 	mimetype, _, err := mime.ParseMediaType(contentType)
 	if err != nil {
