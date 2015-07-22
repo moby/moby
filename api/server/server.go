@@ -1365,24 +1365,12 @@ func setContainerPathStatHeader(stat *types.ContainerPathStat, header http.Heade
 }
 
 func (s *Server) headContainersArchive(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	if vars == nil {
-		return fmt.Errorf("Missing parameter")
-	}
-	if err := parseForm(r); err != nil {
+	v, err := archiveFormValues(r, vars)
+	if err != nil {
 		return err
 	}
 
-	name := vars["name"]
-	path := r.Form.Get("path")
-
-	switch {
-	case name == "":
-		return fmt.Errorf("bad parameter: 'name' cannot be empty")
-	case path == "":
-		return fmt.Errorf("bad parameter: 'path' cannot be empty")
-	}
-
-	stat, err := s.daemon.ContainerStatPath(name, path)
+	stat, err := s.daemon.ContainerStatPath(v.name, v.path)
 	if err != nil {
 		return err
 	}
@@ -1391,24 +1379,12 @@ func (s *Server) headContainersArchive(version version.Version, w http.ResponseW
 }
 
 func (s *Server) getContainersArchive(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	if vars == nil {
-		return fmt.Errorf("Missing parameter")
-	}
-	if err := parseForm(r); err != nil {
+	v, err := archiveFormValues(r, vars)
+	if err != nil {
 		return err
 	}
 
-	name := vars["name"]
-	path := r.Form.Get("path")
-
-	switch {
-	case name == "":
-		return fmt.Errorf("bad parameter: 'name' cannot be empty")
-	case path == "":
-		return fmt.Errorf("bad parameter: 'path' cannot be empty")
-	}
-
-	tarArchive, stat, err := s.daemon.ContainerArchivePath(name, path)
+	tarArchive, stat, err := s.daemon.ContainerArchivePath(v.name, v.path)
 	if err != nil {
 		return err
 	}
@@ -1425,26 +1401,13 @@ func (s *Server) getContainersArchive(version version.Version, w http.ResponseWr
 }
 
 func (s *Server) putContainersArchive(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	if vars == nil {
-		return fmt.Errorf("Missing parameter")
-	}
-	if err := parseForm(r); err != nil {
+	v, err := archiveFormValues(r, vars)
+	if err != nil {
 		return err
 	}
 
-	name := vars["name"]
-	path := r.Form.Get("path")
-
 	noOverwriteDirNonDir := boolValue(r, "noOverwriteDirNonDir")
-
-	switch {
-	case name == "":
-		return fmt.Errorf("bad parameter: 'name' cannot be empty")
-	case path == "":
-		return fmt.Errorf("bad parameter: 'path' cannot be empty")
-	}
-
-	return s.daemon.ContainerExtractToDir(name, path, noOverwriteDirNonDir, r.Body)
+	return s.daemon.ContainerExtractToDir(v.name, v.path, noOverwriteDirNonDir, r.Body)
 }
 
 func (s *Server) postContainerExecCreate(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
