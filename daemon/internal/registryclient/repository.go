@@ -21,6 +21,83 @@ import (
 	"github.com/docker/distribution/registry/storage/cache/memory"
 )
 
+// Registry provides an interface for calling Repositories, which returns a catalog of repositories.
+type Registry interface {
+	Repositories(ctx context.Context, repos []string, last string) (n int, err error)
+}
+
+// NewRegistry creates a registry namespace which can be used to get a listing of repositories
+func NewRegistry(ctx context.Context, baseURL string, transport http.RoundTripper) (Registry, error) {
+	ub, err := v2.NewURLBuilderFromString(baseURL)
+	if err != nil {
+		return nil, err
+	}
+
+	client := &http.Client{
+		Transport: transport,
+		Timeout:   1 * time.Minute,
+	}
+
+	return &registry{
+		client:  client,
+		ub:      ub,
+		context: ctx,
+	}, nil
+}
+
+type registry struct {
+	client  *http.Client
+	ub      *v2.URLBuilder
+	context context.Context
+}
+
+// Repositories returns a lexigraphically sorted catalog given a base URL.  The 'entries' slice will be filled up to the size
+// of the slice, starting at the value provided in 'last'.  The number of entries will be returned along with io.EOF if there
+// are no more entries
+func (r *registry) Repositories(ctx context.Context, entries []string, last string) (int, error) {
+	var numFilled int
+	var returnErr error
+
+	values := buildCatalogValues(len(entries), last)
+	u, err := r.ub.BuildCatalogURL(values)
+	if err != nil {
+		return 0, err
+	}
+
+	resp, err := r.client.Get(u)
+	if err != nil {
+		return 0, err
+	}
+	defer resp.Body.Close()
+
+	switch resp.StatusCode {
+	case http.StatusOK:
+		var ctlg struct {
+			Repositories []string `json:"repositories"`
+		}
+		decoder := json.NewDecoder(resp.Body)
+
+		if err := decoder.Decode(&ctlg); err != nil {
+			return 0, err
+		}
+
+		for cnt := range ctlg.Repositories {
+			entries[cnt] = ctlg.Repositories[cnt]
+		}
+		numFilled = len(ctlg.Repositories)
+
+		link := resp.Header.Get("Link")
+		if link == "" {
+			returnErr = io.EOF
+		}
+
+	default:
+		return 0, handleErrorResponse(resp)
+	}
+
+	return numFilled, returnErr
+}
+
 // NewRepository creates a new Repository for the given repository name and base URL
 func NewRepository(ctx context.Context, name, baseURL string, transport http.RoundTripper) (distribution.Repository, error) {
 	if err := v2.ValidateRepositoryName(name); err != nil {
@@ -457,61 +534,4 @@ func buildCatalogValues(maxEntries int, last string) url.Values {
 	}
 
 	return values
-}
-
-// Repositories returns a lexigraphically sorted catalog given a base URL.  The 'entries' slice will be filled up to the size
-// of the slice, starting at the value provided in 'last'.  The number of entries will be returned along with io.EOF if there
-// are no more entries
-func Repositories(ctx context.Context, baseURL string, entries []string, last string, transport http.RoundTripper) (int, error) {
-	var numFilled int
-	var returnErr error
-
-	ub, err := v2.NewURLBuilderFromString(baseURL)
-	if err != nil {
-		return 0, err
-	}
-
-	client := &http.Client{
-		Transport: transport,
-		Timeout:   1 * time.Minute,
-	}
-
-	values := buildCatalogValues(len(entries), last)
-	u, err := ub.BuildCatalogURL(values)
-	if err != nil {
-		return 0, err
-	}
-
-	resp, err := client.Get(u)
-	if err != nil {
-		return 0, err
-	}
-	defer resp.Body.Close()
-
-	switch resp.StatusCode {
-	case http.StatusOK:
-		var ctlg struct {
-			Repositories []string `json:"repositories"`
-		}
-		decoder := json.NewDecoder(resp.Body)
-
-		if err := decoder.Decode(&ctlg); err != nil {
-			return 0, err
-		}
-
-		for cnt := range ctlg.Repositories {
-			entries[cnt] = ctlg.Repositories[cnt]
-		}
-		numFilled = len(ctlg.Repositories)
-
-		link := resp.Header.Get("Link")
-		if link == "" {
-			returnErr = io.EOF
-		}
-
-	default:
-		return 0, handleErrorResponse(resp)
-	}
-
-	return numFilled, returnErr
 }
