@@ -404,7 +404,14 @@ func (r *Session) GetRepositoryData(remote string) (*RepositoryData, error) {
 	req.Header.Set("X-Docker-Token", "true")
 	res, err := r.client.Do(req)
 	if err != nil {
-		return nil, err
+		// check if the error is because of i/o timeout
+		// and return a non-obtuse error message for users
+		// "Get https://index.docker.io/v1/repositories/library/busybox/images: i/o timeout"
+		// was a top search on the docker user forum
+		if strings.HasSuffix(err.Error(), "i/o timeout") {
+			return nil, fmt.Errorf("Network timed out while trying to connect to %s. You may want to check your internet connection or if you are behind a proxy.", repositoryTarget)
+		}
+		return nil, fmt.Errorf("Error while pulling image: %v", err)
 	}
 	defer res.Body.Close()
 	if res.StatusCode == 401 {
