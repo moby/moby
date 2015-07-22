@@ -22,7 +22,7 @@ func (s *DockerSuite) TestRestartStoppedContainer(c *check.C) {
 
 	out, _ = dockerCmd(c, "logs", cleanedContainerID)
 	if out != "foobar\nfoobar\n" {
-		c.Errorf("container should've printed 'foobar' twice")
+		c.Errorf("container should've printed 'foobar' twice, got %v", out)
 	}
 }
 
