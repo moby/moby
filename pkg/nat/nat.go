@@ -13,22 +13,28 @@ import (
 )
 
 const (
-	PortSpecTemplate       = "ip:hostPort:containerPort"
-	PortSpecTemplateFormat = "ip:hostPort:containerPort | ip::containerPort | hostPort:containerPort | containerPort"
+	// portSpecTemplate is the expected format for port specifications
+	portSpecTemplate = "ip:hostPort:containerPort"
 )
 
+// PortBinding represents a binding between a Host IP address and a Host Port
 type PortBinding struct {
-	HostIp   string
+	// HostIP is the host IP Address
+	HostIP string `json:"HostIp"`
+	// HostPort is the host port number
 	HostPort string
 }
 
+// PortMap is a collection of PortBinding indexed by Port
 type PortMap map[Port][]PortBinding
 
+// PortSet is a collection of structs indexed by Port
 type PortSet map[Port]struct{}
 
-// 80/tcp
+// Port is a string containing port number and protocol in the format "80/tcp"
 type Port string
 
+// NewPort creates a new instance of a Port given a protocol and port number
 func NewPort(proto, port string) (Port, error) {
 	// Check for parsing issues on "port" now so we can avoid having
 	// to check it later on.
@@ -41,6 +47,7 @@ func NewPort(proto, port string) (Port, error) {
 	return Port(fmt.Sprintf("%d/%s", portInt, proto)), nil
 }
 
+// ParsePort parses the port number string and returns an int
 func ParsePort(rawPort string) (int, error) {
 	if len(rawPort) == 0 {
 		return 0, nil
@@ -52,16 +59,19 @@ func ParsePort(rawPort string) (int, error) {
 	return int(port), nil
 }
 
+// Proto returns the protocol of a Port
 func (p Port) Proto() string {
 	proto, _ := SplitProtoPort(string(p))
 	return proto
 }
 
+// Port returns the port number of a Port
 func (p Port) Port() string {
 	_, port := SplitProtoPort(string(p))
 	return port
 }
 
+// Int returns the port number of a Port as an int
 func (p Port) Int() int {
 	portStr := p.Port()
 	if len(portStr) == 0 {
@@ -74,7 +84,7 @@ func (p Port) Int() int {
 	return int(port)
 }
 
-// Splits a port in the format of proto/port
+// SplitProtoPort splits a port in the format of proto/port
 func SplitProtoPort(rawPort string) (string, string) {
 	parts := strings.Split(rawPort, "/")
 	l := len(parts)
@@ -99,8 +109,8 @@ func validateProto(proto string) bool {
 	return false
 }
 
-// We will receive port specs in the format of ip:public:private/proto and these need to be
-// parsed in the internal types
+// ParsePortSpecs receives port specs in the format of ip:public:private/proto and parses
+// these in to the internal types
 func ParsePortSpecs(ports []string) (map[Port]struct{}, map[Port][]PortBinding, error) {
 	var (
 		exposedPorts = make(map[Port]struct{}, len(ports))
@@ -120,19 +130,19 @@ func ParsePortSpecs(ports []string) (map[Port]struct{}, map[Port][]PortBinding, 
 			rawPort = fmt.Sprintf(":%s", rawPort)
 		}
 
-		parts, err := parsers.PartParser(PortSpecTemplate, rawPort)
+		parts, err := parsers.PartParser(portSpecTemplate, rawPort)
 		if err != nil {
 			return nil, nil, err
 		}
 
 		var (
 			containerPort = parts["containerPort"]
-			rawIp         = parts["ip"]
+			rawIP         = parts["ip"]
 			hostPort      = parts["hostPort"]
 		)
 
-		if rawIp != "" && net.ParseIP(rawIp) == nil {
-			return nil, nil, fmt.Errorf("Invalid ip address: %s", rawIp)
+		if rawIP != "" && net.ParseIP(rawIP) == nil {
+			return nil, nil, fmt.Errorf("Invalid ip address: %s", rawIP)
 		}
 		if containerPort == "" {
 			return nil, nil, fmt.Errorf("No port specified: %s<empty>", rawPort)
@@ -173,7 +183,7 @@ func ParsePortSpecs(ports []string) (map[Port]struct{}, map[Port][]PortBinding, 
 			}
 
 			binding := PortBinding{
-				HostIp:   rawIp,
+				HostIP:   rawIP,
 				HostPort: hostPort,
 			}
 			bslice, exists := bindings[port]

@@ -541,7 +541,7 @@ func (container *Container) buildPortMapInfo(n libnetwork.Network, ep libnetwork
 			if err != nil {
 				return nil, err
 			}
-			natBndg := nat.PortBinding{HostIp: pp.HostIP.String(), HostPort: strconv.Itoa(int(pp.HostPort))}
+			natBndg := nat.PortBinding{HostIP: pp.HostIP.String(), HostPort: strconv.Itoa(int(pp.HostPort))}
 			networkSettings.Ports[natPort] = append(networkSettings.Ports[natPort], natBndg)
 		}
 	}
@@ -690,7 +690,7 @@ func (container *Container) buildCreateEndpointOptions() ([]libnetwork.EndpointO
 			bindings[p] = []nat.PortBinding{}
 			for _, bb := range b {
 				bindings[p] = append(bindings[p], nat.PortBinding{
-					HostIp:   bb.HostIp,
+					HostIP:   bb.HostIP,
 					HostPort: bb.HostPort,
 				})
 			}
@@ -721,7 +721,7 @@ func (container *Container) buildCreateEndpointOptions() ([]libnetwork.EndpointO
 				return nil, fmt.Errorf("Error parsing HostPort value(%s):%v", binding[i].HostPort, err)
 			}
 			pbCopy.HostPort = uint16(newP.Int())
-			pbCopy.HostIP = net.ParseIP(binding[i].HostIp)
+			pbCopy.HostIP = net.ParseIP(binding[i].HostIP)
 			pbList = append(pbList, pbCopy)
 		}
 

@@ -879,7 +879,7 @@ func (s *DockerSuite) TestContainerApiBadPort(c *check.C) {
 		"PortBindings": map[string]interface{}{
 			"8080/tcp": []map[string]interface{}{
 				{
-					"HostIp":   "",
+					"HostIP":   "",
 					"HostPort": "aa80",
 				},
 			},
