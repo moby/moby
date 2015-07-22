@@ -768,8 +768,13 @@ func TestCatalog(t *testing.T) {
 
 	entries := make([]string, 5)
 
+	r, err := NewRegistry(context.Background(), e, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	ctx := context.Background()
-	numFilled, err := Repositories(ctx, e, entries, "", nil)
+	numFilled, err := r.Repositories(ctx, entries, "")
 	if err != io.EOF {
 		t.Fatal(err)
 	}
@@ -795,8 +800,13 @@ func TestCatalogInParts(t *testing.T) {
 
 	entries := make([]string, 2)
 
+	r, err := NewRegistry(context.Background(), e, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	ctx := context.Background()
-	numFilled, err := Repositories(ctx, e, entries, "", nil)
+	numFilled, err := r.Repositories(ctx, entries, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -805,7 +815,7 @@ func TestCatalogInParts(t *testing.T) {
 		t.Fatalf("Got wrong number of repos")
 	}
 
-	numFilled, err = Repositories(ctx, e, entries, "baz", nil)
+	numFilled, err = r.Repositories(ctx, entries, "baz")
 	if err != io.EOF {
 		t.Fatal(err)
 	}
