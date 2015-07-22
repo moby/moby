@@ -41,6 +41,7 @@ func (container *Container) setupMounts() ([]execdriver.Mount, error) {
 			Source:      path,
 			Destination: m.Destination,
 			Writable:    m.RW,
+			Slave:       true,
 		})
 	}
 
