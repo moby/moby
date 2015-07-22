@@ -13,37 +13,37 @@ import (
 	"github.com/go-check/check"
 )
 
-type FileType uint32
+type fileType uint32
 
 const (
-	Regular FileType = iota
-	Dir
-	Symlink
+	ftRegular fileType = iota
+	ftDir
+	ftSymlink
 )
 
-type FileData struct {
-	filetype FileType
+type fileData struct {
+	filetype fileType
 	path     string
 	contents string
 }
 
-func (fd FileData) creationCommand() string {
+func (fd fileData) creationCommand() string {
 	var command string
 
 	switch fd.filetype {
-	case Regular:
+	case ftRegular:
 		// Don't overwrite the file if it already exists!
 		command = fmt.Sprintf("if [ ! -f %s ]; then echo %q > %s; fi", fd.path, fd.contents, fd.path)
-	case Dir:
+	case ftDir:
 		command = fmt.Sprintf("mkdir -p %s", fd.path)
-	case Symlink:
+	case ftSymlink:
 		command = fmt.Sprintf("ln -fs %s %s", fd.contents, fd.path)
 	}
 
 	return command
 }
 
-func mkFilesCommand(fds []FileData) string {
+func mkFilesCommand(fds []fileData) string {
 	commands := make([]string, len(fds))
 
 	for i, fd := range fds {
@@ -53,29 +53,29 @@ func mkFilesCommand(fds []FileData) string {
 	return strings.Join(commands, " && ")
 }
 
-var defaultFileData = []FileData{
-	{Regular, "file1", "file1"},
-	{Regular, "file2", "file2"},
-	{Regular, "file3", "file3"},
-	{Regular, "file4", "file4"},
-	{Regular, "file5", "file5"},
-	{Regular, "file6", "file6"},
-	{Regular, "file7", "file7"},
-	{Dir, "dir1", ""},
-	{Regular, "dir1/file1-1", "file1-1"},
-	{Regular, "dir1/file1-2", "file1-2"},
-	{Dir, "dir2", ""},
-	{Regular, "dir2/file2-1", "file2-1"},
-	{Regular, "dir2/file2-2", "file2-2"},
-	{Dir, "dir3", ""},
-	{Regular, "dir3/file3-1", "file3-1"},
-	{Regular, "dir3/file3-2", "file3-2"},
-	{Dir, "dir4", ""},
-	{Regular, "dir4/file3-1", "file4-1"},
-	{Regular, "dir4/file3-2", "file4-2"},
-	{Dir, "dir5", ""},
-	{Symlink, "symlink1", "target1"},
-	{Symlink, "symlink2", "target2"},
+var defaultFileData = []fileData{
+	{ftRegular, "file1", "file1"},
+	{ftRegular, "file2", "file2"},
+	{ftRegular, "file3", "file3"},
+	{ftRegular, "file4", "file4"},
+	{ftRegular, "file5", "file5"},
+	{ftRegular, "file6", "file6"},
+	{ftRegular, "file7", "file7"},
+	{ftDir, "dir1", ""},
+	{ftRegular, "dir1/file1-1", "file1-1"},
+	{ftRegular, "dir1/file1-2", "file1-2"},
+	{ftDir, "dir2", ""},
+	{ftRegular, "dir2/file2-1", "file2-1"},
+	{ftRegular, "dir2/file2-2", "file2-2"},
+	{ftDir, "dir3", ""},
+	{ftRegular, "dir3/file3-1", "file3-1"},
+	{ftRegular, "dir3/file3-2", "file3-2"},
+	{ftDir, "dir4", ""},
+	{ftRegular, "dir4/file3-1", "file4-1"},
+	{ftRegular, "dir4/file3-2", "file4-2"},
+	{ftDir, "dir5", ""},
+	{ftSymlink, "symlink1", "target1"},
+	{ftSymlink, "symlink2", "target2"},
 }
 
 func defaultMkContentCommand() string {
@@ -86,15 +86,15 @@ func makeTestContentInDir(c *check.C, dir string) {
 	for _, fd := range defaultFileData {
 		path := filepath.Join(dir, filepath.FromSlash(fd.path))
 		switch fd.filetype {
-		case Regular:
+		case ftRegular:
 			if err := ioutil.WriteFile(path, []byte(fd.contents+"\n"), os.FileMode(0666)); err != nil {
 				c.Fatal(err)
 			}
-		case Dir:
+		case ftDir:
 			if err := os.Mkdir(path, os.FileMode(0777)); err != nil {
 				c.Fatal(err)
 			}
-		case Symlink:
+		case ftSymlink:
 			if err := os.Symlink(fd.contents, path); err != nil {
 				c.Fatal(err)
 			}

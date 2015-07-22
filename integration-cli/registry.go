@@ -66,7 +66,7 @@ func (t *testRegistryV2) Ping() error {
 	return nil
 }
 
-func (r *testRegistryV2) Close() {
-	r.cmd.Process.Kill()
-	os.RemoveAll(r.dir)
+func (t *testRegistryV2) Close() {
+	t.cmd.Process.Kill()
+	os.RemoveAll(t.dir)
 }
