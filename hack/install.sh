@@ -6,7 +6,12 @@ set -e
 # or:
 #   'wget -qO- https://get.docker.com/ | sh'
 #
-# If you're interested in the daily experimental build:
+# For test builds (ie. release candidates):
+#   'curl -sSL https://test.docker.com/ | sh'
+# or:
+#   'wget -qO- https://test.docker.com/ | sh'
+#
+# For experimental builds:
 #   'curl -sSL https://experimental.docker.com/ | sh'
 # or:
 #   'wget -qO- https://experimental.docker.com/ | sh'
@@ -25,6 +30,12 @@ command_exists() {
 }
 
 echo_docker_as_nonroot() {
+	if command_exists docker && [ -e /var/run/docker.sock ]; then
+		(
+			set -x
+			$sh_c 'docker version'
+		) || true
+	fi
 	your_user=your-user
 	[ "$user" != 'root' ] && your_user="$user"
 	# intentionally mixed spaces and tabs here -- tabs are stripped by "<<-EOF", spaces are kept in the output
@@ -95,47 +106,60 @@ do_install() {
 		curl='busybox wget -qO-'
 	fi
 
+	# check to see which repo they are trying to install from
+	repo='main'
+	if [ "https://test.docker.com/" = "$url" ]; then
+		repo='testing'
+	elif [ "https://experimental.docker.com/" = "$url" ]; then
+		repo='experimental'
+	fi
+
 	# perform some very rudimentary platform detection
 	lsb_dist=''
+	dist_version=''
 	if command_exists lsb_release; then
 		lsb_dist="$(lsb_release -si)"
+		dist_version="$(lsb_release --codename | cut -f2)"
 	fi
 	if [ -z "$lsb_dist" ] && [ -r /etc/lsb-release ]; then
 		lsb_dist="$(. /etc/lsb-release && echo "$DISTRIB_ID")"
+		dist_version="$(. /etc/lsb-release && echo "$DISTRIB_CODENAME")"
 	fi
 	if [ -z "$lsb_dist" ] && [ -r /etc/debian_version ]; then
 		lsb_dist='debian'
+		dist_version="$(cat /etc/debian_version | sed 's/\/.*//' | sed 's/\..*//')"
+		case "$dist_version" in
+			8)
+				dist_version="jessie"
+				;;
+
+			7)
+				dist_version="wheezy"
+				;;
+		esac
 	fi
 	if [ -z "$lsb_dist" ] && [ -r /etc/fedora-release ]; then
 		lsb_dist='fedora'
+		dist_version="$(rpm -qa \*-release | cut -d"-" -f3)"
 	fi
-	if [ -z "$lsb_dist" ] && [ -r /etc/centos-release ]; then
-		lsb_dist='centos'
+	if [ -z "$lsb_dist" ]; then
+		if [ -r /etc/centos-release ] || [ -r /etc/redhat-release ]; then
+			lsb_dist='centos'
+			dist_version="$(rpm -qa \*-release | cut -d"-" -f3)"
+		fi
 	fi
 	if [ -z "$lsb_dist" ] && [ -r /etc/os-release ]; then
 		lsb_dist="$(. /etc/os-release && echo "$ID")"
+		dist_version="$(. /etc/os-release && echo "$VERSION_ID")"
 	fi
 
 	lsb_dist="$(echo "$lsb_dist" | tr '[:upper:]' '[:lower:]')"
 	case "$lsb_dist" in
-		amzn|fedora|centos)
-			if [ "$lsb_dist" = 'amzn' ]; then
-				(
-					set -x
-					$sh_c 'sleep 3; yum -y -q install docker'
-				)
-			else
-				(
-					set -x
-					$sh_c 'sleep 3; yum -y -q install docker-io'
-				)
-			fi
-			if command_exists docker && [ -e /var/run/docker.sock ]; then
-				(
-					set -x
-					$sh_c 'docker version'
-				) || true
-			fi
+		amzn)
+			(
+			set -x
+			$sh_c 'sleep 3; yum -y -q install docker'
+			)
 			echo_docker_as_nonroot
 			exit 0
 			;;
@@ -145,17 +169,11 @@ do_install() {
 				set -x
 				$sh_c 'sleep 3; zypper -n install docker'
 			)
-			if command_exists docker && [ -e /var/run/docker.sock ]; then
-				(
-					set -x
-					$sh_c 'docker version'
-				) || true
-			fi
 			echo_docker_as_nonroot
 			exit 0
 			;;
 
-		ubuntu|debian|linuxmint|'elementary os'|kali)
+		ubuntu|debian)
 			export DEBIAN_FRONTEND=noninteractive
 
 			did_apt_get_update=
@@ -209,30 +227,39 @@ do_install() {
 				curl='curl -sSL'
 			fi
 			(
-				set -x
-				if [ "https://get.docker.com/" = "$url" ]; then
-					$sh_c "apt-key adv --keyserver hkp://p80.pool.sks-keyservers.net:80 --recv-keys 36A1D7869245C8950F966E92D8576A8BA88D21E9"
-				elif [ "https://test.docker.com/" = "$url" ]; then
-					$sh_c "apt-key adv --keyserver hkp://p80.pool.sks-keyservers.net:80 --recv-keys 740B314AE3941731B942C66ADF4FD13717AAD7D6"
-				elif [ "https://experimental.docker.com/" = "$url" ]; then
-					$sh_c "apt-key adv --keyserver hkp://p80.pool.sks-keyservers.net:80 --recv-keys E33FF7BF5C91D50A6F91FFFD4CC38D40F9A96B49"
-				else
-					$sh_c "$curl ${url}gpg | apt-key add -"
-				fi
-				$sh_c "mkdir -p /etc/apt/sources.list.d"
-				$sh_c "echo deb ${url}ubuntu docker main > /etc/apt/sources.list.d/docker.list"
-				$sh_c 'sleep 3; apt-get update; apt-get install -y -q lxc-docker'
+			set -x
+			$sh_c "apt-key adv --keyserver hkp://p80.pool.sks-keyservers.net:80 --recv-keys 58118E89F3A912897C070ADBF76221572C52609D"
+			$sh_c "mkdir -p /etc/apt/sources.list.d"
+			$sh_c "echo deb https://apt.dockerproject.org/repo ${lsb_dist}-${dist_version} ${repo} > /etc/apt/sources.list.d/docker.list"
+			$sh_c 'sleep 3; apt-get update; apt-get install -y -q docker-engine'
 			)
-			if command_exists docker && [ -e /var/run/docker.sock ]; then
-				(
-					set -x
-					$sh_c 'docker version'
-				) || true
-			fi
 			echo_docker_as_nonroot
 			exit 0
 			;;
 
+		fedora|centos)
+			cat >/etc/yum.repos.d/docker-${repo}.repo <<-EOF
+			[docker-${repo}-repo]
+			name=Docker ${repo} Repository
+			baseurl=https://yum.dockerproject.org/repo/${repo}/${lsb_dist}/${dist_version}
+			enabled=1
+			gpgcheck=1
+			gpgkey=https://yum.dockerproject.org/gpg
+			EOF
+			if [ "$lsb_dist" = "fedora" ] && [ "$dist_version" -ge "22" ]; then
+				(
+					set -x
+					$sh_c 'sleep 3; dnf -y -q install docker-engine'
+				)
+			else
+				(
+					set -x
+					$sh_c 'sleep 3; yum -y -q install docker-engine'
+				)
+			fi
+			echo_docker_as_nonroot
+			exit 0
+			;;
 		gentoo)
 			if [ "$url" = "https://test.docker.com/" ]; then
 				# intentionally mixed spaces and tabs here -- tabs are stripped by "<<-'EOF'", spaces are kept in the output
