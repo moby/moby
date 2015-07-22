@@ -9,6 +9,17 @@ parent = "smn_release_notes"
 +++
 <![end-metadata]-->
 
+# Deprecated Features
+
+To see the complete list of deprecated features please see the
+[Deprecated Features](deprecated) page.
+
+# Removed Features
+
+The following features have been removed in this release:
+
+* None!
+
 # Release notes version 1.6.0
 (2015-04-16)
 
