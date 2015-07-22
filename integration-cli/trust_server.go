@@ -60,10 +60,25 @@ func newTestNotary(c *check.C) (*testNotary, error) {
 		}
 		return nil, err
 	}
-	return &testNotary{
+
+	testNotary := &testNotary{
 		cmd: cmd,
 		dir: tmp,
-	}, nil
+	}
+
+	// Wait for notary to be ready to serve requests.
+	for i := 1; i <= 5; i++ {
+		if err = testNotary.Ping(); err == nil {
+			break
+		}
+		time.Sleep(10 * time.Millisecond * time.Duration(i*i))
+	}
+
+	if err != nil {
+		c.Fatalf("Timeout waiting for test notary to become available: %s", err)
+	}
+
+	return testNotary, nil
 }
 
 func (t *testNotary) address() string {

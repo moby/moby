@@ -12,6 +12,7 @@ import (
 
 	"github.com/docker/docker/pkg/nat"
 	"github.com/go-check/check"
+	"io/ioutil"
 )
 
 // Make sure we can create a simple container with some args
@@ -375,4 +376,75 @@ func (s *DockerTrustSuite) TestCreateWhenCertExpired(c *check.C) {
 			c.Fatalf("Missing expected output on untrusted create in the distant future:\n%s", out)
 		}
 	})
+}
+
+func (s *DockerTrustSuite) TestTrustedCreateFromBadTrustServer(c *check.C) {
+	repoName := fmt.Sprintf("%v/dockerclievilcreate/trusted:latest", privateRegistryURL)
+	evilLocalConfigDir, err := ioutil.TempDir("", "evil-local-config-dir")
+	if err != nil {
+		c.Fatalf("Failed to create local temp dir")
+	}
+
+	// tag the image and upload it to the private registry
+	dockerCmd(c, "tag", "busybox", repoName)
+
+	pushCmd := exec.Command(dockerBinary, "push", repoName)
+	s.trustedCmd(pushCmd)
+	out, _, err := runCommandWithOutput(pushCmd)
+	if err != nil {
+		c.Fatalf("Error creating trusted push: %s\n%s", err, out)
+	}
+	if !strings.Contains(string(out), "Signing and pushing trust metadata") {
+		c.Fatalf("Missing expected output on trusted push:\n%s", out)
+	}
+
+	dockerCmd(c, "rmi", repoName)
+
+	// Try create
+	createCmd := exec.Command(dockerBinary, "create", repoName)
+	s.trustedCmd(createCmd)
+	out, _, err = runCommandWithOutput(createCmd)
+	if err != nil {
+		c.Fatalf("Error creating trusted create: %s\n%s", err, out)
+	}
+
+	if !strings.Contains(string(out), "Tagging") {
+		c.Fatalf("Missing expected output on trusted push:\n%s", out)
+	}
+
+	dockerCmd(c, "rmi", repoName)
+
+	// Kill the notary server, start a new "evil" one.
+	s.not.Close()
+	s.not, err = newTestNotary(c)
+	if err != nil {
+		c.Fatalf("Restarting notary server failed.")
+	}
+
+	// In order to make an evil server, lets re-init a client (with a different trust dir) and push new data.
+	// tag an image and upload it to the private registry
+	dockerCmd(c, "--config", evilLocalConfigDir, "tag", "busybox", repoName)
+
+	// Push up to the new server
+	pushCmd = exec.Command(dockerBinary, "--config", evilLocalConfigDir, "push", repoName)
+	s.trustedCmd(pushCmd)
+	out, _, err = runCommandWithOutput(pushCmd)
+	if err != nil {
+		c.Fatalf("Error creating trusted push: %s\n%s", err, out)
+	}
+	if !strings.Contains(string(out), "Signing and pushing trust metadata") {
+		c.Fatalf("Missing expected output on trusted push:\n%s", out)
+	}
+
+	// Now, try creating with the original client from this new trust server. This should fail.
+	createCmd = exec.Command(dockerBinary, "create", repoName)
+	s.trustedCmd(createCmd)
+	out, _, err = runCommandWithOutput(createCmd)
+	if err == nil {
+		c.Fatalf("Expected to fail on this create due to different remote data: %s\n%s", err, out)
+	}
+
+	if !strings.Contains(string(out), "failed to validate integrity of roots") {
+		c.Fatalf("Missing expected output on trusted push:\n%s", out)
+	}
 }
