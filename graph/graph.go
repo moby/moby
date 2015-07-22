@@ -28,6 +28,8 @@ import (
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/pkg/truncindex"
 	"github.com/docker/docker/runconfig"
+	"github.com/vbatts/tar-split/tar/asm"
+	"github.com/vbatts/tar-split/tar/storage"
 )
 
 // The type is used to protect pulling or building related image
@@ -81,6 +83,14 @@ type Graph struct {
 	imageMutex imageMutex // protect images in driver.
 	retained   *retainedLayers
 }
+
+// file names for ./graph/<ID>/
+const (
+	jsonFileName      = "json"
+	layersizeFileName = "layersize"
+	digestFileName    = "checksum"
+	tarDataFileName   = "tar-data.json.gz"
+)
 
 var (
 	// ErrDigestNotSet is used when request the digest for a layer
@@ -456,7 +466,7 @@ func (graph *Graph) loadImage(id string) (*image.Image, error) {
 		return nil, err
 	}
 
-	if buf, err := ioutil.ReadFile(filepath.Join(root, "layersize")); err != nil {
+	if buf, err := ioutil.ReadFile(filepath.Join(root, layersizeFileName)); err != nil {
 		if !os.IsNotExist(err) {
 			return nil, err
 		}
@@ -479,8 +489,8 @@ func (graph *Graph) loadImage(id string) (*image.Image, error) {
 
 // saveSize stores the `size` in the provided graph `img` directory `root`.
 func (graph *Graph) saveSize(root string, size int) error {
-	if err := ioutil.WriteFile(filepath.Join(root, "layersize"), []byte(strconv.Itoa(size)), 0600); err != nil {
-		return fmt.Errorf("Error storing image size in %s/layersize: %s", root, err)
+	if err := ioutil.WriteFile(filepath.Join(root, layersizeFileName), []byte(strconv.Itoa(size)), 0600); err != nil {
+		return fmt.Errorf("Error storing image size in %s/%s: %s", root, layersizeFileName, err)
 	}
 	return nil
 }
@@ -488,8 +498,8 @@ func (graph *Graph) saveSize(root string, size int) error {
 // SetDigest sets the digest for the image layer to the provided value.
 func (graph *Graph) SetDigest(id string, dgst digest.Digest) error {
 	root := graph.imageRoot(id)
-	if err := ioutil.WriteFile(filepath.Join(root, "checksum"), []byte(dgst.String()), 0600); err != nil {
-		return fmt.Errorf("Error storing digest in %s/checksum: %s", root, err)
+	if err := ioutil.WriteFile(filepath.Join(root, digestFileName), []byte(dgst.String()), 0600); err != nil {
+		return fmt.Errorf("Error storing digest in %s/%s: %s", root, digestFileName, err)
 	}
 	return nil
 }
@@ -497,7 +507,7 @@ func (graph *Graph) SetDigest(id string, dgst digest.Digest) error {
 // GetDigest gets the digest for the provide image layer id.
 func (graph *Graph) GetDigest(id string) (digest.Digest, error) {
 	root := graph.imageRoot(id)
-	cs, err := ioutil.ReadFile(filepath.Join(root, "checksum"))
+	cs, err := ioutil.ReadFile(filepath.Join(root, digestFileName))
 	if err != nil {
 		if os.IsNotExist(err) {
 			return "", ErrDigestNotSet
@@ -520,5 +530,82 @@ func (graph *Graph) RawJSON(id string) ([]byte, error) {
 }
 
 func jsonPath(root string) string {
-	return filepath.Join(root, "json")
+	return filepath.Join(root, jsonFileName)
+}
+
+func (graph *Graph) disassembleAndApplyTarLayer(img *image.Image, layerData archive.ArchiveReader, root string) error {
+	// this is saving the tar-split metadata
+	mf, err := os.OpenFile(filepath.Join(root, tarDataFileName), os.O_CREATE|os.O_WRONLY|os.O_TRUNC, os.FileMode(0600))
+	if err != nil {
+		return err
+	}
+	mfz := gzip.NewWriter(mf)
+	metaPacker := storage.NewJSONPacker(mfz)
+	defer mf.Close()
+	defer mfz.Close()
+
+	inflatedLayerData, err := archive.DecompressStream(layerData)
+	if err != nil {
+		return err
+	}
+
+	// we're passing nil here for the file putter, because the ApplyDiff will
+	// handle the extraction of the archive
+	rdr, err := asm.NewInputTarStream(inflatedLayerData, metaPacker, nil)
+	if err != nil {
+		return err
+	}
+
+	if img.Size, err = graph.driver.ApplyDiff(img.ID, img.Parent, archive.ArchiveReader(rdr)); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (graph *Graph) assembleTarLayer(img *image.Image) (archive.Archive, error) {
+	root := graph.imageRoot(img.ID)
+	mFileName := filepath.Join(root, tarDataFileName)
+	mf, err := os.Open(mFileName)
+	if err != nil {
+		if !os.IsNotExist(err) {
+			logrus.Errorf("failed to open %q: %s", mFileName, err)
+		}
+		return nil, err
+	}
+	pR, pW := io.Pipe()
+	// this will need to be in a goroutine, as we are returning the stream of a
+	// tar archive, but can not close the metadata reader early (when this
+	// function returns)...
+	go func() {
+		defer mf.Close()
+		// let's reassemble!
+		logrus.Debugf("[graph] TarLayer with reassembly: %s", img.ID)
+		mfz, err := gzip.NewReader(mf)
+		if err != nil {
+			pW.CloseWithError(fmt.Errorf("[graph] error with %s:  %s", mFileName, err))
+			return
+		}
+		defer mfz.Close()
+
+		// get our relative path to the container
+		fsLayer, err := graph.driver.Get(img.ID, "")
+		if err != nil {
+			pW.CloseWithError(err)
+			return
+		}
+		defer graph.driver.Put(img.ID)
+
+		metaUnpacker := storage.NewJSONUnpacker(mfz)
+		fileGetter := storage.NewPathFileGetter(fsLayer)
+		logrus.Debugf("[graph] %s is at %q", img.ID, fsLayer)
+		ots := asm.NewOutputTarStream(fileGetter, metaUnpacker)
+		defer ots.Close()
+		if _, err := io.Copy(pW, ots); err != nil {
+			pW.CloseWithError(err)
+			return
+		}
+		pW.Close()
+	}()
+	return pR, nil
 }
