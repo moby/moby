@@ -361,7 +361,7 @@ type TtyConsole struct {
 	console libcontainer.Console
 }
 
-func NewTtyConsole(console libcontainer.Console, pipes *execdriver.Pipes, rootuid int) (*TtyConsole, error) {
+func NewTtyConsole(console libcontainer.Console, pipes *execdriver.Pipes) (*TtyConsole, error) {
 	tty := &TtyConsole{
 		console: console,
 	}
@@ -417,7 +417,7 @@ func setupPipes(container *configs.Config, processConfig *execdriver.ProcessConf
 		if err != nil {
 			return err
 		}
-		term, err = NewTtyConsole(cons, pipes, rootuid)
+		term, err = NewTtyConsole(cons, pipes)
 	} else {
 		p.Stdout = pipes.Stdout
 		p.Stderr = pipes.Stderr
