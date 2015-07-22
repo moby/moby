@@ -584,7 +584,7 @@ RUN echo 'right'
 }
 
 func (s *DockerSuite) TestBuildApiLowerDockerfile(c *check.C) {
-	git, err := fakeGIT("repo", map[string]string{
+	git, err := newFakeGit("repo", map[string]string{
 		"dockerfile": `FROM busybox
 RUN echo from dockerfile`,
 	}, false)
@@ -609,7 +609,7 @@ RUN echo from dockerfile`,
 }
 
 func (s *DockerSuite) TestBuildApiBuildGitWithF(c *check.C) {
-	git, err := fakeGIT("repo", map[string]string{
+	git, err := newFakeGit("repo", map[string]string{
 		"baz": `FROM busybox
 RUN echo from baz`,
 		"Dockerfile": `FROM busybox
@@ -638,7 +638,7 @@ RUN echo from Dockerfile`,
 
 func (s *DockerSuite) TestBuildApiDoubleDockerfile(c *check.C) {
 	testRequires(c, UnixCli) // dockerfile overwrites Dockerfile on Windows
-	git, err := fakeGIT("repo", map[string]string{
+	git, err := newFakeGit("repo", map[string]string{
 		"Dockerfile": `FROM busybox
 RUN echo from Dockerfile`,
 		"dockerfile": `FROM busybox
@@ -809,14 +809,14 @@ func (s *DockerSuite) TestContainerApiCommit(c *check.C) {
 	c.Assert(status, check.Equals, http.StatusCreated)
 
 	type resp struct {
-		Id string
+		ID string
 	}
 	var img resp
 	if err := json.Unmarshal(b, &img); err != nil {
 		c.Fatal(err)
 	}
 
-	cmd, err := inspectField(img.Id, "Config.Cmd")
+	cmd, err := inspectField(img.ID, "Config.Cmd")
 	if err != nil {
 		c.Fatal(err)
 	}
@@ -824,7 +824,7 @@ func (s *DockerSuite) TestContainerApiCommit(c *check.C) {
 		c.Fatalf("got wrong Cmd from commit: %q", cmd)
 	}
 	// sanity check, make sure the image is what we think it is
-	dockerCmd(c, "run", img.Id, "ls", "/test")
+	dockerCmd(c, "run", img.ID, "ls", "/test")
 }
 
 func (s *DockerSuite) TestContainerApiCommitWithLabelInConfig(c *check.C) {
@@ -841,26 +841,26 @@ func (s *DockerSuite) TestContainerApiCommitWithLabelInConfig(c *check.C) {
 	c.Assert(status, check.Equals, http.StatusCreated)
 
 	type resp struct {
-		Id string
+		ID string
 	}
 	var img resp
 	if err := json.Unmarshal(b, &img); err != nil {
 		c.Fatal(err)
 	}
 
-	label1, err := inspectFieldMap(img.Id, "Config.Labels", "key1")
+	label1, err := inspectFieldMap(img.ID, "Config.Labels", "key1")
 	if err != nil {
 		c.Fatal(err)
 	}
 	c.Assert(label1, check.Equals, "value1")
 
-	label2, err := inspectFieldMap(img.Id, "Config.Labels", "key2")
+	label2, err := inspectFieldMap(img.ID, "Config.Labels", "key2")
 	if err != nil {
 		c.Fatal(err)
 	}
 	c.Assert(label2, check.Equals, "value2")
 
-	cmd, err := inspectField(img.Id, "Config.Cmd")
+	cmd, err := inspectField(img.ID, "Config.Cmd")
 	if err != nil {
 		c.Fatal(err)
 	}
@@ -869,7 +869,7 @@ func (s *DockerSuite) TestContainerApiCommitWithLabelInConfig(c *check.C) {
 	}
 
 	// sanity check, make sure the image is what we think it is
-	dockerCmd(c, "run", img.Id, "ls", "/test")
+	dockerCmd(c, "run", img.ID, "ls", "/test")
 }
 
 func (s *DockerSuite) TestContainerApiBadPort(c *check.C) {
@@ -909,14 +909,14 @@ func (s *DockerSuite) TestContainerApiCreate(c *check.C) {
 	c.Assert(status, check.Equals, http.StatusCreated)
 
 	type createResp struct {
-		Id string
+		ID string
 	}
 	var container createResp
 	if err := json.Unmarshal(b, &container); err != nil {
 		c.Fatal(err)
 	}
 
-	out, _ := dockerCmd(c, "start", "-a", container.Id)
+	out, _ := dockerCmd(c, "start", "-a", container.ID)
 	if strings.TrimSpace(out) != "/test" {
 		c.Fatalf("expected output `/test`, got %q", out)
 	}
@@ -1050,15 +1050,15 @@ func (s *DockerSuite) TestContainerApiCreateWithCpuSharesCpuset(c *check.C) {
 	c.Assert(err, check.IsNil)
 	c.Assert(status, check.Equals, http.StatusOK)
 
-	var containerJson types.ContainerJSON
+	var containerJSON types.ContainerJSON
 
-	c.Assert(json.Unmarshal(body, &containerJson), check.IsNil)
+	c.Assert(json.Unmarshal(body, &containerJSON), check.IsNil)
 
-	out, err := inspectField(containerJson.Id, "HostConfig.CpuShares")
+	out, err := inspectField(containerJSON.Id, "HostConfig.CpuShares")
 	c.Assert(err, check.IsNil)
 	c.Assert(out, check.Equals, "512")
 
-	outCpuset, errCpuset := inspectField(containerJson.Id, "HostConfig.CpusetCpus")
+	outCpuset, errCpuset := inspectField(containerJSON.Id, "HostConfig.CpusetCpus")
 	c.Assert(errCpuset, check.IsNil, check.Commentf("Output: %s", outCpuset))
 	c.Assert(outCpuset, check.Equals, "0,1")
 }
@@ -1154,14 +1154,14 @@ func (s *DockerSuite) TestContainerApiPostCreateNull(c *check.C) {
 		c.Fatal(err)
 	}
 	type createResp struct {
-		Id string
+		ID string
 	}
 	var container createResp
 	if err := json.Unmarshal(b, &container); err != nil {
 		c.Fatal(err)
 	}
 
-	out, err := inspectField(container.Id, "HostConfig.CpusetCpus")
+	out, err := inspectField(container.ID, "HostConfig.CpusetCpus")
 	if err != nil {
 		c.Fatal(err, out)
 	}
@@ -1169,12 +1169,12 @@ func (s *DockerSuite) TestContainerApiPostCreateNull(c *check.C) {
 		c.Fatalf("expected empty string, got %q", out)
 	}
 
-	outMemory, errMemory := inspectField(container.Id, "HostConfig.Memory")
+	outMemory, errMemory := inspectField(container.ID, "HostConfig.Memory")
 	c.Assert(outMemory, check.Equals, "0")
 	if errMemory != nil {
 		c.Fatal(errMemory, outMemory)
 	}
-	outMemorySwap, errMemorySwap := inspectField(container.Id, "HostConfig.MemorySwap")
+	outMemorySwap, errMemorySwap := inspectField(container.ID, "HostConfig.MemorySwap")
 	c.Assert(outMemorySwap, check.Equals, "0")
 	if errMemorySwap != nil {
 		c.Fatal(errMemorySwap, outMemorySwap)

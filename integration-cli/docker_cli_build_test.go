@@ -1890,7 +1890,7 @@ func (s *DockerSuite) TestBuildCancelationKillsSleep(c *check.C) {
 	}
 
 	// Get the exit status of `docker build`, check it exited because killed.
-	if err := buildCmd.Wait(); err != nil && !IsKilled(err) {
+	if err := buildCmd.Wait(); err != nil && !isKilled(err) {
 		c.Fatalf("wait failed during build run: %T %s", err, err)
 	}
 
@@ -4065,7 +4065,7 @@ func (s *DockerSuite) TestBuildAddTarXzGz(c *check.C) {
 
 func (s *DockerSuite) TestBuildFromGIT(c *check.C) {
 	name := "testbuildfromgit"
-	git, err := fakeGIT("repo", map[string]string{
+	git, err := newFakeGit("repo", map[string]string{
 		"Dockerfile": `FROM busybox
 					ADD first /first
 					RUN [ -f /first ]
@@ -4092,7 +4092,7 @@ func (s *DockerSuite) TestBuildFromGIT(c *check.C) {
 
 func (s *DockerSuite) TestBuildFromGITWithContext(c *check.C) {
 	name := "testbuildfromgit"
-	git, err := fakeGIT("repo", map[string]string{
+	git, err := newFakeGit("repo", map[string]string{
 		"docker/Dockerfile": `FROM busybox
 					ADD first /first
 					RUN [ -f /first ]

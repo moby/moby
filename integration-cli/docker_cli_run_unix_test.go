@@ -250,7 +250,7 @@ func (s *DockerSuite) TestRunAttachDetach(c *check.C) {
 
 // "test" should be printed
 func (s *DockerSuite) TestRunEchoStdoutWithCPUQuota(c *check.C) {
-	testRequires(c, CpuCfsQuota)
+	testRequires(c, cpuCfsQuota)
 
 	out, _, err := dockerCmdWithError(c, "run", "--cpu-quota", "8000", "--name", "test", "busybox", "echo", "test")
 	if err != nil {
@@ -270,7 +270,7 @@ func (s *DockerSuite) TestRunEchoStdoutWithCPUQuota(c *check.C) {
 }
 
 func (s *DockerSuite) TestRunWithCpuPeriod(c *check.C) {
-	testRequires(c, CpuCfsPeriod)
+	testRequires(c, cpuCfsPeriod)
 
 	if _, _, err := dockerCmdWithError(c, "run", "--cpu-period", "50000", "--name", "test", "busybox", "true"); err != nil {
 		c.Fatalf("failed to run container: %v", err)
@@ -284,7 +284,7 @@ func (s *DockerSuite) TestRunWithCpuPeriod(c *check.C) {
 }
 
 func (s *DockerSuite) TestRunOOMExitCode(c *check.C) {
-	testRequires(c, OomControl)
+	testRequires(c, oomControl)
 	errChan := make(chan error)
 	go func() {
 		defer close(errChan)
