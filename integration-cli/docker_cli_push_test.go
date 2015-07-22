@@ -160,7 +160,7 @@ func (s *DockerTrustSuite) TestTrustedPush(c *check.C) {
 	}
 }
 
-func (s *DockerTrustSuite) TestTrustedPushWithoutServer(c *check.C) {
+func (s *DockerTrustSuite) TestTrustedPushWithFaillingServer(c *check.C) {
 	repoName := fmt.Sprintf("%v/dockercli/trusted:latest", privateRegistryURL)
 	// tag the image and upload it to the private registry
 	dockerCmd(c, "tag", "busybox", repoName)
@@ -212,56 +212,76 @@ func (s *DockerTrustSuite) TestTrustedPushWithExistingTag(c *check.C) {
 	}
 }
 
-func (s *DockerTrustSuite) TestTrustedPushWithShortRootPassphrase(c *check.C) {
-	repoName := fmt.Sprintf("%v/dockercli/trusted:latest", privateRegistryURL)
+func (s *DockerTrustSuite) TestTrustedPushWithExistingSignedTag(c *check.C) {
+	repoName := fmt.Sprintf("%v/dockerclipushpush/trusted:latest", privateRegistryURL)
 	// tag the image and upload it to the private registry
 	dockerCmd(c, "tag", "busybox", repoName)
 
+	// Do a trusted push
 	pushCmd := exec.Command(dockerBinary, "push", repoName)
-	s.trustedCmdWithPassphrases(pushCmd, "rootPwd", "", "")
+	s.trustedCmd(pushCmd)
 	out, _, err := runCommandWithOutput(pushCmd)
-	if err == nil {
-		c.Fatalf("Error missing from trusted push with short root passphrase")
+	if err != nil {
+		c.Fatalf("trusted push failed: %s\n%s", err, out)
 	}
 
-	if !strings.Contains(string(out), "tuf: insufficient signatures for Cryptoservice") {
-		c.Fatalf("Missing expected output on trusted push with short root passphrase:\n%s", out)
+	if !strings.Contains(string(out), "Signing and pushing trust metadata") {
+		c.Fatalf("Missing expected output on trusted push with existing tag:\n%s", out)
+	}
+
+	// Do another trusted push
+	pushCmd = exec.Command(dockerBinary, "push", repoName)
+	s.trustedCmd(pushCmd)
+	out, _, err = runCommandWithOutput(pushCmd)
+	if err != nil {
+		c.Fatalf("trusted push failed: %s\n%s", err, out)
+	}
+
+	if !strings.Contains(string(out), "Signing and pushing trust metadata") {
+		c.Fatalf("Missing expected output on trusted push with existing tag:\n%s", out)
+	}
+
+	dockerCmd(c, "rmi", repoName)
+
+	// Try pull to ensure the double push did not break our ability to pull
+	pullCmd := exec.Command(dockerBinary, "pull", repoName)
+	s.trustedCmd(pullCmd)
+	out, _, err = runCommandWithOutput(pullCmd)
+	if err != nil {
+		c.Fatalf("Error running trusted pull: %s\n%s", err, out)
+	}
+
+	if !strings.Contains(string(out), "Status: Downloaded") {
+		c.Fatalf("Missing expected output on trusted pull with --untrusted:\n%s", out)
 	}
 }
 
-func (s *DockerTrustSuite) TestTrustedPushWithIncorrectRootPassphrase(c *check.C) {
-	repoName := fmt.Sprintf("%v/dockercli/trusted:latest", privateRegistryURL)
+func (s *DockerTrustSuite) TestTrustedPushWithIncorrectPassphraseForNonRoot(c *check.C) {
+	repoName := fmt.Sprintf("%v/dockercliincorretpwd/trusted:latest", privateRegistryURL)
 	// tag the image and upload it to the private registry
 	dockerCmd(c, "tag", "busybox", repoName)
 
-	// Push with default passphrase
-	pushCmd := exec.Command(dockerBinary, "push", "--untrusted", repoName)
-	s.trustedCmd(pushCmd)
-	out, _, _ := runCommandWithOutput(pushCmd)
-	fmt.Println("OUTPUT: ", out)
-
-	// Push with incorrect passphrase
-	pushCmd = exec.Command(dockerBinary, "push", "--untrusted", repoName)
-	s.trustedCmd(pushCmd)
-	// s.trustedCmdWithPassphrases(pushCmd, "87654321", "", "")
-	out, _, _ = runCommandWithOutput(pushCmd)
-	fmt.Println("OUTPUT2:", out)
-	//c.Fail()
-}
-
-func (s *DockerTrustSuite) TestTrustedPushWithShortPassphraseForNonRoot(c *check.C) {
-	repoName := fmt.Sprintf("%v/dockercli/trusted:latest", privateRegistryURL)
-	// tag the image and upload it to the private registry
-	dockerCmd(c, "tag", "busybox", repoName)
-
+	// Push with default passphrases
 	pushCmd := exec.Command(dockerBinary, "push", repoName)
-	s.trustedCmdWithPassphrases(pushCmd, "12345678", "short", "short")
+	s.trustedCmd(pushCmd)
 	out, _, err := runCommandWithOutput(pushCmd)
-	if err == nil {
-		c.Fatalf("Error missing from trusted push with short targets passphrase")
+	if err != nil {
+		c.Fatalf("trusted push failed: %s\n%s", err, out)
 	}
 
-	if !strings.Contains(string(out), "tuf: insufficient signatures for Cryptoservice") {
+	if !strings.Contains(string(out), "Signing and pushing trust metadata") {
+		c.Fatalf("Missing expected output on trusted push:\n%s", out)
+	}
+
+	// Push with wrong passphrases
+	pushCmd = exec.Command(dockerBinary, "push", repoName)
+	s.trustedCmdWithPassphrases(pushCmd, "12345678", "87654321", "87654321")
+	out, _, err = runCommandWithOutput(pushCmd)
+	if err == nil {
+		c.Fatalf("Error missing from trusted push with short targets passphrase: \n%s", out)
+	}
+
+	if !strings.Contains(string(out), "Password Invalid, operation has failed") {
 		c.Fatalf("Missing expected output on trusted push with short targets/snapsnot passphrase:\n%s", out)
 	}
 }
