@@ -338,11 +338,9 @@ func sockRequest(method, endpoint string, data interface{}) (int, []byte, error)
 
 	res, body, err := sockRequestRaw(method, endpoint, jsonData, "application/json")
 	if err != nil {
-		b, _ := ioutil.ReadAll(body)
-		return -1, b, err
+		return -1, nil, err
 	}
-	var b []byte
-	b, err = readBody(body)
+	b, err := readBody(body)
 	return res.StatusCode, b, err
 }
 
