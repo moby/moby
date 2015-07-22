@@ -3,6 +3,7 @@ package tailfile
 import (
 	"bytes"
 	"errors"
+	"io"
 	"os"
 )
 
@@ -12,7 +13,7 @@ var eol = []byte("\n")
 var ErrNonPositiveLinesNumber = errors.New("Lines number must be positive")
 
 //TailFile returns last n lines of file f
-func TailFile(f *os.File, n int) ([][]byte, error) {
+func TailFile(f io.ReadSeeker, n int) ([][]byte, error) {
 	if n <= 0 {
 		return nil, ErrNonPositiveLinesNumber
 	}

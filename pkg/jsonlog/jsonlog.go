@@ -3,7 +3,6 @@ package jsonlog
 import (
 	"encoding/json"
 	"fmt"
-	"io"
 	"time"
 )
 
@@ -28,29 +27,4 @@ func (jl *JSONLog) Reset() {
 	jl.Log = ""
 	jl.Stream = ""
 	jl.Created = time.Time{}
-}
-
-func WriteLog(src io.Reader, dst io.Writer, format string, since time.Time) error {
-	dec := json.NewDecoder(src)
-	l := &JSONLog{}
-	for {
-		l.Reset()
-		if err := dec.Decode(l); err != nil {
-			if err == io.EOF {
-				return nil
-			}
-			return err
-		}
-		if !since.IsZero() && l.Created.Before(since) {
-			continue
-		}
-
-		line, err := l.Format(format)
-		if err != nil {
-			return err
-		}
-		if _, err := io.WriteString(dst, line); err != nil {
-			return err
-		}
-	}
 }
