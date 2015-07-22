@@ -115,7 +115,7 @@ func (graph *Graph) storeImage(img *image.Image, layerData archive.ArchiveReader
 
 		// Store the layer. If layerData is not nil, unpack it into the new layer
 		if layerData != nil {
-			if img.Size, err = graph.driver.ApplyDiff(img.ID, img.Parent, layerData); err != nil {
+			if err := graph.disassembleAndApplyTarLayer(img, layerData, root); err != nil {
 				return err
 			}
 		}
@@ -156,6 +156,11 @@ func (graph *Graph) TarLayer(img *image.Image) (arch archive.Archive, err error)
 		// We keep this functionality here so that we can still work with the VFS
 		// driver during development. VFS is not supported (and just will not work)
 		// for Windows containers.
-		return graph.driver.Diff(img.ID, img.Parent)
+		rdr, err := graph.assembleTarLayer(img)
+		if err != nil {
+			logrus.Debugf("[graph] TarLayer with traditional differ: %s", img.ID)
+			return graph.driver.Diff(img.ID, img.Parent)
+		}
+		return rdr, nil
 	}
 }

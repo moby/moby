@@ -10,6 +10,7 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/system"
@@ -90,7 +91,7 @@ func (graph *Graph) restoreBaseImages() ([]string, error) {
 func (graph *Graph) storeImage(img *image.Image, layerData archive.ArchiveReader, root string) (err error) {
 	// Store the layer. If layerData is not nil, unpack it into the new layer
 	if layerData != nil {
-		if img.Size, err = graph.driver.ApplyDiff(img.ID, img.Parent, layerData); err != nil {
+		if err := graph.disassembleAndApplyTarLayer(img, layerData, root); err != nil {
 			return err
 		}
 	}
@@ -111,5 +112,10 @@ func (graph *Graph) storeImage(img *image.Image, layerData archive.ArchiveReader
 
 // TarLayer returns a tar archive of the image's filesystem layer.
 func (graph *Graph) TarLayer(img *image.Image) (arch archive.Archive, err error) {
-	return graph.driver.Diff(img.ID, img.Parent)
+	rdr, err := graph.assembleTarLayer(img)
+	if err != nil {
+		logrus.Debugf("[graph] TarLayer with traditional differ: %s", img.ID)
+		return graph.driver.Diff(img.ID, img.Parent)
+	}
+	return rdr, nil
 }
