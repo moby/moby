@@ -508,3 +508,34 @@ func (s *DockerSuite) TestPsListContainersFilterCreated(c *check.C) {
 		c.Fatalf("Expected id %s, got %s for filter, out: %s", cID, containerOut, out)
 	}
 }
+
+func (s *DockerSuite) TestPsFormatMultiNames(c *check.C) {
+	//create 2 containers and link them
+	dockerCmd(c, "run", "--name=child", "-d", "busybox", "top")
+	dockerCmd(c, "run", "--name=parent", "--link=child:linkedone", "-d", "busybox", "top")
+
+	//use the new format capabilities to only list the names and --no-trunc to get all names
+	out, _ := dockerCmd(c, "ps", "--format", "{{.Names}}", "--no-trunc")
+	lines := strings.Split(strings.TrimSpace(string(out)), "\n")
+	expected := []string{"parent", "child,parent/linkedone"}
+	var names []string
+	for _, l := range lines {
+		names = append(names, l)
+	}
+	if !reflect.DeepEqual(expected, names) {
+		c.Fatalf("Expected array with non-truncated names: %v, got: %v", expected, names)
+	}
+
+	//now list without turning off truncation and make sure we only get the non-link names
+	out, _ = dockerCmd(c, "ps", "--format", "{{.Names}}")
+	lines = strings.Split(strings.TrimSpace(string(out)), "\n")
+	expected = []string{"parent", "child"}
+	var truncNames []string
+	for _, l := range lines {
+		truncNames = append(truncNames, l)
+	}
+	if !reflect.DeepEqual(expected, truncNames) {
+		c.Fatalf("Expected array with truncated names: %v, got: %v", expected, truncNames)
+	}
+
+}

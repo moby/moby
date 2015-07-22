@@ -24,6 +24,7 @@ weight=1
       -q, --quiet=false     Only display numeric IDs
       -s, --size=false      Display total file sizes
       --since=""            Show created since Id or Name, include non-running
+      --format=[]       Pretty-print containers using a Go template
 
 Running `docker ps --no-trunc` showing 2 linked containers.
 
@@ -60,5 +61,42 @@ The currently supported filters are:
 
 This shows all the containers that have exited with status of '0'
 
+## Formatting
 
+The formatting option (`--format`) will pretty-print container output using a Go template.
 
+Valid placeholders for the Go template are listed below:
+
+Placeholder | Description
+---- | ----
+`.ID` | Container ID
+`.Image` | Image ID
+`.Command` | Quoted command
+`.CreatedAt` | Time when the container was created.
+`.RunningFor` | Elapsed time since the container was started.
+`.Ports` | Exposed ports.
+`.Status` | Container status.
+`.Size` | Container disk size.
+`.Labels` | All labels asigned to the container.
+`.Label` | Value of a specific label for this container. For example `{{.Label "com.docker.swarm.cpu"}}`
+
+When using the `--format` option, the `ps` command will either output the data exactly as the template
+declares or, when using the `table` directive, will include column headers as well.
+
+The following example uses a template without headers and outputs the `ID` and `Command`
+entries separated by a colon for all running containers:
+
+    $ docker ps --format "{{.ID}}: {{.Command}}"
+    a87ecb4f327c: /bin/sh -c #(nop) MA
+    01946d9d34d8: /bin/sh -c #(nop) MA
+    c1d3b0166030: /bin/sh -c yum -y up
+    41d50ecd2f57: /bin/sh -c #(nop) MA
+
+To list all running containers with their labels in a table format you can use:
+
+    $ docker ps --format "table {{.ID}}\t{{.Labels}}"
+    CONTAINER ID        LABELS
+    a87ecb4f327c        com.docker.swarm.node=ubuntu,com.docker.swarm.storage=ssd
+    01946d9d34d8
+    c1d3b0166030        com.docker.swarm.node=debian,com.docker.swarm.cpu=6
+    41d50ecd2f57        com.docker.swarm.node=fedora,com.docker.swarm.cpu=3,com.docker.swarm.storage=ssd
