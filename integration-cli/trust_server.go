@@ -99,12 +99,25 @@ func (t *testNotary) Close() {
 }
 
 func (s *DockerTrustSuite) trustedCmd(cmd *exec.Cmd) {
+	pwd := "12345678"
+	trustCmdEnv(cmd, s.not.address(), pwd, pwd, pwd)
+}
+
+func (s *DockerTrustSuite) trustedCmdWithServer(cmd *exec.Cmd, server string) {
+	pwd := "12345678"
+	trustCmdEnv(cmd, server, pwd, pwd, pwd)
+}
+func (s *DockerTrustSuite) trustedCmdWithPassphrases(cmd *exec.Cmd, rootPwd, snapshotPwd, targetPwd string) {
+	trustCmdEnv(cmd, s.not.address(), rootPwd, snapshotPwd, targetPwd)
+}
+
+func trustCmdEnv(cmd *exec.Cmd, server, rootPwd, snapshotPwd, targetPwd string) {
 	env := []string{
 		"DOCKER_TRUST=1",
-		fmt.Sprintf("DOCKER_TRUST_SERVER=%s", s.not.address()),
-		"DOCKER_TRUST_ROOT_PASSPHRASE=12345678",
-		"DOCKER_TRUST_TARGET_PASSPHRASE=12345678",
-		"DOCKER_TRUST_SNAPSHOT_PASSPHRASE=12345678",
+		fmt.Sprintf("DOCKER_TRUST_SERVER=%s", server),
+		fmt.Sprintf("DOCKER_TRUST_ROOT_PASSPHRASE=%s", rootPwd),
+		fmt.Sprintf("DOCKER_TRUST_SNAPSHOT_PASSPHRASE=%s", snapshotPwd),
+		fmt.Sprintf("DOCKER_TRUST_TARGET_PASSPHRASE=%s", targetPwd),
 	}
 	cmd.Env = append(os.Environ(), env...)
 }

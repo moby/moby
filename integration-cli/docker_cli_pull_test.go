@@ -181,4 +181,38 @@ func (s *DockerTrustSuite) TestTrustedPull(c *check.C) {
 	if !strings.Contains(string(out), "Tagging") {
 		c.Fatalf("Missing expected output on trusted push:\n%s", out)
 	}
+
+	dockerCmd(c, "rmi", repoName)
+
+	// Try untrusted pull to ensure we pushed the tag to the registry
+	pullCmd = exec.Command(dockerBinary, "pull", "--untrusted=true", repoName)
+	s.trustedCmd(pullCmd)
+	out, _, err = runCommandWithOutput(pullCmd)
+	if err != nil {
+		c.Fatalf("Error running trusted pull: %s\n%s", err, out)
+	}
+
+	if !strings.Contains(string(out), "Status: Downloaded") {
+		c.Fatalf("Missing expected output on trusted pull with --untrusted:\n%s", out)
+	}
+}
+
+func (s *DockerTrustSuite) TestUntrustedPull(c *check.C) {
+	repoName := fmt.Sprintf("%v/dockercli/trusted:latest", privateRegistryURL)
+	// tag the image and upload it to the private registry
+	dockerCmd(c, "tag", "busybox", repoName)
+	dockerCmd(c, "push", repoName)
+	dockerCmd(c, "rmi", repoName)
+
+	// Try trusted pull on untrusted tag
+	pullCmd := exec.Command(dockerBinary, "pull", repoName)
+	s.trustedCmd(pullCmd)
+	out, _, err := runCommandWithOutput(pullCmd)
+	if err == nil {
+		c.Fatalf("Error expected when running trusted pull with:\n%s", out)
+	}
+
+	if !strings.Contains(string(out), "no trust data available") {
+		c.Fatalf("Missing expected output on trusted pull:\n%s", out)
+	}
 }
