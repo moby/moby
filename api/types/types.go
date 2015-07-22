@@ -266,3 +266,9 @@ type ContainerConfig struct {
 	CpuShares  int64
 	Cpuset     string
 }
+
+// ContainerGlobMatchesResponse is returned by
+// GET "/containers/{name:.*}/globMatches".
+type ContainerGlobMatchesResponse struct {
+	Matches []string `json:"matches"`
+}

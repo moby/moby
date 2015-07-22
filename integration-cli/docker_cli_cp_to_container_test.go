@@ -66,7 +66,7 @@ func (s *DockerSuite) TestCpToErrSrcNotDir(c *check.C) {
 }
 
 // Test for error when SRC is a valid file or directory,
-// bu the DST parent directory does not exist.
+// but the DST parent directory does not exist.
 func (s *DockerSuite) TestCpToErrDstParentNotExists(c *check.C) {
 	cID := makeTestContainer(c, testContainerOptions{addContent: true})
 	defer deleteContainer(cID)

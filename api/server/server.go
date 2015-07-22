@@ -1447,6 +1447,33 @@ func (s *Server) putContainersArchive(version version.Version, w http.ResponseWr
 	return s.daemon.ContainerExtractToDir(name, path, noOverwriteDirNonDir, r.Body)
 }
 
+func (s *Server) getContainersGlobMatches(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if vars == nil {
+		return fmt.Errorf("Missing parameter")
+	}
+	if err := parseForm(r); err != nil {
+		return err
+	}
+
+	name := vars["name"]
+	pattern := r.Form.Get("pattern")
+
+	switch {
+	case name == "":
+		return fmt.Errorf("bad parameter: 'name' cannot be empty")
+	case pattern == "":
+		return fmt.Errorf("bad parameter: 'pattern' cannot be empty")
+	}
+
+	matches, err := s.daemon.ContainerGlobMatches(name, pattern)
+	if err != nil {
+		return err
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	return json.NewEncoder(w).Encode(types.ContainerGlobMatchesResponse{Matches: matches})
+}
+
 func (s *Server) postContainerExecCreate(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := parseForm(r); err != nil {
 		return err
@@ -1639,27 +1666,28 @@ func createRouter(s *Server) *mux.Router {
 			"/containers/{name:.*}/archive": s.headContainersArchive,
 		},
 		"GET": {
-			"/_ping":                          s.ping,
-			"/events":                         s.getEvents,
-			"/info":                           s.getInfo,
-			"/version":                        s.getVersion,
-			"/images/json":                    s.getImagesJSON,
-			"/images/search":                  s.getImagesSearch,
-			"/images/get":                     s.getImagesGet,
-			"/images/{name:.*}/get":           s.getImagesGet,
-			"/images/{name:.*}/history":       s.getImagesHistory,
-			"/images/{name:.*}/json":          s.getImagesByName,
-			"/containers/ps":                  s.getContainersJSON,
-			"/containers/json":                s.getContainersJSON,
-			"/containers/{name:.*}/export":    s.getContainersExport,
-			"/containers/{name:.*}/changes":   s.getContainersChanges,
-			"/containers/{name:.*}/json":      s.getContainersByName,
-			"/containers/{name:.*}/top":       s.getContainersTop,
-			"/containers/{name:.*}/logs":      s.getContainersLogs,
-			"/containers/{name:.*}/stats":     s.getContainersStats,
-			"/containers/{name:.*}/attach/ws": s.wsContainersAttach,
-			"/exec/{id:.*}/json":              s.getExecByID,
-			"/containers/{name:.*}/archive":   s.getContainersArchive,
+			"/_ping":                             s.ping,
+			"/events":                            s.getEvents,
+			"/info":                              s.getInfo,
+			"/version":                           s.getVersion,
+			"/images/json":                       s.getImagesJSON,
+			"/images/search":                     s.getImagesSearch,
+			"/images/get":                        s.getImagesGet,
+			"/images/{name:.*}/get":              s.getImagesGet,
+			"/images/{name:.*}/history":          s.getImagesHistory,
+			"/images/{name:.*}/json":             s.getImagesByName,
+			"/containers/ps":                     s.getContainersJSON,
+			"/containers/json":                   s.getContainersJSON,
+			"/containers/{name:.*}/export":       s.getContainersExport,
+			"/containers/{name:.*}/changes":      s.getContainersChanges,
+			"/containers/{name:.*}/json":         s.getContainersByName,
+			"/containers/{name:.*}/top":          s.getContainersTop,
+			"/containers/{name:.*}/logs":         s.getContainersLogs,
+			"/containers/{name:.*}/stats":        s.getContainersStats,
+			"/containers/{name:.*}/attach/ws":    s.wsContainersAttach,
+			"/exec/{id:.*}/json":                 s.getExecByID,
+			"/containers/{name:.*}/archive":      s.getContainersArchive,
+			"/containers/{name:.*}/glob-matches": s.getContainersGlobMatches,
 		},
 		"POST": {
 			"/auth":                         s.postAuth,

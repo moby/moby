@@ -228,6 +228,10 @@ func isCpNotExist(err error) bool {
 	return strings.Contains(err.Error(), "no such file or directory") || strings.Contains(err.Error(), "cannot find the file specified")
 }
 
+func isCpNoMatches(err error) bool {
+	return strings.Contains(err.Error(), "unable to match any container files")
+}
+
 func isCpDirNotExist(err error) bool {
 	return strings.Contains(err.Error(), archive.ErrDirNotExists.Error())
 }
