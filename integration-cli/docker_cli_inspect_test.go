@@ -1,8 +1,10 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"os/exec"
+	"reflect"
 	"strconv"
 	"strings"
 
@@ -216,5 +218,156 @@ func (s *DockerSuite) TestInspectContainerGraphDriver(c *check.C) {
 	_, err = strconv.ParseUint(deviceSize, 10, 64)
 	if err != nil {
 		c.Fatalf("failed to inspect DeviceSize of the image: %s, %v", deviceSize, err)
+	}
+}
+
+func compareInspectValues(c *check.C, name string, local, remote interface{}) {
+	additionalLocalAttributes := map[string]struct{}{
+		"GraphDriver": {},
+		"VirtualSize": {},
+	}
+
+	isRootObject := len(name) <= 4
+
+	if reflect.TypeOf(local) != reflect.TypeOf(remote) {
+		c.Errorf("types don't match for %q: %T != %T", name, local, remote)
+		return
+	}
+	switch local.(type) {
+	case bool:
+		lVal := local.(bool)
+		rVal := remote.(bool)
+		if lVal != rVal {
+			c.Errorf("local value differs from remote for %q: %t != %t", name, lVal, rVal)
+		}
+	case float64:
+		lVal := local.(float64)
+		rVal := remote.(float64)
+		if lVal != rVal {
+			c.Errorf("local value differs from remote for %q: %f != %f", name, lVal, rVal)
+		}
+	case string:
+		lVal := local.(string)
+		rVal := remote.(string)
+		if lVal != rVal {
+			c.Errorf("local value differs from remote for %q: %q != %q", name, lVal, rVal)
+		}
+	// JSON array
+	case []interface{}:
+		lVal := local.([]interface{})
+		rVal := remote.([]interface{})
+		if len(lVal) != len(rVal) {
+			c.Errorf("array length differs between local and remote for %q: %d != %d", name, len(lVal), len(rVal))
+		}
+		for i := 0; i < len(lVal) && i < len(rVal); i++ {
+			compareInspectValues(c, fmt.Sprintf("%s[%d]", name, i), lVal[i], rVal[i])
+		}
+	// JSON object
+	case map[string]interface{}:
+		lMap := local.(map[string]interface{})
+		rMap := remote.(map[string]interface{})
+		if isRootObject && len(lMap) != len(rMap)+len(additionalLocalAttributes) {
+			c.Errorf("got unexpected number of root object's attributes from remote inpect %q: %d != %d", name, len(lMap), len(rMap)+len(additionalLocalAttributes))
+		} else if !isRootObject && len(lMap) != len(rMap) {
+			c.Errorf("map length differs between local and remote for %q: %d != %d", name, len(lMap), len(rMap))
+		}
+		for key, lVal := range lMap {
+			itemName := fmt.Sprintf("%s.%s", name, key)
+			rVal, ok := rMap[key]
+			if ok {
+				compareInspectValues(c, itemName, lVal, rVal)
+			} else if _, exists := additionalLocalAttributes[key]; !isRootObject || !exists {
+				c.Errorf("attribute %q present in local but not in remote object", itemName)
+			}
+		}
+		for key := range rMap {
+			if _, ok := lMap[key]; !ok {
+				c.Errorf("attribute \"%s.%s\" present in remote but not in local object", name, key)
+			}
+		}
+	case nil:
+		if local != remote {
+			c.Errorf("local value differs from remote for %q: %v (%T) != %v (%T)", name, local, local, remote, remote)
+		}
+	default:
+		c.Fatalf("got unexpected type (%T) for %q", local, name)
+	}
+}
+
+func (s *DockerRegistrySuite) TestInspectRemoteRepository(c *check.C) {
+	var (
+		localValue  []interface{}
+		remoteValue []interface{}
+	)
+	repoName := fmt.Sprintf("%v/dockercli/busybox", privateRegistryURL)
+	// tag the image to upload it to the private registry
+	tagCmd := exec.Command(dockerBinary, "tag", "busybox", repoName)
+	if out, _, err := runCommandWithOutput(tagCmd); err != nil {
+		c.Fatalf("image tagging failed: %s, %v", out, err)
+	}
+
+	inspectCmd := exec.Command(dockerBinary, "inspect", repoName)
+	localOut, _, err := runCommandWithOutput(inspectCmd)
+	if err != nil {
+		c.Fatalf("failed to inspect local busybox image : %s, %v", localOut, err)
+	}
+	pushCmd := exec.Command(dockerBinary, "push", repoName)
+	if out, _, err := runCommandWithOutput(pushCmd); err != nil {
+		c.Fatalf("pushing the image to the private registry has failed: %s, %v", out, err)
+	}
+	inspectCmd = exec.Command(dockerBinary, "inspect", "-r", repoName)
+	remoteOut, _, err := runCommandWithOutput(inspectCmd)
+	if err != nil {
+		c.Fatalf("failed to inspect remote busybox image : %s, %v", remoteOut, err)
+	}
+
+	if err = json.Unmarshal([]byte(localOut), &localValue); err != nil {
+		c.Fatalf("failed to parse result for local busybox image: %v", err)
+	}
+
+	if err = json.Unmarshal([]byte(remoteOut), &remoteValue); err != nil {
+		c.Fatalf("failed to parse result for local busybox image: %v", err)
+	}
+
+	compareInspectValues(c, "a", localValue, remoteValue)
+
+	deleteImages(repoName)
+
+	// local inspect shall fail now
+	inspectCmd = exec.Command(dockerBinary, "inspect", repoName)
+	localOut, _, err = runCommandWithOutput(inspectCmd)
+	if err == nil {
+		c.Fatalf("inspect on removed local images should have failed: %s", localOut)
+	}
+
+	// remote inspect shall still succeed
+	inspectCmd = exec.Command(dockerBinary, "inspect", "-r", repoName)
+	remoteOut2, _, err := runCommandWithOutput(inspectCmd)
+	if err != nil {
+		c.Fatalf("failed to inspect remote busybox image : %s, %v", remoteOut2, err)
+	}
+
+	if remoteOut != remoteOut2 {
+		c.Fatalf("remote inspect should produce identical output as before:\nfirst run: %s\n\nsecond run: %s", remoteOut, remoteOut2)
+	}
+}
+
+func (s *DockerRegistrySuite) TestInspectNonExistentRepository(c *check.C) {
+	repoName := fmt.Sprintf("%s/foo/non-existent", privateRegistryURL)
+
+	inspectCmd := exec.Command(dockerBinary, "inspect", repoName)
+	out, _, err := runCommandWithOutput(inspectCmd)
+	if err == nil {
+		c.Error("inspecting non-existent image should have failed", out)
+	} else if !strings.Contains(strings.ToLower(out), "no such image or container") {
+		c.Errorf("got unexpected error message: %v", out)
+	}
+
+	inspectCmd = exec.Command(dockerBinary, "inspect", "-r", repoName)
+	out, _, err = runCommandWithOutput(inspectCmd)
+	if err == nil {
+		c.Error("inspecting non-existent image should have failed", out)
+	} else if !strings.Contains(strings.ToLower(out), "no such image:") {
+		c.Errorf("got unexpected error message: %v", out)
 	}
 }

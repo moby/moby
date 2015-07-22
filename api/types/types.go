@@ -81,8 +81,7 @@ type GraphDriverData struct {
 	Data map[string]string
 }
 
-// GET "/images/{name:.*}/json"
-type ImageInspect struct {
+type ImageInspectBase struct {
 	Id              string
 	Parent          string
 	Comment         string
@@ -95,8 +94,21 @@ type ImageInspect struct {
 	Architecture    string
 	Os              string
 	Size            int64
-	VirtualSize     int64
-	GraphDriver     GraphDriverData
+}
+
+// GET "/images/{name:.*}/json"
+type ImageInspect struct {
+	ImageInspectBase
+	VirtualSize int64
+	GraphDriver GraphDriverData
+}
+
+// GET "/images/{name:.*}/json?remote=1"
+type RemoteImageInspect struct {
+	ImageInspectBase
+	Registry string
+	Digest   string
+	Tag      string
 }
 
 // GET  "/containers/json"
