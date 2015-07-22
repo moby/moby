@@ -2478,6 +2478,7 @@ func (s *DockerSuite) TestDevicePermissions(c *check.C) {
 }
 
 func (s *DockerSuite) TestRunCapAddCHOWN(c *check.C) {
+	testRequires(c, NativeExecDriver)
 	out, _ := dockerCmd(c, "run", "--cap-drop=ALL", "--cap-add=CHOWN", "busybox", "sh", "-c", "adduser -D -H newuser && chown newuser /home && echo ok")
 
 	if actual := strings.Trim(out, "\r\n"); actual != "ok" {
