@@ -107,7 +107,7 @@ case "$1" in
 			--pidfile "$DOCKER_SSD_PIDFILE" \
 			--make-pidfile \
 			-- \
-				-d -p "$DOCKER_PIDFILE" \
+				daemon -p "$DOCKER_PIDFILE" \
 				$DOCKER_OPTS \
 					>> "$DOCKER_LOGFILE" 2>&1
 		log_end_msg $?
