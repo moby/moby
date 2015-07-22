@@ -285,7 +285,7 @@ with the `make.sh` script.
 
 8. Start a `docker` daemon running inside your container.
 
-        root@5f8630b873fe:/go/src/github.com/docker/docker#  docker -dD
+        root@5f8630b873fe:/go/src/github.com/docker/docker#  docker daemon -D
 
     The `-dD` flag starts the daemon in debug mode. You'll find this useful
     when debugging your code.
@@ -411,7 +411,7 @@ onto the `/go` directory inside the container.
 
     * copy the binary inside the development container using
       `cp bundles/1.5.0-dev/binary/docker /usr/bin`
-    * start `docker -dD` to launch the Docker daemon inside the container
+    * start `docker daemon -D` to launch the Docker daemon inside the container
     * run `docker ps` on local host to get the development container's name
     * connect to your running container `docker exec -it container_name bash`
     * use the `docker run hello-world` command to create and run a container 

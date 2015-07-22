@@ -24,7 +24,7 @@ or `systemd` to manage the `docker` daemon's start and stop.
 The `docker` daemon can be run directly using the `-d` option. By default it listens on
 the Unix socket `unix:///var/run/docker.sock`
 
-    $ docker -d
+    $ docker daemon
 
     INFO[0000] +job init_networkdriver()
     INFO[0000] +job serveapi(unix:///var/run/docker.sock)
@@ -34,10 +34,9 @@ the Unix socket `unix:///var/run/docker.sock`
 
 ### Configuring the docker daemon directly
 
-If you're running the `docker` daemon directly by running `docker -d` instead
+If you're running the `docker` daemon directly by running `docker daemon` instead
 of using a process manager, you can append the configuration options to the `docker` run
-command directly. Just like the `-d` option, other options can be passed to the `docker`
-daemon to configure it.
+command directly. Other options can be passed to the `docker` daemon to configure it.
 
 Some of the daemon's options are:
 
@@ -50,7 +49,7 @@ Some of the daemon's options are:
 
 Here is a an example of running the `docker` daemon with configuration options:
 
-    $ docker -d -D --tls=true --tlscert=/var/docker/server.pem --tlskey=/var/docker/serverkey.pem -H tcp://192.168.59.3:2376
+    $ docker daemon -D --tls=true --tlscert=/var/docker/server.pem --tlskey=/var/docker/serverkey.pem -H tcp://192.168.59.3:2376
 
 These options :
 

@@ -10,7 +10,7 @@ parent = "smn_cli"
 
 # daemon
 
-    Usage: docker [OPTIONS] COMMAND [arg...]
+    Usage: docker daemon [OPTIONS]
 
     A self-sufficient runtime for linux containers.
 
@@ -18,9 +18,7 @@ parent = "smn_cli"
       --api-cors-header=""                   Set CORS headers in the remote API
       -b, --bridge=""                        Attach containers to a network bridge
       --bip=""                               Specify network bridge IP
-      --config=~/.docker                     Location of client config files
       -D, --debug=false                      Enable debug mode
-      -d, --daemon=false                     Enable daemon mode
       --default-gateway=""                   Container default gateway IPv4 address
       --default-gateway-v6=""                Container default gateway IPv6 address
       --dns=[]                               DNS server to use
@@ -58,15 +56,14 @@ parent = "smn_cli"
       --tlskey="~/.docker/key.pem"           Path to TLS key file
       --tlsverify=false                      Use TLS and verify the remote
       --userland-proxy=true                  Use userland proxy for loopback traffic
-      -v, --version=false                    Print version information and quit
 
 Options with [] may be specified multiple times.
 
 The Docker daemon is the persistent process that manages containers. Docker
 uses the same binary for both the daemon and client. To run the daemon you
-provide the `-d` flag.
+type `docker daemon`.
 
-To run the daemon with debug output, use `docker -d -D`.
+To run the daemon with debug output, use `docker daemon -D`.
 
 ## Daemon socket option
 
@@ -94,8 +91,8 @@ communication with the daemon.
 
 On Systemd based systems, you can communicate with the daemon via
 [Systemd socket activation](http://0pointer.de/blog/projects/socket-activation.html),
-use `docker -d -H fd://`. Using `fd://` will work perfectly for most setups but
-you can also specify individual sockets: `docker -d -H fd://3`. If the
+use `docker daemon -H fd://`. Using `fd://` will work perfectly for most setups but
+you can also specify individual sockets: `docker daemon -H fd://3`. If the
 specified socket activated files aren't found, then Docker will exit. You can
 find examples of using Systemd socket activation with Docker and Systemd in the
 [Docker source tree](https://github.com/docker/docker/tree/master/contrib/init/systemd/).
@@ -104,7 +101,7 @@ You can configure the Docker daemon to listen to multiple sockets at the same
 time using multiple `-H` options:
 
     # listen using the default unix socket, and on 2 specific IP addresses on this host.
-    docker -d -H unix:///var/run/docker.sock -H tcp://192.168.59.106 -H tcp://10.10.10.2
+    docker daemon -H unix:///var/run/docker.sock -H tcp://192.168.59.106 -H tcp://10.10.10.2
 
 The Docker client will honor the `DOCKER_HOST` environment variable to set the
 `-H` flag for the client.
@@ -152,16 +149,16 @@ article explains how to tune your existing setup without the use of options.
 
 The `btrfs` driver is very fast for `docker build` - but like `devicemapper`
 does not share executable memory between devices. Use
-`docker -d -s btrfs -g /mnt/btrfs_partition`.
+`docker daemon -s btrfs -g /mnt/btrfs_partition`.
 
 The `zfs` driver is probably not fast as `btrfs` but has a longer track record
 on stability. Thanks to `Single Copy ARC` shared blocks between clones will be
-cached only once. Use `docker -d -s zfs`. To select a different zfs filesystem
+cached only once. Use `docker daemon -s zfs`. To select a different zfs filesystem
 set `zfs.fsname` option as described in [Storage driver options](#storage-driver-options).
 
 The `overlay` is a very fast union filesystem. It is now merged in the main
 Linux kernel as of [3.18.0](https://lkml.org/lkml/2014/10/26/137). Call
-`docker -d -s overlay` to use it.
+`docker daemon -s overlay` to use it.
 
 > **Note:**
 > As promising as `overlay` is, the feature is still quite young and should not
@@ -196,7 +193,7 @@ options for `zfs` start with `zfs`.
 
      Example use:
 
-        docker -d --storage-opt dm.thinpooldev=/dev/mapper/thin-pool
+        docker daemon --storage-opt dm.thinpooldev=/dev/mapper/thin-pool
 
  *  `dm.basesize`
 
@@ -216,7 +213,7 @@ options for `zfs` start with `zfs`.
 
     Example use:
 
-        $ docker -d --storage-opt dm.basesize=20G
+        $ docker daemon --storage-opt dm.basesize=20G
 
  *  `dm.loopdatasize`
 
@@ -229,7 +226,7 @@ options for `zfs` start with `zfs`.
 
     Example use:
 
-        $ docker -d --storage-opt dm.loopdatasize=200G
+        $ docker daemon --storage-opt dm.loopdatasize=200G
 
  *  `dm.loopmetadatasize`
 
@@ -242,7 +239,7 @@ options for `zfs` start with `zfs`.
 
     Example use:
 
-        $ docker -d --storage-opt dm.loopmetadatasize=4G
+        $ docker daemon --storage-opt dm.loopmetadatasize=4G
 
  *  `dm.fs`
 
@@ -251,7 +248,7 @@ options for `zfs` start with `zfs`.
 
     Example use:
 
-        $ docker -d --storage-opt dm.fs=xfs
+        $ docker daemon --storage-opt dm.fs=xfs
 
  *  `dm.mkfsarg`
 
@@ -259,7 +256,7 @@ options for `zfs` start with `zfs`.
 
     Example use:
 
-        $ docker -d --storage-opt "dm.mkfsarg=-O ^has_journal"
+        $ docker daemon --storage-opt "dm.mkfsarg=-O ^has_journal"
 
  *  `dm.mountopt`
 
@@ -267,7 +264,7 @@ options for `zfs` start with `zfs`.
 
     Example use:
 
-        $ docker -d --storage-opt dm.mountopt=nodiscard
+        $ docker daemon --storage-opt dm.mountopt=nodiscard
 
  *  `dm.datadev`
 
@@ -281,7 +278,7 @@ options for `zfs` start with `zfs`.
 
     Example use:
 
-        $ docker -d --storage-opt dm.datadev=/dev/sdb1 --storage-opt dm.metadatadev=/dev/sdc1
+        $ docker daemon --storage-opt dm.datadev=/dev/sdb1 --storage-opt dm.metadatadev=/dev/sdc1
 
  *  `dm.metadatadev`
 
@@ -299,7 +296,7 @@ options for `zfs` start with `zfs`.
 
     Example use:
 
-        $ docker -d --storage-opt dm.datadev=/dev/sdb1 --storage-opt dm.metadatadev=/dev/sdc1
+        $ docker daemon --storage-opt dm.datadev=/dev/sdb1 --storage-opt dm.metadatadev=/dev/sdc1
 
  *  `dm.blocksize`
 
@@ -308,7 +305,7 @@ options for `zfs` start with `zfs`.
 
     Example use:
 
-        $ docker -d --storage-opt dm.blocksize=512K
+        $ docker daemon --storage-opt dm.blocksize=512K
 
  *  `dm.blkdiscard`
 
@@ -322,7 +319,7 @@ options for `zfs` start with `zfs`.
 
     Example use:
 
-        $ docker -d --storage-opt dm.blkdiscard=false
+        $ docker daemon --storage-opt dm.blkdiscard=false
 
  *  `dm.override_udev_sync_check`
 
@@ -348,7 +345,7 @@ options for `zfs` start with `zfs`.
     To allow the `docker` daemon to start, regardless of `udev` sync not being
     supported, set `dm.override_udev_sync_check` to true:
 
-        $ docker -d --storage-opt dm.override_udev_sync_check=true
+        $ docker daemon --storage-opt dm.override_udev_sync_check=true
 
     When this value is `true`, the  `devicemapper` continues and simply warns
     you the errors are happening.
@@ -373,7 +370,7 @@ Currently supported options of `zfs`:
 
     Example use:
 
-        $ docker -d -s zfs --storage-opt zfs.fsname=zroot/docker
+        $ docker daemon -s zfs --storage-opt zfs.fsname=zroot/docker
 
 ## Docker execdriver option
 
@@ -397,17 +394,17 @@ it is not available, the system uses `cgroupfs`. By default, if no option is
 specified, the execdriver first tries `systemd` and falls back to `cgroupfs`.
 This example sets the execdriver to `cgroupfs`:
 
-    $ sudo docker -d --exec-opt native.cgroupdriver=cgroupfs
+    $ sudo docker daemon --exec-opt native.cgroupdriver=cgroupfs
 
 Setting this option applies to all containers the daemon launches.
 
 ## Daemon DNS options
 
 To set the DNS server for all Docker containers, use
-`docker -d --dns 8.8.8.8`.
+`docker daemon --dns 8.8.8.8`.
 
 To set the DNS search domain for all Docker containers, use
-`docker -d --dns-search example.com`.
+`docker daemon --dns-search example.com`.
 
 ## Insecure registries
 
@@ -456,7 +453,7 @@ need to be added to your Docker host's configuration:
 1. Install the `ca-certificates` package for your distribution
 2. Ask your network admin for the proxy's CA certificate and append them to
    `/etc/pki/tls/certs/ca-bundle.crt`
-3. Then start your Docker daemon with `HTTPS_PROXY=http://username:password@proxy:port/ docker -d`.
+3. Then start your Docker daemon with `HTTPS_PROXY=http://username:password@proxy:port/ docker daemon`.
    The `username:` and `password@` are optional - and are only needed if your
    proxy is set up to require authentication.
 
@@ -486,9 +483,9 @@ Docker supports softlinks for the Docker data directory (`/var/lib/docker`) and
 for `/var/lib/docker/tmp`. The `DOCKER_TMPDIR` and the data directory can be
 set like this:
 
-    DOCKER_TMPDIR=/mnt/disk2/tmp /usr/local/bin/docker -d -D -g /var/lib/docker -H unix:// > /var/lib/boot2docker/docker.log 2>&1
+    DOCKER_TMPDIR=/mnt/disk2/tmp /usr/local/bin/docker daemon -D -g /var/lib/docker -H unix:// > /var/lib/boot2docker/docker.log 2>&1
     # or
     export DOCKER_TMPDIR=/mnt/disk2/tmp
-    /usr/local/bin/docker -d -D -g /var/lib/docker -H unix:// > /var/lib/boot2docker/docker.log 2>&1
+    /usr/local/bin/docker daemon -D -g /var/lib/docker -H unix:// > /var/lib/boot2docker/docker.log 2>&1
 
 
