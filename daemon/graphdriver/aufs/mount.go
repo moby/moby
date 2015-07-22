@@ -9,6 +9,7 @@ import (
 	"github.com/Sirupsen/logrus"
 )
 
+// Unmount the target specified.
 func Unmount(target string) error {
 	if err := exec.Command("auplink", target, "flush").Run(); err != nil {
 		logrus.Errorf("Couldn't run auplink before unmount: %s", err)
