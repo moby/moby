@@ -6,7 +6,9 @@ set -e
 # or:
 #   'wget -qO- https://get.docker.com/ | sh'
 # If you want to send arguments:
-#   'sh <(wget -qO- https://get.docker.com/) -w false -r true'
+#   'wget -qO- https://get.docker.com/ | sh /dev/stdin -w false -r true'
+# or: 
+#   'curl -sSL https://get.docker.com/ | sh /dev/stdin -w false -r true'
 #
 # If you're interested in the daily experimental build:
 #   'curl -sSL https://experimental.docker.com/ | sh'
