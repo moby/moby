@@ -15,6 +15,7 @@ packages=(
 	daemon/network
 	docker
 	dockerinit
+	integration-cli
 	pkg/chrootarchive
 	pkg/directory
 	pkg/fileutils

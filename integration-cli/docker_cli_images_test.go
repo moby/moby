@@ -139,17 +139,17 @@ func (s *DockerSuite) TestImagesFilterSpaceTrimCase(c *check.C) {
 func (s *DockerSuite) TestImagesEnsureDanglingImageOnlyListedOnce(c *check.C) {
 	// create container 1
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "true")
-	containerId1 := strings.TrimSpace(out)
+	containerID1 := strings.TrimSpace(out)
 
 	// tag as foobox
-	out, _ = dockerCmd(c, "commit", containerId1, "foobox")
-	imageId := stringid.TruncateID(strings.TrimSpace(out))
+	out, _ = dockerCmd(c, "commit", containerID1, "foobox")
+	imageID := stringid.TruncateID(strings.TrimSpace(out))
 
 	// overwrite the tag, making the previous image dangling
 	dockerCmd(c, "tag", "-f", "busybox", "foobox")
 
 	out, _ = dockerCmd(c, "images", "-q", "-f", "dangling=true")
-	if e, a := 1, strings.Count(out, imageId); e != a {
+	if e, a := 1, strings.Count(out, imageID); e != a {
 		c.Fatalf("expected 1 dangling image, got %d: %s", a, out)
 	}
 }

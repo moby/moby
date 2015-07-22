@@ -1825,7 +1825,7 @@ func (s *DockerSuite) TestRunVolumesCleanPaths(c *check.C) {
 	dockerCmd(c, "run", "-v", "/foo", "-v", "/bar/", "--name", "dark_helmet", "run_volumes_clean_paths")
 
 	out, err := inspectMountSourceField("dark_helmet", "/foo/")
-	if err != mountNotFound {
+	if err != errMountNotFound {
 		c.Fatalf("Found unexpected volume entry for '/foo/' in volumes\n%q", out)
 	}
 
@@ -1836,7 +1836,7 @@ func (s *DockerSuite) TestRunVolumesCleanPaths(c *check.C) {
 	}
 
 	out, err = inspectMountSourceField("dark_helmet", "/bar/")
-	if err != mountNotFound {
+	if err != errMountNotFound {
 		c.Fatalf("Found unexpected volume entry for '/bar/' in volumes\n%q", out)
 	}
 

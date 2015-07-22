@@ -10,7 +10,7 @@ import (
 )
 
 func (s *DockerSuite) TestBuildResourceConstraintsAreUsed(c *check.C) {
-	testRequires(c, CpuCfsQuota)
+	testRequires(c, cpuCfsQuota)
 	name := "testbuildresourceconstraints"
 
 	ctx, err := fakeContext(`
@@ -32,8 +32,8 @@ func (s *DockerSuite) TestBuildResourceConstraintsAreUsed(c *check.C) {
 		MemorySwap int64
 		CpusetCpus string
 		CpusetMems string
-		CpuShares  int64
-		CpuQuota   int64
+		CPUShares  int64
+		CPUQuota   int64
 	}
 
 	cfg, err := inspectFieldJSON(cID, "HostConfig")
@@ -45,9 +45,9 @@ func (s *DockerSuite) TestBuildResourceConstraintsAreUsed(c *check.C) {
 	if err := json.Unmarshal([]byte(cfg), &c1); err != nil {
 		c.Fatal(err, cfg)
 	}
-	if c1.Memory != 67108864 || c1.MemorySwap != -1 || c1.CpusetCpus != "0" || c1.CpusetMems != "0" || c1.CpuShares != 100 || c1.CpuQuota != 8000 {
-		c.Fatalf("resource constraints not set properly:\nMemory: %d, MemSwap: %d, CpusetCpus: %s, CpusetMems: %s, CpuShares: %d, CpuQuota: %d",
-			c1.Memory, c1.MemorySwap, c1.CpusetCpus, c1.CpusetMems, c1.CpuShares, c1.CpuQuota)
+	if c1.Memory != 67108864 || c1.MemorySwap != -1 || c1.CpusetCpus != "0" || c1.CpusetMems != "0" || c1.CPUShares != 100 || c1.CPUQuota != 8000 {
+		c.Fatalf("resource constraints not set properly:\nMemory: %d, MemSwap: %d, CpusetCpus: %s, CpusetMems: %s, CPUShares: %d, CPUQuota: %d",
+			c1.Memory, c1.MemorySwap, c1.CpusetCpus, c1.CpusetMems, c1.CPUShares, c1.CPUQuota)
 	}
 
 	// Make sure constraints aren't saved to image
@@ -61,9 +61,9 @@ func (s *DockerSuite) TestBuildResourceConstraintsAreUsed(c *check.C) {
 	if err := json.Unmarshal([]byte(cfg), &c2); err != nil {
 		c.Fatal(err, cfg)
 	}
-	if c2.Memory == 67108864 || c2.MemorySwap == -1 || c2.CpusetCpus == "0" || c2.CpusetMems == "0" || c2.CpuShares == 100 || c2.CpuQuota == 8000 {
-		c.Fatalf("resource constraints leaked from build:\nMemory: %d, MemSwap: %d, CpusetCpus: %s, CpusetMems: %s, CpuShares: %d, CpuQuota: %d",
-			c2.Memory, c2.MemorySwap, c2.CpusetCpus, c2.CpusetMems, c2.CpuShares, c2.CpuQuota)
+	if c2.Memory == 67108864 || c2.MemorySwap == -1 || c2.CpusetCpus == "0" || c2.CpusetMems == "0" || c2.CPUShares == 100 || c2.CPUQuota == 8000 {
+		c.Fatalf("resource constraints leaked from build:\nMemory: %d, MemSwap: %d, CpusetCpus: %s, CpusetMems: %s, CPUShares: %d, CPUQuota: %d",
+			c2.Memory, c2.MemorySwap, c2.CpusetCpus, c2.CpusetMems, c2.CPUShares, c2.CPUQuota)
 	}
 
 }

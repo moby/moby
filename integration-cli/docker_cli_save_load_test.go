@@ -269,7 +269,7 @@ func (s *DockerSuite) TestSaveDirectoryPermissions(c *check.C) {
 				c.Fatalf("failed to open %s: %s", layerPath, err)
 			}
 
-			entries, err := ListTar(f)
+			entries, err := listTar(f)
 			for _, e := range entries {
 				if !strings.Contains(e, "dev/") {
 					entriesSansDev = append(entriesSansDev, e)

@@ -171,12 +171,12 @@ func (s *DockerSuite) TestInspectImageGraphDriver(c *check.C) {
 		return
 	}
 
-	deviceId, err := inspectField(imageTest, "GraphDriver.Data.DeviceId")
+	deviceID, err := inspectField(imageTest, "GraphDriver.Data.DeviceId")
 	c.Assert(err, check.IsNil)
 
-	_, err = strconv.Atoi(deviceId)
+	_, err = strconv.Atoi(deviceID)
 	if err != nil {
-		c.Fatalf("failed to inspect DeviceId of the image: %s, %v", deviceId, err)
+		c.Fatalf("failed to inspect DeviceId of the image: %s, %v", deviceID, err)
 	}
 
 	deviceSize, err := inspectField(imageTest, "GraphDriver.Data.DeviceSize")
@@ -203,12 +203,12 @@ func (s *DockerSuite) TestInspectContainerGraphDriver(c *check.C) {
 		return
 	}
 
-	deviceId, err := inspectField(out, "GraphDriver.Data.DeviceId")
+	deviceID, err := inspectField(out, "GraphDriver.Data.DeviceId")
 	c.Assert(err, check.IsNil)
 
-	_, err = strconv.Atoi(deviceId)
+	_, err = strconv.Atoi(deviceID)
 	if err != nil {
-		c.Fatalf("failed to inspect DeviceId of the image: %s, %v", deviceId, err)
+		c.Fatalf("failed to inspect DeviceId of the image: %s, %v", deviceID, err)
 	}
 
 	deviceSize, err := inspectField(out, "GraphDriver.Data.DeviceSize")

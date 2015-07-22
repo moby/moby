@@ -476,10 +476,10 @@ func (s *DockerDaemonSuite) TestDaemonBridgeExternal(c *check.C) {
 	defer d.Restart()
 
 	bridgeName := "external-bridge"
-	bridgeIp := "192.169.1.1/24"
-	_, bridgeIPNet, _ := net.ParseCIDR(bridgeIp)
+	bridgeIP := "192.169.1.1/24"
+	_, bridgeIPNet, _ := net.ParseCIDR(bridgeIP)
 
-	out, err := createInterface(c, "bridge", bridgeName, bridgeIp)
+	out, err := createInterface(c, "bridge", bridgeName, bridgeIP)
 	c.Assert(err, check.IsNil, check.Commentf(out))
 	defer deleteInterface(c, bridgeName)
 
@@ -498,11 +498,11 @@ func (s *DockerDaemonSuite) TestDaemonBridgeExternal(c *check.C) {
 	_, err = d.Cmd("run", "-d", "--name", "ExtContainer", "busybox", "top")
 	c.Assert(err, check.IsNil)
 
-	containerIp := d.findContainerIP("ExtContainer")
-	ip := net.ParseIP(containerIp)
+	containerIP := d.findContainerIP("ExtContainer")
+	ip := net.ParseIP(containerIP)
 	c.Assert(bridgeIPNet.Contains(ip), check.Equals, true,
 		check.Commentf("Container IP-Address must be in the same subnet range : %s",
-			containerIp))
+			containerIP))
 }
 
 func createInterface(c *check.C, ifType string, ifName string, ipNet string) (string, error) {
@@ -547,10 +547,10 @@ func (s *DockerDaemonSuite) TestDaemonBridgeIP(c *check.C) {
 
 	d := s.d
 
-	bridgeIp := "192.169.1.1/24"
-	ip, bridgeIPNet, _ := net.ParseCIDR(bridgeIp)
+	bridgeIP := "192.169.1.1/24"
+	ip, bridgeIPNet, _ := net.ParseCIDR(bridgeIP)
 
-	err := d.StartWithBusybox("--bip", bridgeIp)
+	err := d.StartWithBusybox("--bip", bridgeIP)
 	c.Assert(err, check.IsNil)
 	defer d.Restart()
 
@@ -575,11 +575,11 @@ func (s *DockerDaemonSuite) TestDaemonBridgeIP(c *check.C) {
 	out, err = d.Cmd("run", "-d", "--name", "test", "busybox", "top")
 	c.Assert(err, check.IsNil)
 
-	containerIp := d.findContainerIP("test")
-	ip = net.ParseIP(containerIp)
+	containerIP := d.findContainerIP("test")
+	ip = net.ParseIP(containerIP)
 	c.Assert(bridgeIPNet.Contains(ip), check.Equals, true,
 		check.Commentf("Container IP-Address must be in the same subnet range : %s",
-			containerIp))
+			containerIP))
 	deleteInterface(c, defaultNetworkBridge)
 }
 
@@ -622,9 +622,9 @@ func (s *DockerDaemonSuite) TestDaemonBridgeFixedCidr(c *check.C) {
 	d := s.d
 
 	bridgeName := "external-bridge"
-	bridgeIp := "192.169.1.1/24"
+	bridgeIP := "192.169.1.1/24"
 
-	out, err := createInterface(c, "bridge", bridgeName, bridgeIp)
+	out, err := createInterface(c, "bridge", bridgeName, bridgeIP)
 	c.Assert(err, check.IsNil, check.Commentf(out))
 	defer deleteInterface(c, bridgeName)
 
@@ -649,18 +649,18 @@ func (s *DockerDaemonSuite) TestDaemonDefaultGatewayIPv4Implicit(c *check.C) {
 
 	d := s.d
 
-	bridgeIp := "192.169.1.1"
-	bridgeIpNet := fmt.Sprintf("%s/24", bridgeIp)
+	bridgeIP := "192.169.1.1"
+	bridgeIPNet := fmt.Sprintf("%s/24", bridgeIP)
 
-	err := d.StartWithBusybox("--bip", bridgeIpNet)
+	err := d.StartWithBusybox("--bip", bridgeIPNet)
 	c.Assert(err, check.IsNil)
 	defer d.Restart()
 
-	expectedMessage := fmt.Sprintf("default via %s dev", bridgeIp)
+	expectedMessage := fmt.Sprintf("default via %s dev", bridgeIP)
 	out, err := d.Cmd("run", "busybox", "ip", "-4", "route", "list", "0/0")
 	c.Assert(strings.Contains(out, expectedMessage), check.Equals, true,
 		check.Commentf("Implicit default gateway should be bridge IP %s, but default route was '%s'",
-			bridgeIp, strings.TrimSpace(out)))
+			bridgeIP, strings.TrimSpace(out)))
 	deleteInterface(c, defaultNetworkBridge)
 }
 
@@ -670,19 +670,19 @@ func (s *DockerDaemonSuite) TestDaemonDefaultGatewayIPv4Explicit(c *check.C) {
 
 	d := s.d
 
-	bridgeIp := "192.169.1.1"
-	bridgeIpNet := fmt.Sprintf("%s/24", bridgeIp)
-	gatewayIp := "192.169.1.254"
+	bridgeIP := "192.169.1.1"
+	bridgeIPNet := fmt.Sprintf("%s/24", bridgeIP)
+	gatewayIP := "192.169.1.254"
 
-	err := d.StartWithBusybox("--bip", bridgeIpNet, "--default-gateway", gatewayIp)
+	err := d.StartWithBusybox("--bip", bridgeIPNet, "--default-gateway", gatewayIP)
 	c.Assert(err, check.IsNil)
 	defer d.Restart()
 
-	expectedMessage := fmt.Sprintf("default via %s dev", gatewayIp)
+	expectedMessage := fmt.Sprintf("default via %s dev", gatewayIP)
 	out, err := d.Cmd("run", "busybox", "ip", "-4", "route", "list", "0/0")
 	c.Assert(strings.Contains(out, expectedMessage), check.Equals, true,
 		check.Commentf("Explicit default gateway should be %s, but default route was '%s'",
-			gatewayIp, strings.TrimSpace(out)))
+			gatewayIP, strings.TrimSpace(out)))
 	deleteInterface(c, defaultNetworkBridge)
 }
 
@@ -723,9 +723,9 @@ func (s *DockerDaemonSuite) TestDaemonICCPing(c *check.C) {
 	d := s.d
 
 	bridgeName := "external-bridge"
-	bridgeIp := "192.169.1.1/24"
+	bridgeIP := "192.169.1.1/24"
 
-	out, err := createInterface(c, "bridge", bridgeName, bridgeIp)
+	out, err := createInterface(c, "bridge", bridgeName, bridgeIP)
 	c.Assert(err, check.IsNil, check.Commentf(out))
 	defer deleteInterface(c, bridgeName)
 
@@ -763,9 +763,9 @@ func (s *DockerDaemonSuite) TestDaemonICCLinkExpose(c *check.C) {
 	d := s.d
 
 	bridgeName := "external-bridge"
-	bridgeIp := "192.169.1.1/24"
+	bridgeIP := "192.169.1.1/24"
 
-	out, err := createInterface(c, "bridge", bridgeName, bridgeIp)
+	out, err := createInterface(c, "bridge", bridgeName, bridgeIP)
 	c.Assert(err, check.IsNil, check.Commentf(out))
 	defer deleteInterface(c, bridgeName)
 
@@ -792,9 +792,9 @@ func (s *DockerDaemonSuite) TestDaemonICCLinkExpose(c *check.C) {
 
 func (s *DockerDaemonSuite) TestDaemonLinksIpTablesRulesWhenLinkAndUnlink(c *check.C) {
 	bridgeName := "external-bridge"
-	bridgeIp := "192.169.1.1/24"
+	bridgeIP := "192.169.1.1/24"
 
-	out, err := createInterface(c, "bridge", bridgeName, bridgeIp)
+	out, err := createInterface(c, "bridge", bridgeName, bridgeIP)
 	c.Assert(err, check.IsNil, check.Commentf(out))
 	defer deleteInterface(c, bridgeName)
 
@@ -1210,16 +1210,16 @@ func (s *DockerDaemonSuite) TestDaemonRestartKillWait(c *check.C) {
 // TestHttpsInfo connects via two-way authenticated HTTPS to the info endpoint
 func (s *DockerDaemonSuite) TestHttpsInfo(c *check.C) {
 	const (
-		testDaemonHttpsAddr = "localhost:4271"
+		testDaemonHTTPSAddr = "localhost:4271"
 	)
 
 	if err := s.d.Start("--tlsverify", "--tlscacert", "fixtures/https/ca.pem", "--tlscert", "fixtures/https/server-cert.pem",
-		"--tlskey", "fixtures/https/server-key.pem", "-H", testDaemonHttpsAddr); err != nil {
+		"--tlskey", "fixtures/https/server-key.pem", "-H", testDaemonHTTPSAddr); err != nil {
 		c.Fatalf("Could not start daemon with busybox: %v", err)
 	}
 
 	//force tcp protocol
-	host := fmt.Sprintf("tcp://%s", testDaemonHttpsAddr)
+	host := fmt.Sprintf("tcp://%s", testDaemonHTTPSAddr)
 	daemonArgs := []string{"--host", host, "--tlsverify", "--tlscacert", "fixtures/https/ca.pem", "--tlscert", "fixtures/https/client-cert.pem", "--tlskey", "fixtures/https/client-key.pem"}
 	out, err := s.d.CmdWithArgs(daemonArgs, "info")
 	if err != nil {
@@ -1232,15 +1232,15 @@ func (s *DockerDaemonSuite) TestHttpsInfo(c *check.C) {
 func (s *DockerDaemonSuite) TestHttpsInfoRogueCert(c *check.C) {
 	const (
 		errBadCertificate   = "remote error: bad certificate"
-		testDaemonHttpsAddr = "localhost:4271"
+		testDaemonHTTPSAddr = "localhost:4271"
 	)
 	if err := s.d.Start("--tlsverify", "--tlscacert", "fixtures/https/ca.pem", "--tlscert", "fixtures/https/server-cert.pem",
-		"--tlskey", "fixtures/https/server-key.pem", "-H", testDaemonHttpsAddr); err != nil {
+		"--tlskey", "fixtures/https/server-key.pem", "-H", testDaemonHTTPSAddr); err != nil {
 		c.Fatalf("Could not start daemon with busybox: %v", err)
 	}
 
 	//force tcp protocol
-	host := fmt.Sprintf("tcp://%s", testDaemonHttpsAddr)
+	host := fmt.Sprintf("tcp://%s", testDaemonHTTPSAddr)
 	daemonArgs := []string{"--host", host, "--tlsverify", "--tlscacert", "fixtures/https/ca.pem", "--tlscert", "fixtures/https/client-rogue-cert.pem", "--tlskey", "fixtures/https/client-rogue-key.pem"}
 	out, err := s.d.CmdWithArgs(daemonArgs, "info")
 	if err == nil || !strings.Contains(out, errBadCertificate) {
@@ -1253,15 +1253,15 @@ func (s *DockerDaemonSuite) TestHttpsInfoRogueCert(c *check.C) {
 func (s *DockerDaemonSuite) TestHttpsInfoRogueServerCert(c *check.C) {
 	const (
 		errCaUnknown             = "x509: certificate signed by unknown authority"
-		testDaemonRogueHttpsAddr = "localhost:4272"
+		testDaemonRogueHTTPSAddr = "localhost:4272"
 	)
 	if err := s.d.Start("--tlsverify", "--tlscacert", "fixtures/https/ca.pem", "--tlscert", "fixtures/https/server-rogue-cert.pem",
-		"--tlskey", "fixtures/https/server-rogue-key.pem", "-H", testDaemonRogueHttpsAddr); err != nil {
+		"--tlskey", "fixtures/https/server-rogue-key.pem", "-H", testDaemonRogueHTTPSAddr); err != nil {
 		c.Fatalf("Could not start daemon with busybox: %v", err)
 	}
 
 	//force tcp protocol
-	host := fmt.Sprintf("tcp://%s", testDaemonRogueHttpsAddr)
+	host := fmt.Sprintf("tcp://%s", testDaemonRogueHTTPSAddr)
 	daemonArgs := []string{"--host", host, "--tlsverify", "--tlscacert", "fixtures/https/ca.pem", "--tlscert", "fixtures/https/client-rogue-cert.pem", "--tlskey", "fixtures/https/client-rogue-key.pem"}
 	out, err := s.d.CmdWithArgs(daemonArgs, "info")
 	if err == nil || !strings.Contains(out, errCaUnknown) {
