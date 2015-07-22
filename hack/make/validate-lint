@@ -8,10 +8,12 @@ source "${MAKEDIR}/.validate"
 # packages=( $(go list ./... 2> /dev/null | grep -vE "^github.com/docker/docker/vendor" || true ) )
 
 packages=(
+	builder
+	builder/command
+	builder/parser
 	builder/parser/dumper
 	daemon/events
 	daemon/execdriver/native/template
-	daemon/graphdriver/btrfs
 	daemon/network
 	docker
 	dockerinit
@@ -24,6 +26,7 @@ packages=(
 	pkg/mflag/example
 	pkg/mount
 	pkg/namesgenerator
+	pkg/nat
 	pkg/promise
 	pkg/pubsub
 	pkg/random
