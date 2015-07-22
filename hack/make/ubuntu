@@ -75,6 +75,7 @@ bundle_ubuntu() {
 	# Include contributed apparmor policy
 	mkdir -p "$DIR/etc/apparmor.d/"
 	cp contrib/apparmor/docker "$DIR/etc/apparmor.d/"
+	cp contrib/apparmor/docker-engine "$DIR/etc/apparmor.d/"
 
 	# Copy the binary
 	# This will fail if the binary bundle hasn't been built
@@ -95,6 +96,7 @@ fi
 
 if ( aa-status --enabled ); then
 	/sbin/apparmor_parser -r -W -T /etc/apparmor.d/docker
+	/sbin/apparmor_parser -r -W -T /etc/apparmor.d/docker-engine
 fi
 
 if ! { [ -x /sbin/initctl ] && /sbin/initctl version 2>/dev/null | grep -q upstart; }; then
