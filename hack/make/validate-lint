@@ -41,7 +41,9 @@ packages=(
 
 errors=()
 for p in "${packages[@]}"; do
-	failedLint=$(golint "$p")
+	# Run golint on package/*.go file explicitly to validate all go files
+	# and not just the ones for the current platform.
+	failedLint=$(golint "$p"/*.go)
 	if [ "$failedLint" ]; then
 		errors+=( "$failedLint" )
 	fi
