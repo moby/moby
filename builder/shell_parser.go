@@ -18,6 +18,8 @@ type shellWord struct {
 	pos  int
 }
 
+// ProcessWord will use the 'env' list of environment variables,
+// and replace any env var references in 'word'.
 func ProcessWord(word string, env []string) (string, error) {
 	sw := &shellWord{
 		word: word,
