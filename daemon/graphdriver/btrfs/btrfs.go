@@ -24,6 +24,8 @@ func init() {
 	graphdriver.Register("btrfs", Init)
 }
 
+// Init returns a new BTRFS driver.
+// An error is returned if BTRFS is not supported.
 func Init(home string, options []string) (graphdriver.Driver, error) {
 	rootdir := path.Dir(home)
 
@@ -51,29 +53,37 @@ func Init(home string, options []string) (graphdriver.Driver, error) {
 	return graphdriver.NaiveDiffDriver(driver), nil
 }
 
+// Driver contains information about the filesystem mounted.
 type Driver struct {
+	//root of the file system
 	home string
 }
 
+// String prints the name of the driver (btrfs).
 func (d *Driver) String() string {
 	return "btrfs"
 }
 
+// Status returns current driver information in a two dimensional string array.
+// Output contains "Build Version" and "Library Version" of the btrfs libraries used.
+// Version information can be used to check compatibility with your kernel.
 func (d *Driver) Status() [][2]string {
 	status := [][2]string{}
-	if bv := BtrfsBuildVersion(); bv != "-" {
+	if bv := btrfsBuildVersion(); bv != "-" {
 		status = append(status, [2]string{"Build Version", bv})
 	}
-	if lv := BtrfsLibVersion(); lv != -1 {
+	if lv := btrfsLibVersion(); lv != -1 {
 		status = append(status, [2]string{"Library Version", fmt.Sprintf("%d", lv)})
 	}
 	return status
 }
 
+// GetMetadata returns empty metadata for this driver.
 func (d *Driver) GetMetadata(id string) (map[string]string, error) {
 	return nil, nil
 }
 
+// Cleanup unmounts the home directory.
 func (d *Driver) Cleanup() error {
 	return mount.Unmount(d.home)
 }
@@ -174,10 +184,11 @@ func (d *Driver) subvolumesDir() string {
 	return path.Join(d.home, "subvolumes")
 }
 
-func (d *Driver) subvolumesDirId(id string) string {
+func (d *Driver) subvolumesDirID(id string) string {
 	return path.Join(d.subvolumesDir(), id)
 }
 
+// Create the filesystem with given id.
 func (d *Driver) Create(id string, parent string) error {
 	subvolumes := path.Join(d.home, "subvolumes")
 	if err := os.MkdirAll(subvolumes, 0700); err != nil {
@@ -199,8 +210,9 @@ func (d *Driver) Create(id string, parent string) error {
 	return nil
 }
 
+// Remove the filesystem with given id.
 func (d *Driver) Remove(id string) error {
-	dir := d.subvolumesDirId(id)
+	dir := d.subvolumesDirID(id)
 	if _, err := os.Stat(dir); err != nil {
 		return err
 	}
@@ -210,8 +222,9 @@ func (d *Driver) Remove(id string) error {
 	return os.RemoveAll(dir)
 }
 
+// Get the requested filesystem id.
 func (d *Driver) Get(id, mountLabel string) (string, error) {
-	dir := d.subvolumesDirId(id)
+	dir := d.subvolumesDirID(id)
 	st, err := os.Stat(dir)
 	if err != nil {
 		return "", err
@@ -224,14 +237,16 @@ func (d *Driver) Get(id, mountLabel string) (string, error) {
 	return dir, nil
 }
 
+// Put is not implemented for BTRFS as there is no cleanup required for the id.
 func (d *Driver) Put(id string) error {
 	// Get() creates no runtime resources (like e.g. mounts)
 	// so this doesn't need to do anything.
 	return nil
 }
 
+// Exists checks if the id exists in the filesystem.
 func (d *Driver) Exists(id string) bool {
-	dir := d.subvolumesDirId(id)
+	dir := d.subvolumesDirID(id)
 	_, err := os.Stat(dir)
 	return err == nil
 }
