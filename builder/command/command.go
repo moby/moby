@@ -1,6 +1,7 @@
-// This package contains the set of Dockerfile commands.
+// Package command contains the set of Dockerfile commands.
 package command
 
+// Define constants for the command strings
 const (
 	Env        = "env"
 	Label      = "label"

@@ -40,7 +40,7 @@ import (
 	"github.com/docker/docker/runconfig"
 )
 
-func (b *Builder) readContext(context io.Reader) (err error) {
+func (b *builder) readContext(context io.Reader) (err error) {
 	tmpdirPath, err := ioutil.TempDir("", "docker-build")
 	if err != nil {
 		return
@@ -73,7 +73,7 @@ func (b *Builder) readContext(context io.Reader) (err error) {
 	return
 }
 
-func (b *Builder) commit(id string, autoCmd *runconfig.Command, comment string) error {
+func (b *builder) commit(id string, autoCmd *runconfig.Command, comment string) error {
 	if b.disableCommit {
 		return nil
 	}
@@ -143,7 +143,7 @@ type copyInfo struct {
 	tmpDir     string
 }
 
-func (b *Builder) runContextCommand(args []string, allowRemote bool, allowDecompression bool, cmdName string) error {
+func (b *builder) runContextCommand(args []string, allowRemote bool, allowDecompression bool, cmdName string) error {
 	if b.context == nil {
 		return fmt.Errorf("No context given. Impossible to use %s", cmdName)
 	}
@@ -261,7 +261,7 @@ func (b *Builder) runContextCommand(args []string, allowRemote bool, allowDecomp
 	return nil
 }
 
-func calcCopyInfo(b *Builder, cmdName string, cInfos *[]*copyInfo, origPath string, destPath string, allowRemote bool, allowDecompression bool, allowWildcards bool) error {
+func calcCopyInfo(b *builder, cmdName string, cInfos *[]*copyInfo, origPath string, destPath string, allowRemote bool, allowDecompression bool, allowWildcards bool) error {
 
 	// Work in daemon-specific OS filepath semantics. However, we save
 	// the the origPath passed in here, as it might also be a URL which
@@ -398,7 +398,7 @@ func calcCopyInfo(b *Builder, cmdName string, cInfos *[]*copyInfo, origPath stri
 	}
 
 	// Deal with wildcards
-	if allowWildcards && ContainsWildcards(origPath) {
+	if allowWildcards && containsWildcards(origPath) {
 		for _, fileInfo := range b.context.GetSums() {
 			if fileInfo.Name() == "" {
 				continue
@@ -475,7 +475,7 @@ func calcCopyInfo(b *Builder, cmdName string, cInfos *[]*copyInfo, origPath stri
 	return nil
 }
 
-func ContainsWildcards(name string) bool {
+func containsWildcards(name string) bool {
 	for i := 0; i < len(name); i++ {
 		ch := name[i]
 		if ch == '\\' {
@@ -487,7 +487,7 @@ func ContainsWildcards(name string) bool {
 	return false
 }
 
-func (b *Builder) pullImage(name string) (*image.Image, error) {
+func (b *builder) pullImage(name string) (*image.Image, error) {
 	remote, tag := parsers.ParseRepositoryTag(name)
 	if tag == "" {
 		tag = "latest"
@@ -525,7 +525,7 @@ func (b *Builder) pullImage(name string) (*image.Image, error) {
 	return image, nil
 }
 
-func (b *Builder) processImageFrom(img *image.Image) error {
+func (b *builder) processImageFrom(img *image.Image) error {
 	b.image = img.ID
 
 	if img.Config != nil {
@@ -577,7 +577,7 @@ func (b *Builder) processImageFrom(img *image.Image) error {
 // in the current server `b.Daemon`. If an image is found, probeCache returns
 // `(true, nil)`. If no image is found, it returns `(false, nil)`. If there
 // is any error, it returns `(false, err)`.
-func (b *Builder) probeCache() (bool, error) {
+func (b *builder) probeCache() (bool, error) {
 	if !b.UtilizeCache || b.cacheBusted {
 		return false, nil
 	}
@@ -600,7 +600,7 @@ func (b *Builder) probeCache() (bool, error) {
 	return true, nil
 }
 
-func (b *Builder) create() (*daemon.Container, error) {
+func (b *builder) create() (*daemon.Container, error) {
 	if b.image == "" && !b.noBaseImage {
 		return nil, fmt.Errorf("Please provide a source image with `from` prior to run")
 	}
@@ -643,7 +643,7 @@ func (b *Builder) create() (*daemon.Container, error) {
 	return c, nil
 }
 
-func (b *Builder) run(c *daemon.Container) error {
+func (b *builder) run(c *daemon.Container) error {
 	var errCh chan error
 	if b.Verbose {
 		errCh = c.Attach(nil, b.OutStream, b.ErrStream)
@@ -683,7 +683,7 @@ func (b *Builder) run(c *daemon.Container) error {
 	return nil
 }
 
-func (b *Builder) checkPathForAddition(orig string) error {
+func (b *builder) checkPathForAddition(orig string) error {
 	origPath := filepath.Join(b.contextPath, orig)
 	origPath, err := filepath.EvalSymlinks(origPath)
 	if err != nil {
@@ -708,7 +708,7 @@ func (b *Builder) checkPathForAddition(orig string) error {
 	return nil
 }
 
-func (b *Builder) addContext(container *daemon.Container, orig, dest string, decompress bool) error {
+func (b *builder) addContext(container *daemon.Container, orig, dest string, decompress bool) error {
 	var (
 		err        error
 		destExists = true
@@ -791,7 +791,7 @@ func copyAsDirectory(source, destination string, destExisted bool) error {
 	return fixPermissions(source, destination, 0, 0, destExisted)
 }
 
-func (b *Builder) clearTmp() {
+func (b *builder) clearTmp() {
 	for c := range b.TmpContainers {
 		rmConfig := &daemon.ContainerRmConfig{
 			ForceRemove:  true,

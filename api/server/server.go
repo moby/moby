@@ -688,7 +688,7 @@ func (s *Server) postCommit(version version.Version, w http.ResponseWriter, r *h
 		return err
 	}
 
-	commitCfg := &builder.BuilderCommitConfig{
+	commitCfg := &builder.CommitConfig{
 		Pause:   pause,
 		Repo:    r.Form.Get("repo"),
 		Tag:     r.Form.Get("tag"),
@@ -1276,11 +1276,11 @@ func (s *Server) postBuild(version version.Version, w http.ResponseWriter, r *ht
 	buildConfig.AuthConfigs = authConfigs
 	buildConfig.MemorySwap = int64ValueOrZero(r, "memswap")
 	buildConfig.Memory = int64ValueOrZero(r, "memory")
-	buildConfig.CpuShares = int64ValueOrZero(r, "cpushares")
-	buildConfig.CpuPeriod = int64ValueOrZero(r, "cpuperiod")
-	buildConfig.CpuQuota = int64ValueOrZero(r, "cpuquota")
-	buildConfig.CpuSetCpus = r.FormValue("cpusetcpus")
-	buildConfig.CpuSetMems = r.FormValue("cpusetmems")
+	buildConfig.CPUShares = int64ValueOrZero(r, "cpushares")
+	buildConfig.CPUPeriod = int64ValueOrZero(r, "cpuperiod")
+	buildConfig.CPUQuota = int64ValueOrZero(r, "cpuquota")
+	buildConfig.CPUSetCpus = r.FormValue("cpusetcpus")
+	buildConfig.CPUSetMems = r.FormValue("cpusetmems")
 	buildConfig.CgroupParent = r.FormValue("cgroupparent")
 
 	// Job cancellation. Note: not all job types support this.

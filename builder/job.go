@@ -44,6 +44,7 @@ var validCommitCommands = map[string]bool{
 	"workdir":    true,
 }
 
+// Config contains all configs for a build job
 type Config struct {
 	DockerfileName string
 	RemoteURL      string
@@ -55,11 +56,11 @@ type Config struct {
 	Pull           bool
 	Memory         int64
 	MemorySwap     int64
-	CpuShares      int64
-	CpuPeriod      int64
-	CpuQuota       int64
-	CpuSetCpus     string
-	CpuSetMems     string
+	CPUShares      int64
+	CPUPeriod      int64
+	CPUQuota       int64
+	CPUSetCpus     string
+	CPUSetMems     string
 	CgroupParent   string
 	AuthConfigs    map[string]cliconfig.AuthConfig
 
@@ -72,18 +73,20 @@ type Config struct {
 	cancelOnce sync.Once
 }
 
-// When called, causes the Job.WaitCancelled channel to unblock.
+// Cancel signals the build job to cancel
 func (b *Config) Cancel() {
 	b.cancelOnce.Do(func() {
 		close(b.cancelled)
 	})
 }
 
-// Returns a channel which is closed ("never blocks") when the job is cancelled.
+// WaitCancelled returns a channel which is closed ("never blocks") when
+// the job is cancelled.
 func (b *Config) WaitCancelled() <-chan struct{} {
 	return b.cancelled
 }
 
+// NewBuildConfig returns a new Config struct
 func NewBuildConfig() *Config {
 	return &Config{
 		AuthConfigs: map[string]cliconfig.AuthConfig{},
@@ -91,6 +94,8 @@ func NewBuildConfig() *Config {
 	}
 }
 
+// Build is the main interface of the package, it gathers the Builder
+// struct and calls builder.Run() to do all the real build job.
 func Build(d *daemon.Daemon, buildConfig *Config) error {
 	var (
 		repoName string
@@ -173,7 +178,7 @@ func Build(d *daemon.Daemon, buildConfig *Config) error {
 
 	defer context.Close()
 
-	builder := &Builder{
+	builder := &builder{
 		Daemon: d,
 		OutStream: &streamformatter.StdoutFormater{
 			Writer:          buildConfig.Stdout,
@@ -192,11 +197,11 @@ func Build(d *daemon.Daemon, buildConfig *Config) error {
 		StreamFormatter: sf,
 		AuthConfigs:     buildConfig.AuthConfigs,
 		dockerfileName:  buildConfig.DockerfileName,
-		cpuShares:       buildConfig.CpuShares,
-		cpuPeriod:       buildConfig.CpuPeriod,
-		cpuQuota:        buildConfig.CpuQuota,
-		cpuSetCpus:      buildConfig.CpuSetCpus,
-		cpuSetMems:      buildConfig.CpuSetMems,
+		cpuShares:       buildConfig.CPUShares,
+		cpuPeriod:       buildConfig.CPUPeriod,
+		cpuQuota:        buildConfig.CPUQuota,
+		cpuSetCpus:      buildConfig.CPUSetCpus,
+		cpuSetMems:      buildConfig.CPUSetMems,
 		cgroupParent:    buildConfig.CgroupParent,
 		memory:          buildConfig.Memory,
 		memorySwap:      buildConfig.MemorySwap,
@@ -218,6 +223,11 @@ func Build(d *daemon.Daemon, buildConfig *Config) error {
 	return nil
 }
 
+// BuildFromConfig will do build directly from parameter 'changes', which comes
+// from Dockerfile entries, it will:
+//
+// - call parse.Parse() to get AST root from Dockerfile entries
+// - do build by calling builder.dispatch() to call all entries' handling routines
 func BuildFromConfig(d *daemon.Daemon, c *runconfig.Config, changes []string) (*runconfig.Config, error) {
 	ast, err := parser.Parse(bytes.NewBufferString(strings.Join(changes, "\n")))
 	if err != nil {
@@ -231,7 +241,7 @@ func BuildFromConfig(d *daemon.Daemon, c *runconfig.Config, changes []string) (*
 		}
 	}
 
-	builder := &Builder{
+	builder := &builder{
 		Daemon:        d,
 		Config:        c,
 		OutStream:     ioutil.Discard,
@@ -248,7 +258,8 @@ func BuildFromConfig(d *daemon.Daemon, c *runconfig.Config, changes []string) (*
 	return builder.Config, nil
 }
 
-type BuilderCommitConfig struct {
+// CommitConfig contains build configs for commit operation
+type CommitConfig struct {
 	Pause   bool
 	Repo    string
 	Tag     string
@@ -258,7 +269,8 @@ type BuilderCommitConfig struct {
 	Config  *runconfig.Config
 }
 
-func Commit(name string, d *daemon.Daemon, c *BuilderCommitConfig) (string, error) {
+// Commit will create a new image from a container's changes
+func Commit(name string, d *daemon.Daemon, c *CommitConfig) (string, error) {
 	container, err := d.Get(name)
 	if err != nil {
 		return "", err
