@@ -165,8 +165,8 @@ Create a container
                "CapDrop": ["MKNOD"],
                "RestartPolicy": { "Name": "", "MaximumRetryCount": 0 },
                "NetworkMode": "bridge",
-               "Devices": []
-               "SecurityOpt": [""],
+               "Devices": [],
+               "SecurityOpt": [""]
             }
         }
 
