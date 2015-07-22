@@ -818,7 +818,7 @@ func (s *Server) getImagesSearch(version version.Version, w http.ResponseWriter,
 	if err != nil {
 		return err
 	}
-	return json.NewEncoder(w).Encode(query.Results)
+	return writeJSON(w, http.StatusOK, query.Results)
 }
 
 func (s *Server) postImagesPush(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
