@@ -21,6 +21,7 @@ packages=(
 	pkg/homedir
 	pkg/listenbuffer
 	pkg/mflag/example
+	pkg/mount
 	pkg/namesgenerator
 	pkg/promise
 	pkg/pubsub
