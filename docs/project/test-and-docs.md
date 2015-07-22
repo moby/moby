@@ -120,7 +120,7 @@ Run the entire test suite on your current repository:
         PASS
         coverage: 70.8% of statements
         ---> Making bundle: test-docker-py (in bundles/1.5.0-dev/test-docker-py)
-        +++ exec docker --daemon --debug --host unix:///go/src/github.com/docker/docker/bundles/1.5.0-dev/test-docker-py/docker.sock --storage-driver vfs --exec-driver native --pidfile /go/src/github.com/docker/docker/bundles/1.5.0-dev/test-docker-py/docker.pid
+        +++ exec docker daemon --debug --host unix:///go/src/github.com/docker/docker/bundles/1.5.0-dev/test-docker-py/docker.sock --storage-driver vfs --exec-driver native --pidfile /go/src/github.com/docker/docker/bundles/1.5.0-dev/test-docker-py/docker.pid
         .................................................................
         ----------------------------------------------------------------------
         Ran 65 tests in 89.266s

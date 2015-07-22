@@ -174,7 +174,7 @@ For example:
 ## Run the Docker daemon
 
     # start the docker in daemon mode from the directory you unpacked
-    $ sudo ./docker -d &
+    $ sudo ./docker daemon &
 
 ## Giving non-root access
 
