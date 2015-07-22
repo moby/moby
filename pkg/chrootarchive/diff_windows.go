@@ -9,6 +9,9 @@ import (
 	"github.com/docker/docker/pkg/archive"
 )
 
+// ApplyLayer parses a diff in the standard layer format from `layer`, and
+// applies it to the directory `dest`. Returns the size in bytes of the
+// contents of the layer.
 func ApplyLayer(dest string, layer archive.ArchiveReader) (size int64, err error) {
 	dest = filepath.Clean(dest)
 	decompressed, err := archive.DecompressStream(layer)
