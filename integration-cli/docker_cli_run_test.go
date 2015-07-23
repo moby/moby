@@ -368,10 +368,9 @@ func (s *DockerSuite) TestRunCreateVolumeWithSymlink(c *check.C) {
 		c.Fatalf("[run] err: %v, exitcode: %d", err, exitCode)
 	}
 
-	var volPath string
-	volPath, exitCode, err = dockerCmdWithError(c, "inspect", "-f", "{{range .Volumes}}{{.}}{{end}}", "test-createvolumewithsymlink")
-	if err != nil || exitCode != 0 {
-		c.Fatalf("[inspect] err: %v, exitcode: %d", err, exitCode)
+	volPath, err := inspectMountSourceField("test-createvolumewithsymlink", "/bar/foo")
+	if err != nil {
+		c.Fatalf("[inspect] err: %v", err)
 	}
 
 	_, exitCode, err = dockerCmdWithError(c, "rm", "-v", "test-createvolumewithsymlink")
@@ -379,8 +378,7 @@ func (s *DockerSuite) TestRunCreateVolumeWithSymlink(c *check.C) {
 		c.Fatalf("[rm] err: %v, exitcode: %d", err, exitCode)
 	}
 
-	f, err := os.Open(volPath)
-	defer f.Close()
+	_, err = os.Stat(volPath)
 	if !os.IsNotExist(err) {
 		c.Fatalf("[open] (expecting 'file does not exist' error) err: %v, volPath: %s", err, volPath)
 	}
