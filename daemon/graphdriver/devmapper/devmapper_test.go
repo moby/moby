@@ -10,10 +10,10 @@ import (
 
 func init() {
 	// Reduce the size the the base fs and loopback for the tests
-	DefaultDataLoopbackSize = 300 * 1024 * 1024
-	DefaultMetaDataLoopbackSize = 200 * 1024 * 1024
-	DefaultBaseFsSize = 300 * 1024 * 1024
-	DefaultUdevSyncOverride = true
+	defaultDataLoopbackSize = 300 * 1024 * 1024
+	defaultMetaDataLoopbackSize = 200 * 1024 * 1024
+	defaultBaseFsSize = 300 * 1024 * 1024
+	defaultUdevSyncOverride = true
 	if err := graphtest.InitLoopbacks(); err != nil {
 		panic(err)
 	}
