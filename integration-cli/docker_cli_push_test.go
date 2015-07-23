@@ -281,7 +281,7 @@ func (s *DockerTrustSuite) TestTrustedPushWithIncorrectPassphraseForNonRoot(c *c
 		c.Fatalf("Error missing from trusted push with short targets passphrase: \n%s", out)
 	}
 
-	if !strings.Contains(string(out), "Password Invalid, operation has failed") {
+	if !strings.Contains(string(out), "password invalid, operation has failed") {
 		c.Fatalf("Missing expected output on trusted push with short targets/snapsnot passphrase:\n%s", out)
 	}
 }

@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/docker/docker/pkg/tlsconfig"
@@ -107,6 +108,7 @@ func (s *DockerTrustSuite) trustedCmdWithServer(cmd *exec.Cmd, server string) {
 	pwd := "12345678"
 	trustCmdEnv(cmd, server, pwd, pwd, pwd)
 }
+
 func (s *DockerTrustSuite) trustedCmdWithPassphrases(cmd *exec.Cmd, rootPwd, snapshotPwd, targetPwd string) {
 	trustCmdEnv(cmd, s.not.address(), rootPwd, snapshotPwd, targetPwd)
 }
@@ -120,4 +122,26 @@ func trustCmdEnv(cmd *exec.Cmd, server, rootPwd, snapshotPwd, targetPwd string) 
 		fmt.Sprintf("DOCKER_TRUST_TARGET_PASSPHRASE=%s", targetPwd),
 	}
 	cmd.Env = append(os.Environ(), env...)
+}
+
+func (s *DockerTrustSuite) setupTrustedImage(c *check.C, name string) string {
+	repoName := fmt.Sprintf("%v/dockercli/%s:latest", privateRegistryURL, name)
+	// tag the image and upload it to the private registry
+	dockerCmd(c, "tag", "busybox", repoName)
+
+	pushCmd := exec.Command(dockerBinary, "push", repoName)
+	s.trustedCmd(pushCmd)
+	out, _, err := runCommandWithOutput(pushCmd)
+	if err != nil {
+		c.Fatalf("Error running trusted push: %s\n%s", err, out)
+	}
+	if !strings.Contains(string(out), "Signing and pushing trust metadata") {
+		c.Fatalf("Missing expected output on trusted push:\n%s", out)
+	}
+
+	if out, status := dockerCmd(c, "rmi", repoName); status != 0 {
+		c.Fatalf("Error removing image %q\n%s", repoName, out)
+	}
+
+	return repoName
 }
