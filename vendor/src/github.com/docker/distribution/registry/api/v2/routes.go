@@ -11,10 +11,12 @@ const (
 	RouteNameBlob            = "blob"
 	RouteNameBlobUpload      = "blob-upload"
 	RouteNameBlobUploadChunk = "blob-upload-chunk"
+	RouteNameCatalog         = "catalog"
 )
 
 var allEndpoints = []string{
 	RouteNameManifest,
+	RouteNameCatalog,
 	RouteNameTags,
 	RouteNameBlob,
 	RouteNameBlobUpload,

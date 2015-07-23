@@ -16,6 +16,8 @@ type ErrorCoder interface {
 // and the integer format may change and should *never* be exported.
 type ErrorCode int
 
+var _ error = ErrorCode(0)
+
 // ErrorCode just returns itself
 func (ec ErrorCode) ErrorCode() ErrorCode {
 	return ec
@@ -69,21 +71,31 @@ func (ec *ErrorCode) UnmarshalText(text []byte) error {
 // WithDetail creates a new Error struct based on the passed-in info and
 // set the Detail property appropriately
 func (ec ErrorCode) WithDetail(detail interface{}) Error {
-	if err, ok := detail.(error); ok {
-		detail = err.Error()
-	}
-
 	return Error{
-		Code:   ec,
-		Detail: detail,
-	}
+		Code:    ec,
+		Message: ec.Message(),
+	}.WithDetail(detail)
+}
+
+// WithArgs creates a new Error struct and sets the Args slice
+func (ec ErrorCode) WithArgs(args ...interface{}) Error {
+	return Error{
+		Code:    ec,
+		Message: ec.Message(),
+	}.WithArgs(args...)
 }
 
 // Error provides a wrapper around ErrorCode with extra Details provided.
 type Error struct {
-	Code   ErrorCode   `json:"code"`
-	Detail interface{} `json:"detail,omitempty"`
+	Code    ErrorCode   `json:"code"`
+	Message string      `json:"message"`
+	Detail  interface{} `json:"detail,omitempty"`
+
+	// TODO(duglin): See if we need an "args" property so we can do the
+	// variable substitution right before showing the message to the user
 }
+
+var _ error = Error{}
 
 // ErrorCode returns the ID/Value of this Error
 func (e Error) ErrorCode() ErrorCode {
@@ -94,12 +106,27 @@ func (e Error) ErrorCode() ErrorCode {
 func (e Error) Error() string {
 	return fmt.Sprintf("%s: %s",
 		strings.ToLower(strings.Replace(e.Code.String(), "_", " ", -1)),
-		e.Code.Message())
+		e.Message)
 }
 
-// Message returned the human-readable error message for this Error
-func (e Error) Message() string {
-	return e.Code.Message()
+// WithDetail will return a new Error, based on the current one, but with
+// some Detail info added
+func (e Error) WithDetail(detail interface{}) Error {
+	return Error{
+		Code:    e.Code,
+		Message: e.Message,
+		Detail:  detail,
+	}
+}
+
+// WithArgs uses the passed-in list of interface{} as the substitution
+// variables in the Error's Message string, but returns a new Error
+func (e Error) WithArgs(args ...interface{}) Error {
+	return Error{
+		Code:    e.Code,
+		Message: fmt.Sprintf(e.Code.Message(), args...),
+		Detail:  e.Detail,
+	}
 }
 
 // ErrorDescriptor provides relevant information about a given error code.
@@ -140,6 +167,8 @@ func ParseErrorCode(value string) ErrorCode {
 // for use within the application.
 type Errors []error
 
+var _ error = Errors{}
+
 func (errs Errors) Error() string {
 	switch len(errs) {
 	case 0:
@@ -160,20 +189,11 @@ func (errs Errors) Len() int {
 	return len(errs)
 }
 
-// jsonError extends Error with 'Message' so that we can include the
-// error text, just in case the receiver of the JSON doesn't have this
-// particular ErrorCode registered
-type jsonError struct {
-	Code    ErrorCode   `json:"code"`
-	Message string      `json:"message"`
-	Detail  interface{} `json:"detail,omitempty"`
-}
-
 // MarshalJSON converts slice of error, ErrorCode or Error into a
 // slice of Error - then serializes
 func (errs Errors) MarshalJSON() ([]byte, error) {
 	var tmpErrs struct {
-		Errors []jsonError `json:"errors,omitempty"`
+		Errors []Error `json:"errors,omitempty"`
 	}
 
 	for _, daErr := range errs {
@@ -189,9 +209,16 @@ func (errs Errors) MarshalJSON() ([]byte, error) {
 
 		}
 
-		tmpErrs.Errors = append(tmpErrs.Errors, jsonError{
+		// If the Error struct was setup and they forgot to set the
+		// Message field (meaning its "") then grab it from the ErrCode
+		msg := err.Message
+		if msg == "" {
+			msg = err.Code.Message()
+		}
+
+		tmpErrs.Errors = append(tmpErrs.Errors, Error{
 			Code:    err.Code,
-			Message: err.Message(),
+			Message: msg,
 			Detail:  err.Detail,
 		})
 	}
@@ -203,7 +230,7 @@ func (errs Errors) MarshalJSON() ([]byte, error) {
 // Error or ErrorCode
 func (errs *Errors) UnmarshalJSON(data []byte) error {
 	var tmpErrs struct {
-		Errors []jsonError
+		Errors []Error
 	}
 
 	if err := json.Unmarshal(data, &tmpErrs); err != nil {
@@ -212,14 +239,17 @@ func (errs *Errors) UnmarshalJSON(data []byte) error {
 
 	var newErrs Errors
 	for _, daErr := range tmpErrs.Errors {
-		if daErr.Detail == nil {
+		// If Message is empty or exactly matches the Code's message string
+		// then just use the Code, no need for a full Error struct
+		if daErr.Detail == nil && (daErr.Message == "" || daErr.Message == daErr.Code.Message()) {
 			// Error's w/o details get converted to ErrorCode
 			newErrs = append(newErrs, daErr.Code)
 		} else {
 			// Error's w/ details are untouched
 			newErrs = append(newErrs, Error{
-				Code:   daErr.Code,
-				Detail: daErr.Detail,
+				Code:    daErr.Code,
+				Message: daErr.Message,
+				Detail:  daErr.Detail,
 			})
 		}
 	}

@@ -18,6 +18,7 @@ import (
 	"github.com/docker/docker/trust"
 	"github.com/docker/docker/utils"
 	"github.com/docker/libtrust"
+	"golang.org/x/net/context"
 )
 
 type v2Puller struct {
@@ -58,7 +59,13 @@ func (p *v2Puller) pullV2Repository(tag string) (err error) {
 		taggedName = utils.ImageReference(p.repoInfo.LocalName, tag)
 	} else {
 		var err error
-		tags, err = p.repo.Manifests().Tags()
+
+		manSvc, err := p.repo.Manifests(context.Background())
+		if err != nil {
+			return err
+		}
+
+		tags, err = manSvc.Tags()
 		if err != nil {
 			return err
 		}
@@ -140,7 +147,7 @@ func (p *v2Puller) download(di *downloadInfo) {
 		di.err <- err
 		return
 	}
-	di.size = desc.Length
+	di.size = desc.Size
 
 	layerDownload, err := blobs.Open(nil, di.digest)
 	if err != nil {
@@ -187,7 +194,12 @@ func (p *v2Puller) pullV2Tag(tag, taggedName string) (bool, error) {
 	logrus.Debugf("Pulling tag from V2 registry: %q", tag)
 	out := p.config.OutStream
 
-	manifest, err := p.repo.Manifests().GetByTag(tag)
+	manSvc, err := p.repo.Manifests(context.Background())
+	if err != nil {
+		return false, err
+	}
+
+	manifest, err := manSvc.GetByTag(tag)
 	if err != nil {
 		return false, err
 	}

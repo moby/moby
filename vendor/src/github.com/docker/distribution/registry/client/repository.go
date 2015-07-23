@@ -21,6 +21,83 @@ import (
 	"github.com/docker/distribution/registry/storage/cache/memory"
 )
 
+// Registry provides an interface for calling Repositories, which returns a catalog of repositories.
+type Registry interface {
+	Repositories(ctx context.Context, repos []string, last string) (n int, err error)
+}
+
+// NewRegistry creates a registry namespace which can be used to get a listing of repositories
+func NewRegistry(ctx context.Context, baseURL string, transport http.RoundTripper) (Registry, error) {
+	ub, err := v2.NewURLBuilderFromString(baseURL)
+	if err != nil {
+		return nil, err
+	}
+
+	client := &http.Client{
+		Transport: transport,
+		Timeout:   1 * time.Minute,
+	}
+
+	return &registry{
+		client:  client,
+		ub:      ub,
+		context: ctx,
+	}, nil
+}
+
+type registry struct {
+	client  *http.Client
+	ub      *v2.URLBuilder
+	context context.Context
+}
+
+// Repositories returns a lexigraphically sorted catalog given a base URL.  The 'entries' slice will be filled up to the size
+// of the slice, starting at the value provided in 'last'.  The number of entries will be returned along with io.EOF if there
+// are no more entries
+func (r *registry) Repositories(ctx context.Context, entries []string, last string) (int, error) {
+	var numFilled int
+	var returnErr error
+
+	values := buildCatalogValues(len(entries), last)
+	u, err := r.ub.BuildCatalogURL(values)
+	if err != nil {
+		return 0, err
+	}
+
+	resp, err := r.client.Get(u)
+	if err != nil {
+		return 0, err
+	}
+	defer resp.Body.Close()
+
+	switch resp.StatusCode {
+	case http.StatusOK:
+		var ctlg struct {
+			Repositories []string `json:"repositories"`
+		}
+		decoder := json.NewDecoder(resp.Body)
+
+		if err := decoder.Decode(&ctlg); err != nil {
+			return 0, err
+		}
+
+		for cnt := range ctlg.Repositories {
+			entries[cnt] = ctlg.Repositories[cnt]
+		}
+		numFilled = len(ctlg.Repositories)
+
+		link := resp.Header.Get("Link")
+		if link == "" {
+			returnErr = io.EOF
+		}
+
+	default:
+		return 0, handleErrorResponse(resp)
+	}
+
+	return numFilled, returnErr
+}
+
 // NewRepository creates a new Repository for the given repository name and base URL
 func NewRepository(ctx context.Context, name, baseURL string, transport http.RoundTripper) (distribution.Repository, error) {
 	if err := v2.ValidateRepositoryName(name); err != nil {
@@ -70,17 +147,20 @@ func (r *repository) Blobs(ctx context.Context) distribution.BlobStore {
 	}
 }
 
-func (r *repository) Manifests() distribution.ManifestService {
+func (r *repository) Manifests(ctx context.Context, options ...distribution.ManifestServiceOption) (distribution.ManifestService, error) {
+	// todo(richardscothern): options should be sent over the wire
 	return &manifests{
 		name:   r.Name(),
 		ub:     r.ub,
 		client: r.client,
-	}
+		etags:  make(map[string]string),
+	}, nil
 }
 
 func (r *repository) Signatures() distribution.SignatureService {
+	ms, _ := r.Manifests(r.context)
 	return &signatures{
-		manifests: r.Manifests(),
+		manifests: ms,
 	}
 }
 
@@ -104,6 +184,7 @@ type manifests struct {
 	name   string
 	ub     *v2.URLBuilder
 	client *http.Client
+	etags  map[string]string
 }
 
 func (ms *manifests) Tags() ([]string, error) {
@@ -173,13 +254,40 @@ func (ms *manifests) Get(dgst digest.Digest) (*manifest.SignedManifest, error) {
 	return ms.GetByTag(dgst.String())
 }
 
-func (ms *manifests) GetByTag(tag string) (*manifest.SignedManifest, error) {
+// AddEtagToTag allows a client to supply an eTag to GetByTag which will
+// be used for a conditional HTTP request.  If the eTag matches, a nil
+// manifest and nil error will be returned.
+func AddEtagToTag(tagName, dgst string) distribution.ManifestServiceOption {
+	return func(ms distribution.ManifestService) error {
+		if ms, ok := ms.(*manifests); ok {
+			ms.etags[tagName] = dgst
+			return nil
+		}
+		return fmt.Errorf("etag options is a client-only option")
+	}
+}
+
+func (ms *manifests) GetByTag(tag string, options ...distribution.ManifestServiceOption) (*manifest.SignedManifest, error) {
+	for _, option := range options {
+		err := option(ms)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	u, err := ms.ub.BuildManifestURL(ms.name, tag)
 	if err != nil {
 		return nil, err
 	}
+	req, err := http.NewRequest("GET", u, nil)
+	if err != nil {
+		return nil, err
+	}
 
-	resp, err := ms.client.Get(u)
+	if _, ok := ms.etags[tag]; ok {
+		req.Header.Set("eTag", ms.etags[tag])
+	}
+	resp, err := ms.client.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -193,8 +301,9 @@ func (ms *manifests) GetByTag(tag string) (*manifest.SignedManifest, error) {
 		if err := decoder.Decode(&sm); err != nil {
 			return nil, err
 		}
-
 		return &sm, nil
+	case http.StatusNotModified:
+		return nil, nil
 	default:
 		return nil, handleErrorResponse(resp)
 	}
@@ -205,6 +314,8 @@ func (ms *manifests) Put(m *manifest.SignedManifest) error {
 	if err != nil {
 		return err
 	}
+
+	// todo(richardscothern): do something with options here when they become applicable
 
 	putRequest, err := http.NewRequest("PUT", manifestURL, bytes.NewReader(m.Raw))
 	if err != nil {
@@ -309,7 +420,7 @@ func (bs *blobs) Open(ctx context.Context, dgst digest.Digest) (distribution.Rea
 		return nil, err
 	}
 
-	return transport.NewHTTPReadSeeker(bs.client, blobURL, stat.Length), nil
+	return transport.NewHTTPReadSeeker(bs.client, blobURL, stat.Size), nil
 }
 
 func (bs *blobs) ServeBlob(ctx context.Context, w http.ResponseWriter, r *http.Request, dgst digest.Digest) error {
@@ -332,7 +443,7 @@ func (bs *blobs) Put(ctx context.Context, mediaType string, p []byte) (distribut
 
 	desc := distribution.Descriptor{
 		MediaType: mediaType,
-		Length:    int64(len(p)),
+		Size:      int64(len(p)),
 		Digest:    dgstr.Digest(),
 	}
 
@@ -401,7 +512,7 @@ func (bs *blobStatter) Stat(ctx context.Context, dgst digest.Digest) (distributi
 
 		return distribution.Descriptor{
 			MediaType: resp.Header.Get("Content-Type"),
-			Length:    length,
+			Size:      length,
 			Digest:    dgst,
 		}, nil
 	case http.StatusNotFound:
@@ -409,4 +520,18 @@ func (bs *blobStatter) Stat(ctx context.Context, dgst digest.Digest) (distributi
 	default:
 		return distribution.Descriptor{}, handleErrorResponse(resp)
 	}
+}
+
+func buildCatalogValues(maxEntries int, last string) url.Values {
+	values := url.Values{}
+
+	if maxEntries > 0 {
+		values.Add("n", strconv.Itoa(maxEntries))
+	}
+
+	if last != "" {
+		values.Add("last", last)
+	}
+
+	return values
 }
