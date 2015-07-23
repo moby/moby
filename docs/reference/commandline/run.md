@@ -81,7 +81,7 @@ There is detailed information about `docker run` in the [Docker run reference](
 /reference/run/).
 
 The `docker run` command can be used in combination with `docker commit` to
-[*change the command that a container runs*](#commit-an-existing-container).
+[*change the command that a container runs*](/reference/commandline/commit).
 
 See the [Docker User Guide](/userguide/dockerlinks/) for more detailed
 information about the `--expose`, `-p`, `-P` and `--link` parameters,
