@@ -285,3 +285,72 @@ func (s *DockerTrustSuite) TestTrustedPushWithIncorrectPassphraseForNonRoot(c *c
 		c.Fatalf("Missing expected output on trusted push with short targets/snapsnot passphrase:\n%s", out)
 	}
 }
+
+func (s *DockerTrustSuite) TestTrustedPushWithExpiredSnapshot(c *check.C) {
+	repoName := fmt.Sprintf("%v/dockercliexpiredsnapshot/trusted:latest", privateRegistryURL)
+	// tag the image and upload it to the private registry
+	dockerCmd(c, "tag", "busybox", repoName)
+
+	// Push with default passphrases
+	pushCmd := exec.Command(dockerBinary, "push", repoName)
+	s.trustedCmd(pushCmd)
+	out, _, err := runCommandWithOutput(pushCmd)
+	if err != nil {
+		c.Fatalf("trusted push failed: %s\n%s", err, out)
+	}
+
+	if !strings.Contains(string(out), "Signing and pushing trust metadata") {
+		c.Fatalf("Missing expected output on trusted push:\n%s", out)
+	}
+
+	// Snapshots last for three years. This should be expired
+	fourYearsLater := time.Now().Add(time.Hour * 24 * 365 * 4)
+
+	runAtDifferentDate(fourYearsLater, func() {
+		// Push with wrong passphrases
+		pushCmd = exec.Command(dockerBinary, "push", repoName)
+		s.trustedCmd(pushCmd)
+		out, _, err = runCommandWithOutput(pushCmd)
+		if err == nil {
+			c.Fatalf("Error missing from trusted push with expired snapshot: \n%s", out)
+		}
+
+		if !strings.Contains(string(out), "repository out-of-date") {
+			c.Fatalf("Missing expected output on trusted push with expired snapshot:\n%s", out)
+		}
+	})
+}
+
+func (s *DockerTrustSuite) TestTrustedPushWithExpiredTimestamp(c *check.C) {
+	repoName := fmt.Sprintf("%v/dockercliexpiredtimestamppush/trusted:latest", privateRegistryURL)
+	// tag the image and upload it to the private registry
+	dockerCmd(c, "tag", "busybox", repoName)
+
+	// Push with default passphrases
+	pushCmd := exec.Command(dockerBinary, "push", repoName)
+	s.trustedCmd(pushCmd)
+	out, _, err := runCommandWithOutput(pushCmd)
+	if err != nil {
+		c.Fatalf("trusted push failed: %s\n%s", err, out)
+	}
+
+	if !strings.Contains(string(out), "Signing and pushing trust metadata") {
+		c.Fatalf("Missing expected output on trusted push:\n%s", out)
+	}
+
+	// The timestamps expire in two weeks. Lets check three
+	threeWeeksLater := time.Now().Add(time.Hour * 24 * 21)
+
+	// Should succeed because the server transparently re-signs one
+	runAtDifferentDate(threeWeeksLater, func() {
+		pushCmd := exec.Command(dockerBinary, "push", repoName)
+		s.trustedCmd(pushCmd)
+		out, _, err := runCommandWithOutput(pushCmd)
+		if err != nil {
+			c.Fatalf("Error running trusted push: %s\n%s", err, out)
+		}
+		if !strings.Contains(string(out), "Signing and pushing trust metadata") {
+			c.Fatalf("Missing expected output on trusted push with expired timestamp:\n%s", out)
+		}
+	})
+}

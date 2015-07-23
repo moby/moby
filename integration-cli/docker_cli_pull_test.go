@@ -6,8 +6,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/go-check/check"
 	"io/ioutil"
+
+	"github.com/go-check/check"
 )
 
 // See issue docker/docker#8141
@@ -324,7 +325,45 @@ func (s *DockerTrustSuite) TestTrustedPullFromBadTrustServer(c *check.C) {
 		c.Fatalf("Expected to fail on this pull due to different remote data: %s\n%s", err, out)
 	}
 
-	if !strings.Contains(string(out), "failed to validate integrity of roots") {
+	if !strings.Contains(string(out), "failed to validate data with current trusted certificates") {
 		c.Fatalf("Missing expected output on trusted push:\n%s", out)
 	}
+}
+
+func (s *DockerTrustSuite) TestTrustedPullWithExpiredSnapshot(c *check.C) {
+	repoName := fmt.Sprintf("%v/dockercliexpiredtimestamppull/trusted:latest", privateRegistryURL)
+	// tag the image and upload it to the private registry
+	dockerCmd(c, "tag", "busybox", repoName)
+
+	// Push with default passphrases
+	pushCmd := exec.Command(dockerBinary, "push", repoName)
+	s.trustedCmd(pushCmd)
+	out, _, err := runCommandWithOutput(pushCmd)
+	if err != nil {
+		c.Fatalf("trusted push failed: %s\n%s", err, out)
+	}
+
+	if !strings.Contains(string(out), "Signing and pushing trust metadata") {
+		c.Fatalf("Missing expected output on trusted push:\n%s", out)
+	}
+
+	dockerCmd(c, "rmi", repoName)
+
+	// Snapshots last for three years. This should be expired
+	fourYearsLater := time.Now().Add(time.Hour * 24 * 365 * 4)
+
+	// Should succeed because the server transparently re-signs one
+	runAtDifferentDate(fourYearsLater, func() {
+		// Try pull
+		pullCmd := exec.Command(dockerBinary, "pull", repoName)
+		s.trustedCmd(pullCmd)
+		out, _, err = runCommandWithOutput(pullCmd)
+		if err == nil {
+			c.Fatalf("Missing expected error running trusted pull with expired snapshots")
+		}
+
+		if !strings.Contains(string(out), "repository out-of-date") {
+			c.Fatalf("Missing expected output on trusted pull with expired snapshot:\n%s", out)
+		}
+	})
 }
