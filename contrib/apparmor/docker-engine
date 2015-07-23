@@ -24,6 +24,8 @@ profile /usr/bin/docker (attach_disconnected) {
   file,
 
   ptrace peer=@{profile_name},
+  ptrace (trace) peer=docker-default,
+  deny ptrace peer=/usr/bin/docker///bin/ps,
 
   /usr/bin/docker pix,
   /sbin/xtables-multi rCix,
@@ -31,6 +33,7 @@ profile /usr/bin/docker (attach_disconnected) {
   /sbin/modprobe rCx,
   /sbin/auplink rCx,
   /usr/bin/xz rCx,
+  /bin/ps rCx,
 
   # Transitions
   change_profile -> docker-*,
@@ -67,5 +70,10 @@ profile /usr/bin/docker (attach_disconnected) {
   # xz works via pipes, so we do not need access to the filesystem.
   profile /usr/bin/xz {
    signal (receive) peer=/usr/bin/docker,
+  }
+  profile /bin/ps {
+   file,
+   capability,
+   deny ptrace,
   }
 }
