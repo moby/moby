@@ -201,7 +201,7 @@ The following is an example `.dockerignore` file:
     */*/temp*
     temp?
     *.md
-    !LICENCSE.md
+    !LICENSE.md
 ```
 
 This file causes the following build behavior:
