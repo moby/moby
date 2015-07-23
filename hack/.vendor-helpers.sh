@@ -112,7 +112,7 @@ clean() {
 	local prune=( $(find vendor -depth -type d -not '(' "${findArgs[@]}" ')') )
 	unset IFS
 	for dir in "${prune[@]}"; do
-		find "$dir" -maxdepth 1 -not -type d -exec rm -v -f '{}' +
+		find "$dir" -maxdepth 1 -not -type d -not -name 'LICENSE*' -not -name 'COPYING*' -exec rm -v -f '{}' +
 		rmdir "$dir" 2>/dev/null || true
 	done
 
