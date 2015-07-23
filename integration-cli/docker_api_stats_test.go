@@ -28,6 +28,7 @@ func (s *DockerSuite) TestCliStatsNoStreamGetCpu(c *check.C) {
 	var v *types.Stats
 	err = json.NewDecoder(body).Decode(&v)
 	c.Assert(err, check.IsNil)
+	body.Close()
 
 	var cpuPercent = 0.0
 	cpuDelta := float64(v.CpuStats.CpuUsage.TotalUsage - v.PreCpuStats.CpuUsage.TotalUsage)
@@ -113,6 +114,7 @@ func getNetworkStats(c *check.C, id string) types.Network {
 
 	err = json.NewDecoder(body).Decode(&st)
 	c.Assert(err, check.IsNil)
+	body.Close()
 
 	return st.Network
 }

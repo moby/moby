@@ -22,8 +22,8 @@ func (s *DockerSuite) TestApiImagesFilter(c *check.C) {
 		v := url.Values{}
 		v.Set("filter", filter)
 		status, b, err := sockRequest("GET", "/images/json?"+v.Encode(), nil)
-		c.Assert(status, check.Equals, http.StatusOK)
 		c.Assert(err, check.IsNil)
+		c.Assert(status, check.Equals, http.StatusOK)
 
 		var images []image
 		if err := json.Unmarshal(b, &images); err != nil {
@@ -88,16 +88,16 @@ func (s *DockerSuite) TestApiImagesDelete(c *check.C) {
 	dockerCmd(c, "tag", name, "test:tag1")
 
 	status, _, err := sockRequest("DELETE", "/images/"+id, nil)
-	c.Assert(status, check.Equals, http.StatusConflict)
 	c.Assert(err, check.IsNil)
+	c.Assert(status, check.Equals, http.StatusConflict)
 
 	status, _, err = sockRequest("DELETE", "/images/test:noexist", nil)
-	c.Assert(status, check.Equals, http.StatusNotFound) //Status Codes:404 – no such image
 	c.Assert(err, check.IsNil)
+	c.Assert(status, check.Equals, http.StatusNotFound) //Status Codes:404 – no such image
 
 	status, _, err = sockRequest("DELETE", "/images/test:tag1", nil)
-	c.Assert(status, check.Equals, http.StatusOK)
 	c.Assert(err, check.IsNil)
+	c.Assert(status, check.Equals, http.StatusOK)
 }
 
 func (s *DockerSuite) TestApiImagesHistory(c *check.C) {
@@ -126,8 +126,8 @@ func (s *DockerSuite) TestApiImagesSearchJSONContentType(c *check.C) {
 	testRequires(c, Network)
 
 	res, b, err := sockRequestRaw("GET", "/images/search?term=test", nil, "application/json")
-	b.Close()
 	c.Assert(err, check.IsNil)
+	b.Close()
 	c.Assert(res.StatusCode, check.Equals, http.StatusOK)
 	c.Assert(res.Header.Get("Content-Type"), check.Equals, "application/json")
 }
