@@ -50,7 +50,7 @@ are deprecated and replaced with double-dash options (`--opt`):
     docker search -trusted
     docker tag -force
 
-The following single-dash options are deprecated and have no replacement:
+The following double-dash options are deprecated and have no replacement:
 
     docker run --networking
     docker ps --since-id
