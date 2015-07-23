@@ -37,7 +37,7 @@ func kill(id string, pid int) error {
 
 	} else {
 		// Shutdown the compute system
-		if err = hcsshim.TerminateComputeSystem(id); err != nil {
+		if err = hcsshim.ShutdownComputeSystem(id); err != nil {
 			logrus.Errorf("Failed to shutdown %s - %s", id, err)
 		}
 	}
