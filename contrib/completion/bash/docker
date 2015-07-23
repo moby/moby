@@ -395,7 +395,7 @@ _docker_build() {
 
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--cgroup-parent --cpuset-cpus --cpuset-mems --cpu-shares -c --cpu-period --cpu-quota --file -f --force-rm --help --memory -m --memory-swap --no-cache --pull --quiet -q --rm --tag -t" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--cgroup-parent --cpuset-cpus --cpuset-mems --cpu-shares -c --cpu-period --cpu-quota --file -f --force-rm --help --memory -m --memory-swap --no-cache --pull --quiet -q --rm --tag -t --ulimit" -- "$cur" ) )
 			;;
 		*)
 			local counter="$(__docker_pos_first_nonflag '--cgroup-parent|--cpuset-cpus|--cpuset-mems|--cpu-shares|-c|--cpu-period|--cpu-quota|--file|-f|--memory|-m|--memory-swap|--tag|-t')"
