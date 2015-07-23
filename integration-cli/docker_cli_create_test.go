@@ -10,9 +10,10 @@ import (
 
 	"os/exec"
 
+	"io/ioutil"
+
 	"github.com/docker/docker/pkg/nat"
 	"github.com/go-check/check"
-	"io/ioutil"
 )
 
 // Make sure we can create a simple container with some args
@@ -444,7 +445,7 @@ func (s *DockerTrustSuite) TestTrustedCreateFromBadTrustServer(c *check.C) {
 		c.Fatalf("Expected to fail on this create due to different remote data: %s\n%s", err, out)
 	}
 
-	if !strings.Contains(string(out), "failed to validate integrity of roots") {
+	if !strings.Contains(string(out), "failed to validate data with current trusted certificates") {
 		c.Fatalf("Missing expected output on trusted push:\n%s", out)
 	}
 }
