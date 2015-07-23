@@ -524,9 +524,10 @@ func (s *DockerSuite) TestBuildApiRemoteTarballContext(c *check.C) {
 
 	defer server.Close()
 
-	res, _, err := sockRequestRaw("POST", "/build?remote="+server.URL()+"/testT.tar", nil, "application/tar")
+	res, b, err := sockRequestRaw("POST", "/build?remote="+server.URL()+"/testT.tar", nil, "application/tar")
 	c.Assert(err, check.IsNil)
 	c.Assert(res.StatusCode, check.Equals, http.StatusOK)
+	b.Close()
 }
 
 func (s *DockerSuite) TestBuildApiRemoteTarballContextWithCustomDockerfile(c *check.C) {
@@ -1648,9 +1649,10 @@ func (s *DockerSuite) TestPostContainersStartWithoutLinksInHostConfig(c *check.C
 	c.Assert(err, check.IsNil)
 	config := `{"HostConfig":` + hc + `}`
 
-	res, _, err := sockRequestRaw("POST", "/containers/"+name+"/start", strings.NewReader(config), "application/json")
+	res, b, err := sockRequestRaw("POST", "/containers/"+name+"/start", strings.NewReader(config), "application/json")
 	c.Assert(err, check.IsNil)
 	c.Assert(res.StatusCode, check.Equals, http.StatusNoContent)
+	b.Close()
 }
 
 // #14640
@@ -1663,9 +1665,10 @@ func (s *DockerSuite) TestPostContainersStartWithLinksInHostConfig(c *check.C) {
 	c.Assert(err, check.IsNil)
 	config := `{"HostConfig":` + hc + `}`
 
-	res, _, err := sockRequestRaw("POST", "/containers/"+name+"/start", strings.NewReader(config), "application/json")
+	res, b, err := sockRequestRaw("POST", "/containers/"+name+"/start", strings.NewReader(config), "application/json")
 	c.Assert(err, check.IsNil)
 	c.Assert(res.StatusCode, check.Equals, http.StatusNoContent)
+	b.Close()
 }
 
 // #14640
@@ -1679,7 +1682,8 @@ func (s *DockerSuite) TestPostContainersStartWithLinksInHostConfigIdLinked(c *ch
 	c.Assert(err, check.IsNil)
 	config := `{"HostConfig":` + hc + `}`
 
-	res, _, err := sockRequestRaw("POST", "/containers/"+name+"/start", strings.NewReader(config), "application/json")
+	res, b, err := sockRequestRaw("POST", "/containers/"+name+"/start", strings.NewReader(config), "application/json")
 	c.Assert(err, check.IsNil)
 	c.Assert(res.StatusCode, check.Equals, http.StatusNoContent)
+	b.Close()
 }

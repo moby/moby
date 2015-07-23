@@ -27,7 +27,16 @@ func (s *DockerSuite) TestLogsApiWithStdout(c *check.C) {
 
 	go func() {
 		res, body, err := sockRequestRaw("GET", fmt.Sprintf("/containers/%s/logs?follow=1&stdout=1&timestamps=1", id), nil, "")
-		out, _ := bufio.NewReader(body).ReadString('\n')
+		if err != nil {
+			chLog <- logOut{"", nil, err}
+			return
+		}
+		defer body.Close()
+		out, err := bufio.NewReader(body).ReadString('\n')
+		if err != nil {
+			chLog <- logOut{"", nil, err}
+			return
+		}
 		chLog <- logOut{strings.TrimSpace(out), res, err}
 	}()
 
@@ -65,10 +74,8 @@ func (s *DockerSuite) TestLogsApiFollowEmptyOutput(c *check.C) {
 
 	_, body, err := sockRequestRaw("GET", fmt.Sprintf("/containers/%s/logs?follow=1&stdout=1&stderr=1&tail=all", name), bytes.NewBuffer(nil), "")
 	t1 := time.Now()
+	c.Assert(err, check.IsNil)
 	body.Close()
-	if err != nil {
-		c.Fatal(err)
-	}
 	elapsed := t1.Sub(t0).Seconds()
 	if elapsed > 5.0 {
 		c.Fatalf("HTTP response was not immediate (elapsed %.1fs)", elapsed)

@@ -17,8 +17,8 @@ func (s *DockerSuite) TestExecApiCreateNoCmd(c *check.C) {
 	dockerCmd(c, "run", "-d", "-t", "--name", name, "busybox", "/bin/sh")
 
 	status, body, err := sockRequest("POST", fmt.Sprintf("/containers/%s/exec", name), map[string]interface{}{"Cmd": nil})
-	c.Assert(status, check.Equals, http.StatusInternalServerError)
 	c.Assert(err, check.IsNil)
+	c.Assert(status, check.Equals, http.StatusInternalServerError)
 
 	if !bytes.Contains(body, []byte("No exec command specified")) {
 		c.Fatalf("Expected message when creating exec command with no Cmd specified")
