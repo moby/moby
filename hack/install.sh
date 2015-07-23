@@ -154,6 +154,32 @@ do_install() {
 	fi
 
 	lsb_dist="$(echo "$lsb_dist" | tr '[:upper:]' '[:lower:]')"
+
+	if [ "$lsb_dist" = 'linuxmint' ]; then
+		lsb_dist="ubuntu"
+		case "$dist_version" in
+			rafaela|rebecca|qiana)
+				dist_version="trusty"
+				;;
+			petra)
+				dist_version="saucy"
+				;;
+			olivia)
+				dist_version="raring"
+				;;
+			nadia)
+				dist_version="quantal"
+				;;
+			maya)
+				dist_version="precise"
+				;;
+			*)
+				echo "Unknown Linux Mint Version: $dist_version"
+				exit 0
+				;;
+		esac
+	fi
+
 	case "$lsb_dist" in
 		amzn)
 			(
