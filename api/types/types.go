@@ -225,7 +225,7 @@ type ContainerJSONBase struct {
 	Created         time.Time
 	Path            string
 	Args            []string
-	State           *ContainerState
+	State           ContainerState
 	Image           string
 	NetworkSettings *network.Settings
 	ResolvConfPath  string
@@ -240,26 +240,26 @@ type ContainerJSONBase struct {
 	ProcessLabel    string
 	AppArmorProfile string
 	ExecIDs         []string
-	HostConfig      *runconfig.HostConfig
+	HostConfig      runconfig.HostConfig
 	GraphDriver     GraphDriverData
 }
 
 type ContainerJSON struct {
-	*ContainerJSONBase
+	ContainerJSONBase
 	Mounts []MountPoint
-	Config *runconfig.Config
+	Config runconfig.Config
 }
 
 // backcompatibility struct along with ContainerConfig
 type ContainerJSONPre120 struct {
-	*ContainerJSONBase
+	ContainerJSONBase
 	Volumes   map[string]string
 	VolumesRW map[string]bool
-	Config    *ContainerConfig
+	Config    ContainerConfig
 }
 
 type ContainerConfig struct {
-	*runconfig.Config
+	runconfig.Config
 
 	// backward compatibility, they now live in HostConfig
 	Memory     int64

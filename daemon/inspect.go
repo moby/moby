@@ -32,7 +32,7 @@ func (daemon *Daemon) ContainerInspect(name string) (*types.ContainerJSON, error
 		})
 	}
 
-	return &types.ContainerJSON{base, mountPoints, container.Config}, nil
+	return &types.ContainerJSON{*base, mountPoints, *container.Config}, nil
 }
 
 func (daemon *Daemon) ContainerInspectPre120(name string) (*types.ContainerJSONPre120, error) {
@@ -56,18 +56,28 @@ func (daemon *Daemon) ContainerInspectPre120(name string) (*types.ContainerJSONP
 		volumesRW[m.Destination] = m.RW
 	}
 
-	config := &types.ContainerConfig{
-		container.Config,
+	config := types.ContainerConfig{
+		*container.Config,
 		container.hostConfig.Memory,
 		container.hostConfig.MemorySwap,
 		container.hostConfig.CpuShares,
 		container.hostConfig.CpusetCpus,
 	}
 
-	return &types.ContainerJSONPre120{base, volumes, volumesRW, config}, nil
+	return &types.ContainerJSONPre120{*base, volumes, volumesRW, config}, nil
 }
 
 func (daemon *Daemon) getInspectData(container *Container) (*types.ContainerJSONBase, error) {
+	graphDriverData, err := daemon.driver.GetMetadata(container.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	graphDriver := types.GraphDriverData{
+		Name: container.Driver,
+		Data: graphDriverData,
+	}
+
 	// make a copy to play with
 	hostConfig := *container.hostConfig
 
@@ -82,7 +92,7 @@ func (daemon *Daemon) getInspectData(container *Container) (*types.ContainerJSON
 		hostConfig.LogConfig = daemon.defaultLogConfig
 	}
 
-	containerState := &types.ContainerState{
+	containerState := types.ContainerState{
 		Running:    container.State.Running,
 		Paused:     container.State.Paused,
 		Restarting: container.State.Restarting,
@@ -115,15 +125,9 @@ func (daemon *Daemon) getInspectData(container *Container) (*types.ContainerJSON
 		ProcessLabel:    container.ProcessLabel,
 		AppArmorProfile: container.AppArmorProfile,
 		ExecIDs:         container.GetExecIDs(),
-		HostConfig:      &hostConfig,
+		HostConfig:      hostConfig,
+		GraphDriver:     graphDriver,
 	}
-
-	contJSONBase.GraphDriver.Name = container.Driver
-	graphDriverData, err := daemon.driver.GetMetadata(container.ID)
-	if err != nil {
-		return nil, err
-	}
-	contJSONBase.GraphDriver.Data = graphDriverData
 
 	return contJSONBase, nil
 }
