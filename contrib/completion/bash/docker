@@ -359,7 +359,10 @@ _docker_docker() {
 			COMPREPLY=( $( compgen -W "$boolean_options $main_options_with_args" -- "$cur" ) )
 			;;
 		*)
-			COMPREPLY=( $( compgen -W "${commands[*]} help" -- "$cur" ) )
+			local counter="$(__docker_pos_first_nonflag $main_options_with_args_glob)"
+			if [ $cword -eq $counter ]; then
+				COMPREPLY=( $( compgen -W "${commands[*]} help" -- "$cur" ) )
+			fi
 			;;
 	esac
 }
