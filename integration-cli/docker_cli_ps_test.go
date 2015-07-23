@@ -539,3 +539,18 @@ func (s *DockerSuite) TestPsFormatMultiNames(c *check.C) {
 	}
 
 }
+
+func (s *DockerSuite) TestPsFormatHeaders(c *check.C) {
+	// make sure no-container "docker ps" still prints the header row
+	out, _ := dockerCmd(c, "ps", "--format", "table {{.ID}}")
+	if out != "CONTAINER ID\n" {
+		c.Fatalf(`Expected 'CONTAINER ID\n', got %v`, out)
+	}
+
+	// verify that "docker ps" with a container still prints the header row also
+	dockerCmd(c, "run", "--name=test", "-d", "busybox", "top")
+	out, _ = dockerCmd(c, "ps", "--format", "table {{.Names}}")
+	if out != "NAMES\ntest\n" {
+		c.Fatalf(`Expected 'NAMES\ntest\n', got %v`, out)
+	}
+}
