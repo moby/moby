@@ -275,26 +275,12 @@ func (s *DockerSuite) TestCreateModeIpcContainer(c *check.C) {
 }
 
 func (s *DockerTrustSuite) TestTrustedCreate(c *check.C) {
-	repoName := fmt.Sprintf("%v/dockerclicreate/trusted:latest", privateRegistryURL)
-	// tag the image and upload it to the private registry
-	dockerCmd(c, "tag", "busybox", repoName)
-
-	pushCmd := exec.Command(dockerBinary, "push", repoName)
-	s.trustedCmd(pushCmd)
-	out, _, err := runCommandWithOutput(pushCmd)
-	if err != nil {
-		c.Fatalf("Error running trusted push: %s\n%s", err, out)
-	}
-	if !strings.Contains(string(out), "Signing and pushing trust metadata") {
-		c.Fatalf("Missing expected output on trusted push:\n%s", out)
-	}
-
-	dockerCmd(c, "rmi", repoName)
+	repoName := s.setupTrustedImage(c, "trusted-create")
 
 	// Try create
 	createCmd := exec.Command(dockerBinary, "create", repoName)
 	s.trustedCmd(createCmd)
-	out, _, err = runCommandWithOutput(createCmd)
+	out, _, err := runCommandWithOutput(createCmd)
 	if err != nil {
 		c.Fatalf("Error running trusted create: %s\n%s", err, out)
 	}
@@ -338,22 +324,26 @@ func (s *DockerTrustSuite) TestUntrustedCreate(c *check.C) {
 	}
 }
 
-func (s *DockerTrustSuite) TestCreateWhenCertExpired(c *check.C) {
-	repoName := fmt.Sprintf("%v/dockercli/trusted:latest", privateRegistryURL)
-	// tag the image and upload it to the private registry
-	dockerCmd(c, "tag", "busybox", repoName)
+func (s *DockerTrustSuite) TestTrustedIsolatedCreate(c *check.C) {
+	repoName := s.setupTrustedImage(c, "trusted-isolated-create")
 
-	pushCmd := exec.Command(dockerBinary, "push", repoName)
-	s.trustedCmd(pushCmd)
-	out, _, err := runCommandWithOutput(pushCmd)
+	// Try create
+	createCmd := exec.Command(dockerBinary, "--config", "/tmp/docker-isolated-create", "create", repoName)
+	s.trustedCmd(createCmd)
+	out, _, err := runCommandWithOutput(createCmd)
 	if err != nil {
-		c.Fatalf("Error running trusted push: %s\n%s", err, out)
+		c.Fatalf("Error running trusted create: %s\n%s", err, out)
 	}
-	if !strings.Contains(string(out), "Signing and pushing trust metadata") {
+
+	if !strings.Contains(string(out), "Tagging") {
 		c.Fatalf("Missing expected output on trusted push:\n%s", out)
 	}
 
 	dockerCmd(c, "rmi", repoName)
+}
+
+func (s *DockerTrustSuite) TestCreateWhenCertExpired(c *check.C) {
+	repoName := s.setupTrustedImage(c, "trusted-create-expired")
 
 	// Certificates have 10 years of expiration
 	elevenYearsFromNow := time.Now().Add(time.Hour * 24 * 365 * 11)
@@ -362,7 +352,7 @@ func (s *DockerTrustSuite) TestCreateWhenCertExpired(c *check.C) {
 		// Try create
 		createCmd := exec.Command(dockerBinary, "create", repoName)
 		s.trustedCmd(createCmd)
-		out, _, err = runCommandWithOutput(createCmd)
+		out, _, err := runCommandWithOutput(createCmd)
 		if err == nil {
 			c.Fatalf("Error running trusted create in the distant future: %s\n%s", err, out)
 		}
@@ -376,7 +366,7 @@ func (s *DockerTrustSuite) TestCreateWhenCertExpired(c *check.C) {
 		// Try create
 		createCmd := exec.Command(dockerBinary, "create", "--untrusted", repoName)
 		s.trustedCmd(createCmd)
-		out, _, err = runCommandWithOutput(createCmd)
+		out, _, err := runCommandWithOutput(createCmd)
 		if err != nil {
 			c.Fatalf("Error running untrusted create in the distant future: %s\n%s", err, out)
 		}

@@ -969,14 +969,20 @@ func getContainerState(c *check.C, id string) (int, bool, error) {
 	return exitStatus, running, nil
 }
 
-func buildImageWithOut(name, dockerfile string, useCache bool) (string, string, error) {
-	args := []string{"build", "-t", name}
+func buildImageCmd(name, dockerfile string, useCache bool) *exec.Cmd {
+	args := []string{"-D", "build", "-t", name}
 	if !useCache {
 		args = append(args, "--no-cache")
 	}
 	args = append(args, "-")
 	buildCmd := exec.Command(dockerBinary, args...)
 	buildCmd.Stdin = strings.NewReader(dockerfile)
+	return buildCmd
+
+}
+
+func buildImageWithOut(name, dockerfile string, useCache bool) (string, string, error) {
+	buildCmd := buildImageCmd(name, dockerfile, useCache)
 	out, exitCode, err := runCommandWithOutput(buildCmd)
 	if err != nil || exitCode != 0 {
 		return "", out, fmt.Errorf("failed to build the image: %s", out)
@@ -989,13 +995,7 @@ func buildImageWithOut(name, dockerfile string, useCache bool) (string, string, 
 }
 
 func buildImageWithStdoutStderr(name, dockerfile string, useCache bool) (string, string, string, error) {
-	args := []string{"build", "-t", name}
-	if !useCache {
-		args = append(args, "--no-cache")
-	}
-	args = append(args, "-")
-	buildCmd := exec.Command(dockerBinary, args...)
-	buildCmd.Stdin = strings.NewReader(dockerfile)
+	buildCmd := buildImageCmd(name, dockerfile, useCache)
 	stdout, stderr, exitCode, err := runCommandWithStdoutStderr(buildCmd)
 	if err != nil || exitCode != 0 {
 		return "", stdout, stderr, fmt.Errorf("failed to build the image: %s", stdout)
