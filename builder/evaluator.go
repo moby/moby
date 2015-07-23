@@ -37,6 +37,7 @@ import (
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/pkg/symlink"
 	"github.com/docker/docker/pkg/tarsum"
+	"github.com/docker/docker/pkg/ulimit"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/utils"
 )
@@ -129,6 +130,7 @@ type builder struct {
 	cgroupParent string
 	memory       int64
 	memorySwap   int64
+	ulimits      []*ulimit.Ulimit
 
 	cancelled <-chan struct{} // When closed, job was cancelled.
 

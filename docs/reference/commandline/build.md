@@ -28,6 +28,7 @@ weight=1
       --cpuset-mems=""         MEMs in which to allow execution, e.g. `0-3`, `0,1`
       --cpuset-cpus=""         CPUs in which to allow execution, e.g. `0-3`, `0,1`
       --cgroup-parent=""       Optional parent cgroup for the container
+      --ulimit=[]              Ulimit options
 
 Builds Docker images from a Dockerfile and a "context". A build's context is
 the files located in the specified `PATH` or `URL`. The build process can refer
@@ -245,5 +246,8 @@ the command line.
 
 When `docker build` is run with the `--cgroup-parent` option the containers
 used in the build will be run with the [corresponding `docker run`
-flag](/reference/run/#specifying-custom-cgroups).
+flag](/reference/run/#specifying-custom-cgroups). 
 
+Using the `--ulimit` option with `docker build` will cause each build step's 
+container to be started using those [`--ulimit`
+flag values](/reference/run/#setting-ulimits-in-a-container).
