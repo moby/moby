@@ -19,9 +19,9 @@ func (s *DockerSuite) TestApiOptionsRoute(c *check.C) {
 
 func (s *DockerSuite) TestApiGetEnabledCors(c *check.C) {
 	res, body, err := sockRequestRaw("GET", "/version", nil, "")
-	body.Close()
 	c.Assert(err, check.IsNil)
 	c.Assert(res.StatusCode, check.Equals, http.StatusOK)
+	body.Close()
 	// TODO: @runcom incomplete tests, why old integration tests had this headers
 	// and here none of the headers below are in the response?
 	//c.Log(res.Header)
