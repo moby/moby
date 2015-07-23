@@ -22,6 +22,7 @@ docker-build - Build a new image from the source code at PATH
 [**--cpuset-cpus**[=*CPUSET-CPUS*]]
 [**--cpuset-mems**[=*CPUSET-MEMS*]]
 [**--cgroup-parent**[=*CGROUP-PARENT*]]
+[**--ulimit**[=*[]*]]
 
 PATH | URL | -
 
@@ -141,6 +142,12 @@ two memory nodes.
 
   If the path is not absolute, the path is considered relative to the `cgroups` path of the init process.
 Cgroups are created if they do not already exist.
+
+**--ulimit**=[]
+  Ulimit options
+
+  For more information about `ulimit` see [Setting ulimits in a 
+container](https://docs.docker.com/reference/commandline/run/#setting-ulimits-in-a-container)
 
 # EXAMPLES
 

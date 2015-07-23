@@ -34,6 +34,7 @@ import (
 	"github.com/docker/docker/pkg/sockets"
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/docker/docker/pkg/streamformatter"
+	"github.com/docker/docker/pkg/ulimit"
 	"github.com/docker/docker/pkg/version"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/utils"
@@ -1293,6 +1294,15 @@ func (s *Server) postBuild(version version.Version, w http.ResponseWriter, r *ht
 	buildConfig.CPUSetCpus = r.FormValue("cpusetcpus")
 	buildConfig.CPUSetMems = r.FormValue("cpusetmems")
 	buildConfig.CgroupParent = r.FormValue("cgroupparent")
+
+	var buildUlimits = []*ulimit.Ulimit{}
+	ulimitsJson := r.FormValue("ulimits")
+	if ulimitsJson != "" {
+		if err := json.NewDecoder(strings.NewReader(ulimitsJson)).Decode(&buildUlimits); err != nil {
+			return err
+		}
+		buildConfig.Ulimits = buildUlimits
+	}
 
 	// Job cancellation. Note: not all job types support this.
 	if closeNotifier, ok := w.(http.CloseNotifier); ok {
