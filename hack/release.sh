@@ -293,30 +293,8 @@ EOF
 	# Upload repo
 	s3cmd --acl-public "$s3Headers" sync "$APTDIR/" "s3://$BUCKET/ubuntu/"
 	cat <<EOF | write_to_s3 s3://$BUCKET/ubuntu/index
-echo "# WARNING! This script is not going to install aufs on your"
-echo "# system. If you want to use aufs please check the script"
-echo "# at https://get.docker.com"
-echo "# You may press Ctrl+C to abort this script."
-(set -x; sleep 20)
-# Check that HTTPS transport is available to APT
-if [ ! -e /usr/lib/apt/methods/https ]; then
-	apt-get update
-	apt-get install -y apt-transport-https
-fi
-
-# Add the repository to your APT sources
-echo deb $(s3_url)/ubuntu docker main > /etc/apt/sources.list.d/docker.list
-
-# Then import the repository key
-apt-key adv --keyserver hkp://p80.pool.sks-keyservers.net:80 --recv-keys $gpgFingerprint
-
-# Install docker
-apt-get update
-apt-get install -y lxc-docker
-
-#
-# Alternatively, just use the curl-able install.sh script provided at $(s3_url)
-#
+echo "# WARNING! This script is deprecated. Please use the script"
+echo "# at https://get.docker.com/"
 EOF
 
 	# Add redirect at /ubuntu/info for URL-backwards-compatibility
