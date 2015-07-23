@@ -104,6 +104,9 @@ fi
 
 if [ -z "$DOCKER_CLIENTONLY" ]; then
 	DOCKER_BUILDTAGS+=" daemon"
+	if pkg-config libsystemd-journal 2> /dev/null ; then
+		DOCKER_BUILDTAGS+=" journald"
+	fi
 fi
 
 if [ "$DOCKER_EXECDRIVER" = 'lxc' ]; then

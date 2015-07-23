@@ -41,6 +41,7 @@ func (daemon *Daemon) ContainerLogs(container *Container, config *ContainerLogsC
 		errStream = stdcopy.NewStdWriter(outStream, stdcopy.Stderr)
 		outStream = stdcopy.NewStdWriter(outStream, stdcopy.Stdout)
 	}
+	config.OutStream = outStream
 
 	cLog, err := container.getLogger()
 	if err != nil {

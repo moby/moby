@@ -141,7 +141,10 @@ func (s *Server) getContainersLogs(ctx context.Context, w http.ResponseWriter, r
 	}
 
 	if err := s.daemon.ContainerLogs(c, logsConfig); err != nil {
-		fmt.Fprintf(w, "Error running logs job: %s\n", err)
+		// The client may be expecting all of the data we're sending to
+		// be multiplexed, so send it through OutStream, which will
+		// have been set up to handle that if needed.
+		fmt.Fprintf(logsConfig.OutStream, "Error running logs job: %s\n", err)
 	}
 
 	return nil
