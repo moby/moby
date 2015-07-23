@@ -60,7 +60,32 @@ func (s *DockerRegistrySuite) TestPushMultipleTags(c *check.C) {
 
 	dockerCmd(c, "tag", "busybox", repoTag2)
 
-	dockerCmd(c, "push", repoName)
+	out, _ := dockerCmd(c, "push", repoName)
+
+	// There should be no duplicate hashes in the output
+	imageSuccessfullyPushed := ": Image successfully pushed"
+	imageAlreadyExists := ": Image already exists"
+	imagePushHashes := make(map[string]struct{})
+	outputLines := strings.Split(out, "\n")
+	for _, outputLine := range outputLines {
+		if strings.Contains(outputLine, imageSuccessfullyPushed) {
+			hash := strings.TrimSuffix(outputLine, imageSuccessfullyPushed)
+			if _, present := imagePushHashes[hash]; present {
+				c.Fatalf("Duplicate image push: %s", outputLine)
+			}
+			imagePushHashes[hash] = struct{}{}
+		} else if strings.Contains(outputLine, imageAlreadyExists) {
+			hash := strings.TrimSuffix(outputLine, imageAlreadyExists)
+			if _, present := imagePushHashes[hash]; present {
+				c.Fatalf("Duplicate image push: %s", outputLine)
+			}
+			imagePushHashes[hash] = struct{}{}
+		}
+	}
+
+	if len(imagePushHashes) == 0 {
+		c.Fatal(`Expected at least one line containing "Image successfully pushed"`)
+	}
 }
 
 func (s *DockerRegistrySuite) TestPushInterrupt(c *check.C) {
@@ -79,8 +104,7 @@ func (s *DockerRegistrySuite) TestPushInterrupt(c *check.C) {
 		c.Fatalf("Failed to kill push process: %v", err)
 	}
 	if out, _, err := dockerCmdWithError(c, "push", repoName); err == nil {
-		str := string(out)
-		if !strings.Contains(str, "already in progress") {
+		if !strings.Contains(out, "already in progress") {
 			c.Fatalf("Push should be continued on daemon side, but seems ok: %v, %s", err, out)
 		}
 	}

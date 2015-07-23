@@ -26,6 +26,11 @@ type v2Pusher struct {
 	config    *ImagePushConfig
 	sf        *streamformatter.StreamFormatter
 	repo      distribution.Repository
+
+	// layersSeen is the set of layers known to exist on the remote side.
+	// This avoids redundant queries when pushing multiple tags that
+	// involve the same layers.
+	layersSeen map[string]bool
 }
 
 func (p *v2Pusher) Push() (fallback bool, err error) {
@@ -86,8 +91,6 @@ func (p *v2Pusher) pushV2Tag(tag string) error {
 		return fmt.Errorf("tag does not exist: %s", tag)
 	}
 
-	layersSeen := make(map[string]bool)
-
 	layer, err := p.graph.Get(layerId)
 	if err != nil {
 		return err
@@ -116,7 +119,7 @@ func (p *v2Pusher) pushV2Tag(tag string) error {
 			return err
 		}
 
-		if layersSeen[layer.ID] {
+		if p.layersSeen[layer.ID] {
 			break
 		}
 
@@ -171,7 +174,7 @@ func (p *v2Pusher) pushV2Tag(tag string) error {
 		m.FSLayers = append(m.FSLayers, manifest.FSLayer{BlobSum: dgst})
 		m.History = append(m.History, manifest.History{V1Compatibility: string(jsonData)})
 
-		layersSeen[layer.ID] = true
+		p.layersSeen[layer.ID] = true
 	}
 
 	logrus.Infof("Signed manifest for %s:%s using daemon's key: %s", p.repo.Name(), tag, p.trustKey.KeyID())
