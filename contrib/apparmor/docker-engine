@@ -24,6 +24,7 @@ profile /usr/bin/docker (attach_disconnected) {
   file,
 
   ptrace peer=@{profile_name},
+  ptrace (trace) peer=docker-default,
 
   /usr/bin/docker pix,
   /sbin/xtables-multi rCix,
