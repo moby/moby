@@ -164,7 +164,7 @@ do_install() {
 			exit 0
 			;;
 
-		'opensuse project'|opensuse|'suse linux'|sled)
+		'opensuse project'|opensuse|'suse linux'|sle[sd])
 			(
 				set -x
 				$sh_c 'sleep 3; zypper -n install docker'
