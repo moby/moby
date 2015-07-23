@@ -55,7 +55,7 @@ func (daemon *Daemon) getInspectData(container *Container) (*types.ContainerJSON
 	}
 
 	contJSONBase := &types.ContainerJSONBase{
-		Id:              container.ID,
+		ID:              container.ID,
 		Created:         container.Created.Format(time.RFC3339Nano),
 		Path:            container.Path,
 		Args:            container.Args,

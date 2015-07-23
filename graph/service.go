@@ -35,7 +35,7 @@ func (s *TagStore) Lookup(name string) (*types.ImageInspect, error) {
 	}
 
 	imageInspect := &types.ImageInspect{
-		Id:              image.ID,
+		ID:              image.ID,
 		Parent:          image.Parent,
 		Comment:         image.Comment,
 		Created:         image.Created.Format(time.RFC3339Nano),

@@ -19,35 +19,41 @@ type ContainerCreateResponse struct {
 	Warnings []string `json:"Warnings"`
 }
 
-// POST /containers/{name:.*}/exec
+// ContainerExecCreateResponse contains response of Remote API:
+// POST "/containers/{name:.*}/exec"
 type ContainerExecCreateResponse struct {
 	// ID is the exec ID.
 	ID string `json:"Id"`
 }
 
-// POST /auth
+// AuthResponse contains response of Remote API:
+// POST "/auth"
 type AuthResponse struct {
 	// Status is the authentication status
 	Status string `json:"Status"`
 }
 
+// ContainerWaitResponse contains response of Remote API:
 // POST "/containers/"+containerID+"/wait"
 type ContainerWaitResponse struct {
 	// StatusCode is the status code of the wait job
 	StatusCode int `json:"StatusCode"`
 }
 
+// ContainerCommitResponse contains response of Remote API:
 // POST "/commit?container="+containerID
 type ContainerCommitResponse struct {
 	ID string `json:"Id"`
 }
 
+// ContainerChange contains response of Remote API:
 // GET "/containers/{name:.*}/changes"
 type ContainerChange struct {
 	Kind int
 	Path string
 }
 
+// ImageHistory contains response of Remote API:
 // GET "/images/{name:.*}/history"
 type ImageHistory struct {
 	ID        string `json:"Id"`
@@ -58,16 +64,18 @@ type ImageHistory struct {
 	Comment   string
 }
 
+// ImageDelete contains response of Remote API:
 // DELETE "/images/{name:.*}"
 type ImageDelete struct {
 	Untagged string `json:",omitempty"`
 	Deleted  string `json:",omitempty"`
 }
 
+// Image contains response of Remote API:
 // GET "/images/json"
 type Image struct {
 	ID          string `json:"Id"`
-	ParentId    string
+	ParentID    string `json:"ParentId"`
 	RepoTags    []string
 	RepoDigests []string
 	Created     int64
@@ -76,14 +84,17 @@ type Image struct {
 	Labels      map[string]string
 }
 
+// GraphDriverData returns Image's graph driver config info
+// when calling inspect command
 type GraphDriverData struct {
 	Name string
 	Data map[string]string
 }
 
+// ImageInspect contains response of Remote API:
 // GET "/images/{name:.*}/json"
 type ImageInspect struct {
-	Id              string
+	ID              string `json:"Id"`
 	Parent          string
 	Comment         string
 	Created         string
@@ -99,7 +110,8 @@ type ImageInspect struct {
 	GraphDriver     GraphDriverData
 }
 
-// GET  "/containers/json"
+// Port stores open ports info of container
+// e.g. {"PrivatePort": 8080, "PublicPort": 80, "Type": "tcp"}
 type Port struct {
 	IP          string `json:",omitempty"`
 	PrivatePort int
@@ -107,6 +119,8 @@ type Port struct {
 	Type        string
 }
 
+// Container contains response of Remote API:
+// GET  "/containers/json"
 type Container struct {
 	ID         string `json:"Id"`
 	Names      []string
@@ -123,14 +137,15 @@ type Container struct {
 	}
 }
 
+// CopyConfig contains request body of Remote API:
 // POST "/containers/"+containerID+"/copy"
 type CopyConfig struct {
 	Resource string
 }
 
 // ContainerPathStat is used to encode the header from
-// 	GET /containers/{name:.*}/archive
-// "name" is basename of the resource.
+// GET "/containers/{name:.*}/archive"
+// "Name" is the file or directory name.
 type ContainerPathStat struct {
 	Name       string      `json:"name"`
 	Size       int64       `json:"size"`
@@ -139,15 +154,18 @@ type ContainerPathStat struct {
 	LinkTarget string      `json:"linkTarget"`
 }
 
+// ContainerProcessList contains response of Remote API:
 // GET "/containers/{name:.*}/top"
 type ContainerProcessList struct {
 	Processes [][]string
 	Titles    []string
 }
 
+// Version contains response of Remote API:
+// GET "/version"
 type Version struct {
 	Version       string
-	ApiVersion    version.Version
+	APIVersion    version.Version `json:"ApiVersion"`
 	GitCommit     string
 	GoVersion     string
 	Os            string
@@ -157,6 +175,7 @@ type Version struct {
 	BuildTime     string `json:",omitempty"`
 }
 
+// Info contains response of Remote API:
 // GET "/info"
 type Info struct {
 	ID                 string
@@ -166,11 +185,11 @@ type Info struct {
 	DriverStatus       [][2]string
 	MemoryLimit        bool
 	SwapLimit          bool
-	CpuCfsPeriod       bool
-	CpuCfsQuota        bool
+	CPUCfsPeriod       bool `json:"CpuCfsPeriod"`
+	CPUCfsQuota        bool `json:"CpuCfsQuota"`
 	IPv4Forwarding     bool
 	BridgeNfIptables   bool
-	BridgeNfIp6tables  bool
+	BridgeNfIP6tables  bool `json:"BridgeNfIp6tables"`
 	Debug              bool
 	NFd                int
 	OomKillDisable     bool
@@ -188,15 +207,15 @@ type Info struct {
 	NCPU               int
 	MemTotal           int64
 	DockerRootDir      string
-	HttpProxy          string
-	HttpsProxy         string
+	HTTPProxy          string `json:"HttpProxy"`
+	HTTPSProxy         string `json:"HttpsProxy"`
 	NoProxy            string
 	Name               string
 	Labels             []string
 	ExperimentalBuild  bool
 }
 
-// This struct is a temp struct used by execStart
+// ExecStartCheck is a temp struct used by execStart
 // Config fields is part of ExecConfig in runconfig package
 type ExecStartCheck struct {
 	// ExecStart will first check if it's detached
@@ -205,6 +224,8 @@ type ExecStartCheck struct {
 	Tty bool
 }
 
+// ContainerState stores container's running state
+// it's part of ContainerJSONBase and will return by "inspect" command
 type ContainerState struct {
 	Running    bool
 	Paused     bool
@@ -218,9 +239,10 @@ type ContainerState struct {
 	FinishedAt string
 }
 
+// ContainerJSONBase contains response of Remote API:
 // GET "/containers/{name:.*}/json"
 type ContainerJSONBase struct {
-	Id              string
+	ID              string `json:"Id"`
 	Created         string
 	Path            string
 	Args            []string
@@ -243,14 +265,15 @@ type ContainerJSONBase struct {
 	GraphDriver     GraphDriverData
 }
 
+// ContainerJSON is newly used struct along with MountPoint
 type ContainerJSON struct {
 	*ContainerJSONBase
 	Mounts []MountPoint
 	Config *runconfig.Config
 }
 
-// backcompatibility struct along with ContainerConfig. Note this is not
-// used by the Windows daemon.
+// ContainerJSONPre120 is a backcompatibility struct along with ContainerConfig.
+// Note this is not used by the Windows daemon.
 type ContainerJSONPre120 struct {
 	*ContainerJSONBase
 	Volumes   map[string]string
@@ -258,14 +281,15 @@ type ContainerJSONPre120 struct {
 	Config    *ContainerConfig
 }
 
+// ContainerConfig is a backcompatibility struct used in ContainerJSONPre120
 type ContainerConfig struct {
 	*runconfig.Config
 
 	// backward compatibility, they now live in HostConfig
 	Memory     int64
 	MemorySwap int64
-	CpuShares  int64
-	Cpuset     string
+	CPUShares  int64  `json:"CpuShares"`
+	CPUSet     string `json:"CpuSet"`
 }
 
 // MountPoint represents a mount point configuration inside the container.

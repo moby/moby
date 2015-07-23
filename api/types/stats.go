@@ -1,9 +1,10 @@
-// This package is used for API stability in the types and response to the
+// Package types is used for API stability in the types and response to the
 // consumers of the API stats endpoint.
 package types
 
 import "time"
 
+// ThrottlingData stores CPU throttling stats of one running container
 type ThrottlingData struct {
 	// Number of periods with throttling active
 	Periods uint64 `json:"periods"`
@@ -13,8 +14,8 @@ type ThrottlingData struct {
 	ThrottledTime uint64 `json:"throttled_time"`
 }
 
-// All CPU stats are aggregated since container inception.
-type CpuUsage struct {
+// CPUUsage stores All CPU stats aggregated since container inception.
+type CPUUsage struct {
 	// Total CPU time consumed.
 	// Units: nanoseconds.
 	TotalUsage uint64 `json:"total_usage"`
@@ -29,12 +30,14 @@ type CpuUsage struct {
 	UsageInUsermode uint64 `json:"usage_in_usermode"`
 }
 
-type CpuStats struct {
-	CpuUsage       CpuUsage       `json:"cpu_usage"`
+// CPUStats aggregates and wraps all CPU related info of container
+type CPUStats struct {
+	CPUUsage       CPUUsage       `json:"cpu_usage"`
 	SystemUsage    uint64         `json:"system_cpu_usage"`
 	ThrottlingData ThrottlingData `json:"throttling_data,omitempty"`
 }
 
+// MemoryStats aggregates All memory stats since container inception
 type MemoryStats struct {
 	// current res_counter usage for memory
 	Usage uint64 `json:"usage"`
@@ -48,6 +51,7 @@ type MemoryStats struct {
 	Limit   uint64 `json:"limit"`
 }
 
+// BlkioStatEntry is one small entity to store a piece of Blkio stats
 // TODO Windows: This can be factored out
 type BlkioStatEntry struct {
 	Major uint64 `json:"major"`
@@ -56,6 +60,7 @@ type BlkioStatEntry struct {
 	Value uint64 `json:"value"`
 }
 
+// BlkioStats stores All IO service stats for data read and write
 // TODO Windows: This can be factored out
 type BlkioStats struct {
 	// number of bytes tranferred to and from the block device
@@ -69,8 +74,9 @@ type BlkioStats struct {
 	SectorsRecursive        []BlkioStatEntry `json:"sectors_recursive"`
 }
 
+// NetworkStats aggregates All network stats of one container
 // TODO Windows: This will require refactoring
-type Network struct {
+type NetworkStats struct {
 	RxBytes   uint64 `json:"rx_bytes"`
 	RxPackets uint64 `json:"rx_packets"`
 	RxErrors  uint64 `json:"rx_errors"`
@@ -81,11 +87,12 @@ type Network struct {
 	TxDropped uint64 `json:"tx_dropped"`
 }
 
+// Stats is Ultimate struct aggregating all types of stats of one container
 type Stats struct {
-	Read        time.Time   `json:"read"`
-	Network     Network     `json:"network,omitempty"`
-	PreCpuStats CpuStats    `json:"precpu_stats,omitempty"`
-	CpuStats    CpuStats    `json:"cpu_stats,omitempty"`
-	MemoryStats MemoryStats `json:"memory_stats,omitempty"`
-	BlkioStats  BlkioStats  `json:"blkio_stats,omitempty"`
+	Read        time.Time    `json:"read"`
+	Network     NetworkStats `json:"network,omitempty"`
+	PreCPUStats CPUStats     `json:"precpu_stats,omitempty"`
+	CPUStats    CPUStats     `json:"cpu_stats,omitempty"`
+	MemoryStats MemoryStats  `json:"memory_stats,omitempty"`
+	BlkioStats  BlkioStats   `json:"blkio_stats,omitempty"`
 }
