@@ -53,13 +53,6 @@ func handleErrorResponse(resp *http.Response) error {
 		err := parseHTTPErrorResponse(resp.Body)
 		if uErr, ok := err.(*UnexpectedHTTPResponseError); ok {
 			return v2.ErrorCodeUnauthorized.WithDetail(uErr.Response)
-			/*
-				return &errcode.Error{
-					Code:    v2.ErrorCodeUnauthorized,
-					Message: v2.ErrorCodeUnauthorized.Message(),
-					Detail:  uErr.Response,
-				}
-			*/
 		}
 		return err
 	}
