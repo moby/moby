@@ -140,7 +140,7 @@ do_install() {
 	fi
 	if [ -z "$lsb_dist" ] && [ -r /etc/fedora-release ]; then
 		lsb_dist='fedora'
-		dist_version="$(rpm -q --whatprovides redhat-release --queryformat "%{VERSION\n")"
+		dist_version="$(rpm -q --whatprovides redhat-release --queryformat "%{VERSION}\n")"
 	fi
 	if [ -z "$lsb_dist" ]; then
 		if [ -r /etc/centos-release ] || [ -r /etc/redhat-release ]; then
