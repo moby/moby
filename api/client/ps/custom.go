@@ -191,6 +191,13 @@ func customFormat(ctx Context, containers []types.Container) {
 	}
 
 	if table {
+		if len(header) == 0 {
+			// if we still don't have a header, we didn't have any containers so we need to fake it to get the right headers from the template
+			containerCtx := &containerContext{}
+			tmpl.Execute(bytes.NewBufferString(""), containerCtx)
+			header = containerCtx.fullHeader()
+		}
+
 		t := tabwriter.NewWriter(ctx.Output, 20, 1, 3, ' ', 0)
 		t.Write([]byte(header))
 		t.Write([]byte("\n"))
