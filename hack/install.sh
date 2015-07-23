@@ -238,6 +238,8 @@ do_install() {
 			;;
 
 		fedora|centos)
+			# The dist_version from lsb_release is wrong, so grab it again to be safe.
+			dist_version="$(rpm -q --whatprovides redhat-release --queryformat "%{VERSION}\n")"
 			cat >/etc/yum.repos.d/docker-${repo}.repo <<-EOF
 			[docker-${repo}-repo]
 			name=Docker ${repo} Repository
