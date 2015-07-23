@@ -330,7 +330,7 @@ func calcCopyInfo(b *builder, cmdName string, cInfos *[]*copyInfo, origPath stri
 			In:        resp.Body,
 			Out:       b.OutOld,
 			Formatter: b.StreamFormatter,
-			Size:      int(resp.ContentLength),
+			Size:      resp.ContentLength,
 			NewLines:  true,
 			ID:        "",
 			Action:    "Downloading",

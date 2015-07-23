@@ -31,7 +31,7 @@ func TestInspectEmptyResponse(t *testing.T) {
 func TestInspectResponseBinary(t *testing.T) {
 	ct := "application/octet-stream"
 	br := ioutil.NopCloser(bytes.NewReader(binaryContext))
-	contentType, bReader, err := inspectResponse(ct, br, len(binaryContext))
+	contentType, bReader, err := inspectResponse(ct, br, int64(len(binaryContext)))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -56,7 +56,7 @@ func TestResponseUnsupportedContentType(t *testing.T) {
 	content := []byte(textPlainDockerfile)
 	ct := "application/json"
 	br := ioutil.NopCloser(bytes.NewReader(content))
-	contentType, bReader, err := inspectResponse(ct, br, len(textPlainDockerfile))
+	contentType, bReader, err := inspectResponse(ct, br, int64(len(textPlainDockerfile)))
 
 	if err == nil {
 		t.Fatal("Should have returned an error on content-type 'application/json'")
@@ -77,7 +77,7 @@ func TestInspectResponseTextSimple(t *testing.T) {
 	content := []byte(textPlainDockerfile)
 	ct := "text/plain"
 	br := ioutil.NopCloser(bytes.NewReader(content))
-	contentType, bReader, err := inspectResponse(ct, br, len(content))
+	contentType, bReader, err := inspectResponse(ct, br, int64(len(content)))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -96,7 +96,7 @@ func TestInspectResponseTextSimple(t *testing.T) {
 func TestInspectResponseEmptyContentType(t *testing.T) {
 	content := []byte(textPlainDockerfile)
 	br := ioutil.NopCloser(bytes.NewReader(content))
-	contentType, bodyReader, err := inspectResponse("", br, len(content))
+	contentType, bodyReader, err := inspectResponse("", br, int64(len(content)))
 	if err != nil {
 		t.Fatal(err)
 	}

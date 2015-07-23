@@ -99,9 +99,9 @@ func (s *TagStore) Images(filterArgs, filter string, all bool) ([]*types.Image, 
 					newImage := new(types.Image)
 					newImage.ParentId = image.Parent
 					newImage.ID = image.ID
-					newImage.Created = int(image.Created.Unix())
-					newImage.Size = int(image.Size)
-					newImage.VirtualSize = int(s.graph.GetParentsSize(image) + image.Size)
+					newImage.Created = image.Created.Unix()
+					newImage.Size = image.Size
+					newImage.VirtualSize = s.graph.GetParentsSize(image) + image.Size
 					newImage.Labels = image.ContainerConfig.Labels
 
 					if utils.DigestReference(ref) {
@@ -136,9 +136,9 @@ func (s *TagStore) Images(filterArgs, filter string, all bool) ([]*types.Image, 
 			newImage.RepoTags = []string{"<none>:<none>"}
 			newImage.RepoDigests = []string{"<none>@<none>"}
 			newImage.ID = image.ID
-			newImage.Created = int(image.Created.Unix())
-			newImage.Size = int(image.Size)
-			newImage.VirtualSize = int(s.graph.GetParentsSize(image) + image.Size)
+			newImage.Created = image.Created.Unix()
+			newImage.Size = image.Size
+			newImage.VirtualSize = s.graph.GetParentsSize(image) + image.Size
 			newImage.Labels = image.ContainerConfig.Labels
 
 			images = append(images, newImage)

@@ -256,7 +256,7 @@ func (p *v1Puller) pullImage(imgID, endpoint string, token []string) (bool, erro
 			out.Write(p.sf.FormatProgress(stringid.TruncateID(id), "Pulling metadata", nil))
 			var (
 				imgJSON []byte
-				imgSize int
+				imgSize int64
 				err     error
 				img     *image.Image
 			)
@@ -290,7 +290,7 @@ func (p *v1Puller) pullImage(imgID, endpoint string, token []string) (bool, erro
 					status = fmt.Sprintf("Pulling fs layer [retries: %d]", j)
 				}
 				out.Write(p.sf.FormatProgress(stringid.TruncateID(id), status, nil))
-				layer, err := p.session.GetRemoteImageLayer(img.ID, endpoint, int64(imgSize))
+				layer, err := p.session.GetRemoteImageLayer(img.ID, endpoint, imgSize)
 				if uerr, ok := err.(*url.Error); ok {
 					err = uerr.Err
 				}

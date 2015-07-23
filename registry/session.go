@@ -240,7 +240,7 @@ func (r *Session) LookupRemoteImage(imgID, registry string) error {
 }
 
 // GetRemoteImageJSON retrieves an image's JSON metadata from the registry.
-func (r *Session) GetRemoteImageJSON(imgID, registry string) ([]byte, int, error) {
+func (r *Session) GetRemoteImageJSON(imgID, registry string) ([]byte, int64, error) {
 	res, err := r.client.Get(registry + "images/" + imgID + "/json")
 	if err != nil {
 		return nil, -1, fmt.Errorf("Failed to download json: %s", err)
@@ -250,9 +250,9 @@ func (r *Session) GetRemoteImageJSON(imgID, registry string) ([]byte, int, error
 		return nil, -1, httputils.NewHTTPRequestError(fmt.Sprintf("HTTP code %d", res.StatusCode), res)
 	}
 	// if the size header is not present, then set it to '-1'
-	imageSize := -1
+	imageSize := int64(-1)
 	if hdr := res.Header.Get("X-Docker-Size"); hdr != "" {
-		imageSize, err = strconv.Atoi(hdr)
+		imageSize, err = strconv.ParseInt(hdr, 10, 64)
 		if err != nil {
 			return nil, -1, err
 		}

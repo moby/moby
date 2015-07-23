@@ -239,7 +239,7 @@ func (p *v2Pusher) pushV2Image(bs distribution.BlobService, img *image.Image) (d
 		In:        ioutil.NopCloser(tf),
 		Out:       out,
 		Formatter: p.sf,
-		Size:      int(size),
+		Size:      size,
 		NewLines:  false,
 		ID:        stringid.TruncateID(img.ID),
 		Action:    "Pushing",
