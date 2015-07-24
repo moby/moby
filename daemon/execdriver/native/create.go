@@ -198,7 +198,7 @@ func (d *driver) setPrivileged(container *configs.Config) (err error) {
 	container.Devices = hostDevices
 
 	if apparmor.IsEnabled() {
-		container.AppArmorProfile = "docker-unconfined"
+		container.AppArmorProfile = "unconfined"
 	}
 
 	return nil
