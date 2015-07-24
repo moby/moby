@@ -8,6 +8,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/libnetwork/netutils"
+	"github.com/docker/libnetwork/types"
 	"github.com/vishvananda/netlink"
 )
 
@@ -109,7 +110,11 @@ func setupGatewayIPv4(config *networkConfiguration, i *bridgeInterface) error {
 	if !i.bridgeIPv4.Contains(config.DefaultGatewayIPv4) {
 		return &ErrInvalidGateway{}
 	}
-	if _, err := ipAllocator.RequestIP(i.bridgeIPv4, config.DefaultGatewayIPv4); err != nil {
+
+	// Pass the real network subnet to ip allocator (no host bits set)
+	sub := types.GetIPNetCopy(i.bridgeIPv4)
+	sub.IP = sub.IP.Mask(sub.Mask)
+	if _, err := ipAllocator.RequestIP(sub, config.DefaultGatewayIPv4); err != nil {
 		return err
 	}
 

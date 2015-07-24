@@ -23,11 +23,21 @@ func TestCreateFullOptions(t *testing.T) {
 		EnableIPForwarding: true,
 	}
 
+	// Test this scenario: Default gw address does not belong to
+	// container network and it's greater than bridge address
+	cip, cnw, _ := net.ParseCIDR("172.16.122.0/24")
+	cnw.IP = cip
+	ip, nw, _ := net.ParseCIDR("172.16.0.10/16")
+	nw.IP = ip
+	gw := net.ParseIP("172.16.0.1")
+
 	netConfig := &networkConfiguration{
-		BridgeName:     DefaultBridgeName,
-		EnableIPv6:     true,
-		FixedCIDR:      bridgeNetworks[0],
-		EnableIPTables: true,
+		BridgeName:         DefaultBridgeName,
+		AddressIPv4:        nw,
+		FixedCIDR:          cnw,
+		DefaultGatewayIPv4: gw,
+		EnableIPv6:         true,
+		EnableIPTables:     true,
 	}
 	_, netConfig.FixedCIDRv6, _ = net.ParseCIDR("2001:db8::/48")
 	genericOption := make(map[string]interface{})
