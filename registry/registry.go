@@ -147,7 +147,7 @@ func ContinueOnError(err error) bool {
 
 func NewTransport(tlsConfig *tls.Config) *http.Transport {
 	if tlsConfig == nil {
-		var cfg = tlsconfig.ServerDefault
+		var cfg = tlsconfig.ClientDefault
 		tlsConfig = &cfg
 	}
 	return &http.Transport{

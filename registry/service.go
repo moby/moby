@@ -97,9 +97,7 @@ func (e APIEndpoint) ToV1Endpoint(metaHeaders http.Header) (*Endpoint, error) {
 }
 
 func (s *Service) TlsConfig(hostname string) (*tls.Config, error) {
-	// we construct a client tls config from server defaults
-	// PreferredServerCipherSuites should have no effect
-	tlsConfig := tlsconfig.ServerDefault
+	tlsConfig := tlsconfig.ClientDefault
 
 	isSecure := s.Config.isSecureIndex(hostname)
 
@@ -171,7 +169,7 @@ func (s *Service) tlsConfigForMirror(mirror string) (*tls.Config, error) {
 }
 
 func (s *Service) LookupEndpoints(repoName string) (endpoints []APIEndpoint, err error) {
-	var cfg = tlsconfig.ServerDefault
+	var cfg = tlsconfig.ClientDefault
 	tlsConfig := &cfg
 	if strings.HasPrefix(repoName, DEFAULT_NAMESPACE+"/") {
 		// v2 mirrors

@@ -46,7 +46,7 @@ func scanForAPIVersion(address string) (string, APIVersion) {
 // NewEndpoint parses the given address to return a registry endpoint.
 func NewEndpoint(index *IndexInfo, metaHeaders http.Header) (*Endpoint, error) {
 	// *TODO: Allow per-registry configuration of endpoints.
-	tlsConfig := tlsconfig.ServerDefault
+	tlsConfig := tlsconfig.ClientDefault
 	tlsConfig.InsecureSkipVerify = !index.Secure
 	endpoint, err := newEndpoint(index.GetAuthConfigKey(), &tlsConfig, metaHeaders)
 	if err != nil {
