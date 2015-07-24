@@ -1,6 +1,6 @@
 @{DOCKER_GRAPH_PATH}=/var/lib/docker
 
-profile /usr/bin/docker (attach_disconnected) {
+profile /usr/bin/docker (attach_disconnected, complain) {
   # Prevent following links to these files during container setup.
   deny /etc/** mkl,
   deny /dev/** kl,
@@ -51,7 +51,7 @@ profile /usr/bin/docker (attach_disconnected) {
   change_profile -> docker-*,
   change_profile -> unconfined,
 
-  profile /bin/cat {
+  profile /bin/cat (complain) {
     /etc/ld.so.cache r,
     /lib/** r,
     /dev/null rw,
@@ -61,7 +61,7 @@ profile /usr/bin/docker (attach_disconnected) {
     # For reading in 'docker stats':
     /proc/[0-9]*/net/dev r,
   }
-  profile /bin/ps {
+  profile /bin/ps (complain) {
     /etc/ld.so.cache r,
     /etc/localtime r,
     /etc/passwd r,
@@ -89,11 +89,11 @@ profile /usr/bin/docker (attach_disconnected) {
     /proc/ r,
     /proc/tty/drivers r,
   }
-  profile /sbin/iptables {
+  profile /sbin/iptables (complain) {
     signal (receive) peer=/usr/bin/docker,
     capability net_admin,
   }
-  profile /sbin/auplink flags=(attach_disconnected) {
+  profile /sbin/auplink flags=(attach_disconnected, complain) {
     signal (receive) peer=/usr/bin/docker,
     capability sys_admin,
     capability dac_override,
@@ -112,7 +112,7 @@ profile /usr/bin/docker (attach_disconnected) {
     /proc/fs/aufs/** rw,
     /proc/[0-9]*/mounts rw,
   }
-  profile /sbin/modprobe /bin/kmod {
+  profile /sbin/modprobe /bin/kmod (complain) {
     signal (receive) peer=/usr/bin/docker,
     capability sys_module,
     /etc/ld.so.cache r,
@@ -126,7 +126,7 @@ profile /usr/bin/docker (attach_disconnected) {
     /etc/modprobe.d{/,/**} r,
   }
   # xz works via pipes, so we do not need access to the filesystem.
-  profile /usr/bin/xz {
+  profile /usr/bin/xz (complain) {
     signal (receive) peer=/usr/bin/docker,
     /etc/ld.so.cache r,
     /lib/** r,
@@ -134,7 +134,7 @@ profile /usr/bin/docker (attach_disconnected) {
     deny /proc/** rw,
     deny /sys/** rw,
   }
-  profile /sbin/xtables-multi (attach_disconnected) {
+  profile /sbin/xtables-multi (attach_disconnected, complain) {
     /etc/ld.so.cache r,
     /lib/** r,
     /sbin/xtables-multi rm,
@@ -144,7 +144,7 @@ profile /usr/bin/docker (attach_disconnected) {
     capability net_admin,
     network raw,
   }
-  profile /sbin/zfs (attach_disconnected) {
+  profile /sbin/zfs (attach_disconnected, complain) {
     file,
     capability,
   }
