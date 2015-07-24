@@ -120,6 +120,10 @@ do_install() {
 	if command_exists lsb_release; then
 		lsb_dist="$(lsb_release -si)"
 		dist_version="$(lsb_release --codename | cut -f2)"
+		if [ "$lsb_dist" = "elementary OS" ] && [ "$dist_version" = "freya" ]; then
+			lsb_dist='ubuntu'
+			dist_version='trusty'
+		fi
 	fi
 	if [ -z "$lsb_dist" ] && [ -r /etc/lsb-release ]; then
 		lsb_dist="$(. /etc/lsb-release && echo "$DISTRIB_ID")"
