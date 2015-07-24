@@ -36,11 +36,11 @@ There are two steps to set up and use a local registry mirror.
 You will need to pass the `--registry-mirror` option to your Docker daemon on
 startup:
 
-    docker --registry-mirror=http://<my-docker-mirror-host> -d
+    docker daemon --registry-mirror=http://<my-docker-mirror-host>
 
 For example, if your mirror is serving on `http://10.0.0.2:5000`, you would run:
 
-    docker --registry-mirror=http://10.0.0.2:5000 -d
+    docker daemon --registry-mirror=http://10.0.0.2:5000
 
 **NOTE:**
 Depending on your local host setup, you may be able to add the

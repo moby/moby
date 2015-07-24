@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/docker/docker/api/types"
+	Cli "github.com/docker/docker/cli"
 	"github.com/docker/docker/graph/tags"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/registry"
@@ -137,7 +138,7 @@ func (cli *DockerCli) createContainer(config *runconfig.Config, hostConfig *runc
 //
 // Usage: docker create [OPTIONS] IMAGE [COMMAND] [ARG...]
 func (cli *DockerCli) CmdCreate(args ...string) error {
-	cmd := cli.Subcmd("create", []string{"IMAGE [COMMAND] [ARG...]"}, "Create a new container", true)
+	cmd := Cli.Subcmd("create", []string{"IMAGE [COMMAND] [ARG...]"}, "Create a new container", true)
 
 	// These are flags not stored in Config/HostConfig
 	var (

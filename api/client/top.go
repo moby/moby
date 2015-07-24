@@ -8,6 +8,7 @@ import (
 	"text/tabwriter"
 
 	"github.com/docker/docker/api/types"
+	Cli "github.com/docker/docker/cli"
 	flag "github.com/docker/docker/pkg/mflag"
 )
 
@@ -15,7 +16,7 @@ import (
 //
 // Usage: docker top CONTAINER
 func (cli *DockerCli) CmdTop(args ...string) error {
-	cmd := cli.Subcmd("top", []string{"CONTAINER [ps OPTIONS]"}, "Display the running processes of a container", true)
+	cmd := Cli.Subcmd("top", []string{"CONTAINER [ps OPTIONS]"}, "Display the running processes of a container", true)
 	cmd.Require(flag.Min, 1)
 
 	cmd.ParseFlags(args, true)

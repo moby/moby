@@ -6,6 +6,7 @@ import (
 	"net/url"
 
 	"github.com/docker/docker/api/types"
+	Cli "github.com/docker/docker/cli"
 	flag "github.com/docker/docker/pkg/mflag"
 )
 
@@ -13,7 +14,7 @@ import (
 //
 // Usage: docker rmi [OPTIONS] IMAGE [IMAGE...]
 func (cli *DockerCli) CmdRmi(args ...string) error {
-	cmd := cli.Subcmd("rmi", []string{"IMAGE [IMAGE...]"}, "Remove one or more images", true)
+	cmd := Cli.Subcmd("rmi", []string{"IMAGE [IMAGE...]"}, "Remove one or more images", true)
 	force := cmd.Bool([]string{"f", "-force"}, false, "Force removal of the image")
 	noprune := cmd.Bool([]string{"-no-prune"}, false, "Do not delete untagged parents")
 	cmd.Require(flag.Min, 1)

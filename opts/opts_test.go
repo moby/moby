@@ -32,7 +32,7 @@ func TestValidateIPAddress(t *testing.T) {
 
 func TestMapOpts(t *testing.T) {
 	tmpMap := make(map[string]string)
-	o := newMapOpt(tmpMap, logOptsValidator)
+	o := NewMapOpts(tmpMap, logOptsValidator)
 	o.Set("max-size=1")
 	if o.String() != "map[max-size:1]" {
 		t.Errorf("%s != [map[max-size:1]", o.String())

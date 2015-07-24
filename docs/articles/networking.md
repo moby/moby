@@ -503,7 +503,7 @@ To assign globally routable IPv6 addresses to your containers you have to
 specify an IPv6 subnet to pick the addresses from. Set the IPv6 subnet via the
 `--fixed-cidr-v6` parameter when starting Docker daemon:
 
-    docker -d --ipv6 --fixed-cidr-v6="2001:db8:1::/64"
+    docker daemon --ipv6 --fixed-cidr-v6="2001:db8:1::/64"
 
 The subnet for Docker containers should at least have a size of `/80`. This way
 an IPv6 address can end with the container's MAC address and you prevent NDP
@@ -589,7 +589,7 @@ Let's split up the configurable address range into two subnets
 `2001:db8::c000/125` and `2001:db8::c008/125`. The first one can be used by the
 host itself, the latter by Docker:
 
-    docker -d --ipv6 --fixed-cidr-v6 2001:db8::c008/125
+    docker daemon --ipv6 --fixed-cidr-v6 2001:db8::c008/125
 
 You notice the Docker subnet is within the subnet managed by your router that
 is connected to `eth0`. This means all devices (containers) with the addresses

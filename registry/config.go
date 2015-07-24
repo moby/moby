@@ -43,11 +43,11 @@ var (
 
 // InstallFlags adds command-line options to the top-level flag parser for
 // the current process.
-func (options *Options) InstallFlags() {
+func (options *Options) InstallFlags(cmd *flag.FlagSet, usageFn func(string) string) {
 	options.Mirrors = opts.NewListOpts(ValidateMirror)
-	flag.Var(&options.Mirrors, []string{"-registry-mirror"}, "Preferred Docker registry mirror")
+	cmd.Var(&options.Mirrors, []string{"-registry-mirror"}, usageFn("Preferred Docker registry mirror"))
 	options.InsecureRegistries = opts.NewListOpts(ValidateIndexName)
-	flag.Var(&options.InsecureRegistries, []string{"-insecure-registry"}, "Enable insecure registry communication")
+	cmd.Var(&options.InsecureRegistries, []string{"-insecure-registry"}, usageFn("Enable insecure registry communication"))
 }
 
 type netIPNet net.IPNet
