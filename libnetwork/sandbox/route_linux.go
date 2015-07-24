@@ -177,7 +177,6 @@ func (n *networkNamespace) AddStaticRoute(r *types.StaticRoute) error {
 }
 
 func (n *networkNamespace) RemoveStaticRoute(r *types.StaticRoute) error {
-	n.Lock()
 
 	err := removeRoute(n.nsPath(), r.Destination, r.NextHop)
 	if err == nil {
