@@ -173,6 +173,16 @@ func GetIPNetCopy(from *net.IPNet) *net.IPNet {
 	return &net.IPNet{IP: GetIPCopy(from.IP), Mask: bm}
 }
 
+// GetIPNetCanonical returns the canonical form for the passed network
+func GetIPNetCanonical(nw *net.IPNet) *net.IPNet {
+	if nw == nil {
+		return nil
+	}
+	c := GetIPNetCopy(nw)
+	c.IP = c.IP.Mask(nw.Mask)
+	return c
+}
+
 // CompareIPNet returns equal if the two IP Networks are equal
 func CompareIPNet(a, b *net.IPNet) bool {
 	if a == b {
