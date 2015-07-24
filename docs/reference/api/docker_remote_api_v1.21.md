@@ -1109,7 +1109,7 @@ Query Parameters:
 
         HTTP/1.1 200 OK
         Content-Type: application/x-tar
-        X-Docker-Container-Path-Stat: eyJuYW1lIjoicm9vdCIsInBhdGgiOiIvcm9vdCIsInNpemUiOjQwOTYsIm1vZGUiOjIxNDc0ODQwOTYsIm10aW1lIjoiMjAxNC0wMi0yN1QyMDo1MToyM1oifQ==
+        X-Docker-Container-Path-Stat: eyJuYW1lIjoicm9vdCIsInNpemUiOjQwOTYsIm1vZGUiOjIxNDc0ODQwOTYsIm10aW1lIjoiMjAxNC0wMi0yN1QyMDo1MToyM1oiLCJsaW5rVGFyZ2V0IjoiIn0=
 
         {{ TAR STREAM }}
 
@@ -1120,10 +1120,10 @@ JSON object (whitespace added for readability):
 
         {
             "name": "root",
-            "path": "/root",
             "size": 4096,
             "mode": 2147484096,
-            "mtime": "2014-02-27T20:51:23Z"
+            "mtime": "2014-02-27T20:51:23Z",
+            "linkTarget": ""
         }
 
 A `HEAD` request can also be made to this endpoint if only this information is

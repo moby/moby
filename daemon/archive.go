@@ -70,6 +70,66 @@ func (daemon *Daemon) ContainerExtractToDir(name, path string, noOverwriteDirNon
 	return container.ExtractToDir(path, noOverwriteDirNonDir, content)
 }
 
+// resolvePath resolves the given path in the container to a resource on the
+// host. Returns a resolved path (absolute path to the resource on the host),
+// the absolute path to the resource relative to the container's rootfs, and
+// a error if the path points to outside the container's rootfs.
+func (container *Container) resolvePath(path string) (resolvedPath, absPath string, err error) {
+	// Consider the given path as an absolute path in the container.
+	absPath = archive.PreserveTrailingDotOrSeparator(filepath.Join(string(filepath.Separator), path), path)
+
+	// Split the absPath into its Directory and Base components. We will
+	// resolve the dir in the scope of the container then append the base.
+	dirPath, basePath := filepath.Split(absPath)
+
+	resolvedDirPath, err := container.GetResourcePath(dirPath)
+	if err != nil {
+		return "", "", err
+	}
+
+	// resolvedDirPath will have been cleaned (no trailing path separators) so
+	// we can manually join it with the base path element.
+	resolvedPath = resolvedDirPath + string(filepath.Separator) + basePath
+
+	return resolvedPath, absPath, nil
+}
+
+// statPath is the unexported version of StatPath. Locks and mounts should
+// be aquired before calling this method and the given path should be fully
+// resolved to a path on the host corresponding to the given absolute path
+// inside the container.
+func (container *Container) statPath(resolvedPath, absPath string) (stat *types.ContainerPathStat, err error) {
+	lstat, err := os.Lstat(resolvedPath)
+	if err != nil {
+		return nil, err
+	}
+
+	var linkTarget string
+	if lstat.Mode()&os.ModeSymlink != 0 {
+		// Fully evaluate the symlink in the scope of the container rootfs.
+		hostPath, err := container.GetResourcePath(absPath)
+		if err != nil {
+			return nil, err
+		}
+
+		linkTarget, err = filepath.Rel(container.basefs, hostPath)
+		if err != nil {
+			return nil, err
+		}
+
+		// Make it an absolute path.
+		linkTarget = filepath.Join(string(filepath.Separator), linkTarget)
+	}
+
+	return &types.ContainerPathStat{
+		Name:       filepath.Base(absPath),
+		Size:       lstat.Size(),
+		Mode:       lstat.Mode(),
+		Mtime:      lstat.ModTime(),
+		LinkTarget: linkTarget,
+	}, nil
+}
+
 // StatPath stats the filesystem resource at the specified path in this
 // container. Returns stat info about the resource.
 func (container *Container) StatPath(path string) (stat *types.ContainerPathStat, err error) {
@@ -87,39 +147,12 @@ func (container *Container) StatPath(path string) (stat *types.ContainerPathStat
 		return nil, err
 	}
 
-	// Consider the given path as an absolute path in the container.
-	absPath := path
-	if !filepath.IsAbs(absPath) {
-		absPath = archive.PreserveTrailingDotOrSeparator(filepath.Join(string(os.PathSeparator), path), path)
-	}
-
-	resolvedPath, err := container.GetResourcePath(absPath)
+	resolvedPath, absPath, err := container.resolvePath(path)
 	if err != nil {
 		return nil, err
 	}
 
-	// A trailing "." or separator has important meaning. For example, if
-	// `"foo"` is a symlink to some directory `"dir"`, then `os.Lstat("foo")`
-	// will stat the link itself, while `os.Lstat("foo/")` will stat the link
-	// target. If the basename of the path is ".", it means to archive the
-	// contents of the directory with "." as the first path component rather
-	// than the name of the directory. This would cause extraction of the
-	// archive to *not* make another directory, but instead use the current
-	// directory.
-	resolvedPath = archive.PreserveTrailingDotOrSeparator(resolvedPath, absPath)
-
-	lstat, err := os.Lstat(resolvedPath)
-	if err != nil {
-		return nil, err
-	}
-
-	return &types.ContainerPathStat{
-		Name:  lstat.Name(),
-		Path:  absPath,
-		Size:  lstat.Size(),
-		Mode:  lstat.Mode(),
-		Mtime: lstat.ModTime(),
-	}, nil
+	return container.statPath(resolvedPath, absPath)
 }
 
 // ArchivePath creates an archive of the filesystem resource at the specified
@@ -154,41 +187,25 @@ func (container *Container) ArchivePath(path string) (content io.ReadCloser, sta
 		return nil, nil, err
 	}
 
-	// Consider the given path as an absolute path in the container.
-	absPath := path
-	if !filepath.IsAbs(absPath) {
-		absPath = archive.PreserveTrailingDotOrSeparator(filepath.Join(string(os.PathSeparator), path), path)
-	}
-
-	resolvedPath, err := container.GetResourcePath(absPath)
+	resolvedPath, absPath, err := container.resolvePath(path)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	// A trailing "." or separator has important meaning. For example, if
-	// `"foo"` is a symlink to some directory `"dir"`, then `os.Lstat("foo")`
-	// will stat the link itself, while `os.Lstat("foo/")` will stat the link
-	// target. If the basename of the path is ".", it means to archive the
-	// contents of the directory with "." as the first path component rather
-	// than the name of the directory. This would cause extraction of the
-	// archive to *not* make another directory, but instead use the current
-	// directory.
-	resolvedPath = archive.PreserveTrailingDotOrSeparator(resolvedPath, absPath)
-
-	lstat, err := os.Lstat(resolvedPath)
+	stat, err = container.statPath(resolvedPath, absPath)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	stat = &types.ContainerPathStat{
-		Name:  lstat.Name(),
-		Path:  absPath,
-		Size:  lstat.Size(),
-		Mode:  lstat.Mode(),
-		Mtime: lstat.ModTime(),
-	}
-
-	data, err := archive.TarResource(resolvedPath)
+	// We need to rebase the archive entries if the last element of the
+	// resolved path was a symlink that was evaluated and is now different
+	// than the requested path. For example, if the given path was "/foo/bar/",
+	// but it resolved to "/var/lib/docker/containers/{id}/foo/baz/", we want
+	// to ensure that the archive entries start with "bar" and not "baz". This
+	// also catches the case when the root directory of the container is
+	// requested: we want the archive entries to start with "/" and not the
+	// container ID.
+	data, err := archive.TarResourceRebase(resolvedPath, filepath.Base(absPath))
 	if err != nil {
 		return nil, nil, err
 	}
@@ -227,26 +244,20 @@ func (container *Container) ExtractToDir(path string, noOverwriteDirNonDir bool,
 		return err
 	}
 
-	// Consider the given path as an absolute path in the container.
-	absPath := path
-	if !filepath.IsAbs(absPath) {
-		absPath = archive.PreserveTrailingDotOrSeparator(filepath.Join(string(os.PathSeparator), path), path)
-	}
+	// The destination path needs to be resolved to a host path, with all
+	// symbolic links followed in the scope of the container's rootfs. Note
+	// that we do not use `container.resolvePath(path)` here because we need
+	// to also evaluate the last path element if it is a symlink. This is so
+	// that you can extract an archive to a symlink that points to a directory.
 
+	// Consider the given path as an absolute path in the container.
+	absPath := archive.PreserveTrailingDotOrSeparator(filepath.Join(string(filepath.Separator), path), path)
+
+	// This will evaluate the last path element if it is a symlink.
 	resolvedPath, err := container.GetResourcePath(absPath)
 	if err != nil {
 		return err
 	}
-
-	// A trailing "." or separator has important meaning. For example, if
-	// `"foo"` is a symlink to some directory `"dir"`, then `os.Lstat("foo")`
-	// will stat the link itself, while `os.Lstat("foo/")` will stat the link
-	// target. If the basename of the path is ".", it means to archive the
-	// contents of the directory with "." as the first path component rather
-	// than the name of the directory. This would cause extraction of the
-	// archive to *not* make another directory, but instead use the current
-	// directory.
-	resolvedPath = archive.PreserveTrailingDotOrSeparator(resolvedPath, absPath)
 
 	stat, err := os.Lstat(resolvedPath)
 	if err != nil {
@@ -257,15 +268,20 @@ func (container *Container) ExtractToDir(path string, noOverwriteDirNonDir bool,
 		return ErrExtractPointNotDirectory
 	}
 
+	// Need to check if the path is in a volume. If it is, it cannot be in a
+	// read-only volume. If it is not in a volume, the container cannot be
+	// configured with a read-only rootfs.
+
+	// Use the resolved path relative to the container rootfs as the new
+	// absPath. This way we fully follow any symlinks in a volume that may
+	// lead back outside the volume.
 	baseRel, err := filepath.Rel(container.basefs, resolvedPath)
 	if err != nil {
 		return err
 	}
-	absPath = filepath.Join(string(os.PathSeparator), baseRel)
+	// Make it an absolute path.
+	absPath = filepath.Join(string(filepath.Separator), baseRel)
 
-	// Need to check if the path is in a volume. If it is, it cannot be in a
-	// read-only volume. If it is not in a volume, the container cannot be
-	// configured with a read-only rootfs.
 	toVolume, err := checkIfPathIsInAVolume(container, absPath)
 	if err != nil {
 		return err
