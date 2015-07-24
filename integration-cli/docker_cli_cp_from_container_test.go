@@ -130,6 +130,114 @@ func (s *DockerSuite) TestCpFromErrDstNotDir(c *check.C) {
 	}
 }
 
+// Check that copying from a container to a local symlink copies to the symlink
+// target and does not overwrite the local symlink itself.
+func (s *DockerSuite) TestCpFromSymlinkDestination(c *check.C) {
+	cID := makeTestContainer(c, testContainerOptions{addContent: true})
+	defer deleteContainer(cID)
+
+	tmpDir := getTestDir(c, "test-cp-from-err-dst-not-dir")
+	defer os.RemoveAll(tmpDir)
+
+	makeTestContentInDir(c, tmpDir)
+
+	// First, copy a file from the container to a symlink to a file. This
+	// should overwrite the symlink target contents with the source contents.
+	srcPath := containerCpPath(cID, "/file2")
+	dstPath := cpPath(tmpDir, "symlinkToFile1")
+
+	if err := runDockerCp(c, srcPath, dstPath); err != nil {
+		c.Fatalf("unexpected error %T: %s", err, err)
+	}
+
+	// The symlink should not have been modified.
+	if err := symlinkTargetEquals(c, dstPath, "file1"); err != nil {
+		c.Fatal(err)
+	}
+
+	// The file should have the contents of "file2" now.
+	if err := fileContentEquals(c, cpPath(tmpDir, "file1"), "file2\n"); err != nil {
+		c.Fatal(err)
+	}
+
+	// Next, copy a file from the container to a symlink to a directory. This
+	// should copy the file into the symlink target directory.
+	dstPath = cpPath(tmpDir, "symlinkToDir1")
+
+	if err := runDockerCp(c, srcPath, dstPath); err != nil {
+		c.Fatalf("unexpected error %T: %s", err, err)
+	}
+
+	// The symlink should not have been modified.
+	if err := symlinkTargetEquals(c, dstPath, "dir1"); err != nil {
+		c.Fatal(err)
+	}
+
+	// The file should have the contents of "file2" now.
+	if err := fileContentEquals(c, cpPath(tmpDir, "file2"), "file2\n"); err != nil {
+		c.Fatal(err)
+	}
+
+	// Next, copy a file from the container to a symlink to a file that does
+	// not exist (a broken symlink). This should create the target file with
+	// the contents of the source file.
+	dstPath = cpPath(tmpDir, "brokenSymlinkToFileX")
+
+	if err := runDockerCp(c, srcPath, dstPath); err != nil {
+		c.Fatalf("unexpected error %T: %s", err, err)
+	}
+
+	// The symlink should not have been modified.
+	if err := symlinkTargetEquals(c, dstPath, "fileX"); err != nil {
+		c.Fatal(err)
+	}
+
+	// The file should have the contents of "file2" now.
+	if err := fileContentEquals(c, cpPath(tmpDir, "fileX"), "file2\n"); err != nil {
+		c.Fatal(err)
+	}
+
+	// Next, copy a directory from the container to a symlink to a local
+	// directory. This should copy the directory into the symlink target
+	// directory and not modify the symlink.
+	srcPath = containerCpPath(cID, "/dir2")
+	dstPath = cpPath(tmpDir, "symlinkToDir1")
+
+	if err := runDockerCp(c, srcPath, dstPath); err != nil {
+		c.Fatalf("unexpected error %T: %s", err, err)
+	}
+
+	// The symlink should not have been modified.
+	if err := symlinkTargetEquals(c, dstPath, "dir1"); err != nil {
+		c.Fatal(err)
+	}
+
+	// The directory should now contain a copy of "dir2".
+	if err := fileContentEquals(c, cpPath(tmpDir, "dir1/dir2/file2-1"), "file2-1\n"); err != nil {
+		c.Fatal(err)
+	}
+
+	// Next, copy a directory from the container to a symlink to a local
+	// directory that does not exist (a broken symlink). This should create
+	// the target as a directory with the contents of the source directory. It
+	// should not modify the symlink.
+	dstPath = cpPath(tmpDir, "brokenSymlinkToDirX")
+
+	if err := runDockerCp(c, srcPath, dstPath); err != nil {
+		c.Fatalf("unexpected error %T: %s", err, err)
+	}
+
+	// The symlink should not have been modified.
+	if err := symlinkTargetEquals(c, dstPath, "dirX"); err != nil {
+		c.Fatal(err)
+	}
+
+	// The "dirX" directory should now be a copy of "dir2".
+	if err := fileContentEquals(c, cpPath(tmpDir, "dirX/file2-1"), "file2-1\n"); err != nil {
+		c.Fatal(err)
+	}
+}
+
 // Possibilities are reduced to the remaining 10 cases:
 //
 //  case | srcIsDir | onlyDirContents | dstExists | dstIsDir | dstTrSep | action

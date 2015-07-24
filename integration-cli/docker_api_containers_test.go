@@ -4,9 +4,11 @@ import (
 	"archive/tar"
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httputil"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -1696,4 +1698,36 @@ func (s *DockerSuite) TestContainersApiCreateNoHostConfig118(c *check.C) {
 	status, _, err := sockRequest("POST", "/v1.18/containers/create", config)
 	c.Assert(err, check.IsNil)
 	c.Assert(status, check.Equals, http.StatusCreated)
+}
+
+// Ensure an error occurs when you have a container read-only rootfs but you
+// extract an archive to a symlink in a writable volume which points to a
+// directory outside of the volume.
+func (s *DockerSuite) TestPutContainerArchiveErrSymlinkInVolumeToReadOnlyRootfs(c *check.C) {
+	testRequires(c, SameHostDaemon) // Requires local volume mount bind.
+
+	testVol := getTestDir(c, "test-put-container-archive-err-symlink-in-volume-to-read-only-rootfs-")
+	defer os.RemoveAll(testVol)
+
+	makeTestContentInDir(c, testVol)
+
+	cID := makeTestContainer(c, testContainerOptions{
+		readOnly: true,
+		volumes:  defaultVolumes(testVol), // Our bind mount is at /vol2
+	})
+	defer deleteContainer(cID)
+
+	// Attempt to extract to a symlink in the volume which points to a
+	// directory outside the volume. This should cause an error because the
+	// rootfs is read-only.
+	query := make(url.Values, 1)
+	query.Set("path", "/vol2/symlinkToAbsDir")
+	urlPath := fmt.Sprintf("/v1.20/containers/%s/archive?%s", cID, query.Encode())
+
+	statusCode, body, err := sockRequest("PUT", urlPath, nil)
+	c.Assert(err, check.IsNil)
+
+	if !isCpCannotCopyReadOnly(fmt.Errorf(string(body))) {
+		c.Fatalf("expected ErrContainerRootfsReadonly error, but got %d: %s", statusCode, string(body))
+	}
 }

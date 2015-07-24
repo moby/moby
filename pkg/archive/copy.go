@@ -6,7 +6,6 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
-	"path"
 	"path/filepath"
 	"strings"
 
@@ -64,55 +63,38 @@ func SpecifiesCurrentDir(path string) bool {
 	return filepath.Base(path) == "."
 }
 
-// SplitPathDirEntry splits the given path between its
-// parent directory and its basename in that directory.
-func SplitPathDirEntry(localizedPath string) (dir, base string) {
-	normalizedPath := filepath.ToSlash(localizedPath)
-	vol := filepath.VolumeName(normalizedPath)
-	normalizedPath = normalizedPath[len(vol):]
+// SplitPathDirEntry splits the given path between its directory name and its
+// basename by first cleaning the path but preserves a trailing "." if the
+// original path specified the current directory.
+func SplitPathDirEntry(path string) (dir, base string) {
+	cleanedPath := filepath.Clean(path)
 
-	if normalizedPath == "/" {
-		// Specifies the root path.
-		return filepath.FromSlash(vol + normalizedPath), "."
+	if SpecifiesCurrentDir(path) {
+		cleanedPath += string(filepath.Separator) + "."
 	}
 
-	trimmedPath := vol + strings.TrimRight(normalizedPath, "/")
-
-	dir = filepath.FromSlash(path.Dir(trimmedPath))
-	base = filepath.FromSlash(path.Base(trimmedPath))
-
-	return dir, base
+	return filepath.Dir(cleanedPath), filepath.Base(cleanedPath)
 }
 
-// TarResource archives the resource at the given sourcePath into a Tar
+// TarResource archives the resource described by the given CopyInfo to a Tar
 // archive. A non-nil error is returned if sourcePath does not exist or is
 // asserted to be a directory but exists as another type of file.
 //
 // This function acts as a convenient wrapper around TarWithOptions, which
 // requires a directory as the source path. TarResource accepts either a
 // directory or a file path and correctly sets the Tar options.
-func TarResource(sourcePath string) (content Archive, err error) {
+func TarResource(sourceInfo CopyInfo) (content Archive, err error) {
+	return TarResourceRebase(sourceInfo.Path, sourceInfo.RebaseName)
+}
+
+// TarResourceRebase is like TarResource but renames the first path element of
+// items in the resulting tar archive to match the given rebaseName if not "".
+func TarResourceRebase(sourcePath, rebaseName string) (content Archive, err error) {
 	if _, err = os.Lstat(sourcePath); err != nil {
 		// Catches the case where the source does not exist or is not a
 		// directory if asserted to be a directory, as this also causes an
 		// error.
 		return
-	}
-
-	if len(sourcePath) > 1 && HasTrailingPathSeparator(sourcePath) {
-		// In the case where the source path is a symbolic link AND it ends
-		// with a path separator, we will want to evaluate the symbolic link.
-		trimmedPath := sourcePath[:len(sourcePath)-1]
-		stat, err := os.Lstat(trimmedPath)
-		if err != nil {
-			return nil, err
-		}
-
-		if stat.Mode()&os.ModeSymlink != 0 {
-			if sourcePath, err = filepath.EvalSymlinks(trimmedPath); err != nil {
-				return nil, err
-			}
-		}
 	}
 
 	// Separate the source path between it's directory and
@@ -127,32 +109,137 @@ func TarResource(sourcePath string) (content Archive, err error) {
 		Compression:      Uncompressed,
 		IncludeFiles:     filter,
 		IncludeSourceDir: true,
+		RebaseNames: map[string]string{
+			sourceBase: rebaseName,
+		},
 	})
 }
 
 // CopyInfo holds basic info about the source
 // or destination path of a copy operation.
 type CopyInfo struct {
-	Path   string
-	Exists bool
-	IsDir  bool
+	Path       string
+	Exists     bool
+	IsDir      bool
+	RebaseName string
 }
 
-// CopyInfoStatPath stats the given path to create a CopyInfo
-// struct representing that resource. If mustExist is true, then
-// it is an error if there is no file or directory at the given path.
-func CopyInfoStatPath(path string, mustExist bool) (CopyInfo, error) {
-	pathInfo := CopyInfo{Path: path}
+// CopyInfoSourcePath stats the given path to create a CopyInfo
+// struct representing that resource for the source of an archive copy
+// operation. The given path should be an absolute local path. A source path
+// has all symlinks evaluated that appear before the last path separator ("/"
+// on Unix). As it is to be a copy source, the path must exist.
+func CopyInfoSourcePath(path string) (CopyInfo, error) {
+	// Split the given path into its Directory and Base components. We will
+	// evaluate symlinks in the directory component then append the base.
+	dirPath, basePath := filepath.Split(path)
 
-	fileInfo, err := os.Lstat(path)
-
-	if err == nil {
-		pathInfo.Exists, pathInfo.IsDir = true, fileInfo.IsDir()
-	} else if os.IsNotExist(err) && !mustExist {
-		err = nil
+	resolvedDirPath, err := filepath.EvalSymlinks(dirPath)
+	if err != nil {
+		return CopyInfo{}, err
 	}
 
-	return pathInfo, err
+	// resolvedDirPath will have been cleaned (no trailing path separators) so
+	// we can manually join it with the base path element.
+	resolvedPath := resolvedDirPath + string(filepath.Separator) + basePath
+
+	var rebaseName string
+	if HasTrailingPathSeparator(path) && filepath.Base(path) != filepath.Base(resolvedPath) {
+		// In the case where the path had a trailing separator and a symlink
+		// evaluation has changed the last path component, we will need to
+		// rebase the name in the archive that is being copied to match the
+		// originally requested name.
+		rebaseName = filepath.Base(path)
+	}
+
+	stat, err := os.Lstat(resolvedPath)
+	if err != nil {
+		return CopyInfo{}, err
+	}
+
+	return CopyInfo{
+		Path:       resolvedPath,
+		Exists:     true,
+		IsDir:      stat.IsDir(),
+		RebaseName: rebaseName,
+	}, nil
+}
+
+// CopyInfoDestinationPath stats the given path to create a CopyInfo
+// struct representing that resource for the destination of an archive copy
+// operation. The given path should be an absolute local path.
+func CopyInfoDestinationPath(path string) (info CopyInfo, err error) {
+	maxSymlinkIter := 10 // filepath.EvalSymlinks uses 255, but 10 already seems like a lot.
+	originalPath := path
+
+	stat, err := os.Lstat(path)
+
+	if err == nil && stat.Mode()&os.ModeSymlink == 0 {
+		// The path exists and is not a symlink.
+		return CopyInfo{
+			Path:   path,
+			Exists: true,
+			IsDir:  stat.IsDir(),
+		}, nil
+	}
+
+	// While the path is a symlink.
+	for n := 0; err == nil && stat.Mode()&os.ModeSymlink != 0; n++ {
+		if n > maxSymlinkIter {
+			// Don't follow symlinks more than this arbitrary number of times.
+			return CopyInfo{}, errors.New("too many symlinks in " + originalPath)
+		}
+
+		// The path is a symbolic link. We need to evaluate it so that the
+		// destination of the copy operation is the link target and not the
+		// link itself. This is notably different than CopyInfoSourcePath which
+		// only evaluates symlinks before the last appearing path separator.
+		// Also note that it is okay if the last path element is a broken
+		// symlink as the copy operation should create the target.
+		var linkTarget string
+
+		linkTarget, err = os.Readlink(path)
+		if err != nil {
+			return CopyInfo{}, err
+		}
+
+		if !filepath.IsAbs(linkTarget) {
+			// Join with the parent directory.
+			dstParent, _ := SplitPathDirEntry(path)
+			linkTarget = filepath.Join(dstParent, linkTarget)
+		}
+
+		path = linkTarget
+		stat, err = os.Lstat(path)
+	}
+
+	if err != nil {
+		// It's okay if the destination path doesn't exist. We can still
+		// continue the copy operation if the parent directory exists.
+		if !os.IsNotExist(err) {
+			return CopyInfo{}, err
+		}
+
+		// Ensure destination parent dir exists.
+		dstParent, _ := SplitPathDirEntry(path)
+
+		parentDirStat, err := os.Lstat(dstParent)
+		if err != nil {
+			return CopyInfo{}, err
+		}
+		if !parentDirStat.IsDir() {
+			return CopyInfo{}, ErrNotDirectory
+		}
+
+		return CopyInfo{Path: path}, nil
+	}
+
+	// The path exists after resolving symlinks.
+	return CopyInfo{
+		Path:   path,
+		Exists: true,
+		IsDir:  stat.IsDir(),
+	}, nil
 }
 
 // PrepareArchiveCopy prepares the given srcContent archive, which should
@@ -210,6 +297,13 @@ func PrepareArchiveCopy(srcContent ArchiveReader, srcInfo, dstInfo CopyInfo) (ds
 // rebaseArchiveEntries rewrites the given srcContent archive replacing
 // an occurance of oldBase with newBase at the beginning of entry names.
 func rebaseArchiveEntries(srcContent ArchiveReader, oldBase, newBase string) Archive {
+	if oldBase == "/" {
+		// If oldBase specifies the root directory, use an empty string as
+		// oldBase instead so that newBase doesn't replace the path separator
+		// that all paths will start with.
+		oldBase = ""
+	}
+
 	rebased, w := io.Pipe()
 
 	go func() {
@@ -259,11 +353,11 @@ func CopyResource(srcPath, dstPath string) error {
 	srcPath = PreserveTrailingDotOrSeparator(filepath.Clean(srcPath), srcPath)
 	dstPath = PreserveTrailingDotOrSeparator(filepath.Clean(dstPath), dstPath)
 
-	if srcInfo, err = CopyInfoStatPath(srcPath, true); err != nil {
+	if srcInfo, err = CopyInfoSourcePath(srcPath); err != nil {
 		return err
 	}
 
-	content, err := TarResource(srcPath)
+	content, err := TarResource(srcInfo)
 	if err != nil {
 		return err
 	}
@@ -275,22 +369,11 @@ func CopyResource(srcPath, dstPath string) error {
 // CopyTo handles extracting the given content whose
 // entries should be sourced from srcInfo to dstPath.
 func CopyTo(content ArchiveReader, srcInfo CopyInfo, dstPath string) error {
-	dstInfo, err := CopyInfoStatPath(dstPath, false)
+	// The destination path need not exist, but CopyInfoDestinationPath will
+	// ensure that at least the parent directory exists.
+	dstInfo, err := CopyInfoDestinationPath(dstPath)
 	if err != nil {
 		return err
-	}
-
-	if !dstInfo.Exists {
-		// Ensure destination parent dir exists.
-		dstParent, _ := SplitPathDirEntry(dstPath)
-
-		dstStat, err := os.Lstat(dstParent)
-		if err != nil {
-			return err
-		}
-		if !dstStat.IsDir() {
-			return ErrNotDirectory
-		}
 	}
 
 	dstDir, copyArchive, err := PrepareArchiveCopy(content, srcInfo, dstInfo)
