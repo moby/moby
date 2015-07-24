@@ -37,7 +37,7 @@ var untrusted bool
 
 func addTrustedFlags(fs *flag.FlagSet, verify bool) {
 	var trusted bool
-	if e := os.Getenv("DOCKER_TRUST"); e != "" {
+	if e := os.Getenv("DOCKER_CONTENT_TRUST"); e != "" {
 		if t, err := strconv.ParseBool(e); t || err != nil {
 			// treat any other value as true
 			trusted = true
@@ -47,7 +47,7 @@ func addTrustedFlags(fs *flag.FlagSet, verify bool) {
 	if verify {
 		message = "Skip image verification"
 	}
-	fs.BoolVar(&untrusted, []string{"-untrusted"}, !trusted, message)
+	fs.BoolVar(&untrusted, []string{"-disable-content-trust"}, !trusted, message)
 }
 
 func isTrusted() bool {
@@ -79,7 +79,7 @@ func (cli *DockerCli) certificateDirectory(server string) (string, error) {
 }
 
 func trustServer(index *registry.IndexInfo) string {
-	if s := os.Getenv("DOCKER_TRUST_SERVER"); s != "" {
+	if s := os.Getenv("DOCKER_CONTENT_TRUST_SERVER"); s != "" {
 		if !strings.HasPrefix(s, "https://") {
 			return "https://" + s
 		}
@@ -178,9 +178,9 @@ func convertTarget(t client.Target) (target, error) {
 func (cli *DockerCli) getPassphraseRetriever() passphrase.Retriever {
 	baseRetriever := passphrase.PromptRetrieverWithInOut(cli.in, cli.out)
 	env := map[string]string{
-		"root":     os.Getenv("DOCKER_TRUST_ROOT_PASSPHRASE"),
-		"targets":  os.Getenv("DOCKER_TRUST_TARGET_PASSPHRASE"),
-		"snapshot": os.Getenv("DOCKER_TRUST_SNAPSHOT_PASSPHRASE"),
+		"root":     os.Getenv("DOCKER_CONTENT_TRUST_ROOT_PASSPHRASE"),
+		"targets":  os.Getenv("DOCKER_CONTENT_TRUST_TARGET_PASSPHRASE"),
+		"snapshot": os.Getenv("DOCKER_CONTENT_TRUST_SNAPSHOT_PASSPHRASE"),
 	}
 	return func(keyName string, alias string, createNew bool, numAttempts int) (string, bool, error) {
 		if v := env[alias]; v != "" {

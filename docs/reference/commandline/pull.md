@@ -15,8 +15,8 @@ weight=1
 
     Pull an image or a repository from the registry
 
-      -a, --all-tags=false    Download all tagged images in the repository
-      --untrusted=true        Skip image verification
+      -a, --all-tags=false          Download all tagged images in the repository
+      --disable-content-trust=true  Skip image verification
 
 Most of your images will be created on top of a base image from the
 [Docker Hub](https://hub.docker.com) registry.

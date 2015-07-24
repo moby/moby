@@ -182,15 +182,15 @@ func (s *DockerTrustSuite) TestTrustedPushWithoutServerAndUntrusted(c *check.C) 
 	// tag the image and upload it to the private registry
 	dockerCmd(c, "tag", "busybox", repoName)
 
-	pushCmd := exec.Command(dockerBinary, "push", "--untrusted", repoName)
+	pushCmd := exec.Command(dockerBinary, "push", "--disable-content-trust", repoName)
 	s.trustedCmdWithServer(pushCmd, "example/")
 	out, _, err := runCommandWithOutput(pushCmd)
 	if err != nil {
-		c.Fatalf("trusted push with no server and --untrusted failed: %s\n%s", err, out)
+		c.Fatalf("trusted push with no server and --disable-content-trust failed: %s\n%s", err, out)
 	}
 
 	if strings.Contains(string(out), "Error establishing connection to notary repository") {
-		c.Fatalf("Missing expected output on trusted push with --untrusted:\n%s", out)
+		c.Fatalf("Missing expected output on trusted push with --disable-content-trust:\n%s", out)
 	}
 }
 
@@ -252,7 +252,7 @@ func (s *DockerTrustSuite) TestTrustedPushWithExistingSignedTag(c *check.C) {
 	}
 
 	if !strings.Contains(string(out), "Status: Downloaded") {
-		c.Fatalf("Missing expected output on trusted pull with --untrusted:\n%s", out)
+		c.Fatalf("Missing expected output on trusted pull with --disable-content-trust:\n%s", out)
 	}
 }
 

@@ -2568,7 +2568,7 @@ func (s *DockerTrustSuite) TestTrustedRun(c *check.C) {
 	dockerCmd(c, "rmi", repoName)
 
 	// Try untrusted run to ensure we pushed the tag to the registry
-	runCmd = exec.Command(dockerBinary, "run", "--untrusted=true", repoName)
+	runCmd = exec.Command(dockerBinary, "run", "--disable-content-trust=true", repoName)
 	s.trustedCmd(runCmd)
 	out, _, err = runCommandWithOutput(runCmd)
 	if err != nil {
@@ -2576,7 +2576,7 @@ func (s *DockerTrustSuite) TestTrustedRun(c *check.C) {
 	}
 
 	if !strings.Contains(string(out), "Status: Downloaded") {
-		c.Fatalf("Missing expected output on trusted run with --untrusted:\n%s", out)
+		c.Fatalf("Missing expected output on trusted run with --disable-content-trust:\n%s", out)
 	}
 }
 
@@ -2622,7 +2622,7 @@ func (s *DockerTrustSuite) TestRunWhenCertExpired(c *check.C) {
 
 	runAtDifferentDate(elevenYearsFromNow, func() {
 		// Try run
-		runCmd := exec.Command(dockerBinary, "run", "--untrusted", repoName)
+		runCmd := exec.Command(dockerBinary, "run", "--disable-content-trust", repoName)
 		s.trustedCmd(runCmd)
 		out, _, err := runCommandWithOutput(runCmd)
 		if err != nil {

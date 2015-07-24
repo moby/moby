@@ -130,11 +130,11 @@ func (s *DockerTrustSuite) trustedCmdWithPassphrases(cmd *exec.Cmd, rootPwd, sna
 
 func trustCmdEnv(cmd *exec.Cmd, server, rootPwd, snapshotPwd, targetPwd string) {
 	env := []string{
-		"DOCKER_TRUST=1",
-		fmt.Sprintf("DOCKER_TRUST_SERVER=%s", server),
-		fmt.Sprintf("DOCKER_TRUST_ROOT_PASSPHRASE=%s", rootPwd),
-		fmt.Sprintf("DOCKER_TRUST_SNAPSHOT_PASSPHRASE=%s", snapshotPwd),
-		fmt.Sprintf("DOCKER_TRUST_TARGET_PASSPHRASE=%s", targetPwd),
+		"DOCKER_CONTENT_TRUST=1",
+		fmt.Sprintf("DOCKER_CONTENT_TRUST_SERVER=%s", server),
+		fmt.Sprintf("DOCKER_CONTENT_TRUST_ROOT_PASSPHRASE=%s", rootPwd),
+		fmt.Sprintf("DOCKER_CONTENT_TRUST_SNAPSHOT_PASSPHRASE=%s", snapshotPwd),
+		fmt.Sprintf("DOCKER_CONTENT_TRUST_TARGET_PASSPHRASE=%s", targetPwd),
 	}
 	cmd.Env = append(os.Environ(), env...)
 }
