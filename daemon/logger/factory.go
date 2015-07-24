@@ -115,5 +115,5 @@ func ValidateLogOpts(name string, cfg map[string]string) error {
 	if l != nil {
 		return l(cfg)
 	}
-	return fmt.Errorf("Log Opts are not valid for [%s] driver", name)
+	return nil
 }
