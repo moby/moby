@@ -860,7 +860,6 @@ func (s *DockerDaemonSuite) TestDaemonIP(c *check.C) {
 	out, err := d.Cmd("run", "-d", "-p", "8000:8000", "busybox", "top")
 	c.Assert(err, check.NotNil,
 		check.Commentf("Running a container must fail with an invalid --ip option"))
-	c.Assert(strings.Contains(out, "Error starting userland proxy"), check.Equals, true)
 
 	ifName := "dummy"
 	out, err = createInterface(c, "dummy", ifName, ipStr)
