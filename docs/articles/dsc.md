@@ -51,10 +51,10 @@ The Docker installation configuration is equivalent to running:
 ```
 apt-key adv --keyserver hkp://p80.pool.sks-keyservers.net:80 --recv-keys\
 36A1D7869245C8950F966E92D8576A8BA88D21E9
-sh -c "echo deb https://get.docker.com/ubuntu docker main\
+sh -c "echo deb https://apt.dockerproject.org/repo ubuntu-trusty main\
 > /etc/apt/sources.list.d/docker.list"
 apt-get update
-apt-get install lxc-docker
+apt-get install docker-engine
 ```
 
 Ensure that your current working directory is set to the `DockerClientDSC`

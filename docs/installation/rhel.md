@@ -12,8 +12,7 @@ parent = "smn_linux"
 
 Docker is supported on the following versions of RHEL:
 
-- Red Hat Enterprise Linux 7 
-- Red Hat Enterprise Linux 6.6 or later
+- Red Hat Enterprise Linux 7
 
 This page instructs you to install using Docker-managed release packages and
 installation mechanisms. Using these packages ensures you get the latest release
@@ -23,10 +22,7 @@ Red Hat release documentation for information on Red Hat's Docker support.
 ## Prerequisites
 
 Docker requires a 64-bit installation regardless of your Red Hat version. Docker
-requires that your kernel must be 3.10 at minimum. Red Hat 7 runs the 3.10
-kernel, 6.6 does not. We make an exception for Red Hat 6.6. To run Docker on
-[Red Hat-6.6](http://www.centos.org) or later, you need kernel 2.6.32-431 or
-higher. 
+requires that your kernel must be 3.10 at minimum, which Red Hat 7 runs.
 
 To check your current kernel version, open a terminal and use `uname -r` to
 display your kernel version:
@@ -37,65 +33,31 @@ display your kernel version:
 Finally, is it recommended that you fully update your system. Please keep in
 mind that your system should be fully patched to fix any potential kernel bugs.
 Any reported kernel bugs may have already been fixed on the latest kernel
-packages 
+packages.
 
+## Install Docker Engine
 
-## Install
+There are two ways to install Docker Engine.  You can use `curl` with the  `get.docker.com` site. This method runs an installation script which installs via the `yum` package manager. Or you can install with the `yum` package manager directly yourself.
 
-You use the same installation procedure for all versions of Red Hat Enterprise,
-only the package you install differs.  There are two packages to choose from:
+### Install with the script
 
-<table>
-  <tr>
-    <th>Version</th>
-    <th>Package name</th>
-  </tr>
-  <tr>
-    <td>6.6 and  higher</td>
-    <td>
-    <p>
-    <a href="https://get.docker.com/rpm/1.7.1/centos-6/RPMS/x86_64/docker-engine-1.7.1-1.el6.x86_64.rpm">
-    https://get.docker.com/rpm/1.7.1/centos-6/RPMS/x86_64/docker-engine-1.7.1-1.el6.x86_64.rpm</a>
-    <p>
-    <a href="https://get.docker.com/rpm/1.7.1/centos-6/SRPMS/docker-engine-1.7.1-1.el6.src.rpm">
-   https://get.docker.com/rpm/1.7.1/centos-6/SRPMS/docker-engine-1.7.1-1.el6.src.rpm</a>
-    <p>
-    </p>
-    </td>
-  </tr>
-  <tr>
-    <td>7.X</td>
-    <td>
-    <p>
-     <a href="https://get.docker.com/rpm/1.7.1/centos-7/RPMS/x86_64/docker-engine-1.7.1-1.el7.centos.x86_64.rpm">
-    https://get.docker.com/rpm/1.7.1/centos-7/RPMS/x86_64/docker-engine-1.7.1-1.el7.centos.x86_64.rpm</a>   
-    </p>
-    <p>
-     <a href="https://get.docker.com/rpm/1.7.1/centos-7/SRPMS/docker-engine-1.7.1-1.el7.centos.src.rpm">
-    https://get.docker.com/rpm/1.7.1/centos-7/SRPMS/docker-engine-1.7.1-1.el7.centos.src.rpm</a>   
-    </p>
-    </td>
-  </tr>
-</table>
-
-This procedure depicts an installation on version 6.6.  If you are installing on
-7.X, substitute that package for your installation. 
+You use the same installation procedure for all versions of CentOS.
 
 1. Log into your machine as a user with `sudo` or `root` privileges.
 
-2. Download the Docker RPM to the current directory.
+2. Make sure your existing yum packages are up-to-date.
+
+		$ sudo yum update
 		
-		$ curl -O -sSL https://get.docker.com/rpm/1.7.1/centos-6/RPMS/x86_64/docker-engine-1.7.1-1.el6.x86_64.rpm
+3. Run the Docker installation script.
+		
+		$ curl -sSL https://get.docker.com/ | sh
 
-3. Use `yum` to install the package.
-
-		$ sudo yum localinstall --nogpgcheck docker-engine-1.7.1-1.el6.x86_64.rpm
-
-5. Start the Docker daemon.
+4. Start the Docker daemon.
 
 		$ sudo service docker start
 
-6. Verify `docker` is installed correctly.
+5. Verify `docker` is installed correctly by running a test image in a container.
 
 		$ sudo docker run hello-world
 		Unable to find image 'hello-world:latest' locally
@@ -103,7 +65,7 @@ This procedure depicts an installation on version 6.6.  If you are installing on
 		a8219747be10: Pull complete 
 		91c95931e552: Already exists 
 		hello-world:latest: The image you are pulling has been verified. Important: image verification is a tech preview feature and should not be relied on to provide security.
-		Digest: sha256:aa03e5d0d5553b4c3473e89c8619cf79df368babd18681cf5daeb82aab55838d
+		Digest: sha256:aa03e5d0d5553b4c3473e89c8619cf79df368babd1.7.1cf5daeb82aab55838d
 		Status: Downloaded newer image for hello-world:latest
 		Hello from Docker.
 		This message shows that your installation appears to be working correctly.
@@ -122,6 +84,39 @@ This procedure depicts an installation on version 6.6.  If you are installing on
 
 		For more examples and ideas, visit:
 		 http://docs.docker.com/userguide/
+		 
+### Install without the script
+
+1. Log into your machine as a user with `sudo` or `root` privileges.
+
+2. Make sure your existing yum packages are up-to-date.
+
+		$ sudo yum update
+    
+3. Add the yum repo yourself.
+
+    For RHEL 7 run:
+
+		$ cat >/etc/yum.repos.d/docker.repo <<-EOF
+        [dockerrepo]
+        name=Docker Repository
+        baseurl=https://yum.dockerproject.org/repo/main/centos/7
+        enabled=1
+        gpgcheck=1
+        gpgkey=https://yum.dockerproject.org/gpg
+        EOF
+
+4. Install the Docker package.
+
+        $ sudo yum install docker-engine
+        
+5. Start the Docker daemon.
+
+		$ sudo service docker start
+
+6. Verify `docker` is installed correctly by running a test image in a container.
+
+		$ sudo docker run hello-world
  
 ## Create a docker group		
 
@@ -172,8 +167,8 @@ You can uninstall the Docker software with `yum`.
 
 		$ yum list installed | grep docker
 		yum list installed | grep docker
-		docker-engine.x86_64                1.7.1-0.1.el6
-																																					 @/docker-engine-1.7.1-0.1.el6.x86_64
+		docker-engine.x86_64                1.7.1-0.1.el7
+																																					 @/docker-engine-1.7.1-0.1.el7.x86_64
 
 2. Remove the package.
 
