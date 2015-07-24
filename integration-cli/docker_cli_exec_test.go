@@ -190,10 +190,6 @@ func (s *DockerSuite) TestExecTtyWithoutStdin(c *check.C) {
 		c.Fatal(err)
 	}
 
-	defer func() {
-		dockerCmd(c, "kill", id)
-	}()
-
 	errChan := make(chan error)
 	go func() {
 		defer close(errChan)
