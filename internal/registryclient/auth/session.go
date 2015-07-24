@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/docker/distribution/registry/client"
 	"github.com/docker/distribution/registry/client/transport"
 )
 
@@ -209,7 +210,7 @@ func (th *tokenHandler) fetchToken(params map[string]string) (token string, err 
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
+	if !client.SuccessStatus(resp.StatusCode) {
 		return "", fmt.Errorf("token auth attempt for registry: %s request failed with status: %d %s", req.URL, resp.StatusCode, http.StatusText(resp.StatusCode))
 	}
 

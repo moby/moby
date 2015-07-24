@@ -154,10 +154,11 @@ func (hrs *httpReadSeeker) reader() (io.Reader, error) {
 		return nil, err
 	}
 
-	switch {
-	case resp.StatusCode == 200:
+	// Normally would use client.SuccessStatus, but that would be a cyclic
+	// import
+	if resp.StatusCode >= 200 && resp.StatusCode <= 399 {
 		hrs.rc = resp.Body
-	default:
+	} else {
 		defer resp.Body.Close()
 		return nil, fmt.Errorf("unexpected status resolving reader: %v", resp.Status)
 	}
