@@ -37,7 +37,7 @@ func setupTempConfigFile() (*cliconfig.ConfigFile, error) {
 	root = filepath.Join(root, cliconfig.ConfigFileName)
 	configFile := cliconfig.NewConfigFile(root)
 
-	for _, registry := range []string{"testIndex", INDEXSERVER} {
+	for _, registry := range []string{"testIndex", IndexServer} {
 		configFile.AuthConfigs[registry] = cliconfig.AuthConfig{
 			Username: "docker-user",
 			Password: "docker-pass",
@@ -82,7 +82,7 @@ func TestResolveAuthConfigIndexServer(t *testing.T) {
 	}
 	defer os.RemoveAll(configFile.Filename())
 
-	indexConfig := configFile.AuthConfigs[INDEXSERVER]
+	indexConfig := configFile.AuthConfigs[IndexServer]
 
 	officialIndex := &IndexInfo{
 		Official: true,
@@ -92,10 +92,10 @@ func TestResolveAuthConfigIndexServer(t *testing.T) {
 	}
 
 	resolved := ResolveAuthConfig(configFile, officialIndex)
-	assertEqual(t, resolved, indexConfig, "Expected ResolveAuthConfig to return INDEXSERVER")
+	assertEqual(t, resolved, indexConfig, "Expected ResolveAuthConfig to return IndexServer")
 
 	resolved = ResolveAuthConfig(configFile, privateIndex)
-	assertNotEqual(t, resolved, indexConfig, "Expected ResolveAuthConfig to not return INDEXSERVER")
+	assertNotEqual(t, resolved, indexConfig, "Expected ResolveAuthConfig to not return IndexServer")
 }
 
 func TestResolveAuthConfigFullURL(t *testing.T) {
@@ -120,7 +120,7 @@ func TestResolveAuthConfigFullURL(t *testing.T) {
 		Password: "baz-pass",
 		Email:    "baz@example.com",
 	}
-	configFile.AuthConfigs[INDEXSERVER] = officialAuth
+	configFile.AuthConfigs[IndexServer] = officialAuth
 
 	expectedAuths := map[string]cliconfig.AuthConfig{
 		"registry.example.com": registryAuth,

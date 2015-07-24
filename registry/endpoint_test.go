@@ -12,7 +12,7 @@ func TestEndpointParse(t *testing.T) {
 		str      string
 		expected string
 	}{
-		{INDEXSERVER, INDEXSERVER},
+		{IndexServer, IndexServer},
 		{"http://0.0.0.0:5000/v1/", "http://0.0.0.0:5000/v1/"},
 		{"http://0.0.0.0:5000/v2/", "http://0.0.0.0:5000/v2/"},
 		{"http://0.0.0.0:5000", "http://0.0.0.0:5000/v0/"},
