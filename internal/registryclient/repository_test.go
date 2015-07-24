@@ -463,7 +463,7 @@ func addTestManifestWithEtag(repo, reference string, content []byte, m *testutil
 		Method: "GET",
 		Route:  "/v2/" + repo + "/manifests/" + reference,
 		Headers: http.Header(map[string][]string{
-			"Etag": {dgst},
+			"Etag": {fmt.Sprintf(`"%s"`, dgst)},
 		}),
 	}
 
