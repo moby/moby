@@ -254,13 +254,14 @@ func (ms *manifests) Get(dgst digest.Digest) (*manifest.SignedManifest, error) {
 	return ms.GetByTag(dgst.String())
 }
 
-// AddEtagToTag allows a client to supply an eTag to GetByTag which will
-// be used for a conditional HTTP request.  If the eTag matches, a nil
-// manifest and nil error will be returned.
-func AddEtagToTag(tagName, dgst string) distribution.ManifestServiceOption {
+// AddEtagToTag allows a client to supply an eTag to GetByTag which will be
+// used for a conditional HTTP request.  If the eTag matches, a nil manifest
+// and nil error will be returned. etag is automatically quoted when added to
+// this map.
+func AddEtagToTag(tag, etag string) distribution.ManifestServiceOption {
 	return func(ms distribution.ManifestService) error {
 		if ms, ok := ms.(*manifests); ok {
-			ms.etags[tagName] = dgst
+			ms.etags[tag] = fmt.Sprintf(`"%s"`, etag)
 			return nil
 		}
 		return fmt.Errorf("etag options is a client-only option")
