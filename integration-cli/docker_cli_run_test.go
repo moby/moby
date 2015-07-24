@@ -745,6 +745,7 @@ func (s *DockerSuite) TestRunCapAddALLDropNetAdminCanDownInterface(c *check.C) {
 }
 
 func (s *DockerSuite) TestRunGroupAdd(c *check.C) {
+	testRequires(c, NativeExecDriver)
 	out, _ := dockerCmd(c, "run", "--group-add=audio", "--group-add=dbus", "--group-add=777", "busybox", "sh", "-c", "id")
 
 	groupsList := "uid=0(root) gid=0(root) groups=10(wheel),29(audio),81(dbus),777"
@@ -1033,7 +1034,7 @@ func (s *DockerSuite) TestRunDnsOptionsBasedOnHostResolvConf(c *check.C) {
 // Test to see if a non-root user can resolve a DNS name and reach out to it. Also
 // check if the container resolv.conf file has atleast 0644 perm.
 func (s *DockerSuite) TestRunNonRootUserResolvName(c *check.C) {
-	testRequires(c, SameHostDaemon)
+	testRequires(c, SameHostDaemon, NativeExecDriver)
 	testRequires(c, Network)
 
 	dockerCmd(c, "run", "--name=testperm", "--user=default", "busybox", "ping", "-c", "1", "www.docker.io")
@@ -2478,6 +2479,7 @@ func (s *DockerSuite) TestDevicePermissions(c *check.C) {
 }
 
 func (s *DockerSuite) TestRunCapAddCHOWN(c *check.C) {
+	testRequires(c, NativeExecDriver)
 	out, _ := dockerCmd(c, "run", "--cap-drop=ALL", "--cap-add=CHOWN", "busybox", "sh", "-c", "adduser -D -H newuser && chown newuser /home && echo ok")
 
 	if actual := strings.Trim(out, "\r\n"); actual != "ok" {
@@ -2505,7 +2507,7 @@ func (s *DockerSuite) TestVolumeFromMixedRWOptions(c *check.C) {
 }
 
 func (s *DockerSuite) TestRunWriteFilteredProc(c *check.C) {
-	testRequires(c, Apparmor)
+	testRequires(c, Apparmor, NativeExecDriver)
 
 	testWritePaths := []string{
 		/* modprobe and core_pattern should both be denied by generic
