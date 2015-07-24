@@ -15,6 +15,9 @@ var (
 	drv *Driver
 )
 
+// Driver conforms to graphdriver.Driver interface and
+// contains information such as root and reference count of the number of clients using it.
+// This helps in testing drivers added into the framework.
 type Driver struct {
 	graphdriver.Driver
 	root     string
@@ -89,6 +92,7 @@ func cleanup(t *testing.T, d *Driver) {
 	os.RemoveAll(d.root)
 }
 
+// GetDriver create a new driver with given name or return a existing driver with the name updating the reference count.
 func GetDriver(t *testing.T, name string) graphdriver.Driver {
 	if drv == nil {
 		drv = newDriver(t, name)
@@ -98,6 +102,7 @@ func GetDriver(t *testing.T, name string) graphdriver.Driver {
 	return drv
 }
 
+// PutDriver removes the driver if it is no longer used and updates the reference count.
 func PutDriver(t *testing.T) {
 	if drv == nil {
 		t.Skip("No driver to put!")
@@ -146,7 +151,7 @@ func verifyFile(t *testing.T, path string, mode os.FileMode, uid, gid uint32) {
 
 }
 
-// Creates an new image and verifies it is empty and the right metadata
+// DriverTestCreateEmpty creates an new image and verifies it is empty and the right metadata
 func DriverTestCreateEmpty(t *testing.T, drivername string) {
 	driver := GetDriver(t, drivername)
 	defer PutDriver(t)
@@ -237,6 +242,7 @@ func verifyBase(t *testing.T, driver graphdriver.Driver, name string) {
 
 }
 
+// DriverTestCreateBase create a base driver and verify.
 func DriverTestCreateBase(t *testing.T, drivername string) {
 	driver := GetDriver(t, drivername)
 	defer PutDriver(t)
@@ -249,6 +255,7 @@ func DriverTestCreateBase(t *testing.T, drivername string) {
 	}
 }
 
+// DriverTestCreateSnap Create a driver and snap and verify.
 func DriverTestCreateSnap(t *testing.T, drivername string) {
 	driver := GetDriver(t, drivername)
 	defer PutDriver(t)
