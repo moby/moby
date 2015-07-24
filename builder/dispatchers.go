@@ -343,15 +343,51 @@ func run(b *builder, args []string, attributes map[string]bool, original string)
 		return err
 	}
 
+	// stash the cmd
 	cmd := b.Config.Cmd
-	// set Cmd manually, this is special case only for Dockerfiles
-	b.Config.Cmd = config.Cmd
 	runconfig.Merge(b.Config, config)
+	// stash the config environment
+	env := b.Config.Env
 
 	defer func(cmd *runconfig.Command) { b.Config.Cmd = cmd }(cmd)
+	defer func(env []string) { b.Config.Env = env }(env)
 
-	logrus.Debugf("[BUILDER] Command to be executed: %v", b.Config.Cmd)
+	// derive the net build-time environment for this run. We let config
+	// environment override the build time environment.
+	// This means that we take the b.BuildEnv list of env vars and remove
+	// any of those variables that are defined as part of the container. In other
+	// words, anything in b.Config.Env. What's left is the list of build-time env
+	// vars that we need to add to each RUN command - note the list could be empty.
+	//
+	// We don't persist the build time environment with container's config
+	// environment, but just sort and pre-pend it to the command string at time
+	// of commit.
+	// This helps with tracing back the image's actual environment at the time
+	// of RUN, without leaking it to the final image. It also aids cache
+	// lookup for same image built with same build time environment.
+	cmdBuildEnv := []string{}
+	configEnv := runconfig.ConvertKVStringsToMap(b.Config.Env)
+	for key, val := range b.BuildEnv {
+		if _, ok := configEnv[key]; !ok {
+			cmdBuildEnv = append(cmdBuildEnv, fmt.Sprintf("%s=%s", key, val))
+		}
+	}
 
+	// derive the command to use for probeCache() and to commit in this container.
+	// Note that we only do this if there are any build-time env vars.  Also, we
+	// use the special argument "|#" at the start of the args array. This will
+	// avoid conflicts with any RUN command since commands can not
+	// start with | (vertical bar). The "#" (number of build envs) is there to
+	// help ensure proper cache matches. We don't want a RUN command
+	// that starts with "foo=abc" to be considered part of a build-time env var.
+	saveCmd := config.Cmd
+	if len(cmdBuildEnv) > 0 {
+		sort.Strings(cmdBuildEnv)
+		tmpEnv := append([]string{fmt.Sprintf("|%d", len(cmdBuildEnv))}, cmdBuildEnv...)
+		saveCmd = runconfig.NewCommand(append(tmpEnv, saveCmd.Slice()...)...)
+	}
+
+	b.Config.Cmd = saveCmd
 	hit, err := b.probeCache()
 	if err != nil {
 		return err
@@ -359,6 +395,13 @@ func run(b *builder, args []string, attributes map[string]bool, original string)
 	if hit {
 		return nil
 	}
+
+	// set Cmd manually, this is special case only for Dockerfiles
+	b.Config.Cmd = config.Cmd
+	// set build-time environment for 'run'.
+	b.Config.Env = append(b.Config.Env, cmdBuildEnv...)
+
+	logrus.Debugf("[BUILDER] Command to be executed: %v", b.Config.Cmd)
 
 	c, err := b.create()
 	if err != nil {
@@ -374,6 +417,12 @@ func run(b *builder, args []string, attributes map[string]bool, original string)
 	if err != nil {
 		return err
 	}
+
+	// revert to original config environment and set the command string to
+	// have the build-time env vars in it (if any) so that future cache look-ups
+	// properly match it.
+	b.Config.Env = env
+	b.Config.Cmd = saveCmd
 	if err := b.commit(c.ID, cmd, "run"); err != nil {
 		return err
 	}

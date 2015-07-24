@@ -65,6 +65,7 @@ type Config struct {
 	CgroupParent   string
 	Ulimits        []*ulimit.Ulimit
 	AuthConfigs    map[string]cliconfig.AuthConfig
+	BuildEnv       map[string]string
 
 	Stdout  io.Writer
 	Context io.ReadCloser
@@ -210,6 +211,7 @@ func Build(d *daemon.Daemon, buildConfig *Config) error {
 		ulimits:         buildConfig.Ulimits,
 		cancelled:       buildConfig.WaitCancelled(),
 		id:              stringid.GenerateRandomID(),
+		BuildEnv:        buildConfig.BuildEnv,
 	}
 
 	defer func() {

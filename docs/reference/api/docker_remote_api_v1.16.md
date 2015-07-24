@@ -1222,6 +1222,18 @@ Query Parameters:
 
 -   **Content-type** – should be set to `"application/tar"`.
 -   **X-Registry-Config** – base64-encoded ConfigFile object
+-   **X-Docker-BuildEnv** – base64-encoded JSON map of string pairs for build-time
+    environment variables. These are used to expand/substitute
+    the corresponding variables used in the Dockerfile primitives, without
+    an explicit prior definition by the ENV primitive. These are also used as
+    environment context for the command(s) run as part of the 'RUN' primitive
+    of the Dockerfile, if there is no prior explicit definition of the variable by the ENV primitive.
+    Normally, these variables are not persisted in the resulting Docker image. This gives
+    the flexibility to build an image by passing host specific environment variables (like
+    http_proxy) that will be used on the RUN commands without affecting portability
+    of the generated image.
+    However, as with any variable, they can be persisted in the final image if they are used in an
+    ENV command (e.g. ENV myName=$myName will save myName in the image).
 
 Status Codes:
 

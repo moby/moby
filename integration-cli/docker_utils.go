@@ -1027,6 +1027,19 @@ func buildImageFromContext(name string, ctx *FakeContext, useCache bool) (string
 	return getIDByName(name)
 }
 
+func buildImageFromContextWithArgs(name string, ctx *FakeContext, buildArgs ...string) (string, error) {
+	args := []string{"build", "-t", name}
+	args = append(args, buildArgs...)
+	args = append(args, ".")
+	buildCmd := exec.Command(dockerBinary, args...)
+	buildCmd.Dir = ctx.Dir
+	out, exitCode, err := runCommandWithOutput(buildCmd)
+	if err != nil || exitCode != 0 {
+		return "", fmt.Errorf("failed to build the image: %s", out)
+	}
+	return getIDByName(name)
+}
+
 func buildImageFromPath(name, path string, useCache bool) (string, error) {
 	args := []string{"build", "-t", name}
 	if !useCache {

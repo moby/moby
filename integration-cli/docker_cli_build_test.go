@@ -5328,3 +5328,258 @@ func (s *DockerSuite) TestBuildRUNErrMsg(c *check.C) {
 		c.Fatalf("RUN doesn't have the correct output:\nGot:%s\nExpected:%s", out, exp)
 	}
 }
+
+func (s *DockerSuite) TestBuildBuildTimeEnv(c *check.C) {
+	imgName := "bldenvtest"
+	envKey := "foo"
+	envVal := "bar"
+	buildCmd := exec.Command(dockerBinary, "build", "-t", imgName, "--build-env",
+		fmt.Sprintf("%s=%s", envKey, envVal), "-")
+	buildCmd.Stdin = strings.NewReader(fmt.Sprintf(`FROM busybox
+		RUN echo $%s
+		CMD echo $%s
+        `, envKey, envKey))
+
+	if out, _, err := runCommandWithOutput(buildCmd); err != nil || !strings.Contains(out, envVal) {
+		if err != nil {
+			c.Fatalf("build failed to complete: %v %v", out, err)
+		}
+		c.Fatalf("failed to access environment variable in output: '%v' "+
+			"expected: '%v'", out, envVal)
+	}
+
+	containerName := "bldenvCont"
+	runCmd := exec.Command(dockerBinary, "run", "--name", containerName, imgName)
+	if out, _, err := runCommandWithOutput(runCmd); out != "\n" || err != nil {
+		c.Fatalf("run produced invalid output: %q, expected empty string", out)
+	}
+}
+
+func (s *DockerSuite) TestBuildBuildTimeEnvCacheHit(c *check.C) {
+	imgName := "bldenvtest"
+	envKey := "foo"
+	envVal := "bar"
+
+	ctx, err := fakeContext(fmt.Sprintf("FROM busybox\n"+
+		"RUN echo $%s\n", envKey), map[string]string{})
+	if err != nil {
+		c.Fatal(err)
+	}
+	defer ctx.Close()
+
+	args := []string{
+		"--build-env", fmt.Sprintf("%s=%s", envKey, envVal),
+	}
+	origImgId := ""
+	if origImgId, err = buildImageFromContextWithArgs(imgName, ctx, args...); err != nil {
+		c.Fatal(err)
+	}
+
+	imgNameCache := "bldenvtestcachehit"
+	if newImgId, err := buildImageFromContextWithArgs(imgNameCache, ctx, args...); err != nil || newImgId != origImgId {
+		if err != nil {
+			c.Fatal(err)
+		}
+		c.Fatalf("build didn't use cache! expected image id: %q built image id: %q", origImgId, newImgId)
+	}
+}
+
+func (s *DockerSuite) TestBuildBuildTimeEnvCacheMiss(c *check.C) {
+	imgName := "bldenvtest"
+	envKey := "foo"
+	envVal := "bar"
+
+	ctx, err := fakeContext(fmt.Sprintf("FROM busybox\n"+
+		"RUN echo $%s\n", envKey), map[string]string{})
+	if err != nil {
+		c.Fatal(err)
+	}
+	defer ctx.Close()
+
+	args := []string{
+		"--build-env", fmt.Sprintf("%s=%s", envKey, envVal),
+	}
+	origImgId := ""
+	if origImgId, err = buildImageFromContextWithArgs(imgName, ctx, args...); err != nil {
+		c.Fatal(err)
+	}
+
+	imgNameCache := "bldenvtestcachemiss"
+	extraEnvKey := "foo1"
+	extraEnvVal := "bar1"
+	args = append(args, "--build-env", fmt.Sprintf("%s=%s", extraEnvKey, extraEnvVal))
+	if newImgId, err := buildImageFromContextWithArgs(imgNameCache, ctx, args...); err != nil || newImgId == origImgId {
+		if err != nil {
+			c.Fatal(err)
+		}
+		c.Fatalf("build used cache, expected a miss!")
+	}
+}
+
+func (s *DockerSuite) TestBuildBuildTimeEnvOverride(c *check.C) {
+	imgName := "bldenvtest"
+	envKey := "foo"
+	envVal := "bar"
+	envValOveride := "barOverride"
+	buildCmd := exec.Command(dockerBinary, "build", "-t", imgName, "--build-env",
+		fmt.Sprintf("%s=%s", envKey, envVal), "-")
+	buildCmd.Stdin = strings.NewReader(fmt.Sprintf(`FROM busybox
+		ENV %s %s
+		RUN echo $%s
+		CMD echo $%s
+        `, envKey, envValOveride, envKey, envKey))
+
+	if out, _, err := runCommandWithOutput(buildCmd); err != nil || strings.Count(out, envValOveride) != 2 {
+		if err != nil {
+			c.Fatalf("build failed to complete: %v %v", out, err)
+		}
+		c.Fatalf("failed to access environment variable in output: '%v' "+
+			"expected: '%v'", out, envValOveride)
+	}
+
+	containerName := "bldenvCont"
+	runCmd := exec.Command(dockerBinary, "run", "--name", containerName, imgName)
+	if out, _, err := runCommandWithOutput(runCmd); !strings.Contains(out, envValOveride) || err != nil {
+		c.Fatalf("run produced invalid output: %q, expected %q", out, envValOveride)
+	}
+}
+
+func (s *DockerSuite) TestBuildBuildTimeEnvExpansion(c *check.C) {
+	imgName := "bldvarstest"
+
+	wdVar := "WDIR"
+	wdVal := "/tmp/"
+	addVar := "AFILE"
+	addVal := "addFile"
+	copyVar := "CFILE"
+	copyVal := "copyFile"
+	envVar := "foo"
+	envVal := "bar"
+	exposeVar := "EPORT"
+	exposeVal := "9999"
+	userVar := "USER"
+	userVal := "testUser"
+	volVar := "VOL"
+	volVal := "/testVol/"
+	ctx, err := fakeContext(fmt.Sprintf("FROM busybox\n"+
+		"WORKDIR ${%s}\n"+
+		"ADD ${%s} testDir/\n"+
+		"COPY $%s testDir/\n"+
+		"ENV %s=${%s}\n"+
+		"EXPOSE $%s\n"+
+		"USER $%s\n"+
+		"VOLUME ${%s}\n",
+		wdVar, addVar, copyVar, envVar, envVar, exposeVar, userVar, volVar),
+		map[string]string{
+			addVal:  "some stuff",
+			copyVal: "some stuff",
+		})
+	if err != nil {
+		c.Fatal(err)
+	}
+	defer ctx.Close()
+
+	args := []string{
+		"--build-env", fmt.Sprintf("%s=%s", wdVar, wdVal),
+		"--build-env", fmt.Sprintf("%s=%s", addVar, addVal),
+		"--build-env", fmt.Sprintf("%s=%s", copyVar, copyVal),
+		"--build-env", fmt.Sprintf("%s=%s", envVar, envVal),
+		"--build-env", fmt.Sprintf("%s=%s", exposeVar, exposeVal),
+		"--build-env", fmt.Sprintf("%s=%s", userVar, userVal),
+		"--build-env", fmt.Sprintf("%s=%s", volVar, volVal),
+	}
+	if _, err := buildImageFromContextWithArgs(imgName, ctx, args...); err != nil {
+		c.Fatal(err)
+	}
+
+	var resMap map[string]interface{}
+	var resArr []string
+	res := ""
+	res, err = inspectFieldJSON(imgName, "Config.WorkingDir")
+	if err != nil {
+		c.Fatal(err)
+	}
+	if strings.Trim(res, "\"") != wdVal {
+		c.Fatalf("Config.WorkingDir value mismatch. Expected: %s, got: %s", wdVal, res)
+	}
+
+	res, err = inspectFieldJSON(imgName, "Config.Env")
+	if err != nil {
+		c.Fatal(err)
+	}
+
+	if err := json.Unmarshal([]byte(res), &resArr); err != nil {
+		c.Fatal(err)
+	}
+	found := false
+	for _, v := range resArr {
+		if fmt.Sprintf("%s=%s", envVar, envVal) == v {
+			found = true
+			break
+		}
+	}
+	if !found {
+		c.Fatalf("Config.Env value mismatch. Expected <key=value> to exist: %s=%s, got: %v",
+			envVar, envVal, resArr)
+	}
+
+	res, err = inspectFieldJSON(imgName, "Config.ExposedPorts")
+	if err != nil {
+		c.Fatal(err)
+	}
+	if err := json.Unmarshal([]byte(res), &resMap); err != nil {
+		c.Fatal(err)
+	}
+	if _, ok := resMap[fmt.Sprintf("%s/tcp", exposeVal)]; !ok {
+		c.Fatalf("Config.ExposedPorts value mismatch. Expected exposed port: %s/tcp, got: %v", exposeVal, resMap)
+	}
+
+	res, err = inspectFieldJSON(imgName, "Config.User")
+	if err != nil {
+		c.Fatal(err)
+	}
+	if strings.Trim(res, "\"") != userVal {
+		c.Fatalf("Config.User value mismatch. Expected: %s, got: %s", userVal, res)
+	}
+
+	res, err = inspectFieldJSON(imgName, "Config.Volumes")
+	if err != nil {
+		c.Fatal(err)
+	}
+	if err := json.Unmarshal([]byte(res), &resMap); err != nil {
+		c.Fatal(err)
+	}
+	if _, ok := resMap[volVal]; !ok {
+		c.Fatalf("Config.Volumes value mismatch. Expected volume: %s, got: %v", volVal, resMap)
+	}
+}
+
+func (s *DockerSuite) TestBuildBuildTimeEnvExpansionOverride(c *check.C) {
+	imgName := "bldvarstest"
+	envKey := "foo"
+	envVal := "bar"
+	envKey1 := "foo1"
+	envValOveride := "barOverride"
+	buildCmd := exec.Command(dockerBinary, "build", "-t", imgName, "--build-env",
+		fmt.Sprintf("%s=%s", envKey, envVal), "-")
+	buildCmd.Stdin = strings.NewReader(fmt.Sprintf(`FROM busybox
+		ENV %s %s
+		ENV %s ${%s}
+		RUN echo $%s
+		CMD echo $%s
+        `, envKey, envValOveride, envKey1, envKey, envKey1, envKey1))
+
+	if out, _, err := runCommandWithOutput(buildCmd); err != nil || strings.Count(out, envValOveride) != 2 {
+		if err != nil {
+			c.Fatalf("build failed to complete: %v %v", out, err)
+		}
+		c.Fatalf("failed to access environment variable in output: '%v' "+
+			"expected: '%v'", out, envValOveride)
+	}
+
+	containerName := "bldenvCont"
+	runCmd := exec.Command(dockerBinary, "run", "--name", containerName, imgName)
+	if out, _, err := runCommandWithOutput(runCmd); !strings.Contains(out, envValOveride) || err != nil {
+		c.Fatalf("run produced invalid output: %q, expected %q", out, envValOveride)
+	}
+}
