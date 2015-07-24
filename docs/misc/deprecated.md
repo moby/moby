@@ -17,6 +17,10 @@ The following list of features are deprecated.
 
 **Target For Removal In Release: v1.10**
 
+The flags `-d` and `--daemon` are deprecated in favor of the `daemon` subcommand:
+
+    docker daemon -H ...
+
 The following single-dash (`-opt`) variant of certain command line options 
 are deprecated and replaced with double-dash options (`--opt`):
 
