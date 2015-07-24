@@ -76,7 +76,8 @@ func setupBridgeIPv4(config *networkConfiguration, i *bridgeInterface) error {
 }
 
 func allocateBridgeIP(config *networkConfiguration, i *bridgeInterface) error {
-	ipAllocator.RequestIP(i.bridgeIPv4, i.bridgeIPv4.IP)
+	sub := types.GetIPNetCanonical(i.bridgeIPv4)
+	ipAllocator.RequestIP(sub, i.bridgeIPv4.IP)
 	return nil
 }
 
@@ -112,8 +113,7 @@ func setupGatewayIPv4(config *networkConfiguration, i *bridgeInterface) error {
 	}
 
 	// Pass the real network subnet to ip allocator (no host bits set)
-	sub := types.GetIPNetCopy(i.bridgeIPv4)
-	sub.IP = sub.IP.Mask(sub.Mask)
+	sub := types.GetIPNetCanonical(i.bridgeIPv4)
 	if _, err := ipAllocator.RequestIP(sub, config.DefaultGatewayIPv4); err != nil {
 		return err
 	}

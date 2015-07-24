@@ -947,8 +947,7 @@ func (d *driver) CreateEndpoint(nid, eid types.UUID, epInfo driverapi.EndpointIn
 	}
 
 	// v4 address for the sandbox side pipe interface
-	sub := types.GetIPNetCopy(n.bridge.bridgeIPv4)
-	sub.IP = sub.IP.Mask(sub.Mask)
+	sub := types.GetIPNetCanonical(n.bridge.bridgeIPv4)
 	ip4, err := ipAllocator.RequestIP(sub, nil)
 	if err != nil {
 		return err
@@ -1075,7 +1074,8 @@ func (d *driver) DeleteEndpoint(nid, eid types.UUID) error {
 	n.releasePorts(ep)
 
 	// Release the v4 address allocated to this endpoint's sandbox interface
-	err = ipAllocator.ReleaseIP(n.bridge.bridgeIPv4, ep.addr.IP)
+	sub := types.GetIPNetCanonical(n.bridge.bridgeIPv4)
+	err = ipAllocator.ReleaseIP(sub, ep.addr.IP)
 	if err != nil {
 		return err
 	}
