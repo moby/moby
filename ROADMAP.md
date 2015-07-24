@@ -152,3 +152,32 @@ lacking for many, we cannot make it a priority yet for the above reasons.
 
 Again, this is not about saying that the Dockerfile syntax is done, it's about making choices about
 what we want to do first!
+
+## 2.3 Remote Registry Operations
+
+A large amount of work is ongoing in the area of image distribution and
+provenance. This includes moving to the V2 Registry API and heavily
+refactoring the code that powers these features. The desired result is more
+secure, reliable and easier to use image distribution.
+
+Part of the problem with this part of the code base is the lack of a stable
+and flexible interface. If new features are added that access the registry
+without solidifying these interfaces, achieving feature parity will continue
+to be elusive. While we get a handle on this situation, we are imposing a
+moratorium on new code that accesses the Registry API in commands that don't
+already make remote calls.
+
+Currently, only the following commands cause interaction with a remote
+registry:
+
+- push
+- pull
+- run
+- build
+- search
+- login
+
+In the interest of stabilizing the registry access model during this ongoing
+work, we are not accepting additions to other commands that will cause remote
+interaction with the Registry API. This moratorium will lift when the goals of
+the distribution project have been met.
