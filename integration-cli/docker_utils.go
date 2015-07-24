@@ -1326,3 +1326,15 @@ func appendBaseEnv(env []string) []string {
 	}
 	return env
 }
+
+func createTmpFile(c *check.C, content string) string {
+	f, err := ioutil.TempFile("", "testfile")
+	c.Assert(err, check.IsNil)
+
+	filename := f.Name()
+
+	err = ioutil.WriteFile(filename, []byte(content), 0644)
+	c.Assert(err, check.IsNil)
+
+	return filename
+}
