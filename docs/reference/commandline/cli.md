@@ -49,8 +49,8 @@ by the `docker` command line:
   unsuitable for Docker.
 * `DOCKER_RAMDISK` If set this will disable 'pivot_root'.
 * `DOCKER_TLS_VERIFY` When set Docker uses TLS and verifies the remote.
-* `DOCKER_TRUST` When set Docker uses notary to sign and verify images.
-  Equates to `--untrusted=false` for build, create, pull, push, run.
+* `DOCKER_CONTENT_TRUST` When set Docker uses notary to sign and verify images.
+  Equates to `--disable-content-trust=false` for build, create, pull, push, run.
 * `DOCKER_TMPDIR` Location for temporary Docker files.
 
 Because Docker is developed using 'Go', you can also use any environment

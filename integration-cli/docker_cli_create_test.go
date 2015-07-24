@@ -294,7 +294,7 @@ func (s *DockerTrustSuite) TestTrustedCreate(c *check.C) {
 	dockerCmd(c, "rmi", repoName)
 
 	// Try untrusted create to ensure we pushed the tag to the registry
-	createCmd = exec.Command(dockerBinary, "create", "--untrusted=true", repoName)
+	createCmd = exec.Command(dockerBinary, "create", "--disable-content-trust=true", repoName)
 	s.trustedCmd(createCmd)
 	out, _, err = runCommandWithOutput(createCmd)
 	if err != nil {
@@ -302,7 +302,7 @@ func (s *DockerTrustSuite) TestTrustedCreate(c *check.C) {
 	}
 
 	if !strings.Contains(string(out), "Status: Downloaded") {
-		c.Fatalf("Missing expected output on trusted create with --untrusted:\n%s", out)
+		c.Fatalf("Missing expected output on trusted create with --disable-content-trust:\n%s", out)
 	}
 }
 
@@ -366,7 +366,7 @@ func (s *DockerTrustSuite) TestCreateWhenCertExpired(c *check.C) {
 
 	runAtDifferentDate(elevenYearsFromNow, func() {
 		// Try create
-		createCmd := exec.Command(dockerBinary, "create", "--untrusted", repoName)
+		createCmd := exec.Command(dockerBinary, "create", "--disable-content-trust", repoName)
 		s.trustedCmd(createCmd)
 		out, _, err := runCommandWithOutput(createCmd)
 		if err != nil {
