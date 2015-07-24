@@ -115,7 +115,7 @@ lxc.cgroup.blkio.weight = {{.Resources.BlkioWeight}}
 {{if .Resources.OomKillDisable}}
 lxc.cgroup.memory.oom_control = {{.Resources.OomKillDisable}}
 {{end}}
-{{if .Resources.MemorySwappiness}}
+{{if gt .Resources.MemorySwappiness 0}}
 lxc.cgroup.memory.swappiness = {{.Resources.MemorySwappiness}}
 {{end}}
 {{end}}
