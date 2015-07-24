@@ -70,8 +70,7 @@ func (r *registry) Repositories(ctx context.Context, entries []string, last stri
 	}
 	defer resp.Body.Close()
 
-	switch resp.StatusCode {
-	case http.StatusOK:
+	if SuccessStatus(resp.StatusCode) {
 		var ctlg struct {
 			Repositories []string `json:"repositories"`
 		}
@@ -90,8 +89,7 @@ func (r *registry) Repositories(ctx context.Context, entries []string, last stri
 		if link == "" {
 			returnErr = io.EOF
 		}
-
-	default:
+	} else {
 		return 0, handleErrorResponse(resp)
 	}
 
@@ -199,8 +197,7 @@ func (ms *manifests) Tags() ([]string, error) {
 	}
 	defer resp.Body.Close()
 
-	switch resp.StatusCode {
-	case http.StatusOK:
+	if SuccessStatus(resp.StatusCode) {
 		b, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
 			return nil, err
@@ -214,11 +211,10 @@ func (ms *manifests) Tags() ([]string, error) {
 		}
 
 		return tagsResponse.Tags, nil
-	case http.StatusNotFound:
+	} else if resp.StatusCode == http.StatusNotFound {
 		return nil, nil
-	default:
-		return nil, handleErrorResponse(resp)
 	}
+	return nil, handleErrorResponse(resp)
 }
 
 func (ms *manifests) Exists(dgst digest.Digest) (bool, error) {
@@ -238,14 +234,12 @@ func (ms *manifests) ExistsByTag(tag string) (bool, error) {
 		return false, err
 	}
 
-	switch resp.StatusCode {
-	case http.StatusOK:
+	if SuccessStatus(resp.StatusCode) {
 		return true, nil
-	case http.StatusNotFound:
+	} else if resp.StatusCode == http.StatusNotFound {
 		return false, nil
-	default:
-		return false, handleErrorResponse(resp)
 	}
+	return false, handleErrorResponse(resp)
 }
 
 func (ms *manifests) Get(dgst digest.Digest) (*manifest.SignedManifest, error) {
@@ -294,8 +288,9 @@ func (ms *manifests) GetByTag(tag string, options ...distribution.ManifestServic
 	}
 	defer resp.Body.Close()
 
-	switch resp.StatusCode {
-	case http.StatusOK:
+	if resp.StatusCode == http.StatusNotModified {
+		return nil, nil
+	} else if SuccessStatus(resp.StatusCode) {
 		var sm manifest.SignedManifest
 		decoder := json.NewDecoder(resp.Body)
 
@@ -303,11 +298,8 @@ func (ms *manifests) GetByTag(tag string, options ...distribution.ManifestServic
 			return nil, err
 		}
 		return &sm, nil
-	case http.StatusNotModified:
-		return nil, nil
-	default:
-		return nil, handleErrorResponse(resp)
 	}
+	return nil, handleErrorResponse(resp)
 }
 
 func (ms *manifests) Put(m *manifest.SignedManifest) error {
@@ -329,13 +321,11 @@ func (ms *manifests) Put(m *manifest.SignedManifest) error {
 	}
 	defer resp.Body.Close()
 
-	switch resp.StatusCode {
-	case http.StatusAccepted:
+	if SuccessStatus(resp.StatusCode) {
 		// TODO(dmcgowan): make use of digest header
 		return nil
-	default:
-		return handleErrorResponse(resp)
 	}
+	return handleErrorResponse(resp)
 }
 
 func (ms *manifests) Delete(dgst digest.Digest) error {
@@ -354,12 +344,10 @@ func (ms *manifests) Delete(dgst digest.Digest) error {
 	}
 	defer resp.Body.Close()
 
-	switch resp.StatusCode {
-	case http.StatusAccepted:
+	if SuccessStatus(resp.StatusCode) {
 		return nil
-	default:
-		return handleErrorResponse(resp)
 	}
+	return handleErrorResponse(resp)
 }
 
 type blobs struct {
@@ -461,8 +449,7 @@ func (bs *blobs) Create(ctx context.Context) (distribution.BlobWriter, error) {
 	}
 	defer resp.Body.Close()
 
-	switch resp.StatusCode {
-	case http.StatusAccepted:
+	if SuccessStatus(resp.StatusCode) {
 		// TODO(dmcgowan): Check for invalid UUID
 		uuid := resp.Header.Get("Docker-Upload-UUID")
 		location, err := sanitizeLocation(resp.Header.Get("Location"), u)
@@ -477,9 +464,8 @@ func (bs *blobs) Create(ctx context.Context) (distribution.BlobWriter, error) {
 			startedAt: time.Now(),
 			location:  location,
 		}, nil
-	default:
-		return nil, handleErrorResponse(resp)
 	}
+	return nil, handleErrorResponse(resp)
 }
 
 func (bs *blobs) Resume(ctx context.Context, id string) (distribution.BlobWriter, error) {
@@ -508,8 +494,7 @@ func (bs *blobStatter) Stat(ctx context.Context, dgst digest.Digest) (distributi
 	}
 	defer resp.Body.Close()
 
-	switch resp.StatusCode {
-	case http.StatusOK:
+	if SuccessStatus(resp.StatusCode) {
 		lengthHeader := resp.Header.Get("Content-Length")
 		length, err := strconv.ParseInt(lengthHeader, 10, 64)
 		if err != nil {
@@ -521,11 +506,10 @@ func (bs *blobStatter) Stat(ctx context.Context, dgst digest.Digest) (distributi
 			Size:      length,
 			Digest:    dgst,
 		}, nil
-	case http.StatusNotFound:
+	} else if resp.StatusCode == http.StatusNotFound {
 		return distribution.Descriptor{}, distribution.ErrBlobUnknown
-	default:
-		return distribution.Descriptor{}, handleErrorResponse(resp)
 	}
+	return distribution.Descriptor{}, handleErrorResponse(resp)
 }
 
 func buildCatalogValues(maxEntries int, last string) url.Values {
@@ -559,12 +543,10 @@ func (bs *blobStatter) Clear(ctx context.Context, dgst digest.Digest) error {
 	}
 	defer resp.Body.Close()
 
-	switch resp.StatusCode {
-	case http.StatusAccepted:
+	if SuccessStatus(resp.StatusCode) {
 		return nil
-	default:
-		return handleErrorResponse(resp)
 	}
+	return handleErrorResponse(resp)
 }
 
 func (bs *blobStatter) SetDescriptor(ctx context.Context, dgst digest.Digest, desc distribution.Descriptor) error {
