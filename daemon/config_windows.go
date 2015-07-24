@@ -37,5 +37,5 @@ func (config *Config) InstallFlags(cmd *flag.FlagSet, usageFn func(string) strin
 	config.InstallCommonFlags(cmd, usageFn)
 
 	// Then platform-specific install flags.
-	flag.StringVar(&config.Bridge.VirtualSwitchName, []string{"b", "-bridge"}, "", "Attach containers to a virtual switch")
+	cmd.StringVar(&config.Bridge.VirtualSwitchName, []string{"b", "-bridge"}, "", "Attach containers to a virtual switch")
 }
