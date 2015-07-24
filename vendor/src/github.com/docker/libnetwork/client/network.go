@@ -223,7 +223,7 @@ func networkUsage(chain string) string {
 	help := "Commands:\n"
 
 	for _, cmd := range networkCommands {
-		help += fmt.Sprintf("    %-25.25s%s\n", cmd.name, cmd.description)
+		help += fmt.Sprintf("  %-25.25s%s\n", cmd.name, cmd.description)
 	}
 
 	help += fmt.Sprintf("\nRun '%s network COMMAND --help' for more information on a command.", chain)

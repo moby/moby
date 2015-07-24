@@ -21,7 +21,7 @@ clone git golang.org/x/net 3cffabab72adf04f8e3b01c5baf775361837b5fe https://gith
 clone hg code.google.com/p/gosqlite 74691fb6f837
 
 #get libnetwork packages
-clone git github.com/docker/libnetwork 2a5cb84758b5115d99d8f82c84845417c6c345a3
+clone git github.com/docker/libnetwork f1c5671f1ee2133055144e566cd8b3a0ae4f0433
 clone git github.com/armon/go-metrics eb0af217e5e9747e41dd5303755356b62d28e3ec
 clone git github.com/hashicorp/go-msgpack 71c2886f5a673a35f909803f38ece5810165097b
 clone git github.com/hashicorp/memberlist 9a1e242e454d2443df330bdd51a436d5a9058fc4

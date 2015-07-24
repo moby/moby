@@ -3,10 +3,13 @@ package bridge
 import (
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"net"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"sync"
+	"syscall"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/libnetwork/driverapi"
@@ -660,6 +663,10 @@ func (d *driver) CreateNetwork(id types.UUID, option map[string]interface{}) err
 		// Setup IPTables.
 		{config.EnableIPTables, network.setupIPTables},
 
+		//We want to track firewalld configuration so that
+		//if it is started/reloaded, the rules can be applied correctly
+		{config.EnableIPTables, network.setupFirewalld},
+
 		// Setup DefaultGatewayIPv4
 		{config.DefaultGatewayIPv4 != nil, setupGatewayIPv4},
 
@@ -770,6 +777,37 @@ func addToBridge(ifaceName, bridgeName string) error {
 	}
 
 	return ioctlAddToBridge(iface, master)
+}
+
+func setHairpinMode(link netlink.Link, enable bool) error {
+	err := netlink.LinkSetHairpin(link, enable)
+	if err != nil && err != syscall.EINVAL {
+		// If error is not EINVAL something else went wrong, bail out right away
+		return fmt.Errorf("unable to set hairpin mode on %s via netlink: %v",
+			link.Attrs().Name, err)
+	}
+
+	// Hairpin mode successfully set up
+	if err == nil {
+		return nil
+	}
+
+	// The netlink method failed with EINVAL which is probably because of an older
+	// kernel. Try one more time via the sysfs method.
+	path := filepath.Join("/sys/class/net", link.Attrs().Name, "brport/hairpin_mode")
+
+	var val []byte
+	if enable {
+		val = []byte{'1', '\n'}
+	} else {
+		val = []byte{'0', '\n'}
+	}
+
+	if err := ioutil.WriteFile(path, val, 0644); err != nil {
+		return fmt.Errorf("unable to set hairpin mode on %s via sysfs: %v", link.Attrs().Name, err)
+	}
+
+	return nil
 }
 
 func (d *driver) CreateEndpoint(nid, eid types.UUID, epInfo driverapi.EndpointInfo, epOptions map[string]interface{}) error {
@@ -902,14 +940,15 @@ func (d *driver) CreateEndpoint(nid, eid types.UUID, epInfo driverapi.EndpointIn
 	}
 
 	if !config.EnableUserlandProxy {
-		err = netlink.LinkSetHairpin(host, true)
+		err = setHairpinMode(host, true)
 		if err != nil {
 			return err
 		}
 	}
 
 	// v4 address for the sandbox side pipe interface
-	ip4, err := ipAllocator.RequestIP(n.bridge.bridgeIPv4, nil)
+	sub := types.GetIPNetCanonical(n.bridge.bridgeIPv4)
+	ip4, err := ipAllocator.RequestIP(sub, nil)
 	if err != nil {
 		return err
 	}
@@ -1035,7 +1074,8 @@ func (d *driver) DeleteEndpoint(nid, eid types.UUID) error {
 	n.releasePorts(ep)
 
 	// Release the v4 address allocated to this endpoint's sandbox interface
-	err = ipAllocator.ReleaseIP(n.bridge.bridgeIPv4, ep.addr.IP)
+	sub := types.GetIPNetCanonical(n.bridge.bridgeIPv4)
+	err = ipAllocator.ReleaseIP(sub, ep.addr.IP)
 	if err != nil {
 		return err
 	}
