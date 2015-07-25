@@ -325,7 +325,7 @@ _docker_docker() {
 		--selinux-enabled
 		--tls
 		--tlsverify
-		--userland-proxy=false
+		--userland-proxy
 		--version -v
 	"
 

@@ -464,14 +464,14 @@ option `--ip=IP_ADDRESS`.  Remember to restart your Docker server after
 editing this setting.
 
 > **Note**:
-> With hairpin NAT enabled (`--userland-proxy=false`), containers port exposure
+> With hairpin NAT enabled (`--userland-proxy`), containers port exposure
 > is achieved purely through iptables rules, and no attempt to bind the exposed
 > port is ever made. This means that nothing prevents shadowing a previously
 > listening service outside of Docker through exposing the same port for a
 > container. In such conflicting situation, Docker created iptables rules will
 > take precedence and route to the container.
 
-The `--userland-proxy` parameter, true by default, provides a userland
+The `--userland-proxy` parameter, false by default, provides a userland
 implementation for inter-container and outside-to-container communication. When
 disabled, Docker uses both an additional `MASQUERADE` iptable rule and the
 `net.ipv4.route_localnet` kernel parameter which allow the host machine to

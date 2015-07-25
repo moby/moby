@@ -70,7 +70,7 @@ func (config *Config) InstallFlags(cmd *flag.FlagSet, usageFn func(string) strin
 	cmd.Var(opts.NewIpOpt(&config.Bridge.DefaultGatewayIPv6, ""), []string{"-default-gateway-v6"}, usageFn("Container default gateway IPv6 address"))
 	cmd.BoolVar(&config.Bridge.InterContainerCommunication, []string{"#icc", "-icc"}, true, usageFn("Enable inter-container communication"))
 	cmd.Var(opts.NewIpOpt(&config.Bridge.DefaultIP, "0.0.0.0"), []string{"#ip", "-ip"}, usageFn("Default IP when binding container ports"))
-	cmd.BoolVar(&config.Bridge.EnableUserlandProxy, []string{"-userland-proxy"}, true, usageFn("Use userland proxy for loopback traffic"))
+	cmd.BoolVar(&config.Bridge.EnableUserlandProxy, []string{"-userland-proxy"}, false, usageFn("Use userland proxy for loopback traffic"))
 
 	config.attachExperimentalFlags(cmd, usageFn)
 }
