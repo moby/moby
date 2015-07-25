@@ -409,11 +409,11 @@ func TestParseNetworkOptsNegativePorts(t *testing.T) {
 		t.Fail()
 	}
 	if len(ports) != 0 {
-		t.Logf("Expected nil got %s", len(ports))
+		t.Logf("Expected nil got %d", len(ports))
 		t.Fail()
 	}
 	if len(bindings) != 0 {
-		t.Logf("Expected 0 got %s", len(bindings))
+		t.Logf("Expected 0 got %d", len(bindings))
 		t.Fail()
 	}
 }
