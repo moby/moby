@@ -61,7 +61,7 @@ func (daemon *Daemon) ContainerInspectPre120(name string) (*types.ContainerJSONP
 		container.Config,
 		container.hostConfig.Memory,
 		container.hostConfig.MemorySwap,
-		container.hostConfig.CpuShares,
+		container.hostConfig.CPUShares,
 		container.hostConfig.CpusetCpus,
 	}
 

@@ -35,8 +35,8 @@ func validateNetMode(vals *validateNM) error {
 		return ErrConflictContainerNetworkAndLinks
 	}
 
-	if (vals.netMode.IsHost() || vals.netMode.IsContainer()) && vals.flDns.Len() > 0 {
-		return ErrConflictNetworkAndDns
+	if (vals.netMode.IsHost() || vals.netMode.IsContainer()) && vals.flDNS.Len() > 0 {
+		return ErrConflictNetworkAndDNS
 	}
 
 	if (vals.netMode.IsContainer() || vals.netMode.IsHost()) && vals.flExtraHosts.Len() > 0 {
