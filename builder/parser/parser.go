@@ -1,4 +1,4 @@
-// This package implements a parser and parse tree dumper for Dockerfiles.
+// Package parser implements a parser and parse tree dumper for Dockerfiles.
 package parser
 
 import (
@@ -33,10 +33,10 @@ type Node struct {
 }
 
 var (
-	dispatch                map[string]func(string) (*Node, map[string]bool, error)
-	TOKEN_WHITESPACE        = regexp.MustCompile(`[\t\v\f\r ]+`)
-	TOKEN_LINE_CONTINUATION = regexp.MustCompile(`\\[ \t]*$`)
-	TOKEN_COMMENT           = regexp.MustCompile(`^#.*$`)
+	dispatch              map[string]func(string) (*Node, map[string]bool, error)
+	tokenWhitespace       = regexp.MustCompile(`[\t\v\f\r ]+`)
+	tokenLineContinuation = regexp.MustCompile(`\\[ \t]*$`)
+	tokenComment          = regexp.MustCompile(`^#.*$`)
 )
 
 func init() {
@@ -70,8 +70,8 @@ func parseLine(line string) (string, *Node, error) {
 		return "", nil, nil
 	}
 
-	if TOKEN_LINE_CONTINUATION.MatchString(line) {
-		line = TOKEN_LINE_CONTINUATION.ReplaceAllString(line, "")
+	if tokenLineContinuation.MatchString(line) {
+		line = tokenLineContinuation.ReplaceAllString(line, "")
 		return line, nil, nil
 	}
 
@@ -96,8 +96,8 @@ func parseLine(line string) (string, *Node, error) {
 	return "", node, nil
 }
 
-// The main parse routine. Handles an io.ReadWriteCloser and returns the root
-// of the AST.
+// Parse is the main parse routine.
+// It handles an io.ReadWriteCloser and returns the root of the AST.
 func Parse(rwc io.Reader) (*Node, error) {
 	root := &Node{}
 	scanner := bufio.NewScanner(rwc)

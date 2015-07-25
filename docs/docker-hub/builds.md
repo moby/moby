@@ -29,6 +29,8 @@ image was built exactly as specified.
 your repository on the Docker Hub registry.
 * Because the process is automated, Automated Builds help to
 make sure that your repository is always up to date.
+* Not having to push local Docker images to Docker Hub saves 
+you both network bandwidth and time.
 
 Automated Builds are supported for both public and private repositories
 on both [GitHub](http://github.com) and [Bitbucket](https://bitbucket.org/).
@@ -232,7 +234,7 @@ Follow the steps below to configure the GitHub Service hooks for your Automated 
     <tr>
       <td>1.</td>
       <td><img src="/docker-hub/hub-images/gh_settings.png"></td>
-      <td>Log in to Github.com, and go to your Repository page. Click on "Settings" on
+      <td>Log in to GitHub.com, and go to your Repository page. Click on "Settings" on
       the right side of the page. You must have admin privileges to the repository in order to do this.</td>
     </tr>
     <tr>
@@ -393,14 +395,11 @@ payload:
 }
 ```
 
-Webhooks are available under the Settings menu of each Repository.
+Webhooks are available under the Settings menu of each Repository.  
+Use a tool like [requestb.in](http://requestb.in/) to test your webhook.
 
-> **Note:** If you want to test your webhook out we recommend using
-> a tool like [requestb.in](http://requestb.in/).
-
-> **Note**: The Docker Hub servers are currently in the IP range
-> `162.242.195.64 - 162.242.195.127`, so you can restrict your webhooks to
-> accept webhook requests from that set of IP addresses.
+> **Note**: The Docker Hub servers use an elastic IP range, so you can't
+> filter requests by IP.
 
 ### Webhook chains
 
@@ -452,7 +451,7 @@ The following parameters are recognized in callback data:
 ## Repository links
 
 Repository links are a way to associate one Automated Build with
-another. If one gets updated,the linking system triggers a rebuild
+another. If one gets updated, the linking system triggers a rebuild
 for the other Automated Build. This makes it easy to keep all your
 Automated Builds up to date.
 

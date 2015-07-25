@@ -11,10 +11,6 @@ import (
 	"github.com/docker/docker/pkg/stringid"
 )
 
-const (
-	nullNetType = "null"
-)
-
 type command struct {
 	name        string
 	description string
@@ -44,18 +40,16 @@ func (cli *NetworkCli) CmdNetwork(chain string, args ...string) error {
 // CmdNetworkCreate handles Network Create UI
 func (cli *NetworkCli) CmdNetworkCreate(chain string, args ...string) error {
 	cmd := cli.Subcmd(chain, "create", "NETWORK-NAME", "Creates a new network with a name specified by the user", false)
-	flDriver := cmd.String([]string{"d", "-driver"}, "null", "Driver to manage the Network")
-	cmd.Require(flag.Min, 1)
+	flDriver := cmd.String([]string{"d", "-driver"}, "", "Driver to manage the Network")
+	cmd.Require(flag.Exact, 1)
 	err := cmd.ParseFlags(args, true)
 	if err != nil {
 		return err
 	}
-	if *flDriver == "" {
-		*flDriver = nullNetType
-	}
 
-	nc := networkCreate{Name: cmd.Arg(0), NetworkType: *flDriver}
-
+	// Construct network create request body
+	ops := make(map[string]interface{})
+	nc := networkCreate{Name: cmd.Arg(0), NetworkType: *flDriver, Options: ops}
 	obj, _, err := readBody(cli.call("POST", "/networks", nc, nil))
 	if err != nil {
 		return err
@@ -72,7 +66,7 @@ func (cli *NetworkCli) CmdNetworkCreate(chain string, args ...string) error {
 // CmdNetworkRm handles Network Delete UI
 func (cli *NetworkCli) CmdNetworkRm(chain string, args ...string) error {
 	cmd := cli.Subcmd(chain, "rm", "NETWORK", "Deletes a network", false)
-	cmd.Require(flag.Min, 1)
+	cmd.Require(flag.Exact, 1)
 	err := cmd.ParseFlags(args, true)
 	if err != nil {
 		return err
@@ -144,7 +138,7 @@ func (cli *NetworkCli) CmdNetworkLs(chain string, args ...string) error {
 // CmdNetworkInfo handles Network Info UI
 func (cli *NetworkCli) CmdNetworkInfo(chain string, args ...string) error {
 	cmd := cli.Subcmd(chain, "info", "NETWORK", "Displays detailed information on a network", false)
-	cmd.Require(flag.Min, 1)
+	cmd.Require(flag.Exact, 1)
 	err := cmd.ParseFlags(args, true)
 	if err != nil {
 		return err
@@ -166,10 +160,10 @@ func (cli *NetworkCli) CmdNetworkInfo(chain string, args ...string) error {
 	fmt.Fprintf(cli.out, "Network Id: %s\n", networkResource.ID)
 	fmt.Fprintf(cli.out, "Name: %s\n", networkResource.Name)
 	fmt.Fprintf(cli.out, "Type: %s\n", networkResource.Type)
-	if networkResource.Endpoints != nil {
-		for _, endpointResource := range networkResource.Endpoints {
-			fmt.Fprintf(cli.out, "  Service Id: %s\n", endpointResource.ID)
-			fmt.Fprintf(cli.out, "\tName: %s\n", endpointResource.Name)
+	if networkResource.Services != nil {
+		for _, serviceResource := range networkResource.Services {
+			fmt.Fprintf(cli.out, "  Service Id: %s\n", serviceResource.ID)
+			fmt.Fprintf(cli.out, "\tName: %s\n", serviceResource.Name)
 		}
 	}
 
@@ -229,11 +223,7 @@ func networkUsage(chain string) string {
 	help := "Commands:\n"
 
 	for _, cmd := range networkCommands {
-		help += fmt.Sprintf("    %-25.25s%s\n", cmd.name, cmd.description)
-	}
-
-	for _, cmd := range serviceCommands {
-		help += fmt.Sprintf("    %-25.25s%s\n", "service "+cmd.name, cmd.description)
+		help += fmt.Sprintf("  %-25.25s%s\n", cmd.name, cmd.description)
 	}
 
 	help += fmt.Sprintf("\nRun '%s network COMMAND --help' for more information on a command.", chain)

@@ -43,7 +43,7 @@ e-mail address. It will then automatically log you in. You can now commit and
 push your own images up to your repos on Docker Hub.
 
 > **Note:**
-> Your authentication credentials will be stored in the `.dockercfg`
+> Your authentication credentials will be stored in the `~/.docker/config.json`
 > authentication file in your home directory.
 
 ## Searching for images
@@ -125,16 +125,16 @@ manage private repositories. You can learn how to create and manage an organizat
 ### Automated Builds
 
 Automated Builds automate the building and updating of images from
-[GitHub](https://www.github.com) or [BitBucket](http://bitbucket.com), directly on Docker
-Hub. It works by adding a commit hook to your selected GitHub or BitBucket repository,
+[GitHub](https://www.github.com) or [Bitbucket](http://bitbucket.com), directly on Docker
+Hub. It works by adding a commit hook to your selected GitHub or Bitbucket repository,
 triggering a build and update when you push a commit.
 
 #### To setup an Automated Build
 
 1.  Create a [Docker Hub account](https://hub.docker.com/) and login.
-2.  Link your GitHub or BitBucket account through the ["Link Accounts"](https://registry.hub.docker.com/account/accounts/) menu.
+2.  Link your GitHub or Bitbucket account through the ["Link Accounts"](https://registry.hub.docker.com/account/accounts/) menu.
 3.  [Configure an Automated Build](https://registry.hub.docker.com/builds/add/).
-4.  Pick a GitHub or BitBucket project that has a `Dockerfile` that you want to build.
+4.  Pick a GitHub or Bitbucket project that has a `Dockerfile` that you want to build.
 5.  Pick the branch you want to build (the default is the `master` branch).
 6.  Give the Automated Build a name.
 7.  Assign an optional Docker tag to the Build.
@@ -142,16 +142,14 @@ triggering a build and update when you push a commit.
 
 Once the Automated Build is configured it will automatically trigger a
 build and, in a few minutes, you should see your new Automated Build on the [Docker Hub](https://hub.docker.com)
-Registry. It will stay in sync with your GitHub and BitBucket repository until you
+Registry. It will stay in sync with your GitHub and Bitbucket repository until you
 deactivate the Automated Build.
 
-If you want to see the status of your Automated Builds, you can go to your
-[Automated Builds page](https://registry.hub.docker.com/builds/) on the Docker Hub,
-and it will show you the status of your builds and their build history.
+To check the output and status of your Automated Build repositories, click on a repository name within the ["Your Repositories" page](https://registry.hub.docker.com/repos/). Automated Builds are indicated by a check-mark icon next to the repository name. Within the repository details page, you may click on the "Build Details" tab to view the status and output of all builds triggered by the Docker Hub.
 
 Once you've created an Automated Build you can deactivate or delete it. You
 cannot, however, push to an Automated Build with the `docker push` command.
-You can only manage it by committing code to your GitHub or BitBucket
+You can only manage it by committing code to your GitHub or Bitbucket
 repository.
 
 You can create multiple Automated Builds per repository and configure them
@@ -175,4 +173,3 @@ webhooks](https://docs.docker.com/docker-hub/repos/#webhooks)
 ## Next steps
 
 Go and use Docker!
-

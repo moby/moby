@@ -164,7 +164,7 @@ List all images with `vendor` `ACME`:
 ## Daemon labels
 
 
-    docker -d \
+    docker daemon \
       --dns 8.8.8.8 \
       --dns 8.8.4.4 \
       -H unix:///var/run/docker.sock \

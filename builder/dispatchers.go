@@ -10,6 +10,7 @@ package builder
 import (
 	"fmt"
 	"io/ioutil"
+	"path"
 	"path/filepath"
 	"regexp"
 	"runtime"
@@ -17,8 +18,8 @@ import (
 	"strings"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/docker/nat"
 	flag "github.com/docker/docker/pkg/mflag"
+	"github.com/docker/docker/pkg/nat"
 	"github.com/docker/docker/runconfig"
 )
 
@@ -29,7 +30,7 @@ const (
 )
 
 // dispatch with no layer / parsing. This is effectively not a command.
-func nullDispatch(b *Builder, args []string, attributes map[string]bool, original string) error {
+func nullDispatch(b *builder, args []string, attributes map[string]bool, original string) error {
 	return nil
 }
 
@@ -38,10 +39,7 @@ func nullDispatch(b *Builder, args []string, attributes map[string]bool, origina
 // Sets the environment variable foo to bar, also makes interpolation
 // in the dockerfile available from the next statement on via ${foo}.
 //
-func env(b *Builder, args []string, attributes map[string]bool, original string) error {
-	if runtime.GOOS == "windows" {
-		return fmt.Errorf("ENV is not supported on Windows.")
-	}
+func env(b *builder, args []string, attributes map[string]bool, original string) error {
 	if len(args) == 0 {
 		return fmt.Errorf("ENV requires at least one argument")
 	}
@@ -100,7 +98,7 @@ func env(b *Builder, args []string, attributes map[string]bool, original string)
 // MAINTAINER some text <maybe@an.email.address>
 //
 // Sets the maintainer metadata.
-func maintainer(b *Builder, args []string, attributes map[string]bool, original string) error {
+func maintainer(b *builder, args []string, attributes map[string]bool, original string) error {
 	if len(args) != 1 {
 		return fmt.Errorf("MAINTAINER requires exactly one argument")
 	}
@@ -117,7 +115,7 @@ func maintainer(b *Builder, args []string, attributes map[string]bool, original 
 //
 // Sets the Label variable foo to bar,
 //
-func label(b *Builder, args []string, attributes map[string]bool, original string) error {
+func label(b *builder, args []string, attributes map[string]bool, original string) error {
 	if len(args) == 0 {
 		return fmt.Errorf("LABEL requires at least one argument")
 	}
@@ -153,7 +151,7 @@ func label(b *Builder, args []string, attributes map[string]bool, original strin
 // Add the file 'foo' to '/path'. Tarball and Remote URL (git, http) handling
 // exist here. If you do not wish to have this automatic handling, use COPY.
 //
-func add(b *Builder, args []string, attributes map[string]bool, original string) error {
+func add(b *builder, args []string, attributes map[string]bool, original string) error {
 	if len(args) < 2 {
 		return fmt.Errorf("ADD requires at least two arguments")
 	}
@@ -169,7 +167,7 @@ func add(b *Builder, args []string, attributes map[string]bool, original string)
 //
 // Same as 'ADD' but without the tar and remote url handling.
 //
-func dispatchCopy(b *Builder, args []string, attributes map[string]bool, original string) error {
+func dispatchCopy(b *builder, args []string, attributes map[string]bool, original string) error {
 	if len(args) < 2 {
 		return fmt.Errorf("COPY requires at least two arguments")
 	}
@@ -185,7 +183,7 @@ func dispatchCopy(b *Builder, args []string, attributes map[string]bool, origina
 //
 // This sets the image the dockerfile will build on top of.
 //
-func from(b *Builder, args []string, attributes map[string]bool, original string) error {
+func from(b *builder, args []string, attributes map[string]bool, original string) error {
 	if len(args) != 1 {
 		return fmt.Errorf("FROM requires one argument")
 	}
@@ -233,7 +231,7 @@ func from(b *Builder, args []string, attributes map[string]bool, original string
 // special cases. search for 'OnBuild' in internals.go for additional special
 // cases.
 //
-func onbuild(b *Builder, args []string, attributes map[string]bool, original string) error {
+func onbuild(b *builder, args []string, attributes map[string]bool, original string) error {
 	if len(args) == 0 {
 		return fmt.Errorf("ONBUILD requires at least one argument")
 	}
@@ -260,7 +258,7 @@ func onbuild(b *Builder, args []string, attributes map[string]bool, original str
 //
 // Set the working directory for future RUN/CMD/etc statements.
 //
-func workdir(b *Builder, args []string, attributes map[string]bool, original string) error {
+func workdir(b *builder, args []string, attributes map[string]bool, original string) error {
 	if len(args) != 1 {
 		return fmt.Errorf("WORKDIR requires exactly one argument")
 	}
@@ -269,12 +267,39 @@ func workdir(b *Builder, args []string, attributes map[string]bool, original str
 		return err
 	}
 
+	// Note that workdir passed comes from the Dockerfile. Hence it is in
+	// Linux format using forward-slashes, even on Windows. However,
+	// b.Config.WorkingDir is in platform-specific notation (in other words
+	// on Windows will use `\`
 	workdir := args[0]
 
-	if !filepath.IsAbs(workdir) {
-		workdir = filepath.Join("/", b.Config.WorkingDir, workdir)
+	isAbs := false
+	if runtime.GOOS == "windows" {
+		// Alternate processing for Windows here is necessary as we can't call
+		// filepath.IsAbs(workDir) as that would verify Windows style paths,
+		// along with drive-letters (eg c:\pathto\file.txt). We (arguably
+		// correctly or not) check for both forward and back slashes as this
+		// is what the 1.4.2 GoLang implementation of IsAbs() does in the
+		// isSlash() function.
+		isAbs = workdir[0] == '\\' || workdir[0] == '/'
+	} else {
+		isAbs = filepath.IsAbs(workdir)
 	}
 
+	if !isAbs {
+		current := b.Config.WorkingDir
+		if runtime.GOOS == "windows" {
+			// Convert to Linux format before join
+			current = strings.Replace(current, "\\", "/", -1)
+		}
+		// Must use path.Join so works correctly on Windows, not filepath
+		workdir = path.Join("/", current, workdir)
+	}
+
+	// Convert to platform specific format
+	if runtime.GOOS == "windows" {
+		workdir = strings.Replace(workdir, "/", "\\", -1)
+	}
 	b.Config.WorkingDir = workdir
 
 	return b.commit("", b.Config.Cmd, fmt.Sprintf("WORKDIR %v", workdir))
@@ -290,7 +315,7 @@ func workdir(b *Builder, args []string, attributes map[string]bool, original str
 // RUN echo hi          # cmd /S /C echo hi   (Windows)
 // RUN [ "echo", "hi" ] # echo hi
 //
-func run(b *Builder, args []string, attributes map[string]bool, original string) error {
+func run(b *builder, args []string, attributes map[string]bool, original string) error {
 	if b.image == "" && !b.noBaseImage {
 		return fmt.Errorf("Please provide a source image with `from` prior to run")
 	}
@@ -299,7 +324,7 @@ func run(b *Builder, args []string, attributes map[string]bool, original string)
 		return err
 	}
 
-	args = handleJsonArgs(args, attributes)
+	args = handleJSONArgs(args, attributes)
 
 	if !attributes["json"] {
 		if runtime.GOOS != "windows" {
@@ -361,12 +386,12 @@ func run(b *Builder, args []string, attributes map[string]bool, original string)
 // Set the default command to run in the container (which may be empty).
 // Argument handling is the same as RUN.
 //
-func cmd(b *Builder, args []string, attributes map[string]bool, original string) error {
+func cmd(b *builder, args []string, attributes map[string]bool, original string) error {
 	if err := b.BuilderFlags.Parse(); err != nil {
 		return err
 	}
 
-	cmdSlice := handleJsonArgs(args, attributes)
+	cmdSlice := handleJSONArgs(args, attributes)
 
 	if !attributes["json"] {
 		if runtime.GOOS != "windows" {
@@ -397,12 +422,12 @@ func cmd(b *Builder, args []string, attributes map[string]bool, original string)
 // Handles command processing similar to CMD and RUN, only b.Config.Entrypoint
 // is initialized at NewBuilder time instead of through argument parsing.
 //
-func entrypoint(b *Builder, args []string, attributes map[string]bool, original string) error {
+func entrypoint(b *builder, args []string, attributes map[string]bool, original string) error {
 	if err := b.BuilderFlags.Parse(); err != nil {
 		return err
 	}
 
-	parsed := handleJsonArgs(args, attributes)
+	parsed := handleJSONArgs(args, attributes)
 
 	switch {
 	case attributes["json"]:
@@ -438,7 +463,7 @@ func entrypoint(b *Builder, args []string, attributes map[string]bool, original 
 // Expose ports for links and port mappings. This all ends up in
 // b.Config.ExposedPorts for runconfig.
 //
-func expose(b *Builder, args []string, attributes map[string]bool, original string) error {
+func expose(b *builder, args []string, attributes map[string]bool, original string) error {
 	portsTab := args
 
 	if len(args) == 0 {
@@ -453,17 +478,9 @@ func expose(b *Builder, args []string, attributes map[string]bool, original stri
 		b.Config.ExposedPorts = make(nat.PortSet)
 	}
 
-	ports, bindingMap, err := nat.ParsePortSpecs(append(portsTab, b.Config.PortSpecs...))
+	ports, _, err := nat.ParsePortSpecs(portsTab)
 	if err != nil {
 		return err
-	}
-
-	for _, bindings := range bindingMap {
-		if bindings[0].HostIp != "" || bindings[0].HostPort != "" {
-			fmt.Fprintf(b.ErrStream, " ---> Using Dockerfile's EXPOSE instruction"+
-				"      to map host ports to container ports (ip:hostPort:containerPort) is deprecated.\n"+
-				"      Please use -p to publish the ports.\n")
-		}
 	}
 
 	// instead of using ports directly, we build a list of ports and sort it so
@@ -479,7 +496,6 @@ func expose(b *Builder, args []string, attributes map[string]bool, original stri
 		i++
 	}
 	sort.Strings(portList)
-	b.Config.PortSpecs = nil
 	return b.commit("", b.Config.Cmd, fmt.Sprintf("EXPOSE %s", strings.Join(portList, " ")))
 }
 
@@ -488,9 +504,9 @@ func expose(b *Builder, args []string, attributes map[string]bool, original stri
 // Set the user to 'foo' for future commands and when running the
 // ENTRYPOINT/CMD at container run time.
 //
-func user(b *Builder, args []string, attributes map[string]bool, original string) error {
+func user(b *builder, args []string, attributes map[string]bool, original string) error {
 	if runtime.GOOS == "windows" {
-		return fmt.Errorf("USER is not supported on Windows.")
+		return fmt.Errorf("USER is not supported on Windows")
 	}
 
 	if len(args) != 1 {
@@ -509,9 +525,9 @@ func user(b *Builder, args []string, attributes map[string]bool, original string
 //
 // Expose the volume /foo for use. Will also accept the JSON array form.
 //
-func volume(b *Builder, args []string, attributes map[string]bool, original string) error {
+func volume(b *builder, args []string, attributes map[string]bool, original string) error {
 	if runtime.GOOS == "windows" {
-		return fmt.Errorf("VOLUME is not supported on Windows.")
+		return fmt.Errorf("VOLUME is not supported on Windows")
 	}
 	if len(args) == 0 {
 		return fmt.Errorf("VOLUME requires at least one argument")

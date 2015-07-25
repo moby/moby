@@ -85,3 +85,21 @@ func TestInSlice(t *testing.T) {
 		t.Fatalf("Expected string notinslice not to be in slice")
 	}
 }
+
+func TestShellQuoteArgumentsEmpty(t *testing.T) {
+	actual := ShellQuoteArguments([]string{})
+	expected := ""
+	if actual != expected {
+		t.Fatalf("Expected an empty string")
+	}
+}
+
+func TestShellQuoteArguments(t *testing.T) {
+	simpleString := "simpleString"
+	complexString := "This is a 'more' complex $tring with some special char *"
+	actual := ShellQuoteArguments([]string{simpleString, complexString})
+	expected := "simpleString 'This is a '\\''more'\\'' complex $tring with some special char *'"
+	if actual != expected {
+		t.Fatalf("Expected \"%v\", got \"%v\"", expected, actual)
+	}
+}

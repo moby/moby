@@ -1,6 +1,7 @@
 package server
 
 import (
+	"crypto/tls"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -13,8 +14,8 @@ import (
 	"strings"
 	"time"
 
-	"code.google.com/p/go.net/websocket"
 	"github.com/gorilla/mux"
+	"golang.org/x/net/websocket"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api"
@@ -33,6 +34,7 @@ import (
 	"github.com/docker/docker/pkg/sockets"
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/docker/docker/pkg/streamformatter"
+	"github.com/docker/docker/pkg/ulimit"
 	"github.com/docker/docker/pkg/version"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/utils"
@@ -44,11 +46,7 @@ type ServerConfig struct {
 	CorsHeaders string
 	Version     string
 	SocketGroup string
-	Tls         bool
-	TlsVerify   bool
-	TlsCa       string
-	TlsCert     string
-	TlsKey      string
+	TLSConfig   *tls.Config
 }
 
 type Server struct {
@@ -252,6 +250,7 @@ func (s *Server) getVersion(version version.Version, w http.ResponseWriter, r *h
 		GoVersion:  runtime.Version(),
 		Os:         runtime.GOOS,
 		Arch:       runtime.GOARCH,
+		BuildTime:  dockerversion.BUILDTIME,
 	}
 
 	if version.GreaterThanOrEqualTo("1.19") {
@@ -412,6 +411,9 @@ func (s *Server) getEvents(version version.Version, w http.ResponseWriter, r *ht
 	}
 
 	isFiltered := func(field string, filter []string) bool {
+		if len(field) == 0 {
+			return false
+		}
 		if len(filter) == 0 {
 			return false
 		}
@@ -432,7 +434,9 @@ func (s *Server) getEvents(version version.Version, w http.ResponseWriter, r *ht
 	d := s.daemon
 	es := d.EventsService
 	w.Header().Set("Content-Type", "application/json")
-	enc := json.NewEncoder(ioutils.NewWriteFlusher(w))
+	outStream := ioutils.NewWriteFlusher(w)
+	outStream.Write(nil) // make sure response is sent immediately
+	enc := json.NewEncoder(outStream)
 
 	getContainerId := func(cn string) string {
 		c, err := d.Get(cn)
@@ -448,8 +452,8 @@ func (s *Server) getEvents(version version.Version, w http.ResponseWriter, r *ht
 			ef["container"][i] = getContainerId(cn)
 		}
 
-		if isFiltered(ev.Status, ef["event"]) || isFiltered(ev.From, ef["image"]) ||
-			isFiltered(ev.ID, ef["container"]) {
+		if isFiltered(ev.Status, ef["event"]) || (isFiltered(ev.ID, ef["image"]) &&
+			isFiltered(ev.From, ef["image"])) || isFiltered(ev.ID, ef["container"]) {
 			return nil
 		}
 
@@ -584,7 +588,18 @@ func (s *Server) getContainersStats(version version.Version, w http.ResponseWrit
 		out = ioutils.NewWriteFlusher(w)
 	}
 
-	return s.daemon.ContainerStats(vars["name"], stream, out)
+	var closeNotifier <-chan bool
+	if notifier, ok := w.(http.CloseNotifier); ok {
+		closeNotifier = notifier.CloseNotify()
+	}
+
+	config := &daemon.ContainerStatsConfig{
+		Stream:    stream,
+		OutStream: out,
+		Stop:      closeNotifier,
+	}
+
+	return s.daemon.ContainerStats(vars["name"], config)
 }
 
 func (s *Server) getContainersLogs(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
@@ -610,6 +625,22 @@ func (s *Server) getContainersLogs(version version.Version, w http.ResponseWrite
 		since = time.Unix(s, 0)
 	}
 
+	var closeNotifier <-chan bool
+	if notifier, ok := w.(http.CloseNotifier); ok {
+		closeNotifier = notifier.CloseNotify()
+	}
+
+	c, err := s.daemon.Get(vars["name"])
+	if err != nil {
+		return err
+	}
+
+	outStream := ioutils.NewWriteFlusher(w)
+	// write an empty chunk of data (this is to ensure that the
+	// HTTP Response is sent immediatly, even if the container has
+	// not yet produced any data)
+	outStream.Write(nil)
+
 	logsConfig := &daemon.ContainerLogsConfig{
 		Follow:     boolValue(r, "follow"),
 		Timestamps: boolValue(r, "timestamps"),
@@ -617,10 +648,11 @@ func (s *Server) getContainersLogs(version version.Version, w http.ResponseWrite
 		Tail:       r.Form.Get("tail"),
 		UseStdout:  stdout,
 		UseStderr:  stderr,
-		OutStream:  ioutils.NewWriteFlusher(w),
+		OutStream:  outStream,
+		Stop:       closeNotifier,
 	}
 
-	if err := s.daemon.ContainerLogs(vars["name"], logsConfig); err != nil {
+	if err := s.daemon.ContainerLogs(c, logsConfig); err != nil {
 		fmt.Fprintf(w, "Error running logs job: %s\n", err)
 	}
 
@@ -656,7 +688,7 @@ func (s *Server) postCommit(version version.Version, w http.ResponseWriter, r *h
 		return err
 	}
 
-	cont := r.Form.Get("container")
+	cname := r.Form.Get("container")
 
 	pause := boolValue(r, "pause")
 	if r.FormValue("pause") == "" && version.GreaterThanOrEqualTo("1.13") {
@@ -668,7 +700,7 @@ func (s *Server) postCommit(version version.Version, w http.ResponseWriter, r *h
 		return err
 	}
 
-	containerCommitConfig := &daemon.ContainerCommitConfig{
+	commitCfg := &builder.CommitConfig{
 		Pause:   pause,
 		Repo:    r.Form.Get("repo"),
 		Tag:     r.Form.Get("tag"),
@@ -678,7 +710,7 @@ func (s *Server) postCommit(version version.Version, w http.ResponseWriter, r *h
 		Config:  c,
 	}
 
-	imgID, err := builder.Commit(s.daemon, cont, containerCommitConfig)
+	imgID, err := builder.Commit(cname, s.daemon, commitCfg)
 	if err != nil {
 		return err
 	}
@@ -798,7 +830,7 @@ func (s *Server) getImagesSearch(version version.Version, w http.ResponseWriter,
 	if err != nil {
 		return err
 	}
-	return json.NewEncoder(w).Encode(query.Results)
+	return writeJSON(w, http.StatusOK, query.Results)
 }
 
 func (s *Server) postImagesPush(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
@@ -1126,7 +1158,6 @@ func (s *Server) postContainersAttach(version version.Version, w http.ResponseWr
 		UseStderr: boolValue(r, "stderr"),
 		Logs:      boolValue(r, "logs"),
 		Stream:    boolValue(r, "stream"),
-		Multiplex: version.GreaterThanOrEqualTo("1.6"),
 	}
 
 	if err := s.daemon.ContainerAttachWithLogs(cont, attachWithLogsConfig); err != nil {
@@ -1174,8 +1205,8 @@ func (s *Server) getContainersByName(version version.Version, w http.ResponseWri
 		return fmt.Errorf("Missing parameter")
 	}
 
-	if version.LessThan("1.19") {
-		containerJSONRaw, err := s.daemon.ContainerInspectRaw(vars["name"])
+	if version.LessThan("1.20") {
+		containerJSONRaw, err := s.daemon.ContainerInspectPre120(vars["name"])
 		if err != nil {
 			return err
 		}
@@ -1257,12 +1288,21 @@ func (s *Server) postBuild(version version.Version, w http.ResponseWriter, r *ht
 	buildConfig.AuthConfigs = authConfigs
 	buildConfig.MemorySwap = int64ValueOrZero(r, "memswap")
 	buildConfig.Memory = int64ValueOrZero(r, "memory")
-	buildConfig.CpuShares = int64ValueOrZero(r, "cpushares")
-	buildConfig.CpuPeriod = int64ValueOrZero(r, "cpuperiod")
-	buildConfig.CpuQuota = int64ValueOrZero(r, "cpuquota")
-	buildConfig.CpuSetCpus = r.FormValue("cpusetcpus")
-	buildConfig.CpuSetMems = r.FormValue("cpusetmems")
+	buildConfig.CPUShares = int64ValueOrZero(r, "cpushares")
+	buildConfig.CPUPeriod = int64ValueOrZero(r, "cpuperiod")
+	buildConfig.CPUQuota = int64ValueOrZero(r, "cpuquota")
+	buildConfig.CPUSetCpus = r.FormValue("cpusetcpus")
+	buildConfig.CPUSetMems = r.FormValue("cpusetmems")
 	buildConfig.CgroupParent = r.FormValue("cgroupparent")
+
+	var buildUlimits = []*ulimit.Ulimit{}
+	ulimitsJson := r.FormValue("ulimits")
+	if ulimitsJson != "" {
+		if err := json.NewDecoder(strings.NewReader(ulimitsJson)).Decode(&buildUlimits); err != nil {
+			return err
+		}
+		buildConfig.Ulimits = buildUlimits
+	}
 
 	// Job cancellation. Note: not all job types support this.
 	if closeNotifier, ok := w.(http.CloseNotifier); ok {
@@ -1290,6 +1330,7 @@ func (s *Server) postBuild(version version.Version, w http.ResponseWriter, r *ht
 	return nil
 }
 
+// postContainersCopy is deprecated in favor of getContainersArchivePath.
 func (s *Server) postContainersCopy(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
@@ -1329,8 +1370,72 @@ func (s *Server) postContainersCopy(version version.Version, w http.ResponseWrit
 	return nil
 }
 
+// // Encode the stat to JSON, base64 encode, and place in a header.
+func setContainerPathStatHeader(stat *types.ContainerPathStat, header http.Header) error {
+	statJSON, err := json.Marshal(stat)
+	if err != nil {
+		return err
+	}
+
+	header.Set(
+		"X-Docker-Container-Path-Stat",
+		base64.StdEncoding.EncodeToString(statJSON),
+	)
+
+	return nil
+}
+
+func (s *Server) headContainersArchive(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	v, err := archiveFormValues(r, vars)
+	if err != nil {
+		return err
+	}
+
+	stat, err := s.daemon.ContainerStatPath(v.name, v.path)
+	if err != nil {
+		return err
+	}
+
+	return setContainerPathStatHeader(stat, w.Header())
+}
+
+func (s *Server) getContainersArchive(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	v, err := archiveFormValues(r, vars)
+	if err != nil {
+		return err
+	}
+
+	tarArchive, stat, err := s.daemon.ContainerArchivePath(v.name, v.path)
+	if err != nil {
+		return err
+	}
+	defer tarArchive.Close()
+
+	if err := setContainerPathStatHeader(stat, w.Header()); err != nil {
+		return err
+	}
+
+	w.Header().Set("Content-Type", "application/x-tar")
+	_, err = io.Copy(w, tarArchive)
+
+	return err
+}
+
+func (s *Server) putContainersArchive(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	v, err := archiveFormValues(r, vars)
+	if err != nil {
+		return err
+	}
+
+	noOverwriteDirNonDir := boolValue(r, "noOverwriteDirNonDir")
+	return s.daemon.ContainerExtractToDir(v.name, v.path, noOverwriteDirNonDir, r.Body)
+}
+
 func (s *Server) postContainerExecCreate(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := parseForm(r); err != nil {
+		return err
+	}
+	if err := checkForJson(r); err != nil {
 		return err
 	}
 	name := vars["name"]
@@ -1447,22 +1552,15 @@ func (s *Server) ping(version version.Version, w http.ResponseWriter, r *http.Re
 }
 
 func (s *Server) initTcpSocket(addr string) (l net.Listener, err error) {
-	if !s.cfg.TlsVerify {
+	if s.cfg.TLSConfig == nil || s.cfg.TLSConfig.ClientAuth != tls.RequireAndVerifyClientCert {
 		logrus.Warn("/!\\ DON'T BIND ON ANY IP ADDRESS WITHOUT setting -tlsverify IF YOU DON'T KNOW WHAT YOU'RE DOING /!\\")
 	}
-
-	var c *sockets.TlsConfig
-	if s.cfg.Tls || s.cfg.TlsVerify {
-		c = sockets.NewTlsConfig(s.cfg.TlsCert, s.cfg.TlsKey, s.cfg.TlsCa, s.cfg.TlsVerify)
-	}
-
-	if l, err = sockets.NewTcpSocket(addr, c, s.start); err != nil {
+	if l, err = sockets.NewTcpSocket(addr, s.cfg.TLSConfig, s.start); err != nil {
 		return nil, err
 	}
 	if err := allocateDaemonPort(addr); err != nil {
 		return nil, err
 	}
-
 	return
 }
 
@@ -1477,6 +1575,13 @@ func makeHttpHandler(logging bool, localMethod string, localRoute string, handle
 
 		if strings.Contains(r.Header.Get("User-Agent"), "Docker-Client/") {
 			userAgent := strings.Split(r.Header.Get("User-Agent"), "/")
+
+			// v1.20 onwards includes the GOOS of the client after the version
+			// such as Docker/1.7.0 (linux)
+			if len(userAgent) == 2 && strings.Contains(userAgent[1], " ") {
+				userAgent[1] = strings.Split(userAgent[1], " ")[0]
+			}
+
 			if len(userAgent) == 2 && !dockerVersion.Equal(version.Version(userAgent[1])) {
 				logrus.Debugf("Warning: client and server don't have the same version (client: %s, server: %s)", userAgent[1], dockerVersion)
 			}
@@ -1498,6 +1603,8 @@ func makeHttpHandler(logging bool, localMethod string, localRoute string, handle
 			return
 		}
 
+		w.Header().Set("Server", "Docker/"+dockerversion.VERSION+" ("+runtime.GOOS+")")
+
 		if err := handlerFunc(version, w, r, mux.Vars(r)); err != nil {
 			logrus.Errorf("Handler for %s %s returned error: %s", localMethod, localRoute, err)
 			httpError(w, err)
@@ -1512,6 +1619,9 @@ func createRouter(s *Server) *mux.Router {
 		ProfilerSetup(r, "/debug/")
 	}
 	m := map[string]map[string]HttpApiFunc{
+		"HEAD": {
+			"/containers/{name:.*}/archive": s.headContainersArchive,
+		},
 		"GET": {
 			"/_ping":                          s.ping,
 			"/events":                         s.getEvents,
@@ -1533,6 +1643,7 @@ func createRouter(s *Server) *mux.Router {
 			"/containers/{name:.*}/stats":     s.getContainersStats,
 			"/containers/{name:.*}/attach/ws": s.wsContainersAttach,
 			"/exec/{id:.*}/json":              s.getExecByID,
+			"/containers/{name:.*}/archive":   s.getContainersArchive,
 		},
 		"POST": {
 			"/auth":                         s.postAuth,
@@ -1557,6 +1668,9 @@ func createRouter(s *Server) *mux.Router {
 			"/exec/{name:.*}/start":         s.postContainerExecStart,
 			"/exec/{name:.*}/resize":        s.postContainerExecResize,
 			"/containers/{name:.*}/rename":  s.postContainerRename,
+		},
+		"PUT": {
+			"/containers/{name:.*}/archive": s.putContainersArchive,
 		},
 		"DELETE": {
 			"/containers/{name:.*}": s.deleteContainers,

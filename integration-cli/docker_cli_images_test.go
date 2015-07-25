@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"os/exec"
 	"reflect"
 	"sort"
 	"strings"
@@ -13,16 +12,10 @@ import (
 )
 
 func (s *DockerSuite) TestImagesEnsureImageIsListed(c *check.C) {
-	imagesCmd := exec.Command(dockerBinary, "images")
-	out, _, err := runCommandWithOutput(imagesCmd)
-	if err != nil {
-		c.Fatalf("listing images failed with errors: %s, %v", out, err)
-	}
-
+	out, _ := dockerCmd(c, "images")
 	if !strings.Contains(out, "busybox") {
 		c.Fatal("images should've listed busybox")
 	}
-
 }
 
 func (s *DockerSuite) TestImagesOrderedByCreationDate(c *check.C) {
@@ -47,10 +40,7 @@ func (s *DockerSuite) TestImagesOrderedByCreationDate(c *check.C) {
 		c.Fatal(err)
 	}
 
-	out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "images", "-q", "--no-trunc"))
-	if err != nil {
-		c.Fatalf("listing images failed with errors: %s, %v", out, err)
-	}
+	out, _ := dockerCmd(c, "images", "-q", "--no-trunc")
 	imgs := strings.Split(out, "\n")
 	if imgs[0] != id3 {
 		c.Fatalf("First image must be %s, got %s", id3, imgs[0])
@@ -61,16 +51,13 @@ func (s *DockerSuite) TestImagesOrderedByCreationDate(c *check.C) {
 	if imgs[2] != id1 {
 		c.Fatalf("Third image must be %s, got %s", id1, imgs[2])
 	}
-
 }
 
 func (s *DockerSuite) TestImagesErrorWithInvalidFilterNameTest(c *check.C) {
-	imagesCmd := exec.Command(dockerBinary, "images", "-f", "FOO=123")
-	out, _, err := runCommandWithOutput(imagesCmd)
-	if !strings.Contains(out, "Invalid filter") {
-		c.Fatalf("error should occur when listing images with invalid filter name FOO, %s, %v", out, err)
+	out, _, err := dockerCmdWithError(c, "images", "-f", "FOO=123")
+	if err == nil || !strings.Contains(out, "Invalid filter") {
+		c.Fatalf("error should occur when listing images with invalid filter name FOO, %s", out)
 	}
-
 }
 
 func (s *DockerSuite) TestImagesFilterLabel(c *check.C) {
@@ -98,28 +85,17 @@ func (s *DockerSuite) TestImagesFilterLabel(c *check.C) {
 		c.Fatal(err)
 	}
 
-	cmd := exec.Command(dockerBinary, "images", "--no-trunc", "-q", "-f", "label=match")
-	out, _, err := runCommandWithOutput(cmd)
-	if err != nil {
-		c.Fatal(out, err)
-	}
+	out, _ := dockerCmd(c, "images", "--no-trunc", "-q", "-f", "label=match")
 	out = strings.TrimSpace(out)
-
 	if (!strings.Contains(out, image1ID) && !strings.Contains(out, image2ID)) || strings.Contains(out, image3ID) {
 		c.Fatalf("Expected ids %s,%s got %s", image1ID, image2ID, out)
 	}
 
-	cmd = exec.Command(dockerBinary, "images", "--no-trunc", "-q", "-f", "label=match=me too")
-	out, _, err = runCommandWithOutput(cmd)
-	if err != nil {
-		c.Fatal(out, err)
-	}
+	out, _ = dockerCmd(c, "images", "--no-trunc", "-q", "-f", "label=match=me too")
 	out = strings.TrimSpace(out)
-
 	if out != image2ID {
 		c.Fatalf("Expected %s got %s", image2ID, out)
 	}
-
 }
 
 func (s *DockerSuite) TestImagesFilterSpaceTrimCase(c *check.C) {
@@ -140,11 +116,7 @@ func (s *DockerSuite) TestImagesFilterSpaceTrimCase(c *check.C) {
 
 	imageListings := make([][]string, 5, 5)
 	for idx, filter := range filters {
-		cmd := exec.Command(dockerBinary, "images", "-q", "-f", filter)
-		out, _, err := runCommandWithOutput(cmd)
-		if err != nil {
-			c.Fatal(err)
-		}
+		out, _ := dockerCmd(c, "images", "-q", "-f", filter)
 		listing := strings.Split(out, "\n")
 		sort.Strings(listing)
 		imageListings[idx] = listing
@@ -162,42 +134,22 @@ func (s *DockerSuite) TestImagesFilterSpaceTrimCase(c *check.C) {
 			c.Fatalf("All output must be the same")
 		}
 	}
-
 }
 
 func (s *DockerSuite) TestImagesEnsureDanglingImageOnlyListedOnce(c *check.C) {
-
 	// create container 1
-	cmd := exec.Command(dockerBinary, "run", "-d", "busybox", "true")
-	out, _, err := runCommandWithOutput(cmd)
-	if err != nil {
-		c.Fatalf("error running busybox: %s, %v", out, err)
-	}
-	containerId1 := strings.TrimSpace(out)
+	out, _ := dockerCmd(c, "run", "-d", "busybox", "true")
+	containerID1 := strings.TrimSpace(out)
 
 	// tag as foobox
-	cmd = exec.Command(dockerBinary, "commit", containerId1, "foobox")
-	out, _, err = runCommandWithOutput(cmd)
-	if err != nil {
-		c.Fatalf("error tagging foobox: %s", err)
-	}
-	imageId := stringid.TruncateID(strings.TrimSpace(out))
+	out, _ = dockerCmd(c, "commit", containerID1, "foobox")
+	imageID := stringid.TruncateID(strings.TrimSpace(out))
 
 	// overwrite the tag, making the previous image dangling
-	cmd = exec.Command(dockerBinary, "tag", "-f", "busybox", "foobox")
-	out, _, err = runCommandWithOutput(cmd)
-	if err != nil {
-		c.Fatalf("error tagging foobox: %s", err)
-	}
+	dockerCmd(c, "tag", "-f", "busybox", "foobox")
 
-	cmd = exec.Command(dockerBinary, "images", "-q", "-f", "dangling=true")
-	out, _, err = runCommandWithOutput(cmd)
-	if err != nil {
-		c.Fatalf("listing images failed with errors: %s, %v", out, err)
-	}
-
-	if e, a := 1, strings.Count(out, imageId); e != a {
+	out, _ = dockerCmd(c, "images", "-q", "-f", "dangling=true")
+	if e, a := 1, strings.Count(out, imageID); e != a {
 		c.Fatalf("expected 1 dangling image, got %d: %s", a, out)
 	}
-
 }

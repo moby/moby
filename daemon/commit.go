@@ -11,22 +11,16 @@ type ContainerCommitConfig struct {
 	Tag     string
 	Author  string
 	Comment string
-	Changes []string
 	Config  *runconfig.Config
 }
 
 // Commit creates a new filesystem image from the current state of a container.
 // The image can optionally be tagged into a repository
-func (daemon *Daemon) Commit(container *Container, repository, tag, comment, author string, pause bool, config *runconfig.Config) (*image.Image, error) {
-	if pause && !container.IsPaused() {
+func (daemon *Daemon) Commit(container *Container, c *ContainerCommitConfig) (*image.Image, error) {
+	if c.Pause && !container.IsPaused() {
 		container.Pause()
 		defer container.Unpause()
 	}
-
-	if err := container.Mount(); err != nil {
-		return nil, err
-	}
-	defer container.Unmount()
 
 	rwTar, err := container.ExportRw()
 	if err != nil {
@@ -50,16 +44,17 @@ func (daemon *Daemon) Commit(container *Container, repository, tag, comment, aut
 		containerConfig = container.Config
 	}
 
-	img, err := daemon.graph.Create(rwTar, containerID, parentImageID, comment, author, containerConfig, config)
+	img, err := daemon.graph.Create(rwTar, containerID, parentImageID, c.Comment, c.Author, containerConfig, c.Config)
 	if err != nil {
 		return nil, err
 	}
 
 	// Register the image if needed
-	if repository != "" {
-		if err := daemon.repositories.Tag(repository, tag, img.ID, true); err != nil {
+	if c.Repo != "" {
+		if err := daemon.repositories.Tag(c.Repo, c.Tag, img.ID, true); err != nil {
 			return img, err
 		}
 	}
+	container.LogEvent("commit")
 	return img, nil
 }

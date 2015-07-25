@@ -587,6 +587,31 @@ func GetStatus(name string) (uint64, uint64, string, string, error) {
 	return start, length, targetType, params, nil
 }
 
+func GetTable(name string) (uint64, uint64, string, string, error) {
+	task, err := TaskCreateNamed(DeviceTable, name)
+	if task == nil {
+		logrus.Debugf("GetTable: Error TaskCreateNamed: %s", err)
+		return 0, 0, "", "", err
+	}
+	if err := task.Run(); err != nil {
+		logrus.Debugf("GetTable: Error Run: %s", err)
+		return 0, 0, "", "", err
+	}
+
+	devinfo, err := task.GetInfo()
+	if err != nil {
+		logrus.Debugf("GetTable: Error GetInfo: %s", err)
+		return 0, 0, "", "", err
+	}
+	if devinfo.Exists == 0 {
+		logrus.Debugf("GetTable: Non existing device %s", name)
+		return 0, 0, "", "", fmt.Errorf("Non existing device %s", name)
+	}
+
+	_, start, length, targetType, params := task.GetNextTarget(unsafe.Pointer(nil))
+	return start, length, targetType, params, nil
+}
+
 func SetTransactionId(poolName string, oldId uint64, newId uint64) error {
 	task, err := TaskCreateNamed(DeviceTargetMsg, poolName)
 	if task == nil {
@@ -686,12 +711,25 @@ func DeleteDevice(poolName string, deviceId int) error {
 }
 
 func ActivateDevice(poolName string, name string, deviceId int, size uint64) error {
+	return activateDevice(poolName, name, deviceId, size, "")
+}
+
+func ActivateDeviceWithExternal(poolName string, name string, deviceId int, size uint64, external string) error {
+	return activateDevice(poolName, name, deviceId, size, external)
+}
+
+func activateDevice(poolName string, name string, deviceId int, size uint64, external string) error {
 	task, err := TaskCreateNamed(DeviceCreate, name)
 	if task == nil {
 		return err
 	}
 
-	params := fmt.Sprintf("%s %d", poolName, deviceId)
+	var params string
+	if len(external) > 0 {
+		params = fmt.Sprintf("%s %d %s", poolName, deviceId, external)
+	} else {
+		params = fmt.Sprintf("%s %d", poolName, deviceId)
+	}
 	if err := task.AddTarget(0, size/512, "thin", params); err != nil {
 		return fmt.Errorf("Can't add target %s", err)
 	}

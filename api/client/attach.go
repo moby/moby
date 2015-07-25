@@ -8,6 +8,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types"
+	Cli "github.com/docker/docker/cli"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/signal"
 )
@@ -16,23 +17,23 @@ import (
 //
 // Usage: docker attach [OPTIONS] CONTAINER
 func (cli *DockerCli) CmdAttach(args ...string) error {
-	var (
-		cmd     = cli.Subcmd("attach", "CONTAINER", "Attach to a running container", true)
-		noStdin = cmd.Bool([]string{"#nostdin", "-no-stdin"}, false, "Do not attach STDIN")
-		proxy   = cmd.Bool([]string{"#sig-proxy", "-sig-proxy"}, true, "Proxy all received signals to the process")
-	)
+	cmd := Cli.Subcmd("attach", []string{"CONTAINER"}, "Attach to a running container", true)
+	noStdin := cmd.Bool([]string{"#nostdin", "-no-stdin"}, false, "Do not attach STDIN")
+	proxy := cmd.Bool([]string{"#sig-proxy", "-sig-proxy"}, true, "Proxy all received signals to the process")
+
 	cmd.Require(flag.Exact, 1)
 
 	cmd.ParseFlags(args, true)
-	name := cmd.Arg(0)
 
-	stream, _, err := cli.call("GET", "/containers/"+name+"/json", nil, nil)
+	serverResp, err := cli.call("GET", "/containers/"+cmd.Arg(0)+"/json", nil, nil)
 	if err != nil {
 		return err
 	}
 
+	defer serverResp.body.Close()
+
 	var c types.ContainerJSON
-	if err := json.NewDecoder(stream).Decode(&c); err != nil {
+	if err := json.NewDecoder(serverResp.body).Decode(&c); err != nil {
 		return err
 	}
 
@@ -76,7 +77,7 @@ func (cli *DockerCli) CmdAttach(args ...string) error {
 		return err
 	}
 	if status != 0 {
-		return StatusError{StatusCode: status}
+		return Cli.StatusError{StatusCode: status}
 	}
 
 	return nil

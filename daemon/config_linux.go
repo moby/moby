@@ -22,8 +22,6 @@ type Config struct {
 
 	// Fields below here are platform specific.
 
-	// Bridge holds bridge network specific configuration.
-	Bridge               bridgeConfig
 	EnableSelinuxSupport bool
 	SocketGroup          string
 	Ulimits              map[string]*ulimit.Ulimit
@@ -51,26 +49,28 @@ type bridgeConfig struct {
 // the current process.
 // Subsequent calls to `flag.Parse` will populate config with values parsed
 // from the command-line.
-func (config *Config) InstallFlags() {
+func (config *Config) InstallFlags(cmd *flag.FlagSet, usageFn func(string) string) {
 	// First handle install flags which are consistent cross-platform
-	config.InstallCommonFlags()
+	config.InstallCommonFlags(cmd, usageFn)
 
 	// Then platform-specific install flags
-	flag.BoolVar(&config.EnableSelinuxSupport, []string{"-selinux-enabled"}, false, "Enable selinux support")
-	flag.StringVar(&config.SocketGroup, []string{"G", "-group"}, "docker", "Group for the unix socket")
+	cmd.BoolVar(&config.EnableSelinuxSupport, []string{"-selinux-enabled"}, false, usageFn("Enable selinux support"))
+	cmd.StringVar(&config.SocketGroup, []string{"G", "-group"}, "docker", usageFn("Group for the unix socket"))
 	config.Ulimits = make(map[string]*ulimit.Ulimit)
-	opts.UlimitMapVar(config.Ulimits, []string{"-default-ulimit"}, "Set default ulimits for containers")
-	flag.BoolVar(&config.Bridge.EnableIPTables, []string{"#iptables", "-iptables"}, true, "Enable addition of iptables rules")
-	flag.BoolVar(&config.Bridge.EnableIPForward, []string{"#ip-forward", "-ip-forward"}, true, "Enable net.ipv4.ip_forward")
-	flag.BoolVar(&config.Bridge.EnableIPMasq, []string{"-ip-masq"}, true, "Enable IP masquerading")
-	flag.BoolVar(&config.Bridge.EnableIPv6, []string{"-ipv6"}, false, "Enable IPv6 networking")
-	flag.StringVar(&config.Bridge.IP, []string{"#bip", "-bip"}, "", "Specify network bridge IP")
-	flag.StringVar(&config.Bridge.Iface, []string{"b", "-bridge"}, "", "Attach containers to a network bridge")
-	flag.StringVar(&config.Bridge.FixedCIDR, []string{"-fixed-cidr"}, "", "IPv4 subnet for fixed IPs")
-	flag.StringVar(&config.Bridge.FixedCIDRv6, []string{"-fixed-cidr-v6"}, "", "IPv6 subnet for fixed IPs")
-	opts.IPVar(&config.Bridge.DefaultGatewayIPv4, []string{"-default-gateway"}, "", "Container default gateway IPv4 address")
-	opts.IPVar(&config.Bridge.DefaultGatewayIPv6, []string{"-default-gateway-v6"}, "", "Container default gateway IPv6 address")
-	flag.BoolVar(&config.Bridge.InterContainerCommunication, []string{"#icc", "-icc"}, true, "Enable inter-container communication")
-	opts.IPVar(&config.Bridge.DefaultIP, []string{"#ip", "-ip"}, "0.0.0.0", "Default IP when binding container ports")
-	flag.BoolVar(&config.Bridge.EnableUserlandProxy, []string{"-userland-proxy"}, true, "Use userland proxy for loopback traffic")
+	cmd.Var(opts.NewUlimitOpt(&config.Ulimits), []string{"-default-ulimit"}, usageFn("Set default ulimits for containers"))
+	cmd.BoolVar(&config.Bridge.EnableIPTables, []string{"#iptables", "-iptables"}, true, usageFn("Enable addition of iptables rules"))
+	cmd.BoolVar(&config.Bridge.EnableIPForward, []string{"#ip-forward", "-ip-forward"}, true, usageFn("Enable net.ipv4.ip_forward"))
+	cmd.BoolVar(&config.Bridge.EnableIPMasq, []string{"-ip-masq"}, true, usageFn("Enable IP masquerading"))
+	cmd.BoolVar(&config.Bridge.EnableIPv6, []string{"-ipv6"}, false, usageFn("Enable IPv6 networking"))
+	cmd.StringVar(&config.Bridge.IP, []string{"#bip", "-bip"}, "", usageFn("Specify network bridge IP"))
+	cmd.StringVar(&config.Bridge.Iface, []string{"b", "-bridge"}, "", usageFn("Attach containers to a network bridge"))
+	cmd.StringVar(&config.Bridge.FixedCIDR, []string{"-fixed-cidr"}, "", usageFn("IPv4 subnet for fixed IPs"))
+	cmd.StringVar(&config.Bridge.FixedCIDRv6, []string{"-fixed-cidr-v6"}, "", usageFn("IPv6 subnet for fixed IPs"))
+	cmd.Var(opts.NewIpOpt(&config.Bridge.DefaultGatewayIPv4, ""), []string{"-default-gateway"}, usageFn("Container default gateway IPv4 address"))
+	cmd.Var(opts.NewIpOpt(&config.Bridge.DefaultGatewayIPv6, ""), []string{"-default-gateway-v6"}, usageFn("Container default gateway IPv6 address"))
+	cmd.BoolVar(&config.Bridge.InterContainerCommunication, []string{"#icc", "-icc"}, true, usageFn("Enable inter-container communication"))
+	cmd.Var(opts.NewIpOpt(&config.Bridge.DefaultIP, "0.0.0.0"), []string{"#ip", "-ip"}, usageFn("Default IP when binding container ports"))
+	cmd.BoolVar(&config.Bridge.EnableUserlandProxy, []string{"-userland-proxy"}, true, usageFn("Use userland proxy for loopback traffic"))
+
+	config.attachExperimentalFlags(cmd, usageFn)
 }

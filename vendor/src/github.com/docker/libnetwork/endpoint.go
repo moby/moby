@@ -2,6 +2,7 @@ package libnetwork
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -9,8 +10,9 @@ import (
 	"path/filepath"
 	"sync"
 
-	"github.com/Sirupsen/logrus"
+	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/ioutils"
+	"github.com/docker/libnetwork/datastore"
 	"github.com/docker/libnetwork/etchosts"
 	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/libnetwork/resolvconf"
@@ -31,8 +33,8 @@ type Endpoint interface {
 
 	// Join creates a new sandbox for the given container ID and populates the
 	// network resources allocated for the endpoint and joins the sandbox to
-	// the endpoint. It returns the sandbox key to the caller
-	Join(containerID string, options ...EndpointOption) (*ContainerData, error)
+	// the endpoint.
+	Join(containerID string, options ...EndpointOption) error
 
 	// Leave removes the sandbox associated with  container ID and detaches
 	// the network resources populated in the sandbox
@@ -41,8 +43,11 @@ type Endpoint interface {
 	// Return certain operational data belonging to this endpoint
 	Info() EndpointInfo
 
-	// Info returns a collection of driver operational data related to this endpoint retrieved from the driver
+	// DriverInfo returns a collection of driver operational data related to this endpoint retrieved from the driver
 	DriverInfo() (map[string]interface{}, error)
+
+	// ContainerInfo returns the info available at the endpoint about the attached container
+	ContainerInfo() ContainerInfo
 
 	// Delete and detaches this endpoint from the network.
 	Delete() error
@@ -82,6 +87,7 @@ type containerConfig struct {
 	resolvConfPathConfig
 	generic           map[string]interface{}
 	useDefaultSandBox bool
+	prio              int // higher the value, more the priority
 }
 
 type extraHost struct {
@@ -99,20 +105,104 @@ type containerInfo struct {
 	id     string
 	config containerConfig
 	data   ContainerData
+	sync.Mutex
+}
+
+func (ci *containerInfo) ID() string {
+	return ci.id
+}
+
+func (ci *containerInfo) Labels() map[string]interface{} {
+	return ci.config.generic
 }
 
 type endpoint struct {
 	name          string
 	id            types.UUID
 	network       *network
-	sandboxInfo   *sandbox.Info
 	iFaces        []*endpointInterface
 	joinInfo      *endpointJoinInfo
 	container     *containerInfo
 	exposedPorts  []types.TransportPort
 	generic       map[string]interface{}
 	joinLeaveDone chan struct{}
+	dbIndex       uint64
+	dbExists      bool
 	sync.Mutex
+}
+
+func (ci *containerInfo) MarshalJSON() ([]byte, error) {
+	ci.Lock()
+	defer ci.Unlock()
+
+	// We are just interested in the container ID. This can be expanded to include all of containerInfo if there is a need
+	return json.Marshal(ci.id)
+}
+
+func (ci *containerInfo) UnmarshalJSON(b []byte) (err error) {
+	ci.Lock()
+	defer ci.Unlock()
+
+	var id string
+	if err := json.Unmarshal(b, &id); err != nil {
+		return err
+	}
+	ci.id = id
+	return nil
+}
+
+func (ep *endpoint) MarshalJSON() ([]byte, error) {
+	ep.Lock()
+	defer ep.Unlock()
+
+	epMap := make(map[string]interface{})
+	epMap["name"] = ep.name
+	epMap["id"] = string(ep.id)
+	epMap["ep_iface"] = ep.iFaces
+	epMap["exposed_ports"] = ep.exposedPorts
+	epMap["generic"] = ep.generic
+	if ep.container != nil {
+		epMap["container"] = ep.container
+	}
+	return json.Marshal(epMap)
+}
+
+func (ep *endpoint) UnmarshalJSON(b []byte) (err error) {
+	ep.Lock()
+	defer ep.Unlock()
+
+	var epMap map[string]interface{}
+	if err := json.Unmarshal(b, &epMap); err != nil {
+		return err
+	}
+	ep.name = epMap["name"].(string)
+	ep.id = types.UUID(epMap["id"].(string))
+
+	ib, _ := json.Marshal(epMap["ep_iface"])
+	var ifaces []endpointInterface
+	json.Unmarshal(ib, &ifaces)
+	ep.iFaces = make([]*endpointInterface, 0)
+	for _, iface := range ifaces {
+		ep.iFaces = append(ep.iFaces, &iface)
+	}
+
+	tb, _ := json.Marshal(epMap["exposed_ports"])
+	var tPorts []types.TransportPort
+	json.Unmarshal(tb, &tPorts)
+	ep.exposedPorts = tPorts
+
+	epc, ok := epMap["container"]
+	if ok {
+		cb, _ := json.Marshal(epc)
+		var cInfo containerInfo
+		json.Unmarshal(cb, &cInfo)
+		ep.container = &cInfo
+	}
+
+	if epMap["generic"] != nil {
+		ep.generic = epMap["generic"].(map[string]interface{})
+	}
+	return nil
 }
 
 const defaultPrefix = "/var/lib/docker/network/files"
@@ -136,6 +226,63 @@ func (ep *endpoint) Network() string {
 	defer ep.Unlock()
 
 	return ep.network.name
+}
+
+// endpoint Key structure : endpoint/network-id/endpoint-id
+func (ep *endpoint) Key() []string {
+	ep.Lock()
+	n := ep.network
+	defer ep.Unlock()
+	return []string{datastore.EndpointKeyPrefix, string(n.id), string(ep.id)}
+}
+
+func (ep *endpoint) KeyPrefix() []string {
+	ep.Lock()
+	n := ep.network
+	defer ep.Unlock()
+	return []string{datastore.EndpointKeyPrefix, string(n.id)}
+}
+
+func (ep *endpoint) networkIDFromKey(key []string) (types.UUID, error) {
+	// endpoint Key structure : endpoint/network-id/endpoint-id
+	// it's an invalid key if the key doesn't have all the 3 key elements above
+	if key == nil || len(key) < 3 || key[0] != datastore.EndpointKeyPrefix {
+		return types.UUID(""), fmt.Errorf("invalid endpoint key : %v", key)
+	}
+
+	// network-id is placed at index=1. pls refer to endpoint.Key() method
+	return types.UUID(key[1]), nil
+}
+
+func (ep *endpoint) Value() []byte {
+	b, err := json.Marshal(ep)
+	if err != nil {
+		return nil
+	}
+	return b
+}
+
+func (ep *endpoint) SetValue(value []byte) error {
+	return json.Unmarshal(value, ep)
+}
+
+func (ep *endpoint) Index() uint64 {
+	ep.Lock()
+	defer ep.Unlock()
+	return ep.dbIndex
+}
+
+func (ep *endpoint) SetIndex(index uint64) {
+	ep.Lock()
+	defer ep.Unlock()
+	ep.dbIndex = index
+	ep.dbExists = true
+}
+
+func (ep *endpoint) Exists() bool {
+	ep.Lock()
+	defer ep.Unlock()
+	return ep.dbExists
 }
 
 func (ep *endpoint) processOptions(options ...EndpointOption) {
@@ -207,20 +354,22 @@ func (ep *endpoint) joinLeaveEnd() {
 	}
 }
 
-func (ep *endpoint) Join(containerID string, options ...EndpointOption) (*ContainerData, error) {
+func (ep *endpoint) Join(containerID string, options ...EndpointOption) error {
 	var err error
 
 	if containerID == "" {
-		return nil, InvalidContainerIDError(containerID)
+		return InvalidContainerIDError(containerID)
 	}
 
 	ep.joinLeaveStart()
-	defer ep.joinLeaveEnd()
+	defer func() {
+		ep.joinLeaveEnd()
+	}()
 
 	ep.Lock()
 	if ep.container != nil {
 		ep.Unlock()
-		return nil, ErrInvalidJoin{}
+		return ErrInvalidJoin{}
 	}
 
 	ep.container = &containerInfo{
@@ -237,16 +386,14 @@ func (ep *endpoint) Join(containerID string, options ...EndpointOption) (*Contai
 	container := ep.container
 	network := ep.network
 	epid := ep.id
-	joinInfo := ep.joinInfo
-	ifaces := ep.iFaces
 
 	ep.Unlock()
 	defer func() {
-		ep.Lock()
 		if err != nil {
+			ep.Lock()
 			ep.container = nil
+			ep.Unlock()
 		}
-		ep.Unlock()
 	}()
 
 	network.Lock()
@@ -264,63 +411,60 @@ func (ep *endpoint) Join(containerID string, options ...EndpointOption) (*Contai
 
 	err = driver.Join(nid, epid, sboxKey, ep, container.config.generic)
 	if err != nil {
-		return nil, err
+		return err
 	}
+	defer func() {
+		if err != nil {
+			if err = driver.Leave(nid, epid); err != nil {
+				log.Warnf("driver leave failed while rolling back join: %v", err)
+			}
+		}
+	}()
 
 	err = ep.buildHostsFiles()
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	err = ep.updateParentHosts()
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	err = ep.setupDNS()
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	sb, err := ctrlr.sandboxAdd(sboxKey, !container.config.useDefaultSandBox)
+	sb, err := ctrlr.sandboxAdd(sboxKey, !container.config.useDefaultSandBox, ep)
 	if err != nil {
-		return nil, err
+		return fmt.Errorf("failed sandbox add: %v", err)
 	}
 	defer func() {
 		if err != nil {
-			ctrlr.sandboxRm(sboxKey)
+			ctrlr.sandboxRm(sboxKey, ep)
 		}
 	}()
 
-	for _, i := range ifaces {
-		iface := &sandbox.Interface{
-			SrcName: i.srcName,
-			DstName: i.dstPrefix,
-			Address: &i.addr,
-		}
-		if i.addrv6.IP.To16() != nil {
-			iface.AddressIPv6 = &i.addrv6
-		}
-		err = sb.AddInterface(iface)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	err = sb.SetGateway(joinInfo.gw)
-	if err != nil {
-		return nil, err
-	}
-
-	err = sb.SetGatewayIPv6(joinInfo.gw6)
-	if err != nil {
-		return nil, err
+	if err := network.ctrlr.updateEndpointToStore(ep); err != nil {
+		return err
 	}
 
 	container.data.SandboxKey = sb.Key()
-	cData := container.data
+	return nil
+}
 
-	return &cData, nil
+func (ep *endpoint) hasInterface(iName string) bool {
+	ep.Lock()
+	defer ep.Unlock()
+
+	for _, iface := range ep.iFaces {
+		if iface.srcName == iName {
+			return true
+		}
+	}
+
+	return false
 }
 
 func (ep *endpoint) Leave(containerID string, options ...EndpointOption) error {
@@ -335,7 +479,7 @@ func (ep *endpoint) Leave(containerID string, options ...EndpointOption) error {
 	container := ep.container
 	n := ep.network
 
-	if container == nil || container.id == "" ||
+	if container == nil || container.id == "" || container.data.SandboxKey == "" ||
 		containerID == "" || container.id != containerID {
 		if container == nil {
 			err = ErrNoContainer{}
@@ -354,56 +498,66 @@ func (ep *endpoint) Leave(containerID string, options ...EndpointOption) error {
 	ctrlr := n.ctrlr
 	n.Unlock()
 
-	err = driver.Leave(n.id, ep.id)
-
-	sb := ctrlr.sandboxGet(container.data.SandboxKey)
-	for _, i := range sb.Interfaces() {
-		err = sb.RemoveInterface(i)
-		if err != nil {
-			logrus.Debugf("Remove interface failed: %v", err)
-		}
+	if err := ctrlr.updateEndpointToStore(ep); err != nil {
+		ep.Lock()
+		ep.container = container
+		ep.Unlock()
+		return err
 	}
 
-	ctrlr.sandboxRm(container.data.SandboxKey)
+	err = driver.Leave(n.id, ep.id)
+
+	ctrlr.sandboxRm(container.data.SandboxKey, ep)
 
 	return err
 }
 
 func (ep *endpoint) Delete() error {
 	var err error
-
 	ep.Lock()
 	epid := ep.id
 	name := ep.name
+	n := ep.network
 	if ep.container != nil {
 		ep.Unlock()
 		return &ActiveContainerError{name: name, id: string(epid)}
 	}
-
-	n := ep.network
+	n.Lock()
+	ctrlr := n.ctrlr
+	n.Unlock()
 	ep.Unlock()
 
-	n.Lock()
-	_, ok := n.endpoints[epid]
-	if !ok {
-		n.Unlock()
-		return &UnknownEndpointError{name: name, id: string(epid)}
+	if err = ctrlr.deleteEndpointFromStore(ep); err != nil {
+		return err
 	}
-
-	nid := n.id
-	driver := n.driver
-	delete(n.endpoints, epid)
-	n.Unlock()
 	defer func() {
 		if err != nil {
-			n.Lock()
-			n.endpoints[epid] = ep
-			n.Unlock()
+			ep.SetIndex(0)
+			if e := ctrlr.updateEndpointToStore(ep); e != nil {
+				log.Warnf("failed to recreate endpoint in store %s : %v", name, err)
+			}
 		}
 	}()
 
-	err = driver.DeleteEndpoint(nid, epid)
-	return err
+	// Update the endpoint count in network and update it in the datastore
+	n.DecEndpointCnt()
+	if err = ctrlr.updateNetworkToStore(n); err != nil {
+		return err
+	}
+	defer func() {
+		if err != nil {
+			n.IncEndpointCnt()
+			if e := ctrlr.updateNetworkToStore(n); e != nil {
+				log.Warnf("failed to update network %s : %v", n.name, e)
+			}
+		}
+	}()
+
+	if err = ep.deleteEndpoint(); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (ep *endpoint) Statistics() (map[string]*sandbox.InterfaceStatistics, error) {
@@ -424,13 +578,74 @@ func (ep *endpoint) Statistics() (map[string]*sandbox.InterfaceStatistics, error
 	}
 
 	var err error
-	for _, i := range sbox.Interfaces() {
-		if m[i.DstName], err = i.Statistics(); err != nil {
+	for _, i := range sbox.Info().Interfaces() {
+		if m[i.DstName()], err = i.Statistics(); err != nil {
 			return m, err
 		}
 	}
 
 	return m, nil
+}
+
+func (ep *endpoint) deleteEndpoint() error {
+	ep.Lock()
+	n := ep.network
+	name := ep.name
+	epid := ep.id
+	ep.Unlock()
+
+	n.Lock()
+	_, ok := n.endpoints[epid]
+	if !ok {
+		n.Unlock()
+		return nil
+	}
+
+	nid := n.id
+	driver := n.driver
+	delete(n.endpoints, epid)
+	n.Unlock()
+
+	if err := driver.DeleteEndpoint(nid, epid); err != nil {
+		if _, ok := err.(types.ForbiddenError); ok {
+			n.Lock()
+			n.endpoints[epid] = ep
+			n.Unlock()
+			return err
+		}
+		log.Warnf("driver error deleting endpoint %s : %v", name, err)
+	}
+
+	n.updateSvcRecord(ep, false)
+	return nil
+}
+
+func (ep *endpoint) addHostEntries(recs []etchosts.Record) {
+	ep.Lock()
+	container := ep.container
+	ep.Unlock()
+
+	if container == nil {
+		return
+	}
+
+	if err := etchosts.Add(container.config.hostsPath, recs); err != nil {
+		log.Warnf("Failed adding service host entries to the running container: %v", err)
+	}
+}
+
+func (ep *endpoint) deleteHostEntries(recs []etchosts.Record) {
+	ep.Lock()
+	container := ep.container
+	ep.Unlock()
+
+	if container == nil {
+		return
+	}
+
+	if err := etchosts.Delete(container.config.hostsPath, recs); err != nil {
+		log.Warnf("Failed deleting service host entries to the running container: %v", err)
+	}
 }
 
 func (ep *endpoint) buildHostsFiles() error {
@@ -440,6 +655,7 @@ func (ep *endpoint) buildHostsFiles() error {
 	container := ep.container
 	joinInfo := ep.joinInfo
 	ifaces := ep.iFaces
+	n := ep.network
 	ep.Unlock()
 
 	if container == nil {
@@ -467,15 +683,12 @@ func (ep *endpoint) buildHostsFiles() error {
 		}
 	}
 
-	name := container.config.hostName
-	if container.config.domainName != "" {
-		name = name + "." + container.config.domainName
-	}
-
 	for _, extraHost := range container.config.extraHosts {
 		extraContent = append(extraContent,
 			etchosts.Record{Hosts: extraHost.name, IP: extraHost.IP})
 	}
+
+	extraContent = append(extraContent, n.getSvcRecords()...)
 
 	IP := ""
 	if len(ifaces) != 0 && ifaces[0] != nil {
@@ -668,6 +881,14 @@ func EndpointOptionGeneric(generic map[string]interface{}) EndpointOption {
 		for k, v := range generic {
 			ep.generic[k] = v
 		}
+	}
+}
+
+// JoinOptionPriority function returns an option setter for priority option to
+// be passed to endpoint Join method.
+func JoinOptionPriority(prio int) EndpointOption {
+	return func(ep *endpoint) {
+		ep.container.config.prio = prio
 	}
 }
 

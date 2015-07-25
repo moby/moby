@@ -22,7 +22,7 @@ build: ${build_image}.created
 	${docker} make build-local
 
 build-local:
-	$(shell which godep) go build -tags experimental ./...
+	$(shell which godep) go build -tags libnetwork_discovery ./...
 
 check: ${build_image}.created
 	${docker} make check-local
@@ -61,11 +61,12 @@ check-local: 	check-format check-code run-tests
 
 install-deps:
 	apt-get update && apt-get -y install iptables
+	git clone https://github.com/golang/tools /go/src/golang.org/x/tools
+	go install golang.org/x/tools/cmd/vet
+	go install golang.org/x/tools/cmd/goimports
+	go install golang.org/x/tools/cmd/cover
 	go get github.com/tools/godep
 	go get github.com/golang/lint/golint
-	go get golang.org/x/tools/cmd/vet
-	go get golang.org/x/tools/cmd/goimports
-	go get golang.org/x/tools/cmd/cover
 	go get github.com/mattn/goveralls
 
 coveralls:

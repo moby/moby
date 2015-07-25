@@ -1,4 +1,4 @@
-// +build !exclude_graphdriver_btrfs
+// +build !exclude_graphdriver_btrfs,linux
 
 package daemon
 

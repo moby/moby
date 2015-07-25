@@ -2,6 +2,8 @@ package daemon
 
 import (
 	"os"
+
+	flag "github.com/docker/docker/pkg/mflag"
 )
 
 var (
@@ -9,6 +11,12 @@ var (
 	defaultGraph   = os.Getenv("programdata") + string(os.PathSeparator) + "docker"
 	defaultExec    = "windows"
 )
+
+// bridgeConfig stores all the bridge driver specific
+// configuration.
+type bridgeConfig struct {
+	VirtualSwitchName string
+}
 
 // Config defines the configuration of a docker daemon.
 // These are the configuration settings that you pass
@@ -24,10 +32,10 @@ type Config struct {
 // the current process.
 // Subsequent calls to `flag.Parse` will populate config with values parsed
 // from the command-line.
-func (config *Config) InstallFlags() {
+func (config *Config) InstallFlags(cmd *flag.FlagSet, usageFn func(string) string) {
 	// First handle install flags which are consistent cross-platform
-	config.InstallCommonFlags()
+	config.InstallCommonFlags(cmd, usageFn)
 
-	// Then platform-specific install flags. There are none presently on Windows
-
+	// Then platform-specific install flags.
+	cmd.StringVar(&config.Bridge.VirtualSwitchName, []string{"b", "-bridge"}, "", "Attach containers to a virtual switch")
 }

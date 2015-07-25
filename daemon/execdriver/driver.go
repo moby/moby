@@ -8,8 +8,8 @@ import (
 
 	// TODO Windows: Factor out ulimit
 	"github.com/docker/docker/pkg/ulimit"
-	"github.com/docker/libcontainer"
-	"github.com/docker/libcontainer/configs"
+	"github.com/opencontainers/runc/libcontainer"
+	"github.com/opencontainers/runc/libcontainer/configs"
 )
 
 // Context is a generic key value pair that allows
@@ -37,10 +37,6 @@ type Info interface {
 type Terminal interface {
 	io.Closer
 	Resize(height, width int) error
-}
-
-type TtyTerminal interface {
-	Master() libcontainer.Console
 }
 
 // ExitStatus provides exit reasons for a container.
@@ -107,16 +103,17 @@ type NetworkInterface struct {
 
 // TODO Windows: Factor out ulimit.Rlimit
 type Resources struct {
-	Memory         int64            `json:"memory"`
-	MemorySwap     int64            `json:"memory_swap"`
-	CpuShares      int64            `json:"cpu_shares"`
-	CpusetCpus     string           `json:"cpuset_cpus"`
-	CpusetMems     string           `json:"cpuset_mems"`
-	CpuPeriod      int64            `json:"cpu_period"`
-	CpuQuota       int64            `json:"cpu_quota"`
-	BlkioWeight    int64            `json:"blkio_weight"`
-	Rlimits        []*ulimit.Rlimit `json:"rlimits"`
-	OomKillDisable bool             `json:"oom_kill_disable"`
+	Memory           int64            `json:"memory"`
+	MemorySwap       int64            `json:"memory_swap"`
+	CpuShares        int64            `json:"cpu_shares"`
+	CpusetCpus       string           `json:"cpuset_cpus"`
+	CpusetMems       string           `json:"cpuset_mems"`
+	CpuPeriod        int64            `json:"cpu_period"`
+	CpuQuota         int64            `json:"cpu_quota"`
+	BlkioWeight      int64            `json:"blkio_weight"`
+	Rlimits          []*ulimit.Rlimit `json:"rlimits"`
+	OomKillDisable   bool             `json:"oom_kill_disable"`
+	MemorySwappiness int64            `json:"memory_swappiness"`
 }
 
 type ResourceStats struct {
@@ -138,13 +135,14 @@ type Mount struct {
 type ProcessConfig struct {
 	exec.Cmd `json:"-"`
 
-	Privileged bool     `json:"privileged"`
-	User       string   `json:"user"`
-	Tty        bool     `json:"tty"`
-	Entrypoint string   `json:"entrypoint"`
-	Arguments  []string `json:"arguments"`
-	Terminal   Terminal `json:"-"` // standard or tty terminal
-	Console    string   `json:"-"` // dev/console path
+	Privileged  bool     `json:"privileged"`
+	User        string   `json:"user"`
+	Tty         bool     `json:"tty"`
+	Entrypoint  string   `json:"entrypoint"`
+	Arguments   []string `json:"arguments"`
+	Terminal    Terminal `json:"-"` // standard or tty terminal
+	Console     string   `json:"-"` // dev/console path
+	ConsoleSize [2]int   `json:"-"` // h,w of initial console size
 }
 
 // TODO Windows: Factor out unused fields such as LxcConfig, AppArmorProfile,
@@ -168,6 +166,7 @@ type Command struct {
 	AutoCreatedDevices []*configs.Device `json:"autocreated_devices"`
 	CapAdd             []string          `json:"cap_add"`
 	CapDrop            []string          `json:"cap_drop"`
+	GroupAdd           []string          `json:"group_add"`
 	ContainerPid       int               `json:"container_pid"`  // the pid for the process inside a container
 	ProcessConfig      ProcessConfig     `json:"process_config"` // Describes the init process of the container.
 	ProcessLabel       string            `json:"process_label"`
@@ -175,4 +174,7 @@ type Command struct {
 	LxcConfig          []string          `json:"lxc_config"`
 	AppArmorProfile    string            `json:"apparmor_profile"`
 	CgroupParent       string            `json:"cgroup_parent"` // The parent cgroup for this command.
+	FirstStart         bool              `json:"first_start"`
+	LayerPaths         []string          `json:"layer_paths"` // Windows needs to know the layer paths and folder for a command
+	LayerFolder        string            `json:"layer_folder"`
 }

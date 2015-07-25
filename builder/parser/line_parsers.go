@@ -151,7 +151,7 @@ func parseNameVal(rest string, key string) (*Node, map[string]bool, error) {
 	if !strings.Contains(words[0], "=") {
 		node := &Node{}
 		rootnode = node
-		strs := TOKEN_WHITESPACE.Split(rest, 2)
+		strs := tokenWhitespace.Split(rest, 2)
 
 		if len(strs) < 2 {
 			return nil, nil, fmt.Errorf(key + " must have two arguments")
@@ -205,7 +205,7 @@ func parseStringsWhitespaceDelimited(rest string) (*Node, map[string]bool, error
 	node := &Node{}
 	rootnode := node
 	prevnode := node
-	for _, str := range TOKEN_WHITESPACE.Split(rest, -1) { // use regexp
+	for _, str := range tokenWhitespace.Split(rest, -1) { // use regexp
 		prevnode = node
 		node.Value = str
 		node.Next = &Node{}
@@ -232,13 +232,13 @@ func parseString(rest string) (*Node, map[string]bool, error) {
 
 // parseJSON converts JSON arrays to an AST.
 func parseJSON(rest string) (*Node, map[string]bool, error) {
-	var myJson []interface{}
-	if err := json.NewDecoder(strings.NewReader(rest)).Decode(&myJson); err != nil {
+	var myJSON []interface{}
+	if err := json.NewDecoder(strings.NewReader(rest)).Decode(&myJSON); err != nil {
 		return nil, nil, err
 	}
 
 	var top, prev *Node
-	for _, str := range myJson {
+	for _, str := range myJSON {
 		s, ok := str.(string)
 		if !ok {
 			return nil, nil, errDockerfileNotStringArray

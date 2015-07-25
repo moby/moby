@@ -2,18 +2,17 @@
 set -e
 
 bundle_test_integration_cli() {
+	TESTFLAGS="$TESTFLAGS -check.v"
 	go_test_dir ./integration-cli
 }
 
 # subshell so that we can export PATH without breaking other things
 (
-	source "${MAKEDIR}/.integration-daemon-start"
+	bundle .integration-daemon-start
 
-	source "${MAKEDIR}/.ensure-frozen-images"
-	source "${MAKEDIR}/.ensure-httpserver"
-	source "${MAKEDIR}/.ensure-emptyfs"
+	bundle .integration-daemon-setup
 
 	bundle_test_integration_cli
 
-	source "${MAKEDIR}/.integration-daemon-stop"
+	bundle .integration-daemon-stop
 ) 2>&1 | tee -a "$DEST/test.log"

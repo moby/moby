@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/graph"
 	"github.com/docker/docker/image"
@@ -55,10 +56,7 @@ func (daemon *Daemon) imgDeleteHelper(name string, list *[]types.ImageDelete, fi
 		tag = ""
 	}
 
-	byParents, err := daemon.Graph().ByParent()
-	if err != nil {
-		return err
-	}
+	byParents := daemon.Graph().ByParent()
 
 	repos := daemon.Repositories().ByID()[img.ID]
 
@@ -140,16 +138,29 @@ func (daemon *Daemon) imgDeleteHelper(name string, list *[]types.ImageDelete, fi
 }
 
 func (daemon *Daemon) canDeleteImage(imgID string, force bool) error {
+	if daemon.Graph().IsHeld(imgID) {
+		return fmt.Errorf("Conflict, cannot delete because %s is held by an ongoing pull or build", stringid.TruncateID(imgID))
+	}
 	for _, container := range daemon.List() {
+		if container.ImageID == "" {
+			// This technically should never happen, but if the container
+			// has no ImageID then log the situation and move on.
+			// If we allowed processing to continue then the code later
+			// on would fail with a "Prefix can't be empty" error even
+			// though the bad container has nothing to do with the image
+			// we're trying to delete.
+			logrus.Errorf("Container %q has no image associated with it!", container.ID)
+			continue
+		}
 		parent, err := daemon.Repositories().LookupImage(container.ImageID)
 		if err != nil {
 			if daemon.Graph().IsNotExist(err, container.ImageID) {
-				return nil
+				continue
 			}
 			return err
 		}
 
-		if err := parent.WalkHistory(func(p *image.Image) error {
+		if err := daemon.graph.WalkHistory(parent, func(p image.Image) error {
 			if imgID == p.ID {
 				if container.IsRunning() {
 					if force {

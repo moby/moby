@@ -12,7 +12,7 @@ import (
 	"github.com/docker/docker/daemon/execdriver"
 	nativeTemplate "github.com/docker/docker/daemon/execdriver/native/template"
 	"github.com/docker/docker/pkg/stringutils"
-	"github.com/docker/libcontainer/label"
+	"github.com/opencontainers/runc/libcontainer/label"
 )
 
 const LxcTemplate = `
@@ -46,6 +46,9 @@ lxc.cgroup.devices.allow = {{$allowedDevice.CgroupString}}
 # Use mnt.putold as per https://bugs.launchpad.net/ubuntu/+source/lxc/+bug/986385
 lxc.pivotdir = lxc_putold
 
+# lxc.autodev is not compatible with lxc --device switch
+lxc.autodev = 0
+
 # NOTICE: These mounts must be applied within the namespace
 {{if .ProcessConfig.Privileged}}
 # WARNING: mounting procfs and/or sysfs read-write is a known attack vector.
@@ -67,11 +70,11 @@ lxc.aa_profile = {{.AppArmorProfile}}
 {{end}}
 
 {{if .ProcessConfig.Tty}}
-lxc.mount.entry = {{.ProcessConfig.Console}} {{escapeFstabSpaces $ROOTFS}}/dev/console none bind,rw 0 0
+lxc.mount.entry = {{.ProcessConfig.Console}} {{escapeFstabSpaces $ROOTFS}}/dev/console none bind,rw,create=file 0 0
 {{end}}
 
-lxc.mount.entry = devpts {{escapeFstabSpaces $ROOTFS}}/dev/pts devpts {{formatMountLabel "newinstance,ptmxmode=0666,nosuid,noexec" ""}} 0 0
-lxc.mount.entry = shm {{escapeFstabSpaces $ROOTFS}}/dev/shm tmpfs {{formatMountLabel "size=65536k,nosuid,nodev,noexec" ""}} 0 0
+lxc.mount.entry = devpts {{escapeFstabSpaces $ROOTFS}}/dev/pts devpts {{formatMountLabel "newinstance,ptmxmode=0666,nosuid,noexec,create=dir" ""}} 0 0
+lxc.mount.entry = shm {{escapeFstabSpaces $ROOTFS}}/dev/shm tmpfs {{formatMountLabel "size=65536k,nosuid,nodev,noexec,create=dir" ""}} 0 0
 
 {{range $value := .Mounts}}
 {{$createVal := isDirectory $value.Source}}
@@ -111,6 +114,9 @@ lxc.cgroup.blkio.weight = {{.Resources.BlkioWeight}}
 {{end}}
 {{if .Resources.OomKillDisable}}
 lxc.cgroup.memory.oom_control = {{.Resources.OomKillDisable}}
+{{end}}
+{{if gt .Resources.MemorySwappiness 0}}
+lxc.cgroup.memory.swappiness = {{.Resources.MemorySwappiness}}
 {{end}}
 {{end}}
 

@@ -92,7 +92,7 @@ write_to_s3() {
 
 s3_url() {
 	case "$BUCKET" in
-		get.docker.com|test.docker.com)
+		get.docker.com|test.docker.com|experimental.docker.com)
 			echo "https://$BUCKET"
 			;;
 		*)
@@ -282,34 +282,19 @@ EOF
 	s3cmd --acl-public put "bundles/$VERSION/ubuntu/gpg" "s3://$BUCKET/gpg"
 
 	local gpgFingerprint=36A1D7869245C8950F966E92D8576A8BA88D21E9
+	local s3Headers=
 	if [[ $BUCKET == test* ]]; then
 		gpgFingerprint=740B314AE3941731B942C66ADF4FD13717AAD7D6
 	elif [[ $BUCKET == experimental* ]]; then
 		gpgFingerprint=E33FF7BF5C91D50A6F91FFFD4CC38D40F9A96B49
+		s3Headers='--add-header=Cache-Control:no-cache'
 	fi
 
 	# Upload repo
-	s3cmd --acl-public sync "$APTDIR/" "s3://$BUCKET/ubuntu/"
+	s3cmd --acl-public "$s3Headers" sync "$APTDIR/" "s3://$BUCKET/ubuntu/"
 	cat <<EOF | write_to_s3 s3://$BUCKET/ubuntu/index
-# Check that HTTPS transport is available to APT
-if [ ! -e /usr/lib/apt/methods/https ]; then
-	apt-get update
-	apt-get install -y apt-transport-https
-fi
-
-# Add the repository to your APT sources
-echo deb $(s3_url)/ubuntu docker main > /etc/apt/sources.list.d/docker.list
-
-# Then import the repository key
-apt-key adv --keyserver hkp://p80.pool.sks-keyservers.net:80 --recv-keys $gpgFingerprint
-
-# Install docker
-apt-get update
-apt-get install -y lxc-docker
-
-#
-# Alternatively, just use the curl-able install.sh script provided at $(s3_url)
-#
+echo "# WARNING! This script is deprecated. Please use the script"
+echo "# at https://get.docker.com/"
 EOF
 
 	# Add redirect at /ubuntu/info for URL-backwards-compatibility
@@ -395,4 +380,15 @@ main
 echo
 echo
 echo "Release complete; see $(s3_url)"
+echo "Use the following text to announce the release:"
+echo
+echo "We have just pushed $VERSION to $(s3_url). You can download it with the following:"
+echo
+echo "Ubuntu/Debian: curl -sSL $(s3_url) | sh"
+echo "Linux 64bit binary: $(s3_url)/builds/Linux/x86_64/docker-$VERSION"
+echo "Darwin/OSX 64bit client binary: $(s3_url)/builds/Darwin/x86_64/docker-$VERSION"
+echo "Darwin/OSX 32bit client binary: $(s3_url)/builds/Darwin/i386/docker-$VERSION"
+echo "Linux 64bit tgz: $(s3_url)/builds/Linux/x86_64/docker-$VERSION.tgz"
+echo "Windows 64bit client binary: $(s3_url)/builds/Windows/x86_64/docker-$VERSION.exe"
+echo "Windows 32bit client binary: $(s3_url)/builds/Windows/i386/docker-$VERSION.exe"
 echo

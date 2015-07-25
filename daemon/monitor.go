@@ -12,7 +12,10 @@ import (
 	"github.com/docker/docker/runconfig"
 )
 
-const defaultTimeIncrement = 100
+const (
+	defaultTimeIncrement = 100
+	loggerCloseTimeout   = 10 * time.Second
+)
 
 // containerMonitor monitors the execution of a container's main process.
 // If a restart policy is specified for the container the monitor will ensure that the
@@ -263,7 +266,7 @@ func (m *containerMonitor) callback(processConfig *execdriver.ProcessConfig, pid
 	}
 
 	if err := m.container.ToDisk(); err != nil {
-		logrus.Debugf("%s", err)
+		logrus.Errorf("Error saving container to disk: %v", err)
 	}
 }
 
@@ -310,7 +313,7 @@ func (m *containerMonitor) resetContainer(lock bool) {
 				close(exit)
 			}()
 			select {
-			case <-time.After(1 * time.Second):
+			case <-time.After(loggerCloseTimeout):
 				logrus.Warnf("Logger didn't exit in time: logs may be truncated")
 			case <-exit:
 			}

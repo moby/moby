@@ -137,7 +137,7 @@ func Volumes(filter string) ([]*Dataset, error) {
 // GetDataset retrieves a single ZFS dataset by name.  This dataset could be
 // any valid ZFS dataset type, such as a clone, filesystem, snapshot, or volume.
 func GetDataset(name string) (*Dataset, error) {
-	out, err := zfs("get", "all", "-Hp", name)
+	out, err := zfs("get", "-Hp", "all", name)
 	if err != nil {
 		return nil, err
 	}
@@ -335,7 +335,7 @@ func (d *Dataset) Rollback(destroyMoreRecent bool) error {
 // A recursion depth may be specified, or a depth of 0 allows unlimited
 // recursion.
 func (d *Dataset) Children(depth uint64) ([]*Dataset, error) {
-	args := []string{"get", "all", "-t", "all", "-Hp"}
+	args := []string{"get", "-t", "all", "-Hp", "all"}
 	if depth > 0 {
 		args = append(args, "-d")
 		args = append(args, strconv.FormatUint(depth, 10))

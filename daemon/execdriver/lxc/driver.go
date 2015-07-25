@@ -25,12 +25,12 @@ import (
 	sysinfo "github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/pkg/term"
 	"github.com/docker/docker/pkg/version"
-	"github.com/docker/libcontainer"
-	"github.com/docker/libcontainer/cgroups"
-	"github.com/docker/libcontainer/configs"
-	"github.com/docker/libcontainer/system"
-	"github.com/docker/libcontainer/user"
 	"github.com/kr/pty"
+	"github.com/opencontainers/runc/libcontainer"
+	"github.com/opencontainers/runc/libcontainer/cgroups"
+	"github.com/opencontainers/runc/libcontainer/configs"
+	"github.com/opencontainers/runc/libcontainer/system"
+	"github.com/opencontainers/runc/libcontainer/user"
 	"github.com/vishvananda/netns"
 )
 
@@ -806,10 +806,6 @@ func NewTtyConsole(processConfig *execdriver.ProcessConfig, pipes *execdriver.Pi
 	processConfig.Console = tty.SlavePty.Name()
 
 	return tty, nil
-}
-
-func (t *TtyConsole) Master() *os.File {
-	return t.MasterPty
 }
 
 func (t *TtyConsole) Resize(h, w int) error {

@@ -46,6 +46,8 @@ echo
 DEFAULT_BUNDLES=(
 	validate-dco
 	validate-gofmt
+	validate-lint
+	validate-pkg
 	validate-test
 	validate-toml
 	validate-vet
@@ -70,6 +72,7 @@ if command -v git &> /dev/null && git rev-parse &> /dev/null; then
 	if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
 		GITCOMMIT="$GITCOMMIT-dirty"
 	fi
+	BUILDTIME=$(date -u)
 elif [ "$DOCKER_GITCOMMIT" ]; then
 	GITCOMMIT="$DOCKER_GITCOMMIT"
 else
@@ -128,7 +131,9 @@ fi
 
 IAMSTATIC='true'
 source "$SCRIPTDIR/make/.go-autogen"
-LDFLAGS='-w'
+if [ -z "$DOCKER_DEBUG" ]; then
+	LDFLAGS='-w'
+fi
 
 LDFLAGS_STATIC='-linkmode external'
 # Cgo -H windows is incompatible with -linkmode external.
@@ -142,7 +147,7 @@ ORIG_BUILDFLAGS=( -a -tags "netgo static_build $DOCKER_BUILDTAGS" -installsuffix
 # see https://github.com/golang/go/issues/9369#issuecomment-69864440 for why -installsuffix is necessary here
 BUILDFLAGS=( $BUILDFLAGS "${ORIG_BUILDFLAGS[@]}" )
 # Test timeout.
-: ${TIMEOUT:=30m}
+: ${TIMEOUT:=60m}
 TESTFLAGS+=" -test.timeout=${TIMEOUT}"
 
 # A few more flags that are specific just to building a completely-static binary (see hack/make/binary)
@@ -218,6 +223,7 @@ test_env() {
 		GOPATH="$GOPATH" \
 		HOME="$ABS_DEST/fake-HOME" \
 		PATH="$PATH" \
+		TEMP="$TEMP" \
 		TEST_DOCKERINIT_PATH="$TEST_DOCKERINIT_PATH" \
 		"$@"
 }

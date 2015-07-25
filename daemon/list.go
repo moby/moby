@@ -7,8 +7,8 @@ import (
 	"strings"
 
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/nat"
 	"github.com/docker/docker/pkg/graphdb"
+	"github.com/docker/docker/pkg/nat"
 	"github.com/docker/docker/pkg/parsers/filters"
 )
 
@@ -53,7 +53,10 @@ func (daemon *Daemon) Containers(config *ContainersConfig) ([]*types.Container, 
 
 	if i, ok := psFilters["status"]; ok {
 		for _, value := range i {
-			if value == "exited" {
+			if !isValidStateString(value) {
+				return nil, errors.New("Unrecognised filter value for status")
+			}
+			if value == "exited" || value == "created" {
 				all = true
 			}
 		}
@@ -151,10 +154,14 @@ func (daemon *Daemon) Containers(config *ContainersConfig) ([]*types.Container, 
 		}
 		newC.Created = int(container.Created.Unix())
 		newC.Status = container.State.String()
+		newC.HostConfig.NetworkMode = string(container.HostConfig().NetworkMode)
 
 		newC.Ports = []types.Port{}
 		for port, bindings := range container.NetworkSettings.Ports {
-			p, _ := nat.ParsePort(port.Port())
+			p, err := nat.ParsePort(port.Port())
+			if err != nil {
+				return err
+			}
 			if len(bindings) == 0 {
 				newC.Ports = append(newC.Ports, types.Port{
 					PrivatePort: p,
@@ -163,12 +170,15 @@ func (daemon *Daemon) Containers(config *ContainersConfig) ([]*types.Container, 
 				continue
 			}
 			for _, binding := range bindings {
-				h, _ := nat.ParsePort(binding.HostPort)
+				h, err := nat.ParsePort(binding.HostPort)
+				if err != nil {
+					return err
+				}
 				newC.Ports = append(newC.Ports, types.Port{
 					PrivatePort: p,
 					PublicPort:  h,
 					Type:        port.Proto(),
-					IP:          binding.HostIp,
+					IP:          binding.HostIP,
 				})
 			}
 		}

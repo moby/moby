@@ -1,5 +1,6 @@
 <!--[metadata]>
 +++
+draft=true
 title = "Docker Engine"
 description = "Release notes for Docker 1.x."
 keywords = ["docker, documentation, about, technology, understanding,  release"]
@@ -7,6 +8,17 @@ keywords = ["docker, documentation, about, technology, understanding,  release"]
 parent = "smn_release_notes"
 +++
 <![end-metadata]-->
+
+# Deprecated Features
+
+To see the complete list of deprecated features please see the
+[Deprecated Features](deprecated) page.
+
+# Removed Features
+
+The following features have been removed in this release:
+
+* None!
 
 # Release notes version 1.6.0
 (2015-04-16)
@@ -17,6 +29,13 @@ formal release announcement, see [the Docker
 blog](https://blog.docker.com/2015/04/docker-release-1-6/).
 
 
+
+## Docker Engine 1.6.0 features
+
+For a complete list of engine patches, fixes, and other improvements, see the
+[merge PR on GitHub](https://github.com/docker/docker/pull/11635). You'll also
+find [a changelog in the project
+repository](https://github.com/docker/docker/blob/master/CHANGELOG.md).
 
 ## Docker Engine 1.6.0 features
 
@@ -46,7 +65,7 @@ repository](https://github.com/docker/docker/issues/).
 An idiosyncrasy in AUFS prevented permissions from propagating predictably
 between upper and lower layers. This caused issues with accessing private
 keys, database instances, etc.  This issue was closed in this release:
-[Github Issue 783](https://github.com/docker/docker/issues/783).
+[GitHub Issue 783](https://github.com/docker/docker/issues/783).
 
 
 * *Docker Hub incompatible with Safari 8*

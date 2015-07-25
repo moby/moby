@@ -5,12 +5,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"net"
 	"net/http"
 	"strings"
 	"time"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/pkg/sockets"
+	"github.com/docker/docker/pkg/tlsconfig"
 )
 
 const (
@@ -18,11 +19,18 @@ const (
 	defaultTimeOut  = 30
 )
 
-func NewClient(addr string) *Client {
+func NewClient(addr string, tlsConfig tlsconfig.Options) (*Client, error) {
 	tr := &http.Transport{}
+
+	c, err := tlsconfig.Client(tlsConfig)
+	if err != nil {
+		return nil, err
+	}
+	tr.TLSClientConfig = c
+
 	protoAndAddr := strings.Split(addr, "://")
-	configureTCPTransport(tr, protoAndAddr[0], protoAndAddr[1])
-	return &Client{&http.Client{Transport: tr}, protoAndAddr[1]}
+	sockets.ConfigureTCPTransport(tr, protoAndAddr[0], protoAndAddr[1])
+	return &Client{&http.Client{Transport: tr}, protoAndAddr[1]}, nil
 }
 
 type Client struct {
@@ -72,7 +80,7 @@ func (c *Client) callWithRetry(serviceMethod string, args interface{}, ret inter
 		if resp.StatusCode != http.StatusOK {
 			remoteErr, err := ioutil.ReadAll(resp.Body)
 			if err != nil {
-				return nil
+				return fmt.Errorf("Plugin Error: %s", err)
 			}
 			return fmt.Errorf("Plugin Error: %s", remoteErr)
 		}
@@ -94,20 +102,5 @@ func backoff(retries int) time.Duration {
 }
 
 func abort(start time.Time, timeOff time.Duration) bool {
-	return timeOff+time.Since(start) > time.Duration(defaultTimeOut)*time.Second
-}
-
-func configureTCPTransport(tr *http.Transport, proto, addr string) {
-	// Why 32? See https://github.com/docker/docker/pull/8035.
-	timeout := 32 * time.Second
-	if proto == "unix" {
-		// No need for compression in local communications.
-		tr.DisableCompression = true
-		tr.Dial = func(_, _ string) (net.Conn, error) {
-			return net.DialTimeout(proto, addr, timeout)
-		}
-	} else {
-		tr.Proxy = http.ProxyFromEnvironment
-		tr.Dial = (&net.Dialer{Timeout: timeout}).Dial
-	}
+	return timeOff+time.Since(start) >= time.Duration(defaultTimeOut)*time.Second
 }

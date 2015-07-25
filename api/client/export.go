@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 
+	Cli "github.com/docker/docker/cli"
 	flag "github.com/docker/docker/pkg/mflag"
 )
 
@@ -14,7 +15,7 @@ import (
 //
 // Usage: docker export [OPTIONS] CONTAINER
 func (cli *DockerCli) CmdExport(args ...string) error {
-	cmd := cli.Subcmd("export", "CONTAINER", "Export a filesystem as a tar archive (streamed to STDOUT by default)", true)
+	cmd := Cli.Subcmd("export", []string{"CONTAINER"}, "Export the contents of a container's filesystem as a tar archive", true)
 	outfile := cmd.String([]string{"o", "-output"}, "", "Write to a file, instead of STDOUT")
 	cmd.Require(flag.Exact, 1)
 
@@ -38,7 +39,7 @@ func (cli *DockerCli) CmdExport(args ...string) error {
 		rawTerminal: true,
 		out:         output,
 	}
-	if err := cli.stream("GET", "/containers/"+image+"/export", sopts); err != nil {
+	if _, err := cli.stream("GET", "/containers/"+image+"/export", sopts); err != nil {
 		return err
 	}
 

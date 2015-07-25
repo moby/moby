@@ -17,8 +17,8 @@ import (
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/parsers"
-	"github.com/docker/libcontainer/label"
 	zfs "github.com/mistifyio/go-zfs"
+	"github.com/opencontainers/runc/libcontainer/label"
 )
 
 type ZfsOptions struct {
@@ -38,6 +38,19 @@ func (*Logger) Log(cmd []string) {
 
 func Init(base string, opt []string) (graphdriver.Driver, error) {
 	var err error
+
+	if _, err := exec.LookPath("zfs"); err != nil {
+		log.Debugf("[zfs] zfs command is not available: %v", err)
+		return nil, graphdriver.ErrPrerequisites
+	}
+
+	file, err := os.OpenFile("/dev/zfs", os.O_RDWR, 600)
+	if err != nil {
+		log.Debugf("[zfs] cannot open /dev/zfs: %v", err)
+		return nil, graphdriver.ErrPrerequisites
+	}
+	defer file.Close()
+
 	options, err := parseOptions(opt)
 	if err != nil {
 		return nil, err
@@ -52,16 +65,6 @@ func Init(base string, opt []string) (graphdriver.Driver, error) {
 			return nil, err
 		}
 	}
-
-	if _, err := exec.LookPath("zfs"); err != nil {
-		return nil, fmt.Errorf("zfs command is not available: %v", err)
-	}
-
-	file, err := os.OpenFile("/dev/zfs", os.O_RDWR, 600)
-	if err != nil {
-		return nil, fmt.Errorf("cannot open /dev/zfs: %v", err)
-	}
-	defer file.Close()
 
 	if options.fsName == "" {
 		options.fsName, err = lookupZfsDataset(rootdir)
@@ -87,7 +90,7 @@ func Init(base string, opt []string) (graphdriver.Driver, error) {
 	}
 
 	if rootDataset == nil {
-		return nil, fmt.Errorf("BUG: zfs get all -t filesystems -rHp '%s' should contain '%s'", options.fsName, options.fsName)
+		return nil, fmt.Errorf("BUG: zfs get all -t filesystem -rHp '%s' should contain '%s'", options.fsName, options.fsName)
 	}
 
 	d := &Driver{
@@ -115,19 +118,6 @@ func parseOptions(opt []string) (ZfsOptions, error) {
 		}
 	}
 	return options, nil
-}
-
-func checkRootdirFs(rootdir string) error {
-	var buf syscall.Statfs_t
-	if err := syscall.Statfs(rootdir, &buf); err != nil {
-		return fmt.Errorf("Failed to access '%s': %s", rootdir, err)
-	}
-
-	if graphdriver.FsMagic(buf.Type) != graphdriver.FsMagicZfs {
-		log.Debugf("[zfs] no zfs dataset found for rootdir '%s'", rootdir)
-		return graphdriver.ErrPrerequisites
-	}
-	return nil
 }
 
 func lookupZfsDataset(rootdir string) (string, error) {
@@ -199,6 +189,10 @@ func (d *Driver) Status() [][2]string {
 	}
 }
 
+func (d *Driver) GetMetadata(id string) (map[string]string, error) {
+	return nil, nil
+}
+
 func (d *Driver) cloneFilesystem(name, parentName string) error {
 	snapshotName := fmt.Sprintf("%d", time.Now().Nanosecond())
 	parentDataset := zfs.Dataset{Name: parentName}
@@ -226,7 +220,7 @@ func (d *Driver) ZfsPath(id string) string {
 }
 
 func (d *Driver) MountPath(id string) string {
-	return path.Join(d.options.mountPath, "graph", id)
+	return path.Join(d.options.mountPath, "graph", getMountpoint(id))
 }
 
 func (d *Driver) Create(id string, parent string) error {

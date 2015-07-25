@@ -22,6 +22,7 @@ docker-build - Build a new image from the source code at PATH
 [**--cpuset-cpus**[=*CPUSET-CPUS*]]
 [**--cpuset-mems**[=*CPUSET-MEMS*]]
 [**--cgroup-parent**[=*CGROUP-PARENT*]]
+[**--ulimit**[=*[]*]]
 
 PATH | URL | -
 
@@ -37,13 +38,18 @@ daemon, not by the CLI, so the whole context must be transferred to the daemon.
 The Docker CLI reports "Sending build context to Docker daemon" when the context is sent to 
 the daemon.
 
-When a single Dockerfile is given as the URL, then no context is set.
-When a Git repository is set as the **URL**, the repository is used
-as context.
+When the URL to a tarball archive or to a single Dockerfile is given, no context is sent from
+the client to the Docker daemon. When a Git repository is set as the **URL**, the repository is
+cloned locally and then sent as the context.
 
 # OPTIONS
 **-f**, **--file**=*PATH/Dockerfile*
-   Path to the Dockerfile to use. If the path is a relative path then it must be relative to the current directory. The file must be within the build context. The default is *Dockerfile*.
+   Path to the Dockerfile to use. If the path is a relative path and you are
+   building from a local directory, then the path must be relative to that
+   directory. If you are building from a remote URL pointing to either a
+   tarball or a Git repository, then the path must be relative to the root of
+   the remote context. In all cases, the file must be within the build context.
+   The default is *Dockerfile*.
 
 **--force-rm**=*true*|*false*
    Always remove intermediate containers, even after unsuccessful builds. The default is *false*.
@@ -137,6 +143,12 @@ two memory nodes.
   If the path is not absolute, the path is considered relative to the `cgroups` path of the init process.
 Cgroups are created if they do not already exist.
 
+**--ulimit**=[]
+  Ulimit options
+
+  For more information about `ulimit` see [Setting ulimits in a 
+container](https://docs.docker.com/reference/commandline/run/#setting-ulimits-in-a-container)
+
 # EXAMPLES
 
 ## Building an image using a Dockerfile located inside the current directory
@@ -166,8 +178,8 @@ instruction into the specified target.
 
 ## Building an image and naming that image
 
-A good practice is to give a name to the image you are building. There are
-no hard rules here but it is best to give the names consideration. 
+A good practice is to give a name to the image you are building. Note that 
+only a-z0-9-_. should be used for consistency.  There are no hard rules here but it is best to give the names consideration. 
 
 The **-t**/**--tag** flag is used to rename an image. Here are some examples:
 
@@ -185,7 +197,7 @@ and give it the version 1.0:
 The next example is for the "whenry" user repository and uses Fedora and
 JBoss and gives it the version 2.1 :
 
-    docker build -t whenry/fedora-jboss:V2.1
+    docker build -t whenry/fedora-jboss:v2.1
 
 If you do not provide a version tag then Docker will assign `latest`:
 
@@ -200,16 +212,28 @@ into account Docker community conventions.
 
 ## Building an image using a URL
 
-This will clone the specified Github repository from the URL and use it
+This will clone the specified GitHub repository from the URL and use it
 as context. The Dockerfile at the root of the repository is used as
-Dockerfile. This only works if the Github repository is a dedicated
+Dockerfile. This only works if the GitHub repository is a dedicated
 repository.
 
     docker build github.com/scollier/Fedora-Dockerfiles/tree/master/apache
 
 Note: You can set an arbitrary Git repository via the `git://` schema.
 
+## Building an image using a URL to a tarball'ed context
+
+This will send the URL itself to the Docker daemon. The daemon will fetch the
+tarball archive, decompress it and use its contents as the build context. If you
+pass an *-f PATH/Dockerfile* option as well, the system will look for that file
+inside the contents of the tarball.
+
+    docker build -f dev/Dockerfile https://10.10.10.1/docker/context.tar.gz
+
+Note: supported compression formats are 'xz', 'bzip2', 'gzip' and 'identity' (no compression).
+
 # HISTORY
 March 2014, Originally compiled by William Henry (whenry at redhat dot com)
 based on docker.com source material and internal work.
 June 2014, updated by Sven Dowideit <SvenDowideit@home.org.au>
+June 2015, updated by Sally O'Malley <somalley@redhat.com>

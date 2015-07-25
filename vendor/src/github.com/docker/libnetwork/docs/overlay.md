@@ -1,6 +1,0 @@
-Overlay Driver
-==============
-
-## Configuration
-
-## Usage

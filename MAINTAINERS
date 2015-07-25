@@ -124,97 +124,7 @@ the relevant operators.
 
 * If the change affects the governance, philosophy, goals or principles of the project,
 it must be approved by BDFL.
-
-* A pull request can be in 1 of 5 distinct states, for each of which there is a corresponding label
-that needs to be applied. `Rules.review.states` contains the list of states with possible targets
-for each.
 """
-
-		# Triage
-		[Rules.review.states.0-needs-triage]
-
-			# Maintainers are expected to triage new incoming pull requests by removing
-			# the `0-triage` label and adding the correct labels (e.g. `1-design-review`)
-			# potentially skipping some steps depending on the kind of pull request.
-			# Use common sense for judging.
-			#
-			# Checking for DCO should be done at this stage.
-			#
-			# If an owner, responsible for closing or merging, can be assigned to the PR,
-			# the better.
-
-			close = "e.g. unresponsive contributor without DCO"
-			3-docs-review = "non-proposal documentation-only change"
-			2-code-review = "e.g. trivial bugfix"
-			1-design-review = "general case"
-
-		# Design review
-		[Rules.review.states.1-needs-design-review]
-
-			# Maintainers are expected to comment on the design of the pull request.
-			# Review of documentation is expected only in the context of design validation,
-			# not for stylistic changes.
-			#
-			# Ideally, documentation should reflect the expected behavior of the code.
-			# No code review should take place in this step.
-			#
-			# Once design is approved, a maintainer should make sure to remove this label
-			# and add the next one.
-
-			close = "design rejected"
-			3-docs-review = "proposals with only documentation changes"
-			2-code-review = "general case"
-
-		# Code review
-		[Rules.review.states.2-needs-code-review]
-
-			# Maintainers are expected to review the code and ensure that it is good
-			# quality and in accordance with the documentation in the PR.
-			#
-			# If documentation is absent but expected, maintainers should ask for documentation.
-			#
-			# All tests should pass.
-			#
-			# Once code is approved according to the rules of the subsystem, a maintainer
-			# should make sure to remove this label and add the next one.
-
-			close = ""
-			1-design-review = "raises design concerns"
-			4-merge = "trivial change not impacting documentation"
-			3-docs-review = "general case"
-
-		# Docs review
-		[Rules.review.states.3-needs-docs-review]
-
-			# Maintainers are expected to review the documentation in its bigger context,
-			# ensuring consistency, completeness, validity, and breadth of coverage across
-			# all extent and new documentation.
-			#
-			# They should ask for any editorial change that makes the documentation more
-			# consistent and easier to understand.
-			#
-			# Changes and additions to docs must be reviewed and approved (LGTM'd) by a minimum of
-			# two docs sub-project maintainers. If the docs change originates with a docs
-			# maintainer, only one additional LGTM is required (since we assume a docs maintainer
-			# approves of their own PR).
-			#
-			# Once documentation is approved (see below), a maintainer should make sure to remove this
-			# label and add the next one.
-
-			close = ""
-			2-code-review = "requires more code changes"
-			1-design-review = "raises design concerns"
-			4-merge = "general case"
-
-		# Merge
-		[Rules.review.states.4-needs-merge]
-
-			# Maintainers are expected to merge this pull request as soon as possible.
-			# They can ask for a rebase, or carry the pull request themselves.
-			# These should be the easy PRs to merge.
-
-			close = "carry PR"
-			merge = ""
 
 	[Rules.DCO]
 
@@ -314,7 +224,7 @@ made through a pull request.
 				"jfrazelle",
 				"crosbymichael"
 			]
-		
+
 		[Org.Operators.community]
 			people = [
 				"theadactyl"
@@ -326,7 +236,7 @@ made through a pull request.
 	# day of a new maintainer, the best advice should be "follow the C.M.'s example and you'll
 	# be fine".
 	"Chief Maintainer" = "crosbymichael"
-	
+
 	# The community manager is responsible for serving the project community, including users, 
 	# contributors and partners. This involves:
 	#	- facilitating communication between maintainers, contributors and users
@@ -335,7 +245,7 @@ made through a pull request.
 	#	- anything the project community needs to be successful
 	#
 	# The community manager is a point of contact for any contributor who has questions, concerns 
-	# or feedback about project operations. 
+	# or feedback about project operations.
 	"Community Manager" = "theadactyl"
 
 	[Org."Core maintainers"]
@@ -357,6 +267,7 @@ made through a pull request.
 
 
 		people = [
+			"calavera",
 			"crosbymichael",
 			"erikh",
 			"estesp",
@@ -536,6 +447,11 @@ made through a pull request.
 	Email = "ben@firshman.co.uk"
 	GitHub = "bfirsh"
 
+	[people.calavera]
+	Name = "David Calavera"
+	Email = "david.calavera@gmail.com"
+	GitHub = "calavera"
+
 	[people.cpuguy83]
 	Name = "Brian Goff"
 	Email = "cpuguy83@gmail.com"
@@ -650,7 +566,7 @@ made through a pull request.
 	Name = "Sebastiaan van Stijn"
 	Email = "github@gone.nl"
 	GitHub = "thaJeztah"
-	
+
 	[people.theadactyl]
 	Name = "Thea Lamkin"
 	Email = "thea@docker.com"

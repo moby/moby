@@ -105,11 +105,12 @@ not, the cache is invalidated.
 of the child images is sufficient.  However, certain instructions require
 a little more examination and explanation.
 
-* In the case of the `ADD` and `COPY` instructions, the contents of the file(s)
-being put into the image are examined. Specifically, a checksum is done
-of the file(s) and then that checksum is used during the cache lookup.
-If anything has changed in the file(s), including its metadata,
-then the cache is invalidated.
+* For the `ADD` and `COPY` instructions, the contents of the file(s) 
+in the image are examined and a checksum is calculated for each file. 
+The last-modified and last-accessed times of the file(s) are not considered in 
+these checksums. During the cache lookup, the checksum is compared against the 
+checksum in the existing images. If anything has changed in the file(s), such 
+as the contents and metadata, then the cache is invalidated. 
 
 * Aside from the `ADD` and `COPY` commands cache checking will not look at the
 files in the container to determine a cache match. For example, when processing
@@ -125,14 +126,18 @@ generate new images and the cache will not be used.
 Below you'll find recommendations for the best way to write the
 various instructions available for use in a `Dockerfile`.
 
-### [`FROM`](https://docs.docker.com/reference/builder/#from)
+### FROM
+
+[Dockerfile reference for the FROM instruction](https://docs.docker.com/reference/builder/#from)
 
 Whenever possible, use current Official Repositories as the basis for your
 image. We recommend the [Debian image](https://registry.hub.docker.com/_/debian/)
 since it’s very tightly controlled and kept extremely minimal (currently under
 100 mb), while still being a full distribution.
 
-### [`RUN`](https://docs.docker.com/reference/builder/#run)
+### RUN
+
+[Dockerfile reference for the RUN instruction](https://docs.docker.com/reference/builder/#run)
 
 As always, to make your `Dockerfile` more readable, understandable, and
 maintainable, put long or complex `RUN` statements on multiple lines separated
@@ -153,7 +158,10 @@ updated, use `apt-get install -y foo` and it will update automatically.
 
 * Do write instructions like:
 
-    RUN apt-get update && apt-get install -y package-bar package-foo package-baz
+        RUN apt-get update && apt-get install -y \
+            package-bar \
+            package-baz \
+            package-foo
 
 Writing the instruction this way not only makes it easier to read
 and maintain, but also, by including `apt-get update`, ensures that the cache
@@ -198,8 +206,10 @@ Writing the instruction this way also helps you avoid potential duplication of
 a given package because it is much easier to read than an instruction like:
 
     RUN apt-get install -y package-foo && apt-get install -y package-bar
-    
-### [`CMD`](https://docs.docker.com/reference/builder/#cmd)
+
+### CMD
+
+[Dockerfile reference for the CMD instruction](https://docs.docker.com/reference/builder/#cmd)
 
 The `CMD` instruction should be used to run the software contained by your
 image, along with any arguments. `CMD` should almost always be used in the
@@ -217,7 +227,9 @@ conjunction with [`ENTRYPOINT`](https://docs.docker.com/reference/builder/#entry
 you and your expected users are already quite familiar with how `ENTRYPOINT`
 works. 
 
-### [`EXPOSE`](https://docs.docker.com/reference/builder/#expose)
+### EXPOSE
+
+[Dockerfile reference for the EXPOSE instruction](https://docs.docker.com/reference/builder/#expose)
 
 The `EXPOSE` instruction indicates the ports on which a container will listen
 for connections. Consequently, you should use the common, traditional port for
@@ -230,7 +242,9 @@ how to map the specified port to the port of their choice.
 For container linking, Docker provides environment variables for the path from
 the recipient container back to the source (ie, `MYSQL_PORT_3306_TCP`).
 
-### [`ENV`](https://docs.docker.com/reference/builder/#env)
+### ENV
+
+[Dockerfile reference for the ENV instruction](https://docs.docker.com/reference/builder/#env)
 
 In order to make new software easier to run, you can use `ENV` to update the
 `PATH` environment variable for the software your container installs. For
@@ -253,7 +267,10 @@ Similar to having constant variables in a program (as opposed to hard-coding
 values), this approach lets you change a single `ENV` instruction to
 auto-magically bump the version of the software in your container.
 
-### [`ADD`](https://docs.docker.com/reference/builder/#add) or [`COPY`](https://docs.docker.com/reference/builder/#copy)
+### ADD or COPY
+
+[Dockerfile reference for the ADD instruction](https://docs.docker.com/reference/builder/#add)<br/>
+[Dockerfile reference for the COPY instruction](https://docs.docker.com/reference/builder/#copy)
 
 Although `ADD` and `COPY` are functionally similar, generally speaking, `COPY`
 is preferred. That’s because it’s more transparent than `ADD`. `COPY` only
@@ -289,14 +306,16 @@ things like:
 And instead, do something like:
 
     RUN mkdir -p /usr/src/things \
-        && curl -SL http://example.com/big.tar.gz \
+        && curl -SL http://example.com/big.tar.xz \
         | tar -xJC /usr/src/things \
         && make -C /usr/src/things all
 
 For other items (files, directories) that do not require `ADD`’s tar
 auto-extraction capability, you should always use `COPY`.
 
-### [`ENTRYPOINT`](https://docs.docker.com/reference/builder/#entrypoint)
+### ENTRYPOINT
+
+[Dockerfile reference for the ENTRYPOINT instruction](https://docs.docker.com/reference/builder/#entrypoint)
 
 The best use for `ENTRYPOINT` is to set the image's main command, allowing that
 image to be run as though it was that command (and then use `CMD` as the
@@ -346,7 +365,7 @@ exec "$@"
 > This script uses [the `exec` Bash command](http://wiki.bash-hackers.org/commands/builtin/exec)
 > so that the final running application becomes the container's PID 1. This allows
 > the application to receive any Unix signals sent to the container.
-> See the [`ENTRYPOINT`](https://docs.docker.com/reference/builder/#ENTRYPOINT)
+> See the [`ENTRYPOINT`](https://docs.docker.com/reference/builder/#entrypoint)
 > help for more details.
 
 
@@ -366,18 +385,22 @@ Or, it can be used to run Postgres and pass parameters to the server:
 
     $ docker run postgres postgres --help
 
-Lastly, it could also be used to start a totally different tool, such Bash:
+Lastly, it could also be used to start a totally different tool, such as Bash:
 
     $ docker run --rm -it postgres bash
 
-### [`VOLUME`](https://docs.docker.com/reference/builder/#volume)
+### VOLUME
+
+[Dockerfile reference for the VOLUME instruction](https://docs.docker.com/reference/builder/#volume)
 
 The `VOLUME` instruction should be used to expose any database storage area,
 configuration storage, or files/folders created by your docker container. You
 are strongly encouraged to use `VOLUME` for any mutable and/or user-serviceable
 parts of your image.
 
-### [`USER`](https://docs.docker.com/reference/builder/#user)
+### USER
+
+[Dockerfile reference for the USER instruction](https://docs.docker.com/reference/builder/#user)
 
 If a service can run without privileges, use `USER` to change to a non-root
 user. Start by creating the user and group in the `Dockerfile` with something
@@ -396,14 +419,18 @@ daemon as root but running it as non-root), you may be able to use
 Lastly, to reduce layers and complexity, avoid switching `USER` back
 and forth frequently.
 
-### [`WORKDIR`](https://docs.docker.com/reference/builder/#workdir)
+### WORKDIR
+
+[Dockerfile reference for the WORKDIR instruction](https://docs.docker.com/reference/builder/#workdir)
 
 For clarity and reliability, you should always use absolute paths for your
 `WORKDIR`. Also, you should use `WORKDIR` instead of  proliferating
 instructions like `RUN cd … && do-something`, which are hard to read,
 troubleshoot, and maintain.
 
-### [`ONBUILD`](https://docs.docker.com/reference/builder/#onbuild)
+### ONBUILD
+
+[Dockerfile reference for the ONBUILD instruction](https://docs.docker.com/reference/builder/#onbuild)
 
 An `ONBUILD` command executes after the current `Dockerfile` build completes.
 `ONBUILD` executes in any child image derived `FROM` the current image.  Think
@@ -437,7 +464,7 @@ These Official Repositories have exemplary `Dockerfile`s:
 
 ## Additional resources:
 
-* [Dockerfile Reference](https://docs.docker.com/reference/builder/#onbuild)
+* [Dockerfile Reference](https://docs.docker.com/reference/builder/)
 * [More about Base Images](https://docs.docker.com/articles/baseimages/)
 * [More about Automated Builds](https://docs.docker.com/docker-hub/builds/)
 * [Guidelines for Creating Official 

@@ -8,11 +8,11 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"regexp"
 	"sort"
 	"strings"
 	"sync"
 
+	"github.com/docker/distribution/digest"
 	"github.com/docker/docker/daemon/events"
 	"github.com/docker/docker/graph/tags"
 	"github.com/docker/docker/image"
@@ -25,11 +25,6 @@ import (
 )
 
 const DEFAULTTAG = "latest"
-
-var (
-	//FIXME this regex also exists in registry/v2/regexp.go
-	validDigest = regexp.MustCompile(`[a-zA-Z0-9-_+.]+:[a-fA-F0-9]+`)
-)
 
 type TagStore struct {
 	path         string
@@ -254,7 +249,14 @@ func (store *TagStore) SetLoad(repoName, tag, imageName string, force bool, out 
 		return err
 	}
 	if err := tags.ValidateTagName(tag); err != nil {
-		return err
+		if _, formatError := err.(tags.ErrTagInvalidFormat); !formatError {
+			return err
+		}
+		if _, dErr := digest.ParseDigest(tag); dErr != nil {
+			// Still return the tag validation error.
+			// It's more likely to be a user generated issue.
+			return err
+		}
 	}
 	if err := store.reload(); err != nil {
 		return err
@@ -388,8 +390,8 @@ func validateDigest(dgst string) error {
 	if dgst == "" {
 		return errors.New("digest can't be empty")
 	}
-	if !validDigest.MatchString(dgst) {
-		return fmt.Errorf("illegal digest (%s): must be of the form [a-zA-Z0-9-_+.]+:[a-fA-F0-9]+", dgst)
+	if _, err := digest.ParseDigest(dgst); err != nil {
+		return err
 	}
 	return nil
 }

@@ -4,30 +4,25 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"os/exec"
 	"reflect"
 	"strings"
 	"time"
 
-	"github.com/docker/docker/nat"
+	"os/exec"
+
+	"io/ioutil"
+
+	"github.com/docker/docker/pkg/nat"
 	"github.com/go-check/check"
 )
 
 // Make sure we can create a simple container with some args
 func (s *DockerSuite) TestCreateArgs(c *check.C) {
-	runCmd := exec.Command(dockerBinary, "create", "busybox", "command", "arg1", "arg2", "arg with space")
-	out, _, _, err := runCommandWithStdoutStderr(runCmd)
-	if err != nil {
-		c.Fatal(out, err)
-	}
+	out, _ := dockerCmd(c, "create", "busybox", "command", "arg1", "arg2", "arg with space")
 
 	cleanedContainerID := strings.TrimSpace(out)
 
-	inspectCmd := exec.Command(dockerBinary, "inspect", cleanedContainerID)
-	out, _, err = runCommandWithOutput(inspectCmd)
-	if err != nil {
-		c.Fatalf("out should've been a container id: %s, %v", out, err)
-	}
+	out, _ = dockerCmd(c, "inspect", cleanedContainerID)
 
 	containers := []struct {
 		ID      string
@@ -65,19 +60,11 @@ func (s *DockerSuite) TestCreateArgs(c *check.C) {
 // Make sure we can set hostconfig options too
 func (s *DockerSuite) TestCreateHostConfig(c *check.C) {
 
-	runCmd := exec.Command(dockerBinary, "create", "-P", "busybox", "echo")
-	out, _, _, err := runCommandWithStdoutStderr(runCmd)
-	if err != nil {
-		c.Fatal(out, err)
-	}
+	out, _ := dockerCmd(c, "create", "-P", "busybox", "echo")
 
 	cleanedContainerID := strings.TrimSpace(out)
 
-	inspectCmd := exec.Command(dockerBinary, "inspect", cleanedContainerID)
-	out, _, err = runCommandWithOutput(inspectCmd)
-	if err != nil {
-		c.Fatalf("out should've been a container id: %s, %v", out, err)
-	}
+	out, _ = dockerCmd(c, "inspect", cleanedContainerID)
 
 	containers := []struct {
 		HostConfig *struct {
@@ -104,19 +91,11 @@ func (s *DockerSuite) TestCreateHostConfig(c *check.C) {
 
 func (s *DockerSuite) TestCreateWithPortRange(c *check.C) {
 
-	runCmd := exec.Command(dockerBinary, "create", "-p", "3300-3303:3300-3303/tcp", "busybox", "echo")
-	out, _, _, err := runCommandWithStdoutStderr(runCmd)
-	if err != nil {
-		c.Fatal(out, err)
-	}
+	out, _ := dockerCmd(c, "create", "-p", "3300-3303:3300-3303/tcp", "busybox", "echo")
 
 	cleanedContainerID := strings.TrimSpace(out)
 
-	inspectCmd := exec.Command(dockerBinary, "inspect", cleanedContainerID)
-	out, _, err = runCommandWithOutput(inspectCmd)
-	if err != nil {
-		c.Fatalf("out should've been a container id: %s, %v", out, err)
-	}
+	out, _ = dockerCmd(c, "inspect", cleanedContainerID)
 
 	containers := []struct {
 		HostConfig *struct {
@@ -151,19 +130,11 @@ func (s *DockerSuite) TestCreateWithPortRange(c *check.C) {
 
 func (s *DockerSuite) TestCreateWithiLargePortRange(c *check.C) {
 
-	runCmd := exec.Command(dockerBinary, "create", "-p", "1-65535:1-65535/tcp", "busybox", "echo")
-	out, _, _, err := runCommandWithStdoutStderr(runCmd)
-	if err != nil {
-		c.Fatal(out, err)
-	}
+	out, _ := dockerCmd(c, "create", "-p", "1-65535:1-65535/tcp", "busybox", "echo")
 
 	cleanedContainerID := strings.TrimSpace(out)
 
-	inspectCmd := exec.Command(dockerBinary, "inspect", cleanedContainerID)
-	out, _, err = runCommandWithOutput(inspectCmd)
-	if err != nil {
-		c.Fatalf("out should've been a container id: %s, %v", out, err)
-	}
+	out, _ = dockerCmd(c, "inspect", cleanedContainerID)
 
 	containers := []struct {
 		HostConfig *struct {
@@ -199,19 +170,11 @@ func (s *DockerSuite) TestCreateWithiLargePortRange(c *check.C) {
 // "test123" should be printed by docker create + start
 func (s *DockerSuite) TestCreateEchoStdout(c *check.C) {
 
-	runCmd := exec.Command(dockerBinary, "create", "busybox", "echo", "test123")
-	out, _, _, err := runCommandWithStdoutStderr(runCmd)
-	if err != nil {
-		c.Fatal(out, err)
-	}
+	out, _ := dockerCmd(c, "create", "busybox", "echo", "test123")
 
 	cleanedContainerID := strings.TrimSpace(out)
 
-	runCmd = exec.Command(dockerBinary, "start", "-ai", cleanedContainerID)
-	out, _, _, err = runCommandWithStdoutStderr(runCmd)
-	if err != nil {
-		c.Fatal(out, err)
-	}
+	out, _ = dockerCmd(c, "start", "-ai", cleanedContainerID)
 
 	if out != "test123\n" {
 		c.Errorf("container should've printed 'test123', got %q", out)
@@ -223,10 +186,9 @@ func (s *DockerSuite) TestCreateVolumesCreated(c *check.C) {
 	testRequires(c, SameHostDaemon)
 
 	name := "test_create_volume"
-	if out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "create", "--name", name, "-v", "/foo", "busybox")); err != nil {
-		c.Fatal(out, err)
-	}
-	dir, err := inspectFieldMap(name, "Volumes", "/foo")
+	dockerCmd(c, "create", "--name", name, "-v", "/foo", "busybox")
+
+	dir, err := inspectMountSourceField(name, "/foo")
 	if err != nil {
 		c.Fatalf("Error getting volume host path: %q", err)
 	}
@@ -243,9 +205,7 @@ func (s *DockerSuite) TestCreateVolumesCreated(c *check.C) {
 func (s *DockerSuite) TestCreateLabels(c *check.C) {
 	name := "test_create_labels"
 	expected := map[string]string{"k1": "v1", "k2": "v2"}
-	if out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "create", "--name", name, "-l", "k1=v1", "--label", "k2=v2", "busybox")); err != nil {
-		c.Fatal(out, err)
-	}
+	dockerCmd(c, "create", "--name", name, "-l", "k1=v1", "--label", "k2=v2", "busybox")
 
 	actual := make(map[string]string)
 	err := inspectFieldAndMarshall(name, "Config.Labels", &actual)
@@ -269,10 +229,8 @@ func (s *DockerSuite) TestCreateLabelFromImage(c *check.C) {
 	}
 
 	name := "test_create_labels_from_image"
-	expected := map[string]string{"k2": "x", "k3": "v3", "k1": "v1"}
-	if out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "create", "--name", name, "-l", "k2=x", "--label", "k3=v3", imageName)); err != nil {
-		c.Fatal(out, err)
-	}
+	expected := map[string]string{"k2": "x", "k3": "v3"}
+	dockerCmd(c, "create", "--name", name, "-l", "k2=x", "--label", "k3=v3", imageName)
 
 	actual := make(map[string]string)
 	err = inspectFieldAndMarshall(name, "Config.Labels", &actual)
@@ -297,47 +255,197 @@ func (s *DockerSuite) TestCreateRM(c *check.C) {
 	// "Created" state, and has ever been run. Test "rm -f" too.
 
 	// create a container
-	createCmd := exec.Command(dockerBinary, "create", "busybox")
-	out, _, err := runCommandWithOutput(createCmd)
-	if err != nil {
-		c.Fatalf("Failed to create container:%s\n%s", out, err)
-	}
+	out, _ := dockerCmd(c, "create", "busybox")
 	cID := strings.TrimSpace(out)
 
-	rmCmd := exec.Command(dockerBinary, "rm", cID)
-	out, _, err = runCommandWithOutput(rmCmd)
-	if err != nil {
-		c.Fatalf("Failed to rm container:%s\n%s", out, err)
-	}
+	dockerCmd(c, "rm", cID)
 
 	// Now do it again so we can "rm -f" this time
-	createCmd = exec.Command(dockerBinary, "create", "busybox")
-	out, _, err = runCommandWithOutput(createCmd)
-	if err != nil {
-		c.Fatalf("Failed to create 2nd container:%s\n%s", out, err)
-	}
+	out, _ = dockerCmd(c, "create", "busybox")
 
 	cID = strings.TrimSpace(out)
-	rmCmd = exec.Command(dockerBinary, "rm", "-f", cID)
-	out, _, err = runCommandWithOutput(rmCmd)
-	if err != nil {
-		c.Fatalf("Failed to rm -f container:%s\n%s", out, err)
-	}
+	dockerCmd(c, "rm", "-f", cID)
 }
 
 func (s *DockerSuite) TestCreateModeIpcContainer(c *check.C) {
 	testRequires(c, SameHostDaemon)
 
-	cmd := exec.Command(dockerBinary, "create", "busybox")
-	out, _, err := runCommandWithOutput(cmd)
-	if err != nil {
-		c.Fatal(err, out)
-	}
+	out, _ := dockerCmd(c, "create", "busybox")
 	id := strings.TrimSpace(out)
 
-	cmd = exec.Command(dockerBinary, "create", fmt.Sprintf("--ipc=container:%s", id), "busybox")
-	out, _, err = runCommandWithOutput(cmd)
+	dockerCmd(c, "create", fmt.Sprintf("--ipc=container:%s", id), "busybox")
+}
+
+func (s *DockerTrustSuite) TestTrustedCreate(c *check.C) {
+	repoName := s.setupTrustedImage(c, "trusted-create")
+
+	// Try create
+	createCmd := exec.Command(dockerBinary, "create", repoName)
+	s.trustedCmd(createCmd)
+	out, _, err := runCommandWithOutput(createCmd)
 	if err != nil {
-		c.Fatalf("Create container with ipc mode container should success with non running container: %s\n%s", out, err)
+		c.Fatalf("Error running trusted create: %s\n%s", err, out)
+	}
+
+	if !strings.Contains(string(out), "Tagging") {
+		c.Fatalf("Missing expected output on trusted push:\n%s", out)
+	}
+
+	dockerCmd(c, "rmi", repoName)
+
+	// Try untrusted create to ensure we pushed the tag to the registry
+	createCmd = exec.Command(dockerBinary, "create", "--disable-content-trust=true", repoName)
+	s.trustedCmd(createCmd)
+	out, _, err = runCommandWithOutput(createCmd)
+	if err != nil {
+		c.Fatalf("Error running trusted create: %s\n%s", err, out)
+	}
+
+	if !strings.Contains(string(out), "Status: Downloaded") {
+		c.Fatalf("Missing expected output on trusted create with --disable-content-trust:\n%s", out)
+	}
+}
+
+func (s *DockerTrustSuite) TestUntrustedCreate(c *check.C) {
+	repoName := fmt.Sprintf("%v/dockercli/trusted:latest", privateRegistryURL)
+	// tag the image and upload it to the private registry
+	dockerCmd(c, "tag", "busybox", repoName)
+	dockerCmd(c, "push", repoName)
+	dockerCmd(c, "rmi", repoName)
+
+	// Try trusted create on untrusted tag
+	createCmd := exec.Command(dockerBinary, "create", repoName)
+	s.trustedCmd(createCmd)
+	out, _, err := runCommandWithOutput(createCmd)
+	if err == nil {
+		c.Fatalf("Error expected when running trusted create with:\n%s", out)
+	}
+
+	if !strings.Contains(string(out), "no trust data available") {
+		c.Fatalf("Missing expected output on trusted create:\n%s", out)
+	}
+}
+
+func (s *DockerTrustSuite) TestTrustedIsolatedCreate(c *check.C) {
+	repoName := s.setupTrustedImage(c, "trusted-isolated-create")
+
+	// Try create
+	createCmd := exec.Command(dockerBinary, "--config", "/tmp/docker-isolated-create", "create", repoName)
+	s.trustedCmd(createCmd)
+	out, _, err := runCommandWithOutput(createCmd)
+	if err != nil {
+		c.Fatalf("Error running trusted create: %s\n%s", err, out)
+	}
+
+	if !strings.Contains(string(out), "Tagging") {
+		c.Fatalf("Missing expected output on trusted push:\n%s", out)
+	}
+
+	dockerCmd(c, "rmi", repoName)
+}
+
+func (s *DockerTrustSuite) TestCreateWhenCertExpired(c *check.C) {
+	repoName := s.setupTrustedImage(c, "trusted-create-expired")
+
+	// Certificates have 10 years of expiration
+	elevenYearsFromNow := time.Now().Add(time.Hour * 24 * 365 * 11)
+
+	runAtDifferentDate(elevenYearsFromNow, func() {
+		// Try create
+		createCmd := exec.Command(dockerBinary, "create", repoName)
+		s.trustedCmd(createCmd)
+		out, _, err := runCommandWithOutput(createCmd)
+		if err == nil {
+			c.Fatalf("Error running trusted create in the distant future: %s\n%s", err, out)
+		}
+
+		if !strings.Contains(string(out), "could not validate the path to a trusted root") {
+			c.Fatalf("Missing expected output on trusted create in the distant future:\n%s", out)
+		}
+	})
+
+	runAtDifferentDate(elevenYearsFromNow, func() {
+		// Try create
+		createCmd := exec.Command(dockerBinary, "create", "--disable-content-trust", repoName)
+		s.trustedCmd(createCmd)
+		out, _, err := runCommandWithOutput(createCmd)
+		if err != nil {
+			c.Fatalf("Error running untrusted create in the distant future: %s\n%s", err, out)
+		}
+
+		if !strings.Contains(string(out), "Status: Downloaded") {
+			c.Fatalf("Missing expected output on untrusted create in the distant future:\n%s", out)
+		}
+	})
+}
+
+func (s *DockerTrustSuite) TestTrustedCreateFromBadTrustServer(c *check.C) {
+	repoName := fmt.Sprintf("%v/dockerclievilcreate/trusted:latest", privateRegistryURL)
+	evilLocalConfigDir, err := ioutil.TempDir("", "evil-local-config-dir")
+	if err != nil {
+		c.Fatalf("Failed to create local temp dir")
+	}
+
+	// tag the image and upload it to the private registry
+	dockerCmd(c, "tag", "busybox", repoName)
+
+	pushCmd := exec.Command(dockerBinary, "push", repoName)
+	s.trustedCmd(pushCmd)
+	out, _, err := runCommandWithOutput(pushCmd)
+	if err != nil {
+		c.Fatalf("Error creating trusted push: %s\n%s", err, out)
+	}
+	if !strings.Contains(string(out), "Signing and pushing trust metadata") {
+		c.Fatalf("Missing expected output on trusted push:\n%s", out)
+	}
+
+	dockerCmd(c, "rmi", repoName)
+
+	// Try create
+	createCmd := exec.Command(dockerBinary, "create", repoName)
+	s.trustedCmd(createCmd)
+	out, _, err = runCommandWithOutput(createCmd)
+	if err != nil {
+		c.Fatalf("Error creating trusted create: %s\n%s", err, out)
+	}
+
+	if !strings.Contains(string(out), "Tagging") {
+		c.Fatalf("Missing expected output on trusted push:\n%s", out)
+	}
+
+	dockerCmd(c, "rmi", repoName)
+
+	// Kill the notary server, start a new "evil" one.
+	s.not.Close()
+	s.not, err = newTestNotary(c)
+	if err != nil {
+		c.Fatalf("Restarting notary server failed.")
+	}
+
+	// In order to make an evil server, lets re-init a client (with a different trust dir) and push new data.
+	// tag an image and upload it to the private registry
+	dockerCmd(c, "--config", evilLocalConfigDir, "tag", "busybox", repoName)
+
+	// Push up to the new server
+	pushCmd = exec.Command(dockerBinary, "--config", evilLocalConfigDir, "push", repoName)
+	s.trustedCmd(pushCmd)
+	out, _, err = runCommandWithOutput(pushCmd)
+	if err != nil {
+		c.Fatalf("Error creating trusted push: %s\n%s", err, out)
+	}
+	if !strings.Contains(string(out), "Signing and pushing trust metadata") {
+		c.Fatalf("Missing expected output on trusted push:\n%s", out)
+	}
+
+	// Now, try creating with the original client from this new trust server. This should fail.
+	createCmd = exec.Command(dockerBinary, "create", repoName)
+	s.trustedCmd(createCmd)
+	out, _, err = runCommandWithOutput(createCmd)
+	if err == nil {
+		c.Fatalf("Expected to fail on this create due to different remote data: %s\n%s", err, out)
+	}
+
+	if !strings.Contains(string(out), "failed to validate data with current trusted certificates") {
+		c.Fatalf("Missing expected output on trusted push:\n%s", out)
 	}
 }

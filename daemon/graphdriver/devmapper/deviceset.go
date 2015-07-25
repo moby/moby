@@ -23,13 +23,13 @@ import (
 	"github.com/docker/docker/pkg/devicemapper"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/units"
-	"github.com/docker/libcontainer/label"
+	"github.com/opencontainers/runc/libcontainer/label"
 )
 
 var (
 	DefaultDataLoopbackSize     int64  = 100 * 1024 * 1024 * 1024
 	DefaultMetaDataLoopbackSize int64  = 2 * 1024 * 1024 * 1024
-	DefaultBaseFsSize           uint64 = 10 * 1024 * 1024 * 1024
+	DefaultBaseFsSize           uint64 = 100 * 1024 * 1024 * 1024
 	DefaultThinpBlockSize       uint32 = 128 // 64K = 128 512b sectors
 	DefaultUdevSyncOverride     bool   = false
 	MaxDeviceId                 int    = 0xffffff // 24 bit, pool limit
@@ -104,8 +104,9 @@ type DeviceSet struct {
 	thinpBlockSize        uint32
 	thinPoolDevice        string
 	Transaction           `json:"-"`
-	deferredRemove        bool // use deferred removal
 	overrideUdevSyncCheck bool
+	deferredRemove        bool   // use deferred removal
+	BaseDeviceUUID        string //save UUID of base device
 }
 
 type DiskUsage struct {
@@ -125,6 +126,13 @@ type Status struct {
 	SectorSize            uint64
 	UdevSyncSupported     bool
 	DeferredRemoveEnabled bool
+}
+
+// Structure used to export image/container metadata in docker inspect.
+type DeviceMetadata struct {
+	deviceId   int
+	deviceSize uint64 // size in bytes
+	deviceName string // Device name as used during activation
 }
 
 type DevStatus struct {
@@ -669,9 +677,76 @@ func (devices *DeviceSet) loadMetadata(hash string) *DevInfo {
 	return info
 }
 
+func getDeviceUUID(device string) (string, error) {
+	out, err := exec.Command("blkid", "-s", "UUID", "-o", "value", device).Output()
+	if err != nil {
+		logrus.Debugf("Failed to find uuid for device %s:%v", device, err)
+		return "", err
+	}
+
+	uuid := strings.TrimSuffix(string(out), "\n")
+	uuid = strings.TrimSpace(uuid)
+	logrus.Debugf("UUID for device: %s is:%s", device, uuid)
+	return uuid, nil
+}
+
+func (devices *DeviceSet) verifyBaseDeviceUUID(baseInfo *DevInfo) error {
+	devices.Lock()
+	defer devices.Unlock()
+
+	if err := devices.activateDeviceIfNeeded(baseInfo); err != nil {
+		return err
+	}
+
+	defer devices.deactivateDevice(baseInfo)
+
+	uuid, err := getDeviceUUID(baseInfo.DevName())
+	if err != nil {
+		return err
+	}
+
+	if devices.BaseDeviceUUID != uuid {
+		return fmt.Errorf("Current Base Device UUID:%s does not match with stored UUID:%s", uuid, devices.BaseDeviceUUID)
+	}
+
+	return nil
+}
+
+func (devices *DeviceSet) saveBaseDeviceUUID(baseInfo *DevInfo) error {
+	devices.Lock()
+	defer devices.Unlock()
+
+	if err := devices.activateDeviceIfNeeded(baseInfo); err != nil {
+		return err
+	}
+
+	defer devices.deactivateDevice(baseInfo)
+
+	uuid, err := getDeviceUUID(baseInfo.DevName())
+	if err != nil {
+		return err
+	}
+
+	devices.BaseDeviceUUID = uuid
+	devices.saveDeviceSetMetaData()
+	return nil
+}
+
 func (devices *DeviceSet) setupBaseImage() error {
 	oldInfo, _ := devices.lookupDevice("")
 	if oldInfo != nil && oldInfo.Initialized {
+		// If BaseDeviceUUID is nil (upgrade case), save it and
+		// return success.
+		if devices.BaseDeviceUUID == "" {
+			if err := devices.saveBaseDeviceUUID(oldInfo); err != nil {
+				return fmt.Errorf("Could not query and save base device UUID:%v", err)
+			}
+			return nil
+		}
+
+		if err := devices.verifyBaseDeviceUUID(oldInfo); err != nil {
+			return fmt.Errorf("Base Device UUID verification failed. Possibly using a different thin pool then last invocation:%v", err)
+		}
 		return nil
 	}
 
@@ -719,6 +794,10 @@ func (devices *DeviceSet) setupBaseImage() error {
 	if err := devices.saveMetadata(info); err != nil {
 		info.Initialized = false
 		return err
+	}
+
+	if err := devices.saveBaseDeviceUUID(info); err != nil {
+		return fmt.Errorf("Could not query and save base device UUID:%v", err)
 	}
 
 	return nil
@@ -1010,6 +1089,126 @@ func determineDriverCapabilities(version string) error {
 	return nil
 }
 
+// Determine the major and minor number of loopback device
+func getDeviceMajorMinor(file *os.File) (uint64, uint64, error) {
+	stat, err := file.Stat()
+	if err != nil {
+		return 0, 0, err
+	}
+
+	dev := stat.Sys().(*syscall.Stat_t).Rdev
+	majorNum := major(dev)
+	minorNum := minor(dev)
+
+	logrus.Debugf("[devmapper]: Major:Minor for device: %s is:%v:%v", file.Name(), majorNum, minorNum)
+	return majorNum, minorNum, nil
+}
+
+// Given a file which is backing file of a loop back device, find the
+// loopback device name and its major/minor number.
+func getLoopFileDeviceMajMin(filename string) (string, uint64, uint64, error) {
+	file, err := os.Open(filename)
+	if err != nil {
+		logrus.Debugf("[devmapper]: Failed to open file %s", filename)
+		return "", 0, 0, err
+	}
+
+	defer file.Close()
+	loopbackDevice := devicemapper.FindLoopDeviceFor(file)
+	if loopbackDevice == nil {
+		return "", 0, 0, fmt.Errorf("[devmapper]: Unable to find loopback mount for: %s", filename)
+	}
+	defer loopbackDevice.Close()
+
+	Major, Minor, err := getDeviceMajorMinor(loopbackDevice)
+	if err != nil {
+		return "", 0, 0, err
+	}
+	return loopbackDevice.Name(), Major, Minor, nil
+}
+
+// Get the major/minor numbers of thin pool data and metadata devices
+func (devices *DeviceSet) getThinPoolDataMetaMajMin() (uint64, uint64, uint64, uint64, error) {
+	var params, poolDataMajMin, poolMetadataMajMin string
+
+	_, _, _, params, err := devicemapper.GetTable(devices.getPoolName())
+	if err != nil {
+		return 0, 0, 0, 0, err
+	}
+
+	if _, err = fmt.Sscanf(params, "%s %s", &poolMetadataMajMin, &poolDataMajMin); err != nil {
+		return 0, 0, 0, 0, err
+	}
+
+	logrus.Debugf("[devmapper]: poolDataMajMin=%s poolMetaMajMin=%s\n", poolDataMajMin, poolMetadataMajMin)
+
+	poolDataMajMinorSplit := strings.Split(poolDataMajMin, ":")
+	poolDataMajor, err := strconv.ParseUint(poolDataMajMinorSplit[0], 10, 32)
+	if err != nil {
+		return 0, 0, 0, 0, err
+	}
+
+	poolDataMinor, err := strconv.ParseUint(poolDataMajMinorSplit[1], 10, 32)
+	if err != nil {
+		return 0, 0, 0, 0, err
+	}
+
+	poolMetadataMajMinorSplit := strings.Split(poolMetadataMajMin, ":")
+	poolMetadataMajor, err := strconv.ParseUint(poolMetadataMajMinorSplit[0], 10, 32)
+	if err != nil {
+		return 0, 0, 0, 0, err
+	}
+
+	poolMetadataMinor, err := strconv.ParseUint(poolMetadataMajMinorSplit[1], 10, 32)
+	if err != nil {
+		return 0, 0, 0, 0, err
+	}
+
+	return poolDataMajor, poolDataMinor, poolMetadataMajor, poolMetadataMinor, nil
+}
+
+func (devices *DeviceSet) loadThinPoolLoopBackInfo() error {
+	poolDataMajor, poolDataMinor, poolMetadataMajor, poolMetadataMinor, err := devices.getThinPoolDataMetaMajMin()
+	if err != nil {
+		return err
+	}
+
+	dirname := devices.loopbackDir()
+
+	// data device has not been passed in. So there should be a data file
+	// which is being mounted as loop device.
+	if devices.dataDevice == "" {
+		datafilename := path.Join(dirname, "data")
+		dataLoopDevice, dataMajor, dataMinor, err := getLoopFileDeviceMajMin(datafilename)
+		if err != nil {
+			return err
+		}
+
+		// Compare the two
+		if poolDataMajor == dataMajor && poolDataMinor == dataMinor {
+			devices.dataDevice = dataLoopDevice
+			devices.dataLoopFile = datafilename
+		}
+
+	}
+
+	// metadata device has not been passed in. So there should be a
+	// metadata file which is being mounted as loop device.
+	if devices.metadataDevice == "" {
+		metadatafilename := path.Join(dirname, "metadata")
+		metadataLoopDevice, metadataMajor, metadataMinor, err := getLoopFileDeviceMajMin(metadatafilename)
+		if err != nil {
+			return err
+		}
+		if poolMetadataMajor == metadataMajor && poolMetadataMinor == metadataMinor {
+			devices.metadataDevice = metadataLoopDevice
+			devices.metadataLoopFile = metadatafilename
+		}
+	}
+
+	return nil
+}
+
 func (devices *DeviceSet) initDevmapper(doInit bool) error {
 	// give ourselves to libdm as a log handler
 	devicemapper.LogInit(devices)
@@ -1150,6 +1349,17 @@ func (devices *DeviceSet) initDevmapper(doInit bool) error {
 		defer metadataFile.Close()
 
 		if err := devicemapper.CreatePool(devices.getPoolName(), dataFile, metadataFile, devices.thinpBlockSize); err != nil {
+			return err
+		}
+	}
+
+	// Pool already exists and caller did not pass us a pool. That means
+	// we probably created pool earlier and could not remove it as some
+	// containers were still using it. Detect some of the properties of
+	// pool, like is it using loop devices.
+	if info.Exists != 0 && devices.thinPoolDevice == "" {
+		if err := devices.loadThinPoolLoopBackInfo(); err != nil {
+			logrus.Debugf("Failed to load thin pool loopback device information:%v", err)
 			return err
 		}
 	}
@@ -1340,7 +1550,7 @@ func (devices *DeviceSet) cancelDeferredRemoval(info *DevInfo) error {
 	}
 
 	logrus.Debugf("[devmapper] cancelDeferredRemoval START(%s)", info.Name())
-	defer logrus.Debugf("[devmapper] cancelDeferredRemoval END(%s)", info.Name)
+	defer logrus.Debugf("[devmapper] cancelDeferredRemoval END(%s)", info.Name())
 
 	devinfo, err := devicemapper.GetInfoWithDeferred(info.Name())
 
@@ -1695,6 +1905,20 @@ func (devices *DeviceSet) Status() *Status {
 	}
 
 	return status
+}
+
+// Status returns the current status of this deviceset
+func (devices *DeviceSet) ExportDeviceMetadata(hash string) (*DeviceMetadata, error) {
+	info, err := devices.lookupDevice(hash)
+	if err != nil {
+		return nil, err
+	}
+
+	info.lock.Lock()
+	defer info.lock.Unlock()
+
+	metadata := &DeviceMetadata{info.DeviceId, info.Size, info.Name()}
+	return metadata, nil
 }
 
 func NewDeviceSet(root string, doInit bool, options []string) (*DeviceSet, error) {

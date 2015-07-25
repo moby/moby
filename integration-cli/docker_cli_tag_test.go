@@ -1,7 +1,6 @@
 package main
 
 import (
-	"os/exec"
 	"strings"
 
 	"github.com/docker/docker/pkg/stringutils"
@@ -14,20 +13,14 @@ func (s *DockerSuite) TestTagUnprefixedRepoByName(c *check.C) {
 		c.Fatal("couldn't find the busybox:latest image locally and failed to pull it")
 	}
 
-	tagCmd := exec.Command(dockerBinary, "tag", "busybox:latest", "testfoobarbaz")
-	if out, _, err := runCommandWithOutput(tagCmd); err != nil {
-		c.Fatal(out, err)
-	}
+	dockerCmd(c, "tag", "busybox:latest", "testfoobarbaz")
 }
 
 // tagging an image by ID in a new unprefixed repo should work
 func (s *DockerSuite) TestTagUnprefixedRepoByID(c *check.C) {
 	imageID, err := inspectField("busybox", "Id")
 	c.Assert(err, check.IsNil)
-	tagCmd := exec.Command(dockerBinary, "tag", imageID, "testfoobarbaz")
-	if out, _, err := runCommandWithOutput(tagCmd); err != nil {
-		c.Fatal(out, err)
-	}
+	dockerCmd(c, "tag", imageID, "testfoobarbaz")
 }
 
 // ensure we don't allow the use of invalid repository names; these tag operations should fail
@@ -36,8 +29,7 @@ func (s *DockerSuite) TestTagInvalidUnprefixedRepo(c *check.C) {
 	invalidRepos := []string{"fo$z$", "Foo@3cc", "Foo$3", "Foo*3", "Fo^3", "Foo!3", "F)xcz(", "fo%asd"}
 
 	for _, repo := range invalidRepos {
-		tagCmd := exec.Command(dockerBinary, "tag", "busybox", repo)
-		_, _, err := runCommandWithOutput(tagCmd)
+		_, _, err := dockerCmdWithError(c, "tag", "busybox", repo)
 		if err == nil {
 			c.Fatalf("tag busybox %v should have failed", repo)
 		}
@@ -51,8 +43,7 @@ func (s *DockerSuite) TestTagInvalidPrefixedRepo(c *check.C) {
 	invalidTags := []string{"repo:fo$z$", "repo:Foo@3cc", "repo:Foo$3", "repo:Foo*3", "repo:Fo^3", "repo:Foo!3", "repo:%goodbye", "repo:#hashtagit", "repo:F)xcz(", "repo:-foo", "repo:..", longTag}
 
 	for _, repotag := range invalidTags {
-		tagCmd := exec.Command(dockerBinary, "tag", "busybox", repotag)
-		_, _, err := runCommandWithOutput(tagCmd)
+		_, _, err := dockerCmdWithError(c, "tag", "busybox", repotag)
 		if err == nil {
 			c.Fatalf("tag busybox %v should have failed", repotag)
 		}
@@ -68,8 +59,7 @@ func (s *DockerSuite) TestTagValidPrefixedRepo(c *check.C) {
 	validRepos := []string{"fooo/bar", "fooaa/test", "foooo:t"}
 
 	for _, repo := range validRepos {
-		tagCmd := exec.Command(dockerBinary, "tag", "busybox:latest", repo)
-		_, _, err := runCommandWithOutput(tagCmd)
+		_, _, err := dockerCmdWithError(c, "tag", "busybox:latest", repo)
 		if err != nil {
 			c.Errorf("tag busybox %v should have worked: %s", repo, err)
 			continue
@@ -84,12 +74,8 @@ func (s *DockerSuite) TestTagExistedNameWithoutForce(c *check.C) {
 		c.Fatal("couldn't find the busybox:latest image locally and failed to pull it")
 	}
 
-	tagCmd := exec.Command(dockerBinary, "tag", "busybox:latest", "busybox:test")
-	if out, _, err := runCommandWithOutput(tagCmd); err != nil {
-		c.Fatal(out, err)
-	}
-	tagCmd = exec.Command(dockerBinary, "tag", "busybox:latest", "busybox:test")
-	out, _, err := runCommandWithOutput(tagCmd)
+	dockerCmd(c, "tag", "busybox:latest", "busybox:test")
+	out, _, err := dockerCmdWithError(c, "tag", "busybox:latest", "busybox:test")
 	if err == nil || !strings.Contains(out, "Conflict: Tag test is already set to image") {
 		c.Fatal("tag busybox busybox:test should have failed,because busybox:test is existed")
 	}
@@ -101,35 +87,26 @@ func (s *DockerSuite) TestTagExistedNameWithForce(c *check.C) {
 		c.Fatal("couldn't find the busybox:latest image locally and failed to pull it")
 	}
 
-	tagCmd := exec.Command(dockerBinary, "tag", "busybox:latest", "busybox:test")
-	if out, _, err := runCommandWithOutput(tagCmd); err != nil {
-		c.Fatal(out, err)
-	}
-	tagCmd = exec.Command(dockerBinary, "tag", "-f", "busybox:latest", "busybox:test")
-	if out, _, err := runCommandWithOutput(tagCmd); err != nil {
-		c.Fatal(out, err)
-	}
+	dockerCmd(c, "tag", "busybox:latest", "busybox:test")
+	dockerCmd(c, "tag", "-f", "busybox:latest", "busybox:test")
 }
 
-func (s *DockerSuite) TestTagWithSuffixHyphen(c *check.C) {
+func (s *DockerSuite) TestTagWithPrefixHyphen(c *check.C) {
 	if err := pullImageIfNotExist("busybox:latest"); err != nil {
 		c.Fatal("couldn't find the busybox:latest image locally and failed to pull it")
 	}
 	// test repository name begin with '-'
-	tagCmd := exec.Command(dockerBinary, "tag", "busybox:latest", "-busybox:test")
-	out, _, err := runCommandWithOutput(tagCmd)
-	if err == nil || !strings.Contains(out, "Invalid repository name (-busybox). Cannot begin or end with a hyphen") {
+	out, _, err := dockerCmdWithError(c, "tag", "busybox:latest", "-busybox:test")
+	if err == nil || !strings.Contains(out, "repository name component must match") {
 		c.Fatal("tag a name begin with '-' should failed")
 	}
 	// test namespace name begin with '-'
-	tagCmd = exec.Command(dockerBinary, "tag", "busybox:latest", "-test/busybox:test")
-	out, _, err = runCommandWithOutput(tagCmd)
-	if err == nil || !strings.Contains(out, "Invalid namespace name (-test). Cannot begin or end with a hyphen") {
+	out, _, err = dockerCmdWithError(c, "tag", "busybox:latest", "-test/busybox:test")
+	if err == nil || !strings.Contains(out, "repository name component must match") {
 		c.Fatal("tag a name begin with '-' should failed")
 	}
 	// test index name begin wiht '-'
-	tagCmd = exec.Command(dockerBinary, "tag", "busybox:latest", "-index:5000/busybox:test")
-	out, _, err = runCommandWithOutput(tagCmd)
+	out, _, err = dockerCmdWithError(c, "tag", "busybox:latest", "-index:5000/busybox:test")
 	if err == nil || !strings.Contains(out, "Invalid index name (-index:5000). Cannot begin or end with a hyphen") {
 		c.Fatal("tag a name begin with '-' should failed")
 	}
@@ -147,16 +124,14 @@ func (s *DockerSuite) TestTagOfficialNames(c *check.C) {
 	}
 
 	for _, name := range names {
-		tagCmd := exec.Command(dockerBinary, "tag", "-f", "busybox:latest", name+":latest")
-		out, exitCode, err := runCommandWithOutput(tagCmd)
+		out, exitCode, err := dockerCmdWithError(c, "tag", "-f", "busybox:latest", name+":latest")
 		if err != nil || exitCode != 0 {
 			c.Errorf("tag busybox %v should have worked: %s, %s", name, err, out)
 			continue
 		}
 
 		// ensure we don't have multiple tag names.
-		imagesCmd := exec.Command(dockerBinary, "images")
-		out, _, err = runCommandWithOutput(imagesCmd)
+		out, _, err = dockerCmdWithError(c, "images")
 		if err != nil {
 			c.Errorf("listing images failed with errors: %v, %s", err, out)
 		} else if strings.Contains(out, name) {
@@ -166,8 +141,7 @@ func (s *DockerSuite) TestTagOfficialNames(c *check.C) {
 	}
 
 	for _, name := range names {
-		tagCmd := exec.Command(dockerBinary, "tag", "-f", name+":latest", "fooo/bar:latest")
-		_, exitCode, err := runCommandWithOutput(tagCmd)
+		_, exitCode, err := dockerCmdWithError(c, "tag", "-f", name+":latest", "fooo/bar:latest")
 		if err != nil || exitCode != 0 {
 			c.Errorf("tag %v fooo/bar should have worked: %s", name, err)
 			continue

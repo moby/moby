@@ -88,11 +88,8 @@ func (s *DockerSuite) TestRunWithVolumesIsRecursive(c *check.C) {
 
 func (s *DockerSuite) TestRunWithUlimits(c *check.C) {
 	testRequires(c, NativeExecDriver)
-	out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "run", "--name=testulimits", "--ulimit", "nofile=42", "busybox", "/bin/sh", "-c", "ulimit -n"))
-	if err != nil {
-		c.Fatal(err, out)
-	}
 
+	out, _ := dockerCmd(c, "run", "--name=testulimits", "--ulimit", "nofile=42", "busybox", "/bin/sh", "-c", "ulimit -n")
 	ul := strings.TrimSpace(out)
 	if ul != "42" {
 		c.Fatalf("expected `ulimit -n` to be 42, got %s", ul)
@@ -103,17 +100,9 @@ func (s *DockerSuite) TestRunContainerWithCgroupParent(c *check.C) {
 	testRequires(c, NativeExecDriver)
 
 	cgroupParent := "test"
-	data, err := ioutil.ReadFile("/proc/self/cgroup")
-	if err != nil {
-		c.Fatalf("failed to read '/proc/self/cgroup - %v", err)
-	}
-	selfCgroupPaths := parseCgroupPaths(string(data))
-	selfCpuCgroup, found := selfCgroupPaths["memory"]
-	if !found {
-		c.Fatalf("unable to find self cpu cgroup path. CgroupsPath: %v", selfCgroupPaths)
-	}
+	name := "cgroup-test"
 
-	out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "run", "--cgroup-parent", cgroupParent, "--rm", "busybox", "cat", "/proc/self/cgroup"))
+	out, _, err := dockerCmdWithError(c, "run", "--cgroup-parent", cgroupParent, "--name", name, "busybox", "cat", "/proc/self/cgroup")
 	if err != nil {
 		c.Fatalf("unexpected failure when running container with --cgroup-parent option - %s\n%v", string(out), err)
 	}
@@ -121,16 +110,18 @@ func (s *DockerSuite) TestRunContainerWithCgroupParent(c *check.C) {
 	if len(cgroupPaths) == 0 {
 		c.Fatalf("unexpected output - %q", string(out))
 	}
-	found = false
-	expectedCgroupPrefix := path.Join(selfCpuCgroup, cgroupParent)
+	id, err := getIDByName(name)
+	c.Assert(err, check.IsNil)
+	expectedCgroup := path.Join(cgroupParent, id)
+	found := false
 	for _, path := range cgroupPaths {
-		if strings.HasPrefix(path, expectedCgroupPrefix) {
+		if strings.HasSuffix(path, expectedCgroup) {
 			found = true
 			break
 		}
 	}
 	if !found {
-		c.Fatalf("unexpected cgroup paths. Expected at least one cgroup path to have prefix %q. Cgroup Paths: %v", expectedCgroupPrefix, cgroupPaths)
+		c.Fatalf("unexpected cgroup paths. Expected at least one cgroup path to have suffix %q. Cgroup Paths: %v", expectedCgroup, cgroupPaths)
 	}
 }
 
@@ -138,8 +129,8 @@ func (s *DockerSuite) TestRunContainerWithCgroupParentAbsPath(c *check.C) {
 	testRequires(c, NativeExecDriver)
 
 	cgroupParent := "/cgroup-parent/test"
-
-	out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "run", "--cgroup-parent", cgroupParent, "--rm", "busybox", "cat", "/proc/self/cgroup"))
+	name := "cgroup-test"
+	out, _, err := dockerCmdWithError(c, "run", "--cgroup-parent", cgroupParent, "--name", name, "busybox", "cat", "/proc/self/cgroup")
 	if err != nil {
 		c.Fatalf("unexpected failure when running container with --cgroup-parent option - %s\n%v", string(out), err)
 	}
@@ -147,38 +138,44 @@ func (s *DockerSuite) TestRunContainerWithCgroupParentAbsPath(c *check.C) {
 	if len(cgroupPaths) == 0 {
 		c.Fatalf("unexpected output - %q", string(out))
 	}
+	id, err := getIDByName(name)
+	c.Assert(err, check.IsNil)
+	expectedCgroup := path.Join(cgroupParent, id)
 	found := false
 	for _, path := range cgroupPaths {
-		if strings.HasPrefix(path, cgroupParent) {
+		if strings.HasSuffix(path, expectedCgroup) {
 			found = true
 			break
 		}
 	}
 	if !found {
-		c.Fatalf("unexpected cgroup paths. Expected at least one cgroup path to have prefix %q. Cgroup Paths: %v", cgroupParent, cgroupPaths)
+		c.Fatalf("unexpected cgroup paths. Expected at least one cgroup path to have suffix %q. Cgroup Paths: %v", expectedCgroup, cgroupPaths)
+	}
+}
+
+func (s *DockerSuite) TestRunContainerWithCgroupMountRO(c *check.C) {
+	testRequires(c, NativeExecDriver)
+
+	filename := "/sys/fs/cgroup/devices/test123"
+	out, _, err := dockerCmdWithError(c, "run", "busybox", "touch", filename)
+	if err == nil {
+		c.Fatal("expected cgroup mount point to be read-only, touch file should fail")
+	}
+	expected := "Read-only file system"
+	if !strings.Contains(out, expected) {
+		c.Fatalf("expected output from failure to contain %s but contains %s", expected, out)
 	}
 }
 
 func (s *DockerSuite) TestRunDeviceDirectory(c *check.C) {
 	testRequires(c, NativeExecDriver)
-	cmd := exec.Command(dockerBinary, "run", "--device", "/dev/snd:/dev/snd", "busybox", "sh", "-c", "ls /dev/snd/")
 
-	out, _, err := runCommandWithOutput(cmd)
-	if err != nil {
-		c.Fatal(err, out)
-	}
-
+	out, _ := dockerCmd(c, "run", "--device", "/dev/snd:/dev/snd", "busybox", "sh", "-c", "ls /dev/snd/")
 	if actual := strings.Trim(out, "\r\n"); !strings.Contains(out, "timer") {
 		c.Fatalf("expected output /dev/snd/timer, received %s", actual)
 	}
 
-	cmd = exec.Command(dockerBinary, "run", "--device", "/dev/snd:/dev/othersnd", "busybox", "sh", "-c", "ls /dev/othersnd/")
-
-	out, _, err = runCommandWithOutput(cmd)
-	if err != nil {
-		c.Fatal(err, out)
-	}
-
+	out, _ = dockerCmd(c, "run", "--device", "/dev/snd:/dev/othersnd", "busybox", "sh", "-c", "ls /dev/othersnd/")
 	if actual := strings.Trim(out, "\r\n"); !strings.Contains(out, "seq") {
 		c.Fatalf("expected output /dev/othersnd/seq, received %s", actual)
 	}
@@ -249,4 +246,171 @@ func (s *DockerSuite) TestRunAttachDetach(c *check.C) {
 	case <-time.After(10 * time.Millisecond):
 		c.Fatal("timed out waiting for container to exit")
 	}
+}
+
+// "test" should be printed
+func (s *DockerSuite) TestRunEchoStdoutWithCPUQuota(c *check.C) {
+	testRequires(c, cpuCfsQuota)
+
+	out, _, err := dockerCmdWithError(c, "run", "--cpu-quota", "8000", "--name", "test", "busybox", "echo", "test")
+	if err != nil {
+		c.Fatalf("failed to run container: %v, output: %q", err, out)
+	}
+	out = strings.TrimSpace(out)
+	if out != "test" {
+		c.Errorf("container should've printed 'test'")
+	}
+
+	out, err = inspectField("test", "HostConfig.CpuQuota")
+	c.Assert(err, check.IsNil)
+
+	if out != "8000" {
+		c.Fatalf("setting the CPU CFS quota failed")
+	}
+}
+
+func (s *DockerSuite) TestRunWithCpuPeriod(c *check.C) {
+	testRequires(c, cpuCfsPeriod)
+
+	if _, _, err := dockerCmdWithError(c, "run", "--cpu-period", "50000", "--name", "test", "busybox", "true"); err != nil {
+		c.Fatalf("failed to run container: %v", err)
+	}
+
+	out, err := inspectField("test", "HostConfig.CpuPeriod")
+	c.Assert(err, check.IsNil)
+	if out != "50000" {
+		c.Fatalf("setting the CPU CFS period failed")
+	}
+}
+
+func (s *DockerSuite) TestRunOOMExitCode(c *check.C) {
+	testRequires(c, oomControl)
+	errChan := make(chan error)
+	go func() {
+		defer close(errChan)
+		out, exitCode, _ := dockerCmdWithError(c, "run", "-m", "4MB", "busybox", "sh", "-c", "x=a; while true; do x=$x$x$x$x; done")
+		if expected := 137; exitCode != expected {
+			errChan <- fmt.Errorf("wrong exit code for OOM container: expected %d, got %d (output: %q)", expected, exitCode, out)
+		}
+	}()
+
+	select {
+	case err := <-errChan:
+		c.Assert(err, check.IsNil)
+	case <-time.After(30 * time.Second):
+		c.Fatal("Timeout waiting for container to die on OOM")
+	}
+}
+
+func (s *DockerSuite) TestContainerNetworkModeToSelf(c *check.C) {
+	out, _, err := dockerCmdWithError(c, "run", "--name=me", "--net=container:me", "busybox", "true")
+	if err == nil || !strings.Contains(out, "cannot join own network") {
+		c.Fatalf("using container net mode to self should result in an error")
+	}
+}
+
+func (s *DockerSuite) TestRunContainerNetModeWithDnsMacHosts(c *check.C) {
+	out, _, err := dockerCmdWithError(c, "run", "-d", "--name", "parent", "busybox", "top")
+	if err != nil {
+		c.Fatalf("failed to run container: %v, output: %q", err, out)
+	}
+
+	out, _, err = dockerCmdWithError(c, "run", "--dns", "1.2.3.4", "--net=container:parent", "busybox")
+	if err == nil || !strings.Contains(out, "Conflicting options: --dns and the network mode") {
+		c.Fatalf("run --net=container with --dns should error out")
+	}
+
+	out, _, err = dockerCmdWithError(c, "run", "--mac-address", "92:d0:c6:0a:29:33", "--net=container:parent", "busybox")
+	if err == nil || !strings.Contains(out, "--mac-address and the network mode") {
+		c.Fatalf("run --net=container with --mac-address should error out")
+	}
+
+	out, _, err = dockerCmdWithError(c, "run", "--add-host", "test:192.168.2.109", "--net=container:parent", "busybox")
+	if err == nil || !strings.Contains(out, "--add-host and the network mode") {
+		c.Fatalf("run --net=container with --add-host should error out")
+	}
+}
+
+func (s *DockerSuite) TestRunContainerNetModeWithExposePort(c *check.C) {
+	dockerCmd(c, "run", "-d", "--name", "parent", "busybox", "top")
+
+	out, _, err := dockerCmdWithError(c, "run", "-p", "5000:5000", "--net=container:parent", "busybox")
+	if err == nil || !strings.Contains(out, "Conflicting options: -p, -P, --publish-all, --publish and the network mode (--net)") {
+		c.Fatalf("run --net=container with -p should error out")
+	}
+
+	out, _, err = dockerCmdWithError(c, "run", "-P", "--net=container:parent", "busybox")
+	if err == nil || !strings.Contains(out, "Conflicting options: -p, -P, --publish-all, --publish and the network mode (--net)") {
+		c.Fatalf("run --net=container with -P should error out")
+	}
+
+	out, _, err = dockerCmdWithError(c, "run", "--expose", "5000", "--net=container:parent", "busybox")
+	if err == nil || !strings.Contains(out, "Conflicting options: --expose and the network mode (--expose)") {
+		c.Fatalf("run --net=container with --expose should error out")
+	}
+}
+
+func (s *DockerSuite) TestRunLinkToContainerNetMode(c *check.C) {
+	dockerCmd(c, "run", "--name", "test", "-d", "busybox", "top")
+	dockerCmd(c, "run", "--name", "parent", "-d", "--net=container:test", "busybox", "top")
+	dockerCmd(c, "run", "-d", "--link=parent:parent", "busybox", "top")
+	dockerCmd(c, "run", "--name", "child", "-d", "--net=container:parent", "busybox", "top")
+	dockerCmd(c, "run", "-d", "--link=child:child", "busybox", "top")
+}
+
+func (s *DockerSuite) TestRunLoopbackOnlyExistsWhenNetworkingDisabled(c *check.C) {
+	out, _ := dockerCmd(c, "run", "--net=none", "busybox", "ip", "-o", "-4", "a", "show", "up")
+
+	var (
+		count = 0
+		parts = strings.Split(out, "\n")
+	)
+
+	for _, l := range parts {
+		if l != "" {
+			count++
+		}
+	}
+
+	if count != 1 {
+		c.Fatalf("Wrong interface count in container %d", count)
+	}
+
+	if !strings.HasPrefix(out, "1: lo") {
+		c.Fatalf("Wrong interface in test container: expected [1: lo], got %s", out)
+	}
+}
+
+// Issue #4681
+func (s *DockerSuite) TestRunLoopbackWhenNetworkDisabled(c *check.C) {
+	dockerCmd(c, "run", "--net=none", "busybox", "ping", "-c", "1", "127.0.0.1")
+}
+
+func (s *DockerSuite) TestRunModeNetContainerHostname(c *check.C) {
+	testRequires(c, ExecSupport)
+
+	dockerCmd(c, "run", "-i", "-d", "--name", "parent", "busybox", "top")
+	out, _ := dockerCmd(c, "exec", "parent", "cat", "/etc/hostname")
+	out1, _ := dockerCmd(c, "run", "--net=container:parent", "busybox", "cat", "/etc/hostname")
+
+	if out1 != out {
+		c.Fatal("containers with shared net namespace should have same hostname")
+	}
+}
+
+func (s *DockerSuite) TestRunNetworkNotInitializedNoneMode(c *check.C) {
+	out, _, err := dockerCmdWithError(c, "run", "-d", "--net=none", "busybox", "top")
+	id := strings.TrimSpace(out)
+	res, err := inspectField(id, "NetworkSettings.IPAddress")
+	c.Assert(err, check.IsNil)
+	if res != "" {
+		c.Fatalf("For 'none' mode network must not be initialized, but container got IP: %s", res)
+	}
+}
+
+func (s *DockerSuite) TestTwoContainersInNetHost(c *check.C) {
+	dockerCmd(c, "run", "-d", "--net=host", "--name=first", "busybox", "top")
+	dockerCmd(c, "run", "-d", "--net=host", "--name=second", "busybox", "top")
+	dockerCmd(c, "stop", "first")
+	dockerCmd(c, "stop", "second")
 }

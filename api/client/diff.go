@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/docker/docker/api/types"
+	Cli "github.com/docker/docker/cli"
 	"github.com/docker/docker/pkg/archive"
 	flag "github.com/docker/docker/pkg/mflag"
 )
@@ -17,21 +18,24 @@ import (
 //
 // Usage: docker diff CONTAINER
 func (cli *DockerCli) CmdDiff(args ...string) error {
-	cmd := cli.Subcmd("diff", "CONTAINER", "Inspect changes on a container's filesystem", true)
+	cmd := Cli.Subcmd("diff", []string{"CONTAINER"}, "Inspect changes on a container's filesystem", true)
 	cmd.Require(flag.Exact, 1)
+
 	cmd.ParseFlags(args, true)
 
 	if cmd.Arg(0) == "" {
 		return fmt.Errorf("Container name cannot be empty")
 	}
 
-	rdr, _, err := cli.call("GET", "/containers/"+cmd.Arg(0)+"/changes", nil, nil)
+	serverResp, err := cli.call("GET", "/containers/"+cmd.Arg(0)+"/changes", nil, nil)
 	if err != nil {
 		return err
 	}
 
+	defer serverResp.body.Close()
+
 	changes := []types.ContainerChange{}
-	if err := json.NewDecoder(rdr).Decode(&changes); err != nil {
+	if err := json.NewDecoder(serverResp.body).Decode(&changes); err != nil {
 		return err
 	}
 

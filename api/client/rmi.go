@@ -6,6 +6,7 @@ import (
 	"net/url"
 
 	"github.com/docker/docker/api/types"
+	Cli "github.com/docker/docker/cli"
 	flag "github.com/docker/docker/pkg/mflag"
 )
 
@@ -13,12 +14,11 @@ import (
 //
 // Usage: docker rmi [OPTIONS] IMAGE [IMAGE...]
 func (cli *DockerCli) CmdRmi(args ...string) error {
-	var (
-		cmd     = cli.Subcmd("rmi", "IMAGE [IMAGE...]", "Remove one or more images", true)
-		force   = cmd.Bool([]string{"f", "-force"}, false, "Force removal of the image")
-		noprune = cmd.Bool([]string{"-no-prune"}, false, "Do not delete untagged parents")
-	)
+	cmd := Cli.Subcmd("rmi", []string{"IMAGE [IMAGE...]"}, "Remove one or more images", true)
+	force := cmd.Bool([]string{"f", "-force"}, false, "Force removal of the image")
+	noprune := cmd.Bool([]string{"-no-prune"}, false, "Do not delete untagged parents")
 	cmd.Require(flag.Min, 1)
+
 	cmd.ParseFlags(args, true)
 
 	v := url.Values{}
@@ -31,13 +31,15 @@ func (cli *DockerCli) CmdRmi(args ...string) error {
 
 	var errNames []string
 	for _, name := range cmd.Args() {
-		rdr, _, err := cli.call("DELETE", "/images/"+name+"?"+v.Encode(), nil, nil)
+		serverResp, err := cli.call("DELETE", "/images/"+name+"?"+v.Encode(), nil, nil)
 		if err != nil {
 			fmt.Fprintf(cli.err, "%s\n", err)
 			errNames = append(errNames, name)
 		} else {
+			defer serverResp.body.Close()
+
 			dels := []types.ImageDelete{}
-			if err := json.NewDecoder(rdr).Decode(&dels); err != nil {
+			if err := json.NewDecoder(serverResp.body).Decode(&dels); err != nil {
 				fmt.Fprintf(cli.err, "%s\n", err)
 				errNames = append(errNames, name)
 				continue

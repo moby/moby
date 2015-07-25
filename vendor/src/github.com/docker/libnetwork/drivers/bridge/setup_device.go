@@ -2,12 +2,11 @@ package bridge
 
 import (
 	"github.com/docker/docker/pkg/parsers/kernel"
-	bri "github.com/docker/libcontainer/netlink"
 	"github.com/vishvananda/netlink"
 )
 
 // SetupDevice create a new bridge interface/
-func setupDevice(config *NetworkConfiguration, i *bridgeInterface) error {
+func setupDevice(config *networkConfiguration, i *bridgeInterface) error {
 	var setMac bool
 
 	// We only attempt to create the bridge when the requested device name is
@@ -30,11 +29,11 @@ func setupDevice(config *NetworkConfiguration, i *bridgeInterface) error {
 		setMac = true
 	}
 
-	return bri.CreateBridge(config.BridgeName, setMac)
+	return ioctlCreateBridge(config.BridgeName, setMac)
 }
 
 // SetupDeviceUp ups the given bridge interface.
-func setupDeviceUp(config *NetworkConfiguration, i *bridgeInterface) error {
+func setupDeviceUp(config *networkConfiguration, i *bridgeInterface) error {
 	err := netlink.LinkSetUp(i.Link)
 	if err != nil {
 		return err

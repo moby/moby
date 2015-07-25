@@ -3,6 +3,7 @@ package client
 import (
 	"net/url"
 
+	Cli "github.com/docker/docker/cli"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/registry"
@@ -12,7 +13,7 @@ import (
 //
 // Usage: docker tag [OPTIONS] IMAGE[:TAG] [REGISTRYHOST/][USERNAME/]NAME[:TAG]
 func (cli *DockerCli) CmdTag(args ...string) error {
-	cmd := cli.Subcmd("tag", "IMAGE[:TAG] [REGISTRYHOST/][USERNAME/]NAME[:TAG]", "Tag an image into a repository", true)
+	cmd := Cli.Subcmd("tag", []string{"IMAGE[:TAG] [REGISTRYHOST/][USERNAME/]NAME[:TAG]"}, "Tag an image into a repository", true)
 	force := cmd.Bool([]string{"f", "#force", "-force"}, false, "Force")
 	cmd.Require(flag.Exact, 2)
 

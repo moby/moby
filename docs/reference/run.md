@@ -43,7 +43,7 @@ settings affect:
  * network settings
  * runtime constraints on CPU and memory
  * privileges and LXC configuration
- 
+
 An image developer may set defaults for these same settings when they create the
 image using the `docker build` command. Operators, however, can override all
 defaults set by the developer using the `run` options.  And, operators can also
@@ -209,12 +209,12 @@ more advanced use case would be changing the host's hostname from a container.
 
 By default, all containers have the IPC namespace enabled.
 
-IPC (POSIX/SysV IPC) namespace provides separation of named shared memory 
+IPC (POSIX/SysV IPC) namespace provides separation of named shared memory
 segments, semaphores and message queues.
 
 Shared memory segments are used to accelerate inter-process communication at
 memory speed, rather than through pipes or through the network stack. Shared
-memory is commonly used by databases and custom-built (typically C/OpenMPI, 
+memory is commonly used by databases and custom-built (typically C/OpenMPI,
 C++/using boost libraries) high performance applications for scientific
 computing and financial services industries. If these types of applications
 are broken into multiple containers, you might need to share the IPC mechanisms
@@ -236,6 +236,9 @@ outgoing connections. The operator can completely disable networking
 with `docker run --net none` which disables all incoming and outgoing
 networking. In cases like this, you would perform I/O through files or
 `STDIN` and `STDOUT` only.
+
+Publishing ports and linking to other containers will not work
+when `--net` is anything other than the default (bridge).
 
 Your container will use the same DNS servers as the host by default, but
 you can override this with `--dns`.
@@ -305,9 +308,8 @@ traffic will be routed though this bridge to the container.
 With the networking mode set to `host` a container will share the host's
 network stack and all interfaces from the host will be available to the
 container.  The container's hostname will match the hostname on the host
-system.  Publishing ports and linking to other containers will not work
-when sharing the host's network stack. Note that `--add-host` `--hostname`
-`--dns` `--dns-search` and `--mac-address` is invalid in `host` netmode.
+system.  Note that `--add-host` `--hostname`  `--dns` `--dns-search` and
+`--mac-address` is invalid in `host` netmode.
 
 Compared to the default `bridge` mode, the `host` mode gives *significantly*
 better networking performance since it uses the host's native networking stack
@@ -323,9 +325,10 @@ or a High Performance Web Server.
 
 With the networking mode set to `container` a container will share the
 network stack of another container.  The other container's name must be
-provided in the format of `--net container:<name|id>`. Note that `--add-host` 
-`--hostname` `--dns` `--dns-search` and `--mac-address` is invalid 
-in `container` netmode.
+provided in the format of `--net container:<name|id>`. Note that `--add-host`
+`--hostname` `--dns` `--dns-search` and `--mac-address` is invalid
+in `container` netmode, and `--publish` `--publish-all` `--expose` are also
+invalid in `container` netmode.
 
 Example running a Redis container with Redis binding to `localhost` then
 running the `redis-cli` command and connecting to the Redis server over the
@@ -339,7 +342,7 @@ running the `redis-cli` command and connecting to the Redis server over the
 
 Your container will have lines in `/etc/hosts` which define the hostname of the
 container itself as well as `localhost` and a few other common things.  The
-`--add-host` flag can be used to add additional lines to `/etc/hosts`.  
+`--add-host` flag can be used to add additional lines to `/etc/hosts`.
 
     $ docker run -it --add-host db-static:86.75.30.9 ubuntu cat /etc/hosts
     172.17.0.22     09d03f76bf2c
@@ -374,7 +377,7 @@ Docker supports the following restart policies:
     <tr>
       <td><strong>no</strong></td>
       <td>
-        Do not automatically restart the container when it exits. This is the 
+        Do not automatically restart the container when it exits. This is the
         default.
       </td>
     </tr>
@@ -386,7 +389,7 @@ Docker supports the following restart policies:
       </td>
       <td>
         Restart only if the container exits with a non-zero exit status.
-        Optionally, limit the number of restart retries the Docker 
+        Optionally, limit the number of restart retries the Docker
         daemon attempts.
       </td>
     </tr>
@@ -425,11 +428,11 @@ Or, to get the last time the container was (re)started;
     $ docker inspect -f "{{ .State.StartedAt }}" my-container
     # 2015-03-04T23:47:07.691840179Z
 
-You cannot set any restart policy in combination with 
+You cannot set any restart policy in combination with
 ["clean up (--rm)"](#clean-up-rm). Setting both `--restart` and `--rm`
 results in an error.
 
-###Examples
+### Examples
 
     $ docker run --restart=always redis
 
@@ -438,7 +441,7 @@ so that if the container exits, Docker will restart it.
 
     $ docker run --restart=on-failure:10 redis
 
-This will run the `redis` container with a restart policy of **on-failure** 
+This will run the `redis` container with a restart policy of **on-failure**
 and a maximum restart count of 10.  If the `redis` container exits with a
 non-zero exit status more than 10 times in a row Docker will abort trying to
 restart the container. Providing a maximum restart limit is only valid for the
@@ -462,7 +465,7 @@ the container exits**, you can add the `--rm` flag:
     --security-opt="label:type:TYPE"   : Set the label type for the container
     --security-opt="label:level:LEVEL" : Set the label level for the container
     --security-opt="label:disable"     : Turn off label confinement for the container
-    --security-opt="apparmor:PROFILE"  : Set the apparmor profile to be applied 
+    --security-opt="apparmor:PROFILE"  : Set the apparmor profile to be applied
                                          to the container
 
 You can override the default labeling scheme for each container by specifying
@@ -505,7 +508,7 @@ The operator can also adjust the performance parameters of the
 container:
 
     -m, --memory="": Memory limit (format: <number><optional unit>, where unit = b, k, m or g)
-    -memory-swap="": Total memory limit (memory + swap, format: <number><optional unit>, where unit = b, k, m or g)
+    --memory-swap="": Total memory limit (memory + swap, format: <number><optional unit>, where unit = b, k, m or g)
     -c, --cpu-shares=0: CPU shares (relative weight)
     --cpu-period=0: Limit the CPU CFS (Completely Fair Scheduler) period
     --cpuset-cpus="": CPUs in which to allow execution (0-3, 0,1)
@@ -513,6 +516,7 @@ container:
     --cpu-quota=0: Limit the CPU CFS (Completely Fair Scheduler) quota
     --blkio-weight=0: Block IO weight (relative weight) accepts a weight value between 10 and 1000.
     --oom-kill-disable=true|false: Whether to disable OOM Killer for the container or not.
+    --memory-swappiness="": Tune a container's memory swappiness behavior. Accepts an integer between 0 and 100.
 
 ### Memory constraints
 
@@ -589,7 +593,7 @@ would be 2*300M, so processes can use 300M swap memory as well.
 We set both memory and swap memory, so the processes in the container can use
 300M memory and 700M swap memory.
 
-By default, Docker kills processes in a container if an out-of-memory (OOM)
+By default, kernel kills processes in a container if an out-of-memory (OOM)
 error occurs. To change this behaviour, use the `--oom-kill-disable` option.
 Only disable the OOM killer on containers where you have also set the
 `-m/--memory` option. If the `-m` flag is not set, this can result in the host
@@ -609,6 +613,21 @@ The following example, illustrates a dangerous way to use the flag:
 
 The container has unlimited memory which can cause the host to run out memory
 and require killing system processes to free memory.
+
+### Swappiness constraint
+
+By default, a container's kernel can swap out a percentage of anonymous pages.
+To set this percentage for a container, specify a `--memory-swappiness` value
+between 0 and 100. A value of 0 turns off anonymous page swapping. A value of
+100 sets all anonymous pages as swappable. By default, if you are not using
+`--memory-swappiness`, memory swappiness value will be inherited from the parent.
+
+For example, you can set:
+
+    $ docker run -ti --memory-swappiness=0 ubuntu:14.04 /bin/bash
+
+Setting the `--memory-swappiness` option is helpful when you want to retain the
+container's working set and to avoid swapping performance penalties.
 
 ### CPU share constraint
 
@@ -648,7 +667,7 @@ division of CPU shares:
 ### CPU period constraint
 
 The default CPU CFS (Completely Fair Scheduler) period is 100ms. We can use
-`--cpu-period` to set the period of CPUs to limit the container's CPU usage. 
+`--cpu-period` to set the period of CPUs to limit the container's CPU usage.
 And usually `--cpu-period` should work with `--cpu-quota`.
 
 Examples:
@@ -721,6 +740,16 @@ weights of the two containers.
 > **Note:** The blkio weight setting is only available for direct IO. Buffered IO
 > is not currently supported.
 
+## Additional groups
+    --group-add: Add Linux capabilities
+
+By default, the docker container process runs with the supplementary groups looked
+up for the specified user. If one wants to add more to that list of groups, then
+one can use this flag:
+
+    $ docker run -ti --rm --group-add audio  --group-add dbus --group-add 777 busybox id
+    uid=0(root) gid=0(root) groups=10(wheel),29(audio),81(dbus),777
+
 ## Runtime privilege, Linux capabilities, and LXC configuration
 
     --cap-add: Add Linux capabilities
@@ -772,7 +801,7 @@ capabilities using `--cap-add` and `--cap-drop`. By default, Docker has a defaul
 list of capabilities that are kept. The following table lists the Linux capability options which can be added or dropped.
 
 | Capability Key | Capability Description |
-| :----------------- | :---------------| :-------------------- |
+| -------------- | ---------------------- |
 | SETPCAP | Modify process capabilities. |
 | SYS_MODULE| Load and unload kernel modules. |
 | SYS_RAWIO | Perform I/O port operations (iopl(2) and ioperm(2)). |
@@ -865,45 +894,33 @@ familiar with using LXC directly.
 > you can use `--lxc-conf` to set a container's IP address, but this will not be
 > reflected in the `/etc/hosts` file.
 
-## Logging drivers (--log-driver)
+# Logging drivers (--log-driver)
 
-You can specify a different logging driver for the container than for the daemon.
+The container can have a different logging driver than the Docker daemon. Use
+the `--log-driver=VALUE` with the `docker run` command to configure the
+container's logging driver. The following options are supported:
 
-#### Logging driver: none
+| `none`      | Disables any logging for the container. `docker logs` won't be available with this driver.                                    |
+|-------------|-------------------------------------------------------------------------------------------------------------------------------|
+| `json-file` | Default logging driver for Docker. Writes JSON messages to file.  No logging options are supported for this driver.           |
+| `syslog`    | Syslog logging driver for Docker. Writes log messages to syslog.                                                              |
+| `journald`  | Journald logging driver for Docker. Writes log messages to `journald`.                                                        |
+| `gelf`      | Graylog Extended Log Format (GELF) logging driver for Docker. Writes log messages to a GELF endpoint likeGraylog or Logstash. |
+| `fluentd`   | Fluentd logging driver for Docker. Writes log messages to `fluentd` (forward input).                                          |
 
-Disables any logging for the container. `docker logs` won't be available with
-this driver.
+	The `docker logs`command is available only for the `json-file` logging
+driver.  For detailed information on working with logging drivers, see
+[Configure a logging driver](reference/logging/).
 
-#### Logging driver: json-file
+#### Logging driver: fluentd
 
-Default logging driver for Docker. Writes JSON messages to file. `docker logs`
-command is available only for this logging driver
+Fluentd logging driver for Docker. Writes log messages to fluentd (forward input). `docker logs`
+command is not available for this logging driver.
 
-The following logging options are supported for this logging driver: [none]
+Some options are supported by specifying `--log-opt` as many as needed, like `--log-opt fluentd-address=localhost:24224 --log-opt fluentd-tag=docker.{{.Name}}`.
 
-#### Logging driver: syslog
-
-Syslog logging driver for Docker. Writes log messages to syslog. `docker logs`
-command is not available for this logging driver
-
-The following logging options are supported for this logging driver:
-
-    --log-opt address=[tcp|udp]://host:port
-    --log-opt address=unix://path
-
-`address` specifies the remote syslog server address where the driver connects to.
-If not specified it defaults to the local unix socket of the running system.
-If transport is either `tcp` or `udp` and `port` is not specified it defaults to `514`
-The following example shows how to have the `syslog` driver connect to a `syslog`
-remote server at `192.168.0.42` on port `123`
-
-    $ docker run --log-driver=syslog --log-opt address=tcp://192.168.0.42:123
-
-#### Logging driver: journald
-
-Journald logging driver for Docker. Writes log messages to journald; the container id will be stored in the journal's `CONTAINER_ID` field. `docker logs` command is not available for this logging driver.  For detailed information on working with this logging driver, see [the journald logging driver](reference/logging/journald) reference documentation.
-
-The following logging options are supported for this logging driver: [none]
+ - `fluentd-address`: specify `host:port` to connect [localhost:24224]
+ - `fluentd-tag`: specify tag for fluentd message, which interpret some markup, ex `{{.ID}}`, `{{.FullID}}` or `{{.Name}}` [docker.{{.ID}}]
 
 ## Overriding Dockerfile image defaults
 
@@ -974,9 +991,9 @@ or override the Dockerfile's exposed defaults:
     --expose=[]: Expose a port or a range of ports from the container
                 without publishing it to your host
     -P=false   : Publish all exposed ports to the host interfaces
-    -p=[]      : Publish a container᾿s port or a range of ports to the host 
+    -p=[]      : Publish a container᾿s port or a range of ports to the host
                    format: ip:hostPort:containerPort | ip::containerPort | hostPort:containerPort | containerPort
-                   Both hostPort and containerPort can be specified as a range of ports. 
+                   Both hostPort and containerPort can be specified as a range of ports.
                    When specifying ranges for both, the number of container ports in the range must match the number of host ports in the range. (e.g., `-p 1234-1236:1234-1236/tcp`)
                    (use 'docker port' to see the actual mapping)
     --link=""  : Add link to another container (<name or id>:alias or <name or id>)
@@ -1024,19 +1041,19 @@ variables automatically:
  </tr>
  <tr>
   <td><code>HOSTNAME</code></td>
-  <td> 
+  <td>
     The hostname associated with the container
   </td>
  </tr>
  <tr>
   <td><code>PATH</code></td>
-  <td> 
+  <td>
     Includes popular directories, such as :<br>
     <code>/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin</code>
   </td>
  <tr>
   <td><code>TERM</code></td>
-  <td><code>xterm</code> if the container is allocated a psuedo-TTY</td>
+  <td><code>xterm</code> if the container is allocated a pseudo-TTY</td>
  </tr>
 </table>
 
@@ -1045,8 +1062,8 @@ as a result of the container being linked with another container. See
 the [*Container Links*](/userguide/dockerlinks/#container-linking)
 section for more details.
 
-Additionally, the operator can **set any environment variable** in the 
-container by using one or more `-e` flags, even overriding those mentioned 
+Additionally, the operator can **set any environment variable** in the
+container by using one or more `-e` flags, even overriding those mentioned
 above, or already defined by the developer with a Dockerfile `ENV`:
 
     $ docker run -e "deep=purple" --rm ubuntu /bin/bash -c export
@@ -1128,7 +1145,7 @@ container's `/etc/hosts` entry will be automatically updated.
     --volumes-from="": Mount all volumes from the given container(s)
 
 The volumes commands are complex enough to have their own documentation
-in section [*Managing data in 
+in section [*Managing data in
 containers*](/userguide/dockervolumes). A developer can define
 one or more `VOLUME`'s associated with an image, but only the operator
 can give access from one container to another (or from a container to a

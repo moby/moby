@@ -16,7 +16,7 @@ import (
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/chrootarchive"
-	"github.com/docker/libcontainer/label"
+	"github.com/opencontainers/runc/libcontainer/label"
 )
 
 // This is a small wrapper over the NaiveDiffWriter that lets us have a custom
@@ -165,6 +165,34 @@ func (d *Driver) Status() [][2]string {
 	return [][2]string{
 		{"Backing Filesystem", backingFs},
 	}
+}
+
+func (d *Driver) GetMetadata(id string) (map[string]string, error) {
+	dir := d.dir(id)
+	if _, err := os.Stat(dir); err != nil {
+		return nil, err
+	}
+
+	metadata := make(map[string]string)
+
+	// If id has a root, it is an image
+	rootDir := path.Join(dir, "root")
+	if _, err := os.Stat(rootDir); err == nil {
+		metadata["RootDir"] = rootDir
+		return metadata, nil
+	}
+
+	lowerId, err := ioutil.ReadFile(path.Join(dir, "lower-id"))
+	if err != nil {
+		return nil, err
+	}
+
+	metadata["LowerDir"] = path.Join(d.dir(string(lowerId)), "root")
+	metadata["UpperDir"] = path.Join(dir, "upper")
+	metadata["WorkDir"] = path.Join(dir, "work")
+	metadata["MergedDir"] = path.Join(dir, "merged")
+
+	return metadata, nil
 }
 
 func (d *Driver) Cleanup() error {

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types"
+	Cli "github.com/docker/docker/cli"
 	"github.com/docker/docker/opts"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/parsers"
@@ -21,7 +22,7 @@ import (
 //
 // Usage: docker images [OPTIONS] [REPOSITORY]
 func (cli *DockerCli) CmdImages(args ...string) error {
-	cmd := cli.Subcmd("images", "[REPOSITORY]", "List images", true)
+	cmd := Cli.Subcmd("images", []string{"[REPOSITORY]"}, "List images", true)
 	quiet := cmd.Bool([]string{"q", "-quiet"}, false, "Only show numeric IDs")
 	all := cmd.Bool([]string{"a", "-all"}, false, "Show all images (default hides intermediate images)")
 	noTrunc := cmd.Bool([]string{"#notrunc", "-no-trunc"}, false, "Don't truncate output")
@@ -30,6 +31,7 @@ func (cli *DockerCli) CmdImages(args ...string) error {
 	flFilter := opts.NewListOpts(nil)
 	cmd.Var(&flFilter, []string{"f", "-filter"}, "Filter output based on conditions provided")
 	cmd.Require(flag.Max, 1)
+
 	cmd.ParseFlags(args, true)
 
 	// Consolidate all filter flags, and sanity check them early.
@@ -61,13 +63,15 @@ func (cli *DockerCli) CmdImages(args ...string) error {
 		v.Set("all", "1")
 	}
 
-	rdr, _, err := cli.call("GET", "/images/json?"+v.Encode(), nil, nil)
+	serverResp, err := cli.call("GET", "/images/json?"+v.Encode(), nil, nil)
 	if err != nil {
 		return err
 	}
 
+	defer serverResp.body.Close()
+
 	images := []types.Image{}
-	if err := json.NewDecoder(rdr).Decode(&images); err != nil {
+	if err := json.NewDecoder(serverResp.body).Decode(&images); err != nil {
 		return err
 	}
 

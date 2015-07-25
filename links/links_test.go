@@ -5,12 +5,18 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/nat"
+	"github.com/docker/docker/pkg/nat"
 )
+
+// Just to make life easier
+func newPortNoError(proto, port string) nat.Port {
+	p, _ := nat.NewPort(proto, port)
+	return p
+}
 
 func TestLinkNaming(t *testing.T) {
 	ports := make(nat.PortSet)
-	ports[nat.Port("6379/tcp")] = struct{}{}
+	ports[newPortNoError("tcp", "6379")] = struct{}{}
 
 	link, err := NewLink("172.0.17.3", "172.0.17.2", "/db/docker-1", nil, ports)
 	if err != nil {
@@ -40,7 +46,7 @@ func TestLinkNaming(t *testing.T) {
 
 func TestLinkNew(t *testing.T) {
 	ports := make(nat.PortSet)
-	ports[nat.Port("6379/tcp")] = struct{}{}
+	ports[newPortNoError("tcp", "6379")] = struct{}{}
 
 	link, err := NewLink("172.0.17.3", "172.0.17.2", "/db/docker", nil, ports)
 	if err != nil {
@@ -63,7 +69,7 @@ func TestLinkNew(t *testing.T) {
 		t.Fail()
 	}
 	for _, p := range link.Ports {
-		if p != nat.Port("6379/tcp") {
+		if p != newPortNoError("tcp", "6379") {
 			t.Fail()
 		}
 	}
@@ -71,7 +77,7 @@ func TestLinkNew(t *testing.T) {
 
 func TestLinkEnv(t *testing.T) {
 	ports := make(nat.PortSet)
-	ports[nat.Port("6379/tcp")] = struct{}{}
+	ports[newPortNoError("tcp", "6379")] = struct{}{}
 
 	link, err := NewLink("172.0.17.3", "172.0.17.2", "/db/docker", []string{"PASSWORD=gordon"}, ports)
 	if err != nil {
@@ -112,9 +118,9 @@ func TestLinkEnv(t *testing.T) {
 
 func TestLinkMultipleEnv(t *testing.T) {
 	ports := make(nat.PortSet)
-	ports[nat.Port("6379/tcp")] = struct{}{}
-	ports[nat.Port("6380/tcp")] = struct{}{}
-	ports[nat.Port("6381/tcp")] = struct{}{}
+	ports[newPortNoError("tcp", "6379")] = struct{}{}
+	ports[newPortNoError("tcp", "6380")] = struct{}{}
+	ports[newPortNoError("tcp", "6381")] = struct{}{}
 
 	link, err := NewLink("172.0.17.3", "172.0.17.2", "/db/docker", []string{"PASSWORD=gordon"}, ports)
 	if err != nil {
@@ -161,9 +167,9 @@ func TestLinkMultipleEnv(t *testing.T) {
 
 func TestLinkPortRangeEnv(t *testing.T) {
 	ports := make(nat.PortSet)
-	ports[nat.Port("6379/tcp")] = struct{}{}
-	ports[nat.Port("6380/tcp")] = struct{}{}
-	ports[nat.Port("6381/tcp")] = struct{}{}
+	ports[newPortNoError("tcp", "6379")] = struct{}{}
+	ports[newPortNoError("tcp", "6380")] = struct{}{}
+	ports[newPortNoError("tcp", "6381")] = struct{}{}
 
 	link, err := NewLink("172.0.17.3", "172.0.17.2", "/db/docker", []string{"PASSWORD=gordon"}, ports)
 	if err != nil {

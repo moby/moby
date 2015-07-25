@@ -16,11 +16,12 @@ docker-ps - List containers
 [**-q**|**--quiet**[=*false*]]
 [**-s**|**--size**[=*false*]]
 [**--since**[=*SINCE*]]
+[**--format**=*"TEMPLATE"*]
 
 
 # DESCRIPTION
 
-List the containers in the local repository. By default this show only
+List the containers in the local repository. By default this shows only
 the running containers.
 
 # OPTIONS
@@ -28,7 +29,7 @@ the running containers.
    Show all containers. Only running containers are shown by default. The default is *false*.
 
 **--before**=""
-   Show only container created before Id or Name, include non-running ones.
+   Show only containers created before Id or Name, including non-running containers.
 
 **--help**
   Print usage statement
@@ -37,7 +38,7 @@ the running containers.
    Provide filter values. Valid filters:
                           exited=<int> - containers with exit code of <int>
                           label=<key> or label=<key>=<value>
-                          status=(restarting|running|paused|exited)
+                          status=(created|restarting|running|paused|exited)
                           name=<string> - container's name
                           id=<ID> - container's ID
 
@@ -58,6 +59,20 @@ the running containers.
 
 **--since**=""
    Show only containers created since Id or Name, include non-running ones.
+
+**--format**=*"TEMPLATE"*
+   Pretty-print containers using a Go template.
+   Valid placeholders:
+      .ID - Container ID
+      .Image - Image ID
+      .Command - Quoted command
+      .CreatedAt - Time when the container was created.
+      .RunningFor - Elapsed time since the container was started.
+      .Ports - Exposed ports.
+      .Status - Container status.
+      .Size - Container disk size.
+      .Labels - All labels asigned to the container.
+      .Label - Value of a specific label for this container. For example `{{.Label "com.docker.swarm.cpu"}}`
 
 # EXAMPLES
 # Display all containers, including non-running
@@ -81,6 +96,32 @@ the running containers.
 
     # docker ps -a -q --filter=name=determined_torvalds
     c1d3b0166030
+
+# Display containers with their commands
+
+    # docker ps --format "{{.ID}}: {{.Command}}"
+    a87ecb4f327c: /bin/sh -c #(nop) MA
+    01946d9d34d8: /bin/sh -c #(nop) MA
+    c1d3b0166030: /bin/sh -c yum -y up
+    41d50ecd2f57: /bin/sh -c #(nop) MA
+
+# Display containers with their labels in a table
+
+    # docker ps --format "table {{.ID}}\t{{.Labels}}"
+    CONTAINER ID        LABELS
+    a87ecb4f327c        com.docker.swarm.node=ubuntu,com.docker.swarm.storage=ssd
+    01946d9d34d8
+    c1d3b0166030        com.docker.swarm.node=debian,com.docker.swarm.cpu=6
+    41d50ecd2f57        com.docker.swarm.node=fedora,com.docker.swarm.cpu=3,com.docker.swarm.storage=ssd
+
+# Display containers with their node label in a table
+
+    # docker ps --format 'table {{.ID}}\t{{(.Label "com.docker.swarm.node")}}'
+    CONTAINER ID        NODE
+    a87ecb4f327c        ubuntu
+    01946d9d34d8
+    c1d3b0166030        debian
+    41d50ecd2f57        fedora
 
 # HISTORY
 April 2014, Originally compiled by William Henry (whenry at redhat dot com)

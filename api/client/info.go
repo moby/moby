@@ -5,6 +5,8 @@ import (
 	"fmt"
 
 	"github.com/docker/docker/api/types"
+	Cli "github.com/docker/docker/cli"
+	"github.com/docker/docker/pkg/httputils"
 	"github.com/docker/docker/pkg/ioutils"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/units"
@@ -14,17 +16,20 @@ import (
 //
 // Usage: docker info
 func (cli *DockerCli) CmdInfo(args ...string) error {
-	cmd := cli.Subcmd("info", "", "Display system-wide information", true)
+	cmd := Cli.Subcmd("info", nil, "Display system-wide information", true)
 	cmd.Require(flag.Exact, 0)
+
 	cmd.ParseFlags(args, true)
 
-	rdr, _, err := cli.call("GET", "/info", nil, nil)
+	serverResp, err := cli.call("GET", "/info", nil, nil)
 	if err != nil {
 		return err
 	}
 
+	defer serverResp.body.Close()
+
 	info := &types.Info{}
-	if err := json.NewDecoder(rdr).Decode(info); err != nil {
+	if err := json.NewDecoder(serverResp.body).Decode(info); err != nil {
 		return fmt.Errorf("Error reading remote info: %v", err)
 	}
 
@@ -67,15 +72,27 @@ func (cli *DockerCli) CmdInfo(args ...string) error {
 			fmt.Fprintf(cli.out, "Registry: %v\n", info.IndexServerAddress)
 		}
 	}
-	if !info.MemoryLimit {
-		fmt.Fprintf(cli.err, "WARNING: No memory limit support\n")
+	// Only output these warnings if the server supports these features
+	if h, err := httputils.ParseServerHeader(serverResp.header.Get("Server")); err == nil {
+		if h.OS != "windows" {
+			if !info.MemoryLimit {
+				fmt.Fprintf(cli.err, "WARNING: No memory limit support\n")
+			}
+			if !info.SwapLimit {
+				fmt.Fprintf(cli.err, "WARNING: No swap limit support\n")
+			}
+			if !info.IPv4Forwarding {
+				fmt.Fprintf(cli.err, "WARNING: IPv4 forwarding is disabled.\n")
+			}
+			if !info.BridgeNfIptables {
+				fmt.Fprintf(cli.err, "WARNING: bridge-nf-call-iptables is disabled\n")
+			}
+			if !info.BridgeNfIp6tables {
+				fmt.Fprintf(cli.err, "WARNING: bridge-nf-call-ip6tables is disabled\n")
+			}
+		}
 	}
-	if !info.SwapLimit {
-		fmt.Fprintf(cli.err, "WARNING: No swap limit support\n")
-	}
-	if !info.IPv4Forwarding {
-		fmt.Fprintf(cli.err, "WARNING: IPv4 forwarding is disabled.\n")
-	}
+
 	if info.Labels != nil {
 		fmt.Fprintln(cli.out, "Labels:")
 		for _, attribute := range info.Labels {

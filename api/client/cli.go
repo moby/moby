@@ -2,30 +2,34 @@ package client
 
 import (
 	"crypto/tls"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
-	"path/filepath"
-	"reflect"
+	"net/url"
+	"os"
 	"strings"
-	"text/template"
 
+	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cliconfig"
-	"github.com/docker/docker/pkg/homedir"
-	flag "github.com/docker/docker/pkg/mflag"
+	"github.com/docker/docker/opts"
+	"github.com/docker/docker/pkg/sockets"
 	"github.com/docker/docker/pkg/term"
-	"github.com/docker/docker/utils"
+	"github.com/docker/docker/pkg/tlsconfig"
 )
 
 // DockerCli represents the docker command line client.
 // Instances of the client can be returned from NewDockerCli.
 type DockerCli struct {
+	// initializing closure
+	init func() error
+
 	// proto holds the client protocol i.e. unix.
 	proto string
 	// addr holds the client address.
 	addr string
+	// basePath holds the path to prepend to the requests
+	basePath string
 
 	// configFile has the client configuration file
 	configFile *cliconfig.ConfigFile
@@ -54,83 +58,11 @@ type DockerCli struct {
 	transport *http.Transport
 }
 
-var funcMap = template.FuncMap{
-	"json": func(v interface{}) string {
-		a, _ := json.Marshal(v)
-		return string(a)
-	},
-}
-
-func (cli *DockerCli) Out() io.Writer {
-	return cli.out
-}
-
-func (cli *DockerCli) Err() io.Writer {
-	return cli.err
-}
-
-func (cli *DockerCli) getMethod(args ...string) (func(...string) error, bool) {
-	camelArgs := make([]string, len(args))
-	for i, s := range args {
-		if len(s) == 0 {
-			return nil, false
-		}
-		camelArgs[i] = strings.ToUpper(s[:1]) + strings.ToLower(s[1:])
+func (cli *DockerCli) Initialize() error {
+	if cli.init == nil {
+		return nil
 	}
-	methodName := "Cmd" + strings.Join(camelArgs, "")
-	method := reflect.ValueOf(cli).MethodByName(methodName)
-	if !method.IsValid() {
-		return nil, false
-	}
-	return method.Interface().(func(...string) error), true
-}
-
-// Cmd executes the specified command.
-func (cli *DockerCli) Cmd(args ...string) error {
-	if len(args) > 1 {
-		method, exists := cli.getMethod(args[:2]...)
-		if exists {
-			return method(args[2:]...)
-		}
-	}
-	if len(args) > 0 {
-		method, exists := cli.getMethod(args[0])
-		if !exists {
-			return fmt.Errorf("docker: '%s' is not a docker command.\nSee 'docker --help'.", args[0])
-		}
-		return method(args[1:]...)
-	}
-	return cli.CmdHelp()
-}
-
-// Subcmd is a subcommand of the main "docker" command.
-// A subcommand represents an action that can be performed
-// from the Docker command line client.
-//
-// To see all available subcommands, run "docker --help".
-func (cli *DockerCli) Subcmd(name, signature, description string, exitOnError bool) *flag.FlagSet {
-	var errorHandling flag.ErrorHandling
-	if exitOnError {
-		errorHandling = flag.ExitOnError
-	} else {
-		errorHandling = flag.ContinueOnError
-	}
-	flags := flag.NewFlagSet(name, errorHandling)
-	if signature != "" {
-		signature = " " + signature
-	}
-	flags.Usage = func() {
-		flags.ShortUsage()
-		flags.PrintDefaults()
-	}
-	flags.ShortUsage = func() {
-		options := ""
-		if flags.FlagCountUndeprecated() > 0 {
-			options = " [OPTIONS]"
-		}
-		fmt.Fprintf(flags.Out(), "\nUsage: docker %s%s%s\n\n%s\n", name, options, signature, description)
-	}
-	return flags
+	return cli.init()
 }
 
 // CheckTtyInput checks if we are trying to attach to a container tty
@@ -145,59 +77,86 @@ func (cli *DockerCli) CheckTtyInput(attachStdin, ttyMode bool) error {
 	return nil
 }
 
+func (cli *DockerCli) PsFormat() string {
+	return cli.configFile.PsFormat
+}
+
 // NewDockerCli returns a DockerCli instance with IO output and error streams set by in, out and err.
 // The key file, protocol (i.e. unix) and address are passed in as strings, along with the tls.Config. If the tls.Config
 // is set the client scheme will be set to https.
 // The client will be given a 32-second timeout (see https://github.com/docker/docker/pull/8035).
-func NewDockerCli(in io.ReadCloser, out, err io.Writer, keyFile string, proto, addr string, tlsConfig *tls.Config) *DockerCli {
-	var (
-		inFd          uintptr
-		outFd         uintptr
-		isTerminalIn  = false
-		isTerminalOut = false
-		scheme        = "http"
-	)
-
-	if tlsConfig != nil {
-		scheme = "https"
-	}
-	if in != nil {
-		inFd, isTerminalIn = term.GetFdInfo(in)
+func NewDockerCli(in io.ReadCloser, out, err io.Writer, clientFlags *cli.ClientFlags) *DockerCli {
+	cli := &DockerCli{
+		in:      in,
+		out:     out,
+		err:     err,
+		keyFile: clientFlags.Common.TrustKey,
 	}
 
-	if out != nil {
-		outFd, isTerminalOut = term.GetFdInfo(out)
+	cli.init = func() error {
+		clientFlags.PostParse()
+
+		hosts := clientFlags.Common.Hosts
+
+		switch len(hosts) {
+		case 0:
+			defaultHost := os.Getenv("DOCKER_HOST")
+			if defaultHost == "" {
+				defaultHost = opts.DefaultHost
+			}
+			defaultHost, err := opts.ValidateHost(defaultHost)
+			if err != nil {
+				return err
+			}
+			hosts = []string{defaultHost}
+		case 1:
+			// only accept one host to talk to
+		default:
+			return errors.New("Please specify only one -H")
+		}
+
+		protoAddrParts := strings.SplitN(hosts[0], "://", 2)
+		cli.proto, cli.addr = protoAddrParts[0], protoAddrParts[1]
+
+		if cli.proto == "tcp" {
+			// error is checked in pkg/parsers already
+			parsed, _ := url.Parse("tcp://" + cli.addr)
+			cli.addr = parsed.Host
+			cli.basePath = parsed.Path
+		}
+
+		if clientFlags.Common.TLSOptions != nil {
+			cli.scheme = "https"
+			var e error
+			cli.tlsConfig, e = tlsconfig.Client(*clientFlags.Common.TLSOptions)
+			if e != nil {
+				return e
+			}
+		} else {
+			cli.scheme = "http"
+		}
+
+		if cli.in != nil {
+			cli.inFd, cli.isTerminalIn = term.GetFdInfo(cli.in)
+		}
+		if cli.out != nil {
+			cli.outFd, cli.isTerminalOut = term.GetFdInfo(cli.out)
+		}
+
+		// The transport is created here for reuse during the client session.
+		cli.transport = &http.Transport{
+			TLSClientConfig: cli.tlsConfig,
+		}
+		sockets.ConfigureTCPTransport(cli.transport, cli.proto, cli.addr)
+
+		configFile, e := cliconfig.Load(cliconfig.ConfigDir())
+		if e != nil {
+			fmt.Fprintf(cli.err, "WARNING: Error loading config file:%v\n", e)
+		}
+		cli.configFile = configFile
+
+		return nil
 	}
 
-	if err == nil {
-		err = out
-	}
-
-	// The transport is created here for reuse during the client session.
-	tr := &http.Transport{
-		TLSClientConfig: tlsConfig,
-	}
-	utils.ConfigureTCPTransport(tr, proto, addr)
-
-	configFile, e := cliconfig.Load(filepath.Join(homedir.Get(), ".docker"))
-	if e != nil {
-		fmt.Fprintf(err, "WARNING: Error loading config file:%v\n", e)
-	}
-
-	return &DockerCli{
-		proto:         proto,
-		addr:          addr,
-		configFile:    configFile,
-		in:            in,
-		out:           out,
-		err:           err,
-		keyFile:       keyFile,
-		inFd:          inFd,
-		outFd:         outFd,
-		isTerminalIn:  isTerminalIn,
-		isTerminalOut: isTerminalOut,
-		tlsConfig:     tlsConfig,
-		scheme:        scheme,
-		transport:     tr,
-	}
+	return cli
 }

@@ -11,7 +11,7 @@ CONTAINER [ps OPTIONS]
 
 # DESCRIPTION
 
-Look up the running process of the container. ps-OPTION can be any of the
+Display the running process of the container. ps-OPTION can be any of the
  options you would pass to a Linux ps command.
 
 # OPTIONS
@@ -31,3 +31,4 @@ Run **docker top** with the ps option of -x:
 April 2014, Originally compiled by William Henry (whenry at redhat dot com)
 based on docker.com source material and internal work.
 June 2014, updated by Sven Dowideit <SvenDowideit@home.org.au>
+June 2015, updated by Ma Shimiao <mashimiao.fnst@cn.fujitsu.com>

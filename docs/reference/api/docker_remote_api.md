@@ -36,13 +36,13 @@ parent = "smn_remoteapi"
    Client applications need to take this into account to ensure
    they will not break when talking to newer Docker daemons.
 
-The current version of the API is v1.19
+The current version of the API is v1.20
 
 Calling `/info` is the same as calling
-`/v1.19/info`.
+`/v1.20/info`.
 
 You can still call an old version of the API using
-`/v1.18/info`.
+`/v1.19/info`.
 
 ## Docker Events
 
@@ -59,6 +59,35 @@ Some container-related events are not affected by container state, so they are n
 Running `docker rmi` emits an **untag** event when removing an image name.  The `rmi` command may also emit **delete** events when images are deleted by ID directly or by deleting the last tag referring to the image.
 
 > **Acknowledgement**: This diagram and the accompanying text were used with the permission of Matt Good and Gilder Labs. See Matt's original blog post [Docker Events Explained](http://gliderlabs.com/blog/2015/04/14/docker-events-explained/).
+
+## v1.20
+
+### Full documentation
+
+[*Docker Remote API v1.20*](/reference/api/docker_remote_api_v1.20/)
+
+### What's new
+
+`GET /containers/(id)/archive`
+
+**New!**
+Get an archive of filesystem content from a container.
+
+`PUT /containers/(id)/archive`
+
+**New!**
+Upload an archive of content to be extracted to an
+existing directory inside a container's filesystem.
+
+`POST /containers/(id)/copy`
+
+**Deprecated!**
+This copy endpoint has been deprecated in favor of the above `archive` endpoint
+which can be used to download files and directories from a container.
+
+**New!**
+The `hostConfig` option now accepts the field `GroupAdd`, which specifies a list of additional
+groups that the container process will run as.
 
 ## v1.19
 

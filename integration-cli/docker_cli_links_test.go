@@ -2,52 +2,16 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
-	"os"
-	"os/exec"
+	"github.com/go-check/check"
 	"reflect"
 	"regexp"
 	"strings"
 	"time"
-
-	"github.com/go-check/check"
 )
 
-func (s *DockerSuite) TestLinksEtcHostsRegularFile(c *check.C) {
-	runCmd := exec.Command(dockerBinary, "run", "--net=host", "busybox", "ls", "-la", "/etc/hosts")
-	out, _, _, err := runCommandWithStdoutStderr(runCmd)
-	if err != nil {
-		c.Fatal(out, err)
-	}
-
-	if !strings.HasPrefix(out, "-") {
-		c.Errorf("/etc/hosts should be a regular file")
-	}
-}
-
-func (s *DockerSuite) TestLinksEtcHostsContentMatch(c *check.C) {
-	testRequires(c, SameHostDaemon)
-
-	runCmd := exec.Command(dockerBinary, "run", "--net=host", "busybox", "cat", "/etc/hosts")
-	out, _, _, err := runCommandWithStdoutStderr(runCmd)
-	if err != nil {
-		c.Fatal(out, err)
-	}
-
-	hosts, err := ioutil.ReadFile("/etc/hosts")
-	if os.IsNotExist(err) {
-		c.Skip("/etc/hosts does not exist, skip this test")
-	}
-
-	if out != string(hosts) {
-		c.Errorf("container")
-	}
-
-}
-
 func (s *DockerSuite) TestLinksPingUnlinkedContainers(c *check.C) {
-	runCmd := exec.Command(dockerBinary, "run", "--rm", "busybox", "sh", "-c", "ping -c 1 alias1 -W 1 && ping -c 1 alias2 -W 1")
-	exitCode, err := runCommand(runCmd)
+
+	_, exitCode, err := dockerCmdWithError(c, "run", "--rm", "busybox", "sh", "-c", "ping -c 1 alias1 -W 1 && ping -c 1 alias2 -W 1")
 
 	if exitCode == 0 {
 		c.Fatal("run ping did not fail")
@@ -60,8 +24,7 @@ func (s *DockerSuite) TestLinksPingUnlinkedContainers(c *check.C) {
 // Test for appropriate error when calling --link with an invalid target container
 func (s *DockerSuite) TestLinksInvalidContainerTarget(c *check.C) {
 
-	runCmd := exec.Command(dockerBinary, "run", "--link", "bogus:alias", "busybox", "true")
-	out, _, err := runCommandWithOutput(runCmd)
+	out, _, err := dockerCmdWithError(c, "run", "--link", "bogus:alias", "busybox", "true")
 
 	if err == nil {
 		c.Fatal("an invalid container target should produce an error")
@@ -74,14 +37,8 @@ func (s *DockerSuite) TestLinksInvalidContainerTarget(c *check.C) {
 
 func (s *DockerSuite) TestLinksPingLinkedContainers(c *check.C) {
 
-	runCmd := exec.Command(dockerBinary, "run", "-d", "--name", "container1", "--hostname", "fred", "busybox", "top")
-	if _, err := runCommand(runCmd); err != nil {
-		c.Fatal(err)
-	}
-	runCmd = exec.Command(dockerBinary, "run", "-d", "--name", "container2", "--hostname", "wilma", "busybox", "top")
-	if _, err := runCommand(runCmd); err != nil {
-		c.Fatal(err)
-	}
+	dockerCmd(c, "run", "-d", "--name", "container1", "--hostname", "fred", "busybox", "top")
+	dockerCmd(c, "run", "-d", "--name", "container2", "--hostname", "wilma", "busybox", "top")
 
 	runArgs := []string{"run", "--rm", "--link", "container1:alias1", "--link", "container2:alias2", "busybox", "sh", "-c"}
 	pingCmd := "ping -c 1 %s -W 1 && ping -c 1 %s -W 1"
@@ -165,38 +122,20 @@ func (s *DockerSuite) TestLinksInspectLinksStopped(c *check.C) {
 }
 
 func (s *DockerSuite) TestLinksNotStartedParentNotFail(c *check.C) {
-	runCmd := exec.Command(dockerBinary, "create", "--name=first", "busybox", "top")
-	out, _, _, err := runCommandWithStdoutStderr(runCmd)
-	if err != nil {
-		c.Fatal(out, err)
-	}
-	runCmd = exec.Command(dockerBinary, "create", "--name=second", "--link=first:first", "busybox", "top")
-	out, _, _, err = runCommandWithStdoutStderr(runCmd)
-	if err != nil {
-		c.Fatal(out, err)
-	}
-	runCmd = exec.Command(dockerBinary, "start", "first")
-	out, _, _, err = runCommandWithStdoutStderr(runCmd)
-	if err != nil {
-		c.Fatal(out, err)
-	}
+
+	dockerCmd(c, "create", "--name=first", "busybox", "top")
+	dockerCmd(c, "create", "--name=second", "--link=first:first", "busybox", "top")
+	dockerCmd(c, "start", "first")
+
 }
 
 func (s *DockerSuite) TestLinksHostsFilesInject(c *check.C) {
 	testRequires(c, SameHostDaemon, ExecSupport)
 
-	out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "run", "-itd", "--name", "one", "busybox", "top"))
-	if err != nil {
-		c.Fatal(err, out)
-	}
-
+	out, _ := dockerCmd(c, "run", "-itd", "--name", "one", "busybox", "top")
 	idOne := strings.TrimSpace(out)
 
-	out, _, err = runCommandWithOutput(exec.Command(dockerBinary, "run", "-itd", "--name", "two", "--link", "one:onetwo", "busybox", "top"))
-	if err != nil {
-		c.Fatal(err, out)
-	}
-
+	out, _ = dockerCmd(c, "run", "-itd", "--name", "two", "--link", "one:onetwo", "busybox", "top")
 	idTwo := strings.TrimSpace(out)
 
 	time.Sleep(1 * time.Second)
@@ -217,30 +156,10 @@ func (s *DockerSuite) TestLinksHostsFilesInject(c *check.C) {
 
 }
 
-func (s *DockerSuite) TestLinksNetworkHostContainer(c *check.C) {
-
-	out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "run", "-d", "--net", "host", "--name", "host_container", "busybox", "top"))
-	if err != nil {
-		c.Fatal(err, out)
-	}
-
-	out, _, err = runCommandWithOutput(exec.Command(dockerBinary, "run", "--name", "should_fail", "--link", "host_container:tester", "busybox", "true"))
-	if err == nil || !strings.Contains(out, "--net=host can't be used with links. This would result in undefined behavior") {
-		c.Fatalf("Running container linking to a container with --net host should have failed: %s", out)
-	}
-
-}
-
 func (s *DockerSuite) TestLinksUpdateOnRestart(c *check.C) {
 	testRequires(c, SameHostDaemon, ExecSupport)
-
-	if out, err := exec.Command(dockerBinary, "run", "-d", "--name", "one", "busybox", "top").CombinedOutput(); err != nil {
-		c.Fatal(err, string(out))
-	}
-	out, err := exec.Command(dockerBinary, "run", "-d", "--name", "two", "--link", "one:onetwo", "--link", "one:one", "busybox", "top").CombinedOutput()
-	if err != nil {
-		c.Fatal(err, string(out))
-	}
+	dockerCmd(c, "run", "-d", "--name", "one", "busybox", "top")
+	out, _ := dockerCmd(c, "run", "-d", "--name", "two", "--link", "one:onetwo", "--link", "one:one", "busybox", "top")
 	id := strings.TrimSpace(string(out))
 
 	realIP, err := inspectField("one", "NetworkSettings.IPAddress")
@@ -265,9 +184,7 @@ func (s *DockerSuite) TestLinksUpdateOnRestart(c *check.C) {
 	if ip := getIP(content, "onetwo"); ip != realIP {
 		c.Fatalf("For 'onetwo' alias expected IP: %s, got: %s", realIP, ip)
 	}
-	if out, err := exec.Command(dockerBinary, "restart", "one").CombinedOutput(); err != nil {
-		c.Fatal(err, string(out))
-	}
+	dockerCmd(c, "restart", "one")
 	realIP, err = inspectField("one", "NetworkSettings.IPAddress")
 	if err != nil {
 		c.Fatal(err)
@@ -285,19 +202,8 @@ func (s *DockerSuite) TestLinksUpdateOnRestart(c *check.C) {
 }
 
 func (s *DockerSuite) TestLinksEnvs(c *check.C) {
-	runCmd := exec.Command(dockerBinary, "run", "-d", "-e", "e1=", "-e", "e2=v2", "-e", "e3=v3=v3", "--name=first", "busybox", "top")
-	out, _, _, err := runCommandWithStdoutStderr(runCmd)
-	if err != nil {
-		c.Fatalf("Run of first failed: %s\n%s", out, err)
-	}
-
-	runCmd = exec.Command(dockerBinary, "run", "--name=second", "--link=first:first", "busybox", "env")
-
-	out, stde, rc, err := runCommandWithStdoutStderr(runCmd)
-	if err != nil || rc != 0 {
-		c.Fatalf("run of 2nd failed: rc: %d, out: %s\n err: %s", rc, out, stde)
-	}
-
+	dockerCmd(c, "run", "-d", "-e", "e1=", "-e", "e2=v2", "-e", "e3=v3=v3", "--name=first", "busybox", "top")
+	out, _ := dockerCmd(c, "run", "--name=second", "--link=first:first", "busybox", "env")
 	if !strings.Contains(out, "FIRST_ENV_e1=\n") ||
 		!strings.Contains(out, "FIRST_ENV_e2=v2") ||
 		!strings.Contains(out, "FIRST_ENV_e3=v3=v3") {
@@ -306,16 +212,12 @@ func (s *DockerSuite) TestLinksEnvs(c *check.C) {
 }
 
 func (s *DockerSuite) TestLinkShortDefinition(c *check.C) {
-	runCmd := exec.Command(dockerBinary, "run", "-d", "--name", "shortlinkdef", "busybox", "top")
-	out, _, err := runCommandWithOutput(runCmd)
-	c.Assert(err, check.IsNil)
+	out, _ := dockerCmd(c, "run", "-d", "--name", "shortlinkdef", "busybox", "top")
 
 	cid := strings.TrimSpace(out)
 	c.Assert(waitRun(cid), check.IsNil)
 
-	runCmd = exec.Command(dockerBinary, "run", "-d", "--name", "link2", "--link", "shortlinkdef", "busybox", "top")
-	out, _, err = runCommandWithOutput(runCmd)
-	c.Assert(err, check.IsNil)
+	out, _ = dockerCmd(c, "run", "-d", "--name", "link2", "--link", "shortlinkdef", "busybox", "top")
 
 	cid2 := strings.TrimSpace(out)
 	c.Assert(waitRun(cid2), check.IsNil)

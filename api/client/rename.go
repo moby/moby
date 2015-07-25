@@ -3,6 +3,7 @@ package client
 import (
 	"fmt"
 
+	Cli "github.com/docker/docker/cli"
 	flag "github.com/docker/docker/pkg/mflag"
 )
 
@@ -10,8 +11,9 @@ import (
 //
 // Usage: docker rename OLD_NAME NEW_NAME
 func (cli *DockerCli) CmdRename(args ...string) error {
-	cmd := cli.Subcmd("rename", "OLD_NAME NEW_NAME", "Rename a container", true)
+	cmd := Cli.Subcmd("rename", []string{"OLD_NAME NEW_NAME"}, "Rename a container", true)
 	cmd.Require(flag.Exact, 2)
+
 	cmd.ParseFlags(args, true)
 
 	oldName := cmd.Arg(0)

@@ -70,7 +70,7 @@ In this example, we'll assume that your `docker.service` file looks something li
     [Service]
     Type=notify
     EnvironmentFile=-/etc/sysconfig/docker
-    ExecStart=/usr/bin/docker -d -H fd:// $OPTIONS
+    ExecStart=/usr/bin/docker daemon -H fd:// $OPTIONS
     LimitNOFILE=1048576
     LimitNPROC=1048576
 

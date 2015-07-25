@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"runtime"
 
 	"github.com/Sirupsen/logrus"
 )
@@ -48,8 +49,6 @@ func (daemon *Daemon) ContainerRm(name string, config *ContainerRmConfig) error 
 		return fmt.Errorf("Cannot destroy container %s: %v", name, err)
 	}
 
-	container.LogEvent("destroy")
-
 	if config.RemoveVolume {
 		container.removeMountPoints()
 	}
@@ -93,7 +92,9 @@ func (daemon *Daemon) rm(container *Container, forceRemove bool) (err error) {
 	// Save container state to disk. So that if error happens before
 	// container meta file got removed from disk, then a restart of
 	// docker should not make a dead container alive.
-	container.ToDisk()
+	if err := container.ToDisk(); err != nil {
+		logrus.Errorf("Error saving dying container to disk: %v", err)
+	}
 
 	// If force removal is required, delete container from various
 	// indexes even if removal failed.
@@ -102,6 +103,7 @@ func (daemon *Daemon) rm(container *Container, forceRemove bool) (err error) {
 			daemon.idIndex.Delete(container.ID)
 			daemon.containers.Delete(container.ID)
 			os.RemoveAll(container.root)
+			container.LogEvent("destroy")
 		}
 	}()
 
@@ -113,9 +115,12 @@ func (daemon *Daemon) rm(container *Container, forceRemove bool) (err error) {
 		return fmt.Errorf("Driver %s failed to remove root filesystem %s: %s", daemon.driver, container.ID, err)
 	}
 
-	initID := fmt.Sprintf("%s-init", container.ID)
-	if err := daemon.driver.Remove(initID); err != nil {
-		return fmt.Errorf("Driver %s failed to remove init filesystem %s: %s", daemon.driver, initID, err)
+	// There will not be an -init on Windows, so don't fail by not attempting to delete it
+	if runtime.GOOS != "windows" {
+		initID := fmt.Sprintf("%s-init", container.ID)
+		if err := daemon.driver.Remove(initID); err != nil {
+			return fmt.Errorf("Driver %s failed to remove init filesystem %s: %s", daemon.driver, initID, err)
+		}
 	}
 
 	if err = os.RemoveAll(container.root); err != nil {
@@ -130,6 +135,7 @@ func (daemon *Daemon) rm(container *Container, forceRemove bool) (err error) {
 	daemon.idIndex.Delete(container.ID)
 	daemon.containers.Delete(container.ID)
 
+	container.LogEvent("destroy")
 	return nil
 }
 

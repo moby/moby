@@ -68,5 +68,6 @@ func (daemon *Daemon) ContainerTop(name string, psArgs string) (*types.Container
 			}
 		}
 	}
+	container.LogEvent("top")
 	return procList, nil
 }

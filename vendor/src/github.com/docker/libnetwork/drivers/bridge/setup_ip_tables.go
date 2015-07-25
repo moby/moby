@@ -13,7 +13,7 @@ const (
 	DockerChain = "DOCKER"
 )
 
-func setupIPTables(config *NetworkConfiguration, i *bridgeInterface) error {
+func (n *bridgeNetwork) setupIPTables(config *networkConfiguration, i *bridgeInterface) error {
 	// Sanity check.
 	if config.EnableIPTables == false {
 		return IPTableCfgError(config.BridgeName)
@@ -39,7 +39,7 @@ func setupIPTables(config *NetworkConfiguration, i *bridgeInterface) error {
 		return fmt.Errorf("Failed to create FILTER chain: %s", err.Error())
 	}
 
-	portMapper.SetIptablesChain(chain)
+	n.portMapper.SetIptablesChain(chain)
 
 	return nil
 }
@@ -149,7 +149,7 @@ func setIcc(bridgeIface string, iccEnable, insert bool) error {
 			iptables.Raw(append([]string{"-D", chain}, dropArgs...)...)
 
 			if !iptables.Exists(table, chain, acceptArgs...) {
-				if output, err := iptables.Raw(append([]string{"-A", chain}, acceptArgs...)...); err != nil {
+				if output, err := iptables.Raw(append([]string{"-I", chain}, acceptArgs...)...); err != nil {
 					return fmt.Errorf("Unable to allow intercontainer communication: %s", err.Error())
 				} else if len(output) != 0 {
 					return fmt.Errorf("Error enabling intercontainer communication: %s", output)
@@ -165,6 +165,41 @@ func setIcc(bridgeIface string, iccEnable, insert bool) error {
 		} else {
 			if iptables.Exists(table, chain, acceptArgs...) {
 				iptables.Raw(append([]string{"-D", chain}, acceptArgs...)...)
+			}
+		}
+	}
+
+	return nil
+}
+
+// Control Inter Network Communication. Install/remove only if it is not/is present.
+func setINC(network1, network2 string, enable bool) error {
+	var (
+		table = iptables.Filter
+		chain = "FORWARD"
+		args  = [2][]string{{"-s", network1, "-d", network2, "-j", "DROP"}, {"-s", network2, "-d", network1, "-j", "DROP"}}
+	)
+
+	if enable {
+		for i := 0; i < 2; i++ {
+			if iptables.Exists(table, chain, args[i]...) {
+				continue
+			}
+			if output, err := iptables.Raw(append([]string{"-I", chain}, args[i]...)...); err != nil {
+				return fmt.Errorf("unable to add inter-network communication rule: %s", err.Error())
+			} else if len(output) != 0 {
+				return fmt.Errorf("error adding inter-network communication rule: %s", string(output))
+			}
+		}
+	} else {
+		for i := 0; i < 2; i++ {
+			if !iptables.Exists(table, chain, args[i]...) {
+				continue
+			}
+			if output, err := iptables.Raw(append([]string{"-D", chain}, args[i]...)...); err != nil {
+				return fmt.Errorf("unable to remove inter-network communication rule: %s", err.Error())
+			} else if len(output) != 0 {
+				return fmt.Errorf("error removing inter-network communication rule: %s", string(output))
 			}
 		}
 	}

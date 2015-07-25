@@ -3,8 +3,8 @@ package template
 import (
 	"syscall"
 
-	"github.com/docker/libcontainer/apparmor"
-	"github.com/docker/libcontainer/configs"
+	"github.com/opencontainers/runc/libcontainer/apparmor"
+	"github.com/opencontainers/runc/libcontainer/configs"
 )
 
 const defaultMountFlags = syscall.MS_NOEXEC | syscall.MS_NOSUID | syscall.MS_NODEV
@@ -36,8 +36,9 @@ func New() *configs.Config {
 			{Type: "NEWNET"},
 		}),
 		Cgroups: &configs.Cgroup{
-			Parent:          "docker",
-			AllowAllDevices: false,
+			Parent:           "docker",
+			AllowAllDevices:  false,
+			MemorySwappiness: -1,
 		},
 		Mounts: []*configs.Mount{
 			{
@@ -77,6 +78,12 @@ func New() *configs.Config {
 				Source:      "sysfs",
 				Destination: "/sys",
 				Device:      "sysfs",
+				Flags:       defaultMountFlags | syscall.MS_RDONLY,
+			},
+			{
+				Source:      "cgroup",
+				Destination: "/sys/fs/cgroup",
+				Device:      "cgroup",
 				Flags:       defaultMountFlags | syscall.MS_RDONLY,
 			},
 		},

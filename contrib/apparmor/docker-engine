@@ -1,0 +1,71 @@
+@{DOCKER_GRAPH_PATH}=/var/lib/docker
+
+profile /usr/bin/docker (attach_disconnected) {
+  # Prevent following links to these files during container setup.
+  deny /etc/** mkl,
+  deny /dev/** kl,
+  deny /sys/** mkl,
+  deny /proc/** mkl,
+
+  mount -> @{DOCKER_GRAPH_PATH}/**,
+  mount -> /,
+  mount -> /proc/**,
+  mount -> /sys/**,
+  mount -> /run/docker/netns/**,
+
+  umount,
+  pivot_root,
+  signal (receive) peer=@{profile_name},
+  signal (receive) peer=unconfined,
+  signal (send),
+  ipc rw,
+  network,
+  capability,
+  file,
+
+  ptrace peer=@{profile_name},
+
+  /usr/bin/docker pix,
+  /sbin/xtables-multi rCix,
+  /sbin/iptables rCx,
+  /sbin/modprobe rCx,
+  /sbin/auplink rCx,
+  /usr/bin/xz rCx,
+
+  # Transitions
+  change_profile -> docker-*,
+  change_profile -> unconfined,
+
+  profile /sbin/iptables {
+   signal (receive) peer=/usr/bin/docker,
+   capability net_admin,
+  }
+  profile /sbin/auplink flags=(attach_disconnected) {
+   signal (receive) peer=/usr/bin/docker,
+   capability sys_admin,
+   capability dac_override,
+
+   @{DOCKER_GRAPH_PATH}/aufs/** rw,
+   # For user namespaces:
+   @{DOCKER_GRAPH_PATH}/[0-9]*.[0-9]*/** rw,
+
+   # The following may be removed via delegates
+   /sys/fs/aufs/** r,
+   /lib/** r,
+   /apparmor/.null r,
+   /dev/null rw,
+   /etc/ld.so.cache r,
+   /sbin/auplink rm,
+   /proc/fs/aufs/** rw,
+   /proc/[0-9]*/mounts rw,
+  }
+  profile /sbin/modprobe {
+   signal (receive) peer=/usr/bin/docker,
+   capability sys_module,
+   file,
+  }
+  # xz works via pipes, so we do not need access to the filesystem.
+  profile /usr/bin/xz {
+   signal (receive) peer=/usr/bin/docker,
+  }
+}

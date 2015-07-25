@@ -43,6 +43,7 @@ List containers
         [
              {
                      "Id": "8dfafdbc3a40",
+                     "Names":["/boring_feynman"],
                      "Image": "ubuntu:latest",
                      "Command": "echo 1",
                      "Created": 1367854155,
@@ -53,6 +54,7 @@ List containers
              },
              {
                      "Id": "9cd87474be90",
+                     "Names":["/coolName"],
                      "Image": "ubuntu:latest",
                      "Command": "echo 222222",
                      "Created": 1367854155,
@@ -63,6 +65,7 @@ List containers
              },
              {
                      "Id": "3176a2479c92",
+                     "Names":["/sleepy_dog"],
                      "Image": "ubuntu:latest",
                      "Command": "echo 3333333333333333",
                      "Created": 1367854154,
@@ -73,6 +76,7 @@ List containers
              },
              {
                      "Id": "4cb07b47f9fb",
+                     "Names":["/running_cat"],
                      "Image": "ubuntu:latest",
                      "Command": "echo 444444444444444444444444444444444",
                      "Created": 1367854152,
@@ -195,7 +199,7 @@ Json Parameters:
 -   **StdinOnce** - Boolean value, close stdin after the 1 attached client disconnects.
 -   **Env** - A list of environment variables in the form of `VAR=value`
 -   **Cmd** - Command to run specified as a string or an array of strings.
--   **Entrypoint** - Set the entrypoint for the container a a string or an array
+-   **Entrypoint** - Set the entrypoint for the container a string or an array
       of strings
 -   **Image** - String value containing the image name to use for the container
 -   **Volumes** – An object mapping mountpoint paths (strings) inside the
@@ -937,6 +941,7 @@ Query Parameters:
 -   **all** – 1/True/true or 0/False/false, default false
 -   **filters** – a json encoded value of the filters (a map[string][]string) to process on the images list. Available filters:
   -   dangling=true
+-   **filter** - only return images with the specified name
 
 ### Create an image
 

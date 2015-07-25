@@ -3,12 +3,13 @@ package registry
 import (
 	"fmt"
 	"net/http"
+	"net/http/httputil"
 	"net/url"
 	"strings"
 	"testing"
 
+	"github.com/docker/distribution/registry/client/transport"
 	"github.com/docker/docker/cliconfig"
-	"github.com/docker/docker/pkg/transport"
 )
 
 var (
@@ -26,7 +27,7 @@ func spawnTestRegistrySession(t *testing.T) *Session {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var tr http.RoundTripper = debugTransport{NewTransport(ReceiveTimeout, endpoint.IsSecure)}
+	var tr http.RoundTripper = debugTransport{NewTransport(nil), t.Log}
 	tr = transport.NewTransport(AuthTransport(tr, authConfig, false), DockerHeaders(nil)...)
 	client := HTTPClient(tr)
 	r, err := NewSession(client, authConfig, endpoint)
@@ -62,7 +63,7 @@ func TestPingRegistryEndpoint(t *testing.T) {
 	}
 
 	testPing(makeIndex("/v1/"), true, "Expected standalone to be true (default)")
-	testPing(makeHttpsIndex("/v1/"), true, "Expected standalone to be true (default)")
+	testPing(makeHTTPSIndex("/v1/"), true, "Expected standalone to be true (default)")
 	testPing(makePublicIndex(), false, "Expected standalone to be false for public index")
 }
 
@@ -118,7 +119,7 @@ func TestEndpoint(t *testing.T) {
 	}
 	assertInsecureIndex(index)
 
-	index.Name = makeHttpsURL("/v1/")
+	index.Name = makeHTTPSURL("/v1/")
 	endpoint = expandEndpoint(index)
 	assertEqual(t, endpoint.String(), index.Name, "Expected endpoint to be "+index.Name)
 	if endpoint.Version != APIVersion1 {
@@ -126,7 +127,7 @@ func TestEndpoint(t *testing.T) {
 	}
 	assertSecureIndex(index)
 
-	index.Name = makeHttpsURL("")
+	index.Name = makeHTTPSURL("")
 	endpoint = expandEndpoint(index)
 	assertEqual(t, endpoint.String(), index.Name+"/v1/", index.Name+": Expected endpoint to be "+index.Name+"/v1/")
 	if endpoint.Version != APIVersion1 {
@@ -134,7 +135,7 @@ func TestEndpoint(t *testing.T) {
 	}
 	assertSecureIndex(index)
 
-	httpsURL := makeHttpsURL("")
+	httpsURL := makeHTTPSURL("")
 	index.Name = strings.SplitN(httpsURL, "://", 2)[1]
 	endpoint = expandEndpoint(index)
 	assertEqual(t, endpoint.String(), httpsURL+"/v1/", index.Name+": Expected endpoint to be "+httpsURL+"/v1/")
@@ -211,18 +212,33 @@ func TestGetRemoteImageLayer(t *testing.T) {
 	}
 }
 
+func TestGetRemoteTag(t *testing.T) {
+	r := spawnTestRegistrySession(t)
+	tag, err := r.GetRemoteTag([]string{makeURL("/v1/")}, REPO, "test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertEqual(t, tag, imageID, "Expected tag test to map to "+imageID)
+
+	_, err = r.GetRemoteTag([]string{makeURL("/v1/")}, "foo42/baz", "foo")
+	if err != ErrRepoNotFound {
+		t.Fatal("Expected ErrRepoNotFound error when fetching tag for bogus repo")
+	}
+}
+
 func TestGetRemoteTags(t *testing.T) {
 	r := spawnTestRegistrySession(t)
 	tags, err := r.GetRemoteTags([]string{makeURL("/v1/")}, REPO)
 	if err != nil {
 		t.Fatal(err)
 	}
-	assertEqual(t, len(tags), 1, "Expected one tag")
+	assertEqual(t, len(tags), 2, "Expected two tags")
 	assertEqual(t, tags["latest"], imageID, "Expected tag latest to map to "+imageID)
+	assertEqual(t, tags["test"], imageID, "Expected tag test to map to "+imageID)
 
 	_, err = r.GetRemoteTags([]string{makeURL("/v1/")}, "foo42/baz")
-	if err == nil {
-		t.Fatal("Expected error when fetching tags for bogus repo")
+	if err != ErrRepoNotFound {
+		t.Fatal("Expected ErrRepoNotFound error when fetching tags for bogus repo")
 	}
 }
 
@@ -316,52 +332,52 @@ func TestParseRepositoryInfo(t *testing.T) {
 	expectedRepoInfos := map[string]RepositoryInfo{
 		"fooo/bar": {
 			Index: &IndexInfo{
-				Name:     IndexServerName(),
+				Name:     IndexName,
 				Official: true,
 			},
 			RemoteName:    "fooo/bar",
 			LocalName:     "fooo/bar",
-			CanonicalName: "fooo/bar",
+			CanonicalName: "docker.io/fooo/bar",
 			Official:      false,
 		},
 		"library/ubuntu": {
 			Index: &IndexInfo{
-				Name:     IndexServerName(),
+				Name:     IndexName,
 				Official: true,
 			},
 			RemoteName:    "library/ubuntu",
 			LocalName:     "ubuntu",
-			CanonicalName: "ubuntu",
+			CanonicalName: "docker.io/library/ubuntu",
 			Official:      true,
 		},
 		"nonlibrary/ubuntu": {
 			Index: &IndexInfo{
-				Name:     IndexServerName(),
+				Name:     IndexName,
 				Official: true,
 			},
 			RemoteName:    "nonlibrary/ubuntu",
 			LocalName:     "nonlibrary/ubuntu",
-			CanonicalName: "nonlibrary/ubuntu",
+			CanonicalName: "docker.io/nonlibrary/ubuntu",
 			Official:      false,
 		},
 		"ubuntu": {
 			Index: &IndexInfo{
-				Name:     IndexServerName(),
+				Name:     IndexName,
 				Official: true,
 			},
 			RemoteName:    "library/ubuntu",
 			LocalName:     "ubuntu",
-			CanonicalName: "ubuntu",
+			CanonicalName: "docker.io/library/ubuntu",
 			Official:      true,
 		},
 		"other/library": {
 			Index: &IndexInfo{
-				Name:     IndexServerName(),
+				Name:     IndexName,
 				Official: true,
 			},
 			RemoteName:    "other/library",
 			LocalName:     "other/library",
-			CanonicalName: "other/library",
+			CanonicalName: "docker.io/other/library",
 			Official:      false,
 		},
 		"127.0.0.1:8000/private/moonbase": {
@@ -464,74 +480,54 @@ func TestParseRepositoryInfo(t *testing.T) {
 			CanonicalName: "localhost/privatebase",
 			Official:      false,
 		},
-		IndexServerName() + "/public/moonbase": {
+		IndexName + "/public/moonbase": {
 			Index: &IndexInfo{
-				Name:     IndexServerName(),
+				Name:     IndexName,
 				Official: true,
 			},
 			RemoteName:    "public/moonbase",
 			LocalName:     "public/moonbase",
-			CanonicalName: "public/moonbase",
+			CanonicalName: "docker.io/public/moonbase",
 			Official:      false,
 		},
-		"index." + IndexServerName() + "/public/moonbase": {
+		"index." + IndexName + "/public/moonbase": {
 			Index: &IndexInfo{
-				Name:     IndexServerName(),
+				Name:     IndexName,
 				Official: true,
 			},
 			RemoteName:    "public/moonbase",
 			LocalName:     "public/moonbase",
-			CanonicalName: "public/moonbase",
-			Official:      false,
-		},
-		IndexServerName() + "/public/moonbase": {
-			Index: &IndexInfo{
-				Name:     IndexServerName(),
-				Official: true,
-			},
-			RemoteName:    "public/moonbase",
-			LocalName:     "public/moonbase",
-			CanonicalName: "public/moonbase",
+			CanonicalName: "docker.io/public/moonbase",
 			Official:      false,
 		},
 		"ubuntu-12.04-base": {
 			Index: &IndexInfo{
-				Name:     IndexServerName(),
+				Name:     IndexName,
 				Official: true,
 			},
 			RemoteName:    "library/ubuntu-12.04-base",
 			LocalName:     "ubuntu-12.04-base",
-			CanonicalName: "ubuntu-12.04-base",
+			CanonicalName: "docker.io/library/ubuntu-12.04-base",
 			Official:      true,
 		},
-		IndexServerName() + "/ubuntu-12.04-base": {
+		IndexName + "/ubuntu-12.04-base": {
 			Index: &IndexInfo{
-				Name:     IndexServerName(),
+				Name:     IndexName,
 				Official: true,
 			},
 			RemoteName:    "library/ubuntu-12.04-base",
 			LocalName:     "ubuntu-12.04-base",
-			CanonicalName: "ubuntu-12.04-base",
+			CanonicalName: "docker.io/library/ubuntu-12.04-base",
 			Official:      true,
 		},
-		IndexServerName() + "/ubuntu-12.04-base": {
+		"index." + IndexName + "/ubuntu-12.04-base": {
 			Index: &IndexInfo{
-				Name:     IndexServerName(),
+				Name:     IndexName,
 				Official: true,
 			},
 			RemoteName:    "library/ubuntu-12.04-base",
 			LocalName:     "ubuntu-12.04-base",
-			CanonicalName: "ubuntu-12.04-base",
-			Official:      true,
-		},
-		"index." + IndexServerName() + "/ubuntu-12.04-base": {
-			Index: &IndexInfo{
-				Name:     IndexServerName(),
-				Official: true,
-			},
-			RemoteName:    "library/ubuntu-12.04-base",
-			LocalName:     "ubuntu-12.04-base",
-			CanonicalName: "ubuntu-12.04-base",
+			CanonicalName: "docker.io/library/ubuntu-12.04-base",
 			Official:      true,
 		},
 	}
@@ -567,16 +563,16 @@ func TestNewIndexInfo(t *testing.T) {
 	}
 
 	config := NewServiceConfig(nil)
-	noMirrors := make([]string, 0)
+	noMirrors := []string{}
 	expectedIndexInfos := map[string]*IndexInfo{
-		IndexServerName(): {
-			Name:     IndexServerName(),
+		IndexName: {
+			Name:     IndexName,
 			Official: true,
 			Secure:   true,
 			Mirrors:  noMirrors,
 		},
-		"index." + IndexServerName(): {
-			Name:     IndexServerName(),
+		"index." + IndexName: {
+			Name:     IndexName,
 			Official: true,
 			Secure:   true,
 			Mirrors:  noMirrors,
@@ -600,14 +596,14 @@ func TestNewIndexInfo(t *testing.T) {
 	config = makeServiceConfig(publicMirrors, []string{"example.com"})
 
 	expectedIndexInfos = map[string]*IndexInfo{
-		IndexServerName(): {
-			Name:     IndexServerName(),
+		IndexName: {
+			Name:     IndexName,
 			Official: true,
 			Secure:   true,
 			Mirrors:  publicMirrors,
 		},
-		"index." + IndexServerName(): {
-			Name:     IndexServerName(),
+		"index." + IndexName: {
+			Name:     IndexName,
 			Official: true,
 			Secure:   true,
 			Mirrors:  publicMirrors,
@@ -742,11 +738,12 @@ func TestValidRemoteName(t *testing.T) {
 		// Allow embedded hyphens.
 		"docker-rules/docker",
 
-		// Allow underscores everywhere (as opposed to hyphens).
-		"____/____",
-
 		//Username doc and image name docker being tested.
 		"doc/docker",
+
+		// single character names are now allowed.
+		"d/docker",
+		"jess/t",
 	}
 	for _, repositoryName := range validRepositoryNames {
 		if err := validateRemoteName(repositoryName); err != nil {
@@ -769,14 +766,16 @@ func TestValidRemoteName(t *testing.T) {
 		"docker-/docker",
 		"-docker-/docker",
 
+		// Don't allow underscores everywhere (as opposed to hyphens).
+		"____/____",
+
+		"_docker/_docker",
+
 		// Disallow consecutive hyphens.
 		"dock--er/docker",
 
 		// No repository.
 		"docker/",
-
-		//namespace too short
-		"d/docker",
 
 		//namespace too long
 		"this_is_not_a_valid_namespace_because_its_lenth_is_greater_than_255_this_is_not_a_valid_namespace_because_its_lenth_is_greater_than_255_this_is_not_a_valid_namespace_because_its_lenth_is_greater_than_255_this_is_not_a_valid_namespace_because_its_lenth_is_greater_than_255/docker",
@@ -815,7 +814,7 @@ func TestAddRequiredHeadersToRedirectedRequests(t *testing.T) {
 		reqFrom.Header.Add("Authorization", "super_secret")
 		reqTo, _ := http.NewRequest("GET", urls[1], nil)
 
-		AddRequiredHeadersToRedirectedRequests(reqTo, []*http.Request{reqFrom})
+		addRequiredHeadersToRedirectedRequests(reqTo, []*http.Request{reqFrom})
 
 		if len(reqTo.Header) != 1 {
 			t.Fatalf("Expected 1 headers, got %d", len(reqTo.Header))
@@ -839,7 +838,7 @@ func TestAddRequiredHeadersToRedirectedRequests(t *testing.T) {
 		reqFrom.Header.Add("Authorization", "super_secret")
 		reqTo, _ := http.NewRequest("GET", urls[1], nil)
 
-		AddRequiredHeadersToRedirectedRequests(reqTo, []*http.Request{reqFrom})
+		addRequiredHeadersToRedirectedRequests(reqTo, []*http.Request{reqFrom})
 
 		if len(reqTo.Header) != 2 {
 			t.Fatalf("Expected 2 headers, got %d", len(reqTo.Header))
@@ -861,7 +860,7 @@ func TestIsSecureIndex(t *testing.T) {
 		insecureRegistries []string
 		expected           bool
 	}{
-		{IndexServerName(), nil, true},
+		{IndexName, nil, true},
 		{"example.com", []string{}, true},
 		{"example.com", []string{"example.com"}, false},
 		{"localhost", []string{"localhost:5000"}, false},
@@ -893,4 +892,27 @@ func TestIsSecureIndex(t *testing.T) {
 			t.Errorf("isSecureIndex failed for %q %v, expected %v got %v", tt.addr, tt.insecureRegistries, tt.expected, sec)
 		}
 	}
+}
+
+type debugTransport struct {
+	http.RoundTripper
+	log func(...interface{})
+}
+
+func (tr debugTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	dump, err := httputil.DumpRequestOut(req, false)
+	if err != nil {
+		tr.log("could not dump request")
+	}
+	tr.log(string(dump))
+	resp, err := tr.RoundTripper.RoundTrip(req)
+	if err != nil {
+		return nil, err
+	}
+	dump, err = httputil.DumpResponse(resp, false)
+	if err != nil {
+		tr.log("could not dump response")
+	}
+	tr.log(string(dump))
+	return resp, err
 }

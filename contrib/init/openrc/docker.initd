@@ -20,7 +20,7 @@ start() {
 		--pidfile "$DOCKER_PIDFILE" \
 		--stdout "$DOCKER_LOGFILE" \
 		--stderr "$DOCKER_LOGFILE" \
-		-- -d -p "$DOCKER_PIDFILE" \
+		-- daemon -p "$DOCKER_PIDFILE" \
 		$DOCKER_OPTS
 	eend $?
 }

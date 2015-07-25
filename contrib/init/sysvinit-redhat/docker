@@ -49,7 +49,7 @@ start() {
         prestart
         printf "Starting $prog:\t"
         echo "\n$(date)\n" >> $logfile
-        "$unshare" -m -- $exec -d $other_args &>> $logfile &
+        "$unshare" -m -- $exec daemon $other_args &>> $logfile &
         pid=$!
         touch $lockfile
         # wait up to 10 seconds for the pidfile to exist.  see

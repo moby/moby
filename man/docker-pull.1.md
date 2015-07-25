@@ -22,6 +22,7 @@ registry located at `registry-1.docker.io` by default.
 # OPTIONS
 **-a**, **--all-tags**=*true*|*false*
    Download all tagged images in the repository. The default is *false*.
+
 **--help**
   Print usage statement
 

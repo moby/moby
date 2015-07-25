@@ -1,22 +1,14 @@
 package daemon
 
 import (
-	"bytes"
-	"encoding/json"
 	"fmt"
 	"io"
-	"net"
-	"os"
 	"strconv"
-	"syscall"
 	"time"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/docker/daemon/logger/jsonfilelog"
-	"github.com/docker/docker/pkg/jsonlog"
+	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/pkg/stdcopy"
-	"github.com/docker/docker/pkg/tailfile"
-	"github.com/docker/docker/pkg/timeutils"
 )
 
 type ContainerLogsConfig struct {
@@ -25,139 +17,67 @@ type ContainerLogsConfig struct {
 	Since                time.Time
 	UseStdout, UseStderr bool
 	OutStream            io.Writer
+	Stop                 <-chan bool
 }
 
-func (daemon *Daemon) ContainerLogs(name string, config *ContainerLogsConfig) error {
-	var (
-		lines  = -1
-		format string
-	)
+func (daemon *Daemon) ContainerLogs(container *Container, config *ContainerLogsConfig) error {
 	if !(config.UseStdout || config.UseStderr) {
 		return fmt.Errorf("You must choose at least one stream")
 	}
-	if config.Timestamps {
-		format = timeutils.RFC3339NanoFixed
-	}
-	if config.Tail == "" {
-		config.Tail = "all"
-	}
 
-	container, err := daemon.Get(name)
-	if err != nil {
-		return err
-	}
-
-	var (
-		outStream = config.OutStream
-		errStream io.Writer
-	)
+	outStream := config.OutStream
+	errStream := outStream
 	if !container.Config.Tty {
 		errStream = stdcopy.NewStdWriter(outStream, stdcopy.Stderr)
 		outStream = stdcopy.NewStdWriter(outStream, stdcopy.Stdout)
-	} else {
-		errStream = outStream
 	}
 
-	if container.LogDriverType() != jsonfilelog.Name {
-		return fmt.Errorf("\"logs\" endpoint is supported only for \"json-file\" logging driver")
-	}
-	logDriver, err := container.getLogger()
-	cLog, err := logDriver.GetReader()
+	cLog, err := container.getLogger()
 	if err != nil {
-		logrus.Errorf("Error reading logs: %s", err)
-	} else {
-		// json-file driver
-		if config.Tail != "all" {
-			var err error
-			lines, err = strconv.Atoi(config.Tail)
-			if err != nil {
-				logrus.Errorf("Failed to parse tail %s, error: %v, show all logs", config.Tail, err)
-				lines = -1
-			}
-		}
+		return err
+	}
+	logReader, ok := cLog.(logger.LogReader)
+	if !ok {
+		return logger.ErrReadLogsNotSupported
+	}
 
-		if lines != 0 {
-			if lines > 0 {
-				f := cLog.(*os.File)
-				ls, err := tailfile.TailFile(f, lines)
-				if err != nil {
-					return err
-				}
-				tmp := bytes.NewBuffer([]byte{})
-				for _, l := range ls {
-					fmt.Fprintf(tmp, "%s\n", l)
-				}
-				cLog = tmp
-			}
+	follow := config.Follow && container.IsRunning()
+	tailLines, err := strconv.Atoi(config.Tail)
+	if err != nil {
+		tailLines = -1
+	}
 
-			dec := json.NewDecoder(cLog)
-			l := &jsonlog.JSONLog{}
-			for {
-				l.Reset()
-				if err := dec.Decode(l); err == io.EOF {
-					break
-				} else if err != nil {
-					logrus.Errorf("Error streaming logs: %s", err)
-					break
-				}
-				logLine := l.Log
-				if !config.Since.IsZero() && l.Created.Before(config.Since) {
-					continue
-				}
-				if config.Timestamps {
-					// format can be "" or time format, so here can't be error
-					logLine, _ = l.Format(format)
-				}
-				if l.Stream == "stdout" && config.UseStdout {
-					io.WriteString(outStream, logLine)
-				}
-				if l.Stream == "stderr" && config.UseStderr {
-					io.WriteString(errStream, logLine)
-				}
+	logrus.Debug("logs: begin stream")
+	readConfig := logger.ReadConfig{
+		Since:  config.Since,
+		Tail:   tailLines,
+		Follow: follow,
+	}
+	logs := logReader.ReadLogs(readConfig)
+
+	for {
+		select {
+		case err := <-logs.Err:
+			logrus.Errorf("Error streaming logs: %v", err)
+			return nil
+		case <-config.Stop:
+			logs.Close()
+			return nil
+		case msg, ok := <-logs.Msg:
+			if !ok {
+				logrus.Debugf("logs: end stream")
+				return nil
+			}
+			logLine := msg.Line
+			if config.Timestamps {
+				logLine = append([]byte(msg.Timestamp.Format(logger.TimeFormat)+" "), logLine...)
+			}
+			if msg.Source == "stdout" && config.UseStdout {
+				outStream.Write(logLine)
+			}
+			if msg.Source == "stderr" && config.UseStderr {
+				errStream.Write(logLine)
 			}
 		}
 	}
-
-	if config.Follow && container.IsRunning() {
-		chErr := make(chan error)
-		var stdoutPipe, stderrPipe io.ReadCloser
-
-		// write an empty chunk of data (this is to ensure that the
-		// HTTP Response is sent immediatly, even if the container has
-		// not yet produced any data)
-		outStream.Write(nil)
-
-		if config.UseStdout {
-			stdoutPipe = container.StdoutLogPipe()
-			go func() {
-				logrus.Debug("logs: stdout stream begin")
-				chErr <- jsonlog.WriteLog(stdoutPipe, outStream, format, config.Since)
-				logrus.Debug("logs: stdout stream end")
-			}()
-		}
-		if config.UseStderr {
-			stderrPipe = container.StderrLogPipe()
-			go func() {
-				logrus.Debug("logs: stderr stream begin")
-				chErr <- jsonlog.WriteLog(stderrPipe, errStream, format, config.Since)
-				logrus.Debug("logs: stderr stream end")
-			}()
-		}
-
-		err = <-chErr
-		if stdoutPipe != nil {
-			stdoutPipe.Close()
-		}
-		if stderrPipe != nil {
-			stderrPipe.Close()
-		}
-		<-chErr // wait for 2nd goroutine to exit, otherwise bad things will happen
-
-		if err != nil && err != io.EOF && err != io.ErrClosedPipe {
-			if e, ok := err.(*net.OpError); ok && e.Err != syscall.EPIPE {
-				logrus.Errorf("error streaming logs: %v", err)
-			}
-		}
-	}
-	return nil
 }

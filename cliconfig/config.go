@@ -3,7 +3,6 @@ package cliconfig
 import (
 	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -11,24 +10,41 @@ import (
 	"strings"
 
 	"github.com/docker/docker/pkg/homedir"
+	"github.com/docker/docker/pkg/system"
 )
 
 const (
-	// Where we store the config file
-	CONFIGFILE     = "config.json"
-	OLD_CONFIGFILE = ".dockercfg"
+	// ConfigFile is the name of config file
+	ConfigFileName = "config.json"
+	oldConfigfile  = ".dockercfg"
 
 	// This constant is only used for really old config files when the
 	// URL wasn't saved as part of the config file and it was just
 	// assumed to be this value.
-	DEFAULT_INDEXSERVER = "https://index.docker.io/v1/"
+	defaultIndexserver = "https://index.docker.io/v1/"
 )
 
 var (
-	ErrConfigFileMissing = errors.New("The Auth config file is missing")
+	configDir = os.Getenv("DOCKER_CONFIG")
 )
 
-// Registry Auth Info
+func init() {
+	if configDir == "" {
+		configDir = filepath.Join(homedir.Get(), ".docker")
+	}
+}
+
+// ConfigDir returns the directory the configuration file is stored in
+func ConfigDir() string {
+	return configDir
+}
+
+// SetConfigDir sets the directory the configuration file is stored in
+func SetConfigDir(dir string) {
+	configDir = dir
+}
+
+// AuthConfig contains authorization information for connecting to a Registry
 type AuthConfig struct {
 	Username      string `json:"username,omitempty"`
 	Password      string `json:"password,omitempty"`
@@ -37,31 +53,34 @@ type AuthConfig struct {
 	ServerAddress string `json:"serveraddress,omitempty"`
 }
 
-// ~/.docker/config.json file info
+// ConfigFile ~/.docker/config.json file info
 type ConfigFile struct {
 	AuthConfigs map[string]AuthConfig `json:"auths"`
-	HttpHeaders map[string]string     `json:"HttpHeaders,omitempty"`
+	HTTPHeaders map[string]string     `json:"HttpHeaders,omitempty"`
+	PsFormat    string                `json:"psFormat,omitempty"`
 	filename    string                // Note: not serialized - for internal use only
 }
 
+// NewConfigFile initilizes an empty configuration file for the given filename 'fn'
 func NewConfigFile(fn string) *ConfigFile {
 	return &ConfigFile{
 		AuthConfigs: make(map[string]AuthConfig),
-		HttpHeaders: make(map[string]string),
+		HTTPHeaders: make(map[string]string),
 		filename:    fn,
 	}
 }
 
-// load up the auth config information and return values
+// Load reads the configuration files in the given directory, and sets up
+// the auth config information and return values.
 // FIXME: use the internal golang config parser
 func Load(configDir string) (*ConfigFile, error) {
 	if configDir == "" {
-		configDir = filepath.Join(homedir.Get(), ".docker")
+		configDir = ConfigDir()
 	}
 
 	configFile := ConfigFile{
 		AuthConfigs: make(map[string]AuthConfig),
-		filename:    filepath.Join(configDir, CONFIGFILE),
+		filename:    filepath.Join(configDir, ConfigFileName),
 	}
 
 	// Try happy path first - latest config file
@@ -94,8 +113,7 @@ func Load(configDir string) (*ConfigFile, error) {
 	}
 
 	// Can't find latest config file so check for the old one
-	confFile := filepath.Join(homedir.Get(), OLD_CONFIGFILE)
-
+	confFile := filepath.Join(homedir.Get(), oldConfigfile)
 	if _, err := os.Stat(confFile); err != nil {
 		return &configFile, nil //missing file is not an error
 	}
@@ -124,8 +142,8 @@ func Load(configDir string) (*ConfigFile, error) {
 			return &configFile, fmt.Errorf("Invalid Auth config file")
 		}
 		authConfig.Email = origEmail[1]
-		authConfig.ServerAddress = DEFAULT_INDEXSERVER
-		configFile.AuthConfigs[DEFAULT_INDEXSERVER] = authConfig
+		authConfig.ServerAddress = defaultIndexserver
+		configFile.AuthConfigs[defaultIndexserver] = authConfig
 	} else {
 		for k, authConfig := range configFile.AuthConfigs {
 			authConfig.Username, authConfig.Password, err = DecodeAuth(authConfig.Auth)
@@ -140,12 +158,13 @@ func Load(configDir string) (*ConfigFile, error) {
 	return &configFile, nil
 }
 
+// Save encodes and writes out all the authorization information
 func (configFile *ConfigFile) Save() error {
 	// Encode sensitive data into a new/temp struct
 	tmpAuthConfigs := make(map[string]AuthConfig, len(configFile.AuthConfigs))
 	for k, authConfig := range configFile.AuthConfigs {
 		authCopy := authConfig
-
+		// encode and save the authstring, while blanking out the original fields
 		authCopy.Auth = EncodeAuth(&authCopy)
 		authCopy.Username = ""
 		authCopy.Password = ""
@@ -162,7 +181,7 @@ func (configFile *ConfigFile) Save() error {
 		return err
 	}
 
-	if err := os.MkdirAll(filepath.Dir(configFile.filename), 0700); err != nil {
+	if err := system.MkdirAll(filepath.Dir(configFile.filename), 0700); err != nil {
 		return err
 	}
 
@@ -173,11 +192,12 @@ func (configFile *ConfigFile) Save() error {
 	return nil
 }
 
-func (config *ConfigFile) Filename() string {
-	return config.filename
+// Filename returns the name of the configuration file
+func (configFile *ConfigFile) Filename() string {
+	return configFile.filename
 }
 
-// create a base64 encoded auth string to store in config
+// EncodeAuth creates a base64 encoded string to containing authorization information
 func EncodeAuth(authConfig *AuthConfig) string {
 	authStr := authConfig.Username + ":" + authConfig.Password
 	msg := []byte(authStr)
@@ -186,7 +206,7 @@ func EncodeAuth(authConfig *AuthConfig) string {
 	return string(encoded)
 }
 
-// decode the auth string
+// DecodeAuth decodes a base64 encoded string and returns username and password
 func DecodeAuth(authStr string) (string, string, error) {
 	decLen := base64.StdEncoding.DecodedLen(len(authStr))
 	decoded := make([]byte, decLen)

@@ -12,18 +12,20 @@ docker-create - Create a new container
 [**-c**|**--cpu-shares**[=*0*]]
 [**--cap-add**[=*[]*]]
 [**--cap-drop**[=*[]*]]
+[**--cgroup-parent**[=*CGROUP-PATH*]]
 [**--cidfile**[=*CIDFILE*]]
 [**--cpu-period**[=*0*]]
+[**--cpu-quota**[=*0*]]
 [**--cpuset-cpus**[=*CPUSET-CPUS*]]
 [**--cpuset-mems**[=*CPUSET-MEMS*]]
-[**--cpu-quota**[=*0*]]
 [**--device**[=*[]*]]
-[**--dns-search**[=*[]*]]
 [**--dns**[=*[]*]]
+[**--dns-search**[=*[]*]]
 [**-e**|**--env**[=*[]*]]
 [**--entrypoint**[=*ENTRYPOINT*]]
 [**--env-file**[=*[]*]]
 [**--expose**[=*[]*]]
+[**--group-add**[=*[]*]]
 [**-h**|**--hostname**[=*HOSTNAME*]]
 [**--help**]
 [**-i**|**--interactive**[=*false*]]
@@ -31,30 +33,41 @@ docker-create - Create a new container
 [**-l**|**--label**[=*[]*]]
 [**--label-file**[=*[]*]]
 [**--link**[=*[]*]]
-[**--lxc-conf**[=*[]*]]
 [**--log-driver**[=*[]*]]
 [**--log-opt**[=*[]*]]
+[**--lxc-conf**[=*[]*]]
 [**-m**|**--memory**[=*MEMORY*]]
-[**--memory-swap**[=*MEMORY-SWAP*]]
 [**--mac-address**[=*MAC-ADDRESS*]]
+[**--memory-swap**[=*MEMORY-SWAP*]]
+[**--memory-swappiness**[=*MEMORY-SWAPPINESS*]]
 [**--name**[=*NAME*]]
 [**--net**[=*"bridge"*]]
 [**--oom-kill-disable**[=*false*]]
 [**-P**|**--publish-all**[=*false*]]
 [**-p**|**--publish**[=*[]*]]
 [**--pid**[=*[]*]]
-[**--uts**[=*[]*]]
 [**--privileged**[=*false*]]
 [**--read-only**[=*false*]]
 [**--restart**[=*RESTART*]]
 [**--security-opt**[=*[]*]]
 [**-t**|**--tty**[=*false*]]
 [**-u**|**--user**[=*USER*]]
+[**--ulimit**[=*[]*]]
+[**--uts**[=*[]*]]
 [**-v**|**--volume**[=*[]*]]
 [**--volumes-from**[=*[]*]]
 [**-w**|**--workdir**[=*WORKDIR*]]
-[**--cgroup-parent**[=*CGROUP-PATH*]]
 IMAGE [COMMAND] [ARG...]
+
+# DESCRIPTION
+
+Creates a writeable container layer over the specified image and prepares it for
+running the specified command. The container ID is then printed to STDOUT. This
+is similar to **docker run -d** except the container is never started. You can 
+then use the **docker start <container_id>** command to start the container at
+any point.
+
+The initial status of the container created with **docker create** is 'created'.
 
 # OPTIONS
 **-a**, **--attach**=[]
@@ -81,7 +94,7 @@ IMAGE [COMMAND] [ARG...]
 **--cgroup-parent**=""
    Path to cgroups under which the cgroup for the container will be created. If the path is not absolute, the path is considered to be relative to the cgroups path of the init process. Cgroups will be created if they do not already exist.
 
-**--cpu-peroid**=0
+**--cpu-period**=0
     Limit the CPU CFS (Completely Fair Scheduler) period
 
 **--cpuset-cpus**=""
@@ -118,6 +131,9 @@ two memory nodes.
 **--expose**=[]
    Expose a port or a range of ports (e.g. --expose=3300-3310) from the container without publishing it to your host
 
+**--group-add**=[]
+   Add additional groups to run as
+
 **-h**, **--hostname**=""
    Container host name
 
@@ -145,7 +161,7 @@ two memory nodes.
 **--lxc-conf**=[]
    (lxc exec-driver only) Add custom lxc options --lxc-conf="lxc.cgroup.cpuset.cpus = 0,1"
 
-**--log-driver**="|*json-file*|*syslog*|*journald*|*none*"
+**--log-driver**="|*json-file*|*syslog*|*journald*|*gelf*|*fluentd*|*none*"
   Logging driver for container. Default is defined by daemon `--log-driver` flag.
   **Warning**: `docker logs` command works only for `json-file` logging driver.
 
@@ -215,11 +231,17 @@ This value should always larger than **-m**, so you should always use this with 
 **--security-opt**=[]
    Security Options
 
+**--memory-swappiness**=""
+   Tune a container's memory swappiness behavior. Accepts an integer between 0 and 100.
+
 **-t**, **--tty**=*true*|*false*
    Allocate a pseudo-TTY. The default is *false*.
 
 **-u**, **--user**=""
    Username or UID
+
+**--ulimit**=[]
+   Ulimit options
 
 **-v**, **--volume**=[]
    Bind mount a volume (e.g., from the host: -v /host:/container, from Docker: -v /container)

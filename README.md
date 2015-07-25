@@ -30,7 +30,7 @@ security@docker.com and not by creating a github issue.
 
 A common method for distributing applications and sandboxing their
 execution is to use virtual machines, or VMs. Typical VM formats are
-VMware's vmdk, Oracle Virtualbox's vdi, and Amazon EC2's ami. In theory
+VMware's vmdk, Oracle VirtualBox's vdi, and Amazon EC2's ami. In theory
 these formats should allow every developer to automatically package
 their application into a "machine" for easy distribution and deployment.
 In practice, that almost never happens, for a few reasons:
@@ -58,7 +58,7 @@ takes place at the kernel level. Most modern operating system kernels
 now support the primitives necessary for containerization, including
 Linux with [openvz](https://openvz.org),
 [vserver](http://linux-vserver.org) and more recently
-[lxc](http://lxc.sourceforge.net), Solaris with
+[lxc](https://linuxcontainers.org/), Solaris with
 [zones](https://docs.oracle.com/cd/E26502_01/html/E29024/preface-1.html#scrolltoc),
 and FreeBSD with
 [Jails](https://www.freebsd.org/doc/handbook/jails.html).
@@ -168,9 +168,9 @@ Under the hood
 Under the hood, Docker is built on the following components:
 
 * The
-  [cgroup](http://blog.dotcloud.com/kernel-secrets-from-the-paas-garage-part-24-c)
+  [cgroups](https://www.kernel.org/doc/Documentation/cgroups/cgroups.txt)
   and
-  [namespacing](http://blog.dotcloud.com/under-the-hood-linux-kernels-on-dotcloud-part)
+  [namespaces](http://man7.org/linux/man-pages/man7/namespaces.7.html)
   capabilities of the Linux kernel
 * The [Go](https://golang.org) programming language
 * The [Docker Image Specification](https://github.com/docker/docker/blob/master/image/spec/v1.md)
@@ -183,7 +183,7 @@ Contributing to Docker
 [![Jenkins Build Status](https://jenkins.dockerproject.org/job/Docker%20Master/badge/icon)](https://jenkins.dockerproject.org/job/Docker%20Master/)
 
 Want to hack on Docker? Awesome! We have [instructions to help you get
-started contributing code or documentation.](https://docs.docker.com/project/who-written-for/).
+started contributing code or documentation](https://docs.docker.com/project/who-written-for/).
 
 These instructions are probably not perfect, please let us know if anything
 feels wrong or incomplete. Better yet, submit a PR and improve them yourself.
@@ -289,7 +289,7 @@ system
 * [Docker Compose](https://github.com/docker/compose) (formerly Fig): 
 Define and run multi-container apps
 * [Kitematic](https://github.com/kitematic/kitematic): The easiest way to use 
-Docker on a Mac
+Docker on Mac and Windows
 
 If you know of another project underway that should be listed here, please help 
 us keep this list up-to-date by submitting a PR.

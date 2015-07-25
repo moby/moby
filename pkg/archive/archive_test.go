@@ -719,7 +719,7 @@ func TestTypeXGlobalHeaderDoesNotFail(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer os.RemoveAll(tmpDir)
-	err = createTarFile(filepath.Join(tmpDir, "pax_global_header"), tmpDir, &hdr, nil, true)
+	err = createTarFile(filepath.Join(tmpDir, "pax_global_header"), tmpDir, &hdr, nil, true, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -873,7 +873,8 @@ func getNlink(path string) (uint64, error) {
 	if !ok {
 		return 0, fmt.Errorf("expected type *syscall.Stat_t, got %t", stat.Sys())
 	}
-	return statT.Nlink, nil
+	// We need this conversion on ARM64
+	return uint64(statT.Nlink), nil
 }
 
 func getInode(path string) (uint64, error) {

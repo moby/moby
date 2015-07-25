@@ -13,7 +13,7 @@ import (
 func NewDriver(name string, options []string, root, libPath, initPath string, sysInfo *sysinfo.SysInfo) (execdriver.Driver, error) {
 	switch name {
 	case "windows":
-		return windows.NewDriver(root, initPath)
+		return windows.NewDriver(root, initPath, options)
 	}
 	return nil, fmt.Errorf("unknown exec driver %s", name)
 }

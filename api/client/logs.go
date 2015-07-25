@@ -4,8 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
+	"time"
 
 	"github.com/docker/docker/api/types"
+	Cli "github.com/docker/docker/cli"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/timeutils"
 )
@@ -14,26 +16,24 @@ import (
 //
 // docker logs [OPTIONS] CONTAINER
 func (cli *DockerCli) CmdLogs(args ...string) error {
-	var (
-		cmd    = cli.Subcmd("logs", "CONTAINER", "Fetch the logs of a container", true)
-		follow = cmd.Bool([]string{"f", "-follow"}, false, "Follow log output")
-		since  = cmd.String([]string{"-since"}, "", "Show logs since timestamp")
-		times  = cmd.Bool([]string{"t", "-timestamps"}, false, "Show timestamps")
-		tail   = cmd.String([]string{"-tail"}, "all", "Number of lines to show from the end of the logs")
-	)
+	cmd := Cli.Subcmd("logs", []string{"CONTAINER"}, "Fetch the logs of a container", true)
+	follow := cmd.Bool([]string{"f", "-follow"}, false, "Follow log output")
+	since := cmd.String([]string{"-since"}, "", "Show logs since timestamp")
+	times := cmd.Bool([]string{"t", "-timestamps"}, false, "Show timestamps")
+	tail := cmd.String([]string{"-tail"}, "all", "Number of lines to show from the end of the logs")
 	cmd.Require(flag.Exact, 1)
 
 	cmd.ParseFlags(args, true)
 
 	name := cmd.Arg(0)
 
-	stream, _, err := cli.call("GET", "/containers/"+name+"/json", nil, nil)
+	serverResp, err := cli.call("GET", "/containers/"+name+"/json", nil, nil)
 	if err != nil {
 		return err
 	}
 
 	var c types.ContainerJSON
-	if err := json.NewDecoder(stream).Decode(&c); err != nil {
+	if err := json.NewDecoder(serverResp.body).Decode(&c); err != nil {
 		return err
 	}
 
@@ -46,7 +46,7 @@ func (cli *DockerCli) CmdLogs(args ...string) error {
 	v.Set("stderr", "1")
 
 	if *since != "" {
-		v.Set("since", timeutils.GetTimestamp(*since))
+		v.Set("since", timeutils.GetTimestamp(*since, time.Now()))
 	}
 
 	if *times {
@@ -64,5 +64,6 @@ func (cli *DockerCli) CmdLogs(args ...string) error {
 		err:         cli.err,
 	}
 
-	return cli.stream("GET", "/containers/"+name+"/logs?"+v.Encode(), sopts)
+	_, err = cli.stream("GET", "/containers/"+name+"/logs?"+v.Encode(), sopts)
+	return err
 }

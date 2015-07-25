@@ -1,6 +1,7 @@
 package daemon
 
 import (
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -9,11 +10,17 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/chrootarchive"
+	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/volume"
+	"github.com/docker/docker/volume/drivers"
 	"github.com/docker/docker/volume/local"
-	"github.com/docker/libcontainer/label"
+	"github.com/opencontainers/runc/libcontainer/label"
 )
+
+// ErrVolumeReadonly is used to signal an error when trying to copy data into
+// a volume mount that is not writable.
+var ErrVolumeReadonly = errors.New("mounted volume is marked read-only")
 
 type mountPoint struct {
 	Name        string
@@ -35,7 +42,7 @@ func (m *mountPoint) Setup() (string, error) {
 			if !os.IsNotExist(err) {
 				return "", err
 			}
-			if err := os.MkdirAll(m.Source, 0755); err != nil {
+			if err := system.MkdirAll(m.Source, 0755); err != nil {
 				return "", err
 			}
 		}
@@ -43,6 +50,16 @@ func (m *mountPoint) Setup() (string, error) {
 	}
 
 	return "", fmt.Errorf("Unable to setup mount point, neither source nor volume defined")
+}
+
+// hasResource checks whether the given absolute path for a container is in
+// this mount point. If the relative path starts with `../` then the resource
+// is outside of this mount point, but we can't simply check for this prefix
+// because it misses `..` which is also outside of the mount, so check both.
+func (m *mountPoint) hasResource(absolutePath string) bool {
+	relPath, err := filepath.Rel(m.Destination, absolutePath)
+
+	return err == nil && relPath != ".." && !strings.HasPrefix(relPath, fmt.Sprintf("..%c", filepath.Separator))
 }
 
 func (m *mountPoint) Path() string {
@@ -72,10 +89,11 @@ func parseBindMount(spec string, mountLabel string, config *runconfig.Config) (*
 	case 3:
 		bind.Destination = arr[1]
 		mode := arr[2]
-		if !validMountMode(mode) {
+		isValid, isRw := volume.ValidateMountMode(mode)
+		if !isValid {
 			return nil, fmt.Errorf("invalid mode for volumes-from: %s", mode)
 		}
-		bind.RW = rwModes[mode]
+		bind.RW = isRw
 		// Relabel will apply a SELinux label, if necessary
 		bind.Relabel = mode
 	default:
@@ -112,35 +130,11 @@ func parseVolumesFrom(spec string) (string, string, error) {
 
 	if len(specParts) == 2 {
 		mode = specParts[1]
-		if !validMountMode(mode) {
+		if isValid, _ := volume.ValidateMountMode(mode); !isValid {
 			return "", "", fmt.Errorf("invalid mode for volumes-from: %s", mode)
 		}
 	}
 	return id, mode, nil
-}
-
-// read-write modes
-var rwModes = map[string]bool{
-	"rw":   true,
-	"rw,Z": true,
-	"rw,z": true,
-	"z,rw": true,
-	"Z,rw": true,
-	"Z":    true,
-	"z":    true,
-}
-
-// read-only modes
-var roModes = map[string]bool{
-	"ro":   true,
-	"ro,Z": true,
-	"ro,z": true,
-	"z,ro": true,
-	"Z,ro": true,
-}
-
-func validMountMode(mode string) bool {
-	return roModes[mode] || rwModes[mode]
 }
 
 func copyExistingContents(source, destination string) error {
@@ -194,7 +188,7 @@ func (daemon *Daemon) registerMountPoints(container *Container, hostConfig *runc
 			cp := &mountPoint{
 				Name:        m.Name,
 				Source:      m.Source,
-				RW:          m.RW && mode != "ro",
+				RW:          m.RW && volume.ReadWrite(mode),
 				Driver:      m.Driver,
 				Destination: m.Destination,
 			}
@@ -263,6 +257,7 @@ func (daemon *Daemon) registerMountPoints(container *Container, hostConfig *runc
 	return nil
 }
 
+// TODO Windows. Factor out as not relevant (as Windows daemon support not in pre-1.7)
 // verifyVolumesInfo ports volumes configured for the containers pre docker 1.7.
 // It reads the container configuration and creates valid mount points for the old volumes.
 func (daemon *Daemon) verifyVolumesInfo(container *Container) error {
@@ -353,4 +348,19 @@ func removeVolume(v volume.Volume) error {
 		return nil
 	}
 	return vd.Remove(v)
+}
+
+func getVolumeDriver(name string) (volume.Driver, error) {
+	if name == "" {
+		name = volume.DefaultDriverName
+	}
+	return volumedrivers.Lookup(name)
+}
+
+func parseVolumeSource(spec string) (string, string, error) {
+	if !filepath.IsAbs(spec) {
+		return spec, "", nil
+	}
+
+	return "", spec, nil
 }

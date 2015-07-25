@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/pkg/tlsconfig"
 )
 
 var (
@@ -26,22 +27,36 @@ type Manifest struct {
 }
 
 type Plugin struct {
-	Name     string
-	Addr     string
-	Client   *Client
-	Manifest *Manifest
+	Name      string `json:"-"`
+	Addr      string
+	TLSConfig tlsconfig.Options
+	Client    *Client   `json:"-"`
+	Manifest  *Manifest `json:"-"`
+}
+
+func newLocalPlugin(name, addr string) *Plugin {
+	return &Plugin{
+		Name:      name,
+		Addr:      addr,
+		TLSConfig: tlsconfig.Options{InsecureSkipVerify: true},
+	}
 }
 
 func (p *Plugin) activate() error {
-	m := new(Manifest)
-	p.Client = NewClient(p.Addr)
-	err := p.Client.Call("Plugin.Activate", nil, m)
+	c, err := NewClient(p.Addr, p.TLSConfig)
 	if err != nil {
+		return err
+	}
+	p.Client = c
+
+	m := new(Manifest)
+	if err = p.Client.Call("Plugin.Activate", nil, m); err != nil {
 		return err
 	}
 
 	logrus.Debugf("%s's manifest: %v", p.Name, m)
 	p.Manifest = m
+
 	for _, iface := range m.Implements {
 		handler, handled := extpointHandlers[iface]
 		if !handled {
@@ -53,7 +68,7 @@ func (p *Plugin) activate() error {
 }
 
 func load(name string) (*Plugin, error) {
-	registry := newLocalRegistry("")
+	registry := newLocalRegistry()
 	pl, err := registry.Plugin(name)
 	if err != nil {
 		return nil, err

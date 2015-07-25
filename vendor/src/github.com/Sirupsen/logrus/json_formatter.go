@@ -24,11 +24,12 @@ func (f *JSONFormatter) Format(entry *Entry) ([]byte, error) {
 	}
 	prefixFieldClashes(data)
 
-	if f.TimestampFormat == "" {
-		f.TimestampFormat = DefaultTimestampFormat
+	timestampFormat := f.TimestampFormat
+	if timestampFormat == "" {
+		timestampFormat = DefaultTimestampFormat
 	}
 
-	data["time"] = entry.Time.Format(f.TimestampFormat)
+	data["time"] = entry.Time.Format(timestampFormat)
 	data["msg"] = entry.Message
 	data["level"] = entry.Level.String()
 

@@ -275,7 +275,9 @@ Whether a container can talk to the world is governed by two factors.
     containers if this parameter is `1`.  Usually you will simply leave
     the Docker server at its default setting `--ip-forward=true` and
     Docker will go set `ip_forward` to `1` for you when the server
-    starts up. To check the setting or turn it on manually:
+    starts up. If you set `--ip-forward=false` and your system's kernel
+    has it enabled, the `--ip-forward=false` option has no effect.
+    To check the setting on your kernel or to turn it on manually:
 
         $ sysctl net.ipv4.conf.all.forwarding
         net.ipv4.conf.all.forwarding = 0
@@ -501,7 +503,7 @@ To assign globally routable IPv6 addresses to your containers you have to
 specify an IPv6 subnet to pick the addresses from. Set the IPv6 subnet via the
 `--fixed-cidr-v6` parameter when starting Docker daemon:
 
-    docker -d --ipv6 --fixed-cidr-v6="2001:db8:1::/64"
+    docker daemon --ipv6 --fixed-cidr-v6="2001:db8:1::/64"
 
 The subnet for Docker containers should at least have a size of `/80`. This way
 an IPv6 address can end with the container's MAC address and you prevent NDP
@@ -587,7 +589,7 @@ Let's split up the configurable address range into two subnets
 `2001:db8::c000/125` and `2001:db8::c008/125`. The first one can be used by the
 host itself, the latter by Docker:
 
-    docker -d --ipv6 --fixed-cidr-v6 2001:db8::c008/125
+    docker daemon --ipv6 --fixed-cidr-v6 2001:db8::c008/125
 
 You notice the Docker subnet is within the subnet managed by your router that
 is connected to `eth0`. This means all devices (containers) with the addresses
@@ -623,7 +625,8 @@ device to the container network:
 
 You have to execute the `ip -6 neigh add proxy ...` command for every IPv6
 address in your Docker subnet. Unfortunately there is no functionality for
-adding a whole subnet by executing one command.
+adding a whole subnet by executing one command. An alternative approach would be to
+use an NDP proxy daemon such as [ndppd](https://github.com/DanielAdolfsson/ndppd).
 
 ### Docker IPv6 cluster
 

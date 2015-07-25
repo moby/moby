@@ -196,8 +196,8 @@ func TestValidateDigest(t *testing.T) {
 	}{
 		{"", true},
 		{"latest", true},
-		{"a:b", false},
-		{"aZ0124-.+:bY852-_.+=", false},
+		{"sha256:b", false},
+		{"tarsum+v1+sha256:bY852-_.+=", false},
 		{"#$%#$^:$%^#$%", true},
 	}
 

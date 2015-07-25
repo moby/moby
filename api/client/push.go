@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/url"
 
+	Cli "github.com/docker/docker/cli"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/registry"
@@ -13,14 +14,13 @@ import (
 //
 // Usage: docker push NAME[:TAG]
 func (cli *DockerCli) CmdPush(args ...string) error {
-	cmd := cli.Subcmd("push", "NAME[:TAG]", "Push an image or a repository to the registry", true)
+	cmd := Cli.Subcmd("push", []string{"NAME[:TAG]"}, "Push an image or a repository to a registry", true)
+	addTrustedFlags(cmd, false)
 	cmd.Require(flag.Exact, 1)
 
 	cmd.ParseFlags(args, true)
 
-	name := cmd.Arg(0)
-
-	remote, tag := parsers.ParseRepositoryTag(name)
+	remote, tag := parsers.ParseRepositoryTag(cmd.Arg(0))
 
 	// Resolve the Repository name from fqn to RepositoryInfo
 	repoInfo, err := registry.ParseRepositoryInfo(remote)
@@ -39,6 +39,10 @@ func (cli *DockerCli) CmdPush(args ...string) error {
 			username = "<user>"
 		}
 		return fmt.Errorf("You cannot push a \"root\" repository. Please rename your repository to <user>/<repo> (ex: %s/%s)", username, repoInfo.LocalName)
+	}
+
+	if isTrusted() {
+		return cli.trustedPush(repoInfo, tag, authConfig)
 	}
 
 	v := url.Values{}

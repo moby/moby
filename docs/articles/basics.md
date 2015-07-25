@@ -8,10 +8,10 @@ parent = "smn_containers"
 +++
 <![end-metadata]-->
 
-# "Get started with containers
+# Get started with containers
 
-This guide assumes you have a working installation of Docker. To check
-your Docker install, run the following command:
+This guide assumes you have a working installation of Docker. To verify Docker is 
+installed, use the following command:
 
     # Check that you have a working install
     $ docker info
@@ -41,11 +41,11 @@ and download it from [Docker Hub](https://hub.docker.com) to a local
 image cache.
 
 > **Note**:
-> When the image has successfully downloaded, you will see a 12 character
+> When the image is successfully downloaded, you see a 12 character
 > hash `539c0211cd76: Download complete` which is the
 > short form of the image ID. These short image IDs are the first 12
 > characters of the full image ID - which can be found using
-> `docker inspect` or `docker images --no-trunc=true`
+> `docker inspect` or `docker images --no-trunc=true`.
 
 > **Note:** if you are using a remote Docker daemon, such as Boot2Docker, 
 > then _do not_ type the `sudo` before the `docker` commands shown in the
@@ -53,12 +53,13 @@ image cache.
 
 ## Running an interactive shell
 
-    # Run an interactive shell in the ubuntu image,
-    # allocate a tty, attach stdin and stdout
-    # To detach the tty without exiting the shell,
-    # use the escape sequence Ctrl-p + Ctrl-q
-    # note: This will continue to exist in a stopped state once exited (see "docker ps -a")
-    $ docker run -i -t ubuntu /bin/bash
+To run an interactive shell in the Ubuntu image:
+
+    $ docker run -i -t ubuntu /bin/bash       
+  
+The `-i` flag starts an interactive container. The `-t` flag creates a pseudo-TTY that attaches `stdin` and `stdout`.  
+
+To detach the `tty` without exiting the shell, use the escape sequence `Ctrl-p` + `Ctrl-q`. The container will continue to exist in a stopped state once exited. To list all containers, stopped and running use the `docker ps -a` command.
 
 ## Bind Docker to another host/port or a Unix socket
 
@@ -82,12 +83,14 @@ Similarly, the Docker client can use `-H` to connect to a custom port.
 
 `-H` accepts host and port assignment in the following format:
 
-    tcp://[host][:port]` or `unix://path
+    tcp://[host][:port][path] or unix://path
 
 For example:
 
 -   `tcp://host:2375` -> TCP connection on
     host:2375
+-   `tcp://host:2375/path` -> TCP connection on
+    host:2375 and prepend path to all requests
 -   `unix://path/to/socket` -> Unix socket located
     at `path/to/socket`
 
@@ -96,11 +99,11 @@ when no `-H` was passed in.
 
 `-H` also accepts short form for TCP bindings:
 
-    host[:port]` or `:port
+    host[:port] or :port
 
 Run Docker in daemon mode:
 
-    $ sudo <path to>/docker -H 0.0.0.0:5555 -d &
+    $ sudo <path to>/docker daemon -H 0.0.0.0:5555 &
 
 Download an `ubuntu` image:
 
@@ -110,7 +113,7 @@ You can use multiple `-H`, for example, if you want to listen on both
 TCP and a Unix socket
 
     # Run docker in daemon mode
-    $ sudo <path to>/docker -H tcp://127.0.0.1:2375 -H unix:///var/run/docker.sock -d &
+    $ sudo <path to>/docker daemon -H tcp://127.0.0.1:2375 -H unix:///var/run/docker.sock &
     # Download an ubuntu image, use default Unix socket
     $ docker pull ubuntu
     # OR use the TCP port
@@ -172,13 +175,10 @@ TCP and a Unix socket
 Save your containers state to an image, so the state can be
 re-used.
 
-When you commit your container only the differences between the image
-the container was created from and the current state of the container
-will be stored (as a diff). See which images you already have using the
-`docker images` command.
+When you commit your container, Docker only stores the diff (difference) between the source image and the current state of the container's image. To list images you already have, use the `docker images` command. 
 
     # Commit your container to a new named image
-    $ docker commit <container_id> <some_name>
+    $ docker commit <container> <some_name>
 
     # List your images
     $ docker images

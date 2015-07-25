@@ -8,6 +8,7 @@ import (
 	"text/tabwriter"
 
 	"github.com/docker/docker/api/types"
+	Cli "github.com/docker/docker/cli"
 	flag "github.com/docker/docker/pkg/mflag"
 )
 
@@ -15,7 +16,7 @@ import (
 //
 // Usage: docker top CONTAINER
 func (cli *DockerCli) CmdTop(args ...string) error {
-	cmd := cli.Subcmd("top", "CONTAINER [ps OPTIONS]", "Display the running processes of a container", true)
+	cmd := Cli.Subcmd("top", []string{"CONTAINER [ps OPTIONS]"}, "Display the running processes of a container", true)
 	cmd.Require(flag.Min, 1)
 
 	cmd.ParseFlags(args, true)
@@ -25,13 +26,15 @@ func (cli *DockerCli) CmdTop(args ...string) error {
 		val.Set("ps_args", strings.Join(cmd.Args()[1:], " "))
 	}
 
-	stream, _, err := cli.call("GET", "/containers/"+cmd.Arg(0)+"/top?"+val.Encode(), nil, nil)
+	serverResp, err := cli.call("GET", "/containers/"+cmd.Arg(0)+"/top?"+val.Encode(), nil, nil)
 	if err != nil {
 		return err
 	}
 
+	defer serverResp.body.Close()
+
 	procList := types.ContainerProcessList{}
-	if err := json.NewDecoder(stream).Decode(&procList); err != nil {
+	if err := json.NewDecoder(serverResp.body).Decode(&procList); err != nil {
 		return err
 	}
 

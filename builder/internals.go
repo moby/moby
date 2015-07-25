@@ -12,8 +12,8 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"path"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 	"syscall"
@@ -24,7 +24,7 @@ import (
 	"github.com/docker/docker/cliconfig"
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/graph"
-	imagepkg "github.com/docker/docker/image"
+	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/chrootarchive"
 	"github.com/docker/docker/pkg/httputils"
@@ -40,30 +40,40 @@ import (
 	"github.com/docker/docker/runconfig"
 )
 
-func (b *Builder) readContext(context io.Reader) error {
+func (b *builder) readContext(context io.Reader) (err error) {
 	tmpdirPath, err := ioutil.TempDir("", "docker-build")
 	if err != nil {
-		return err
+		return
 	}
+
+	// Make sure we clean-up upon error.  In the happy case the caller
+	// is expected to manage the clean-up
+	defer func() {
+		if err != nil {
+			if e := os.RemoveAll(tmpdirPath); e != nil {
+				logrus.Debugf("[BUILDER] failed to remove temporary context: %s", e)
+			}
+		}
+	}()
 
 	decompressedStream, err := archive.DecompressStream(context)
 	if err != nil {
-		return err
+		return
 	}
 
-	if b.context, err = tarsum.NewTarSum(decompressedStream, true, tarsum.Version0); err != nil {
-		return err
+	if b.context, err = tarsum.NewTarSum(decompressedStream, true, tarsum.Version1); err != nil {
+		return
 	}
 
-	if err := chrootarchive.Untar(b.context, tmpdirPath, nil); err != nil {
-		return err
+	if err = chrootarchive.Untar(b.context, tmpdirPath, nil); err != nil {
+		return
 	}
 
 	b.contextPath = tmpdirPath
-	return nil
+	return
 }
 
-func (b *Builder) commit(id string, autoCmd *runconfig.Command, comment string) error {
+func (b *builder) commit(id string, autoCmd *runconfig.Command, comment string) error {
 	if b.disableCommit {
 		return nil
 	}
@@ -73,7 +83,11 @@ func (b *Builder) commit(id string, autoCmd *runconfig.Command, comment string) 
 	b.Config.Image = b.image
 	if id == "" {
 		cmd := b.Config.Cmd
-		b.Config.Cmd = runconfig.NewCommand("/bin/sh", "-c", "#(nop) "+comment)
+		if runtime.GOOS != "windows" {
+			b.Config.Cmd = runconfig.NewCommand("/bin/sh", "-c", "#(nop) "+comment)
+		} else {
+			b.Config.Cmd = runconfig.NewCommand("cmd", "/S /C", "REM (nop) "+comment)
+		}
 		defer func(cmd *runconfig.Command) { b.Config.Cmd = cmd }(cmd)
 
 		hit, err := b.probeCache()
@@ -104,11 +118,19 @@ func (b *Builder) commit(id string, autoCmd *runconfig.Command, comment string) 
 	autoConfig := *b.Config
 	autoConfig.Cmd = autoCmd
 
+	commitCfg := &daemon.ContainerCommitConfig{
+		Author: b.maintainer,
+		Pause:  true,
+		Config: &autoConfig,
+	}
+
 	// Commit the container
-	image, err := b.Daemon.Commit(container, "", "", "", b.maintainer, true, &autoConfig)
+	image, err := b.Daemon.Commit(container, commitCfg)
 	if err != nil {
 		return err
 	}
+	b.Daemon.Graph().Retain(b.id, image.ID)
+	b.activeImages = append(b.activeImages, image.ID)
 	b.image = image.ID
 	return nil
 }
@@ -121,7 +143,7 @@ type copyInfo struct {
 	tmpDir     string
 }
 
-func (b *Builder) runContextCommand(args []string, allowRemote bool, allowDecompression bool, cmdName string) error {
+func (b *builder) runContextCommand(args []string, allowRemote bool, allowDecompression bool, cmdName string) error {
 	if b.context == nil {
 		return fmt.Errorf("No context given. Impossible to use %s", cmdName)
 	}
@@ -130,7 +152,8 @@ func (b *Builder) runContextCommand(args []string, allowRemote bool, allowDecomp
 		return fmt.Errorf("Invalid %s format - at least two arguments required", cmdName)
 	}
 
-	dest := args[len(args)-1] // last one is always the dest
+	// Work in daemon-specific filepath semantics
+	dest := filepath.FromSlash(args[len(args)-1]) // last one is always the dest
 
 	copyInfos := []*copyInfo{}
 
@@ -165,8 +188,7 @@ func (b *Builder) runContextCommand(args []string, allowRemote bool, allowDecomp
 	if len(copyInfos) == 0 {
 		return fmt.Errorf("No source files were specified")
 	}
-
-	if len(copyInfos) > 1 && !strings.HasSuffix(dest, "/") {
+	if len(copyInfos) > 1 && !strings.HasSuffix(dest, string(os.PathSeparator)) {
 		return fmt.Errorf("When using %s with more than one source file, the destination must be a directory and end with a /", cmdName)
 	}
 
@@ -192,7 +214,11 @@ func (b *Builder) runContextCommand(args []string, allowRemote bool, allowDecomp
 	}
 
 	cmd := b.Config.Cmd
-	b.Config.Cmd = runconfig.NewCommand("/bin/sh", "-c", fmt.Sprintf("#(nop) %s %s in %s", cmdName, srcHash, dest))
+	if runtime.GOOS != "windows" {
+		b.Config.Cmd = runconfig.NewCommand("/bin/sh", "-c", fmt.Sprintf("#(nop) %s %s in %s", cmdName, srcHash, dest))
+	} else {
+		b.Config.Cmd = runconfig.NewCommand("cmd", "/S /C", fmt.Sprintf("REM (nop) %s %s in %s", cmdName, srcHash, dest))
+	}
 	defer func(cmd *runconfig.Command) { b.Config.Cmd = cmd }(cmd)
 
 	hit, err := b.probeCache()
@@ -215,10 +241,18 @@ func (b *Builder) runContextCommand(args []string, allowRemote bool, allowDecomp
 	}
 	defer container.Unmount()
 
+	if err := container.PrepareStorage(); err != nil {
+		return err
+	}
+
 	for _, ci := range copyInfos {
 		if err := b.addContext(container, ci.origPath, ci.destPath, ci.decompress); err != nil {
 			return err
 		}
+	}
+
+	if err := container.CleanupStorage(); err != nil {
+		return err
 	}
 
 	if err := b.commit(container.ID, cmd, fmt.Sprintf("%s %s in %s", cmdName, origPaths, dest)); err != nil {
@@ -227,27 +261,39 @@ func (b *Builder) runContextCommand(args []string, allowRemote bool, allowDecomp
 	return nil
 }
 
-func calcCopyInfo(b *Builder, cmdName string, cInfos *[]*copyInfo, origPath string, destPath string, allowRemote bool, allowDecompression bool, allowWildcards bool) error {
+func calcCopyInfo(b *builder, cmdName string, cInfos *[]*copyInfo, origPath string, destPath string, allowRemote bool, allowDecompression bool, allowWildcards bool) error {
 
-	if origPath != "" && origPath[0] == '/' && len(origPath) > 1 {
+	// Work in daemon-specific OS filepath semantics. However, we save
+	// the the origPath passed in here, as it might also be a URL which
+	// we need to check for in this function.
+	passedInOrigPath := origPath
+	origPath = filepath.FromSlash(origPath)
+	destPath = filepath.FromSlash(destPath)
+
+	if origPath != "" && origPath[0] == os.PathSeparator && len(origPath) > 1 {
 		origPath = origPath[1:]
 	}
-	origPath = strings.TrimPrefix(origPath, "./")
+	origPath = strings.TrimPrefix(origPath, "."+string(os.PathSeparator))
 
 	// Twiddle the destPath when its a relative path - meaning, make it
 	// relative to the WORKINGDIR
 	if !filepath.IsAbs(destPath) {
-		hasSlash := strings.HasSuffix(destPath, "/")
-		destPath = filepath.Join("/", b.Config.WorkingDir, destPath)
+		hasSlash := strings.HasSuffix(destPath, string(os.PathSeparator))
+		destPath = filepath.Join(string(os.PathSeparator), filepath.FromSlash(b.Config.WorkingDir), destPath)
 
 		// Make sure we preserve any trailing slash
 		if hasSlash {
-			destPath += "/"
+			destPath += string(os.PathSeparator)
 		}
 	}
 
 	// In the remote/URL case, download it and gen its hashcode
-	if urlutil.IsURL(origPath) {
+	if urlutil.IsURL(passedInOrigPath) {
+
+		// As it's a URL, we go back to processing on what was passed in
+		// to this function
+		origPath = passedInOrigPath
+
 		if !allowRemote {
 			return fmt.Errorf("Source can't be a URL for %s", cmdName)
 		}
@@ -273,7 +319,7 @@ func calcCopyInfo(b *Builder, cmdName string, cInfos *[]*copyInfo, origPath stri
 		ci.tmpDir = tmpDirName
 
 		// Create a tmp file within our tmp dir
-		tmpFileName := path.Join(tmpDirName, "tmp")
+		tmpFileName := filepath.Join(tmpDirName, "tmp")
 		tmpFile, err := os.OpenFile(tmpFileName, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0600)
 		if err != nil {
 			return err
@@ -313,19 +359,19 @@ func calcCopyInfo(b *Builder, cmdName string, cInfos *[]*copyInfo, origPath stri
 			return err
 		}
 
-		ci.origPath = path.Join(filepath.Base(tmpDirName), filepath.Base(tmpFileName))
+		ci.origPath = filepath.Join(filepath.Base(tmpDirName), filepath.Base(tmpFileName))
 
 		// If the destination is a directory, figure out the filename.
-		if strings.HasSuffix(ci.destPath, "/") {
+		if strings.HasSuffix(ci.destPath, string(os.PathSeparator)) {
 			u, err := url.Parse(origPath)
 			if err != nil {
 				return err
 			}
 			path := u.Path
-			if strings.HasSuffix(path, "/") {
+			if strings.HasSuffix(path, string(os.PathSeparator)) {
 				path = path[:len(path)-1]
 			}
-			parts := strings.Split(path, "/")
+			parts := strings.Split(path, string(os.PathSeparator))
 			filename := parts[len(parts)-1]
 			if filename == "" {
 				return fmt.Errorf("cannot determine filename from url: %s", u)
@@ -338,7 +384,7 @@ func calcCopyInfo(b *Builder, cmdName string, cInfos *[]*copyInfo, origPath stri
 		if err != nil {
 			return err
 		}
-		tarSum, err := tarsum.NewTarSum(r, true, tarsum.Version0)
+		tarSum, err := tarsum.NewTarSum(r, true, tarsum.Version1)
 		if err != nil {
 			return err
 		}
@@ -352,12 +398,12 @@ func calcCopyInfo(b *Builder, cmdName string, cInfos *[]*copyInfo, origPath stri
 	}
 
 	// Deal with wildcards
-	if allowWildcards && ContainsWildcards(origPath) {
+	if allowWildcards && containsWildcards(origPath) {
 		for _, fileInfo := range b.context.GetSums() {
 			if fileInfo.Name() == "" {
 				continue
 			}
-			match, _ := path.Match(origPath, fileInfo.Name())
+			match, _ := filepath.Match(origPath, fileInfo.Name())
 			if !match {
 				continue
 			}
@@ -374,7 +420,7 @@ func calcCopyInfo(b *Builder, cmdName string, cInfos *[]*copyInfo, origPath stri
 	if err := b.checkPathForAddition(origPath); err != nil {
 		return err
 	}
-	fi, _ := os.Stat(path.Join(b.contextPath, origPath))
+	fi, _ := os.Stat(filepath.Join(b.contextPath, origPath))
 
 	ci := copyInfo{}
 	ci.origPath = origPath
@@ -395,20 +441,20 @@ func calcCopyInfo(b *Builder, cmdName string, cInfos *[]*copyInfo, origPath stri
 
 	// Must be a dir
 	var subfiles []string
-	absOrigPath := path.Join(b.contextPath, ci.origPath)
+	absOrigPath := filepath.Join(b.contextPath, ci.origPath)
 
 	// Add a trailing / to make sure we only pick up nested files under
 	// the dir and not sibling files of the dir that just happen to
 	// start with the same chars
-	if !strings.HasSuffix(absOrigPath, "/") {
-		absOrigPath += "/"
+	if !strings.HasSuffix(absOrigPath, string(os.PathSeparator)) {
+		absOrigPath += string(os.PathSeparator)
 	}
 
-	// Need path w/o / too to find matching dir w/o trailing /
+	// Need path w/o slash too to find matching dir w/o trailing slash
 	absOrigPathNoSlash := absOrigPath[:len(absOrigPath)-1]
 
 	for _, fileInfo := range b.context.GetSums() {
-		absFile := path.Join(b.contextPath, fileInfo.Name())
+		absFile := filepath.Join(b.contextPath, fileInfo.Name())
 		// Any file in the context that starts with the given path will be
 		// picked up and its hashcode used.  However, we'll exclude the
 		// root dir itself.  We do this for a coupel of reasons:
@@ -429,7 +475,7 @@ func calcCopyInfo(b *Builder, cmdName string, cInfos *[]*copyInfo, origPath stri
 	return nil
 }
 
-func ContainsWildcards(name string) bool {
+func containsWildcards(name string) bool {
 	for i := 0; i < len(name); i++ {
 		ch := name[i]
 		if ch == '\\' {
@@ -441,7 +487,7 @@ func ContainsWildcards(name string) bool {
 	return false
 }
 
-func (b *Builder) pullImage(name string) (*imagepkg.Image, error) {
+func (b *builder) pullImage(name string) (*image.Image, error) {
 	remote, tag := parsers.ParseRepositoryTag(name)
 	if tag == "" {
 		tag = "latest"
@@ -479,14 +525,15 @@ func (b *Builder) pullImage(name string) (*imagepkg.Image, error) {
 	return image, nil
 }
 
-func (b *Builder) processImageFrom(img *imagepkg.Image) error {
+func (b *builder) processImageFrom(img *image.Image) error {
 	b.image = img.ID
 
 	if img.Config != nil {
 		b.Config = img.Config
 	}
 
-	if len(b.Config.Env) == 0 {
+	// The default path will be blank on Windows (set by HCS)
+	if len(b.Config.Env) == 0 && daemon.DefaultPathEnv != "" {
 		b.Config.Env = append(b.Config.Env, "PATH="+daemon.DefaultPathEnv)
 	}
 
@@ -530,7 +577,7 @@ func (b *Builder) processImageFrom(img *imagepkg.Image) error {
 // in the current server `b.Daemon`. If an image is found, probeCache returns
 // `(true, nil)`. If no image is found, it returns `(false, nil)`. If there
 // is any error, it returns `(false, err)`.
-func (b *Builder) probeCache() (bool, error) {
+func (b *builder) probeCache() (bool, error) {
 	if !b.UtilizeCache || b.cacheBusted {
 		return false, nil
 	}
@@ -548,10 +595,12 @@ func (b *Builder) probeCache() (bool, error) {
 	fmt.Fprintf(b.OutStream, " ---> Using cache\n")
 	logrus.Debugf("[BUILDER] Use cached version")
 	b.image = cache.ID
+	b.Daemon.Graph().Retain(b.id, cache.ID)
+	b.activeImages = append(b.activeImages, cache.ID)
 	return true, nil
 }
 
-func (b *Builder) create() (*daemon.Container, error) {
+func (b *builder) create() (*daemon.Container, error) {
 	if b.image == "" && !b.noBaseImage {
 		return nil, fmt.Errorf("Please provide a source image with `from` prior to run")
 	}
@@ -566,7 +615,7 @@ func (b *Builder) create() (*daemon.Container, error) {
 		CgroupParent: b.cgroupParent,
 		Memory:       b.memory,
 		MemorySwap:   b.memorySwap,
-		NetworkMode:  "bridge",
+		Ulimits:      b.ulimits,
 	}
 
 	config := *b.Config
@@ -595,7 +644,7 @@ func (b *Builder) create() (*daemon.Container, error) {
 	return c, nil
 }
 
-func (b *Builder) run(c *daemon.Container) error {
+func (b *builder) run(c *daemon.Container) error {
 	var errCh chan error
 	if b.Verbose {
 		errCh = c.Attach(nil, b.OutStream, b.ErrStream)
@@ -635,8 +684,8 @@ func (b *Builder) run(c *daemon.Container) error {
 	return nil
 }
 
-func (b *Builder) checkPathForAddition(orig string) error {
-	origPath := path.Join(b.contextPath, orig)
+func (b *builder) checkPathForAddition(orig string) error {
+	origPath := filepath.Join(b.contextPath, orig)
 	origPath, err := filepath.EvalSymlinks(origPath)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -644,7 +693,11 @@ func (b *Builder) checkPathForAddition(orig string) error {
 		}
 		return err
 	}
-	if !strings.HasPrefix(origPath, b.contextPath) {
+	contextPath, err := filepath.EvalSymlinks(b.contextPath)
+	if err != nil {
+		return err
+	}
+	if !strings.HasPrefix(origPath, contextPath) {
 		return fmt.Errorf("Forbidden path outside the build context: %s (%s)", orig, origPath)
 	}
 	if _, err := os.Stat(origPath); err != nil {
@@ -656,27 +709,31 @@ func (b *Builder) checkPathForAddition(orig string) error {
 	return nil
 }
 
-func (b *Builder) addContext(container *daemon.Container, orig, dest string, decompress bool) error {
+func (b *builder) addContext(container *daemon.Container, orig, dest string, decompress bool) error {
 	var (
 		err        error
 		destExists = true
-		origPath   = path.Join(b.contextPath, orig)
+		origPath   = filepath.Join(b.contextPath, orig)
 		destPath   string
 	)
+
+	// Work in daemon-local OS specific file paths
+	dest = filepath.FromSlash(dest)
 
 	destPath, err = container.GetResourcePath(dest)
 	if err != nil {
 		return err
 	}
 
-	// Preserve the trailing '/'
-	if strings.HasSuffix(dest, "/") || dest == "." {
-		destPath = destPath + "/"
+	// Preserve the trailing slash
+	if strings.HasSuffix(dest, string(os.PathSeparator)) || dest == "." {
+		destPath = destPath + string(os.PathSeparator)
 	}
 
 	destStat, err := os.Stat(destPath)
 	if err != nil {
 		if !os.IsNotExist(err) {
+			logrus.Errorf("Error performing os.Stat on %s. %s", destPath, err)
 			return err
 		}
 		destExists = false
@@ -699,9 +756,9 @@ func (b *Builder) addContext(container *daemon.Container, orig, dest string, dec
 		// First try to unpack the source as an archive
 		// to support the untar feature we need to clean up the path a little bit
 		// because tar is very forgiving.  First we need to strip off the archive's
-		// filename from the path but this is only added if it does not end in / .
+		// filename from the path but this is only added if it does not end in slash
 		tarDest := destPath
-		if strings.HasSuffix(tarDest, "/") {
+		if strings.HasSuffix(tarDest, string(os.PathSeparator)) {
 			tarDest = filepath.Dir(destPath)
 		}
 
@@ -713,7 +770,7 @@ func (b *Builder) addContext(container *daemon.Container, orig, dest string, dec
 		}
 	}
 
-	if err := os.MkdirAll(path.Dir(destPath), 0755); err != nil {
+	if err := system.MkdirAll(filepath.Dir(destPath), 0755); err != nil {
 		return err
 	}
 	if err := chrootarchive.CopyWithTar(origPath, destPath); err != nil {
@@ -722,7 +779,7 @@ func (b *Builder) addContext(container *daemon.Container, orig, dest string, dec
 
 	resPath := destPath
 	if destExists && destStat.IsDir() {
-		resPath = path.Join(destPath, path.Base(origPath))
+		resPath = filepath.Join(destPath, filepath.Base(origPath))
 	}
 
 	return fixPermissions(origPath, resPath, 0, 0, destExists)
@@ -735,39 +792,7 @@ func copyAsDirectory(source, destination string, destExisted bool) error {
 	return fixPermissions(source, destination, 0, 0, destExisted)
 }
 
-func fixPermissions(source, destination string, uid, gid int, destExisted bool) error {
-	// If the destination didn't already exist, or the destination isn't a
-	// directory, then we should Lchown the destination. Otherwise, we shouldn't
-	// Lchown the destination.
-	destStat, err := os.Stat(destination)
-	if err != nil {
-		// This should *never* be reached, because the destination must've already
-		// been created while untar-ing the context.
-		return err
-	}
-	doChownDestination := !destExisted || !destStat.IsDir()
-
-	// We Walk on the source rather than on the destination because we don't
-	// want to change permissions on things we haven't created or modified.
-	return filepath.Walk(source, func(fullpath string, info os.FileInfo, err error) error {
-		// Do not alter the walk root iff. it existed before, as it doesn't fall under
-		// the domain of "things we should chown".
-		if !doChownDestination && (source == fullpath) {
-			return nil
-		}
-
-		// Path is prefixed by source: substitute with destination instead.
-		cleaned, err := filepath.Rel(source, fullpath)
-		if err != nil {
-			return err
-		}
-
-		fullpath = path.Join(destination, cleaned)
-		return os.Lchown(fullpath, uid, gid)
-	})
-}
-
-func (b *Builder) clearTmp() {
+func (b *builder) clearTmp() {
 	for c := range b.TmpContainers {
 		rmConfig := &daemon.ContainerRmConfig{
 			ForceRemove:  true,

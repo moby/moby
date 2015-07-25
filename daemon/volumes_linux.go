@@ -36,12 +36,13 @@ func (container *Container) setupMounts() ([]execdriver.Mount, error) {
 		if err != nil {
 			return nil, err
 		}
-
-		mounts = append(mounts, execdriver.Mount{
-			Source:      path,
-			Destination: m.Destination,
-			Writable:    m.RW,
-		})
+		if !container.trySetNetworkMount(m.Destination, path) {
+			mounts = append(mounts, execdriver.Mount{
+				Source:      path,
+				Destination: m.Destination,
+				Writable:    m.RW,
+			})
+		}
 	}
 
 	mounts = sortMounts(mounts)

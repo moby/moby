@@ -11,13 +11,12 @@ type ContainerAttachWithLogsConfig struct {
 	OutStream                      io.Writer
 	UseStdin, UseStdout, UseStderr bool
 	Logs, Stream                   bool
-	Multiplex                      bool
 }
 
 func (daemon *Daemon) ContainerAttachWithLogs(container *Container, c *ContainerAttachWithLogsConfig) error {
 	var errStream io.Writer
 
-	if !container.Config.Tty && c.Multiplex {
+	if !container.Config.Tty {
 		errStream = stdcopy.NewStdWriter(c.OutStream, stdcopy.Stderr)
 		c.OutStream = stdcopy.NewStdWriter(c.OutStream, stdcopy.Stdout)
 	} else {

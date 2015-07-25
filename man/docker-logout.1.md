@@ -2,7 +2,7 @@
 % Docker Community
 % JUNE 2014
 # NAME
-docker-logout - Log out from a Docker Registry.
+docker-logout - Log out from a Docker registry.
 
 # SYNOPSIS
 **docker logout**

@@ -17,7 +17,7 @@ import (
 )
 
 func (daemon *Daemon) SystemInfo() (*types.Info, error) {
-	images, _ := daemon.Graph().Map()
+	images := daemon.Graph().Map()
 	var imgcount int
 	if images == nil {
 		imgcount = 0
@@ -62,14 +62,11 @@ func (daemon *Daemon) SystemInfo() (*types.Info, error) {
 		Images:             imgcount,
 		Driver:             daemon.GraphDriver().String(),
 		DriverStatus:       daemon.GraphDriver().Status(),
-		MemoryLimit:        daemon.SystemConfig().MemoryLimit,
-		SwapLimit:          daemon.SystemConfig().SwapLimit,
-		CpuCfsPeriod:       daemon.SystemConfig().CpuCfsPeriod,
-		CpuCfsQuota:        daemon.SystemConfig().CpuCfsQuota,
 		IPv4Forwarding:     !daemon.SystemConfig().IPv4ForwardingDisabled,
+		BridgeNfIptables:   !daemon.SystemConfig().BridgeNfCallIptablesDisabled,
+		BridgeNfIp6tables:  !daemon.SystemConfig().BridgeNfCallIp6tablesDisabled,
 		Debug:              os.Getenv("DEBUG") != "",
 		NFd:                fileutils.GetTotalUsedFds(),
-		OomKillDisable:     daemon.SystemConfig().OomKillDisable,
 		NGoroutines:        runtime.NumGoroutine(),
 		SystemTime:         time.Now().Format(time.RFC3339Nano),
 		ExecutionDriver:    daemon.ExecutionDriver().Name(),
@@ -77,7 +74,7 @@ func (daemon *Daemon) SystemInfo() (*types.Info, error) {
 		NEventsListener:    daemon.EventsService.SubscribersCount(),
 		KernelVersion:      kernelVersion,
 		OperatingSystem:    operatingSystem,
-		IndexServerAddress: registry.IndexServerAddress(),
+		IndexServerAddress: registry.IndexServer,
 		RegistryConfig:     daemon.RegistryService.Config,
 		InitSha1:           dockerversion.INITSHA1,
 		InitPath:           initPath,
@@ -86,6 +83,18 @@ func (daemon *Daemon) SystemInfo() (*types.Info, error) {
 		DockerRootDir:      daemon.Config().Root,
 		Labels:             daemon.Config().Labels,
 		ExperimentalBuild:  utils.ExperimentalBuild(),
+	}
+
+	// TODO Windows. Refactor this more once sysinfo is refactored into
+	// platform specific code. On Windows, sysinfo.cgroupMemInfo and
+	// sysinfo.cgroupCpuInfo will be nil otherwise and cause a SIGSEGV if
+	// an attempt is made to access through them.
+	if runtime.GOOS != "windows" {
+		v.MemoryLimit = daemon.SystemConfig().MemoryLimit
+		v.SwapLimit = daemon.SystemConfig().SwapLimit
+		v.OomKillDisable = daemon.SystemConfig().OomKillDisable
+		v.CpuCfsPeriod = daemon.SystemConfig().CpuCfsPeriod
+		v.CpuCfsQuota = daemon.SystemConfig().CpuCfsQuota
 	}
 
 	if httpProxy := os.Getenv("http_proxy"); httpProxy != "" {

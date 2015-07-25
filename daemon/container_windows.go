@@ -4,14 +4,19 @@ package daemon
 
 import (
 	"fmt"
+	"path/filepath"
 	"strings"
 
 	"github.com/docker/docker/daemon/execdriver"
+	"github.com/docker/docker/daemon/graphdriver/windows"
+	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/archive"
+	"github.com/microsoft/hcsshim"
 )
 
-// TODO Windows. A reasonable default at the moment.
-const DefaultPathEnv = `c:\windows\system32;c:\windows\system32\WindowsPowerShell\v1.0`
+// This is deliberately empty on Windows as the default path will be set by
+// the container. Docker has no context of what the default path should be.
+const DefaultPathEnv = ""
 
 type Container struct {
 	CommonContainer
@@ -48,7 +53,8 @@ func (container *Container) setupLinkedContainers() ([]string, error) {
 }
 
 func (container *Container) createDaemonEnvironment(linkedEnv []string) []string {
-	return nil
+	// On Windows, nothing to link. Just return the container environment.
+	return container.Config.Env
 }
 
 func (container *Container) initializeNetworking() error {
@@ -59,31 +65,23 @@ func (container *Container) setupWorkingDirectory() error {
 	return nil
 }
 
-func (container *Container) verifyDaemonSettings() {
-}
-
 func populateCommand(c *Container, env []string) error {
 	en := &execdriver.Network{
 		Mtu:       c.daemon.config.Mtu,
 		Interface: nil,
 	}
 
-	// TODO Windows. Appropriate network mode (will refactor as part of
-	// libnetwork. For now, even through bridge not used, let it succeed to
-	// allow the Windows daemon to limp during its bring-up
 	parts := strings.SplitN(string(c.hostConfig.NetworkMode), ":", 2)
 	switch parts[0] {
+
 	case "none":
-	case "bridge", "": // empty string to support existing containers
+	case "default", "": // empty string to support existing containers
 		if !c.Config.NetworkDisabled {
-			network := c.NetworkSettings
 			en.Interface = &execdriver.NetworkInterface{
-				Bridge:     network.Bridge,
-				MacAddress: network.MacAddress,
+				MacAddress: c.Config.MacAddress,
+				Bridge:     c.daemon.config.Bridge.VirtualSwitchName,
 			}
 		}
-	case "host", "container":
-		return fmt.Errorf("unsupported network mode: %s", c.hostConfig.NetworkMode)
 	default:
 		return fmt.Errorf("invalid network mode: %s", c.hostConfig.NetworkMode)
 	}
@@ -98,14 +96,35 @@ func populateCommand(c *Container, env []string) error {
 
 	// TODO Windows. Further refactoring required (privileged/user)
 	processConfig := execdriver.ProcessConfig{
-		Privileged: c.hostConfig.Privileged,
-		Entrypoint: c.Path,
-		Arguments:  c.Args,
-		Tty:        c.Config.Tty,
-		User:       c.Config.User,
+		Privileged:  c.hostConfig.Privileged,
+		Entrypoint:  c.Path,
+		Arguments:   c.Args,
+		Tty:         c.Config.Tty,
+		User:        c.Config.User,
+		ConsoleSize: c.hostConfig.ConsoleSize,
 	}
 
 	processConfig.Env = env
+
+	var layerFolder string
+	var layerPaths []string
+
+	// The following is specific to the Windows driver. We do this to
+	// enable VFS to continue operating for development purposes.
+	if wd, ok := c.daemon.driver.(*windows.WindowsGraphDriver); ok {
+		var err error
+		var img *image.Image
+		var ids []string
+
+		if img, err = c.daemon.graph.Get(c.ImageID); err != nil {
+			return fmt.Errorf("Failed to graph.Get on ImageID %s - %s", c.ImageID, err)
+		}
+		if ids, err = c.daemon.graph.ParentLayerIds(img); err != nil {
+			return fmt.Errorf("Failed to get parentlayer ids %s", img.ID)
+		}
+		layerPaths = wd.LayerIdsToPaths(ids)
+		layerFolder = filepath.Join(wd.Info().HomeDir, filepath.Base(c.ID))
+	}
 
 	// TODO Windows: Factor out remainder of unused fields.
 	c.command = &execdriver.Command{
@@ -117,11 +136,14 @@ func populateCommand(c *Container, env []string) error {
 		Network:        en,
 		Pid:            pid,
 		Resources:      resources,
-		CapAdd:         c.hostConfig.CapAdd,
-		CapDrop:        c.hostConfig.CapDrop,
+		CapAdd:         c.hostConfig.CapAdd.Slice(),
+		CapDrop:        c.hostConfig.CapDrop.Slice(),
 		ProcessConfig:  processConfig,
 		ProcessLabel:   c.GetProcessLabel(),
 		MountLabel:     c.GetMountLabel(),
+		FirstStart:     !c.HasBeenStartedBefore,
+		LayerFolder:    layerFolder,
+		LayerPaths:     layerPaths,
 	}
 
 	return nil
@@ -134,12 +156,6 @@ func (container *Container) GetSize() (int64, int64) {
 }
 
 func (container *Container) AllocateNetwork() error {
-
-	// TODO Windows. This needs reworking with libnetwork. In the
-	// proof-of-concept for //build conference, the Windows daemon
-	// invoked eng.Job("allocate_interface) passing through
-	// RequestedMac.
-
 	return nil
 }
 
@@ -152,11 +168,9 @@ func (container *Container) ExportRw() (archive.Archive, error) {
 }
 
 func (container *Container) ReleaseNetwork() {
-	// TODO Windows. Rework with libnetwork
 }
 
 func (container *Container) RestoreNetwork() error {
-	// TODO Windows. Rework with libnetwork
 	return nil
 }
 
@@ -167,5 +181,35 @@ func (container *Container) DisableLink(name string) {
 }
 
 func (container *Container) UnmountVolumes(forceSyscall bool) error {
+	return nil
+}
+
+func (container *Container) PrepareStorage() error {
+	if wd, ok := container.daemon.driver.(*windows.WindowsGraphDriver); ok {
+		// Get list of paths to parent layers.
+		var ids []string
+		if container.ImageID != "" {
+			img, err := container.daemon.graph.Get(container.ImageID)
+			if err != nil {
+				return err
+			}
+
+			ids, err = container.daemon.graph.ParentLayerIds(img)
+			if err != nil {
+				return err
+			}
+		}
+
+		if err := hcsshim.PrepareLayer(wd.Info(), container.ID, wd.LayerIdsToPaths(ids)); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (container *Container) CleanupStorage() error {
+	if wd, ok := container.daemon.driver.(*windows.WindowsGraphDriver); ok {
+		return hcsshim.UnprepareLayer(wd.Info(), container.ID)
+	}
 	return nil
 }

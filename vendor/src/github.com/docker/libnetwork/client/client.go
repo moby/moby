@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net/http"
 	"reflect"
 	"strings"
 
@@ -11,7 +12,7 @@ import (
 )
 
 // CallFunc provides environment specific call utility to invoke backend functions from UI
-type CallFunc func(string, string, interface{}, map[string][]string) (io.ReadCloser, int, error)
+type CallFunc func(string, string, interface{}, map[string][]string) (io.ReadCloser, http.Header, int, error)
 
 // NetworkCli is the UI object for network subcmds
 type NetworkCli struct {
@@ -82,6 +83,10 @@ func (cli *NetworkCli) Subcmd(chain, name, signature, description string, exitOn
 	}
 	flags := flag.NewFlagSet(name, errorHandling)
 	flags.Usage = func() {
+		flags.ShortUsage()
+		flags.PrintDefaults()
+	}
+	flags.ShortUsage = func() {
 		options := ""
 		if signature != "" {
 			signature = " " + signature
@@ -91,12 +96,11 @@ func (cli *NetworkCli) Subcmd(chain, name, signature, description string, exitOn
 		}
 		fmt.Fprintf(cli.out, "\nUsage: %s %s%s%s\n\n%s\n\n", chain, name, options, signature, description)
 		flags.SetOutput(cli.out)
-		flags.PrintDefaults()
 	}
 	return flags
 }
 
-func readBody(stream io.ReadCloser, statusCode int, err error) ([]byte, int, error) {
+func readBody(stream io.ReadCloser, hdr http.Header, statusCode int, err error) ([]byte, int, error) {
 	if stream != nil {
 		defer stream.Close()
 	}

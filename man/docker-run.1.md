@@ -12,19 +12,21 @@ docker-run - Run a command in a new container
 [**-c**|**--cpu-shares**[=*0*]]
 [**--cap-add**[=*[]*]]
 [**--cap-drop**[=*[]*]]
+[**--cgroup-parent**[=*CGROUP-PATH*]]
 [**--cidfile**[=*CIDFILE*]]
 [**--cpu-period**[=*0*]]
+[**--cpu-quota**[=*0*]]
 [**--cpuset-cpus**[=*CPUSET-CPUS*]]
 [**--cpuset-mems**[=*CPUSET-MEMS*]]
 [**-d**|**--detach**[=*false*]]
-[**--cpu-quota**[=*0*]]
 [**--device**[=*[]*]]
-[**--dns-search**[=*[]*]]
 [**--dns**[=*[]*]]
+[**--dns-search**[=*[]*]]
 [**-e**|**--env**[=*[]*]]
 [**--entrypoint**[=*ENTRYPOINT*]]
 [**--env-file**[=*[]*]]
 [**--expose**[=*[]*]]
+[**--group-add**[=*[]*]]
 [**-h**|**--hostname**[=*HOSTNAME*]]
 [**--help**]
 [**-i**|**--interactive**[=*false*]]
@@ -32,19 +34,19 @@ docker-run - Run a command in a new container
 [**-l**|**--label**[=*[]*]]
 [**--label-file**[=*[]*]]
 [**--link**[=*[]*]]
-[**--lxc-conf**[=*[]*]]
 [**--log-driver**[=*[]*]]
 [**--log-opt**[=*[]*]]
+[**--lxc-conf**[=*[]*]]
 [**-m**|**--memory**[=*MEMORY*]]
-[**--memory-swap**[=*MEMORY-SWAP*]]
 [**--mac-address**[=*MAC-ADDRESS*]]
+[**--memory-swap**[=*MEMORY-SWAP*]]
+[**--memory-swappiness**[=*MEMORY-SWAPPINESS*]]
 [**--name**[=*NAME*]]
 [**--net**[=*"bridge"*]]
 [**--oom-kill-disable**[=*false*]]
 [**-P**|**--publish-all**[=*false*]]
 [**-p**|**--publish**[=*[]*]]
 [**--pid**[=*[]*]]
-[**--uts**[=*[]*]]
 [**--privileged**[=*false*]]
 [**--read-only**[=*false*]]
 [**--restart**[=*RESTART*]]
@@ -54,9 +56,10 @@ docker-run - Run a command in a new container
 [**-t**|**--tty**[=*false*]]
 [**-u**|**--user**[=*USER*]]
 [**-v**|**--volume**[=*[]*]]
+[**--ulimit**[=*[]*]]
+[**--uts**[=*[]*]]
 [**--volumes-from**[=*[]*]]
 [**-w**|**--workdir**[=*WORKDIR*]]
-[**--cgroup-parent**[=*CGROUP-PATH*]]
 IMAGE [COMMAND] [ARG...]
 
 # DESCRIPTION
@@ -215,6 +218,9 @@ ENTRYPOINT.
 **--expose**=[]
    Expose a port, or a range of ports (e.g. --expose=3300-3310), from the container without publishing it to your host
 
+**--group-add**=[]
+   Add additional groups to run as
+
 **-h**, **--hostname**=""
    Container host name
 
@@ -252,7 +258,7 @@ which interface and port to use.
 **--lxc-conf**=[]
    (lxc exec-driver only) Add custom lxc options --lxc-conf="lxc.cgroup.cpuset.cpus = 0,1"
 
-**--log-driver**="|*json-file*|*syslog*|*journald*|*none*"
+**--log-driver**="|*json-file*|*syslog*|*journald*|*gelf*|*fluentd*|*none*"
   Logging driver for container. Default is defined by daemon `--log-driver` flag.
   **Warning**: `docker logs` command works only for `json-file` logging driver.
 
@@ -371,6 +377,9 @@ its root filesystem mounted as read only prohibiting any writes.
 **--sig-proxy**=*true*|*false*
    Proxy received signals to the process (non-TTY mode only). SIGCHLD, SIGSTOP, and SIGKILL are not proxied. The default is *true*.
 
+**--memory-swappiness**=""
+   Tune a container's memory swappiness behavior. Accepts an integer between 0 and 100.
+
 **-t**, **--tty**=*true*|*false*
    Allocate a pseudo-TTY. The default is *false*.
 
@@ -389,6 +398,9 @@ standard input.
 
    Without this argument the command will be run as root in the container.
 
+""--ulimit""=[]
+    Ulimit options
+
 **-v**, **--volume**=[]
    Bind mount a volume (e.g., from the host: -v /host:/container, from Docker: -v /container)
 
@@ -400,18 +412,18 @@ used in other containers using the **--volumes-from** option.
 read-only or read-write mode, respectively. By default, the volumes are mounted
 read-write. See examples.
 
-Labeling systems like SELinux require proper labels be placed on volume content
-mounted into a container, otherwise the secuirty system might prevent the
-processes running inside the container from using the content. By default,
-volumes are not relabeled.
+Labeling systems like SELinux require that proper labels are placed on volume
+content mounted into a container. Without a label, the security system might
+prevent the processes running inside the container from using the content. By
+default, Docker does not change the labels set by the OS.
 
-Two suffixes :z or :Z can be added to the volume mount. These suffixes tell
-Docker to relabel file objects on the shared volumes. The 'z' option tells
-Docker that the volume content will be shared between containers. Docker will
-label the content with a shared content label. Shared volumes labels allow all
-containers to read/write content. The 'Z' option tells Docker to label the
-content with a private unshared label. Private volumes can only be used by the
-current container.
+To change a label in the container context, you can add either of two suffixes
+`:z` or `:Z` to the volume mount. These suffixes tell Docker to relabel file
+objects on the shared volumes. The `z` option tells Docker that two containers
+share the volume content. As a result, Docker labels the content with a shared
+content label. Shared volume labels allow all containers to read/write content.
+The `Z` option tells Docker to label the content with a private unshared label.
+Only the current container can use a private volume.
 
 Note: Multiple Volume options can be added separated by a ","
 

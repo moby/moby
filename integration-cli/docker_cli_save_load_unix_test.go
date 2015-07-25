@@ -8,31 +8,19 @@ import (
 	"os"
 	"os/exec"
 
-	"github.com/docker/docker/vendor/src/github.com/kr/pty"
 	"github.com/go-check/check"
+	"github.com/kr/pty"
 )
 
 // save a repo and try to load it using stdout
 func (s *DockerSuite) TestSaveAndLoadRepoStdout(c *check.C) {
 	name := "test-save-and-load-repo-stdout"
-	runCmd := exec.Command(dockerBinary, "run", "--name", name, "busybox", "true")
-	out, _, err := runCommandWithOutput(runCmd)
-	if err != nil {
-		c.Fatalf("failed to create a container: %s, %v", out, err)
-	}
+	dockerCmd(c, "run", "--name", name, "busybox", "true")
 
 	repoName := "foobar-save-load-test"
+	out, _ := dockerCmd(c, "commit", name, repoName)
 
-	commitCmd := exec.Command(dockerBinary, "commit", name, repoName)
-	if out, _, err = runCommandWithOutput(commitCmd); err != nil {
-		c.Fatalf("failed to commit container: %s, %v", out, err)
-	}
-
-	inspectCmd := exec.Command(dockerBinary, "inspect", repoName)
-	before, _, err := runCommandWithOutput(inspectCmd)
-	if err != nil {
-		c.Fatalf("the repo should exist before saving it: %s, %v", before, err)
-	}
+	before, _ := dockerCmd(c, "inspect", repoName)
 
 	tmpFile, err := ioutil.TempFile("", "foobar-save-load-test.tar")
 	c.Assert(err, check.IsNil)
@@ -57,11 +45,7 @@ func (s *DockerSuite) TestSaveAndLoadRepoStdout(c *check.C) {
 		c.Fatalf("failed to load repo: %s, %v", out, err)
 	}
 
-	inspectCmd = exec.Command(dockerBinary, "inspect", repoName)
-	after, _, err := runCommandWithOutput(inspectCmd)
-	if err != nil {
-		c.Fatalf("the repo should exist after loading it: %s %v", after, err)
-	}
+	after, _ := dockerCmd(c, "inspect", repoName)
 
 	if before != after {
 		c.Fatalf("inspect is not the same after a save / load")
@@ -94,5 +78,4 @@ func (s *DockerSuite) TestSaveAndLoadRepoStdout(c *check.C) {
 	if !bytes.Contains(buf[:n], []byte("Cowardly refusing")) {
 		c.Fatal("help output is not being yielded", out)
 	}
-
 }

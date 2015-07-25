@@ -5,6 +5,7 @@ import (
 	"net/url"
 	"strconv"
 
+	Cli "github.com/docker/docker/cli"
 	flag "github.com/docker/docker/pkg/mflag"
 )
 
@@ -14,7 +15,7 @@ import (
 //
 // Usage: docker stop [OPTIONS] CONTAINER [CONTAINER...]
 func (cli *DockerCli) CmdStop(args ...string) error {
-	cmd := cli.Subcmd("stop", "CONTAINER [CONTAINER...]", "Stop a running container by sending SIGTERM and then SIGKILL after a\ngrace period", true)
+	cmd := Cli.Subcmd("stop", []string{"CONTAINER [CONTAINER...]"}, "Stop a running container by sending SIGTERM and then SIGKILL after a\ngrace period", true)
 	nSeconds := cmd.Int([]string{"t", "-time"}, 10, "Seconds to wait for stop before killing it")
 	cmd.Require(flag.Min, 1)
 

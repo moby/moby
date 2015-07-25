@@ -52,6 +52,17 @@
 //        buf.WriteString(`}`)
 //        return nil
 // }
+// @@ -81,9 +81,10 @@ func (mj *JSONLog) MarshalJSONBuf(buf *bytes.Buffer) error {
+//         if len(mj.Log) != 0 {
+// -                if first == true {
+// -                       first = false
+// -               } else {
+// -                       buf.WriteString(`,`)
+// -               }
+// +               first = false
+//                 buf.WriteString(`"log":`)
+//                 ffjson_WriteJsonString(buf, mj.Log)
+//         }
 
 package jsonlog
 
@@ -79,11 +90,7 @@ func (mj *JSONLog) MarshalJSONBuf(buf *bytes.Buffer) error {
 	)
 	buf.WriteString(`{`)
 	if len(mj.Log) != 0 {
-		if first == true {
-			first = false
-		} else {
-			buf.WriteString(`,`)
-		}
+		first = false
 		buf.WriteString(`"log":`)
 		ffjson_WriteJsonString(buf, mj.Log)
 	}

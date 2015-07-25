@@ -246,7 +246,7 @@ A Dockerfile is similar to a Makefile.
   passes the -d argument to the **ENTRYPOINT**.  Specify parameters either in the
   **ENTRYPOINT** JSON array (as in the preferred exec form above), or by using a **CMD**
   statement.  Parameters in the **ENTRYPOINT** are not overwritten by the docker run
-  arguments.  Parameters specifies via **CMD** are overwritten by docker run
+  arguments.  Parameters specified via **CMD** are overwritten by docker run
   arguments.  Specify a plain string for the **ENTRYPOINT**, and it will execute in
   `/bin/sh -c`, like a **CMD** instruction:
 

@@ -1,4 +1,3 @@
-// +build experimental
 // +build !windows
 
 package main
@@ -40,9 +39,7 @@ type DockerExternalVolumeSuite struct {
 
 func (s *DockerExternalVolumeSuite) SetUpTest(c *check.C) {
 	s.d = NewDaemon(c)
-	s.ds.SetUpTest(c)
 	s.ec = &eventCounter{}
-
 }
 
 func (s *DockerExternalVolumeSuite) TearDownTest(c *check.C) {
@@ -61,21 +58,21 @@ func (s *DockerExternalVolumeSuite) SetUpSuite(c *check.C) {
 	mux.HandleFunc("/Plugin.Activate", func(w http.ResponseWriter, r *http.Request) {
 		s.ec.activations++
 
-		w.Header().Set("Content-Type", "appplication/vnd.docker.plugins.v1+json")
+		w.Header().Set("Content-Type", "application/vnd.docker.plugins.v1+json")
 		fmt.Fprintln(w, `{"Implements": ["VolumeDriver"]}`)
 	})
 
 	mux.HandleFunc("/VolumeDriver.Create", func(w http.ResponseWriter, r *http.Request) {
 		s.ec.creations++
 
-		w.Header().Set("Content-Type", "appplication/vnd.docker.plugins.v1+json")
+		w.Header().Set("Content-Type", "application/vnd.docker.plugins.v1+json")
 		fmt.Fprintln(w, `{}`)
 	})
 
 	mux.HandleFunc("/VolumeDriver.Remove", func(w http.ResponseWriter, r *http.Request) {
 		s.ec.removals++
 
-		w.Header().Set("Content-Type", "appplication/vnd.docker.plugins.v1+json")
+		w.Header().Set("Content-Type", "application/vnd.docker.plugins.v1+json")
 		fmt.Fprintln(w, `{}`)
 	})
 
@@ -89,7 +86,7 @@ func (s *DockerExternalVolumeSuite) SetUpSuite(c *check.C) {
 
 		p := hostVolumePath(pr.name)
 
-		w.Header().Set("Content-Type", "appplication/vnd.docker.plugins.v1+json")
+		w.Header().Set("Content-Type", "application/vnd.docker.plugins.v1+json")
 		fmt.Fprintln(w, fmt.Sprintf("{\"Mountpoint\": \"%s\"}", p))
 	})
 
@@ -110,7 +107,7 @@ func (s *DockerExternalVolumeSuite) SetUpSuite(c *check.C) {
 			http.Error(w, err.Error(), 500)
 		}
 
-		w.Header().Set("Content-Type", "appplication/vnd.docker.plugins.v1+json")
+		w.Header().Set("Content-Type", "application/vnd.docker.plugins.v1+json")
 		fmt.Fprintln(w, fmt.Sprintf("{\"Mountpoint\": \"%s\"}", p))
 	})
 
@@ -127,15 +124,15 @@ func (s *DockerExternalVolumeSuite) SetUpSuite(c *check.C) {
 			http.Error(w, err.Error(), 500)
 		}
 
-		w.Header().Set("Content-Type", "appplication/vnd.docker.plugins.v1+json")
+		w.Header().Set("Content-Type", "application/vnd.docker.plugins.v1+json")
 		fmt.Fprintln(w, `{}`)
 	})
 
-	if err := os.MkdirAll("/usr/share/docker/plugins", 0755); err != nil {
+	if err := os.MkdirAll("/etc/docker/plugins", 0755); err != nil {
 		c.Fatal(err)
 	}
 
-	if err := ioutil.WriteFile("/usr/share/docker/plugins/test-external-volume-driver.spec", []byte(s.server.URL), 0644); err != nil {
+	if err := ioutil.WriteFile("/etc/docker/plugins/test-external-volume-driver.spec", []byte(s.server.URL), 0644); err != nil {
 		c.Fatal(err)
 	}
 }
@@ -143,7 +140,7 @@ func (s *DockerExternalVolumeSuite) SetUpSuite(c *check.C) {
 func (s *DockerExternalVolumeSuite) TearDownSuite(c *check.C) {
 	s.server.Close()
 
-	if err := os.RemoveAll("/usr/share/docker/plugins"); err != nil {
+	if err := os.RemoveAll("/etc/docker/plugins"); err != nil {
 		c.Fatal(err)
 	}
 }

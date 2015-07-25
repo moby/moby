@@ -45,6 +45,7 @@ List containers
     [
          {
                  "Id": "8dfafdbc3a40",
+                 "Names":["/boring_feynman"],
                  "Image": "ubuntu:latest",
                  "Command": "echo 1",
                  "Created": 1367854155,
@@ -55,6 +56,7 @@ List containers
          },
          {
                  "Id": "9cd87474be90",
+                 "Names":["/coolName"],
                  "Image": "ubuntu:latest",
                  "Command": "echo 222222",
                  "Created": 1367854155,
@@ -65,6 +67,7 @@ List containers
          },
          {
                  "Id": "3176a2479c92",
+                 "Names":["/sleepy_dog"],
                  "Image": "ubuntu:latest",
                  "Command": "echo 3333333333333333",
                  "Created": 1367854154,
@@ -75,6 +78,7 @@ List containers
          },
          {
                  "Id": "4cb07b47f9fb",
+                 "Names":["/running_cat"],
                  "Image": "ubuntu:latest",
                  "Command": "echo 444444444444444444444444444444444",
                  "Created": 1367854152,
@@ -100,7 +104,7 @@ Query Parameters:
 -   **filters** - a JSON encoded value of the filters (a `map[string][]string`) to process on the containers list. Available filters:
   -   `exited=<int>`; -- containers with exit code of  `<int>` ;
   -   `status=`(`restarting`|`running`|`paused`|`exited`)
-  -   `label=key` or `key=value` of a container label
+  -   `label=key` or `label="key=value"` of a container label
 
 Status Codes:
 
@@ -701,93 +705,17 @@ Status Codes:
 
 Start the container `id`
 
+> **Note**:
+> For backwards compatibility, this endpoint accepts a `HostConfig` as JSON-encoded request body.
+> See [create a container](#create-a-container) for details.
+
 **Example request**:
 
-        POST /containers/(id)/start HTTP/1.1
-        Content-Type: application/json
-
-        {
-           "Binds": ["/tmp:/tmp"],
-           "Links": ["redis3:redis"],
-           "LxcConf": {"lxc.utsname":"docker"},
-           "Memory": 0,
-           "MemorySwap": 0,
-           "CpuShares": 512,
-           "CpusetCpus": "0,1",
-           "PortBindings": { "22/tcp": [{ "HostPort": "11022" }] },
-           "PublishAllPorts": false,
-           "Privileged": false,
-           "ReadonlyRootfs": false,
-           "Dns": ["8.8.8.8"],
-           "DnsSearch": [""],
-           "ExtraHosts": null,
-           "VolumesFrom": ["parent", "other:ro"],
-           "CapAdd": ["NET_ADMIN"],
-           "CapDrop": ["MKNOD"],
-           "RestartPolicy": { "Name": "", "MaximumRetryCount": 0 },
-           "NetworkMode": "bridge",
-           "Devices": [],
-           "Ulimits": [{}],
-           "LogConfig": { "Type": "json-file", "Config": {} },
-           "SecurityOpt": [""],
-           "CgroupParent": ""
-        }
+     POST /containers/(id)/start HTTP/1.1
 
 **Example response**:
 
-      HTTP/1.1 204 No Content
-
-Json Parameters:
-
--   **Binds** – A list of volume bindings for this container. Each volume binding is a string in one of these forms:
-       + `container_path` to create a new volume for the container
-       + `host_path:container_path` to bind-mount a host path into the container
-       + `host_path:container_path:ro` to make the bind-mount read-only inside the container.
--   **Links** - A list of links for the container. Each link entry should be of
-      of the form `container_name:alias`.
--   **LxcConf** - LXC specific configurations. These configurations only
-      work when using the `lxc` execution driver.
--   **PortBindings** - A map of exposed container ports and the host port they
-          should map to. A JSON object in the form
-          `{ <port>/<protocol>: [{ "HostPort": "<port>" }] }`
-          Take note that `port` is specified as a string and not an integer value.
--   **PublishAllPorts** - Allocates a random host port for all of a container's
-      exposed ports. Specified as a boolean value.
--   **Privileged** - Gives the container full access to the host. Specified as
-      a boolean value.
--   **ReadonlyRootfs** - Mount the container's root filesystem as read only.
-      Specified as a boolean value.
--   **Dns** - A list of dns servers for the container to use.
--   **DnsSearch** - A list of DNS search domains.
--   **ExtraHosts** - A list of hostnames/IP mappings to add to the
-    container's `/etc/hosts` file. Specified in the form `["hostname:IP"]`.
--   **VolumesFrom** - A list of volumes to inherit from another container.
-      Specified in the form `<container name>[:<ro|rw>]`
--   **CapAdd** - A list of kernel capabilities to add to the container.
--   **Capdrop** - A list of kernel capabilities to drop from the container.
--   **RestartPolicy** – The behavior to apply when the container exits.  The
-        value is an object with a `Name` property of either `"always"` to
-        always restart or `"on-failure"` to restart only when the container
-        exit code is non-zero.  If `on-failure` is used, `MaximumRetryCount`
-        controls the number of times to retry before giving up.
-        The default is not to restart. (optional)
-        An ever increasing delay (double the previous delay, starting at 100mS)
-        is added before each restart to prevent flooding the server.
--   **NetworkMode** - Sets the networking mode for the container. Supported
-      values are: `bridge`, `host`, and `container:<name|id>`
--   **Devices** - A list of devices to add to the container specified as a JSON object in the
-      form
-      `{ "PathOnHost": "/dev/deviceName", "PathInContainer": "/dev/deviceName", "CgroupPermissions": "mrw"}`
--   **Ulimits** - A list of ulimits to set in the container, specified as
-      `{ "Name": <name>, "Soft": <soft limit>, "Hard": <hard limit> }`, for example:
-      `Ulimits: { "Name": "nofile", "Soft": 1024, "Hard", 2048 }}`
--   **SecurityOpt**: A list of string values to customize labels for MLS
-    systems, such as SELinux.
--   **LogConfig** - Log configuration for the container, specified as
-      `{ "Type": "<driver_name>", "Config": {"key1": "val1"}}`.
-      Available types: `json-file`, `syslog`, `journald`, `none`.
-      `json-file` logging driver.
-    -   **CgroupParent** - Path to `cgroups` under which the container's `cgroup` is created. If the path is not absolute, the path is considered to be relative to the `cgroups` path of the init process. Cgroups are created if they do not already exist.
+     HTTP/1.1 204 No Content
 
 Status Codes:
 
@@ -1217,7 +1145,8 @@ Query Parameters:
 -   **all** – 1/True/true or 0/False/false, default false
 -   **filters** – a JSON encoded value of the filters (a map[string][]string) to process on the images list. Available filters:
   -   `dangling=true`
-  -   `label=key` or `key=value` of an image label
+  -   `label=key` or `label="key=value"` of an image label
+-   **filter** - only return images with the specified name
 
 ### Build image from a Dockerfile
 
@@ -1257,13 +1186,17 @@ or being killed.
 
 Query Parameters:
 
--   **dockerfile** - Path within the build context to the Dockerfile. This is 
-        ignored if `remote` is specified and points to an individual filename.
--   **t** – A repository name (and optionally a tag) to apply to
+-   **dockerfile** - Path within the build context to the `Dockerfile`. This is
+        ignored if `remote` is specified and points to an external `Dockerfile`.
+-   **t** – Repository name (and optionally a tag) to be applied to
         the resulting image in case of success.
--   **remote** – A Git repository URI or HTTP/HTTPS URI build source. If the 
-        URI specifies a filename, the file's contents are placed into a file 
-		called `Dockerfile`.
+-   **remote** – A Git repository URI or HTTP/HTTPS context URI. If the
+        URI points to a single text file, the file's contents are placed into
+        a file called `Dockerfile` and the image is built from that file. If
+        the URI points to a tarball, the file is downloaded by the daemon and
+        the contents therein used as the context for the build. If the URI
+        points to a tarball and the `dockerfile` parameter is also specified,
+        there must be a file with the corresponding path inside the tarball.
 -   **q** – Suppress verbose build output.
 -   **nocache** – Do not use the cache when building the image.
 -   **pull** - Attempt to pull the image even if an older image exists locally.
@@ -1396,17 +1329,37 @@ Return the history of the image `name`
     HTTP/1.1 200 OK
     Content-Type: application/json
 
-    [
-         {
-                 "Id": "b750fe79269d",
-                 "Created": 1364102658,
-                 "CreatedBy": "/bin/bash"
-         },
-         {
-                 "Id": "27cf78414709",
-                 "Created": 1364068391,
-                 "CreatedBy": ""
-         }
+    [    
+        {    
+            "Id": "3db9c44f45209632d6050b35958829c3a2aa256d81b9a7be45b362ff85c54710",
+            "Created": 1398108230,
+            "CreatedBy": "/bin/sh -c #(nop) ADD file:eb15dbd63394e063b805a3c32ca7bf0266ef64676d5a6fab4801f2e81e2a5148 in /",
+            "Tags": [
+                "ubuntu:lucid",
+                "ubuntu:10.04"
+            ],   
+            "Size": 182964289,
+            "Comment": ""
+        },   
+        {    
+            "Id": "6cfa4d1f33fb861d4d114f43b25abd0ac737509268065cdfd69d544a59c85ab8",
+            "Created": 1398108222,
+            "CreatedBy": "/bin/sh -c #(nop) MAINTAINER Tianon Gravi <admwiggin@gmail.com> - mkimage-debootstrap.sh -i iproute,iputils-ping,ubuntu-minimal -t lucid.tar.xz lucid http://archive.ubuntu.com/ubuntu/",
+            "Tags": null,
+            "Size": 0,
+            "Comment": ""
+        },   
+        {    
+            "Id": "511136ea3c5a64f264b78b5433614aec563103b4d4702f3ba7d4d2698e22c158",
+            "Created": 1371157430,
+            "CreatedBy": "",
+            "Tags": [
+                "scratch12:latest",
+                "scratch:latest"
+            ],   
+            "Size": 0,
+            "Comment": "Imported from -"
+        }    
     ]
 
 Status Codes:
@@ -1524,7 +1477,10 @@ Status Codes:
 
 `GET /images/search`
 
-Search for an image on [Docker Hub](https://hub.docker.com).
+Search for an image on [Docker Hub](https://hub.docker.com). This API
+returns both `is_trusted` and `is_automated` images. Currently, they
+are considered identical. In the future, the `is_trusted` property will
+be deprecated and replaced by the `is_automated` property.
 
 > **Note**:
 > The response keys have changed from API v1.6 to reflect the JSON
@@ -1539,30 +1495,33 @@ Search for an image on [Docker Hub](https://hub.docker.com).
     HTTP/1.1 200 OK
     Content-Type: application/json
 
-    [
-            {
-                "description": "",
-                "is_official": false,
-                "is_automated": false,
-                "name": "wma55/u1210sshd",
-                "star_count": 0
-            },
-            {
-                "description": "",
-                "is_official": false,
-                "is_automated": false,
-                "name": "jdswinbank/sshd",
-                "star_count": 0
-            },
-            {
-                "description": "",
-                "is_official": false,
-                "is_automated": false,
-                "name": "vgauthier/sshd",
-                "star_count": 0
-            }
-    ...
-    ]
+        [
+                {
+                    "star_count": 12,
+                    "is_official": false,
+                    "name": "wma55/u1210sshd",
+                    "is_trusted": false,
+                    "is_automated": false,
+                    "description": "",
+                },
+                {
+                    "star_count": 10,
+                    "is_official": false,
+                    "name": "jdswinbank/sshd",
+                    "is_trusted": false,
+                    "is_automated": false,
+                    "description": "",
+                },
+                {
+                    "star_count": 18,
+                    "is_official": false,
+                    "name": "vgauthier/sshd",
+                    "is_trusted": false,
+                    "is_automated": false,
+                    "description": "",
+                }
+        ...
+        ]
 
 Query Parameters:
 
@@ -1753,6 +1712,10 @@ Create a new image from a container's changes
          "Volumes": {
                  "/tmp": {}
          },
+         "Labels": {
+                 "key1": "value1",
+                 "key2": "value2"
+          },
          "WorkingDir": "",
          "NetworkDisabled": false,
          "ExposedPorts": {
@@ -1795,7 +1758,7 @@ polling (using since).
 
 Docker containers report the following events:
 
-    create, destroy, die, exec_create, exec_start, export, kill, oom, pause, restart, start, stop, unpause
+    attach, commit, copy, create, destroy, die, exec_create, exec_start, export, kill, oom, pause, rename, resize, restart, start, stop, top, unpause
 
 and Docker images report:
 
@@ -2096,7 +2059,7 @@ Return low-level information about the `exec` command `id`.
           "AttachStdin" : false,
           "AttachStdout" : false,
           "AttachStderr" : false,
-          "PortSpecs" : null,
+          "PortSpecs": null,
           "ExposedPorts" : null,
           "Tty" : false,
           "OpenStdin" : false,

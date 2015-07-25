@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net/http/httptest"
 	"os"
 	"os/exec"
 	"path"
@@ -41,7 +40,7 @@ func processExitCode(err error) (exitCode int) {
 	return
 }
 
-func IsKilled(err error) bool {
+func isKilled(err error) bool {
 	if exitErr, ok := err.(*exec.ExitError); ok {
 		status, ok := exitErr.Sys().(syscall.WaitStatus)
 		if !ok {
@@ -114,13 +113,13 @@ func runCommandWithOutputForDuration(cmd *exec.Cmd, duration time.Duration) (out
 	return
 }
 
-var ErrCmdTimeout = fmt.Errorf("command timed out")
+var errCmdTimeout = fmt.Errorf("command timed out")
 
 func runCommandWithOutputAndTimeout(cmd *exec.Cmd, timeout time.Duration) (output string, exitCode int, err error) {
 	var timedOut bool
 	output, exitCode, timedOut, err = runCommandWithOutputForDuration(cmd, timeout)
 	if timedOut {
-		err = ErrCmdTimeout
+		err = errCmdTimeout
 	}
 	return
 }
@@ -253,7 +252,7 @@ func compareDirectoryEntries(e1 []os.FileInfo, e2 []os.FileInfo) error {
 	return nil
 }
 
-func ListTar(f io.Reader) ([]string, error) {
+func listTar(f io.Reader) ([]string, error) {
 	tr := tar.NewReader(f)
 	var entries []string
 
@@ -268,10 +267,6 @@ func ListTar(f io.Reader) ([]string, error) {
 		}
 		entries = append(entries, th.Name)
 	}
-}
-
-type FileServer struct {
-	*httptest.Server
 }
 
 // randomUnixTmpDirPath provides a temporary unix path with rand string appended.
@@ -338,4 +333,18 @@ func (c *channelBuffer) ReadTimeout(p []byte, n time.Duration) (int, error) {
 	case <-time.After(n):
 		return -1, fmt.Errorf("timeout reading from channel")
 	}
+}
+
+func runAtDifferentDate(date time.Time, block func()) {
+	// Layout for date. MMDDhhmmYYYY
+	const timeLayout = "010203042006"
+	// Ensure we bring time back to now
+	now := time.Now().Format(timeLayout)
+	dateReset := exec.Command("date", now)
+	defer runCommand(dateReset)
+
+	dateChange := exec.Command("date", date.Format(timeLayout))
+	runCommand(dateChange)
+	block()
+	return
 }

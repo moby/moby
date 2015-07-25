@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sort"
@@ -68,7 +69,11 @@ func sameFsTimeSpec(a, b syscall.Timespec) bool {
 // Changes walks the path rw and determines changes for the files in the path,
 // with respect to the parent layers
 func Changes(layers []string, rw string) ([]Change, error) {
-	var changes []Change
+	var (
+		changes     []Change
+		changedDirs = make(map[string]struct{})
+	)
+
 	err := filepath.Walk(rw, func(path string, f os.FileInfo, err error) error {
 		if err != nil {
 			return err
@@ -79,15 +84,17 @@ func Changes(layers []string, rw string) ([]Change, error) {
 		if err != nil {
 			return err
 		}
-		path = filepath.Join("/", path)
+
+		// As this runs on the daemon side, file paths are OS specific.
+		path = filepath.Join(string(os.PathSeparator), path)
 
 		// Skip root
-		if path == "/" {
+		if path == string(os.PathSeparator) {
 			return nil
 		}
 
 		// Skip AUFS metadata
-		if matched, err := filepath.Match("/.wh..wh.*", path); err != nil || matched {
+		if matched, err := filepath.Match(string(os.PathSeparator)+".wh..wh.*", path); err != nil || matched {
 			return err
 		}
 
@@ -129,6 +136,21 @@ func Changes(layers []string, rw string) ([]Change, error) {
 			}
 		}
 
+		// If /foo/bar/file.txt is modified, then /foo/bar must be part of the changed files.
+		// This block is here to ensure the change is recorded even if the
+		// modify time, mode and size of the parent directoriy in the rw and ro layers are all equal.
+		// Check https://github.com/docker/docker/pull/13590 for details.
+		if f.IsDir() {
+			changedDirs[path] = struct{}{}
+		}
+		if change.Kind == ChangeAdd || change.Kind == ChangeDelete {
+			parent := filepath.Dir(path)
+			if _, ok := changedDirs[parent]; !ok && parent != "/" {
+				changes = append(changes, Change{Path: parent, Kind: ChangeModify})
+				changedDirs[parent] = struct{}{}
+			}
+		}
+
 		// Record change
 		changes = append(changes, change)
 		return nil
@@ -149,12 +171,13 @@ type FileInfo struct {
 }
 
 func (root *FileInfo) LookUp(path string) *FileInfo {
+	// As this runs on the daemon side, file paths are OS specific.
 	parent := root
-	if path == "/" {
+	if path == string(os.PathSeparator) {
 		return root
 	}
 
-	pathElements := strings.Split(path, "/")
+	pathElements := strings.Split(path, string(os.PathSeparator))
 	for _, elem := range pathElements {
 		if elem != "" {
 			child := parent.children[elem]
@@ -169,7 +192,8 @@ func (root *FileInfo) LookUp(path string) *FileInfo {
 
 func (info *FileInfo) path() string {
 	if info.parent == nil {
-		return "/"
+		// As this runs on the daemon side, file paths are OS specific.
+		return string(os.PathSeparator)
 	}
 	return filepath.Join(info.parent.path(), info.name)
 }
@@ -237,7 +261,8 @@ func (info *FileInfo) addChanges(oldInfo *FileInfo, changes *[]Change) {
 
 	// If there were changes inside this directory, we need to add it, even if the directory
 	// itself wasn't changed. This is needed to properly save and restore filesystem permissions.
-	if len(*changes) > sizeAtEntry && info.isDir() && !info.added && info.path() != "/" {
+	// As this runs on the daemon side, file paths are OS specific.
+	if len(*changes) > sizeAtEntry && info.isDir() && !info.added && info.path() != string(os.PathSeparator) {
 		change := Change{
 			Path: info.path(),
 			Kind: ChangeModify,
@@ -259,59 +284,12 @@ func (info *FileInfo) Changes(oldInfo *FileInfo) []Change {
 }
 
 func newRootFileInfo() *FileInfo {
+	// As this runs on the daemon side, file paths are OS specific.
 	root := &FileInfo{
-		name:     "/",
+		name:     string(os.PathSeparator),
 		children: make(map[string]*FileInfo),
 	}
 	return root
-}
-
-func collectFileInfo(sourceDir string) (*FileInfo, error) {
-	root := newRootFileInfo()
-
-	err := filepath.Walk(sourceDir, func(path string, f os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-
-		// Rebase path
-		relPath, err := filepath.Rel(sourceDir, path)
-		if err != nil {
-			return err
-		}
-		relPath = filepath.Join("/", relPath)
-
-		if relPath == "/" {
-			return nil
-		}
-
-		parent := root.LookUp(filepath.Dir(relPath))
-		if parent == nil {
-			return fmt.Errorf("collectFileInfo: Unexpectedly no parent for %s", relPath)
-		}
-
-		info := &FileInfo{
-			name:     filepath.Base(relPath),
-			children: make(map[string]*FileInfo),
-			parent:   parent,
-		}
-
-		s, err := system.Lstat(path)
-		if err != nil {
-			return err
-		}
-		info.stat = s
-
-		info.capability, _ = system.Lgetxattr(path, "security.capability")
-
-		parent.children[info.name] = info
-
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
-	return root, nil
 }
 
 // ChangesDirs compares two directories and generates an array of Change objects describing the changes.
@@ -319,25 +297,18 @@ func collectFileInfo(sourceDir string) (*FileInfo, error) {
 func ChangesDirs(newDir, oldDir string) ([]Change, error) {
 	var (
 		oldRoot, newRoot *FileInfo
-		err1, err2       error
-		errs             = make(chan error, 2)
 	)
-	go func() {
-		if oldDir != "" {
-			oldRoot, err1 = collectFileInfo(oldDir)
-		}
-		errs <- err1
-	}()
-	go func() {
-		newRoot, err2 = collectFileInfo(newDir)
-		errs <- err2
-	}()
-
-	// block until both routines have returned
-	for i := 0; i < 2; i++ {
-		if err := <-errs; err != nil {
+	if oldDir == "" {
+		emptyDir, err := ioutil.TempDir("", "empty")
+		if err != nil {
 			return nil, err
 		}
+		defer os.Remove(emptyDir)
+		oldDir = emptyDir
+	}
+	oldRoot, newRoot, err := collectFileInfoForChanges(oldDir, newDir)
+	if err != nil {
+		return nil, err
 	}
 
 	return newRoot.Changes(oldRoot), nil

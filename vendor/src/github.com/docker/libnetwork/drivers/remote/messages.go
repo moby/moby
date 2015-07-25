@@ -1,6 +1,11 @@
 package remote
 
-import "net"
+import (
+	"fmt"
+	"net"
+
+	"github.com/docker/libnetwork/types"
+)
 
 type response struct {
 	Err string
@@ -45,6 +50,13 @@ type endpointInterface struct {
 	MacAddress  string
 }
 
+type staticRoute struct {
+	Destination string
+	RouteType   int
+	NextHop     string
+	InterfaceID int
+}
+
 type createEndpointResponse struct {
 	response
 	Interfaces []*endpointInterface
@@ -67,9 +79,7 @@ type iface struct {
 }
 
 func (r *createEndpointResponse) parseInterfaces() ([]*iface, error) {
-	var (
-		ifaces = make([]*iface, len(r.Interfaces))
-	)
+	var ifaces = make([]*iface, len(r.Interfaces))
 	for i, inIf := range r.Interfaces {
 		var err error
 		outIf := &iface{ID: inIf.ID}
@@ -91,6 +101,30 @@ func (r *createEndpointResponse) parseInterfaces() ([]*iface, error) {
 		ifaces[i] = outIf
 	}
 	return ifaces, nil
+}
+
+func (r *joinResponse) parseStaticRoutes() ([]*types.StaticRoute, error) {
+	var routes = make([]*types.StaticRoute, len(r.StaticRoutes))
+	for i, inRoute := range r.StaticRoutes {
+		var err error
+		outRoute := &types.StaticRoute{InterfaceID: inRoute.InterfaceID, RouteType: inRoute.RouteType}
+
+		if inRoute.Destination != "" {
+			if outRoute.Destination, err = toAddr(inRoute.Destination); err != nil {
+				return nil, err
+			}
+		}
+
+		if inRoute.NextHop != "" {
+			outRoute.NextHop = net.ParseIP(inRoute.NextHop)
+			if outRoute.NextHop == nil {
+				return nil, fmt.Errorf("failed to parse nexthop IP %s", inRoute.NextHop)
+			}
+		}
+
+		routes[i] = outRoute
+	}
+	return routes, nil
 }
 
 type deleteEndpointRequest struct {
@@ -120,8 +154,8 @@ type joinRequest struct {
 }
 
 type ifaceName struct {
-	SrcName string
-	DstName string
+	SrcName   string
+	DstPrefix string
 }
 
 type joinResponse struct {
@@ -129,6 +163,7 @@ type joinResponse struct {
 	InterfaceNames []*ifaceName
 	Gateway        string
 	GatewayIPv6    string
+	StaticRoutes   []*staticRoute
 	HostsPath      string
 	ResolvConfPath string
 }

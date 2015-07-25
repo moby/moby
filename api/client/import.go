@@ -4,20 +4,23 @@ import (
 	"fmt"
 	"io"
 	"net/url"
+	"os"
 
+	Cli "github.com/docker/docker/cli"
 	"github.com/docker/docker/opts"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/parsers"
+	"github.com/docker/docker/pkg/urlutil"
 	"github.com/docker/docker/registry"
 )
 
 // CmdImport creates an empty filesystem image, imports the contents of the tarball into the image, and optionally tags the image.
 //
-// The URL argument is the address of a tarball (.tar, .tar.gz, .tgz, .bzip, .tar.xz, .txz) file. If the URL is '-', then the tar file is read from STDIN.
+// The URL argument is the address of a tarball (.tar, .tar.gz, .tgz, .bzip, .tar.xz, .txz) file or a path to local file relative to docker client. If the URL is '-', then the tar file is read from STDIN.
 //
-// Usage: docker import [OPTIONS] URL [REPOSITORY[:TAG]]
+// Usage: docker import [OPTIONS] file|URL|- [REPOSITORY[:TAG]]
 func (cli *DockerCli) CmdImport(args ...string) error {
-	cmd := cli.Subcmd("import", "URL|- [REPOSITORY[:TAG]]", "Create an empty filesystem image and import the contents of the\ntarball (.tar, .tar.gz, .tgz, .bzip, .tar.xz, .txz) into it, then\noptionally tag it.", true)
+	cmd := Cli.Subcmd("import", []string{"file|URL|- [REPOSITORY[:TAG]]"}, "Create an empty filesystem image and import the contents of the\ntarball (.tar, .tar.gz, .tgz, .bzip, .tar.xz, .txz) into it, then\noptionally tag it.", true)
 	flChanges := opts.NewListOpts(nil)
 	cmd.Var(&flChanges, []string{"c", "-change"}, "Apply Dockerfile instruction to the created image")
 	cmd.Require(flag.Min, 1)
@@ -36,7 +39,7 @@ func (cli *DockerCli) CmdImport(args ...string) error {
 		v.Add("changes", change)
 	}
 	if cmd.NArg() == 3 {
-		fmt.Fprintf(cli.err, "[DEPRECATED] The format 'URL|- [REPOSITORY [TAG]]' has been deprecated. Please use URL|- [REPOSITORY[:TAG]]\n")
+		fmt.Fprintf(cli.err, "[DEPRECATED] The format 'file|URL|- [REPOSITORY [TAG]]' has been deprecated. Please use file|URL|- [REPOSITORY[:TAG]]\n")
 		v.Set("tag", cmd.Arg(2))
 	}
 
@@ -52,6 +55,15 @@ func (cli *DockerCli) CmdImport(args ...string) error {
 
 	if src == "-" {
 		in = cli.in
+	} else if !urlutil.IsURL(src) {
+		v.Set("fromSrc", "-")
+		file, err := os.Open(src)
+		if err != nil {
+			return err
+		}
+		defer file.Close()
+		in = file
+
 	}
 
 	sopts := &streamOpts{
@@ -60,5 +72,6 @@ func (cli *DockerCli) CmdImport(args ...string) error {
 		out:         cli.out,
 	}
 
-	return cli.stream("POST", "/images/create?"+v.Encode(), sopts)
+	_, err := cli.stream("POST", "/images/create?"+v.Encode(), sopts)
+	return err
 }

@@ -13,7 +13,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/docker/libcontainer/label"
+	"github.com/opencontainers/runc/libcontainer/label"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/execdriver"
@@ -21,13 +21,12 @@ import (
 	"github.com/docker/docker/daemon/logger/jsonfilelog"
 	"github.com/docker/docker/daemon/network"
 	"github.com/docker/docker/image"
-	"github.com/docker/docker/nat"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/broadcastwriter"
 	"github.com/docker/docker/pkg/fileutils"
 	"github.com/docker/docker/pkg/ioutils"
-	"github.com/docker/docker/pkg/jsonlog"
 	"github.com/docker/docker/pkg/mount"
+	"github.com/docker/docker/pkg/nat"
 	"github.com/docker/docker/pkg/promise"
 	"github.com/docker/docker/pkg/symlink"
 	"github.com/docker/docker/runconfig"
@@ -35,10 +34,11 @@ import (
 )
 
 var (
-	ErrNotATTY               = errors.New("The PTY is not a file")
-	ErrNoTTY                 = errors.New("No PTY found")
-	ErrContainerStart        = errors.New("The container failed to start. Unknown error")
-	ErrContainerStartTimeout = errors.New("The container failed to start due to timed out.")
+	ErrNotATTY                 = errors.New("The PTY is not a file")
+	ErrNoTTY                   = errors.New("No PTY found")
+	ErrContainerStart          = errors.New("The container failed to start. Unknown error")
+	ErrContainerStartTimeout   = errors.New("The container failed to start due to timed out.")
+	ErrContainerRootfsReadonly = errors.New("container rootfs is marked read-only")
 )
 
 type StreamConfig struct {
@@ -74,6 +74,7 @@ type CommonContainer struct {
 	MountLabel, ProcessLabel string
 	RestartCount             int
 	UpdateDns                bool
+	HasBeenStartedBefore     bool
 
 	MountPoints map[string]*mountPoint
 	Volumes     map[string]string // Deprecated since 1.7, kept for backwards compatibility
@@ -202,8 +203,11 @@ func (container *Container) LogEvent(action string) {
 //       symlinking to a different path) between using this method and using the
 //       path. See symlink.FollowSymlinkInScope for more details.
 func (container *Container) GetResourcePath(path string) (string, error) {
-	cleanPath := filepath.Join("/", path)
-	return symlink.FollowSymlinkInScope(filepath.Join(container.basefs, cleanPath), container.basefs)
+	// IMPORTANT - These are paths on the OS where the daemon is running, hence
+	// any filepath operations must be done in an OS agnostic way.
+	cleanPath := filepath.Join(string(os.PathSeparator), path)
+	r, e := symlink.FollowSymlinkInScope(filepath.Join(container.basefs, cleanPath), container.basefs)
+	return r, e
 }
 
 // Evaluates `path` in the scope of the container's root, with proper path
@@ -219,7 +223,9 @@ func (container *Container) GetResourcePath(path string) (string, error) {
 //       symlinking to a different path) between using this method and using the
 //       path. See symlink.FollowSymlinkInScope for more details.
 func (container *Container) GetRootResourcePath(path string) (string, error) {
-	cleanPath := filepath.Join("/", path)
+	// IMPORTANT - These are paths on the OS where the daemon is running, hence
+	// any filepath operations must be done in an OS agnostic way.
+	cleanPath := filepath.Join(string(os.PathSeparator), path)
 	return symlink.FollowSymlinkInScope(filepath.Join(container.root, cleanPath), container.root)
 }
 
@@ -246,16 +252,23 @@ func (container *Container) Start() (err error) {
 			}
 			container.toDisk()
 			container.cleanup()
+			container.LogEvent("die")
 		}
 	}()
 
 	if err := container.Mount(); err != nil {
 		return err
 	}
+
+	// No-op if non-Windows. Once the container filesystem is mounted,
+	// prepare the layer to boot using the Windows driver.
+	if err := container.PrepareStorage(); err != nil {
+		return err
+	}
+
 	if err := container.initializeNetworking(); err != nil {
 		return err
 	}
-	container.verifyDaemonSettings()
 	linkedEnv, err := container.setupLinkedContainers()
 	if err != nil {
 		return err
@@ -281,6 +294,7 @@ func (container *Container) Run() error {
 	if err := container.Start(); err != nil {
 		return err
 	}
+	container.HasBeenStartedBefore = true
 	container.WaitStop(-1 * time.Second)
 	return nil
 }
@@ -310,25 +324,13 @@ func (streamConfig *StreamConfig) StdinPipe() io.WriteCloser {
 
 func (streamConfig *StreamConfig) StdoutPipe() io.ReadCloser {
 	reader, writer := io.Pipe()
-	streamConfig.stdout.AddWriter(writer, "")
+	streamConfig.stdout.AddWriter(writer)
 	return ioutils.NewBufReader(reader)
 }
 
 func (streamConfig *StreamConfig) StderrPipe() io.ReadCloser {
 	reader, writer := io.Pipe()
-	streamConfig.stderr.AddWriter(writer, "")
-	return ioutils.NewBufReader(reader)
-}
-
-func (streamConfig *StreamConfig) StdoutLogPipe() io.ReadCloser {
-	reader, writer := io.Pipe()
-	streamConfig.stdout.AddWriter(writer, "stdout")
-	return ioutils.NewBufReader(reader)
-}
-
-func (streamConfig *StreamConfig) StderrLogPipe() io.ReadCloser {
-	reader, writer := io.Pipe()
-	streamConfig.stderr.AddWriter(writer, "stderr")
+	streamConfig.stderr.AddWriter(writer)
 	return ioutils.NewBufReader(reader)
 }
 
@@ -342,6 +344,10 @@ func (container *Container) cleanup() {
 	container.ReleaseNetwork()
 
 	disableAllActiveLinks(container)
+
+	if err := container.CleanupStorage(); err != nil {
+		logrus.Errorf("%v: Failed to cleanup storage: %v", container.ID, err)
+	}
 
 	if err := container.Unmount(); err != nil {
 		logrus.Errorf("%v: Failed to umount filesystem: %v", container.ID, err)
@@ -365,7 +371,7 @@ func (container *Container) KillSig(sig int) error {
 	}
 
 	if !container.Running {
-		return nil
+		return fmt.Errorf("Container %s is not running", container.ID)
 	}
 
 	// signal to the monitor that it should not restart the container
@@ -379,7 +385,11 @@ func (container *Container) KillSig(sig int) error {
 		return nil
 	}
 
-	return container.daemon.Kill(container, sig)
+	if err := container.daemon.Kill(container, sig); err != nil {
+		return err
+	}
+	container.LogEvent("kill")
+	return nil
 }
 
 // Wrapper aroung KillSig() suppressing "no such process" error.
@@ -396,20 +406,21 @@ func (container *Container) Pause() error {
 	container.Lock()
 	defer container.Unlock()
 
+	// We cannot Pause the container which is not running
+	if !container.Running {
+		return fmt.Errorf("Container %s is not running, cannot pause a non-running container", container.ID)
+	}
+
 	// We cannot Pause the container which is already paused
 	if container.Paused {
 		return fmt.Errorf("Container %s is already paused", container.ID)
-	}
-
-	// We cannot Pause the container which is not running
-	if !container.Running {
-		return fmt.Errorf("Container %s is not running", container.ID)
 	}
 
 	if err := container.daemon.execDriver.Pause(container.command); err != nil {
 		return err
 	}
 	container.Paused = true
+	container.LogEvent("pause")
 	return nil
 }
 
@@ -417,20 +428,21 @@ func (container *Container) Unpause() error {
 	container.Lock()
 	defer container.Unlock()
 
-	// We cannot unpause the container which is not paused
-	if !container.Paused {
-		return fmt.Errorf("Container %s is not paused, so what", container.ID)
-	}
-
 	// We cannot unpause the container which is not running
 	if !container.Running {
-		return fmt.Errorf("Container %s is not running", container.ID)
+		return fmt.Errorf("Container %s is not running, cannot unpause a non-running container", container.ID)
+	}
+
+	// We cannot unpause the container which is not paused
+	if !container.Paused {
+		return fmt.Errorf("Container %s is not paused", container.ID)
 	}
 
 	if err := container.daemon.execDriver.Unpause(container.command); err != nil {
 		return err
 	}
 	container.Paused = false
+	container.LogEvent("unpause")
 	return nil
 }
 
@@ -492,6 +504,7 @@ func (container *Container) Stop(seconds int) error {
 		}
 	}
 
+	container.LogEvent("stop")
 	return nil
 }
 
@@ -506,14 +519,24 @@ func (container *Container) Restart(seconds int) error {
 	if err := container.Stop(seconds); err != nil {
 		return err
 	}
-	return container.Start()
+
+	if err := container.Start(); err != nil {
+		return err
+	}
+
+	container.LogEvent("restart")
+	return nil
 }
 
 func (container *Container) Resize(h, w int) error {
 	if !container.IsRunning() {
 		return fmt.Errorf("Cannot resize container %s, container is not running", container.ID)
 	}
-	return container.command.ProcessConfig.Terminal.Resize(h, w)
+	if err := container.command.ProcessConfig.Terminal.Resize(h, w); err != nil {
+		return err
+	}
+	container.LogEvent("resize")
+	return nil
 }
 
 func (container *Container) Export() (archive.Archive, error) {
@@ -526,12 +549,13 @@ func (container *Container) Export() (archive.Archive, error) {
 		container.Unmount()
 		return nil, err
 	}
-	return ioutils.NewReadCloserWrapper(archive, func() error {
-			err := archive.Close()
-			container.Unmount()
-			return err
-		}),
-		nil
+	arch := ioutils.NewReadCloserWrapper(archive, func() error {
+		err := archive.Close()
+		container.Unmount()
+		return err
+	})
+	container.LogEvent("export")
+	return arch, err
 }
 
 func (container *Container) Mount() error {
@@ -580,13 +604,22 @@ func validateID(id string) error {
 	return nil
 }
 
-func (container *Container) Copy(resource string) (io.ReadCloser, error) {
+func (container *Container) Copy(resource string) (rc io.ReadCloser, err error) {
 	container.Lock()
-	defer container.Unlock()
-	var err error
+
+	defer func() {
+		if err != nil {
+			// Wait to unlock the container until the archive is fully read
+			// (see the ReadCloseWrapper func below) or if there is an error
+			// before that occurs.
+			container.Unlock()
+		}
+	}()
+
 	if err := container.Mount(); err != nil {
 		return nil, err
 	}
+
 	defer func() {
 		if err != nil {
 			// unmount any volumes
@@ -595,28 +628,11 @@ func (container *Container) Copy(resource string) (io.ReadCloser, error) {
 			container.Unmount()
 		}
 	}()
-	mounts, err := container.setupMounts()
-	if err != nil {
+
+	if err := container.mountVolumes(); err != nil {
 		return nil, err
 	}
-	for _, m := range mounts {
-		var dest string
-		dest, err = container.GetResourcePath(m.Destination)
-		if err != nil {
-			return nil, err
-		}
-		var stat os.FileInfo
-		stat, err = os.Stat(m.Source)
-		if err != nil {
-			return nil, err
-		}
-		if err = fileutils.CreateIfNotExists(dest, stat.IsDir()); err != nil {
-			return nil, err
-		}
-		if err = mount.Mount(m.Source, dest, "bind", "rbind,ro"); err != nil {
-			return nil, err
-		}
-	}
+
 	basePath, err := container.GetResourcePath(resource)
 	if err != nil {
 		return nil, err
@@ -641,13 +657,22 @@ func (container *Container) Copy(resource string) (io.ReadCloser, error) {
 	if err != nil {
 		return nil, err
 	}
-	return ioutils.NewReadCloserWrapper(archive, func() error {
-			err := archive.Close()
-			container.UnmountVolumes(true)
-			container.Unmount()
-			return err
-		}),
-		nil
+
+	if err := container.PrepareStorage(); err != nil {
+		container.Unmount()
+		return nil, err
+	}
+
+	reader := ioutils.NewReadCloserWrapper(archive, func() error {
+		err := archive.Close()
+		container.CleanupStorage()
+		container.UnmountVolumes(true)
+		container.Unmount()
+		container.Unlock()
+		return err
+	})
+	container.LogEvent("copy")
+	return reader, nil
 }
 
 // Returns true if the container exposes a certain port
@@ -666,7 +691,10 @@ func (container *Container) SetHostConfig(hostConfig *runconfig.HostConfig) {
 
 func (container *Container) getLogConfig() runconfig.LogConfig {
 	cfg := container.hostConfig.LogConfig
-	if cfg.Type != "" { // container has log driver configured
+	if cfg.Type != "" || len(cfg.Config) > 0 { // container has log driver configured
+		if cfg.Type == "" {
+			cfg.Type = jsonfilelog.Name
+		}
 		return cfg
 	}
 	// Use daemon's default log config for containers
@@ -674,15 +702,26 @@ func (container *Container) getLogConfig() runconfig.LogConfig {
 }
 
 func (container *Container) getLogger() (logger.Logger, error) {
+	if container.logDriver != nil && container.IsRunning() {
+		return container.logDriver, nil
+	}
 	cfg := container.getLogConfig()
+	if err := logger.ValidateLogOpts(cfg.Type, cfg.Config); err != nil {
+		return nil, err
+	}
 	c, err := logger.GetLogDriver(cfg.Type)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to get logging factory: %v", err)
 	}
 	ctx := logger.Context{
-		Config:        cfg.Config,
-		ContainerID:   container.ID,
-		ContainerName: container.Name,
+		Config:              cfg.Config,
+		ContainerID:         container.ID,
+		ContainerName:       container.Name,
+		ContainerEntrypoint: container.Path,
+		ContainerArgs:       container.Args,
+		ContainerImageID:    container.ImageID,
+		ContainerImageName:  container.Config.Image,
+		ContainerCreated:    container.Created,
 	}
 
 	// Set logging file for "json-logger"
@@ -806,13 +845,11 @@ func (container *Container) monitorExec(execConfig *execConfig, callback execdri
 		err      error
 		exitCode int
 	)
-
 	pipes := execdriver.NewPipes(execConfig.StreamConfig.stdin, execConfig.StreamConfig.stdout, execConfig.StreamConfig.stderr, execConfig.OpenStdin)
 	exitCode, err = container.daemon.Exec(container, execConfig, pipes, callback)
 	if err != nil {
 		logrus.Errorf("Error running command in existing container %s: %s", container.ID, err)
 	}
-
 	logrus.Debugf("Exec task in container %s exited with code %d", container.ID, exitCode)
 	if execConfig.OpenStdin {
 		if err := execConfig.StreamConfig.stdin.Close(); err != nil {
@@ -830,7 +867,9 @@ func (container *Container) monitorExec(execConfig *execConfig, callback execdri
 			logrus.Errorf("Error closing terminal while running in container %s: %s", container.ID, err)
 		}
 	}
-
+	// remove the exec command from the container's store only and not the
+	// daemon's store so that the exec command can be inspected.
+	container.execCommands.Delete(execConfig.ID)
 	return err
 }
 
@@ -841,32 +880,36 @@ func (c *Container) Attach(stdin io.ReadCloser, stdout io.Writer, stderr io.Writ
 func (c *Container) AttachWithLogs(stdin io.ReadCloser, stdout, stderr io.Writer, logs, stream bool) error {
 	if logs {
 		logDriver, err := c.getLogger()
-		cLog, err := logDriver.GetReader()
-
 		if err != nil {
-			logrus.Errorf("Error reading logs: %s", err)
-		} else if c.LogDriverType() != jsonfilelog.Name {
-			logrus.Errorf("Reading logs not implemented for driver %s", c.LogDriverType())
-		} else {
-			dec := json.NewDecoder(cLog)
-			for {
-				l := &jsonlog.JSONLog{}
+			return err
+		}
+		cLog, ok := logDriver.(logger.LogReader)
+		if !ok {
+			return logger.ErrReadLogsNotSupported
+		}
+		logs := cLog.ReadLogs(logger.ReadConfig{Tail: -1})
 
-				if err := dec.Decode(l); err == io.EOF {
-					break
-				} else if err != nil {
-					logrus.Errorf("Error streaming logs: %s", err)
-					break
+	LogLoop:
+		for {
+			select {
+			case msg, ok := <-logs.Msg:
+				if !ok {
+					break LogLoop
 				}
-				if l.Stream == "stdout" && stdout != nil {
-					io.WriteString(stdout, l.Log)
+				if msg.Source == "stdout" && stdout != nil {
+					stdout.Write(msg.Line)
 				}
-				if l.Stream == "stderr" && stderr != nil {
-					io.WriteString(stderr, l.Log)
+				if msg.Source == "stderr" && stderr != nil {
+					stderr.Write(msg.Line)
 				}
+			case err := <-logs.Err:
+				logrus.Errorf("Error streaming logs: %v", err)
+				break LogLoop
 			}
 		}
 	}
+
+	c.LogEvent("attach")
 
 	//stream
 	if stream {
@@ -1126,6 +1169,40 @@ func (container *Container) removeMountPoints() error {
 func (container *Container) shouldRestart() bool {
 	return container.hostConfig.RestartPolicy.Name == "always" ||
 		(container.hostConfig.RestartPolicy.Name == "on-failure" && container.ExitCode != 0)
+}
+
+func (container *Container) mountVolumes() error {
+	mounts, err := container.setupMounts()
+	if err != nil {
+		return err
+	}
+
+	for _, m := range mounts {
+		dest, err := container.GetResourcePath(m.Destination)
+		if err != nil {
+			return err
+		}
+
+		var stat os.FileInfo
+		stat, err = os.Stat(m.Source)
+		if err != nil {
+			return err
+		}
+		if err = fileutils.CreateIfNotExists(dest, stat.IsDir()); err != nil {
+			return err
+		}
+
+		opts := "rbind,ro"
+		if m.Writable {
+			opts = "rbind,rw"
+		}
+
+		if err := mount.Mount(m.Source, dest, "bind", opts); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (container *Container) copyImagePathContent(v volume.Volume, destination string) error {

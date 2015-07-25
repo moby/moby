@@ -52,6 +52,10 @@ func (s *State) String() string {
 		return "Dead"
 	}
 
+	if s.StartedAt.IsZero() {
+		return "Created"
+	}
+
 	if s.FinishedAt.IsZero() {
 		return ""
 	}
@@ -75,7 +79,23 @@ func (s *State) StateString() string {
 		return "dead"
 	}
 
+	if s.StartedAt.IsZero() {
+		return "created"
+	}
+
 	return "exited"
+}
+
+func isValidStateString(s string) bool {
+	if s != "paused" &&
+		s != "restarting" &&
+		s != "running" &&
+		s != "dead" &&
+		s != "created" &&
+		s != "exited" {
+		return false
+	}
+	return true
 }
 
 func wait(waitChan <-chan struct{}, timeout time.Duration) error {
