@@ -179,6 +179,18 @@ func (pm *PortMapper) Unmap(host net.Addr) error {
 	return nil
 }
 
+//ReMapAll will re-apply all port mappings
+func (pm *PortMapper) ReMapAll() {
+	logrus.Debugln("Re-applying all port mappings.")
+	for _, data := range pm.currentMappings {
+		containerIP, containerPort := getIPAndPort(data.container)
+		hostIP, hostPort := getIPAndPort(data.host)
+		if err := pm.forward(iptables.Append, data.proto, hostIP, hostPort, containerIP.String(), containerPort); err != nil {
+			logrus.Errorf("Error on iptables add: %s", err)
+		}
+	}
+}
+
 func getKey(a net.Addr) string {
 	switch t := a.(type) {
 	case *net.TCPAddr:
