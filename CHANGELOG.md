@@ -1,5 +1,91 @@
 # Changelog
 
+## 1.8.0 (2015-07-24)
+
+### Distribution
+
++ Trusted pull, push and build, disabled by default
+* Make tar layers deterministic between registries
+* Don't allow deleting the image of running containers
+* Check if a tag name to load is a valid digest
+* Allow one character repository names
+* Add a more accurate error description for invalid tag name
+* Make build cache ignore mtime
+
+### Cli
+
++ Add support for DOCKER_CONFIG/--config to specify config file dir
++ Add --type flag  for docker inspect command
++ Add formatting options to `docker ps` with `--format`
++ Replace `docker -d` with new subcommand `docker daemon`
+* Zsh completion updates and improvements
+* Add some missing events to bash completion
+* Support daemon urls with base paths in `docker -H`
+* Validate status= filter to docker ps
+* Display when a container is in --net=host in docker ps
+* Extend docker inspect to export image metadata related to graph driver
+* Restore --default-gateway{,-v6} daemon options
+* Add missing unpublished ports in docker ps
+* Allow duration strings in `docker events` as --since/--until
+* Expose more mounts information in `docker inspect`
+
+### Runtime
+
++ Add new Fluentd logging driver
++ Allow `docker import` to load from local files
++ Add logging driver for GELF via UDP
++ Allow to copy files from host to containers with `docker cp`
++ Promote volume drivers from experimental to master
++ Add rollover log driver, and --log-driver-opts flag
++ Add memory swappiness tuning options
+* Remove cgroup read-only flag when privileged
+* Make /proc, /sys, & /dev readonly for readonly containers
+* Add cgroup bind mount by default
+* Overlay: Export metadata for container and image in `docker inspect`
+* Devicemapper: external device activation
+* Devicemapper: Compare uuid of base device on startup
+* Remove RC4 from the list of registry cipher suites
+* Add syslog-facility option
+* LXC execdriver compatibility with recent LXC versions
+
+
+### Plugins
+
+* Separate plugin sockets and specs locations
+* Allow TLS connections to plugins
+
+### Bug fixes
+
+- Add missing 'Names' field to /containers/json API output
+- Make `docker rmi --dangling` safe when pulling
+- Devicemapper: Change default basesize to 100G
+- Go Scheduler issue with sync.Mutex and gcc
+- Fix issue where Search API endpoint would panic due to empty AuthConfig
+- Set image canonical names correctly
+- Check dockerinit only if lxc driver is used
+- Fix ulimit usage of nproc
+- Always attach STDIN if -i,--interactive is specified
+- Show error messages when saving container state fails
+- Fixed incorrect assumption on --bridge=none treated as disable network
+- Check for invalid port specifications in host configuration
+- Fix endpoint leave failure for --net=host mode
+- Fix goroutine leak in the stats API if the container is not running
+- Check for apparmor file before reading it
+- Fix DOCKER_TLS_VERIFY being ignored
+- Set umask to the default on startup
+- Correct the message of pause and unpause a non-running container
+- Adjust disallowed CpuShares in container creation
+- ZFS: correctly apply selinux context
+- Display empty string instead of <nil> when IP opt is nil
+- `docker kill` returns error when container is not running
+- Fix COPY/ADD quoted/json form
+- Fix goroutine leak on logs -f with no output
+- Remove panic in nat package on invalid hostport
+- Fix container linking in Fedora 22
+- Fix error caused using default gateways outside of the allocated range
+- Format times in inspect command with a template as RFC3339Nano
+- Make registry client to accept 2xx and 3xx http status responses as successful
+
 ## 1.7.1 (2015-07-14)
 
 #### Runtime
