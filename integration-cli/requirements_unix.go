@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"path"
 
+	"github.com/docker/docker/pkg/systemd"
 	"github.com/opencontainers/runc/libcontainer/cgroups"
 )
 
@@ -53,5 +54,11 @@ var (
 
 		},
 		"Test requires Oom control enabled.",
+	}
+	runningSystemd = testRequirement{
+		func() bool {
+			return systemd.SdBooted()
+		},
+		"Test requires the host system to be booted with systemd",
 	}
 )

@@ -24,6 +24,7 @@ import (
 	"github.com/docker/docker/pkg/nat"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/pkg/system"
+	"github.com/docker/docker/pkg/systemd"
 	"github.com/docker/docker/pkg/ulimit"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/utils"
@@ -135,6 +136,13 @@ func (container *Container) createDaemonEnvironment(linkedEnv []string) []string
 		env = append(env, "TERM=xterm")
 	}
 	env = append(env, linkedEnv...)
+	if systemd.SdBooted() {
+		// Allow systemd and other code to identify that it is executed within
+		// a container by exporting the container=docker environment variable.
+		// With this in place the ConditionVirtualization= setting in unit files
+		// will work properly.
+		env = append(env, "container=docker")
+	}
 	// because the env on the container can override certain default values
 	// we need to replace the 'env' keys where they match and append anything
 	// else.
