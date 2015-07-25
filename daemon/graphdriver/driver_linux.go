@@ -21,6 +21,7 @@ const (
 	FsMagicSmbFs    = FsMagic(0x0000517B)
 	FsMagicSquashFs = FsMagic(0x73717368)
 	FsMagicTmpFs    = FsMagic(0x01021994)
+	FsMagicVxFS     = FsMagic(0xa501fcf5)
 	FsMagicXfs      = FsMagic(0x58465342)
 	FsMagicZfs      = FsMagic(0x2fc12fc1)
 )
@@ -51,6 +52,7 @@ var (
 		FsMagicSquashFs:    "squashfs",
 		FsMagicTmpFs:       "tmpfs",
 		FsMagicUnsupported: "unsupported",
+		FsMagicVxFS:        "vxfs",
 		FsMagicXfs:         "xfs",
 		FsMagicZfs:         "zfs",
 	}
