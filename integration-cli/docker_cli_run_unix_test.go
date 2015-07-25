@@ -414,3 +414,11 @@ func (s *DockerSuite) TestTwoContainersInNetHost(c *check.C) {
 	dockerCmd(c, "stop", "first")
 	dockerCmd(c, "stop", "second")
 }
+
+func (s *DockerSuite) TestRunContainerEnvDockerIsSetForSystemd(c *check.C) {
+	testRequires(c, runningSystemd)
+	out, _ := dockerCmd(c, "run", "busybox", "env")
+	if !strings.Contains(out, "container=docker") {
+		c.Fatalf("Expected container to have container=docker env variable set, got %q instead", out)
+	}
+}
