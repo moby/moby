@@ -1,3 +1,4 @@
+// Package timeoutconn provides overridden net.Conn that supports deadline (timeout).
 package timeoutconn
 
 import (
@@ -5,11 +6,13 @@ import (
 	"time"
 )
 
+// New creates a net.Conn with a timeout for every Read operation.
 func New(netConn net.Conn, timeout time.Duration) net.Conn {
 	return &conn{netConn, timeout}
 }
 
-// A net.Conn that sets a deadline for every Read or Write operation
+// A net.Conn that sets a deadline for every Read operation.
+// FIXME was documented the deadline was on Write operation too but not implement
 type conn struct {
 	net.Conn
 	timeout time.Duration

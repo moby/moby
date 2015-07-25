@@ -6,9 +6,10 @@ import (
 	"os"
 )
 
-var SdNotifyNoSocket = errors.New("No socket")
+// ErrSdNotifyNoSocket is an error returned if no socket was specified.
+var ErrSdNotifyNoSocket = errors.New("No socket")
 
-// Send a message to the init daemon. It is common to ignore the error.
+// SdNotify sends a message to the init daemon. It is common to ignore the return value.
 func SdNotify(state string) error {
 	socketAddr := &net.UnixAddr{
 		Name: os.Getenv("NOTIFY_SOCKET"),
@@ -16,7 +17,7 @@ func SdNotify(state string) error {
 	}
 
 	if socketAddr.Name == "" {
-		return SdNotifyNoSocket
+		return ErrSdNotifyNoSocket
 	}
 
 	conn, err := net.DialUnix(socketAddr.Net, nil, socketAddr)

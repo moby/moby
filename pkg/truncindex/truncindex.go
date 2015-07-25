@@ -1,3 +1,6 @@
+// Package truncindex package provides a general 'index tree', used by Docker
+// in order to be able to reference containers by only a few unambiguous
+// characters of their id.
 package truncindex
 
 import (
@@ -10,7 +13,9 @@ import (
 )
 
 var (
-	ErrEmptyPrefix     = errors.New("Prefix can't be empty")
+	// ErrEmptyPrefix is an error returned if the prefix was empty.
+	ErrEmptyPrefix = errors.New("Prefix can't be empty")
+	// ErrAmbiguousPrefix is an error returned if the prefix was ambiguous (multiple ids for the prefix).
 	ErrAmbiguousPrefix = errors.New("Multiple IDs found with provided prefix")
 )
 
@@ -22,7 +27,7 @@ type TruncIndex struct {
 	ids  map[string]struct{}
 }
 
-// NewTruncIndex creates a new TruncIndex and initializes with a list of IDs
+// NewTruncIndex creates a new TruncIndex and initializes with a list of IDs.
 func NewTruncIndex(ids []string) (idx *TruncIndex) {
 	idx = &TruncIndex{
 		ids: make(map[string]struct{}),
@@ -54,7 +59,7 @@ func (idx *TruncIndex) addID(id string) error {
 	return nil
 }
 
-// Add adds a new ID to the TruncIndex
+// Add adds a new ID to the TruncIndex.
 func (idx *TruncIndex) Add(id string) error {
 	idx.Lock()
 	defer idx.Unlock()
@@ -109,7 +114,7 @@ func (idx *TruncIndex) Get(s string) (string, error) {
 	return "", fmt.Errorf("no such id: %s", s)
 }
 
-// Iterates over all stored IDs, and passes each of them to the given handler
+// Iterate iterates over all stored IDs, and passes each of them to the given handler.
 func (idx *TruncIndex) Iterate(handler func(id string)) {
 	idx.RLock()
 	defer idx.RUnlock()

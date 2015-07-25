@@ -1,3 +1,20 @@
+// Package tarsum provides algorithms to perform checksum calculation on
+// filesystem layers.
+//
+// The transportation of filesystems, regarding Docker, is done with tar(1)
+// archives. There are a variety of tar serialization formats [2], and a key
+// concern here is ensuring a repeatable checksum given a set of inputs from a
+// generic tar archive. Types of transportation include distribution to and from a
+// registry endpoint, saving and loading through commands or Docker daemon APIs,
+// transferring the build context from client to Docker daemon, and committing the
+// filesystem of a container to become an image.
+//
+// As tar archives are used for transit, but not preserved in many situations, the
+// focus of the algorithm is to ensure the integrity of the preserved filesystem,
+// while maintaining a deterministic accountability. This includes neither
+// constraining the ordering or manipulation of the files during the creation or
+// unpacking of the archive, nor include additional metadata state about the file
+// system attributes.
 package tarsum
 
 import (
@@ -30,7 +47,8 @@ func NewTarSum(r io.Reader, dc bool, v Version) (TarSum, error) {
 	return NewTarSumHash(r, dc, v, DefaultTHash)
 }
 
-// Create a new TarSum, providing a THash to use rather than the DefaultTHash
+// NewTarSumHash creates a new TarSum, providing a THash to use rather than
+// the DefaultTHash.
 func NewTarSumHash(r io.Reader, dc bool, v Version, tHash THash) (TarSum, error) {
 	headerSelector, err := getTarHeaderSelector(v)
 	if err != nil {
@@ -41,7 +59,7 @@ func NewTarSumHash(r io.Reader, dc bool, v Version, tHash THash) (TarSum, error)
 	return ts, err
 }
 
-// Create a new TarSum using the provided TarSum version+hash label.
+// NewTarSumForLabel creates a new TarSum using the provided TarSum version+hash label.
 func NewTarSumForLabel(r io.Reader, disableCompression bool, label string) (TarSum, error) {
 	parts := strings.SplitN(label, "+", 2)
 	if len(parts) != 2 {
@@ -66,7 +84,7 @@ func NewTarSumForLabel(r io.Reader, disableCompression bool, label string) (TarS
 }
 
 // TarSum is the generic interface for calculating fixed time
-// checksums of a tar archive
+// checksums of a tar archive.
 type TarSum interface {
 	io.Reader
 	GetSums() FileInfoSums
@@ -75,7 +93,7 @@ type TarSum interface {
 	Hash() THash
 }
 
-// tarSum struct is the structure for a Version0 checksum calculation
+// tarSum struct is the structure for a Version0 checksum calculation.
 type tarSum struct {
 	io.Reader
 	tarR               *tar.Reader
@@ -104,13 +122,13 @@ func (ts tarSum) Version() Version {
 	return ts.tarSumVersion
 }
 
-// A hash.Hash type generator and its name
+// THash provides a hash.Hash type generator and its name.
 type THash interface {
 	Hash() hash.Hash
 	Name() string
 }
 
-// Convenience method for creating a THash
+// NewTHash is a convenience method for creating a THash.
 func NewTHash(name string, h func() hash.Hash) THash {
 	return simpleTHash{n: name, h: h}
 }

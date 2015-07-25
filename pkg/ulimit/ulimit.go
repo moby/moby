@@ -1,3 +1,5 @@
+// Package ulimit provides structure and helper function to parse and represent
+// resource limits (Rlimit and Ulimit, its human friendly version).
 package ulimit
 
 import (
@@ -6,13 +8,14 @@ import (
 	"strings"
 )
 
-// Human friendly version of Rlimit
+// Ulimit is a human friendly version of Rlimit.
 type Ulimit struct {
 	Name string
 	Hard int64
 	Soft int64
 }
 
+// Rlimit specifies the resource limits, such as max open files.
 type Rlimit struct {
 	Type int    `json:"type,omitempty"`
 	Hard uint64 `json:"hard,omitempty"`
@@ -24,43 +27,44 @@ const (
 	// some of these are defined in the syscall package, but not all.
 	// Also since Windows client doesn't get access to the syscall package, need to
 	//	define these here
-	RLIMIT_AS         = 9
-	RLIMIT_CORE       = 4
-	RLIMIT_CPU        = 0
-	RLIMIT_DATA       = 2
-	RLIMIT_FSIZE      = 1
-	RLIMIT_LOCKS      = 10
-	RLIMIT_MEMLOCK    = 8
-	RLIMIT_MSGQUEUE   = 12
-	RLIMIT_NICE       = 13
-	RLIMIT_NOFILE     = 7
-	RLIMIT_NPROC      = 6
-	RLIMIT_RSS        = 5
-	RLIMIT_RTPRIO     = 14
-	RLIMIT_RTTIME     = 15
-	RLIMIT_SIGPENDING = 11
-	RLIMIT_STACK      = 3
+	rlimitAs         = 9
+	rlimitCore       = 4
+	rlimitCPU        = 0
+	rlimitData       = 2
+	rlimitFsize      = 1
+	rlimitLocks      = 10
+	rlimitMemlock    = 8
+	rlimitMsgqueue   = 12
+	rlimitNice       = 13
+	rlimitNofile     = 7
+	rlimitNproc      = 6
+	rlimitRss        = 5
+	rlimitRtprio     = 14
+	rlimitRttime     = 15
+	rlimitSigpending = 11
+	rlimitStack      = 3
 )
 
 var ulimitNameMapping = map[string]int{
-	//"as":         RLIMIT_AS, // Disbaled since this doesn't seem usable with the way Docker inits a container.
-	"core":       RLIMIT_CORE,
-	"cpu":        RLIMIT_CPU,
-	"data":       RLIMIT_DATA,
-	"fsize":      RLIMIT_FSIZE,
-	"locks":      RLIMIT_LOCKS,
-	"memlock":    RLIMIT_MEMLOCK,
-	"msgqueue":   RLIMIT_MSGQUEUE,
-	"nice":       RLIMIT_NICE,
-	"nofile":     RLIMIT_NOFILE,
-	"nproc":      RLIMIT_NPROC,
-	"rss":        RLIMIT_RSS,
-	"rtprio":     RLIMIT_RTPRIO,
-	"rttime":     RLIMIT_RTTIME,
-	"sigpending": RLIMIT_SIGPENDING,
-	"stack":      RLIMIT_STACK,
+	//"as":         rlimitAs, // Disabled since this doesn't seem usable with the way Docker inits a container.
+	"core":       rlimitCore,
+	"cpu":        rlimitCPU,
+	"data":       rlimitData,
+	"fsize":      rlimitFsize,
+	"locks":      rlimitLocks,
+	"memlock":    rlimitMemlock,
+	"msgqueue":   rlimitMsgqueue,
+	"nice":       rlimitNice,
+	"nofile":     rlimitNofile,
+	"nproc":      rlimitNproc,
+	"rss":        rlimitRss,
+	"rtprio":     rlimitRtprio,
+	"rttime":     rlimitRttime,
+	"sigpending": rlimitSigpending,
+	"stack":      rlimitStack,
 }
 
+// Parse parses and returns a Ulimit from the specified string.
 func Parse(val string) (*Ulimit, error) {
 	parts := strings.SplitN(val, "=", 2)
 	if len(parts) != 2 {
@@ -92,6 +96,7 @@ func Parse(val string) (*Ulimit, error) {
 	return &Ulimit{Name: parts[0], Soft: soft, Hard: hard}, nil
 }
 
+// GetRlimit returns the RLimit corresponding to Ulimit.
 func (u *Ulimit) GetRlimit() (*Rlimit, error) {
 	t, exists := ulimitNameMapping[u.Name]
 	if !exists {

@@ -7,7 +7,7 @@ import (
 
 func TestParseHost(t *testing.T) {
 	var (
-		defaultHttpHost = "127.0.0.1"
+		defaultHTTPHost = "127.0.0.1"
 		defaultUnix     = "/var/run/docker.sock"
 	)
 	invalids := map[string]string{
@@ -32,12 +32,12 @@ func TestParseHost(t *testing.T) {
 		"fd://something":          "fd://something",
 	}
 	for invalidAddr, expectedError := range invalids {
-		if addr, err := ParseHost(defaultHttpHost, defaultUnix, invalidAddr); err == nil || err.Error() != expectedError {
+		if addr, err := ParseHost(defaultHTTPHost, defaultUnix, invalidAddr); err == nil || err.Error() != expectedError {
 			t.Errorf("tcp %v address expected error %v return, got %s and addr %v", invalidAddr, expectedError, err, addr)
 		}
 	}
 	for validAddr, expectedAddr := range valids {
-		if addr, err := ParseHost(defaultHttpHost, defaultUnix, validAddr); err != nil || addr != expectedAddr {
+		if addr, err := ParseHost(defaultHTTPHost, defaultUnix, validAddr); err != nil || addr != expectedAddr {
 			t.Errorf("%v -> expected %v, got %v", validAddr, expectedAddr, addr)
 		}
 	}

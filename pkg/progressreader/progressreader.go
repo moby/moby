@@ -1,3 +1,5 @@
+// Package progressreader provides a Reader with a progress bar that can be
+// printed out using the streamformatter package.
 package progressreader
 
 import (
@@ -7,7 +9,7 @@ import (
 	"github.com/docker/docker/pkg/streamformatter"
 )
 
-// Reader with progress bar
+// Config contains the configuration for a Reader with progress bar.
 type Config struct {
 	In         io.ReadCloser // Stream to read from
 	Out        io.Writer     // Where to send progress bar to
@@ -20,6 +22,7 @@ type Config struct {
 	Action     string
 }
 
+// New creates a new Config.
 func New(newReader Config) *Config {
 	return &newReader
 }
@@ -48,6 +51,7 @@ func (config *Config) Read(p []byte) (n int, err error) {
 	return read, err
 }
 
+// Close closes the reader (Config).
 func (config *Config) Close() error {
 	if config.Current < config.Size {
 		//print a full progress bar when closing prematurely

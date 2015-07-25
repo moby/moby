@@ -19,6 +19,7 @@ const (
 	defaultTimeOut  = 30
 )
 
+// NewClient creates a new plugin client (http).
 func NewClient(addr string, tlsConfig tlsconfig.Options) (*Client, error) {
 	tr := &http.Transport{}
 
@@ -33,11 +34,14 @@ func NewClient(addr string, tlsConfig tlsconfig.Options) (*Client, error) {
 	return &Client{&http.Client{Transport: tr}, protoAndAddr[1]}, nil
 }
 
+// Client represents a plugin client.
 type Client struct {
-	http *http.Client
-	addr string
+	http *http.Client // http client to use
+	addr string       // http address of the plugin
 }
 
+// Call calls the specified method with the specified arguments for the plugin.
+// It will retry for 30 seconds if a failure occurs when calling.
 func (c *Client) Call(serviceMethod string, args interface{}, ret interface{}) error {
 	return c.callWithRetry(serviceMethod, args, ret, true)
 }

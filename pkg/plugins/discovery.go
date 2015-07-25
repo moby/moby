@@ -12,22 +12,28 @@ import (
 )
 
 var (
+	// ErrNotFound plugin not found
 	ErrNotFound = errors.New("Plugin not found")
 	socketsPath = "/run/docker/plugins"
 	specsPaths  = []string{"/etc/docker/plugins", "/usr/lib/docker/plugins"}
 )
 
+// Registry defines behavior of a registry of plugins.
 type Registry interface {
+	// Plugins lists all plugins.
 	Plugins() ([]*Plugin, error)
+	// Plugin returns the plugin registered with the given name (or returns an error).
 	Plugin(name string) (*Plugin, error)
 }
 
+// LocalRegistry defines a registry that is local (using unix socket).
 type LocalRegistry struct{}
 
 func newLocalRegistry() LocalRegistry {
 	return LocalRegistry{}
 }
 
+// Plugin returns the plugin registered with the given name (or returns an error).
 func (l *LocalRegistry) Plugin(name string) (*Plugin, error) {
 	socketpaths := pluginPaths(socketsPath, name, ".sock")
 
