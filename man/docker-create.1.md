@@ -18,6 +18,7 @@ docker-create - Create a new container
 [**--cpu-quota**[=*0*]]
 [**--cpuset-cpus**[=*CPUSET-CPUS*]]
 [**--cpuset-mems**[=*CPUSET-MEMS*]]
+[**-D**|**--debug**[=*false*]]
 [**--device**[=*[]*]]
 [**--dns**[=*[]*]]
 [**--dns-search**[=*[]*]]
@@ -109,6 +110,9 @@ two memory nodes.
 
 **-cpu-quota**=0
    Limit the CPU CFS (Completely Fair Scheduler) quota
+
+**-D**, **--debug**=*true*|*false*
+   Enable debug mode. Default is false.
 
 **--device**=[]
    Add a host device to the container (e.g. --device=/dev/sdc:/dev/xvdc:rwm)

@@ -6,6 +6,7 @@ docker-events - Get real time events from the server
 
 # SYNOPSIS
 **docker events**
+[**-D**|**--debug**[=*false*]]
 [**--help**]
 [**-f**|**--filter**[=*[]*]]
 [**--since**[=*SINCE*]]
@@ -25,8 +26,11 @@ and Docker images will report:
     untag, delete
 
 # OPTIONS
+**-D**, **--debug**=*true*|*false*
+   Enable debug mode. Default is false.
+
 **--help**
-  Print usage statement
+   Print usage statement
 
 **-f**, **--filter**=[]
    Provide filter values (i.e., 'event=stop')

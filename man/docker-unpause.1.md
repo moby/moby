@@ -6,6 +6,8 @@ docker-unpause - Unpause all processes within a container
 
 # SYNOPSIS
 **docker unpause**
+[**-D**|**--debug**[=*false*]]
+[**--help**]/
 CONTAINER [CONTAINER...]
 
 # DESCRIPTION
@@ -18,7 +20,11 @@ See the [cgroups freezer documentation]
 further details.
 
 # OPTIONS
-There are no available options.
+**-D**, **--debug**=*true*|*false*
+   Enable debug mode. Default is false.
+
+**--help**
+   Print usage statement
 
 # See also
 **docker-pause(1)** to pause all processes within a container.

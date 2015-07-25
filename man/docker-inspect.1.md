@@ -6,6 +6,7 @@ docker-inspect - Return low-level information on a container or image
 
 # SYNOPSIS
 **docker inspect**
+[**-D**|**--debug**[=*false*]]
 [**--help**]
 [**-f**|**--format**[=*FORMAT*]]
 [**--type**=*container*|*image*]
@@ -19,6 +20,9 @@ array. If a format is specified, the given template will be executed for
 each result.
 
 # OPTIONS
+**-D**, **--debug**=*true*|*false*
+   Enable debug mode. Default is false.
+
 **--help**
     Print usage statement
 

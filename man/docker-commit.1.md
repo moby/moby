@@ -7,8 +7,9 @@ docker-commit - Create a new image from a container's changes
 # SYNOPSIS
 **docker commit**
 [**-a**|**--author**[=*AUTHOR*]]
-[**--help**]
+[**-D**|**--debug**[=*false*]]
 [**-c**|**--change**[= []**]]
+[**--help**]
 [**-m**|**--message**[=*MESSAGE*]]
 [**-p**|**--pause**[=*true*]]
 CONTAINER [REPOSITORY[:TAG]]
@@ -31,8 +32,11 @@ people.
    Apply specified Dockerfile instructions while committing the image
    Supported Dockerfile instructions: `CMD`|`ENTRYPOINT`|`ENV`|`EXPOSE`|`LABEL`|`ONBUILD`|`USER`|`VOLUME`|`WORKDIR`
 
+**-D**, **--debug**=*true*|*false*
+   Enable debug mode. Default is false.
+
 **--help**
-  Print usage statement
+   Print usage statement
 
 **-m**, **--message**=""
    Commit message

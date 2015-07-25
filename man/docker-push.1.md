@@ -6,6 +6,7 @@ docker-push - Push an image or a repository to a registry
 
 # SYNOPSIS
 **docker push**
+[**-D**|**--debug**[=*false*]]
 [**--help**]
 NAME[:TAG] | [REGISTRY_HOST[:REGISTRY_PORT]/]NAME[:TAG]
 
@@ -16,8 +17,11 @@ specify a `REGISTRY_HOST`, the command uses Docker's public registry located at
 `registry-1.docker.io` by default. 
 
 # OPTIONS
+**-D**, **--debug**=*true*|*false*
+   Enable debug mode. Default is false.
+
 **--help**
-  Print usage statement
+   Print usage statement
 
 # EXAMPLES
 

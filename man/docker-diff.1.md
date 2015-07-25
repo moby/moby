@@ -6,6 +6,7 @@ docker-diff - Inspect changes on a container's filesystem
 
 # SYNOPSIS
 **docker diff**
+[**-D**|**--debug**[=*false*]]
 [**--help**]
 CONTAINER
 
@@ -15,6 +16,9 @@ shortened container ID or the container name set using
 **docker run --name** option.
 
 # OPTIONS
+**-D**, **--debug**=*true*|*false*
+   Enable debug mode. Default is false.
+
 **--help**
   Print usage statement
 

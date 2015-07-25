@@ -6,6 +6,7 @@ docker-info - Display system-wide information
 
 # SYNOPSIS
 **docker info**
+[**-D**|**--debug**[=*false*]]
 [**--help**]
 
 
@@ -21,8 +22,11 @@ allocates a certain amount of data space and meta data space from the space
 available on the volume where `/var/lib/docker` is mounted.
 
 # OPTIONS
+**-D**, **--debug**=*true*|*false*
+   Enable debug mode. Default is false.
+
 **--help**
-  Print usage statement
+   Print usage statement
 
 # EXAMPLES
 

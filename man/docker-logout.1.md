@@ -6,6 +6,8 @@ docker-logout - Log out from a Docker registry.
 
 # SYNOPSIS
 **docker logout**
+[**-D**|**--debug**[=*false*]]
+[**--help**]/
 [SERVER]
 
 # DESCRIPTION
@@ -15,7 +17,11 @@ specify a URL or a `hostname` for the `SERVER` value. If you do not specify a
 located at `https://registry-1.docker.io/` by default.  
 
 # OPTIONS
-There are no available options.
+**-D**, **--debug**=*true*|*false*
+   Enable debug mode. Default is false.
+
+**--help**
+   Print usage statement
 
 # EXAMPLES
 

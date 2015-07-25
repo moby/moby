@@ -6,6 +6,7 @@ docker-port - List port mappings for the CONTAINER, or lookup the public-facing 
 
 # SYNOPSIS
 **docker port**
+[**-D**|**--debug**[=*false*]]
 [**--help**]
 CONTAINER [PRIVATE_PORT[/PROTO]]
 
@@ -13,8 +14,11 @@ CONTAINER [PRIVATE_PORT[/PROTO]]
 List port mappings for the CONTAINER, or lookup the public-facing port that is NAT-ed to the PRIVATE_PORT
 
 # OPTIONS
+**-D**, **--debug**=*true*|*false*
+   Enable debug mode. Default is false.
+
 **--help**
-  Print usage statement
+   Print usage statement
 
 # EXAMPLES
 

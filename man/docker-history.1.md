@@ -6,6 +6,7 @@ docker-history - Show the history of an image
 
 # SYNOPSIS
 **docker history**
+[**-D**|**--debug**[=*false*]]
 [**--help**]
 [**--no-trunc**[=*false*]]
 [**-q**|**--quiet**[=*false*]]
@@ -16,11 +17,14 @@ IMAGE
 Show the history of when and how an image was created.
 
 # OPTIONS
+**-D**, **--debug**=*true*|*false*
+   Enable debug mode. Default is false.
+
 **--help**
-  Print usage statement
+   Print usage statement
 
 **-H**. **--human**=*true*|*false*
-    Print sizes and dates in human readable format. The default is *true*.
+   Print sizes and dates in human readable format. The default is *true*.
 
 **--no-trunc**=*true*|*false*
    Don't truncate output. The default is *false*.

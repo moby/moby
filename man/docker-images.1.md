@@ -6,10 +6,11 @@ docker-images - List images
 
 # SYNOPSIS
 **docker images**
-[**--help**]
 [**-a**|**--all**[=*false*]]
+[**-D**|**--debug**[=*false*]]
 [**--digests**[=*false*]]
 [**-f**|**--filter**[=*[]*]]
+[**--help**]
 [**--no-trunc**[=*false*]]
 [**-q**|**--quiet**[=*false*]]
 [REPOSITORY]
@@ -34,6 +35,9 @@ versions.
 **-a**, **--all**=*true*|*false*
    Show all images (by default filter out the intermediate image layers). The default is *false*.
 
+**-D**, **--debug**=*true*|*false*
+   Enable debug mode. Default is false.
+
 **--digests**=*true*|*false*
    Show image digests. The default is *false*.
 
@@ -41,7 +45,7 @@ versions.
    Filters the output. The dangling=true filter finds unused images. While label=com.foo=amd64 filters for images with a com.foo value of amd64. The label=com.foo filter finds images with the label com.foo of any value.
 
 **--help**
-  Print usage statement
+   Print usage statement
 
 **--no-trunc**=*true*|*false*
    Don't truncate output. The default is *false*.

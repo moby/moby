@@ -6,6 +6,7 @@ docker-stats - Display a live stream of one or more containers' resource usage s
 
 # SYNOPSIS
 **docker stats**
+[**-D**|**--debug**[=*false*]]
 [**--help**]
 CONTAINER [CONTAINER...]
 
@@ -14,11 +15,14 @@ CONTAINER [CONTAINER...]
 Display a live stream of one or more containers' resource usage statistics
 
 # OPTIONS
+**-D**, **--debug**=*true*|*false*
+   Enable debug mode. Default is false.
+
 **--help**
-  Print usage statement
+   Print usage statement
 
 **--no-stream**="false"
-  Disable streaming stats and only pull the first result
+   Disable streaming stats and only pull the first result
 
 # EXAMPLES
 

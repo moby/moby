@@ -6,6 +6,7 @@ docker-exec - Run a command in a running container
 
 # SYNOPSIS
 **docker exec**
+[**-D**|**--debug**[=*false*]]
 [**-d**|**--detach**[=*false*]]
 [**--help**]
 [**-i**|**--interactive**[=*false*]]
@@ -24,6 +25,9 @@ If the container is paused, then the `docker exec` command will wait until the
 container is unpaused, and then run
 
 # OPTIONS
+**-D**, **--debug**=*true*|*false*
+   Enable debug mode. Default is false.
+
 **-d**, **--detach**=*true*|*false*
    Detached mode: run command in the background. The default is *false*.
 

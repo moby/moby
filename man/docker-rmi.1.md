@@ -6,6 +6,7 @@ docker-rmi - Remove one or more images
 
 # SYNOPSIS
 **docker rmi**
+[**-D**|**--debug**[=*false*]]
 [**-f**|**--force**[=*false*]]
 [**--help**]
 [**--no-prune**[=*false*]]
@@ -18,11 +19,14 @@ a registry. You cannot remove an image of a running container unless you use the
 **-f** option. To see all images on a host use the **docker images** command.
 
 # OPTIONS
+**-D**, **--debug**=*true*|*false*
+   Enable debug mode. Default is false.
+
 **-f**, **--force**=*true*|*false*
    Force removal of the image. The default is *false*.
 
 **--help**
-  Print usage statement
+   Print usage statement
 
 **--no-prune**=*true*|*false*
    Do not delete untagged parents. The default is *false*.

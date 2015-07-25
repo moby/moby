@@ -6,6 +6,7 @@ docker-save - Save an image(s) to a tar archive (streamed to STDOUT by default)
 
 # SYNOPSIS
 **docker save**
+[**-D**|**--debug**[=*false*]]
 [**--help**]
 [**-o**|**--output**[=*OUTPUT*]]
 IMAGE [IMAGE...]
@@ -17,8 +18,11 @@ parent layers, and all tags + versions, or specified repo:tag.
 Stream to a file instead of STDOUT by using **-o**.
 
 # OPTIONS
+**-D**, **--debug**=*true*|*false*
+   Enable debug mode. Default is false.
+
 **--help**
-  Print usage statement
+   Print usage statement
 
 **-o**, **--output**=""
    Write to a file, instead of STDOUT

@@ -6,6 +6,7 @@ docker-export - Export the contents of a container's filesystem as a tar archive
 
 # SYNOPSIS
 **docker export**
+[**-D**|**--debug**[=*false*]]
 [**--help**]
 CONTAINER
 
@@ -17,8 +18,12 @@ redirected to a tar file.
 Stream to a file instead of STDOUT by using **-o**.
 
 # OPTIONS
+**-D**, **--debug**=*true*|*false*
+   Enable debug mode. Default is false.
+
 **--help**
-  Print usage statement
+   Print usage statement
+
 **-o**, **--output**=""
    Write to a file, instead of STDOUT
 

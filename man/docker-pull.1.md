@@ -7,6 +7,7 @@ docker-pull - Pull an image or a repository from a registry
 # SYNOPSIS
 **docker pull**
 [**-a**|**--all-tags**[=*false*]]
+[**-D**|**--debug**[=*false*]]
 [**--help**] 
 NAME[:TAG] | [REGISTRY_HOST[:REGISTRY_PORT]/]NAME[:TAG]
 
@@ -23,8 +24,11 @@ registry located at `registry-1.docker.io` by default.
 **-a**, **--all-tags**=*true*|*false*
    Download all tagged images in the repository. The default is *false*.
 
+**-D**, **--debug**=*true*|*false*
+   Enable debug mode. Default is false.
+
 **--help**
-  Print usage statement
+   Print usage statement
 
 # EXAMPLE
 

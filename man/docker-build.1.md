@@ -6,6 +6,7 @@ docker-build - Build a new image from the source code at PATH
 
 # SYNOPSIS
 **docker build**
+[**-D**|**--debug**[=*false*]]
 [**--help**]
 [**-f**|**--file**[=*PATH/Dockerfile*]]
 [**--force-rm**[=*false*]]
@@ -43,6 +44,9 @@ the client to the Docker daemon. When a Git repository is set as the **URL**, th
 cloned locally and then sent as the context.
 
 # OPTIONS
+**-D**, **--debug**=*true*|*false*
+   Enable debug mode. Default is false.
+
 **-f**, **--file**=*PATH/Dockerfile*
    Path to the Dockerfile to use. If the path is a relative path and you are
    building from a local directory, then the path must be relative to that
