@@ -2549,3 +2549,159 @@ func (s *DockerSuite) TestRunNetworkFilesBindMount(c *check.C) {
 		c.Fatalf("expected resolv.conf be: %q, but was: %q", expected, actual)
 	}
 }
+
+func (s *DockerTrustSuite) TestTrustedRun(c *check.C) {
+	repoName := s.setupTrustedImage(c, "trusted-run")
+
+	// Try run
+	runCmd := exec.Command(dockerBinary, "run", repoName)
+	s.trustedCmd(runCmd)
+	out, _, err := runCommandWithOutput(runCmd)
+	if err != nil {
+		c.Fatalf("Error running trusted run: %s\n%s\n", err, out)
+	}
+
+	if !strings.Contains(string(out), "Tagging") {
+		c.Fatalf("Missing expected output on trusted push:\n%s", out)
+	}
+
+	dockerCmd(c, "rmi", repoName)
+
+	// Try untrusted run to ensure we pushed the tag to the registry
+	runCmd = exec.Command(dockerBinary, "run", "--disable-content-trust=true", repoName)
+	s.trustedCmd(runCmd)
+	out, _, err = runCommandWithOutput(runCmd)
+	if err != nil {
+		c.Fatalf("Error running trusted run: %s\n%s", err, out)
+	}
+
+	if !strings.Contains(string(out), "Status: Downloaded") {
+		c.Fatalf("Missing expected output on trusted run with --disable-content-trust:\n%s", out)
+	}
+}
+
+func (s *DockerTrustSuite) TestUntrustedRun(c *check.C) {
+	repoName := fmt.Sprintf("%v/dockercli/trusted:latest", privateRegistryURL)
+	// tag the image and upload it to the private registry
+	dockerCmd(c, "tag", "busybox", repoName)
+	dockerCmd(c, "push", repoName)
+	dockerCmd(c, "rmi", repoName)
+
+	// Try trusted run on untrusted tag
+	runCmd := exec.Command(dockerBinary, "run", repoName)
+	s.trustedCmd(runCmd)
+	out, _, err := runCommandWithOutput(runCmd)
+	if err == nil {
+		c.Fatalf("Error expected when running trusted run with:\n%s", out)
+	}
+
+	if !strings.Contains(string(out), "no trust data available") {
+		c.Fatalf("Missing expected output on trusted run:\n%s", out)
+	}
+}
+
+func (s *DockerTrustSuite) TestRunWhenCertExpired(c *check.C) {
+	repoName := s.setupTrustedImage(c, "trusted-run-expired")
+
+	// Certificates have 10 years of expiration
+	elevenYearsFromNow := time.Now().Add(time.Hour * 24 * 365 * 11)
+
+	runAtDifferentDate(elevenYearsFromNow, func() {
+		// Try run
+		runCmd := exec.Command(dockerBinary, "run", repoName)
+		s.trustedCmd(runCmd)
+		out, _, err := runCommandWithOutput(runCmd)
+		if err == nil {
+			c.Fatalf("Error running trusted run in the distant future: %s\n%s", err, out)
+		}
+
+		if !strings.Contains(string(out), "could not validate the path to a trusted root") {
+			c.Fatalf("Missing expected output on trusted run in the distant future:\n%s", out)
+		}
+	})
+
+	runAtDifferentDate(elevenYearsFromNow, func() {
+		// Try run
+		runCmd := exec.Command(dockerBinary, "run", "--disable-content-trust", repoName)
+		s.trustedCmd(runCmd)
+		out, _, err := runCommandWithOutput(runCmd)
+		if err != nil {
+			c.Fatalf("Error running untrusted run in the distant future: %s\n%s", err, out)
+		}
+
+		if !strings.Contains(string(out), "Status: Downloaded") {
+			c.Fatalf("Missing expected output on untrusted run in the distant future:\n%s", out)
+		}
+	})
+}
+
+func (s *DockerTrustSuite) TestTrustedRunFromBadTrustServer(c *check.C) {
+	repoName := fmt.Sprintf("%v/dockerclievilrun/trusted:latest", privateRegistryURL)
+	evilLocalConfigDir, err := ioutil.TempDir("", "evil-local-config-dir")
+	if err != nil {
+		c.Fatalf("Failed to create local temp dir")
+	}
+
+	// tag the image and upload it to the private registry
+	dockerCmd(c, "tag", "busybox", repoName)
+
+	pushCmd := exec.Command(dockerBinary, "push", repoName)
+	s.trustedCmd(pushCmd)
+	out, _, err := runCommandWithOutput(pushCmd)
+	if err != nil {
+		c.Fatalf("Error running trusted push: %s\n%s", err, out)
+	}
+	if !strings.Contains(string(out), "Signing and pushing trust metadata") {
+		c.Fatalf("Missing expected output on trusted push:\n%s", out)
+	}
+
+	dockerCmd(c, "rmi", repoName)
+
+	// Try run
+	runCmd := exec.Command(dockerBinary, "run", repoName)
+	s.trustedCmd(runCmd)
+	out, _, err = runCommandWithOutput(runCmd)
+	if err != nil {
+		c.Fatalf("Error running trusted run: %s\n%s", err, out)
+	}
+
+	if !strings.Contains(string(out), "Tagging") {
+		c.Fatalf("Missing expected output on trusted push:\n%s", out)
+	}
+
+	dockerCmd(c, "rmi", repoName)
+
+	// Kill the notary server, start a new "evil" one.
+	s.not.Close()
+	s.not, err = newTestNotary(c)
+	if err != nil {
+		c.Fatalf("Restarting notary server failed.")
+	}
+
+	// In order to make an evil server, lets re-init a client (with a different trust dir) and push new data.
+	// tag an image and upload it to the private registry
+	dockerCmd(c, "--config", evilLocalConfigDir, "tag", "busybox", repoName)
+
+	// Push up to the new server
+	pushCmd = exec.Command(dockerBinary, "--config", evilLocalConfigDir, "push", repoName)
+	s.trustedCmd(pushCmd)
+	out, _, err = runCommandWithOutput(pushCmd)
+	if err != nil {
+		c.Fatalf("Error running trusted push: %s\n%s", err, out)
+	}
+	if !strings.Contains(string(out), "Signing and pushing trust metadata") {
+		c.Fatalf("Missing expected output on trusted push:\n%s", out)
+	}
+
+	// Now, try running with the original client from this new trust server. This should fail.
+	runCmd = exec.Command(dockerBinary, "run", repoName)
+	s.trustedCmd(runCmd)
+	out, _, err = runCommandWithOutput(runCmd)
+	if err == nil {
+		c.Fatalf("Expected to fail on this run due to different remote data: %s\n%s", err, out)
+	}
+
+	if !strings.Contains(string(out), "failed to validate data with current trusted certificates") {
+		c.Fatalf("Missing expected output on trusted push:\n%s", out)
+	}
+}

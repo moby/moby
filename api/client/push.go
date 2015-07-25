@@ -15,6 +15,7 @@ import (
 // Usage: docker push NAME[:TAG]
 func (cli *DockerCli) CmdPush(args ...string) error {
 	cmd := Cli.Subcmd("push", []string{"NAME[:TAG]"}, "Push an image or a repository to a registry", true)
+	addTrustedFlags(cmd, false)
 	cmd.Require(flag.Exact, 1)
 
 	cmd.ParseFlags(args, true)
@@ -38,6 +39,10 @@ func (cli *DockerCli) CmdPush(args ...string) error {
 			username = "<user>"
 		}
 		return fmt.Errorf("You cannot push a \"root\" repository. Please rename your repository to <user>/<repo> (ex: %s/%s)", username, repoInfo.LocalName)
+	}
+
+	if isTrusted() {
+		return cli.trustedPush(repoInfo, tag, authConfig)
 	}
 
 	v := url.Values{}

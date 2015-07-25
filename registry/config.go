@@ -38,8 +38,8 @@ const (
 	IndexServer = DefaultV1Registry + "/v1/"
 	// IndexName is the name of the index
 	IndexName = "docker.io"
-
-	// IndexServer = "https://registry-stage.hub.docker.com/v1/"
+	// NotaryServer is the endpoint serving the Notary trust server
+	NotaryServer = "https://notary.docker.io"
 )
 
 var (

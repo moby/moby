@@ -1,0 +1,30 @@
+language: go
+go:
+  - 1.4
+  - tip
+
+sudo: false
+
+before_install:
+  - go get golang.org/x/tools/cmd/cover
+
+script:
+  - go test -race -cover ./...
+
+notifications:
+  irc:
+    channels:
+      - "chat.freenode.net#flynn"
+    use_notice: true
+    skip_join: true
+    on_success: change
+    on_failure: always
+    template:
+      - "%{repository}/%{branch} - %{commit}: %{message} %{build_url}"
+  email:
+    on_success: never
+    on_failure: always
+
+matrix:
+  allow_failures:
+    - go: tip

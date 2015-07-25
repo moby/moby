@@ -8,6 +8,10 @@ import (
 	"strings"
 	"time"
 
+	"os/exec"
+
+	"io/ioutil"
+
 	"github.com/docker/docker/pkg/nat"
 	"github.com/go-check/check"
 )
@@ -270,4 +274,178 @@ func (s *DockerSuite) TestCreateModeIpcContainer(c *check.C) {
 	id := strings.TrimSpace(out)
 
 	dockerCmd(c, "create", fmt.Sprintf("--ipc=container:%s", id), "busybox")
+}
+
+func (s *DockerTrustSuite) TestTrustedCreate(c *check.C) {
+	repoName := s.setupTrustedImage(c, "trusted-create")
+
+	// Try create
+	createCmd := exec.Command(dockerBinary, "create", repoName)
+	s.trustedCmd(createCmd)
+	out, _, err := runCommandWithOutput(createCmd)
+	if err != nil {
+		c.Fatalf("Error running trusted create: %s\n%s", err, out)
+	}
+
+	if !strings.Contains(string(out), "Tagging") {
+		c.Fatalf("Missing expected output on trusted push:\n%s", out)
+	}
+
+	dockerCmd(c, "rmi", repoName)
+
+	// Try untrusted create to ensure we pushed the tag to the registry
+	createCmd = exec.Command(dockerBinary, "create", "--disable-content-trust=true", repoName)
+	s.trustedCmd(createCmd)
+	out, _, err = runCommandWithOutput(createCmd)
+	if err != nil {
+		c.Fatalf("Error running trusted create: %s\n%s", err, out)
+	}
+
+	if !strings.Contains(string(out), "Status: Downloaded") {
+		c.Fatalf("Missing expected output on trusted create with --disable-content-trust:\n%s", out)
+	}
+}
+
+func (s *DockerTrustSuite) TestUntrustedCreate(c *check.C) {
+	repoName := fmt.Sprintf("%v/dockercli/trusted:latest", privateRegistryURL)
+	// tag the image and upload it to the private registry
+	dockerCmd(c, "tag", "busybox", repoName)
+	dockerCmd(c, "push", repoName)
+	dockerCmd(c, "rmi", repoName)
+
+	// Try trusted create on untrusted tag
+	createCmd := exec.Command(dockerBinary, "create", repoName)
+	s.trustedCmd(createCmd)
+	out, _, err := runCommandWithOutput(createCmd)
+	if err == nil {
+		c.Fatalf("Error expected when running trusted create with:\n%s", out)
+	}
+
+	if !strings.Contains(string(out), "no trust data available") {
+		c.Fatalf("Missing expected output on trusted create:\n%s", out)
+	}
+}
+
+func (s *DockerTrustSuite) TestTrustedIsolatedCreate(c *check.C) {
+	repoName := s.setupTrustedImage(c, "trusted-isolated-create")
+
+	// Try create
+	createCmd := exec.Command(dockerBinary, "--config", "/tmp/docker-isolated-create", "create", repoName)
+	s.trustedCmd(createCmd)
+	out, _, err := runCommandWithOutput(createCmd)
+	if err != nil {
+		c.Fatalf("Error running trusted create: %s\n%s", err, out)
+	}
+
+	if !strings.Contains(string(out), "Tagging") {
+		c.Fatalf("Missing expected output on trusted push:\n%s", out)
+	}
+
+	dockerCmd(c, "rmi", repoName)
+}
+
+func (s *DockerTrustSuite) TestCreateWhenCertExpired(c *check.C) {
+	repoName := s.setupTrustedImage(c, "trusted-create-expired")
+
+	// Certificates have 10 years of expiration
+	elevenYearsFromNow := time.Now().Add(time.Hour * 24 * 365 * 11)
+
+	runAtDifferentDate(elevenYearsFromNow, func() {
+		// Try create
+		createCmd := exec.Command(dockerBinary, "create", repoName)
+		s.trustedCmd(createCmd)
+		out, _, err := runCommandWithOutput(createCmd)
+		if err == nil {
+			c.Fatalf("Error running trusted create in the distant future: %s\n%s", err, out)
+		}
+
+		if !strings.Contains(string(out), "could not validate the path to a trusted root") {
+			c.Fatalf("Missing expected output on trusted create in the distant future:\n%s", out)
+		}
+	})
+
+	runAtDifferentDate(elevenYearsFromNow, func() {
+		// Try create
+		createCmd := exec.Command(dockerBinary, "create", "--disable-content-trust", repoName)
+		s.trustedCmd(createCmd)
+		out, _, err := runCommandWithOutput(createCmd)
+		if err != nil {
+			c.Fatalf("Error running untrusted create in the distant future: %s\n%s", err, out)
+		}
+
+		if !strings.Contains(string(out), "Status: Downloaded") {
+			c.Fatalf("Missing expected output on untrusted create in the distant future:\n%s", out)
+		}
+	})
+}
+
+func (s *DockerTrustSuite) TestTrustedCreateFromBadTrustServer(c *check.C) {
+	repoName := fmt.Sprintf("%v/dockerclievilcreate/trusted:latest", privateRegistryURL)
+	evilLocalConfigDir, err := ioutil.TempDir("", "evil-local-config-dir")
+	if err != nil {
+		c.Fatalf("Failed to create local temp dir")
+	}
+
+	// tag the image and upload it to the private registry
+	dockerCmd(c, "tag", "busybox", repoName)
+
+	pushCmd := exec.Command(dockerBinary, "push", repoName)
+	s.trustedCmd(pushCmd)
+	out, _, err := runCommandWithOutput(pushCmd)
+	if err != nil {
+		c.Fatalf("Error creating trusted push: %s\n%s", err, out)
+	}
+	if !strings.Contains(string(out), "Signing and pushing trust metadata") {
+		c.Fatalf("Missing expected output on trusted push:\n%s", out)
+	}
+
+	dockerCmd(c, "rmi", repoName)
+
+	// Try create
+	createCmd := exec.Command(dockerBinary, "create", repoName)
+	s.trustedCmd(createCmd)
+	out, _, err = runCommandWithOutput(createCmd)
+	if err != nil {
+		c.Fatalf("Error creating trusted create: %s\n%s", err, out)
+	}
+
+	if !strings.Contains(string(out), "Tagging") {
+		c.Fatalf("Missing expected output on trusted push:\n%s", out)
+	}
+
+	dockerCmd(c, "rmi", repoName)
+
+	// Kill the notary server, start a new "evil" one.
+	s.not.Close()
+	s.not, err = newTestNotary(c)
+	if err != nil {
+		c.Fatalf("Restarting notary server failed.")
+	}
+
+	// In order to make an evil server, lets re-init a client (with a different trust dir) and push new data.
+	// tag an image and upload it to the private registry
+	dockerCmd(c, "--config", evilLocalConfigDir, "tag", "busybox", repoName)
+
+	// Push up to the new server
+	pushCmd = exec.Command(dockerBinary, "--config", evilLocalConfigDir, "push", repoName)
+	s.trustedCmd(pushCmd)
+	out, _, err = runCommandWithOutput(pushCmd)
+	if err != nil {
+		c.Fatalf("Error creating trusted push: %s\n%s", err, out)
+	}
+	if !strings.Contains(string(out), "Signing and pushing trust metadata") {
+		c.Fatalf("Missing expected output on trusted push:\n%s", out)
+	}
+
+	// Now, try creating with the original client from this new trust server. This should fail.
+	createCmd = exec.Command(dockerBinary, "create", repoName)
+	s.trustedCmd(createCmd)
+	out, _, err = runCommandWithOutput(createCmd)
+	if err == nil {
+		c.Fatalf("Expected to fail on this create due to different remote data: %s\n%s", err, out)
+	}
+
+	if !strings.Contains(string(out), "failed to validate data with current trusted certificates") {
+		c.Fatalf("Missing expected output on trusted push:\n%s", out)
+	}
 }

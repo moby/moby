@@ -97,15 +97,15 @@ func NewV2Repository(repoInfo *registry.RepositoryInfo, endpoint registry.APIEnd
 	return client.NewRepository(ctx, repoName, endpoint.URL, tr)
 }
 
-func digestFromManifest(m *manifest.SignedManifest, localName string) (digest.Digest, error) {
+func digestFromManifest(m *manifest.SignedManifest, localName string) (digest.Digest, int, error) {
 	payload, err := m.Payload()
 	if err != nil {
 		logrus.Debugf("could not retrieve manifest payload: %v", err)
-		return "", err
+		return "", 0, err
 	}
 	manifestDigest, err := digest.FromBytes(payload)
 	if err != nil {
 		logrus.Infof("Could not compute manifest digest for %s:%s : %v", localName, m.Tag, err)
 	}
-	return manifestDigest, nil
+	return manifestDigest, len(payload), nil
 }

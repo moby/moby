@@ -2,12 +2,9 @@ package registry
 
 import (
 	"crypto/tls"
-	"crypto/x509"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"net/url"
-	"os"
 	"path/filepath"
 	"strings"
 
@@ -110,56 +107,10 @@ func (s *Service) TLSConfig(hostname string) (*tls.Config, error) {
 	tlsConfig.InsecureSkipVerify = !isSecure
 
 	if isSecure {
-		hasFile := func(files []os.FileInfo, name string) bool {
-			for _, f := range files {
-				if f.Name() == name {
-					return true
-				}
-			}
-			return false
-		}
-
 		hostDir := filepath.Join(CertsDir, hostname)
 		logrus.Debugf("hostDir: %s", hostDir)
-		fs, err := ioutil.ReadDir(hostDir)
-		if err != nil && !os.IsNotExist(err) {
+		if err := ReadCertsDirectory(&tlsConfig, hostDir); err != nil {
 			return nil, err
-		}
-
-		for _, f := range fs {
-			if strings.HasSuffix(f.Name(), ".crt") {
-				if tlsConfig.RootCAs == nil {
-					// TODO(dmcgowan): Copy system pool
-					tlsConfig.RootCAs = x509.NewCertPool()
-				}
-				logrus.Debugf("crt: %s", filepath.Join(hostDir, f.Name()))
-				data, err := ioutil.ReadFile(filepath.Join(hostDir, f.Name()))
-				if err != nil {
-					return nil, err
-				}
-				tlsConfig.RootCAs.AppendCertsFromPEM(data)
-			}
-			if strings.HasSuffix(f.Name(), ".cert") {
-				certName := f.Name()
-				keyName := certName[:len(certName)-5] + ".key"
-				logrus.Debugf("cert: %s", filepath.Join(hostDir, f.Name()))
-				if !hasFile(fs, keyName) {
-					return nil, fmt.Errorf("Missing key %s for certificate %s", keyName, certName)
-				}
-				cert, err := tls.LoadX509KeyPair(filepath.Join(hostDir, certName), filepath.Join(hostDir, keyName))
-				if err != nil {
-					return nil, err
-				}
-				tlsConfig.Certificates = append(tlsConfig.Certificates, cert)
-			}
-			if strings.HasSuffix(f.Name(), ".key") {
-				keyName := f.Name()
-				certName := keyName[:len(keyName)-4] + ".cert"
-				logrus.Debugf("key: %s", filepath.Join(hostDir, f.Name()))
-				if !hasFile(fs, certName) {
-					return nil, fmt.Errorf("Missing certificate %s for key %s", certName, keyName)
-				}
-			}
 		}
 	}
 

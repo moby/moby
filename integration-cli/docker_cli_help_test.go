@@ -132,7 +132,7 @@ func (s *DockerSuite) TestHelpTextVerify(c *check.C) {
 			// Check each line for lots of stuff
 			lines := strings.Split(out, "\n")
 			for _, line := range lines {
-				if len(line) > 80 {
+				if len(line) > 90 {
 					c.Fatalf("Help for %q is too long(%d chars):\n%s", cmd,
 						len(line), line)
 				}

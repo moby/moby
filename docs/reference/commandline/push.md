@@ -15,5 +15,7 @@ weight=1
 
     Push an image or a repository to the registry
 
+    --disable-content-trust=true   Skip image signing
+
 Use `docker push` to share your images to the [Docker Hub](https://hub.docker.com)
 registry or to a self-hosted one.
