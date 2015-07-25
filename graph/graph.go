@@ -77,11 +77,12 @@ func (r *retainedLayers) Exists(layerID string) bool {
 
 // A Graph is a store for versioned filesystem images and the relationship between them.
 type Graph struct {
-	root       string
-	idIndex    *truncindex.TruncIndex
-	driver     graphdriver.Driver
-	imageMutex imageMutex // protect images in driver.
-	retained   *retainedLayers
+	root             string
+	idIndex          *truncindex.TruncIndex
+	driver           graphdriver.Driver
+	imageMutex       imageMutex // protect images in driver.
+	retained         *retainedLayers
+	tarSplitDisabled bool
 }
 
 // file names for ./graph/<ID>/
@@ -117,6 +118,12 @@ func NewGraph(root string, driver graphdriver.Driver) (*Graph, error) {
 		driver:   driver,
 		retained: &retainedLayers{layerHolders: make(map[string]map[string]struct{})},
 	}
+
+	// Windows does not currently support tarsplit functionality.
+	if runtime.GOOS == "windows" {
+		graph.tarSplitDisabled = true
+	}
+
 	if err := graph.restore(); err != nil {
 		return nil, err
 	}
@@ -140,12 +147,6 @@ func (graph *Graph) restore() error {
 			ids = append(ids, id)
 		}
 	}
-
-	baseIds, err := graph.restoreBaseImages()
-	if err != nil {
-		return err
-	}
-	ids = append(ids, baseIds...)
 
 	graph.idIndex = truncindex.NewTruncIndex(ids)
 	logrus.Debugf("Restored %d elements", len(ids))
@@ -282,6 +283,13 @@ func (graph *Graph) Register(img *image.Image, layerData archive.Reader) (err er
 		return err
 	}
 	graph.idIndex.Add(img.ID)
+	return nil
+}
+
+func createRootFilesystemInDriver(graph *Graph, img *image.Image, layerData archive.Reader) error {
+	if err := graph.driver.Create(img.ID, img.Parent); err != nil {
+		return fmt.Errorf("Driver %s failed to create image rootfs %s: %s", graph.driver, img.ID, err)
+	}
 	return nil
 }
 
@@ -442,6 +450,16 @@ func (graph *Graph) Heads() map[string]*image.Image {
 	return heads
 }
 
+// TarLayer returns a tar archive of the image's filesystem layer.
+func (graph *Graph) TarLayer(img *image.Image) (arch archive.Archive, err error) {
+	rdr, err := graph.assembleTarLayer(img)
+	if err != nil {
+		logrus.Debugf("[graph] TarLayer with traditional differ: %s", img.ID)
+		return graph.driver.Diff(img.ID, img.Parent)
+	}
+	return rdr, nil
+}
+
 func (graph *Graph) imageRoot(id string) string {
 	return filepath.Join(graph.root, id)
 }
@@ -535,30 +553,64 @@ func jsonPath(root string) string {
 	return filepath.Join(root, jsonFileName)
 }
 
-func (graph *Graph) disassembleAndApplyTarLayer(img *image.Image, layerData archive.Reader, root string) error {
-	// this is saving the tar-split metadata
-	mf, err := os.OpenFile(filepath.Join(root, tarDataFileName), os.O_CREATE|os.O_WRONLY|os.O_TRUNC, os.FileMode(0600))
-	if err != nil {
-		return err
-	}
-	mfz := gzip.NewWriter(mf)
-	metaPacker := storage.NewJSONPacker(mfz)
-	defer mf.Close()
-	defer mfz.Close()
-
-	inflatedLayerData, err := archive.DecompressStream(layerData)
-	if err != nil {
-		return err
+// storeImage stores file system layer data for the given image to the
+// graph's storage driver. Image metadata is stored in a file
+// at the specified root directory.
+func (graph *Graph) storeImage(img *image.Image, layerData archive.Reader, root string) (err error) {
+	// Store the layer. If layerData is not nil, unpack it into the new layer
+	if layerData != nil {
+		if err := graph.disassembleAndApplyTarLayer(img, layerData, root); err != nil {
+			return err
+		}
 	}
 
-	// we're passing nil here for the file putter, because the ApplyDiff will
-	// handle the extraction of the archive
-	rdr, err := asm.NewInputTarStream(inflatedLayerData, metaPacker, nil)
+	if err := graph.saveSize(root, img.Size); err != nil {
+		return err
+	}
+
+	f, err := os.OpenFile(jsonPath(root), os.O_CREATE|os.O_WRONLY|os.O_TRUNC, os.FileMode(0600))
 	if err != nil {
 		return err
 	}
 
-	if img.Size, err = graph.driver.ApplyDiff(img.ID, img.Parent, archive.Reader(rdr)); err != nil {
+	defer f.Close()
+
+	return json.NewEncoder(f).Encode(img)
+}
+
+func (graph *Graph) disassembleAndApplyTarLayer(img *image.Image, layerData archive.Reader, root string) (err error) {
+	var ar archive.Reader
+
+	if graph.tarSplitDisabled {
+		ar = layerData
+	} else {
+		// this is saving the tar-split metadata
+		mf, err := os.OpenFile(filepath.Join(root, tarDataFileName), os.O_CREATE|os.O_WRONLY|os.O_TRUNC, os.FileMode(0600))
+		if err != nil {
+			return err
+		}
+
+		mfz := gzip.NewWriter(mf)
+		metaPacker := storage.NewJSONPacker(mfz)
+		defer mf.Close()
+		defer mfz.Close()
+
+		inflatedLayerData, err := archive.DecompressStream(layerData)
+		if err != nil {
+			return err
+		}
+
+		// we're passing nil here for the file putter, because the ApplyDiff will
+		// handle the extraction of the archive
+		rdr, err := asm.NewInputTarStream(inflatedLayerData, metaPacker, nil)
+		if err != nil {
+			return err
+		}
+
+		ar = archive.Reader(rdr)
+	}
+
+	if img.Size, err = graph.driver.ApplyDiff(img.ID, img.Parent, ar); err != nil {
 		return err
 	}
 

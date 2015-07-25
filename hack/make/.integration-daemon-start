@@ -55,8 +55,8 @@ else
 	export DOCKER_HOST="$DOCKER_TEST_HOST"
 fi
 
-# give it a second to come up so it's "ready"
-tries=10
+# give it a little time to come up so it's "ready"
+tries=30
 while ! docker version &> /dev/null; do
 	(( tries-- ))
 	if [ $tries -le 0 ]; then

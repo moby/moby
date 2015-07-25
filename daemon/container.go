@@ -227,6 +227,21 @@ func (container *Container) GetRootResourcePath(path string) (string, error) {
 	return symlink.FollowSymlinkInScope(filepath.Join(container.root, cleanPath), container.root)
 }
 
+func (container *Container) ExportRw() (archive.Archive, error) {
+	if container.daemon == nil {
+		return nil, fmt.Errorf("Can't load storage driver for unregistered container %s", container.ID)
+	}
+	archive, err := container.daemon.Diff(container)
+	if err != nil {
+		return nil, err
+	}
+	return ioutils.NewReadCloserWrapper(archive, func() error {
+			err := archive.Close()
+			return err
+		}),
+		nil
+}
+
 func (container *Container) Start() (err error) {
 	container.Lock()
 	defer container.Unlock()
@@ -255,12 +270,6 @@ func (container *Container) Start() (err error) {
 	}()
 
 	if err := container.Mount(); err != nil {
-		return err
-	}
-
-	// No-op if non-Windows. Once the container filesystem is mounted,
-	// prepare the layer to boot using the Windows driver.
-	if err := container.PrepareStorage(); err != nil {
 		return err
 	}
 
@@ -344,10 +353,6 @@ func (container *Container) isNetworkAllocated() bool {
 // around how containers are linked together.  It also unmounts the container's root filesystem.
 func (container *Container) cleanup() {
 	container.ReleaseNetwork()
-
-	if err := container.CleanupStorage(); err != nil {
-		logrus.Errorf("%v: Failed to cleanup storage: %v", container.ID, err)
-	}
 
 	if err := container.Unmount(); err != nil {
 		logrus.Errorf("%v: Failed to umount filesystem: %v", container.ID, err)
@@ -658,14 +663,8 @@ func (container *Container) Copy(resource string) (rc io.ReadCloser, err error) 
 		return nil, err
 	}
 
-	if err := container.PrepareStorage(); err != nil {
-		container.Unmount()
-		return nil, err
-	}
-
 	reader := ioutils.NewReadCloserWrapper(archive, func() error {
 		err := archive.Close()
-		container.CleanupStorage()
 		container.UnmountVolumes(true)
 		container.Unmount()
 		container.Unlock()
