@@ -154,6 +154,14 @@ do_install() {
 	fi
 
 	lsb_dist="$(echo "$lsb_dist" | tr '[:upper:]' '[:lower:]')"
+
+	# treat Linux Mint as Ubuntu
+	if [ "$lsb_dist" = 'linuxmint' ]; then
+		lsb_dist='ubuntu'
+		. /etc/upstream-release/lsb-release
+		dist_version=$DISTRIB_CODENAME
+	fi
+
 	case "$lsb_dist" in
 		amzn)
 			(
