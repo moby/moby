@@ -1034,10 +1034,9 @@ func (s *DockerSuite) TestRunDnsOptionsBasedOnHostResolvConf(c *check.C) {
 // Test to see if a non-root user can resolve a DNS name and reach out to it. Also
 // check if the container resolv.conf file has atleast 0644 perm.
 func (s *DockerSuite) TestRunNonRootUserResolvName(c *check.C) {
-	testRequires(c, SameHostDaemon, NativeExecDriver)
-	testRequires(c, Network)
+	testRequires(c, SameHostDaemon, Network)
 
-	dockerCmd(c, "run", "--name=testperm", "--user=default", "busybox", "ping", "-c", "1", "www.docker.io")
+	dockerCmd(c, "run", "--name=testperm", "--user=default", "busybox", "ping", "-c", "1", "apt.dockerproject.org")
 
 	cID, err := getIDByName("testperm")
 	if err != nil {
