@@ -51,6 +51,18 @@ echo_docker_as_nonroot() {
 	EOF
 }
 
+# Check if it's a forked Linux distro
+check_alt() {
+    if [ "$lsb_dist" = "$1" ] && [ "$dist_version" = "$2" ]; then
+		cat <<-EOF
+		## You seem to be using $1 version $2.
+		## This maps to $3 "$4"... Adjusting for you...
+		EOF
+        lsb_dist="$3"
+        dist_version="$4"
+    fi
+}
+
 do_install() {
 	case "$(uname -m)" in
 		*64)
@@ -154,6 +166,13 @@ do_install() {
 	fi
 
 	lsb_dist="$(echo "$lsb_dist" | tr '[:upper:]' '[:lower:]')"
+
+	# Map forked Linux distros to its corresponding base repositories
+	check_alt "elementary os" "jupiter"	"ubuntu" "maverick"
+	check_alt "elementary os" "luna"	"ubuntu" "precise"
+	check_alt "elementary os" "freya"	"ubuntu" "trusty"
+
+	# Run setup for each distro accordingly
 	case "$lsb_dist" in
 		amzn)
 			(
