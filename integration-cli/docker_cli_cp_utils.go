@@ -157,7 +157,7 @@ func makeTestContainer(c *check.C, options testContainerOptions) (containerID st
 		if status != 0 {
 			logs = "UNABLE TO GET LOGS"
 		}
-		c.Fatalf("failed to make test container, exit code (%d): %s", exitCode, logs)
+		c.Fatalf("failed to make test container, exit code (%s): %s", exitCode, logs)
 	}
 
 	return
