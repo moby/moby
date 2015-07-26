@@ -83,3 +83,26 @@ and volumes run the following command:
     $ rm -rf /var/lib/docker
 
 You must delete the user created configuration files manually.
+
+## Issues
+
+### systemd-network
+
+Users of systemd-network >= v220 who have configured their network manually by
+creating an `<interface>.network` file in `/etc/systemd/network/` may have to add
+the following line to make sure IP Forwarding is not disabled:
+
+```
+[Network]
+...
+IPForward=kernel
+...
+```
+
+From systemd-network v220 onwards, the forwarding setting for a given network
+defaults to *off* (instead of not being set). This prevents IP Forwarding to
+happen, since docker only enables `net.ipv4.conf.all.forwarding` (which is
+overriden by `net.ipv4.conf.<interface>.forwarding` being disabled)
+
+Adding `IPForward=kernel` to the `<interface>.network` file prevents this
+behavior, allowing IP Forwarding to function as expected.
