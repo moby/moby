@@ -242,68 +242,6 @@ release_build() {
 	upload_release_build "$tgzDir/$tgz" "$s3Dir/$tgz" "$latestTgz"
 }
 
-# Upload the 'ubuntu' bundle to S3:
-# 1. A full APT repository is published at $BUCKET/ubuntu/
-# 2. Instructions for using the APT repository are uploaded at $BUCKET/ubuntu/index
-release_ubuntu() {
-	[ -e "bundles/$VERSION/ubuntu" ] || {
-		echo >&2 './hack/make.sh must be run before release_ubuntu'
-		exit 1
-	}
-
-	local debfiles=( "bundles/$VERSION/ubuntu/"*.deb )
-
-	# Sign our packages
-	dpkg-sig -g "--passphrase $GPG_PASSPHRASE" -k releasedocker --sign builder "${debfiles[@]}"
-
-	# Setup the APT repo
-	APTDIR=bundles/$VERSION/ubuntu/apt
-	mkdir -p "$APTDIR/conf" "$APTDIR/db"
-	s3cmd sync "s3://$BUCKET/ubuntu/db/" "$APTDIR/db/" || true
-	cat > "$APTDIR/conf/distributions" <<EOF
-Codename: docker
-Components: main
-Architectures: amd64 i386
-EOF
-
-	# Add the DEB package to the APT repo
-	reprepro -b "$APTDIR" includedeb docker "${debfiles[@]}"
-
-	# Sign
-	for F in $(find $APTDIR -name Release); do
-		gpg -u releasedocker --passphrase "$GPG_PASSPHRASE" \
-			--armor --sign --detach-sign \
-			--output "$F.gpg" "$F"
-	done
-
-	# Upload keys
-	s3cmd sync "$HOME/.gnupg/" "s3://$BUCKET/ubuntu/.gnupg/"
-	gpg --armor --export releasedocker > "bundles/$VERSION/ubuntu/gpg"
-	s3cmd --acl-public put "bundles/$VERSION/ubuntu/gpg" "s3://$BUCKET/gpg"
-
-	local gpgFingerprint=36A1D7869245C8950F966E92D8576A8BA88D21E9
-	local s3Headers=
-	if [[ $BUCKET == test* ]]; then
-		gpgFingerprint=740B314AE3941731B942C66ADF4FD13717AAD7D6
-	elif [[ $BUCKET == experimental* ]]; then
-		gpgFingerprint=E33FF7BF5C91D50A6F91FFFD4CC38D40F9A96B49
-		s3Headers='--add-header=Cache-Control:no-cache'
-	fi
-
-	# Upload repo
-	s3cmd --acl-public "$s3Headers" sync "$APTDIR/" "s3://$BUCKET/ubuntu/"
-	cat <<EOF | write_to_s3 s3://$BUCKET/ubuntu/index
-echo "# WARNING! This script is deprecated. Please use the script"
-echo "# at https://get.docker.com/"
-EOF
-
-	# Add redirect at /ubuntu/info for URL-backwards-compatibility
-	rm -rf /tmp/emptyfile && touch /tmp/emptyfile
-	s3cmd --acl-public --add-header='x-amz-website-redirect-location:/ubuntu/' --mime-type='text/plain' put /tmp/emptyfile "s3://$BUCKET/ubuntu/info"
-
-	echo "APT repository uploaded. Instructions available at $(s3_url)/ubuntu"
-}
-
 # Upload binaries and tgz files to S3
 release_binaries() {
 	[ -e "bundles/$VERSION/cross/linux/amd64/docker-$VERSION" ] || {
@@ -370,7 +308,6 @@ main() {
 	setup_s3
 	setup_gpg
 	release_binaries
-	release_ubuntu
 	release_index
 	release_test
 }
