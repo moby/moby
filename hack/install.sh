@@ -51,6 +51,19 @@ echo_docker_as_nonroot() {
 	EOF
 }
 
+get_debian_dist_version() {
+	dist_version=''
+	case "$@" in
+		8)
+			dist_version="jessie"
+			;;
+		7)
+			dist_version="wheezy"
+			;;
+	esac
+	echo "$dist_version"
+}
+
 do_install() {
 	case "$(uname -m)" in
 		*64)
@@ -124,19 +137,32 @@ do_install() {
 	if [ -z "$lsb_dist" ] && [ -r /etc/lsb-release ]; then
 		lsb_dist="$(. /etc/lsb-release && echo "$DISTRIB_ID")"
 		dist_version="$(. /etc/lsb-release && echo "$DISTRIB_CODENAME")"
+		if [ -z "$dist_version" ]; then
+			dist_version="$(. /etc/lsb-release && echo "$DISTRIB_RELEASE")"
+			case "$lsb_dist" in
+				"Debian")
+					dist_version="$(get_debian_dist_version "$dist_version")"
+					;;
+				"Ubuntu")
+					case "$dist_version" in
+						"15.04")
+							dist_version="vivid"
+							;;
+						"14.04")
+							dist_version="trusty"
+							;;
+						"12.04")
+							dist_version="precise"
+							;;
+					esac
+					;;
+			esac
+		fi
 	fi
 	if [ -z "$lsb_dist" ] && [ -r /etc/debian_version ]; then
 		lsb_dist='debian'
 		dist_version="$(cat /etc/debian_version | sed 's/\/.*//' | sed 's/\..*//')"
-		case "$dist_version" in
-			8)
-				dist_version="jessie"
-				;;
-
-			7)
-				dist_version="wheezy"
-				;;
-		esac
+		dist_version="$(get_debian_dist_version "$dist_version")"
 	fi
 	if [ -z "$lsb_dist" ] && [ -r /etc/fedora-release ]; then
 		lsb_dist='fedora'
