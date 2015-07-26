@@ -94,13 +94,13 @@ with several powerful functionalities:
  ../terms/image/#base-image-def) to create more specialized components. This can
  be done manually or as part of an automated build. For example you can prepare
  the ideal Python environment, and use it as a base for 10 different
- applications. Your ideal Postgresql setup can be re-used for all your future
+ applications. Your ideal PostgreSQL setup can be re-used for all your future
  projects. And so on.
 
  - *Sharing.* Docker has access to a [public registry](https://hub.docker.com)
  where thousands of people have uploaded useful containers: anything from Redis,
- CouchDB, Postgres to IRC bouncers to Rails app servers to Hadoop to base images
- for various Linux distros. The
+ CouchDB, PostgreSQL to IRC bouncers to Rails app servers to Hadoop to base 
+ images for various Linux distros. The
  [*registry*](../reference/api/registry_index_spec/#registryindexspec) also
  includes an official "standard library" of useful containers maintained by the
  Docker team. The registry itself is open-source, so anyone can deploy their own
