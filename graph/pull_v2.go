@@ -72,18 +72,6 @@ func (p *v2Puller) pullV2Repository(tag string) (err error) {
 
 	}
 
-	c, err := p.poolAdd("pull", taggedName)
-	if err != nil {
-		if c != nil {
-			// Another pull of the same repository is already taking place; just wait for it to finish
-			p.sf.FormatStatus("", "Repository %s already being pulled by another client. Waiting.", p.repoInfo.CanonicalName)
-			<-c
-			return nil
-		}
-		return err
-	}
-	defer p.poolRemove("pull", taggedName)
-
 	var layersDownloaded bool
 	for _, tag := range tags {
 		// pulledNew is true if either new layers were downloaded OR if existing images were newly tagged
