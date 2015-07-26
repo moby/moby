@@ -106,7 +106,7 @@ directives, see the [**Formatting** section in the `docker ps` documentation](..
 Following is a sample `config.json` file:
 
     {
-      "HttpHeaders: {
+      "HttpHeaders": {
         "MyHeader": "MyValue"
       },
       "psFormat": "table {{.ID}}\\t{{.Image}}\\t{{.Command}}\\t{{.Labels}}"
