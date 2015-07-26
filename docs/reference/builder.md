@@ -224,7 +224,7 @@ example:
     */temp*
     */*/temp*
     temp?
-    !LICENCSE.md
+    !LICENSE.md
     *.md
 ```
 
