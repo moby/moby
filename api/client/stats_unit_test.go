@@ -15,6 +15,8 @@ func TestDisplay(t *testing.T) {
 		MemoryPercentage: 100.0 / 2048.0 * 100.0,
 		NetworkRx:        100 * 1024 * 1024,
 		NetworkTx:        800 * 1024 * 1024,
+		BlockRead:        100 * 1024 * 1024,
+		BlockWrite:       800 * 1024 * 1024,
 		mu:               sync.RWMutex{},
 	}
 	var b bytes.Buffer
@@ -22,7 +24,7 @@ func TestDisplay(t *testing.T) {
 		t.Fatalf("c.Display() gave error: %s", err)
 	}
 	got := b.String()
-	want := "app\t30.00%\t104.9 MB / 2.147 GB\t4.88%\t104.9 MB / 838.9 MB\n"
+	want := "app\t30.00%\t104.9 MB / 2.147 GB\t4.88%\t104.9 MB / 838.9 MB\t104.9 MB / 838.9 MB\n"
 	if got != want {
 		t.Fatalf("c.Display() = %q, want %q", got, want)
 	}

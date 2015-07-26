@@ -25,6 +25,8 @@ type containerStats struct {
 	MemoryPercentage float64
 	NetworkRx        float64
 	NetworkTx        float64
+	BlockRead        float64
+	BlockWrite       float64
 	mu               sync.RWMutex
 	err              error
 }
@@ -66,6 +68,7 @@ func (s *containerStats) Collect(cli *DockerCli, streamStats bool) {
 			previousCPU = v.PreCpuStats.CpuUsage.TotalUsage
 			previousSystem = v.PreCpuStats.SystemUsage
 			cpuPercent = calculateCPUPercent(previousCPU, previousSystem, v)
+			blkRead, blkWrite := calculateBlockIO(v.BlkioStats)
 			s.mu.Lock()
 			s.CPUPercentage = cpuPercent
 			s.Memory = float64(v.MemoryStats.Usage)
@@ -73,6 +76,8 @@ func (s *containerStats) Collect(cli *DockerCli, streamStats bool) {
 			s.MemoryPercentage = memPercent
 			s.NetworkRx = float64(v.Network.RxBytes)
 			s.NetworkTx = float64(v.Network.TxBytes)
+			s.BlockRead = float64(blkRead)
+			s.BlockWrite = float64(blkWrite)
 			s.mu.Unlock()
 			u <- nil
 			if !streamStats {
@@ -110,12 +115,13 @@ func (s *containerStats) Display(w io.Writer) error {
 	if s.err != nil {
 		return s.err
 	}
-	fmt.Fprintf(w, "%s\t%.2f%%\t%s / %s\t%.2f%%\t%s / %s\n",
+	fmt.Fprintf(w, "%s\t%.2f%%\t%s / %s\t%.2f%%\t%s / %s\t%s / %s\n",
 		s.Name,
 		s.CPUPercentage,
 		units.HumanSize(s.Memory), units.HumanSize(s.MemoryLimit),
 		s.MemoryPercentage,
-		units.HumanSize(s.NetworkRx), units.HumanSize(s.NetworkTx))
+		units.HumanSize(s.NetworkRx), units.HumanSize(s.NetworkTx),
+		units.HumanSize(s.BlockRead), units.HumanSize(s.BlockWrite))
 	return nil
 }
 
@@ -142,7 +148,7 @@ func (cli *DockerCli) CmdStats(args ...string) error {
 			fmt.Fprint(cli.out, "\033[2J")
 			fmt.Fprint(cli.out, "\033[H")
 		}
-		io.WriteString(w, "CONTAINER\tCPU %\tMEM USAGE / LIMIT\tMEM %\tNET I/O\n")
+		io.WriteString(w, "CONTAINER\tCPU %\tMEM USAGE / LIMIT\tMEM %\tNET I/O\tBLOCK I/O\n")
 	}
 	for _, n := range names {
 		s := &containerStats{Name: n}
@@ -199,4 +205,16 @@ func calculateCPUPercent(previousCPU, previousSystem uint64, v *types.Stats) flo
 		cpuPercent = (cpuDelta / systemDelta) * float64(len(v.CpuStats.CpuUsage.PercpuUsage)) * 100.0
 	}
 	return cpuPercent
+}
+
+func calculateBlockIO(blkio types.BlkioStats) (blkRead uint64, blkWrite uint64) {
+	for _, bioEntry := range blkio.IoServiceBytesRecursive {
+		switch strings.ToLower(bioEntry.Op) {
+		case "read":
+			blkRead = bioEntry.Value
+		case "write":
+			blkWrite = bioEntry.Value
+		}
+	}
+	return
 }
