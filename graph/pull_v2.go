@@ -269,21 +269,32 @@ func (p *v2Puller) pullV2Tag(tag, taggedName string) (verified bool, err error) 
 		go p.download(&downloads[i])
 	}
 
+	// Register the images serially. We must wait for all downloads to complete if one fails,
+	// in order to cleanup the others.
+	var firstErr error
 	var tagUpdated bool
 	for i := len(downloads) - 1; i >= 0; i-- {
-		d := &downloads[i]
-		if d.err != nil {
-			if err := <-d.err; err != nil {
-				return false, err
-			}
-		}
-		if d.layer != nil {
-			// if tmpFile is empty assume download and extracted elsewhere
-			defer os.Remove(d.tmpFile.Name())
-			defer d.tmpFile.Close()
-			d.tmpFile.Seek(0, 0)
-			if d.tmpFile != nil {
+		registerFunc := func(d *downloadInfo, pullAborted bool) error {
+			// Cleanup is guaranteed to be invoked only after the download routine exits.
+			defer func() {
+				if d.tmpFile != nil {
+					d.tmpFile.Close()
+					os.Remove(d.tmpFile.Name())
+				}
+			}()
 
+			if d.err != nil {
+				if err := <-d.err; err != nil {
+					return err
+				}
+			}
+
+			if pullAborted {
+				return nil
+			}
+
+			if d.tmpFile != nil {
+				d.tmpFile.Seek(0, 0)
 				reader := progressreader.New(progressreader.Config{
 					In:        d.tmpFile,
 					Out:       out,
@@ -296,20 +307,29 @@ func (p *v2Puller) pullV2Tag(tag, taggedName string) (verified bool, err error) 
 
 				err = p.graph.Register(d.img, reader)
 				if err != nil {
-					return false, err
+					return err
 				}
 
 				if err := p.graph.SetDigest(d.img.ID, d.digest); err != nil {
-					return false, err
+					return err
 				}
 
+				out.Write(p.sf.FormatProgress(stringid.TruncateID(d.img.ID), "Pull complete", nil))
+				tagUpdated = true
 				// FIXME: Pool release here for parallel tag pull (ensures any downloads block until fully extracted)
+			} else {
+				out.Write(p.sf.FormatProgress(stringid.TruncateID(d.img.ID), "Already exists", nil))
 			}
-			out.Write(p.sf.FormatProgress(stringid.TruncateID(d.img.ID), "Pull complete", nil))
-			tagUpdated = true
-		} else {
-			out.Write(p.sf.FormatProgress(stringid.TruncateID(d.img.ID), "Already exists", nil))
+			return nil
 		}
+		err := registerFunc(&downloads[i], firstErr != nil)
+		if firstErr != nil {
+			firstErr = err
+		}
+	}
+
+	if firstErr != nil {
+		return false, firstErr
 	}
 
 	manifestDigest, _, err := digestFromManifest(manifest, p.repoInfo.LocalName)
