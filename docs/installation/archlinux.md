@@ -66,27 +66,7 @@ If you need to add an HTTP Proxy, set a different directory or partition for the
 Docker runtime files, or make other customizations, read our systemd article to
 learn how to [customize your systemd Docker daemon options](/articles/systemd/).
 
-## Uninstallation
-
-To uninstall the Docker package:
-
-    $ sudo pacman -R docker
-
-To uninstall the Docker package and dependencies that are no longer needed:
-
-    $ sudo pacman -Rns docker
-
-The above commands will not remove images, containers, volumes, or user created
-configuration files on your host. If you wish to delete all images, containers,
-and volumes run the following command:
-
-    $ rm -rf /var/lib/docker
-
-You must delete the user created configuration files manually.
-
-## Issues
-
-### systemd-network
+## Running docker with a manually defined network
 
 Users of systemd-network >= v220 who have configured their network manually by
 creating an `<interface>.network` file in `/etc/systemd/network/` may have to add
@@ -106,3 +86,21 @@ overriden by `net.ipv4.conf.<interface>.forwarding` being disabled)
 
 Adding `IPForward=kernel` to the `<interface>.network` file prevents this
 behavior, allowing IP Forwarding to function as expected.
+
+## Uninstallation
+
+To uninstall the Docker package:
+
+    $ sudo pacman -R docker
+
+To uninstall the Docker package and dependencies that are no longer needed:
+
+    $ sudo pacman -Rns docker
+
+The above commands will not remove images, containers, volumes, or user created
+configuration files on your host. If you wish to delete all images, containers,
+and volumes run the following command:
+
+    $ rm -rf /var/lib/docker
+
+You must delete the user created configuration files manually.
