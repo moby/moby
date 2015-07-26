@@ -86,7 +86,7 @@ type ImageInspect struct {
 	Id              string
 	Parent          string
 	Comment         string
-	Created         time.Time
+	Created         string
 	Container       string
 	ContainerConfig *runconfig.Config
 	DockerVersion   string
@@ -215,14 +215,14 @@ type ContainerState struct {
 	Pid        int
 	ExitCode   int
 	Error      string
-	StartedAt  time.Time
-	FinishedAt time.Time
+	StartedAt  string
+	FinishedAt string
 }
 
 // GET "/containers/{name:.*}/json"
 type ContainerJSONBase struct {
 	Id              string
-	Created         time.Time
+	Created         string
 	Path            string
 	Args            []string
 	State           *ContainerState

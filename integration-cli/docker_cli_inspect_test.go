@@ -5,6 +5,7 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/docker/docker/api/types"
 	"github.com/go-check/check"
@@ -259,4 +260,29 @@ func (s *DockerSuite) TestInspectBindMountPoint(c *check.C) {
 	if m.RW != false {
 		c.Fatalf("Expected rw to be false")
 	}
+}
+
+// #14947
+func (s *DockerSuite) TestInspectTimesAsRFC3339Nano(c *check.C) {
+	out, _ := dockerCmd(c, "run", "-d", "busybox", "true")
+	id := strings.TrimSpace(out)
+	startedAt, err := inspectField(id, "State.StartedAt")
+	c.Assert(err, check.IsNil)
+	finishedAt, err := inspectField(id, "State.FinishedAt")
+	c.Assert(err, check.IsNil)
+	created, err := inspectField(id, "Created")
+	c.Assert(err, check.IsNil)
+
+	_, err = time.Parse(time.RFC3339Nano, startedAt)
+	c.Assert(err, check.IsNil)
+	_, err = time.Parse(time.RFC3339Nano, finishedAt)
+	c.Assert(err, check.IsNil)
+	_, err = time.Parse(time.RFC3339Nano, created)
+	c.Assert(err, check.IsNil)
+
+	created, err = inspectField("busybox", "Created")
+	c.Assert(err, check.IsNil)
+
+	_, err = time.Parse(time.RFC3339Nano, created)
+	c.Assert(err, check.IsNil)
 }
