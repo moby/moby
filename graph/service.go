@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"runtime"
+	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types"
@@ -34,7 +35,7 @@ func (s *TagStore) Lookup(name string) (*types.ImageInspect, error) {
 		Id:              image.ID,
 		Parent:          image.Parent,
 		Comment:         image.Comment,
-		Created:         image.Created,
+		Created:         image.Created.Format(time.RFC3339Nano),
 		Container:       image.Container,
 		ContainerConfig: &image.ContainerConfig,
 		DockerVersion:   image.DockerVersion,

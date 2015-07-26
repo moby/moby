@@ -2,6 +2,7 @@ package daemon
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/docker/docker/api/types"
 )
@@ -91,13 +92,13 @@ func (daemon *Daemon) getInspectData(container *Container) (*types.ContainerJSON
 		Pid:        container.State.Pid,
 		ExitCode:   container.State.ExitCode,
 		Error:      container.State.Error,
-		StartedAt:  container.State.StartedAt,
-		FinishedAt: container.State.FinishedAt,
+		StartedAt:  container.State.StartedAt.Format(time.RFC3339Nano),
+		FinishedAt: container.State.FinishedAt.Format(time.RFC3339Nano),
 	}
 
 	contJSONBase := &types.ContainerJSONBase{
 		Id:              container.ID,
-		Created:         container.Created,
+		Created:         container.Created.Format(time.RFC3339Nano),
 		Path:            container.Path,
 		Args:            container.Args,
 		State:           containerState,
