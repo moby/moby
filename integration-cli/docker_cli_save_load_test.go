@@ -95,16 +95,29 @@ func (s *DockerSuite) TestSaveSingleTag(c *check.C) {
 }
 
 func (s *DockerSuite) TestSaveImageId(c *check.C) {
+	name := "test-save-with-id"
+	dockerCmd(c, "run", "--name", name, "busybox", "true")
+
+	repoName := "test-save-with-id-repo"
+	out, _ := dockerCmd(c, "commit", name, repoName)
+
+	cleanedShortImageID := strings.TrimSpace(out)
+	saveCmd := exec.Command(dockerBinary, "save", cleanedShortImageID)
+	if out, _, err := runCommandWithOutput(saveCmd); err != nil {
+		if !strings.Contains(out, "Error response from daemon: docker save by image id") {
+			c.Fatalf("failed to save repo: output: %v: error: %v", out, err)
+		}
+	}
+}
+
+func (s *DockerSuite) TestSaveImageName(c *check.C) {
 	repoName := "foobar-save-image-id-test"
 	dockerCmd(c, "tag", "emptyfs:latest", fmt.Sprintf("%v:latest", repoName))
 
 	out, _ := dockerCmd(c, "images", "-q", "--no-trunc", repoName)
 	cleanedLongImageID := strings.TrimSpace(out)
 
-	out, _ = dockerCmd(c, "images", "-q", repoName)
-	cleanedShortImageID := strings.TrimSpace(out)
-
-	saveCmd := exec.Command(dockerBinary, "save", cleanedShortImageID)
+	saveCmd := exec.Command(dockerBinary, "save", repoName)
 	tarCmd := exec.Command("tar", "t")
 
 	var err error
@@ -130,7 +143,7 @@ func (s *DockerSuite) TestSaveImageId(c *check.C) {
 	out, _, err = runCommandWithOutput(grepCmd)
 
 	if err != nil {
-		c.Fatalf("failed to save repo with image ID: %s, %v", out, err)
+		c.Fatalf("failed to save repo with image name: %s, %v", out, err)
 	}
 }
 
