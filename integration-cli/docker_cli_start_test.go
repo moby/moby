@@ -14,7 +14,7 @@ func (s *DockerSuite) TestStartAttachReturnsOnError(c *check.C) {
 	dockerCmd(c, "wait", "test")
 
 	// Expect this to fail because the above container is stopped, this is what we want
-	if _, _, err := dockerCmdWithError(c, "run", "-d", "--name", "test2", "--link", "test:test", "busybox"); err == nil {
+	if _, _, err := dockerCmdWithError("run", "-d", "--name", "test2", "--link", "test:test", "busybox"); err == nil {
 		c.Fatal("Expected error but got none")
 	}
 
@@ -22,7 +22,7 @@ func (s *DockerSuite) TestStartAttachReturnsOnError(c *check.C) {
 	go func() {
 		// Attempt to start attached to the container that won't start
 		// This should return an error immediately since the container can't be started
-		if _, _, err := dockerCmdWithError(c, "start", "-a", "test2"); err == nil {
+		if _, _, err := dockerCmdWithError("start", "-a", "test2"); err == nil {
 			ch <- fmt.Errorf("Expected error but got none")
 		}
 		close(ch)
@@ -44,7 +44,7 @@ func (s *DockerSuite) TestStartAttachCorrectExitCode(c *check.C) {
 	// make sure the container has exited before trying the "start -a"
 	dockerCmd(c, "wait", out)
 
-	startOut, exitCode, err := dockerCmdWithError(c, "start", "-a", out)
+	startOut, exitCode, err := dockerCmdWithError("start", "-a", out)
 	if err != nil && !strings.Contains("exit status 1", fmt.Sprintf("%s", err)) {
 		c.Fatalf("start command failed unexpectedly with error: %v, output: %q", err, startOut)
 	}
@@ -78,7 +78,7 @@ func (s *DockerSuite) TestStartRecordError(c *check.C) {
 	}
 
 	// Expect this to fail and records error because of ports conflict
-	out, _, err := dockerCmdWithError(c, "run", "-d", "--name", "test2", "-p", "9999:9999", "busybox", "top")
+	out, _, err := dockerCmdWithError("run", "-d", "--name", "test2", "-p", "9999:9999", "busybox", "top")
 	if err == nil {
 		c.Fatalf("Expected error but got none, output %q", out)
 	}
@@ -107,7 +107,7 @@ func (s *DockerSuite) TestStartPausedContainer(c *check.C) {
 
 	dockerCmd(c, "pause", "testing")
 
-	if out, _, err := dockerCmdWithError(c, "start", "testing"); err == nil || !strings.Contains(out, "Cannot start a paused container, try unpause instead.") {
+	if out, _, err := dockerCmdWithError("start", "testing"); err == nil || !strings.Contains(out, "Cannot start a paused container, try unpause instead.") {
 		c.Fatalf("an error should have been shown that you cannot start paused container: %s\n%v", out, err)
 	}
 }
@@ -131,7 +131,7 @@ func (s *DockerSuite) TestStartMultipleContainers(c *check.C) {
 
 	// start all the three containers, container `child_first` start first which should be failed
 	// container 'parent' start second and then start container 'child_second'
-	out, _, err = dockerCmdWithError(c, "start", "child_first", "parent", "child_second")
+	out, _, err = dockerCmdWithError("start", "child_first", "parent", "child_second")
 	if !strings.Contains(out, "Cannot start container child_first") || err == nil {
 		c.Fatal("Expected error but got none")
 	}
@@ -159,7 +159,7 @@ func (s *DockerSuite) TestStartAttachMultipleContainers(c *check.C) {
 
 	// test start and attach multiple containers at once, expected error
 	for _, option := range []string{"-a", "-i", "-ai"} {
-		out, _, err := dockerCmdWithError(c, "start", option, "test1", "test2", "test3")
+		out, _, err := dockerCmdWithError("start", option, "test1", "test2", "test3")
 		if !strings.Contains(out, "You cannot start and attach multiple containers at once.") || err == nil {
 			c.Fatal("Expected error but got none")
 		}

@@ -329,7 +329,7 @@ func (s *DockerSuite) TestGetContainerStatsRmRunning(c *check.C) {
 	c.Assert(err, check.IsNil)
 
 	// Now remove without `-f` and make sure we are still pulling stats
-	_, _, err = dockerCmdWithError(c, "rm", id)
+	_, _, err = dockerCmdWithError("rm", id)
 	c.Assert(err, check.Not(check.IsNil), check.Commentf("rm should have failed but didn't"))
 	_, err = buf.ReadTimeout(b, 2*time.Second)
 	c.Assert(err, check.IsNil)

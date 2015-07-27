@@ -34,7 +34,7 @@ func (s *DockerRegistrySuite) TestPullImageWithAliases(c *check.C) {
 	dockerCmd(c, "pull", repos[0])
 	dockerCmd(c, "inspect", repos[0])
 	for _, repo := range repos[1:] {
-		if _, _, err := dockerCmdWithError(c, "inspect", repo); err == nil {
+		if _, _, err := dockerCmdWithError("inspect", repo); err == nil {
 			c.Fatalf("Image %v shouldn't have been pulled down", repo)
 		}
 	}
@@ -51,7 +51,7 @@ func (s *DockerSuite) TestPullVerified(c *check.C) {
 
 	// pull it
 	expected := "The image you are pulling has been verified"
-	if out, exitCode, err := dockerCmdWithError(c, "pull", verifiedName); err != nil || !strings.Contains(out, expected) {
+	if out, exitCode, err := dockerCmdWithError("pull", verifiedName); err != nil || !strings.Contains(out, expected) {
 		if err != nil || exitCode != 0 {
 			c.Skip(fmt.Sprintf("pulling the '%s' image from the registry has failed: %v", verifiedName, err))
 		}
@@ -59,7 +59,7 @@ func (s *DockerSuite) TestPullVerified(c *check.C) {
 	}
 
 	// pull it again
-	if out, exitCode, err := dockerCmdWithError(c, "pull", verifiedName); err != nil || strings.Contains(out, expected) {
+	if out, exitCode, err := dockerCmdWithError("pull", verifiedName); err != nil || strings.Contains(out, expected) {
 		if err != nil || exitCode != 0 {
 			c.Skip(fmt.Sprintf("pulling the '%s' image from the registry has failed: %v", verifiedName, err))
 		}
@@ -80,7 +80,7 @@ func (s *DockerSuite) TestPullNonExistingImage(c *check.C) {
 	testRequires(c, Network)
 
 	name := "sadfsadfasdf"
-	out, _, err := dockerCmdWithError(c, "pull", name)
+	out, _, err := dockerCmdWithError("pull", name)
 
 	if err == nil || !strings.Contains(out, fmt.Sprintf("Error: image library/%s:latest not found", name)) {
 		c.Fatalf("expected non-zero exit status when pulling non-existing image: %s", out)
@@ -98,7 +98,7 @@ func (s *DockerSuite) TestPullImageOfficialNames(c *check.C) {
 		"index.docker.io/library/hello-world",
 	}
 	for _, name := range names {
-		out, exitCode, err := dockerCmdWithError(c, "pull", name)
+		out, exitCode, err := dockerCmdWithError("pull", name)
 		if err != nil || exitCode != 0 {
 			c.Errorf("pulling the '%s' image from the registry has failed: %s", name, err)
 			continue
@@ -115,7 +115,7 @@ func (s *DockerSuite) TestPullImageOfficialNames(c *check.C) {
 func (s *DockerSuite) TestPullScratchNotAllowed(c *check.C) {
 	testRequires(c, Network)
 
-	out, exitCode, err := dockerCmdWithError(c, "pull", "scratch")
+	out, exitCode, err := dockerCmdWithError("pull", "scratch")
 	if err == nil {
 		c.Fatal("expected pull of scratch to fail, but it didn't")
 	}

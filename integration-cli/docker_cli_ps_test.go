@@ -337,7 +337,7 @@ func (s *DockerSuite) TestPsListContainersFilterExited(c *check.C) {
 		c.Fatal(err)
 	}
 
-	if out, _, err := dockerCmdWithError(c, "run", "--name", "nonzero1", "busybox", "false"); err == nil {
+	if out, _, err := dockerCmdWithError("run", "--name", "nonzero1", "busybox", "false"); err == nil {
 		c.Fatal("Should fail.", out, err)
 	}
 
@@ -346,7 +346,7 @@ func (s *DockerSuite) TestPsListContainersFilterExited(c *check.C) {
 		c.Fatal(err)
 	}
 
-	if out, _, err := dockerCmdWithError(c, "run", "--name", "nonzero2", "busybox", "false"); err == nil {
+	if out, _, err := dockerCmdWithError("run", "--name", "nonzero2", "busybox", "false"); err == nil {
 		c.Fatal("Should fail.", out, err)
 	}
 	secondNonZero, err := getIDByName("nonzero2")

@@ -581,7 +581,7 @@ func pullImageIfNotExist(image string) (err error) {
 	return
 }
 
-func dockerCmdWithError(c *check.C, args ...string) (string, int, error) {
+func dockerCmdWithError(args ...string) (string, int, error) {
 	return runCommandWithOutput(exec.Command(dockerBinary, args...))
 }
 

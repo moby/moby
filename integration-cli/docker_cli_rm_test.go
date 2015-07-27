@@ -28,7 +28,7 @@ func (s *DockerSuite) TestRmContainerWithVolume(c *check.C) {
 func (s *DockerSuite) TestRmRunningContainer(c *check.C) {
 	createRunningContainer(c, "foo")
 
-	if _, _, err := dockerCmdWithError(c, "rm", "foo"); err == nil {
+	if _, _, err := dockerCmdWithError("rm", "foo"); err == nil {
 		c.Fatalf("Expected error, can't rm a running container")
 	}
 }
@@ -55,7 +55,7 @@ func (s *DockerSuite) TestRmContainerOrphaning(c *check.C) {
 		c.Fatalf("Could not build image %s: %v", img, err)
 	}
 	// run container on first image
-	if out, _, err := dockerCmdWithError(c, "run", img); err != nil {
+	if out, _, err := dockerCmdWithError("run", img); err != nil {
 		c.Fatalf("Could not run image %s: %v: %s", img, err, out)
 	}
 
@@ -64,12 +64,12 @@ func (s *DockerSuite) TestRmContainerOrphaning(c *check.C) {
 		c.Fatalf("Could not rebuild image %s: %v", img, err)
 	}
 	// try to remove the image, should error out.
-	if out, _, err := dockerCmdWithError(c, "rmi", img); err == nil {
+	if out, _, err := dockerCmdWithError("rmi", img); err == nil {
 		c.Fatalf("Expected to error out removing the image, but succeeded: %s", out)
 	}
 
 	// check if we deleted the first image
-	out, _, err := dockerCmdWithError(c, "images", "-q", "--no-trunc")
+	out, _, err := dockerCmdWithError("images", "-q", "--no-trunc")
 	if err != nil {
 		c.Fatalf("%v: %s", err, out)
 	}
@@ -79,7 +79,7 @@ func (s *DockerSuite) TestRmContainerOrphaning(c *check.C) {
 }
 
 func (s *DockerSuite) TestRmInvalidContainer(c *check.C) {
-	if out, _, err := dockerCmdWithError(c, "rm", "unknown"); err == nil {
+	if out, _, err := dockerCmdWithError("rm", "unknown"); err == nil {
 		c.Fatal("Expected error on rm unknown container, got none")
 	} else if !strings.Contains(out, "failed to remove containers") {
 		c.Fatalf("Expected output to contain 'failed to remove containers', got %q", out)

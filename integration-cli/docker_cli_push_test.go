@@ -23,7 +23,7 @@ func (s *DockerRegistrySuite) TestPushBusyboxImage(c *check.C) {
 
 // pushing an image without a prefix should throw an error
 func (s *DockerSuite) TestPushUnprefixedRepo(c *check.C) {
-	if out, _, err := dockerCmdWithError(c, "push", "busybox"); err == nil {
+	if out, _, err := dockerCmdWithError("push", "busybox"); err == nil {
 		c.Fatalf("pushing an unprefixed repo didn't result in a non-zero exit status: %s", out)
 	}
 }
@@ -32,7 +32,7 @@ func (s *DockerRegistrySuite) TestPushUntagged(c *check.C) {
 	repoName := fmt.Sprintf("%v/dockercli/busybox", privateRegistryURL)
 
 	expected := "Repository does not exist"
-	if out, _, err := dockerCmdWithError(c, "push", repoName); err == nil {
+	if out, _, err := dockerCmdWithError("push", repoName); err == nil {
 		c.Fatalf("pushing the image to the private registry should have failed: output %q", out)
 	} else if !strings.Contains(out, expected) {
 		c.Fatalf("pushing the image failed with an unexpected message: expected %q, got %q", expected, out)
@@ -44,7 +44,7 @@ func (s *DockerRegistrySuite) TestPushBadTag(c *check.C) {
 
 	expected := "does not exist"
 
-	if out, _, err := dockerCmdWithError(c, "push", repoName); err == nil {
+	if out, _, err := dockerCmdWithError("push", repoName); err == nil {
 		c.Fatalf("pushing the image to the private registry should have failed: output %q", out)
 	} else if !strings.Contains(out, expected) {
 		c.Fatalf("pushing the image failed with an unexpected message: expected %q, got %q", expected, out)
@@ -103,7 +103,7 @@ func (s *DockerRegistrySuite) TestPushInterrupt(c *check.C) {
 	if err := pushCmd.Process.Kill(); err != nil {
 		c.Fatalf("Failed to kill push process: %v", err)
 	}
-	if out, _, err := dockerCmdWithError(c, "push", repoName); err == nil {
+	if out, _, err := dockerCmdWithError("push", repoName); err == nil {
 		if !strings.Contains(out, "already in progress") {
 			c.Fatalf("Push should be continued on daemon side, but seems ok: %v, %s", err, out)
 		}
@@ -139,7 +139,7 @@ func (s *DockerRegistrySuite) TestPushEmptyLayer(c *check.C) {
 	}
 
 	// Now verify we can push it
-	if out, _, err := dockerCmdWithError(c, "push", repoName); err != nil {
+	if out, _, err := dockerCmdWithError("push", repoName); err != nil {
 		c.Fatalf("pushing the image to the private registry has failed: %s, %v", out, err)
 	}
 }
