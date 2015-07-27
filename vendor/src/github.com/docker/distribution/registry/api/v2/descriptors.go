@@ -398,6 +398,8 @@ var routeDescriptors = []RouteDescriptor{
 				Description: "Fetch the tags under the repository identified by `name`.",
 				Requests: []RequestDescriptor{
 					{
+						Name:        "Tags",
+						Description: "Return all tags for the repository",
 						Headers: []ParameterDescriptor{
 							hostHeader,
 							authHeader,
@@ -455,6 +457,7 @@ var routeDescriptors = []RouteDescriptor{
 						},
 					},
 					{
+						Name:            "Tags Paginated",
 						Description:     "Return a portion of the tags for the specified repository.",
 						PathParameters:  []ParameterDescriptor{nameParameterDescriptor},
 						QueryParameters: paginationParameters,
@@ -480,6 +483,30 @@ var routeDescriptors = []RouteDescriptor{
         ...
     ],
 }`,
+								},
+							},
+						},
+						Failures: []ResponseDescriptor{
+							{
+								StatusCode:  http.StatusNotFound,
+								Description: "The repository is not known to the registry.",
+								Body: BodyDescriptor{
+									ContentType: "application/json; charset=utf-8",
+									Format:      errorsBody,
+								},
+								ErrorCodes: []errcode.ErrorCode{
+									ErrorCodeNameUnknown,
+								},
+							},
+							{
+								StatusCode:  http.StatusUnauthorized,
+								Description: "The client does not have access to the repository.",
+								Body: BodyDescriptor{
+									ContentType: "application/json; charset=utf-8",
+									Format:      errorsBody,
+								},
+								ErrorCodes: []errcode.ErrorCode{
+									ErrorCodeUnauthorized,
 								},
 							},
 						},
