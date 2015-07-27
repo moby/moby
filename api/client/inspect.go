@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"strings"
+	"net/http"
 	"text/template"
 
 	"github.com/docker/docker/api/types"
@@ -31,127 +31,134 @@ func (cli *DockerCli) CmdInspect(args ...string) error {
 
 	cmd.ParseFlags(args, true)
 
-	var tmpl *template.Template
-	var err error
-	var obj []byte
-
-	if *tmplStr != "" {
-		if tmpl, err = template.New("").Funcs(funcMap).Parse(*tmplStr); err != nil {
-			return Cli.StatusError{StatusCode: 64,
-				Status: "Template parsing error: " + err.Error()}
-		}
-	}
-
 	if *inspectType != "" && *inspectType != "container" && *inspectType != "image" {
 		return fmt.Errorf("%q is not a valid value for --type", *inspectType)
 	}
 
-	indented := new(bytes.Buffer)
-	indented.WriteString("[\n")
-	status := 0
-	isImage := false
-
-	for _, name := range cmd.Args() {
-
-		if *inspectType == "" || *inspectType == "container" {
-			obj, _, err = readBody(cli.call("GET", "/containers/"+name+"/json", nil, nil))
-			if err != nil && *inspectType == "container" {
-				if strings.Contains(err.Error(), "No such") {
-					fmt.Fprintf(cli.err, "Error: No such container: %s\n", name)
-				} else {
-					fmt.Fprintf(cli.err, "%s", err)
-				}
-				status = 1
-				continue
-			}
+	if *tmplStr != "" {
+		tmpl, err := template.New("").Funcs(funcMap).Parse(*tmplStr)
+		if err != nil {
+			return Cli.StatusError{StatusCode: 64,
+				Status: "Template parsing error: " + err.Error()}
 		}
+		return cli.inspectWithTemplate(tmpl, *inspectType, cmd.Args()...)
+	}
 
-		if obj == nil && (*inspectType == "" || *inspectType == "image") {
-			obj, _, err = readBody(cli.call("GET", "/images/"+name+"/json", nil, nil))
-			isImage = true
-			if err != nil {
-				if strings.Contains(err.Error(), "No such") {
-					if *inspectType == "" {
-						fmt.Fprintf(cli.err, "Error: No such image or container: %s\n", name)
-					} else {
-						fmt.Fprintf(cli.err, "Error: No such image: %s\n", name)
-					}
-				} else {
-					fmt.Fprintf(cli.err, "%s", err)
-				}
-				status = 1
-				continue
-			}
-
+	var status int
+	buf := bytes.NewBuffer(nil)
+	io.WriteString(buf, "[")
+	for i, name := range cmd.Args() {
+		obj, err := cli.inspect(*inspectType, name)
+		if err != nil {
+			status = 1
+			fmt.Fprintf(cli.err, "%v\n", err)
+			continue
 		}
-
-		if tmpl == nil {
-			if err := json.Indent(indented, obj, "", "    "); err != nil {
-				fmt.Fprintf(cli.err, "%s\n", err)
-				status = 1
-				continue
-			}
+		b, err := json.MarshalIndent(obj, "", "    ")
+		if err != nil {
+			status = 1
+			fmt.Fprintf(cli.err, "%v\n", err)
+			continue
+		}
+		io.WriteString(buf, "\n")
+		buf.Write(b)
+		if i < len(cmd.Args())-1 {
+			io.WriteString(buf, ",")
 		} else {
-			rdr := bytes.NewReader(obj)
-			dec := json.NewDecoder(rdr)
-
-			if isImage {
-				inspPtr := types.ImageInspect{}
-				if err := dec.Decode(&inspPtr); err != nil {
-					fmt.Fprintf(cli.err, "%s\n", err)
-					status = 1
-					continue
-				}
-				if err := tmpl.Execute(cli.out, inspPtr); err != nil {
-					rdr.Seek(0, 0)
-					var raw interface{}
-					if err := dec.Decode(&raw); err != nil {
-						return err
-					}
-					if err = tmpl.Execute(cli.out, raw); err != nil {
-						return err
-					}
-				}
-			} else {
-				inspPtr := types.ContainerJSON{}
-				if err := dec.Decode(&inspPtr); err != nil {
-					fmt.Fprintf(cli.err, "%s\n", err)
-					status = 1
-					continue
-				}
-				if err := tmpl.Execute(cli.out, inspPtr); err != nil {
-					rdr.Seek(0, 0)
-					var raw interface{}
-					if err := dec.Decode(&raw); err != nil {
-						return err
-					}
-					if err = tmpl.Execute(cli.out, raw); err != nil {
-						return err
-					}
-				}
-			}
-			cli.out.Write([]byte{'\n'})
+			io.WriteString(buf, "\n")
 		}
-		indented.WriteString(",")
 	}
+	io.WriteString(buf, "]")
 
-	if indented.Len() > 1 {
-		// Remove trailing ','
-		indented.Truncate(indented.Len() - 1)
+	_, err := io.Copy(cli.out, buf)
+	if err != nil {
+		return err
 	}
-	indented.WriteString("]\n")
+	io.WriteString(cli.out, "\n")
 
-	if tmpl == nil {
-		// Note that we will always write "[]" when "-f" isn't specified,
-		// to make sure the output would always be array, see
-		// https://github.com/docker/docker/pull/9500#issuecomment-65846734
-		if _, err := io.Copy(cli.out, indented); err != nil {
-			return err
+	if status != 0 {
+		return Cli.StatusError{StatusCode: status}
+	}
+	return nil
+}
+
+func (cli *DockerCli) inspectWithTemplate(tmpl *template.Template, inspectType string, names ...string) error {
+	var status int
+	for _, name := range names {
+		obj, err := cli.inspect(inspectType, name)
+		if err != nil {
+			status = 1
+			fmt.Fprintf(cli.err, "%v\n", err)
+			continue
 		}
+		if err := tmpl.Execute(cli.out, &obj); err != nil {
+			status = 1
+			fmt.Fprintln(cli.err, err)
+			continue
+		}
+		io.WriteString(cli.out, "\n")
 	}
 
 	if status != 0 {
 		return Cli.StatusError{StatusCode: status}
 	}
 	return nil
+}
+
+func (cli *DockerCli) inspect(inspectType, name string) (interface{}, error) {
+	var out interface{}
+	var statusCode int
+	var err error
+
+	switch inspectType {
+	case "container":
+		out, statusCode, err = cli.inspectContainer(name)
+		if err != nil && statusCode == http.StatusNotFound {
+			return nil, fmt.Errorf("No such container: %s", name)
+		}
+	case "image":
+		out, statusCode, err = cli.inspectImage(name)
+		if err != nil && statusCode == http.StatusNotFound {
+			return nil, fmt.Errorf("No such image: %s", name)
+		}
+	case "":
+		out, statusCode, err = cli.inspectContainer(name)
+		if err != nil && statusCode == http.StatusNotFound {
+			out, statusCode, err = cli.inspectImage(name)
+			if err != nil && statusCode == http.StatusNotFound {
+				return nil, fmt.Errorf("No such image or container: %s", name)
+			}
+		}
+	}
+	return out, err
+}
+
+func (cli *DockerCli) inspectContainer(name string) (*types.ContainerJSON, int, error) {
+	resp, err := cli.call("GET", "/containers/"+name+"/json", nil, nil)
+	if err != nil {
+		return nil, resp.statusCode, err
+	}
+	defer resp.body.Close()
+	container := &types.ContainerJSON{}
+
+	dec := json.NewDecoder(resp.body)
+	if err := dec.Decode(container); err != nil {
+		return nil, -1, err
+	}
+	return container, resp.statusCode, nil
+}
+
+func (cli *DockerCli) inspectImage(name string) (*types.ImageInspect, int, error) {
+	resp, err := cli.call("GET", "/images/"+name+"/json", nil, nil)
+	if err != nil {
+		return nil, resp.statusCode, err
+	}
+	defer resp.body.Close()
+	image := &types.ImageInspect{}
+
+	dec := json.NewDecoder(resp.body)
+	if err := dec.Decode(image); err != nil {
+		return nil, -1, err
+	}
+	return image, resp.statusCode, nil
 }
