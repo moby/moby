@@ -12,10 +12,9 @@ parent = "smn_linux"
 
 Docker is supported on these Ubuntu operating systems:
 
-- Ubuntu Vivid 15.04 
-- Ubuntu Trusty 14.04 (LTS) 
-- Ubuntu Precise 12.04 (LTS) 
-- Ubuntu Saucy 13.10
+- Ubuntu Vivid 15.04
+- Ubuntu Trusty 14.04 (LTS)
+- Ubuntu Precise 12.04 (LTS)
 
 This page instructs you to install using Docker-managed release packages and
 installation mechanisms. Using these packages ensures you get the latest release
@@ -35,7 +34,7 @@ and frequently panic under certain conditions.
 To check your current kernel version, open a terminal and use `uname -r` to display
 your kernel version:
 
-    $ uname -r 
+    $ uname -r
     3.11.0-15-generic
 
 >**Caution** Some Ubuntu OS versions **require a version higher than 3.10** to
@@ -97,12 +96,6 @@ To upgrade your kernel and install the additional packages, do the following:
         $ sudo reboot
 
 5. After your system reboots, go ahead and [install Docker](#installing-docker-on-ubuntu).
-
-
-### For Saucy 13.10 (64 bit)
-
-Docker uses AUFS as the default storage backend. If you don't have this
-prerequisite installed, Docker's installation process adds it.
 
 ## Installation
 
