@@ -392,7 +392,7 @@ func getContextFromReader(r io.Reader, dockerfileName string) (absContextDir, re
 	}
 
 	if err := archive.Untar(buf, absContextDir, nil); err != nil {
-		return "", "", fmt.Errorf("unable to extract stdin to temporary context direcotry: %v", err)
+		return "", "", fmt.Errorf("unable to extract stdin to temporary context directory: %v", err)
 	}
 
 	return getDockerfileRelPath(absContextDir, dockerfileName)
