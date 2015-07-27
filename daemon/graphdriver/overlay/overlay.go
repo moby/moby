@@ -69,7 +69,7 @@ func (d *naiveDiffDriverWithApply) ApplyDiff(id, parent string, diff archive.Arc
 // directory overlaid on the parents root. This is typically the
 // case with the init layer of a container which is based on an image.
 // If there is no "root" in the parent, we inherit the lower-id from
-// the parent and start by making a copy if the parents "upper" dir.
+// the parent and start by making a copy in the parent's "upper" dir.
 // This is typically the case for a container layer which copies
 // its parent -init upper layer.
 
