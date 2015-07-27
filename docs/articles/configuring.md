@@ -215,7 +215,7 @@ with explanations.
 6. Restart the `docker` daemon.
 
     ```
-    $ sudo service docker restart
+    $ sudo systemctl restart docker
     ```
 
 7. Verify that the `docker` daemon is running as specified with the `ps` command.
