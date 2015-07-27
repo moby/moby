@@ -302,6 +302,22 @@ func getDockerfileRelPath(givenContextDir, givenDockerfile string) (absContextDi
 		return "", "", fmt.Errorf("unable to get absolute context directory: %v", err)
 	}
 
+	// The context dir might be a symbolic link, so follow it to the actual
+	// target directory.
+	absContextDir, err = filepath.EvalSymlinks(absContextDir)
+	if err != nil {
+		return "", "", fmt.Errorf("unable to evaluate symlinks in context path: %v", err)
+	}
+
+	stat, err := os.Lstat(absContextDir)
+	if err != nil {
+		return "", "", fmt.Errorf("unable to stat context directory %q: %v", absContextDir, err)
+	}
+
+	if !stat.IsDir() {
+		return "", "", fmt.Errorf("context must be a directory: %s", absContextDir)
+	}
+
 	absDockerfile := givenDockerfile
 	if absDockerfile == "" {
 		// No -f/--file was specified so use the default relative to the

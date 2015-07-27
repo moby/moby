@@ -5394,3 +5394,41 @@ func (s *DockerTrustSuite) TestTrustedBuildUntrustedTag(c *check.C) {
 		c.Fatalf("Unexpected output on trusted build with untrusted tag:\n%s", out)
 	}
 }
+
+func (s *DockerTrustSuite) TestBuildContextDirIsSymlink(c *check.C) {
+	tempDir, err := ioutil.TempDir("", "test-build-dir-is-symlink-")
+	if err != nil {
+		c.Fatal(err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	// Make a real context directory in this temp directory with a simple
+	// Dockerfile.
+	realContextDirname := filepath.Join(tempDir, "context")
+	if err := os.Mkdir(realContextDirname, os.FileMode(0755)); err != nil {
+		c.Fatal(err)
+	}
+
+	if err = ioutil.WriteFile(
+		filepath.Join(realContextDirname, "Dockerfile"),
+		[]byte(`
+			FROM busybox
+			RUN echo hello world
+		`),
+		os.FileMode(0644),
+	); err != nil {
+		c.Fatal(err)
+	}
+
+	// Make a symlink to the real context directory.
+	contextSymlinkName := filepath.Join(tempDir, "context_link")
+	if err := os.Symlink(realContextDirname, contextSymlinkName); err != nil {
+		c.Fatal(err)
+	}
+
+	// Executing the build with the symlink as the specified context should
+	// *not* fail.
+	if out, exitStatus := dockerCmd(c, "build", contextSymlinkName); exitStatus != 0 {
+		c.Fatalf("build failed with exit status %d: %s", exitStatus, out)
+	}
+}
