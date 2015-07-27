@@ -23,6 +23,8 @@ func (s *DockerSuite) TestExecResizeApiHeightWidthNoInt(c *check.C) {
 
 // Part of #14845
 func (s *DockerSuite) TestExecResizeImmediatelyAfterExecStart(c *check.C) {
+	testRequires(c, NativeExecDriver)
+
 	name := "exec_resize_test"
 	dockerCmd(c, "run", "-d", "-i", "-t", "--name", name, "--restart", "always", "busybox", "/bin/sh")
 
