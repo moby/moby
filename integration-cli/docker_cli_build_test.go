@@ -4118,6 +4118,27 @@ func (s *DockerSuite) TestBuildFromGITWithContext(c *check.C) {
 	}
 }
 
+func (s *DockerSuite) TestBuildFromGITwithF(c *check.C) {
+	name := "testbuildfromgitwithf"
+	git, err := newFakeGit("repo", map[string]string{
+		"myApp/myDockerfile": `FROM busybox
+					RUN echo hi from Dockerfile`,
+	}, true)
+	if err != nil {
+		c.Fatal(err)
+	}
+	defer git.Close()
+
+	out, _, err := dockerCmdWithError(c, "build", "-t", name, "--no-cache", "-f", "myApp/myDockerfile", git.RepoURL)
+	if err != nil {
+		c.Fatalf("Error on build. Out: %s\nErr: %v", out, err)
+	}
+
+	if !strings.Contains(out, "hi from Dockerfile") {
+		c.Fatalf("Missing expected output, got:\n%s", out)
+	}
+}
+
 func (s *DockerSuite) TestBuildFromRemoteTarball(c *check.C) {
 	name := "testbuildfromremotetarball"
 
