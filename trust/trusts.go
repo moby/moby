@@ -3,6 +3,7 @@ package trust
 import (
 	"crypto/x509"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -81,12 +82,12 @@ func (t *TrustStore) reload() error {
 	for i, match := range matches {
 		f, err := os.Open(match)
 		if err != nil {
-			return err
+			return fmt.Errorf("Error opening %q: %s", match, err)
 		}
 		statements[i], err = trustgraph.LoadStatement(f, nil)
 		if err != nil {
 			f.Close()
-			return err
+			return fmt.Errorf("Error loading %q: %s", match, err)
 		}
 		f.Close()
 	}
