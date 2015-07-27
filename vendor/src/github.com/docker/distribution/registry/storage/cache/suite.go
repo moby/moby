@@ -139,3 +139,40 @@ func checkBlobDescriptorCacheSetAndRead(t *testing.T, ctx context.Context, provi
 		t.Fatalf("unexpected descriptor: %#v != %#v", desc, expected)
 	}
 }
+
+func checkBlobDescriptorClear(t *testing.T, ctx context.Context, provider BlobDescriptorCacheProvider) {
+	localDigest := digest.Digest("sha384:abc")
+	expected := distribution.Descriptor{
+		Digest:    "sha256:abc",
+		Size:      10,
+		MediaType: "application/octet-stream"}
+
+	cache, err := provider.RepositoryScoped("foo/bar")
+	if err != nil {
+		t.Fatalf("unexpected error getting scoped cache: %v", err)
+	}
+
+	if err := cache.SetDescriptor(ctx, localDigest, expected); err != nil {
+		t.Fatalf("error setting descriptor: %v", err)
+	}
+
+	desc, err := cache.Stat(ctx, localDigest)
+	if err != nil {
+		t.Fatalf("unexpected error statting fake2:abc: %v", err)
+	}
+
+	if expected != desc {
+		t.Fatalf("unexpected descriptor: %#v != %#v", expected, desc)
+	}
+
+	err = cache.Clear(ctx, localDigest)
+	if err != nil {
+		t.Fatalf("unexpected error deleting descriptor")
+	}
+
+	nonExistantDigest := digest.Digest("sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
+	err = cache.Clear(ctx, nonExistantDigest)
+	if err == nil {
+		t.Fatalf("expected error deleting unknown descriptor")
+	}
+}

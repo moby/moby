@@ -26,13 +26,13 @@ type MetricsTracker interface {
 
 type cachedBlobStatter struct {
 	cache   distribution.BlobDescriptorService
-	backend distribution.BlobStatter
+	backend distribution.BlobDescriptorService
 	tracker MetricsTracker
 }
 
 // NewCachedBlobStatter creates a new statter which prefers a cache and
 // falls back to a backend.
-func NewCachedBlobStatter(cache distribution.BlobDescriptorService, backend distribution.BlobStatter) distribution.BlobStatter {
+func NewCachedBlobStatter(cache distribution.BlobDescriptorService, backend distribution.BlobDescriptorService) distribution.BlobDescriptorService {
 	return &cachedBlobStatter{
 		cache:   cache,
 		backend: backend,
@@ -41,7 +41,7 @@ func NewCachedBlobStatter(cache distribution.BlobDescriptorService, backend dist
 
 // NewCachedBlobStatterWithMetrics creates a new statter which prefers a cache and
 // falls back to a backend. Hits and misses will send to the tracker.
-func NewCachedBlobStatterWithMetrics(cache distribution.BlobDescriptorService, backend distribution.BlobStatter, tracker MetricsTracker) distribution.BlobStatter {
+func NewCachedBlobStatterWithMetrics(cache distribution.BlobDescriptorService, backend distribution.BlobDescriptorService, tracker MetricsTracker) distribution.BlobStatter {
 	return &cachedBlobStatter{
 		cache:   cache,
 		backend: backend,
@@ -77,4 +77,25 @@ fallback:
 	}
 
 	return desc, err
+
+}
+
+func (cbds *cachedBlobStatter) Clear(ctx context.Context, dgst digest.Digest) error {
+	err := cbds.cache.Clear(ctx, dgst)
+	if err != nil {
+		return err
+	}
+
+	err = cbds.backend.Clear(ctx, dgst)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (cbds *cachedBlobStatter) SetDescriptor(ctx context.Context, dgst digest.Digest, desc distribution.Descriptor) error {
+	if err := cbds.cache.SetDescriptor(ctx, dgst, desc); err != nil {
+		context.GetLogger(ctx).Errorf("error adding descriptor %v to cache: %v", desc.Digest, err)
+	}
+	return nil
 }
