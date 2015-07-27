@@ -152,18 +152,24 @@ Example (parsed representation is displayed after the `#`):
     ADD . $foo       # ADD . /bar
     COPY \$foo /quux # COPY $foo /quux
 
-The instructions that handle environment variables in the `Dockerfile` are:
+Environment variables are supported by the following list of instructions in 
+the `Dockerfile`:
 
-* `ENV`
 * `ADD`
 * `COPY`
-* `WORKDIR`
+* `ENV`
 * `EXPOSE`
-* `VOLUME`
 * `USER`
+* `WORKDIR`
+* `VOLUME`
 
-`ONBUILD` instructions are **NOT** supported for environment replacement, even
-the instructions above.
+as well as:
+
+* `ONBUILD` (when combined with one of the supported instructions above)
+
+> **Note**:
+> prior to 1.4, `ONBUILD` instructions did **NOT** support environment 
+> variable, even when combined with any of the instructions listed above.
 
 Environment variable substitution will use the same value for each variable
 throughout the entire command.  In other words, in this example:
