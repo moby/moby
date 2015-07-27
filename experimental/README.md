@@ -24,7 +24,7 @@ Unlike the regular Docker binary, the experimental channels is built and updated
 
 2. Get the latest Docker package.
 
-        $ wget -qO- https://experimental.docker.com/ | sh
+        $ wget -qO- https://experimental.docker.com/ | sudo sh
 
     The system prompts you for your `sudo` password. Then, it downloads and
     installs Docker and its dependencies.
