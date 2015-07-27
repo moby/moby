@@ -193,7 +193,7 @@ func (cli *DaemonCli) CmdDaemon(args ...string) error {
 		}
 	}
 
-	var pfile *pidfile.PidFile
+	var pfile *pidfile.PIDFile
 	if cli.Pidfile != "" {
 		pf, err := pidfile.New(cli.Pidfile)
 		if err != nil {

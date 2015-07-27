@@ -1,3 +1,4 @@
+// Package streamformatter provides helper functions to format a stream.
 package streamformatter
 
 import (
@@ -8,6 +9,7 @@ import (
 	"github.com/docker/docker/pkg/jsonmessage"
 )
 
+// StreamFormatter formats a stream, optionally using JSON.
 type StreamFormatter struct {
 	json bool
 }
@@ -26,6 +28,7 @@ const streamNewline = "\r\n"
 
 var streamNewlineBytes = []byte(streamNewline)
 
+// FormatStream formats the specified stream.
 func (sf *StreamFormatter) FormatStream(str string) []byte {
 	if sf.json {
 		b, err := json.Marshal(&jsonmessage.JSONMessage{Stream: str})
@@ -37,6 +40,7 @@ func (sf *StreamFormatter) FormatStream(str string) []byte {
 	return []byte(str + "\r")
 }
 
+// FormatStatus formats the specified objects according to the specified format (and id).
 func (sf *StreamFormatter) FormatStatus(id, format string, a ...interface{}) []byte {
 	str := fmt.Sprintf(format, a...)
 	if sf.json {
@@ -49,6 +53,7 @@ func (sf *StreamFormatter) FormatStatus(id, format string, a ...interface{}) []b
 	return []byte(str + streamNewline)
 }
 
+// FormatError formats the specifed error.
 func (sf *StreamFormatter) FormatError(err error) []byte {
 	if sf.json {
 		jsonError, ok := err.(*jsonmessage.JSONError)
@@ -63,6 +68,7 @@ func (sf *StreamFormatter) FormatError(err error) []byte {
 	return []byte("Error: " + err.Error() + streamNewline)
 }
 
+// FormatProgress formats the progress information for a specified action.
 func (sf *StreamFormatter) FormatProgress(id, action string, progress *jsonmessage.JSONProgress) []byte {
 	if progress == nil {
 		progress = &jsonmessage.JSONProgress{}
@@ -86,12 +92,13 @@ func (sf *StreamFormatter) FormatProgress(id, action string, progress *jsonmessa
 	return []byte(action + " " + progress.String() + endl)
 }
 
-type StdoutFormater struct {
+// StdoutFormatter is a streamFormatter that writes to the standard output.
+type StdoutFormatter struct {
 	io.Writer
 	*StreamFormatter
 }
 
-func (sf *StdoutFormater) Write(buf []byte) (int, error) {
+func (sf *StdoutFormatter) Write(buf []byte) (int, error) {
 	formattedBuf := sf.StreamFormatter.FormatStream(string(buf))
 	n, err := sf.Writer.Write(formattedBuf)
 	if n != len(formattedBuf) {
@@ -100,12 +107,13 @@ func (sf *StdoutFormater) Write(buf []byte) (int, error) {
 	return len(buf), err
 }
 
-type StderrFormater struct {
+// StderrFormatter is a streamFormatter that writes to the standard error.
+type StderrFormatter struct {
 	io.Writer
 	*StreamFormatter
 }
 
-func (sf *StderrFormater) Write(buf []byte) (int, error) {
+func (sf *StderrFormatter) Write(buf []byte) (int, error) {
 	formattedBuf := sf.StreamFormatter.FormatStream("\033[91m" + string(buf) + "\033[0m")
 	n, err := sf.Writer.Write(formattedBuf)
 	if n != len(formattedBuf) {

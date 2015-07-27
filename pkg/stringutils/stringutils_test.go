@@ -43,15 +43,15 @@ func TestGenerateRandomAlphaOnlyStringUniqueness(t *testing.T) {
 }
 
 func TestGenerateRandomAsciiStringLength(t *testing.T) {
-	testLengthHelper(GenerateRandomAsciiString, t)
+	testLengthHelper(GenerateRandomASCIIString, t)
 }
 
 func TestGenerateRandomAsciiStringUniqueness(t *testing.T) {
-	testUniquenessHelper(GenerateRandomAsciiString, t)
+	testUniquenessHelper(GenerateRandomASCIIString, t)
 }
 
 func TestGenerateRandomAsciiStringIsAscii(t *testing.T) {
-	str := GenerateRandomAsciiString(64)
+	str := GenerateRandomASCIIString(64)
 	if !isASCII(str) {
 		t.Fatalf("%s contained non-ascii characters", str)
 	}

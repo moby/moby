@@ -23,6 +23,7 @@ type Winsize struct {
 	y      uint16
 }
 
+// StdStreams returns the standard streams (stdin, stdout, stedrr).
 func StdStreams() (stdIn io.ReadCloser, stdOut, stdErr io.Writer) {
 	switch {
 	case os.Getenv("ConEmuANSI") == "ON":
@@ -36,12 +37,12 @@ func StdStreams() (stdIn io.ReadCloser, stdOut, stdErr io.Writer) {
 	}
 }
 
-// GetFdInfo returns file descriptor and bool indicating whether the file is a terminal.
+// GetFdInfo returns the file descriptor for an os.File and indicates whether the file represents a terminal.
 func GetFdInfo(in interface{}) (uintptr, bool) {
 	return winconsole.GetHandleInfo(in)
 }
 
-// GetWinsize retrieves the window size of the terminal connected to the passed file descriptor.
+// GetWinsize returns the window size based on the specified file descriptor.
 func GetWinsize(fd uintptr) (*Winsize, error) {
 	info, err := winconsole.GetConsoleScreenBufferInfo(fd)
 	if err != nil {
@@ -56,7 +57,7 @@ func GetWinsize(fd uintptr) (*Winsize, error) {
 		y:      0}, nil
 }
 
-// SetWinsize sets the size of the given terminal connected to the passed file descriptor.
+// SetWinsize tries to set the specified window size for the specified file descriptor.
 func SetWinsize(fd uintptr, ws *Winsize) error {
 	// TODO(azlinux): Implement SetWinsize
 	logrus.Debugf("[windows] SetWinsize: WARNING -- Unsupported method invoked")
@@ -68,8 +69,8 @@ func IsTerminal(fd uintptr) bool {
 	return winconsole.IsConsole(fd)
 }
 
-// RestoreTerminal restores the terminal connected to the given file descriptor to a
-// previous state.
+// RestoreTerminal restores the terminal connected to the given file descriptor
+// to a previous state.
 func RestoreTerminal(fd uintptr, state *State) error {
 	return winconsole.SetConsoleMode(fd, state.mode)
 }
@@ -94,8 +95,7 @@ func DisableEcho(fd uintptr, state *State) error {
 }
 
 // SetRawTerminal puts the terminal connected to the given file descriptor into raw
-// mode and returns the previous state of the terminal so that it can be
-// restored.
+// mode and returns the previous state.
 func SetRawTerminal(fd uintptr) (*State, error) {
 	state, err := MakeRaw(fd)
 	if err != nil {

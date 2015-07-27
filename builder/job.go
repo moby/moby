@@ -182,11 +182,11 @@ func Build(d *daemon.Daemon, buildConfig *Config) error {
 
 	builder := &builder{
 		Daemon: d,
-		OutStream: &streamformatter.StdoutFormater{
+		OutStream: &streamformatter.StdoutFormatter{
 			Writer:          buildConfig.Stdout,
 			StreamFormatter: sf,
 		},
-		ErrStream: &streamformatter.StderrFormater{
+		ErrStream: &streamformatter.StderrFormatter{
 			Writer:          buildConfig.Stdout,
 			StreamFormatter: sf,
 		},

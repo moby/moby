@@ -1,3 +1,4 @@
+// Package stringid provides helper functions for dealing with string identifiers
 package stringid
 
 import (
@@ -12,7 +13,7 @@ const shortLen = 12
 
 var validShortID = regexp.MustCompile("^[a-z0-9]{12}$")
 
-// Determine if an arbitrary string *looks like* a short ID.
+// IsShortID determines if an arbitrary string *looks like* a short ID.
 func IsShortID(id string) bool {
 	return validShortID.MatchString(id)
 }
@@ -29,7 +30,7 @@ func TruncateID(id string) string {
 	return id[:trimTo]
 }
 
-// GenerateRandomID returns an unique id
+// GenerateRandomID returns an unique id.
 func GenerateRandomID() string {
 	for {
 		id := make([]byte, 32)

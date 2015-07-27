@@ -3,12 +3,7 @@
 package useragent
 
 import (
-	"errors"
 	"strings"
-)
-
-var (
-	ErrNilRequest = errors.New("request cannot be nil")
 )
 
 // VersionInfo is used to model UserAgent versions.
@@ -30,7 +25,7 @@ func (vi *VersionInfo) isValid() bool {
 	return true
 }
 
-// Convert versions to a string and append the string to the string base.
+// AppendVersions converts versions to a string and appends the string to the string base.
 //
 // Each VersionInfo will be converted to a string in the format of
 // "product/version", where the "product" is get from the name field, while

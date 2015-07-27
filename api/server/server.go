@@ -1555,7 +1555,7 @@ func (s *Server) initTcpSocket(addr string) (l net.Listener, err error) {
 	if s.cfg.TLSConfig == nil || s.cfg.TLSConfig.ClientAuth != tls.RequireAndVerifyClientCert {
 		logrus.Warn("/!\\ DON'T BIND ON ANY IP ADDRESS WITHOUT setting -tlsverify IF YOU DON'T KNOW WHAT YOU'RE DOING /!\\")
 	}
-	if l, err = sockets.NewTcpSocket(addr, s.cfg.TLSConfig, s.start); err != nil {
+	if l, err = sockets.NewTCPSocket(addr, s.cfg.TLSConfig, s.start); err != nil {
 		return nil, err
 	}
 	if err := allocateDaemonPort(addr); err != nil {

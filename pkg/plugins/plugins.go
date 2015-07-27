@@ -1,3 +1,25 @@
+// Package plugins provides structures and helper functions to manage Docker
+// plugins.
+//
+// Docker discovers plugins by looking for them in the plugin directory whenever
+// a user or container tries to use one by name. UNIX domain socket files must
+// be located under /run/docker/plugins, whereas spec files can be located
+// either under /etc/docker/plugins or /usr/lib/docker/plugins. This is handled
+// by the Registry interface, which lets you list all plugins or get a plugin by
+// its name if it exists.
+//
+// The plugins need to implement an HTTP server and bind this to the UNIX socket
+// or the address specified in the spec files.
+// A handshake is send at /Plugin.Activate, and plugins are expected to return
+// a Manifest with a list of of Docker subsystems which this plugin implements.
+//
+// In order to use a plugins, you can use the ``Get`` with the name of the
+// plugin and the subsystem it implements.
+//
+//	plugin, err := plugins.Get("example", "VolumeDriver")
+//	if err != nil {
+//		return fmt.Errorf("Error looking up volume plugin example: %v", err)
+//	}
 package plugins
 
 import (
@@ -9,6 +31,7 @@ import (
 )
 
 var (
+	// ErrNotImplements is returned if the plugin does not implement the requested driver.
 	ErrNotImplements = errors.New("Plugin does not implement the requested driver")
 )
 
@@ -22,16 +45,24 @@ var (
 	extpointHandlers = make(map[string]func(string, *Client))
 )
 
+// Manifest lists what a plugin implements.
 type Manifest struct {
+	// List of subsystem the plugin implements.
 	Implements []string
 }
 
+// Plugin is the definition of a docker plugin.
 type Plugin struct {
-	Name      string `json:"-"`
-	Addr      string
+	// Name of the plugin
+	Name string `json:"-"`
+	// Address of the plugin
+	Addr string
+	// TLS configuration of the plugin
 	TLSConfig tlsconfig.Options
-	Client    *Client   `json:"-"`
-	Manifest  *Manifest `json:"-"`
+	// Client attached to the plugin
+	Client *Client `json:"-"`
+	// Manifest of the plugin (see above)
+	Manifest *Manifest `json:"-"`
 }
 
 func newLocalPlugin(name, addr string) *Plugin {
@@ -96,6 +127,7 @@ func get(name string) (*Plugin, error) {
 	return pl, nil
 }
 
+// Get returns the plugin given the specified name and requested implementation.
 func Get(name, imp string) (*Plugin, error) {
 	pl, err := get(name)
 	if err != nil {
@@ -110,6 +142,7 @@ func Get(name, imp string) (*Plugin, error) {
 	return nil, ErrNotImplements
 }
 
+// Handle adds the specified function to the extpointHandlers.
 func Handle(iface string, fn func(string, *Client)) {
 	extpointHandlers[iface] = fn
 }

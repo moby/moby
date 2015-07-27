@@ -24,7 +24,7 @@ func TestNewAndRemove(t *testing.T) {
 }
 
 func TestRemoveInvalidPath(t *testing.T) {
-	file := PidFile{path: filepath.Join("foo", "bar")}
+	file := PIDFile{path: filepath.Join("foo", "bar")}
 
 	if err := file.Remove(); err == nil {
 		t.Fatal("Non-existing file doesn't give an error on delete")

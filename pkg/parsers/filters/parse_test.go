@@ -39,8 +39,8 @@ func TestParseArgsEdgeCase(t *testing.T) {
 	if args == nil || len(args) != 0 {
 		t.Fatalf("Expected an empty Args (map), got %v", args)
 	}
-	if args, err = ParseFlag("anything", args); err == nil || err != ErrorBadFormat {
-		t.Fatalf("Expected ErrorBadFormat, got %v", err)
+	if args, err = ParseFlag("anything", args); err == nil || err != ErrBadFormat {
+		t.Fatalf("Expected ErrBadFormat, got %v", err)
 	}
 }
 

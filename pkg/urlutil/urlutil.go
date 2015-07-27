@@ -1,3 +1,5 @@
+// Package urlutil provides helper function to check urls kind.
+// It supports http urls, git urls and transport url (tcp://, …)
 package urlutil
 
 import (
