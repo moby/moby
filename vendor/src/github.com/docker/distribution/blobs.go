@@ -27,6 +27,9 @@ var (
 	// ErrBlobInvalidLength returned when the blob has an expected length on
 	// commit, meaning mismatched with the descriptor or an invalid value.
 	ErrBlobInvalidLength = errors.New("blob invalid length")
+
+	// ErrUnsupported returned when an unsupported operation is attempted
+	ErrUnsupported = errors.New("unsupported operation")
 )
 
 // ErrBlobInvalidDigest returned when digest check fails.
@@ -70,6 +73,11 @@ type BlobStatter interface {
 	Stat(ctx context.Context, dgst digest.Digest) (Descriptor, error)
 }
 
+// BlobDeleter enables deleting blobs from storage.
+type BlobDeleter interface {
+	Delete(ctx context.Context, dgst digest.Digest) error
+}
+
 // BlobDescriptorService manages metadata about a blob by digest. Most
 // implementations will not expose such an interface explicitly. Such mappings
 // should be maintained by interacting with the BlobIngester. Hence, this is
@@ -87,6 +95,9 @@ type BlobDescriptorService interface {
 	// the restriction that the algorithm of the descriptor must match the
 	// canonical algorithm (ie sha256) of the annotator.
 	SetDescriptor(ctx context.Context, dgst digest.Digest, desc Descriptor) error
+
+	// Clear enables descriptors to be unlinked
+	Clear(ctx context.Context, dgst digest.Digest) error
 }
 
 // ReadSeekCloser is the primary reader type for blob data, combining
@@ -183,8 +194,9 @@ type BlobService interface {
 }
 
 // BlobStore represent the entire suite of blob related operations. Such an
-// implementation can access, read, write and serve blobs.
+// implementation can access, read, write, delete and serve blobs.
 type BlobStore interface {
 	BlobService
 	BlobServer
+	BlobDeleter
 }
