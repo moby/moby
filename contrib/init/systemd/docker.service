@@ -5,7 +5,8 @@ After=network.target docker.socket
 Requires=docker.socket
 
 [Service]
-ExecStart=/usr/bin/docker daemon -H fd://
+EnvironmentFile=-/etc/sysconfig/docker
+ExecStart=/usr/bin/docker daemon -H fd:// $other_arg
 MountFlags=slave
 LimitNOFILE=1048576
 LimitNPROC=1048576
