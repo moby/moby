@@ -161,6 +161,23 @@ func (s *DockerSuite) TestRmiImgIDForce(c *check.C) {
 	}
 }
 
+// See https://github.com/docker/docker/issues/14116
+func (s *DockerSuite) TestRmiImageIDForceWithRunningContainersAndMultipleTags(c *check.C) {
+	dockerfile := "FROM busybox\nRUN echo test 14116\n"
+	imgID, err := buildImage("test-14116", dockerfile, false)
+	c.Assert(err, check.IsNil)
+
+	newTag := "newtag"
+	dockerCmd(c, "tag", imgID, newTag)
+	dockerCmd(c, "run", "-d", imgID, "top")
+
+	out, _, err := dockerCmdWithError(c, "rmi", "-f", imgID)
+	if err == nil || !strings.Contains(out, "stop it and retry") {
+		c.Log(out)
+		c.Fatalf("rmi -f should not delete image with running containers")
+	}
+}
+
 func (s *DockerSuite) TestRmiTagWithExistingContainers(c *check.C) {
 	container := "test-delete-tag"
 	newtag := "busybox:newtag"
