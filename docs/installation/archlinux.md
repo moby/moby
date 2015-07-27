@@ -66,6 +66,26 @@ If you need to add an HTTP Proxy, set a different directory or partition for the
 Docker runtime files, or make other customizations, read our systemd article to
 learn how to [customize your systemd Docker daemon options](/articles/systemd/).
 
+## Running Docker with a manually-defined network
+
+If you manually configure your network using `systemd-network` version 220 or
+higher, containers you start with Docker may be unable to access your network.
+Beginning with version 220, the forwarding setting for a given network
+(`net.ipv4.conf.<interface>.forwarding`) defaults to *off*. This setting
+prevents IP forwarding. It also conflicts with Docker which enables the
+`net.ipv4.conf.all.forwarding` setting within a container.
+
+To work around this, edit the `<interface>.network` file in
+`/etc/systemd/network/` on your Docker host add the following block:
+
+```
+[Network]
+...
+IPForward=kernel
+...
+```
+
+This configuration allows IP forwarding from the container as expected.
 ## Uninstallation
 
 To uninstall the Docker package:
