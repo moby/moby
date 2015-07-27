@@ -117,6 +117,16 @@ func checkKernel() error {
 	return nil
 }
 
+func (daemon *Daemon) adaptContainerSettings(hostConfig *runconfig.HostConfig) {
+	if hostConfig == nil {
+		return
+	}
+	if hostConfig.Memory > 0 && hostConfig.MemorySwap == 0 {
+		// By default, MemorySwap is set to twice the size of Memory.
+		hostConfig.MemorySwap = hostConfig.Memory * 2
+	}
+}
+
 func (daemon *Daemon) verifyContainerSettings(hostConfig *runconfig.HostConfig, config *runconfig.Config) ([]string, error) {
 	var warnings []string
 
