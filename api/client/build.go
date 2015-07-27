@@ -31,7 +31,6 @@ import (
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/progressreader"
 	"github.com/docker/docker/pkg/streamformatter"
-	"github.com/docker/docker/pkg/symlink"
 	"github.com/docker/docker/pkg/ulimit"
 	"github.com/docker/docker/pkg/units"
 	"github.com/docker/docker/pkg/urlutil"
@@ -340,21 +339,25 @@ func getDockerfileRelPath(givenContextDir, givenDockerfile string) (absContextDi
 		absDockerfile = filepath.Join(absContextDir, absDockerfile)
 	}
 
-	// Verify that 'filename' is within the build context
-	absDockerfile, err = symlink.FollowSymlinkInScope(absDockerfile, absContextDir)
+	// Evaluate symlinks in the path to the Dockerfile too.
+	absDockerfile, err = filepath.EvalSymlinks(absDockerfile)
 	if err != nil {
-		return "", "", fmt.Errorf("The Dockerfile (%s) must be within the build context (%s)", givenDockerfile, givenContextDir)
+		return "", "", fmt.Errorf("unable to evaluate symlinks in Dockerfile path: %v", err)
 	}
 
 	if _, err := os.Lstat(absDockerfile); err != nil {
 		if os.IsNotExist(err) {
-			return "", "", fmt.Errorf("Cannot locate Dockerfile: absDockerfile: %q", absDockerfile)
+			return "", "", fmt.Errorf("Cannot locate Dockerfile: %q", absDockerfile)
 		}
 		return "", "", fmt.Errorf("unable to stat Dockerfile: %v", err)
 	}
 
 	if relDockerfile, err = filepath.Rel(absContextDir, absDockerfile); err != nil {
 		return "", "", fmt.Errorf("unable to get relative Dockerfile path: %v", err)
+	}
+
+	if strings.HasPrefix(relDockerfile, ".."+string(filepath.Separator)) {
+		return "", "", fmt.Errorf("The Dockerfile (%s) must be within the build context (%s)", givenDockerfile, givenContextDir)
 	}
 
 	return absContextDir, relDockerfile, nil
