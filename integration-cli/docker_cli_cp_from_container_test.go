@@ -427,7 +427,7 @@ func (s *DockerSuite) TestCpFromCaseH(c *check.C) {
 	}
 }
 
-// I. SRC specifies a direcotry's contents only and DST exists as a file. This
+// I. SRC specifies a directory's contents only and DST exists as a file. This
 //    should cause an error as it is not possible to overwrite a file with a
 //    directory.
 func (s *DockerSuite) TestCpFromCaseI(c *check.C) {
