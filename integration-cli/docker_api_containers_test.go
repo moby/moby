@@ -1687,3 +1687,13 @@ func (s *DockerSuite) TestPostContainersStartWithLinksInHostConfigIdLinked(c *ch
 	c.Assert(res.StatusCode, check.Equals, http.StatusNoContent)
 	b.Close()
 }
+
+// #14915
+func (s *DockerSuite) TestContainersApiCreateNoHostConfig118(c *check.C) {
+	config := struct {
+		Image string
+	}{"busybox"}
+	status, _, err := sockRequest("POST", "/v1.18/containers/create", config)
+	c.Assert(err, check.IsNil)
+	c.Assert(status, check.Equals, http.StatusCreated)
+}
