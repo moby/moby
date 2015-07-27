@@ -82,7 +82,7 @@ func TestSetupGatewayIPv4(t *testing.T) {
 
 	ip, nw, _ := net.ParseCIDR("192.168.0.24/16")
 	nw.IP = ip
-	gw := net.ParseIP("192.168.0.254")
+	gw := net.ParseIP("192.168.2.254")
 
 	config := &networkConfiguration{
 		BridgeName:         DefaultBridgeName,
