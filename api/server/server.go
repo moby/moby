@@ -599,7 +599,7 @@ func (s *Server) getContainersStats(version version.Version, w http.ResponseWrit
 		Stop:      closeNotifier,
 	}
 
-	return s.daemon.ContainerStats(vars["name"], config)
+	return s.daemon.ContainerStats(container, config)
 }
 
 func (s *Server) getContainersLogs(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
@@ -1607,7 +1607,14 @@ func makeHttpHandler(logging bool, localMethod string, localRoute string, handle
 
 		if err := handlerFunc(version, w, r, mux.Vars(r)); err != nil {
 			logrus.Errorf("Handler for %s %s returned error: %s", localMethod, localRoute, err)
-			httpError(w, err)
+
+			e, ok := err.(*apiError)
+			if !ok {
+				// TODO: Remove this once all errors are properly typed
+				httpError(w, err)
+				return
+			}
+			http.Error(w, err.Error(), e.respCode)
 		}
 	}
 }
