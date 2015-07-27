@@ -21,7 +21,7 @@ func (s *DockerSuite) TestSearchOnCentralRegistry(c *check.C) {
 }
 
 func (s *DockerSuite) TestSearchStarsOptionWithWrongParameter(c *check.C) {
-	out, exitCode, err := dockerCmdWithError(c, "search", "--stars=a", "busybox")
+	out, exitCode, err := dockerCmdWithError("search", "--stars=a", "busybox")
 	if err == nil || exitCode == 0 {
 		c.Fatalf("Should not get right information: %s, %v", out, err)
 	}
@@ -30,7 +30,7 @@ func (s *DockerSuite) TestSearchStarsOptionWithWrongParameter(c *check.C) {
 		c.Fatal("couldn't find the invalid value warning")
 	}
 
-	out, exitCode, err = dockerCmdWithError(c, "search", "-s=-1", "busybox")
+	out, exitCode, err = dockerCmdWithError("search", "-s=-1", "busybox")
 	if err == nil || exitCode == 0 {
 		c.Fatalf("Should not get right information: %s, %v", out, err)
 	}

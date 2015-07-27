@@ -39,7 +39,7 @@ func (s *DockerSuite) TestSaveXzAndLoadRepoStdout(c *check.C) {
 		c.Fatalf("expected error, but succeeded with no error and output: %v", out)
 	}
 
-	after, _, err := dockerCmdWithError(c, "inspect", repoName)
+	after, _, err := dockerCmdWithError("inspect", repoName)
 	if err == nil {
 		c.Fatalf("the repo should not exist: %v", after)
 	}
@@ -72,7 +72,7 @@ func (s *DockerSuite) TestSaveXzGzAndLoadRepoStdout(c *check.C) {
 		c.Fatalf("expected error, but succeeded with no error and output: %v", out)
 	}
 
-	after, _, err := dockerCmdWithError(c, "inspect", repoName)
+	after, _, err := dockerCmdWithError("inspect", repoName)
 	if err == nil {
 		c.Fatalf("the repo should not exist: %v", after)
 	}

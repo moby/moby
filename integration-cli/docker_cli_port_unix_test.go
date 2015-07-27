@@ -25,7 +25,7 @@ func (s *DockerSuite) TestPortHostBinding(c *check.C) {
 
 	dockerCmd(c, "rm", "-f", firstID)
 
-	if _, _, err := dockerCmdWithError(c, "run", "--net=host", "busybox",
+	if _, _, err := dockerCmdWithError("run", "--net=host", "busybox",
 		"nc", "localhost", "9876"); err == nil {
 		c.Error("Port is still bound after the Container is removed")
 	}
@@ -49,7 +49,7 @@ func (s *DockerSuite) TestPortExposeHostBinding(c *check.C) {
 
 	dockerCmd(c, "rm", "-f", firstID)
 
-	if _, _, err = dockerCmdWithError(c, "run", "--net=host", "busybox",
+	if _, _, err = dockerCmdWithError("run", "--net=host", "busybox",
 		"nc", "localhost", strings.TrimSpace(exposedPort)); err == nil {
 		c.Error("Port is still bound after the Container is removed")
 	}

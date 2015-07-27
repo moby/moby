@@ -54,7 +54,7 @@ func (s *DockerSuite) TestImagesOrderedByCreationDate(c *check.C) {
 }
 
 func (s *DockerSuite) TestImagesErrorWithInvalidFilterNameTest(c *check.C) {
-	out, _, err := dockerCmdWithError(c, "images", "-f", "FOO=123")
+	out, _, err := dockerCmdWithError("images", "-f", "FOO=123")
 	if err == nil || !strings.Contains(out, "Invalid filter") {
 		c.Fatalf("error should occur when listing images with invalid filter name FOO, %s", out)
 	}

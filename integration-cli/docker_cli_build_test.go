@@ -4129,7 +4129,7 @@ func (s *DockerSuite) TestBuildFromGITwithF(c *check.C) {
 	}
 	defer git.Close()
 
-	out, _, err := dockerCmdWithError(c, "build", "-t", name, "--no-cache", "-f", "myApp/myDockerfile", git.RepoURL)
+	out, _, err := dockerCmdWithError("build", "-t", name, "--no-cache", "-f", "myApp/myDockerfile", git.RepoURL)
 	if err != nil {
 		c.Fatalf("Error on build. Out: %s\nErr: %v", out, err)
 	}
@@ -4364,7 +4364,7 @@ func (s *DockerSuite) TestBuildEntrypointInheritance(c *check.C) {
 		c.Fatal(err)
 	}
 
-	if _, status, _ := dockerCmdWithError(c, "run", "parent"); status != 130 {
+	if _, status, _ := dockerCmdWithError("run", "parent"); status != 130 {
 		c.Fatalf("expected exit code 130 but received %d", status)
 	}
 
@@ -4375,7 +4375,7 @@ func (s *DockerSuite) TestBuildEntrypointInheritance(c *check.C) {
 		c.Fatal(err)
 	}
 
-	if _, status, _ := dockerCmdWithError(c, "run", "child"); status != 5 {
+	if _, status, _ := dockerCmdWithError("run", "child"); status != 5 {
 		c.Fatalf("expected exit code 5 but received %d", status)
 	}
 
@@ -4471,7 +4471,7 @@ func (s *DockerSuite) TestBuildVerifySingleQuoteFails(c *check.C) {
 		c.Fatal(err)
 	}
 
-	if _, _, err := dockerCmdWithError(c, "run", "--rm", name); err == nil {
+	if _, _, err := dockerCmdWithError("run", "--rm", name); err == nil {
 		c.Fatal("The image was not supposed to be able to run")
 	}
 
@@ -5017,7 +5017,7 @@ func (s *DockerSuite) TestBuildDockerfileOutsideContext(c *check.C) {
 		filepath.Join(ctx, "dockerfile1"),
 		filepath.Join(ctx, "dockerfile2"),
 	} {
-		out, _, err := dockerCmdWithError(c, "build", "-t", name, "--no-cache", "-f", dockerfilePath, ".")
+		out, _, err := dockerCmdWithError("build", "-t", name, "--no-cache", "-f", dockerfilePath, ".")
 		if err == nil {
 			c.Fatalf("Expected error with %s. Out: %s", dockerfilePath, out)
 		}
@@ -5031,7 +5031,7 @@ func (s *DockerSuite) TestBuildDockerfileOutsideContext(c *check.C) {
 
 	// Path to Dockerfile should be resolved relative to working directory, not relative to context.
 	// There is a Dockerfile in the context, but since there is no Dockerfile in the current directory, the following should fail
-	out, _, err := dockerCmdWithError(c, "build", "-t", name, "--no-cache", "-f", "Dockerfile", ctx)
+	out, _, err := dockerCmdWithError("build", "-t", name, "--no-cache", "-f", "Dockerfile", ctx)
 	if err == nil {
 		c.Fatalf("Expected error. Out: %s", out)
 	}

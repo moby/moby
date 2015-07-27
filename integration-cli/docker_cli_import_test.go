@@ -34,7 +34,7 @@ func (s *DockerSuite) TestImportDisplay(c *check.C) {
 }
 
 func (s *DockerSuite) TestImportBadURL(c *check.C) {
-	out, _, err := dockerCmdWithError(c, "import", "http://nourl/bad")
+	out, _, err := dockerCmdWithError("import", "http://nourl/bad")
 	if err == nil {
 		c.Fatal("import was supposed to fail but didn't")
 	}
@@ -73,7 +73,7 @@ func (s *DockerSuite) TestImportFile(c *check.C) {
 }
 
 func (s *DockerSuite) TestImportFileNonExistentFile(c *check.C) {
-	_, exitCode, err := dockerCmdWithError(c, "import", "example.com/myImage.tar")
+	_, exitCode, err := dockerCmdWithError("import", "example.com/myImage.tar")
 	if exitCode == 0 || err == nil {
 		c.Fatalf("import non-existing file must failed")
 	}

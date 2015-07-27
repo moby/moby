@@ -12,7 +12,7 @@ func (s *DockerSuite) TestRmiWithContainerFails(c *check.C) {
 	errSubstr := "is using it"
 
 	// create a container
-	out, _, err := dockerCmdWithError(c, "run", "-d", "busybox", "true")
+	out, _, err := dockerCmdWithError("run", "-d", "busybox", "true")
 	if err != nil {
 		c.Fatalf("failed to create a container: %s, %v", out, err)
 	}
@@ -20,7 +20,7 @@ func (s *DockerSuite) TestRmiWithContainerFails(c *check.C) {
 	cleanedContainerID := strings.TrimSpace(out)
 
 	// try to delete the image
-	out, _, err = dockerCmdWithError(c, "rmi", "busybox")
+	out, _, err = dockerCmdWithError("rmi", "busybox")
 	if err == nil {
 		c.Fatalf("Container %q is using image, should not be able to rmi: %q", cleanedContainerID, out)
 	}
@@ -73,13 +73,13 @@ func (s *DockerSuite) TestRmiTag(c *check.C) {
 }
 
 func (s *DockerSuite) TestRmiImgIDMultipleTag(c *check.C) {
-	out, _, err := dockerCmdWithError(c, "run", "-d", "busybox", "/bin/sh", "-c", "mkdir '/busybox-one'")
+	out, _, err := dockerCmdWithError("run", "-d", "busybox", "/bin/sh", "-c", "mkdir '/busybox-one'")
 	if err != nil {
 		c.Fatalf("failed to create a container:%s, %v", out, err)
 	}
 
 	containerID := strings.TrimSpace(out)
-	out, _, err = dockerCmdWithError(c, "commit", containerID, "busybox-one")
+	out, _, err = dockerCmdWithError("commit", containerID, "busybox-one")
 	if err != nil {
 		c.Fatalf("failed to commit a new busybox-one:%s, %v", out, err)
 	}
@@ -97,7 +97,7 @@ func (s *DockerSuite) TestRmiImgIDMultipleTag(c *check.C) {
 	c.Assert(err, check.IsNil)
 
 	// run a container with the image
-	out, _, err = dockerCmdWithError(c, "run", "-d", "busybox-one", "top")
+	out, _, err = dockerCmdWithError("run", "-d", "busybox-one", "top")
 	if err != nil {
 		c.Fatalf("failed to create a container:%s, %v", out, err)
 	}
@@ -105,7 +105,7 @@ func (s *DockerSuite) TestRmiImgIDMultipleTag(c *check.C) {
 	containerID = strings.TrimSpace(out)
 
 	// first checkout without force it fails
-	out, _, err = dockerCmdWithError(c, "rmi", imgID)
+	out, _, err = dockerCmdWithError("rmi", imgID)
 	expected := fmt.Sprintf("Conflict, cannot delete %s because the running container %s is using it, stop it and use -f to force", imgID[:12], containerID[:12])
 	if err == nil || !strings.Contains(out, expected) {
 		c.Fatalf("rmi tagged in multiple repos should have failed without force: %s, %v, expected: %s", out, err, expected)
@@ -121,13 +121,13 @@ func (s *DockerSuite) TestRmiImgIDMultipleTag(c *check.C) {
 }
 
 func (s *DockerSuite) TestRmiImgIDForce(c *check.C) {
-	out, _, err := dockerCmdWithError(c, "run", "-d", "busybox", "/bin/sh", "-c", "mkdir '/busybox-test'")
+	out, _, err := dockerCmdWithError("run", "-d", "busybox", "/bin/sh", "-c", "mkdir '/busybox-test'")
 	if err != nil {
 		c.Fatalf("failed to create a container:%s, %v", out, err)
 	}
 
 	containerID := strings.TrimSpace(out)
-	out, _, err = dockerCmdWithError(c, "commit", containerID, "busybox-test")
+	out, _, err = dockerCmdWithError("commit", containerID, "busybox-test")
 	if err != nil {
 		c.Fatalf("failed to commit a new busybox-test:%s, %v", out, err)
 	}
@@ -147,7 +147,7 @@ func (s *DockerSuite) TestRmiImgIDForce(c *check.C) {
 	c.Assert(err, check.IsNil)
 
 	// first checkout without force it fails
-	out, _, err = dockerCmdWithError(c, "rmi", imgID)
+	out, _, err = dockerCmdWithError("rmi", imgID)
 	if err == nil || !strings.Contains(out, fmt.Sprintf("Conflict, cannot delete image %s because it is tagged in multiple repositories, use -f to force", imgID)) {
 		c.Fatalf("rmi tagged in multiple repos should have failed without force:%s, %v", out, err)
 	}
@@ -171,7 +171,7 @@ func (s *DockerSuite) TestRmiImageIDForceWithRunningContainersAndMultipleTags(c 
 	dockerCmd(c, "tag", imgID, newTag)
 	dockerCmd(c, "run", "-d", imgID, "top")
 
-	out, _, err := dockerCmdWithError(c, "rmi", "-f", imgID)
+	out, _, err := dockerCmdWithError("rmi", "-f", imgID)
 	if err == nil || !strings.Contains(out, "stop it and retry") {
 		c.Log(out)
 		c.Fatalf("rmi -f should not delete image with running containers")
@@ -182,13 +182,13 @@ func (s *DockerSuite) TestRmiTagWithExistingContainers(c *check.C) {
 	container := "test-delete-tag"
 	newtag := "busybox:newtag"
 	bb := "busybox:latest"
-	if out, _, err := dockerCmdWithError(c, "tag", bb, newtag); err != nil {
+	if out, _, err := dockerCmdWithError("tag", bb, newtag); err != nil {
 		c.Fatalf("Could not tag busybox: %v: %s", err, out)
 	}
-	if out, _, err := dockerCmdWithError(c, "run", "--name", container, bb, "/bin/true"); err != nil {
+	if out, _, err := dockerCmdWithError("run", "--name", container, bb, "/bin/true"); err != nil {
 		c.Fatalf("Could not run busybox: %v: %s", err, out)
 	}
-	out, _, err := dockerCmdWithError(c, "rmi", newtag)
+	out, _, err := dockerCmdWithError("rmi", newtag)
 	if err != nil {
 		c.Fatalf("Could not remove tag %s: %v: %s", newtag, err, out)
 	}
@@ -208,11 +208,11 @@ MAINTAINER foo`)
 		c.Fatalf("Could not build %s: %s, %v", image, out, err)
 	}
 
-	if out, _, err := dockerCmdWithError(c, "run", "--name", "test-force-rmi", image, "/bin/true"); err != nil {
+	if out, _, err := dockerCmdWithError("run", "--name", "test-force-rmi", image, "/bin/true"); err != nil {
 		c.Fatalf("Could not run container: %s, %v", out, err)
 	}
 
-	if out, _, err := dockerCmdWithError(c, "rmi", "-f", image); err != nil {
+	if out, _, err := dockerCmdWithError("rmi", "-f", image); err != nil {
 		c.Fatalf("Could not remove image %s:  %s, %v", image, out, err)
 	}
 }
@@ -221,22 +221,22 @@ func (s *DockerSuite) TestRmiWithMultipleRepositories(c *check.C) {
 	newRepo := "127.0.0.1:5000/busybox"
 	oldRepo := "busybox"
 	newTag := "busybox:test"
-	out, _, err := dockerCmdWithError(c, "tag", oldRepo, newRepo)
+	out, _, err := dockerCmdWithError("tag", oldRepo, newRepo)
 	if err != nil {
 		c.Fatalf("Could not tag busybox: %v: %s", err, out)
 	}
 
-	out, _, err = dockerCmdWithError(c, "run", "--name", "test", oldRepo, "touch", "/home/abcd")
+	out, _, err = dockerCmdWithError("run", "--name", "test", oldRepo, "touch", "/home/abcd")
 	if err != nil {
 		c.Fatalf("failed to run container: %v, output: %s", err, out)
 	}
 
-	out, _, err = dockerCmdWithError(c, "commit", "test", newTag)
+	out, _, err = dockerCmdWithError("commit", "test", newTag)
 	if err != nil {
 		c.Fatalf("failed to commit container: %v, output: %s", err, out)
 	}
 
-	out, _, err = dockerCmdWithError(c, "rmi", newTag)
+	out, _, err = dockerCmdWithError("rmi", newTag)
 	if err != nil {
 		c.Fatalf("failed to remove image: %v, output: %s", err, out)
 	}
@@ -247,7 +247,7 @@ func (s *DockerSuite) TestRmiWithMultipleRepositories(c *check.C) {
 
 func (s *DockerSuite) TestRmiBlank(c *check.C) {
 	// try to delete a blank image name
-	out, _, err := dockerCmdWithError(c, "rmi", "")
+	out, _, err := dockerCmdWithError("rmi", "")
 	if err == nil {
 		c.Fatal("Should have failed to delete '' image")
 	}
@@ -258,7 +258,7 @@ func (s *DockerSuite) TestRmiBlank(c *check.C) {
 		c.Fatalf("Expected error message not generated: %s", out)
 	}
 
-	out, _, err = dockerCmdWithError(c, "rmi", " ")
+	out, _, err = dockerCmdWithError("rmi", " ")
 	if err == nil {
 		c.Fatal("Should have failed to delete '' image")
 	}
@@ -286,7 +286,7 @@ func (s *DockerSuite) TestRmiContainerImageNotFound(c *check.C) {
 	dockerCmd(c, "rmi", "-f", imageIds[1])
 
 	// Try to remove the image of the running container and see if it fails as expected.
-	out, _, err := dockerCmdWithError(c, "rmi", "-f", imageIds[0])
+	out, _, err := dockerCmdWithError("rmi", "-f", imageIds[0])
 	if err == nil || !strings.Contains(out, "is using it") {
 		c.Log(out)
 		c.Fatal("The image of the running container should not be removed.")

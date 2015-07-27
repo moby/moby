@@ -1369,7 +1369,7 @@ func pingContainers(c *check.C, d *Daemon, expectFailure bool) {
 	args = append(dargs, "run", "--rm", "--link", "container1:alias1", "busybox", "sh", "-c")
 	pingCmd := "ping -c 1 %s -W 1"
 	args = append(args, fmt.Sprintf(pingCmd, "alias1"))
-	_, _, err := dockerCmdWithError(c, args...)
+	_, _, err := dockerCmdWithError(args...)
 
 	if expectFailure {
 		c.Assert(err, check.NotNil)

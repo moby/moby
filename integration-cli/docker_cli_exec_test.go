@@ -148,7 +148,7 @@ func (s *DockerSuite) TestExecPausedContainer(c *check.C) {
 	ContainerID := strings.TrimSpace(out)
 
 	dockerCmd(c, "pause", "testing")
-	out, _, err := dockerCmdWithError(c, "exec", "-i", "-t", ContainerID, "echo", "hello")
+	out, _, err := dockerCmdWithError("exec", "-i", "-t", ContainerID, "echo", "hello")
 	if err == nil {
 		c.Fatal("container should fail to exec new command if it is paused")
 	}
@@ -268,7 +268,7 @@ func (s *DockerSuite) TestExecCgroup(c *check.C) {
 	for i := 0; i < 5; i++ {
 		wg.Add(1)
 		go func() {
-			out, _, err := dockerCmdWithError(c, "exec", "testing", "cat", "/proc/self/cgroup")
+			out, _, err := dockerCmdWithError("exec", "testing", "cat", "/proc/self/cgroup")
 			if err != nil {
 				errChan <- err
 				return

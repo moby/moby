@@ -25,7 +25,7 @@ func (s *DockerSuite) TestKillofStoppedContainer(c *check.C) {
 
 	dockerCmd(c, "stop", cleanedContainerID)
 
-	_, _, err := dockerCmdWithError(c, "kill", "-s", "30", cleanedContainerID)
+	_, _, err := dockerCmdWithError("kill", "-s", "30", cleanedContainerID)
 	c.Assert(err, check.Not(check.IsNil), check.Commentf("Container %s is not running", cleanedContainerID))
 }
 
@@ -61,7 +61,7 @@ func (s *DockerSuite) TestKillWithInvalidSignal(c *check.C) {
 	cid := strings.TrimSpace(out)
 	c.Assert(waitRun(cid), check.IsNil)
 
-	out, _, err := dockerCmdWithError(c, "kill", "-s", "0", cid)
+	out, _, err := dockerCmdWithError("kill", "-s", "0", cid)
 	c.Assert(err, check.NotNil)
 	if !strings.ContainsAny(out, "Invalid signal: 0") {
 		c.Fatal("Kill with an invalid signal didn't error out correctly")
@@ -76,7 +76,7 @@ func (s *DockerSuite) TestKillWithInvalidSignal(c *check.C) {
 	cid = strings.TrimSpace(out)
 	c.Assert(waitRun(cid), check.IsNil)
 
-	out, _, err = dockerCmdWithError(c, "kill", "-s", "SIG42", cid)
+	out, _, err = dockerCmdWithError("kill", "-s", "SIG42", cid)
 	c.Assert(err, check.NotNil)
 	if !strings.ContainsAny(out, "Invalid signal: SIG42") {
 		c.Fatal("Kill with an invalid signal error out correctly")

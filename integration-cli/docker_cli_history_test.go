@@ -66,7 +66,7 @@ func (s *DockerSuite) TestHistoryExistentImage(c *check.C) {
 }
 
 func (s *DockerSuite) TestHistoryNonExistentImage(c *check.C) {
-	_, _, err := dockerCmdWithError(c, "history", "testHistoryNonExistentImage")
+	_, _, err := dockerCmdWithError("history", "testHistoryNonExistentImage")
 	if err == nil {
 		c.Fatal("history on a non-existent image should fail.")
 	}

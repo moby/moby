@@ -55,7 +55,7 @@ func (s *DockerSuite) TestInspectTypeFlagContainer(c *check.C) {
 	dockerCmd(c, "run", "--name=busybox", "-d", "busybox", "top")
 
 	formatStr := fmt.Sprintf("--format='{{.State.Running}}'")
-	out, exitCode, err := dockerCmdWithError(c, "inspect", "--type=container", formatStr, "busybox")
+	out, exitCode, err := dockerCmdWithError("inspect", "--type=container", formatStr, "busybox")
 	if exitCode != 0 || err != nil {
 		c.Fatalf("failed to inspect container: %s, %v", out, err)
 	}
@@ -73,7 +73,7 @@ func (s *DockerSuite) TestInspectTypeFlagWithNoContainer(c *check.C) {
 
 	dockerCmd(c, "run", "-d", "busybox", "true")
 
-	_, exitCode, err := dockerCmdWithError(c, "inspect", "--type=container", "busybox")
+	_, exitCode, err := dockerCmdWithError("inspect", "--type=container", "busybox")
 	if exitCode == 0 || err == nil {
 		c.Fatalf("docker inspect should have failed, as there is no container named busybox")
 	}
@@ -87,7 +87,7 @@ func (s *DockerSuite) TestInspectTypeFlagWithImage(c *check.C) {
 
 	dockerCmd(c, "run", "--name=busybox", "-d", "busybox", "true")
 
-	out, exitCode, err := dockerCmdWithError(c, "inspect", "--type=image", "busybox")
+	out, exitCode, err := dockerCmdWithError("inspect", "--type=image", "busybox")
 	if exitCode != 0 || err != nil {
 		c.Fatalf("failed to inspect image: %s, %v", out, err)
 	}
@@ -104,7 +104,7 @@ func (s *DockerSuite) TestInspectTypeFlagWithInvalidValue(c *check.C) {
 
 	dockerCmd(c, "run", "--name=busybox", "-d", "busybox", "true")
 
-	out, exitCode, err := dockerCmdWithError(c, "inspect", "--type=foobar", "busybox")
+	out, exitCode, err := dockerCmdWithError("inspect", "--type=foobar", "busybox")
 	if exitCode != 0 || err != nil {
 		if !strings.Contains(out, "not a valid value for --type") {
 			c.Fatalf("failed to inspect image: %s, %v", out, err)
@@ -124,7 +124,7 @@ func (s *DockerSuite) TestInspectImageFilterInt(c *check.C) {
 
 	//now see if the size turns out to be the same
 	formatStr := fmt.Sprintf("--format='{{eq .Size %d}}'", size)
-	out, exitCode, err := dockerCmdWithError(c, "inspect", formatStr, imageTest)
+	out, exitCode, err := dockerCmdWithError("inspect", formatStr, imageTest)
 	if exitCode != 0 || err != nil {
 		c.Fatalf("failed to inspect image: %s, %v", out, err)
 	}

@@ -26,7 +26,7 @@ func setupImageWithTag(c *check.C, tag string) (string, error) {
 
 	// tag the image to upload it to the private registry
 	repoAndTag := utils.ImageReference(repoName, tag)
-	if out, _, err := dockerCmdWithError(c, "commit", containerName, repoAndTag); err != nil {
+	if out, _, err := dockerCmdWithError("commit", containerName, repoAndTag); err != nil {
 		return "", fmt.Errorf("image tagging failed: %s, %v", out, err)
 	}
 
@@ -36,13 +36,13 @@ func setupImageWithTag(c *check.C, tag string) (string, error) {
 	}
 
 	// push the image
-	out, _, err := dockerCmdWithError(c, "push", repoAndTag)
+	out, _, err := dockerCmdWithError("push", repoAndTag)
 	if err != nil {
 		return "", fmt.Errorf("pushing the image to the private registry has failed: %s, %v", out, err)
 	}
 
 	// delete our local repo that we previously tagged
-	if rmiout, _, err := dockerCmdWithError(c, "rmi", repoAndTag); err != nil {
+	if rmiout, _, err := dockerCmdWithError("rmi", repoAndTag); err != nil {
 		return "", fmt.Errorf("error deleting images prior to real test: %s, %v", rmiout, err)
 	}
 
@@ -103,7 +103,7 @@ func (s *DockerRegistrySuite) TestPullByDigest(c *check.C) {
 func (s *DockerRegistrySuite) TestPullByDigestNoFallback(c *check.C) {
 	// pull from the registry using the <name>@<digest> reference
 	imageReference := fmt.Sprintf("%s@sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", repoName)
-	out, _, err := dockerCmdWithError(c, "pull", imageReference)
+	out, _, err := dockerCmdWithError("pull", imageReference)
 	if err == nil || !strings.Contains(out, "manifest unknown") {
 		c.Fatalf("expected non-zero exit status and correct error message when pulling non-existing image: %s", out)
 	}

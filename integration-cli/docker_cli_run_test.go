@@ -52,7 +52,7 @@ func (s *DockerSuite) TestRunWithSwappiness(c *check.C) {
 }
 
 func (s *DockerSuite) TestRunWithSwappinessInvalid(c *check.C) {
-	out, _, err := dockerCmdWithError(c, "run", "--memory-swappiness", "101", "busybox", "true")
+	out, _, err := dockerCmdWithError("run", "--memory-swappiness", "101", "busybox", "true")
 	if err == nil {
 		c.Fatalf("failed. test was able to set invalid value, output: %q", out)
 	}
@@ -108,7 +108,7 @@ func (s *DockerSuite) TestRunExitCodeZero(c *check.C) {
 // the exit code should be 1
 // some versions of lxc might make this test fail
 func (s *DockerSuite) TestRunExitCodeOne(c *check.C) {
-	_, exitCode, err := dockerCmdWithError(c, "run", "busybox", "false")
+	_, exitCode, err := dockerCmdWithError("run", "busybox", "false")
 	if err != nil && !strings.Contains("exit status 1", fmt.Sprintf("%s", err)) {
 		c.Fatal(err)
 	}
@@ -173,7 +173,7 @@ func (s *DockerSuite) TestRunWorkingDirectory(c *check.C) {
 
 // pinging Google's DNS resolver should fail when we disable the networking
 func (s *DockerSuite) TestRunWithoutNetworking(c *check.C) {
-	out, exitCode, err := dockerCmdWithError(c, "run", "--net=none", "busybox", "ping", "-c", "1", "8.8.8.8")
+	out, exitCode, err := dockerCmdWithError("run", "--net=none", "busybox", "ping", "-c", "1", "8.8.8.8")
 	if err != nil && exitCode != 1 {
 		c.Fatal(out, err)
 	}
@@ -181,7 +181,7 @@ func (s *DockerSuite) TestRunWithoutNetworking(c *check.C) {
 		c.Errorf("--net=none should've disabled the network; the container shouldn't have been able to ping 8.8.8.8")
 	}
 
-	out, exitCode, err = dockerCmdWithError(c, "run", "-n=false", "busybox", "ping", "-c", "1", "8.8.8.8")
+	out, exitCode, err = dockerCmdWithError("run", "-n=false", "busybox", "ping", "-c", "1", "8.8.8.8")
 	if err != nil && exitCode != 1 {
 		c.Fatal(out, err)
 	}
@@ -219,7 +219,7 @@ func (s *DockerSuite) TestRunLinksContainerWithContainerId(c *check.C) {
 
 // Issue 9677.
 func (s *DockerSuite) TestRunWithDaemonFlags(c *check.C) {
-	out, _, err := dockerCmdWithError(c, "--selinux-enabled", "run", "-i", "-t", "busybox", "true")
+	out, _, err := dockerCmdWithError("--selinux-enabled", "run", "-i", "-t", "busybox", "true")
 	if err != nil {
 		if !strings.Contains(out, "must follow the 'docker daemon' command") && // daemon
 			!strings.Contains(out, "flag provided but not defined: --selinux-enabled") { // no daemon (client-only)
@@ -269,7 +269,7 @@ func (s *DockerSuite) TestRunCreateVolumesInSymlinkDir(c *check.C) {
 }
 
 func (s *DockerSuite) TestRunVolumesMountedAsReadonly(c *check.C) {
-	if _, code, err := dockerCmdWithError(c, "run", "-v", "/test:/test:ro", "busybox", "touch", "/test/somefile"); err == nil || code == 0 {
+	if _, code, err := dockerCmdWithError("run", "-v", "/test:/test:ro", "busybox", "touch", "/test/somefile"); err == nil || code == 0 {
 		c.Fatalf("run should fail because volume is ro: exit code %d", code)
 	}
 }
@@ -277,7 +277,7 @@ func (s *DockerSuite) TestRunVolumesMountedAsReadonly(c *check.C) {
 func (s *DockerSuite) TestRunVolumesFromInReadonlyMode(c *check.C) {
 	dockerCmd(c, "run", "--name", "parent", "-v", "/test", "busybox", "true")
 
-	if _, code, err := dockerCmdWithError(c, "run", "--volumes-from", "parent:ro", "busybox", "touch", "/test/file"); err == nil || code == 0 {
+	if _, code, err := dockerCmdWithError("run", "--volumes-from", "parent:ro", "busybox", "touch", "/test/file"); err == nil || code == 0 {
 		c.Fatalf("run should fail because volume is ro: exit code %d", code)
 	}
 }
@@ -287,7 +287,7 @@ func (s *DockerSuite) TestRunVolumesFromInReadWriteMode(c *check.C) {
 	dockerCmd(c, "run", "--name", "parent", "-v", "/test", "busybox", "true")
 	dockerCmd(c, "run", "--volumes-from", "parent:rw", "busybox", "touch", "/test/file")
 
-	if out, _, err := dockerCmdWithError(c, "run", "--volumes-from", "parent:bar", "busybox", "touch", "/test/file"); err == nil || !strings.Contains(out, "invalid mode for volumes-from: bar") {
+	if out, _, err := dockerCmdWithError("run", "--volumes-from", "parent:bar", "busybox", "touch", "/test/file"); err == nil || !strings.Contains(out, "invalid mode for volumes-from: bar") {
 		c.Fatalf("running --volumes-from foo:bar should have failed with invalid mount mode: %q", out)
 	}
 
@@ -298,14 +298,14 @@ func (s *DockerSuite) TestVolumesFromGetsProperMode(c *check.C) {
 	dockerCmd(c, "run", "--name", "parent", "-v", "/test:/test:ro", "busybox", "true")
 
 	// Expect this "rw" mode to be be ignored since the inherited volume is "ro"
-	if _, _, err := dockerCmdWithError(c, "run", "--volumes-from", "parent:rw", "busybox", "touch", "/test/file"); err == nil {
+	if _, _, err := dockerCmdWithError("run", "--volumes-from", "parent:rw", "busybox", "touch", "/test/file"); err == nil {
 		c.Fatal("Expected volumes-from to inherit read-only volume even when passing in `rw`")
 	}
 
 	dockerCmd(c, "run", "--name", "parent2", "-v", "/test:/test:ro", "busybox", "true")
 
 	// Expect this to be read-only since both are "ro"
-	if _, _, err := dockerCmdWithError(c, "run", "--volumes-from", "parent2:ro", "busybox", "touch", "/test/file"); err == nil {
+	if _, _, err := dockerCmdWithError("run", "--volumes-from", "parent2:ro", "busybox", "touch", "/test/file"); err == nil {
 		c.Fatal("Expected volumes-from to inherit read-only volume even when passing in `ro`")
 	}
 }
@@ -315,7 +315,7 @@ func (s *DockerSuite) TestRunNoDupVolumes(c *check.C) {
 	mountstr1 := randomUnixTmpDirPath("test1") + ":/someplace"
 	mountstr2 := randomUnixTmpDirPath("test2") + ":/someplace"
 
-	if out, _, err := dockerCmdWithError(c, "run", "-v", mountstr1, "-v", mountstr2, "busybox", "true"); err == nil {
+	if out, _, err := dockerCmdWithError("run", "-v", mountstr1, "-v", mountstr2, "busybox", "true"); err == nil {
 		c.Fatal("Expected error about duplicate volume definitions")
 	} else {
 		if !strings.Contains(out, "Duplicate bind mount") {
@@ -338,7 +338,7 @@ func (s *DockerSuite) TestRunMultipleVolumesFrom(c *check.C) {
 
 // this tests verifies the ID format for the container
 func (s *DockerSuite) TestRunVerifyContainerID(c *check.C) {
-	out, exit, err := dockerCmdWithError(c, "run", "-d", "busybox", "true")
+	out, exit, err := dockerCmdWithError("run", "-d", "busybox", "true")
 	if err != nil {
 		c.Fatal(err)
 	}
@@ -374,7 +374,7 @@ func (s *DockerSuite) TestRunCreateVolumeWithSymlink(c *check.C) {
 		c.Fatalf("could not build '%s': %v", image, err)
 	}
 
-	_, exitCode, err := dockerCmdWithError(c, "run", "-v", "/bar/foo", "--name", "test-createvolumewithsymlink", image, "sh", "-c", "mount | grep -q /home/foo")
+	_, exitCode, err := dockerCmdWithError("run", "-v", "/bar/foo", "--name", "test-createvolumewithsymlink", image, "sh", "-c", "mount | grep -q /home/foo")
 	if err != nil || exitCode != 0 {
 		c.Fatalf("[run] err: %v, exitcode: %d", err, exitCode)
 	}
@@ -384,7 +384,7 @@ func (s *DockerSuite) TestRunCreateVolumeWithSymlink(c *check.C) {
 		c.Fatalf("[inspect] err: %v", err)
 	}
 
-	_, exitCode, err = dockerCmdWithError(c, "rm", "-v", "test-createvolumewithsymlink")
+	_, exitCode, err = dockerCmdWithError("rm", "-v", "test-createvolumewithsymlink")
 	if err != nil || exitCode != 0 {
 		c.Fatalf("[rm] err: %v, exitcode: %d", err, exitCode)
 	}
@@ -409,19 +409,19 @@ func (s *DockerSuite) TestRunVolumesFromSymlinkPath(c *check.C) {
 		c.Fatalf("could not build 'docker-test-volumesfromsymlinkpath': %v", err)
 	}
 
-	_, exitCode, err := dockerCmdWithError(c, "run", "--name", "test-volumesfromsymlinkpath", name)
+	_, exitCode, err := dockerCmdWithError("run", "--name", "test-volumesfromsymlinkpath", name)
 	if err != nil || exitCode != 0 {
 		c.Fatalf("[run] (volume) err: %v, exitcode: %d", err, exitCode)
 	}
 
-	_, exitCode, err = dockerCmdWithError(c, "run", "--volumes-from", "test-volumesfromsymlinkpath", "busybox", "sh", "-c", "ls /foo | grep -q bar")
+	_, exitCode, err = dockerCmdWithError("run", "--volumes-from", "test-volumesfromsymlinkpath", "busybox", "sh", "-c", "ls /foo | grep -q bar")
 	if err != nil || exitCode != 0 {
 		c.Fatalf("[run] err: %v, exitcode: %d", err, exitCode)
 	}
 }
 
 func (s *DockerSuite) TestRunExitCode(c *check.C) {
-	_, exit, err := dockerCmdWithError(c, "run", "busybox", "/bin/sh", "-c", "exit 72")
+	_, exit, err := dockerCmdWithError("run", "busybox", "/bin/sh", "-c", "exit 72")
 	if err == nil {
 		c.Fatal("should not have a non nil error")
 	}
@@ -452,7 +452,7 @@ func (s *DockerSuite) TestRunUserByID(c *check.C) {
 }
 
 func (s *DockerSuite) TestRunUserByIDBig(c *check.C) {
-	out, _, err := dockerCmdWithError(c, "run", "-u", "2147483648", "busybox", "id")
+	out, _, err := dockerCmdWithError("run", "-u", "2147483648", "busybox", "id")
 	if err == nil {
 		c.Fatal("No error, but must be.", out)
 	}
@@ -462,7 +462,7 @@ func (s *DockerSuite) TestRunUserByIDBig(c *check.C) {
 }
 
 func (s *DockerSuite) TestRunUserByIDNegative(c *check.C) {
-	out, _, err := dockerCmdWithError(c, "run", "-u", "-1", "busybox", "id")
+	out, _, err := dockerCmdWithError("run", "-u", "-1", "busybox", "id")
 	if err == nil {
 		c.Fatal("No error, but must be.", out)
 	}
@@ -472,7 +472,7 @@ func (s *DockerSuite) TestRunUserByIDNegative(c *check.C) {
 }
 
 func (s *DockerSuite) TestRunUserByIDZero(c *check.C) {
-	out, _, err := dockerCmdWithError(c, "run", "-u", "0", "busybox", "id")
+	out, _, err := dockerCmdWithError("run", "-u", "0", "busybox", "id")
 	if err != nil {
 		c.Fatal(err, out)
 	}
@@ -482,7 +482,7 @@ func (s *DockerSuite) TestRunUserByIDZero(c *check.C) {
 }
 
 func (s *DockerSuite) TestRunUserNotFound(c *check.C) {
-	_, _, err := dockerCmdWithError(c, "run", "-u", "notme", "busybox", "id")
+	_, _, err := dockerCmdWithError("run", "-u", "notme", "busybox", "id")
 	if err == nil {
 		c.Fatal("unknown user should cause container to fail")
 	}
@@ -496,7 +496,7 @@ func (s *DockerSuite) TestRunTwoConcurrentContainers(c *check.C) {
 	for i := 0; i < 2; i++ {
 		go func() {
 			defer group.Done()
-			_, _, err := dockerCmdWithError(c, "run", "busybox", "sleep", "2")
+			_, _, err := dockerCmdWithError("run", "busybox", "sleep", "2")
 			errChan <- err
 		}()
 	}
@@ -632,7 +632,7 @@ func (s *DockerSuite) TestRunContainerNetwork(c *check.C) {
 func (s *DockerSuite) TestRunNetHostNotAllowedWithLinks(c *check.C) {
 	dockerCmd(c, "run", "--name", "linked", "busybox", "true")
 
-	_, _, err := dockerCmdWithError(c, "run", "--net=host", "--link", "linked:linked", "busybox", "true")
+	_, _, err := dockerCmdWithError("run", "--net=host", "--link", "linked:linked", "busybox", "true")
 	if err == nil {
 		c.Fatal("Expected error")
 	}
@@ -665,14 +665,14 @@ func (s *DockerSuite) TestRunUnprivilegedCanMknod(c *check.C) {
 }
 
 func (s *DockerSuite) TestRunCapDropInvalid(c *check.C) {
-	out, _, err := dockerCmdWithError(c, "run", "--cap-drop=CHPASS", "busybox", "ls")
+	out, _, err := dockerCmdWithError("run", "--cap-drop=CHPASS", "busybox", "ls")
 	if err == nil {
 		c.Fatal(err, out)
 	}
 }
 
 func (s *DockerSuite) TestRunCapDropCannotMknod(c *check.C) {
-	out, _, err := dockerCmdWithError(c, "run", "--cap-drop=MKNOD", "busybox", "sh", "-c", "mknod /tmp/sda b 8 0 && echo ok")
+	out, _, err := dockerCmdWithError("run", "--cap-drop=MKNOD", "busybox", "sh", "-c", "mknod /tmp/sda b 8 0 && echo ok")
 
 	if err == nil {
 		c.Fatal(err, out)
@@ -683,7 +683,7 @@ func (s *DockerSuite) TestRunCapDropCannotMknod(c *check.C) {
 }
 
 func (s *DockerSuite) TestRunCapDropCannotMknodLowerCase(c *check.C) {
-	out, _, err := dockerCmdWithError(c, "run", "--cap-drop=mknod", "busybox", "sh", "-c", "mknod /tmp/sda b 8 0 && echo ok")
+	out, _, err := dockerCmdWithError("run", "--cap-drop=mknod", "busybox", "sh", "-c", "mknod /tmp/sda b 8 0 && echo ok")
 
 	if err == nil {
 		c.Fatal(err, out)
@@ -694,7 +694,7 @@ func (s *DockerSuite) TestRunCapDropCannotMknodLowerCase(c *check.C) {
 }
 
 func (s *DockerSuite) TestRunCapDropALLCannotMknod(c *check.C) {
-	out, _, err := dockerCmdWithError(c, "run", "--cap-drop=ALL", "--cap-add=SETGID", "busybox", "sh", "-c", "mknod /tmp/sda b 8 0 && echo ok")
+	out, _, err := dockerCmdWithError("run", "--cap-drop=ALL", "--cap-add=SETGID", "busybox", "sh", "-c", "mknod /tmp/sda b 8 0 && echo ok")
 	if err == nil {
 		c.Fatal(err, out)
 	}
@@ -712,7 +712,7 @@ func (s *DockerSuite) TestRunCapDropALLAddMknodCanMknod(c *check.C) {
 }
 
 func (s *DockerSuite) TestRunCapAddInvalid(c *check.C) {
-	out, _, err := dockerCmdWithError(c, "run", "--cap-add=CHPASS", "busybox", "ls")
+	out, _, err := dockerCmdWithError("run", "--cap-add=CHPASS", "busybox", "ls")
 	if err == nil {
 		c.Fatal(err, out)
 	}
@@ -735,7 +735,7 @@ func (s *DockerSuite) TestRunCapAddALLCanDownInterface(c *check.C) {
 }
 
 func (s *DockerSuite) TestRunCapAddALLDropNetAdminCanDownInterface(c *check.C) {
-	out, _, err := dockerCmdWithError(c, "run", "--cap-add=ALL", "--cap-drop=NET_ADMIN", "busybox", "sh", "-c", "ip link set eth0 down && echo ok")
+	out, _, err := dockerCmdWithError("run", "--cap-add=ALL", "--cap-drop=NET_ADMIN", "busybox", "sh", "-c", "ip link set eth0 down && echo ok")
 	if err == nil {
 		c.Fatal(err, out)
 	}
@@ -763,7 +763,7 @@ func (s *DockerSuite) TestRunPrivilegedCanMount(c *check.C) {
 }
 
 func (s *DockerSuite) TestRunUnprivilegedCannotMount(c *check.C) {
-	out, _, err := dockerCmdWithError(c, "run", "busybox", "sh", "-c", "mount -t tmpfs none /tmp && echo ok")
+	out, _, err := dockerCmdWithError("run", "busybox", "sh", "-c", "mount -t tmpfs none /tmp && echo ok")
 
 	if err == nil {
 		c.Fatal(err, out)
@@ -774,19 +774,19 @@ func (s *DockerSuite) TestRunUnprivilegedCannotMount(c *check.C) {
 }
 
 func (s *DockerSuite) TestRunSysNotWritableInNonPrivilegedContainers(c *check.C) {
-	if _, code, err := dockerCmdWithError(c, "run", "busybox", "touch", "/sys/kernel/profiling"); err == nil || code == 0 {
+	if _, code, err := dockerCmdWithError("run", "busybox", "touch", "/sys/kernel/profiling"); err == nil || code == 0 {
 		c.Fatal("sys should not be writable in a non privileged container")
 	}
 }
 
 func (s *DockerSuite) TestRunSysWritableInPrivilegedContainers(c *check.C) {
-	if _, code, err := dockerCmdWithError(c, "run", "--privileged", "busybox", "touch", "/sys/kernel/profiling"); err != nil || code != 0 {
+	if _, code, err := dockerCmdWithError("run", "--privileged", "busybox", "touch", "/sys/kernel/profiling"); err != nil || code != 0 {
 		c.Fatalf("sys should be writable in privileged container")
 	}
 }
 
 func (s *DockerSuite) TestRunProcNotWritableInNonPrivilegedContainers(c *check.C) {
-	if _, code, err := dockerCmdWithError(c, "run", "busybox", "touch", "/proc/sysrq-trigger"); err == nil || code == 0 {
+	if _, code, err := dockerCmdWithError("run", "busybox", "touch", "/proc/sysrq-trigger"); err == nil || code == 0 {
 		c.Fatal("proc should not be writable in a non privileged container")
 	}
 }
@@ -822,7 +822,7 @@ func (s *DockerSuite) TestRunWithBlkioWeight(c *check.C) {
 }
 
 func (s *DockerSuite) TestRunWithBlkioInvalidWeight(c *check.C) {
-	if _, _, err := dockerCmdWithError(c, "run", "--blkio-weight", "5", "busybox", "true"); err == nil {
+	if _, _, err := dockerCmdWithError("run", "--blkio-weight", "5", "busybox", "true"); err == nil {
 		c.Fatalf("run with invalid blkio-weight should failed")
 	}
 }
@@ -890,7 +890,7 @@ func (s *DockerSuite) TestRunAllowBindMountingRoot(c *check.C) {
 }
 
 func (s *DockerSuite) TestRunDisallowBindMountingRootToRoot(c *check.C) {
-	out, _, err := dockerCmdWithError(c, "run", "-v", "/:/", "busybox", "ls", "/host")
+	out, _, err := dockerCmdWithError("run", "-v", "/:/", "busybox", "ls", "/host")
 	if err == nil {
 		c.Fatal(out, err)
 	}
@@ -1382,7 +1382,7 @@ func (s *DockerSuite) TestRunCleanupCmdOnEntrypoint(c *check.C) {
 
 // TestRunWorkdirExistsAndIsFile checks that if 'docker run -w' with existing file can be detected
 func (s *DockerSuite) TestRunWorkdirExistsAndIsFile(c *check.C) {
-	out, exit, err := dockerCmdWithError(c, "run", "-w", "/bin/cat", "busybox")
+	out, exit, err := dockerCmdWithError("run", "-w", "/bin/cat", "busybox")
 	if !(err != nil && exit == 1 && strings.Contains(out, "Cannot mkdir: /bin/cat is not a directory")) {
 		c.Fatalf("Docker must complains about making dir, but we got out: %s, exit: %d, err: %s", out, exit, err)
 	}
@@ -1509,7 +1509,7 @@ func (s *DockerSuite) TestRunWriteResolvFileAndNotCommit(c *check.C) {
 
 func (s *DockerSuite) TestRunWithBadDevice(c *check.C) {
 	name := "baddevice"
-	out, _, err := dockerCmdWithError(c, "run", "--name", name, "--device", "/etc", "busybox", "true")
+	out, _, err := dockerCmdWithError("run", "--name", name, "--device", "/etc", "busybox", "true")
 
 	if err == nil {
 		c.Fatal("Run should fail with bad device")
@@ -1553,7 +1553,7 @@ func (s *DockerSuite) TestRunBindMounts(c *check.C) {
 	readFile(path.Join(tmpDir, "holla"), c) // Will fail if the file doesn't exist
 
 	// test mounting to an illegal destination directory
-	_, _, err = dockerCmdWithError(c, "run", "-v", fmt.Sprintf("%s:.", tmpDir), "busybox", "ls", ".")
+	_, _, err = dockerCmdWithError("run", "-v", fmt.Sprintf("%s:.", tmpDir), "busybox", "ls", ".")
 	if err == nil {
 		c.Fatal("Container bind mounted illegal directory")
 	}
@@ -1577,7 +1577,7 @@ func (s *DockerSuite) TestRunCidFileCleanupIfEmpty(c *check.C) {
 	defer os.RemoveAll(tmpDir)
 	tmpCidFile := path.Join(tmpDir, "cid")
 
-	out, _, err := dockerCmdWithError(c, "run", "--cidfile", tmpCidFile, "emptyfs")
+	out, _, err := dockerCmdWithError("run", "--cidfile", tmpCidFile, "emptyfs")
 	if err == nil {
 		c.Fatalf("Run without command must fail. out=%s", out)
 	} else if !strings.Contains(out, "No command specified") {
@@ -1641,7 +1641,7 @@ func (s *DockerSuite) TestRunInspectMacAddress(c *check.C) {
 
 // test docker run use a invalid mac address
 func (s *DockerSuite) TestRunWithInvalidMacAddress(c *check.C) {
-	out, _, err := dockerCmdWithError(c, "run", "--mac-address", "92:d0:c6:0a:29", "busybox")
+	out, _, err := dockerCmdWithError("run", "--mac-address", "92:d0:c6:0a:29", "busybox")
 	//use a invalid mac address should with a error out
 	if err == nil || !strings.Contains(out, "is not a valid mac address") {
 		c.Fatalf("run with an invalid --mac-address should with error out")
@@ -1675,7 +1675,7 @@ func (s *DockerSuite) TestRunPortInUse(c *check.C) {
 	port := "1234"
 	dockerCmd(c, "run", "-d", "-p", port+":80", "busybox", "top")
 
-	out, _, err := dockerCmdWithError(c, "run", "-d", "-p", port+":80", "busybox", "top")
+	out, _, err := dockerCmdWithError("run", "-d", "-p", port+":80", "busybox", "top")
 	if err == nil {
 		c.Fatalf("Binding on used port must fail")
 	}
@@ -1800,12 +1800,12 @@ func (s *DockerSuite) TestVolumesNoCopyData(c *check.C) {
 
 	dockerCmd(c, "run", "--name", "test", "-v", "/foo", "busybox")
 
-	if out, _, err := dockerCmdWithError(c, "run", "--volumes-from", "test", "dataimage", "ls", "-lh", "/foo/bar"); err == nil || !strings.Contains(out, "No such file or directory") {
+	if out, _, err := dockerCmdWithError("run", "--volumes-from", "test", "dataimage", "ls", "-lh", "/foo/bar"); err == nil || !strings.Contains(out, "No such file or directory") {
 		c.Fatalf("Data was copied on volumes-from but shouldn't be:\n%q", out)
 	}
 
 	tmpDir := randomUnixTmpDirPath("docker_test_bind_mount_copy_data")
-	if out, _, err := dockerCmdWithError(c, "run", "-v", tmpDir+":/foo", "dataimage", "ls", "-lh", "/foo/bar"); err == nil || !strings.Contains(out, "No such file or directory") {
+	if out, _, err := dockerCmdWithError("run", "-v", tmpDir+":/foo", "dataimage", "ls", "-lh", "/foo/bar"); err == nil || !strings.Contains(out, "No such file or directory") {
 		c.Fatalf("Data was copied on bind-mount but shouldn't be:\n%q", out)
 	}
 }
@@ -1902,7 +1902,7 @@ func (s *DockerSuite) TestRunAllowPortRangeThroughExpose(c *check.C) {
 
 // test docker run expose a invalid port
 func (s *DockerSuite) TestRunExposePort(c *check.C) {
-	out, _, err := dockerCmdWithError(c, "run", "--expose", "80000", "busybox")
+	out, _, err := dockerCmdWithError("run", "--expose", "80000", "busybox")
 	//expose a invalid port should with a error out
 	if err == nil || !strings.Contains(out, "Invalid range format for --expose") {
 		c.Fatalf("run --expose a invalid port should with error out")
@@ -1914,7 +1914,7 @@ func (s *DockerSuite) TestRunUnknownCommand(c *check.C) {
 	out, _, _ := dockerCmdWithStdoutStderr(c, "create", "busybox", "/bin/nada")
 
 	cID := strings.TrimSpace(out)
-	_, _, err := dockerCmdWithError(c, "start", cID)
+	_, _, err := dockerCmdWithError("start", cID)
 	c.Assert(err, check.NotNil)
 
 	rc, err := inspectField(cID, "State.ExitCode")
@@ -1972,7 +1972,7 @@ func (s *DockerSuite) TestRunModeIpcContainer(c *check.C) {
 }
 
 func (s *DockerSuite) TestRunModeIpcContainerNotExists(c *check.C) {
-	out, _, err := dockerCmdWithError(c, "run", "-d", "--ipc", "container:abcd1234", "busybox", "top")
+	out, _, err := dockerCmdWithError("run", "-d", "--ipc", "container:abcd1234", "busybox", "top")
 	if !strings.Contains(out, "abcd1234") || err == nil {
 		c.Fatalf("run IPC from a non exists container should with correct error out")
 	}
@@ -1984,7 +1984,7 @@ func (s *DockerSuite) TestRunModeIpcContainerNotRunning(c *check.C) {
 	out, _ := dockerCmd(c, "create", "busybox")
 
 	id := strings.TrimSpace(out)
-	out, _, err := dockerCmdWithError(c, "run", fmt.Sprintf("--ipc=container:%s", id), "busybox")
+	out, _, err := dockerCmdWithError("run", fmt.Sprintf("--ipc=container:%s", id), "busybox")
 	if err == nil {
 		c.Fatalf("Run container with ipc mode container should fail with non running container: %s\n%s", out, err)
 	}
@@ -2056,18 +2056,18 @@ func (s *DockerSuite) TestRunModeUTSHost(c *check.C) {
 }
 
 func (s *DockerSuite) TestRunTLSverify(c *check.C) {
-	if out, code, err := dockerCmdWithError(c, "ps"); err != nil || code != 0 {
+	if out, code, err := dockerCmdWithError("ps"); err != nil || code != 0 {
 		c.Fatalf("Should have worked: %v:\n%v", err, out)
 	}
 
 	// Regardless of whether we specify true or false we need to
 	// test to make sure tls is turned on if --tlsverify is specified at all
-	out, code, err := dockerCmdWithError(c, "--tlsverify=false", "ps")
+	out, code, err := dockerCmdWithError("--tlsverify=false", "ps")
 	if err == nil || code == 0 || !strings.Contains(out, "trying to connect") {
 		c.Fatalf("Should have failed: \net:%v\nout:%v\nerr:%v", code, out, err)
 	}
 
-	out, code, err = dockerCmdWithError(c, "--tlsverify=true", "ps")
+	out, code, err = dockerCmdWithError("--tlsverify=true", "ps")
 	if err == nil || code == 0 || !strings.Contains(out, "cert") {
 		c.Fatalf("Should have failed: \net:%v\nout:%v\nerr:%v", code, out, err)
 	}
@@ -2264,7 +2264,7 @@ func (s *DockerSuite) TestPermissionsPtsReadonlyRootfs(c *check.C) {
 func testReadOnlyFile(filename string, c *check.C) {
 	testRequires(c, NativeExecDriver)
 
-	out, _, err := dockerCmdWithError(c, "run", "--read-only", "--rm", "busybox", "touch", filename)
+	out, _, err := dockerCmdWithError("run", "--read-only", "--rm", "busybox", "touch", filename)
 	if err == nil {
 		c.Fatal("expected container to error on run with read only error")
 	}
@@ -2273,7 +2273,7 @@ func testReadOnlyFile(filename string, c *check.C) {
 		c.Fatalf("expected output from failure to contain %s but contains %s", expected, out)
 	}
 
-	out, _, err = dockerCmdWithError(c, "run", "--read-only", "--privileged", "--rm", "busybox", "touch", filename)
+	out, _, err = dockerCmdWithError("run", "--read-only", "--privileged", "--rm", "busybox", "touch", filename)
 	if err == nil {
 		c.Fatal("expected container to error on run with read only error")
 	}
@@ -2326,7 +2326,7 @@ func (s *DockerSuite) TestRunVolumesFromRestartAfterRemoved(c *check.C) {
 // run container with --rm should remove container if exit code != 0
 func (s *DockerSuite) TestRunContainerWithRmFlagExitCodeNotEqualToZero(c *check.C) {
 	name := "flowers"
-	out, _, err := dockerCmdWithError(c, "run", "--name", name, "--rm", "busybox", "ls", "/notexists")
+	out, _, err := dockerCmdWithError("run", "--name", name, "--rm", "busybox", "ls", "/notexists")
 	if err == nil {
 		c.Fatal("Expected docker run to fail", out, err)
 	}
@@ -2343,7 +2343,7 @@ func (s *DockerSuite) TestRunContainerWithRmFlagExitCodeNotEqualToZero(c *check.
 
 func (s *DockerSuite) TestRunContainerWithRmFlagCannotStartContainer(c *check.C) {
 	name := "sparkles"
-	out, _, err := dockerCmdWithError(c, "run", "--name", name, "--rm", "busybox", "commandNotFound")
+	out, _, err := dockerCmdWithError("run", "--name", name, "--rm", "busybox", "commandNotFound")
 	if err == nil {
 		c.Fatal("Expected docker run to fail", out, err)
 	}
@@ -2365,7 +2365,7 @@ func (s *DockerSuite) TestRunPidHostWithChildIsKillable(c *check.C) {
 	time.Sleep(1 * time.Second)
 	errchan := make(chan error)
 	go func() {
-		if out, _, err := dockerCmdWithError(c, "kill", name); err != nil {
+		if out, _, err := dockerCmdWithError("kill", name); err != nil {
 			errchan <- fmt.Errorf("%v:\n%s", err, out)
 		}
 		close(errchan)
@@ -2381,14 +2381,14 @@ func (s *DockerSuite) TestRunPidHostWithChildIsKillable(c *check.C) {
 func (s *DockerSuite) TestRunWithTooSmallMemoryLimit(c *check.C) {
 	// this memory limit is 1 byte less than the min, which is 4MB
 	// https://github.com/docker/docker/blob/v1.5.0/daemon/create.go#L22
-	out, _, err := dockerCmdWithError(c, "run", "-m", "4194303", "busybox")
+	out, _, err := dockerCmdWithError("run", "-m", "4194303", "busybox")
 	if err == nil || !strings.Contains(out, "Minimum memory limit allowed is 4MB") {
 		c.Fatalf("expected run to fail when using too low a memory limit: %q", out)
 	}
 }
 
 func (s *DockerSuite) TestRunWriteToProcAsound(c *check.C) {
-	_, code, err := dockerCmdWithError(c, "run", "busybox", "sh", "-c", "echo 111 >> /proc/asound/version")
+	_, code, err := dockerCmdWithError("run", "busybox", "sh", "-c", "echo 111 >> /proc/asound/version")
 	if err == nil || code == 0 {
 		c.Fatal("standard container should not be able to write to /proc/asound")
 	}
@@ -2396,7 +2396,7 @@ func (s *DockerSuite) TestRunWriteToProcAsound(c *check.C) {
 
 func (s *DockerSuite) TestRunReadProcTimer(c *check.C) {
 	testRequires(c, NativeExecDriver)
-	out, code, err := dockerCmdWithError(c, "run", "busybox", "cat", "/proc/timer_stats")
+	out, code, err := dockerCmdWithError("run", "busybox", "cat", "/proc/timer_stats")
 	if err != nil || code != 0 {
 		c.Fatal(err)
 	}
@@ -2413,7 +2413,7 @@ func (s *DockerSuite) TestRunReadProcLatency(c *check.C) {
 		c.Skip("kernel doesnt have latency_stats configured")
 		return
 	}
-	out, code, err := dockerCmdWithError(c, "run", "busybox", "cat", "/proc/latency_stats")
+	out, code, err := dockerCmdWithError("run", "busybox", "cat", "/proc/latency_stats")
 	if err != nil || code != 0 {
 		c.Fatal(err)
 	}
@@ -2424,7 +2424,7 @@ func (s *DockerSuite) TestRunReadProcLatency(c *check.C) {
 
 func (s *DockerSuite) TestMountIntoProc(c *check.C) {
 	testRequires(c, NativeExecDriver)
-	_, code, err := dockerCmdWithError(c, "run", "-v", "/proc//sys", "busybox", "true")
+	_, code, err := dockerCmdWithError("run", "-v", "/proc//sys", "busybox", "true")
 	if err == nil || code == 0 {
 		c.Fatal("container should not be able to mount into /proc")
 	}
@@ -2439,18 +2439,18 @@ func (s *DockerSuite) TestRunUnshareProc(c *check.C) {
 	testRequires(c, Apparmor, NativeExecDriver)
 
 	name := "acidburn"
-	if out, _, err := dockerCmdWithError(c, "run", "--name", name, "jess/unshare", "unshare", "-p", "-m", "-f", "-r", "--mount-proc=/proc", "mount"); err == nil || !strings.Contains(out, "Permission denied") {
+	if out, _, err := dockerCmdWithError("run", "--name", name, "jess/unshare", "unshare", "-p", "-m", "-f", "-r", "--mount-proc=/proc", "mount"); err == nil || !strings.Contains(out, "Permission denied") {
 		c.Fatalf("unshare should have failed with permission denied, got: %s, %v", out, err)
 	}
 
 	name = "cereal"
-	if out, _, err := dockerCmdWithError(c, "run", "--name", name, "jess/unshare", "unshare", "-p", "-m", "-f", "-r", "mount", "-t", "proc", "none", "/proc"); err == nil || !strings.Contains(out, "Permission denied") {
+	if out, _, err := dockerCmdWithError("run", "--name", name, "jess/unshare", "unshare", "-p", "-m", "-f", "-r", "mount", "-t", "proc", "none", "/proc"); err == nil || !strings.Contains(out, "Permission denied") {
 		c.Fatalf("unshare should have failed with permission denied, got: %s, %v", out, err)
 	}
 
 	/* Ensure still fails if running privileged with the default policy */
 	name = "crashoverride"
-	if out, _, err := dockerCmdWithError(c, "run", "--privileged", "--security-opt", "apparmor:docker-default", "--name", name, "jess/unshare", "unshare", "-p", "-m", "-f", "-r", "mount", "-t", "proc", "none", "/proc"); err == nil || !strings.Contains(out, "Permission denied") {
+	if out, _, err := dockerCmdWithError("run", "--privileged", "--security-opt", "apparmor:docker-default", "--name", name, "jess/unshare", "unshare", "-p", "-m", "-f", "-r", "mount", "-t", "proc", "none", "/proc"); err == nil || !strings.Contains(out, "Permission denied") {
 		c.Fatalf("unshare should have failed with permission denied, got: %s, %v", out, err)
 	}
 }
