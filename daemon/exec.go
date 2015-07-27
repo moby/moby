@@ -89,7 +89,16 @@ func (d *Daemon) registerExecCommand(execConfig *execConfig) {
 }
 
 func (d *Daemon) getExecConfig(name string) (*execConfig, error) {
-	if execConfig := d.execCommands.Get(name); execConfig != nil {
+	execConfig := d.execCommands.Get(name)
+
+	// If the exec is found but its container is not in the daemon's list of
+	// containers then it must have been delete, in which case instead of
+	// saying the container isn't running, we should return a 404 so that
+	// the user sees the same error now that they will after the
+	// 5 minute clean-up loop is run which erases old/dead execs.
+
+	if execConfig != nil && d.containers.Get(execConfig.Container.ID) != nil {
+
 		if !execConfig.Container.IsRunning() {
 			return nil, fmt.Errorf("Container %s is not running", execConfig.Container.ID)
 		}
