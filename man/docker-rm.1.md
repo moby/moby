@@ -15,7 +15,7 @@ CONTAINER [CONTAINER...]
 
 **docker rm** will remove one or more containers from the host node. The
 container name or ID can be used. This does not remove images. You cannot
-remove a running container unless you use the \fB-f\fR option. To see all
+remove a running container unless you use the **-f** option. To see all
 containers on a host use the **docker ps -a** command.
 
 # OPTIONS
