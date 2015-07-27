@@ -33,6 +33,7 @@ override_dh_installudev:
 	dh_installudev --priority=z80
 
 override_dh_install:
+	dh_install
 	dh_apparmor --profile-name=docker -pdocker-engine
 	dh_apparmor --profile-name=docker-engine -pdocker-engine
 
