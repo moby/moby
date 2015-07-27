@@ -16,8 +16,8 @@ type ContainerStatsConfig struct {
 	Stop      <-chan bool
 }
 
-func (daemon *Daemon) ContainerStats(name string, config *ContainerStatsConfig) error {
-	updates, err := daemon.SubscribeToContainerStats(name)
+func (daemon *Daemon) ContainerStats(container *Container, config *ContainerStatsConfig) error {
+	updates, err := daemon.SubscribeToContainerStats(container)
 	if err != nil {
 		return err
 	}
@@ -30,7 +30,7 @@ func (daemon *Daemon) ContainerStats(name string, config *ContainerStatsConfig) 
 	getStat := func(v interface{}) *types.Stats {
 		update := v.(*execdriver.ResourceStats)
 		// Retrieve the nw statistics from libnetwork and inject them in the Stats
-		if nwStats, err := daemon.getNetworkStats(name); err == nil {
+		if nwStats, err := daemon.getNetworkStats(container); err == nil {
 			update.Stats.Interfaces = nwStats
 		}
 		ss := convertStatsToAPITypes(update.Stats)
@@ -44,7 +44,7 @@ func (daemon *Daemon) ContainerStats(name string, config *ContainerStatsConfig) 
 
 	enc := json.NewEncoder(config.OutStream)
 
-	defer daemon.UnsubscribeToContainerStats(name, updates)
+	defer daemon.UnsubscribeToContainerStats(container, updates)
 
 	noStreamFirstFrame := true
 	for {
@@ -74,13 +74,8 @@ func (daemon *Daemon) ContainerStats(name string, config *ContainerStatsConfig) 
 	}
 }
 
-func (daemon *Daemon) getNetworkStats(name string) ([]*libcontainer.NetworkInterface, error) {
+func (daemon *Daemon) getNetworkStats(c *Container) ([]*libcontainer.NetworkInterface, error) {
 	var list []*libcontainer.NetworkInterface
-
-	c, err := daemon.Get(name)
-	if err != nil {
-		return list, err
-	}
 
 	nw, err := daemon.netController.NetworkByID(c.NetworkSettings.NetworkID)
 	if err != nil {

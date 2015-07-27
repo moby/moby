@@ -593,6 +593,11 @@ func (s *Server) getContainersStats(version version.Version, w http.ResponseWrit
 		closeNotifier = notifier.CloseNotify()
 	}
 
+	container, err := s.daemon.Get(vars["name"])
+	if err != nil {
+		return newApiError(err, http.StatusNotFound)
+	}
+
 	config := &daemon.ContainerStatsConfig{
 		Stream:    stream,
 		OutStream: out,

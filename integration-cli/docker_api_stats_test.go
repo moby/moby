@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"os/exec"
 	"runtime"
 	"strconv"
@@ -117,4 +118,12 @@ func getNetworkStats(c *check.C, id string) types.Network {
 	body.Close()
 
 	return st.Network
+}
+
+func (s *DockerSuite) TestStatsApiContainerNotExist(c *check.C) {
+	resp, _, err := sockRequestRaw("GET", "/containers/nosuchcontainer/stats", nil, "")
+	c.Assert(err, check.IsNil)
+	resp.Body.Close()
+
+	c.Assert(resp.StatusCode, check.Equals, http.StatusNotFound)
 }
