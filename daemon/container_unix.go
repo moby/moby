@@ -264,11 +264,11 @@ func populateCommand(c *Container, env []string) error {
 	resources := &execdriver.Resources{
 		Memory:           c.hostConfig.Memory,
 		MemorySwap:       c.hostConfig.MemorySwap,
-		CpuShares:        c.hostConfig.CpuShares,
+		CpuShares:        c.hostConfig.CPUShares,
 		CpusetCpus:       c.hostConfig.CpusetCpus,
 		CpusetMems:       c.hostConfig.CpusetMems,
-		CpuPeriod:        c.hostConfig.CpuPeriod,
-		CpuQuota:         c.hostConfig.CpuQuota,
+		CpuPeriod:        c.hostConfig.CPUPeriod,
+		CpuQuota:         c.hostConfig.CPUQuota,
 		BlkioWeight:      c.hostConfig.BlkioWeight,
 		Rlimits:          rlimits,
 		OomKillDisable:   c.hostConfig.OomKillDisable,
@@ -423,8 +423,8 @@ func (container *Container) buildJoinOptions() ([]libnetwork.EndpointOption, err
 	}
 	joinOptions = append(joinOptions, libnetwork.JoinOptionResolvConfPath(container.ResolvConfPath))
 
-	if len(container.hostConfig.Dns) > 0 {
-		dns = container.hostConfig.Dns
+	if len(container.hostConfig.DNS) > 0 {
+		dns = container.hostConfig.DNS
 	} else if len(container.daemon.config.Dns) > 0 {
 		dns = container.daemon.config.Dns
 	}
@@ -433,8 +433,8 @@ func (container *Container) buildJoinOptions() ([]libnetwork.EndpointOption, err
 		joinOptions = append(joinOptions, libnetwork.JoinOptionDNS(d))
 	}
 
-	if len(container.hostConfig.DnsSearch) > 0 {
-		dnsSearch = container.hostConfig.DnsSearch
+	if len(container.hostConfig.DNSSearch) > 0 {
+		dnsSearch = container.hostConfig.DNSSearch
 	} else if len(container.daemon.config.DnsSearch) > 0 {
 		dnsSearch = container.daemon.config.DnsSearch
 	}
@@ -543,7 +543,7 @@ func (container *Container) buildPortMapInfo(n libnetwork.Network, ep libnetwork
 			for _, tp := range exposedPorts {
 				natPort, err := nat.NewPort(tp.Proto.String(), strconv.Itoa(int(tp.Port)))
 				if err != nil {
-					return nil, fmt.Errorf("Error parsing Port value(%s):%v", tp.Port, err)
+					return nil, fmt.Errorf("Error parsing Port value(%v):%v", tp.Port, err)
 				}
 				networkSettings.Ports[natPort] = nil
 			}

@@ -13,14 +13,22 @@ import (
 )
 
 var (
+	// ErrConflictContainerNetworkAndLinks conflict between --net=container and links
 	ErrConflictContainerNetworkAndLinks = fmt.Errorf("Conflicting options: --net=container can't be used with links. This would result in undefined behavior")
-	ErrConflictNetworkAndDns            = fmt.Errorf("Conflicting options: --dns and the network mode (--net)")
-	ErrConflictNetworkHostname          = fmt.Errorf("Conflicting options: -h and the network mode (--net)")
-	ErrConflictHostNetworkAndLinks      = fmt.Errorf("Conflicting options: --net=host can't be used with links. This would result in undefined behavior")
-	ErrConflictContainerNetworkAndMac   = fmt.Errorf("Conflicting options: --mac-address and the network mode (--net)")
-	ErrConflictNetworkHosts             = fmt.Errorf("Conflicting options: --add-host and the network mode (--net)")
-	ErrConflictNetworkPublishPorts      = fmt.Errorf("Conflicting options: -p, -P, --publish-all, --publish and the network mode (--net)")
-	ErrConflictNetworkExposePorts       = fmt.Errorf("Conflicting options: --expose and the network mode (--expose)")
+	// ErrConflictNetworkAndDNS conflict between --dns and the network mode
+	ErrConflictNetworkAndDNS = fmt.Errorf("Conflicting options: --dns and the network mode (--net)")
+	// ErrConflictNetworkHostname conflict between the hostname and the network mode
+	ErrConflictNetworkHostname = fmt.Errorf("Conflicting options: -h and the network mode (--net)")
+	// ErrConflictHostNetworkAndLinks conflict between --net=host and links
+	ErrConflictHostNetworkAndLinks = fmt.Errorf("Conflicting options: --net=host can't be used with links. This would result in undefined behavior")
+	// ErrConflictContainerNetworkAndMac conflict between the mac address and the network mode
+	ErrConflictContainerNetworkAndMac = fmt.Errorf("Conflicting options: --mac-address and the network mode (--net)")
+	// ErrConflictNetworkHosts conflict between add-host and the network mode
+	ErrConflictNetworkHosts = fmt.Errorf("Conflicting options: --add-host and the network mode (--net)")
+	// ErrConflictNetworkPublishPorts conflict between the pulbish options and the network mode
+	ErrConflictNetworkPublishPorts = fmt.Errorf("Conflicting options: -p, -P, --publish-all, --publish and the network mode (--net)")
+	// ErrConflictNetworkExposePorts conflict between the expose option and the network mode
+	ErrConflictNetworkExposePorts = fmt.Errorf("Conflicting options: --expose and the network mode (--expose)")
 )
 
 // validateNM is the set of fields passed to validateNetMode()
@@ -28,7 +36,7 @@ type validateNM struct {
 	netMode        NetworkMode
 	flHostname     *string
 	flLinks        opts.ListOpts
-	flDns          opts.ListOpts
+	flDNS          opts.ListOpts
 	flExtraHosts   opts.ListOpts
 	flMacAddress   *string
 	flPublish      opts.ListOpts
@@ -37,6 +45,9 @@ type validateNM struct {
 	flVolumeDriver string
 }
 
+// Parse parses the specified args for the specified command and generates a Config,
+// a HostConfig and returns them with the specified command.
+// If the specified args are not valid, it will return an error.
 func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSet, error) {
 	var (
 		// FIXME: use utils.ListOpts for attach and volumes?
@@ -51,8 +62,8 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 
 		flPublish     = opts.NewListOpts(nil)
 		flExpose      = opts.NewListOpts(nil)
-		flDns         = opts.NewListOpts(opts.ValidateIPAddress)
-		flDnsSearch   = opts.NewListOpts(opts.ValidateDNSSearch)
+		flDNS         = opts.NewListOpts(opts.ValidateIPAddress)
+		flDNSSearch   = opts.NewListOpts(opts.ValidateDNSSearch)
 		flExtraHosts  = opts.NewListOpts(opts.ValidateExtraHost)
 		flVolumesFrom = opts.NewListOpts(nil)
 		flLxcOpts     = opts.NewListOpts(nil)
@@ -79,9 +90,9 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		flMemorySwap      = cmd.String([]string{"-memory-swap"}, "", "Total memory (memory + swap), '-1' to disable swap")
 		flUser            = cmd.String([]string{"u", "-user"}, "", "Username or UID (format: <name|uid>[:<group|gid>])")
 		flWorkingDir      = cmd.String([]string{"w", "-workdir"}, "", "Working directory inside the container")
-		flCpuShares       = cmd.Int64([]string{"c", "-cpu-shares"}, 0, "CPU shares (relative weight)")
-		flCpuPeriod       = cmd.Int64([]string{"-cpu-period"}, 0, "Limit CPU CFS (Completely Fair Scheduler) period")
-		flCpuQuota        = cmd.Int64([]string{"-cpu-quota"}, 0, "Limit CPU CFS (Completely Fair Scheduler) quota")
+		flCPUShares       = cmd.Int64([]string{"c", "-cpu-shares"}, 0, "CPU shares (relative weight)")
+		flCPUPeriod       = cmd.Int64([]string{"-cpu-period"}, 0, "Limit CPU CFS (Completely Fair Scheduler) period")
+		flCPUQuota        = cmd.Int64([]string{"-cpu-quota"}, 0, "Limit CPU CFS (Completely Fair Scheduler) quota")
 		flCpusetCpus      = cmd.String([]string{"#-cpuset", "-cpuset-cpus"}, "", "CPUs in which to allow execution (0-3, 0,1)")
 		flCpusetMems      = cmd.String([]string{"-cpuset-mems"}, "", "MEMs in which to allow execution (0-3, 0,1)")
 		flBlkioWeight     = cmd.Int64([]string{"-blkio-weight"}, 0, "Block IO (relative weight), between 10 and 1000")
@@ -106,8 +117,8 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 	cmd.Var(&flEnvFile, []string{"-env-file"}, "Read in a file of environment variables")
 	cmd.Var(&flPublish, []string{"p", "-publish"}, "Publish a container's port(s) to the host")
 	cmd.Var(&flExpose, []string{"#expose", "-expose"}, "Expose a port or a range of ports")
-	cmd.Var(&flDns, []string{"#dns", "-dns"}, "Set custom DNS servers")
-	cmd.Var(&flDnsSearch, []string{"-dns-search"}, "Set custom DNS search domains")
+	cmd.Var(&flDNS, []string{"#dns", "-dns"}, "Set custom DNS servers")
+	cmd.Var(&flDNSSearch, []string{"-dns-search"}, "Set custom DNS search domains")
 	cmd.Var(&flExtraHosts, []string{"-add-host"}, "Add a custom host-to-IP mapping (host:ip)")
 	cmd.Var(&flVolumesFrom, []string{"#volumes-from", "-volumes-from"}, "Mount volumes from the specified container(s)")
 	cmd.Var(&flLxcOpts, []string{"#lxc-conf", "-lxc-conf"}, "Add custom lxc options")
@@ -141,7 +152,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		netMode:      netMode,
 		flHostname:   flHostname,
 		flLinks:      flLinks,
-		flDns:        flDns,
+		flDNS:        flDNS,
 		flExtraHosts: flExtraHosts,
 		flMacAddress: flMacAddress,
 		flPublish:    flPublish,
@@ -272,7 +283,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 	// parse device mappings
 	deviceMappings := []DeviceMapping{}
 	for _, device := range flDevices.GetAll() {
-		deviceMapping, err := ParseDevice(device)
+		deviceMapping, err := parseDevice(device)
 		if err != nil {
 			return nil, nil, cmd, err
 		}
@@ -344,11 +355,11 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		LxcConf:          lxcConf,
 		Memory:           flMemory,
 		MemorySwap:       MemorySwap,
-		CpuShares:        *flCpuShares,
-		CpuPeriod:        *flCpuPeriod,
+		CPUShares:        *flCPUShares,
+		CPUPeriod:        *flCPUPeriod,
 		CpusetCpus:       *flCpusetCpus,
 		CpusetMems:       *flCpusetMems,
-		CpuQuota:         *flCpuQuota,
+		CPUQuota:         *flCPUQuota,
 		BlkioWeight:      *flBlkioWeight,
 		OomKillDisable:   *flOomKillDisable,
 		MemorySwappiness: swappiness,
@@ -356,8 +367,8 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		PortBindings:     portBindings,
 		Links:            flLinks.GetAll(),
 		PublishAllPorts:  *flPublishAll,
-		Dns:              flDns.GetAll(),
-		DnsSearch:        flDnsSearch.GetAll(),
+		DNS:              flDNS.GetAll(),
+		DNSSearch:        flDNSSearch.GetAll(),
 		ExtraHosts:       flExtraHosts.GetAll(),
 		VolumesFrom:      flVolumesFrom.GetAll(),
 		NetworkMode:      netMode,
@@ -476,7 +487,7 @@ func parseKeyValueOpts(opts opts.ListOpts) ([]KeyValuePair, error) {
 	return out, nil
 }
 
-func ParseDevice(device string) (DeviceMapping, error) {
+func parseDevice(device string) (DeviceMapping, error) {
 	src := ""
 	dst := ""
 	permissions := "rwm"

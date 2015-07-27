@@ -38,6 +38,7 @@ packages=(
 	pkg/urlutil
 	pkg/version
 	registry
+	runconfig
 	utils
 )
 

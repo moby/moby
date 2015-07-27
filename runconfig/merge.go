@@ -6,6 +6,11 @@ import (
 	"github.com/docker/docker/pkg/nat"
 )
 
+// Merge merges two Config, the image container configuration (defaults values),
+// and the user container configuration, either passed by the API or generated
+// by the cli.
+// It will mutate the specified user configuration (userConf) with the image
+// configuration where the user configuration is incomplete.
 func Merge(userConf, imageConf *Config) error {
 	if userConf.User == "" {
 		userConf.User = imageConf.User

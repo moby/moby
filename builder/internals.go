@@ -607,9 +607,9 @@ func (b *builder) create() (*daemon.Container, error) {
 	b.Config.Image = b.image
 
 	hostConfig := &runconfig.HostConfig{
-		CpuShares:    b.cpuShares,
-		CpuPeriod:    b.cpuPeriod,
-		CpuQuota:     b.cpuQuota,
+		CPUShares:    b.cpuShares,
+		CPUPeriod:    b.cpuPeriod,
+		CPUQuota:     b.cpuQuota,
 		CpusetCpus:   b.cpuSetCpus,
 		CpusetMems:   b.cpuSetMems,
 		CgroupParent: b.cgroupParent,

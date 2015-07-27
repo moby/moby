@@ -246,10 +246,10 @@ func TestConflictContainerNetworkAndLinks(t *testing.T) {
 }
 
 func TestConflictNetworkModeAndOptions(t *testing.T) {
-	if _, _, _, err := parseRun([]string{"--net=host", "--dns=8.8.8.8", "img", "cmd"}); err != ErrConflictNetworkAndDns {
+	if _, _, _, err := parseRun([]string{"--net=host", "--dns=8.8.8.8", "img", "cmd"}); err != ErrConflictNetworkAndDNS {
 		t.Fatalf("Expected error ErrConflictNetworkAndDns, got %s", err)
 	}
-	if _, _, _, err := parseRun([]string{"--net=container:other", "--dns=8.8.8.8", "img", "cmd"}); err != ErrConflictNetworkAndDns {
+	if _, _, _, err := parseRun([]string{"--net=container:other", "--dns=8.8.8.8", "img", "cmd"}); err != ErrConflictNetworkAndDNS {
 		t.Fatalf("Expected error ErrConflictNetworkAndDns, got %s", err)
 	}
 	if _, _, _, err := parseRun([]string{"--net=host", "--add-host=name:8.8.8.8", "img", "cmd"}); err != ErrConflictNetworkHosts {

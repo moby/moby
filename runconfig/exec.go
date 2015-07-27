@@ -4,18 +4,24 @@ import (
 	flag "github.com/docker/docker/pkg/mflag"
 )
 
+// ExecConfig is a small subset of the Config struct that hold the configuration
+// for the exec feature of docker.
 type ExecConfig struct {
-	User         string
-	Privileged   bool
-	Tty          bool
-	Container    string
-	AttachStdin  bool
-	AttachStderr bool
-	AttachStdout bool
-	Detach       bool
-	Cmd          []string
+	User         string   // User that will run the command
+	Privileged   bool     // Is the container in privileged mode
+	Tty          bool     // Attach standard streams to a tty.
+	Container    string   // Name of the container (to execute in)
+	AttachStdin  bool     // Attach the standard input, makes possible user interaction
+	AttachStderr bool     // Attach the standard output
+	AttachStdout bool     // Attach the standard error
+	Detach       bool     // Execute in detach mode
+	Cmd          []string // Execution commands and args
 }
 
+// ParseExec parses the specified args for the specified command and generates
+// an ExecConfig from it.
+// If the minimal number of specified args is not right or if specified args are
+// not valid, it will return an error.
 func ParseExec(cmd *flag.FlagSet, args []string) (*ExecConfig, error) {
 	var (
 		flStdin   = cmd.Bool([]string{"i", "-interactive"}, false, "Keep STDIN open even if not attached")

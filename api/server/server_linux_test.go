@@ -12,28 +12,28 @@ import (
 func TestAdjustCpuSharesOldApi(t *testing.T) {
 	apiVersion := version.Version("1.18")
 	hostConfig := &runconfig.HostConfig{
-		CpuShares: linuxMinCpuShares - 1,
+		CPUShares: linuxMinCpuShares - 1,
 	}
 	adjustCpuShares(apiVersion, hostConfig)
-	if hostConfig.CpuShares != linuxMinCpuShares {
+	if hostConfig.CPUShares != linuxMinCpuShares {
 		t.Errorf("Expected CpuShares to be %d", linuxMinCpuShares)
 	}
 
-	hostConfig.CpuShares = linuxMaxCpuShares + 1
+	hostConfig.CPUShares = linuxMaxCpuShares + 1
 	adjustCpuShares(apiVersion, hostConfig)
-	if hostConfig.CpuShares != linuxMaxCpuShares {
+	if hostConfig.CPUShares != linuxMaxCpuShares {
 		t.Errorf("Expected CpuShares to be %d", linuxMaxCpuShares)
 	}
 
-	hostConfig.CpuShares = 0
+	hostConfig.CPUShares = 0
 	adjustCpuShares(apiVersion, hostConfig)
-	if hostConfig.CpuShares != 0 {
+	if hostConfig.CPUShares != 0 {
 		t.Error("Expected CpuShares to be unchanged")
 	}
 
-	hostConfig.CpuShares = 1024
+	hostConfig.CPUShares = 1024
 	adjustCpuShares(apiVersion, hostConfig)
-	if hostConfig.CpuShares != 1024 {
+	if hostConfig.CPUShares != 1024 {
 		t.Error("Expected CpuShares to be unchanged")
 	}
 }
@@ -41,28 +41,28 @@ func TestAdjustCpuSharesOldApi(t *testing.T) {
 func TestAdjustCpuSharesNoAdjustment(t *testing.T) {
 	apiVersion := version.Version("1.19")
 	hostConfig := &runconfig.HostConfig{
-		CpuShares: linuxMinCpuShares - 1,
+		CPUShares: linuxMinCpuShares - 1,
 	}
 	adjustCpuShares(apiVersion, hostConfig)
-	if hostConfig.CpuShares != linuxMinCpuShares-1 {
+	if hostConfig.CPUShares != linuxMinCpuShares-1 {
 		t.Errorf("Expected CpuShares to be %d", linuxMinCpuShares-1)
 	}
 
-	hostConfig.CpuShares = linuxMaxCpuShares + 1
+	hostConfig.CPUShares = linuxMaxCpuShares + 1
 	adjustCpuShares(apiVersion, hostConfig)
-	if hostConfig.CpuShares != linuxMaxCpuShares+1 {
+	if hostConfig.CPUShares != linuxMaxCpuShares+1 {
 		t.Errorf("Expected CpuShares to be %d", linuxMaxCpuShares+1)
 	}
 
-	hostConfig.CpuShares = 0
+	hostConfig.CPUShares = 0
 	adjustCpuShares(apiVersion, hostConfig)
-	if hostConfig.CpuShares != 0 {
+	if hostConfig.CPUShares != 0 {
 		t.Error("Expected CpuShares to be unchanged")
 	}
 
-	hostConfig.CpuShares = 1024
+	hostConfig.CPUShares = 1024
 	adjustCpuShares(apiVersion, hostConfig)
-	if hostConfig.CpuShares != 1024 {
+	if hostConfig.CPUShares != 1024 {
 		t.Error("Expected CpuShares to be unchanged")
 	}
 }
