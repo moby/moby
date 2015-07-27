@@ -20,7 +20,7 @@ Restores both images and tags.
   Print usage statement
 
 **-i**, **--input**=""
-   Read from a tar archive file, instead of STDIN
+   Read from a tar archive file, instead of STDIN. The tarball may be compressed with gzip, bzip, or xz.
 
 # EXAMPLES
 
@@ -43,3 +43,4 @@ Restores both images and tags.
 April 2014, Originally compiled by William Henry (whenry at redhat dot com)
 based on docker.com source material and internal work.
 June 2014, updated by Sven Dowideit <SvenDowideit@home.org.au>
+July 2015 update by Mary Anthony <mary@docker.com>
