@@ -877,10 +877,26 @@ COPY . /static`); err != nil {
 		return nil, fmt.Errorf("failed to find container port: err=%v\nout=%s", err, out)
 	}
 
+	fileserverHostPort := strings.Trim(out, "\n")
+	_, port, err := net.SplitHostPort(fileserverHostPort)
+	if err != nil {
+		return nil, fmt.Errorf("unable to parse file server host:port: %v", err)
+	}
+
+	dockerHostURL, err := url.Parse(daemonHost())
+	if err != nil {
+		return nil, fmt.Errorf("unable to parse daemon host URL: %v", err)
+	}
+
+	host, _, err := net.SplitHostPort(dockerHostURL.Host)
+	if err != nil {
+		return nil, fmt.Errorf("unable to parse docker daemon host:port: %v", err)
+	}
+
 	return &remoteFileServer{
 		container: container,
 		image:     image,
-		host:      strings.Trim(out, "\n"),
+		host:      fmt.Sprintf("%s:%s", host, port),
 		ctx:       ctx}, nil
 }
 
