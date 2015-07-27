@@ -220,8 +220,8 @@ func (s *DockerSuite) TestEventsContainerKill(c *check.C) {
 	}
 	createEvent := strings.Fields(events[len(events)-4])
 	startEvent := strings.Fields(events[len(events)-3])
-	killEvent := strings.Fields(events[len(events)-2])
-	dieEvent := strings.Fields(events[len(events)-1])
+	dieEvent := strings.Fields(events[len(events)-2])
+	killEvent := strings.Fields(events[len(events)-1])
 	if createEvent[len(createEvent)-1] != "create" {
 		c.Fatalf("event should be create, not %#v", createEvent)
 	}
