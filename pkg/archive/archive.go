@@ -633,8 +633,20 @@ loop:
 // The archive may be compressed with one of the following algorithms:
 //  identity (uncompressed), gzip, bzip2, xz.
 // FIXME: specify behavior when target path exists vs. doesn't exist.
-func Untar(archive io.Reader, dest string, options *TarOptions) error {
-	if archive == nil {
+func Untar(tarArchive io.Reader, dest string, options *TarOptions) error {
+	return untarHandler(tarArchive, dest, options, true)
+}
+
+// Untar reads a stream of bytes from `archive`, parses it as a tar archive,
+// and unpacks it into the directory at `dest`.
+// The archive must be an uncompressed stream.
+func UntarUncompressed(tarArchive io.Reader, dest string, options *TarOptions) error {
+	return untarHandler(tarArchive, dest, options, false)
+}
+
+// Handler for teasing out the automatic decompression
+func untarHandler(tarArchive io.Reader, dest string, options *TarOptions, decompress bool) error {
+	if tarArchive == nil {
 		return fmt.Errorf("Empty archive")
 	}
 	dest = filepath.Clean(dest)
@@ -644,12 +656,18 @@ func Untar(archive io.Reader, dest string, options *TarOptions) error {
 	if options.ExcludePatterns == nil {
 		options.ExcludePatterns = []string{}
 	}
-	decompressedArchive, err := DecompressStream(archive)
-	if err != nil {
-		return err
+
+	var r io.Reader = tarArchive
+	if decompress {
+		decompressedArchive, err := DecompressStream(tarArchive)
+		if err != nil {
+			return err
+		}
+		defer decompressedArchive.Close()
+		r = decompressedArchive
 	}
-	defer decompressedArchive.Close()
-	return Unpack(decompressedArchive, dest, options)
+
+	return Unpack(r, dest, options)
 }
 
 func (archiver *Archiver) TarUntar(src, dst string) error {
