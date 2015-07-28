@@ -14,7 +14,7 @@ import (
 // ContainerID and Timestamp.
 // Writes are concurrent, so you need implement some sync in your logger
 type Copier struct {
-	// cid is container id for which we copying logs
+	// cid is the container id for which we are copying logs
 	cid string
 	// srcs is map of name -> reader pairs, for example "stdout", "stderr"
 	srcs     map[string]io.Reader
@@ -22,13 +22,13 @@ type Copier struct {
 	copyJobs sync.WaitGroup
 }
 
-// NewCopier creates new Copier
-func NewCopier(cid string, srcs map[string]io.Reader, dst Logger) (*Copier, error) {
+// NewCopier creates a new Copier
+func NewCopier(cid string, srcs map[string]io.Reader, dst Logger) *Copier {
 	return &Copier{
 		cid:  cid,
 		srcs: srcs,
 		dst:  dst,
-	}, nil
+	}
 }
 
 // Run starts logs copying

@@ -50,15 +50,12 @@ func TestCopier(t *testing.T) {
 	jsonLog := &TestLoggerJSON{Encoder: json.NewEncoder(&jsonBuf)}
 
 	cid := "a7317399f3f857173c6179d44823594f8294678dea9999662e5c625b5a1c7657"
-	c, err := NewCopier(cid,
+	c := NewCopier(cid,
 		map[string]io.Reader{
 			"stdout": &stdout,
 			"stderr": &stderr,
 		},
 		jsonLog)
-	if err != nil {
-		t.Fatal(err)
-	}
 	c.Run()
 	wait := make(chan struct{})
 	go func() {
