@@ -187,10 +187,10 @@ Now you can call your app using `curl` (install if needed via:
 
     Hello world
 
-If you use Boot2docker on OS X, the port is actually mapped to the Docker host VM,
-and you should use the following command:
+If you use Docker Machine on OS X, the port is actually mapped to the Docker
+host VM, and you should use the following command:
 
-    $ curl $(boot2docker ip):49160
+    $ curl $(docker-machine ip VM_NAME):49160
 
 We hope this tutorial helped you get up and running with Node.js and
 CentOS on Docker. You can get the full source code at

@@ -166,15 +166,14 @@ see the application.
 Our Python application is live!
 
 > **Note:**
-> If you have used the `boot2docker` virtual machine on OS X, Windows or Linux,
+> If you have been using a virtual machine on OS X, Windows or Linux,
 > you'll need to get the IP of the virtual host instead of using localhost.
-> You can do this by running the following outside of the `boot2docker` shell
-> (i.e., from your comment line or terminal application).
+> You can do this by running the `docker-machine ip your_vm_name` from your  command line or terminal application, for example:
 > 
->     $ boot2docker ip
->     The VM's Host only interface IP address is: 192.168.59.103
+>     $ docker-machine ip my-docker-vm
+>     192.168.99.100
 > 
-> In this case you'd browse to http://192.168.59.103:49155 for the above example.
+> In this case you'd browse to http://192.168.99.100:49155 for the above example.
 
 ## A network port shortcut
 

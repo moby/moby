@@ -22,11 +22,7 @@ Docker supports as a storage backend. It implements the
 ## boot2docker
 
 [boot2docker](http://boot2docker.io/) is a lightweight Linux distribution made
-specifically to run Docker containers. It is a common choice for a [VM](#virtual-machine)
-to run Docker on Windows and Mac OS X.
-
-boot2docker can also refer to the boot2docker management tool on Windows and
-Mac OS X which manages the boot2docker VM.
+specifically to run Docker containers. The boot2docker management tool for Mac and Windows was deprecated and replaced by [`docker-machine`](#machine) which you can install with the Docker Toolbox.
 
 ## btrfs
 
@@ -187,6 +183,11 @@ A tag is a label applied to a Docker image in a [repository](#repository).
 tags are how various images in a repository are distinguished from each other.
 
 *Note : This label is not related to the key=value labels set for docker daemon*
+
+## Toolbox
+
+Docker Toolbox is the installer for Mac and Windows users.
+
 
 ## Union file system
 

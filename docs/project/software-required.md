@@ -65,16 +65,15 @@ To check if `docker` is already installed on Linux:
     $ docker --version
     Docker version 1.5.0, build a8a31ef
 
-On Mac OS X or Windows, you should have installed Boot2Docker which includes
-Docker. You'll need to verify both Boot2Docker and then Docker. This
+On Mac OS X or Windows, you should have installed Docker Toolbox which includes
+Docker. You'll need to verify both Docker Machine and Docker. This
 documentation was written on OS X using the following versions.
 
-    $ boot2docker version
-    Boot2Docker-cli version: v1.5.0
-    Git commit: ccd9032
+    $ docker-machine --version
+    docker-machine version 0.3.0 (0a251fe)
 
     $ docker --version
-    Docker version 1.5.0, build a8a31ef
+    Docker version 1.7.0, build a8a31ef
 
 ## Linux users and sudo
 

@@ -12,12 +12,11 @@ parent = "smn_remoteapi"
 
  - By default the Docker daemon listens on `unix:///var/run/docker.sock`
    and the client must have `root` access to interact with the daemon.
- - If the Docker daemon is set to use an encrypted TCP socket (`--tls`,
-   or `--tlsverify`) as with Boot2Docker 1.3.0, then you need to add extra
+ - If you are using `docker-machine`, the Docker daemon is on a virtual host that uses an encrypted TCP socket. In this situation, you need to add extra
    parameters to `curl` or `wget` when making test API requests:
-   `curl --insecure --cert ~/.docker/cert.pem --key ~/.docker/key.pem https://boot2docker:2376/images/json`
+   `curl --insecure --cert ~/.docker/cert.pem --key ~/.docker/key.pem https://YOUR_VM_IP:2376/images/json`
    or 
-   `wget --no-check-certificate --certificate=$DOCKER_CERT_PATH/cert.pem --private-key=$DOCKER_CERT_PATH/key.pem https://boot2docker:2376/images/json -O - -q`
+   `wget --no-check-certificate --certificate=$DOCKER_CERT_PATH/cert.pem --private-key=$DOCKER_CERT_PATH/key.pem https://your_vm_ip:2376/images/json -O - -q`
  - If a group named `docker` exists on your system, docker will apply
    ownership of the socket to the group.
  - The API tends to be REST, but for some complex commands, like attach
