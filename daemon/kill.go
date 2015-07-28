@@ -1,9 +1,6 @@
 package daemon
 
-import (
-	"fmt"
-	"syscall"
-)
+import "syscall"
 
 // ContainerKill send signal to the container
 // If no signal is given (sig 0), then Kill with SIGKILL and wait
@@ -18,12 +15,12 @@ func (daemon *Daemon) ContainerKill(name string, sig uint64) error {
 	// If no signal is passed, or SIGKILL, perform regular Kill (SIGKILL + wait())
 	if sig == 0 || syscall.Signal(sig) == syscall.SIGKILL {
 		if err := container.Kill(); err != nil {
-			return fmt.Errorf("Cannot kill container %s: %s", name, err)
+			return err
 		}
 	} else {
 		// Otherwise, just send the requested signal
 		if err := container.KillSig(int(sig)); err != nil {
-			return fmt.Errorf("Cannot kill container %s: %s", name, err)
+			return err
 		}
 	}
 	return nil
