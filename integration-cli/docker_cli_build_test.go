@@ -5226,13 +5226,77 @@ func (s *DockerSuite) TestBuildNotVerbose(c *check.C) {
 		c.Fatalf("missing output:%s\n", out)
 	}
 
-	// Now do it w/o verbose
+	// Now do it w/o verbose using -q (quiet)
 	out, _, err = dockerCmdInDir(c, ctx.Dir, "build", "--no-cache", "-q", "-t", "verbose", ".")
 	if err != nil {
 		c.Fatalf("failed to build the image w/ -q: %s, %v", out, err)
 	}
 	if strings.Contains(out, "hi there") {
 		c.Fatalf("Bad output, should not contain 'hi there':%s", out)
+	}
+
+	// Now do it w/o verbose --quiet=false (same as no -q)
+	out, _, err = dockerCmdInDir(c, ctx.Dir, "build", "--no-cache", "--quiet=false", "-t", "verbose", ".")
+	if err != nil {
+		c.Fatalf("failed to build the image w/ -q: %s, %v", out, err)
+	}
+	if !strings.Contains(out, "hi there") {
+		c.Fatalf("Bad output, should not contain 'hi there':%s", out)
+	}
+
+	// Now do it w/o verbose --quiet=true
+	out, _, err = dockerCmdInDir(c, ctx.Dir, "build", "--no-cache", "--quiet=true", "-t", "verbose", ".")
+	if err != nil {
+		c.Fatalf("failed to build the image w/ -q: %s, %v", out, err)
+	}
+	if strings.Contains(out, "hi there") {
+		c.Fatalf("Bad output, should not contain 'hi there':%s", out)
+	}
+
+	// Now do it w/o verbose --verbose=build
+	out, _, err = dockerCmdInDir(c, ctx.Dir, "build", "--no-cache", "--verbose=build", "-t", "verbose", ".")
+	if err != nil {
+		c.Fatalf("failed to build the image w/ -q: %s, %v", out, err)
+	}
+	if strings.Contains(out, "hi there") {
+		c.Fatalf("Bad output, should not contain 'hi there':%s", out)
+	}
+
+	// Now do it w/o verbose --verbose=run
+	out, _, err = dockerCmdInDir(c, ctx.Dir, "build", "--no-cache", "--verbose=run", "-t", "verbose", ".")
+	if err != nil {
+		c.Fatalf("failed to build the image w/ -q: %s, %v", out, err)
+	}
+	if !strings.Contains(out, "hi there") {
+		c.Fatalf("Bad output, should have contain 'hi there':%s", out)
+	}
+	if strings.Contains(out, "Step 2 : ENV abc hi") {
+		c.Fatalf("Bad output, should not contain 'Step 2 : ENV abc hi':%s", out)
+	}
+
+	// Now do it w/o verbose --verbose=none and --quiet
+	// verbose should take precedence over quiet
+	out, _, err = dockerCmdInDir(c, ctx.Dir, "build", "--no-cache", "-q", "--verbose=none", "-t", "verbose", ".")
+	if err != nil {
+		c.Fatalf("failed to build the image w/ -q: %s, %v", out, err)
+	}
+	if strings.Contains(out, "hi there") {
+		c.Fatalf("Bad output, should not contain 'hi there':%s", out)
+	}
+	if strings.Contains(out, "Step 2 : ENV abc hi") {
+		c.Fatalf("Bad output, should not contain 'Step 2 : ENV abc hi':%s", out)
+	}
+
+	// // Now do it w/o verbose --verbose=none
+	out, _, err = dockerCmdInDir(c, ctx.Dir, "build", "--no-cache", "--verbose=none", "-t", "verbose", ".")
+	if err != nil {
+		c.Fatalf("failed to build the image w/ -q: %s, %v", out, err)
+	}
+	if strings.Contains(out, "hi there") {
+		c.Fatalf("Bad output, should not contain 'hi there':%s", out)
+	}
+	if strings.Contains(out, "Step 2 : ENV abc hi") {
+		c.Fatalf("Bad output, should not contain 'Step 2 : ENV abc hi':%s", out)
 	}
 
 }

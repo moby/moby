@@ -1284,7 +1284,6 @@ func (s *Server) postBuild(version version.Version, w http.ResponseWriter, r *ht
 	buildConfig.RemoteURL = r.FormValue("remote")
 	buildConfig.DockerfileName = r.FormValue("dockerfile")
 	buildConfig.RepoName = r.FormValue("t")
-	buildConfig.SuppressOutput = boolValue(r, "q")
 	buildConfig.NoCache = boolValue(r, "nocache")
 	buildConfig.ForceRemove = boolValue(r, "forcerm")
 	buildConfig.AuthConfigs = authConfigs
@@ -1296,6 +1295,18 @@ func (s *Server) postBuild(version version.Version, w http.ResponseWriter, r *ht
 	buildConfig.CPUSetCpus = r.FormValue("cpusetcpus")
 	buildConfig.CPUSetMems = r.FormValue("cpusetmems")
 	buildConfig.CgroupParent = r.FormValue("cgroupparent")
+
+	buildConfig.SuppressBuildOutput = false
+	buildConfig.SuppressRunOutput = false
+	switch r.FormValue("q") {
+	case "1", "true", "build": // 1 is for backward compatibility
+		buildConfig.SuppressRunOutput = true
+	case "run":
+		buildConfig.SuppressBuildOutput = true
+	case "none":
+		buildConfig.SuppressBuildOutput = true
+		buildConfig.SuppressRunOutput = true
+	}
 
 	var buildUlimits = []*ulimit.Ulimit{}
 	ulimitsJSON := r.FormValue("ulimits")

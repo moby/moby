@@ -630,7 +630,9 @@ func (b *builder) create() (*daemon.Container, error) {
 	}
 
 	b.TmpContainers[c.ID] = struct{}{}
-	fmt.Fprintf(b.OutStream, " ---> Running in %s\n", stringid.TruncateID(c.ID))
+	if !b.SuppressBuildOutput {
+		fmt.Fprintf(b.OutStream, " ---> Running in %s\n", stringid.TruncateID(c.ID))
+	}
 
 	if config.Cmd.Len() > 0 {
 		// override the entry point that may have been picked up from the base image
@@ -646,7 +648,7 @@ func (b *builder) create() (*daemon.Container, error) {
 
 func (b *builder) run(c *daemon.Container) error {
 	var errCh chan error
-	if b.Verbose {
+	if !b.SuppressRunOutput {
 		errCh = c.Attach(nil, b.OutStream, b.ErrStream)
 	}
 
@@ -666,7 +668,7 @@ func (b *builder) run(c *daemon.Container) error {
 		}
 	}()
 
-	if b.Verbose {
+	if !b.SuppressRunOutput {
 		// Block on reading output from container, stop on err or chan closed
 		if err := <-errCh; err != nil {
 			return err
@@ -803,6 +805,8 @@ func (b *builder) clearTmp() {
 			return
 		}
 		delete(b.TmpContainers, c)
-		fmt.Fprintf(b.OutStream, "Removing intermediate container %s\n", stringid.TruncateID(c))
+		if !b.SuppressBuildOutput {
+			fmt.Fprintf(b.OutStream, "Removing intermediate container %s\n", stringid.TruncateID(c))
+		}
 	}
 }
