@@ -157,6 +157,8 @@ func (s *DockerSuite) TestPullImageWithAllTagFromCentralRegistry(c *check.C) {
 }
 
 func (s *DockerTrustSuite) TestTrustedPull(c *check.C) {
+	testRequires(c, Network)
+
 	repoName := s.setupTrustedImage(c, "trusted-pull")
 
 	// Try pull
