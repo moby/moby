@@ -27,12 +27,15 @@ import (
 	"github.com/opencontainers/runc/libcontainer/utils"
 )
 
+// Define constants for native driver
 const (
 	DriverName = "native"
 	Version    = "0.2"
 )
 
-type driver struct {
+// Driver contains all information for native driver,
+// it implements execdriver.Driver.
+type Driver struct {
 	root             string
 	initPath         string
 	activeContainers map[string]libcontainer.Container
@@ -41,7 +44,8 @@ type driver struct {
 	sync.Mutex
 }
 
-func NewDriver(root, initPath string, options []string) (*driver, error) {
+// NewDriver returns a new native driver, called from NewDriver of execdriver.
+func NewDriver(root, initPath string, options []string) (*Driver, error) {
 	meminfo, err := sysinfo.ReadMemInfo()
 	if err != nil {
 		return nil, err
@@ -96,7 +100,7 @@ func NewDriver(root, initPath string, options []string) (*driver, error) {
 		return nil, err
 	}
 
-	return &driver{
+	return &Driver{
 		root:             root,
 		initPath:         initPath,
 		activeContainers: make(map[string]libcontainer.Container),
@@ -110,7 +114,9 @@ type execOutput struct {
 	err      error
 }
 
-func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallback execdriver.StartCallback) (execdriver.ExitStatus, error) {
+// Run implements the exec driver Driver interface,
+// it calls libcontainer APIs to run a container.
+func (d *Driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallback execdriver.StartCallback) (execdriver.ExitStatus, error) {
 	// take the Command and populate the libcontainer.Config from it
 	container, err := d.createContainer(c)
 	if err != nil {
@@ -238,7 +244,8 @@ func waitInPIDHost(p *libcontainer.Process, c libcontainer.Container) func() (*o
 	}
 }
 
-func (d *driver) Kill(c *execdriver.Command, sig int) error {
+// Kill implements the exec driver Driver interface.
+func (d *Driver) Kill(c *execdriver.Command, sig int) error {
 	d.Lock()
 	active := d.activeContainers[c.ID]
 	d.Unlock()
@@ -252,7 +259,9 @@ func (d *driver) Kill(c *execdriver.Command, sig int) error {
 	return syscall.Kill(state.InitProcessPid, syscall.Signal(sig))
 }
 
-func (d *driver) Pause(c *execdriver.Command) error {
+// Pause implements the exec driver Driver interface,
+// it calls libcontainer API to pause a container.
+func (d *Driver) Pause(c *execdriver.Command) error {
 	d.Lock()
 	active := d.activeContainers[c.ID]
 	d.Unlock()
@@ -262,7 +271,9 @@ func (d *driver) Pause(c *execdriver.Command) error {
 	return active.Pause()
 }
 
-func (d *driver) Unpause(c *execdriver.Command) error {
+// Unpause implements the exec driver Driver interface,
+// it calls libcontainer API to unpause a container.
+func (d *Driver) Unpause(c *execdriver.Command) error {
 	d.Lock()
 	active := d.activeContainers[c.ID]
 	d.Unlock()
@@ -272,7 +283,8 @@ func (d *driver) Unpause(c *execdriver.Command) error {
 	return active.Resume()
 }
 
-func (d *driver) Terminate(c *execdriver.Command) error {
+// Terminate implements the exec driver Driver interface.
+func (d *Driver) Terminate(c *execdriver.Command) error {
 	defer d.cleanContainer(c.ID)
 	container, err := d.factory.Load(c.ID)
 	if err != nil {
@@ -295,18 +307,21 @@ func (d *driver) Terminate(c *execdriver.Command) error {
 	return err
 }
 
-func (d *driver) Info(id string) execdriver.Info {
+// Info implements the exec driver Driver interface.
+func (d *Driver) Info(id string) execdriver.Info {
 	return &info{
 		ID:     id,
 		driver: d,
 	}
 }
 
-func (d *driver) Name() string {
+// Name implements the exec driver Driver interface.
+func (d *Driver) Name() string {
 	return fmt.Sprintf("%s-%s", DriverName, Version)
 }
 
-func (d *driver) GetPidsForContainer(id string) ([]int, error) {
+// GetPidsForContainer implements the exec driver Driver interface.
+func (d *Driver) GetPidsForContainer(id string) ([]int, error) {
 	d.Lock()
 	active := d.activeContainers[id]
 	d.Unlock()
@@ -317,22 +332,24 @@ func (d *driver) GetPidsForContainer(id string) ([]int, error) {
 	return active.Processes()
 }
 
-func (d *driver) cleanContainer(id string) error {
+func (d *Driver) cleanContainer(id string) error {
 	d.Lock()
 	delete(d.activeContainers, id)
 	d.Unlock()
 	return os.RemoveAll(filepath.Join(d.root, id))
 }
 
-func (d *driver) createContainerRoot(id string) error {
+func (d *Driver) createContainerRoot(id string) error {
 	return os.MkdirAll(filepath.Join(d.root, id), 0655)
 }
 
-func (d *driver) Clean(id string) error {
+// Clean implements the exec driver Driver interface.
+func (d *Driver) Clean(id string) error {
 	return os.RemoveAll(filepath.Join(d.root, id))
 }
 
-func (d *driver) Stats(id string) (*execdriver.ResourceStats, error) {
+// Stats implements the exec driver Driver interface.
+func (d *Driver) Stats(id string) (*execdriver.ResourceStats, error) {
 	d.Lock()
 	c := d.activeContainers[id]
 	d.Unlock()
@@ -357,10 +374,12 @@ func (d *driver) Stats(id string) (*execdriver.ResourceStats, error) {
 	}, nil
 }
 
+// TtyConsole implements the exec driver Terminal interface.
 type TtyConsole struct {
 	console libcontainer.Console
 }
 
+// NewTtyConsole returns a new TtyConsole struct.
 func NewTtyConsole(console libcontainer.Console, pipes *execdriver.Pipes) (*TtyConsole, error) {
 	tty := &TtyConsole{
 		console: console,
@@ -374,10 +393,12 @@ func NewTtyConsole(console libcontainer.Console, pipes *execdriver.Pipes) (*TtyC
 	return tty, nil
 }
 
+// Resize implements Resize method of Terminal interface
 func (t *TtyConsole) Resize(h, w int) error {
 	return term.SetWinsize(t.console.Fd(), &term.Winsize{Height: uint16(h), Width: uint16(w)})
 }
 
+// AttachPipes attaches given pipes to TtyConsole
 func (t *TtyConsole) AttachPipes(pipes *execdriver.Pipes) error {
 	go func() {
 		if wb, ok := pipes.Stdout.(interface {
@@ -400,6 +421,7 @@ func (t *TtyConsole) AttachPipes(pipes *execdriver.Pipes) error {
 	return nil
 }
 
+// Close implements Close method of Terminal interface
 func (t *TtyConsole) Close() error {
 	return t.console.Close()
 }

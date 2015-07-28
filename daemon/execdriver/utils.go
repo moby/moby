@@ -30,17 +30,24 @@ func init() {
 }
 
 type (
+	// CapabilityMapping maps linux capability name to its value of capability.Cap type
+	// Capabilities is one of the security systems in Linux Security Module (LSM)
+	// framework provided by the kernel.
+	// For more details on capabilities, see http://man7.org/linux/man-pages/man7/capabilities.7.html
 	CapabilityMapping struct {
 		Key   string         `json:"key,omitempty"`
 		Value capability.Cap `json:"value,omitempty"`
 	}
+	// Capabilities contains all CapabilityMapping
 	Capabilities []*CapabilityMapping
 )
 
+// String returns <key> of CapabilityMapping
 func (c *CapabilityMapping) String() string {
 	return c.Key
 }
 
+// GetCapability returns CapabilityMapping which contains specific key
 func GetCapability(key string) *CapabilityMapping {
 	for _, capp := range capabilityList {
 		if capp.Key == key {
@@ -51,6 +58,7 @@ func GetCapability(key string) *CapabilityMapping {
 	return nil
 }
 
+// GetAllCapabilities returns all of the capabilities
 func GetAllCapabilities() []string {
 	output := make([]string, len(capabilityList))
 	for i, capability := range capabilityList {
@@ -59,6 +67,8 @@ func GetAllCapabilities() []string {
 	return output
 }
 
+// TweakCapabilities can tweak capabilities by adding or dropping capabilities
+// based on the basics capabilities.
 func TweakCapabilities(basics, adds, drops []string) ([]string, error) {
 	var (
 		newCaps []string

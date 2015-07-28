@@ -5,9 +5,11 @@ import (
 	"os/exec"
 )
 
+// StdConsole defines standard console operations for execdriver
 type StdConsole struct {
 }
 
+// NewStdConsole returns a new StdConsole struct
 func NewStdConsole(processConfig *ProcessConfig, pipes *Pipes) (*StdConsole, error) {
 	std := &StdConsole{}
 
@@ -17,6 +19,7 @@ func NewStdConsole(processConfig *ProcessConfig, pipes *Pipes) (*StdConsole, err
 	return std, nil
 }
 
+// AttachPipes attaches given pipes to exec.Cmd
 func (s *StdConsole) AttachPipes(command *exec.Cmd, pipes *Pipes) error {
 	command.Stdout = pipes.Stdout
 	command.Stderr = pipes.Stderr
@@ -35,11 +38,13 @@ func (s *StdConsole) AttachPipes(command *exec.Cmd, pipes *Pipes) error {
 	return nil
 }
 
+// Resize implements Resize method of Terminal interface
 func (s *StdConsole) Resize(h, w int) error {
 	// we do not need to reside a non tty
 	return nil
 }
 
+// Close implements Close method of Terminal interface
 func (s *StdConsole) Close() error {
 	// nothing to close here
 	return nil

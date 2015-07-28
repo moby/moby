@@ -9,6 +9,7 @@ import (
 	"strings"
 )
 
+// Define error messages
 var (
 	ErrCannotParse = errors.New("cannot parse raw input")
 )

@@ -34,11 +34,15 @@ import (
 	"github.com/vishvananda/netns"
 )
 
+// DriverName for lxc driver
 const DriverName = "lxc"
 
+// ErrExec defines unsupported error message
 var ErrExec = errors.New("Unsupported: Exec is not supported by the lxc driver")
 
-type driver struct {
+// Driver contains all information for lxc driver,
+// it implements execdriver.Driver
+type Driver struct {
 	root             string // root path for the driver to use
 	libPath          string
 	initPath         string
@@ -54,7 +58,8 @@ type activeContainer struct {
 	cmd       *exec.Cmd
 }
 
-func NewDriver(root, libPath, initPath string, apparmor bool) (*driver, error) {
+// NewDriver returns a new lxc driver, called from NewDriver of execdriver
+func NewDriver(root, libPath, initPath string, apparmor bool) (*Driver, error) {
 	if err := os.MkdirAll(root, 0700); err != nil {
 		return nil, err
 	}
@@ -66,7 +71,7 @@ func NewDriver(root, libPath, initPath string, apparmor bool) (*driver, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &driver{
+	return &Driver{
 		apparmor:         apparmor,
 		root:             root,
 		libPath:          libPath,
@@ -77,7 +82,8 @@ func NewDriver(root, libPath, initPath string, apparmor bool) (*driver, error) {
 	}, nil
 }
 
-func (d *driver) Name() string {
+// Name implements the exec driver Driver interface.
+func (d *Driver) Name() string {
 	version := d.version()
 	return fmt.Sprintf("%s-%s", DriverName, version)
 }
@@ -117,7 +123,9 @@ func killNetNsProc(proc *os.Process) {
 	proc.Wait()
 }
 
-func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallback execdriver.StartCallback) (execdriver.ExitStatus, error) {
+// Run implements the exec driver Driver interface,
+// it calls 'exec.Cmd' to launch lxc commands to run a container.
+func (d *Driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallback execdriver.StartCallback) (execdriver.ExitStatus, error) {
 	var (
 		term     execdriver.Terminal
 		err      error
@@ -392,7 +400,7 @@ func notifyOnOOM(paths map[string]string) (<-chan struct{}, error) {
 
 // createContainer populates and configures the container type with the
 // data provided by the execdriver.Command
-func (d *driver) createContainer(c *execdriver.Command) (*configs.Config, error) {
+func (d *Driver) createContainer(c *execdriver.Command) (*configs.Config, error) {
 	container := execdriver.InitContainer(c)
 	if err := execdriver.SetupCgroups(container, c); err != nil {
 		return nil, err
@@ -400,8 +408,8 @@ func (d *driver) createContainer(c *execdriver.Command) (*configs.Config, error)
 	return container, nil
 }
 
-// Return an map of susbystem -> container cgroup
-func cgroupPaths(containerId string) (map[string]string, error) {
+// Return an map of susbystem -> absolute container cgroup path
+func cgroupPaths(containerID string) (map[string]string, error) {
 	subsystems, err := cgroups.GetAllSubsystems()
 	if err != nil {
 		return nil, err
@@ -415,7 +423,7 @@ func cgroupPaths(containerId string) (map[string]string, error) {
 			//unsupported subystem
 			continue
 		}
-		path := filepath.Join(cgroupRoot, cgroupDir, "lxc", containerId)
+		path := filepath.Join(cgroupRoot, cgroupDir, "lxc", containerID)
 		paths[subsystem] = path
 	}
 
@@ -506,8 +514,8 @@ func setupUser(userSpec string) error {
 	return nil
 }
 
-/// Return the exit code of the process
-// if the process has not exited -1 will be returned
+// getExitCode returns the exit code of the process.
+// If the process has not exited -1 will be returned.
 func getExitCode(c *execdriver.Command) int {
 	if c.ProcessConfig.ProcessState == nil {
 		return -1
@@ -515,15 +523,18 @@ func getExitCode(c *execdriver.Command) int {
 	return c.ProcessConfig.ProcessState.Sys().(syscall.WaitStatus).ExitStatus()
 }
 
-func (d *driver) Kill(c *execdriver.Command, sig int) error {
+// Kill implements the exec driver Driver interface.
+func (d *Driver) Kill(c *execdriver.Command, sig int) error {
 	if sig == 9 || c.ProcessConfig.Process == nil {
-		return KillLxc(c.ID, sig)
+		return killLxc(c.ID, sig)
 	}
 
 	return c.ProcessConfig.Process.Signal(syscall.Signal(sig))
 }
 
-func (d *driver) Pause(c *execdriver.Command) error {
+// Pause implements the exec driver Driver interface,
+// it executes lxc-freeze to pause a container.
+func (d *Driver) Pause(c *execdriver.Command) error {
 	_, err := exec.LookPath("lxc-freeze")
 	if err == nil {
 		output, errExec := exec.Command("lxc-freeze", "-n", c.ID).CombinedOutput()
@@ -535,7 +546,9 @@ func (d *driver) Pause(c *execdriver.Command) error {
 	return err
 }
 
-func (d *driver) Unpause(c *execdriver.Command) error {
+// Unpause implements the exec driver Driver interface,
+// it executes lxc-unfreeze to unpause a container.
+func (d *Driver) Unpause(c *execdriver.Command) error {
 	_, err := exec.LookPath("lxc-unfreeze")
 	if err == nil {
 		output, errExec := exec.Command("lxc-unfreeze", "-n", c.ID).CombinedOutput()
@@ -547,11 +560,12 @@ func (d *driver) Unpause(c *execdriver.Command) error {
 	return err
 }
 
-func (d *driver) Terminate(c *execdriver.Command) error {
-	return KillLxc(c.ID, 9)
+// Terminate implements the exec driver Driver interface.
+func (d *Driver) Terminate(c *execdriver.Command) error {
+	return killLxc(c.ID, 9)
 }
 
-func (d *driver) version() string {
+func (d *Driver) version() string {
 	var (
 		version string
 		output  []byte
@@ -571,7 +585,7 @@ func (d *driver) version() string {
 	return version
 }
 
-func KillLxc(id string, sig int) error {
+func killLxc(id string, sig int) error {
 	var (
 		err    error
 		output []byte
@@ -590,7 +604,7 @@ func KillLxc(id string, sig int) error {
 }
 
 // wait for the process to start and return the pid for the process
-func (d *driver) waitForStart(c *execdriver.Command, waitLock chan struct{}) (int, error) {
+func (d *Driver) waitForStart(c *execdriver.Command, waitLock chan struct{}) (int, error) {
 	var (
 		err    error
 		output []byte
@@ -622,13 +636,13 @@ func (d *driver) waitForStart(c *execdriver.Command, waitLock chan struct{}) (in
 	return -1, execdriver.ErrNotRunning
 }
 
-func (d *driver) getInfo(id string) ([]byte, error) {
+func (d *Driver) getInfo(id string) ([]byte, error) {
 	return exec.Command("lxc-info", "-n", id).CombinedOutput()
 }
 
 type info struct {
 	ID     string
-	driver *driver
+	driver *Driver
 }
 
 func (i *info) IsRunning() bool {
@@ -645,7 +659,8 @@ func (i *info) IsRunning() bool {
 	return running
 }
 
-func (d *driver) Info(id string) execdriver.Info {
+// Info implements the exec driver Driver interface.
+func (d *Driver) Info(id string) execdriver.Info {
 	return &info{
 		ID:     id,
 		driver: d,
@@ -665,7 +680,8 @@ func findCgroupRootAndDir(subsystem string) (string, string, error) {
 	return cgroupRoot, cgroupDir, nil
 }
 
-func (d *driver) GetPidsForContainer(id string) ([]int, error) {
+// GetPidsForContainer implements the exec driver Driver interface.
+func (d *Driver) GetPidsForContainer(id string) ([]int, error) {
 	pids := []int{}
 
 	// cpu is chosen because it is the only non optional subsystem in cgroups
@@ -730,11 +746,11 @@ func rootIsShared() bool {
 	return true
 }
 
-func (d *driver) containerDir(containerId string) string {
-	return path.Join(d.libPath, "containers", containerId)
+func (d *Driver) containerDir(containerID string) string {
+	return path.Join(d.libPath, "containers", containerID)
 }
 
-func (d *driver) generateLXCConfig(c *execdriver.Command) (string, error) {
+func (d *Driver) generateLXCConfig(c *execdriver.Command) (string, error) {
 	root := path.Join(d.containerDir(c.ID), "config.lxc")
 
 	fo, err := os.Create(root)
@@ -743,7 +759,7 @@ func (d *driver) generateLXCConfig(c *execdriver.Command) (string, error) {
 	}
 	defer fo.Close()
 
-	if err := LxcTemplateCompiled.Execute(fo, struct {
+	if err := lxcTemplateCompiled.Execute(fo, struct {
 		*execdriver.Command
 		AppArmor bool
 	}{
@@ -756,7 +772,7 @@ func (d *driver) generateLXCConfig(c *execdriver.Command) (string, error) {
 	return root, nil
 }
 
-func (d *driver) generateEnvConfig(c *execdriver.Command) error {
+func (d *Driver) generateEnvConfig(c *execdriver.Command) error {
 	data, err := json.Marshal(c.ProcessConfig.Env)
 	if err != nil {
 		return err
@@ -772,16 +788,21 @@ func (d *driver) generateEnvConfig(c *execdriver.Command) error {
 	return ioutil.WriteFile(p, data, 0600)
 }
 
-// Clean not implemented for lxc
-func (d *driver) Clean(id string) error {
+// Clean implements the exec driver Driver interface,
+// it's not implemented by lxc.
+func (d *Driver) Clean(id string) error {
 	return nil
 }
 
+// TtyConsole implements the exec driver Terminal interface,
+// it stores the master and slave ends of the container's pty.
 type TtyConsole struct {
 	MasterPty *os.File
 	SlavePty  *os.File
 }
 
+// NewTtyConsole returns a new TtyConsole struct.
+// Wired up to the provided process config and stdin/stdout/stderr pipes.
 func NewTtyConsole(processConfig *execdriver.ProcessConfig, pipes *execdriver.Pipes) (*TtyConsole, error) {
 	// lxc is special in that we cannot create the master outside of the container without
 	// opening the slave because we have nothing to provide to the cmd.  We have to open both then do
@@ -808,10 +829,12 @@ func NewTtyConsole(processConfig *execdriver.ProcessConfig, pipes *execdriver.Pi
 	return tty, nil
 }
 
+// Resize implements Resize method of Terminal interface
 func (t *TtyConsole) Resize(h, w int) error {
 	return term.SetWinsize(t.MasterPty.Fd(), &term.Winsize{Height: uint16(h), Width: uint16(w)})
 }
 
+// AttachPipes attaches given pipes to exec.Cmd
 func (t *TtyConsole) AttachPipes(command *exec.Cmd, pipes *execdriver.Pipes) error {
 	command.Stdout = t.SlavePty
 	command.Stderr = t.SlavePty
@@ -839,16 +862,22 @@ func (t *TtyConsole) AttachPipes(command *exec.Cmd, pipes *execdriver.Pipes) err
 	return nil
 }
 
+// Close implements Close method of Terminal interface
 func (t *TtyConsole) Close() error {
 	t.SlavePty.Close()
 	return t.MasterPty.Close()
 }
 
-func (d *driver) Exec(c *execdriver.Command, processConfig *execdriver.ProcessConfig, pipes *execdriver.Pipes, startCallback execdriver.StartCallback) (int, error) {
+// Exec implements the exec driver Driver interface,
+// it is not implemented by lxc.
+func (d *Driver) Exec(c *execdriver.Command, processConfig *execdriver.ProcessConfig, pipes *execdriver.Pipes, startCallback execdriver.StartCallback) (int, error) {
 	return -1, ErrExec
 }
 
-func (d *driver) Stats(id string) (*execdriver.ResourceStats, error) {
+// Stats implements the exec driver Driver interface.
+// Lxc doesn't implement it's own Stats, it does some trick by implementing
+// execdriver.Stats to get stats info by libcontainer APIs.
+func (d *Driver) Stats(id string) (*execdriver.ResourceStats, error) {
 	if _, ok := d.activeContainers[id]; !ok {
 		return nil, fmt.Errorf("%s is not a key in active containers", id)
 	}
