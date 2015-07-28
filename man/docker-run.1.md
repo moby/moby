@@ -30,6 +30,7 @@ docker-run - Run a command in a new container
 [**-h**|**--hostname**[=*HOSTNAME*]]
 [**--help**]
 [**-i**|**--interactive**[=*false*]]
+[**--init**[=*INITSYSTEM*]]
 [**--ipc**[=*IPC*]]
 [**-l**|**--label**[=*[]*]]
 [**--label-file**[=*[]*]]
@@ -236,6 +237,17 @@ ENTRYPOINT.
    Keep STDIN open even if not attached. The default is *false*.
 
    When set to true, keep stdin open even if not attached. The default is false.
+
+**--init**=""
+
+	Enable a pre-configured profile for running init systems within containers.
+	Default: No profile is enabled.
+
+   	      'systemd': Changes the way docker runs a container, based on the systemd container specification.
+	      * Mounts "/run" as a tmpfs,
+	      * mounts /sys/fs/cgroup into the container as a read/only volume
+	      * Adds container_uuid environment variable.
+	      * Sets up volume mount /var/log/journald/UUID. Allowing journald data within the container to be seen by the host journalctl. 
 
 **--ipc**=""
    Default is to create a private IPC namespace (POSIX SysV IPC) for the container

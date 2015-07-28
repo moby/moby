@@ -131,6 +131,7 @@ complete -c docker -A -f -n '__fish_seen_subcommand_from create' -l group-add -d
 complete -c docker -A -f -n '__fish_seen_subcommand_from create' -s h -l hostname -d 'Container host name'
 complete -c docker -A -f -n '__fish_seen_subcommand_from create' -l help -d 'Print usage'
 complete -c docker -A -f -n '__fish_seen_subcommand_from create' -s i -l interactive -d 'Keep STDIN open even if not attached'
+complete -c docker -A -f -n '__fish_seen_subcommand_from create' -s a -l init -d 'Init to systemd.'
 complete -c docker -A -f -n '__fish_seen_subcommand_from create' -l ipc -d 'Default is to create a private IPC namespace (POSIX SysV IPC) for the container'
 complete -c docker -A -f -n '__fish_seen_subcommand_from create' -l link -d 'Add link to another container in the form of <name|id>:alias'
 complete -c docker -A -f -n '__fish_seen_subcommand_from create' -l lxc-conf -d '(lxc exec-driver only) Add custom lxc options --lxc-conf="lxc.cgroup.cpuset.cpus = 0,1"'
@@ -300,6 +301,7 @@ complete -c docker -A -f -n '__fish_seen_subcommand_from rmi' -a '(__fish_print_
 # run
 complete -c docker -f -n '__fish_docker_no_subcommand' -a run -d 'Run a command in a new container'
 complete -c docker -A -f -n '__fish_seen_subcommand_from run' -s a -l attach -d 'Attach to STDIN, STDOUT or STDERR.'
+complete -c docker -A -f -n '__fish_seen_subcommand_from run' -s a -l init -d 'Init to systemd.'
 complete -c docker -A -f -n '__fish_seen_subcommand_from run' -l add-host -d 'Add a custom host-to-IP mapping (host:ip)'
 complete -c docker -A -f -n '__fish_seen_subcommand_from run' -s c -l cpu-shares -d 'CPU shares (relative weight)'
 complete -c docker -A -f -n '__fish_seen_subcommand_from run' -l cap-add -d 'Add Linux capabilities'

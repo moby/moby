@@ -477,8 +477,14 @@ func (container *Container) Stop(seconds int) error {
 	}
 
 	// 1. Send a SIGTERM
-	if err := container.killPossiblyDeadProcess(15); err != nil {
-		logrus.Infof("Failed to send SIGTERM to the process, force killing")
+	sig := 15
+	sigString := "SIGTERM"
+	if container.Config.Init == "systemd" {
+		sig = 35 //signal.
+		sigString = "SIGRTMIN + 3"
+	}
+	if err := container.killPossiblyDeadProcess(sig); err != nil {
+		logrus.Infof(fmt.Sprintf("Failed to send %s to the process, force killing", sigString))
 		if err := container.killPossiblyDeadProcess(9); err != nil {
 			return err
 		}

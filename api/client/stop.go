@@ -12,6 +12,7 @@ import (
 // CmdStop stops one or more running containers.
 //
 // A running container is stopped by first sending SIGTERM and then SIGKILL if the container fails to stop within a grace period (the default is 10 seconds).
+// If the container is running in Init="systemd" mode, docker will send the SIGRTMIN+3 signal
 //
 // Usage: docker stop [OPTIONS] CONTAINER [CONTAINER...]
 func (cli *DockerCli) CmdStop(args ...string) error {
