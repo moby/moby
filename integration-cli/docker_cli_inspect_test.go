@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"os/exec"
 	"strconv"
@@ -285,4 +286,42 @@ func (s *DockerSuite) TestInspectTimesAsRFC3339Nano(c *check.C) {
 
 	_, err = time.Parse(time.RFC3339Nano, created)
 	c.Assert(err, check.IsNil)
+}
+
+func (s *DockerSuite) TestInspectNonExistant(c *check.C) {
+	out, exitCode, err := dockerCmdWithError("inspect", "doesntexist")
+	c.Assert(err, check.Not(check.IsNil), check.Commentf("expected error when inspecting non-existant object"))
+	c.Assert(exitCode, check.Equals, 1)
+
+	outArr := strings.Split(strings.TrimSpace(out), "\n")
+	c.Assert(len(outArr), check.Equals, 2)
+	c.Assert(
+		strings.Contains(outArr[0], "No such image or container"),
+		check.Equals,
+		true,
+	)
+	c.Assert(outArr[1], check.Equals, "[]")
+}
+
+func (s *DockerSuite) TestInspectJSONOutputCompiles(c *check.C) {
+	out, _ := exec.Command(dockerBinary, "inspect", "doesntexist").Output()
+
+	var inspect []struct{}
+	c.Assert(json.Unmarshal(out, &inspect), check.IsNil)
+	c.Assert(len(inspect), check.Equals, 0)
+
+	var images []*types.ImageInspect
+	out, err := exec.Command(dockerBinary, "inspect", "busybox", "hello-world:frozen").Output()
+	c.Assert(err, check.IsNil, check.Commentf("\n%s", out))
+	c.Assert(json.Unmarshal(out, &images), check.IsNil)
+	c.Assert(len(images), check.Equals, 2)
+
+	var containers []*types.ContainerJSON
+	dockerCmd(c, "create", "--name=test1", "busybox")
+	dockerCmd(c, "create", "--name=test2", "busybox")
+
+	out, err = exec.Command(dockerBinary, "inspect", "test1", "test2").Output()
+	c.Assert(err, check.IsNil, check.Commentf("\n%s", out))
+	c.Assert(json.Unmarshal(out, &containers), check.IsNil)
+	c.Assert(len(images), check.Equals, 2)
 }
