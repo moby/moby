@@ -21,7 +21,7 @@ weight=1
 
 You can specify a `URL` or `-` (dash) to take data directly from `STDIN`. The
 `URL` can point to an archive (.tar, .tar.gz, .tgz, .bzip, .tar.xz, or .txz)
-containing a fileystem or to an individual file on the Docker host.  If you
+containing a filesystem or to an individual file on the Docker host.  If you
 specify an archive, Docker untars it in the container relative to the `/`
 (root). If you specify an individual file, you must specify the full path within
 the host. To import from a remote location, specify a `URI` that begins with the
