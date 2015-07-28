@@ -25,6 +25,7 @@ packages=(
 	pkg/fileutils
 	pkg/homedir
 	pkg/listenbuffer
+	pkg/mflag
 	pkg/mflag/example
 	pkg/mount
 	pkg/namesgenerator
