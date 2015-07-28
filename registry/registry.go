@@ -49,6 +49,23 @@ func init() {
 	dockerUserAgent = useragent.AppendVersions("", httpVersion...)
 }
 
+func newTLSConfig(hostname string, isSecure bool) (*tls.Config, error) {
+	// PreferredServerCipherSuites should have no effect
+	tlsConfig := tlsconfig.ServerDefault
+
+	tlsConfig.InsecureSkipVerify = !isSecure
+
+	if isSecure {
+		hostDir := filepath.Join(CertsDir, hostname)
+		logrus.Debugf("hostDir: %s", hostDir)
+		if err := ReadCertsDirectory(&tlsConfig, hostDir); err != nil {
+			return nil, err
+		}
+	}
+
+	return &tlsConfig, nil
+}
+
 func hasFile(files []os.FileInfo, name string) bool {
 	for _, f := range files {
 		if f.Name() == name {
