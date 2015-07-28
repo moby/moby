@@ -6,6 +6,7 @@ rm -rf vendor/
 source 'hack/.vendor-helpers.sh'
 
 # the following lines are in sorted order, FYI
+clone git github.com/Azure/go-ansiterm 0a9ca7117fc3e5629da85238ede560cb5e749783
 clone git github.com/Sirupsen/logrus v0.8.2 # logrus is a common dependency among multiple deps
 clone git github.com/docker/libtrust 9cbd2a1374f46905c68a4eb3694a130610adc62a
 clone git github.com/go-check/check 64131543e7896d5bcc6bd5a76287eb75ea96c673
