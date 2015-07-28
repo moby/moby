@@ -13,6 +13,10 @@ packages=(
 	builder/parser
 	builder/parser/dumper
 	daemon/events
+	daemon/execdriver
+	daemon/execdriver/execdrivers
+	daemon/execdriver/lxc
+	daemon/execdriver/native
 	daemon/execdriver/native/template
 	daemon/network
 	docker
