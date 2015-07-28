@@ -3,9 +3,8 @@
 package daemon
 
 import (
-	"os"
-
 	"github.com/docker/docker/daemon/execdriver"
+	"github.com/docker/docker/runconfig"
 )
 
 // Not supported on Windows
@@ -17,10 +16,13 @@ func (container *Container) setupMounts() ([]execdriver.Mount, error) {
 	return nil, nil
 }
 
-func migrateVolume(id, vfs string) error {
+// verifyVolumesInfo ports volumes configured for the containers pre docker 1.7.
+// As the Windows daemon was not supported before 1.7, this is a no-op
+func (daemon *Daemon) verifyVolumesInfo(container *Container) error {
 	return nil
 }
 
-func validVolumeLayout(files []os.FileInfo) bool {
-	return true
+// TODO Windows: This can be further factored out. Called from daemon\daemon.go
+func (daemon *Daemon) registerMountPoints(container *Container, hostConfig *runconfig.HostConfig) error {
+	return nil
 }

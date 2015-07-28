@@ -1205,12 +1205,8 @@ func (s *Server) getContainersByName(version version.Version, w http.ResponseWri
 		return fmt.Errorf("Missing parameter")
 	}
 
-	if version.LessThan("1.20") {
-		containerJSONRaw, err := s.daemon.ContainerInspectPre120(vars["name"])
-		if err != nil {
-			return err
-		}
-		return writeJSON(w, http.StatusOK, containerJSONRaw)
+	if version.LessThan("1.20") && runtime.GOOS != "windows" {
+		return getContainersByNameDownlevel(w, s, vars["name"])
 	}
 
 	containerJSON, err := s.daemon.ContainerInspect(vars["name"])

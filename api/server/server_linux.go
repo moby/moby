@@ -121,3 +121,13 @@ func adjustCpuShares(version version.Version, hostConfig *runconfig.HostConfig) 
 		}
 	}
 }
+
+// getContainersByNameDownlevel performs processing for pre 1.20 APIs. This
+// is only relevant on non-Windows daemons.
+func getContainersByNameDownlevel(w http.ResponseWriter, s *Server, namevar string) error {
+	containerJSONRaw, err := s.daemon.ContainerInspectPre120(namevar)
+	if err != nil {
+		return err
+	}
+	return writeJSON(w, http.StatusOK, containerJSONRaw)
+}

@@ -250,7 +250,8 @@ type ContainerJSON struct {
 	Config *runconfig.Config
 }
 
-// backcompatibility struct along with ContainerConfig
+// backcompatibility struct along with ContainerConfig. Note this is not
+// used by the Windows daemon.
 type ContainerJSONPre120 struct {
 	*ContainerJSONBase
 	Volumes   map[string]string

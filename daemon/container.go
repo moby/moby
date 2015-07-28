@@ -64,28 +64,18 @@ type CommonContainer struct {
 	Config                   *runconfig.Config
 	ImageID                  string `json:"Image"`
 	NetworkSettings          *network.Settings
-	ResolvConfPath           string
-	HostnamePath             string
-	HostsPath                string
 	LogPath                  string
 	Name                     string
 	Driver                   string
 	ExecDriver               string
 	MountLabel, ProcessLabel string
 	RestartCount             int
-	UpdateDns                bool
 	HasBeenStartedBefore     bool
-
-	MountPoints map[string]*mountPoint
-	Volumes     map[string]string // Deprecated since 1.7, kept for backwards compatibility
-	VolumesRW   map[string]bool   // Deprecated since 1.7, kept for backwards compatibility
-
-	hostConfig *runconfig.HostConfig
-	command    *execdriver.Command
-
-	monitor      *containerMonitor
-	execCommands *execStore
-	daemon       *Daemon
+	hostConfig               *runconfig.HostConfig
+	command                  *execdriver.Command
+	monitor                  *containerMonitor
+	execCommands             *execStore
+	daemon                   *Daemon
 	// logDriver for closing
 	logDriver logger.Logger
 	logCopier *logger.Copier
@@ -1074,94 +1064,6 @@ func copyEscapable(dst io.Writer, src io.ReadCloser) (written int64, err error) 
 		}
 	}
 	return written, err
-}
-
-func (container *Container) networkMounts() []execdriver.Mount {
-	var mounts []execdriver.Mount
-	if container.ResolvConfPath != "" {
-		label.SetFileLabel(container.ResolvConfPath, container.MountLabel)
-		mounts = append(mounts, execdriver.Mount{
-			Source:      container.ResolvConfPath,
-			Destination: "/etc/resolv.conf",
-			Writable:    !container.hostConfig.ReadonlyRootfs,
-			Private:     true,
-		})
-	}
-	if container.HostnamePath != "" {
-		label.SetFileLabel(container.HostnamePath, container.MountLabel)
-		mounts = append(mounts, execdriver.Mount{
-			Source:      container.HostnamePath,
-			Destination: "/etc/hostname",
-			Writable:    !container.hostConfig.ReadonlyRootfs,
-			Private:     true,
-		})
-	}
-	if container.HostsPath != "" {
-		label.SetFileLabel(container.HostsPath, container.MountLabel)
-		mounts = append(mounts, execdriver.Mount{
-			Source:      container.HostsPath,
-			Destination: "/etc/hosts",
-			Writable:    !container.hostConfig.ReadonlyRootfs,
-			Private:     true,
-		})
-	}
-	return mounts
-}
-
-func (container *Container) addBindMountPoint(name, source, destination string, rw bool) {
-	container.MountPoints[destination] = &mountPoint{
-		Name:        name,
-		Source:      source,
-		Destination: destination,
-		RW:          rw,
-	}
-}
-
-func (container *Container) addLocalMountPoint(name, destination string, rw bool) {
-	container.MountPoints[destination] = &mountPoint{
-		Name:        name,
-		Driver:      volume.DefaultDriverName,
-		Destination: destination,
-		RW:          rw,
-	}
-}
-
-func (container *Container) addMountPointWithVolume(destination string, vol volume.Volume, rw bool) {
-	container.MountPoints[destination] = &mountPoint{
-		Name:        vol.Name(),
-		Driver:      vol.DriverName(),
-		Destination: destination,
-		RW:          rw,
-		Volume:      vol,
-	}
-}
-
-func (container *Container) isDestinationMounted(destination string) bool {
-	return container.MountPoints[destination] != nil
-}
-
-func (container *Container) prepareMountPoints() error {
-	for _, config := range container.MountPoints {
-		if len(config.Driver) > 0 {
-			v, err := createVolume(config.Name, config.Driver)
-			if err != nil {
-				return err
-			}
-			config.Volume = v
-		}
-	}
-	return nil
-}
-
-func (container *Container) removeMountPoints() error {
-	for _, m := range container.MountPoints {
-		if m.Volume != nil {
-			if err := removeVolume(m.Volume); err != nil {
-				return err
-			}
-		}
-	}
-	return nil
 }
 
 func (container *Container) shouldRestart() bool {
