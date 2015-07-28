@@ -207,6 +207,7 @@ type ExecStartCheck struct {
 }
 
 type ContainerState struct {
+	Status     string
 	Running    bool
 	Paused     bool
 	Restarting bool
