@@ -4,7 +4,7 @@ package native
 
 type info struct {
 	ID     string
-	driver *driver
+	driver *Driver
 }
 
 // IsRunning is determined by looking for the

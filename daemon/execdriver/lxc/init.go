@@ -16,11 +16,11 @@ import (
 	"github.com/docker/docker/pkg/reexec"
 )
 
-// Args provided to the init function for a driver
+// InitArgs contains args provided to the init function for a driver
 type InitArgs struct {
 	User       string
 	Gateway    string
-	Ip         string
+	IP         string
 	WorkDir    string
 	Privileged bool
 	Env        []string
@@ -94,7 +94,7 @@ func getArgs() *InitArgs {
 	return &InitArgs{
 		User:       *user,
 		Gateway:    *gateway,
-		Ip:         *ip,
+		IP:         *ip,
 		WorkDir:    *workDir,
 		Privileged: *privileged,
 		Args:       flag.Args(),
