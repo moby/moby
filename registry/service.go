@@ -5,10 +5,8 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"path/filepath"
 	"strings"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/registry/client/auth"
 	"github.com/docker/docker/cliconfig"
 	"github.com/docker/docker/pkg/tlsconfig"
@@ -99,22 +97,7 @@ func (e APIEndpoint) ToV1Endpoint(metaHeaders http.Header) (*Endpoint, error) {
 
 // TLSConfig constructs a client TLS configuration based on server defaults
 func (s *Service) TLSConfig(hostname string) (*tls.Config, error) {
-	// PreferredServerCipherSuites should have no effect
-	tlsConfig := tlsconfig.ServerDefault
-
-	isSecure := s.Config.isSecureIndex(hostname)
-
-	tlsConfig.InsecureSkipVerify = !isSecure
-
-	if isSecure {
-		hostDir := filepath.Join(CertsDir, hostname)
-		logrus.Debugf("hostDir: %s", hostDir)
-		if err := ReadCertsDirectory(&tlsConfig, hostDir); err != nil {
-			return nil, err
-		}
-	}
-
-	return &tlsConfig, nil
+	return newTLSConfig(hostname, s.Config.isSecureIndex(hostname))
 }
 
 func (s *Service) tlsConfigForMirror(mirror string) (*tls.Config, error) {
