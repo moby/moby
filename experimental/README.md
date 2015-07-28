@@ -61,8 +61,6 @@ After downloading the appropriate binary, you can follow the instructions
 
 ## Current experimental features
 
-* [Support for Docker plugins](plugins.md)
-* [Volume plugins](plugins_volume.md)
 * [Network plugins](plugins_network.md)
 * [Native Multi-host networking](networking.md)
 * [Compose, Swarm and networking integration](compose_swarm_networking.md)
