@@ -44,6 +44,10 @@ func (imbdcp *inMemoryBlobDescriptorCacheProvider) Stat(ctx context.Context, dgs
 	return imbdcp.global.Stat(ctx, dgst)
 }
 
+func (imbdcp *inMemoryBlobDescriptorCacheProvider) Clear(ctx context.Context, dgst digest.Digest) error {
+	return imbdcp.global.Clear(ctx, dgst)
+}
+
 func (imbdcp *inMemoryBlobDescriptorCacheProvider) SetDescriptor(ctx context.Context, dgst digest.Digest, desc distribution.Descriptor) error {
 	_, err := imbdcp.Stat(ctx, dgst)
 	if err == distribution.ErrBlobUnknown {
@@ -78,6 +82,14 @@ func (rsimbdcp *repositoryScopedInMemoryBlobDescriptorCache) Stat(ctx context.Co
 	}
 
 	return rsimbdcp.repository.Stat(ctx, dgst)
+}
+
+func (rsimbdcp *repositoryScopedInMemoryBlobDescriptorCache) Clear(ctx context.Context, dgst digest.Digest) error {
+	if rsimbdcp.repository == nil {
+		return distribution.ErrBlobUnknown
+	}
+
+	return rsimbdcp.repository.Clear(ctx, dgst)
 }
 
 func (rsimbdcp *repositoryScopedInMemoryBlobDescriptorCache) SetDescriptor(ctx context.Context, dgst digest.Digest, desc distribution.Descriptor) error {
@@ -131,6 +143,14 @@ func (mbdc *mapBlobDescriptorCache) Stat(ctx context.Context, dgst digest.Digest
 	}
 
 	return desc, nil
+}
+
+func (mbdc *mapBlobDescriptorCache) Clear(ctx context.Context, dgst digest.Digest) error {
+	mbdc.mu.Lock()
+	defer mbdc.mu.Unlock()
+
+	delete(mbdc.descriptors, dgst)
+	return nil
 }
 
 func (mbdc *mapBlobDescriptorCache) SetDescriptor(ctx context.Context, dgst digest.Digest, desc distribution.Descriptor) error {
