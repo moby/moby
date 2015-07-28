@@ -4,11 +4,13 @@ package volumedrivers
 
 import "github.com/docker/docker/volume"
 
+// NewVolumeDriver returns a driver has the given name mapped on the given client.
 func NewVolumeDriver(name string, c client) volume.Driver {
 	proxy := &volumeDriverProxy{c}
 	return &volumeDriverAdapter{name, proxy}
 }
 
+// VolumeDriver defines the available functions that volume plugins must implement.
 type VolumeDriver interface {
 	// Create a volume with the given name
 	Create(name string) (err error)
