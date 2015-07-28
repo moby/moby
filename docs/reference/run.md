@@ -491,9 +491,7 @@ command:
 
     $ docker run --security-opt label:type:svirt_apache_t -i -t centos bash
 
-Note:
-
-You would have to write policy defining a `svirt_apache_t` type.
+> **Note**: You would have to write policy defining a `svirt_apache_t` type.
 
 ## Specifying custom cgroups
 
@@ -507,16 +505,18 @@ parent group.
 The operator can also adjust the performance parameters of the
 container:
 
-    -m, --memory="": Memory limit (format: <number><optional unit>, where unit = b, k, m or g)
-    --memory-swap="": Total memory limit (memory + swap, format: <number><optional unit>, where unit = b, k, m or g)
-    -c, --cpu-shares=0: CPU shares (relative weight)
-    --cpu-period=0: Limit the CPU CFS (Completely Fair Scheduler) period
-    --cpuset-cpus="": CPUs in which to allow execution (0-3, 0,1)
-    --cpuset-mems="": Memory nodes (MEMs) in which to allow execution (0-3, 0,1). Only effective on NUMA systems.
-    --cpu-quota=0: Limit the CPU CFS (Completely Fair Scheduler) quota
-    --blkio-weight=0: Block IO weight (relative weight) accepts a weight value between 10 and 1000.
-    --oom-kill-disable=true|false: Whether to disable OOM Killer for the container or not.
-    --memory-swappiness="": Tune a container's memory swappiness behavior. Accepts an integer between 0 and 100.
+| Option                               |  Description                                                                                      |
+|--------------------------------------|---------------------------------------------------------------------------------------------|
+| `-m`, `--memory="" `                 | Memory limit (format: , where unit = b, k, m or g)                                          |
+| `--memory-swap=""`                   | Total memory limit (memory + swap, format: , where unit = b, k, m or g)                     |
+| `-c`, `--cpu-shares=0`               | CPU shares (relative weight)                                                                |
+| `--cpu-period=0`                     | Limit the CPU CFS (Completely Fair Scheduler) period                                        |
+| `--cpuset-cpus="" `                  | CPUs in which to allow execution (0-3, 0,1)                                                 |
+| `--cpuset-mems=""`                   | Memory nodes (MEMs) in which to allow execution (0-3, 0,1). Only effective on NUMA systems. |
+| `--cpu-quota=0`                      | Limit the CPU CFS (Completely Fair Scheduler) quota                                         |
+| `--blkio-weight=0`                   | Block IO weight (relative weight) accepts a weight value between 10 and 1000.               |
+| `--oom-kill-disable=true` or `false` | Whether to disable OOM Killer for the container or not.                                     |
+| `--memory-swappiness=""  `           | Tune a container's memory swappiness behavior. Accepts an integer between 0 and 100.        |
 
 ### Memory constraints
 
@@ -568,7 +568,7 @@ We have four ways to set memory usage:
   </tbody>
 </table>
 
-Examples:
+### Examples
 
     $ docker run -ti ubuntu:14.04 /bin/bash
 
@@ -599,8 +599,6 @@ Only disable the OOM killer on containers where you have also set the
 `-m/--memory` option. If the `-m` flag is not set, this can result in the host
 running out of memory and require killing the host's system processes to free
 memory.
-
-Examples:
 
 The following example limits the memory to 100M and disables the OOM killer for
 this container:
@@ -894,7 +892,7 @@ familiar with using LXC directly.
 > you can use `--lxc-conf` to set a container's IP address, but this will not be
 > reflected in the `/etc/hosts` file.
 
-# Logging drivers (--log-driver)
+## Logging drivers (--log-driver)
 
 The container can have a different logging driver than the Docker daemon. Use
 the `--log-driver=VALUE` with the `docker run` command to configure the
@@ -910,17 +908,8 @@ container's logging driver. The following options are supported:
 
 	The `docker logs`command is available only for the `json-file` logging
 driver.  For detailed information on working with logging drivers, see
-[Configure a logging driver](reference/logging/).
+[Configure a logging driver](reference/logging/overview.md).
 
-#### Logging driver: fluentd
-
-Fluentd logging driver for Docker. Writes log messages to fluentd (forward input). `docker logs`
-command is not available for this logging driver.
-
-Some options are supported by specifying `--log-opt` as many as needed, like `--log-opt fluentd-address=localhost:24224 --log-opt fluentd-tag=docker.{{.Name}}`.
-
- - `fluentd-address`: specify `host:port` to connect [localhost:24224]
- - `fluentd-tag`: specify tag for fluentd message, which interpret some markup, ex `{{.ID}}`, `{{.FullID}}` or `{{.Name}}` [docker.{{.ID}}]
 
 ## Overriding Dockerfile image defaults
 
@@ -942,7 +931,7 @@ Dockerfile instruction and how the operator can override that setting.
  - [USER](#user)
  - [WORKDIR](#workdir)
 
-## CMD (default command or options)
+### CMD (default command or options)
 
 Recall the optional `COMMAND` in the Docker
 commandline:
@@ -958,7 +947,7 @@ image), you can override that `CMD` instruction just by specifying a new
 If the image also specifies an `ENTRYPOINT` then the `CMD` or `COMMAND`
 get appended as arguments to the `ENTRYPOINT`.
 
-## ENTRYPOINT (default command to execute at runtime)
+### ENTRYPOINT (default command to execute at runtime)
 
     --entrypoint="": Overwrite the default entrypoint set by the image
 
@@ -981,7 +970,7 @@ or two examples of how to pass more parameters to that ENTRYPOINT:
     $ docker run -i -t --entrypoint /bin/bash example/redis -c ls -l
     $ docker run -i -t --entrypoint /usr/bin/redis-cli example/redis --help
 
-## EXPOSE (incoming ports)
+### EXPOSE (incoming ports)
 
 The Dockerfile doesn't give much control over networking, only providing
 the `EXPOSE` instruction to give a hint to the operator about what
@@ -1023,7 +1012,7 @@ then the client container can access the exposed port via a private
 networking interface.  Docker will set some environment variables in the
 client container to help indicate which interface and port to use.
 
-## ENV (environment variables)
+### ENV (environment variables)
 
 When a new container is created, Docker will set the following environment
 variables automatically:
@@ -1136,7 +1125,7 @@ container's `/etc/hosts` entry will be automatically updated.
 > restarted. We recommend using the host entries in `/etc/hosts` to resolve the
 > IP address of linked containers.
 
-## VOLUME (shared filesystems)
+### VOLUME (shared filesystems)
 
     -v=[]: Create a bind mount with: [host-dir:]container-dir[:rw|ro].
            If 'host-dir' is missing, then docker creates a new volume.
@@ -1151,7 +1140,7 @@ one or more `VOLUME`'s associated with an image, but only the operator
 can give access from one container to another (or from a container to a
 volume mounted on the host).
 
-## USER
+### USER
 
 The default user within a container is `root` (id = 0), but if the
 developer created additional users, those are accessible too. The
@@ -1162,7 +1151,7 @@ Dockerfile `USER` instruction, but the operator can override it:
 
 > **Note:** if you pass numeric uid, it must be in range 0-2147483647.
 
-## WORKDIR
+### WORKDIR
 
 The default working directory for running binaries within a container is the
 root directory (`/`), but the developer can set a different default with the

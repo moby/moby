@@ -25,7 +25,15 @@ driver sends the following metadata in the structured log message:
 | `container_name` | The container name at the time it was started. If you use `docker rename` to rename a container, the new name is not reflected in the journal entries.                                         |
 | `source`         | `stdout` or `stderr`                |
 
+The `docker logs` command is not available for this logging driver.
+
 ## Usage
+
+Some options are supported by specifying `--log-opt` as many times as needed:
+
+ - `fluentd-address`: specify `host:port` to connect `localhost:24224`
+ - `fluentd-tag`: specify tag for fluentd message, which interpret some markup, ex `{{.ID}}`, `{{.FullID}}` or `{{.Name}}` `docker.{{.ID}}`
+
 
 Configure the default logging driver by passing the
 `--log-driver` option to the Docker daemon:
