@@ -70,7 +70,7 @@ clean() {
 		github.com/docker/docker/integration-cli # external tests
 	)
 
-	local dockerPlatforms=( linux/amd64 windows/amd64 $(_dockerfile_env DOCKER_CROSSPLATFORMS) )
+	local dockerPlatforms=( linux/amd64 $(_dockerfile_env DOCKER_CROSSPLATFORMS) )
 	local dockerBuildTags="$(_dockerfile_env DOCKER_BUILDTAGS)"
 	local buildTagCombos=(
 		''
