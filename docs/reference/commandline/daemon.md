@@ -357,9 +357,6 @@ options for `zfs` start with `zfs`.
     > Otherwise, set this flag for migrating existing Docker daemons to
     > a daemon with a supported environment.
 
-
-## Docker execdriver option
-
 Currently supported options of `zfs`:
 
  * `zfs.fsname`
