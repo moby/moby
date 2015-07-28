@@ -40,7 +40,7 @@ type TagStore struct {
 	pushingPool     map[string]chan struct{}
 	registryService *registry.Service
 	eventsService   *events.Events
-	trustService    *trust.TrustStore
+	trustService    *trust.Store
 }
 
 // Repository maps tags to image IDs.
@@ -77,7 +77,7 @@ type TagStoreConfig struct {
 	// Events is the events service to use for logging.
 	Events *events.Events
 	// Trust is the trust service to use for push and pull operations.
-	Trust *trust.TrustStore
+	Trust *trust.Store
 }
 
 // NewTagStore creates a new TagStore at specified path, using the parameters
