@@ -173,66 +173,6 @@ To run the same test inside your Docker development container, you do this:
 
     root@5f8630b873fe:/go/src/github.com/docker/docker# TESTFLAGS='-check.f TestBuild*' hack/make.sh binary test-integration-cli
 
-## If tests under Boot2Docker fail due to disk space errors
-
-Running the tests requires about 2GB of memory. If you are running your
-container on bare metal, that is you are not running with Boot2Docker, your
-Docker development container is able to take the memory it requires directly
-from your local host.
-
-If you are running Docker using Boot2Docker, the VM uses 2048MB by default.
-This means you can exceed the memory of your VM running tests in a Boot2Docker
-environment. When the test suite runs out of memory, it returns errors similar
-to the following:
-
-    server.go:1302 Error: Insertion failed because database is full: database or
-    disk is full
-
-    utils_test.go:179: Error copy: exit status 1 (cp: writing
-    '/tmp/docker-testd5c9-[...]': No space left on device
-
-To increase the memory on your VM, you need to reinitialize the Boot2Docker VM
-with new memory settings.
-
-1. Stop all running containers.
-
-2. View the current memory setting.
-
-        $ boot2docker info
-        {
-            "Name": "boot2docker-vm",
-            "UUID": "491736fd-4075-4be7-a6f5-1d4cdcf2cc74",
-            "Iso": "/Users/mary/.boot2docker/boot2docker.iso",
-            "State": "running",
-            "CPUs": 8,
-            "Memory": 2048,
-            "VRAM": 8,
-            "CfgFile": "/Users/mary/VirtualBox VMs/boot2docker-vm/boot2docker-vm.vbox",
-            "BaseFolder": "/Users/mary/VirtualBox VMs/boot2docker-vm",
-            "OSType": "",
-            "Flag": 0,
-            "BootOrder": null,
-            "DockerPort": 0,
-            "SSHPort": 2022,
-            "SerialFile": "/Users/mary/.boot2docker/boot2docker-vm.sock"
-        }
-
-
-3. Delete your existing `boot2docker` profile.
-
-        $ boot2docker delete
-
-4. Reinitialize `boot2docker` and specify a higher memory.
-
-        $ boot2docker init -m 5555
-
-5. Verify the memory was reset.
-
-        $ boot2docker info
-
-6. Restart your container and try your test again.
-
-
 ## Testing just the Windows client
 
 This explains how to test the Windows client on a Windows server set up as a
