@@ -166,7 +166,13 @@ do_install() {
 			esac
 		;;
 
-		fedora|centos|oracleserver|redhatenterpriseserver)
+		oracleserver)
+			# need to switch lsb_dist to match yum repo URL
+			lsb_dist="oraclelinux"
+			dist_version="$(rpm -q --whatprovides redhat-release --queryformat "%{VERSION}\n" | sed 's/\/.*//' | sed 's/\..*//')"
+		;;
+
+		fedora|centos)
 			dist_version="$(rpm -q --whatprovides redhat-release --queryformat "%{VERSION}\n" | sed 's/\/.*//' | sed 's/\..*//')"
 		;;
 
@@ -266,7 +272,7 @@ do_install() {
 			exit 0
 			;;
 
-		fedora|centos|oracleserver)
+		fedora|centos|oraclelinux)
 			cat >/etc/yum.repos.d/docker-${repo}.repo <<-EOF
 			[docker-${repo}-repo]
 			name=Docker ${repo} Repository
