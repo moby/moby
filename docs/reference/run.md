@@ -66,6 +66,7 @@ following options.
  - [Container Identification](#container-identification)
      - [Name (--name)](#name-name)
      - [PID Equivalent](#pid-equivalent)
+ - [INIT Settings (--init)](#ipc-settings-ipc)
  - [IPC Settings (--ipc)](#ipc-settings-ipc)
  - [Network Settings](#network-settings)
  - [Restart Policies (--restart)](#restart-policies-restart)
@@ -200,6 +201,17 @@ more advanced use case would be changing the host's hostname from a container.
 
 > **Note**: `--uts="host"` gives the container full access to change the
 > hostname of the host and is therefore considered insecure.
+
+## INIT settings (--init)
+
+    --init=""  : Enable a pre-configured profile for running init systems within containers.
+	       'systemd': Changes the way docker runs a container, based on the systemd container specification.
+	       * Mounts "/run" as a tmpfs,
+	       * mounts /sys/fs/cgroup into the container as a read/only volume
+	       * Adds container_uuid environment variable.
+	       * Sets up volume mount /var/log/journald/UUID. Allowing journald data within the container to be seen by the host journalctl. 
+
+    	       Default: No profile is enabled.
 
 ## IPC settings (--ipc)
 
@@ -1067,6 +1079,7 @@ container by using one or more `-e` flags, even overriding those mentioned
 above, or already defined by the developer with a Dockerfile `ENV`:
 
     $ docker run -e "deep=purple" --rm ubuntu /bin/bash -c export
+    declare -x container_uuid="be84194d-87f9-08c2-b2e1-67311f4409f5"
     declare -x HOME="/"
     declare -x HOSTNAME="85bc26a0e200"
     declare -x OLDPWD
