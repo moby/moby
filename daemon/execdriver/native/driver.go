@@ -21,6 +21,7 @@ import (
 	sysinfo "github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/pkg/term"
 	"github.com/opencontainers/runc/libcontainer"
+	"github.com/opencontainers/runc/libcontainer/apparmor"
 	"github.com/opencontainers/runc/libcontainer/cgroups/systemd"
 	"github.com/opencontainers/runc/libcontainer/configs"
 	"github.com/opencontainers/runc/libcontainer/system"
@@ -49,6 +50,20 @@ func NewDriver(root, initPath string, options []string) (*driver, error) {
 
 	if err := sysinfo.MkdirAll(root, 0700); err != nil {
 		return nil, err
+	}
+
+	if apparmor.IsEnabled() {
+		if err := installAppArmorProfile(); err != nil {
+			apparmor_profiles := []string{"docker-default", "docker-unconfined"}
+
+			// Allow daemon to run if loading failed, but are active
+			// (possibly through another run, manually, or via system startup)
+			for _, policy := range apparmor_profiles {
+				if err := hasAppArmorProfileLoaded(policy); err != nil {
+					return nil, fmt.Errorf("AppArmor enabled on system but the %s profile could not be loaded.", policy)
+				}
+			}
+		}
 	}
 
 	// choose cgroup manager
