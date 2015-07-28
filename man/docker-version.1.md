@@ -6,6 +6,7 @@ docker-version - Show the Docker version information.
 
 # SYNOPSIS
 **docker version**
+[**-D**|**--debug**[=*false*]]
 [**--help**]
 [**-f**|**--format**[=*FORMAT*]]
 
@@ -14,11 +15,14 @@ This command displays version information for both the Docker client and
 daemon. 
 
 # OPTIONS
+**-D**, **--debug**=*true*|*false*
+   Enable debug mode. Default is false.
+
 **--help**
-    Print usage statement
+   Print usage statement
 
 **-f**, **--format**=""
-    Format the output using the given go template.
+   Format the output using the given go template.
 
 # EXAMPLES
 

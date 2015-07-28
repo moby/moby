@@ -6,8 +6,13 @@ docker-rename - Rename a container
 
 # SYNOPSIS
 **docker rename**
+[**-D**|**--debug**[=*false*]]
+[**--help**]/
 OLD_NAME NEW_NAME
 
 # OPTIONS
-There are no available options.
+**-D**, **--debug**=*true*|*false*
+   Enable debug mode. Default is false.
 
+**--help**
+   Print usage statement

@@ -6,6 +6,7 @@ docker-login - Register or log in to a Docker registry.
 
 # SYNOPSIS
 **docker login**
+[**-D**|**--debug**[=*false*]]
 [**-e**|**--email**[=*EMAIL*]]
 [**--help**]
 [**-p**|**--password**[=*PASSWORD*]]
@@ -23,6 +24,9 @@ credentials.  When you log in, the command stores encoded credentials in
 `$HOME/.docker/config.json` on Linux or `%USERPROFILE%/.docker/config.json` on Windows.
 
 # OPTIONS
+**-D**, **--debug**=*true*|*false*
+   Enable debug mode. Default is false.
+
 **-e**, **--email**=""
    Email
 

@@ -7,6 +7,7 @@ docker-import - Create an empty filesystem image and import the contents of the 
 # SYNOPSIS
 **docker import**
 [**-c**|**--change**[= []**]]
+[**-D**|**--debug**[=*false*]]
 [**--help**]
 file|URL|- [REPOSITORY[:TAG]]
 
@@ -14,6 +15,9 @@ file|URL|- [REPOSITORY[:TAG]]
 **-c**, **--change**=[]
    Apply specified Dockerfile instructions while importing the image
    Supported Dockerfile instructions: `CMD`|`ENTRYPOINT`|`ENV`|`EXPOSE`|`ONBUILD`|`USER`|`VOLUME`|`WORKDIR`
+
+**-D**, **--debug**=*true*|*false*
+   Enable debug mode. Default is false.
 
 # DESCRIPTION
 Create a new filesystem image from the contents of a tarball (`.tar`,

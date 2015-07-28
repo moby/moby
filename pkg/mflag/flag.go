@@ -93,6 +93,7 @@ import (
 	"text/tabwriter"
 	"time"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/homedir"
 )
 
@@ -1067,7 +1068,8 @@ func (f *FlagSet) Parse(arguments []string) error {
 }
 
 // ParseFlags is a utility function that adds a help flag if withHelp is true,
-// calls cmd.Parse(args) and prints a relevant error message if there are
+// and it adds a debug flag for client.
+// It calls cmd.Parse(args) and prints a relevant error message if there are
 // incorrect number of arguments. It returns error only if error handling is
 // set to ContinueOnError and parsing fails. If error handling is set to
 // ExitOnError, it's safe to ignore the return value.
@@ -1076,6 +1078,14 @@ func (cmd *FlagSet) ParseFlags(args []string, withHelp bool) error {
 	if withHelp {
 		help = cmd.Bool([]string{"#help", "-help"}, false, "Print usage")
 	}
+
+	// Avoid debug flag redefined, because docker daemon command has to
+	// handle it's own debug flag on daemon side.
+	var debug *bool
+	if cmd.Lookup("D") == nil && cmd.Lookup("-debug") == nil {
+		debug = cmd.Bool([]string{"D", "-debug"}, false, "Enable debug mode")
+	}
+
 	if err := cmd.Parse(args); err != nil {
 		return err
 	}
@@ -1083,6 +1093,9 @@ func (cmd *FlagSet) ParseFlags(args []string, withHelp bool) error {
 		cmd.SetOutput(os.Stdout)
 		cmd.Usage()
 		os.Exit(0)
+	}
+	if debug != nil && *debug {
+		logrus.SetLevel(logrus.DebugLevel)
 	}
 	if str := cmd.CheckArgs(); str != "" {
 		cmd.SetOutput(os.Stderr)

@@ -6,6 +6,7 @@ docker-attach - Attach to a running container
 
 # SYNOPSIS
 **docker attach**
+[**-D**|**--debug**[=*false*]]
 [**--help**]/
 [**--no-stdin**[=*false*]]
 [**--sig-proxy**[=*true*]]
@@ -27,8 +28,11 @@ It is forbidden to redirect the standard input of a `docker attach` command whil
 attaching to a tty-enabled container (i.e.: launched with `-t`).
 
 # OPTIONS
+**-D**, **--debug**=*true*|*false*
+   Enable debug mode. Default is false.
+
 **--help**
-  Print usage statement
+   Print usage statement
 
 **--no-stdin**=*true*|*false*
    Do not attach STDIN. The default is *false*.

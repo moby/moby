@@ -7,6 +7,7 @@ docker-search - Search the Docker Hub for images
 # SYNOPSIS
 **docker search**
 [**--automated**[=*false*]]
+[**-D**|**--debug**[=*false*]]
 [**--help**]
 [**--no-trunc**[=*false*]]
 [**-s**|**--stars**[=*0*]]
@@ -24,8 +25,11 @@ of stars awarded, whether the image is official, and whether it is automated.
 **--automated**=*true*|*false*
    Only show automated builds. The default is *false*.
 
+**-D**, **--debug**=*true*|*false*
+   Enable debug mode. Default is false.
+
 **--help**
-  Print usage statement
+   Print usage statement
 
 **--no-trunc**=*true*|*false*
    Don't truncate output. The default is *false*.

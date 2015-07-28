@@ -6,6 +6,7 @@ docker-logs - Fetch the logs of a container
 
 # SYNOPSIS
 **docker logs**
+[**-D**|**--debug**[=*false*]]
 [**-f**|**--follow**[=*false*]]
 [**--help**]
 [**--since**[=*SINCE*]]
@@ -26,8 +27,11 @@ then continue streaming new output from the container’s stdout and stderr.
 **Warning**: This command works only for **json-file** logging driver.
 
 # OPTIONS
+**-D**, **--debug**=*true*|*false*
+   Enable debug mode. Default is false.
+
 **--help**
-  Print usage statement
+   Print usage statement
 
 **-f**, **--follow**=*true*|*false*
    Follow log output. The default is *false*.

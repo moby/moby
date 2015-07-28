@@ -6,7 +6,9 @@ docker-rm - Remove one or more containers
 
 # SYNOPSIS
 **docker rm**
+[**-D**|**--debug**[=*false*]]
 [**-f**|**--force**[=*false*]]
+[**--help**]/
 [**-l**|**--link**[=*false*]]
 [**-v**|**--volumes**[=*false*]]
 CONTAINER [CONTAINER...]
@@ -19,8 +21,11 @@ remove a running container unless you use the **-f** option. To see all
 containers on a host use the **docker ps -a** command.
 
 # OPTIONS
+**-D**, **--debug**=*true*|*false*
+   Enable debug mode. Default is false.
+
 **--help**
-  Print usage statement
+   Print usage statement
 
 **-f**, **--force**=*true*|*false*
    Force the removal of a running container (uses SIGKILL). The default is *false*.

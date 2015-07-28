@@ -6,6 +6,7 @@ docker-top - Display the running processes of a container
 
 # SYNOPSIS
 **docker top**
+[**-D**|**--debug**[=*false*]]
 [**--help**]
 CONTAINER [ps OPTIONS]
 
@@ -15,8 +16,11 @@ Display the running process of the container. ps-OPTION can be any of the
  options you would pass to a Linux ps command.
 
 # OPTIONS
+**-D**, **--debug**=*true*|*false*
+   Enable debug mode. Default is false.
+
 **--help**
-  Print usage statement
+   Print usage statement
 
 # EXAMPLES
 

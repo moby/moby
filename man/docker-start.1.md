@@ -7,6 +7,7 @@ docker-start - Start one or more stopped containers
 # SYNOPSIS
 **docker start**
 [**-a**|**--attach**[=*false*]]
+[**-D**|**--debug**[=*false*]]
 [**--help**]
 [**-i**|**--interactive**[=*false*]]
 CONTAINER [CONTAINER...]
@@ -19,8 +20,11 @@ Start one or more stopped containers.
 **-a**, **--attach**=*true*|*false*
    Attach container's STDOUT and STDERR and forward all signals to the process. The default is *false*.
 
+**-D**, **--debug**=*true*|*false*
+   Enable debug mode. Default is false.
+
 **--help**
-  Print usage statement
+   Print usage statement
 
 **-i**, **--interactive**=*true*|*false*
    Attach container's STDIN. The default is *false*.

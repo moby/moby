@@ -6,6 +6,7 @@ docker-cp - Copy files/folders between a container and the local filesystem.
 
 # SYNOPSIS
 **docker cp**
+[**-D**[=*false*]]
 [**--help**]
 CONTAINER:PATH LOCALPATH|-
 LOCALPATH|- CONTAINER:PATH
@@ -85,8 +86,11 @@ contents of the resource from the source container as a tar archive to
 `STDOUT`.
 
 # OPTIONS
+**-D**, **--debug**=*true*|*false*
+   Enable debug mode. Default is false.
+
 **--help**
-  Print usage statement
+   Print usage statement
 
 # EXAMPLES
 
