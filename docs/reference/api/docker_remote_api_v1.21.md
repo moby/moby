@@ -437,8 +437,9 @@ Return low-level information on the container `id`
 			"Paused": false,
 			"Pid": 0,
 			"Restarting": false,
-			"Running": false,
-			"StartedAt": "2015-01-06T15:47:32.072697474Z"
+			"Running": true,
+			"StartedAt": "2015-01-06T15:47:32.072697474Z",
+			"Status": "running"
 		},
 		"Mounts": [
 			{
@@ -2176,6 +2177,7 @@ Return low-level information about the `exec` command `id`.
       "OpenStdout" : false,
       "Container" : {
         "State" : {
+          "Status" : "running",
           "Running" : true,
           "Paused" : false,
           "Restarting" : false,
