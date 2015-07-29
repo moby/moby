@@ -13,7 +13,7 @@ import (
 	"syscall"
 	"time"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/parsers"
@@ -33,20 +33,20 @@ func init() {
 type Logger struct{}
 
 func (*Logger) Log(cmd []string) {
-	log.Debugf("[zfs] %s", strings.Join(cmd, " "))
+	logrus.Debugf("[zfs] %s", strings.Join(cmd, " "))
 }
 
 func Init(base string, opt []string) (graphdriver.Driver, error) {
 	var err error
 
 	if _, err := exec.LookPath("zfs"); err != nil {
-		log.Debugf("[zfs] zfs command is not available: %v", err)
+		logrus.Debugf("[zfs] zfs command is not available: %v", err)
 		return nil, graphdriver.ErrPrerequisites
 	}
 
 	file, err := os.OpenFile("/dev/zfs", os.O_RDWR, 600)
 	if err != nil {
-		log.Debugf("[zfs] cannot open /dev/zfs: %v", err)
+		logrus.Debugf("[zfs] cannot open /dev/zfs: %v", err)
 		return nil, graphdriver.ErrPrerequisites
 	}
 	defer file.Close()
@@ -133,7 +133,7 @@ func lookupZfsDataset(rootdir string) (string, error) {
 	}
 	for _, m := range mounts {
 		if err := syscall.Stat(m.Mountpoint, &stat); err != nil {
-			log.Debugf("[zfs] failed to stat '%s' while scanning for zfs mount: %v", m.Mountpoint, err)
+			logrus.Debugf("[zfs] failed to stat '%s' while scanning for zfs mount: %v", m.Mountpoint, err)
 			continue // may fail on fuse file systems
 		}
 
@@ -277,7 +277,7 @@ func (d *Driver) Get(id, mountLabel string) (string, error) {
 	mountpoint := d.MountPath(id)
 	filesystem := d.ZfsPath(id)
 	options := label.FormatMountLabel("", mountLabel)
-	log.Debugf(`[zfs] mount("%s", "%s", "%s")`, filesystem, mountpoint, options)
+	logrus.Debugf(`[zfs] mount("%s", "%s", "%s")`, filesystem, mountpoint, options)
 
 	// Create the target directories if they don't exist
 	if err := os.MkdirAll(mountpoint, 0755); err != nil && !os.IsExist(err) {
@@ -294,7 +294,7 @@ func (d *Driver) Get(id, mountLabel string) (string, error) {
 
 func (d *Driver) Put(id string) error {
 	mountpoint := d.MountPath(id)
-	log.Debugf(`[zfs] unmount("%s")`, mountpoint)
+	logrus.Debugf(`[zfs] unmount("%s")`, mountpoint)
 
 	if err := mount.Unmount(mountpoint); err != nil {
 		return fmt.Errorf("error unmounting to %s: %v", mountpoint, err)
