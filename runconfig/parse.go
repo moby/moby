@@ -283,7 +283,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 	// parse device mappings
 	deviceMappings := []DeviceMapping{}
 	for _, device := range flDevices.GetAll() {
-		deviceMapping, err := parseDevice(device)
+		deviceMapping, err := ParseDevice(device)
 		if err != nil {
 			return nil, nil, cmd, err
 		}
@@ -487,7 +487,8 @@ func parseKeyValueOpts(opts opts.ListOpts) ([]KeyValuePair, error) {
 	return out, nil
 }
 
-func parseDevice(device string) (DeviceMapping, error) {
+// ParseDevice parses a device mapping string to a DeviceMapping struct
+func ParseDevice(device string) (DeviceMapping, error) {
 	src := ""
 	dst := ""
 	permissions := "rwm"
