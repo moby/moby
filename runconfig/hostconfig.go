@@ -260,19 +260,19 @@ func NewCapList(caps []string) *CapList {
 // Here, "non-portable" means "dependent of the host we are running on".
 // Portable information *should* appear in Config.
 type HostConfig struct {
-	Binds            []string         // List of volume bindings for this container
-	ContainerIDFile  string           // File (path) where the containerId is written
-	LxcConf          *LxcConfig       // Additional lxc configuration
-	Memory           int64            // Memory limit (in bytes)
-	MemorySwap       int64            // Total memory usage (memory + swap); set `-1` to disable swap
-	CPUShares        int64            `json:"CpuShares"` // CPU shares (relative weight vs. other containers)
-	CPUPeriod        int64            `json:"CpuPeriod"` // CPU CFS (Completely Fair Scheduler) period
-	CpusetCpus       string           // CpusetCpus 0-2, 0,1
-	CpusetMems       string           // CpusetMems 0-2, 0,1
-	CPUQuota         int64            `json:"CpuQuota"` // CPU CFS (Completely Fair Scheduler) quota
-	BlkioWeight      int64            // Block IO weight (relative weight vs. other containers)
-	OomKillDisable   bool             // Whether to disable OOM Killer or not
-	MemorySwappiness int64            // Tuning container memory swappiness behaviour
+	Binds            []string   // List of volume bindings for this container
+	ContainerIDFile  string     // File (path) where the containerId is written
+	LxcConf          *LxcConfig // Additional lxc configuration
+	Memory           int64      // Memory limit (in bytes)
+	MemorySwap       int64      // Total memory usage (memory + swap); set `-1` to disable swap
+	CPUShares        int64      `json:"CpuShares"` // CPU shares (relative weight vs. other containers)
+	CPUPeriod        int64      `json:"CpuPeriod"` // CPU CFS (Completely Fair Scheduler) period
+	CpusetCpus       string     // CpusetCpus 0-2, 0,1
+	CpusetMems       string     // CpusetMems 0-2, 0,1
+	CPUQuota         int64      `json:"CpuQuota"` // CPU CFS (Completely Fair Scheduler) quota
+	BlkioWeight      int64      // Block IO weight (relative weight vs. other containers)
+	OomKillDisable   bool       // Whether to disable OOM Killer or not
+	MemorySwappiness *int64
 	Privileged       bool             // Is the container in privileged mode
 	PortBindings     nat.PortMap      // Port mapping between the exposed port (container) and the host
 	Links            []string         // List of links (in the name:alias form)
