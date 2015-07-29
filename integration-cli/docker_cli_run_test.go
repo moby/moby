@@ -2440,7 +2440,11 @@ func (s *DockerSuite) TestRunReadFilteredProc(c *check.C) {
 		name := fmt.Sprintf("procsieve-%d", i)
 		shellCmd := fmt.Sprintf("exec 3<%s", filePath)
 
-		if out, exitCode, err := dockerCmdWithError("run", "--privileged", "--security-opt", "apparmor:docker-default", "--name", name, "busybox", "sh", "-c", shellCmd); err == nil || exitCode == 0 {
+		out, exitCode, err := dockerCmdWithError("run", "--privileged", "--security-opt", "apparmor:docker-default", "--name", name, "busybox", "sh", "-c", shellCmd)
+		if exitCode != 0 {
+			return
+		}
+		if err != nil {
 			c.Fatalf("Open FD for read should have failed with permission denied, got: %s, %v", out, err)
 		}
 	}
@@ -2545,8 +2549,11 @@ func (s *DockerSuite) TestRunWriteFilteredProc(c *check.C) {
 		name := fmt.Sprintf("writeprocsieve-%d", i)
 
 		shellCmd := fmt.Sprintf("exec 3>%s", filePath)
-		runCmd := exec.Command(dockerBinary, "run", "--privileged", "--security-opt", "apparmor:docker-default", "--name", name, "busybox", "sh", "-c", shellCmd)
-		if out, exitCode, err := runCommandWithOutput(runCmd); err == nil || exitCode == 0 {
+		out, code, err := dockerCmdWithError("run", "--privileged", "--security-opt", "apparmor:docker-default", "--name", name, "busybox", "sh", "-c", shellCmd)
+		if code != 0 {
+			return
+		}
+		if err != nil {
 			c.Fatalf("Open FD for write should have failed with permission denied, got: %s, %v", out, err)
 		}
 	}
