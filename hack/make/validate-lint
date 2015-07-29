@@ -16,7 +16,6 @@ packages=(
 	daemon/execdriver
 	daemon/execdriver/execdrivers
 	daemon/execdriver/lxc
-	daemon/execdriver/native
 	daemon/execdriver/native/template
 	daemon/graphdriver/aufs
 	daemon/network
