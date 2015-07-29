@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"regexp"
 	"runtime"
 	"testing"
 
@@ -1818,6 +1819,23 @@ func TestEndToEnd(t *testing.T) {
 	}
 
 	// Query networks collection
+	req, err = http.NewRequest("GET", "/v1.19/networks?name=", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	handleRequest(rsp, req)
+	if rsp.statusCode != http.StatusOK {
+		t.Fatalf("Expected StatusOK. Got (%d): %s", rsp.statusCode, rsp.body)
+	}
+	var list []*networkResource
+	err = json.Unmarshal(rsp.body, &list)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(list) != 0 {
+		t.Fatalf("Expected empty list. Got %v", list)
+	}
+
 	req, err = http.NewRequest("GET", "/v1.19/networks", nil)
 	if err != nil {
 		t.Fatal(err)
@@ -1853,7 +1871,6 @@ func TestEndToEnd(t *testing.T) {
 		t.Fatalf("Expected StatusOK. Got (%d): %s", rsp.statusCode, rsp.body)
 	}
 
-	var list []*networkResource
 	err = json.Unmarshal(rsp.body, &list)
 	if err != nil {
 		t.Fatal(err)
@@ -2126,5 +2143,31 @@ func TestErrorConversion(t *testing.T) {
 
 	if convertNetworkError(new(notclassified)).StatusCode != http.StatusInternalServerError {
 		t.Fatalf("Failed to recognize not classified error as Internal error")
+	}
+}
+
+func TestFieldRegex(t *testing.T) {
+	pr := regexp.MustCompile(regex)
+	qr := regexp.MustCompile(`^` + qregx + `$`) // mux compiles it like this
+
+	if pr.MatchString("") {
+		t.Fatalf("Unexpected match")
+	}
+	if !qr.MatchString("") {
+		t.Fatalf("Unexpected match failure")
+	}
+
+	if pr.MatchString(":") {
+		t.Fatalf("Unexpected match")
+	}
+	if qr.MatchString(":") {
+		t.Fatalf("Unexpected match")
+	}
+
+	if pr.MatchString(".") {
+		t.Fatalf("Unexpected match")
+	}
+	if qr.MatchString(".") {
+		t.Fatalf("Unexpected match")
 	}
 }

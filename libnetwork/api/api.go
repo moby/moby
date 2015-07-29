@@ -22,20 +22,24 @@ var (
 
 const (
 	// Resource name regex
+	// Gorilla mux encloses the passed pattern with '^' and '$'. So we need to do some tricks
+	// to have mux eventually build a query regex which matches empty or word string (`^$|[\w]+`)
 	regex = "[a-zA-Z_0-9-]+"
+	qregx = "$|" + regex
 	// Router URL variable definition
-	nwName = "{" + urlNwName + ":" + regex + "}"
-	nwID   = "{" + urlNwID + ":" + regex + "}"
-	nwPID  = "{" + urlNwPID + ":" + regex + "}"
-	epName = "{" + urlEpName + ":" + regex + "}"
-	epID   = "{" + urlEpID + ":" + regex + "}"
-	epPID  = "{" + urlEpPID + ":" + regex + "}"
-	cnID   = "{" + urlCnID + ":" + regex + "}"
+	nwName   = "{" + urlNwName + ":" + regex + "}"
+	nwNameQr = "{" + urlNwName + ":" + qregx + "}"
+	nwID     = "{" + urlNwID + ":" + regex + "}"
+	nwPIDQr  = "{" + urlNwPID + ":" + qregx + "}"
+	epName   = "{" + urlEpName + ":" + regex + "}"
+	epNameQr = "{" + urlEpName + ":" + qregx + "}"
+	epID     = "{" + urlEpID + ":" + regex + "}"
+	epPIDQr  = "{" + urlEpPID + ":" + qregx + "}"
+	cnID     = "{" + urlCnID + ":" + regex + "}"
 
-	// Though this name can be anything, in order to support default network,
-	// we will keep it as name
-	urlNwName = "name"
-	// Internal URL variable name, they can be anything
+	// Internal URL variable name.They can be anything as
+	// long as they do not collide with query fields.
+	urlNwName = "network-name"
 	urlNwID   = "network-id"
 	urlNwPID  = "network-partial-id"
 	urlEpName = "endpoint-name"
@@ -89,17 +93,17 @@ func (h *httpHandler) initRouter() {
 	}{
 		"GET": {
 			// Order matters
-			{"/networks", []string{"name", nwName}, procGetNetworks},
-			{"/networks", []string{"partial-id", nwPID}, procGetNetworks},
+			{"/networks", []string{"name", nwNameQr}, procGetNetworks},
+			{"/networks", []string{"partial-id", nwPIDQr}, procGetNetworks},
 			{"/networks", nil, procGetNetworks},
 			{"/networks/" + nwID, nil, procGetNetwork},
-			{"/networks/" + nwID + "/endpoints", []string{"name", epName}, procGetEndpoints},
-			{"/networks/" + nwID + "/endpoints", []string{"partial-id", epPID}, procGetEndpoints},
+			{"/networks/" + nwID + "/endpoints", []string{"name", epNameQr}, procGetEndpoints},
+			{"/networks/" + nwID + "/endpoints", []string{"partial-id", epPIDQr}, procGetEndpoints},
 			{"/networks/" + nwID + "/endpoints", nil, procGetEndpoints},
 			{"/networks/" + nwID + "/endpoints/" + epID, nil, procGetEndpoint},
-			{"/services", []string{"network", nwName}, procGetServices},
-			{"/services", []string{"name", epName}, procGetServices},
-			{"/services", []string{"partial-id", epPID}, procGetServices},
+			{"/services", []string{"network", nwNameQr}, procGetServices},
+			{"/services", []string{"name", epNameQr}, procGetServices},
+			{"/services", []string{"partial-id", epPIDQr}, procGetServices},
 			{"/services", nil, procGetServices},
 			{"/services/" + epID, nil, procGetService},
 			{"/services/" + epID + "/backend", nil, procGetContainers},
@@ -150,22 +154,7 @@ func makeHandler(ctrl libnetwork.NetworkController, fct processor) http.HandlerF
 			}
 		}
 
-		mvars := mux.Vars(req)
-		rvars := req.URL.Query()
-		// workaround a mux issue which filters out valid queries with empty value
-		for k := range rvars {
-			if _, ok := mvars[k]; !ok {
-				if rvars.Get(k) == "" {
-					mvars[k] = ""
-				}
-			}
-		}
-
-		res, rsp := fct(ctrl, mvars, body)
-		if !rsp.isOK() {
-			http.Error(w, rsp.Status, rsp.StatusCode)
-			return
-		}
+		res, rsp := fct(ctrl, mux.Vars(req), body)
 		if res != nil {
 			writeJSON(w, rsp.StatusCode, res)
 		}
