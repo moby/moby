@@ -1,7 +1,10 @@
 package random
 
 import (
+	cryptorand "crypto/rand"
 	"io"
+	"math"
+	"math/big"
 	"math/rand"
 	"sync"
 	"time"
@@ -36,8 +39,15 @@ func (r *lockedSource) Seed(seed int64) {
 // NewSource returns math/rand.Source safe for concurrent use and initialized
 // with current unix-nano timestamp
 func NewSource() rand.Source {
+	var seed int64
+	if cryptoseed, err := cryptorand.Int(cryptorand.Reader, big.NewInt(math.MaxInt64)); err != nil {
+		// This should not happen, but worst-case fallback to time-based seed.
+		seed = time.Now().UnixNano()
+	} else {
+		seed = cryptoseed.Int64()
+	}
 	return &lockedSource{
-		src: rand.NewSource(time.Now().UnixNano()),
+		src: rand.NewSource(seed),
 	}
 }
 
