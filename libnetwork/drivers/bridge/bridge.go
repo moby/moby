@@ -596,21 +596,18 @@ func (d *driver) CreateNetwork(id types.UUID, option map[string]interface{}) err
 	// networks. This step is needed now because driver might have now set the bridge
 	// name on this config struct. And because we need to check for possible address
 	// conflicts, so we need to check against operationa lnetworks.
-	if err := config.conflictsWithNetworks(id, networkList); err != nil {
+	if err = config.conflictsWithNetworks(id, networkList); err != nil {
 		return err
 	}
 
 	setupNetworkIsolationRules := func(config *networkConfiguration, i *bridgeInterface) error {
-		defer func() {
-			if err != nil {
-				if err := network.isolateNetwork(networkList, false); err != nil {
-					logrus.Warnf("Failed on removing the inter-network iptables rules on cleanup: %v", err)
-				}
+		if err := network.isolateNetwork(networkList, true); err != nil {
+			if err := network.isolateNetwork(networkList, false); err != nil {
+				logrus.Warnf("Failed on removing the inter-network iptables rules on cleanup: %v", err)
 			}
-		}()
-
-		err := network.isolateNetwork(networkList, true)
-		return err
+			return err
+		}
+		return nil
 	}
 
 	// Prepare the bridge setup configuration
@@ -954,7 +951,7 @@ func (d *driver) CreateEndpoint(nid, eid types.UUID, epInfo driverapi.EndpointIn
 	ipv4Addr := &net.IPNet{IP: ip4, Mask: n.bridge.bridgeIPv4.Mask}
 
 	// Down the interface before configuring mac address.
-	if err := netlink.LinkSetDown(sbox); err != nil {
+	if err = netlink.LinkSetDown(sbox); err != nil {
 		return fmt.Errorf("could not set link down for container interface %s: %v", containerIfName, err)
 	}
 
@@ -967,7 +964,7 @@ func (d *driver) CreateEndpoint(nid, eid types.UUID, epInfo driverapi.EndpointIn
 	endpoint.macAddress = mac
 
 	// Up the host interface after finishing all netlink configuration
-	if err := netlink.LinkSetUp(host); err != nil {
+	if err = netlink.LinkSetUp(host); err != nil {
 		return fmt.Errorf("could not set link up for host interface %s: %v", hostIfName, err)
 	}
 
