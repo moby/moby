@@ -13,7 +13,6 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/registry/api/v2"
 	"github.com/docker/distribution/registry/client/transport"
-	"github.com/docker/docker/pkg/tlsconfig"
 )
 
 // for mocking in unit tests
@@ -45,10 +44,11 @@ func scanForAPIVersion(address string) (string, APIVersion) {
 
 // NewEndpoint parses the given address to return a registry endpoint.
 func NewEndpoint(index *IndexInfo, metaHeaders http.Header) (*Endpoint, error) {
-	// *TODO: Allow per-registry configuration of endpoints.
-	tlsConfig := tlsconfig.ServerDefault
-	tlsConfig.InsecureSkipVerify = !index.Secure
-	endpoint, err := newEndpoint(index.GetAuthConfigKey(), &tlsConfig, metaHeaders)
+	tlsConfig, err := newTLSConfig(index.Name, index.Secure)
+	if err != nil {
+		return nil, err
+	}
+	endpoint, err := newEndpoint(index.GetAuthConfigKey(), tlsConfig, metaHeaders)
 	if err != nil {
 		return nil, err
 	}
