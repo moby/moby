@@ -1,6 +1,8 @@
 package main
 
 import (
+	"fmt"
+	"net/http"
 	"strings"
 
 	"github.com/go-check/check"
@@ -86,4 +88,13 @@ func (s *DockerSuite) TestKillWithInvalidSignal(c *check.C) {
 	if running != "true" {
 		c.Fatal("Container should be in running state after an invalid signal")
 	}
+}
+
+func (s *DockerSuite) TestKillofStoppedContainerAPIPre120(c *check.C) {
+	dockerCmd(c, "run", "--name", "docker-kill-test-api", "-d", "busybox", "top")
+	dockerCmd(c, "stop", "docker-kill-test-api")
+
+	status, _, err := sockRequest("POST", fmt.Sprintf("/v1.19/containers/%s/kill", "docker-kill-test-api"), nil)
+	c.Assert(err, check.IsNil)
+	c.Assert(status, check.Equals, http.StatusNoContent)
 }

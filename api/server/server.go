@@ -310,7 +310,13 @@ func (s *Server) postContainersKill(version version.Version, w http.ResponseWrit
 	}
 
 	if err := s.daemon.ContainerKill(name, sig); err != nil {
-		return err
+		_, isStopped := err.(daemon.ErrContainerNotRunning)
+		// Return error that's not caused because the container is stopped.
+		// Return error if the container is not running and the api is >= 1.20
+		// to keep backwards compatibility.
+		if version.GreaterThanOrEqualTo("1.20") || !isStopped {
+			return fmt.Errorf("Cannot kill container %s: %v", name, err)
+		}
 	}
 
 	w.WriteHeader(http.StatusNoContent)

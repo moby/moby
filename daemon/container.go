@@ -41,6 +41,14 @@ var (
 	ErrContainerRootfsReadonly = errors.New("container rootfs is marked read-only")
 )
 
+type ErrContainerNotRunning struct {
+	id string
+}
+
+func (e ErrContainerNotRunning) Error() string {
+	return fmt.Sprintf("Container %s is not running", e.id)
+}
+
 type StreamConfig struct {
 	stdout    *broadcastwriter.BroadcastWriter
 	stderr    *broadcastwriter.BroadcastWriter
@@ -361,7 +369,7 @@ func (container *Container) KillSig(sig int) error {
 	}
 
 	if !container.Running {
-		return fmt.Errorf("Container %s is not running", container.ID)
+		return ErrContainerNotRunning{container.ID}
 	}
 
 	// signal to the monitor that it should not restart the container
@@ -398,7 +406,7 @@ func (container *Container) Pause() error {
 
 	// We cannot Pause the container which is not running
 	if !container.Running {
-		return fmt.Errorf("Container %s is not running, cannot pause a non-running container", container.ID)
+		return ErrContainerNotRunning{container.ID}
 	}
 
 	// We cannot Pause the container which is already paused
@@ -420,7 +428,7 @@ func (container *Container) Unpause() error {
 
 	// We cannot unpause the container which is not running
 	if !container.Running {
-		return fmt.Errorf("Container %s is not running, cannot unpause a non-running container", container.ID)
+		return ErrContainerNotRunning{container.ID}
 	}
 
 	// We cannot unpause the container which is not paused
@@ -438,7 +446,7 @@ func (container *Container) Unpause() error {
 
 func (container *Container) Kill() error {
 	if !container.IsRunning() {
-		return fmt.Errorf("Container %s is not running", container.ID)
+		return ErrContainerNotRunning{container.ID}
 	}
 
 	// 1. Send SIGKILL
@@ -520,7 +528,7 @@ func (container *Container) Restart(seconds int) error {
 
 func (container *Container) Resize(h, w int) error {
 	if !container.IsRunning() {
-		return fmt.Errorf("Cannot resize container %s, container is not running", container.ID)
+		return ErrContainerNotRunning{container.ID}
 	}
 	if err := container.command.ProcessConfig.Terminal.Resize(h, w); err != nil {
 		return err
