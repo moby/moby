@@ -7,12 +7,17 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/plugins"
 	"github.com/docker/libnetwork/driverapi"
+	"github.com/docker/libnetwork/drivers/remote/api"
 	"github.com/docker/libnetwork/types"
 )
 
 type driver struct {
 	endpoint    *plugins.Client
 	networkType string
+}
+
+type maybeError interface {
+	GetError() string
 }
 
 func newDriver(name string, client *plugins.Client) driverapi.Driver {
@@ -46,23 +51,23 @@ func (d *driver) call(methodName string, arg interface{}, retVal maybeError) err
 	if err != nil {
 		return err
 	}
-	if e := retVal.getError(); e != "" {
+	if e := retVal.GetError(); e != "" {
 		return fmt.Errorf("remote: %s", e)
 	}
 	return nil
 }
 
 func (d *driver) CreateNetwork(id types.UUID, options map[string]interface{}) error {
-	create := &createNetworkRequest{
+	create := &api.CreateNetworkRequest{
 		NetworkID: string(id),
 		Options:   options,
 	}
-	return d.call("CreateNetwork", create, &createNetworkResponse{})
+	return d.call("CreateNetwork", create, &api.CreateNetworkResponse{})
 }
 
 func (d *driver) DeleteNetwork(nid types.UUID) error {
-	delete := &deleteNetworkRequest{NetworkID: string(nid)}
-	return d.call("DeleteNetwork", delete, &deleteNetworkResponse{})
+	delete := &api.DeleteNetworkRequest{NetworkID: string(nid)}
+	return d.call("DeleteNetwork", delete, &api.DeleteNetworkResponse{})
 }
 
 func (d *driver) CreateEndpoint(nid, eid types.UUID, epInfo driverapi.EndpointInfo, epOptions map[string]interface{}) error {
@@ -70,29 +75,29 @@ func (d *driver) CreateEndpoint(nid, eid types.UUID, epInfo driverapi.EndpointIn
 		return fmt.Errorf("must not be called with nil EndpointInfo")
 	}
 
-	reqIfaces := make([]*endpointInterface, len(epInfo.Interfaces()))
+	reqIfaces := make([]*api.EndpointInterface, len(epInfo.Interfaces()))
 	for i, iface := range epInfo.Interfaces() {
 		addr4 := iface.Address()
 		addr6 := iface.AddressIPv6()
-		reqIfaces[i] = &endpointInterface{
+		reqIfaces[i] = &api.EndpointInterface{
 			ID:          iface.ID(),
 			Address:     addr4.String(),
 			AddressIPv6: addr6.String(),
 			MacAddress:  iface.MacAddress().String(),
 		}
 	}
-	create := &createEndpointRequest{
+	create := &api.CreateEndpointRequest{
 		NetworkID:  string(nid),
 		EndpointID: string(eid),
 		Interfaces: reqIfaces,
 		Options:    epOptions,
 	}
-	var res createEndpointResponse
+	var res api.CreateEndpointResponse
 	if err := d.call("CreateEndpoint", create, &res); err != nil {
 		return err
 	}
 
-	ifaces, err := res.parseInterfaces()
+	ifaces, err := parseInterfaces(res)
 	if err != nil {
 		return err
 	}
@@ -125,19 +130,19 @@ func errorWithRollback(msg string, err error) error {
 }
 
 func (d *driver) DeleteEndpoint(nid, eid types.UUID) error {
-	delete := &deleteEndpointRequest{
+	delete := &api.DeleteEndpointRequest{
 		NetworkID:  string(nid),
 		EndpointID: string(eid),
 	}
-	return d.call("DeleteEndpoint", delete, &deleteEndpointResponse{})
+	return d.call("DeleteEndpoint", delete, &api.DeleteEndpointResponse{})
 }
 
 func (d *driver) EndpointOperInfo(nid, eid types.UUID) (map[string]interface{}, error) {
-	info := &endpointInfoRequest{
+	info := &api.EndpointInfoRequest{
 		NetworkID:  string(nid),
 		EndpointID: string(eid),
 	}
-	var res endpointInfoResponse
+	var res api.EndpointInfoResponse
 	if err := d.call("EndpointOperInfo", info, &res); err != nil {
 		return nil, err
 	}
@@ -146,14 +151,14 @@ func (d *driver) EndpointOperInfo(nid, eid types.UUID) (map[string]interface{}, 
 
 // Join method is invoked when a Sandbox is attached to an endpoint.
 func (d *driver) Join(nid, eid types.UUID, sboxKey string, jinfo driverapi.JoinInfo, options map[string]interface{}) error {
-	join := &joinRequest{
+	join := &api.JoinRequest{
 		NetworkID:  string(nid),
 		EndpointID: string(eid),
 		SandboxKey: sboxKey,
 		Options:    options,
 	}
 	var (
-		res joinResponse
+		res api.JoinResponse
 		err error
 	)
 	if err = d.call("Join", join, &res); err != nil {
@@ -194,7 +199,7 @@ func (d *driver) Join(nid, eid types.UUID, sboxKey string, jinfo driverapi.JoinI
 		}
 	}
 	if len(res.StaticRoutes) > 0 {
-		routes, err := res.parseStaticRoutes()
+		routes, err := parseStaticRoutes(res)
 		if err != nil {
 			return err
 		}
@@ -215,13 +220,74 @@ func (d *driver) Join(nid, eid types.UUID, sboxKey string, jinfo driverapi.JoinI
 
 // Leave method is invoked when a Sandbox detaches from an endpoint.
 func (d *driver) Leave(nid, eid types.UUID) error {
-	leave := &leaveRequest{
+	leave := &api.LeaveRequest{
 		NetworkID:  string(nid),
 		EndpointID: string(eid),
 	}
-	return d.call("Leave", leave, &leaveResponse{})
+	return d.call("Leave", leave, &api.LeaveResponse{})
 }
 
 func (d *driver) Type() string {
 	return d.networkType
+}
+
+func parseStaticRoutes(r api.JoinResponse) ([]*types.StaticRoute, error) {
+	var routes = make([]*types.StaticRoute, len(r.StaticRoutes))
+	for i, inRoute := range r.StaticRoutes {
+		var err error
+		outRoute := &types.StaticRoute{InterfaceID: inRoute.InterfaceID, RouteType: inRoute.RouteType}
+
+		if inRoute.Destination != "" {
+			if outRoute.Destination, err = toAddr(inRoute.Destination); err != nil {
+				return nil, err
+			}
+		}
+
+		if inRoute.NextHop != "" {
+			outRoute.NextHop = net.ParseIP(inRoute.NextHop)
+			if outRoute.NextHop == nil {
+				return nil, fmt.Errorf("failed to parse nexthop IP %s", inRoute.NextHop)
+			}
+		}
+
+		routes[i] = outRoute
+	}
+	return routes, nil
+}
+
+// parseInterfaces validates all the parameters of an Interface and returns them.
+func parseInterfaces(r api.CreateEndpointResponse) ([]*api.Interface, error) {
+	var (
+		Interfaces = make([]*api.Interface, len(r.Interfaces))
+	)
+	for i, inIf := range r.Interfaces {
+		var err error
+		outIf := &api.Interface{ID: inIf.ID}
+		if inIf.Address != "" {
+			if outIf.Address, err = toAddr(inIf.Address); err != nil {
+				return nil, err
+			}
+		}
+		if inIf.AddressIPv6 != "" {
+			if outIf.AddressIPv6, err = toAddr(inIf.AddressIPv6); err != nil {
+				return nil, err
+			}
+		}
+		if inIf.MacAddress != "" {
+			if outIf.MacAddress, err = net.ParseMAC(inIf.MacAddress); err != nil {
+				return nil, err
+			}
+		}
+		Interfaces[i] = outIf
+	}
+	return Interfaces, nil
+}
+
+func toAddr(ipAddr string) (*net.IPNet, error) {
+	ip, ipnet, err := net.ParseCIDR(ipAddr)
+	if err != nil {
+		return nil, err
+	}
+	ipnet.IP = ip
+	return ipnet, nil
 }
