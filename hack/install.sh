@@ -238,7 +238,7 @@ do_install() {
 			;;
 
 		fedora|centos)
-			cat >/etc/yum.repos.d/docker-${repo}.repo <<-EOF
+			$sh_c "cat >/etc/yum.repos.d/docker-${repo}.repo" <<-EOF
 			[docker-${repo}-repo]
 			name=Docker ${repo} Repository
 			baseurl=https://yum.dockerproject.org/repo/${repo}/${lsb_dist}/${dist_version}
