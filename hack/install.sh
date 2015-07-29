@@ -178,6 +178,15 @@ do_install() {
 		lsb_dist="$(. /etc/os-release && echo "$ID")"
 		dist_version="$(. /etc/os-release && echo "$VERSION_ID")"
 	fi
+        if [ "$lsb_dist" = "LinuxMint" ]; then
+                lsb_dist="$(. /etc/os-release && echo "$ID")"
+                dist_version="$(. /etc/os-release && echo "$VERSION_ID")"
+                case "$dist_version" in
+                        "14.04")
+                                dist_version="trusty"
+                                ;;
+                esac
+        fi
 
 	lsb_dist="$(echo "$lsb_dist" | tr '[:upper:]' '[:lower:]')"
 	case "$lsb_dist" in
