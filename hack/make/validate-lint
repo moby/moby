@@ -22,6 +22,12 @@ packages=(
 	daemon/execdriver/native/template
 	daemon/graphdriver/aufs
 	daemon/graphdriver/devmapper
+	daemon/logger
+	daemon/logger/fluentd
+	daemon/logger/gelf
+	daemon/logger/journald
+	daemon/logger/jsonfilelog
+	daemon/logger/syslog
 	daemon/network
 	docker
 	dockerinit

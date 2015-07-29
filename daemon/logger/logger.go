@@ -1,3 +1,10 @@
+// Package logger defines interfaces that logger drivers implement to
+// log messages.
+//
+// The other half of a logger driver is the implementation of the
+// factory, which holds the contextual instance information that
+// allows multiple loggers of the same type to perform different
+// actions, such as logging to different locations.
 package logger
 
 import (
@@ -7,16 +14,16 @@ import (
 	"github.com/docker/docker/pkg/timeutils"
 )
 
-// ErrReadLogsNotSupported is returned when the logger does not support reading logs
+// ErrReadLogsNotSupported is returned when the logger does not support reading logs.
 var ErrReadLogsNotSupported = errors.New("configured logging reader does not support reading")
 
 const (
-	// TimeFormat is the time format used for timestamps sent to log readers
+	// TimeFormat is the time format used for timestamps sent to log readers.
 	TimeFormat           = timeutils.RFC3339NanoFixed
 	logWatcherBufferSize = 4096
 )
 
-// Message is datastructure that represents record from some container
+// Message is datastructure that represents record from some container.
 type Message struct {
 	ContainerID string
 	Line        []byte
@@ -24,31 +31,31 @@ type Message struct {
 	Timestamp   time.Time
 }
 
-// Logger is the interface for docker logging drivers
+// Logger is the interface for docker logging drivers.
 type Logger interface {
 	Log(*Message) error
 	Name() string
 	Close() error
 }
 
-// ReadConfig is the configuration passed into ReadLogs
+// ReadConfig is the configuration passed into ReadLogs.
 type ReadConfig struct {
 	Since  time.Time
 	Tail   int
 	Follow bool
 }
 
-// LogReader is the interface for reading log messages for loggers that support reading
+// LogReader is the interface for reading log messages for loggers that support reading.
 type LogReader interface {
 	// Read logs from underlying logging backend
 	ReadLogs(ReadConfig) *LogWatcher
 }
 
-// LogWatcher is used when consuming logs read from the LogReader interface
+// LogWatcher is used when consuming logs read from the LogReader interface.
 type LogWatcher struct {
-	// For sending log messages to a reader
+	// For sending log messages to a reader.
 	Msg chan *Message
-	// For sending error messages that occur while while reading logs
+	// For sending error messages that occur while while reading logs.
 	Err           chan error
 	closeNotifier chan struct{}
 }
@@ -62,13 +69,14 @@ func NewLogWatcher() *LogWatcher {
 	}
 }
 
-// Close notifies the underlying log reader to stop
+// Close notifies the underlying log reader to stop.
 func (w *LogWatcher) Close() {
 	close(w.closeNotifier)
 }
 
-// WatchClose returns a channel receiver that receives notification when the watcher has been closed
-// This should only be called from one goroutine
+// WatchClose returns a channel receiver that receives notification
+// when the watcher has been closed. This should only be called from
+// one goroutine.
 func (w *LogWatcher) WatchClose() <-chan struct{} {
 	return w.closeNotifier
 }

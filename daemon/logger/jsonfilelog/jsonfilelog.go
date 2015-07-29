@@ -1,3 +1,6 @@
+// Package jsonfilelog provides the default Logger implementation for
+// Docker logging. This logger logs to files on the host server in the
+// JSON format.
 package jsonfilelog
 
 import (
@@ -23,12 +26,12 @@ import (
 )
 
 const (
+	// Name is the name of the file that the jsonlogger logs to.
 	Name               = "json-file"
 	maxJSONDecodeRetry = 10
 )
 
-// JSONFileLogger is Logger implementation for default docker logging:
-// JSON objects to file
+// JSONFileLogger is Logger implementation for default Docker logging.
 type JSONFileLogger struct {
 	buf          *bytes.Buffer
 	f            *os.File   // store for closing
@@ -49,7 +52,8 @@ func init() {
 	}
 }
 
-// New creates new JSONFileLogger which writes to filename
+// New creates new JSONFileLogger which writes to filename passed in
+// on given context.
 func New(ctx logger.Context) (logger.Logger, error) {
 	log, err := os.OpenFile(ctx.LogPath, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0600)
 	if err != nil {
@@ -63,14 +67,14 @@ func New(ctx logger.Context) (logger.Logger, error) {
 			return nil, err
 		}
 	}
-	var maxFiles int = 1
+	var maxFiles = 1
 	if maxFileString, ok := ctx.Config["max-file"]; ok {
 		maxFiles, err = strconv.Atoi(maxFileString)
 		if err != nil {
 			return nil, err
 		}
 		if maxFiles < 1 {
-			return nil, fmt.Errorf("max-files cannot be less than 1.")
+			return nil, fmt.Errorf("max-files cannot be less than 1")
 		}
 	}
 	return &JSONFileLogger{
@@ -84,7 +88,7 @@ func New(ctx logger.Context) (logger.Logger, error) {
 	}, nil
 }
 
-// Log converts logger.Message to jsonlog.JSONLog and serializes it to file
+// Log converts logger.Message to jsonlog.JSONLog and serializes it to file.
 func (l *JSONFileLogger) Log(msg *logger.Message) error {
 	l.mu.Lock()
 	defer l.mu.Unlock()
@@ -153,6 +157,7 @@ func rotate(name string, n int) error {
 	return nil
 }
 
+// backup renames a file from curr to old, creating an empty file curr if it does not exist.
 func backup(old, curr string) error {
 	if _, err := os.Stat(old); !os.IsNotExist(err) {
 		err := os.Remove(old)
@@ -170,6 +175,7 @@ func backup(old, curr string) error {
 	return os.Rename(curr, old)
 }
 
+// ValidateLogOpt looks for json specific log options max-file & max-size.
 func ValidateLogOpt(cfg map[string]string) error {
 	for key := range cfg {
 		switch key {
@@ -182,11 +188,12 @@ func ValidateLogOpt(cfg map[string]string) error {
 	return nil
 }
 
+// LogPath returns the location the given json logger logs to.
 func (l *JSONFileLogger) LogPath() string {
 	return l.ctx.LogPath
 }
 
-// Close closes underlying file and signals all readers to stop
+// Close closes underlying file and signals all readers to stop.
 func (l *JSONFileLogger) Close() error {
 	l.mu.Lock()
 	err := l.f.Close()
@@ -198,7 +205,7 @@ func (l *JSONFileLogger) Close() error {
 	return err
 }
 
-// Name returns name of this logger
+// Name returns name of this logger.
 func (l *JSONFileLogger) Name() string {
 	return Name
 }
@@ -216,7 +223,8 @@ func decodeLogLine(dec *json.Decoder, l *jsonlog.JSONLog) (*logger.Message, erro
 	return msg, nil
 }
 
-// Reads from the log file
+// ReadLogs implements the logger's LogReader interface for the logs
+// created by this driver.
 func (l *JSONFileLogger) ReadLogs(config logger.ReadConfig) *logger.LogWatcher {
 	logWatcher := logger.NewLogWatcher()
 
@@ -326,7 +334,7 @@ func followLogs(f *os.File, logWatcher *logger.LogWatcher, notifyRotate chan int
 				// try again because this shouldn't happen
 				if _, ok := err.(*json.SyntaxError); ok && retries <= maxJSONDecodeRetry {
 					dec = json.NewDecoder(f)
-					retries += 1
+					retries++
 					continue
 				}
 				logWatcher.Err <- err
