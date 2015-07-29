@@ -11,7 +11,6 @@ import (
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/pkg/system"
 
-	_ "github.com/docker/docker/daemon/execdriver/lxc"
 	_ "github.com/docker/docker/daemon/execdriver/native"
 )
 

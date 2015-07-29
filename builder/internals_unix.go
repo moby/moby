@@ -1,4 +1,4 @@
-// +build linux
+// +build freebsd linux
 
 package builder
 
