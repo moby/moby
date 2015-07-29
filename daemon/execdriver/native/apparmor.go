@@ -40,6 +40,9 @@ profile {{.Name}} flags=(attach_disconnected,mediate_deleted) {
   file,
   umount,
 
+  signal (receive) peer=/usr/bin/docker,
+  signal (receive) peer=docker-unconfined,
+
   deny @{PROC}/sys/fs/** wklx,
   deny @{PROC}/fs/** wklx,
   deny @{PROC}/sysrq-trigger rwklx,
@@ -59,6 +62,21 @@ profile {{.Name}} flags=(attach_disconnected,mediate_deleted) {
   deny /sys/fs/cg[^r]*/** wklx,
   deny /sys/firmware/efi/efivars/** rwklx,
   deny /sys/kernel/security/** rwklx,
+}
+
+profile docker-unconfined flags=(attach_disconnected,mediate_deleted,complain) {
+  #include <abstractions/base>
+
+  network,
+  capability,
+  file,
+  umount,
+  mount,
+  pivot_root,
+  change_profile -> *,
+
+  ptrace,
+  signal,
 }
 `
 
