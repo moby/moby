@@ -24,7 +24,7 @@ func createContainerPlatformSpecificSettings(container *Container, config *runco
 		case 2:
 			name, destination = parts[0], filepath.Clean(parts[1])
 		default:
-			name = stringid.GenerateRandomID()
+			name = stringid.GenerateNonCryptoID()
 			destination = filepath.Clean(parts[0])
 		}
 		// Skip volumes for which we already have something mounted on that

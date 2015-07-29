@@ -14,7 +14,7 @@ func (s *DockerSuite) TestRenameStoppedContainer(c *check.C) {
 	dockerCmd(c, "wait", cleanedContainerID)
 
 	name, err := inspectField(cleanedContainerID, "Name")
-	newName := "new_name" + stringid.GenerateRandomID()
+	newName := "new_name" + stringid.GenerateNonCryptoID()
 	dockerCmd(c, "rename", "first_name", newName)
 
 	name, err = inspectField(cleanedContainerID, "Name")
@@ -30,7 +30,7 @@ func (s *DockerSuite) TestRenameStoppedContainer(c *check.C) {
 func (s *DockerSuite) TestRenameRunningContainer(c *check.C) {
 	out, _ := dockerCmd(c, "run", "--name", "first_name", "-d", "busybox", "sh")
 
-	newName := "new_name" + stringid.GenerateRandomID()
+	newName := "new_name" + stringid.GenerateNonCryptoID()
 	cleanedContainerID := strings.TrimSpace(out)
 	dockerCmd(c, "rename", "first_name", newName)
 
@@ -46,7 +46,7 @@ func (s *DockerSuite) TestRenameRunningContainer(c *check.C) {
 func (s *DockerSuite) TestRenameCheckNames(c *check.C) {
 	dockerCmd(c, "run", "--name", "first_name", "-d", "busybox", "sh")
 
-	newName := "new_name" + stringid.GenerateRandomID()
+	newName := "new_name" + stringid.GenerateNonCryptoID()
 	dockerCmd(c, "rename", "first_name", newName)
 
 	name, err := inspectField(newName, "Name")

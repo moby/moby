@@ -11,7 +11,7 @@ import (
 )
 
 func TestContainerContextID(t *testing.T) {
-	containerId := stringid.GenerateRandomID()
+	containerId := stringid.GenerateNonCryptoID()
 	unix := time.Now().Unix()
 
 	var ctx containerContext

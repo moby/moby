@@ -155,7 +155,7 @@ func (d *Daemon) ContainerExecCreate(config *runconfig.ExecConfig) (string, erro
 	}
 
 	execConfig := &execConfig{
-		ID:            stringid.GenerateRandomID(),
+		ID:            stringid.GenerateNonCryptoID(),
 		OpenStdin:     config.AttachStdin,
 		OpenStdout:    config.AttachStdout,
 		OpenStderr:    config.AttachStderr,

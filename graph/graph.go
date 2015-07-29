@@ -314,7 +314,7 @@ func (graph *Graph) TempLayerArchive(id string, sf *streamformatter.StreamFormat
 
 // mktemp creates a temporary sub-directory inside the graph's filesystem.
 func (graph *Graph) mktemp(id string) (string, error) {
-	dir := filepath.Join(graph.root, "_tmp", stringid.GenerateRandomID())
+	dir := filepath.Join(graph.root, "_tmp", stringid.GenerateNonCryptoID())
 	if err := system.MkdirAll(dir, 0700); err != nil {
 		return "", err
 	}

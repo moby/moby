@@ -68,7 +68,7 @@ func TestInterruptedRegister(t *testing.T) {
 	defer nukeGraph(graph)
 	badArchive, w := io.Pipe() // Use a pipe reader as a fake archive which never yields data
 	image := &image.Image{
-		ID:      stringid.GenerateRandomID(),
+		ID:      stringid.GenerateNonCryptoID(),
 		Comment: "testing",
 		Created: time.Now(),
 	}
@@ -126,7 +126,7 @@ func TestRegister(t *testing.T) {
 		t.Fatal(err)
 	}
 	image := &image.Image{
-		ID:      stringid.GenerateRandomID(),
+		ID:      stringid.GenerateNonCryptoID(),
 		Comment: "testing",
 		Created: time.Now(),
 	}
@@ -229,19 +229,19 @@ func TestByParent(t *testing.T) {
 	graph, _ := tempGraph(t)
 	defer nukeGraph(graph)
 	parentImage := &image.Image{
-		ID:      stringid.GenerateRandomID(),
+		ID:      stringid.GenerateNonCryptoID(),
 		Comment: "parent",
 		Created: time.Now(),
 		Parent:  "",
 	}
 	childImage1 := &image.Image{
-		ID:      stringid.GenerateRandomID(),
+		ID:      stringid.GenerateNonCryptoID(),
 		Comment: "child1",
 		Created: time.Now(),
 		Parent:  parentImage.ID,
 	}
 	childImage2 := &image.Image{
-		ID:      stringid.GenerateRandomID(),
+		ID:      stringid.GenerateNonCryptoID(),
 		Comment: "child2",
 		Created: time.Now(),
 		Parent:  parentImage.ID,
