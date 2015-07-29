@@ -7,6 +7,8 @@ import (
 	"io"
 	"regexp"
 	"strconv"
+
+	"github.com/docker/docker/pkg/random"
 )
 
 const shortLen = 12
@@ -30,20 +32,36 @@ func TruncateID(id string) string {
 	return id[:trimTo]
 }
 
-// GenerateRandomID returns an unique id.
-func GenerateRandomID() string {
+func generateID(crypto bool) string {
+	b := make([]byte, 32)
+	var r io.Reader = random.Reader
+	if crypto {
+		r = rand.Reader
+	}
 	for {
-		id := make([]byte, 32)
-		if _, err := io.ReadFull(rand.Reader, id); err != nil {
+		if _, err := io.ReadFull(r, b); err != nil {
 			panic(err) // This shouldn't happen
 		}
-		value := hex.EncodeToString(id)
+		id := hex.EncodeToString(b)
 		// if we try to parse the truncated for as an int and we don't have
 		// an error then the value is all numberic and causes issues when
 		// used as a hostname. ref #3869
-		if _, err := strconv.ParseInt(TruncateID(value), 10, 64); err == nil {
+		if _, err := strconv.ParseInt(TruncateID(id), 10, 64); err == nil {
 			continue
 		}
-		return value
+		return id
 	}
+}
+
+// GenerateRandomID returns an unique id.
+func GenerateRandomID() string {
+	return generateID(true)
+
+}
+
+// GenerateNonCryptoID generates unique id without using cryptographically
+// secure sources of random.
+// It helps you to save entropy.
+func GenerateNonCryptoID() string {
+	return generateID(false)
 }
