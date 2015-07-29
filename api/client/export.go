@@ -2,7 +2,6 @@ package client
 
 import (
 	"errors"
-	"io"
 	"os"
 
 	Cli "github.com/docker/docker/cli"
@@ -22,7 +21,7 @@ func (cli *DockerCli) CmdExport(args ...string) error {
 	cmd.ParseFlags(args, true)
 
 	var (
-		output io.Writer = cli.out
+		output = cli.out
 		err    error
 	)
 	if *outfile != "" {

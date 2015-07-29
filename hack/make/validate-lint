@@ -9,6 +9,8 @@ source "${MAKEDIR}/.validate"
 
 packages=(
 	api/server
+	api/client
+	api/client/ps
 	builder
 	builder/command
 	builder/parser
