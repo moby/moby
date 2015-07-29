@@ -225,6 +225,7 @@ func (s *DockerTrustSuite) TestUntrustedPull(c *check.C) {
 }
 
 func (s *DockerTrustSuite) TestPullWhenCertExpired(c *check.C) {
+	c.Skip("Currently changes system time, causing instability")
 	repoName := s.setupTrustedImage(c, "trusted-cert-expired")
 
 	// Certificates have 10 years of expiration
@@ -331,6 +332,7 @@ func (s *DockerTrustSuite) TestTrustedPullFromBadTrustServer(c *check.C) {
 }
 
 func (s *DockerTrustSuite) TestTrustedPullWithExpiredSnapshot(c *check.C) {
+	c.Skip("Currently changes system time, causing instability")
 	repoName := fmt.Sprintf("%v/dockercliexpiredtimestamppull/trusted:latest", privateRegistryURL)
 	// tag the image and upload it to the private registry
 	dockerCmd(c, "tag", "busybox", repoName)
