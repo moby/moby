@@ -19,6 +19,7 @@ packages=(
 	daemon/execdriver/lxc
 	daemon/execdriver/native/template
 	daemon/graphdriver/aufs
+	daemon/graphdriver/devmapper
 	daemon/network
 	docker
 	dockerinit
