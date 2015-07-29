@@ -345,6 +345,7 @@ func (s *DockerTrustSuite) TestTrustedIsolatedCreate(c *check.C) {
 }
 
 func (s *DockerTrustSuite) TestCreateWhenCertExpired(c *check.C) {
+	c.Skip("Currently changes system time, causing instability")
 	repoName := s.setupTrustedImage(c, "trusted-create-expired")
 
 	// Certificates have 10 years of expiration
