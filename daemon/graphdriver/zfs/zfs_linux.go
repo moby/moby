@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"syscall"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/graphdriver"
 )
 
@@ -15,7 +15,7 @@ func checkRootdirFs(rootdir string) error {
 	}
 
 	if graphdriver.FsMagic(buf.Type) != graphdriver.FsMagicZfs {
-		log.Debugf("[zfs] no zfs dataset found for rootdir '%s'", rootdir)
+		logrus.Debugf("[zfs] no zfs dataset found for rootdir '%s'", rootdir)
 		return graphdriver.ErrPrerequisites
 	}
 
