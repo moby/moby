@@ -353,3 +353,96 @@ func TestConfigFile(t *testing.T) {
 		t.Fatalf("Expected %s, got %s", configFilename, configFile.Filename())
 	}
 }
+
+func TestJsonReaderNoFile(t *testing.T) {
+	js := ` { "auths": { "https://index.docker.io/v1/": { "auth": "am9lam9lOmhlbGxv", "email": "user@example.com" } } }`
+
+	config, err := LoadFromReader(strings.NewReader(js))
+	if err != nil {
+		t.Fatalf("Failed loading on empty json file: %q", err)
+	}
+
+	ac := config.AuthConfigs["https://index.docker.io/v1/"]
+	if ac.Email != "user@example.com" || ac.Username != "joejoe" || ac.Password != "hello" {
+		t.Fatalf("Missing data from parsing:\n%q", config)
+	}
+
+}
+
+func TestOldJsonReaderNoFile(t *testing.T) {
+	js := `{"https://index.docker.io/v1/":{"auth":"am9lam9lOmhlbGxv","email":"user@example.com"}}`
+
+	config, err := LegacyLoadFromReader(strings.NewReader(js))
+	if err != nil {
+		t.Fatalf("Failed loading on empty json file: %q", err)
+	}
+
+	ac := config.AuthConfigs["https://index.docker.io/v1/"]
+	if ac.Email != "user@example.com" || ac.Username != "joejoe" || ac.Password != "hello" {
+		t.Fatalf("Missing data from parsing:\n%q", config)
+	}
+}
+
+func TestJsonWithPsFormatNoFile(t *testing.T) {
+	js := `{
+		"auths": { "https://index.docker.io/v1/": { "auth": "am9lam9lOmhlbGxv", "email": "user@example.com" } },
+		"psFormat": "table {{.ID}}\\t{{.Label \"com.docker.label.cpu\"}}"
+}`
+	config, err := LoadFromReader(strings.NewReader(js))
+	if err != nil {
+		t.Fatalf("Failed loading on empty json file: %q", err)
+	}
+
+	if config.PsFormat != `table {{.ID}}\t{{.Label "com.docker.label.cpu"}}` {
+		t.Fatalf("Unknown ps format: %s\n", config.PsFormat)
+	}
+
+}
+
+func TestJsonSaveWithNoFile(t *testing.T) {
+	js := `{
+		"auths": { "https://index.docker.io/v1/": { "auth": "am9lam9lOmhlbGxv", "email": "user@example.com" } },
+		"psFormat": "table {{.ID}}\\t{{.Label \"com.docker.label.cpu\"}}"
+}`
+	config, err := LoadFromReader(strings.NewReader(js))
+	err = config.Save()
+	if err == nil {
+		t.Fatalf("Expected error. File should not have been able to save with no file name.")
+	}
+
+	tmpHome, _ := ioutil.TempDir("", "config-test")
+	fn := filepath.Join(tmpHome, ConfigFileName)
+	f, _ := os.OpenFile(fn, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
+	err = config.SaveToWriter(f)
+	if err != nil {
+		t.Fatalf("Failed saving to file: %q", err)
+	}
+	buf, err := ioutil.ReadFile(filepath.Join(tmpHome, ConfigFileName))
+	if !strings.Contains(string(buf), `"auths":`) ||
+		!strings.Contains(string(buf), "user@example.com") {
+		t.Fatalf("Should have save in new form: %s", string(buf))
+	}
+
+}
+func TestLegacyJsonSaveWithNoFile(t *testing.T) {
+
+	js := `{"https://index.docker.io/v1/":{"auth":"am9lam9lOmhlbGxv","email":"user@example.com"}}`
+	config, err := LegacyLoadFromReader(strings.NewReader(js))
+	err = config.Save()
+	if err == nil {
+		t.Fatalf("Expected error. File should not have been able to save with no file name.")
+	}
+
+	tmpHome, _ := ioutil.TempDir("", "config-test")
+	fn := filepath.Join(tmpHome, ConfigFileName)
+	f, _ := os.OpenFile(fn, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
+	err = config.SaveToWriter(f)
+	if err != nil {
+		t.Fatalf("Failed saving to file: %q", err)
+	}
+	buf, err := ioutil.ReadFile(filepath.Join(tmpHome, ConfigFileName))
+	if !strings.Contains(string(buf), `"auths":`) ||
+		!strings.Contains(string(buf), "user@example.com") {
+		t.Fatalf("Should have save in new form: %s", string(buf))
+	}
+}

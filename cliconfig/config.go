@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -70,6 +71,88 @@ func NewConfigFile(fn string) *ConfigFile {
 	}
 }
 
+// LegacyLoadFromReader reads the non-nested configuration data given and sets up the
+// auth config information with given directory and populates the receiver object
+func (configFile *ConfigFile) LegacyLoadFromReader(configData io.Reader) error {
+	b, err := ioutil.ReadAll(configData)
+	if err != nil {
+		return err
+	}
+
+	if err := json.Unmarshal(b, &configFile.AuthConfigs); err != nil {
+		arr := strings.Split(string(b), "\n")
+		if len(arr) < 2 {
+			return fmt.Errorf("The Auth config file is empty")
+		}
+		authConfig := AuthConfig{}
+		origAuth := strings.Split(arr[0], " = ")
+		if len(origAuth) != 2 {
+			return fmt.Errorf("Invalid Auth config file")
+		}
+		authConfig.Username, authConfig.Password, err = DecodeAuth(origAuth[1])
+		if err != nil {
+			return err
+		}
+		origEmail := strings.Split(arr[1], " = ")
+		if len(origEmail) != 2 {
+			return fmt.Errorf("Invalid Auth config file")
+		}
+		authConfig.Email = origEmail[1]
+		authConfig.ServerAddress = defaultIndexserver
+		configFile.AuthConfigs[defaultIndexserver] = authConfig
+	} else {
+		for k, authConfig := range configFile.AuthConfigs {
+			authConfig.Username, authConfig.Password, err = DecodeAuth(authConfig.Auth)
+			if err != nil {
+				return err
+			}
+			authConfig.Auth = ""
+			authConfig.ServerAddress = k
+			configFile.AuthConfigs[k] = authConfig
+		}
+	}
+	return nil
+}
+
+// LoadFromReader reads the configuration data given and sets up the auth config
+// information with given directory and populates the receiver object
+func (configFile *ConfigFile) LoadFromReader(configData io.Reader) error {
+	if err := json.NewDecoder(configData).Decode(&configFile); err != nil {
+		return err
+	}
+	var err error
+	for addr, ac := range configFile.AuthConfigs {
+		ac.Username, ac.Password, err = DecodeAuth(ac.Auth)
+		if err != nil {
+			return err
+		}
+		ac.Auth = ""
+		ac.ServerAddress = addr
+		configFile.AuthConfigs[addr] = ac
+	}
+	return nil
+}
+
+// LegacyLoadFromReader is a convenience function that creates a ConfigFile object from
+// a non-nested reader
+func LegacyLoadFromReader(configData io.Reader) (*ConfigFile, error) {
+	configFile := ConfigFile{
+		AuthConfigs: make(map[string]AuthConfig),
+	}
+	err := configFile.LegacyLoadFromReader(configData)
+	return &configFile, err
+}
+
+// LoadFromReader is a convenience function that creates a ConfigFile object from
+// a reader
+func LoadFromReader(configData io.Reader) (*ConfigFile, error) {
+	configFile := ConfigFile{
+		AuthConfigs: make(map[string]AuthConfig),
+	}
+	err := configFile.LoadFromReader(configData)
+	return &configFile, err
+}
+
 // Load reads the configuration files in the given directory, and sets up
 // the auth config information and return values.
 // FIXME: use the internal golang config parser
@@ -90,22 +173,8 @@ func Load(configDir string) (*ConfigFile, error) {
 			return &configFile, err
 		}
 		defer file.Close()
-
-		if err := json.NewDecoder(file).Decode(&configFile); err != nil {
-			return &configFile, err
-		}
-
-		for addr, ac := range configFile.AuthConfigs {
-			ac.Username, ac.Password, err = DecodeAuth(ac.Auth)
-			if err != nil {
-				return &configFile, err
-			}
-			ac.Auth = ""
-			ac.ServerAddress = addr
-			configFile.AuthConfigs[addr] = ac
-		}
-
-		return &configFile, nil
+		err = configFile.LoadFromReader(file)
+		return &configFile, err
 	} else if !os.IsNotExist(err) {
 		// if file is there but we can't stat it for any reason other
 		// than it doesn't exist then stop
@@ -117,49 +186,18 @@ func Load(configDir string) (*ConfigFile, error) {
 	if _, err := os.Stat(confFile); err != nil {
 		return &configFile, nil //missing file is not an error
 	}
-
-	b, err := ioutil.ReadFile(confFile)
+	file, err := os.Open(confFile)
 	if err != nil {
 		return &configFile, err
 	}
-
-	if err := json.Unmarshal(b, &configFile.AuthConfigs); err != nil {
-		arr := strings.Split(string(b), "\n")
-		if len(arr) < 2 {
-			return &configFile, fmt.Errorf("The Auth config file is empty")
-		}
-		authConfig := AuthConfig{}
-		origAuth := strings.Split(arr[0], " = ")
-		if len(origAuth) != 2 {
-			return &configFile, fmt.Errorf("Invalid Auth config file")
-		}
-		authConfig.Username, authConfig.Password, err = DecodeAuth(origAuth[1])
-		if err != nil {
-			return &configFile, err
-		}
-		origEmail := strings.Split(arr[1], " = ")
-		if len(origEmail) != 2 {
-			return &configFile, fmt.Errorf("Invalid Auth config file")
-		}
-		authConfig.Email = origEmail[1]
-		authConfig.ServerAddress = defaultIndexserver
-		configFile.AuthConfigs[defaultIndexserver] = authConfig
-	} else {
-		for k, authConfig := range configFile.AuthConfigs {
-			authConfig.Username, authConfig.Password, err = DecodeAuth(authConfig.Auth)
-			if err != nil {
-				return &configFile, err
-			}
-			authConfig.Auth = ""
-			authConfig.ServerAddress = k
-			configFile.AuthConfigs[k] = authConfig
-		}
-	}
-	return &configFile, nil
+	defer file.Close()
+	err = configFile.LegacyLoadFromReader(file)
+	return &configFile, err
 }
 
-// Save encodes and writes out all the authorization information
-func (configFile *ConfigFile) Save() error {
+// SaveToWriter encodes and writes out all the authorization information to
+// the given writer
+func (configFile *ConfigFile) SaveToWriter(writer io.Writer) error {
 	// Encode sensitive data into a new/temp struct
 	tmpAuthConfigs := make(map[string]AuthConfig, len(configFile.AuthConfigs))
 	for k, authConfig := range configFile.AuthConfigs {
@@ -180,16 +218,25 @@ func (configFile *ConfigFile) Save() error {
 	if err != nil {
 		return err
 	}
+	_, err = writer.Write(data)
+	return err
+}
+
+// Save encodes and writes out all the authorization information
+func (configFile *ConfigFile) Save() error {
+	if configFile.Filename() == "" {
+		return fmt.Errorf("Can't save config with empty filename")
+	}
 
 	if err := system.MkdirAll(filepath.Dir(configFile.filename), 0700); err != nil {
 		return err
 	}
-
-	if err := ioutil.WriteFile(configFile.filename, data, 0600); err != nil {
+	f, err := os.OpenFile(configFile.filename, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
+	if err != nil {
 		return err
 	}
-
-	return nil
+	defer f.Close()
+	return configFile.SaveToWriter(f)
 }
 
 // Filename returns the name of the configuration file
