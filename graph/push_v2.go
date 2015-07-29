@@ -87,12 +87,12 @@ func (p *v2Pusher) pushV2Repository(tag string) error {
 func (p *v2Pusher) pushV2Tag(tag string) error {
 	logrus.Debugf("Pushing repository: %s:%s", p.repo.Name(), tag)
 
-	layerId, exists := p.localRepo[tag]
+	layerID, exists := p.localRepo[tag]
 	if !exists {
 		return fmt.Errorf("tag does not exist: %s", tag)
 	}
 
-	layer, err := p.graph.Get(layerId)
+	layer, err := p.graph.Get(layerID)
 	if err != nil {
 		return err
 	}

@@ -24,8 +24,10 @@ import (
 	"github.com/docker/libtrust"
 )
 
-const DEFAULTTAG = "latest"
+// DefaultTag defines the default tag used when performing images related actions and no tag string is specified
+const DefaultTag = "latest"
 
+// TagStore contains information to push and pull to the repo.
 type TagStore struct {
 	path         string
 	graph        *Graph
@@ -41,16 +43,17 @@ type TagStore struct {
 	trustService    *trust.TrustStore
 }
 
+// Repository maps image id to image tag.
 type Repository map[string]string
 
-// update Repository mapping with content of u
+// Update updates repository mapping with content of repository 'u'.
 func (r Repository) Update(u Repository) {
 	for k, v := range u {
 		r[k] = v
 	}
 }
 
-// return true if the contents of u Repository, are wholly contained in r Repository
+// Contains returns true if the contents of u Repository, are wholly contained in r Repository.
 func (r Repository) Contains(u Repository) bool {
 	for k, v := range u {
 		// if u's key is not present in r OR u's key is present, but not the same value
@@ -61,6 +64,7 @@ func (r Repository) Contains(u Repository) bool {
 	return true
 }
 
+// TagStoreConfig holds tag store configuration.
 type TagStoreConfig struct {
 	Graph    *Graph
 	Key      libtrust.PrivateKey
@@ -69,6 +73,7 @@ type TagStoreConfig struct {
 	Trust    *trust.TrustStore
 }
 
+// NewTagStore creates a tag store to specified path.
 func NewTagStore(path string, cfg *TagStoreConfig) (*TagStore, error) {
 	abspath, err := filepath.Abs(path)
 	if err != nil {
@@ -121,12 +126,13 @@ func (store *TagStore) reload() error {
 	return nil
 }
 
+// LookupImage returns the image from the store.
 func (store *TagStore) LookupImage(name string) (*image.Image, error) {
 	// FIXME: standardize on returning nil when the image doesn't exist, and err for everything else
 	// (so we can pass all errors here)
 	repoName, ref := parsers.ParseRepositoryTag(name)
 	if ref == "" {
-		ref = DEFAULTTAG
+		ref = DefaultTag
 	}
 	var (
 		err error
@@ -152,7 +158,7 @@ func (store *TagStore) LookupImage(name string) (*image.Image, error) {
 	return img, nil
 }
 
-// Return a reverse-lookup table of all the names which refer to each image
+// ByID returns a reverse-lookup table of all the names which refer to each image.
 // Eg. {"43b5f19b10584": {"base:latest", "base:v1"}}
 func (store *TagStore) ByID() map[string][]string {
 	store.Lock()
@@ -172,6 +178,7 @@ func (store *TagStore) ByID() map[string][]string {
 	return byID
 }
 
+// ImageName returns name of the image.
 func (store *TagStore) ImageName(id string) string {
 	if names, exists := store.ByID()[id]; exists && len(names) > 0 {
 		return names[0]
@@ -179,6 +186,7 @@ func (store *TagStore) ImageName(id string) string {
 	return stringid.TruncateID(id)
 }
 
+// DeleteAll removes images identified by a specific id from the store.
 func (store *TagStore) DeleteAll(id string) error {
 	names, exists := store.ByID()[id]
 	if !exists || len(names) == 0 {
@@ -199,6 +207,7 @@ func (store *TagStore) DeleteAll(id string) error {
 	return nil
 }
 
+// Delete removes a repo identified by a given name from the store
 func (store *TagStore) Delete(repoName, ref string) (bool, error) {
 	store.Lock()
 	defer store.Unlock()
@@ -231,10 +240,13 @@ func (store *TagStore) Delete(repoName, ref string) (bool, error) {
 	return deleted, store.save()
 }
 
+// Tag adds a new tag to an existing image.
 func (store *TagStore) Tag(repoName, tag, imageName string, force bool) error {
 	return store.SetLoad(repoName, tag, imageName, force, nil)
 }
 
+// SetLoad stores the image to the store.
+// If the imageName is already in the repo then a '-f' flag should be used to replace existing image.
 func (store *TagStore) SetLoad(repoName, tag, imageName string, force bool, out io.Writer) error {
 	img, err := store.LookupImage(imageName)
 	store.Lock()
@@ -319,6 +331,7 @@ func (store *TagStore) SetDigest(repoName, digest, imageName string) error {
 	return store.save()
 }
 
+// Get returns a repo from the store.
 func (store *TagStore) Get(repoName string) (Repository, error) {
 	store.Lock()
 	defer store.Unlock()
@@ -332,6 +345,7 @@ func (store *TagStore) Get(repoName string) (Repository, error) {
 	return nil, nil
 }
 
+// GetImage returns an image from a given repo from the store.
 func (store *TagStore) GetImage(repoName, refOrID string) (*image.Image, error) {
 	repo, err := store.Get(repoName)
 
@@ -361,6 +375,7 @@ func (store *TagStore) GetImage(repoName, refOrID string) (*image.Image, error) 
 	return nil, nil
 }
 
+// GetRepoRefs returns list of repos.
 func (store *TagStore) GetRepoRefs() map[string][]string {
 	store.Lock()
 	reporefs := make(map[string][]string)
@@ -375,7 +390,7 @@ func (store *TagStore) GetRepoRefs() map[string][]string {
 	return reporefs
 }
 
-// Validate the name of a repository
+// validateRepoName validates the name of a repository.
 func validateRepoName(name string) error {
 	if name == "" {
 		return fmt.Errorf("Repository name can't be empty")

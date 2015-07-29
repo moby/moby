@@ -10,13 +10,19 @@ import (
 	"github.com/docker/docker/registry"
 )
 
+// ImagePushConfig stores push configuration.
 type ImagePushConfig struct {
+	// MetaHeaders store meta data about the image (DockerHeaders with prefix X-Meta- in the request).
 	MetaHeaders map[string][]string
-	AuthConfig  *cliconfig.AuthConfig
-	Tag         string
-	OutStream   io.Writer
+	// AuthConfig holds authentication information for authorizing with the registry.
+	AuthConfig *cliconfig.AuthConfig
+	// Tag is the specific variant of the image to be pushed, this tag used when image is pushed. If no tag is provided, all tags will be pushed.
+	Tag string
+	// OutStream is the output writer for showing the status of the push operation.
+	OutStream io.Writer
 }
 
+// Pusher is an interface to define Push behavior.
 type Pusher interface {
 	// Push tries to push the image configured at the creation of Pusher.
 	// Push returns an error if any, as well as a boolean that determines whether to retry Push on the next configured endpoint.
@@ -25,6 +31,7 @@ type Pusher interface {
 	Push() (fallback bool, err error)
 }
 
+// NewPusher returns a new instance of an implementation conforming to Pusher interface.
 func (s *TagStore) NewPusher(endpoint registry.APIEndpoint, localRepo Repository, repoInfo *registry.RepositoryInfo, imagePushConfig *ImagePushConfig, sf *streamformatter.StreamFormatter) (Pusher, error) {
 	switch endpoint.Version {
 	case registry.APIVersion2:
@@ -51,6 +58,8 @@ func (s *TagStore) NewPusher(endpoint registry.APIEndpoint, localRepo Repository
 }
 
 // FIXME: Allow to interrupt current push when new push of same image is done.
+
+// Push a image to the repo.
 func (s *TagStore) Push(localName string, imagePushConfig *ImagePushConfig) error {
 	var sf = streamformatter.NewJSONStreamFormatter()
 

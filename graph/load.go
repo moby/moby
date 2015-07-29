@@ -15,7 +15,7 @@ import (
 	"github.com/docker/docker/pkg/chrootarchive"
 )
 
-// Loads a set of images into the repository. This is the complementary of ImageExport.
+// Load uploads a set of images into the repository. This is the complementary of ImageExport.
 // The input stream is an uncompressed tar ball containing images and metadata.
 func (s *TagStore) Load(inTar io.ReadCloser, outStream io.Writer) error {
 	tmpImageDir, err := ioutil.TempDir("", "docker-import-")
@@ -84,7 +84,7 @@ func (s *TagStore) recursiveLoad(address, tmpImageDir string) error {
 	if _, err := s.LookupImage(address); err != nil {
 		logrus.Debugf("Loading %s", address)
 
-		imageJson, err := ioutil.ReadFile(filepath.Join(tmpImageDir, "repo", address, "json"))
+		imageJSON, err := ioutil.ReadFile(filepath.Join(tmpImageDir, "repo", address, "json"))
 		if err != nil {
 			logrus.Debugf("Error reading json: %v", err)
 			return err
@@ -95,7 +95,7 @@ func (s *TagStore) recursiveLoad(address, tmpImageDir string) error {
 			logrus.Debugf("Error reading embedded tar: %v", err)
 			return err
 		}
-		img, err := image.NewImgJSON(imageJson)
+		img, err := image.NewImgJSON(imageJSON)
 		if err != nil {
 			logrus.Debugf("Error unmarshalling json: %v", err)
 			return err

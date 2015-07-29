@@ -13,16 +13,19 @@ import (
 	"github.com/docker/docker/registry"
 )
 
-// CmdImageExport exports all images with the given tag. All versions
+// ImageExportConfig holds list of names to be exported to a output stream.
+// All images with the given tag and all versions
 // containing the same tag are exported. The resulting output is an
 // uncompressed tar ball.
-// name is the set of tags to export.
-// out is the writer where the images are written to.
 type ImageExportConfig struct {
-	Names     []string
+	// Names is the set of tags to export.
+	Names []string
+	// OutStream is the writer where the images are written to.
 	Outstream io.Writer
 }
 
+// ImageExport exports list of images to a output stream specified in the config.
+// The exported images are archived into a tar when written to the output stream.
 func (s *TagStore) ImageExport(imageExportConfig *ImageExportConfig) error {
 
 	// get image json
@@ -135,7 +138,7 @@ func (s *TagStore) exportImage(name, tempdir string) error {
 		if err != nil {
 			return err
 		}
-		imageInspectRaw, err := s.LookupRaw(n)
+		imageInspectRaw, err := s.lookupRaw(n)
 		if err != nil {
 			return err
 		}

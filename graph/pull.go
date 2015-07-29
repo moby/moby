@@ -11,12 +11,17 @@ import (
 	"github.com/docker/docker/utils"
 )
 
+// ImagePullConfig stores pull configuration.
 type ImagePullConfig struct {
+	// MetaHeaders store meta data about the image (DockerHeaders with prefix X-Meta- in the request).
 	MetaHeaders map[string][]string
-	AuthConfig  *cliconfig.AuthConfig
-	OutStream   io.Writer
+	// AuthConfig holds authentication information for authorizing with the registry.
+	AuthConfig *cliconfig.AuthConfig
+	// OutStream is the output writer for showing the status of the pull operation.
+	OutStream io.Writer
 }
 
+// Puller is an interface to define Pull behavior.
 type Puller interface {
 	// Pull tries to pull the image referenced by `tag`
 	// Pull returns an error if any, as well as a boolean that determines whether to retry Pull on the next configured endpoint.
@@ -25,6 +30,7 @@ type Puller interface {
 	Pull(tag string) (fallback bool, err error)
 }
 
+// NewPuller returns a new instance of an implementation conforming to Puller interface.
 func NewPuller(s *TagStore, endpoint registry.APIEndpoint, repoInfo *registry.RepositoryInfo, imagePullConfig *ImagePullConfig, sf *streamformatter.StreamFormatter) (Puller, error) {
 	switch endpoint.Version {
 	case registry.APIVersion2:
@@ -47,6 +53,7 @@ func NewPuller(s *TagStore, endpoint registry.APIEndpoint, repoInfo *registry.Re
 	return nil, fmt.Errorf("unknown version %d for registry %s", endpoint.Version, endpoint.URL)
 }
 
+// Pull downloads a image with specified name and tag from the repo.
 func (s *TagStore) Pull(image string, tag string, imagePullConfig *ImagePullConfig) error {
 	var sf = streamformatter.NewJSONStreamFormatter()
 
@@ -126,7 +133,8 @@ func (s *TagStore) Pull(image string, tag string, imagePullConfig *ImagePullConf
 	return lastErr
 }
 
-func WriteStatus(requestedTag string, out io.Writer, sf *streamformatter.StreamFormatter, layersDownloaded bool) {
+// writeStatus shows status of the pull command.
+func writeStatus(requestedTag string, out io.Writer, sf *streamformatter.StreamFormatter, layersDownloaded bool) {
 	if layersDownloaded {
 		out.Write(sf.FormatStatus("", "Status: Downloaded newer image for %s", requestedTag))
 	} else {
