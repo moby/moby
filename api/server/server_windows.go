@@ -43,6 +43,7 @@ func (s *Server) newServer(proto, addr string) ([]serverCloser, error) {
 
 }
 
+// AcceptConnections allows router to start listening for the incoming requests.
 func (s *Server) AcceptConnections(d *daemon.Daemon) {
 	s.daemon = d
 	s.registerSubRouter()
@@ -58,7 +59,7 @@ func allocateDaemonPort(addr string) error {
 	return nil
 }
 
-func adjustCpuShares(version version.Version, hostConfig *runconfig.HostConfig) {
+func adjustCPUShares(version version.Version, hostConfig *runconfig.HostConfig) {
 }
 
 // getContainersByNameDownlevel performs processing for pre 1.20 APIs. This

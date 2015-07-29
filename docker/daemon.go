@@ -211,7 +211,7 @@ func (cli *DaemonCli) CmdDaemon(args ...string) error {
 		cli.LogConfig.Config = make(map[string]string)
 	}
 
-	serverConfig := &apiserver.ServerConfig{
+	serverConfig := &apiserver.Config{
 		Logging: true,
 		Version: dockerversion.VERSION,
 	}
@@ -236,7 +236,7 @@ func (cli *DaemonCli) CmdDaemon(args ...string) error {
 	// daemon doesn't exit
 	serveAPIWait := make(chan error)
 	go func() {
-		if err := api.ServeApi(commonFlags.Hosts); err != nil {
+		if err := api.ServeAPI(commonFlags.Hosts); err != nil {
 			logrus.Errorf("ServeAPI error: %v", err)
 			serveAPIWait <- err
 			return

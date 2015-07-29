@@ -19,8 +19,8 @@ import (
 
 const (
 	// See http://git.kernel.org/cgit/linux/kernel/git/tip/tip.git/tree/kernel/sched/sched.h?id=8cd9234c64c584432f6992fe944ca9e46ca8ea76#n269
-	linuxMinCpuShares = 2
-	linuxMaxCpuShares = 262144
+	linuxMinCPUShares = 2
+	linuxMaxCPUShares = 262144
 )
 
 // newServer sets up the required serverClosers and does protocol specific checking.
@@ -40,7 +40,7 @@ func (s *Server) newServer(proto, addr string) ([]serverCloser, error) {
 		// won't be ready.
 		<-s.start
 	case "tcp":
-		l, err := s.initTcpSocket(addr)
+		l, err := s.initTCPSocket(addr)
 		if err != nil {
 			return nil, err
 		}
@@ -56,7 +56,7 @@ func (s *Server) newServer(proto, addr string) ([]serverCloser, error) {
 	}
 	var res []serverCloser
 	for _, l := range ls {
-		res = append(res, &HttpServer{
+		res = append(res, &HTTPServer{
 			&http.Server{
 				Addr:    addr,
 				Handler: s.router,
@@ -67,6 +67,9 @@ func (s *Server) newServer(proto, addr string) ([]serverCloser, error) {
 	return res, nil
 }
 
+// AcceptConnections allows clients to connect to the API server.
+// Referenced Daemon is notified about this server, and waits for the
+// daemon acknowledgement before the incoming connections are accepted.
 func (s *Server) AcceptConnections(d *daemon.Daemon) {
 	// Tell the init daemon we are accepting requests
 	s.daemon = d
@@ -107,16 +110,16 @@ func allocateDaemonPort(addr string) error {
 	return nil
 }
 
-func adjustCpuShares(version version.Version, hostConfig *runconfig.HostConfig) {
+func adjustCPUShares(version version.Version, hostConfig *runconfig.HostConfig) {
 	if version.LessThan("1.19") {
 		if hostConfig != nil && hostConfig.CPUShares > 0 {
 			// Handle unsupported CpuShares
-			if hostConfig.CPUShares < linuxMinCpuShares {
-				logrus.Warnf("Changing requested CpuShares of %d to minimum allowed of %d", hostConfig.CPUShares, linuxMinCpuShares)
-				hostConfig.CPUShares = linuxMinCpuShares
-			} else if hostConfig.CPUShares > linuxMaxCpuShares {
-				logrus.Warnf("Changing requested CpuShares of %d to maximum allowed of %d", hostConfig.CPUShares, linuxMaxCpuShares)
-				hostConfig.CPUShares = linuxMaxCpuShares
+			if hostConfig.CPUShares < linuxMinCPUShares {
+				logrus.Warnf("Changing requested CpuShares of %d to minimum allowed of %d", hostConfig.CPUShares, linuxMinCPUShares)
+				hostConfig.CPUShares = linuxMinCPUShares
+			} else if hostConfig.CPUShares > linuxMaxCPUShares {
+				logrus.Warnf("Changing requested CpuShares of %d to maximum allowed of %d", hostConfig.CPUShares, linuxMaxCPUShares)
+				hostConfig.CPUShares = linuxMaxCPUShares
 			}
 		}
 	}

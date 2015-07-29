@@ -9,7 +9,7 @@ import (
 	"github.com/gorilla/mux"
 )
 
-func ProfilerSetup(mainRouter *mux.Router, path string) {
+func profilerSetup(mainRouter *mux.Router, path string) {
 	var r = mainRouter.PathPrefix(path).Subrouter()
 	r.HandleFunc("/vars", expVars)
 	r.HandleFunc("/pprof/", pprof.Index)
