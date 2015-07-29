@@ -13,22 +13,11 @@ import (
 	"github.com/docker/docker/utils"
 )
 
-// ImageImportConfig holds configuration to import a image.
-type ImageImportConfig struct {
-	// Changes are the container changes written to top layer.
-	Changes []string
-	// InConfig is the input stream containers layered data.
-	InConfig io.ReadCloser
-	// OutStream is the output stream where the image is written.
-	OutStream io.Writer
-	// ContainerConfig is the configuration of commit container.
-	ContainerConfig *runconfig.Config
-}
-
-// Import allows to download image from  a archive.
-// If the src is a URL, the content is downloaded from the archive. If the source is '-' then the imageImportConfig.InConfig
-// reader will be used to load the image. Once all the layers required are loaded locally, image is then tagged using the tag specified.
-func (s *TagStore) Import(src string, repo string, tag string, imageImportConfig *ImageImportConfig) error {
+// Import imports an image, getting the archived layer data either from
+// inConfig (if src is "-"), or from a URI specified in src. Progress output is
+// written to outStream. Repository and tag names can optionally be given in
+// the repo and tag arguments, respectively.
+func (s *TagStore) Import(src string, repo string, tag string, inConfig io.ReadCloser, outStream io.Writer, containerConfig *runconfig.Config) error {
 	var (
 		sf      = streamformatter.NewJSONStreamFormatter()
 		archive archive.ArchiveReader
@@ -36,7 +25,7 @@ func (s *TagStore) Import(src string, repo string, tag string, imageImportConfig
 	)
 
 	if src == "-" {
-		archive = imageImportConfig.InConfig
+		archive = inConfig
 	} else {
 		u, err := url.Parse(src)
 		if err != nil {
@@ -47,14 +36,14 @@ func (s *TagStore) Import(src string, repo string, tag string, imageImportConfig
 			u.Host = src
 			u.Path = ""
 		}
-		imageImportConfig.OutStream.Write(sf.FormatStatus("", "Downloading from %s", u))
+		outStream.Write(sf.FormatStatus("", "Downloading from %s", u))
 		resp, err = httputils.Download(u.String())
 		if err != nil {
 			return err
 		}
 		progressReader := progressreader.New(progressreader.Config{
 			In:        resp.Body,
-			Out:       imageImportConfig.OutStream,
+			Out:       outStream,
 			Formatter: sf,
 			Size:      int(resp.ContentLength),
 			NewLines:  true,
@@ -65,7 +54,7 @@ func (s *TagStore) Import(src string, repo string, tag string, imageImportConfig
 		archive = progressReader
 	}
 
-	img, err := s.graph.Create(archive, "", "", "Imported from "+src, "", nil, imageImportConfig.ContainerConfig)
+	img, err := s.graph.Create(archive, "", "", "Imported from "+src, "", nil, containerConfig)
 	if err != nil {
 		return err
 	}
@@ -75,7 +64,7 @@ func (s *TagStore) Import(src string, repo string, tag string, imageImportConfig
 			return err
 		}
 	}
-	imageImportConfig.OutStream.Write(sf.FormatStatus("", img.ID))
+	outStream.Write(sf.FormatStatus("", img.ID))
 	logID := img.ID
 	if tag != "" {
 		logID = utils.ImageReference(logID, tag)

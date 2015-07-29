@@ -12,17 +12,21 @@ import (
 
 // ImagePushConfig stores push configuration.
 type ImagePushConfig struct {
-	// MetaHeaders store meta data about the image (DockerHeaders with prefix X-Meta- in the request).
+	// MetaHeaders store HTTP headers with metadata about the image
+	// (DockerHeaders with prefix X-Meta- in the request).
 	MetaHeaders map[string][]string
-	// AuthConfig holds authentication information for authorizing with the registry.
+	// AuthConfig holds authentication credentials for authenticating with
+	// the registry.
 	AuthConfig *cliconfig.AuthConfig
-	// Tag is the specific variant of the image to be pushed, this tag used when image is pushed. If no tag is provided, all tags will be pushed.
+	// Tag is the specific variant of the image to be pushed.
+	// If no tag is provided, all tags will be pushed.
 	Tag string
-	// OutStream is the output writer for showing the status of the push operation.
+	// OutStream is the output writer for showing the status of the push
+	// operation.
 	OutStream io.Writer
 }
 
-// Pusher is an interface to define Push behavior.
+// Pusher is an interface that abstracts pushing for different API versions.
 type Pusher interface {
 	// Push tries to push the image configured at the creation of Pusher.
 	// Push returns an error if any, as well as a boolean that determines whether to retry Push on the next configured endpoint.
@@ -31,7 +35,11 @@ type Pusher interface {
 	Push() (fallback bool, err error)
 }
 
-// NewPusher returns a new instance of an implementation conforming to Pusher interface.
+// NewPusher creates a new Pusher interface that will push to either a v1 or v2
+// registry. The endpoint argument contains a Version field that determines
+// whether a v1 or v2 pusher will be created. The other parameters are passed
+// through to the underlying pusher implementation for use during the actual
+// push operation.
 func (s *TagStore) NewPusher(endpoint registry.APIEndpoint, localRepo Repository, repoInfo *registry.RepositoryInfo, imagePushConfig *ImagePushConfig, sf *streamformatter.StreamFormatter) (Pusher, error) {
 	switch endpoint.Version {
 	case registry.APIVersion2:
@@ -57,10 +65,10 @@ func (s *TagStore) NewPusher(endpoint registry.APIEndpoint, localRepo Repository
 	return nil, fmt.Errorf("unknown version %d for registry %s", endpoint.Version, endpoint.URL)
 }
 
-// FIXME: Allow to interrupt current push when new push of same image is done.
-
-// Push a image to the repo.
+// Push initiates a push operation on the repository named localName.
 func (s *TagStore) Push(localName string, imagePushConfig *ImagePushConfig) error {
+	// FIXME: Allow to interrupt current push when new push of same image is done.
+
 	var sf = streamformatter.NewJSONStreamFormatter()
 
 	// Resolve the Repository name from fqn to RepositoryInfo

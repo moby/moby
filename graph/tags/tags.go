@@ -6,8 +6,12 @@ import (
 	"github.com/docker/distribution/registry/api/v2"
 )
 
-const DEFAULTTAG = "latest"
+// DefaultTag is the default tag for the case where no explicit tag is
+// specified.
+const DefaultTag = "latest"
 
+// ErrTagInvalidFormat is an error type used when the tag name has invalid
+// characters or is longer than allowed.
 type ErrTagInvalidFormat struct {
 	name string
 }

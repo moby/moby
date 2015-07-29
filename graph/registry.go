@@ -27,7 +27,9 @@ func (dcs dumbCredentialStore) Basic(*url.URL) (string, string) {
 	return dcs.auth.Username, dcs.auth.Password
 }
 
-// NewV2Repository creates a v2 only repository.
+// NewV2Repository returns a repository (v2 only). It creates a HTTP transport
+// providing timeout settings and authentication support, and also verifies the
+// remote API version.
 func NewV2Repository(repoInfo *registry.RepositoryInfo, endpoint registry.APIEndpoint, metaHeaders http.Header, authConfig *cliconfig.AuthConfig) (distribution.Repository, error) {
 	ctx := context.Background()
 

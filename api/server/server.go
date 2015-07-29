@@ -364,14 +364,8 @@ func (s *Server) getImagesJSON(version version.Version, w http.ResponseWriter, r
 		return err
 	}
 
-	imagesConfig := graph.ImagesConfig{
-		Filters: r.Form.Get("filters"),
-		// FIXME this parameter could just be a match filter
-		Filter: r.Form.Get("filter"),
-		All:    boolValue(r, "all"),
-	}
-
-	images, err := s.daemon.Repositories().Images(&imagesConfig)
+	// FIXME: The filter parameter could just be a match filter
+	images, err := s.daemon.Repositories().Images(r.Form.Get("filters"), r.Form.Get("filter"), boolValue(r, "all"))
 	if err != nil {
 		return err
 	}
@@ -785,23 +779,17 @@ func (s *Server) postImagesCreate(version version.Version, w http.ResponseWriter
 		}
 
 		src := r.Form.Get("fromSrc")
-		imageImportConfig := &graph.ImageImportConfig{
-			Changes:   r.Form["changes"],
-			InConfig:  r.Body,
-			OutStream: output,
-		}
 
 		// 'err' MUST NOT be defined within this block, we need any error
 		// generated from the download to be available to the output
 		// stream processing below
 		var newConfig *runconfig.Config
-		newConfig, err = builder.BuildFromConfig(s.daemon, &runconfig.Config{}, imageImportConfig.Changes)
+		newConfig, err = builder.BuildFromConfig(s.daemon, &runconfig.Config{}, r.Form["changes"])
 		if err != nil {
 			return err
 		}
-		imageImportConfig.ContainerConfig = newConfig
 
-		err = s.daemon.Repositories().Import(src, repo, tag, imageImportConfig)
+		err = s.daemon.Repositories().Import(src, repo, tag, r.Body, output, newConfig)
 	}
 	if err != nil {
 		if !output.Flushed() {
@@ -909,14 +897,14 @@ func (s *Server) getImagesGet(version version.Version, w http.ResponseWriter, r 
 	w.Header().Set("Content-Type", "application/x-tar")
 
 	output := ioutils.NewWriteFlusher(w)
-	imageExportConfig := &graph.ImageExportConfig{Outstream: output}
+	var names []string
 	if name, ok := vars["name"]; ok {
-		imageExportConfig.Names = []string{name}
+		names = []string{name}
 	} else {
-		imageExportConfig.Names = r.Form["names"]
+		names = r.Form["names"]
 	}
 
-	if err := s.daemon.Repositories().ImageExport(imageExportConfig); err != nil {
+	if err := s.daemon.Repositories().ImageExport(names, output); err != nil {
 		if !output.Flushed() {
 			return err
 		}
