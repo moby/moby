@@ -823,20 +823,12 @@ func (daemon *Daemon) Stats(c *Container) (*execdriver.ResourceStats, error) {
 	return daemon.execDriver.Stats(c.ID)
 }
 
-func (daemon *Daemon) SubscribeToContainerStats(name string) (chan interface{}, error) {
-	c, err := daemon.Get(name)
-	if err != nil {
-		return nil, err
-	}
+func (daemon *Daemon) SubscribeToContainerStats(c *Container) (chan interface{}, error) {
 	ch := daemon.statsCollector.collect(c)
 	return ch, nil
 }
 
-func (daemon *Daemon) UnsubscribeToContainerStats(name string, ch chan interface{}) error {
-	c, err := daemon.Get(name)
-	if err != nil {
-		return err
-	}
+func (daemon *Daemon) UnsubscribeToContainerStats(c *Container, ch chan interface{}) error {
 	daemon.statsCollector.unsubscribe(c, ch)
 	return nil
 }
