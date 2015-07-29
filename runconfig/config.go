@@ -173,9 +173,15 @@ type ContainerConfigWrapper struct {
 func (w *ContainerConfigWrapper) GetHostConfig() *HostConfig {
 	hc := w.HostConfig
 
-	if hc == nil && w.InnerHostConfig != nil {
+	if hc == nil {
 		hc = w.InnerHostConfig
-	} else if w.InnerHostConfig != nil {
+	} else {
+		if len(hc.Binds) > 0 && len(w.InnerHostConfig.Binds) == 0 {
+			w.InnerHostConfig.Binds = hc.Binds
+		}
+		if hc.LxcConf != nil && w.InnerHostConfig.LxcConf == nil {
+			w.InnerHostConfig.LxcConf = hc.LxcConf
+		}
 		if hc.Memory != 0 && w.InnerHostConfig.Memory == 0 {
 			w.InnerHostConfig.Memory = hc.Memory
 		}
@@ -185,11 +191,45 @@ func (w *ContainerConfigWrapper) GetHostConfig() *HostConfig {
 		if hc.CPUShares != 0 && w.InnerHostConfig.CPUShares == 0 {
 			w.InnerHostConfig.CPUShares = hc.CPUShares
 		}
+		if hc.CpusetCpus != "" && w.InnerHostConfig.CpusetCpus == "" {
+			w.InnerHostConfig.CpusetCpus = hc.CpusetCpus
+		}
+		if hc.PortBindings != nil && w.InnerHostConfig.PortBindings == nil {
+			w.InnerHostConfig.PortBindings = hc.PortBindings
+		}
+		if hc.Privileged != false && w.InnerHostConfig.Privileged == false {
+			w.InnerHostConfig.Privileged = hc.Privileged
+		}
+		if len(hc.DNS) > 0 && len(w.InnerHostConfig.DNS) == 0 {
+			w.InnerHostConfig.DNS = hc.DNS
+		}
+		if len(hc.DNSSearch) > 0 && len(w.InnerHostConfig.DNSSearch) == 0 {
+			w.InnerHostConfig.DNSSearch = hc.DNSSearch
+		}
+		if len(hc.ExtraHosts) > 0 && len(w.InnerHostConfig.ExtraHosts) == 0 {
+			w.InnerHostConfig.ExtraHosts = hc.ExtraHosts
+		}
+		if len(hc.VolumesFrom) > 0 && len(w.InnerHostConfig.VolumesFrom) == 0 {
+			w.InnerHostConfig.VolumesFrom = hc.VolumesFrom
+		}
+		if len(hc.Devices) > 0 && len(w.InnerHostConfig.Devices) == 0 {
+			w.InnerHostConfig.Devices = hc.Devices
+		}
+		if hc.CapAdd != nil && w.InnerHostConfig.CapAdd == nil {
+			w.InnerHostConfig.CapAdd = hc.CapAdd
+		}
+		if hc.CapDrop != nil && w.InnerHostConfig.CapDrop == nil {
+			w.InnerHostConfig.CapDrop = hc.CapDrop
+		}
+		if hc.RestartPolicy.Name != "" && w.InnerHostConfig.RestartPolicy.Name == "" {
+			w.InnerHostConfig.RestartPolicy.Name = hc.RestartPolicy.Name
+			w.InnerHostConfig.RestartPolicy.MaximumRetryCount = hc.RestartPolicy.MaximumRetryCount
+		}
 
 		hc = w.InnerHostConfig
 	}
 
-	if hc != nil && w.Cpuset != "" && hc.CpusetCpus == "" {
+	if w.Cpuset != "" && hc.CpusetCpus == "" {
 		hc.CpusetCpus = w.Cpuset
 	}
 
@@ -204,6 +244,12 @@ func DecodeContainerConfig(src io.Reader) (*Config, *HostConfig, error) {
 	decoder := json.NewDecoder(src)
 
 	var w ContainerConfigWrapper
+
+	// Decode will assign type initial values to these absent fields, but for
+	// some json fields, type initial values have some meaning, we need to assign
+	// real default values before Decode them.
+	w.InnerHostConfig = &HostConfig{}
+	w.InnerHostConfig.MemorySwappiness = -1
 	if err := decoder.Decode(&w); err != nil {
 		return nil, nil, err
 	}

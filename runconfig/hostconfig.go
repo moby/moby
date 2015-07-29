@@ -314,6 +314,12 @@ func DecodeHostConfig(src io.Reader) (*HostConfig, error) {
 	decoder := json.NewDecoder(src)
 
 	var w ContainerConfigWrapper
+
+	// Decode will assign type initial values to these absent fields, but for
+	// some json fields, type initial values have some meaning, we need to assign
+	// real default values before Decode them.
+	w.InnerHostConfig = &HostConfig{}
+	w.InnerHostConfig.MemorySwappiness = -1
 	if err := decoder.Decode(&w); err != nil {
 		return nil, err
 	}
