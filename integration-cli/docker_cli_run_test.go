@@ -2625,6 +2625,7 @@ func (s *DockerTrustSuite) TestUntrustedRun(c *check.C) {
 }
 
 func (s *DockerTrustSuite) TestRunWhenCertExpired(c *check.C) {
+	c.Skip("Currently changes system time, causing instability")
 	repoName := s.setupTrustedImage(c, "trusted-run-expired")
 
 	// Certificates have 10 years of expiration
