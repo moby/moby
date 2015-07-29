@@ -34,7 +34,6 @@ override_dh_installudev:
 
 override_dh_install:
 	dh_install
-	dh_apparmor --profile-name=docker -pdocker-engine
 	dh_apparmor --profile-name=docker-engine -pdocker-engine
 
 %:
