@@ -11,6 +11,7 @@ import (
 	"github.com/docker/docker/pkg/graphdb"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/pkg/truncindex"
+	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/volume"
 	"github.com/docker/docker/volume/drivers"
 	"github.com/docker/docker/volume/local"
@@ -513,4 +514,36 @@ func initDaemonForVolumesTest(tmp string) (*Daemon, error) {
 	volumedrivers.Register(volumesDriver, volumesDriver.Name())
 
 	return daemon, nil
+}
+
+func TestParseSecurityOpt(t *testing.T) {
+	container := &Container{}
+	config := &runconfig.HostConfig{}
+
+	// test apparmor
+	config.SecurityOpt = []string{"apparmor:test_profile"}
+	if err := parseSecurityOpt(container, config); err != nil {
+		t.Fatalf("Unexpected parseSecurityOpt error: %v", err)
+	}
+	if container.AppArmorProfile != "test_profile" {
+		t.Fatalf("Unexpected AppArmorProfile, expected: \"test_profile\", got %q", container.AppArmorProfile)
+	}
+
+	// test valid label
+	config.SecurityOpt = []string{"label:user:USER"}
+	if err := parseSecurityOpt(container, config); err != nil {
+		t.Fatalf("Unexpected parseSecurityOpt error: %v", err)
+	}
+
+	// test invalid label
+	config.SecurityOpt = []string{"label"}
+	if err := parseSecurityOpt(container, config); err == nil {
+		t.Fatal("Expected parseSecurityOpt error, got nil")
+	}
+
+	// test invalid opt
+	config.SecurityOpt = []string{"test"}
+	if err := parseSecurityOpt(container, config); err == nil {
+		t.Fatal("Expected parseSecurityOpt error, got nil")
+	}
 }
