@@ -14,9 +14,8 @@ func GenerateRandomAlphaOnlyString(n int) string {
 	// make a really long string
 	letters := []byte("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
 	b := make([]byte, n)
-	r := rand.New(random.NewSource())
 	for i := range b {
-		b[i] = letters[r.Intn(len(letters))]
+		b[i] = letters[random.Rand.Intn(len(letters))]
 	}
 	return string(b)
 }

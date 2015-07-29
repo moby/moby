@@ -2,7 +2,6 @@ package namesgenerator
 
 import (
 	"fmt"
-	"math/rand"
 
 	"github.com/docker/docker/pkg/random"
 )
@@ -354,14 +353,13 @@ var (
 		// Ada Yonath - an Israeli crystallographer, the first woman from the Middle East to win a Nobel prize in the sciences. https://en.wikipedia.org/wiki/Ada_Yonath
 		"yonath",
 	}
-
-	rnd = rand.New(random.NewSource())
 )
 
 // GetRandomName generates a random name from the list of adjectives and surnames in this package
 // formatted as "adjective_surname". For example 'focused_turing'. If retry is non-zero, a random
 // integer between 0 and 10 will be added to the end of the name, e.g `focused_turing3`
 func GetRandomName(retry int) string {
+	rnd := random.Rand
 begin:
 	name := fmt.Sprintf("%s_%s", left[rnd.Intn(len(left))], right[rnd.Intn(len(right))])
 	if name == "boring_wozniak" /* Steve Wozniak is not boring */ {
