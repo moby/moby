@@ -331,7 +331,7 @@ func (a *Driver) Diff(id, parent string) (archive.Archive, error) {
 }
 
 func (a *Driver) applyDiff(id string, diff archive.ArchiveReader) error {
-	return chrootarchive.Untar(diff, path.Join(a.rootPath(), "diff", id), nil)
+	return chrootarchive.UntarUncompressed(diff, path.Join(a.rootPath(), "diff", id), nil)
 }
 
 // DiffSize calculates the changes between the specified id
