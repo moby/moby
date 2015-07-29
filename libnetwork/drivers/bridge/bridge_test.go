@@ -54,6 +54,17 @@ func TestCreateFullOptions(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create bridge: %v", err)
 	}
+
+	// Verify the IP address allocated for the endpoint belongs to the container network
+	epOptions := make(map[string]interface{})
+	te := &testEndpoint{ifaces: []*testInterface{}}
+	err = d.CreateEndpoint("dummy", "ep1", te, epOptions)
+	if err != nil {
+		t.Fatalf("Failed to create an endpoint : %s", err.Error())
+	}
+	if !cnw.Contains(te.Interfaces()[0].Address().IP) {
+		t.Fatalf("endpoint got assigned address outside of container network(%s): %s", cnw.String(), te.Interfaces()[0].Address())
+	}
 }
 
 func TestCreate(t *testing.T) {
