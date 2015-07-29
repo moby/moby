@@ -107,7 +107,7 @@ func NewGraph(root string, driver graphdriver.Driver) (*Graph, error) {
 		return nil, err
 	}
 	// Create the root directory if it doesn't exists
-	if err := system.MkdirAll(root, 0700); err != nil && !os.IsExist(err) {
+	if err := system.MkdirAll(root, 0700); err != nil {
 		return nil, err
 	}
 

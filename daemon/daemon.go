@@ -582,7 +582,7 @@ func NewDaemon(config *Config, registryService *registry.Service) (daemon *Daemo
 	}
 	config.Root = realRoot
 	// Create the root directory if it doesn't exists
-	if err := system.MkdirAll(config.Root, 0700); err != nil && !os.IsExist(err) {
+	if err := system.MkdirAll(config.Root, 0700); err != nil {
 		return nil, err
 	}
 
@@ -634,7 +634,7 @@ func NewDaemon(config *Config, registryService *registry.Service) (daemon *Daemo
 
 	daemonRepo := filepath.Join(config.Root, "containers")
 
-	if err := system.MkdirAll(daemonRepo, 0700); err != nil && !os.IsExist(err) {
+	if err := system.MkdirAll(daemonRepo, 0700); err != nil {
 		return nil, err
 	}
 
@@ -661,7 +661,7 @@ func NewDaemon(config *Config, registryService *registry.Service) (daemon *Daemo
 
 	trustDir := filepath.Join(config.Root, "trust")
 
-	if err := system.MkdirAll(trustDir, 0700); err != nil && !os.IsExist(err) {
+	if err := system.MkdirAll(trustDir, 0700); err != nil {
 		return nil, err
 	}
 	trustService, err := trust.NewTrustStore(trustDir)

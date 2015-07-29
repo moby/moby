@@ -159,7 +159,7 @@ func (d *Driver) Get(id, mountLabel string) (string, error) {
 	mp := path.Join(d.home, "mnt", id)
 
 	// Create the target directories if they don't exist
-	if err := os.MkdirAll(mp, 0755); err != nil && !os.IsExist(err) {
+	if err := os.MkdirAll(mp, 0755); err != nil {
 		return "", err
 	}
 
@@ -169,7 +169,7 @@ func (d *Driver) Get(id, mountLabel string) (string, error) {
 	}
 
 	rootFs := path.Join(mp, "rootfs")
-	if err := os.MkdirAll(rootFs, 0755); err != nil && !os.IsExist(err) {
+	if err := os.MkdirAll(rootFs, 0755); err != nil {
 		d.DeviceSet.UnmountDevice(id)
 		return "", err
 	}
