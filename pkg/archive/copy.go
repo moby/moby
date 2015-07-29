@@ -28,8 +28,12 @@ var (
 // path already ends in a `.` path segment, then another is not added. If the
 // clean path already ends in a path separator, then another is not added.
 func PreserveTrailingDotOrSeparator(cleanedPath, originalPath string) string {
-	if !SpecifiesCurrentDir(cleanedPath) && SpecifiesCurrentDir(originalPath) {
-		if !HasTrailingPathSeparator(cleanedPath) {
+	// Ensure paths are in platform semantics
+	cleanedPath = normalizePath(cleanedPath)
+	originalPath = normalizePath(originalPath)
+
+	if !specifiesCurrentDir(cleanedPath) && specifiesCurrentDir(originalPath) {
+		if !hasTrailingPathSeparator(cleanedPath) {
 			// Add a separator if it doesn't already end with one (a cleaned
 			// path would only end in a separator if it is the root).
 			cleanedPath += string(filepath.Separator)
@@ -37,29 +41,29 @@ func PreserveTrailingDotOrSeparator(cleanedPath, originalPath string) string {
 		cleanedPath += "."
 	}
 
-	if !HasTrailingPathSeparator(cleanedPath) && HasTrailingPathSeparator(originalPath) {
+	if !hasTrailingPathSeparator(cleanedPath) && hasTrailingPathSeparator(originalPath) {
 		cleanedPath += string(filepath.Separator)
 	}
 
 	return cleanedPath
 }
 
-// AssertsDirectory returns whether the given path is
+// assertsDirectory returns whether the given path is
 // asserted to be a directory, i.e., the path ends with
 // a trailing '/' or `/.`, assuming a path separator of `/`.
-func AssertsDirectory(path string) bool {
-	return HasTrailingPathSeparator(path) || SpecifiesCurrentDir(path)
+func assertsDirectory(path string) bool {
+	return hasTrailingPathSeparator(path) || specifiesCurrentDir(path)
 }
 
-// HasTrailingPathSeparator returns whether the given
+// hasTrailingPathSeparator returns whether the given
 // path ends with the system's path separator character.
-func HasTrailingPathSeparator(path string) bool {
+func hasTrailingPathSeparator(path string) bool {
 	return len(path) > 0 && os.IsPathSeparator(path[len(path)-1])
 }
 
-// SpecifiesCurrentDir returns whether the given path specifies
+// specifiesCurrentDir returns whether the given path specifies
 // a "current directory", i.e., the last path segment is `.`.
-func SpecifiesCurrentDir(path string) bool {
+func specifiesCurrentDir(path string) bool {
 	return filepath.Base(path) == "."
 }
 
@@ -67,9 +71,9 @@ func SpecifiesCurrentDir(path string) bool {
 // basename by first cleaning the path but preserves a trailing "." if the
 // original path specified the current directory.
 func SplitPathDirEntry(path string) (dir, base string) {
-	cleanedPath := filepath.Clean(path)
+	cleanedPath := filepath.Clean(normalizePath(path))
 
-	if SpecifiesCurrentDir(path) {
+	if specifiesCurrentDir(path) {
 		cleanedPath += string(filepath.Separator) + "."
 	}
 
@@ -90,6 +94,7 @@ func TarResource(sourceInfo CopyInfo) (content Archive, err error) {
 // TarResourceRebase is like TarResource but renames the first path element of
 // items in the resulting tar archive to match the given rebaseName if not "".
 func TarResourceRebase(sourcePath, rebaseName string) (content Archive, err error) {
+	sourcePath = normalizePath(sourcePath)
 	if _, err = os.Lstat(sourcePath); err != nil {
 		// Catches the case where the source does not exist or is not a
 		// directory if asserted to be a directory, as this also causes an
@@ -132,6 +137,7 @@ type CopyInfo struct {
 func CopyInfoSourcePath(path string) (CopyInfo, error) {
 	// Split the given path into its Directory and Base components. We will
 	// evaluate symlinks in the directory component then append the base.
+	path = normalizePath(path)
 	dirPath, basePath := filepath.Split(path)
 
 	resolvedDirPath, err := filepath.EvalSymlinks(dirPath)
@@ -144,7 +150,7 @@ func CopyInfoSourcePath(path string) (CopyInfo, error) {
 	resolvedPath := resolvedDirPath + string(filepath.Separator) + basePath
 
 	var rebaseName string
-	if HasTrailingPathSeparator(path) && filepath.Base(path) != filepath.Base(resolvedPath) {
+	if hasTrailingPathSeparator(path) && filepath.Base(path) != filepath.Base(resolvedPath) {
 		// In the case where the path had a trailing separator and a symlink
 		// evaluation has changed the last path component, we will need to
 		// rebase the name in the archive that is being copied to match the
@@ -170,6 +176,7 @@ func CopyInfoSourcePath(path string) (CopyInfo, error) {
 // operation. The given path should be an absolute local path.
 func CopyInfoDestinationPath(path string) (info CopyInfo, err error) {
 	maxSymlinkIter := 10 // filepath.EvalSymlinks uses 255, but 10 already seems like a lot.
+	path = normalizePath(path)
 	originalPath := path
 
 	stat, err := os.Lstat(path)
@@ -247,6 +254,10 @@ func CopyInfoDestinationPath(path string) (info CopyInfo, err error) {
 // described by dstInfo. Returns the possibly modified content archive along
 // with the path to the destination directory which it should be extracted to.
 func PrepareArchiveCopy(srcContent Reader, srcInfo, dstInfo CopyInfo) (dstDir string, content Archive, err error) {
+	// Ensure in platform semantics
+	srcInfo.Path = normalizePath(srcInfo.Path)
+	dstInfo.Path = normalizePath(dstInfo.Path)
+
 	// Separate the destination path between its directory and base
 	// components in case the source archive contents need to be rebased.
 	dstDir, dstBase := SplitPathDirEntry(dstInfo.Path)
@@ -276,7 +287,7 @@ func PrepareArchiveCopy(srcContent Reader, srcInfo, dstInfo CopyInfo) (dstDir st
 		// The source content entries will have to be renamed to have a
 		// basename which matches the destination path's basename.
 		return dstDir, rebaseArchiveEntries(srcContent, srcBase, dstBase), nil
-	case AssertsDirectory(dstInfo.Path):
+	case assertsDirectory(dstInfo.Path):
 		// The destination does not exist and is asserted to be created as a
 		// directory, but the source content is not a directory. This is an
 		// error condition since you cannot create a directory from a file
@@ -297,7 +308,7 @@ func PrepareArchiveCopy(srcContent Reader, srcInfo, dstInfo CopyInfo) (dstDir st
 // rebaseArchiveEntries rewrites the given srcContent archive replacing
 // an occurance of oldBase with newBase at the beginning of entry names.
 func rebaseArchiveEntries(srcContent Reader, oldBase, newBase string) Archive {
-	if oldBase == "/" {
+	if oldBase == string(os.PathSeparator) {
 		// If oldBase specifies the root directory, use an empty string as
 		// oldBase instead so that newBase doesn't replace the path separator
 		// that all paths will start with.
@@ -349,6 +360,10 @@ func CopyResource(srcPath, dstPath string) error {
 		err     error
 	)
 
+	// Ensure in platform semantics
+	srcPath = normalizePath(srcPath)
+	dstPath = normalizePath(dstPath)
+
 	// Clean the source and destination paths.
 	srcPath = PreserveTrailingDotOrSeparator(filepath.Clean(srcPath), srcPath)
 	dstPath = PreserveTrailingDotOrSeparator(filepath.Clean(dstPath), dstPath)
@@ -371,7 +386,7 @@ func CopyResource(srcPath, dstPath string) error {
 func CopyTo(content Reader, srcInfo CopyInfo, dstPath string) error {
 	// The destination path need not exist, but CopyInfoDestinationPath will
 	// ensure that at least the parent directory exists.
-	dstInfo, err := CopyInfoDestinationPath(dstPath)
+	dstInfo, err := CopyInfoDestinationPath(normalizePath(dstPath))
 	if err != nil {
 		return err
 	}
