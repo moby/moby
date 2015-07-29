@@ -114,8 +114,9 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	}
 
 	// Resolve the FROM lines in the Dockerfile to trusted digest references
-	// using Notary.
-	newDockerfile, err := rewriteDockerfileFrom(filepath.Join(contextDir, relDockerfile), cli.trustedReference)
+	// using Notary. On a successful build, we must tag the resolved digests
+	// to the original name specified in the Dockerfile.
+	newDockerfile, resolvedTags, err := rewriteDockerfileFrom(filepath.Join(contextDir, relDockerfile), cli.trustedReference)
 	if err != nil {
 		return fmt.Errorf("unable to process Dockerfile: %v", err)
 	}
@@ -290,7 +291,20 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 		}
 		return Cli.StatusError{Status: jerr.Message, StatusCode: jerr.Code}
 	}
-	return err
+
+	if err != nil {
+		return err
+	}
+
+	// Since the build was successful, now we must tag any of the resolved
+	// images from the above Dockerfile rewrite.
+	for _, resolved := range resolvedTags {
+		if err := cli.tagTrusted(resolved.repoInfo, resolved.digestRef, resolved.tagRef); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // getDockerfileRelPath uses the given context directory for a `docker build`
@@ -486,14 +500,21 @@ func (td *trustedDockerfile) Close() error {
 	return os.Remove(td.File.Name())
 }
 
+// resolvedTag records the repository, tag, and resolved digest reference
+// from a Dockerfile rewrite.
+type resolvedTag struct {
+	repoInfo          *registry.RepositoryInfo
+	digestRef, tagRef registry.Reference
+}
+
 // rewriteDockerfileFrom rewrites the given Dockerfile by resolving images in
 // "FROM <image>" instructions to a digest reference. `translator` is a
 // function that takes a repository name and tag reference and returns a
 // trusted digest reference.
-func rewriteDockerfileFrom(dockerfileName string, translator func(string, registry.Reference) (registry.Reference, error)) (newDockerfile *trustedDockerfile, err error) {
+func rewriteDockerfileFrom(dockerfileName string, translator func(string, registry.Reference) (registry.Reference, error)) (newDockerfile *trustedDockerfile, resolvedTags []*resolvedTag, err error) {
 	dockerfile, err := os.Open(dockerfileName)
 	if err != nil {
-		return nil, fmt.Errorf("unable to open Dockerfile: %v", err)
+		return nil, nil, fmt.Errorf("unable to open Dockerfile: %v", err)
 	}
 	defer dockerfile.Close()
 
@@ -502,7 +523,7 @@ func rewriteDockerfileFrom(dockerfileName string, translator func(string, regist
 	// Make a tempfile to store the rewritten Dockerfile.
 	tempFile, err := ioutil.TempFile("", "trusted-dockerfile-")
 	if err != nil {
-		return nil, fmt.Errorf("unable to make temporary trusted Dockerfile: %v", err)
+		return nil, nil, fmt.Errorf("unable to make temporary trusted Dockerfile: %v", err)
 	}
 
 	trustedFile := &trustedDockerfile{
@@ -528,21 +549,32 @@ func rewriteDockerfileFrom(dockerfileName string, translator func(string, regist
 			if tag == "" {
 				tag = tags.DEFAULTTAG
 			}
+
+			repoInfo, err := registry.ParseRepositoryInfo(repo)
+			if err != nil {
+				return nil, nil, fmt.Errorf("unable to parse repository info: %v", err)
+			}
+
 			ref := registry.ParseReference(tag)
 
 			if !ref.HasDigest() && isTrusted() {
 				trustedRef, err := translator(repo, ref)
 				if err != nil {
-					return nil, err
+					return nil, nil, err
 				}
 
 				line = dockerfileFromLinePattern.ReplaceAllLiteralString(line, fmt.Sprintf("FROM %s", trustedRef.ImageName(repo)))
+				resolvedTags = append(resolvedTags, &resolvedTag{
+					repoInfo:  repoInfo,
+					digestRef: trustedRef,
+					tagRef:    ref,
+				})
 			}
 		}
 
 		n, err := fmt.Fprintln(tempFile, line)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 
 		trustedFile.size += int64(n)
@@ -550,7 +582,7 @@ func rewriteDockerfileFrom(dockerfileName string, translator func(string, regist
 
 	tempFile.Seek(0, os.SEEK_SET)
 
-	return trustedFile, scanner.Err()
+	return trustedFile, resolvedTags, scanner.Err()
 }
 
 // replaceDockerfileTarWrapper wraps the given input tar archive stream and

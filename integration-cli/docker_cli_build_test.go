@@ -5370,8 +5370,15 @@ func (s *DockerTrustSuite) TestTrustedBuild(c *check.C) {
 		c.Fatalf("Unexpected output on trusted build:\n%s", out)
 	}
 
-	// Build command does not create untrusted tag
-	//dockerCmd(c, "rmi", repoName)
+	// We should also have a tag reference for the image.
+	if out, exitCode := dockerCmd(c, "inspect", repoName); exitCode != 0 {
+		c.Fatalf("unexpected exit code inspecting image %q: %d: %s", repoName, exitCode, out)
+	}
+
+	// We should now be able to remove the tag reference.
+	if out, exitCode := dockerCmd(c, "rmi", repoName); exitCode != 0 {
+		c.Fatalf("unexpected exit code inspecting image %q: %d: %s", repoName, exitCode, out)
+	}
 }
 
 func (s *DockerTrustSuite) TestTrustedBuildUntrustedTag(c *check.C) {
