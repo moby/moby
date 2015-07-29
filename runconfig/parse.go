@@ -362,7 +362,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		CPUQuota:         *flCPUQuota,
 		BlkioWeight:      *flBlkioWeight,
 		OomKillDisable:   *flOomKillDisable,
-		MemorySwappiness: swappiness,
+		MemorySwappiness: flSwappiness,
 		Privileged:       *flPrivileged,
 		PortBindings:     portBindings,
 		Links:            flLinks.GetAll(),

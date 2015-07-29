@@ -280,7 +280,11 @@ func populateCommand(c *Container, env []string) error {
 		BlkioWeight:      c.hostConfig.BlkioWeight,
 		Rlimits:          rlimits,
 		OomKillDisable:   c.hostConfig.OomKillDisable,
-		MemorySwappiness: c.hostConfig.MemorySwappiness,
+		MemorySwappiness: -1,
+	}
+
+	if c.hostConfig.MemorySwappiness != nil {
+		resources.MemorySwappiness = *c.hostConfig.MemorySwappiness
 	}
 
 	processConfig := execdriver.ProcessConfig{
