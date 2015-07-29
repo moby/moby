@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/distribution/uuid"
 	apiserver "github.com/docker/docker/api/server"
 	"github.com/docker/docker/autogen/dockerversion"
 	"github.com/docker/docker/cli"
@@ -154,6 +155,9 @@ func getGlobalFlag() (globalFlag *flag.Flag) {
 
 // CmdDaemon is the daemon command, called the raw arguments after `docker daemon`.
 func (cli *DaemonCli) CmdDaemon(args ...string) error {
+	// warn from uuid package when running the daemon
+	uuid.Loggerf = logrus.Warnf
+
 	if *flDaemon {
 		// allow legacy forms `docker -D -d` and `docker -d -D`
 		logrus.Warn("please use 'docker daemon' instead.")
