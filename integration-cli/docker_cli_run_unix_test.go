@@ -397,8 +397,10 @@ func (s *DockerSuite) TestRunInvalidCpusetCpusFlagValue(c *check.C) {
 	}
 	out, _, err := dockerCmdWithError("run", "--cpuset-cpus", strconv.Itoa(invalid), "busybox", "true")
 	c.Assert(err, check.NotNil)
-	expected := fmt.Sprintf("Error response from daemon: Requested CPUs are not available - requested %s, available: %s.\n", strconv.Itoa(invalid), sysInfo.Cpus)
-	c.Assert(out, check.Equals, expected, check.Commentf("Expected output to contain %q, got %q", expected, out))
+	expected := fmt.Sprintf("Error response from daemon: Requested CPUs are not available - requested %s, available: %s", strconv.Itoa(invalid), sysInfo.Cpus)
+	if !(strings.Contains(out, expected)) {
+		c.Fatalf("Expected output to contain %q, got %q", expected, out)
+	}
 }
 
 func (s *DockerSuite) TestRunInvalidCpusetMemsFlagValue(c *check.C) {
@@ -416,8 +418,10 @@ func (s *DockerSuite) TestRunInvalidCpusetMemsFlagValue(c *check.C) {
 	}
 	out, _, err := dockerCmdWithError("run", "--cpuset-mems", strconv.Itoa(invalid), "busybox", "true")
 	c.Assert(err, check.NotNil)
-	expected := fmt.Sprintf("Error response from daemon: Requested memory nodes are not available - requested %s, available: %s.\n", strconv.Itoa(invalid), sysInfo.Mems)
-	c.Assert(out, check.Equals, expected, check.Commentf("Expected output to contain %q, got %q", expected, out))
+	expected := fmt.Sprintf("Error response from daemon: Requested memory nodes are not available - requested %s, available: %s", strconv.Itoa(invalid), sysInfo.Mems)
+	if !(strings.Contains(out, expected)) {
+		c.Fatalf("Expected output to contain %q, got %q", expected, out)
+	}
 }
 
 func (s *DockerSuite) TestRunInvalidCPUShares(c *check.C) {

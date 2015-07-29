@@ -6,9 +6,11 @@ import (
 	"net/url"
 	"os"
 	"runtime"
+	"strings"
 
 	"github.com/Sirupsen/logrus"
 	Cli "github.com/docker/docker/cli"
+	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/promise"
 	"github.com/docker/docker/pkg/signal"
@@ -36,6 +38,29 @@ func (cid *cidFile) Write(id string) error {
 	return nil
 }
 
+// if container start fails with 'command not found' error, return 127
+// if container start fails with 'command cannot be invoked' error, return 126
+// return 125 for generic docker daemon failures
+func runStartContainerErr(err error) error {
+	trimmedErr := strings.Trim(err.Error(), "Error response from daemon: ")
+	statusError := Cli.StatusError{}
+	derrCmdNotFound := derr.ErrorCodeCmdNotFound.Message()
+	derrCouldNotInvoke := derr.ErrorCodeCmdCouldNotBeInvoked.Message()
+	derrNoSuchImage := derr.ErrorCodeNoSuchImageHash.Message()
+	derrNoSuchImageTag := derr.ErrorCodeNoSuchImageTag.Message()
+	switch trimmedErr {
+	case derrCmdNotFound:
+		statusError = Cli.StatusError{StatusCode: 127}
+	case derrCouldNotInvoke:
+		statusError = Cli.StatusError{StatusCode: 126}
+	case derrNoSuchImage, derrNoSuchImageTag:
+		statusError = Cli.StatusError{StatusCode: 125}
+	default:
+		statusError = Cli.StatusError{StatusCode: 125}
+	}
+	return statusError
+}
+
 // CmdRun runs a command in a new container.
 //
 // Usage: docker run [OPTIONS] IMAGE [COMMAND] [ARG...]
@@ -60,7 +85,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 	// just in case the Parse does not exit
 	if err != nil {
 		cmd.ReportError(err.Error(), true)
-		os.Exit(1)
+		os.Exit(125)
 	}
 
 	if len(hostConfig.DNS) > 0 {
@@ -115,7 +140,8 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 
 	createResponse, err := cli.createContainer(config, hostConfig, hostConfig.ContainerIDFile, *flName)
 	if err != nil {
-		return err
+		cmd.ReportError(err.Error(), true)
+		return runStartContainerErr(err)
 	}
 	if sigProxy {
 		sigc := cli.forwardAllSignals(createResponse.ID)
@@ -199,8 +225,9 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 	}()
 
 	//start the container
-	if _, _, err = readBody(cli.call("POST", "/containers/"+createResponse.ID+"/start", nil, nil)); err != nil {
-		return err
+	if _, _, err := readBody(cli.call("POST", "/containers/"+createResponse.ID+"/start", nil, nil)); err != nil {
+		cmd.ReportError(err.Error(), false)
+		return runStartContainerErr(err)
 	}
 
 	if (config.AttachStdin || config.AttachStdout || config.AttachStderr) && config.Tty && cli.isTerminalOut {
@@ -230,7 +257,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		// Autoremove: wait for the container to finish, retrieve
 		// the exit code and remove the container
 		if _, _, err := readBody(cli.call("POST", "/containers/"+createResponse.ID+"/wait", nil, nil)); err != nil {
-			return err
+			return runStartContainerErr(err)
 		}
 		if _, status, err = getExitCode(cli, createResponse.ID); err != nil {
 			return err

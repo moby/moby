@@ -599,15 +599,6 @@ var (
 		HTTPStatusCode: http.StatusInternalServerError,
 	})
 
-	// ErrorCodeCantStart is generated when an error occurred while
-	// trying to start a container.
-	ErrorCodeCantStart = errcode.Register(errGroup, errcode.ErrorDescriptor{
-		Value:          "CANTSTART",
-		Message:        "Cannot start container %s: %s",
-		Description:    "There was an error while trying to start a container",
-		HTTPStatusCode: http.StatusInternalServerError,
-	})
-
 	// ErrorCodeCantRestart is generated when an error occurred while
 	// trying to restart a container.
 	ErrorCodeCantRestart = errcode.Register(errGroup, errcode.ErrorDescriptor{
@@ -928,6 +919,33 @@ var (
 		Value:          "VOLUME_NAME_TAKEN",
 		Message:        "A volume name %s already exists with the %s driver. Choose a different volume name.",
 		Description:    "An attempt to create a volume using a driver but the volume already exists with a different driver",
+		HTTPStatusCode: http.StatusInternalServerError,
+	})
+
+	// ErrorCodeCmdNotFound is generated when contained cmd can't start,
+	// contained command not found error, exit code 127
+	ErrorCodeCmdNotFound = errcode.Register(errGroup, errcode.ErrorDescriptor{
+		Value:          "CMDNOTFOUND",
+		Message:        "Contained command not found or does not exist.",
+		Description:    "Command could not be found, command does not exist",
+		HTTPStatusCode: http.StatusInternalServerError,
+	})
+
+	// ErrorCodeCmdCouldNotBeInvoked is generated when contained cmd can't start,
+	// contained command permission denied error, exit code 126
+	ErrorCodeCmdCouldNotBeInvoked = errcode.Register(errGroup, errcode.ErrorDescriptor{
+		Value:          "CMDCOULDNOTBEINVOKED",
+		Message:        "Contained command could not be invoked.",
+		Description:    "Permission denied, cannot invoke command",
+		HTTPStatusCode: http.StatusInternalServerError,
+	})
+
+	// ErrorCodeCantStart is generated when contained cmd can't start,
+	// for any reason other than above 2 errors
+	ErrorCodeCantStart = errcode.Register(errGroup, errcode.ErrorDescriptor{
+		Value:          "CANTSTART",
+		Message:        "Cannot start container %s: %s",
+		Description:    "There was an error while trying to start a container",
 		HTTPStatusCode: http.StatusInternalServerError,
 	})
 )

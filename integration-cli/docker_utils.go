@@ -815,6 +815,17 @@ func dockerCmdInDirWithTimeout(timeout time.Duration, path string, args ...strin
 	return integration.DockerCmdInDirWithTimeout(dockerBinary, timeout, path, args...)
 }
 
+// find the State.ExitCode in container metadata
+func findContainerExitCode(c *check.C, name string, vargs ...string) string {
+	args := append(vargs, "inspect", "--format='{{ .State.ExitCode }} {{ .State.Error }}'", name)
+	cmd := exec.Command(dockerBinary, args...)
+	out, _, err := runCommandWithOutput(cmd)
+	if err != nil {
+		c.Fatal(err, out)
+	}
+	return out
+}
+
 func findContainerIP(c *check.C, id string, network string) string {
 	out, _ := dockerCmd(c, "inspect", fmt.Sprintf("--format='{{ .NetworkSettings.Networks.%s.IPAddress }}'", network), id)
 	return strings.Trim(out, " \r\n'")
