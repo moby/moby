@@ -278,6 +278,7 @@ be implemented in Docker as well. We welcome users to submit issues,
 pull requests, and communicate via the mailing list.
 
 References:
+
 * [Docker Containers: How Secure Are They? (2013)](
 http://blog.docker.com/2013/08/containers-docker-how-secure-are-they/).
 * [On the Security of Containers (2014)](https://medium.com/@ewindisch/on-the-security-of-containers-2c60ffe25a9e).
