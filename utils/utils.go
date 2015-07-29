@@ -127,7 +127,7 @@ var globalTestID string
 // new directory.
 func TestDirectory(templateDir string) (dir string, err error) {
 	if globalTestID == "" {
-		globalTestID = stringid.GenerateRandomID()[:4]
+		globalTestID = stringid.GenerateNonCryptoID()[:4]
 	}
 	prefix := fmt.Sprintf("docker-test%s-%s-", globalTestID, GetCallerName(2))
 	if prefix == "" {

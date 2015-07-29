@@ -19,7 +19,7 @@ func (d *driver) Exec(c *execdriver.Command, processConfig *execdriver.ProcessCo
 		inListen, outListen, errListen     *npipe.PipeListener
 		term                               execdriver.Terminal
 		err                                error
-		randomID                           string = stringid.GenerateRandomID()
+		randomID                           string = stringid.GenerateNonCryptoID()
 		serverPipeFormat, clientPipeFormat string
 		pid                                uint32
 		exitCode                           int32

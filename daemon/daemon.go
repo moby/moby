@@ -350,7 +350,7 @@ func (daemon *Daemon) mergeAndVerifyConfig(config *runconfig.Config, img *image.
 func (daemon *Daemon) generateIdAndName(name string) (string, string, error) {
 	var (
 		err error
-		id  = stringid.GenerateRandomID()
+		id  = stringid.GenerateNonCryptoID()
 	)
 
 	if name == "" {

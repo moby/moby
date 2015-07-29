@@ -135,7 +135,7 @@ func TestLoadWithVolume(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	hostVolumeId := stringid.GenerateRandomID()
+	hostVolumeId := stringid.GenerateNonCryptoID()
 	vfsPath := filepath.Join(tmp, "vfs", "dir", hostVolumeId)
 	volumePath := filepath.Join(tmp, "volumes", hostVolumeId)
 
@@ -419,7 +419,7 @@ func TestRemoveLocalVolumesFollowingSymlinks(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	hostVolumeId := stringid.GenerateRandomID()
+	hostVolumeId := stringid.GenerateNonCryptoID()
 	vfsPath := filepath.Join(tmp, "vfs", "dir", hostVolumeId)
 	volumePath := filepath.Join(tmp, "volumes", hostVolumeId)
 
