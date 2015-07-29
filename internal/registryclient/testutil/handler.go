@@ -122,7 +122,7 @@ func (app *testHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// Add headers of interest here
 	for k, v := range r.Header {
-		if k == "Etag" {
+		if k == "If-None-Match" {
 			request.Headers[k] = v
 		}
 	}

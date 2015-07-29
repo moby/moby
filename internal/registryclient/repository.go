@@ -280,14 +280,13 @@ func (ms *manifests) GetByTag(tag string, options ...distribution.ManifestServic
 	}
 
 	if _, ok := ms.etags[tag]; ok {
-		req.Header.Set("eTag", ms.etags[tag])
+		req.Header.Set("If-None-Match", ms.etags[tag])
 	}
 	resp, err := ms.client.Do(req)
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
-
 	if resp.StatusCode == http.StatusNotModified {
 		return nil, nil
 	} else if SuccessStatus(resp.StatusCode) {
