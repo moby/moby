@@ -49,7 +49,7 @@ func CustomSize(format string, size float64, base float64, _map []string) string
 }
 
 // HumanSize returns a human-readable approximation of a size
-// using SI standard (eg. "44kB", "17MB").
+// capped at 4 valid numbers (eg. "2.746 MB", "796 KB").
 func HumanSize(size float64) string {
 	return CustomSize("%.4g %s", size, 1000.0, decimapAbbrs)
 }

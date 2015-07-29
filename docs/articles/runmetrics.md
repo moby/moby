@@ -21,13 +21,13 @@ and network IO metrics.
 The following is a sample output from the `docker stats` command
 
     $ docker stats redis1 redis2
-    CONTAINER           CPU %               MEM USAGE/LIMIT     MEM %               NET I/O
-    redis1              0.07%               796 KB/64 MB        1.21%               788 B/648 B
-    redis2              0.07%               2.746 MB/64 MB      4.29%               1.266 KB/648 B
+    CONTAINER           CPU %               MEM USAGE / LIMIT     MEM %               NET I/O
+    redis1              0.07%               796 KB / 64 MB        1.21%               788 B / 648 B
+    redis2              0.07%               2.746 MB / 64 MB      4.29%               1.266 KB / 648 B
 
 
 The [docker stats](/reference/commandline/stats/) reference page has
-more details about the `docker stats` command. 
+more details about the `docker stats` command.
 
 ## Control groups
 
