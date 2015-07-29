@@ -159,7 +159,7 @@ Docker can be used to run short-lived commands, long-running daemons
 (app servers, databases, etc.), interactive shell sessions, etc.
 
 You can find a [list of real-world
-examples](https://docs.docker.com/examples/) in the
+examples](https://docs.docker.com/examples/mongodb/) in the
 documentation.
 
 Under the hood
