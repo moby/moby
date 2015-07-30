@@ -139,10 +139,15 @@ func (s *sandboxData) rmEndpoint(ep *endpoint) {
 		}
 	}
 
-	// We don't check if s.endpoints is empty here because
-	// it should never be empty during a rmEndpoint call and
-	// if it is we will rightfully panic here
 	s.Lock()
+	if len(s.endpoints) == 0 {
+		// s.endpoints should never be empty and this is unexpected error condition
+		// We log an error message to note this down for debugging purposes.
+		logrus.Errorf("No endpoints in sandbox while trying to remove endpoint %s", ep.Name())
+		s.Unlock()
+		return
+	}
+
 	highEpBefore := s.endpoints[0]
 	var (
 		i int
@@ -245,7 +250,10 @@ func (c *controller) LeaveAll(id string) error {
 	}
 
 	sData.sandbox().Destroy()
+
+	c.Lock()
 	delete(c.sandboxes, sandbox.GenerateKey(id))
+	c.Unlock()
 
 	return nil
 }
