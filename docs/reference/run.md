@@ -60,18 +60,18 @@ refer to the Docker installation documentation for your operating system.
 Only the operator (the person executing `docker run`) can set the
 following options.
 
- - [Detached vs Foreground](#detached-vs-foreground)
+ - [Detached vs foreground](#detached-vs-foreground)
      - [Detached (-d)](#detached-d)
      - [Foreground](#foreground)
- - [Container Identification](#container-identification)
+ - [Container identification](#container-identification)
      - [Name (--name)](#name-name)
-     - [PID Equivalent](#pid-equivalent)
- - [IPC Settings (--ipc)](#ipc-settings-ipc)
- - [Network Settings](#network-settings)
- - [Restart Policies (--restart)](#restart-policies-restart)
- - [Clean Up (--rm)](#clean-up-rm)
- - [Runtime Constraints on CPU and Memory](#runtime-constraints-on-cpu-and-memory)
- - [Runtime Privilege, Linux Capabilities, and LXC Configuration](#runtime-privilege-linux-capabilities-and-lxc-configuration)
+     - [PID equivalent](#pid-equivalent)
+ - [IPC settings (--ipc)](#ipc-settings-ipc)
+ - [Network settings](#network-settings)
+ - [Restart policies (--restart)](#restart-policies-restart)
+ - [Clean up (--rm)](#clean-up-rm)
+ - [Runtime constraints on resources](#runtime-constraints-on-resources)
+ - [Runtime privilege, Linux capabilities, and LXC configuration](#runtime-privilege-linux-capabilities-and-lxc-configuration)
 
 ## Detached vs foreground
 
