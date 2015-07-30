@@ -61,8 +61,8 @@ After downloading the appropriate binary, you can follow the instructions
 
 ## Current experimental features
 
-* [Support for Docker plugins](plugins.md)
-* [Volume plugins](plugins_volume.md)
+* [Support for Docker plugins](../docs/extend/plugins.md)
+* [Volume plugins](../docs/extend/plugins_volume.md)
 * [Network plugins](plugins_network.md)
 * [Networking and Services UI](networking.md)
 * [Native multi-host networking](network_overlay.md)
