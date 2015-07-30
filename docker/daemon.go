@@ -228,7 +228,7 @@ func (cli *DaemonCli) CmdDaemon(args ...string) error {
 		}
 		tlsConfig, err := tlsconfig.Server(*commonFlags.TLSOptions)
 		if err != nil {
-			logrus.Fatalf("foobar: %v", err)
+			logrus.Fatal(err)
 		}
 		serverConfig.TLSConfig = tlsConfig
 	}
