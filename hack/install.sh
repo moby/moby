@@ -51,19 +51,6 @@ echo_docker_as_nonroot() {
 	EOF
 }
 
-get_debian_dist_version() {
-	dist_version=''
-	case "$@" in
-		8)
-			dist_version="jessie"
-			;;
-		7)
-			dist_version="wheezy"
-			;;
-	esac
-	echo "$dist_version"
-}
-
 do_install() {
 	case "$(uname -m)" in
 		*64)
@@ -286,7 +273,7 @@ do_install() {
 			;;
 
 		fedora|centos|oraclelinux)
-			cat >/etc/yum.repos.d/docker-${repo}.repo <<-EOF
+			$sh_c "cat >/etc/yum.repos.d/docker-${repo}.repo" <<-EOF
 			[docker-${repo}-repo]
 			name=Docker ${repo} Repository
 			baseurl=https://yum.dockerproject.org/repo/${repo}/${lsb_dist}/${dist_version}
