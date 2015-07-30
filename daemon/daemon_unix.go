@@ -16,7 +16,6 @@ import (
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/fileutils"
-	"github.com/docker/docker/pkg/nat"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/docker/docker/pkg/system"
@@ -117,6 +116,8 @@ func checkKernel() error {
 	return nil
 }
 
+// adaptContainerSettings is called during container creation to modify any
+// settings necessary in the HostConfig structure.
 func (daemon *Daemon) adaptContainerSettings(hostConfig *runconfig.HostConfig) {
 	if hostConfig == nil {
 		return
@@ -127,34 +128,11 @@ func (daemon *Daemon) adaptContainerSettings(hostConfig *runconfig.HostConfig) {
 	}
 }
 
-func (daemon *Daemon) verifyContainerSettings(hostConfig *runconfig.HostConfig, config *runconfig.Config) ([]string, error) {
+// verifyPlatformContainerSettings performs platform-specific validation of the
+// hostconfig and config structures.
+func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *runconfig.HostConfig, config *runconfig.Config) ([]string, error) {
 	var warnings []string
 
-	if config != nil {
-		// The check for a valid workdir path is made on the server rather than in the
-		// client. This is because we don't know the type of path (Linux or Windows)
-		// to validate on the client.
-		if config.WorkingDir != "" && !filepath.IsAbs(config.WorkingDir) {
-			return warnings, fmt.Errorf("The working directory '%s' is invalid. It needs to be an absolute path.", config.WorkingDir)
-		}
-	}
-
-	if hostConfig == nil {
-		return warnings, nil
-	}
-
-	for port := range hostConfig.PortBindings {
-		_, portStr := nat.SplitProtoPort(string(port))
-		if _, err := nat.ParsePort(portStr); err != nil {
-			return warnings, fmt.Errorf("Invalid port specification: %q", portStr)
-		}
-		for _, pb := range hostConfig.PortBindings[port] {
-			_, err := nat.NewPort(nat.SplitProtoPort(pb.HostPort))
-			if err != nil {
-				return warnings, fmt.Errorf("Invalid port specification: %q", pb.HostPort)
-			}
-		}
-	}
 	if hostConfig.LxcConf.Len() > 0 && !strings.Contains(daemon.ExecutionDriver().Name(), "lxc") {
 		return warnings, fmt.Errorf("Cannot use --lxc-conf with execdriver: %s", daemon.ExecutionDriver().Name())
 	}
