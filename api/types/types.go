@@ -130,14 +130,13 @@ type CopyConfig struct {
 
 // ContainerPathStat is used to encode the header from
 // 	GET /containers/{name:.*}/archive
-// "name" is the file or directory name.
-// "path" is the absolute path to the resource in the container.
+// "name" is basename of the resource.
 type ContainerPathStat struct {
-	Name  string      `json:"name"`
-	Path  string      `json:"path"`
-	Size  int64       `json:"size"`
-	Mode  os.FileMode `json:"mode"`
-	Mtime time.Time   `json:"mtime"`
+	Name       string      `json:"name"`
+	Size       int64       `json:"size"`
+	Mode       os.FileMode `json:"mode"`
+	Mtime      time.Time   `json:"mtime"`
+	LinkTarget string      `json:"linkTarget"`
 }
 
 // GET "/containers/{name:.*}/top"
