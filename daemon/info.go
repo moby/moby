@@ -17,6 +17,7 @@ import (
 	"github.com/docker/docker/utils"
 )
 
+// SystemInfo returns information about the host server the daemon is running on.
 func (daemon *Daemon) SystemInfo() (*types.Info, error) {
 	images := daemon.Graph().Map()
 	var imgcount int
@@ -50,11 +51,14 @@ func (daemon *Daemon) SystemInfo() (*types.Info, error) {
 		logrus.Errorf("Could not read system memory info: %v", err)
 	}
 
-	// if we still have the original dockerinit binary from before we copied it locally, let's return the path to that, since that's more intuitive (the copied path is trivial to derive by hand given VERSION)
+	// if we still have the original dockerinit binary from before
+	// we copied it locally, let's return the path to that, since
+	// that's more intuitive (the copied path is trivial to derive
+	// by hand given VERSION)
 	initPath := utils.DockerInitPath("")
 	if initPath == "" {
 		// if that fails, we'll just return the path from the daemon
-		initPath = daemon.SystemInitPath()
+		initPath = daemon.systemInitPath()
 	}
 
 	sysInfo := sysinfo.New(false)
@@ -83,8 +87,8 @@ func (daemon *Daemon) SystemInfo() (*types.Info, error) {
 		InitPath:           initPath,
 		NCPU:               runtime.NumCPU(),
 		MemTotal:           meminfo.MemTotal,
-		DockerRootDir:      daemon.Config().Root,
-		Labels:             daemon.Config().Labels,
+		DockerRootDir:      daemon.config().Root,
+		Labels:             daemon.config().Labels,
 		ExperimentalBuild:  utils.ExperimentalBuild(),
 	}
 

@@ -29,7 +29,7 @@ func (daemon *Daemon) ContainerCopy(name string, res string) (io.ReadCloser, err
 		res = res[1:]
 	}
 
-	return container.Copy(res)
+	return container.copy(res)
 }
 
 // ContainerStatPath stats the filesystem resource at the specified path in the
@@ -142,7 +142,7 @@ func (container *Container) StatPath(path string) (stat *types.ContainerPathStat
 	defer container.Unmount()
 
 	err = container.mountVolumes()
-	defer container.UnmountVolumes(true)
+	defer container.unmountVolumes(true)
 	if err != nil {
 		return nil, err
 	}
@@ -177,7 +177,7 @@ func (container *Container) ArchivePath(path string) (content io.ReadCloser, sta
 	defer func() {
 		if err != nil {
 			// unmount any volumes
-			container.UnmountVolumes(true)
+			container.unmountVolumes(true)
 			// unmount the container's rootfs
 			container.Unmount()
 		}
@@ -212,13 +212,13 @@ func (container *Container) ArchivePath(path string) (content io.ReadCloser, sta
 
 	content = ioutils.NewReadCloserWrapper(data, func() error {
 		err := data.Close()
-		container.UnmountVolumes(true)
+		container.unmountVolumes(true)
 		container.Unmount()
 		container.Unlock()
 		return err
 	})
 
-	container.LogEvent("archive-path")
+	container.logEvent("archive-path")
 
 	return content, stat, nil
 }
@@ -239,7 +239,7 @@ func (container *Container) ExtractToDir(path string, noOverwriteDirNonDir bool,
 	defer container.Unmount()
 
 	err = container.mountVolumes()
-	defer container.UnmountVolumes(true)
+	defer container.unmountVolumes(true)
 	if err != nil {
 		return err
 	}
@@ -288,7 +288,7 @@ func (container *Container) ExtractToDir(path string, noOverwriteDirNonDir bool,
 	}
 
 	if !toVolume && container.hostConfig.ReadonlyRootfs {
-		return ErrContainerRootfsReadonly
+		return ErrRootFSReadOnly
 	}
 
 	options := &archive.TarOptions{
@@ -302,7 +302,7 @@ func (container *Container) ExtractToDir(path string, noOverwriteDirNonDir bool,
 		return err
 	}
 
-	container.LogEvent("extract-to-dir")
+	container.logEvent("extract-to-dir")
 
 	return nil
 }

@@ -4,6 +4,9 @@ import (
 	"fmt"
 )
 
+// ContainerRename changes the name of a container, using the oldName
+// to find the container. An error is returned if newName is already
+// reserved.
 func (daemon *Daemon) ContainerRename(oldName, newName string) error {
 	if oldName == "" || newName == "" {
 		return fmt.Errorf("usage: docker rename OLD_NAME NEW_NAME")
@@ -27,10 +30,10 @@ func (daemon *Daemon) ContainerRename(oldName, newName string) error {
 	undo := func() {
 		container.Name = oldName
 		daemon.reserveName(container.ID, oldName)
-		daemon.containerGraph.Delete(newName)
+		daemon.containerGraphDB.Delete(newName)
 	}
 
-	if err := daemon.containerGraph.Delete(oldName); err != nil {
+	if err := daemon.containerGraphDB.Delete(oldName); err != nil {
 		undo()
 		return fmt.Errorf("Failed to delete container %q: %v", oldName, err)
 	}
@@ -40,6 +43,6 @@ func (daemon *Daemon) ContainerRename(oldName, newName string) error {
 		return err
 	}
 
-	container.LogEvent("rename")
+	container.logEvent("rename")
 	return nil
 }

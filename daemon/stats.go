@@ -10,14 +10,18 @@ import (
 	"github.com/opencontainers/runc/libcontainer"
 )
 
+// ContainerStatsConfig holds information for configuring the runtime
+// behavior of a daemon.ContainerStats() call.
 type ContainerStatsConfig struct {
 	Stream    bool
 	OutStream io.Writer
 	Stop      <-chan bool
 }
 
+// ContainerStats writes information about the container to the stream
+// given in the config object.
 func (daemon *Daemon) ContainerStats(name string, config *ContainerStatsConfig) error {
-	updates, err := daemon.SubscribeToContainerStats(name)
+	updates, err := daemon.subscribeToContainerStats(name)
 	if err != nil {
 		return err
 	}
@@ -26,7 +30,7 @@ func (daemon *Daemon) ContainerStats(name string, config *ContainerStatsConfig) 
 		config.OutStream.Write(nil)
 	}
 
-	var preCpuStats types.CPUStats
+	var preCPUStats types.CPUStats
 	getStat := func(v interface{}) *types.Stats {
 		update := v.(*execdriver.ResourceStats)
 		// Retrieve the nw statistics from libnetwork and inject them in the Stats
@@ -34,17 +38,17 @@ func (daemon *Daemon) ContainerStats(name string, config *ContainerStatsConfig) 
 			update.Stats.Interfaces = nwStats
 		}
 		ss := convertStatsToAPITypes(update.Stats)
-		ss.PreCPUStats = preCpuStats
+		ss.PreCPUStats = preCPUStats
 		ss.MemoryStats.Limit = uint64(update.MemoryLimit)
 		ss.Read = update.Read
 		ss.CPUStats.SystemUsage = update.SystemUsage
-		preCpuStats = ss.CPUStats
+		preCPUStats = ss.CPUStats
 		return ss
 	}
 
 	enc := json.NewEncoder(config.OutStream)
 
-	defer daemon.UnsubscribeToContainerStats(name, updates)
+	defer daemon.unsubscribeToContainerStats(name, updates)
 
 	noStreamFirstFrame := true
 	for {

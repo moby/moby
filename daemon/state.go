@@ -9,8 +9,13 @@ import (
 	"github.com/docker/docker/pkg/units"
 )
 
+// State holds the current container state, and has methods to get and
+// set the state. Container has an embed, which allows all of the
+// functions defined against State to run against Container.
 type State struct {
 	sync.Mutex
+	// FIXME: Why do we have both paused and running if a
+	// container cannot be paused and running at the same time?
 	Running           bool
 	Paused            bool
 	Restarting        bool
@@ -25,6 +30,7 @@ type State struct {
 	waitChan          chan struct{}
 }
 
+// NewState creates a default state object with a fresh channel for state changes.
 func NewState() *State {
 	return &State{
 		waitChan: make(chan struct{}),
@@ -111,10 +117,11 @@ func wait(waitChan <-chan struct{}, timeout time.Duration) error {
 	}
 }
 
-// WaitRunning waits until state is running. If state already running it returns
-// immediately. If you want wait forever you must supply negative timeout.
-// Returns pid, that was passed to SetRunning
-func (s *State) WaitRunning(timeout time.Duration) (int, error) {
+// waitRunning waits until state is running. If state is already
+// running it returns immediately. If you want wait forever you must
+// supply negative timeout. Returns pid, that was passed to
+// setRunningLocking.
+func (s *State) waitRunning(timeout time.Duration) (int, error) {
 	s.Lock()
 	if s.Running {
 		pid := s.Pid
@@ -126,12 +133,12 @@ func (s *State) WaitRunning(timeout time.Duration) (int, error) {
 	if err := wait(waitChan, timeout); err != nil {
 		return -1, err
 	}
-	return s.GetPid(), nil
+	return s.getPID(), nil
 }
 
 // WaitStop waits until state is stopped. If state already stopped it returns
 // immediately. If you want wait forever you must supply negative timeout.
-// Returns exit code, that was passed to SetStopped
+// Returns exit code, that was passed to setStoppedLocking
 func (s *State) WaitStop(timeout time.Duration) (int, error) {
 	s.Lock()
 	if !s.Running {
@@ -144,9 +151,10 @@ func (s *State) WaitStop(timeout time.Duration) (int, error) {
 	if err := wait(waitChan, timeout); err != nil {
 		return -1, err
 	}
-	return s.GetExitCode(), nil
+	return s.getExitCode(), nil
 }
 
+// IsRunning returns whether the running flag is set. Used by Container to check whether a container is running.
 func (s *State) IsRunning() bool {
 	s.Lock()
 	res := s.Running
@@ -154,21 +162,22 @@ func (s *State) IsRunning() bool {
 	return res
 }
 
-func (s *State) GetPid() int {
+// GetPID holds the process id of a container.
+func (s *State) getPID() int {
 	s.Lock()
 	res := s.Pid
 	s.Unlock()
 	return res
 }
 
-func (s *State) GetExitCode() int {
+func (s *State) getExitCode() int {
 	s.Lock()
 	res := s.ExitCode
 	s.Unlock()
 	return res
 }
 
-func (s *State) SetRunning(pid int) {
+func (s *State) setRunningLocking(pid int) {
 	s.Lock()
 	s.setRunning(pid)
 	s.Unlock()
@@ -186,7 +195,7 @@ func (s *State) setRunning(pid int) {
 	s.waitChan = make(chan struct{})
 }
 
-func (s *State) SetStopped(exitStatus *execdriver.ExitStatus) {
+func (s *State) setStoppedLocking(exitStatus *execdriver.ExitStatus) {
 	s.Lock()
 	s.setStopped(exitStatus)
 	s.Unlock()
@@ -203,9 +212,9 @@ func (s *State) setStopped(exitStatus *execdriver.ExitStatus) {
 	s.waitChan = make(chan struct{})
 }
 
-// SetRestarting is when docker handles the auto restart of containers when they are
+// setRestarting is when docker handles the auto restart of containers when they are
 // in the middle of a stop and being restarted again
-func (s *State) SetRestarting(exitStatus *execdriver.ExitStatus) {
+func (s *State) setRestartingLocking(exitStatus *execdriver.ExitStatus) {
 	s.Lock()
 	s.setRestarting(exitStatus)
 	s.Unlock()
@@ -231,33 +240,14 @@ func (s *State) setError(err error) {
 	s.Error = err.Error()
 }
 
-func (s *State) IsRestarting() bool {
-	s.Lock()
-	res := s.Restarting
-	s.Unlock()
-	return res
-}
-
-func (s *State) SetPaused() {
-	s.Lock()
-	s.Paused = true
-	s.Unlock()
-}
-
-func (s *State) SetUnpaused() {
-	s.Lock()
-	s.Paused = false
-	s.Unlock()
-}
-
-func (s *State) IsPaused() bool {
+func (s *State) isPaused() bool {
 	s.Lock()
 	res := s.Paused
 	s.Unlock()
 	return res
 }
 
-func (s *State) SetRemovalInProgress() error {
+func (s *State) setRemovalInProgress() error {
 	s.Lock()
 	defer s.Unlock()
 	if s.removalInProgress {
@@ -267,13 +257,13 @@ func (s *State) SetRemovalInProgress() error {
 	return nil
 }
 
-func (s *State) ResetRemovalInProgress() {
+func (s *State) resetRemovalInProgress() {
 	s.Lock()
 	s.removalInProgress = false
 	s.Unlock()
 }
 
-func (s *State) SetDead() {
+func (s *State) setDead() {
 	s.Lock()
 	s.Dead = true
 	s.Unlock()
