@@ -543,3 +543,10 @@ func (s *DockerSuite) TestExecWithImageUser(c *check.C) {
 		c.Fatalf("exec with user by id expected dockerio user got %s", out)
 	}
 }
+
+func (s *DockerSuite) TestExecOnReadonlyContainer(c *check.C) {
+	dockerCmd(c, "run", "-d", "--read-only", "--name", "parent", "busybox", "top")
+	if _, status := dockerCmd(c, "exec", "parent", "true"); status != 0 {
+		c.Fatalf("exec into a read-only container failed with exit status %d", status)
+	}
+}
