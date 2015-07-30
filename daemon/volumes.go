@@ -17,8 +17,9 @@ import (
 // a volume mount that is not writable.
 var ErrVolumeReadonly = errors.New("mounted volume is marked read-only")
 
-// TODO Windows. Further platform refactoring can still be done in volumes*.go
-
+// mountPoint is the intersection point between a volume and a container. It
+// specifies which volume is to be used and where inside a container it should
+// be mounted.
 type mountPoint struct {
 	Name        string
 	Destination string
@@ -29,6 +30,8 @@ type mountPoint struct {
 	Mode        string `json:"Relabel"` // Originally field was `Relabel`"
 }
 
+// Setup sets up a mount point by either mounting the volume if it is
+// configured, or creating the source directory if supplied.
 func (m *mountPoint) Setup() (string, error) {
 	if m.Volume != nil {
 		return m.Volume.Mount()
@@ -59,6 +62,7 @@ func (m *mountPoint) hasResource(absolutePath string) bool {
 	return err == nil && relPath != ".." && !strings.HasPrefix(relPath, fmt.Sprintf("..%c", filepath.Separator))
 }
 
+// Path returns the path of a volume in a mount point.
 func (m *mountPoint) Path() string {
 	if m.Volume != nil {
 		return m.Volume.Path()
@@ -67,6 +71,8 @@ func (m *mountPoint) Path() string {
 	return m.Source
 }
 
+// copyExistingContents copies from the source to the destination and
+// ensures the ownership is appropriately set.
 func copyExistingContents(source, destination string) error {
 	volList, err := ioutil.ReadDir(source)
 	if err != nil {

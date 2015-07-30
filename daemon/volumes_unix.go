@@ -21,7 +21,7 @@ import (
 )
 
 // copyOwnership copies the permissions and uid:gid of the source file
-// into the destination file
+// to the destination file
 func copyOwnership(source, destination string) error {
 	stat, err := system.Stat(source)
 	if err != nil {
@@ -35,6 +35,9 @@ func copyOwnership(source, destination string) error {
 	return os.Chmod(destination, os.FileMode(stat.Mode()))
 }
 
+// setupMounts iterates through each of the mount points for a container and
+// calls Setup() on each. It also looks to see if is a network mount such as
+// /etc/resolv.conf, and if it is not, appends it to the array of mounts.
 func (container *Container) setupMounts() ([]execdriver.Mount, error) {
 	var mounts []execdriver.Mount
 	for _, m := range container.MountPoints {
@@ -55,6 +58,7 @@ func (container *Container) setupMounts() ([]execdriver.Mount, error) {
 	return append(mounts, container.networkMounts()...), nil
 }
 
+// parseBindMount validates the configuration of mount information in runconfig is valid.
 func parseBindMount(spec string, mountLabel string, config *runconfig.Config) (*mountPoint, error) {
 	bind := &mountPoint{
 		RW: true,
@@ -97,6 +101,9 @@ func parseBindMount(spec string, mountLabel string, config *runconfig.Config) (*
 	return bind, nil
 }
 
+// sortMounts sorts an array of mounts in lexicographic order. This ensure that
+// when mounting, the mounts don't shadow other mounts. For example, if mounting
+// /etc and /etc/resolv.conf, /etc/resolv.conf must not be mounted first.
 func sortMounts(m []execdriver.Mount) []execdriver.Mount {
 	sort.Sort(mounts(m))
 	return m
@@ -104,18 +111,24 @@ func sortMounts(m []execdriver.Mount) []execdriver.Mount {
 
 type mounts []execdriver.Mount
 
+// Len returns the number of mounts
 func (m mounts) Len() int {
 	return len(m)
 }
 
+// Less returns true if the number of parts (a/b/c would be 3 parts) in the
+// mount indexed by parameter 1 is less than that of the mount indexed by
+// parameter 2.
 func (m mounts) Less(i, j int) bool {
 	return m.parts(i) < m.parts(j)
 }
 
+// Swap swaps two items in an array of mounts.
 func (m mounts) Swap(i, j int) {
 	m[i], m[j] = m[j], m[i]
 }
 
+// parts returns the number of parts in the destination of a mount.
 func (m mounts) parts(i int) int {
 	return len(strings.Split(filepath.Clean(m[i].Destination), string(os.PathSeparator)))
 }
@@ -243,6 +256,7 @@ func (daemon *Daemon) verifyVolumesInfo(container *Container) error {
 	return nil
 }
 
+// parseVolumesFrom ensure that the supplied volumes-from is valid.
 func parseVolumesFrom(spec string) (string, string, error) {
 	if len(spec) == 0 {
 		return "", "", fmt.Errorf("malformed volumes-from specification: %s", spec)
@@ -361,6 +375,7 @@ func (daemon *Daemon) registerMountPoints(container *Container, hostConfig *runc
 	return nil
 }
 
+// createVolume creates a volume.
 func createVolume(name, driverName string) (volume.Volume, error) {
 	vd, err := getVolumeDriver(driverName)
 	if err != nil {
@@ -369,6 +384,7 @@ func createVolume(name, driverName string) (volume.Volume, error) {
 	return vd.Create(name)
 }
 
+// removeVolume removes a volume.
 func removeVolume(v volume.Volume) error {
 	vd, err := getVolumeDriver(v.DriverName())
 	if err != nil {
@@ -377,6 +393,7 @@ func removeVolume(v volume.Volume) error {
 	return vd.Remove(v)
 }
 
+// getVolumeDriver returns the volume driver for the supplied name.
 func getVolumeDriver(name string) (volume.Driver, error) {
 	if name == "" {
 		name = volume.DefaultDriverName
@@ -384,6 +401,7 @@ func getVolumeDriver(name string) (volume.Driver, error) {
 	return volumedrivers.Lookup(name)
 }
 
+// parseVolumeSource parses the origin sources that's mounted into the container.
 func parseVolumeSource(spec string) (string, string, error) {
 	if !filepath.IsAbs(spec) {
 		return spec, "", nil
