@@ -2,14 +2,17 @@ package ioutils
 
 import (
 	"bytes"
-	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
 	"io"
-	"math/big"
+	"math/rand"
 	"sync"
 	"time"
+
+	"github.com/docker/docker/pkg/random"
 )
+
+var rndSrc = random.NewSource()
 
 type readCloserWrapper struct {
 	io.Reader
@@ -66,18 +69,14 @@ type bufReader struct {
 }
 
 func NewBufReader(r io.Reader) *bufReader {
-	var timeout int
-	if randVal, err := rand.Int(rand.Reader, big.NewInt(120)); err == nil {
-		timeout = int(randVal.Int64()) + 180
-	} else {
-		timeout = 300
-	}
+	timeout := rand.New(rndSrc).Intn(120) + 180
+
 	reader := &bufReader{
 		buf:                  &bytes.Buffer{},
 		drainBuf:             make([]byte, 1024),
 		reuseBuf:             make([]byte, 4096),
 		maxReuse:             1000,
-		resetTimeout:         time.Second * time.Duration(timeout),
+		resetTimeout:         time.Duration(timeout) * time.Second,
 		bufLenResetThreshold: 100 * 1024,
 		maxReadDataReset:     10 * 1024 * 1024,
 		reader:               r,
