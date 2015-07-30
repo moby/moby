@@ -233,7 +233,7 @@ options for `zfs` start with `zfs`.
     >**Note**: This option configures devicemapper loopback, which should not be used in production.
 
     Specifies the size to use when creating the loopback file for the
-    "metadadata" device which is used for the thin pool. The default size
+    "metadata" device which is used for the thin pool. The default size
     is 2G. The file is sparse, so it will not initially take up
     this much space.
 
