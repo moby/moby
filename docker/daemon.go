@@ -8,7 +8,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"time"
 
@@ -318,12 +317,4 @@ func shutdownDaemon(d *daemon.Daemon, timeout time.Duration) {
 	case <-time.After(timeout * time.Second):
 		logrus.Error("Force shutdown daemon")
 	}
-}
-
-func getDaemonConfDir() string {
-	// TODO: update for Windows daemon
-	if runtime.GOOS == "windows" {
-		return cliconfig.ConfigDir()
-	}
-	return "/etc/docker"
 }
