@@ -341,8 +341,6 @@ func (container *Container) isNetworkAllocated() bool {
 func (container *Container) cleanup() {
 	container.ReleaseNetwork()
 
-	disableAllActiveLinks(container)
-
 	if err := container.CleanupStorage(); err != nil {
 		logrus.Errorf("%v: Failed to cleanup storage: %v", container.ID, err)
 	}
