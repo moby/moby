@@ -5284,7 +5284,7 @@ func (s *DockerSuite) TestBuildContainerWithCgroupParent(c *check.C) {
 	selfCgroupPaths := parseCgroupPaths(string(data))
 	_, found := selfCgroupPaths["memory"]
 	if !found {
-		c.Fatalf("unable to find self cpu cgroup path. CgroupsPath: %v", selfCgroupPaths)
+		c.Fatalf("unable to find self memory cgroup path. CgroupsPath: %v", selfCgroupPaths)
 	}
 	cmd := exec.Command(dockerBinary, "build", "--cgroup-parent", cgroupParent, "-")
 	cmd.Stdin = strings.NewReader(`
@@ -5295,6 +5295,11 @@ RUN cat /proc/self/cgroup
 	out, _, err := runCommandWithOutput(cmd)
 	if err != nil {
 		c.Fatalf("unexpected failure when running container with --cgroup-parent option - %s\n%v", string(out), err)
+	}
+	m, err := regexp.MatchString(fmt.Sprintf("memory:.*/%s/.*", cgroupParent), out)
+	c.Assert(err, check.IsNil)
+	if !m {
+		c.Fatalf("There is no expected memory cgroup with parent /%s/: %s", cgroupParent, out)
 	}
 }
 
