@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	// ConfigFile is the name of config file
+	// ConfigFileName is the name of config file
 	ConfigFileName = "config.json"
 	oldConfigfile  = ".dockercfg"
 

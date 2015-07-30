@@ -15,6 +15,7 @@ packages=(
 	builder/command
 	builder/parser
 	builder/parser/dumper
+	cliconfig
 	daemon/events
 	daemon/execdriver
 	daemon/execdriver/execdrivers
