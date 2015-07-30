@@ -221,14 +221,14 @@ func (cli *DaemonCli) CmdDaemon(args ...string) error {
 	}
 	serverConfig = setPlatformServerConfig(serverConfig, cli.Config)
 
-	if commonFlags.TLSOptions != nil {
+	if commonFlags.TLSOptions != nil && commonFlags.TLSVerify {
 		if !commonFlags.TLSOptions.InsecureSkipVerify {
 			// server requires and verifies client's certificate
 			commonFlags.TLSOptions.ClientAuth = tls.RequireAndVerifyClientCert
 		}
 		tlsConfig, err := tlsconfig.Server(*commonFlags.TLSOptions)
 		if err != nil {
-			logrus.Fatalf("foobar: %v", err)
+			logrus.Fatal(err)
 		}
 		serverConfig.TLSConfig = tlsConfig
 	}
