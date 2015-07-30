@@ -1,6 +1,7 @@
 package bridge
 
 import (
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/vishvananda/netlink"
 )
@@ -25,8 +26,10 @@ func setupDevice(config *networkConfiguration, i *bridgeInterface) error {
 	// Only set the bridge's MAC address if the kernel version is > 3.3, as it
 	// was not supported before that.
 	kv, err := kernel.GetKernelVersion()
-	if err == nil && (kv.Kernel >= 3 && kv.Major >= 3) {
-		setMac = true
+	if err != nil {
+		logrus.Errorf("Failed to check kernel versions: %v. Will not assign a MAC address to the bridge interface", err)
+	} else {
+		setMac = kv.Kernel > 3 || (kv.Kernel == 3 && kv.Major >= 3)
 	}
 
 	return ioctlCreateBridge(config.BridgeName, setMac)
