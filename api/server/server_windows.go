@@ -19,7 +19,7 @@ func (s *Server) newServer(proto, addr string) ([]serverCloser, error) {
 	)
 	switch proto {
 	case "tcp":
-		l, err := s.initTcpSocket(addr)
+		l, err := s.initTCPSocket(addr)
 		if err != nil {
 			return nil, err
 		}
@@ -31,7 +31,7 @@ func (s *Server) newServer(proto, addr string) ([]serverCloser, error) {
 
 	var res []serverCloser
 	for _, l := range ls {
-		res = append(res, &HttpServer{
+		res = append(res, &HTTPServer{
 			&http.Server{
 				Addr:    addr,
 				Handler: s.router,
