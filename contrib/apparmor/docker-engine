@@ -41,6 +41,9 @@ profile /usr/bin/docker (attach_disconnected, complain) {
   /sbin/iptables rCx,
   /sbin/modprobe rCx,
   /sbin/auplink rCx,
+  /sbin/mke2fs rCx,
+  /sbin/tune2fs rCx,
+  /sbin/blkid rCx,
   /bin/kmod rCx,
   /usr/bin/xz rCx,
   /bin/ps rCx,
@@ -147,5 +150,61 @@ profile /usr/bin/docker (attach_disconnected, complain) {
   profile /sbin/zfs (attach_disconnected, complain) {
     file,
     capability,
+  }
+  profile /sbin/mke2fs (complain) {
+    /sbin/mke2fs rm,
+
+    /lib/** r,
+
+    /apparmor/.null w,
+
+    /etc/ld.so.cache r,
+    /etc/mke2fs.conf r,
+    /etc/mtab r,
+
+    /dev/dm-* rw,
+    /dev/urandom r,
+    /dev/null rw,
+
+    /proc/swaps r,
+    /proc/[0-9]*/mounts r,
+  }
+  profile /sbin/tune2fs (complain) {
+    /sbin/tune2fs rm,
+
+    /lib/** r,
+
+    /apparmor/.null w,
+
+    /etc/blkid.conf r,
+    /etc/mtab r,
+    /etc/ld.so.cache r,
+
+    /dev/null rw,
+    /dev/.blkid.tab r,
+    /dev/dm-* rw,
+
+    /proc/swaps r,
+    /proc/[0-9]*/mounts r,
+  }
+  profile /sbin/blkid (complain) {
+    /sbin/blkid rm,
+
+    /lib/** r,
+    /apparmor/.null w,
+
+    /etc/ld.so.cache r,
+    /etc/blkid.conf r,
+
+    /dev/null rw,
+    /dev/.blkid.tab rl,
+    /dev/.blkid.tab* rwl,
+    /dev/dm-* r,
+
+    /sys/devices/virtual/block/** r,
+
+    capability mknod,
+
+    mount -> @{DOCKER_GRAPH_PATH}/**,
   }
 }
