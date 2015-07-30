@@ -557,7 +557,7 @@ func NewDaemon(config *Config, registryService *registry.Service) (daemon *Daemo
 	config.DisableBridge = isBridgeNetworkDisabled(config)
 
 	// Verify the platform is supported as a daemon
-	if runtime.GOOS != "linux" && runtime.GOOS != "windows" {
+	if runtime.GOOS != "linux" && runtime.GOOS != "freebsd" && runtime.GOOS != "windows" {
 		return nil, ErrSystemNotSupported
 	}
 
