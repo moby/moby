@@ -2242,7 +2242,7 @@ func (s *DockerSuite) TestRunContainerWithWritableRootfs(c *check.C) {
 func (s *DockerSuite) TestRunContainerWithReadonlyRootfs(c *check.C) {
 	testRequires(c, NativeExecDriver)
 
-	for _, f := range []string{"/file", "/etc/hosts", "/etc/resolv.conf", "/etc/hostname", "/proc/uptime", "/sys/kernel", "/dev/.dont.touch.me"} {
+	for _, f := range []string{"/file", "/etc/hosts", "/etc/resolv.conf", "/etc/hostname", "/sys/kernel", "/dev/.dont.touch.me"} {
 		testReadOnlyFile(f, c)
 	}
 }
@@ -2396,7 +2396,7 @@ func (s *DockerSuite) TestRunWriteToProcAsound(c *check.C) {
 
 func (s *DockerSuite) TestRunReadProcTimer(c *check.C) {
 	testRequires(c, NativeExecDriver)
-	out, code, err := dockerCmdWithError("run", "busybox", "cat", "/proc/timer_stats")
+	out, code, err := dockerCmdWithError(c, "run", "busybox", "cat", "/proc/timer_stats")
 	if code != 0 {
 		return
 	}
@@ -2416,7 +2416,7 @@ func (s *DockerSuite) TestRunReadProcLatency(c *check.C) {
 		c.Skip("kernel doesnt have latency_stats configured")
 		return
 	}
-	out, code, err := dockerCmdWithError("run", "busybox", "cat", "/proc/latency_stats")
+	out, code, err := dockerCmdWithError(c, "run", "busybox", "cat", "/proc/latency_stats")
 	if code != 0 {
 		return
 	}
@@ -2440,7 +2440,7 @@ func (s *DockerSuite) TestRunReadFilteredProc(c *check.C) {
 		name := fmt.Sprintf("procsieve-%d", i)
 		shellCmd := fmt.Sprintf("exec 3<%s", filePath)
 
-		if out, exitCode, err := dockerCmdWithError("run", "--privileged", "--security-opt", "apparmor:docker-default", "--name", name, "busybox", "sh", "-c", shellCmd); err == nil || exitCode == 0 {
+		if out, exitCode, err := dockerCmdWithError(c, "run", "--privileged", "--security-opt", "apparmor:docker-default", "--name", name, "busybox", "sh", "-c", shellCmd); err == nil || exitCode == 0 {
 			c.Fatalf("Open FD for read should have failed with permission denied, got: %s, %v", out, err)
 		}
 	}
@@ -2753,7 +2753,7 @@ func (s *DockerSuite) TestAppArmorDeniesPtrace(c *check.C) {
 
 	// Run through 'sh' so we are NOT pid 1. Pid 1 may be able to trace
 	// itself, but pid>1 should not be able to trace pid1.
-	_, exitCode, _ := dockerCmdWithError("run", "busybox", "sh", "-c", "readlink /proc/1/ns/net")
+	_, exitCode, _ := dockerCmdWithError(c, "run", "busybox", "sh", "-c", "readlink /proc/1/ns/net")
 	if exitCode == 0 {
 		c.Fatal("ptrace was not successfully restricted by AppArmor")
 	}
@@ -2763,7 +2763,7 @@ func (s *DockerSuite) TestAppArmorTraceSelf(c *check.C) {
 	testRequires(c, SameHostDaemon)
 	testRequires(c, Apparmor)
 
-	_, exitCode, _ := dockerCmdWithError("run", "busybox", "readlink", "/proc/1/ns/net")
+	_, exitCode, _ := dockerCmdWithError(c, "run", "busybox", "readlink", "/proc/1/ns/net")
 	if exitCode != 0 {
 		c.Fatal("ptrace of self failed.")
 	}
