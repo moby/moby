@@ -132,54 +132,76 @@ do_install() {
 	dist_version=''
 	if command_exists lsb_release; then
 		lsb_dist="$(lsb_release -si)"
-		dist_version="$(lsb_release --codename | cut -f2)"
 	fi
 	if [ -z "$lsb_dist" ] && [ -r /etc/lsb-release ]; then
 		lsb_dist="$(. /etc/lsb-release && echo "$DISTRIB_ID")"
-		dist_version="$(. /etc/lsb-release && echo "$DISTRIB_CODENAME")"
-		if [ -z "$dist_version" ]; then
-			dist_version="$(. /etc/lsb-release && echo "$DISTRIB_RELEASE")"
-			case "$lsb_dist" in
-				"Debian")
-					dist_version="$(get_debian_dist_version "$dist_version")"
-					;;
-				"Ubuntu")
-					case "$dist_version" in
-						"15.04")
-							dist_version="vivid"
-							;;
-						"14.04")
-							dist_version="trusty"
-							;;
-						"12.04")
-							dist_version="precise"
-							;;
-					esac
-					;;
-			esac
-		fi
 	fi
 	if [ -z "$lsb_dist" ] && [ -r /etc/debian_version ]; then
 		lsb_dist='debian'
-		dist_version="$(cat /etc/debian_version | sed 's/\/.*//' | sed 's/\..*//')"
-		dist_version="$(get_debian_dist_version "$dist_version")"
 	fi
 	if [ -z "$lsb_dist" ] && [ -r /etc/fedora-release ]; then
 		lsb_dist='fedora'
-		dist_version="$(rpm -q --whatprovides redhat-release --queryformat "%{VERSION}\n")"
+	fi
+	if [ -z "$lsb_dist" ] && [ -r /etc/oracle-release ]; then
+		lsb_dist='oracleserver'
 	fi
 	if [ -z "$lsb_dist" ]; then
 		if [ -r /etc/centos-release ] || [ -r /etc/redhat-release ]; then
 			lsb_dist='centos'
-			dist_version="$(rpm -q --whatprovides redhat-release --queryformat "%{VERSION}\n")"
 		fi
 	fi
 	if [ -z "$lsb_dist" ] && [ -r /etc/os-release ]; then
 		lsb_dist="$(. /etc/os-release && echo "$ID")"
-		dist_version="$(. /etc/os-release && echo "$VERSION_ID")"
 	fi
 
 	lsb_dist="$(echo "$lsb_dist" | tr '[:upper:]' '[:lower:]')"
+
+	case "$lsb_dist" in
+
+		ubuntu)
+			if command_exists lsb_release; then
+				dist_version="$(lsb_release --codename | cut -f2)"
+			fi
+			if [ -z "$dist_version" ] && [ -r /etc/lsb-release ]; then
+				dist_version="$(. /etc/lsb-release && echo "$DISTRIB_CODENAME")"
+			fi
+		;;
+
+		debian)
+			dist_version="$(cat /etc/debian_version | sed 's/\/.*//' | sed 's/\..*//')"
+			case "$dist_version" in
+				8)
+					dist_version="jessie"
+				;;
+				7)
+					dist_version="wheezy"
+				;;
+			esac
+		;;
+
+		oracleserver)
+			# need to switch lsb_dist to match yum repo URL
+			lsb_dist="oraclelinux"
+			dist_version="$(rpm -q --whatprovides redhat-release --queryformat "%{VERSION}\n" | sed 's/\/.*//' | sed 's/\..*//')"
+		;;
+
+		fedora|centos)
+			dist_version="$(rpm -q --whatprovides redhat-release --queryformat "%{VERSION}\n" | sed 's/\/.*//' | sed 's/\..*//')"
+		;;
+
+		*)
+			if command_exists lsb_release; then
+				dist_version="$(lsb_release --codename | cut -f2)"
+			fi
+			if [ -z "$dist_version" ] && [ -r /etc/os-release ]; then
+				dist_version="$(. /etc/os-release && echo "$VERSION_ID")"
+			fi
+		;;
+
+
+	esac
+		
+
 	case "$lsb_dist" in
 		amzn)
 			(
@@ -263,8 +285,8 @@ do_install() {
 			exit 0
 			;;
 
-		fedora|centos)
-			$sh_c "cat >/etc/yum.repos.d/docker-${repo}.repo" <<-EOF
+		fedora|centos|oraclelinux)
+			cat >/etc/yum.repos.d/docker-${repo}.repo <<-EOF
 			[docker-${repo}-repo]
 			name=Docker ${repo} Repository
 			baseurl=https://yum.dockerproject.org/repo/${repo}/${lsb_dist}/${dist_version}
