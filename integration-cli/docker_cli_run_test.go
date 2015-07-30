@@ -2242,7 +2242,7 @@ func (s *DockerSuite) TestRunContainerWithWritableRootfs(c *check.C) {
 func (s *DockerSuite) TestRunContainerWithReadonlyRootfs(c *check.C) {
 	testRequires(c, NativeExecDriver)
 
-	for _, f := range []string{"/file", "/etc/hosts", "/etc/resolv.conf", "/etc/hostname", "/proc/uptime", "/sys/kernel", "/dev/.dont.touch.me"} {
+	for _, f := range []string{"/file", "/etc/hosts", "/etc/resolv.conf", "/etc/hostname", "/sys/kernel", "/dev/.dont.touch.me"} {
 		testReadOnlyFile(f, c)
 	}
 }

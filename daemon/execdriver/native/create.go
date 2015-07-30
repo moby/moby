@@ -85,7 +85,7 @@ func (d *Driver) createContainer(c *execdriver.Command) (*configs.Config, error)
 		}
 
 		/* These paths must be remounted as r/o */
-		container.ReadonlyPaths = append(container.ReadonlyPaths, "/proc", "/dev")
+		container.ReadonlyPaths = append(container.ReadonlyPaths, "/dev")
 	}
 
 	if err := d.setupMounts(container, c); err != nil {
