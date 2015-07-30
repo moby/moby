@@ -200,12 +200,12 @@ func (container *Container) CleanupStorage() error {
 	return nil
 }
 
-// TODO Windows. This can be further factored out. Used in daemon.go
+// prepareMountPoints is a no-op on Windows
 func (container *Container) prepareMountPoints() error {
 	return nil
 }
 
-// TODO Windows. This can be further factored out. Used in delete.go
+// removeMountPoints is a no-op on Windows.
 func (container *Container) removeMountPoints() error {
 	return nil
 }
