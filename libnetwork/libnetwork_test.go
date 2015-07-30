@@ -1919,14 +1919,30 @@ func createGlobalInstance(t *testing.T) {
 			"AllowNonDefaultBridge": true,
 		},
 	}
-	net, err := createTestNetwork(bridgeNetType, "network", netOption)
+
+	net1, err := controller.NetworkByName("testhost")
 	if err != nil {
-		t.Fatal("new network")
+		t.Fatal(err)
 	}
 
-	_, err = net.CreateEndpoint("ep1")
+	net2, err := createTestNetwork("bridge", "network2", netOption)
 	if err != nil {
-		t.Fatal("createendpoint")
+		t.Fatal(err)
+	}
+
+	_, err = net1.CreateEndpoint("pep1")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = net2.CreateEndpoint("pep2")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = net2.CreateEndpoint("pep3")
+	if err != nil {
+		t.Fatal(err)
 	}
 }
 
@@ -1940,12 +1956,18 @@ func debugf(format string, a ...interface{}) (int, error) {
 
 func parallelJoin(t *testing.T, ep libnetwork.Endpoint, thrNumber int) {
 	debugf("J%d.", thrNumber)
-	err := ep.Join("racing_container")
+	var err error
+	if thrNumber == first {
+		err = ep.Join(fmt.Sprintf("%drace", thrNumber), libnetwork.JoinOptionUseDefaultSandbox())
+	} else {
+		err = ep.Join(fmt.Sprintf("%drace", thrNumber))
+	}
+
 	runtime.LockOSThread()
 	if err != nil {
 		if _, ok := err.(libnetwork.ErrNoContainer); !ok {
 			if _, ok := err.(libnetwork.ErrInvalidJoin); !ok {
-				t.Fatal(err)
+				t.Fatalf("thread %d: %v", thrNumber, err)
 			}
 		}
 		debugf("JE%d(%v).", thrNumber, err)
@@ -1955,12 +1977,18 @@ func parallelJoin(t *testing.T, ep libnetwork.Endpoint, thrNumber int) {
 
 func parallelLeave(t *testing.T, ep libnetwork.Endpoint, thrNumber int) {
 	debugf("L%d.", thrNumber)
-	err := ep.Leave("racing_container")
+	var err error
+	if thrNumber == first {
+		err = ep.Leave(fmt.Sprintf("%drace", thrNumber))
+	} else {
+		err = controller.LeaveAll(fmt.Sprintf("%drace", thrNumber))
+	}
+
 	runtime.LockOSThread()
 	if err != nil {
 		if _, ok := err.(libnetwork.ErrNoContainer); !ok {
 			if _, ok := err.(libnetwork.ErrInvalidJoin); !ok {
-				t.Fatal(err)
+				t.Fatalf("thread %d: %v", thrNumber, err)
 			}
 		}
 		debugf("LE%d(%v).", thrNumber, err)
@@ -2012,15 +2040,33 @@ func runParallelTests(t *testing.T, thrNumber int) {
 	}
 	defer netns.Set(origns)
 
-	net, err := controller.NetworkByName("network")
+	net1, err := controller.NetworkByName("testhost")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if net == nil {
-		t.Fatal("Could not find network")
+	if net1 == nil {
+		t.Fatal("Could not find network1")
 	}
 
-	ep, err := net.EndpointByName("ep1")
+	net2, err := controller.NetworkByName("network2")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if net2 == nil {
+		t.Fatal("Could not find network2")
+	}
+
+	epName := fmt.Sprintf("pep%d", thrNumber)
+
+	//var err error
+	var ep libnetwork.Endpoint
+
+	if thrNumber == first {
+		ep, err = net1.EndpointByName(epName)
+	} else {
+		ep, err = net2.EndpointByName(epName)
+	}
+
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2035,6 +2081,11 @@ func runParallelTests(t *testing.T, thrNumber int) {
 
 	debugf("\n")
 
+	err = ep.Delete()
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	if thrNumber == first {
 		for thrdone := range done {
 			select {
@@ -2043,12 +2094,8 @@ func runParallelTests(t *testing.T, thrNumber int) {
 		}
 
 		testns.Close()
-		err = ep.Delete()
-		if err != nil {
-			t.Fatal(err)
-		}
 
-		if err := net.Delete(); err != nil {
+		if err := net2.Delete(); err != nil {
 			t.Fatal(err)
 		}
 	}
