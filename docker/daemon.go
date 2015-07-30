@@ -266,6 +266,13 @@ func (cli *DaemonCli) CmdDaemon(args ...string) error {
 
 	logrus.Info("Daemon has completed initialization")
 
+	// FIXME: perhaps move the following log statement to the end
+	// of daemon.NewDaemon. Why? The exports ExecutionDriver() and
+	// GraphDriver() are only used here outside of the daemon
+	// package. It seems silly to me to export these two just to
+	// log them, when they could be logged in daemon. What I have
+	// not considered is whether the logging is configured
+	// differently here than inside daemon.
 	logrus.WithFields(logrus.Fields{
 		"version":     dockerversion.VERSION,
 		"commit":      dockerversion.GITCOMMIT,

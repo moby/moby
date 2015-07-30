@@ -192,7 +192,7 @@ func checkPriorDriver(name, root string) error {
 
 	if len(priorDrivers) > 0 {
 
-		return errors.New(fmt.Sprintf("%q contains other graphdrivers: %s; Please cleanup or explicitly choose storage driver (-s <DRIVER>)", root, strings.Join(priorDrivers, ",")))
+		return fmt.Errorf("%q contains other graphdrivers: %s; Please cleanup or explicitly choose storage driver (-s <DRIVER>)", root, strings.Join(priorDrivers, ","))
 	}
 	return nil
 }

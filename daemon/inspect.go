@@ -7,6 +7,9 @@ import (
 	"github.com/docker/docker/api/types"
 )
 
+// ContainerInspect returns lowlevel information about a
+// container. Returns an error if the container cannot be found, or if
+// there is an error getting the data.
 func (daemon *Daemon) ContainerInspect(name string) (*types.ContainerJSON, error) {
 	container, err := daemon.Get(name)
 	if err != nil {
@@ -30,7 +33,7 @@ func (daemon *Daemon) getInspectData(container *Container) (*types.ContainerJSON
 	// make a copy to play with
 	hostConfig := *container.hostConfig
 
-	if children, err := daemon.Children(container.Name); err == nil {
+	if children, err := daemon.children(container.Name); err == nil {
 		for linkAlias, child := range children {
 			hostConfig.Links = append(hostConfig.Links, fmt.Sprintf("%s:%s", child.Name, linkAlias))
 		}
@@ -69,7 +72,7 @@ func (daemon *Daemon) getInspectData(container *Container) (*types.ContainerJSON
 		ExecDriver:      container.ExecDriver,
 		MountLabel:      container.MountLabel,
 		ProcessLabel:    container.ProcessLabel,
-		ExecIDs:         container.GetExecIDs(),
+		ExecIDs:         container.getExecIDs(),
 		HostConfig:      &hostConfig,
 	}
 
@@ -86,6 +89,14 @@ func (daemon *Daemon) getInspectData(container *Container) (*types.ContainerJSON
 	return contJSONBase, nil
 }
 
+// ContainerExecInspect returns low-level information about the exec
+// command. An error is returned if the exec cannot be found.
+//
+// golnit complains exported method ContainerExecInspect returns
+// unexported type *daemon.execConfig, which can be annoying to use
+//
+// not sure what to do about the return value, perhaps we should
+// export execConfig
 func (daemon *Daemon) ContainerExecInspect(id string) (*execConfig, error) {
 	eConfig, err := daemon.getExecConfig(id)
 	if err != nil {
