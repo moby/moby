@@ -763,17 +763,26 @@ func (d *driver) DeleteNetwork(nid types.UUID) error {
 }
 
 func addToBridge(ifaceName, bridgeName string) error {
-	iface, err := net.InterfaceByName(ifaceName)
+	link, err := netlink.LinkByName(ifaceName)
 	if err != nil {
 		return fmt.Errorf("could not find interface %s: %v", ifaceName, err)
 	}
+	if err = netlink.LinkSetMaster(link,
+		&netlink.Bridge{LinkAttrs: netlink.LinkAttrs{Name: bridgeName}}); err != nil {
+		logrus.Debugf("Failed to add %s to bridge via netlink.Trying ioctl: %v", ifaceName, err)
+		iface, err := net.InterfaceByName(ifaceName)
+		if err != nil {
+			return fmt.Errorf("could not find network interface %s: %v", ifaceName, err)
+		}
 
-	master, err := net.InterfaceByName(bridgeName)
-	if err != nil {
-		return fmt.Errorf("could not find bridge %s: %v", bridgeName, err)
+		master, err := net.InterfaceByName(bridgeName)
+		if err != nil {
+			return fmt.Errorf("could not find bridge %s: %v", bridgeName, err)
+		}
+
+		return ioctlAddToBridge(iface, master)
 	}
-
-	return ioctlAddToBridge(iface, master)
+	return nil
 }
 
 func setHairpinMode(link netlink.Link, enable bool) error {

@@ -1,8 +1,11 @@
 package bridge
 
 import (
+	"fmt"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/parsers/kernel"
+	"github.com/docker/libnetwork/netutils"
 	"github.com/vishvananda/netlink"
 )
 
@@ -32,7 +35,19 @@ func setupDevice(config *networkConfiguration, i *bridgeInterface) error {
 		setMac = kv.Kernel > 3 || (kv.Kernel == 3 && kv.Major >= 3)
 	}
 
-	return ioctlCreateBridge(config.BridgeName, setMac)
+	if err = netlink.LinkAdd(i.Link); err != nil {
+		logrus.Debugf("Failed to create bridge %s via netlink. Trying ioctl", config.BridgeName)
+		return ioctlCreateBridge(config.BridgeName, setMac)
+	}
+
+	if setMac {
+		hwAddr := netutils.GenerateRandomMAC()
+		if err = netlink.LinkSetHardwareAddr(i.Link, hwAddr); err != nil {
+			return fmt.Errorf("failed to set bridge mac-address %s : %s", hwAddr, err.Error())
+		}
+		logrus.Debugf("Setting bridge mac address to %s", hwAddr)
+	}
+	return err
 }
 
 // SetupDeviceUp ups the given bridge interface.
