@@ -22,7 +22,7 @@ func TestDisplay(t *testing.T) {
 		t.Fatalf("c.Display() gave error: %s", err)
 	}
 	got := b.String()
-	want := "app\t30.00%\t104.9 MB/2.147 GB\t4.88%\t104.9 MB/838.9 MB\n"
+	want := "app\t30.00%\t104.9 MB / 2.147 GB\t4.88%\t104.9 MB / 838.9 MB\n"
 	if got != want {
 		t.Fatalf("c.Display() = %q, want %q", got, want)
 	}
