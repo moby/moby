@@ -677,14 +677,6 @@ func (container *Container) Exposes(p nat.Port) bool {
 	return exists
 }
 
-func (container *Container) HostConfig() *runconfig.HostConfig {
-	return container.hostConfig
-}
-
-func (container *Container) SetHostConfig(hostConfig *runconfig.HostConfig) {
-	container.hostConfig = hostConfig
-}
-
 func (container *Container) getLogConfig() runconfig.LogConfig {
 	cfg := container.hostConfig.LogConfig
 	if cfg.Type != "" || len(cfg.Config) > 0 { // container has log driver configured
