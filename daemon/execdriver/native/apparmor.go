@@ -53,7 +53,7 @@ profile {{.Name}} flags=(attach_disconnected,mediate_deleted) {
   deny @{PROC}/sys/kernel/*/** wklx,
 
   deny mount,
-  deny ptrace,
+  deny ptrace (trace) peer=docker-default,
 
   deny /sys/[^f]*/** wklx,
   deny /sys/f[^s]*/** wklx,

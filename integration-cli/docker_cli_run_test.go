@@ -2737,3 +2737,42 @@ func (s *DockerTrustSuite) TestTrustedRunFromBadTrustServer(c *check.C) {
 		c.Fatalf("Missing expected output on trusted push:\n%s", out)
 	}
 }
+
+func (s *DockerSuite) TestPtraceContainerProcsFromHost(c *check.C) {
+	testRequires(c, SameHostDaemon)
+
+	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
+	id := strings.TrimSpace(out)
+	if err := waitRun(id); err != nil {
+		c.Fatal(err)
+	}
+	pid1, err := inspectField(id, "State.Pid")
+	c.Assert(err, check.IsNil)
+
+	_, err = os.Readlink(fmt.Sprintf("/proc/%s/ns/net", pid1))
+	if err != nil {
+		c.Fatal(err)
+	}
+}
+
+func (s *DockerSuite) TestAppArmorDeniesPtrace(c *check.C) {
+	testRequires(c, SameHostDaemon)
+	testRequires(c, Apparmor)
+
+	// Run through 'sh' so we are NOT pid 1. Pid 1 may be able to trace
+	// itself, but pid>1 should not be able to trace pid1.
+	_, exitCode, _ := dockerCmdWithError("run", "busybox", "sh", "-c", "readlink /proc/1/ns/net")
+	if exitCode == 0 {
+		c.Fatal("ptrace was not successfully restricted by AppArmor")
+	}
+}
+
+func (s *DockerSuite) TestAppArmorTraceSelf(c *check.C) {
+	testRequires(c, SameHostDaemon)
+	testRequires(c, Apparmor)
+
+	_, exitCode, _ := dockerCmdWithError("run", "busybox", "readlink", "/proc/1/ns/net")
+	if exitCode != 0 {
+		c.Fatal("ptrace of self failed.")
+	}
+}
