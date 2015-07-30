@@ -15,8 +15,13 @@ import (
 var (
 	// ErrEmptyPrefix is an error returned if the prefix was empty.
 	ErrEmptyPrefix = errors.New("Prefix can't be empty")
-	// ErrAmbiguousPrefix is an error returned if the prefix was ambiguous (multiple ids for the prefix).
+
+	// ErrAmbiguousPrefix is returned if the prefix was ambiguous
+	// (multiple ids for the prefix).
 	ErrAmbiguousPrefix = errors.New("Multiple IDs found with provided prefix")
+
+	// ErrIllegalChar is returned when a space is in the ID
+	ErrIllegalChar = errors.New("illegal character: ' '")
 )
 
 // TruncIndex allows the retrieval of string identifiers by any of their unique prefixes.
@@ -44,7 +49,7 @@ func NewTruncIndex(ids []string) (idx *TruncIndex) {
 
 func (idx *TruncIndex) addID(id string) error {
 	if strings.Contains(id, " ") {
-		return fmt.Errorf("illegal character: ' '")
+		return ErrIllegalChar
 	}
 	if id == "" {
 		return ErrEmptyPrefix
