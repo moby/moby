@@ -6,6 +6,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/docker/docker/runconfig"
 )
 
 // Creator builds a logging driver instance with given context.
@@ -25,6 +27,7 @@ type Context struct {
 	ContainerImageID    string
 	ContainerImageName  string
 	ContainerCreated    time.Time
+	ContainerConfig     *runconfig.Config
 	LogPath             string
 }
 
