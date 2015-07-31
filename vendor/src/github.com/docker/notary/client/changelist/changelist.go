@@ -5,6 +5,11 @@ type memChangelist struct {
 	changes []Change
 }
 
+// NewMemChangelist instantiates a new in-memory changelist
+func NewMemChangelist() Changelist {
+	return &memChangelist{}
+}
+
 // List returns a list of Changes
 func (cl memChangelist) List() []Change {
 	return cl.changes

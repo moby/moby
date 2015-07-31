@@ -42,6 +42,39 @@ func (km *KeyStoreManager) ExportRootKey(dest io.Writer, keyID string) error {
 	return err
 }
 
+// ExportRootKeyReencrypt exports the specified root key to an io.Writer in
+// PEM format. The key is reencrypted with a new passphrase.
+func (km *KeyStoreManager) ExportRootKeyReencrypt(dest io.Writer, keyID string, newPassphraseRetriever passphrase.Retriever) error {
+	privateKey, alias, err := km.rootKeyStore.GetKey(keyID)
+	if err != nil {
+		return err
+	}
+
+	// Create temporary keystore to use as a staging area
+	tempBaseDir, err := ioutil.TempDir("", "notary-key-export-")
+	defer os.RemoveAll(tempBaseDir)
+
+	privRootKeysSubdir := filepath.Join(privDir, rootKeysSubdir)
+	tempRootKeysPath := filepath.Join(tempBaseDir, privRootKeysSubdir)
+	tempRootKeyStore, err := trustmanager.NewKeyFileStore(tempRootKeysPath, newPassphraseRetriever)
+	if err != nil {
+		return err
+	}
+
+	err = tempRootKeyStore.AddKey(keyID, alias, privateKey)
+	if err != nil {
+		return err
+	}
+
+	pemBytes, err := tempRootKeyStore.Get(keyID + "_" + alias)
+	if err != nil {
+		return err
+	}
+
+	_, err = dest.Write(pemBytes)
+	return err
+}
+
 // checkRootKeyIsEncrypted makes sure the root key is encrypted. We have
 // internal assumptions that depend on this.
 func checkRootKeyIsEncrypted(pemBytes []byte) error {
@@ -80,13 +113,13 @@ func (km *KeyStoreManager) ImportRootKey(source io.Reader, keyID string) error {
 
 func moveKeys(oldKeyStore, newKeyStore *trustmanager.KeyFileStore) error {
 	// List all files but no symlinks
-	for _, f := range oldKeyStore.ListKeys() {
-		pemBytes, alias, err := oldKeyStore.GetKey(f)
+	for f := range oldKeyStore.ListKeys() {
+		privateKey, alias, err := oldKeyStore.GetKey(f)
 		if err != nil {
 			return err
 		}
 
-		err = newKeyStore.AddKey(f, alias, pemBytes)
+		err = newKeyStore.AddKey(f, alias, privateKey)
 
 		if err != nil {
 			return err
@@ -247,7 +280,7 @@ func (km *KeyStoreManager) ImportKeysZip(zipReader zip.Reader) error {
 
 func moveKeysByGUN(oldKeyStore, newKeyStore *trustmanager.KeyFileStore, gun string) error {
 	// List all files but no symlinks
-	for _, relKeyPath := range oldKeyStore.ListKeys() {
+	for relKeyPath := range oldKeyStore.ListKeys() {
 
 		// Skip keys that aren't associated with this GUN
 		if !strings.HasPrefix(relKeyPath, filepath.FromSlash(gun)) {

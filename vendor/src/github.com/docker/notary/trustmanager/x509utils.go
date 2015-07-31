@@ -351,7 +351,7 @@ func GenerateECDSAKey(random io.Reader) (data.PrivateKey, error) {
 // PrivateKey. The serialization format we use is just the public key bytes
 // followed by the private key bytes
 func GenerateED25519Key(random io.Reader) (data.PrivateKey, error) {
-	pub, priv, err := ed25519.GenerateKey(rand.Reader)
+	pub, priv, err := ed25519.GenerateKey(random)
 	if err != nil {
 		return nil, err
 	}

@@ -22,9 +22,9 @@ var (
 )
 
 type signedMeta struct {
-	Type    string `json:"_type"`
-	Expires string `json:"expires"`
-	Version int    `json:"version"`
+	Type    string    `json:"_type"`
+	Expires time.Time `json:"expires"`
+	Version int       `json:"version"`
 }
 
 // VerifyRoot checks if a given root file is valid against a known set of keys.
@@ -80,12 +80,12 @@ func verifyMeta(s *data.Signed, role string, minVersion int) error {
 	if err := json.Unmarshal(s.Signed, sm); err != nil {
 		return err
 	}
-	if !data.ValidTUFType(sm.Type) {
+	if !data.ValidTUFType(sm.Type, role) {
 		return ErrWrongType
 	}
 	if IsExpired(sm.Expires) {
 		logrus.Errorf("Metadata for %s expired", role)
-		return ErrExpired{Role: role, Expired: sm.Expires}
+		return ErrExpired{Role: role, Expired: sm.Expires.Format("Mon Jan 2 15:04:05 MST 2006")}
 	}
 	if sm.Version < minVersion {
 		return ErrLowVersion{sm.Version, minVersion}
@@ -94,15 +94,8 @@ func verifyMeta(s *data.Signed, role string, minVersion int) error {
 	return nil
 }
 
-var IsExpired = func(t string) bool {
-	ts, err := time.Parse(time.RFC3339, t)
-	if err != nil {
-		ts, err = time.Parse("2006-01-02 15:04:05 MST", t)
-		if err != nil {
-			return false
-		}
-	}
-	return ts.Sub(time.Now()) <= 0
+var IsExpired = func(t time.Time) bool {
+	return t.Before(time.Now())
 }
 
 func VerifySignatures(s *data.Signed, role string, db *keys.KeyDB) error {
