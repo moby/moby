@@ -341,7 +341,7 @@ _docker_docker() {
 			COMPREPLY=( $( compgen -W "$boolean_options $global_options_with_args" -- "$cur" ) )
 			;;
 		*)
-			local counter="$(__docker_pos_first_nonflag $main_options_with_args_glob)"
+			local counter=$( __docker_pos_first_nonflag $(__docker_to_extglob "$global_options_with_args") )
 			if [ $cword -eq $counter ]; then
 				COMPREPLY=( $( compgen -W "${commands[*]} help" -- "$cur" ) )
 			fi
