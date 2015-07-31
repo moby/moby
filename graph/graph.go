@@ -174,6 +174,10 @@ func (graph *Graph) Get(name string) (*image.Image, error) {
 	if err != nil {
 		return nil, fmt.Errorf("could not find image: %v", err)
 	}
+	return graph.unsafeGet(id)
+}
+
+func (graph *Graph) unsafeGet(id string) (*image.Image, error) {
 	img, err := graph.loadImage(id)
 	if err != nil {
 		return nil, err
@@ -387,7 +391,7 @@ func (graph *Graph) Map() map[string]*image.Image {
 // The walking order is undetermined.
 func (graph *Graph) walkAll(handler func(*image.Image)) {
 	graph.idIndex.Iterate(func(id string) {
-		if img, err := graph.Get(id); err != nil {
+		if img, err := graph.unsafeGet(id); err != nil {
 			return
 		} else if handler != nil {
 			handler(img)
