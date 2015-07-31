@@ -131,6 +131,12 @@ Docker volumes default to mount in read-write mode, but you can also set it to b
 Here we've mounted the same `/src/webapp` directory but we've added the `ro`
 option to specify that the mount should be read-only.
 
+> **Note:** 
+> As a best practice for security, the directory structure in the shared volume should not be 
+> modified by the host. Moving subdirectories in a shared volume by the host might expose the entire
+> host filesystem to the container, see isses [#12317](https://github.com/docker/docker/issues/12317) and 
+> [#14890](https://github.com/docker/docker/issues/14890).
+
 ### Mount a host file as a data volume
 
 The `-v` flag can also be used to mount a single file  - instead of *just* 
