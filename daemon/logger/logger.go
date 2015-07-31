@@ -9,6 +9,7 @@ package logger
 
 import (
 	"errors"
+	"sync"
 	"time"
 
 	"github.com/docker/docker/pkg/timeutils"
@@ -58,6 +59,7 @@ type LogWatcher struct {
 	// For sending error messages that occur while while reading logs.
 	Err           chan error
 	closeNotifier chan struct{}
+	closeOnce     sync.Once
 }
 
 // NewLogWatcher returns a new LogWatcher.
@@ -71,7 +73,12 @@ func NewLogWatcher() *LogWatcher {
 
 // Close notifies the underlying log reader to stop.
 func (w *LogWatcher) Close() {
-	close(w.closeNotifier)
+	// only close if not already closed
+	select {
+	case <-w.closeNotifier:
+	default:
+		close(w.closeNotifier)
+	}
 }
 
 // WatchClose returns a channel receiver that receives notification
