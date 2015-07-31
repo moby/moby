@@ -66,7 +66,8 @@ func (a *IPAllocator) RegisterSubnet(network *net.IPNet, subnet *net.IPNet) erro
 	a.mutex.Lock()
 	defer a.mutex.Unlock()
 
-	key := network.String()
+	nw := &net.IPNet{IP: network.IP.Mask(network.Mask), Mask: network.Mask}
+	key := nw.String()
 	if _, ok := a.allocatedIPs[key]; ok {
 		return ErrNetworkAlreadyRegistered
 	}
@@ -90,10 +91,11 @@ func (a *IPAllocator) RequestIP(network *net.IPNet, ip net.IP) (net.IP, error) {
 	a.mutex.Lock()
 	defer a.mutex.Unlock()
 
-	key := network.String()
+	nw := &net.IPNet{IP: network.IP.Mask(network.Mask), Mask: network.Mask}
+	key := nw.String()
 	allocated, ok := a.allocatedIPs[key]
 	if !ok {
-		allocated = newAllocatedMap(network)
+		allocated = newAllocatedMap(nw)
 		a.allocatedIPs[key] = allocated
 	}
 
@@ -109,7 +111,8 @@ func (a *IPAllocator) ReleaseIP(network *net.IPNet, ip net.IP) error {
 	a.mutex.Lock()
 	defer a.mutex.Unlock()
 
-	if allocated, exists := a.allocatedIPs[network.String()]; exists {
+	nw := &net.IPNet{IP: network.IP.Mask(network.Mask), Mask: network.Mask}
+	if allocated, exists := a.allocatedIPs[nw.String()]; exists {
 		delete(allocated.p, ip.String())
 	}
 	return nil
