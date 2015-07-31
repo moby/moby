@@ -23,6 +23,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/opts"
+	"github.com/docker/docker/pkg/httputils"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/stringutils"
 	"github.com/go-check/check"
@@ -462,6 +463,20 @@ func init() {
 		if imgTag != "<none>:<none>" {
 			protectedImages[imgTag] = struct{}{}
 		}
+	}
+
+	// Obtain the daemon platform so that it can be used by tests to make
+	// intelligent decisions about how to configure themselves, and validate
+	// that the target platform is valid.
+	res, b, err := sockRequestRaw("GET", "/version", nil, "application/json")
+	defer b.Close()
+	if err != nil || res.StatusCode != http.StatusOK {
+		panic("Init failed to get version: " + err.Error() + " " + string(res.StatusCode))
+	}
+	svrHeader, _ := httputils.ParseServerHeader(res.Header.Get("Server"))
+	daemonPlatform = svrHeader.OS
+	if daemonPlatform != "linux" && daemonPlatform != "windows" {
+		panic("Cannot run tests against platform: " + daemonPlatform)
 	}
 }
 

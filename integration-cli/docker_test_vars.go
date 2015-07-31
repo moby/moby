@@ -28,6 +28,12 @@ var (
 	// isLocalDaemon is true if the daemon under test is on the same
 	// host as the CLI.
 	isLocalDaemon bool
+
+	// daemonPlatform is held globally so that tests can make intelligent
+	// decisions on how to configure themselves according to the platform
+	// of the daemon. This is initialised in docker_utils by sending
+	// a version call to the daemon and examining the response header.
+	daemonPlatform string
 )
 
 func init() {
