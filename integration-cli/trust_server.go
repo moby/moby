@@ -32,7 +32,8 @@ func newTestNotary(c *check.C) (*testNotary, error) {
 	"trust_service": {
 		"type": "local",
 		"hostname": "",
-		"port": ""
+		"port": "",
+		"key_algorithm": "ed25519"
 	},
 	"logging": {
 		"level": 5
@@ -116,25 +117,24 @@ func (t *testNotary) Close() {
 
 func (s *DockerTrustSuite) trustedCmd(cmd *exec.Cmd) {
 	pwd := "12345678"
-	trustCmdEnv(cmd, s.not.address(), pwd, pwd, pwd)
+	trustCmdEnv(cmd, s.not.address(), pwd, pwd)
 }
 
 func (s *DockerTrustSuite) trustedCmdWithServer(cmd *exec.Cmd, server string) {
 	pwd := "12345678"
-	trustCmdEnv(cmd, server, pwd, pwd, pwd)
+	trustCmdEnv(cmd, server, pwd, pwd)
 }
 
-func (s *DockerTrustSuite) trustedCmdWithPassphrases(cmd *exec.Cmd, rootPwd, snapshotPwd, targetPwd string) {
-	trustCmdEnv(cmd, s.not.address(), rootPwd, snapshotPwd, targetPwd)
+func (s *DockerTrustSuite) trustedCmdWithPassphrases(cmd *exec.Cmd, offlinePwd, taggingPwd string) {
+	trustCmdEnv(cmd, s.not.address(), offlinePwd, taggingPwd)
 }
 
-func trustCmdEnv(cmd *exec.Cmd, server, rootPwd, snapshotPwd, targetPwd string) {
+func trustCmdEnv(cmd *exec.Cmd, server, offlinePwd, taggingPwd string) {
 	env := []string{
 		"DOCKER_CONTENT_TRUST=1",
 		fmt.Sprintf("DOCKER_CONTENT_TRUST_SERVER=%s", server),
-		fmt.Sprintf("DOCKER_CONTENT_TRUST_ROOT_PASSPHRASE=%s", rootPwd),
-		fmt.Sprintf("DOCKER_CONTENT_TRUST_SNAPSHOT_PASSPHRASE=%s", snapshotPwd),
-		fmt.Sprintf("DOCKER_CONTENT_TRUST_TARGET_PASSPHRASE=%s", targetPwd),
+		fmt.Sprintf("DOCKER_CONTENT_TRUST_OFFLINE_PASSPHRASE=%s", offlinePwd),
+		fmt.Sprintf("DOCKER_CONTENT_TRUST_TAGGING_PASSPHRASE=%s", taggingPwd),
 	}
 	cmd.Env = append(os.Environ(), env...)
 }

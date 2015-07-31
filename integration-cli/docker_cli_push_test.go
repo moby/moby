@@ -275,7 +275,7 @@ func (s *DockerTrustSuite) TestTrustedPushWithIncorrectPassphraseForNonRoot(c *c
 
 	// Push with wrong passphrases
 	pushCmd = exec.Command(dockerBinary, "push", repoName)
-	s.trustedCmdWithPassphrases(pushCmd, "12345678", "87654321", "87654321")
+	s.trustedCmdWithPassphrases(pushCmd, "12345678", "87654321")
 	out, _, err = runCommandWithOutput(pushCmd)
 	if err == nil {
 		c.Fatalf("Error missing from trusted push with short targets passphrase: \n%s", out)
