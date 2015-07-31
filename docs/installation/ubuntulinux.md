@@ -129,9 +129,9 @@ install Docker using the following:
 
 4. Verify `docker` is installed correctly.
 
-        $ sudo docker run hello-world
+        $ sudo service docker start; sudo docker run hello-world
 
-    This command downloads a test image and runs it in a container.
+    This command starts `docker` service, downloads a test image, and runs it in a container.
 
 ## Optional configurations for Docker on Ubuntu 
 
