@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"runtime"
 	"strings"
 
 	"github.com/docker/distribution/registry/client/auth"
@@ -138,14 +139,16 @@ func (s *Service) LookupEndpoints(repoName string) (endpoints []APIEndpoint, err
 			TrimHostname: true,
 			TLSConfig:    tlsConfig,
 		})
-		// v1 registry
-		endpoints = append(endpoints, APIEndpoint{
-			URL:          DefaultV1Registry,
-			Version:      APIVersion1,
-			Official:     true,
-			TrimHostname: true,
-			TLSConfig:    tlsConfig,
-		})
+		if runtime.GOOS == "linux" { // do not inherit legacy API for OSes supported in the future
+			// v1 registry
+			endpoints = append(endpoints, APIEndpoint{
+				URL:          DefaultV1Registry,
+				Version:      APIVersion1,
+				Official:     true,
+				TrimHostname: true,
+				TLSConfig:    tlsConfig,
+			})
+		}
 		return endpoints, nil
 	}
 
