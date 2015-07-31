@@ -22,6 +22,7 @@ import (
 	"github.com/docker/distribution/registry/client/transport"
 	"github.com/docker/docker/autogen/dockerversion"
 	"github.com/docker/docker/pkg/parsers/kernel"
+	"github.com/docker/docker/pkg/parsers/operatingsystem"
 	"github.com/docker/docker/pkg/tlsconfig"
 	"github.com/docker/docker/pkg/useragent"
 )
@@ -47,6 +48,9 @@ func init() {
 	}
 	httpVersion = append(httpVersion, useragent.VersionInfo{"os", runtime.GOOS})
 	httpVersion = append(httpVersion, useragent.VersionInfo{"arch", runtime.GOARCH})
+	if osVersion, err := operatingsystem.GetOperatingSystem(); err != nil {
+		httpVersion = append(httpVersion, useragent.VersionInfo{"distro", strings.Replace(osVersion, " ", "_", -1)})
+	}
 
 	dockerUserAgent = useragent.AppendVersions("", httpVersion...)
 }
