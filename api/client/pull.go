@@ -25,7 +25,7 @@ func (cli *DockerCli) CmdPull(args ...string) error {
 
 	taglessRemote, tag := parsers.ParseRepositoryTag(remote)
 	if tag == "" && !*allTags {
-		tag = tags.DEFAULTTAG
+		tag = tags.DefaultTag
 		fmt.Fprintf(cli.out, "Using default tag: %s\n", tag)
 	} else if tag != "" && *allTags {
 		return fmt.Errorf("tag can't be used with --all-tags/-a")

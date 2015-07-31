@@ -6,7 +6,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/graph"
+	"github.com/docker/docker/graph/tags"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/stringid"
@@ -27,16 +27,13 @@ func (daemon *Daemon) ImageDelete(name string, force, noprune bool) ([]types.Ima
 }
 
 func (daemon *Daemon) imgDeleteHelper(name string, list *[]types.ImageDelete, first, force, noprune bool) error {
-	var (
-		repoName, tag string
-		tags          = []string{}
-	)
+	var repoName, tag string
 	repoAndTags := make(map[string][]string)
 
 	// FIXME: please respect DRY and centralize repo+tag parsing in a single central place! -- shykes
 	repoName, tag = parsers.ParseRepositoryTag(name)
 	if tag == "" {
-		tag = graph.DefaultTag
+		tag = tags.DefaultTag
 	}
 
 	if name == "" {
@@ -111,7 +108,7 @@ func (daemon *Daemon) imgDeleteHelper(name string, list *[]types.ImageDelete, fi
 			}
 		}
 	}
-	tags = daemon.Repositories().ByID()[img.ID]
+	tags := daemon.Repositories().ByID()[img.ID]
 	if (len(tags) <= 1 && repoName == "") || len(tags) == 0 {
 		if len(byParents[img.ID]) == 0 {
 			if err := daemon.Repositories().DeleteAll(img.ID); err != nil {

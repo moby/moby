@@ -13,21 +13,12 @@ import (
 	"github.com/docker/docker/registry"
 )
 
-// ImageExportConfig holds list of names to be exported to a output stream.
-// All images with the given tag and all versions
-// containing the same tag are exported. The resulting output is an
-// uncompressed tar ball.
-type ImageExportConfig struct {
-	// Names is the set of tags to export.
-	Names []string
-	// OutStream is the writer where the images are written to.
-	Outstream io.Writer
-}
-
-// ImageExport exports list of images to a output stream specified in the config.
-// The exported images are archived into a tar when written to the output stream.
-func (s *TagStore) ImageExport(imageExportConfig *ImageExportConfig) error {
-
+// ImageExport exports list of images to a output stream specified in the
+// config. The exported images are archived into a tar when written to the
+// output stream. All images with the given tag and all versions containing the
+// same tag are exported. names is the set of tags to export, and outStream
+// is the writer which the images are written to.
+func (s *TagStore) ImageExport(names []string, outStream io.Writer) error {
 	// get image json
 	tempdir, err := ioutil.TempDir("", "docker-export-")
 	if err != nil {
@@ -44,7 +35,7 @@ func (s *TagStore) ImageExport(imageExportConfig *ImageExportConfig) error {
 			repo[tag] = id
 		}
 	}
-	for _, name := range imageExportConfig.Names {
+	for _, name := range names {
 		name = registry.NormalizeLocalName(name)
 		logrus.Debugf("Serializing %s", name)
 		rootRepo := s.Repositories[name]
@@ -107,7 +98,7 @@ func (s *TagStore) ImageExport(imageExportConfig *ImageExportConfig) error {
 	}
 	defer fs.Close()
 
-	if _, err := io.Copy(imageExportConfig.Outstream, fs); err != nil {
+	if _, err := io.Copy(outStream, fs); err != nil {
 		return err
 	}
 	logrus.Debugf("End export image")

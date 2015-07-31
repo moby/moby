@@ -13,15 +13,18 @@ import (
 
 // ImagePullConfig stores pull configuration.
 type ImagePullConfig struct {
-	// MetaHeaders store meta data about the image (DockerHeaders with prefix X-Meta- in the request).
+	// MetaHeaders stores HTTP headers with metadata about the image
+	// (DockerHeaders with prefix X-Meta- in the request).
 	MetaHeaders map[string][]string
-	// AuthConfig holds authentication information for authorizing with the registry.
+	// AuthConfig holds authentication credentials for authenticating with
+	// the registry.
 	AuthConfig *cliconfig.AuthConfig
-	// OutStream is the output writer for showing the status of the pull operation.
+	// OutStream is the output writer for showing the status of the pull
+	// operation.
 	OutStream io.Writer
 }
 
-// Puller is an interface to define Pull behavior.
+// Puller is an interface that abstracts pulling for different API versions.
 type Puller interface {
 	// Pull tries to pull the image referenced by `tag`
 	// Pull returns an error if any, as well as a boolean that determines whether to retry Pull on the next configured endpoint.
@@ -30,7 +33,11 @@ type Puller interface {
 	Pull(tag string) (fallback bool, err error)
 }
 
-// NewPuller returns a new instance of an implementation conforming to Puller interface.
+// NewPuller returns a Puller interface that will pull from either a v1 or v2
+// registry. The endpoint argument contains a Version field that determines
+// whether a v1 or v2 puller will be created. The other parameters are passed
+// through to the underlying puller implementation for use during the actual
+// pull operation.
 func NewPuller(s *TagStore, endpoint registry.APIEndpoint, repoInfo *registry.RepositoryInfo, imagePullConfig *ImagePullConfig, sf *streamformatter.StreamFormatter) (Puller, error) {
 	switch endpoint.Version {
 	case registry.APIVersion2:
@@ -53,7 +60,8 @@ func NewPuller(s *TagStore, endpoint registry.APIEndpoint, repoInfo *registry.Re
 	return nil, fmt.Errorf("unknown version %d for registry %s", endpoint.Version, endpoint.URL)
 }
 
-// Pull downloads a image with specified name and tag from the repo.
+// Pull initiates a pull operation. image is the repository name to pull, and
+// tag may be either empty, or indicate a specific tag to pull.
 func (s *TagStore) Pull(image string, tag string, imagePullConfig *ImagePullConfig) error {
 	var sf = streamformatter.NewJSONStreamFormatter()
 
@@ -133,7 +141,10 @@ func (s *TagStore) Pull(image string, tag string, imagePullConfig *ImagePullConf
 	return lastErr
 }
 
-// writeStatus shows status of the pull command.
+// writeStatus writes a status message to out. If layersDownloaded is true, the
+// status message indicates that a newer image was downloaded. Otherwise, it
+// indicates that the image is up to date. requestedTag is the tag the message
+// will refer to.
 func writeStatus(requestedTag string, out io.Writer, sf *streamformatter.StreamFormatter, layersDownloaded bool) {
 	if layersDownloaded {
 		out.Write(sf.FormatStatus("", "Status: Downloaded newer image for %s", requestedTag))

@@ -26,7 +26,7 @@ func (cli *DockerCli) pullImageCustomOut(image string, out io.Writer) error {
 	repos, tag := parsers.ParseRepositoryTag(image)
 	// pull only the image tagged 'latest' if no tag was specified
 	if tag == "" {
-		tag = tags.DEFAULTTAG
+		tag = tags.DefaultTag
 	}
 	v.Set("fromImage", repos)
 	v.Set("tag", tag)
@@ -96,7 +96,7 @@ func (cli *DockerCli) createContainer(config *runconfig.Config, hostConfig *runc
 
 	repo, tag := parsers.ParseRepositoryTag(config.Image)
 	if tag == "" {
-		tag = tags.DEFAULTTAG
+		tag = tags.DefaultTag
 	}
 
 	ref := registry.ParseReference(tag)
