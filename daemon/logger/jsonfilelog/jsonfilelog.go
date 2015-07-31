@@ -259,7 +259,8 @@ func (l *JSONFileLogger) readLogs(logWatcher *logger.LogWatcher, config logger.R
 	if !config.Follow {
 		return
 	}
-	if config.Tail == 0 {
+
+	if config.Tail >= 0 {
 		latestFile.Seek(0, os.SEEK_END)
 	}
 
