@@ -35,7 +35,7 @@ clone git github.com/coreos/go-etcd v2.0.0
 clone git github.com/hashicorp/consul v0.5.2
 
 # get graph and distribution packages
-clone git github.com/docker/distribution e83345626608aa943d5c8a027fddcf54814d9545
+clone git github.com/docker/distribution 7dc8d4a26b689bd4892f2f2322dbce0b7119d686
 clone git github.com/vbatts/tar-split v0.9.4
 
 clone git github.com/docker/notary 8e8122eb5528f621afcd4e2854c47302f17392f7
