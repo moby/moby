@@ -6,8 +6,10 @@ import (
 	"github.com/docker/distribution/registry/api/v2"
 )
 
+// Define DEFAULTTAG
 const DEFAULTTAG = "latest"
 
+// ErrTagInvalidFormat represents the invalid tag format.
 type ErrTagInvalidFormat struct {
 	name string
 }
