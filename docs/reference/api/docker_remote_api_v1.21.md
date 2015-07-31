@@ -1881,9 +1881,13 @@ Docker containers report the following events:
 
     attach, commit, copy, create, destroy, die, exec_create, exec_start, export, kill, oom, pause, rename, resize, restart, start, stop, top, unpause
 
-and Docker images report:
+Docker images report:
 
     delete, import, pull, push, tag, untag
+
+Docker builds report:
+
+    build
 
 **Example request**:
 

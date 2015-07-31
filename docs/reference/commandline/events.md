@@ -23,9 +23,13 @@ Docker containers will report the following events:
 
     create, destroy, die, export, kill, oom, pause, restart, start, stop, unpause
 
-and Docker images will report:
+Docker images will report:
 
     untag, delete
+
+Docker builds report:
+
+    build
 
 The `--since` and `--until` parameters can be Unix timestamps, RFC3339
 dates or Go duration strings (e.g. `10m`, `1h30m`) computed relative to
