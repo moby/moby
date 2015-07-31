@@ -1318,6 +1318,14 @@ func (s *DockerDaemonSuite) TestHttpsInfo(c *check.C) {
 	}
 }
 
+// TestTlsVerify verifies that --tlsverify=false turns on tls
+func (s *DockerDaemonSuite) TestTlsVerify(c *check.C) {
+	out, err := exec.Command(dockerBinary, "daemon", "--tlsverify=false").CombinedOutput()
+	if err == nil || !strings.Contains(string(out), "Could not load X509 key pair") {
+		c.Fatalf("Daemon should not have started due to missing certs: %v\n%s", err, string(out))
+	}
+}
+
 // TestHttpsInfoRogueCert connects via two-way authenticated HTTPS to the info endpoint
 // by using a rogue client certificate and checks that it fails with the expected error.
 func (s *DockerDaemonSuite) TestHttpsInfoRogueCert(c *check.C) {
