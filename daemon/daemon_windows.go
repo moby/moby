@@ -73,12 +73,14 @@ func checkKernel() error {
 	return nil
 }
 
+// adaptContainerSettings is called during container creation to modify any
+// settings necessary in the HostConfig structure.
 func (daemon *Daemon) adaptContainerSettings(hostConfig *runconfig.HostConfig) {
-	// TODO Windows.
 }
 
-func (daemon *Daemon) verifyContainerSettings(hostConfig *runconfig.HostConfig, config *runconfig.Config) ([]string, error) {
-	// TODO Windows. Verifications TBC
+// verifyPlatformContainerSettings performs platform-specific validation of the
+// hostconfig and config structures.
+func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *runconfig.HostConfig, config *runconfig.Config) ([]string, error) {
 	return nil, nil
 }
 
