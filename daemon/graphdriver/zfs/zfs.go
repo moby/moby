@@ -280,7 +280,7 @@ func (d *Driver) Get(id, mountLabel string) (string, error) {
 	logrus.Debugf(`[zfs] mount("%s", "%s", "%s")`, filesystem, mountpoint, options)
 
 	// Create the target directories if they don't exist
-	if err := os.MkdirAll(mountpoint, 0755); err != nil && !os.IsExist(err) {
+	if err := os.MkdirAll(mountpoint, 0755); err != nil {
 		return "", err
 	}
 

@@ -1187,7 +1187,7 @@ func newFakeGit(name string, files map[string]string, enforceLocalServer bool) (
 // Call c.Fatal() at the first error.
 func writeFile(dst, content string, c *check.C) {
 	// Create subdirectories if necessary
-	if err := os.MkdirAll(path.Dir(dst), 0700); err != nil && !os.IsExist(err) {
+	if err := os.MkdirAll(path.Dir(dst), 0700); err != nil {
 		c.Fatal(err)
 	}
 	f, err := os.OpenFile(dst, os.O_CREATE|os.O_RDWR|os.O_TRUNC, 0700)

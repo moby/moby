@@ -238,7 +238,7 @@ func (devices *DeviceSet) ensureImage(name string, size int64) (string, error) {
 	dirname := devices.loopbackDir()
 	filename := path.Join(dirname, name)
 
-	if err := os.MkdirAll(dirname, 0700); err != nil && !os.IsExist(err) {
+	if err := os.MkdirAll(dirname, 0700); err != nil {
 		return "", err
 	}
 
@@ -1260,7 +1260,7 @@ func (devices *DeviceSet) initDevmapper(doInit bool) error {
 		logrus.Warn("Udev sync is not supported. This will lead to unexpected behavior, data loss and errors. For more information, see https://docs.docker.com/reference/commandline/cli/#daemon-storage-driver-option")
 	}
 
-	if err := os.MkdirAll(devices.metadataDir(), 0700); err != nil && !os.IsExist(err) {
+	if err := os.MkdirAll(devices.metadataDir(), 0700); err != nil {
 		return err
 	}
 
