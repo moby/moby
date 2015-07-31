@@ -7,12 +7,18 @@ import (
 	"crypto/sha256"
 	"crypto/x509"
 	"encoding/pem"
+	"fmt"
 	"math/big"
 	"reflect"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/agl/ed25519"
 	"github.com/endophage/gotuf/data"
+)
+
+const (
+	minRSAKeySizeBit  = 2048 // 2048 bits = 256 bytes
+	minRSAKeySizeByte = minRSAKeySizeBit / 8
 )
 
 // Verifiers serves as a map of all verifiers available on the system and
@@ -47,15 +53,27 @@ func RegisterVerifier(algorithm data.SigAlgorithm, v Verifier) {
 type Ed25519Verifier struct{}
 
 func (v Ed25519Verifier) Verify(key data.PublicKey, sig []byte, msg []byte) error {
+	if key.Algorithm() != data.ED25519Key {
+		return ErrInvalidKeyType{}
+	}
 	var sigBytes [ed25519.SignatureSize]byte
-	if len(sig) != len(sigBytes) {
+	if len(sig) != ed25519.SignatureSize {
 		logrus.Infof("signature length is incorrect, must be %d, was %d.", ed25519.SignatureSize, len(sig))
 		return ErrInvalid
 	}
 	copy(sigBytes[:], sig)
 
 	var keyBytes [ed25519.PublicKeySize]byte
-	copy(keyBytes[:], key.Public())
+	pub := key.Public()
+	if len(pub) != ed25519.PublicKeySize {
+		logrus.Errorf("public key is incorrect size, must be %d, was %d.", ed25519.PublicKeySize, len(pub))
+		return ErrInvalidKeyLength{msg: fmt.Sprintf("ed25519 public key must be %d bytes.", ed25519.PublicKeySize)}
+	}
+	n := copy(keyBytes[:], key.Public())
+	if n < ed25519.PublicKeySize {
+		logrus.Errorf("failed to copy the key, must have %d bytes, copied %d bytes.", ed25519.PublicKeySize, n)
+		return ErrInvalid
+	}
 
 	if !ed25519.Verify(&keyBytes, msg, &sigBytes) {
 		logrus.Infof("failed ed25519 verification")
@@ -68,6 +86,16 @@ func verifyPSS(key interface{}, digest, sig []byte) error {
 	rsaPub, ok := key.(*rsa.PublicKey)
 	if !ok {
 		logrus.Infof("value was not an RSA public key")
+		return ErrInvalid
+	}
+
+	if rsaPub.N.BitLen() < minRSAKeySizeBit {
+		logrus.Infof("RSA keys less than 2048 bits are not acceptable, provided key has length %d.", rsaPub.N.BitLen())
+		return ErrInvalidKeyLength{msg: fmt.Sprintf("RSA key must be at least %d bits.", minRSAKeySizeBit)}
+	}
+
+	if len(sig) < minRSAKeySizeByte {
+		logrus.Infof("RSA keys less than 2048 bits are not acceptable, provided signature has length %d.", len(sig))
 		return ErrInvalid
 	}
 
@@ -104,8 +132,9 @@ func getRSAPubKey(key data.PublicKey) (crypto.PublicKey, error) {
 			return nil, ErrInvalid
 		}
 	default:
+		// only accept RSA keys
 		logrus.Infof("invalid key type for RSAPSS verifier: %s", algorithm)
-		return nil, ErrInvalid
+		return nil, ErrInvalidKeyType{}
 	}
 
 	return pubKey, nil
@@ -116,6 +145,7 @@ type RSAPSSVerifier struct{}
 
 // Verify does the actual check.
 func (v RSAPSSVerifier) Verify(key data.PublicKey, sig []byte, msg []byte) error {
+	// will return err if keytype is not a recognized RSA type
 	pubKey, err := getRSAPubKey(key)
 	if err != nil {
 		return err
@@ -130,6 +160,7 @@ func (v RSAPSSVerifier) Verify(key data.PublicKey, sig []byte, msg []byte) error
 type RSAPKCS1v15Verifier struct{}
 
 func (v RSAPKCS1v15Verifier) Verify(key data.PublicKey, sig []byte, msg []byte) error {
+	// will return err if keytype is not a recognized RSA type
 	pubKey, err := getRSAPubKey(key)
 	if err != nil {
 		return err
@@ -139,6 +170,16 @@ func (v RSAPKCS1v15Verifier) Verify(key data.PublicKey, sig []byte, msg []byte) 
 	rsaPub, ok := pubKey.(*rsa.PublicKey)
 	if !ok {
 		logrus.Infof("value was not an RSA public key")
+		return ErrInvalid
+	}
+
+	if rsaPub.N.BitLen() < minRSAKeySizeBit {
+		logrus.Infof("RSA keys less than 2048 bits are not acceptable, provided key has length %d.", rsaPub.N.BitLen())
+		return ErrInvalidKeyLength{msg: fmt.Sprintf("RSA key must be at least %d bits.", minRSAKeySizeBit)}
+	}
+
+	if len(sig) < minRSAKeySizeByte {
+		logrus.Infof("RSA keys less than 2048 bits are not acceptable, provided signature has length %d.", len(sig))
 		return ErrInvalid
 	}
 
@@ -157,6 +198,9 @@ type RSAPyCryptoVerifier struct{}
 // with PyCrypto.
 func (v RSAPyCryptoVerifier) Verify(key data.PublicKey, sig []byte, msg []byte) error {
 	digest := sha256.Sum256(msg)
+	if key.Algorithm() != data.RSAKey {
+		return ErrInvalidKeyType{}
+	}
 
 	k, _ := pem.Decode([]byte(key.Public()))
 	if k == nil {
@@ -203,8 +247,9 @@ func (v ECDSAVerifier) Verify(key data.PublicKey, sig []byte, msg []byte) error 
 			return ErrInvalid
 		}
 	default:
+		// only accept ECDSA keys.
 		logrus.Infof("invalid key type for ECDSA verifier: %s", algorithm)
-		return ErrInvalid
+		return ErrInvalidKeyType{}
 	}
 
 	ecdsaPubKey, ok := pubKey.(*ecdsa.PublicKey)

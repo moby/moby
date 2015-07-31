@@ -27,3 +27,17 @@ type ErrRoleThreshold struct{}
 func (e ErrRoleThreshold) Error() string {
 	return "valid signatures did not meet threshold"
 }
+
+type ErrInvalidKeyType struct{}
+
+func (e ErrInvalidKeyType) Error() string {
+	return "key type is not valid for signature"
+}
+
+type ErrInvalidKeyLength struct {
+	msg string
+}
+
+func (e ErrInvalidKeyLength) Error() string {
+	return fmt.Sprintf("key length is not supported: %s", e.msg)
+}

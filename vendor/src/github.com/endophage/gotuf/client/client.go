@@ -50,15 +50,9 @@ func (c *Client) Update() error {
 	logrus.Debug("updating TUF client")
 	err := c.update()
 	if err != nil {
-		switch err.(type) {
-		case signed.ErrRoleThreshold, signed.ErrExpired, tuf.ErrLocalRootExpired:
-			logrus.Debug("retryable error occurred. Root will be downloaded and another update attempted")
-			if err := c.downloadRoot(); err != nil {
-				logrus.Errorf("client Update (Root):", err)
-				return err
-			}
-		default:
-			logrus.Error("an unexpected error occurred while updating TUF client")
+		logrus.Debug("Error occurred. Root will be downloaded and another update attempted")
+		if err := c.downloadRoot(); err != nil {
+			logrus.Errorf("client Update (Root):", err)
 			return err
 		}
 		// If we error again, we now have the latest root and just want to fail
@@ -113,6 +107,20 @@ func (c Client) checkRoot() error {
 	hash := sha256.Sum256(raw)
 	if !bytes.Equal(hash[:], hashSha256) {
 		return fmt.Errorf("Cached root sha256 did not match snapshot root sha256")
+	}
+
+	if int64(len(raw)) != size {
+		return fmt.Errorf("Cached root size did not match snapshot size")
+	}
+
+	root := &data.SignedRoot{}
+	err = json.Unmarshal(raw, root)
+	if err != nil {
+		return ErrCorruptedCache{file: "root.json"}
+	}
+
+	if signed.IsExpired(root.Signed.Expires) {
+		return tuf.ErrLocalRootExpired{}
 	}
 	return nil
 }
