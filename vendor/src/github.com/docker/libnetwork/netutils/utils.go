@@ -74,20 +74,22 @@ func NetworkOverlaps(netX *net.IPNet, netY *net.IPNet) bool {
 
 // NetworkRange calculates the first and last IP addresses in an IPNet
 func NetworkRange(network *net.IPNet) (net.IP, net.IP) {
-	var netIP net.IP
-	if network.IP.To4() != nil {
-		netIP = network.IP.To4()
-	} else if network.IP.To16() != nil {
-		netIP = network.IP.To16()
-	} else {
+	if network == nil {
 		return nil, nil
 	}
 
-	lastIP := make([]byte, len(netIP), len(netIP))
-	for i := 0; i < len(netIP); i++ {
-		lastIP[i] = netIP[i] | ^network.Mask[i]
+	firstIP := network.IP.Mask(network.Mask)
+	lastIP := types.GetIPCopy(firstIP)
+	for i := 0; i < len(firstIP); i++ {
+		lastIP[i] = firstIP[i] | ^network.Mask[i]
 	}
-	return netIP.Mask(network.Mask), net.IP(lastIP)
+
+	if network.IP.To4() != nil {
+		firstIP = firstIP.To4()
+		lastIP = lastIP.To4()
+	}
+
+	return firstIP, lastIP
 }
 
 // GetIfaceAddr returns the first IPv4 address and slice of IPv6 addresses for the specified network interface
