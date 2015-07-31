@@ -10,6 +10,7 @@ ENV DOCKER_BUILDTAGS include_rados
 
 WORKDIR $DISTRIBUTION_DIR
 COPY . $DISTRIBUTION_DIR
+COPY cmd/registry/config-dev.yml $DISTRIBUTION_DIR/cmd/registry/config.yml
 RUN make PREFIX=/go clean binaries
 
 VOLUME ["/var/lib/registry"]
