@@ -780,6 +780,18 @@ func (s *DockerDaemonSuite) TestDaemonDefaultGatewayIPv4Explicit(c *check.C) {
 	deleteInterface(c, defaultNetworkBridge)
 }
 
+func (s *DockerDaemonSuite) TestDaemonDefaultGatewayIPv4ExplicitOutsideContainerSubnet(c *check.C) {
+	defaultNetworkBridge := "docker0"
+	deleteInterface(c, defaultNetworkBridge)
+
+	// Program a custom default gateway outside of the container subnet, daemon should accept it and start
+	err := s.d.StartWithBusybox("--bip", "172.16.0.10/16", "--fixed-cidr", "172.16.1.0/24", "--default-gateway", "172.16.0.254")
+	c.Assert(err, check.IsNil)
+
+	deleteInterface(c, defaultNetworkBridge)
+	s.d.Restart()
+}
+
 func (s *DockerDaemonSuite) TestDaemonIP(c *check.C) {
 	d := s.d
 
