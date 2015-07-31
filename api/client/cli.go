@@ -10,7 +10,6 @@ import (
 	"os"
 	"strings"
 
-	"github.com/docker/distribution/uuid"
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cliconfig"
 	"github.com/docker/docker/opts"
@@ -99,9 +98,6 @@ func NewDockerCli(in io.ReadCloser, out, err io.Writer, clientFlags *cli.ClientF
 	}
 
 	cli.init = func() error {
-
-		// ignore errors from uuid package when running client commands
-		uuid.Loggerf = func(string, ...interface{}) {}
 
 		clientFlags.PostParse()
 
