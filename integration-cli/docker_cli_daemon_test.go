@@ -1527,3 +1527,26 @@ func teardownV6() error {
 	}
 	return nil
 }
+
+func (s *DockerDaemonSuite) TestDaemonRestartWithContainerWithRestartPolicyAlways(c *check.C) {
+	c.Assert(s.d.StartWithBusybox(), check.IsNil)
+
+	out, err := s.d.Cmd("run", "-d", "--restart", "always", "busybox", "top")
+	c.Assert(err, check.IsNil)
+	id := strings.TrimSpace(out)
+
+	_, err = s.d.Cmd("stop", id)
+	c.Assert(err, check.IsNil)
+	_, err = s.d.Cmd("wait", id)
+	c.Assert(err, check.IsNil)
+
+	out, err = s.d.Cmd("ps", "-q")
+	c.Assert(err, check.IsNil)
+	c.Assert(out, check.Equals, "")
+
+	c.Assert(s.d.Restart(), check.IsNil)
+
+	out, err = s.d.Cmd("ps", "-q")
+	c.Assert(err, check.IsNil)
+	c.Assert(strings.TrimSpace(out), check.Equals, id[:12])
+}
