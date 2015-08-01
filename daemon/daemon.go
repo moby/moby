@@ -246,7 +246,7 @@ func (daemon *Daemon) restore() error {
 	}
 
 	var (
-		debug         = (os.Getenv("DEBUG") != "" || os.Getenv("TEST") != "")
+		debug         = os.Getenv("DEBUG") != ""
 		currentDriver = daemon.driver.String()
 		containers    = make(map[string]*cr)
 	)
