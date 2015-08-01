@@ -2777,5 +2777,7 @@ func (s *DockerSuite) TestAppArmorTraceSelf(c *check.C) {
 }
 
 func (s *DockerSuite) TestRunCapAddSYSTIME(c *check.C) {
+	testRequires(c, NativeExecDriver)
+
 	dockerCmd(c, "run", "--cap-drop=ALL", "--cap-add=SYS_TIME", "busybox", "sh", "-c", "grep ^CapEff /proc/self/status | sed 's/^CapEff:\t//' | grep ^0000000002000000$")
 }
