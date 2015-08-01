@@ -738,8 +738,17 @@ _docker_inspect() {
 			COMPREPLY=( $( compgen -W "--format -f --type --help" -- "$cur" ) )
 			;;
 		*)
-			__docker_containers_and_images
-			;;
+			case $(__docker_value_of_option --type) in
+				'')
+					__docker_containers_and_images
+					;;
+				container)
+					__docker_containers_all
+					;;
+				image)
+					__docker_image_repos_and_tags_and_ids
+					;;
+			esac
 	esac
 }
 
