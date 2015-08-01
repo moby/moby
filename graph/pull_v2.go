@@ -102,13 +102,12 @@ func (p *v2Puller) pullV2Repository(tag string) (err error) {
 
 // downloadInfo is used to pass information from download to extractor
 type downloadInfo struct {
-	img      *image.Image
-	tmpFile  *os.File
-	digest   digest.Digest
-	layer    distribution.ReadSeekCloser
-	size     int64
-	err      chan error
-	verified bool
+	img     *image.Image
+	tmpFile *os.File
+	digest  digest.Digest
+	layer   distribution.ReadSeekCloser
+	size    int64
+	err     chan error
 }
 
 type errVerification struct{}
@@ -176,9 +175,11 @@ func (p *v2Puller) download(di *downloadInfo) {
 
 	out.Write(p.sf.FormatProgress(stringid.TruncateID(di.img.ID), "Verifying Checksum", nil))
 
-	di.verified = verifier.Verified()
-	if !di.verified {
-		logrus.Infof("Image verification failed for layer %s", di.digest)
+	if !verifier.Verified() {
+		err = fmt.Errorf("image verification failed for digest %s", di.digest)
+		logrus.Error(err)
+		di.err <- err
+		return
 	}
 
 	out.Write(p.sf.FormatProgress(stringid.TruncateID(di.img.ID), "Download complete", nil))
@@ -252,7 +253,6 @@ func (p *v2Puller) pullV2Tag(tag, taggedName string) (bool, error) {
 				return false, err
 			}
 		}
-		verified = verified && d.verified
 		if d.layer != nil {
 			// if tmpFile is empty assume download and extracted elsewhere
 			defer os.Remove(d.tmpFile.Name())
