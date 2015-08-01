@@ -154,6 +154,27 @@ do_install() {
 			fi
 		;;
 
+		linuxmint)
+			# Linux Mint is a fork of Ubuntu, for repository purposes
+			lsb_dist="ubuntu"
+
+			if command_exists lsb_release; then
+				dist_maj_ver="$(lsb_release --release | cut -f2)"
+				dist_maj_ver=$(echo $dist_maj_ver | awk  '{ string=substr($0, 1, 2); print string; }' )
+			fi
+
+			case "$dist_maj_ver" in
+				# Linux Mint 17.x versions are forks of Ubuntu Trusty, for repository purposes
+				17)
+					dist_version="trusty"
+				;;
+				# Linux Mint 13 is fork of Ubuntu Precise, for repository purposes
+				13)
+					dist_version="precise"
+				;;
+			esac
+		;;
+
 		debian)
 			dist_version="$(cat /etc/debian_version | sed 's/\/.*//' | sed 's/\..*//')"
 			case "$dist_version" in
