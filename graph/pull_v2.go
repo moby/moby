@@ -368,6 +368,26 @@ func (p *v2Puller) verifyTrustedKeys(namespace string, keys []libtrust.PublicKey
 }
 
 func (p *v2Puller) validateManifest(m *manifest.SignedManifest, tag string) (verified bool, err error) {
+	// If pull by digest, then verify the manifest digest.
+	if manifestDigest, err := digest.ParseDigest(tag); err == nil {
+		verifier, err := digest.NewDigestVerifier(manifestDigest)
+		if err != nil {
+			return false, err
+		}
+		payload, err := m.Payload()
+		if err != nil {
+			return false, err
+		}
+		if _, err := verifier.Write(payload); err != nil {
+			return false, err
+		}
+		if !verifier.Verified() {
+			err := fmt.Errorf("image verification failed for digest %s", manifestDigest)
+			logrus.Error(err)
+			return false, err
+		}
+	}
+
 	// TODO(tiborvass): what's the usecase for having manifest == nil and err == nil ? Shouldn't be the error be "DoesNotExist" ?
 	if m == nil {
 		return false, fmt.Errorf("image manifest does not exist for tag %q", tag)
@@ -388,22 +408,6 @@ func (p *v2Puller) validateManifest(m *manifest.SignedManifest, tag string) (ver
 	verified, err = p.verifyTrustedKeys(m.Name, keys)
 	if err != nil {
 		return false, fmt.Errorf("error verifying manifest keys: %v", err)
-	}
-	localDigest, err := digest.ParseDigest(tag)
-	// if pull by digest, then verify
-	if err == nil {
-		verifier, err := digest.NewDigestVerifier(localDigest)
-		if err != nil {
-			return false, err
-		}
-		payload, err := m.Payload()
-		if err != nil {
-			return false, err
-		}
-		if _, err := verifier.Write(payload); err != nil {
-			return false, err
-		}
-		verified = verified && verifier.Verified()
 	}
 	return verified, nil
 }
