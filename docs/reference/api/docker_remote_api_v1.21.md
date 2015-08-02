@@ -690,9 +690,9 @@ Status Codes:
 
 ### Resize a container TTY
 
-`POST /containers/(id)/resize?h=<height>&w=<width>`
+`POST /containers/(id)/resize`
 
-Resize the TTY for container with  `id`. You must restart the container for the resize to take effect.
+Resize the TTY for container with  `id`. The unit is number of characters. You must restart the container for the resize to take effect.
 
 **Example request**:
 
@@ -703,6 +703,11 @@ Resize the TTY for container with  `id`. You must restart the container for the 
       HTTP/1.1 200 OK
       Content-Length: 0
       Content-Type: text/plain; charset=utf-8
+
+Query Parameters:
+
+-   **h** – height of `tty` session
+-   **w** – width
 
 Status Codes:
 
@@ -2102,12 +2107,12 @@ Status Codes:
 
 `POST /exec/(id)/resize`
 
-Resizes the `tty` session used by the `exec` command `id`.
+Resizes the `tty` session used by the `exec` command `id`.  The unit is number of characters.
 This API is valid only if `tty` was specified as part of creating and starting the `exec` command.
 
 **Example request**:
 
-    POST /exec/e90e34656806/resize HTTP/1.1
+    POST /exec/e90e34656806/resize?h=40&w=80 HTTP/1.1
     Content-Type: text/plain
 
 **Example response**:
