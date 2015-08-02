@@ -113,7 +113,7 @@ of a 404.
 You can now supply a `stream` bool to get only one set of stats and
 disconnect
 
-`GET /containers(id)/logs`
+`GET /containers/(id)/logs`
 
 **New!**
 
@@ -143,6 +143,7 @@ In addition, the end point now returns the new boolean fields
 This endpoint now returns `Os`, `Arch` and `KernelVersion`.
 
 `POST /containers/create`
+
 `POST /containers/(id)/start`
 
 **New!**
