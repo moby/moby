@@ -9,7 +9,6 @@ package logger
 
 import (
 	"errors"
-	"sync"
 	"time"
 
 	"github.com/docker/docker/pkg/timeutils"
@@ -59,7 +58,6 @@ type LogWatcher struct {
 	// For sending error messages that occur while while reading logs.
 	Err           chan error
 	closeNotifier chan struct{}
-	closeOnce     sync.Once
 }
 
 // NewLogWatcher returns a new LogWatcher.
