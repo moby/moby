@@ -98,3 +98,14 @@ func TestSetupGatewayIPv4(t *testing.T) {
 		t.Fatalf("Set Default Gateway failed. Expected %v, Found %v", gw, br.gatewayIPv4)
 	}
 }
+
+func TestCheckPreallocatedBridgeNetworks(t *testing.T) {
+	// Just make sure the bridge networks are created the way we want (172.17.x.x/16)
+	for i := 0; i < len(bridgeNetworks); i++ {
+		fb := bridgeNetworks[i].IP[0]
+		ones, _ := bridgeNetworks[i].Mask.Size()
+		if ((fb == 172 || fb == 10) && ones != 16) || (fb == 192 && ones != 24) {
+			t.Fatalf("Wrong mask for preallocated bridge network: %s", bridgeNetworks[i].String())
+		}
+	}
+}
