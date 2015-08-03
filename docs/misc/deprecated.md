@@ -12,6 +12,14 @@ parent = "mn_use_docker"
 
 The following list of features are deprecated.
 
+### LXC built-in exec driver
+**Deprecated In Release: v1.8**
+
+**Target For Removal In Release: v1.10**
+
+The built-in LXC execution driver is deprecated for an external implementation.
+The lxc-conf flag and API fields will also be removed. 
+
 ### Old Command Line Options
 **Deprecated In Release: [v1.8.0](/release-notes/#docker-engine-1-8-0)**
 
