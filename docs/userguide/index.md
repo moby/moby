@@ -113,17 +113,17 @@ Go to [Docker Swarm user guide](/swarm/).
 
 ## Getting help
 
-* [Docker homepage](http://www.docker.com/)
+* [Docker homepage](https://www.docker.com/)
 * [Docker Hub](https://hub.docker.com)
-* [Docker blog](http://blog.docker.com/)
+* [Docker blog](https://blog.docker.com/)
 * [Docker documentation](https://docs.docker.com/)
-* [Docker Getting Started Guide](http://www.docker.com/gettingstarted/)
+* [Docker Getting Started Guide](https://docs.docker.com/mac/started/)
 * [Docker code on GitHub](https://github.com/docker/docker)
 * [Docker mailing
   list](https://groups.google.com/forum/#!forum/docker-user)
 * Docker on IRC: irc.freenode.net and channel #docker
-* [Docker on Twitter](http://twitter.com/docker)
-* Get [Docker help](http://stackoverflow.com/search?q=docker) on
+* [Docker on Twitter](https://twitter.com/docker)
+* Get [Docker help](https://stackoverflow.com/search?q=docker) on
   StackOverflow
-* [Docker.com](http://www.docker.com/)
+* [Docker.com](https://www.docker.com/)
 
