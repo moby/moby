@@ -17,7 +17,7 @@ import (
 )
 
 type layer struct {
-	Id   string
+	ID   string
 	Path string
 }
 
@@ -50,7 +50,8 @@ type containerInit struct {
 	Layers                  []layer
 }
 
-func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallback execdriver.StartCallback) (execdriver.ExitStatus, error) {
+// Run implements the exec driver Driver interface
+func (d *Driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallback execdriver.StartCallback) (execdriver.ExitStatus, error) {
 
 	var (
 		term                           execdriver.Terminal
@@ -75,7 +76,7 @@ func (d *driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 
 	for i := 0; i < len(c.LayerPaths); i++ {
 		cu.Layers = append(cu.Layers, layer{
-			Id:   hcsshim.NewGUID(c.LayerPaths[i]).ToString(),
+			ID:   hcsshim.NewGUID(c.LayerPaths[i]).ToString(),
 			Path: c.LayerPaths[i],
 		})
 	}
