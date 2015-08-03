@@ -745,6 +745,10 @@ func NewDaemon(config *Config, registryService *registry.Service) (daemon *Daemo
 		return nil, err
 	}
 
+	if err := d.cleanupMounts(); err != nil {
+		return nil, err
+	}
+
 	return d, nil
 }
 
@@ -787,6 +791,10 @@ func (daemon *Daemon) Shutdown() error {
 		if err := daemon.driver.Cleanup(); err != nil {
 			logrus.Errorf("Error during graph storage driver.Cleanup(): %v", err)
 		}
+	}
+
+	if err := daemon.cleanupMounts(); err != nil {
+		return err
 	}
 
 	return nil
