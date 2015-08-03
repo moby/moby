@@ -23,6 +23,7 @@ packages=(
 	daemon/execdriver/lxc
 	daemon/execdriver/native
 	daemon/execdriver/native/template
+	daemon/execdriver/windows
 	daemon/graphdriver/aufs
 	daemon/graphdriver/devmapper
 	daemon/logger

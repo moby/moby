@@ -9,7 +9,8 @@ type info struct {
 	driver *driver
 }
 
-func (d *driver) Info(id string) execdriver.Info {
+// Info implements the exec driver Driver interface.
+func (d *Driver) Info(id string) execdriver.Info {
 	return &info{
 		ID:     id,
 		driver: d,
