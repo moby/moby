@@ -39,8 +39,8 @@ clone git github.com/hashicorp/consul v0.5.2
 clone git github.com/docker/distribution 7dc8d4a26b689bd4892f2f2322dbce0b7119d686
 clone git github.com/vbatts/tar-split v0.9.4
 
-clone git github.com/docker/notary 77bced079e83d80f40c1f0a544b1a8a3b97fb052
-clone git github.com/endophage/gotuf 374908abc8af7e953a2813c5c2b3944ab625ca68
+clone git github.com/docker/notary 8e8122eb5528f621afcd4e2854c47302f17392f7
+clone git github.com/endophage/gotuf 89ceb27829b9353dfee5ccccf7a3a9bb77008b05
 clone git github.com/tent/canonical-json-go 96e4ba3a7613a1216cbd1badca4efe382adea337
 clone git github.com/agl/ed25519 d2b94fd789ea21d12fac1a4443dd3a3f79cda72c
 
