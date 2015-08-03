@@ -296,10 +296,17 @@ func (container *Container) Start() (err error) {
 		return err
 	}
 
+	if !(container.hostConfig.IpcMode.IsContainer() || container.hostConfig.IpcMode.IsHost()) {
+		if err := container.setupIpcDirs(); err != nil {
+			return err
+		}
+	}
+
 	mounts, err := container.setupMounts()
 	if err != nil {
 		return err
 	}
+	mounts = append(mounts, container.ipcMounts()...)
 
 	container.command.Mounts = mounts
 	return container.waitForStart()
@@ -357,6 +364,10 @@ func (container *Container) isNetworkAllocated() bool {
 // around how containers are linked together.  It also unmounts the container's root filesystem.
 func (container *Container) cleanup() {
 	container.releaseNetwork()
+
+	if err := container.unmountIpcMounts(); err != nil {
+		logrus.Errorf("%v: Failed to umount ipc filesystems: %v", container.ID, err)
+	}
 
 	if err := container.Unmount(); err != nil {
 		logrus.Errorf("%v: Failed to umount filesystem: %v", container.ID, err)
