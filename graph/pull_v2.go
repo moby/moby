@@ -102,13 +102,12 @@ func (p *v2Puller) pullV2Repository(tag string) (err error) {
 
 // downloadInfo is used to pass information from download to extractor
 type downloadInfo struct {
-	img      *image.Image
-	tmpFile  *os.File
-	digest   digest.Digest
-	layer    distribution.ReadSeekCloser
-	size     int64
-	err      chan error
-	verified bool
+	img     *image.Image
+	tmpFile *os.File
+	digest  digest.Digest
+	layer   distribution.ReadSeekCloser
+	size    int64
+	err     chan error
 }
 
 type errVerification struct{}
@@ -176,9 +175,11 @@ func (p *v2Puller) download(di *downloadInfo) {
 
 	out.Write(p.sf.FormatProgress(stringid.TruncateID(di.img.ID), "Verifying Checksum", nil))
 
-	di.verified = verifier.Verified()
-	if !di.verified {
-		logrus.Infof("Image verification failed for layer %s", di.digest)
+	if !verifier.Verified() {
+		err = fmt.Errorf("filesystem layer verification failed for digest %s", di.digest)
+		logrus.Error(err)
+		di.err <- err
+		return
 	}
 
 	out.Write(p.sf.FormatProgress(stringid.TruncateID(di.img.ID), "Download complete", nil))
@@ -252,7 +253,6 @@ func (p *v2Puller) pullV2Tag(tag, taggedName string) (bool, error) {
 				return false, err
 			}
 		}
-		verified = verified && d.verified
 		if d.layer != nil {
 			// if tmpFile is empty assume download and extracted elsewhere
 			defer os.Remove(d.tmpFile.Name())
@@ -368,6 +368,28 @@ func (p *v2Puller) verifyTrustedKeys(namespace string, keys []libtrust.PublicKey
 }
 
 func (p *v2Puller) validateManifest(m *manifest.SignedManifest, tag string) (verified bool, err error) {
+	// If pull by digest, then verify the manifest digest. NOTE: It is
+	// important to do this first, before any other content validation. If the
+	// digest cannot be verified, don't even bother with those other things.
+	if manifestDigest, err := digest.ParseDigest(tag); err == nil {
+		verifier, err := digest.NewDigestVerifier(manifestDigest)
+		if err != nil {
+			return false, err
+		}
+		payload, err := m.Payload()
+		if err != nil {
+			return false, err
+		}
+		if _, err := verifier.Write(payload); err != nil {
+			return false, err
+		}
+		if !verifier.Verified() {
+			err := fmt.Errorf("image verification failed for digest %s", manifestDigest)
+			logrus.Error(err)
+			return false, err
+		}
+	}
+
 	// TODO(tiborvass): what's the usecase for having manifest == nil and err == nil ? Shouldn't be the error be "DoesNotExist" ?
 	if m == nil {
 		return false, fmt.Errorf("image manifest does not exist for tag %q", tag)
@@ -388,22 +410,6 @@ func (p *v2Puller) validateManifest(m *manifest.SignedManifest, tag string) (ver
 	verified, err = p.verifyTrustedKeys(m.Name, keys)
 	if err != nil {
 		return false, fmt.Errorf("error verifying manifest keys: %v", err)
-	}
-	localDigest, err := digest.ParseDigest(tag)
-	// if pull by digest, then verify
-	if err == nil {
-		verifier, err := digest.NewDigestVerifier(localDigest)
-		if err != nil {
-			return false, err
-		}
-		payload, err := m.Payload()
-		if err != nil {
-			return false, err
-		}
-		if _, err := verifier.Write(payload); err != nil {
-			return false, err
-		}
-		verified = verified && verifier.Verified()
 	}
 	return verified, nil
 }
