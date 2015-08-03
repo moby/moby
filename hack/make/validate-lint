@@ -35,6 +35,7 @@ packages=(
 	docker
 	dockerinit
 	graph
+	daemon/graphdriver/vfs
 	image
 	integration-cli
 	pkg/broadcastwriter
