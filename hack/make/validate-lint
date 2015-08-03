@@ -25,6 +25,7 @@ packages=(
 	daemon/execdriver/native/template
 	daemon/graphdriver/aufs
 	daemon/graphdriver/devmapper
+	daemon/graphdriver/zfs
 	daemon/logger
 	daemon/logger/fluentd
 	daemon/logger/gelf
