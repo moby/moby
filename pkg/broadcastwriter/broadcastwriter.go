@@ -44,6 +44,7 @@ func (w *BroadcastWriter) Clean() error {
 	return nil
 }
 
+// New creates a new BroadcastWriter.
 func New() *BroadcastWriter {
 	return &BroadcastWriter{
 		writers: make(map[io.WriteCloser]struct{}),

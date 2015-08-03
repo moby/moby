@@ -2,4 +2,6 @@
 
 package graphdb
 
-import _ "code.google.com/p/gosqlite/sqlite3" // registers sqlite
+import (
+	_ "code.google.com/p/gosqlite/sqlite3" // registers sqlite
+)

@@ -10,7 +10,7 @@ import (
 	"github.com/docker/docker/pkg/jsonmessage"
 )
 
-// Download requests a given URL and returns an io.Reader
+// Download requests a given URL and returns an io.Reader.
 func Download(url string) (resp *http.Response, err error) {
 	if resp, err = http.Get(url); err != nil {
 		return nil, err
@@ -21,7 +21,7 @@ func Download(url string) (resp *http.Response, err error) {
 	return resp, nil
 }
 
-// NewHTTPRequestError returns a JSON response error
+// NewHTTPRequestError returns a JSON response error.
 func NewHTTPRequestError(msg string, res *http.Response) error {
 	return &jsonmessage.JSONError{
 		Message: msg,
@@ -29,14 +29,15 @@ func NewHTTPRequestError(msg string, res *http.Response) error {
 	}
 }
 
+// ServerHeader contains the server information.
 type ServerHeader struct {
 	App string // docker
 	Ver string // 1.8.0-dev
 	OS  string // windows or linux
 }
 
-// parseServerHeader extracts pieces from am HTTP server header
-// which is in the format "docker/version (os)" eg docker/1.8.0-dev (windows)
+// ParseServerHeader extracts pieces from an HTTP server header
+// which is in the format "docker/version (os)" eg docker/1.8.0-dev (windows).
 func ParseServerHeader(hdr string) (*ServerHeader, error) {
 	re := regexp.MustCompile(`.*\((.+)\).*$`)
 	r := &ServerHeader{}

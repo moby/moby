@@ -36,10 +36,14 @@ packages=(
 	graph
 	image
 	integration-cli
+	pkg/broadcastwriter
 	pkg/chrootarchive
 	pkg/directory
 	pkg/fileutils
+	pkg/graphdb
 	pkg/homedir
+	pkg/httputils
+	pkg/ioutils
 	pkg/listenbuffer
 	pkg/mflag
 	pkg/mflag/example
