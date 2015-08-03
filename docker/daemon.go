@@ -100,6 +100,7 @@ func migrateKey() (err error) {
 				err = os.Remove(oldPath)
 			} else {
 				logrus.Warnf("Key migration failed, key file not removed at %s", oldPath)
+				os.Remove(newPath)
 			}
 		}()
 
