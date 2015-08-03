@@ -16,12 +16,8 @@ func TestSetupIPForwarding(t *testing.T) {
 		writeIPForwardingSetting(t, []byte{'0', '\n'})
 	}
 
-	// Create test interface with ip forwarding setting enabled
-	config := &configuration{
-		EnableIPForwarding: true}
-
 	// Set IP Forwarding
-	if err := setupIPForwarding(config); err != nil {
+	if err := setupIPForwarding(); err != nil {
 		t.Fatalf("Failed to setup IP forwarding: %v", err)
 	}
 
@@ -29,26 +25,6 @@ func TestSetupIPForwarding(t *testing.T) {
 	procSetting = readCurrentIPForwardingSetting(t)
 	if bytes.Compare(procSetting, []byte("1\n")) != 0 {
 		t.Fatalf("Failed to effectively setup IP forwarding")
-	}
-}
-
-func TestUnexpectedSetupIPForwarding(t *testing.T) {
-	// Read current setting and ensure the original value gets restored
-	procSetting := readCurrentIPForwardingSetting(t)
-	defer reconcileIPForwardingSetting(t, procSetting)
-
-	// Create test interface without ip forwarding setting enabled
-	config := &configuration{
-		EnableIPForwarding: false}
-
-	// Attempt Set IP Forwarding
-	err := setupIPForwarding(config)
-	if err == nil {
-		t.Fatal("Setup IP forwarding was expected to fail")
-	}
-
-	if _, ok := err.(*ErrIPFwdCfg); !ok {
-		t.Fatalf("Setup IP forwarding failed with unexpected error: %v", err)
 	}
 }
 

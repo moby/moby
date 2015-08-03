@@ -115,17 +115,6 @@ func (eim ErrInvalidMtu) Error() string {
 // BadRequest denotes the type of this error
 func (eim ErrInvalidMtu) BadRequest() {}
 
-// ErrIPFwdCfg is returned when ip forwarding setup is invoked when the configuration
-// not enabled.
-type ErrIPFwdCfg struct{}
-
-func (eipf *ErrIPFwdCfg) Error() string {
-	return "unexpected request to enable IP Forwarding"
-}
-
-// BadRequest denotes the type of this error
-func (eipf *ErrIPFwdCfg) BadRequest() {}
-
 // ErrInvalidPort is returned when the container or host port specified in the port binding is not valid.
 type ErrInvalidPort string
 

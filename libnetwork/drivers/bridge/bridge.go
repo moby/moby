@@ -442,7 +442,7 @@ func (d *driver) Config(option map[string]interface{}) error {
 	}
 
 	if config.EnableIPForwarding {
-		return setupIPForwarding(config)
+		return setupIPForwarding()
 	}
 
 	return nil
