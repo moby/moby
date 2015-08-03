@@ -47,24 +47,25 @@ var validCommitCommands = map[string]bool{
 
 // Config contains all configs for a build job
 type Config struct {
-	DockerfileName string
-	RemoteURL      string
-	RepoName       string
-	SuppressOutput bool
-	NoCache        bool
-	Remove         bool
-	ForceRemove    bool
-	Pull           bool
-	Memory         int64
-	MemorySwap     int64
-	CPUShares      int64
-	CPUPeriod      int64
-	CPUQuota       int64
-	CPUSetCpus     string
-	CPUSetMems     string
-	CgroupParent   string
-	Ulimits        []*ulimit.Ulimit
-	AuthConfigs    map[string]cliconfig.AuthConfig
+	DockerfileName      string
+	RemoteURL           string
+	RepoName            string
+	SuppressBuildOutput bool
+	SuppressRunOutput   bool
+	NoCache             bool
+	Remove              bool
+	ForceRemove         bool
+	Pull                bool
+	Memory              int64
+	MemorySwap          int64
+	CPUShares           int64
+	CPUPeriod           int64
+	CPUQuota            int64
+	CPUSetCpus          string
+	CPUSetMems          string
+	CgroupParent        string
+	Ulimits             []*ulimit.Ulimit
+	AuthConfigs         map[string]cliconfig.AuthConfig
 
 	Stdout  io.Writer
 	Context io.ReadCloser
@@ -190,26 +191,27 @@ func Build(d *daemon.Daemon, buildConfig *Config) error {
 			Writer:          buildConfig.Stdout,
 			StreamFormatter: sf,
 		},
-		Verbose:         !buildConfig.SuppressOutput,
-		UtilizeCache:    !buildConfig.NoCache,
-		Remove:          buildConfig.Remove,
-		ForceRemove:     buildConfig.ForceRemove,
-		Pull:            buildConfig.Pull,
-		OutOld:          buildConfig.Stdout,
-		StreamFormatter: sf,
-		AuthConfigs:     buildConfig.AuthConfigs,
-		dockerfileName:  buildConfig.DockerfileName,
-		cpuShares:       buildConfig.CPUShares,
-		cpuPeriod:       buildConfig.CPUPeriod,
-		cpuQuota:        buildConfig.CPUQuota,
-		cpuSetCpus:      buildConfig.CPUSetCpus,
-		cpuSetMems:      buildConfig.CPUSetMems,
-		cgroupParent:    buildConfig.CgroupParent,
-		memory:          buildConfig.Memory,
-		memorySwap:      buildConfig.MemorySwap,
-		ulimits:         buildConfig.Ulimits,
-		cancelled:       buildConfig.WaitCancelled(),
-		id:              stringid.GenerateRandomID(),
+		SuppressBuildOutput: buildConfig.SuppressBuildOutput,
+		SuppressRunOutput:   buildConfig.SuppressRunOutput,
+		UtilizeCache:        !buildConfig.NoCache,
+		Remove:              buildConfig.Remove,
+		ForceRemove:         buildConfig.ForceRemove,
+		Pull:                buildConfig.Pull,
+		OutOld:              buildConfig.Stdout,
+		StreamFormatter:     sf,
+		AuthConfigs:         buildConfig.AuthConfigs,
+		dockerfileName:      buildConfig.DockerfileName,
+		cpuShares:           buildConfig.CPUShares,
+		cpuPeriod:           buildConfig.CPUPeriod,
+		cpuQuota:            buildConfig.CPUQuota,
+		cpuSetCpus:          buildConfig.CPUSetCpus,
+		cpuSetMems:          buildConfig.CPUSetMems,
+		cgroupParent:        buildConfig.CgroupParent,
+		memory:              buildConfig.Memory,
+		memorySwap:          buildConfig.MemorySwap,
+		ulimits:             buildConfig.Ulimits,
+		cancelled:           buildConfig.WaitCancelled(),
+		id:                  stringid.GenerateRandomID(),
 	}
 
 	defer func() {

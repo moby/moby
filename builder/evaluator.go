@@ -85,9 +85,10 @@ type builder struct {
 	OutStream io.Writer
 	ErrStream io.Writer
 
-	Verbose      bool
-	UtilizeCache bool
-	cacheBusted  bool
+	SuppressBuildOutput bool
+	SuppressRunOutput   bool
+	UtilizeCache        bool
+	cacheBusted         bool
 
 	// controls how images and containers are handled between steps.
 	Remove      bool
@@ -185,7 +186,9 @@ func (b *builder) Run(context io.Reader) (string, error) {
 			}
 			return "", err
 		}
-		fmt.Fprintf(b.OutStream, " ---> %s\n", stringid.TruncateID(b.image))
+		if !b.SuppressBuildOutput {
+			fmt.Fprintf(b.OutStream, " ---> %s\n", stringid.TruncateID(b.image))
+		}
 		if b.Remove {
 			b.clearTmp()
 		}
@@ -195,7 +198,11 @@ func (b *builder) Run(context io.Reader) (string, error) {
 		return "", fmt.Errorf("No image was generated. Is your Dockerfile empty?")
 	}
 
-	fmt.Fprintf(b.OutStream, "Successfully built %s\n", stringid.TruncateID(b.image))
+	if b.SuppressBuildOutput && b.SuppressRunOutput {
+		fmt.Fprintf(b.OutStream, "%s", b.image)
+	} else {
+		fmt.Fprintf(b.OutStream, "Successfully built %s\n", stringid.TruncateID(b.image))
+	}
 	return b.image, nil
 }
 
@@ -337,7 +344,9 @@ func (b *builder) dispatch(stepN int, ast *parser.Node) error {
 	}
 
 	msg += " " + strings.Join(msgList, " ")
-	fmt.Fprintln(b.OutStream, msg)
+	if !b.SuppressBuildOutput {
+		fmt.Fprintln(b.OutStream, msg)
+	}
 
 	// XXX yes, we skip any cmds that are not valid; the parser should have
 	// picked these out already.
