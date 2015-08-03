@@ -308,7 +308,7 @@ func (s *DockerSuite) TestInspectExecID(c *check.C) {
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
 	id := strings.TrimSuffix(out, "\n")
 
-	out, err := inspectField(id, "ExecIDs")
+	out, err := inspectField(id, ".ExecIDs")
 	if err != nil {
 		c.Fatalf("failed to inspect container: %s, %v", out, err)
 	}
@@ -318,7 +318,8 @@ func (s *DockerSuite) TestInspectExecID(c *check.C) {
 
 	// Start an exec, have it block waiting for input so we can do some checking
 	cmd := exec.Command(dockerBinary, "exec", "-i", id, "sh", "-c", "read a")
-	execStdin, _ := cmd.StdinPipe()
+	execStdin, err := cmd.StdinPipe()
+	c.Assert(err, check.IsNil)
 
 	if err = cmd.Start(); err != nil {
 		c.Fatalf("failed to start the exec cmd: %q", err)
@@ -328,7 +329,7 @@ func (s *DockerSuite) TestInspectExecID(c *check.C) {
 	tries := 10
 	for i := 0; i < tries; i++ {
 		// Since its still running we should see exec as part of the container
-		out, err = inspectField(id, "ExecIDs")
+		out, err = inspectField(id, ".ExecIDs")
 		if err != nil {
 			c.Fatalf("failed to inspect container: %s, %v", out, err)
 		}
@@ -350,11 +351,12 @@ func (s *DockerSuite) TestInspectExecID(c *check.C) {
 	}
 
 	// End the exec by closing its stdin, and wait for it to end
+	execStdin.Write([]byte("hello\r\n"))
 	execStdin.Close()
 	cmd.Wait()
 
 	// All execs for the container should be gone now
-	out, err = inspectField(id, "ExecIDs")
+	out, err = inspectField(id, ".ExecIDs")
 	if err != nil {
 		c.Fatalf("failed to inspect container: %s, %v", out, err)
 	}
