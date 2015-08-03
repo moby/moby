@@ -170,3 +170,15 @@ func (container *Container) prepareMountPoints() error {
 func (container *Container) removeMountPoints(_ bool) error {
 	return nil
 }
+
+func (container *Container) setupIpcDirs() error {
+	return nil
+}
+
+func (container *Container) unmountIpcMounts() error {
+	return nil
+}
+
+func (container *Container) ipcMounts() []execdriver.Mount {
+	return nil
+}
