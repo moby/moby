@@ -739,9 +739,10 @@ func (s *Server) postImagesCreate(version version.Version, w http.ResponseWriter
 	}
 
 	var (
-		image = r.Form.Get("fromImage")
-		repo  = r.Form.Get("repo")
-		tag   = r.Form.Get("tag")
+		image    = r.Form.Get("fromImage")
+		repo     = r.Form.Get("repo")
+		tag      = r.Form.Get("tag")
+		registry = r.Form.Get("registry")
 	)
 	authEncoded := r.Header.Get("X-Registry-Auth")
 	authConfig := &cliconfig.AuthConfig{}
@@ -764,6 +765,9 @@ func (s *Server) postImagesCreate(version version.Version, w http.ResponseWriter
 	if image != "" { //pull
 		if tag == "" {
 			image, tag = parsers.ParseRepositoryTag(image)
+		}
+		if registry != "" && strings.Count(image, "/") == 1 {
+			image = strings.Join([]string{registry, image}, "/")
 		}
 		metaHeaders := map[string][]string{}
 		for k, v := range r.Header {
