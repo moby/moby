@@ -141,7 +141,7 @@ do_install() {
 		lsb_dist="$(. /etc/os-release && echo "$ID")"
 	fi
 
-	lsb_dist="$(echo "$lsb_dist" | tr '[:upper:]' '[:lower:]')"
+	lsb_dist="$(echo "$lsb_dist" | tr '[:upper:]' '[:lower:]' | tr -d '[[:space:]]')"
 
 	case "$lsb_dist" in
 
@@ -174,6 +174,11 @@ do_install() {
 
 		fedora|centos)
 			dist_version="$(rpm -q --whatprovides redhat-release --queryformat "%{VERSION}\n" | sed 's/\/.*//' | sed 's/\..*//')"
+		;;
+		
+		elementaryos)
+			lsb_dist="ubuntu"
+			dist_version="trusty"
 		;;
 
 		*)
