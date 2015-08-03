@@ -3,6 +3,7 @@ package fluent
 import (
 	"errors"
 	"fmt"
+	"io"
 	"math"
 	"net"
 	"reflect"
@@ -33,7 +34,7 @@ type Config struct {
 
 type Fluent struct {
 	Config
-	conn         net.Conn
+	conn         io.WriteCloser
 	pending      []byte
 	reconnecting bool
 	mu           sync.Mutex
