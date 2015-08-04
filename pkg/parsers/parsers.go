@@ -12,17 +12,29 @@ import (
 	"strings"
 )
 
+var (
+	// DefaultHTTPHost Default HTTP Host used if only port is provided to -H flag e.g. docker -d -H tcp://:8080
+	DefaultHTTPHost = "127.0.0.1"
+	// DefaultHTTPPort Default HTTP Port used if only the protocol is provided to -H flag e.g. docker -d -H tcp://
+	// TODO Windows. DefaultHTTPPort is only used on Windows if a -H parameter
+	// is not supplied. A better longer term solution would be to use a named
+	// pipe as the default on the Windows daemon.
+	DefaultHTTPPort = 2375 // Default HTTP Port
+	// DefaultUnixSocket Path for the unix socket.
+	// Docker daemon by default always listens on the default unix socket
+	DefaultUnixSocket = "/var/run/docker.sock"
+)
+
 // ParseHost parses the specified address and returns an address that will be used as the host.
-// Depending of the address specified, will use the defaultTCPAddr or defaultUnixAddr
-// FIXME: Change this not to receive default value as parameter
-func ParseHost(defaultTCPAddr, defaultUnixAddr, addr string) (string, error) {
+// Depending of the address specified, will use the DefaultHTTPHost or DefaultUnixSocket
+func ParseHost(addr string) (string, error) {
 	addr = strings.TrimSpace(addr)
 	if addr == "" {
 		if runtime.GOOS != "windows" {
-			addr = fmt.Sprintf("unix://%s", defaultUnixAddr)
+			addr = fmt.Sprintf("unix://%s", DefaultUnixSocket)
 		} else {
 			// Note - defaultTCPAddr already includes tcp:// prefix
-			addr = defaultTCPAddr
+			addr = DefaultHTTPHost
 		}
 	}
 	addrParts := strings.Split(addr, "://")
@@ -32,9 +44,9 @@ func ParseHost(defaultTCPAddr, defaultUnixAddr, addr string) (string, error) {
 
 	switch addrParts[0] {
 	case "tcp":
-		return ParseTCPAddr(addrParts[1], defaultTCPAddr)
+		return ParseTCPAddr(addrParts[1], DefaultHTTPHost)
 	case "unix":
-		return ParseUnixAddr(addrParts[1], defaultUnixAddr)
+		return ParseUnixAddr(addrParts[1], DefaultUnixSocket)
 	case "fd":
 		return addr, nil
 	default:
