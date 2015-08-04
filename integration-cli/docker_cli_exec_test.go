@@ -316,9 +316,9 @@ func (s *DockerSuite) TestInspectExecID(c *check.C) {
 		c.Fatalf("ExecIDs should be empty, got: %s", out)
 	}
 
-	// Start an exec, have it block waiting for input so we can do some checking
-	cmd := exec.Command(dockerBinary, "exec", "-i", id, "sh", "-c", "read a")
-	execStdin, _ := cmd.StdinPipe()
+	// Start an exec, have it block waiting so we can do some checking
+	cmd := exec.Command(dockerBinary, "exec", id, "sh", "-c",
+		"while ! test -e /tmp/execid1; do sleep 1; done")
 
 	if err = cmd.Start(); err != nil {
 		c.Fatalf("failed to start the exec cmd: %q", err)
@@ -349,8 +349,15 @@ func (s *DockerSuite) TestInspectExecID(c *check.C) {
 		c.Fatalf("failed to get the exec id: %v", err)
 	}
 
-	// End the exec by closing its stdin, and wait for it to end
-	execStdin.Close()
+	// End the exec by creating the missing file
+	err = exec.Command(dockerBinary, "exec", id,
+		"sh", "-c", "touch /tmp/execid1").Run()
+
+	if err != nil {
+		c.Fatalf("failed to run the 2nd exec cmd: %q", err)
+	}
+
+	// Wait for 1st exec to complete
 	cmd.Wait()
 
 	// All execs for the container should be gone now
