@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"sync"
 	"syscall"
 
@@ -110,10 +112,13 @@ func newDriver() driverapi.Driver {
 
 // Init registers a new instance of bridge driver
 func Init(dc driverapi.DriverCallback) error {
-	// try to modprobe bridge first
-	// see gh#12177
-	if out, err := exec.Command("modprobe", "-va", "bridge", "nf_nat", "br_netfilter").CombinedOutput(); err != nil {
-		logrus.Warnf("Running modprobe bridge nf_nat br_netfilter failed with message: %s, error: %v", out, err)
+	if _, err := os.Stat("/proc/sys/net/bridge"); err != nil {
+		if out, err := exec.Command("modprobe", "-va", "bridge", "br_netfilter").CombinedOutput(); err != nil {
+			logrus.Warnf("Running modprobe bridge br_netfilter failed with message: %s, error: %v", out, err)
+		}
+	}
+	if out, err := exec.Command("modprobe", "-va", "nf_nat").CombinedOutput(); err != nil {
+		logrus.Warnf("Running modprobe nf_nat failed with message: `%s`, error: %v", strings.TrimSpace(string(out)), err)
 	}
 	if err := iptables.FirewalldInit(); err != nil {
 		logrus.Debugf("Fail to initialize firewalld: %v, using raw iptables instead", err)
