@@ -62,10 +62,6 @@ own.
 
 4. Modify existing or add new `.md` files to the `docs` directory.
 
-	If you add a new document (`.md`) file, you must also add it to the
-	appropriate section of the `docs/mkdocs.yml` file in this repository.
-
-
 5.  As you work, build the documentation site locally to see your changes.
 
 	The `docker/docker` repository contains a `Dockerfile` and a `Makefile`.
