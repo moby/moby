@@ -6,7 +6,7 @@ import "github.com/docker/docker/daemon/execdriver"
 
 type info struct {
 	ID     string
-	driver *driver
+	driver *Driver
 }
 
 // Info implements the exec driver Driver interface.
