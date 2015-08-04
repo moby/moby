@@ -308,7 +308,7 @@ func (s *DockerSuite) TestInspectExecID(c *check.C) {
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
 	id := strings.TrimSuffix(out, "\n")
 
-	out, err := inspectField(id, "ExecIDs")
+	out, err := inspectField(id, ".ExecIDs")
 	if err != nil {
 		c.Fatalf("failed to inspect container: %s, %v", out, err)
 	}
@@ -316,19 +316,22 @@ func (s *DockerSuite) TestInspectExecID(c *check.C) {
 		c.Fatalf("ExecIDs should be empty, got: %s", out)
 	}
 
-	// Start an exec, have it block waiting for input so we can do some checking
-	cmd := exec.Command(dockerBinary, "exec", "-i", id, "sh", "-c", "read a")
-	execStdin, _ := cmd.StdinPipe()
-
+	// Start an exec, have it block so we can do some checking
+	cmd := exec.Command(dockerBinary, "exec", "-i", id, "sleep", "10")
 	if err = cmd.Start(); err != nil {
 		c.Fatalf("failed to start the exec cmd: %q", err)
 	}
 
-	// Give the exec 10 chances/seconds to start then give up and stop the test
-	tries := 10
+	// Give the exec 5 chances/seconds to start then give up and stop the test
+	tries := 5
 	for i := 0; i < tries; i++ {
+		// We sleep at the top of the loop as it is just about guaranteed that
+		// the exec will not have started quickly enough. In this way, we
+		// avoid doing a pointless inspect first time around.
+		time.Sleep(1 * time.Second)
+
 		// Since its still running we should see exec as part of the container
-		out, err = inspectField(id, "ExecIDs")
+		out, err = inspectField(id, ".ExecIDs")
 		if err != nil {
 			c.Fatalf("failed to inspect container: %s, %v", out, err)
 		}
@@ -340,7 +343,6 @@ func (s *DockerSuite) TestInspectExecID(c *check.C) {
 		if i+1 == tries {
 			c.Fatalf("ExecIDs should not be empty, got: %s", out)
 		}
-		time.Sleep(1 * time.Second)
 	}
 
 	// Save execID for later
@@ -349,12 +351,16 @@ func (s *DockerSuite) TestInspectExecID(c *check.C) {
 		c.Fatalf("failed to get the exec id: %v", err)
 	}
 
-	// End the exec by closing its stdin, and wait for it to end
-	execStdin.Close()
+	// Wait for it to end
 	cmd.Wait()
 
+	// Wait 2 seconds to ensure it has cleaned up on the daemon side. A common
+	// cause of this test failing is that we run the next inspect operation
+	// to quickly.
+	time.Sleep(2 * time.Second)
+
 	// All execs for the container should be gone now
-	out, err = inspectField(id, "ExecIDs")
+	out, err = inspectField(id, ".ExecIDs")
 	if err != nil {
 		c.Fatalf("failed to inspect container: %s, %v", out, err)
 	}
