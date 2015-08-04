@@ -98,12 +98,12 @@ func mountToRootfs(m *configs.Mount, rootfs, mountLabel string) error {
 
 	switch m.Device {
 	case "proc", "sysfs":
-		if err := os.MkdirAll(dest, 0755); err != nil && !os.IsExist(err) {
+		if err := os.MkdirAll(dest, 0755); err != nil {
 			return err
 		}
 		return syscall.Mount(m.Source, dest, m.Device, uintptr(m.Flags), "")
 	case "mqueue":
-		if err := os.MkdirAll(dest, 0755); err != nil && !os.IsExist(err) {
+		if err := os.MkdirAll(dest, 0755); err != nil {
 			return err
 		}
 		if err := syscall.Mount(m.Source, dest, m.Device, uintptr(m.Flags), ""); err != nil {
@@ -113,7 +113,7 @@ func mountToRootfs(m *configs.Mount, rootfs, mountLabel string) error {
 	case "tmpfs":
 		stat, err := os.Stat(dest)
 		if err != nil {
-			if err := os.MkdirAll(dest, 0755); err != nil && !os.IsExist(err) {
+			if err := os.MkdirAll(dest, 0755); err != nil {
 				return err
 			}
 		}
@@ -127,7 +127,7 @@ func mountToRootfs(m *configs.Mount, rootfs, mountLabel string) error {
 		}
 		return nil
 	case "devpts":
-		if err := os.MkdirAll(dest, 0755); err != nil && !os.IsExist(err) {
+		if err := os.MkdirAll(dest, 0755); err != nil {
 			return err
 		}
 		return syscall.Mount(m.Source, dest, m.Device, uintptr(m.Flags), data)
@@ -170,32 +170,23 @@ func mountToRootfs(m *configs.Mount, rootfs, mountLabel string) error {
 			}
 		}
 	case "cgroup":
-		mounts, err := cgroups.GetCgroupMounts()
+		binds, err := getCgroupMounts(m)
 		if err != nil {
 			return err
 		}
-		var binds []*configs.Mount
-		for _, mm := range mounts {
-			dir, err := mm.GetThisCgroupDir()
-			if err != nil {
-				return err
+		var merged []string
+		for _, b := range binds {
+			ss := filepath.Base(b.Destination)
+			if strings.Contains(ss, ",") {
+				merged = append(merged, ss)
 			}
-			relDir, err := filepath.Rel(mm.Root, dir)
-			if err != nil {
-				return err
-			}
-			binds = append(binds, &configs.Mount{
-				Device:      "bind",
-				Source:      filepath.Join(mm.Mountpoint, relDir),
-				Destination: filepath.Join(m.Destination, strings.Join(mm.Subsystems, ",")),
-				Flags:       syscall.MS_BIND | syscall.MS_REC | m.Flags,
-			})
 		}
 		tmpfs := &configs.Mount{
 			Source:      "tmpfs",
 			Device:      "tmpfs",
 			Destination: m.Destination,
 			Flags:       defaultMountFlags,
+			Data:        "mode=755",
 		}
 		if err := mountToRootfs(tmpfs, rootfs, mountLabel); err != nil {
 			return err
@@ -205,10 +196,68 @@ func mountToRootfs(m *configs.Mount, rootfs, mountLabel string) error {
 				return err
 			}
 		}
+		// create symlinks for merged cgroups
+		cwd, err := os.Getwd()
+		if err != nil {
+			return err
+		}
+		if err := os.Chdir(filepath.Join(rootfs, m.Destination)); err != nil {
+			return err
+		}
+		for _, mc := range merged {
+			for _, ss := range strings.Split(mc, ",") {
+				if err := os.Symlink(mc, ss); err != nil {
+					// if cgroup already exists, then okay(it could have been created before)
+					if os.IsExist(err) {
+						continue
+					}
+					os.Chdir(cwd)
+					return err
+				}
+			}
+		}
+		if err := os.Chdir(cwd); err != nil {
+			return err
+		}
+		if m.Flags&syscall.MS_RDONLY != 0 {
+			// remount cgroup root as readonly
+			rootfsCgroup := filepath.Join(rootfs, m.Destination)
+			if err := syscall.Mount("", rootfsCgroup, "", defaultMountFlags|syscall.MS_REMOUNT|syscall.MS_RDONLY, ""); err != nil {
+				return err
+			}
+		}
 	default:
 		return fmt.Errorf("unknown mount device %q to %q", m.Device, m.Destination)
 	}
 	return nil
+}
+
+func getCgroupMounts(m *configs.Mount) ([]*configs.Mount, error) {
+	mounts, err := cgroups.GetCgroupMounts()
+	if err != nil {
+		return nil, err
+	}
+
+	var binds []*configs.Mount
+
+	for _, mm := range mounts {
+		dir, err := mm.GetThisCgroupDir()
+		if err != nil {
+			return nil, err
+		}
+		relDir, err := filepath.Rel(mm.Root, dir)
+		if err != nil {
+			return nil, err
+		}
+		binds = append(binds, &configs.Mount{
+			Device:      "bind",
+			Source:      filepath.Join(mm.Mountpoint, relDir),
+			Destination: filepath.Join(m.Destination, strings.Join(mm.Subsystems, ",")),
+			Flags:       syscall.MS_BIND | syscall.MS_REC | m.Flags,
+		})
+	}
+
+	return binds, nil
 }
 
 // checkMountDestination checks to ensure that the mount destination is not over the

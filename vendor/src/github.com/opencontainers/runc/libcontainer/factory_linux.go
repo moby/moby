@@ -46,7 +46,7 @@ func InitArgs(args ...string) func(*LinuxFactory) error {
 			}
 			name = abs
 		}
-		l.InitPath = name
+		l.InitPath = "/proc/self/exe"
 		l.InitArgs = append([]string{name}, args[1:]...)
 		return nil
 	}

@@ -95,7 +95,7 @@ func (s *CpusetGroup) ensureParent(current, root string) error {
 	if err := s.ensureParent(parent, root); err != nil {
 		return err
 	}
-	if err := os.MkdirAll(current, 0755); err != nil && !os.IsExist(err) {
+	if err := os.MkdirAll(current, 0755); err != nil {
 		return err
 	}
 	return s.copyIfNeeded(current, parent)

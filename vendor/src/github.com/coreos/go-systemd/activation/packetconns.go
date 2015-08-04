@@ -18,20 +18,20 @@ import (
 	"net"
 )
 
-// Listeners returns a slice containing a net.Listener for each matching socket type
+// PacketConns returns a slice containing a net.PacketConn for each matching socket type
 // passed to this process.
 //
 // The order of the file descriptors is preserved in the returned slice.
 // Nil values are used to fill any gaps. For example if systemd were to return file descriptors
-// corresponding with "udp, tcp, tcp", then the slice would contain {nil, net.Listener, net.Listener}
-func Listeners(unsetEnv bool) ([]net.Listener, error) {
+// corresponding with "udp, tcp, udp", then the slice would contain {net.PacketConn, nil, net.PacketConn}
+func PacketConns(unsetEnv bool) ([]net.PacketConn, error) {
 	files := Files(unsetEnv)
-	listeners := make([]net.Listener, len(files))
+	conns := make([]net.PacketConn, len(files))
 
 	for i, f := range files {
-		if pc, err := net.FileListener(f); err == nil {
-			listeners[i] = pc
+		if pc, err := net.FilePacketConn(f); err == nil {
+			conns[i] = pc
 		}
 	}
-	return listeners, nil
+	return conns, nil
 }

@@ -12,36 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package dbus
+// Package util contains utility functions related to systemd that applications
+// can use to check things like whether systemd is running.
+package util
 
-type set struct {
-	data map[string]bool
-}
+import (
+	"os"
+)
 
-func (s *set) Add(value string) {
-	s.data[value] = true
-}
-
-func (s *set) Remove(value string) {
-	delete(s.data, value)
-}
-
-func (s *set) Contains(value string) (exists bool) {
-	_, exists = s.data[value]
-	return
-}
-
-func (s *set) Length() int {
-	return len(s.data)
-}
-
-func (s *set) Values() (values []string) {
-	for val, _ := range s.data {
-		values = append(values, val)
+// IsRunningSystemd checks whether the host was booted with systemd as its init
+// system. This functions similar to systemd's `sd_booted(3)`: internally, it
+// checks whether /run/systemd/system/ exists and is a directory.
+// http://www.freedesktop.org/software/systemd/man/sd_booted.html
+func IsRunningSystemd() bool {
+	fi, err := os.Lstat("/run/systemd/system")
+	if err != nil {
+		return false
 	}
-	return
-}
-
-func newSet() *set {
-	return &set{make(map[string]bool)}
+	return fi.IsDir()
 }

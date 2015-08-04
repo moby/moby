@@ -106,7 +106,11 @@ func (p *nonChildProcess) startTime() (string, error) {
 }
 
 func (p *nonChildProcess) signal(s os.Signal) error {
-	return newGenericError(fmt.Errorf("restored process cannot be signaled"), SystemError)
+	proc, err := os.FindProcess(p.processPid)
+	if err != nil {
+		return err
+	}
+	return proc.Signal(s)
 }
 
 func (p *nonChildProcess) externalDescriptors() []string {

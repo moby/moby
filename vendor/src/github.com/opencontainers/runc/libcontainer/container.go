@@ -5,6 +5,8 @@
 package libcontainer
 
 import (
+	"os"
+
 	"github.com/opencontainers/runc/libcontainer/configs"
 )
 
@@ -159,4 +161,10 @@ type Container interface {
 	// errors:
 	// Systemerror - System error.
 	NotifyOOM() (<-chan struct{}, error)
+
+	// Signal sends the provided signal code to the container's initial process.
+	//
+	// errors:
+	// Systemerror - System error.
+	Signal(s os.Signal) error
 }

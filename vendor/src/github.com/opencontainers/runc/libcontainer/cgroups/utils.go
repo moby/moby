@@ -25,6 +25,8 @@ func FindCgroupMountpoint(subsystem string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	defer f.Close()
+
 	scanner := bufio.NewScanner(f)
 	for scanner.Scan() {
 		txt := scanner.Text()
@@ -47,6 +49,8 @@ func FindCgroupMountpointAndSource(subsystem string) (string, string, error) {
 	if err != nil {
 		return "", "", err
 	}
+	defer f.Close()
+
 	scanner := bufio.NewScanner(f)
 	for scanner.Scan() {
 		txt := scanner.Text()
