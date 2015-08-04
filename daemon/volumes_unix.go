@@ -250,7 +250,7 @@ func (daemon *Daemon) verifyVolumesInfo(container *Container) error {
 			}
 		}
 
-		return container.ToDisk()
+		return container.toDisk()
 	}
 
 	return nil

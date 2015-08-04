@@ -15,12 +15,18 @@ import (
 	"github.com/microsoft/hcsshim"
 )
 
-const DefaultVirtualSwitch = "Virtual Switch"
+const defaultVirtualSwitch = "Virtual Switch"
 
+// Changes returns the list of changes between the container and it's
+// parent.
+// CHECK
 func (daemon *Daemon) Changes(container *Container) ([]archive.Change, error) {
 	return daemon.driver.Changes(container.ID, container.ImageID)
 }
 
+// Diff returns the changes between the container and it's parent as
+// an archive.
+// CHECK
 func (daemon *Daemon) Diff(container *Container) (archive.Archive, error) {
 	return daemon.driver.Diff(container.ID, container.ImageID)
 }
@@ -135,12 +141,14 @@ func isBridgeNetworkDisabled(config *Config) bool {
 func initNetworkController(config *Config) (libnetwork.NetworkController, error) {
 	// Set the name of the virtual switch if not specified by -b on daemon start
 	if config.Bridge.VirtualSwitchName == "" {
-		config.Bridge.VirtualSwitchName = DefaultVirtualSwitch
+		config.Bridge.VirtualSwitchName = defaultVirtualSwitch
 	}
 	return nil, nil
 }
 
-func (daemon *Daemon) RegisterLinks(container *Container, hostConfig *runconfig.HostConfig) error {
+// RegisterLinks sets up links between containers and writes the
+// configuration out for persistence.
+func (daemon *Daemon) registerLinks(container *Container, hostConfig *runconfig.HostConfig) error {
 	// TODO Windows. Factored out for network modes. There may be more
 	// refactoring required here.
 
@@ -158,7 +166,7 @@ func (daemon *Daemon) RegisterLinks(container *Container, hostConfig *runconfig.
 			//An error from daemon.Get() means this name could not be found
 			return fmt.Errorf("Could not get container for %s", name)
 		}
-		if err := daemon.RegisterLink(container, child, alias); err != nil {
+		if err := daemon.registerLink(container, child, alias); err != nil {
 			return err
 		}
 	}
@@ -166,7 +174,7 @@ func (daemon *Daemon) RegisterLinks(container *Container, hostConfig *runconfig.
 	// After we load all the links into the daemon
 	// set them to nil on the hostconfig
 	hostConfig.Links = nil
-	if err := container.WriteHostConfig(); err != nil {
+	if err := container.writeHostConfig(); err != nil {
 		return err
 	}
 	return nil

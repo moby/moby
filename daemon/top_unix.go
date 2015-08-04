@@ -11,6 +11,11 @@ import (
 	"github.com/docker/docker/api/types"
 )
 
+// ContainerTop lists the processes running inside of the given
+// container by calling ps with the given args, or with the flags
+// "-ef" if no args are given.  An error is returned if the container
+// is not found, or is not running, or if there are any problems
+// running ps, or parsing the output.
 func (daemon *Daemon) ContainerTop(name string, psArgs string) (*types.ContainerProcessList, error) {
 	if psArgs == "" {
 		psArgs = "-ef"
@@ -50,6 +55,7 @@ func (daemon *Daemon) ContainerTop(name string, psArgs string) (*types.Container
 		return nil, fmt.Errorf("Couldn't find PID field in ps output")
 	}
 
+	// loop through the output and extract the PID from each line
 	for _, line := range lines[1:] {
 		if len(line) == 0 {
 			continue
@@ -70,6 +76,6 @@ func (daemon *Daemon) ContainerTop(name string, psArgs string) (*types.Container
 			}
 		}
 	}
-	container.LogEvent("top")
+	container.logEvent("top")
 	return procList, nil
 }

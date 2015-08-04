@@ -17,6 +17,8 @@ func (daemon *Daemon) List() []*Container {
 	return daemon.containers.List()
 }
 
+// ContainersConfig is a struct for configuring the command to list
+// containers.
 type ContainersConfig struct {
 	All     bool
 	Since   string
@@ -26,6 +28,7 @@ type ContainersConfig struct {
 	Filters string
 }
 
+// Containers returns a list of all the containers.
 func (daemon *Daemon) Containers(config *ContainersConfig) ([]*types.Container, error) {
 	var (
 		foundBefore bool
@@ -62,7 +65,7 @@ func (daemon *Daemon) Containers(config *ContainersConfig) ([]*types.Container, 
 		}
 	}
 	names := map[string][]string{}
-	daemon.ContainerGraph().Walk("/", func(p string, e *graphdb.Entity) error {
+	daemon.containerGraph().Walk("/", func(p string, e *graphdb.Entity) error {
 		names[e.ID()] = append(names[e.ID()], p)
 		return nil
 	}, 1)
@@ -184,7 +187,7 @@ func (daemon *Daemon) Containers(config *ContainersConfig) ([]*types.Container, 
 		}
 
 		if config.Size {
-			sizeRw, sizeRootFs := container.GetSize()
+			sizeRw, sizeRootFs := container.getSize()
 			newC.SizeRw = int(sizeRw)
 			newC.SizeRootFs = int(sizeRootFs)
 		}

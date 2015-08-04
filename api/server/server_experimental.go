@@ -3,7 +3,7 @@
 package server
 
 func (s *Server) registerSubRouter() {
-	httpHandler := s.daemon.NetworkApiRouter()
+	httpHandler := s.daemon.NetworkAPIRouter()
 
 	subrouter := s.router.PathPrefix("/v{version:[0-9.]+}/networks").Subrouter()
 	subrouter.Methods("GET", "POST", "PUT", "DELETE").HandlerFunc(httpHandler)

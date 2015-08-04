@@ -11,6 +11,8 @@ import (
 	"github.com/docker/docker/pkg/stdcopy"
 )
 
+// ContainerLogsConfig holds configs for logging operations. Exists
+// for users of the daemon to to pass it a logging configuration.
 type ContainerLogsConfig struct {
 	Follow, Timestamps   bool
 	Tail                 string
@@ -20,6 +22,8 @@ type ContainerLogsConfig struct {
 	Stop                 <-chan bool
 }
 
+// ContainerLogs hooks up a containers stdout and stderr streams
+// configured with the given struct.
 func (daemon *Daemon) ContainerLogs(container *Container, config *ContainerLogsConfig) error {
 	if !(config.UseStdout || config.UseStderr) {
 		return fmt.Errorf("You must choose at least one stream")
