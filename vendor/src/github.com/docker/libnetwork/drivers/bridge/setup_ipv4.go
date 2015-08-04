@@ -31,9 +31,9 @@ func init() {
 		bridgeNetworks = append(bridgeNetworks, &net.IPNet{IP: []byte{10, byte(i), 42, 1}, Mask: mask})
 	}
 	// 192.168.[42-44].1/24
-	mask[2] = 255
+	mask24 := []byte{255, 255, 255, 0}
 	for i := 42; i < 45; i++ {
-		bridgeNetworks = append(bridgeNetworks, &net.IPNet{IP: []byte{192, 168, byte(i), 1}, Mask: mask})
+		bridgeNetworks = append(bridgeNetworks, &net.IPNet{IP: []byte{192, 168, byte(i), 1}, Mask: mask24})
 	}
 }
 
