@@ -1149,6 +1149,7 @@ _docker_run() {
 		--publish -p
 		--restart
 		--security-opt
+		--stop-signal
 		--ulimit
 		--user -u
 		--uts

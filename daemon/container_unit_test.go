@@ -31,3 +31,31 @@ func TestValidContainerNames(t *testing.T) {
 		}
 	}
 }
+
+func TestContainerStopSignal(t *testing.T) {
+	c := &Container{
+		CommonContainer: CommonContainer{
+			Config: &runconfig.Config{},
+		},
+	}
+
+	def, err := signal.ParseSignal(signal.DefaultStopSignal)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	s := c.stopSignal()
+	if s != int(def) {
+		t.Fatalf("Expected %v, got %v", def, s)
+	}
+
+	c = &Container{
+		CommonContainer: CommonContainer{
+			Config: &runconfig.Config{StopSignal: "SIGKILL"},
+		},
+	}
+	s = c.stopSignal()
+	if s != 9 {
+		t.Fatalf("Expected 9, got %v", s)
+	}
+}

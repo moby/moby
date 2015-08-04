@@ -82,6 +82,7 @@ This section lists each version from latest to oldest.  Each listing includes a 
 * `DELETE /volumes/(name)`remove a volume with the specified name.
 * `VolumeDriver` has been moved from config to hostConfig to make the configuration portable.
 * `GET /images/(name)/json` now returns information about tags of the image.
+* The `config` option now accepts the field `StopSignal`, which specifies the signal to use to kill a container.
 
 
 ### v1.20 API changes

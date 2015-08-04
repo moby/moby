@@ -1095,6 +1095,11 @@ func (daemon *Daemon) verifyContainerSettings(hostConfig *runconfig.HostConfig, 
 		}
 	}
 
+	_, err := signal.ParseSignal(config.StopSignal)
+	if err != nil {
+		return nil, err
+	}
+
 	// Now do platform-specific verification
 	return verifyPlatformContainerSettings(daemon, hostConfig, config)
 }
