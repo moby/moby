@@ -166,12 +166,12 @@ func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *runconfig.HostC
 			return warnings, fmt.Errorf("Invalid value: %v, valid memory swappiness range is 0-100.", swappiness)
 		}
 	}
-	if hostConfig.CPUPeriod > 0 && !daemon.SystemConfig().CpuCfsPeriod {
+	if hostConfig.CPUPeriod > 0 && !daemon.SystemConfig().CPUCfsPeriod {
 		warnings = append(warnings, "Your kernel does not support CPU cfs period. Period discarded.")
 		logrus.Warnf("Your kernel does not support CPU cfs period. Period discarded.")
 		hostConfig.CPUPeriod = 0
 	}
-	if hostConfig.CPUQuota > 0 && !daemon.SystemConfig().CpuCfsQuota {
+	if hostConfig.CPUQuota > 0 && !daemon.SystemConfig().CPUCfsQuota {
 		warnings = append(warnings, "Your kernel does not support CPU cfs quota. Quota discarded.")
 		logrus.Warnf("Your kernel does not support CPU cfs quota. Quota discarded.")
 		hostConfig.CPUQuota = 0

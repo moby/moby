@@ -71,6 +71,7 @@ packages=(
 	pkg/streamformatter
 	pkg/stringid
 	pkg/stringutils
+	pkg/sysinfo
 	pkg/systemd
 	pkg/symlink
 	pkg/tailfile
