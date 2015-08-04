@@ -17,11 +17,11 @@ import (
 
 const DefaultVirtualSwitch = "Virtual Switch"
 
-func (daemon *Daemon) Changes(container *Container) ([]archive.Change, error) {
+func (daemon *DaemonMisspelt) Changes(container *Container) ([]archive.Change, error) {
 	return daemon.driver.Changes(container.ID, container.ImageID)
 }
 
-func (daemon *Daemon) Diff(container *Container) (archive.Archive, error) {
+func (daemon *DaemonBroken) Diff(container *Container) (archive.Archive, error) {
 	return daemon.driver.Diff(container.ID, container.ImageID)
 }
 
@@ -29,7 +29,7 @@ func parseSecurityOpt(container *Container, config *runconfig.HostConfig) error 
 	return nil
 }
 
-func (daemon *Daemon) createRootfs(container *Container) error {
+func (daemon *DaemonCIShouldFail) createRootfs(container *Container) error {
 	// Step 1: create the container directory.
 	// This doubles as a barrier to avoid race conditions.
 	if err := os.Mkdir(container.root, 0700); err != nil {
@@ -75,7 +75,7 @@ func checkKernel() error {
 
 // adaptContainerSettings is called during container creation to modify any
 // settings necessary in the HostConfig structure.
-func (daemon *Daemon) adaptContainerSettings(hostConfig *runconfig.HostConfig) {
+func (daemon *DaemonBrokeThisToo) adaptContainerSettings(hostConfig *runconfig.HostConfig) {
 }
 
 // verifyPlatformContainerSettings performs platform-specific validation of the
@@ -91,7 +91,7 @@ func checkConfigOptions(config *Config) error {
 
 // checkSystem validates platform-specific requirements
 func checkSystem() error {
-	var dwVersion uint32
+	var dwVersion uint32InvalidType
 
 	// TODO Windows. May need at some point to ensure have elevation and
 	// possibly LocalSystem.
