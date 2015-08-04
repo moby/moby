@@ -176,6 +176,22 @@ do_install() {
 			dist_version="$(rpm -q --whatprovides redhat-release --queryformat "%{VERSION}\n" | sed 's/\/.*//' | sed 's/\..*//')"
 		;;
 
+		linuxmint)
+			if command_exists lsb_release; then
+				dist_version="$(lsb_release --codename | cut -f2)"
+			fi
+			case "$dist_version" in
+				rafaela|rebecca|qiana)
+                    lsb_dist="ubuntu"
+					dist_version="trusty"
+				;;
+				maya)
+                    lsb_dist="ubuntu"
+					dist_version="precise"
+				;;
+            esac
+        ;;
+
 		*)
 			if command_exists lsb_release; then
 				dist_version="$(lsb_release --codename | cut -f2)"
@@ -184,10 +200,8 @@ do_install() {
 				dist_version="$(. /etc/os-release && echo "$VERSION_ID")"
 			fi
 		;;
-
-
 	esac
-		
+
 
 	case "$lsb_dist" in
 		amzn)
