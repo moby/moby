@@ -27,7 +27,7 @@
 # This order should be applied to lists, alternatives and code blocks.
 
 __docker_q() {
-	docker ${host:+-H "$host"} 2>/dev/null "$@"
+	docker ${host:+-H "$host"} ${config:+--config "$config"} 2>/dev/null "$@"
 }
 
 __docker_containers_all() {
@@ -325,6 +325,10 @@ _docker_docker() {
 	"
 
 	case "$prev" in
+		--config)
+			_filedir -d
+			return
+			;;
 		--log-level|-l)
 			__docker_log_levels
 			return
@@ -1394,6 +1398,7 @@ _docker() {
 		--tlsverify
 	"
 	local global_options_with_args="
+		--config
 		--host -H
 		--log-level -l
 		--tlscacert
@@ -1401,7 +1406,7 @@ _docker() {
 		--tlskey
 	"
 
-	local host
+	local host config
 
 	COMPREPLY=()
 	local cur prev words cword
@@ -1415,6 +1420,11 @@ _docker() {
 			--host|-H)
 				(( counter++ ))
 				host="${words[$counter]}"
+				;;
+			# save config so that completion can use custom configuration directories
+			--config)
+				(( counter++ ))
+				config="${words[$counter]}"
 				;;
 			$(__docker_to_extglob "$global_options_with_args") )
 				(( counter++ ))
