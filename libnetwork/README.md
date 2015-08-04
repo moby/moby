@@ -64,7 +64,7 @@ There are many networking solutions available to suit a broad range of use-cases
 		epInfo, err := ep.DriverInfo()
 		mapData, ok := epInfo[netlabel.PortMap]
 		if ok {
-			portMapping, ok := mapData.([]netutils.PortBinding)
+			portMapping, ok := mapData.([]types.PortBinding)
 			if ok {
 				fmt.Printf("Current port mapping for endpoint %s: %v", ep.Name(), portMapping)
 			}
