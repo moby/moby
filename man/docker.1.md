@@ -50,8 +50,14 @@ To see the man page for a command run **man docker <command>**.
 **--default-gateway-v6**=""
   IPv6 address of the container default gateway
 
+**--default-ulimit**=[]
+  Set default ulimits for containers.
+
 **--dns**=""
   Force Docker to use specific DNS servers
+
+**--dns-search**=[]
+  DNS search domains to use.
 
 **-e**, **--exec-driver**=""
   Force Docker to use specific exec driver. Default is `native`.
@@ -60,7 +66,7 @@ To see the man page for a command run **man docker <command>**.
   Set exec driver options. See EXEC DRIVER OPTIONS.
 
 **--exec-root**=""
-  Path to use as the root of the Docker execdriver. Default is `/var/run/docker`.
+  Path to use as the root of the Docker exec driver. Default is `/var/run/docker`.
 
 **--fixed-cidr**=""
   IPv4 subnet for fixed IPs (e.g., 10.20.0.0/16); this subnet must be nested in the bridge subnet (which is defined by \-b or \-\-bip)
@@ -82,6 +88,9 @@ unix://[/path/to/socket] to use.
 
 **--icc**=*true*|*false*
   Allow unrestricted inter\-container and Docker daemon host communication. If disabled, containers can still be linked together using **--link** option (see **docker-run(1)**). Default is true.
+
+**--insecure-registry**=[]
+  Enable insecure registry communication.
 
 **--ip**=""
   Default IP address to use when binding container ports. Default is `0.0.0.0`.
@@ -131,10 +140,19 @@ unix://[/path/to/socket] to use.
 **--storage-opt**=[]
   Set storage driver options. See STORAGE DRIVER OPTIONS.
 
-**-tls**=*true*|*false*
+**--tls**=*true*|*false*
   Use TLS; implied by --tlsverify. Default is false.
 
-**-tlsverify**=*true*|*false*
+**--tlscacert**=~/.docker/ca.pem
+  Trust certs signed only by this CA.
+
+**--tlscert**=~/.docker/cert.pem
+  Path to TLS certificate file.
+
+**--tlskey**=~/.docker/key.pem
+  Path to TLS key file.
+
+**--tlsverify**=*true*|*false*
   Use TLS and verify the remote (daemon: verify client, client: verify daemon).
   Default is false.
 
@@ -241,6 +259,10 @@ inside it)
 **push**
   Push an image or a repository to a Docker Registry
   See **docker-push(1)** for full documentation on the **push** command.
+
+**rename**
+  Rename a container.
+  See **docker-rename(1)** for full documentation on the **rename** command.
 
 **restart**
   Restart a running container
@@ -411,7 +433,7 @@ Example use: `docker -d --storage-opt dm.loopdatasize=200G`
 **Note**: This option configures devicemapper loopback, which should not be used in production.
 
 Specifies the size to use when creating the loopback file for the
-"metadadata" device which is used for the thin pool. The default size
+"metadata" device which is used for the thin pool. The default size
 is 2G. The file is sparse, so it will not initially take up
 this much space.
 
@@ -473,7 +495,7 @@ When `udev` sync support is `true`, then `devicemapper` and `udev` can
 coordinate the activation and deactivation of devices for containers.
 
 When `udev` sync support is `false`, a race condition occurs between
-the`devicemapper` and `udev` during create and cleanup. The race
+the `devicemapper` and `udev` during create and cleanup. The race
 condition results in errors and failures. (For information on these
 failures, see
 [docker#4036](https://github.com/docker/docker/issues/4036))
