@@ -11,7 +11,7 @@ type WindowsGraphDriver interface {
 	LayerIdsToPaths(ids []string) []string
 	Info() hcsshim.DriverInfo
 	Export(id string, parentLayerPaths []string) (archive.Archive, error)
-	Import(id string, layerData archive.ArchiveReader, parentLayerPaths []string) (int64, error)
+	Import(id string, layerData archive.Reader, parentLayerPaths []string) (int64, error)
 }
 
 var (

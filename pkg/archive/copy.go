@@ -246,7 +246,7 @@ func CopyInfoDestinationPath(path string) (info CopyInfo, err error) {
 // contain the archived resource described by srcInfo, to the destination
 // described by dstInfo. Returns the possibly modified content archive along
 // with the path to the destination directory which it should be extracted to.
-func PrepareArchiveCopy(srcContent ArchiveReader, srcInfo, dstInfo CopyInfo) (dstDir string, content Archive, err error) {
+func PrepareArchiveCopy(srcContent Reader, srcInfo, dstInfo CopyInfo) (dstDir string, content Archive, err error) {
 	// Separate the destination path between its directory and base
 	// components in case the source archive contents need to be rebased.
 	dstDir, dstBase := SplitPathDirEntry(dstInfo.Path)
@@ -296,7 +296,7 @@ func PrepareArchiveCopy(srcContent ArchiveReader, srcInfo, dstInfo CopyInfo) (ds
 
 // rebaseArchiveEntries rewrites the given srcContent archive replacing
 // an occurance of oldBase with newBase at the beginning of entry names.
-func rebaseArchiveEntries(srcContent ArchiveReader, oldBase, newBase string) Archive {
+func rebaseArchiveEntries(srcContent Reader, oldBase, newBase string) Archive {
 	if oldBase == "/" {
 		// If oldBase specifies the root directory, use an empty string as
 		// oldBase instead so that newBase doesn't replace the path separator
@@ -368,7 +368,7 @@ func CopyResource(srcPath, dstPath string) error {
 
 // CopyTo handles extracting the given content whose
 // entries should be sourced from srcInfo to dstPath.
-func CopyTo(content ArchiveReader, srcInfo CopyInfo, dstPath string) error {
+func CopyTo(content Reader, srcInfo CopyInfo, dstPath string) error {
 	// The destination path need not exist, but CopyInfoDestinationPath will
 	// ensure that at least the parent directory exists.
 	dstInfo, err := CopyInfoDestinationPath(dstPath)

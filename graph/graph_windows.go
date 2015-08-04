@@ -19,7 +19,7 @@ func SetupInitLayer(initLayer string) error {
 	return nil
 }
 
-func createRootFilesystemInDriver(graph *Graph, img *image.Image, layerData archive.ArchiveReader) error {
+func createRootFilesystemInDriver(graph *Graph, img *image.Image, layerData archive.Reader) error {
 	if wd, ok := graph.driver.(*windows.WindowsGraphDriver); ok {
 		if img.Container != "" && layerData == nil {
 			logrus.Debugf("Copying from container %s.", img.Container)
@@ -71,7 +71,7 @@ func (graph *Graph) ParentLayerIds(img *image.Image) (ids []string, err error) {
 // storeImage stores file system layer data for the given image to the
 // graph's storage driver. Image metadata is stored in a file
 // at the specified root directory.
-func (graph *Graph) storeImage(img *image.Image, layerData archive.ArchiveReader, root string) (err error) {
+func (graph *Graph) storeImage(img *image.Image, layerData archive.Reader, root string) (err error) {
 
 	if wd, ok := graph.driver.(*windows.WindowsGraphDriver); ok {
 		// Store the layer. If layerData is not nil and this isn't a base image,

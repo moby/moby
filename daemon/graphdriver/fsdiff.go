@@ -25,7 +25,7 @@ type naiveDiffDriver struct {
 // it may or may not support on its own:
 //     Diff(id, parent string) (archive.Archive, error)
 //     Changes(id, parent string) ([]archive.Change, error)
-//     ApplyDiff(id, parent string, diff archive.ArchiveReader) (size int64, err error)
+//     ApplyDiff(id, parent string, diff archive.Reader) (size int64, err error)
 //     DiffSize(id, parent string) (size int64, err error)
 func NaiveDiffDriver(driver ProtoDriver) Driver {
 	return &naiveDiffDriver{ProtoDriver: driver}
@@ -109,7 +109,7 @@ func (gdw *naiveDiffDriver) Changes(id, parent string) ([]archive.Change, error)
 // ApplyDiff extracts the changeset from the given diff into the
 // layer with the specified id and parent, returning the size of the
 // new layer in bytes.
-func (gdw *naiveDiffDriver) ApplyDiff(id, parent string, diff archive.ArchiveReader) (size int64, err error) {
+func (gdw *naiveDiffDriver) ApplyDiff(id, parent string, diff archive.Reader) (size int64, err error) {
 	driver := gdw.ProtoDriver
 
 	// Mount the root filesystem so we can apply the diff/layer.

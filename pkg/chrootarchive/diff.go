@@ -6,7 +6,7 @@ import "github.com/docker/docker/pkg/archive"
 // and applies it to the directory `dest`. The stream `layer` can only be
 // uncompressed.
 // Returns the size in bytes of the contents of the layer.
-func ApplyLayer(dest string, layer archive.ArchiveReader) (size int64, err error) {
+func ApplyLayer(dest string, layer archive.Reader) (size int64, err error) {
 	return applyLayerHandler(dest, layer, true)
 }
 
@@ -14,6 +14,6 @@ func ApplyLayer(dest string, layer archive.ArchiveReader) (size int64, err error
 // `layer`, and applies it to the directory `dest`. The stream `layer`
 // can only be uncompressed.
 // Returns the size in bytes of the contents of the layer.
-func ApplyUncompressedLayer(dest string, layer archive.ArchiveReader) (int64, error) {
+func ApplyUncompressedLayer(dest string, layer archive.Reader) (int64, error) {
 	return applyLayerHandler(dest, layer, false)
 }

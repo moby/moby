@@ -37,6 +37,7 @@ packages=(
 	graph
 	image
 	integration-cli
+	pkg/archive
 	pkg/broadcastwriter
 	pkg/chrootarchive
 	pkg/directory

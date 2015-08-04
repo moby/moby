@@ -28,7 +28,7 @@ var (
 
 type ApplyDiffProtoDriver interface {
 	graphdriver.ProtoDriver
-	ApplyDiff(id, parent string, diff archive.ArchiveReader) (size int64, err error)
+	ApplyDiff(id, parent string, diff archive.Reader) (size int64, err error)
 }
 
 type naiveDiffDriverWithApply struct {
@@ -43,7 +43,7 @@ func NaiveDiffDriverWithApply(driver ApplyDiffProtoDriver) graphdriver.Driver {
 	}
 }
 
-func (d *naiveDiffDriverWithApply) ApplyDiff(id, parent string, diff archive.ArchiveReader) (int64, error) {
+func (d *naiveDiffDriverWithApply) ApplyDiff(id, parent string, diff archive.Reader) (int64, error) {
 	b, err := d.applyDiff.ApplyDiff(id, parent, diff)
 	if err == ErrApplyDiffFallback {
 		return d.Driver.ApplyDiff(id, parent, diff)
@@ -373,7 +373,7 @@ func (d *Driver) Put(id string) error {
 	return nil
 }
 
-func (d *Driver) ApplyDiff(id string, parent string, diff archive.ArchiveReader) (size int64, err error) {
+func (d *Driver) ApplyDiff(id string, parent string, diff archive.Reader) (size int64, err error) {
 	dir := d.dir(id)
 
 	if parent == "" {

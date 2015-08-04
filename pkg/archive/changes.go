@@ -18,14 +18,22 @@ import (
 	"github.com/docker/docker/pkg/system"
 )
 
+// ChangeType represents the change type.
 type ChangeType int
 
 const (
+	// ChangeModify represents the modify operation.
 	ChangeModify = iota
+	// ChangeAdd represents the add operation.
 	ChangeAdd
+	// ChangeDelete represents the delete operation.
 	ChangeDelete
 )
 
+// Change represents a change, it wraps the change type and path.
+// It describes changes of the files in the path respect to the
+// parent layers. The change could be modify, add, delete.
+// This is used for layer diff.
 type Change struct {
 	Path string
 	Kind ChangeType
@@ -161,6 +169,7 @@ func Changes(layers []string, rw string) ([]Change, error) {
 	return changes, nil
 }
 
+// FileInfo describes the information of a file.
 type FileInfo struct {
 	parent     *FileInfo
 	name       string
@@ -170,11 +179,12 @@ type FileInfo struct {
 	added      bool
 }
 
-func (root *FileInfo) LookUp(path string) *FileInfo {
+// LookUp looks up the file information of a file.
+func (info *FileInfo) LookUp(path string) *FileInfo {
 	// As this runs on the daemon side, file paths are OS specific.
-	parent := root
+	parent := info
 	if path == string(os.PathSeparator) {
-		return root
+		return info
 	}
 
 	pathElements := strings.Split(path, string(os.PathSeparator))
@@ -275,6 +285,7 @@ func (info *FileInfo) addChanges(oldInfo *FileInfo, changes *[]Change) {
 
 }
 
+// Changes add changes to file information.
 func (info *FileInfo) Changes(oldInfo *FileInfo) []Change {
 	var changes []Change
 

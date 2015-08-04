@@ -171,7 +171,7 @@ func (d *WindowsGraphDriver) Changes(id, parent string) ([]archive.Change, error
 // ApplyDiff extracts the changeset from the given diff into the
 // layer with the specified id and parent, returning the size of the
 // new layer in bytes.
-func (d *WindowsGraphDriver) ApplyDiff(id, parent string, diff archive.ArchiveReader) (size int64, err error) {
+func (d *WindowsGraphDriver) ApplyDiff(id, parent string, diff archive.Reader) (size int64, err error) {
 	start := time.Now().UTC()
 	logrus.Debugf("WindowsGraphDriver ApplyDiff: Start untar layer")
 
@@ -289,7 +289,7 @@ func (d *WindowsGraphDriver) Export(id string, parentLayerPaths []string) (arch 
 
 }
 
-func (d *WindowsGraphDriver) Import(id string, layerData archive.ArchiveReader, parentLayerPaths []string) (size int64, err error) {
+func (d *WindowsGraphDriver) Import(id string, layerData archive.Reader, parentLayerPaths []string) (size int64, err error) {
 	layerFs, err := d.Get(id, "")
 	if err != nil {
 		return

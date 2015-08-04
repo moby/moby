@@ -73,7 +73,7 @@ func SetupInitLayer(initLayer string) error {
 	return nil
 }
 
-func createRootFilesystemInDriver(graph *Graph, img *image.Image, layerData archive.ArchiveReader) error {
+func createRootFilesystemInDriver(graph *Graph, img *image.Image, layerData archive.Reader) error {
 	if err := graph.driver.Create(img.ID, img.Parent); err != nil {
 		return fmt.Errorf("Driver %s failed to create image rootfs %s: %s", graph.driver, img.ID, err)
 	}
@@ -87,7 +87,7 @@ func (graph *Graph) restoreBaseImages() ([]string, error) {
 // storeImage stores file system layer data for the given image to the
 // graph's storage driver. Image metadata is stored in a file
 // at the specified root directory.
-func (graph *Graph) storeImage(img *image.Image, layerData archive.ArchiveReader, root string) (err error) {
+func (graph *Graph) storeImage(img *image.Image, layerData archive.Reader, root string) (err error) {
 	// Store the layer. If layerData is not nil, unpack it into the new layer
 	if layerData != nil {
 		if err := graph.disassembleAndApplyTarLayer(img, layerData, root); err != nil {

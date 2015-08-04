@@ -198,7 +198,7 @@ func (graph *Graph) Get(name string) (*image.Image, error) {
 }
 
 // Create creates a new image and registers it in the graph.
-func (graph *Graph) Create(layerData archive.ArchiveReader, containerID, containerImage, comment, author string, containerConfig, config *runconfig.Config) (*image.Image, error) {
+func (graph *Graph) Create(layerData archive.Reader, containerID, containerImage, comment, author string, containerConfig, config *runconfig.Config) (*image.Image, error) {
 	img := &image.Image{
 		ID:            stringid.GenerateRandomID(),
 		Comment:       comment,
@@ -223,7 +223,7 @@ func (graph *Graph) Create(layerData archive.ArchiveReader, containerID, contain
 }
 
 // Register imports a pre-existing image into the graph.
-func (graph *Graph) Register(img *image.Image, layerData archive.ArchiveReader) (err error) {
+func (graph *Graph) Register(img *image.Image, layerData archive.Reader) (err error) {
 
 	if err := image.ValidateID(img.ID); err != nil {
 		return err
@@ -535,7 +535,7 @@ func jsonPath(root string) string {
 	return filepath.Join(root, jsonFileName)
 }
 
-func (graph *Graph) disassembleAndApplyTarLayer(img *image.Image, layerData archive.ArchiveReader, root string) error {
+func (graph *Graph) disassembleAndApplyTarLayer(img *image.Image, layerData archive.Reader, root string) error {
 	// this is saving the tar-split metadata
 	mf, err := os.OpenFile(filepath.Join(root, tarDataFileName), os.O_CREATE|os.O_WRONLY|os.O_TRUNC, os.FileMode(0600))
 	if err != nil {
@@ -558,7 +558,7 @@ func (graph *Graph) disassembleAndApplyTarLayer(img *image.Image, layerData arch
 		return err
 	}
 
-	if img.Size, err = graph.driver.ApplyDiff(img.ID, img.Parent, archive.ArchiveReader(rdr)); err != nil {
+	if img.Size, err = graph.driver.ApplyDiff(img.ID, img.Parent, archive.Reader(rdr)); err != nil {
 		return err
 	}
 
