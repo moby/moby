@@ -25,10 +25,12 @@ sign_packages(){
 
 		# sign the repo metadata
 		for F in $(find $APTDIR -name Release); do
-			gpg -u releasedocker --passphrase "$GPG_PASSPHRASE" \
-				--armor --sign --detach-sign \
-				--batch --yes \
-				--output "$F.gpg" "$F"
+			if test "$F" -nt "$F.gpg" ; then
+				gpg -u releasedocker --passphrase "$GPG_PASSPHRASE" \
+					--armor --sign --detach-sign \
+					--batch --yes \
+					--output "$F.gpg" "$F"
+			fi
 		done
 	fi
 
@@ -38,11 +40,13 @@ sign_packages(){
 		gpg --armor --export releasedocker > "$DOCKER_RELEASE_DIR/yum/gpg"
 
 		# sign the repo metadata
-		for F in $(find $YUMDIR -name repomd.xml ); do
-			gpg -u releasedocker --passphrase "$GPG_PASSPHRASE" \
-				--armor --sign --detach-sign \
-				--batch --yes \
-				--output "$F.asc" "$F"
+		for F in $(find $YUMDIR -name repomd.xml); do
+			if test "$F" -nt "$F.asc" ; then
+				gpg -u releasedocker --passphrase "$GPG_PASSPHRASE" \
+					--armor --sign --detach-sign \
+					--batch --yes \
+					--output "$F.asc" "$F"
+			fi
 		done
 	fi
 }
