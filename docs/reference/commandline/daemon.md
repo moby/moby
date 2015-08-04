@@ -192,6 +192,12 @@ options for `zfs` start with `zfs`.
      resize support, dynamically changing thin-pool features, automatic thinp
      metadata checking when lvm activates the thin-pool, etc.
 
+     As a fallback if no thin pool is provided, loopback files will be
+     created. Loopback is very slow, but can be used without any
+     pre-configuration of storage. It is strongly recommended that you do 
+     not use loopback in production. Ensure your Docker daemon has a
+     `--storage-opt dm.thinpooldev` argument provided.
+
      Example use:
 
         docker daemon --storage-opt dm.thinpooldev=/dev/mapper/thin-pool

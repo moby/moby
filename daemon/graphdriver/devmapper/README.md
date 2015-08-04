@@ -3,22 +3,33 @@
 ### Theory of operation
 
 The device mapper graphdriver uses the device mapper thin provisioning
-module (dm-thinp) to implement CoW snapshots. For each devicemapper
-graph location (typically `/var/lib/docker/devicemapper`, $graph below)
-a thin pool is created based on two block devices, one for data and
-one for metadata.  By default these block devices are created
-automatically by using loopback mounts of automatically created sparse
+module (dm-thinp) to implement CoW snapshots. The preferred model is
+to have a thin pool reserved outside of Docker and passed to the
+daemon via the `--storage-opt dm.thinpooldev` option.
+
+As a fallback if no thin pool is provided, loopback files will be
+created.  Loopback is very slow, but can be used without any
+pre-configuration of storage.  It is strongly recommended that you do 
+not use loopback in production.  Ensure your Docker daemon has a
+`--storage-opt dm.thinpooldev` argument provided.
+
+In loopback, a thin pool is created at `/var/lib/docker/devicemapper`
+(devicemapper graph location) based on two block devices, one for 
+data and one for metadata. By default these block devices are created 
+automatically by using loopback mounts of automatically created sparse 
 files.
 
-The default loopback files used are `$graph/devicemapper/data` and
-`$graph/devicemapper/metadata`. Additional metadata required to map
-from docker entities to the corresponding devicemapper volumes is
-stored in the `$graph/devicemapper/json` file (encoded as Json).
+The default loopback files used are 
+`/var/lib/docker/devicemapper/devicemapper/data` and 
+`/var/lib/docker/devicemapper/devicemapper/metadata`. Additional metadata 
+required to map from docker entities to the corresponding devicemapper 
+volumes is stored in the `/var/lib/docker/devicemapper/devicemapper/json` 
+file (encoded as Json).
 
 In order to support multiple devicemapper graphs on a system, the thin
 pool will be named something like: `docker-0:33-19478248-pool`, where
 the `0:33` part is the minor/major device nr and `19478248` is the
-inode number of the $graph directory.
+inode number of the `/var/lib/docker/devicemapper` directory.
 
 On the thin pool, docker automatically creates a base thin device,
 called something like `docker-0:33-19478248-base` of a fixed
