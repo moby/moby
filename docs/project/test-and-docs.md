@@ -82,10 +82,6 @@ is simply `test`. The make file contains several targets for testing:
     <td class="monospaced">test-docker-py</td>
     <td>Run the tests for Docker API client.</td>
   </tr>
-  <tr>
-    <td class="monospaced">docs-test</td>
-    <td>Runs the documentation test build.</td>
-  </tr>
 </table>
 
 Run the entire test suite on your current repository:
