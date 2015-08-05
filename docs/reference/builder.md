@@ -907,6 +907,10 @@ create a new mount point at `/myvol` and copy the  `greeting` file
 into the newly created volume.
 
 > **Note**:
+> If any build steps change the data within the volume after it has been
+> declared, those changes will be discarded.
+
+> **Note**:
 > The list is parsed as a JSON array, which means that
 > you must use double-quotes (") around words not single-quotes (').
 
