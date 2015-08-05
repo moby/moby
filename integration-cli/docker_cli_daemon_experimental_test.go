@@ -1,4 +1,4 @@
-// +build daemon,experimental
+// +build daemon,experimental,!windows
 
 package main
 
@@ -22,6 +22,7 @@ func assertNetwork(c *check.C, d *Daemon, name string) {
 }
 
 func (s *DockerDaemonSuite) TestDaemonDefaultNetwork(c *check.C) {
+	testRequires(c, SameHostDaemon)
 	d := s.d
 
 	networkName := "testdefault"
