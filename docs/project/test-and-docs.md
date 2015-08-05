@@ -192,7 +192,7 @@ run a Bash terminal on Windows.
 4. Set `DOCKER_TEST_HOST` to the `tcp://IP_ADDRESS:2376` value; substitute your
 Linux machines actual IP address. For example:
 
-		$ export DOCKER_TEST_HOST=tcp://263.124.23.200:2376
+		$ export DOCKER_TEST_HOST=tcp://213.124.23.200:2376
 
 5. Make the binary and run the tests:
 
