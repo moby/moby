@@ -26,6 +26,9 @@ program code and documentation code.
 * Run `gofmt -s -w file.go` on each changed file before
   committing your changes. Most editors have plug-ins that do this automatically.
 
+* Run `golint` on each changed file before
+  committing your changes.
+
 * Update the documentation when creating or modifying features. 
 
 * Commits that fix or close an issue should reference them in the commit message
