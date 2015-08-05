@@ -1,6 +1,7 @@
 package ps
 
 import (
+	"bytes"
 	"reflect"
 	"strings"
 	"testing"
@@ -10,7 +11,7 @@ import (
 	"github.com/docker/docker/pkg/stringid"
 )
 
-func TestContainerContextID(t *testing.T) {
+func TestContainerPsContext(t *testing.T) {
 	containerID := stringid.GenerateRandomID()
 	unix := time.Now().Unix()
 
@@ -84,5 +85,18 @@ func TestContainerContextID(t *testing.T) {
 	if h != "SWARM ID\tNODE NAME" {
 		t.Fatalf("Expected %s, was %s\n", "SWARM ID\tNODE NAME", h)
 
+	}
+}
+
+func TestContainerPsFormatError(t *testing.T) {
+	out := bytes.NewBufferString("")
+	ctx := Context{
+		Format: "{{InvalidFunction}}",
+		Output: out,
+	}
+
+	customFormat(ctx, make([]types.Container, 0))
+	if out.String() != "Template parsing error: template: :1: function \"InvalidFunction\" not defined\n" {
+		t.Fatalf("Expected format error, got `%v`\n", out.String())
 	}
 }
