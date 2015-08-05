@@ -27,7 +27,7 @@ func TestContainerContextID(t *testing.T) {
 		{types.Container{Image: "ubuntu"}, true, "ubuntu", imageHeader, ctx.Image},
 		{types.Container{Image: ""}, true, "<no image>", imageHeader, ctx.Image},
 		{types.Container{Command: "sh -c 'ls -la'"}, true, `"sh -c 'ls -la'"`, commandHeader, ctx.Command},
-		{types.Container{Created: int(unix)}, true, time.Unix(unix, 0).String(), createdAtHeader, ctx.CreatedAt},
+		{types.Container{Created: unix}, true, time.Unix(unix, 0).String(), createdAtHeader, ctx.CreatedAt},
 		{types.Container{Ports: []types.Port{{PrivatePort: 8080, PublicPort: 8080, Type: "tcp"}}}, true, "8080/tcp", portsHeader, ctx.Ports},
 		{types.Container{Status: "RUNNING"}, true, "RUNNING", statusHeader, ctx.Status},
 		{types.Container{SizeRw: 10}, true, "10 B", sizeHeader, ctx.Size},

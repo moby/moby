@@ -152,7 +152,7 @@ func (daemon *Daemon) Containers(config *ContainersConfig) ([]*types.Container, 
 		} else {
 			newC.Command = fmt.Sprintf("%s", container.Path)
 		}
-		newC.Created = int(container.Created.Unix())
+		newC.Created = container.Created.Unix()
 		newC.Status = container.State.String()
 		newC.HostConfig.NetworkMode = string(container.hostConfig.NetworkMode)
 
@@ -185,8 +185,8 @@ func (daemon *Daemon) Containers(config *ContainersConfig) ([]*types.Container, 
 
 		if config.Size {
 			sizeRw, sizeRootFs := container.GetSize()
-			newC.SizeRw = int(sizeRw)
-			newC.SizeRootFs = int(sizeRootFs)
+			newC.SizeRw = sizeRw
+			newC.SizeRootFs = sizeRootFs
 		}
 		newC.Labels = container.Config.Labels
 		containers = append(containers, newC)

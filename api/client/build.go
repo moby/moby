@@ -462,7 +462,7 @@ func getContextFromURL(out io.Writer, remoteURL, dockerfileName string) (absCont
 		In:        response.Body,
 		Out:       out,
 		Formatter: streamformatter.NewStreamFormatter(),
-		Size:      int(response.ContentLength),
+		Size:      response.ContentLength,
 		NewLines:  true,
 		ID:        "",
 		Action:    fmt.Sprintf("Downloading build context from remote url: %s", remoteURL),

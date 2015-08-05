@@ -70,9 +70,9 @@ type Image struct {
 	ParentId    string
 	RepoTags    []string
 	RepoDigests []string
-	Created     int
-	Size        int
-	VirtualSize int
+	Created     int64
+	Size        int64
+	VirtualSize int64
 	Labels      map[string]string
 }
 
@@ -112,10 +112,10 @@ type Container struct {
 	Names      []string
 	Image      string
 	Command    string
-	Created    int
+	Created    int64
 	Ports      []Port
-	SizeRw     int `json:",omitempty"`
-	SizeRootFs int `json:",omitempty"`
+	SizeRw     int64 `json:",omitempty"`
+	SizeRootFs int64 `json:",omitempty"`
 	Labels     map[string]string
 	Status     string
 	HostConfig struct {

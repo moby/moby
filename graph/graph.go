@@ -190,7 +190,7 @@ func (graph *Graph) Get(name string) (*image.Image, error) {
 		}
 
 		img.Size = size
-		if err := graph.saveSize(graph.imageRoot(id), int(img.Size)); err != nil {
+		if err := graph.saveSize(graph.imageRoot(id), img.Size); err != nil {
 			return nil, err
 		}
 	}
@@ -490,8 +490,8 @@ func (graph *Graph) loadImage(id string) (*image.Image, error) {
 }
 
 // saveSize stores the `size` in the provided graph `img` directory `root`.
-func (graph *Graph) saveSize(root string, size int) error {
-	if err := ioutil.WriteFile(filepath.Join(root, layersizeFileName), []byte(strconv.Itoa(size)), 0600); err != nil {
+func (graph *Graph) saveSize(root string, size int64) error {
+	if err := ioutil.WriteFile(filepath.Join(root, layersizeFileName), []byte(strconv.FormatInt(size, 10)), 0600); err != nil {
 		return fmt.Errorf("Error storing image size in %s/%s: %s", root, layersizeFileName, err)
 	}
 	return nil

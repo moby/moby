@@ -45,7 +45,7 @@ func (s *TagStore) Import(src string, repo string, tag string, inConfig io.ReadC
 			In:        resp.Body,
 			Out:       outStream,
 			Formatter: sf,
-			Size:      int(resp.ContentLength),
+			Size:      resp.ContentLength,
 			NewLines:  true,
 			ID:        "",
 			Action:    "Importing",
