@@ -1,4 +1,4 @@
-// +build daemon
+// +build daemon,!windows
 
 package main
 

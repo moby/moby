@@ -169,14 +169,15 @@ To run the same test inside your Docker development container, you do this:
 
     root@5f8630b873fe:/go/src/github.com/docker/docker# TESTFLAGS='-check.f TestBuild*' hack/make.sh binary test-integration-cli
 
-## Testing just the Windows client
+## Testing the Windows binary against a Linux daemon
 
-This explains how to test the Windows client on a Windows server set up as a
-development environment.  You'll use the **Git Bash** came with the Git for
-Windows installation.  **Git Bash** just as it sounds allows you to run a Bash
-terminal on Windows. 
+This explains how to test the Windows binary on a Windows machine set up as a
+development environment.  The tests will be run against a docker daemon 
+running on a remote Linux machine. You'll use  **Git Bash** that came with the 
+Git for Windows installation.  **Git Bash**, just as it sounds, allows you to
+run a Bash terminal on Windows. 
 
-1.  If you don't have one, start a Git Bash terminal.
+1.  If you don't have one open already, start a Git Bash terminal.
 
 	 ![Git Bash](/project/images/git_bash.png)
 
@@ -184,27 +185,31 @@ terminal on Windows.
 
 		$ cd /c/gopath/src/github.com/docker/docker
     
-3. Set `DOCKER_CLIENTONLY` as follows:
+3. Set `DOCKER_REMOTE_DAEMON` as follows:
 
-		$ export DOCKER_CLIENTONLY=1
-     
-	This ensures you are building only the client binary instead of both the
-	binary and the daemon.
-	
+		$ export DOCKER_REMOTE_DAEMON=1
+
 4. Set `DOCKER_TEST_HOST` to the `tcp://IP_ADDRESS:2376` value; substitute your
-machine's actual IP address, for example:
+Linux machines actual IP address. For example:
 
 		$ export DOCKER_TEST_HOST=tcp://263.124.23.200:2376
 
-5. Make the binary and the test:
+5. Make the binary and run the tests:
 
 		$ hack/make.sh binary test-integration-cli
   	
-   Many tests are skipped on Windows for various reasons. You see which tests
-   were skipped by re-running the make and passing in the 
-   `TESTFLAGS='-test.v'` value.
-        
+   Some tests are skipped on Windows for various reasons. You can see which
+   tests were skipped by re-running the make and passing in the 
+   `TESTFLAGS='-test.v'` value. For example 
 
+		$ TESTFLAGS='-test.v' hack/make.sh binary test-integration-cli
+		
+	Should you wish to run a single test such as one with the name 
+	'TestExample', you can pass in `TESTFLAGS='-check.f TestExample'`. For
+	example 
+	
+		$TESTFLAGS='-check.f TestExample' hack/make.sh binary test-integration-cli
+        
 You can now choose to make changes to the Docker source or the tests. If you
 make any changes just run these commands again.
 
