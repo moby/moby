@@ -6,6 +6,7 @@ package btrfs
 #include <stdlib.h>
 #include <dirent.h>
 #include <btrfs/ioctl.h>
+#include <btrfs/ctree.h>
 */
 import "C"
 
@@ -13,6 +14,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"path/filepath"
 	"syscall"
 	"unsafe"
 
@@ -22,6 +24,21 @@ import (
 
 func init() {
 	graphdriver.Register("btrfs", Init)
+}
+
+func is_subvolume(dirpath string) (bool, error) {
+	rootdir := path.Dir(dirpath)
+
+	var bufStat syscall.Stat_t
+	if err := syscall.Lstat(rootdir, &bufStat); err != nil {
+		return false, err
+	}
+
+	if bufStat.Ino != C.BTRFS_FIRST_FREE_OBJECTID {
+		return false, nil
+	}
+
+	return true, nil
 }
 
 // Init returns a new BTRFS driver.
@@ -160,18 +177,40 @@ func subvolSnapshot(src, dest, name string) error {
 	return nil
 }
 
-func subvolDelete(path, name string) error {
-	dir, err := openDir(path)
+func subvolDelete(dirpath, name string) error {
+	dir, err := openDir(dirpath)
 	if err != nil {
 		return err
 	}
 	defer closeDir(dir)
 
 	var args C.struct_btrfs_ioctl_vol_args
+
+	filepath.Walk(dirpath,
+		func(dirpath string, f os.FileInfo, err error) error {
+			if f.IsDir() {
+				isSubvolumes, err := is_subvolume(path.Join(dirpath, f.Name()))
+				if err != nil {
+					return err
+				}
+				if isSubvolumes {
+					for i, c := range []byte(f.Name()) {
+						args.name[i] = C.char(c)
+					}
+					_, _, errno := syscall.Syscall(syscall.SYS_IOCTL, getDirFd(dir), C.BTRFS_IOC_SNAP_DESTROY,
+						uintptr(unsafe.Pointer(&args)))
+					if errno != 0 {
+						return fmt.Errorf("Failed to destroy btrfs snapshot: %v", errno.Error())
+					}
+				}
+				return nil
+			}
+			return nil
+		})
+
 	for i, c := range []byte(name) {
 		args.name[i] = C.char(c)
 	}
-
 	_, _, errno := syscall.Syscall(syscall.SYS_IOCTL, getDirFd(dir), C.BTRFS_IOC_SNAP_DESTROY,
 		uintptr(unsafe.Pointer(&args)))
 	if errno != 0 {

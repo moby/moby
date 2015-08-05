@@ -7,6 +7,19 @@ import (
 	"github.com/go-check/check"
 )
 
+func (s *DockerSuite) TestRmContainerWithBtrfsSubvolume(c *check.C) {
+	testRequires(c, BtrfsSystem)
+
+	out, _, err := dockerCmdWithError("run", "--name", "testwithbtrfs", "fedora:latest", "/bin/sh", "-c", "apt-get -y -q install btrfs-progs && btrfs subvolume create /test")
+	if err != nil {
+		c.Fatalf("failed to create a container: %s, %v", out, err)
+	}
+	out, _, err = dockerCmdWithError("rm", "testwithbtrfs")
+	if err != nil {
+		c.Fatalf("failed to remove the container: %s, %v", out, err)
+	}
+}
+
 func (s *DockerSuite) TestRmContainerWithRemovedVolume(c *check.C) {
 	testRequires(c, SameHostDaemon)
 
