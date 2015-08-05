@@ -1680,6 +1680,11 @@ func TestHttpHandlerUninit(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	err = c.ConfigureNetworkDriver(bridgeNetType, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	h := &httpHandler{c: c}
 	h.initRouter()
 	if h.r == nil {
@@ -1777,6 +1782,11 @@ func TestEndToEnd(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	err = c.ConfigureNetworkDriver(bridgeNetType, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	handleRequest := NewHTTPHandler(c)
 
 	ops := options.Generic{

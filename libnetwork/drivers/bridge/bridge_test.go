@@ -21,6 +21,7 @@ func TestCreateFullOptions(t *testing.T) {
 
 	config := &configuration{
 		EnableIPForwarding: true,
+		EnableIPTables:     true,
 	}
 
 	// Test this scenario: Default gw address does not belong to
@@ -37,7 +38,6 @@ func TestCreateFullOptions(t *testing.T) {
 		FixedCIDR:          cnw,
 		DefaultGatewayIPv4: gw,
 		EnableIPv6:         true,
-		EnableIPTables:     true,
 	}
 	_, netConfig.FixedCIDRv6, _ = net.ParseCIDR("2001:db8::/48")
 	genericOption := make(map[string]interface{})
@@ -71,9 +71,13 @@ func TestCreate(t *testing.T) {
 	defer netutils.SetupTestNetNS(t)()
 	d := newDriver()
 
-	config := &networkConfiguration{BridgeName: DefaultBridgeName}
+	if err := d.Config(nil); err != nil {
+		t.Fatalf("Failed to setup driver config: %v", err)
+	}
+
+	netconfig := &networkConfiguration{BridgeName: DefaultBridgeName}
 	genericOption := make(map[string]interface{})
-	genericOption[netlabel.GenericData] = config
+	genericOption[netlabel.GenericData] = netconfig
 
 	if err := d.CreateNetwork("dummy", genericOption); err != nil {
 		t.Fatalf("Failed to create bridge: %v", err)
@@ -100,9 +104,13 @@ func TestCreateFail(t *testing.T) {
 	defer netutils.SetupTestNetNS(t)()
 	d := newDriver()
 
-	config := &networkConfiguration{BridgeName: "dummy0"}
+	if err := d.Config(nil); err != nil {
+		t.Fatalf("Failed to setup driver config: %v", err)
+	}
+
+	netconfig := &networkConfiguration{BridgeName: "dummy0"}
 	genericOption := make(map[string]interface{})
-	genericOption[netlabel.GenericData] = config
+	genericOption[netlabel.GenericData] = netconfig
 
 	if err := d.CreateNetwork("dummy", genericOption); err == nil {
 		t.Fatal("Bridge creation was expected to fail")
@@ -114,20 +122,30 @@ func TestCreateMultipleNetworks(t *testing.T) {
 	d := newDriver()
 	dd, _ := d.(*driver)
 
-	config1 := &networkConfiguration{BridgeName: "net_test_1", AllowNonDefaultBridge: true, EnableIPTables: true}
+	config := &configuration{
+		EnableIPTables: true,
+	}
 	genericOption := make(map[string]interface{})
+	genericOption[netlabel.GenericData] = config
+
+	if err := d.Config(genericOption); err != nil {
+		t.Fatalf("Failed to setup driver config: %v", err)
+	}
+
+	config1 := &networkConfiguration{BridgeName: "net_test_1", AllowNonDefaultBridge: true}
+	genericOption = make(map[string]interface{})
 	genericOption[netlabel.GenericData] = config1
 	if err := d.CreateNetwork("1", genericOption); err != nil {
 		t.Fatalf("Failed to create bridge: %v", err)
 	}
 
-	config2 := &networkConfiguration{BridgeName: "net_test_2", AllowNonDefaultBridge: true, EnableIPTables: true}
+	config2 := &networkConfiguration{BridgeName: "net_test_2", AllowNonDefaultBridge: true}
 	genericOption[netlabel.GenericData] = config2
 	if err := d.CreateNetwork("2", genericOption); err != nil {
 		t.Fatalf("Failed to create bridge: %v", err)
 	}
 
-	config3 := &networkConfiguration{BridgeName: "net_test_3", AllowNonDefaultBridge: true, EnableIPTables: true}
+	config3 := &networkConfiguration{BridgeName: "net_test_3", AllowNonDefaultBridge: true}
 	genericOption[netlabel.GenericData] = config3
 	if err := d.CreateNetwork("3", genericOption); err != nil {
 		t.Fatalf("Failed to create bridge: %v", err)
@@ -136,7 +154,7 @@ func TestCreateMultipleNetworks(t *testing.T) {
 	// Verify the network isolation rules are installed, each network subnet should appear 4 times
 	verifyV4INCEntries(dd.networks, 4, t)
 
-	config4 := &networkConfiguration{BridgeName: "net_test_4", AllowNonDefaultBridge: true, EnableIPTables: true}
+	config4 := &networkConfiguration{BridgeName: "net_test_4", AllowNonDefaultBridge: true}
 	genericOption[netlabel.GenericData] = config4
 	if err := d.CreateNetwork("4", genericOption); err != nil {
 		t.Fatalf("Failed to create bridge: %v", err)
@@ -278,14 +296,23 @@ func testQueryEndpointInfo(t *testing.T, ulPxyEnabled bool) {
 	d := newDriver()
 	dd, _ := d.(*driver)
 
-	config := &networkConfiguration{
-		BridgeName:          DefaultBridgeName,
+	config := &configuration{
 		EnableIPTables:      true,
-		EnableICC:           false,
 		EnableUserlandProxy: ulPxyEnabled,
 	}
 	genericOption := make(map[string]interface{})
 	genericOption[netlabel.GenericData] = config
+
+	if err := d.Config(genericOption); err != nil {
+		t.Fatalf("Failed to setup driver config: %v", err)
+	}
+
+	netconfig := &networkConfiguration{
+		BridgeName: DefaultBridgeName,
+		EnableICC:  false,
+	}
+	genericOption = make(map[string]interface{})
+	genericOption[netlabel.GenericData] = netconfig
 
 	err := d.CreateNetwork("net1", genericOption)
 	if err != nil {
@@ -339,9 +366,13 @@ func TestCreateLinkWithOptions(t *testing.T) {
 	defer netutils.SetupTestNetNS(t)()
 	d := newDriver()
 
-	config := &networkConfiguration{BridgeName: DefaultBridgeName}
+	if err := d.Config(nil); err != nil {
+		t.Fatalf("Failed to setup driver config: %v", err)
+	}
+
+	netconfig := &networkConfiguration{BridgeName: DefaultBridgeName}
 	netOptions := make(map[string]interface{})
-	netOptions[netlabel.GenericData] = config
+	netOptions[netlabel.GenericData] = netconfig
 
 	err := d.CreateNetwork("net1", netOptions)
 	if err != nil {
@@ -395,13 +426,22 @@ func TestLinkContainers(t *testing.T) {
 
 	d := newDriver()
 
-	config := &networkConfiguration{
-		BridgeName:     DefaultBridgeName,
+	config := &configuration{
 		EnableIPTables: true,
-		EnableICC:      false,
 	}
 	genericOption := make(map[string]interface{})
 	genericOption[netlabel.GenericData] = config
+
+	if err := d.Config(genericOption); err != nil {
+		t.Fatalf("Failed to setup driver config: %v", err)
+	}
+
+	netconfig := &networkConfiguration{
+		BridgeName: DefaultBridgeName,
+		EnableICC:  false,
+	}
+	genericOption = make(map[string]interface{})
+	genericOption[netlabel.GenericData] = netconfig
 
 	err := d.CreateNetwork("net1", genericOption)
 	if err != nil {
@@ -601,6 +641,10 @@ func TestValidateConfig(t *testing.T) {
 func TestSetDefaultGw(t *testing.T) {
 	defer netutils.SetupTestNetNS(t)()
 	d := newDriver()
+
+	if err := d.Config(nil); err != nil {
+		t.Fatalf("Failed to setup driver config: %v", err)
+	}
 
 	_, subnetv6, _ := net.ParseCIDR("2001:db8:ea9:9abc:b0c4::/80")
 	gw4 := bridgeNetworks[0].IP.To4()

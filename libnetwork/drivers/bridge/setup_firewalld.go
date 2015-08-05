@@ -3,8 +3,13 @@ package bridge
 import "github.com/docker/libnetwork/iptables"
 
 func (n *bridgeNetwork) setupFirewalld(config *networkConfiguration, i *bridgeInterface) error {
+	d := n.driver
+	d.Lock()
+	driverConfig := d.config
+	d.Unlock()
+
 	// Sanity check.
-	if config.EnableIPTables == false {
+	if driverConfig.EnableIPTables == false {
 		return IPTableCfgError(config.BridgeName)
 	}
 

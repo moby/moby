@@ -40,7 +40,9 @@ var (
 
 // configuration info for the "bridge" driver.
 type configuration struct {
-	EnableIPForwarding bool
+	EnableIPForwarding  bool
+	EnableIPTables      bool
+	EnableUserlandProxy bool
 }
 
 // networkConfiguration for network specific configuration
@@ -50,7 +52,6 @@ type networkConfiguration struct {
 	FixedCIDR             *net.IPNet
 	FixedCIDRv6           *net.IPNet
 	EnableIPv6            bool
-	EnableIPTables        bool
 	EnableIPMasquerade    bool
 	EnableICC             bool
 	Mtu                   int
@@ -58,7 +59,6 @@ type networkConfiguration struct {
 	DefaultGatewayIPv6    net.IP
 	DefaultBindingIP      net.IP
 	AllowNonDefaultBridge bool
-	EnableUserlandProxy   bool
 }
 
 // endpointConfiguration represents the user specified configuration for the sandbox endpoint
@@ -91,13 +91,16 @@ type bridgeNetwork struct {
 	config     *networkConfiguration
 	endpoints  map[types.UUID]*bridgeEndpoint // key: endpoint id
 	portMapper *portmapper.PortMapper
+	driver     *driver // The network's driver
 	sync.Mutex
 }
 
 type driver struct {
-	config   *configuration
-	network  *bridgeNetwork
-	networks map[types.UUID]*bridgeNetwork
+	config      *configuration
+	network     *bridgeNetwork
+	natChain    *iptables.ChainInfo
+	filterChain *iptables.ChainInfo
+	networks    map[types.UUID]*bridgeNetwork
 	sync.Mutex
 }
 
@@ -223,16 +226,6 @@ func (c *networkConfiguration) fromMap(data map[string]interface{}) error {
 		}
 	}
 
-	if i, ok := data["EnableIPTables"]; ok && i != nil {
-		if s, ok := i.(string); ok {
-			if c.EnableIPTables, err = strconv.ParseBool(s); err != nil {
-				return types.BadRequestErrorf("failed to parse EnableIPTables value: %s", err.Error())
-			}
-		} else {
-			return types.BadRequestErrorf("invalid type for EnableIPTables value")
-		}
-	}
-
 	if i, ok := data["EnableIPMasquerade"]; ok && i != nil {
 		if s, ok := i.(string); ok {
 			if c.EnableIPMasquerade, err = strconv.ParseBool(s); err != nil {
@@ -334,6 +327,25 @@ func (c *networkConfiguration) fromMap(data map[string]interface{}) error {
 	return nil
 }
 
+func (n *bridgeNetwork) getDriverChains() (*iptables.ChainInfo, *iptables.ChainInfo, error) {
+	n.Lock()
+	defer n.Unlock()
+
+	if n.driver == nil {
+		return nil, nil, types.BadRequestErrorf("no driver found")
+	}
+
+	return n.driver.natChain, n.driver.filterChain, nil
+}
+
+func (n *bridgeNetwork) getNetworkBridgeName() string {
+	n.Lock()
+	config := n.config
+	n.Unlock()
+
+	return config.BridgeName
+}
+
 func (n *bridgeNetwork) getEndpoint(eid types.UUID) (*bridgeEndpoint, error) {
 	n.Lock()
 	defer n.Unlock()
@@ -418,6 +430,7 @@ func (c *networkConfiguration) conflictsWithNetworks(id types.UUID, others []*br
 
 func (d *driver) Config(option map[string]interface{}) error {
 	var config *configuration
+	var err error
 
 	d.Lock()
 	defer d.Unlock()
@@ -444,10 +457,19 @@ func (d *driver) Config(option map[string]interface{}) error {
 		d.config = config
 	} else {
 		config = &configuration{}
+		d.config = config
 	}
 
 	if config.EnableIPForwarding {
-		return setupIPForwarding()
+		err = setupIPForwarding()
+		if err != nil {
+			return err
+		}
+	}
+
+	if config.EnableIPTables {
+		d.natChain, d.filterChain, err = setupIPChains(config)
+		return err
 	}
 
 	return nil
@@ -480,7 +502,6 @@ func parseNetworkGenericOptions(data interface{}) (*networkConfiguration, error)
 	case map[string]interface{}:
 		config = &networkConfiguration{
 			EnableICC:          true,
-			EnableIPTables:     true,
 			EnableIPMasquerade: true,
 		}
 		err = config.fromMap(opt)
@@ -578,6 +599,7 @@ func (d *driver) CreateNetwork(id types.UUID, option map[string]interface{}) err
 		endpoints:  make(map[types.UUID]*bridgeEndpoint),
 		config:     config,
 		portMapper: portmapper.New(),
+		driver:     d,
 	}
 
 	d.Lock()
@@ -660,14 +682,14 @@ func (d *driver) CreateNetwork(id types.UUID, option map[string]interface{}) err
 		{enableIPv6Forwarding, setupIPv6Forwarding},
 
 		// Setup Loopback Adresses Routing
-		{!config.EnableUserlandProxy, setupLoopbackAdressesRouting},
+		{!d.config.EnableUserlandProxy, setupLoopbackAdressesRouting},
 
 		// Setup IPTables.
-		{config.EnableIPTables, network.setupIPTables},
+		{d.config.EnableIPTables, network.setupIPTables},
 
 		//We want to track firewalld configuration so that
 		//if it is started/reloaded, the rules can be applied correctly
-		{config.EnableIPTables, network.setupFirewalld},
+		{d.config.EnableIPTables, network.setupFirewalld},
 
 		// Setup DefaultGatewayIPv4
 		{config.DefaultGatewayIPv4 != nil, setupGatewayIPv4},
@@ -676,10 +698,10 @@ func (d *driver) CreateNetwork(id types.UUID, option map[string]interface{}) err
 		{config.DefaultGatewayIPv6 != nil, setupGatewayIPv6},
 
 		// Add inter-network communication rules.
-		{config.EnableIPTables, setupNetworkIsolationRules},
+		{d.config.EnableIPTables, setupNetworkIsolationRules},
 
 		//Configure bridge networking filtering if ICC is off and IP tables are enabled
-		{!config.EnableICC && config.EnableIPTables, setupBridgeNetFiltering},
+		{!config.EnableICC && d.config.EnableIPTables, setupBridgeNetFiltering},
 	} {
 		if step.Condition {
 			bridgeSetup.queueStep(step.Fn)
@@ -838,6 +860,7 @@ func (d *driver) CreateEndpoint(nid, eid types.UUID, epInfo driverapi.EndpointIn
 	// Get the network handler and make sure it exists
 	d.Lock()
 	n, ok := d.networks[nid]
+	dconfig := d.config
 	d.Unlock()
 
 	if !ok {
@@ -950,7 +973,7 @@ func (d *driver) CreateEndpoint(nid, eid types.UUID, epInfo driverapi.EndpointIn
 		return fmt.Errorf("adding interface %s to bridge %s failed: %v", hostIfName, config.BridgeName, err)
 	}
 
-	if !config.EnableUserlandProxy {
+	if !dconfig.EnableUserlandProxy {
 		err = setHairpinMode(host, true)
 		if err != nil {
 			return err
@@ -1023,7 +1046,7 @@ func (d *driver) CreateEndpoint(nid, eid types.UUID, epInfo driverapi.EndpointIn
 	}
 
 	// Program any required port mapping and store them in the endpoint
-	endpoint.portMapping, err = n.allocatePorts(epConfig, endpoint, config.DefaultBindingIP, config.EnableUserlandProxy)
+	endpoint.portMapping, err = n.allocatePorts(epConfig, endpoint, config.DefaultBindingIP, d.config.EnableUserlandProxy)
 	if err != nil {
 		return err
 	}

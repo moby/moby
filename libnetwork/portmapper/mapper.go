@@ -31,7 +31,8 @@ var (
 
 // PortMapper manages the network address translation
 type PortMapper struct {
-	chain *iptables.Chain
+	chain      *iptables.ChainInfo
+	bridgeName string
 
 	// udp:ip:port
 	currentMappings map[string]*mapping
@@ -54,8 +55,9 @@ func NewWithPortAllocator(allocator *portallocator.PortAllocator) *PortMapper {
 }
 
 // SetIptablesChain sets the specified chain into portmapper
-func (pm *PortMapper) SetIptablesChain(c *iptables.Chain) {
+func (pm *PortMapper) SetIptablesChain(c *iptables.ChainInfo, bridgeName string) {
 	pm.chain = c
+	pm.bridgeName = bridgeName
 }
 
 // Map maps the specified container transport address to the host's network address and transport port
@@ -215,5 +217,5 @@ func (pm *PortMapper) forward(action iptables.Action, proto string, sourceIP net
 	if pm.chain == nil {
 		return nil
 	}
-	return pm.chain.Forward(action, sourceIP, sourcePort, proto, containerIP, containerPort)
+	return pm.chain.Forward(action, sourceIP, sourcePort, proto, containerIP, containerPort, pm.bridgeName)
 }

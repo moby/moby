@@ -42,10 +42,9 @@ var (
 	ErrIptablesNotFound = errors.New("Iptables not found")
 )
 
-// Chain defines the iptables chain.
-type Chain struct {
+// ChainInfo defines the iptables chain.
+type ChainInfo struct {
 	Name        string
-	Bridge      string
 	Table       Table
 	HairpinMode bool
 }
@@ -74,14 +73,12 @@ func initCheck() error {
 }
 
 // NewChain adds a new chain to ip table.
-func NewChain(name, bridge string, table Table, hairpinMode bool) (*Chain, error) {
-	c := &Chain{
+func NewChain(name string, table Table, hairpinMode bool) (*ChainInfo, error) {
+	c := &ChainInfo{
 		Name:        name,
-		Bridge:      bridge,
 		Table:       table,
 		HairpinMode: hairpinMode,
 	}
-
 	if string(c.Table) == "" {
 		c.Table = Filter
 	}
@@ -94,8 +91,16 @@ func NewChain(name, bridge string, table Table, hairpinMode bool) (*Chain, error
 			return nil, fmt.Errorf("Could not create %s/%s chain: %s", c.Table, c.Name, output)
 		}
 	}
+	return c, nil
+}
 
-	switch table {
+// ProgramChain is used to add rules to a chain
+func ProgramChain(c *ChainInfo, bridgeName string, hairpinMode bool) error {
+	if c.Name == "" {
+		return fmt.Errorf("Could not program chain, missing chain name.")
+	}
+
+	switch c.Table {
 	case Nat:
 		preroute := []string{
 			"-m", "addrtype",
@@ -103,7 +108,7 @@ func NewChain(name, bridge string, table Table, hairpinMode bool) (*Chain, error
 			"-j", c.Name}
 		if !Exists(Nat, "PREROUTING", preroute...) {
 			if err := c.Prerouting(Append, preroute...); err != nil {
-				return nil, fmt.Errorf("Failed to inject docker in PREROUTING chain: %s", err)
+				return fmt.Errorf("Failed to inject docker in PREROUTING chain: %s", err)
 			}
 		}
 		output := []string{
@@ -115,28 +120,32 @@ func NewChain(name, bridge string, table Table, hairpinMode bool) (*Chain, error
 		}
 		if !Exists(Nat, "OUTPUT", output...) {
 			if err := c.Output(Append, output...); err != nil {
-				return nil, fmt.Errorf("Failed to inject docker in OUTPUT chain: %s", err)
+				return fmt.Errorf("Failed to inject docker in OUTPUT chain: %s", err)
 			}
 		}
 	case Filter:
+		if bridgeName == "" {
+			return fmt.Errorf("Could not program chain %s/%s, missing bridge name.",
+				c.Table, c.Name)
+		}
 		link := []string{
-			"-o", c.Bridge,
+			"-o", bridgeName,
 			"-j", c.Name}
 		if !Exists(Filter, "FORWARD", link...) {
 			insert := append([]string{string(Insert), "FORWARD"}, link...)
 			if output, err := Raw(insert...); err != nil {
-				return nil, err
+				return err
 			} else if len(output) != 0 {
-				return nil, fmt.Errorf("Could not create linking rule to %s/%s: %s", c.Table, c.Name, output)
+				return fmt.Errorf("Could not create linking rule to %s/%s: %s", c.Table, c.Name, output)
 			}
 		}
 	}
-	return c, nil
+	return nil
 }
 
 // RemoveExistingChain removes existing chain from the table.
 func RemoveExistingChain(name string, table Table) error {
-	c := &Chain{
+	c := &ChainInfo{
 		Name:  name,
 		Table: table,
 	}
@@ -147,7 +156,7 @@ func RemoveExistingChain(name string, table Table) error {
 }
 
 // Forward adds forwarding rule to 'filter' table and corresponding nat rule to 'nat' table.
-func (c *Chain) Forward(action Action, ip net.IP, port int, proto, destAddr string, destPort int) error {
+func (c *ChainInfo) Forward(action Action, ip net.IP, port int, proto, destAddr string, destPort int, bridgeName string) error {
 	daddr := ip.String()
 	if ip.IsUnspecified() {
 		// iptables interprets "0.0.0.0" as "0.0.0.0/32", whereas we
@@ -162,7 +171,7 @@ func (c *Chain) Forward(action Action, ip net.IP, port int, proto, destAddr stri
 		"-j", "DNAT",
 		"--to-destination", net.JoinHostPort(destAddr, strconv.Itoa(destPort))}
 	if !c.HairpinMode {
-		args = append(args, "!", "-i", c.Bridge)
+		args = append(args, "!", "-i", bridgeName)
 	}
 	if output, err := Raw(args...); err != nil {
 		return err
@@ -171,8 +180,8 @@ func (c *Chain) Forward(action Action, ip net.IP, port int, proto, destAddr stri
 	}
 
 	if output, err := Raw("-t", string(Filter), string(action), c.Name,
-		"!", "-i", c.Bridge,
-		"-o", c.Bridge,
+		"!", "-i", bridgeName,
+		"-o", bridgeName,
 		"-p", proto,
 		"-d", destAddr,
 		"--dport", strconv.Itoa(destPort),
@@ -198,9 +207,9 @@ func (c *Chain) Forward(action Action, ip net.IP, port int, proto, destAddr stri
 
 // Link adds reciprocal ACCEPT rule for two supplied IP addresses.
 // Traffic is allowed from ip1 to ip2 and vice-versa
-func (c *Chain) Link(action Action, ip1, ip2 net.IP, port int, proto string) error {
+func (c *ChainInfo) Link(action Action, ip1, ip2 net.IP, port int, proto string, bridgeName string) error {
 	if output, err := Raw("-t", string(Filter), string(action), c.Name,
-		"-i", c.Bridge, "-o", c.Bridge,
+		"-i", bridgeName, "-o", bridgeName,
 		"-p", proto,
 		"-s", ip1.String(),
 		"-d", ip2.String(),
@@ -211,7 +220,7 @@ func (c *Chain) Link(action Action, ip1, ip2 net.IP, port int, proto string) err
 		return fmt.Errorf("Error iptables forward: %s", output)
 	}
 	if output, err := Raw("-t", string(Filter), string(action), c.Name,
-		"-i", c.Bridge, "-o", c.Bridge,
+		"-i", bridgeName, "-o", bridgeName,
 		"-p", proto,
 		"-s", ip2.String(),
 		"-d", ip1.String(),
@@ -225,7 +234,7 @@ func (c *Chain) Link(action Action, ip1, ip2 net.IP, port int, proto string) err
 }
 
 // Prerouting adds linking rule to nat/PREROUTING chain.
-func (c *Chain) Prerouting(action Action, args ...string) error {
+func (c *ChainInfo) Prerouting(action Action, args ...string) error {
 	a := []string{"-t", string(Nat), string(action), "PREROUTING"}
 	if len(args) > 0 {
 		a = append(a, args...)
@@ -239,7 +248,7 @@ func (c *Chain) Prerouting(action Action, args ...string) error {
 }
 
 // Output adds linking rule to an OUTPUT chain.
-func (c *Chain) Output(action Action, args ...string) error {
+func (c *ChainInfo) Output(action Action, args ...string) error {
 	a := []string{"-t", string(c.Table), string(action), "OUTPUT"}
 	if len(args) > 0 {
 		a = append(a, args...)
@@ -253,7 +262,7 @@ func (c *Chain) Output(action Action, args ...string) error {
 }
 
 // Remove removes the chain.
-func (c *Chain) Remove() error {
+func (c *ChainInfo) Remove() error {
 	// Ignore errors - This could mean the chains were never set up
 	if c.Table == Nat {
 		c.Prerouting(Delete, "-m", "addrtype", "--dst-type", "LOCAL", "-j", c.Name)

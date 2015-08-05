@@ -13,18 +13,22 @@ import (
 
 const chainName = "DOCKEREST"
 
-var natChain *Chain
-var filterChain *Chain
+var natChain *ChainInfo
+var filterChain *ChainInfo
+var bridgeName string
 
 func TestNewChain(t *testing.T) {
 	var err error
 
-	natChain, err = NewChain(chainName, "lo", Nat, false)
+	bridgeName = "lo"
+	natChain, err = NewChain(chainName, Nat, false)
+	err = ProgramChain(natChain, bridgeName, false)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	filterChain, err = NewChain(chainName, "lo", Filter, false)
+	filterChain, err = NewChain(chainName, Filter, false)
+	err = ProgramChain(filterChain, bridgeName, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -37,7 +41,8 @@ func TestForward(t *testing.T) {
 	dstPort := 4321
 	proto := "tcp"
 
-	err := natChain.Forward(Insert, ip, port, proto, dstAddr, dstPort)
+	bridgeName := "lo"
+	err := natChain.Forward(Insert, ip, port, proto, dstAddr, dstPort, bridgeName)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -48,7 +53,7 @@ func TestForward(t *testing.T) {
 		"--dport", strconv.Itoa(port),
 		"-j", "DNAT",
 		"--to-destination", dstAddr + ":" + strconv.Itoa(dstPort),
-		"!", "-i", natChain.Bridge,
+		"!", "-i", bridgeName,
 	}
 
 	if !Exists(natChain.Table, natChain.Name, dnatRule...) {
@@ -56,8 +61,8 @@ func TestForward(t *testing.T) {
 	}
 
 	filterRule := []string{
-		"!", "-i", filterChain.Bridge,
-		"-o", filterChain.Bridge,
+		"!", "-i", bridgeName,
+		"-o", bridgeName,
 		"-d", dstAddr,
 		"-p", proto,
 		"--dport", strconv.Itoa(dstPort),
@@ -84,19 +89,20 @@ func TestForward(t *testing.T) {
 func TestLink(t *testing.T) {
 	var err error
 
+	bridgeName := "lo"
 	ip1 := net.ParseIP("192.168.1.1")
 	ip2 := net.ParseIP("192.168.1.2")
 	port := 1234
 	proto := "tcp"
 
-	err = filterChain.Link(Append, ip1, ip2, port, proto)
+	err = filterChain.Link(Append, ip1, ip2, port, proto, bridgeName)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	rule1 := []string{
-		"-i", filterChain.Bridge,
-		"-o", filterChain.Bridge,
+		"-i", bridgeName,
+		"-o", bridgeName,
 		"-p", proto,
 		"-s", ip1.String(),
 		"-d", ip2.String(),
@@ -108,8 +114,8 @@ func TestLink(t *testing.T) {
 	}
 
 	rule2 := []string{
-		"-i", filterChain.Bridge,
-		"-o", filterChain.Bridge,
+		"-i", bridgeName,
+		"-o", bridgeName,
 		"-p", proto,
 		"-s", ip2.String(),
 		"-d", ip1.String(),
@@ -192,7 +198,7 @@ func RunConcurrencyTest(t *testing.T, allowXlock bool) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			err := natChain.Forward(Append, ip, port, proto, dstAddr, dstPort)
+			err := natChain.Forward(Append, ip, port, proto, dstAddr, dstPort, "lo")
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -208,7 +214,7 @@ func TestCleanup(t *testing.T) {
 	// Cleanup filter/FORWARD first otherwise output of iptables-save is dirty
 	link := []string{"-t", string(filterChain.Table),
 		string(Delete), "FORWARD",
-		"-o", filterChain.Bridge,
+		"-o", bridgeName,
 		"-j", filterChain.Name}
 	if _, err = Raw(link...); err != nil {
 		t.Fatal(err)
