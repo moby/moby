@@ -326,7 +326,7 @@ func (a *Driver) Diff(id, parent string) (archive.Archive, error) {
 	})
 }
 
-func (a *Driver) applyDiff(id string, diff archive.ArchiveReader) error {
+func (a *Driver) applyDiff(id string, diff archive.Reader) error {
 	return chrootarchive.UntarUncompressed(diff, path.Join(a.rootPath(), "diff", id), nil)
 }
 
@@ -341,7 +341,7 @@ func (a *Driver) DiffSize(id, parent string) (size int64, err error) {
 // ApplyDiff extracts the changeset from the given diff into the
 // layer with the specified id and parent, returning the size of the
 // new layer in bytes.
-func (a *Driver) ApplyDiff(id, parent string, diff archive.ArchiveReader) (size int64, err error) {
+func (a *Driver) ApplyDiff(id, parent string, diff archive.Reader) (size int64, err error) {
 	// AUFS doesn't need the parent id to apply the diff.
 	if err = a.applyDiff(id, diff); err != nil {
 		return

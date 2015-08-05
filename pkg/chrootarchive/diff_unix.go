@@ -68,7 +68,7 @@ func applyLayer() {
 // applyLayerHandler parses a diff in the standard layer format from `layer`, and
 // applies it to the directory `dest`. Returns the size in bytes of the
 // contents of the layer.
-func applyLayerHandler(dest string, layer archive.ArchiveReader, decompress bool) (size int64, err error) {
+func applyLayerHandler(dest string, layer archive.Reader, decompress bool) (size int64, err error) {
 	dest = filepath.Clean(dest)
 	if decompress {
 		decompressed, err := archive.DecompressStream(layer)

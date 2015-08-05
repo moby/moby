@@ -25,12 +25,17 @@ import (
 )
 
 type (
-	Archive         io.ReadCloser
-	ArchiveReader   io.Reader
-	Compression     int
+	// Archive is a type of io.ReadCloser which has two interfaces Read and Closer.
+	Archive io.ReadCloser
+	// Reader is a type of io.Reader.
+	Reader io.Reader
+	// Compression is the state represtents if compressed or not.
+	Compression int
+	// TarChownOptions wraps the chown options UID and GID.
 	TarChownOptions struct {
 		UID, GID int
 	}
+	// TarOptions wraps the tar options.
 	TarOptions struct {
 		IncludeFiles     []string
 		ExcludePatterns  []string
@@ -59,17 +64,23 @@ type (
 )
 
 var (
+	// ErrNotImplemented is the error message of function not implemented.
 	ErrNotImplemented = errors.New("Function not implemented")
 	defaultArchiver   = &Archiver{Untar}
 )
 
 const (
+	// Uncompressed represents the uncompressed.
 	Uncompressed Compression = iota
+	// Bzip2 is bzip2 compression algorithm.
 	Bzip2
+	// Gzip is gzip compression algorithm.
 	Gzip
+	// Xz is xz compression algorithm.
 	Xz
 )
 
+// IsArchive checks if it is a archive by the header.
 func IsArchive(header []byte) bool {
 	compression := DetectCompression(header)
 	if compression != Uncompressed {
@@ -80,6 +91,7 @@ func IsArchive(header []byte) bool {
 	return err == nil
 }
 
+// DetectCompression detects the compression algorithm of the source.
 func DetectCompression(source []byte) Compression {
 	for compression, m := range map[Compression][]byte{
 		Bzip2: {0x42, 0x5A, 0x68},
@@ -103,6 +115,7 @@ func xzDecompress(archive io.Reader) (io.ReadCloser, error) {
 	return CmdStream(exec.Command(args[0], args[1:]...), archive)
 }
 
+// DecompressStream decompress the archive and returns a ReaderCloser with the decompressed archive.
 func DecompressStream(archive io.Reader) (io.ReadCloser, error) {
 	p := pools.BufioReader32KPool
 	buf := p.Get(archive)
@@ -139,6 +152,7 @@ func DecompressStream(archive io.Reader) (io.ReadCloser, error) {
 	}
 }
 
+// CompressStream compresses the dest with specified compression algorithm.
 func CompressStream(dest io.WriteCloser, compression Compression) (io.WriteCloser, error) {
 	p := pools.BufioWriter32KPool
 	buf := p.Get(dest)
@@ -159,6 +173,7 @@ func CompressStream(dest io.WriteCloser, compression Compression) (io.WriteClose
 	}
 }
 
+// Extension returns the extension of a file that uses the specified compression algorithm.
 func (compression *Compression) Extension() string {
 	switch *compression {
 	case Uncompressed:
@@ -530,6 +545,7 @@ func TarWithOptions(srcPath string, options *TarOptions) (io.ReadCloser, error) 
 	return pipeReader, nil
 }
 
+// Unpack unpacks the decompressedArchive to dest with options.
 func Unpack(decompressedArchive io.Reader, dest string, options *TarOptions) error {
 	tr := tar.NewReader(decompressedArchive)
 	trBuf := pools.BufioReader32KPool.Get(nil)
@@ -643,7 +659,7 @@ func Untar(tarArchive io.Reader, dest string, options *TarOptions) error {
 	return untarHandler(tarArchive, dest, options, true)
 }
 
-// Untar reads a stream of bytes from `archive`, parses it as a tar archive,
+// UntarUncompressed reads a stream of bytes from `archive`, parses it as a tar archive,
 // and unpacks it into the directory at `dest`.
 // The archive must be an uncompressed stream.
 func UntarUncompressed(tarArchive io.Reader, dest string, options *TarOptions) error {
@@ -663,7 +679,7 @@ func untarHandler(tarArchive io.Reader, dest string, options *TarOptions, decomp
 		options.ExcludePatterns = []string{}
 	}
 
-	var r io.Reader = tarArchive
+	r := tarArchive
 	if decompress {
 		decompressedArchive, err := DecompressStream(tarArchive)
 		if err != nil {
@@ -676,6 +692,8 @@ func untarHandler(tarArchive io.Reader, dest string, options *TarOptions, decomp
 	return Unpack(r, dest, options)
 }
 
+// TarUntar is a convenience function which calls Tar and Untar, with the output of one piped into the other.
+// If either Tar or Untar fails, TarUntar aborts and returns the error.
 func (archiver *Archiver) TarUntar(src, dst string) error {
 	logrus.Debugf("TarUntar(%s %s)", src, dst)
 	archive, err := TarWithOptions(src, &TarOptions{Compression: Uncompressed})
@@ -692,6 +710,7 @@ func TarUntar(src, dst string) error {
 	return defaultArchiver.TarUntar(src, dst)
 }
 
+// UntarPath untar a file from path to a destination, src is the source tar file path.
 func (archiver *Archiver) UntarPath(src, dst string) error {
 	archive, err := os.Open(src)
 	if err != nil {
@@ -710,6 +729,10 @@ func UntarPath(src, dst string) error {
 	return defaultArchiver.UntarPath(src, dst)
 }
 
+// CopyWithTar creates a tar archive of filesystem path `src`, and
+// unpacks it at filesystem path `dst`.
+// The archive is streamed directly with fixed buffering and no
+// intermediary disk IO.
 func (archiver *Archiver) CopyWithTar(src, dst string) error {
 	srcSt, err := os.Stat(src)
 	if err != nil {
@@ -735,6 +758,9 @@ func CopyWithTar(src, dst string) error {
 	return defaultArchiver.CopyWithTar(src, dst)
 }
 
+// CopyFileWithTar emulates the behavior of the 'cp' command-line
+// for a single file. It copies a regular file from path `src` to
+// path `dst`, and preserves all its metadata.
 func (archiver *Archiver) CopyFileWithTar(src, dst string) (err error) {
 	logrus.Debugf("CopyFileWithTar(%s, %s)", src, dst)
 	srcSt, err := os.Stat(src)
@@ -878,6 +904,8 @@ func NewTempArchive(src Archive, dir string) (*TempArchive, error) {
 	return &TempArchive{File: f, Size: size}, nil
 }
 
+// TempArchive is a temporary archive. The archive can only be read once - as soon as reading completes,
+// the file will be deleted.
 type TempArchive struct {
 	*os.File
 	Size   int64 // Pre-computed from Stat().Size() as a convenience
