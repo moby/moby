@@ -34,7 +34,6 @@ override_dh_installudev:
 
 override_dh_install:
 	dh_install
-	dh_apparmor --profile-name=docker-engine -pdocker-engine
 
 %:
 	dh $@ --with=bash-completion $(shell command -v dh_systemd_enable > /dev/null 2>&1 && echo --with=systemd)
