@@ -12,7 +12,8 @@ import (
 	"sync"
 	"time"
 
-	systemd "github.com/coreos/go-systemd/dbus"
+	systemdDbus "github.com/coreos/go-systemd/dbus"
+	systemdUtil "github.com/coreos/go-systemd/util"
 	"github.com/godbus/dbus"
 	"github.com/opencontainers/runc/libcontainer/cgroups"
 	"github.com/opencontainers/runc/libcontainer/cgroups/fs"
@@ -52,21 +53,20 @@ const (
 
 var (
 	connLock                        sync.Mutex
-	theConn                         *systemd.Conn
+	theConn                         *systemdDbus.Conn
 	hasStartTransientUnit           bool
 	hasTransientDefaultDependencies bool
 )
 
-func newProp(name string, units interface{}) systemd.Property {
-	return systemd.Property{
+func newProp(name string, units interface{}) systemdDbus.Property {
+	return systemdDbus.Property{
 		Name:  name,
 		Value: dbus.MakeVariant(units),
 	}
 }
 
 func UseSystemd() bool {
-	s, err := os.Stat("/run/systemd/system")
-	if err != nil || !s.IsDir() {
+	if !systemdUtil.IsRunningSystemd() {
 		return false
 	}
 
@@ -75,7 +75,7 @@ func UseSystemd() bool {
 
 	if theConn == nil {
 		var err error
-		theConn, err = systemd.New()
+		theConn, err = systemdDbus.New()
 		if err != nil {
 			return false
 		}
@@ -84,7 +84,7 @@ func UseSystemd() bool {
 		hasStartTransientUnit = true
 
 		// But if we get UnknownMethod error we don't
-		if _, err := theConn.StartTransientUnit("test.scope", "invalid"); err != nil {
+		if _, err := theConn.StartTransientUnit("test.scope", "invalid", nil, nil); err != nil {
 			if dbusError, ok := err.(dbus.Error); ok {
 				if dbusError.Name == "org.freedesktop.DBus.Error.UnknownMethod" {
 					hasStartTransientUnit = false
@@ -99,7 +99,7 @@ func UseSystemd() bool {
 		scope := fmt.Sprintf("libcontainer-%d-systemd-test-default-dependencies.scope", os.Getpid())
 		testScopeExists := true
 		for i := 0; i <= testScopeWait; i++ {
-			if _, err := theConn.StopUnit(scope, "replace"); err != nil {
+			if _, err := theConn.StopUnit(scope, "replace", nil); err != nil {
 				if dbusError, ok := err.(dbus.Error); ok {
 					if strings.Contains(dbusError.Name, "org.freedesktop.systemd1.NoSuchUnit") {
 						testScopeExists = false
@@ -118,7 +118,7 @@ func UseSystemd() bool {
 		// Assume StartTransientUnit on a scope allows DefaultDependencies
 		hasTransientDefaultDependencies = true
 		ddf := newProp("DefaultDependencies", false)
-		if _, err := theConn.StartTransientUnit(scope, "replace", ddf); err != nil {
+		if _, err := theConn.StartTransientUnit(scope, "replace", []systemdDbus.Property{ddf}, nil); err != nil {
 			if dbusError, ok := err.(dbus.Error); ok {
 				if strings.Contains(dbusError.Name, "org.freedesktop.DBus.Error.PropertyReadOnly") {
 					hasTransientDefaultDependencies = false
@@ -127,7 +127,7 @@ func UseSystemd() bool {
 		}
 
 		// Not critical because of the stop unit logic above.
-		theConn.StopUnit(scope, "replace")
+		theConn.StopUnit(scope, "replace", nil)
 	}
 	return hasStartTransientUnit
 }
@@ -147,7 +147,7 @@ func (m *Manager) Apply(pid int) error {
 		c          = m.Cgroups
 		unitName   = getUnitName(c)
 		slice      = "system.slice"
-		properties []systemd.Property
+		properties []systemdDbus.Property
 	)
 
 	if c.Slice != "" {
@@ -155,8 +155,8 @@ func (m *Manager) Apply(pid int) error {
 	}
 
 	properties = append(properties,
-		systemd.PropSlice(slice),
-		systemd.PropDescription("docker container "+c.Name),
+		systemdDbus.PropSlice(slice),
+		systemdDbus.PropDescription("docker container "+c.Name),
 		newProp("PIDs", []uint32{uint32(pid)}),
 	)
 
@@ -198,7 +198,7 @@ func (m *Manager) Apply(pid int) error {
 		}
 	}
 
-	if _, err := theConn.StartTransientUnit(unitName, "replace", properties...); err != nil {
+	if _, err := theConn.StartTransientUnit(unitName, "replace", properties, nil); err != nil {
 		return err
 	}
 
@@ -269,7 +269,7 @@ func (m *Manager) Apply(pid int) error {
 func (m *Manager) Destroy() error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	theConn.StopUnit(getUnitName(m.Cgroups), "replace")
+	theConn.StopUnit(getUnitName(m.Cgroups), "replace", nil)
 	if err := cgroups.RemovePaths(m.Paths); err != nil {
 		return err
 	}
@@ -298,7 +298,7 @@ func join(c *configs.Cgroup, subsystem string, pid int) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if err := os.MkdirAll(path, 0755); err != nil && !os.IsExist(err) {
+	if err := os.MkdirAll(path, 0755); err != nil {
 		return "", err
 	}
 	if err := writeFile(path, "cgroup.procs", strconv.Itoa(pid)); err != nil {
@@ -478,7 +478,7 @@ func setKernelMemory(c *configs.Cgroup) error {
 		return err
 	}
 
-	if err := os.MkdirAll(path, 0755); err != nil && !os.IsExist(err) {
+	if err := os.MkdirAll(path, 0755); err != nil {
 		return err
 	}
 

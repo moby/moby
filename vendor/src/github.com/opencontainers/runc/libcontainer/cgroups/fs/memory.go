@@ -25,7 +25,7 @@ func (s *MemoryGroup) Apply(d *data) error {
 		}
 		return err
 	}
-	if err := os.MkdirAll(path, 0755); err != nil && !os.IsExist(err) {
+	if err := os.MkdirAll(path, 0755); err != nil {
 		return err
 	}
 	if err := s.Set(path, d.c); err != nil {

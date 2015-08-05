@@ -34,7 +34,7 @@ type pid struct {
 type network struct {
 	configs.Network
 
-	// TempVethPeerName is a unique tempory veth peer name that was placed into
+	// TempVethPeerName is a unique temporary veth peer name that was placed into
 	// the container's namespace.
 	TempVethPeerName string `json:"temp_veth_peer_name"`
 }

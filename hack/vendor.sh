@@ -44,9 +44,9 @@ clone git github.com/endophage/gotuf 89ceb27829b9353dfee5ccccf7a3a9bb77008b05
 clone git github.com/tent/canonical-json-go 96e4ba3a7613a1216cbd1badca4efe382adea337
 clone git github.com/agl/ed25519 d2b94fd789ea21d12fac1a4443dd3a3f79cda72c
 
-clone git github.com/opencontainers/runc v0.0.2 # libcontainer
+clone git github.com/opencontainers/runc v0.0.3 # libcontainer
 # libcontainer deps (see src/github.com/docker/libcontainer/update-vendor.sh)
-clone git github.com/coreos/go-systemd v2
+clone git github.com/coreos/go-systemd v3
 clone git github.com/godbus/dbus v2
 clone git github.com/syndtr/gocapability 66ef2aa7a23ba682594e2b6f74cf40c0692b49fb
 clone git github.com/golang/protobuf 655cdfa588ea

@@ -9,13 +9,17 @@ func Capture(userSkip int) Stacktrace {
 	var (
 		skip   = userSkip + 1 // add one for our own function
 		frames []Frame
+		prevPc uintptr = 0
 	)
 	for i := skip; ; i++ {
 		pc, file, line, ok := runtime.Caller(i)
-		if !ok {
+		//detect if caller is repeated to avoid loop, gccgo
+		//currently runs  into a loop without this check
+		if !ok || pc == prevPc {
 			break
 		}
 		frames = append(frames, NewFrame(pc, file, line))
+		prevPc = pc
 	}
 	return Stacktrace{
 		Frames: frames,

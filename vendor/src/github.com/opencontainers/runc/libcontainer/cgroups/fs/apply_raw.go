@@ -256,7 +256,7 @@ func (raw *data) path(subsystem string) (string, error) {
 
 	// If the cgroup name/path is absolute do not look relative to the cgroup of the init process.
 	if filepath.IsAbs(raw.cgroup) {
-		return filepath.Join(raw.root, subsystem, raw.cgroup), nil
+		return filepath.Join(raw.root, filepath.Base(mnt), raw.cgroup), nil
 	}
 
 	parent, err := raw.parent(subsystem, mnt, src)
@@ -272,7 +272,7 @@ func (raw *data) join(subsystem string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if err := os.MkdirAll(path, 0755); err != nil && !os.IsExist(err) {
+	if err := os.MkdirAll(path, 0755); err != nil {
 		return "", err
 	}
 	if err := writeFile(path, CgroupProcesses, strconv.Itoa(raw.pid)); err != nil {
