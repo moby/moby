@@ -27,6 +27,10 @@ func (daemon *Daemon) ImageDelete(name string, force, noprune bool) ([]types.Ima
 }
 
 func (daemon *Daemon) imgDeleteHelper(name string, list *[]types.ImageDelete, first, force, noprune bool) error {
+	if name == "" {
+		return fmt.Errorf("Image name can not be blank")
+	}
+
 	var repoName, tag string
 	repoAndTags := make(map[string][]string)
 
@@ -34,10 +38,6 @@ func (daemon *Daemon) imgDeleteHelper(name string, list *[]types.ImageDelete, fi
 	repoName, tag = parsers.ParseRepositoryTag(name)
 	if tag == "" {
 		tag = tags.DefaultTag
-	}
-
-	if name == "" {
-		return fmt.Errorf("Image name can not be blank")
 	}
 
 	img, err := daemon.Repositories().LookupImage(name)
@@ -54,7 +54,6 @@ func (daemon *Daemon) imgDeleteHelper(name string, list *[]types.ImageDelete, fi
 	}
 
 	byParents := daemon.Graph().ByParent()
-
 	repos := daemon.Repositories().ByID()[img.ID]
 
 	//If delete by id, see if the id belong only to one repository
