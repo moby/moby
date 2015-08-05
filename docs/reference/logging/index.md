@@ -16,3 +16,4 @@ weight=8
 * [Configuring logging drivers](overview)
 * [Fluentd logging driver](fluentd)
 * [Journald logging driver](journald)
+* [Amazon CloudWatch Logs logging driver](awslogs)

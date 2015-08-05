@@ -168,7 +168,7 @@ millions of trillions.
    Add link to another container in the form of <name or id>:alias or just
    <name or id> in which case the alias will match the name.
 
-**--log-driver**="|*json-file*|*syslog*|*journald*|*gelf*|*fluentd*|*none*"
+**--log-driver**="|*json-file*|*syslog*|*journald*|*gelf*|*fluentd*|*awslogs*|*none*"
   Logging driver for container. Default is defined by daemon `--log-driver` flag.
   **Warning**: `docker logs` command works only for `json-file` logging driver.
 
