@@ -87,6 +87,60 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithVolumesRefs(c *check.C) {
 	}
 }
 
+// #11008
+func (s *DockerDaemonSuite) TestDaemonRestartUnlessStopped(c *check.C) {
+	err := s.d.StartWithBusybox()
+	c.Assert(err, check.IsNil)
+
+	out, err := s.d.Cmd("run", "-d", "--name", "top1", "--restart", "always", "busybox:latest", "top")
+	c.Assert(err, check.IsNil, check.Commentf("run top1: %v", out))
+
+	out, err = s.d.Cmd("run", "-d", "--name", "top2", "--restart", "unless-stopped", "busybox:latest", "top")
+	c.Assert(err, check.IsNil, check.Commentf("run top2: %v", out))
+
+	testRun := func(m map[string]bool, prefix string) {
+		var format string
+		for name, shouldRun := range m {
+			out, err := s.d.Cmd("ps")
+			c.Assert(err, check.IsNil, check.Commentf("run ps: %v", out))
+			if shouldRun {
+				format = "%scontainer %q is not running"
+			} else {
+				format = "%scontainer %q is running"
+			}
+			c.Assert(strings.Contains(out, name), check.Equals, shouldRun, check.Commentf(format, prefix, name))
+		}
+	}
+
+	// both running
+	testRun(map[string]bool{"top1": true, "top2": true}, "")
+
+	out, err = s.d.Cmd("stop", "top1")
+	c.Assert(err, check.IsNil, check.Commentf(out))
+
+	out, err = s.d.Cmd("stop", "top2")
+	c.Assert(err, check.IsNil, check.Commentf(out))
+
+	// both stopped
+	testRun(map[string]bool{"top1": false, "top2": false}, "")
+
+	err = s.d.Restart()
+	c.Assert(err, check.IsNil)
+
+	// restart=always running
+	testRun(map[string]bool{"top1": true, "top2": false}, "After daemon restart: ")
+
+	out, err = s.d.Cmd("start", "top2")
+	c.Assert(err, check.IsNil, check.Commentf("start top2: %v", out))
+
+	err = s.d.Restart()
+	c.Assert(err, check.IsNil)
+
+	// both running
+	testRun(map[string]bool{"top1": true, "top2": true}, "After second daemon restart: ")
+
+}
+
 func (s *DockerDaemonSuite) TestDaemonStartIptablesFalse(c *check.C) {
 	if err := s.d.Start("--iptables=false"); err != nil {
 		c.Fatalf("we should have been able to start the daemon with passing iptables=false: %v", err)

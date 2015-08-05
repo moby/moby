@@ -140,6 +140,13 @@ func (rp *RestartPolicy) IsOnFailure() bool {
 	return rp.Name == "on-failure"
 }
 
+// IsUnlessStopped indicates whether the container has the
+// "unless-stopped" restart policy. This means the container will
+// automatically restart unless user has put it to stopped state.
+func (rp *RestartPolicy) IsUnlessStopped() bool {
+	return rp.Name == "unless-stopped"
+}
+
 // LogConfig represents the logging configuration of the container.
 type LogConfig struct {
 	Type   string

@@ -119,6 +119,10 @@ func (m *containerMonitor) Start() error {
 		}
 		m.Close()
 	}()
+	// reset stopped flag
+	if m.container.HasBeenManuallyStopped {
+		m.container.HasBeenManuallyStopped = false
+	}
 
 	// reset the restart count
 	m.container.RestartCount = -1
@@ -223,11 +227,12 @@ func (m *containerMonitor) shouldRestart(exitCode int) bool {
 
 	// do not restart if the user or docker has requested that this container be stopped
 	if m.shouldStop {
+		m.container.HasBeenManuallyStopped = !m.container.daemon.shutdown
 		return false
 	}
 
 	switch {
-	case m.restartPolicy.IsAlways():
+	case m.restartPolicy.IsAlways(), m.restartPolicy.IsUnlessStopped():
 		return true
 	case m.restartPolicy.IsOnFailure():
 		// the default value of 0 for MaximumRetryCount means that we will not enforce a maximum count
