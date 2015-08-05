@@ -90,13 +90,13 @@ You will notice in the above 'Volumes' is specifying the location on the host an
 In addition to creating a volume using the `-v` flag you can also mount a
 directory from your Docker daemon's host into a container.
 
-> **Note:**
-> If you are using Boot2Docker, your Docker daemon only has limited access to
-> your OS X/Windows filesystem. Boot2Docker tries to auto-share your `/Users`
-> (OS X) or `C:\Users` (Windows) directory - and so you can mount files or directories
-> using `docker run -v /Users/<path>:/<container path> ...` (OS X) or
-> `docker run -v /c/Users/<path>:/<container path ...` (Windows). All other paths
-> come from the Boot2Docker virtual machine's filesystem.
+>**Note**: If you are using Docker Machine on Mac or Windows, your Docker daemon
+>only has limited access to your OS X/Windows filesystem. Docker Machine tries
+>to auto-share your `/Users` (OS X) or `C:\Users` (Windows) directory - and so
+>you can mount files or directories using `docker run -v
+>/Users/<path>:/<container path> ...` (OS X) or `docker run -v
+>/c/Users/<path>:/<container path ...` (Windows). All other paths come from your
+>virtual machine's filesystem.
 
     $ docker run -d -P --name web -v /src/webapp:/opt/webapp training/webapp python app.py
 

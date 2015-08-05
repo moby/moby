@@ -258,9 +258,9 @@ can browse the docs.
 
 4. Enter the URL in your browser.
 
-    If you are running Boot2Docker, replace the default localhost address
+    If you are using Docker Machine, replace the default localhost address
     (0.0.0.0) with your DOCKERHOST value. You can get this value at any time by
-    entering `boot2docker ip` at the command line.
+    entering `docker-machine ip <machine-name>` at the command line.
 
 5. Once in the documentation, look for the red notice to verify you are seeing the correct build.
 
