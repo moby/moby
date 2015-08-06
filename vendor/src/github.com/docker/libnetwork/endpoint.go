@@ -415,7 +415,8 @@ func (ep *endpoint) Join(containerID string, options ...EndpointOption) error {
 	}
 	defer func() {
 		if err != nil {
-			if err = driver.Leave(nid, epid); err != nil {
+			// Do not alter global err variable, it's needed by the previous defer
+			if err := driver.Leave(nid, epid); err != nil {
 				log.Warnf("driver leave failed while rolling back join: %v", err)
 			}
 		}
