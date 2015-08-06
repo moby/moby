@@ -21,10 +21,6 @@ func (daemon *Daemon) ContainerStart(name string, hostConfig *runconfig.HostConf
 		return fmt.Errorf("Container already started")
 	}
 
-	if _, err = daemon.verifyContainerSettings(hostConfig, nil); err != nil {
-		return err
-	}
-
 	// Windows does not have the backwards compatibilty issue here.
 	if runtime.GOOS != "windows" {
 		// This is kept for backward compatibility - hostconfig should be passed when
@@ -38,6 +34,12 @@ func (daemon *Daemon) ContainerStart(name string, hostConfig *runconfig.HostConf
 		if hostConfig != nil {
 			return fmt.Errorf("Supplying a hostconfig on start is not supported. It should be supplied on create")
 		}
+	}
+
+	// check if hostConfig is in line with the current system settings.
+	// It may happen cgroups are umounted or the like.
+	if _, err = daemon.verifyContainerSettings(container.hostConfig, nil); err != nil {
+		return err
 	}
 
 	if err := container.Start(); err != nil {
