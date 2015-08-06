@@ -446,7 +446,7 @@ func (s *DockerRegistrySuite) TestPullFailsWithAlteredManifest(c *check.C) {
 	imageReference := fmt.Sprintf("%s@%s", repoName, manifestDigest)
 	out, exitStatus, _ := dockerCmdWithError("pull", imageReference)
 	if exitStatus == 0 {
-		c.Fatalf("expected a zero exit status but got %d: %s", exitStatus, out)
+		c.Fatalf("expected a non-zero exit status but got %d: %s", exitStatus, out)
 	}
 
 	expectedErrorMsg := fmt.Sprintf("image verification failed for digest %s", manifestDigest)
