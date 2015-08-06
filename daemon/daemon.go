@@ -92,7 +92,6 @@ type Daemon struct {
 	graph            *graph.Graph
 	repositories     *graph.TagStore
 	idIndex          *truncindex.TruncIndex
-	sysInfo          *sysinfo.SysInfo
 	config           *Config
 	containerGraph   *graphdb.Database
 	driver           graphdriver.Driver
@@ -725,7 +724,6 @@ func NewDaemon(config *Config, registryService *registry.Service) (daemon *Daemo
 	d.graph = g
 	d.repositories = repositories
 	d.idIndex = truncindex.NewTruncIndex([]string{})
-	d.sysInfo = sysInfo
 	d.config = config
 	d.sysInitPath = sysInitPath
 	d.execDriver = ed
@@ -856,10 +854,6 @@ func (daemon *Daemon) Repositories() *graph.TagStore {
 
 func (daemon *Daemon) Config() *Config {
 	return daemon.config
-}
-
-func (daemon *Daemon) SystemConfig() *sysinfo.SysInfo {
-	return daemon.sysInfo
 }
 
 func (daemon *Daemon) SystemInitPath() string {
