@@ -21,7 +21,6 @@ import (
 	"github.com/docker/distribution/digest"
 	"github.com/docker/distribution/manifest"
 	"github.com/docker/distribution/registry/api/errcode"
-	"github.com/docker/distribution/registry/api/v2"
 	"github.com/docker/distribution/testutil"
 )
 
@@ -782,10 +781,10 @@ func TestManifestUnauthorized(t *testing.T) {
 	if !ok {
 		t.Fatalf("Unexpected error type: %#v", err)
 	}
-	if v2Err.Code != v2.ErrorCodeUnauthorized {
+	if v2Err.Code != errcode.ErrorCodeUnauthorized {
 		t.Fatalf("Unexpected error code: %s", v2Err.Code.String())
 	}
-	if expected := v2.ErrorCodeUnauthorized.Message(); v2Err.Message != expected {
+	if expected := errcode.ErrorCodeUnauthorized.Message(); v2Err.Message != expected {
 		t.Fatalf("Unexpected message value: %q, expected %q", v2Err.Message, expected)
 	}
 }
