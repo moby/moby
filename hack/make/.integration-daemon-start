@@ -42,7 +42,7 @@ if [ -z "$DOCKER_TEST_HOST" ]; then
 
 	export DOCKER_HOST="unix://$(cd "$DEST" && pwd)/docker.sock" # "pwd" tricks to make sure $DEST is an absolute path, not a relative one
 	( set -x; exec \
-		docker --daemon --debug \
+		docker daemon --debug \
 		--host "$DOCKER_HOST" \
 		--storage-driver "$DOCKER_GRAPHDRIVER" \
 		--exec-driver "$DOCKER_EXECDRIVER" \
