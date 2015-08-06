@@ -11,9 +11,7 @@ func (s *DockerSuite) TestPause(c *check.C) {
 	defer unpauseAllContainers()
 
 	name := "testeventpause"
-	out, _ := dockerCmd(c, "images", "-q")
-	image := strings.Split(out, "\n")[0]
-	dockerCmd(c, "run", "-d", "--name", name, image, "top")
+	dockerCmd(c, "run", "-d", "--name", name, "busybox", "top")
 
 	dockerCmd(c, "pause", name)
 	pausedContainers, err := getSliceOfPausedContainers()
@@ -26,7 +24,7 @@ func (s *DockerSuite) TestPause(c *check.C) {
 
 	dockerCmd(c, "unpause", name)
 
-	out, _ = dockerCmd(c, "events", "--since=0", fmt.Sprintf("--until=%d", daemonTime(c).Unix()))
+	out, _ := dockerCmd(c, "events", "--since=0", fmt.Sprintf("--until=%d", daemonTime(c).Unix()))
 	events := strings.Split(out, "\n")
 	if len(events) <= 1 {
 		c.Fatalf("Missing expected event")
@@ -51,10 +49,8 @@ func (s *DockerSuite) TestPauseMultipleContainers(c *check.C) {
 		"testpausewithmorecontainers1",
 		"testpausewithmorecontainers2",
 	}
-	out, _ := dockerCmd(c, "images", "-q")
-	image := strings.Split(out, "\n")[0]
 	for _, name := range containers {
-		dockerCmd(c, "run", "-d", "--name", name, image, "top")
+		dockerCmd(c, "run", "-d", "--name", name, "busybox", "top")
 	}
 	dockerCmd(c, append([]string{"pause"}, containers...)...)
 	pausedContainers, err := getSliceOfPausedContainers()
@@ -67,7 +63,7 @@ func (s *DockerSuite) TestPauseMultipleContainers(c *check.C) {
 
 	dockerCmd(c, append([]string{"unpause"}, containers...)...)
 
-	out, _ = dockerCmd(c, "events", "--since=0", fmt.Sprintf("--until=%d", daemonTime(c).Unix()))
+	out, _ := dockerCmd(c, "events", "--since=0", fmt.Sprintf("--until=%d", daemonTime(c).Unix()))
 	events := strings.Split(out, "\n")
 	if len(events) <= len(containers)*3-2 {
 		c.Fatalf("Missing expected event")
