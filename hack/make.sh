@@ -152,7 +152,7 @@ TESTFLAGS+=" -test.timeout=${TIMEOUT}"
 
 # A few more flags that are specific just to building a completely-static binary (see hack/make/binary)
 # PLEASE do not use these anywhere else.
-EXTLDFLAGS_STATIC_DOCKER="$EXTLDFLAGS_STATIC -lpthread -Wl,--unresolved-symbols=ignore-in-object-files"
+EXTLDFLAGS_STATIC_DOCKER="$EXTLDFLAGS_STATIC -lpthread -ldl"
 LDFLAGS_STATIC_DOCKER="
 	$LDFLAGS_STATIC
 	-extldflags \"$EXTLDFLAGS_STATIC_DOCKER\"
