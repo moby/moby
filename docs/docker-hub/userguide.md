@@ -33,7 +33,7 @@ you can look at your profile page on [Docker Hub](https://hub.docker.com).
 
 ## Pulling, running and building images
 
-You can find more information on [working with Docker images](../userguide/dockerimages.md).
+You can find more information on [working with Docker images](/userguide/dockerimages/).
 
 ## Official Repositories
 
@@ -58,6 +58,6 @@ The Docker Hub provides you and your team with a place to build and ship Docker 
 Collections of Docker images are managed using repositories - 
 
 You can configure two types of repositories to manage on the Docker Hub:
-[Repositories](./repos.md), which allow you to push images to the Hub from your local Docker daemon,
-and [Automated Builds](./builds.md), which allow you to configure GitHub or Bitbucket to
+[Repositories](repos.md), which allow you to push images to the Hub from your local Docker daemon,
+and [Automated Builds](builds.md), which allow you to configure GitHub or Bitbucket to
 trigger the Hub to rebuild repositories when changes are made to the repository.

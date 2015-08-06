@@ -19,7 +19,7 @@ organization account.
 
 Alternatively, if the source code for your Docker image is on GitHub or Bitbucket,
 you can use an "Automated build" repository, which is built by the Docker Hub
-services. See the [automated builds documentation](./builds.md) to read about
+services. See the [automated builds documentation](builds.md) to read about
 the extra functionality provided by those services.
 
 ![repositories](/docker-hub/hub-images/repos.png)
