@@ -10,7 +10,9 @@ import (
 	"github.com/opencontainers/runc/libcontainer/cgroups"
 )
 
-// New returns a new SysInfo, using the filesystem to detect which features the kernel supports.
+// New returns a new SysInfo, using the filesystem to detect which features
+// the kernel supports. If `quiet` is `true` warnings are printed in logs
+// whenever an error occurs or misconfigurations are present.
 func New(quiet bool) *SysInfo {
 	sysInfo := &SysInfo{}
 	sysInfo.cgroupMemInfo = checkCgroupMem(quiet)
