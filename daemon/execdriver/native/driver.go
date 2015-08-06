@@ -64,7 +64,7 @@ func NewDriver(root, initPath string, options []string) (*Driver, error) {
 			// (possibly through another run, manually, or via system startup)
 			for _, policy := range apparmorProfiles {
 				if err := hasAppArmorProfileLoaded(policy); err != nil {
-					return nil, fmt.Errorf("AppArmor enabled on system but the %s profile could not be loaded.", policy)
+					logrus.Warnf("AppArmor enabled on system but the %s profile could not be loaded. In future versions of Docker we will error out here.", policy)
 				}
 			}
 		}
