@@ -33,7 +33,7 @@ Docker currently runs only on Linux, but you can use VirtualBox to run Docker in
 a virtual machine on your box, and get the best of both worlds. Check out the
 [*Mac OS X*](/installation/mac/) and [*Microsoft
 Windows*](/installation/windows/) installation guides. The small Linux
-distribution boot2docker can be run inside virtual machines on these two
+distribution Docker Machine can be run inside virtual machines on these two
 operating systems.
 
 >**Note:** if you are using a remote Docker daemon on a VM through Docker

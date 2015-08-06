@@ -29,7 +29,7 @@ you continue working with your fork on this branch.
 
 ##  Clean your host of Docker artifacts
 
-Docker developers run the latest stable release of the Docker software (with Boot2Docker if their machine is Mac OS X). They clean their local
+Docker developers run the latest stable release of the Docker software (with Docker Machine if their machine is Mac OS X). They clean their local
 hosts of unnecessary Docker artifacts such as stopped containers or unused
 images. Cleaning unnecessary artifacts isn't strictly necessary, but it is
 good practice, so it is included here.

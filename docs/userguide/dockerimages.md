@@ -256,7 +256,7 @@ Let's create a directory and a `Dockerfile` first.
     $ cd sinatra
     $ touch Dockerfile
 
-If you are using Boot2Docker on Windows, you may access your host
+If you are using Docker Machine on Windows, you may access your host
 directory by `cd` to `/c/Users/your_user_name`.
 
 Each instruction creates a new layer of the image. Let's look at a simple

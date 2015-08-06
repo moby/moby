@@ -311,40 +311,36 @@ installer](https://www.docker.com/toolbox).
 
 ## Container port redirection
 
-If you are curious, the username for the Docker default user is `docker`
-and the password is `tcuser`.
+If you are curious, the username for the Docker default user is `docker` and the
+password is `tcuser`. The latest version of `docker-machine` sets up a host only
+network adaptor which provides access to the container's ports.
 
-The latest version of `boot2docker` sets up a host only network adaptor which
-provides access to the container's ports.
+If you run a container with a published port:
 
-If you run a container with an exposed port:
+    $ docker run --rm -i -t -p 80:80 nginx
 
-    docker run --rm -i -t -p 80:80 nginx
+Then you should be able to access that nginx server using the IP address
+reported to you using:
 
-Then you should be able to access that nginx server using the IP address reported
-to you using:
+    $ docker-machine ip
 
-    boot2docker ip
-
-Typically, it is 192.168.59.103, but it could get changed by VirtualBox's DHCP
-implementation.
-
-For further information or to report issues, please see the [Boot2Docker site](http://boot2docker.io)
+Typically, the IP is 192.168.59.103, but it could get changed by VirtualBox's
+DHCP implementation.
 
 ## Login with PUTTY instead of using the CMD
 
-Boot2Docker generates and uses the public/private key pair in your `%USERPROFILE%\.ssh`
-directory so to log in you need to use the private key from this same directory.
-
-The private key needs to be converted into the format PuTTY uses.
-
-You can do this with
+Docker Machine generates and uses the public/private key pair in your
+`%USERPROFILE%\.ssh` directory so to log in you need to use the private key from
+this same directory. The private key needs to be converted into the format PuTTY
+uses. You can do this with
 [puttygen](http://www.chiark.greenend.org.uk/~sgtatham/putty/download.html):
 
-- Open `puttygen.exe` and load ("File"->"Load" menu) the private key from
+1. Open `puttygen.exe` and load ("File"->"Load" menu) the private key from
   `%USERPROFILE%\.ssh\id_boot2docker`
-- then click: "Save Private Key".
-- Then use the saved file to login with PuTTY using `docker@127.0.0.1:2022`.
+
+2. Click "Save Private Key".
+
+3.  Use the saved file to login with PuTTY using `docker@127.0.0.1:2022`.
 
 ## Uninstallation
 

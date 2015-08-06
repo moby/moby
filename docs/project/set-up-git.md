@@ -57,8 +57,8 @@ target="_blank">docker/docker repository</a>.
 
         $ cd ~
         
-  In Windows, you'll work in your Boot2Docker window instead of Powershell or
-  a `cmd` window.
+    In Windows, you'll work in your Docker Quickstart Terminal window instead of
+    Powershell or a `cmd` window.
 
 6. Create a `repos` directory.
 
