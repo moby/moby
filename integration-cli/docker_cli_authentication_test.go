@@ -51,39 +51,9 @@ func (krb5 *Krb5Env) Start(c *check.C) {
 	if output, _, err := runCommandWithOutput(exec.Command("krb5kdc", "-P", krb5.kdcPidPath)); err != nil {
 		c.Fatalf("Failed to start kdc, err %v with output %s", err, string(output))
 	}
-
-	// Add docker client principal.
-	if output, _, err := runCommandWithOutput(exec.Command("kadmin.local", "-q", "addprinc -pw docker docker")); err != nil {
-		c.Fatalf("Failed to add kerberos principal, err %v with output %s", err, output)
-	}
-
-	// Add docker client principal to keytab (Unfortunately, kinit does not have a command line password parameter).
-	if output, _, err := runCommandWithOutput(exec.Command("kadmin.local", "-q", "ktadd docker")); err != nil {
-		c.Fatalf("Failed to add kerberos principal to keytab, err %v with output %s", err, output)
-	}
-
-	// Add docker server principal.
-	if output, _, err := runCommandWithOutput(exec.Command("kadmin.local", "-q", "addprinc -randkey HTTP/localhost")); err != nil {
-		c.Fatalf("Failed to add kerberos principal, err %v with output %s", err, output)
-	}
-
-	// Add docker server principal to keytab.
-	if output, _, err := runCommandWithOutput(exec.Command("kadmin.local", "-q", "ktadd HTTP/localhost")); err != nil {
-		c.Fatalf("Failed to add kerberos principal to keytab, err %v with output %s", err, output)
-	}
 }
 
 func (krb5 *Krb5Env) Stop(c *check.C) {
-	// Remove docker server principal from keytab.
-	if output, _, err := runCommandWithOutput(exec.Command("kadmin.local", "-q", "ktrem HTTP/localhost")); err != nil {
-		c.Logf("Failed to remove kerberos principal from keytab, err %v with output %s", err, output)
-	}
-
-	// Remove docker client principal from keytab.
-	if output, _, err := runCommandWithOutput(exec.Command("kadmin.local", "-q", "ktrem docker")); err != nil {
-		c.Logf("Failed to remove kerberos principal from keytab, err %v with output %s", err, output)
-	}
-
 	// Kill the KDC.
 	if pidBytes, err := ioutil.ReadFile(krb5.kdcPidPath); err == nil {
 		if pid, err := strconv.Atoi(strings.TrimSpace(string(pidBytes))); err == nil {
@@ -111,8 +81,44 @@ func (krb5 *Krb5Env) Stop(c *check.C) {
 	}
 }
 
-func (krb5 *Krb5Env) Kinit(c *check.C) {
-	if output, _, err := runCommandWithOutput(exec.Command("kinit", "docker", "-k")); err != nil {
+func (krb5 *Krb5Env) AddClientPrinc(c *check.C, principal string, password string) {
+	query := fmt.Sprintf("addprinc -pw %s %s", password, principal)
+	if output, _, err := runCommandWithOutput(exec.Command("kadmin.local", "-q", query)); err != nil {
+		c.Fatalf("Failed to add kerberos principal, err %v with output %s", err, output)
+	}
+}
+
+func (krb5 *Krb5Env) AddServerPrinc(c *check.C, principal string) {
+	query := fmt.Sprintf("addprinc -randkey %s", principal)
+	if output, _, err := runCommandWithOutput(exec.Command("kadmin.local", "-q", query)); err != nil {
+		c.Fatalf("Failed to add kerberos principal, err %v with output %s", err, output)
+	}
+}
+
+func (krb *Krb5Env) DelPrinc(c *check.C, principal string) {
+	query := fmt.Sprintf("delprinc %s", principal)
+	if output, _, err := runCommandWithOutput(exec.Command("kadmin.local", "-q", query)); err != nil {
+		c.Fatalf("Failed to delete kerberos principal, err %v with output %s", err, output)
+	}
+}
+
+func (krb5 *Krb5Env) AddPrincToKeytab(c *check.C, principal string) {
+	query := fmt.Sprintf("ktadd %s", principal)
+	if output, _, err := runCommandWithOutput(exec.Command("kadmin.local", "-q", query)); err != nil {
+		c.Fatalf("Failed to add kerberos principal to keytab, err %v with output %s", err, output)
+	}
+}
+
+func (krb5 *Krb5Env) RemovePrincFromKeytab(c *check.C, principal string) {
+	query := fmt.Sprintf("ktrem %s", principal)
+	if output, _, err := runCommandWithOutput(exec.Command("kadmin.local", "-q", query)); err != nil {
+		c.Logf("Failed to remove kerberos principal from keytab, err %v with output %s", err, output)
+	}
+}
+
+// kinit does not support password as a cli paramter, so a keytab entry for the given pricinpal is assumed.
+func (krb5 *Krb5Env) Kinit(c *check.C, principal string) {
+	if output, _, err := runCommandWithOutput(exec.Command("kinit", principal, "-k")); err != nil {
 		c.Fatalf("Failed to add obtain kerberos ticket, err %v with output %s", err, output)
 	}
 }
@@ -123,9 +129,31 @@ func (krb5 *Krb5Env) Kdestroy(c *check.C) {
 	}
 }
 
+const (
+	clientPrincipal     = "docker"
+	clientPrincipalPass = "docker"
+	daemonPrincipal     = "HTTP/localhost"
+)
+
+func setUpDockerPrincipals(c *check.C, krb5 *Krb5Env) {
+	krb5.AddClientPrinc(c, clientPrincipal, clientPrincipalPass)
+	krb5.AddPrincToKeytab(c, clientPrincipal)
+	krb5.AddServerPrinc(c, daemonPrincipal)
+	krb5.AddPrincToKeytab(c, daemonPrincipal)
+}
+
+func tearDownDockerPrincipals(c *check.C, krb5 *Krb5Env) {
+	krb5.RemovePrincFromKeytab(c, daemonPrincipal)
+	krb5.DelPrinc(c, daemonPrincipal)
+	krb5.RemovePrincFromKeytab(c, clientPrincipal)
+	krb5.DelPrinc(c, clientPrincipal)
+}
+
 func (s *DockerAuthnSuite) TestKerberosAuthnRest(c *check.C) {
 	s.krb5.Start(c)
-	s.krb5.Kinit(c)
+	setUpDockerPrincipals(c, s.krb5)
+	defer tearDownDockerPrincipals(c, s.krb5)
+	s.krb5.Kinit(c, clientPrincipal)
 	defer s.krb5.Kdestroy(c)
 
 	if err := s.ds.d.Start("-H", s.daemonAddr, "-a"); err != nil {
@@ -143,7 +171,9 @@ func (s *DockerAuthnSuite) TestKerberosAuthnRest(c *check.C) {
 
 func (s *DockerAuthnSuite) TestKerberosAuthnRun(c *check.C) {
 	s.krb5.Start(c)
-	s.krb5.Kinit(c)
+	setUpDockerPrincipals(c, s.krb5)
+	defer tearDownDockerPrincipals(c, s.krb5)
+	s.krb5.Kinit(c, clientPrincipal)
 	defer s.krb5.Kdestroy(c)
 
 	if err := s.ds.d.Start("-H", s.daemonAddr, "-a"); err != nil {
