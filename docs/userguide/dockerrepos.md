@@ -82,8 +82,7 @@ You now have an image from which you can run containers.
 
 Anyone can pull public images from the [Docker Hub](https://hub.docker.com)
 registry, but if you would like to share your own images, then you must
-register first, as we saw in the [first section of the Docker User
-Guide](/userguide/dockerhub/).
+[register first](/docker-hub/accounts).
 
 ## Pushing a repository to Docker Hub
 
