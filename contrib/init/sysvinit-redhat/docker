@@ -41,7 +41,14 @@ prestart() {
 }
 
 start() {
-    [ -x $exec ] || exit 5
+    if [ ! -x $exec ]; then
+      if [ ! -e $exec ]; then
+        echo "Docker executable $exec not found"
+      else
+        echo "You do not have permission to execute the Docker executable $exec"
+      fi	      
+      exit 5
+    fi
 
     check_for_cleanup
 
