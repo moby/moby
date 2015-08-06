@@ -50,7 +50,6 @@ for version in "${versions[@]}"; do
 		build-essential # "essential for building Debian packages"
 		curl ca-certificates # for downloading Go
 		debhelper # for easy ".deb" building
-		dh-apparmor # for apparmor debhelper
 		dh-systemd # for systemd debhelper integration
 		git # for "git commit" info in "docker -v"
 		libapparmor-dev # for "sys/apparmor.h"

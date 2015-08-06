@@ -40,20 +40,16 @@ profile {{.Name}} flags=(attach_disconnected,mediate_deleted) {
   file,
   umount,
 
-  signal (receive) peer=/usr/bin/docker,
-  signal (receive) peer=docker-unconfined,
-
   deny @{PROC}/sys/fs/** wklx,
   deny @{PROC}/fs/** wklx,
   deny @{PROC}/sysrq-trigger rwklx,
   deny @{PROC}/mem rwklx,
   deny @{PROC}/kmem rwklx,
-  deny @{PROC}/kore rwklx,
+  deny @{PROC}/kcore rwklx,
   deny @{PROC}/sys/kernel/[^s][^h][^m]* wklx,
   deny @{PROC}/sys/kernel/*/** wklx,
 
   deny mount,
-  deny ptrace (trace) peer=docker-default,
 
   deny /sys/[^f]*/** wklx,
   deny /sys/f[^s]*/** wklx,
