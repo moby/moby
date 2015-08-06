@@ -4,15 +4,41 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 
 	"github.com/docker/docker/pkg/homedir"
 )
 
+func TestEmptyConfigDir(t *testing.T) {
+	tmpHome, err := ioutil.TempDir("", "config-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpHome)
+
+	SetConfigDir(tmpHome)
+
+	config, err := Load("")
+	if err != nil {
+		t.Fatalf("Failed loading on empty config dir: %q", err)
+	}
+
+	expectedConfigFilename := filepath.Join(tmpHome, ConfigFileName)
+	if config.Filename() != expectedConfigFilename {
+		t.Fatalf("Expected config filename %s, got %s", expectedConfigFilename, config.Filename())
+	}
+
+	// Now save it and make sure it shows up in new form
+	saveConfigAndValidateNewFormat(t, config, tmpHome)
+}
+
 func TestMissingFile(t *testing.T) {
-	tmpHome, _ := ioutil.TempDir("", "config-test")
+	tmpHome, err := ioutil.TempDir("", "config-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpHome)
 
 	config, err := Load(tmpHome)
 	if err != nil {
@@ -20,19 +46,15 @@ func TestMissingFile(t *testing.T) {
 	}
 
 	// Now save it and make sure it shows up in new form
-	err = config.Save()
-	if err != nil {
-		t.Fatalf("Failed to save: %q", err)
-	}
-
-	buf, err := ioutil.ReadFile(filepath.Join(tmpHome, ConfigFileName))
-	if !strings.Contains(string(buf), `"auths":`) {
-		t.Fatalf("Should have save in new form: %s", string(buf))
-	}
+	saveConfigAndValidateNewFormat(t, config, tmpHome)
 }
 
 func TestSaveFileToDirs(t *testing.T) {
-	tmpHome, _ := ioutil.TempDir("", "config-test")
+	tmpHome, err := ioutil.TempDir("", "config-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpHome)
 
 	tmpHome += "/.docker"
 
@@ -42,32 +64,38 @@ func TestSaveFileToDirs(t *testing.T) {
 	}
 
 	// Now save it and make sure it shows up in new form
-	err = config.Save()
-	if err != nil {
-		t.Fatalf("Failed to save: %q", err)
-	}
-
-	buf, err := ioutil.ReadFile(filepath.Join(tmpHome, ConfigFileName))
-	if !strings.Contains(string(buf), `"auths":`) {
-		t.Fatalf("Should have save in new form: %s", string(buf))
-	}
+	saveConfigAndValidateNewFormat(t, config, tmpHome)
 }
 
 func TestEmptyFile(t *testing.T) {
-	tmpHome, _ := ioutil.TempDir("", "config-test")
-	fn := filepath.Join(tmpHome, ConfigFileName)
-	ioutil.WriteFile(fn, []byte(""), 0600)
+	tmpHome, err := ioutil.TempDir("", "config-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpHome)
 
-	_, err := Load(tmpHome)
+	fn := filepath.Join(tmpHome, ConfigFileName)
+	if err := ioutil.WriteFile(fn, []byte(""), 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = Load(tmpHome)
 	if err == nil {
 		t.Fatalf("Was supposed to fail")
 	}
 }
 
 func TestEmptyJson(t *testing.T) {
-	tmpHome, _ := ioutil.TempDir("", "config-test")
+	tmpHome, err := ioutil.TempDir("", "config-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpHome)
+
 	fn := filepath.Join(tmpHome, ConfigFileName)
-	ioutil.WriteFile(fn, []byte("{}"), 0600)
+	if err := ioutil.WriteFile(fn, []byte("{}"), 0600); err != nil {
+		t.Fatal(err)
+	}
 
 	config, err := Load(tmpHome)
 	if err != nil {
@@ -75,23 +103,119 @@ func TestEmptyJson(t *testing.T) {
 	}
 
 	// Now save it and make sure it shows up in new form
-	err = config.Save()
-	if err != nil {
-		t.Fatalf("Failed to save: %q", err)
+	saveConfigAndValidateNewFormat(t, config, tmpHome)
+}
+
+func TestOldInvalidsAuth(t *testing.T) {
+	invalids := map[string]string{
+		`username = test`: "The Auth config file is empty",
+		`username
+password
+email`: "Invalid Auth config file",
+		`username = test
+email`: "Invalid auth configuration file",
+		`username = am9lam9lOmhlbGxv
+email`: "Invalid Auth config file",
 	}
 
-	buf, err := ioutil.ReadFile(filepath.Join(tmpHome, ConfigFileName))
-	if !strings.Contains(string(buf), `"auths":`) {
-		t.Fatalf("Should have save in new form: %s", string(buf))
+	tmpHome, err := ioutil.TempDir("", "config-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpHome)
+
+	homeKey := homedir.Key()
+	homeVal := homedir.Get()
+
+	defer func() { os.Setenv(homeKey, homeVal) }()
+	os.Setenv(homeKey, tmpHome)
+
+	for content, expectedError := range invalids {
+		fn := filepath.Join(tmpHome, oldConfigfile)
+		if err := ioutil.WriteFile(fn, []byte(content), 0600); err != nil {
+			t.Fatal(err)
+		}
+
+		config, err := Load(tmpHome)
+		if err == nil || err.Error() != expectedError {
+			t.Fatalf("Should have failed, got: %q, %q", config, err)
+		}
+
+	}
+}
+
+func TestOldValidAuth(t *testing.T) {
+	tmpHome, err := ioutil.TempDir("", "config-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpHome)
+
+	homeKey := homedir.Key()
+	homeVal := homedir.Get()
+
+	defer func() { os.Setenv(homeKey, homeVal) }()
+	os.Setenv(homeKey, tmpHome)
+
+	fn := filepath.Join(tmpHome, oldConfigfile)
+	js := `username = am9lam9lOmhlbGxv
+email = user@example.com`
+	if err := ioutil.WriteFile(fn, []byte(js), 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	config, err := Load(tmpHome)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// defaultIndexserver is https://index.docker.io/v1/
+	ac := config.AuthConfigs["https://index.docker.io/v1/"]
+	if ac.Email != "user@example.com" || ac.Username != "joejoe" || ac.Password != "hello" {
+		t.Fatalf("Missing data from parsing:\n%q", config)
+	}
+
+	// Now save it and make sure it shows up in new form
+	configStr := saveConfigAndValidateNewFormat(t, config, tmpHome)
+
+	if !strings.Contains(configStr, "user@example.com") {
+		t.Fatalf("Should have save in new form: %s", configStr)
+	}
+}
+
+func TestOldJsonInvalid(t *testing.T) {
+	tmpHome, err := ioutil.TempDir("", "config-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpHome)
+
+	homeKey := homedir.Key()
+	homeVal := homedir.Get()
+
+	defer func() { os.Setenv(homeKey, homeVal) }()
+	os.Setenv(homeKey, tmpHome)
+
+	fn := filepath.Join(tmpHome, oldConfigfile)
+	js := `{"https://index.docker.io/v1/":{"auth":"test","email":"user@example.com"}}`
+	if err := ioutil.WriteFile(fn, []byte(js), 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	config, err := Load(tmpHome)
+	if err == nil || err.Error() != "Invalid auth configuration file" {
+		t.Fatalf("Expected an error got : %v, %v", config, err)
 	}
 }
 
 func TestOldJson(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		return
+	tmpHome, err := ioutil.TempDir("", "config-test")
+	if err != nil {
+		t.Fatal(err)
 	}
-
-	tmpHome, _ := ioutil.TempDir("", "config-test")
 	defer os.RemoveAll(tmpHome)
 
 	homeKey := homedir.Key()
@@ -102,7 +226,9 @@ func TestOldJson(t *testing.T) {
 
 	fn := filepath.Join(tmpHome, oldConfigfile)
 	js := `{"https://index.docker.io/v1/":{"auth":"am9lam9lOmhlbGxv","email":"user@example.com"}}`
-	ioutil.WriteFile(fn, []byte(js), 0600)
+	if err := ioutil.WriteFile(fn, []byte(js), 0600); err != nil {
+		t.Fatal(err)
+	}
 
 	config, err := Load(tmpHome)
 	if err != nil {
@@ -115,23 +241,25 @@ func TestOldJson(t *testing.T) {
 	}
 
 	// Now save it and make sure it shows up in new form
-	err = config.Save()
-	if err != nil {
-		t.Fatalf("Failed to save: %q", err)
-	}
+	configStr := saveConfigAndValidateNewFormat(t, config, tmpHome)
 
-	buf, err := ioutil.ReadFile(filepath.Join(tmpHome, ConfigFileName))
-	if !strings.Contains(string(buf), `"auths":`) ||
-		!strings.Contains(string(buf), "user@example.com") {
-		t.Fatalf("Should have save in new form: %s", string(buf))
+	if !strings.Contains(configStr, "user@example.com") {
+		t.Fatalf("Should have save in new form: %s", configStr)
 	}
 }
 
 func TestNewJson(t *testing.T) {
-	tmpHome, _ := ioutil.TempDir("", "config-test")
+	tmpHome, err := ioutil.TempDir("", "config-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpHome)
+
 	fn := filepath.Join(tmpHome, ConfigFileName)
 	js := ` { "auths": { "https://index.docker.io/v1/": { "auth": "am9lam9lOmhlbGxv", "email": "user@example.com" } } }`
-	ioutil.WriteFile(fn, []byte(js), 0600)
+	if err := ioutil.WriteFile(fn, []byte(js), 0600); err != nil {
+		t.Fatal(err)
+	}
 
 	config, err := Load(tmpHome)
 	if err != nil {
@@ -144,26 +272,28 @@ func TestNewJson(t *testing.T) {
 	}
 
 	// Now save it and make sure it shows up in new form
-	err = config.Save()
-	if err != nil {
-		t.Fatalf("Failed to save: %q", err)
-	}
+	configStr := saveConfigAndValidateNewFormat(t, config, tmpHome)
 
-	buf, err := ioutil.ReadFile(filepath.Join(tmpHome, ConfigFileName))
-	if !strings.Contains(string(buf), `"auths":`) ||
-		!strings.Contains(string(buf), "user@example.com") {
-		t.Fatalf("Should have save in new form: %s", string(buf))
+	if !strings.Contains(configStr, "user@example.com") {
+		t.Fatalf("Should have save in new form: %s", configStr)
 	}
 }
 
 func TestJsonWithPsFormat(t *testing.T) {
-	tmpHome, _ := ioutil.TempDir("", "config-test")
+	tmpHome, err := ioutil.TempDir("", "config-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpHome)
+
 	fn := filepath.Join(tmpHome, ConfigFileName)
 	js := `{
 		"auths": { "https://index.docker.io/v1/": { "auth": "am9lam9lOmhlbGxv", "email": "user@example.com" } },
 		"psFormat": "table {{.ID}}\\t{{.Label \"com.docker.label.cpu\"}}"
 }`
-	ioutil.WriteFile(fn, []byte(js), 0600)
+	if err := ioutil.WriteFile(fn, []byte(js), 0600); err != nil {
+		t.Fatal(err)
+	}
 
 	config, err := Load(tmpHome)
 	if err != nil {
@@ -175,14 +305,51 @@ func TestJsonWithPsFormat(t *testing.T) {
 	}
 
 	// Now save it and make sure it shows up in new form
-	err = config.Save()
+	configStr := saveConfigAndValidateNewFormat(t, config, tmpHome)
+	if !strings.Contains(configStr, `"psFormat":`) ||
+		!strings.Contains(configStr, "{{.ID}}") {
+		t.Fatalf("Should have save in new form: %s", configStr)
+	}
+}
+
+// Save it and make sure it shows up in new form
+func saveConfigAndValidateNewFormat(t *testing.T, config *ConfigFile, homeFolder string) string {
+	err := config.Save()
 	if err != nil {
 		t.Fatalf("Failed to save: %q", err)
 	}
 
-	buf, err := ioutil.ReadFile(filepath.Join(tmpHome, ConfigFileName))
-	if !strings.Contains(string(buf), `"psFormat":`) ||
-		!strings.Contains(string(buf), "{{.ID}}") {
+	buf, err := ioutil.ReadFile(filepath.Join(homeFolder, ConfigFileName))
+	if !strings.Contains(string(buf), `"auths":`) {
 		t.Fatalf("Should have save in new form: %s", string(buf))
+	}
+	return string(buf)
+}
+
+func TestConfigDir(t *testing.T) {
+	tmpHome, err := ioutil.TempDir("", "config-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpHome)
+
+	if ConfigDir() == tmpHome {
+		t.Fatalf("Expected ConfigDir to be different than %s by default, but was the same", tmpHome)
+	}
+
+	// Update configDir
+	SetConfigDir(tmpHome)
+
+	if ConfigDir() != tmpHome {
+		t.Fatalf("Expected ConfigDir to %s, but was %s", tmpHome, ConfigDir())
+	}
+}
+
+func TestConfigFile(t *testing.T) {
+	configFilename := "configFilename"
+	configFile := NewConfigFile(configFilename)
+
+	if configFile.Filename() != configFilename {
+		t.Fatalf("Expected %s, got %s", configFilename, configFile.Filename())
 	}
 }
