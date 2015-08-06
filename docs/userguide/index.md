@@ -33,7 +33,7 @@ Docker Hub is the central hub for Docker. It hosts public Docker images
 and provides services to help you build and manage your Docker
 environment. To learn more:
 
-Go to [Using Docker Hub](/userguide/dockerhub).
+Go to [Using Docker Hub](/docker-hub).
 
 ## Dockerizing applications: A "Hello world"
 
