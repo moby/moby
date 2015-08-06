@@ -59,21 +59,6 @@ profile {{.Name}} flags=(attach_disconnected,mediate_deleted) {
   deny /sys/firmware/efi/efivars/** rwklx,
   deny /sys/kernel/security/** rwklx,
 }
-
-profile docker-unconfined flags=(attach_disconnected,mediate_deleted,complain) {
-  #include <abstractions/base>
-
-  network,
-  capability,
-  file,
-  umount,
-  mount,
-  pivot_root,
-  change_profile -> *,
-
-  ptrace,
-  signal,
-}
 `
 
 func generateProfile(out io.Writer) error {
