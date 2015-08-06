@@ -297,12 +297,7 @@ func (ep *endpoint) processOptions(options ...EndpointOption) {
 }
 
 func createBasePath(dir string) error {
-	err := os.MkdirAll(dir, 0644)
-	if err != nil && !os.IsExist(err) {
-		return err
-	}
-
-	return nil
+	return os.MkdirAll(dir, 0644)
 }
 
 func createFile(path string) error {

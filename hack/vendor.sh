@@ -21,14 +21,14 @@ clone git golang.org/x/net 3cffabab72adf04f8e3b01c5baf775361837b5fe https://gith
 clone hg code.google.com/p/gosqlite 74691fb6f837
 
 #get libnetwork packages
-clone git github.com/docker/libnetwork bd3eecc96f3c05a4acef1bedcf74397bc6850d22
+clone git github.com/docker/libnetwork 22dc04d06067b40a9e7ef575aee6d1bb69d4dcc3
 clone git github.com/armon/go-metrics eb0af217e5e9747e41dd5303755356b62d28e3ec
 clone git github.com/hashicorp/go-msgpack 71c2886f5a673a35f909803f38ece5810165097b
 clone git github.com/hashicorp/memberlist 9a1e242e454d2443df330bdd51a436d5a9058fc4
 clone git github.com/hashicorp/serf 7151adcef72687bf95f451a2e0ba15cb19412bf2
 clone git github.com/docker/libkv 60c7c881345b3c67defc7f93a8297debf041d43c
 clone git github.com/vishvananda/netns 493029407eeb434d0c2d44e02ea072ff2488d322
-clone git github.com/vishvananda/netlink 20397a138846e4d6590e01783ed023ed7e1c38a6
+clone git github.com/vishvananda/netlink 329b40d4e308deb2abe80dbb1f74078e5ab13164
 clone git github.com/BurntSushi/toml f706d00e3de6abe700c994cdd545a1a4915af060
 clone git github.com/samuel/go-zookeeper d0e0d8e11f318e000a8cc434616d69e329edc374
 clone git github.com/coreos/go-etcd v2.0.0
