@@ -30,7 +30,7 @@ import (
 )
 
 var (
-	errConnectionRefused = errors.New("Cannot connect to the Docker daemon. Is 'docker -d' running on this host?")
+	errConnectionFailed = errors.New("Cannot connect to the Docker daemon. Is the docker daemon running on this host?")
 )
 
 type serverResponse struct {
@@ -94,13 +94,14 @@ func (cli *DockerCli) clientRequest(method, path string, in io.Reader, headers m
 	if resp != nil {
 		serverResp.statusCode = resp.StatusCode
 	}
+
 	if err != nil {
-		if strings.Contains(err.Error(), "connection refused") {
-			return serverResp, errConnectionRefused
+		if types.IsTimeout(err) || strings.Contains(err.Error(), "connection refused") || strings.Contains(err.Error(), "dial unix") {
+			return serverResp, errConnectionFailed
 		}
 
-		if cli.tlsConfig == nil {
-			return serverResp, fmt.Errorf("%v.\n* Are you trying to connect to a TLS-enabled daemon without TLS?\n* Is your docker daemon up and running?", err)
+		if cli.tlsConfig == nil && strings.Contains(err.Error(), "malformed HTTP response") {
+			return serverResp, fmt.Errorf("%v.\n* Are you trying to connect to a TLS-enabled daemon without TLS?", err)
 		}
 		if cli.tlsConfig != nil && strings.Contains(err.Error(), "remote error: bad certificate") {
 			return serverResp, fmt.Errorf("The server probably has client authentication (--tlsverify) enabled. Please check your TLS client certification settings: %v", err)
@@ -277,7 +278,7 @@ func getExitCode(cli *DockerCli, containerID string) (bool, int, error) {
 	serverResp, err := cli.call("GET", "/containers/"+containerID+"/json", nil, nil)
 	if err != nil {
 		// If we can't connect, then the daemon probably died.
-		if err != errConnectionRefused {
+		if err != errConnectionFailed {
 			return false, -1, err
 		}
 		return false, -1, nil
@@ -299,7 +300,7 @@ func getExecExitCode(cli *DockerCli, execID string) (bool, int, error) {
 	serverResp, err := cli.call("GET", "/exec/"+execID+"/json", nil, nil)
 	if err != nil {
 		// If we can't connect, then the daemon probably died.
-		if err != errConnectionRefused {
+		if err != errConnectionFailed {
 			return false, -1, err
 		}
 		return false, -1, nil
