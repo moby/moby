@@ -188,16 +188,16 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		flMemory = parsedMemory
 	}
 
-	var MemorySwap int64
+	var memorySwap int64
 	if *flMemorySwap != "" {
 		if *flMemorySwap == "-1" {
-			MemorySwap = -1
+			memorySwap = -1
 		} else {
 			parsedMemorySwap, err := units.RAMInBytes(*flMemorySwap)
 			if err != nil {
 				return nil, nil, cmd, err
 			}
-			MemorySwap = parsedMemorySwap
+			memorySwap = parsedMemorySwap
 		}
 	}
 
@@ -354,7 +354,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		ContainerIDFile:  *flContainerIDFile,
 		LxcConf:          lxcConf,
 		Memory:           flMemory,
-		MemorySwap:       MemorySwap,
+		MemorySwap:       memorySwap,
 		CPUShares:        *flCPUShares,
 		CPUPeriod:        *flCPUPeriod,
 		CpusetCpus:       *flCpusetCpus,
