@@ -2,7 +2,7 @@
 +++
 title = "Configuring Logging Drivers"
 description = "Configure logging driver."
-keywords = ["Fluentd, docker, logging, driver"]
+keywords = ["docker, logging, driver, Fluentd"]
 [menu.main]
 parent = "smn_logging"
 weight=-1
@@ -25,9 +25,9 @@ container's logging driver. The following options are supported:
 | `fluentd`   | Fluentd logging driver for Docker. Writes log messages to `fluentd` (forward input).                                          |
 | `awslogs`   | Amazon CloudWatch Logs logging driver for Docker. Writes log messages to Amazon CloudWatch Logs.                              |
 
-The `docker logs`command is available only for the `json-file` logging driver.  
+The `docker logs`command is available only for the `json-file` logging driver.
 
-### The json-file options
+## json-file options
 
 The following logging options are supported for the `json-file` logging driver:
 
@@ -39,16 +39,16 @@ Logs that reach `max-size` are rolled over. You can set the size in kilobytes(k)
 
 `max-file` specifies the maximum number of files that a log is rolled over before being discarded. eg `--log-opt max-file=100`. If `max-size` is not set, then `max-file` is not honored.
 
-If `max-size` and `max-file` are set, `docker logs` only returns the log lines from the newest log file. 
+If `max-size` and `max-file` are set, `docker logs` only returns the log lines from the newest log file.
 
-### The syslog options
+## syslog options
 
 The following logging options are supported for the `syslog` logging driver:
 
     --log-opt syslog-address=[tcp|udp]://host:port
     --log-opt syslog-address=unix://path
     --log-opt syslog-facility=daemon
-    --log-opt syslog-tag="mailer"
+    --log-opt tag="mailer"
 
 `syslog-address` specifies the remote syslog server address where the driver connects to.
 If not specified it defaults to the local unix socket of the running system.
@@ -83,22 +83,23 @@ the following named facilities:
 * `local6`
 * `local7`
 
-The `syslog-tag` specifies a tag that identifies the container's syslog messages. By default,
-the system uses the first 12 characters of the container id. To override this behavior, specify
-a `syslog-tag` option
+By default, Docker uses the first 12 characters of the container ID to tag log messages.
+Refer to the [log tag option documentation](/reference/logging/log_tags/) for customizing
+the log tag format.
 
-## Specify journald options
+
+## journald options
 
 The `journald` logging driver stores the container id in the journal's `CONTAINER_ID` field. For detailed information on
 working with this logging driver, see [the journald logging driver](/reference/logging/journald/)
 reference documentation.
 
-## Specify gelf options
+## gelf options
 
 The GELF logging driver supports the following options:
 
     --log-opt gelf-address=udp://host:port
-    --log-opt gelf-tag="database"
+    --log-opt tag="database"
 
 The `gelf-address` option specifies the remote GELF server address that the
 driver connects to. Currently, only `udp` is supported as the transport and you must
@@ -107,24 +108,21 @@ driver to a GELF remote server at `192.168.0.42` on port `12201`
 
     $ docker run --log-driver=gelf --log-opt gelf-address=udp://192.168.0.42:12201
 
-The `gelf-tag` option specifies a tag for easy container identification.
+By default, Docker uses the first 12 characters of the container ID to tag log messages.
+Refer to the [log tag option documentation](/reference/logging/log_tags/) for customizing
+the log tag format.
 
-## Specify fluentd options
+
+## fluentd options
 
 You can use the `--log-opt NAME=VALUE` flag to specify these additional Fluentd logging driver options.
 
  - `fluentd-address`: specify `host:port` to connect [localhost:24224]
- - `fluentd-tag`: specify tag for `fluentd` message, 
-
-When specifying a `fluentd-tag` value, you can use the following markup tags:
-
- - `{{.ID}}`: short container id (12 characters)
- - `{{.FullID}}`: full container id
- - `{{.Name}}`: container name
+ - `tag`: specify tag for `fluentd` message,
 
 For example, to specify both additional options:
 
-`docker run --log-driver=fluentd --log-opt fluentd-address=localhost:24224 --log-opt fluentd-tag=docker.{{.Name}}`
+`docker run --log-driver=fluentd --log-opt fluentd-address=localhost:24224 --log-opt tag=docker.{{.Name}}`
 
 If container cannot connect to the Fluentd daemon on the specified address,
 the container stops immediately. For detailed information on working with this

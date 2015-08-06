@@ -1,7 +1,7 @@
 <!--[metadata]>
 +++
-title = "Logging Drivers"
-description = "Logging Drivers"
+title = "Logging"
+description = "Logging and Logging Drivers"
 keywords = [" docker, logging, driver"]
 [menu.main]
 parent = "smn_administrate"
@@ -14,6 +14,7 @@ weight=8
 # Logging Drivers
 
 * [Configuring logging drivers](overview)
+* [Configuring log tags](log_tags)
 * [Fluentd logging driver](fluentd)
 * [Journald logging driver](journald)
 * [Amazon CloudWatch Logs logging driver](awslogs)
