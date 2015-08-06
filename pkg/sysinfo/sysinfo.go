@@ -8,6 +8,8 @@ type SysInfo struct {
 
 	*cgroupMemInfo
 	*cgroupCPUInfo
+	*cgroupBlkioInfo
+	*cgroupCpusetInfo
 
 	// Whether IPv4 forwarding is supported or not, if this was disabled, networking will not work
 	IPv4ForwardingDisabled bool
@@ -37,9 +39,22 @@ type cgroupMemInfo struct {
 }
 
 type cgroupCPUInfo struct {
+	// Whether CPU shares is supported or not
+	CPUShares bool
+
 	// Whether CPU CFS(Completely Fair Scheduler) period is supported or not
 	CPUCfsPeriod bool
 
 	// Whether CPU CFS(Completely Fair Scheduler) quota is supported or not
 	CPUCfsQuota bool
+}
+
+type cgroupBlkioInfo struct {
+	// Whether Block IO weight is supported or not
+	BlkioWeight bool
+}
+
+type cgroupCpusetInfo struct {
+	// Whether Cpuset is supported or not
+	Cpuset bool
 }
