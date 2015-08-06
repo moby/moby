@@ -18,6 +18,7 @@ import (
 	"github.com/docker/docker/pkg/fileutils"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/parsers/kernel"
+	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/utils"
@@ -148,20 +149,24 @@ func (daemon *Daemon) adaptContainerSettings(hostConfig *runconfig.HostConfig, a
 // verifyPlatformContainerSettings performs platform-specific validation of the
 // hostconfig and config structures.
 func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *runconfig.HostConfig, config *runconfig.Config) ([]string, error) {
-	var warnings []string
+	warnings := []string{}
+	sysInfo := sysinfo.New(false)
 
 	if hostConfig.LxcConf.Len() > 0 && !strings.Contains(daemon.ExecutionDriver().Name(), "lxc") {
 		return warnings, fmt.Errorf("Cannot use --lxc-conf with execdriver: %s", daemon.ExecutionDriver().Name())
 	}
+
+	// memory subsystem checks and adjustments
 	if hostConfig.Memory != 0 && hostConfig.Memory < 4194304 {
 		return warnings, fmt.Errorf("Minimum memory limit allowed is 4MB")
 	}
-	if hostConfig.Memory > 0 && !daemon.SystemConfig().MemoryLimit {
+	if hostConfig.Memory > 0 && !sysInfo.MemoryLimit {
 		warnings = append(warnings, "Your kernel does not support memory limit capabilities. Limitation discarded.")
 		logrus.Warnf("Your kernel does not support memory limit capabilities. Limitation discarded.")
 		hostConfig.Memory = 0
+		hostConfig.MemorySwap = -1
 	}
-	if hostConfig.Memory > 0 && hostConfig.MemorySwap != -1 && !daemon.SystemConfig().SwapLimit {
+	if hostConfig.Memory > 0 && hostConfig.MemorySwap != -1 && !sysInfo.SwapLimit {
 		warnings = append(warnings, "Your kernel does not support swap limit capabilities, memory limited without swap.")
 		logrus.Warnf("Your kernel does not support swap limit capabilities, memory limited without swap.")
 		hostConfig.MemorySwap = -1
@@ -172,7 +177,7 @@ func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *runconfig.HostC
 	if hostConfig.Memory == 0 && hostConfig.MemorySwap > 0 {
 		return warnings, fmt.Errorf("You should always set the Memory limit when using Memoryswap limit, see usage.")
 	}
-	if hostConfig.MemorySwappiness != nil && !daemon.SystemConfig().MemorySwappiness {
+	if hostConfig.MemorySwappiness != nil && *hostConfig.MemorySwappiness != -1 && !sysInfo.MemorySwappiness {
 		warnings = append(warnings, "Your kernel does not support memory swappiness capabilities, memory swappiness discarded.")
 		logrus.Warnf("Your kernel does not support memory swappiness capabilities, memory swappiness discarded.")
 		hostConfig.MemorySwappiness = nil
@@ -183,28 +188,28 @@ func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *runconfig.HostC
 			return warnings, fmt.Errorf("Invalid value: %v, valid memory swappiness range is 0-100.", swappiness)
 		}
 	}
-	if hostConfig.CPUShares > 0 && !daemon.SystemConfig().CPUShares {
+	if hostConfig.CPUShares > 0 && !sysInfo.CPUShares {
 		warnings = append(warnings, "Your kernel does not support CPU shares. Shares discarded.")
 		logrus.Warnf("Your kernel does not support CPU shares. Shares discarded.")
 		hostConfig.CPUShares = 0
 	}
-	if hostConfig.CPUPeriod > 0 && !daemon.SystemConfig().CPUCfsPeriod {
+	if hostConfig.CPUPeriod > 0 && !sysInfo.CPUCfsPeriod {
 		warnings = append(warnings, "Your kernel does not support CPU cfs period. Period discarded.")
 		logrus.Warnf("Your kernel does not support CPU cfs period. Period discarded.")
 		hostConfig.CPUPeriod = 0
 	}
-	if hostConfig.CPUQuota > 0 && !daemon.SystemConfig().CPUCfsQuota {
+	if hostConfig.CPUQuota > 0 && !sysInfo.CPUCfsQuota {
 		warnings = append(warnings, "Your kernel does not support CPU cfs quota. Quota discarded.")
 		logrus.Warnf("Your kernel does not support CPU cfs quota. Quota discarded.")
 		hostConfig.CPUQuota = 0
 	}
-	if (hostConfig.CpusetCpus != "" || hostConfig.CpusetMems != "") && !daemon.SystemConfig().Cpuset {
+	if (hostConfig.CpusetCpus != "" || hostConfig.CpusetMems != "") && !sysInfo.Cpuset {
 		warnings = append(warnings, "Your kernel does not support cpuset. Cpuset discarded.")
 		logrus.Warnf("Your kernel does not support cpuset. Cpuset discarded.")
 		hostConfig.CpusetCpus = ""
 		hostConfig.CpusetMems = ""
 	}
-	if hostConfig.BlkioWeight > 0 && !daemon.SystemConfig().BlkioWeight {
+	if hostConfig.BlkioWeight > 0 && !sysInfo.BlkioWeight {
 		warnings = append(warnings, "Your kernel does not support Block I/O weight. Weight discarded.")
 		logrus.Warnf("Your kernel does not support Block I/O weight. Weight discarded.")
 		hostConfig.BlkioWeight = 0
@@ -212,11 +217,13 @@ func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *runconfig.HostC
 	if hostConfig.BlkioWeight > 0 && (hostConfig.BlkioWeight < 10 || hostConfig.BlkioWeight > 1000) {
 		return warnings, fmt.Errorf("Range of blkio weight is from 10 to 1000.")
 	}
-	if hostConfig.OomKillDisable && !daemon.SystemConfig().OomKillDisable {
+
+	if hostConfig.OomKillDisable && !sysInfo.OomKillDisable {
 		hostConfig.OomKillDisable = false
 		return warnings, fmt.Errorf("Your kernel does not support oom kill disable.")
 	}
-	if daemon.SystemConfig().IPv4ForwardingDisabled {
+
+	if sysInfo.IPv4ForwardingDisabled {
 		warnings = append(warnings, "IPv4 forwarding is disabled. Networking will not work.")
 		logrus.Warnf("IPv4 forwarding is disabled. Networking will not work")
 	}
