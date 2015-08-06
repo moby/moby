@@ -8,19 +8,10 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/pkg/sockets"
 	"github.com/docker/docker/pkg/systemd"
-	"github.com/docker/docker/pkg/version"
-	"github.com/docker/docker/runconfig"
 	"github.com/docker/libnetwork/portallocator"
-)
-
-const (
-	// See http://git.kernel.org/cgit/linux/kernel/git/tip/tip.git/tree/kernel/sched/sched.h?id=8cd9234c64c584432f6992fe944ca9e46ca8ea76#n269
-	linuxMinCPUShares = 2
-	linuxMaxCPUShares = 262144
 )
 
 // newServer sets up the required serverClosers and does protocol specific checking.
@@ -108,21 +99,6 @@ func allocateDaemonPort(addr string) error {
 		}
 	}
 	return nil
-}
-
-func adjustCPUShares(version version.Version, hostConfig *runconfig.HostConfig) {
-	if version.LessThan("1.19") {
-		if hostConfig != nil && hostConfig.CPUShares > 0 {
-			// Handle unsupported CpuShares
-			if hostConfig.CPUShares < linuxMinCPUShares {
-				logrus.Warnf("Changing requested CpuShares of %d to minimum allowed of %d", hostConfig.CPUShares, linuxMinCPUShares)
-				hostConfig.CPUShares = linuxMinCPUShares
-			} else if hostConfig.CPUShares > linuxMaxCPUShares {
-				logrus.Warnf("Changing requested CpuShares of %d to maximum allowed of %d", hostConfig.CPUShares, linuxMaxCPUShares)
-				hostConfig.CPUShares = linuxMaxCPUShares
-			}
-		}
-	}
 }
 
 // getContainersByNameDownlevel performs processing for pre 1.20 APIs. This

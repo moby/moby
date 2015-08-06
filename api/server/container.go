@@ -397,9 +397,9 @@ func (s *Server) postContainersCreate(version version.Version, w http.ResponseWr
 	if err != nil {
 		return err
 	}
-	adjustCPUShares(version, hostConfig)
+	adjustCPUShares := version.LessThan("1.19")
 
-	containerID, warnings, err := s.daemon.ContainerCreate(name, config, hostConfig)
+	containerID, warnings, err := s.daemon.ContainerCreate(name, config, hostConfig, adjustCPUShares)
 	if err != nil {
 		return err
 	}
