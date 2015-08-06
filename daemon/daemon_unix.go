@@ -31,6 +31,12 @@ import (
 	"github.com/opencontainers/runc/libcontainer/label"
 )
 
+const (
+	// See https://git.kernel.org/cgit/linux/kernel/git/tip/tip.git/tree/kernel/sched/sched.h?id=8cd9234c64c584432f6992fe944ca9e46ca8ea76#n269
+	linuxMinCPUShares = 2
+	linuxMaxCPUShares = 262144
+)
+
 func (daemon *Daemon) Changes(container *Container) ([]archive.Change, error) {
 	initID := fmt.Sprintf("%s-init", container.ID)
 	return daemon.driver.Changes(container.ID, initID)
@@ -118,9 +124,20 @@ func checkKernel() error {
 
 // adaptContainerSettings is called during container creation to modify any
 // settings necessary in the HostConfig structure.
-func (daemon *Daemon) adaptContainerSettings(hostConfig *runconfig.HostConfig) {
+func (daemon *Daemon) adaptContainerSettings(hostConfig *runconfig.HostConfig, adjustCPUShares bool) {
 	if hostConfig == nil {
 		return
+	}
+
+	if adjustCPUShares && hostConfig.CPUShares > 0 {
+		// Handle unsupported CPUShares
+		if hostConfig.CPUShares < linuxMinCPUShares {
+			logrus.Warnf("Changing requested CPUShares of %d to minimum allowed of %d", hostConfig.CPUShares, linuxMinCPUShares)
+			hostConfig.CPUShares = linuxMinCPUShares
+		} else if hostConfig.CPUShares > linuxMaxCPUShares {
+			logrus.Warnf("Changing requested CPUShares of %d to maximum allowed of %d", hostConfig.CPUShares, linuxMaxCPUShares)
+			hostConfig.CPUShares = linuxMaxCPUShares
+		}
 	}
 	if hostConfig.Memory > 0 && hostConfig.MemorySwap == 0 {
 		// By default, MemorySwap is set to twice the size of Memory.

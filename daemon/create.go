@@ -11,12 +11,12 @@ import (
 	"github.com/opencontainers/runc/libcontainer/label"
 )
 
-func (daemon *Daemon) ContainerCreate(name string, config *runconfig.Config, hostConfig *runconfig.HostConfig) (string, []string, error) {
+func (daemon *Daemon) ContainerCreate(name string, config *runconfig.Config, hostConfig *runconfig.HostConfig, adjustCPUShares bool) (string, []string, error) {
 	if config == nil {
 		return "", nil, fmt.Errorf("Config cannot be empty in order to create a container")
 	}
 
-	daemon.adaptContainerSettings(hostConfig)
+	daemon.adaptContainerSettings(hostConfig, adjustCPUShares)
 	warnings, err := daemon.verifyContainerSettings(hostConfig, config)
 	if err != nil {
 		return "", warnings, err
