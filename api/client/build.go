@@ -307,6 +307,12 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	return nil
 }
 
+// isUNC returns true if the path is UNC (one starting \\). It always returns
+// false on Linux.
+func isUNC(path string) bool {
+	return runtime.GOOS == "windows" && strings.HasPrefix(path, `\\`)
+}
+
 // getDockerfileRelPath uses the given context directory for a `docker build`
 // and returns the absolute path to the context directory, the relative path of
 // the dockerfile in that context directory, and a non-nil error on success.
@@ -317,9 +323,16 @@ func getDockerfileRelPath(givenContextDir, givenDockerfile string) (absContextDi
 
 	// The context dir might be a symbolic link, so follow it to the actual
 	// target directory.
-	absContextDir, err = filepath.EvalSymlinks(absContextDir)
-	if err != nil {
-		return "", "", fmt.Errorf("unable to evaluate symlinks in context path: %v", err)
+	//
+	// FIXME. We use isUNC (always false on non-Windows platforms) to workaround
+	// an issue in golang. On Windows, EvalSymLinks does not work on UNC file
+	// paths (those starting with \\). This hack means that when using links
+	// on UNC paths, they will not be followed.
+	if !isUNC(absContextDir) {
+		absContextDir, err = filepath.EvalSymlinks(absContextDir)
+		if err != nil {
+			return "", "", fmt.Errorf("unable to evaluate symlinks in context path: %v", err)
+		}
 	}
 
 	stat, err := os.Lstat(absContextDir)
@@ -354,9 +367,16 @@ func getDockerfileRelPath(givenContextDir, givenDockerfile string) (absContextDi
 	}
 
 	// Evaluate symlinks in the path to the Dockerfile too.
-	absDockerfile, err = filepath.EvalSymlinks(absDockerfile)
-	if err != nil {
-		return "", "", fmt.Errorf("unable to evaluate symlinks in Dockerfile path: %v", err)
+	//
+	// FIXME. We use isUNC (always false on non-Windows platforms) to workaround
+	// an issue in golang. On Windows, EvalSymLinks does not work on UNC file
+	// paths (those starting with \\). This hack means that when using links
+	// on UNC paths, they will not be followed.
+	if !isUNC(absDockerfile) {
+		absDockerfile, err = filepath.EvalSymlinks(absDockerfile)
+		if err != nil {
+			return "", "", fmt.Errorf("unable to evaluate symlinks in Dockerfile path: %v", err)
+		}
 	}
 
 	if _, err := os.Lstat(absDockerfile); err != nil {
