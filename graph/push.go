@@ -60,7 +60,7 @@ func (s *TagStore) Push(localName string, imagePushConfig *ImagePushConfig) erro
 		return err
 	}
 
-	endpoints, err := s.registryService.LookupEndpoints(repoInfo.CanonicalName)
+	endpoints, err := s.registryService.LookupPushEndpoints(repoInfo.CanonicalName)
 	if err != nil {
 		return err
 	}

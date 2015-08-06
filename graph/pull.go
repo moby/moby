@@ -61,7 +61,7 @@ func (s *TagStore) Pull(image string, tag string, imagePullConfig *ImagePullConf
 		return err
 	}
 
-	endpoints, err := s.registryService.LookupEndpoints(repoInfo.CanonicalName)
+	endpoints, err := s.registryService.LookupPullEndpoints(repoInfo.CanonicalName)
 	if err != nil {
 		return err
 	}

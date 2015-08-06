@@ -108,27 +108,40 @@ func (s *Service) tlsConfigForMirror(mirror string) (*tls.Config, error) {
 	return s.TLSConfig(mirrorURL.Host)
 }
 
-// LookupEndpoints creates an list of endpoints to try, in order of preference.
+// LookupPullEndpoints creates an list of endpoints to try to pull from, in order of preference.
 // It gives preference to v2 endpoints over v1, mirrors over the actual
 // registry, and HTTPS over plain HTTP.
-func (s *Service) LookupEndpoints(repoName string) (endpoints []APIEndpoint, err error) {
+func (s *Service) LookupPullEndpoints(repoName string) (endpoints []APIEndpoint, err error) {
+	return s.lookupEndpoints(repoName, false)
+}
+
+// LookupPushEndpoints creates an list of endpoints to try to push to, in order of preference.
+// It gives preference to v2 endpoints over v1, and HTTPS over plain HTTP.
+// Mirrors are not included.
+func (s *Service) LookupPushEndpoints(repoName string) (endpoints []APIEndpoint, err error) {
+	return s.lookupEndpoints(repoName, true)
+}
+
+func (s *Service) lookupEndpoints(repoName string, isPush bool) (endpoints []APIEndpoint, err error) {
 	var cfg = tlsconfig.ServerDefault
 	tlsConfig := &cfg
 	if strings.HasPrefix(repoName, DefaultNamespace+"/") {
-		// v2 mirrors
-		for _, mirror := range s.Config.Mirrors {
-			mirrorTLSConfig, err := s.tlsConfigForMirror(mirror)
-			if err != nil {
-				return nil, err
+		if !isPush {
+			// v2 mirrors for pull only
+			for _, mirror := range s.Config.Mirrors {
+				mirrorTLSConfig, err := s.tlsConfigForMirror(mirror)
+				if err != nil {
+					return nil, err
+				}
+				endpoints = append(endpoints, APIEndpoint{
+					URL: mirror,
+					// guess mirrors are v2
+					Version:      APIVersion2,
+					Mirror:       true,
+					TrimHostname: true,
+					TLSConfig:    mirrorTLSConfig,
+				})
 			}
-			endpoints = append(endpoints, APIEndpoint{
-				URL: mirror,
-				// guess mirrors are v2
-				Version:      APIVersion2,
-				Mirror:       true,
-				TrimHostname: true,
-				TLSConfig:    mirrorTLSConfig,
-			})
 		}
 		// v2 registry
 		endpoints = append(endpoints, APIEndpoint{
