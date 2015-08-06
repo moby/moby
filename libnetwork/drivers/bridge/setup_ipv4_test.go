@@ -54,6 +54,17 @@ func TestSetupBridgeIPv4Fixed(t *testing.T) {
 func TestSetupBridgeIPv4Auto(t *testing.T) {
 	defer netutils.SetupTestNetNS(t)()
 
+	var toBeChosen *net.IPNet
+	for _, n := range bridgeNetworks {
+		if err := netutils.CheckRouteOverlaps(n); err == nil {
+			toBeChosen = n
+			break
+		}
+	}
+	if toBeChosen == nil {
+		t.Skipf("Skip as no more automatic networks available")
+	}
+
 	config, br := setupTestInterface(t)
 	if err := setupBridgeIPv4(config, br); err != nil {
 		t.Fatalf("Failed to setup bridge IPv4: %v", err)
@@ -66,14 +77,14 @@ func TestSetupBridgeIPv4Auto(t *testing.T) {
 
 	var found bool
 	for _, addr := range addrsv4 {
-		if bridgeNetworks[0].String() == addr.IPNet.String() {
+		if toBeChosen.String() == addr.IPNet.String() {
 			found = true
 			break
 		}
 	}
 
 	if !found {
-		t.Fatalf("Bridge device does not have the automatic IPv4 address %v", bridgeNetworks[0].String())
+		t.Fatalf("Bridge device does not have the automatic IPv4 address %s", toBeChosen.String())
 	}
 }
 

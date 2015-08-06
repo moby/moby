@@ -637,7 +637,19 @@ func TestSetDefaultGw(t *testing.T) {
 	}
 
 	_, subnetv6, _ := net.ParseCIDR("2001:db8:ea9:9abc:b0c4::/80")
-	gw4 := bridgeNetworks[0].IP.To4()
+
+	var nw *net.IPNet
+	for _, n := range bridgeNetworks {
+		if err := netutils.CheckRouteOverlaps(n); err == nil {
+			nw = n
+			break
+		}
+	}
+	if nw == nil {
+		t.Skipf("Skip as no more automatic networks available")
+	}
+
+	gw4 := types.GetIPCopy(nw.IP).To4()
 	gw4[3] = 254
 	gw6 := net.ParseIP("2001:db8:ea9:9abc:b0c4::254")
 
