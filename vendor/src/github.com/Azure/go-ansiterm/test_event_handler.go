@@ -65,6 +65,11 @@ func (h *TestAnsiEventHandler) CHA(param int) error {
 	return nil
 }
 
+func (h *TestAnsiEventHandler) VPA(param int) error {
+	h.recordCall("VPA", []string{strconv.Itoa(param)})
+	return nil
+}
+
 func (h *TestAnsiEventHandler) CUP(x int, y int) error {
 	xS, yS := strconv.Itoa(x), strconv.Itoa(y)
 	h.recordCall("CUP", []string{xS, yS})
@@ -79,6 +84,16 @@ func (h *TestAnsiEventHandler) HVP(x int, y int) error {
 
 func (h *TestAnsiEventHandler) DECTCEM(visible bool) error {
 	h.recordCall("DECTCEM", []string{strconv.FormatBool(visible)})
+	return nil
+}
+
+func (h *TestAnsiEventHandler) DECOM(visible bool) error {
+	h.recordCall("DECOM", []string{strconv.FormatBool(visible)})
+	return nil
+}
+
+func (h *TestAnsiEventHandler) DECCOLM(use132 bool) error {
+	h.recordCall("DECOLM", []string{strconv.FormatBool(use132)})
 	return nil
 }
 
@@ -99,6 +114,16 @@ func (h *TestAnsiEventHandler) IL(param int) error {
 
 func (h *TestAnsiEventHandler) DL(param int) error {
 	h.recordCall("DL", []string{strconv.Itoa(param)})
+	return nil
+}
+
+func (h *TestAnsiEventHandler) ICH(param int) error {
+	h.recordCall("ICH", []string{strconv.Itoa(param)})
+	return nil
+}
+
+func (h *TestAnsiEventHandler) DCH(param int) error {
+	h.recordCall("DCH", []string{strconv.Itoa(param)})
 	return nil
 }
 
@@ -135,6 +160,11 @@ func (h *TestAnsiEventHandler) DECSTBM(top int, bottom int) error {
 
 func (h *TestAnsiEventHandler) RI() error {
 	h.recordCall("RI", nil)
+	return nil
+}
+
+func (h *TestAnsiEventHandler) IND() error {
+	h.recordCall("IND", nil)
 	return nil
 }
 

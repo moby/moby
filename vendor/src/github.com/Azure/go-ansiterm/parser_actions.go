@@ -25,7 +25,15 @@ func (ap *AnsiParser) escDispatch() error {
 	logger.Infof("escDispatch: %v(%v)", cmd, intermeds)
 
 	switch cmd {
-	case "M":
+	case "D": // IND
+		return ap.eventHandler.IND()
+	case "E": // NEL, equivalent to CRLF
+		err := ap.eventHandler.Execute(ANSI_CARRIAGE_RETURN)
+		if err == nil {
+			err = ap.eventHandler.Execute(ANSI_LINE_FEED)
+		}
+		return err
+	case "M": // RI
 		return ap.eventHandler.RI()
 	}
 
@@ -39,6 +47,8 @@ func (ap *AnsiParser) csiDispatch() error {
 	logger.Infof("csiDispatch: %v(%v)", cmd, params)
 
 	switch cmd {
+	case "@":
+		return ap.eventHandler.ICH(getInt(params, 1))
 	case "A":
 		return ap.eventHandler.CUU(getInt(params, 1))
 	case "B":
@@ -67,12 +77,16 @@ func (ap *AnsiParser) csiDispatch() error {
 		return ap.eventHandler.IL(getInt(params, 1))
 	case "M":
 		return ap.eventHandler.DL(getInt(params, 1))
+	case "P":
+		return ap.eventHandler.DCH(getInt(params, 1))
 	case "S":
 		return ap.eventHandler.SU(getInt(params, 1))
 	case "T":
 		return ap.eventHandler.SD(getInt(params, 1))
 	case "c":
 		return ap.eventHandler.DA(params)
+	case "d":
+		return ap.eventHandler.VPA(getInt(params, 1))
 	case "f":
 		ints := getInts(params, 2, 1)
 		x, y := ints[0], ints[1]
