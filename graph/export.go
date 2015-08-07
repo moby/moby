@@ -105,7 +105,6 @@ func (s *TagStore) ImageExport(names []string, outStream io.Writer) error {
 	return nil
 }
 
-// FIXME: this should be a top-level function, not a class method
 func (s *TagStore) exportImage(name, tempdir string) error {
 	for n := name; n != ""; {
 		// temporary directory
