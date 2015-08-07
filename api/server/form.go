@@ -3,6 +3,7 @@ package server
 import (
 	"fmt"
 	"net/http"
+	"path/filepath"
 	"strconv"
 	"strings"
 )
@@ -43,7 +44,7 @@ func archiveFormValues(r *http.Request, vars map[string]string) (archiveOptions,
 	}
 
 	name := vars["name"]
-	path := r.Form.Get("path")
+	path := filepath.FromSlash(r.Form.Get("path"))
 
 	switch {
 	case name == "":
