@@ -27,6 +27,7 @@ packages=(
 	daemon/execdriver/windows
 	daemon/graphdriver/aufs
 	daemon/graphdriver/devmapper
+	daemon/graphdriver/overlay
 	daemon/graphdriver/vfs
 	daemon/graphdriver/zfs
 	daemon/logger
