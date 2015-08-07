@@ -91,15 +91,6 @@ type Driver interface {
 	Stats(id string) (*ResourceStats, error)
 }
 
-// Network settings of the container
-type Network struct {
-	Interface      *NetworkInterface `json:"interface"` // if interface is nil then networking is disabled
-	Mtu            int               `json:"mtu"`
-	ContainerID    string            `json:"container_id"` // id of the container to join network.
-	NamespacePath  string            `json:"namespace_path"`
-	HostNetworking bool              `json:"host_networking"`
-}
-
 // Ipc settings of the container
 // It is for IPC namespace setting. Usually different containers
 // have their own IPC namespace, however this specifies to use
@@ -128,20 +119,6 @@ type Pid struct {
 // option.
 type UTS struct {
 	HostUTS bool `json:"host_uts"`
-}
-
-// NetworkInterface contains all network configs for a driver
-type NetworkInterface struct {
-	Gateway              string `json:"gateway"`
-	IPAddress            string `json:"ip"`
-	IPPrefixLen          int    `json:"ip_prefix_len"`
-	MacAddress           string `json:"mac"`
-	Bridge               string `json:"bridge"`
-	GlobalIPv6Address    string `json:"global_ipv6"`
-	LinkLocalIPv6Address string `json:"link_local_ipv6"`
-	GlobalIPv6PrefixLen  int    `json:"global_ipv6_prefix_len"`
-	IPv6Gateway          string `json:"ipv6_gateway"`
-	HairpinMode          bool   `json:"hairpin_mode"`
 }
 
 // Resources contains all resource configs for a driver.
