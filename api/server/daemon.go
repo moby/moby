@@ -23,7 +23,7 @@ import (
 func (s *Server) getVersion(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	v := &types.Version{
 		Version:    dockerversion.VERSION,
-		ApiVersion: api.Version,
+		APIVersion: api.Version,
 		GitCommit:  dockerversion.GITCOMMIT,
 		GoVersion:  runtime.Version(),
 		Os:         runtime.GOOS,

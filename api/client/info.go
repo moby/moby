@@ -61,8 +61,8 @@ func (cli *DockerCli) CmdInfo(args ...string) error {
 		fmt.Fprintf(cli.out, "Docker Root Dir: %s\n", info.DockerRootDir)
 	}
 
-	ioutils.FprintfIfNotEmpty(cli.out, "Http Proxy: %s\n", info.HttpProxy)
-	ioutils.FprintfIfNotEmpty(cli.out, "Https Proxy: %s\n", info.HttpsProxy)
+	ioutils.FprintfIfNotEmpty(cli.out, "Http Proxy: %s\n", info.HTTPProxy)
+	ioutils.FprintfIfNotEmpty(cli.out, "Https Proxy: %s\n", info.HTTPSProxy)
 	ioutils.FprintfIfNotEmpty(cli.out, "No Proxy: %s\n", info.NoProxy)
 
 	if info.IndexServerAddress != "" {
@@ -87,7 +87,7 @@ func (cli *DockerCli) CmdInfo(args ...string) error {
 			if !info.BridgeNfIptables {
 				fmt.Fprintf(cli.err, "WARNING: bridge-nf-call-iptables is disabled\n")
 			}
-			if !info.BridgeNfIp6tables {
+			if !info.BridgeNfIP6tables {
 				fmt.Fprintf(cli.err, "WARNING: bridge-nf-call-ip6tables is disabled\n")
 			}
 		}

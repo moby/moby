@@ -15,7 +15,7 @@ import (
 
 var versionTemplate = `Client:
  Version:      {{.Client.Version}}
- API version:  {{.Client.ApiVersion}}
+ API version:  {{.Client.APIVersion}}
  Go version:   {{.Client.GoVersion}}
  Git commit:   {{.Client.GitCommit}}
  Built:        {{.Client.BuildTime}}
@@ -24,7 +24,7 @@ var versionTemplate = `Client:
 
 Server:
  Version:      {{.Server.Version}}
- API version:  {{.Server.ApiVersion}}
+ API version:  {{.Server.APIVersion}}
  Go version:   {{.Server.GoVersion}}
  Git commit:   {{.Server.GitCommit}}
  Built:        {{.Server.BuildTime}}
@@ -61,7 +61,7 @@ func (cli *DockerCli) CmdVersion(args ...string) (err error) {
 	vd := versionData{
 		Client: types.Version{
 			Version:      dockerversion.VERSION,
-			ApiVersion:   api.Version,
+			APIVersion:   api.Version,
 			GoVersion:    runtime.Version(),
 			GitCommit:    dockerversion.GITCOMMIT,
 			BuildTime:    dockerversion.BUILDTIME,

@@ -1057,11 +1057,11 @@ func (s *DockerSuite) TestContainerApiCreateWithCpuSharesCpuset(c *check.C) {
 
 	c.Assert(json.Unmarshal(body, &containerJSON), check.IsNil)
 
-	out, err := inspectField(containerJSON.Id, "HostConfig.CpuShares")
+	out, err := inspectField(containerJSON.ID, "HostConfig.CpuShares")
 	c.Assert(err, check.IsNil)
 	c.Assert(out, check.Equals, "512")
 
-	outCpuset, errCpuset := inspectField(containerJSON.Id, "HostConfig.CpusetCpus")
+	outCpuset, errCpuset := inspectField(containerJSON.ID, "HostConfig.CpusetCpus")
 	c.Assert(errCpuset, check.IsNil, check.Commentf("Output: %s", outCpuset))
 	c.Assert(outCpuset, check.Equals, "0,1")
 }

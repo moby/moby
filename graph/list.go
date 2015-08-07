@@ -97,7 +97,7 @@ func (s *TagStore) Images(filterArgs, filter string, all bool) ([]*types.Image, 
 				}
 				if filtTagged {
 					newImage := new(types.Image)
-					newImage.ParentId = image.Parent
+					newImage.ParentID = image.Parent
 					newImage.ID = image.ID
 					newImage.Created = image.Created.Unix()
 					newImage.Size = image.Size
@@ -132,7 +132,7 @@ func (s *TagStore) Images(filterArgs, filter string, all bool) ([]*types.Image, 
 				continue
 			}
 			newImage := new(types.Image)
-			newImage.ParentId = image.Parent
+			newImage.ParentID = image.Parent
 			newImage.RepoTags = []string{"<none>:<none>"}
 			newImage.RepoDigests = []string{"<none>@<none>"}
 			newImage.ID = image.ID

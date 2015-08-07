@@ -67,7 +67,7 @@ func (daemon *Daemon) SystemInfo() (*types.Info, error) {
 		DriverStatus:       daemon.GraphDriver().Status(),
 		IPv4Forwarding:     !sysInfo.IPv4ForwardingDisabled,
 		BridgeNfIptables:   !sysInfo.BridgeNfCallIptablesDisabled,
-		BridgeNfIp6tables:  !sysInfo.BridgeNfCallIP6tablesDisabled,
+		BridgeNfIP6tables:  !sysInfo.BridgeNfCallIP6tablesDisabled,
 		Debug:              os.Getenv("DEBUG") != "",
 		NFd:                fileutils.GetTotalUsedFds(),
 		NGoroutines:        runtime.NumGoroutine(),
@@ -96,15 +96,15 @@ func (daemon *Daemon) SystemInfo() (*types.Info, error) {
 		v.MemoryLimit = sysInfo.MemoryLimit
 		v.SwapLimit = sysInfo.SwapLimit
 		v.OomKillDisable = sysInfo.OomKillDisable
-		v.CpuCfsPeriod = sysInfo.CPUCfsPeriod
-		v.CpuCfsQuota = sysInfo.CPUCfsQuota
+		v.CPUCfsPeriod = sysInfo.CPUCfsPeriod
+		v.CPUCfsQuota = sysInfo.CPUCfsQuota
 	}
 
 	if httpProxy := os.Getenv("http_proxy"); httpProxy != "" {
-		v.HttpProxy = httpProxy
+		v.HTTPProxy = httpProxy
 	}
 	if httpsProxy := os.Getenv("https_proxy"); httpsProxy != "" {
-		v.HttpsProxy = httpsProxy
+		v.HTTPSProxy = httpsProxy
 	}
 	if noProxy := os.Getenv("no_proxy"); noProxy != "" {
 		v.NoProxy = noProxy
