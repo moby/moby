@@ -31,7 +31,7 @@ bundle_test_unit() {
 			( IFS=$'\n'; echo "${BUILDFLAGS[*]}" ) > "$BUILDFLAGS_FILE"
 
 			if command -v parallel &> /dev/null; then
-				# accomodate parallel to be able to access variables
+				# accommodate parallel to be able to access variables
 				export SHELL="$BASH"
 				export HOME="$(mktemp -d)"
 				mkdir -p "$HOME/.parallel"

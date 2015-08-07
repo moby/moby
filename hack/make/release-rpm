@@ -17,7 +17,7 @@ set -e
 : ${DOCKER_RELEASE_DIR:=$DEST}
 YUMDIR=$DOCKER_RELEASE_DIR/yum/repo
 
-# manage the repos for each distribution seperately
+# manage the repos for each distribution separately
 distros=( fedora centos oraclelinux )
 
 # get the release
@@ -39,7 +39,7 @@ for distro in "${distros[@]}"; do
 		version="$(basename "$dir")"
 		suite="${version##*-}"
 
-		# if the directory does not exist, intialize the yum repo
+		# if the directory does not exist, initialize the yum repo
 		if [[ ! -d $REPO/$suite/Packages ]]; then
 			mkdir -p "$REPO/$suite/Packages"
 

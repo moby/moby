@@ -45,7 +45,7 @@ func TestWrite(t *testing.T) {
 		t.Fatalf("Error while writing with StdWrite")
 	}
 	if n != len(data) {
-		t.Fatalf("Write should have writen %d byte but wrote %d.", len(data), n)
+		t.Fatalf("Write should have written %d byte but wrote %d.", len(data), n)
 	}
 }
 

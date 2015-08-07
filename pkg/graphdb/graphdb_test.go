@@ -243,7 +243,7 @@ func TestAddSelfAsChild(t *testing.T) {
 	}
 }
 
-func TestAddChildToNonExistantRoot(t *testing.T) {
+func TestAddChildToNonExistentRoot(t *testing.T) {
 	db, dbpath := newTestDb(t)
 	defer destroyTestDb(dbpath)
 

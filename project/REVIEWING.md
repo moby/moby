@@ -7,7 +7,7 @@ Labels are carefully picked to optimize for:
 
  - Readability: maintainers must immediately know the state of a PR
  - Filtering simplicity: different labels represent many different aspects of
-   the reviewing work, and can even be targetted at different maintainers groups.
+   the reviewing work, and can even be targeted at different maintainers groups.
 
 A pull request should only be attributed labels documented in this section: other labels that may
 exist on the repository should apply to issues.

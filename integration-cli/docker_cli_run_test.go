@@ -1032,7 +1032,7 @@ func (s *DockerSuite) TestRunDnsOptionsBasedOnHostResolvConf(c *check.C) {
 }
 
 // Test to see if a non-root user can resolve a DNS name and reach out to it. Also
-// check if the container resolv.conf file has atleast 0644 perm.
+// check if the container resolv.conf file has at least 0644 perm.
 func (s *DockerSuite) TestRunNonRootUserResolvName(c *check.C) {
 	testRequires(c, SameHostDaemon, Network)
 
@@ -1050,7 +1050,7 @@ func (s *DockerSuite) TestRunNonRootUserResolvName(c *check.C) {
 	}
 
 	if (finfo.Mode() & fmode) != fmode {
-		c.Fatalf("Expected container resolv.conf mode to be atleast %s, instead got %s", fmode.String(), finfo.Mode().String())
+		c.Fatalf("Expected container resolv.conf mode to be at least %s, instead got %s", fmode.String(), finfo.Mode().String())
 	}
 }
 

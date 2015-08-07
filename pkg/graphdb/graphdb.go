@@ -307,7 +307,7 @@ func (db *Database) Parents(name string) ([]string, error) {
 	return db.parents(e)
 }
 
-// Refs returns the refrence count for a specified id.
+// Refs returns the reference count for a specified id.
 func (db *Database) Refs(id string) int {
 	db.mux.RLock()
 	defer db.mux.RUnlock()

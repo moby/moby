@@ -42,7 +42,7 @@ var (
 func init() {
 	// Dispatch Table. see line_parsers.go for the parse functions.
 	// The command is parsed and mapped to the line parser. The line parser
-	// recieves the arguments but not the command, and returns an AST after
+	// receives the arguments but not the command, and returns an AST after
 	// reformulating the arguments according to the rules in the parser
 	// functions. Errors are propagated up by Parse() and the resulting AST can
 	// be incorporated directly into the existing AST as a next.

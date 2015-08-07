@@ -633,7 +633,7 @@ func (s *DockerDaemonSuite) TestDaemonBridgeIP(c *check.C) {
 	// 3. Check if the bip config has taken effect using ifconfig and iptables commands
 	// 4. Launch a Container and make sure the IP-Address is in the expected subnet
 	// 5. Delete the docker0 Bridge
-	// 6. Restart the Docker Daemon (via defered action)
+	// 6. Restart the Docker Daemon (via deferred action)
 	//    This Restart takes care of bringing docker0 interface back to auto-assigned IP
 
 	defaultNetworkBridge := "docker0"

@@ -1094,7 +1094,7 @@ func (fs *FlagSet) ParseFlags(args []string, withHelp bool) error {
 }
 
 // ReportError is a utility method that prints a user-friendly message
-// containing the error that occured during parsing and a suggestion to get help
+// containing the error that occurred during parsing and a suggestion to get help
 func (fs *FlagSet) ReportError(str string, withHelp bool) {
 	if withHelp {
 		if os.Args[0] == fs.Name() {

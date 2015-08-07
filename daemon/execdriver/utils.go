@@ -92,7 +92,7 @@ func TweakCapabilities(basics, adds, drops []string) ([]string, error) {
 
 	if !stringutils.InSlice(drops, "all") {
 		for _, cap := range basics {
-			// skip `all` aready handled above
+			// skip `all` already handled above
 			if strings.ToLower(cap) == "all" {
 				continue
 			}
@@ -105,7 +105,7 @@ func TweakCapabilities(basics, adds, drops []string) ([]string, error) {
 	}
 
 	for _, cap := range adds {
-		// skip `all` aready handled above
+		// skip `all` already handled above
 		if strings.ToLower(cap) == "all" {
 			continue
 		}

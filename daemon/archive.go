@@ -95,7 +95,7 @@ func (container *Container) resolvePath(path string) (resolvedPath, absPath stri
 }
 
 // statPath is the unexported version of StatPath. Locks and mounts should
-// be aquired before calling this method and the given path should be fully
+// be acquired before calling this method and the given path should be fully
 // resolved to a path on the host corresponding to the given absolute path
 // inside the container.
 func (container *Container) statPath(resolvedPath, absPath string) (stat *types.ContainerPathStat, err error) {

@@ -306,7 +306,7 @@ func PrepareArchiveCopy(srcContent Reader, srcInfo, dstInfo CopyInfo) (dstDir st
 }
 
 // rebaseArchiveEntries rewrites the given srcContent archive replacing
-// an occurance of oldBase with newBase at the beginning of entry names.
+// an occurrence of oldBase with newBase at the beginning of entry names.
 func rebaseArchiveEntries(srcContent Reader, oldBase, newBase string) Archive {
 	if oldBase == string(os.PathSeparator) {
 		// If oldBase specifies the root directory, use an empty string as

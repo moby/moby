@@ -86,7 +86,7 @@ func (ar *ansiReader) Read(p []byte) (int, error) {
 		ar.buffer = keyBytes[len(p):]
 		keyBytes = keyBytes[:len(p)]
 	} else if len(keyBytes) == 0 {
-		logger.Debug("No key bytes returned from the translater")
+		logger.Debug("No key bytes returned from the translator")
 		return 0, nil
 	}
 

@@ -309,7 +309,7 @@ made through a pull request.
 	#	- If the pull request has some small problems that need to be changed, make
 	#	  a comment adressing the issues.
 	#	- If the changes needed to a PR are small, you can add a "LGTM once the
-	#	  following comments are adressed..." this will reduce needless back and
+	#	  following comments are addressed..." this will reduce needless back and
 	#	  forth.
 	#	- If the PR only needs a few changes before being merged, any MAINTAINER can
 	#	  make a replacement PR that incorporates the existing commits and fixes the

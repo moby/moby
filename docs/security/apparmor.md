@@ -18,7 +18,7 @@ Understand the policies
 
 The `docker-default` profile the default for running
 containers. It is moderately protective while
-providing wide application compatability.
+providing wide application compatibility.
 
 The system's standard `unconfined` profile inherits all
 system-wide policies, applying path-based policies
