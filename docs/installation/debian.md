@@ -100,7 +100,7 @@ which is officially supported by Docker.
 >command fails for the Docker repo during installation. To work around this,
 >add the key directly using the following:
 >
->       $ wget -qO- https://get.docker.com/gpg | sudo apt-key add -
+>       $ curl -sSL https://get.docker.com/gpg | sudo apt-key add -
 
 ### Uninstallation
 
