@@ -190,9 +190,14 @@ When users run Docker, they may see these messages when working with an image:
     WARNING: Your kernel does not support cgroup swap limit. WARNING: Your
     kernel does not support swap limit capabilities. Limitation discarded.
 
-To prevent these messages, enable memory and swap accounting on your system. To
-enable these on system using GNU GRUB (GNU GRand Unified Bootloader), do the
-following.
+To prevent these messages, enable memory and swap accounting on your
+system.  Enabling memory and swap accounting does induce both a memory
+overhead and a performance degradation even when Docker is not in
+use. The memory overhead is about 1% of the total available
+memory. The performance degradation is roughly 10%.
+
+To enable memory and swap on system using GNU GRUB (GNU GRand Unified
+Bootloader), do the following:
 
 1. Log into Ubuntu as a user with `sudo` privileges.
 
