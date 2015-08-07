@@ -65,17 +65,29 @@ func getInts(params []string, minCount int, dflt int) []int {
 	return ints
 }
 
+func (ap *AnsiParser) modeDispatch(param string, set bool) error {
+	switch param {
+	case "?3":
+		return ap.eventHandler.DECCOLM(set)
+	case "?6":
+		return ap.eventHandler.DECOM(set)
+	case "?25":
+		return ap.eventHandler.DECTCEM(set)
+	}
+	return nil
+}
+
 func (ap *AnsiParser) hDispatch(params []string) error {
-	if len(params) == 1 && params[0] == "?25" {
-		return ap.eventHandler.DECTCEM(true)
+	if len(params) == 1 {
+		return ap.modeDispatch(params[0], true)
 	}
 
 	return nil
 }
 
 func (ap *AnsiParser) lDispatch(params []string) error {
-	if len(params) == 1 && params[0] == "?25" {
-		return ap.eventHandler.DECTCEM(false)
+	if len(params) == 1 {
+		return ap.modeDispatch(params[0], false)
 	}
 
 	return nil

@@ -7,11 +7,35 @@ const (
 	Vertical
 )
 
-// setCursorPosition sets the cursor to the specified position, bounded to the buffer size
-func (h *WindowsAnsiEventHandler) setCursorPosition(position COORD, sizeBuffer COORD) error {
-	position.X = ensureInRange(position.X, 0, sizeBuffer.X-1)
-	position.Y = ensureInRange(position.Y, 0, sizeBuffer.Y-1)
-	return SetConsoleCursorPosition(h.fd, position)
+func (h *WindowsAnsiEventHandler) getCursorWindow(info *CONSOLE_SCREEN_BUFFER_INFO) SMALL_RECT {
+	if h.originMode {
+		sr := h.effectiveSr(info.Window)
+		return SMALL_RECT{
+			Top:    sr.top,
+			Bottom: sr.bottom,
+			Left:   0,
+			Right:  info.Size.X - 1,
+		}
+	} else {
+		return SMALL_RECT{
+			Top:    info.Window.Top,
+			Bottom: info.Window.Bottom,
+			Left:   0,
+			Right:  info.Size.X - 1,
+		}
+	}
+}
+
+// setCursorPosition sets the cursor to the specified position, bounded to the screen size
+func (h *WindowsAnsiEventHandler) setCursorPosition(position COORD, window SMALL_RECT) error {
+	position.X = ensureInRange(position.X, window.Left, window.Right)
+	position.Y = ensureInRange(position.Y, window.Top, window.Bottom)
+	err := SetConsoleCursorPosition(h.fd, position)
+	if err != nil {
+		return err
+	}
+	logger.Infof("Cursor position set: (%d, %d)", position.X, position.Y)
+	return err
 }
 
 func (h *WindowsAnsiEventHandler) moveCursorVertical(param int) error {
@@ -31,16 +55,14 @@ func (h *WindowsAnsiEventHandler) moveCursor(moveMode int, param int) error {
 	position := info.CursorPosition
 	switch moveMode {
 	case Horizontal:
-		position.X = AddInRange(position.X, SHORT(param), info.Window.Left, info.Window.Right)
+		position.X += SHORT(param)
 	case Vertical:
-		position.Y = AddInRange(position.Y, SHORT(param), info.Window.Top, info.Window.Bottom)
+		position.Y += SHORT(param)
 	}
 
-	if err = h.setCursorPosition(position, info.Size); err != nil {
+	if err = h.setCursorPosition(position, h.getCursorWindow(info)); err != nil {
 		return err
 	}
-
-	logger.Infof("Cursor position set: (%d, %d)", position.X, position.Y)
 
 	return nil
 }
@@ -53,9 +75,9 @@ func (h *WindowsAnsiEventHandler) moveCursorLine(param int) error {
 
 	position := info.CursorPosition
 	position.X = 0
-	position.Y = AddInRange(position.Y, SHORT(param), info.Window.Top, info.Window.Bottom)
+	position.Y += SHORT(param)
 
-	if err = h.setCursorPosition(position, info.Size); err != nil {
+	if err = h.setCursorPosition(position, h.getCursorWindow(info)); err != nil {
 		return err
 	}
 
@@ -69,9 +91,9 @@ func (h *WindowsAnsiEventHandler) moveCursorColumn(param int) error {
 	}
 
 	position := info.CursorPosition
-	position.X = AddInRange(SHORT(param), -1, info.Window.Left, info.Window.Right)
+	position.X = SHORT(param) - 1
 
-	if err = h.setCursorPosition(position, info.Size); err != nil {
+	if err = h.setCursorPosition(position, h.getCursorWindow(info)); err != nil {
 		return err
 	}
 

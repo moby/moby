@@ -28,6 +28,9 @@ type AnsiEventHandler interface {
 	// Cursor Horizontal position Absolute
 	CHA(int) error
 
+	// Vertical line Position Absolute
+	VPA(int) error
+
 	// CUrsor Position
 	CUP(int, int) error
 
@@ -36,6 +39,12 @@ type AnsiEventHandler interface {
 
 	// Text Cursor Enable Mode
 	DECTCEM(bool) error
+
+	// Origin Mode
+	DECOM(bool) error
+
+	// 132 Column Mode
+	DECCOLM(bool) error
 
 	// Erase in Display
 	ED(int) error
@@ -48,6 +57,12 @@ type AnsiEventHandler interface {
 
 	// Delete Line
 	DL(int) error
+
+	// Insert Character
+	ICH(int) error
+
+	// Delete Character
+	DCH(int) error
 
 	// Set Graphics Rendition
 	SGR([]int) error
@@ -63,6 +78,9 @@ type AnsiEventHandler interface {
 
 	// Set Top and Bottom Margins
 	DECSTBM(int, int) error
+
+	// Index
+	IND() error
 
 	// Reverse Index
 	RI() error

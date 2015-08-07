@@ -13,7 +13,7 @@ const (
 
 // collectAnsiIntoWindowsAttributes modifies the passed Windows text mode flags to reflect the
 // request represented by the passed ANSI mode.
-func collectAnsiIntoWindowsAttributes(windowsMode WORD, baseMode WORD, ansiMode SHORT) WORD {
+func collectAnsiIntoWindowsAttributes(windowsMode WORD, inverted bool, baseMode WORD, ansiMode SHORT) (WORD, bool) {
 	switch ansiMode {
 
 	// Mode styles
@@ -26,9 +26,11 @@ func collectAnsiIntoWindowsAttributes(windowsMode WORD, baseMode WORD, ansiMode 
 	case ANSI_SGR_UNDERLINE:
 		windowsMode = windowsMode | COMMON_LVB_UNDERSCORE
 
-	case ANSI_SGR_REVERSE, ANSI_SGR_REVERSE_OFF:
-		// Note: Windows does not support a native reverse. Simply swap the foreground / background color / intensity.
-		windowsMode = (COMMON_LVB_MASK & windowsMode) | ((FOREGROUND_MASK & windowsMode) << 4) | ((BACKGROUND_MASK & windowsMode) >> 4)
+	case ANSI_SGR_REVERSE:
+		inverted = true
+
+	case ANSI_SGR_REVERSE_OFF:
+		inverted = false
 
 	case ANSI_SGR_UNDERLINE_OFF:
 		windowsMode &^= COMMON_LVB_UNDERSCORE
@@ -91,5 +93,10 @@ func collectAnsiIntoWindowsAttributes(windowsMode WORD, baseMode WORD, ansiMode 
 		windowsMode = (windowsMode &^ BACKGROUND_COLOR_MASK) | BACKGROUND_RED | BACKGROUND_GREEN | BACKGROUND_BLUE
 	}
 
-	return windowsMode
+	return windowsMode, inverted
+}
+
+// invertAttributes inverts the foreground and background colors of a Windows attributes value
+func invertAttributes(windowsMode WORD) WORD {
+	return (COMMON_LVB_MASK & windowsMode) | ((FOREGROUND_MASK & windowsMode) << 4) | ((BACKGROUND_MASK & windowsMode) >> 4)
 }
