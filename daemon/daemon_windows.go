@@ -15,7 +15,10 @@ import (
 	"github.com/microsoft/hcsshim"
 )
 
-const DefaultVirtualSwitch = "Virtual Switch"
+const (
+	DefaultVirtualSwitch = "Virtual Switch"
+	platformSupported    = true
+)
 
 func (daemon *Daemon) Changes(container *Container) ([]archive.Change, error) {
 	return daemon.driver.Changes(container.ID, container.ImageID)
