@@ -1129,9 +1129,9 @@ func (d *driver) DeleteEndpoint(nid, eid types.UUID) error {
 	}
 
 	// Try removal of link. Discard error: link pair might have
-	// already been deleted by sandbox delete.
-	link, err := netlink.LinkByName(ep.srcName)
-	if err == nil {
+	// already been deleted by sandbox delete. Make sure defer
+	// does not see this error either.
+	if link, err := netlink.LinkByName(ep.srcName); err == nil {
 		netlink.LinkDel(link)
 	}
 
