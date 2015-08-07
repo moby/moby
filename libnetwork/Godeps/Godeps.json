@@ -70,11 +70,6 @@
 			"Rev": "637023a5f8d8347a0e271c09d5c9bc84fbc97693"
 		},
 		{
-			"ImportPath": "github.com/docker/libcontainer/netlink",
-			"Comment": "v1.4.0-495-g3e66118",
-			"Rev": "3e661186ba24f259d3860f067df052c7f6904bee"
-		},
-		{
 			"ImportPath": "github.com/docker/libcontainer/user",
 			"Comment": "v1.4.0-495-g3e66118",
 			"Rev": "3e661186ba24f259d3860f067df052c7f6904bee"
@@ -133,6 +128,10 @@
 		{
 			"ImportPath": "github.com/vishvananda/netns",
 			"Rev": "493029407eeb434d0c2d44e02ea072ff2488d322"
+		},
+		{
+			"ImportPath": "github.com/vishvananda/netlink",
+			"Rev": "329b40d4e308deb2abe80dbb1f74078e5ab13164"
 		}
 	]
 }

@@ -39,8 +39,9 @@ func NativeEndian() binary.ByteOrder {
 		var x uint32 = 0x01020304
 		if *(*byte)(unsafe.Pointer(&x)) == 0x01 {
 			nativeEndian = binary.BigEndian
+		} else {
+			nativeEndian = binary.LittleEndian
 		}
-		nativeEndian = binary.LittleEndian
 	}
 	return nativeEndian
 }
