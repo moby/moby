@@ -38,6 +38,7 @@ func NewBFlags() *BFlags {
 }
 
 // AddBool adds a bool flag to BFlags
+// Note, any error will be generated when Parse() is called (see Parse).
 func (bf *BFlags) AddBool(name string, def bool) *Flag {
 	flag := bf.addFlag(name, boolType)
 	if flag == nil {
@@ -52,6 +53,7 @@ func (bf *BFlags) AddBool(name string, def bool) *Flag {
 }
 
 // AddString adds a string flag to BFlags
+// Note, any error will be generated when Parse() is called (see Parse).
 func (bf *BFlags) AddString(name string, def string) *Flag {
 	flag := bf.addFlag(name, stringType)
 	if flag == nil {
@@ -61,6 +63,9 @@ func (bf *BFlags) AddString(name string, def string) *Flag {
 	return flag
 }
 
+// addFlag is a generic func used by the other AddXXX() func
+// to add a new flag to the BFlags struct.
+// Note, any error will be generated when Parse() is called (see Parse).
 func (bf *BFlags) addFlag(name string, flagType FlagType) *Flag {
 	if _, ok := bf.flags[name]; ok {
 		bf.Err = fmt.Errorf("Duplicate flag defined: %s", name)
@@ -94,7 +99,14 @@ func (fl *Flag) IsTrue() bool {
 	return fl.Value == "true"
 }
 
-// Parse parses and checks if the BFlags is valid
+// Parse parses and checks if the BFlags is valid.
+// Any error noticed during the AddXXX() funcs will be generated/returned
+// here.  We do this because an error during AddXXX() is more like a
+// compile time error so it doesn't matter too much when we stop our
+// processing as long as we do stop it, so this allows the code
+// around AddXXX() to be just:
+//     defFlag := AddString("desription", "")
+// w/o needing to add an if-statement around each one.
 func (bf *BFlags) Parse() error {
 	// If there was an error while defining the possible flags
 	// go ahead and bubble it back up here since we didn't do it
