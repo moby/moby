@@ -57,7 +57,7 @@ for distro in "${distros[@]}"; do
 			rpm --import /tmp/gpg
 
 			# sign the rpms
-			rpm \
+			echo "yes" | setsid rpm \
 				--define '_gpg_name releasedocker' \
 				--define '_signature gpg' \
 				--define '__gpg_check_password_cmd /bin/true' \
