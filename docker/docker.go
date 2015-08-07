@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"os"
-	"sort"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/client"
@@ -35,9 +34,6 @@ func main() {
 		flag.PrintDefaults()
 
 		help := "\nCommands:\n"
-
-		// TODO(tiborvass): no need to sort if we ensure dockerCommands is sorted
-		sort.Sort(byName(dockerCommands))
 
 		for _, cmd := range dockerCommands {
 			help += fmt.Sprintf("    %-10.10s%s\n", cmd.name, cmd.description)
