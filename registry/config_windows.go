@@ -6,12 +6,17 @@ import (
 	"strings"
 )
 
-// DefaultV2Registry is the URI of the default (official) v2 registry.
-// This is the windows-specific endpoint.
-//
-// Currently it is a TEMPORARY link that allows Microsoft to continue
-// development of Docker Engine for Windows.
-const DefaultV2Registry = "https://ms-tp3.registry-1.docker.io"
+const (
+	// DefaultV1Registry is the URI of the default v1 registry
+	DefaultV1Registry = "https://registry-win-tp3.docker.io"
+
+	// DefaultV2Registry is the URI of the default (official) v2 registry.
+	// This is the windows-specific endpoint.
+	//
+	// Currently it is a TEMPORARY link that allows Microsoft to continue
+	// development of Docker Engine for Windows.
+	DefaultV2Registry = "https://registry-win-tp3.docker.io"
+)
 
 // CertsDir is the directory where certificates are stored
 var CertsDir = os.Getenv("programdata") + `\docker\certs.d`
