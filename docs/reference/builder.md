@@ -114,12 +114,6 @@ images.
 
 ### Environment replacement
 
-> **Note**: prior to 1.3, `Dockerfile` environment variables were handled
-> similarly, in that they would be replaced as described below. However, there
-> was no formal definition on as to which instructions handled environment
-> replacement at the time. After 1.3 this behavior will be preserved and
-> canonical.
-
 Environment variables (declared with [the `ENV` statement](#env)) can also be
 used in certain instructions as variables to be interpreted by the
 `Dockerfile`. Escapes are also handled for including variable-like syntax
