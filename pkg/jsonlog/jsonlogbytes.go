@@ -5,10 +5,10 @@ import (
 	"unicode/utf8"
 )
 
-// JSONLogBytes is based on JSONLog.
+// JSONLogs is based on JSONLog.
 // It allows marshalling JSONLog from Log as []byte
 // and an already marshalled Created timestamp.
-type JSONLogBytes struct {
+type JSONLogs struct {
 	Log     []byte `json:"log,omitempty"`
 	Stream  string `json:"stream,omitempty"`
 	Created string `json:"time"`
@@ -16,14 +16,14 @@ type JSONLogBytes struct {
 
 // MarshalJSONBuf is based on the same method from JSONLog
 // It has been modified to take into account the necessary changes.
-func (mj *JSONLogBytes) MarshalJSONBuf(buf *bytes.Buffer) error {
+func (mj *JSONLogs) MarshalJSONBuf(buf *bytes.Buffer) error {
 	var first = true
 
 	buf.WriteString(`{`)
 	if len(mj.Log) != 0 {
 		first = false
 		buf.WriteString(`"log":`)
-		ffjson_WriteJsonBytesAsString(buf, mj.Log)
+		ffjsonWriteJSONBytesAsString(buf, mj.Log)
 	}
 	if len(mj.Stream) != 0 {
 		if first == true {
@@ -32,7 +32,7 @@ func (mj *JSONLogBytes) MarshalJSONBuf(buf *bytes.Buffer) error {
 			buf.WriteString(`,`)
 		}
 		buf.WriteString(`"stream":`)
-		ffjson_WriteJsonString(buf, mj.Stream)
+		ffjsonWriteJSONString(buf, mj.Stream)
 	}
 	if first == true {
 		first = false
@@ -45,9 +45,9 @@ func (mj *JSONLogBytes) MarshalJSONBuf(buf *bytes.Buffer) error {
 	return nil
 }
 
-// This is based on ffjson_WriteJsonString. It has been changed
+// This is based on ffjsonWriteJSONBytesAsString. It has been changed
 // to accept a string passed as a slice of bytes.
-func ffjson_WriteJsonBytesAsString(buf *bytes.Buffer, s []byte) {
+func ffjsonWriteJSONBytesAsString(buf *bytes.Buffer, s []byte) {
 	const hex = "0123456789abcdef"
 
 	buf.WriteByte('"')

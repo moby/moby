@@ -52,6 +52,8 @@ packages=(
 	pkg/homedir
 	pkg/httputils
 	pkg/ioutils
+	pkg/jsonlog
+	pkg/jsonmessage
 	pkg/listenbuffer
 	pkg/mflag
 	pkg/mflag/example

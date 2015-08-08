@@ -61,7 +61,7 @@
 // -               }
 // +               first = false
 //                 buf.WriteString(`"log":`)
-//                 ffjson_WriteJsonString(buf, mj.Log)
+//                 ffjsonWriteJSONString(buf, mj.Log)
 //         }
 
 package jsonlog
@@ -73,6 +73,7 @@ import (
 	"github.com/docker/docker/pkg/timeutils"
 )
 
+// MarshalJSON marshals the JSONLog.
 func (mj *JSONLog) MarshalJSON() ([]byte, error) {
 	var buf bytes.Buffer
 	buf.Grow(1024)
@@ -82,17 +83,18 @@ func (mj *JSONLog) MarshalJSON() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
+// MarshalJSONBuf marshals the JSONLog and stores the result to a bytes.Buffer.
 func (mj *JSONLog) MarshalJSONBuf(buf *bytes.Buffer) error {
 	var (
 		err       error
 		timestamp string
-		first     bool = true
+		first     = true
 	)
 	buf.WriteString(`{`)
 	if len(mj.Log) != 0 {
 		first = false
 		buf.WriteString(`"log":`)
-		ffjson_WriteJsonString(buf, mj.Log)
+		ffjsonWriteJSONString(buf, mj.Log)
 	}
 	if len(mj.Stream) != 0 {
 		if first == true {
@@ -101,7 +103,7 @@ func (mj *JSONLog) MarshalJSONBuf(buf *bytes.Buffer) error {
 			buf.WriteString(`,`)
 		}
 		buf.WriteString(`"stream":`)
-		ffjson_WriteJsonString(buf, mj.Stream)
+		ffjsonWriteJSONString(buf, mj.Stream)
 	}
 	if first == true {
 		first = false
@@ -118,7 +120,7 @@ func (mj *JSONLog) MarshalJSONBuf(buf *bytes.Buffer) error {
 	return nil
 }
 
-func ffjson_WriteJsonString(buf *bytes.Buffer, s string) {
+func ffjsonWriteJSONString(buf *bytes.Buffer, s string) {
 	const hex = "0123456789abcdef"
 
 	buf.WriteByte('"')
