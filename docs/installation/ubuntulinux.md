@@ -104,18 +104,18 @@ install Docker using the following:
 
 1. Log into your Ubuntu installation as a user with `sudo` privileges.
 
-2. Verify that you have `wget` installed.
+2. Verify that you have `curl` installed.
 
-        $ which wget
+        $ which curl
 
-    If `wget` isn't installed, install it after updating your manager:
+    If `curl` isn't installed, install it after updating your manager:
 
         $ sudo apt-get update
-        $ sudo apt-get install wget
+        $ sudo apt-get install curl
 
 3. Get the latest Docker package.
 
-        $ wget -qO- https://get.docker.com/ | sh
+        $ curl -sSL https://get.docker.com/ | sh
 
     The system prompts you for your `sudo` password. Then, it downloads and
     installs Docker and its dependencies.
@@ -125,7 +125,7 @@ install Docker using the following:
     >command fails for the Docker repo during installation. To work around this,
     >add the key directly using the following:
     >
-    >       $ wget -qO- https://get.docker.com/gpg | sudo apt-key add -
+    >       $ curl -sSL https://get.docker.com/gpg | sudo apt-key add -
 
 4. Verify `docker` is installed correctly.
 
@@ -332,9 +332,9 @@ to start the docker daemon on boot
 
 ## Upgrade Docker
 
-To install the latest version of Docker with `wget`:
+To install the latest version of Docker with `curl`:
 
-    $ wget -qO- https://get.docker.com/ | sh
+    $ curl -sSL https://get.docker.com/ | sh
 
 ## Uninstallation
 

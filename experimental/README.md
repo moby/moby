@@ -13,18 +13,18 @@ please feel free to provide any feedback on these features you wish.
 
 Unlike the regular Docker binary, the experimental channels is built and updated nightly on TO.BE.ANNOUNCED. From one day to the next, new features may appear, while existing experimental features may be refined or entirely removed.
 
-1. Verify that you have `wget` installed.
+1. Verify that you have `curl` installed.
 
-        $ which wget
+        $ which curl
 
-    If `wget` isn't installed, install it after updating your manager:
+    If `curl` isn't installed, install it after updating your manager:
 
         $ sudo apt-get update
-        $ sudo apt-get install wget
+        $ sudo apt-get install curl
 
 2. Get the latest Docker package.
 
-        $ wget -qO- https://experimental.docker.com/ | sh
+        $ curl -sSL https://experimental.docker.com/ | sh
 
     The system prompts you for your `sudo` password. Then, it downloads and
     installs Docker and its dependencies.
@@ -34,7 +34,7 @@ Unlike the regular Docker binary, the experimental channels is built and updated
 	>command fails for the Docker repo during installation. To work around this,
 	>add the key directly using the following:
 	>
-	>       $ wget -qO- https://experimental.docker.com/gpg | sudo apt-key add -
+	>       $ curl -sSL https://experimental.docker.com/gpg | sudo apt-key add -
 
 3. Verify `docker` is installed correctly.
 
