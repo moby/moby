@@ -86,7 +86,7 @@ func (d *naiveDiffDriverWithApply) ApplyDiff(id, parent string, diff archive.Rea
 // data with the parent.
 
 // ActiveMount contains information about the count, path and whether is mounted or not.
-// This information is part of the Driver, that contains list of active mounts taht are part of this overlay.
+// This information is part of the Driver, that contains list of active mounts that are part of this overlay.
 type ActiveMount struct {
 	count   int
 	path    string
