@@ -11,7 +11,7 @@ weight=1
 
 # images
 
-    Usage: docker images [OPTIONS] [REPOSITORY]
+    Usage: docker images [OPTIONS] [REPOSITORY[:TAG]]
 
     List images
 
@@ -52,6 +52,36 @@ uses up the `VIRTUAL SIZE` listed only once.
     postgres                  9.3.5               746b819f315e        4 days ago          213.4 MB
     postgres                  latest              746b819f315e        4 days ago          213.4 MB
 
+### Listing images by name and tag
+
+The `docker images` command takes an optional `[REPOSITORY[:TAG]]` argument
+that restricts the list to images that match the argument. If you specify
+`REPOSITORY`but no `TAG`, the `docker images` command lists all images in the
+given repository.
+
+For example, to list all images in the "java" repository, run this command :
+
+    $ docker images java
+    REPOSITORY          TAG                 IMAGE ID            CREATED             VIRTUAL SIZE
+    java                8                   308e519aac60        6 days ago          824.5 MB
+    java                7                   493d82594c15        3 months ago        656.3 MB
+    java                latest              2711b1d6f3aa        5 months ago        603.9 MB
+
+The `[REPOSITORY[:TAG]]` value must be an "exact match". This means that, for example,
+`docker images jav` does not match the image `java`.
+
+If both `REPOSITORY` and `TAG` are provided, only images matching that
+repository and tag are listed.  To find all local images in the "java"
+repository with tag "8" you can use:
+
+    $ docker images java:8
+    REPOSITORY          TAG                 IMAGE ID            CREATED             VIRTUAL SIZE
+    java                8                   308e519aac60        6 days ago          824.5 MB
+
+If nothing matches `REPOSITORY[:TAG]`, the list is empty.
+
+    $ docker images java:0
+    REPOSITORY          TAG                 IMAGE ID            CREATED             VIRTUAL SIZE
 
 ## Listing the full length image IDs
 

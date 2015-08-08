@@ -68,13 +68,29 @@ func (s *TagStore) Images(filterArgs, filter string, all bool) ([]*types.Image, 
 	lookup := make(map[string]*types.Image)
 	s.Lock()
 	for repoName, repository := range s.Repositories {
+		filterTagName := ""
 		if filter != "" {
-			if match, _ := path.Match(filter, repoName); !match {
+			filterName := filter
+			// Test if the tag was in there, if yes, get the name
+			if strings.Contains(filterName, ":") {
+				filterWithTag := strings.Split(filter, ":")
+				filterName = filterWithTag[0]
+				filterTagName = filterWithTag[1]
+			}
+			if match, _ := path.Match(filterName, repoName); !match {
 				continue
+			}
+			if filterTagName != "" {
+				if _, ok := repository[filterTagName]; !ok {
+					continue
+				}
 			}
 		}
 		for ref, id := range repository {
 			imgRef := utils.ImageReference(repoName, ref)
+			if !strings.Contains(imgRef, filterTagName) {
+				continue
+			}
 			image, err := s.graph.Get(id)
 			if err != nil {
 				logrus.Warnf("couldn't load %s from %s: %s", id, imgRef, err)
