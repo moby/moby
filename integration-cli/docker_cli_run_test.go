@@ -2561,23 +2561,58 @@ func (s *DockerSuite) TestRunWriteFilteredProc(c *check.C) {
 
 func (s *DockerSuite) TestRunNetworkFilesBindMount(c *check.C) {
 	testRequires(c, SameHostDaemon)
-	name := "test-nwfiles-mount"
-
-	f, err := ioutil.TempFile("", name)
-	c.Assert(err, check.IsNil)
-
-	filename := f.Name()
-	defer os.Remove(filename)
 
 	expected := "test123"
 
-	err = ioutil.WriteFile(filename, []byte(expected), 0644)
-	c.Assert(err, check.IsNil)
+	filename := createTmpFile(c, expected)
+	defer os.Remove(filename)
 
-	var actual string
-	actual, _ = dockerCmd(c, "run", "-v", filename+":/etc/resolv.conf", "busybox", "cat", "/etc/resolv.conf")
-	if actual != expected {
-		c.Fatalf("expected resolv.conf be: %q, but was: %q", expected, actual)
+	nwfiles := []string{"/etc/resolv.conf", "/etc/hosts", "/etc/hostname"}
+
+	for i := range nwfiles {
+		actual, _ := dockerCmd(c, "run", "-v", filename+":"+nwfiles[i], "busybox", "cat", nwfiles[i])
+		if actual != expected {
+			c.Fatalf("expected %s be: %q, but was: %q", nwfiles[i], expected, actual)
+		}
+	}
+}
+
+func (s *DockerSuite) TestRunNetworkFilesBindMountRO(c *check.C) {
+	testRequires(c, SameHostDaemon)
+
+	filename := createTmpFile(c, "test123")
+	defer os.Remove(filename)
+
+	nwfiles := []string{"/etc/resolv.conf", "/etc/hosts", "/etc/hostname"}
+
+	for i := range nwfiles {
+		_, exitCode, err := dockerCmdWithError("run", "-v", filename+":"+nwfiles[i]+":ro", "busybox", "touch", nwfiles[i])
+		if err == nil || exitCode == 0 {
+			c.Fatalf("run should fail because bind mount of %s is ro: exit code %d", nwfiles[i], exitCode)
+		}
+	}
+}
+
+func (s *DockerSuite) TestRunNetworkFilesBindMountROFilesystem(c *check.C) {
+	testRequires(c, SameHostDaemon)
+
+	filename := createTmpFile(c, "test123")
+	defer os.Remove(filename)
+
+	nwfiles := []string{"/etc/resolv.conf", "/etc/hosts", "/etc/hostname"}
+
+	for i := range nwfiles {
+		_, exitCode := dockerCmd(c, "run", "-v", filename+":"+nwfiles[i], "--read-only", "busybox", "touch", nwfiles[i])
+		if exitCode != 0 {
+			c.Fatalf("run should not fail because %s is mounted writable on read-only root filesystem: exit code %d", nwfiles[i], exitCode)
+		}
+	}
+
+	for i := range nwfiles {
+		_, exitCode, err := dockerCmdWithError("run", "-v", filename+":"+nwfiles[i]+":ro", "--read-only", "busybox", "touch", nwfiles[i])
+		if err == nil || exitCode == 0 {
+			c.Fatalf("run should fail because %s is mounted read-only on read-only root filesystem: exit code %d", nwfiles[i], exitCode)
+		}
 	}
 }
 

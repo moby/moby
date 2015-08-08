@@ -1128,28 +1128,40 @@ func (container *Container) networkMounts() []execdriver.Mount {
 	}
 	if container.ResolvConfPath != "" {
 		label.Relabel(container.ResolvConfPath, container.MountLabel, mode)
+		writable := !container.hostConfig.ReadonlyRootfs
+		if m, exists := container.MountPoints["/etc/resolv.conf"]; exists {
+			writable = m.RW
+		}
 		mounts = append(mounts, execdriver.Mount{
 			Source:      container.ResolvConfPath,
 			Destination: "/etc/resolv.conf",
-			Writable:    !container.hostConfig.ReadonlyRootfs,
+			Writable:    writable,
 			Private:     true,
 		})
 	}
 	if container.HostnamePath != "" {
 		label.Relabel(container.HostnamePath, container.MountLabel, mode)
+		writable := !container.hostConfig.ReadonlyRootfs
+		if m, exists := container.MountPoints["/etc/hostname"]; exists {
+			writable = m.RW
+		}
 		mounts = append(mounts, execdriver.Mount{
 			Source:      container.HostnamePath,
 			Destination: "/etc/hostname",
-			Writable:    !container.hostConfig.ReadonlyRootfs,
+			Writable:    writable,
 			Private:     true,
 		})
 	}
 	if container.HostsPath != "" {
 		label.Relabel(container.HostsPath, container.MountLabel, mode)
+		writable := !container.hostConfig.ReadonlyRootfs
+		if m, exists := container.MountPoints["/etc/hosts"]; exists {
+			writable = m.RW
+		}
 		mounts = append(mounts, execdriver.Mount{
 			Source:      container.HostsPath,
 			Destination: "/etc/hosts",
-			Writable:    !container.hostConfig.ReadonlyRootfs,
+			Writable:    writable,
 			Private:     true,
 		})
 	}
