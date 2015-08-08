@@ -58,7 +58,7 @@ func UnpackLayer(dest string, layer Reader) (size int64, err error) {
 		// TODO Windows. Once the registry is aware of what images are Windows-
 		// specific or Linux-specific, this warning should be changed to an error
 		// to cater for the situation where someone does manage to upload a Linux
-		// image but have it tagged as Windows inadvertantly.
+		// image but have it tagged as Windows inadvertently.
 		if runtime.GOOS == "windows" {
 			if strings.Contains(hdr.Name, ":") {
 				logrus.Warnf("Windows: Ignoring %s (is this a Linux image?)", hdr.Name)

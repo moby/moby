@@ -306,7 +306,7 @@ func (s *DockerSuite) TestCpFromSymlinkToDirectory(c *check.C) {
 	os.Remove(expectedPath)
 
 	// This copy command should resolve the symlink (note the trailing
-	// seperator), copying the target into the temporary directory.
+	// separator), copying the target into the temporary directory.
 	dockerCmd(c, "cp", cleanedContainerID+":"+"/dir_link/", testDir)
 
 	// It *should not* have copied the directory using the target's name, but
@@ -397,7 +397,7 @@ func (s *DockerSuite) TestCpToSymlinkToDirectory(c *check.C) {
 	os.Remove(expectedPath)
 
 	// This copy command should resolve the symlink (note the trailing
-	// seperator), copying the target into the test volume directory in the
+	// separator), copying the target into the test volume directory in the
 	// container.
 	dockerCmd(c, "cp", localLink+"/", cleanedContainerID+":/testVol")
 

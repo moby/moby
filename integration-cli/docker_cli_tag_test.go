@@ -105,7 +105,7 @@ func (s *DockerSuite) TestTagWithPrefixHyphen(c *check.C) {
 	if err == nil || !strings.Contains(out, "repository name component must match") {
 		c.Fatal("tag a name begin with '-' should failed")
 	}
-	// test index name begin wiht '-'
+	// test index name begin with '-'
 	out, _, err = dockerCmdWithError("tag", "busybox:latest", "-index:5000/busybox:test")
 	if err == nil || !strings.Contains(out, "Invalid index name (-index:5000). Cannot begin or end with a hyphen") {
 		c.Fatal("tag a name begin with '-' should failed")

@@ -131,7 +131,7 @@ func (s *Server) getContainersLogs(version version.Version, w http.ResponseWrite
 
 	outStream := ioutils.NewWriteFlusher(w)
 	// write an empty chunk of data (this is to ensure that the
-	// HTTP Response is sent immediatly, even if the container has
+	// HTTP Response is sent immediately, even if the container has
 	// not yet produced any data)
 	outStream.Write(nil)
 

@@ -32,7 +32,7 @@ import (
 // Daemon represents a Docker daemon for the testing framework.
 type Daemon struct {
 	// Defaults to "daemon"
-	// Useful to set to --daemon or -d for checking backwards compatability
+	// Useful to set to --daemon or -d for checking backwards compatibility
 	Command     string
 	GlobalFlags []string
 

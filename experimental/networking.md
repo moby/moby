@@ -99,7 +99,7 @@ Assuming we want to publish a service from container `a0ebc12d3e48` on network `
 
 This would make the container `a0ebc12d3e48` accessible as `my-service` on network `foo`. Any other container in network `foo` can use DNS to resolve the address of `my-service`
 
-This can also be acheived by using the `--publish-service` flag for `docker run`:
+This can also be achieved by using the `--publish-service` flag for `docker run`:
 
         docker run -itd --publish-service db.foo postgres
 

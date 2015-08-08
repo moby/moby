@@ -21,7 +21,7 @@ func (daemon *Daemon) ContainerStart(name string, hostConfig *runconfig.HostConf
 		return fmt.Errorf("Container already started")
 	}
 
-	// Windows does not have the backwards compatibilty issue here.
+	// Windows does not have the backwards compatibility issue here.
 	if runtime.GOOS != "windows" {
 		// This is kept for backward compatibility - hostconfig should be passed when
 		// creating a container, not during start.

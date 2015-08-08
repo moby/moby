@@ -70,8 +70,8 @@ type devInfo struct {
 	//
 	// WARNING: In order to avoid AB-BA deadlocks when releasing
 	// the global lock while holding the per-device locks all
-	// device locks must be aquired *before* the device lock, and
-	// multiple device locks should be aquired parent before child.
+	// device locks must be acquired *before* the device lock, and
+	// multiple device locks should be acquired parent before child.
 	lock sync.Mutex
 }
 

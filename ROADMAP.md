@@ -134,7 +134,7 @@ We won't accept patches expanding the surface of `docker exec`, which we intend 
 
 ## 2.2 Dockerfile syntax
 
-The Dockerfile syntax as we know it is simple, and has proven succesful in supporting all our
+The Dockerfile syntax as we know it is simple, and has proven successful in supporting all our
 [official images](https://github.com/docker-library/official-images). Although this is *not* a
 definitive move, we temporarily won't accept more patches to the Dockerfile syntax for several
 reasons:

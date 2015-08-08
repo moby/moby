@@ -810,7 +810,7 @@ func (container *Container) Exec(execConfig *execConfig) error {
 	}
 
 	// We use a callback here instead of a goroutine and an chan for
-	// syncronization purposes
+	// synchronization purposes
 	cErr := promise.Go(func() error { return container.monitorExec(execConfig, callback) })
 
 	// Exec should not return until the process is actually running

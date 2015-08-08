@@ -314,7 +314,7 @@ func shutdownDaemon(d *daemon.Daemon, timeout time.Duration) {
 	}()
 	select {
 	case <-ch:
-		logrus.Debug("Clean shutdown succeded")
+		logrus.Debug("Clean shutdown succeeded")
 	case <-time.After(timeout * time.Second):
 		logrus.Error("Force shutdown daemon")
 	}

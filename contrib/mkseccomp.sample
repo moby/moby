@@ -31,7 +31,7 @@
  *
  * This sample list was compiled as a combination of all the syscalls
  * available on i386 and amd64 on Ubuntu Precise, as such it may not contain
- * everything and not everything may be relevent for your system.  This
+ * everything and not everything may be relevant for your system.  This
  * shouldn't be a problem.
  */
 

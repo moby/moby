@@ -1804,8 +1804,8 @@ func (s *DockerSuite) TestBuildForceRm(c *check.C) {
 // * Run a 1-year-long sleep from a docker build.
 // * When docker events sees container start, close the "docker build" command
 // * Wait for docker events to emit a dying event.
-func (s *DockerSuite) TestBuildCancelationKillsSleep(c *check.C) {
-	name := "testbuildcancelation"
+func (s *DockerSuite) TestBuildCancellationKillsSleep(c *check.C) {
+	name := "testbuildcancellation"
 
 	// (Note: one year, will never finish)
 	ctx, err := fakeContext("FROM busybox\nRUN sleep 31536000", nil)

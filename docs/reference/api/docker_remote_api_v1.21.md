@@ -1086,7 +1086,7 @@ Status Codes:
 `HEAD /containers/(id)/archive`
 
 See the description of the `X-Docker-Container-Path-Stat` header in the
-folowing section.
+following section.
 
 ### Get an archive of a filesystem resource in a container
 

@@ -233,7 +233,7 @@ func HashData(src io.Reader) (string, error) {
 }
 
 // OnEOFReader wraps a io.ReadCloser and a function
-// the fuction will run at the end of file or close the file.
+// the function will run at the end of file or close the file.
 type OnEOFReader struct {
 	Rc io.ReadCloser
 	Fn func()

@@ -1,4 +1,4 @@
-// Package tailfile provides helper functinos to read the nth lines of any
+// Package tailfile provides helper functions to read the nth lines of any
 // ReadSeeker.
 package tailfile
 
