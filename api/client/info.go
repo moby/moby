@@ -82,7 +82,7 @@ func (cli *DockerCli) CmdInfo(args ...string) error {
 				fmt.Fprintf(cli.err, "WARNING: No swap limit support\n")
 			}
 			if !info.IPv4Forwarding {
-				fmt.Fprintf(cli.err, "WARNING: IPv4 forwarding is disabled.\n")
+				fmt.Fprintf(cli.err, "WARNING: IPv4 forwarding is disabled\n")
 			}
 			if !info.BridgeNfIptables {
 				fmt.Fprintf(cli.err, "WARNING: bridge-nf-call-iptables is disabled\n")
