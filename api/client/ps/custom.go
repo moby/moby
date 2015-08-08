@@ -64,6 +64,9 @@ func (c *containerContext) Image() string {
 	if c.c.Image == "" {
 		return "<no image>"
 	}
+	if c.trunc {
+		return stringutils.Truncate(c.c.Image, 12)
+	}
 	return c.c.Image
 }
 
