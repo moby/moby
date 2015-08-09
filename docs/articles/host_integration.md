@@ -31,11 +31,6 @@ Docker does not set any restart policies by default, but be aware that they will
 conflict with most process managers. So don't set restart policies if you are
 using a process manager.
 
-*Note:* Prior to Docker 1.2, restarting of Docker containers had to be
-explicitly disabled. Refer to the
-[previous version](/v1.1/articles/host_integration/) of this article for the
-details on how to do that.
-
 When you have finished setting up your image and are happy with your
 running container, you can then attach a process manager to manage it.
 When you run `docker start -a`, Docker will automatically attach to the
