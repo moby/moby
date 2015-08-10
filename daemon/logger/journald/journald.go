@@ -25,8 +25,7 @@ func init() {
 }
 
 // New creates a journald logger using the configuration passed in on
-// the context. Supported context configuration variables are
-// syslog-address, syslog-facility, & syslog-tag.
+// the context.
 func New(ctx logger.Context) (logger.Logger, error) {
 	if !journal.Enabled() {
 		return nil, fmt.Errorf("journald is not enabled on this host")
