@@ -5,6 +5,7 @@ set -e
 declare -A daemonSupporting
 daemonSupporting=(
 	[linux/amd64]=1
+	[windows/amd64]=1
 )
 
 # if we have our linux/amd64 version compiled, let's symlink it in
