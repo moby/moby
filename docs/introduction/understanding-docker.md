@@ -116,11 +116,11 @@ images, or you can download Docker images that other people have already created
 Docker images are the **build** component of Docker.
 
 #### Docker registries
-Docker registries hold images. These are public or private stores from which you upload
-or download images. The public Docker registry is called
-[Docker Hub](http://hub.docker.com). It provides a huge collection of existing
-images for your use. These can be images you create yourself or you
-can use images that others have previously created. Docker registries are the 
+Docker registries hold images. These are public or private stores from which you
+upload or download images. The public Docker registry is provided with the
+[Docker Hub](http://hub.docker.com). It serves a huge collection of existing
+images for your use. These can be images you create yourself or you can use
+images that others have previously created. Docker registries are the
 **distribution** component of Docker.
 
 #### Docker containers
@@ -179,8 +179,9 @@ returns a final image.
 
 ### How does a Docker registry work?
 The Docker registry is the store for your Docker images. Once you build a Docker
-image you can *push* it to a public registry [Docker Hub](https://hub.docker.com) or to 
-your own registry running behind your firewall.
+image you can *push* it to a public registry such as the one provided by [Docker
+Hub](https://hub.docker.com) or to your own registry running behind your
+firewall.
 
 Using the Docker client, you can search for already published images and then
 pull them down to your Docker host to build containers from them.
