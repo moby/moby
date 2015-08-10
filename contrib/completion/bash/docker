@@ -320,7 +320,7 @@ __docker_signals() {
 _docker_docker() {
 	local boolean_options="
 		$global_boolean_options
-		--help -h
+		--help
 		--version -v
 	"
 
@@ -458,7 +458,7 @@ _docker_create() {
 _docker_daemon() {
 	local boolean_options="
 		$global_boolean_options
-		--help -h
+		--help
 		--icc=false
 		--ip-forward=false
 		--ip-masq=false
