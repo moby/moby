@@ -73,7 +73,7 @@ Docker daemon supports a configuration flag `--default-network` which takes conf
 `NETWORK` is the name of the network created using the `docker network create` command
 When a container is created and if the network mode (`--net`) is not specified, then this default network will be used to connect
 the container. If `--default-network` is not specified, the default network will be the `bridge` driver.
-Example : `docker -d --default-network=overlay:multihost`
+Example : `docker daemon --default-network=overlay:multihost`
 
 ## Using Services
 

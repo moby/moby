@@ -327,7 +327,7 @@ release_binaries() {
 # To install, run the following command as root:
 curl -sSL -O $(s3_url)/builds/Linux/x86_64/docker-$VERSION && chmod +x docker-$VERSION && sudo mv docker-$VERSION /usr/local/bin/docker
 # Then start docker in daemon mode:
-sudo /usr/local/bin/docker -d
+sudo /usr/local/bin/docker daemon
 EOF
 
 	# Add redirect at /builds/info for URL-backwards-compatibility
