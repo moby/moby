@@ -869,7 +869,7 @@ _docker_ps() {
 			compopt -o nospace
 			return
 			;;
-		-n)
+		--format|-n)
 			return
 			;;
 	esac
@@ -893,7 +893,7 @@ _docker_ps() {
 
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--all -a --before --filter -f --help --latest -l -n --no-trunc --quiet -q --size -s --since" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--all -a --before --filter -f --format --help --latest -l -n --no-trunc --quiet -q --size -s --since" -- "$cur" ) )
 			;;
 	esac
 }
