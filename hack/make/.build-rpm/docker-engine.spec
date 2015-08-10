@@ -55,8 +55,8 @@ Conflicts: docker
 Conflicts: docker-io
 
 %description
-Docker is an open source project to pack, ship and run any application as a
-lightweight container
+Docker is an open source project to build, ship and run any application as a
+lightweight container.
 
 Docker containers are both hardware-agnostic and platform-agnostic. This means
 they can run anywhere, from your laptop to the largest EC2 compute instance and

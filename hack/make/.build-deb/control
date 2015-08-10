@@ -15,7 +15,7 @@ Recommends: aufs-tools,
             ${apparmor:Recommends}
 Conflicts: docker (<< 1.5~), docker.io, lxc-docker, lxc-docker-virtual-package
 Description: Docker: the open-source application container engine
- Docker is an open source project to pack, ship and run any application as a
+ Docker is an open source project to build, ship and run any application as a
  lightweight container
  .
  Docker containers are both hardware-agnostic and platform-agnostic. This means
