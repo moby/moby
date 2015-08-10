@@ -56,10 +56,13 @@ check_forked() {
 	# Check for lsb_release command existence, it usually exists in forked distros
 	if command_exists lsb_release; then
 		# Check if the `-u` option is supported
+		set +e
 		lsb_release -a -u > /dev/null 2>&1
+		lsb_release_exit_code=$?
+		set -e
 
 		# Check if the command has exited successfully, it means we're in a forked distro
-		if [ "$?" = "0" ]; then
+		if [ "$lsb_release_exit_code" = "0" ]; then
 			# Print info about current distro
 			cat <<-EOF
 			You're using '$lsb_dist' version '$dist_version'.
