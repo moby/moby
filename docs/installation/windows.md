@@ -29,12 +29,9 @@ The Docker VM is lightweight Linux virtual machine made specifically to run the
 Docker daemon on Windows. The VirtualBox VM runs completely from RAM, is a
 small ~24MB download, and boots in approximately 5s.
 
-
-
 ## Requirements
 
-Your machine must be running Windows 7.1, 8/8.1 or newer to run Docker. 
-To find out what version of Windows you have:
+Your machine must be running Windows 7.1, 8/8.1 or newer to run Docker. Windows 10 is not currently supported. To find out what version of Windows you have:
 
 1. Right click the Windows message and choose **System**. 
 
@@ -135,7 +132,6 @@ installer.
    
 7. Press "Close" to exit.
 
-
 ## Running a Docker Container
 
 To run a Docker container, you:
@@ -157,7 +153,7 @@ There are several ways to use the installed tools, from the Docker Quickstart Te
     The application:
 
     * opens a terminal window
-    * creates a `docker-vm` if it doesn't exist, starts the VM if it does
+    * creates a `default` if it doesn't exist, starts the VM if it does
     * points the terminal environment to this VM
 
     Once the launch completes, you can run `docker` commands. 
@@ -205,12 +201,12 @@ There are several ways to use the installed tools, from the Docker Quickstart Te
         
 3. Create a new Docker VM.
 
-        docker-machine create --driver virtualbox my-docker-vm
+        docker-machine create --driver virtualbox my-default
         Creating VirtualBox VM...
         Creating SSH key...
         Starting VirtualBox VM...
         Starting VM...
-        To see how to connect Docker to this machine, run: docker-machine env my-docker-vm
+        To see how to connect Docker to this machine, run: docker-machine env my-default
 
     The command also creates a machine configuration in the
     `C:\USERS\USERNAME\.docker\machine\machines` directory. You only need to run the `create`
@@ -221,18 +217,18 @@ There are several ways to use the installed tools, from the Docker Quickstart Te
 
         C:\Users\mary> docker-machine ls
         NAME                ACTIVE   DRIVER       STATE     URL                         SWARM
-        my-docker-vm        *        virtualbox   Running   tcp://192.168.99.101:2376  
+        my-default        *        virtualbox   Running   tcp://192.168.99.101:2376  
         
     If you have previously installed the deprecated Boot2Docker application or
     run the Docker Quickstart Terminal, you may have a `dev` VM as well.  
 
 5. Get the environment commands for your new VM.
 
-        C:\Users\mary> docker-machine env --shell cmd my-docker-vm
+        C:\Users\mary> docker-machine env --shell cmd my-default
     
-6. Connect your shell to the `my-docker-vm` machine.
+6. Connect your shell to the `my-default` machine.
 
-        C:\Users\mary> eval "$(docker-machine env my-docker-vm)"
+        C:\Users\mary> eval "$(docker-machine env my-default)"
 
 7. Run the `hello-world` container to verify your setup.
 
@@ -248,21 +244,21 @@ There are several ways to use the installed tools, from the Docker Quickstart Te
         
 3. Create a new Docker VM.
 
-        PS C:\Users\mary> docker-machine create --driver virtualbox my-docker-vm
+        PS C:\Users\mary> docker-machine create --driver virtualbox my-default
     
 4. List your available machines.
 
         C:\Users\mary> docker-machine ls
         NAME                ACTIVE   DRIVER       STATE     URL                         SWARM
-        my-docker-vm        *        virtualbox   Running   tcp://192.168.99.101:2376  
+        my-default        *        virtualbox   Running   tcp://192.168.99.101:2376  
       
 5. Get the environment commands for your new VM.
 
-        C:\Users\mary> docker-machine env --shell powershell my-docker-vm
+        C:\Users\mary> docker-machine env --shell powershell my-default
     
-6. Connect your shell to the `my-docker-vm` machine.
+6. Connect your shell to the `my-default` machine.
 
-        C:\Users\mary> eval "$(docker-machine env my-docker-vm)"
+        C:\Users\mary> eval "$(docker-machine env my-default)"
 
 7. Run the `hello-world` container to verify your setup.
 
@@ -273,13 +269,27 @@ There are several ways to use the installed tools, from the Docker Quickstart Te
 
 Toolbox installs the Docker Engine binary in the `C:\Program Files\Docker
 Toolbox` directory. When you use the Docker Quickstart Terminal or create a
-`docker-vm` manually, Docker Machine updates the
-`C:\USERS\USERNAME\.docker\machine\machines\docker-vm` folder to your
+`default` manually, Docker Machine updates the
+`C:\USERS\USERNAME\.docker\machine\machines\default` folder to your
 system. This folder contains the configuration for the VM.
 
 You can create multiple VMs on your system with Docker Machine. So, you may have
 more than one VM folder if you have more than one VM. To remove a VM, use the
 `docker-machine rm <machine-name>` command.
+
+## Migrate from Boot2Docker
+
+If you were using Boot2Docker previously, you have a pre-existing Docker
+`boot2docker-vm` VM on your local system.  To allow Docker Machine to manage
+this older VM, you can migrate it.
+
+1. Open a terminal or the Docker CLI on your system.
+
+2. Type the following command.
+
+        $ docker-machine create -d virtualbox --virtualbox-import-boot2docker-vm boot2docker-vm docker-vm
+      
+3. Use the `docker-machine` command to interact with the migrated VM.  
       
 The `docker-machine` subcommands are slightly different than the `boot2docker`
 subcommands. The table below lists the equivalent `docker-machine` subcommand
