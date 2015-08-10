@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/docker/docker/pkg/archive"
 )
@@ -14,6 +15,12 @@ import (
 // contents of the layer.
 func applyLayerHandler(dest string, layer archive.Reader, decompress bool) (size int64, err error) {
 	dest = filepath.Clean(dest)
+
+	// Ensure it is a Windows-style volume path
+	if !strings.HasPrefix(dest, `\\?\`) {
+		dest = `\\?\` + dest
+	}
+
 	if decompress {
 		decompressed, err := archive.DecompressStream(layer)
 		if err != nil {

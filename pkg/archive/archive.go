@@ -405,6 +405,10 @@ func Tar(path string, compression Compression) (io.ReadCloser, error) {
 // paths are included in `options.IncludeFiles` (if non-nil) or not in `options.ExcludePatterns`.
 func TarWithOptions(srcPath string, options *TarOptions) (io.ReadCloser, error) {
 
+	// Fix the source path to work with long path names. This is a no-op
+	// on platforms other than Windows.
+	srcPath = fixVolumePathPrefix(srcPath)
+
 	patterns, patDirs, exceptions, err := fileutils.CleanPatterns(options.ExcludePatterns)
 
 	if err != nil {
@@ -474,9 +478,7 @@ func TarWithOptions(srcPath string, options *TarOptions) (io.ReadCloser, error) 
 		for _, include := range options.IncludeFiles {
 			rebaseName := options.RebaseNames[include]
 
-			// We can't use filepath.Join(srcPath, include) because this will
-			// clean away a trailing "." or "/" which may be important.
-			walkRoot := strings.Join([]string{srcPath, include}, string(filepath.Separator))
+			walkRoot := getWalkRoot(srcPath, include)
 			filepath.Walk(walkRoot, func(filePath string, f os.FileInfo, err error) error {
 				if err != nil {
 					logrus.Debugf("Tar: Can't stat file %s to tar: %s", srcPath, err)
