@@ -167,7 +167,7 @@ func (cli *DockerCli) hijack(method, path string, setRawTerminal bool, in io.Rea
 	}
 	if err != nil {
 		if strings.Contains(err.Error(), "connection refused") {
-			return fmt.Errorf("Cannot connect to the Docker daemon. Is 'docker -d' running on this host?")
+			return fmt.Errorf("Cannot connect to the Docker daemon. Is 'docker daemon' running on this host?")
 		}
 		return err
 	}

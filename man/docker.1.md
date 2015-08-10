@@ -359,7 +359,7 @@ feature include: automatic or interactive thin-pool resize support, dynamically
 changing thin-pool features, automatic thinp metadata checking when lvm activates
 the thin-pool, etc.
 
-Example use: `docker -d --storage-opt dm.thinpooldev=/dev/mapper/thin-pool`
+Example use: `docker daemon --storage-opt dm.thinpooldev=/dev/mapper/thin-pool`
 
 #### dm.basesize
 
@@ -378,26 +378,26 @@ value requires additional steps to take effect:
         $ sudo rm -rf /var/lib/docker
         $ sudo service docker start
 
-Example use: `docker -d --storage-opt dm.basesize=20G`
+Example use: `docker daemon --storage-opt dm.basesize=20G`
 
 #### dm.fs
 
 Specifies the filesystem type to use for the base device. The
 supported options are `ext4` and `xfs`. The default is `ext4`.
 
-Example use: `docker -d --storage-opt dm.fs=xfs`
+Example use: `docker daemon --storage-opt dm.fs=xfs`
 
 #### dm.mkfsarg
 
 Specifies extra mkfs arguments to be used when creating the base device.
 
-Example use: `docker -d --storage-opt "dm.mkfsarg=-O ^has_journal"`
+Example use: `docker daemon --storage-opt "dm.mkfsarg=-O ^has_journal"`
 
 #### dm.mountopt
 
 Specifies extra mount options used when mounting the thin devices.
 
-Example use: `docker -d --storage-opt dm.mountopt=nodiscard`
+Example use: `docker daemon --storage-opt dm.mountopt=nodiscard`
 
 #### dm.use_deferred_removal
 
@@ -415,7 +415,7 @@ the container exit still succeeds and this option causes the system to schedule
 the device for deferred removal. It does not wait in a loop trying to remove a busy
 device.
 
-Example use: `docker -d --storage-opt dm.use_deferred_removal=true`
+Example use: `docker daemon --storage-opt dm.use_deferred_removal=true`
 
 #### dm.loopdatasize
 
@@ -426,7 +426,7 @@ Specifies the size to use when creating the loopback file for the
 100G. The file is sparse, so it will not initially take up
 this much space.
 
-Example use: `docker -d --storage-opt dm.loopdatasize=200G`
+Example use: `docker daemon --storage-opt dm.loopdatasize=200G`
 
 #### dm.loopmetadatasize
 
@@ -437,7 +437,7 @@ Specifies the size to use when creating the loopback file for the
 is 2G. The file is sparse, so it will not initially take up
 this much space.
 
-Example use: `docker -d --storage-opt dm.loopmetadatasize=4G`
+Example use: `docker daemon --storage-opt dm.loopmetadatasize=4G`
 
 #### dm.datadev
 
@@ -460,7 +460,7 @@ deprecated.
 Specifies a custom blocksize to use for the thin pool.  The default
 blocksize is 64K.
 
-Example use: `docker -d --storage-opt dm.blocksize=512K`
+Example use: `docker daemon --storage-opt dm.blocksize=512K`
 
 #### dm.blkdiscard
 
@@ -474,7 +474,7 @@ times, but it also prevents the space used in `/var/lib/docker` directory
 from being returned to the system for other use when containers are
 removed.
 
-Example use: `docker -d --storage-opt dm.blkdiscard=false`
+Example use: `docker daemon --storage-opt dm.blkdiscard=false`
 
 #### dm.override_udev_sync_check
 
@@ -503,7 +503,7 @@ failures, see
 To allow the `docker` daemon to start, regardless of whether `udev` sync is
 `false`, set `dm.override_udev_sync_check` to true:
 
-        $ docker -d --storage-opt dm.override_udev_sync_check=true
+        $ docker daemon --storage-opt dm.override_udev_sync_check=true
 
 When this value is `true`, the driver continues and simply warns you
 the errors are happening.

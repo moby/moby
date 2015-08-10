@@ -48,7 +48,7 @@ directory including the following:
     EnvironmentFile=-/etc/sysconfig/docker-storage
     EnvironmentFile=-/etc/sysconfig/docker-network
     ExecStart=
-    ExecStart=/usr/bin/docker -d -H fd:// $OPTIONS \
+    ExecStart=/usr/bin/docker daemon -H fd:// $OPTIONS \
               $DOCKER_STORAGE_OPTIONS \
               $DOCKER_NETWORK_OPTIONS \
               $BLOCK_REGISTRY \
@@ -108,7 +108,7 @@ by a new configuration as follows:
 
     [Service]
     ExecStart=
-    ExecStart=/usr/bin/docker -d -H fd:// --bip=172.17.42.1/16
+    ExecStart=/usr/bin/docker daemon -H fd:// --bip=172.17.42.1/16
 
 If you fail to specify an empty configuration, Docker reports an error such as:
 
