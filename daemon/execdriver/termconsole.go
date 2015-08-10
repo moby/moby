@@ -40,7 +40,7 @@ func (s *StdConsole) AttachPipes(command *exec.Cmd, pipes *Pipes) error {
 
 // Resize implements Resize method of Terminal interface
 func (s *StdConsole) Resize(h, w int) error {
-	// we do not need to reside a non tty
+	// we do not need to resize a non tty
 	return nil
 }
 
