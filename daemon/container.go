@@ -254,28 +254,28 @@ func (container *Container) Start() (err error) {
 		}
 	}()
 
-	if err := container.Mount(); err != nil {
+	if err = container.Mount(); err != nil {
 		return err
 	}
 
 	// No-op if non-Windows. Once the container filesystem is mounted,
 	// prepare the layer to boot using the Windows driver.
-	if err := container.PrepareStorage(); err != nil {
+	if err = container.PrepareStorage(); err != nil {
 		return err
 	}
 
-	if err := container.initializeNetworking(); err != nil {
+	if err = container.initializeNetworking(); err != nil {
 		return err
 	}
 	linkedEnv, err := container.setupLinkedContainers()
 	if err != nil {
 		return err
 	}
-	if err := container.setupWorkingDirectory(); err != nil {
+	if err = container.setupWorkingDirectory(); err != nil {
 		return err
 	}
 	env := container.createDaemonEnvironment(linkedEnv)
-	if err := populateCommand(container, env); err != nil {
+	if err = populateCommand(container, env); err != nil {
 		return err
 	}
 
@@ -612,7 +612,7 @@ func (container *Container) Copy(resource string) (rc io.ReadCloser, err error) 
 		}
 	}()
 
-	if err := container.Mount(); err != nil {
+	if err = container.Mount(); err != nil {
 		return nil, err
 	}
 
@@ -625,7 +625,7 @@ func (container *Container) Copy(resource string) (rc io.ReadCloser, err error) 
 		}
 	}()
 
-	if err := container.mountVolumes(); err != nil {
+	if err = container.mountVolumes(); err != nil {
 		return nil, err
 	}
 
@@ -654,7 +654,7 @@ func (container *Container) Copy(resource string) (rc io.ReadCloser, err error) 
 		return nil, err
 	}
 
-	if err := container.PrepareStorage(); err != nil {
+	if err = container.PrepareStorage(); err != nil {
 		container.Unmount()
 		return nil, err
 	}

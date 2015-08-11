@@ -3,6 +3,7 @@
 package graphdriver
 
 import (
+	"io"
 	"time"
 
 	"github.com/Sirupsen/logrus"
@@ -48,12 +49,13 @@ func (gdw *naiveDiffDriver) Diff(id, parent string) (arch archive.Archive, err e
 	}()
 
 	if parent == "" {
-		archive, err := archive.Tar(layerFs, archive.Uncompressed)
+		var ar io.ReadCloser
+		ar, err = archive.Tar(layerFs, archive.Uncompressed)
 		if err != nil {
 			return nil, err
 		}
-		return ioutils.NewReadCloserWrapper(archive, func() error {
-			err := archive.Close()
+		return ioutils.NewReadCloserWrapper(ar, func() error {
+			err := ar.Close()
 			driver.Put(id)
 			return err
 		}), nil
