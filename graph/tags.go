@@ -37,8 +37,8 @@ type TagStore struct {
 	sync.Mutex
 	// FIXME: move push/pull-related fields
 	// to a helper type
-	pullingPool     map[string]*progressreader.ProgressStatus
-	pushingPool     map[string]*progressreader.ProgressStatus
+	pullingPool     map[string]*progressreader.Broadcaster
+	pushingPool     map[string]*progressreader.Broadcaster
 	registryService *registry.Service
 	eventsService   *events.Events
 	trustService    *trust.TrustStore
@@ -94,8 +94,8 @@ func NewTagStore(path string, cfg *TagStoreConfig) (*TagStore, error) {
 		graph:           cfg.Graph,
 		trustKey:        cfg.Key,
 		Repositories:    make(map[string]Repository),
-		pullingPool:     make(map[string]*progressreader.ProgressStatus),
-		pushingPool:     make(map[string]*progressreader.ProgressStatus),
+		pullingPool:     make(map[string]*progressreader.Broadcaster),
+		pushingPool:     make(map[string]*progressreader.Broadcaster),
 		registryService: cfg.Registry,
 		eventsService:   cfg.Events,
 		trustService:    cfg.Trust,
@@ -428,10 +428,10 @@ func validateDigest(dgst string) error {
 	return nil
 }
 
-// poolAdd checks if a push or pull is already running, and returns (ps, true)
-// if a running operation is found. Otherwise, it creates a new one and returns
-// (ps, false).
-func (store *TagStore) poolAdd(kind, key string) (*progressreader.ProgressStatus, bool) {
+// poolAdd checks if a push or pull is already running, and returns
+// (broadcaster, true) if a running operation is found. Otherwise, it creates a
+// new one and returns (broadcaster, false).
+func (store *TagStore) poolAdd(kind, key string) (*progressreader.Broadcaster, bool) {
 	store.Lock()
 	defer store.Unlock()
 
@@ -442,18 +442,18 @@ func (store *TagStore) poolAdd(kind, key string) (*progressreader.ProgressStatus
 		return p, true
 	}
 
-	ps := progressreader.NewProgressStatus()
+	broadcaster := progressreader.NewBroadcaster()
 
 	switch kind {
 	case "pull":
-		store.pullingPool[key] = ps
+		store.pullingPool[key] = broadcaster
 	case "push":
-		store.pushingPool[key] = ps
+		store.pushingPool[key] = broadcaster
 	default:
 		panic("Unknown pool type")
 	}
 
-	return ps, false
+	return broadcaster, false
 }
 
 func (store *TagStore) poolRemove(kind, key string) error {
@@ -462,12 +462,12 @@ func (store *TagStore) poolRemove(kind, key string) error {
 	switch kind {
 	case "pull":
 		if ps, exists := store.pullingPool[key]; exists {
-			ps.Done()
+			ps.Close()
 			delete(store.pullingPool, key)
 		}
 	case "push":
 		if ps, exists := store.pushingPool[key]; exists {
-			ps.Done()
+			ps.Close()
 			delete(store.pushingPool, key)
 		}
 	default:

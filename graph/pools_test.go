@@ -13,8 +13,8 @@ func init() {
 
 func TestPools(t *testing.T) {
 	s := &TagStore{
-		pullingPool: make(map[string]*progressreader.ProgressStatus),
-		pushingPool: make(map[string]*progressreader.ProgressStatus),
+		pullingPool: make(map[string]*progressreader.Broadcaster),
+		pushingPool: make(map[string]*progressreader.Broadcaster),
 	}
 
 	if _, found := s.poolAdd("pull", "test1"); found {

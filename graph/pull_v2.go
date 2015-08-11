@@ -73,28 +73,29 @@ func (p *v2Puller) pullV2Repository(tag string) (err error) {
 
 	}
 
-	ps, found := p.poolAdd("pull", taggedName)
+	broadcaster, found := p.poolAdd("pull", taggedName)
 	if found {
 		// Another pull of the same repository is already taking place; just wait for it to finish
-		msg := p.sf.FormatStatus("", "Repository %s already being pulled by another client. Waiting.", p.repoInfo.CanonicalName)
-		ps.Wait(p.config.OutStream, msg)
+		p.config.OutStream.Write(p.sf.FormatStatus("", "Repository %s already being pulled by another client. Waiting.", p.repoInfo.CanonicalName))
+		broadcaster.Add(p.config.OutStream)
+		broadcaster.Wait()
 		return nil
 	}
 	defer p.poolRemove("pull", taggedName)
-	ps.AddObserver(p.config.OutStream)
+	broadcaster.Add(p.config.OutStream)
 
 	var layersDownloaded bool
 	for _, tag := range tags {
 		// pulledNew is true if either new layers were downloaded OR if existing images were newly tagged
 		// TODO(tiborvass): should we change the name of `layersDownload`? What about message in WriteStatus?
-		pulledNew, err := p.pullV2Tag(ps, tag, taggedName)
+		pulledNew, err := p.pullV2Tag(broadcaster, tag, taggedName)
 		if err != nil {
 			return err
 		}
 		layersDownloaded = layersDownloaded || pulledNew
 	}
 
-	writeStatus(taggedName, ps, p.sf, layersDownloaded)
+	writeStatus(taggedName, broadcaster, p.sf, layersDownloaded)
 
 	return nil
 }
@@ -119,16 +120,17 @@ func (p *v2Puller) download(di *downloadInfo) {
 
 	out := di.out
 
-	ps, found := p.poolAdd("pull", "img:"+di.img.ID)
+	broadcaster, found := p.poolAdd("pull", "img:"+di.img.ID)
 	if found {
-		msg := p.sf.FormatProgress(stringid.TruncateID(di.img.ID), "Layer already being pulled by another client. Waiting.", nil)
-		ps.Wait(out, msg)
+		out.Write(p.sf.FormatProgress(stringid.TruncateID(di.img.ID), "Layer already being pulled by another client. Waiting.", nil))
+		broadcaster.Add(out)
+		broadcaster.Wait()
 		out.Write(p.sf.FormatProgress(stringid.TruncateID(di.img.ID), "Download complete", nil))
 		di.err <- nil
 		return
 	}
 
-	ps.AddObserver(out)
+	broadcaster.Add(out)
 	defer p.poolRemove("pull", "img:"+di.img.ID)
 	tmpFile, err := ioutil.TempFile("", "GetImageBlob")
 	if err != nil {
@@ -163,7 +165,7 @@ func (p *v2Puller) download(di *downloadInfo) {
 
 	reader := progressreader.New(progressreader.Config{
 		In:        ioutil.NopCloser(io.TeeReader(layerDownload, verifier)),
-		Out:       ps,
+		Out:       broadcaster,
 		Formatter: p.sf,
 		Size:      di.size,
 		NewLines:  false,
@@ -172,7 +174,7 @@ func (p *v2Puller) download(di *downloadInfo) {
 	})
 	io.Copy(tmpFile, reader)
 
-	ps.Write(p.sf.FormatProgress(stringid.TruncateID(di.img.ID), "Verifying Checksum", nil))
+	broadcaster.Write(p.sf.FormatProgress(stringid.TruncateID(di.img.ID), "Verifying Checksum", nil))
 
 	if !verifier.Verified() {
 		err = fmt.Errorf("filesystem layer verification failed for digest %s", di.digest)
@@ -181,7 +183,7 @@ func (p *v2Puller) download(di *downloadInfo) {
 		return
 	}
 
-	ps.Write(p.sf.FormatProgress(stringid.TruncateID(di.img.ID), "Download complete", nil))
+	broadcaster.Write(p.sf.FormatProgress(stringid.TruncateID(di.img.ID), "Download complete", nil))
 
 	logrus.Debugf("Downloaded %s to tempfile %s", di.img.ID, tmpFile.Name())
 	di.layer = layerDownload
