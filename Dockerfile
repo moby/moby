@@ -40,6 +40,7 @@ RUN apt-get update && apt-get install -y \
 	createrepo \
 	curl \
 	dpkg-sig \
+	gcc-mingw-w64 \
 	git \
 	iptables \
 	libapparmor-dev \

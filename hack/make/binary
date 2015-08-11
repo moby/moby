@@ -7,6 +7,18 @@ BINARY_FULLNAME="$BINARY_NAME$BINARY_EXTENSION"
 
 source "${MAKEDIR}/.go-autogen"
 
+(
+if [ "$(go env GOOS)/$(go env GOARCH)" != "$(go env GOHOSTOS)/$(go env GOHOSTARCH)" ]; then
+	# must be cross-compiling!
+	case "$(go env GOOS)/$(go env GOARCH)" in
+		windows/amd64)
+			export CC=x86_64-w64-mingw32-gcc
+			export CGO_ENABLED=1
+			export LDFLAGS_STATIC_DOCKER="${LDFLAGS_STATIC_DOCKER/-linkmode external/} -extld=${CC}"
+			;;
+	esac
+fi
+
 echo "Building: $DEST/$BINARY_FULLNAME"
 go build \
 	-o "$DEST/$BINARY_FULLNAME" \
@@ -16,6 +28,7 @@ go build \
 		$LDFLAGS_STATIC_DOCKER
 	" \
 	./docker
+)
 
 echo "Created binary: $DEST/$BINARY_FULLNAME"
 ln -sf "$BINARY_FULLNAME" "$DEST/docker$BINARY_EXTENSION"
