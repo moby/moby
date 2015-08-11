@@ -57,8 +57,8 @@ func (p *v2Pusher) getImageTags(askedTag string) ([]string, error) {
 
 func (p *v2Pusher) pushV2Repository(tag string) error {
 	localName := p.repoInfo.LocalName
-	if _, err := p.poolAdd("push", localName); err != nil {
-		return err
+	if _, found := p.poolAdd("push", localName); found {
+		return fmt.Errorf("push or pull %s is already in progress", localName)
 	}
 	defer p.poolRemove("push", localName)
 

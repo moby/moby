@@ -73,8 +73,8 @@ func (p *v2Puller) pullV2Repository(tag string) (err error) {
 
 	}
 
-	ps, err := p.poolAdd("pull", taggedName)
-	if err != nil {
+	ps, found := p.poolAdd("pull", taggedName)
+	if found {
 		// Another pull of the same repository is already taking place; just wait for it to finish
 		msg := p.sf.FormatStatus("", "Repository %s already being pulled by another client. Waiting.", p.repoInfo.CanonicalName)
 		ps.Wait(p.config.OutStream, msg)
@@ -119,8 +119,8 @@ func (p *v2Puller) download(di *downloadInfo) {
 
 	out := di.out
 
-	ps, err := p.poolAdd("pull", "img:"+di.img.ID)
-	if err != nil {
+	ps, found := p.poolAdd("pull", "img:"+di.img.ID)
+	if found {
 		msg := p.sf.FormatProgress(stringid.TruncateID(di.img.ID), "Layer already being pulled by another client. Waiting.", nil)
 		ps.Wait(out, msg)
 		out.Write(p.sf.FormatProgress(stringid.TruncateID(di.img.ID), "Download complete", nil))

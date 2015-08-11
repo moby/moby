@@ -138,8 +138,8 @@ func (p *v1Puller) pullRepository(askedTag string) error {
 			}
 
 			// ensure no two downloads of the same image happen at the same time
-			ps, err := p.poolAdd("pull", "img:"+img.ID)
-			if err != nil {
+			ps, found := p.poolAdd("pull", "img:"+img.ID)
+			if found {
 				msg := p.sf.FormatProgress(stringid.TruncateID(img.ID), "Layer already being pulled by another client. Waiting.", nil)
 				ps.Wait(out, msg)
 				out.Write(p.sf.FormatProgress(stringid.TruncateID(img.ID), "Download complete", nil))
@@ -155,7 +155,7 @@ func (p *v1Puller) pullRepository(askedTag string) error {
 
 			ps.Write(p.sf.FormatProgress(stringid.TruncateID(img.ID), fmt.Sprintf("Pulling image (%s) from %s", img.Tag, p.repoInfo.CanonicalName), nil))
 			success := false
-			var lastErr error
+			var lastErr, err error
 			var isDownloaded bool
 			for _, ep := range p.repoInfo.Index.Mirrors {
 				ep += "v1/"
@@ -244,9 +244,9 @@ func (p *v1Puller) pullImage(out io.Writer, imgID, endpoint string, token []stri
 		id := history[i]
 
 		// ensure no two downloads of the same layer happen at the same time
-		ps, err := p.poolAdd("pull", "layer:"+id)
-		if err != nil {
-			logrus.Debugf("Image (id: %s) pull is already running, skipping: %v", id, err)
+		ps, found := p.poolAdd("pull", "layer:"+id)
+		if found {
+			logrus.Debugf("Image (id: %s) pull is already running, skipping", id)
 			msg := p.sf.FormatProgress(stringid.TruncateID(imgID), "Layer already being pulled by another client. Waiting.", nil)
 			ps.Wait(out, msg)
 		} else {

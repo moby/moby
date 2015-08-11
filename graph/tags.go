@@ -428,27 +428,32 @@ func validateDigest(dgst string) error {
 	return nil
 }
 
-func (store *TagStore) poolAdd(kind, key string) (*progressreader.ProgressStatus, error) {
+// poolAdd checks if a push or pull is already running, and returns (ps, true)
+// if a running operation is found. Otherwise, it creates a new one and returns
+// (ps, false).
+func (store *TagStore) poolAdd(kind, key string) (*progressreader.ProgressStatus, bool) {
 	store.Lock()
 	defer store.Unlock()
 
 	if p, exists := store.pullingPool[key]; exists {
-		return p, fmt.Errorf("pull %s is already in progress", key)
+		return p, true
 	}
 	if p, exists := store.pushingPool[key]; exists {
-		return p, fmt.Errorf("push %s is already in progress", key)
+		return p, true
 	}
 
 	ps := progressreader.NewProgressStatus()
+
 	switch kind {
 	case "pull":
 		store.pullingPool[key] = ps
 	case "push":
 		store.pushingPool[key] = ps
 	default:
-		return nil, fmt.Errorf("Unknown pool type")
+		panic("Unknown pool type")
 	}
-	return ps, nil
+
+	return ps, false
 }
 
 func (store *TagStore) poolRemove(kind, key string) error {
