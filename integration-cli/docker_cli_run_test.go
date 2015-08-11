@@ -2816,3 +2816,13 @@ func (s *DockerSuite) TestRunCapAddSYSTIME(c *check.C) {
 
 	dockerCmd(c, "run", "--cap-drop=ALL", "--cap-add=SYS_TIME", "busybox", "sh", "-c", "grep ^CapEff /proc/self/status | sed 's/^CapEff:\t//' | grep ^0000000002000000$")
 }
+
+// run create container failed should clean up the container
+func (s *DockerSuite) TestRunCreateContainerFailedCleanUp(c *check.C) {
+	name := "unique_name"
+	_, _, err := dockerCmdWithError("run", "--name", name, "--link", "nothing:nothing", "busybox")
+	c.Assert(err, check.Not(check.IsNil), check.Commentf("Expected docker run to fail!"))
+
+	containerID, err := inspectField(name, "Id")
+	c.Assert(containerID, check.Equals, "", check.Commentf("Expected not to have this container: %s!", containerID))
+}
