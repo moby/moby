@@ -90,9 +90,7 @@ func (s *DockerSuite) TestAttachTtyWithoutStdin(c *check.C) {
 	out, _ := dockerCmd(c, "run", "-d", "-ti", "busybox")
 
 	id := strings.TrimSpace(out)
-	if err := waitRun(id); err != nil {
-		c.Fatal(err)
-	}
+	c.Assert(waitRun(id), check.IsNil)
 
 	defer func() {
 		cmd := exec.Command(dockerBinary, "kill", id)

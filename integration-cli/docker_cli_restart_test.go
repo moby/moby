@@ -2,7 +2,6 @@ package main
 
 import (
 	"strings"
-	"time"
 
 	"github.com/go-check/check"
 )
@@ -31,7 +30,7 @@ func (s *DockerSuite) TestRestartRunningContainer(c *check.C) {
 
 	cleanedContainerID := strings.TrimSpace(out)
 
-	time.Sleep(1 * time.Second)
+	c.Assert(waitRun(cleanedContainerID), check.IsNil)
 
 	out, _ = dockerCmd(c, "logs", cleanedContainerID)
 	if out != "foobar\n" {
@@ -42,7 +41,7 @@ func (s *DockerSuite) TestRestartRunningContainer(c *check.C) {
 
 	out, _ = dockerCmd(c, "logs", cleanedContainerID)
 
-	time.Sleep(1 * time.Second)
+	c.Assert(waitRun(cleanedContainerID), check.IsNil)
 
 	if out != "foobar\nfoobar\n" {
 		c.Errorf("container should've printed 'foobar' twice")

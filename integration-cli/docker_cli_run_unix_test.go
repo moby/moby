@@ -198,9 +198,7 @@ func (s *DockerSuite) TestRunAttachDetach(c *check.C) {
 	if err := cmd.Start(); err != nil {
 		c.Fatal(err)
 	}
-	if err := waitRun(name); err != nil {
-		c.Fatal(err)
-	}
+	c.Assert(waitRun(name), check.IsNil)
 
 	if _, err := cpty.Write([]byte("hello\n")); err != nil {
 		c.Fatal(err)

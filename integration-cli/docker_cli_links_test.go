@@ -6,7 +6,6 @@ import (
 	"reflect"
 	"regexp"
 	"strings"
-	"time"
 )
 
 func (s *DockerSuite) TestLinksPingUnlinkedContainers(c *check.C) {
@@ -138,7 +137,7 @@ func (s *DockerSuite) TestLinksHostsFilesInject(c *check.C) {
 	out, _ = dockerCmd(c, "run", "-itd", "--name", "two", "--link", "one:onetwo", "busybox", "top")
 	idTwo := strings.TrimSpace(out)
 
-	time.Sleep(1 * time.Second)
+	c.Assert(waitRun(idTwo), check.IsNil)
 
 	contentOne, err := readContainerFileWithExec(idOne, "/etc/hosts")
 	if err != nil {
