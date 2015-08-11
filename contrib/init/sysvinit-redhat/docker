@@ -59,8 +59,15 @@ start() {
             sleep 1
             tries=$((tries + 1))
         done
-        success
-        echo
+        if ! [ -f $pidfile ]; then
+            failure
+            echo
+            printf "$pidfile not exists after waiting docker to initialize for 10 seconds, probably something is wrong, you can check docker logs at $logfile ...\n"
+            exit 7
+        else
+            success
+            echo
+        fi
     else
         failure
         echo
