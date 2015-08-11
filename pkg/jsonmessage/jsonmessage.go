@@ -67,7 +67,13 @@ func (p *JSONProgress) String() string {
 		}
 		pbBox = fmt.Sprintf("[%s>%s] ", strings.Repeat("=", percentage), strings.Repeat(" ", numSpaces))
 	}
+
 	numbersBox = fmt.Sprintf("%8v/%v", current, total)
+
+	if p.Current > p.Total {
+		// remove total display if the reported current is wonky.
+		numbersBox = fmt.Sprintf("%8v", current)
+	}
 
 	if p.Current > 0 && p.Start > 0 && percentage < 50 {
 		fromStart := time.Now().UTC().Sub(time.Unix(p.Start, 0))
