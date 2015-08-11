@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net/http"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -38,6 +39,7 @@ import (
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/trust"
 	"github.com/docker/libnetwork"
+	nwapi "github.com/docker/libnetwork/api"
 	"github.com/opencontainers/runc/libcontainer/netlink"
 )
 
@@ -993,4 +995,9 @@ func (daemon *Daemon) verifyContainerSettings(hostConfig *runconfig.HostConfig, 
 
 	// Now do platform-specific verification
 	return verifyPlatformContainerSettings(daemon, hostConfig, config)
+}
+
+// NetworkApiRouter creates the api router for the networking management.
+func (daemon *Daemon) NetworkApiRouter() func(w http.ResponseWriter, req *http.Request) {
+	return nwapi.NewHTTPHandler(daemon.netController)
 }

@@ -5,7 +5,6 @@ package daemon
 import (
 	"fmt"
 	"net"
-	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -25,7 +24,6 @@ import (
 	volumedrivers "github.com/docker/docker/volume/drivers"
 	"github.com/docker/docker/volume/local"
 	"github.com/docker/libnetwork"
-	nwapi "github.com/docker/libnetwork/api"
 	nwconfig "github.com/docker/libnetwork/config"
 	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/libnetwork/options"
@@ -516,10 +514,6 @@ func setupInitLayer(initLayer string) error {
 
 	// Layer is ready to use, if it wasn't before.
 	return nil
-}
-
-func (daemon *Daemon) NetworkApiRouter() func(w http.ResponseWriter, req *http.Request) {
-	return nwapi.NewHTTPHandler(daemon.netController)
 }
 
 func (daemon *Daemon) RegisterLinks(container *Container, hostConfig *runconfig.HostConfig) error {
