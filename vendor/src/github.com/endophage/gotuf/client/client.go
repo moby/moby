@@ -78,7 +78,7 @@ func (c *Client) update() error {
 	if err != nil {
 		// In this instance the root has not expired base on time, but is
 		// expired based on the snapshot dictating a new root has been produced.
-		logrus.Info(err.Error())
+		logrus.Debug(err)
 		return tuf.ErrLocalRootExpired{}
 	}
 	// will always need top level targets at a minimum
