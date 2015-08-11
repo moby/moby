@@ -34,6 +34,7 @@ var (
 		"zfs",
 		"devicemapper",
 		"overlay",
+		"ploop",
 		"vfs",
 	}
 
