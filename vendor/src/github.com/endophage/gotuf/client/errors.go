@@ -104,3 +104,11 @@ type ErrInvalidURL struct {
 func (e ErrInvalidURL) Error() string {
 	return fmt.Sprintf("tuf: invalid repository URL %s", e.URL)
 }
+
+type ErrCorruptedCache struct {
+	file string
+}
+
+func (e ErrCorruptedCache) Error() string {
+	return fmt.Sprintf("cache is corrupted: %s", e.file)
+}

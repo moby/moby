@@ -17,6 +17,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/registry/api/errcode"
 	"github.com/docker/distribution/registry/api/v2"
+	"github.com/docker/distribution/registry/client"
 	"github.com/docker/distribution/registry/client/transport"
 	"github.com/docker/docker/autogen/dockerversion"
 	"github.com/docker/docker/pkg/parsers/kernel"
@@ -47,6 +48,23 @@ func init() {
 	httpVersion = append(httpVersion, useragent.VersionInfo{"arch", runtime.GOARCH})
 
 	dockerUserAgent = useragent.AppendVersions("", httpVersion...)
+}
+
+func newTLSConfig(hostname string, isSecure bool) (*tls.Config, error) {
+	// PreferredServerCipherSuites should have no effect
+	tlsConfig := tlsconfig.ServerDefault
+
+	tlsConfig.InsecureSkipVerify = !isSecure
+
+	if isSecure {
+		hostDir := filepath.Join(CertsDir, hostname)
+		logrus.Debugf("hostDir: %s", hostDir)
+		if err := ReadCertsDirectory(&tlsConfig, hostDir); err != nil {
+			return nil, err
+		}
+	}
+
+	return &tlsConfig, nil
 }
 
 func hasFile(files []os.FileInfo, name string) bool {
@@ -194,8 +212,14 @@ func ContinueOnError(err error) bool {
 		return ContinueOnError(v.Err)
 	case errcode.Error:
 		return shouldV2Fallback(v)
+	case *client.UnexpectedHTTPResponseError:
+		return true
 	}
-	return false
+	// let's be nice and fallback if the error is a completely
+	// unexpected one.
+	// If new errors have to be handled in some way, please
+	// add them to the switch above.
+	return true
 }
 
 // NewTransport returns a new HTTP transport. If tlsConfig is nil, it uses the

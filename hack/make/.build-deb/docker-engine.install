@@ -9,4 +9,3 @@ contrib/init/systemd/docker.socket lib/systemd/system/
 contrib/mk* usr/share/docker-engine/contrib/
 contrib/nuke-graph-directory.sh usr/share/docker-engine/contrib/
 contrib/syntax/nano/Dockerfile.nanorc usr/share/nano/
-contrib/apparmor/* etc/apparmor.d/

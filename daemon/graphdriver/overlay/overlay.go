@@ -411,7 +411,7 @@ func (d *Driver) ApplyDiff(id string, parent string, diff archive.ArchiveReader)
 		return 0, err
 	}
 
-	if size, err = chrootarchive.ApplyLayer(tmpRootDir, diff); err != nil {
+	if size, err = chrootarchive.ApplyUncompressedLayer(tmpRootDir, diff); err != nil {
 		return 0, err
 	}
 

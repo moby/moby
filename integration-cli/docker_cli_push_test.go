@@ -275,7 +275,7 @@ func (s *DockerTrustSuite) TestTrustedPushWithIncorrectPassphraseForNonRoot(c *c
 
 	// Push with wrong passphrases
 	pushCmd = exec.Command(dockerBinary, "push", repoName)
-	s.trustedCmdWithPassphrases(pushCmd, "12345678", "87654321", "87654321")
+	s.trustedCmdWithPassphrases(pushCmd, "12345678", "87654321")
 	out, _, err = runCommandWithOutput(pushCmd)
 	if err == nil {
 		c.Fatalf("Error missing from trusted push with short targets passphrase: \n%s", out)
@@ -287,6 +287,7 @@ func (s *DockerTrustSuite) TestTrustedPushWithIncorrectPassphraseForNonRoot(c *c
 }
 
 func (s *DockerTrustSuite) TestTrustedPushWithExpiredSnapshot(c *check.C) {
+	c.Skip("Currently changes system time, causing instability")
 	repoName := fmt.Sprintf("%v/dockercliexpiredsnapshot/trusted:latest", privateRegistryURL)
 	// tag the image and upload it to the private registry
 	dockerCmd(c, "tag", "busybox", repoName)
@@ -322,6 +323,7 @@ func (s *DockerTrustSuite) TestTrustedPushWithExpiredSnapshot(c *check.C) {
 }
 
 func (s *DockerTrustSuite) TestTrustedPushWithExpiredTimestamp(c *check.C) {
+	c.Skip("Currently changes system time, causing instability")
 	repoName := fmt.Sprintf("%v/dockercliexpiredtimestamppush/trusted:latest", privateRegistryURL)
 	// tag the image and upload it to the private registry
 	dockerCmd(c, "tag", "busybox", repoName)

@@ -51,6 +51,32 @@ echo_docker_as_nonroot() {
 	EOF
 }
 
+# Check if this is a forked Linux distro
+check_forked() {
+	# Check for lsb_release command existence, it usually exists in forked distros
+	if command_exists lsb_release; then
+		# Check if the `-u` option is supported
+		lsb_release -a -u > /dev/null 2>&1
+
+		# Check if the command has exited successfully, it means we're in a forked distro
+		if [ "$?" = "0" ]; then
+			# Print info about current distro
+			cat <<-EOF
+			You're using '$lsb_dist' version '$dist_version'.
+			EOF
+
+			# Get the upstream release info
+			lsb_dist=$(lsb_release -a -u 2>&1 | tr '[:upper:]' '[:lower:]' | grep -E 'id' | cut -d ':' -f 2 | tr -d '[[:space:]]')
+			dist_version=$(lsb_release -a -u 2>&1 | tr '[:upper:]' '[:lower:]' | grep -E 'codename' | cut -d ':' -f 2 | tr -d '[[:space:]]')
+
+			# Print info about upstream distro
+			cat <<-EOF
+			Upstream release is '$lsb_dist' version '$dist_version'.
+			EOF
+		fi
+	fi
+}
+
 do_install() {
 	case "$(uname -m)" in
 		*64)
@@ -119,41 +145,79 @@ do_install() {
 	dist_version=''
 	if command_exists lsb_release; then
 		lsb_dist="$(lsb_release -si)"
-		dist_version="$(lsb_release --codename | cut -f2)"
 	fi
 	if [ -z "$lsb_dist" ] && [ -r /etc/lsb-release ]; then
 		lsb_dist="$(. /etc/lsb-release && echo "$DISTRIB_ID")"
-		dist_version="$(. /etc/lsb-release && echo "$DISTRIB_CODENAME")"
 	fi
 	if [ -z "$lsb_dist" ] && [ -r /etc/debian_version ]; then
 		lsb_dist='debian'
-		dist_version="$(cat /etc/debian_version | sed 's/\/.*//' | sed 's/\..*//')"
-		case "$dist_version" in
-			8)
-				dist_version="jessie"
-				;;
-
-			7)
-				dist_version="wheezy"
-				;;
-		esac
 	fi
 	if [ -z "$lsb_dist" ] && [ -r /etc/fedora-release ]; then
 		lsb_dist='fedora'
-		dist_version="$(rpm -qa \*-release | cut -d"-" -f3 | head -n1)"
+	fi
+	if [ -z "$lsb_dist" ] && [ -r /etc/oracle-release ]; then
+		lsb_dist='oracleserver'
 	fi
 	if [ -z "$lsb_dist" ]; then
 		if [ -r /etc/centos-release ] || [ -r /etc/redhat-release ]; then
 			lsb_dist='centos'
-			dist_version="$(rpm -qa \*-release | cut -d"-" -f3 | head -n1)"
 		fi
 	fi
 	if [ -z "$lsb_dist" ] && [ -r /etc/os-release ]; then
 		lsb_dist="$(. /etc/os-release && echo "$ID")"
-		dist_version="$(. /etc/os-release && echo "$VERSION_ID")"
 	fi
 
 	lsb_dist="$(echo "$lsb_dist" | tr '[:upper:]' '[:lower:]')"
+
+	case "$lsb_dist" in
+
+		ubuntu)
+			if command_exists lsb_release; then
+				dist_version="$(lsb_release --codename | cut -f2)"
+			fi
+			if [ -z "$dist_version" ] && [ -r /etc/lsb-release ]; then
+				dist_version="$(. /etc/lsb-release && echo "$DISTRIB_CODENAME")"
+			fi
+		;;
+
+		debian)
+			dist_version="$(cat /etc/debian_version | sed 's/\/.*//' | sed 's/\..*//')"
+			case "$dist_version" in
+				8)
+					dist_version="jessie"
+				;;
+				7)
+					dist_version="wheezy"
+				;;
+			esac
+		;;
+
+		oracleserver)
+			# need to switch lsb_dist to match yum repo URL
+			lsb_dist="oraclelinux"
+			dist_version="$(rpm -q --whatprovides redhat-release --queryformat "%{VERSION}\n" | sed 's/\/.*//' | sed 's/\..*//')"
+		;;
+
+		fedora|centos)
+			dist_version="$(rpm -q --whatprovides redhat-release --queryformat "%{VERSION}\n" | sed 's/\/.*//' | sed 's/\..*//')"
+		;;
+
+		*)
+			if command_exists lsb_release; then
+				dist_version="$(lsb_release --codename | cut -f2)"
+			fi
+			if [ -z "$dist_version" ] && [ -r /etc/os-release ]; then
+				dist_version="$(. /etc/os-release && echo "$VERSION_ID")"
+			fi
+		;;
+
+
+	esac
+
+	# Check if this is a forked Linux distro
+	check_forked
+
+	# Run setup for each distro accordingly
 	case "$lsb_dist" in
 		amzn)
 			(
@@ -237,8 +301,8 @@ do_install() {
 			exit 0
 			;;
 
-		fedora|centos)
-			cat >/etc/yum.repos.d/docker-${repo}.repo <<-EOF
+		fedora|centos|oraclelinux)
+			$sh_c "cat >/etc/yum.repos.d/docker-${repo}.repo" <<-EOF
 			[docker-${repo}-repo]
 			name=Docker ${repo} Repository
 			baseurl=https://yum.dockerproject.org/repo/${repo}/${lsb_dist}/${dist_version}

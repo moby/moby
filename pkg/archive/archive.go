@@ -37,11 +37,13 @@ type (
 		Compression      Compression
 		NoLchown         bool
 		ChownOpts        *TarChownOptions
-		Name             string
 		IncludeSourceDir bool
 		// When unpacking, specifies whether overwriting a directory with a
 		// non-directory is allowed and vice versa.
 		NoOverwriteDirNonDir bool
+		// For each include when creating an archive, the included name will be
+		// replaced with the matching name from this map.
+		RebaseNames map[string]string
 	}
 
 	// Archiver allows the reuse of most utility functions of this package
@@ -454,8 +456,9 @@ func TarWithOptions(srcPath string, options *TarOptions) (io.ReadCloser, error) 
 
 		seen := make(map[string]bool)
 
-		var renamedRelFilePath string // For when tar.Options.Name is set
 		for _, include := range options.IncludeFiles {
+			rebaseName := options.RebaseNames[include]
+
 			// We can't use filepath.Join(srcPath, include) because this will
 			// clean away a trailing "." or "/" which may be important.
 			walkRoot := strings.Join([]string{srcPath, include}, string(filepath.Separator))
@@ -503,14 +506,17 @@ func TarWithOptions(srcPath string, options *TarOptions) (io.ReadCloser, error) 
 				}
 				seen[relFilePath] = true
 
-				// TODO Windows: Verify if this needs to be os.Pathseparator
-				// Rename the base resource
-				if options.Name != "" && filePath == srcPath+"/"+filepath.Base(relFilePath) {
-					renamedRelFilePath = relFilePath
-				}
-				// Set this to make sure the items underneath also get renamed
-				if options.Name != "" {
-					relFilePath = strings.Replace(relFilePath, renamedRelFilePath, options.Name, 1)
+				// Rename the base resource.
+				if rebaseName != "" {
+					var replacement string
+					if rebaseName != string(filepath.Separator) {
+						// Special case the root directory to replace with an
+						// empty string instead so that we don't end up with
+						// double slashes in the paths.
+						replacement = rebaseName
+					}
+
+					relFilePath = strings.Replace(relFilePath, include, replacement, 1)
 				}
 
 				if err := ta.addTarFile(filePath, relFilePath); err != nil {
@@ -633,8 +639,20 @@ loop:
 // The archive may be compressed with one of the following algorithms:
 //  identity (uncompressed), gzip, bzip2, xz.
 // FIXME: specify behavior when target path exists vs. doesn't exist.
-func Untar(archive io.Reader, dest string, options *TarOptions) error {
-	if archive == nil {
+func Untar(tarArchive io.Reader, dest string, options *TarOptions) error {
+	return untarHandler(tarArchive, dest, options, true)
+}
+
+// Untar reads a stream of bytes from `archive`, parses it as a tar archive,
+// and unpacks it into the directory at `dest`.
+// The archive must be an uncompressed stream.
+func UntarUncompressed(tarArchive io.Reader, dest string, options *TarOptions) error {
+	return untarHandler(tarArchive, dest, options, false)
+}
+
+// Handler for teasing out the automatic decompression
+func untarHandler(tarArchive io.Reader, dest string, options *TarOptions, decompress bool) error {
+	if tarArchive == nil {
 		return fmt.Errorf("Empty archive")
 	}
 	dest = filepath.Clean(dest)
@@ -644,12 +662,18 @@ func Untar(archive io.Reader, dest string, options *TarOptions) error {
 	if options.ExcludePatterns == nil {
 		options.ExcludePatterns = []string{}
 	}
-	decompressedArchive, err := DecompressStream(archive)
-	if err != nil {
-		return err
+
+	var r io.Reader = tarArchive
+	if decompress {
+		decompressedArchive, err := DecompressStream(tarArchive)
+		if err != nil {
+			return err
+		}
+		defer decompressedArchive.Close()
+		r = decompressedArchive
 	}
-	defer decompressedArchive.Close()
-	return Unpack(decompressedArchive, dest, options)
+
+	return Unpack(r, dest, options)
 }
 
 func (archiver *Archiver) TarUntar(src, dst string) error {

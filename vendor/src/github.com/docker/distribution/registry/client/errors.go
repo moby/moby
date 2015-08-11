@@ -61,3 +61,9 @@ func handleErrorResponse(resp *http.Response) error {
 	}
 	return &UnexpectedHTTPStatusError{Status: resp.Status}
 }
+
+// SuccessStatus returns true if the argument is a successful HTTP response
+// code (in the range 200 - 399 inclusive).
+func SuccessStatus(status int) bool {
+	return status >= 200 && status <= 399
+}

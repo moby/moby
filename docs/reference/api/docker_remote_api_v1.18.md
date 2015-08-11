@@ -49,6 +49,11 @@ List containers
                      "Created": 1367854155,
                      "Status": "Exit 0",
                      "Ports": [{"PrivatePort": 2222, "PublicPort": 3333, "Type": "tcp"}],
+                     "Labels": {
+                             "com.example.vendor": "Acme",
+                             "com.example.license": "GPL",
+                             "com.example.version": "1.0"
+                     },
                      "SizeRw": 12288,
                      "SizeRootFs": 0
              },
@@ -60,6 +65,7 @@ List containers
                      "Created": 1367854155,
                      "Status": "Exit 0",
                      "Ports": [],
+                     "Labels": {},
                      "SizeRw": 12288,
                      "SizeRootFs": 0
              },
@@ -71,6 +77,7 @@ List containers
                      "Created": 1367854154,
                      "Status": "Exit 0",
                      "Ports":[],
+                     "Labels": {},
                      "SizeRw":12288,
                      "SizeRootFs":0
              },
@@ -82,6 +89,7 @@ List containers
                      "Created": 1367854152,
                      "Status": "Exit 0",
                      "Ports": [],
+                     "Labels": {},
                      "SizeRw": 12288,
                      "SizeRootFs": 0
              }

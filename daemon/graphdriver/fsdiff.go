@@ -121,7 +121,7 @@ func (gdw *naiveDiffDriver) ApplyDiff(id, parent string, diff archive.ArchiveRea
 
 	start := time.Now().UTC()
 	logrus.Debugf("Start untar layer")
-	if size, err = chrootarchive.ApplyLayer(layerFs, diff); err != nil {
+	if size, err = chrootarchive.ApplyUncompressedLayer(layerFs, diff); err != nil {
 		return
 	}
 	logrus.Debugf("Untar time: %vs", time.Now().UTC().Sub(start).Seconds())

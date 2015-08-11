@@ -111,8 +111,6 @@ func (idx *TruncIndex) Get(s string) (string, error) {
 
 // Iterates over all stored IDs, and passes each of them to the given handler
 func (idx *TruncIndex) Iterate(handler func(id string)) {
-	idx.RLock()
-	defer idx.RUnlock()
 	idx.trie.Visit(func(prefix patricia.Prefix, item patricia.Item) error {
 		handler(string(prefix))
 		return nil

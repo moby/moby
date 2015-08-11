@@ -70,6 +70,7 @@ BUCKET=$AWS_S3_BUCKET
 #	GPG_KEY="740B314AE3941731B942C66ADF4FD13717AAD7D6"
 
 setup_s3() {
+	echo "Setting up S3"
 	# Try creating the bucket. Ignore errors (it might already exist).
 	s3cmd mb "s3://$BUCKET" 2>/dev/null || true
 	# Check access to the bucket.
@@ -102,6 +103,7 @@ s3_url() {
 }
 
 build_all() {
+	echo "Building release"
 	if ! ./hack/make.sh "${RELEASE_BUNDLES[@]}"; then
 		echo >&2
 		echo >&2 'The build or tests appear to have failed.'
@@ -162,6 +164,7 @@ upload_release_build() {
 }
 
 release_build() {
+	echo "Releasing binaries"
 	GOOS=$1
 	GOARCH=$2
 
@@ -246,6 +249,7 @@ release_build() {
 # 1. A full APT repository is published at $BUCKET/ubuntu/
 # 2. Instructions for using the APT repository are uploaded at $BUCKET/ubuntu/index
 release_ubuntu() {
+	echo "Releasing ubuntu"
 	[ -e "bundles/$VERSION/ubuntu" ] || {
 		echo >&2 './hack/make.sh must be run before release_ubuntu'
 		exit 1
@@ -338,16 +342,19 @@ EOF
 
 # Upload the index script
 release_index() {
+	echo "Releasing index"
 	sed "s,url='https://get.docker.com/',url='$(s3_url)/'," hack/install.sh | write_to_s3 "s3://$BUCKET/index"
 }
 
 release_test() {
+	echo "Releasing tests"
 	if [ -e "bundles/$VERSION/test" ]; then
 		s3cmd --acl-public sync "bundles/$VERSION/test/" "s3://$BUCKET/test/"
 	fi
 }
 
 setup_gpg() {
+	echo "Setting up GPG"
 	# Make sure that we have our keys
 	mkdir -p "$HOME/.gnupg/"
 	s3cmd sync "s3://$BUCKET/ubuntu/.gnupg/" "$HOME/.gnupg/" || true

@@ -100,6 +100,7 @@ func migrateKey() (err error) {
 				err = os.Remove(oldPath)
 			} else {
 				logrus.Warnf("Key migration failed, key file not removed at %s", oldPath)
+				os.Remove(newPath)
 			}
 		}()
 
@@ -226,7 +227,7 @@ func (cli *DaemonCli) CmdDaemon(args ...string) error {
 		}
 		tlsConfig, err := tlsconfig.Server(*commonFlags.TLSOptions)
 		if err != nil {
-			logrus.Fatalf("foobar: %v", err)
+			logrus.Fatal(err)
 		}
 		serverConfig.TLSConfig = tlsConfig
 	}

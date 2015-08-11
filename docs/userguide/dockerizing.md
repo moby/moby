@@ -15,9 +15,10 @@ parent = "smn_applied"
 Docker allows you to run applications inside containers. Running an
 application inside a container takes a single command: `docker run`.
 
-> **Note:** if you are using a remote Docker daemon, such as Boot2Docker, 
-> then _do not_ type the `sudo` before the `docker` commands shown in the
-> documentation's examples.
+>**Note**: Depending on your Docker system configuration, you may be required to
+>preface each `docker` command on this page with `sudo`. To avoid this behavior,
+>your system administrator can create a Unix group called `docker` and add users
+>to it. 
 
 ## Hello world
 

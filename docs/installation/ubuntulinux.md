@@ -111,18 +111,18 @@ install Docker using the following:
 
 1. Log into your Ubuntu installation as a user with `sudo` privileges.
 
-2. Verify that you have `wget` installed.
+2. Verify that you have `curl` installed.
 
-        $ which wget
+        $ which curl
 
-    If `wget` isn't installed, install it after updating your manager:
+    If `curl` isn't installed, install it after updating your manager:
 
         $ sudo apt-get update
-        $ sudo apt-get install wget
+        $ sudo apt-get install curl
 
 3. Get the latest Docker package.
 
-        $ wget -qO- https://get.docker.com/ | sh
+        $ curl -sSL https://get.docker.com/ | sh
 
     The system prompts you for your `sudo` password. Then, it downloads and
     installs Docker and its dependencies.
@@ -132,7 +132,7 @@ install Docker using the following:
 >command fails for the Docker repo during installation. To work around this,
 >add the key directly using the following:
 >
->       $ wget -qO- https://get.docker.com/gpg | sudo apt-key add -
+>       $ curl -sSL https://get.docker.com/gpg | sudo apt-key add -
 
 4. Verify `docker` is installed correctly.
 
@@ -197,9 +197,14 @@ When users run Docker, they may see these messages when working with an image:
     WARNING: Your kernel does not support cgroup swap limit. WARNING: Your
     kernel does not support swap limit capabilities. Limitation discarded.
 
-To prevent these messages, enable memory and swap accounting on your system. To
-enable these on system using GNU GRUB (GNU GRand Unified Bootloader), do the
-following.
+To prevent these messages, enable memory and swap accounting on your
+system.  Enabling memory and swap accounting does induce both a memory
+overhead and a performance degradation even when Docker is not in
+use. The memory overhead is about 1% of the total available
+memory. The performance degradation is roughly 10%.
+
+To enable memory and swap on system using GNU GRUB (GNU GRand Unified
+Bootloader), do the following:
 
 1. Log into Ubuntu as a user with `sudo` privileges.
 
@@ -339,9 +344,9 @@ to start the docker daemon on boot
 
 ## Upgrade Docker
 
-To install the latest version of Docker with `wget`:
+To install the latest version of Docker with `curl`:
 
-    $ wget -qO- https://get.docker.com/ | sh
+    $ curl -sSL https://get.docker.com/ | sh
 
 ## Uninstallation
 

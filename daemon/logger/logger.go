@@ -64,7 +64,12 @@ func NewLogWatcher() *LogWatcher {
 
 // Close notifies the underlying log reader to stop
 func (w *LogWatcher) Close() {
-	close(w.closeNotifier)
+	// only close if not already closed
+	select {
+	case <-w.closeNotifier:
+	default:
+		close(w.closeNotifier)
+	}
 }
 
 // WatchClose returns a channel receiver that receives notification when the watcher has been closed

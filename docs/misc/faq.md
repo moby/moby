@@ -33,7 +33,7 @@ Docker currently runs only on Linux, but you can use VirtualBox to run Docker in
 a virtual machine on your box, and get the best of both worlds. Check out the
 [*Mac OS X*](../installation/mac/#macosx) and [*Microsoft
 Windows*](../installation/windows/#windows) installation guides. The small Linux
-distribution boot2docker can be run inside virtual machines on these two
+distribution Docker Machine can be run inside virtual machines on these two
 operating systems.
 
 > **Note:** if you are using a remote Docker daemon, such as Boot2Docker, 
@@ -97,7 +97,7 @@ with several powerful functionalities:
  applications. Your ideal Postgresql setup can be re-used for all your future
  projects. And so on.
 
- - *Sharing.* Docker has access to a [public registry](https://hub.docker.com)
+ - *Sharing.* Docker has access to a public registry [on Docker Hub](https://registry.hub.docker.com/)
  where thousands of people have uploaded useful containers: anything from Redis,
  CouchDB, Postgres to IRC bouncers to Rails app servers to Hadoop to base images
  for various Linux distros. The

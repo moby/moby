@@ -41,6 +41,14 @@ var (
 	ErrContainerRootfsReadonly = errors.New("container rootfs is marked read-only")
 )
 
+type ErrContainerNotRunning struct {
+	id string
+}
+
+func (e ErrContainerNotRunning) Error() string {
+	return fmt.Sprintf("Container %s is not running", e.id)
+}
+
 type StreamConfig struct {
 	stdout    *broadcastwriter.BroadcastWriter
 	stderr    *broadcastwriter.BroadcastWriter
@@ -371,7 +379,7 @@ func (container *Container) KillSig(sig int) error {
 	}
 
 	if !container.Running {
-		return fmt.Errorf("Container %s is not running", container.ID)
+		return ErrContainerNotRunning{container.ID}
 	}
 
 	// signal to the monitor that it should not restart the container
@@ -408,7 +416,7 @@ func (container *Container) Pause() error {
 
 	// We cannot Pause the container which is not running
 	if !container.Running {
-		return fmt.Errorf("Container %s is not running, cannot pause a non-running container", container.ID)
+		return ErrContainerNotRunning{container.ID}
 	}
 
 	// We cannot Pause the container which is already paused
@@ -430,7 +438,7 @@ func (container *Container) Unpause() error {
 
 	// We cannot unpause the container which is not running
 	if !container.Running {
-		return fmt.Errorf("Container %s is not running, cannot unpause a non-running container", container.ID)
+		return ErrContainerNotRunning{container.ID}
 	}
 
 	// We cannot unpause the container which is not paused
@@ -448,7 +456,7 @@ func (container *Container) Unpause() error {
 
 func (container *Container) Kill() error {
 	if !container.IsRunning() {
-		return fmt.Errorf("Container %s is not running", container.ID)
+		return ErrContainerNotRunning{container.ID}
 	}
 
 	// 1. Send SIGKILL
@@ -530,7 +538,7 @@ func (container *Container) Restart(seconds int) error {
 
 func (container *Container) Resize(h, w int) error {
 	if !container.IsRunning() {
-		return fmt.Errorf("Cannot resize container %s, container is not running", container.ID)
+		return ErrContainerNotRunning{container.ID}
 	}
 	if err := container.command.ProcessConfig.Terminal.Resize(h, w); err != nil {
 		return err
@@ -1080,8 +1088,12 @@ func copyEscapable(dst io.Writer, src io.ReadCloser) (written int64, err error) 
 
 func (container *Container) networkMounts() []execdriver.Mount {
 	var mounts []execdriver.Mount
+	mode := "Z"
+	if container.hostConfig.NetworkMode.IsContainer() {
+		mode = "z"
+	}
 	if container.ResolvConfPath != "" {
-		label.SetFileLabel(container.ResolvConfPath, container.MountLabel)
+		label.Relabel(container.ResolvConfPath, container.MountLabel, mode)
 		mounts = append(mounts, execdriver.Mount{
 			Source:      container.ResolvConfPath,
 			Destination: "/etc/resolv.conf",
@@ -1090,7 +1102,7 @@ func (container *Container) networkMounts() []execdriver.Mount {
 		})
 	}
 	if container.HostnamePath != "" {
-		label.SetFileLabel(container.HostnamePath, container.MountLabel)
+		label.Relabel(container.HostnamePath, container.MountLabel, mode)
 		mounts = append(mounts, execdriver.Mount{
 			Source:      container.HostnamePath,
 			Destination: "/etc/hostname",
@@ -1099,7 +1111,7 @@ func (container *Container) networkMounts() []execdriver.Mount {
 		})
 	}
 	if container.HostsPath != "" {
-		label.SetFileLabel(container.HostsPath, container.MountLabel)
+		label.Relabel(container.HostsPath, container.MountLabel, mode)
 		mounts = append(mounts, execdriver.Mount{
 			Source:      container.HostsPath,
 			Destination: "/etc/hosts",

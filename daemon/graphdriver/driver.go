@@ -77,6 +77,7 @@ type Driver interface {
 	// ApplyDiff extracts the changeset from the given diff into the
 	// layer with the specified id and parent, returning the size of the
 	// new layer in bytes.
+	// The archive.ArchiveReader must be an uncompressed stream.
 	ApplyDiff(id, parent string, diff archive.ArchiveReader) (size int64, err error)
 	// DiffSize calculates the changes between the specified id
 	// and its parent and returns the size in bytes of the changes

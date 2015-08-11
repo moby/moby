@@ -93,9 +93,9 @@ func New(ctx logger.Context) (logger.Logger, error) {
 	}
 	logrus.Debugf("logging driver fluentd configured for container:%s, host:%s, port:%d, tag:%s.", ctx.ContainerID, host, port, tag)
 
-	// logger tries to recoonect 2**64 - 1 times
+	// logger tries to recoonect 2**32 - 1 times
 	// failed (and panic) after 204 years [ 1.5 ** (2**32 - 1) - 1 seconds]
-	log, err := fluent.New(fluent.Config{FluentPort: port, FluentHost: host, RetryWait: 1000, MaxRetry: math.MaxUint32})
+	log, err := fluent.New(fluent.Config{FluentPort: port, FluentHost: host, RetryWait: 1000, MaxRetry: math.MaxInt32})
 	if err != nil {
 		return nil, err
 	}

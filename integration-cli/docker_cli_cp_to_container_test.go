@@ -146,6 +146,118 @@ func (s *DockerSuite) TestCpToErrDstNotDir(c *check.C) {
 	}
 }
 
+// Check that copying from a local path to a symlink in a container copies to
+// the symlink target and does not overwrite the container symlink itself.
+func (s *DockerSuite) TestCpToSymlinkDestination(c *check.C) {
+	testRequires(c, SameHostDaemon) // Requires local volume mount bind.
+
+	testVol := getTestDir(c, "test-cp-to-symlink-destination-")
+	defer os.RemoveAll(testVol)
+
+	makeTestContentInDir(c, testVol)
+
+	cID := makeTestContainer(c, testContainerOptions{
+		volumes: defaultVolumes(testVol), // Our bind mount is at /vol2
+	})
+	defer deleteContainer(cID)
+
+	// First, copy a local file to a symlink to a file in the container. This
+	// should overwrite the symlink target contents with the source contents.
+	srcPath := cpPath(testVol, "file2")
+	dstPath := containerCpPath(cID, "/vol2/symlinkToFile1")
+
+	if err := runDockerCp(c, srcPath, dstPath); err != nil {
+		c.Fatalf("unexpected error %T: %s", err, err)
+	}
+
+	// The symlink should not have been modified.
+	if err := symlinkTargetEquals(c, cpPath(testVol, "symlinkToFile1"), "file1"); err != nil {
+		c.Fatal(err)
+	}
+
+	// The file should have the contents of "file2" now.
+	if err := fileContentEquals(c, cpPath(testVol, "file1"), "file2\n"); err != nil {
+		c.Fatal(err)
+	}
+
+	// Next, copy a local file to a symlink to a directory in the container.
+	// This should copy the file into the symlink target directory.
+	dstPath = containerCpPath(cID, "/vol2/symlinkToDir1")
+
+	if err := runDockerCp(c, srcPath, dstPath); err != nil {
+		c.Fatalf("unexpected error %T: %s", err, err)
+	}
+
+	// The symlink should not have been modified.
+	if err := symlinkTargetEquals(c, cpPath(testVol, "symlinkToDir1"), "dir1"); err != nil {
+		c.Fatal(err)
+	}
+
+	// The file should have the contents of "file2" now.
+	if err := fileContentEquals(c, cpPath(testVol, "file2"), "file2\n"); err != nil {
+		c.Fatal(err)
+	}
+
+	// Next, copy a file to a symlink to a file that does not exist (a broken
+	// symlink) in the container. This should create the target file with the
+	// contents of the source file.
+	dstPath = containerCpPath(cID, "/vol2/brokenSymlinkToFileX")
+
+	if err := runDockerCp(c, srcPath, dstPath); err != nil {
+		c.Fatalf("unexpected error %T: %s", err, err)
+	}
+
+	// The symlink should not have been modified.
+	if err := symlinkTargetEquals(c, cpPath(testVol, "brokenSymlinkToFileX"), "fileX"); err != nil {
+		c.Fatal(err)
+	}
+
+	// The file should have the contents of "file2" now.
+	if err := fileContentEquals(c, cpPath(testVol, "fileX"), "file2\n"); err != nil {
+		c.Fatal(err)
+	}
+
+	// Next, copy a local directory to a symlink to a directory in the
+	// container. This should copy the directory into the symlink target
+	// directory and not modify the symlink.
+	srcPath = cpPath(testVol, "/dir2")
+	dstPath = containerCpPath(cID, "/vol2/symlinkToDir1")
+
+	if err := runDockerCp(c, srcPath, dstPath); err != nil {
+		c.Fatalf("unexpected error %T: %s", err, err)
+	}
+
+	// The symlink should not have been modified.
+	if err := symlinkTargetEquals(c, cpPath(testVol, "symlinkToDir1"), "dir1"); err != nil {
+		c.Fatal(err)
+	}
+
+	// The directory should now contain a copy of "dir2".
+	if err := fileContentEquals(c, cpPath(testVol, "dir1/dir2/file2-1"), "file2-1\n"); err != nil {
+		c.Fatal(err)
+	}
+
+	// Next, copy a local directory to a symlink to a local directory that does
+	// not exist (a broken symlink) in the container. This should create the
+	// target as a directory with the contents of the source directory. It
+	// should not modify the symlink.
+	dstPath = containerCpPath(cID, "/vol2/brokenSymlinkToDirX")
+
+	if err := runDockerCp(c, srcPath, dstPath); err != nil {
+		c.Fatalf("unexpected error %T: %s", err, err)
+	}
+
+	// The symlink should not have been modified.
+	if err := symlinkTargetEquals(c, cpPath(testVol, "brokenSymlinkToDirX"), "dirX"); err != nil {
+		c.Fatal(err)
+	}
+
+	// The "dirX" directory should now be a copy of "dir2".
+	if err := fileContentEquals(c, cpPath(testVol, "dirX/file2-1"), "file2-1\n"); err != nil {
+		c.Fatal(err)
+	}
+}
+
 // Possibilities are reduced to the remaining 10 cases:
 //
 //  case | srcIsDir | onlyDirContents | dstExists | dstIsDir | dstTrSep | action

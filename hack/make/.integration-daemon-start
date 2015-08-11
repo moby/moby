@@ -35,8 +35,6 @@ if [ -z "$DOCKER_TEST_HOST" ]; then
 		(
 			set -x
 			/etc/init.d/apparmor start
-
-			/sbin/apparmor_parser -r -W -T contrib/apparmor/
 		)
 	fi
 

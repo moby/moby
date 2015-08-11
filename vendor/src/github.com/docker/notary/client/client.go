@@ -250,12 +250,28 @@ func (r *NotaryRepository) AddTarget(target *Target) error {
 		return err
 	}
 
-	c := changelist.NewTufChange(changelist.ActionCreate, "targets", "target", target.Name, metaJSON)
+	c := changelist.NewTufChange(changelist.ActionCreate, changelist.ScopeTargets, "target", target.Name, metaJSON)
 	err = cl.Add(c)
 	if err != nil {
 		return err
 	}
 	return cl.Close()
+}
+
+// RemoveTarget creates a new changelist entry to remove a target from the repository
+// when the changelist gets applied at publish time
+func (r *NotaryRepository) RemoveTarget(targetName string) error {
+	cl, err := changelist.NewFileChangelist(filepath.Join(r.tufRepoPath, "changelist"))
+	if err != nil {
+		return err
+	}
+	logrus.Debugf("Removing target \"%s\"", targetName)
+	c := changelist.NewTufChange(changelist.ActionDelete, changelist.ScopeTargets, "target", targetName, nil)
+	err = cl.Add(c)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 // ListTargets lists all targets for the current repository

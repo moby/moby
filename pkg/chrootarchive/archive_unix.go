@@ -49,7 +49,7 @@ func untar() {
 	os.Exit(0)
 }
 
-func invokeUnpack(decompressedArchive io.ReadCloser, dest string, options *archive.TarOptions) error {
+func invokeUnpack(decompressedArchive io.Reader, dest string, options *archive.TarOptions) error {
 
 	// We can't pass a potentially large exclude list directly via cmd line
 	// because we easily overrun the kernel's max argument/environment size

@@ -21,17 +21,19 @@ APTDIR=$DOCKER_RELEASE_DIR/apt/repo
 mkdir -p "$APTDIR/conf" "$APTDIR/db"
 
 # create/update distributions file
-for suite in $(exec contrib/reprepro/suites.sh); do
-	cat <<-EOF
-	Origin: Docker
-	Suite: $suite
-	Codename: $suite
-	Architectures: amd64 i386
-	Components: main testing experimental
-	Description: Docker APT Repository
+if [[ ! -f "$APTDIR/conf/distributions" ]]; then
+	for suite in $(exec contrib/reprepro/suites.sh); do
+		cat <<-EOF
+		Origin: Docker
+		Suite: $suite
+		Codename: $suite
+		Architectures: amd64 i386
+		Components: main testing experimental
+		Description: Docker APT Repository
 
-	EOF
-done > "$APTDIR/conf/distributions"
+		EOF
+	done > "$APTDIR/conf/distributions"
+fi
 
 # set the component and priority for the version being released
 component="main"

@@ -21,7 +21,7 @@ clone git golang.org/x/net 3cffabab72adf04f8e3b01c5baf775361837b5fe https://gith
 clone hg code.google.com/p/gosqlite 74691fb6f837
 
 #get libnetwork packages
-clone git github.com/docker/libnetwork f1c5671f1ee2133055144e566cd8b3a0ae4f0433
+clone git github.com/docker/libnetwork bd3eecc96f3c05a4acef1bedcf74397bc6850d22
 clone git github.com/armon/go-metrics eb0af217e5e9747e41dd5303755356b62d28e3ec
 clone git github.com/hashicorp/go-msgpack 71c2886f5a673a35f909803f38ece5810165097b
 clone git github.com/hashicorp/memberlist 9a1e242e454d2443df330bdd51a436d5a9058fc4
@@ -35,11 +35,11 @@ clone git github.com/coreos/go-etcd v2.0.0
 clone git github.com/hashicorp/consul v0.5.2
 
 # get graph and distribution packages
-clone git github.com/docker/distribution cd8ff553b6b1911be23dfeabb73e33108bcbf147
+clone git github.com/docker/distribution 7dc8d4a26b689bd4892f2f2322dbce0b7119d686
 clone git github.com/vbatts/tar-split v0.9.4
 
-clone git github.com/docker/notary 77bced079e83d80f40c1f0a544b1a8a3b97fb052
-clone git github.com/endophage/gotuf 374908abc8af7e953a2813c5c2b3944ab625ca68
+clone git github.com/docker/notary 8e8122eb5528f621afcd4e2854c47302f17392f7
+clone git github.com/endophage/gotuf a592b03b28b02bb29bb5878308fb1abed63383b5
 clone git github.com/tent/canonical-json-go 96e4ba3a7613a1216cbd1badca4efe382adea337
 clone git github.com/agl/ed25519 d2b94fd789ea21d12fac1a4443dd3a3f79cda72c
 
