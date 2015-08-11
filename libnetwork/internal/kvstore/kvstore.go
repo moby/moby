@@ -39,7 +39,6 @@ var (
 type Config struct {
 	TLS               *tls.Config
 	ConnectionTimeout time.Duration
-	EphemeralTTL      time.Duration
 }
 
 // Store represents the backend K/V storage
@@ -97,8 +96,7 @@ type KVPair struct {
 
 // WriteOptions contains optional request parameters
 type WriteOptions struct {
-	Heartbeat time.Duration
-	Ephemeral bool
+	TTL time.Duration
 }
 
 // LockOptions contains optional request parameters
