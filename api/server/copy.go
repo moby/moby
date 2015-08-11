@@ -13,7 +13,7 @@ import (
 	"github.com/docker/docker/pkg/version"
 )
 
-// postContainersCopy is deprecated in favor of getContainersArchivePath.
+// postContainersCopy is deprecated in favor of getContainersArchive.
 func (s *Server) postContainersCopy(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
