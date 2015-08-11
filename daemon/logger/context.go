@@ -17,6 +17,8 @@ type Context struct {
 	ContainerImageID    string
 	ContainerImageName  string
 	ContainerCreated    time.Time
+	ContainerEnv        []string
+	ContainerLabels     map[string]string
 	LogPath             string
 }
 
