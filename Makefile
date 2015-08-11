@@ -74,6 +74,7 @@ build: bundles
 	docker build -t "$(DOCKER_IMAGE)" .
 
 bundles:
+	project/generate-dockerfile.sh > Dockerfile
 	mkdir bundles
 
 docs:
