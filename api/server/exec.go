@@ -64,10 +64,9 @@ func (s *Server) postContainerExecStart(version version.Version, w http.Response
 		return err
 	}
 	var (
-		execName = vars["name"]
-		stdin    io.ReadCloser
-		stdout   io.Writer
-		stderr   io.Writer
+		execName                  = vars["name"]
+		stdin, inStream           io.ReadCloser
+		stdout, stderr, outStream io.Writer
 	)
 
 	execStartCheck := &types.ExecStartCheck{}
@@ -76,14 +75,13 @@ func (s *Server) postContainerExecStart(version version.Version, w http.Response
 	}
 
 	if !execStartCheck.Detach {
+		var err error
 		// Setting up the streaming http interface.
-		inStream, outStream, err := hijackServer(w)
+		inStream, outStream, err = hijackServer(w)
 		if err != nil {
 			return err
 		}
 		defer closeStreams(inStream, outStream)
-
-		var errStream io.Writer
 
 		if _, ok := r.Header["Upgrade"]; ok {
 			fmt.Fprintf(outStream, "HTTP/1.1 101 UPGRADED\r\nContent-Type: application/vnd.docker.raw-stream\r\nConnection: Upgrade\r\nUpgrade: tcp\r\n\r\n")
@@ -92,22 +90,16 @@ func (s *Server) postContainerExecStart(version version.Version, w http.Response
 		}
 
 		if !execStartCheck.Tty {
-			errStream = stdcopy.NewStdWriter(outStream, stdcopy.Stderr)
-			outStream = stdcopy.NewStdWriter(outStream, stdcopy.Stdout)
+			stderr = stdcopy.NewStdWriter(outStream, stdcopy.Stderr)
+			stdout = stdcopy.NewStdWriter(outStream, stdcopy.Stdout)
 		}
-
 		stdin = inStream
-		stdout = outStream
-		stderr = errStream
 	}
+
 	// Now run the user process in container.
-
 	if err := s.daemon.ContainerExecStart(execName, stdin, stdout, stderr); err != nil {
-		logrus.Errorf("Error starting exec command in container %s: %s", execName, err)
-		return err
+		fmt.Fprintf(outStream, "Error running exec in container: %v\n", err)
 	}
-	w.WriteHeader(http.StatusNoContent)
-
 	return nil
 }
 
