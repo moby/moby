@@ -63,10 +63,10 @@ type Store interface {
 	Watch(key string, stopCh <-chan struct{}) (<-chan *KVPair, error)
 
 	// WatchTree watches for changes on child nodes under
-	// a given a directory
+	// a given directory
 	WatchTree(directory string, stopCh <-chan struct{}) (<-chan []*KVPair, error)
 
-	// CreateLock for a given key.
+	// NewLock creates a lock for a given key.
 	// The returned Locker is not held and must be acquired
 	// with `.Lock`. The Value is optional.
 	NewLock(key string, options *LockOptions) (Locker, error)
