@@ -27,6 +27,11 @@ type v2Pusher struct {
 	config    *ImagePushConfig
 	sf        *streamformatter.StreamFormatter
 	repo      distribution.Repository
+
+	// layersPushed is the set of layers known to exist on the remote side.
+	// This avoids redundant queries when pushing multiple tags that
+	// involve the same layers.
+	layersPushed map[digest.Digest]bool
 }
 
 func (p *v2Pusher) Push() (fallback bool, err error) {
@@ -117,6 +122,10 @@ func (p *v2Pusher) pushV2Tag(tag string) error {
 			return err
 		}
 
+		// break early if layer has already been seen in this image,
+		// this prevents infinite loops on layers which loopback, this
+		// cannot be prevented since layer IDs are not merkle hashes
+		// TODO(dmcgowan): throw error if no valid use case is found
 		if layersSeen[layer.ID] {
 			break
 		}
@@ -138,6 +147,13 @@ func (p *v2Pusher) pushV2Tag(tag string) error {
 		dgst, err := p.graph.GetDigest(layer.ID)
 		switch err {
 		case nil:
+			if p.layersPushed[dgst] {
+				exists = true
+				// break out of switch, it is already known that
+				// the push is not needed and therefore doing a
+				// stat is unnecessary
+				break
+			}
 			_, err := p.repo.Blobs(context.Background()).Stat(context.Background(), dgst)
 			switch err {
 			case nil:
@@ -173,6 +189,7 @@ func (p *v2Pusher) pushV2Tag(tag string) error {
 		m.History = append(m.History, manifest.History{V1Compatibility: string(jsonData)})
 
 		layersSeen[layer.ID] = true
+		p.layersPushed[dgst] = true
 	}
 
 	logrus.Infof("Signed manifest for %s:%s using daemon's key: %s", p.repo.Name(), tag, p.trustKey.KeyID())
