@@ -211,19 +211,34 @@ retry:
 
 // Create and insert the internal subnet(s) addresses masks into the address database. Mask data may come from the bitseq datastore.
 func (a *Allocator) insertAddressMasks(parentKey subnetKey, internalSubnetList []*net.IPNet) error {
-	for _, intSub := range internalSubnetList {
-		var err error
-		ones, bits := intSub.Mask.Size()
-		numAddresses := 1 << uint(bits-ones)
-		smallKey := subnetKey{parentKey.addressSpace, parentKey.subnet, intSub.String()}
+	ipVer := getAddressVersion(internalSubnetList[0].IP)
+	num := len(internalSubnetList)
+	ones, bits := internalSubnetList[0].Mask.Size()
+	numAddresses := 1 << uint(bits-ones)
 
-		// Insert the new address masks. AddressMask content may come from datastore
-		a.Lock()
-		a.addresses[smallKey], err = bitseq.NewHandle(dsDataKey, a.store, smallKey.String(), uint32(numAddresses))
-		a.Unlock()
+	for i := 0; i < num; i++ {
+		smallKey := subnetKey{parentKey.addressSpace, parentKey.subnet, internalSubnetList[i].String()}
+		limit := uint32(numAddresses)
+
+		if ipVer == v4 && i == num-1 {
+			// Do not let broadcast address be reserved
+			limit--
+		}
+
+		// Generate the new address masks. AddressMask content may come from datastore
+		h, err := bitseq.NewHandle(dsDataKey, a.getStore(), smallKey.String(), limit)
 		if err != nil {
 			return err
 		}
+
+		if ipVer == v4 && i == 0 {
+			// Do not let network identifier address be reserved
+			h.Set(0)
+		}
+
+		a.Lock()
+		a.addresses[smallKey] = h
+		a.Unlock()
 	}
 	return nil
 }
@@ -522,30 +537,21 @@ func (a *Allocator) getAddress(subnet *net.IPNet, bitmask *bitseq.Handle, prefAd
 		err     error
 	)
 
-	// Look for free IP, skip .0 and .255, they will be automatically reserved
-	for {
-		if bitmask.Unselected() <= 0 {
-			return nil, ErrNoAvailableIPs
+	if bitmask.Unselected() <= 0 {
+		return nil, ErrNoAvailableIPs
+	}
+	if prefAddress == nil {
+		ordinal, err = bitmask.SetAny()
+	} else {
+		hostPart, e := types.GetHostPartIP(prefAddress, subnet.Mask)
+		if e != nil {
+			return nil, fmt.Errorf("failed to allocate preferred address %s: %v", prefAddress.String(), e)
 		}
-		if prefAddress == nil {
-			ordinal, err = bitmask.SetAny()
-		} else {
-			hostPart, e := types.GetHostPartIP(prefAddress, subnet.Mask)
-			if e != nil {
-				return nil, fmt.Errorf("failed to allocate preferred address %s: %v", prefAddress.String(), e)
-			}
-			ordinal = ipToUint32(types.GetMinimalIP(hostPart))
-			err = bitmask.Set(ordinal)
-		}
-		if err != nil {
-			return nil, ErrNoAvailableIPs
-		}
-
-		// For v4, let reservation of .0 and .255 happen automatically
-		if ver == v4 && !isValidIP(ordinal) {
-			continue
-		}
-		break
+		ordinal = ipToUint32(types.GetMinimalIP(hostPart))
+		err = bitmask.Set(ordinal)
+	}
+	if err != nil {
+		return nil, ErrNoAvailableIPs
 	}
 
 	// Convert IP ordinal for this subnet into IP address
@@ -565,6 +571,12 @@ func (a *Allocator) DumpDatabase() {
 			fmt.Printf("\n\t%s: %s\n\t%d", internKey.childSubnet, bm, bm.Unselected())
 		}
 	}
+}
+
+func (a *Allocator) getStore() datastore.DataStore {
+	a.Lock()
+	defer a.Unlock()
+	return a.store
 }
 
 // It generates the ip address in the passed subnet specified by
@@ -590,12 +602,6 @@ func getAddressVersion(ip net.IP) ipVersion {
 		return v6
 	}
 	return v4
-}
-
-// .0 and .255 will return false
-func isValidIP(i uint32) bool {
-	lastByte := i & 0xff
-	return lastByte != 0xff && lastByte != 0
 }
 
 // Adds the ordinal IP to the current array
