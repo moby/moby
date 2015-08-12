@@ -1353,3 +1353,33 @@ func createTmpFile(c *check.C, content string) string {
 
 	return filename
 }
+
+func buildImageArgs(args []string, name, dockerfile string, useCache bool) (string, error) {
+	id, _, err := buildImageWithOutArgs(args, name, dockerfile, useCache)
+	return id, err
+}
+
+func buildImageWithOutArgs(args []string, name, dockerfile string, useCache bool) (string, string, error) {
+	buildCmd := buildImageCmdArgs(args, name, dockerfile, useCache)
+	out, exitCode, err := runCommandWithOutput(buildCmd)
+	if err != nil || exitCode != 0 {
+		return "", out, fmt.Errorf("failed to build the image: %s", out)
+	}
+	id, err := getIDByName(name)
+	if err != nil {
+		return "", out, err
+	}
+	return id, out, nil
+}
+
+func buildImageCmdArgs(args []string, name, dockerfile string, useCache bool) *exec.Cmd {
+	args = append(args, []string{"-D", "build", "-t", name}...)
+	if !useCache {
+		args = append(args, "--no-cache")
+	}
+	args = append(args, "-")
+	buildCmd := exec.Command(dockerBinary, args...)
+	buildCmd.Stdin = strings.NewReader(dockerfile)
+	return buildCmd
+
+}
