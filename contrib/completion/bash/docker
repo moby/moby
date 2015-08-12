@@ -229,17 +229,21 @@ __docker_log_driver_options() {
 	# see docs/reference/logging/index.md
 	local fluentd_options="fluentd-address fluentd-tag"
 	local gelf_options="gelf-address gelf-tag"
+	local json_file_options="max-file max-size"
 	local syslog_options="syslog-address syslog-facility syslog-tag"
 
 	case $(__docker_value_of_option --log-driver) in
 		'')
-			COMPREPLY=( $( compgen -W "$fluentd_options $gelf_options $syslog_options" -S = -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "$fluentd_options $gelf_options $json_file_options $syslog_options" -S = -- "$cur" ) )
 			;;
 		fluentd)
 			COMPREPLY=( $( compgen -W "$fluentd_options" -S = -- "$cur" ) )
 			;;
 		gelf)
 			COMPREPLY=( $( compgen -W "$gelf_options" -S = -- "$cur" ) )
+			;;
+		json-file)
+			COMPREPLY=( $( compgen -W "$json_file_options" -S = -- "$cur" ) )
 			;;
 		syslog)
 			COMPREPLY=( $( compgen -W "$syslog_options" -S = -- "$cur" ) )
