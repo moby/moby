@@ -24,6 +24,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"github.com/Sirupsen/logrus"
@@ -281,6 +282,13 @@ func (b *builder) readDockerfile() error {
 // features.
 func (b *builder) dispatch(stepN int, ast *parser.Node) error {
 	cmd := ast.Value
+
+	// To ensure the user is give a decent error message if the platform
+	// on which the daemon is running does not support a builder command.
+	if err := platformSupports(strings.ToLower(cmd)); err != nil {
+		return err
+	}
+
 	attrs := ast.Attributes
 	original := ast.Original
 	flags := ast.Flags
@@ -348,4 +356,17 @@ func (b *builder) dispatch(stepN int, ast *parser.Node) error {
 	}
 
 	return fmt.Errorf("Unknown instruction: %s", strings.ToUpper(cmd))
+}
+
+// platformSupports is a short-term function to give users a quality error
+// message if a Dockerfile uses a command not supported on the platform.
+func platformSupports(command string) error {
+	if runtime.GOOS != "windows" {
+		return nil
+	}
+	switch command {
+	case "expose", "volume", "user":
+		return fmt.Errorf("The daemon on this platform does not support the command '%s'", command)
+	}
+	return nil
 }
