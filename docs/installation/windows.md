@@ -36,7 +36,7 @@ Your machine must be running Windows 7.1, 8/8.1 or newer to run Docker. Windows 
 1. Right click the Windows message and choose **System**. 
 
     ![Which version](/installation/images/win_ver.png)
-
+    
     If you aren't using a supported version, you could consider upgrading your
     operating system.
 
@@ -44,19 +44,19 @@ Your machine must be running Windows 7.1, 8/8.1 or newer to run Docker. Windows 
 
     #### For Windows 8 or 8.1
 
-    Choose **Start > Task Manager** and navigate to the **Performance** tab.          
-    Under **CPU** you should see the following:
+	  Choose **Start > Task Manager** and navigate to the **Performance** tab.          
+	  Under **CPU** you should see the following:
 
       ![Release page](/installation/images/virtualization.png)
-
+    
     If virtualization is not enabled on your system, follow the manufacturer's instructions for enabling it.
-
-    ### For Windows 7
-
-    Run the <a
-    href="http://www.microsoft.com/en-us/download/details.aspx?id=592"
-    target="_blank"> Microsoft® Hardware-Assisted Virtualization Detection
-    Tool</a> and follow the on-screen instructions.
+    
+    ### For Windows 7 
+    
+	  Run the <a
+	  href="http://www.microsoft.com/en-us/download/details.aspx?id=592"
+	  target="_blank"> Microsoft® Hardware-Assisted Virtualization Detection
+	  Tool</a> and follow the on-screen instructions.
 
 
 > **Note**: If you have Docker hosts running and you don't wish to do a Docker Toolbox
@@ -101,14 +101,14 @@ installer.
 3. Install Docker Toolbox by double-clicking the installer.
 
     The installer launches the "Setup - Docker Toolbox" dialog.
-
+    
     ![Install Docker Toolbox](/installation/images/win-welcome.png)
 
 4. Press "Next" to install the toolbox.
 
     The installer presents you with options to customize the standard
     installation. By default, the standard Docker Toolbox installation:
-
+  
     * installs executables for the Docker tools in `C:\Program Files\Docker Toolbox` 
     * updates any existing VirtualBox installation 
     * adds a Docker Inc. folder to your program shortcuts
@@ -120,16 +120,16 @@ installer.
 5. Press "Next" until you reach the "Ready to Install" page.
 
      The system prompts you for your password.
-
+   
      ![Install](/installation/images/win-page-6.png)
-
+     
 6. Press "Install"  to continue with the installation.
 
      When it completes, the installer provides you with some information you can
      use to complete some common tasks.
-
+   
      ![All finished](/installation/images/windows-finish.png)
-
+   
 7. Press "Close" to exit.
 
 ## Running a Docker Container
@@ -198,7 +198,7 @@ There are several ways to use the installed tools, from the Docker Quickstart Te
 2. Add this to the `%PATH%` environment variable by running:
 
         set PATH=%PATH%;"c:\Program Files (x86)\Git\bin"
-
+        
 3. Create a new Docker VM.
 
         docker-machine create --driver virtualbox my-default
@@ -212,20 +212,20 @@ There are several ways to use the installed tools, from the Docker Quickstart Te
     `C:\USERS\USERNAME\.docker\machine\machines` directory. You only need to run the `create`
     command once. Then, you can use `docker-machine` to start, stop, query, and
     otherwise manage the VM from the command line.
-
+    
 4. List your available machines.
 
         C:\Users\mary> docker-machine ls
         NAME                ACTIVE   DRIVER       STATE     URL                         SWARM
         my-default        *        virtualbox   Running   tcp://192.168.99.101:2376  
-
+        
     If you have previously installed the deprecated Boot2Docker application or
     run the Docker Quickstart Terminal, you may have a `dev` VM as well.  
 
 5. Get the environment commands for your new VM.
 
         C:\Users\mary> docker-machine env --shell cmd my-default
-
+    
 6. Connect your shell to the `my-default` machine.
 
         C:\Users\mary> eval "$(docker-machine env my-default)"
@@ -241,21 +241,21 @@ There are several ways to use the installed tools, from the Docker Quickstart Te
 2. Add `ssh.exe` to your PATH:
 
         PS C:\Users\mary> $Env:Path = "${Env:Path};c:\Program Files (x86)\Git\bin"
-
+        
 3. Create a new Docker VM.
 
         PS C:\Users\mary> docker-machine create --driver virtualbox my-default
-
+    
 4. List your available machines.
 
         C:\Users\mary> docker-machine ls
         NAME                ACTIVE   DRIVER       STATE     URL                         SWARM
         my-default        *        virtualbox   Running   tcp://192.168.99.101:2376  
-
+      
 5. Get the environment commands for your new VM.
 
         C:\Users\mary> docker-machine env --shell powershell my-default
-
+    
 6. Connect your shell to the `my-default` machine.
 
         C:\Users\mary> eval "$(docker-machine env my-default)"
@@ -288,9 +288,9 @@ this older VM, you can migrate it.
 2. Type the following command.
 
         $ docker-machine create -d virtualbox --virtualbox-import-boot2docker-vm boot2docker-vm docker-vm
-
+      
 3. Use the `docker-machine` command to interact with the migrated VM.  
-
+      
 The `docker-machine` subcommands are slightly different than the `boot2docker`
 subcommands. The table below lists the equivalent `docker-machine` subcommand
 and what it does:
