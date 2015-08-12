@@ -70,10 +70,15 @@ type (
 		Begin int
 		End   int
 	}
+	portRange struct {
+		begin int
+		end   int
+		last  int
+	}
 	portMap struct {
-		p          map[int]struct{}
-		begin, end int
-		last       int
+		p            map[int]struct{}
+		defaultRange string
+		portRanges   map[string]*portRange
 	}
 	protoMap map[string]*portMap
 )
@@ -123,8 +128,17 @@ func getDynamicPortRange() (start int, end int, err error) {
 
 // RequestPort requests new port from global ports pool for specified ip and proto.
 // If port is 0 it returns first free port. Otherwise it checks port availability
-// in pool and return that port or error if port is already busy.
+// in proto's pool and returns that port or error if port is already busy.
 func (p *PortAllocator) RequestPort(ip net.IP, proto string, port int) (int, error) {
+	return p.RequestPortInRange(ip, proto, port, port)
+}
+
+// RequestPortInRange requests new port from global ports pool for specified ip and proto.
+// If portStart and portEnd are 0 it returns the first free port in the default ephemeral range.
+// If portStart != portEnd it returns the first free port in the requested range.
+// Otherwise (portStart == portEnd) it checks port availability in the requested proto's port-pool
+// and returns that port or error if port is already busy.
+func (p *PortAllocator) RequestPortInRange(ip net.IP, proto string, portStart, portEnd int) (int, error) {
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
 
@@ -146,15 +160,15 @@ func (p *PortAllocator) RequestPort(ip net.IP, proto string, port int) (int, err
 		p.ipMap[ipstr] = protomap
 	}
 	mapping := protomap[proto]
-	if port > 0 {
-		if _, ok := mapping.p[port]; !ok {
-			mapping.p[port] = struct{}{}
-			return port, nil
+	if portStart > 0 && portStart == portEnd {
+		if _, ok := mapping.p[portStart]; !ok {
+			mapping.p[portStart] = struct{}{}
+			return portStart, nil
 		}
-		return 0, newErrPortAlreadyAllocated(ipstr, port)
+		return 0, newErrPortAlreadyAllocated(ipstr, portStart)
 	}
 
-	port, err := mapping.findPort()
+	port, err := mapping.findPort(portStart, portEnd)
 	if err != nil {
 		return 0, err
 	}
@@ -178,12 +192,15 @@ func (p *PortAllocator) ReleasePort(ip net.IP, proto string, port int) error {
 }
 
 func (p *PortAllocator) newPortMap() *portMap {
-	return &portMap{
-		p:     map[int]struct{}{},
-		begin: p.Begin,
-		end:   p.End,
-		last:  p.End,
+	defaultKey := getRangeKey(p.Begin, p.End)
+	pm := &portMap{
+		p:            map[int]struct{}{},
+		defaultRange: defaultKey,
+		portRanges: map[string]*portRange{
+			defaultKey: newPortRange(p.Begin, p.End),
+		},
 	}
+	return pm
 }
 
 // ReleaseAll releases all ports for all ips.
@@ -194,17 +211,58 @@ func (p *PortAllocator) ReleaseAll() error {
 	return nil
 }
 
-func (pm *portMap) findPort() (int, error) {
-	port := pm.last
-	for i := 0; i <= pm.end-pm.begin; i++ {
+func getRangeKey(portStart, portEnd int) string {
+	return fmt.Sprintf("%d-%d", portStart, portEnd)
+}
+
+func newPortRange(portStart, portEnd int) *portRange {
+	return &portRange{
+		begin: portStart,
+		end:   portEnd,
+		last:  portEnd,
+	}
+}
+
+func (pm *portMap) getPortRange(portStart, portEnd int) (*portRange, error) {
+	var key string
+	if portStart == 0 && portEnd == 0 {
+		key = pm.defaultRange
+	} else {
+		key = getRangeKey(portStart, portEnd)
+		if portStart == portEnd ||
+			portStart == 0 || portEnd == 0 ||
+			portEnd < portStart {
+			return nil, fmt.Errorf("invalid port range: %s", key)
+		}
+	}
+
+	// Return existing port range, if already known.
+	if pr, exists := pm.portRanges[key]; exists {
+		return pr, nil
+	}
+
+	// Otherwise create a new port range.
+	pr := newPortRange(portStart, portEnd)
+	pm.portRanges[key] = pr
+	return pr, nil
+}
+
+func (pm *portMap) findPort(portStart, portEnd int) (int, error) {
+	pr, err := pm.getPortRange(portStart, portEnd)
+	if err != nil {
+		return 0, err
+	}
+	port := pr.last
+
+	for i := 0; i <= pr.end-pr.begin; i++ {
 		port++
-		if port > pm.end {
-			port = pm.begin
+		if port > pr.end {
+			port = pr.begin
 		}
 
 		if _, ok := pm.p[port]; !ok {
 			pm.p[port] = struct{}{}
-			pm.last = port
+			pr.last = port
 			return port, nil
 		}
 	}
