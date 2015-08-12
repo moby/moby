@@ -57,7 +57,7 @@
 ### Bug fixes
 
 - Add missing 'Names' field to /containers/json API output
-- Make `docker rmi --dangling` safe when pulling
+- Make `docker rmi` of dangling images safe while pulling
 - Devicemapper: Change default basesize to 100G
 - Go Scheduler issue with sync.Mutex and gcc
 - Fix issue where Search API endpoint would panic due to empty AuthConfig
