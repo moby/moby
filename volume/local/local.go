@@ -189,6 +189,11 @@ func (v *localVolume) Unmount() error {
 	return nil
 }
 
+// UsedCount is for statisfying the localVolume interface and, returning the used count of the volume.
+func (v *localVolume) UsedCount() int {
+	return v.usedCount
+}
+
 func (v *localVolume) use() {
 	v.m.Lock()
 	v.usedCount++
