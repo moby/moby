@@ -908,7 +908,7 @@ container's logging driver. The following options are supported:
 
 	The `docker logs`command is available only for the `json-file` logging
 driver.  For detailed information on working with logging drivers, see
-[Configure a logging driver](reference/logging/overview.md).
+[Configure a logging driver](/reference/logging/overview/).
 
 
 ## Overriding Dockerfile image defaults
