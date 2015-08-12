@@ -200,7 +200,7 @@ func (d *Driver) Status() [][2]string {
 	}
 }
 
-// GetMetadata is used for implementing the graphdriver.ProtoDriver interface. ZFS does not currently have any meta data.
+// GetMetadata returns image/container metadata related to graph driver
 func (d *Driver) GetMetadata(id string) (map[string]string, error) {
 	return nil, nil
 }
@@ -227,13 +227,11 @@ func (d *Driver) cloneFilesystem(name, parentName string) error {
 	return snapshot.Destroy(zfs.DestroyDeferDeletion)
 }
 
-// ZfsPath returns the filesystem path for the id provided.
-func (d *Driver) ZfsPath(id string) string {
+func (d *Driver) zfsPath(id string) string {
 	return d.options.fsName + "/" + id
 }
 
-// MountPath returns the mounted filesystem path for the id provided.
-func (d *Driver) MountPath(id string) string {
+func (d *Driver) mountPath(id string) string {
 	return path.Join(d.options.mountPath, "graph", getMountpoint(id))
 }
 
@@ -252,7 +250,7 @@ func (d *Driver) Create(id string, parent string) error {
 		return err
 	}
 
-	dataset := zfs.Dataset{Name: d.ZfsPath(id)}
+	dataset := zfs.Dataset{Name: d.zfsPath(id)}
 	if err := dataset.Destroy(zfs.DestroyRecursiveClones); err != nil {
 		return err
 	}
@@ -262,7 +260,7 @@ func (d *Driver) Create(id string, parent string) error {
 }
 
 func (d *Driver) create(id, parent string) error {
-	name := d.ZfsPath(id)
+	name := d.zfsPath(id)
 	if parent == "" {
 		mountoptions := map[string]string{"mountpoint": "legacy"}
 		fs, err := zfs.CreateFilesystem(name, mountoptions)
@@ -273,12 +271,12 @@ func (d *Driver) create(id, parent string) error {
 		}
 		return err
 	}
-	return d.cloneFilesystem(name, d.ZfsPath(parent))
+	return d.cloneFilesystem(name, d.zfsPath(parent))
 }
 
 // Remove deletes the dataset, filesystem and the cache for the given id.
 func (d *Driver) Remove(id string) error {
-	name := d.ZfsPath(id)
+	name := d.zfsPath(id)
 	dataset := zfs.Dataset{Name: name}
 	err := dataset.Destroy(zfs.DestroyRecursive)
 	if err == nil {
@@ -291,8 +289,8 @@ func (d *Driver) Remove(id string) error {
 
 // Get returns the mountpoint for the given id after creating the target directories if necessary.
 func (d *Driver) Get(id, mountLabel string) (string, error) {
-	mountpoint := d.MountPath(id)
-	filesystem := d.ZfsPath(id)
+	mountpoint := d.mountPath(id)
+	filesystem := d.zfsPath(id)
 	options := label.FormatMountLabel("", mountLabel)
 	logrus.Debugf(`[zfs] mount("%s", "%s", "%s")`, filesystem, mountpoint, options)
 
@@ -311,7 +309,7 @@ func (d *Driver) Get(id, mountLabel string) (string, error) {
 
 // Put removes the existing mountpoint for the given id if it exists.
 func (d *Driver) Put(id string) error {
-	mountpoint := d.MountPath(id)
+	mountpoint := d.mountPath(id)
 	logrus.Debugf(`[zfs] unmount("%s")`, mountpoint)
 
 	if err := mount.Unmount(mountpoint); err != nil {
@@ -322,5 +320,5 @@ func (d *Driver) Put(id string) error {
 
 // Exists checks to see if the cache entry exists for the given id.
 func (d *Driver) Exists(id string) bool {
-	return d.filesystemsCache[d.ZfsPath(id)] == true
+	return d.filesystemsCache[d.zfsPath(id)] == true
 }
