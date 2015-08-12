@@ -22,6 +22,13 @@ for version in "${versions[@]}"; do
 	suite="${version##*-}"
 	from="${distro}:${suite}"
 
+	case "$from" in
+		debian:wheezy)
+			# add -backports, like our users have to
+			from+='-backports'
+			;;
+	esac
+
 	mkdir -p "$version"
 	echo "$version -> FROM $from"
 	cat > "$version/Dockerfile" <<-EOF
@@ -31,13 +38,6 @@ for version in "${versions[@]}"; do
 
 		FROM $from
 	EOF
-
-	case "$from" in
-		debian:wheezy)
-			# add -backports, like our users have to
-			echo "RUN echo deb http://http.debian.net/debian $suite-backports main > /etc/apt/sources.list.d/$suite-backports.list" >> "$version/Dockerfile"
-			;;
-	esac
 
 	echo >> "$version/Dockerfile"
 
