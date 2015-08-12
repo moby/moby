@@ -119,7 +119,15 @@ func (daemon *Daemon) Create(config *runconfig.Config, hostConfig *runconfig.Hos
 			return nil, nil, fmt.Errorf("cannot mount volume over existing file, file exists %s", path)
 		}
 
-		v, err := createVolume(name, config.VolumeDriver)
+		// if a bind is not specified then default to the local volume driver
+		var volumeDriver string
+		if _, ok := container.MountPoints[destination]; ok {
+			volumeDriver = config.VolumeDriver
+		} else {
+			volumeDriver = "local"
+		}
+
+		v, err := createVolume(name, volumeDriver)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -127,8 +135,11 @@ func (daemon *Daemon) Create(config *runconfig.Config, hostConfig *runconfig.Hos
 			return nil, nil, err
 		}
 
-		if err := container.copyImagePathContent(v, destination); err != nil {
-			return nil, nil, err
+		// never attempt to copy existing content in a container FS to a shared volume
+		if volumeDriver == "local" {
+			if err := container.copyImagePathContent(v, destination); err != nil {
+				return nil, nil, err
+			}
 		}
 
 		container.addMountPointWithVolume(destination, v, true)
