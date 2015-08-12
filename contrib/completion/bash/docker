@@ -139,7 +139,7 @@ __docker_value_of_option() {
 	local counter=$((command_pos + 1))
 	while [ $counter -lt $cword ]; do
 		case ${words[$counter]} in
-			$option_glob )
+			@($option_glob) )
 				echo ${words[$counter + 1]}
 				break
 				;;
@@ -519,6 +519,38 @@ _docker_daemon() {
 			COMPREPLY=( $( compgen -W "aufs btrfs devicemapper overlay vfs zfs" -- "$(echo $cur | tr '[:upper:]' '[:lower:]')" ) )
 			return
 			;;
+		--storage-opt)
+			local devicemapper_options="
+				dm.basesize
+				dm.blkdiscard
+				dm.blocksize
+				dm.fs
+				dm.loopdatasize
+				dm.loopmetadatasize
+				dm.mkfsarg
+				dm.mountopt
+				dm.override_udev_sync_check
+				dm.thinpooldev
+			"
+			local zfs_options="zfs.fsname"
+
+			case $(__docker_value_of_option '--storage-driver|-s') in
+				'')
+					COMPREPLY=( $( compgen -W "$devicemapper_options $zfs_options" -S = -- "$cur" ) )
+					;;
+				devicemapper)
+					COMPREPLY=( $( compgen -W "$devicemapper_options" -S = -- "$cur" ) )
+					;;
+				zfs)
+					COMPREPLY=( $( compgen -W "$zfs_options" -S = -- "$cur" ) )
+					;;
+				*)
+					return
+					;;
+			esac
+			compopt -o nospace
+			return
+			;;
 		--log-level|-l)
 			__docker_log_levels
 			return
@@ -528,6 +560,25 @@ _docker_daemon() {
 			return
 			;;
 		$(__docker_to_extglob "$options_with_args") )
+			return
+			;;
+	esac
+
+	case "${words[$cword-2]}$prev=" in
+		*dm.blkdiscard=*)
+			COMPREPLY=( $( compgen -W "false true" -- "${cur#=}" ) )
+			return
+			;;
+		*dm.fs=*)
+			COMPREPLY=( $( compgen -W "ext4 xfs" -- "${cur#=}" ) )
+			return
+			;;
+		*dm.override_udev_sync_check=*)
+			COMPREPLY=( $( compgen -W "false true" -- "${cur#=}" ) )
+			return
+			;;
+		*dm.thinpooldev=*)
+			_filedir
 			return
 			;;
 	esac
