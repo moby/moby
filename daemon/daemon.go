@@ -341,7 +341,7 @@ func (daemon *Daemon) mergeAndVerifyConfig(config *runconfig.Config, img *image.
 			return err
 		}
 	}
-	if config.Entrypoint.Len() == 0 && config.Cmd.Len() == 0 {
+	if config.Entrypoint.Len() == 0 && config.Cmd.Len() == 0 && !config.Init {	
 		return fmt.Errorf("No command specified")
 	}
 	return nil
@@ -450,6 +450,21 @@ func (daemon *Daemon) getEntrypointAndArgs(configEntrypoint *runconfig.Entrypoin
 	}
 	return entrypoint, args
 }
+
+func (daemon *Daemon) InitModeinit(config *runconfig.Config) error {
+	    if !config.Init{
+			        return nil
+						    }
+		    if strings.Contains(daemon.Config().ExecDriver,"native") {
+				       return  fmt.Errorf("Init mode is not supported by native drive.")
+						       }
+			    if config.Cmd.Len() != 0 || config.Entrypoint.Len() != 0 {
+					       return  fmt.Errorf("Command is not need in init mode.")
+							       }
+				    config.Cmd = runconfig.NewCommand("/sbin/init")
+						    return nil
+}
+
 
 func (daemon *Daemon) newContainer(name string, config *runconfig.Config, imgID string) (*Container, error) {
 	var (

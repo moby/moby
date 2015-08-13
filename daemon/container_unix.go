@@ -271,6 +271,7 @@ func populateCommand(c *Container, env []string) error {
 		Arguments:  c.Args,
 		Tty:        c.Config.Tty,
 		User:       c.Config.User,
+		Init:		c.Config.Init,
 	}
 
 	processConfig.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
