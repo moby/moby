@@ -1152,7 +1152,7 @@ the `USER` instruction by passing the `-u` option.
 
     -u="": Username or UID
 
-> **Note:** if you pass a numeric uid, it must be in the range of 0-2147483647.
+> **Note:** if you pass a numeric uid, it must be in the range 0-2147483647.
 
 ### WORKDIR
 
