@@ -1151,7 +1151,7 @@ Dockerfile `USER` instruction, but the operator can override it:
 
     -u="": Username or UID
 
-> **Note:** if you pass numeric uid, it must be in range 0-2147483647.
+> **Note:** if you pass a numeric uid, it must be in the range 0-2147483647.
 
 ### WORKDIR
 
