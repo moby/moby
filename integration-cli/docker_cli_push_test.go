@@ -60,32 +60,7 @@ func (s *DockerRegistrySuite) TestPushMultipleTags(c *check.C) {
 
 	dockerCmd(c, "tag", "busybox", repoTag2)
 
-	out, _ := dockerCmd(c, "push", repoName)
-
-	// There should be no duplicate hashes in the output
-	imageSuccessfullyPushed := ": Image successfully pushed"
-	imageAlreadyExists := ": Image already exists"
-	imagePushHashes := make(map[string]struct{})
-	outputLines := strings.Split(out, "\n")
-	for _, outputLine := range outputLines {
-		if strings.Contains(outputLine, imageSuccessfullyPushed) {
-			hash := strings.TrimSuffix(outputLine, imageSuccessfullyPushed)
-			if _, present := imagePushHashes[hash]; present {
-				c.Fatalf("Duplicate image push: %s", outputLine)
-			}
-			imagePushHashes[hash] = struct{}{}
-		} else if strings.Contains(outputLine, imageAlreadyExists) {
-			hash := strings.TrimSuffix(outputLine, imageAlreadyExists)
-			if _, present := imagePushHashes[hash]; present {
-				c.Fatalf("Duplicate image push: %s", outputLine)
-			}
-			imagePushHashes[hash] = struct{}{}
-		}
-	}
-
-	if len(imagePushHashes) == 0 {
-		c.Fatal(`Expected at least one line containing "Image successfully pushed"`)
-	}
+	dockerCmd(c, "push", repoName)
 }
 
 func (s *DockerRegistrySuite) TestPushInterrupt(c *check.C) {
