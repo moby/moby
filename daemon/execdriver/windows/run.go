@@ -8,6 +8,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
+	"strconv"
 	"strings"
 
 	"github.com/Sirupsen/logrus"
@@ -15,6 +17,10 @@ import (
 	"github.com/microsoft/hcsshim"
 	"github.com/natefinch/npipe"
 )
+
+// defaultContainerNAT is the default name of the container NAT device that is
+// preconfigured on the server.
+const defaultContainerNAT = "ContainerNAT"
 
 type layer struct {
 	ID   string
@@ -25,9 +31,23 @@ type defConfig struct {
 	DefFile string
 }
 
+type portBinding struct {
+	Protocol     string
+	InternalPort int
+	ExternalPort int
+}
+
+type natSettings struct {
+	Name         string
+	PortBindings []portBinding
+}
+
 type networkConnection struct {
 	NetworkName string
-	EnableNat   bool
+	// TODO Windows: Add Ip4Address string to this structure when hooked up in
+	// docker CLI. This is present in the HCS JSON handler.
+	EnableNat bool
+	Nat       natSettings
 }
 type networkSettings struct {
 	MacAddress string
@@ -81,12 +101,72 @@ func (d *Driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 		})
 	}
 
+	// TODO Windows. At some point, when there is CLI on docker run to
+	// enable the IP Address of the container to be passed into docker run,
+	// the IP Address needs to be wired through to HCS in the JSON. It
+	// would be present in c.Network.Interface.IPAddress. See matching
+	// TODO in daemon\container_windows.go, function populateCommand.
+
 	if c.Network.Interface != nil {
+
+		var pbs []portBinding
+
+		// Enumerate through the port bindings specified by the user and convert
+		// them into the internal structure matching the JSON blob that can be
+		// understood by the HCS.
+		for i, v := range c.Network.Interface.PortBindings {
+			proto := strings.ToUpper(i.Proto())
+			if proto != "TCP" && proto != "UDP" {
+				return execdriver.ExitStatus{ExitCode: -1}, fmt.Errorf("invalid protocol %s", i.Proto())
+			}
+
+			if len(v) > 1 {
+				return execdriver.ExitStatus{ExitCode: -1}, fmt.Errorf("Windows does not support more than one host port in NAT settings")
+			}
+
+			for _, v2 := range v {
+				var (
+					iPort, ePort int
+					err          error
+				)
+				if len(v2.HostIP) != 0 {
+					return execdriver.ExitStatus{ExitCode: -1}, fmt.Errorf("Windows does not support host IP addresses in NAT settings")
+				}
+				if ePort, err = strconv.Atoi(v2.HostPort); err != nil {
+					return execdriver.ExitStatus{ExitCode: -1}, fmt.Errorf("invalid container port %s: %s", v2.HostPort, err)
+				}
+				if iPort, err = strconv.Atoi(i.Port()); err != nil {
+					return execdriver.ExitStatus{ExitCode: -1}, fmt.Errorf("invalid internal port %s: %s", i.Port(), err)
+				}
+				if iPort < 0 || iPort > 65535 || ePort < 0 || ePort > 65535 {
+					return execdriver.ExitStatus{ExitCode: -1}, fmt.Errorf("specified NAT port is not in allowed range")
+				}
+				pbs = append(pbs,
+					portBinding{ExternalPort: ePort,
+						InternalPort: iPort,
+						Protocol:     proto})
+			}
+		}
+
+		// TODO Windows: TP3 workaround. Allow the user to override the name of
+		// the Container NAT device through an environment variable. This will
+		// ultimately be a global daemon parameter on Windows, similar to -b
+		// for the name of the virtual switch (aka bridge).
+		cn := os.Getenv("DOCKER_CONTAINER_NAT")
+		if len(cn) == 0 {
+			cn = defaultContainerNAT
+		}
+
 		dev := device{
 			DeviceType: "Network",
 			Connection: &networkConnection{
 				NetworkName: c.Network.Interface.Bridge,
-				EnableNat:   false,
+				// TODO Windows: Fixme, next line. Needs HCS fix.
+				EnableNat: false,
+				Nat: natSettings{
+					Name:         cn,
+					PortBindings: pbs,
+				},
 			},
 		}
 
@@ -97,9 +177,6 @@ func (d *Driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 				MacAddress: windowsStyleMAC,
 			}
 		}
-
-		logrus.Debugf("Virtual switch '%s', mac='%s'", c.Network.Interface.Bridge, c.Network.Interface.MacAddress)
-
 		cu.Devices = append(cu.Devices, dev)
 	} else {
 		logrus.Debugln("No network interface")

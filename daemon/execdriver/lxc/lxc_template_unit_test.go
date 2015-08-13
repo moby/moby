@@ -50,8 +50,7 @@ func TestLXCConfig(t *testing.T) {
 			CPUShares: int64(cpu),
 		},
 		Network: &execdriver.Network{
-			Mtu:       1500,
-			Interface: nil,
+			Mtu: 1500,
 		},
 		AllowedDevices: make([]*configs.Device, 0),
 		ProcessConfig:  execdriver.ProcessConfig{},
@@ -90,8 +89,7 @@ func TestCustomLxcConfig(t *testing.T) {
 			"lxc.cgroup.cpuset.cpus = 0,1",
 		},
 		Network: &execdriver.Network{
-			Mtu:       1500,
-			Interface: nil,
+			Mtu: 1500,
 		},
 		ProcessConfig: processConfig,
 	}
@@ -222,8 +220,7 @@ func TestCustomLxcConfigMounts(t *testing.T) {
 			"lxc.cgroup.cpuset.cpus = 0,1",
 		},
 		Network: &execdriver.Network{
-			Mtu:       1500,
-			Interface: nil,
+			Mtu: 1500,
 		},
 		Mounts:        mounts,
 		ProcessConfig: processConfig,
@@ -264,8 +261,7 @@ func TestCustomLxcConfigMisc(t *testing.T) {
 			"lxc.cgroup.cpuset.cpus = 0,1",
 		},
 		Network: &execdriver.Network{
-			Mtu:       1500,
-			Interface: nil,
+			Mtu: 1500,
 		},
 		ProcessConfig:   processConfig,
 		CapAdd:          []string{"net_admin", "syslog"},
@@ -317,8 +313,7 @@ func TestCustomLxcConfigMiscOverride(t *testing.T) {
 			"lxc.network.ipv4 = 172.0.0.1",
 		},
 		Network: &execdriver.Network{
-			Mtu:       1500,
-			Interface: nil,
+			Mtu: 1500,
 		},
 		ProcessConfig: processConfig,
 		CapAdd:        []string{"NET_ADMIN", "SYSLOG"},

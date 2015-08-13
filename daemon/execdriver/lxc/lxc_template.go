@@ -128,17 +128,6 @@ lxc.{{$value}}
 {{end}}
 {{end}}
 
-{{if .Network.Interface}}
-{{if .Network.Interface.IPAddress}}
-lxc.network.ipv4 = {{.Network.Interface.IPAddress}}/{{.Network.Interface.IPPrefixLen}}
-{{end}}
-{{if .Network.Interface.Gateway}}
-lxc.network.ipv4.gateway = {{.Network.Interface.Gateway}}
-{{end}}
-{{if .Network.Interface.MacAddress}}
-lxc.network.hwaddr = {{.Network.Interface.MacAddress}}
-{{end}}
-{{end}}
 {{if .ProcessConfig.Env}}
 lxc.utsname = {{getHostname .ProcessConfig.Env}}
 {{end}}

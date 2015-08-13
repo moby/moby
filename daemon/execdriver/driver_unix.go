@@ -1,3 +1,5 @@
+// +build !windows
+
 package execdriver
 
 import (
@@ -14,6 +16,14 @@ import (
 	"github.com/opencontainers/runc/libcontainer/cgroups/fs"
 	"github.com/opencontainers/runc/libcontainer/configs"
 )
+
+// Network settings of the container
+type Network struct {
+	Mtu            int    `json:"mtu"`
+	ContainerID    string `json:"container_id"` // id of the container to join network.
+	NamespacePath  string `json:"namespace_path"`
+	HostNetworking bool   `json:"host_networking"`
+}
 
 // InitContainer is the initialization of a container config.
 // It returns the initial configs for a container. It's mostly

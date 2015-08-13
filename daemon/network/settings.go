@@ -9,6 +9,7 @@ type Address struct {
 }
 
 // Settings stores configuration details about the daemon network config
+// TODO Windows. Many of these fields can be factored out.,
 type Settings struct {
 	Bridge                 string
 	EndpointID             string
