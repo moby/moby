@@ -44,13 +44,12 @@ func (s *TagStore) NewPusher(endpoint registry.APIEndpoint, localRepo Repository
 	switch endpoint.Version {
 	case registry.APIVersion2:
 		return &v2Pusher{
-			TagStore:   s,
-			endpoint:   endpoint,
-			localRepo:  localRepo,
-			repoInfo:   repoInfo,
-			config:     imagePushConfig,
-			sf:         sf,
-			layersSeen: make(map[string]bool),
+			TagStore:  s,
+			endpoint:  endpoint,
+			localRepo: localRepo,
+			repoInfo:  repoInfo,
+			config:    imagePushConfig,
+			sf:        sf,
 		}, nil
 	case registry.APIVersion1:
 		return &v1Pusher{
