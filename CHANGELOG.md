@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.8.1 (2015-08-12)
+
+### Distribution
+
+* Fix a bug where pushing multiple tags would result in invalid images
+
 ## 1.8.0 (2015-08-11)
 
 ### Distribution
