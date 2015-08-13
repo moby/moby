@@ -32,7 +32,7 @@ $  export DOCKER_CONTENT_TRUST_TAGGING_PASSPHRASE="l7pEQcTKJjUHm6Lpe4"
 
 Then, when pushing a new tag the Docker client does not request these values but signs automatically:
 
-``bash
+```bash
 $  docker push docker/trusttest:latest
 The push refers to a repository [docker.io/docker/trusttest] (len: 1)
 a9539b34a6ab: Image already exists
@@ -45,7 +45,7 @@ Signing and pushing trust metadata
 
 You can also build with content trust. Before running the `docker build` command, you should set the environment variable `DOCKER_CONTENT_TRUST` either manually or in in a scripted fashion. Consider the simple Dockerfile below. 
 
-```Dockerfilea
+```Dockerfile
 FROM docker/trusttest:latest
 RUN echo
 ```
