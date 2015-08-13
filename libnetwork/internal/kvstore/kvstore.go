@@ -16,6 +16,8 @@ const (
 	ETCD Backend = "etcd"
 	// ZK backend
 	ZK Backend = "zk"
+	// BOLTDB backend
+	BOLTDB Backend = "boltdb"
 )
 
 var (
@@ -39,6 +41,7 @@ var (
 type Config struct {
 	TLS               *tls.Config
 	ConnectionTimeout time.Duration
+	Bucket            string
 }
 
 // Store represents the backend K/V storage
