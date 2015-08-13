@@ -278,6 +278,7 @@ func populateCommand(c *Container, env []string) error {
 		ID:                 c.ID,
 		Rootfs:             c.RootfsPath(),
 		ReadonlyRootfs:     c.hostConfig.ReadonlyRootfs,
+		RootMount:          c.Config.RootMount,
 		InitPath:           "/.dockerinit",
 		WorkingDir:         c.Config.WorkingDir,
 		Network:            en,

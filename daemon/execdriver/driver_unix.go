@@ -25,6 +25,12 @@ type Network struct {
 	HostNetworking bool   `json:"host_networking"`
 }
 
+var mountPropagationMapping = map[string]configs.MountPropagationMode{
+	"container_private": configs.MNT_RPRIVATE,
+	"container_slave":   configs.MNT_RSLAVE,
+	"container_shared":  configs.MNT_RSHARED,
+}
+
 // InitContainer is the initialization of a container config.
 // It returns the initial configs for a container. It's mostly
 // defined by the default template.
@@ -37,8 +43,12 @@ func InitContainer(c *Command) *configs.Config {
 	container.Devices = c.AutoCreatedDevices
 	container.Rootfs = c.Rootfs
 	container.Readonlyfs = c.ReadonlyRootfs
-	container.Privatefs = true
 
+	if p, exists := mountPropagationMapping[c.RootMount]; exists {
+		container.RootfsMountPropagation = p
+	} else {
+		container.RootfsMountPropagation = mountPropagationMapping["container_private"]
+	}
 	// check to see if we are running in ramdisk to disable pivot root
 	container.NoPivotRoot = os.Getenv("DOCKER_RAMDISK") != ""
 

@@ -89,7 +89,14 @@ func (c *linuxConsole) mount(rootfs, mountLabel string, uid, gid int) error {
 	if f != nil {
 		f.Close()
 	}
-	return syscall.Mount(c.slavePath, dest, "bind", syscall.MS_BIND, "")
+	if err := syscall.Mount(c.slavePath, dest, "bind", syscall.MS_BIND, ""); err != nil {
+		return err
+	}
+
+	if err := syscall.Mount("", dest, "", syscall.MS_PRIVATE, ""); err != nil {
+		return err
+	}
+	return nil
 }
 
 // dupStdio opens the slavePath for the console and dups the fds to the current
