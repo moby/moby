@@ -24,22 +24,49 @@ git remote add $GITHUBUSER git@github.com:$GITHUBUSER/docker.git
 
 ### 1. Pull from master and create a release branch
 
-Note: Even for major releases, all of X, Y and Z in vX.Y.Z must be specified (e.g. v1.0.0).
+All releases version numbers will be of the form: vX.Y.Z  where X is the major
+version number, Y is the minor version number and Z is the patch release version number.
+
+#### Major releases
+
+The release branch name is just vX.Y because it's going to be the basis for all .Z releases.
 
 ```bash
+export BASE=vX.Y
 export VERSION=vX.Y.Z
 git fetch origin
-git branch -D release || true
-git checkout --track origin/release
+git checkout --track origin/master
+git checkout -b release/$BASE
+```
+
+This new branch is going to be the base for the release. We need to push it to origin so we
+can track the cherry-picked changes and the version bump:
+
+```bash
+git push origin release/$BASE
+```
+
+When you have the major release branch in origin, we need to create the bump fork branch
+that we'll push to our fork:
+
+```bash
 git checkout -b bump_$VERSION
 ```
 
-If it's a regular release, we usually merge master.
+#### Patch releases
+
+If we have the release branch in origin, we can create the forked bump branch from it directly:
+
 ```bash
-git merge origin/master
+export VERSION=vX.Y.Z
+export PATCH=vX.Y.Z+1
+git fetch origin
+git checkout --track origin/release/$BASE
+git checkout -b bump_$PATCH
 ```
 
-Otherwise, if it is a hotfix release, we cherry-pick only the commits we want.
+We cherry-pick only the commits we want into the bump branch:
+
 ```bash
 # get the commits ids we want to cherry-pick
 git log
@@ -169,7 +196,7 @@ make AWS_S3_BUCKET=beta-docs.docker.io BUILD_ROOT=yes docs-release
 git add VERSION CHANGELOG.md
 git commit -m "Bump version to $VERSION"
 git push $GITHUBUSER bump_$VERSION
-echo "https://github.com/$GITHUBUSER/docker/compare/docker:release...$GITHUBUSER:bump_$VERSION?expand=1"
+echo "https://github.com/$GITHUBUSER/docker/compare/docker:release/$BASE...$GITHUBUSER:bump_$VERSION?expand=1"
 ```
 
 That last command will give you the proper link to visit to ensure that you
@@ -185,6 +212,7 @@ Replace "..." with the respective credentials:
 
 ```bash
 docker build -t docker .
+
 docker run \
        -e AWS_S3_BUCKET=test.docker.com \
        -e AWS_ACCESS_KEY="..." \
