@@ -36,7 +36,7 @@
 + Add logging driver for GELF via UDP
 + Allow to copy files from host to containers with `docker cp`
 + Promote volume drivers from experimental to master
-+ Add rollover log driver, and --log-driver-opts flag
++ Add rollover options to json-file log driver, and --log-driver-opts flag
 + Add memory swappiness tuning options
 * Remove cgroup read-only flag when privileged
 * Make /proc, /sys, & /dev readonly for readonly containers
