@@ -1144,9 +1144,10 @@ volume mounted on the host).
 
 The default user within a container is `root` (id = 0), but if the developer
 created additional users, those are accessible by name.  When passing a numeric
-ID, the user doesn't have to exist in the container. The developer can set a
-default user to run the first process with the Dockerfile `USER` instruction,
-but the operator can override it:
+ID, the user doesn't have to exist in the container.
+
+The developer can set a default user to run the first process with the
+Dockerfile `USER` instruction, but the operator can override it:
 
     -u="": Username or UID
 
