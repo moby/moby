@@ -440,7 +440,7 @@ func (d *Driver) ApplyDiff(id string, parent string, diff archive.Reader) (size 
 	}
 
 	rootDir := path.Join(dir, "root")
-	if err := os.Rename(tmpRootDir, rootDir); err != nil {
+	if err = os.Rename(tmpRootDir, rootDir); err != nil {
 		return 0, err
 	}
 

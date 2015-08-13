@@ -420,11 +420,12 @@ func getContextFromReader(r io.Reader, dockerfileName string) (absContextDir, re
 		// -f option has no meaning when we're reading it from stdin,
 		// so just use our default Dockerfile name
 		relDockerfile = api.DefaultDockerfileName
+		err = writeToFile(buf, filepath.Join(absContextDir, relDockerfile))
 
-		return absContextDir, relDockerfile, writeToFile(buf, filepath.Join(absContextDir, relDockerfile))
+		return absContextDir, relDockerfile, err
 	}
 
-	if err := archive.Untar(buf, absContextDir, nil); err != nil {
+	if err = archive.Untar(buf, absContextDir, nil); err != nil {
 		return "", "", fmt.Errorf("unable to extract stdin to temporary context directory: %v", err)
 	}
 
@@ -550,7 +551,8 @@ func rewriteDockerfileFrom(dockerfileName string, translator func(string, regist
 				tag = tags.DefaultTag
 			}
 
-			repoInfo, err := registry.ParseRepositoryInfo(repo)
+			var repoInfo *registry.RepositoryInfo
+			repoInfo, err = registry.ParseRepositoryInfo(repo)
 			if err != nil {
 				return nil, nil, fmt.Errorf("unable to parse repository info: %v", err)
 			}
@@ -558,7 +560,8 @@ func rewriteDockerfileFrom(dockerfileName string, translator func(string, regist
 			ref := registry.ParseReference(tag)
 
 			if !ref.HasDigest() && isTrusted() {
-				trustedRef, err := translator(repo, ref)
+				var trustedRef registry.Reference
+				trustedRef, err = translator(repo, ref)
 				if err != nil {
 					return nil, nil, err
 				}
@@ -572,8 +575,8 @@ func rewriteDockerfileFrom(dockerfileName string, translator func(string, regist
 			}
 		}
 
-		n, err := fmt.Fprintln(tempFile, line)
-		if err != nil {
+		var n int
+		if n, err = fmt.Fprintln(tempFile, line); err != nil {
 			return nil, nil, err
 		}
 

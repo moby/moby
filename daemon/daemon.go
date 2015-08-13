@@ -621,25 +621,25 @@ func NewDaemon(config *Config, registryService *registry.Service) (daemon *Daemo
 
 	// Verify logging driver type
 	if config.LogConfig.Type != "none" {
-		if _, err := logger.GetLogDriver(config.LogConfig.Type); err != nil {
+		if _, err = logger.GetLogDriver(config.LogConfig.Type); err != nil {
 			return nil, fmt.Errorf("error finding the logging driver: %v", err)
 		}
 	}
 	logrus.Debugf("Using default logging driver %s", config.LogConfig.Type)
 
 	// Configure and validate the kernels security support
-	if err := configureKernelSecuritySupport(config, d.driver.String()); err != nil {
+	if err = configureKernelSecuritySupport(config, d.driver.String()); err != nil {
 		return nil, err
 	}
 
 	daemonRepo := filepath.Join(config.Root, "containers")
 
-	if err := system.MkdirAll(daemonRepo, 0700); err != nil {
+	if err = system.MkdirAll(daemonRepo, 0700); err != nil {
 		return nil, err
 	}
 
 	// Migrate the container if it is aufs and aufs is enabled
-	if err := migrateIfDownlevel(d.driver, config.Root); err != nil {
+	if err = migrateIfDownlevel(d.driver, config.Root); err != nil {
 		return nil, err
 	}
 
@@ -650,7 +650,7 @@ func NewDaemon(config *Config, registryService *registry.Service) (daemon *Daemo
 	}
 
 	// Configure the volumes driver
-	if err := configureVolumes(config); err != nil {
+	if err = configureVolumes(config); err != nil {
 		return nil, err
 	}
 
@@ -661,7 +661,7 @@ func NewDaemon(config *Config, registryService *registry.Service) (daemon *Daemo
 
 	trustDir := filepath.Join(config.Root, "trust")
 
-	if err := system.MkdirAll(trustDir, 0700); err != nil {
+	if err = system.MkdirAll(trustDir, 0700); err != nil {
 		return nil, err
 	}
 	trustService, err := trust.NewTrustStore(trustDir)
@@ -698,7 +698,8 @@ func NewDaemon(config *Config, registryService *registry.Service) (daemon *Daemo
 
 	var sysInitPath string
 	if config.ExecDriver == "lxc" {
-		initPath, err := configureSysInit(config)
+		var initPath string
+		initPath, err = configureSysInit(config)
 		if err != nil {
 			return nil, err
 		}
@@ -734,7 +735,7 @@ func NewDaemon(config *Config, registryService *registry.Service) (daemon *Daemo
 	d.root = config.Root
 	go d.execCommandGC()
 
-	if err := d.restore(); err != nil {
+	if err = d.restore(); err != nil {
 		return nil, err
 	}
 

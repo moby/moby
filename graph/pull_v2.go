@@ -245,7 +245,8 @@ func (p *v2Puller) pullV2Tag(tag, taggedName string) (verified bool, err error) 
 	}()
 
 	for i := len(manifest.FSLayers) - 1; i >= 0; i-- {
-		img, err := image.NewImgJSON([]byte(manifest.History[i].V1Compatibility))
+		var img *image.Image
+		img, err = image.NewImgJSON([]byte(manifest.History[i].V1Compatibility))
 		if err != nil {
 			logrus.Debugf("error getting image v1 json: %v", err)
 			return false, err
@@ -273,7 +274,7 @@ func (p *v2Puller) pullV2Tag(tag, taggedName string) (verified bool, err error) 
 	for i := len(downloads) - 1; i >= 0; i-- {
 		d := &downloads[i]
 		if d.err != nil {
-			if err := <-d.err; err != nil {
+			if err = <-d.err; err != nil {
 				return false, err
 			}
 		}
@@ -299,7 +300,7 @@ func (p *v2Puller) pullV2Tag(tag, taggedName string) (verified bool, err error) 
 					return false, err
 				}
 
-				if err := p.graph.SetDigest(d.img.ID, d.digest); err != nil {
+				if err = p.graph.SetDigest(d.img.ID, d.digest); err != nil {
 					return false, err
 				}
 
@@ -319,7 +320,8 @@ func (p *v2Puller) pullV2Tag(tag, taggedName string) (verified bool, err error) 
 
 	// Check for new tag if no layers downloaded
 	if !tagUpdated {
-		repo, err := p.Get(p.repoInfo.LocalName)
+		var repo Repository
+		repo, err = p.Get(p.repoInfo.LocalName)
 		if err != nil {
 			return false, err
 		}

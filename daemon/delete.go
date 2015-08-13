@@ -109,7 +109,7 @@ func (daemon *Daemon) rm(container *Container, forceRemove bool) (err error) {
 		}
 	}()
 
-	if _, err := daemon.containerGraph.Purge(container.ID); err != nil {
+	if _, err = daemon.containerGraph.Purge(container.ID); err != nil {
 		logrus.Debugf("Unable to remove container from link graph: %s", err)
 	}
 
@@ -120,7 +120,7 @@ func (daemon *Daemon) rm(container *Container, forceRemove bool) (err error) {
 	// There will not be an -init on Windows, so don't fail by not attempting to delete it
 	if runtime.GOOS != "windows" {
 		initID := fmt.Sprintf("%s-init", container.ID)
-		if err := daemon.driver.Remove(initID); err != nil {
+		if err = daemon.driver.Remove(initID); err != nil {
 			return fmt.Errorf("Driver %s failed to remove init filesystem %s: %s", daemon.driver, initID, err)
 		}
 	}
