@@ -27,6 +27,8 @@ type Volume interface {
 	Mount() (string, error)
 	// Unmount unmounts the volume when it is no longer in use.
 	Unmount() error
+	// UsedCount returns the times the volume is being used currently
+	UsedCount() int
 }
 
 // read-write modes

@@ -1,10 +1,15 @@
 package volumedrivers
 
-import "github.com/docker/docker/volume"
+import (
+	"sync"
+
+	"github.com/docker/docker/volume"
+)
 
 type volumeDriverAdapter struct {
-	name  string
-	proxy *volumeDriverProxy
+	name     string
+	proxy    *volumeDriverProxy
+	adapters map[string]*volumeAdapter
 }
 
 func (a *volumeDriverAdapter) Name() string {
@@ -16,21 +21,34 @@ func (a *volumeDriverAdapter) Create(name string) (volume.Volume, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &volumeAdapter{
-		proxy:      a.proxy,
-		name:       name,
-		driverName: a.name}, nil
+
+	if _, ok := a.adapters[name]; !ok {
+		a.adapters[name] = &volumeAdapter{
+			proxy:         a.proxy,
+			name:          name,
+			driverName:    a.name,
+			driverAdapter: a}
+	}
+
+	return a.adapters[name], nil
 }
 
 func (a *volumeDriverAdapter) Remove(v volume.Volume) error {
-	return a.proxy.Remove(v.Name())
+	if v.UsedCount() == 0 {
+		return a.proxy.Remove(v.Name())
+	}
+
+	return nil
 }
 
 type volumeAdapter struct {
-	proxy      *volumeDriverProxy
-	name       string
-	driverName string
-	eMount     string // ephemeral host volume path
+	proxy         *volumeDriverProxy
+	name          string
+	driverName    string
+	eMount        string // ephemeral host volume path
+	usedCount     int
+	m             sync.Mutex
+	driverAdapter *volumeDriverAdapter
 }
 
 func (a *volumeAdapter) Name() string {
@@ -50,11 +68,32 @@ func (a *volumeAdapter) Path() string {
 }
 
 func (a *volumeAdapter) Mount() (string, error) {
-	var err error
-	a.eMount, err = a.proxy.Mount(a.name)
-	return a.eMount, err
+	defer a.use()
+	return a.proxy.Mount(a.name)
 }
 
 func (a *volumeAdapter) Unmount() error {
-	return a.proxy.Unmount(a.name)
+	defer a.release()
+
+	if a.usedCount == 1 {
+		return a.proxy.Unmount(a.name)
+	}
+
+	return nil
+}
+
+func (a *volumeAdapter) UsedCount() int {
+	return a.usedCount
+}
+
+func (a *volumeAdapter) use() {
+	a.m.Lock()
+	a.usedCount++
+	a.m.Unlock()
+}
+
+func (a *volumeAdapter) release() {
+	a.m.Lock()
+	a.usedCount--
+	a.m.Unlock()
 }
