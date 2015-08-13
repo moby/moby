@@ -43,7 +43,7 @@ func (krb5 *Krb5Env) Start(c *check.C) {
 	}
 
 	// Create a kerberos database and a stash file.
-	if output, _, err := runCommandWithOutput(exec.Command("kdb5_util", "create", "-s", "-P", "admin")); err != nil {
+	if output, _, err := runCommandWithOutput(exec.Command("kdb5_util", "create", "-s", "-W", "-P", "admin")); err != nil {
 		c.Fatalf("Failed to create kerberos db, err %v with output %s", err, string(output))
 	}
 
@@ -95,8 +95,8 @@ func (krb5 *Krb5Env) AddServerPrinc(c *check.C, principal string) {
 	}
 }
 
-func (krb *Krb5Env) DelPrinc(c *check.C, principal string) {
-	query := fmt.Sprintf("delprinc %s", principal)
+func (krb5 *Krb5Env) DelPrinc(c *check.C, principal string) {
+	query := fmt.Sprintf("delprinc -force %s", principal)
 	if output, _, err := runCommandWithOutput(exec.Command("kadmin.local", "-q", query)); err != nil {
 		c.Fatalf("Failed to delete kerberos principal, err %v with output %s", err, output)
 	}
@@ -201,11 +201,13 @@ func (s *DockerAuthnSuite) TestKerberosAuthnNoConfig(c *check.C) {
 	daemonArgs := []string{"--host", host}
 	out, err := s.ds.d.CmdWithArgs(daemonArgs, "info")
 	c.Assert(err, check.ErrorMatches, "exit status 1")
-	c.Assert(strings.Contains(out, "Unable to authenticate to docker daemon"), check.Equals, true, check.Commentf("actual output is: %s", out))
+	c.Assert(strings.Contains(out, "server offered no authentication methods"), check.Equals, true, check.Commentf("actual output is: %s", out))
 }
 
 func (s *DockerAuthnSuite) TestKerberosAuthnNoTicket(c *check.C) {
 	s.krb5.Start(c)
+	setUpDockerPrincipals(c, s.krb5)
+	defer tearDownDockerPrincipals(c, s.krb5)
 
 	if err := s.ds.d.Start("-H", s.daemonAddr, "-a"); err != nil {
 		c.Fatalf("Could not start daemon: %v", err)
@@ -216,5 +218,5 @@ func (s *DockerAuthnSuite) TestKerberosAuthnNoTicket(c *check.C) {
 	daemonArgs := []string{"--host", host}
 	out, err := s.ds.d.CmdWithArgs(daemonArgs, "info")
 	c.Assert(err, check.ErrorMatches, "exit status 1")
-	c.Assert(strings.Contains(out, "Unable to authenticate to docker daemon"), check.Equals, true, check.Commentf("actual output is: %s", out))
+	c.Assert(strings.Contains(out, "Unable to attempt to authenticate to docker daemon"), check.Equals, true, check.Commentf("actual output is: %s", out))
 }

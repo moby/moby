@@ -499,38 +499,20 @@ func convertBasesize(basesizeBytes int64) (int64, error) {
 // Cmd will execute a docker CLI command against this Daemon.
 // Example: d.Cmd("version") will run docker -H unix://path/to/unix.sock version
 func (d *Daemon) Cmd(name string, arg ...string) (string, error) {
-	args := []string{"--host", d.sock()}
-	return d.CmdWithArgs(args, name, arg...)
+	args := []string{"--host", d.sock(), name}
+	args = append(args, arg...)
+	c := exec.Command(dockerBinary, args...)
+	b, err := c.CombinedOutput()
+	return string(b), err
 }
 
 // CmdWithArgs will execute a docker CLI command against a daemon with the
 // given additional arguments
 func (d *Daemon) CmdWithArgs(daemonArgs []string, name string, arg ...string) (string, error) {
-	return d.CmdWithArgsAndStdin("", daemonArgs, name, arg...)
-}
-
-func (d *Daemon) CmdWithArgsAndStdin(cmdStdin string, daemonArgs []string, name string, arg ...string) (string, error) {
 	args := append(daemonArgs, name)
 	args = append(args, arg...)
 	c := exec.Command(dockerBinary, args...)
-
-	stdin, err := c.StdinPipe()
-	if err != nil {
-		return "", err
-	}
-	defer stdin.Close()
-
-	_, err = stdin.Write([]byte(cmdStdin))
-	if err != nil {
-		return "", err
-	}
-
 	b, err := c.CombinedOutput()
-	for char := range b {
-		if b[char] == 0 {
-			b[char] = 0x20
-		}
-	}
 	return string(b), err
 }
 
