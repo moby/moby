@@ -397,7 +397,7 @@ func (graph *Graph) walkAll(handler func(*image.Image)) {
 }
 
 // ByParent returns a lookup table of images by their parent.
-// If an image of id ID has 3 children images, then the value for key ID
+// If an image of key ID has 3 children images, then the value for key ID
 // will be a list of 3 images.
 // If an image has no children, it will not have an entry in the table.
 func (graph *Graph) ByParent() map[string][]*image.Image {
