@@ -38,13 +38,13 @@ production trust environment, and requires these additional components:
 
 | Container       | Description                                                                                                                                 |
 |-----------------|---------------------------------------------------------------------------------------------------------------------------------------------|
-| nostarysandbox  | A container with the latest version of Docker Engine and with some preconfigured certifications. This is your sandbox where you can use the `docker` client to test trust operations. |
+| notarysandbox  | A container with the latest version of Docker Engine and with some preconfigured certifications. This is your sandbox where you can use the `docker` client to test trust operations. |
 | Registry server | A local registry service.                                                                                                                 |
 | Notary server   | The service that does all the heavy-lifting of managing trust                                                                               |
 | Notary signer   | A service that ensures that your keys are secure.                                                                                           |
 | MySQL           | The database where all of the trust information will be stored                                                                              |
 
-The sandbox uses the Docker daemon on your local system. Within the `nostarysandbox`
+The sandbox uses the Docker daemon on your local system. Within the `notarysandbox`
 you interact with a local registry rather than the public Docker Hub. This means
 your everyday image repositories are not used. They are protected while you play.
 
@@ -118,7 +118,7 @@ So, you'll need an entry for both the servers in your local `/etc/hosts` file.
 
 7. Build the testing container.
 
-        $ docker build -t nostarysandbox .
+        $ docker build -t notarysandbox .
         Sending build context to Docker daemon 2.048 kB
         Step 0 : FROM debian:jessie
          ...
@@ -163,7 +163,7 @@ Then, you'll use Docker Compose to build and start them on your local system.
     Once the trust services are up, you'll setup a local version of the Docker
     Registry v2. 
     
-7. Change to the `nostarysandbox/distribution` directory.
+7. Change to the `notarysandbox/distribution` directory.
 
 8. Build the `sandboxregistry` server.
 
@@ -175,7 +175,7 @@ Then, you'll use Docker Compose to build and start them on your local system.
 
 ## Playing in the sandbox
 
-Now that everything is setup, you can go into your `nostarysandbox` container and
+Now that everything is setup, you can go into your `notarysandbox` container and
 start testing Docker content trust. 
 
 
@@ -186,11 +186,11 @@ In this procedure, you start the `notarysandbox` and link it to the running
 communication among the containers.
 
 ```
-$ docker run -it -v /var/run/docker.sock:/var/run/docker.sock --link notary_notaryserver_1:notaryserver --link sandboxregistry:sandboxregistry nostarysandbox
+$ docker run -it -v /var/run/docker.sock:/var/run/docker.sock --link notary_notaryserver_1:notaryserver --link sandboxregistry:sandboxregistry notarysandbox
 root@0710762bb59a:/# 
 ```
 
-Mounting the `docker.sock` gives the `nostarysandbox` access to the `docker`
+Mounting the `docker.sock` gives the `notarysandbox` access to the `docker`
 deamon on your host, while storing all the keys and files inside the sandbox
 container.  When you destroy the container, you destroy the "play" keys.
 
