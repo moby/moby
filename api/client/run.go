@@ -55,7 +55,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		ErrConflictAttachDetach               = fmt.Errorf("Conflicting options: -a and -d")
 		ErrConflictRestartPolicyAndAutoRemove = fmt.Errorf("Conflicting options: --restart and --rm")
 		ErrConflictDetachAutoRemove           = fmt.Errorf("Conflicting options: --rm and -d")
-        ErrInitTtyorStdin                     = fmt.Errorf("Options Error: -i and -t is needed")
+		ErrInitTtyorStdin                     = fmt.Errorf("Options Error: -i and -t is needed")
 	)
 
 	config, hostConfig, cmd, err := runconfig.Parse(cmd, args)
@@ -76,7 +76,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 			}
 		}
 	}
-    config.Init = *flInit;
+	config.Init = *flInit
 	if config.Init {
 		if !config.OpenStdin || !config.Tty {
 			return ErrInitTtyorStdin

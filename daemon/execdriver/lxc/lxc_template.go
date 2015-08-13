@@ -160,7 +160,7 @@ lxc.cap.drop = {{.}}
 {{end}}
 `
 
-const LxcInitTemplate =  `
+const LxcInitTemplate = `
 lxc.include = /usr/share/lxc/config/ubuntu.common.conf
 
 {{if .Network.Interface}}

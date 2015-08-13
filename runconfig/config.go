@@ -156,7 +156,7 @@ type Config struct {
 	MacAddress      string                // Mac Address of the container
 	OnBuild         []string              // ONBUILD metadata that were defined on the image Dockerfile
 	Labels          map[string]string     // List of labels set to this container
-	Init			bool					//if start  in init mode in lxc driver.
+	Init            bool                  //if start  in init mode in lxc driver.
 }
 
 // ContainerConfigWrapper is a Config wrapper that hold the container Config (portable)

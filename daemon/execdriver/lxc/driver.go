@@ -239,7 +239,7 @@ func (d *Driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 	}
 
 	if d.sharedRoot {
-	// lxc-start really needs / to be non-shared, or all kinds of stuff break
+		// lxc-start really needs / to be non-shared, or all kinds of stuff break
 		// when lxc-start unmount things and those unmounts propagate to the main
 		// mount namespace.
 		// What we really want is to clone into a new namespace and then
@@ -773,7 +773,6 @@ func (d *Driver) generateLXCConfig(c *execdriver.Command) (string, error) {
 		}
 		return root, nil
 	}
-
 
 	if err := lxcTemplateCompiled.Execute(fo, struct {
 		*execdriver.Command
