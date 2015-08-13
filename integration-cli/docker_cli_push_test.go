@@ -61,6 +61,40 @@ func (s *DockerRegistrySuite) TestPushMultipleTags(c *check.C) {
 	dockerCmd(c, "tag", "busybox", repoTag2)
 
 	dockerCmd(c, "push", repoName)
+
+	// Ensure layer list is equivalent for repoTag1 and repoTag2
+	out1, _ := dockerCmd(c, "pull", repoTag1)
+	if strings.Contains(out1, "Tag t1 not found") {
+		c.Fatalf("Unable to pull pushed image: %s", out1)
+	}
+	imageAlreadyExists := ": Image already exists"
+	var out1Lines []string
+	for _, outputLine := range strings.Split(out1, "\n") {
+		if strings.Contains(outputLine, imageAlreadyExists) {
+			out1Lines = append(out1Lines, outputLine)
+		}
+	}
+
+	out2, _ := dockerCmd(c, "pull", repoTag2)
+	if strings.Contains(out2, "Tag t2 not found") {
+		c.Fatalf("Unable to pull pushed image: %s", out1)
+	}
+	var out2Lines []string
+	for _, outputLine := range strings.Split(out2, "\n") {
+		if strings.Contains(outputLine, imageAlreadyExists) {
+			out1Lines = append(out1Lines, outputLine)
+		}
+	}
+
+	if len(out1Lines) != len(out2Lines) {
+		c.Fatalf("Mismatched output length:\n%s\n%s", out1, out2)
+	}
+
+	for i := range out1Lines {
+		if out1Lines[i] != out2Lines[i] {
+			c.Fatalf("Mismatched output line:\n%s\n%s", out1Lines[i], out2Lines[i])
+		}
+	}
 }
 
 func (s *DockerRegistrySuite) TestPushInterrupt(c *check.C) {
