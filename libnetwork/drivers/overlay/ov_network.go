@@ -30,6 +30,9 @@ type network struct {
 	vxlanName   string
 	driver      *driver
 	joinCnt     int
+	once        *sync.Once
+	initEpoch   int
+	initErr     error
 	sync.Mutex
 }
 
@@ -42,6 +45,7 @@ func (d *driver) CreateNetwork(id types.UUID, option map[string]interface{}) err
 		id:        id,
 		driver:    d,
 		endpoints: endpointTable{},
+		once:      &sync.Once{},
 	}
 
 	n.gw = bridgeIP.IP
@@ -77,10 +81,26 @@ func (n *network) joinSandbox() error {
 		n.Unlock()
 		return nil
 	}
-	n.joinCnt++
 	n.Unlock()
 
-	return n.initSandbox()
+	// If there is a race between two go routines here only one will win
+	// the other will wait.
+	n.once.Do(func() {
+		// save the error status of initSandbox in n.initErr so that
+		// all the racing go routines are able to know the status.
+		n.initErr = n.initSandbox()
+	})
+
+	// Increment joinCnt in all the goroutines only when the one time initSandbox
+	// was a success.
+	n.Lock()
+	if n.initErr == nil {
+		n.joinCnt++
+	}
+	err := n.initErr
+	n.Unlock()
+
+	return err
 }
 
 func (n *network) leaveSandbox() {
@@ -90,6 +110,11 @@ func (n *network) leaveSandbox() {
 		n.Unlock()
 		return
 	}
+
+	// We are about to destroy sandbox since the container is leaving the network
+	// Reinitialize the once variable so that we will be able to trigger one time
+	// sandbox initialization(again) when another container joins subsequently.
+	n.once = &sync.Once{}
 	n.Unlock()
 
 	n.destroySandbox()
@@ -111,7 +136,12 @@ func (n *network) destroySandbox() {
 }
 
 func (n *network) initSandbox() error {
-	sbox, err := sandbox.NewSandbox(sandbox.GenerateKey(string(n.id)), true)
+	n.Lock()
+	n.initEpoch++
+	n.Unlock()
+
+	sbox, err := sandbox.NewSandbox(
+		sandbox.GenerateKey(fmt.Sprintf("%d-", n.initEpoch)+string(n.id)), true)
 	if err != nil {
 		return fmt.Errorf("could not create network sandbox: %v", err)
 	}
