@@ -23,7 +23,7 @@ its own man page which explain usage and arguments.
 To see the man page for a command run **man docker <command>**.
 
 # OPTIONS
-**-h**, **--help**
+**--help**
   Print usage statement
 
 **--api-cors-header**=""
