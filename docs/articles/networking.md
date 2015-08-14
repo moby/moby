@@ -476,7 +476,7 @@ implementation for inter-container and outside-to-container communication. When
 disabled, Docker uses both an additional `MASQUERADE` iptable rule and the
 `net.ipv4.route_localnet` kernel parameter which allow the host machine to
 connect to a local container exposed port through the commonly used loopback
-address: this alternative is preferred for performance reason.
+address: this alternative is preferred for performance reasons.
 
 Again, this topic is covered without all of these low-level networking
 details in the [Docker User Guide](/userguide/dockerlinks/) document if you
