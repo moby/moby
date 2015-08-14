@@ -7,6 +7,8 @@ import (
 	"syscall"
 	"time"
 	"unsafe"
+
+	"github.com/docker/libnetwork/netutils"
 )
 
 const (
@@ -74,16 +76,6 @@ func ioctlAddToBridge(iface, master *net.Interface) error {
 	return ifIoctBridge(iface, master, ioctlBrAddIf)
 }
 
-func randMacAddr() string {
-	hw := make(net.HardwareAddr, 6)
-	for i := 0; i < 6; i++ {
-		hw[i] = byte(rnd.Intn(255))
-	}
-	hw[0] &^= 0x1 // clear multicast bit
-	hw[0] |= 0x2  // set local assignment bit (IEEE802)
-	return hw.String()
-}
-
 func ioctlSetMacAddress(name, addr string) error {
 	if len(name) >= ifNameSize {
 		return fmt.Errorf("Interface name %s too long", name)
@@ -133,7 +125,7 @@ func ioctlCreateBridge(name string, setMacAddr bool) error {
 		return err
 	}
 	if setMacAddr {
-		return ioctlSetMacAddress(name, randMacAddr())
+		return ioctlSetMacAddress(name, netutils.GenerateRandomMAC().String())
 	}
 	return nil
 }

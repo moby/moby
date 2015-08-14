@@ -392,19 +392,19 @@ func initNetworkController(config *Config) (libnetwork.NetworkController, error)
 
 func initBridgeDriver(controller libnetwork.NetworkController, config *Config) error {
 	option := options.Generic{
-		"EnableIPForwarding": config.Bridge.EnableIPForward}
+		"EnableIPForwarding":  config.Bridge.EnableIPForward,
+		"EnableIPTables":      config.Bridge.EnableIPTables,
+		"EnableUserlandProxy": config.Bridge.EnableUserlandProxy}
 
 	if err := controller.ConfigureNetworkDriver("bridge", options.Generic{netlabel.GenericData: option}); err != nil {
 		return fmt.Errorf("Error initializing bridge driver: %v", err)
 	}
 
 	netOption := options.Generic{
-		"BridgeName":          config.Bridge.Iface,
-		"Mtu":                 config.Mtu,
-		"EnableIPTables":      config.Bridge.EnableIPTables,
-		"EnableIPMasquerade":  config.Bridge.EnableIPMasq,
-		"EnableICC":           config.Bridge.InterContainerCommunication,
-		"EnableUserlandProxy": config.Bridge.EnableUserlandProxy,
+		"BridgeName":         config.Bridge.Iface,
+		"Mtu":                config.Mtu,
+		"EnableIPMasquerade": config.Bridge.EnableIPMasq,
+		"EnableICC":          config.Bridge.InterContainerCommunication,
 	}
 
 	if config.Bridge.IP != "" {

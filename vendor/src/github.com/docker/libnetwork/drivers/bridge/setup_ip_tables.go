@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/libnetwork/iptables"
 	"github.com/docker/libnetwork/netutils"
 )
@@ -13,33 +14,77 @@ const (
 	DockerChain = "DOCKER"
 )
 
-func (n *bridgeNetwork) setupIPTables(config *networkConfiguration, i *bridgeInterface) error {
+func setupIPChains(config *configuration) (*iptables.ChainInfo, *iptables.ChainInfo, error) {
 	// Sanity check.
 	if config.EnableIPTables == false {
-		return IPTableCfgError(config.BridgeName)
+		return nil, nil, fmt.Errorf("Cannot create new chains, EnableIPTable is disabled")
 	}
 
 	hairpinMode := !config.EnableUserlandProxy
+
+	natChain, err := iptables.NewChain(DockerChain, iptables.Nat, hairpinMode)
+	if err != nil {
+		return nil, nil, fmt.Errorf("Failed to create NAT chain: %s", err.Error())
+	}
+	defer func() {
+		if err != nil {
+			if err := iptables.RemoveExistingChain(DockerChain, iptables.Nat); err != nil {
+				logrus.Warnf("Failed on removing iptables NAT chain on cleanup: %v", err)
+			}
+		}
+	}()
+
+	filterChain, err := iptables.NewChain(DockerChain, iptables.Filter, hairpinMode)
+	if err != nil {
+		return nil, nil, fmt.Errorf("Failed to create FILTER chain: %s", err.Error())
+	}
+
+	return natChain, filterChain, nil
+}
+
+func (n *bridgeNetwork) setupIPTables(config *networkConfiguration, i *bridgeInterface) error {
+	d := n.driver
+	d.Lock()
+	driverConfig := d.config
+	d.Unlock()
+
+	// Sanity check.
+	if driverConfig.EnableIPTables == false {
+		return fmt.Errorf("Cannot program chains, EnableIPTable is disabled")
+	}
+
+	// Pickup this configuraton option from driver
+	hairpinMode := !driverConfig.EnableUserlandProxy
 
 	addrv4, _, err := netutils.GetIfaceAddr(config.BridgeName)
 	if err != nil {
 		return fmt.Errorf("Failed to setup IP tables, cannot acquire Interface address: %s", err.Error())
 	}
-	if err = setupIPTablesInternal(config.BridgeName, addrv4, config.EnableICC, config.EnableIPMasquerade, hairpinMode, true); err != nil {
+	ipnet := addrv4.(*net.IPNet)
+	maskedAddrv4 := &net.IPNet{
+		IP:   ipnet.IP.Mask(ipnet.Mask),
+		Mask: ipnet.Mask,
+	}
+	if err = setupIPTablesInternal(config.BridgeName, maskedAddrv4, config.EnableICC, config.EnableIPMasquerade, hairpinMode, true); err != nil {
 		return fmt.Errorf("Failed to Setup IP tables: %s", err.Error())
 	}
 
-	_, err = iptables.NewChain(DockerChain, config.BridgeName, iptables.Nat, hairpinMode)
+	natChain, filterChain, err := n.getDriverChains()
 	if err != nil {
-		return fmt.Errorf("Failed to create NAT chain: %s", err.Error())
+		return fmt.Errorf("Failed to setup IP tables, cannot acquire chain info %s", err.Error())
 	}
 
-	chain, err := iptables.NewChain(DockerChain, config.BridgeName, iptables.Filter, hairpinMode)
+	err = iptables.ProgramChain(natChain, config.BridgeName, hairpinMode)
 	if err != nil {
-		return fmt.Errorf("Failed to create FILTER chain: %s", err.Error())
+		return fmt.Errorf("Failed to program NAT chain: %s", err.Error())
 	}
 
-	n.portMapper.SetIptablesChain(chain)
+	err = iptables.ProgramChain(filterChain, config.BridgeName, hairpinMode)
+	if err != nil {
+		return fmt.Errorf("Failed to program FILTER chain: %s", err.Error())
+	}
+
+	n.portMapper.SetIptablesChain(filterChain, n.getNetworkBridgeName())
 
 	return nil
 }
