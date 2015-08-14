@@ -293,3 +293,7 @@ Docker on Mac and Windows
 
 If you know of another project underway that should be listed here, please help 
 us keep this list up-to-date by submitting a PR.
+
+Awesome-Docker
+==============
+You can find more projects, tools and articles related to Docker on the [awesome-docker list](https://github.com/veggiemonk/awesome-docker). Add your project there.
