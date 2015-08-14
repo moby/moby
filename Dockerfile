@@ -40,6 +40,7 @@ ENV DEBIAN_FRONTEND noninteractive
 
 # Packaged dependencies
 RUN apt-get update && apt-get install -y \
+	apache2-utils \
 	apparmor \
 	aufs-tools \
 	automake \
@@ -71,6 +72,7 @@ RUN apt-get update && apt-get install -y \
 	python-pip \
 	python-websocket \
 	s3cmd=1.5.0* \
+	sasl2-bin \
 	ubuntu-zfs \
 	xfsprogs \
 	libzfs-dev \
