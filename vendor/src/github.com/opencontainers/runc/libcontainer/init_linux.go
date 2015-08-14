@@ -50,6 +50,7 @@ type initConfig struct {
 	Console          string          `json:"console"`
 	Networks         []*network      `json:"network"`
 	PassedFilesCount int             `json:"passed_files_count"`
+	Syscall          bool            `json:"syscall"` // interpret Args as syscall
 }
 
 type initer interface {

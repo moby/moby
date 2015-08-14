@@ -27,10 +27,15 @@ func (d *Driver) Exec(c *execdriver.Command, processConfig *execdriver.ProcessCo
 	}
 
 	p := &libcontainer.Process{
-		Args: append([]string{processConfig.Entrypoint}, processConfig.Arguments...),
-		Env:  c.ProcessConfig.Env,
-		Cwd:  c.WorkingDir,
-		User: processConfig.User,
+		Args:    append([]string{processConfig.Entrypoint}, processConfig.Arguments...),
+		Env:     c.ProcessConfig.Env,
+		Cwd:     c.WorkingDir,
+		User:    processConfig.User,
+		Syscall: processConfig.Syscall,
+	}
+
+	if processConfig.Syscall {
+		p.Capabilities = execdriver.GetAllCapabilities()
 	}
 
 	config := active.Config()
