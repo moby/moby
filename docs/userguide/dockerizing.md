@@ -133,8 +133,8 @@ This really long string is called a *container ID*. It uniquely
 identifies a container so we can work with it.
 
 > **Note:** 
-> The container ID is a bit long and unwieldy and a bit later
-> on we'll see a shorter ID and some ways to name our containers to make
+> The container ID is a bit long and unwieldy. A bit later,
+> we'll see a shorter ID and ways to name our containers to make
 > working with them easier.
 
 We can use this container ID to see what's happening with our `hello world` daemon.
@@ -157,8 +157,8 @@ is running, its status and an automatically assigned name,
 `insane_babbage`. 
 
 > **Note:** 
-> Docker automatically names any containers you start, a
-> little later on we'll see how you can specify your own names.
+> Docker automatically generates names for any containers started.
+> We'll see how to specify your own names a bit later.
 
 Okay, so we now know it's running. But is it doing what we asked it to do? To see this
 we're going to look inside the container using the `docker logs`
