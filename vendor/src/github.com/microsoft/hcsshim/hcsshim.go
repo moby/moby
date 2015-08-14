@@ -16,14 +16,14 @@ const (
 	shimDLLName = "vmcompute.dll"
 
 	// Container related functions in the shim DLL
-	procCreateComputeSystem             = "CreateComputeSystem"
-	procStartComputeSystem              = "StartComputeSystem"
-	procCreateProcessInComputeSystem    = "CreateProcessInComputeSystem"
-	procWaitForProcessInComputeSystem   = "WaitForProcessInComputeSystem"
-	procShutdownComputeSystem           = "ShutdownComputeSystem"
-	procTerminateComputeSystem          = "TerminateComputeSystem"
-	procTerminateProcessInComputeSystem = "TerminateProcessInComputeSystem"
-	procResizeConsoleInComputeSystem    = "ResizeConsoleInComputeSystem"
+	procCreateComputeSystem                        = "CreateComputeSystem"
+	procStartComputeSystem                         = "StartComputeSystem"
+	procCreateProcessWithStdHandlesInComputeSystem = "CreateProcessWithStdHandlesInComputeSystem"
+	procWaitForProcessInComputeSystem              = "WaitForProcessInComputeSystem"
+	procShutdownComputeSystem                      = "ShutdownComputeSystem"
+	procTerminateComputeSystem                     = "TerminateComputeSystem"
+	procTerminateProcessInComputeSystem            = "TerminateProcessInComputeSystem"
+	procResizeConsoleInComputeSystem               = "ResizeConsoleInComputeSystem"
 
 	// Storage related functions in the shim DLL
 	procLayerExists         = "LayerExists"
@@ -39,6 +39,7 @@ const (
 	procExportLayer         = "ExportLayer"
 	procImportLayer         = "ImportLayer"
 	procGetSharedBaseImages = "GetBaseImages"
+	procNameToGuid          = "NameToGuid"
 
 	// Name of the standard OLE dll
 	oleDLLName = "Ole32.dll"
