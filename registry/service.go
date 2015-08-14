@@ -48,7 +48,7 @@ func (s *Service) Auth(authConfig *cliconfig.AuthConfig) (string, error) {
 	return Login(authConfig, endpoint)
 }
 
-// Search queries the public registry for images matching the specified
+// Search queries the  search endpoint for images matching the specified
 // search terms, and returns the results.
 func (s *Service) Search(term string, authConfig *cliconfig.AuthConfig, headers map[string][]string) (*SearchResults, error) {
 	repoInfo, err := s.ResolveRepository(term)
@@ -57,15 +57,36 @@ func (s *Service) Search(term string, authConfig *cliconfig.AuthConfig, headers 
 	}
 
 	// *TODO: Search multiple indexes.
-	endpoint, err := repoInfo.GetEndpoint(http.Header(headers))
+	var searchEndpoint *Endpoint
+	if !repoInfo.Index.Official {
+		searchEndpoint, err = NewEndpoint(repoInfo.Index, http.Header(headers))
+	} else {
+		searchEndpoint, err = newSearchEndpoint(SearchURL, http.Header(headers))
+	}
 	if err != nil {
 		return nil, err
 	}
-	r, err := NewSession(endpoint.client, authConfig, endpoint)
+
+	r, err := NewSession(searchEndpoint.client, authConfig, searchEndpoint)
 	if err != nil {
 		return nil, err
 	}
 	return r.SearchRepositories(repoInfo.GetSearchTerm())
+}
+
+func newSearchEndpoint(searchURL string, metaHeaders http.Header) (*Endpoint, error) {
+	tlsConfig, err := newTLSConfig(searchURL, strings.HasPrefix(SearchURL, "https"))
+	if err != nil {
+		return nil, err
+	}
+	endpoint, err := newEndpoint(searchURL, tlsConfig, metaHeaders)
+	if err != nil {
+		return nil, err
+	}
+	if err := validateEndpoint(endpoint); err != nil {
+		return nil, err
+	}
+	return endpoint, err
 }
 
 // ResolveRepository splits a repository name into its components
