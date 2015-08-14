@@ -61,7 +61,7 @@ func main() {
 		return
 	}
 
-	c := cli.New(clientCli, daemonCli)
+	c := cli.New(clientCli, daemonCli, proxyCli)
 	if err := c.Run(flag.Args()...); err != nil {
 		if sterr, ok := err.(cli.StatusError); ok {
 			if sterr.Status != "" {

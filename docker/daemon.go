@@ -13,6 +13,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/uuid"
+	"github.com/docker/docker/api/client"
 	apiserver "github.com/docker/docker/api/server"
 	"github.com/docker/docker/autogen/dockerversion"
 	"github.com/docker/docker/cli"
@@ -35,6 +36,7 @@ const daemonUsage = "       docker daemon [ --help | ... ]\n"
 var (
 	flDaemon              = flag.Bool([]string{"#d", "#-daemon"}, false, "Enable daemon mode (deprecated; use docker daemon)")
 	daemonCli cli.Handler = NewDaemonCli()
+	proxyCli  cli.Handler = NewProxyCli()
 )
 
 // TODO: remove once `-d` is retired
@@ -318,4 +320,36 @@ func shutdownDaemon(d *daemon.Daemon, timeout time.Duration) {
 	case <-time.After(timeout * time.Second):
 		logrus.Error("Force shutdown daemon")
 	}
+}
+
+// ProxyCli represents the proxy CLI.
+type ProxyCli struct {
+	*daemon.ProxyConfig
+	Root string
+}
+
+// NewProxyCli returns a pre-configured proxy CLI
+func NewProxyCli() *ProxyCli {
+	proxyFlags = cli.Subcmd("proxydaemon", nil, "Enable proxy-daemon mode", true)
+
+	proxyConfig := new(daemon.ProxyConfig)
+	proxyConfig.InstallProxyFlags(proxyFlags, presentInHelp)
+	proxyConfig.InstallProxyFlags(flag.CommandLine, absentFromHelp)
+	proxyFlags.Require(flag.Exact, 0)
+
+	return &ProxyCli{
+		ProxyConfig: proxyConfig,
+	}
+}
+
+// CmdProxy is the daemon command, called the raw arguments after `docker proxy`.
+func (dc *ProxyCli) CmdProxydaemon(args ...string) error {
+	flag.Merge(proxyFlags, commonFlags.FlagSet)
+	proxyFlags.ParseFlags(args, true)
+	commonFlags.PostParse()
+
+	clientCli := client.NewDockerCli(nil, nil, nil, clientFlags)
+	c := cli.New(clientCli)
+	daemon.StartProxyDaemon(dc.ProxyConfig, c)
+	return nil
 }
