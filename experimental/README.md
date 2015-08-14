@@ -11,7 +11,10 @@ please feel free to provide any feedback on these features you wish.
 
 ## Install Docker experimental
 
-Unlike the regular Docker binary, the experimental channels is built and updated nightly on TO.BE.ANNOUNCED. From one day to the next, new features may appear, while existing experimental features may be refined or entirely removed.
+Unlike the regular Docker binary, the experimental channels is built and
+updated nightly on https://experimental.docker.com. From one day to the
+next, new features may appear, while existing experimental features may be
+refined or entirely removed.
 
 1. Verify that you have `curl` installed.
 
@@ -58,6 +61,13 @@ After downloading the appropriate binary, you can follow the instructions
 > 1) You can get the MD5 and SHA256 hashes by appending .md5 and .sha256 to the URLs respectively
 >
 > 2) You can get the compressed binaries by appending .tgz to the URLs
+
+### Build an experimental binary
+You can also build the experimental binary from the standard development environment by adding
+`DOCKER_EXPERIMENTAL=1` to the environment where you run `make` to build Docker binaries. For example,
+to build a dynamically-linked Docker binary with the experimental features enabled:
+
+        $ DOCKER_EXPERIMENTAL=1 make dynbinary
 
 ## Current experimental features
 
