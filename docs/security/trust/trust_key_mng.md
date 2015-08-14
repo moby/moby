@@ -45,8 +45,7 @@ The Docker client stores the keys in the `~/.docker/trust/private` directory.
 Before backing them up, you should `tar` them into an archive:
 
 ```bash
-$ tar -zcvf private_keys_backup.tar.gz ~/.docker/trust/private
-$ chmod 600 private_keys_backup.tar.gz
+$ umask 077; tar -zcvf private_keys_backup.tar.gz ~/.docker/trust/private; umask 022
 ```
 
 ## Lost keys
