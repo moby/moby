@@ -191,11 +191,17 @@ if [ "$kernelMajor" -lt 3 ] || [ "$kernelMajor" -eq 3 -a "$kernelMinor" -le 18 ]
 	check_flags RESOURCE_COUNTERS
 fi
 
+if [ "$kernelMajor" -lt 3 ] || [ "$kernelMajor" -eq 3 -a "$kernelMinor" -le 13 ]; then
+	netprio=NETPRIO_CGROUP
+else
+	netprio=CGROUP_NET_PRIO
+fi
+
 flags=(
 	BLK_CGROUP IOSCHED_CFQ
 	CGROUP_PERF
 	CGROUP_HUGETLB
-	NET_CLS_CGROUP NETPRIO_CGROUP
+	NET_CLS_CGROUP $netprio
 	CFS_BANDWIDTH FAIR_GROUP_SCHED RT_GROUP_SCHED
 )
 check_flags "${flags[@]}"
