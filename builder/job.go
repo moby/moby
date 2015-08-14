@@ -272,43 +272,6 @@ type CommitConfig struct {
 	Config  *runconfig.Config
 }
 
-// Commit will create a new image from a container's changes
-func Commit(name string, d *daemon.Daemon, c *CommitConfig) (string, error) {
-	container, err := d.Get(name)
-	if err != nil {
-		return "", err
-	}
-
-	if c.Config == nil {
-		c.Config = &runconfig.Config{}
-	}
-
-	newConfig, err := BuildFromConfig(d, c.Config, c.Changes)
-	if err != nil {
-		return "", err
-	}
-
-	if err := runconfig.Merge(newConfig, container.Config); err != nil {
-		return "", err
-	}
-
-	commitCfg := &daemon.ContainerCommitConfig{
-		Pause:   c.Pause,
-		Repo:    c.Repo,
-		Tag:     c.Tag,
-		Author:  c.Author,
-		Comment: c.Comment,
-		Config:  newConfig,
-	}
-
-	img, err := d.Commit(container, commitCfg)
-	if err != nil {
-		return "", err
-	}
-
-	return img.ID, nil
-}
-
 // inspectResponse looks into the http response data at r to determine whether its
 // content-type is on the list of acceptable content types for remote build contexts.
 // This function returns:

@@ -12,6 +12,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/cliconfig"
+	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/graph"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/parsers"
@@ -43,23 +44,22 @@ func (s *Server) postCommit(version version.Version, w http.ResponseWriter, r *h
 		return err
 	}
 
-	commitCfg := &builder.CommitConfig{
+	commitCfg := &daemon.ContainerCommitConfig{
 		Pause:   pause,
 		Repo:    r.Form.Get("repo"),
 		Tag:     r.Form.Get("tag"),
 		Author:  r.Form.Get("author"),
 		Comment: r.Form.Get("comment"),
-		Changes: r.Form["changes"],
 		Config:  c,
 	}
 
-	imgID, err := builder.Commit(cname, s.daemon, commitCfg)
+	img, err := s.daemon.Commit(cname, commitCfg)
 	if err != nil {
 		return err
 	}
 
 	return writeJSON(w, http.StatusCreated, &types.ContainerCommitResponse{
-		ID: imgID,
+		ID: img.ID,
 	})
 }
 
