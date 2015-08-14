@@ -109,10 +109,6 @@ func (b *builder) commit(id string, autoCmd *runconfig.Command, comment string) 
 		}
 		defer container.Unmount()
 	}
-	container, err := b.Daemon.Get(id)
-	if err != nil {
-		return err
-	}
 
 	// Note: Actually copy the struct
 	autoConfig := *b.Config
@@ -125,7 +121,7 @@ func (b *builder) commit(id string, autoCmd *runconfig.Command, comment string) 
 	}
 
 	// Commit the container
-	image, err := b.Daemon.Commit(container, commitCfg)
+	image, err := b.Daemon.Commit(id, commitCfg)
 	if err != nil {
 		return err
 	}

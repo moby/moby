@@ -1,6 +1,9 @@
 package daemon
 
 import (
+	"fmt"
+	"runtime"
+
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/runconfig"
 )
@@ -16,7 +19,18 @@ type ContainerCommitConfig struct {
 
 // Commit creates a new filesystem image from the current state of a container.
 // The image can optionally be tagged into a repository
-func (daemon *Daemon) Commit(container *Container, c *ContainerCommitConfig) (*image.Image, error) {
+func (daemon *Daemon) Commit(name string, c *ContainerCommitConfig) (*image.Image, error) {
+	container, err := daemon.Get(name)
+	if err != nil {
+		return nil, err
+	}
+
+	if runtime.GOOS == "windows" {
+		if container.IsRunning() {
+			return nil, fmt.Errorf("Windows does not support commit of a running container")
+		}
+	}
+
 	if c.Pause && !container.IsPaused() {
 		container.Pause()
 		defer container.Unpause()
