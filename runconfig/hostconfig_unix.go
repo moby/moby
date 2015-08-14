@@ -58,3 +58,13 @@ func (n NetworkMode) IsContainer() bool {
 func (n NetworkMode) IsNone() bool {
 	return n == "none"
 }
+
+// MergeConfigs merges the specified container Config and HostConfig.
+// It creates a ContainerConfigWrapper.
+func MergeConfigs(config *Config, hostConfig *HostConfig) *ContainerConfigWrapper {
+	return &ContainerConfigWrapper{
+		config,
+		hostConfig,
+		"", nil,
+	}
+}

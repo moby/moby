@@ -298,16 +298,6 @@ type HostConfig struct {
 	ConsoleSize      [2]int           // Initial console size on Windows
 }
 
-// MergeConfigs merges the specified container Config and HostConfig.
-// It creates a ContainerConfigWrapper.
-func MergeConfigs(config *Config, hostConfig *HostConfig) *ContainerConfigWrapper {
-	return &ContainerConfigWrapper{
-		config,
-		hostConfig,
-		"", nil,
-	}
-}
-
 // DecodeHostConfig creates a HostConfig based on the specified Reader.
 // It assumes the content of the reader will be JSON, and decodes it.
 func DecodeHostConfig(src io.Reader) (*HostConfig, error) {
@@ -318,7 +308,19 @@ func DecodeHostConfig(src io.Reader) (*HostConfig, error) {
 		return nil, err
 	}
 
-	hc := w.GetHostConfig()
-
+	hc := w.getHostConfig()
 	return hc, nil
+}
+
+// SetDefaultNetModeIfBlank changes the NetworkMode in a HostConfig structure
+// to default if it is not populated. This ensures backwards compatibility after
+// the validation of the network mode was moved from the docker CLI to the
+// docker daemon.
+func SetDefaultNetModeIfBlank(hc *HostConfig) *HostConfig {
+	if hc != nil {
+		if hc.NetworkMode == NetworkMode("") {
+			hc.NetworkMode = NetworkMode("default")
+		}
+	}
+	return hc
 }

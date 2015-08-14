@@ -913,11 +913,6 @@ func (container *Container) configureNetwork(networkName, service, networkDriver
 func (container *Container) initializeNetworking() error {
 	var err error
 
-	// Make sure NetworkMode has an acceptable value before
-	// initializing networking.
-	if container.hostConfig.NetworkMode == runconfig.NetworkMode("") {
-		container.hostConfig.NetworkMode = runconfig.NetworkMode("default")
-	}
 	if container.hostConfig.NetworkMode.IsContainer() {
 		// we need to get the hosts files from the container to join
 		nc, err := container.getNetworkedContainer()

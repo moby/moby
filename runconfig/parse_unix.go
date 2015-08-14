@@ -7,51 +7,53 @@ import (
 	"strings"
 )
 
-func parseNetMode(netMode string) (NetworkMode, error) {
-	parts := strings.Split(netMode, ":")
+// ValidateNetMode ensures that the various combinations of requested
+// network settings are valid.
+func ValidateNetMode(c *Config, hc *HostConfig) error {
+	// We may not be passed a host config, such as in the case of docker commit
+	if hc == nil {
+		return nil
+	}
+	parts := strings.Split(string(hc.NetworkMode), ":")
 	switch mode := parts[0]; mode {
 	case "default", "bridge", "none", "host":
 	case "container":
 		if len(parts) < 2 || parts[1] == "" {
-			return "", fmt.Errorf("invalid container format container:<name|id>")
+			return fmt.Errorf("--net: invalid net mode: invalid container format container:<name|id>")
 		}
 	default:
-		return "", fmt.Errorf("invalid --net: %s", netMode)
+		return fmt.Errorf("invalid --net: %s", hc.NetworkMode)
 	}
-	return NetworkMode(netMode), nil
-}
 
-func validateNetMode(vals *validateNM) error {
-
-	if (vals.netMode.IsHost() || vals.netMode.IsContainer()) && *vals.flHostname != "" {
+	if (hc.NetworkMode.IsHost() || hc.NetworkMode.IsContainer()) && c.Hostname != "" {
 		return ErrConflictNetworkHostname
 	}
 
-	if vals.netMode.IsHost() && vals.flLinks.Len() > 0 {
+	if hc.NetworkMode.IsHost() && len(hc.Links) > 0 {
 		return ErrConflictHostNetworkAndLinks
 	}
 
-	if vals.netMode.IsContainer() && vals.flLinks.Len() > 0 {
+	if hc.NetworkMode.IsContainer() && len(hc.Links) > 0 {
 		return ErrConflictContainerNetworkAndLinks
 	}
 
-	if (vals.netMode.IsHost() || vals.netMode.IsContainer()) && vals.flDNS.Len() > 0 {
+	if (hc.NetworkMode.IsHost() || hc.NetworkMode.IsContainer()) && len(hc.DNS) > 0 {
 		return ErrConflictNetworkAndDNS
 	}
 
-	if (vals.netMode.IsContainer() || vals.netMode.IsHost()) && vals.flExtraHosts.Len() > 0 {
+	if (hc.NetworkMode.IsContainer() || hc.NetworkMode.IsHost()) && len(hc.ExtraHosts) > 0 {
 		return ErrConflictNetworkHosts
 	}
 
-	if (vals.netMode.IsContainer() || vals.netMode.IsHost()) && *vals.flMacAddress != "" {
+	if (hc.NetworkMode.IsContainer() || hc.NetworkMode.IsHost()) && c.MacAddress != "" {
 		return ErrConflictContainerNetworkAndMac
 	}
 
-	if vals.netMode.IsContainer() && (vals.flPublish.Len() > 0 || *vals.flPublishAll == true) {
+	if hc.NetworkMode.IsContainer() && (len(hc.PortBindings) > 0 || hc.PublishAllPorts == true) {
 		return ErrConflictNetworkPublishPorts
 	}
 
-	if vals.netMode.IsContainer() && vals.flExpose.Len() > 0 {
+	if hc.NetworkMode.IsContainer() && len(c.ExposedPorts) > 0 {
 		return ErrConflictNetworkExposePorts
 	}
 	return nil
