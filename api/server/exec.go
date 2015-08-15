@@ -65,7 +65,7 @@ func (s *Server) postContainerExecStart(version version.Version, w http.Response
 	}
 	var (
 		execName                  = vars["name"]
-		stdin, inStream           io.ReadCloser
+		stdin                     io.ReadCloser
 		stdout, stderr, outStream io.Writer
 	)
 
@@ -77,7 +77,7 @@ func (s *Server) postContainerExecStart(version version.Version, w http.Response
 	if !execStartCheck.Detach {
 		var err error
 		// Setting up the streaming http interface.
-		inStream, outStream, err = hijackServer(w)
+		inStream, outStream, err := hijackServer(w)
 		if err != nil {
 			return err
 		}
@@ -89,11 +89,12 @@ func (s *Server) postContainerExecStart(version version.Version, w http.Response
 			fmt.Fprintf(outStream, "HTTP/1.1 200 OK\r\nContent-Type: application/vnd.docker.raw-stream\r\n\r\n")
 		}
 
+		stdin = inStream
+		stdout = outStream
 		if !execStartCheck.Tty {
 			stderr = stdcopy.NewStdWriter(outStream, stdcopy.Stderr)
 			stdout = stdcopy.NewStdWriter(outStream, stdcopy.Stdout)
 		}
-		stdin = inStream
 	}
 
 	// Now run the user process in container.
