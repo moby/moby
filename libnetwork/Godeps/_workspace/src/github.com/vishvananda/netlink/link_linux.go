@@ -73,10 +73,7 @@ func LinkSetMTU(link Link, mtu int) error {
 	req := nl.NewNetlinkRequest(syscall.RTM_SETLINK, syscall.NLM_F_ACK)
 
 	msg := nl.NewIfInfomsg(syscall.AF_UNSPEC)
-	msg.Type = syscall.RTM_SETLINK
-	msg.Flags = syscall.NLM_F_REQUEST
 	msg.Index = int32(base.Index)
-	msg.Change = syscall.IFLA_MTU
 	req.AddData(msg)
 
 	b := make([]byte, 4)
@@ -97,10 +94,7 @@ func LinkSetName(link Link, name string) error {
 	req := nl.NewNetlinkRequest(syscall.RTM_SETLINK, syscall.NLM_F_ACK)
 
 	msg := nl.NewIfInfomsg(syscall.AF_UNSPEC)
-	msg.Type = syscall.RTM_SETLINK
-	msg.Flags = syscall.NLM_F_REQUEST
 	msg.Index = int32(base.Index)
-	msg.Change = syscall.IFLA_IFNAME
 	req.AddData(msg)
 
 	data := nl.NewRtAttr(syscall.IFLA_IFNAME, []byte(name))
@@ -118,10 +112,7 @@ func LinkSetHardwareAddr(link Link, hwaddr net.HardwareAddr) error {
 	req := nl.NewNetlinkRequest(syscall.RTM_SETLINK, syscall.NLM_F_ACK)
 
 	msg := nl.NewIfInfomsg(syscall.AF_UNSPEC)
-	msg.Type = syscall.RTM_SETLINK
-	msg.Flags = syscall.NLM_F_REQUEST
 	msg.Index = int32(base.Index)
-	msg.Change = syscall.IFLA_ADDRESS
 	req.AddData(msg)
 
 	data := nl.NewRtAttr(syscall.IFLA_ADDRESS, []byte(hwaddr))
@@ -151,10 +142,7 @@ func LinkSetMasterByIndex(link Link, masterIndex int) error {
 	req := nl.NewNetlinkRequest(syscall.RTM_SETLINK, syscall.NLM_F_ACK)
 
 	msg := nl.NewIfInfomsg(syscall.AF_UNSPEC)
-	msg.Type = syscall.RTM_SETLINK
-	msg.Flags = syscall.NLM_F_REQUEST
 	msg.Index = int32(base.Index)
-	msg.Change = syscall.IFLA_MASTER
 	req.AddData(msg)
 
 	b := make([]byte, 4)
@@ -176,10 +164,7 @@ func LinkSetNsPid(link Link, nspid int) error {
 	req := nl.NewNetlinkRequest(syscall.RTM_SETLINK, syscall.NLM_F_ACK)
 
 	msg := nl.NewIfInfomsg(syscall.AF_UNSPEC)
-	msg.Type = syscall.RTM_SETLINK
-	msg.Flags = syscall.NLM_F_REQUEST
 	msg.Index = int32(base.Index)
-	msg.Change = syscall.IFLA_NET_NS_PID
 	req.AddData(msg)
 
 	b := make([]byte, 4)
@@ -201,10 +186,7 @@ func LinkSetNsFd(link Link, fd int) error {
 	req := nl.NewNetlinkRequest(syscall.RTM_SETLINK, syscall.NLM_F_ACK)
 
 	msg := nl.NewIfInfomsg(syscall.AF_UNSPEC)
-	msg.Type = syscall.RTM_SETLINK
-	msg.Flags = syscall.NLM_F_REQUEST
 	msg.Index = int32(base.Index)
-	msg.Change = nl.IFLA_NET_NS_FD
 	req.AddData(msg)
 
 	b := make([]byte, 4)
@@ -265,6 +247,10 @@ func addVxlanAttrs(vxlan *Vxlan, linkInfo *nl.RtAttr) {
 	nl.NewRtAttrChild(data, nl.IFLA_VXLAN_RSC, boolAttr(vxlan.RSC))
 	nl.NewRtAttrChild(data, nl.IFLA_VXLAN_L2MISS, boolAttr(vxlan.L2miss))
 	nl.NewRtAttrChild(data, nl.IFLA_VXLAN_L3MISS, boolAttr(vxlan.L3miss))
+
+	if vxlan.GBP {
+		nl.NewRtAttrChild(data, nl.IFLA_VXLAN_GBP, boolAttr(vxlan.GBP))
+	}
 
 	if vxlan.NoAge {
 		nl.NewRtAttrChild(data, nl.IFLA_VXLAN_AGEING, nl.Uint32Attr(0))
@@ -627,10 +613,7 @@ func setProtinfoAttr(link Link, mode bool, attr int) error {
 	req := nl.NewNetlinkRequest(syscall.RTM_SETLINK, syscall.NLM_F_ACK)
 
 	msg := nl.NewIfInfomsg(syscall.AF_BRIDGE)
-	msg.Type = syscall.RTM_SETLINK
-	msg.Flags = syscall.NLM_F_REQUEST
 	msg.Index = int32(base.Index)
-	msg.Change = syscall.IFLA_PROTINFO | syscall.NLA_F_NESTED
 	req.AddData(msg)
 
 	br := nl.NewRtAttr(syscall.IFLA_PROTINFO|syscall.NLA_F_NESTED, nil)
@@ -683,6 +666,8 @@ func parseVxlanData(link Link, data []syscall.NetlinkRouteAttr) {
 			vxlan.L2miss = int8(datum.Value[0]) != 0
 		case nl.IFLA_VXLAN_L3MISS:
 			vxlan.L3miss = int8(datum.Value[0]) != 0
+		case nl.IFLA_VXLAN_GBP:
+			vxlan.GBP = int8(datum.Value[0]) != 0
 		case nl.IFLA_VXLAN_AGEING:
 			vxlan.Age = int(native.Uint32(datum.Value[0:4]))
 			vxlan.NoAge = vxlan.Age == 0

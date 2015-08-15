@@ -150,6 +150,9 @@ func compareVxlan(t *testing.T, expected, actual *Vxlan) {
 	if actual.L3miss != expected.L3miss {
 		t.Fatal("Vxlan.L3miss doesn't match")
 	}
+	if actual.GBP != expected.GBP {
+		t.Fatal("Vxlan.GBP doesn't match")
+	}
 	if expected.NoAge {
 		if !actual.NoAge {
 			t.Fatal("Vxlan.NoAge doesn't match")
