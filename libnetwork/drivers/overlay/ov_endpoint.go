@@ -73,7 +73,7 @@ func (d *driver) CreateEndpoint(nid, eid types.UUID, epInfo driverapi.EndpointIn
 
 	binary.BigEndian.PutUint32(ep.addr.IP, bridgeSubnetInt+ipID)
 
-	ep.mac = netutils.GenerateRandomMAC()
+	ep.mac = netutils.GenerateMACFromIP(ep.addr.IP)
 
 	err = epInfo.AddInterface(1, ep.mac, *ep.addr, net.IPNet{})
 	if err != nil {
