@@ -106,7 +106,7 @@ func (s *DockerSuite) TestRmiImgIDMultipleTag(c *check.C) {
 
 	// first checkout without force it fails
 	out, _, err = dockerCmdWithError("rmi", imgID)
-	expected := fmt.Sprintf("Conflict, cannot delete %s because the running container %s is using it, stop it and use -f to force", imgID[:12], containerID[:12])
+	expected := fmt.Sprintf("conflict: unable to delete %s (cannot be forced) - image is being used by running container %s", imgID[:12], containerID[:12])
 	if err == nil || !strings.Contains(out, expected) {
 		c.Fatalf("rmi tagged in multiple repos should have failed without force: %s, %v, expected: %s", out, err, expected)
 	}
@@ -148,7 +148,7 @@ func (s *DockerSuite) TestRmiImgIDForce(c *check.C) {
 
 	// first checkout without force it fails
 	out, _, err = dockerCmdWithError("rmi", imgID)
-	if err == nil || !strings.Contains(out, fmt.Sprintf("Conflict, cannot delete image %s because it is tagged in multiple repositories, use -f to force", imgID)) {
+	if err == nil || !strings.Contains(out, "(must be forced) - image is referenced in one or more repositories") {
 		c.Fatalf("rmi tagged in multiple repos should have failed without force:%s, %v", out, err)
 	}
 
@@ -172,7 +172,7 @@ func (s *DockerSuite) TestRmiImageIDForceWithRunningContainersAndMultipleTags(c 
 	dockerCmd(c, "run", "-d", imgID, "top")
 
 	out, _, err := dockerCmdWithError("rmi", "-f", imgID)
-	if err == nil || !strings.Contains(out, "stop it and retry") {
+	if err == nil || !strings.Contains(out, "(cannot be forced) - image is being used by running container") {
 		c.Log(out)
 		c.Fatalf("rmi -f should not delete image with running containers")
 	}
@@ -251,10 +251,10 @@ func (s *DockerSuite) TestRmiBlank(c *check.C) {
 	if err == nil {
 		c.Fatal("Should have failed to delete '' image")
 	}
-	if strings.Contains(out, "No such image") {
+	if strings.Contains(out, "no such id") {
 		c.Fatalf("Wrong error message generated: %s", out)
 	}
-	if !strings.Contains(out, "Image name can not be blank") {
+	if !strings.Contains(out, "image name cannot be blank") {
 		c.Fatalf("Expected error message not generated: %s", out)
 	}
 
@@ -262,7 +262,7 @@ func (s *DockerSuite) TestRmiBlank(c *check.C) {
 	if err == nil {
 		c.Fatal("Should have failed to delete '' image")
 	}
-	if !strings.Contains(out, "No such image") {
+	if !strings.Contains(out, "no such id") {
 		c.Fatalf("Expected error message not generated: %s", out)
 	}
 }
@@ -287,8 +287,59 @@ func (s *DockerSuite) TestRmiContainerImageNotFound(c *check.C) {
 
 	// Try to remove the image of the running container and see if it fails as expected.
 	out, _, err := dockerCmdWithError("rmi", "-f", imageIds[0])
-	if err == nil || !strings.Contains(out, "is using it") {
+	if err == nil || !strings.Contains(out, "image is being used by running container") {
 		c.Log(out)
 		c.Fatal("The image of the running container should not be removed.")
+	}
+}
+
+// #13422
+func (s *DockerSuite) TestRmiUntagHistoryLayer(c *check.C) {
+	image := "tmp1"
+	// Build a image for testing.
+	dockerfile := `FROM busybox
+MAINTAINER foo
+RUN echo 0 #layer0
+RUN echo 1 #layer1
+RUN echo 2 #layer2
+`
+	_, err := buildImage(image, dockerfile, false)
+	c.Assert(err, check.IsNil)
+
+	out, _ := dockerCmd(c, "history", "-q", image)
+	ids := strings.Split(out, "\n")
+	idToTag := ids[2]
+
+	// Tag layer0 to "tmp2".
+	newTag := "tmp2"
+	dockerCmd(c, "tag", idToTag, newTag)
+	// Create a container based on "tmp1".
+	dockerCmd(c, "run", "-d", image, "true")
+
+	// See if the "tmp2" can be untagged.
+	out, _ = dockerCmd(c, "rmi", newTag)
+	if d := strings.Count(out, "Untagged: "); d != 1 {
+		c.Log(out)
+		c.Fatalf("Expected 1 untagged entry got %d: %q", d, out)
+	}
+
+	// Now let's add the tag again and create a container based on it.
+	dockerCmd(c, "tag", idToTag, newTag)
+	out, _ = dockerCmd(c, "run", "-d", newTag, "true")
+	cid := strings.TrimSpace(out)
+
+	// At this point we have 2 containers, one based on layer2 and another based on layer0.
+	// Try to untag "tmp2" without the -f flag.
+	out, _, err = dockerCmdWithError("rmi", newTag)
+	if err == nil || !strings.Contains(out, cid[:12]) || !strings.Contains(out, "(must force)") {
+		c.Log(out)
+		c.Fatalf("%q should not be untagged without the -f flag", newTag)
+	}
+
+	// Add the -f flag and test again.
+	out, _ = dockerCmd(c, "rmi", "-f", newTag)
+	if !strings.Contains(out, fmt.Sprintf("Untagged: %s:latest", newTag)) {
+		c.Log(out)
+		c.Fatalf("%q should be allowed to untag with the -f flag", newTag)
 	}
 }

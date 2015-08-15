@@ -404,6 +404,11 @@ func (graph *Graph) ByParent() map[string][]*image.Image {
 	return byParent
 }
 
+// HasChildren returns whether the given image has any child images.
+func (graph *Graph) HasChildren(img *image.Image) bool {
+	return len(graph.ByParent()[img.ID]) > 0
+}
+
 // Retain keeps the images and layers that are in the pulling chain so that
 // they are not deleted. If not retained, they may be deleted by rmi.
 func (graph *Graph) Retain(sessionID string, layerIDs ...string) {
