@@ -292,3 +292,54 @@ func (s *DockerSuite) TestRmiContainerImageNotFound(c *check.C) {
 		c.Fatal("The image of the running container should not be removed.")
 	}
 }
+
+// #13422
+func (s *DockerSuite) TestRmiUntagHistoryLayer(c *check.C) {
+	image := "tmp1"
+	// Build a image for testing.
+	dockerfile := `FROM busybox
+MAINTAINER foo
+RUN echo 0 #layer0
+RUN echo 1 #layer1
+RUN echo 2 #layer2
+`
+	_, err := buildImage(image, dockerfile, false)
+	c.Assert(err, check.IsNil)
+
+	out, _ := dockerCmd(c, "history", "-q", image)
+	ids := strings.Split(out, "\n")
+	idToTag := ids[2]
+
+	// Tag layer0 to "tmp2".
+	newTag := "tmp2"
+	dockerCmd(c, "tag", idToTag, newTag)
+	// Create a container based on "tmp1".
+	dockerCmd(c, "run", "-d", image, "true")
+
+	// See if the "tmp2" can be untagged.
+	out, _ = dockerCmd(c, "rmi", newTag)
+	if d := strings.Count(out, "Untagged: "); d != 1 {
+		c.Log(out)
+		c.Fatalf("Expected 1 untagged entry got %d: %q", d, out)
+	}
+
+	// Now let's add the tag again and create a container based on it.
+	dockerCmd(c, "tag", idToTag, newTag)
+	out, _ = dockerCmd(c, "run", "-d", newTag, "true")
+	cid := strings.TrimSpace(out)
+
+	// At this point we have 2 containers, one based on layer2 and another based on layer0.
+	// Try to untag "tmp2" without the -f flag.
+	out, _, err = dockerCmdWithError("rmi", newTag)
+	if err == nil || !strings.Contains(out, cid[:12]) || !strings.Contains(out, "use -f to untag it") {
+		c.Log(out)
+		c.Fatalf("%q should not be untagged without the -f flag", newTag)
+	}
+
+	// Add the -f flag and test again.
+	out, _ = dockerCmd(c, "rmi", "-f", newTag)
+	if !strings.Contains(out, fmt.Sprintf("Untagged: %s:latest", newTag)) {
+		c.Log(out)
+		c.Fatalf("%q should be allowed to untag with the -f flag", newTag)
+	}
+}

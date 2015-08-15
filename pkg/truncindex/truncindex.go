@@ -24,6 +24,25 @@ var (
 	ErrIllegalChar = errors.New("illegal character: ' '")
 )
 
+// ErrNotFound is returned when the ID doesn't exist in the TruncIndex.
+type ErrNotFound struct {
+	id string
+}
+
+// Error implements error interface.
+func (e ErrNotFound) Error() string {
+	return fmt.Sprintf("no such id: %s", e.id)
+}
+
+// IsNotFound checks if the error is an instance of ErrNotFound.
+func IsNotFound(err error) bool {
+	if err == nil {
+		return false
+	}
+	_, ok := err.(ErrNotFound)
+	return ok
+}
+
 // TruncIndex allows the retrieval of string identifiers by any of their unique prefixes.
 // This is used to retrieve image and container IDs by more convenient shorthand prefixes.
 type TruncIndex struct {
@@ -116,7 +135,7 @@ func (idx *TruncIndex) Get(s string) (string, error) {
 	if id != "" {
 		return id, nil
 	}
-	return "", fmt.Errorf("no such id: %s", s)
+	return "", ErrNotFound{id: s}
 }
 
 // Iterate iterates over all stored IDs, and passes each of them to the given handler.
