@@ -280,9 +280,9 @@ To verify this, run the following commands:
 
     $ docker-machine ls
     NAME                ACTIVE   DRIVER       STATE     URL                         SWARM
-    dev                 *        virtualbox   Running   tcp://192.168.99.100:2376   
+    default             *        virtualbox   Running   tcp://192.168.99.100:2376   
 
-The `ACTIVE` machine, in this case `dev`, is the one your environment is pointing to.
+The `ACTIVE` machine, in this case `default`, is the one your environment is pointing to.
 
 ### Access container ports
 
@@ -319,9 +319,9 @@ The `ACTIVE` machine, in this case `dev`, is the one your environment is pointin
     not the localhost address (0.0.0.0) but is instead the address of the
     your Docker VM.
 
-5. Get the address of the `dev` VM.
+5. Get the address of the `default` VM.
 
-        $ docker-machine ip dev
+        $ docker-machine ip default
         192.168.59.103
 
 6. Enter the `http://192.168.59.103:49157` address in your browser:
