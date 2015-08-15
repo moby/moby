@@ -22,6 +22,7 @@ const (
 
 var (
 	daemonFlags *flag.FlagSet
+	proxyFlags  *flag.FlagSet
 	commonFlags = &cli.CommonFlags{FlagSet: new(flag.FlagSet)}
 
 	dockerCertPath  = os.Getenv("DOCKER_CERT_PATH")

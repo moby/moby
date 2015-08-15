@@ -135,7 +135,15 @@ func (c *linuxContainer) newParentProcess(p *Process, doInit bool) (parentProces
 		return nil, newSystemError(err)
 	}
 	if !doInit {
-		return c.newSetnsProcess(p, cmd, parentPipe, childPipe), nil
+		var devDir *os.File
+		if p.Syscall && p.Args[0] == "mount" && len(p.Args) > 3 {
+			// Args: mount -t <type> /dev/<device> <mount_point>
+			devDir, err = os.Open(filepath.Dir(p.Args[3]))
+			if err != nil {
+				return nil, newSystemError(err)
+			}
+		}
+		return c.newSetnsProcess(p, cmd, parentPipe, childPipe, devDir), nil
 	}
 	return c.newInitProcess(p, cmd, parentPipe, childPipe)
 }
@@ -188,7 +196,7 @@ func (c *linuxContainer) newInitProcess(p *Process, cmd *exec.Cmd, parentPipe, c
 	}, nil
 }
 
-func (c *linuxContainer) newSetnsProcess(p *Process, cmd *exec.Cmd, parentPipe, childPipe *os.File) *setnsProcess {
+func (c *linuxContainer) newSetnsProcess(p *Process, cmd *exec.Cmd, parentPipe, childPipe *os.File, devDir *os.File) *setnsProcess {
 	cmd.Env = append(cmd.Env,
 		fmt.Sprintf("_LIBCONTAINER_INITPID=%d", c.initProcess.pid()),
 		"_LIBCONTAINER_INITTYPE=setns",
@@ -196,12 +204,17 @@ func (c *linuxContainer) newSetnsProcess(p *Process, cmd *exec.Cmd, parentPipe, 
 	if p.consolePath != "" {
 		cmd.Env = append(cmd.Env, "_LIBCONTAINER_CONSOLE_PATH="+p.consolePath)
 	}
+	if devDir != nil && len(p.Args) > 3 {
+		cmd.ExtraFiles = append(cmd.ExtraFiles, devDir)
+		p.Args[3] = fmt.Sprintf("/proc/self/fd/%d/%s", stdioFdCount+len(cmd.ExtraFiles)-1, filepath.Base(p.Args[3]))
+	}
 	// TODO: set on container for process management
 	return &setnsProcess{
 		cmd:         cmd,
 		cgroupPaths: c.cgroupManager.GetPaths(),
 		childPipe:   childPipe,
 		parentPipe:  parentPipe,
+		devDir:      devDir,
 		config:      c.newInitConfig(p),
 	}
 }
@@ -216,6 +229,7 @@ func (c *linuxContainer) newInitConfig(process *Process) *initConfig {
 		Console:          process.consolePath,
 		Capabilities:     process.Capabilities,
 		PassedFilesCount: len(process.ExtraFiles),
+		Syscall:          process.Syscall,
 	}
 }
 

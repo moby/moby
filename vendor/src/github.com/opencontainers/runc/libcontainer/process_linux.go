@@ -43,6 +43,7 @@ type setnsProcess struct {
 	cmd         *exec.Cmd
 	parentPipe  *os.File
 	childPipe   *os.File
+	devDir      *os.File
 	cgroupPaths map[string]string
 	config      *initConfig
 	fds         []string
@@ -62,10 +63,13 @@ func (p *setnsProcess) signal(sig os.Signal) error {
 
 func (p *setnsProcess) start() (err error) {
 	defer p.parentPipe.Close()
+	if p.config.Syscall {
+		defer p.devDir.Close()
+	}
 	if err = p.execSetns(); err != nil {
 		return newSystemError(err)
 	}
-	if len(p.cgroupPaths) > 0 {
+	if len(p.cgroupPaths) > 0 && !p.config.Syscall {
 		if err := cgroups.EnterPid(p.cgroupPaths, p.cmd.Process.Pid); err != nil {
 			return newSystemError(err)
 		}

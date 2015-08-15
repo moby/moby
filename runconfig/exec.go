@@ -15,6 +15,7 @@ type ExecConfig struct {
 	AttachStderr bool     // Attach the standard output
 	AttachStdout bool     // Attach the standard error
 	Detach       bool     // Execute in detach mode
+	Syscall      bool     // Interpret command as syscall
 	Cmd          []string // Execution commands and args
 }
 
@@ -28,6 +29,7 @@ func ParseExec(cmd *flag.FlagSet, args []string) (*ExecConfig, error) {
 		flTty     = cmd.Bool([]string{"t", "-tty"}, false, "Allocate a pseudo-TTY")
 		flDetach  = cmd.Bool([]string{"d", "-detach"}, false, "Detached mode: run command in the background")
 		flUser    = cmd.String([]string{"u", "-user"}, "", "Username or UID (format: <name|uid>[:<group|gid>])")
+		flSyscall = cmd.Bool([]string{"s", "-syscall"}, false, "Syscall mode: interpret command as syscall name")
 		execCmd   []string
 		container string
 	)
@@ -47,6 +49,7 @@ func ParseExec(cmd *flag.FlagSet, args []string) (*ExecConfig, error) {
 		Cmd:       execCmd,
 		Container: container,
 		Detach:    *flDetach,
+		Syscall:   *flSyscall,
 	}
 
 	// If -d is not set, attach to everything by default

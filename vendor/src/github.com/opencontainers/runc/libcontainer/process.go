@@ -49,6 +49,9 @@ type Process struct {
 	Capabilities []string
 
 	ops processOperations
+
+	// Interpret Args as syscall
+	Syscall bool
 }
 
 // Wait waits for the process to exit.

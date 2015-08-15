@@ -152,6 +152,7 @@ func (d *Daemon) ContainerExecCreate(config *runconfig.ExecConfig) (string, erro
 		Entrypoint: entrypoint,
 		Arguments:  args,
 		User:       user,
+		Syscall:    config.Syscall,
 	}
 
 	execConfig := &execConfig{
