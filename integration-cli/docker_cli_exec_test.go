@@ -532,6 +532,44 @@ func (s *DockerSuite) TestExecWithUser(c *check.C) {
 	}
 }
 
+func (s *DockerSuite) TestExecWithPrivileged(c *check.C) {
+
+	// Start main loop which attempts mknod repeatedly
+	dockerCmd(c, "run", "-d", "--name", "parent", "--cap-drop=ALL", "busybox", "sh", "-c", `while (true); do if [ -e /exec_priv ]; then cat /exec_priv && mknod /tmp/sda b 8 0 && echo "Success"; else echo "Privileged exec has not run yet"; fi; usleep 10000; done`)
+
+	// Check exec mknod doesn't work
+	cmd := exec.Command(dockerBinary, "exec", "parent", "sh", "-c", "mknod /tmp/sdb b 8 16")
+	out, _, err := runCommandWithOutput(cmd)
+	if err == nil || !strings.Contains(out, "Operation not permitted") {
+		c.Fatalf("exec mknod in --cap-drop=ALL container without --privileged should fail")
+	}
+
+	// Check exec mknod does work with --privileged
+	cmd = exec.Command(dockerBinary, "exec", "--privileged", "parent", "sh", "-c", `echo "Running exec --privileged" > /exec_priv && mknod /tmp/sdb b 8 16 && usleep 50000 && echo "Finished exec --privileged" > /exec_priv && echo ok`)
+	out, _, err = runCommandWithOutput(cmd)
+	if err != nil {
+		c.Fatal(err, out)
+	}
+
+	if actual := strings.TrimSpace(out); actual != "ok" {
+		c.Fatalf("exec mknod in --cap-drop=ALL container with --privileged failed: %v, output: %q", err, out)
+	}
+
+	// Check subsequent unprivileged exec cannot mknod
+	cmd = exec.Command(dockerBinary, "exec", "parent", "sh", "-c", "mknod /tmp/sdc b 8 32")
+	out, _, err = runCommandWithOutput(cmd)
+	if err == nil || !strings.Contains(out, "Operation not permitted") {
+		c.Fatalf("repeating exec mknod in --cap-drop=ALL container after --privileged without --privileged should fail")
+	}
+
+	// Confirm at no point was mknod allowed
+	logCmd := exec.Command(dockerBinary, "logs", "parent")
+	if out, _, err := runCommandWithOutput(logCmd); err != nil || strings.Contains(out, "Success") {
+		c.Fatal(out, err)
+	}
+
+}
+
 func (s *DockerSuite) TestExecWithImageUser(c *check.C) {
 	name := "testbuilduser"
 	_, err := buildImage(name,
