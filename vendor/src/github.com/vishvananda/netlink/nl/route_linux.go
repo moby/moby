@@ -20,6 +20,15 @@ func NewRtMsg() *RtMsg {
 	}
 }
 
+func NewRtDelMsg() *RtMsg {
+	return &RtMsg{
+		RtMsg: syscall.RtMsg{
+			Table: syscall.RT_TABLE_MAIN,
+			Scope: syscall.RT_SCOPE_NOWHERE,
+		},
+	}
+}
+
 func (msg *RtMsg) Len() int {
 	return syscall.SizeofRtMsg
 }
