@@ -1,4 +1,4 @@
-// Package idm manages resevation/release of numerical ids from a configured set of contiguos ids
+// Package idm manages reservation/release of numerical ids from a configured set of contiguous ids
 package idm
 
 import (
