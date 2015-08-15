@@ -194,7 +194,11 @@ func from(b *builder, args []string, attributes map[string]bool, original string
 
 	name := args[0]
 
+	// Windows cannot support a container with no base image.
 	if name == NoBaseImageSpecifier {
+		if runtime.GOOS == "windows" {
+			return fmt.Errorf("Windows does not support FROM scratch")
+		}
 		b.image = ""
 		b.noBaseImage = true
 		return nil
