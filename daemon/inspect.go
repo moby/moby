@@ -41,7 +41,7 @@ func (daemon *Daemon) getInspectData(container *Container) (*types.ContainerJSON
 		hostConfig.LogConfig.Type = daemon.defaultLogConfig.Type
 	}
 
-	if hostConfig.LogConfig.Config == nil {
+	if len(hostConfig.LogConfig.Config) == 0 {
 		hostConfig.LogConfig.Config = daemon.defaultLogConfig.Config
 	}
 
