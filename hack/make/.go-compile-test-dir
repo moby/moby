@@ -23,9 +23,13 @@ if [ "$BUILDFLAGS_FILE" ]; then
 	readarray -t BUILDFLAGS < "$BUILDFLAGS_FILE"
 fi
 
+if [[ "$(go version)" =~ "gccgo" ]]; then
+	GCCGOFLAGS="-gccgoflags= -lpthread -ldl "
+fi
+
 if ! (
 	cd "$dir"
-	go test "${testcover[@]}" -ldflags "$LDFLAGS" "${BUILDFLAGS[@]}" $TESTFLAGS -c
+	go test "${testcover[@]}" "$GCCGOFLAGS" -ldflags "$LDFLAGS" "${BUILDFLAGS[@]}" $TESTFLAGS -c 
 ); then
 	exit 1
 fi
