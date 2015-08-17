@@ -74,7 +74,7 @@ func New(ctx logger.Context) (logger.Logger, error) {
 			return nil, err
 		}
 		if maxFiles < 1 {
-			return nil, fmt.Errorf("max-files cannot be less than 1")
+			return nil, fmt.Errorf("max-file cannot be less than 1")
 		}
 	}
 	return &JSONFileLogger{
