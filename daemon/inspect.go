@@ -38,7 +38,11 @@ func (daemon *Daemon) getInspectData(container *Container) (*types.ContainerJSON
 	// we need this trick to preserve empty log driver, so
 	// container will use daemon defaults even if daemon change them
 	if hostConfig.LogConfig.Type == "" {
-		hostConfig.LogConfig = daemon.defaultLogConfig
+		hostConfig.LogConfig.Type = daemon.defaultLogConfig.Type
+	}
+
+	if hostConfig.LogConfig.Config == nil {
+		hostConfig.LogConfig.Config = daemon.defaultLogConfig.Config
 	}
 
 	containerState := &types.ContainerState{

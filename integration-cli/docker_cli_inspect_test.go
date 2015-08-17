@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"os/exec"
 	"strconv"
@@ -8,6 +9,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/runconfig"
 	"github.com/go-check/check"
 )
 
@@ -285,4 +287,19 @@ func (s *DockerSuite) TestInspectTimesAsRFC3339Nano(c *check.C) {
 
 	_, err = time.Parse(time.RFC3339Nano, created)
 	c.Assert(err, check.IsNil)
+}
+
+// #15633
+func (s *DockerSuite) TestInspectLogConfigNoType(c *check.C) {
+	dockerCmd(c, "create", "--name=test", "--log-opt", "max-file=42", "busybox")
+	var logConfig runconfig.LogConfig
+
+	out, err := inspectFieldJSON("test", "HostConfig.LogConfig")
+	c.Assert(err, check.IsNil)
+
+	err = json.NewDecoder(strings.NewReader(out)).Decode(&logConfig)
+	c.Assert(err, check.IsNil)
+
+	c.Assert(logConfig.Type, check.Equals, "json-file")
+	c.Assert(logConfig.Config["max-file"], check.Equals, "42", check.Commentf("%v", logConfig))
 }
