@@ -2,6 +2,7 @@ package types
 
 import (
 	"flag"
+	"net"
 	"testing"
 )
 
@@ -107,5 +108,63 @@ func TestErrorConstructors(t *testing.T) {
 	}
 	if _, ok := err.(MaskableError); !ok {
 		t.Fatal(err)
+	}
+}
+
+func TestUtilGetHostPortionIP(t *testing.T) {
+	input := []struct {
+		ip   net.IP
+		mask net.IPMask
+		host net.IP
+		err  error
+	}{
+		{ // ip in v4Inv6 representation, mask in v4 representation
+			ip:   net.IPv4(172, 28, 30, 1),
+			mask: []byte{0xff, 0xff, 0xff, 0},
+			host: net.IPv4(0, 0, 0, 1),
+		},
+		{ // ip and mask in v4Inv6 representation
+			ip:   net.IPv4(172, 28, 30, 2),
+			mask: []byte{0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0},
+			host: net.IPv4(0, 0, 0, 2),
+		},
+		{ // ip in v4 representation, mask in v4Inv6 representation
+			ip:   net.IPv4(172, 28, 30, 3)[12:],
+			mask: []byte{0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0},
+			host: net.IPv4(0, 0, 0, 3)[12:],
+		},
+		{ // ip and mask in v4 representation
+			ip:   net.IPv4(172, 28, 30, 4)[12:],
+			mask: []byte{0xff, 0xff, 0xff, 0},
+			host: net.IPv4(0, 0, 0, 4)[12:],
+		},
+		{ // ip and mask as v6
+			ip:   net.ParseIP("2005:2004:2002:2001:FFFF:ABCD:EEAB:00CD"),
+			mask: []byte{0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0, 0, 0},
+			host: net.ParseIP("0::AB:00CD"),
+		},
+	}
+
+	for _, i := range input {
+		h, err := GetHostPartIP(i.ip, i.mask)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !i.host.Equal(h) {
+			t.Fatalf("Failed to return expected host ip. Expected: %s. Got: %s", i.host, h)
+		}
+	}
+
+	// ip as v6 and mask as v4 are not compatible
+	if _, err := GetHostPartIP(net.ParseIP("2005:2004:2002:2001:FFFF:ABCD:EEAB:00CD"), []byte{0xff, 0xff, 0xff, 0}); err == nil {
+		t.Fatalf("Unexpected success")
+	}
+	// ip as v4 and non conventional mask
+	if _, err := GetHostPartIP(net.ParseIP("173.32.4.5"), []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff, 0xff, 0}); err == nil {
+		t.Fatalf("Unexpected success")
+	}
+	// ip as v4 and non conventional mask
+	if _, err := GetHostPartIP(net.ParseIP("173.32.4.5"), []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff, 0xff, 0xff, 0xff, 0}); err == nil {
+		t.Fatalf("Unexpected success")
 	}
 }

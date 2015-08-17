@@ -3,14 +3,31 @@ package ipam
 import (
 	"fmt"
 	"net"
+	"os"
 	"testing"
 	"time"
 
 	"github.com/docker/libnetwork/bitseq"
+	"github.com/docker/libnetwork/config"
+	"github.com/docker/libnetwork/datastore"
+	_ "github.com/docker/libnetwork/netutils"
 )
 
+var ds datastore.DataStore
+
+// enable w/ upper case
+func testMain(m *testing.M) {
+	var err error
+	ds, err = datastore.NewDataStore(&config.DatastoreCfg{Embedded: false, Client: config.DatastoreClientCfg{Provider: "consul", Address: "127.0.0.1:8500"}})
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	os.Exit(m.Run())
+}
+
 func getAllocator(t *testing.T, subnet *net.IPNet) *Allocator {
-	a, err := NewAllocator(nil)
+	a, err := NewAllocator(ds)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -19,28 +36,12 @@ func getAllocator(t *testing.T, subnet *net.IPNet) *Allocator {
 }
 
 func TestInt2IP2IntConversion(t *testing.T) {
-	for i := 0; i < 256*256*256; i++ {
+	for i := uint32(0); i < 256*256*256; i++ {
 		var array [4]byte // new array at each cycle
 		addIntToIP(array[:], i)
-		j := ipToInt(array[:])
+		j := ipToUint32(array[:])
 		if j != i {
 			t.Fatalf("Failed to convert ordinal %d to IP % x and back to ordinal. Got %d", i, array, j)
-		}
-	}
-}
-
-func TestIsValid(t *testing.T) {
-	list := []int{0, 255, 256, 511, 512, 767, 768}
-	for _, i := range list {
-		if isValidIP(i) {
-			t.Fatalf("Failed to detect invalid IPv4 ordinal: %d", i)
-		}
-	}
-
-	list = []int{1, 254, 257, 258, 510, 513, 769, 770}
-	for _, i := range list {
-		if !isValidIP(i) {
-			t.Fatalf("Marked valid ipv4 as invalid: %d", i)
 		}
 	}
 }
@@ -272,7 +273,32 @@ func TestGetInternalSubnets(t *testing.T) {
 	for _, d := range input {
 		assertInternalSubnet(t, d.internalHostSize, d.parentSubnet, d.firstIntSubnet, d.lastIntSubnet)
 	}
+}
 
+func TestGetSameAddress(t *testing.T) {
+	a, err := NewAllocator(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	addSpace := AddressSpace("giallo")
+	_, subnet, _ := net.ParseCIDR("192.168.100.0/24")
+	if err := a.AddSubnet(addSpace, &SubnetInfo{Subnet: subnet}); err != nil {
+		t.Fatal(err)
+	}
+
+	ip := net.ParseIP("192.168.100.250")
+	req := &AddressRequest{Subnet: *subnet, Address: ip}
+
+	_, err = a.Request(addSpace, req)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = a.Request(addSpace, req)
+	if err == nil {
+		t.Fatal(err)
+	}
 }
 
 func TestGetAddress(t *testing.T) {
@@ -383,20 +409,19 @@ func TestRequest(t *testing.T) {
 		lastIP string
 	}{
 		{"192.168.59.0/24", 254, "192.168.59.254"},
-		{"192.168.240.0/20", 254, "192.168.240.254"},
-		{"192.168.0.0/16", 254, "192.168.0.254"},
-		{"10.16.0.0/16", 254, "10.16.0.254"},
-		{"10.128.0.0/12", 254, "10.128.0.254"},
-		{"10.0.0.0/8", 254, "10.0.0.254"},
-		{"192.168.0.0/16", 256, "192.168.1.2"},
-		{"10.0.0.0/8", 256, "10.0.1.2"},
+		{"192.168.240.0/20", 255, "192.168.240.255"},
+		{"192.168.0.0/16", 255, "192.168.0.255"},
+		{"192.168.0.0/16", 256, "192.168.1.0"},
+		{"10.16.0.0/16", 255, "10.16.0.255"},
+		{"10.128.0.0/12", 255, "10.128.0.255"},
+		{"10.0.0.0/8", 256, "10.0.1.0"},
 
-		{"192.168.128.0/18", 4 * 254, "192.168.131.254"},
-		{"192.168.240.0/20", 16 * 254, "192.168.255.254"},
+		{"192.168.128.0/18", 4*256 - 1, "192.168.131.255"},
+		{"192.168.240.0/20", 16*256 - 2, "192.168.255.254"},
 
-		{"192.168.0.0/16", 256 * 254, "192.168.255.254"},
-		{"10.0.0.0/8", 2 * 254, "10.0.1.254"},
-		{"10.0.0.0/8", 5 * 254, "10.0.4.254"},
+		{"192.168.0.0/16", 256*256 - 2, "192.168.255.254"},
+		{"10.0.0.0/8", 2 * 256, "10.0.2.0"},
+		{"10.0.0.0/8", 5 * 256, "10.0.5.0"},
 		//{"10.0.0.0/8", 100 * 256 * 254, "10.99.255.254"},
 	}
 
@@ -473,7 +498,7 @@ func assertInternalSubnet(t *testing.T, hostSize int, bigSubnet, firstSmall, las
 	list, _ := getInternalSubnets(subnet, hostSize)
 	count := 1
 	ones, bits := subnet.Mask.Size()
-	diff := bits - ones - hostSize
+	diff := bits - ones - int(hostSize)
 	if diff > 0 {
 		count <<= uint(diff)
 	}
