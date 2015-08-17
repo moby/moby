@@ -97,6 +97,45 @@ func (s *DockerRegistrySuite) TestPushMultipleTags(c *check.C) {
 	}
 }
 
+func (s *DockerRegistrySuite) TestPushMultipleTimes(c *check.C) {
+	repoName := fmt.Sprintf("%v/dockercli/multipush", privateRegistryURL)
+	repoTag1 := fmt.Sprintf("%v/dockercli/multipush:t1", privateRegistryURL)
+	repoTag2 := fmt.Sprintf("%v/dockercli/multipush:t2", privateRegistryURL)
+
+	buildImage(repoName, `FROM scratch
+LABEL one one`, true)
+	buildImage(repoTag1, `FROM scratch
+LABEL one one`, true)
+	buildImage(repoTag2, `FROM scratch
+LABEL one two`, true)
+
+	dockerCmd(c, "push", repoName, repoTag1, repoTag2)
+}
+
+func (s *DockerRegistrySuite) TestPushMultipleTimesWithFailure(c *check.C) {
+	repoName := fmt.Sprintf("%v/dockercli/busybox", privateRegistryURL)
+	repoTag1 := fmt.Sprintf("%v/dockercli/busybox:t1", privateRegistryURL)
+	repoError1 := fmt.Sprintf("%v/busybox", privateRegistryURL)
+	repoError2 := fmt.Sprintf("%v/scratch", privateRegistryURL)
+	repoErrorInexistent := fmt.Sprintf("%v/dockercli/nonexistent", privateRegistryURL)
+	repoError3 := fmt.Sprintf("%v:v1", repoErrorInexistent)
+	repoError4 := fmt.Sprintf("%v:v2", repoErrorInexistent)
+
+	// Tag some :)
+	dockerCmd(c, "tag", "busybox", repoName)
+	dockerCmd(c, "tag", "busybox", repoTag1)
+
+	cmd := exec.Command(dockerBinary, "push", repoName, repoError1, repoError2, repoTag1, repoError3, repoError4)
+	stdout, stderr, _, err := runCommandWithStdoutStderr(cmd)
+	if err == nil {
+		c.Fatalf("Push with error should have failed, but did not : %s", stdout)
+	}
+	expectedFailure := fmt.Sprintf("failed to push images: [%s:[] %s:[] %s:[v1 v2]]", repoError1, repoError2, repoErrorInexistent)
+	if !strings.Contains(stderr, expectedFailure) {
+		c.Fatalf("Expected failure to contain '%s', but got %s", expectedFailure, stderr)
+	}
+}
+
 func (s *DockerRegistrySuite) TestPushInterrupt(c *check.C) {
 	repoName := fmt.Sprintf("%v/dockercli/busybox", privateRegistryURL)
 	// tag the image and upload it to the private registry

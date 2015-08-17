@@ -170,23 +170,30 @@ func (s *Server) postImagesPush(version version.Version, w http.ResponseWriter, 
 		}
 	}
 
-	name := vars["name"]
-	output := ioutils.NewWriteFlusher(w)
-	imagePushConfig := &graph.ImagePushConfig{
-		MetaHeaders: metaHeaders,
-		AuthConfig:  authConfig,
-		Tag:         r.Form.Get("tag"),
-		OutStream:   output,
+	tags := r.Form["tag"]
+	if len(tags) == 0 {
+		tags = append(tags, "")
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-
-	if err := s.daemon.Repositories().Push(name, imagePushConfig); err != nil {
-		if !output.Flushed() {
-			return err
+	for _, tag := range tags {
+		name := vars["name"]
+		output := ioutils.NewWriteFlusher(w)
+		imagePushConfig := &graph.ImagePushConfig{
+			MetaHeaders: metaHeaders,
+			AuthConfig:  authConfig,
+			Tag:         tag,
+			OutStream:   output,
 		}
-		sf := streamformatter.NewJSONStreamFormatter()
-		output.Write(sf.FormatError(err))
+
+		w.Header().Set("Content-Type", "application/json")
+
+		if err := s.daemon.Repositories().Push(name, imagePushConfig); err != nil {
+			if !output.Flushed() {
+				return err
+			}
+			sf := streamformatter.NewJSONStreamFormatter()
+			output.Write(sf.FormatError(err))
+		}
 	}
 	return nil
 }

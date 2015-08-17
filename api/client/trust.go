@@ -371,11 +371,13 @@ func targetStream(in io.Writer) (io.WriteCloser, <-chan []target) {
 	return ioutils.NewWriteCloserWrapper(out, w.Close), targetChan
 }
 
-func (cli *DockerCli) trustedPush(repoInfo *registry.RepositoryInfo, tag string, authConfig cliconfig.AuthConfig) error {
+func (cli *DockerCli) trustedPush(repoInfo *registry.RepositoryInfo, tags []string, authConfig cliconfig.AuthConfig) error {
 	streamOut, targetChan := targetStream(cli.out)
 
 	v := url.Values{}
-	v.Set("tag", tag)
+	for _, tag := range tags {
+		v.Add("tags", tag)
+	}
 
 	_, _, err := cli.clientRequestAttemptLogin("POST", "/images/"+repoInfo.LocalName+"/push?"+v.Encode(), nil, streamOut, repoInfo.Index, "push")
 	// Close stream channel to finish target parsing
@@ -390,7 +392,7 @@ func (cli *DockerCli) trustedPush(repoInfo *registry.RepositoryInfo, tag string,
 	// Get target results
 	targets := <-targetChan
 
-	if tag == "" {
+	if len(tags) == 0 {
 		fmt.Fprintf(cli.out, "No tag specified, skipping trust metadata push\n")
 		return nil
 	}
