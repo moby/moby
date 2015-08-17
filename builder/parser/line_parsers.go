@@ -232,6 +232,11 @@ func parseString(rest string) (*Node, map[string]bool, error) {
 
 // parseJSON converts JSON arrays to an AST.
 func parseJSON(rest string) (*Node, map[string]bool, error) {
+	rest = strings.TrimLeftFunc(rest, unicode.IsSpace)
+	if rest[0] != '[' {
+		return nil, nil, errors.New("Error parsing \"" + rest + "\" as a JSON array")
+	}
+
 	var myJSON []interface{}
 	if err := json.NewDecoder(strings.NewReader(rest)).Decode(&myJSON); err != nil {
 		return nil, nil, err
