@@ -234,7 +234,7 @@ func parseString(rest string) (*Node, map[string]bool, error) {
 func parseJSON(rest string) (*Node, map[string]bool, error) {
 	rest = strings.TrimLeftFunc(rest, unicode.IsSpace)
 	if !strings.HasPrefix(rest, "[") {
-		return nil, nil, fmt.Errorf("Error parsing \"%s\" as a JSON array", rest)
+		return nil, nil, fmt.Errorf(`Error parsing "%s" as a JSON array`, rest)
 	}
 
 	var myJSON []interface{}
