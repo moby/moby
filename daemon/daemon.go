@@ -956,7 +956,7 @@ func getDefaultRouteMtu() (int, error) {
 		return 0, err
 	}
 	for _, r := range routes {
-		if r.Default {
+		if r.Default && r.Iface != nil {
 			return r.Iface.MTU, nil
 		}
 	}
