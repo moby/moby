@@ -77,7 +77,7 @@ func (p *v2Puller) pullV2Repository(tag string) (err error) {
 	if err != nil {
 		if c != nil {
 			// Another pull of the same repository is already taking place; just wait for it to finish
-			p.sf.FormatStatus("", "Repository %s already being pulled by another client. Waiting.", p.repoInfo.CanonicalName)
+			p.config.OutStream.Write(p.sf.FormatStatus("", "Repository %s already being pulled by another client. Waiting.", p.repoInfo.CanonicalName))
 			<-c
 			return nil
 		}
@@ -223,6 +223,9 @@ func (p *v2Puller) pullV2Tag(tag, taggedName string) (verified bool, err error) 
 	go func() {
 		if _, err := io.Copy(out, pipeReader); err != nil {
 			logrus.Errorf("error copying from layer download progress reader: %s", err)
+			if err := pipeReader.CloseWithError(err); err != nil {
+				logrus.Errorf("error closing the progress reader: %s", err)
+			}
 		}
 	}()
 	defer func() {
