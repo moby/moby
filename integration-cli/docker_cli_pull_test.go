@@ -369,3 +369,40 @@ func (s *DockerTrustSuite) TestTrustedPullWithExpiredSnapshot(c *check.C) {
 		}
 	})
 }
+
+// Test that pull continues after client has disconnected. #15589
+func (s *DockerTrustSuite) TestPullClientDisconnect(c *check.C) {
+	testRequires(c, Network)
+
+	repoName := "hello-world:latest"
+
+	dockerCmdWithError("rmi", repoName) // clean just in case
+
+	pullCmd := exec.Command(dockerBinary, "pull", repoName)
+
+	stdout, err := pullCmd.StdoutPipe()
+	c.Assert(err, check.IsNil)
+
+	err = pullCmd.Start()
+	c.Assert(err, check.IsNil)
+
+	// cancel as soon as we get some output
+	buf := make([]byte, 10)
+	_, err = stdout.Read(buf)
+	c.Assert(err, check.IsNil)
+
+	err = pullCmd.Process.Kill()
+	c.Assert(err, check.IsNil)
+
+	maxAttempts := 20
+	for i := 0; ; i++ {
+		if _, _, err := dockerCmdWithError("inspect", repoName); err == nil {
+			break
+		}
+		if i >= maxAttempts {
+			c.Fatal("Timeout reached. Image was not pulled after client disconnected.")
+		}
+		time.Sleep(500 * time.Millisecond)
+	}
+
+}
