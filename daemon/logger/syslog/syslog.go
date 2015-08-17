@@ -150,6 +150,12 @@ func ValidateLogOpt(cfg map[string]string) error {
 			return fmt.Errorf("unknown log opt '%s' for syslog log driver", key)
 		}
 	}
+	if _, _, err := parseAddress(cfg["syslog-address"]); err != nil {
+		return err
+	}
+	if _, err := parseFacility(cfg["syslog-facility"]); err != nil {
+		return err
+	}
 	return nil
 }
 
