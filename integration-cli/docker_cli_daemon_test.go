@@ -1550,3 +1550,11 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithContainerWithRestartPolicyAlway
 	c.Assert(err, check.IsNil)
 	c.Assert(strings.TrimSpace(out), check.Equals, id[:12])
 }
+
+func (s *DockerDaemonSuite) TestDaemonCorruptedSyslogAddress(c *check.C) {
+	c.Assert(s.d.Start("--log-driver=syslog", "--log-opt", "syslog-address=corrupted:1234"), check.NotNil)
+	runCmd := exec.Command("grep", "Failed to set log opts: syslog-address should be in form proto://address", s.d.LogfileName())
+	if out, _, err := runCommandWithOutput(runCmd); err != nil {
+		c.Fatalf("Expected 'Error starting daemon' message; but doesn't exist in log: %q, err: %v", out, err)
+	}
+}
