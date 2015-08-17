@@ -16,15 +16,14 @@ parent = "mn_reference"
 </style>
 # Docker run reference
 
-**Docker runs processes in isolated containers**. When an operator
-executes `docker run`, she starts a process with its own file system,
-its own networking, and its own isolated process tree.  The
-[*Image*](/reference/glossary/#image) which starts the process may define
-defaults related to the binary to run, the networking to expose, and
-more, but `docker run` gives additional control to the operator who starts
-the container from the image. That's the main reason
-[*run*](/reference/commandline/run) has more options than any
-other `docker` command.
+Docker runs processes in isolated containers. A container is a process
+which runs on a host. The host may be local or remote. When an operator
+executes `docker run`, the container process that runs is isolated in
+that it has its own file system, its own networking, and its own
+isolated process tree separate from the host.
+
+This page details how to use the `docker run` command to define the
+container's resources at runtime.
 
 ## General form
 
@@ -32,27 +31,33 @@ The basic `docker run` command takes this form:
 
     $ docker run [OPTIONS] IMAGE[:TAG|@DIGEST] [COMMAND] [ARG...]
 
-To learn how to interpret the types of `[OPTIONS]`,
-see [*Option types*](/reference/commandline/cli/#option-types).
-
-The `run` options control the image's runtime behavior in a container. These
-settings affect:
+The `docker run` command must specify an [*IMAGE*](/reference/glossary/#image)
+to derive the container from. An image developer can define image
+defaults related to:
 
  * detached or foreground running
  * container identification
  * network settings
  * runtime constraints on CPU and memory
  * privileges and LXC configuration
- 
-An image developer may set defaults for these same settings when she creates the
-image using the `docker build` command. Operators can use the `run` options to override most of the
-defaults set by the developer. And, operators can override nearly all the defaults set by the Docker runtime itself.
 
-Finally, depending on your Docker system configuration, you may be required to
-preface each `docker` command with `sudo`. To avoid having to use `sudo` with
-the `docker` command, your system administrator can create a Unix group called
-`docker` and add users to it. For more information about this configuration,
-refer to the Docker installation documentation for your operating system.
+With the `docker run [OPTIONS]` an operator can add to or override the
+image defaults set by a developer. And, additionally, operators can
+override nearly all the defaults set by the Docker runtime itself. The
+operator's ability to override image and Docker runtime defaults is why
+[*run*](/reference/commandline/cli/run/) has more options than any
+other `docker` command.
+
+To learn how to interpret the types of `[OPTIONS]`, see [*Option
+types*](/reference/commandline/cli/#option-types).
+
+> **Note**: Depending on your Docker system configuration, you may be
+> required to preface the `docker run` command with `sudo`. To avoid
+> having to use `sudo` with the `docker` command, your system
+> administrator can create a Unix group called `docker` and add users to
+> it. For more information about this configuration, refer to the Docker
+> installation documentation for your operating system.
+
 
 ## Operator exclusive options
 
@@ -971,45 +976,59 @@ or two examples of how to pass more parameters to that ENTRYPOINT:
 
 ### EXPOSE (incoming ports)
 
-The Dockerfile doesn't give much control over networking, only providing
-the `EXPOSE` instruction to specify incoming ports that provide services.
 The following `run` command options work with container networking:
 
-    --expose=[]: Expose a port or a range of ports from the container,
-                in addition to ports exposed by the `EXPOSE` Dockerfile instruction
+    --expose=[]: Expose a port or a range of ports inside the container.
+                 These are additional to those exposed by the `EXPOSE` instruction
     -P=false   : Publish all exposed ports to the host interfaces
     -p=[]      : Publish a container᾿s port or a range of ports to the host
                    format: ip:hostPort:containerPort | ip::containerPort | hostPort:containerPort | containerPort
-                   Both hostPort and containerPort can be specified as a range of ports.
-                   When specifying ranges for both, the number of container ports in the range must match the number of host ports in the range. (e.g., `-p 1234-1236:1234-1236/tcp`)
-                   When specifying a range for hostPort only, the containerPort must not be a range.  In this case the container port is published somewhere within the specified hostPort range. (e.g., `-p 1234-1236:1234/tcp`)
+                   Both hostPort and containerPort can be specified as a
+                   range of ports. When specifying ranges for both, the
+                   number of container ports in the range must match the
+                   number of host ports in the range, for example:
+                       -p 1234-1236:1234-1236/tcp
+
+                   When specifying a range for hostPort only, the
+                   containerPort must not be a range.  In this case the
+                   container port is published somewhere within the
+                   specified hostPort range. (e.g., `-p 1234-1236:1234/tcp`)
+
                    (use 'docker port' to see the actual mapping)
+
     --link=""  : Add link to another container (<name or id>:alias or <name or id>)
 
-As mentioned previously, `EXPOSE` (and `--expose`) makes ports available
-**in** a container for incoming connections. The port number on the
-inside of the container (where the service listens) does not need to be
-the same number as the port exposed on the outside of the container
-(where clients connect), so inside the container you might have an HTTP
-service listening on port 80 (and so you `EXPOSE 80` in the Dockerfile),
-but outside the container the port might be 42800.
+With the exception of the `EXPOSE` directive, an image developer hasn't
+got much control over networking. The `EXPOSE` instruction defines the
+initial incoming ports that provide services. These ports are available
+to processes inside the container. An operator can use the `--expose`
+option to add to the exposed ports.
 
-To help a new client container reach the server container's internal
-port operator `--expose`'d by the operator or `EXPOSE`'d by the
-developer, the operator has three choices: start the server container
-with `-P` or `-p,` or start the client container with `--link`.
+To expose a container's internal port, an operator can start the
+container with the `-P` or `-p` flag. The exposed port is accessible on
+the host and the ports are available to any client that can reach the
+host.
 
-If the operator uses `-P` or `-p` then Docker will make the exposed port
-accessible on the host and the ports will be available to any client that can
-reach the host. When using `-P`, Docker will bind the exposed port to a random
-port on the host within an *ephemeral port range* defined by
-`/proc/sys/net/ipv4/ip_local_port_range`. To find the mapping between the host
-ports and the exposed ports, use `docker port`.
+The `-P` option publishes all the ports to the host interfaces. Docker
+binds each exposed port to a random port on the host. The range of
+ports are within an *ephemeral port range* defined by
+`/proc/sys/net/ipv4/ip_local_port_range`. Use the `-p` flag to
+explicitly map a single port or range of ports.
 
-If the operator uses `--link` when starting the new client container,
+The port number inside the container (where the service listens) does
+not need to match the port number exposed on the outside of the
+container (where clients connect). For example, inside the container an
+HTTP service is listening on port 80 (and so the image developer
+specifies `EXPOSE 80` in the Dockerfile). At runtime, the port might be
+bound to 42800 on the host. To find the mapping between the host ports
+and the exposed ports, use `docker port`.
+
+If the operator uses `--link` when starting a new client container,
 then the client container can access the exposed port via a private
-networking interface.  Docker will set some environment variables in the
-client container to help indicate which interface and port to use.
+networking interface. Docker will set some environment variables in the
+client container to help indicate which interface and port to use. For
+more information on linking, see [the guide on linking container
+together](/userguide/dockerlinks/)
 
 ### ENV (environment variables)
 
