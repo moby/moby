@@ -24,6 +24,7 @@ import (
 	"github.com/docker/docker/daemon/network"
 	"github.com/docker/docker/graph"
 	"github.com/docker/docker/image"
+	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/broadcastwriter"
 	"github.com/docker/docker/pkg/fileutils"
 	"github.com/docker/docker/pkg/graphdb"
@@ -683,6 +684,12 @@ func NewDaemon(config *Config, registryService *registry.Service) (daemon *Daemo
 		return nil, fmt.Errorf("Couldn't create Tag store repositories-%s: %s", d.driver.String(), err)
 	}
 
+	if restorer, ok := d.driver.(graphdriver.ImageRestorer); ok {
+		if _, err := restorer.RestoreCustomImages(repositories, g); err != nil {
+			return nil, fmt.Errorf("Couldn't restore custom images: %s", err)
+		}
+	}
+
 	d.netController, err = initNetworkController(config)
 	if err != nil {
 		return nil, fmt.Errorf("Error initializing network controller: %v", err)
@@ -837,6 +844,46 @@ func (daemon *Daemon) UnsubscribeToContainerStats(name string, ch chan interface
 		return err
 	}
 	daemon.statsCollector.unsubscribe(c, ch)
+	return nil
+}
+
+func (daemon *Daemon) Changes(container *Container) ([]archive.Change, error) {
+	initID := fmt.Sprintf("%s-init", container.ID)
+	return daemon.driver.Changes(container.ID, initID)
+}
+
+func (daemon *Daemon) Diff(container *Container) (archive.Archive, error) {
+	initID := fmt.Sprintf("%s-init", container.ID)
+	return daemon.driver.Diff(container.ID, initID)
+}
+
+func (daemon *Daemon) createRootfs(container *Container) error {
+	// Step 1: create the container directory.
+	// This doubles as a barrier to avoid race conditions.
+	if err := os.Mkdir(container.root, 0700); err != nil {
+		return err
+	}
+	initID := fmt.Sprintf("%s-init", container.ID)
+	if err := daemon.driver.Create(initID, container.ImageID); err != nil {
+		return err
+	}
+	initPath, err := daemon.driver.Get(initID, "")
+	if err != nil {
+		return err
+	}
+
+	if err := setupInitLayer(initPath); err != nil {
+		daemon.driver.Put(initID)
+		return err
+	}
+
+	// We want to unmount init layer before we take snapshot of it
+	// for the actual container.
+	daemon.driver.Put(initID)
+
+	if err := daemon.driver.Create(container.ID, initID); err != nil {
+		return err
+	}
 	return nil
 }
 
