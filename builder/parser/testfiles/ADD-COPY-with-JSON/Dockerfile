@@ -3,6 +3,8 @@ MAINTAINER	Seongyeol Lim <seongyeol37@gmail.com>
 
 COPY	.	/go/src/github.com/docker/docker
 ADD		.	/
+ADD		null /
+COPY	nullfile /tmp
 ADD		[ "vimrc", "/tmp" ]
 COPY	[ "bashrc", "/tmp" ]
 COPY	[ "test file", "/tmp" ]
