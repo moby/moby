@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/pkg/timeutils"
 	"github.com/go-check/check"
 )
@@ -22,8 +23,10 @@ func (s *DockerSuite) TestLogsContainerSmallerThanPage(c *check.C) {
 
 	dockerCmd(c, "wait", cleanedContainerID)
 	out, _ = dockerCmd(c, "logs", cleanedContainerID)
-	if len(out) != testLen+1 {
-		c.Fatalf("Expected log length of %d, received %d\n", testLen+1, len(out))
+	// Each line up to MaxBytesPerLine bytes
+	expectedLen := testLen + testLen/logger.MaxBytesPerLine + 1
+	if len(out) != expectedLen {
+		c.Fatalf("Expected log length of %d, received %d\n", expectedLen, len(out))
 	}
 }
 
@@ -36,9 +39,10 @@ func (s *DockerSuite) TestLogsContainerBiggerThanPage(c *check.C) {
 	dockerCmd(c, "wait", cleanedContainerID)
 
 	out, _ = dockerCmd(c, "logs", cleanedContainerID)
-
-	if len(out) != testLen+1 {
-		c.Fatalf("Expected log length of %d, received %d\n", testLen+1, len(out))
+	// Each line up to MaxBytesPerLine bytes
+	expectedLen := testLen + testLen/logger.MaxBytesPerLine + 1
+	if len(out) != expectedLen {
+		c.Fatalf("Expected log length of %d, received %d\n", expectedLen, len(out))
 	}
 }
 
@@ -51,9 +55,10 @@ func (s *DockerSuite) TestLogsContainerMuchBiggerThanPage(c *check.C) {
 	dockerCmd(c, "wait", cleanedContainerID)
 
 	out, _ = dockerCmd(c, "logs", cleanedContainerID)
-
-	if len(out) != testLen+1 {
-		c.Fatalf("Expected log length of %d, received %d\n", testLen+1, len(out))
+	// Each line up to MaxBytesPerLine bytes
+	expectedLen := testLen + testLen/logger.MaxBytesPerLine + 1
+	if len(out) != expectedLen {
+		c.Fatalf("Expected log length of %d, received %d\n", expectedLen, len(out))
 	}
 }
 

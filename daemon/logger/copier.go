@@ -2,13 +2,15 @@ package logger
 
 import (
 	"bufio"
-	"bytes"
 	"io"
 	"sync"
 	"time"
 
 	"github.com/Sirupsen/logrus"
 )
+
+// MaxBytesPerLine is the max bytes per line of containers' log
+const MaxBytesPerLine = 4096
 
 // Copier can copy logs from specified sources to Logger and attach
 // ContainerID and Timestamp.
@@ -41,21 +43,20 @@ func (c *Copier) Run() {
 
 func (c *Copier) copySrc(name string, src io.Reader) {
 	defer c.copyJobs.Done()
-	reader := bufio.NewReader(src)
+	reader := bufio.NewReaderSize(src, MaxBytesPerLine)
 
 	for {
-		line, err := reader.ReadBytes('\n')
-		line = bytes.TrimSuffix(line, []byte{'\n'})
+		// ReadLine tries to return a single line, not including the end-of-line bytes.
+		// If the line was too long for the buffer then isPrefix is set and the
+		// beginning of the line is returned. The rest of the line will be returned
+		// from future calls.
+		line, _, err := reader.ReadLine()
 
-		// ReadBytes can return full or partial output even when it failed.
-		// e.g. it can return a full entry and EOF.
-		if err == nil || len(line) > 0 {
+		if err == nil {
 			if logErr := c.dst.Log(&Message{ContainerID: c.cid, Line: line, Source: name, Timestamp: time.Now().UTC()}); logErr != nil {
 				logrus.Errorf("Failed to log msg %q for logger %s: %s", line, c.dst.Name(), logErr)
 			}
-		}
-
-		if err != nil {
+		} else {
 			if err != io.EOF {
 				logrus.Errorf("Error scanning log stream: %s", err)
 			}
