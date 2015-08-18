@@ -40,7 +40,7 @@ func (daemon *Daemon) ContainerCreate(name string, config *runconfig.Config, hos
 }
 
 // Create creates a new container from the given configuration with a given name.
-func (daemon *Daemon) Create(config *runconfig.Config, hostConfig *runconfig.HostConfig, name string) (*Container, []string, error) {
+func (daemon *Daemon) Create(config *runconfig.Config, hostConfig *runconfig.HostConfig, name string) (retC *Container, retS []string, retErr error) {
 	var (
 		container *Container
 		warnings  []string
@@ -75,6 +75,14 @@ func (daemon *Daemon) Create(config *runconfig.Config, hostConfig *runconfig.Hos
 	if container, err = daemon.newContainer(name, config, imgID); err != nil {
 		return nil, nil, err
 	}
+	defer func() {
+		if retErr != nil {
+			if err := daemon.rm(container, false); err != nil {
+				logrus.Errorf("Clean up Error! Cannot destroy container %s: %v", container.ID, err)
+			}
+		}
+	}()
+
 	if err := daemon.Register(container); err != nil {
 		return nil, nil, err
 	}
