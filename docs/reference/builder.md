@@ -25,7 +25,7 @@ Dockerfile knowledge with the [Dockerfile tutorial](/userguide/level1).
 
 ## Usage
 
-To [*build*](/reference/commandline/cli/#build) an image from a source repository,
+To [*build*](/reference/commandline/build) an image from a source repository,
 create a description file called `Dockerfile` at the root of your repository.
 This file will describe the steps to assemble the image.
 
@@ -890,7 +890,7 @@ containers. The value can be a JSON array, `VOLUME ["/var/log/"]`, or a plain
 string with multiple arguments, such as `VOLUME /var/log` or `VOLUME /var/log
 /var/db`.  For more information/examples and mounting instructions via the
 Docker client, refer to 
-[*Share Directories via Volumes*](/userguide/dockervolumes/#volume)
+[*Share Directories via Volumes*](/userguide/dockervolumes/#mount-a-host-directory-as-a-data-volume)
 documentation.
 
 The `docker run` command initializes the newly created volume with any data 
