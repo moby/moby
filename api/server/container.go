@@ -399,13 +399,13 @@ func (s *Server) postContainersCreate(version version.Version, w http.ResponseWr
 	}
 	adjustCPUShares := version.LessThan("1.19")
 
-	containerID, warnings, err := s.daemon.ContainerCreate(name, config, hostConfig, adjustCPUShares)
+	container, warnings, err := s.daemon.ContainerCreate(name, config, hostConfig, adjustCPUShares)
 	if err != nil {
 		return err
 	}
 
 	return writeJSON(w, http.StatusCreated, &types.ContainerCreateResponse{
-		ID:       containerID,
+		ID:       container.ID,
 		Warnings: warnings,
 	})
 }
