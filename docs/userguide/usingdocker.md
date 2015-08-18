@@ -11,11 +11,11 @@ parent="smn_containers"
 # Working with containers
 
 In the [last section of the Docker User Guide](/userguide/dockerizing)
-we launched our first containers. We launched two containers using the
-`docker run` command.
+we launched our first containers. We launched containers using the
+`docker run` command:
 
-* Containers we ran interactively in the foreground.
-* One container we ran daemonized in the background.
+* Interactive container runs in the foreground.
+* Daemonized container runs in the background.
 
 In the process we learned about several Docker commands:
 
@@ -43,17 +43,22 @@ version information on the currently installed Docker client and daemon.
 This command will not only provide you the version of Docker client and
 daemon you are using, but also the version of Go (the programming
 language powering Docker).
+  
+    Client:
+      Version:      1.8.1
+      API version:  1.20
+      Go version:   go1.4.2
+      Git commit:   d12ea79
+      Built:        Thu Aug 13 02:35:49 UTC 2015
+      OS/Arch:      linux/amd64
 
-    Client version: 0.8.0
-    Go version (client): go1.2
-
-    Git commit (client): cc3a8c8
-    Server version: 0.8.0
-
-    Git commit (server): cc3a8c8
-    Go version (server): go1.2
-
-    Last stable version: 0.8.0
+    Server:
+      Version:      1.8.1
+      API version:  1.20
+      Go version:   go1.4.2
+      Git commit:   d12ea79
+      Built:        Thu Aug 13 02:35:49 UTC 2015
+      OS/Arch:      linux/amd64
 
 ## Get Docker command help
 
@@ -218,8 +223,8 @@ the container.
 ## Inspecting our web application container
 
 Lastly, we can take a low-level dive into our Docker container using the
-`docker inspect` command. It returns a JSON hash of useful configuration
-and status information about Docker containers.
+`docker inspect` command. It returns a JSON document containing useful
+configuration and status information for the specified container.
 
     $ docker inspect nostalgic_morse
 
@@ -296,7 +301,7 @@ this again by stopping the container first.
 And now our container is stopped and deleted.
 
 > **Note:**
-> Always remember that deleting a container is final!
+> Always remember that removing a container is final!
 
 # Next steps
 
