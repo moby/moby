@@ -62,4 +62,4 @@ of the plugin for help. The Docker team may not be able to assist you.
 ## Writing a plugin
 
 If you are interested in writing a plugin for Docker, or seeing how they work
-under the hood, see the [docker plugins reference](/extend/plugin_api).
+under the hood, see the [docker plugins reference](/docs/extend/plugin_api.md).
