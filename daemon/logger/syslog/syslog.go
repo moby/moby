@@ -107,33 +107,35 @@ func (s *syslogger) Name() string {
 }
 
 func parseAddress(address string) (string, string, error) {
-	if urlutil.IsTransportURL(address) {
-		url, err := url.Parse(address)
-		if err != nil {
-			return "", "", err
-		}
-
-		// unix socket validation
-		if url.Scheme == "unix" {
-			if _, err := os.Stat(url.Path); err != nil {
-				return "", "", err
-			}
-			return url.Scheme, url.Path, nil
-		}
-
-		// here we process tcp|udp
-		host := url.Host
-		if _, _, err := net.SplitHostPort(host); err != nil {
-			if !strings.Contains(err.Error(), "missing port in address") {
-				return "", "", err
-			}
-			host = host + ":514"
-		}
-
-		return url.Scheme, host, nil
+	if address == "" {
+		return "", "", nil
+	}
+	if !urlutil.IsTransportURL(address) {
+		return "", "", fmt.Errorf("syslog-address should be in form proto://address, got %v", address)
+	}
+	url, err := url.Parse(address)
+	if err != nil {
+		return "", "", err
 	}
 
-	return "", "", nil
+	// unix socket validation
+	if url.Scheme == "unix" {
+		if _, err := os.Stat(url.Path); err != nil {
+			return "", "", err
+		}
+		return url.Scheme, url.Path, nil
+	}
+
+	// here we process tcp|udp
+	host := url.Host
+	if _, _, err := net.SplitHostPort(host); err != nil {
+		if !strings.Contains(err.Error(), "missing port in address") {
+			return "", "", err
+		}
+		host = host + ":514"
+	}
+
+	return url.Scheme, host, nil
 }
 
 // ValidateLogOpt looks for syslog specific log options
@@ -147,6 +149,12 @@ func ValidateLogOpt(cfg map[string]string) error {
 		default:
 			return fmt.Errorf("unknown log opt '%s' for syslog log driver", key)
 		}
+	}
+	if _, _, err := parseAddress(cfg["syslog-address"]); err != nil {
+		return err
+	}
+	if _, err := parseFacility(cfg["syslog-facility"]); err != nil {
+		return err
 	}
 	return nil
 }

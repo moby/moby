@@ -1550,3 +1550,23 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithContainerWithRestartPolicyAlway
 	c.Assert(err, check.IsNil)
 	c.Assert(strings.TrimSpace(out), check.Equals, id[:12])
 }
+
+func (s *DockerDaemonSuite) TestDaemonCorruptedSyslogAddress(c *check.C) {
+	c.Assert(s.d.Start("--log-driver=syslog", "--log-opt", "syslog-address=corrupted:1234"), check.NotNil)
+	runCmd := exec.Command("grep", "Failed to set log opts: syslog-address should be in form proto://address", s.d.LogfileName())
+	if out, _, err := runCommandWithOutput(runCmd); err != nil {
+		c.Fatalf("Expected 'Error starting daemon' message; but doesn't exist in log: %q, err: %v", out, err)
+	}
+}
+
+func (s *DockerDaemonSuite) TestDaemonWideLogConfig(c *check.C) {
+	c.Assert(s.d.Start("--log-driver=json-file", "--log-opt=max-size=1k"), check.IsNil)
+	out, err := s.d.Cmd("run", "-d", "--name=logtest", "busybox", "top")
+	c.Assert(err, check.IsNil, check.Commentf("Output: %s, err: %v", out, err))
+	out, err = s.d.Cmd("inspect", "-f", "{{ .HostConfig.LogConfig.Config }}", "logtest")
+	c.Assert(err, check.IsNil, check.Commentf("Output: %s", out))
+	cfg := strings.TrimSpace(out)
+	if cfg != "map[max-size:1k]" {
+		c.Fatalf("Unexpected log-opt: %s, expected map[max-size:1k]", cfg)
+	}
+}
