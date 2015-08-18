@@ -266,6 +266,7 @@ func (container *Container) Start() (err error) {
 			container.toDisk()
 			container.cleanup()
 			container.LogEvent("die")
+			container.LogEvent("exit")
 		}
 	}()
 
@@ -366,6 +367,17 @@ func (container *Container) cleanup() {
 }
 
 func (container *Container) KillSig(sig int) error {
+	if err := container.killSig(sig); err != nil {
+		return err
+	}
+	container.LogEvent("kill")
+	return nil
+}
+
+// killSig sends the kill signal without logging the "kill" event, so that
+// the logging can be handled at the higher level.
+// E.g. for Kill() it should be logged after the container has died.
+func (container *Container) killSig(sig int) error {
 	logrus.Debugf("Sending %d to %s", sig, container.ID)
 	container.Lock()
 	defer container.Unlock()
@@ -393,13 +405,12 @@ func (container *Container) KillSig(sig int) error {
 	if err := container.daemon.Kill(container, sig); err != nil {
 		return err
 	}
-	container.LogEvent("kill")
 	return nil
 }
 
-// Wrapper aroung KillSig() suppressing "no such process" error.
+// Wrapper aroung killSig() suppressing "no such process" error.
 func (container *Container) killPossiblyDeadProcess(sig int) error {
-	err := container.KillSig(sig)
+	err := container.killSig(sig)
 	if err == syscall.ESRCH {
 		logrus.Debugf("Cannot kill process (pid=%d) with signal %d: no such process.", container.GetPid(), sig)
 		return nil
@@ -483,6 +494,7 @@ func (container *Container) Kill() error {
 	}
 
 	container.WaitStop(-1 * time.Second)
+	container.LogEvent("kill")
 	return nil
 }
 
