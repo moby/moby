@@ -19,7 +19,7 @@ parent = "mn_reference"
 **Docker runs processes in isolated containers**. When an operator
 executes `docker run`, she starts a process with its own file system,
 its own networking, and its own isolated process tree.  The
-[*Image*](/terms/image/#image) which starts the process may define
+[*Image*](/reference/glossary/#image) which starts the process may define
 defaults related to the binary to run, the networking to expose, and
 more, but `docker run` gives final control to the operator who starts
 the container from the image. That's the main reason

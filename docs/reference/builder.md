@@ -100,7 +100,7 @@ be UPPERCASE in order to distinguish them from arguments more easily.
 
 Docker runs the instructions in a `Dockerfile` in order. **The
 first instruction must be \`FROM\`** in order to specify the [*Base
-Image*](/terms/image/#base-image) from which you are building.
+Image*](/reference/glossary/#base-image) from which you are building.
 
 Docker will treat lines that *begin* with `#` as a
 comment. A `#` marker anywhere else in the line will
@@ -251,7 +251,7 @@ Or
 
     FROM <image>@<digest>
 
-The `FROM` instruction sets the [*Base Image*](/terms/image/#base-image)
+The `FROM` instruction sets the [*Base Image*](/reference/glossary/#base-image)
 for subsequent instructions. As such, a valid `Dockerfile` must have `FROM` as
 its first instruction. The image can be any valid image – it is especially easy
 to start by **pulling an image** from the [*Public Repositories*](
