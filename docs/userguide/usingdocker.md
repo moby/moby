@@ -110,7 +110,7 @@ Lastly, we've specified a command for our container to run: `python app.py`. Thi
 
 > **Note:** 
 > You can see more detail on the `docker run` command in the [command
-> reference](/reference/commandline/cli/#run) and the [Docker Run
+> reference](/reference/commandline/run) and the [Docker Run
 > Reference](/reference/run/).
 
 ## Viewing our web application container
