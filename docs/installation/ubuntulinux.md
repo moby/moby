@@ -96,7 +96,7 @@ To upgrade your kernel and install the additional packages, do the following:
 
         $ sudo reboot
 
-5. After your system reboots, go ahead and [install Docker](#installing-docker-on-ubuntu).
+5. After your system reboots, go ahead and [install Docker](#installation).
 
 
 ### For Saucy 13.10 (64 bit)
