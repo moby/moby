@@ -88,11 +88,11 @@ The initial status of the container created with **docker create** is 'created'.
 **--cap-drop**=[]
    Drop Linux capabilities
 
-**--cidfile**=""
-   Write the container ID to the file
-
 **--cgroup-parent**=""
    Path to cgroups under which the cgroup for the container will be created. If the path is not absolute, the path is considered to be relative to the cgroups path of the init process. Cgroups will be created if they do not already exist.
+
+**--cidfile**=""
+   Write the container ID to the file
 
 **--cpu-period**=0
     Limit the CPU CFS (Completely Fair Scheduler) period
@@ -107,17 +107,17 @@ The initial status of the container created with **docker create** is 'created'.
 then processes in your Docker container will only use memory from the first
 two memory nodes.
 
-**-cpu-quota**=0
+**--cpu-quota**=0
    Limit the CPU CFS (Completely Fair Scheduler) quota
 
 **--device**=[]
    Add a host device to the container (e.g. --device=/dev/sdc:/dev/xvdc:rwm)
 
-**--dns-search**=[]
-   Set custom DNS search domains (Use --dns-search=. if you don't wish to set the search domain)
-
 **--dns**=[]
    Set custom DNS servers
+
+**--dns-search**=[]
+   Set custom DNS search domains (Use --dns-search=. if you don't wish to set the search domain)
 
 **-e**, **--env**=[]
    Set environment variables
@@ -126,7 +126,7 @@ two memory nodes.
    Overwrite the default ENTRYPOINT of the image
 
 **--env-file**=[]
-   Read in a line delimited file of environment variables
+   Read in a line-delimited file of environment variables
 
 **--expose**=[]
    Expose a port or a range of ports (e.g. --expose=3300-3310) from the container without publishing it to your host
@@ -158,15 +158,15 @@ two memory nodes.
    Add link to another container in the form of <name or id>:alias or just
    <name or id> in which case the alias will match the name.
 
-**--lxc-conf**=[]
-   (lxc exec-driver only) Add custom lxc options --lxc-conf="lxc.cgroup.cpuset.cpus = 0,1"
-
 **--log-driver**="|*json-file*|*syslog*|*journald*|*gelf*|*fluentd*|*none*"
   Logging driver for container. Default is defined by daemon `--log-driver` flag.
   **Warning**: `docker logs` command works only for `json-file` logging driver.
 
 **--log-opt**=[]
   Logging driver specific options.
+
+**--lxc-conf**=[]
+   (lxc exec-driver only) Add custom lxc options --lxc-conf="lxc.cgroup.cpuset.cpus = 0,1"
 
 **-m**, **--memory**=""
    Memory limit (format: <number><optional unit>, where unit = b, k, m or g)
@@ -177,14 +177,17 @@ RAM. If a limit of 0 is specified (not using **-m**), the container's memory is
 not limited. The actual limit may be rounded up to a multiple of the operating
 system's page size (the value would be very large, that's millions of trillions).
 
+**--mac-address**=""
+   Container MAC address (e.g. 92:d0:c6:0a:29:33)
+
 **--memory-swap**=""
    Total memory limit (memory + swap)
 
    Set `-1` to disable swap (format: <number><optional unit>, where unit = b, k, m or g).
 This value should always larger than **-m**, so you should always use this with **-m**.
 
-**--mac-address**=""
-   Container MAC address (e.g. 92:d0:c6:0a:29:33)
+**--memory-swappiness**=""
+   Tune a container's memory swappiness behavior. Accepts an integer between 0 and 100.
 
 **--name**=""
    Assign a name to the container
@@ -214,11 +217,6 @@ This value should always larger than **-m**, so you should always use this with 
      **host**: use the host's PID namespace inside the container.
      Note: the host mode gives the container full access to local PID and is therefore considered insecure.
 
-**--uts**=host
-   Set the UTS mode for the container
-     **host**: use the host's UTS namespace inside the container.
-     Note: the host mode gives the container access to changing the host's hostname and is therefore considered insecure.
-
 **--privileged**=*true*|*false*
    Give extended privileges to this container. The default is *false*.
 
@@ -231,9 +229,6 @@ This value should always larger than **-m**, so you should always use this with 
 **--security-opt**=[]
    Security Options
 
-**--memory-swappiness**=""
-   Tune a container's memory swappiness behavior. Accepts an integer between 0 and 100.
-
 **-t**, **--tty**=*true*|*false*
    Allocate a pseudo-TTY. The default is *false*.
 
@@ -242,6 +237,11 @@ This value should always larger than **-m**, so you should always use this with 
 
 **--ulimit**=[]
    Ulimit options
+
+**--uts**=host
+   Set the UTS mode for the container
+     **host**: use the host's UTS namespace inside the container.
+     Note: the host mode gives the container access to changing the host's hostname and is therefore considered insecure.
 
 **-v**, **--volume**=[]
    Bind mount a volume (e.g., from the host: -v /host:/container, from Docker: -v /container)
