@@ -1142,16 +1142,17 @@ volume mounted on the host).
 
 ### USER
 
-The default user within a container is `root` (id = 0), but if the developer
-created additional users, those are accessible by name.  When passing a numeric
-ID, the user doesn't have to exist in the container.
+`root` (id = 0) is the default user within a container. The image developer can
+create additional users. Those users are accessible by name.  When passing a numeric
+ID, the user does not have to exist in the container.
 
 The developer can set a default user to run the first process with the
-Dockerfile `USER` instruction, but the operator can override it:
+Dockerfile `USER` instruction. When starting a container, the operator can override
+the `USER` instruction by passing the `-u` option.
 
     -u="": Username or UID
 
-> **Note:** if you pass a numeric uid, it must be in the range 0-2147483647.
+> **Note:** if you pass a numeric uid, it must be in the range of 0-2147483647.
 
 ### WORKDIR
 
