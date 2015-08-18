@@ -20,6 +20,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/nat"
+	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/docker/pkg/stringutils"
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/runconfig"
@@ -533,4 +534,22 @@ func volume(b *builder, args []string, attributes map[string]bool, original stri
 		return err
 	}
 	return nil
+}
+
+// STOPSIGNAL signal
+//
+// Set the signal that will be used to kill the container.
+func stopSignal(b *builder, args []string, attributes map[string]bool, original string) error {
+	if len(args) != 1 {
+		return fmt.Errorf("STOPSIGNAL requires exactly one argument")
+	}
+
+	sig := args[0]
+	_, err := signal.ParseSignal(sig)
+	if err != nil {
+		return err
+	}
+
+	b.Config.StopSignal = sig
+	return b.commit("", b.Config.Cmd, fmt.Sprintf("STOPSIGNAL %v", args))
 }

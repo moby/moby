@@ -62,6 +62,7 @@ weight=1
       --restart="no"                Restart policy (no, on-failure[:max-retry], always, unless-stopped)
       --rm=false                    Automatically remove the container when it exits
       --security-opt=[]             Security Options
+      --stop-signal="SIGTERM"       Signal to stop a container
       --sig-proxy=true              Proxy received signals to the process
       -t, --tty=false               Allocate a pseudo-TTY
       -u, --user=""                 Username or UID (format: <name|uid>[:<group|gid>])
@@ -531,3 +532,9 @@ containers with `daemon` user:
 The 4th container fails and reports "[8] System error: resource temporarily unavailable" error. 
 This fails because the caller set `nproc=3` resulting in the first three containers using up 
 the three processes quota set for the `daemon` user.
+
+### Stopping a container with a specific signal
+
+The `--stop-signal` flag sets the system call signal that will be sent to the container to exit.
+This signal can be a valid unsigned number that matches a position in the kernel's syscall table, for instance 9,
+or a signal name in the format SIGNAME, for instance SIGKILL.

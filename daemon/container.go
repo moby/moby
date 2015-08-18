@@ -524,7 +524,7 @@ func (container *Container) Stop(seconds int) error {
 		}
 	}
 
-	container.LogEvent("stop")
+	container.logEvent("stop")
 	return nil
 }
 

@@ -181,7 +181,7 @@ To get information on a container use its ID or instance name:
         "MemorySwap": 0,
         "CpuShares": 0,
         "Cpuset": "",
-        "StopSignal": 15,
+        "StopSignal": "SIGTERM"
     }
     }
     ]

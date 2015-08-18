@@ -1,6 +1,11 @@
 package daemon
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/docker/docker/pkg/signal"
+	"github.com/docker/docker/runconfig"
+)
 
 func TestGetFullName(t *testing.T) {
 	name, err := GetFullContainerName("testing")

@@ -458,3 +458,15 @@ func (s *DockerTrustSuite) TestTrustedCreateFromBadTrustServer(c *check.C) {
 		c.Fatalf("Missing expected output on trusted push:\n%s", out)
 	}
 }
+
+func (s *DockerSuite) TestCreateStopSignal(c *check.C) {
+	name := "test_create_stop_signal"
+	dockerCmd(c, "create", "--name", name, "--stop-signal", "9", "busybox")
+
+	res, err := inspectFieldJSON(name, "Config.StopSignal")
+	c.Assert(err, check.IsNil)
+
+	if res != `"9"` {
+		c.Fatalf("Expected 9, got %s", res)
+	}
+}

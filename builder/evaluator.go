@@ -45,14 +45,15 @@ import (
 
 // Environment variable interpolation will happen on these statements only.
 var replaceEnvAllowed = map[string]struct{}{
-	command.Env:     {},
-	command.Label:   {},
-	command.Add:     {},
-	command.Copy:    {},
-	command.Workdir: {},
-	command.Expose:  {},
-	command.Volume:  {},
-	command.User:    {},
+	command.Env:        {},
+	command.Label:      {},
+	command.Add:        {},
+	command.Copy:       {},
+	command.Workdir:    {},
+	command.Expose:     {},
+	command.Volume:     {},
+	command.User:       {},
+	command.StopSignal: {},
 }
 
 var evaluateTable map[string]func(*builder, []string, map[string]bool, string) error
@@ -73,6 +74,7 @@ func init() {
 		command.Expose:     expose,
 		command.Volume:     volume,
 		command.User:       user,
+		command.StopSignal: stopSignal,
 	}
 }
 
