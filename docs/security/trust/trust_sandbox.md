@@ -33,7 +33,7 @@ Finally, you'll need to have `git` installed on your local system or VM.
 ## What is in the sandbox?
 
 If you are just using trust out-of-the-box you only need your Docker Engine
-client and access to Docker's own public hub. The sandbox mimics a
+client and access to the Docker hub. The sandbox mimics a
 production trust environment, and requires these additional components:
 
 | Container       | Description                                                                                                                                 |
@@ -45,7 +45,7 @@ production trust environment, and requires these additional components:
 | MySQL           | The database where all of the trust information will be stored                                                                              |
 
 The sandbox uses the Docker daemon on your local system. Within the `notarysandbox`
-you interact with a local registry rather than the public Docker Hub. This means
+you interact with a local registry rather than the Docker Hub. This means
 your everyday image repositories are not used. They are protected while you play.
 
 When you play in the sandbox, you'll also create root and tagging keys. The
