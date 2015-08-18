@@ -23,7 +23,7 @@ each result.
     Print usage statement
 
 **-f**, **--format**=""
-    Format the output using the given go template.
+    Format the output using the given Go template.
 
 **--type**=*container*|*image*
     Return JSON for specified type, permissible values are "image" or "container"
@@ -201,8 +201,8 @@ output:
       {{$p}} -> {{(index $conf 0).HostPort}} {{end}}' d2cc496561d6
       80/tcp -> 80
 
-You can get more information about how to write a go template from:
-http://golang.org/pkg/text/template/.
+You can get more information about how to write a Go template from:
+https://golang.org/pkg/text/template/.
 
 ## Getting information on an image
 
