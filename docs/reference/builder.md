@@ -10,48 +10,50 @@ parent = "mn_reference"
 
 # Dockerfile reference
 
-**Docker can build images automatically** by reading the instructions
-from a `Dockerfile`. A `Dockerfile` is a text document that contains all
-the commands you would normally execute manually in order to build a
-Docker image. By calling `docker build` from your terminal, you can have
-Docker build your image step by step, executing the instructions
-successively.
+Docker can build images automatically by reading the instructions from a
+`Dockerfile`. A `Dockerfile` is a text document that contains all the commands a
+user could call on the command line to assemble an image. Using `docker build`
+users can create an automated build that executes several command-line
+instructions in succession.
 
-This page discusses the specifics of all the instructions you can use in your
-`Dockerfile`. To further help you write a clear, readable, maintainable
-`Dockerfile`, we've also written a [`Dockerfile` Best Practices
-guide](/articles/dockerfile_best-practices). Lastly, you can test your
-Dockerfile knowledge with the [Dockerfile tutorial](/userguide/level1).
+This page describes the commands you can use in a `Dockerfile`. When you are
+done reading this page, refer to the [`Dockerfile` Best
+Practices](/articles/dockerfile_best-practices) for a tip-oriented guide.
 
 ## Usage
 
-To [*build*](/reference/commandline/build) an image from a source repository,
-create a description file called `Dockerfile` at the root of your repository.
-This file will describe the steps to assemble the image.
+The [`docker build`](/reference/commandline/build/) command builds an image from
+a `Dockerfile` and a *context*. The build's context is the files at a specified
+location `PATH` or `URL`. The `PATH` is a directory on your local filesystem.
+The `URL` is a the location of a Git repository.
 
-Then call `docker build` with the path of your source repository as the argument
-(for example, `.`):
+A context is processed recursively. So, a `PATH` includes any subdirectories and
+the `URL` includes the repository and its submodules. A simple build command
+that uses the current directory as context:
 
     $ docker build .
+    Sending build context to Docker daemon  6.51 MB
+    ...
 
-The path to the source repository defines where to find the *context* of
-the build. The build is run by the Docker daemon, not by the CLI, so the
-whole context must be transferred to the daemon. The Docker CLI reports
-"Sending build context to Docker daemon" when the context is sent to the daemon.
+The build is run by the Docker daemon, not by the CLI. The first thing a build
+process does is send the entire context (recursively) to the daemon.  In most
+cases, it's best to start with an empty directory as context and keep your
+Dockerfile in that directory. Add only the files needed for building the
+Dockerfile.
 
-> **Warning**
-> Avoid using your root directory, `/`, as the root of the source repository. The 
-> `docker build` command will use whatever directory contains the Dockerfile as the build
-> context (including all of its subdirectories). The build context will be sent to the
-> Docker daemon before building the image, which means if you use `/` as the source
-> repository, the entire contents of your hard drive will get sent to the daemon (and
-> thus to the machine running the daemon). You probably don't want that.
+>**Warning**: Do not use your root directory, `/`, as the `PATH` as it causes
+>the build to transfer the entire contents of your hard drive to the Docker
+>daemon. 
 
-In most cases, it's best to put each Dockerfile in an empty directory. Then,
-only add the files needed for building the Dockerfile to the directory. To
-increase the build's performance, you can exclude files and directories by
-adding a `.dockerignore` file to the directory.  For information about how to
-[create a `.dockerignore` file](#dockerignore-file) on this page.
+To use a file in the build context, the `Dockerfile` refers to the file with
+an instruction, for example,  a `COPY` instruction. To increase the build's
+performance, exclude files and directories by adding a `.dockerignore` file to
+the context directory.  For information about how to [create a `.dockerignore`
+file](#dockerignore-file) see the documentation on this page.
+
+Traditionally, the `Dockerfile` is called `Dockerfile` and located in the root
+of the context. You use the `-f` flag with `docker build` to point to a Dockerfile
+anywhere in your file system.
 
 You can specify a repository and tag at which to save the new image if
 the build succeeds:
@@ -166,13 +168,13 @@ as well as:
 > variable, even when combined with any of the instructions listed above.
 
 Environment variable substitution will use the same value for each variable
-throughout the entire command.  In other words, in this example:
+throughout the entire command. In other words, in this example:
 
     ENV abc=hello
     ENV abc=bye def=$abc
     ENV ghi=$abc
 
-will result in `def` having a value of `hello`, not `bye`.  However, 
+will result in `def` having a value of `hello`, not `bye`. However, 
 `ghi` will have a value of `bye` because it is not part of the same command
 that set `abc` to `bye`.
 
@@ -191,7 +193,7 @@ expansion) is done using Go's
 
 You can specify exceptions to exclusion rules. To do this, simply prefix a
 pattern with an `!` (exclamation mark) in the same way you would in a
-`.gitignore` file.  Currently there is no support for regular expressions.
+`.gitignore` file. Currently there is no support for regular expressions.
 Formats like `[^temp*]` are ignored. 
 
 The following is an example `.dockerignore` file:
@@ -310,7 +312,7 @@ commands using a base image that does not contain `/bin/sh`.
 
 The cache for `RUN` instructions isn't invalidated automatically during
 the next build. The cache for an instruction like 
-`RUN apt-get dist-upgrade -y` will be reused during the next build.  The 
+`RUN apt-get dist-upgrade -y` will be reused during the next build. The 
 cache for `RUN` instructions can be invalidated by using the `--no-cache` 
 flag, for example `docker build --no-cache`.
 
@@ -888,7 +890,7 @@ The `VOLUME` instruction creates a mount point with the specified name
 and marks it as holding externally mounted volumes from native host or other
 containers. The value can be a JSON array, `VOLUME ["/var/log/"]`, or a plain
 string with multiple arguments, such as `VOLUME /var/log` or `VOLUME /var/log
-/var/db`.  For more information/examples and mounting instructions via the
+/var/db`. For more information/examples and mounting instructions via the
 Docker client, refer to 
 [*Share Directories via Volumes*](/userguide/dockervolumes/#mount-a-host-directory-as-a-data-volume)
 documentation.
