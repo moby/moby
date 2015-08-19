@@ -385,7 +385,7 @@ func (s *DockerSuite) TestInspectExecID(c *check.C) {
 	}
 	sc, body, err = sockRequest("GET", "/exec/"+execID+"/json", nil)
 	if sc != http.StatusNotFound {
-		c.Fatalf("received status != 404: %s\n%s", sc, body)
+		c.Fatalf("received status != 404: %d\n%s", sc, body)
 	}
 }
 
