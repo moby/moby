@@ -54,4 +54,17 @@ var (
 		},
 		"Test requires Oom control enabled.",
 	}
+	kernelMemorySupport = testRequirement{
+		func() bool {
+			cgroupMemoryMountpoint, err := cgroups.FindCgroupMountpoint("memory")
+			if err != nil {
+				return false
+			}
+			if _, err := ioutil.ReadFile(path.Join(cgroupMemoryMountpoint, "memory.kmem.limit_in_bytes")); err != nil {
+				return false
+			}
+			return true
+		},
+		"Test requires an environment that supports cgroup kernel memory.",
+	}
 )

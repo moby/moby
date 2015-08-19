@@ -74,6 +74,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		flHostname        = cmd.String([]string{"h", "-hostname"}, "", "Container host name")
 		flMemoryString    = cmd.String([]string{"m", "-memory"}, "", "Memory limit")
 		flMemorySwap      = cmd.String([]string{"-memory-swap"}, "", "Total memory (memory + swap), '-1' to disable swap")
+		flKernelMemory    = cmd.String([]string{"-kernel-memory"}, "", "Kernel memory limit")
 		flUser            = cmd.String([]string{"u", "-user"}, "", "Username or UID (format: <name|uid>[:<group|gid>])")
 		flWorkingDir      = cmd.String([]string{"w", "-workdir"}, "", "Working directory inside the container")
 		flCPUShares       = cmd.Int64([]string{"c", "-cpu-shares"}, 0, "CPU shares (relative weight)")
@@ -164,6 +165,15 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 			}
 			memorySwap = parsedMemorySwap
 		}
+	}
+
+	var KernelMemory int64
+	if *flKernelMemory != "" {
+		parsedKernelMemory, err := units.RAMInBytes(*flKernelMemory)
+		if err != nil {
+			return nil, nil, cmd, err
+		}
+		KernelMemory = parsedKernelMemory
 	}
 
 	swappiness := *flSwappiness
@@ -320,6 +330,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		LxcConf:          lxcConf,
 		Memory:           flMemory,
 		MemorySwap:       memorySwap,
+		KernelMemory:     KernelMemory,
 		CPUShares:        *flCPUShares,
 		CPUPeriod:        *flCPUPeriod,
 		CpusetCpus:       *flCpusetCpus,

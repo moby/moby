@@ -248,6 +248,7 @@ func populateCommand(c *Container, env []string) error {
 	resources := &execdriver.Resources{
 		Memory:           c.hostConfig.Memory,
 		MemorySwap:       c.hostConfig.MemorySwap,
+		KernelMemory:     c.hostConfig.KernelMemory,
 		CPUShares:        c.hostConfig.CPUShares,
 		CpusetCpus:       c.hostConfig.CpusetCpus,
 		CpusetMems:       c.hostConfig.CpusetMems,

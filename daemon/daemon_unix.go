@@ -156,6 +156,15 @@ func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *runconfig.HostC
 			return warnings, fmt.Errorf("Invalid value: %v, valid memory swappiness range is 0-100.", swappiness)
 		}
 	}
+	if hostConfig.KernelMemory > 0 && !sysInfo.KernelMemory {
+		warnings = append(warnings, "Your kernel does not support kernel memory limit capabilities. Limitation discarded.")
+		logrus.Warnf("Your kernel does not support kernel memory limit capabilities. Limitation discarded.")
+		hostConfig.KernelMemory = 0
+	}
+	if hostConfig.KernelMemory > 0 && !CheckKernelVersion(4, 0, 0) {
+		warnings = append(warnings, "You specified a kernel memory limit on a kernel older than 4.0. Kernel memory limits are experimental on older kernels, it won't work as expected and can cause your system to be unstable.")
+		logrus.Warnf("You specified a kernel memory limit on a kernel older than 4.0. Kernel memory limits are experimental on older kernels, it won't work as expected and can cause your system to be unstable.")
+	}
 	if hostConfig.CPUShares > 0 && !sysInfo.CPUShares {
 		warnings = append(warnings, "Your kernel does not support CPU shares. Shares discarded.")
 		logrus.Warnf("Your kernel does not support CPU shares. Shares discarded.")
