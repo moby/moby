@@ -949,6 +949,7 @@ For example:
 
     ENV DIRPATH /path
     WORKDIR $DIRPATH/$DIRNAME
+    RUN pwd
 
 The output of the final `pwd` command in this `Dockerfile` would be
 `/path/$DIRNAME`
