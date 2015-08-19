@@ -276,10 +276,14 @@ func (graph *Graph) Register(img *image.Image, layerData archive.Reader) (err er
 
 	// Apply the diff/layer
 	if err := graph.storeImage(img, layerData, tmp); err != nil {
+		// Clean-up the created root filesystem if storing the image failed.
+		graph.driver.Remove(img.ID)
 		return err
 	}
 	// Commit
 	if err := os.Rename(tmp, graph.imageRoot(img.ID)); err != nil {
+		// Clean-up the created root filesystem on failure.
+		graph.driver.Remove(img.ID)
 		return err
 	}
 	graph.idIndex.Add(img.ID)
