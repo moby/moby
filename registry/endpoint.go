@@ -111,11 +111,6 @@ func newEndpoint(address string, tlsConfig *tls.Config, metaHeaders http.Header)
 	return endpoint, nil
 }
 
-// GetEndpoint returns a new endpoint with the specified headers
-func (repoInfo *RepositoryInfo) GetEndpoint(metaHeaders http.Header) (*Endpoint, error) {
-	return NewEndpoint(repoInfo.Index, metaHeaders)
-}
-
 // Endpoint stores basic information about a registry endpoint.
 type Endpoint struct {
 	client         *http.Client

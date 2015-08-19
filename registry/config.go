@@ -26,8 +26,6 @@ const (
 	// DefaultRegistryVersionHeader is the name of the default HTTP header
 	// that carries Registry version info
 	DefaultRegistryVersionHeader = "Docker-Distribution-Api-Version"
-	// DefaultV1Registry is the URI of the default v1 registry
-	DefaultV1Registry = "https://index.docker.io"
 
 	// IndexServer is the v1 registry server used for user auth + account creation
 	IndexServer = DefaultV1Registry + "/v1/"
