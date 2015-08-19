@@ -88,6 +88,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		flIpcMode         = cmd.String([]string{"-ipc"}, "", "IPC namespace to use")
 		flRestartPolicy   = cmd.String([]string{"-restart"}, "no", "Restart policy to apply when a container exits")
 		flReadonlyRootfs  = cmd.Bool([]string{"-read-only"}, false, "Mount the container's root filesystem as read only")
+		flPrivateRootfs   = cmd.Bool([]string{"-private"}, true, "Mount the container's root filesystem as private mount")
 		flLoggingDriver   = cmd.String([]string{"-log-driver"}, "", "Logging driver for container")
 		flCgroupParent    = cmd.String([]string{"-cgroup-parent"}, "", "Optional parent cgroup for the container")
 		flVolumeDriver    = cmd.String([]string{"-volume-driver"}, "", "Optional volume driver for the container")
@@ -347,6 +348,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		RestartPolicy:    restartPolicy,
 		SecurityOpt:      flSecurityOpt.GetAll(),
 		ReadonlyRootfs:   *flReadonlyRootfs,
+		PrivateRootfs:    *flPrivateRootfs,
 		Ulimits:          flUlimits.GetList(),
 		LogConfig:        LogConfig{Type: *flLoggingDriver, Config: loggingOpts},
 		CgroupParent:     *flCgroupParent,
