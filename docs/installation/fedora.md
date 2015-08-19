@@ -21,7 +21,7 @@ installation mechanisms. Using these packages ensures you get the latest release
 of Docker. If you wish to install using Fedora-managed packages, consult your
 Fedora release documentation for information on Fedora's Docker support.
 
-##Prerequisites
+## Prerequisites
 
 Docker requires a 64-bit installation regardless of your Fedora version. Also, your kernel must be 3.10 at minimum. To check your current kernel
 version, open a terminal and use `uname -r` to display your kernel version:

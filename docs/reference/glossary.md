@@ -19,6 +19,10 @@ aufs (advanced multi layered unification filesystem) is a Linux [filesystem](#fi
 Docker supports as a storage backend. It implements the
 [union mount](http://en.wikipedia.org/wiki/Union_mount) for Linux file systems.
 
+## Base image
+
+An image that has no parent is a **base image**.
+
 ## boot2docker
 
 [boot2docker](http://boot2docker.io/) is a lightweight Linux distribution made

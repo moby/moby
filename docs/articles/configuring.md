@@ -57,7 +57,7 @@ These options :
 - Set `tls` to true with the server certificate and key specified using `--tlscert` and `--tlskey` respectively
 - Listen for connections on `tcp://192.168.59.3:2376`
 
-The command line reference has the [complete list of daemon flags](/reference/commandline/cli/#daemon)
+The command line reference has the [complete list of daemon flags](/reference/commandline/daemon)
 with explanations.
 
 ## Ubuntu
@@ -114,7 +114,7 @@ These options :
 - Set `tls` to true with the server certificate and key specified using `--tlscert` and `--tlskey` respectively
 - Listen for connections on `tcp://192.168.59.3:2376`
 
-The command line reference has the [complete list of daemon flags](/reference/commandline/cli/#daemon)
+The command line reference has the [complete list of daemon flags](/reference/commandline/daemon)
 with explanations.
 
 
@@ -207,7 +207,7 @@ These options :
 - Set `tls` to true with the server certificate and key specified using `--tlscert` and `--tlskey` respectively
 - Listen for connections on `tcp://192.168.59.3:2376`
 
-The command line reference has the [complete list of daemon flags](/reference/commandline/cli/#daemon)
+The command line reference has the [complete list of daemon flags](/reference/commandline/daemon)
 with explanations.
 
 5. Save and close the file.

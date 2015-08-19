@@ -11,7 +11,7 @@ parent = "smn_images"
 # Create a base image
 
 So you want to create your own [*Base Image*](
-/terms/image/#base-image)? Great!
+/reference/glossary/#base-image)? Great!
 
 The specific process will depend heavily on the Linux distribution you
 want to package. We have some examples below, and you are encouraged to

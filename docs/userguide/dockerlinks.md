@@ -227,11 +227,11 @@ The components in this prefix are:
 Docker uses this prefix format to define three distinct environment variables:
 
 * The `prefix_ADDR` variable contains the IP Address from the URL, for
-example `WEBDB_PORT_8080_TCP_ADDR=172.17.0.82`.
+example `WEBDB_PORT_5432_TCP_ADDR=172.17.0.82`.
 * The `prefix_PORT` variable contains just the port number from the URL for
-example `WEBDB_PORT_8080_TCP_PORT=8080`.
+example `WEBDB_PORT_5432_TCP_PORT=5432`.
 * The `prefix_PROTO` variable contains just the protocol from the URL for
-example `WEBDB_PORT_8080_TCP_PROTO=tcp`.
+example `WEBDB_PORT_5432_TCP_PROTO=tcp`.
 
 If the container exposes multiple ports, an environment variable set is
 defined for each one. This means, for example, if a container exposes 4 ports
@@ -240,7 +240,7 @@ that Docker creates 12 environment variables, 3 for each port.
 Additionally, Docker creates an environment variable called `<alias>_PORT`.
 This variable contains the URL of the source container's first exposed port.
 The  'first' port is defined as the exposed port with the lowest number.
-For example, consider the `WEBDB_PORT=tcp://172.17.0.82:8080` variable.  If
+For example, consider the `WEBDB_PORT=tcp://172.17.0.82:5432` variable.  If
 that port is used for both tcp and udp, then the tcp one is specified.
 
 Finally, Docker also exposes each Docker originated environment variable

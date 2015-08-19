@@ -28,7 +28,7 @@ Docker.
 
 A *data volume* is a specially-designated directory within one or more
 containers that bypasses the [*Union File
-System*](/terms/layer/#union-file-system). Data volumes provide several 
+System*](/reference/glossary#union-file-system). Data volumes provide several 
 useful features for persistent or shared data:
 
 - Volumes are initialized when a container is created. If the container's
@@ -74,16 +74,21 @@ The output will provide details on the container configurations including the
 volumes. The output should look something similar to the following:
 
     ...
-    "Volumes": {
-        "/webapp": "/var/lib/docker/volumes/fac362...80535"
-    },
-    "VolumesRW": {
-        "/webapp": true
-    }
+    Mounts": [
+        {
+            "Name": "fac362...80535",
+            "Source": "/var/lib/docker/volumes/fac362...80535/_data",
+            "Destination": "/webapp",
+            "Driver": "local",
+            "Mode": "",
+            "RW": true
+        }
+    ]
     ...
 
-You will notice in the above 'Volumes' is specifying the location on the host and 
-'VolumesRW' is specifying that the volume is read/write.
+You will notice in the above 'Source' is specifying the location on the host and 
+'Destination' is specifying the volume location inside the container. `RW` shows
+if the volume is read/write.
 
 ### Mount a host directory as a data volume
 
