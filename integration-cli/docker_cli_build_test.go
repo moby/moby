@@ -5461,13 +5461,9 @@ func (s *DockerSuite) TestBuildNullStringInAddCopyVolume(c *check.C) {
 			"nullfile": "test2",
 		},
 	)
-
-	if err != nil {
-		c.Fatal(err)
-	}
 	defer ctx.Close()
+	c.Assert(err, check.IsNil)
 
-	if _, err := buildImageFromContext(name, ctx, true); err != nil {
-		c.Fatal(err)
-	}
+	_, err = buildImageFromContext(name, ctx, true)
+	c.Assert(err, check.IsNil)
 }
