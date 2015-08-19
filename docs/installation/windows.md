@@ -346,7 +346,7 @@ uses. You can do this with
 [puttygen](http://www.chiark.greenend.org.uk/~sgtatham/putty/download.html):
 
 1. Open `puttygen.exe` and load ("File"->"Load" menu) the private key from
-  `%USERPROFILE%.docker\machine\machines<name_of_your_machine>`
+  `%USERPROFILE%\.docker\machine\machines\<name_of_your_machine>\`
 
 2. Click "Save Private Key".
 
