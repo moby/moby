@@ -96,7 +96,7 @@ environment.
 
 1. Open a terminal.
 
-    Mac users, use `docker-machine status` to make sure your VM is running. You
+    Mac users, use `docker-machine status your_vm_name` to make sure your VM is running. You
     may need to run `eval "$(docker-machine env your_vm_name)"` to initialize your
     shell environment.
 
@@ -193,7 +193,7 @@ environment.
     Keeping the ancestor images improves the build performance. When you rebuild
     the child image, the build process uses the local ancestors rather than
     retrieving them from the Hub. The build process gets new ancestors only if
-    DockerHub has updated versions.
+    Docker Hub has updated versions.
 
 ## Start a container and run a test
 
