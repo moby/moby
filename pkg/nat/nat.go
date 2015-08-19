@@ -34,17 +34,20 @@ type PortSet map[Port]struct{}
 // Port is a string containing port number and protocol in the format "80/tcp"
 type Port string
 
-// NewPort creates a new instance of a Port given a protocol and port number
+// NewPort creates a new instance of a Port given a protocol and port number or port range
 func NewPort(proto, port string) (Port, error) {
 	// Check for parsing issues on "port" now so we can avoid having
 	// to check it later on.
 
-	portInt, err := ParsePort(port)
+	portStartInt, portEndInt, err := ParsePortRange(port)
 	if err != nil {
 		return "", err
 	}
 
-	return Port(fmt.Sprintf("%d/%s", portInt, proto)), nil
+	if portStartInt == portEndInt {
+		return Port(fmt.Sprintf("%d/%s", portStartInt, proto)), nil
+	}
+	return Port(fmt.Sprintf("%d-%d/%s", portStartInt, portEndInt, proto)), nil
 }
 
 // ParsePort parses the port number string and returns an int
@@ -57,6 +60,18 @@ func ParsePort(rawPort string) (int, error) {
 		return 0, err
 	}
 	return int(port), nil
+}
+
+// ParsePortRange parses the port range string and returns start/end ints
+func ParsePortRange(rawPort string) (int, int, error) {
+	if len(rawPort) == 0 {
+		return 0, 0, nil
+	}
+	start, end, err := parsers.ParsePortRange(rawPort)
+	if err != nil {
+		return 0, 0, err
+	}
+	return int(start), int(end), nil
 }
 
 // Proto returns the protocol of a Port
@@ -82,6 +97,11 @@ func (p Port) Int() int {
 	// assume that any error would have been found, and reported, in NewPort()
 	port, _ := strconv.ParseUint(portStr, 10, 16)
 	return int(port)
+}
+
+// Range returns the start/end port numbers of a Port range as ints
+func (p Port) Range() (int, int, error) {
+	return ParsePortRange(p.Port())
 }
 
 // SplitProtoPort splits a port in the format of proto/port
@@ -162,7 +182,12 @@ func ParsePortSpecs(ports []string) (map[Port]struct{}, map[Port][]PortBinding, 
 		}
 
 		if hostPort != "" && (endPort-startPort) != (endHostPort-startHostPort) {
-			return nil, nil, fmt.Errorf("Invalid ranges specified for container and host Ports: %s and %s", containerPort, hostPort)
+			// Allow host port range iff containerPort is not a range.
+			// In this case, use the host port range as the dynamic
+			// host port range to allocate into.
+			if endPort != startPort {
+				return nil, nil, fmt.Errorf("Invalid ranges specified for container and host Ports: %s and %s", containerPort, hostPort)
+			}
 		}
 
 		if !validateProto(strings.ToLower(proto)) {
@@ -173,6 +198,11 @@ func ParsePortSpecs(ports []string) (map[Port]struct{}, map[Port][]PortBinding, 
 			containerPort = strconv.FormatUint(startPort+i, 10)
 			if len(hostPort) > 0 {
 				hostPort = strconv.FormatUint(startHostPort+i, 10)
+			}
+			// Set hostPort to a range only if there is a single container port
+			// and a dynamic host port.
+			if startPort == endPort && startHostPort != endHostPort {
+				hostPort = fmt.Sprintf("%s-%s", hostPort, strconv.FormatUint(endHostPort, 10))
 			}
 			port, err := NewPort(strings.ToLower(proto), containerPort)
 			if err != nil {

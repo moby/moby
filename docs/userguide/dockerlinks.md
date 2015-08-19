@@ -50,6 +50,14 @@ container:
 And you saw why this isn't such a great idea because it constrains you to
 only one container on that specific port.
 
+Instead, you may specify a range of host ports to bind a container port to
+that is different than the default *ephemeral port range*:
+
+    $ docker run -d -p 8000-9000:5000 training/webapp python app.py
+
+This would bind port 5000 in the container to a randomly available port
+between 8000 and 9000 on the host.
+
 There are also a few other ways you can configure the `-p` flag. By
 default the `-p` flag will bind the specified port to all interfaces on
 the host machine. But you can also specify a binding to a specific

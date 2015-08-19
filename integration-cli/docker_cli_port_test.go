@@ -78,6 +78,81 @@ func (s *DockerSuite) TestPortList(c *check.C) {
 	}
 	dockerCmd(c, "rm", "-f", ID)
 
+	testRange := func() {
+		// host port ranges used
+		IDs := make([]string, 3)
+		for i := 0; i < 3; i++ {
+			out, _ = dockerCmd(c, "run", "-d",
+				"-p", "9090-9092:80",
+				"busybox", "top")
+			IDs[i] = strings.TrimSpace(out)
+
+			out, _ = dockerCmd(c, "port", IDs[i])
+
+			if !assertPortList(c, out, []string{
+				fmt.Sprintf("80/tcp -> 0.0.0.0:%d", 9090+i)}) {
+				c.Error("Port list is not correct\n", out)
+			}
+		}
+
+		// test port range exhaustion
+		out, _, err := dockerCmdWithError("run", "-d",
+			"-p", "9090-9092:80",
+			"busybox", "top")
+		if err == nil {
+			c.Errorf("Exhausted port range did not return an error.  Out: %s", out)
+		}
+
+		for i := 0; i < 3; i++ {
+			dockerCmd(c, "rm", "-f", IDs[i])
+		}
+	}
+	testRange()
+	// Verify we ran re-use port ranges after they are no longer in use.
+	testRange()
+
+	// test invalid port ranges
+	for _, invalidRange := range []string{"9090-9089:80", "9090-:80", "-9090:80"} {
+		out, _, err := dockerCmdWithError("run", "-d",
+			"-p", invalidRange,
+			"busybox", "top")
+		if err == nil {
+			c.Errorf("Port range should have returned an error.  Out: %s", out)
+		}
+	}
+
+	// test host range:container range spec.
+	out, _ = dockerCmd(c, "run", "-d",
+		"-p", "9800-9803:80-83",
+		"busybox", "top")
+	ID = strings.TrimSpace(out)
+
+	out, _ = dockerCmd(c, "port", ID)
+
+	if !assertPortList(c, out, []string{
+		"80/tcp -> 0.0.0.0:9800",
+		"81/tcp -> 0.0.0.0:9801",
+		"82/tcp -> 0.0.0.0:9802",
+		"83/tcp -> 0.0.0.0:9803"}) {
+		c.Error("Port list is not correct\n", out)
+	}
+	dockerCmd(c, "rm", "-f", ID)
+
+	// test mixing protocols in same port range
+	out, _ = dockerCmd(c, "run", "-d",
+		"-p", "8000-8080:80",
+		"-p", "8000-8080:80/udp",
+		"busybox", "top")
+	ID = strings.TrimSpace(out)
+
+	out, _ = dockerCmd(c, "port", ID)
+
+	if !assertPortList(c, out, []string{
+		"80/tcp -> 0.0.0.0:8000",
+		"80/udp -> 0.0.0.0:8000"}) {
+		c.Error("Port list is not correct\n", out)
+	}
+	dockerCmd(c, "rm", "-f", ID)
 }
 
 func assertPortList(c *check.C, out string, expected []string) bool {
