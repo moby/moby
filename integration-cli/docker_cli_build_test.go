@@ -5444,3 +5444,26 @@ func (s *DockerTrustSuite) TestBuildContextDirIsSymlink(c *check.C) {
 		c.Fatalf("build failed with exit status %d: %s", exitStatus, out)
 	}
 }
+
+// Issue #15634: COPY fails when path starts with "null"
+func (s *DockerSuite) TestBuildNullStringInAddCopyVolume(c *check.C) {
+	name := "testbuildnullstringinaddcopyvolume"
+
+	ctx, err := fakeContext(`
+		FROM busybox
+		
+		ADD null /
+		COPY nullfile /
+		VOLUME nullvolume
+		`,
+		map[string]string{
+			"null":     "test1",
+			"nullfile": "test2",
+		},
+	)
+	defer ctx.Close()
+	c.Assert(err, check.IsNil)
+
+	_, err = buildImageFromContext(name, ctx, true)
+	c.Assert(err, check.IsNil)
+}

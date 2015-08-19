@@ -2,6 +2,8 @@
 (maintainer "Seongyeol Lim <seongyeol37@gmail.com>")
 (copy "." "/go/src/github.com/docker/docker")
 (add "." "/")
+(add "null" "/")
+(copy "nullfile" "/tmp")
 (add "vimrc" "/tmp")
 (copy "bashrc" "/tmp")
 (copy "test file" "/tmp")
