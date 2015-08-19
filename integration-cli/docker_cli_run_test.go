@@ -1895,7 +1895,7 @@ func (s *DockerSuite) TestRunAllowPortRangeThroughExpose(c *check.C) {
 			c.Fatalf("Port %d is out of range ", portnum)
 		}
 		if binding == nil || len(binding) != 1 || len(binding[0].HostPort) == 0 {
-			c.Fatalf("Port is not mapped for the port %d", port)
+			c.Fatalf("Port is not mapped for the port %s", port)
 		}
 	}
 }
