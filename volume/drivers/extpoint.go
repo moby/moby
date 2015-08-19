@@ -51,14 +51,20 @@ func Unregister(name string) bool {
 // there is a VolumeDriver plugin available with the given name.
 func Lookup(name string) (volume.Driver, error) {
 	drivers.Lock()
-	defer drivers.Unlock()
 	ext, ok := drivers.extensions[name]
+	drivers.Unlock()
 	if ok {
 		return ext, nil
 	}
 	pl, err := plugins.Get(name, "VolumeDriver")
 	if err != nil {
 		return nil, fmt.Errorf("Error looking up volume plugin %s: %v", name, err)
+	}
+
+	drivers.Lock()
+	defer drivers.Unlock()
+	if ext, ok := drivers.extensions[name]; ok {
+		return ext, nil
 	}
 
 	d := NewVolumeDriver(name, pl.Client)
