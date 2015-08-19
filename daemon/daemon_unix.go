@@ -63,6 +63,17 @@ func parseSecurityOpt(container *Container, config *runconfig.HostConfig) error 
 	return err
 }
 
+func CheckKernelVersion(k, major, minor int) bool {
+	if v, err := kernel.GetKernelVersion(); err != nil {
+		logrus.Warnf("%s", err)
+	} else {
+		if kernel.CompareKernelVersion(*v, kernel.VersionInfo{Kernel: k, Major: major, Minor: minor}) < 0 {
+			return false
+		}
+	}
+	return true
+}
+
 func checkKernel() error {
 	// Check for unsupported kernel versions
 	// FIXME: it would be cleaner to not test for specific versions, but rather
@@ -71,13 +82,10 @@ func checkKernel() error {
 	// without actually causing a kernel panic, so we need this workaround until
 	// the circumstances of pre-3.10 crashes are clearer.
 	// For details see https://github.com/docker/docker/issues/407
-	if k, err := kernel.GetKernelVersion(); err != nil {
-		logrus.Warnf("%s", err)
-	} else {
-		if kernel.CompareKernelVersion(*k, kernel.VersionInfo{Kernel: 3, Major: 10, Minor: 0}) < 0 {
-			if os.Getenv("DOCKER_NOWARN_KERNEL_VERSION") == "" {
-				logrus.Warnf("You are running linux kernel version %s, which might be unstable running docker. Please upgrade your kernel to 3.10.0.", k.String())
-			}
+	if !CheckKernelVersion(3, 10, 0) {
+		v, _ := kernel.GetKernelVersion()
+		if os.Getenv("DOCKER_NOWARN_KERNEL_VERSION") == "" {
+			logrus.Warnf("Your Linux kernel version %s can be unstable running docker. Please upgrade your kernel to 3.10.0.", v.String())
 		}
 	}
 	return nil
