@@ -122,7 +122,7 @@ func (s *DockerSuite) TestCreateWithPortRange(c *check.C) {
 			c.Fatalf("Expected 1 ports binding, for the port  %s but found %s", k, v)
 		}
 		if k.Port() != v[0].HostPort {
-			c.Fatalf("Expected host port %d to match published port  %d", k.Port(), v[0].HostPort)
+			c.Fatalf("Expected host port %s to match published port %s", k.Port(), v[0].HostPort)
 		}
 	}
 
@@ -161,7 +161,7 @@ func (s *DockerSuite) TestCreateWithiLargePortRange(c *check.C) {
 			c.Fatalf("Expected 1 ports binding, for the port  %s but found %s", k, v)
 		}
 		if k.Port() != v[0].HostPort {
-			c.Fatalf("Expected host port %d to match published port  %d", k.Port(), v[0].HostPort)
+			c.Fatalf("Expected host port %s to match published port %s", k.Port(), v[0].HostPort)
 		}
 	}
 
