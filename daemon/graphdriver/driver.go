@@ -11,22 +11,29 @@ import (
 	"github.com/docker/docker/pkg/archive"
 )
 
+// FsMagic unsigned id of the filesystem in use.
 type FsMagic uint32
 
 const (
+	// FsMagicUnsupported is a predifined contant value other than a valid filesystem id.
 	FsMagicUnsupported = FsMagic(0x00000000)
 )
 
 var (
+	// DefaultDriver if a storage driver is not specified.
 	DefaultDriver string
 	// All registred drivers
 	drivers map[string]InitFunc
 
-	ErrNotSupported   = errors.New("driver not supported")
-	ErrPrerequisites  = errors.New("prerequisites for driver not satisfied (wrong filesystem?)")
+	// ErrNotSupported returned when driver is not supported.
+	ErrNotSupported = errors.New("driver not supported")
+	// ErrPrerequisites retuned when driver does not meet prerequisites.
+	ErrPrerequisites = errors.New("prerequisites for driver not satisfied (wrong filesystem?)")
+	// ErrIncompatibleFS returned when file system is not supported.
 	ErrIncompatibleFS = fmt.Errorf("backing file system is unsupported for this graph driver")
 )
 
+// InitFunc initializes the storage driver.
 type InitFunc func(root string, options []string) (Driver, error)
 
 // ProtoDriver defines the basic capabilities of a driver.
@@ -89,6 +96,7 @@ func init() {
 	drivers = make(map[string]InitFunc)
 }
 
+// Register registers a InitFunc for the driver.
 func Register(name string, initFunc InitFunc) error {
 	if _, exists := drivers[name]; exists {
 		return fmt.Errorf("Name already registered %s", name)
@@ -98,6 +106,7 @@ func Register(name string, initFunc InitFunc) error {
 	return nil
 }
 
+// GetDriver initializes and returns the registered driver
 func GetDriver(name, home string, options []string) (Driver, error) {
 	if initFunc, exists := drivers[name]; exists {
 		return initFunc(filepath.Join(home, name), options)
@@ -106,6 +115,7 @@ func GetDriver(name, home string, options []string) (Driver, error) {
 	return nil, ErrNotSupported
 }
 
+// New creates the driver and initializes it at the specified root.
 func New(root string, options []string) (driver Driver, err error) {
 	for _, name := range []string{os.Getenv("DOCKER_DRIVER"), DefaultDriver} {
 		if name != "" {
@@ -192,7 +202,7 @@ func checkPriorDriver(name, root string) error {
 
 	if len(priorDrivers) > 0 {
 
-		return errors.New(fmt.Sprintf("%q contains other graphdrivers: %s; Please cleanup or explicitly choose storage driver (-s <DRIVER>)", root, strings.Join(priorDrivers, ",")))
+		return fmt.Errorf("%q contains other graphdrivers: %s; Please cleanup or explicitly choose storage driver (-s <DRIVER>)", root, strings.Join(priorDrivers, ","))
 	}
 	return nil
 }
