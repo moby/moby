@@ -211,9 +211,9 @@ func calculateBlockIO(blkio types.BlkioStats) (blkRead uint64, blkWrite uint64) 
 	for _, bioEntry := range blkio.IoServiceBytesRecursive {
 		switch strings.ToLower(bioEntry.Op) {
 		case "read":
-			blkRead = bioEntry.Value
+			blkRead = blkRead + bioEntry.Value
 		case "write":
-			blkWrite = bioEntry.Value
+			blkWrite = blkWrite + bioEntry.Value
 		}
 	}
 	return
