@@ -199,7 +199,7 @@ func (graph *Graph) Get(name string) (*image.Image, error) {
 }
 
 // Create creates a new image and registers it in the graph.
-func (graph *Graph) Create(layerData archive.Reader, containerID, containerImage, comment, author string, containerConfig, config *runconfig.Config) (*image.Image, error) {
+func (graph *Graph) Create(layerData io.Reader, containerID, containerImage, comment, author string, containerConfig, config *runconfig.Config) (*image.Image, error) {
 	img := &image.Image{
 		ID:            stringid.GenerateRandomID(),
 		Comment:       comment,
@@ -224,7 +224,7 @@ func (graph *Graph) Create(layerData archive.Reader, containerID, containerImage
 }
 
 // Register imports a pre-existing image into the graph.
-func (graph *Graph) Register(img *image.Image, layerData archive.Reader) (err error) {
+func (graph *Graph) Register(img *image.Image, layerData io.Reader) (err error) {
 
 	if err := image.ValidateID(img.ID); err != nil {
 		return err
@@ -286,7 +286,7 @@ func (graph *Graph) Register(img *image.Image, layerData archive.Reader) (err er
 	return nil
 }
 
-func createRootFilesystemInDriver(graph *Graph, img *image.Image, layerData archive.Reader) error {
+func createRootFilesystemInDriver(graph *Graph, img *image.Image, layerData io.Reader) error {
 	if err := graph.driver.Create(img.ID, img.Parent); err != nil {
 		return fmt.Errorf("Driver %s failed to create image rootfs %s: %s", graph.driver, img.ID, err)
 	}
@@ -451,7 +451,7 @@ func (graph *Graph) Heads() map[string]*image.Image {
 }
 
 // TarLayer returns a tar archive of the image's filesystem layer.
-func (graph *Graph) TarLayer(img *image.Image) (arch archive.Archive, err error) {
+func (graph *Graph) TarLayer(img *image.Image) (arch io.ReadCloser, err error) {
 	rdr, err := graph.assembleTarLayer(img)
 	if err != nil {
 		logrus.Debugf("[graph] TarLayer with traditional differ: %s", img.ID)
@@ -556,7 +556,7 @@ func jsonPath(root string) string {
 // storeImage stores file system layer data for the given image to the
 // graph's storage driver. Image metadata is stored in a file
 // at the specified root directory.
-func (graph *Graph) storeImage(img *image.Image, layerData archive.Reader, root string) (err error) {
+func (graph *Graph) storeImage(img *image.Image, layerData io.Reader, root string) (err error) {
 	// Store the layer. If layerData is not nil, unpack it into the new layer
 	if layerData != nil {
 		if err := graph.disassembleAndApplyTarLayer(img, layerData, root); err != nil {
@@ -578,8 +578,8 @@ func (graph *Graph) storeImage(img *image.Image, layerData archive.Reader, root 
 	return json.NewEncoder(f).Encode(img)
 }
 
-func (graph *Graph) disassembleAndApplyTarLayer(img *image.Image, layerData archive.Reader, root string) (err error) {
-	var ar archive.Reader
+func (graph *Graph) disassembleAndApplyTarLayer(img *image.Image, layerData io.Reader, root string) (err error) {
+	var ar io.Reader
 
 	if graph.tarSplitDisabled {
 		ar = layerData
@@ -617,7 +617,7 @@ func (graph *Graph) disassembleAndApplyTarLayer(img *image.Image, layerData arch
 	return nil
 }
 
-func (graph *Graph) assembleTarLayer(img *image.Image) (archive.Archive, error) {
+func (graph *Graph) assembleTarLayer(img *image.Image) (io.ReadCloser, error) {
 	root := graph.imageRoot(img.ID)
 	mFileName := filepath.Join(root, tarDataFileName)
 	mf, err := os.Open(mFileName)
