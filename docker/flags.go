@@ -26,6 +26,7 @@ var dockerCommands = []command{
 	{"commit", "Create a new image from a container's changes"},
 	{"cp", "Copy files/folders from a container to a HOSTDIR or to STDOUT"},
 	{"create", "Create a new container"},
+	{"daemon", "Enable daemon mode"},
 	{"diff", "Inspect changes on a container's filesystem"},
 	{"events", "Get real time events from the server"},
 	{"exec", "Run a command in a running container"},
