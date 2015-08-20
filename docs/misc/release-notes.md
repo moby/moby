@@ -102,7 +102,7 @@ here](https://docs.docker.com/registry/spec/api/).
 
 For a complete list of compose patches, fixes, and other improvements, see the
 [changelog in the project
-repository](https://github.com/docker/compose/blob/master/CHANGES.md). The
+repository](https://github.com/docker/compose/blob/1.2.0/CHANGES.md). The
 project also makes a [set of release
 notes](https://github.com/docker/compose/releases/tag/1.2.0) on the project.
 
