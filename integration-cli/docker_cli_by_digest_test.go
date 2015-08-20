@@ -387,6 +387,43 @@ func (s *DockerRegistrySuite) TestListImagesWithDigests(c *check.C) {
 	}
 }
 
+func (s *DockerRegistrySuite) TestPsListContainersFilterAncestorImageByDigest(c *check.C) {
+	digest, err := setupImage(c)
+	c.Assert(err, check.IsNil, check.Commentf("error setting up image: %v", err))
+
+	imageReference := fmt.Sprintf("%s@%s", repoName, digest)
+
+	// pull from the registry using the <name>@<digest> reference
+	dockerCmd(c, "pull", imageReference)
+
+	// build a image from it
+	imageName1 := "images_ps_filter_test"
+	_, err = buildImage(imageName1, fmt.Sprintf(
+		`FROM %s
+		 LABEL match me 1`, imageReference), true)
+	c.Assert(err, check.IsNil)
+
+	// run a container based on that
+	out, _ := dockerCmd(c, "run", "-d", imageReference, "echo", "hello")
+	expectedID := strings.TrimSpace(out)
+
+	// run a container based on the a descendant of that too
+	out, _ = dockerCmd(c, "run", "-d", imageName1, "echo", "hello")
+	expectedID1 := strings.TrimSpace(out)
+
+	expectedIDs := []string{expectedID, expectedID1}
+
+	// Invalid imageReference
+	out, _ = dockerCmd(c, "ps", "-a", "-q", "--no-trunc", fmt.Sprintf("--filter=ancestor=busybox@%s", digest))
+	if strings.TrimSpace(out) != "" {
+		c.Fatalf("Expected filter container for %s ancestor filter to be empty, got %v", fmt.Sprintf("busybox@%s", digest), strings.TrimSpace(out))
+	}
+
+	// Valid imageReference
+	out, _ = dockerCmd(c, "ps", "-a", "-q", "--no-trunc", "--filter=ancestor="+imageReference)
+	checkPsAncestorFilterOutput(c, out, imageReference, expectedIDs)
+}
+
 func (s *DockerRegistrySuite) TestDeleteImageByIDOnlyPulledByDigest(c *check.C) {
 	pushDigest, err := setupImage(c)
 	if err != nil {
