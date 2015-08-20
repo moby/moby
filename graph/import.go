@@ -16,7 +16,7 @@ import (
 // inConfig (if src is "-"), or from a URI specified in src. Progress output is
 // written to outStream. Repository and tag names can optionally be given in
 // the repo and tag arguments, respectively.
-func (s *TagStore) Import(src string, repo string, tag string, inConfig io.ReadCloser, outStream io.Writer, containerConfig *runconfig.Config) error {
+func (s *TagStore) Import(src string, repo string, tag string, msg string, inConfig io.ReadCloser, outStream io.Writer, containerConfig *runconfig.Config) error {
 	var (
 		sf      = streamformatter.NewJSONStreamFormatter()
 		archive io.ReadCloser
@@ -54,7 +54,11 @@ func (s *TagStore) Import(src string, repo string, tag string, inConfig io.ReadC
 	}
 
 	defer archive.Close()
-	img, err := s.graph.Create(archive, "", "", "Imported from "+src, "", nil, containerConfig)
+	if len(msg) == 0 {
+		msg = "Imported from " + src
+	}
+
+	img, err := s.graph.Create(archive, "", "", msg, "", nil, containerConfig)
 	if err != nil {
 		return err
 	}

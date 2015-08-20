@@ -70,9 +70,10 @@ func (s *Server) postImagesCreate(version version.Version, w http.ResponseWriter
 	}
 
 	var (
-		image = r.Form.Get("fromImage")
-		repo  = r.Form.Get("repo")
-		tag   = r.Form.Get("tag")
+		image   = r.Form.Get("fromImage")
+		repo    = r.Form.Get("repo")
+		tag     = r.Form.Get("tag")
+		message = r.Form.Get("message")
 	)
 	authEncoded := r.Header.Get("X-Registry-Auth")
 	authConfig := &cliconfig.AuthConfig{}
@@ -126,7 +127,7 @@ func (s *Server) postImagesCreate(version version.Version, w http.ResponseWriter
 			return err
 		}
 
-		err = s.daemon.Repositories().Import(src, repo, tag, r.Body, output, newConfig)
+		err = s.daemon.Repositories().Import(src, repo, tag, message, r.Body, output, newConfig)
 	}
 	if err != nil {
 		if !output.Flushed() {
