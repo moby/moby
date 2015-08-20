@@ -387,3 +387,67 @@ func (s *DockerAuthnSuite) TestBasicAuthnBadHTPASSWD2(c *check.C) {
 	c.Assert(err, check.ErrorMatches, "exit status 1")
 	c.Assert(strings.Contains(out, "Failed to authenticate to docker daemon"), check.Equals, true, check.Commentf("actual output is: %s", out))
 }
+
+func (s *DockerAuthnSuite) TestExternalUnixAuthnGood1(c *check.C) {
+	s.krb5.Start(c)
+	setUpBasicPrincipals(c, s.krb5)
+	defer tearDownBasicPrincipals(c, s.krb5)
+	s.basic.Start(c)
+
+	if err := s.ds.d.Start("-H", s.daemonAddr, "-a", "--authn-opt", "local-auth=true"); err != nil {
+		c.Fatalf("Could not start daemon: %v", err)
+	}
+	out, err := s.ds.d.Cmd("-D", "info")
+	if err != nil {
+		c.Fatalf("Error Occurred: %v and output: %s", err, out)
+	}
+}
+
+func (s *DockerAuthnSuite) TestExternalUnixAuthnGood2(c *check.C) {
+	s.krb5.Start(c)
+	setUpNegotiatePrincipals(c, s.krb5)
+	defer tearDownNegotiatePrincipals(c, s.krb5)
+	s.basic.Start(c)
+
+	if err := s.ds.d.Start("-H", s.daemonAddr, "-a", "--authn-opt", "local-auth=true"); err != nil {
+		c.Fatalf("Could not start daemon: %v", err)
+	}
+	out, err := s.ds.d.Cmd("-D", "info")
+	if err != nil {
+		c.Fatalf("Error Occurred: %v and output: %s", err, out)
+	}
+}
+
+func (s *DockerAuthnSuite) TestExternalUnixAuthnBad1(c *check.C) {
+	s.krb5.Start(c)
+	setUpBasicPrincipals(c, s.krb5)
+	defer tearDownBasicPrincipals(c, s.krb5)
+	s.basic.Start(c)
+
+	if err := s.ds.d.Start("-H", s.daemonAddr, "-a", "--authn-opt", "local-auth=true"); err != nil {
+		c.Fatalf("Could not start daemon: %v", err)
+	}
+	//force tcp protocol, so Unix auth can't work
+	host := fmt.Sprintf("tcp://%s", s.daemonAddr)
+	daemonArgs := []string{"--host", host}
+	out, err := s.ds.d.CmdWithArgs(daemonArgs, "-D", "info")
+	c.Assert(err, check.ErrorMatches, "exit status 1")
+	c.Assert(strings.Contains(out, "Unable to attempt to authenticate to docker daemon"), check.Equals, true, check.Commentf("actual output is: %s", out))
+}
+
+func (s *DockerAuthnSuite) TestExternalUnixAuthnBad2(c *check.C) {
+	s.krb5.Start(c)
+	setUpNegotiatePrincipals(c, s.krb5)
+	defer tearDownNegotiatePrincipals(c, s.krb5)
+	s.basic.Start(c)
+
+	if err := s.ds.d.Start("-H", s.daemonAddr, "-a", "--authn-opt", "local-auth=true"); err != nil {
+		c.Fatalf("Could not start daemon: %v", err)
+	}
+	//force tcp protocol, so Unix auth can't work
+	host := fmt.Sprintf("tcp://%s", s.daemonAddr)
+	daemonArgs := []string{"--host", host}
+	out, err := s.ds.d.CmdWithArgs(daemonArgs, "-D", "info")
+	c.Assert(err, check.ErrorMatches, "exit status 1")
+	c.Assert(strings.Contains(out, "Unable to attempt to authenticate to docker daemon"), check.Equals, true, check.Commentf("actual output is: %s", out))
+}
