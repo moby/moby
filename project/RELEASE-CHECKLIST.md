@@ -341,7 +341,7 @@ docker run \
        hack/release.sh
 ```
 
-### 12. Apply tag
+### 12. Apply tag and create release
 
 It's very important that we don't make the tag until after the official
 release is uploaded to get.docker.com!
@@ -351,6 +351,15 @@ git tag -a $VERSION -m $VERSION bump_$VERSION
 git push origin $VERSION
 ```
 
+Once the tag is pushed, go to GitHub and create a [new release](https://github.com/docker/docker/releases/new).
+If the tag is for an RC make sure you check `This is a pre-release` at the bottom of the form.
+
+Select the tag that you just pushed as the version and paste the changelog in the description of the release.
+You can see examples in this two links:
+
+https://github.com/docker/docker/releases/tag/v1.8.0
+https://github.com/docker/docker/releases/tag/v1.8.0-rc3
+
 ### 13. Go to github to merge the `bump_$VERSION` branch into release
 
 Don't forget to push that pretty blue button to delete the leftover
@@ -358,25 +367,12 @@ branch afterwards!
 
 ### 14. Update the docs branch
 
-If this is a MAJOR.MINOR.0 release, you need to make an branch for the previous release's
-documentation:
+You will need to point the docs branch to the newly created release tag:
 
 ```bash
-git checkout -b docs-$PREVIOUS_MAJOR_MINOR
-git fetch
-git reset --hard origin/docs
-git push -f origin docs-$PREVIOUS_MAJOR_MINOR
-```
-
-You will need the `awsconfig` file added to the `docs/` directory to contain the
-s3 credentials for the bucket you are deploying to.
-
-```bash
-git checkout -b docs release || git checkout docs
-git fetch
-git reset --hard origin/release
+git checkout origin/docs
+git reset --hard origin/$VERSION
 git push -f origin docs
-make AWS_S3_BUCKET=docs.docker.com BUILD_ROOT=yes DISTRIBUTION_ID=C2K6......FL2F docs-release
 ```
 
 The docs will appear on https://docs.docker.com/ (though there may be cached
@@ -386,7 +382,7 @@ For more information about documentation releases, see `docs/README.md`.
 Note that the new docs will not appear live on the site until the cache (a complex,
 distributed CDN system) is flushed. The `make docs-release` command will do this
 _if_ the `DISTRIBUTION_ID` is set correctly - this will take at least 15 minutes to run
-and you can check its progress with the CDN Cloudfront Chrome addin.
+and you can check its progress with the CDN Cloudfront Chrome addon.
 
 ### 15. Create a new pull request to merge your bump commit back into master
 
