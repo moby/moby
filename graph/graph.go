@@ -224,6 +224,7 @@ func (graph *Graph) Create(layerData io.Reader, containerID, containerImage, com
 }
 
 // Register imports a pre-existing image into the graph.
+// Returns nil if the image is already registered.
 func (graph *Graph) Register(img *image.Image, layerData io.Reader) (err error) {
 
 	if err := image.ValidateID(img.ID); err != nil {
@@ -235,6 +236,11 @@ func (graph *Graph) Register(img *image.Image, layerData io.Reader) (err error) 
 	graph.imageMutex.Lock(img.ID)
 	defer graph.imageMutex.Unlock(img.ID)
 
+	// Skip register if image is already registered
+	if graph.Exists(img.ID) {
+		return nil
+	}
+
 	// The returned `error` must be named in this function's signature so that
 	// `err` is not shadowed in this deferred cleanup.
 	defer func() {
@@ -244,11 +250,6 @@ func (graph *Graph) Register(img *image.Image, layerData io.Reader) (err error) 
 			graph.driver.Remove(img.ID)
 		}
 	}()
-
-	// (This is a convenience to save time. Race conditions are taken care of by os.Rename)
-	if graph.Exists(img.ID) {
-		return fmt.Errorf("Image %s already exists", img.ID)
-	}
 
 	// Ensure that the image root does not exist on the filesystem
 	// when it is not registered in the graph.
@@ -517,6 +518,9 @@ func (graph *Graph) saveSize(root string, size int64) error {
 
 // SetDigest sets the digest for the image layer to the provided value.
 func (graph *Graph) SetDigest(id string, dgst digest.Digest) error {
+	graph.imageMutex.Lock(id)
+	defer graph.imageMutex.Unlock(id)
+
 	root := graph.imageRoot(id)
 	if err := ioutil.WriteFile(filepath.Join(root, digestFileName), []byte(dgst.String()), 0600); err != nil {
 		return fmt.Errorf("Error storing digest in %s/%s: %s", root, digestFileName, err)
@@ -526,6 +530,9 @@ func (graph *Graph) SetDigest(id string, dgst digest.Digest) error {
 
 // GetDigest gets the digest for the provide image layer id.
 func (graph *Graph) GetDigest(id string) (digest.Digest, error) {
+	graph.imageMutex.Lock(id)
+	defer graph.imageMutex.Unlock(id)
+
 	root := graph.imageRoot(id)
 	cs, err := ioutil.ReadFile(filepath.Join(root, digestFileName))
 	if err != nil {
