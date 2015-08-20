@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"sync"
 	"testing"
+
+	"github.com/docker/docker/api/types"
 )
 
 func TestDisplay(t *testing.T) {
@@ -27,5 +29,18 @@ func TestDisplay(t *testing.T) {
 	want := "app\t30.00%\t104.9 MB / 2.147 GB\t4.88%\t104.9 MB / 838.9 MB\t104.9 MB / 838.9 MB\n"
 	if got != want {
 		t.Fatalf("c.Display() = %q, want %q", got, want)
+	}
+}
+
+func TestCalculBlockIO(t *testing.T) {
+	blkio := types.BlkioStats{
+		IoServiceBytesRecursive: []types.BlkioStatEntry{{8, 0, "read", 1234}, {8, 1, "read", 4567}, {8, 0, "write", 123}, {8, 1, "write", 456}},
+	}
+	blkRead, blkWrite := calculateBlockIO(blkio)
+	if blkRead != 5801 {
+		t.Fatalf("blkRead = %d, want 5801", blkRead)
+	}
+	if blkWrite != 579 {
+		t.Fatalf("blkWrite = %d, want 579", blkWrite)
 	}
 }
