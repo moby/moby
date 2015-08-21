@@ -67,6 +67,7 @@ import (
 	"strings"
 
 	"github.com/docker/libkv/store"
+	"github.com/docker/libkv/store/boltdb"
 	"github.com/docker/libkv/store/consul"
 	"github.com/docker/libkv/store/etcd"
 	"github.com/docker/libkv/store/zookeeper"
@@ -81,6 +82,7 @@ var (
 		store.CONSUL: consul.New,
 		store.ETCD:   etcd.New,
 		store.ZK:     zookeeper.New,
+		store.BOLTDB: boltdb.New,
 	}
 	supportedBackend = func() string {
 		keys := make([]string, 0, len(initializers))
