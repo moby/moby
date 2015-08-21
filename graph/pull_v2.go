@@ -141,9 +141,9 @@ func (p *v2Puller) download(di *downloadInfo) {
 	}
 	di.tmpFile = tmpFile
 
-	blobs := p.repo.Blobs(nil)
+	blobs := p.repo.Blobs(context.Background())
 
-	desc, err := blobs.Stat(nil, di.digest)
+	desc, err := blobs.Stat(context.Background(), di.digest)
 	if err != nil {
 		logrus.Debugf("Error statting layer: %v", err)
 		di.err <- err
@@ -151,7 +151,7 @@ func (p *v2Puller) download(di *downloadInfo) {
 	}
 	di.size = desc.Size
 
-	layerDownload, err := blobs.Open(nil, di.digest)
+	layerDownload, err := blobs.Open(context.Background(), di.digest)
 	if err != nil {
 		logrus.Debugf("Error fetching layer: %v", err)
 		di.err <- err
