@@ -29,7 +29,12 @@ func TestParseEnvFileGoodFile(t *testing.T) {
 
 _foobar=foobaz
 `
-
+	// Adding a newline + a line with pure whitespace.
+	// This is being done like this instead of the block above
+	// because it's common for editors to trim trailing whitespace
+	// from lines, which becomes annoying since that's the
+	// exact thing we need to test.
+	content += "\n    \t  "
 	tmpFile := tmpFileWithContent(content, t)
 	defer os.Remove(tmpFile)
 
