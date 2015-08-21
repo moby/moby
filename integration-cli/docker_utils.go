@@ -602,7 +602,9 @@ func dockerCmdWithError(args ...string) (string, int, error) {
 
 func dockerCmdWithStdoutStderr(c *check.C, args ...string) (string, string, int) {
 	stdout, stderr, status, err := runCommandWithStdoutStderr(exec.Command(dockerBinary, args...))
-	c.Assert(err, check.IsNil, check.Commentf("%q failed with errors: %s, %v", strings.Join(args, " "), stderr, err))
+	if c != nil {
+		c.Assert(err, check.IsNil, check.Commentf("%q failed with errors: %s, %v", strings.Join(args, " "), stderr, err))
+	}
 	return stdout, stderr, status
 }
 
