@@ -12,7 +12,6 @@ parent = "smn_linux"
 
 Docker is supported on the following versions of Fedora:
 
-- Fedora 20 
 - Fedora 21
 - Fedora 22 
 
