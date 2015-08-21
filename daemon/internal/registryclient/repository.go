@@ -14,7 +14,7 @@ import (
 	"github.com/docker/distribution"
 	"github.com/docker/distribution/context"
 	"github.com/docker/distribution/digest"
-	"github.com/docker/distribution/manifest"
+	"github.com/docker/distribution/manifest/schema1"
 	"github.com/docker/distribution/registry/api/v2"
 	"github.com/docker/distribution/registry/client/transport"
 	"github.com/docker/distribution/registry/storage/cache"
@@ -242,7 +242,7 @@ func (ms *manifests) ExistsByTag(tag string) (bool, error) {
 	return false, handleErrorResponse(resp)
 }
 
-func (ms *manifests) Get(dgst digest.Digest) (*manifest.SignedManifest, error) {
+func (ms *manifests) Get(dgst digest.Digest) (*schema1.SignedManifest, error) {
 	// Call by Tag endpoint since the API uses the same
 	// URL endpoint for tags and digests.
 	return ms.GetByTag(dgst.String())
@@ -262,7 +262,7 @@ func AddEtagToTag(tag, etag string) distribution.ManifestServiceOption {
 	}
 }
 
-func (ms *manifests) GetByTag(tag string, options ...distribution.ManifestServiceOption) (*manifest.SignedManifest, error) {
+func (ms *manifests) GetByTag(tag string, options ...distribution.ManifestServiceOption) (*schema1.SignedManifest, error) {
 	for _, option := range options {
 		err := option(ms)
 		if err != nil {
@@ -290,7 +290,7 @@ func (ms *manifests) GetByTag(tag string, options ...distribution.ManifestServic
 	if resp.StatusCode == http.StatusNotModified {
 		return nil, nil
 	} else if SuccessStatus(resp.StatusCode) {
-		var sm manifest.SignedManifest
+		var sm schema1.SignedManifest
 		decoder := json.NewDecoder(resp.Body)
 
 		if err := decoder.Decode(&sm); err != nil {
@@ -301,7 +301,7 @@ func (ms *manifests) GetByTag(tag string, options ...distribution.ManifestServic
 	return nil, handleErrorResponse(resp)
 }
 
-func (ms *manifests) Put(m *manifest.SignedManifest) error {
+func (ms *manifests) Put(m *schema1.SignedManifest) error {
 	manifestURL, err := ms.ub.BuildManifestURL(ms.name, m.Tag)
 	if err != nil {
 		return err
