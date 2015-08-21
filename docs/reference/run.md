@@ -463,6 +463,10 @@ the container exits**, you can add the `--rm` flag:
 
     --rm=false: Automatically remove the container when it exits (incompatible with -d)
 
+> **Note**: When you set the `--rm` flag, Docker also removes the volumes 
+associated with the container when the container is removed. This is similar 
+to running `docker rm -v my-container`.
+
 ## Security configuration
     --security-opt="label:user:USER"   : Set the label user for the container
     --security-opt="label:role:ROLE"   : Set the label role for the container
