@@ -137,25 +137,16 @@ func (d *Driver) Create(id, parent string) error {
 		}
 	}
 
-	if _, err := os.Lstat(d.dir(parent)); err == nil {
-		if err := d.setLayerChain(id, layerChain); err != nil {
-			if err2 := hcsshim.DestroyLayer(d.info, id); err2 != nil {
-				logrus.Warnf("Failed to DestroyLayer %s: %s", id, err)
-			}
-			return err
-		}
-	} else if os.IsNotExist(err) {
-		// If the parent doesn't exist, this must be a special creation for an image
-		// registered at an alternate location. Use the parent id as the alternate ID.
-		if err := d.setId(id, parent); err != nil {
-			if err2 := hcsshim.DestroyLayer(d.info, id); err2 != nil {
-				logrus.Warnf("Failed to DestroyLayer %s: %s", id, err)
-			}
-			return err
-		}
-	} else {
+	if _, err := os.Lstat(d.dir(parent)); err != nil {
 		if err2 := hcsshim.DestroyLayer(d.info, id); err2 != nil {
-			logrus.Warnf("Failed to DestroyLayer %s: %s", id, err)
+			logrus.Warnf("Failed to DestroyLayer %s: %s", id, err2)
+		}
+		return fmt.Errorf("Cannot create layer with missing parent %s: %s", parent, err)
+	}
+
+	if err := d.setLayerChain(id, layerChain); err != nil {
+		if err2 := hcsshim.DestroyLayer(d.info, id); err2 != nil {
+			logrus.Warnf("Failed to DestroyLayer %s: %s", id, err2)
 		}
 		return err
 	}
