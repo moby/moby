@@ -595,3 +595,14 @@ func (s *DockerSuite) TestExecOnReadonlyContainer(c *check.C) {
 		c.Fatalf("exec into a read-only container failed with exit status %d", status)
 	}
 }
+
+// #15750
+func (s *DockerSuite) TestExecStartFails(c *check.C) {
+	name := "exec-15750"
+	dockerCmd(c, "run", "-d", "--name", name, "busybox", "top")
+
+	_, errmsg, status := dockerCmdWithStdoutStderr(nil, "exec", name, "no-such-cmd")
+	if status == 255 && !strings.Contains(errmsg, "executable file not found") {
+		c.Fatal("exec error message not received. The daemon might had crashed")
+	}
+}
