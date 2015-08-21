@@ -244,3 +244,38 @@ func (s DockerExternalVolumeSuite) TestStartExternalVolumeDriverDeleteContainer(
 func hostVolumePath(name string) string {
 	return fmt.Sprintf("/var/lib/docker/volumes/%s", name)
 }
+
+func (s *DockerExternalVolumeSuite) TestStartExternalNamedVolumeDriverCheckBindLocalVolume(c *check.C) {
+	if err := s.d.StartWithBusybox(); err != nil {
+		c.Fatal(err)
+	}
+
+	expected := s.server.URL
+
+	dockerfile := fmt.Sprintf(`FROM busybox:latest
+	RUN mkdir /nobindthenlocalvol
+	RUN echo %s > /nobindthenlocalvol/test
+	VOLUME ["/nobindthenlocalvol"]`, expected)
+
+	img := "test-checkbindlocalvolume"
+
+	args := []string{"--host", s.d.sock()}
+	buildOut, err := buildImageArgs(args, img, dockerfile, true)
+	fmt.Println(buildOut)
+
+	out, err := s.d.Cmd("run", "--rm", "--name", "test-data-nobind", "-v", "external-volume-test:/tmp/external-volume-test", "--volume-driver", "test-external-volume-driver", img, "cat", "/nobindthenlocalvol/test")
+	if err != nil {
+		fmt.Println(out)
+		c.Fatal(err)
+	}
+
+	if !strings.Contains(out, expected) {
+		c.Fatalf("External volume mount failed. Output: %s\n", out)
+	}
+
+	c.Assert(s.ec.activations, check.Equals, 1)
+	c.Assert(s.ec.creations, check.Equals, 1)
+	c.Assert(s.ec.removals, check.Equals, 1)
+	c.Assert(s.ec.mounts, check.Equals, 1)
+	c.Assert(s.ec.unmounts, check.Equals, 1)
+}

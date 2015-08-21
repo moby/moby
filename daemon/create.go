@@ -63,6 +63,7 @@ func (daemon *Daemon) Create(config *runconfig.Config, hostConfig *runconfig.Hos
 	if err := daemon.mergeAndVerifyConfig(config, img); err != nil {
 		return nil, nil, err
 	}
+
 	if hostConfig == nil {
 		hostConfig = &runconfig.HostConfig{}
 	}
@@ -97,7 +98,7 @@ func (daemon *Daemon) Create(config *runconfig.Config, hostConfig *runconfig.Hos
 	}
 	defer container.Unmount()
 
-	if err := createContainerPlatformSpecificSettings(container, config); err != nil {
+	if err := createContainerPlatformSpecificSettings(container, config, img); err != nil {
 		return nil, nil, err
 	}
 
