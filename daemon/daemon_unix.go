@@ -63,6 +63,17 @@ func parseSecurityOpt(container *Container, config *runconfig.HostConfig) error 
 	return err
 }
 
+func CheckKernelVersion(k, major, minor int) bool {
+	if v, err := kernel.GetKernelVersion(); err != nil {
+		logrus.Warnf("%s", err)
+	} else {
+		if kernel.CompareKernelVersion(*v, kernel.VersionInfo{Kernel: k, Major: major, Minor: minor}) < 0 {
+			return false
+		}
+	}
+	return true
+}
+
 func checkKernel() error {
 	// Check for unsupported kernel versions
 	// FIXME: it would be cleaner to not test for specific versions, but rather
@@ -71,13 +82,10 @@ func checkKernel() error {
 	// without actually causing a kernel panic, so we need this workaround until
 	// the circumstances of pre-3.10 crashes are clearer.
 	// For details see https://github.com/docker/docker/issues/407
-	if k, err := kernel.GetKernelVersion(); err != nil {
-		logrus.Warnf("%s", err)
-	} else {
-		if kernel.CompareKernelVersion(*k, kernel.VersionInfo{Kernel: 3, Major: 10, Minor: 0}) < 0 {
-			if os.Getenv("DOCKER_NOWARN_KERNEL_VERSION") == "" {
-				logrus.Warnf("You are running linux kernel version %s, which might be unstable running docker. Please upgrade your kernel to 3.10.0.", k.String())
-			}
+	if !CheckKernelVersion(3, 10, 0) {
+		v, _ := kernel.GetKernelVersion()
+		if os.Getenv("DOCKER_NOWARN_KERNEL_VERSION") == "" {
+			logrus.Warnf("Your Linux kernel version %s can be unstable running docker. Please upgrade your kernel to 3.10.0.", v.String())
 		}
 	}
 	return nil
@@ -147,6 +155,15 @@ func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *runconfig.HostC
 		if swappiness < -1 || swappiness > 100 {
 			return warnings, fmt.Errorf("Invalid value: %v, valid memory swappiness range is 0-100.", swappiness)
 		}
+	}
+	if hostConfig.KernelMemory > 0 && !sysInfo.KernelMemory {
+		warnings = append(warnings, "Your kernel does not support kernel memory limit capabilities. Limitation discarded.")
+		logrus.Warnf("Your kernel does not support kernel memory limit capabilities. Limitation discarded.")
+		hostConfig.KernelMemory = 0
+	}
+	if hostConfig.KernelMemory > 0 && !CheckKernelVersion(4, 0, 0) {
+		warnings = append(warnings, "You specified a kernel memory limit on a kernel older than 4.0. Kernel memory limits are experimental on older kernels, it won't work as expected and can cause your system to be unstable.")
+		logrus.Warnf("You specified a kernel memory limit on a kernel older than 4.0. Kernel memory limits are experimental on older kernels, it won't work as expected and can cause your system to be unstable.")
 	}
 	if hostConfig.CPUShares > 0 && !sysInfo.CPUShares {
 		warnings = append(warnings, "Your kernel does not support CPU shares. Shares discarded.")

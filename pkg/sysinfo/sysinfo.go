@@ -36,6 +36,9 @@ type cgroupMemInfo struct {
 
 	// Whether memory swappiness is supported or not
 	MemorySwappiness bool
+
+	// Whether kernel memory limit is supported or not
+	KernelMemory bool
 }
 
 type cgroupCPUInfo struct {

@@ -517,6 +517,7 @@ container:
 |----------------------------|---------------------------------------------------------------------------------------------|
 | `-m`, `--memory="" `       | Memory limit (format: `<number>[<unit>]`, where unit = b, k, m or g)                        |
 | `--memory-swap=""`         | Total memory limit (memory + swap, format: `<number>[<unit>]`, where unit = b, k, m or g)   |
+| `--kernel-memory=""`       | Kernel memory limit (format: `<number>[<unit>]`, where unit = b, k, m or g)                 |
 | `-c`, `--cpu-shares=0`     | CPU shares (relative weight)                                                                |
 | `--cpu-period=0`           | Limit the CPU CFS (Completely Fair Scheduler) period                                        |
 | `--cpuset-cpus="" `        | CPUs in which to allow execution (0-3, 0,1)                                                 |
@@ -526,9 +527,9 @@ container:
 | `--oom-kill-disable=false` | Whether to disable OOM Killer for the container or not.                                     |
 | `--memory-swappiness=""  ` | Tune a container's memory swappiness behavior. Accepts an integer between 0 and 100.        |
 
-### Memory constraints
+### User memory constraints
 
-We have four ways to set memory usage:
+We have four ways to set user memory usage:
 
 <table>
   <thead>
@@ -576,7 +577,7 @@ We have four ways to set memory usage:
   </tbody>
 </table>
 
-### Examples
+Examples:
 
     $ docker run -ti ubuntu:14.04 /bin/bash
 
@@ -619,6 +620,76 @@ The following example, illustrates a dangerous way to use the flag:
 
 The container has unlimited memory which can cause the host to run out memory
 and require killing system processes to free memory.
+
+### Kernel memory constraints
+
+Kernel memory is fundamentally different than user memory as kernel memory can't
+be swapped out. The inability to swap makes it possible for the container to
+block system services by consuming too much kernel memory. Kernel memory includes：
+
+ - stack pages
+ - slab pages
+ - sockets memory pressure
+ - tcp memory pressure
+
+You can setup kernel memory limit to constrain these kinds of memory. For example,
+every process consumes some stack pages. By limiting kernel memory, you can
+prevent new processes from being created when the kernel memory usage is too high.
+
+Kernel memory is never completely independent of user memory. Instead, you limit
+kernel memory in the context of the user memory limit. Assume "U" is the user memory
+limit and "K" the kernel limit. There are three possible ways to set limits:
+
+<table>
+  <thead>
+    <tr>
+      <th>Option</th>
+      <th>Result</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td class="no-wrap"><strong>U != 0, K = inf</strong> (default)</td>
+      <td>
+        This is the standard memory limitation mechanism already present before using
+        kernel memory. Kernel memory is completely ignored.
+      </td>
+    </tr>
+    <tr>
+      <td class="no-wrap"><strong>U != 0, K &lt; U</strong></td>
+      <td>
+        Kernel memory is a subset of the user memory. This setup is useful in
+        deployments where the total amount of memory per-cgroup is overcommited.
+        Overcommiting kernel memory limits is definitely not recommended, since the
+        box can still run out of non-reclaimable memory.
+        In this case, the you can configure K so that the sum of all groups is
+        never greater than the total memory. Then, freely set U at the expense of
+        the system's service quality.
+      </td>
+    </tr>
+    <tr>
+      <td class="no-wrap"><strong>U != 0, K &gt; U</strong></td>
+      <td>
+        Since kernel memory charges are also fed to the user counter and reclaimation
+        is triggered for the container for both kinds of memory. This configuration
+        gives the admin a unified view of memory. It is also useful for people
+        who just want to track kernel memory usage.
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+Examples:
+
+    $ docker run -ti -m 500M --kernel-memory 50M ubuntu:14.04 /bin/bash
+
+We set memory and kernel memory, so the processes in the container can use
+500M memory in total, in this 500M memory, it can be 50M kernel memory tops.
+
+    $ docker run -ti --kernel-memory 50M ubuntu:14.04 /bin/bash
+
+We set kernel memory without **-m**, so the processes in the container can
+use as much memory as they want, but they can only use 50M kernel memory.
 
 ### Swappiness constraint
 

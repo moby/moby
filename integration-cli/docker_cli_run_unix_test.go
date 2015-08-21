@@ -283,6 +283,18 @@ func (s *DockerSuite) TestRunWithCpuPeriod(c *check.C) {
 	}
 }
 
+func (s *DockerSuite) TestRunWithKernelMemory(c *check.C) {
+	testRequires(c, kernelMemorySupport)
+
+	dockerCmd(c, "run", "--kernel-memory", "50M", "--name", "test", "busybox", "true")
+
+	out, err := inspectField("test", "HostConfig.KernelMemory")
+	c.Assert(err, check.IsNil)
+	if out != "52428800" {
+		c.Fatalf("setting the kernel memory limit failed")
+	}
+}
+
 func (s *DockerSuite) TestRunOOMExitCode(c *check.C) {
 	testRequires(c, oomControl)
 	errChan := make(chan error)

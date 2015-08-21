@@ -57,12 +57,17 @@ func checkCgroupMem(quiet bool) cgroupMemInfo {
 	if !quiet && !memorySwappiness {
 		logrus.Warnf("Your kernel does not support memory swappiness.")
 	}
+	kernelMemory := cgroupEnabled(mountPoint, "memory.kmem.limit_in_bytes")
+	if !quiet && !kernelMemory {
+		logrus.Warnf("Your kernel does not support kernel memory limit.")
+	}
 
 	return cgroupMemInfo{
 		MemoryLimit:      true,
 		SwapLimit:        swapLimit,
 		OomKillDisable:   oomKillDisable,
 		MemorySwappiness: memorySwappiness,
+		KernelMemory:     kernelMemory,
 	}
 }
 

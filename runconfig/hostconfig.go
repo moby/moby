@@ -265,6 +265,7 @@ type HostConfig struct {
 	LxcConf          *LxcConfig       // Additional lxc configuration
 	Memory           int64            // Memory limit (in bytes)
 	MemorySwap       int64            // Total memory usage (memory + swap); set `-1` to disable swap
+	KernelMemory     int64            // Kernel memory limit (in bytes)
 	CPUShares        int64            `json:"CpuShares"` // CPU shares (relative weight vs. other containers)
 	CPUPeriod        int64            `json:"CpuPeriod"` // CPU CFS (Completely Fair Scheduler) period
 	CpusetCpus       string           // CpusetCpus 0-2, 0,1
