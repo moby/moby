@@ -640,7 +640,7 @@ func (container *Container) updateNetworkSettings(n libnetwork.Network, ep libne
 		return err
 	}
 
-	if container.hostConfig.NetworkMode == runconfig.NetworkMode("bridge") {
+	if container.hostConfig.NetworkMode == runconfig.NetworkMode("default") {
 		networkSettings.Bridge = container.daemon.config.Bridge.Iface
 	}
 
