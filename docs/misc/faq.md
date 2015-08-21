@@ -168,6 +168,7 @@ Cloud:
 
  - Amazon EC2 
  - Google Compute Engine 
+ - Microsoft Azure
  - Rackspace
 
 ### How do I report a security issue with Docker?
