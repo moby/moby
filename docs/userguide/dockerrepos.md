@@ -53,9 +53,9 @@ interface or by using the command line interface. Searching can find images by i
 name, user name, or description:
 
     $ docker search centos
-    NAME           DESCRIPTION                                     STARS     OFFICIAL   TRUSTED
-    centos         Official CentOS 6 Image as of 12 April 2014     88
-    tianon/centos  CentOS 5 and 6, created using rinse instea...   21
+    NAME           DESCRIPTION                                     STARS     OFFICIAL   AUTOMATED
+    centos         The official build of CentOS                    1223      [OK]
+    tianon/centos  CentOS 5 and 6, created using rinse instea...   33
     ...
 
 There you can see two example results: `centos` and `tianon/centos`. The second
@@ -68,15 +68,27 @@ a user's repository from the image name.
 Once you've found the image you want, you can download it with `docker pull <imagename>`:
 
     $ docker pull centos
-    Pulling repository centos
-    0b443ba03958: Download complete
-    539c0211cd76: Download complete
-    511136ea3c5a: Download complete
-    7064731afe90: Download complete
-
-    Status: Downloaded newer image for centos
+    Using default tag: latest
+    latest: Pulling from library/centos
+    f1b10cd84249: Pull complete
+    c852f6d61e65: Pull complete
+    7322fbe74aa5: Pull complete
+    Digest: sha256:90305c9112250c7e3746425477f1c4ef112b03b4abe78c612e092037bfecc3b7
+    Status: Downloaded newer image for centos:latest
 
 You now have an image from which you can run containers.
+
+### Specific Versions or Latest
+Using `docker pull centos` is equivalent to using `docker pull centos:latest`.
+To pull an image that is not the default latest image you can be more precise
+with the image that you want.
+
+For example, to pull version 5 of `centos` use `docker pull centos:centos5`.
+In this example, `centos5` is the tag labeling an image in the `centos`
+repository for a version of `centos`.
+
+To find a list of tags pointing to currently available versions of a repository
+see the [Docker Hub](https://hub.docker.com) registry.
 
 ## Contributing to Docker Hub
 
