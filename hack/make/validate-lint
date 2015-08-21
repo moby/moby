@@ -76,11 +76,13 @@ packages=(
 	pkg/reexec
 	pkg/signal
 	pkg/sockets
+	pkg/stdcopy
 	pkg/streamformatter
 	pkg/stringid
 	pkg/stringutils
-	pkg/sysinfo
 	pkg/symlink
+	pkg/sysinfo
+	pkg/system
 	pkg/tailfile
 	pkg/tarsum
 	pkg/term

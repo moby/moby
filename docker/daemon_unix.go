@@ -26,7 +26,7 @@ func setPlatformServerConfig(serverConfig *apiserver.Config, daemonCfg *daemon.C
 // file.
 func currentUserIsOwner(f string) bool {
 	if fileInfo, err := system.Stat(f); err == nil && fileInfo != nil {
-		if int(fileInfo.Uid()) == os.Getuid() {
+		if int(fileInfo.UID()) == os.Getuid() {
 			return true
 		}
 	}
