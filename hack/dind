@@ -105,8 +105,10 @@ if ! grep -qw devices /proc/1/cgroup; then
 	echo >&2 'WARNING: it looks like the "devices" cgroup is not mounted.'
 fi
 
-# Mount /tmp
-mount -t tmpfs none /tmp
+# Mount /tmp (conditionally)
+if ! mountpoint -q /tmp; then
+	mount -t tmpfs none /tmp
+fi
 
 if [ $# -gt 0 ]; then
 	exec "$@"
