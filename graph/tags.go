@@ -155,7 +155,7 @@ func (store *TagStore) LookupImage(name string) (*image.Image, error) {
 	}
 
 	if img != nil {
-		return img, err
+		return img, nil
 	}
 
 	// name must be an image ID.
