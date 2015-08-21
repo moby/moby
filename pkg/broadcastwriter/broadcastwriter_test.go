@@ -3,6 +3,7 @@ package broadcastwriter
 import (
 	"bytes"
 	"errors"
+	"strings"
 
 	"testing"
 )
@@ -80,6 +81,23 @@ func TestBroadcastWriter(t *testing.T) {
 	}
 	if bufferC.String() != "barfailtest" {
 		t.Errorf("Buffer contains %v", bufferC.String())
+	}
+
+	// Test4: Test eviction on multiple simultaneous failures
+	bufferB.failOnWrite = true
+	bufferC.failOnWrite = true
+	bufferD := &dummyWriter{}
+	writer.AddWriter(bufferD)
+	writer.Write([]byte("yo"))
+	writer.Write([]byte("ink"))
+	if strings.Contains(bufferB.String(), "yoink") {
+		t.Errorf("bufferB received write. contents: %q", bufferB)
+	}
+	if strings.Contains(bufferC.String(), "yoink") {
+		t.Errorf("bufferC received write. contents: %q", bufferC)
+	}
+	if g, w := bufferD.String(), "yoink"; g != w {
+		t.Errorf("bufferD = %q, want %q", g, w)
 	}
 
 	writer.Clean()
