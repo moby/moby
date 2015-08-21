@@ -20,6 +20,7 @@ import (
 	"github.com/docker/distribution/context"
 	"github.com/docker/distribution/digest"
 	"github.com/docker/distribution/manifest"
+	"github.com/docker/distribution/manifest/schema1"
 	"github.com/docker/distribution/registry/api/errcode"
 	"github.com/docker/distribution/testutil"
 )
@@ -419,19 +420,19 @@ func TestBlobUploadMonolithic(t *testing.T) {
 	}
 }
 
-func newRandomSchemaV1Manifest(name, tag string, blobCount int) (*manifest.SignedManifest, digest.Digest) {
-	blobs := make([]manifest.FSLayer, blobCount)
-	history := make([]manifest.History, blobCount)
+func newRandomSchemaV1Manifest(name, tag string, blobCount int) (*schema1.SignedManifest, digest.Digest) {
+	blobs := make([]schema1.FSLayer, blobCount)
+	history := make([]schema1.History, blobCount)
 
 	for i := 0; i < blobCount; i++ {
 		dgst, blob := newRandomBlob((i % 5) * 16)
 
-		blobs[i] = manifest.FSLayer{BlobSum: dgst}
-		history[i] = manifest.History{V1Compatibility: fmt.Sprintf("{\"Hex\": \"%x\"}", blob)}
+		blobs[i] = schema1.FSLayer{BlobSum: dgst}
+		history[i] = schema1.History{V1Compatibility: fmt.Sprintf("{\"Hex\": \"%x\"}", blob)}
 	}
 
-	m := &manifest.SignedManifest{
-		Manifest: manifest.Manifest{
+	m := &schema1.SignedManifest{
+		Manifest: schema1.Manifest{
 			Name:         name,
 			Tag:          tag,
 			Architecture: "x86",
@@ -521,7 +522,7 @@ func addTestManifest(repo, reference string, content []byte, m *testutil.Request
 
 }
 
-func checkEqualManifest(m1, m2 *manifest.SignedManifest) error {
+func checkEqualManifest(m1, m2 *schema1.SignedManifest) error {
 	if m1.Name != m2.Name {
 		return fmt.Errorf("name does not match %q != %q", m1.Name, m2.Name)
 	}
