@@ -207,6 +207,11 @@ func (s *State) setStopped(exitStatus *execdriver.ExitStatus) {
 // in the middle of a stop and being restarted again
 func (s *State) SetRestarting(exitStatus *execdriver.ExitStatus) {
 	s.Lock()
+	s.setRestarting(exitStatus)
+	s.Unlock()
+}
+
+func (s *State) setRestarting(exitStatus *execdriver.ExitStatus) {
 	// we should consider the container running when it is restarting because of
 	// all the checks in docker around rm/stop/etc
 	s.Running = true
@@ -217,7 +222,6 @@ func (s *State) SetRestarting(exitStatus *execdriver.ExitStatus) {
 	s.OOMKilled = exitStatus.OOMKilled
 	close(s.waitChan) // fire waiters for stop
 	s.waitChan = make(chan struct{})
-	s.Unlock()
 }
 
 // setError sets the container's error state. This is useful when we want to
