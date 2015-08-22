@@ -1995,9 +1995,7 @@ func (s *DockerSuite) TestContainerNetworkMode(c *check.C) {
 
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
 	id := strings.TrimSpace(out)
-	if err := waitRun(id); err != nil {
-		c.Fatal(err)
-	}
+	c.Assert(waitRun(id), check.IsNil)
 	pid1, err := inspectField(id, "State.Pid")
 	c.Assert(err, check.IsNil)
 
@@ -2362,7 +2360,8 @@ func (s *DockerSuite) TestRunPidHostWithChildIsKillable(c *check.C) {
 	name := "ibuildthecloud"
 	dockerCmd(c, "run", "-d", "--pid=host", "--name", name, "busybox", "sh", "-c", "sleep 30; echo hi")
 
-	time.Sleep(1 * time.Second)
+	c.Assert(waitRun(name), check.IsNil)
+
 	errchan := make(chan error)
 	go func() {
 		if out, _, err := dockerCmdWithError("kill", name); err != nil {
@@ -2778,9 +2777,7 @@ func (s *DockerSuite) TestPtraceContainerProcsFromHost(c *check.C) {
 
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
 	id := strings.TrimSpace(out)
-	if err := waitRun(id); err != nil {
-		c.Fatal(err)
-	}
+	c.Assert(waitRun(id), check.IsNil)
 	pid1, err := inspectField(id, "State.Pid")
 	c.Assert(err, check.IsNil)
 

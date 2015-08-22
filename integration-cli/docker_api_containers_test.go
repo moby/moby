@@ -767,9 +767,7 @@ func (s *DockerSuite) TestContainerApiPause(c *check.C) {
 func (s *DockerSuite) TestContainerApiTop(c *check.C) {
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "top")
 	id := strings.TrimSpace(string(out))
-	if err := waitRun(id); err != nil {
-		c.Fatal(err)
-	}
+	c.Assert(waitRun(id), check.IsNil)
 
 	type topResp struct {
 		Titles    []string

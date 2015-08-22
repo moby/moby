@@ -19,9 +19,7 @@ func (s *DockerSuite) TestAttachClosedOnContainerStop(c *check.C) {
 	out, _ := dockerCmd(c, "run", "-dti", "busybox", "sleep", "2")
 
 	id := strings.TrimSpace(out)
-	if err := waitRun(id); err != nil {
-		c.Fatal(err)
-	}
+	c.Assert(waitRun(id), check.IsNil)
 
 	errChan := make(chan error)
 	go func() {
@@ -73,10 +71,8 @@ func (s *DockerSuite) TestAttachAfterDetach(c *check.C) {
 		close(errChan)
 	}()
 
-	time.Sleep(500 * time.Millisecond)
-	if err := waitRun(name); err != nil {
-		c.Fatal(err)
-	}
+	c.Assert(waitRun(name), check.IsNil)
+
 	cpty.Write([]byte{16})
 	time.Sleep(100 * time.Millisecond)
 	cpty.Write([]byte{17})
@@ -137,9 +133,7 @@ func (s *DockerSuite) TestAttachAfterDetach(c *check.C) {
 func (s *DockerSuite) TestAttachDetach(c *check.C) {
 	out, _ := dockerCmd(c, "run", "-itd", "busybox", "cat")
 	id := strings.TrimSpace(out)
-	if err := waitRun(id); err != nil {
-		c.Fatal(err)
-	}
+	c.Assert(waitRun(id), check.IsNil)
 
 	cpty, tty, err := pty.Open()
 	if err != nil {
@@ -157,9 +151,7 @@ func (s *DockerSuite) TestAttachDetach(c *check.C) {
 	if err := cmd.Start(); err != nil {
 		c.Fatal(err)
 	}
-	if err := waitRun(id); err != nil {
-		c.Fatalf("error waiting for container to start: %v", err)
-	}
+	c.Assert(waitRun(id), check.IsNil)
 
 	if _, err := cpty.Write([]byte("hello\n")); err != nil {
 		c.Fatal(err)
@@ -211,9 +203,7 @@ func (s *DockerSuite) TestAttachDetach(c *check.C) {
 func (s *DockerSuite) TestAttachDetachTruncatedID(c *check.C) {
 	out, _ := dockerCmd(c, "run", "-itd", "busybox", "cat")
 	id := stringid.TruncateID(strings.TrimSpace(out))
-	if err := waitRun(id); err != nil {
-		c.Fatal(err)
-	}
+	c.Assert(waitRun(id), check.IsNil)
 
 	cpty, tty, err := pty.Open()
 	if err != nil {

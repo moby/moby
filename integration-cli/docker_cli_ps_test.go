@@ -30,17 +30,13 @@ func (s *DockerSuite) TestPsListContainers(c *check.C) {
 	fourthID := strings.TrimSpace(out)
 
 	// make sure the second is running
-	if err := waitRun(secondID); err != nil {
-		c.Fatalf("waiting for container failed: %v", err)
-	}
+	c.Assert(waitRun(secondID), check.IsNil)
 
 	// make sure third one is not running
 	dockerCmd(c, "wait", thirdID)
 
 	// make sure the forth is running
-	if err := waitRun(fourthID); err != nil {
-		c.Fatalf("waiting for container failed: %v", err)
-	}
+	c.Assert(waitRun(fourthID), check.IsNil)
 
 	// all
 	out, _ = dockerCmd(c, "ps", "-a")

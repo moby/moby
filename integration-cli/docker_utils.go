@@ -1240,9 +1240,11 @@ func runCommandAndReadContainerFile(filename string, cmd *exec.Cmd) ([]byte, err
 		return nil, fmt.Errorf("%v: %q", err, out)
 	}
 
-	time.Sleep(1 * time.Second)
-
 	contID := strings.TrimSpace(out)
+
+	if err := waitRun(contID); err != nil {
+		return nil, fmt.Errorf("%v: %q", contID, err)
+	}
 
 	return readContainerFile(contID, filename)
 }

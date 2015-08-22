@@ -58,14 +58,14 @@ func (s *DockerSuite) TestImagesOrderedByCreationDate(c *check.C) {
 	if err != nil {
 		c.Fatal(err)
 	}
-	time.Sleep(time.Second)
+	time.Sleep(1 * time.Second)
 	id2, err := buildImage("order:test_c",
 		`FROM scratch
 		MAINTAINER dockerio2`, true)
 	if err != nil {
 		c.Fatal(err)
 	}
-	time.Sleep(time.Second)
+	time.Sleep(1 * time.Second)
 	id3, err := buildImage("order:test_b",
 		`FROM scratch
 		MAINTAINER dockerio3`, true)

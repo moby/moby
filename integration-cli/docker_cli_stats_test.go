@@ -11,9 +11,7 @@ import (
 func (s *DockerSuite) TestCliStatsNoStream(c *check.C) {
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
 	id := strings.TrimSpace(out)
-	if err := waitRun(id); err != nil {
-		c.Fatalf("error waiting for container to start: %v", err)
-	}
+	c.Assert(waitRun(id), check.IsNil)
 
 	statsCmd := exec.Command(dockerBinary, "stats", "--no-stream", id)
 	chErr := make(chan error)

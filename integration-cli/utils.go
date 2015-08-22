@@ -196,10 +196,14 @@ func waitForContainer(contID string, args ...string) error {
 	return nil
 }
 
+// waitRun will wait for the specified container to be running, maximum 5 seconds.
 func waitRun(contID string) error {
 	return waitInspect(contID, "{{.State.Running}}", "true", 5)
 }
 
+// waitInspect will wait for the specified container to have the specified string
+// in the inspect output. It will wait until the specified timeout (in seconds)
+// is reached.
 func waitInspect(name, expr, expected string, timeout int) error {
 	after := time.After(time.Duration(timeout) * time.Second)
 

@@ -186,9 +186,7 @@ func (s *DockerSuite) TestExecTtyCloseStdin(c *check.C) {
 func (s *DockerSuite) TestExecTtyWithoutStdin(c *check.C) {
 	out, _ := dockerCmd(c, "run", "-d", "-ti", "busybox")
 	id := strings.TrimSpace(out)
-	if err := waitRun(id); err != nil {
-		c.Fatal(err)
-	}
+	c.Assert(waitRun(id), check.IsNil)
 
 	errChan := make(chan error)
 	go func() {

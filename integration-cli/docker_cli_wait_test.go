@@ -14,16 +14,8 @@ func (s *DockerSuite) TestWaitNonBlockedExitZero(c *check.C) {
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "sh", "-c", "true")
 	containerID := strings.TrimSpace(out)
 
-	status := "true"
-	var err error
-	for i := 0; status != "false"; i++ {
-		status, err = inspectField(containerID, "State.Running")
-		c.Assert(err, check.IsNil)
-
-		time.Sleep(time.Second)
-		if i >= 60 {
-			c.Fatal("Container should have stopped by now")
-		}
+	if err := waitInspect(containerID, "{{.State.Running}}", "false", 1); err != nil {
+		c.Fatal("Container should have stopped by now")
 	}
 
 	out, _ = dockerCmd(c, "wait", containerID)
@@ -38,9 +30,7 @@ func (s *DockerSuite) TestWaitBlockedExitZero(c *check.C) {
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "trap 'exit 0' TERM; while true; do sleep 0.01; done")
 	containerID := strings.TrimSpace(out)
 
-	if err := waitRun(containerID); err != nil {
-		c.Fatal(err)
-	}
+	c.Assert(waitRun(containerID), check.IsNil)
 
 	chWait := make(chan string)
 	go func() {
@@ -67,16 +57,8 @@ func (s *DockerSuite) TestWaitNonBlockedExitRandom(c *check.C) {
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "sh", "-c", "exit 99")
 	containerID := strings.TrimSpace(out)
 
-	status := "true"
-	var err error
-	for i := 0; status != "false"; i++ {
-		status, err = inspectField(containerID, "State.Running")
-		c.Assert(err, check.IsNil)
-
-		time.Sleep(time.Second)
-		if i >= 60 {
-			c.Fatal("Container should have stopped by now")
-		}
+	if err := waitInspect(containerID, "{{.State.Running}}", "false", 1); err != nil {
+		c.Fatal("Container should have stopped by now")
 	}
 
 	out, _ = dockerCmd(c, "wait", containerID)
@@ -90,12 +72,7 @@ func (s *DockerSuite) TestWaitNonBlockedExitRandom(c *check.C) {
 func (s *DockerSuite) TestWaitBlockedExitRandom(c *check.C) {
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "trap 'exit 99' TERM; while true; do sleep 0.01; done")
 	containerID := strings.TrimSpace(out)
-	if err := waitRun(containerID); err != nil {
-		c.Fatal(err)
-	}
-	if err := waitRun(containerID); err != nil {
-		c.Fatal(err)
-	}
+	c.Assert(waitRun(containerID), check.IsNil)
 
 	chWait := make(chan error)
 	waitCmd := exec.Command(dockerBinary, "wait", containerID)
