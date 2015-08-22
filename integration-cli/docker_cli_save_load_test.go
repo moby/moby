@@ -104,6 +104,10 @@ func (s *DockerSuite) TestSaveImageId(c *check.C) {
 	out, _ = dockerCmd(c, "images", "-q", repoName)
 	cleanedShortImageID := strings.TrimSpace(out)
 
+	// Make sure IDs are not empty
+	c.Assert(cleanedLongImageID, check.Not(check.Equals), "", check.Commentf("Id should not be empty."))
+	c.Assert(cleanedShortImageID, check.Not(check.Equals), "", check.Commentf("Id should not be empty."))
+
 	saveCmd := exec.Command(dockerBinary, "save", cleanedShortImageID)
 	tarCmd := exec.Command("tar", "t")
 
