@@ -49,3 +49,45 @@ func TestShellParser(t *testing.T) {
 		}
 	}
 }
+
+func TestGetEnv(t *testing.T) {
+	sw := &shellWord{
+		word: "",
+		envs: nil,
+		pos:  0,
+	}
+
+	sw.envs = []string{}
+	if sw.getEnv("foo") != "" {
+		t.Fatalf("2 - 'foo' should map to ''")
+	}
+
+	sw.envs = []string{"foo"}
+	if sw.getEnv("foo") != "" {
+		t.Fatalf("3 - 'foo' should map to ''")
+	}
+
+	sw.envs = []string{"foo="}
+	if sw.getEnv("foo") != "" {
+		t.Fatalf("4 - 'foo' should map to ''")
+	}
+
+	sw.envs = []string{"foo=bar"}
+	if sw.getEnv("foo") != "bar" {
+		t.Fatalf("5 - 'foo' should map to 'bar'")
+	}
+
+	sw.envs = []string{"foo=bar", "car=hat"}
+	if sw.getEnv("foo") != "bar" {
+		t.Fatalf("6 - 'foo' should map to 'bar'")
+	}
+	if sw.getEnv("car") != "hat" {
+		t.Fatalf("7 - 'car' should map to 'hat'")
+	}
+
+	// Make sure we grab the first 'car' in the list
+	sw.envs = []string{"foo=bar", "car=hat", "car=bike"}
+	if sw.getEnv("car") != "hat" {
+		t.Fatalf("8 - 'car' should map to 'hat'")
+	}
+}
