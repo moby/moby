@@ -1,17 +1,22 @@
-// +build linux,amd64
+// +build linux
 
 package devmapper
 
 import (
-	"github.com/dotcloud/docker/daemon/graphdriver/graphtest"
 	"testing"
+
+	"github.com/docker/docker/daemon/graphdriver/graphtest"
 )
 
 func init() {
 	// Reduce the size the the base fs and loopback for the tests
-	DefaultDataLoopbackSize = 300 * 1024 * 1024
-	DefaultMetaDataLoopbackSize = 200 * 1024 * 1024
-	DefaultBaseFsSize = 300 * 1024 * 1024
+	defaultDataLoopbackSize = 300 * 1024 * 1024
+	defaultMetaDataLoopbackSize = 200 * 1024 * 1024
+	defaultBaseFsSize = 300 * 1024 * 1024
+	defaultUdevSyncOverride = true
+	if err := graphtest.InitLoopbacks(); err != nil {
+		panic(err)
+	}
 }
 
 // This avoids creating a new driver for each test if all tests are run

@@ -1,21 +1,16 @@
-package native
+// +build linux,cgo
 
-import (
-	"os"
-	"path/filepath"
-)
+package native
 
 type info struct {
 	ID     string
-	driver *driver
+	driver *Driver
 }
 
 // IsRunning is determined by looking for the
 // pid file for a container.  If the file exists then the
 // container is currently running
 func (i *info) IsRunning() bool {
-	if _, err := os.Stat(filepath.Join(i.driver.root, i.ID, "pid")); err == nil {
-		return true
-	}
-	return false
+	_, ok := i.driver.activeContainers[i.ID]
+	return ok
 }

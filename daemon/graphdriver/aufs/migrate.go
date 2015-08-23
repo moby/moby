@@ -1,3 +1,5 @@
+// +build linux
+
 package aufs
 
 import (
@@ -162,7 +164,7 @@ func tryRelocate(oldPath, newPath string) error {
 	}
 	// If the destination is a symlink then we already tried to relocate once before
 	// and it failed so we delete it and try to remove
-	if s != nil && s.Mode()&os.ModeSymlink == os.ModeSymlink {
+	if s != nil && s.Mode()&os.ModeSymlink != 0 {
 		if err := os.RemoveAll(newPath); err != nil {
 			return err
 		}

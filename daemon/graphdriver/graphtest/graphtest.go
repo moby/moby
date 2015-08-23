@@ -1,23 +1,67 @@
 package graphtest
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path"
 	"syscall"
 	"testing"
 
-	"github.com/dotcloud/docker/daemon/graphdriver"
+	"github.com/docker/docker/daemon/graphdriver"
 )
 
 var (
 	drv *Driver
 )
 
+// Driver conforms to graphdriver.Driver interface and
+// contains information such as root and reference count of the number of clients using it.
+// This helps in testing drivers added into the framework.
 type Driver struct {
 	graphdriver.Driver
 	root     string
 	refCount int
+}
+
+// InitLoopbacks ensures that the loopback devices are properly created within
+// the system running the device mapper tests.
+func InitLoopbacks() error {
+	statT, err := getBaseLoopStats()
+	if err != nil {
+		return err
+	}
+	// create at least 8 loopback files, ya, that is a good number
+	for i := 0; i < 8; i++ {
+		loopPath := fmt.Sprintf("/dev/loop%d", i)
+		// only create new loopback files if they don't exist
+		if _, err := os.Stat(loopPath); err != nil {
+			if mkerr := syscall.Mknod(loopPath,
+				uint32(statT.Mode|syscall.S_IFBLK), int((7<<8)|(i&0xff)|((i&0xfff00)<<12))); mkerr != nil {
+				return mkerr
+			}
+			os.Chown(loopPath, int(statT.Uid), int(statT.Gid))
+		}
+	}
+	return nil
+}
+
+// getBaseLoopStats inspects /dev/loop0 to collect uid,gid, and mode for the
+// loop0 device on the system.  If it does not exist we assume 0,0,0660 for the
+// stat data
+func getBaseLoopStats() (*syscall.Stat_t, error) {
+	loop0, err := os.Stat("/dev/loop0")
+	if err != nil {
+		if os.IsNotExist(err) {
+			return &syscall.Stat_t{
+				Uid:  0,
+				Gid:  0,
+				Mode: 0660,
+			}, nil
+		}
+		return nil, err
+	}
+	return loop0.Sys().(*syscall.Stat_t), nil
 }
 
 func newDriver(t *testing.T, name string) *Driver {
@@ -32,8 +76,9 @@ func newDriver(t *testing.T, name string) *Driver {
 
 	d, err := graphdriver.GetDriver(name, root, nil)
 	if err != nil {
-		if err == graphdriver.ErrNotSupported || err == graphdriver.ErrPrerequisites {
-			t.Skip("Driver %s not supported", name)
+		t.Logf("graphdriver: %v\n", err)
+		if err == graphdriver.ErrNotSupported || err == graphdriver.ErrPrerequisites || err == graphdriver.ErrIncompatibleFS {
+			t.Skipf("Driver %s not supported", name)
 		}
 		t.Fatal(err)
 	}
@@ -47,6 +92,7 @@ func cleanup(t *testing.T, d *Driver) {
 	os.RemoveAll(d.root)
 }
 
+// GetDriver create a new driver with given name or return a existing driver with the name updating the reference count.
 func GetDriver(t *testing.T, name string) graphdriver.Driver {
 	if drv == nil {
 		drv = newDriver(t, name)
@@ -56,6 +102,7 @@ func GetDriver(t *testing.T, name string) graphdriver.Driver {
 	return drv
 }
 
+// PutDriver removes the driver if it is no longer used and updates the reference count.
 func PutDriver(t *testing.T) {
 	if drv == nil {
 		t.Skip("No driver to put!")
@@ -104,7 +151,26 @@ func verifyFile(t *testing.T, path string, mode os.FileMode, uid, gid uint32) {
 
 }
 
-// Creates an new image and verifies it is empty and the right metadata
+// readDir reads a directory just like ioutil.ReadDir()
+// then hides specific files (currently "lost+found")
+// so the tests don't "see" it
+func readDir(dir string) ([]os.FileInfo, error) {
+	a, err := ioutil.ReadDir(dir)
+	if err != nil {
+		return nil, err
+	}
+
+	b := a[:0]
+	for _, x := range a {
+		if x.Name() != "lost+found" { // ext4 always have this dir
+			b = append(b, x)
+		}
+	}
+
+	return b, nil
+}
+
+// DriverTestCreateEmpty creates an new image and verifies it is empty and the right metadata
 func DriverTestCreateEmpty(t *testing.T, drivername string) {
 	driver := GetDriver(t, drivername)
 	defer PutDriver(t)
@@ -125,7 +191,7 @@ func DriverTestCreateEmpty(t *testing.T, drivername string) {
 	verifyFile(t, dir, 0755|os.ModeDir, 0, 0)
 
 	// Verify that the directory is empty
-	fis, err := ioutil.ReadDir(dir)
+	fis, err := readDir(dir)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -184,7 +250,7 @@ func verifyBase(t *testing.T, driver graphdriver.Driver, name string) {
 	file := path.Join(dir, "a file")
 	verifyFile(t, file, 0222|os.ModeSetuid, 0, 0)
 
-	fis, err := ioutil.ReadDir(dir)
+	fis, err := readDir(dir)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -195,6 +261,7 @@ func verifyBase(t *testing.T, driver graphdriver.Driver, name string) {
 
 }
 
+// DriverTestCreateBase create a base driver and verify.
 func DriverTestCreateBase(t *testing.T, drivername string) {
 	driver := GetDriver(t, drivername)
 	defer PutDriver(t)
@@ -207,6 +274,7 @@ func DriverTestCreateBase(t *testing.T, drivername string) {
 	}
 }
 
+// DriverTestCreateSnap Create a driver and snap and verify.
 func DriverTestCreateSnap(t *testing.T, drivername string) {
 	driver := GetDriver(t, drivername)
 	defer PutDriver(t)

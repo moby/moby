@@ -3,24 +3,19 @@ package runconfig
 import (
 	"strings"
 
-	"github.com/dotcloud/docker/nat"
-	"github.com/dotcloud/docker/utils"
+	"github.com/docker/docker/pkg/nat"
 )
 
+// Merge merges two Config, the image container configuration (defaults values),
+// and the user container configuration, either passed by the API or generated
+// by the cli.
+// It will mutate the specified user configuration (userConf) with the image
+// configuration where the user configuration is incomplete.
 func Merge(userConf, imageConf *Config) error {
 	if userConf.User == "" {
 		userConf.User = imageConf.User
 	}
-	if userConf.Memory == 0 {
-		userConf.Memory = imageConf.Memory
-	}
-	if userConf.MemorySwap == 0 {
-		userConf.MemorySwap = imageConf.MemorySwap
-	}
-	if userConf.CpuShares == 0 {
-		userConf.CpuShares = imageConf.CpuShares
-	}
-	if userConf.ExposedPorts == nil || len(userConf.ExposedPorts) == 0 {
+	if len(userConf.ExposedPorts) == 0 {
 		userConf.ExposedPorts = imageConf.ExposedPorts
 	} else if imageConf.ExposedPorts != nil {
 		if userConf.ExposedPorts == nil {
@@ -33,40 +28,7 @@ func Merge(userConf, imageConf *Config) error {
 		}
 	}
 
-	if userConf.PortSpecs != nil && len(userConf.PortSpecs) > 0 {
-		if userConf.ExposedPorts == nil {
-			userConf.ExposedPorts = make(nat.PortSet)
-		}
-		ports, _, err := nat.ParsePortSpecs(userConf.PortSpecs)
-		if err != nil {
-			return err
-		}
-		for port := range ports {
-			if _, exists := userConf.ExposedPorts[port]; !exists {
-				userConf.ExposedPorts[port] = struct{}{}
-			}
-		}
-		userConf.PortSpecs = nil
-	}
-	if imageConf.PortSpecs != nil && len(imageConf.PortSpecs) > 0 {
-		// FIXME: I think we can safely remove this. Leaving it for now for the sake of reverse-compat paranoia.
-		utils.Debugf("Migrating image port specs to containter: %s", strings.Join(imageConf.PortSpecs, ", "))
-		if userConf.ExposedPorts == nil {
-			userConf.ExposedPorts = make(nat.PortSet)
-		}
-
-		ports, _, err := nat.ParsePortSpecs(imageConf.PortSpecs)
-		if err != nil {
-			return err
-		}
-		for port := range ports {
-			if _, exists := userConf.ExposedPorts[port]; !exists {
-				userConf.ExposedPorts[port] = struct{}{}
-			}
-		}
-	}
-
-	if userConf.Env == nil || len(userConf.Env) == 0 {
+	if len(userConf.Env) == 0 {
 		userConf.Env = imageConf.Env
 	} else {
 		for _, imageEnv := range imageConf.Env {
@@ -76,6 +38,7 @@ func Merge(userConf, imageConf *Config) error {
 				userEnvKey := strings.Split(userEnv, "=")[0]
 				if imageEnvKey == userEnvKey {
 					found = true
+					break
 				}
 			}
 			if !found {
@@ -84,16 +47,19 @@ func Merge(userConf, imageConf *Config) error {
 		}
 	}
 
-	if userConf.Cmd == nil || len(userConf.Cmd) == 0 {
-		userConf.Cmd = imageConf.Cmd
-	}
-	if userConf.Entrypoint == nil || len(userConf.Entrypoint) == 0 {
-		userConf.Entrypoint = imageConf.Entrypoint
+	if userConf.Entrypoint.Len() == 0 {
+		if userConf.Cmd.Len() == 0 {
+			userConf.Cmd = imageConf.Cmd
+		}
+
+		if userConf.Entrypoint == nil {
+			userConf.Entrypoint = imageConf.Entrypoint
+		}
 	}
 	if userConf.WorkingDir == "" {
 		userConf.WorkingDir = imageConf.WorkingDir
 	}
-	if userConf.Volumes == nil || len(userConf.Volumes) == 0 {
+	if len(userConf.Volumes) == 0 {
 		userConf.Volumes = imageConf.Volumes
 	} else {
 		for k, v := range imageConf.Volumes {

@@ -1,13 +1,7 @@
-// +build !linux !amd64
+// +build !linux
 
 package lxc
 
-import "github.com/dotcloud/docker/daemon/execdriver"
-
-func setHostname(hostname string) error {
-	panic("Not supported on darwin")
-}
-
-func finalizeNamespace(args *execdriver.InitArgs) error {
-	panic("Not supported on darwin")
+func finalizeNamespace(args *InitArgs) error {
+	panic("Not supported on this platform")
 }

@@ -1,110 +1,215 @@
 package main
 
 import (
-	"fmt"
-	"os/exec"
 	"strings"
-	"testing"
+
+	"github.com/go-check/check"
 )
 
-func TestCommitAfterContainerIsDone(t *testing.T) {
-	runCmd := exec.Command(dockerBinary, "run", "-i", "-a", "stdin", "busybox", "echo", "foo")
-	out, _, _, err := runCommandWithStdoutStderr(runCmd)
-	errorOut(err, t, fmt.Sprintf("failed to run container: %v %v", out, err))
+func (s *DockerSuite) TestCommitAfterContainerIsDone(c *check.C) {
+	out, _ := dockerCmd(c, "run", "-i", "-a", "stdin", "busybox", "echo", "foo")
 
-	cleanedContainerID := stripTrailingCharacters(out)
+	cleanedContainerID := strings.TrimSpace(out)
 
-	waitCmd := exec.Command(dockerBinary, "wait", cleanedContainerID)
-	_, _, err = runCommandWithOutput(waitCmd)
-	errorOut(err, t, fmt.Sprintf("error thrown while waiting for container: %s", out))
+	dockerCmd(c, "wait", cleanedContainerID)
 
-	commitCmd := exec.Command(dockerBinary, "commit", cleanedContainerID)
-	out, _, err = runCommandWithOutput(commitCmd)
-	errorOut(err, t, fmt.Sprintf("failed to commit container to image: %v %v", out, err))
+	out, _ = dockerCmd(c, "commit", cleanedContainerID)
 
-	cleanedImageID := stripTrailingCharacters(out)
+	cleanedImageID := strings.TrimSpace(out)
 
-	inspectCmd := exec.Command(dockerBinary, "inspect", cleanedImageID)
-	out, _, err = runCommandWithOutput(inspectCmd)
-	errorOut(err, t, fmt.Sprintf("failed to inspect image: %v %v", out, err))
-
-	deleteContainer(cleanedContainerID)
-	deleteImages(cleanedImageID)
-
-	logDone("commit - echo foo and commit the image")
+	dockerCmd(c, "inspect", cleanedImageID)
 }
 
-func TestCommitNewFile(t *testing.T) {
-	cmd := exec.Command(dockerBinary, "run", "--name", "commiter", "busybox", "/bin/sh", "-c", "echo koye > /foo")
-	if _, err := runCommand(cmd); err != nil {
-		t.Fatal(err)
-	}
+func (s *DockerSuite) TestCommitWithoutPause(c *check.C) {
+	out, _ := dockerCmd(c, "run", "-i", "-a", "stdin", "busybox", "echo", "foo")
 
-	cmd = exec.Command(dockerBinary, "commit", "commiter")
-	imageId, _, err := runCommandWithOutput(cmd)
-	if err != nil {
-		t.Fatal(err)
-	}
-	imageId = strings.Trim(imageId, "\r\n")
+	cleanedContainerID := strings.TrimSpace(out)
 
-	cmd = exec.Command(dockerBinary, "run", imageId, "cat", "/foo")
+	dockerCmd(c, "wait", cleanedContainerID)
 
-	out, _, err := runCommandWithOutput(cmd)
-	if err != nil {
-		t.Fatal(err, out)
+	out, _ = dockerCmd(c, "commit", "-p=false", cleanedContainerID)
+
+	cleanedImageID := strings.TrimSpace(out)
+
+	dockerCmd(c, "inspect", cleanedImageID)
+}
+
+//test commit a paused container should not unpause it after commit
+func (s *DockerSuite) TestCommitPausedContainer(c *check.C) {
+	defer unpauseAllContainers()
+	out, _ := dockerCmd(c, "run", "-i", "-d", "busybox")
+
+	cleanedContainerID := strings.TrimSpace(out)
+
+	dockerCmd(c, "pause", cleanedContainerID)
+
+	out, _ = dockerCmd(c, "commit", cleanedContainerID)
+
+	out, err := inspectField(cleanedContainerID, "State.Paused")
+	c.Assert(err, check.IsNil)
+	if !strings.Contains(out, "true") {
+		c.Fatalf("commit should not unpause a paused container")
 	}
+}
+
+func (s *DockerSuite) TestCommitNewFile(c *check.C) {
+
+	dockerCmd(c, "run", "--name", "commiter", "busybox", "/bin/sh", "-c", "echo koye > /foo")
+
+	imageID, _ := dockerCmd(c, "commit", "commiter")
+	imageID = strings.Trim(imageID, "\r\n")
+
+	out, _ := dockerCmd(c, "run", imageID, "cat", "/foo")
+
 	if actual := strings.Trim(out, "\r\n"); actual != "koye" {
-		t.Fatalf("expected output koye received %s", actual)
+		c.Fatalf("expected output koye received %q", actual)
 	}
 
-	deleteAllContainers()
-	deleteImages(imageId)
-
-	logDone("commit - commit file and read")
 }
 
-func TestCommitTTY(t *testing.T) {
-	cmd := exec.Command(dockerBinary, "run", "-t", "--name", "tty", "busybox", "/bin/ls")
+func (s *DockerSuite) TestCommitHardlink(c *check.C) {
 
-	if _, err := runCommand(cmd); err != nil {
-		t.Fatal(err)
+	firstOutput, _ := dockerCmd(c, "run", "-t", "--name", "hardlinks", "busybox", "sh", "-c", "touch file1 && ln file1 file2 && ls -di file1 file2")
+
+	chunks := strings.Split(strings.TrimSpace(firstOutput), " ")
+	inode := chunks[0]
+	found := false
+	for _, chunk := range chunks[1:] {
+		if chunk == inode {
+			found = true
+			break
+		}
+	}
+	if !found {
+		c.Fatalf("Failed to create hardlink in a container. Expected to find %q in %q", inode, chunks[1:])
 	}
 
-	cmd = exec.Command(dockerBinary, "commit", "tty", "ttytest")
-	imageId, _, err := runCommandWithOutput(cmd)
-	if err != nil {
-		t.Fatal(err)
-	}
-	imageId = strings.Trim(imageId, "\r\n")
+	imageID, _ := dockerCmd(c, "commit", "hardlinks", "hardlinks")
+	imageID = strings.Trim(imageID, "\r\n")
 
-	cmd = exec.Command(dockerBinary, "run", "ttytest", "/bin/ls")
+	secondOutput, _ := dockerCmd(c, "run", "-t", "hardlinks", "ls", "-di", "file1", "file2")
 
-	if _, err := runCommand(cmd); err != nil {
-		t.Fatal(err)
+	chunks = strings.Split(strings.TrimSpace(secondOutput), " ")
+	inode = chunks[0]
+	found = false
+	for _, chunk := range chunks[1:] {
+		if chunk == inode {
+			found = true
+			break
+		}
 	}
+	if !found {
+		c.Fatalf("Failed to create hardlink in a container. Expected to find %q in %q", inode, chunks[1:])
+	}
+
 }
 
-func TestCommitWithHostBindMount(t *testing.T) {
-	cmd := exec.Command(dockerBinary, "run", "--name", "bind-commit", "-v", "/dev/null:/winning", "busybox", "true")
-	if _, err := runCommand(cmd); err != nil {
-		t.Fatal(err)
+func (s *DockerSuite) TestCommitTTY(c *check.C) {
+
+	dockerCmd(c, "run", "-t", "--name", "tty", "busybox", "/bin/ls")
+
+	imageID, _ := dockerCmd(c, "commit", "tty", "ttytest")
+	imageID = strings.Trim(imageID, "\r\n")
+
+	dockerCmd(c, "run", "ttytest", "/bin/ls")
+
+}
+
+func (s *DockerSuite) TestCommitWithHostBindMount(c *check.C) {
+
+	dockerCmd(c, "run", "--name", "bind-commit", "-v", "/dev/null:/winning", "busybox", "true")
+
+	imageID, _ := dockerCmd(c, "commit", "bind-commit", "bindtest")
+	imageID = strings.Trim(imageID, "\r\n")
+
+	dockerCmd(c, "run", "bindtest", "true")
+
+}
+
+func (s *DockerSuite) TestCommitChange(c *check.C) {
+
+	dockerCmd(c, "run", "--name", "test", "busybox", "true")
+
+	imageID, _ := dockerCmd(c, "commit",
+		"--change", "EXPOSE 8080",
+		"--change", "ENV DEBUG true",
+		"--change", "ENV test 1",
+		"--change", "ENV PATH /foo",
+		"--change", "LABEL foo bar",
+		"--change", "CMD [\"/bin/sh\"]",
+		"--change", "WORKDIR /opt",
+		"--change", "ENTRYPOINT [\"/bin/sh\"]",
+		"--change", "USER testuser",
+		"--change", "VOLUME /var/lib/docker",
+		"--change", "ONBUILD /usr/local/bin/python-build --dir /app/src",
+		"test", "test-commit")
+	imageID = strings.Trim(imageID, "\r\n")
+
+	expected := map[string]string{
+		"Config.ExposedPorts": "map[8080/tcp:{}]",
+		"Config.Env":          "[DEBUG=true test=1 PATH=/foo]",
+		"Config.Labels":       "map[foo:bar]",
+		"Config.Cmd":          "{[/bin/sh]}",
+		"Config.WorkingDir":   "/opt",
+		"Config.Entrypoint":   "{[/bin/sh]}",
+		"Config.User":         "testuser",
+		"Config.Volumes":      "map[/var/lib/docker:{}]",
+		"Config.OnBuild":      "[/usr/local/bin/python-build --dir /app/src]",
 	}
 
-	cmd = exec.Command(dockerBinary, "commit", "bind-commit", "bindtest")
-	imageId, _, err := runCommandWithOutput(cmd)
-	if err != nil {
-		t.Fatal(err)
-	}
-	imageId = strings.Trim(imageId, "\r\n")
-
-	cmd = exec.Command(dockerBinary, "run", "bindtest", "true")
-
-	if _, err := runCommand(cmd); err != nil {
-		t.Fatal(err)
+	for conf, value := range expected {
+		res, err := inspectField(imageID, conf)
+		c.Assert(err, check.IsNil)
+		if res != value {
+			c.Errorf("%s('%s'), expected %s", conf, res, value)
+		}
 	}
 
-	deleteAllContainers()
-	deleteImages(imageId)
+}
 
-	logDone("commit - commit bind mounted file")
+// TODO: commit --run is deprecated, remove this once --run is removed
+func (s *DockerSuite) TestCommitMergeConfigRun(c *check.C) {
+	name := "commit-test"
+	out, _ := dockerCmd(c, "run", "-d", "-e=FOO=bar", "busybox", "/bin/sh", "-c", "echo testing > /tmp/foo")
+	id := strings.TrimSpace(out)
+
+	dockerCmd(c, "commit", `--run={"Cmd": ["cat", "/tmp/foo"]}`, id, "commit-test")
+
+	out, _ = dockerCmd(c, "run", "--name", name, "commit-test")
+	if strings.TrimSpace(out) != "testing" {
+		c.Fatal("run config in committed container was not merged")
+	}
+
+	type cfg struct {
+		Env []string
+		Cmd []string
+	}
+	config1 := cfg{}
+	if err := inspectFieldAndMarshall(id, "Config", &config1); err != nil {
+		c.Fatal(err)
+	}
+	config2 := cfg{}
+	if err := inspectFieldAndMarshall(name, "Config", &config2); err != nil {
+		c.Fatal(err)
+	}
+
+	// Env has at least PATH loaded as well here, so let's just grab the FOO one
+	var env1, env2 string
+	for _, e := range config1.Env {
+		if strings.HasPrefix(e, "FOO") {
+			env1 = e
+			break
+		}
+	}
+	for _, e := range config2.Env {
+		if strings.HasPrefix(e, "FOO") {
+			env2 = e
+			break
+		}
+	}
+
+	if len(config1.Env) != len(config2.Env) || env1 != env2 && env2 != "" {
+		c.Fatalf("expected envs to match: %v - %v", config1.Env, config2.Env)
+	}
+
 }

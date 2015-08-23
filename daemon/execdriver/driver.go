@@ -3,151 +3,203 @@ package execdriver
 import (
 	"errors"
 	"io"
-	"os"
 	"os/exec"
+	"time"
 
-	"github.com/docker/libcontainer/devices"
+	// TODO Windows: Factor out ulimit
+	"github.com/docker/docker/pkg/ulimit"
+	"github.com/opencontainers/runc/libcontainer"
+	"github.com/opencontainers/runc/libcontainer/configs"
 )
 
 // Context is a generic key value pair that allows
 // arbatrary data to be sent
 type Context map[string]string
 
+// Define error messages
 var (
-	ErrNotRunning              = errors.New("Process could not be started")
+	ErrNotRunning              = errors.New("Container is not running")
 	ErrWaitTimeoutReached      = errors.New("Wait timeout reached")
 	ErrDriverAlreadyRegistered = errors.New("A driver already registered this docker init function")
 	ErrDriverNotFound          = errors.New("The requested docker init has not been found")
 )
 
-var dockerInitFcts map[string]InitFunc
+// StartCallback defines a callback function.
+// It's used by 'Run' and 'Exec', does some work in parent process
+// after child process is started.
+type StartCallback func(*ProcessConfig, int)
 
-type (
-	StartCallback func(*Command)
-	InitFunc      func(i *InitArgs) error
-)
-
-func RegisterInitFunc(name string, fct InitFunc) error {
-	if dockerInitFcts == nil {
-		dockerInitFcts = make(map[string]InitFunc)
-	}
-	if _, ok := dockerInitFcts[name]; ok {
-		return ErrDriverAlreadyRegistered
-	}
-	dockerInitFcts[name] = fct
-	return nil
-}
-
-func GetInitFunc(name string) (InitFunc, error) {
-	fct, ok := dockerInitFcts[name]
-	if !ok {
-		return nil, ErrDriverNotFound
-	}
-	return fct, nil
-}
-
-// Args provided to the init function for a driver
-type InitArgs struct {
-	User       string
-	Gateway    string
-	Ip         string
-	WorkDir    string
-	Privileged bool
-	Env        []string
-	Args       []string
-	Mtu        int
-	Driver     string
-	Console    string
-	Pipe       int
-	Root       string
-}
-
-// Driver specific information based on
+// Info is driver specific information based on
 // processes registered with the driver
 type Info interface {
 	IsRunning() bool
 }
 
-// Terminal in an interface for drivers to implement
-// if they want to support Close and Resize calls from
-// the core
+// Terminal represents a pseudo TTY, it is for when
+// using a container interactively.
 type Terminal interface {
 	io.Closer
 	Resize(height, width int) error
 }
 
-type TtyTerminal interface {
-	Master() *os.File
+// ExitStatus provides exit reasons for a container.
+type ExitStatus struct {
+	// The exit code with which the container exited.
+	ExitCode int
+
+	// Whether the container encountered an OOM.
+	OOMKilled bool
 }
 
+// Driver is an interface for drivers to implement
+// including all basic functions a driver should have
 type Driver interface {
-	Run(c *Command, pipes *Pipes, startCallback StartCallback) (int, error) // Run executes the process and blocks until the process exits and returns the exit code
+	// Run executes the process, blocks until the process exits and returns
+	// the exit code. It's the last stage on Docker side for running a container.
+	Run(c *Command, pipes *Pipes, startCallback StartCallback) (ExitStatus, error)
+
+	// Exec executes the process in an existing container, blocks until the
+	// process exits and returns the exit code.
+	Exec(c *Command, processConfig *ProcessConfig, pipes *Pipes, startCallback StartCallback) (int, error)
+
+	// Kill sends signals to process in container.
 	Kill(c *Command, sig int) error
+
+	// Pause pauses a container.
 	Pause(c *Command) error
+
+	// Unpause unpauses a container.
 	Unpause(c *Command) error
-	Name() string                                 // Driver name
-	Info(id string) Info                          // "temporary" hack (until we move state from core to plugins)
-	GetPidsForContainer(id string) ([]int, error) // Returns a list of pids for the given container.
-	Terminate(c *Command) error                   // kill it with fire
+
+	// Name returns the name of the driver.
+	Name() string
+
+	// Info returns the configuration stored in the driver struct,
+	// "temporary" hack (until we move state from core to plugins).
+	Info(id string) Info
+
+	// GetPidsForContainer returns a list of pid for the processes running in a container.
+	GetPidsForContainer(id string) ([]int, error)
+
+	// Terminate kills a container by sending signal SIGKILL.
+	Terminate(c *Command) error
+
+	// Clean removes all traces of container exec.
+	Clean(id string) error
+
+	// Stats returns resource stats for a running container
+	Stats(id string) (*ResourceStats, error)
 }
 
-// Network settings of the container
-type Network struct {
-	Interface      *NetworkInterface `json:"interface"` // if interface is nil then networking is disabled
-	Mtu            int               `json:"mtu"`
-	ContainerID    string            `json:"container_id"` // id of the container to join network.
-	HostNetworking bool              `json:"host_networking"`
+// Ipc settings of the container
+// It is for IPC namespace setting. Usually different containers
+// have their own IPC namespace, however this specifies to use
+// an existing IPC namespace.
+// You can join the host's or a container's IPC namespace.
+type Ipc struct {
+	ContainerID string `json:"container_id"` // id of the container to join ipc.
+	HostIpc     bool   `json:"host_ipc"`
 }
 
-type NetworkInterface struct {
-	Gateway     string `json:"gateway"`
-	IPAddress   string `json:"ip"`
-	Bridge      string `json:"bridge"`
-	IPPrefixLen int    `json:"ip_prefix_len"`
+// Pid settings of the container
+// It is for PID namespace setting. Usually different containers
+// have their own PID namespace, however this specifies to use
+// an existing PID namespace.
+// Joining the host's PID namespace is currently the only supported
+// option.
+type Pid struct {
+	HostPid bool `json:"host_pid"`
 }
 
+// UTS settings of the container
+// It is for UTS namespace setting. Usually different containers
+// have their own UTS namespace, however this specifies to use
+// an existing UTS namespace.
+// Joining the host's UTS namespace is currently the only supported
+// option.
+type UTS struct {
+	HostUTS bool `json:"host_uts"`
+}
+
+// Resources contains all resource configs for a driver.
+// Currently these are all for cgroup configs.
+// TODO Windows: Factor out ulimit.Rlimit
 type Resources struct {
-	Memory     int64  `json:"memory"`
-	MemorySwap int64  `json:"memory_swap"`
-	CpuShares  int64  `json:"cpu_shares"`
-	Cpuset     string `json:"cpuset"`
+	Memory           int64            `json:"memory"`
+	MemorySwap       int64            `json:"memory_swap"`
+	KernelMemory     int64            `json:"kernel_memory"`
+	CPUShares        int64            `json:"cpu_shares"`
+	CpusetCpus       string           `json:"cpuset_cpus"`
+	CpusetMems       string           `json:"cpuset_mems"`
+	CPUPeriod        int64            `json:"cpu_period"`
+	CPUQuota         int64            `json:"cpu_quota"`
+	BlkioWeight      int64            `json:"blkio_weight"`
+	Rlimits          []*ulimit.Rlimit `json:"rlimits"`
+	OomKillDisable   bool             `json:"oom_kill_disable"`
+	MemorySwappiness int64            `json:"memory_swappiness"`
 }
 
+// ResourceStats contains information about resource usage by a container.
+type ResourceStats struct {
+	*libcontainer.Stats
+	Read        time.Time `json:"read"`
+	MemoryLimit int64     `json:"memory_limit"`
+	SystemUsage uint64    `json:"system_usage"`
+}
+
+// Mount contains information for a mount operation.
 type Mount struct {
 	Source      string `json:"source"`
 	Destination string `json:"destination"`
 	Writable    bool   `json:"writable"`
 	Private     bool   `json:"private"`
+	Slave       bool   `json:"slave"`
 }
 
-// Process wrapps an os/exec.Cmd to add more metadata
-type Command struct {
+// ProcessConfig describes a process that will be run inside a container.
+type ProcessConfig struct {
 	exec.Cmd `json:"-"`
 
-	ID                 string              `json:"id"`
-	Privileged         bool                `json:"privileged"`
-	User               string              `json:"user"`
-	Rootfs             string              `json:"rootfs"`   // root fs of the container
-	InitPath           string              `json:"initpath"` // dockerinit
-	Entrypoint         string              `json:"entrypoint"`
-	Arguments          []string            `json:"arguments"`
-	WorkingDir         string              `json:"working_dir"`
-	ConfigPath         string              `json:"config_path"` // this should be able to be removed when the lxc template is moved into the driver
-	Tty                bool                `json:"tty"`
-	Network            *Network            `json:"network"`
-	Config             map[string][]string `json:"config"` //  generic values that specific drivers can consume
-	Resources          *Resources          `json:"resources"`
-	Mounts             []Mount             `json:"mounts"`
-	AllowedDevices     []*devices.Device   `json:"allowed_devices"`
-	AutoCreatedDevices []*devices.Device   `json:"autocreated_devices"`
-
-	Terminal     Terminal `json:"-"`             // standard or tty terminal
-	Console      string   `json:"-"`             // dev/console path
-	ContainerPid int      `json:"container_pid"` // the pid for the process inside a container
+	Privileged  bool     `json:"privileged"`
+	User        string   `json:"user"`
+	Tty         bool     `json:"tty"`
+	Entrypoint  string   `json:"entrypoint"`
+	Arguments   []string `json:"arguments"`
+	Terminal    Terminal `json:"-"` // standard or tty terminal
+	Console     string   `json:"-"` // dev/console path
+	ConsoleSize [2]int   `json:"-"` // h,w of initial console size
 }
 
-// Return the pid of the process
-// If the process is nil -1 will be returned
-func (c *Command) Pid() int {
-	return c.ContainerPid
+// Command wrapps an os/exec.Cmd to add more metadata
+//
+// TODO Windows: Factor out unused fields such as LxcConfig, AppArmorProfile,
+// and CgroupParent.
+type Command struct {
+	ID                 string            `json:"id"`
+	Rootfs             string            `json:"rootfs"` // root fs of the container
+	ReadonlyRootfs     bool              `json:"readonly_rootfs"`
+	InitPath           string            `json:"initpath"` // dockerinit
+	WorkingDir         string            `json:"working_dir"`
+	ConfigPath         string            `json:"config_path"` // this should be able to be removed when the lxc template is moved into the driver
+	Network            *Network          `json:"network"`
+	Ipc                *Ipc              `json:"ipc"`
+	Pid                *Pid              `json:"pid"`
+	UTS                *UTS              `json:"uts"`
+	Resources          *Resources        `json:"resources"`
+	Mounts             []Mount           `json:"mounts"`
+	AllowedDevices     []*configs.Device `json:"allowed_devices"`
+	AutoCreatedDevices []*configs.Device `json:"autocreated_devices"`
+	CapAdd             []string          `json:"cap_add"`
+	CapDrop            []string          `json:"cap_drop"`
+	GroupAdd           []string          `json:"group_add"`
+	ContainerPid       int               `json:"container_pid"`  // the pid for the process inside a container
+	ProcessConfig      ProcessConfig     `json:"process_config"` // Describes the init process of the container.
+	ProcessLabel       string            `json:"process_label"`
+	MountLabel         string            `json:"mount_label"`
+	LxcConfig          []string          `json:"lxc_config"`
+	AppArmorProfile    string            `json:"apparmor_profile"`
+	CgroupParent       string            `json:"cgroup_parent"` // The parent cgroup for this command.
+	FirstStart         bool              `json:"first_start"`
+	LayerPaths         []string          `json:"layer_paths"` // Windows needs to know the layer paths and folder for a command
+	LayerFolder        string            `json:"layer_folder"`
 }

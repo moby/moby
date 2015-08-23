@@ -27,10 +27,10 @@ To run, I need:
 - a generous amount of good will and nice manners.
 The canonical way to run me is to run the image produced by the Dockerfile: e.g.:"
 
-docker run -e AWS_S3_BUCKET=get-staging.docker.io \
-           -e AWS_ACCESS_KEY=AKI1234... \
-           -e AWS_SECRET_KEY=sEs4mE... \
-           -e GPG_PASSPHRASE=m0resEs4mE... \
+docker run -e AWS_S3_BUCKET=test.docker.com \
+           -e AWS_ACCESS_KEY=... \
+           -e AWS_SECRET_KEY=... \
+           -e GPG_PASSPHRASE=... \
            -i -t --privileged \
            docker ./hack/release.sh
 EOF
@@ -41,8 +41,8 @@ EOF
 [ "$AWS_ACCESS_KEY" ] || usage
 [ "$AWS_SECRET_KEY" ] || usage
 [ "$GPG_PASSPHRASE" ] || usage
-[ -d /go/src/github.com/dotcloud/docker ] || usage
-cd /go/src/github.com/dotcloud/docker
+[ -d /go/src/github.com/docker/docker ] || usage
+cd /go/src/github.com/docker/docker
 [ -x hack/make.sh ] || usage
 
 RELEASE_BUNDLES=(
@@ -54,45 +54,46 @@ RELEASE_BUNDLES=(
 
 if [ "$1" != '--release-regardless-of-test-failure' ]; then
 	RELEASE_BUNDLES=(
-		test-unit test-integration
+		test-unit
 		"${RELEASE_BUNDLES[@]}"
 		test-integration-cli
 	)
 fi
 
-VERSION=$(cat VERSION)
+VERSION=$(< VERSION)
 BUCKET=$AWS_S3_BUCKET
 
 # These are the 2 keys we've used to sign the deb's
-#   release (get.docker.io)
+#   release (get.docker.com)
 #	GPG_KEY="36A1D7869245C8950F966E92D8576A8BA88D21E9"
-#   test    (test.docker.io)
+#   test    (test.docker.com)
 #	GPG_KEY="740B314AE3941731B942C66ADF4FD13717AAD7D6"
 
 setup_s3() {
+	echo "Setting up S3"
 	# Try creating the bucket. Ignore errors (it might already exist).
-	s3cmd mb s3://$BUCKET 2>/dev/null || true
+	s3cmd mb "s3://$BUCKET" 2>/dev/null || true
 	# Check access to the bucket.
 	# s3cmd has no useful exit status, so we cannot check that.
 	# Instead, we check if it outputs anything on standard output.
 	# (When there are problems, it uses standard error instead.)
-	s3cmd info s3://$BUCKET | grep -q .
+	s3cmd info "s3://$BUCKET" | grep -q .
 	# Make the bucket accessible through website endpoints.
-	s3cmd ws-create --ws-index index --ws-error error s3://$BUCKET
+	s3cmd ws-create --ws-index index --ws-error error "s3://$BUCKET"
 }
 
 # write_to_s3 uploads the contents of standard input to the specified S3 url.
 write_to_s3() {
 	DEST=$1
 	F=`mktemp`
-	cat > $F
-	s3cmd --acl-public --mime-type='text/plain' put $F $DEST
-	rm -f $F
+	cat > "$F"
+	s3cmd --acl-public --mime-type='text/plain' put "$F" "$DEST"
+	rm -f "$F"
 }
 
 s3_url() {
 	case "$BUCKET" in
-		get.docker.io|test.docker.io)
+		get.docker.com|test.docker.com|experimental.docker.com)
 			echo "https://$BUCKET"
 			;;
 		*)
@@ -102,6 +103,7 @@ s3_url() {
 }
 
 build_all() {
+	echo "Building release"
 	if ! ./hack/make.sh "${RELEASE_BUNDLES[@]}"; then
 		echo >&2
 		echo >&2 'The build or tests appear to have failed.'
@@ -162,6 +164,7 @@ upload_release_build() {
 }
 
 release_build() {
+	echo "Releasing binaries"
 	GOOS=$1
 	GOARCH=$2
 
@@ -189,6 +192,13 @@ release_build() {
 			;;
 		linux)
 			s3Os=Linux
+			;;
+		windows)
+			s3Os=Windows
+			binary+='.exe'
+			if [ "$latestBase" ]; then
+				latestBase+='.exe'
+			fi
 			;;
 		*)
 			echo >&2 "error: can't convert $s3Os to an appropriate value for 'uname -s'"
@@ -239,71 +249,68 @@ release_build() {
 # 1. A full APT repository is published at $BUCKET/ubuntu/
 # 2. Instructions for using the APT repository are uploaded at $BUCKET/ubuntu/index
 release_ubuntu() {
-	[ -e bundles/$VERSION/ubuntu ] || {
+	echo "Releasing ubuntu"
+	[ -e "bundles/$VERSION/ubuntu" ] || {
 		echo >&2 './hack/make.sh must be run before release_ubuntu'
 		exit 1
 	}
 
+	local debfiles=( "bundles/$VERSION/ubuntu/"*.deb )
+
 	# Sign our packages
-	dpkg-sig -g "--passphrase $GPG_PASSPHRASE" -k releasedocker \
-		--sign builder bundles/$VERSION/ubuntu/*.deb
+	dpkg-sig -g "--passphrase $GPG_PASSPHRASE" -k releasedocker --sign builder "${debfiles[@]}"
 
 	# Setup the APT repo
 	APTDIR=bundles/$VERSION/ubuntu/apt
-	mkdir -p $APTDIR/conf $APTDIR/db
-	s3cmd sync s3://$BUCKET/ubuntu/db/ $APTDIR/db/ || true
-	cat > $APTDIR/conf/distributions <<EOF
+	mkdir -p "$APTDIR/conf" "$APTDIR/db"
+	s3cmd sync "s3://$BUCKET/ubuntu/db/" "$APTDIR/db/" || true
+	cat > "$APTDIR/conf/distributions" <<EOF
 Codename: docker
 Components: main
 Architectures: amd64 i386
 EOF
 
 	# Add the DEB package to the APT repo
-	DEBFILE=bundles/$VERSION/ubuntu/lxc-docker*.deb
-	reprepro -b $APTDIR includedeb docker $DEBFILE
+	reprepro -b "$APTDIR" includedeb docker "${debfiles[@]}"
 
 	# Sign
 	for F in $(find $APTDIR -name Release); do
-		gpg -u releasedocker --passphrase $GPG_PASSPHRASE \
+		gpg -u releasedocker --passphrase "$GPG_PASSPHRASE" \
 			--armor --sign --detach-sign \
-			--output $F.gpg $F
+			--output "$F.gpg" "$F"
 	done
 
 	# Upload keys
-	s3cmd sync /.gnupg/ s3://$BUCKET/ubuntu/.gnupg/
-	gpg --armor --export releasedocker > bundles/$VERSION/ubuntu/gpg
-	s3cmd --acl-public put bundles/$VERSION/ubuntu/gpg s3://$BUCKET/gpg
+	s3cmd sync "$HOME/.gnupg/" "s3://$BUCKET/ubuntu/.gnupg/"
+	gpg --armor --export releasedocker > "bundles/$VERSION/ubuntu/gpg"
+	s3cmd --acl-public put "bundles/$VERSION/ubuntu/gpg" "s3://$BUCKET/gpg"
+
+	local gpgFingerprint=36A1D7869245C8950F966E92D8576A8BA88D21E9
+	local s3Headers=
+	if [[ $BUCKET == test* ]]; then
+		gpgFingerprint=740B314AE3941731B942C66ADF4FD13717AAD7D6
+	elif [[ $BUCKET == experimental* ]]; then
+		gpgFingerprint=E33FF7BF5C91D50A6F91FFFD4CC38D40F9A96B49
+		s3Headers='--add-header=Cache-Control:no-cache'
+	fi
 
 	# Upload repo
-	s3cmd --acl-public sync $APTDIR/ s3://$BUCKET/ubuntu/
+	s3cmd --acl-public "$s3Headers" sync "$APTDIR/" "s3://$BUCKET/ubuntu/"
 	cat <<EOF | write_to_s3 s3://$BUCKET/ubuntu/index
-# Check that HTTPS transport is available to APT
-if [ ! -e /usr/lib/apt/methods/https ]; then
-	apt-get update
-	apt-get install -y apt-transport-https
-fi
-# Add the repository to your APT sources
-echo deb $(s3_url)/ubuntu docker main > /etc/apt/sources.list.d/docker.list
-# Then import the repository key
-apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 36A1D7869245C8950F966E92D8576A8BA88D21E9
-# Install docker
-apt-get update ; apt-get install -y lxc-docker
-
-#
-# Alternatively, just use the curl-able install.sh script provided at $(s3_url)
-#
+echo "# WARNING! This script is deprecated. Please use the script"
+echo "# at https://get.docker.com/"
 EOF
 
 	# Add redirect at /ubuntu/info for URL-backwards-compatibility
 	rm -rf /tmp/emptyfile && touch /tmp/emptyfile
-	s3cmd --acl-public --add-header='x-amz-website-redirect-location:/ubuntu/' --mime-type='text/plain' put /tmp/emptyfile s3://$BUCKET/ubuntu/info
+	s3cmd --acl-public --add-header='x-amz-website-redirect-location:/ubuntu/' --mime-type='text/plain' put /tmp/emptyfile "s3://$BUCKET/ubuntu/info"
 
 	echo "APT repository uploaded. Instructions available at $(s3_url)/ubuntu"
 }
 
 # Upload binaries and tgz files to S3
 release_binaries() {
-	[ -e bundles/$VERSION/cross/linux/amd64/docker-$VERSION ] || {
+	[ -e "bundles/$VERSION/cross/linux/amd64/docker-$VERSION" ] || {
 		echo >&2 './hack/make.sh must be run before release_binaries'
 		exit 1
 	}
@@ -318,43 +325,46 @@ release_binaries() {
 
 	cat <<EOF | write_to_s3 s3://$BUCKET/builds/index
 # To install, run the following command as root:
-curl -O $(s3_url)/builds/Linux/x86_64/docker-$VERSION && chmod +x docker-$VERSION && sudo mv docker-$VERSION /usr/local/bin/docker
+curl -sSL -O $(s3_url)/builds/Linux/x86_64/docker-$VERSION && chmod +x docker-$VERSION && sudo mv docker-$VERSION /usr/local/bin/docker
 # Then start docker in daemon mode:
-sudo /usr/local/bin/docker -d
+sudo /usr/local/bin/docker daemon
 EOF
 
 	# Add redirect at /builds/info for URL-backwards-compatibility
 	rm -rf /tmp/emptyfile && touch /tmp/emptyfile
-	s3cmd --acl-public --add-header='x-amz-website-redirect-location:/builds/' --mime-type='text/plain' put /tmp/emptyfile s3://$BUCKET/builds/info
+	s3cmd --acl-public --add-header='x-amz-website-redirect-location:/builds/' --mime-type='text/plain' put /tmp/emptyfile "s3://$BUCKET/builds/info"
 
 	if [ -z "$NOLATEST" ]; then
 		echo "Advertising $VERSION on $BUCKET as most recent version"
-		echo $VERSION | write_to_s3 s3://$BUCKET/latest
+		echo "$VERSION" | write_to_s3 "s3://$BUCKET/latest"
 	fi
 }
 
 # Upload the index script
 release_index() {
-	sed "s,url='https://get.docker.io/',url='$(s3_url)/'," hack/install.sh | write_to_s3 s3://$BUCKET/index
+	echo "Releasing index"
+	sed "s,url='https://get.docker.com/',url='$(s3_url)/'," hack/install.sh | write_to_s3 "s3://$BUCKET/index"
 }
 
 release_test() {
+	echo "Releasing tests"
 	if [ -e "bundles/$VERSION/test" ]; then
-		s3cmd --acl-public sync bundles/$VERSION/test/ s3://$BUCKET/test/
+		s3cmd --acl-public sync "bundles/$VERSION/test/" "s3://$BUCKET/test/"
 	fi
 }
 
 setup_gpg() {
+	echo "Setting up GPG"
 	# Make sure that we have our keys
-	mkdir -p /.gnupg/
-	s3cmd sync s3://$BUCKET/ubuntu/.gnupg/ /.gnupg/ || true
+	mkdir -p "$HOME/.gnupg/"
+	s3cmd sync "s3://$BUCKET/ubuntu/.gnupg/" "$HOME/.gnupg/" || true
 	gpg --list-keys releasedocker >/dev/null || {
 		gpg --gen-key --batch <<EOF
 Key-Type: RSA
 Key-Length: 4096
 Passphrase: $GPG_PASSPHRASE
 Name-Real: Docker Release Tool
-Name-Email: docker@dotcloud.com
+Name-Email: docker@docker.com
 Name-Comment: releasedocker
 Expire-Date: 0
 %commit
@@ -377,4 +387,15 @@ main
 echo
 echo
 echo "Release complete; see $(s3_url)"
+echo "Use the following text to announce the release:"
+echo
+echo "We have just pushed $VERSION to $(s3_url). You can download it with the following:"
+echo
+echo "Ubuntu/Debian: curl -sSL $(s3_url) | sh"
+echo "Linux 64bit binary: $(s3_url)/builds/Linux/x86_64/docker-$VERSION"
+echo "Darwin/OSX 64bit client binary: $(s3_url)/builds/Darwin/x86_64/docker-$VERSION"
+echo "Darwin/OSX 32bit client binary: $(s3_url)/builds/Darwin/i386/docker-$VERSION"
+echo "Linux 64bit tgz: $(s3_url)/builds/Linux/x86_64/docker-$VERSION.tgz"
+echo "Windows 64bit client binary: $(s3_url)/builds/Windows/x86_64/docker-$VERSION.exe"
+echo "Windows 32bit client binary: $(s3_url)/builds/Windows/i386/docker-$VERSION.exe"
 echo

@@ -87,10 +87,10 @@ func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		setCurrentRoute(req, match.Route)
 	}
 	if handler == nil {
-		if r.NotFoundHandler == nil {
-			r.NotFoundHandler = http.NotFoundHandler()
-		}
 		handler = r.NotFoundHandler
+		if handler == nil {
+			handler = http.NotFoundHandler()
+		}
 	}
 	if !r.KeepContext {
 		defer context.Clear(req)

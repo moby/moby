@@ -1,9 +1,9 @@
-// +build exclude_graphdriver_aufs
+// +build exclude_graphdriver_aufs,linux freebsd
 
 package daemon
 
 import (
-	"github.com/dotcloud/docker/daemon/graphdriver"
+	"github.com/docker/docker/daemon/graphdriver"
 )
 
 func migrateIfAufs(driver graphdriver.Driver, root string) error {

@@ -19,12 +19,12 @@ tmp() {
 }
 
 apkv() {
-	curl -s $REPO/$ARCH/APKINDEX.tar.gz | tar -Oxz |
+	curl -sSL $REPO/$ARCH/APKINDEX.tar.gz | tar -Oxz |
 		grep '^P:apk-tools-static$' -A1 | tail -n1 | cut -d: -f2
 }
 
 getapk() {
-	curl -s $REPO/$ARCH/apk-tools-static-$(apkv).apk |
+	curl -sSL $REPO/$ARCH/apk-tools-static-$(apkv).apk |
 		tar -xz -C $TMP sbin/apk.static
 }
 
@@ -72,7 +72,7 @@ REL=${REL:-edge}
 MIRROR=${MIRROR:-http://nl.alpinelinux.org/alpine}
 SAVE=${SAVE:-0}
 REPO=$MIRROR/$REL/main
-ARCH=$(uname -m)
+ARCH=${ARCH:-$(uname -m)}
 
 tmp
 getapk

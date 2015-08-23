@@ -1,20 +1,19 @@
-// +build !exclude_graphdriver_aufs
+// +build !exclude_graphdriver_aufs,linux
 
 package daemon
 
 import (
-	"github.com/dotcloud/docker/daemon/graphdriver"
-	"github.com/dotcloud/docker/daemon/graphdriver/aufs"
-	"github.com/dotcloud/docker/graph"
-	"github.com/dotcloud/docker/utils"
+	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/daemon/graphdriver"
+	"github.com/docker/docker/daemon/graphdriver/aufs"
 )
 
 // Given the graphdriver ad, if it is aufs, then migrate it.
 // If aufs driver is not built, this func is a noop.
 func migrateIfAufs(driver graphdriver.Driver, root string) error {
 	if ad, ok := driver.(*aufs.Driver); ok {
-		utils.Debugf("Migrating existing containers")
-		if err := ad.Migrate(root, graph.SetupInitLayer); err != nil {
+		logrus.Debugf("Migrating existing containers")
+		if err := ad.Migrate(root, setupInitLayer); err != nil {
 			return err
 		}
 	}

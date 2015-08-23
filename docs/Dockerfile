@@ -1,37 +1,29 @@
-#
-# See the top level Makefile in https://github.com/dotcloud/docker for usage.
-#
-FROM 		debian:jessie
-MAINTAINER	Sven Dowideit <SvenDowideit@docker.com> (@SvenDowideit)
+FROM docs/base:latest
+MAINTAINER Mary Anthony <mary@docker.com> (@moxiegirl)
 
-RUN 	apt-get update && apt-get install -yq make python-pip python-setuptools vim-tiny git gettext
+# To get the git info for this repo
+COPY . /src
 
-RUN	pip install mkdocs
+COPY . /docs/content/
 
-# add MarkdownTools to get transclusion
-# (future development)
-#RUN	easy_install -U setuptools
-#RUN	pip install MarkdownTools2
+RUN svn checkout https://github.com/docker/compose/trunk/docs /docs/content/compose
+RUN svn checkout https://github.com/docker/swarm/trunk/docs /docs/content/swarm
+RUN svn checkout https://github.com/docker/machine/trunk/docs /docs/content/machine
+RUN svn checkout https://github.com/docker/distribution/trunk/docs /docs/content/registry
+RUN svn checkout https://github.com/kitematic/kitematic/trunk/docs /docs/content/kitematic
+RUN svn checkout https://github.com/docker/tutorials/trunk/docs /docs/content/
+RUN svn checkout https://github.com/docker/opensource/trunk/docs /docs/content/opensource
 
-# this version works, the current versions fail in different ways
-RUN	pip install awscli==1.3.9
 
-# get my sitemap.xml branch of mkdocs and use that for now
-RUN	git clone https://github.com/SvenDowideit/mkdocs	&&\
-	cd mkdocs/						&&\
-	git checkout docker-markdown-merge			&&\
-	./setup.py install
 
-ADD 	. /docs
-ADD	MAINTAINERS /docs/sources/humans.txt
-WORKDIR	/docs
 
-RUN	VERSION=$(cat /docs/VERSION)								&&\
-	GIT_BRANCH=$(cat /docs/GIT_BRANCH)							&&\
-	AWS_S3_BUCKET=$(cat /docs/AWS_S3_BUCKET)						&&\
-	echo "{% set docker_version = \"${VERSION}\" %}{% set docker_branch = \"${GIT_BRANCH}\" %}{% set aws_bucket = \"${AWS_S3_BUCKET}\" %}{% include \"beta_warning.html\" %}" > /docs/theme/mkdocs/version.html
-
-# note, EXPOSE is only last because of https://github.com/dotcloud/docker/issues/3525
-EXPOSE	8000
-
-CMD 	["mkdocs", "serve"]
+# Sed to process GitHub Markdown
+# 1-2 Remove comment code from metadata block
+# 3 Change ](/word to ](/project/ in links
+# 4 Change ](word.md) to ](/project/word)
+# 5 Remove .md extension from link text
+# 6 Change ](../ to ](/project/word) 
+# 7 Change ](../../ to ](/project/ --> not implemented
+# 
+# 
+RUN /src/pre-process.sh /docs

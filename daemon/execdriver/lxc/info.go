@@ -1,3 +1,5 @@
+// +build linux
+
 package lxc
 
 import (
@@ -7,6 +9,7 @@ import (
 	"strings"
 )
 
+// Define error messages
 var (
 	ErrCannotParse = errors.New("cannot parse raw input")
 )

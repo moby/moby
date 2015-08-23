@@ -5,8 +5,11 @@ Syntax highlighting for Dockerfiles
 
 Installation
 ------------
+With [pathogen](https://github.com/tpope/vim-pathogen), the usual way...
 
-Via pathogen, the usual way...
+With [Vundle](https://github.com/gmarik/Vundle.vim)
+  
+    Plugin 'docker/docker' , {'rtp': '/contrib/syntax/vim/'}
 
 Features
 --------

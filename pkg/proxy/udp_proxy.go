@@ -2,17 +2,20 @@ package proxy
 
 import (
 	"encoding/binary"
-	"log"
 	"net"
 	"strings"
 	"sync"
 	"syscall"
 	"time"
+
+	"github.com/Sirupsen/logrus"
 )
 
 const (
+	// UDPConnTrackTimeout is the timeout used for UDP connection tracking
 	UDPConnTrackTimeout = 90 * time.Second
-	UDPBufSize          = 2048
+	// UDPBufSize is the buffer size for the UDP proxy
+	UDPBufSize = 65507
 )
 
 // A net.Addr where the IP is split into two fields so you can use it as a key
@@ -40,6 +43,9 @@ func newConnTrackKey(addr *net.UDPAddr) *connTrackKey {
 
 type connTrackMap map[connTrackKey]*net.UDPConn
 
+// UDPProxy is proxy for which handles UDP datagrams. It implements the Proxy
+// interface to handle UDP traffic forwarding between the frontend and backend
+// addresses.
 type UDPProxy struct {
 	listener       *net.UDPConn
 	frontendAddr   *net.UDPAddr
@@ -48,6 +54,7 @@ type UDPProxy struct {
 	connTrackLock  sync.Mutex
 }
 
+// NewUDPProxy creates a new UDPProxy.
 func NewUDPProxy(frontendAddr, backendAddr *net.UDPAddr) (*UDPProxy, error) {
 	listener, err := net.ListenUDP("udp", frontendAddr)
 	if err != nil {
@@ -95,6 +102,7 @@ func (proxy *UDPProxy) replyLoop(proxyConn *net.UDPConn, clientAddr *net.UDPAddr
 	}
 }
 
+// Run starts forwarding the traffic using UDP.
 func (proxy *UDPProxy) Run() {
 	readBuf := make([]byte, UDPBufSize)
 	for {
@@ -104,7 +112,7 @@ func (proxy *UDPProxy) Run() {
 			// ECONNREFUSED like Read do (see comment in
 			// UDPProxy.replyLoop)
 			if !isClosedError(err) {
-				log.Printf("Stopping proxy on udp/%v for udp/%v (%s)", proxy.frontendAddr, proxy.backendAddr, err)
+				logrus.Printf("Stopping proxy on udp/%v for udp/%v (%s)", proxy.frontendAddr, proxy.backendAddr, err)
 			}
 			break
 		}
@@ -115,7 +123,8 @@ func (proxy *UDPProxy) Run() {
 		if !hit {
 			proxyConn, err = net.DialUDP("udp", nil, proxy.backendAddr)
 			if err != nil {
-				log.Printf("Can't proxy a datagram to udp/%s: %s\n", proxy.backendAddr, err)
+				logrus.Printf("Can't proxy a datagram to udp/%s: %s\n", proxy.backendAddr, err)
+				proxy.connTrackLock.Unlock()
 				continue
 			}
 			proxy.connTrackTable[*fromKey] = proxyConn
@@ -125,7 +134,7 @@ func (proxy *UDPProxy) Run() {
 		for i := 0; i != read; {
 			written, err := proxyConn.Write(readBuf[i:read])
 			if err != nil {
-				log.Printf("Can't proxy a datagram to udp/%s: %s\n", proxy.backendAddr, err)
+				logrus.Printf("Can't proxy a datagram to udp/%s: %s\n", proxy.backendAddr, err)
 				break
 			}
 			i += written
@@ -133,6 +142,7 @@ func (proxy *UDPProxy) Run() {
 	}
 }
 
+// Close stops forwarding the traffic.
 func (proxy *UDPProxy) Close() {
 	proxy.listener.Close()
 	proxy.connTrackLock.Lock()
@@ -142,8 +152,11 @@ func (proxy *UDPProxy) Close() {
 	}
 }
 
+// FrontendAddr returns the UDP address on which the proxy is listening.
 func (proxy *UDPProxy) FrontendAddr() net.Addr { return proxy.frontendAddr }
-func (proxy *UDPProxy) BackendAddr() net.Addr  { return proxy.backendAddr }
+
+// BackendAddr returns the proxied UDP address.
+func (proxy *UDPProxy) BackendAddr() net.Addr { return proxy.backendAddr }
 
 func isClosedError(err error) bool {
 	/* This comparison is ugly, but unfortunately, net.go doesn't export errClosing.

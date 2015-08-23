@@ -2,11 +2,11 @@ package registry
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
-	"github.com/dotcloud/docker/utils"
-	"github.com/gorilla/mux"
 	"io"
 	"io/ioutil"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -14,17 +14,23 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/docker/docker/opts"
+	"github.com/gorilla/mux"
+
+	"github.com/Sirupsen/logrus"
 )
 
 var (
-	testHttpServer *httptest.Server
-	testLayers     = map[string]map[string]string{
+	testHTTPServer  *httptest.Server
+	testHTTPSServer *httptest.Server
+	testLayers      = map[string]map[string]string{
 		"77dbf71da1d00e3fbddc480176eac8994025630c6590d11cfc8fe1209c2a1d20": {
 			"json": `{"id":"77dbf71da1d00e3fbddc480176eac8994025630c6590d11cfc8fe1209c2a1d20",
 				"comment":"test base image","created":"2013-03-23T12:53:11.10432-07:00",
 				"container_config":{"Hostname":"","User":"","Memory":0,"MemorySwap":0,
 				"CpuShares":0,"AttachStdin":false,"AttachStdout":false,"AttachStderr":false,
-				"PortSpecs":null,"Tty":false,"OpenStdin":false,"StdinOnce":false,
+				"Tty":false,"OpenStdin":false,"StdinOnce":false,
 				"Env":null,"Cmd":null,"Dns":null,"Image":"","Volumes":null,
 				"VolumesFrom":"","Entrypoint":null},"Size":424242}`,
 			"checksum_simple": "sha256:1ac330d56e05eef6d438586545ceff7550d3bdcb6b19961f12c5ba714ee1bb37",
@@ -50,7 +56,7 @@ var (
 				"comment":"test base image","created":"2013-03-23T12:55:11.10432-07:00",
 				"container_config":{"Hostname":"","User":"","Memory":0,"MemorySwap":0,
 				"CpuShares":0,"AttachStdin":false,"AttachStdout":false,"AttachStderr":false,
-				"PortSpecs":null,"Tty":false,"OpenStdin":false,"StdinOnce":false,
+				"Tty":false,"OpenStdin":false,"StdinOnce":false,
 				"Env":null,"Cmd":null,"Dns":null,"Image":"","Volumes":null,
 				"VolumesFrom":"","Entrypoint":null},"Size":424242}`,
 			"checksum_simple": "sha256:bea7bf2e4bacd479344b737328db47b18880d09096e6674165533aa994f5e9f2",
@@ -75,12 +81,21 @@ var (
 	testRepositories = map[string]map[string]string{
 		"foo42/bar": {
 			"latest": "42d718c941f5c532ac049bf0b0ab53f0062f09a03afd4aa4a02c098e46032b9d",
+			"test":   "42d718c941f5c532ac049bf0b0ab53f0062f09a03afd4aa4a02c098e46032b9d",
 		},
+	}
+	mockHosts = map[string][]net.IP{
+		"":            {net.ParseIP("0.0.0.0")},
+		"localhost":   {net.ParseIP("127.0.0.1"), net.ParseIP("::1")},
+		"example.com": {net.ParseIP("42.42.42.42")},
+		"other.com":   {net.ParseIP("43.43.43.43")},
 	}
 )
 
 func init() {
 	r := mux.NewRouter()
+
+	// /v1/
 	r.HandleFunc("/v1/_ping", handlerGetPing).Methods("GET")
 	r.HandleFunc("/v1/images/{image_id:[^/]+}/{action:json|layer|ancestry}", handlerGetImage).Methods("GET")
 	r.HandleFunc("/v1/images/{image_id:[^/]+}/{action:json|layer|checksum}", handlerPutImage).Methods("PUT")
@@ -91,19 +106,89 @@ func init() {
 	r.HandleFunc("/v1/repositories/{repository:.+}{action:/images|/}", handlerImages).Methods("GET", "PUT", "DELETE")
 	r.HandleFunc("/v1/repositories/{repository:.+}/auth", handlerAuth).Methods("PUT")
 	r.HandleFunc("/v1/search", handlerSearch).Methods("GET")
-	testHttpServer = httptest.NewServer(handlerAccessLog(r))
+
+	// /v2/
+	r.HandleFunc("/v2/version", handlerGetPing).Methods("GET")
+
+	testHTTPServer = httptest.NewServer(handlerAccessLog(r))
+	testHTTPSServer = httptest.NewTLSServer(handlerAccessLog(r))
+
+	// override net.LookupIP
+	lookupIP = func(host string) ([]net.IP, error) {
+		if host == "127.0.0.1" {
+			// I believe in future Go versions this will fail, so let's fix it later
+			return net.LookupIP(host)
+		}
+		for h, addrs := range mockHosts {
+			if host == h {
+				return addrs, nil
+			}
+			for _, addr := range addrs {
+				if addr.String() == host {
+					return []net.IP{addr}, nil
+				}
+			}
+		}
+		return nil, errors.New("lookup: no such host")
+	}
 }
 
 func handlerAccessLog(handler http.Handler) http.Handler {
 	logHandler := func(w http.ResponseWriter, r *http.Request) {
-		utils.Debugf("%s \"%s %s\"", r.RemoteAddr, r.Method, r.URL)
+		logrus.Debugf("%s \"%s %s\"", r.RemoteAddr, r.Method, r.URL)
 		handler.ServeHTTP(w, r)
 	}
 	return http.HandlerFunc(logHandler)
 }
 
 func makeURL(req string) string {
-	return testHttpServer.URL + req
+	return testHTTPServer.URL + req
+}
+
+func makeHTTPSURL(req string) string {
+	return testHTTPSServer.URL + req
+}
+
+func makeIndex(req string) *IndexInfo {
+	index := &IndexInfo{
+		Name: makeURL(req),
+	}
+	return index
+}
+
+func makeHTTPSIndex(req string) *IndexInfo {
+	index := &IndexInfo{
+		Name: makeHTTPSURL(req),
+	}
+	return index
+}
+
+func makePublicIndex() *IndexInfo {
+	index := &IndexInfo{
+		Name:     IndexServer,
+		Secure:   true,
+		Official: true,
+	}
+	return index
+}
+
+func makeServiceConfig(mirrors []string, insecureRegistries []string) *ServiceConfig {
+	options := &Options{
+		Mirrors:            opts.NewListOpts(nil),
+		InsecureRegistries: opts.NewListOpts(nil),
+	}
+	if mirrors != nil {
+		for _, mirror := range mirrors {
+			options.Mirrors.Set(mirror)
+		}
+	}
+	if insecureRegistries != nil {
+		for _, insecureRegistries := range insecureRegistries {
+			options.InsecureRegistries.Set(insecureRegistries)
+		}
+	}
+
+	return NewServiceConfig(options)
 }
 
 func writeHeaders(w http.ResponseWriter) {
@@ -153,6 +238,40 @@ func assertEqual(t *testing.T, a interface{}, b interface{}, message string) {
 	t.Fatal(message)
 }
 
+func assertNotEqual(t *testing.T, a interface{}, b interface{}, message string) {
+	if a != b {
+		return
+	}
+	if len(message) == 0 {
+		message = fmt.Sprintf("%v == %v", a, b)
+	}
+	t.Fatal(message)
+}
+
+// Similar to assertEqual, but does not stop test
+func checkEqual(t *testing.T, a interface{}, b interface{}, messagePrefix string) {
+	if a == b {
+		return
+	}
+	message := fmt.Sprintf("%v != %v", a, b)
+	if len(messagePrefix) != 0 {
+		message = messagePrefix + ": " + message
+	}
+	t.Error(message)
+}
+
+// Similar to assertNotEqual, but does not stop test
+func checkNotEqual(t *testing.T, a interface{}, b interface{}, messagePrefix string) {
+	if a != b {
+		return
+	}
+	message := fmt.Sprintf("%v == %v", a, b)
+	if len(messagePrefix) != 0 {
+		message = messagePrefix + ": " + message
+	}
+	t.Error(message)
+}
+
 func requiresAuth(w http.ResponseWriter, r *http.Request) bool {
 	writeCookie := func() {
 		value := fmt.Sprintf("FAKE-SESSION-%d", time.Now().UnixNano())
@@ -190,8 +309,8 @@ func handlerGetImage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeHeaders(w)
-	layer_size := len(layer["layer"])
-	w.Header().Add("X-Docker-Size", strconv.Itoa(layer_size))
+	layerSize := len(layer["layer"])
+	w.Header().Add("X-Docker-Size", strconv.Itoa(layerSize))
 	io.WriteString(w, layer[vars["action"]])
 }
 
@@ -200,16 +319,16 @@ func handlerPutImage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	vars := mux.Vars(r)
-	image_id := vars["image_id"]
+	imageID := vars["image_id"]
 	action := vars["action"]
-	layer, exists := testLayers[image_id]
+	layer, exists := testLayers[imageID]
 	if !exists {
 		if action != "json" {
 			http.NotFound(w, r)
 			return
 		}
 		layer = make(map[string]string)
-		testLayers[image_id] = layer
+		testLayers[imageID] = layer
 	}
 	if checksum := r.Header.Get("X-Docker-Checksum"); checksum != "" {
 		if checksum != layer["checksum_simple"] && checksum != layer["checksum_tarsum"] {
@@ -231,9 +350,11 @@ func handlerGetDeleteTags(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	repositoryName := mux.Vars(r)["repository"]
+	repositoryName = NormalizeLocalName(repositoryName)
 	tags, exists := testRepositories[repositoryName]
 	if !exists {
 		apiError(w, "Repository not found", 404)
+		return
 	}
 	if r.Method == "DELETE" {
 		delete(testRepositories, repositoryName)
@@ -249,14 +370,17 @@ func handlerGetTag(w http.ResponseWriter, r *http.Request) {
 	}
 	vars := mux.Vars(r)
 	repositoryName := vars["repository"]
+	repositoryName = NormalizeLocalName(repositoryName)
 	tagName := vars["tag"]
 	tags, exists := testRepositories[repositoryName]
 	if !exists {
 		apiError(w, "Repository not found", 404)
+		return
 	}
 	tag, exists := tags[tagName]
 	if !exists {
 		apiError(w, "Tag not found", 404)
+		return
 	}
 	writeResponse(w, tag, 200)
 }
@@ -267,6 +391,7 @@ func handlerPutTag(w http.ResponseWriter, r *http.Request) {
 	}
 	vars := mux.Vars(r)
 	repositoryName := vars["repository"]
+	repositoryName = NormalizeLocalName(repositoryName)
 	tagName := vars["tag"]
 	tags, exists := testRepositories[repositoryName]
 	if !exists {
@@ -290,7 +415,7 @@ func handlerUsers(w http.ResponseWriter, r *http.Request) {
 }
 
 func handlerImages(w http.ResponseWriter, r *http.Request) {
-	u, _ := url.Parse(testHttpServer.URL)
+	u, _ := url.Parse(testHTTPServer.URL)
 	w.Header().Add("X-Docker-Endpoints", fmt.Sprintf("%s 	,  %s ", u.Host, "test.example.com"))
 	w.Header().Add("X-Docker-Token", fmt.Sprintf("FAKE-SESSION-%d", time.Now().UnixNano()))
 	if r.Method == "PUT" {
@@ -306,9 +431,9 @@ func handlerImages(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	images := []map[string]string{}
-	for image_id, layer := range testLayers {
+	for imageID, layer := range testLayers {
 		image := make(map[string]string)
-		image["id"] = image_id
+		image["id"] = imageID
 		image["checksum"] = layer["checksum_tarsum"]
 		image["Tag"] = "latest"
 		images = append(images, image)
@@ -343,7 +468,7 @@ func TestPing(t *testing.T) {
  * WARNING: Don't push on the repos uncommented, it'll block the tests
  *
 func TestWait(t *testing.T) {
-	log.Println("Test HTTP server ready and waiting:", testHttpServer.URL)
+	logrus.Println("Test HTTP server ready and waiting:", testHTTPServer.URL)
 	c := make(chan int)
 	<-c
 }

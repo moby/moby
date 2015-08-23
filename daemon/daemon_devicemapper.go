@@ -1,7 +1,7 @@
-// +build !exclude_graphdriver_devicemapper
+// +build !exclude_graphdriver_devicemapper,linux
 
 package daemon
 
 import (
-	_ "github.com/dotcloud/docker/daemon/graphdriver/devmapper"
+	_ "github.com/docker/docker/daemon/graphdriver/devmapper"
 )

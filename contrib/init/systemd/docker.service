@@ -1,13 +1,16 @@
 [Unit]
 Description=Docker Application Container Engine
-Documentation=http://docs.docker.io
-After=network.target
+Documentation=https://docs.docker.com
+After=network.target docker.socket
+Requires=docker.socket
 
 [Service]
-ExecStart=/usr/bin/docker -d
-Restart=on-failure
+Type=notify
+ExecStart=/usr/bin/docker daemon -H fd://
+MountFlags=slave
 LimitNOFILE=1048576
 LimitNPROC=1048576
+LimitCORE=infinity
 
 [Install]
 WantedBy=multi-user.target

@@ -1,47 +1,63 @@
 package sysinfo
 
-import (
-	"io/ioutil"
-	"log"
-	"os"
-	"path"
-
-	"github.com/docker/libcontainer/cgroups"
-)
-
+// SysInfo stores information about which features a kernel supports.
+// TODO Windows: Factor out platform specific capabilities.
 type SysInfo struct {
-	MemoryLimit            bool
-	SwapLimit              bool
+	// Whether the kernel supports AppArmor or not
+	AppArmor bool
+
+	cgroupMemInfo
+	cgroupCPUInfo
+	cgroupBlkioInfo
+	cgroupCpusetInfo
+
+	// Whether IPv4 forwarding is supported or not, if this was disabled, networking will not work
 	IPv4ForwardingDisabled bool
-	AppArmor               bool
+
+	// Whether bridge-nf-call-iptables is supported or not
+	BridgeNfCallIptablesDisabled bool
+
+	// Whether bridge-nf-call-ip6tables is supported or not
+	BridgeNfCallIP6tablesDisabled bool
+
+	// Whether the cgroup has the mountpoint of "devices" or not
+	CgroupDevicesEnabled bool
 }
 
-func New(quiet bool) *SysInfo {
-	sysInfo := &SysInfo{}
-	if cgroupMemoryMountpoint, err := cgroups.FindCgroupMountpoint("memory"); err != nil {
-		if !quiet {
-			log.Printf("WARNING: %s\n", err)
-		}
-	} else {
-		_, err1 := ioutil.ReadFile(path.Join(cgroupMemoryMountpoint, "memory.limit_in_bytes"))
-		_, err2 := ioutil.ReadFile(path.Join(cgroupMemoryMountpoint, "memory.soft_limit_in_bytes"))
-		sysInfo.MemoryLimit = err1 == nil && err2 == nil
-		if !sysInfo.MemoryLimit && !quiet {
-			log.Printf("WARNING: Your kernel does not support cgroup memory limit.")
-		}
+type cgroupMemInfo struct {
+	// Whether memory limit is supported or not
+	MemoryLimit bool
 
-		_, err = ioutil.ReadFile(path.Join(cgroupMemoryMountpoint, "memory.memsw.limit_in_bytes"))
-		sysInfo.SwapLimit = err == nil
-		if !sysInfo.SwapLimit && !quiet {
-			log.Printf("WARNING: Your kernel does not support cgroup swap limit.")
-		}
-	}
+	// Whether swap limit is supported or not
+	SwapLimit bool
 
-	// Check if AppArmor seems to be enabled on this system.
-	if _, err := os.Stat("/sys/kernel/security/apparmor"); os.IsNotExist(err) {
-		sysInfo.AppArmor = false
-	} else {
-		sysInfo.AppArmor = true
-	}
-	return sysInfo
+	// Whether OOM killer disalbe is supported or not
+	OomKillDisable bool
+
+	// Whether memory swappiness is supported or not
+	MemorySwappiness bool
+
+	// Whether kernel memory limit is supported or not
+	KernelMemory bool
+}
+
+type cgroupCPUInfo struct {
+	// Whether CPU shares is supported or not
+	CPUShares bool
+
+	// Whether CPU CFS(Completely Fair Scheduler) period is supported or not
+	CPUCfsPeriod bool
+
+	// Whether CPU CFS(Completely Fair Scheduler) quota is supported or not
+	CPUCfsQuota bool
+}
+
+type cgroupBlkioInfo struct {
+	// Whether Block IO weight is supported or not
+	BlkioWeight bool
+}
+
+type cgroupCpusetInfo struct {
+	// Whether Cpuset is supported or not
+	Cpuset bool
 }

@@ -1,20 +1,29 @@
+// +build linux
+
 package aufs
 
 import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
-	"github.com/dotcloud/docker/archive"
-	"github.com/dotcloud/docker/daemon/graphdriver"
 	"io/ioutil"
 	"os"
 	"path"
 	"testing"
+
+	"github.com/docker/docker/daemon/graphdriver"
+	"github.com/docker/docker/pkg/archive"
+	"github.com/docker/docker/pkg/reexec"
 )
 
 var (
-	tmp = path.Join(os.TempDir(), "aufs-tests", "aufs")
+	tmpOuter = path.Join(os.TempDir(), "aufs-tests")
+	tmp      = path.Join(tmpOuter, "aufs")
 )
+
+func init() {
+	reexec.Init()
+}
 
 func testInit(dir string, t *testing.T) graphdriver.Driver {
 	d, err := Init(dir, nil)
@@ -330,7 +339,7 @@ func TestGetDiff(t *testing.T) {
 	}
 	f.Close()
 
-	a, err := d.Diff("1")
+	a, err := d.Diff("1", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -374,7 +383,7 @@ func TestChanges(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	changes, err := d.Changes("2")
+	changes, err := d.Changes("2", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -413,7 +422,7 @@ func TestChanges(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	changes, err = d.Changes("3")
+	changes, err = d.Changes("3", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -465,7 +474,7 @@ func TestDiffSize(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	diffSize, err := d.DiffSize("1")
+	diffSize, err := d.DiffSize("1", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -507,7 +516,7 @@ func TestChildDiffSize(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	diffSize, err := d.DiffSize("1")
+	diffSize, err := d.DiffSize("1", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -519,7 +528,7 @@ func TestChildDiffSize(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	diffSize, err = d.DiffSize("2")
+	diffSize, err = d.DiffSize("2", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -561,7 +570,7 @@ func TestStatus(t *testing.T) {
 		t.Fatal("Status should not be nil or empty")
 	}
 	rootDir := status[0]
-	dirs := status[1]
+	dirs := status[2]
 	if rootDir[0] != "Root Dir" {
 		t.Fatalf("Expected Root Dir got %s", rootDir[0])
 	}
@@ -602,7 +611,7 @@ func TestApplyDiff(t *testing.T) {
 	}
 	f.Close()
 
-	diff, err := d.Diff("1")
+	diff, err := d.Diff("1", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -614,7 +623,7 @@ func TestApplyDiff(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := d.ApplyDiff("3", diff); err != nil {
+	if err := d.applyDiff("3", diff); err != nil {
 		t.Fatal(err)
 	}
 
@@ -635,9 +644,13 @@ func hash(c string) string {
 	return hex.EncodeToString(h.Sum(nil))
 }
 
-func TestMountMoreThan42Layers(t *testing.T) {
-	d := newDriver(t)
-	defer os.RemoveAll(tmp)
+func testMountMoreThan42Layers(t *testing.T, mountPath string) {
+	if err := os.MkdirAll(mountPath, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	defer os.RemoveAll(mountPath)
+	d := testInit(mountPath, t).(*Driver)
 	defer d.Cleanup()
 	var last string
 	var expected int
@@ -658,24 +671,24 @@ func TestMountMoreThan42Layers(t *testing.T) {
 
 		if err := d.Create(current, parent); err != nil {
 			t.Logf("Current layer %d", i)
-			t.Fatal(err)
+			t.Error(err)
 		}
 		point, err := d.Get(current, "")
 		if err != nil {
 			t.Logf("Current layer %d", i)
-			t.Fatal(err)
+			t.Error(err)
 		}
 		f, err := os.Create(path.Join(point, current))
 		if err != nil {
 			t.Logf("Current layer %d", i)
-			t.Fatal(err)
+			t.Error(err)
 		}
 		f.Close()
 
 		if i%10 == 0 {
 			if err := os.Remove(path.Join(point, parent)); err != nil {
 				t.Logf("Current layer %d", i)
-				t.Fatal(err)
+				t.Error(err)
 			}
 			expected--
 		}
@@ -685,13 +698,37 @@ func TestMountMoreThan42Layers(t *testing.T) {
 	// Perform the actual mount for the top most image
 	point, err := d.Get(last, "")
 	if err != nil {
-		t.Fatal(err)
+		t.Error(err)
 	}
 	files, err := ioutil.ReadDir(point)
 	if err != nil {
-		t.Fatal(err)
+		t.Error(err)
 	}
 	if len(files) != expected {
-		t.Fatalf("Expected %d got %d", expected, len(files))
+		t.Errorf("Expected %d got %d", expected, len(files))
+	}
+}
+
+func TestMountMoreThan42Layers(t *testing.T) {
+	os.RemoveAll(tmpOuter)
+	testMountMoreThan42Layers(t, tmp)
+}
+
+func TestMountMoreThan42LayersMatchingPathLength(t *testing.T) {
+	defer os.RemoveAll(tmpOuter)
+	zeroes := "0"
+	for {
+		// This finds a mount path so that when combined into aufs mount options
+		// 4096 byte boundary would be in between the paths or in permission
+		// section. For '/tmp' it will use '/tmp/aufs-tests/00000000/aufs'
+		mountPath := path.Join(tmpOuter, zeroes, "aufs")
+		pathLength := 77 + len(mountPath)
+
+		if mod := 4095 % pathLength; mod == 0 || mod > pathLength-2 {
+			t.Logf("Using path: %s", mountPath)
+			testMountMoreThan42Layers(t, mountPath)
+			return
+		}
+		zeroes += "0"
 	}
 }
