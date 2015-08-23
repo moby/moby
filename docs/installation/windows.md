@@ -31,16 +31,17 @@ small ~24MB download, and boots in approximately 5s.
 
 ## Requirements
 
-Your machine must be running Windows 7.1, 8/8.1 or newer to run Docker. Windows 10 is not currently supported. To find out what version of Windows you have:
+Your machine must be running Windows 7, 8/8.1 or newer to run Docker. Windows 10 is not currently supported. To find out what version of Windows you have:
 
-1. Right click the Windows message and choose **System**. 
+1. Right click the Windows Start Menu and choose **System**.
 
     ![Which version](/installation/images/win_ver.png)
     
-    If you aren't using a supported version, you could consider upgrading your
-    operating system.
+    If you are using an unsupported version of Windows, you should consider
+    upgrading your operating system in order to try out Docker.
 
-2. Make sure your Windows system supports Hardware Virtualization Technology and that virtualization is enabled.
+2. Make sure your CPU supports [virtualization technology](https://en.wikipedia.org/wiki/X86_virtualization) 
+and virtualzation support is enabled in BIOS and recognized by Windows.
 
     #### For Windows 8 or 8.1
 
@@ -51,7 +52,7 @@ Your machine must be running Windows 7.1, 8/8.1 or newer to run Docker. Windows 
     
     If virtualization is not enabled on your system, follow the manufacturer's instructions for enabling it.
     
-    ### For Windows 7 
+    #### For Windows 7
     
 	  Run the <a
 	  href="http://www.microsoft.com/en-us/download/details.aspx?id=592"
@@ -110,7 +111,7 @@ installer.
     installation. By default, the standard Docker Toolbox installation:
   
     * installs executables for the Docker tools in `C:\Program Files\Docker Toolbox` 
-    * updates any existing VirtualBox installation 
+    * install VirtualBox; or updates any existing installation
     * adds a Docker Inc. folder to your program shortcuts
     * updates your `PATH` environment variable
     * adds desktop icons for the Docker Quickstart Terminal and Kitematic
@@ -130,7 +131,7 @@ installer.
    
      ![All finished](/installation/images/windows-finish.png)
    
-7. Press "Close" to exit.
+7. Press "Finish" to exit.
 
 ## Running a Docker Container
 
@@ -146,14 +147,14 @@ VirtualBox VM, it maintains its configuration between uses.
 There are several ways to use the installed tools, from the Docker Quickstart Terminal or
 [from your shell](#from-your-shell).
 
-### From the Docker Quickstart Terminal
+### Using the Docker Quickstart Terminal
 
 1. Find the Docker Quickstart Terminal icon on your Desktop and double-click to launch it.
 
     The application:
 
     * opens a terminal window
-    * creates a `default` if it doesn't exist, starts the VM if it does
+    * creates a `default` VM if it doesn't exist, and starts the VM after
     * points the terminal environment to this VM
 
     Once the launch completes, you can run `docker` commands. 
@@ -188,9 +189,9 @@ There are several ways to use the installed tools, from the Docker Quickstart Te
         http://docs.docker.com/userguide/
 
 
-## Using Docker from Windows Command Line Prompt (cmd.exe)
+### Using Docker from Windows Command Prompt (cmd.exe)
 
-1. Launch a Windows Command Line Prompt (cmd.exe).
+1. Launch a Windows Command Prompt (cmd.exe).
 
     The `docker-machine` command requires `ssh.exe` in your `PATH` environment
     variable. This `.exe` is in the MsysGit `bin` folder. 
@@ -234,7 +235,7 @@ There are several ways to use the installed tools, from the Docker Quickstart Te
 
         C:\Users\mary> docker run hello-world
 
-## Using Docker from PowerShell
+### Using Docker from PowerShell
 
 1. Launch a Windows PowerShell window.
 
@@ -269,13 +270,13 @@ There are several ways to use the installed tools, from the Docker Quickstart Te
 
 Toolbox installs the Docker Engine binary in the `C:\Program Files\Docker
 Toolbox` directory. When you use the Docker Quickstart Terminal or create a
-`default` manually, Docker Machine updates the
+`default` VM manually, Docker Machine updates the
 `C:\USERS\USERNAME\.docker\machine\machines\default` folder to your
 system. This folder contains the configuration for the VM.
 
-You can create multiple VMs on your system with Docker Machine. So, you may have
-more than one VM folder if you have more than one VM. To remove a VM, use the
-`docker-machine rm <machine-name>` command.
+You can create multiple VMs on your system with Docker Machine. Therefore, you
+may end up with multiple VM folders if you have created more than one VM. To
+remove a VM, use the `docker-machine rm <machine-name>` command.
 
 ## Migrate from Boot2Docker
 
@@ -321,7 +322,7 @@ installer](https://www.docker.com/toolbox).
 
 ## Container port redirection
 
-If you are curious, the username for the Docker default user is `docker` and the
+If you are curious, the username for the Docker default VM is `docker` and the
 password is `tcuser`. The latest version of `docker-machine` sets up a host only
 network adaptor which provides access to the container's ports.
 
