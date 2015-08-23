@@ -84,7 +84,8 @@ func (s *DockerSuite) TestEventsContainerFailStartDie(c *check.C) {
 		c.Fatalf("Missing expected event")
 	}
 
-	startEvent := strings.Fields(events[len(events)-3])
+	startEvent := strings.Fields(events[len(events)-4])
+	exitEvent := strings.Fields(events[len(events)-3])
 	dieEvent := strings.Fields(events[len(events)-2])
 
 	if startEvent[len(startEvent)-1] != "start" {
@@ -92,6 +93,9 @@ func (s *DockerSuite) TestEventsContainerFailStartDie(c *check.C) {
 	}
 	if dieEvent[len(dieEvent)-1] != "die" {
 		c.Fatalf("event should be die, not %#v", dieEvent)
+	}
+	if exitEvent[len(exitEvent)-1] != "exit" {
+		c.Fatalf("event should be exit, not %#v", exitEvent)
 	}
 
 }
@@ -132,12 +136,13 @@ func (s *DockerSuite) TestEventsContainerEvents(c *check.C) {
 	out, _ := dockerCmd(c, "events", "--since=0", fmt.Sprintf("--until=%d", daemonTime(c).Unix()))
 	events := strings.Split(out, "\n")
 	events = events[:len(events)-1]
-	if len(events) < 5 {
+	if len(events) < 6 {
 		c.Fatalf("Missing expected event")
 	}
-	createEvent := strings.Fields(events[len(events)-5])
-	attachEvent := strings.Fields(events[len(events)-4])
-	startEvent := strings.Fields(events[len(events)-3])
+	createEvent := strings.Fields(events[len(events)-6])
+	attachEvent := strings.Fields(events[len(events)-5])
+	startEvent := strings.Fields(events[len(events)-4])
+	exitEvent := strings.Fields(events[len(events)-3])
 	dieEvent := strings.Fields(events[len(events)-2])
 	destroyEvent := strings.Fields(events[len(events)-1])
 	if createEvent[len(createEvent)-1] != "create" {
@@ -151,6 +156,9 @@ func (s *DockerSuite) TestEventsContainerEvents(c *check.C) {
 	}
 	if dieEvent[len(dieEvent)-1] != "die" {
 		c.Fatalf("event should be die, not %#v", dieEvent)
+	}
+	if exitEvent[len(exitEvent)-1] != "exit" {
+		c.Fatalf("event should be exit, not %#v", exitEvent)
 	}
 	if destroyEvent[len(destroyEvent)-1] != "destroy" {
 		c.Fatalf("event should be destroy, not %#v", destroyEvent)
@@ -169,9 +177,10 @@ func (s *DockerSuite) TestEventsContainerEventsSinceUnixEpoch(c *check.C) {
 	if len(events) < 5 {
 		c.Fatalf("Missing expected event")
 	}
-	createEvent := strings.Fields(events[len(events)-5])
-	attachEvent := strings.Fields(events[len(events)-4])
-	startEvent := strings.Fields(events[len(events)-3])
+	createEvent := strings.Fields(events[len(events)-6])
+	attachEvent := strings.Fields(events[len(events)-5])
+	startEvent := strings.Fields(events[len(events)-4])
+	exitEvent := strings.Fields(events[len(events)-3])
 	dieEvent := strings.Fields(events[len(events)-2])
 	destroyEvent := strings.Fields(events[len(events)-1])
 	if createEvent[len(createEvent)-1] != "create" {
@@ -186,10 +195,75 @@ func (s *DockerSuite) TestEventsContainerEventsSinceUnixEpoch(c *check.C) {
 	if dieEvent[len(dieEvent)-1] != "die" {
 		c.Fatalf("event should be die, not %#v", dieEvent)
 	}
+	if exitEvent[len(exitEvent)-1] != "exit" {
+		c.Fatalf("event should be exit, not %#v", exitEvent)
+	}
 	if destroyEvent[len(destroyEvent)-1] != "destroy" {
 		c.Fatalf("event should be destroy, not %#v", destroyEvent)
 	}
 
+}
+
+func (s *DockerSuite) TestEventsContainerKill(c *check.C) {
+	dockerCmd(c, "run", "--name", "testeventkill", "-d", "busybox", "sleep", "10")
+	dockerCmd(c, "kill", "testeventkill")
+	eventsCmd := exec.Command(dockerBinary, "events", "--since=0", fmt.Sprintf("--until=%d", daemonTime(c).Unix()))
+	out, exitCode, err := runCommandWithOutput(eventsCmd)
+	if exitCode != 0 || err != nil {
+		c.Fatalf("Failed to get events with exit code %d: %s", exitCode, err)
+	}
+	events := strings.Split(out, "\n")
+	events = events[:len(events)-1]
+	if len(events) < 4 {
+		c.Fatalf("Missing expected event, got: %#v", events)
+	}
+	createEvent := strings.Fields(events[len(events)-4])
+	startEvent := strings.Fields(events[len(events)-3])
+	dieEvent := strings.Fields(events[len(events)-2])
+	killEvent := strings.Fields(events[len(events)-1])
+	if createEvent[len(createEvent)-1] != "create" {
+		c.Fatalf("event should be create, not %#v", createEvent)
+	}
+	if startEvent[len(startEvent)-1] != "start" {
+		c.Fatalf("event should be start, not %#v", startEvent)
+	}
+	if dieEvent[len(dieEvent)-1] != "die" {
+		c.Fatalf("event should be die, not %#v", dieEvent)
+	}
+	if killEvent[len(killEvent)-1] != "kill" {
+		c.Fatalf("event should be kill not %#v", killEvent)
+	}
+}
+
+func (s *DockerSuite) TestEventsContainerStop(c *check.C) {
+	dockerCmd(c, "run", "--name", "testeventstop", "-d", "busybox", "top")
+	dockerCmd(c, "stop", "testeventstop")
+	eventsCmd := exec.Command(dockerBinary, "events", "--since=0", fmt.Sprintf("--until=%d", daemonTime(c).Unix()))
+	out, exitCode, err := runCommandWithOutput(eventsCmd)
+	if exitCode != 0 || err != nil {
+		c.Fatalf("Failed to get events with exit code %d: %s", exitCode, err)
+	}
+	events := strings.Split(out, "\n")
+	events = events[:len(events)-1]
+	if len(events) < 4 {
+		c.Fatalf("Missing expected event, got: %#v", events)
+	}
+	createEvent := strings.Fields(events[len(events)-4])
+	startEvent := strings.Fields(events[len(events)-3])
+	dieEvent := strings.Fields(events[len(events)-2])
+	stopEvent := strings.Fields(events[len(events)-1])
+	if createEvent[len(createEvent)-1] != "create" {
+		c.Fatalf("event should be create, not %#v", createEvent)
+	}
+	if startEvent[len(startEvent)-1] != "start" {
+		c.Fatalf("event should be start, not %#v", startEvent)
+	}
+	if dieEvent[len(dieEvent)-1] != "die" {
+		c.Fatalf("event should be die, not %#v", dieEvent)
+	}
+	if stopEvent[len(stopEvent)-1] != "stop" {
+		c.Fatalf("event should be stop not %#v", stopEvent)
+	}
 }
 
 func (s *DockerSuite) TestEventsImageUntagDelete(c *check.C) {
@@ -389,8 +463,8 @@ func (s *DockerSuite) TestEventsFilterContainer(c *check.C) {
 	until := fmt.Sprintf("%d", daemonTime(c).Unix())
 
 	checkEvents := func(id string, events []string) error {
-		if len(events) != 4 { // create, attach, start, die
-			return fmt.Errorf("expected 3 events, got %v", events)
+		if len(events) != 5 { // create, attach, start, die, exit
+			return fmt.Errorf("expected 5 events, got %v", events)
 		}
 		for _, event := range events {
 			e := strings.Fields(event)
