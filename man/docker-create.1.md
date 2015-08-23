@@ -47,6 +47,7 @@ docker-create - Create a new container
 [**-P**|**--publish-all**[=*false*]]
 [**-p**|**--publish**[=*[]*]]
 [**--pid**[=*[]*]]
+[**--port-range**[=*[]*]]
 [**--privileged**[=*false*]]
 [**--read-only**[=*false*]]
 [**--restart**[=*RESTART*]]
@@ -226,6 +227,10 @@ This value should always larger than **-m**, so you should always use this with 
    Set the PID mode for the container
      **host**: use the host's PID namespace inside the container.
      Note: the host mode gives the container full access to local PID and is therefore considered insecure.
+
+**--port-range**=[]
+   Assign the next available host port(s) from this range and bind to dynamically published ports from the container (for use with -p or -P).
+                               format: startPort-endPort
 
 **--privileged**=*true*|*false*
    Give extended privileges to this container. The default is *false*.

@@ -1089,6 +1089,7 @@ _docker_run() {
 		--name
 		--net
 		--pid
+		--port-range
 		--publish -p
 		--restart
 		--security-opt

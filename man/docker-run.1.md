@@ -48,6 +48,7 @@ docker-run - Run a command in a new container
 [**-P**|**--publish-all**[=*false*]]
 [**-p**|**--publish**[=*[]*]]
 [**--pid**[=*[]*]]
+[**--port-range**[=*[]*]]
 [**--privileged**[=*false*]]
 [**--read-only**[=*false*]]
 [**--restart**[=*RESTART*]]
@@ -348,6 +349,10 @@ ports and the exposed ports, use `docker port`.
    Set the UTS mode for the container
      **host**: use the host's UTS namespace inside the container.
      Note: the host mode gives the container access to changing the host's hostname and is therefore considered insecure.
+
+**--port-range**=[]
+   Assign the next available host port(s) from this range and bind to dynamically published ports from the container (for use with -p or -P).
+                               format: startPort-endPort
 
 **--privileged**=*true*|*false*
    Give extended privileges to this container. The default is *false*.

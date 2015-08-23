@@ -57,6 +57,7 @@ Creates a new container.
       -P, --publish-all=false       Publish all exposed ports to random ports
       -p, --publish=[]              Publish a container's port(s) to the host
       --pid=""                      PID namespace to use
+      --port-range=[]               Range of host ports to use for dynamic allocation
       --privileged=false            Give extended privileges to this container
       --read-only=false             Mount the container's root filesystem as read only
       --restart="no"                Restart policy (no, on-failure[:max-retry], always)

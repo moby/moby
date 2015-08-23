@@ -225,3 +225,15 @@ func ParsePortSpecs(ports []string) (map[Port]struct{}, map[Port][]PortBinding, 
 	}
 	return exposedPorts, bindings, nil
 }
+
+// AddRangeToPortBindings captures the per-container port range in any dynamic bindings without explicit port or range
+func AddRangeToPortBindings(bindings map[Port][]PortBinding, portRange string) map[Port][]PortBinding {
+	for port, binding := range bindings {
+		for b, bb := range binding {
+			if portRange != "" && bb.HostPort == "" {
+				bindings[port][b].HostPort = portRange
+			}
+		}
+	}
+	return bindings
+}
