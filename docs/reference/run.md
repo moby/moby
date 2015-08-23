@@ -87,12 +87,30 @@ default foreground mode:
 
 ### Detached (-d)
 
-In detached mode (`-d=true` or just `-d`), all I/O should be done
-through network connections or shared volumes because the container is
-no longer listening to the command line where you executed `docker run`.
-You can reattach to a detached container with `docker`
-[*attach*](/reference/commandline/attach). If you choose to run a
-container in the detached mode, then you cannot use the `--rm` option.
+To start a container in detached mode, you use `-d=true` or just `-d` option. By
+design, containers started in detached mode exit when the root process used to
+run the container exits. A container in detached mode cannot be automatically
+removed when it stops, this means you cannot use the `--rm` option with `-d` option.
+
+Do not pass a `service x start` command to a detached container. For example, this
+command attempts to start the `nginx` service.
+
+    $ docker run -d -p 80:80 my_image service nginx start
+
+This succeeds in starting the `nginx` service inside the container. However, it
+fails the detached container paradigm in that, the root process (`service nginx
+start`) returns and the detached container stops as designed. As a result, the
+`nginx` service is started but could not be used. Instead, to start a process
+such as the `nginx` web server do the following:
+
+    $ docker run -d -p 80:80 my_image nginx -g 'daemon off;'
+
+To do input/output with a detached container use network connections or shared
+volumes. These are required because the container is no longer listening to the
+command line where `docker run` was run.
+
+To reattach to a detached container, use `docker`
+[*attach*](/reference/commandline/attach) command.
 
 ### Foreground
 
