@@ -170,11 +170,32 @@ func ValidateLink(val string) (string, error) {
 	return val, nil
 }
 
+// ValidDeviceMode checks if the mode for device is valid or not.
+// Valid mode is a composition of r (read), w (write), and m (mknod).
+func ValidDeviceMode(mode string) bool {
+	var legalDeviceMode = map[rune]bool{
+		'r': true,
+		'w': true,
+		'm': true,
+	}
+	if mode == "" {
+		return false
+	}
+	for _, c := range mode {
+		if !legalDeviceMode[c] {
+			return false
+		}
+		legalDeviceMode[c] = false
+	}
+	return true
+}
+
 // ValidateDevice Validate a path for devices
 // It will make sure 'val' is in the form:
 //    [host-dir:]container-path[:mode]
+// It will also validate the device mode.
 func ValidateDevice(val string) (string, error) {
-	return validatePath(val, false)
+	return validatePath(val, ValidDeviceMode)
 }
 
 // ValidatePath Validate a path for volumes
@@ -182,27 +203,27 @@ func ValidateDevice(val string) (string, error) {
 //    [host-dir:]container-path[:rw|ro]
 // It will also validate the mount mode.
 func ValidatePath(val string) (string, error) {
-	return validatePath(val, true)
+	return validatePath(val, volume.ValidMountMode)
 }
 
-func validatePath(val string, validateMountMode bool) (string, error) {
+func validatePath(val string, validator func(string) bool) (string, error) {
 	var containerPath string
 	var mode string
 
 	if strings.Count(val, ":") > 2 {
-		return val, fmt.Errorf("bad format for volumes: %s", val)
+		return val, fmt.Errorf("bad format for path: %s", val)
 	}
 
 	splited := strings.SplitN(val, ":", 3)
 	if splited[0] == "" {
-		return val, fmt.Errorf("bad format for volumes: %s", val)
+		return val, fmt.Errorf("bad format for path: %s", val)
 	}
 	switch len(splited) {
 	case 1:
 		containerPath = splited[0]
 		val = path.Clean(containerPath)
 	case 2:
-		if isValid := volume.ValidMountMode(splited[1]); validateMountMode && isValid {
+		if isValid := validator(splited[1]); isValid {
 			containerPath = splited[0]
 			mode = splited[1]
 			val = fmt.Sprintf("%s:%s", path.Clean(containerPath), mode)
@@ -213,8 +234,8 @@ func validatePath(val string, validateMountMode bool) (string, error) {
 	case 3:
 		containerPath = splited[1]
 		mode = splited[2]
-		if isValid := volume.ValidMountMode(splited[2]); validateMountMode && !isValid {
-			return val, fmt.Errorf("bad mount mode specified : %s", mode)
+		if isValid := validator(splited[2]); !isValid {
+			return val, fmt.Errorf("bad mode specified: %s", mode)
 		}
 		val = fmt.Sprintf("%s:%s:%s", splited[0], containerPath, mode)
 	}

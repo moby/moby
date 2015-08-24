@@ -858,6 +858,20 @@ func (s *DockerSuite) TestRunAddingOptionalDevices(c *check.C) {
 	}
 }
 
+func (s *DockerSuite) TestRunAddingOptionalDevicesNoSrc(c *check.C) {
+	out, _ := dockerCmd(c, "run", "--device", "/dev/zero:rw", "busybox", "sh", "-c", "ls /dev/zero")
+	if actual := strings.Trim(out, "\r\n"); actual != "/dev/zero" {
+		c.Fatalf("expected output /dev/zero, received %s", actual)
+	}
+}
+
+func (s *DockerSuite) TestRunAddingOptionalDevicesInvalideMode(c *check.C) {
+	_, _, err := dockerCmdWithError("run", "--device", "/dev/zero:ro", "busybox", "sh", "-c", "ls /dev/zero")
+	if err == nil {
+		c.Fatalf("run container with device mode ro should fail")
+	}
+}
+
 func (s *DockerSuite) TestRunModeHostname(c *check.C) {
 	testRequires(c, SameHostDaemon)
 

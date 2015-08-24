@@ -474,7 +474,11 @@ func ParseDevice(device string) (DeviceMapping, error) {
 		permissions = arr[2]
 		fallthrough
 	case 2:
-		dst = arr[1]
+		if opts.ValidDeviceMode(arr[1]) {
+			permissions = arr[1]
+		} else {
+			dst = arr[1]
+		}
 		fallthrough
 	case 1:
 		src = arr[0]

@@ -317,15 +317,20 @@ func TestParseDevice(t *testing.T) {
 			PathInContainer:   "/dev/snd",
 			CgroupPermissions: "rwm",
 		},
+		"/dev/snd:rw": {
+			PathOnHost:        "/dev/snd",
+			PathInContainer:   "/dev/snd",
+			CgroupPermissions: "rw",
+		},
 		"/dev/snd:/something": {
 			PathOnHost:        "/dev/snd",
 			PathInContainer:   "/something",
 			CgroupPermissions: "rwm",
 		},
-		"/dev/snd:/something:ro": {
+		"/dev/snd:/something:rw": {
 			PathOnHost:        "/dev/snd",
 			PathInContainer:   "/something",
-			CgroupPermissions: "ro",
+			CgroupPermissions: "rw",
 		},
 	}
 	for device, deviceMapping := range valids {
