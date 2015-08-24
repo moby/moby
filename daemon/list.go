@@ -136,7 +136,18 @@ func (daemon *Daemon) Containers(config *ContainersConfig) ([]*types.Container, 
 			ID:    container.ID,
 			Names: names[container.ID],
 		}
-		newC.Image = container.Config.Image
+
+		img, err := daemon.Repositories().LookupImage(container.Config.Image)
+		if err != nil {
+			// If the image can no longer be found by its original reference,
+			// it makes sense to show the ID instead of a stale reference.
+			newC.Image = container.ImageID
+		} else if container.ImageID == img.ID {
+			newC.Image = container.Config.Image
+		} else {
+			newC.Image = container.ImageID
+		}
+
 		if len(container.Args) > 0 {
 			args := []string{}
 			for _, arg := range container.Args {
