@@ -32,49 +32,6 @@ func (s *DockerSuite) TestRunEchoStdout(c *check.C) {
 }
 
 // "test" should be printed
-func (s *DockerSuite) TestRunEchoStdoutWithMemoryLimit(c *check.C) {
-	out, _, _ := dockerCmdWithStdoutStderr(c, "run", "-m", "16m", "busybox", "echo", "test")
-	out = strings.Trim(out, "\r\n")
-
-	if expected := "test"; out != expected {
-		c.Fatalf("container should've printed %q but printed %q", expected, out)
-	}
-}
-
-// should run without memory swap
-func (s *DockerSuite) TestRunWithoutMemoryswapLimit(c *check.C) {
-	testRequires(c, NativeExecDriver)
-	dockerCmd(c, "run", "-m", "16m", "--memory-swap", "-1", "busybox", "true")
-}
-
-func (s *DockerSuite) TestRunWithSwappiness(c *check.C) {
-	dockerCmd(c, "run", "--memory-swappiness", "0", "busybox", "true")
-}
-
-func (s *DockerSuite) TestRunWithSwappinessInvalid(c *check.C) {
-	out, _, err := dockerCmdWithError("run", "--memory-swappiness", "101", "busybox", "true")
-	if err == nil {
-		c.Fatalf("failed. test was able to set invalid value, output: %q", out)
-	}
-}
-
-// "test" should be printed
-func (s *DockerSuite) TestRunEchoStdoutWitCPULimit(c *check.C) {
-	out, _ := dockerCmd(c, "run", "-c", "1000", "busybox", "echo", "test")
-	if out != "test\n" {
-		c.Errorf("container should've printed 'test'")
-	}
-}
-
-// "test" should be printed
-func (s *DockerSuite) TestRunEchoStdoutWithCPUAndMemoryLimit(c *check.C) {
-	out, _, _ := dockerCmdWithStdoutStderr(c, "run", "-c", "1000", "-m", "16m", "busybox", "echo", "test")
-	if out != "test\n" {
-		c.Errorf("container should've printed 'test', got %q instead", out)
-	}
-}
-
-// "test" should be printed
 func (s *DockerSuite) TestRunEchoNamedContainer(c *check.C) {
 	out, _ := dockerCmd(c, "run", "--name", "testfoonamedcontainer", "busybox", "echo", "test")
 	if out != "test\n" {
@@ -794,36 +751,6 @@ func (s *DockerSuite) TestRunProcNotWritableInNonPrivilegedContainers(c *check.C
 func (s *DockerSuite) TestRunProcWritableInPrivilegedContainers(c *check.C) {
 	if _, code := dockerCmd(c, "run", "--privileged", "busybox", "touch", "/proc/sysrq-trigger"); code != 0 {
 		c.Fatalf("proc should be writable in privileged container")
-	}
-}
-
-func (s *DockerSuite) TestRunWithCpuset(c *check.C) {
-	if _, code := dockerCmd(c, "run", "--cpuset", "0", "busybox", "true"); code != 0 {
-		c.Fatalf("container should run successfully with cpuset of 0")
-	}
-}
-
-func (s *DockerSuite) TestRunWithCpusetCpus(c *check.C) {
-	if _, code := dockerCmd(c, "run", "--cpuset-cpus", "0", "busybox", "true"); code != 0 {
-		c.Fatalf("container should run successfully with cpuset-cpus of 0")
-	}
-}
-
-func (s *DockerSuite) TestRunWithCpusetMems(c *check.C) {
-	if _, code := dockerCmd(c, "run", "--cpuset-mems", "0", "busybox", "true"); code != 0 {
-		c.Fatalf("container should run successfully with cpuset-mems of 0")
-	}
-}
-
-func (s *DockerSuite) TestRunWithBlkioWeight(c *check.C) {
-	if _, code := dockerCmd(c, "run", "--blkio-weight", "300", "busybox", "true"); code != 0 {
-		c.Fatalf("container should run successfully with blkio-weight of 300")
-	}
-}
-
-func (s *DockerSuite) TestRunWithBlkioInvalidWeight(c *check.C) {
-	if _, _, err := dockerCmdWithError("run", "--blkio-weight", "5", "busybox", "true"); err == nil {
-		c.Fatalf("run with invalid blkio-weight should failed")
 	}
 }
 
