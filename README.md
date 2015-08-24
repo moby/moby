@@ -1,4 +1,4 @@
-Docker: the Linux container engine
+Docker: a Linux container engine
 ==================================
 
 Docker is an open source project to pack, ship and run any application
