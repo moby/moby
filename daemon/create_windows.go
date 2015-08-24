@@ -6,6 +6,6 @@ import (
 )
 
 // createContainerPlatformSpecificSettings performs platform specific container create functionality
-func createContainerPlatformSpecificSettings(container *Container, config *runconfig.Config, img *image.Image) error {
+func createContainerPlatformSpecificSettings(container *Container, config *runconfig.Config, hostConfig *runconfig.HostConfig, img *image.Image) error {
 	return nil
 }

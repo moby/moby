@@ -29,6 +29,30 @@ func (daemon *Daemon) ContainerInspect(name string) (*types.ContainerJSON, error
 	return &types.ContainerJSON{base, mountPoints, container.Config}, nil
 }
 
+// ContainerInspect120 serializes the master version of a container into a json type.
+func (daemon *Daemon) ContainerInspect120(name string) (*types.ContainerJSON120, error) {
+	container, err := daemon.Get(name)
+	if err != nil {
+		return nil, err
+	}
+
+	container.Lock()
+	defer container.Unlock()
+
+	base, err := daemon.getInspectData(container)
+	if err != nil {
+		return nil, err
+	}
+
+	mountPoints := addMountPoints(container)
+	config := &types.ContainerConfig120{
+		container.Config,
+		container.hostConfig.VolumeDriver,
+	}
+
+	return &types.ContainerJSON120{base, mountPoints, config}, nil
+}
+
 func (daemon *Daemon) getInspectData(container *Container) (*types.ContainerJSONBase, error) {
 	// make a copy to play with
 	hostConfig := *container.hostConfig

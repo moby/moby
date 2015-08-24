@@ -48,3 +48,65 @@ func (s *DockerSuite) TestInspectApiContainerResponse(c *check.C) {
 		}
 	}
 }
+
+func (s *DockerSuite) TestInspectApiContainerVolumeDriverLegacy(c *check.C) {
+	out, _ := dockerCmd(c, "run", "-d", "busybox", "true")
+
+	cleanedContainerID := strings.TrimSpace(out)
+
+	cases := []string{"1.19", "1.20"}
+	for _, version := range cases {
+		endpoint := fmt.Sprintf("/v%s/containers/%s/json", version, cleanedContainerID)
+		status, body, err := sockRequest("GET", endpoint, nil)
+		c.Assert(status, check.Equals, http.StatusOK)
+		c.Assert(err, check.IsNil)
+
+		var inspectJSON map[string]interface{}
+		if err = json.Unmarshal(body, &inspectJSON); err != nil {
+			c.Fatalf("unable to unmarshal body for version %s: %v", version, err)
+		}
+
+		config, ok := inspectJSON["Config"]
+		if !ok {
+			c.Fatal("Unable to find 'Config'")
+		}
+		cfg := config.(map[string]interface{})
+		if _, ok := cfg["VolumeDriver"]; !ok {
+			c.Fatalf("Api version %s expected to include VolumeDriver in 'Config'", version)
+		}
+	}
+}
+
+func (s *DockerSuite) TestInspectApiContainerVolumeDriver(c *check.C) {
+	out, _ := dockerCmd(c, "run", "-d", "busybox", "true")
+
+	cleanedContainerID := strings.TrimSpace(out)
+
+	endpoint := fmt.Sprintf("/v1.21/containers/%s/json", cleanedContainerID)
+	status, body, err := sockRequest("GET", endpoint, nil)
+	c.Assert(status, check.Equals, http.StatusOK)
+	c.Assert(err, check.IsNil)
+
+	var inspectJSON map[string]interface{}
+	if err = json.Unmarshal(body, &inspectJSON); err != nil {
+		c.Fatalf("unable to unmarshal body for version 1.21: %v", err)
+	}
+
+	config, ok := inspectJSON["Config"]
+	if !ok {
+		c.Fatal("Unable to find 'Config'")
+	}
+	cfg := config.(map[string]interface{})
+	if _, ok := cfg["VolumeDriver"]; ok {
+		c.Fatal("Api version 1.21 expected to not include VolumeDriver in 'Config'")
+	}
+
+	config, ok = inspectJSON["HostConfig"]
+	if !ok {
+		c.Fatal("Unable to find 'HostConfig'")
+	}
+	cfg = config.(map[string]interface{})
+	if _, ok := cfg["VolumeDriver"]; !ok {
+		c.Fatal("Api version 1.21 expected to include VolumeDriver in 'HostConfig'")
+	}
+}

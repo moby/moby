@@ -105,7 +105,7 @@ func (daemon *Daemon) Create(config *runconfig.Config, hostConfig *runconfig.Hos
 	}
 	defer container.Unmount()
 
-	if err := createContainerPlatformSpecificSettings(container, config, img); err != nil {
+	if err := createContainerPlatformSpecificSettings(container, config, hostConfig, img); err != nil {
 		return nil, nil, err
 	}
 

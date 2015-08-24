@@ -59,7 +59,7 @@ func (container *Container) setupMounts() ([]execdriver.Mount, error) {
 }
 
 // parseBindMount validates the configuration of mount information in runconfig is valid.
-func parseBindMount(spec string, mountLabel string, config *runconfig.Config) (*mountPoint, error) {
+func parseBindMount(spec, mountLabel, volumeDriver string) (*mountPoint, error) {
 	bind := &mountPoint{
 		RW: true,
 	}
@@ -87,7 +87,7 @@ func parseBindMount(spec string, mountLabel string, config *runconfig.Config) (*
 	}
 
 	if len(source) == 0 {
-		bind.Driver = config.VolumeDriver
+		bind.Driver = volumeDriver
 		if len(bind.Driver) == 0 {
 			bind.Driver = volume.DefaultDriverName
 		}
@@ -325,7 +325,7 @@ func (daemon *Daemon) registerMountPoints(container *Container, hostConfig *runc
 	// 3. Read bind mounts
 	for _, b := range hostConfig.Binds {
 		// #10618
-		bind, err := parseBindMount(b, container.MountLabel, container.Config)
+		bind, err := parseBindMount(b, container.MountLabel, hostConfig.VolumeDriver)
 		if err != nil {
 			return err
 		}
