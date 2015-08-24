@@ -15,6 +15,22 @@
 #    below to your .bashrc after bash completion features are loaded
 #    . ~/.docker-completion.sh
 #
+# Configuration:
+#
+# You can tailor completion for the "events", "history", "inspect", "run",
+# "rmi" and "save" commands by settings the following environment
+# variables:
+#   
+# DOCKER_COMPLETION_SHOW_IMAGE_IDS
+#   "none" - Show names only (default)
+#   "non-intermediate" - Show names and ids, but omit intermediate image IDs
+#   "all" - Show names and ids, including intermediate image IDs
+# 
+# DOCKER_COMPLETION_SHOW_TAGS
+#   "yes" - include tags in completion options (default)
+#   "no"  - don't include tags in completion options
+
+#
 # Note:
 # Currently, the completions will not work if the docker daemon is not
 # bound to the default communication port/socket
@@ -70,6 +86,40 @@ __docker_container_ids() {
 	COMPREPLY=( $(compgen -W "${containers[*]}" -- "$cur") )
 }
 
+__docker_images() {
+	local images_args=""
+
+	case "$DOCKER_COMPLETION_SHOW_IMAGE_IDS" in
+		all)
+			images_args="--no-trunc -a"
+			;;
+		non-intermediate)
+			images_args="--no-trunc"
+			;;
+	esac
+
+	local repo_print_command
+	if [ "${DOCKER_COMPLETION_SHOW_TAGS:-yes}" = "yes" ]; then
+		repo_print_command='print $1; print $1":"$2'
+	else
+		repo_print_command='print $1'
+	fi
+
+	local awk_script
+	case "$DOCKER_COMPLETION_SHOW_IMAGE_IDS" in
+		all|non-intermediate)
+			awk_script='NR>1 { print $3; if ($1 != "<none>") { '"$repo_print_command"' } }'
+			;;
+		none|*)
+			awk_script='NR>1 && $1 != "<none>" { '"$repo_print_command"' }'
+			;;
+	esac
+
+	local images=$(__docker_q images $images_args | awk "$awk_script")
+	COMPREPLY=( $(compgen -W "$images" -- "$cur") )
+	__ltrim_colon_completions "$cur"
+}
+
 __docker_image_repos() {
 	local repos="$(__docker_q images | awk 'NR>1 && $1 != "<none>" { print $1 }')"
 	COMPREPLY=( $(compgen -W "$repos" -- "$cur") )
@@ -81,16 +131,10 @@ __docker_image_repos_and_tags() {
 	__ltrim_colon_completions "$cur"
 }
 
-__docker_image_repos_and_tags_and_ids() {
-	local images="$(__docker_q images -a --no-trunc | awk 'NR>1 { print $3; if ($1 != "<none>") { print $1; print $1":"$2 } }')"
-	COMPREPLY=( $(compgen -W "$images" -- "$cur") )
-	__ltrim_colon_completions "$cur"
-}
-
 __docker_containers_and_images() {
 	__docker_containers_all
 	local containers=( "${COMPREPLY[@]}" )
-	__docker_image_repos_and_tags_and_ids
+	__docker_images
 	COMPREPLY+=( "${containers[@]}" )
 }
 
@@ -655,7 +699,7 @@ _docker_events() {
 			;;
 		*image=*)
 			cur="${cur#=}"
-			__docker_image_repos_and_tags_and_ids
+			__docker_images
 			return
 			;;
 	esac
@@ -713,7 +757,7 @@ _docker_history() {
 		*)
 			local counter=$(__docker_pos_first_nonflag)
 			if [ $cword -eq $counter ]; then
-				__docker_image_repos_and_tags_and_ids
+				__docker_images
 			fi
 			;;
 	esac
@@ -806,7 +850,7 @@ _docker_inspect() {
 					__docker_containers_all
 					;;
 				image)
-					__docker_image_repos_and_tags_and_ids
+					__docker_images
 					;;
 			esac
 	esac
@@ -1046,7 +1090,7 @@ _docker_rmi() {
 			COMPREPLY=( $( compgen -W "--force -f --help --no-prune" -- "$cur" ) )
 			;;
 		*)
-			__docker_image_repos_and_tags_and_ids
+			__docker_images
 			;;
 	esac
 }
@@ -1256,9 +1300,8 @@ _docker_run() {
 			;;
 		*)
 			local counter=$( __docker_pos_first_nonflag $( __docker_to_alternatives "$options_with_args" ) )
-
 			if [ $cword -eq $counter ]; then
-				__docker_image_repos_and_tags_and_ids
+				__docker_images
 			fi
 			;;
 	esac
@@ -1277,7 +1320,7 @@ _docker_save() {
 			COMPREPLY=( $( compgen -W "--help --output -o" -- "$cur" ) )
 			;;
 		*)
-			__docker_image_repos_and_tags_and_ids
+			__docker_images
 			;;
 	esac
 }
