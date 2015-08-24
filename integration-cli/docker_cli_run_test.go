@@ -2808,6 +2808,18 @@ func (s *DockerSuite) TestAppArmorTraceSelf(c *check.C) {
 	}
 }
 
+func (s *DockerSuite) TestAppArmorDeniesChmodProc(c *check.C) {
+	testRequires(c, SameHostDaemon, NativeExecDriver, Apparmor)
+	_, exitCode, _ := dockerCmdWithError("run", "busybox", "chmod", "744", "/proc/cpuinfo")
+	if exitCode == 0 {
+		// If our test failed, attempt to repair the host system...
+		_, exitCode, _ := dockerCmdWithError("run", "busybox", "chmod", "444", "/proc/cpuinfo")
+		if exitCode == 0 {
+			c.Fatal("AppArmor was unsuccessful in prohibiting chmod of /proc/* files.")
+		}
+	}
+}
+
 func (s *DockerSuite) TestRunCapAddSYSTIME(c *check.C) {
 	testRequires(c, NativeExecDriver)
 
