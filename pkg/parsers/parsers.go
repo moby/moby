@@ -14,7 +14,6 @@ import (
 
 // ParseHost parses the specified address and returns an address that will be used as the host.
 // Depending of the address specified, will use the defaultTCPAddr or defaultUnixAddr
-// FIXME: Change this not to receive default value as parameter
 func ParseHost(defaultTCPAddr, defaultUnixAddr, addr string) (string, error) {
 	addr = strings.TrimSpace(addr)
 	if addr == "" {
