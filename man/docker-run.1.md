@@ -276,7 +276,7 @@ which interface and port to use.
   Logging driver specific options.
 
 **-m**, **--memory**=""
-   Memory limit (format: <number><optional unit>, where unit = b, k, m or g)
+   Memory limit (format: <number>[<unit>], where unit = b, k, m or g)
 
    Allows you to constrain the memory available to a container. If the host
 supports swap memory, then the **-m** memory setting can be larger than physical
@@ -287,7 +287,7 @@ system's page size (the value would be very large, that's millions of trillions)
 **--memory-swap**=""
    Total memory limit (memory + swap)
 
-   Set `-1` to disable swap (format: <number><optional unit>, where unit = b, k, m or g).
+   Set `-1` to disable swap (format: <number>[<unit>], where unit = b, k, m or g).
 This value should always larger than **-m**, so you should always use this with **-m**.
 
 **--mac-address**=""
