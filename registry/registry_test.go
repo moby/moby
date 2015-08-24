@@ -677,6 +677,35 @@ func TestNewIndexInfo(t *testing.T) {
 	testIndexInfo(config, expectedIndexInfos)
 }
 
+func TestMirrorEndpointLookup(t *testing.T) {
+	containsMirror := func(endpoints []APIEndpoint) bool {
+		for _, pe := range endpoints {
+			if pe.URL == "my.mirror" {
+				return true
+			}
+		}
+		return false
+	}
+	s := Service{Config: makeServiceConfig([]string{"my.mirror"}, nil)}
+	imageName := IndexName + "/test/image"
+
+	pushAPIEndpoints, err := s.LookupPushEndpoints(imageName)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if containsMirror(pushAPIEndpoints) {
+		t.Fatal("Push endpoint should not contain mirror")
+	}
+
+	pullAPIEndpoints, err := s.LookupPullEndpoints(imageName)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !containsMirror(pullAPIEndpoints) {
+		t.Fatal("Pull endpoint should contain mirror")
+	}
+}
+
 func TestPushRegistryTag(t *testing.T) {
 	r := spawnTestRegistrySession(t)
 	err := r.PushRegistryTag("foo42/bar", imageID, "stable", makeURL("/v1/"))
