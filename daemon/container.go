@@ -79,6 +79,7 @@ type CommonContainer struct {
 	MountLabel, ProcessLabel string
 	RestartCount             int
 	HasBeenStartedBefore     bool
+	HasBeenManuallyStopped   bool // used for unless-stopped restart policy
 	hostConfig               *runconfig.HostConfig
 	command                  *execdriver.Command
 	monitor                  *containerMonitor
@@ -1066,6 +1067,7 @@ func copyEscapable(dst io.Writer, src io.ReadCloser) (written int64, err error) 
 
 func (container *Container) shouldRestart() bool {
 	return container.hostConfig.RestartPolicy.Name == "always" ||
+		(container.hostConfig.RestartPolicy.Name == "unless-stopped" && !container.HasBeenManuallyStopped) ||
 		(container.hostConfig.RestartPolicy.Name == "on-failure" && container.ExitCode != 0)
 }
 

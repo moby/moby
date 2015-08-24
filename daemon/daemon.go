@@ -103,6 +103,7 @@ type Daemon struct {
 	EventsService    *events.Events
 	netController    libnetwork.NetworkController
 	root             string
+	shutdown         bool
 }
 
 // Get looks for a container using the provided information, which could be
@@ -749,6 +750,7 @@ func NewDaemon(config *Config, registryService *registry.Service) (daemon *Daemo
 }
 
 func (daemon *Daemon) Shutdown() error {
+	daemon.shutdown = true
 	if daemon.containers != nil {
 		group := sync.WaitGroup{}
 		logrus.Debug("starting clean shutdown of all containers...")

@@ -426,9 +426,9 @@ func ParseRestartPolicy(policy string) (RestartPolicy, error) {
 
 	p.Name = name
 	switch name {
-	case "always":
+	case "always", "unless-stopped":
 		if len(parts) > 1 {
-			return p, fmt.Errorf("maximum restart count not valid with restart policy of \"always\"")
+			return p, fmt.Errorf("maximum restart count not valid with restart policy of \"%s\"", name)
 		}
 	case "no":
 		// do nothing

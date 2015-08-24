@@ -234,7 +234,7 @@ This value should always larger than **-m**, so you should always use this with 
    Mount the container's root filesystem as read only.
 
 **--restart**="no"
-   Restart policy to apply when a container exits (no, on-failure[:max-retry], always)
+   Restart policy to apply when a container exits (no, on-failure[:max-retry], always, unless-stopped).
 
 **--security-opt**=[]
    Security Options
