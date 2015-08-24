@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/httputils"
 	"github.com/docker/docker/pkg/progressreader"
 	"github.com/docker/docker/pkg/streamformatter"
@@ -20,13 +19,14 @@ import (
 func (s *TagStore) Import(src string, repo string, tag string, inConfig io.ReadCloser, outStream io.Writer, containerConfig *runconfig.Config) error {
 	var (
 		sf      = streamformatter.NewJSONStreamFormatter()
-		archive archive.Reader
+		archive io.ReadCloser
 		resp    *http.Response
 	)
 
 	if src == "-" {
 		archive = inConfig
 	} else {
+		inConfig.Close()
 		u, err := url.Parse(src)
 		if err != nil {
 			return err
@@ -50,10 +50,10 @@ func (s *TagStore) Import(src string, repo string, tag string, inConfig io.ReadC
 			ID:        "",
 			Action:    "Importing",
 		})
-		defer progressReader.Close()
 		archive = progressReader
 	}
 
+	defer archive.Close()
 	img, err := s.graph.Create(archive, "", "", "Imported from "+src, "", nil, containerConfig)
 	if err != nil {
 		return err
