@@ -5,6 +5,10 @@ set -e
 #   'curl -sSL https://get.docker.com/ | sh'
 # or:
 #   'wget -qO- https://get.docker.com/ | sh'
+# If you want to send arguments:
+#   'wget -qO- https://get.docker.com/ | sh /dev/stdin -w false -r true'
+# or: 
+#   'curl -sSL https://get.docker.com/ | sh /dev/stdin -w false -r true'
 #
 # For test builds (ie. release candidates):
 #   'curl -sSL https://test.docker.com/ | sh'
@@ -24,9 +28,36 @@ set -e
 #
 
 url='https://get.docker.com/'
+wait_if_docker_command_exists=1
+reinstall_if_docker_command_exists=1
 
 command_exists() {
 	command -v "$@" > /dev/null 2>&1
+}
+
+show_help() {
+	cat <<-EOF
+	Usage: install.sh  [-w true/false] [-r true/false] -h
+	  -w : if docker command already exists, wait for a few seconds before continuing. Default is true.
+	  -r : if docker command already exists, reinstall it. Mark it false to skip and exit successfully. Default is true. 
+	  -h : display this help
+	EOF
+}
+
+parse_arguments(){
+        while getopts ":hw:r:" opt; do
+                case "$opt" in
+                        h)  show_help
+                            exit 0
+                            ;;
+                        w)  if [ "$OPTARG" = "false" ]; then wait_if_docker_command_exists=0 ; fi
+                            echo "Wait if docker command exists: $wait_if_docker_command_exists"
+                            ;;
+                        r)  if [ "$OPTARG" = "false" ]; then reinstall_if_docker_command_exists=0; fi
+                            echo "Reinstall if docker command exists: $reinstall_if_docker_command_exists"
+                            ;;
+                esac
+        done
 }
 
 echo_docker_as_nonroot() {
@@ -81,6 +112,7 @@ check_forked() {
 }
 
 do_install() {
+	parse_arguments $@
 	case "$(uname -m)" in
 		*64)
 			;;
@@ -94,19 +126,32 @@ do_install() {
 	esac
 
 	if command_exists docker; then
-		cat >&2 <<-'EOF'
-			Warning: the "docker" command appears to already exist on this system.
-
-			If you already have Docker installed, this script can cause trouble, which is
-			why we're displaying this warning and provide the opportunity to cancel the
-			installation.
-
-			If you installed the current Docker package using this script and are using it
-			again to update Docker, you can safely ignore this message.
-
-			You may press Ctrl+C now to abort this script.
-		EOF
-		( set -x; sleep 20 )
+		if [ "$reinstall_if_docker_command_exists" = 0 ]; then
+			cat >&2 <<-'EOF'
+				Warning: the "docker" command appears to already exist on this system. 
+				Script will exit successfully. 
+			EOF
+			exit 0
+		elif [ "$wait_if_docker_command_exists" = 1 ]; then
+			cat >&2 <<-'EOF'
+				Warning: the "docker" command appears to already exist on this system.
+	
+				If you already have Docker installed, this script can cause trouble, which is
+				why we're displaying this warning and provide the opportunity to cancel the
+				installation.
+	
+				If you installed the current Docker package using this script and are using it
+				again to update Docker, you can safely ignore this message.
+	
+				You may press Ctrl+C now to abort this script.
+			EOF
+			( set -x; sleep 20 )
+		else
+			cat >&2 <<-'EOF'
+				Warning: the "docker" command appears to already exist on this system. 
+				Installation will continue due to arguments passed to the script. 
+			EOF
+		fi
 	fi
 
 	user="$(id -un 2>/dev/null || true)"
@@ -372,4 +417,4 @@ do_install() {
 
 # wrapped up in a function so that we have some protection against only getting
 # half the file during "curl | sh"
-do_install
+do_install $@
