@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"os"
+	"path/filepath"
 	"sync/atomic"
 
 	"github.com/boltdb/bolt"
@@ -43,6 +45,10 @@ func New(endpoints []string, options *store.Config) (store.Store, error) {
 		return nil, ErrBoltBucketOptionMissing
 	}
 
+	dir, _ := filepath.Split(endpoints[0])
+	if err := os.MkdirAll(dir, 0750); err != nil {
+		return nil, err
+	}
 	db, err := bolt.Open(endpoints[0], 0644, nil)
 	if err != nil {
 		return nil, err
