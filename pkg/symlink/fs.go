@@ -132,3 +132,12 @@ func evalSymlinksInScope(path, root string) (string, error) {
 	// what's happening here
 	return filepath.Clean(root + filepath.Clean(string(filepath.Separator)+b.String())), nil
 }
+
+// EvalSymlinks returns the path name after the evaluation of any symbolic
+// links.
+// If path is relative the result will be relative to the current directory,
+// unless one of the components is an absolute symbolic link.
+// This version has been updated to support long paths prepended with `\\?\`.
+func EvalSymlinks(path string) (string, error) {
+	return evalSymlinks(path)
+}

@@ -3,9 +3,14 @@
 package builder
 
 import (
+	"io/ioutil"
 	"os"
 	"path/filepath"
 )
+
+func getTempDir(dir, prefix string) (string, error) {
+	return ioutil.TempDir(dir, prefix)
+}
 
 func fixPermissions(source, destination string, uid, gid int, destExisted bool) error {
 	// If the destination didn't already exist, or the destination isn't a

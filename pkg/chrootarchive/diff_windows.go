@@ -5,9 +5,9 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/docker/docker/pkg/archive"
+	"github.com/docker/docker/pkg/longpath"
 )
 
 // applyLayerHandler parses a diff in the standard layer format from `layer`, and
@@ -17,9 +17,7 @@ func applyLayerHandler(dest string, layer archive.Reader, decompress bool) (size
 	dest = filepath.Clean(dest)
 
 	// Ensure it is a Windows-style volume path
-	if !strings.HasPrefix(dest, `\\?\`) {
-		dest = `\\?\` + dest
-	}
+	dest = longpath.AddPrefix(dest)
 
 	if decompress {
 		decompressed, err := archive.DecompressStream(layer)

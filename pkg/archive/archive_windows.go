@@ -8,15 +8,14 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/docker/docker/pkg/longpath"
 )
 
 // fixVolumePathPrefix does platform specific processing to ensure that if
 // the path being passed in is not in a volume path format, convert it to one.
 func fixVolumePathPrefix(srcPath string) string {
-	if !strings.HasPrefix(srcPath, `\\?\`) {
-		srcPath = `\\?\` + srcPath
-	}
-	return srcPath
+	return longpath.AddPrefix(srcPath)
 }
 
 // getWalkRoot calculates the root path when performing a TarWithOptions.
