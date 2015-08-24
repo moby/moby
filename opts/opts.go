@@ -202,7 +202,7 @@ func validatePath(val string, validateMountMode bool) (string, error) {
 		containerPath = splited[0]
 		val = path.Clean(containerPath)
 	case 2:
-		if isValid, _ := volume.ValidateMountMode(splited[1]); validateMountMode && isValid {
+		if isValid := volume.ValidMountMode(splited[1]); validateMountMode && isValid {
 			containerPath = splited[0]
 			mode = splited[1]
 			val = fmt.Sprintf("%s:%s", path.Clean(containerPath), mode)
@@ -213,7 +213,7 @@ func validatePath(val string, validateMountMode bool) (string, error) {
 	case 3:
 		containerPath = splited[1]
 		mode = splited[2]
-		if isValid, _ := volume.ValidateMountMode(splited[2]); validateMountMode && !isValid {
+		if isValid := volume.ValidMountMode(splited[2]); validateMountMode && !isValid {
 			return val, fmt.Errorf("bad mount mode specified : %s", mode)
 		}
 		val = fmt.Sprintf("%s:%s:%s", splited[0], containerPath, mode)

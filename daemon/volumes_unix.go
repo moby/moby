@@ -71,11 +71,10 @@ func parseBindMount(spec string, mountLabel string, config *runconfig.Config) (*
 	case 3:
 		bind.Destination = arr[1]
 		mode := arr[2]
-		isValid, isRw := volume.ValidateMountMode(mode)
-		if !isValid {
+		if !volume.ValidMountMode(mode) {
 			return nil, fmt.Errorf("invalid mode for volumes-from: %s", mode)
 		}
-		bind.RW = isRw
+		bind.RW = volume.ReadWrite(mode)
 		// Mode field is used by SELinux to decide whether to apply label
 		bind.Mode = mode
 	default:
@@ -268,7 +267,7 @@ func parseVolumesFrom(spec string) (string, string, error) {
 
 	if len(specParts) == 2 {
 		mode = specParts[1]
-		if isValid, _ := volume.ValidateMountMode(mode); !isValid {
+		if !volume.ValidMountMode(mode) {
 			return "", "", fmt.Errorf("invalid mode for volumes-from: %s", mode)
 		}
 	}

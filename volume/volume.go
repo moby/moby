@@ -49,13 +49,13 @@ var roModes = map[string]bool{
 	"Z,ro": true,
 }
 
-// ValidateMountMode will make sure the mount mode is valid.
-// returns if it's a valid mount mode and if it's read-write or not.
-func ValidateMountMode(mode string) (bool, bool) {
-	return roModes[mode] || rwModes[mode], rwModes[mode]
+// ValidMountMode will make sure the mount mode is valid.
+// returns if it's a valid mount mode or not.
+func ValidMountMode(mode string) bool {
+	return roModes[mode] || rwModes[mode]
 }
 
-// ReadWrite tells you if a mode string is a valid read-only mode or not.
+// ReadWrite tells you if a mode string is a valid read-write mode or not.
 func ReadWrite(mode string) bool {
 	return rwModes[mode]
 }
