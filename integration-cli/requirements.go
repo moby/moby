@@ -7,7 +7,9 @@ import (
 	"log"
 	"net/http"
 	"os/exec"
+	"path/filepath"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/go-check/check"
@@ -24,6 +26,16 @@ type testRequirement struct {
 var (
 	daemonExecDriver string
 
+	BtrfsSystem = testRequirement{
+		func() bool {
+			var buf syscall.Statfs_t
+			if err := syscall.Statfs(filepath.Dir("/"), &buf); err != nil {
+				log.Fatal(err)
+			}
+			return uint32(buf.Type) != uint32(0x9123683E)
+		},
+		"Test requires docker daemon to run on btrfs filesystem",
+	}
 	SameHostDaemon = testRequirement{
 		func() bool { return isLocalDaemon },
 		"Test requires docker daemon to runs on the same machine as CLI",
