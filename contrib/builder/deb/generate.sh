@@ -73,6 +73,12 @@ for version in "${versions[@]}"; do
 		extraBuildTags+=' exclude_graphdriver_btrfs'
 	fi
 
+	if [ "$suite" = 'wheezy' ]; then
+		# pull btrfs-toold from backports
+		backports="/$suite-backports"
+		packages=( "${packages[@]/btrfs-tools/btrfs-tools$backports}" )
+	fi
+
 	echo "RUN apt-get update && apt-get install -y ${packages[*]} --no-install-recommends && rm -rf /var/lib/apt/lists/*" >> "$version/Dockerfile"
 
 	echo >> "$version/Dockerfile"

@@ -26,21 +26,6 @@ func init() {
 	graphdriver.Register("btrfs", Init)
 }
 
-func is_subvolume(dirpath string) (bool, error) {
-	rootdir := path.Dir(dirpath)
-
-	var bufStat syscall.Stat_t
-	if err := syscall.Lstat(rootdir, &bufStat); err != nil {
-		return false, err
-	}
-
-	if bufStat.Ino != C.BTRFS_FIRST_FREE_OBJECTID {
-		return false, nil
-	}
-
-	return true, nil
-}
-
 // Init returns a new BTRFS driver.
 // An error is returned if BTRFS is not supported.
 func Init(home string, options []string) (graphdriver.Driver, error) {
@@ -177,6 +162,16 @@ func subvolSnapshot(src, dest, name string) error {
 	return nil
 }
 
+func isSubvolume(p string) (bool, error) {
+	var bufStat syscall.Stat_t
+	if err := syscall.Lstat(p, &bufStat); err != nil {
+		return false, err
+	}
+
+	// return true if it is a btrfs subvolume
+	return bufStat.Ino == C.BTRFS_FIRST_FREE_OBJECTID, nil
+}
+
 func subvolDelete(dirpath, name string) error {
 	dir, err := openDir(dirpath)
 	if err != nil {
@@ -186,35 +181,36 @@ func subvolDelete(dirpath, name string) error {
 
 	var args C.struct_btrfs_ioctl_vol_args
 
-	filepath.Walk(dirpath,
-		func(dirpath string, f os.FileInfo, err error) error {
-			if f.IsDir() {
-				isSubvolumes, err := is_subvolume(path.Join(dirpath, f.Name()))
-				if err != nil {
-					return err
-				}
-				if isSubvolumes {
-					for i, c := range []byte(f.Name()) {
-						args.name[i] = C.char(c)
-					}
-					_, _, errno := syscall.Syscall(syscall.SYS_IOCTL, getDirFd(dir), C.BTRFS_IOC_SNAP_DESTROY,
-						uintptr(unsafe.Pointer(&args)))
-					if errno != 0 {
-						return fmt.Errorf("Failed to destroy btrfs snapshot: %v", errno.Error())
-					}
-				}
-				return nil
+	// walk the btrfs subvolumes
+	walkSubvolumes := func(p string, f os.FileInfo, err error) error {
+		// we want to check children only so skip itself
+		// it will be removed after the filepath walk anyways
+		if f.IsDir() && p != path.Join(dirpath, name) {
+			sv, err := isSubvolume(p)
+			if err != nil {
+				return fmt.Errorf("Failed to test if %s is a btrfs subvolume: %v", p, err)
 			}
-			return nil
-		})
+			if sv {
+				if err := subvolDelete(p, f.Name()); err != nil {
+					return fmt.Errorf("Failed to destroy btrfs child subvolume (%s) of parent (%s): %v", p, dirpath, err)
+				}
+			}
+		}
+		return nil
+	}
+	if err := filepath.Walk(path.Join(dirpath, name), walkSubvolumes); err != nil {
+		return fmt.Errorf("Recursively walking subvolumes for %s failed: %v", dirpath, err)
+	}
 
+	// all subvolumes have been removed
+	// now remove the one originally passed in
 	for i, c := range []byte(name) {
 		args.name[i] = C.char(c)
 	}
 	_, _, errno := syscall.Syscall(syscall.SYS_IOCTL, getDirFd(dir), C.BTRFS_IOC_SNAP_DESTROY,
 		uintptr(unsafe.Pointer(&args)))
 	if errno != 0 {
-		return fmt.Errorf("Failed to destroy btrfs snapshot: %v", errno.Error())
+		return fmt.Errorf("Failed to destroy btrfs snapshot %s for %s: %v", dirpath, name, errno.Error())
 	}
 	return nil
 }
