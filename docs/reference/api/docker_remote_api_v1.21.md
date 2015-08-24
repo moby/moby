@@ -631,15 +631,27 @@ This endpoint returns a live stream of a container's resource usage statistics.
 
       {
          "read" : "2015-01-08T22:57:31.547920715Z",
-         "network" : {
-            "rx_dropped" : 0,
-            "rx_bytes" : 648,
-            "rx_errors" : 0,
-            "tx_packets" : 8,
-            "tx_dropped" : 0,
-            "rx_packets" : 8,
-            "tx_errors" : 0,
-            "tx_bytes" : 648
+         "network": {
+                 "eth0": {
+                     "rx_bytes": 5338,
+                     "rx_dropped": 0,
+                     "rx_errors": 0,
+                     "rx_packets": 36,
+                     "tx_bytes": 648,
+                     "tx_dropped": 0,
+                     "tx_errors": 0,
+                     "tx_packets": 8
+                 },
+                 "eth5": {
+                     "rx_bytes": 4641,
+                     "rx_dropped": 0,
+                     "rx_errors": 0,
+                     "rx_packets": 26,
+                     "tx_bytes": 690,
+                     "tx_dropped": 0,
+                     "tx_errors": 0,
+                     "tx_packets": 9
+                 }
          },
          "memory_stats" : {
             "stats" : {
