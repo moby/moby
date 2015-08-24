@@ -1,0 +1,15 @@
+for image in `docker images | awk '{print $1}'`; do
+if ( [ -z "${image##*busybox_p}" ] || [ -z "${image##*busybox_z}" ] ); then
+        echo "tag $image as busybox"
+        docker tag $image busybox:latest
+        docker rmi $image
+elif ( [ -z "${image##*hello-world_p}" ] || [ -z "${image##*hello-world_z}" ] ); then
+        echo "tag $image as hello-world"
+        docker tag $image:frozen hello-world:frozen
+        docker rmi $image:frozen
+elif ( [ -z "${image##*unshare_p}" ] || [ -z "$image##*unshare_z}" ] ); then
+        echo "tag $image as unshare"
+        docker tag $image:latest jess/unshare:latest
+        docker rmi $image
+fi
+done
