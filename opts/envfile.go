@@ -26,13 +26,12 @@ func ParseEnvFile(filename string) ([]string, error) {
 	lines := []string{}
 	scanner := bufio.NewScanner(fh)
 	for scanner.Scan() {
-		line := scanner.Text()
+		// trim the line from all leading whitespace first
+		line := strings.TrimLeft(scanner.Text(), whiteSpaces)
 		// line is not empty, and not starting with '#'
 		if len(line) > 0 && !strings.HasPrefix(line, "#") {
 			data := strings.SplitN(line, "=", 2)
-
-			// trim the front of a variable, but nothing else
-			variable := strings.TrimLeft(data[0], whiteSpaces)
+			variable := data[0]
 
 			if !EnvironmentVariableRegexp.MatchString(variable) {
 				return []string{}, ErrBadEnvVariable{fmt.Sprintf("variable '%s' is not a valid environment variable", variable)}
