@@ -51,18 +51,25 @@ Requires: device-mapper >= 1.02.90-2
 %endif
 
 # docker-selinux conditional
-%if 0%{?fedora} >= 22 || 0%{?centos} >= 7 || 0%{?rhel} >= 7 || 0%{?oracle} >= 7
+%if 0%{?fedora} >= 20 || 0%{?centos} >= 7 || 0%{?rhel} >= 7 || 0%{?oraclelinux} >= 7
 %global with_selinux 1
 %endif
 
 # start if with_selinux
 %if 0%{?with_selinux}
 # Version of SELinux we were using
+%if 0%{?fedora} == 20
+%global selinux_policyver 3.12.1-197
+%endif # fedora 20
+%if 0%{?fedora} == 21
+%global selinux_policyver 3.13.1-105
+%endif # fedora 21
 %if 0%{?fedora} >= 22
-%global selinux_policyver 3.13.1-119
-%else
-%global selinux_policyver 3.13.1-39
-%endif
+%global selinux_policyver 3.13.1-128
+%endif # fedora 22
+%if 0%{?centos} >= 7 || 0%{?rhel} >= 7 || 0%{?oraclelinux} >= 7
+%global selinux_policyver 3.13.1-23
+%endif # centos,oraclelinux 7
 %endif # with_selinux
 
 # RE: rhbz#1195804 - ensure min NVR for selinux-policy
