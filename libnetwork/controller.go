@@ -17,7 +17,7 @@ create network namespaces and allocate interfaces for containers to use.
 	}
 
 	// Create a network for containers to join.
-	// NewNetwork accepts Variadic optional arguments that libnetwork and Drivers can make of
+	// NewNetwork accepts Variadic optional arguments that libnetwork and Drivers can make use of
 	network, err := controller.NewNetwork(networkType, "network1")
 	if err != nil {
 		return
@@ -32,8 +32,7 @@ create network namespaces and allocate interfaces for containers to use.
 		return
 	}
 
-	// A container can join the endpoint by providing the container ID to the join
-	// api.
+	// A container can join the endpoint by providing the container ID to the join api.
 	// Join accepts Variadic arguments which will be made use of by libnetwork and Drivers
 	err = ep.Join("container1",
 		libnetwork.JoinOptionHostname("test"),
