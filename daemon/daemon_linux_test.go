@@ -56,3 +56,19 @@ func TestCleanupMounts(t *testing.T) {
 		t.Fatalf("Expected to unmount the mqueue")
 	}
 }
+
+func TestNotCleanupMounts(t *testing.T) {
+	d := &Daemon{
+		repository: "",
+	}
+	var unmounted bool
+	unmount := func(target string) error {
+		unmounted = true
+		return nil
+	}
+	mountInfo := `234 232 0:59 / /dev/shm rw,nosuid,nodev,noexec,relatime - tmpfs shm rw,size=65536k`
+	d.cleanupMountsFromReader(strings.NewReader(mountInfo), unmount)
+	if unmounted {
+		t.Fatalf("Expected not to clean up /dev/shm")
+	}
+}
