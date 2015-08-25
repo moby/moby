@@ -11,7 +11,7 @@ weight = 7
 
 # Using certificates for repository client verification
 
-The orginal content was deprecated. For information about configuring
-cerficates, see  [deploying a registry
+The original content was deprecated. For information about configuring
+certificates, see  [deploying a registry
 server](http://docs.docker.com/registry/deploying/). To reach an older version
 of this content, refer to an older version of the documentation. 

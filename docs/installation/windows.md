@@ -41,7 +41,7 @@ Your machine must be running Windows 7, 8/8.1 or newer to run Docker. Windows 10
     upgrading your operating system in order to try out Docker.
 
 2. Make sure your CPU supports [virtualization technology](https://en.wikipedia.org/wiki/X86_virtualization) 
-and virtualzation support is enabled in BIOS and recognized by Windows.
+and virtualization support is enabled in BIOS and recognized by Windows.
 
     #### For Windows 8 or 8.1
 

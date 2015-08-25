@@ -89,7 +89,7 @@ So, you'll need an entry for both the servers in your local `/etc/hosts` file.
 3. Create a `notarytest` directory then change into that.
 
         $ mkdir notarytest
-        $ cd nostarytest
+        $ cd notarytest
 
 4. Create a filed called `Dockerfile` with your favorite editor.
 
@@ -191,7 +191,7 @@ root@0710762bb59a:/#
 ```
 
 Mounting the `docker.sock` gives the `notarysandbox` access to the `docker`
-deamon on your host, while storing all the keys and files inside the sandbox
+daemon on your host, while storing all the keys and files inside the sandbox
 container.  When you destroy the container, you destroy the "play" keys.
 
 ### Test some trust operations

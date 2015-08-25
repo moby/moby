@@ -668,8 +668,8 @@ limit and "K" the kernel limit. There are three possible ways to set limits:
       <td class="no-wrap"><strong>U != 0, K &lt; U</strong></td>
       <td>
         Kernel memory is a subset of the user memory. This setup is useful in
-        deployments where the total amount of memory per-cgroup is overcommited.
-        Overcommiting kernel memory limits is definitely not recommended, since the
+        deployments where the total amount of memory per-cgroup is overcommitted.
+        Overcommitting kernel memory limits is definitely not recommended, since the
         box can still run out of non-reclaimable memory.
         In this case, the you can configure K so that the sum of all groups is
         never greater than the total memory. Then, freely set U at the expense of
@@ -679,7 +679,7 @@ limit and "K" the kernel limit. There are three possible ways to set limits:
     <tr>
       <td class="no-wrap"><strong>U != 0, K &gt; U</strong></td>
       <td>
-        Since kernel memory charges are also fed to the user counter and reclaimation
+        Since kernel memory charges are also fed to the user counter and reclamation
         is triggered for the container for both kinds of memory. This configuration
         gives the admin a unified view of memory. It is also useful for people
         who just want to track kernel memory usage.
