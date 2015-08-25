@@ -140,7 +140,6 @@ func (p *v1Puller) pullRepository(askedTag string) error {
 			// ensure no two downloads of the same image happen at the same time
 			broadcaster, found := p.poolAdd("pull", "img:"+img.ID)
 			if found {
-				out.Write(p.sf.FormatProgress(stringid.TruncateID(img.ID), "Layer already being pulled by another client. Waiting.", nil))
 				broadcaster.Add(out)
 				broadcaster.Wait()
 				out.Write(p.sf.FormatProgress(stringid.TruncateID(img.ID), "Download complete", nil))
@@ -248,7 +247,6 @@ func (p *v1Puller) pullImage(out io.Writer, imgID, endpoint string, token []stri
 		broadcaster, found := p.poolAdd("pull", "layer:"+id)
 		if found {
 			logrus.Debugf("Image (id: %s) pull is already running, skipping", id)
-			out.Write(p.sf.FormatProgress(stringid.TruncateID(imgID), "Layer already being pulled by another client. Waiting.", nil))
 			broadcaster.Add(out)
 			broadcaster.Wait()
 		} else {
