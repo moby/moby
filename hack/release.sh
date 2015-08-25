@@ -22,8 +22,9 @@ To run, I need:
   environment variables AWS_S3_BUCKET and AWS_S3_BUCKET_PATH (default: '');
 - to be provided with AWS credentials for this S3 bucket, in environment
   variables AWS_ACCESS_KEY and AWS_SECRET_KEY;
-- the passphrase to unlock the GPG key which will sign the deb packages
-  (passed as environment variable GPG_PASSPHRASE);
+- the passphrase to unlock the GPG key specified by the optional environment
+  variable GPG_KEYID (default: releasedocker) which will sign the deb
+  packages (passed as environment variable GPG_PASSPHRASE);
 - a generous amount of good will and nice manners.
 The canonical way to run me is to run the image produced by the Dockerfile: e.g.:"
 
@@ -265,7 +266,7 @@ release_ubuntu() {
 	local debfiles=( "bundles/$VERSION/ubuntu/"*.deb )
 
 	# Sign our packages
-	dpkg-sig -g "--passphrase $GPG_PASSPHRASE" -k releasedocker --sign builder "${debfiles[@]}"
+	dpkg-sig -g "--passphrase $GPG_PASSPHRASE" -k "$GPG_KEYID" --sign builder "${debfiles[@]}"
 
 	# Setup the APT repo
 	APTDIR=bundles/$VERSION/ubuntu/apt
@@ -282,14 +283,14 @@ EOF
 
 	# Sign
 	for F in $(find $APTDIR -name Release); do
-		gpg -u releasedocker --passphrase "$GPG_PASSPHRASE" \
+		gpg -u "$GPG_KEYID" --passphrase "$GPG_PASSPHRASE" \
 			--armor --sign --detach-sign \
 			--output "$F.gpg" "$F"
 	done
 
 	# Upload keys
 	s3cmd sync "$HOME/.gnupg/" "s3://$BUCKET/ubuntu/.gnupg/"
-	gpg --armor --export releasedocker > "bundles/$VERSION/ubuntu/gpg"
+	gpg --armor --export "$GPG_KEYID" > "bundles/$VERSION/ubuntu/gpg"
 	s3cmd --acl-public put "bundles/$VERSION/ubuntu/gpg" "s3://$BUCKET/gpg"
 
 	local gpgFingerprint=36A1D7869245C8950F966E92D8576A8BA88D21E9
@@ -365,14 +366,14 @@ setup_gpg() {
 	# Make sure that we have our keys
 	mkdir -p "$HOME/.gnupg/"
 	s3cmd sync "s3://$BUCKET/ubuntu/.gnupg/" "$HOME/.gnupg/" || true
-	gpg --list-keys releasedocker >/dev/null || {
+	gpg --list-keys "$GPG_KEYID" >/dev/null || {
 		gpg --gen-key --batch <<EOF
 Key-Type: RSA
 Key-Length: 4096
 Passphrase: $GPG_PASSPHRASE
 Name-Real: Docker Release Tool
 Name-Email: docker@docker.com
-Name-Comment: releasedocker
+Name-Comment: $GPG_KEYID
 Expire-Date: 0
 %commit
 EOF
