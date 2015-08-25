@@ -528,7 +528,8 @@ func (s *Server) wsContainersAttach(version version.Version, w http.ResponseWrit
 			logrus.Errorf("Error attaching websocket: %s", err)
 		}
 	})
-	h.ServeHTTP(w, r)
+	ws := websocket.Server{Handler: h, Handshake: nil}
+	ws.ServeHTTP(w, r)
 
 	return nil
 }
