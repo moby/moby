@@ -10,6 +10,11 @@ This document describes the algorithms used in performing the TarSum checksum
 calculation on filesystem layers, the need for this method over existing
 methods, and the versioning of this calculation.
 
+## Warning
+
+This checksum algorithm is for best-effort comparison of file trees with fuzzy logic.
+
+This is _not_ a cryptographic attestation, and should not be considered secure.
 
 ## Introduction
 
