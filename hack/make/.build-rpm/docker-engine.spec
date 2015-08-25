@@ -50,6 +50,27 @@ Requires: kernel-uek >= 3.8
 Requires: device-mapper >= 1.02.90-2
 %endif
 
+# docker-selinux conditional
+%if 0%{?fedora} >= 22 || 0%{?centos} >= 7 || 0%{?rhel} >= 7 || 0%{?oracle} >= 7
+%global with_selinux 1
+%endif
+
+# start if with_selinux
+%if 0%{?with_selinux}
+# Version of SELinux we were using
+%if 0%{?fedora} >= 22
+%global selinux_policyver 3.13.1-119
+%else
+%global selinux_policyver 3.13.1-39
+%endif
+%endif # with_selinux
+
+# RE: rhbz#1195804 - ensure min NVR for selinux-policy
+%if 0%{?with_selinux}
+Requires: selinux-policy >= %{selinux_policyver}
+Requires(pre): %{name}-selinux >= %{epoch}:%{version}-%{release}
+%endif # with_selinux
+
 # conflicting packages
 Conflicts: docker
 Conflicts: docker-io
