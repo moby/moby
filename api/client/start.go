@@ -158,7 +158,7 @@ func (cli *DockerCli) CmdStart(args ...string) error {
 		if attchErr := <-cErr; attchErr != nil {
 			return attchErr
 		}
-		_, status, err := getExitCode(cli, cmd.Arg(0))
+		_, status, err := getExitCode(cli, cmd.Arg(0), false)
 		if err != nil {
 			return err
 		}

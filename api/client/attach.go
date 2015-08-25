@@ -72,7 +72,7 @@ func (cli *DockerCli) CmdAttach(args ...string) error {
 		return err
 	}
 
-	_, status, err := getExitCode(cli, cmd.Arg(0))
+	_, status, err := getExitCode(cli, cmd.Arg(0), false)
 	if err != nil {
 		return err
 	}

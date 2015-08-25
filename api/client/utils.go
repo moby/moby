@@ -275,10 +275,17 @@ func waitForExit(cli *DockerCli, containerID string) (int, error) {
 	return res.StatusCode, nil
 }
 
-// getExitCode perform an inspect on the container. It returns
-// the running state and the exit code.
-func getExitCode(cli *DockerCli, containerID string) (bool, int, error) {
-	serverResp, err := cli.call("GET", "/containers/"+containerID+"/json", nil, nil)
+// getExitCode perform an inspect on the container or the exec command. It
+// returns the running state and the exit code.
+func getExitCode(cli *DockerCli, id string, isExec bool) (bool, int, error) {
+	var path string
+	if isExec {
+		path = "/exec/" + id + "/json"
+	} else {
+		path = "/containers/" + id + "/json"
+	}
+
+	serverResp, err := cli.call("GET", path, nil, nil)
 	if err != nil {
 		// If we can't connect, then the daemon probably died.
 		if err != errConnectionFailed {
@@ -295,34 +302,6 @@ func getExitCode(cli *DockerCli, containerID string) (bool, int, error) {
 	}
 
 	return c.State.Running, c.State.ExitCode, nil
-}
-
-// getExecExitCode perform an inspect on the exec command. It returns
-// the running state and the exit code.
-func getExecExitCode(cli *DockerCli, execID string) (bool, int, error) {
-	serverResp, err := cli.call("GET", "/exec/"+execID+"/json", nil, nil)
-	if err != nil {
-		// If we can't connect, then the daemon probably died.
-		if err != errConnectionFailed {
-			return false, -1, err
-		}
-		return false, -1, nil
-	}
-
-	defer serverResp.body.Close()
-
-	//TODO: Should we reconsider having a type in api/types?
-	//this is a response to exex/id/json not container
-	var c struct {
-		Running  bool
-		ExitCode int
-	}
-
-	if err := json.NewDecoder(serverResp.body).Decode(&c); err != nil {
-		return false, -1, err
-	}
-
-	return c.Running, c.ExitCode, nil
 }
 
 func (cli *DockerCli) monitorTtySize(id string, isExec bool) error {
