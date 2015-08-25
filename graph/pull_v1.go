@@ -138,16 +138,14 @@ func (p *v1Puller) pullRepository(askedTag string) error {
 			}
 
 			// ensure no two downloads of the same image happen at the same time
-			broadcaster, found := p.poolAdd("pull", "img:"+img.ID)
+			poolKey := "img:" + img.ID
+			broadcaster, found := p.poolAdd("pull", poolKey)
+			broadcaster.Add(out)
 			if found {
-				broadcaster.Add(out)
-				broadcaster.Wait()
-				out.Write(p.sf.FormatProgress(stringid.TruncateID(img.ID), "Download complete", nil))
-				errors <- nil
+				errors <- broadcaster.Wait()
 				return
 			}
-			broadcaster.Add(out)
-			defer p.poolRemove("pull", "img:"+img.ID)
+			defer p.poolRemove("pull", poolKey)
 
 			// we need to retain it until tagging
 			p.graph.Retain(sessionID, img.ID)
@@ -188,6 +186,7 @@ func (p *v1Puller) pullRepository(askedTag string) error {
 				err := fmt.Errorf("Error pulling image (%s) from %s, %v", img.Tag, p.repoInfo.CanonicalName, lastErr)
 				broadcaster.Write(p.sf.FormatProgress(stringid.TruncateID(img.ID), err.Error(), nil))
 				errors <- err
+				broadcaster.CloseWithError(err)
 				return
 			}
 			broadcaster.Write(p.sf.FormatProgress(stringid.TruncateID(img.ID), "Download complete", nil))
@@ -225,8 +224,9 @@ func (p *v1Puller) pullRepository(askedTag string) error {
 	return nil
 }
 
-func (p *v1Puller) pullImage(out io.Writer, imgID, endpoint string, token []string) (bool, error) {
-	history, err := p.session.GetRemoteHistory(imgID, endpoint)
+func (p *v1Puller) pullImage(out io.Writer, imgID, endpoint string, token []string) (layersDownloaded bool, err error) {
+	var history []string
+	history, err = p.session.GetRemoteHistory(imgID, endpoint)
 	if err != nil {
 		return false, err
 	}
@@ -239,20 +239,28 @@ func (p *v1Puller) pullImage(out io.Writer, imgID, endpoint string, token []stri
 	p.graph.Retain(sessionID, history[1:]...)
 	defer p.graph.Release(sessionID, history[1:]...)
 
-	layersDownloaded := false
+	layersDownloaded = false
 	for i := len(history) - 1; i >= 0; i-- {
 		id := history[i]
 
 		// ensure no two downloads of the same layer happen at the same time
-		broadcaster, found := p.poolAdd("pull", "layer:"+id)
+		poolKey := "layer:" + id
+		broadcaster, found := p.poolAdd("pull", poolKey)
+		broadcaster.Add(out)
 		if found {
 			logrus.Debugf("Image (id: %s) pull is already running, skipping", id)
-			broadcaster.Add(out)
-			broadcaster.Wait()
-		} else {
-			broadcaster.Add(out)
+			err = broadcaster.Wait()
+			if err != nil {
+				return layersDownloaded, err
+			}
+			continue
 		}
-		defer p.poolRemove("pull", "layer:"+id)
+
+		// This must use a closure so it captures the value of err when
+		// the function returns, not when the 'defer' is evaluated.
+		defer func() {
+			p.poolRemoveWithError("pull", poolKey, err)
+		}()
 
 		if !p.graph.Exists(id) {
 			broadcaster.Write(p.sf.FormatProgress(stringid.TruncateID(id), "Pulling metadata", nil))
@@ -328,6 +336,7 @@ func (p *v1Puller) pullImage(out io.Writer, imgID, endpoint string, token []stri
 			}
 		}
 		broadcaster.Write(p.sf.FormatProgress(stringid.TruncateID(id), "Download complete", nil))
+		broadcaster.Close()
 	}
 	return layersDownloaded, nil
 }

@@ -27,6 +27,9 @@ type Broadcaster struct {
 	// isClosed is set to true when Close is called to avoid closing c
 	// multiple times.
 	isClosed bool
+	// result is the argument passed to the first call of Close, and
+	// returned to callers of Wait
+	result error
 }
 
 // NewBroadcaster returns a Broadcaster structure
@@ -134,23 +137,33 @@ func (broadcaster *Broadcaster) Add(w io.Writer) error {
 	return nil
 }
 
-// Close signals to all observers that the operation has finished.
-func (broadcaster *Broadcaster) Close() {
+// CloseWithError signals to all observers that the operation has finished. Its
+// argument is a result that should be returned to waiters blocking on Wait.
+func (broadcaster *Broadcaster) CloseWithError(result error) {
 	broadcaster.Lock()
 	if broadcaster.isClosed {
 		broadcaster.Unlock()
 		return
 	}
 	broadcaster.isClosed = true
+	broadcaster.result = result
 	close(broadcaster.c)
 	broadcaster.cond.Broadcast()
 	broadcaster.Unlock()
 
-	// Don't return from Close until all writers have caught up.
+	// Don't return until all writers have caught up.
 	broadcaster.wg.Wait()
 }
 
+// Close signals to all observers that the operation has finished. It causes
+// all calls to Wait to return nil.
+func (broadcaster *Broadcaster) Close() {
+	broadcaster.CloseWithError(nil)
+}
+
 // Wait blocks until the operation is marked as completed by the Done method.
-func (broadcaster *Broadcaster) Wait() {
+// It returns the argument that was passed to Close.
+func (broadcaster *Broadcaster) Wait() error {
 	<-broadcaster.c
+	return broadcaster.result
 }

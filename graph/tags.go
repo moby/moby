@@ -462,22 +462,26 @@ func (store *TagStore) poolAdd(kind, key string) (*progressreader.Broadcaster, b
 	return broadcaster, false
 }
 
-func (store *TagStore) poolRemove(kind, key string) error {
+func (store *TagStore) poolRemoveWithError(kind, key string, broadcasterResult error) error {
 	store.Lock()
 	defer store.Unlock()
 	switch kind {
 	case "pull":
-		if ps, exists := store.pullingPool[key]; exists {
-			ps.Close()
+		if broadcaster, exists := store.pullingPool[key]; exists {
+			broadcaster.CloseWithError(broadcasterResult)
 			delete(store.pullingPool, key)
 		}
 	case "push":
-		if ps, exists := store.pushingPool[key]; exists {
-			ps.Close()
+		if broadcaster, exists := store.pushingPool[key]; exists {
+			broadcaster.CloseWithError(broadcasterResult)
 			delete(store.pushingPool, key)
 		}
 	default:
 		return fmt.Errorf("Unknown pool type")
 	}
 	return nil
+}
+
+func (store *TagStore) poolRemove(kind, key string) error {
+	return store.poolRemoveWithError(kind, key, nil)
 }
