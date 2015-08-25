@@ -158,6 +158,12 @@ If you need to add an HTTP Proxy, set a different directory or partition for the
 Docker runtime files, or make other customizations, read our Systemd article to
 learn how to [customize your Systemd Docker daemon options](/articles/systemd/).
 
+> **Note:**
+> RHEL introduced support for systemd with version 7. However, prior to version 7,
+> RHEL did not have support for systemd.  As such, attempting to install systemd
+> on RHEL releases prior to version 7 will not work. Additionally, attempting to
+> create a docker container that includes systemd will not work with versions of
+> RHEL prior to version 7.
 
 ## Uninstall
 
