@@ -49,11 +49,13 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		flDetach     = cmd.Bool([]string{"d", "-detach"}, false, "Run container in background and print container ID")
 		flSigProxy   = cmd.Bool([]string{"-sig-proxy"}, true, "Proxy received signals to the process")
 		flName       = cmd.String([]string{"-name"}, "", "Assign a name to the container")
+		flInit       = cmd.Bool([]string{"-init"}, false, "start a container in init mode not need command and need -i and -t (only effective in lxc driver)")
 		flAttach     *opts.ListOpts
 
 		ErrConflictAttachDetach               = fmt.Errorf("Conflicting options: -a and -d")
 		ErrConflictRestartPolicyAndAutoRemove = fmt.Errorf("Conflicting options: --restart and --rm")
 		ErrConflictDetachAutoRemove           = fmt.Errorf("Conflicting options: --rm and -d")
+		ErrInitTtyorStdin                     = fmt.Errorf("Options Error: -i and -t is needed")
 	)
 
 	config, hostConfig, cmd, err := runconfig.Parse(cmd, args)
@@ -74,6 +76,13 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 			}
 		}
 	}
+	config.Init = *flInit
+	if config.Init {
+		if !config.OpenStdin || !config.Tty {
+			return ErrInitTtyorStdin
+		}
+	}
+
 	if config.Image == "" {
 		cmd.Usage()
 		return nil

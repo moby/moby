@@ -152,7 +152,46 @@ lxc.cap.drop = {{.}}
 {{end}}
 `
 
+const LxcInitTemplate = `
+lxc.include = /usr/share/lxc/config/ubuntu.common.conf
+
+{{if .Network.Interface}}
+# network configuration
+lxc.network.type = veth
+lxc.network.link = lxcbr0
+lxc.network.name = eth0
+lxc.network.flags = up
+{{else if .Network.HostNetworking}}
+lxc.network.type = none
+{{else}}
+# network is disabled (-n=false)
+lxc.network.type = empty
+lxc.network.flags = up
+lxc.network.mtu = {{.Network.Mtu}}
+{{end}}
+
+# root filesystem
+{{$ROOTFS := .Rootfs}}
+lxc.rootfs = {{$ROOTFS}}
+
+# use a dedicated pts for the container (and limit the number of pseudo terminal
+# available)
+lxc.pts = 1024
+
+# disable the main console
+# lxc.console = none
+
+# no controlling tty at all
+lxc.tty = 1
+
+
+{{if .ProcessConfig.Env}}
+lxc.utsname = {{getHostname .ProcessConfig.Env}}
+{{end}}
+`
+
 var lxcTemplateCompiled *template.Template
+var InitTemplateCompiled *template.Template
 
 // Escape spaces in strings according to the fstab documentation, which is the
 // format for "lxc.mount.entry" lines in lxc.conf. See also "man 5 fstab".
@@ -249,6 +288,7 @@ func init() {
 		"getHostname":       getHostname,
 	}
 	lxcTemplateCompiled, err = template.New("lxc").Funcs(funcMap).Parse(LxcTemplate)
+	InitTemplateCompiled, err = template.New("lxc").Funcs(funcMap).Parse(LxcInitTemplate)
 	if err != nil {
 		panic(err)
 	}

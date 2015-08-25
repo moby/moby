@@ -73,6 +73,9 @@ func (daemon *Daemon) Create(config *runconfig.Config, hostConfig *runconfig.Hos
 			return nil, nil, err
 		}
 	}
+	if err := daemon.InitModeinit(config); err != nil {
+		return nil, nil, err
+	}
 	if container, err = daemon.newContainer(name, config, imgID); err != nil {
 		return nil, nil, err
 	}

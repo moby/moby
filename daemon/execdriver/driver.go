@@ -168,6 +168,7 @@ type ProcessConfig struct {
 	Terminal    Terminal `json:"-"` // standard or tty terminal
 	Console     string   `json:"-"` // dev/console path
 	ConsoleSize [2]int   `json:"-"` // h,w of initial console size
+	Init        bool     `json:"-"`
 }
 
 // Command wrapps an os/exec.Cmd to add more metadata

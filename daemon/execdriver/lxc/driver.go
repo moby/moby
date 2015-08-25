@@ -212,29 +212,31 @@ func (d *Driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 		}
 	}
 
-	params = append(params,
-		"--",
-		c.InitPath,
-	)
+	if !c.ProcessConfig.Init {
+		params = append(params,
+			"--",
+			c.InitPath,
+		)
 
-	if c.ProcessConfig.User != "" {
-		params = append(params, "-u", c.ProcessConfig.User)
-	}
-
-	if c.ProcessConfig.Privileged {
-		if d.apparmor {
-			params[0] = path.Join(d.root, "lxc-start-unconfined")
-
+		if c.ProcessConfig.User != "" {
+			params = append(params, "-u", c.ProcessConfig.User)
 		}
-		params = append(params, "-privileged")
-	}
 
-	if c.WorkingDir != "" {
-		params = append(params, "-w", c.WorkingDir)
-	}
+		if c.ProcessConfig.Privileged {
+			if d.apparmor {
+				params[0] = path.Join(d.root, "lxc-start-unconfined")
 
-	params = append(params, "--", c.ProcessConfig.Entrypoint)
-	params = append(params, c.ProcessConfig.Arguments...)
+			}
+			params = append(params, "-privileged")
+		}
+
+		if c.WorkingDir != "" {
+			params = append(params, "-w", c.WorkingDir)
+		}
+
+		params = append(params, "--", c.ProcessConfig.Entrypoint)
+		params = append(params, c.ProcessConfig.Arguments...)
+	}
 
 	if d.sharedRoot {
 		// lxc-start really needs / to be non-shared, or all kinds of stuff break
@@ -758,6 +760,19 @@ func (d *Driver) generateLXCConfig(c *execdriver.Command) (string, error) {
 		return "", err
 	}
 	defer fo.Close()
+
+	if c.ProcessConfig.Init {
+		if err := InitTemplateCompiled.Execute(fo, struct {
+			*execdriver.Command
+			AppArmor bool
+		}{
+			Command:  c,
+			AppArmor: d.apparmor,
+		}); err != nil {
+			return "", err
+		}
+		return root, nil
+	}
 
 	if err := lxcTemplateCompiled.Execute(fo, struct {
 		*execdriver.Command
