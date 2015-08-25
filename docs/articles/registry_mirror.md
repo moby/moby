@@ -11,7 +11,7 @@ weight = 8
 
 # Run a local registry mirror
 
-The orginal content was deprecated. [An archived
+The original content was deprecated. [An archived
 version](https://docs.docker.com/v1.6/articles/registry_mirror) is available in
 the 1.7 documentation. For information about configuring mirrors with the latest
 Docker Registry version, please file a support request with [the Distribution
