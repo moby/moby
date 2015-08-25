@@ -138,3 +138,7 @@ func (daemon *Daemon) newBaseContainer(id string) Container {
 		},
 	}
 }
+
+func (daemon *Daemon) cleanupMounts() error {
+	return nil
+}
