@@ -293,7 +293,7 @@ func (b *builder) dispatch(stepN int, ast *parser.Node) error {
 	original := ast.Original
 	flags := ast.Flags
 	strs := []string{}
-	msg := fmt.Sprintf("Step %d : %s", stepN, strings.ToUpper(cmd))
+	msg := fmt.Sprintf("Step %d : %s", stepN+1, strings.ToUpper(cmd))
 
 	if len(ast.Flags) > 0 {
 		msg += " " + strings.Join(ast.Flags, " ")

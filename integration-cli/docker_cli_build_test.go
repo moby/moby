@@ -5316,7 +5316,24 @@ func (s *DockerSuite) TestBuildNoDupOutput(c *check.C) {
 		c.Fatalf("Build should have worked: %q", err)
 	}
 
-	exp := "\nStep 1 : RUN env\n"
+	exp := "\nStep 2 : RUN env\n"
+	if !strings.Contains(out, exp) {
+		c.Fatalf("Bad output\nGot:%s\n\nExpected to contain:%s\n", out, exp)
+	}
+}
+
+// GH15826
+func (s *DockerSuite) TestBuildStartsFromOne(c *check.C) {
+	// Explicit check to ensure that build starts from step 1 rather than 0
+	name := "testbuildstartsfromone"
+
+	_, out, err := buildImageWithOut(name, `
+  FROM busybox`, false)
+	if err != nil {
+		c.Fatalf("Build should have worked: %q", err)
+	}
+
+	exp := "\nStep 1 : FROM busybox\n"
 	if !strings.Contains(out, exp) {
 		c.Fatalf("Bad output\nGot:%s\n\nExpected to contain:%s\n", out, exp)
 	}

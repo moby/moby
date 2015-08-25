@@ -120,7 +120,7 @@ So, you'll need an entry for both the servers in your local `/etc/hosts` file.
 
         $ docker build -t notarysandbox .
         Sending build context to Docker daemon 2.048 kB
-        Step 0 : FROM debian:jessie
+        Step 1 : FROM debian:jessie
          ...
          Successfully built 5683f17e9d72
      
