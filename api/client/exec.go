@@ -122,7 +122,7 @@ func (cli *DockerCli) CmdExec(args ...string) error {
 	}
 
 	var status int
-	if _, status, err = getExecExitCode(cli, execID); err != nil {
+	if _, status, err = getExitCode(cli, execID, true); err != nil {
 		return err
 	}
 

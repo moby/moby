@@ -232,7 +232,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		if _, _, err := readBody(cli.call("POST", "/containers/"+createResponse.ID+"/wait", nil, nil)); err != nil {
 			return err
 		}
-		if _, status, err = getExitCode(cli, createResponse.ID); err != nil {
+		if _, status, err = getExitCode(cli, createResponse.ID, false); err != nil {
 			return err
 		}
 	} else {
@@ -245,7 +245,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		} else {
 			// In TTY mode, there is a race: if the process dies too slowly, the state could
 			// be updated after the getExitCode call and result in the wrong exit code being reported
-			if _, status, err = getExitCode(cli, createResponse.ID); err != nil {
+			if _, status, err = getExitCode(cli, createResponse.ID, false); err != nil {
 				return err
 			}
 		}
