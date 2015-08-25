@@ -41,7 +41,7 @@ import (
 )
 
 func (b *builder) readContext(context io.Reader) (err error) {
-	tmpdirPath, err := ioutil.TempDir("", "docker-build")
+	tmpdirPath, err := getTempDir("", "docker-build")
 	if err != nil {
 		return
 	}
@@ -304,7 +304,7 @@ func calcCopyInfo(b *builder, cmdName string, cInfos *[]*copyInfo, origPath stri
 		}
 
 		// Create a tmp dir
-		tmpDirName, err := ioutil.TempDir(b.contextPath, "docker-remote")
+		tmpDirName, err := getTempDir(b.contextPath, "docker-remote")
 		if err != nil {
 			return err
 		}
