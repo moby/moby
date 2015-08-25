@@ -31,6 +31,7 @@ import (
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/namesgenerator"
 	"github.com/docker/docker/pkg/nat"
+	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/docker/docker/pkg/system"
@@ -760,9 +761,39 @@ func (daemon *Daemon) Shutdown() error {
 
 				go func() {
 					defer group.Done()
-					// If container failed to exit in 10 seconds of SIGTERM, then using the force
-					if err := c.Stop(10); err != nil {
-						logrus.Errorf("Stop container %s with error: %v", c.ID, err)
+					// TODO(windows): Handle docker restart with paused containers
+					if c.IsPaused() {
+						// To terminate a process in freezer cgroup, we should send
+						// SIGTERM to this process then unfreeze it, and the process will
+						// force to terminate immediately.
+						logrus.Debugf("Found container %s is paused, sending SIGTERM before unpause it", c.ID)
+						sig, ok := signal.SignalMap["TERM"]
+						if !ok {
+							logrus.Warnf("System does not support SIGTERM")
+							return
+						}
+						if err := daemon.Kill(c, int(sig)); err != nil {
+							logrus.Debugf("sending SIGTERM to container %s with error: %v", c.ID, err)
+							return
+						}
+						if err := c.Unpause(); err != nil {
+							logrus.Debugf("Failed to unpause container %s with error: %v", c.ID, err)
+							return
+						}
+						if _, err := c.WaitStop(10 * time.Second); err != nil {
+							logrus.Debugf("container %s failed to exit in 10 second of SIGTERM, sending SIGKILL to force", c.ID)
+							sig, ok := signal.SignalMap["KILL"]
+							if !ok {
+								logrus.Warnf("System does not support SIGKILL")
+								return
+							}
+							daemon.Kill(c, int(sig))
+						}
+					} else {
+						// If container failed to exit in 10 seconds of SIGTERM, then using the force
+						if err := c.Stop(10); err != nil {
+							logrus.Errorf("Stop container %s with error: %v", c.ID, err)
+						}
 					}
 					c.WaitStop(-1 * time.Second)
 					logrus.Debugf("container stopped %s", c.ID)
