@@ -240,8 +240,8 @@ You now have a running container! From here you can manage your container, inter
 your application and then, when finished, stop and remove your container.
 
 ## The underlying technology
-Docker is written in Go and makes use of several Linux kernel features to
-deliver the functionality we've seen.
+Docker is written in Go and makes use of several kernel features to
+deliver the functionality we've seen. 
 
 ### Namespaces
 Docker takes advantage of a technology called `namespaces` to provide the
@@ -251,7 +251,7 @@ creates a set of *namespaces* for that container.
 This provides a layer of isolation: each aspect of a container runs in its own
 namespace and does not have access outside it.
 
-Some of the namespaces that Docker uses are:
+Some of the namespaces that Docker uses on Linux are:
 
  - **The `pid` namespace:** Used for process isolation (PID: Process ID). 
  - **The `net` namespace:** Used for managing network interfaces (NET:
@@ -263,7 +263,7 @@ Some of the namespaces that Docker uses are:
 Timesharing System).
 
 ### Control groups
-Docker also makes use of another technology called `cgroups` or control groups.
+Docker on Linux also makes use of another technology called `cgroups` or control groups.
 A key to running applications in isolation is to have them only use the
 resources you want. This ensures containers are good multi-tenant citizens on a
 host. Control groups allow Docker to share available hardware resources to
