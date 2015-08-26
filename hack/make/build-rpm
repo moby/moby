@@ -16,7 +16,7 @@ set -e
 	# rpmRelease versioning is as follows
 	# Docker 1.7.0:  version=1.7.0, release=1
 	# Docker 1.7.0-rc1: version=1.7.0, release=0.1.rc1
-	# Docker 1.7.0-dev nightly: version=1.7.0, release=0.0.YYYYMMDD.HHMMSS.gitHASH
+	# Docker 1.7.0-dev nightly: version=1.7.0, release=YYYYMMDD.HHMMSS.gitHASH
 
 	# if we have a "-rc*" suffix, set appropriate release
 	if [[ "$VERSION" == *-rc* ]]; then
@@ -31,7 +31,7 @@ set -e
 		gitCommit="$(git log -1 --pretty='%h')"
 		gitVersion="${gitDate}.git${gitCommit}"
 		# gitVersion is now something like '20150128.112847.17e840a'
-		rpmRelease="0.0.$gitVersion"
+		rpmRelease="$gitVersion"
 	fi
 
 	rpmPackager="$(awk -F ': ' '$1 == "Packager" { print $2; exit }' hack/make/.build-rpm/${rpmName}.spec)"
