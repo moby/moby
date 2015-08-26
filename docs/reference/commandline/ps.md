@@ -77,6 +77,7 @@ Placeholder | Description
 `.Ports` | Exposed ports.
 `.Status` | Container status.
 `.Size` | Container disk size.
+`.Names` | Container name.
 `.Labels` | All labels assigned to the container.
 `.Label` | Value of a specific label for this container. For example `{{.Label "com.docker.swarm.cpu"}}`
 
