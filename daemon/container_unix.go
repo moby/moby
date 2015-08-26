@@ -1261,21 +1261,17 @@ func (container *Container) unmountIpcMounts() error {
 	}
 
 	shmPath, err := container.shmPath()
-	if err != nil {
-		return fmt.Errorf("shm path does not exist %v", err)
-	}
-
-	if err := syscall.Unmount(shmPath, syscall.MNT_DETACH); err != nil {
-		return fmt.Errorf("failed to umount %s filesystem %v", shmPath, err)
+	if err == nil {
+		if err := syscall.Unmount(shmPath, syscall.MNT_DETACH); err != nil {
+			return fmt.Errorf("failed to umount %s filesystem %v", shmPath, err)
+		}
 	}
 
 	mqueuePath, err := container.mqueuePath()
-	if err != nil {
-		return fmt.Errorf("mqueue path does not exist %v", err)
-	}
-
-	if err := syscall.Unmount(mqueuePath, syscall.MNT_DETACH); err != nil {
-		return fmt.Errorf("failed to umount %s filesystem %v", mqueuePath, err)
+	if err == nil {
+		if err := syscall.Unmount(mqueuePath, syscall.MNT_DETACH); err != nil {
+			return fmt.Errorf("failed to umount %s filesystem %v", mqueuePath, err)
+		}
 	}
 
 	return nil
