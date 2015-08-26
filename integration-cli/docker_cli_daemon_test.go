@@ -1624,3 +1624,41 @@ func (s *DockerDaemonSuite) TestDaemonWideLogConfig(c *check.C) {
 		c.Fatalf("Unexpected log-opt: %s, expected map[max-size:1k]", cfg)
 	}
 }
+
+func (s *DockerDaemonSuite) TestDaemonRestartWithPausedContainer(c *check.C) {
+	if err := s.d.StartWithBusybox(); err != nil {
+		c.Fatal(err)
+	}
+	if out, err := s.d.Cmd("run", "-i", "-d", "--name", "test", "busybox", "top"); err != nil {
+		c.Fatal(err, out)
+	}
+	if out, err := s.d.Cmd("pause", "test"); err != nil {
+		c.Fatal(err, out)
+	}
+	if err := s.d.Restart(); err != nil {
+		c.Fatal(err)
+	}
+
+	errchan := make(chan error)
+	go func() {
+		out, err := s.d.Cmd("start", "test")
+		if err != nil {
+			errchan <- fmt.Errorf("%v:\n%s", err, out)
+		}
+		name := strings.TrimSpace(out)
+		if name != "test" {
+			errchan <- fmt.Errorf("Paused container start error on docker daemon restart, expected 'test' but got '%s'", name)
+		}
+		close(errchan)
+	}()
+
+	select {
+	case <-time.After(5 * time.Second):
+		c.Fatal("Waiting on start a container timed out")
+	case err := <-errchan:
+		if err != nil {
+			c.Fatal(err)
+		}
+	}
+
+}
