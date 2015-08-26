@@ -2,6 +2,7 @@ package daemon
 
 import (
 	"bufio"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -19,7 +20,11 @@ func (daemon *Daemon) cleanupMounts() error {
 	}
 	defer f.Close()
 
-	sc := bufio.NewScanner(f)
+	return daemon.cleanupMountsFromReader(f, mount.Unmount)
+}
+
+func (daemon *Daemon) cleanupMountsFromReader(reader io.Reader, unmount func(target string) error) error {
+	sc := bufio.NewScanner(reader)
 	for sc.Scan() {
 		line := sc.Text()
 		fields := strings.Split(line, " ")
@@ -28,7 +33,7 @@ func (daemon *Daemon) cleanupMounts() error {
 			mountBase := filepath.Base(mnt)
 			if mountBase == "mqueue" || mountBase == "shm" {
 				logrus.Debugf("Unmounting %+v", mnt)
-				if err := mount.Unmount(mnt); err != nil {
+				if err := unmount(mnt); err != nil {
 					return err
 				}
 			}
