@@ -15,9 +15,18 @@ import (
 )
 
 const (
-	versionMimetype = "application/vnd.docker.plugins.v1+json"
+	versionMimetype = "application/vnd.docker.plugins.v1.1+json"
 	defaultTimeOut  = 30
 )
+
+type remoteError struct {
+	method string
+	err    string
+}
+
+func (e *remoteError) Error() string {
+	return fmt.Sprintf("Plugin Error: %s, %s", e.err, e.method)
+}
 
 // NewClient creates a new plugin client (http).
 func NewClient(addr string, tlsConfig tlsconfig.Options) (*Client, error) {
@@ -84,9 +93,9 @@ func (c *Client) callWithRetry(serviceMethod string, args interface{}, ret inter
 		if resp.StatusCode != http.StatusOK {
 			remoteErr, err := ioutil.ReadAll(resp.Body)
 			if err != nil {
-				return fmt.Errorf("Plugin Error: %s", err)
+				return &remoteError{err.Error(), serviceMethod}
 			}
-			return fmt.Errorf("Plugin Error: %s", remoteErr)
+			return &remoteError{string(remoteErr), serviceMethod}
 		}
 
 		return json.NewDecoder(resp.Body).Decode(&ret)

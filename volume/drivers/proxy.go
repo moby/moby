@@ -14,19 +14,21 @@ type volumeDriverProxy struct {
 
 type volumeDriverProxyCreateRequest struct {
 	Name string
+	Opts opts
 }
 
 type volumeDriverProxyCreateResponse struct {
 	Err string
 }
 
-func (pp *volumeDriverProxy) Create(name string) (err error) {
+func (pp *volumeDriverProxy) Create(name string, opts opts) (err error) {
 	var (
 		req volumeDriverProxyCreateRequest
 		ret volumeDriverProxyCreateResponse
 	)
 
 	req.Name = name
+	req.Opts = opts
 	if err = pp.Call("VolumeDriver.Create", req, &ret); err != nil {
 		return
 	}

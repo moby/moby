@@ -59,5 +59,6 @@ var dockerCommands = []command{
 	{"top", "Display the running processes of a container"},
 	{"unpause", "Unpause all processes within a container"},
 	{"version", "Show the Docker version information"},
+	{"volume", "Manage Docker volumes"},
 	{"wait", "Block until a container stops, then print its exit code"},
 }

@@ -20,6 +20,7 @@ type DockerSuite struct {
 func (s *DockerSuite) TearDownTest(c *check.C) {
 	deleteAllContainers()
 	deleteAllImages()
+	deleteAllVolumes()
 }
 
 func init() {

@@ -131,6 +131,10 @@ func (opts *MapOpts) Set(value string) error {
 	return nil
 }
 
+func (opts *MapOpts) GetAll() map[string]string {
+	return opts.values
+}
+
 func (opts *MapOpts) String() string {
 	return fmt.Sprintf("%v", map[string]string((opts.values)))
 }

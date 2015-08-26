@@ -103,6 +103,7 @@ type Daemon struct {
 	RegistryService  *registry.Service
 	EventsService    *events.Events
 	netController    libnetwork.NetworkController
+	volumes          *volumeStore
 	root             string
 	shutdown         bool
 }
@@ -653,7 +654,8 @@ func NewDaemon(config *Config, registryService *registry.Service) (daemon *Daemo
 	}
 
 	// Configure the volumes driver
-	if err := configureVolumes(config); err != nil {
+	volStore, err := configureVolumes(config)
+	if err != nil {
 		return nil, err
 	}
 
@@ -740,6 +742,7 @@ func NewDaemon(config *Config, registryService *registry.Service) (daemon *Daemo
 	d.defaultLogConfig = config.LogConfig
 	d.RegistryService = registryService
 	d.EventsService = eventsService
+	d.volumes = volStore
 	d.root = config.Root
 	go d.execCommandGC()
 
