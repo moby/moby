@@ -138,13 +138,8 @@ func (p *v2Pusher) pushV2Tag(tag string) error {
 			}
 		}
 
-		jsonData, err := p.graph.RawJSON(layer.ID)
-		if err != nil {
-			return fmt.Errorf("cannot retrieve the path for %s: %s", layer.ID, err)
-		}
-
 		var exists bool
-		dgst, err := p.graph.GetDigest(layer.ID)
+		dgst, err := p.graph.GetLayerDigest(layer.ID)
 		switch err {
 		case nil:
 			if p.layersPushed[dgst] {
@@ -178,11 +173,17 @@ func (p *v2Pusher) pushV2Tag(tag string) error {
 				return err
 			} else if pushDigest != dgst {
 				// Cache new checksum
-				if err := p.graph.SetDigest(layer.ID, pushDigest); err != nil {
+				if err := p.graph.SetLayerDigest(layer.ID, pushDigest); err != nil {
 					return err
 				}
 				dgst = pushDigest
 			}
+		}
+
+		// read v1Compatibility config, generate new if needed
+		jsonData, err := p.graph.GenerateV1CompatibilityChain(layer.ID)
+		if err != nil {
+			return err
 		}
 
 		m.FSLayers = append(m.FSLayers, manifest.FSLayer{BlobSum: dgst})

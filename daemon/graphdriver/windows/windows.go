@@ -40,6 +40,26 @@ const (
 	filterDriver
 )
 
+// CustomImageDescriptor is an image descriptor for use by RestoreCustomImages
+type customImageDescriptor struct {
+	img *image.Image
+}
+
+// ID returns the image ID specified in the image structure.
+func (img customImageDescriptor) ID() string {
+	return img.img.ID
+}
+
+// Parent returns the parent ID - in this case, none
+func (img customImageDescriptor) Parent() string {
+	return ""
+}
+
+// MarshalConfig renders the image structure into JSON.
+func (img customImageDescriptor) MarshalConfig() ([]byte, error) {
+	return json.Marshal(img.img)
+}
+
 // Driver represents a windows graph driver.
 type Driver struct {
 	// info stores the shim driver information
@@ -426,7 +446,7 @@ func (d *Driver) RestoreCustomImages(tagger graphdriver.Tagger, recorder graphdr
 				Size:          imageData.Size,
 			}
 
-			if err := recorder.Register(img, nil); err != nil {
+			if err := recorder.Register(customImageDescriptor{img}, nil); err != nil {
 				return nil, err
 			}
 

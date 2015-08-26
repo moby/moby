@@ -12,6 +12,8 @@ import (
 // It should hold only portable information about the container.
 // Here, "portable" means "independent from the host we are running on".
 // Non-portable information *should* appear in HostConfig.
+// All fields added to this struct must be marked `omitempty` to keep getting
+// predictable hashes from the old `v1Compatibility` configuration.
 type Config struct {
 	Hostname        string                // Hostname
 	Domainname      string                // Domainname
@@ -19,7 +21,8 @@ type Config struct {
 	AttachStdin     bool                  // Attach the standard input, makes possible user interaction
 	AttachStdout    bool                  // Attach the standard output
 	AttachStderr    bool                  // Attach the standard error
-	ExposedPorts    map[nat.Port]struct{} // List of exposed ports
+	ExposedPorts    map[nat.Port]struct{} `json:",omitempty"` // List of exposed ports
+	PublishService  string                `json:",omitempty"` // Name of the network service exposed by the container
 	Tty             bool                  // Attach standard streams to a tty, including stdin if it is not closed.
 	OpenStdin       bool                  // Open stdin
 	StdinOnce       bool                  // If true, close stdin after the 1 attached client disconnects.
@@ -29,11 +32,11 @@ type Config struct {
 	Volumes         map[string]struct{}   // List of volumes (mounts) used for the container
 	WorkingDir      string                // Current directory (PWD) in the command will be launched
 	Entrypoint      *stringutils.StrSlice // Entrypoint to run when starting the container
-	NetworkDisabled bool                  // Is network disabled
-	MacAddress      string                // Mac Address of the container
+	NetworkDisabled bool                  `json:",omitempty"` // Is network disabled
+	MacAddress      string                `json:",omitempty"` // Mac Address of the container
 	OnBuild         []string              // ONBUILD metadata that were defined on the image Dockerfile
 	Labels          map[string]string     // List of labels set to this container
-	StopSignal      string                // Signal to stop a container
+	StopSignal      string                `json:",omitempty"` // Signal to stop a container
 }
 
 // DecodeContainerConfig decodes a json encoded config into a ContainerConfigWrapper
