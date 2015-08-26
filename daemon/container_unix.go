@@ -1242,10 +1242,10 @@ func (container *Container) removeMountPoints(rm bool) error {
 }
 
 func (container *Container) shmPath() (string, error) {
-	return container.GetRootResourcePath("shm")
+	return container.getRootResourcePath("shm")
 }
 func (container *Container) mqueuePath() (string, error) {
-	return container.GetRootResourcePath("mqueue")
+	return container.getRootResourcePath("mqueue")
 }
 
 func (container *Container) setupIpcDirs() error {
@@ -1258,7 +1258,7 @@ func (container *Container) setupIpcDirs() error {
 		return err
 	}
 
-	if err := syscall.Mount("shm", shmPath, "tmpfs", uintptr(syscall.MS_NOEXEC|syscall.MS_NOSUID|syscall.MS_NODEV), label.FormatMountLabel("mode=1777,size=65536k", container.GetMountLabel())); err != nil {
+	if err := syscall.Mount("shm", shmPath, "tmpfs", uintptr(syscall.MS_NOEXEC|syscall.MS_NOSUID|syscall.MS_NODEV), label.FormatMountLabel("mode=1777,size=65536k", container.getMountLabel())); err != nil {
 		return fmt.Errorf("mounting shm tmpfs: %s", err)
 	}
 
@@ -1283,22 +1283,32 @@ func (container *Container) unmountIpcMounts() error {
 		return nil
 	}
 
+	var errors []string
 	shmPath, err := container.shmPath()
 	if err != nil {
-		return fmt.Errorf("shm path does not exist %v", err)
-	}
+		logrus.Error(err)
+		errors = append(errors, err.Error())
+	} else {
+		if err := detachMounted(shmPath); err != nil {
+			logrus.Errorf("failed to umount %s: %v", shmPath, err)
+			errors = append(errors, err.Error())
+		}
 
-	if err := syscall.Unmount(shmPath, syscall.MNT_DETACH); err != nil {
-		return fmt.Errorf("failed to umount %s filesystem %v", shmPath, err)
 	}
 
 	mqueuePath, err := container.mqueuePath()
 	if err != nil {
-		return fmt.Errorf("mqueue path does not exist %v", err)
+		logrus.Error(err)
+		errors = append(errors, err.Error())
+	} else {
+		if err := detachMounted(mqueuePath); err != nil {
+			logrus.Errorf("failed to umount %s: %v", mqueuePath, err)
+			errors = append(errors, err.Error())
+		}
 	}
 
-	if err := syscall.Unmount(mqueuePath, syscall.MNT_DETACH); err != nil {
-		return fmt.Errorf("failed to umount %s filesystem %v", mqueuePath, err)
+	if len(errors) > 0 {
+		return fmt.Errorf("failed to cleanup ipc mounts:\n%v", strings.Join(errors, "\n"))
 	}
 
 	return nil
@@ -1321,4 +1331,8 @@ func (container *Container) ipcMounts() []execdriver.Mount {
 		Private:     true,
 	})
 	return mounts
+}
+
+func detachMounted(path string) error {
+	return syscall.Unmount(path, syscall.MNT_DETACH)
 }

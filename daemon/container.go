@@ -296,7 +296,7 @@ func (container *Container) Start() (err error) {
 		return err
 	}
 
-	if !(container.hostConfig.IpcMode.IsContainer() || container.hostConfig.IpcMode.IsHost()) {
+	if !container.hostConfig.IpcMode.IsContainer() && !container.hostConfig.IpcMode.IsHost() {
 		if err := container.setupIpcDirs(); err != nil {
 			return err
 		}
@@ -366,11 +366,11 @@ func (container *Container) cleanup() {
 	container.releaseNetwork()
 
 	if err := container.unmountIpcMounts(); err != nil {
-		logrus.Errorf("%v: Failed to umount ipc filesystems: %v", container.ID, err)
+		logrus.Errorf("%s: Failed to umount ipc filesystems: %v", container.ID, err)
 	}
 
 	if err := container.Unmount(); err != nil {
-		logrus.Errorf("%v: Failed to umount filesystem: %v", container.ID, err)
+		logrus.Errorf("%s: Failed to umount filesystem: %v", container.ID, err)
 	}
 
 	for _, eConfig := range container.execCommands.s {
