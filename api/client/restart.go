@@ -11,7 +11,7 @@ import (
 
 // CmdRestart restarts one or more running containers.
 //
-// Usage: docker stop [OPTIONS] CONTAINER [CONTAINER...]
+// Usage: docker restart [OPTIONS] CONTAINER [CONTAINER...]
 func (cli *DockerCli) CmdRestart(args ...string) error {
 	cmd := Cli.Subcmd("restart", []string{"CONTAINER [CONTAINER...]"}, "Restart a running container", true)
 	nSeconds := cmd.Int([]string{"t", "-time"}, 10, "Seconds to wait for stop before killing the container")
