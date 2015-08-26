@@ -123,7 +123,7 @@ func (p *v1Puller) pullRepository(askedTag string) error {
 	defer func() {
 		p.graph.Release(sessionID, imgIDs...)
 	}()
-	for _, image := range repoData.ImgList {
+	for _, imgData := range repoData.ImgList {
 		downloadImage := func(img *registry.ImgData) {
 			if askedTag != "" && img.Tag != askedTag {
 				errors <- nil
@@ -133,6 +133,11 @@ func (p *v1Puller) pullRepository(askedTag string) error {
 			if img.Tag == "" {
 				logrus.Debugf("Image (id: %s) present in this repository but untagged, skipping", img.ID)
 				errors <- nil
+				return
+			}
+
+			if err := image.ValidateID(img.ID); err != nil {
+				errors <- err
 				return
 			}
 
@@ -196,7 +201,7 @@ func (p *v1Puller) pullRepository(askedTag string) error {
 			errors <- nil
 		}
 
-		go downloadImage(image)
+		go downloadImage(imgData)
 	}
 
 	var lastError error
@@ -304,7 +309,7 @@ func (p *v1Puller) pullImage(imgID, endpoint string, token []string) (bool, erro
 				layersDownloaded = true
 				defer layer.Close()
 
-				err = p.graph.Register(img,
+				err = p.graph.Register(v1ImageDescriptor{img},
 					progressreader.New(progressreader.Config{
 						In:        layer,
 						Out:       out,

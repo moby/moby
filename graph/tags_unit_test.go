@@ -81,7 +81,7 @@ func mkTestTagStore(root string, t *testing.T) *TagStore {
 		t.Fatal(err)
 	}
 	img := &image.Image{ID: testOfficialImageID}
-	if err := graph.Register(img, officialArchive); err != nil {
+	if err := graph.Register(v1ImageDescriptor{img}, officialArchive); err != nil {
 		t.Fatal(err)
 	}
 	if err := store.Tag(testOfficialImageName, "", testOfficialImageID, false); err != nil {
@@ -92,7 +92,7 @@ func mkTestTagStore(root string, t *testing.T) *TagStore {
 		t.Fatal(err)
 	}
 	img = &image.Image{ID: testPrivateImageID}
-	if err := graph.Register(img, privateArchive); err != nil {
+	if err := graph.Register(v1ImageDescriptor{img}, privateArchive); err != nil {
 		t.Fatal(err)
 	}
 	if err := store.Tag(testPrivateImageName, "", testPrivateImageID, false); err != nil {

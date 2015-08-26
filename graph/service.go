@@ -10,20 +10,6 @@ import (
 	"github.com/docker/docker/api/types"
 )
 
-func (s *TagStore) LookupRaw(name string) ([]byte, error) {
-	image, err := s.LookupImage(name)
-	if err != nil || image == nil {
-		return nil, fmt.Errorf("No such image %s", name)
-	}
-
-	imageInspectRaw, err := s.graph.RawJSON(image.ID)
-	if err != nil {
-		return nil, err
-	}
-
-	return imageInspectRaw, nil
-}
-
 // Lookup return an image encoded in JSON
 func (s *TagStore) Lookup(name string) (*types.ImageInspect, error) {
 	image, err := s.LookupImage(name)

@@ -125,7 +125,7 @@ func (s *TagStore) recursiveLoad(address, tmpImageDir string) error {
 				}
 			}
 		}
-		if err := s.graph.Register(img, layer); err != nil {
+		if err := s.graph.Register(v1ImageDescriptor{img}, layer); err != nil {
 			return err
 		}
 	}
