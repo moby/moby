@@ -12,6 +12,9 @@ import (
 
 // cleanupMounts umounts shm/mqueue mounts for old containers
 func (daemon *Daemon) cleanupMounts() error {
+	if daemon.repository == "" {
+		return nil
+	}
 	logrus.Debugf("Cleaning up old shm/mqueue mounts: start.")
 	f, err := os.Open("/proc/self/mountinfo")
 	if err != nil {

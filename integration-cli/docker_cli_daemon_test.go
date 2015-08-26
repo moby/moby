@@ -1624,3 +1624,11 @@ func (s *DockerDaemonSuite) TestDaemonWideLogConfig(c *check.C) {
 		c.Fatalf("Unexpected log-opt: %s, expected map[max-size:1k]", cfg)
 	}
 }
+
+func (s *DockerDaemonSuite) TestDaemonCleanupMounts(c *check.C) {
+	c.Assert(s.d.Start("--log-driver=bogus"), check.NotNil)
+	content, _ := ioutil.ReadFile(s.d.logFile.Name())
+	if strings.Contains(string(content), "Cleaning up old shm/mqueue mounts") {
+		c.Fatalf("Daemon should not clean up shm/mqueue if repository is empty")
+	}
+}
