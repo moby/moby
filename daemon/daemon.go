@@ -1052,7 +1052,7 @@ func (daemon *Daemon) verifyContainerSettings(hostConfig *runconfig.HostConfig, 
 
 	// First perform verification of settings common across all platforms.
 	if config != nil {
-		if config.WorkingDir != "" && !filepath.IsAbs(config.WorkingDir) {
+		if config.WorkingDir != "" && !system.IsAbs(config.WorkingDir) {
 			return nil, fmt.Errorf("The working directory '%s' is invalid. It needs to be an absolute path.", config.WorkingDir)
 		}
 	}
