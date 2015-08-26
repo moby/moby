@@ -2,7 +2,6 @@ package graph
 
 import (
 	"compress/gzip"
-	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -338,26 +337,6 @@ func (graph *Graph) newTempFile() (*os.File, error) {
 		return nil, err
 	}
 	return ioutil.TempFile(tmp, "")
-}
-
-func bufferToFile(f *os.File, src io.Reader) (int64, digest.Digest, error) {
-	var (
-		h = sha256.New()
-		w = gzip.NewWriter(io.MultiWriter(f, h))
-	)
-	_, err := io.Copy(w, src)
-	w.Close()
-	if err != nil {
-		return 0, "", err
-	}
-	n, err := f.Seek(0, os.SEEK_CUR)
-	if err != nil {
-		return 0, "", err
-	}
-	if _, err := f.Seek(0, 0); err != nil {
-		return 0, "", err
-	}
-	return n, digest.NewDigest("sha256", h), nil
 }
 
 // Delete atomically removes an image from the graph.
