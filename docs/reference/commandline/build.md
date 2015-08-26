@@ -110,9 +110,9 @@ There should be informational output of the reason for failure output to
     $ docker build -t fail .
     Sending build context to Docker daemon 2.048 kB
     Sending build context to Docker daemon
-    Step 0 : FROM busybox
+    Step 1 : FROM busybox
      ---> 4986bf8c1536
-    Step 1 : RUN exit 13
+    Step 2 : RUN exit 13
      ---> Running in e26670ec7a0a
     INFO[0000] The command [/bin/sh -c exit 13] returned a non-zero code: 13
     $ echo $?
@@ -167,9 +167,9 @@ you must use `--rm=false`. This does not affect the build cache.
     $ docker build .
     Uploading context 18.829 MB
     Uploading context
-    Step 0 : FROM busybox
+    Step 1 : FROM busybox
      ---> 769b9341d937
-    Step 1 : CMD echo Hello world
+    Step 2 : CMD echo Hello world
      ---> Using cache
      ---> 99cc1ad10469
     Successfully built 99cc1ad10469
@@ -177,9 +177,9 @@ you must use `--rm=false`. This does not affect the build cache.
     $ docker build .
     Uploading context  6.76 MB
     Uploading context
-    Step 0 : FROM busybox
+    Step 1 : FROM busybox
      ---> 769b9341d937
-    Step 1 : CMD echo Hello world
+    Step 2 : CMD echo Hello world
      ---> Using cache
      ---> 99cc1ad10469
     Successfully built 99cc1ad10469
