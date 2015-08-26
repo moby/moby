@@ -917,8 +917,10 @@ func (daemon *Daemon) diff(container *Container) (archive.Archive, error) {
 func (daemon *Daemon) createRootfs(container *Container) error {
 	// Step 1: create the container directory.
 	// This doubles as a barrier to avoid race conditions.
-	if err := os.Mkdir(container.root, 0700); err != nil {
-		return err
+	if _, err := os.Stat(container.root); os.IsNotExist(err) {
+		if err := os.Mkdir(container.root, 0700); err != nil {
+			return err
+		}
 	}
 	initID := fmt.Sprintf("%s-init", container.ID)
 	if err := daemon.driver.Create(initID, container.ImageID); err != nil {
