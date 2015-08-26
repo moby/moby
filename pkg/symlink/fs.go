@@ -12,6 +12,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/docker/docker/pkg/system"
 )
 
 // FollowSymlinkInScope is a wrapper around evalSymlinksInScope that returns an
@@ -120,7 +122,7 @@ func evalSymlinksInScope(path, root string) (string, error) {
 		if err != nil {
 			return "", err
 		}
-		if filepath.IsAbs(dest) {
+		if system.IsAbs(dest) {
 			b.Reset()
 		}
 		path = dest + string(filepath.Separator) + path

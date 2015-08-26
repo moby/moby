@@ -270,7 +270,7 @@ func calcCopyInfo(b *builder, cmdName string, cInfos *[]*copyInfo, origPath stri
 
 	// Twiddle the destPath when its a relative path - meaning, make it
 	// relative to the WORKINGDIR
-	if !filepath.IsAbs(destPath) {
+	if !system.IsAbs(destPath) {
 		hasSlash := strings.HasSuffix(destPath, string(os.PathSeparator))
 		destPath = filepath.Join(string(os.PathSeparator), filepath.FromSlash(b.Config.WorkingDir), destPath)
 
