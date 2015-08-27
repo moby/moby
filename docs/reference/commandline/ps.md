@@ -51,7 +51,47 @@ The currently supported filters are:
 * exited (int - the code of exited containers. Only useful with `--all`)
 * status (created|restarting|running|paused|exited)
 
-## Successfully exited containers
+
+#### Label
+
+The `label` filter matches containers based on the presence of a `label` alone or a `label` and a
+value.
+
+The following filter matches containers with the `color` label regardless of its value.
+
+    $ docker ps --filter "label=color"
+    CONTAINER ID        IMAGE               COMMAND             CREATED             STATUS              PORTS               NAMES
+    673394ef1d4c        busybox             "top"               47 seconds ago      Up 45 seconds                           nostalgic_shockley
+    d85756f57265        busybox             "top"               52 seconds ago      Up 51 seconds                           high_albattani
+
+The following filter matches containers with the `color` label with the `blue` value.
+
+    $ docker ps --filter "label=color=blue"
+    CONTAINER ID        IMAGE               COMMAND             CREATED              STATUS              PORTS               NAMES
+    d85756f57265        busybox             "top"               About a minute ago   Up About a minute                       high_albattani
+
+#### Name
+
+The `name` filter matches on all or part of a container's name.
+
+The following filter matches all containers with a name containing the `nostalgic_stallman` string.
+
+    $ docker ps --filter "name=nostalgic_stallman"
+    CONTAINER ID        IMAGE               COMMAND             CREATED             STATUS              PORTS               NAMES
+    9b6247364a03        busybox             "top"               2 minutes ago       Up 2 minutes                            nostalgic_stallman
+
+You can also filter for a substring in a name as this shows:
+
+    $ docker ps --filter "name=nostalgic"
+    CONTAINER ID        IMAGE               COMMAND             CREATED             STATUS              PORTS               NAMES
+    715ebfcee040        busybox             "top"               3 seconds ago       Up 1 seconds                            i_am_nostalgic
+    9b6247364a03        busybox             "top"               7 minutes ago       Up 7 minutes                            nostalgic_stallman
+    673394ef1d4c        busybox             "top"               38 minutes ago      Up 38 minutes                           nostalgic_shockley
+
+#### Exited
+
+The `exited` filter matches containers by exist status code. For example, to filter for containers
+that have exited successfully:
 
     $ docker ps -a --filter 'exited=0'
     CONTAINER ID        IMAGE             COMMAND                CREATED             STATUS                   PORTS                      NAMES
@@ -59,7 +99,62 @@ The currently supported filters are:
     106ea823fe4e        fedora:latest     /bin/sh -c 'bash -l'   2 weeks ago         Exited (0) 2 weeks ago                              determined_albattani
     48ee228c9464        fedora:20         bash                   2 weeks ago         Exited (0) 2 weeks ago                              tender_torvalds
 
-This shows all the containers that have exited with status of '0'
+#### Status
+
+The `status` filter matches containers by status. You can filter using `created`, `restarting`, `running`, `paused` and `exited`. For example, to filter for `running` containers:
+
+    $ docker ps --filter status=running
+    CONTAINER ID        IMAGE                  COMMAND             CREATED             STATUS              PORTS               NAMES
+    715ebfcee040        busybox                "top"               16 minutes ago      Up 16 minutes                           i_am_nostalgic
+    d5c976d3c462        busybox                "top"               23 minutes ago      Up 23 minutes                           top
+    9b6247364a03        busybox                "top"               24 minutes ago      Up 24 minutes                           nostalgic_stallman
+
+To filter for `paused` containers:
+
+    $ docker ps --filter status=paused
+    CONTAINER ID        IMAGE               COMMAND             CREATED             STATUS                      PORTS               NAMES
+    673394ef1d4c        busybox             "top"               About an hour ago   Up About an hour (Paused)                       nostalgic_shockley
+
+#### Ancestor
+
+The `ancestor` filter matches containers based on its image or a descendant of it. The filter supports the
+following image representation:
+
+- image
+- image:tag
+- image:tag@digest
+- short-id
+- full-id
+
+If you don't specify a `tag`, the `latest` tag is used. For example, to filter for containers that use the
+latest `ubuntu` image:
+
+    $ docker ps --filter ancestor=ubuntu
+    CONTAINER ID        IMAGE               COMMAND             CREATED              STATUS              PORTS               NAMES
+    919e1179bdb8        ubuntu-c1           "top"               About a minute ago   Up About a minute                       admiring_lovelace
+    5d1e4a540723        ubuntu-c2           "top"               About a minute ago   Up About a minute                       admiring_sammet
+    82a598284012        ubuntu              "top"               3 minutes ago        Up 3 minutes                            sleepy_bose
+    bab2a34ba363        ubuntu              "top"               3 minutes ago        Up 3 minutes                            focused_yonath
+
+Match containers based on the `ubuntu-c1` image which, in this case, is a child of `ubuntu`:
+
+    $ docker ps --filter ancestor=ubuntu-c1
+    CONTAINER ID        IMAGE               COMMAND             CREATED              STATUS              PORTS               NAMES
+    919e1179bdb8        ubuntu-c1           "top"               About a minute ago   Up About a minute                       admiring_lovelace
+
+Match containers based on the `ubuntu` version `12.04.5` image:
+
+    $ docker ps --filter ancestor=ubuntu:12.04.5
+    CONTAINER ID        IMAGE               COMMAND             CREATED              STATUS              PORTS               NAMES
+    82a598284012        ubuntu:12.04.5      "top"               3 minutes ago        Up 3 minutes                            sleepy_bose
+
+The following matches containers based on the layer `d0e008c6cf02` or an image that have this layer
+in it's layer stack.
+
+    $ docker ps --filter ancestor=d0e008c6cf02
+    CONTAINER ID        IMAGE               COMMAND             CREATED              STATUS              PORTS               NAMES
+    82a598284012        ubuntu:12.04.5      "top"               3 minutes ago        Up 3 minutes                            sleepy_bose
+
 
 ## Formatting
 
