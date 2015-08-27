@@ -669,7 +669,7 @@ func NewDaemon(config *Config, registryService *registry.Service) (daemon *Daemo
 	if err := system.MkdirAll(trustDir, 0700); err != nil {
 		return nil, err
 	}
-	trustService, err := trust.NewTrustStore(trustDir)
+	trustService, err := trust.NewStore(trustDir)
 	if err != nil {
 		return nil, fmt.Errorf("could not create trust store: %s", err)
 	}

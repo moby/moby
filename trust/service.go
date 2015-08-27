@@ -8,13 +8,17 @@ import (
 	"github.com/docker/libtrust"
 )
 
+// NotVerifiedError reports a error when doing the key check.
+// For example if the graph is not verified or the key has expired.
 type NotVerifiedError string
 
 func (e NotVerifiedError) Error() string {
 	return string(e)
 }
 
-func (t *TrustStore) CheckKey(ns string, key []byte, perm uint16) (bool, error) {
+// CheckKey verifies that the given public key is allowed to perform
+// the given action on the given node according to the trust graph.
+func (t *Store) CheckKey(ns string, key []byte, perm uint16) (bool, error) {
 	if len(key) == 0 {
 		return false, fmt.Errorf("Missing PublicKey")
 	}
@@ -48,6 +52,8 @@ func (t *TrustStore) CheckKey(ns string, key []byte, perm uint16) (bool, error) 
 	return true, nil
 }
 
-func (t *TrustStore) UpdateBase() {
+// UpdateBase retrieves updated base graphs. This function cannot error, it
+// should only log errors.
+func (t *Store) UpdateBase() {
 	t.fetch()
 }
