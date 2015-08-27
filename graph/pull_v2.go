@@ -75,7 +75,8 @@ func (p *v2Puller) pullV2Repository(tag string) (err error) {
 	broadcaster, found := p.poolAdd("pull", taggedName)
 	broadcaster.Add(p.config.OutStream)
 	if found {
-		// Another pull of the same repository is already taking place; just wait for it to finish
+		// Another push or pull of the same repository is already taking place; just wait
+		// for it to finish
 		return broadcaster.Wait()
 	}
 

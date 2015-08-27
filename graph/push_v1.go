@@ -211,7 +211,7 @@ func (p *v1Pusher) pushImageToEndpoint(endpoint string, imageIDs []string, tags 
 }
 
 // pushRepository pushes layers that do not already exist on the registry.
-func (p *v1Pusher) pushRepository(tag string) error {
+func (p *v1Pusher) pushRepository(tag string) (err error) {
 	logrus.Debugf("Local repo: %s", p.localRepo)
 	p.out = ioutils.NewWriteFlusher(p.config.OutStream)
 	imgList, tags, err := p.getImageList(tag)
@@ -229,7 +229,12 @@ func (p *v1Pusher) pushRepository(tag string) error {
 	if _, found := p.poolAdd("push", p.repoInfo.LocalName); found {
 		return fmt.Errorf("push or pull %s is already in progress", p.repoInfo.LocalName)
 	}
-	defer p.poolRemove("push", p.repoInfo.LocalName)
+
+	// This must use a closure so it captures the value of err when the
+	// function returns, not when the 'defer' is evaluated.
+	defer func() {
+		p.poolRemoveWithError("push", p.repoInfo.LocalName, err)
+	}()
 
 	// Register all the images in a repository with the registry
 	// If an image is not in this list it will not be associated with the repository
