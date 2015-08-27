@@ -856,3 +856,49 @@ func TestCatalogInParts(t *testing.T) {
 		t.Fatalf("Got wrong number of repos")
 	}
 }
+
+func TestSanitizeLocation(t *testing.T) {
+	for _, testcase := range []struct {
+		description string
+		location    string
+		source      string
+		expected    string
+		err         error
+	}{
+		{
+			description: "ensure relative location correctly resolved",
+			location:    "/v2/foo/baasdf",
+			source:      "http://blahalaja.com/v1",
+			expected:    "http://blahalaja.com/v2/foo/baasdf",
+		},
+		{
+			description: "ensure parameters are preserved",
+			location:    "/v2/foo/baasdf?_state=asdfasfdasdfasdf&digest=foo",
+			source:      "http://blahalaja.com/v1",
+			expected:    "http://blahalaja.com/v2/foo/baasdf?_state=asdfasfdasdfasdf&digest=foo",
+		},
+		{
+			description: "ensure new hostname overidden",
+			location:    "https://mwhahaha.com/v2/foo/baasdf?_state=asdfasfdasdfasdf",
+			source:      "http://blahalaja.com/v1",
+			expected:    "https://mwhahaha.com/v2/foo/baasdf?_state=asdfasfdasdfasdf",
+		},
+	} {
+		fatalf := func(format string, args ...interface{}) {
+			t.Fatalf(testcase.description+": "+format, args...)
+		}
+
+		s, err := sanitizeLocation(testcase.location, testcase.source)
+		if err != testcase.err {
+			if testcase.err != nil {
+				fatalf("expected error: %v != %v", err, testcase)
+			} else {
+				fatalf("unexpected error sanitizing: %v", err)
+			}
+		}
+
+		if s != testcase.expected {
+			fatalf("bad sanitize: %q != %q", s, testcase.expected)
+		}
+	}
+}
