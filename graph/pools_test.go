@@ -1,6 +1,7 @@
 package graph
 
 import (
+	"sync"
 	"testing"
 
 	"github.com/docker/docker/pkg/broadcaster"
@@ -13,32 +14,38 @@ func init() {
 
 func TestPools(t *testing.T) {
 	s := &TagStore{
-		pullingPool: make(map[string]*broadcaster.Buffered),
-		pushingPool: make(map[string]*broadcaster.Buffered),
+		pullsByKey:      make(map[string]*broadcaster.Buffered),
+		pullCountByRepo: make(map[string]int),
+		pushCountByRepo: make(map[string]int),
 	}
 
-	if _, found := s.poolAdd("pull", "test1"); found {
+	s.pushPullCond = sync.NewCond(s)
+
+	if _, found := s.acquirePull("test1", "test1", nil); found {
 		t.Fatal("Expected pull test1 not to be in progress")
 	}
-	if _, found := s.poolAdd("pull", "test2"); found {
+	if _, found := s.acquirePull("test1", "test1", nil); !found {
+		t.Fatal("Expected pull test1 to be in progress")
+	}
+	if _, found := s.acquirePull("test2", "test2", nil); found {
 		t.Fatal("Expected pull test2 not to be in progress")
 	}
-	if _, found := s.poolAdd("push", "test1"); !found {
-		t.Fatalf("Expected pull test1 to be in progress`")
+
+	callbackCalled := false
+	releasePullFunc := func() {
+		s.releasePull("test1", "test1")
+		callbackCalled = true
 	}
-	if _, found := s.poolAdd("pull", "test1"); !found {
-		t.Fatalf("Expected pull test1 to be in progress`")
+	if s.acquirePush("test1", releasePullFunc); !callbackCalled {
+		t.Fatalf("Expected pull test1 to be released`")
 	}
-	if err := s.poolRemove("pull", "test2"); err != nil {
-		t.Fatal(err)
+
+	callbackCalled = false
+	releasePushFunc := func() {
+		s.releasePush("test1")
+		callbackCalled = true
 	}
-	if err := s.poolRemove("pull", "test2"); err != nil {
-		t.Fatal(err)
-	}
-	if err := s.poolRemove("pull", "test1"); err != nil {
-		t.Fatal(err)
-	}
-	if err := s.poolRemove("push", "test1"); err != nil {
-		t.Fatal(err)
+	if _, found := s.acquirePull("test1", "test1", releasePushFunc); found || !callbackCalled {
+		t.Fatalf("Expected pull test1 to be in progress")
 	}
 }

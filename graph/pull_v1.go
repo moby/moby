@@ -142,13 +142,16 @@ func (p *v1Puller) pullRepository(askedTag string) error {
 
 			// ensure no two downloads of the same image happen at the same time
 			poolKey := "img:" + img.ID
-			broadcaster, found := p.poolAdd("pull", poolKey)
+			broadcaster, found := p.acquirePull(poolKey, p.repoInfo.CanonicalName,
+				func() {
+					out.Write(p.sf.FormatStatus(stringid.TruncateID(img.ID), "Waiting for push to complete before pulling"))
+				})
 			broadcaster.Add(out)
 			if found {
 				errors <- broadcaster.Wait()
 				return
 			}
-			defer p.poolRemove("pull", poolKey)
+			defer p.releasePull(poolKey, p.repoInfo.CanonicalName)
 
 			// we need to retain it until tagging
 			p.graph.Retain(sessionID, img.ID)
@@ -248,7 +251,10 @@ func (p *v1Puller) pullImage(out io.Writer, imgID, endpoint string) (layersDownl
 
 		// ensure no two downloads of the same layer happen at the same time
 		poolKey := "layer:" + id
-		broadcaster, found := p.poolAdd("pull", poolKey)
+		broadcaster, found := p.acquirePull(poolKey, p.repoInfo.CanonicalName,
+			func() {
+				out.Write(p.sf.FormatStatus(stringid.TruncateID(id), "Waiting for push to complete before pulling"))
+			})
 		broadcaster.Add(out)
 		if found {
 			logrus.Debugf("Image (id: %s) pull is already running, skipping", id)
@@ -262,7 +268,7 @@ func (p *v1Puller) pullImage(out io.Writer, imgID, endpoint string) (layersDownl
 		// This must use a closure so it captures the value of err when
 		// the function returns, not when the 'defer' is evaluated.
 		defer func() {
-			p.poolRemoveWithError("pull", poolKey, err)
+			p.releasePullWithError(poolKey, p.repoInfo.CanonicalName, err)
 		}()
 
 		if !p.graph.Exists(id) {

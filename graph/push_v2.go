@@ -62,10 +62,12 @@ func (p *v2Pusher) getImageTags(askedTag string) ([]string, error) {
 
 func (p *v2Pusher) pushV2Repository(tag string) error {
 	localName := p.repoInfo.LocalName
-	if _, found := p.poolAdd("push", localName); found {
-		return fmt.Errorf("push or pull %s is already in progress", localName)
-	}
-	defer p.poolRemove("push", localName)
+	p.acquirePush(p.repoInfo.CanonicalName,
+		func() {
+			p.config.OutStream.Write(p.sf.FormatStatus("", "Repository %s is presently being pulled or pushed. Waiting.", p.repoInfo.CanonicalName))
+		})
+
+	defer p.releasePush(p.repoInfo.CanonicalName)
 
 	tags, err := p.getImageTags(tag)
 	if err != nil {
