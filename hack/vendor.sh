@@ -27,7 +27,7 @@ clone git github.com/hashicorp/go-msgpack 71c2886f5a673a35f909803f38ece581016509
 clone git github.com/hashicorp/memberlist 9a1e242e454d2443df330bdd51a436d5a9058fc4
 clone git github.com/hashicorp/serf 7151adcef72687bf95f451a2e0ba15cb19412bf2
 clone git github.com/docker/libkv 60c7c881345b3c67defc7f93a8297debf041d43c
-clone git github.com/vishvananda/netns 493029407eeb434d0c2d44e02ea072ff2488d322
+clone git github.com/vishvananda/netns 604eaf189ee867d8c147fafc28def2394e878d25
 clone git github.com/vishvananda/netlink 4b5dce31de6d42af5bb9811c6d265472199e0fec
 clone git github.com/BurntSushi/toml f706d00e3de6abe700c994cdd545a1a4915af060
 clone git github.com/samuel/go-zookeeper d0e0d8e11f318e000a8cc434616d69e329edc374
