@@ -371,7 +371,7 @@ func (s *DockerTrustSuite) TestTrustedPullWithExpiredSnapshot(c *check.C) {
 }
 
 // Test that pull continues after client has disconnected. #15589
-func (s *DockerTrustSuite) TestPullClientDisconnect(c *check.C) {
+func (s *DockerSuite) TestPullClientDisconnect(c *check.C) {
 	testRequires(c, Network)
 
 	repoName := "hello-world:latest"
