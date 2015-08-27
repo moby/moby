@@ -17,7 +17,9 @@ import (
 	"github.com/docker/libtrust/trustgraph"
 )
 
-// Store defines a TrustStore
+// Store defines a TrustStore : stores trusted certificates and permissions
+// which are used to verify the signature keys on manifests.
+// Note: This is being deprecated by the notary work.
 type Store struct {
 	path          string
 	caPool        *x509.CertPool
@@ -39,9 +41,9 @@ const defaultFetchtime = 45 * time.Second
 
 var baseEndpoints = map[string]string{"official": "https://dvjy3tqbc323p.cloudfront.net/trust/official.json"}
 
-// NewTrustStore creates from a given path, if the path is not
+// NewStore creates a TrustStore from a given path, if the path is not
 // relative, it will be joined with the working directory.
-func NewTrustStore(path string) (*Store, error) {
+func NewStore(path string) (*Store, error) {
 	abspath, err := filepath.Abs(path)
 	if err != nil {
 		return nil, err
@@ -149,7 +151,7 @@ func (t *Store) fetchBaseGraph(u *url.URL) (*trustgraph.Statement, error) {
 	return trustgraph.LoadStatement(resp.Body, t.caPool)
 }
 
-// fetch retrieves updated base graphs.  This function cannot error, it
+// fetch retrieves updated base graphs. This function cannot error, it
 // should only log errors
 func (t *Store) fetch() {
 	t.Lock()

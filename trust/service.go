@@ -8,7 +8,8 @@ import (
 	"github.com/docker/libtrust"
 )
 
-// NotVerifiedError implements the error interface
+// NotVerifiedError reports a error when doing the key check.
+// For example if the graph is not verified or the key has expired.
 type NotVerifiedError string
 
 func (e NotVerifiedError) Error() string {
@@ -51,8 +52,8 @@ func (t *Store) CheckKey(ns string, key []byte, perm uint16) (bool, error) {
 	return true, nil
 }
 
-// UpdateBase retrieves updated base graphs.  This function cannot error, it
-// should only log errors
+// UpdateBase retrieves updated base graphs. This function cannot error, it
+// should only log errors.
 func (t *Store) UpdateBase() {
 	t.fetch()
 }
