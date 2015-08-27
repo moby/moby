@@ -9,13 +9,13 @@ import (
 )
 
 var (
-	// EnvironmentVariableRegexp A regexp to validate correct environment variables
+	// EnvironmentVariableRegexp is a regexp to validate correct environment variables
 	// Environment variables set by the user must have a name consisting solely of
 	// alphabetics, numerics, and underscores - the first of which must not be numeric.
 	EnvironmentVariableRegexp = regexp.MustCompile("^[[:alpha:]_][[:alpha:][:digit:]_]*$")
 )
 
-// ParseEnvFile Read in a line delimited file with environment variables enumerated
+// ParseEnvFile reads a file with environment variables enumerated by lines
 func ParseEnvFile(filename string) ([]string, error) {
 	fh, err := os.Open(filename)
 	if err != nil {

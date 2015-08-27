@@ -63,7 +63,7 @@ func mkTestTagStore(root string, t *testing.T) *TagStore {
 		t.Fatal(err)
 	}
 
-	trust, err := trust.NewTrustStore(root + "/trust")
+	trust, err := trust.NewStore(root + "/trust")
 	if err != nil {
 		t.Fatal(err)
 	}
