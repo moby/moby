@@ -8,7 +8,8 @@ import (
 	"github.com/Sirupsen/logrus"
 )
 
-// ShutdownComputeSystem shuts down a container
+// ShutdownComputeSystem shuts down a container by requesting a shutdown within
+// the container operating system.
 func ShutdownComputeSystem(id string) error {
 
 	var title = "HCSShim::ShutdownComputeSystem"

@@ -8,6 +8,8 @@ import (
 	"github.com/Sirupsen/logrus"
 )
 
+// UnprepareLayer disables the filesystem filter for the read-write layer with
+// the given id.
 func UnprepareLayer(info DriverInfo, layerId string) error {
 	title := "hcsshim::UnprepareLayer "
 	logrus.Debugf(title+"flavour %d layerId %s", info.Flavour, layerId)

@@ -8,7 +8,7 @@ import (
 	"github.com/Sirupsen/logrus"
 )
 
-// TerminateComputeSystem force terminates a container
+// TerminateComputeSystem force terminates a container.
 func TerminateComputeSystem(id string) error {
 
 	var title = "HCSShim::TerminateComputeSystem"

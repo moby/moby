@@ -11,7 +11,7 @@ import (
 	"github.com/Sirupsen/logrus"
 )
 
-// processParameters is use to both the input of CreateProcessInComputeSystem
+// CreateProcessParams is used as both the input of CreateProcessInComputeSystem
 // and to convert the parameters to JSON for passing onto the HCS
 type CreateProcessParams struct {
 	ApplicationName  string
