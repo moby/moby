@@ -123,7 +123,7 @@ The currently supported filters are:
 * dangling (boolean - true or false)
 * label (`label=<key>` or `label=<key>=<value>`)
 
-##### Untagged images
+##### Untagged images (dangling)
 
     $ docker images --filter "dangling=true"
 
@@ -154,4 +154,28 @@ Ready for use by `docker rmi ...`, like:
 
 NOTE: Docker will warn you if any containers exist that are using these untagged images.
 
+
+##### Labeled images
+
+The `label` filter matches images based on the presence of a `label` alone or a `label` and a
+value.
+
+The following filter matches images with the `com.example.version` label regardless of its value.
+
+    $ docker images --filter "label=com.example.version"
+
+    REPOSITORY          TAG                 IMAGE ID            CREATED              VIRTUAL SIZE
+    match-me-1          latest              eeae25ada2aa        About a minute ago   188.3 MB
+    match-me-2          latest              eeae25ada2aa        About a minute ago   188.3 MB
+
+The following filter matches images with the `com.example.version` label with the `1.0` value.
+
+    $ docker images --filter "label=com.example.version=1.0"
+    REPOSITORY          TAG                 IMAGE ID            CREATED              VIRTUAL SIZE
+    match-me            latest              eeae25ada2aa        About a minute ago   188.3 MB
+
+In this example, with the `0.1` value, it returns an empty set because no matches were found.
+
+    $ docker images --filter "label=com.example.version=0.1"
+    REPOSITORY          TAG                 IMAGE ID            CREATED              VIRTUAL SIZE
 
