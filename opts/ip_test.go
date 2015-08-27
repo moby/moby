@@ -10,7 +10,7 @@ func TestIpOptString(t *testing.T) {
 	var ip net.IP
 
 	for _, address := range addresses {
-		stringAddress := NewIpOpt(&ip, address).String()
+		stringAddress := NewIPOpt(&ip, address).String()
 		if stringAddress != address {
 			t.Fatalf("IpOpt string should be `%s`, not `%s`", address, stringAddress)
 		}
@@ -21,7 +21,7 @@ func TestNewIpOptInvalidDefaultVal(t *testing.T) {
 	ip := net.IPv4(127, 0, 0, 1)
 	defaultVal := "Not an ip"
 
-	ipOpt := NewIpOpt(&ip, defaultVal)
+	ipOpt := NewIPOpt(&ip, defaultVal)
 
 	expected := "127.0.0.1"
 	if ipOpt.String() != expected {
@@ -33,7 +33,7 @@ func TestNewIpOptValidDefaultVal(t *testing.T) {
 	ip := net.IPv4(127, 0, 0, 1)
 	defaultVal := "192.168.1.1"
 
-	ipOpt := NewIpOpt(&ip, defaultVal)
+	ipOpt := NewIPOpt(&ip, defaultVal)
 
 	expected := "192.168.1.1"
 	if ipOpt.String() != expected {
@@ -43,11 +43,11 @@ func TestNewIpOptValidDefaultVal(t *testing.T) {
 
 func TestIpOptSetInvalidVal(t *testing.T) {
 	ip := net.IPv4(127, 0, 0, 1)
-	ipOpt := &IpOpt{IP: &ip}
+	ipOpt := &IPOpt{IP: &ip}
 
-	invalidIp := "invalid ip"
+	invalidIP := "invalid ip"
 	expectedError := "invalid ip is not an ip address"
-	err := ipOpt.Set(invalidIp)
+	err := ipOpt.Set(invalidIP)
 	if err == nil || err.Error() != expectedError {
 		t.Fatalf("Expected an Error with [%v], got [%v]", expectedError, err.Error())
 	}

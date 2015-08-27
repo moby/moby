@@ -17,7 +17,8 @@ import (
 	"github.com/docker/libtrust/trustgraph"
 )
 
-type TrustStore struct {
+// Store defines a TrustStore
+type Store struct {
 	path          string
 	caPool        *x509.CertPool
 	graph         trustgraph.TrustGraph
@@ -38,7 +39,9 @@ const defaultFetchtime = 45 * time.Second
 
 var baseEndpoints = map[string]string{"official": "https://dvjy3tqbc323p.cloudfront.net/trust/official.json"}
 
-func NewTrustStore(path string) (*TrustStore, error) {
+// NewTrustStore creates from a given path, if the path is not
+// relative, it will be joined with the working directory.
+func NewTrustStore(path string) (*Store, error) {
 	abspath, err := filepath.Abs(path)
 	if err != nil {
 		return nil, err
@@ -55,7 +58,7 @@ func NewTrustStore(path string) (*TrustStore, error) {
 	}
 
 	// Load grant files
-	t := &TrustStore{
+	t := &Store{
 		path:          abspath,
 		caPool:        nil,
 		httpClient:    &http.Client{},
@@ -70,7 +73,7 @@ func NewTrustStore(path string) (*TrustStore, error) {
 	return t, nil
 }
 
-func (t *TrustStore) reload() error {
+func (t *Store) reload() error {
 	t.Lock()
 	defer t.Unlock()
 
@@ -121,7 +124,7 @@ func (t *TrustStore) reload() error {
 	return nil
 }
 
-func (t *TrustStore) fetchBaseGraph(u *url.URL) (*trustgraph.Statement, error) {
+func (t *Store) fetchBaseGraph(u *url.URL) (*trustgraph.Statement, error) {
 	req := &http.Request{
 		Method:     "GET",
 		URL:        u,
@@ -148,7 +151,7 @@ func (t *TrustStore) fetchBaseGraph(u *url.URL) (*trustgraph.Statement, error) {
 
 // fetch retrieves updated base graphs.  This function cannot error, it
 // should only log errors
-func (t *TrustStore) fetch() {
+func (t *Store) fetch() {
 	t.Lock()
 	defer t.Unlock()
 
