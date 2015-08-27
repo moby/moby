@@ -12,6 +12,7 @@ clone git github.com/docker/libtrust 9cbd2a1374f46905c68a4eb3694a130610adc62a
 clone git github.com/go-check/check 64131543e7896d5bcc6bd5a76287eb75ea96c673
 clone git github.com/gorilla/context 14f550f51a
 clone git github.com/gorilla/mux e444e69cbd
+clone git github.com/kolyshkin/goploop 3f8cee3
 clone git github.com/kr/pty 5cf931ef8f
 clone git github.com/mattn/go-sqlite3 b4142c444a8941d0d92b0b7103a24df9cd815e42
 clone git github.com/microsoft/hcsshim da093dac579302d7b413696b96dec0b5e1bce8d4

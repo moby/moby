@@ -40,14 +40,20 @@ RUN apt-get update && apt-get install -y \
 	createrepo \
 	curl \
 	dpkg-sig \
+	e2fslibs-dev \
 	gcc-mingw-w64 \
 	git \
 	iptables \
 	libapparmor-dev \
 	libcap-dev \
 	libsqlite3-dev \
+	liblzma-dev \
+	libxml2-dev \
+	libz-dev \
 	mercurial \
 	parallel \
+	parted \
+	pkg-config \
 	python-mock \
 	python-pip \
 	python-websocket \
@@ -58,6 +64,29 @@ RUN apt-get update && apt-get install -y \
 	ubuntu-zfs \
 	libzfs-dev \
 	--no-install-recommends
+
+# For static build with ploop and no linker warnings,
+# we need to recompile libxml2.a in a minimal config
+ENV LIBXML2_VERSION 2.9.2
+RUN mkdir -p /usr/src/libxml2 \
+	&& curl -sSL ftp://xmlsoft.org/libxml2/libxml2-${LIBXML2_VERSION}.tar.gz | tar -v -C /usr/src/libxml2 -xz --strip-components=1
+RUN cd /usr/src/libxml2 \
+	&& LIBXML2A=$(dpkg -L libxml2-dev | grep -Fw libxml2.a | head -n1) \
+	&& ./configure --prefix=/usr --libdir=$(dirname $LIBXML2A) --disable-shared --with-minimum --with-writer --without-lzma --without-http \
+	&& make install-libLTLIBRARIES
+
+# Get libploop source for static compilation
+ENV PLOOP_COMMIT 8cde46dc5e0f1ffd00e7ffd53bdff1ac46a75640
+RUN git clone --no-checkout \
+		https://github.com/kolyshkin/ploop.git /usr/src/ploop && \
+	cd /usr/src/ploop && \
+	git reset --hard $PLOOP_COMMIT
+
+# Compile and install ploop
+RUN cd /usr/src/ploop \
+	&& make \
+	&& make install \
+	&& ldconfig
 
 # Get lvm2 source for compiling statically
 RUN git clone -b v2_02_103 https://git.fedorahosted.org/git/lvm2.git /usr/local/lvm2
