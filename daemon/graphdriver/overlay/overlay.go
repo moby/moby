@@ -16,6 +16,7 @@ import (
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/chrootarchive"
+	"github.com/docker/docker/pkg/refcount"
 	"github.com/opencontainers/runc/libcontainer/label"
 )
 
@@ -88,7 +89,6 @@ func (d *naiveDiffDriverWithApply) ApplyDiff(id, parent string, diff archive.Rea
 // ActiveMount contains information about the count, path and whether is mounted or not.
 // This information is part of the Driver, that contains list of active mounts that are part of this overlay.
 type ActiveMount struct {
-	count   int
 	path    string
 	mounted bool
 }
@@ -97,7 +97,7 @@ type ActiveMount struct {
 type Driver struct {
 	home       string
 	sync.Mutex // Protects concurrent modification to active
-	active     map[string]*ActiveMount
+	active     *refcount.Counter
 }
 
 var backingFs = "<unknown>"
@@ -143,7 +143,7 @@ func Init(home string, options []string) (graphdriver.Driver, error) {
 
 	d := &Driver{
 		home:   home,
-		active: make(map[string]*ActiveMount),
+		active: refcount.New(),
 	}
 
 	return NaiveDiffDriverWithApply(d), nil
@@ -319,14 +319,11 @@ func (d *Driver) Get(id string, mountLabel string) (string, error) {
 	d.Lock()
 	defer d.Unlock()
 
-	mount := d.active[id]
-	if mount != nil {
-		mount.count++
-		return mount.path, nil
+	set, m := d.active.GetIncr(id)
+	if set {
+		return m.(*ActiveMount).path, nil
 	}
-
-	mount = &ActiveMount{count: 1}
-
+	mount := &ActiveMount{}
 	dir := d.dir(id)
 	if _, err := os.Stat(dir); err != nil {
 		return "", err
@@ -336,7 +333,7 @@ func (d *Driver) Get(id string, mountLabel string) (string, error) {
 	rootDir := path.Join(dir, "root")
 	if _, err := os.Stat(rootDir); err == nil {
 		mount.path = rootDir
-		d.active[id] = mount
+		d.active.SetIncr(id, mount)
 		return mount.path, nil
 	}
 
@@ -355,7 +352,7 @@ func (d *Driver) Get(id string, mountLabel string) (string, error) {
 	}
 	mount.path = mergedDir
 	mount.mounted = true
-	d.active[id] = mount
+	d.active.SetIncr(id, mount)
 
 	return mount.path, nil
 }
@@ -366,8 +363,8 @@ func (d *Driver) Put(id string) error {
 	d.Lock()
 	defer d.Unlock()
 
-	mount := d.active[id]
-	if mount == nil {
+	set, m := d.active.Get(id)
+	if !set {
 		logrus.Debugf("Put on a non-mounted device %s", id)
 		// but it might be still here
 		if d.Exists(id) {
@@ -380,12 +377,12 @@ func (d *Driver) Put(id string) error {
 		return nil
 	}
 
-	mount.count--
-	if mount.count > 0 {
+	count := d.active.Decr(id)
+	if count > 0 {
 		return nil
 	}
-
-	defer delete(d.active, id)
+	mount := m.(*ActiveMount)
+	defer d.active.Delete(id)
 	if mount.mounted {
 		err := syscall.Unmount(mount.path, 0)
 		if err != nil {
