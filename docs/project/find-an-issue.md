@@ -2,7 +2,7 @@
 +++
 title = "Find and claim an issue"
 description = "Basic workflow for Docker contributions"
-keywords = ["contribute, issue, review, workflow, beginner, expert, squash,  commit"]
+keywords = ["contribute, issue, review, workflow, beginner, expert, squash, commit"]
 [menu.main]
 parent = "smn_contribute"
 weight=2
@@ -11,7 +11,6 @@ weight=2
 
 <style type="text/css">
 
-/* GitHub label styles */
 .gh-label {
     display: inline-block;
     padding: 3px 4px;
@@ -22,15 +21,11 @@ weight=2
     border-radius: 2px;
     box-shadow: inset 0 -1px 0 rgba(0,0,0,0.12);
 }
-
-/* Experience */
-.gh-label.beginner  { background-color: #B5E0B5; color: #333333; }
-.gh-label.expert  { background-color: #599898; color: #ffffff; }
+.gh-label.beginner { background-color: #B5E0B5; color: #333333; }
+.gh-label.expert { background-color: #599898; color: #ffffff; }
 .gh-label.master { background-color: #306481; color: #ffffff; }
 .gh-label.novice { background-color: #D6F2AC; color: #333333; }
 .gh-label.proficient { background-color: #8DC7A9; color: #333333; }
-
-/* Kind */
 .gh-label.bug { background-color: #FF9DA4; color: #333333; }
 .gh-label.cleanup { background-color: #FFB7B3; color: #333333; }
 .gh-label.content { background-color: #CDD3C2; color: #333333; }
@@ -42,13 +37,12 @@ weight=2
 .gh-label.usecase { background-color: #F0E4C2; color: #333333; }
 .gh-label.writing { background-color: #B5E9D5; color: #333333; }
 
-
 </style>
 
 
 # Find and claim an issue
 
-On this page, you choose what you want to work on. As a contributor you can work
+On this page, you choose the issue you want to work on. As a contributor, you can work
 on whatever you want. If you are new to contributing, you should start by
 working with our known issues.
 
@@ -61,79 +55,76 @@ for you to know that triage includes ranking issues according to difficulty.
 Triaged issues have one of these labels:
 
 <table class="tg">
-  <tr>
-    <td class="tg-031e">Level</td>
-    <td class="tg-031e">Experience level guideline</td>
-  </tr>
-  <tr>
-    <td class="tg-031e"><strong class="gh-label beginner">exp/beginner</strong></td>
-    <td class="tg-031e">You have made less than 10 contributions in your life time to any open source project.</td>
-  </tr>
-  <tr>
-    <td class="tg-031e"><strong class="gh-label novice">exp/novice</strong></td>
-    <td class="tg-031e">You have made more than 10 contributions to an open source project or at least 5 contributions to Docker.  </td>
-  </tr>
-  <tr>
-    <td class="tg-031e"><strong class="gh-label proficient">exp/proficient</strong></td>
-    <td class="tg-031e">You have made more than 5 contributions to Docker which amount to at least 200 code lines or 1000 documentation lines. </td>
-  </tr>
-  <tr>
-    <td class="tg-031e"><strong class="gh-label expert">exp/expert</strong></td>
-    <td class="tg-031e">You have made less than 20 commits to Docker which amount to 500-1000 code lines or 1000-3000 documentation lines. </td>
-  </tr>
-  <tr>
-    <td class="tg-031e"><strong class="gh-label master">exp/master</strong></td>
-    <td class="tg-031e">You have made more than 20 commits to Docker and greater than 1000 code lines or 3000 documentation lines.</td>
-  </tr>
+  <thead>
+    <tr>
+      <td class="tg-031e">Label</td>
+      <td class="tg-031e">Experience level guideline</td>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td class="tg-031e"><strong class="gh-label beginner">exp/beginner</strong></td>
+      <td class="tg-031e">You have made less than ten contributions in your life time to any open source project.</td>
+    </tr>
+    <tr>
+      <td class="tg-031e"><strong class="gh-label novice">exp/novice</strong></td>
+      <td class="tg-031e">You have made more than ten contributions to an open source project or at least 5 contributions to Docker.  </td>
+    </tr>
+    <tr>
+      <td class="tg-031e"><strong class="gh-label proficient">exp/proficient</strong></td>
+      <td class="tg-031e">You have made more than five contributions to Docker which amount to at least 200 code lines or 1000 documentation lines. </td>
+    </tr>
+    <tr>
+      <td class="tg-031e"><strong class="gh-label expert">exp/expert</strong></td>
+      <td class="tg-031e">You have made less than 20 commits to Docker which amount to 500-1000 code lines or 1000-3000 documentation lines. </td>
+    </tr>
+    <tr>
+      <td class="tg-031e"><strong class="gh-label master">exp/master</strong></td>
+      <td class="tg-031e">You have made more than 20 commits to Docker and greater than 1000 code lines or 3000 documentation lines.</td>
+    </tr>
+  </tbody>
 </table>
 
-As the table states, these labels are meant as guidelines. You might have
-written a whole plugin for Docker in a personal project and never contributed to
-Docker. With that kind of experience, you could take on an <strong
+These labels are guidelines. You might have written a whole plugin for Docker in a personal 
+project and never contributed to Docker. With that kind of experience, you could take on an <strong
 class="gh-label expert">exp/expert</strong> or <strong class="gh-label
-master">exp/master</strong> level task.
+master">exp/master</strong> level issue.
 
 ## Claim a beginner or novice issue
 
-In this section, you find and claim an open documentation lines issue.
-
+To claim an issue:
 
 1. Go to the `docker/docker` <a
 	href="https://github.com/docker/docker" target="_blank">repository</a>.
 
-2. Click on the "Issues" link.
+2. Click the "Issues" link.
 
     A list of the open issues appears. 
 
     ![Open issues](/project/images/issue_list.png)
 
-3. Look for the <strong class="gh-label beginner">exp/beginner</strong> items on the list.
-
-4. Click on the "labels" dropdown and select  <strong class="gh-label beginner">exp/beginner</strong>.
+3. From the "Labels" drop-down, select <strong class="gh-label beginner">exp/beginner</strong>.
 
     The system filters to show only open <strong class="gh-label beginner">exp/beginner</strong> issues.
 
-5. Open an issue that interests you.
+4. Open an issue that interests you.
 
-    The comments on the issues can tell you both the problem and the potential 
+    The comments on the issues describe the problem and can provide information for a potential 
     solution.
 
-6. Make sure that no other user has chosen to work on the issue.
+5. When you find an open issue that both interests you and is unclaimed, add a
+`#dibs` comment. Make sure that no other user has chosen to work on the issue.
 
-    We don't allow external contributors to assign issues to themselves. So, you
-    need to read the comments to find if a user claimed the issue by leaving a
-    `#dibs` comment on the issue.  
+    The project does not permit external contributors to assign issues to themselves. Read 
+    the comments to find if a user claimed the issue by leaving a
+    `#dibs` comment on the issue.
 
-7. When you find an open issue that both interests you and is unclaimed, add a
-`#dibs` comment.
+7. Your issue # will be different depending on what you claimed. After a moment, Gordon the Docker 
+bot, changes the issue status to claimed. The following example shows issue #11038.
 
     ![Easy issue](/project/images/easy_issue.png)
 
-    This example uses issue 11038. Your issue # will be different depending on
-   what you claimed.  After a moment, Gordon the Docker bot, changes the issue
-   status to claimed.
-
-8. Make a note of the issue number; you'll need it later.
+8. Make a note of the issue number; you will need it for later. 
 
 ## Sync your fork and create a new branch
 
