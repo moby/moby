@@ -310,3 +310,43 @@ func (s *DockerExternalVolumeSuite) TestStartExternalVolumeDriverLookupNotBlocke
 		cmd2.Process.Kill()
 	}
 }
+
+func (s *DockerExternalVolumeSuite) TestStartExternalVolumeDriverRetryNotImmediatelyExists(c *check.C) {
+	if err := s.d.StartWithBusybox(); err != nil {
+		c.Fatal(err)
+	}
+
+	specPath := "/etc/docker/plugins/test-external-volume-driver-retry.spec"
+	os.RemoveAll(specPath)
+	defer os.RemoveAll(specPath)
+
+	errchan := make(chan error)
+	go func() {
+		if out, err := s.d.Cmd("run", "--rm", "--name", "test-data-retry", "-v", "external-volume-test:/tmp/external-volume-test", "--volume-driver", "test-external-volume-driver-retry", "busybox:latest"); err != nil {
+			errchan <- fmt.Errorf("%v:\n%s", err, out)
+		}
+		close(errchan)
+	}()
+	go func() {
+		// wait for a retry to occur, then create spec to allow plugin to register
+		time.Sleep(2000 * time.Millisecond)
+		if err := ioutil.WriteFile(specPath, []byte(s.server.URL), 0644); err != nil {
+			c.Fatal(err)
+		}
+	}()
+
+	select {
+	case err := <-errchan:
+		if err != nil {
+			c.Fatal(err)
+		}
+	case <-time.After(8 * time.Second):
+		c.Fatal("volume creates fail when plugin not immediately available")
+	}
+
+	c.Assert(s.ec.activations, check.Equals, 1)
+	c.Assert(s.ec.creations, check.Equals, 1)
+	c.Assert(s.ec.removals, check.Equals, 1)
+	c.Assert(s.ec.mounts, check.Equals, 1)
+	c.Assert(s.ec.unmounts, check.Equals, 1)
+}
