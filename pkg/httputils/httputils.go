@@ -5,12 +5,13 @@ import (
 	"fmt"
 	"net/http"
 	"regexp"
+	"strings"
 
 	"github.com/docker/docker/pkg/jsonmessage"
 )
 
 var (
-	headerRegexp     = regexp.MustCompile(`^(?:(.+)/(.+))\s\((.+)\).*$`)
+	headerRegexp     = regexp.MustCompile(`^(?:(.+)/(.+?))\((.+)\).*$`)
 	errInvalidHeader = errors.New("Bad header, should be in format `docker/version (platform)`")
 )
 
@@ -48,8 +49,8 @@ func ParseServerHeader(hdr string) (*ServerHeader, error) {
 		return nil, errInvalidHeader
 	}
 	return &ServerHeader{
-		App: matches[1],
-		Ver: matches[2],
-		OS:  matches[3],
+		App: strings.TrimSpace(matches[1]),
+		Ver: strings.TrimSpace(matches[2]),
+		OS:  strings.TrimSpace(matches[3]),
 	}, nil
 }
