@@ -13,6 +13,7 @@ import (
 	"github.com/docker/docker/utils"
 )
 
+// ImageDelete removes the image from the filesystem.
 // FIXME: remove ImageDelete's dependency on Daemon, then move to graph/
 func (daemon *Daemon) ImageDelete(name string, force, noprune bool) ([]types.ImageDelete, error) {
 	list := []types.ImageDelete{}

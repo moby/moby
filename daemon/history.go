@@ -22,10 +22,11 @@ func (history *History) Swap(i, j int) {
 	containers[i], containers[j] = containers[j], containers[i]
 }
 
+// Add the given container to history.
 func (history *History) Add(container *Container) {
 	*history = append(*history, container)
 }
 
-func (history *History) Sort() {
+func (history *History) sort() {
 	sort.Sort(history)
 }

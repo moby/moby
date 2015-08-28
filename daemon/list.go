@@ -17,15 +17,24 @@ func (daemon *Daemon) List() []*Container {
 	return daemon.containers.List()
 }
 
+// ContainersConfig is a struct for configuring the command to list
+// containers.
 type ContainersConfig struct {
-	All     bool
-	Since   string
-	Before  string
-	Limit   int
-	Size    bool
+	// if true show all containers, otherwise only running containers.
+	All bool
+	// show all containers created after this container id
+	Since string
+	// show all containers created before this container id
+	Before string
+	// number of containers to return at most
+	Limit int
+	// if true include the sizes of the containers
+	Size bool
+	// return only containers that match filters
 	Filters string
 }
 
+// Containers returns a list of all the containers.
 func (daemon *Daemon) Containers(config *ContainersConfig) ([]*types.Container, error) {
 	var (
 		foundBefore bool
@@ -62,7 +71,7 @@ func (daemon *Daemon) Containers(config *ContainersConfig) ([]*types.Container, 
 		}
 	}
 	names := map[string][]string{}
-	daemon.ContainerGraph().Walk("/", func(p string, e *graphdb.Entity) error {
+	daemon.containerGraph().Walk("/", func(p string, e *graphdb.Entity) error {
 		names[e.ID()] = append(names[e.ID()], p)
 		return nil
 	}, 1)
@@ -195,7 +204,7 @@ func (daemon *Daemon) Containers(config *ContainersConfig) ([]*types.Container, 
 		}
 
 		if config.Size {
-			sizeRw, sizeRootFs := container.GetSize()
+			sizeRw, sizeRootFs := container.getSize()
 			newC.SizeRw = sizeRw
 			newC.SizeRootFs = sizeRootFs
 		}
@@ -215,6 +224,8 @@ func (daemon *Daemon) Containers(config *ContainersConfig) ([]*types.Container, 
 	return containers, nil
 }
 
+// Volumes lists known volumes, using the filter to restrict the range
+// of volumes returned.
 func (daemon *Daemon) Volumes(filter string) ([]*types.Volume, error) {
 	var volumesOut []*types.Volume
 	volFilters, err := filters.FromParam(filter)

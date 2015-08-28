@@ -14,6 +14,7 @@ func setPlatformSpecificContainerFields(container *Container, contJSONBase *type
 	return contJSONBase
 }
 
+// ContainerInspectPre120 is for backwards compatibility with pre v1.20 clients.
 func (daemon *Daemon) ContainerInspectPre120(name string) (*types.ContainerJSONPre120, error) {
 	container, err := daemon.Get(name)
 	if err != nil {

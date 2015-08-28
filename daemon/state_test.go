@@ -14,11 +14,12 @@ func TestStateRunStop(t *testing.T) {
 		started := make(chan struct{})
 		var pid int64
 		go func() {
-			runPid, _ := s.WaitRunning(-1 * time.Second)
+			runPid, _ := s.waitRunning(-1 * time.Second)
 			atomic.StoreInt64(&pid, int64(runPid))
 			close(started)
 		}()
-		s.SetRunning(i + 100)
+		s.setRunningLocking(i + 100)
+
 		if !s.IsRunning() {
 			t.Fatal("State not running")
 		}
@@ -38,8 +39,8 @@ func TestStateRunStop(t *testing.T) {
 		if runPid != i+100 {
 			t.Fatalf("Pid %v, expected %v", runPid, i+100)
 		}
-		if pid, err := s.WaitRunning(-1 * time.Second); err != nil || pid != i+100 {
-			t.Fatalf("WaitRunning returned pid: %v, err: %v, expected pid: %v, err: %v", pid, err, i+100, nil)
+		if pid, err := s.waitRunning(-1 * time.Second); err != nil || pid != i+100 {
+			t.Fatalf("waitRunning returned pid: %v, err: %v, expected pid: %v, err: %v", pid, err, i+100, nil)
 		}
 
 		stopped := make(chan struct{})
@@ -49,7 +50,7 @@ func TestStateRunStop(t *testing.T) {
 			atomic.StoreInt64(&exit, int64(exitCode))
 			close(stopped)
 		}()
-		s.SetStopped(&execdriver.ExitStatus{ExitCode: i})
+		s.setStoppedLocking(&execdriver.ExitStatus{ExitCode: i})
 		if s.IsRunning() {
 			t.Fatal("State is running")
 		}
@@ -79,7 +80,7 @@ func TestStateTimeoutWait(t *testing.T) {
 	s := NewState()
 	started := make(chan struct{})
 	go func() {
-		s.WaitRunning(100 * time.Millisecond)
+		s.waitRunning(100 * time.Millisecond)
 		close(started)
 	}()
 	select {
@@ -88,10 +89,12 @@ func TestStateTimeoutWait(t *testing.T) {
 	case <-started:
 		t.Log("Start callback fired")
 	}
-	s.SetRunning(42)
+
+	s.setRunningLocking(42)
+
 	stopped := make(chan struct{})
 	go func() {
-		s.WaitRunning(100 * time.Millisecond)
+		s.waitRunning(100 * time.Millisecond)
 		close(stopped)
 	}()
 	select {

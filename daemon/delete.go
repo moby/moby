@@ -8,10 +8,15 @@ import (
 	"github.com/Sirupsen/logrus"
 )
 
+// ContainerRmConfig is a holder for passing in runtime config.
 type ContainerRmConfig struct {
 	ForceRemove, RemoveVolume, RemoveLink bool
 }
 
+// ContainerRm removes the container id from the filesystem. An error
+// is returned if the container is not found, or if the remove
+// fails. If the remove succeeds, the container name is released, and
+// network links are removed.
 func (daemon *Daemon) ContainerRm(name string, config *ContainerRmConfig) error {
 	container, err := daemon.Get(name)
 	if err != nil {
@@ -27,18 +32,18 @@ func (daemon *Daemon) ContainerRm(name string, config *ContainerRmConfig) error 
 		if parent == "/" {
 			return fmt.Errorf("Conflict, cannot remove the default name of the container")
 		}
-		pe := daemon.ContainerGraph().Get(parent)
+		pe := daemon.containerGraph().Get(parent)
 		if pe == nil {
 			return fmt.Errorf("Cannot get parent %s for name %s", parent, name)
 		}
 
-		if err := daemon.ContainerGraph().Delete(name); err != nil {
+		if err := daemon.containerGraph().Delete(name); err != nil {
 			return err
 		}
 
 		parentContainer, _ := daemon.Get(pe.ID())
 		if parentContainer != nil {
-			if err := parentContainer.UpdateNetwork(); err != nil {
+			if err := parentContainer.updateNetwork(); err != nil {
 				logrus.Debugf("Could not update network to remove link %s: %v", n, err)
 			}
 		}
@@ -75,23 +80,23 @@ func (daemon *Daemon) rm(container *Container, forceRemove bool) (err error) {
 	}
 
 	// Container state RemovalInProgress should be used to avoid races.
-	if err = container.SetRemovalInProgress(); err != nil {
+	if err = container.setRemovalInProgress(); err != nil {
 		return fmt.Errorf("Failed to set container state to RemovalInProgress: %s", err)
 	}
 
-	defer container.ResetRemovalInProgress()
+	defer container.resetRemovalInProgress()
 
 	if err = container.Stop(3); err != nil {
 		return err
 	}
 
 	// Mark container dead. We don't want anybody to be restarting it.
-	container.SetDead()
+	container.setDead()
 
 	// Save container state to disk. So that if error happens before
 	// container meta file got removed from disk, then a restart of
 	// docker should not make a dead container alive.
-	if err := container.ToDisk(); err != nil {
+	if err := container.toDiskLocking(); err != nil {
 		logrus.Errorf("Error saving dying container to disk: %v", err)
 	}
 
@@ -102,11 +107,11 @@ func (daemon *Daemon) rm(container *Container, forceRemove bool) (err error) {
 			daemon.idIndex.Delete(container.ID)
 			daemon.containers.Delete(container.ID)
 			os.RemoveAll(container.root)
-			container.LogEvent("destroy")
+			container.logEvent("destroy")
 		}
 	}()
 
-	if _, err := daemon.containerGraph.Purge(container.ID); err != nil {
+	if _, err := daemon.containerGraphDB.Purge(container.ID); err != nil {
 		logrus.Debugf("Unable to remove container from link graph: %s", err)
 	}
 
@@ -131,7 +136,7 @@ func (daemon *Daemon) rm(container *Container, forceRemove bool) (err error) {
 	daemon.idIndex.Delete(container.ID)
 	daemon.containers.Delete(container.ID)
 
-	container.LogEvent("destroy")
+	container.logEvent("destroy")
 	return nil
 }
 

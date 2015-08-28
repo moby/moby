@@ -63,7 +63,7 @@ func parseSecurityOpt(container *Container, config *runconfig.HostConfig) error 
 	return err
 }
 
-func CheckKernelVersion(k, major, minor int) bool {
+func checkKernelVersion(k, major, minor int) bool {
 	if v, err := kernel.GetKernelVersion(); err != nil {
 		logrus.Warnf("%s", err)
 	} else {
@@ -82,7 +82,7 @@ func checkKernel() error {
 	// without actually causing a kernel panic, so we need this workaround until
 	// the circumstances of pre-3.10 crashes are clearer.
 	// For details see https://github.com/docker/docker/issues/407
-	if !CheckKernelVersion(3, 10, 0) {
+	if !checkKernelVersion(3, 10, 0) {
 		v, _ := kernel.GetKernelVersion()
 		if os.Getenv("DOCKER_NOWARN_KERNEL_VERSION") == "" {
 			logrus.Warnf("Your Linux kernel version %s can be unstable running docker. Please upgrade your kernel to 3.10.0.", v.String())
@@ -161,7 +161,7 @@ func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *runconfig.HostC
 		logrus.Warnf("Your kernel does not support kernel memory limit capabilities. Limitation discarded.")
 		hostConfig.KernelMemory = 0
 	}
-	if hostConfig.KernelMemory > 0 && !CheckKernelVersion(4, 0, 0) {
+	if hostConfig.KernelMemory > 0 && !checkKernelVersion(4, 0, 0) {
 		warnings = append(warnings, "You specified a kernel memory limit on a kernel older than 4.0. Kernel memory limits are experimental on older kernels, it won't work as expected and can cause your system to be unstable.")
 		logrus.Warnf("You specified a kernel memory limit on a kernel older than 4.0. Kernel memory limits are experimental on older kernels, it won't work as expected and can cause your system to be unstable.")
 	}
@@ -194,7 +194,6 @@ func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *runconfig.HostC
 	if hostConfig.BlkioWeight > 0 && (hostConfig.BlkioWeight < 10 || hostConfig.BlkioWeight > 1000) {
 		return warnings, fmt.Errorf("Range of blkio weight is from 10 to 1000.")
 	}
-
 	if hostConfig.OomKillDisable && !sysInfo.OomKillDisable {
 		hostConfig.OomKillDisable = false
 		return warnings, fmt.Errorf("Your kernel does not support oom kill disable.")
@@ -494,11 +493,14 @@ func setupInitLayer(initLayer string) error {
 	return nil
 }
 
-func (daemon *Daemon) NetworkApiRouter() func(w http.ResponseWriter, req *http.Request) {
+// NetworkAPIRouter implements a feature for server-experimental,
+// directly calling into libnetwork.
+func (daemon *Daemon) NetworkAPIRouter() func(w http.ResponseWriter, req *http.Request) {
 	return nwapi.NewHTTPHandler(daemon.netController)
 }
 
-func (daemon *Daemon) RegisterLinks(container *Container, hostConfig *runconfig.HostConfig) error {
+// registerLinks writes the links to a file.
+func (daemon *Daemon) registerLinks(container *Container, hostConfig *runconfig.HostConfig) error {
 	if hostConfig == nil || hostConfig.Links == nil {
 		return nil
 	}
@@ -523,7 +525,7 @@ func (daemon *Daemon) RegisterLinks(container *Container, hostConfig *runconfig.
 		if child.hostConfig.NetworkMode.IsHost() {
 			return runconfig.ErrConflictHostNetworkAndLinks
 		}
-		if err := daemon.RegisterLink(container, child, alias); err != nil {
+		if err := daemon.registerLink(container, child, alias); err != nil {
 			return err
 		}
 	}
@@ -531,7 +533,7 @@ func (daemon *Daemon) RegisterLinks(container *Container, hostConfig *runconfig.
 	// After we load all the links into the daemon
 	// set them to nil on the hostconfig
 	hostConfig.Links = nil
-	if err := container.WriteHostConfig(); err != nil {
+	if err := container.writeHostConfig(); err != nil {
 		return err
 	}
 

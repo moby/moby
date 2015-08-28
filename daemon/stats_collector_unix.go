@@ -23,10 +23,10 @@ import (
 // and will start processing stats when they are started.
 func newStatsCollector(interval time.Duration) *statsCollector {
 	s := &statsCollector{
-		interval:   interval,
-		publishers: make(map[*Container]*pubsub.Publisher),
-		clockTicks: uint64(system.GetClockTicks()),
-		bufReader:  bufio.NewReaderSize(nil, 128),
+		interval:            interval,
+		publishers:          make(map[*Container]*pubsub.Publisher),
+		clockTicksPerSecond: uint64(system.GetClockTicks()),
+		bufReader:           bufio.NewReaderSize(nil, 128),
 	}
 	go s.run()
 	return s
@@ -34,11 +34,11 @@ func newStatsCollector(interval time.Duration) *statsCollector {
 
 // statsCollector manages and provides container resource stats
 type statsCollector struct {
-	m          sync.Mutex
-	interval   time.Duration
-	clockTicks uint64
-	publishers map[*Container]*pubsub.Publisher
-	bufReader  *bufio.Reader
+	m                   sync.Mutex
+	interval            time.Duration
+	clockTicksPerSecond uint64
+	publishers          map[*Container]*pubsub.Publisher
+	bufReader           *bufio.Reader
 }
 
 // collect registers the container with the collector and adds it to
@@ -89,7 +89,7 @@ func (s *statsCollector) run() {
 	var pairs []publishersPair
 
 	for range time.Tick(s.interval) {
-		systemUsage, err := s.getSystemCpuUsage()
+		systemUsage, err := s.getSystemCPUUsage()
 		if err != nil {
 			logrus.Errorf("collecting system cpu usage: %v", err)
 			continue
@@ -107,7 +107,7 @@ func (s *statsCollector) run() {
 		s.m.Unlock()
 
 		for _, pair := range pairs {
-			stats, err := pair.container.Stats()
+			stats, err := pair.container.stats()
 			if err != nil {
 				if err != execdriver.ErrNotRunning {
 					logrus.Errorf("collecting stats for %s: %v", pair.container.ID, err)
@@ -120,11 +120,17 @@ func (s *statsCollector) run() {
 	}
 }
 
-const nanoSeconds = 1e9
+const nanoSecondsPerSecond = 1e9
 
-// getSystemCpuUSage returns the host system's cpu usage in nanoseconds
-// for the system to match the cgroup readings are returned in the same format.
-func (s *statsCollector) getSystemCpuUsage() (uint64, error) {
+// getSystemCPUUsage returns the host system's cpu usage in
+// nanoseconds. An error is returned if the format of the underlying
+// file does not match.
+//
+// Uses /proc/stat defined by POSIX. Looks for the cpu
+// statistics line and then sums up the first seven fields
+// provided. See `man 5 proc` for details on specific field
+// information.
+func (s *statsCollector) getSystemCPUUsage() (uint64, error) {
 	var line string
 	f, err := os.Open("/proc/stat")
 	if err != nil {
@@ -147,15 +153,16 @@ func (s *statsCollector) getSystemCpuUsage() (uint64, error) {
 			if len(parts) < 8 {
 				return 0, fmt.Errorf("invalid number of cpu fields")
 			}
-			var sum uint64
+			var totalClockTicks uint64
 			for _, i := range parts[1:8] {
 				v, err := strconv.ParseUint(i, 10, 64)
 				if err != nil {
 					return 0, fmt.Errorf("Unable to convert value %s to int: %s", i, err)
 				}
-				sum += v
+				totalClockTicks += v
 			}
-			return (sum * nanoSeconds) / s.clockTicks, nil
+			return (totalClockTicks * nanoSecondsPerSecond) /
+				s.clockTicksPerSecond, nil
 		}
 	}
 	return 0, fmt.Errorf("invalid stat format")
