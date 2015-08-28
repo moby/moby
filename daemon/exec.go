@@ -14,6 +14,7 @@ import (
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/pools"
 	"github.com/docker/docker/pkg/stringid"
+	"github.com/docker/docker/pkg/stringutils"
 	"github.com/docker/docker/runconfig"
 )
 
@@ -139,8 +140,8 @@ func (d *Daemon) ContainerExecCreate(config *runconfig.ExecConfig) (string, erro
 		return "", err
 	}
 
-	cmd := runconfig.NewCommand(config.Cmd...)
-	entrypoint, args := d.getEntrypointAndArgs(runconfig.NewEntrypoint(), cmd)
+	cmd := stringutils.NewStrSlice(config.Cmd...)
+	entrypoint, args := d.getEntrypointAndArgs(stringutils.NewStrSlice(), cmd)
 
 	user := config.User
 	if len(user) == 0 {

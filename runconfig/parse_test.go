@@ -486,7 +486,7 @@ func TestParseEntryPoint(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if config.Entrypoint.Len() != 1 && config.Entrypoint.parts[0] != "anything" {
+	if config.Entrypoint.Len() != 1 && config.Entrypoint.Slice()[0] != "anything" {
 		t.Fatalf("Expected entrypoint 'anything', got %v", config.Entrypoint)
 	}
 }
