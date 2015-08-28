@@ -9,8 +9,10 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/go-check/check"
 )
@@ -270,4 +272,41 @@ func (s *DockerExternalVolumeSuite) TestStartExternalNamedVolumeDriverCheckBindL
 	c.Assert(s.ec.removals, check.Equals, 1)
 	c.Assert(s.ec.mounts, check.Equals, 1)
 	c.Assert(s.ec.unmounts, check.Equals, 1)
+}
+
+// Make sure a request to use a down driver doesn't block other requests
+func (s *DockerExternalVolumeSuite) TestStartExternalVolumeDriverLookupNotBlocked(c *check.C) {
+	specPath := "/etc/docker/plugins/down-driver.spec"
+	err := ioutil.WriteFile("/etc/docker/plugins/down-driver.spec", []byte("tcp://127.0.0.7:9999"), 0644)
+	c.Assert(err, check.IsNil)
+	defer os.RemoveAll(specPath)
+
+	chCmd1 := make(chan struct{})
+	chCmd2 := make(chan error)
+	cmd1 := exec.Command(dockerBinary, "volume", "create", "-d", "down-driver")
+	cmd2 := exec.Command(dockerBinary, "volume", "create")
+
+	c.Assert(cmd1.Start(), check.IsNil)
+	defer cmd1.Process.Kill()
+	time.Sleep(100 * time.Millisecond) // ensure API has been called
+	c.Assert(cmd2.Start(), check.IsNil)
+
+	go func() {
+		cmd1.Wait()
+		close(chCmd1)
+	}()
+	go func() {
+		chCmd2 <- cmd2.Wait()
+	}()
+
+	select {
+	case <-chCmd1:
+		cmd2.Process.Kill()
+		c.Fatalf("volume create with down driver finished unexpectedly")
+	case err := <-chCmd2:
+		c.Assert(err, check.IsNil, check.Commentf("error creating volume"))
+	case <-time.After(5 * time.Second):
+		c.Fatal("volume creates are blocked by previous create requests when previous driver is down")
+		cmd2.Process.Kill()
+	}
 }
