@@ -23,6 +23,7 @@ func checkContains(expected string, out string, c *check.C) {
 }
 
 func (s *DockerSuite) TestNetHostname(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 
 	var (
 		out    string
@@ -80,6 +81,7 @@ func (s *DockerSuite) TestNetHostname(c *check.C) {
 }
 
 func (s *DockerSuite) TestConflictContainerNetworkAndLinks(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	var (
 		out    string
 		err    error
@@ -100,6 +102,7 @@ func (s *DockerSuite) TestConflictContainerNetworkAndLinks(c *check.C) {
 }
 
 func (s *DockerSuite) TestConflictNetworkModeAndOptions(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	var (
 		out    string
 		err    error

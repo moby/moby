@@ -7,6 +7,7 @@ import (
 )
 
 func (s *DockerSuite) TestTopMultipleArgs(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-i", "-d", "busybox", "top")
 
 	cleanedContainerID := strings.TrimSpace(out)
@@ -19,6 +20,7 @@ func (s *DockerSuite) TestTopMultipleArgs(c *check.C) {
 }
 
 func (s *DockerSuite) TestTopNonPrivileged(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-i", "-d", "busybox", "top")
 	cleanedContainerID := strings.TrimSpace(out)
 
@@ -37,6 +39,7 @@ func (s *DockerSuite) TestTopNonPrivileged(c *check.C) {
 }
 
 func (s *DockerSuite) TestTopPrivileged(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "--privileged", "-i", "-d", "busybox", "top")
 	cleanedContainerID := strings.TrimSpace(out)
 

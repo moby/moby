@@ -15,6 +15,7 @@ import (
 
 // regression test for #12546
 func (s *DockerSuite) TestExecInteractiveStdinClose(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-itd", "busybox", "/bin/cat")
 	contID := strings.TrimSpace(out)
 
@@ -44,6 +45,7 @@ func (s *DockerSuite) TestExecInteractiveStdinClose(c *check.C) {
 }
 
 func (s *DockerSuite) TestExecTTY(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	dockerCmd(c, "run", "-d", "--name=test", "busybox", "sh", "-c", "echo hello > /foo && top")
 
 	cmd := exec.Command(dockerBinary, "exec", "-it", "test", "sh")

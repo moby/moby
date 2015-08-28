@@ -11,6 +11,7 @@ import (
 
 // non-blocking wait with 0 exit code
 func (s *DockerSuite) TestWaitNonBlockedExitZero(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "sh", "-c", "true")
 	containerID := strings.TrimSpace(out)
 
@@ -27,6 +28,7 @@ func (s *DockerSuite) TestWaitNonBlockedExitZero(c *check.C) {
 
 // blocking wait with 0 exit code
 func (s *DockerSuite) TestWaitBlockedExitZero(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "trap 'exit 0' TERM; while true; do sleep 0.01; done")
 	containerID := strings.TrimSpace(out)
 
@@ -54,6 +56,7 @@ func (s *DockerSuite) TestWaitBlockedExitZero(c *check.C) {
 
 // non-blocking wait with random exit code
 func (s *DockerSuite) TestWaitNonBlockedExitRandom(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "sh", "-c", "exit 99")
 	containerID := strings.TrimSpace(out)
 
@@ -70,6 +73,7 @@ func (s *DockerSuite) TestWaitNonBlockedExitRandom(c *check.C) {
 
 // blocking wait with random exit code
 func (s *DockerSuite) TestWaitBlockedExitRandom(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "trap 'exit 99' TERM; while true; do sleep 0.01; done")
 	containerID := strings.TrimSpace(out)
 	c.Assert(waitRun(containerID), check.IsNil)

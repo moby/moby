@@ -9,6 +9,7 @@ import (
 )
 
 func (s *DockerSuite) TestCliProxyDisableProxyUnixSock(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	testRequires(c, SameHostDaemon) // test is valid when DOCKER_HOST=unix://..
 
 	cmd := exec.Command(dockerBinary, "info")

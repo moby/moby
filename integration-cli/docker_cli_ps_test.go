@@ -18,6 +18,7 @@ import (
 )
 
 func (s *DockerSuite) TestPsListContainersBase(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
 	firstID := strings.TrimSpace(out)
 
@@ -158,6 +159,7 @@ func assertContainerList(out string, expected []string) bool {
 }
 
 func (s *DockerSuite) TestPsListContainersSize(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	dockerCmd(c, "run", "-d", "busybox", "echo", "hello")
 
 	baseOut, _ := dockerCmd(c, "ps", "-s", "-n=1")
@@ -210,6 +212,7 @@ func (s *DockerSuite) TestPsListContainersSize(c *check.C) {
 }
 
 func (s *DockerSuite) TestPsListContainersFilterStatus(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	// FIXME: this should test paused, but it makes things hang and its wonky
 	// this is because paused containers can't be controlled by signals
 
@@ -245,7 +248,7 @@ func (s *DockerSuite) TestPsListContainersFilterStatus(c *check.C) {
 }
 
 func (s *DockerSuite) TestPsListContainersFilterID(c *check.C) {
-
+	testRequires(c, DaemonIsLinux)
 	// start container
 	out, _ := dockerCmd(c, "run", "-d", "busybox")
 	firstID := strings.TrimSpace(out)
@@ -263,7 +266,7 @@ func (s *DockerSuite) TestPsListContainersFilterID(c *check.C) {
 }
 
 func (s *DockerSuite) TestPsListContainersFilterName(c *check.C) {
-
+	testRequires(c, DaemonIsLinux)
 	// start container
 	out, _ := dockerCmd(c, "run", "-d", "--name=a_name_to_match", "busybox")
 	firstID := strings.TrimSpace(out)
@@ -289,6 +292,7 @@ func (s *DockerSuite) TestPsListContainersFilterName(c *check.C) {
 // - Run containers for each of those image (busybox, images_ps_filter_test1, images_ps_filter_test2)
 // - Filter them out :P
 func (s *DockerSuite) TestPsListContainersFilterAncestorImage(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	// Build images
 	imageName1 := "images_ps_filter_test1"
 	imageID1, err := buildImage(imageName1,
@@ -388,6 +392,7 @@ func checkPsAncestorFilterOutput(c *check.C, out string, filterName string, expe
 }
 
 func (s *DockerSuite) TestPsListContainersFilterLabel(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	// start container
 	out, _ := dockerCmd(c, "run", "-d", "-l", "match=me", "-l", "second=tag", "busybox")
 	firstID := strings.TrimSpace(out)
@@ -430,7 +435,7 @@ func (s *DockerSuite) TestPsListContainersFilterLabel(c *check.C) {
 }
 
 func (s *DockerSuite) TestPsListContainersFilterExited(c *check.C) {
-
+	testRequires(c, DaemonIsLinux)
 	dockerCmd(c, "run", "-d", "--name", "top", "busybox", "top")
 
 	dockerCmd(c, "run", "--name", "zero1", "busybox", "true")
@@ -490,6 +495,7 @@ func (s *DockerSuite) TestPsListContainersFilterExited(c *check.C) {
 }
 
 func (s *DockerSuite) TestPsRightTagName(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	tag := "asybox:shmatest"
 	dockerCmd(c, "tag", "busybox", tag)
 
@@ -538,6 +544,7 @@ func (s *DockerSuite) TestPsRightTagName(c *check.C) {
 }
 
 func (s *DockerSuite) TestPsLinkedWithNoTrunc(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	dockerCmd(c, "run", "--name=first", "-d", "busybox", "top")
 	dockerCmd(c, "run", "--name=second", "--link=first:first", "-d", "busybox", "top")
 
@@ -557,7 +564,7 @@ func (s *DockerSuite) TestPsLinkedWithNoTrunc(c *check.C) {
 }
 
 func (s *DockerSuite) TestPsGroupPortRange(c *check.C) {
-
+	testRequires(c, DaemonIsLinux)
 	portRange := "3800-3900"
 	dockerCmd(c, "run", "-d", "--name", "porttest", "-p", portRange+":"+portRange, "busybox", "top")
 
@@ -571,6 +578,7 @@ func (s *DockerSuite) TestPsGroupPortRange(c *check.C) {
 }
 
 func (s *DockerSuite) TestPsWithSize(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	dockerCmd(c, "run", "-d", "--name", "sizetest", "busybox", "top")
 
 	out, _ := dockerCmd(c, "ps", "--size")
@@ -580,6 +588,7 @@ func (s *DockerSuite) TestPsWithSize(c *check.C) {
 }
 
 func (s *DockerSuite) TestPsListContainersFilterCreated(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	// create a container
 	out, _ := dockerCmd(c, "create", "busybox")
 	cID := strings.TrimSpace(out)
@@ -618,6 +627,7 @@ func (s *DockerSuite) TestPsListContainersFilterCreated(c *check.C) {
 }
 
 func (s *DockerSuite) TestPsFormatMultiNames(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	//create 2 containers and link them
 	dockerCmd(c, "run", "--name=child", "-d", "busybox", "top")
 	dockerCmd(c, "run", "--name=parent", "--link=child:linkedone", "-d", "busybox", "top")
@@ -649,6 +659,7 @@ func (s *DockerSuite) TestPsFormatMultiNames(c *check.C) {
 }
 
 func (s *DockerSuite) TestPsFormatHeaders(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	// make sure no-container "docker ps" still prints the header row
 	out, _ := dockerCmd(c, "ps", "--format", "table {{.ID}}")
 	if out != "CONTAINER ID\n" {
@@ -664,6 +675,7 @@ func (s *DockerSuite) TestPsFormatHeaders(c *check.C) {
 }
 
 func (s *DockerSuite) TestPsDefaultFormatAndQuiet(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	config := `{
 		"psFormat": "{{ .ID }} default"
 }`
@@ -685,6 +697,7 @@ func (s *DockerSuite) TestPsDefaultFormatAndQuiet(c *check.C) {
 
 // Test for GitHub issue #12595
 func (s *DockerSuite) TestPsImageIDAfterUpdate(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 
 	originalImageName := "busybox:TestPsImageIDAfterUpdate-original"
 	updatedImageName := "busybox:TestPsImageIDAfterUpdate-updated"

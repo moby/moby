@@ -10,6 +10,7 @@ import (
 
 // Regression test for https://github.com/docker/docker/issues/7843
 func (s *DockerSuite) TestStartAttachReturnsOnError(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	dockerCmd(c, "run", "-d", "--name", "test", "busybox")
 	dockerCmd(c, "wait", "test")
 
@@ -38,6 +39,7 @@ func (s *DockerSuite) TestStartAttachReturnsOnError(c *check.C) {
 
 // gh#8555: Exit code should be passed through when using start -a
 func (s *DockerSuite) TestStartAttachCorrectExitCode(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	out, _, _ := dockerCmdWithStdoutStderr(c, "run", "-d", "busybox", "sh", "-c", "sleep 2; exit 1")
 	out = strings.TrimSpace(out)
 
@@ -55,6 +57,7 @@ func (s *DockerSuite) TestStartAttachCorrectExitCode(c *check.C) {
 }
 
 func (s *DockerSuite) TestStartAttachSilent(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	name := "teststartattachcorrectexitcode"
 	dockerCmd(c, "run", "--name", name, "busybox", "echo", "test")
 
@@ -68,7 +71,7 @@ func (s *DockerSuite) TestStartAttachSilent(c *check.C) {
 }
 
 func (s *DockerSuite) TestStartRecordError(c *check.C) {
-
+	testRequires(c, DaemonIsLinux)
 	// when container runs successfully, we should not have state.Error
 	dockerCmd(c, "run", "-d", "-p", "9999:9999", "--name", "test", "busybox", "top")
 	stateErr, err := inspectField("test", "State.Error")
@@ -101,6 +104,7 @@ func (s *DockerSuite) TestStartRecordError(c *check.C) {
 }
 
 func (s *DockerSuite) TestStartPausedContainer(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	defer unpauseAllContainers()
 
 	dockerCmd(c, "run", "-d", "--name", "testing", "busybox", "top")
@@ -113,6 +117,7 @@ func (s *DockerSuite) TestStartPausedContainer(c *check.C) {
 }
 
 func (s *DockerSuite) TestStartMultipleContainers(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	// run a container named 'parent' and create two container link to `parent`
 	dockerCmd(c, "run", "-d", "--name", "parent", "busybox", "top")
 
@@ -147,6 +152,7 @@ func (s *DockerSuite) TestStartMultipleContainers(c *check.C) {
 }
 
 func (s *DockerSuite) TestStartAttachMultipleContainers(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	// run  multiple containers to test
 	for _, container := range []string{"test1", "test2", "test3"} {
 		dockerCmd(c, "run", "-d", "--name", container, "busybox", "top")

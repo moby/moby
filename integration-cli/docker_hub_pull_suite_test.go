@@ -37,6 +37,7 @@ func newDockerHubPullSuite() *DockerHubPullSuite {
 
 // SetUpSuite starts the suite daemon.
 func (s *DockerHubPullSuite) SetUpSuite(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	s.d = NewDaemon(c)
 	if err := s.d.Start(); err != nil {
 		c.Fatalf("starting push/pull test daemon: %v", err)
@@ -45,8 +46,10 @@ func (s *DockerHubPullSuite) SetUpSuite(c *check.C) {
 
 // TearDownSuite stops the suite daemon.
 func (s *DockerHubPullSuite) TearDownSuite(c *check.C) {
-	if err := s.d.Stop(); err != nil {
-		c.Fatalf("stopping push/pull test daemon: %v", err)
+	if s.d != nil {
+		if err := s.d.Stop(); err != nil {
+			c.Fatalf("stopping push/pull test daemon: %v", err)
+		}
 	}
 }
 

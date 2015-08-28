@@ -22,6 +22,7 @@ import (
 
 // Test for error when SRC does not exist.
 func (s *DockerSuite) TestCpToErrSrcNotExists(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	cID := makeTestContainer(c, testContainerOptions{})
 	defer deleteContainer(cID)
 
@@ -44,6 +45,7 @@ func (s *DockerSuite) TestCpToErrSrcNotExists(c *check.C) {
 // Test for error when SRC ends in a trailing
 // path separator but it exists as a file.
 func (s *DockerSuite) TestCpToErrSrcNotDir(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	cID := makeTestContainer(c, testContainerOptions{})
 	defer deleteContainer(cID)
 
@@ -68,6 +70,7 @@ func (s *DockerSuite) TestCpToErrSrcNotDir(c *check.C) {
 // Test for error when SRC is a valid file or directory,
 // bu the DST parent directory does not exist.
 func (s *DockerSuite) TestCpToErrDstParentNotExists(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	cID := makeTestContainer(c, testContainerOptions{addContent: true})
 	defer deleteContainer(cID)
 
@@ -105,6 +108,7 @@ func (s *DockerSuite) TestCpToErrDstParentNotExists(c *check.C) {
 // file. Also test that we cannot overwirite an existing directory with a
 // non-directory and cannot overwrite an existing
 func (s *DockerSuite) TestCpToErrDstNotDir(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	cID := makeTestContainer(c, testContainerOptions{addContent: true})
 	defer deleteContainer(cID)
 
@@ -149,6 +153,7 @@ func (s *DockerSuite) TestCpToErrDstNotDir(c *check.C) {
 // Check that copying from a local path to a symlink in a container copies to
 // the symlink target and does not overwrite the container symlink itself.
 func (s *DockerSuite) TestCpToSymlinkDestination(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	testRequires(c, SameHostDaemon) // Requires local volume mount bind.
 
 	testVol := getTestDir(c, "test-cp-to-symlink-destination-")
@@ -278,6 +283,7 @@ func (s *DockerSuite) TestCpToSymlinkDestination(c *check.C) {
 //    exist. This should create a file with the name DST and copy the
 //    contents of the source file into it.
 func (s *DockerSuite) TestCpToCaseA(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	cID := makeTestContainer(c, testContainerOptions{
 		workDir: "/root", command: makeCatFileCommand("itWorks.txt"),
 	})
@@ -304,6 +310,7 @@ func (s *DockerSuite) TestCpToCaseA(c *check.C) {
 //    exist. This should cause an error because the copy operation cannot
 //    create a directory when copying a single file.
 func (s *DockerSuite) TestCpToCaseB(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	cID := makeTestContainer(c, testContainerOptions{
 		command: makeCatFileCommand("testDir/file1"),
 	})
@@ -330,6 +337,7 @@ func (s *DockerSuite) TestCpToCaseB(c *check.C) {
 // C. SRC specifies a file and DST exists as a file. This should overwrite
 //    the file at DST with the contents of the source file.
 func (s *DockerSuite) TestCpToCaseC(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	cID := makeTestContainer(c, testContainerOptions{
 		addContent: true, workDir: "/root",
 		command: makeCatFileCommand("file2"),
@@ -363,6 +371,7 @@ func (s *DockerSuite) TestCpToCaseC(c *check.C) {
 //    a copy of the source file inside it using the basename from SRC. Ensure
 //    this works whether DST has a trailing path separator or not.
 func (s *DockerSuite) TestCpToCaseD(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	cID := makeTestContainer(c, testContainerOptions{
 		addContent: true,
 		command:    makeCatFileCommand("/dir1/file1"),
@@ -422,6 +431,7 @@ func (s *DockerSuite) TestCpToCaseD(c *check.C) {
 //    directory. Ensure this works whether DST has a trailing path separator or
 //    not.
 func (s *DockerSuite) TestCpToCaseE(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	cID := makeTestContainer(c, testContainerOptions{
 		command: makeCatFileCommand("/testDir/file1-1"),
 	})
@@ -468,6 +478,7 @@ func (s *DockerSuite) TestCpToCaseE(c *check.C) {
 // F. SRC specifies a directory and DST exists as a file. This should cause an
 //    error as it is not possible to overwrite a file with a directory.
 func (s *DockerSuite) TestCpToCaseF(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	cID := makeTestContainer(c, testContainerOptions{
 		addContent: true, workDir: "/root",
 	})
@@ -495,6 +506,7 @@ func (s *DockerSuite) TestCpToCaseF(c *check.C) {
 //    the SRC directory and all its contents to the DST directory. Ensure this
 //    works whether DST has a trailing path separator or not.
 func (s *DockerSuite) TestCpToCaseG(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	cID := makeTestContainer(c, testContainerOptions{
 		addContent: true, workDir: "/root",
 		command: makeCatFileCommand("dir2/dir1/file1-1"),
@@ -554,6 +566,7 @@ func (s *DockerSuite) TestCpToCaseG(c *check.C) {
 //    directory (but not the directory itself) into the DST directory. Ensure
 //    this works whether DST has a trailing path separator or not.
 func (s *DockerSuite) TestCpToCaseH(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	cID := makeTestContainer(c, testContainerOptions{
 		command: makeCatFileCommand("/testDir/file1-1"),
 	})
@@ -600,6 +613,7 @@ func (s *DockerSuite) TestCpToCaseH(c *check.C) {
 //    should cause an error as it is not possible to overwrite a file with a
 //    directory.
 func (s *DockerSuite) TestCpToCaseI(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	cID := makeTestContainer(c, testContainerOptions{
 		addContent: true, workDir: "/root",
 	})
@@ -628,6 +642,7 @@ func (s *DockerSuite) TestCpToCaseI(c *check.C) {
 //    itself) into the DST directory. Ensure this works whether DST has a
 //    trailing path separator or not.
 func (s *DockerSuite) TestCpToCaseJ(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	cID := makeTestContainer(c, testContainerOptions{
 		addContent: true, workDir: "/root",
 		command: makeCatFileCommand("/dir2/file1-1"),
@@ -684,6 +699,7 @@ func (s *DockerSuite) TestCpToCaseJ(c *check.C) {
 // The `docker cp` command should also ensure that you cannot
 // write to a container rootfs that is marked as read-only.
 func (s *DockerSuite) TestCpToErrReadOnlyRootfs(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	tmpDir := getTestDir(c, "test-cp-to-err-read-only-rootfs")
 	defer os.RemoveAll(tmpDir)
 
@@ -716,6 +732,7 @@ func (s *DockerSuite) TestCpToErrReadOnlyRootfs(c *check.C) {
 // The `docker cp` command should also ensure that you
 // cannot write to a volume that is mounted as read-only.
 func (s *DockerSuite) TestCpToErrReadOnlyVolume(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	tmpDir := getTestDir(c, "test-cp-to-err-read-only-volume")
 	defer os.RemoveAll(tmpDir)
 
