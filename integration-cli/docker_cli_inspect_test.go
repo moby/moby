@@ -49,6 +49,38 @@ func (s *DockerSuite) TestInspectDefault(c *check.C) {
 	dockerCmd(c, "inspect", "busybox")
 }
 
+func (s *DockerSuite) TestInspectStatus(c *check.C) {
+	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
+	out = strings.TrimSpace(out)
+
+	inspectOut, err := inspectField(out, "State.Status")
+	c.Assert(err, check.IsNil)
+	if inspectOut != "running" {
+		c.Fatalf("inspect got wrong status, got: %q, expected: running", inspectOut)
+	}
+
+	dockerCmd(c, "pause", out)
+	inspectOut, err = inspectField(out, "State.Status")
+	c.Assert(err, check.IsNil)
+	if inspectOut != "paused" {
+		c.Fatalf("inspect got wrong status, got: %q, expected: paused", inspectOut)
+	}
+
+	dockerCmd(c, "unpause", out)
+	inspectOut, err = inspectField(out, "State.Status")
+	c.Assert(err, check.IsNil)
+	if inspectOut != "running" {
+		c.Fatalf("inspect got wrong status, got: %q, expected: running", inspectOut)
+	}
+
+	dockerCmd(c, "stop", out)
+	inspectOut, err = inspectField(out, "State.Status")
+	c.Assert(err, check.IsNil)
+	if inspectOut != "exited" {
+		c.Fatalf("inspect got wrong status, got: %q, expected: exited", inspectOut)
+	}
+}
+
 func (s *DockerSuite) TestInspectTypeFlagContainer(c *check.C) {
 
 	//Both the container and image are named busybox. docker inspect will fetch container

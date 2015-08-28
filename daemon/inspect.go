@@ -46,6 +46,7 @@ func (daemon *Daemon) getInspectData(container *Container) (*types.ContainerJSON
 	}
 
 	containerState := &types.ContainerState{
+		Status:     container.State.StateString(),
 		Running:    container.State.Running,
 		Paused:     container.State.Paused,
 		Restarting: container.State.Restarting,
