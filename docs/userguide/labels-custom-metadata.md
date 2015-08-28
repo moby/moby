@@ -11,34 +11,35 @@ parent = "mn_use_docker"
 # Apply custom metadata
 
 You can apply metadata to your images, containers, or daemons via
-labels. Metadata can serve a wide range of uses. Use labels to add notes or
-licensing information to an image or to identify a host.
+labels. Labels serve a wide range of uses, such as adding notes or licensing
+information to an image, or to identify a host.
 
 A label is a `<key>` / `<value>` pair. Docker stores the label values as
-*strings*. You can specify multiple labels but each `<key>` / `<value>` must be
-unique to avoid overwriting. If you specify the same `key` several times but with
-different values, newer labels overwrite previous labels. Docker uses
-the last `key=value` you supply.
+*strings*. You can specify multiple labels but each `<key>` must be
+unique or the value will be overwritten. If you specify the same `key` several
+times but with different values, newer labels overwrite previous labels. Docker
+uses the last `key=value` you supply.
 
 >**Note:** Support for daemon-labels was added in Docker 1.4.1. Labels on
 >containers and images are new in Docker 1.6.0
 
 ## Label keys (namespaces)
 
-Docker puts no hard restrictions on the label `key` you. However, labels with
-simple keys can conflict. For example, you can categorize your images by using a
-chip "architecture" label:
+Docker puts no hard restrictions on the `key` used for a label. However, using
+simple keys can easily lead to conflicts. For example, you have chosen to
+categorize your images by CPU architecture using "architecture" labels in
+your Dockerfiles:
 
     LABEL architecture="amd64"
 
     LABEL architecture="ARMv7"
 
-But a user can label images by building architectural style:
+Another user may apply the same label based on a building's "architecture":
 
     LABEL architecture="Art Nouveau"
 
-To prevent naming conflicts, Docker namespaces label keys using a reverse domain
-notation. Use the following guidelines to name your keys:
+To prevent naming conflicts, Docker recommends using namespaces to label keys
+using reverse domain notation. Use the following guidelines to name your keys:
 
 - All (third-party) tools should prefix their keys with the
   reverse DNS notation of a domain controlled by the author. For
@@ -59,15 +60,14 @@ notation. Use the following guidelines to name your keys:
   cumbersome namespaces on the command-line.
 
 
-These are guidelines and Docker does not *enforce* them. Failing following these
-guidelines can result in conflicting labels. If you're building a tool that uses
-labels, you *should* use namespaces for your label keys.
+These are simply guidelines and Docker does not *enforce* them. However, for
+the benefit of the community, you *should* use namespaces for your label keys.
 
 
 ## Store structured data in labels
 
-Label values can contain any data type that can be stored as a string. For
-example, consider this JSON:
+Label values can contain any data type as long as it can be represented as a
+string. For example, consider this JSON document:
 
 
     {
@@ -87,31 +87,31 @@ You can store this struct in a label by serializing it to a string first:
 While it is *possible* to store structured data in label values, Docker treats
 this data as a 'regular' string. This means that Docker doesn't offer ways to
 query (filter) based on nested properties. If your tool needs to filter on
-nested properties, the tool itself should implement this.
+nested properties, the tool itself needs to implement this functionality.
 
 
-## Add labels to images; the `LABEL` instruction
+## Add labels to images
 
-Adding labels to an image:
+To add labels to an image, use the `LABEL` instruction in your Dockerfile:
 
 
     LABEL [<namespace>.]<key>[=<value>] ...
 
-The `LABEL` instruction adds a label to your image, optionally setting its value.
+The `LABEL` instruction adds a label to your image, optionally with a value.
 Use surrounding quotes or backslashes for labels that contain
-white space character:
+white space characters in the `<value>`:
 
     LABEL vendor=ACME\ Incorporated
     LABEL com.example.version.is-beta
     LABEL com.example.version="0.0.1-beta"
     LABEL com.example.release-date="2015-02-12"
 
-The `LABEL` instruction supports setting multiple labels in a single instruction
-using this notation:
+The `LABEL` instruction also supports setting multiple `<key>` / `<value>` pairs
+in a single instruction:
 
     LABEL com.example.version="0.0.1-beta" com.example.release-date="2015-02-12"
 
-Wrapping is allowed by using a backslash (`\`) as continuation marker:
+Long lines can be split up by using a backslash (`\`) as continuation marker:
 
     LABEL vendor=ACME\ Incorporated \
           com.example.is-beta \
@@ -120,7 +120,7 @@ Wrapping is allowed by using a backslash (`\`) as continuation marker:
 
 Docker recommends you add multiple labels in a single `LABEL` instruction. Using
 individual instructions for each label can result in an inefficient image. This
-is because each `LABEL` instruction in a Dockerfile produces a new IMAGE layer. 
+is because each `LABEL` instruction in a Dockerfile produces a new IMAGE layer.
 
 You can view the labels via the `docker inspect` command:
 
@@ -147,16 +147,16 @@ You can view the labels via the `docker inspect` command:
 ## Query labels
 
 Besides storing metadata, you can filter images and containers by label. To list all
-running containers that the `com.example.is-beta` label:
+running containers that have the `com.example.is-beta` label:
 
     # List all running containers that have a `com.example.is-beta` label
     $ docker ps --filter "label=com.example.is-beta"
 
-List all running containers with a `color` label of `blue`:
+List all running containers with the label `color` that have a value `blue`:
 
     $ docker ps --filter "label=color=blue"
 
-List all images with `vendor` `ACME`:
+List all images with the label `vendor` that have the value `ACME`:
 
     $ docker images --filter "label=vendor=ACME"
 
