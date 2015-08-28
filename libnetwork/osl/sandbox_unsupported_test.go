@@ -1,6 +1,6 @@
 // +build !linux
 
-package sandbox
+package osl
 
 import (
 	"errors"

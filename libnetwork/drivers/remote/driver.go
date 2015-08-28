@@ -57,20 +57,20 @@ func (d *driver) call(methodName string, arg interface{}, retVal maybeError) err
 	return nil
 }
 
-func (d *driver) CreateNetwork(id types.UUID, options map[string]interface{}) error {
+func (d *driver) CreateNetwork(id string, options map[string]interface{}) error {
 	create := &api.CreateNetworkRequest{
-		NetworkID: string(id),
+		NetworkID: id,
 		Options:   options,
 	}
 	return d.call("CreateNetwork", create, &api.CreateNetworkResponse{})
 }
 
-func (d *driver) DeleteNetwork(nid types.UUID) error {
-	delete := &api.DeleteNetworkRequest{NetworkID: string(nid)}
+func (d *driver) DeleteNetwork(nid string) error {
+	delete := &api.DeleteNetworkRequest{NetworkID: nid}
 	return d.call("DeleteNetwork", delete, &api.DeleteNetworkResponse{})
 }
 
-func (d *driver) CreateEndpoint(nid, eid types.UUID, epInfo driverapi.EndpointInfo, epOptions map[string]interface{}) error {
+func (d *driver) CreateEndpoint(nid, eid string, epInfo driverapi.EndpointInfo, epOptions map[string]interface{}) error {
 	if epInfo == nil {
 		return fmt.Errorf("must not be called with nil EndpointInfo")
 	}
@@ -87,8 +87,8 @@ func (d *driver) CreateEndpoint(nid, eid types.UUID, epInfo driverapi.EndpointIn
 		}
 	}
 	create := &api.CreateEndpointRequest{
-		NetworkID:  string(nid),
-		EndpointID: string(eid),
+		NetworkID:  nid,
+		EndpointID: eid,
 		Interfaces: reqIfaces,
 		Options:    epOptions,
 	}
@@ -129,18 +129,18 @@ func errorWithRollback(msg string, err error) error {
 	return fmt.Errorf("%s; %s", msg, rollback)
 }
 
-func (d *driver) DeleteEndpoint(nid, eid types.UUID) error {
+func (d *driver) DeleteEndpoint(nid, eid string) error {
 	delete := &api.DeleteEndpointRequest{
-		NetworkID:  string(nid),
-		EndpointID: string(eid),
+		NetworkID:  nid,
+		EndpointID: eid,
 	}
 	return d.call("DeleteEndpoint", delete, &api.DeleteEndpointResponse{})
 }
 
-func (d *driver) EndpointOperInfo(nid, eid types.UUID) (map[string]interface{}, error) {
+func (d *driver) EndpointOperInfo(nid, eid string) (map[string]interface{}, error) {
 	info := &api.EndpointInfoRequest{
-		NetworkID:  string(nid),
-		EndpointID: string(eid),
+		NetworkID:  nid,
+		EndpointID: eid,
 	}
 	var res api.EndpointInfoResponse
 	if err := d.call("EndpointOperInfo", info, &res); err != nil {
@@ -150,10 +150,10 @@ func (d *driver) EndpointOperInfo(nid, eid types.UUID) (map[string]interface{}, 
 }
 
 // Join method is invoked when a Sandbox is attached to an endpoint.
-func (d *driver) Join(nid, eid types.UUID, sboxKey string, jinfo driverapi.JoinInfo, options map[string]interface{}) error {
+func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo, options map[string]interface{}) error {
 	join := &api.JoinRequest{
-		NetworkID:  string(nid),
-		EndpointID: string(eid),
+		NetworkID:  nid,
+		EndpointID: eid,
 		SandboxKey: sboxKey,
 		Options:    options,
 	}
@@ -209,20 +209,14 @@ func (d *driver) Join(nid, eid types.UUID, sboxKey string, jinfo driverapi.JoinI
 			}
 		}
 	}
-	if jinfo.SetHostsPath(res.HostsPath) != nil {
-		return errorWithRollback(fmt.Sprintf("failed to set hosts path: %s", res.HostsPath), d.Leave(nid, eid))
-	}
-	if jinfo.SetResolvConfPath(res.ResolvConfPath) != nil {
-		return errorWithRollback(fmt.Sprintf("failed to set resolv.conf path: %s", res.ResolvConfPath), d.Leave(nid, eid))
-	}
 	return nil
 }
 
 // Leave method is invoked when a Sandbox detaches from an endpoint.
-func (d *driver) Leave(nid, eid types.UUID) error {
+func (d *driver) Leave(nid, eid string) error {
 	leave := &api.LeaveRequest{
-		NetworkID:  string(nid),
-		EndpointID: string(eid),
+		NetworkID:  nid,
+		EndpointID: eid,
 	}
 	return d.call("Leave", leave, &api.LeaveResponse{})
 }

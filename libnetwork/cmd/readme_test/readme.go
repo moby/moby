@@ -28,7 +28,7 @@ func main() {
 	}
 
 	// Create a network for containers to join.
-	// NewNetwork accepts Variadic optional arguments that libnetwork and Drivers can make of
+	// NewNetwork accepts Variadic optional arguments that libnetwork and Drivers can use.
 	network, err := controller.NewNetwork(networkType, "network1")
 	if err != nil {
 		return
@@ -43,12 +43,14 @@ func main() {
 		return
 	}
 
-	// A container can join the endpoint by providing the container ID to the join
-	// api.
-	// Join accepts Variadic arguments which will be made use of by libnetwork and Drivers
-	err = ep.Join("container1",
-		libnetwork.JoinOptionHostname("test"),
-		libnetwork.JoinOptionDomainname("docker.io"))
+	// Create the sandbox for the containr.
+	sbx, err := controller.NewSandbox("container1",
+		libnetwork.OptionHostname("test"),
+		libnetwork.OptionDomainname("docker.io"))
+
+	// A sandbox can join the endpoint via the join api.
+	// Join accepts Variadic arguments which libnetwork and Drivers can use.
+	err = ep.Join(sbx)
 	if err != nil {
 		return
 	}

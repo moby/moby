@@ -7,18 +7,17 @@ import (
 
 	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/netutils"
-	"github.com/docker/libnetwork/types"
 )
 
-type endpointTable map[types.UUID]*endpoint
+type endpointTable map[string]*endpoint
 
 type endpoint struct {
-	id   types.UUID
+	id   string
 	mac  net.HardwareAddr
 	addr *net.IPNet
 }
 
-func (n *network) endpoint(eid types.UUID) *endpoint {
+func (n *network) endpoint(eid string) *endpoint {
 	n.Lock()
 	defer n.Unlock()
 
@@ -31,13 +30,13 @@ func (n *network) addEndpoint(ep *endpoint) {
 	n.Unlock()
 }
 
-func (n *network) deleteEndpoint(eid types.UUID) {
+func (n *network) deleteEndpoint(eid string) {
 	n.Lock()
 	delete(n.endpoints, eid)
 	n.Unlock()
 }
 
-func (d *driver) CreateEndpoint(nid, eid types.UUID, epInfo driverapi.EndpointInfo,
+func (d *driver) CreateEndpoint(nid, eid string, epInfo driverapi.EndpointInfo,
 	epOptions map[string]interface{}) error {
 	if err := validateID(nid, eid); err != nil {
 		return err
@@ -85,7 +84,7 @@ func (d *driver) CreateEndpoint(nid, eid types.UUID, epInfo driverapi.EndpointIn
 	return nil
 }
 
-func (d *driver) DeleteEndpoint(nid, eid types.UUID) error {
+func (d *driver) DeleteEndpoint(nid, eid string) error {
 	if err := validateID(nid, eid); err != nil {
 		return err
 	}
@@ -105,6 +104,6 @@ func (d *driver) DeleteEndpoint(nid, eid types.UUID) error {
 	return nil
 }
 
-func (d *driver) EndpointOperInfo(nid, eid types.UUID) (map[string]interface{}, error) {
+func (d *driver) EndpointOperInfo(nid, eid string) (map[string]interface{}, error) {
 	return make(map[string]interface{}, 0), nil
 }

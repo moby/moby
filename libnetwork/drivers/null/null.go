@@ -10,7 +10,7 @@ import (
 const networkType = "null"
 
 type driver struct {
-	network types.UUID
+	network string
 	sync.Mutex
 }
 
@@ -26,7 +26,7 @@ func (d *driver) Config(option map[string]interface{}) error {
 	return nil
 }
 
-func (d *driver) CreateNetwork(id types.UUID, option map[string]interface{}) error {
+func (d *driver) CreateNetwork(id string, option map[string]interface{}) error {
 	d.Lock()
 	defer d.Unlock()
 
@@ -39,29 +39,29 @@ func (d *driver) CreateNetwork(id types.UUID, option map[string]interface{}) err
 	return nil
 }
 
-func (d *driver) DeleteNetwork(nid types.UUID) error {
+func (d *driver) DeleteNetwork(nid string) error {
 	return types.ForbiddenErrorf("network of type \"%s\" cannot be deleted", networkType)
 }
 
-func (d *driver) CreateEndpoint(nid, eid types.UUID, epInfo driverapi.EndpointInfo, epOptions map[string]interface{}) error {
+func (d *driver) CreateEndpoint(nid, eid string, epInfo driverapi.EndpointInfo, epOptions map[string]interface{}) error {
 	return nil
 }
 
-func (d *driver) DeleteEndpoint(nid, eid types.UUID) error {
+func (d *driver) DeleteEndpoint(nid, eid string) error {
 	return nil
 }
 
-func (d *driver) EndpointOperInfo(nid, eid types.UUID) (map[string]interface{}, error) {
+func (d *driver) EndpointOperInfo(nid, eid string) (map[string]interface{}, error) {
 	return make(map[string]interface{}, 0), nil
 }
 
 // Join method is invoked when a Sandbox is attached to an endpoint.
-func (d *driver) Join(nid, eid types.UUID, sboxKey string, jinfo driverapi.JoinInfo, options map[string]interface{}) error {
+func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo, options map[string]interface{}) error {
 	return nil
 }
 
 // Leave method is invoked when a Sandbox detaches from an endpoint.
-func (d *driver) Leave(nid, eid types.UUID) error {
+func (d *driver) Leave(nid, eid string) error {
 	return nil
 }
 

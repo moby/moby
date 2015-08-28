@@ -4,12 +4,11 @@ import (
 	"fmt"
 
 	"github.com/docker/libnetwork/netutils"
-	"github.com/docker/libnetwork/types"
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netlink/nl"
 )
 
-func validateID(nid, eid types.UUID) error {
+func validateID(nid, eid string) error {
 	if nid == "" {
 		return fmt.Errorf("invalid network id")
 	}

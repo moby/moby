@@ -119,7 +119,7 @@ func TestBuild(t *testing.T) {
 	}
 	defer os.Remove(file.Name())
 
-	err = Build(file.Name(), []string{"ns1", "ns2", "ns3"}, []string{"search1"})
+	_, err = Build(file.Name(), []string{"ns1", "ns2", "ns3"}, []string{"search1"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -129,7 +129,7 @@ func TestBuild(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if expected := "nameserver ns1\nnameserver ns2\nnameserver ns3\nsearch search1\n"; !bytes.Contains(content, []byte(expected)) {
+	if expected := "search search1\nnameserver ns1\nnameserver ns2\nnameserver ns3\n"; !bytes.Contains(content, []byte(expected)) {
 		t.Fatalf("Expected to find '%s' got '%s'", expected, content)
 	}
 }
@@ -141,7 +141,7 @@ func TestBuildWithZeroLengthDomainSearch(t *testing.T) {
 	}
 	defer os.Remove(file.Name())
 
-	err = Build(file.Name(), []string{"ns1", "ns2", "ns3"}, []string{"."})
+	_, err = Build(file.Name(), []string{"ns1", "ns2", "ns3"}, []string{"."})
 	if err != nil {
 		t.Fatal(err)
 	}

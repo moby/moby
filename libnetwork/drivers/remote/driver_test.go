@@ -138,20 +138,6 @@ func (test *testEndpoint) SetGatewayIPv6(ipv6 net.IP) error {
 	return nil
 }
 
-func (test *testEndpoint) SetHostsPath(p string) error {
-	if p != test.hostsPath {
-		test.t.Fatalf(`Wrong HostsPath; expected "%s", got "%s"`, test.hostsPath, p)
-	}
-	return nil
-}
-
-func (test *testEndpoint) SetResolvConfPath(p string) error {
-	if p != test.resolvConfPath {
-		test.t.Fatalf(`Wrong ResolvConfPath; expected "%s", got "%s"`, test.resolvConfPath, p)
-	}
-	return nil
-}
-
 func (test *testEndpoint) SetNames(src string, dst string) error {
 	if test.src != src {
 		test.t.Fatalf(`Wrong SrcName; expected "%s", got "%s"`, test.src, src)
@@ -282,13 +268,13 @@ func TestRemoteDriver(t *testing.T) {
 		t.Fatal("Driver type does not match that given")
 	}
 
-	netID := types.UUID("dummy-network")
+	netID := "dummy-network"
 	err = driver.CreateNetwork(netID, map[string]interface{}{})
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	endID := types.UUID("dummy-endpoint")
+	endID := "dummy-endpoint"
 	err = driver.CreateEndpoint(netID, endID, ep, map[string]interface{}{})
 	if err != nil {
 		t.Fatal(err)
@@ -345,7 +331,7 @@ func TestDriverError(t *testing.T) {
 
 	driver := newDriver(plugin, p.Client)
 
-	if err := driver.CreateEndpoint(types.UUID("dummy"), types.UUID("dummy"), &testEndpoint{t: t}, map[string]interface{}{}); err == nil {
+	if err := driver.CreateEndpoint("dummy", "dummy", &testEndpoint{t: t}, map[string]interface{}{}); err == nil {
 		t.Fatalf("Expected error from driver")
 	}
 }
@@ -379,7 +365,7 @@ func TestMissingValues(t *testing.T) {
 	}
 	driver := newDriver(plugin, p.Client)
 
-	if err := driver.CreateEndpoint(types.UUID("dummy"), types.UUID("dummy"), ep, map[string]interface{}{}); err != nil {
+	if err := driver.CreateEndpoint("dummy", "dummy", ep, map[string]interface{}{}); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -427,7 +413,7 @@ func TestRollback(t *testing.T) {
 
 	ep := &rollbackEndpoint{}
 
-	if err := driver.CreateEndpoint(types.UUID("dummy"), types.UUID("dummy"), ep, map[string]interface{}{}); err == nil {
+	if err := driver.CreateEndpoint("dummy", "dummy", ep, map[string]interface{}{}); err == nil {
 		t.Fatalf("Expected error from driver")
 	}
 	if !rolledback {

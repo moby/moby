@@ -114,6 +114,25 @@ func lookupContainerID(cli *NetworkCli, cnNameID string) (string, error) {
 	return "", fmt.Errorf("Cannot find container ID in json response")
 }
 
+func lookupSandboxID(cli *NetworkCli, containerID string) (string, error) {
+	obj, _, err := readBody(cli.call("GET", fmt.Sprintf("/sandboxes?container-id=%s", containerID), nil, nil))
+	if err != nil {
+		return "", err
+	}
+
+	var sandboxList []sandboxResource
+	err = json.Unmarshal(obj, &sandboxList)
+	if err != nil {
+		return "", err
+	}
+
+	if len(sandboxList) == 0 {
+		return "", fmt.Errorf("cannot find sandbox for container: %s", containerID)
+	}
+
+	return sandboxList[0].ID, nil
+}
+
 // CmdService handles the service UI
 func (cli *NetworkCli) CmdService(chain string, args ...string) error {
 	cmd := cli.Subcmd(chain, "service", "COMMAND [OPTIONS] [arg...]", serviceUsage(chain), false)
@@ -249,7 +268,7 @@ func getBackendID(cli *NetworkCli, servID string) (string, error) {
 	)
 
 	if obj, _, err = readBody(cli.call("GET", "/services/"+servID+"/backend", nil, nil)); err == nil {
-		var bkl []backendResource
+		var bkl []sandboxResource
 		if err := json.NewDecoder(bytes.NewReader(obj)).Decode(&bkl); err == nil {
 			if len(bkl) > 0 {
 				bk = bkl[0].ID
@@ -310,13 +329,18 @@ func (cli *NetworkCli) CmdServiceAttach(chain string, args ...string) error {
 		return err
 	}
 
+	sandboxID, err := lookupSandboxID(cli, containerID)
+	if err != nil {
+		return err
+	}
+
 	sn, nn := parseServiceName(cmd.Arg(1))
 	serviceID, err := lookupServiceID(cli, nn, sn)
 	if err != nil {
 		return err
 	}
 
-	nc := serviceAttach{ContainerID: containerID}
+	nc := serviceAttach{SandboxID: sandboxID}
 
 	_, _, err = readBody(cli.call("POST", "/services/"+serviceID+"/backend", nc, nil))
 

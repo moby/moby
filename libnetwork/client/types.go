@@ -21,9 +21,11 @@ type serviceResource struct {
 	Network string `json:"network"`
 }
 
-// backendResource is the body of "get service backend" response message
-type backendResource struct {
-	ID string `json:"id"`
+// sandboxResource is the body of "get service backend" response message
+type sandboxResource struct {
+	ID          string `json:"id"`
+	Key         string `json:"key"`
+	ContainerID string `json:"container_id"`
 }
 
 /***********
@@ -45,29 +47,32 @@ type serviceCreate struct {
 	PortMapping  []types.PortBinding   `json:"port_mapping"`
 }
 
-// serviceAttach represents the expected body of the "attach/detach backend to/from service" http request messages
+// serviceAttach represents the expected body of the "attach/detach sandbox to/from service" http request messages
 type serviceAttach struct {
-	ContainerID       string                `json:"container_id"`
-	HostName          string                `json:"host_name"`
-	DomainName        string                `json:"domain_name"`
-	HostsPath         string                `json:"hosts_path"`
-	ResolvConfPath    string                `json:"resolv_conf_path"`
-	DNS               []string              `json:"dns"`
-	ExtraHosts        []serviceExtraHost    `json:"extra_hosts"`
-	ParentUpdates     []serviceParentUpdate `json:"parent_updates"`
-	UseDefaultSandbox bool                  `json:"use_default_sandbox"`
+	SandboxID string `json:"sandbox_id"`
 }
 
-// serviceExtraHost represents the extra host object
-type serviceExtraHost struct {
+type sandboxCreate struct {
+	ContainerID       string      `json:"container_id"`
+	HostName          string      `json:"host_name"`
+	DomainName        string      `json:"domain_name"`
+	HostsPath         string      `json:"hosts_path"`
+	ResolvConfPath    string      `json:"resolv_conf_path"`
+	DNS               []string    `json:"dns"`
+	ExtraHosts        []extraHost `json:"extra_hosts"`
+	UseDefaultSandbox bool        `json:"use_default_sandbox"`
+}
+
+// extraHost represents the extra host object
+type extraHost struct {
 	Name    string `json:"name"`
 	Address string `json:"address"`
 }
 
-// EndpointParentUpdate is the object carrying the information about the
-// endpoint parent that needs to be updated
-type serviceParentUpdate struct {
-	EndpointID string `json:"service_id"`
-	Name       string `json:"name"`
-	Address    string `json:"address"`
+// sandboxParentUpdate is the object carrying the information about the
+// sanbox parent that needs to be updated
+type sandboxParentUpdate struct {
+	ContainerID string `json:"container_id"`
+	Name        string `json:"name"`
+	Address     string `json:"address"`
 }
