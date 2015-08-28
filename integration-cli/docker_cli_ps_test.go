@@ -12,6 +12,9 @@ import (
 	"time"
 
 	"github.com/go-check/check"
+	"sort"
+
+	"github.com/docker/docker/pkg/stringid"
 )
 
 func (s *DockerSuite) TestPsListContainers(c *check.C) {
@@ -276,6 +279,113 @@ func (s *DockerSuite) TestPsListContainersFilterName(c *check.C) {
 		c.Fatalf("Expected id %s, got %s for exited filter, output: %q", firstID[:12], containerOut, out)
 	}
 
+}
+
+// Test for the ancestor filter for ps.
+// There is also the same test but with image:tag@digest in docker_cli_by_digest_test.go
+//
+// What the test setups :
+// - Create 2 image based on busybox using the same repository but different tags
+// - Create an image based on the previous image (images_ps_filter_test2)
+// - Run containers for each of those image (busybox, images_ps_filter_test1, images_ps_filter_test2)
+// - Filter them out :P
+func (s *DockerSuite) TestPsListContainersFilterAncestorImage(c *check.C) {
+	// Build images
+	imageName1 := "images_ps_filter_test1"
+	imageID1, err := buildImage(imageName1,
+		`FROM busybox
+		 LABEL match me 1`, true)
+	c.Assert(err, check.IsNil)
+
+	imageName1Tagged := "images_ps_filter_test1:tag"
+	imageID1Tagged, err := buildImage(imageName1Tagged,
+		`FROM busybox
+		 LABEL match me 1 tagged`, true)
+	c.Assert(err, check.IsNil)
+
+	imageName2 := "images_ps_filter_test2"
+	imageID2, err := buildImage(imageName2,
+		fmt.Sprintf(`FROM %s
+		 LABEL match me 2`, imageName1), true)
+	c.Assert(err, check.IsNil)
+
+	// start containers
+	out, _ := dockerCmd(c, "run", "-d", "busybox", "echo", "hello")
+	firstID := strings.TrimSpace(out)
+
+	// start another container
+	out, _ = dockerCmd(c, "run", "-d", "busybox", "echo", "hello")
+	secondID := strings.TrimSpace(out)
+
+	// start third container
+	out, _ = dockerCmd(c, "run", "-d", imageName1, "echo", "hello")
+	thirdID := strings.TrimSpace(out)
+
+	// start fourth container
+	out, _ = dockerCmd(c, "run", "-d", imageName1Tagged, "echo", "hello")
+	fourthID := strings.TrimSpace(out)
+
+	// start fifth container
+	out, _ = dockerCmd(c, "run", "-d", imageName2, "echo", "hello")
+	fifthID := strings.TrimSpace(out)
+
+	var filterTestSuite = []struct {
+		filterName  string
+		expectedIDs []string
+	}{
+		// non existent stuff
+		{"nonexistent", []string{}},
+		{"nonexistent:tag", []string{}},
+		// image
+		{"busybox", []string{firstID, secondID, thirdID, fourthID, fifthID}},
+		{imageName1, []string{thirdID, fifthID}},
+		{imageName2, []string{fifthID}},
+		// image:tag
+		{fmt.Sprintf("%s:latest", imageName1), []string{thirdID, fifthID}},
+		{imageName1Tagged, []string{fourthID}},
+		// short-id
+		{stringid.TruncateID(imageID1), []string{thirdID, fifthID}},
+		{stringid.TruncateID(imageID2), []string{fifthID}},
+		// full-id
+		{imageID1, []string{thirdID, fifthID}},
+		{imageID1Tagged, []string{fourthID}},
+		{imageID2, []string{fifthID}},
+	}
+
+	for _, filter := range filterTestSuite {
+		out, _ = dockerCmd(c, "ps", "-a", "-q", "--no-trunc", "--filter=ancestor="+filter.filterName)
+		checkPsAncestorFilterOutput(c, out, filter.filterName, filter.expectedIDs)
+	}
+
+	// Multiple ancestor filter
+	out, _ = dockerCmd(c, "ps", "-a", "-q", "--no-trunc", "--filter=ancestor="+imageName2, "--filter=ancestor="+imageName1Tagged)
+	checkPsAncestorFilterOutput(c, out, imageName2+","+imageName1Tagged, []string{fourthID, fifthID})
+}
+
+func checkPsAncestorFilterOutput(c *check.C, out string, filterName string, expectedIDs []string) {
+	actualIDs := []string{}
+	if out != "" {
+		actualIDs = strings.Split(out[:len(out)-1], "\n")
+	}
+	sort.Strings(actualIDs)
+	sort.Strings(expectedIDs)
+
+	if len(actualIDs) != len(expectedIDs) {
+		c.Fatalf("Expected filtered container(s) for %s ancestor filter to be %v:%v, got %v:%v", filterName, len(expectedIDs), expectedIDs, len(actualIDs), actualIDs)
+	}
+	if len(expectedIDs) > 0 {
+		same := true
+		for i := range expectedIDs {
+			if actualIDs[i] != expectedIDs[i] {
+				c.Logf("%s, %s", actualIDs[i], expectedIDs[i])
+				same = false
+				break
+			}
+		}
+		if !same {
+			c.Fatalf("Expected filtered container(s) for %s ancestor filter to be %v, got %v", filterName, expectedIDs, actualIDs)
+		}
+	}
 }
 
 func (s *DockerSuite) TestPsListContainersFilterLabel(c *check.C) {
