@@ -358,25 +358,18 @@ type blobs struct {
 	distribution.BlobDeleter
 }
 
-func sanitizeLocation(location, source string) (string, error) {
+func sanitizeLocation(location, base string) (string, error) {
+	baseURL, err := url.Parse(base)
+	if err != nil {
+		return "", err
+	}
+
 	locationURL, err := url.Parse(location)
 	if err != nil {
 		return "", err
 	}
 
-	if locationURL.Scheme == "" {
-		sourceURL, err := url.Parse(source)
-		if err != nil {
-			return "", err
-		}
-		locationURL = &url.URL{
-			Scheme: sourceURL.Scheme,
-			Host:   sourceURL.Host,
-			Path:   location,
-		}
-		location = locationURL.String()
-	}
-	return location, nil
+	return baseURL.ResolveReference(locationURL).String(), nil
 }
 
 func (bs *blobs) Stat(ctx context.Context, dgst digest.Digest) (distribution.Descriptor, error) {
