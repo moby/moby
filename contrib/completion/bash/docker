@@ -965,7 +965,7 @@ _docker_ps() {
 			__docker_containers_all
 			;;
 		--filter|-f)
-			COMPREPLY=( $( compgen -S = -W "exited id label name status" -- "$cur" ) )
+			COMPREPLY=( $( compgen -S = -W "ancestor exited id label name status" -- "$cur" ) )
 			compopt -o nospace
 			return
 			;;
