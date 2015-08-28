@@ -127,7 +127,7 @@ RUN git clone https://github.com/golang/lint.git /go/src/github.com/golang/lint 
 RUN gem install --no-rdoc --no-ri fpm --version 1.3.2
 
 # Install registry
-ENV REGISTRY_COMMIT 2317f721a3d8428215a2b65da4ae85212ed473b4
+ENV REGISTRY_COMMIT ec87e9b6971d831f0eff752ddb54fb64693e51cd
 RUN set -x \
 	&& export GOPATH="$(mktemp -d)" \
 	&& git clone https://github.com/docker/distribution.git "$GOPATH/src/github.com/docker/distribution" \
