@@ -9,7 +9,6 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
-	"os/exec"
 	"path"
 	"path/filepath"
 	"strconv"
@@ -23,6 +22,7 @@ import (
 	"github.com/docker/docker/pkg/devicemapper"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/units"
+	"github.com/inheritcap"
 	"github.com/opencontainers/runc/libcontainer/label"
 )
 
@@ -495,16 +495,16 @@ func (devices *DeviceSet) createFilesystem(info *devInfo) error {
 	var err error
 	switch devices.filesystem {
 	case "xfs":
-		err = exec.Command("mkfs.xfs", args...).Run()
+		err = inheritcap.Command("mkfs.xfs", args...).Run()
 	case "ext4":
-		err = exec.Command("mkfs.ext4", append([]string{"-E", "nodiscard,lazy_itable_init=0,lazy_journal_init=0"}, args...)...).Run()
+		err = inheritcap.Command("mkfs.ext4", append([]string{"-E", "nodiscard,lazy_itable_init=0,lazy_journal_init=0"}, args...)...).Run()
 		if err != nil {
-			err = exec.Command("mkfs.ext4", append([]string{"-E", "nodiscard,lazy_itable_init=0"}, args...)...).Run()
+			err = inheritcap.Command("mkfs.ext4", append([]string{"-E", "nodiscard,lazy_itable_init=0"}, args...)...).Run()
 		}
 		if err != nil {
 			return err
 		}
-		err = exec.Command("tune2fs", append([]string{"-c", "-1", "-i", "0"}, devname)...).Run()
+		err = inheritcap.Command("tune2fs", append([]string{"-c", "-1", "-i", "0"}, devname)...).Run()
 	default:
 		err = fmt.Errorf("Unsupported filesystem type %s", devices.filesystem)
 	}
@@ -701,7 +701,7 @@ func (devices *DeviceSet) loadMetadata(hash string) *devInfo {
 }
 
 func getDeviceUUID(device string) (string, error) {
-	out, err := exec.Command("blkid", "-s", "UUID", "-o", "value", device).Output()
+	out, err := inheritcap.Command("blkid", "-s", "UUID", "-o", "value", device).Output()
 	if err != nil {
 		logrus.Debugf("Failed to find uuid for device %s:%v", device, err)
 		return "", err

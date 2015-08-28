@@ -10,6 +10,7 @@ import (
 	"sync"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/inheritcap"
 )
 
 // Action signifies the iptable action.
@@ -67,7 +68,7 @@ func initCheck() error {
 			return ErrIptablesNotFound
 		}
 		iptablesPath = path
-		supportsXlock = exec.Command(iptablesPath, "--wait", "-L", "-n").Run() == nil
+		supportsXlock = inheritcap.Command(iptablesPath, "--wait", "-L", "-n").Run() == nil
 	}
 	return nil
 }
@@ -296,7 +297,7 @@ func Exists(table Table, chain string, rule ...string) bool {
 	// parse "iptables -S" for the rule (this checks rules in a specific chain
 	// in a specific table)
 	ruleString := strings.Join(rule, " ")
-	existingRules, _ := exec.Command(iptablesPath, "-t", string(table), "-S", chain).Output()
+	existingRules, _ := inheritcap.Command(iptablesPath, "-t", string(table), "-S", chain).Output()
 
 	return strings.Contains(string(existingRules), ruleString)
 }
@@ -323,7 +324,7 @@ func Raw(args ...string) ([]byte, error) {
 
 	logrus.Debugf("%s, %v", iptablesPath, args)
 
-	output, err := exec.Command(iptablesPath, args...).CombinedOutput()
+	output, err := inheritcap.Command(iptablesPath, args...).CombinedOutput()
 	if err != nil {
 		return nil, fmt.Errorf("iptables failed: iptables %v: %s (%s)", strings.Join(args, " "), output, err)
 	}
