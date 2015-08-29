@@ -58,6 +58,8 @@ for version in "${versions[@]}"; do
 		device-mapper-devel # for "libdevmapper.h"
 		glibc-static
 		libselinux-devel # for "libselinux.so"
+		selinux-policy
+		selinux-policy-devel
 		sqlite-devel # for "sqlite3.h"
 		tar # older versions of dev-tools do not have tar
 	)
