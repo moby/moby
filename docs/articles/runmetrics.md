@@ -78,7 +78,7 @@ in `docker ps`, its long ID might be something like
 look it up with `docker inspect` or `docker ps --no-trunc`.
 
 Putting everything together to look at the memory metrics for a Docker
-container, take a look at `/sys/fs/cgroup/memory/lxc/<longid>/`.
+container, take a look at `/sys/fs/cgroup/memory/docker/<longid>/`.
 
 ## Metrics from cgroups: memory, CPU, block I/O
 
@@ -396,7 +396,7 @@ control group (i.e., in the container). Pick any one of them.
 Putting everything together, if the "short ID" of a container is held in
 the environment variable `$CID`, then you can do this:
 
-    $ TASKS=/sys/fs/cgroup/devices/$CID*/tasks
+    $ TASKS=/sys/fs/cgroup/devices/docker/$CID*/tasks
     $ PID=$(head -n 1 $TASKS)
     $ mkdir -p /var/run/netns
     $ ln -sf /proc/$PID/ns/net /var/run/netns/$CID
