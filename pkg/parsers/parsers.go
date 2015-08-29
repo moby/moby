@@ -12,17 +12,17 @@ import (
 	"strings"
 )
 
-// ParseHost parses the specified address and returns an address that will be used as the host.
+// ParseDockerDaemonHost parses the specified address and returns an address that will be used as the host.
 // Depending of the address specified, will use the defaultTCPAddr or defaultUnixAddr
-func ParseHost(defaultTCPAddr, defaultUnixAddr, addr string) (string, error) {
+// defaultUnixAddr must be a absolute file path (no `unix://` prefix)
+// defaultTCPAddr must be the full `tcp://host:port` form
+func ParseDockerDaemonHost(defaultTCPAddr, defaultUnixAddr, addr string) (string, error) {
 	addr = strings.TrimSpace(addr)
 	if addr == "" {
 		if runtime.GOOS != "windows" {
-			addr = fmt.Sprintf("unix://%s", defaultUnixAddr)
-		} else {
-			// Note - defaultTCPAddr already includes tcp:// prefix
-			addr = defaultTCPAddr
+			return fmt.Sprintf("unix://%s", defaultUnixAddr), nil
 		}
+		return defaultTCPAddr, nil
 	}
 	addrParts := strings.Split(addr, "://")
 	if len(addrParts) == 1 {
@@ -58,11 +58,16 @@ func ParseUnixAddr(addr string, defaultAddr string) (string, error) {
 
 // ParseTCPAddr parses and validates that the specified address is a valid TCP
 // address. It returns a formatted TCP address, either using the address parsed
-// from addr, or the contents of defaultAddr if addr is a blank string.
-func ParseTCPAddr(addr string, defaultAddr string) (string, error) {
-	addr = strings.TrimPrefix(addr, "tcp://")
+// from tryAddr, or the contents of defaultAddr if tryAddr is a blank string.
+// tryAddr is expected to have already been Trim()'d
+// defaultAddr must be in the full `tcp://host:port` form
+func ParseTCPAddr(tryAddr string, defaultAddr string) (string, error) {
+	if tryAddr == "" || tryAddr == "tcp://" {
+		return defaultAddr, nil
+	}
+	addr := strings.TrimPrefix(tryAddr, "tcp://")
 	if strings.Contains(addr, "://") || addr == "" {
-		return "", fmt.Errorf("Invalid proto, expected tcp: %s", addr)
+		return "", fmt.Errorf("Invalid proto, expected tcp: %s", tryAddr)
 	}
 
 	u, err := url.Parse("tcp://" + addr)
@@ -71,16 +76,23 @@ func ParseTCPAddr(addr string, defaultAddr string) (string, error) {
 	}
 	hostParts := strings.Split(u.Host, ":")
 	if len(hostParts) != 2 {
-		return "", fmt.Errorf("Invalid bind address format: %s", addr)
+		return "", fmt.Errorf("Invalid bind address format: %s", tryAddr)
 	}
-	host := hostParts[0]
-	if host == "" {
-		host = defaultAddr
+	defaults := strings.Split(defaultAddr, ":")
+	if len(defaults) != 3 {
+		return "", fmt.Errorf("Invalid defaults address format: %s", defaultAddr)
 	}
 
+	host := hostParts[0]
+	if host == "" {
+		host = strings.TrimPrefix(defaults[1], "//")
+	}
+	if hostParts[1] == "" {
+		hostParts[1] = defaults[2]
+	}
 	p, err := strconv.Atoi(hostParts[1])
 	if err != nil && p == 0 {
-		return "", fmt.Errorf("Invalid bind address format: %s", addr)
+		return "", fmt.Errorf("Invalid bind address format: %s", tryAddr)
 	}
 	return fmt.Sprintf("tcp://%s:%d%s", host, p, u.Path), nil
 }

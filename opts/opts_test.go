@@ -441,7 +441,6 @@ func TestValidateHost(t *testing.T) {
 		"something with spaces": "Invalid bind address format: something with spaces",
 		"://":                "Invalid bind address format: ://",
 		"unknown://":         "Invalid bind address format: unknown://",
-		"tcp://":             "Invalid proto, expected tcp: ",
 		"tcp://:port":        "Invalid bind address format: :port",
 		"tcp://invalid":      "Invalid bind address format: invalid",
 		"tcp://invalid:port": "Invalid bind address format: invalid:port",
@@ -449,6 +448,8 @@ func TestValidateHost(t *testing.T) {
 	valid := map[string]string{
 		"fd://":                    "fd://",
 		"fd://something":           "fd://something",
+		"tcp://host:":              "tcp://host:2375",
+		"tcp://":                   "tcp://127.0.0.1:2375",
 		"tcp://:2375":              "tcp://127.0.0.1:2375", // default ip address
 		"tcp://:2376":              "tcp://127.0.0.1:2376", // default ip address
 		"tcp://0.0.0.0:8080":       "tcp://0.0.0.0:8080",

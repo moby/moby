@@ -25,6 +25,8 @@ var (
 	// DefaultUnixSocket Path for the unix socket.
 	// Docker daemon by default always listens on the default unix socket
 	DefaultUnixSocket = "/var/run/docker.sock"
+	// DefaultTCPHost constant defines the default host string used by docker on Windows
+	DefaultTCPHost = fmt.Sprintf("tcp://%s:%d", DefaultHTTPHost, DefaultHTTPPort)
 )
 
 // ListOpts holds a list of values and a validation function.
@@ -333,7 +335,7 @@ func ValidateLabel(val string) (string, error) {
 
 // ValidateHost validates that the specified string is a valid host and returns it.
 func ValidateHost(val string) (string, error) {
-	host, err := parsers.ParseHost(DefaultHTTPHost, DefaultUnixSocket, val)
+	host, err := parsers.ParseDockerDaemonHost(DefaultTCPHost, DefaultUnixSocket, val)
 	if err != nil {
 		return val, err
 	}
