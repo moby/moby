@@ -34,7 +34,7 @@ hosts of unnecessary Docker artifacts such as stopped containers or unused
 images. Cleaning unnecessary artifacts isn't strictly necessary, but it is
 good practice, so it is included here.
 
-To remove unnecessary artifacts,
+To remove unnecessary artifacts:
 
 1. Verify that you have no unnecessary containers running on your host.
 
@@ -287,7 +287,7 @@ with the `make.sh` script.
 
         root@5f8630b873fe:/go/src/github.com/docker/docker#  docker daemon -D
 
-    The `-dD` flag starts the daemon in debug mode. You'll find this useful
+    The `-D` flag starts the daemon in debug mode. You'll find this useful
     when debugging your code.
 
 9. Bring up one of the terminals on your local host.
