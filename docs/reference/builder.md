@@ -62,6 +62,11 @@ the build succeeds:
 
     $ docker build -t shykes/myapp .
 
+To tag the image into multiple repositories after the build,
+add multiple `-t` parameters when you run the `build` command:
+
+    $ docker build -t shykes/myapp:1.0.2 -t shykes/myapp:latest .
+
 The Docker daemon runs the instructions in the `Dockerfile` one-by-one,
 committing the result of each instruction
 to a new image if necessary, before finally outputting the ID of your

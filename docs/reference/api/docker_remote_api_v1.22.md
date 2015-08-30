@@ -1386,8 +1386,9 @@ Query Parameters:
 
 -   **dockerfile** - Path within the build context to the Dockerfile. This is
         ignored if `remote` is specified and points to an individual filename.
--   **t** – A repository name (and optionally a tag) to apply to
-        the resulting image in case of success.
+-   **t** – A name and optional tag to apply to the image in the `name:tag` format.
+        If you omit the `tag` the default `latest` value is assumed.
+        You can provide one or more `t` parameters.
 -   **remote** – A Git repository URI or HTTP/HTTPS URI build source. If the 
         URI specifies a filename, the file's contents are placed into a file 
 		called `Dockerfile`.

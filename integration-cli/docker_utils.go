@@ -1122,7 +1122,6 @@ func buildImageCmd(name, dockerfile string, useCache bool, buildFlags ...string)
 	buildCmd := exec.Command(dockerBinary, args...)
 	buildCmd.Stdin = strings.NewReader(dockerfile)
 	return buildCmd
-
 }
 
 func buildImageWithOut(name, dockerfile string, useCache bool, buildFlags ...string) (string, string, error) {

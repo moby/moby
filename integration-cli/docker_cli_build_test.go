@@ -6258,3 +6258,22 @@ func (s *DockerSuite) TestBuildTagEvent(c *check.C) {
 		c.Fatal("The 'tag' event not heard from the server")
 	}
 }
+
+// #15780
+func (s *DockerSuite) TestBuildMultipleTags(c *check.C) {
+	dockerfile := `
+	FROM busybox
+	MAINTAINER test-15780
+	`
+	cmd := exec.Command(dockerBinary, "build", "-t", "tag1", "-t", "tag2:v2",
+		"-t", "tag1:latest", "-t", "tag1", "--no-cache", "-")
+	cmd.Stdin = strings.NewReader(dockerfile)
+	_, err := runCommand(cmd)
+	c.Assert(err, check.IsNil)
+
+	id1, err := getIDByName("tag1")
+	c.Assert(err, check.IsNil)
+	id2, err := getIDByName("tag2:v2")
+	c.Assert(err, check.IsNil)
+	c.Assert(id1, check.Equals, id2)
+}

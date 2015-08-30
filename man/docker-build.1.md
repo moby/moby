@@ -16,7 +16,7 @@ docker-build - Build a new image from the source code at PATH
 [**--pull**[=*false*]]
 [**-q**|**--quiet**[=*false*]]
 [**--rm**[=*true*]]
-[**-t**|**--tag**[=*TAG*]]
+[**-t**|**--tag**[=*[]*]]
 [**-m**|**--memory**[=*MEMORY*]]
 [**--memory-swap**[=*MEMORY-SWAP*]]
 [**--cpu-period**[=*0*]]
@@ -82,7 +82,7 @@ set as the **URL**, the repository is cloned locally and then sent as the contex
    Remove intermediate containers after a successful build. The default is *true*.
 
 **-t**, **--tag**=""
-   Repository name (and optionally a tag) to be applied to the resulting image in case of success
+   Repository names (and optionally with tags) to be applied to the resulting image in case of success.
 
 **-m**, **--memory**=*MEMORY*
   Memory limit
@@ -234,6 +234,14 @@ If you do not provide a version tag then Docker will assign `latest`:
     docker build -t whenry/fedora-jboss .
 
 When you list the images, the image above will have the tag `latest`.
+
+You can apply multiple tags to an image. For example, you can apply the `latest`
+tag to a newly built image and add another tag that references a specific
+version.
+For example, to tag an image both as `whenry/fedora-jboss:latest` and
+`whenry/fedora-jboss:v2.1`, use the following:
+
+    docker build -t whenry/fedora-jboss:latest -t whenry/fedora-jboss:v2.1 .
 
 So renaming an image is arbitrary but consideration should be given to 
 a useful convention that makes sense for consumers and should also take
