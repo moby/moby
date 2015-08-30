@@ -10,9 +10,8 @@ parent = "smn_applied"
 
 # Dockerizing PostgreSQL
 
-> **Note**: 
-> - **If you don't like sudo** then see [*Giving non-root
->   access*](/installation/binaries/#giving-non-root-access)
+> **Note**: **If you don't like sudo** then see [*Giving non-root
+> access*](/installation/binaries/#giving-non-root-access)
 
 ## Installing PostgreSQL on Docker
 
@@ -21,7 +20,7 @@ Hub](http://hub.docker.com), you can create one yourself.
 
 Start by creating a new `Dockerfile`:
 
-> **Note**: 
+> **Note**:
 > This PostgreSQL setup is for development-only purposes. Refer to the
 > PostgreSQL documentation to fine-tune these settings so that it is
 > suitably secure.
@@ -61,7 +60,7 @@ Start by creating a new `Dockerfile`:
         createdb -O docker docker
 
     # Adjust PostgreSQL configuration so that remote connections to the
-    # database are possible. 
+    # database are possible.
     RUN echo "host all  all    0.0.0.0/0  md5" >> /etc/postgresql/9.3/main/pg_hba.conf
 
     # And add ``listen_addresses`` to ``/etc/postgresql/9.3/main/postgresql.conf``
@@ -88,7 +87,7 @@ There are 2 ways to connect to the PostgreSQL server. We can use [*Link
 Containers*](/userguide/dockerlinks), or we can access it from our host
 (or the network).
 
-> **Note**: 
+> **Note**:
 > The `--rm` removes the container and its image when
 > the container exits successfully.
 

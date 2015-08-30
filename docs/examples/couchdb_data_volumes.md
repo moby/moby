@@ -10,9 +10,8 @@ parent = "smn_applied"
 
 # Dockerizing a CouchDB service
 
-> **Note**: 
-> - **If you don't like sudo** then see [*Giving non-root
->   access*](/installation/binaries/#giving-non-root-access)
+> **Note**: **If you don't like sudo** then see [*Giving non-root
+> access*](/installation/binaries/#giving-non-root-access)
 
 Here's an example of using data volumes to share the same data between
 two CouchDB containers. This could be used for hot upgrades, testing

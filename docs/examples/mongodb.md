@@ -16,9 +16,7 @@ In this example, we are going to learn how to build a Docker image with
 MongoDB pre-installed.  We'll also see how to `push` that image to the
 [Docker Hub registry](https://hub.docker.com) and share it with others!
 
-> **Note:**
->
-> This guide will show the mechanics of building a MongoDB container, but
+> **Note:** This guide will show the mechanics of building a MongoDB container, but
 > you will probably want to use the official image on [Docker Hub]( https://registry.hub.docker.com/_/mongo/)
 
 Using Docker and containers for deploying [MongoDB](https://www.mongodb.org/)
@@ -148,7 +146,7 @@ as daemon process(es).
 
     # Dockerized MongoDB, lean and mean!
     # Usage: docker run --name <name for container> -d <user-name>/<repository> --noprealloc --smallfiles
-    $ docker run -p 27017:27017 --name mongo_instance_001 -d my/repo --noprealloc --smallfiles
+    $ docker run -p 27017:27017 --name mongo_instance_001 -d my/repo --smallfiles
 
     # Checking out the logs of a MongoDB container
     # Usage: docker logs <name for container>

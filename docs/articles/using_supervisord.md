@@ -10,9 +10,8 @@ parent = "smn_third_party"
 
 # Using Supervisor with Docker
 
-> **Note**:
-> - **If you don't like sudo** then see [*Giving non-root
->   access*](/installation/binaries/#giving-non-root-access)
+> **Note**: **If you don't like sudo** then see [*Giving non-root
+> access*](/installation/binaries/#giving-non-root-access)
 
 Traditionally a Docker container runs a single process when it is
 launched, for example an Apache daemon or a SSH server daemon. Often

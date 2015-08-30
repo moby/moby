@@ -10,11 +10,10 @@ parent = "smn_applied"
 
 # Dockerizing an apt-cacher-ng service
 
-> **Note**: 
-> - **If you don't like sudo** then see [*Giving non-root
->   access*](/installation/binaries/#giving-non-root-access).
-> - **If you're using OS X or docker via TCP** then you shouldn't use
->   sudo.
+> **Note**: **If you don't like sudo** then see [*Giving non-root
+> access*](/installation/binaries/#giving-non-root-access).
+> **If you're using OS X or Docker via TCP** then you shouldn't use
+> sudo.
 
 When you have multiple Docker servers, or build unrelated Docker
 containers which can't make use of the Docker build cache, it can be
