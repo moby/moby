@@ -1,4 +1,4 @@
-Docker: the container engine
+Docker: the container engine [![Release](https://img.shields.io/github/release/docker/docker.svg)](https://github.com/docker/docker/releases/latest)
 ============================
 
 Docker is an open source project to pack, ship and run any application
@@ -176,11 +176,12 @@ Under the hood, Docker is built on the following components:
 * The [Docker Image Specification](https://github.com/docker/docker/blob/master/image/spec/v1.md)
 * The [Libcontainer Specification](https://github.com/opencontainers/runc/blob/master/libcontainer/SPEC.md)
 
-Contributing to Docker
+Contributing to Docker [![GoDoc](https://godoc.org/github.com/docker/docker?status.svg)](https://godoc.org/github.com/docker/docker)
 ======================
 
-[![GoDoc](https://godoc.org/github.com/docker/docker?status.svg)](https://godoc.org/github.com/docker/docker)
-[![Jenkins Build Status](https://jenkins.dockerproject.org/job/Docker%20Master/badge/icon)](https://jenkins.dockerproject.org/job/Docker%20Master/)
+| **Master** (Linux) | **Experimental** (linux) | **Windows** | **FreeBSD** |
+|------------------|----------------------|---------|---------|
+| [![Jenkins Build Status](https://jenkins.dockerproject.org/view/Docker/job/Docker%20Master/badge/icon)](https://jenkins.dockerproject.org/view/Docker/job/Docker%20Master/) | [![Jenkins Build Status](https://jenkins.dockerproject.org/view/Docker/job/Docker%20Master%20%28experimental%29/badge/icon)](https://jenkins.dockerproject.org/view/Docker/job/Docker%20Master%20%28experimental%29/) | [![Build Status](http://jenkins.dockerproject.org/job/Docker%20Master%20(windows)/badge/icon)](http://jenkins.dockerproject.org/job/Docker%20Master%20(windows)/) | [![Build Status](http://jenkins.dockerproject.org/job/Docker%20Master%20(freebsd)/badge/icon)](http://jenkins.dockerproject.org/job/Docker%20Master%20(freebsd)/) |
 
 Want to hack on Docker? Awesome! We have [instructions to help you get
 started contributing code or documentation](https://docs.docker.com/project/who-written-for/).
