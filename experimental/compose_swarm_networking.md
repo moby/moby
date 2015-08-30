@@ -50,7 +50,7 @@ Next, you create a Swarm master with Machine:
 
     docker-machine --debug create \
         -d digitalocean \
-        --digitalocean-image="ubuntu-14-10-x64" \
+        --digitalocean-image="ubuntu-14-04-x64" \
         --engine-install-url="https://experimental.docker.com" \
         --engine-opt="default-network=overlay:multihost" \
         --engine-opt="kv-store=consul:$(docker-machine ip consul):8500" \
