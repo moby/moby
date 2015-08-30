@@ -93,6 +93,7 @@ type resolvConfPathConfig struct {
 	resolvConfHashFile   string
 	dnsList              []string
 	dnsSearchList        []string
+	dnsOptionsList       []string
 }
 
 type containerConfig struct {
@@ -406,17 +407,21 @@ func (sb *sandbox) setupDNS() error {
 	}
 	dnsList := resolvconf.GetNameservers(resolvConf)
 	dnsSearchList := resolvconf.GetSearchDomains(resolvConf)
+	dnsOptionsList := resolvconf.GetOptions(resolvConf)
 
-	if len(sb.config.dnsList) > 0 || len(sb.config.dnsSearchList) > 0 {
+	if len(sb.config.dnsList) > 0 || len(sb.config.dnsSearchList) > 0 || len(dnsOptionsList) > 0 {
 		if len(sb.config.dnsList) > 0 {
 			dnsList = sb.config.dnsList
 		}
 		if len(sb.config.dnsSearchList) > 0 {
 			dnsSearchList = sb.config.dnsSearchList
 		}
+		if len(sb.config.dnsOptionsList) > 0 {
+			dnsOptionsList = sb.config.dnsOptionsList
+		}
 	}
 
-	hash, err := resolvconf.Build(sb.config.resolvConfPath, dnsList, dnsSearchList)
+	hash, err := resolvconf.Build(sb.config.resolvConfPath, dnsList, dnsSearchList, dnsOptionsList)
 	if err != nil {
 		return err
 	}
@@ -577,6 +582,14 @@ func OptionDNS(dns string) SandboxOption {
 func OptionDNSSearch(search string) SandboxOption {
 	return func(sb *sandbox) {
 		sb.config.dnsSearchList = append(sb.config.dnsSearchList, search)
+	}
+}
+
+// OptionDNSOptions function returns an option setter for dns options entry option to
+// be passed to container Create method.
+func OptionDNSOptions(options string) SandboxOption {
+	return func(sb *sandbox) {
+		sb.config.dnsOptionsList = append(sb.config.dnsOptionsList, options)
 	}
 }
 
