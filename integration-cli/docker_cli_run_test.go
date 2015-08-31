@@ -792,7 +792,7 @@ func (s *DockerSuite) TestRunAddingOptionalDevicesNoSrc(c *check.C) {
 	}
 }
 
-func (s *DockerSuite) TestRunAddingOptionalDevicesInvalideMode(c *check.C) {
+func (s *DockerSuite) TestRunAddingOptionalDevicesInvalidMode(c *check.C) {
 	_, _, err := dockerCmdWithError("run", "--device", "/dev/zero:ro", "busybox", "sh", "-c", "ls /dev/zero")
 	if err == nil {
 		c.Fatalf("run container with device mode ro should fail")
