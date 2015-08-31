@@ -49,6 +49,7 @@ RUN apt-get update && apt-get install -y \
 	gcc-mingw-w64 \
 	git \
 	iptables \
+	jq \
 	libapparmor-dev \
 	libcap-dev \
 	libltdl-dev \
@@ -175,11 +176,11 @@ RUN ln -sfv $PWD/.bashrc ~/.bashrc
 RUN ln -sv $PWD/contrib/completion/bash/docker /etc/bash_completion.d/docker
 
 # Get useful and necessary Hub images so we can "docker load" locally instead of pulling
-COPY contrib/download-frozen-image.sh /go/src/github.com/docker/docker/contrib/
-RUN ./contrib/download-frozen-image.sh /docker-frozen-images \
-	busybox:latest@d7057cb020844f245031d27b76cb18af05db1cc3a96a29fa7777af75f5ac91a3 \
-	hello-world:frozen@91c95931e552b11604fea91c2f537284149ec32fff0f700a4769cfd31d7696ae \
-	jess/unshare@5c9f6ea50341a2a8eb6677527f2bdedbf331ae894a41714fda770fb130f3314d
+COPY contrib/download-frozen-image-v2.sh /go/src/github.com/docker/docker/contrib/
+RUN ./contrib/download-frozen-image-v2.sh /docker-frozen-images \
+	busybox:latest@sha256:eb3c0d4680f9213ee5f348ea6d39489a1f85a318a2ae09e012c426f78252a6d2 \
+	hello-world:latest@sha256:8be990ef2aeb16dbcb9271ddfe2610fa6658d13f6dfb8bc72074cc1ca36966a7 \
+	jess/unshare:latest@sha256:2e3a8c0591c4690b82d4eba7e5ef8f49f2ddfe9f867f3e865198db9bd1436c5b
 # see also "hack/make/.ensure-frozen-images" (which needs to be updated any time this list is)
 
 # Download man page generator

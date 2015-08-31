@@ -4,17 +4,17 @@ set -e
 # this list should match roughly what's in the Dockerfile (minus the explicit image IDs, of course)
 images=(
 	busybox:latest
-	hello-world:frozen
+	hello-world:latest
 	jess/unshare:latest
 )
 
 # on ARM we need images that work for the ARM architecture
-if [ -v DOCKER_ENGINE_OSARCH ] && [ "$DOCKER_ENGINE_OSARCH" = "linux/arm" ]; then
-  images=(
-    hypriot/armhf-busybox@ea0800bb83571c585c5652b53668e76b29c7c0eef719892f9d0a48607984f9e1
-    hypriot/armhf-hello-world@508c59a4f8b23c77bbcf43296c3f580873dc7eecb1f0d680cea3067e221fd4c2
-    hypriot/armhf-unshare@3f1db65f8bbabc743fd739cf7145a56c35b2a0979ae3174e9d79b7fa4b00fca1
-  )
+if [ "$DOCKER_ENGINE_OSARCH" = "linux/arm" ]; then
+	images=(
+		hypriot/armhf-busybox@ea0800bb83571c585c5652b53668e76b29c7c0eef719892f9d0a48607984f9e1
+		hypriot/armhf-hello-world@508c59a4f8b23c77bbcf43296c3f580873dc7eecb1f0d680cea3067e221fd4c2
+		hypriot/armhf-unshare@3f1db65f8bbabc743fd739cf7145a56c35b2a0979ae3174e9d79b7fa4b00fca1
+	)
 fi
 
 if ! docker inspect "${images[@]}" &> /dev/null; then
@@ -23,10 +23,10 @@ if ! docker inspect "${images[@]}" &> /dev/null; then
 		( set -x; tar -cC "$hardCodedDir" . | docker load )
 	else
 		dir="$DEST/frozen-images"
-		# extract the exact "RUN download-frozen-image.sh" line from the Dockerfile itself for consistency
-		# NOTE: this will fail if either "curl" is not installed or if the Dockerfile is not available/readable
+		# extract the exact "RUN download-frozen-image-v2.sh" line from the Dockerfile itself for consistency
+		# NOTE: this will fail if either "curl" or "jq" is not installed or if the Dockerfile is not available/readable
 		awk '
-			$1 == "RUN" && $2 == "./contrib/download-frozen-image.sh" {
+			$1 == "RUN" && $2 == "./contrib/download-frozen-image-v2.sh" {
 				for (i = 2; i < NF; i++)
 					printf ( $i == "'"$hardCodedDir"'" ? "'"$dir"'" : $i ) " ";
 				print $NF;
@@ -46,14 +46,16 @@ if ! docker inspect "${images[@]}" &> /dev/null; then
 	fi
 fi
 
-if [ -v DOCKER_ENGINE_OSARCH ] && [ "$DOCKER_ENGINE_OSARCH" = "linux/arm" ]; then
-  # tag images to ensure that all integrations work with the defined image names
-  docker tag hypriot/armhf-busybox:latest busybox:latest
-  docker tag hypriot/armhf-hello-world:latest hello-world:frozen
-  docker tag hypriot/armhf-unshare:latest jess/unshare:latest
+if [ "$DOCKER_ENGINE_OSARCH" = "linux/arm" ]; then
+	# tag images to ensure that all integrations work with the defined image names
+	docker tag hypriot/armhf-busybox:latest busybox:latest
+	docker tag hypriot/armhf-hello-world:latest hello-world:frozen
+	docker tag hypriot/armhf-unshare:latest jess/unshare:latest
 
-  # remove orignal tags as these make problems with later tests: TestInspectApiImageResponse
-  docker rmi hypriot/armhf-busybox:latest
-  docker rmi hypriot/armhf-hello-world:latest
-  docker rmi hypriot/armhf-unshare:latest
+	# remove orignal tags as these make problems with later tests: TestInspectApiImageResponse
+	docker rmi hypriot/armhf-busybox:latest
+	docker rmi hypriot/armhf-hello-world:latest
+	docker rmi hypriot/armhf-unshare:latest
+else
+	docker tag hello-world:latest hello-world:frozen
 fi
