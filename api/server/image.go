@@ -233,10 +233,15 @@ func (s *Server) deleteImages(version version.Version, w http.ResponseWriter, r 
 	}
 
 	name := vars["name"]
-	force := boolValue(r, "force")
-	noprune := boolValue(r, "noprune")
 
-	list, err := s.daemon.ImageDelete(name, force, noprune)
+	if name == "" {
+		return fmt.Errorf("image name cannot be blank")
+	}
+
+	force := boolValue(r, "force")
+	prune := !boolValue(r, "noprune")
+
+	list, err := s.daemon.ImageDelete(name, force, prune)
 	if err != nil {
 		return err
 	}

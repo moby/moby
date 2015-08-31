@@ -188,6 +188,12 @@ func (store *TagStore) ByID() map[string][]string {
 	return byID
 }
 
+// HasReferences returns whether or not the given image is referenced in one or
+// more repositories.
+func (store *TagStore) HasReferences(img *image.Image) bool {
+	return len(store.ByID()[img.ID]) > 0
+}
+
 // ImageName returns name of an image, given the image's ID.
 func (store *TagStore) ImageName(id string) string {
 	if names, exists := store.ByID()[id]; exists && len(names) > 0 {
