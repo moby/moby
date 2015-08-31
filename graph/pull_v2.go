@@ -1,7 +1,6 @@
 package graph
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -193,33 +192,6 @@ func (p *v2Puller) pullV2Tag(out io.Writer, tag, taggedName string) (verified bo
 		logrus.Printf("Image manifest for %s has been verified", taggedName)
 	}
 
-	// By using a pipeWriter for each of the downloads to write their progress
-	// to, we can avoid an issue where this function returns an error but
-	// leaves behind running download goroutines. By splitting the writer
-	// with a pipe, we can close the pipe if there is any error, consequently
-	// causing each download to cancel due to an error writing to this pipe.
-	pipeReader, pipeWriter := io.Pipe()
-	go func() {
-		if _, err := io.Copy(out, pipeReader); err != nil {
-			logrus.Errorf("error copying from layer download progress reader: %s", err)
-			if err := pipeReader.CloseWithError(err); err != nil {
-				logrus.Errorf("error closing the progress reader: %s", err)
-			}
-		}
-	}()
-	defer func() {
-		if err != nil {
-			// All operations on the pipe are synchronous. This call will wait
-			// until all current readers/writers are done using the pipe then
-			// set the error. All successive reads/writes will return with this
-			// error.
-			pipeWriter.CloseWithError(errors.New("download canceled"))
-		} else {
-			// If no error then just close the pipe.
-			pipeWriter.Close()
-		}
-	}()
-
 	out.Write(p.sf.FormatStatus(tag, "Pulling from %s", p.repo.Name()))
 
 	var downloads []*downloadInfo
@@ -275,7 +247,7 @@ func (p *v2Puller) pullV2Tag(out io.Writer, tag, taggedName string) (verified bo
 		downloads = append(downloads, d)
 
 		broadcaster, found := p.poolAdd("pull", d.poolKey)
-		broadcaster.Add(pipeWriter)
+		broadcaster.Add(out)
 		d.broadcaster = broadcaster
 		if found {
 			d.err <- nil
