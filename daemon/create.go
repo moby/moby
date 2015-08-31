@@ -2,6 +2,7 @@ package daemon
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types"
@@ -28,11 +29,14 @@ func (daemon *Daemon) ContainerCreate(name string, config *runconfig.Config, hos
 	container, buildWarnings, err := daemon.Create(config, hostConfig, name)
 	if err != nil {
 		if daemon.Graph().IsNotExist(err, config.Image) {
-			_, tag := parsers.ParseRepositoryTag(config.Image)
+			if strings.Contains(config.Image, "@") {
+				return nil, warnings, fmt.Errorf("No such image: %s", config.Image)
+			}
+			img, tag := parsers.ParseRepositoryTag(config.Image)
 			if tag == "" {
 				tag = tags.DefaultTag
 			}
-			return nil, warnings, fmt.Errorf("No such image: %s (tag: %s)", config.Image, tag)
+			return nil, warnings, fmt.Errorf("No such image: %s:%s", img, tag)
 		}
 		return nil, warnings, err
 	}
