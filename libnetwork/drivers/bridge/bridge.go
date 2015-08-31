@@ -20,6 +20,7 @@ import (
 	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/libnetwork/netutils"
 	"github.com/docker/libnetwork/options"
+	"github.com/docker/libnetwork/osl"
 	"github.com/docker/libnetwork/portmapper"
 	"github.com/docker/libnetwork/types"
 	"github.com/vishvananda/netlink"
@@ -570,6 +571,8 @@ func (d *driver) getNetworks() []*bridgeNetwork {
 func (d *driver) CreateNetwork(id string, option map[string]interface{}) error {
 	var err error
 
+	defer osl.InitOSContext()()
+
 	// Sanity checks
 	d.Lock()
 	if _, ok := d.networks[id]; ok {
@@ -722,6 +725,8 @@ func (d *driver) CreateNetwork(id string, option map[string]interface{}) error {
 func (d *driver) DeleteNetwork(nid string) error {
 	var err error
 
+	defer osl.InitOSContext()()
+
 	// Get network handler and remove it from driver
 	d.Lock()
 	n, ok := d.networks[nid]
@@ -848,6 +853,8 @@ func (d *driver) CreateEndpoint(nid, eid string, epInfo driverapi.EndpointInfo, 
 		ipv6Addr *net.IPNet
 		err      error
 	)
+
+	defer osl.InitOSContext()()
 
 	if epInfo == nil {
 		return errors.New("invalid endpoint info passed")
@@ -1057,6 +1064,8 @@ func (d *driver) CreateEndpoint(nid, eid string, epInfo driverapi.EndpointInfo, 
 func (d *driver) DeleteEndpoint(nid, eid string) error {
 	var err error
 
+	defer osl.InitOSContext()()
+
 	// Get the network handler and make sure it exists
 	d.Lock()
 	n, ok := d.networks[nid]
@@ -1196,6 +1205,8 @@ func (d *driver) EndpointOperInfo(nid, eid string) (map[string]interface{}, erro
 
 // Join method is invoked when a Sandbox is attached to an endpoint.
 func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo, options map[string]interface{}) error {
+	defer osl.InitOSContext()()
+
 	network, err := d.getNetwork(nid)
 	if err != nil {
 		return err
@@ -1239,6 +1250,8 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 
 // Leave method is invoked when a Sandbox detaches from an endpoint.
 func (d *driver) Leave(nid, eid string) error {
+	defer osl.InitOSContext()()
+
 	network, err := d.getNetwork(nid)
 	if err != nil {
 		return err

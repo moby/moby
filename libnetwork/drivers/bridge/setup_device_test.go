@@ -6,11 +6,12 @@ import (
 	"testing"
 
 	"github.com/docker/libnetwork/netutils"
+	"github.com/docker/libnetwork/osl"
 	"github.com/vishvananda/netlink"
 )
 
 func TestSetupNewBridge(t *testing.T) {
-	defer netutils.SetupTestNetNS(t)()
+	defer osl.SetupTestOSContext(t)()
 
 	config := &networkConfiguration{BridgeName: DefaultBridgeName}
 	br := &bridgeInterface{}
@@ -30,7 +31,7 @@ func TestSetupNewBridge(t *testing.T) {
 }
 
 func TestSetupNewNonDefaultBridge(t *testing.T) {
-	defer netutils.SetupTestNetNS(t)()
+	defer osl.SetupTestOSContext(t)()
 
 	config := &networkConfiguration{BridgeName: "test0"}
 	br := &bridgeInterface{}
@@ -46,7 +47,7 @@ func TestSetupNewNonDefaultBridge(t *testing.T) {
 }
 
 func TestSetupDeviceUp(t *testing.T) {
-	defer netutils.SetupTestNetNS(t)()
+	defer osl.SetupTestOSContext(t)()
 
 	config := &networkConfiguration{BridgeName: DefaultBridgeName}
 	br := &bridgeInterface{}
@@ -65,7 +66,7 @@ func TestSetupDeviceUp(t *testing.T) {
 }
 
 func TestGenerateRandomMAC(t *testing.T) {
-	defer netutils.SetupTestNetNS(t)()
+	defer osl.SetupTestOSContext(t)()
 
 	mac1 := netutils.GenerateRandomMAC()
 	mac2 := netutils.GenerateRandomMAC()

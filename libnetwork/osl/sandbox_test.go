@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/docker/docker/pkg/reexec"
-	"github.com/docker/libnetwork/netutils"
 )
 
 func TestMain(m *testing.M) {
@@ -17,7 +16,7 @@ func TestMain(m *testing.M) {
 }
 
 func TestSandboxCreate(t *testing.T) {
-	defer netutils.SetupTestNetNS(t)()
+	defer SetupTestOSContext(t)()
 
 	key, err := newKey(t)
 	if err != nil {
@@ -73,7 +72,7 @@ func TestSandboxCreate(t *testing.T) {
 }
 
 func TestSandboxCreateTwice(t *testing.T) {
-	defer netutils.SetupTestNetNS(t)()
+	defer SetupTestOSContext(t)()
 
 	key, err := newKey(t)
 	if err != nil {
@@ -123,7 +122,7 @@ func TestSandboxGC(t *testing.T) {
 }
 
 func TestAddRemoveInterface(t *testing.T) {
-	defer netutils.SetupTestNetNS(t)()
+	defer SetupTestOSContext(t)()
 
 	key, err := newKey(t)
 	if err != nil {
