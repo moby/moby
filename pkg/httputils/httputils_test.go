@@ -24,36 +24,52 @@ func TestNewHTTPRequestError(t *testing.T) {
 }
 
 func TestParseServerHeader(t *testing.T) {
-	if _, err := ParseServerHeader("bad header"); err != errInvalidHeader {
-		t.Fatalf("Should fail when header can not be parsed")
+	inputs := map[string][]string{
+		"bad header":           {"error"},
+		"(bad header)":         {"error"},
+		"(without/spaces)":     {"error"},
+		"(header/with spaces)": {"error"},
+		"foo/bar (baz)":        {"foo", "bar", "baz"},
+		"foo/bar":              {"error"},
+		"foo":                  {"error"},
+		"foo/bar (baz space)":           {"foo", "bar", "baz space"},
+		"  f  f  /  b  b  (  b  s  )  ": {"f  f", "b  b", "b  s"},
+		"foo/bar (baz) ignore":          {"foo", "bar", "baz"},
+		"foo/bar ()":                    {"error"},
+		"foo/bar()":                     {"error"},
+		"foo/bar(baz)":                  {"foo", "bar", "baz"},
+		"foo/bar/zzz(baz)":              {"foo/bar", "zzz", "baz"},
+		"foo/bar(baz/abc)":              {"foo", "bar", "baz/abc"},
+		"foo/bar(baz (abc))":            {"foo", "bar", "baz (abc)"},
 	}
 
-	if _, err := ParseServerHeader("(bad header)"); err != errInvalidHeader {
-		t.Fatalf("Should fail when header can not be parsed")
+	for header, values := range inputs {
+		serverHeader, err := ParseServerHeader(header)
+		if err != nil {
+			if err != errInvalidHeader {
+				t.Fatalf("Failed to parse %q, and got some unexpected error: %q", header, err)
+			}
+			if values[0] == "error" {
+				continue
+			}
+			t.Fatalf("Header %q failed to parse when it shouldn't have", header)
+		}
+		if values[0] == "error" {
+			t.Fatalf("Header %q parsed ok when it should have failed(%q).", header, serverHeader)
+		}
+
+		if serverHeader.App != values[0] {
+			t.Fatalf("Expected serverHeader.App for %q to equal %q, got %q", header, values[0], serverHeader.App)
+		}
+
+		if serverHeader.Ver != values[1] {
+			t.Fatalf("Expected serverHeader.Ver for %q to equal %q, got %q", header, values[1], serverHeader.Ver)
+		}
+
+		if serverHeader.OS != values[2] {
+			t.Fatalf("Expected serverHeader.OS for %q to equal %q, got %q", header, values[2], serverHeader.OS)
+		}
+
 	}
 
-	if _, err := ParseServerHeader("(without/spaces)"); err != errInvalidHeader {
-		t.Fatalf("Should fail when header can not be parsed")
-	}
-
-	if _, err := ParseServerHeader("(header/with space)"); err != errInvalidHeader {
-		t.Fatalf("Expected err to not exist when ParseServerHeader(\"(header/with space)\")")
-	}
-
-	serverHeader, err := ParseServerHeader("foo/bar (baz)")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if serverHeader.App != "foo" {
-		t.Fatalf("Expected serverHeader.App to equal \"foo\", got %s", serverHeader.App)
-	}
-
-	if serverHeader.Ver != "bar" {
-		t.Fatalf("Expected serverHeader.Ver to equal \"bar\", got %s", serverHeader.Ver)
-	}
-
-	if serverHeader.OS != "baz" {
-		t.Fatalf("Expected serverHeader.OS to equal \"baz\", got %s", serverHeader.OS)
-	}
 }
