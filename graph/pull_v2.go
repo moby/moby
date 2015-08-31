@@ -73,30 +73,28 @@ func (p *v2Puller) pullV2Repository(tag string) (err error) {
 
 	}
 
-	c, err := p.poolAdd("pull", taggedName)
-	if err != nil {
-		if c != nil {
-			// Another pull of the same repository is already taking place; just wait for it to finish
-			p.config.OutStream.Write(p.sf.FormatStatus("", "Repository %s already being pulled by another client. Waiting.", p.repoInfo.CanonicalName))
-			<-c
-			return nil
-		}
-		return err
+	broadcaster, found := p.poolAdd("pull", taggedName)
+	if found {
+		// Another pull of the same repository is already taking place; just wait for it to finish
+		broadcaster.Add(p.config.OutStream)
+		broadcaster.Wait()
+		return nil
 	}
 	defer p.poolRemove("pull", taggedName)
+	broadcaster.Add(p.config.OutStream)
 
 	var layersDownloaded bool
 	for _, tag := range tags {
 		// pulledNew is true if either new layers were downloaded OR if existing images were newly tagged
 		// TODO(tiborvass): should we change the name of `layersDownload`? What about message in WriteStatus?
-		pulledNew, err := p.pullV2Tag(tag, taggedName)
+		pulledNew, err := p.pullV2Tag(broadcaster, tag, taggedName)
 		if err != nil {
 			return err
 		}
 		layersDownloaded = layersDownloaded || pulledNew
 	}
 
-	writeStatus(taggedName, p.config.OutStream, p.sf, layersDownloaded)
+	writeStatus(taggedName, broadcaster, p.sf, layersDownloaded)
 
 	return nil
 }
@@ -121,18 +119,16 @@ func (p *v2Puller) download(di *downloadInfo) {
 
 	out := di.out
 
-	if c, err := p.poolAdd("pull", "img:"+di.img.ID); err != nil {
-		if c != nil {
-			out.Write(p.sf.FormatProgress(stringid.TruncateID(di.img.ID), "Layer already being pulled by another client. Waiting.", nil))
-			<-c
-			out.Write(p.sf.FormatProgress(stringid.TruncateID(di.img.ID), "Download complete", nil))
-		} else {
-			logrus.Debugf("Image (id: %s) pull is already running, skipping: %v", di.img.ID, err)
-		}
+	broadcaster, found := p.poolAdd("pull", "img:"+di.img.ID)
+	if found {
+		broadcaster.Add(out)
+		broadcaster.Wait()
+		out.Write(p.sf.FormatProgress(stringid.TruncateID(di.img.ID), "Download complete", nil))
 		di.err <- nil
 		return
 	}
 
+	broadcaster.Add(out)
 	defer p.poolRemove("pull", "img:"+di.img.ID)
 	tmpFile, err := ioutil.TempFile("", "GetImageBlob")
 	if err != nil {
@@ -167,7 +163,7 @@ func (p *v2Puller) download(di *downloadInfo) {
 
 	reader := progressreader.New(progressreader.Config{
 		In:        ioutil.NopCloser(io.TeeReader(layerDownload, verifier)),
-		Out:       out,
+		Out:       broadcaster,
 		Formatter: p.sf,
 		Size:      di.size,
 		NewLines:  false,
@@ -176,7 +172,7 @@ func (p *v2Puller) download(di *downloadInfo) {
 	})
 	io.Copy(tmpFile, reader)
 
-	out.Write(p.sf.FormatProgress(stringid.TruncateID(di.img.ID), "Verifying Checksum", nil))
+	broadcaster.Write(p.sf.FormatProgress(stringid.TruncateID(di.img.ID), "Verifying Checksum", nil))
 
 	if !verifier.Verified() {
 		err = fmt.Errorf("filesystem layer verification failed for digest %s", di.digest)
@@ -185,7 +181,7 @@ func (p *v2Puller) download(di *downloadInfo) {
 		return
 	}
 
-	out.Write(p.sf.FormatProgress(stringid.TruncateID(di.img.ID), "Download complete", nil))
+	broadcaster.Write(p.sf.FormatProgress(stringid.TruncateID(di.img.ID), "Download complete", nil))
 
 	logrus.Debugf("Downloaded %s to tempfile %s", di.img.ID, tmpFile.Name())
 	di.layer = layerDownload
@@ -193,9 +189,8 @@ func (p *v2Puller) download(di *downloadInfo) {
 	di.err <- nil
 }
 
-func (p *v2Puller) pullV2Tag(tag, taggedName string) (verified bool, err error) {
+func (p *v2Puller) pullV2Tag(out io.Writer, tag, taggedName string) (verified bool, err error) {
 	logrus.Debugf("Pulling tag from V2 registry: %q", tag)
-	out := p.config.OutStream
 
 	manSvc, err := p.repo.Manifests(context.Background())
 	if err != nil {
