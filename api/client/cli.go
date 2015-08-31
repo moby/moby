@@ -103,7 +103,12 @@ func NewDockerCli(in io.ReadCloser, out, err io.Writer, clientFlags *cli.ClientF
 		}
 		customHeaders["User-Agent"] = "Docker-Client/" + dockerversion.Version + " (" + runtime.GOOS + ")"
 
-		client, err := lib.NewClient(host, string(api.Version), clientFlags.Common.TLSOptions, customHeaders)
+		verStr := string(api.DefaultVersion)
+		if tmpStr := os.Getenv("DOCKER_API_VERSION"); tmpStr != "" {
+			verStr = tmpStr
+		}
+
+		client, err := lib.NewClient(host, verStr, clientFlags.Common.TLSOptions, customHeaders)
 		if err != nil {
 			return err
 		}
