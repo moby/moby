@@ -38,7 +38,7 @@ func (s *systemRouter) getInfo(ctx context.Context, w http.ResponseWriter, r *ht
 
 func (s *systemRouter) getVersion(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	info := s.backend.SystemVersion()
-	info.APIVersion = api.Version
+	info.APIVersion = api.DefaultVersion
 
 	return httputils.WriteJSON(w, http.StatusOK, info)
 }

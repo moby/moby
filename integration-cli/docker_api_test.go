@@ -2,7 +2,10 @@ package main
 
 import (
 	"net/http"
+	"net/http/httptest"
 	"net/http/httputil"
+	"os"
+	"os/exec"
 	"strconv"
 	"strings"
 	"time"
@@ -46,7 +49,7 @@ func (s *DockerSuite) TestApiVersionStatusCode(c *check.C) {
 }
 
 func (s *DockerSuite) TestApiClientVersionNewerThanServer(c *check.C) {
-	v := strings.Split(string(api.Version), ".")
+	v := strings.Split(string(api.DefaultVersion), ".")
 	vMinInt, err := strconv.Atoi(v[1])
 	c.Assert(err, checker.IsNil)
 	vMinInt++
@@ -71,4 +74,26 @@ func (s *DockerSuite) TestApiClientVersionOldNotSupported(c *check.C) {
 	c.Assert(err, checker.IsNil)
 	c.Assert(status, checker.Equals, http.StatusBadRequest)
 	c.Assert(len(string(body)), checker.Not(check.Equals), 0) // Expected not empty body
+}
+
+func (s *DockerSuite) TestApiDockerApiVersion(c *check.C) {
+	var svrVersion string
+
+	server := httptest.NewServer(http.HandlerFunc(
+		func(w http.ResponseWriter, r *http.Request) {
+			url := r.URL.Path
+			svrVersion = url
+		}))
+	defer server.Close()
+
+	// Test using the env var first
+	cmd := exec.Command(dockerBinary, "-H="+server.URL[7:], "version")
+	cmd.Env = append([]string{"DOCKER_API_VERSION=xxx"}, os.Environ()...)
+	out, _, _ := runCommandWithOutput(cmd)
+
+	c.Assert(svrVersion, check.Equals, "/vxxx/version")
+
+	if !strings.Contains(out, "API version:  xxx") {
+		c.Fatalf("Out didn't have 'xxx' for the API version, had:\n%s", out)
+	}
 }

@@ -96,3 +96,10 @@ func (cli *Client) getAPIPath(p string, query url.Values) string {
 	}
 	return apiPath
 }
+
+// ClientVersion returns the version string associated with this
+// instance of the Client. Note that this value can be changed
+// via the DOCKER_API_VERSION env var.
+func (cli *Client) ClientVersion() string {
+	return cli.version
+}

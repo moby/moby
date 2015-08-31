@@ -17,6 +17,7 @@ import (
 
 // apiClient is an interface that clients that talk with a docker server must implement.
 type apiClient interface {
+	ClientVersion() string
 	ContainerAttach(options types.ContainerAttachOptions) (types.HijackedResponse, error)
 	ContainerCommit(options types.ContainerCommitOptions) (types.ContainerCommitResponse, error)
 	ContainerCreate(config *runconfig.ContainerConfigWrapper, containerName string) (types.ContainerCreateResponse, error)
