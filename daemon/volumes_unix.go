@@ -81,6 +81,11 @@ func parseBindMount(spec string, mountLabel string, config *runconfig.Config) (*
 		return nil, fmt.Errorf("Invalid volume specification: %s", spec)
 	}
 
+	//validate the volumes destination path
+	if !filepath.IsAbs(bind.Destination) {
+		return nil, fmt.Errorf("Invalid volume destination path: %s mount path must be absolute.", bind.Destination)
+	}
+
 	name, source, err := parseVolumeSource(arr[0])
 	if err != nil {
 		return nil, err

@@ -52,6 +52,7 @@ func TestParseBindMount(t *testing.T) {
 		{"name:/tmp", "external", "/tmp", "", "name", "external", "", true, false},
 		{"name:/tmp:ro", "local", "/tmp", "", "name", "local", "", false, false},
 		{"local/name:/tmp:rw", "", "/tmp", "", "local/name", "local", "", true, false},
+		{"/tmp:tmp", "", "", "", "", "", "", true, true},
 	}
 
 	for _, c := range cases {
