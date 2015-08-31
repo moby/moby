@@ -326,7 +326,7 @@ func createRouter(s *Server) *mux.Router {
 			"/containers/{name:.*}/logs":      s.getContainersLogs,
 			"/containers/{name:.*}/stats":     s.getContainersStats,
 			"/containers/{name:.*}/attach/ws": s.wsContainersAttach,
-			"/exec/{id:.*}/json":              s.getExecByID,
+			"/exec/{name:.*}/json":            s.getContainersExec,
 			"/containers/{name:.*}/archive":   s.getContainersArchive,
 			"/volumes":                        s.getVolumesList,
 			"/volumes/{name:.*}":              s.getVolumeByName,
