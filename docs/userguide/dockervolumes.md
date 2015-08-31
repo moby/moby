@@ -141,10 +141,17 @@ $ docker run -d -P --name web -v /src/webapp:/opt/webapp:ro training/webapp pyth
 Here we've mounted the same `/src/webapp` directory but we've added the `ro`
 option to specify that the mount should be read-only.
 
+Because of [limitations in the `mount`
+function](http://lists.linuxfoundation.org/pipermail/containers/2015-April/
+035788.html), moving subdirectories within the host's source directory can give
+access from the container to the host's file system. This requires a malicious
+user with access to host and its mounted directory. 
+
 >**Note**: The host directory is, by its nature, host-dependent. For this
 >reason, you can't mount a host directory from `Dockerfile` because built images
 >should be portable. A host directory wouldn't be available on all potential
 >hosts.
+
 
 ### Mount a host file as a data volume
 
