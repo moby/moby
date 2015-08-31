@@ -14,12 +14,12 @@ import (
 	"github.com/docker/docker/runconfig"
 )
 
-func (s *Server) getExecByID(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (s *Server) getContainersExec(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if vars == nil {
-		return fmt.Errorf("Missing parameter 'id'")
+		return fmt.Errorf("Missing parameter 'name'")
 	}
 
-	eConfig, err := s.daemon.ContainerExecInspect(vars["id"])
+	eConfig, err := s.daemon.ContainerExecInspect(vars["name"])
 	if err != nil {
 		return err
 	}
