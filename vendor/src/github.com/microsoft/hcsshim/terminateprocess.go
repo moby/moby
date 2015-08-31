@@ -8,7 +8,7 @@ import (
 	"github.com/Sirupsen/logrus"
 )
 
-// TerminateProcessInComputeSystem kills a process in a running container
+// TerminateProcessInComputeSystem kills a process in a running container.
 func TerminateProcessInComputeSystem(id string, processid uint32) (err error) {
 
 	title := "HCSShim::TerminateProcessInComputeSystem"

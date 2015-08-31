@@ -8,6 +8,10 @@ import (
 	"github.com/Sirupsen/logrus"
 )
 
+// GetLayerMountPath will look for a mounted layer with the given id and return
+// the path at which that layer can be accessed.  This path may be a volume path
+// if the layer is a mounted read-write layer, otherwise it is expected to be the
+// folder path at which the layer is stored.
 func GetLayerMountPath(info DriverInfo, id string) (string, error) {
 	title := "hcsshim::GetLayerMountPath "
 	logrus.Debugf(title+"Flavour %s ID %s", info.Flavour, id)

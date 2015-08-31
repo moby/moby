@@ -8,6 +8,11 @@ import (
 	"github.com/Sirupsen/logrus"
 )
 
+// PrepareLayer finds a mounted read-write layer matching layerId and enables the
+// the filesystem filter for use on that layer.  This requires the paths to all
+// parent layers, and is necessary in order to view or interact with the layer
+// as an actual filesystem (reading and writing files, creating directories, etc).
+// Disabling the filter must be done via UnprepareLayer.
 func PrepareLayer(info DriverInfo, layerId string, parentLayerPaths []string) error {
 	title := "hcsshim::PrepareLayer "
 	logrus.Debugf(title+"flavour %d layerId %s", info.Flavour, layerId)
