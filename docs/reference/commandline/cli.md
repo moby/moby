@@ -38,6 +38,7 @@ the [installation](../../installation/index.md) instructions for your operating 
 For easy reference, the following list of environment variables are supported
 by the `docker` command line:
 
+* `DOCKER_API_VERSION` The API version to use (e.g. `1.19`)
 * `DOCKER_CONFIG` The location of your client configuration files.
 * `DOCKER_CERT_PATH` The location of your authentication keys.
 * `DOCKER_DRIVER` The graph driver to use.
