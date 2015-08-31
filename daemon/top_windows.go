@@ -7,6 +7,6 @@ import (
 )
 
 // ContainerTop is not supported on Windows and returns an error.
-func (daemon *Daemon) ContainerTop(name string, psArgs string) (*types.ContainerProcessList, error) {
+func (daemon *Daemon) ContainerTop(c *Container, psArgs string) (*types.ContainerProcessList, error) {
 	return nil, fmt.Errorf("Top is not supported on Windows")
 }

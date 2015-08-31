@@ -10,34 +10,32 @@ import (
 
 // ContainerRmConfig is a holder for passing in runtime config.
 type ContainerRmConfig struct {
-	ForceRemove, RemoveVolume, RemoveLink bool
+	// FullName is the container name prefixed with a slash, used to clean linked containers in the graph
+	FullName string
+	// ForceRemove tells whether it should remove the container regardless side effects or not
+	ForceRemove bool
+	// ForceVolume tells whether it should remove volumes attached to the container or not
+	RemoveVolume bool
+	// RemoveLink tells whether it should clean linked containers in the graph or not
+	RemoveLink bool
 }
 
 // ContainerRm removes the container id from the filesystem. An error
 // is returned if the container is not found, or if the remove
 // fails. If the remove succeeds, the container name is released, and
 // network links are removed.
-func (daemon *Daemon) ContainerRm(name string, config *ContainerRmConfig) error {
-	container, err := daemon.Get(name)
-	if err != nil {
-		return err
-	}
-
+func (daemon *Daemon) ContainerRm(container *Container, config *ContainerRmConfig) error {
 	if config.RemoveLink {
-		name, err := GetFullContainerName(name)
-		if err != nil {
-			return err
-		}
-		parent, n := path.Split(name)
+		parent, n := path.Split(config.FullName)
 		if parent == "/" {
 			return fmt.Errorf("Conflict, cannot remove the default name of the container")
 		}
 		pe := daemon.containerGraph().Get(parent)
 		if pe == nil {
-			return fmt.Errorf("Cannot get parent %s for name %s", parent, name)
+			return fmt.Errorf("Cannot get parent %s for name %s", parent, config.FullName)
 		}
 
-		if err := daemon.containerGraph().Delete(name); err != nil {
+		if err := daemon.containerGraph().Delete(config.FullName); err != nil {
 			return err
 		}
 
@@ -52,7 +50,7 @@ func (daemon *Daemon) ContainerRm(name string, config *ContainerRmConfig) error 
 	}
 
 	if err := daemon.rm(container, config.ForceRemove); err != nil {
-		return fmt.Errorf("Cannot destroy container %s: %v", name, err)
+		return fmt.Errorf("Cannot destroy container %s: %v", container.ID, err)
 	}
 
 	container.removeMountPoints(config.RemoveVolume)

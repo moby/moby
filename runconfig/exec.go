@@ -10,7 +10,6 @@ type ExecConfig struct {
 	User         string   // User that will run the command
 	Privileged   bool     // Is the container in privileged mode
 	Tty          bool     // Attach standard streams to a tty.
-	Container    string   // Name of the container (to execute in)
 	AttachStdin  bool     // Attach the standard input, makes possible user interaction
 	AttachStderr bool     // Attach the standard output
 	AttachStdout bool     // Attach the standard error
@@ -30,13 +29,11 @@ func ParseExec(cmd *flag.FlagSet, args []string) (*ExecConfig, error) {
 		flUser       = cmd.String([]string{"u", "-user"}, "", "Username or UID (format: <name|uid>[:<group|gid>])")
 		flPrivileged = cmd.Bool([]string{"-privileged"}, false, "Give extended privileges to the command")
 		execCmd      []string
-		container    string
 	)
 	cmd.Require(flag.Min, 2)
 	if err := cmd.ParseFlags(args, true); err != nil {
 		return nil, err
 	}
-	container = cmd.Arg(0)
 	parsedArgs := cmd.Args()
 	execCmd = parsedArgs[1:]
 
@@ -45,7 +42,6 @@ func ParseExec(cmd *flag.FlagSet, args []string) (*ExecConfig, error) {
 		Privileged: *flPrivileged,
 		Tty:        *flTty,
 		Cmd:        execCmd,
-		Container:  container,
 		Detach:     *flDetach,
 	}
 

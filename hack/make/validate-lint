@@ -11,6 +11,7 @@ packages=(
 	api
 	api/client
 	api/client/ps
+	api/middleware
 	api/server
 	api/types
 	builder

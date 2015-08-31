@@ -8,6 +8,7 @@ import (
 	"strconv"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/api/middleware"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/docker/docker/pkg/version"
@@ -27,29 +28,27 @@ func (s *Server) getExecByID(version version.Version, w http.ResponseWriter, r *
 	return writeJSON(w, http.StatusOK, eConfig)
 }
 
-func (s *Server) postContainerExecCreate(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (s *Server) postContainerExecCreate(w http.ResponseWriter, r *middleware.ContainerRequest) error {
 	if err := parseForm(r); err != nil {
 		return err
 	}
-	if err := checkForJSON(r); err != nil {
+	if err := checkForJSON(r.Request); err != nil {
 		return err
 	}
-	name := vars["name"]
 
 	execConfig := &runconfig.ExecConfig{}
 	if err := json.NewDecoder(r.Body).Decode(execConfig); err != nil {
 		return err
 	}
-	execConfig.Container = name
 
 	if len(execConfig.Cmd) == 0 {
 		return fmt.Errorf("No exec command specified")
 	}
 
 	// Register an instance of Exec in container.
-	id, err := s.daemon.ContainerExecCreate(execConfig)
+	id, err := s.daemon.ContainerExecCreate(r.Container, execConfig)
 	if err != nil {
-		logrus.Errorf("Error setting up exec command in container %s: %s", name, err)
+		logrus.Errorf("Error setting up exec command in container %s: %s", r.Container.ID, err)
 		return err
 	}
 

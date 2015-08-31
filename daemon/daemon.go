@@ -490,7 +490,7 @@ func (daemon *Daemon) newContainer(name string, config *runconfig.Config, imgID 
 }
 
 // GetFullContainerName returns a constructed container name. I think
-// it has to do with the fact that a container is a file on disek and
+// it has to do with the fact that a container is a file on disk and
 // this is sort of just creating a file name.
 func GetFullContainerName(name string) (string, error) {
 	if name == "" {
@@ -799,7 +799,7 @@ func (daemon *Daemon) Shutdown() error {
 							logrus.Debugf("sending SIGTERM to container %s with error: %v", c.ID, err)
 							return
 						}
-						if err := c.unpause(); err != nil {
+						if err := c.Unpause(); err != nil {
 							logrus.Debugf("Failed to unpause container %s with error: %v", c.ID, err)
 							return
 						}
@@ -883,24 +883,6 @@ func (daemon *Daemon) kill(c *Container, sig int) error {
 
 func (daemon *Daemon) stats(c *Container) (*execdriver.ResourceStats, error) {
 	return daemon.execDriver.Stats(c.ID)
-}
-
-func (daemon *Daemon) subscribeToContainerStats(name string) (chan interface{}, error) {
-	c, err := daemon.Get(name)
-	if err != nil {
-		return nil, err
-	}
-	ch := daemon.statsCollector.collect(c)
-	return ch, nil
-}
-
-func (daemon *Daemon) unsubscribeToContainerStats(name string, ch chan interface{}) error {
-	c, err := daemon.Get(name)
-	if err != nil {
-		return err
-	}
-	daemon.statsCollector.unsubscribe(c, ch)
-	return nil
 }
 
 func (daemon *Daemon) changes(container *Container) ([]archive.Change, error) {

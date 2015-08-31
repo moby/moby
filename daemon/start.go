@@ -8,12 +8,7 @@ import (
 )
 
 // ContainerStart starts a container.
-func (daemon *Daemon) ContainerStart(name string, hostConfig *runconfig.HostConfig) error {
-	container, err := daemon.Get(name)
-	if err != nil {
-		return err
-	}
-
+func (daemon *Daemon) ContainerStart(container *Container, hostConfig *runconfig.HostConfig) error {
 	if container.isPaused() {
 		return fmt.Errorf("Cannot start a paused container, try unpause instead.")
 	}
@@ -39,12 +34,12 @@ func (daemon *Daemon) ContainerStart(name string, hostConfig *runconfig.HostConf
 
 	// check if hostConfig is in line with the current system settings.
 	// It may happen cgroups are umounted or the like.
-	if _, err = daemon.verifyContainerSettings(container.hostConfig, nil); err != nil {
+	if _, err := daemon.verifyContainerSettings(container.hostConfig, nil); err != nil {
 		return err
 	}
 
 	if err := container.Start(); err != nil {
-		return fmt.Errorf("Cannot start container %s: %s", name, err)
+		return fmt.Errorf("Cannot start container %s: %s", container.ID, err)
 	}
 
 	return nil

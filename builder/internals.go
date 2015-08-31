@@ -790,7 +790,13 @@ func (b *builder) clearTmp() {
 			ForceRemove:  true,
 			RemoveVolume: true,
 		}
-		if err := b.Daemon.ContainerRm(c, rmConfig); err != nil {
+		container, err := b.Daemon.Get(c)
+		if err != nil {
+			fmt.Fprintf(b.OutStream, "Error removing intermediate container %s: %v\n", stringid.TruncateID(c), err)
+			return
+		}
+
+		if err := b.Daemon.ContainerRm(container, rmConfig); err != nil {
 			fmt.Fprintf(b.OutStream, "Error removing intermediate container %s: %v\n", stringid.TruncateID(c), err)
 			return
 		}

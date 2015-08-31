@@ -417,7 +417,8 @@ func (container *Container) killPossiblyDeadProcess(sig int) error {
 	return err
 }
 
-func (container *Container) pause() error {
+// Pause stops a container execution temporarily.
+func (container *Container) Pause() error {
 	container.Lock()
 	defer container.Unlock()
 
@@ -439,7 +440,8 @@ func (container *Container) pause() error {
 	return nil
 }
 
-func (container *Container) unpause() error {
+// Unpause resumes the container process execution.
+func (container *Container) Unpause() error {
 	container.Lock()
 	defer container.Unlock()
 
@@ -566,7 +568,8 @@ func (container *Container) Resize(h, w int) error {
 	return nil
 }
 
-func (container *Container) export() (archive.Archive, error) {
+// Export generates a tar file from a given container.
+func (container *Container) Export() (archive.Archive, error) {
 	if err := container.Mount(); err != nil {
 		return nil, err
 	}
@@ -590,7 +593,8 @@ func (container *Container) Mount() error {
 	return container.daemon.Mount(container)
 }
 
-func (container *Container) changes() ([]archive.Change, error) {
+// Changes returns a list of modifications for the given container.
+func (container *Container) Changes() ([]archive.Change, error) {
 	container.Lock()
 	defer container.Unlock()
 	return container.daemon.changes(container)
@@ -630,7 +634,8 @@ func validateID(id string) error {
 	return nil
 }
 
-func (container *Container) copy(resource string) (rc io.ReadCloser, err error) {
+// Copy copies a resource from the container.
+func (container *Container) Copy(resource string) (rc io.ReadCloser, err error) {
 	container.Lock()
 
 	defer func() {

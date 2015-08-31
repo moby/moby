@@ -1122,17 +1122,18 @@ func (s *DockerSuite) TestContainerApiCopyResourcePathEmpty(c *check.C) {
 }
 
 func (s *DockerSuite) TestContainerApiCopyResourcePathNotFound(c *check.C) {
-	name := "test-container-api-copy-resource-not-found"
-	dockerCmd(c, "run", "--name", name, "busybox")
+	out, _ := dockerCmd(c, "run", "-d", "busybox")
+	containerID := strings.TrimSpace(out)
 
 	postData := types.CopyConfig{
 		Resource: "/notexist",
 	}
 
-	status, body, err := sockRequest("POST", "/containers/"+name+"/copy", postData)
+	status, body, err := sockRequest("POST", "/containers/"+containerID+"/copy", postData)
 	c.Assert(err, check.IsNil)
 	c.Assert(status, check.Equals, http.StatusInternalServerError)
-	c.Assert(string(body), check.Matches, "Could not find the file /notexist in container "+name+"\n")
+
+	c.Assert(string(body), check.Matches, "Could not find the file /notexist in container "+containerID+"\n")
 }
 
 func (s *DockerSuite) TestContainerApiCopyContainerNotFound(c *check.C) {
