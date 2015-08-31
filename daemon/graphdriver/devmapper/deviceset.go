@@ -1397,6 +1397,12 @@ func (devices *DeviceSet) initDevmapper(doInit bool) error {
 		}
 	}
 
+	if devices.thinPoolDevice == "" {
+		if devices.metadataLoopFile != "" || devices.dataLoopFile != "" {
+			logrus.Warnf("Usage of loopback devices is strongly discouraged for production use. Please use `--storage-opt dm.thinpooldev` or use `man docker` to refer to dm.thinpooldev section.")
+		}
+	}
+
 	// Right now this loads only NextDeviceID. If there is more metadata
 	// down the line, we might have to move it earlier.
 	if err := devices.loadDeviceSetMetaData(); err != nil {
