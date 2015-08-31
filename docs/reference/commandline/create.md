@@ -31,6 +31,7 @@ Creates a new container.
       --cpuset-mems=""              Memory nodes (MEMs) in which to allow execution (0-3, 0,1)
       --device=[]                   Add a host device to the container
       --dns=[]                      Set custom DNS servers
+      --dns-opt=[]                  Set custom DNS options
       --dns-search=[]               Set custom DNS search domains
       -e, --env=[]                  Set environment variables
       --entrypoint=""               Overwrite the default ENTRYPOINT of the image

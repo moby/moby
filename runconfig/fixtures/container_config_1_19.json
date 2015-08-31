@@ -42,6 +42,7 @@
        "ReadonlyRootfs": false,
        "Dns": ["8.8.8.8"],
        "DnsSearch": [""],
+       "DnsOptions": [""],
        "ExtraHosts": null,
        "VolumesFrom": ["parent", "other:ro"],
        "CapAdd": ["NET_ADMIN"],

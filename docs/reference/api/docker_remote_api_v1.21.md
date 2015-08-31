@@ -186,6 +186,7 @@ Create a container
              "Privileged": false,
              "ReadonlyRootfs": false,
              "Dns": ["8.8.8.8"],
+             "DnsOptions": [""],
              "DnsSearch": [""],
              "ExtraHosts": null,
              "VolumesFrom": ["parent", "other:ro"],
@@ -272,6 +273,7 @@ Json Parameters:
     -   **ReadonlyRootfs** - Mount the container's root filesystem as read only.
           Specified as a boolean value.
     -   **Dns** - A list of DNS servers for the container to use.
+    -   **DnsOptions** - A list of DNS options
     -   **DnsSearch** - A list of DNS search domains
     -   **ExtraHosts** - A list of hostnames/IP mappings to add to the
         container's `/etc/hosts` file. Specified in the form `["hostname:IP"]`.
@@ -388,6 +390,7 @@ Return low-level information on the container `id`
 			"CpuPeriod": 100000,
 			"Devices": [],
 			"Dns": null,
+			"DnsOptions": null,
 			"DnsSearch": null,
 			"ExtraHosts": null,
 			"IpcMode": "",

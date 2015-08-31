@@ -21,6 +21,7 @@ docker-create - Create a new container
 [**--device**[=*[]*]]
 [**--dns**[=*[]*]]
 [**--dns-search**[=*[]*]]
+[**--dns-opt**[=*[]*]]
 [**-e**|**--env**[=*[]*]]
 [**--entrypoint**[=*ENTRYPOINT*]]
 [**--env-file**[=*[]*]]
@@ -117,6 +118,9 @@ two memory nodes.
 
 **--dns**=[]
    Set custom DNS servers
+
+**--dns-opt**=[]
+   Set custom DNS options
 
 **--dns-search**=[]
    Set custom DNS search domains (Use --dns-search=. if you don't wish to set the search domain)

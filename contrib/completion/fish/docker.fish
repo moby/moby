@@ -49,6 +49,7 @@ complete -c docker -f -n '__fish_docker_no_subcommand' -l bip -d "Use this CIDR 
 complete -c docker -f -n '__fish_docker_no_subcommand' -s D -l debug -d 'Enable debug mode'
 complete -c docker -f -n '__fish_docker_no_subcommand' -s d -l daemon -d 'Enable daemon mode'
 complete -c docker -f -n '__fish_docker_no_subcommand' -l dns -d 'Force Docker to use specific DNS servers'
+complete -c docker -f -n '__fish_docker_no_subcommand' -l dns-opt -d 'Force Docker to use specific DNS options'
 complete -c docker -f -n '__fish_docker_no_subcommand' -l dns-search -d 'Force Docker to use specific DNS search domains'
 complete -c docker -f -n '__fish_docker_no_subcommand' -s e -l exec-driver -d 'Force the Docker runtime to use a specific exec driver'
 complete -c docker -f -n '__fish_docker_no_subcommand' -l exec-opt -d 'Set exec driver options'
@@ -122,6 +123,7 @@ complete -c docker -A -f -n '__fish_seen_subcommand_from create' -l cidfile -d '
 complete -c docker -A -f -n '__fish_seen_subcommand_from create' -l cpuset -d 'CPUs in which to allow execution (0-3, 0,1)'
 complete -c docker -A -f -n '__fish_seen_subcommand_from create' -l device -d 'Add a host device to the container (e.g. --device=/dev/sdc:/dev/xvdc:rwm)'
 complete -c docker -A -f -n '__fish_seen_subcommand_from create' -l dns -d 'Set custom DNS servers'
+complete -c docker -A -f -n '__fish_seen_subcommand_from create' -l dns-opt -d "Set custom DNS options (Use --dns-opt='' if you don't wish to set options)"
 complete -c docker -A -f -n '__fish_seen_subcommand_from create' -l dns-search -d "Set custom DNS search domains (Use --dns-search=. if you don't wish to set the search domain)"
 complete -c docker -A -f -n '__fish_seen_subcommand_from create' -s e -l env -d 'Set environment variables'
 complete -c docker -A -f -n '__fish_seen_subcommand_from create' -l entrypoint -d 'Overwrite the default ENTRYPOINT of the image'
@@ -309,6 +311,7 @@ complete -c docker -A -f -n '__fish_seen_subcommand_from run' -l cpuset -d 'CPUs
 complete -c docker -A -f -n '__fish_seen_subcommand_from run' -s d -l detach -d 'Detached mode: run the container in the background and print the new container ID'
 complete -c docker -A -f -n '__fish_seen_subcommand_from run' -l device -d 'Add a host device to the container (e.g. --device=/dev/sdc:/dev/xvdc:rwm)'
 complete -c docker -A -f -n '__fish_seen_subcommand_from run' -l dns -d 'Set custom DNS servers'
+complete -c docker -A -f -n '__fish_seen_subcommand_from run' -l dns-opt -d "Set custom DNS options (Use --dns-opt='' if you don't wish to set options)"
 complete -c docker -A -f -n '__fish_seen_subcommand_from run' -l dns-search -d "Set custom DNS search domains (Use --dns-search=. if you don't wish to set the search domain)"
 complete -c docker -A -f -n '__fish_seen_subcommand_from run' -s e -l env -d 'Set environment variables'
 complete -c docker -A -f -n '__fish_seen_subcommand_from run' -l entrypoint -d 'Overwrite the default ENTRYPOINT of the image'

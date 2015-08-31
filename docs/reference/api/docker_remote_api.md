@@ -84,6 +84,8 @@ This section lists each version from latest to oldest.  Each listing includes a 
 * `GET /images/(name)/json` now returns information about tags of the image.
 * The `config` option now accepts the field `StopSignal`, which specifies the signal to use to kill a container.
 * `GET /containers/(id)/stats` will return networking information respectively for each interface.
+* The `hostConfig` option now accepts the field `DnsOptions`, which specifies a
+list of DNS options to be used in the container.
 
 
 ### v1.20 API changes

@@ -123,6 +123,7 @@ To get information on a container use its ID or instance name:
         "PublishAllPorts": false,
         "Dns": null,
         "DnsSearch": null,
+        "DnsOptions": null,
         "ExtraHosts": null,
         "VolumesFrom": null,
         "Devices": [],
