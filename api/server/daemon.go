@@ -8,6 +8,8 @@ import (
 	"strings"
 	"time"
 
+	"golang.org/x/net/context"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types"
@@ -20,7 +22,7 @@ import (
 	"github.com/docker/docker/utils"
 )
 
-func (s *Server) getVersion(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (s *Server) getVersion(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	v := &types.Version{
 		Version:    dockerversion.VERSION,
 		APIVersion: api.Version,
@@ -30,6 +32,8 @@ func (s *Server) getVersion(version version.Version, w http.ResponseWriter, r *h
 		Arch:       runtime.GOARCH,
 		BuildTime:  dockerversion.BUILDTIME,
 	}
+
+	version, _ := ctx.Value("api-version").(version.Version)
 
 	if version.GreaterThanOrEqualTo("1.19") {
 		v.Experimental = utils.ExperimentalBuild()
@@ -42,7 +46,7 @@ func (s *Server) getVersion(version version.Version, w http.ResponseWriter, r *h
 	return writeJSON(w, http.StatusOK, v)
 }
 
-func (s *Server) getInfo(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (s *Server) getInfo(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	info, err := s.daemon.SystemInfo()
 	if err != nil {
 		return err
@@ -51,7 +55,7 @@ func (s *Server) getInfo(version version.Version, w http.ResponseWriter, r *http
 	return writeJSON(w, http.StatusOK, info)
 }
 
-func (s *Server) getEvents(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (s *Server) getEvents(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := parseForm(r); err != nil {
 		return err
 	}

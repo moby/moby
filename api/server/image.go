@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"strings"
 
+	"golang.org/x/net/context"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/builder"
@@ -22,7 +24,7 @@ import (
 	"github.com/docker/docker/utils"
 )
 
-func (s *Server) postCommit(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (s *Server) postCommit(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := parseForm(r); err != nil {
 		return err
 	}
@@ -34,6 +36,7 @@ func (s *Server) postCommit(version version.Version, w http.ResponseWriter, r *h
 	cname := r.Form.Get("container")
 
 	pause := boolValue(r, "pause")
+	version, _ := ctx.Value("api-version").(version.Version)
 	if r.FormValue("pause") == "" && version.GreaterThanOrEqualTo("1.13") {
 		pause = true
 	}
@@ -64,7 +67,7 @@ func (s *Server) postCommit(version version.Version, w http.ResponseWriter, r *h
 }
 
 // Creates an image from Pull or from Import
-func (s *Server) postImagesCreate(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (s *Server) postImagesCreate(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := parseForm(r); err != nil {
 		return err
 	}
@@ -140,7 +143,7 @@ func (s *Server) postImagesCreate(version version.Version, w http.ResponseWriter
 	return nil
 }
 
-func (s *Server) postImagesPush(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (s *Server) postImagesPush(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
 	}
@@ -192,7 +195,7 @@ func (s *Server) postImagesPush(version version.Version, w http.ResponseWriter, 
 	return nil
 }
 
-func (s *Server) getImagesGet(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (s *Server) getImagesGet(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
 	}
@@ -220,11 +223,11 @@ func (s *Server) getImagesGet(version version.Version, w http.ResponseWriter, r 
 	return nil
 }
 
-func (s *Server) postImagesLoad(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (s *Server) postImagesLoad(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	return s.daemon.Repositories().Load(r.Body, w)
 }
 
-func (s *Server) deleteImages(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (s *Server) deleteImages(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := parseForm(r); err != nil {
 		return err
 	}
@@ -249,7 +252,7 @@ func (s *Server) deleteImages(version version.Version, w http.ResponseWriter, r 
 	return writeJSON(w, http.StatusOK, list)
 }
 
-func (s *Server) getImagesByName(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (s *Server) getImagesByName(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
 	}
@@ -262,7 +265,7 @@ func (s *Server) getImagesByName(version version.Version, w http.ResponseWriter,
 	return writeJSON(w, http.StatusOK, imageInspect)
 }
 
-func (s *Server) postBuild(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (s *Server) postBuild(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	var (
 		authConfigs        = map[string]cliconfig.AuthConfig{}
 		authConfigsEncoded = r.Header.Get("X-Registry-Config")
@@ -280,6 +283,7 @@ func (s *Server) postBuild(version version.Version, w http.ResponseWriter, r *ht
 
 	w.Header().Set("Content-Type", "application/json")
 
+	version, _ := ctx.Value("api-version").(version.Version)
 	if boolValue(r, "forcerm") && version.GreaterThanOrEqualTo("1.12") {
 		buildConfig.Remove = true
 	} else if r.FormValue("rm") == "" && version.GreaterThanOrEqualTo("1.12") {
@@ -346,7 +350,7 @@ func (s *Server) postBuild(version version.Version, w http.ResponseWriter, r *ht
 	return nil
 }
 
-func (s *Server) getImagesJSON(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (s *Server) getImagesJSON(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := parseForm(r); err != nil {
 		return err
 	}
@@ -360,7 +364,7 @@ func (s *Server) getImagesJSON(version version.Version, w http.ResponseWriter, r
 	return writeJSON(w, http.StatusOK, images)
 }
 
-func (s *Server) getImagesHistory(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (s *Server) getImagesHistory(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
 	}
@@ -374,7 +378,7 @@ func (s *Server) getImagesHistory(version version.Version, w http.ResponseWriter
 	return writeJSON(w, http.StatusOK, history)
 }
 
-func (s *Server) postImagesTag(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (s *Server) postImagesTag(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := parseForm(r); err != nil {
 		return err
 	}
@@ -394,7 +398,7 @@ func (s *Server) postImagesTag(version version.Version, w http.ResponseWriter, r
 	return nil
 }
 
-func (s *Server) getImagesSearch(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (s *Server) getImagesSearch(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := parseForm(r); err != nil {
 		return err
 	}

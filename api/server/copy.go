@@ -9,12 +9,13 @@ import (
 	"os"
 	"strings"
 
+	"golang.org/x/net/context"
+
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/pkg/version"
 )
 
 // postContainersCopy is deprecated in favor of getContainersArchive.
-func (s *Server) postContainersCopy(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (s *Server) postContainersCopy(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
 	}
@@ -68,7 +69,7 @@ func setContainerPathStatHeader(stat *types.ContainerPathStat, header http.Heade
 	return nil
 }
 
-func (s *Server) headContainersArchive(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (s *Server) headContainersArchive(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	v, err := archiveFormValues(r, vars)
 	if err != nil {
 		return err
@@ -82,7 +83,7 @@ func (s *Server) headContainersArchive(version version.Version, w http.ResponseW
 	return setContainerPathStatHeader(stat, w.Header())
 }
 
-func (s *Server) getContainersArchive(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (s *Server) getContainersArchive(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	v, err := archiveFormValues(r, vars)
 	if err != nil {
 		return err
@@ -104,7 +105,7 @@ func (s *Server) getContainersArchive(version version.Version, w http.ResponseWr
 	return err
 }
 
-func (s *Server) putContainersArchive(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (s *Server) putContainersArchive(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	v, err := archiveFormValues(r, vars)
 	if err != nil {
 		return err
