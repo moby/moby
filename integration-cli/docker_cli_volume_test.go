@@ -88,3 +88,16 @@ func (s *DockerSuite) TestVolumeCliRm(c *check.C) {
 		check.Commentf("volume rm should fail with non-existant volume"),
 	)
 }
+
+func (s *DockerSuite) TestVolumeCliNoArgs(c *check.C) {
+	out, _ := dockerCmd(c, "volume")
+	// no args should produce the `volume ls` output
+	c.Assert(strings.Contains(out, "DRIVER"), check.Equals, true)
+
+	// invalid arg should error and show the command usage on stderr
+	_, stderr, _, err := runCommandWithStdoutStderr(exec.Command(dockerBinary, "volume", "somearg"))
+	c.Assert(err, check.NotNil)
+
+	expected := "Usage:	docker volume [OPTIONS] [COMMAND]"
+	c.Assert(strings.Contains(stderr, expected), check.Equals, true)
+}
