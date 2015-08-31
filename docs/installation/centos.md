@@ -61,7 +61,7 @@ There are two ways to install Docker Engine.  You can use `curl` with the  `get.
 4. Start the Docker daemon and enable it so it starts on future boots.
 
 		$ sudo systemctl start docker
-                $ sudo systemctl enable docker
+		$ sudo systemctl enable docker
 
 5. Verify `docker` is installed correctly by running a test image in a container.
 
