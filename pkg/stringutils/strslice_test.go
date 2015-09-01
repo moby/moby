@@ -2,6 +2,7 @@ package stringutils
 
 import (
 	"encoding/json"
+	"reflect"
 	"testing"
 )
 
@@ -100,6 +101,35 @@ func TestStrSliceToString(t *testing.T) {
 		toString := s.ToString()
 		if toString != expected {
 			t.Fatalf("Expected %v, got %v", expected, toString)
+		}
+	}
+}
+
+func TestStrSliceLen(t *testing.T) {
+	var emptyStrSlice *StrSlice
+	slices := map[*StrSlice]int{
+		NewStrSlice(""):           1,
+		NewStrSlice("one"):        1,
+		NewStrSlice("one", "two"): 2,
+		emptyStrSlice:             0,
+	}
+	for s, expected := range slices {
+		if s.Len() != expected {
+			t.Fatalf("Expected %d, got %d", s.Len(), expected)
+		}
+	}
+}
+
+func TestStrSliceSlice(t *testing.T) {
+	var emptyStrSlice *StrSlice
+	slices := map[*StrSlice][]string{
+		NewStrSlice("one"):        {"one"},
+		NewStrSlice("one", "two"): {"one", "two"},
+		emptyStrSlice:             nil,
+	}
+	for s, expected := range slices {
+		if !reflect.DeepEqual(s.Slice(), expected) {
+			t.Fatalf("Expected %v, got %v", s.Slice(), expected)
 		}
 	}
 }
