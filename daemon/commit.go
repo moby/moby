@@ -35,18 +35,7 @@ func (daemon *Daemon) Commit(container *Container, c *ContainerCommitConfig) (*i
 	}()
 
 	// Create a new image from the container's base layers + a new layer from container changes
-	var (
-		containerID, parentImageID string
-		containerConfig            *runconfig.Config
-	)
-
-	if container != nil {
-		containerID = container.ID
-		parentImageID = container.ImageID
-		containerConfig = container.Config
-	}
-
-	img, err := daemon.graph.Create(rwTar, containerID, parentImageID, c.Comment, c.Author, containerConfig, c.Config)
+	img, err := daemon.graph.Create(rwTar, container.ID, container.ImageID, c.Comment, c.Author, container.Config, c.Config)
 	if err != nil {
 		return nil, err
 	}
