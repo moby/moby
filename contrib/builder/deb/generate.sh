@@ -78,6 +78,12 @@ for version in "${versions[@]}"; do
 		backports="/$suite-backports"
 		packages=( "${packages[@]/btrfs-tools/btrfs-tools$backports}" )
 	fi
+	
+	if [ "$suite" = 'wily' ]; then
+		# TODO(jessfraz): remove this when the conflict is resolved
+		# RE:  udev : Breaks: systemd (< 224-2) but 224-1ubuntu3 is to be installed
+		packages+=(udev)
+	fi
 
 	echo "RUN apt-get update && apt-get install -y ${packages[*]} --no-install-recommends && rm -rf /var/lib/apt/lists/*" >> "$version/Dockerfile"
 
