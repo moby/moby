@@ -10,7 +10,7 @@ package builder
 import (
 	"fmt"
 	"io/ioutil"
-	"path"
+	"os"
 	"path/filepath"
 	"regexp"
 	"runtime"
@@ -21,6 +21,7 @@ import (
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/nat"
 	"github.com/docker/docker/pkg/stringutils"
+	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/runconfig"
 )
 
@@ -272,39 +273,15 @@ func workdir(b *builder, args []string, attributes map[string]bool, original str
 		return err
 	}
 
-	// Note that workdir passed comes from the Dockerfile. Hence it is in
-	// Linux format using forward-slashes, even on Windows. However,
-	// b.Config.WorkingDir is in platform-specific notation (in other words
-	// on Windows will use `\`
-	workdir := args[0]
+	// This is from the Dockerfile and will not necessarily be in platform
+	// specific semantics, hence ensure it is converted.
+	workdir := filepath.FromSlash(args[0])
 
-	isAbs := false
-	if runtime.GOOS == "windows" {
-		// Alternate processing for Windows here is necessary as we can't call
-		// filepath.IsAbs(workDir) as that would verify Windows style paths,
-		// along with drive-letters (eg c:\pathto\file.txt). We (arguably
-		// correctly or not) check for both forward and back slashes as this
-		// is what the 1.4.2 GoLang implementation of IsAbs() does in the
-		// isSlash() function.
-		isAbs = workdir[0] == '\\' || workdir[0] == '/'
-	} else {
-		isAbs = filepath.IsAbs(workdir)
+	if !system.IsAbs(workdir) {
+		current := filepath.FromSlash(b.Config.WorkingDir)
+		workdir = filepath.Join(string(os.PathSeparator), current, workdir)
 	}
 
-	if !isAbs {
-		current := b.Config.WorkingDir
-		if runtime.GOOS == "windows" {
-			// Convert to Linux format before join
-			current = strings.Replace(current, "\\", "/", -1)
-		}
-		// Must use path.Join so works correctly on Windows, not filepath
-		workdir = path.Join("/", current, workdir)
-	}
-
-	// Convert to platform specific format
-	if runtime.GOOS == "windows" {
-		workdir = strings.Replace(workdir, "/", "\\", -1)
-	}
 	b.Config.WorkingDir = workdir
 
 	return b.commit("", b.Config.Cmd, fmt.Sprintf("WORKDIR %v", workdir))
