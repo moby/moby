@@ -2,6 +2,7 @@ package main
 
 import (
 	"strings"
+	"time"
 
 	"github.com/go-check/check"
 )
@@ -132,7 +133,7 @@ func (s *DockerSuite) TestContainerRestartwithGoodContainer(c *check.C) {
 	out, _ := dockerCmd(c, "run", "-d", "--restart=on-failure:3", "busybox", "true")
 
 	id := strings.TrimSpace(string(out))
-	if err := waitInspect(id, "{{ .State.Restarting }} {{ .State.Running }}", "false false", 5); err != nil {
+	if err := waitInspect(id, "{{ .State.Restarting }} {{ .State.Running }}", "false false", 5*time.Second); err != nil {
 		c.Fatal(err)
 	}
 	count, err := inspectField(id, "RestartCount")

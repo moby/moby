@@ -15,7 +15,7 @@ func (s *DockerSuite) TestWaitNonBlockedExitZero(c *check.C) {
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "sh", "-c", "true")
 	containerID := strings.TrimSpace(out)
 
-	if err := waitInspect(containerID, "{{.State.Running}}", "false", 1); err != nil {
+	if err := waitInspect(containerID, "{{.State.Running}}", "false", 1*time.Second); err != nil {
 		c.Fatal("Container should have stopped by now")
 	}
 
@@ -60,7 +60,7 @@ func (s *DockerSuite) TestWaitNonBlockedExitRandom(c *check.C) {
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "sh", "-c", "exit 99")
 	containerID := strings.TrimSpace(out)
 
-	if err := waitInspect(containerID, "{{.State.Running}}", "false", 1); err != nil {
+	if err := waitInspect(containerID, "{{.State.Running}}", "false", 1*time.Second); err != nil {
 		c.Fatal("Container should have stopped by now")
 	}
 
