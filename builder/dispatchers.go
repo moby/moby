@@ -20,6 +20,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/nat"
+	"github.com/docker/docker/pkg/stringutils"
 	"github.com/docker/docker/runconfig"
 )
 
@@ -352,7 +353,7 @@ func run(b *builder, args []string, attributes map[string]bool, original string)
 	b.Config.Cmd = config.Cmd
 	runconfig.Merge(b.Config, config)
 
-	defer func(cmd *runconfig.Command) { b.Config.Cmd = cmd }(cmd)
+	defer func(cmd *stringutils.StrSlice) { b.Config.Cmd = cmd }(cmd)
 
 	logrus.Debugf("[BUILDER] Command to be executed: %v", b.Config.Cmd)
 
@@ -405,7 +406,7 @@ func cmd(b *builder, args []string, attributes map[string]bool, original string)
 		}
 	}
 
-	b.Config.Cmd = runconfig.NewCommand(cmdSlice...)
+	b.Config.Cmd = stringutils.NewStrSlice(cmdSlice...)
 
 	if err := b.commit("", b.Config.Cmd, fmt.Sprintf("CMD %q", cmdSlice)); err != nil {
 		return err
@@ -436,16 +437,16 @@ func entrypoint(b *builder, args []string, attributes map[string]bool, original 
 	switch {
 	case attributes["json"]:
 		// ENTRYPOINT ["echo", "hi"]
-		b.Config.Entrypoint = runconfig.NewEntrypoint(parsed...)
+		b.Config.Entrypoint = stringutils.NewStrSlice(parsed...)
 	case len(parsed) == 0:
 		// ENTRYPOINT []
 		b.Config.Entrypoint = nil
 	default:
 		// ENTRYPOINT echo hi
 		if runtime.GOOS != "windows" {
-			b.Config.Entrypoint = runconfig.NewEntrypoint("/bin/sh", "-c", parsed[0])
+			b.Config.Entrypoint = stringutils.NewStrSlice("/bin/sh", "-c", parsed[0])
 		} else {
-			b.Config.Entrypoint = runconfig.NewEntrypoint("cmd", "/S /C", parsed[0])
+			b.Config.Entrypoint = stringutils.NewStrSlice("cmd", "/S /C", parsed[0])
 		}
 	}
 

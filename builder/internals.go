@@ -33,6 +33,7 @@ import (
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/progressreader"
 	"github.com/docker/docker/pkg/stringid"
+	"github.com/docker/docker/pkg/stringutils"
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/pkg/tarsum"
 	"github.com/docker/docker/pkg/urlutil"
@@ -73,7 +74,7 @@ func (b *builder) readContext(context io.Reader) (err error) {
 	return
 }
 
-func (b *builder) commit(id string, autoCmd *runconfig.Command, comment string) error {
+func (b *builder) commit(id string, autoCmd *stringutils.StrSlice, comment string) error {
 	if b.disableCommit {
 		return nil
 	}
@@ -84,11 +85,11 @@ func (b *builder) commit(id string, autoCmd *runconfig.Command, comment string) 
 	if id == "" {
 		cmd := b.Config.Cmd
 		if runtime.GOOS != "windows" {
-			b.Config.Cmd = runconfig.NewCommand("/bin/sh", "-c", "#(nop) "+comment)
+			b.Config.Cmd = stringutils.NewStrSlice("/bin/sh", "-c", "#(nop) "+comment)
 		} else {
-			b.Config.Cmd = runconfig.NewCommand("cmd", "/S /C", "REM (nop) "+comment)
+			b.Config.Cmd = stringutils.NewStrSlice("cmd", "/S /C", "REM (nop) "+comment)
 		}
-		defer func(cmd *runconfig.Command) { b.Config.Cmd = cmd }(cmd)
+		defer func(cmd *stringutils.StrSlice) { b.Config.Cmd = cmd }(cmd)
 
 		hit, err := b.probeCache()
 		if err != nil {
@@ -215,11 +216,11 @@ func (b *builder) runContextCommand(args []string, allowRemote bool, allowDecomp
 
 	cmd := b.Config.Cmd
 	if runtime.GOOS != "windows" {
-		b.Config.Cmd = runconfig.NewCommand("/bin/sh", "-c", fmt.Sprintf("#(nop) %s %s in %s", cmdName, srcHash, dest))
+		b.Config.Cmd = stringutils.NewStrSlice("/bin/sh", "-c", fmt.Sprintf("#(nop) %s %s in %s", cmdName, srcHash, dest))
 	} else {
-		b.Config.Cmd = runconfig.NewCommand("cmd", "/S /C", fmt.Sprintf("REM (nop) %s %s in %s", cmdName, srcHash, dest))
+		b.Config.Cmd = stringutils.NewStrSlice("cmd", "/S /C", fmt.Sprintf("REM (nop) %s %s in %s", cmdName, srcHash, dest))
 	}
-	defer func(cmd *runconfig.Command) { b.Config.Cmd = cmd }(cmd)
+	defer func(cmd *stringutils.StrSlice) { b.Config.Cmd = cmd }(cmd)
 
 	hit, err := b.probeCache()
 	if err != nil {
@@ -630,7 +631,7 @@ func (b *builder) create() (*daemon.Container, error) {
 		c.Path = s[0]
 		c.Args = s[1:]
 	} else {
-		config.Cmd = runconfig.NewCommand()
+		config.Cmd = stringutils.NewStrSlice()
 	}
 
 	return c, nil

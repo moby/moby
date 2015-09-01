@@ -39,6 +39,7 @@ import (
 	"github.com/docker/docker/pkg/nat"
 	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/docker/pkg/stringid"
+	"github.com/docker/docker/pkg/stringutils"
 	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/pkg/truncindex"
@@ -443,7 +444,7 @@ func (daemon *Daemon) generateHostname(id string, config *runconfig.Config) {
 	}
 }
 
-func (daemon *Daemon) getEntrypointAndArgs(configEntrypoint *runconfig.Entrypoint, configCmd *runconfig.Command) (string, []string) {
+func (daemon *Daemon) getEntrypointAndArgs(configEntrypoint *stringutils.StrSlice, configCmd *stringutils.StrSlice) (string, []string) {
 	var (
 		entrypoint string
 		args       []string
