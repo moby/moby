@@ -4790,7 +4790,8 @@ func (s *DockerSuite) TestBuildRenamedDockerfile(c *check.C) {
 		c.Fatalf("test4 should have used dFile, output:%s", out)
 	}
 
-	dirWithNoDockerfile, _ := ioutil.TempDir(os.TempDir(), "test5")
+	dirWithNoDockerfile, err := ioutil.TempDir(os.TempDir(), "test5")
+	c.Assert(err, check.IsNil)
 	nonDockerfileFile := filepath.Join(dirWithNoDockerfile, "notDockerfile")
 	if _, err = os.Create(nonDockerfileFile); err != nil {
 		c.Fatal(err)
