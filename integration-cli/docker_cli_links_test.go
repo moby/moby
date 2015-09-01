@@ -225,3 +225,18 @@ func (s *DockerSuite) TestLinkShortDefinition(c *check.C) {
 	c.Assert(err, check.IsNil)
 	c.Assert(links, check.Equals, "[\"/shortlinkdef:/link2/shortlinkdef\"]")
 }
+
+func (s *DockerSuite) TestLinksNetworkHostContainer(c *check.C) {
+	dockerCmd(c, "run", "-d", "--net", "host", "--name", "host_container", "busybox", "top")
+	out, _, err := dockerCmdWithError("run", "--name", "should_fail", "--link", "host_container:tester", "busybox", "true")
+	if err == nil || !strings.Contains(out, "--net=host can't be used with links. This would result in undefined behavior") {
+		c.Fatalf("Running container linking to a container with --net host should have failed: %s", out)
+	}
+}
+
+func (s *DockerSuite) TestLinksEtcHostsRegularFile(c *check.C) {
+	out, _ := dockerCmd(c, "run", "--net=host", "busybox", "ls", "-la", "/etc/hosts")
+	if !strings.HasPrefix(out, "-") {
+		c.Errorf("/etc/hosts should be a regular file")
+	}
+}
