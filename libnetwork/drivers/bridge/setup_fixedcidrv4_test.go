@@ -4,11 +4,11 @@ import (
 	"net"
 	"testing"
 
-	"github.com/docker/libnetwork/netutils"
+	"github.com/docker/libnetwork/osl"
 )
 
 func TestSetupFixedCIDRv4(t *testing.T) {
-	defer netutils.SetupTestNetNS(t)()
+	defer osl.SetupTestOSContext(t)()
 
 	config := &networkConfiguration{
 		BridgeName:  DefaultBridgeName,
@@ -35,7 +35,7 @@ func TestSetupFixedCIDRv4(t *testing.T) {
 }
 
 func TestSetupBadFixedCIDRv4(t *testing.T) {
-	defer netutils.SetupTestNetNS(t)()
+	defer osl.SetupTestOSContext(t)()
 
 	config := &networkConfiguration{
 		BridgeName:  DefaultBridgeName,

@@ -7,12 +7,12 @@ import (
 	"net"
 	"testing"
 
-	"github.com/docker/libnetwork/netutils"
+	"github.com/docker/libnetwork/osl"
 	"github.com/vishvananda/netlink"
 )
 
 func TestSetupIPv6(t *testing.T) {
-	defer netutils.SetupTestNetNS(t)()
+	defer osl.SetupTestOSContext(t)()
 
 	config, br := setupTestInterface(t)
 	if err := setupBridgeIPv6(config, br); err != nil {
@@ -48,7 +48,7 @@ func TestSetupIPv6(t *testing.T) {
 }
 
 func TestSetupGatewayIPv6(t *testing.T) {
-	defer netutils.SetupTestNetNS(t)()
+	defer osl.SetupTestOSContext(t)()
 
 	_, nw, _ := net.ParseCIDR("2001:db8:ea9:9abc:ffff::/80")
 	gw := net.ParseIP("2001:db8:ea9:9abc:ffff::254")

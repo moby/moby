@@ -84,7 +84,7 @@ func TestSandboxAddEmpty(t *testing.T) {
 
 func TestSandboxAddMultiPrio(t *testing.T) {
 	if !netutils.IsRunningInContainer() {
-		defer netutils.SetupTestNetNS(t)()
+		defer osl.SetupTestOSContext(t)()
 	}
 
 	c, nw, _ := getTestEnv(t)
@@ -161,7 +161,7 @@ func TestSandboxAddMultiPrio(t *testing.T) {
 
 func TestSandboxAddSamePrio(t *testing.T) {
 	if !netutils.IsRunningInContainer() {
-		defer netutils.SetupTestNetNS(t)()
+		defer osl.SetupTestOSContext(t)()
 	}
 
 	c, nw1, nw2 := getTestEnv(t)
