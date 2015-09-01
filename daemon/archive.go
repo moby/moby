@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/pkg/archive"
@@ -275,7 +276,22 @@ func (container *Container) ExtractToDir(path string, noOverwriteDirNonDir bool,
 	// Use the resolved path relative to the container rootfs as the new
 	// absPath. This way we fully follow any symlinks in a volume that may
 	// lead back outside the volume.
-	baseRel, err := filepath.Rel(container.basefs, resolvedPath)
+	//
+	// The Windows implementation of filepath.Rel in golang 1.4 does not
+	// support volume style file path semantics. On Windows when using the
+	// filter driver, we are guaranteed that the path will always be
+	// a volume file path.
+	var baseRel string
+	if strings.HasPrefix(resolvedPath, `\\?\Volume{`) {
+		if strings.HasPrefix(resolvedPath, container.basefs) {
+			baseRel = resolvedPath[len(container.basefs):]
+			if baseRel[:1] == `\` {
+				baseRel = baseRel[1:]
+			}
+		}
+	} else {
+		baseRel, err = filepath.Rel(container.basefs, resolvedPath)
+	}
 	if err != nil {
 		return err
 	}
