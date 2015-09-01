@@ -410,7 +410,12 @@ func TestJsonSaveWithNoFile(t *testing.T) {
 		t.Fatalf("Expected error. File should not have been able to save with no file name.")
 	}
 
-	tmpHome, _ := ioutil.TempDir("", "config-test")
+	tmpHome, err := ioutil.TempDir("", "config-test")
+	if err != nil {
+		t.Fatalf("Failed to create a temp dir: %q", err)
+	}
+	defer os.RemoveAll(tmpHome)
+
 	fn := filepath.Join(tmpHome, ConfigFileName)
 	f, _ := os.OpenFile(fn, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
 	err = config.SaveToWriter(f)
@@ -433,7 +438,12 @@ func TestLegacyJsonSaveWithNoFile(t *testing.T) {
 		t.Fatalf("Expected error. File should not have been able to save with no file name.")
 	}
 
-	tmpHome, _ := ioutil.TempDir("", "config-test")
+	tmpHome, err := ioutil.TempDir("", "config-test")
+	if err != nil {
+		t.Fatalf("Failed to create a temp dir: %q", err)
+	}
+	defer os.RemoveAll(tmpHome)
+
 	fn := filepath.Join(tmpHome, ConfigFileName)
 	f, _ := os.OpenFile(fn, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
 	err = config.SaveToWriter(f)
