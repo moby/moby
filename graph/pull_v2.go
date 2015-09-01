@@ -230,6 +230,9 @@ func (p *v2Puller) pullV2Tag(out io.Writer, tag, taggedName string) (verified bo
 			// set the error. All successive reads/writes will return with this
 			// error.
 			pipeWriter.CloseWithError(errors.New("download canceled"))
+		} else {
+			// If no error then just close the pipe.
+			pipeWriter.Close()
 		}
 	}()
 
