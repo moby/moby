@@ -18,9 +18,7 @@ import (
 	"github.com/docker/docker/daemon/execdriver"
 	"github.com/docker/docker/daemon/links"
 	"github.com/docker/docker/daemon/network"
-	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/directory"
-	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/nat"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/pkg/system"
@@ -955,21 +953,6 @@ func (container *Container) initializeNetworking() error {
 	}
 
 	return container.buildHostnameFile()
-}
-
-func (container *Container) exportRw() (archive.Archive, error) {
-	if container.daemon == nil {
-		return nil, fmt.Errorf("Can't load storage driver for unregistered container %s", container.ID)
-	}
-	archive, err := container.daemon.diff(container)
-	if err != nil {
-		return nil, err
-	}
-	return ioutils.NewReadCloserWrapper(archive, func() error {
-			err := archive.Close()
-			return err
-		}),
-		nil
 }
 
 func (container *Container) getIpcContainer() (*Container, error) {

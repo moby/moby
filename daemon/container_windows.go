@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/docker/docker/daemon/execdriver"
-	"github.com/docker/docker/pkg/archive"
 )
 
 // DefaultPathEnv is deliberately empty on Windows as the default path will be set by
@@ -142,14 +141,6 @@ func (container *Container) getSize() (int64, int64) {
 // allocateNetwork is a no-op on Windows.
 func (container *Container) allocateNetwork() error {
 	return nil
-}
-
-func (container *Container) exportRw() (archive.Archive, error) {
-	if container.IsRunning() {
-		return nil, fmt.Errorf("Cannot export a running container.")
-	}
-	// TODO Windows. Implementation (different to Linux)
-	return nil, nil
 }
 
 func (container *Container) updateNetwork() error {
