@@ -10,20 +10,19 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/libnetwork/datastore"
 	"github.com/docker/libnetwork/ipallocator"
-	"github.com/docker/libnetwork/sandbox"
-	"github.com/docker/libnetwork/types"
+	"github.com/docker/libnetwork/osl"
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netlink/nl"
 )
 
-type networkTable map[types.UUID]*network
+type networkTable map[string]*network
 
 type network struct {
-	id          types.UUID
+	id          string
 	vni         uint32
 	dbIndex     uint64
 	dbExists    bool
-	sbox        sandbox.Sandbox
+	sbox        osl.Sandbox
 	endpoints   endpointTable
 	ipAllocator *ipallocator.IPAllocator
 	gw          net.IP
@@ -36,7 +35,7 @@ type network struct {
 	sync.Mutex
 }
 
-func (d *driver) CreateNetwork(id types.UUID, option map[string]interface{}) error {
+func (d *driver) CreateNetwork(id string, option map[string]interface{}) error {
 	if id == "" {
 		return fmt.Errorf("invalid network id")
 	}
@@ -59,7 +58,7 @@ func (d *driver) CreateNetwork(id types.UUID, option map[string]interface{}) err
 	return nil
 }
 
-func (d *driver) DeleteNetwork(nid types.UUID) error {
+func (d *driver) DeleteNetwork(nid string) error {
 	if nid == "" {
 		return fmt.Errorf("invalid network id")
 	}
@@ -140,8 +139,8 @@ func (n *network) initSandbox() error {
 	n.initEpoch++
 	n.Unlock()
 
-	sbox, err := sandbox.NewSandbox(
-		sandbox.GenerateKey(fmt.Sprintf("%d-", n.initEpoch)+string(n.id)), true)
+	sbox, err := osl.NewSandbox(
+		osl.GenerateKey(fmt.Sprintf("%d-", n.initEpoch)+n.id), true)
 	if err != nil {
 		return fmt.Errorf("could not create network sandbox: %v", err)
 	}
@@ -216,7 +215,7 @@ func (n *network) watchMiss(nlSock *nl.NetlinkSocket) {
 				continue
 			}
 
-			if err := n.driver.peerAdd(n.id, types.UUID("dummy"), neigh.IP, mac, vtep, true); err != nil {
+			if err := n.driver.peerAdd(n.id, "dummy", neigh.IP, mac, vtep, true); err != nil {
 				logrus.Errorf("could not add neighbor entry for missed peer: %v", err)
 			}
 		}
@@ -229,27 +228,27 @@ func (d *driver) addNetwork(n *network) {
 	d.Unlock()
 }
 
-func (d *driver) deleteNetwork(nid types.UUID) {
+func (d *driver) deleteNetwork(nid string) {
 	d.Lock()
 	delete(d.networks, nid)
 	d.Unlock()
 }
 
-func (d *driver) network(nid types.UUID) *network {
+func (d *driver) network(nid string) *network {
 	d.Lock()
 	defer d.Unlock()
 
 	return d.networks[nid]
 }
 
-func (n *network) sandbox() sandbox.Sandbox {
+func (n *network) sandbox() osl.Sandbox {
 	n.Lock()
 	defer n.Unlock()
 
 	return n.sbox
 }
 
-func (n *network) setSandbox(sbox sandbox.Sandbox) {
+func (n *network) setSandbox(sbox osl.Sandbox) {
 	n.Lock()
 	n.sbox = sbox
 	n.Unlock()
@@ -269,7 +268,7 @@ func (n *network) setVxlanID(vni uint32) {
 }
 
 func (n *network) Key() []string {
-	return []string{"overlay", "network", string(n.id)}
+	return []string{"overlay", "network", n.id}
 }
 
 func (n *network) KeyPrefix() []string {

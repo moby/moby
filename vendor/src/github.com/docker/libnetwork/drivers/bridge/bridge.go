@@ -20,6 +20,7 @@ import (
 	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/libnetwork/netutils"
 	"github.com/docker/libnetwork/options"
+	"github.com/docker/libnetwork/osl"
 	"github.com/docker/libnetwork/portmapper"
 	"github.com/docker/libnetwork/types"
 	"github.com/vishvananda/netlink"
@@ -75,7 +76,7 @@ type containerConfiguration struct {
 }
 
 type bridgeEndpoint struct {
-	id              types.UUID
+	id              string
 	srcName         string
 	addr            *net.IPNet
 	addrv6          *net.IPNet
@@ -86,10 +87,10 @@ type bridgeEndpoint struct {
 }
 
 type bridgeNetwork struct {
-	id         types.UUID
+	id         string
 	bridge     *bridgeInterface // The bridge's L3 interface
 	config     *networkConfiguration
-	endpoints  map[types.UUID]*bridgeEndpoint // key: endpoint id
+	endpoints  map[string]*bridgeEndpoint // key: endpoint id
 	portMapper *portmapper.PortMapper
 	driver     *driver // The network's driver
 	sync.Mutex
@@ -100,7 +101,7 @@ type driver struct {
 	network     *bridgeNetwork
 	natChain    *iptables.ChainInfo
 	filterChain *iptables.ChainInfo
-	networks    map[types.UUID]*bridgeNetwork
+	networks    map[string]*bridgeNetwork
 	sync.Mutex
 }
 
@@ -110,7 +111,7 @@ func init() {
 
 // New constructs a new bridge driver
 func newDriver() driverapi.Driver {
-	return &driver{networks: map[types.UUID]*bridgeNetwork{}}
+	return &driver{networks: map[string]*bridgeNetwork{}}
 }
 
 // Init registers a new instance of bridge driver
@@ -346,7 +347,7 @@ func (n *bridgeNetwork) getNetworkBridgeName() string {
 	return config.BridgeName
 }
 
-func (n *bridgeNetwork) getEndpoint(eid types.UUID) (*bridgeEndpoint, error) {
+func (n *bridgeNetwork) getEndpoint(eid string) (*bridgeEndpoint, error) {
 	n.Lock()
 	defer n.Unlock()
 
@@ -394,7 +395,7 @@ func (n *bridgeNetwork) isolateNetwork(others []*bridgeNetwork, enable bool) err
 }
 
 // Checks whether this network's configuration for the network with this id conflicts with any of the passed networks
-func (c *networkConfiguration) conflictsWithNetworks(id types.UUID, others []*bridgeNetwork) error {
+func (c *networkConfiguration) conflictsWithNetworks(id string, others []*bridgeNetwork) error {
 	for _, nw := range others {
 
 		nw.Lock()
@@ -475,7 +476,7 @@ func (d *driver) Config(option map[string]interface{}) error {
 	return nil
 }
 
-func (d *driver) getNetwork(id types.UUID) (*bridgeNetwork, error) {
+func (d *driver) getNetwork(id string) (*bridgeNetwork, error) {
 	d.Lock()
 	defer d.Unlock()
 
@@ -567,8 +568,10 @@ func (d *driver) getNetworks() []*bridgeNetwork {
 }
 
 // Create a new network using bridge plugin
-func (d *driver) CreateNetwork(id types.UUID, option map[string]interface{}) error {
+func (d *driver) CreateNetwork(id string, option map[string]interface{}) error {
 	var err error
+
+	defer osl.InitOSContext()()
 
 	// Sanity checks
 	d.Lock()
@@ -596,7 +599,7 @@ func (d *driver) CreateNetwork(id types.UUID, option map[string]interface{}) err
 	// Create and set network handler in driver
 	network := &bridgeNetwork{
 		id:         id,
-		endpoints:  make(map[types.UUID]*bridgeEndpoint),
+		endpoints:  make(map[string]*bridgeEndpoint),
 		config:     config,
 		portMapper: portmapper.New(),
 		driver:     d,
@@ -719,8 +722,10 @@ func (d *driver) CreateNetwork(id types.UUID, option map[string]interface{}) err
 	return nil
 }
 
-func (d *driver) DeleteNetwork(nid types.UUID) error {
+func (d *driver) DeleteNetwork(nid string) error {
 	var err error
+
+	defer osl.InitOSContext()()
 
 	// Get network handler and remove it from driver
 	d.Lock()
@@ -843,11 +848,13 @@ func setHairpinMode(link netlink.Link, enable bool) error {
 	return nil
 }
 
-func (d *driver) CreateEndpoint(nid, eid types.UUID, epInfo driverapi.EndpointInfo, epOptions map[string]interface{}) error {
+func (d *driver) CreateEndpoint(nid, eid string, epInfo driverapi.EndpointInfo, epOptions map[string]interface{}) error {
 	var (
 		ipv6Addr *net.IPNet
 		err      error
 	)
+
+	defer osl.InitOSContext()()
 
 	if epInfo == nil {
 		return errors.New("invalid endpoint info passed")
@@ -927,13 +934,13 @@ func (d *driver) CreateEndpoint(nid, eid types.UUID, epInfo driverapi.EndpointIn
 		LinkAttrs: netlink.LinkAttrs{Name: hostIfName, TxQLen: 0},
 		PeerName:  containerIfName}
 	if err = netlink.LinkAdd(veth); err != nil {
-		return err
+		return types.InternalErrorf("failed to add the host (%s) <=> sandbox (%s) pair interfaces: %v", hostIfName, containerIfName, err)
 	}
 
 	// Get the host side pipe interface handler
 	host, err := netlink.LinkByName(hostIfName)
 	if err != nil {
-		return err
+		return types.InternalErrorf("failed to find host side interface %s: %v", hostIfName, err)
 	}
 	defer func() {
 		if err != nil {
@@ -944,7 +951,7 @@ func (d *driver) CreateEndpoint(nid, eid types.UUID, epInfo driverapi.EndpointIn
 	// Get the sandbox side pipe interface handler
 	sbox, err := netlink.LinkByName(containerIfName)
 	if err != nil {
-		return err
+		return types.InternalErrorf("failed to find sandbox side interface %s: %v", containerIfName, err)
 	}
 	defer func() {
 		if err != nil {
@@ -960,11 +967,11 @@ func (d *driver) CreateEndpoint(nid, eid types.UUID, epInfo driverapi.EndpointIn
 	if config.Mtu != 0 {
 		err = netlink.LinkSetMTU(host, config.Mtu)
 		if err != nil {
-			return err
+			return types.InternalErrorf("failed to set MTU on host interface %s: %v", hostIfName, err)
 		}
 		err = netlink.LinkSetMTU(sbox, config.Mtu)
 		if err != nil {
-			return err
+			return types.InternalErrorf("failed to set MTU on sandbox interface %s: %v", containerIfName, err)
 		}
 	}
 
@@ -1054,8 +1061,10 @@ func (d *driver) CreateEndpoint(nid, eid types.UUID, epInfo driverapi.EndpointIn
 	return nil
 }
 
-func (d *driver) DeleteEndpoint(nid, eid types.UUID) error {
+func (d *driver) DeleteEndpoint(nid, eid string) error {
 	var err error
+
+	defer osl.InitOSContext()()
 
 	// Get the network handler and make sure it exists
 	d.Lock()
@@ -1138,7 +1147,7 @@ func (d *driver) DeleteEndpoint(nid, eid types.UUID) error {
 	return nil
 }
 
-func (d *driver) EndpointOperInfo(nid, eid types.UUID) (map[string]interface{}, error) {
+func (d *driver) EndpointOperInfo(nid, eid string) (map[string]interface{}, error) {
 	// Get the network handler and make sure it exists
 	d.Lock()
 	n, ok := d.networks[nid]
@@ -1195,7 +1204,9 @@ func (d *driver) EndpointOperInfo(nid, eid types.UUID) (map[string]interface{}, 
 }
 
 // Join method is invoked when a Sandbox is attached to an endpoint.
-func (d *driver) Join(nid, eid types.UUID, sboxKey string, jinfo driverapi.JoinInfo, options map[string]interface{}) error {
+func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo, options map[string]interface{}) error {
+	defer osl.InitOSContext()()
+
 	network, err := d.getNetwork(nid)
 	if err != nil {
 		return err
@@ -1238,7 +1249,9 @@ func (d *driver) Join(nid, eid types.UUID, sboxKey string, jinfo driverapi.JoinI
 }
 
 // Leave method is invoked when a Sandbox detaches from an endpoint.
-func (d *driver) Leave(nid, eid types.UUID) error {
+func (d *driver) Leave(nid, eid string) error {
+	defer osl.InitOSContext()()
+
 	network, err := d.getNetwork(nid)
 	if err != nil {
 		return err
@@ -1282,7 +1295,7 @@ func (d *driver) link(network *bridgeNetwork, endpoint *bridgeEndpoint, options 
 	if endpoint.config != nil && endpoint.config.ExposedPorts != nil {
 		for _, p := range cc.ParentEndpoints {
 			var parentEndpoint *bridgeEndpoint
-			parentEndpoint, err = network.getEndpoint(types.UUID(p))
+			parentEndpoint, err = network.getEndpoint(p)
 			if err != nil {
 				return err
 			}
@@ -1312,7 +1325,7 @@ func (d *driver) link(network *bridgeNetwork, endpoint *bridgeEndpoint, options 
 
 	for _, c := range cc.ChildEndpoints {
 		var childEndpoint *bridgeEndpoint
-		childEndpoint, err = network.getEndpoint(types.UUID(c))
+		childEndpoint, err = network.getEndpoint(c)
 		if err != nil {
 			return err
 		}

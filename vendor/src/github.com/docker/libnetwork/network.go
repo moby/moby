@@ -59,7 +59,7 @@ type network struct {
 	ctrlr       *controller
 	name        string
 	networkType string
-	id          types.UUID
+	id          string
 	driver      driverapi.Driver
 	enableIPv6  bool
 	endpointCnt uint64
@@ -83,7 +83,7 @@ func (n *network) ID() string {
 	n.Lock()
 	defer n.Unlock()
 
-	return string(n.id)
+	return n.id
 }
 
 func (n *network) Type() string {
@@ -100,7 +100,7 @@ func (n *network) Type() string {
 func (n *network) Key() []string {
 	n.Lock()
 	defer n.Unlock()
-	return []string{datastore.NetworkKeyPrefix, string(n.id)}
+	return []string{datastore.NetworkKeyPrefix, n.id}
 }
 
 func (n *network) KeyPrefix() []string {
@@ -162,7 +162,7 @@ func (n *network) DecEndpointCnt() {
 func (n *network) MarshalJSON() ([]byte, error) {
 	netMap := make(map[string]interface{})
 	netMap["name"] = n.name
-	netMap["id"] = string(n.id)
+	netMap["id"] = n.id
 	netMap["networkType"] = n.networkType
 	netMap["endpointCnt"] = n.endpointCnt
 	netMap["enableIPv6"] = n.enableIPv6
@@ -177,7 +177,7 @@ func (n *network) UnmarshalJSON(b []byte) (err error) {
 		return err
 	}
 	n.name = netMap["name"].(string)
-	n.id = types.UUID(netMap["id"].(string))
+	n.id = netMap["id"].(string)
 	n.networkType = netMap["networkType"].(string)
 	n.endpointCnt = uint64(netMap["endpointCnt"].(float64))
 	n.enableIPv6 = netMap["enableIPv6"].(bool)
@@ -223,12 +223,12 @@ func (n *network) Delete() error {
 	ctrlr.Unlock()
 
 	if !ok {
-		return &UnknownNetworkError{name: n.name, id: string(n.id)}
+		return &UnknownNetworkError{name: n.name, id: n.id}
 	}
 
 	numEps := n.EndpointCnt()
 	if numEps != 0 {
-		return &ActiveEndpointsError{name: n.name, id: string(n.id)}
+		return &ActiveEndpointsError{name: n.name, id: n.id}
 	}
 
 	// deleteNetworkFromStore performs an atomic delete operation and the network.endpointCnt field will help
@@ -287,7 +287,7 @@ func (n *network) addEndpoint(ep *endpoint) error {
 
 	err = d.CreateEndpoint(n.id, ep.id, ep, ep.generic)
 	if err != nil {
-		return err
+		return types.InternalErrorf("failed to create endpoint %s on network %s: %v", ep.Name(), n.Name(), err)
 	}
 
 	n.updateSvcRecord(ep, true)
@@ -307,7 +307,7 @@ func (n *network) CreateEndpoint(name string, options ...EndpointOption) (Endpoi
 	ep := &endpoint{name: name,
 		iFaces:  []*endpointInterface{},
 		generic: make(map[string]interface{})}
-	ep.id = types.UUID(stringid.GenerateRandomID())
+	ep.id = stringid.GenerateRandomID()
 	ep.network = n
 	ep.processOptions(options...)
 
@@ -393,7 +393,7 @@ func (n *network) EndpointByID(id string) (Endpoint, error) {
 	}
 	n.Lock()
 	defer n.Unlock()
-	if e, ok := n.endpoints[types.UUID(id)]; ok {
+	if e, ok := n.endpoints[id]; ok {
 		return e, nil
 	}
 	return nil, ErrNoSuchEndpoint(id)
@@ -435,22 +435,19 @@ func (n *network) updateSvcRecord(ep *endpoint, isAdd bool) {
 		return
 	}
 
-	var epList []*endpoint
+	var sbList []*sandbox
 	n.WalkEndpoints(func(e Endpoint) bool {
-		cEp := e.(*endpoint)
-		cEp.Lock()
-		if cEp.container != nil {
-			epList = append(epList, cEp)
+		if sb, hasSandbox := e.(*endpoint).getSandbox(); hasSandbox {
+			sbList = append(sbList, sb)
 		}
-		cEp.Unlock()
 		return false
 	})
 
-	for _, cEp := range epList {
+	for _, sb := range sbList {
 		if isAdd {
-			cEp.addHostEntries(recs)
+			sb.addHostsEntries(recs)
 		} else {
-			cEp.deleteHostEntries(recs)
+			sb.deleteHostsEntries(recs)
 		}
 	}
 }
@@ -468,4 +465,10 @@ func (n *network) getSvcRecords() []etchosts.Record {
 	}
 
 	return recs
+}
+
+func (n *network) getController() *controller {
+	n.Lock()
+	defer n.Unlock()
+	return n.ctrlr
 }
