@@ -360,7 +360,7 @@ func calcCopyInfo(b *builder, cmdName string, cInfos *[]*copyInfo, origPath stri
 			if err != nil {
 				return err
 			}
-			path := u.Path
+			path := filepath.FromSlash(u.Path) // Ensure in platform semantics
 			if strings.HasSuffix(path, string(os.PathSeparator)) {
 				path = path[:len(path)-1]
 			}
