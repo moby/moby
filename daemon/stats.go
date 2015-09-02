@@ -6,7 +6,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/daemon/execdriver"
-	"github.com/docker/libnetwork/sandbox"
+	"github.com/docker/libnetwork/osl"
 	"github.com/opencontainers/runc/libcontainer"
 )
 
@@ -86,16 +86,12 @@ func (daemon *Daemon) getNetworkStats(name string) ([]*libcontainer.NetworkInter
 		return list, err
 	}
 
-	nw, err := daemon.netController.NetworkByID(c.NetworkSettings.NetworkID)
-	if err != nil {
-		return list, err
-	}
-	ep, err := nw.EndpointByID(c.NetworkSettings.EndpointID)
+	sb, err := daemon.netController.SandboxByID(c.NetworkSettings.SandboxID)
 	if err != nil {
 		return list, err
 	}
 
-	stats, err := ep.Statistics()
+	stats, err := sb.Statistics()
 	if err != nil {
 		return list, err
 	}
@@ -108,7 +104,7 @@ func (daemon *Daemon) getNetworkStats(name string) ([]*libcontainer.NetworkInter
 	return list, nil
 }
 
-func convertLnNetworkStats(name string, stats *sandbox.InterfaceStatistics) *libcontainer.NetworkInterface {
+func convertLnNetworkStats(name string, stats *osl.InterfaceStatistics) *libcontainer.NetworkInterface {
 	n := &libcontainer.NetworkInterface{Name: name}
 	n.RxBytes = stats.RxBytes
 	n.RxPackets = stats.RxPackets
