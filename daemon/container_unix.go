@@ -715,8 +715,6 @@ func (container *Container) buildCreateEndpointOptions() ([]libnetwork.EndpointO
 		}
 	}
 
-	container.NetworkSettings.PortMapping = nil
-
 	ports := make([]nat.Port, len(portSpecs))
 	var i int
 	for p := range portSpecs {
