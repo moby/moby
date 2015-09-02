@@ -198,6 +198,27 @@ func (s *DockerSuite) TestRunWithVolumesFromExited(c *check.C) {
 	}
 }
 
+//test ro and rw volumes for #15962
+func (s *DockerSuite) TestCreateVolumesWithRoAndRwMode(c *check.C) {
+	dockerCmd(c, "run", "-i", "-t", "-d", "--name", "test-ro", "-v", "/test:ro", "busybox")
+
+	out, err := inspectField("test-ro", "Mounts")
+	c.Assert(err, check.IsNil)
+
+	if !strings.Contains(out, "false") {
+		c.Fatalf("create a container with a ro mode volume failed")
+	}
+
+	dockerCmd(c, "run", "-i", "-t", "-d", "--name", "test-rw", "-v", "/test:rw", "busybox")
+
+	out, err = inspectField("test-rw", "Mounts")
+	c.Assert(err, check.IsNil)
+
+	if !strings.Contains(out, "true") {
+		c.Fatalf("create a container with a rw mode volume failed")
+	}
+}
+
 // Volume path is a symlink which also exists on the host, and the host side is a file not a dir
 // But the volume call is just a normal volume, not a bind mount
 func (s *DockerSuite) TestRunCreateVolumesInSymlinkDir(c *check.C) {
