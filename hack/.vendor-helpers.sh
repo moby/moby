@@ -117,7 +117,7 @@ clean() {
 	done
 
 	echo -n 'pruning unused files, '
-	find vendor -type f -name '*_test.go' -exec rm -v '{}' +
+	find vendor -type f \( -name '*_test.go' -o -name '*_test_*.go' -o -name 'test_*.go' \) -exec rm -v '{}' +
 
 	echo done
 }
