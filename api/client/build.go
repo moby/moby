@@ -64,6 +64,7 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	flCPUSetCpus := cmd.String([]string{"-cpuset-cpus"}, "", "CPUs in which to allow execution (0-3, 0,1)")
 	flCPUSetMems := cmd.String([]string{"-cpuset-mems"}, "", "MEMs in which to allow execution (0-3, 0,1)")
 	flCgroupParent := cmd.String([]string{"-cgroup-parent"}, "", "Optional parent cgroup for the container")
+	flNetMode := cmd.String([]string{"-net"}, "default", "Set the Network mode for the container")
 
 	ulimits := make(map[string]*ulimit.Ulimit)
 	flUlimits := opts.NewUlimitOpt(&ulimits)
@@ -247,6 +248,7 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	v.Set("memory", strconv.FormatInt(memory, 10))
 	v.Set("memswap", strconv.FormatInt(memorySwap, 10))
 	v.Set("cgroupparent", *flCgroupParent)
+	v.Set("netmode", *flNetMode)
 
 	v.Set("dockerfile", relDockerfile)
 

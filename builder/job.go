@@ -64,6 +64,7 @@ type Config struct {
 	CPUSetCpus     string
 	CPUSetMems     string
 	CgroupParent   string
+	NetMode        string
 	Ulimits        []*ulimit.Ulimit
 	AuthConfigs    map[string]cliconfig.AuthConfig
 
@@ -208,6 +209,7 @@ func Build(d *daemon.Daemon, buildConfig *Config) error {
 		cgroupParent:    buildConfig.CgroupParent,
 		memory:          buildConfig.Memory,
 		memorySwap:      buildConfig.MemorySwap,
+		netMode:         buildConfig.NetMode,
 		ulimits:         buildConfig.Ulimits,
 		cancelled:       buildConfig.WaitCancelled(),
 		id:              stringid.GenerateRandomID(),

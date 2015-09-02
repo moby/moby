@@ -131,6 +131,7 @@ type builder struct {
 	cgroupParent string
 	memory       int64
 	memorySwap   int64
+	netMode      string
 	ulimits      []*ulimit.Ulimit
 
 	cancelled <-chan struct{} // When closed, job was cancelled.

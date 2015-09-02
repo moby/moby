@@ -310,6 +310,7 @@ func (s *Server) postBuild(version version.Version, w http.ResponseWriter, r *ht
 	buildConfig.CPUSetCpus = r.FormValue("cpusetcpus")
 	buildConfig.CPUSetMems = r.FormValue("cpusetmems")
 	buildConfig.CgroupParent = r.FormValue("cgroupparent")
+	buildConfig.NetMode = r.FormValue("netmode")
 
 	var buildUlimits = []*ulimit.Ulimit{}
 	ulimitsJSON := r.FormValue("ulimits")

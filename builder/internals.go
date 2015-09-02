@@ -608,6 +608,7 @@ func (b *builder) create() (*daemon.Container, error) {
 		Memory:       b.memory,
 		MemorySwap:   b.memorySwap,
 		Ulimits:      b.ulimits,
+		NetworkMode:  runconfig.NetworkMode(b.netMode),
 	}
 
 	config := *b.Config
