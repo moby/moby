@@ -168,6 +168,10 @@ func makeHandler(ctrl libnetwork.NetworkController, fct processor) http.HandlerF
 		}
 
 		res, rsp := fct(ctrl, mux.Vars(req), body)
+		if !rsp.isOK() {
+			http.Error(w, rsp.Status, rsp.StatusCode)
+			return
+		}
 		if res != nil {
 			writeJSON(w, rsp.StatusCode, res)
 		}
