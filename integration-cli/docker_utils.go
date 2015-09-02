@@ -482,6 +482,10 @@ func getAllVolumes() ([]*types.Volume, error) {
 var protectedImages = map[string]struct{}{}
 
 func init() {
+	initProtectedImages()
+}
+
+func initProtectedImages() {
 	out, err := exec.Command(dockerBinary, "images").CombinedOutput()
 	if err != nil {
 		panic(err)

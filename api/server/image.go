@@ -20,36 +20,37 @@ import (
 	"github.com/docker/docker/pkg/version"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/utils"
+	restful "github.com/emicklei/go-restful"
 )
 
-func (s *Server) postCommit(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	if err := parseForm(r); err != nil {
+func (s *Server) postCommit(version version.Version, w *restful.Response, r *restful.Request) error {
+	if err := parseForm(r.Request); err != nil {
 		return err
 	}
 
-	if err := checkForJSON(r); err != nil {
+	if err := checkForJSON(r.Request); err != nil {
 		return err
 	}
 
-	cname := r.Form.Get("container")
+	cname := r.Request.Form.Get("container")
 
-	pause := boolValue(r, "pause")
-	if r.FormValue("pause") == "" && version.GreaterThanOrEqualTo("1.13") {
+	pause := boolValue(r.Request, "pause")
+	if r.Request.FormValue("pause") == "" && version.GreaterThanOrEqualTo("1.13") {
 		pause = true
 	}
 
-	c, _, err := runconfig.DecodeContainerConfig(r.Body)
+	c, _, err := runconfig.DecodeContainerConfig(r.Request.Body)
 	if err != nil && err != io.EOF { //Do not fail if body is empty.
 		return err
 	}
 
 	commitCfg := &builder.CommitConfig{
 		Pause:   pause,
-		Repo:    r.Form.Get("repo"),
-		Tag:     r.Form.Get("tag"),
-		Author:  r.Form.Get("author"),
-		Comment: r.Form.Get("comment"),
-		Changes: r.Form["changes"],
+		Repo:    r.Request.Form.Get("repo"),
+		Tag:     r.Request.Form.Get("tag"),
+		Author:  r.Request.Form.Get("author"),
+		Comment: r.Request.Form.Get("comment"),
+		Changes: r.Request.Form["changes"],
 		Config:  c,
 	}
 
@@ -64,18 +65,18 @@ func (s *Server) postCommit(version version.Version, w http.ResponseWriter, r *h
 }
 
 // Creates an image from Pull or from Import
-func (s *Server) postImagesCreate(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	if err := parseForm(r); err != nil {
+func (s *Server) postImagesCreate(version version.Version, w *restful.Response, r *restful.Request) error {
+	if err := parseForm(r.Request); err != nil {
 		return err
 	}
 
 	var (
-		image   = r.Form.Get("fromImage")
-		repo    = r.Form.Get("repo")
-		tag     = r.Form.Get("tag")
-		message = r.Form.Get("message")
+		image   = r.Request.Form.Get("fromImage")
+		repo    = r.Request.Form.Get("repo")
+		tag     = r.Request.Form.Get("tag")
+		message = r.Request.Form.Get("message")
 	)
-	authEncoded := r.Header.Get("X-Registry-Auth")
+	authEncoded := r.HeaderParameter("X-Registry-Auth")
 	authConfig := &cliconfig.AuthConfig{}
 	if authEncoded != "" {
 		authJSON := base64.NewDecoder(base64.URLEncoding, strings.NewReader(authEncoded))
@@ -98,7 +99,7 @@ func (s *Server) postImagesCreate(version version.Version, w http.ResponseWriter
 			image, tag = parsers.ParseRepositoryTag(image)
 		}
 		metaHeaders := map[string][]string{}
-		for k, v := range r.Header {
+		for k, v := range r.Request.Header {
 			if strings.HasPrefix(k, "X-Meta-") {
 				metaHeaders[k] = v
 			}
@@ -116,18 +117,18 @@ func (s *Server) postImagesCreate(version version.Version, w http.ResponseWriter
 			repo, tag = parsers.ParseRepositoryTag(repo)
 		}
 
-		src := r.Form.Get("fromSrc")
+		src := r.Request.Form.Get("fromSrc")
 
 		// 'err' MUST NOT be defined within this block, we need any error
 		// generated from the download to be available to the output
 		// stream processing below
 		var newConfig *runconfig.Config
-		newConfig, err = builder.BuildFromConfig(s.daemon, &runconfig.Config{}, r.Form["changes"])
+		newConfig, err = builder.BuildFromConfig(s.daemon, &runconfig.Config{}, r.Request.Form["changes"])
 		if err != nil {
 			return err
 		}
 
-		err = s.daemon.Repositories().Import(src, repo, tag, message, r.Body, output, newConfig)
+		err = s.daemon.Repositories().Import(src, repo, tag, message, r.Request.Body, output, newConfig)
 	}
 	if err != nil {
 		if !output.Flushed() {
@@ -140,23 +141,19 @@ func (s *Server) postImagesCreate(version version.Version, w http.ResponseWriter
 	return nil
 }
 
-func (s *Server) postImagesPush(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	if vars == nil {
-		return fmt.Errorf("Missing parameter")
-	}
-
+func (s *Server) postImagesPush(version version.Version, w *restful.Response, r *restful.Request) error {
 	metaHeaders := map[string][]string{}
-	for k, v := range r.Header {
+	for k, v := range r.Request.Header {
 		if strings.HasPrefix(k, "X-Meta-") {
 			metaHeaders[k] = v
 		}
 	}
-	if err := parseForm(r); err != nil {
+	if err := parseForm(r.Request); err != nil {
 		return err
 	}
 	authConfig := &cliconfig.AuthConfig{}
 
-	authEncoded := r.Header.Get("X-Registry-Auth")
+	authEncoded := r.HeaderParameter("X-Registry-Auth")
 	if authEncoded != "" {
 		// the new format is to handle the authConfig as a header
 		authJSON := base64.NewDecoder(base64.URLEncoding, strings.NewReader(authEncoded))
@@ -166,17 +163,17 @@ func (s *Server) postImagesPush(version version.Version, w http.ResponseWriter, 
 		}
 	} else {
 		// the old format is supported for compatibility if there was no authConfig header
-		if err := json.NewDecoder(r.Body).Decode(authConfig); err != nil {
+		if err := json.NewDecoder(r.Request.Body).Decode(authConfig); err != nil {
 			return fmt.Errorf("Bad parameters and missing X-Registry-Auth: %v", err)
 		}
 	}
 
-	name := vars["name"]
+	name := r.PathParameter("name")
 	output := ioutils.NewWriteFlusher(w)
 	imagePushConfig := &graph.ImagePushConfig{
 		MetaHeaders: metaHeaders,
 		AuthConfig:  authConfig,
-		Tag:         r.Form.Get("tag"),
+		Tag:         r.Request.Form.Get("tag"),
 		OutStream:   output,
 	}
 
@@ -192,11 +189,8 @@ func (s *Server) postImagesPush(version version.Version, w http.ResponseWriter, 
 	return nil
 }
 
-func (s *Server) getImagesGet(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	if vars == nil {
-		return fmt.Errorf("Missing parameter")
-	}
-	if err := parseForm(r); err != nil {
+func (s *Server) getImagesGet(version version.Version, w *restful.Response, r *restful.Request) error {
+	if err := parseForm(r.Request); err != nil {
 		return err
 	}
 
@@ -204,10 +198,10 @@ func (s *Server) getImagesGet(version version.Version, w http.ResponseWriter, r 
 
 	output := ioutils.NewWriteFlusher(w)
 	var names []string
-	if name, ok := vars["name"]; ok {
+	if name := r.PathParameter("name"); name != "" {
 		names = []string{name}
 	} else {
-		names = r.Form["names"]
+		names = r.Request.Form["names"]
 	}
 
 	if err := s.daemon.Repositories().ImageExport(names, output); err != nil {
@@ -220,26 +214,23 @@ func (s *Server) getImagesGet(version version.Version, w http.ResponseWriter, r 
 	return nil
 }
 
-func (s *Server) postImagesLoad(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	return s.daemon.Repositories().Load(r.Body, w)
+func (s *Server) postImagesLoad(version version.Version, w *restful.Response, r *restful.Request) error {
+	return s.daemon.Repositories().Load(r.Request.Body, w)
 }
 
-func (s *Server) deleteImages(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	if err := parseForm(r); err != nil {
+func (s *Server) deleteImages(version version.Version, w *restful.Response, r *restful.Request) error {
+	if err := parseForm(r.Request); err != nil {
 		return err
 	}
-	if vars == nil {
-		return fmt.Errorf("Missing parameter")
-	}
 
-	name := vars["name"]
+	name := r.PathParameter("name")
 
 	if name == "" {
 		return fmt.Errorf("image name cannot be blank")
 	}
 
-	force := boolValue(r, "force")
-	prune := !boolValue(r, "noprune")
+	force := boolValue(r.Request, "force")
+	prune := !boolValue(r.Request, "noprune")
 
 	list, err := s.daemon.ImageDelete(name, force, prune)
 	if err != nil {
@@ -249,12 +240,8 @@ func (s *Server) deleteImages(version version.Version, w http.ResponseWriter, r 
 	return writeJSON(w, http.StatusOK, list)
 }
 
-func (s *Server) getImagesByName(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	if vars == nil {
-		return fmt.Errorf("Missing parameter")
-	}
-
-	imageInspect, err := s.daemon.Repositories().Lookup(vars["name"])
+func (s *Server) getImagesByName(version version.Version, w *restful.Response, r *restful.Request) error {
+	imageInspect, err := s.daemon.Repositories().Lookup(r.PathParameter("name"))
 	if err != nil {
 		return err
 	}
@@ -262,10 +249,10 @@ func (s *Server) getImagesByName(version version.Version, w http.ResponseWriter,
 	return writeJSON(w, http.StatusOK, imageInspect)
 }
 
-func (s *Server) postBuild(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (s *Server) postBuild(version version.Version, w *restful.Response, r *restful.Request) error {
 	var (
 		authConfigs        = map[string]cliconfig.AuthConfig{}
-		authConfigsEncoded = r.Header.Get("X-Registry-Config")
+		authConfigsEncoded = r.HeaderParameter("X-Registry-Config")
 		buildConfig        = builder.NewBuildConfig()
 	)
 
@@ -280,39 +267,39 @@ func (s *Server) postBuild(version version.Version, w http.ResponseWriter, r *ht
 
 	w.Header().Set("Content-Type", "application/json")
 
-	if boolValue(r, "forcerm") && version.GreaterThanOrEqualTo("1.12") {
+	if boolValue(r.Request, "forcerm") && version.GreaterThanOrEqualTo("1.12") {
 		buildConfig.Remove = true
-	} else if r.FormValue("rm") == "" && version.GreaterThanOrEqualTo("1.12") {
+	} else if r.Request.FormValue("rm") == "" && version.GreaterThanOrEqualTo("1.12") {
 		buildConfig.Remove = true
 	} else {
-		buildConfig.Remove = boolValue(r, "rm")
+		buildConfig.Remove = boolValue(r.Request, "rm")
 	}
-	if boolValue(r, "pull") && version.GreaterThanOrEqualTo("1.16") {
+	if boolValue(r.Request, "pull") && version.GreaterThanOrEqualTo("1.16") {
 		buildConfig.Pull = true
 	}
 
 	output := ioutils.NewWriteFlusher(w)
 	buildConfig.Stdout = output
-	buildConfig.Context = r.Body
+	buildConfig.Context = r.Request.Body
 
-	buildConfig.RemoteURL = r.FormValue("remote")
-	buildConfig.DockerfileName = r.FormValue("dockerfile")
-	buildConfig.RepoName = r.FormValue("t")
-	buildConfig.SuppressOutput = boolValue(r, "q")
-	buildConfig.NoCache = boolValue(r, "nocache")
-	buildConfig.ForceRemove = boolValue(r, "forcerm")
+	buildConfig.RemoteURL = r.Request.FormValue("remote")
+	buildConfig.DockerfileName = r.Request.FormValue("dockerfile")
+	buildConfig.RepoName = r.Request.FormValue("t")
+	buildConfig.SuppressOutput = boolValue(r.Request, "q")
+	buildConfig.NoCache = boolValue(r.Request, "nocache")
+	buildConfig.ForceRemove = boolValue(r.Request, "forcerm")
 	buildConfig.AuthConfigs = authConfigs
-	buildConfig.MemorySwap = int64ValueOrZero(r, "memswap")
-	buildConfig.Memory = int64ValueOrZero(r, "memory")
-	buildConfig.CPUShares = int64ValueOrZero(r, "cpushares")
-	buildConfig.CPUPeriod = int64ValueOrZero(r, "cpuperiod")
-	buildConfig.CPUQuota = int64ValueOrZero(r, "cpuquota")
-	buildConfig.CPUSetCpus = r.FormValue("cpusetcpus")
-	buildConfig.CPUSetMems = r.FormValue("cpusetmems")
-	buildConfig.CgroupParent = r.FormValue("cgroupparent")
+	buildConfig.MemorySwap = int64ValueOrZero(r.Request, "memswap")
+	buildConfig.Memory = int64ValueOrZero(r.Request, "memory")
+	buildConfig.CPUShares = int64ValueOrZero(r.Request, "cpushares")
+	buildConfig.CPUPeriod = int64ValueOrZero(r.Request, "cpuperiod")
+	buildConfig.CPUQuota = int64ValueOrZero(r.Request, "cpuquota")
+	buildConfig.CPUSetCpus = r.Request.FormValue("cpusetcpus")
+	buildConfig.CPUSetMems = r.Request.FormValue("cpusetmems")
+	buildConfig.CgroupParent = r.Request.FormValue("cgroupparent")
 
 	var buildUlimits = []*ulimit.Ulimit{}
-	ulimitsJSON := r.FormValue("ulimits")
+	ulimitsJSON := r.Request.FormValue("ulimits")
 	if ulimitsJSON != "" {
 		if err := json.NewDecoder(strings.NewReader(ulimitsJSON)).Decode(&buildUlimits); err != nil {
 			return err
@@ -321,7 +308,7 @@ func (s *Server) postBuild(version version.Version, w http.ResponseWriter, r *ht
 	}
 
 	// Job cancellation. Note: not all job types support this.
-	if closeNotifier, ok := w.(http.CloseNotifier); ok {
+	if closeNotifier, ok := w.ResponseWriter.(http.CloseNotifier); ok {
 		finished := make(chan struct{})
 		defer close(finished)
 		go func() {
@@ -346,13 +333,13 @@ func (s *Server) postBuild(version version.Version, w http.ResponseWriter, r *ht
 	return nil
 }
 
-func (s *Server) getImagesJSON(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	if err := parseForm(r); err != nil {
+func (s *Server) getImagesJSON(version version.Version, w *restful.Response, r *restful.Request) error {
+	if err := parseForm(r.Request); err != nil {
 		return err
 	}
 
 	// FIXME: The filter parameter could just be a match filter
-	images, err := s.daemon.Repositories().Images(r.Form.Get("filters"), r.Form.Get("filter"), boolValue(r, "all"))
+	images, err := s.daemon.Repositories().Images(r.Request.Form.Get("filters"), r.Request.Form.Get("filter"), boolValue(r.Request, "all"))
 	if err != nil {
 		return err
 	}
@@ -360,12 +347,8 @@ func (s *Server) getImagesJSON(version version.Version, w http.ResponseWriter, r
 	return writeJSON(w, http.StatusOK, images)
 }
 
-func (s *Server) getImagesHistory(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	if vars == nil {
-		return fmt.Errorf("Missing parameter")
-	}
-
-	name := vars["name"]
+func (s *Server) getImagesHistory(version version.Version, w *restful.Response, r *restful.Request) error {
+	name := r.PathParameter("name")
 	history, err := s.daemon.Repositories().History(name)
 	if err != nil {
 		return err
@@ -374,18 +357,15 @@ func (s *Server) getImagesHistory(version version.Version, w http.ResponseWriter
 	return writeJSON(w, http.StatusOK, history)
 }
 
-func (s *Server) postImagesTag(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	if err := parseForm(r); err != nil {
+func (s *Server) postImagesTag(version version.Version, w *restful.Response, r *restful.Request) error {
+	if err := parseForm(r.Request); err != nil {
 		return err
 	}
-	if vars == nil {
-		return fmt.Errorf("Missing parameter")
-	}
 
-	repo := r.Form.Get("repo")
-	tag := r.Form.Get("tag")
-	force := boolValue(r, "force")
-	name := vars["name"]
+	repo := r.Request.Form.Get("repo")
+	tag := r.Request.Form.Get("tag")
+	force := boolValue(r.Request, "force")
+	name := r.PathParameter("name")
 	if err := s.daemon.Repositories().Tag(repo, tag, name, force); err != nil {
 		return err
 	}
@@ -394,13 +374,13 @@ func (s *Server) postImagesTag(version version.Version, w http.ResponseWriter, r
 	return nil
 }
 
-func (s *Server) getImagesSearch(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	if err := parseForm(r); err != nil {
+func (s *Server) getImagesSearch(version version.Version, w *restful.Response, r *restful.Request) error {
+	if err := parseForm(r.Request); err != nil {
 		return err
 	}
 	var (
 		config      *cliconfig.AuthConfig
-		authEncoded = r.Header.Get("X-Registry-Auth")
+		authEncoded = r.HeaderParameter("X-Registry-Auth")
 		headers     = map[string][]string{}
 	)
 
@@ -412,12 +392,12 @@ func (s *Server) getImagesSearch(version version.Version, w http.ResponseWriter,
 			config = &cliconfig.AuthConfig{}
 		}
 	}
-	for k, v := range r.Header {
+	for k, v := range r.Request.Header {
 		if strings.HasPrefix(k, "X-Meta-") {
 			headers[k] = v
 		}
 	}
-	query, err := s.daemon.RegistryService.Search(r.Form.Get("term"), config, headers)
+	query, err := s.daemon.RegistryService.Search(r.Request.Form.Get("term"), config, headers)
 	if err != nil {
 		return err
 	}

@@ -12,14 +12,11 @@ import (
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/docker/docker/pkg/version"
 	"github.com/docker/docker/runconfig"
+	restful "github.com/emicklei/go-restful"
 )
 
-func (s *Server) getExecByID(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	if vars == nil {
-		return fmt.Errorf("Missing parameter 'id'")
-	}
-
-	eConfig, err := s.daemon.ContainerExecInspect(vars["id"])
+func (s *Server) getExecByID(version version.Version, w *restful.Response, r *restful.Request) error {
+	eConfig, err := s.daemon.ContainerExecInspect(r.PathParameter("id"))
 	if err != nil {
 		return err
 	}
@@ -27,17 +24,17 @@ func (s *Server) getExecByID(version version.Version, w http.ResponseWriter, r *
 	return writeJSON(w, http.StatusOK, eConfig)
 }
 
-func (s *Server) postContainerExecCreate(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	if err := parseForm(r); err != nil {
+func (s *Server) postContainerExecCreate(version version.Version, w *restful.Response, r *restful.Request) error {
+	if err := parseForm(r.Request); err != nil {
 		return err
 	}
-	if err := checkForJSON(r); err != nil {
+	if err := checkForJSON(r.Request); err != nil {
 		return err
 	}
-	name := vars["name"]
+	name := r.PathParameter("name")
 
 	execConfig := &runconfig.ExecConfig{}
-	if err := json.NewDecoder(r.Body).Decode(execConfig); err != nil {
+	if err := json.NewDecoder(r.Request.Body).Decode(execConfig); err != nil {
 		return err
 	}
 	execConfig.Container = name
@@ -59,18 +56,18 @@ func (s *Server) postContainerExecCreate(version version.Version, w http.Respons
 }
 
 // TODO(vishh): Refactor the code to avoid having to specify stream config as part of both create and start.
-func (s *Server) postContainerExecStart(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	if err := parseForm(r); err != nil {
+func (s *Server) postContainerExecStart(version version.Version, w *restful.Response, r *restful.Request) error {
+	if err := parseForm(r.Request); err != nil {
 		return err
 	}
 	var (
-		execName                  = vars["name"]
+		execName                  = r.PathParameter("name")
 		stdin, inStream           io.ReadCloser
 		stdout, stderr, outStream io.Writer
 	)
 
 	execStartCheck := &types.ExecStartCheck{}
-	if err := json.NewDecoder(r.Body).Decode(execStartCheck); err != nil {
+	if err := json.NewDecoder(r.Request.Body).Decode(execStartCheck); err != nil {
 		return err
 	}
 
@@ -83,7 +80,7 @@ func (s *Server) postContainerExecStart(version version.Version, w http.Response
 		}
 		defer closeStreams(inStream, outStream)
 
-		if _, ok := r.Header["Upgrade"]; ok {
+		if h := r.HeaderParameter("Upgrade"); h != "" {
 			fmt.Fprintf(outStream, "HTTP/1.1 101 UPGRADED\r\nContent-Type: application/vnd.docker.raw-stream\r\nConnection: Upgrade\r\nUpgrade: tcp\r\n\r\n")
 		} else {
 			fmt.Fprintf(outStream, "HTTP/1.1 200 OK\r\nContent-Type: application/vnd.docker.raw-stream\r\n\r\n")
@@ -106,22 +103,19 @@ func (s *Server) postContainerExecStart(version version.Version, w http.Response
 	return nil
 }
 
-func (s *Server) postContainerExecResize(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	if err := parseForm(r); err != nil {
+func (s *Server) postContainerExecResize(version version.Version, w *restful.Response, r *restful.Request) error {
+	if err := parseForm(r.Request); err != nil {
 		return err
 	}
-	if vars == nil {
-		return fmt.Errorf("Missing parameter")
-	}
 
-	height, err := strconv.Atoi(r.Form.Get("h"))
+	height, err := strconv.Atoi(r.Request.Form.Get("h"))
 	if err != nil {
 		return err
 	}
-	width, err := strconv.Atoi(r.Form.Get("w"))
+	width, err := strconv.Atoi(r.Request.Form.Get("w"))
 	if err != nil {
 		return err
 	}
 
-	return s.daemon.ContainerExecResize(vars["name"], height, width)
+	return s.daemon.ContainerExecResize(r.PathParameter("name"), height, width)
 }

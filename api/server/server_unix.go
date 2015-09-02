@@ -47,17 +47,7 @@ func (s *Server) newServer(proto, addr string) ([]serverCloser, error) {
 	default:
 		return nil, fmt.Errorf("Invalid protocol format: %q", proto)
 	}
-	var res []serverCloser
-	for _, l := range ls {
-		res = append(res, &HTTPServer{
-			&http.Server{
-				Addr:    addr,
-				Handler: s.router,
-			},
-			l,
-		})
-	}
-	return res, nil
+	return s.createHTTPServer(ls, addr), nil
 }
 
 // AcceptConnections allows clients to connect to the API server.
@@ -66,7 +56,7 @@ func (s *Server) newServer(proto, addr string) ([]serverCloser, error) {
 func (s *Server) AcceptConnections(d *daemon.Daemon) {
 	// Tell the init daemon we are accepting requests
 	s.daemon = d
-	s.registerSubRouter()
+	s.registerNetworkRouter()
 	go systemdDaemon.SdNotify("READY=1")
 	// close the lock so the listeners start accepting connections
 	select {

@@ -27,24 +27,13 @@ func (s *Server) newServer(proto, addr string) ([]serverCloser, error) {
 		return nil, errors.New("Invalid protocol format. Windows only supports tcp.")
 	}
 
-	var res []serverCloser
-	for _, l := range ls {
-		res = append(res, &HTTPServer{
-			&http.Server{
-				Addr:    addr,
-				Handler: s.router,
-			},
-			l,
-		})
-	}
-	return res, nil
-
+	return s.createHTTPServer(ls, addr), nil
 }
 
 // AcceptConnections allows router to start listening for the incoming requests.
 func (s *Server) AcceptConnections(d *daemon.Daemon) {
 	s.daemon = d
-	s.registerSubRouter()
+	s.registerNetworkRouter()
 	// close the lock so the listeners start accepting connections
 	select {
 	case <-s.start:
