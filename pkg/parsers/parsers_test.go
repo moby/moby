@@ -132,29 +132,6 @@ func TestParseRepositoryTag(t *testing.T) {
 	}
 }
 
-func TestParsePortMapping(t *testing.T) {
-	if _, err := PartParser("ip:public:private", "192.168.1.1:80"); err == nil {
-		t.Fatalf("Expected an error, got %v", err)
-	}
-	data, err := PartParser("ip:public:private", "192.168.1.1:80:8080")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if len(data) != 3 {
-		t.FailNow()
-	}
-	if data["ip"] != "192.168.1.1" {
-		t.Fail()
-	}
-	if data["public"] != "80" {
-		t.Fail()
-	}
-	if data["private"] != "8080" {
-		t.Fail()
-	}
-}
-
 func TestParseKeyValueOpt(t *testing.T) {
 	invalids := map[string]string{
 		"":    "Unable to parse key/value option: ",

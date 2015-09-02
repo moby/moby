@@ -79,7 +79,6 @@ To get information on a container use its ID or instance name:
         "LinkLocalIPv6PrefixLen": 0,
         "MacAddress": "",
         "NetworkID": "",
-        "PortMapping": null,
         "Ports": null,
         "SandboxKey": "",
         "SecondaryIPAddresses": null,
