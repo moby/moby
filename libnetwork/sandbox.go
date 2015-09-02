@@ -29,6 +29,9 @@ type Sandbox interface {
 	Labels() map[string]interface{}
 	// Statistics retrieves the interfaces' statistics for the sandbox
 	Statistics() (map[string]*osl.InterfaceStatistics, error)
+	// Refresh leaves all the endpoints, resets and re-apply the options,
+	// re-joins all the endpoints without destroying the osl sandbox
+	Refresh(options ...SandboxOption) error
 	// Delete destroys this container after detaching it from all connected endpoints.
 	Delete() error
 }
@@ -139,16 +142,10 @@ func (sb *sandbox) Statistics() (map[string]*osl.InterfaceStatistics, error) {
 }
 
 func (sb *sandbox) Delete() error {
-	sb.Lock()
 	c := sb.controller
-	eps := make([]*endpoint, len(sb.endpoints))
-	for i, ep := range sb.endpoints {
-		eps[i] = ep
-	}
-	sb.Unlock()
 
-	// Detach from all containers
-	for _, ep := range eps {
+	// Detach from all endpoints
+	for _, ep := range sb.getConnectedEndpoints() {
 		if err := ep.Leave(sb); err != nil {
 			log.Warnf("Failed detaching sandbox %s from endpoint %s: %v\n", sb.ID(), ep.ID(), err)
 		}
@@ -161,6 +158,36 @@ func (sb *sandbox) Delete() error {
 	c.Lock()
 	delete(c.sandboxes, sb.ID())
 	c.Unlock()
+
+	return nil
+}
+
+func (sb *sandbox) Refresh(options ...SandboxOption) error {
+	// Store connected endpoints
+	epList := sb.getConnectedEndpoints()
+
+	// Detach from all endpoints
+	for _, ep := range epList {
+		if err := ep.Leave(sb); err != nil {
+			log.Warnf("Failed detaching sandbox %s from endpoint %s: %v\n", sb.ID(), ep.ID(), err)
+		}
+	}
+
+	// Re-apply options
+	sb.config = containerConfig{}
+	sb.processOptions(options...)
+
+	// Setup discovery files
+	if err := sb.setupResolutionFiles(); err != nil {
+		return err
+	}
+
+	// Re -connect to all endpoints
+	for _, ep := range epList {
+		if err := ep.Join(sb); err != nil {
+			log.Warnf("Failed attach sandbox %s to endpoint %s: %v\n", sb.ID(), ep.ID(), err)
+		}
+	}
 
 	return nil
 }
@@ -183,6 +210,34 @@ func (sb *sandbox) UnmarshalJSON(b []byte) (err error) {
 	}
 	sb.id = id
 	return nil
+}
+
+func (sb *sandbox) setupResolutionFiles() error {
+	if err := sb.buildHostsFile(); err != nil {
+		return err
+	}
+
+	if err := sb.updateParentHosts(); err != nil {
+		return err
+	}
+
+	if err := sb.setupDNS(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (sb *sandbox) getConnectedEndpoints() []*endpoint {
+	sb.Lock()
+	defer sb.Unlock()
+
+	eps := make([]*endpoint, len(sb.endpoints))
+	for i, ep := range sb.endpoints {
+		eps[i] = ep
+	}
+
+	return eps
 }
 
 func (sb *sandbox) updateGateway(ep *endpoint) error {
