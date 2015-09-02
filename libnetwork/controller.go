@@ -410,18 +410,7 @@ func (c *controller) NewSandbox(containerID string, options ...SandboxOption) (S
 
 	sb.processOptions(options...)
 
-	err = sb.buildHostsFile()
-	if err != nil {
-		return nil, err
-	}
-
-	err = sb.updateParentHosts()
-	if err != nil {
-		return nil, err
-	}
-
-	err = sb.setupDNS()
-	if err != nil {
+	if err = sb.setupResolutionFiles(); err != nil {
 		return nil, err
 	}
 

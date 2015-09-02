@@ -1180,6 +1180,10 @@ func (f *fakeSandbox) Statistics() (map[string]*osl.InterfaceStatistics, error) 
 	return nil, nil
 }
 
+func (f *fakeSandbox) Refresh(opts ...libnetwork.SandboxOption) error {
+	return nil
+}
+
 func (f *fakeSandbox) Delete() error {
 	return nil
 }
