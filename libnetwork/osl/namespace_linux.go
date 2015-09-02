@@ -244,13 +244,8 @@ func (n *networkNamespace) InvokeFunc(f func()) error {
 	})
 }
 
-func getLink() string {
-	l, err := os.Readlink(fmt.Sprintf("/proc/%d/task/%d/ns/net", os.Getpid(), syscall.Gettid()))
-	if err != nil {
-		return fmt.Sprintf("(nil: %v)", err)
-	}
-
-	return l
+func getLink() (string, error) {
+	return os.Readlink(fmt.Sprintf("/proc/%d/task/%d/ns/net", os.Getpid(), syscall.Gettid()))
 }
 
 func nsInit() {
@@ -266,8 +261,13 @@ func InitOSContext() func() {
 	runtime.LockOSThread()
 	nsOnce.Do(nsInit)
 	if err := netns.Set(initNs); err != nil {
-		log.Errorf("failed to set to initial namespace, link %s, initns fd %d: %v",
-			getLink(), initNs, err)
+		linkInfo, linkErr := getLink()
+		if linkErr != nil {
+			linkInfo = linkErr.Error()
+		}
+
+		log.Errorf("failed to set to initial namespace, %v, initns fd %d: %v",
+			linkInfo, initNs, err)
 	}
 
 	return runtime.UnlockOSThread
