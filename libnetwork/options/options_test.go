@@ -95,3 +95,14 @@ func TestFieldCannotBeSet(t *testing.T) {
 		t.Fatalf("expected %q in error message, got %s", expected, err.Error())
 	}
 }
+
+func TestTypeMismatchError(t *testing.T) {
+	type Model struct{ Foo int }
+	_, err := GenerateFromModel(Generic{"Foo": "bar"}, Model{})
+
+	if _, ok := err.(TypeMismatchError); !ok {
+		t.Fatalf("expected TypeMismatchError, got %#v", err)
+	} else if expected := "type mismatch"; !strings.Contains(err.Error(), expected) {
+		t.Fatalf("expected %q in error message, got %s", expected, err.Error())
+	}
+}
