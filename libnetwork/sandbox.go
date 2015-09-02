@@ -1,7 +1,6 @@
 package libnetwork
 
 import (
-	"bytes"
 	"container/heap"
 	"encoding/json"
 	"fmt"
@@ -12,7 +11,6 @@ import (
 	"sync"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/libnetwork/etchosts"
 	"github.com/docker/libnetwork/osl"
 	"github.com/docker/libnetwork/resolvconf"
@@ -339,6 +337,10 @@ func (sb *sandbox) buildHostsFile() error {
 }
 
 func (sb *sandbox) updateHostsFile(ifaceIP string, svcRecords []etchosts.Record) error {
+	if sb.config.originHostsPath != "" {
+		return nil
+	}
+
 	// Rebuild the hosts file accounting for the passed interface IP and service records
 	extraContent := make([]etchosts.Record, 0, len(sb.config.extraHosts)+len(svcRecords))
 
@@ -382,6 +384,8 @@ func (sb *sandbox) updateParentHosts() error {
 }
 
 func (sb *sandbox) setupDNS() error {
+	var newRC *resolvconf.File
+
 	if sb.config.resolvConfPath == "" {
 		sb.config.resolvConfPath = defaultPrefix + "/" + sb.id + "/resolv.conf"
 	}
@@ -401,15 +405,18 @@ func (sb *sandbox) setupDNS() error {
 		return nil
 	}
 
-	resolvConf, err := resolvconf.Get()
+	currRC, err := resolvconf.Get()
 	if err != nil {
 		return err
 	}
-	dnsList := resolvconf.GetNameservers(resolvConf)
-	dnsSearchList := resolvconf.GetSearchDomains(resolvConf)
-	dnsOptionsList := resolvconf.GetOptions(resolvConf)
 
-	if len(sb.config.dnsList) > 0 || len(sb.config.dnsSearchList) > 0 || len(dnsOptionsList) > 0 {
+	if len(sb.config.dnsList) > 0 || len(sb.config.dnsSearchList) > 0 || len(sb.config.dnsOptionsList) > 0 {
+		var (
+			err            error
+			dnsList        = resolvconf.GetNameservers(currRC.Content)
+			dnsSearchList  = resolvconf.GetSearchDomains(currRC.Content)
+			dnsOptionsList = resolvconf.GetOptions(currRC.Content)
+		)
 		if len(sb.config.dnsList) > 0 {
 			dnsList = sb.config.dnsList
 		}
@@ -419,47 +426,56 @@ func (sb *sandbox) setupDNS() error {
 		if len(sb.config.dnsOptionsList) > 0 {
 			dnsOptionsList = sb.config.dnsOptionsList
 		}
+		newRC, err = resolvconf.Build(sb.config.resolvConfPath, dnsList, dnsSearchList, dnsOptionsList)
+		if err != nil {
+			return err
+		}
+	} else {
+		// Replace any localhost/127.* (at this point we have no info about ipv6, pass it as true)
+		if newRC, err = resolvconf.FilterResolvDNS(currRC.Content, true); err != nil {
+			return err
+		}
+		// No contention on container resolv.conf file at sandbox creation
+		if err := ioutil.WriteFile(sb.config.resolvConfPath, newRC.Content, filePerm); err != nil {
+			return types.InternalErrorf("failed to write unhaltered resolv.conf file content when setting up dns for sandbox %s: %v", sb.ID(), err)
+		}
 	}
 
-	hash, err := resolvconf.Build(sb.config.resolvConfPath, dnsList, dnsSearchList, dnsOptionsList)
-	if err != nil {
-		return err
-	}
-
-	// write hash
-	if err := ioutil.WriteFile(sb.config.resolvConfHashFile, []byte(hash), filePerm); err != nil {
-		return types.InternalErrorf("failed to write resol.conf hash file when setting up dns for sandbox %s: %v", sb.ID(), err)
+	// Write hash
+	if err := ioutil.WriteFile(sb.config.resolvConfHashFile, []byte(newRC.Hash), filePerm); err != nil {
+		return types.InternalErrorf("failed to write resolv.conf hash file when setting up dns for sandbox %s: %v", sb.ID(), err)
 	}
 
 	return nil
 }
 
 func (sb *sandbox) updateDNS(ipv6Enabled bool) error {
-	var oldHash []byte
-	hashFile := sb.config.resolvConfHashFile
+	var (
+		currHash string
+		hashFile = sb.config.resolvConfHashFile
+	)
 
-	resolvConf, err := ioutil.ReadFile(sb.config.resolvConfPath)
+	if len(sb.config.dnsList) > 0 || len(sb.config.dnsSearchList) > 0 || len(sb.config.dnsOptionsList) > 0 {
+		return nil
+	}
+
+	currRC, err := resolvconf.GetSpecific(sb.config.resolvConfPath)
 	if err != nil {
 		if !os.IsNotExist(err) {
 			return err
 		}
 	} else {
-		oldHash, err = ioutil.ReadFile(hashFile)
+		h, err := ioutil.ReadFile(hashFile)
 		if err != nil {
 			if !os.IsNotExist(err) {
 				return err
 			}
-
-			oldHash = []byte{}
+		} else {
+			currHash = string(h)
 		}
 	}
 
-	curHash, err := ioutils.HashData(bytes.NewReader(resolvConf))
-	if err != nil {
-		return err
-	}
-
-	if string(oldHash) != "" && curHash != string(oldHash) {
+	if currHash != "" && currHash != currRC.Hash {
 		// Seems the user has changed the container resolv.conf since the last time
 		// we checked so return without doing anything.
 		log.Infof("Skipping update of resolv.conf file with ipv6Enabled: %t because file was touched by user", ipv6Enabled)
@@ -467,9 +483,7 @@ func (sb *sandbox) updateDNS(ipv6Enabled bool) error {
 	}
 
 	// replace any localhost/127.* and remove IPv6 nameservers if IPv6 disabled.
-	resolvConf, _ = resolvconf.FilterResolvDNS(resolvConf, ipv6Enabled)
-
-	newHash, err := ioutils.HashData(bytes.NewReader(resolvConf))
+	newRC, err := resolvconf.FilterResolvDNS(currRC.Content, ipv6Enabled)
 	if err != nil {
 		return err
 	}
@@ -491,10 +505,10 @@ func (sb *sandbox) updateDNS(ipv6Enabled bool) error {
 	}
 
 	// write the updates to the temp files
-	if err = ioutil.WriteFile(tmpHashFile.Name(), []byte(newHash), filePerm); err != nil {
+	if err = ioutil.WriteFile(tmpHashFile.Name(), []byte(newRC.Hash), filePerm); err != nil {
 		return err
 	}
-	if err = ioutil.WriteFile(tmpResolvFile.Name(), resolvConf, filePerm); err != nil {
+	if err = ioutil.WriteFile(tmpResolvFile.Name(), newRC.Content, filePerm); err != nil {
 		return err
 	}
 
