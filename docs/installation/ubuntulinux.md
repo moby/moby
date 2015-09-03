@@ -127,7 +127,7 @@ install Docker using the following:
     >
     >       $ wget -qO- https://get.docker.com/gpg | sudo apt-key add -
 
-4. Start `docker`.
+4. Start the `docker` daemon.
 
         $ sudo service docker start
 
