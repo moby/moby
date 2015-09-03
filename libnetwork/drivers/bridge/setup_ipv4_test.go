@@ -4,6 +4,7 @@ import (
 	"net"
 	"testing"
 
+	"github.com/docker/libnetwork/netutils"
 	"github.com/docker/libnetwork/osl"
 	"github.com/vishvananda/netlink"
 )
