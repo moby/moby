@@ -422,7 +422,6 @@ Return low-level information on the container `id`
 			"IPAddress": "",
 			"IPPrefixLen": 0,
 			"MacAddress": "",
-			"PortMapping": null,
 			"Ports": null
 		},
 		"Path": "/bin/sh",
@@ -2244,7 +2243,6 @@ Return low-level information about the `exec` command `id`.
           "MacAddress" : "02:42:ac:11:00:02",
           "Gateway" : "172.17.42.1",
           "Bridge" : "docker0",
-          "PortMapping" : null,
           "Ports" : {}
         },
         "ResolvConfPath" : "/var/lib/docker/containers/8f177a186b977fb451136e0fdf182abff5599a08b3c7f6ef0d36a55aaf89634c/resolv.conf",
@@ -2258,7 +2256,7 @@ Return low-level information about the `exec` command `id`.
         "ProcessLabel" : "",
         "AppArmorProfile" : "",
         "RestartCount" : 0,
-        "Mounts" : [],
+        "Mounts" : []
       }
     }
 
