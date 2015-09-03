@@ -6,8 +6,8 @@ import (
 	"io/ioutil"
 	"os"
 
-	. "github.com/Azure/go-ansiterm"
-	. "github.com/Azure/go-ansiterm/winterm"
+	ansiterm "github.com/Azure/go-ansiterm"
+	"github.com/Azure/go-ansiterm/winterm"
 	"github.com/Sirupsen/logrus"
 )
 
@@ -17,17 +17,17 @@ var logger *logrus.Logger
 type ansiWriter struct {
 	file           *os.File
 	fd             uintptr
-	infoReset      *CONSOLE_SCREEN_BUFFER_INFO
+	infoReset      *winterm.CONSOLE_SCREEN_BUFFER_INFO
 	command        []byte
 	escapeSequence []byte
 	inAnsiSequence bool
-	parser         *AnsiParser
+	parser         *ansiterm.AnsiParser
 }
 
 func newAnsiWriter(nFile int) *ansiWriter {
 	logFile := ioutil.Discard
 
-	if isDebugEnv := os.Getenv(LogEnv); isDebugEnv == "1" {
+	if isDebugEnv := os.Getenv(ansiterm.LogEnv); isDebugEnv == "1" {
 		logFile, _ = os.Create("ansiReaderWriter.log")
 	}
 
@@ -37,21 +37,21 @@ func newAnsiWriter(nFile int) *ansiWriter {
 		Level:     logrus.DebugLevel,
 	}
 
-	file, fd := GetStdFile(nFile)
-	info, err := GetConsoleScreenBufferInfo(fd)
+	file, fd := winterm.GetStdFile(nFile)
+	info, err := winterm.GetConsoleScreenBufferInfo(fd)
 	if err != nil {
 		return nil
 	}
 
-	parser := CreateParser("Ground", CreateWinEventHandler(fd, file))
+	parser := ansiterm.CreateParser("Ground", winterm.CreateWinEventHandler(fd, file))
 	logger.Infof("newAnsiWriter: parser %p", parser)
 
 	aw := &ansiWriter{
 		file:           file,
 		fd:             fd,
 		infoReset:      info,
-		command:        make([]byte, 0, ANSI_MAX_CMD_LENGTH),
-		escapeSequence: []byte(KEY_ESC_CSI),
+		command:        make([]byte, 0, ansiterm.ANSI_MAX_CMD_LENGTH),
+		escapeSequence: []byte(ansiterm.KEY_ESC_CSI),
 		parser:         parser,
 	}
 
