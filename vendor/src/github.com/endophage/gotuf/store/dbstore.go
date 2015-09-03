@@ -3,7 +3,6 @@ package store
 import (
 	"database/sql"
 	"encoding/hex"
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -12,6 +11,7 @@ import (
 	logrus "github.com/Sirupsen/logrus"
 	"github.com/endophage/gotuf/data"
 	"github.com/endophage/gotuf/utils"
+	"github.com/jfrazelle/go/canonical/json"
 )
 
 const (

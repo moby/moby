@@ -1,7 +1,6 @@
 package signed
 
 import (
-	"encoding/json"
 	"errors"
 	"strings"
 	"time"
@@ -9,7 +8,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/endophage/gotuf/data"
 	"github.com/endophage/gotuf/keys"
-	"github.com/tent/canonical-json-go"
+	"github.com/jfrazelle/go/canonical/json"
 )
 
 var (
@@ -20,12 +19,6 @@ var (
 	ErrUnknownRole  = errors.New("tuf: unknown role")
 	ErrWrongType    = errors.New("tuf: meta file has wrong type")
 )
-
-type signedMeta struct {
-	Type    string    `json:"_type"`
-	Expires time.Time `json:"expires"`
-	Version int       `json:"version"`
-}
 
 // VerifyRoot checks if a given root file is valid against a known set of keys.
 // Threshold is always assumed to be 1
@@ -38,7 +31,7 @@ func VerifyRoot(s *data.Signed, minVersion int, keys map[string]data.PublicKey) 
 	if err := json.Unmarshal(s.Signed, &decoded); err != nil {
 		return err
 	}
-	msg, err := cjson.Marshal(decoded)
+	msg, err := json.MarshalCanonical(decoded)
 	if err != nil {
 		return err
 	}
@@ -76,7 +69,7 @@ func Verify(s *data.Signed, role string, minVersion int, db *keys.KeyDB) error {
 }
 
 func verifyMeta(s *data.Signed, role string, minVersion int) error {
-	sm := &signedMeta{}
+	sm := &data.SignedCommon{}
 	if err := json.Unmarshal(s.Signed, sm); err != nil {
 		return err
 	}
@@ -117,7 +110,7 @@ func VerifySignatures(s *data.Signed, role string, db *keys.KeyDB) error {
 	if err := json.Unmarshal(s.Signed, &decoded); err != nil {
 		return err
 	}
-	msg, err := cjson.Marshal(decoded)
+	msg, err := json.MarshalCanonical(decoded)
 	if err != nil {
 		return err
 	}
