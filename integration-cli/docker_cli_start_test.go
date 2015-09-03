@@ -132,8 +132,8 @@ func (s *DockerSuite) TestStartMultipleContainers(c *check.C) {
 	// start all the three containers, container `child_first` start first which should be failed
 	// container 'parent' start second and then start container 'child_second'
 	out, _, err = dockerCmdWithError("start", "child_first", "parent", "child_second")
-	if !strings.Contains(out, "Cannot start container child_first") || err == nil {
-		c.Fatal("Expected error but got none")
+	if !strings.Contains(out, "Cannot link to a non running container: /parent AS /child_first/parent") || err == nil {
+		c.Fatalf("Expected error but got none: %v\n%s", err, out)
 	}
 
 	for container, expected := range map[string]string{"parent": "true", "child_first": "false", "child_second": "true"} {

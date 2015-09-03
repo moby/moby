@@ -133,15 +133,17 @@ func (d *Daemon) getActiveContainer(name string) (*Container, error) {
 }
 
 // ContainerExecCreate sets up an exec in a running container.
-func (d *Daemon) ContainerExecCreate(config *runconfig.ExecConfig) (string, error) {
+func (d *Daemon) ContainerExecCreate(container *Container, config *runconfig.ExecConfig) (string, error) {
 	// Not all drivers support Exec (LXC for example)
 	if err := checkExecSupport(d.execDriver.Name()); err != nil {
 		return "", err
 	}
 
-	container, err := d.getActiveContainer(config.Container)
-	if err != nil {
-		return "", err
+	if !container.IsRunning() {
+		return "", fmt.Errorf("Container %s is not running", container.ID)
+	}
+	if container.isPaused() {
+		return "", fmt.Errorf("Container %s is paused, unpause the container before exec", container.ID)
 	}
 
 	cmd := stringutils.NewStrSlice(config.Cmd...)

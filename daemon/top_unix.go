@@ -16,18 +16,13 @@ import (
 // "-ef" if no args are given.  An error is returned if the container
 // is not found, or is not running, or if there are any problems
 // running ps, or parsing the output.
-func (daemon *Daemon) ContainerTop(name string, psArgs string) (*types.ContainerProcessList, error) {
+func (daemon *Daemon) ContainerTop(container *Container, psArgs string) (*types.ContainerProcessList, error) {
 	if psArgs == "" {
 		psArgs = "-ef"
 	}
 
-	container, err := daemon.Get(name)
-	if err != nil {
-		return nil, err
-	}
-
 	if !container.IsRunning() {
-		return nil, fmt.Errorf("Container %s is not running", name)
+		return nil, fmt.Errorf("Container %s is not running", container.ID)
 	}
 
 	pids, err := daemon.ExecutionDriver().GetPidsForContainer(container.ID)

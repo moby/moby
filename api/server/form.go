@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-func boolValue(r *http.Request, k string) bool {
+func boolValue(r formParser, k string) bool {
 	s := strings.ToLower(strings.TrimSpace(r.FormValue(k)))
 	return !(s == "" || s == "0" || s == "no" || s == "false" || s == "none")
 }
@@ -22,7 +22,7 @@ func boolValueOrDefault(r *http.Request, k string, d bool) bool {
 	return boolValue(r, k)
 }
 
-func int64ValueOrZero(r *http.Request, k string) int64 {
+func int64ValueOrZero(r formParser, k string) int64 {
 	val, err := strconv.ParseInt(r.FormValue(k), 10, 64)
 	if err != nil {
 		return 0
@@ -30,28 +30,13 @@ func int64ValueOrZero(r *http.Request, k string) int64 {
 	return val
 }
 
-type archiveOptions struct {
-	name string
-	path string
-}
-
-func archiveFormValues(r *http.Request, vars map[string]string) (archiveOptions, error) {
-	if vars == nil {
-		return archiveOptions{}, fmt.Errorf("Missing parameter")
-	}
+func parsePathParameter(r formParser) (string, error) {
 	if err := parseForm(r); err != nil {
-		return archiveOptions{}, err
+		return "", err
 	}
-
-	name := vars["name"]
-	path := filepath.FromSlash(r.Form.Get("path"))
-
-	switch {
-	case name == "":
-		return archiveOptions{}, fmt.Errorf("bad parameter: 'name' cannot be empty")
-	case path == "":
-		return archiveOptions{}, fmt.Errorf("bad parameter: 'path' cannot be empty")
+	path := filepath.FromSlash(r.FormValue("path"))
+	if path == "" {
+		return "", fmt.Errorf("bad parameter: 'path' cannot be empty")
 	}
-
-	return archiveOptions{name, path}, nil
+	return path, nil
 }

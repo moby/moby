@@ -4,24 +4,19 @@ import (
 	"fmt"
 )
 
-// ContainerRename changes the name of a container, using the oldName
-// to find the container. An error is returned if newName is already
-// reserved.
-func (daemon *Daemon) ContainerRename(oldName, newName string) error {
-	if oldName == "" || newName == "" {
+// ContainerRename changes the name of a container.
+// An error is returned if newName is already reserved.
+func (daemon *Daemon) ContainerRename(container *Container, newName string) error {
+	if newName == "" {
 		return fmt.Errorf("usage: docker rename OLD_NAME NEW_NAME")
 	}
 
-	container, err := daemon.Get(oldName)
-	if err != nil {
-		return err
-	}
-
-	oldName = container.Name
+	oldName := container.Name
 
 	container.Lock()
 	defer container.Unlock()
-	if newName, err = daemon.reserveName(container.ID, newName); err != nil {
+	newName, err := daemon.reserveName(container.ID, newName)
+	if err != nil {
 		return fmt.Errorf("Error when allocating new name: %s", err)
 	}
 

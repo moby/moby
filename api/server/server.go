@@ -120,10 +120,6 @@ func (s *HTTPServer) Close() error {
 	return s.l.Close()
 }
 
-// HTTPAPIFunc is an adapter to allow the use of ordinary functions as Docker API endpoints.
-// Any function that has the appropriate signature can be register as a API endpoint (e.g. getVersion).
-type HTTPAPIFunc func(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error
-
 func hijackServer(w http.ResponseWriter) (io.ReadCloser, io.Writer, error) {
 	conn, _, err := w.(http.Hijacker).Hijack()
 	if err != nil {
@@ -165,7 +161,7 @@ func checkForJSON(r *http.Request) error {
 }
 
 //If we don't do this, POST method without Content-type (even with empty body) will fail
-func parseForm(r *http.Request) error {
+func parseForm(r formParser) error {
 	if r == nil {
 		return nil
 	}
@@ -304,7 +300,7 @@ func createRouter(s *Server) *mux.Router {
 	}
 	m := map[string]map[string]HTTPAPIFunc{
 		"HEAD": {
-			"/containers/{name:.*}/archive": s.headContainersArchive,
+			"/containers/{name:.*}/archive": s.handleContainer(s.headContainersArchive),
 		},
 		"GET": {
 			"/_ping":                          s.ping,
@@ -318,15 +314,15 @@ func createRouter(s *Server) *mux.Router {
 			"/images/{name:.*}/history":       s.getImagesHistory,
 			"/images/{name:.*}/json":          s.getImagesByName,
 			"/containers/json":                s.getContainersJSON,
-			"/containers/{name:.*}/export":    s.getContainersExport,
-			"/containers/{name:.*}/changes":   s.getContainersChanges,
+			"/containers/{name:.*}/export":    s.handleContainer(s.getContainersExport),
+			"/containers/{name:.*}/changes":   s.handleContainer(s.getContainersChanges),
 			"/containers/{name:.*}/json":      s.getContainersByName,
-			"/containers/{name:.*}/top":       s.getContainersTop,
-			"/containers/{name:.*}/logs":      s.getContainersLogs,
-			"/containers/{name:.*}/stats":     s.getContainersStats,
-			"/containers/{name:.*}/attach/ws": s.wsContainersAttach,
+			"/containers/{name:.*}/top":       s.handleContainer(s.getContainersTop),
+			"/containers/{name:.*}/logs":      s.handleContainer(s.getContainersLogs),
+			"/containers/{name:.*}/stats":     s.handleContainer(s.getContainersStats),
+			"/containers/{name:.*}/attach/ws": s.handleContainer(s.wsContainersAttach),
 			"/exec/{id:.*}/json":              s.getExecByID,
-			"/containers/{name:.*}/archive":   s.getContainersArchive,
+			"/containers/{name:.*}/archive":   s.handleContainer(s.getContainersArchive),
 			"/volumes":                        s.getVolumesList,
 			"/volumes/{name:.*}":              s.getVolumeByName,
 		},
@@ -339,27 +335,27 @@ func createRouter(s *Server) *mux.Router {
 			"/images/{name:.*}/push":        s.postImagesPush,
 			"/images/{name:.*}/tag":         s.postImagesTag,
 			"/containers/create":            s.postContainersCreate,
-			"/containers/{name:.*}/kill":    s.postContainersKill,
-			"/containers/{name:.*}/pause":   s.postContainersPause,
-			"/containers/{name:.*}/unpause": s.postContainersUnpause,
-			"/containers/{name:.*}/restart": s.postContainersRestart,
-			"/containers/{name:.*}/start":   s.postContainersStart,
-			"/containers/{name:.*}/stop":    s.postContainersStop,
-			"/containers/{name:.*}/wait":    s.postContainersWait,
-			"/containers/{name:.*}/resize":  s.postContainersResize,
-			"/containers/{name:.*}/attach":  s.postContainersAttach,
-			"/containers/{name:.*}/copy":    s.postContainersCopy,
-			"/containers/{name:.*}/exec":    s.postContainerExecCreate,
+			"/containers/{name:.*}/kill":    s.handleContainer(s.postContainersKill),
+			"/containers/{name:.*}/pause":   s.handleContainer(s.postContainersPause),
+			"/containers/{name:.*}/unpause": s.handleContainer(s.postContainersUnpause),
+			"/containers/{name:.*}/restart": s.handleContainer(s.postContainersRestart),
+			"/containers/{name:.*}/start":   s.handleContainer(s.postContainersStart),
+			"/containers/{name:.*}/stop":    s.handleContainer(s.postContainersStop),
+			"/containers/{name:.*}/wait":    s.handleContainer(s.postContainersWait),
+			"/containers/{name:.*}/resize":  s.handleContainer(s.postContainersResize),
+			"/containers/{name:.*}/attach":  s.handleContainer(s.postContainersAttach),
+			"/containers/{name:.*}/copy":    s.handleContainer(s.postContainersCopy),
+			"/containers/{name:.*}/exec":    s.handleContainer(s.postContainerExecCreate),
 			"/exec/{name:.*}/start":         s.postContainerExecStart,
 			"/exec/{name:.*}/resize":        s.postContainerExecResize,
-			"/containers/{name:.*}/rename":  s.postContainerRename,
+			"/containers/{name:.*}/rename":  s.handleContainer(s.postContainerRename),
 			"/volumes":                      s.postVolumesCreate,
 		},
 		"PUT": {
-			"/containers/{name:.*}/archive": s.putContainersArchive,
+			"/containers/{name:.*}/archive": s.handleContainer(s.putContainersArchive),
 		},
 		"DELETE": {
-			"/containers/{name:.*}": s.deleteContainers,
+			"/containers/{name:.*}": s.handleContainer(s.deleteContainers),
 			"/images/{name:.*}":     s.deleteImages,
 			"/volumes/{name:.*}":    s.deleteVolumes,
 		},

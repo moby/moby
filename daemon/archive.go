@@ -18,59 +18,6 @@ import (
 // path does not refer to a directory.
 var ErrExtractPointNotDirectory = errors.New("extraction point is not a directory")
 
-// ContainerCopy performs a deprecated operation of archiving the resource at
-// the specified path in the conatiner identified by the given name.
-func (daemon *Daemon) ContainerCopy(name string, res string) (io.ReadCloser, error) {
-	container, err := daemon.Get(name)
-	if err != nil {
-		return nil, err
-	}
-
-	if res[0] == '/' || res[0] == '\\' {
-		res = res[1:]
-	}
-
-	return container.copy(res)
-}
-
-// ContainerStatPath stats the filesystem resource at the specified path in the
-// container identified by the given name.
-func (daemon *Daemon) ContainerStatPath(name string, path string) (stat *types.ContainerPathStat, err error) {
-	container, err := daemon.Get(name)
-	if err != nil {
-		return nil, err
-	}
-
-	return container.StatPath(path)
-}
-
-// ContainerArchivePath creates an archive of the filesystem resource at the
-// specified path in the container identified by the given name. Returns a
-// tar archive of the resource and whether it was a directory or a single file.
-func (daemon *Daemon) ContainerArchivePath(name string, path string) (content io.ReadCloser, stat *types.ContainerPathStat, err error) {
-	container, err := daemon.Get(name)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	return container.ArchivePath(path)
-}
-
-// ContainerExtractToDir extracts the given archive to the specified location
-// in the filesystem of the container identified by the given name. The given
-// path must be of a directory in the container. If it is not, the error will
-// be ErrExtractPointNotDirectory. If noOverwriteDirNonDir is true then it will
-// be an error if unpacking the given content would cause an existing directory
-// to be replaced with a non-directory and vice versa.
-func (daemon *Daemon) ContainerExtractToDir(name, path string, noOverwriteDirNonDir bool, content io.Reader) error {
-	container, err := daemon.Get(name)
-	if err != nil {
-		return err
-	}
-
-	return container.ExtractToDir(path, noOverwriteDirNonDir, content)
-}
-
 // resolvePath resolves the given path in the container to a resource on the
 // host. Returns a resolved path (absolute path to the resource on the host),
 // the absolute path to the resource relative to the container's rootfs, and
