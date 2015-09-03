@@ -105,19 +105,18 @@ for dir in contrib/builder/deb/*/; do
 	version="$(basename "$dir")"
 	codename="${version//debootstrap-}"
 
-	# add the deb for each component for the distro version with reprepro
 	DEBFILE=( "bundles/$VERSION/build-deb/$version/docker-engine"*.deb )
 
 	# if we have a $GPG_PASSPHRASE we may as well
-	# dpkg-sign before reprepro
+	# dpkg-sign before copying the deb into the pool
 	if [ ! -z "$GPG_PASSPHRASE" ]; then
 		dpkg-sig -g "--passphrase $GPG_PASSPHRASE" \
 			-k releasedocker --sign builder "${DEBFILE[@]}"
 	fi
 
-	reprepro -v $options \
-		-S docker-engine -P "$priority" -C "$component" \
-		-b "$APTDIR" includedeb "$codename" "${DEBFILE[@]}"
+	# add the deb for each component for the distro version into the pool
+	mkdir -p "$APTDIR/pool/$component/d/docker-engine/"
+	cp "${DEBFILE[@]}" "$APTDIR/pool/$component/d/docker-engine/"
 
 	# update the filelist for this codename/component
 	find "$APTDIR/pool/$component" \
