@@ -105,12 +105,9 @@ type driver struct {
 	sync.Mutex
 }
 
-func init() {
-	ipAllocator = ipallocator.New()
-}
-
 // New constructs a new bridge driver
 func newDriver() driverapi.Driver {
+	ipAllocator = ipallocator.New()
 	return &driver{networks: map[string]*bridgeNetwork{}}
 }
 
@@ -790,6 +787,18 @@ func (d *driver) DeleteNetwork(nid string) error {
 
 	// Programming
 	err = netlink.LinkDel(n.bridge.Link)
+
+	// Release ip addresses (ignore errors)
+	if config.FixedCIDR == nil || config.FixedCIDR.Contains(config.DefaultGatewayIPv4) {
+		if e := ipAllocator.ReleaseIP(n.bridge.bridgeIPv4, n.bridge.gatewayIPv4); e != nil {
+			logrus.Warnf("Failed to release default gateway address %s: %v", n.bridge.gatewayIPv4.String(), e)
+		}
+	}
+	if config.FixedCIDR == nil || config.FixedCIDR.Contains(n.bridge.bridgeIPv4.IP) {
+		if e := ipAllocator.ReleaseIP(n.bridge.bridgeIPv4, n.bridge.bridgeIPv4.IP); e != nil {
+			logrus.Warnf("Failed to release bridge IP %s: %v", n.bridge.bridgeIPv4.IP.String(), e)
+		}
+	}
 
 	return err
 }

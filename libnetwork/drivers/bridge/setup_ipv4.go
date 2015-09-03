@@ -62,7 +62,7 @@ func setupBridgeIPv4(config *networkConfiguration, i *bridgeInterface) error {
 		return err
 	}
 
-	log.Debugf("Creating bridge interface %q with network %s", config.BridgeName, bridgeIPv4)
+	log.Debugf("Creating bridge interface %s with network %s", config.BridgeName, bridgeIPv4)
 	if err := netlink.AddrAdd(i.Link, &netlink.Addr{IPNet: bridgeIPv4}); err != nil {
 		return &IPv4AddrAddError{IP: bridgeIPv4, Err: err}
 	}
@@ -79,7 +79,9 @@ func allocateBridgeIP(config *networkConfiguration, i *bridgeInterface) error {
 	// reserve bridge address only if it belongs to the container network
 	// (if defined), no need otherwise
 	if config.FixedCIDR == nil || config.FixedCIDR.Contains(i.bridgeIPv4.IP) {
-		ipAllocator.RequestIP(i.bridgeIPv4, i.bridgeIPv4.IP)
+		if _, err := ipAllocator.RequestIP(i.bridgeIPv4, i.bridgeIPv4.IP); err != nil {
+			return fmt.Errorf("failed to reserve bridge IP %s: %v", i.bridgeIPv4.IP.String(), err)
+		}
 	}
 	return nil
 }
@@ -120,7 +122,7 @@ func setupGatewayIPv4(config *networkConfiguration, i *bridgeInterface) error {
 	// (if defined), no need otherwise
 	if config.FixedCIDR == nil || config.FixedCIDR.Contains(config.DefaultGatewayIPv4) {
 		if _, err := ipAllocator.RequestIP(i.bridgeIPv4, config.DefaultGatewayIPv4); err != nil {
-			return err
+			return fmt.Errorf("failed to reserve default gateway %s: %v", config.DefaultGatewayIPv4.String(), err)
 		}
 	}
 
