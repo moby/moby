@@ -13,6 +13,7 @@ type Address struct {
 type Settings struct {
 	Bridge                 string
 	EndpointID             string
+	SandboxID              string
 	Gateway                string
 	GlobalIPv6Address      string
 	GlobalIPv6PrefixLen    int

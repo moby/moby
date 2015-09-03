@@ -4,12 +4,11 @@ import (
 	"fmt"
 
 	"github.com/docker/libnetwork/driverapi"
-	"github.com/docker/libnetwork/types"
 	"github.com/vishvananda/netlink"
 )
 
 // Join method is invoked when a Sandbox is attached to an endpoint.
-func (d *driver) Join(nid, eid types.UUID, sboxKey string, jinfo driverapi.JoinInfo, options map[string]interface{}) error {
+func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo, options map[string]interface{}) error {
 	if err := validateID(nid, eid); err != nil {
 		return err
 	}
@@ -77,7 +76,7 @@ func (d *driver) Join(nid, eid types.UUID, sboxKey string, jinfo driverapi.JoinI
 }
 
 // Leave method is invoked when a Sandbox detaches from an endpoint.
-func (d *driver) Leave(nid, eid types.UUID) error {
+func (d *driver) Leave(nid, eid string) error {
 	if err := validateID(nid, eid); err != nil {
 		return err
 	}

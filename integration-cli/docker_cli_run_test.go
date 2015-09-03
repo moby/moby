@@ -865,7 +865,7 @@ func (s *DockerSuite) TestRunDnsDefaultOptions(c *check.C) {
 	// check that the actual defaults are appended to the commented out
 	// localhost resolver (which should be preserved)
 	// NOTE: if we ever change the defaults from google dns, this will break
-	expected := "#nameserver 127.0.2.1\n\nnameserver 8.8.8.8\nnameserver 8.8.4.4"
+	expected := "#nameserver 127.0.2.1\n\nnameserver 8.8.8.8\nnameserver 8.8.4.4\n"
 	if actual != expected {
 		c.Fatalf("expected resolv.conf be: %q, but was: %q", expected, actual)
 	}
@@ -880,7 +880,7 @@ func (s *DockerSuite) TestRunDnsOptions(c *check.C) {
 	}
 
 	actual := strings.Replace(strings.Trim(out, "\r\n"), "\n", " ", -1)
-	if actual != "nameserver 127.0.0.1 search mydomain" {
+	if actual != "search mydomain nameserver 127.0.0.1" {
 		c.Fatalf("expected 'nameserver 127.0.0.1 search mydomain', but says: %q", actual)
 	}
 
@@ -1001,7 +1001,7 @@ func (s *DockerSuite) TestRunNonRootUserResolvName(c *check.C) {
 func (s *DockerSuite) TestRunResolvconfUpdate(c *check.C) {
 	testRequires(c, SameHostDaemon)
 
-	tmpResolvConf := []byte("search pommesfrites.fr\nnameserver 12.34.56.78")
+	tmpResolvConf := []byte("search pommesfrites.fr\nnameserver 12.34.56.78\n")
 	tmpLocalhostResolvConf := []byte("nameserver 127.0.0.1")
 
 	//take a copy of resolv.conf for restoring after test completes
@@ -1131,7 +1131,7 @@ func (s *DockerSuite) TestRunResolvconfUpdate(c *check.C) {
 		c.Fatal(err)
 	}
 
-	expected := "\nnameserver 8.8.8.8\nnameserver 8.8.4.4"
+	expected := "\nnameserver 8.8.8.8\nnameserver 8.8.4.4\n"
 	if !bytes.Equal(containerResolv, []byte(expected)) {
 		c.Fatalf("Container does not have cleaned/replaced DNS in resolv.conf; expected %q, got %q", expected, string(containerResolv))
 	}

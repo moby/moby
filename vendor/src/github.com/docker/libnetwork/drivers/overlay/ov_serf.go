@@ -7,14 +7,13 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/libnetwork/types"
 	"github.com/hashicorp/serf/serf"
 )
 
 type ovNotify struct {
 	action string
-	eid    types.UUID
-	nid    types.UUID
+	eid    string
+	nid    string
 }
 
 type logWriter struct{}
@@ -150,12 +149,12 @@ func (d *driver) processEvent(u serf.UserEvent) {
 
 	switch action {
 	case "join":
-		if err := d.peerAdd(types.UUID(nid), types.UUID(eid), net.ParseIP(ipStr), mac,
+		if err := d.peerAdd(nid, eid, net.ParseIP(ipStr), mac,
 			net.ParseIP(vtepStr), true); err != nil {
 			fmt.Printf("Peer add failed in the driver: %v\n", err)
 		}
 	case "leave":
-		if err := d.peerDelete(types.UUID(nid), types.UUID(eid), net.ParseIP(ipStr), mac,
+		if err := d.peerDelete(nid, eid, net.ParseIP(ipStr), mac,
 			net.ParseIP(vtepStr), true); err != nil {
 			fmt.Printf("Peer delete failed in the driver: %v\n", err)
 		}
@@ -171,7 +170,7 @@ func (d *driver) processQuery(q *serf.Query) {
 		fmt.Printf("Failed to scan query payload string: %v\n", err)
 	}
 
-	peerMac, vtep, err := d.peerDbSearch(types.UUID(nid), net.ParseIP(ipStr))
+	peerMac, vtep, err := d.peerDbSearch(nid, net.ParseIP(ipStr))
 	if err != nil {
 		return
 	}
@@ -179,7 +178,7 @@ func (d *driver) processQuery(q *serf.Query) {
 	q.Respond([]byte(fmt.Sprintf("%s %s", peerMac.String(), vtep.String())))
 }
 
-func (d *driver) resolvePeer(nid types.UUID, peerIP net.IP) (net.HardwareAddr, net.IP, error) {
+func (d *driver) resolvePeer(nid string, peerIP net.IP) (net.HardwareAddr, net.IP, error) {
 	qPayload := fmt.Sprintf("%s %s", string(nid), peerIP.String())
 	resp, err := d.serfInstance.Query("peerlookup", []byte(qPayload), nil)
 	if err != nil {

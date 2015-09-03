@@ -35,7 +35,10 @@ const (
 	epNameQr = "{" + urlEpName + ":" + qregx + "}"
 	epID     = "{" + urlEpID + ":" + regex + "}"
 	epPIDQr  = "{" + urlEpPID + ":" + qregx + "}"
-	cnID     = "{" + urlCnID + ":" + regex + "}"
+	sbID     = "{" + urlSbID + ":" + regex + "}"
+	sbPIDQr  = "{" + urlSbPID + ":" + qregx + "}"
+	cnIDQr   = "{" + urlCnID + ":" + qregx + "}"
+	cnPIDQr  = "{" + urlCnPID + ":" + qregx + "}"
 
 	// Internal URL variable name.They can be anything as
 	// long as they do not collide with query fields.
@@ -45,7 +48,10 @@ const (
 	urlEpName = "endpoint-name"
 	urlEpID   = "endpoint-id"
 	urlEpPID  = "endpoint-partial-id"
+	urlSbID   = "sandbox-id"
+	urlSbPID  = "sandbox-partial-id"
 	urlCnID   = "container-id"
+	urlCnPID  = "container-partial-id"
 
 	// BridgeNetworkDriver is the built-in default for Network Driver
 	BridgeNetworkDriver = "bridge"
@@ -106,21 +112,28 @@ func (h *httpHandler) initRouter() {
 			{"/services", []string{"partial-id", epPIDQr}, procGetServices},
 			{"/services", nil, procGetServices},
 			{"/services/" + epID, nil, procGetService},
-			{"/services/" + epID + "/backend", nil, procGetContainers},
+			{"/services/" + epID + "/backend", nil, procGetSandbox},
+			{"/sandboxes", []string{"partial-container-id", cnPIDQr}, procGetSandboxes},
+			{"/sandboxes", []string{"container-id", cnIDQr}, procGetSandboxes},
+			{"/sandboxes", []string{"partial-id", sbPIDQr}, procGetSandboxes},
+			{"/sandboxes", nil, procGetSandboxes},
+			{"/sandboxes/" + sbID, nil, procGetSandbox},
 		},
 		"POST": {
 			{"/networks", nil, procCreateNetwork},
 			{"/networks/" + nwID + "/endpoints", nil, procCreateEndpoint},
-			{"/networks/" + nwID + "/endpoints/" + epID + "/containers", nil, procJoinEndpoint},
+			{"/networks/" + nwID + "/endpoints/" + epID + "/sandboxes", nil, procJoinEndpoint},
 			{"/services", nil, procPublishService},
 			{"/services/" + epID + "/backend", nil, procAttachBackend},
+			{"/sandboxes", nil, procCreateSandbox},
 		},
 		"DELETE": {
 			{"/networks/" + nwID, nil, procDeleteNetwork},
 			{"/networks/" + nwID + "/endpoints/" + epID, nil, procDeleteEndpoint},
-			{"/networks/" + nwID + "/endpoints/" + epID + "/containers/" + cnID, nil, procLeaveEndpoint},
+			{"/networks/" + nwID + "/endpoints/" + epID + "/sandboxes/" + sbID, nil, procLeaveEndpoint},
 			{"/services/" + epID, nil, procUnpublishService},
-			{"/services/" + epID + "/backend/" + cnID, nil, procDetachBackend},
+			{"/services/" + epID + "/backend/" + sbID, nil, procDetachBackend},
+			{"/sandboxes/" + sbID, nil, procDeleteSandbox},
 		},
 	}
 
@@ -155,6 +168,10 @@ func makeHandler(ctrl libnetwork.NetworkController, fct processor) http.HandlerF
 		}
 
 		res, rsp := fct(ctrl, mux.Vars(req), body)
+		if !rsp.isOK() {
+			http.Error(w, rsp.Status, rsp.StatusCode)
+			return
+		}
 		if res != nil {
 			writeJSON(w, rsp.StatusCode, res)
 		}
@@ -191,10 +208,12 @@ func buildEndpointResource(ep libnetwork.Endpoint) *endpointResource {
 	return r
 }
 
-func buildContainerResource(ci libnetwork.ContainerInfo) *containerResource {
-	r := &containerResource{}
-	if ci != nil {
-		r.ID = ci.ID()
+func buildSandboxResource(sb libnetwork.Sandbox) *sandboxResource {
+	r := &sandboxResource{}
+	if sb != nil {
+		r.ID = sb.ID()
+		r.Key = sb.Key()
+		r.ContainerID = sb.ContainerID()
 	}
 	return r
 }
@@ -213,39 +232,39 @@ func (nc *networkCreate) parseOptions() []libnetwork.NetworkOption {
 	return setFctList
 }
 
-func (ej *endpointJoin) parseOptions() []libnetwork.EndpointOption {
-	var setFctList []libnetwork.EndpointOption
-	if ej.HostName != "" {
-		setFctList = append(setFctList, libnetwork.JoinOptionHostname(ej.HostName))
+func (sc *sandboxCreate) parseOptions() []libnetwork.SandboxOption {
+	var setFctList []libnetwork.SandboxOption
+	if sc.HostName != "" {
+		setFctList = append(setFctList, libnetwork.OptionHostname(sc.HostName))
 	}
-	if ej.DomainName != "" {
-		setFctList = append(setFctList, libnetwork.JoinOptionDomainname(ej.DomainName))
+	if sc.DomainName != "" {
+		setFctList = append(setFctList, libnetwork.OptionDomainname(sc.DomainName))
 	}
-	if ej.HostsPath != "" {
-		setFctList = append(setFctList, libnetwork.JoinOptionHostsPath(ej.HostsPath))
+	if sc.HostsPath != "" {
+		setFctList = append(setFctList, libnetwork.OptionHostsPath(sc.HostsPath))
 	}
-	if ej.ResolvConfPath != "" {
-		setFctList = append(setFctList, libnetwork.JoinOptionResolvConfPath(ej.ResolvConfPath))
+	if sc.ResolvConfPath != "" {
+		setFctList = append(setFctList, libnetwork.OptionResolvConfPath(sc.ResolvConfPath))
 	}
-	if ej.UseDefaultSandbox {
-		setFctList = append(setFctList, libnetwork.JoinOptionUseDefaultSandbox())
+	if sc.UseDefaultSandbox {
+		setFctList = append(setFctList, libnetwork.OptionUseDefaultSandbox())
 	}
-	if ej.DNS != nil {
-		for _, d := range ej.DNS {
-			setFctList = append(setFctList, libnetwork.JoinOptionDNS(d))
+	if sc.DNS != nil {
+		for _, d := range sc.DNS {
+			setFctList = append(setFctList, libnetwork.OptionDNS(d))
 		}
 	}
-	if ej.ExtraHosts != nil {
-		for _, e := range ej.ExtraHosts {
-			setFctList = append(setFctList, libnetwork.JoinOptionExtraHost(e.Name, e.Address))
-		}
-	}
-	if ej.ParentUpdates != nil {
-		for _, p := range ej.ParentUpdates {
-			setFctList = append(setFctList, libnetwork.JoinOptionParentUpdate(p.EndpointID, p.Name, p.Address))
+	if sc.ExtraHosts != nil {
+		for _, e := range sc.ExtraHosts {
+			setFctList = append(setFctList, libnetwork.OptionExtraHost(e.Name, e.Address))
 		}
 	}
 	return setFctList
+}
+
+func (ej *endpointJoin) parseOptions() []libnetwork.EndpointOption {
+	// priority will go here
+	return []libnetwork.EndpointOption{}
 }
 
 /******************
@@ -335,6 +354,22 @@ func procGetNetworks(c libnetwork.NetworkController, vars map[string]string, bod
 	}
 
 	return list, &successResponse
+}
+
+func procCreateSandbox(c libnetwork.NetworkController, vars map[string]string, body []byte) (interface{}, *responseStatus) {
+	var create sandboxCreate
+
+	err := json.Unmarshal(body, &create)
+	if err != nil {
+		return "", &responseStatus{Status: "Invalid body: " + err.Error(), StatusCode: http.StatusBadRequest}
+	}
+
+	sb, err := c.NewSandbox(create.ContainerID, create.parseOptions()...)
+	if err != nil {
+		return "", convertNetworkError(err)
+	}
+
+	return sb.ID(), &createdResponse
 }
 
 /******************
@@ -456,11 +491,16 @@ func procJoinEndpoint(c libnetwork.NetworkController, vars map[string]string, bo
 		return nil, errRsp
 	}
 
-	err = ep.Join(ej.ContainerID, ej.parseOptions()...)
+	sb, errRsp := findSandbox(c, ej.SandboxID, byID)
+	if !errRsp.isOK() {
+		return nil, errRsp
+	}
+
+	err = ep.Join(sb)
 	if err != nil {
 		return nil, convertNetworkError(err)
 	}
-	return ep.Info().SandboxKey(), &successResponse
+	return sb.Key(), &successResponse
 }
 
 func procLeaveEndpoint(c libnetwork.NetworkController, vars map[string]string, body []byte) (interface{}, *responseStatus) {
@@ -472,7 +512,12 @@ func procLeaveEndpoint(c libnetwork.NetworkController, vars map[string]string, b
 		return nil, errRsp
 	}
 
-	err := ep.Leave(vars[urlCnID])
+	sb, errRsp := findSandbox(c, vars[urlSbID], byID)
+	if !errRsp.isOK() {
+		return nil, errRsp
+	}
+
+	err := ep.Leave(sb)
 	if err != nil {
 		return nil, convertNetworkError(err)
 	}
@@ -567,19 +612,6 @@ func procGetService(c libnetwork.NetworkController, vars map[string]string, body
 	return buildEndpointResource(sv), &successResponse
 }
 
-func procGetContainers(c libnetwork.NetworkController, vars map[string]string, body []byte) (interface{}, *responseStatus) {
-	epT, epBy := detectEndpointTarget(vars)
-	sv, errRsp := findService(c, epT, epBy)
-	if !errRsp.isOK() {
-		return nil, endpointToService(errRsp)
-	}
-	var list []*containerResource
-	if sv.ContainerInfo() != nil {
-		list = append(list, buildContainerResource(sv.ContainerInfo()))
-	}
-	return list, &successResponse
-}
-
 func procPublishService(c libnetwork.NetworkController, vars map[string]string, body []byte) (interface{}, *responseStatus) {
 	var sp servicePublish
 
@@ -635,11 +667,16 @@ func procAttachBackend(c libnetwork.NetworkController, vars map[string]string, b
 		return nil, errRsp
 	}
 
-	err = sv.Join(bk.ContainerID, bk.parseOptions()...)
+	sb, errRsp := findSandbox(c, bk.SandboxID, byID)
+	if !errRsp.isOK() {
+		return nil, errRsp
+	}
+
+	err = sv.Join(sb)
 	if err != nil {
 		return nil, convertNetworkError(err)
 	}
-	return sv.Info().SandboxKey(), &successResponse
+	return sb.Key(), &successResponse
 }
 
 func procDetachBackend(c libnetwork.NetworkController, vars map[string]string, body []byte) (interface{}, *responseStatus) {
@@ -649,7 +686,94 @@ func procDetachBackend(c libnetwork.NetworkController, vars map[string]string, b
 		return nil, errRsp
 	}
 
-	err := sv.Leave(vars[urlCnID])
+	sb, errRsp := findSandbox(c, vars[urlSbID], byID)
+	if !errRsp.isOK() {
+		return nil, errRsp
+	}
+
+	err := sv.Leave(sb)
+	if err != nil {
+		return nil, convertNetworkError(err)
+	}
+
+	return nil, &successResponse
+}
+
+/******************
+ Sandbox interface
+*******************/
+func procGetSandbox(c libnetwork.NetworkController, vars map[string]string, body []byte) (interface{}, *responseStatus) {
+	if epT, ok := vars[urlEpID]; ok {
+		sv, errRsp := findService(c, epT, byID)
+		if !errRsp.isOK() {
+			return nil, endpointToService(errRsp)
+		}
+		return buildSandboxResource(sv.Info().Sandbox()), &successResponse
+	}
+
+	sbT, by := detectSandboxTarget(vars)
+	sb, errRsp := findSandbox(c, sbT, by)
+	if !errRsp.isOK() {
+		return nil, errRsp
+	}
+	return buildSandboxResource(sb), &successResponse
+}
+
+type cndFnMkr func(string) cndFn
+type cndFn func(libnetwork.Sandbox) bool
+
+// list of (query type, condition function makers) couples
+var cndMkrList = []struct {
+	identifier string
+	maker      cndFnMkr
+}{
+	{urlSbPID, func(id string) cndFn {
+		return func(sb libnetwork.Sandbox) bool { return strings.HasPrefix(sb.ID(), id) }
+	}},
+	{urlCnID, func(id string) cndFn {
+		return func(sb libnetwork.Sandbox) bool { return sb.ContainerID() == id }
+	}},
+	{urlCnPID, func(id string) cndFn {
+		return func(sb libnetwork.Sandbox) bool { return strings.HasPrefix(sb.ContainerID(), id) }
+	}},
+}
+
+func getQueryCondition(vars map[string]string) func(libnetwork.Sandbox) bool {
+	for _, im := range cndMkrList {
+		if val, ok := vars[im.identifier]; ok {
+			return im.maker(val)
+		}
+	}
+	return func(sb libnetwork.Sandbox) bool { return true }
+}
+
+func sandboxWalker(condition cndFn, list *[]*sandboxResource) libnetwork.SandboxWalker {
+	return func(sb libnetwork.Sandbox) bool {
+		if condition(sb) {
+			*list = append(*list, buildSandboxResource(sb))
+		}
+		return false
+	}
+}
+
+func procGetSandboxes(c libnetwork.NetworkController, vars map[string]string, body []byte) (interface{}, *responseStatus) {
+	var list []*sandboxResource
+
+	cnd := getQueryCondition(vars)
+	c.WalkSandboxes(sandboxWalker(cnd, &list))
+
+	return list, &successResponse
+}
+
+func procDeleteSandbox(c libnetwork.NetworkController, vars map[string]string, body []byte) (interface{}, *responseStatus) {
+	sbT, by := detectSandboxTarget(vars)
+
+	sb, errRsp := findSandbox(c, sbT, by)
+	if !errRsp.isOK() {
+		return nil, errRsp
+	}
+
+	err := sb.Delete()
 	if err != nil {
 		return nil, convertNetworkError(err)
 	}
@@ -674,6 +798,14 @@ func detectNetworkTarget(vars map[string]string) (string, int) {
 	}
 	// vars are populated from the URL, following cannot happen
 	panic("Missing URL variable parameter for network")
+}
+
+func detectSandboxTarget(vars map[string]string) (string, int) {
+	if target, ok := vars[urlSbID]; ok {
+		return target, byID
+	}
+	// vars are populated from the URL, following cannot happen
+	panic("Missing URL variable parameter for sandbox")
 }
 
 func detectEndpointTarget(vars map[string]string) (string, int) {
@@ -710,6 +842,27 @@ func findNetwork(c libnetwork.NetworkController, s string, by int) (libnetwork.N
 		return nil, &responseStatus{Status: err.Error(), StatusCode: http.StatusBadRequest}
 	}
 	return nw, &successResponse
+}
+
+func findSandbox(c libnetwork.NetworkController, s string, by int) (libnetwork.Sandbox, *responseStatus) {
+	var (
+		sb  libnetwork.Sandbox
+		err error
+	)
+
+	switch by {
+	case byID:
+		sb, err = c.SandboxByID(s)
+	default:
+		panic(fmt.Sprintf("unexpected selector for sandbox search: %d", by))
+	}
+	if err != nil {
+		if _, ok := err.(types.NotFoundError); ok {
+			return nil, &responseStatus{Status: "Resource not found: Sandbox", StatusCode: http.StatusNotFound}
+		}
+		return nil, &responseStatus{Status: err.Error(), StatusCode: http.StatusBadRequest}
+	}
+	return sb, &successResponse
 }
 
 func findEndpoint(c libnetwork.NetworkController, ns, es string, nwBy, epBy int) (libnetwork.Endpoint, *responseStatus) {

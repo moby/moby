@@ -5,8 +5,6 @@ import (
 	"net"
 	"sync"
 	"syscall"
-
-	"github.com/docker/libnetwork/types"
 )
 
 type peerKey struct {
@@ -15,7 +13,7 @@ type peerKey struct {
 }
 
 type peerEntry struct {
-	eid       types.UUID
+	eid       string
 	vtep      net.IP
 	inSandbox bool
 	isLocal   bool
@@ -27,7 +25,7 @@ type peerMap struct {
 }
 
 type peerNetworkMap struct {
-	mp map[types.UUID]peerMap
+	mp map[string]peerMap
 	sync.Mutex
 }
 
@@ -58,7 +56,7 @@ func (pKey *peerKey) Scan(state fmt.ScanState, verb rune) error {
 
 var peerDbWg sync.WaitGroup
 
-func (d *driver) peerDbWalk(nid types.UUID, f func(*peerKey, *peerEntry) bool) error {
+func (d *driver) peerDbWalk(nid string, f func(*peerKey, *peerEntry) bool) error {
 	d.peerDb.Lock()
 	pMap, ok := d.peerDb.mp[nid]
 	if !ok {
@@ -84,7 +82,7 @@ func (d *driver) peerDbWalk(nid types.UUID, f func(*peerKey, *peerEntry) bool) e
 	return nil
 }
 
-func (d *driver) peerDbSearch(nid types.UUID, peerIP net.IP) (net.HardwareAddr, net.IP, error) {
+func (d *driver) peerDbSearch(nid string, peerIP net.IP) (net.HardwareAddr, net.IP, error) {
 	var (
 		peerMac net.HardwareAddr
 		vtep    net.IP
@@ -113,7 +111,7 @@ func (d *driver) peerDbSearch(nid types.UUID, peerIP net.IP) (net.HardwareAddr, 
 	return peerMac, vtep, nil
 }
 
-func (d *driver) peerDbAdd(nid, eid types.UUID, peerIP net.IP,
+func (d *driver) peerDbAdd(nid, eid string, peerIP net.IP,
 	peerMac net.HardwareAddr, vtep net.IP, isLocal bool) {
 
 	peerDbWg.Wait()
@@ -145,7 +143,7 @@ func (d *driver) peerDbAdd(nid, eid types.UUID, peerIP net.IP,
 	pMap.Unlock()
 }
 
-func (d *driver) peerDbDelete(nid, eid types.UUID, peerIP net.IP,
+func (d *driver) peerDbDelete(nid, eid string, peerIP net.IP,
 	peerMac net.HardwareAddr, vtep net.IP) {
 	peerDbWg.Wait()
 
@@ -167,7 +165,7 @@ func (d *driver) peerDbDelete(nid, eid types.UUID, peerIP net.IP,
 	pMap.Unlock()
 }
 
-func (d *driver) peerDbUpdateSandbox(nid types.UUID) {
+func (d *driver) peerDbUpdateSandbox(nid string) {
 	d.peerDb.Lock()
 	pMap, ok := d.peerDb.mp[nid]
 	if !ok {
@@ -214,7 +212,7 @@ func (d *driver) peerDbUpdateSandbox(nid types.UUID) {
 	peerDbWg.Done()
 }
 
-func (d *driver) peerAdd(nid, eid types.UUID, peerIP net.IP,
+func (d *driver) peerAdd(nid, eid string, peerIP net.IP,
 	peerMac net.HardwareAddr, vtep net.IP, updateDb bool) error {
 
 	if err := validateID(nid, eid); err != nil {
@@ -249,7 +247,7 @@ func (d *driver) peerAdd(nid, eid types.UUID, peerIP net.IP,
 	return nil
 }
 
-func (d *driver) peerDelete(nid, eid types.UUID, peerIP net.IP,
+func (d *driver) peerDelete(nid, eid string, peerIP net.IP,
 	peerMac net.HardwareAddr, vtep net.IP, updateDb bool) error {
 
 	if err := validateID(nid, eid); err != nil {

@@ -1,6 +1,6 @@
 // +build !linux,!windows,!freebsd
 
-package sandbox
+package osl
 
 import "errors"
 

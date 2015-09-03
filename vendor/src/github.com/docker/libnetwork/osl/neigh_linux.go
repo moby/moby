@@ -1,4 +1,4 @@
-package sandbox
+package osl
 
 import (
 	"bytes"

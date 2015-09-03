@@ -21,9 +21,11 @@ type endpointResource struct {
 	Network string `json:"network"`
 }
 
-// containerResource is the body of "get service backend" response message
-type containerResource struct {
-	ID string `json:"id"`
+// sandboxResource is the body of "get service backend" response message
+type sandboxResource struct {
+	ID          string `json:"id"`
+	Key         string `json:"key"`
+	ContainerID string `json:"container_id"`
 	// will add more fields once labels change is in
 }
 
@@ -45,17 +47,21 @@ type endpointCreate struct {
 	PortMapping  []types.PortBinding   `json:"port_mapping"`
 }
 
+// sandboxCreate is the expected body of the "create sandbox" http request message
+type sandboxCreate struct {
+	ContainerID       string      `json:"container_id"`
+	HostName          string      `json:"host_name"`
+	DomainName        string      `json:"domain_name"`
+	HostsPath         string      `json:"hosts_path"`
+	ResolvConfPath    string      `json:"resolv_conf_path"`
+	DNS               []string    `json:"dns"`
+	ExtraHosts        []extraHost `json:"extra_hosts"`
+	UseDefaultSandbox bool        `json:"use_default_sandbox"`
+}
+
 // endpointJoin represents the expected body of the "join endpoint" or "leave endpoint" http request messages
 type endpointJoin struct {
-	ContainerID       string                 `json:"container_id"`
-	HostName          string                 `json:"host_name"`
-	DomainName        string                 `json:"domain_name"`
-	HostsPath         string                 `json:"hosts_path"`
-	ResolvConfPath    string                 `json:"resolv_conf_path"`
-	DNS               []string               `json:"dns"`
-	ExtraHosts        []endpointExtraHost    `json:"extra_hosts"`
-	ParentUpdates     []endpointParentUpdate `json:"parent_updates"`
-	UseDefaultSandbox bool                   `json:"use_default_sandbox"`
+	SandboxID string `json:"sandbox_id"`
 }
 
 // servicePublish represents the body of the "publish service" http request message
@@ -66,16 +72,8 @@ type servicePublish struct {
 	PortMapping  []types.PortBinding   `json:"port_mapping"`
 }
 
-// EndpointExtraHost represents the extra host object
-type endpointExtraHost struct {
+// extraHost represents the extra host object
+type extraHost struct {
 	Name    string `json:"name"`
 	Address string `json:"address"`
-}
-
-// EndpointParentUpdate is the object carrying the information about the
-// endpoint parent that needs to be updated
-type endpointParentUpdate struct {
-	EndpointID string `json:"endpoint_id"`
-	Name       string `json:"name"`
-	Address    string `json:"address"`
 }
