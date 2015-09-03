@@ -8,7 +8,6 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -105,8 +104,7 @@ func (container *Container) fromDisk() error {
 	dec := json.NewDecoder(jsonSource)
 
 	// Load container settings
-	// udp broke compat of docker.PortMapping, but it's not used when loading a container, we can skip it
-	if err := dec.Decode(container); err != nil && !strings.Contains(err.Error(), "docker.PortMapping") {
+	if err := dec.Decode(container); err != nil {
 		return err
 	}
 
