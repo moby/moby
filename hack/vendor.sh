@@ -18,7 +18,6 @@ clone git github.com/microsoft/hcsshim 7f646aa6b26bcf90caee91e93cde4a80d0d8a83e
 clone git github.com/mistifyio/go-zfs v2.1.1
 clone git github.com/tchap/go-patricia v2.1.0
 clone git golang.org/x/net 3cffabab72adf04f8e3b01c5baf775361837b5fe https://github.com/golang/net.git
-clone hg code.google.com/p/gosqlite 74691fb6f837
 
 #get libnetwork packages
 clone git github.com/docker/libnetwork 22dc04d06067b40a9e7ef575aee6d1bb69d4dcc3
