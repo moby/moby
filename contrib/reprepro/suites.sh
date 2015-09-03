@@ -8,4 +8,5 @@ targets_from() {
        git ls-tree -r --name-only origin/master contrib/builder/deb | grep '/Dockerfile$' | sed -r 's!^contrib/builder/deb/|-debootstrap|/Dockerfile$!!g'
 }
 
-{ targets_from master; targets_from release; } | sort -u
+release_branch=$(git ls-remote --heads https://github.com/docker/docker.git | awk -F 'refs/heads/' '$2 ~ /^release/ { print $2 }' | sort -V | tail -1)
+{ targets_from master; targets_from "$release_branch"; } | sort -u
