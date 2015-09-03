@@ -16,6 +16,11 @@ import (
 	"github.com/docker/notary/trustmanager"
 )
 
+const (
+	zipSymlinkAttr = 0xA1ED0000
+	zipMadeByUNIX  = 3 << 8
+)
+
 var (
 	// ErrNoValidPrivateKey is returned if a key being imported doesn't
 	// look like a private key
@@ -126,15 +131,32 @@ func moveKeys(oldKeyStore, newKeyStore *trustmanager.KeyFileStore) error {
 		}
 	}
 
+	// Recreate symlinks
+	for _, relKeyPath := range oldKeyStore.ListFiles(true) {
+		fullKeyPath := filepath.Join(oldKeyStore.BaseDir(), relKeyPath)
+
+		fi, err := os.Lstat(fullKeyPath)
+		if err != nil {
+			return err
+		}
+
+		if (fi.Mode() & os.ModeSymlink) != 0 {
+			target, err := os.Readlink(fullKeyPath)
+			if err != nil {
+				return err
+			}
+			os.Symlink(target, filepath.Join(newKeyStore.BaseDir(), relKeyPath))
+		}
+	}
+
 	return nil
 }
 
 func addKeysToArchive(zipWriter *zip.Writer, newKeyStore *trustmanager.KeyFileStore, subDir string) error {
-	// List all files but no symlinks
-	for _, relKeyPath := range newKeyStore.ListFiles(false) {
+	for _, relKeyPath := range newKeyStore.ListFiles(true) {
 		fullKeyPath := filepath.Join(newKeyStore.BaseDir(), relKeyPath)
 
-		fi, err := os.Stat(fullKeyPath)
+		fi, err := os.Lstat(fullKeyPath)
 		if err != nil {
 			return err
 		}
@@ -145,17 +167,40 @@ func addKeysToArchive(zipWriter *zip.Writer, newKeyStore *trustmanager.KeyFileSt
 		}
 
 		infoHeader.Name = filepath.Join(subDir, relKeyPath)
-		zipFileEntryWriter, err := zipWriter.CreateHeader(infoHeader)
-		if err != nil {
-			return err
-		}
 
-		fileContents, err := ioutil.ReadFile(fullKeyPath)
-		if err != nil {
-			return err
-		}
-		if _, err = zipFileEntryWriter.Write(fileContents); err != nil {
-			return err
+		// Is this a symlink? If so, encode properly in the zip file.
+		if (fi.Mode() & os.ModeSymlink) != 0 {
+			infoHeader.CreatorVersion = zipMadeByUNIX
+			infoHeader.ExternalAttrs = zipSymlinkAttr
+
+			zipFileEntryWriter, err := zipWriter.CreateHeader(infoHeader)
+			if err != nil {
+				return err
+			}
+
+			target, err := os.Readlink(fullKeyPath)
+			if err != nil {
+				return err
+			}
+
+			// Write relative path
+			if _, err = zipFileEntryWriter.Write([]byte(target)); err != nil {
+				return err
+			}
+		} else {
+			zipFileEntryWriter, err := zipWriter.CreateHeader(infoHeader)
+			if err != nil {
+				return err
+			}
+
+			fileContents, err := ioutil.ReadFile(fullKeyPath)
+			if err != nil {
+				return err
+			}
+
+			if _, err = zipFileEntryWriter.Write(fileContents); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -197,7 +242,6 @@ func (km *KeyStoreManager) ExportAllKeys(dest io.Writer, newPassphraseRetriever 
 		return err
 	}
 	if err := addKeysToArchive(zipWriter, tempNonRootKeyStore, privNonRootKeysSubdir); err != nil {
-
 		return err
 	}
 
@@ -206,7 +250,13 @@ func (km *KeyStoreManager) ExportAllKeys(dest io.Writer, newPassphraseRetriever 
 	return nil
 }
 
-// ImportKeysZip imports keys from a zip file provided as an io.ReaderAt. The
+// IsZipSymlink returns true if the file described by the zip file header is a
+// symlink.
+func IsZipSymlink(f *zip.File) bool {
+	return f.CreatorVersion&0xFF00 == zipMadeByUNIX && f.ExternalAttrs == zipSymlinkAttr
+}
+
+// ImportKeysZip imports keys from a zip file provided as an zip.Reader. The
 // keys in the root_keys directory are left encrypted, but the other keys are
 // decrypted with the specified passphrase.
 func (km *KeyStoreManager) ImportKeysZip(zipReader zip.Reader) error {
@@ -239,17 +289,33 @@ func (km *KeyStoreManager) ImportKeysZip(zipReader zip.Reader) error {
 		// Note that using / as a separator is okay here - the zip
 		// package guarantees that the separator will be /
 		if strings.HasPrefix(fNameTrimmed, rootKeysPrefix) {
-			if err = checkRootKeyIsEncrypted(fileBytes); err != nil {
-				rc.Close()
-				return err
+			if IsZipSymlink(f) {
+				newName := filepath.Join(km.rootKeyStore.BaseDir(), strings.TrimPrefix(f.Name, rootKeysPrefix))
+				err = os.Symlink(string(fileBytes), newName)
+				if err != nil {
+					return err
+				}
+			} else {
+				if err = checkRootKeyIsEncrypted(fileBytes); err != nil {
+					rc.Close()
+					return err
+				}
+				// Root keys are preserved without decrypting
+				keyName := strings.TrimPrefix(fNameTrimmed, rootKeysPrefix)
+				newRootKeys[keyName] = fileBytes
 			}
-			// Root keys are preserved without decrypting
-			keyName := strings.TrimPrefix(fNameTrimmed, rootKeysPrefix)
-			newRootKeys[keyName] = fileBytes
 		} else if strings.HasPrefix(fNameTrimmed, nonRootKeysPrefix) {
-			// Nonroot keys are preserved without decrypting
-			keyName := strings.TrimPrefix(fNameTrimmed, nonRootKeysPrefix)
-			newNonRootKeys[keyName] = fileBytes
+			if IsZipSymlink(f) {
+				newName := filepath.Join(km.nonRootKeyStore.BaseDir(), strings.TrimPrefix(f.Name, nonRootKeysPrefix))
+				err = os.Symlink(string(fileBytes), newName)
+				if err != nil {
+					return err
+				}
+			} else {
+				// Nonroot keys are preserved without decrypting
+				keyName := strings.TrimPrefix(fNameTrimmed, nonRootKeysPrefix)
+				newNonRootKeys[keyName] = fileBytes
+			}
 		} else {
 			// This path inside the zip archive doesn't look like a
 			// root key, non-root key, or alias. To avoid adding a file
@@ -281,7 +347,6 @@ func (km *KeyStoreManager) ImportKeysZip(zipReader zip.Reader) error {
 func moveKeysByGUN(oldKeyStore, newKeyStore *trustmanager.KeyFileStore, gun string) error {
 	// List all files but no symlinks
 	for relKeyPath := range oldKeyStore.ListKeys() {
-
 		// Skip keys that aren't associated with this GUN
 		if !strings.HasPrefix(relKeyPath, filepath.FromSlash(gun)) {
 			continue

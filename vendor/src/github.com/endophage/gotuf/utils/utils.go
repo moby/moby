@@ -3,6 +3,7 @@ package utils
 import (
 	"bytes"
 	"crypto/sha256"
+	"crypto/sha512"
 	"crypto/tls"
 	"fmt"
 	"io"
@@ -76,5 +77,17 @@ type NoopCloser struct {
 }
 
 func (nc *NoopCloser) Close() error {
+	return nil
+}
+
+func DoHash(alg string, d []byte) []byte {
+	switch alg {
+	case "sha256":
+		digest := sha256.Sum256(d)
+		return digest[:]
+	case "sha512":
+		digest := sha512.Sum512(d)
+		return digest[:]
+	}
 	return nil
 }
