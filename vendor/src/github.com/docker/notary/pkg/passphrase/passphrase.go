@@ -150,7 +150,7 @@ func PromptRetrieverWithInOut(in io.Reader, out io.Writer, aliasMap map[string]s
 		}
 
 		if len(retPass) < 8 {
-			fmt.Fprintln(out, "Please use a password manager to generate and store a good random passphrase.")
+			fmt.Fprintln(out, "Passphrase is too short. Please use a password manager to generate and store a good random passphrase.")
 			return "", false, ErrTooShort
 		}
 

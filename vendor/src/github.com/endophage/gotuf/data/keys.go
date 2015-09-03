@@ -5,7 +5,7 @@ import (
 	"encoding/hex"
 
 	"github.com/Sirupsen/logrus"
-	cjson "github.com/tent/canonical-json-go"
+	"github.com/jfrazelle/go/canonical/json"
 )
 
 type Key interface {
@@ -57,7 +57,7 @@ func (k TUFKey) Algorithm() KeyAlgorithm {
 func (k *TUFKey) ID() string {
 	if k.id == "" {
 		pubK := NewPublicKey(k.Algorithm(), k.Public())
-		data, err := cjson.Marshal(&pubK)
+		data, err := json.MarshalCanonical(&pubK)
 		if err != nil {
 			logrus.Error("Error generating key ID:", err)
 		}

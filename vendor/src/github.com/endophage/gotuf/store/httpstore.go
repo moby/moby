@@ -14,10 +14,12 @@ import (
 	"github.com/Sirupsen/logrus"
 )
 
-type ErrServerUnavailable struct{}
+type ErrServerUnavailable struct {
+	code int
+}
 
 func (err ErrServerUnavailable) Error() string {
-	return "Unable to reach trust server at this time."
+	return fmt.Sprintf("Unable to reach trust server at this time: %d.", err.code)
 }
 
 type ErrShortRead struct{}
@@ -85,13 +87,15 @@ func (s HTTPStore) GetMeta(name string, size int64) ([]byte, error) {
 		return nil, err
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, ErrMetaNotFound{}
+	} else if resp.StatusCode != http.StatusOK {
+		return nil, ErrServerUnavailable{code: resp.StatusCode}
+	}
 	if resp.ContentLength > size {
 		return nil, ErrMaliciousServer{}
 	}
 	logrus.Debugf("%d when retrieving metadata for %s", resp.StatusCode, name)
-	if resp.StatusCode == http.StatusNotFound {
-		return nil, ErrMetaNotFound{}
-	}
 	b := io.LimitReader(resp.Body, size)
 	body, err := ioutil.ReadAll(b)
 	if resp.ContentLength > 0 && int64(len(body)) < resp.ContentLength {
@@ -113,8 +117,17 @@ func (s HTTPStore) SetMeta(name string, blob []byte) error {
 	if err != nil {
 		return err
 	}
-	_, err = s.roundTrip.RoundTrip(req)
-	return err
+	resp, err := s.roundTrip.RoundTrip(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode == http.StatusNotFound {
+		return ErrMetaNotFound{}
+	} else if resp.StatusCode != http.StatusOK {
+		return ErrServerUnavailable{code: resp.StatusCode}
+	}
+	return nil
 }
 
 func (s HTTPStore) SetMultiMeta(metas map[string][]byte) error {
@@ -140,8 +153,17 @@ func (s HTTPStore) SetMultiMeta(metas map[string][]byte) error {
 	if err != nil {
 		return err
 	}
-	_, err = s.roundTrip.RoundTrip(req)
-	return err
+	resp, err := s.roundTrip.RoundTrip(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode == http.StatusNotFound {
+		return ErrMetaNotFound{}
+	} else if resp.StatusCode != http.StatusOK {
+		return ErrServerUnavailable{code: resp.StatusCode}
+	}
+	return nil
 }
 
 func (s HTTPStore) buildMetaURL(name string) (*url.URL, error) {
@@ -188,6 +210,12 @@ func (s HTTPStore) GetTarget(path string) (io.ReadCloser, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer resp.Body.Close()
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, ErrMetaNotFound{}
+	} else if resp.StatusCode != http.StatusOK {
+		return nil, ErrServerUnavailable{code: resp.StatusCode}
+	}
 	return resp.Body, nil
 }
 
@@ -205,6 +233,11 @@ func (s HTTPStore) GetKey(role string) ([]byte, error) {
 		return nil, err
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, ErrMetaNotFound{}
+	} else if resp.StatusCode != http.StatusOK {
+		return nil, ErrServerUnavailable{code: resp.StatusCode}
+	}
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err

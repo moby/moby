@@ -189,7 +189,7 @@ func (f *SimpleFileStore) genFileName(name string) string {
 	return fmt.Sprintf("%s.%s", name, f.fileExt)
 }
 
-// Link creates a symlink beetween the ID of the certificate used by a repository
+// Link creates a symlink between the ID of the certificate used by a repository
 // and the ID of the root key that is being used.
 // We use full path for the source and local for the destination to use relative
 // path for the symlink

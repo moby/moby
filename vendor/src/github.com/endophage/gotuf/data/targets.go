@@ -3,10 +3,8 @@ package data
 import (
 	"crypto/sha256"
 	"encoding/hex"
-	"encoding/json"
-	"time"
 
-	cjson "github.com/tent/canonical-json-go"
+	"github.com/jfrazelle/go/canonical/json"
 )
 
 type SignedTargets struct {
@@ -16,9 +14,7 @@ type SignedTargets struct {
 }
 
 type Targets struct {
-	Type        string      `json:"_type"`
-	Version     int         `json:"version"`
-	Expires     time.Time   `json:"expires"`
+	SignedCommon
 	Targets     Files       `json:"targets"`
 	Delegations Delegations `json:"delegations,omitempty"`
 }
@@ -27,9 +23,11 @@ func NewTargets() *SignedTargets {
 	return &SignedTargets{
 		Signatures: make([]Signature, 0),
 		Signed: Targets{
-			Type:        TUFTypes["targets"],
-			Version:     0,
-			Expires:     DefaultExpires("targets"),
+			SignedCommon: SignedCommon{
+				Type:    TUFTypes["targets"],
+				Version: 0,
+				Expires: DefaultExpires("targets"),
+			},
 			Targets:     make(Files),
 			Delegations: *NewDelegations(),
 		},
@@ -86,7 +84,7 @@ func (t *SignedTargets) AddDelegation(role *Role, keys []*PublicKey) error {
 }
 
 func (t SignedTargets) ToSigned() (*Signed, error) {
-	s, err := cjson.Marshal(t.Signed)
+	s, err := json.MarshalCanonical(t.Signed)
 	if err != nil {
 		return nil, err
 	}

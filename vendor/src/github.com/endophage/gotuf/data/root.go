@@ -1,10 +1,9 @@
 package data
 
 import (
-	"encoding/json"
 	"time"
 
-	cjson "github.com/tent/canonical-json-go"
+	"github.com/jfrazelle/go/canonical/json"
 )
 
 type SignedRoot struct {
@@ -58,7 +57,7 @@ func NewRoot(keys map[string]PublicKey, roles map[string]*RootRole, consistent b
 }
 
 func (r SignedRoot) ToSigned() (*Signed, error) {
-	s, err := cjson.Marshal(r.Signed)
+	s, err := json.MarshalCanonical(r.Signed)
 	if err != nil {
 		return nil, err
 	}

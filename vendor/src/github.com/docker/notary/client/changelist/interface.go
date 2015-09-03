@@ -18,6 +18,10 @@ type Changelist interface {
 	// Close syncronizes any pending writes to the underlying
 	// storage and closes the file/connection
 	Close() error
+
+	// NewIterator returns an iterator for walking through the list
+	// of changes currently stored
+	NewIterator() (ChangeIterator, error)
 }
 
 const (
@@ -56,4 +60,11 @@ type Change interface {
 	// to be inserted or merged. In the case of a "delete"
 	// action, it will be nil.
 	Content() []byte
+}
+
+// ChangeIterator is the interface for iterating across collections of
+// TUF Change items
+type ChangeIterator interface {
+	Next() (Change, error)
+	HasNext() bool
 }
