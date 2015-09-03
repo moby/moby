@@ -2239,6 +2239,34 @@ func TestEndToEnd(t *testing.T) {
 	}
 }
 
+func TestEndToEndErrorMessage(t *testing.T) {
+	defer osl.SetupTestOSContext(t)()
+
+	rsp := newWriter()
+
+	c, err := libnetwork.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	handleRequest := NewHTTPHandler(c)
+
+	body := []byte{}
+	lr := newLocalReader(body)
+	req, err := http.NewRequest("POST", "/v1.19/networks", lr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	handleRequest(rsp, req)
+
+	if len(rsp.body) == 0 {
+		t.Fatalf("Empty response body.")
+	}
+	empty := []byte("\"\"")
+	if bytes.Equal(empty, bytes.TrimSpace(rsp.body)) {
+		t.Fatalf("Empty response error message.")
+	}
+}
+
 type bre struct{}
 
 func (b *bre) Error() string {
