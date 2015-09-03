@@ -97,33 +97,6 @@ func (s *DockerRegistrySuite) TestPushMultipleTags(c *check.C) {
 	}
 }
 
-func (s *DockerRegistrySuite) TestPushInterrupt(c *check.C) {
-	repoName := fmt.Sprintf("%v/dockercli/busybox", privateRegistryURL)
-	// tag the image and upload it to the private registry
-	dockerCmd(c, "tag", "busybox", repoName)
-
-	pushCmd := exec.Command(dockerBinary, "push", repoName)
-	if err := pushCmd.Start(); err != nil {
-		c.Fatalf("Failed to start pushing to private registry: %v", err)
-	}
-
-	// Interrupt push (yes, we have no idea at what point it will get killed).
-	time.Sleep(50 * time.Millisecond) // dependent on race condition.
-	if err := pushCmd.Process.Kill(); err != nil {
-		c.Fatalf("Failed to kill push process: %v", err)
-	}
-	if out, _, err := dockerCmdWithError("push", repoName); err == nil {
-		if !strings.Contains(out, "already in progress") {
-			c.Fatalf("Push should be continued on daemon side, but seems ok: %v, %s", err, out)
-		}
-	}
-	// now wait until all this pushes will complete
-	// if it failed with timeout - there would be some error,
-	// so no logic about it here
-	for exec.Command(dockerBinary, "push", repoName).Run() != nil {
-	}
-}
-
 func (s *DockerRegistrySuite) TestPushEmptyLayer(c *check.C) {
 	repoName := fmt.Sprintf("%v/dockercli/emptylayer", privateRegistryURL)
 	emptyTarball, err := ioutil.TempFile("", "empty_tarball")
