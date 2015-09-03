@@ -348,8 +348,11 @@ func calcCopyInfo(b *builder, cmdName string, cInfos *[]*copyInfo, origPath stri
 			}
 		}
 
-		if err := system.UtimesNano(tmpFileName, times); err != nil {
-			return err
+		// Windows does not support UtimesNano.
+		if runtime.GOOS != "windows" {
+			if err := system.UtimesNano(tmpFileName, times); err != nil {
+				return err
+			}
 		}
 
 		ci.origPath = filepath.Join(filepath.Base(tmpDirName), filepath.Base(tmpFileName))
