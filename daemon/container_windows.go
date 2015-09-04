@@ -31,7 +31,7 @@ func (container *Container) setupLinkedContainers() ([]string, error) {
 
 func (container *Container) createDaemonEnvironment(linkedEnv []string) []string {
 	// On Windows, nothing to link. Just return the container environment.
-	return container.Config.Env
+	return container.Config.Env.Slice()
 }
 
 func (container *Container) initializeNetworking() error {

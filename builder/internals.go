@@ -529,8 +529,10 @@ func (b *builder) processImageFrom(img *image.Image) error {
 	}
 
 	// The default path will be blank on Windows (set by HCS)
-	if len(b.Config.Env) == 0 && daemon.DefaultPathEnv != "" {
-		b.Config.Env = append(b.Config.Env, "PATH="+daemon.DefaultPathEnv)
+	if b.Config.Env.Len() == 0 && daemon.DefaultPathEnv != "" {
+		bConfigEnv := b.Config.Env.Slice()
+		bConfigEnv = append(bConfigEnv, "PATH="+daemon.DefaultPathEnv)
+		b.Config.Env = stringutils.NewStrSlice(bConfigEnv...)
 	}
 
 	// Process ONBUILD triggers if they exist

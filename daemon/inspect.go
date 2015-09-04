@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/pkg/stringutils"
 )
 
 // ContainerInspect returns low-level information about a
@@ -34,9 +35,11 @@ func (daemon *Daemon) getInspectData(container *Container) (*types.ContainerJSON
 	hostConfig := *container.hostConfig
 
 	if children, err := daemon.children(container.Name); err == nil {
+		var links []string
 		for linkAlias, child := range children {
-			hostConfig.Links = append(hostConfig.Links, fmt.Sprintf("%s:%s", child.Name, linkAlias))
+			links = append(links, fmt.Sprintf("%s:%s", child.Name, linkAlias))
 		}
+		hostConfig.Links = stringutils.NewStrSlice(links...)
 	}
 	// we need this trick to preserve empty log driver, so
 	// container will use daemon defaults even if daemon change them

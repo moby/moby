@@ -16,7 +16,7 @@ func Compare(a, b *Config) bool {
 	}
 
 	if a.Cmd.Len() != b.Cmd.Len() ||
-		len(a.Env) != len(b.Env) ||
+		a.Env.Len() != b.Env.Len() ||
 		len(a.Labels) != len(b.Labels) ||
 		len(a.ExposedPorts) != len(b.ExposedPorts) ||
 		a.Entrypoint.Len() != b.Entrypoint.Len() ||
@@ -31,8 +31,10 @@ func Compare(a, b *Config) bool {
 			return false
 		}
 	}
-	for i := 0; i < len(a.Env); i++ {
-		if a.Env[i] != b.Env[i] {
+	aEnv := a.Env.Slice()
+	bEnv := b.Env.Slice()
+	for i := 0; i < len(aEnv); i++ {
+		if aEnv[i] != bEnv[i] {
 			return false
 		}
 	}

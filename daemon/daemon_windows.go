@@ -103,11 +103,11 @@ func (daemon *Daemon) registerLinks(container *Container, hostConfig *runconfig.
 	// TODO Windows. Factored out for network modes. There may be more
 	// refactoring required here.
 
-	if hostConfig == nil || hostConfig.Links == nil {
+	if hostConfig == nil || hostConfig.Links == nil || hostConfig.Links.Len() == 0 {
 		return nil
 	}
 
-	for _, l := range hostConfig.Links {
+	for _, l := range hostConfig.Links.Slice() {
 		name, alias, err := parsers.ParseLink(l)
 		if err != nil {
 			return err
@@ -125,10 +125,8 @@ func (daemon *Daemon) registerLinks(container *Container, hostConfig *runconfig.
 	// After we load all the links into the daemon
 	// set them to nil on the hostconfig
 	hostConfig.Links = nil
-	if err := container.writeHostConfig(); err != nil {
-		return err
-	}
-	return nil
+
+	return container.writeHostConfig()
 }
 
 func (daemon *Daemon) newBaseContainer(id string) Container {

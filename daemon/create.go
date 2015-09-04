@@ -10,6 +10,7 @@ import (
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/stringid"
+	"github.com/docker/docker/pkg/stringutils"
 	"github.com/docker/docker/runconfig"
 	"github.com/opencontainers/runc/libcontainer/label"
 )
@@ -76,10 +77,11 @@ func (daemon *Daemon) Create(config *runconfig.Config, hostConfig *runconfig.Hos
 		hostConfig = &runconfig.HostConfig{}
 	}
 	if hostConfig.SecurityOpt == nil {
-		hostConfig.SecurityOpt, err = daemon.generateSecurityOpt(hostConfig.IpcMode, hostConfig.PidMode)
+		securityOpt, err := daemon.generateSecurityOpt(hostConfig.IpcMode, hostConfig.PidMode)
 		if err != nil {
 			return nil, nil, err
 		}
+		hostConfig.SecurityOpt = stringutils.NewStrSlice(securityOpt...)
 	}
 	if container, err = daemon.newContainer(name, config, imgID); err != nil {
 		return nil, nil, err

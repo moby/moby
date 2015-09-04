@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/pkg/nat"
+	"github.com/docker/docker/pkg/stringutils"
 )
 
 func TestMerge(t *testing.T) {
@@ -15,7 +16,7 @@ func TestMerge(t *testing.T) {
 	portsImage[newPortNoError("tcp", "2222")] = struct{}{}
 	configImage := &Config{
 		ExposedPorts: portsImage,
-		Env:          []string{"VAR1=1", "VAR2=2"},
+		Env:          stringutils.NewStrSlice("VAR1=1", "VAR2=2"),
 		Volumes:      volumesImage,
 	}
 
@@ -26,7 +27,7 @@ func TestMerge(t *testing.T) {
 	volumesUser["/test3"] = struct{}{}
 	configUser := &Config{
 		ExposedPorts: portsUser,
-		Env:          []string{"VAR2=3", "VAR3=3"},
+		Env:          stringutils.NewStrSlice("VAR2=3", "VAR3=3"),
 		Volumes:      volumesUser,
 	}
 
@@ -42,10 +43,10 @@ func TestMerge(t *testing.T) {
 			t.Fatalf("Expected 1111 or 2222 or 3333, found %s", portSpecs)
 		}
 	}
-	if len(configUser.Env) != 3 {
-		t.Fatalf("Expected 3 env var, VAR1=1, VAR2=3 and VAR3=3, found %d", len(configUser.Env))
+	if configUser.Env.Len() != 3 {
+		t.Fatalf("Expected 3 env var, VAR1=1, VAR2=3 and VAR3=3, found %d", configUser.Env.Len())
 	}
-	for _, env := range configUser.Env {
+	for _, env := range configUser.Env.Slice() {
 		if env != "VAR1=1" && env != "VAR2=3" && env != "VAR3=3" {
 			t.Fatalf("Expected VAR1=1 or VAR2=3 or VAR3=3, found %s", env)
 		}

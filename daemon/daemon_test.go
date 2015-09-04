@@ -10,6 +10,7 @@ import (
 
 	"github.com/docker/docker/pkg/graphdb"
 	"github.com/docker/docker/pkg/stringid"
+	"github.com/docker/docker/pkg/stringutils"
 	"github.com/docker/docker/pkg/truncindex"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/volume"
@@ -522,7 +523,7 @@ func TestParseSecurityOpt(t *testing.T) {
 	config := &runconfig.HostConfig{}
 
 	// test apparmor
-	config.SecurityOpt = []string{"apparmor:test_profile"}
+	config.SecurityOpt = stringutils.NewStrSlice("apparmor:test_profile")
 	if err := parseSecurityOpt(container, config); err != nil {
 		t.Fatalf("Unexpected parseSecurityOpt error: %v", err)
 	}
@@ -531,19 +532,19 @@ func TestParseSecurityOpt(t *testing.T) {
 	}
 
 	// test valid label
-	config.SecurityOpt = []string{"label:user:USER"}
+	config.SecurityOpt = stringutils.NewStrSlice("label:user:USER")
 	if err := parseSecurityOpt(container, config); err != nil {
 		t.Fatalf("Unexpected parseSecurityOpt error: %v", err)
 	}
 
 	// test invalid label
-	config.SecurityOpt = []string{"label"}
+	config.SecurityOpt = stringutils.NewStrSlice("label")
 	if err := parseSecurityOpt(container, config); err == nil {
 		t.Fatal("Expected parseSecurityOpt error, got nil")
 	}
 
 	// test invalid opt
-	config.SecurityOpt = []string{"test"}
+	config.SecurityOpt = stringutils.NewStrSlice("test")
 	if err := parseSecurityOpt(container, config); err == nil {
 		t.Fatal("Expected parseSecurityOpt error, got nil")
 	}

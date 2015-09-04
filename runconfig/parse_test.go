@@ -43,14 +43,22 @@ func compareRandomizedStrings(a, b, c, d string) error {
 	return fmt.Errorf("strings don't match")
 }
 func TestParseRunLinks(t *testing.T) {
-	if _, hostConfig := mustParse(t, "--link a:b"); len(hostConfig.Links) == 0 || hostConfig.Links[0] != "a:b" {
-		t.Fatalf("Error parsing links. Expected []string{\"a:b\"}, received: %v", hostConfig.Links)
+	_, hostConfig := mustParse(t, "--link a:b")
+	links := hostConfig.Links.Slice()
+	if len(links) == 0 || links[0] != "a:b" {
+		t.Fatalf("Error parsing links. Expected []string{\"a:b\"}, received: %v", links)
 	}
-	if _, hostConfig := mustParse(t, "--link a:b --link c:d"); len(hostConfig.Links) < 2 || hostConfig.Links[0] != "a:b" || hostConfig.Links[1] != "c:d" {
-		t.Fatalf("Error parsing links. Expected []string{\"a:b\", \"c:d\"}, received: %v", hostConfig.Links)
+
+	_, hostConfig = mustParse(t, "--link a:b --link c:d")
+	links = hostConfig.Links.Slice()
+	if len(links) < 2 || links[0] != "a:b" || links[1] != "c:d" {
+		t.Fatalf("Error parsing links. Expected []string{\"a:b\", \"c:d\"}, received: %v", links)
 	}
-	if _, hostConfig := mustParse(t, ""); len(hostConfig.Links) != 0 {
-		t.Fatalf("Error parsing links. No link expected, received: %v", hostConfig.Links)
+
+	_, hostConfig = mustParse(t, "")
+	links = hostConfig.Links.Slice()
+	if len(links) != 0 {
+		t.Fatalf("Error parsing links. No link expected, received: %v", links)
 	}
 }
 
@@ -98,13 +106,13 @@ func TestParseRunAttach(t *testing.T) {
 }
 
 func TestParseRunVolumes(t *testing.T) {
-	if config, hostConfig := mustParse(t, "-v /tmp"); hostConfig.Binds != nil {
+	if config, hostConfig := mustParse(t, "-v /tmp"); hostConfig.Binds.Len() != 0 {
 		t.Fatalf("Error parsing volume flags, `-v /tmp` should not mount-bind anything. Received %v", hostConfig.Binds)
 	} else if _, exists := config.Volumes["/tmp"]; !exists {
 		t.Fatalf("Error parsing volume flags, `-v /tmp` is missing from volumes. Received %v", config.Volumes)
 	}
 
-	if config, hostConfig := mustParse(t, "-v /tmp -v /var"); hostConfig.Binds != nil {
+	if config, hostConfig := mustParse(t, "-v /tmp -v /var"); hostConfig.Binds.Len() != 0 {
 		t.Fatalf("Error parsing volume flags, `-v /tmp -v /var` should not mount-bind anything. Received %v", hostConfig.Binds)
 	} else if _, exists := config.Volumes["/tmp"]; !exists {
 		t.Fatalf("Error parsing volume flags, `-v /tmp` is missing from volumes. Received %v", config.Volumes)
@@ -112,37 +120,51 @@ func TestParseRunVolumes(t *testing.T) {
 		t.Fatalf("Error parsing volume flags, `-v /var` is missing from volumes. Received %v", config.Volumes)
 	}
 
-	if _, hostConfig := mustParse(t, "-v /hostTmp:/containerTmp"); hostConfig.Binds == nil || hostConfig.Binds[0] != "/hostTmp:/containerTmp" {
-		t.Fatalf("Error parsing volume flags, `-v /hostTmp:/containerTmp` should mount-bind /hostTmp into /containeTmp. Received %v", hostConfig.Binds)
+	_, hostConfig := mustParse(t, "-v /hostTmp:/containerTmp")
+	binds := hostConfig.Binds.Slice()
+	if len(binds) == 0 && binds[0] != "/hostTmp:/containerTmp" {
+		t.Fatalf("Error parsing volume flags, `-v /hostTmp:/containerTmp` should mount-bind /hostTmp into /containeTmp. Received %v", binds)
 	}
 
-	if _, hostConfig := mustParse(t, "-v /hostTmp:/containerTmp -v /hostVar:/containerVar"); hostConfig.Binds == nil || compareRandomizedStrings(hostConfig.Binds[0], hostConfig.Binds[1], "/hostTmp:/containerTmp", "/hostVar:/containerVar") != nil {
-		t.Fatalf("Error parsing volume flags, `-v /hostTmp:/containerTmp -v /hostVar:/containerVar` should mount-bind /hostTmp into /containeTmp and /hostVar into /hostContainer. Received %v", hostConfig.Binds)
+	_, hostConfig = mustParse(t, "-v /hostTmp:/containerTmp -v /hostVar:/containerVar")
+	binds = hostConfig.Binds.Slice()
+	if len(binds) == 0 || compareRandomizedStrings(binds[0], binds[1], "/hostTmp:/containerTmp", "/hostVar:/containerVar") != nil {
+		t.Fatalf("Error parsing volume flags, `-v /hostTmp:/containerTmp -v /hostVar:/containerVar` should mount-bind /hostTmp into /containeTmp and /hostVar into /hostContainer. Received %v", binds)
 	}
 
-	if _, hostConfig := mustParse(t, "-v /hostTmp:/containerTmp:ro -v /hostVar:/containerVar:rw"); hostConfig.Binds == nil || compareRandomizedStrings(hostConfig.Binds[0], hostConfig.Binds[1], "/hostTmp:/containerTmp:ro", "/hostVar:/containerVar:rw") != nil {
-		t.Fatalf("Error parsing volume flags, `-v /hostTmp:/containerTmp:ro -v /hostVar:/containerVar:rw` should mount-bind /hostTmp into /containeTmp and /hostVar into /hostContainer. Received %v", hostConfig.Binds)
+	_, hostConfig = mustParse(t, "-v /hostTmp:/containerTmp:ro -v /hostVar:/containerVar:rw")
+	binds = hostConfig.Binds.Slice()
+	if len(binds) == 0 || compareRandomizedStrings(binds[0], binds[1], "/hostTmp:/containerTmp:ro", "/hostVar:/containerVar:rw") != nil {
+		t.Fatalf("Error parsing volume flags, `-v /hostTmp:/containerTmp:ro -v /hostVar:/containerVar:rw` should mount-bind /hostTmp into /containeTmp and /hostVar into /hostContainer. Received %v", binds)
 	}
 
-	if _, hostConfig := mustParse(t, "-v /containerTmp:ro -v /containerVar:rw"); hostConfig.Binds == nil || compareRandomizedStrings(hostConfig.Binds[0], hostConfig.Binds[1], "/containerTmp:ro", "/containerVar:rw") != nil {
-		t.Fatalf("Error parsing volume flags, `-v /hostTmp:/containerTmp:ro -v /hostVar:/containerVar:rw` should mount-bind /hostTmp into /containeTmp and /hostVar into /hostContainer. Received %v", hostConfig.Binds)
+	_, hostConfig = mustParse(t, "-v /containerTmp:ro -v /containerVar:rw")
+	binds = hostConfig.Binds.Slice()
+	if len(binds) == 0 || compareRandomizedStrings(binds[0], binds[1], "/containerTmp:ro", "/containerVar:rw") != nil {
+		t.Fatalf("Error parsing volume flags, `-v /hostTmp:/containerTmp:ro -v /hostVar:/containerVar:rw` should mount-bind /hostTmp into /containeTmp and /hostVar into /hostContainer. Received %v", binds)
 	}
 
-	if _, hostConfig := mustParse(t, "-v /hostTmp:/containerTmp:ro,Z -v /hostVar:/containerVar:rw,Z"); hostConfig.Binds == nil || compareRandomizedStrings(hostConfig.Binds[0], hostConfig.Binds[1], "/hostTmp:/containerTmp:ro,Z", "/hostVar:/containerVar:rw,Z") != nil {
-		t.Fatalf("Error parsing volume flags, `-v /hostTmp:/containerTmp:ro,Z -v /hostVar:/containerVar:rw,Z` should mount-bind /hostTmp into /containeTmp and /hostVar into /hostContainer. Received %v", hostConfig.Binds)
+	_, hostConfig = mustParse(t, "-v /hostTmp:/containerTmp:ro,Z -v /hostVar:/containerVar:rw,Z")
+	binds = hostConfig.Binds.Slice()
+	if len(binds) == 0 || compareRandomizedStrings(binds[0], binds[1], "/hostTmp:/containerTmp:ro,Z", "/hostVar:/containerVar:rw,Z") != nil {
+		t.Fatalf("Error parsing volume flags, `-v /hostTmp:/containerTmp:ro,Z -v /hostVar:/containerVar:rw,Z` should mount-bind /hostTmp into /containeTmp and /hostVar into /hostContainer. Received %v", binds)
 	}
 
-	if _, hostConfig := mustParse(t, "-v /hostTmp:/containerTmp:Z -v /hostVar:/containerVar:z"); hostConfig.Binds == nil || compareRandomizedStrings(hostConfig.Binds[0], hostConfig.Binds[1], "/hostTmp:/containerTmp:Z", "/hostVar:/containerVar:z") != nil {
-		t.Fatalf("Error parsing volume flags, `-v /hostTmp:/containerTmp:Z -v /hostVar:/containerVar:z` should mount-bind /hostTmp into /containeTmp and /hostVar into /hostContainer. Received %v", hostConfig.Binds)
+	_, hostConfig = mustParse(t, "-v /hostTmp:/containerTmp:Z -v /hostVar:/containerVar:z")
+	binds = hostConfig.Binds.Slice()
+	if len(binds) == 0 || compareRandomizedStrings(binds[0], binds[1], "/hostTmp:/containerTmp:Z", "/hostVar:/containerVar:z") != nil {
+		t.Fatalf("Error parsing volume flags, `-v /hostTmp:/containerTmp:Z -v /hostVar:/containerVar:z` should mount-bind /hostTmp into /containeTmp and /hostVar into /hostContainer. Received %v", binds)
 	}
 
-	if config, hostConfig := mustParse(t, "-v /hostTmp:/containerTmp -v /containerVar"); hostConfig.Binds == nil || len(hostConfig.Binds) > 1 || hostConfig.Binds[0] != "/hostTmp:/containerTmp" {
-		t.Fatalf("Error parsing volume flags, `-v /hostTmp:/containerTmp -v /containerVar` should mount-bind only /hostTmp into /containeTmp. Received %v", hostConfig.Binds)
+	config, hostConfig := mustParse(t, "-v /hostTmp:/containerTmp -v /containerVar")
+	binds = hostConfig.Binds.Slice()
+	if len(binds) == 0 || len(binds) > 1 || binds[0] != "/hostTmp:/containerTmp" {
+		t.Fatalf("Error parsing volume flags, `-v /hostTmp:/containerTmp -v /containerVar` should mount-bind only /hostTmp into /containeTmp. Received %v", binds)
 	} else if _, exists := config.Volumes["/containerVar"]; !exists {
 		t.Fatalf("Error parsing volume flags, `-v /containerVar` is missing from volumes. Received %v", config.Volumes)
 	}
 
-	if config, hostConfig := mustParse(t, ""); hostConfig.Binds != nil {
+	if config, hostConfig := mustParse(t, ""); hostConfig.Binds.Len() != 0 {
 		t.Fatalf("Error parsing volume flags, without volume, nothing should be mount-binded. Received %v", hostConfig.Binds)
 	} else if len(config.Volumes) != 0 {
 		t.Fatalf("Error parsing volume flags, without volume, no volume should be present. Received %v", config.Volumes)
@@ -447,15 +469,15 @@ func TestParseEnvfileVariables(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(config.Env) != 1 || config.Env[0] != "ENV1=value1" {
-		t.Fatalf("Expected a a config with [ENV1=value1], got %v", config.Env)
+	if cEnv := config.Env.Slice(); len(cEnv) != 1 || cEnv[0] != "ENV1=value1" {
+		t.Fatalf("Expected a a config with [ENV1=value1], got %v", cEnv)
 	}
 	config, _, _, err = parseRun([]string{"--env-file=fixtures/valid.env", "--env=ENV2=value2", "img", "cmd"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(config.Env) != 2 || config.Env[0] != "ENV1=value1" || config.Env[1] != "ENV2=value2" {
-		t.Fatalf("Expected a a config with [ENV1=value1 ENV2=value2], got %v", config.Env)
+	if cEnv := config.Env.Slice(); len(cEnv) != 2 || cEnv[0] != "ENV1=value1" || cEnv[1] != "ENV2=value2" {
+		t.Fatalf("Expected a a config with [ENV1=value1 ENV2=value2], got %v", cEnv)
 	}
 }
 
