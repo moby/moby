@@ -1,4 +1,4 @@
-// Checker provide Docker specific implementations of the go-check.Checker interface.
+// Package checker provide Docker specific implementations of the go-check.Checker interface.
 package checker
 
 import (
