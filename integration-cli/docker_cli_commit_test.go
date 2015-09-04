@@ -7,6 +7,7 @@ import (
 )
 
 func (s *DockerSuite) TestCommitAfterContainerIsDone(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-i", "-a", "stdin", "busybox", "echo", "foo")
 
 	cleanedContainerID := strings.TrimSpace(out)
@@ -21,6 +22,7 @@ func (s *DockerSuite) TestCommitAfterContainerIsDone(c *check.C) {
 }
 
 func (s *DockerSuite) TestCommitWithoutPause(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-i", "-a", "stdin", "busybox", "echo", "foo")
 
 	cleanedContainerID := strings.TrimSpace(out)
@@ -36,6 +38,7 @@ func (s *DockerSuite) TestCommitWithoutPause(c *check.C) {
 
 //test commit a paused container should not unpause it after commit
 func (s *DockerSuite) TestCommitPausedContainer(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	defer unpauseAllContainers()
 	out, _ := dockerCmd(c, "run", "-i", "-d", "busybox")
 
@@ -53,7 +56,7 @@ func (s *DockerSuite) TestCommitPausedContainer(c *check.C) {
 }
 
 func (s *DockerSuite) TestCommitNewFile(c *check.C) {
-
+	testRequires(c, DaemonIsLinux)
 	dockerCmd(c, "run", "--name", "commiter", "busybox", "/bin/sh", "-c", "echo koye > /foo")
 
 	imageID, _ := dockerCmd(c, "commit", "commiter")
@@ -68,7 +71,7 @@ func (s *DockerSuite) TestCommitNewFile(c *check.C) {
 }
 
 func (s *DockerSuite) TestCommitHardlink(c *check.C) {
-
+	testRequires(c, DaemonIsLinux)
 	firstOutput, _ := dockerCmd(c, "run", "-t", "--name", "hardlinks", "busybox", "sh", "-c", "touch file1 && ln file1 file2 && ls -di file1 file2")
 
 	chunks := strings.Split(strings.TrimSpace(firstOutput), " ")
@@ -105,7 +108,7 @@ func (s *DockerSuite) TestCommitHardlink(c *check.C) {
 }
 
 func (s *DockerSuite) TestCommitTTY(c *check.C) {
-
+	testRequires(c, DaemonIsLinux)
 	dockerCmd(c, "run", "-t", "--name", "tty", "busybox", "/bin/ls")
 
 	imageID, _ := dockerCmd(c, "commit", "tty", "ttytest")
@@ -116,7 +119,7 @@ func (s *DockerSuite) TestCommitTTY(c *check.C) {
 }
 
 func (s *DockerSuite) TestCommitWithHostBindMount(c *check.C) {
-
+	testRequires(c, DaemonIsLinux)
 	dockerCmd(c, "run", "--name", "bind-commit", "-v", "/dev/null:/winning", "busybox", "true")
 
 	imageID, _ := dockerCmd(c, "commit", "bind-commit", "bindtest")
@@ -127,7 +130,7 @@ func (s *DockerSuite) TestCommitWithHostBindMount(c *check.C) {
 }
 
 func (s *DockerSuite) TestCommitChange(c *check.C) {
-
+	testRequires(c, DaemonIsLinux)
 	dockerCmd(c, "run", "--name", "test", "busybox", "true")
 
 	imageID, _ := dockerCmd(c, "commit",
@@ -169,6 +172,7 @@ func (s *DockerSuite) TestCommitChange(c *check.C) {
 
 // TODO: commit --run is deprecated, remove this once --run is removed
 func (s *DockerSuite) TestCommitMergeConfigRun(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	name := "commit-test"
 	out, _ := dockerCmd(c, "run", "-d", "-e=FOO=bar", "busybox", "/bin/sh", "-c", "echo testing > /tmp/foo")
 	id := strings.TrimSpace(out)

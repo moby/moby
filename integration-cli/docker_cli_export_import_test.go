@@ -10,6 +10,7 @@ import (
 
 // export an image and try to import it into a new one
 func (s *DockerSuite) TestExportContainerAndImportImage(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	containerID := "testexportcontainerandimportimage"
 
 	dockerCmd(c, "run", "--name", containerID, "busybox", "true")
@@ -31,6 +32,7 @@ func (s *DockerSuite) TestExportContainerAndImportImage(c *check.C) {
 
 // Used to test output flag in the export command
 func (s *DockerSuite) TestExportContainerWithOutputAndImportImage(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	containerID := "testexportcontainerwithoutputandimportimage"
 
 	dockerCmd(c, "run", "--name", containerID, "busybox", "true")

@@ -14,6 +14,7 @@ import (
 // TestPullFromCentralRegistry pulls an image from the central registry and verifies that the client
 // prints all expected output.
 func (s *DockerHubPullSuite) TestPullFromCentralRegistry(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	out := s.Cmd(c, "pull", "hello-world")
 	defer deleteImages("hello-world")
 
@@ -39,6 +40,7 @@ func (s *DockerHubPullSuite) TestPullFromCentralRegistry(c *check.C) {
 // TestPullNonExistingImage pulls non-existing images from the central registry, with different
 // combinations of implicit tag and library prefix.
 func (s *DockerHubPullSuite) TestPullNonExistingImage(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	for _, e := range []struct {
 		Image string
 		Alias string
@@ -61,6 +63,7 @@ func (s *DockerHubPullSuite) TestPullNonExistingImage(c *check.C) {
 // reference (tag, repository, central registry url, ...) doesn't trigger a new pull nor leads to
 // multiple images.
 func (s *DockerHubPullSuite) TestPullFromCentralRegistryImplicitRefParts(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	s.Cmd(c, "pull", "hello-world")
 	defer deleteImages("hello-world")
 
@@ -87,6 +90,7 @@ func (s *DockerHubPullSuite) TestPullFromCentralRegistryImplicitRefParts(c *chec
 
 // TestPullScratchNotAllowed verifies that pulling 'scratch' is rejected.
 func (s *DockerHubPullSuite) TestPullScratchNotAllowed(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	out, err := s.CmdWithError("pull", "scratch")
 	c.Assert(err, checker.NotNil, check.Commentf("expected pull of scratch to fail"))
 	c.Assert(out, checker.Contains, "'scratch' is a reserved name")
@@ -96,6 +100,7 @@ func (s *DockerHubPullSuite) TestPullScratchNotAllowed(c *check.C) {
 // TestPullAllTagsFromCentralRegistry pulls using `all-tags` for a given image and verifies that it
 // results in more images than a naked pull.
 func (s *DockerHubPullSuite) TestPullAllTagsFromCentralRegistry(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	s.Cmd(c, "pull", "busybox")
 	outImageCmd := s.Cmd(c, "images", "busybox")
 	splitOutImageCmd := strings.Split(strings.TrimSpace(outImageCmd), "\n")
@@ -126,6 +131,7 @@ func (s *DockerHubPullSuite) TestPullAllTagsFromCentralRegistry(c *check.C) {
 //
 // Ref: docker/docker#15589
 func (s *DockerHubPullSuite) TestPullClientDisconnect(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	repoName := "hello-world:latest"
 
 	pullCmd := s.MakeCmd("pull", repoName)

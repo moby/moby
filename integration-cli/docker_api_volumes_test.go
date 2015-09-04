@@ -10,6 +10,7 @@ import (
 )
 
 func (s *DockerSuite) TestVolumesApiList(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	dockerCmd(c, "run", "-d", "-v", "/foo", "busybox")
 
 	status, b, err := sockRequest("GET", "/volumes", nil)
@@ -23,6 +24,7 @@ func (s *DockerSuite) TestVolumesApiList(c *check.C) {
 }
 
 func (s *DockerSuite) TestVolumesApiCreate(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	config := types.VolumeCreateRequest{
 		Name: "test",
 	}
@@ -38,6 +40,7 @@ func (s *DockerSuite) TestVolumesApiCreate(c *check.C) {
 }
 
 func (s *DockerSuite) TestVolumesApiRemove(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	dockerCmd(c, "run", "-d", "-v", "/foo", "--name=test", "busybox")
 
 	status, b, err := sockRequest("GET", "/volumes", nil)
@@ -61,6 +64,7 @@ func (s *DockerSuite) TestVolumesApiRemove(c *check.C) {
 }
 
 func (s *DockerSuite) TestVolumesApiInspect(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	config := types.VolumeCreateRequest{
 		Name: "test",
 	}

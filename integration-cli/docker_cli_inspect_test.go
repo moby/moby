@@ -14,6 +14,7 @@ import (
 )
 
 func (s *DockerSuite) TestInspectImage(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	imageTest := "emptyfs"
 	imageTestID := "511136ea3c5a64f264b78b5433614aec563103b4d4702f3ba7d4d2698e22c158"
 	id, err := inspectField(imageTest, "Id")
@@ -25,6 +26,7 @@ func (s *DockerSuite) TestInspectImage(c *check.C) {
 }
 
 func (s *DockerSuite) TestInspectInt64(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	runCmd := exec.Command(dockerBinary, "run", "-d", "-m=300M", "busybox", "true")
 	out, _, _, err := runCommandWithStdoutStderr(runCmd)
 	if err != nil {
@@ -41,7 +43,7 @@ func (s *DockerSuite) TestInspectInt64(c *check.C) {
 }
 
 func (s *DockerSuite) TestInspectDefault(c *check.C) {
-
+	testRequires(c, DaemonIsLinux)
 	//Both the container and image are named busybox. docker inspect will fetch the container JSON.
 	//If the container JSON is not available, it will go for the image JSON.
 
@@ -50,6 +52,7 @@ func (s *DockerSuite) TestInspectDefault(c *check.C) {
 }
 
 func (s *DockerSuite) TestInspectStatus(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
 	out = strings.TrimSpace(out)
 
@@ -82,7 +85,7 @@ func (s *DockerSuite) TestInspectStatus(c *check.C) {
 }
 
 func (s *DockerSuite) TestInspectTypeFlagContainer(c *check.C) {
-
+	testRequires(c, DaemonIsLinux)
 	//Both the container and image are named busybox. docker inspect will fetch container
 	//JSON State.Running field. If the field is true, it's a container.
 
@@ -100,7 +103,7 @@ func (s *DockerSuite) TestInspectTypeFlagContainer(c *check.C) {
 }
 
 func (s *DockerSuite) TestInspectTypeFlagWithNoContainer(c *check.C) {
-
+	testRequires(c, DaemonIsLinux)
 	//Run this test on an image named busybox. docker inspect will try to fetch container
 	//JSON. Since there is no container named busybox and --type=container, docker inspect will
 	//not try to get the image JSON. It will throw an error.
@@ -114,7 +117,7 @@ func (s *DockerSuite) TestInspectTypeFlagWithNoContainer(c *check.C) {
 }
 
 func (s *DockerSuite) TestInspectTypeFlagWithImage(c *check.C) {
-
+	testRequires(c, DaemonIsLinux)
 	//Both the container and image are named busybox. docker inspect will fetch image
 	//JSON as --type=image. if there is no image with name busybox, docker inspect
 	//will throw an error.
@@ -132,7 +135,7 @@ func (s *DockerSuite) TestInspectTypeFlagWithImage(c *check.C) {
 }
 
 func (s *DockerSuite) TestInspectTypeFlagWithInvalidValue(c *check.C) {
-
+	testRequires(c, DaemonIsLinux)
 	//Both the container and image are named busybox. docker inspect will fail
 	//as --type=foobar is not a valid value for the flag.
 
@@ -147,6 +150,7 @@ func (s *DockerSuite) TestInspectTypeFlagWithInvalidValue(c *check.C) {
 }
 
 func (s *DockerSuite) TestInspectImageFilterInt(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	imageTest := "emptyfs"
 	out, err := inspectField(imageTest, "Size")
 	c.Assert(err, check.IsNil)
@@ -168,6 +172,7 @@ func (s *DockerSuite) TestInspectImageFilterInt(c *check.C) {
 }
 
 func (s *DockerSuite) TestInspectContainerFilterInt(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	runCmd := exec.Command(dockerBinary, "run", "-i", "-a", "stdin", "busybox", "cat")
 	runCmd.Stdin = strings.NewReader("blahblah")
 	out, _, _, err := runCommandWithStdoutStderr(runCmd)
@@ -194,6 +199,7 @@ func (s *DockerSuite) TestInspectContainerFilterInt(c *check.C) {
 }
 
 func (s *DockerSuite) TestInspectImageGraphDriver(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	imageTest := "emptyfs"
 	name, err := inspectField(imageTest, "GraphDriver.Name")
 	c.Assert(err, check.IsNil)
@@ -224,6 +230,7 @@ func (s *DockerSuite) TestInspectImageGraphDriver(c *check.C) {
 }
 
 func (s *DockerSuite) TestInspectContainerGraphDriver(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "true")
 	out = strings.TrimSpace(out)
 
@@ -256,6 +263,7 @@ func (s *DockerSuite) TestInspectContainerGraphDriver(c *check.C) {
 }
 
 func (s *DockerSuite) TestInspectBindMountPoint(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	dockerCmd(c, "run", "-d", "--name", "test", "-v", "/data:/data:ro,z", "busybox", "cat")
 
 	vol, err := inspectFieldJSON("test", "Mounts")
@@ -298,6 +306,7 @@ func (s *DockerSuite) TestInspectBindMountPoint(c *check.C) {
 
 // #14947
 func (s *DockerSuite) TestInspectTimesAsRFC3339Nano(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "true")
 	id := strings.TrimSpace(out)
 	startedAt, err := inspectField(id, "State.StartedAt")
@@ -323,6 +332,7 @@ func (s *DockerSuite) TestInspectTimesAsRFC3339Nano(c *check.C) {
 
 // #15633
 func (s *DockerSuite) TestInspectLogConfigNoType(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	dockerCmd(c, "create", "--name=test", "--log-opt", "max-file=42", "busybox")
 	var logConfig runconfig.LogConfig
 

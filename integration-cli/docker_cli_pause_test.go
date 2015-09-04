@@ -8,6 +8,7 @@ import (
 )
 
 func (s *DockerSuite) TestPause(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	defer unpauseAllContainers()
 
 	name := "testeventpause"
@@ -43,6 +44,7 @@ func (s *DockerSuite) TestPause(c *check.C) {
 }
 
 func (s *DockerSuite) TestPauseMultipleContainers(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	defer unpauseAllContainers()
 
 	containers := []string{

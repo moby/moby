@@ -16,6 +16,7 @@ import (
 
 // This used to work, it test a log of PageSize-1 (gh#4851)
 func (s *DockerSuite) TestLogsContainerSmallerThanPage(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	testLen := 32767
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "sh", "-c", fmt.Sprintf("for i in $(seq 1 %d); do echo -n =; done; echo", testLen))
 	cleanedContainerID := strings.TrimSpace(out)
@@ -29,6 +30,7 @@ func (s *DockerSuite) TestLogsContainerSmallerThanPage(c *check.C) {
 
 // Regression test: When going over the PageSize, it used to panic (gh#4851)
 func (s *DockerSuite) TestLogsContainerBiggerThanPage(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	testLen := 32768
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "sh", "-c", fmt.Sprintf("for i in $(seq 1 %d); do echo -n =; done; echo", testLen))
 
@@ -44,6 +46,7 @@ func (s *DockerSuite) TestLogsContainerBiggerThanPage(c *check.C) {
 
 // Regression test: When going much over the PageSize, it used to block (gh#4851)
 func (s *DockerSuite) TestLogsContainerMuchBiggerThanPage(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	testLen := 33000
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "sh", "-c", fmt.Sprintf("for i in $(seq 1 %d); do echo -n =; done; echo", testLen))
 
@@ -58,6 +61,7 @@ func (s *DockerSuite) TestLogsContainerMuchBiggerThanPage(c *check.C) {
 }
 
 func (s *DockerSuite) TestLogsTimestamps(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	testLen := 100
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "sh", "-c", fmt.Sprintf("for i in $(seq 1 %d); do echo =; done;", testLen))
 
@@ -88,6 +92,7 @@ func (s *DockerSuite) TestLogsTimestamps(c *check.C) {
 }
 
 func (s *DockerSuite) TestLogsSeparateStderr(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	msg := "stderr_log"
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "sh", "-c", fmt.Sprintf("echo %s 1>&2", msg))
 
@@ -107,6 +112,7 @@ func (s *DockerSuite) TestLogsSeparateStderr(c *check.C) {
 }
 
 func (s *DockerSuite) TestLogsStderrInStdout(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	msg := "stderr_log"
 	out, _ := dockerCmd(c, "run", "-d", "-t", "busybox", "sh", "-c", fmt.Sprintf("echo %s 1>&2", msg))
 
@@ -125,6 +131,7 @@ func (s *DockerSuite) TestLogsStderrInStdout(c *check.C) {
 }
 
 func (s *DockerSuite) TestLogsTail(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	testLen := 100
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "sh", "-c", fmt.Sprintf("for i in $(seq 1 %d); do echo =; done;", testLen))
 
@@ -155,6 +162,7 @@ func (s *DockerSuite) TestLogsTail(c *check.C) {
 }
 
 func (s *DockerSuite) TestLogsFollowStopped(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "echo", "hello")
 
 	cleanedContainerID := strings.TrimSpace(out)
@@ -180,6 +188,7 @@ func (s *DockerSuite) TestLogsFollowStopped(c *check.C) {
 }
 
 func (s *DockerSuite) TestLogsSince(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	name := "testlogssince"
 	out, _ := dockerCmd(c, "run", "--name="+name, "busybox", "/bin/sh", "-c", "for i in $(seq 1 3); do sleep 2; echo `date +%s` log$i; done")
 
@@ -215,6 +224,7 @@ func (s *DockerSuite) TestLogsSince(c *check.C) {
 }
 
 func (s *DockerSuite) TestLogsSinceFutureFollow(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", `for i in $(seq 1 5); do date +%s; sleep 1; done`)
 	cleanedContainerID := strings.TrimSpace(out)
 
@@ -238,6 +248,7 @@ func (s *DockerSuite) TestLogsSinceFutureFollow(c *check.C) {
 
 // Regression test for #8832
 func (s *DockerSuite) TestLogsFollowSlowStdoutConsumer(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", `usleep 200000;yes X | head -c 200000`)
 
 	cleanedContainerID := strings.TrimSpace(out)
@@ -271,6 +282,7 @@ func (s *DockerSuite) TestLogsFollowSlowStdoutConsumer(c *check.C) {
 }
 
 func (s *DockerSuite) TestLogsFollowGoroutinesWithStdout(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "while true; do echo hello; sleep 2; done")
 	id := strings.TrimSpace(out)
 	c.Assert(waitRun(id), check.IsNil)
@@ -322,6 +334,7 @@ func (s *DockerSuite) TestLogsFollowGoroutinesWithStdout(c *check.C) {
 }
 
 func (s *DockerSuite) TestLogsFollowGoroutinesNoOutput(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "while true; do sleep 2; done")
 	id := strings.TrimSpace(out)
 	c.Assert(waitRun(id), check.IsNil)

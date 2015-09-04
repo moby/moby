@@ -12,6 +12,7 @@ import (
 )
 
 func (s *DockerSuite) TestHelpTextVerify(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	// Make sure main help text fits within 80 chars and that
 	// on non-windows system we use ~ when possible (to shorten things).
 	// Test for HOME set to its default value and set to "/" on linux
@@ -251,6 +252,7 @@ func (s *DockerSuite) TestHelpTextVerify(c *check.C) {
 }
 
 func (s *DockerSuite) TestHelpExitCodesHelpOutput(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	// Test to make sure the exit code and output (stdout vs stderr) of
 	// various good and bad cases are what we expect
 

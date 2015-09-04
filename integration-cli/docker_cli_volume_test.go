@@ -8,6 +8,7 @@ import (
 )
 
 func (s *DockerSuite) TestVolumeCliCreate(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	dockerCmd(c, "volume", "create")
 
 	_, err := runCommand(exec.Command(dockerBinary, "volume", "create", "-d", "nosuchdriver"))
@@ -19,6 +20,7 @@ func (s *DockerSuite) TestVolumeCliCreate(c *check.C) {
 }
 
 func (s *DockerSuite) TestVolumeCliInspect(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	c.Assert(
 		exec.Command(dockerBinary, "volume", "inspect", "doesntexist").Run(),
 		check.Not(check.IsNil),
@@ -36,6 +38,7 @@ func (s *DockerSuite) TestVolumeCliInspect(c *check.C) {
 }
 
 func (s *DockerSuite) TestVolumeCliLs(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "volume", "create")
 	id := strings.TrimSpace(out)
 
@@ -52,6 +55,7 @@ func (s *DockerSuite) TestVolumeCliLs(c *check.C) {
 }
 
 func (s *DockerSuite) TestVolumeCliRm(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "volume", "create")
 	id := strings.TrimSpace(out)
 

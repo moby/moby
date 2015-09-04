@@ -13,6 +13,7 @@ import (
 )
 
 func (s *DockerSuite) TestGetContainersAttachWebsocket(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-dit", "busybox", "cat")
 
 	rwc, err := sockConn(time.Duration(10 * time.Second))
@@ -97,6 +98,7 @@ func (s *DockerSuite) TestGetContainersWsAttachContainerNotFound(c *check.C) {
 }
 
 func (s *DockerSuite) TestPostContainersAttach(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-dit", "busybox", "cat")
 
 	r, w := io.Pipe()
@@ -160,6 +162,7 @@ func (s *DockerSuite) TestPostContainersAttach(c *check.C) {
 }
 
 func (s *DockerSuite) TestPostContainersAttachStderr(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-dit", "busybox", "/bin/sh", "-c", "cat >&2")
 
 	r, w := io.Pipe()
