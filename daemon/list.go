@@ -9,7 +9,6 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/image"
-	"github.com/docker/docker/pkg/graphdb"
 	"github.com/docker/engine-api/types"
 	"github.com/docker/engine-api/types/filters"
 	"github.com/docker/go-connections/nat"
@@ -197,12 +196,6 @@ func (daemon *Daemon) foldFilter(config *ContainersConfig) (*listContext, error)
 		})
 	}
 
-	names := make(map[string][]string)
-	daemon.containerGraph().Walk("/", func(p string, e *graphdb.Entity) error {
-		names[e.ID()] = append(names[e.ID()], p)
-		return nil
-	}, 1)
-
 	if config.Before != "" && beforeContFilter == nil {
 		beforeContFilter, err = daemon.GetContainer(config.Before)
 		if err != nil {
@@ -220,12 +213,12 @@ func (daemon *Daemon) foldFilter(config *ContainersConfig) (*listContext, error)
 	return &listContext{
 		filters:          psFilters,
 		ancestorFilter:   ancestorFilter,
-		names:            names,
 		images:           imagesFilter,
 		exitAllowed:      filtExited,
 		beforeFilter:     beforeContFilter,
 		sinceFilter:      sinceContFilter,
 		ContainersConfig: config,
+		names:            daemon.nameIndex.GetAll(),
 	}, nil
 }
 

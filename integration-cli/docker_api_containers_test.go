@@ -1083,9 +1083,9 @@ func (s *DockerSuite) TestContainerApiDeleteRemoveLinks(c *check.C) {
 	c.Assert(err, checker.IsNil)
 	c.Assert(links, checker.Equals, "[\"/tlink1:/tlink2/tlink1\"]", check.Commentf("expected to have links between containers"))
 
-	status, _, err := sockRequest("DELETE", "/containers/tlink2/tlink1?link=1", nil)
-	c.Assert(err, checker.IsNil)
-	c.Assert(status, checker.Equals, http.StatusNoContent)
+	status, b, err := sockRequest("DELETE", "/containers/tlink2/tlink1?link=1", nil)
+	c.Assert(err, check.IsNil)
+	c.Assert(status, check.Equals, http.StatusNoContent, check.Commentf(string(b)))
 
 	linksPostRm, err := inspectFieldJSON(id2, "HostConfig.Links")
 	c.Assert(err, checker.IsNil)
