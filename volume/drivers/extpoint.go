@@ -21,12 +21,13 @@ func NewVolumeDriver(name string, c client) volume.Driver {
 	return &volumeDriverAdapter{name, proxy}
 }
 
-type opts map[string]string
+// Opts are options to pass on creation for a new volume.
+type Opts map[string]string
 
 // VolumeDriver defines the available functions that volume plugins must implement.
 type VolumeDriver interface {
 	// Create a volume with the given name
-	Create(name string, opts opts) (err error)
+	Create(name string, opts Opts) (err error)
 	// Remove the volume with the given name
 	Remove(name string) (err error)
 	// Get the mountpoint of the given volume
