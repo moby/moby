@@ -2,7 +2,7 @@ package daemon
 
 import "testing"
 
-func TestParseVolumeFrom(t *testing.T) {
+func TestParseVolumesFrom(t *testing.T) {
 	cases := []struct {
 		spec    string
 		expID   string
