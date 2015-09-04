@@ -17,8 +17,7 @@ import (
 	"github.com/docker/docker/pkg/stringid"
 )
 
-func (s *DockerSuite) TestPsListContainers(c *check.C) {
-
+func (s *DockerSuite) TestPsListContainersBase(c *check.C) {
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
 	firstID := strings.TrimSpace(out)
 
@@ -44,13 +43,13 @@ func (s *DockerSuite) TestPsListContainers(c *check.C) {
 	// all
 	out, _ = dockerCmd(c, "ps", "-a")
 	if !assertContainerList(out, []string{fourthID, thirdID, secondID, firstID}) {
-		c.Errorf("Container list is not in the correct order: %s", out)
+		c.Errorf("ALL: Container list is not in the correct order: \n%s", out)
 	}
 
 	// running
 	out, _ = dockerCmd(c, "ps")
 	if !assertContainerList(out, []string{fourthID, secondID, firstID}) {
-		c.Errorf("Container list is not in the correct order: %s", out)
+		c.Errorf("RUNNING: Container list is not in the correct order: \n%s", out)
 	}
 
 	// from here all flag '-a' is ignored
@@ -59,48 +58,48 @@ func (s *DockerSuite) TestPsListContainers(c *check.C) {
 	out, _ = dockerCmd(c, "ps", "-n=2", "-a")
 	expected := []string{fourthID, thirdID}
 	if !assertContainerList(out, expected) {
-		c.Errorf("Container list is not in the correct order: %s", out)
+		c.Errorf("LIMIT & ALL: Container list is not in the correct order: \n%s", out)
 	}
 
 	out, _ = dockerCmd(c, "ps", "-n=2")
 	if !assertContainerList(out, expected) {
-		c.Errorf("Container list is not in the correct order: %s", out)
+		c.Errorf("LIMIT: Container list is not in the correct order: \n%s", out)
 	}
 
 	// since
 	out, _ = dockerCmd(c, "ps", "--since", firstID, "-a")
 	expected = []string{fourthID, thirdID, secondID}
 	if !assertContainerList(out, expected) {
-		c.Errorf("Container list is not in the correct order: %s", out)
+		c.Errorf("SINCE & ALL: Container list is not in the correct order: \n%s", out)
 	}
 
 	out, _ = dockerCmd(c, "ps", "--since", firstID)
 	if !assertContainerList(out, expected) {
-		c.Errorf("Container list is not in the correct order: %s", out)
+		c.Errorf("SINCE: Container list is not in the correct order: \n%s", out)
 	}
 
 	// before
 	out, _ = dockerCmd(c, "ps", "--before", thirdID, "-a")
 	expected = []string{secondID, firstID}
 	if !assertContainerList(out, expected) {
-		c.Errorf("Container list is not in the correct order: %s", out)
+		c.Errorf("BEFORE & ALL: Container list is not in the correct order: \n%s", out)
 	}
 
 	out, _ = dockerCmd(c, "ps", "--before", thirdID)
 	if !assertContainerList(out, expected) {
-		c.Errorf("Container list is not in the correct order: %s", out)
+		c.Errorf("BEFORE: Container list is not in the correct order: \n%s", out)
 	}
 
 	// since & before
 	out, _ = dockerCmd(c, "ps", "--since", firstID, "--before", fourthID, "-a")
 	expected = []string{thirdID, secondID}
 	if !assertContainerList(out, expected) {
-		c.Errorf("Container list is not in the correct order: %s", out)
+		c.Errorf("SINCE, BEFORE & ALL: Container list is not in the correct order: \n%s", out)
 	}
 
 	out, _ = dockerCmd(c, "ps", "--since", firstID, "--before", fourthID)
 	if !assertContainerList(out, expected) {
-		c.Errorf("Container list is not in the correct order: %s", out)
+		c.Errorf("SINCE, BEFORE: Container list is not in the correct order: \n%s", out)
 	}
 
 	// since & limit
@@ -108,35 +107,35 @@ func (s *DockerSuite) TestPsListContainers(c *check.C) {
 	expected = []string{fourthID, thirdID}
 
 	if !assertContainerList(out, expected) {
-		c.Errorf("Container list is not in the correct order: %s", out)
+		c.Errorf("SINCE, LIMIT & ALL: Container list is not in the correct order: \n%s", out)
 	}
 
 	out, _ = dockerCmd(c, "ps", "--since", firstID, "-n=2")
 	if !assertContainerList(out, expected) {
-		c.Errorf("Container list is not in the correct order: %s", out)
+		c.Errorf("SINCE, LIMIT: Container list is not in the correct order: \n%s", out)
 	}
 
 	// before & limit
 	out, _ = dockerCmd(c, "ps", "--before", fourthID, "-n=1", "-a")
 	expected = []string{thirdID}
 	if !assertContainerList(out, expected) {
-		c.Errorf("Container list is not in the correct order: %s", out)
+		c.Errorf("BEFORE, LIMIT & ALL: Container list is not in the correct order: \n%s", out)
 	}
 
 	out, _ = dockerCmd(c, "ps", "--before", fourthID, "-n=1")
 	if !assertContainerList(out, expected) {
-		c.Errorf("Container list is not in the correct order: %s", out)
+		c.Errorf("BEFORE, LIMIT: Container list is not in the correct order: \n%s", out)
 	}
 
 	out, _ = dockerCmd(c, "ps", "--since", firstID, "--before", fourthID, "-n=1", "-a")
 	expected = []string{thirdID}
 	if !assertContainerList(out, expected) {
-		c.Errorf("Container list is not in the correct order: %s", out)
+		c.Errorf("SINCE, BEFORE, LIMIT & ALL: Container list is not in the correct order: \n%s", out)
 	}
 
 	out, _ = dockerCmd(c, "ps", "--since", firstID, "--before", fourthID, "-n=1")
 	if !assertContainerList(out, expected) {
-		c.Errorf("Container list is not in the correct order: %s", out)
+		c.Errorf("SINCE, BEFORE, LIMIT: Container list is not in the correct order: \n%s", out)
 	}
 
 }
