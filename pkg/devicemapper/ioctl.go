@@ -22,7 +22,7 @@ func ioctlLoopSetFd(loopFd, sparseFd uintptr) error {
 	return nil
 }
 
-func ioctlLoopSetStatus64(loopFd uintptr, loopInfo *LoopInfo64) error {
+func ioctlLoopSetStatus64(loopFd uintptr, loopInfo *loopInfo64) error {
 	if _, _, err := syscall.Syscall(syscall.SYS_IOCTL, loopFd, LoopSetStatus64, uintptr(unsafe.Pointer(loopInfo))); err != 0 {
 		return err
 	}
@@ -36,8 +36,8 @@ func ioctlLoopClrFd(loopFd uintptr) error {
 	return nil
 }
 
-func ioctlLoopGetStatus64(loopFd uintptr) (*LoopInfo64, error) {
-	loopInfo := &LoopInfo64{}
+func ioctlLoopGetStatus64(loopFd uintptr) (*loopInfo64, error) {
+	loopInfo := &loopInfo64{}
 
 	if _, _, err := syscall.Syscall(syscall.SYS_IOCTL, loopFd, LoopGetStatus64, uintptr(unsafe.Pointer(loopInfo))); err != 0 {
 		return nil, err
