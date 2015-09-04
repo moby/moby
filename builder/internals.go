@@ -535,7 +535,11 @@ func (b *builder) processImageFrom(img *image.Image) error {
 
 	// Process ONBUILD triggers if they exist
 	if nTriggers := len(b.Config.OnBuild); nTriggers != 0 {
-		fmt.Fprintf(b.ErrStream, "# Executing %d build triggers\n", nTriggers)
+		word := "trigger"
+		if nTriggers > 1 {
+			word = "triggers"
+		}
+		fmt.Fprintf(b.ErrStream, "# Executing %d build %s...\n", nTriggers, word)
 	}
 
 	// Copy the ONBUILD triggers, and remove them from the config, since the config will be committed.
@@ -543,7 +547,7 @@ func (b *builder) processImageFrom(img *image.Image) error {
 	b.Config.OnBuild = []string{}
 
 	// parse the ONBUILD triggers by invoking the parser
-	for stepN, step := range onBuildTriggers {
+	for _, step := range onBuildTriggers {
 		ast, err := parser.Parse(strings.NewReader(step))
 		if err != nil {
 			return err
@@ -556,8 +560,6 @@ func (b *builder) processImageFrom(img *image.Image) error {
 			case "MAINTAINER", "FROM":
 				return fmt.Errorf("%s isn't allowed as an ONBUILD trigger", n.Value)
 			}
-
-			fmt.Fprintf(b.OutStream, "Trigger %d, %s\n", stepN, step)
 
 			if err := b.dispatch(i, n); err != nil {
 				return err

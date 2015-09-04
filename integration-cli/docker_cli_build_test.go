@@ -4255,10 +4255,9 @@ func (s *DockerSuite) TestBuildOnBuildOutput(c *check.C) {
 		c.Fatal(err)
 	}
 
-	if !strings.Contains(out, "Trigger 0, RUN echo foo") {
-		c.Fatal("failed to find the ONBUILD output", out)
+	if !strings.Contains(out, "# Executing 1 build trigger") {
+		c.Fatal("failed to find the build trigger output", out)
 	}
-
 }
 
 func (s *DockerSuite) TestBuildInvalidTag(c *check.C) {
