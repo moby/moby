@@ -57,8 +57,17 @@ func Trap(cleanup func()) {
 
 // DumpStacks dumps the runtime stack.
 func DumpStacks() {
-	buf := make([]byte, 16384)
-	buf = buf[:runtime.Stack(buf, true)]
+	var (
+		buf       []byte
+		stackSize int
+	)
+	bufferLen := 16384
+	for stackSize == len(buf) {
+		buf = make([]byte, bufferLen)
+		stackSize = runtime.Stack(buf, true)
+		bufferLen *= 2
+	}
+	buf = buf[:stackSize]
 	// Note that if the daemon is started with a less-verbose log-level than "info" (the default), the goroutine
 	// traces won't show up in the log.
 	logrus.Infof("=== BEGIN goroutine stack dump ===\n%s\n=== END goroutine stack dump ===", buf)
