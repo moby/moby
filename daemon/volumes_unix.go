@@ -347,6 +347,8 @@ func (daemon *Daemon) registerMountPoints(container *Container, hostConfig *runc
 			}
 			bind.Volume = v
 			bind.Source = v.Path()
+			// bind.Name is an already existing volume, we need to use that here
+			bind.Driver = v.DriverName()
 			// Since this is just a named volume and not a typical bind, set to shared mode `z`
 			if bind.Mode == "" {
 				bind.Mode = "z"

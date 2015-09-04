@@ -350,3 +350,19 @@ func (s *DockerExternalVolumeSuite) TestStartExternalVolumeDriverRetryNotImmedia
 	c.Assert(s.ec.mounts, check.Equals, 1)
 	c.Assert(s.ec.unmounts, check.Equals, 1)
 }
+
+func (s *DockerExternalVolumeSuite) TestStartExternalVolumeDriverBindExternalVolume(c *check.C) {
+	dockerCmd(c, "volume", "create", "-d", "test-external-volume-driver", "--name", "foo")
+	dockerCmd(c, "run", "-d", "--name", "testing", "-v", "foo:/bar", "busybox", "top")
+
+	var mounts []struct {
+		Name   string
+		Driver string
+	}
+	out, err := inspectFieldJSON("testing", "Mounts")
+	c.Assert(err, check.IsNil)
+	c.Assert(json.NewDecoder(strings.NewReader(out)).Decode(&mounts), check.IsNil)
+	c.Assert(len(mounts), check.Equals, 1, check.Commentf(out))
+	c.Assert(mounts[0].Name, check.Equals, "foo")
+	c.Assert(mounts[0].Driver, check.Equals, "test-external-volume-driver")
+}
