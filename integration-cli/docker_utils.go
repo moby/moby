@@ -642,10 +642,10 @@ func dockerCmdWithStdoutStderr(c *check.C, args ...string) (string, string, int)
 	return stdout, stderr, status
 }
 
-func dockerCmd(c *check.C, args ...string) (string, int) {
-	out, status, err := runCommandWithOutput(exec.Command(dockerBinary, args...))
-	c.Assert(err, check.IsNil, check.Commentf("%q failed with errors: %s, %v", strings.Join(args, " "), out, err))
-	return out, status
+func dockerCmd(c *check.C, args ...string) string {
+	out, exitCode, err := runCommandWithOutput(exec.Command(dockerBinary, args...))
+	c.Assert(err, check.IsNil, check.Commentf("%q failed with errors: %s, %v (%v)", strings.Join(args, " "), out, err, exitCode))
+	return out
 }
 
 // execute a docker command with a timeout
@@ -1034,10 +1034,7 @@ func getContainerState(c *check.C, id string) (int, bool, error) {
 		exitStatus int
 		running    bool
 	)
-	out, exitCode := dockerCmd(c, "inspect", "--format={{.State.Running}} {{.State.ExitCode}}", id)
-	if exitCode != 0 {
-		return 0, false, fmt.Errorf("%q doesn't exist: %s", id, out)
-	}
+	out := dockerCmd(c, "inspect", "--format={{.State.Running}} {{.State.ExitCode}}", id)
 
 	out = strings.Trim(out, "\n")
 	splitOutput := strings.Split(out, " ")

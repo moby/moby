@@ -10,7 +10,7 @@ import (
 )
 
 func (s *DockerSuite) TestInspectApiContainerResponse(c *check.C) {
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "true")
+	out := dockerCmd(c, "run", "-d", "busybox", "true")
 
 	cleanedContainerID := strings.TrimSpace(out)
 	keysBase := []string{"Id", "State", "Created", "Path", "Args", "Config", "Image", "NetworkSettings",

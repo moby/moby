@@ -18,9 +18,9 @@ func (s *DockerSuite) TestSaveAndLoadRepoStdout(c *check.C) {
 	dockerCmd(c, "run", "--name", name, "busybox", "true")
 
 	repoName := "foobar-save-load-test"
-	out, _ := dockerCmd(c, "commit", name, repoName)
+	out := dockerCmd(c, "commit", name, repoName)
 
-	before, _ := dockerCmd(c, "inspect", repoName)
+	before := dockerCmd(c, "inspect", repoName)
 
 	tmpFile, err := ioutil.TempFile("", "foobar-save-load-test.tar")
 	c.Assert(err, check.IsNil)
@@ -45,7 +45,7 @@ func (s *DockerSuite) TestSaveAndLoadRepoStdout(c *check.C) {
 		c.Fatalf("failed to load repo: %s, %v", out, err)
 	}
 
-	after, _ := dockerCmd(c, "inspect", repoName)
+	after := dockerCmd(c, "inspect", repoName)
 
 	if before != after {
 		c.Fatalf("inspect is not the same after a save / load")

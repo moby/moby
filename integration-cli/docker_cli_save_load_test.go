@@ -19,7 +19,7 @@ func (s *DockerSuite) TestSaveXzAndLoadRepoStdout(c *check.C) {
 	dockerCmd(c, "run", "--name", name, "busybox", "true")
 
 	repoName := "foobar-save-load-test-xz-gz"
-	out, _ := dockerCmd(c, "commit", name, repoName)
+	out := dockerCmd(c, "commit", name, repoName)
 
 	dockerCmd(c, "inspect", repoName)
 
@@ -82,7 +82,7 @@ func (s *DockerSuite) TestSaveSingleTag(c *check.C) {
 	repoName := "foobar-save-single-tag-test"
 	dockerCmd(c, "tag", "busybox:latest", fmt.Sprintf("%v:latest", repoName))
 
-	out, _ := dockerCmd(c, "images", "-q", "--no-trunc", repoName)
+	out := dockerCmd(c, "images", "-q", "--no-trunc", repoName)
 	cleanedImageID := strings.TrimSpace(out)
 
 	out, _, err := runCommandPipelineWithOutput(
@@ -98,10 +98,10 @@ func (s *DockerSuite) TestSaveImageId(c *check.C) {
 	repoName := "foobar-save-image-id-test"
 	dockerCmd(c, "tag", "emptyfs:latest", fmt.Sprintf("%v:latest", repoName))
 
-	out, _ := dockerCmd(c, "images", "-q", "--no-trunc", repoName)
+	out := dockerCmd(c, "images", "-q", "--no-trunc", repoName)
 	cleanedLongImageID := strings.TrimSpace(out)
 
-	out, _ = dockerCmd(c, "images", "-q", repoName)
+	out = dockerCmd(c, "images", "-q", repoName)
 	cleanedShortImageID := strings.TrimSpace(out)
 
 	saveCmd := exec.Command(dockerBinary, "save", cleanedShortImageID)
@@ -144,7 +144,7 @@ func (s *DockerSuite) TestSaveAndLoadRepoFlags(c *check.C) {
 	deleteImages(repoName)
 	dockerCmd(c, "commit", name, repoName)
 
-	before, _ := dockerCmd(c, "inspect", repoName)
+	before := dockerCmd(c, "inspect", repoName)
 
 	out, _, err := runCommandPipelineWithOutput(
 		exec.Command(dockerBinary, "save", repoName),
@@ -153,7 +153,7 @@ func (s *DockerSuite) TestSaveAndLoadRepoFlags(c *check.C) {
 		c.Fatalf("failed to save and load repo: %s, %v", out, err)
 	}
 
-	after, _ := dockerCmd(c, "inspect", repoName)
+	after := dockerCmd(c, "inspect", repoName)
 	if before != after {
 		c.Fatalf("inspect is not the same after a save / load")
 	}
@@ -184,10 +184,10 @@ func (s *DockerSuite) TestSaveRepoWithMultipleImages(c *check.C) {
 		var (
 			out string
 		)
-		out, _ = dockerCmd(c, "run", "-d", from, "true")
+		out = dockerCmd(c, "run", "-d", from, "true")
 		cleanedContainerID := strings.TrimSpace(out)
 
-		out, _ = dockerCmd(c, "commit", cleanedContainerID, tag)
+		out = dockerCmd(c, "commit", cleanedContainerID, tag)
 		imageID := strings.TrimSpace(out)
 		return imageID
 	}
@@ -213,7 +213,7 @@ func (s *DockerSuite) TestSaveRepoWithMultipleImages(c *check.C) {
 	actual := strings.Split(strings.TrimSpace(out), "\n")
 
 	// make the list of expected layers
-	out, _ = dockerCmd(c, "history", "-q", "--no-trunc", "busybox:latest")
+	out = dockerCmd(c, "history", "-q", "--no-trunc", "busybox:latest")
 	expected := append(strings.Split(strings.TrimSpace(out), "\n"), idFoo, idBar)
 
 	sort.Strings(actual)

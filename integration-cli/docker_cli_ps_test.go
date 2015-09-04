@@ -18,17 +18,17 @@ import (
 )
 
 func (s *DockerSuite) TestPsListContainersBase(c *check.C) {
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
+	out := dockerCmd(c, "run", "-d", "busybox", "top")
 	firstID := strings.TrimSpace(out)
 
-	out, _ = dockerCmd(c, "run", "-d", "busybox", "top")
+	out = dockerCmd(c, "run", "-d", "busybox", "top")
 	secondID := strings.TrimSpace(out)
 
 	// not long running
-	out, _ = dockerCmd(c, "run", "-d", "busybox", "true")
+	out = dockerCmd(c, "run", "-d", "busybox", "true")
 	thirdID := strings.TrimSpace(out)
 
-	out, _ = dockerCmd(c, "run", "-d", "busybox", "top")
+	out = dockerCmd(c, "run", "-d", "busybox", "top")
 	fourthID := strings.TrimSpace(out)
 
 	// make sure the second is running
@@ -41,13 +41,13 @@ func (s *DockerSuite) TestPsListContainersBase(c *check.C) {
 	c.Assert(waitRun(fourthID), check.IsNil)
 
 	// all
-	out, _ = dockerCmd(c, "ps", "-a")
+	out = dockerCmd(c, "ps", "-a")
 	if !assertContainerList(out, []string{fourthID, thirdID, secondID, firstID}) {
 		c.Errorf("ALL: Container list is not in the correct order: \n%s", out)
 	}
 
 	// running
-	out, _ = dockerCmd(c, "ps")
+	out = dockerCmd(c, "ps")
 	if !assertContainerList(out, []string{fourthID, secondID, firstID}) {
 		c.Errorf("RUNNING: Container list is not in the correct order: \n%s", out)
 	}
@@ -55,85 +55,85 @@ func (s *DockerSuite) TestPsListContainersBase(c *check.C) {
 	// from here all flag '-a' is ignored
 
 	// limit
-	out, _ = dockerCmd(c, "ps", "-n=2", "-a")
+	out = dockerCmd(c, "ps", "-n=2", "-a")
 	expected := []string{fourthID, thirdID}
 	if !assertContainerList(out, expected) {
 		c.Errorf("LIMIT & ALL: Container list is not in the correct order: \n%s", out)
 	}
 
-	out, _ = dockerCmd(c, "ps", "-n=2")
+	out = dockerCmd(c, "ps", "-n=2")
 	if !assertContainerList(out, expected) {
 		c.Errorf("LIMIT: Container list is not in the correct order: \n%s", out)
 	}
 
 	// since
-	out, _ = dockerCmd(c, "ps", "--since", firstID, "-a")
+	out = dockerCmd(c, "ps", "--since", firstID, "-a")
 	expected = []string{fourthID, thirdID, secondID}
 	if !assertContainerList(out, expected) {
 		c.Errorf("SINCE & ALL: Container list is not in the correct order: \n%s", out)
 	}
 
-	out, _ = dockerCmd(c, "ps", "--since", firstID)
+	out = dockerCmd(c, "ps", "--since", firstID)
 	if !assertContainerList(out, expected) {
 		c.Errorf("SINCE: Container list is not in the correct order: \n%s", out)
 	}
 
 	// before
-	out, _ = dockerCmd(c, "ps", "--before", thirdID, "-a")
+	out = dockerCmd(c, "ps", "--before", thirdID, "-a")
 	expected = []string{secondID, firstID}
 	if !assertContainerList(out, expected) {
 		c.Errorf("BEFORE & ALL: Container list is not in the correct order: \n%s", out)
 	}
 
-	out, _ = dockerCmd(c, "ps", "--before", thirdID)
+	out = dockerCmd(c, "ps", "--before", thirdID)
 	if !assertContainerList(out, expected) {
 		c.Errorf("BEFORE: Container list is not in the correct order: \n%s", out)
 	}
 
 	// since & before
-	out, _ = dockerCmd(c, "ps", "--since", firstID, "--before", fourthID, "-a")
+	out = dockerCmd(c, "ps", "--since", firstID, "--before", fourthID, "-a")
 	expected = []string{thirdID, secondID}
 	if !assertContainerList(out, expected) {
 		c.Errorf("SINCE, BEFORE & ALL: Container list is not in the correct order: \n%s", out)
 	}
 
-	out, _ = dockerCmd(c, "ps", "--since", firstID, "--before", fourthID)
+	out = dockerCmd(c, "ps", "--since", firstID, "--before", fourthID)
 	if !assertContainerList(out, expected) {
 		c.Errorf("SINCE, BEFORE: Container list is not in the correct order: \n%s", out)
 	}
 
 	// since & limit
-	out, _ = dockerCmd(c, "ps", "--since", firstID, "-n=2", "-a")
+	out = dockerCmd(c, "ps", "--since", firstID, "-n=2", "-a")
 	expected = []string{fourthID, thirdID}
 
 	if !assertContainerList(out, expected) {
 		c.Errorf("SINCE, LIMIT & ALL: Container list is not in the correct order: \n%s", out)
 	}
 
-	out, _ = dockerCmd(c, "ps", "--since", firstID, "-n=2")
+	out = dockerCmd(c, "ps", "--since", firstID, "-n=2")
 	if !assertContainerList(out, expected) {
 		c.Errorf("SINCE, LIMIT: Container list is not in the correct order: \n%s", out)
 	}
 
 	// before & limit
-	out, _ = dockerCmd(c, "ps", "--before", fourthID, "-n=1", "-a")
+	out = dockerCmd(c, "ps", "--before", fourthID, "-n=1", "-a")
 	expected = []string{thirdID}
 	if !assertContainerList(out, expected) {
 		c.Errorf("BEFORE, LIMIT & ALL: Container list is not in the correct order: \n%s", out)
 	}
 
-	out, _ = dockerCmd(c, "ps", "--before", fourthID, "-n=1")
+	out = dockerCmd(c, "ps", "--before", fourthID, "-n=1")
 	if !assertContainerList(out, expected) {
 		c.Errorf("BEFORE, LIMIT: Container list is not in the correct order: \n%s", out)
 	}
 
-	out, _ = dockerCmd(c, "ps", "--since", firstID, "--before", fourthID, "-n=1", "-a")
+	out = dockerCmd(c, "ps", "--since", firstID, "--before", fourthID, "-n=1", "-a")
 	expected = []string{thirdID}
 	if !assertContainerList(out, expected) {
 		c.Errorf("SINCE, BEFORE, LIMIT & ALL: Container list is not in the correct order: \n%s", out)
 	}
 
-	out, _ = dockerCmd(c, "ps", "--since", firstID, "--before", fourthID, "-n=1")
+	out = dockerCmd(c, "ps", "--since", firstID, "--before", fourthID, "-n=1")
 	if !assertContainerList(out, expected) {
 		c.Errorf("SINCE, BEFORE, LIMIT: Container list is not in the correct order: \n%s", out)
 	}
@@ -160,7 +160,7 @@ func assertContainerList(out string, expected []string) bool {
 func (s *DockerSuite) TestPsListContainersSize(c *check.C) {
 	dockerCmd(c, "run", "-d", "busybox", "echo", "hello")
 
-	baseOut, _ := dockerCmd(c, "ps", "-s", "-n=1")
+	baseOut := dockerCmd(c, "ps", "-s", "-n=1")
 	baseLines := strings.Split(strings.Trim(baseOut, "\n "), "\n")
 	baseSizeIndex := strings.Index(baseLines[0], "SIZE")
 	baseFoundsize := baseLines[1][baseSizeIndex:]
@@ -170,7 +170,7 @@ func (s *DockerSuite) TestPsListContainersSize(c *check.C) {
 	}
 
 	name := "test_size"
-	out, _ := dockerCmd(c, "run", "--name", name, "busybox", "sh", "-c", "echo 1 > test")
+	out := dockerCmd(c, "run", "--name", name, "busybox", "sh", "-c", "echo 1 > test")
 	id, err := getIDByName(name)
 	if err != nil {
 		c.Fatal(err)
@@ -214,24 +214,24 @@ func (s *DockerSuite) TestPsListContainersFilterStatus(c *check.C) {
 	// this is because paused containers can't be controlled by signals
 
 	// start exited container
-	out, _ := dockerCmd(c, "run", "-d", "busybox")
+	out := dockerCmd(c, "run", "-d", "busybox")
 	firstID := strings.TrimSpace(out)
 
 	// make sure the exited cintainer is not running
 	dockerCmd(c, "wait", firstID)
 
 	// start running container
-	out, _ = dockerCmd(c, "run", "-itd", "busybox")
+	out = dockerCmd(c, "run", "-itd", "busybox")
 	secondID := strings.TrimSpace(out)
 
 	// filter containers by exited
-	out, _ = dockerCmd(c, "ps", "-q", "--filter=status=exited")
+	out = dockerCmd(c, "ps", "-q", "--filter=status=exited")
 	containerOut := strings.TrimSpace(out)
 	if containerOut != firstID[:12] {
 		c.Fatalf("Expected id %s, got %s for exited filter, output: %q", firstID[:12], containerOut, out)
 	}
 
-	out, _ = dockerCmd(c, "ps", "-a", "-q", "--filter=status=running")
+	out = dockerCmd(c, "ps", "-a", "-q", "--filter=status=running")
 	containerOut = strings.TrimSpace(out)
 	if containerOut != secondID[:12] {
 		c.Fatalf("Expected id %s, got %s for running filter, output: %q", secondID[:12], containerOut, out)
@@ -247,14 +247,14 @@ func (s *DockerSuite) TestPsListContainersFilterStatus(c *check.C) {
 func (s *DockerSuite) TestPsListContainersFilterID(c *check.C) {
 
 	// start container
-	out, _ := dockerCmd(c, "run", "-d", "busybox")
+	out := dockerCmd(c, "run", "-d", "busybox")
 	firstID := strings.TrimSpace(out)
 
 	// start another container
 	dockerCmd(c, "run", "-d", "busybox", "top")
 
 	// filter containers by id
-	out, _ = dockerCmd(c, "ps", "-a", "-q", "--filter=id="+firstID)
+	out = dockerCmd(c, "ps", "-a", "-q", "--filter=id="+firstID)
 	containerOut := strings.TrimSpace(out)
 	if containerOut != firstID[:12] {
 		c.Fatalf("Expected id %s, got %s for exited filter, output: %q", firstID[:12], containerOut, out)
@@ -265,14 +265,14 @@ func (s *DockerSuite) TestPsListContainersFilterID(c *check.C) {
 func (s *DockerSuite) TestPsListContainersFilterName(c *check.C) {
 
 	// start container
-	out, _ := dockerCmd(c, "run", "-d", "--name=a_name_to_match", "busybox")
+	out := dockerCmd(c, "run", "-d", "--name=a_name_to_match", "busybox")
 	firstID := strings.TrimSpace(out)
 
 	// start another container
 	dockerCmd(c, "run", "-d", "--name=b_name_to_match", "busybox", "top")
 
 	// filter containers by name
-	out, _ = dockerCmd(c, "ps", "-a", "-q", "--filter=name=a_name_to_match")
+	out = dockerCmd(c, "ps", "-a", "-q", "--filter=name=a_name_to_match")
 	containerOut := strings.TrimSpace(out)
 	if containerOut != firstID[:12] {
 		c.Fatalf("Expected id %s, got %s for exited filter, output: %q", firstID[:12], containerOut, out)
@@ -309,23 +309,23 @@ func (s *DockerSuite) TestPsListContainersFilterAncestorImage(c *check.C) {
 	c.Assert(err, check.IsNil)
 
 	// start containers
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "echo", "hello")
+	out := dockerCmd(c, "run", "-d", "busybox", "echo", "hello")
 	firstID := strings.TrimSpace(out)
 
 	// start another container
-	out, _ = dockerCmd(c, "run", "-d", "busybox", "echo", "hello")
+	out = dockerCmd(c, "run", "-d", "busybox", "echo", "hello")
 	secondID := strings.TrimSpace(out)
 
 	// start third container
-	out, _ = dockerCmd(c, "run", "-d", imageName1, "echo", "hello")
+	out = dockerCmd(c, "run", "-d", imageName1, "echo", "hello")
 	thirdID := strings.TrimSpace(out)
 
 	// start fourth container
-	out, _ = dockerCmd(c, "run", "-d", imageName1Tagged, "echo", "hello")
+	out = dockerCmd(c, "run", "-d", imageName1Tagged, "echo", "hello")
 	fourthID := strings.TrimSpace(out)
 
 	// start fifth container
-	out, _ = dockerCmd(c, "run", "-d", imageName2, "echo", "hello")
+	out = dockerCmd(c, "run", "-d", imageName2, "echo", "hello")
 	fifthID := strings.TrimSpace(out)
 
 	var filterTestSuite = []struct {
@@ -352,12 +352,12 @@ func (s *DockerSuite) TestPsListContainersFilterAncestorImage(c *check.C) {
 	}
 
 	for _, filter := range filterTestSuite {
-		out, _ = dockerCmd(c, "ps", "-a", "-q", "--no-trunc", "--filter=ancestor="+filter.filterName)
+		out = dockerCmd(c, "ps", "-a", "-q", "--no-trunc", "--filter=ancestor="+filter.filterName)
 		checkPsAncestorFilterOutput(c, out, filter.filterName, filter.expectedIDs)
 	}
 
 	// Multiple ancestor filter
-	out, _ = dockerCmd(c, "ps", "-a", "-q", "--no-trunc", "--filter=ancestor="+imageName2, "--filter=ancestor="+imageName1Tagged)
+	out = dockerCmd(c, "ps", "-a", "-q", "--no-trunc", "--filter=ancestor="+imageName2, "--filter=ancestor="+imageName1Tagged)
 	checkPsAncestorFilterOutput(c, out, imageName2+","+imageName1Tagged, []string{fourthID, fifthID})
 }
 
@@ -389,40 +389,40 @@ func checkPsAncestorFilterOutput(c *check.C, out string, filterName string, expe
 
 func (s *DockerSuite) TestPsListContainersFilterLabel(c *check.C) {
 	// start container
-	out, _ := dockerCmd(c, "run", "-d", "-l", "match=me", "-l", "second=tag", "busybox")
+	out := dockerCmd(c, "run", "-d", "-l", "match=me", "-l", "second=tag", "busybox")
 	firstID := strings.TrimSpace(out)
 
 	// start another container
-	out, _ = dockerCmd(c, "run", "-d", "-l", "match=me too", "busybox")
+	out = dockerCmd(c, "run", "-d", "-l", "match=me too", "busybox")
 	secondID := strings.TrimSpace(out)
 
 	// start third container
-	out, _ = dockerCmd(c, "run", "-d", "-l", "nomatch=me", "busybox")
+	out = dockerCmd(c, "run", "-d", "-l", "nomatch=me", "busybox")
 	thirdID := strings.TrimSpace(out)
 
 	// filter containers by exact match
-	out, _ = dockerCmd(c, "ps", "-a", "-q", "--no-trunc", "--filter=label=match=me")
+	out = dockerCmd(c, "ps", "-a", "-q", "--no-trunc", "--filter=label=match=me")
 	containerOut := strings.TrimSpace(out)
 	if containerOut != firstID {
 		c.Fatalf("Expected id %s, got %s for exited filter, output: %q", firstID, containerOut, out)
 	}
 
 	// filter containers by two labels
-	out, _ = dockerCmd(c, "ps", "-a", "-q", "--no-trunc", "--filter=label=match=me", "--filter=label=second=tag")
+	out = dockerCmd(c, "ps", "-a", "-q", "--no-trunc", "--filter=label=match=me", "--filter=label=second=tag")
 	containerOut = strings.TrimSpace(out)
 	if containerOut != firstID {
 		c.Fatalf("Expected id %s, got %s for exited filter, output: %q", firstID, containerOut, out)
 	}
 
 	// filter containers by two labels, but expect not found because of AND behavior
-	out, _ = dockerCmd(c, "ps", "-a", "-q", "--no-trunc", "--filter=label=match=me", "--filter=label=second=tag-no")
+	out = dockerCmd(c, "ps", "-a", "-q", "--no-trunc", "--filter=label=match=me", "--filter=label=second=tag-no")
 	containerOut = strings.TrimSpace(out)
 	if containerOut != "" {
 		c.Fatalf("Expected nothing, got %s for exited filter, output: %q", containerOut, out)
 	}
 
 	// filter containers by exact key
-	out, _ = dockerCmd(c, "ps", "-a", "-q", "--no-trunc", "--filter=label=match")
+	out = dockerCmd(c, "ps", "-a", "-q", "--no-trunc", "--filter=label=match")
 	containerOut = strings.TrimSpace(out)
 	if (!strings.Contains(containerOut, firstID) || !strings.Contains(containerOut, secondID)) || strings.Contains(containerOut, thirdID) {
 		c.Fatalf("Expected ids %s,%s, got %s for exited filter, output: %q", firstID, secondID, containerOut, out)
@@ -463,7 +463,7 @@ func (s *DockerSuite) TestPsListContainersFilterExited(c *check.C) {
 	}
 
 	// filter containers by exited=0
-	out, _ := dockerCmd(c, "ps", "-a", "-q", "--no-trunc", "--filter=exited=0")
+	out := dockerCmd(c, "ps", "-a", "-q", "--no-trunc", "--filter=exited=0")
 	ids := strings.Split(strings.TrimSpace(out), "\n")
 	if len(ids) != 2 {
 		c.Fatalf("Should be 2 zero exited containers got %d: %s", len(ids), out)
@@ -475,7 +475,7 @@ func (s *DockerSuite) TestPsListContainersFilterExited(c *check.C) {
 		c.Fatalf("Second in list should be %q, got %q", firstZero, ids[1])
 	}
 
-	out, _ = dockerCmd(c, "ps", "-a", "-q", "--no-trunc", "--filter=exited=1")
+	out = dockerCmd(c, "ps", "-a", "-q", "--no-trunc", "--filter=exited=1")
 	ids = strings.Split(strings.TrimSpace(out), "\n")
 	if len(ids) != 2 {
 		c.Fatalf("Should be 2 zero exited containers got %d", len(ids))
@@ -494,22 +494,22 @@ func (s *DockerSuite) TestPsRightTagName(c *check.C) {
 	dockerCmd(c, "tag", "busybox", tag)
 
 	var id1 string
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
+	out := dockerCmd(c, "run", "-d", "busybox", "top")
 	id1 = strings.TrimSpace(string(out))
 
 	var id2 string
-	out, _ = dockerCmd(c, "run", "-d", tag, "top")
+	out = dockerCmd(c, "run", "-d", tag, "top")
 	id2 = strings.TrimSpace(string(out))
 
 	var imageID string
-	out, _ = dockerCmd(c, "inspect", "-f", "{{.Id}}", "busybox")
+	out = dockerCmd(c, "inspect", "-f", "{{.Id}}", "busybox")
 	imageID = strings.TrimSpace(string(out))
 
 	var id3 string
-	out, _ = dockerCmd(c, "run", "-d", imageID, "top")
+	out = dockerCmd(c, "run", "-d", imageID, "top")
 	id3 = strings.TrimSpace(string(out))
 
-	out, _ = dockerCmd(c, "ps", "--no-trunc")
+	out = dockerCmd(c, "ps", "--no-trunc")
 	lines := strings.Split(strings.TrimSpace(string(out)), "\n")
 	// skip header
 	lines = lines[1:]
@@ -541,7 +541,7 @@ func (s *DockerSuite) TestPsLinkedWithNoTrunc(c *check.C) {
 	dockerCmd(c, "run", "--name=first", "-d", "busybox", "top")
 	dockerCmd(c, "run", "--name=second", "--link=first:first", "-d", "busybox", "top")
 
-	out, _ := dockerCmd(c, "ps", "--no-trunc")
+	out := dockerCmd(c, "ps", "--no-trunc")
 	lines := strings.Split(strings.TrimSpace(string(out)), "\n")
 	// strip header
 	lines = lines[1:]
@@ -561,7 +561,7 @@ func (s *DockerSuite) TestPsGroupPortRange(c *check.C) {
 	portRange := "3800-3900"
 	dockerCmd(c, "run", "-d", "--name", "porttest", "-p", portRange+":"+portRange, "busybox", "top")
 
-	out, _ := dockerCmd(c, "ps")
+	out := dockerCmd(c, "ps")
 
 	// check that the port range is in the output
 	if !strings.Contains(string(out), portRange) {
@@ -573,7 +573,7 @@ func (s *DockerSuite) TestPsGroupPortRange(c *check.C) {
 func (s *DockerSuite) TestPsWithSize(c *check.C) {
 	dockerCmd(c, "run", "-d", "--name", "sizetest", "busybox", "top")
 
-	out, _ := dockerCmd(c, "ps", "--size")
+	out := dockerCmd(c, "ps", "--size")
 	if !strings.Contains(out, "virtual") {
 		c.Fatalf("docker ps with --size should show virtual size of container")
 	}
@@ -581,18 +581,18 @@ func (s *DockerSuite) TestPsWithSize(c *check.C) {
 
 func (s *DockerSuite) TestPsListContainersFilterCreated(c *check.C) {
 	// create a container
-	out, _ := dockerCmd(c, "create", "busybox")
+	out := dockerCmd(c, "create", "busybox")
 	cID := strings.TrimSpace(out)
 	shortCID := cID[:12]
 
 	// Make sure it DOESN'T show up w/o a '-a' for normal 'ps'
-	out, _ = dockerCmd(c, "ps", "-q")
+	out = dockerCmd(c, "ps", "-q")
 	if strings.Contains(out, shortCID) {
 		c.Fatalf("Should have not seen '%s' in ps output:\n%s", shortCID, out)
 	}
 
 	// Make sure it DOES show up as 'Created' for 'ps -a'
-	out, _ = dockerCmd(c, "ps", "-a")
+	out = dockerCmd(c, "ps", "-a")
 
 	hits := 0
 	for _, line := range strings.Split(out, "\n") {
@@ -610,7 +610,7 @@ func (s *DockerSuite) TestPsListContainersFilterCreated(c *check.C) {
 	}
 
 	// filter containers by 'create' - note, no -a needed
-	out, _ = dockerCmd(c, "ps", "-q", "-f", "status=created")
+	out = dockerCmd(c, "ps", "-q", "-f", "status=created")
 	containerOut := strings.TrimSpace(out)
 	if !strings.HasPrefix(cID, containerOut) {
 		c.Fatalf("Expected id %s, got %s for filter, out: %s", cID, containerOut, out)
@@ -623,7 +623,7 @@ func (s *DockerSuite) TestPsFormatMultiNames(c *check.C) {
 	dockerCmd(c, "run", "--name=parent", "--link=child:linkedone", "-d", "busybox", "top")
 
 	//use the new format capabilities to only list the names and --no-trunc to get all names
-	out, _ := dockerCmd(c, "ps", "--format", "{{.Names}}", "--no-trunc")
+	out := dockerCmd(c, "ps", "--format", "{{.Names}}", "--no-trunc")
 	lines := strings.Split(strings.TrimSpace(string(out)), "\n")
 	expected := []string{"parent", "child,parent/linkedone"}
 	var names []string
@@ -635,7 +635,7 @@ func (s *DockerSuite) TestPsFormatMultiNames(c *check.C) {
 	}
 
 	//now list without turning off truncation and make sure we only get the non-link names
-	out, _ = dockerCmd(c, "ps", "--format", "{{.Names}}")
+	out = dockerCmd(c, "ps", "--format", "{{.Names}}")
 	lines = strings.Split(strings.TrimSpace(string(out)), "\n")
 	expected = []string{"parent", "child"}
 	var truncNames []string
@@ -650,14 +650,14 @@ func (s *DockerSuite) TestPsFormatMultiNames(c *check.C) {
 
 func (s *DockerSuite) TestPsFormatHeaders(c *check.C) {
 	// make sure no-container "docker ps" still prints the header row
-	out, _ := dockerCmd(c, "ps", "--format", "table {{.ID}}")
+	out := dockerCmd(c, "ps", "--format", "table {{.ID}}")
 	if out != "CONTAINER ID\n" {
 		c.Fatalf(`Expected 'CONTAINER ID\n', got %v`, out)
 	}
 
 	// verify that "docker ps" with a container still prints the header row also
 	dockerCmd(c, "run", "--name=test", "-d", "busybox", "top")
-	out, _ = dockerCmd(c, "ps", "--format", "table {{.Names}}")
+	out = dockerCmd(c, "ps", "--format", "table {{.Names}}")
 	if out != "NAMES\ntest\n" {
 		c.Fatalf(`Expected 'NAMES\ntest\n', got %v`, out)
 	}
@@ -674,10 +674,10 @@ func (s *DockerSuite) TestPsDefaultFormatAndQuiet(c *check.C) {
 	err = ioutil.WriteFile(filepath.Join(d, "config.json"), []byte(config), 0644)
 	c.Assert(err, check.IsNil)
 
-	out, _ := dockerCmd(c, "run", "--name=test", "-d", "busybox", "top")
+	out := dockerCmd(c, "run", "--name=test", "-d", "busybox", "top")
 	id := strings.TrimSpace(out)
 
-	out, _ = dockerCmd(c, "--config", d, "ps", "-q")
+	out = dockerCmd(c, "--config", d, "ps", "-q")
 	if !strings.HasPrefix(id, strings.TrimSpace(out)) {
 		c.Fatalf("Expected to print only the container id, got %v\n", out)
 	}

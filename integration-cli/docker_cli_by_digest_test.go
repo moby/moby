@@ -66,7 +66,7 @@ func (s *DockerRegistrySuite) TestPullByTagDisplaysDigest(c *check.C) {
 	}
 
 	// pull from the registry using the tag
-	out, _ := dockerCmd(c, "pull", repoName)
+	out := dockerCmd(c, "pull", repoName)
 
 	// the pull output includes "Digest: <digest>", so find that
 	matches := digestRegex.FindStringSubmatch(out)
@@ -89,7 +89,7 @@ func (s *DockerRegistrySuite) TestPullByDigest(c *check.C) {
 
 	// pull from the registry using the <name>@<digest> reference
 	imageReference := fmt.Sprintf("%s@%s", repoName, pushDigest)
-	out, _ := dockerCmd(c, "pull", imageReference)
+	out := dockerCmd(c, "pull", imageReference)
 
 	// the pull output includes "Digest: <digest>", so find that
 	matches := digestRegex.FindStringSubmatch(out)
@@ -122,7 +122,7 @@ func (s *DockerRegistrySuite) TestCreateByDigest(c *check.C) {
 	imageReference := fmt.Sprintf("%s@%s", repoName, pushDigest)
 
 	containerName := "createByDigest"
-	out, _ := dockerCmd(c, "create", "--name", containerName, imageReference)
+	out := dockerCmd(c, "create", "--name", containerName, imageReference)
 
 	res, err := inspectField(containerName, "Config.Image")
 	if err != nil {
@@ -142,7 +142,7 @@ func (s *DockerRegistrySuite) TestRunByDigest(c *check.C) {
 	imageReference := fmt.Sprintf("%s@%s", repoName, pushDigest)
 
 	containerName := "runByDigest"
-	out, _ := dockerCmd(c, "run", "--name", containerName, imageReference, "sh", "-c", "echo found=$digest")
+	out := dockerCmd(c, "run", "--name", containerName, imageReference, "sh", "-c", "echo found=$digest")
 
 	foundRegex := regexp.MustCompile("found=([^\n]+)")
 	matches := foundRegex.FindStringSubmatch(out)
@@ -270,7 +270,7 @@ func (s *DockerRegistrySuite) TestListImagesWithoutDigests(c *check.C) {
 	// pull from the registry using the <name>@<digest> reference
 	dockerCmd(c, "pull", imageReference)
 
-	out, _ := dockerCmd(c, "images")
+	out := dockerCmd(c, "images")
 
 	if strings.Contains(out, "DIGEST") {
 		c.Fatalf("list output should not have contained DIGEST header: %s", out)
@@ -292,7 +292,7 @@ func (s *DockerRegistrySuite) TestListImagesWithDigests(c *check.C) {
 	dockerCmd(c, "pull", imageReference1)
 
 	// list images
-	out, _ := dockerCmd(c, "images", "--digests")
+	out := dockerCmd(c, "images", "--digests")
 
 	// make sure repo shown, tag=<none>, digest = $digest1
 	re1 := regexp.MustCompile(`\s*` + repoName + `\s*<none>\s*` + digest1.String() + `\s`)
@@ -315,7 +315,7 @@ func (s *DockerRegistrySuite) TestListImagesWithDigests(c *check.C) {
 	dockerCmd(c, "pull", imageReference2)
 
 	// list images
-	out, _ = dockerCmd(c, "images", "--digests")
+	out = dockerCmd(c, "images", "--digests")
 
 	// make sure repo shown, tag=<none>, digest = $digest1
 	if !re1.MatchString(out) {
@@ -332,7 +332,7 @@ func (s *DockerRegistrySuite) TestListImagesWithDigests(c *check.C) {
 	dockerCmd(c, "pull", repoName+":tag1")
 
 	// list images
-	out, _ = dockerCmd(c, "images", "--digests")
+	out = dockerCmd(c, "images", "--digests")
 
 	// make sure image 1 has repo, tag, <none> AND repo, <none>, digest
 	reWithTag1 := regexp.MustCompile(`\s*` + repoName + `\s*tag1\s*<none>\s`)
@@ -352,7 +352,7 @@ func (s *DockerRegistrySuite) TestListImagesWithDigests(c *check.C) {
 	dockerCmd(c, "pull", repoName+":tag2")
 
 	// list images
-	out, _ = dockerCmd(c, "images", "--digests")
+	out = dockerCmd(c, "images", "--digests")
 
 	// make sure image 1 has repo, tag, digest
 	if !reWithTag1.MatchString(out) {
@@ -370,7 +370,7 @@ func (s *DockerRegistrySuite) TestListImagesWithDigests(c *check.C) {
 	}
 
 	// list images
-	out, _ = dockerCmd(c, "images", "--digests")
+	out = dockerCmd(c, "images", "--digests")
 
 	// make sure image 1 has repo, tag, digest
 	if !reWithTag1.MatchString(out) {
@@ -404,23 +404,23 @@ func (s *DockerRegistrySuite) TestPsListContainersFilterAncestorImageByDigest(c 
 	c.Assert(err, check.IsNil)
 
 	// run a container based on that
-	out, _ := dockerCmd(c, "run", "-d", imageReference, "echo", "hello")
+	out := dockerCmd(c, "run", "-d", imageReference, "echo", "hello")
 	expectedID := strings.TrimSpace(out)
 
 	// run a container based on the a descendant of that too
-	out, _ = dockerCmd(c, "run", "-d", imageName1, "echo", "hello")
+	out = dockerCmd(c, "run", "-d", imageName1, "echo", "hello")
 	expectedID1 := strings.TrimSpace(out)
 
 	expectedIDs := []string{expectedID, expectedID1}
 
 	// Invalid imageReference
-	out, _ = dockerCmd(c, "ps", "-a", "-q", "--no-trunc", fmt.Sprintf("--filter=ancestor=busybox@%s", digest))
+	out = dockerCmd(c, "ps", "-a", "-q", "--no-trunc", fmt.Sprintf("--filter=ancestor=busybox@%s", digest))
 	if strings.TrimSpace(out) != "" {
 		c.Fatalf("Expected filter container for %s ancestor filter to be empty, got %v", fmt.Sprintf("busybox@%s", digest), strings.TrimSpace(out))
 	}
 
 	// Valid imageReference
-	out, _ = dockerCmd(c, "ps", "-a", "-q", "--no-trunc", "--filter=ancestor="+imageReference)
+	out = dockerCmd(c, "ps", "-a", "-q", "--no-trunc", "--filter=ancestor="+imageReference)
 	checkPsAncestorFilterOutput(c, out, imageReference, expectedIDs)
 }
 

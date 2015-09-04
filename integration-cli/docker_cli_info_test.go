@@ -9,7 +9,7 @@ import (
 
 // ensure docker info succeeds
 func (s *DockerSuite) TestInfoEnsureSucceeds(c *check.C) {
-	out, _ := dockerCmd(c, "info")
+	out := dockerCmd(c, "info")
 
 	// always shown fields
 	stringsToCheck := []string{

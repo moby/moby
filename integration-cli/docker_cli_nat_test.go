@@ -43,7 +43,7 @@ func getExternalAddress(c *check.C) net.IP {
 }
 
 func getContainerLogs(c *check.C, containerID string) string {
-	out, _ := dockerCmd(c, "logs", containerID)
+	out := dockerCmd(c, "logs", containerID)
 	return strings.Trim(out, "\r\n")
 }
 
@@ -99,7 +99,7 @@ func (s *DockerSuite) TestNetworkLoopbackNat(c *check.C) {
 	msg := "it works"
 	startServerContainer(c, msg, 8080)
 	endpoint := getExternalAddress(c)
-	out, _ := dockerCmd(c, "run", "-t", "--net=container:server", "busybox",
+	out := dockerCmd(c, "run", "-t", "--net=container:server", "busybox",
 		"sh", "-c", fmt.Sprintf("stty raw && nc -w 5 %s 8080", endpoint.String()))
 	final := strings.TrimRight(string(out), "\n")
 	if final != msg {

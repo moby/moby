@@ -15,7 +15,7 @@ import (
 
 // regression test for #12546
 func (s *DockerSuite) TestExecInteractiveStdinClose(c *check.C) {
-	out, _ := dockerCmd(c, "run", "-itd", "busybox", "/bin/cat")
+	out := dockerCmd(c, "run", "-itd", "busybox", "/bin/cat")
 	contID := strings.TrimSpace(out)
 
 	cmd := exec.Command(dockerBinary, "exec", "-i", contID, "echo", "-n", "hello")

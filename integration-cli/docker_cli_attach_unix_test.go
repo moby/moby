@@ -16,7 +16,7 @@ import (
 // #9860
 func (s *DockerSuite) TestAttachClosedOnContainerStop(c *check.C) {
 
-	out, _ := dockerCmd(c, "run", "-dti", "busybox", "sleep", "2")
+	out := dockerCmd(c, "run", "-dti", "busybox", "sleep", "2")
 
 	id := strings.TrimSpace(out)
 	c.Assert(waitRun(id), check.IsNil)
@@ -131,7 +131,7 @@ func (s *DockerSuite) TestAttachAfterDetach(c *check.C) {
 
 // TestAttachDetach checks that attach in tty mode can be detached using the long container ID
 func (s *DockerSuite) TestAttachDetach(c *check.C) {
-	out, _ := dockerCmd(c, "run", "-itd", "busybox", "cat")
+	out := dockerCmd(c, "run", "-itd", "busybox", "cat")
 	id := strings.TrimSpace(out)
 	c.Assert(waitRun(id), check.IsNil)
 
@@ -201,7 +201,7 @@ func (s *DockerSuite) TestAttachDetach(c *check.C) {
 
 // TestAttachDetachTruncatedID checks that attach in tty mode can be detached
 func (s *DockerSuite) TestAttachDetachTruncatedID(c *check.C) {
-	out, _ := dockerCmd(c, "run", "-itd", "busybox", "cat")
+	out := dockerCmd(c, "run", "-itd", "busybox", "cat")
 	id := stringid.TruncateID(strings.TrimSpace(out))
 	c.Assert(waitRun(id), check.IsNil)
 

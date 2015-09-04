@@ -87,7 +87,7 @@ func (s *DockerSuite) TestAttachMultipleAndRestart(c *check.C) {
 }
 
 func (s *DockerSuite) TestAttachTtyWithoutStdin(c *check.C) {
-	out, _ := dockerCmd(c, "run", "-d", "-ti", "busybox")
+	out := dockerCmd(c, "run", "-d", "-ti", "busybox")
 
 	id := strings.TrimSpace(out)
 	c.Assert(waitRun(id), check.IsNil)
@@ -128,7 +128,7 @@ func (s *DockerSuite) TestAttachTtyWithoutStdin(c *check.C) {
 }
 
 func (s *DockerSuite) TestAttachDisconnect(c *check.C) {
-	out, _ := dockerCmd(c, "run", "-di", "busybox", "/bin/cat")
+	out := dockerCmd(c, "run", "-di", "busybox", "/bin/cat")
 	id := strings.TrimSpace(out)
 
 	cmd := exec.Command(dockerBinary, "attach", id)

@@ -38,14 +38,11 @@ func (s *DockerSuite) TestCpLocalOnly(c *check.C) {
 // Test for #5656
 // Check that garbage paths don't escape the container's rootfs
 func (s *DockerSuite) TestCpGarbagePath(c *check.C) {
-	out, exitCode := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "mkdir -p '"+cpTestPath+"' && echo -n '"+cpContainerContents+"' > "+cpFullPath)
-	if exitCode != 0 {
-		c.Fatal("failed to create a container", out)
-	}
+	out := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "mkdir -p '"+cpTestPath+"' && echo -n '"+cpContainerContents+"' > "+cpFullPath)
 
 	cleanedContainerID := strings.TrimSpace(out)
 
-	out, _ = dockerCmd(c, "wait", cleanedContainerID)
+	out = dockerCmd(c, "wait", cleanedContainerID)
 	if strings.TrimSpace(out) != "0" {
 		c.Fatal("failed to set up container", out)
 	}
@@ -95,14 +92,11 @@ func (s *DockerSuite) TestCpGarbagePath(c *check.C) {
 
 // Check that relative paths are relative to the container's rootfs
 func (s *DockerSuite) TestCpRelativePath(c *check.C) {
-	out, exitCode := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "mkdir -p '"+cpTestPath+"' && echo -n '"+cpContainerContents+"' > "+cpFullPath)
-	if exitCode != 0 {
-		c.Fatal("failed to create a container", out)
-	}
+	out := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "mkdir -p '"+cpTestPath+"' && echo -n '"+cpContainerContents+"' > "+cpFullPath)
 
 	cleanedContainerID := strings.TrimSpace(out)
 
-	out, _ = dockerCmd(c, "wait", cleanedContainerID)
+	out = dockerCmd(c, "wait", cleanedContainerID)
 	if strings.TrimSpace(out) != "0" {
 		c.Fatal("failed to set up container", out)
 	}
@@ -160,14 +154,11 @@ func (s *DockerSuite) TestCpRelativePath(c *check.C) {
 
 // Check that absolute paths are relative to the container's rootfs
 func (s *DockerSuite) TestCpAbsolutePath(c *check.C) {
-	out, exitCode := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "mkdir -p '"+cpTestPath+"' && echo -n '"+cpContainerContents+"' > "+cpFullPath)
-	if exitCode != 0 {
-		c.Fatal("failed to create a container", out)
-	}
+	out := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "mkdir -p '"+cpTestPath+"' && echo -n '"+cpContainerContents+"' > "+cpFullPath)
 
 	cleanedContainerID := strings.TrimSpace(out)
 
-	out, _ = dockerCmd(c, "wait", cleanedContainerID)
+	out = dockerCmd(c, "wait", cleanedContainerID)
 	if strings.TrimSpace(out) != "0" {
 		c.Fatal("failed to set up container", out)
 	}
@@ -219,14 +210,11 @@ func (s *DockerSuite) TestCpAbsolutePath(c *check.C) {
 // Test for #5619
 // Check that absolute symlinks are still relative to the container's rootfs
 func (s *DockerSuite) TestCpAbsoluteSymlink(c *check.C) {
-	out, exitCode := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "mkdir -p '"+cpTestPath+"' && echo -n '"+cpContainerContents+"' > "+cpFullPath+" && ln -s "+cpFullPath+" container_path")
-	if exitCode != 0 {
-		c.Fatal("failed to create a container", out)
-	}
+	out := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "mkdir -p '"+cpTestPath+"' && echo -n '"+cpContainerContents+"' > "+cpFullPath+" && ln -s "+cpFullPath+" container_path")
 
 	cleanedContainerID := strings.TrimSpace(out)
 
-	out, _ = dockerCmd(c, "wait", cleanedContainerID)
+	out = dockerCmd(c, "wait", cleanedContainerID)
 	if strings.TrimSpace(out) != "0" {
 		c.Fatal("failed to set up container", out)
 	}
@@ -271,14 +259,11 @@ func (s *DockerSuite) TestCpAbsoluteSymlink(c *check.C) {
 // Check that symlinks to a directory behave as expected when copying one from
 // a container.
 func (s *DockerSuite) TestCpFromSymlinkToDirectory(c *check.C) {
-	out, exitCode := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "mkdir -p '"+cpTestPath+"' && echo -n '"+cpContainerContents+"' > "+cpFullPath+" && ln -s "+cpTestPathParent+" /dir_link")
-	if exitCode != 0 {
-		c.Fatal("failed to create a container", out)
-	}
+	out := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "mkdir -p '"+cpTestPath+"' && echo -n '"+cpContainerContents+"' > "+cpFullPath+" && ln -s "+cpTestPathParent+" /dir_link")
 
 	cleanedContainerID := strings.TrimSpace(out)
 
-	out, _ = dockerCmd(c, "wait", cleanedContainerID)
+	out = dockerCmd(c, "wait", cleanedContainerID)
 	if strings.TrimSpace(out) != "0" {
 		c.Fatal("failed to set up container", out)
 	}
@@ -340,10 +325,7 @@ func (s *DockerSuite) TestCpToSymlinkToDirectory(c *check.C) {
 
 	// Create a test container with a local volume. We will test by copying
 	// to the volume path in the container which we can then verify locally.
-	out, exitCode := dockerCmd(c, "create", "-v", testVol+":/testVol", "busybox")
-	if exitCode != 0 {
-		c.Fatal("failed to create a container", out)
-	}
+	out := dockerCmd(c, "create", "-v", testVol+":/testVol", "busybox")
 
 	cleanedContainerID := strings.TrimSpace(out)
 
@@ -434,14 +416,11 @@ func (s *DockerSuite) TestCpToSymlinkToDirectory(c *check.C) {
 // Test for #5619
 // Check that symlinks which are part of the resource path are still relative to the container's rootfs
 func (s *DockerSuite) TestCpSymlinkComponent(c *check.C) {
-	out, exitCode := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "mkdir -p '"+cpTestPath+"' && echo -n '"+cpContainerContents+"' > "+cpFullPath+" && ln -s "+cpTestPath+" container_path")
-	if exitCode != 0 {
-		c.Fatal("failed to create a container", out)
-	}
+	out := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "mkdir -p '"+cpTestPath+"' && echo -n '"+cpContainerContents+"' > "+cpFullPath+" && ln -s "+cpTestPath+" container_path")
 
 	cleanedContainerID := strings.TrimSpace(out)
 
-	out, _ = dockerCmd(c, "wait", cleanedContainerID)
+	out = dockerCmd(c, "wait", cleanedContainerID)
 	if strings.TrimSpace(out) != "0" {
 		c.Fatal("failed to set up container", out)
 	}
@@ -494,14 +473,11 @@ func (s *DockerSuite) TestCpSymlinkComponent(c *check.C) {
 func (s *DockerSuite) TestCpUnprivilegedUser(c *check.C) {
 	testRequires(c, UnixCli) // uses chmod/su: not available on windows
 
-	out, exitCode := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "touch "+cpTestName)
-	if exitCode != 0 {
-		c.Fatal("failed to create a container", out)
-	}
+	out := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "touch "+cpTestName)
 
 	cleanedContainerID := strings.TrimSpace(out)
 
-	out, _ = dockerCmd(c, "wait", cleanedContainerID)
+	out = dockerCmd(c, "wait", cleanedContainerID)
 	if strings.TrimSpace(out) != "0" {
 		c.Fatal("failed to set up container", out)
 	}
@@ -535,14 +511,11 @@ func (s *DockerSuite) TestCpSpecialFiles(c *check.C) {
 	}
 	defer os.RemoveAll(outDir)
 
-	out, exitCode := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "touch /foo")
-	if exitCode != 0 {
-		c.Fatal("failed to create a container", out)
-	}
+	out := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "touch /foo")
 
 	cleanedContainerID := strings.TrimSpace(out)
 
-	out, _ = dockerCmd(c, "wait", cleanedContainerID)
+	out = dockerCmd(c, "wait", cleanedContainerID)
 	if strings.TrimSpace(out) != "0" {
 		c.Fatal("failed to set up container", out)
 	}
@@ -597,14 +570,11 @@ func (s *DockerSuite) TestCpVolumePath(c *check.C) {
 		c.Fatal(err)
 	}
 
-	out, exitCode := dockerCmd(c, "run", "-d", "-v", "/foo", "-v", tmpDir+"/test:/test", "-v", tmpDir+":/baz", "busybox", "/bin/sh", "-c", "touch /foo/bar")
-	if exitCode != 0 {
-		c.Fatal("failed to create a container", out)
-	}
+	out := dockerCmd(c, "run", "-d", "-v", "/foo", "-v", tmpDir+"/test:/test", "-v", tmpDir+":/baz", "busybox", "/bin/sh", "-c", "touch /foo/bar")
 
 	cleanedContainerID := strings.TrimSpace(out)
 
-	out, _ = dockerCmd(c, "wait", cleanedContainerID)
+	out = dockerCmd(c, "wait", cleanedContainerID)
 	if strings.TrimSpace(out) != "0" {
 		c.Fatal("failed to set up container", out)
 	}
@@ -679,14 +649,11 @@ func (s *DockerSuite) TestCpVolumePath(c *check.C) {
 }
 
 func (s *DockerSuite) TestCpToDot(c *check.C) {
-	out, exitCode := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "echo lololol > /test")
-	if exitCode != 0 {
-		c.Fatal("failed to create a container", out)
-	}
+	out := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "echo lololol > /test")
 
 	cleanedContainerID := strings.TrimSpace(out)
 
-	out, _ = dockerCmd(c, "wait", cleanedContainerID)
+	out = dockerCmd(c, "wait", cleanedContainerID)
 	if strings.TrimSpace(out) != "0" {
 		c.Fatal("failed to set up container", out)
 	}
@@ -712,14 +679,11 @@ func (s *DockerSuite) TestCpToDot(c *check.C) {
 }
 
 func (s *DockerSuite) TestCpToStdout(c *check.C) {
-	out, exitCode := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "echo lololol > /test")
-	if exitCode != 0 {
-		c.Fatalf("failed to create a container:%s\n", out)
-	}
+	out := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "echo lololol > /test")
 
 	cID := strings.TrimSpace(out)
 
-	out, _ = dockerCmd(c, "wait", cID)
+	out = dockerCmd(c, "wait", cID)
 	if strings.TrimSpace(out) != "0" {
 		c.Fatalf("failed to set up container:%s\n", out)
 	}
@@ -740,14 +704,11 @@ func (s *DockerSuite) TestCpToStdout(c *check.C) {
 func (s *DockerSuite) TestCpNameHasColon(c *check.C) {
 	testRequires(c, SameHostDaemon)
 
-	out, exitCode := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "echo lololol > /te:s:t")
-	if exitCode != 0 {
-		c.Fatal("failed to create a container", out)
-	}
+	out := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "echo lololol > /te:s:t")
 
 	cleanedContainerID := strings.TrimSpace(out)
 
-	out, _ = dockerCmd(c, "wait", cleanedContainerID)
+	out = dockerCmd(c, "wait", cleanedContainerID)
 	if strings.TrimSpace(out) != "0" {
 		c.Fatal("failed to set up container", out)
 	}
@@ -766,10 +727,10 @@ func (s *DockerSuite) TestCpNameHasColon(c *check.C) {
 
 func (s *DockerSuite) TestCopyAndRestart(c *check.C) {
 	expectedMsg := "hello"
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "echo", expectedMsg)
+	out := dockerCmd(c, "run", "-d", "busybox", "echo", expectedMsg)
 	id := strings.TrimSpace(string(out))
 
-	out, _ = dockerCmd(c, "wait", id)
+	out = dockerCmd(c, "wait", id)
 
 	status := strings.TrimSpace(out)
 	if status != "0" {
@@ -784,7 +745,7 @@ func (s *DockerSuite) TestCopyAndRestart(c *check.C) {
 
 	dockerCmd(c, "cp", fmt.Sprintf("%s:/etc/issue", id), tmpDir)
 
-	out, _ = dockerCmd(c, "start", "-a", id)
+	out = dockerCmd(c, "start", "-a", id)
 
 	msg := strings.TrimSpace(out)
 	if msg != expectedMsg {

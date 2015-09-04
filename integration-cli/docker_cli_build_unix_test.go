@@ -24,7 +24,7 @@ func (s *DockerSuite) TestBuildResourceConstraintsAreUsed(c *check.C) {
 
 	dockerCmdInDir(c, ctx.Dir, "build", "--no-cache", "--rm=false", "--memory=64m", "--memory-swap=-1", "--cpuset-cpus=0", "--cpuset-mems=0", "--cpu-shares=100", "--cpu-quota=8000", "--ulimit", "nofile=42", "-t", name, ".")
 
-	out, _ := dockerCmd(c, "ps", "-lq")
+	out := dockerCmd(c, "ps", "-lq")
 
 	cID := strings.TrimSpace(out)
 

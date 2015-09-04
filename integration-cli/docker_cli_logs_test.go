@@ -17,11 +17,11 @@ import (
 // This used to work, it test a log of PageSize-1 (gh#4851)
 func (s *DockerSuite) TestLogsContainerSmallerThanPage(c *check.C) {
 	testLen := 32767
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "sh", "-c", fmt.Sprintf("for i in $(seq 1 %d); do echo -n =; done; echo", testLen))
+	out := dockerCmd(c, "run", "-d", "busybox", "sh", "-c", fmt.Sprintf("for i in $(seq 1 %d); do echo -n =; done; echo", testLen))
 	cleanedContainerID := strings.TrimSpace(out)
 
 	dockerCmd(c, "wait", cleanedContainerID)
-	out, _ = dockerCmd(c, "logs", cleanedContainerID)
+	out = dockerCmd(c, "logs", cleanedContainerID)
 	if len(out) != testLen+1 {
 		c.Fatalf("Expected log length of %d, received %d\n", testLen+1, len(out))
 	}
@@ -30,12 +30,12 @@ func (s *DockerSuite) TestLogsContainerSmallerThanPage(c *check.C) {
 // Regression test: When going over the PageSize, it used to panic (gh#4851)
 func (s *DockerSuite) TestLogsContainerBiggerThanPage(c *check.C) {
 	testLen := 32768
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "sh", "-c", fmt.Sprintf("for i in $(seq 1 %d); do echo -n =; done; echo", testLen))
+	out := dockerCmd(c, "run", "-d", "busybox", "sh", "-c", fmt.Sprintf("for i in $(seq 1 %d); do echo -n =; done; echo", testLen))
 
 	cleanedContainerID := strings.TrimSpace(out)
 	dockerCmd(c, "wait", cleanedContainerID)
 
-	out, _ = dockerCmd(c, "logs", cleanedContainerID)
+	out = dockerCmd(c, "logs", cleanedContainerID)
 
 	if len(out) != testLen+1 {
 		c.Fatalf("Expected log length of %d, received %d\n", testLen+1, len(out))
@@ -45,12 +45,12 @@ func (s *DockerSuite) TestLogsContainerBiggerThanPage(c *check.C) {
 // Regression test: When going much over the PageSize, it used to block (gh#4851)
 func (s *DockerSuite) TestLogsContainerMuchBiggerThanPage(c *check.C) {
 	testLen := 33000
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "sh", "-c", fmt.Sprintf("for i in $(seq 1 %d); do echo -n =; done; echo", testLen))
+	out := dockerCmd(c, "run", "-d", "busybox", "sh", "-c", fmt.Sprintf("for i in $(seq 1 %d); do echo -n =; done; echo", testLen))
 
 	cleanedContainerID := strings.TrimSpace(out)
 	dockerCmd(c, "wait", cleanedContainerID)
 
-	out, _ = dockerCmd(c, "logs", cleanedContainerID)
+	out = dockerCmd(c, "logs", cleanedContainerID)
 
 	if len(out) != testLen+1 {
 		c.Fatalf("Expected log length of %d, received %d\n", testLen+1, len(out))
@@ -59,12 +59,12 @@ func (s *DockerSuite) TestLogsContainerMuchBiggerThanPage(c *check.C) {
 
 func (s *DockerSuite) TestLogsTimestamps(c *check.C) {
 	testLen := 100
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "sh", "-c", fmt.Sprintf("for i in $(seq 1 %d); do echo =; done;", testLen))
+	out := dockerCmd(c, "run", "-d", "busybox", "sh", "-c", fmt.Sprintf("for i in $(seq 1 %d); do echo =; done;", testLen))
 
 	cleanedContainerID := strings.TrimSpace(out)
 	dockerCmd(c, "wait", cleanedContainerID)
 
-	out, _ = dockerCmd(c, "logs", "-t", cleanedContainerID)
+	out = dockerCmd(c, "logs", "-t", cleanedContainerID)
 
 	lines := strings.Split(out, "\n")
 
@@ -89,7 +89,7 @@ func (s *DockerSuite) TestLogsTimestamps(c *check.C) {
 
 func (s *DockerSuite) TestLogsSeparateStderr(c *check.C) {
 	msg := "stderr_log"
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "sh", "-c", fmt.Sprintf("echo %s 1>&2", msg))
+	out := dockerCmd(c, "run", "-d", "busybox", "sh", "-c", fmt.Sprintf("echo %s 1>&2", msg))
 
 	cleanedContainerID := strings.TrimSpace(out)
 	dockerCmd(c, "wait", cleanedContainerID)
@@ -108,7 +108,7 @@ func (s *DockerSuite) TestLogsSeparateStderr(c *check.C) {
 
 func (s *DockerSuite) TestLogsStderrInStdout(c *check.C) {
 	msg := "stderr_log"
-	out, _ := dockerCmd(c, "run", "-d", "-t", "busybox", "sh", "-c", fmt.Sprintf("echo %s 1>&2", msg))
+	out := dockerCmd(c, "run", "-d", "-t", "busybox", "sh", "-c", fmt.Sprintf("echo %s 1>&2", msg))
 
 	cleanedContainerID := strings.TrimSpace(out)
 	dockerCmd(c, "wait", cleanedContainerID)
@@ -126,19 +126,19 @@ func (s *DockerSuite) TestLogsStderrInStdout(c *check.C) {
 
 func (s *DockerSuite) TestLogsTail(c *check.C) {
 	testLen := 100
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "sh", "-c", fmt.Sprintf("for i in $(seq 1 %d); do echo =; done;", testLen))
+	out := dockerCmd(c, "run", "-d", "busybox", "sh", "-c", fmt.Sprintf("for i in $(seq 1 %d); do echo =; done;", testLen))
 
 	cleanedContainerID := strings.TrimSpace(out)
 	dockerCmd(c, "wait", cleanedContainerID)
 
-	out, _ = dockerCmd(c, "logs", "--tail", "5", cleanedContainerID)
+	out = dockerCmd(c, "logs", "--tail", "5", cleanedContainerID)
 
 	lines := strings.Split(out, "\n")
 
 	if len(lines) != 6 {
 		c.Fatalf("Expected log %d lines, received %d\n", 6, len(lines))
 	}
-	out, _ = dockerCmd(c, "logs", "--tail", "all", cleanedContainerID)
+	out = dockerCmd(c, "logs", "--tail", "all", cleanedContainerID)
 
 	lines = strings.Split(out, "\n")
 
@@ -155,7 +155,7 @@ func (s *DockerSuite) TestLogsTail(c *check.C) {
 }
 
 func (s *DockerSuite) TestLogsFollowStopped(c *check.C) {
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "echo", "hello")
+	out := dockerCmd(c, "run", "-d", "busybox", "echo", "hello")
 
 	cleanedContainerID := strings.TrimSpace(out)
 	dockerCmd(c, "wait", cleanedContainerID)
@@ -181,13 +181,13 @@ func (s *DockerSuite) TestLogsFollowStopped(c *check.C) {
 
 func (s *DockerSuite) TestLogsSince(c *check.C) {
 	name := "testlogssince"
-	out, _ := dockerCmd(c, "run", "--name="+name, "busybox", "/bin/sh", "-c", "for i in $(seq 1 3); do sleep 2; echo `date +%s` log$i; done")
+	out := dockerCmd(c, "run", "--name="+name, "busybox", "/bin/sh", "-c", "for i in $(seq 1 3); do sleep 2; echo `date +%s` log$i; done")
 
 	log2Line := strings.Split(strings.Split(out, "\n")[1], " ")
 	t, err := strconv.ParseInt(log2Line[0], 10, 64) // the timestamp log2 is written
 	c.Assert(err, check.IsNil)
 	since := t + 1 // add 1s so log1 & log2 doesn't show up
-	out, _ = dockerCmd(c, "logs", "-t", fmt.Sprintf("--since=%v", since), name)
+	out = dockerCmd(c, "logs", "-t", fmt.Sprintf("--since=%v", since), name)
 
 	// Skip 2 seconds
 	unexpected := []string{"log1", "log2"}
@@ -215,12 +215,12 @@ func (s *DockerSuite) TestLogsSince(c *check.C) {
 }
 
 func (s *DockerSuite) TestLogsSinceFutureFollow(c *check.C) {
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", `for i in $(seq 1 5); do date +%s; sleep 1; done`)
+	out := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", `for i in $(seq 1 5); do date +%s; sleep 1; done`)
 	cleanedContainerID := strings.TrimSpace(out)
 
 	now := daemonTime(c).Unix()
 	since := now + 2
-	out, _ = dockerCmd(c, "logs", "-f", fmt.Sprintf("--since=%v", since), cleanedContainerID)
+	out = dockerCmd(c, "logs", "-f", fmt.Sprintf("--since=%v", since), cleanedContainerID)
 	lines := strings.Split(strings.TrimSpace(out), "\n")
 	if len(lines) == 0 {
 		c.Fatal("got no log lines")
@@ -238,7 +238,7 @@ func (s *DockerSuite) TestLogsSinceFutureFollow(c *check.C) {
 
 // Regression test for #8832
 func (s *DockerSuite) TestLogsFollowSlowStdoutConsumer(c *check.C) {
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", `usleep 200000;yes X | head -c 200000`)
+	out := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", `usleep 200000;yes X | head -c 200000`)
 
 	cleanedContainerID := strings.TrimSpace(out)
 
@@ -271,7 +271,7 @@ func (s *DockerSuite) TestLogsFollowSlowStdoutConsumer(c *check.C) {
 }
 
 func (s *DockerSuite) TestLogsFollowGoroutinesWithStdout(c *check.C) {
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "while true; do echo hello; sleep 2; done")
+	out := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "while true; do echo hello; sleep 2; done")
 	id := strings.TrimSpace(out)
 	c.Assert(waitRun(id), check.IsNil)
 
@@ -322,7 +322,7 @@ func (s *DockerSuite) TestLogsFollowGoroutinesWithStdout(c *check.C) {
 }
 
 func (s *DockerSuite) TestLogsFollowGoroutinesNoOutput(c *check.C) {
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "while true; do sleep 2; done")
+	out := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "while true; do sleep 2; done")
 	id := strings.TrimSpace(out)
 	c.Assert(waitRun(id), check.IsNil)
 

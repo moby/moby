@@ -88,12 +88,12 @@ func (s *DockerSuite) TestRunWithVolumesIsRecursive(c *check.C) {
 func (s *DockerSuite) TestRunDeviceDirectory(c *check.C) {
 	testRequires(c, NativeExecDriver)
 
-	out, _ := dockerCmd(c, "run", "--device", "/dev/snd:/dev/snd", "busybox", "sh", "-c", "ls /dev/snd/")
+	out := dockerCmd(c, "run", "--device", "/dev/snd:/dev/snd", "busybox", "sh", "-c", "ls /dev/snd/")
 	if actual := strings.Trim(out, "\r\n"); !strings.Contains(out, "timer") {
 		c.Fatalf("expected output /dev/snd/timer, received %s", actual)
 	}
 
-	out, _ = dockerCmd(c, "run", "--device", "/dev/snd:/dev/othersnd", "busybox", "sh", "-c", "ls /dev/othersnd/")
+	out = dockerCmd(c, "run", "--device", "/dev/snd:/dev/othersnd", "busybox", "sh", "-c", "ls /dev/othersnd/")
 	if actual := strings.Trim(out, "\r\n"); !strings.Contains(out, "seq") {
 		c.Fatalf("expected output /dev/othersnd/seq, received %s", actual)
 	}
@@ -214,7 +214,7 @@ func (s *DockerSuite) TestRunWithKernelMemory(c *check.C) {
 // "test" should be printed
 func (s *DockerSuite) TestRunEchoStdoutWitCPUShares(c *check.C) {
 	testRequires(c, cpuShare)
-	out, _ := dockerCmd(c, "run", "-c", "1000", "busybox", "echo", "test")
+	out := dockerCmd(c, "run", "-c", "1000", "busybox", "echo", "test")
 	if out != "test\n" {
 		c.Errorf("container should've printed 'test'")
 	}
@@ -232,30 +232,22 @@ func (s *DockerSuite) TestRunEchoStdoutWithCPUSharesAndMemoryLimit(c *check.C) {
 
 func (s *DockerSuite) TestRunWithCpuset(c *check.C) {
 	testRequires(c, cgroupCpuset)
-	if _, code := dockerCmd(c, "run", "--cpuset", "0", "busybox", "true"); code != 0 {
-		c.Fatalf("container should run successfully with cpuset of 0")
-	}
+	dockerCmd(c, "run", "--cpuset", "0", "busybox", "true")
 }
 
 func (s *DockerSuite) TestRunWithCpusetCpus(c *check.C) {
 	testRequires(c, cgroupCpuset)
-	if _, code := dockerCmd(c, "run", "--cpuset-cpus", "0", "busybox", "true"); code != 0 {
-		c.Fatalf("container should run successfully with cpuset-cpus of 0")
-	}
+	dockerCmd(c, "run", "--cpuset-cpus", "0", "busybox", "true")
 }
 
 func (s *DockerSuite) TestRunWithCpusetMems(c *check.C) {
 	testRequires(c, cgroupCpuset)
-	if _, code := dockerCmd(c, "run", "--cpuset-mems", "0", "busybox", "true"); code != 0 {
-		c.Fatalf("container should run successfully with cpuset-mems of 0")
-	}
+	dockerCmd(c, "run", "--cpuset-mems", "0", "busybox", "true")
 }
 
 func (s *DockerSuite) TestRunWithBlkioWeight(c *check.C) {
 	testRequires(c, blkioWeight)
-	if _, code := dockerCmd(c, "run", "--blkio-weight", "300", "busybox", "true"); code != 0 {
-		c.Fatalf("container should run successfully with blkio-weight of 300")
-	}
+	dockerCmd(c, "run", "--blkio-weight", "300", "busybox", "true")
 }
 
 func (s *DockerSuite) TestRunWithBlkioInvalidWeight(c *check.C) {

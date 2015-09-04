@@ -63,7 +63,7 @@ func (s *DockerRegistrySuite) TestPushMultipleTags(c *check.C) {
 	dockerCmd(c, "push", repoName)
 
 	// Ensure layer list is equivalent for repoTag1 and repoTag2
-	out1, _ := dockerCmd(c, "pull", repoTag1)
+	out1 := dockerCmd(c, "pull", repoTag1)
 	if strings.Contains(out1, "Tag t1 not found") {
 		c.Fatalf("Unable to pull pushed image: %s", out1)
 	}
@@ -75,7 +75,7 @@ func (s *DockerRegistrySuite) TestPushMultipleTags(c *check.C) {
 		}
 	}
 
-	out2, _ := dockerCmd(c, "pull", repoTag2)
+	out2 := dockerCmd(c, "pull", repoTag2)
 	if strings.Contains(out2, "Tag t2 not found") {
 		c.Fatalf("Unable to pull pushed image: %s", out1)
 	}

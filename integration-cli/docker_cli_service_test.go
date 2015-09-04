@@ -60,7 +60,7 @@ func (s *DockerSuite) TestDockerServiceCreateDelete(c *check.C) {
 
 func (s *DockerSuite) TestDockerPublishServiceFlag(c *check.C) {
 	// Run saying the container is the backend for the specified service on the specified network
-	out, _ := dockerCmd(c, "run", "-d", "--expose=23", "--publish-service", "telnet.production", "busybox", "top")
+	out := dockerCmd(c, "run", "-d", "--expose=23", "--publish-service", "telnet.production", "busybox", "top")
 	cid := strings.TrimSpace(out)
 
 	// Verify container is attached in service ps o/p

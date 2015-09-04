@@ -10,10 +10,7 @@ import (
 func (s *DockerSuite) TestSearchOnCentralRegistry(c *check.C) {
 	testRequires(c, Network)
 
-	out, exitCode := dockerCmd(c, "search", "busybox")
-	if exitCode != 0 {
-		c.Fatalf("failed to search on the central registry: %s", out)
-	}
+	out := dockerCmd(c, "search", "busybox")
 
 	if !strings.Contains(out, "Busybox base image.") {
 		c.Fatal("couldn't find any repository named (or containing) 'Busybox base image.'")
@@ -43,30 +40,21 @@ func (s *DockerSuite) TestSearchStarsOptionWithWrongParameter(c *check.C) {
 func (s *DockerSuite) TestSearchCmdOptions(c *check.C) {
 	testRequires(c, Network)
 
-	out, exitCode := dockerCmd(c, "search", "--help")
-	if exitCode != 0 {
-		c.Fatalf("failed to get search help information: %s", out)
-	}
+	out := dockerCmd(c, "search", "--help")
 
 	if !strings.Contains(out, "Usage:\tdocker search [OPTIONS] TERM") {
 		c.Fatalf("failed to show docker search usage: %s", out)
 	}
 
-	outSearchCmd, exitCode := dockerCmd(c, "search", "busybox")
-	if exitCode != 0 {
-		c.Fatalf("failed to search on the central registry: %s", outSearchCmd)
-	}
+	outSearchCmd := dockerCmd(c, "search", "busybox")
 
-	outSearchCmdNotrunc, _ := dockerCmd(c, "search", "--no-trunc=true", "busybox")
+	outSearchCmdNotrunc := dockerCmd(c, "search", "--no-trunc=true", "busybox")
 
 	if len(outSearchCmd) > len(outSearchCmdNotrunc) {
 		c.Fatalf("The no-trunc option can't take effect.")
 	}
 
-	outSearchCmdautomated, exitCode := dockerCmd(c, "search", "--automated=true", "busybox") //The busybox is a busybox base image, not an AUTOMATED image.
-	if exitCode != 0 {
-		c.Fatalf("failed to search with automated=true on the central registry: %s", outSearchCmdautomated)
-	}
+	outSearchCmdautomated := dockerCmd(c, "search", "--automated=true", "busybox") //The busybox is a busybox base image, not an AUTOMATED image.
 
 	outSearchCmdautomatedSlice := strings.Split(outSearchCmdautomated, "\n")
 	for i := range outSearchCmdautomatedSlice {
@@ -75,17 +63,11 @@ func (s *DockerSuite) TestSearchCmdOptions(c *check.C) {
 		}
 	}
 
-	outSearchCmdStars, exitCode := dockerCmd(c, "search", "-s=2", "busybox")
-	if exitCode != 0 {
-		c.Fatalf("failed to search with stars=2 on the central registry: %s", outSearchCmdStars)
-	}
+	outSearchCmdStars := dockerCmd(c, "search", "-s=2", "busybox")
 
 	if strings.Count(outSearchCmdStars, "[OK]") > strings.Count(outSearchCmd, "[OK]") {
 		c.Fatalf("The quantity of images with stars should be less than that of all images: %s", outSearchCmdStars)
 	}
 
-	out, exitCode = dockerCmd(c, "search", "--stars=2", "--automated=true", "--no-trunc=true", "busybox")
-	if exitCode != 0 {
-		c.Fatalf("failed to search with stars&automated&no-trunc options on the central registry: %s", out)
-	}
+	dockerCmd(c, "search", "--stars=2", "--automated=true", "--no-trunc=true", "busybox")
 }

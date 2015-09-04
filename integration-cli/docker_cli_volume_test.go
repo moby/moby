@@ -13,7 +13,7 @@ func (s *DockerSuite) TestVolumeCliCreate(c *check.C) {
 	_, err := runCommand(exec.Command(dockerBinary, "volume", "create", "-d", "nosuchdriver"))
 	c.Assert(err, check.Not(check.IsNil))
 
-	out, _ := dockerCmd(c, "volume", "create", "--name=test")
+	out := dockerCmd(c, "volume", "create", "--name=test")
 	name := strings.TrimSpace(out)
 	c.Assert(name, check.Equals, "test")
 }
@@ -25,24 +25,24 @@ func (s *DockerSuite) TestVolumeCliInspect(c *check.C) {
 		check.Commentf("volume inspect should error on non-existant volume"),
 	)
 
-	out, _ := dockerCmd(c, "volume", "create")
+	out := dockerCmd(c, "volume", "create")
 	name := strings.TrimSpace(out)
-	out, _ = dockerCmd(c, "volume", "inspect", "--format='{{ .Name }}'", name)
+	out = dockerCmd(c, "volume", "inspect", "--format='{{ .Name }}'", name)
 	c.Assert(strings.TrimSpace(out), check.Equals, name)
 
 	dockerCmd(c, "volume", "create", "--name", "test")
-	out, _ = dockerCmd(c, "volume", "inspect", "--format='{{ .Name }}'", "test")
+	out = dockerCmd(c, "volume", "inspect", "--format='{{ .Name }}'", "test")
 	c.Assert(strings.TrimSpace(out), check.Equals, "test")
 }
 
 func (s *DockerSuite) TestVolumeCliLs(c *check.C) {
-	out, _ := dockerCmd(c, "volume", "create")
+	out := dockerCmd(c, "volume", "create")
 	id := strings.TrimSpace(out)
 
 	dockerCmd(c, "volume", "create", "--name", "test")
 	dockerCmd(c, "run", "-v", "/foo", "busybox", "ls", "/")
 
-	out, _ = dockerCmd(c, "volume", "ls")
+	out = dockerCmd(c, "volume", "ls")
 	outArr := strings.Split(strings.TrimSpace(out), "\n")
 	c.Assert(len(outArr), check.Equals, 4, check.Commentf("\n%s", out))
 
@@ -52,14 +52,14 @@ func (s *DockerSuite) TestVolumeCliLs(c *check.C) {
 }
 
 func (s *DockerSuite) TestVolumeCliRm(c *check.C) {
-	out, _ := dockerCmd(c, "volume", "create")
+	out := dockerCmd(c, "volume", "create")
 	id := strings.TrimSpace(out)
 
 	dockerCmd(c, "volume", "create", "--name", "test")
 	dockerCmd(c, "volume", "rm", id)
 	dockerCmd(c, "volume", "rm", "test")
 
-	out, _ = dockerCmd(c, "volume", "ls")
+	out = dockerCmd(c, "volume", "ls")
 	outArr := strings.Split(strings.TrimSpace(out), "\n")
 	c.Assert(len(outArr), check.Equals, 1, check.Commentf("%s\n", out))
 
@@ -71,13 +71,13 @@ func (s *DockerSuite) TestVolumeCliRm(c *check.C) {
 		check.Not(check.IsNil),
 		check.Commentf("Should not be able to remove volume that is in use by a container\n%s", out))
 
-	out, _ = dockerCmd(c, "run", "--volumes-from=test", "--name=test2", "busybox", "sh", "-c", "cat /foo/bar")
+	out = dockerCmd(c, "run", "--volumes-from=test", "--name=test2", "busybox", "sh", "-c", "cat /foo/bar")
 	c.Assert(strings.TrimSpace(out), check.Equals, "hello")
 	dockerCmd(c, "rm", "-fv", "test2")
 	dockerCmd(c, "volume", "inspect", volumeID)
 	dockerCmd(c, "rm", "-f", "test")
 
-	out, _ = dockerCmd(c, "run", "--name=test2", "-v", volumeID+":/foo", "busybox", "sh", "-c", "cat /foo/bar")
+	out = dockerCmd(c, "run", "--name=test2", "-v", volumeID+":/foo", "busybox", "sh", "-c", "cat /foo/bar")
 	c.Assert(strings.TrimSpace(out), check.Equals, "hello", check.Commentf("volume data was removed"))
 	dockerCmd(c, "rm", "test2")
 
@@ -90,7 +90,7 @@ func (s *DockerSuite) TestVolumeCliRm(c *check.C) {
 }
 
 func (s *DockerSuite) TestVolumeCliNoArgs(c *check.C) {
-	out, _ := dockerCmd(c, "volume")
+	out := dockerCmd(c, "volume")
 	// no args should produce the `volume ls` output
 	c.Assert(strings.Contains(out, "DRIVER"), check.Equals, true)
 

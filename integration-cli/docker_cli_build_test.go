@@ -76,7 +76,7 @@ func (s *DockerSuite) TestBuildShCmdJSONEntrypoint(c *check.C) {
 		c.Fatal(err)
 	}
 
-	out, _ := dockerCmd(c, "run", "--rm", name)
+	out := dockerCmd(c, "run", "--rm", name)
 
 	if strings.TrimSpace(out) != "/bin/sh -c echo test" {
 		c.Fatalf("CMD did not contain /bin/sh -c : %s", out)
@@ -415,7 +415,7 @@ func (s *DockerSuite) TestBuildEnvEscapes(c *check.C) {
 		c.Fatal(err)
 	}
 
-	out, _ := dockerCmd(c, "run", "-t", name)
+	out := dockerCmd(c, "run", "-t", name)
 
 	if strings.TrimSpace(out) != "$" {
 		c.Fatalf("Env TEST was not overwritten with bar when foo was supplied to dockerfile: was %q", strings.TrimSpace(out))
@@ -438,7 +438,7 @@ func (s *DockerSuite) TestBuildEnvOverwrite(c *check.C) {
 		c.Fatal(err)
 	}
 
-	out, _ := dockerCmd(c, "run", "-e", "TEST=bar", "-t", name)
+	out := dockerCmd(c, "run", "-e", "TEST=bar", "-t", name)
 
 	if strings.TrimSpace(out) != "bar" {
 		c.Fatalf("Env TEST was not overwritten with bar when foo was supplied to dockerfile: was %q", strings.TrimSpace(out))
@@ -449,7 +449,7 @@ func (s *DockerSuite) TestBuildEnvOverwrite(c *check.C) {
 func (s *DockerSuite) TestBuildOnBuildForbiddenMaintainerInSourceImage(c *check.C) {
 	name := "testbuildonbuildforbiddenmaintainerinsourceimage"
 
-	out, _ := dockerCmd(c, "create", "busybox", "true")
+	out := dockerCmd(c, "create", "busybox", "true")
 
 	cleanedContainerID := strings.TrimSpace(out)
 
@@ -471,7 +471,7 @@ func (s *DockerSuite) TestBuildOnBuildForbiddenMaintainerInSourceImage(c *check.
 func (s *DockerSuite) TestBuildOnBuildForbiddenFromInSourceImage(c *check.C) {
 	name := "testbuildonbuildforbiddenfrominsourceimage"
 
-	out, _ := dockerCmd(c, "create", "busybox", "true")
+	out := dockerCmd(c, "create", "busybox", "true")
 
 	cleanedContainerID := strings.TrimSpace(out)
 
@@ -493,7 +493,7 @@ func (s *DockerSuite) TestBuildOnBuildForbiddenFromInSourceImage(c *check.C) {
 func (s *DockerSuite) TestBuildOnBuildForbiddenChainedInSourceImage(c *check.C) {
 	name := "testbuildonbuildforbiddenchainedinsourceimage"
 
-	out, _ := dockerCmd(c, "create", "busybox", "true")
+	out := dockerCmd(c, "create", "busybox", "true")
 
 	cleanedContainerID := strings.TrimSpace(out)
 
@@ -533,7 +533,7 @@ ONBUILD RUN ["true"]`,
 		c.Fatal(err)
 	}
 
-	out, _ := dockerCmd(c, "run", "-t", name2)
+	out := dockerCmd(c, "run", "-t", name2)
 
 	if !regexp.MustCompile(`(?m)^hello world`).MatchString(out) {
 		c.Fatal("did not get echo output from onbuild", out)
@@ -560,7 +560,7 @@ ONBUILD ENTRYPOINT ["echo"]`,
 		c.Fatal(err)
 	}
 
-	out, _ := dockerCmd(c, "run", "-t", name2)
+	out := dockerCmd(c, "run", "-t", name2)
 
 	if !regexp.MustCompile(`(?m)^hello world`).MatchString(out) {
 		c.Fatal("got malformed output from onbuild", out)
@@ -2999,7 +2999,7 @@ func (s *DockerSuite) TestBuildNoContext(c *check.C) {
 		c.Fatalf("build failed to complete: %v %v", out, err)
 	}
 
-	if out, _ := dockerCmd(c, "run", "--rm", "nocontext"); out != "ok\n" {
+	if out := dockerCmd(c, "run", "--rm", "nocontext"); out != "ok\n" {
 		c.Fatalf("run produced invalid output: %q, expected %q", out, "ok")
 	}
 }
@@ -3053,7 +3053,7 @@ func (s *DockerSuite) TestBuildWithVolumeOwnership(c *check.C) {
 		c.Fatal(err)
 	}
 
-	out, _ := dockerCmd(c, "run", "--rm", "testbuildimg", "ls", "-la", "/test")
+	out := dockerCmd(c, "run", "--rm", "testbuildimg", "ls", "-la", "/test")
 
 	if expected := "drw-------"; !strings.Contains(out, expected) {
 		c.Fatalf("expected %s received %s", expected, out)
@@ -3327,7 +3327,7 @@ func (s *DockerSuite) TestBuildVerifyIntString(c *check.C) {
 		c.Fatal(err)
 	}
 
-	out, _ := dockerCmd(c, "inspect", name)
+	out := dockerCmd(c, "inspect", name)
 
 	if !strings.Contains(out, "\"123\"") {
 		c.Fatalf("Output does not contain the int as a string:\n%s", out)
@@ -4404,7 +4404,7 @@ func (s *DockerSuite) TestBuildEntrypointInheritanceInspect(c *check.C) {
 		c.Fatalf("Expected value %s not in Config.Entrypoint: %s", expected, res)
 	}
 
-	out, _ := dockerCmd(c, "run", "-t", name2)
+	out := dockerCmd(c, "run", "-t", name2)
 
 	expected = "quux"
 
@@ -4734,7 +4734,7 @@ CMD cat /foo/file`,
 		c.Fatal(err)
 	}
 
-	out, _ := dockerCmd(c, "run", "--rm", name)
+	out := dockerCmd(c, "run", "--rm", name)
 	if out != expected {
 		c.Fatalf("expected file contents for /foo/file to be %q but received %q", expected, out)
 	}
@@ -5393,14 +5393,10 @@ func (s *DockerTrustSuite) TestTrustedBuild(c *check.C) {
 	}
 
 	// We should also have a tag reference for the image.
-	if out, exitCode := dockerCmd(c, "inspect", repoName); exitCode != 0 {
-		c.Fatalf("unexpected exit code inspecting image %q: %d: %s", repoName, exitCode, out)
-	}
+	dockerCmd(c, "inspect", repoName)
 
 	// We should now be able to remove the tag reference.
-	if out, exitCode := dockerCmd(c, "rmi", repoName); exitCode != 0 {
-		c.Fatalf("unexpected exit code inspecting image %q: %d: %s", repoName, exitCode, out)
-	}
+	dockerCmd(c, "rmi", repoName)
 }
 
 func (s *DockerTrustSuite) TestTrustedBuildUntrustedTag(c *check.C) {
@@ -5457,9 +5453,7 @@ func (s *DockerTrustSuite) TestBuildContextDirIsSymlink(c *check.C) {
 
 	// Executing the build with the symlink as the specified context should
 	// *not* fail.
-	if out, exitStatus := dockerCmd(c, "build", contextSymlinkName); exitStatus != 0 {
-		c.Fatalf("build failed with exit status %d: %s", exitStatus, out)
-	}
+	dockerCmd(c, "build", contextSymlinkName)
 }
 
 // Issue #15634: COPY fails when path starts with "null"

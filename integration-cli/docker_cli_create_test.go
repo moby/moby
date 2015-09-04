@@ -18,11 +18,11 @@ import (
 
 // Make sure we can create a simple container with some args
 func (s *DockerSuite) TestCreateArgs(c *check.C) {
-	out, _ := dockerCmd(c, "create", "busybox", "command", "arg1", "arg2", "arg with space")
+	out := dockerCmd(c, "create", "busybox", "command", "arg1", "arg2", "arg with space")
 
 	cleanedContainerID := strings.TrimSpace(out)
 
-	out, _ = dockerCmd(c, "inspect", cleanedContainerID)
+	out = dockerCmd(c, "inspect", cleanedContainerID)
 
 	containers := []struct {
 		ID      string
@@ -60,11 +60,11 @@ func (s *DockerSuite) TestCreateArgs(c *check.C) {
 // Make sure we can set hostconfig options too
 func (s *DockerSuite) TestCreateHostConfig(c *check.C) {
 
-	out, _ := dockerCmd(c, "create", "-P", "busybox", "echo")
+	out := dockerCmd(c, "create", "-P", "busybox", "echo")
 
 	cleanedContainerID := strings.TrimSpace(out)
 
-	out, _ = dockerCmd(c, "inspect", cleanedContainerID)
+	out = dockerCmd(c, "inspect", cleanedContainerID)
 
 	containers := []struct {
 		HostConfig *struct {
@@ -91,11 +91,11 @@ func (s *DockerSuite) TestCreateHostConfig(c *check.C) {
 
 func (s *DockerSuite) TestCreateWithPortRange(c *check.C) {
 
-	out, _ := dockerCmd(c, "create", "-p", "3300-3303:3300-3303/tcp", "busybox", "echo")
+	out := dockerCmd(c, "create", "-p", "3300-3303:3300-3303/tcp", "busybox", "echo")
 
 	cleanedContainerID := strings.TrimSpace(out)
 
-	out, _ = dockerCmd(c, "inspect", cleanedContainerID)
+	out = dockerCmd(c, "inspect", cleanedContainerID)
 
 	containers := []struct {
 		HostConfig *struct {
@@ -130,11 +130,11 @@ func (s *DockerSuite) TestCreateWithPortRange(c *check.C) {
 
 func (s *DockerSuite) TestCreateWithiLargePortRange(c *check.C) {
 
-	out, _ := dockerCmd(c, "create", "-p", "1-65535:1-65535/tcp", "busybox", "echo")
+	out := dockerCmd(c, "create", "-p", "1-65535:1-65535/tcp", "busybox", "echo")
 
 	cleanedContainerID := strings.TrimSpace(out)
 
-	out, _ = dockerCmd(c, "inspect", cleanedContainerID)
+	out = dockerCmd(c, "inspect", cleanedContainerID)
 
 	containers := []struct {
 		HostConfig *struct {
@@ -170,11 +170,11 @@ func (s *DockerSuite) TestCreateWithiLargePortRange(c *check.C) {
 // "test123" should be printed by docker create + start
 func (s *DockerSuite) TestCreateEchoStdout(c *check.C) {
 
-	out, _ := dockerCmd(c, "create", "busybox", "echo", "test123")
+	out := dockerCmd(c, "create", "busybox", "echo", "test123")
 
 	cleanedContainerID := strings.TrimSpace(out)
 
-	out, _ = dockerCmd(c, "start", "-ai", cleanedContainerID)
+	out = dockerCmd(c, "start", "-ai", cleanedContainerID)
 
 	if out != "test123\n" {
 		c.Errorf("container should've printed 'test123', got %q", out)
@@ -244,7 +244,7 @@ func (s *DockerSuite) TestCreateLabelFromImage(c *check.C) {
 }
 
 func (s *DockerSuite) TestCreateHostnameWithNumber(c *check.C) {
-	out, _ := dockerCmd(c, "run", "-h", "web.0", "busybox", "hostname")
+	out := dockerCmd(c, "run", "-h", "web.0", "busybox", "hostname")
 	if strings.TrimSpace(out) != "web.0" {
 		c.Fatalf("hostname not set, expected `web.0`, got: %s", out)
 	}
@@ -255,13 +255,13 @@ func (s *DockerSuite) TestCreateRM(c *check.C) {
 	// "Created" state, and has ever been run. Test "rm -f" too.
 
 	// create a container
-	out, _ := dockerCmd(c, "create", "busybox")
+	out := dockerCmd(c, "create", "busybox")
 	cID := strings.TrimSpace(out)
 
 	dockerCmd(c, "rm", cID)
 
 	// Now do it again so we can "rm -f" this time
-	out, _ = dockerCmd(c, "create", "busybox")
+	out = dockerCmd(c, "create", "busybox")
 
 	cID = strings.TrimSpace(out)
 	dockerCmd(c, "rm", "-f", cID)
@@ -270,7 +270,7 @@ func (s *DockerSuite) TestCreateRM(c *check.C) {
 func (s *DockerSuite) TestCreateModeIpcContainer(c *check.C) {
 	testRequires(c, SameHostDaemon)
 
-	out, _ := dockerCmd(c, "create", "busybox")
+	out := dockerCmd(c, "create", "busybox")
 	id := strings.TrimSpace(out)
 
 	dockerCmd(c, "create", fmt.Sprintf("--ipc=container:%s", id), "busybox")

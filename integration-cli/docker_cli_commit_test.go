@@ -7,13 +7,13 @@ import (
 )
 
 func (s *DockerSuite) TestCommitAfterContainerIsDone(c *check.C) {
-	out, _ := dockerCmd(c, "run", "-i", "-a", "stdin", "busybox", "echo", "foo")
+	out := dockerCmd(c, "run", "-i", "-a", "stdin", "busybox", "echo", "foo")
 
 	cleanedContainerID := strings.TrimSpace(out)
 
 	dockerCmd(c, "wait", cleanedContainerID)
 
-	out, _ = dockerCmd(c, "commit", cleanedContainerID)
+	out = dockerCmd(c, "commit", cleanedContainerID)
 
 	cleanedImageID := strings.TrimSpace(out)
 
@@ -21,13 +21,13 @@ func (s *DockerSuite) TestCommitAfterContainerIsDone(c *check.C) {
 }
 
 func (s *DockerSuite) TestCommitWithoutPause(c *check.C) {
-	out, _ := dockerCmd(c, "run", "-i", "-a", "stdin", "busybox", "echo", "foo")
+	out := dockerCmd(c, "run", "-i", "-a", "stdin", "busybox", "echo", "foo")
 
 	cleanedContainerID := strings.TrimSpace(out)
 
 	dockerCmd(c, "wait", cleanedContainerID)
 
-	out, _ = dockerCmd(c, "commit", "-p=false", cleanedContainerID)
+	out = dockerCmd(c, "commit", "-p=false", cleanedContainerID)
 
 	cleanedImageID := strings.TrimSpace(out)
 
@@ -37,13 +37,13 @@ func (s *DockerSuite) TestCommitWithoutPause(c *check.C) {
 //test commit a paused container should not unpause it after commit
 func (s *DockerSuite) TestCommitPausedContainer(c *check.C) {
 	defer unpauseAllContainers()
-	out, _ := dockerCmd(c, "run", "-i", "-d", "busybox")
+	out := dockerCmd(c, "run", "-i", "-d", "busybox")
 
 	cleanedContainerID := strings.TrimSpace(out)
 
 	dockerCmd(c, "pause", cleanedContainerID)
 
-	out, _ = dockerCmd(c, "commit", cleanedContainerID)
+	out = dockerCmd(c, "commit", cleanedContainerID)
 
 	out, err := inspectField(cleanedContainerID, "State.Paused")
 	c.Assert(err, check.IsNil)
@@ -56,10 +56,10 @@ func (s *DockerSuite) TestCommitNewFile(c *check.C) {
 
 	dockerCmd(c, "run", "--name", "commiter", "busybox", "/bin/sh", "-c", "echo koye > /foo")
 
-	imageID, _ := dockerCmd(c, "commit", "commiter")
+	imageID := dockerCmd(c, "commit", "commiter")
 	imageID = strings.Trim(imageID, "\r\n")
 
-	out, _ := dockerCmd(c, "run", imageID, "cat", "/foo")
+	out := dockerCmd(c, "run", imageID, "cat", "/foo")
 
 	if actual := strings.Trim(out, "\r\n"); actual != "koye" {
 		c.Fatalf("expected output koye received %q", actual)
@@ -69,7 +69,7 @@ func (s *DockerSuite) TestCommitNewFile(c *check.C) {
 
 func (s *DockerSuite) TestCommitHardlink(c *check.C) {
 
-	firstOutput, _ := dockerCmd(c, "run", "-t", "--name", "hardlinks", "busybox", "sh", "-c", "touch file1 && ln file1 file2 && ls -di file1 file2")
+	firstOutput := dockerCmd(c, "run", "-t", "--name", "hardlinks", "busybox", "sh", "-c", "touch file1 && ln file1 file2 && ls -di file1 file2")
 
 	chunks := strings.Split(strings.TrimSpace(firstOutput), " ")
 	inode := chunks[0]
@@ -84,10 +84,10 @@ func (s *DockerSuite) TestCommitHardlink(c *check.C) {
 		c.Fatalf("Failed to create hardlink in a container. Expected to find %q in %q", inode, chunks[1:])
 	}
 
-	imageID, _ := dockerCmd(c, "commit", "hardlinks", "hardlinks")
+	imageID := dockerCmd(c, "commit", "hardlinks", "hardlinks")
 	imageID = strings.Trim(imageID, "\r\n")
 
-	secondOutput, _ := dockerCmd(c, "run", "-t", "hardlinks", "ls", "-di", "file1", "file2")
+	secondOutput := dockerCmd(c, "run", "-t", "hardlinks", "ls", "-di", "file1", "file2")
 
 	chunks = strings.Split(strings.TrimSpace(secondOutput), " ")
 	inode = chunks[0]
@@ -108,7 +108,7 @@ func (s *DockerSuite) TestCommitTTY(c *check.C) {
 
 	dockerCmd(c, "run", "-t", "--name", "tty", "busybox", "/bin/ls")
 
-	imageID, _ := dockerCmd(c, "commit", "tty", "ttytest")
+	imageID := dockerCmd(c, "commit", "tty", "ttytest")
 	imageID = strings.Trim(imageID, "\r\n")
 
 	dockerCmd(c, "run", "ttytest", "/bin/ls")
@@ -119,7 +119,7 @@ func (s *DockerSuite) TestCommitWithHostBindMount(c *check.C) {
 
 	dockerCmd(c, "run", "--name", "bind-commit", "-v", "/dev/null:/winning", "busybox", "true")
 
-	imageID, _ := dockerCmd(c, "commit", "bind-commit", "bindtest")
+	imageID := dockerCmd(c, "commit", "bind-commit", "bindtest")
 	imageID = strings.Trim(imageID, "\r\n")
 
 	dockerCmd(c, "run", "bindtest", "true")
@@ -130,7 +130,7 @@ func (s *DockerSuite) TestCommitChange(c *check.C) {
 
 	dockerCmd(c, "run", "--name", "test", "busybox", "true")
 
-	imageID, _ := dockerCmd(c, "commit",
+	imageID := dockerCmd(c, "commit",
 		"--change", "EXPOSE 8080",
 		"--change", "ENV DEBUG true",
 		"--change", "ENV test 1",
@@ -170,12 +170,12 @@ func (s *DockerSuite) TestCommitChange(c *check.C) {
 // TODO: commit --run is deprecated, remove this once --run is removed
 func (s *DockerSuite) TestCommitMergeConfigRun(c *check.C) {
 	name := "commit-test"
-	out, _ := dockerCmd(c, "run", "-d", "-e=FOO=bar", "busybox", "/bin/sh", "-c", "echo testing > /tmp/foo")
+	out := dockerCmd(c, "run", "-d", "-e=FOO=bar", "busybox", "/bin/sh", "-c", "echo testing > /tmp/foo")
 	id := strings.TrimSpace(out)
 
 	dockerCmd(c, "commit", `--run={"Cmd": ["cat", "/tmp/foo"]}`, id, "commit-test")
 
-	out, _ = dockerCmd(c, "run", "--name", name, "commit-test")
+	out = dockerCmd(c, "run", "--name", name, "commit-test")
 	if strings.TrimSpace(out) != "testing" {
 		c.Fatal("run config in committed container was not merged")
 	}
