@@ -9,10 +9,10 @@ import (
 // ensure that an added file shows up in docker diff
 func (s *DockerSuite) TestDiffFilenameShownInOutput(c *check.C) {
 	containerCmd := `echo foo > /root/bar`
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "sh", "-c", containerCmd)
+	out := dockerCmd(c, "run", "-d", "busybox", "sh", "-c", containerCmd)
 
 	cleanCID := strings.TrimSpace(out)
-	out, _ = dockerCmd(c, "diff", cleanCID)
+	out = dockerCmd(c, "diff", cleanCID)
 
 	found := false
 	for _, line := range strings.Split(out, "\n") {
@@ -35,10 +35,10 @@ func (s *DockerSuite) TestDiffEnsureDockerinitFilesAreIgnored(c *check.C) {
 	// we might not run into this problem from the first run, so start a few containers
 	for i := 0; i < containerCount; i++ {
 		containerCmd := `echo foo > /root/bar`
-		out, _ := dockerCmd(c, "run", "-d", "busybox", "sh", "-c", containerCmd)
+		out := dockerCmd(c, "run", "-d", "busybox", "sh", "-c", containerCmd)
 
 		cleanCID := strings.TrimSpace(out)
-		out, _ = dockerCmd(c, "diff", cleanCID)
+		out = dockerCmd(c, "diff", cleanCID)
 
 		for _, filename := range dockerinitFiles {
 			if strings.Contains(out, filename) {
@@ -49,10 +49,10 @@ func (s *DockerSuite) TestDiffEnsureDockerinitFilesAreIgnored(c *check.C) {
 }
 
 func (s *DockerSuite) TestDiffEnsureOnlyKmsgAndPtmx(c *check.C) {
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "sleep", "0")
+	out := dockerCmd(c, "run", "-d", "busybox", "sleep", "0")
 
 	cleanCID := strings.TrimSpace(out)
-	out, _ = dockerCmd(c, "diff", cleanCID)
+	out = dockerCmd(c, "diff", cleanCID)
 
 	expected := map[string]bool{
 		"C /dev":         true,

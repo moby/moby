@@ -14,7 +14,7 @@ func (s *DockerSuite) TestLinksEtcHostsContentMatch(c *check.C) {
 	// same host as the daemon.
 	testRequires(c, SameHostDaemon)
 
-	out, _ := dockerCmd(c, "run", "--net=host", "busybox", "cat", "/etc/hosts")
+	out := dockerCmd(c, "run", "--net=host", "busybox", "cat", "/etc/hosts")
 	hosts, err := ioutil.ReadFile("/etc/hosts")
 	if os.IsNotExist(err) {
 		c.Skip("/etc/hosts does not exist, skip this test")

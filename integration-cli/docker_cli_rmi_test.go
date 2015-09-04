@@ -29,26 +29,26 @@ func (s *DockerSuite) TestRmiWithContainerFails(c *check.C) {
 	}
 
 	// make sure it didn't delete the busybox name
-	images, _ := dockerCmd(c, "images")
+	images := dockerCmd(c, "images")
 	if !strings.Contains(images, "busybox") {
 		c.Fatalf("The name 'busybox' should not have been removed from images: %q", images)
 	}
 }
 
 func (s *DockerSuite) TestRmiTag(c *check.C) {
-	imagesBefore, _ := dockerCmd(c, "images", "-a")
+	imagesBefore := dockerCmd(c, "images", "-a")
 	dockerCmd(c, "tag", "busybox", "utest:tag1")
 	dockerCmd(c, "tag", "busybox", "utest/docker:tag2")
 	dockerCmd(c, "tag", "busybox", "utest:5000/docker:tag3")
 	{
-		imagesAfter, _ := dockerCmd(c, "images", "-a")
+		imagesAfter := dockerCmd(c, "images", "-a")
 		if strings.Count(imagesAfter, "\n") != strings.Count(imagesBefore, "\n")+3 {
 			c.Fatalf("before: %q\n\nafter: %q\n", imagesBefore, imagesAfter)
 		}
 	}
 	dockerCmd(c, "rmi", "utest/docker:tag2")
 	{
-		imagesAfter, _ := dockerCmd(c, "images", "-a")
+		imagesAfter := dockerCmd(c, "images", "-a")
 		if strings.Count(imagesAfter, "\n") != strings.Count(imagesBefore, "\n")+2 {
 			c.Fatalf("before: %q\n\nafter: %q\n", imagesBefore, imagesAfter)
 		}
@@ -56,7 +56,7 @@ func (s *DockerSuite) TestRmiTag(c *check.C) {
 	}
 	dockerCmd(c, "rmi", "utest:5000/docker:tag3")
 	{
-		imagesAfter, _ := dockerCmd(c, "images", "-a")
+		imagesAfter := dockerCmd(c, "images", "-a")
 		if strings.Count(imagesAfter, "\n") != strings.Count(imagesBefore, "\n")+1 {
 			c.Fatalf("before: %q\n\nafter: %q\n", imagesBefore, imagesAfter)
 		}
@@ -64,7 +64,7 @@ func (s *DockerSuite) TestRmiTag(c *check.C) {
 	}
 	dockerCmd(c, "rmi", "utest:tag1")
 	{
-		imagesAfter, _ := dockerCmd(c, "images", "-a")
+		imagesAfter := dockerCmd(c, "images", "-a")
 		if strings.Count(imagesAfter, "\n") != strings.Count(imagesBefore, "\n")+0 {
 			c.Fatalf("before: %q\n\nafter: %q\n", imagesBefore, imagesAfter)
 		}
@@ -84,11 +84,11 @@ func (s *DockerSuite) TestRmiImgIDMultipleTag(c *check.C) {
 		c.Fatalf("failed to commit a new busybox-one:%s, %v", out, err)
 	}
 
-	imagesBefore, _ := dockerCmd(c, "images", "-a")
+	imagesBefore := dockerCmd(c, "images", "-a")
 	dockerCmd(c, "tag", "busybox-one", "busybox-one:tag1")
 	dockerCmd(c, "tag", "busybox-one", "busybox-one:tag2")
 
-	imagesAfter, _ := dockerCmd(c, "images", "-a")
+	imagesAfter := dockerCmd(c, "images", "-a")
 	if strings.Count(imagesAfter, "\n") != strings.Count(imagesBefore, "\n")+2 {
 		c.Fatalf("tag busybox to create 2 more images with same imageID; docker images shows: %q\n", imagesAfter)
 	}
@@ -114,7 +114,7 @@ func (s *DockerSuite) TestRmiImgIDMultipleTag(c *check.C) {
 	dockerCmd(c, "stop", containerID)
 	dockerCmd(c, "rmi", "-f", imgID)
 
-	imagesAfter, _ = dockerCmd(c, "images", "-a")
+	imagesAfter = dockerCmd(c, "images", "-a")
 	if strings.Contains(imagesAfter, imgID[:12]) {
 		c.Fatalf("rmi -f %s failed, image still exists: %q\n\n", imgID, imagesAfter)
 	}
@@ -132,13 +132,13 @@ func (s *DockerSuite) TestRmiImgIDForce(c *check.C) {
 		c.Fatalf("failed to commit a new busybox-test:%s, %v", out, err)
 	}
 
-	imagesBefore, _ := dockerCmd(c, "images", "-a")
+	imagesBefore := dockerCmd(c, "images", "-a")
 	dockerCmd(c, "tag", "busybox-test", "utest:tag1")
 	dockerCmd(c, "tag", "busybox-test", "utest:tag2")
 	dockerCmd(c, "tag", "busybox-test", "utest/docker:tag3")
 	dockerCmd(c, "tag", "busybox-test", "utest:5000/docker:tag4")
 	{
-		imagesAfter, _ := dockerCmd(c, "images", "-a")
+		imagesAfter := dockerCmd(c, "images", "-a")
 		if strings.Count(imagesAfter, "\n") != strings.Count(imagesBefore, "\n")+4 {
 			c.Fatalf("tag busybox to create 4 more images with same imageID; docker images shows: %q\n", imagesAfter)
 		}
@@ -154,7 +154,7 @@ func (s *DockerSuite) TestRmiImgIDForce(c *check.C) {
 
 	dockerCmd(c, "rmi", "-f", imgID)
 	{
-		imagesAfter, _ := dockerCmd(c, "images", "-a")
+		imagesAfter := dockerCmd(c, "images", "-a")
 		if strings.Contains(imagesAfter, imgID[:12]) {
 			c.Fatalf("rmi -f %s failed, image still exists: %q\n\n", imgID, imagesAfter)
 		}
@@ -306,7 +306,7 @@ RUN echo 2 #layer2
 	_, err := buildImage(image, dockerfile, false)
 	c.Assert(err, check.IsNil)
 
-	out, _ := dockerCmd(c, "history", "-q", image)
+	out := dockerCmd(c, "history", "-q", image)
 	ids := strings.Split(out, "\n")
 	idToTag := ids[2]
 
@@ -317,7 +317,7 @@ RUN echo 2 #layer2
 	dockerCmd(c, "run", "-d", image, "true")
 
 	// See if the "tmp2" can be untagged.
-	out, _ = dockerCmd(c, "rmi", newTag)
+	out = dockerCmd(c, "rmi", newTag)
 	if d := strings.Count(out, "Untagged: "); d != 1 {
 		c.Log(out)
 		c.Fatalf("Expected 1 untagged entry got %d: %q", d, out)
@@ -325,7 +325,7 @@ RUN echo 2 #layer2
 
 	// Now let's add the tag again and create a container based on it.
 	dockerCmd(c, "tag", idToTag, newTag)
-	out, _ = dockerCmd(c, "run", "-d", newTag, "true")
+	out = dockerCmd(c, "run", "-d", newTag, "true")
 	cid := strings.TrimSpace(out)
 
 	// At this point we have 2 containers, one based on layer2 and another based on layer0.
@@ -337,7 +337,7 @@ RUN echo 2 #layer2
 	}
 
 	// Add the -f flag and test again.
-	out, _ = dockerCmd(c, "rmi", "-f", newTag)
+	out = dockerCmd(c, "rmi", "-f", newTag)
 	if !strings.Contains(out, fmt.Sprintf("Untagged: %s:latest", newTag)) {
 		c.Log(out)
 		c.Fatalf("%q should be allowed to untag with the -f flag", newTag)

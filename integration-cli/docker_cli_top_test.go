@@ -7,11 +7,11 @@ import (
 )
 
 func (s *DockerSuite) TestTopMultipleArgs(c *check.C) {
-	out, _ := dockerCmd(c, "run", "-i", "-d", "busybox", "top")
+	out := dockerCmd(c, "run", "-i", "-d", "busybox", "top")
 
 	cleanedContainerID := strings.TrimSpace(out)
 
-	out, _ = dockerCmd(c, "top", cleanedContainerID, "-o", "pid")
+	out = dockerCmd(c, "top", cleanedContainerID, "-o", "pid")
 	if !strings.Contains(out, "PID") {
 		c.Fatalf("did not see PID after top -o pid: %s", out)
 	}
@@ -19,12 +19,12 @@ func (s *DockerSuite) TestTopMultipleArgs(c *check.C) {
 }
 
 func (s *DockerSuite) TestTopNonPrivileged(c *check.C) {
-	out, _ := dockerCmd(c, "run", "-i", "-d", "busybox", "top")
+	out := dockerCmd(c, "run", "-i", "-d", "busybox", "top")
 	cleanedContainerID := strings.TrimSpace(out)
 
-	out1, _ := dockerCmd(c, "top", cleanedContainerID)
-	out2, _ := dockerCmd(c, "top", cleanedContainerID)
-	out, _ = dockerCmd(c, "kill", cleanedContainerID)
+	out1 := dockerCmd(c, "top", cleanedContainerID)
+	out2 := dockerCmd(c, "top", cleanedContainerID)
+	out = dockerCmd(c, "kill", cleanedContainerID)
 
 	if !strings.Contains(out1, "top") && !strings.Contains(out2, "top") {
 		c.Fatal("top should've listed `top` in the process list, but failed twice")
@@ -37,12 +37,12 @@ func (s *DockerSuite) TestTopNonPrivileged(c *check.C) {
 }
 
 func (s *DockerSuite) TestTopPrivileged(c *check.C) {
-	out, _ := dockerCmd(c, "run", "--privileged", "-i", "-d", "busybox", "top")
+	out := dockerCmd(c, "run", "--privileged", "-i", "-d", "busybox", "top")
 	cleanedContainerID := strings.TrimSpace(out)
 
-	out1, _ := dockerCmd(c, "top", cleanedContainerID)
-	out2, _ := dockerCmd(c, "top", cleanedContainerID)
-	out, _ = dockerCmd(c, "kill", cleanedContainerID)
+	out1 := dockerCmd(c, "top", cleanedContainerID)
+	out2 := dockerCmd(c, "top", cleanedContainerID)
+	out = dockerCmd(c, "kill", cleanedContainerID)
 
 	if !strings.Contains(out1, "top") && !strings.Contains(out2, "top") {
 		c.Fatal("top should've listed `top` in the process list, but failed twice")

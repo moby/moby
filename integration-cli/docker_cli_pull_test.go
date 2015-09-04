@@ -105,7 +105,7 @@ func (s *DockerSuite) TestPullImageOfficialNames(c *check.C) {
 		}
 
 		// ensure we don't have multiple image names.
-		out, _ = dockerCmd(c, "images")
+		out = dockerCmd(c, "images")
 		if strings.Contains(out, name) {
 			c.Errorf("images should not have listed '%s'", name)
 		}
@@ -136,11 +136,11 @@ func (s *DockerSuite) TestPullImageWithAllTagFromCentralRegistry(c *check.C) {
 
 	dockerCmd(c, "pull", "busybox")
 
-	outImageCmd, _ := dockerCmd(c, "images", "busybox")
+	outImageCmd := dockerCmd(c, "images", "busybox")
 
 	dockerCmd(c, "pull", "--all-tags=true", "busybox")
 
-	outImageAllTagCmd, _ := dockerCmd(c, "images", "busybox")
+	outImageAllTagCmd := dockerCmd(c, "images", "busybox")
 
 	if strings.Count(outImageCmd, "busybox") >= strings.Count(outImageAllTagCmd, "busybox") {
 		c.Fatalf("Pulling with all tags should get more images")
@@ -149,7 +149,7 @@ func (s *DockerSuite) TestPullImageWithAllTagFromCentralRegistry(c *check.C) {
 	// FIXME has probably no effect (tags already pushed)
 	dockerCmd(c, "pull", "-a", "busybox")
 
-	outImageAllTagCmd, _ = dockerCmd(c, "images", "busybox")
+	outImageAllTagCmd = dockerCmd(c, "images", "busybox")
 
 	if strings.Count(outImageCmd, "busybox") >= strings.Count(outImageAllTagCmd, "busybox") {
 		c.Fatalf("Pulling with all tags should get more images")

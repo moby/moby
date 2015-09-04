@@ -14,7 +14,7 @@ import (
 )
 
 func (s *DockerSuite) TestCliStatsNoStreamGetCpu(c *check.C) {
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "while true;do echo 'Hello'; usleep 100000; done")
+	out := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "while true;do echo 'Hello'; usleep 100000; done")
 
 	id := strings.TrimSpace(out)
 	c.Assert(waitRun(id), check.IsNil)
@@ -39,7 +39,7 @@ func (s *DockerSuite) TestCliStatsNoStreamGetCpu(c *check.C) {
 }
 
 func (s *DockerSuite) TestStoppedContainerStatsGoroutines(c *check.C) {
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "echo 1")
+	out := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "echo 1")
 	id := strings.TrimSpace(out)
 
 	getGoRoutines := func() int {
@@ -76,7 +76,7 @@ func (s *DockerSuite) TestStoppedContainerStatsGoroutines(c *check.C) {
 func (s *DockerSuite) TestApiNetworkStats(c *check.C) {
 	testRequires(c, SameHostDaemon)
 	// Run container for 30 secs
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
+	out := dockerCmd(c, "run", "-d", "busybox", "top")
 	id := strings.TrimSpace(out)
 	c.Assert(waitRun(id), check.IsNil)
 

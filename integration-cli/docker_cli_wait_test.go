@@ -11,14 +11,14 @@ import (
 
 // non-blocking wait with 0 exit code
 func (s *DockerSuite) TestWaitNonBlockedExitZero(c *check.C) {
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "sh", "-c", "true")
+	out := dockerCmd(c, "run", "-d", "busybox", "sh", "-c", "true")
 	containerID := strings.TrimSpace(out)
 
 	if err := waitInspect(containerID, "{{.State.Running}}", "false", 1); err != nil {
 		c.Fatal("Container should have stopped by now")
 	}
 
-	out, _ = dockerCmd(c, "wait", containerID)
+	out = dockerCmd(c, "wait", containerID)
 	if strings.TrimSpace(out) != "0" {
 		c.Fatal("failed to set up container", out)
 	}
@@ -27,7 +27,7 @@ func (s *DockerSuite) TestWaitNonBlockedExitZero(c *check.C) {
 
 // blocking wait with 0 exit code
 func (s *DockerSuite) TestWaitBlockedExitZero(c *check.C) {
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "trap 'exit 0' TERM; while true; do sleep 0.01; done")
+	out := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "trap 'exit 0' TERM; while true; do sleep 0.01; done")
 	containerID := strings.TrimSpace(out)
 
 	c.Assert(waitRun(containerID), check.IsNil)
@@ -54,14 +54,14 @@ func (s *DockerSuite) TestWaitBlockedExitZero(c *check.C) {
 
 // non-blocking wait with random exit code
 func (s *DockerSuite) TestWaitNonBlockedExitRandom(c *check.C) {
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "sh", "-c", "exit 99")
+	out := dockerCmd(c, "run", "-d", "busybox", "sh", "-c", "exit 99")
 	containerID := strings.TrimSpace(out)
 
 	if err := waitInspect(containerID, "{{.State.Running}}", "false", 1); err != nil {
 		c.Fatal("Container should have stopped by now")
 	}
 
-	out, _ = dockerCmd(c, "wait", containerID)
+	out = dockerCmd(c, "wait", containerID)
 	if strings.TrimSpace(out) != "99" {
 		c.Fatal("failed to set up container", out)
 	}
@@ -70,7 +70,7 @@ func (s *DockerSuite) TestWaitNonBlockedExitRandom(c *check.C) {
 
 // blocking wait with random exit code
 func (s *DockerSuite) TestWaitBlockedExitRandom(c *check.C) {
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "trap 'exit 99' TERM; while true; do sleep 0.01; done")
+	out := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "trap 'exit 99' TERM; while true; do sleep 0.01; done")
 	containerID := strings.TrimSpace(out)
 	c.Assert(waitRun(containerID), check.IsNil)
 

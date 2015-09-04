@@ -72,16 +72,12 @@ func (s *DockerSuite) TestConfigDir(c *check.C) {
 	defer os.RemoveAll(cDir)
 
 	// First make sure pointing to empty dir doesn't generate an error
-	out, rc := dockerCmd(c, "--config", cDir, "ps")
-
-	if rc != 0 {
-		c.Fatalf("ps1 didn't work:\nrc:%d\nout%s", rc, out)
-	}
+	out := dockerCmd(c, "--config", cDir, "ps")
 
 	// Test with env var too
 	cmd := exec.Command(dockerBinary, "ps")
 	cmd.Env = append(os.Environ(), "DOCKER_CONFIG="+cDir)
-	out, rc, err = runCommandWithOutput(cmd)
+	out, rc, err := runCommandWithOutput(cmd)
 
 	if rc != 0 || err != nil {
 		c.Fatalf("ps2 didn't work:\nrc:%d\nout%s\nerr:%v", rc, out, err)

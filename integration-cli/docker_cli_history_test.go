@@ -46,7 +46,7 @@ RUN echo "Z"`,
 		c.Fatal(err)
 	}
 
-	out, _ := dockerCmd(c, "history", "testbuildhistory")
+	out := dockerCmd(c, "history", "testbuildhistory")
 	actualValues := strings.Split(out, "\n")[1:27]
 	expectedValues := [26]string{"Z", "Y", "X", "W", "V", "U", "T", "S", "R", "Q", "P", "O", "N", "M", "L", "K", "J", "I", "H", "G", "F", "E", "D", "C", "B", "A"}
 
@@ -85,7 +85,7 @@ func (s *DockerSuite) TestHistoryImageWithComment(c *check.C) {
 
 	// test docker history <image id> to check comment messages
 
-	out, _ := dockerCmd(c, "history", name)
+	out := dockerCmd(c, "history", name)
 	outputTabs := strings.Fields(strings.Split(out, "\n")[1])
 	actualValue := outputTabs[len(outputTabs)-1]
 
@@ -95,7 +95,7 @@ func (s *DockerSuite) TestHistoryImageWithComment(c *check.C) {
 }
 
 func (s *DockerSuite) TestHistoryHumanOptionFalse(c *check.C) {
-	out, _ := dockerCmd(c, "history", "--human=false", "busybox")
+	out := dockerCmd(c, "history", "--human=false", "busybox")
 	lines := strings.Split(out, "\n")
 	sizeColumnRegex, _ := regexp.Compile("SIZE +")
 	indices := sizeColumnRegex.FindStringIndex(lines[0])
@@ -113,7 +113,7 @@ func (s *DockerSuite) TestHistoryHumanOptionFalse(c *check.C) {
 }
 
 func (s *DockerSuite) TestHistoryHumanOptionTrue(c *check.C) {
-	out, _ := dockerCmd(c, "history", "--human=true", "busybox")
+	out := dockerCmd(c, "history", "--human=true", "busybox")
 	lines := strings.Split(out, "\n")
 	sizeColumnRegex, _ := regexp.Compile("SIZE +")
 	humanSizeRegex, _ := regexp.Compile("^\\d+.*B$") // Matches human sizes like 10 MB, 3.2 KB, etc

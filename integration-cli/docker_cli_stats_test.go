@@ -9,7 +9,7 @@ import (
 )
 
 func (s *DockerSuite) TestCliStatsNoStream(c *check.C) {
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
+	out := dockerCmd(c, "run", "-d", "busybox", "top")
 	id := strings.TrimSpace(out)
 	c.Assert(waitRun(id), check.IsNil)
 

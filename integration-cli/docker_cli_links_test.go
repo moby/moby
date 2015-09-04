@@ -54,9 +54,9 @@ func (s *DockerSuite) TestLinksPingLinkedContainers(c *check.C) {
 
 func (s *DockerSuite) TestLinksPingLinkedContainersAfterRename(c *check.C) {
 
-	out, _ := dockerCmd(c, "run", "-d", "--name", "container1", "busybox", "top")
+	out := dockerCmd(c, "run", "-d", "--name", "container1", "busybox", "top")
 	idA := strings.TrimSpace(out)
-	out, _ = dockerCmd(c, "run", "-d", "--name", "container2", "busybox", "top")
+	out = dockerCmd(c, "run", "-d", "--name", "container2", "busybox", "top")
 	idB := strings.TrimSpace(out)
 	dockerCmd(c, "rename", "container1", "container_new")
 	dockerCmd(c, "run", "--rm", "--link", "container_new:alias1", "--link", "container2:alias2", "busybox", "sh", "-c", "ping -c 1 alias1 -W 1 && ping -c 1 alias2 -W 1")
@@ -131,10 +131,10 @@ func (s *DockerSuite) TestLinksNotStartedParentNotFail(c *check.C) {
 func (s *DockerSuite) TestLinksHostsFilesInject(c *check.C) {
 	testRequires(c, SameHostDaemon, ExecSupport)
 
-	out, _ := dockerCmd(c, "run", "-itd", "--name", "one", "busybox", "top")
+	out := dockerCmd(c, "run", "-itd", "--name", "one", "busybox", "top")
 	idOne := strings.TrimSpace(out)
 
-	out, _ = dockerCmd(c, "run", "-itd", "--name", "two", "--link", "one:onetwo", "busybox", "top")
+	out = dockerCmd(c, "run", "-itd", "--name", "two", "--link", "one:onetwo", "busybox", "top")
 	idTwo := strings.TrimSpace(out)
 
 	c.Assert(waitRun(idTwo), check.IsNil)
@@ -158,7 +158,7 @@ func (s *DockerSuite) TestLinksHostsFilesInject(c *check.C) {
 func (s *DockerSuite) TestLinksUpdateOnRestart(c *check.C) {
 	testRequires(c, SameHostDaemon, ExecSupport)
 	dockerCmd(c, "run", "-d", "--name", "one", "busybox", "top")
-	out, _ := dockerCmd(c, "run", "-d", "--name", "two", "--link", "one:onetwo", "--link", "one:one", "busybox", "top")
+	out := dockerCmd(c, "run", "-d", "--name", "two", "--link", "one:onetwo", "--link", "one:one", "busybox", "top")
 	id := strings.TrimSpace(string(out))
 
 	realIP, err := inspectField("one", "NetworkSettings.IPAddress")
@@ -202,7 +202,7 @@ func (s *DockerSuite) TestLinksUpdateOnRestart(c *check.C) {
 
 func (s *DockerSuite) TestLinksEnvs(c *check.C) {
 	dockerCmd(c, "run", "-d", "-e", "e1=", "-e", "e2=v2", "-e", "e3=v3=v3", "--name=first", "busybox", "top")
-	out, _ := dockerCmd(c, "run", "--name=second", "--link=first:first", "busybox", "env")
+	out := dockerCmd(c, "run", "--name=second", "--link=first:first", "busybox", "env")
 	if !strings.Contains(out, "FIRST_ENV_e1=\n") ||
 		!strings.Contains(out, "FIRST_ENV_e2=v2") ||
 		!strings.Contains(out, "FIRST_ENV_e3=v3=v3") {
@@ -211,12 +211,12 @@ func (s *DockerSuite) TestLinksEnvs(c *check.C) {
 }
 
 func (s *DockerSuite) TestLinkShortDefinition(c *check.C) {
-	out, _ := dockerCmd(c, "run", "-d", "--name", "shortlinkdef", "busybox", "top")
+	out := dockerCmd(c, "run", "-d", "--name", "shortlinkdef", "busybox", "top")
 
 	cid := strings.TrimSpace(out)
 	c.Assert(waitRun(cid), check.IsNil)
 
-	out, _ = dockerCmd(c, "run", "-d", "--name", "link2", "--link", "shortlinkdef", "busybox", "top")
+	out = dockerCmd(c, "run", "-d", "--name", "link2", "--link", "shortlinkdef", "busybox", "top")
 
 	cid2 := strings.TrimSpace(out)
 	c.Assert(waitRun(cid2), check.IsNil)
@@ -235,7 +235,7 @@ func (s *DockerSuite) TestLinksNetworkHostContainer(c *check.C) {
 }
 
 func (s *DockerSuite) TestLinksEtcHostsRegularFile(c *check.C) {
-	out, _ := dockerCmd(c, "run", "--net=host", "busybox", "ls", "-la", "/etc/hosts")
+	out := dockerCmd(c, "run", "--net=host", "busybox", "ls", "-la", "/etc/hosts")
 	if !strings.HasPrefix(out, "-") {
 		c.Errorf("/etc/hosts should be a regular file")
 	}

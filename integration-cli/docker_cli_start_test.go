@@ -61,7 +61,7 @@ func (s *DockerSuite) TestStartAttachSilent(c *check.C) {
 	// make sure the container has exited before trying the "start -a"
 	dockerCmd(c, "wait", name)
 
-	startOut, _ := dockerCmd(c, "start", "-a", name)
+	startOut := dockerCmd(c, "start", "-a", name)
 	if expected := "test\n"; startOut != expected {
 		c.Fatalf("start -a produced unexpected output: expected %q, got %q", expected, startOut)
 	}

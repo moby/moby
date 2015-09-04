@@ -306,7 +306,7 @@ func (s *DockerSuite) TestGetContainerStats(c *check.C) {
 }
 
 func (s *DockerSuite) TestGetContainerStatsRmRunning(c *check.C) {
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
+	out := dockerCmd(c, "run", "-d", "busybox", "top")
 	id := strings.TrimSpace(out)
 
 	buf := &channelBuffer{make(chan []byte, 1)}
@@ -463,7 +463,7 @@ func (s *DockerSuite) TestPostContainerBindNormalVolume(c *check.C) {
 
 func (s *DockerSuite) TestContainerApiPause(c *check.C) {
 	defer unpauseAllContainers()
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "sleep", "30")
+	out := dockerCmd(c, "run", "-d", "busybox", "sleep", "30")
 	ContainerID := strings.TrimSpace(out)
 
 	status, _, err := sockRequest("POST", "/containers/"+ContainerID+"/pause", nil)
@@ -496,7 +496,7 @@ func (s *DockerSuite) TestContainerApiPause(c *check.C) {
 }
 
 func (s *DockerSuite) TestContainerApiTop(c *check.C) {
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "top")
+	out := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "top")
 	id := strings.TrimSpace(string(out))
 	c.Assert(waitRun(id), check.IsNil)
 
@@ -648,7 +648,7 @@ func (s *DockerSuite) TestContainerApiCreate(c *check.C) {
 		c.Fatal(err)
 	}
 
-	out, _ := dockerCmd(c, "start", "-a", container.ID)
+	out := dockerCmd(c, "start", "-a", container.ID)
 	if strings.TrimSpace(out) != "/test" {
 		c.Fatalf("expected output `/test`, got %q", out)
 	}
@@ -934,7 +934,7 @@ func (s *DockerSuite) TestCreateWithTooLowMemoryLimit(c *check.C) {
 }
 
 func (s *DockerSuite) TestStartWithTooLowMemoryLimit(c *check.C) {
-	out, _ := dockerCmd(c, "create", "busybox")
+	out := dockerCmd(c, "create", "busybox")
 
 	containerID := strings.TrimSpace(out)
 
@@ -955,7 +955,7 @@ func (s *DockerSuite) TestStartWithTooLowMemoryLimit(c *check.C) {
 }
 
 func (s *DockerSuite) TestContainerApiRename(c *check.C) {
-	out, _ := dockerCmd(c, "run", "--name", "TestContainerApiRename", "-d", "busybox", "sh")
+	out := dockerCmd(c, "run", "--name", "TestContainerApiRename", "-d", "busybox", "sh")
 
 	containerID := strings.TrimSpace(out)
 	newName := "TestContainerApiRenameNew"
@@ -1002,7 +1002,7 @@ func (s *DockerSuite) TestContainerApiRestart(c *check.C) {
 
 func (s *DockerSuite) TestContainerApiRestartNotimeoutParam(c *check.C) {
 	name := "test-api-restart-no-timeout-param"
-	out, _ := dockerCmd(c, "run", "-di", "--name", name, "busybox", "top")
+	out := dockerCmd(c, "run", "-di", "--name", name, "busybox", "top")
 	id := strings.TrimSpace(out)
 	c.Assert(waitRun(id), check.IsNil)
 
@@ -1146,7 +1146,7 @@ func (s *DockerSuite) TestContainerApiCopyContainerNotFound(c *check.C) {
 }
 
 func (s *DockerSuite) TestContainerApiDelete(c *check.C) {
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
+	out := dockerCmd(c, "run", "-d", "busybox", "top")
 
 	id := strings.TrimSpace(out)
 	c.Assert(waitRun(id), check.IsNil)
@@ -1166,7 +1166,7 @@ func (s *DockerSuite) TestContainerApiDeleteNotExist(c *check.C) {
 }
 
 func (s *DockerSuite) TestContainerApiDeleteForce(c *check.C) {
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
+	out := dockerCmd(c, "run", "-d", "busybox", "top")
 
 	id := strings.TrimSpace(out)
 	c.Assert(waitRun(id), check.IsNil)
@@ -1177,12 +1177,12 @@ func (s *DockerSuite) TestContainerApiDeleteForce(c *check.C) {
 }
 
 func (s *DockerSuite) TestContainerApiDeleteRemoveLinks(c *check.C) {
-	out, _ := dockerCmd(c, "run", "-d", "--name", "tlink1", "busybox", "top")
+	out := dockerCmd(c, "run", "-d", "--name", "tlink1", "busybox", "top")
 
 	id := strings.TrimSpace(out)
 	c.Assert(waitRun(id), check.IsNil)
 
-	out, _ = dockerCmd(c, "run", "--link", "tlink1:tlink1", "--name", "tlink2", "-d", "busybox", "top")
+	out = dockerCmd(c, "run", "--link", "tlink1:tlink1", "--name", "tlink2", "-d", "busybox", "top")
 
 	id2 := strings.TrimSpace(out)
 	c.Assert(waitRun(id2), check.IsNil)
@@ -1207,7 +1207,7 @@ func (s *DockerSuite) TestContainerApiDeleteRemoveLinks(c *check.C) {
 }
 
 func (s *DockerSuite) TestContainerApiDeleteConflict(c *check.C) {
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
+	out := dockerCmd(c, "run", "-d", "busybox", "top")
 
 	id := strings.TrimSpace(out)
 	c.Assert(waitRun(id), check.IsNil)
@@ -1220,7 +1220,7 @@ func (s *DockerSuite) TestContainerApiDeleteConflict(c *check.C) {
 func (s *DockerSuite) TestContainerApiDeleteRemoveVolume(c *check.C) {
 	testRequires(c, SameHostDaemon)
 
-	out, _ := dockerCmd(c, "run", "-d", "-v", "/testvolume", "busybox", "top")
+	out := dockerCmd(c, "run", "-d", "-v", "/testvolume", "busybox", "top")
 
 	id := strings.TrimSpace(out)
 	c.Assert(waitRun(id), check.IsNil)
@@ -1240,7 +1240,7 @@ func (s *DockerSuite) TestContainerApiDeleteRemoveVolume(c *check.C) {
 
 // Regression test for https://github.com/docker/docker/issues/6231
 func (s *DockerSuite) TestContainersApiChunkedEncoding(c *check.C) {
-	out, _ := dockerCmd(c, "create", "-v", "/foo", "busybox", "true")
+	out := dockerCmd(c, "create", "-v", "/foo", "busybox", "true")
 	id := strings.TrimSpace(out)
 
 	conn, err := sockConn(time.Duration(10 * time.Second))
@@ -1290,7 +1290,7 @@ func (s *DockerSuite) TestContainersApiChunkedEncoding(c *check.C) {
 }
 
 func (s *DockerSuite) TestPostContainerStop(c *check.C) {
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
+	out := dockerCmd(c, "run", "-d", "busybox", "top")
 
 	containerID := strings.TrimSpace(out)
 	c.Assert(waitRun(containerID), check.IsNil)
@@ -1314,7 +1314,7 @@ func (s *DockerSuite) TestPostContainersCreateWithStringOrSliceEntrypoint(c *che
 	}{"busybox", "echo", []string{"hello", "world"}}
 	_, _, err := sockRequest("POST", "/containers/create?name=echotest", config)
 	c.Assert(err, check.IsNil)
-	out, _ := dockerCmd(c, "start", "-a", "echotest")
+	out := dockerCmd(c, "start", "-a", "echotest")
 	c.Assert(strings.TrimSpace(out), check.Equals, "hello world")
 
 	config2 := struct {
@@ -1324,7 +1324,7 @@ func (s *DockerSuite) TestPostContainersCreateWithStringOrSliceEntrypoint(c *che
 	}{"busybox", []string{"echo"}, []string{"hello", "world"}}
 	_, _, err = sockRequest("POST", "/containers/create?name=echotest2", config2)
 	c.Assert(err, check.IsNil)
-	out, _ = dockerCmd(c, "start", "-a", "echotest2")
+	out = dockerCmd(c, "start", "-a", "echotest2")
 	c.Assert(strings.TrimSpace(out), check.Equals, "hello world")
 }
 
@@ -1337,7 +1337,7 @@ func (s *DockerSuite) TestPostContainersCreateWithStringOrSliceCmd(c *check.C) {
 	}{"busybox", "echo", "hello world"}
 	_, _, err := sockRequest("POST", "/containers/create?name=echotest", config)
 	c.Assert(err, check.IsNil)
-	out, _ := dockerCmd(c, "start", "-a", "echotest")
+	out := dockerCmd(c, "start", "-a", "echotest")
 	c.Assert(strings.TrimSpace(out), check.Equals, "hello world")
 
 	config2 := struct {
@@ -1346,7 +1346,7 @@ func (s *DockerSuite) TestPostContainersCreateWithStringOrSliceCmd(c *check.C) {
 	}{"busybox", []string{"echo", "hello", "world"}}
 	_, _, err = sockRequest("POST", "/containers/create?name=echotest2", config2)
 	c.Assert(err, check.IsNil)
-	out, _ = dockerCmd(c, "start", "-a", "echotest2")
+	out = dockerCmd(c, "start", "-a", "echotest2")
 	c.Assert(strings.TrimSpace(out), check.Equals, "hello world")
 }
 
@@ -1405,7 +1405,7 @@ func (s *DockerSuite) TestPostContainersStartWithLinksInHostConfig(c *check.C) {
 // #14640
 func (s *DockerSuite) TestPostContainersStartWithLinksInHostConfigIdLinked(c *check.C) {
 	name := "test-host-config-links"
-	out, _ := dockerCmd(c, "run", "--name", "link0", "-d", "busybox", "top")
+	out := dockerCmd(c, "run", "--name", "link0", "-d", "busybox", "top")
 	id := strings.TrimSpace(out)
 	dockerCmd(c, "create", "--name", name, "--link", id, "busybox", "top")
 

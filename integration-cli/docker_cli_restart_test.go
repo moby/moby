@@ -7,39 +7,39 @@ import (
 )
 
 func (s *DockerSuite) TestRestartStoppedContainer(c *check.C) {
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "echo", "foobar")
+	out := dockerCmd(c, "run", "-d", "busybox", "echo", "foobar")
 
 	cleanedContainerID := strings.TrimSpace(out)
 	dockerCmd(c, "wait", cleanedContainerID)
 
-	out, _ = dockerCmd(c, "logs", cleanedContainerID)
+	out = dockerCmd(c, "logs", cleanedContainerID)
 	if out != "foobar\n" {
 		c.Errorf("container should've printed 'foobar'")
 	}
 
 	dockerCmd(c, "restart", cleanedContainerID)
 
-	out, _ = dockerCmd(c, "logs", cleanedContainerID)
+	out = dockerCmd(c, "logs", cleanedContainerID)
 	if out != "foobar\nfoobar\n" {
 		c.Errorf("container should've printed 'foobar' twice, got %v", out)
 	}
 }
 
 func (s *DockerSuite) TestRestartRunningContainer(c *check.C) {
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "sh", "-c", "echo foobar && sleep 30 && echo 'should not print this'")
+	out := dockerCmd(c, "run", "-d", "busybox", "sh", "-c", "echo foobar && sleep 30 && echo 'should not print this'")
 
 	cleanedContainerID := strings.TrimSpace(out)
 
 	c.Assert(waitRun(cleanedContainerID), check.IsNil)
 
-	out, _ = dockerCmd(c, "logs", cleanedContainerID)
+	out = dockerCmd(c, "logs", cleanedContainerID)
 	if out != "foobar\n" {
 		c.Errorf("container should've printed 'foobar'")
 	}
 
 	dockerCmd(c, "restart", "-t", "1", cleanedContainerID)
 
-	out, _ = dockerCmd(c, "logs", cleanedContainerID)
+	out = dockerCmd(c, "logs", cleanedContainerID)
 
 	c.Assert(waitRun(cleanedContainerID), check.IsNil)
 
@@ -50,10 +50,10 @@ func (s *DockerSuite) TestRestartRunningContainer(c *check.C) {
 
 // Test that restarting a container with a volume does not create a new volume on restart. Regression test for #819.
 func (s *DockerSuite) TestRestartWithVolumes(c *check.C) {
-	out, _ := dockerCmd(c, "run", "-d", "-v", "/test", "busybox", "top")
+	out := dockerCmd(c, "run", "-d", "-v", "/test", "busybox", "top")
 
 	cleanedContainerID := strings.TrimSpace(out)
-	out, _ = dockerCmd(c, "inspect", "--format", "{{ len .Mounts }}", cleanedContainerID)
+	out = dockerCmd(c, "inspect", "--format", "{{ len .Mounts }}", cleanedContainerID)
 
 	if out = strings.Trim(out, " \n\r"); out != "1" {
 		c.Errorf("expect 1 volume received %s", out)
@@ -64,7 +64,7 @@ func (s *DockerSuite) TestRestartWithVolumes(c *check.C) {
 
 	dockerCmd(c, "restart", cleanedContainerID)
 
-	out, _ = dockerCmd(c, "inspect", "--format", "{{ len .Mounts }}", cleanedContainerID)
+	out = dockerCmd(c, "inspect", "--format", "{{ len .Mounts }}", cleanedContainerID)
 	if out = strings.Trim(out, " \n\r"); out != "1" {
 		c.Errorf("expect 1 volume after restart received %s", out)
 	}
@@ -78,7 +78,7 @@ func (s *DockerSuite) TestRestartWithVolumes(c *check.C) {
 }
 
 func (s *DockerSuite) TestRestartPolicyNO(c *check.C) {
-	out, _ := dockerCmd(c, "run", "-d", "--restart=no", "busybox", "false")
+	out := dockerCmd(c, "run", "-d", "--restart=no", "busybox", "false")
 
 	id := strings.TrimSpace(string(out))
 	name, err := inspectField(id, "HostConfig.RestartPolicy.Name")
@@ -89,7 +89,7 @@ func (s *DockerSuite) TestRestartPolicyNO(c *check.C) {
 }
 
 func (s *DockerSuite) TestRestartPolicyAlways(c *check.C) {
-	out, _ := dockerCmd(c, "run", "-d", "--restart=always", "busybox", "false")
+	out := dockerCmd(c, "run", "-d", "--restart=always", "busybox", "false")
 
 	id := strings.TrimSpace(string(out))
 	name, err := inspectField(id, "HostConfig.RestartPolicy.Name")
@@ -108,7 +108,7 @@ func (s *DockerSuite) TestRestartPolicyAlways(c *check.C) {
 }
 
 func (s *DockerSuite) TestRestartPolicyOnFailure(c *check.C) {
-	out, _ := dockerCmd(c, "run", "-d", "--restart=on-failure:1", "busybox", "false")
+	out := dockerCmd(c, "run", "-d", "--restart=on-failure:1", "busybox", "false")
 
 	id := strings.TrimSpace(string(out))
 	name, err := inspectField(id, "HostConfig.RestartPolicy.Name")
@@ -122,7 +122,7 @@ func (s *DockerSuite) TestRestartPolicyOnFailure(c *check.C) {
 // a good container with --restart=on-failure:3
 // MaximumRetryCount!=0; RestartCount=0
 func (s *DockerSuite) TestContainerRestartwithGoodContainer(c *check.C) {
-	out, _ := dockerCmd(c, "run", "-d", "--restart=on-failure:3", "busybox", "true")
+	out := dockerCmd(c, "run", "-d", "--restart=on-failure:3", "busybox", "true")
 
 	id := strings.TrimSpace(string(out))
 	if err := waitInspect(id, "{{ .State.Restarting }} {{ .State.Running }}", "false false", 5); err != nil {

@@ -12,7 +12,7 @@ import (
 )
 
 func (s *DockerSuite) TestLogsApiWithStdout(c *check.C) {
-	out, _ := dockerCmd(c, "run", "-d", "-t", "busybox", "/bin/sh", "-c", "while true; do echo hello; sleep 1; done")
+	out := dockerCmd(c, "run", "-d", "-t", "busybox", "/bin/sh", "-c", "while true; do echo hello; sleep 1; done")
 	id := strings.TrimSpace(out)
 	c.Assert(waitRun(id), check.IsNil)
 

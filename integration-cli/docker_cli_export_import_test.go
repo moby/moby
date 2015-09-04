@@ -14,7 +14,7 @@ func (s *DockerSuite) TestExportContainerAndImportImage(c *check.C) {
 
 	dockerCmd(c, "run", "--name", containerID, "busybox", "true")
 
-	out, _ := dockerCmd(c, "export", containerID)
+	out := dockerCmd(c, "export", containerID)
 
 	importCmd := exec.Command(dockerBinary, "import", "-", "repo/testexp:v1")
 	importCmd.Stdin = strings.NewReader(out)

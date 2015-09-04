@@ -12,7 +12,7 @@ import (
 )
 
 func (s *DockerSuite) TestImagesEnsureImageIsListed(c *check.C) {
-	out, _ := dockerCmd(c, "images")
+	out := dockerCmd(c, "images")
 	if !strings.Contains(out, "busybox") {
 		c.Fatal("images should've listed busybox")
 	}
@@ -29,13 +29,13 @@ func (s *DockerSuite) TestImagesEnsureImageWithTagIsListed(c *check.C) {
 		MAINTAINER dockerio1`, true)
 	c.Assert(err, check.IsNil)
 
-	out, _ := dockerCmd(c, "images", "imagewithtag:v1")
+	out := dockerCmd(c, "images", "imagewithtag:v1")
 
 	if !strings.Contains(out, "imagewithtag") || !strings.Contains(out, "v1") || strings.Contains(out, "v2") {
 		c.Fatal("images should've listed imagewithtag:v1 and not imagewithtag:v2")
 	}
 
-	out, _ = dockerCmd(c, "images", "imagewithtag")
+	out = dockerCmd(c, "images", "imagewithtag")
 
 	if !strings.Contains(out, "imagewithtag") || !strings.Contains(out, "v1") || !strings.Contains(out, "v2") {
 		c.Fatal("images should've listed imagewithtag:v1 and imagewithtag:v2")
@@ -43,7 +43,7 @@ func (s *DockerSuite) TestImagesEnsureImageWithTagIsListed(c *check.C) {
 }
 
 func (s *DockerSuite) TestImagesEnsureImageWithBadTagIsNotListed(c *check.C) {
-	out, _ := dockerCmd(c, "images", "busybox:nonexistent")
+	out := dockerCmd(c, "images", "busybox:nonexistent")
 
 	if strings.Contains(out, "busybox") {
 		c.Fatal("images should not have listed busybox")
@@ -73,7 +73,7 @@ func (s *DockerSuite) TestImagesOrderedByCreationDate(c *check.C) {
 		c.Fatal(err)
 	}
 
-	out, _ := dockerCmd(c, "images", "-q", "--no-trunc")
+	out := dockerCmd(c, "images", "-q", "--no-trunc")
 	imgs := strings.Split(out, "\n")
 	if imgs[0] != id3 {
 		c.Fatalf("First image must be %s, got %s", id3, imgs[0])
@@ -118,13 +118,13 @@ func (s *DockerSuite) TestImagesFilterLabel(c *check.C) {
 		c.Fatal(err)
 	}
 
-	out, _ := dockerCmd(c, "images", "--no-trunc", "-q", "-f", "label=match")
+	out := dockerCmd(c, "images", "--no-trunc", "-q", "-f", "label=match")
 	out = strings.TrimSpace(out)
 	if (!strings.Contains(out, image1ID) && !strings.Contains(out, image2ID)) || strings.Contains(out, image3ID) {
 		c.Fatalf("Expected ids %s,%s got %s", image1ID, image2ID, out)
 	}
 
-	out, _ = dockerCmd(c, "images", "--no-trunc", "-q", "-f", "label=match=me too")
+	out = dockerCmd(c, "images", "--no-trunc", "-q", "-f", "label=match=me too")
 	out = strings.TrimSpace(out)
 	if out != image2ID {
 		c.Fatalf("Expected %s got %s", image2ID, out)
@@ -149,7 +149,7 @@ func (s *DockerSuite) TestImagesFilterSpaceTrimCase(c *check.C) {
 
 	imageListings := make([][]string, 5, 5)
 	for idx, filter := range filters {
-		out, _ := dockerCmd(c, "images", "-q", "-f", filter)
+		out := dockerCmd(c, "images", "-q", "-f", filter)
 		listing := strings.Split(out, "\n")
 		sort.Strings(listing)
 		imageListings[idx] = listing
@@ -171,17 +171,17 @@ func (s *DockerSuite) TestImagesFilterSpaceTrimCase(c *check.C) {
 
 func (s *DockerSuite) TestImagesEnsureDanglingImageOnlyListedOnce(c *check.C) {
 	// create container 1
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "true")
+	out := dockerCmd(c, "run", "-d", "busybox", "true")
 	containerID1 := strings.TrimSpace(out)
 
 	// tag as foobox
-	out, _ = dockerCmd(c, "commit", containerID1, "foobox")
+	out = dockerCmd(c, "commit", containerID1, "foobox")
 	imageID := stringid.TruncateID(strings.TrimSpace(out))
 
 	// overwrite the tag, making the previous image dangling
 	dockerCmd(c, "tag", "-f", "busybox", "foobox")
 
-	out, _ = dockerCmd(c, "images", "-q", "-f", "dangling=true")
+	out = dockerCmd(c, "images", "-q", "-f", "dangling=true")
 	if e, a := 1, strings.Count(out, imageID); e != a {
 		c.Fatalf("expected 1 dangling image, got %d: %s", a, out)
 	}

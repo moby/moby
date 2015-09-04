@@ -13,7 +13,7 @@ import (
 )
 
 func (s *DockerSuite) TestExecResizeApiHeightWidthNoInt(c *check.C) {
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
+	out := dockerCmd(c, "run", "-d", "busybox", "top")
 	cleanedContainerID := strings.TrimSpace(out)
 
 	endpoint := "/exec/" + cleanedContainerID + "/resize?h=foo&w=bar"

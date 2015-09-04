@@ -21,7 +21,7 @@ import (
 func (s *DockerSuite) TestExec(c *check.C) {
 	dockerCmd(c, "run", "-d", "--name", "testing", "busybox", "sh", "-c", "echo test > /tmp/file && top")
 
-	out, _ := dockerCmd(c, "exec", "testing", "cat", "/tmp/file")
+	out := dockerCmd(c, "exec", "testing", "cat", "/tmp/file")
 	out = strings.Trim(out, "\r\n")
 	if out != "test" {
 		c.Errorf("container exec should've printed test but printed %q", out)
@@ -76,11 +76,11 @@ func (s *DockerSuite) TestExecInteractive(c *check.C) {
 }
 
 func (s *DockerSuite) TestExecAfterContainerRestart(c *check.C) {
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
+	out := dockerCmd(c, "run", "-d", "busybox", "top")
 	cleanedContainerID := strings.TrimSpace(out)
 	dockerCmd(c, "restart", cleanedContainerID)
 
-	out, _ = dockerCmd(c, "exec", cleanedContainerID, "echo", "hello")
+	out = dockerCmd(c, "exec", cleanedContainerID, "echo", "hello")
 	outStr := strings.TrimSpace(out)
 	if outStr != "hello" {
 		c.Errorf("container should've printed hello, instead printed %q", outStr)
@@ -122,7 +122,7 @@ func (s *DockerSuite) TestExecEnv(c *check.C) {
 	dockerCmd(c, "run", "-e", "LALA=value1", "-e", "LALA=value2",
 		"-d", "--name", "testing", "busybox", "top")
 
-	out, _ := dockerCmd(c, "exec", "testing", "env")
+	out := dockerCmd(c, "exec", "testing", "env")
 	if strings.Contains(out, "LALA=value1") ||
 		!strings.Contains(out, "LALA=value2") ||
 		!strings.Contains(out, "HOME=/root") {
@@ -144,7 +144,7 @@ func (s *DockerSuite) TestExecExitStatus(c *check.C) {
 func (s *DockerSuite) TestExecPausedContainer(c *check.C) {
 	defer unpauseAllContainers()
 
-	out, _ := dockerCmd(c, "run", "-d", "--name", "testing", "busybox", "top")
+	out := dockerCmd(c, "run", "-d", "--name", "testing", "busybox", "top")
 	ContainerID := strings.TrimSpace(out)
 
 	dockerCmd(c, "pause", "testing")
@@ -176,7 +176,7 @@ func (s *DockerSuite) TestExecTtyCloseStdin(c *check.C) {
 		c.Fatal(out, err)
 	}
 
-	out, _ := dockerCmd(c, "top", "exec_tty_stdin")
+	out := dockerCmd(c, "top", "exec_tty_stdin")
 	outArr := strings.Split(out, "\n")
 	if len(outArr) > 3 || strings.Contains(out, "nsenter-exec") {
 		c.Fatalf("exec process left running\n\t %s", out)
@@ -184,7 +184,7 @@ func (s *DockerSuite) TestExecTtyCloseStdin(c *check.C) {
 }
 
 func (s *DockerSuite) TestExecTtyWithoutStdin(c *check.C) {
-	out, _ := dockerCmd(c, "run", "-d", "-ti", "busybox")
+	out := dockerCmd(c, "run", "-d", "-ti", "busybox")
 	id := strings.TrimSpace(out)
 	c.Assert(waitRun(id), check.IsNil)
 
@@ -255,7 +255,7 @@ func (s *DockerSuite) TestExecStopNotHanging(c *check.C) {
 func (s *DockerSuite) TestExecCgroup(c *check.C) {
 	dockerCmd(c, "run", "-d", "--name", "testing", "busybox", "top")
 
-	out, _ := dockerCmd(c, "exec", "testing", "cat", "/proc/1/cgroup")
+	out := dockerCmd(c, "exec", "testing", "cat", "/proc/1/cgroup")
 	containerCgroups := sort.StringSlice(strings.Split(out, "\n"))
 
 	var wg sync.WaitGroup
@@ -303,7 +303,7 @@ func (s *DockerSuite) TestExecCgroup(c *check.C) {
 }
 
 func (s *DockerSuite) TestInspectExecID(c *check.C) {
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
+	out := dockerCmd(c, "run", "-d", "busybox", "top")
 	id := strings.TrimSuffix(out, "\n")
 
 	out, err := inspectField(id, "ExecIDs")
@@ -377,10 +377,7 @@ func (s *DockerSuite) TestInspectExecID(c *check.C) {
 
 	// Now delete the container and then an 'inspect' on the exec should
 	// result in a 404 (not 'container not running')
-	out, ec := dockerCmd(c, "rm", "-f", id)
-	if ec != 0 {
-		c.Fatalf("error removing container: %s", out)
-	}
+	out = dockerCmd(c, "rm", "-f", id)
 	sc, body, err = sockRequest("GET", "/exec/"+execID+"/json", nil)
 	if sc != http.StatusNotFound {
 		c.Fatalf("received status != 404: %d\n%s", sc, body)
@@ -389,12 +386,12 @@ func (s *DockerSuite) TestInspectExecID(c *check.C) {
 
 func (s *DockerSuite) TestLinksPingLinkedContainersOnRename(c *check.C) {
 	var out string
-	out, _ = dockerCmd(c, "run", "-d", "--name", "container1", "busybox", "top")
+	out = dockerCmd(c, "run", "-d", "--name", "container1", "busybox", "top")
 	idA := strings.TrimSpace(out)
 	if idA == "" {
 		c.Fatal(out, "id should not be nil")
 	}
-	out, _ = dockerCmd(c, "run", "-d", "--link", "container1:alias1", "--name", "container2", "busybox", "top")
+	out = dockerCmd(c, "run", "-d", "--link", "container1:alias1", "--name", "container2", "busybox", "top")
 	idB := strings.TrimSpace(out)
 	if idB == "" {
 		c.Fatal(out, "id should not be nil")
@@ -408,7 +405,7 @@ func (s *DockerSuite) TestLinksPingLinkedContainersOnRename(c *check.C) {
 func (s *DockerSuite) TestRunExecDir(c *check.C) {
 	testRequires(c, SameHostDaemon)
 
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
+	out := dockerCmd(c, "run", "-d", "busybox", "top")
 	id := strings.TrimSpace(out)
 	execDir := filepath.Join(execDriverPath, id)
 	stateFile := filepath.Join(execDir, "state.json")
@@ -484,7 +481,7 @@ func (s *DockerSuite) TestRunMutableNetworkFiles(c *check.C) {
 			c.Fatal("Content was not what was modified in the container", string(content))
 		}
 
-		out, _ := dockerCmd(c, "run", "-d", "--name", "c2", "busybox", "top")
+		out := dockerCmd(c, "run", "-d", "--name", "c2", "busybox", "top")
 		contID := strings.TrimSpace(out)
 		netFilePath := containerStorageFile(contID, fn)
 
@@ -509,7 +506,7 @@ func (s *DockerSuite) TestRunMutableNetworkFiles(c *check.C) {
 		}
 		f.Close()
 
-		res, _ := dockerCmd(c, "exec", contID, "cat", "/etc/"+fn)
+		res := dockerCmd(c, "exec", contID, "cat", "/etc/"+fn)
 		if res != "success2\n" {
 			c.Fatalf("Expected content of %s: %q, got: %q", fn, "success2\n", res)
 		}
@@ -519,12 +516,12 @@ func (s *DockerSuite) TestRunMutableNetworkFiles(c *check.C) {
 func (s *DockerSuite) TestExecWithUser(c *check.C) {
 	dockerCmd(c, "run", "-d", "--name", "parent", "busybox", "top")
 
-	out, _ := dockerCmd(c, "exec", "-u", "1", "parent", "id")
+	out := dockerCmd(c, "exec", "-u", "1", "parent", "id")
 	if !strings.Contains(out, "uid=1(daemon) gid=1(daemon)") {
 		c.Fatalf("exec with user by id expected daemon user got %s", out)
 	}
 
-	out, _ = dockerCmd(c, "exec", "-u", "root", "parent", "id")
+	out = dockerCmd(c, "exec", "-u", "root", "parent", "id")
 	if !strings.Contains(out, "uid=0(root) gid=0(root)") {
 		c.Fatalf("exec with user by root expected root user got %s", out)
 	}
@@ -581,7 +578,7 @@ func (s *DockerSuite) TestExecWithImageUser(c *check.C) {
 
 	dockerCmd(c, "run", "-d", "--name", "dockerioexec", name, "top")
 
-	out, _ := dockerCmd(c, "exec", "dockerioexec", "whoami")
+	out := dockerCmd(c, "exec", "dockerioexec", "whoami")
 	if !strings.Contains(out, "dockerio") {
 		c.Fatalf("exec with user by id expected dockerio user got %s", out)
 	}
@@ -589,9 +586,7 @@ func (s *DockerSuite) TestExecWithImageUser(c *check.C) {
 
 func (s *DockerSuite) TestExecOnReadonlyContainer(c *check.C) {
 	dockerCmd(c, "run", "-d", "--read-only", "--name", "parent", "busybox", "top")
-	if _, status := dockerCmd(c, "exec", "parent", "true"); status != 0 {
-		c.Fatalf("exec into a read-only container failed with exit status %d", status)
-	}
+	dockerCmd(c, "exec", "parent", "true")
 }
 
 // #15750

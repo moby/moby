@@ -50,7 +50,7 @@ func (s *DockerSuite) TestInspectDefault(c *check.C) {
 }
 
 func (s *DockerSuite) TestInspectStatus(c *check.C) {
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
+	out := dockerCmd(c, "run", "-d", "busybox", "top")
 	out = strings.TrimSpace(out)
 
 	inspectOut, err := inspectField(out, "State.Status")
@@ -187,7 +187,7 @@ func (s *DockerSuite) TestInspectContainerFilterInt(c *check.C) {
 
 	//now get the exit code to verify
 	formatStr := fmt.Sprintf("--format='{{eq .State.ExitCode %d}}'", exitCode)
-	out, _ = dockerCmd(c, "inspect", formatStr, id)
+	out = dockerCmd(c, "inspect", formatStr, id)
 	if result, err := strconv.ParseBool(strings.TrimSuffix(out, "\n")); err != nil || !result {
 		c.Fatalf("Expected exitcode: %d for container: %s", exitCode, id)
 	}
@@ -224,7 +224,7 @@ func (s *DockerSuite) TestInspectImageGraphDriver(c *check.C) {
 }
 
 func (s *DockerSuite) TestInspectContainerGraphDriver(c *check.C) {
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "true")
+	out := dockerCmd(c, "run", "-d", "busybox", "true")
 	out = strings.TrimSpace(out)
 
 	name, err := inspectField(out, "GraphDriver.Name")
@@ -298,7 +298,7 @@ func (s *DockerSuite) TestInspectBindMountPoint(c *check.C) {
 
 // #14947
 func (s *DockerSuite) TestInspectTimesAsRFC3339Nano(c *check.C) {
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "true")
+	out := dockerCmd(c, "run", "-d", "busybox", "true")
 	id := strings.TrimSpace(out)
 	startedAt, err := inspectField(id, "State.StartedAt")
 	c.Assert(err, check.IsNil)

@@ -12,7 +12,7 @@ import (
 )
 
 func (s *DockerSuite) TestImportDisplay(c *check.C) {
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "true")
+	out := dockerCmd(c, "run", "-d", "busybox", "true")
 	cleanedContainerID := strings.TrimSpace(out)
 
 	out, _, err := runCommandPipelineWithOutput(
@@ -28,7 +28,7 @@ func (s *DockerSuite) TestImportDisplay(c *check.C) {
 	}
 	image := strings.TrimSpace(out)
 
-	out, _ = dockerCmd(c, "run", "--rm", image, "true")
+	out = dockerCmd(c, "run", "--rm", image, "true")
 	if out != "" {
 		c.Fatalf("command output should've been nothing, was %q", out)
 	}
@@ -61,13 +61,13 @@ func (s *DockerSuite) TestImportFile(c *check.C) {
 		c.Fatal("failed to export a container", err)
 	}
 
-	out, _ := dockerCmd(c, "import", temporaryFile.Name())
+	out := dockerCmd(c, "import", temporaryFile.Name())
 	if n := strings.Count(out, "\n"); n != 1 {
 		c.Fatalf("display is messed up: %d '\\n' instead of 1:\n%s", n, out)
 	}
 	image := strings.TrimSpace(out)
 
-	out, _ = dockerCmd(c, "run", "--rm", image, "true")
+	out = dockerCmd(c, "run", "--rm", image, "true")
 	if out != "" {
 		c.Fatalf("command output should've been nothing, was %q", out)
 	}
@@ -91,13 +91,13 @@ func (s *DockerSuite) TestImportFileWithMessage(c *check.C) {
 	}
 
 	message := "Testing commit message"
-	out, _ := dockerCmd(c, "import", "-m", message, temporaryFile.Name())
+	out := dockerCmd(c, "import", "-m", message, temporaryFile.Name())
 	if n := strings.Count(out, "\n"); n != 1 {
 		c.Fatalf("display is messed up: %d '\\n' instead of 1:\n%s", n, out)
 	}
 	image := strings.TrimSpace(out)
 
-	out, _ = dockerCmd(c, "history", image)
+	out = dockerCmd(c, "history", image)
 	split := strings.Split(out, "\n")
 
 	if len(split) != 3 {
@@ -110,7 +110,7 @@ func (s *DockerSuite) TestImportFileWithMessage(c *check.C) {
 		c.Fatalf("expected %s in commit message, got %s", message, split[3])
 	}
 
-	out, _ = dockerCmd(c, "run", "--rm", image, "true")
+	out = dockerCmd(c, "run", "--rm", image, "true")
 	if out != "" {
 		c.Fatalf("command output should've been nothing, was %q", out)
 	}

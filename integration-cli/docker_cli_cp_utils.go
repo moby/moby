@@ -143,23 +143,14 @@ func makeTestContainer(c *check.C, options testContainerOptions) (containerID st
 
 	args = append(args, "busybox", "/bin/sh", "-c", options.command)
 
-	out, status := dockerCmd(c, args...)
-	if status != 0 {
-		c.Fatalf("failed to run container, status %d: %s", status, out)
-	}
+	out := dockerCmd(c, args...)
 
 	containerID = strings.TrimSpace(out)
 
-	out, status = dockerCmd(c, "wait", containerID)
-	if status != 0 {
-		c.Fatalf("failed to wait for test container container, status %d: %s", status, out)
-	}
+	out = dockerCmd(c, "wait", containerID)
 
 	if exitCode := strings.TrimSpace(out); exitCode != "0" {
-		logs, status := dockerCmd(c, "logs", containerID)
-		if status != 0 {
-			logs = "UNABLE TO GET LOGS"
-		}
+		logs := dockerCmd(c, "logs", containerID)
 		c.Fatalf("failed to make test container, exit code (%s): %s", exitCode, logs)
 	}
 

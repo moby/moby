@@ -154,9 +154,7 @@ func (s *DockerTrustSuite) setupTrustedImage(c *check.C, name string) string {
 		c.Fatalf("Missing expected output on trusted push:\n%s", out)
 	}
 
-	if out, status := dockerCmd(c, "rmi", repoName); status != 0 {
-		c.Fatalf("Error removing image %q\n%s", repoName, out)
-	}
+	dockerCmd(c, "rmi", repoName)
 
 	return repoName
 }
