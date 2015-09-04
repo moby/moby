@@ -37,40 +37,36 @@ import (
 
 func (daemon *Daemon) setupLinkedContainers(container *container.Container) ([]string, error) {
 	var env []string
-	children, err := daemon.children(container.Name)
-	if err != nil {
-		return nil, err
-	}
+	children := daemon.children(container)
 
 	bridgeSettings := container.NetworkSettings.Networks["bridge"]
 	if bridgeSettings == nil {
 		return nil, nil
 	}
 
-	if len(children) > 0 {
-		for linkAlias, child := range children {
-			if !child.IsRunning() {
-				return nil, derr.ErrorCodeLinkNotRunning.WithArgs(child.Name, linkAlias)
-			}
+	for linkAlias, child := range children {
+		if !child.IsRunning() {
+			return nil, derr.ErrorCodeLinkNotRunning.WithArgs(child.Name, linkAlias)
+		}
 
-			childBridgeSettings := child.NetworkSettings.Networks["bridge"]
-			if childBridgeSettings == nil {
-				return nil, fmt.Errorf("container %s not attached to default bridge network", child.ID)
-			}
+		childBridgeSettings := child.NetworkSettings.Networks["bridge"]
+		if childBridgeSettings == nil {
+			return nil, fmt.Errorf("container %s not attached to default bridge network", child.ID)
+		}
 
-			link := links.NewLink(
-				bridgeSettings.IPAddress,
-				childBridgeSettings.IPAddress,
-				linkAlias,
-				child.Config.Env,
-				child.Config.ExposedPorts,
-			)
+		link := links.NewLink(
+			bridgeSettings.IPAddress,
+			childBridgeSettings.IPAddress,
+			linkAlias,
+			child.Config.Env,
+			child.Config.ExposedPorts,
+		)
 
-			for _, envVar := range link.ToEnv() {
-				env = append(env, envVar)
-			}
+		for _, envVar := range link.ToEnv() {
+			env = append(env, envVar)
 		}
 	}
+
 	return env, nil
 }
 
@@ -419,11 +415,7 @@ func (daemon *Daemon) buildSandboxOptions(container *container.Container, n libn
 
 	var childEndpoints, parentEndpoints []string
 
-	children, err := daemon.children(container.Name)
-	if err != nil {
-		return nil, err
-	}
-
+	children := daemon.children(container)
 	for linkAlias, child := range children {
 		if !isLinkable(child) {
 			return nil, fmt.Errorf("Cannot link to %s, as it does not belong to the default network", child.Name)
@@ -443,23 +435,20 @@ func (daemon *Daemon) buildSandboxOptions(container *container.Container, n libn
 	}
 
 	bridgeSettings := container.NetworkSettings.Networks["bridge"]
-	refs := daemon.containerGraph().RefPaths(container.ID)
-	for _, ref := range refs {
-		if ref.ParentID == "0" {
+	for alias, parent := range daemon.parents(container) {
+		if daemon.configStore.DisableBridge || !container.HostConfig.NetworkMode.IsPrivate() {
 			continue
 		}
 
-		c, err := daemon.GetContainer(ref.ParentID)
-		if err != nil {
-			logrus.Error(err)
-		}
-
-		if c != nil && !daemon.configStore.DisableBridge && container.HostConfig.NetworkMode.IsPrivate() {
-			logrus.Debugf("Update /etc/hosts of %s for alias %s with ip %s", c.ID, ref.Name, bridgeSettings.IPAddress)
-			sboxOptions = append(sboxOptions, libnetwork.OptionParentUpdate(c.ID, ref.Name, bridgeSettings.IPAddress))
-			if ep.ID() != "" {
-				parentEndpoints = append(parentEndpoints, ep.ID())
-			}
+		_, alias = path.Split(alias)
+		logrus.Debugf("Update /etc/hosts of %s for alias %s with ip %s", parent.ID, alias, bridgeSettings.IPAddress)
+		sboxOptions = append(sboxOptions, libnetwork.OptionParentUpdate(
+			parent.ID,
+			alias,
+			bridgeSettings.IPAddress,
+		))
+		if ep.ID() != "" {
+			parentEndpoints = append(parentEndpoints, ep.ID())
 		}
 	}
 
@@ -471,7 +460,6 @@ func (daemon *Daemon) buildSandboxOptions(container *container.Container, n libn
 	}
 
 	sboxOptions = append(sboxOptions, libnetwork.OptionGeneric(linkOptions))
-
 	return sboxOptions, nil
 }
 
