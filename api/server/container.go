@@ -153,6 +153,42 @@ func (s *Server) getContainersLogs(version version.Version, w http.ResponseWrite
 	return nil
 }
 
+func (s *Server) postContainersDiff(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if vars == nil {
+		return fmt.Errorf("Missing parameter")
+	}
+
+	if err := parseForm(r); err != nil {
+		return err
+	}
+
+	return s.daemon.ContainerDiffImport(r.Body, r.Form.Get("container"))
+}
+
+func (s *Server) postContainersMetadata(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if vars == nil {
+		return fmt.Errorf("Missing parameter")
+	}
+
+	return s.daemon.ContainerMetadataImport(r.Body)
+}
+
+func (s *Server) getContainersDiff(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if vars == nil {
+		return fmt.Errorf("Missing parameter")
+	}
+
+	return s.daemon.ContainerDiffExport(vars["name"], w)
+}
+
+func (s *Server) getContainersMetadata(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if vars == nil {
+		return fmt.Errorf("Missing parameter")
+	}
+
+	return s.daemon.ContainerMetadataExport(vars["name"], w)
+}
+
 func (s *Server) getContainersExport(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
