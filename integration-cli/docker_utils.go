@@ -502,10 +502,9 @@ func init() {
 	// Obtain the daemon platform so that it can be used by tests to make
 	// intelligent decisions about how to configure themselves, and validate
 	// that the target platform is valid.
-	res, b, err := sockRequestRaw("GET", "/version", nil, "application/json")
-	defer b.Close()
-	if err != nil || res.StatusCode != http.StatusOK {
-		panic("Init failed to get version: " + err.Error() + " " + string(res.StatusCode))
+	res, _, err := sockRequestRaw("GET", "/version", nil, "application/json")
+	if err != nil || res == nil || (res != nil && res.StatusCode != http.StatusOK) {
+		panic(fmt.Errorf("Init failed to get version: %v. Res=%v", err.Error(), res))
 	}
 	svrHeader, _ := httputils.ParseServerHeader(res.Header.Get("Server"))
 	daemonPlatform = svrHeader.OS
