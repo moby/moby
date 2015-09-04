@@ -98,6 +98,7 @@ type bridgeNetwork struct {
 
 type driver struct {
 	config      *configuration
+	configured  bool
 	network     *bridgeNetwork
 	natChain    *iptables.ChainInfo
 	filterChain *iptables.ChainInfo
@@ -108,7 +109,7 @@ type driver struct {
 // New constructs a new bridge driver
 func newDriver() driverapi.Driver {
 	ipAllocator = ipallocator.New()
-	return &driver{networks: map[string]*bridgeNetwork{}}
+	return &driver{networks: map[string]*bridgeNetwork{}, config: &configuration{}}
 }
 
 // Init registers a new instance of bridge driver
@@ -433,29 +434,26 @@ func (d *driver) Config(option map[string]interface{}) error {
 	d.Lock()
 	defer d.Unlock()
 
-	if d.config != nil {
+	if d.configured {
 		return &ErrConfigExists{}
 	}
 
 	genericData, ok := option[netlabel.GenericData]
-	if ok && genericData != nil {
-		switch opt := genericData.(type) {
-		case options.Generic:
-			opaqueConfig, err := options.GenerateFromModel(opt, &configuration{})
-			if err != nil {
-				return err
-			}
-			config = opaqueConfig.(*configuration)
-		case *configuration:
-			config = opt
-		default:
-			return &ErrInvalidDriverConfig{}
-		}
+	if !ok || genericData == nil {
+		return nil
+	}
 
-		d.config = config
-	} else {
-		config = &configuration{}
-		d.config = config
+	switch opt := genericData.(type) {
+	case options.Generic:
+		opaqueConfig, err := options.GenerateFromModel(opt, &configuration{})
+		if err != nil {
+			return err
+		}
+		config = opaqueConfig.(*configuration)
+	case *configuration:
+		config = opt
+	default:
+		return &ErrInvalidDriverConfig{}
 	}
 
 	if config.EnableIPForwarding {
@@ -467,9 +465,13 @@ func (d *driver) Config(option map[string]interface{}) error {
 
 	if config.EnableIPTables {
 		d.natChain, d.filterChain, err = setupIPChains(config)
-		return err
+		if err != nil {
+			return err
+		}
 	}
 
+	d.configured = true
+	d.config = config
 	return nil
 }
 
@@ -566,12 +568,20 @@ func (d *driver) getNetworks() []*bridgeNetwork {
 
 // Create a new network using bridge plugin
 func (d *driver) CreateNetwork(id string, option map[string]interface{}) error {
-	var err error
+	var (
+		err          error
+		configLocked bool
+	)
 
 	defer osl.InitOSContext()()
 
 	// Sanity checks
 	d.Lock()
+	if !d.configured {
+		configLocked = true
+		d.configured = true
+	}
+
 	if _, ok := d.networks[id]; ok {
 		d.Unlock()
 		return types.ForbiddenErrorf("network %s exists", id)
@@ -610,6 +620,10 @@ func (d *driver) CreateNetwork(id string, option map[string]interface{}) error {
 	defer func() {
 		if err != nil {
 			d.Lock()
+			if configLocked {
+				d.configured = false
+			}
+
 			delete(d.networks, id)
 			d.Unlock()
 		}
@@ -651,7 +665,7 @@ func (d *driver) CreateNetwork(id string, option map[string]interface{}) error {
 	bridgeSetup.queueStep(setupBridgeIPv4)
 
 	enableIPv6Forwarding := false
-	if d.config != nil && d.config.EnableIPForwarding && config.FixedCIDRv6 != nil {
+	if d.config.EnableIPForwarding && config.FixedCIDRv6 != nil {
 		enableIPv6Forwarding = true
 	}
 

@@ -68,6 +68,19 @@ func TestCreateFullOptions(t *testing.T) {
 	}
 }
 
+func TestCreateNoConfig(t *testing.T) {
+	defer osl.SetupTestOSContext(t)()
+	d := newDriver()
+
+	netconfig := &networkConfiguration{BridgeName: DefaultBridgeName}
+	genericOption := make(map[string]interface{})
+	genericOption[netlabel.GenericData] = netconfig
+
+	if err := d.CreateNetwork("dummy", genericOption); err != nil {
+		t.Fatalf("Failed to create bridge: %v", err)
+	}
+}
+
 func TestCreate(t *testing.T) {
 	defer osl.SetupTestOSContext(t)()
 	d := newDriver()
