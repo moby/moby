@@ -144,15 +144,21 @@ func (cli *DockerCli) getNotaryRepository(repoInfo *registry.RepositoryInfo, aut
 	if err != nil {
 		return nil, err
 	}
-	resp, err := pingClient.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
 
 	challengeManager := auth.NewSimpleChallengeManager()
-	if err := challengeManager.AddResponse(resp); err != nil {
-		return nil, err
+
+	resp, err := pingClient.Do(req)
+	if err != nil {
+		// Ignore error on ping to operate in offline mode
+		logrus.Debugf("Error pinging notary server %q: %s", endpointStr, err)
+	} else {
+		defer resp.Body.Close()
+
+		// Add response to the challenge manager to parse out
+		// authentication header and register authentication method
+		if err := challengeManager.AddResponse(resp); err != nil {
+			return nil, err
+		}
 	}
 
 	creds := simpleCredentialStore{auth: authConfig}
@@ -248,6 +254,8 @@ func notaryError(err error) error {
 		return fmt.Errorf("remote repository out-of-date: %v", err)
 	case trustmanager.ErrKeyNotFound:
 		return fmt.Errorf("signing keys not found: %v", err)
+	case *net.OpError:
+		return fmt.Errorf("error contacting notary server: %v", err)
 	}
 
 	return err

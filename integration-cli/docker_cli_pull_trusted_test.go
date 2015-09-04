@@ -223,3 +223,44 @@ func (s *DockerTrustSuite) TestTrustedPullWithExpiredSnapshot(c *check.C) {
 		}
 	})
 }
+
+func (s *DockerTrustSuite) TestTrustedOfflinePull(c *check.C) {
+	repoName := s.setupTrustedImage(c, "trusted-offline-pull")
+
+	pullCmd := exec.Command(dockerBinary, "pull", repoName)
+	s.trustedCmdWithServer(pullCmd, "https://invalidnotaryserver")
+	out, _, err := runCommandWithOutput(pullCmd)
+	if err == nil {
+		c.Fatalf("Expected error pulling with invalid notary server:\n%s", out)
+	}
+
+	if !strings.Contains(string(out), "error contacting notary server") {
+		c.Fatalf("Missing expected output on trusted pull:\n%s", out)
+	}
+
+	// Do valid trusted pull to warm cache
+	pullCmd = exec.Command(dockerBinary, "pull", repoName)
+	s.trustedCmd(pullCmd)
+	out, _, err = runCommandWithOutput(pullCmd)
+	if err != nil {
+		c.Fatalf("Error running trusted pull: %s\n%s", err, out)
+	}
+
+	if !strings.Contains(string(out), "Tagging") {
+		c.Fatalf("Missing expected output on trusted push:\n%s", out)
+	}
+
+	dockerCmd(c, "rmi", repoName)
+
+	// Try pull again with invalid notary server, should use cache
+	pullCmd = exec.Command(dockerBinary, "pull", repoName)
+	s.trustedCmdWithServer(pullCmd, "https://invalidnotaryserver")
+	out, _, err = runCommandWithOutput(pullCmd)
+	if err != nil {
+		c.Fatalf("Error running trusted pull: %s\n%s", err, out)
+	}
+
+	if !strings.Contains(string(out), "Tagging") {
+		c.Fatalf("Missing expected output on trusted push:\n%s", out)
+	}
+}
