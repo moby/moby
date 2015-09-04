@@ -14,14 +14,14 @@ type volumeDriverProxy struct {
 
 type volumeDriverProxyCreateRequest struct {
 	Name string
-	Opts opts
+	Opts Opts
 }
 
 type volumeDriverProxyCreateResponse struct {
 	Err string
 }
 
-func (pp *volumeDriverProxy) Create(name string, opts opts) (err error) {
+func (pp *volumeDriverProxy) Create(name string, opts Opts) (err error) {
 	var (
 		req volumeDriverProxyCreateRequest
 		ret volumeDriverProxyCreateResponse
