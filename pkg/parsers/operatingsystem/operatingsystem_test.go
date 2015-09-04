@@ -1,6 +1,7 @@
 package operatingsystem
 
 import (
+	"bytes"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -9,7 +10,8 @@ import (
 
 func TestGetOperatingSystem(t *testing.T) {
 	var (
-		backup       = etcOsRelease
+		backupEtc    = etcOsRelease
+		backupAlt    = altOsRelease
 		ubuntuTrusty = []byte(`NAME="Ubuntu"
 VERSION="14.04, Trusty Tahr"
 ID=ubuntu
@@ -35,23 +37,40 @@ VERSION_ID="14.04"
 HOME_URL="http://www.ubuntu.com/"
 SUPPORT_URL="http://help.ubuntu.com/"
 BUG_REPORT_URL="http://bugs.launchpad.net/ubuntu/"`)
+
+		noEtcOsRelease = []byte(`NAME="Ubuntu"
+VERSION="15.04 (Vivid Vervet)"
+ID=ubuntu
+ID_LIKE=debian
+PRETTY_NAME="Ubuntu 15.04"
+VERSION_ID="15.04"
+HOME_URL="http://www.ubuntu.com/"
+SUPPORT_URL="http://help.ubuntu.com/"
+BUG_REPORT_URL="http://bugs.launchpad.net/ubuntu/"`)
 	)
 
 	dir := os.TempDir()
 	etcOsRelease = filepath.Join(dir, "etcOsRelease")
+	altOsRelease = filepath.Join(dir, "altOsRelease")
 
 	defer func() {
 		os.Remove(etcOsRelease)
-		etcOsRelease = backup
+		os.Remove(altOsRelease)
+		etcOsRelease = backupEtc
+		altOsRelease = backupAlt
 	}()
 
 	for expect, osRelease := range map[string][]byte{
 		"Ubuntu 14.04 LTS": ubuntuTrusty,
 		"Gentoo/Linux":     gentoo,
 		"":                 noPrettyName,
+		"Ubuntu 15.04":     noEtcOsRelease,
 	} {
 		if err := ioutil.WriteFile(etcOsRelease, osRelease, 0600); err != nil {
 			t.Fatalf("failed to write to %s: %v", etcOsRelease, err)
+		}
+		if bytes.Compare(osRelease, noEtcOsRelease) == 0 {
+			os.Rename(etcOsRelease, altOsRelease)
 		}
 		s, err := GetOperatingSystem()
 		if s != expect {

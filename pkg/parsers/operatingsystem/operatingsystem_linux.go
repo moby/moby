@@ -14,19 +14,28 @@ var (
 
 	// file to check to determine Operating System
 	etcOsRelease = "/etc/os-release"
+
+	// used by stateless systems like Clear Linux
+	altOsRelease = "/usr/lib/os-release"
 )
 
 // GetOperatingSystem gets the name of the current operating system.
 func GetOperatingSystem() (string, error) {
-	b, err := ioutil.ReadFile(etcOsRelease)
-	if err != nil {
-		return "", err
+	var err error
+	for _, file := range []string{etcOsRelease, altOsRelease} {
+		var b []byte
+		b, err = ioutil.ReadFile(file)
+		if err != nil {
+			// try next file
+			continue
+		}
+		if i := bytes.Index(b, []byte("PRETTY_NAME")); i >= 0 {
+			b = b[i+13:]
+			return string(b[:bytes.IndexByte(b, '"')]), nil
+		}
+		return "", errors.New("PRETTY_NAME not found")
 	}
-	if i := bytes.Index(b, []byte("PRETTY_NAME")); i >= 0 {
-		b = b[i+13:]
-		return string(b[:bytes.IndexByte(b, '"')]), nil
-	}
-	return "", errors.New("PRETTY_NAME not found")
+	return "", err
 }
 
 // IsContainerized returns true if we are running inside a container.
