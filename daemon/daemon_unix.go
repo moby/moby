@@ -676,7 +676,7 @@ func setupInitLayer(initLayer string, rootUID, rootGID int) error {
 
 // registerLinks writes the links to a file.
 func (daemon *Daemon) registerLinks(container *container.Container, hostConfig *containertypes.HostConfig) error {
-	if hostConfig == nil || hostConfig.Links == nil {
+	if hostConfig == nil {
 		return nil
 	}
 
@@ -707,12 +707,7 @@ func (daemon *Daemon) registerLinks(container *container.Container, hostConfig *
 
 	// After we load all the links into the daemon
 	// set them to nil on the hostconfig
-	hostConfig.Links = nil
-	if err := container.WriteHostConfig(); err != nil {
-		return err
-	}
-
-	return nil
+	return container.WriteHostConfig()
 }
 
 // conditionalMountOnStart is a platform specific helper function during the
