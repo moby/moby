@@ -1,6 +1,6 @@
 // +build windows
 
-package builder
+package dockerfile
 
 import (
 	"io/ioutil"

@@ -1,4 +1,4 @@
-package builder
+package dockerfile
 
 import (
 	"bytes"
@@ -12,7 +12,7 @@ import (
 	"sync"
 
 	"github.com/docker/docker/api"
-	"github.com/docker/docker/builder/parser"
+	"github.com/docker/docker/builder/dockerfile/parser"
 	"github.com/docker/docker/cliconfig"
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/graph/tags"

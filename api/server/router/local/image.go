@@ -12,7 +12,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/builder"
+	"github.com/docker/docker/builder/dockerfile"
 	"github.com/docker/docker/cliconfig"
 	"github.com/docker/docker/graph"
 	"github.com/docker/docker/pkg/ioutils"
@@ -46,7 +46,7 @@ func (s *router) postCommit(ctx context.Context, w http.ResponseWriter, r *http.
 		return err
 	}
 
-	commitCfg := &builder.CommitConfig{
+	commitCfg := &dockerfile.CommitConfig{
 		Pause:   pause,
 		Repo:    r.Form.Get("repo"),
 		Tag:     r.Form.Get("tag"),
@@ -56,7 +56,7 @@ func (s *router) postCommit(ctx context.Context, w http.ResponseWriter, r *http.
 		Config:  c,
 	}
 
-	imgID, err := builder.Commit(cname, s.daemon, commitCfg)
+	imgID, err := dockerfile.Commit(cname, s.daemon, commitCfg)
 	if err != nil {
 		return err
 	}
@@ -125,7 +125,7 @@ func (s *router) postImagesCreate(ctx context.Context, w http.ResponseWriter, r 
 		// generated from the download to be available to the output
 		// stream processing below
 		var newConfig *runconfig.Config
-		newConfig, err = builder.BuildFromConfig(s.daemon, &runconfig.Config{}, r.Form["changes"])
+		newConfig, err = dockerfile.BuildFromConfig(s.daemon, &runconfig.Config{}, r.Form["changes"])
 		if err != nil {
 			return err
 		}
@@ -269,7 +269,7 @@ func (s *router) postBuild(ctx context.Context, w http.ResponseWriter, r *http.R
 	var (
 		authConfigs        = map[string]cliconfig.AuthConfig{}
 		authConfigsEncoded = r.Header.Get("X-Registry-Config")
-		buildConfig        = builder.NewBuildConfig()
+		buildConfig        = dockerfile.NewBuildConfig()
 	)
 
 	if authConfigsEncoded != "" {
@@ -347,7 +347,7 @@ func (s *router) postBuild(ctx context.Context, w http.ResponseWriter, r *http.R
 		}()
 	}
 
-	if err := builder.Build(s.daemon, buildConfig); err != nil {
+	if err := dockerfile.Build(s.daemon, buildConfig); err != nil {
 		// Do not write the error in the http output if it's still empty.
 		// This prevents from writing a 200(OK) when there is an interal error.
 		if !output.Flushed() {

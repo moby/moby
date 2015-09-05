@@ -1,4 +1,4 @@
-package builder
+package dockerfile
 
 // This will take a single word and an array of env variables and
 // process all quotes (" and ') as well as $xxx and ${xxx} env variable
