@@ -1,4 +1,4 @@
-package builder
+package dockerfile
 
 import (
 	"bytes"

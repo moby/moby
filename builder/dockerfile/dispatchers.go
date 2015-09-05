@@ -1,4 +1,4 @@
-package builder
+package dockerfile
 
 // This file contains the dispatchers for each command. Note that
 // `nullDispatch` is not actually a command, but support for commands we parse

@@ -18,7 +18,7 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/docker/docker/builder/command"
+	"github.com/docker/docker/builder/dockerfile/command"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/stringutils"
 	"github.com/go-check/check"

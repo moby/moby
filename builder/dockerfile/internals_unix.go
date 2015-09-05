@@ -1,6 +1,6 @@
 // +build freebsd linux
 
-package builder
+package dockerfile
 
 import (
 	"io/ioutil"
