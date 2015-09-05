@@ -252,9 +252,8 @@ func (h *Handle) set(ordinal uint32, any bool, release bool) (uint32, error) {
 			return ret, err
 		}
 
-		// Create a private copy of h and work on it, also copy the current db index
+		// Create a private copy of h and work on it
 		nh := h.getCopy()
-		ci := h.dbIndex
 		h.Unlock()
 
 		nh.head = pushReservation(bytePos, bitPos, nh.head, release)
@@ -273,12 +272,9 @@ func (h *Handle) set(ordinal uint32, any bool, release bool) (uint32, error) {
 			continue
 		}
 
-		// Unless unexpected error, save private copy to local copy
+		// Previous atomic push was succesfull. Save private copy to local copy
 		h.Lock()
 		defer h.Unlock()
-		if h.dbIndex != ci {
-			return ret, fmt.Errorf("unexected database index change")
-		}
 		h.unselected = nh.unselected
 		h.head = nh.head
 		h.dbExists = nh.dbExists
