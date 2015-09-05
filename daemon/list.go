@@ -381,7 +381,7 @@ func (daemon *Daemon) Volumes(filter string) ([]*types.Volume, error) {
 
 	volumes := daemon.volumes.List()
 	for _, v := range volumes {
-		if filterUsed && daemon.volumes.Count(v) == 0 {
+		if filterUsed && daemon.volumes.Count(v) > 0 {
 			continue
 		}
 		volumesOut = append(volumesOut, volumeToAPIType(v))
