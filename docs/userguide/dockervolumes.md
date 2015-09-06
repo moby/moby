@@ -105,6 +105,19 @@ image, the `/src/webapp` mount overlays but does not remove the pre-existing
 content. Once the mount is removed, the content is accessible again. This is
 consistent with the expected behavior of the `mount` command.
 
+The `container-dir` must always be an absolute path such as `/src/docs`. 
+The `host-dir` can either be an absolute path or a `name` value. If you 
+supply an absolute path for the `host-dir`, Docker bind-mounts to the path 
+you specify. If you supply a `name`, Docker creates a named volume by that `name`.
+
+A `name` value must start with start with an alphanumeric character, 
+followed by `a-z0-9`, `_` (underscore), `.` (period) or `-` (hyphen). 
+An absolute path starts with a `/` (forward slash).
+
+For example, you can specify either `/foo` or `foo` for a `host-dir` value. 
+If you supply the `/foo` value, Docker creates a bind-mount. If you supply 
+the `foo` specification, Docker creates a named volume.
+
 If you are using Docker Machine on Mac or Windows, your Docker daemon has only limited access to your OS X or Windows filesystem. Docker Machine tries
 to auto-share your `/Users` (OS X) or `C:\Users` (Windows) directory.  So,
 you can mount files or directories on OS X using.
