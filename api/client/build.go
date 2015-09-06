@@ -12,7 +12,6 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
-	"path"
 	"path/filepath"
 	"regexp"
 	"runtime"
@@ -131,11 +130,17 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 		return fmt.Errorf("cannot canonicalize dockerfile path %s: %v", relDockerfile, err)
 	}
 
-	var includes = []string{"."}
-
-	excludes, err := utils.ReadDockerIgnore(path.Join(contextDir, ".dockerignore"))
-	if err != nil {
+	f, err := os.Open(filepath.Join(contextDir, ".dockerignore"))
+	if err != nil && !os.IsNotExist(err) {
 		return err
+	}
+
+	var excludes []string
+	if err == nil {
+		excludes, err = utils.ReadDockerIgnore(f)
+		if err != nil {
+			return err
+		}
 	}
 
 	if err := utils.ValidateContextDirectory(contextDir, excludes); err != nil {
@@ -149,6 +154,7 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	// removed.  The deamon will remove them for us, if needed, after it
 	// parses the Dockerfile. Ignore errors here, as they will have been
 	// caught by ValidateContextDirectory above.
+	var includes = []string{"."}
 	keepThem1, _ := fileutils.Matches(".dockerignore", excludes)
 	keepThem2, _ := fileutils.Matches(relDockerfile, excludes)
 	if keepThem1 || keepThem2 {
