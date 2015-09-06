@@ -86,7 +86,7 @@ and choosing "Open" from the pop-up menu.
   
     * installs binaries for the Docker tools in `/usr/local/bin` 
     * makes these binaries available to all users 
-    * updates any existing VirtualBox installation 
+    * installs VirtualBox; or updates any existing installation
   
     Change these defaults by pressing "Customize" or "Change
     Install Location."  
@@ -125,12 +125,12 @@ There are two ways to use the installed tools, from the Docker Quickstart Termin
 
 1. Open the "Applications" folder or the "Launchpad".
 
-2. Find the Docker Quickstart Terminal  and double-click to launch it.
+2. Find the Docker Quickstart Terminal and double-click to launch it.
 
     The application:
 
     * opens a terminal window
-    * creates a VM called `default` if it doesn't exists, starts the VM if it does
+    * creates a `default` VM if it doesn't exists, and starts the VM after
     * points the terminal environment to this VM
 
     Once the launch completes, the Docker Quickstart Terminal reports:
@@ -185,7 +185,7 @@ different shell such as C Shell but the commands are the same.
         Starting VM...
         To see how to connect Docker to this machine, run: docker-machine env default
 
-    This creates a new `default` in VirtualBox.
+    This creates a new `default` VM in VirtualBox.
     
     ![default](/installation/images/default.png)
 
@@ -202,7 +202,7 @@ different shell such as C Shell but the commands are the same.
         
     If you have previously installed the deprecated Boot2Docker application or
     run the Docker Quickstart Terminal, you may have a `dev` VM as well.  When you
-    created `default`, the `docker-machine` command provided instructions
+    created `default` VM, the `docker-machine` command provided instructions
     for learning how to connect the VM.
 
 3. Get the environment commands for your new VM.
@@ -227,13 +227,13 @@ different shell such as C Shell but the commands are the same.
 ## Learn about your Toolbox installation
 
 Toolbox installs the Docker Engine binary, the Docker binary on your system. When you
-use the Docker Quickstart Terminal or create a `default` manually, Docker
+use the Docker Quickstart Terminal or create a `default` VM manually, Docker
 Machine updates the `~/.docker/machine/machines/default` folder to your
 system. This folder contains the configuration for the VM.
 
-You can create multiple VMs on your system with Docker Machine. So, you may have
-more than one VM folder if you have more than one VM. To remove a VM, use the
-`docker-machine rm <machine-name>` command.
+You can create multiple VMs on your system with Docker Machine. Therefore, you
+may end up with multiple VM folders if you have more than one VM. To remove a
+VM, use the `docker-machine rm <machine-name>` command.
 
 ## Migrate from Boot2Docker
 

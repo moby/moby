@@ -188,6 +188,8 @@ func (pm *PortMapper) Unmap(host net.Addr) error {
 
 //ReMapAll will re-apply all port mappings
 func (pm *PortMapper) ReMapAll() {
+	pm.lock.Lock()
+	defer pm.lock.Unlock()
 	logrus.Debugln("Re-applying all port mappings.")
 	for _, data := range pm.currentMappings {
 		containerIP, containerPort := getIPAndPort(data.container)

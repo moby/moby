@@ -8,6 +8,8 @@ import (
 	"github.com/Sirupsen/logrus"
 )
 
+// LayerExists will return true if a layer with the given id exists and is known
+// to the system.
 func LayerExists(info DriverInfo, id string) (bool, error) {
 	title := "hcsshim::LayerExists "
 	logrus.Debugf(title+"Flavour %s ID %s", info.Flavour, id)

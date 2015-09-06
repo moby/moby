@@ -5,6 +5,7 @@ description = "API Documentation for the Docker Hub API"
 keywords = ["API, Docker, index, REST, documentation, Docker Hub,  registry"]
 [menu.main]
 parent = "smn_remoteapi"
+weight = 99
 +++
 <![end-metadata]-->
 

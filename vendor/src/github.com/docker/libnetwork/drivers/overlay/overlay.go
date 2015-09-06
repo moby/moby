@@ -11,7 +11,6 @@ import (
 	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/idm"
 	"github.com/docker/libnetwork/netlabel"
-	"github.com/docker/libnetwork/types"
 	"github.com/hashicorp/serf/serf"
 )
 
@@ -77,7 +76,7 @@ func Init(dc driverapi.DriverCallback) error {
 	return dc.RegisterDriver(networkType, &driver{
 		networks: networkTable{},
 		peerDb: peerNetworkMap{
-			mp: map[types.UUID]peerMap{},
+			mp: map[string]peerMap{},
 		},
 	}, c)
 }

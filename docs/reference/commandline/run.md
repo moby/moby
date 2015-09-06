@@ -60,7 +60,7 @@ weight=1
       --port-range=[]               Range of host ports to use for dynamic allocation
       --privileged=false            Give extended privileges to this container
       --read-only=false             Mount the container's root filesystem as read only
-      --restart="no"                Restart policy (no, on-failure[:max-retry], always)
+      --restart="no"                Restart policy (no, on-failure[:max-retry], always, unless-stopped)
       --rm=false                    Automatically remove the container when it exits
       --security-opt=[]             Security Options
       --sig-proxy=true              Proxy received signals to the process
@@ -442,7 +442,16 @@ Docker supports the following restart policies:
       <td>
         Always restart the container regardless of the exit status.
         When you specify always, the Docker daemon will try to restart
-        the container indefinitely.
+        the container indefinitely. The container will also always start
+        on daemon startup, regardless of the current state of the container.
+      </td>
+    </tr>
+    <tr>
+      <td><strong>unless-stopped</strong></td>
+      <td>
+        Always restart the container regardless of the exit status, but
+        do not start it on daemon startup if the container has been put
+        to a stopped state before.
       </td>
     </tr>
   </tbody>

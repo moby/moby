@@ -6,6 +6,7 @@ package btrfs
 #include <stdlib.h>
 #include <dirent.h>
 #include <btrfs/ioctl.h>
+#include <btrfs/ctree.h>
 */
 import "C"
 
@@ -13,6 +14,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"path/filepath"
 	"syscall"
 	"unsafe"
 
@@ -160,22 +162,55 @@ func subvolSnapshot(src, dest, name string) error {
 	return nil
 }
 
-func subvolDelete(path, name string) error {
-	dir, err := openDir(path)
+func isSubvolume(p string) (bool, error) {
+	var bufStat syscall.Stat_t
+	if err := syscall.Lstat(p, &bufStat); err != nil {
+		return false, err
+	}
+
+	// return true if it is a btrfs subvolume
+	return bufStat.Ino == C.BTRFS_FIRST_FREE_OBJECTID, nil
+}
+
+func subvolDelete(dirpath, name string) error {
+	dir, err := openDir(dirpath)
 	if err != nil {
 		return err
 	}
 	defer closeDir(dir)
 
 	var args C.struct_btrfs_ioctl_vol_args
+
+	// walk the btrfs subvolumes
+	walkSubvolumes := func(p string, f os.FileInfo, err error) error {
+		// we want to check children only so skip itself
+		// it will be removed after the filepath walk anyways
+		if f.IsDir() && p != path.Join(dirpath, name) {
+			sv, err := isSubvolume(p)
+			if err != nil {
+				return fmt.Errorf("Failed to test if %s is a btrfs subvolume: %v", p, err)
+			}
+			if sv {
+				if err := subvolDelete(p, f.Name()); err != nil {
+					return fmt.Errorf("Failed to destroy btrfs child subvolume (%s) of parent (%s): %v", p, dirpath, err)
+				}
+			}
+		}
+		return nil
+	}
+	if err := filepath.Walk(path.Join(dirpath, name), walkSubvolumes); err != nil {
+		return fmt.Errorf("Recursively walking subvolumes for %s failed: %v", dirpath, err)
+	}
+
+	// all subvolumes have been removed
+	// now remove the one originally passed in
 	for i, c := range []byte(name) {
 		args.name[i] = C.char(c)
 	}
-
 	_, _, errno := syscall.Syscall(syscall.SYS_IOCTL, getDirFd(dir), C.BTRFS_IOC_SNAP_DESTROY,
 		uintptr(unsafe.Pointer(&args)))
 	if errno != 0 {
-		return fmt.Errorf("Failed to destroy btrfs snapshot: %v", errno.Error())
+		return fmt.Errorf("Failed to destroy btrfs snapshot %s for %s: %v", dirpath, name, errno.Error())
 	}
 	return nil
 }

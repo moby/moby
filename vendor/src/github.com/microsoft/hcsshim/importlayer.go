@@ -8,6 +8,10 @@ import (
 	"github.com/Sirupsen/logrus"
 )
 
+// ImportLayer will take the contents of the folder at importFolderPath and import
+// that into a layer with the id layerId.  Note that in order to correctly populate
+// the layer and interperet the transport format, all parent layers must already
+// be present on the system at the paths provided in parentLayerPaths.
 func ImportLayer(info DriverInfo, layerId string, importFolderPath string, parentLayerPaths []string) error {
 	title := "hcsshim::ImportLayer "
 	logrus.Debugf(title+"flavour %d layerId %s folder %s", info.Flavour, layerId, importFolderPath)

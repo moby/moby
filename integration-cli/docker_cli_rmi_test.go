@@ -9,6 +9,7 @@ import (
 )
 
 func (s *DockerSuite) TestRmiWithContainerFails(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	errSubstr := "is using it"
 
 	// create a container
@@ -36,6 +37,7 @@ func (s *DockerSuite) TestRmiWithContainerFails(c *check.C) {
 }
 
 func (s *DockerSuite) TestRmiTag(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	imagesBefore, _ := dockerCmd(c, "images", "-a")
 	dockerCmd(c, "tag", "busybox", "utest:tag1")
 	dockerCmd(c, "tag", "busybox", "utest/docker:tag2")
@@ -73,6 +75,7 @@ func (s *DockerSuite) TestRmiTag(c *check.C) {
 }
 
 func (s *DockerSuite) TestRmiImgIDMultipleTag(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	out, _, err := dockerCmdWithError("run", "-d", "busybox", "/bin/sh", "-c", "mkdir '/busybox-one'")
 	if err != nil {
 		c.Fatalf("failed to create a container:%s, %v", out, err)
@@ -106,7 +109,7 @@ func (s *DockerSuite) TestRmiImgIDMultipleTag(c *check.C) {
 
 	// first checkout without force it fails
 	out, _, err = dockerCmdWithError("rmi", imgID)
-	expected := fmt.Sprintf("Conflict, cannot delete %s because the running container %s is using it, stop it and use -f to force", imgID[:12], containerID[:12])
+	expected := fmt.Sprintf("conflict: unable to delete %s (cannot be forced) - image is being used by running container %s", imgID[:12], containerID[:12])
 	if err == nil || !strings.Contains(out, expected) {
 		c.Fatalf("rmi tagged in multiple repos should have failed without force: %s, %v, expected: %s", out, err, expected)
 	}
@@ -121,6 +124,7 @@ func (s *DockerSuite) TestRmiImgIDMultipleTag(c *check.C) {
 }
 
 func (s *DockerSuite) TestRmiImgIDForce(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	out, _, err := dockerCmdWithError("run", "-d", "busybox", "/bin/sh", "-c", "mkdir '/busybox-test'")
 	if err != nil {
 		c.Fatalf("failed to create a container:%s, %v", out, err)
@@ -148,7 +152,7 @@ func (s *DockerSuite) TestRmiImgIDForce(c *check.C) {
 
 	// first checkout without force it fails
 	out, _, err = dockerCmdWithError("rmi", imgID)
-	if err == nil || !strings.Contains(out, fmt.Sprintf("Conflict, cannot delete image %s because it is tagged in multiple repositories, use -f to force", imgID)) {
+	if err == nil || !strings.Contains(out, "(must be forced) - image is referenced in one or more repositories") {
 		c.Fatalf("rmi tagged in multiple repos should have failed without force:%s, %v", out, err)
 	}
 
@@ -163,6 +167,7 @@ func (s *DockerSuite) TestRmiImgIDForce(c *check.C) {
 
 // See https://github.com/docker/docker/issues/14116
 func (s *DockerSuite) TestRmiImageIDForceWithRunningContainersAndMultipleTags(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	dockerfile := "FROM busybox\nRUN echo test 14116\n"
 	imgID, err := buildImage("test-14116", dockerfile, false)
 	c.Assert(err, check.IsNil)
@@ -172,13 +177,14 @@ func (s *DockerSuite) TestRmiImageIDForceWithRunningContainersAndMultipleTags(c 
 	dockerCmd(c, "run", "-d", imgID, "top")
 
 	out, _, err := dockerCmdWithError("rmi", "-f", imgID)
-	if err == nil || !strings.Contains(out, "stop it and retry") {
+	if err == nil || !strings.Contains(out, "(cannot be forced) - image is being used by running container") {
 		c.Log(out)
 		c.Fatalf("rmi -f should not delete image with running containers")
 	}
 }
 
 func (s *DockerSuite) TestRmiTagWithExistingContainers(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	container := "test-delete-tag"
 	newtag := "busybox:newtag"
 	bb := "busybox:latest"
@@ -198,6 +204,7 @@ func (s *DockerSuite) TestRmiTagWithExistingContainers(c *check.C) {
 }
 
 func (s *DockerSuite) TestRmiForceWithExistingContainers(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	image := "busybox-clone"
 
 	cmd := exec.Command(dockerBinary, "build", "--no-cache", "-t", image, "-")
@@ -218,6 +225,7 @@ MAINTAINER foo`)
 }
 
 func (s *DockerSuite) TestRmiWithMultipleRepositories(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	newRepo := "127.0.0.1:5000/busybox"
 	oldRepo := "busybox"
 	newTag := "busybox:test"
@@ -246,15 +254,16 @@ func (s *DockerSuite) TestRmiWithMultipleRepositories(c *check.C) {
 }
 
 func (s *DockerSuite) TestRmiBlank(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	// try to delete a blank image name
 	out, _, err := dockerCmdWithError("rmi", "")
 	if err == nil {
 		c.Fatal("Should have failed to delete '' image")
 	}
-	if strings.Contains(out, "No such image") {
+	if strings.Contains(out, "no such id") {
 		c.Fatalf("Wrong error message generated: %s", out)
 	}
-	if !strings.Contains(out, "Image name can not be blank") {
+	if !strings.Contains(out, "image name cannot be blank") {
 		c.Fatalf("Expected error message not generated: %s", out)
 	}
 
@@ -262,12 +271,13 @@ func (s *DockerSuite) TestRmiBlank(c *check.C) {
 	if err == nil {
 		c.Fatal("Should have failed to delete '' image")
 	}
-	if !strings.Contains(out, "No such image") {
+	if !strings.Contains(out, "no such id") {
 		c.Fatalf("Expected error message not generated: %s", out)
 	}
 }
 
 func (s *DockerSuite) TestRmiContainerImageNotFound(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	// Build 2 images for testing.
 	imageNames := []string{"test1", "test2"}
 	imageIds := make([]string, 2)
@@ -287,8 +297,60 @@ func (s *DockerSuite) TestRmiContainerImageNotFound(c *check.C) {
 
 	// Try to remove the image of the running container and see if it fails as expected.
 	out, _, err := dockerCmdWithError("rmi", "-f", imageIds[0])
-	if err == nil || !strings.Contains(out, "is using it") {
+	if err == nil || !strings.Contains(out, "image is being used by running container") {
 		c.Log(out)
 		c.Fatal("The image of the running container should not be removed.")
+	}
+}
+
+// #13422
+func (s *DockerSuite) TestRmiUntagHistoryLayer(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+	image := "tmp1"
+	// Build a image for testing.
+	dockerfile := `FROM busybox
+MAINTAINER foo
+RUN echo 0 #layer0
+RUN echo 1 #layer1
+RUN echo 2 #layer2
+`
+	_, err := buildImage(image, dockerfile, false)
+	c.Assert(err, check.IsNil)
+
+	out, _ := dockerCmd(c, "history", "-q", image)
+	ids := strings.Split(out, "\n")
+	idToTag := ids[2]
+
+	// Tag layer0 to "tmp2".
+	newTag := "tmp2"
+	dockerCmd(c, "tag", idToTag, newTag)
+	// Create a container based on "tmp1".
+	dockerCmd(c, "run", "-d", image, "true")
+
+	// See if the "tmp2" can be untagged.
+	out, _ = dockerCmd(c, "rmi", newTag)
+	if d := strings.Count(out, "Untagged: "); d != 1 {
+		c.Log(out)
+		c.Fatalf("Expected 1 untagged entry got %d: %q", d, out)
+	}
+
+	// Now let's add the tag again and create a container based on it.
+	dockerCmd(c, "tag", idToTag, newTag)
+	out, _ = dockerCmd(c, "run", "-d", newTag, "true")
+	cid := strings.TrimSpace(out)
+
+	// At this point we have 2 containers, one based on layer2 and another based on layer0.
+	// Try to untag "tmp2" without the -f flag.
+	out, _, err = dockerCmdWithError("rmi", newTag)
+	if err == nil || !strings.Contains(out, cid[:12]) || !strings.Contains(out, "(must force)") {
+		c.Log(out)
+		c.Fatalf("%q should not be untagged without the -f flag", newTag)
+	}
+
+	// Add the -f flag and test again.
+	out, _ = dockerCmd(c, "rmi", "-f", newTag)
+	if !strings.Contains(out, fmt.Sprintf("Untagged: %s:latest", newTag)) {
+		c.Log(out)
+		c.Fatalf("%q should be allowed to untag with the -f flag", newTag)
 	}
 }

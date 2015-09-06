@@ -106,14 +106,10 @@ func (s *TagStore) recursiveLoad(address, tmpImageDir string) error {
 		}
 
 		// ensure no two downloads of the same layer happen at the same time
-		if c, err := s.poolAdd("pull", "layer:"+img.ID); err != nil {
-			if c != nil {
-				logrus.Debugf("Image (id: %s) load is already running, waiting: %v", img.ID, err)
-				<-c
-				return nil
-			}
-
-			return err
+		if ps, found := s.poolAdd("pull", "layer:"+img.ID); found {
+			logrus.Debugf("Image (id: %s) load is already running, waiting", img.ID)
+			ps.Wait()
+			return nil
 		}
 
 		defer s.poolRemove("pull", "layer:"+img.ID)

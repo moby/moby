@@ -1,29 +1,23 @@
 <!--[metadata]>
 +++
-title = "Install on Joyent Public Cloud"
-description = "Installation instructions for Docker on the Joyent Compute Service."
-keywords = ["Docker, Docker documentation, installation, joyent, Joyent Public Cloud, Joyent Compute Service,  Joyent Container Service"]
+title = "Joyent Triton Elastic Container Service"
+description = "Installation instructions for Docker on the Joyent's Triton Elastic Container Service."
+keywords = ["Docker, Docker documentation, installation, joyent, Triton, Joyent Public Cloud, Joyent Compute Service, Joyent Container Service"]
 [menu.main]
 parent = "smn_cloud"
 +++
 <![end-metadata]-->
 
-## Install on Joyent Public Cloud
+## Using Joyent's Triton Elastic Container Service for Docker
 
-1. Sign in to the [Joyent customer portal](https://my.joyent.com/)
+Joyent's Triton Elastic Container Service for Docker uses the native Docker API
+and allows you to securely provision containers on bare metal.  For detailed
+instructions on using Joyent with Docker, see [Deploying Couchbase clusters the
+easy way with Triton and
+Docker](https://www.joyent.com/blog/couchbase-in-docker-containers) from Joyent.
 
-2. [Create a Docker host](https://docs.joyent.com/jpc/managing-docker-containers/creating-a-docker-host).
+Joyent provides a `sdc-docker-setup.sh` script that makes it easy to use Docker
+with Joyent. The [Docker API guide for
+Triton](https://apidocs.joyent.com/docker) has details on using this script.
 
-## Start and manage containers
-
-1. [Start containers in the web UI](https://docs.joyent.com/jpc/managing-docker-containers/starting-a-container)
-
-2. [Configure the Docker CLI on your laptop](https://docs.joyent.com/jpc/managing-docker-containers/access-your-jpc-docker-hosts-from-the-docker-cli) to connect to the remote host to launch and manage containers.
-
-3. SSH into the Docker host.
-
-4. Launch containers using the Docker CLI.
-
-## Where to go next
-
-Continue with the [Docker user guide](/userguide/), read Joyent's [getting started blog post](https://www.joyent.com/blog/first-steps-with-joyents-container-service), and [full documentation](https://docs.joyent.com/jpc/managing-docker-containers).
+Once you are up and running with Joyent, continue with the [Docker user guide](/userguide/). 

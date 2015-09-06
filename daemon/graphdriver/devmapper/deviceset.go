@@ -768,7 +768,7 @@ func (devices *DeviceSet) setupBaseImage() error {
 		}
 
 		if err := devices.verifyBaseDeviceUUID(oldInfo); err != nil {
-			return fmt.Errorf("Base Device UUID verification failed. Possibly using a different thin pool then last invocation:%v", err)
+			return fmt.Errorf("Base Device UUID verification failed. Possibly using a different thin pool than last invocation:%v", err)
 		}
 		return nil
 	}
@@ -1394,6 +1394,12 @@ func (devices *DeviceSet) initDevmapper(doInit bool) error {
 	if !createdLoopback {
 		if err := devices.initMetaData(); err != nil {
 			return err
+		}
+	}
+
+	if devices.thinPoolDevice == "" {
+		if devices.metadataLoopFile != "" || devices.dataLoopFile != "" {
+			logrus.Warnf("Usage of loopback devices is strongly discouraged for production use. Please use `--storage-opt dm.thinpooldev` or use `man docker` to refer to dm.thinpooldev section.")
 		}
 	}
 

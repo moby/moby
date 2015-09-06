@@ -18,6 +18,7 @@ import (
 
 // Make sure we can create a simple container with some args
 func (s *DockerSuite) TestCreateArgs(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "create", "busybox", "command", "arg1", "arg2", "arg with space")
 
 	cleanedContainerID := strings.TrimSpace(out)
@@ -59,7 +60,7 @@ func (s *DockerSuite) TestCreateArgs(c *check.C) {
 
 // Make sure we can set hostconfig options too
 func (s *DockerSuite) TestCreateHostConfig(c *check.C) {
-
+	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "create", "-P", "busybox", "echo")
 
 	cleanedContainerID := strings.TrimSpace(out)
@@ -90,7 +91,7 @@ func (s *DockerSuite) TestCreateHostConfig(c *check.C) {
 }
 
 func (s *DockerSuite) TestCreateWithPortRange(c *check.C) {
-
+	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "create", "-p", "3300-3303:3300-3303/tcp", "busybox", "echo")
 
 	cleanedContainerID := strings.TrimSpace(out)
@@ -129,7 +130,7 @@ func (s *DockerSuite) TestCreateWithPortRange(c *check.C) {
 }
 
 func (s *DockerSuite) TestCreateWithiLargePortRange(c *check.C) {
-
+	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "create", "-p", "1-65535:1-65535/tcp", "busybox", "echo")
 
 	cleanedContainerID := strings.TrimSpace(out)
@@ -169,6 +170,7 @@ func (s *DockerSuite) TestCreateWithiLargePortRange(c *check.C) {
 
 // "test123" should be printed by docker create + start
 func (s *DockerSuite) TestCreateEchoStdout(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 
 	out, _ := dockerCmd(c, "create", "busybox", "echo", "test123")
 
@@ -183,6 +185,7 @@ func (s *DockerSuite) TestCreateEchoStdout(c *check.C) {
 }
 
 func (s *DockerSuite) TestCreateVolumesCreated(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	testRequires(c, SameHostDaemon)
 
 	name := "test_create_volume"
@@ -203,6 +206,7 @@ func (s *DockerSuite) TestCreateVolumesCreated(c *check.C) {
 }
 
 func (s *DockerSuite) TestCreateLabels(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	name := "test_create_labels"
 	expected := map[string]string{"k1": "v1", "k2": "v2"}
 	dockerCmd(c, "create", "--name", name, "-l", "k1=v1", "--label", "k2=v2", "busybox")
@@ -219,6 +223,7 @@ func (s *DockerSuite) TestCreateLabels(c *check.C) {
 }
 
 func (s *DockerSuite) TestCreateLabelFromImage(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	imageName := "testcreatebuildlabel"
 	_, err := buildImage(imageName,
 		`FROM busybox
@@ -244,6 +249,7 @@ func (s *DockerSuite) TestCreateLabelFromImage(c *check.C) {
 }
 
 func (s *DockerSuite) TestCreateHostnameWithNumber(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-h", "web.0", "busybox", "hostname")
 	if strings.TrimSpace(out) != "web.0" {
 		c.Fatalf("hostname not set, expected `web.0`, got: %s", out)
@@ -251,6 +257,7 @@ func (s *DockerSuite) TestCreateHostnameWithNumber(c *check.C) {
 }
 
 func (s *DockerSuite) TestCreateRM(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	// Test to make sure we can 'rm' a new container that is in
 	// "Created" state, and has ever been run. Test "rm -f" too.
 
@@ -268,6 +275,7 @@ func (s *DockerSuite) TestCreateRM(c *check.C) {
 }
 
 func (s *DockerSuite) TestCreateModeIpcContainer(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	testRequires(c, SameHostDaemon)
 
 	out, _ := dockerCmd(c, "create", "busybox")

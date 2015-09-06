@@ -2,8 +2,8 @@ package graph
 
 import (
 	"fmt"
+	"io"
 	"io/ioutil"
-	"os"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution"
@@ -57,8 +57,8 @@ func (p *v2Pusher) getImageTags(askedTag string) ([]string, error) {
 
 func (p *v2Pusher) pushV2Repository(tag string) error {
 	localName := p.repoInfo.LocalName
-	if _, err := p.poolAdd("push", localName); err != nil {
-		return err
+	if _, found := p.poolAdd("push", localName); found {
+		return fmt.Errorf("push or pull %s is already in progress", localName)
 	}
 	defer p.poolRemove("push", localName)
 
@@ -138,7 +138,7 @@ func (p *v2Pusher) pushV2Tag(tag string) error {
 		dgst, err := p.graph.GetDigest(layer.ID)
 		switch err {
 		case nil:
-			_, err := p.repo.Blobs(nil).Stat(nil, dgst)
+			_, err := p.repo.Blobs(context.Background()).Stat(context.Background(), dgst)
 			switch err {
 			case nil:
 				exists = true
@@ -158,7 +158,7 @@ func (p *v2Pusher) pushV2Tag(tag string) error {
 		// if digest was empty or not saved, or if blob does not exist on the remote repository,
 		// then fetch it.
 		if !exists {
-			if pushDigest, err := p.pushV2Image(p.repo.Blobs(nil), layer); err != nil {
+			if pushDigest, err := p.pushV2Image(p.repo.Blobs(context.Background()), layer); err != nil {
 				return err
 			} else if pushDigest != dgst {
 				// Cache new checksum
@@ -199,7 +199,7 @@ func (p *v2Pusher) pushV2Tag(tag string) error {
 func (p *v2Pusher) pushV2Image(bs distribution.BlobService, img *image.Image) (digest.Digest, error) {
 	out := p.config.OutStream
 
-	out.Write(p.sf.FormatProgress(stringid.TruncateID(img.ID), "Buffering to Disk", nil))
+	out.Write(p.sf.FormatProgress(stringid.TruncateID(img.ID), "Preparing", nil))
 
 	image, err := p.graph.Get(img.ID)
 	if err != nil {
@@ -209,52 +209,46 @@ func (p *v2Pusher) pushV2Image(bs distribution.BlobService, img *image.Image) (d
 	if err != nil {
 		return "", err
 	}
-
-	tf, err := p.graph.newTempFile()
-	if err != nil {
-		return "", err
-	}
-	defer func() {
-		tf.Close()
-		os.Remove(tf.Name())
-	}()
-
-	size, dgst, err := bufferToFile(tf, arch)
-	if err != nil {
-		return "", err
-	}
+	defer arch.Close()
 
 	// Send the layer
-	logrus.Debugf("rendered layer for %s of [%d] size", img.ID, size)
-	layerUpload, err := bs.Create(nil)
+	layerUpload, err := bs.Create(context.Background())
 	if err != nil {
 		return "", err
 	}
 	defer layerUpload.Close()
 
+	digester := digest.Canonical.New()
+	tee := io.TeeReader(arch, digester.Hash())
+
 	reader := progressreader.New(progressreader.Config{
-		In:        ioutil.NopCloser(tf),
+		In:        ioutil.NopCloser(tee), // we'll take care of close here.
 		Out:       out,
 		Formatter: p.sf,
-		Size:      size,
-		NewLines:  false,
-		ID:        stringid.TruncateID(img.ID),
-		Action:    "Pushing",
+
+		// TODO(stevvooe): This may cause a size reporting error. Try to get
+		// this from tar-split or elsewhere. The main issue here is that we
+		// don't want to buffer to disk *just* to calculate the size.
+		Size: img.Size,
+
+		NewLines: false,
+		ID:       stringid.TruncateID(img.ID),
+		Action:   "Pushing",
 	})
-	n, err := layerUpload.ReadFrom(reader)
+
+	out.Write(p.sf.FormatProgress(stringid.TruncateID(img.ID), "Pushing", nil))
+	nn, err := io.Copy(layerUpload, reader)
 	if err != nil {
 		return "", err
 	}
-	if n != size {
-		return "", fmt.Errorf("short upload: only wrote %d of %d", n, size)
-	}
 
-	desc := distribution.Descriptor{Digest: dgst}
-	if _, err := layerUpload.Commit(nil, desc); err != nil {
+	dgst := digester.Digest()
+	if _, err := layerUpload.Commit(context.Background(), distribution.Descriptor{Digest: dgst}); err != nil {
 		return "", err
 	}
 
-	out.Write(p.sf.FormatProgress(stringid.TruncateID(img.ID), "Image successfully pushed", nil))
+	logrus.Debugf("uploaded layer %s (%s), %d bytes", img.ID, dgst, nn)
+	out.Write(p.sf.FormatProgress(stringid.TruncateID(img.ID), "Pushed", nil))
 
 	return dgst, nil
 }

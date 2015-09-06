@@ -28,7 +28,7 @@ clone() {
 	case "$vcs" in
 		git)
 			git clone --quiet --no-checkout "$url" "$target"
-			( cd "$target" && git reset --quiet --hard "$rev" )
+			( cd "$target" && git checkout --quiet "$rev" && git reset --quiet --hard "$rev" )
 			;;
 		hg)
 			hg clone --quiet --updaterev "$rev" "$url" "$target"

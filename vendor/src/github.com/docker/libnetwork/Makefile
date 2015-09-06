@@ -3,12 +3,12 @@ SHELL=/bin/bash
 build_image=libnetwork-build
 dockerargs = --privileged -v $(shell pwd):/go/src/github.com/docker/libnetwork -w /go/src/github.com/docker/libnetwork
 container_env = -e "INSIDECONTAINER=-incontainer=true"
-docker = docker run --rm ${dockerargs} ${container_env} ${build_image}
+docker = docker run --rm -it ${dockerargs} ${container_env} ${build_image}
 ciargs = -e "COVERALLS_TOKEN=$$COVERALLS_TOKEN" -e "INSIDECONTAINER=-incontainer=true"
 cidocker = docker run ${ciargs} ${dockerargs} golang:1.4
 
 all: ${build_image}.created
-	${docker} make all-local
+	${docker} ./wrapmake.sh all-local
 
 all-local: check-local build-local
 
@@ -19,13 +19,13 @@ ${build_image}.created:
 	touch ${build_image}.created
 
 build: ${build_image}.created
-	${docker} make build-local
+	${docker} ./wrapmake.sh build-local
 
 build-local:
 	$(shell which godep) go build -tags libnetwork_discovery ./...
 
 check: ${build_image}.created
-	${docker} make check-local
+	${docker} ./wrapmake.sh check-local
 
 check-code:
 	@echo "Checking code... "
@@ -49,15 +49,15 @@ run-tests:
 		ret=$$? ;\
 		if [ $$ret -ne 0 ]; then exit $$ret; fi ;\
 		popd &> /dev/null; \
-	        if [ -f $$dir/profile.tmp ]; then \
-		        cat $$dir/profile.tmp | tail -n +2 >> coverage.coverprofile ; \
+		if [ -f $$dir/profile.tmp ]; then \
+			cat $$dir/profile.tmp | tail -n +2 >> coverage.coverprofile ; \
 				rm $$dir/profile.tmp ; \
-            fi ; \
-        fi ; \
+	    fi ; \
+	fi ; \
 	done
 	@echo "Done running tests"
 
-check-local: 	check-format check-code run-tests 
+check-local:	check-format check-code run-tests
 
 install-deps:
 	apt-get update && apt-get -y install iptables

@@ -1,8 +1,9 @@
 package graphdriver
 
 import (
+	"io"
+
 	"github.com/docker/docker/image"
-	"github.com/docker/docker/pkg/archive"
 )
 
 // NOTE: These interfaces are used for implementing specific features of the Windows
@@ -26,5 +27,5 @@ type Tagger interface {
 // functions without needing to import graph.
 type Recorder interface {
 	Exists(id string) bool
-	Register(img *image.Image, layerData archive.Reader) error
+	Register(img *image.Image, layerData io.Reader) error
 }

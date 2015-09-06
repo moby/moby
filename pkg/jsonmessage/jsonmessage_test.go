@@ -3,12 +3,12 @@ package jsonmessage
 import (
 	"bytes"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/docker/docker/pkg/term"
 	"github.com/docker/docker/pkg/timeutils"
-	"strings"
 )
 
 func TestError(t *testing.T) {
@@ -45,7 +45,7 @@ func TestProgress(t *testing.T) {
 	}
 
 	// this number can't be negative gh#7136
-	expected = "[==================================================>]     50 B/40 B"
+	expected = "[==================================================>]     50 B"
 	jp5 := JSONProgress{Current: 50, Total: 40}
 	if jp5.String() != expected {
 		t.Fatalf("Expected %q, got %q", expected, jp5.String())

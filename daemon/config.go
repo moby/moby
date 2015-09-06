@@ -18,8 +18,8 @@ type CommonConfig struct {
 	Bridge         bridgeConfig // Bridge holds bridge network specific configuration.
 	Context        map[string][]string
 	DisableBridge  bool
-	Dns            []string
-	DnsSearch      []string
+	DNS            []string
+	DNSSearch      []string
 	ExecDriver     string
 	ExecOptions    []string
 	ExecRoot       string
@@ -50,8 +50,8 @@ func (config *Config) InstallCommonFlags(cmd *flag.FlagSet, usageFn func(string)
 	cmd.StringVar(&config.ExecDriver, []string{"e", "-exec-driver"}, defaultExec, usageFn("Exec driver to use"))
 	cmd.IntVar(&config.Mtu, []string{"#mtu", "-mtu"}, 0, usageFn("Set the containers network MTU"))
 	// FIXME: why the inconsistency between "hosts" and "sockets"?
-	cmd.Var(opts.NewListOptsRef(&config.Dns, opts.ValidateIPAddress), []string{"#dns", "-dns"}, usageFn("DNS server to use"))
-	cmd.Var(opts.NewListOptsRef(&config.DnsSearch, opts.ValidateDNSSearch), []string{"-dns-search"}, usageFn("DNS search domains to use"))
+	cmd.Var(opts.NewListOptsRef(&config.DNS, opts.ValidateIPAddress), []string{"#dns", "-dns"}, usageFn("DNS server to use"))
+	cmd.Var(opts.NewListOptsRef(&config.DNSSearch, opts.ValidateDNSSearch), []string{"-dns-search"}, usageFn("DNS search domains to use"))
 	cmd.Var(opts.NewListOptsRef(&config.Labels, opts.ValidateLabel), []string{"-label"}, usageFn("Set key=value labels to the daemon"))
 	cmd.StringVar(&config.LogConfig.Type, []string{"-log-driver"}, "json-file", usageFn("Default driver for container logs"))
 	cmd.Var(opts.NewMapOpts(config.LogConfig.Config, nil), []string{"-log-opt"}, usageFn("Set log driver options"))

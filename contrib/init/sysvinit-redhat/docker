@@ -65,7 +65,13 @@ start() {
         while [ ! -f $pidfile -a $tries -lt 10 ]; do
             sleep 1
             tries=$((tries + 1))
+            echo -n '.'
         done
+        if [ ! -f $pidfile ]; then
+          failure
+          echo
+          exit 1
+        fi
         success
         echo
     else

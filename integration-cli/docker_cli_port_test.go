@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"net"
 	"regexp"
 	"sort"
 	"strings"
@@ -10,7 +11,7 @@ import (
 )
 
 func (s *DockerSuite) TestPortList(c *check.C) {
-
+	testRequires(c, DaemonIsLinux)
 	// one port
 	out, _ := dockerCmd(c, "run", "-d", "-p", "9876:80", "busybox", "top")
 	firstID := strings.TrimSpace(out)
@@ -180,6 +181,7 @@ func stopRemoveContainer(id string, c *check.C) {
 }
 
 func (s *DockerSuite) TestUnpublishedPortsInPsOutput(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	// Run busybox with command line expose (equivalent to EXPOSE in image's Dockerfile) for the following ports
 	port1 := 80
 	port2 := 443
@@ -243,5 +245,53 @@ func (s *DockerSuite) TestUnpublishedPortsInPsOutput(c *check.C) {
 	out, _ = dockerCmd(c, "ps", "-n=1")
 	if !strings.Contains(out, unpPort1) || !strings.Contains(out, expBnd2) {
 		c.Errorf("Missing unpublished ports or port binding (%s, %s) in docker ps output: %s", unpPort1, expBnd2, out)
+	}
+}
+
+func (s *DockerSuite) TestPortHostBinding(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+	out, _ := dockerCmd(c, "run", "-d", "-p", "9876:80", "busybox",
+		"nc", "-l", "-p", "80")
+	firstID := strings.TrimSpace(out)
+
+	out, _ = dockerCmd(c, "port", firstID, "80")
+
+	if !assertPortList(c, out, []string{"0.0.0.0:9876"}) {
+		c.Error("Port list is not correct")
+	}
+
+	dockerCmd(c, "run", "--net=host", "busybox",
+		"nc", "localhost", "9876")
+
+	dockerCmd(c, "rm", "-f", firstID)
+
+	if _, _, err := dockerCmdWithError("run", "--net=host", "busybox",
+		"nc", "localhost", "9876"); err == nil {
+		c.Error("Port is still bound after the Container is removed")
+	}
+}
+
+func (s *DockerSuite) TestPortExposeHostBinding(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+	out, _ := dockerCmd(c, "run", "-d", "-P", "--expose", "80", "busybox",
+		"nc", "-l", "-p", "80")
+	firstID := strings.TrimSpace(out)
+
+	out, _ = dockerCmd(c, "port", firstID, "80")
+
+	_, exposedPort, err := net.SplitHostPort(out)
+
+	if err != nil {
+		c.Fatal(out, err)
+	}
+
+	dockerCmd(c, "run", "--net=host", "busybox",
+		"nc", "localhost", strings.TrimSpace(exposedPort))
+
+	dockerCmd(c, "rm", "-f", firstID)
+
+	if _, _, err = dockerCmdWithError("run", "--net=host", "busybox",
+		"nc", "localhost", strings.TrimSpace(exposedPort)); err == nil {
+		c.Error("Port is still bound after the Container is removed")
 	}
 }

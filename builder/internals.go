@@ -33,6 +33,7 @@ import (
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/progressreader"
 	"github.com/docker/docker/pkg/stringid"
+	"github.com/docker/docker/pkg/stringutils"
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/pkg/tarsum"
 	"github.com/docker/docker/pkg/urlutil"
@@ -73,7 +74,7 @@ func (b *builder) readContext(context io.Reader) (err error) {
 	return
 }
 
-func (b *builder) commit(id string, autoCmd *runconfig.Command, comment string) error {
+func (b *builder) commit(id string, autoCmd *stringutils.StrSlice, comment string) error {
 	if b.disableCommit {
 		return nil
 	}
@@ -84,11 +85,11 @@ func (b *builder) commit(id string, autoCmd *runconfig.Command, comment string) 
 	if id == "" {
 		cmd := b.Config.Cmd
 		if runtime.GOOS != "windows" {
-			b.Config.Cmd = runconfig.NewCommand("/bin/sh", "-c", "#(nop) "+comment)
+			b.Config.Cmd = stringutils.NewStrSlice("/bin/sh", "-c", "#(nop) "+comment)
 		} else {
-			b.Config.Cmd = runconfig.NewCommand("cmd", "/S /C", "REM (nop) "+comment)
+			b.Config.Cmd = stringutils.NewStrSlice("cmd", "/S /C", "REM (nop) "+comment)
 		}
-		defer func(cmd *runconfig.Command) { b.Config.Cmd = cmd }(cmd)
+		defer func(cmd *stringutils.StrSlice) { b.Config.Cmd = cmd }(cmd)
 
 		hit, err := b.probeCache()
 		if err != nil {
@@ -215,11 +216,11 @@ func (b *builder) runContextCommand(args []string, allowRemote bool, allowDecomp
 
 	cmd := b.Config.Cmd
 	if runtime.GOOS != "windows" {
-		b.Config.Cmd = runconfig.NewCommand("/bin/sh", "-c", fmt.Sprintf("#(nop) %s %s in %s", cmdName, srcHash, dest))
+		b.Config.Cmd = stringutils.NewStrSlice("/bin/sh", "-c", fmt.Sprintf("#(nop) %s %s in %s", cmdName, srcHash, dest))
 	} else {
-		b.Config.Cmd = runconfig.NewCommand("cmd", "/S /C", fmt.Sprintf("REM (nop) %s %s in %s", cmdName, srcHash, dest))
+		b.Config.Cmd = stringutils.NewStrSlice("cmd", "/S /C", fmt.Sprintf("REM (nop) %s %s in %s", cmdName, srcHash, dest))
 	}
-	defer func(cmd *runconfig.Command) { b.Config.Cmd = cmd }(cmd)
+	defer func(cmd *stringutils.StrSlice) { b.Config.Cmd = cmd }(cmd)
 
 	hit, err := b.probeCache()
 	if err != nil {
@@ -230,7 +231,7 @@ func (b *builder) runContextCommand(args []string, allowRemote bool, allowDecomp
 		return nil
 	}
 
-	container, _, err := b.Daemon.Create(b.Config, nil, "")
+	container, _, err := b.Daemon.ContainerCreate("", b.Config, nil, true)
 	if err != nil {
 		return err
 	}
@@ -269,7 +270,7 @@ func calcCopyInfo(b *builder, cmdName string, cInfos *[]*copyInfo, origPath stri
 
 	// Twiddle the destPath when its a relative path - meaning, make it
 	// relative to the WORKINGDIR
-	if !filepath.IsAbs(destPath) {
+	if !system.IsAbs(destPath) {
 		hasSlash := strings.HasSuffix(destPath, string(os.PathSeparator))
 		destPath = filepath.Join(string(os.PathSeparator), filepath.FromSlash(b.Config.WorkingDir), destPath)
 
@@ -347,8 +348,11 @@ func calcCopyInfo(b *builder, cmdName string, cInfos *[]*copyInfo, origPath stri
 			}
 		}
 
-		if err := system.UtimesNano(tmpFileName, times); err != nil {
-			return err
+		// Windows does not support UtimesNano.
+		if runtime.GOOS != "windows" {
+			if err := system.UtimesNano(tmpFileName, times); err != nil {
+				return err
+			}
 		}
 
 		ci.origPath = filepath.Join(filepath.Base(tmpDirName), filepath.Base(tmpFileName))
@@ -359,7 +363,7 @@ func calcCopyInfo(b *builder, cmdName string, cInfos *[]*copyInfo, origPath stri
 			if err != nil {
 				return err
 			}
-			path := u.Path
+			path := filepath.FromSlash(u.Path) // Ensure in platform semantics
 			if strings.HasSuffix(path, string(os.PathSeparator)) {
 				path = path[:len(path)-1]
 			}
@@ -531,7 +535,11 @@ func (b *builder) processImageFrom(img *image.Image) error {
 
 	// Process ONBUILD triggers if they exist
 	if nTriggers := len(b.Config.OnBuild); nTriggers != 0 {
-		fmt.Fprintf(b.ErrStream, "# Executing %d build triggers\n", nTriggers)
+		word := "trigger"
+		if nTriggers > 1 {
+			word = "triggers"
+		}
+		fmt.Fprintf(b.ErrStream, "# Executing %d build %s...\n", nTriggers, word)
 	}
 
 	// Copy the ONBUILD triggers, and remove them from the config, since the config will be committed.
@@ -539,7 +547,7 @@ func (b *builder) processImageFrom(img *image.Image) error {
 	b.Config.OnBuild = []string{}
 
 	// parse the ONBUILD triggers by invoking the parser
-	for stepN, step := range onBuildTriggers {
+	for _, step := range onBuildTriggers {
 		ast, err := parser.Parse(strings.NewReader(step))
 		if err != nil {
 			return err
@@ -552,8 +560,6 @@ func (b *builder) processImageFrom(img *image.Image) error {
 			case "MAINTAINER", "FROM":
 				return fmt.Errorf("%s isn't allowed as an ONBUILD trigger", n.Value)
 			}
-
-			fmt.Fprintf(b.OutStream, "Trigger %d, %s\n", stepN, step)
 
 			if err := b.dispatch(i, n); err != nil {
 				return err
@@ -613,7 +619,7 @@ func (b *builder) create() (*daemon.Container, error) {
 	config := *b.Config
 
 	// Create the container
-	c, warnings, err := b.Daemon.Create(b.Config, hostConfig, "")
+	c, warnings, err := b.Daemon.ContainerCreate("", b.Config, hostConfig, true)
 	if err != nil {
 		return nil, err
 	}
@@ -630,7 +636,7 @@ func (b *builder) create() (*daemon.Container, error) {
 		c.Path = s[0]
 		c.Args = s[1:]
 	} else {
-		config.Cmd = runconfig.NewCommand()
+		config.Cmd = stringutils.NewStrSlice()
 	}
 
 	return c, nil

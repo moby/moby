@@ -7,7 +7,6 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/libkv/store"
 	"github.com/docker/libnetwork/datastore"
-	"github.com/docker/libnetwork/types"
 )
 
 func (c *controller) validateDatastoreConfig() bool {
@@ -91,7 +90,7 @@ func (c *controller) deleteNetworkFromStore(n *network) error {
 	return nil
 }
 
-func (c *controller) getNetworkFromStore(nid types.UUID) (*network, error) {
+func (c *controller) getNetworkFromStore(nid string) (*network, error) {
 	n := network{id: nid}
 	if err := c.store.GetObject(datastore.Key(n.Key()...), &n); err != nil {
 		return nil, err
@@ -105,7 +104,7 @@ func (c *controller) newEndpointFromStore(key string, ep *endpoint) error {
 	id := ep.id
 	ep.Unlock()
 
-	_, err := n.EndpointByID(string(id))
+	_, err := n.EndpointByID(id)
 	if err != nil {
 		if _, ok := err.(ErrNoSuchEndpoint); ok {
 			return n.addEndpoint(ep)
@@ -134,7 +133,7 @@ func (c *controller) updateEndpointToStore(ep *endpoint) error {
 	return cs.PutObjectAtomic(ep)
 }
 
-func (c *controller) getEndpointFromStore(eid types.UUID) (*endpoint, error) {
+func (c *controller) getEndpointFromStore(eid string) (*endpoint, error) {
 	ep := endpoint{id: eid}
 	if err := c.store.GetObject(datastore.Key(ep.Key()...), &ep); err != nil {
 		return nil, err
@@ -346,7 +345,7 @@ func (c *controller) processEndpointUpdate(ep *endpoint) bool {
 	if !ok {
 		return true
 	}
-	existing, _ := n.EndpointByID(string(ep.id))
+	existing, _ := n.EndpointByID(ep.id)
 	if existing == nil {
 		return true
 	}
@@ -357,13 +356,7 @@ func (c *controller) processEndpointUpdate(ep *endpoint) bool {
 		// Can't use SetIndex() because ee is locked.
 		ee.dbIndex = ep.Index()
 		ee.dbExists = true
-		if ee.container != nil && ep.container != nil {
-			// we care only about the container id
-			ee.container.id = ep.container.id
-		} else {
-			// we still care only about the container id, but this is a short-cut to communicate join or leave operation
-			ee.container = ep.container
-		}
+		ee.sandboxID = ep.sandboxID
 	}
 	ee.Unlock()
 

@@ -9,7 +9,7 @@ func (daemon *Daemon) ContainerPause(name string) error {
 		return err
 	}
 
-	if err := container.Pause(); err != nil {
+	if err := container.pause(); err != nil {
 		return fmt.Errorf("Cannot pause container %s: %s", name, err)
 	}
 

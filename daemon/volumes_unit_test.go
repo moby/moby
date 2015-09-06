@@ -2,10 +2,10 @@ package daemon
 
 import "testing"
 
-func TestParseVolumeFrom(t *testing.T) {
+func TestParseVolumesFrom(t *testing.T) {
 	cases := []struct {
 		spec    string
-		expId   string
+		expID   string
 		expMode string
 		fail    bool
 	}{
@@ -25,8 +25,8 @@ func TestParseVolumeFrom(t *testing.T) {
 			continue
 		}
 
-		if id != c.expId {
-			t.Fatalf("Expected id %s, was %s, for spec %s\n", c.expId, id, c.spec)
+		if id != c.expID {
+			t.Fatalf("Expected id %s, was %s, for spec %s\n", c.expID, id, c.spec)
 		}
 		if mode != c.expMode {
 			t.Fatalf("Expected mode %s, was %s for spec %s\n", c.expMode, mode, c.spec)

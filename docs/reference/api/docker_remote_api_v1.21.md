@@ -5,7 +5,7 @@ description = "API Documentation for Docker"
 keywords = ["API, Docker, rcli, REST,  documentation"]
 [menu.main]
 parent="smn_remoteapi"
-weight = 1
+weight = 0
 +++
 <![end-metadata]-->
 
@@ -61,7 +61,7 @@ List containers
          },
          {
                  "Id": "9cd87474be90",
-                 "Names":["/coolName"]
+                 "Names":["/coolName"],
                  "Image": "ubuntu:latest",
                  "Command": "echo 222222",
                  "Created": 1367854155,
@@ -73,7 +73,7 @@ List containers
          },
          {
                  "Id": "3176a2479c92",
-                 "Names":["/sleepy_dog"]
+                 "Names":["/sleepy_dog"],
                  "Image": "ubuntu:latest",
                  "Command": "echo 3333333333333333",
                  "Created": 1367854154,
@@ -85,7 +85,7 @@ List containers
          },
          {
                  "Id": "4cb07b47f9fb",
-                 "Names":["/running_cat"]
+                 "Names":["/running_cat"],
                  "Image": "ubuntu:latest",
                  "Command": "echo 444444444444444444444444444444444",
                  "Created": 1367854152,
@@ -206,7 +206,7 @@ Create a container
       Content-Type: application/json
 
       {
-           "Id":"e90e34656806"
+           "Id":"e90e34656806",
            "Warnings":[]
       }
 
@@ -278,7 +278,8 @@ Json Parameters:
     -   **Capdrop** - A list of kernel capabilities to drop from the container.
     -   **RestartPolicy** – The behavior to apply when the container exits.  The
             value is an object with a `Name` property of either `"always"` to
-            always restart or `"on-failure"` to restart only when the container
+            always restart, `"unless-stopped"` to restart always except when
+            user has manually stopped the container or `"on-failure"` to restart only when the container
             exit code is non-zero.  If `on-failure` is used, `MaximumRetryCount`
             controls the number of times to retry before giving up.
             The default is not to restart. (optional)
@@ -421,7 +422,6 @@ Return low-level information on the container `id`
 			"IPAddress": "",
 			"IPPrefixLen": 0,
 			"MacAddress": "",
-			"PortMapping": null,
 			"Ports": null
 		},
 		"Path": "/bin/sh",
@@ -436,8 +436,9 @@ Return low-level information on the container `id`
 			"Paused": false,
 			"Pid": 0,
 			"Restarting": false,
-			"Running": false,
-			"StartedAt": "2015-01-06T15:47:32.072697474Z"
+			"Running": true,
+			"StartedAt": "2015-01-06T15:47:32.072697474Z",
+			"Status": "running"
 		},
 		"Mounts": [
 			{
@@ -1349,7 +1350,28 @@ Query Parameters:
     Request Headers:
 
 -   **Content-type** – Set to `"application/tar"`.
--   **X-Registry-Config** – base64-encoded ConfigFile object
+-   **X-Registry-Config** – A base64-url-safe-encoded Registry Auth Config JSON
+        object with the following structure:
+
+            {
+                "docker.example.com": {
+                    "username": "janedoe",
+                    "password": "hunter2"
+                },
+                "https://index.docker.io/v1/": {
+                    "username": "mobydock",
+                    "password": "conta1n3rize14"
+                }
+            }
+
+        This object maps the hostname of a registry to an object containing the
+        "username" and "password" for that registry. Multiple registries may
+        be specified as the build may be based on an image requiring
+        authentication to pull from any arbitrary registry. Only the registry
+        domain name (and port if not the default "443") are required. However
+        (for legacy reasons) the "official" Docker, Inc. hosted registry must
+        be specified with both a "https://" prefix and a "/v1/" suffix even
+        though Docker will prefer to use the v2 registry API.
 
 Status Codes:
 
@@ -2058,7 +2080,7 @@ Sets up an exec instance in a running container `id`
     Content-Type: application/json
 
     {
-         "Id": "f90e34656806"
+         "Id": "f90e34656806",
          "Warnings":[]
     }
 
@@ -2175,6 +2197,7 @@ Return low-level information about the `exec` command `id`.
       "OpenStdout" : false,
       "Container" : {
         "State" : {
+          "Status" : "running",
           "Running" : true,
           "Paused" : false,
           "Restarting" : false,
@@ -2220,7 +2243,6 @@ Return low-level information about the `exec` command `id`.
           "MacAddress" : "02:42:ac:11:00:02",
           "Gateway" : "172.17.42.1",
           "Bridge" : "docker0",
-          "PortMapping" : null,
           "Ports" : {}
         },
         "ResolvConfPath" : "/var/lib/docker/containers/8f177a186b977fb451136e0fdf182abff5599a08b3c7f6ef0d36a55aaf89634c/resolv.conf",
@@ -2234,7 +2256,7 @@ Return low-level information about the `exec` command `id`.
         "ProcessLabel" : "",
         "AppArmorProfile" : "",
         "RestartCount" : 0,
-        "Mounts" : [],
+        "Mounts" : []
       }
     }
 
@@ -2242,6 +2264,126 @@ Status Codes:
 
 -   **200** – no error
 -   **404** – no such exec instance
+-   **500** - server error
+
+## 2.4 Volumes
+
+### List volumes
+
+`GET /volumes`
+
+**Example request**:
+
+  GET /volumes HTTP/1.1
+
+**Example response**:
+
+  HTTP/1.1 200 OK
+  Content-Type: application/json
+
+  {
+    "Volumes": [
+      {
+        "Name": "tardis",
+        "Driver": "local",
+        "Mountpoint": "/var/lib/docker/volumes/tardis"
+      }
+    ]
+  }
+
+Query Parameters:
+
+- **filter** - JSON encoded value of the filters (a `map[string][]string`) to process on the volumes list. There is one available filter: `dangling=true`
+
+Status Codes:
+
+-   **200** - no error
+-   **500** - server error
+
+### Create a volume
+
+`POST /volumes`
+
+Create a volume
+
+**Example request**:
+
+  POST /volumes HTTP/1.1
+  Content-Type: application/json
+
+  {
+    "Name": "tardis"
+  }
+
+**Example response**:
+
+  HTTP/1.1 201 Created
+  Content-Type: application/json
+
+  {
+    "Name": "tardis"
+    "Driver": "local",
+    "Mountpoint": "/var/lib/docker/volumes/tardis"
+  }
+
+Status Codes:
+
+- **201** - no error
+- **500**  - server error
+
+JSON Parameters:
+
+- **Name** - The new volume's name. If not specified, Docker generates a name.
+- **Driver** - Name of the volume driver to use. Defaults to `local` for the name.
+- **DriverOpts** - A mapping of driver options and values. These options are
+    passed directly to the driver and are driver specific.
+
+### Inspect a volume
+
+`GET /volumes/(name)`
+
+Return low-level information on the volume `name`
+
+**Example request**:
+
+    GET /volumes/tardis
+
+**Example response**:
+
+  HTTP/1.1 200 OK
+  Content-Type: application/json
+
+  {
+    "Name": "tardis",
+    "Driver": "local",
+    "Mountpoint": "/var/lib/docker/volumes/tardis"
+  }
+
+Status Codes:
+
+-   **200** - no error
+-   **404** - no such volume
+-   **500** - server error
+
+### Remove a volume
+
+`DELETE /volumes/(name)`
+
+Instruct the driver to remove the volume (`name`).
+
+**Example request**:
+
+  DELETE /volumes/local/tardis HTTP/1.1
+
+**Example response**:
+
+  HTTP/1.1 204 No Content
+
+Status Codes
+
+-   **204** - no error
+-   **404** - no such volume or volume driver
+-   **409** - volume is in use and cannot be removed
 -   **500** - server error
 
 # 3. Going further

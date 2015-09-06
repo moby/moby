@@ -19,7 +19,8 @@ Before you start, you’ll need to install the experimental build of Docker, and
 
 -   To install Compose, follow the instructions [here](http://docs.docker.com/compose/install/).
 
-You’ll also need a [Docker Hub](https://hub.docker.com/account/signup/) account and a [Digital Ocean](https://www.digitalocean.com/) account.
+You’ll also need a [Docker Hub](https://hub.docker.com/account/signup/) account and a [Digital Ocean](https://www.digitalocean.com/) account.  
+It works with the amazonec2 driver as well (by adapting the commands accordingly), except you'll need to manually open the ports 8500 (consul) and 7946 (serf) by editing the inbound rules of the corresponding security group.
 
 ## Set up a swarm with multi-host networking
 
@@ -49,7 +50,7 @@ Next, you create a Swarm master with Machine:
 
     docker-machine --debug create \
         -d digitalocean \
-        --digitalocean-image="ubuntu-14-10-x64" \
+        --digitalocean-image="ubuntu-14-04-x64" \
         --engine-install-url="https://experimental.docker.com" \
         --engine-opt="default-network=overlay:multihost" \
         --engine-opt="kv-store=consul:$(docker-machine ip consul):8500" \

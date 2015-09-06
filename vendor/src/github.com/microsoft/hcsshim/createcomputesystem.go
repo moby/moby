@@ -8,7 +8,9 @@ import (
 	"github.com/Sirupsen/logrus"
 )
 
-// CreateComputeSystem creates a container
+// CreateComputeSystem creates a container, initializing its configuration in
+// the Host Compute Service such that it can be started by a call to the
+// StartComputeSystem method.
 func CreateComputeSystem(id string, configuration string) error {
 
 	title := "HCSShim::CreateComputeSystem"

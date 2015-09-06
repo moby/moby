@@ -119,6 +119,10 @@ func (m *containerMonitor) Start() error {
 		}
 		m.Close()
 	}()
+	// reset stopped flag
+	if m.container.HasBeenManuallyStopped {
+		m.container.HasBeenManuallyStopped = false
+	}
 
 	// reset the restart count
 	m.container.RestartCount = -1
@@ -134,11 +138,11 @@ func (m *containerMonitor) Start() error {
 
 		pipes := execdriver.NewPipes(m.container.stdin, m.container.stdout, m.container.stderr, m.container.Config.OpenStdin)
 
-		m.container.LogEvent("start")
+		m.container.logEvent("start")
 
 		m.lastStartTime = time.Now()
 
-		if exitStatus, err = m.container.daemon.Run(m.container, pipes, m.callback); err != nil {
+		if exitStatus, err = m.container.daemon.run(m.container, pipes, m.callback); err != nil {
 			// if we receive an internal error from the initial start of a container then lets
 			// return it instead of entering the restart loop
 			if m.container.RestartCount == 0 {
@@ -157,11 +161,11 @@ func (m *containerMonitor) Start() error {
 		m.resetMonitor(err == nil && exitStatus.ExitCode == 0)
 
 		if m.shouldRestart(exitStatus.ExitCode) {
-			m.container.SetRestarting(&exitStatus)
+			m.container.setRestarting(&exitStatus)
 			if exitStatus.OOMKilled {
-				m.container.LogEvent("oom")
+				m.container.logEvent("oom")
 			}
-			m.container.LogEvent("die")
+			m.container.logEvent("die")
 			m.resetContainer(true)
 
 			// sleep with a small time increment between each restart to help avoid issues cased by quickly
@@ -176,9 +180,9 @@ func (m *containerMonitor) Start() error {
 			continue
 		}
 		if exitStatus.OOMKilled {
-			m.container.LogEvent("oom")
+			m.container.logEvent("oom")
 		}
-		m.container.LogEvent("die")
+		m.container.logEvent("die")
 		m.resetContainer(true)
 		return err
 	}
@@ -223,11 +227,12 @@ func (m *containerMonitor) shouldRestart(exitCode int) bool {
 
 	// do not restart if the user or docker has requested that this container be stopped
 	if m.shouldStop {
+		m.container.HasBeenManuallyStopped = !m.container.daemon.shutdown
 		return false
 	}
 
 	switch {
-	case m.restartPolicy.IsAlways():
+	case m.restartPolicy.IsAlways(), m.restartPolicy.IsUnlessStopped():
 		return true
 	case m.restartPolicy.IsOnFailure():
 		// the default value of 0 for MaximumRetryCount means that we will not enforce a maximum count
@@ -265,7 +270,7 @@ func (m *containerMonitor) callback(processConfig *execdriver.ProcessConfig, pid
 		close(m.startSignal)
 	}
 
-	if err := m.container.ToDisk(); err != nil {
+	if err := m.container.toDiskLocking(); err != nil {
 		logrus.Errorf("Error saving container to disk: %v", err)
 	}
 }

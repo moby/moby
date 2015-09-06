@@ -9,6 +9,7 @@ import (
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/nat"
 	"github.com/docker/docker/pkg/parsers"
+	"github.com/docker/docker/pkg/stringutils"
 	"github.com/docker/docker/pkg/units"
 )
 
@@ -200,15 +201,15 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 
 	var (
 		parsedArgs = cmd.Args()
-		runCmd     *Command
-		entrypoint *Entrypoint
+		runCmd     *stringutils.StrSlice
+		entrypoint *stringutils.StrSlice
 		image      = cmd.Arg(0)
 	)
 	if len(parsedArgs) > 1 {
-		runCmd = NewCommand(parsedArgs[1:]...)
+		runCmd = stringutils.NewStrSlice(parsedArgs[1:]...)
 	}
 	if *flEntrypoint != "" {
-		entrypoint = NewEntrypoint(*flEntrypoint)
+		entrypoint = stringutils.NewStrSlice(*flEntrypoint)
 	}
 
 	lc, err := parseKeyValueOpts(flLxcOpts)
@@ -367,8 +368,8 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		PidMode:          pidMode,
 		UTSMode:          utsMode,
 		Devices:          deviceMappings,
-		CapAdd:           NewCapList(flCapAdd.GetAll()),
-		CapDrop:          NewCapList(flCapDrop.GetAll()),
+		CapAdd:           stringutils.NewStrSlice(flCapAdd.GetAll()...),
+		CapDrop:          stringutils.NewStrSlice(flCapDrop.GetAll()...),
 		GroupAdd:         flGroupAdd.GetAll(),
 		RestartPolicy:    restartPolicy,
 		SecurityOpt:      flSecurityOpt.GetAll(),
@@ -441,9 +442,9 @@ func ParseRestartPolicy(policy string) (RestartPolicy, error) {
 
 	p.Name = name
 	switch name {
-	case "always":
+	case "always", "unless-stopped":
 		if len(parts) > 1 {
-			return p, fmt.Errorf("maximum restart count not valid with restart policy of \"always\"")
+			return p, fmt.Errorf("maximum restart count not valid with restart policy of \"%s\"", name)
 		}
 	case "no":
 		// do nothing
@@ -489,7 +490,11 @@ func ParseDevice(device string) (DeviceMapping, error) {
 		permissions = arr[2]
 		fallthrough
 	case 2:
-		dst = arr[1]
+		if opts.ValidDeviceMode(arr[1]) {
+			permissions = arr[1]
+		} else {
+			dst = arr[1]
+		}
 		fallthrough
 	case 1:
 		src = arr[0]

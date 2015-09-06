@@ -317,15 +317,20 @@ func TestParseDevice(t *testing.T) {
 			PathInContainer:   "/dev/snd",
 			CgroupPermissions: "rwm",
 		},
+		"/dev/snd:rw": {
+			PathOnHost:        "/dev/snd",
+			PathInContainer:   "/dev/snd",
+			CgroupPermissions: "rw",
+		},
 		"/dev/snd:/something": {
 			PathOnHost:        "/dev/snd",
 			PathInContainer:   "/something",
 			CgroupPermissions: "rwm",
 		},
-		"/dev/snd:/something:ro": {
+		"/dev/snd:/something:rw": {
 			PathOnHost:        "/dev/snd",
 			PathInContainer:   "/something",
-			CgroupPermissions: "ro",
+			CgroupPermissions: "rw",
 		},
 	}
 	for device, deviceMapping := range valids {
@@ -481,7 +486,7 @@ func TestParseEntryPoint(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if config.Entrypoint.Len() != 1 && config.Entrypoint.parts[0] != "anything" {
+	if config.Entrypoint.Len() != 1 && config.Entrypoint.Slice()[0] != "anything" {
 		t.Fatalf("Expected entrypoint 'anything', got %v", config.Entrypoint)
 	}
 }

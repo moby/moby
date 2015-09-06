@@ -1,51 +1,104 @@
 package parsers
 
 import (
+	"runtime"
 	"strings"
 	"testing"
 )
 
-func TestParseHost(t *testing.T) {
+func TestParseDockerDaemonHost(t *testing.T) {
 	var (
-		defaultHTTPHost = "127.0.0.1"
+		defaultHTTPHost = "tcp://127.0.0.1:2376"
 		defaultUnix     = "/var/run/docker.sock"
+		defaultHOST     = "unix:///var/run/docker.sock"
 	)
+	if runtime.GOOS == "windows" {
+		defaultHOST = defaultHTTPHost
+	}
 	invalids := map[string]string{
-		"0.0.0.0":              "Invalid bind address format: 0.0.0.0",
-		"tcp://":               "Invalid proto, expected tcp: ",
-		"tcp:a.b.c.d":          "Invalid bind address format: tcp:a.b.c.d",
-		"tcp:a.b.c.d/path":     "Invalid bind address format: tcp:a.b.c.d/path",
-		"udp://127.0.0.1":      "Invalid bind address format: udp://127.0.0.1",
-		"udp://127.0.0.1:2375": "Invalid bind address format: udp://127.0.0.1:2375",
+		"0.0.0.0":                       "Invalid bind address format: 0.0.0.0",
+		"tcp:a.b.c.d":                   "Invalid bind address format: tcp:a.b.c.d",
+		"tcp:a.b.c.d/path":              "Invalid bind address format: tcp:a.b.c.d/path",
+		"udp://127.0.0.1":               "Invalid bind address format: udp://127.0.0.1",
+		"udp://127.0.0.1:2375":          "Invalid bind address format: udp://127.0.0.1:2375",
+		"tcp://unix:///run/docker.sock": "Invalid bind address format: unix",
+		"tcp":  "Invalid bind address format: tcp",
+		"unix": "Invalid bind address format: unix",
+		"fd":   "Invalid bind address format: fd",
 	}
 	valids := map[string]string{
-		"0.0.0.1:5555":      "tcp://0.0.0.1:5555",
-		"0.0.0.1:5555/path": "tcp://0.0.0.1:5555/path",
-		":6666":             "tcp://127.0.0.1:6666",
-		":6666/path":        "tcp://127.0.0.1:6666/path",
-		"tcp://:7777":       "tcp://127.0.0.1:7777",
-		"tcp://:7777/path":  "tcp://127.0.0.1:7777/path",
-		"":                  "unix:///var/run/docker.sock",
+		"0.0.0.1:":                "tcp://0.0.0.1:2376",
+		"0.0.0.1:5555":            "tcp://0.0.0.1:5555",
+		"0.0.0.1:5555/path":       "tcp://0.0.0.1:5555/path",
+		":6666":                   "tcp://127.0.0.1:6666",
+		":6666/path":              "tcp://127.0.0.1:6666/path",
+		"":                        defaultHOST,
+		" ":                       defaultHOST,
+		"  ":                      defaultHOST,
+		"tcp://":                  defaultHTTPHost,
+		"tcp://:7777":             "tcp://127.0.0.1:7777",
+		"tcp://:7777/path":        "tcp://127.0.0.1:7777/path",
+		" tcp://:7777/path ":      "tcp://127.0.0.1:7777/path",
 		"unix:///run/docker.sock": "unix:///run/docker.sock",
 		"unix://":                 "unix:///var/run/docker.sock",
 		"fd://":                   "fd://",
 		"fd://something":          "fd://something",
 	}
 	for invalidAddr, expectedError := range invalids {
-		if addr, err := ParseHost(defaultHTTPHost, defaultUnix, invalidAddr); err == nil || err.Error() != expectedError {
+		if addr, err := ParseDockerDaemonHost(defaultHTTPHost, defaultUnix, invalidAddr); err == nil || err.Error() != expectedError {
 			t.Errorf("tcp %v address expected error %v return, got %s and addr %v", invalidAddr, expectedError, err, addr)
 		}
 	}
 	for validAddr, expectedAddr := range valids {
-		if addr, err := ParseHost(defaultHTTPHost, defaultUnix, validAddr); err != nil || addr != expectedAddr {
-			t.Errorf("%v -> expected %v, got %v", validAddr, expectedAddr, addr)
+		if addr, err := ParseDockerDaemonHost(defaultHTTPHost, defaultUnix, validAddr); err != nil || addr != expectedAddr {
+			t.Errorf("%v -> expected %v, got (%v) addr (%v)", validAddr, expectedAddr, err, addr)
+		}
+	}
+}
+
+func TestParseTCP(t *testing.T) {
+	var (
+		defaultHTTPHost = "tcp://127.0.0.1:2376"
+	)
+	invalids := map[string]string{
+		"0.0.0.0":              "Invalid bind address format: 0.0.0.0",
+		"tcp:a.b.c.d":          "Invalid bind address format: tcp:a.b.c.d",
+		"tcp:a.b.c.d/path":     "Invalid bind address format: tcp:a.b.c.d/path",
+		"udp://127.0.0.1":      "Invalid proto, expected tcp: udp://127.0.0.1",
+		"udp://127.0.0.1:2375": "Invalid proto, expected tcp: udp://127.0.0.1:2375",
+	}
+	valids := map[string]string{
+		"":                  defaultHTTPHost,
+		"tcp://":            defaultHTTPHost,
+		"0.0.0.1:":          "tcp://0.0.0.1:2376",
+		"0.0.0.1:5555":      "tcp://0.0.0.1:5555",
+		"0.0.0.1:5555/path": "tcp://0.0.0.1:5555/path",
+		":6666":             "tcp://127.0.0.1:6666",
+		":6666/path":        "tcp://127.0.0.1:6666/path",
+		"tcp://:7777":       "tcp://127.0.0.1:7777",
+		"tcp://:7777/path":  "tcp://127.0.0.1:7777/path",
+	}
+	for invalidAddr, expectedError := range invalids {
+		if addr, err := ParseTCPAddr(invalidAddr, defaultHTTPHost); err == nil || err.Error() != expectedError {
+			t.Errorf("tcp %v address expected error %v return, got %s and addr %v", invalidAddr, expectedError, err, addr)
+		}
+	}
+	for validAddr, expectedAddr := range valids {
+		if addr, err := ParseTCPAddr(validAddr, defaultHTTPHost); err != nil || addr != expectedAddr {
+			t.Errorf("%v -> expected %v, got %v and addr %v", validAddr, expectedAddr, err, addr)
 		}
 	}
 }
 
 func TestParseInvalidUnixAddrInvalid(t *testing.T) {
-	if _, err := ParseUnixAddr("unix://tcp://127.0.0.1", "unix:///var/run/docker.sock"); err == nil || err.Error() != "Invalid proto, expected unix: tcp://127.0.0.1" {
+	if _, err := ParseUnixAddr("tcp://127.0.0.1", "unix:///var/run/docker.sock"); err == nil || err.Error() != "Invalid proto, expected unix: tcp://127.0.0.1" {
 		t.Fatalf("Expected an error, got %v", err)
+	}
+	if _, err := ParseUnixAddr("unix://tcp://127.0.0.1", "/var/run/docker.sock"); err == nil || err.Error() != "Invalid proto, expected unix: tcp://127.0.0.1" {
+		t.Fatalf("Expected an error, got %v", err)
+	}
+	if v, err := ParseUnixAddr("", "/var/run/docker.sock"); err != nil || v != "unix:///var/run/docker.sock" {
+		t.Fatalf("Expected an %v, got %v", v, "unix:///var/run/docker.sock")
 	}
 }
 
@@ -76,29 +129,6 @@ func TestParseRepositoryTag(t *testing.T) {
 	}
 	if repo, digest := ParseRepositoryTag("url:5000/repo@sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"); repo != "url:5000/repo" || digest != "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855" {
 		t.Errorf("Expected repo: '%s' and digest: '%s', got '%s' and '%s'", "url:5000/repo", "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", repo, digest)
-	}
-}
-
-func TestParsePortMapping(t *testing.T) {
-	if _, err := PartParser("ip:public:private", "192.168.1.1:80"); err == nil {
-		t.Fatalf("Expected an error, got %v", err)
-	}
-	data, err := PartParser("ip:public:private", "192.168.1.1:80:8080")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if len(data) != 3 {
-		t.FailNow()
-	}
-	if data["ip"] != "192.168.1.1" {
-		t.Fail()
-	}
-	if data["public"] != "80" {
-		t.Fail()
-	}
-	if data["private"] != "8080" {
-		t.Fail()
 	}
 }
 

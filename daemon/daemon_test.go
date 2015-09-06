@@ -13,7 +13,7 @@ import (
 	"github.com/docker/docker/pkg/truncindex"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/volume"
-	"github.com/docker/docker/volume/drivers"
+	volumedrivers "github.com/docker/docker/volume/drivers"
 	"github.com/docker/docker/volume/local"
 )
 
@@ -86,9 +86,9 @@ func TestGet(t *testing.T) {
 	graph.Set(c5.Name, c5.ID)
 
 	daemon := &Daemon{
-		containers:     store,
-		idIndex:        index,
-		containerGraph: graph,
+		containers:       store,
+		idIndex:          index,
+		containerGraphDB: graph,
 	}
 
 	if container, _ := daemon.Get("3cdbd1aa394fd68559fd1441d6eff2ab7c1e6363582c82febfaa8045df3bd8de"); container != c2 {
@@ -130,15 +130,15 @@ func TestLoadWithVolume(t *testing.T) {
 	}
 	defer os.RemoveAll(tmp)
 
-	containerId := "d59df5276e7b219d510fe70565e0404bc06350e0d4b43fe961f22f339980170e"
-	containerPath := filepath.Join(tmp, containerId)
+	containerID := "d59df5276e7b219d510fe70565e0404bc06350e0d4b43fe961f22f339980170e"
+	containerPath := filepath.Join(tmp, containerID)
 	if err := os.MkdirAll(containerPath, 0755); err != nil {
 		t.Fatal(err)
 	}
 
-	hostVolumeId := stringid.GenerateNonCryptoID()
-	vfsPath := filepath.Join(tmp, "vfs", "dir", hostVolumeId)
-	volumePath := filepath.Join(tmp, "volumes", hostVolumeId)
+	hostVolumeID := stringid.GenerateNonCryptoID()
+	vfsPath := filepath.Join(tmp, "vfs", "dir", hostVolumeID)
+	volumePath := filepath.Join(tmp, "volumes", hostVolumeID)
 
 	if err := os.MkdirAll(vfsPath, 0755); err != nil {
 		t.Fatal(err)
@@ -160,7 +160,7 @@ func TestLoadWithVolume(t *testing.T) {
 "StdinOnce":false,"Env":null,"Cmd":["top"],"Image":"ubuntu:latest","Volumes":null,"WorkingDir":"","Entrypoint":null,
 "NetworkDisabled":false,"MacAddress":"","OnBuild":null,"Labels":{}},"Image":"07f8e8c5e66084bef8f848877857537ffe1c47edd01a93af27e7161672ad0e95",
 "NetworkSettings":{"IPAddress":"172.17.0.1","IPPrefixLen":16,"MacAddress":"02:42:ac:11:00:01","LinkLocalIPv6Address":"fe80::42:acff:fe11:1",
-"LinkLocalIPv6PrefixLen":64,"GlobalIPv6Address":"","GlobalIPv6PrefixLen":0,"Gateway":"172.17.42.1","IPv6Gateway":"","Bridge":"docker0","PortMapping":null,"Ports":{}},
+"LinkLocalIPv6PrefixLen":64,"GlobalIPv6Address":"","GlobalIPv6PrefixLen":0,"Gateway":"172.17.42.1","IPv6Gateway":"","Bridge":"docker0","Ports":{}},
 "ResolvConfPath":"/var/lib/docker/containers/d59df5276e7b219d510fe70565e0404bc06350e0d4b43fe961f22f339980170e/resolv.conf",
 "HostnamePath":"/var/lib/docker/containers/d59df5276e7b219d510fe70565e0404bc06350e0d4b43fe961f22f339980170e/hostname",
 "HostsPath":"/var/lib/docker/containers/d59df5276e7b219d510fe70565e0404bc06350e0d4b43fe961f22f339980170e/hosts",
@@ -187,7 +187,7 @@ func TestLoadWithVolume(t *testing.T) {
 	}
 	defer volumedrivers.Unregister(volume.DefaultDriverName)
 
-	c, err := daemon.load(containerId)
+	c, err := daemon.load(containerID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -202,8 +202,8 @@ func TestLoadWithVolume(t *testing.T) {
 	}
 
 	m := c.MountPoints["/vol1"]
-	if m.Name != hostVolumeId {
-		t.Fatalf("Expected mount name to be %s, was %s\n", hostVolumeId, m.Name)
+	if m.Name != hostVolumeID {
+		t.Fatalf("Expected mount name to be %s, was %s\n", hostVolumeID, m.Name)
 	}
 
 	if m.Destination != "/vol1" {
@@ -235,8 +235,8 @@ func TestLoadWithBindMount(t *testing.T) {
 	}
 	defer os.RemoveAll(tmp)
 
-	containerId := "d59df5276e7b219d510fe70565e0404bc06350e0d4b43fe961f22f339980170e"
-	containerPath := filepath.Join(tmp, containerId)
+	containerID := "d59df5276e7b219d510fe70565e0404bc06350e0d4b43fe961f22f339980170e"
+	containerPath := filepath.Join(tmp, containerID)
 	if err = os.MkdirAll(containerPath, 0755); err != nil {
 		t.Fatal(err)
 	}
@@ -249,7 +249,7 @@ func TestLoadWithBindMount(t *testing.T) {
 "StdinOnce":false,"Env":null,"Cmd":["top"],"Image":"ubuntu:latest","Volumes":null,"WorkingDir":"","Entrypoint":null,
 "NetworkDisabled":false,"MacAddress":"","OnBuild":null,"Labels":{}},"Image":"07f8e8c5e66084bef8f848877857537ffe1c47edd01a93af27e7161672ad0e95",
 "NetworkSettings":{"IPAddress":"172.17.0.1","IPPrefixLen":16,"MacAddress":"02:42:ac:11:00:01","LinkLocalIPv6Address":"fe80::42:acff:fe11:1",
-"LinkLocalIPv6PrefixLen":64,"GlobalIPv6Address":"","GlobalIPv6PrefixLen":0,"Gateway":"172.17.42.1","IPv6Gateway":"","Bridge":"docker0","PortMapping":null,"Ports":{}},
+"LinkLocalIPv6PrefixLen":64,"GlobalIPv6Address":"","GlobalIPv6PrefixLen":0,"Gateway":"172.17.42.1","IPv6Gateway":"","Bridge":"docker0","Ports":{}},
 "ResolvConfPath":"/var/lib/docker/containers/d59df5276e7b219d510fe70565e0404bc06350e0d4b43fe961f22f339980170e/resolv.conf",
 "HostnamePath":"/var/lib/docker/containers/d59df5276e7b219d510fe70565e0404bc06350e0d4b43fe961f22f339980170e/hostname",
 "HostsPath":"/var/lib/docker/containers/d59df5276e7b219d510fe70565e0404bc06350e0d4b43fe961f22f339980170e/hosts",
@@ -275,7 +275,7 @@ func TestLoadWithBindMount(t *testing.T) {
 	}
 	defer volumedrivers.Unregister(volume.DefaultDriverName)
 
-	c, err := daemon.load(containerId)
+	c, err := daemon.load(containerID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -314,14 +314,14 @@ func TestLoadWithVolume17RC(t *testing.T) {
 	}
 	defer os.RemoveAll(tmp)
 
-	containerId := "d59df5276e7b219d510fe70565e0404bc06350e0d4b43fe961f22f339980170e"
-	containerPath := filepath.Join(tmp, containerId)
+	containerID := "d59df5276e7b219d510fe70565e0404bc06350e0d4b43fe961f22f339980170e"
+	containerPath := filepath.Join(tmp, containerID)
 	if err := os.MkdirAll(containerPath, 0755); err != nil {
 		t.Fatal(err)
 	}
 
-	hostVolumeId := "6a3c03fc4a4e588561a543cc3bdd50089e27bd11bbb0e551e19bf735e2514101"
-	volumePath := filepath.Join(tmp, "volumes", hostVolumeId)
+	hostVolumeID := "6a3c03fc4a4e588561a543cc3bdd50089e27bd11bbb0e551e19bf735e2514101"
+	volumePath := filepath.Join(tmp, "volumes", hostVolumeID)
 
 	if err := os.MkdirAll(volumePath, 0755); err != nil {
 		t.Fatal(err)
@@ -340,7 +340,7 @@ func TestLoadWithVolume17RC(t *testing.T) {
 "StdinOnce":false,"Env":null,"Cmd":["top"],"Image":"ubuntu:latest","Volumes":null,"WorkingDir":"","Entrypoint":null,
 "NetworkDisabled":false,"MacAddress":"","OnBuild":null,"Labels":{}},"Image":"07f8e8c5e66084bef8f848877857537ffe1c47edd01a93af27e7161672ad0e95",
 "NetworkSettings":{"IPAddress":"172.17.0.1","IPPrefixLen":16,"MacAddress":"02:42:ac:11:00:01","LinkLocalIPv6Address":"fe80::42:acff:fe11:1",
-"LinkLocalIPv6PrefixLen":64,"GlobalIPv6Address":"","GlobalIPv6PrefixLen":0,"Gateway":"172.17.42.1","IPv6Gateway":"","Bridge":"docker0","PortMapping":null,"Ports":{}},
+"LinkLocalIPv6PrefixLen":64,"GlobalIPv6Address":"","GlobalIPv6PrefixLen":0,"Gateway":"172.17.42.1","IPv6Gateway":"","Bridge":"docker0","Ports":{}},
 "ResolvConfPath":"/var/lib/docker/containers/d59df5276e7b219d510fe70565e0404bc06350e0d4b43fe961f22f339980170e/resolv.conf",
 "HostnamePath":"/var/lib/docker/containers/d59df5276e7b219d510fe70565e0404bc06350e0d4b43fe961f22f339980170e/hostname",
 "HostsPath":"/var/lib/docker/containers/d59df5276e7b219d510fe70565e0404bc06350e0d4b43fe961f22f339980170e/hosts",
@@ -366,7 +366,7 @@ func TestLoadWithVolume17RC(t *testing.T) {
 	}
 	defer volumedrivers.Unregister(volume.DefaultDriverName)
 
-	c, err := daemon.load(containerId)
+	c, err := daemon.load(containerID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -381,8 +381,8 @@ func TestLoadWithVolume17RC(t *testing.T) {
 	}
 
 	m := c.MountPoints["/vol1"]
-	if m.Name != hostVolumeId {
-		t.Fatalf("Expected mount name to be %s, was %s\n", hostVolumeId, m.Name)
+	if m.Name != hostVolumeID {
+		t.Fatalf("Expected mount name to be %s, was %s\n", hostVolumeID, m.Name)
 	}
 
 	if m.Destination != "/vol1" {
@@ -414,15 +414,15 @@ func TestRemoveLocalVolumesFollowingSymlinks(t *testing.T) {
 	}
 	defer os.RemoveAll(tmp)
 
-	containerId := "d59df5276e7b219d510fe70565e0404bc06350e0d4b43fe961f22f339980170e"
-	containerPath := filepath.Join(tmp, containerId)
+	containerID := "d59df5276e7b219d510fe70565e0404bc06350e0d4b43fe961f22f339980170e"
+	containerPath := filepath.Join(tmp, containerID)
 	if err := os.MkdirAll(containerPath, 0755); err != nil {
 		t.Fatal(err)
 	}
 
-	hostVolumeId := stringid.GenerateNonCryptoID()
-	vfsPath := filepath.Join(tmp, "vfs", "dir", hostVolumeId)
-	volumePath := filepath.Join(tmp, "volumes", hostVolumeId)
+	hostVolumeID := stringid.GenerateNonCryptoID()
+	vfsPath := filepath.Join(tmp, "vfs", "dir", hostVolumeID)
+	volumePath := filepath.Join(tmp, "volumes", hostVolumeID)
 
 	if err := os.MkdirAll(vfsPath, 0755); err != nil {
 		t.Fatal(err)
@@ -444,7 +444,7 @@ func TestRemoveLocalVolumesFollowingSymlinks(t *testing.T) {
 "StdinOnce":false,"Env":null,"Cmd":["top"],"Image":"ubuntu:latest","Volumes":null,"WorkingDir":"","Entrypoint":null,
 "NetworkDisabled":false,"MacAddress":"","OnBuild":null,"Labels":{}},"Image":"07f8e8c5e66084bef8f848877857537ffe1c47edd01a93af27e7161672ad0e95",
 "NetworkSettings":{"IPAddress":"172.17.0.1","IPPrefixLen":16,"MacAddress":"02:42:ac:11:00:01","LinkLocalIPv6Address":"fe80::42:acff:fe11:1",
-"LinkLocalIPv6PrefixLen":64,"GlobalIPv6Address":"","GlobalIPv6PrefixLen":0,"Gateway":"172.17.42.1","IPv6Gateway":"","Bridge":"docker0","PortMapping":null,"Ports":{}},
+"LinkLocalIPv6PrefixLen":64,"GlobalIPv6Address":"","GlobalIPv6PrefixLen":0,"Gateway":"172.17.42.1","IPv6Gateway":"","Bridge":"docker0","Ports":{}},
 "ResolvConfPath":"/var/lib/docker/containers/d59df5276e7b219d510fe70565e0404bc06350e0d4b43fe961f22f339980170e/resolv.conf",
 "HostnamePath":"/var/lib/docker/containers/d59df5276e7b219d510fe70565e0404bc06350e0d4b43fe961f22f339980170e/hostname",
 "HostsPath":"/var/lib/docker/containers/d59df5276e7b219d510fe70565e0404bc06350e0d4b43fe961f22f339980170e/hosts",
@@ -471,7 +471,7 @@ func TestRemoveLocalVolumesFollowingSymlinks(t *testing.T) {
 	}
 	defer volumedrivers.Unregister(volume.DefaultDriverName)
 
-	c, err := daemon.load(containerId)
+	c, err := daemon.load(containerID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -486,12 +486,12 @@ func TestRemoveLocalVolumesFollowingSymlinks(t *testing.T) {
 	}
 
 	m := c.MountPoints["/vol1"]
-	v, err := createVolume(m.Name, m.Driver)
+	_, err = daemon.VolumeCreate(m.Name, m.Driver, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if err := removeVolume(v); err != nil {
+	if err := daemon.VolumeRm(m.Name); err != nil {
 		t.Fatal(err)
 	}
 
@@ -505,6 +505,7 @@ func initDaemonForVolumesTest(tmp string) (*Daemon, error) {
 	daemon := &Daemon{
 		repository: tmp,
 		root:       tmp,
+		volumes:    newVolumeStore([]volume.Volume{}),
 	}
 
 	volumesDriver, err := local.New(tmp)

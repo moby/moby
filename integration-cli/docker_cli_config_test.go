@@ -30,7 +30,8 @@ func (s *DockerSuite) TestConfigHttpHeader(c *check.C) {
 
 	homeKey := homedir.Key()
 	homeVal := homedir.Get()
-	tmpDir, _ := ioutil.TempDir("", "fake-home")
+	tmpDir, err := ioutil.TempDir("", "fake-home")
+	c.Assert(err, check.IsNil)
 	defer os.RemoveAll(tmpDir)
 
 	dotDocker := filepath.Join(tmpDir, ".docker")
@@ -44,7 +45,7 @@ func (s *DockerSuite) TestConfigHttpHeader(c *check.C) {
 		"HttpHeaders": { "MyHeader": "MyValue" }
 	}`
 
-	err := ioutil.WriteFile(tmpCfg, []byte(data), 0600)
+	err = ioutil.WriteFile(tmpCfg, []byte(data), 0600)
 	if err != nil {
 		c.Fatalf("Err creating file(%s): %v", tmpCfg, err)
 	}
@@ -66,7 +67,9 @@ func (s *DockerSuite) TestConfigHttpHeader(c *check.C) {
 }
 
 func (s *DockerSuite) TestConfigDir(c *check.C) {
-	cDir, _ := ioutil.TempDir("", "fake-home")
+	cDir, err := ioutil.TempDir("", "fake-home")
+	c.Assert(err, check.IsNil)
+	defer os.RemoveAll(cDir)
 
 	// First make sure pointing to empty dir doesn't generate an error
 	out, rc := dockerCmd(c, "--config", cDir, "ps")
@@ -78,7 +81,7 @@ func (s *DockerSuite) TestConfigDir(c *check.C) {
 	// Test with env var too
 	cmd := exec.Command(dockerBinary, "ps")
 	cmd.Env = append(os.Environ(), "DOCKER_CONFIG="+cDir)
-	out, rc, err := runCommandWithOutput(cmd)
+	out, rc, err = runCommandWithOutput(cmd)
 
 	if rc != 0 || err != nil {
 		c.Fatalf("ps2 didn't work:\nrc:%d\nout%s\nerr:%v", rc, out, err)

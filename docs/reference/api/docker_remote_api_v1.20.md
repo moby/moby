@@ -61,7 +61,7 @@ List containers
          },
          {
                  "Id": "9cd87474be90",
-                 "Names":["/coolName"]
+                 "Names":["/coolName"],
                  "Image": "ubuntu:latest",
                  "Command": "echo 222222",
                  "Created": 1367854155,
@@ -73,7 +73,7 @@ List containers
          },
          {
                  "Id": "3176a2479c92",
-                 "Names":["/sleepy_dog"]
+                 "Names":["/sleepy_dog"],
                  "Image": "ubuntu:latest",
                  "Command": "echo 3333333333333333",
                  "Created": 1367854154,
@@ -85,7 +85,7 @@ List containers
          },
          {
                  "Id": "4cb07b47f9fb",
-                 "Names":["/running_cat"]
+                 "Names":["/running_cat"],
                  "Image": "ubuntu:latest",
                  "Command": "echo 444444444444444444444444444444444",
                  "Created": 1367854152,
@@ -205,7 +205,7 @@ Create a container
       Content-Type: application/json
 
       {
-           "Id":"e90e34656806"
+           "Id":"e90e34656806",
            "Warnings":[]
       }
 
@@ -1341,7 +1341,28 @@ Query Parameters:
     Request Headers:
 
 -   **Content-type** – Set to `"application/tar"`.
--   **X-Registry-Config** – base64-encoded ConfigFile object
+-   **X-Registry-Config** – A base64-url-safe-encoded Registry Auth Config JSON
+        object with the following structure:
+
+            {
+                "docker.example.com": {
+                    "username": "janedoe",
+                    "password": "hunter2"
+                },
+                "https://index.docker.io/v1/": {
+                    "username": "mobydock",
+                    "password": "conta1n3rize14"
+                }
+            }
+
+        This object maps the hostname of a registry to an object containing the
+        "username" and "password" for that registry. Multiple registries may
+        be specified as the build may be based on an image requiring
+        authentication to pull from any arbitrary registry. Only the registry
+        domain name (and port if not the default "443") are required. However
+        (for legacy reasons) the "official" Docker, Inc. hosted registry must
+        be specified with both a "https://" prefix and a "/v1/" suffix even
+        though Docker will prefer to use the v2 registry API.
 
 Status Codes:
 
@@ -2050,7 +2071,7 @@ Sets up an exec instance in a running container `id`
     Content-Type: application/json
 
     {
-         "Id": "f90e34656806"
+         "Id": "f90e34656806",
          "Warnings":[]
     }
 

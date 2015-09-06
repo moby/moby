@@ -60,7 +60,7 @@ Creates a new container.
       --port-range=[]               Range of host ports to use for dynamic allocation
       --privileged=false            Give extended privileges to this container
       --read-only=false             Mount the container's root filesystem as read only
-      --restart="no"                Restart policy (no, on-failure[:max-retry], always)
+      --restart="no"                Restart policy (no, on-failure[:max-retry], always, unless-stopped)
       --security-opt=[]             Security options
       -t, --tty=false               Allocate a pseudo-TTY
       --disable-content-trust=true  Skip image verification

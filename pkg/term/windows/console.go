@@ -7,10 +7,10 @@ import (
 	"os"
 	"syscall"
 
-	. "github.com/Azure/go-ansiterm/winterm"
+	"github.com/Azure/go-ansiterm/winterm"
 )
 
-// ConsoleStreams, for each standard stream referencing a console, returns a wrapped version
+// ConsoleStreams returns a wrapped version for each standard stream referencing a console,
 // that handles ANSI character sequences.
 func ConsoleStreams() (stdIn io.ReadCloser, stdOut, stdErr io.Writer) {
 	if IsConsole(os.Stdin.Fd()) {
@@ -56,6 +56,6 @@ func GetHandleInfo(in interface{}) (uintptr, bool) {
 // IsConsole returns true if the given file descriptor is a Windows Console.
 // The code assumes that GetConsoleMode will return an error for file descriptors that are not a console.
 func IsConsole(fd uintptr) bool {
-	_, e := GetConsoleMode(fd)
+	_, e := winterm.GetConsoleMode(fd)
 	return e == nil
 }

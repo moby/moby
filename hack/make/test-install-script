@@ -21,7 +21,7 @@ test_install_script(){
 			local from="$(awk 'toupper($1) == "FROM" { print $2; exit }' "$dir/Dockerfile")"
 
 			echo "running install.sh for ${component} with ${from}"
-			docker run --rm -it -v ${script}:/install.sh ${from} /install.sh
+			docker run --rm -i -v ${script}:/install.sh ${from} /install.sh
 		done
 	done
 }

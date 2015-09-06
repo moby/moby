@@ -293,12 +293,12 @@ Now let's take our `Dockerfile` and use the `docker build` command to build an i
     $ docker build -t ouruser/sinatra:v2 .
     Sending build context to Docker daemon 2.048 kB
     Sending build context to Docker daemon 
-    Step 0 : FROM ubuntu:14.04
+    Step 1 : FROM ubuntu:14.04
      ---> e54ca5efa2e9
-    Step 1 : MAINTAINER Kate Smith <ksmith@example.com>
+    Step 2 : MAINTAINER Kate Smith <ksmith@example.com>
      ---> Using cache
      ---> 851baf55332b
-    Step 2 : RUN apt-get update && apt-get install -y ruby ruby-dev
+    Step 3 : RUN apt-get update && apt-get install -y ruby ruby-dev
      ---> Running in 3a2558904e9b
     Selecting previously unselected package libasan0:amd64.
     (Reading database ... 11518 files and directories currently installed.)
@@ -433,7 +433,7 @@ Now let's take our `Dockerfile` and use the `docker build` command to build an i
     Running hooks in /etc/ca-certificates/update.d....done.
      ---> c55c31703134
     Removing intermediate container 3a2558904e9b
-    Step 3 : RUN gem install sinatra
+    Step 4 : RUN gem install sinatra
      ---> Running in 6b81cb6313e5
     unable to convert "\xC3" to UTF-8 in conversion from ASCII-8BIT to UTF-8 to US-ASCII for README.rdoc, skipping
     unable to convert "\xC3" to UTF-8 in conversion from ASCII-8BIT to UTF-8 to US-ASCII for README.rdoc, skipping

@@ -49,15 +49,6 @@ type Daemon struct {
 	userlandProxy  bool
 }
 
-func enableUserlandProxy() bool {
-	if env := os.Getenv("DOCKER_USERLANDPROXY"); env != "" {
-		if val, err := strconv.ParseBool(env); err != nil {
-			return val
-		}
-	}
-	return true
-}
-
 // NewDaemon returns a Daemon instance to be used for testing.
 // This will create a directory such as d123456789 in the folder specified by $DEST.
 // The daemon will not automatically start.
@@ -445,6 +436,40 @@ func deleteAllContainers() error {
 	return nil
 }
 
+func deleteAllVolumes() error {
+	volumes, err := getAllVolumes()
+	if err != nil {
+		return err
+	}
+	var errors []string
+	for _, v := range volumes {
+		status, b, err := sockRequest("DELETE", "/volumes/"+v.Name, nil)
+		if err != nil {
+			errors = append(errors, err.Error())
+			continue
+		}
+		if status != http.StatusNoContent {
+			errors = append(errors, fmt.Sprintf("error deleting volume %s: %s", v.Name, string(b)))
+		}
+	}
+	if len(errors) > 0 {
+		return fmt.Errorf(strings.Join(errors, "\n"))
+	}
+	return nil
+}
+
+func getAllVolumes() ([]*types.Volume, error) {
+	var volumes types.VolumesListResponse
+	_, b, err := sockRequest("GET", "/volumes", nil)
+	if err != nil {
+		return nil, err
+	}
+	if err := json.Unmarshal(b, &volumes); err != nil {
+		return nil, err
+	}
+	return volumes.Volumes, nil
+}
+
 var protectedImages = map[string]struct{}{}
 
 func init() {
@@ -468,10 +493,9 @@ func init() {
 	// Obtain the daemon platform so that it can be used by tests to make
 	// intelligent decisions about how to configure themselves, and validate
 	// that the target platform is valid.
-	res, b, err := sockRequestRaw("GET", "/version", nil, "application/json")
-	defer b.Close()
-	if err != nil || res.StatusCode != http.StatusOK {
-		panic("Init failed to get version: " + err.Error() + " " + string(res.StatusCode))
+	res, _, err := sockRequestRaw("GET", "/version", nil, "application/json")
+	if err != nil || res == nil || (res != nil && res.StatusCode != http.StatusOK) {
+		panic(fmt.Errorf("Init failed to get version: %v. Res=%v", err.Error(), res))
 	}
 	svrHeader, _ := httputils.ParseServerHeader(res.Header.Get("Server"))
 	daemonPlatform = svrHeader.OS

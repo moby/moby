@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/pkg/system"
 )
 
 // Errors used or returned by this file.
@@ -210,7 +211,7 @@ func CopyInfoDestinationPath(path string) (info CopyInfo, err error) {
 			return CopyInfo{}, err
 		}
 
-		if !filepath.IsAbs(linkTarget) {
+		if !system.IsAbs(linkTarget) {
 			// Join with the parent directory.
 			dstParent, _ := SplitPathDirEntry(path)
 			linkTarget = filepath.Join(dstParent, linkTarget)

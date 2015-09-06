@@ -15,7 +15,7 @@ parent = "smn_images"
 Docker can build images automatically by reading the instructions from a
 `Dockerfile`, a text file that contains all the commands, in order, needed to
 build a given image. `Dockerfile`s adhere to a specific format and use a
-specific set of instructions. You can learn the basics on the 
+specific set of instructions. You can learn the basics on the
 [Dockerfile Reference](https://docs.docker.com/reference/builder/) page. If
 you’re new to writing `Dockerfile`s, you should start there.
 
@@ -43,7 +43,7 @@ set-up and configuration.
 In most cases, it's best to put each Dockerfile in an empty directory. Then,
 add to that directory only the files needed for building the Dockerfile. To
 increase the build's performance, you can exclude files and directories by
-adding a `.dockerignore` file to that directory as well. This file supports 
+adding a `.dockerignore` file to that directory as well. This file supports
 exclusion patterns similar to `.gitignore` files. For information on creating one,
 see the [.dockerignore file](../../reference/builder/#dockerignore-file).
 
@@ -105,12 +105,12 @@ not, the cache is invalidated.
 of the child images is sufficient.  However, certain instructions require
 a little more examination and explanation.
 
-* For the `ADD` and `COPY` instructions, the contents of the file(s) 
-in the image are examined and a checksum is calculated for each file. 
-The last-modified and last-accessed times of the file(s) are not considered in 
-these checksums. During the cache lookup, the checksum is compared against the 
-checksum in the existing images. If anything has changed in the file(s), such 
-as the contents and metadata, then the cache is invalidated. 
+* For the `ADD` and `COPY` instructions, the contents of the file(s)
+in the image are examined and a checksum is calculated for each file.
+The last-modified and last-accessed times of the file(s) are not considered in
+these checksums. During the cache lookup, the checksum is compared against the
+checksum in the existing images. If anything has changed in the file(s), such
+as the contents and metadata, then the cache is invalidated.
 
 * Aside from the `ADD` and `COPY` commands cache checking will not look at the
 files in the container to determine a cache match. For example, when processing
@@ -140,72 +140,96 @@ since it’s very tightly controlled and kept extremely minimal (currently under
 [Dockerfile reference for the RUN instruction](https://docs.docker.com/reference/builder/#run)
 
 As always, to make your `Dockerfile` more readable, understandable, and
-maintainable, put long or complex `RUN` statements on multiple lines separated
+maintainable, split long or complex `RUN` statements on multiple lines separated
 with backslashes.
 
-Probably the most common use-case for `RUN` is an application of `apt-get`.
-When using `apt-get`, here are a few things to keep in mind:
+### apt-get
 
-* Don’t do `RUN apt-get update` on a single line. This will cause
-caching issues if the referenced archive gets updated, which will make your
-subsequent `apt-get install` fail without comment.
+Probably the most common use-case for `RUN` is an application of `apt-get`. The
+`RUN apt-get` command, because it installs packages, has several gotchas to look
+out for.
 
-* Avoid `RUN apt-get upgrade` or `dist-upgrade`, since many of the “essential”
-packages from the base images will fail to upgrade inside an unprivileged
-container. If a base package is out of date, you should contact its
-maintainers. If you know there’s a particular package, `foo`, that needs to be
-updated, use `apt-get install -y foo` and it will update automatically.
+You should avoid `RUN apt-get upgrade` or `dist-upgrade`, as many of the
+“essential” packages from the base images won't upgrade inside an unprivileged
+container. If a package contained in the base image is out-of-date, you should
+contact its maintainers.
+If you know there’s a particular package, `foo`, that needs to be updated, use
+`apt-get install -y foo` to update automatically.
 
-* Do write instructions like:
+Always combine  `RUN apt-get update` with `apt-get install` in the same `RUN`
+statement, for example:
 
         RUN apt-get update && apt-get install -y \
             package-bar \
             package-baz \
             package-foo
 
-Writing the instruction this way not only makes it easier to read
-and maintain, but also, by including `apt-get update`, ensures that the cache
-will naturally be busted and the latest versions will be installed with no
-further coding or manual intervention required.
 
-* Further natural cache-busting can be realized by version-pinning packages
-(e.g., `package-foo=1.3.*`). This will force retrieval of that version
-regardless of what’s in the cache.
-Writing your `apt-get` code this way will greatly ease maintenance and reduce
-failures due to unanticipated changes in required packages.
+Using `apt-get update` alone in a `RUN` statement causes caching issues and
+subsequent `apt-get install` instructions fail.
+For example, say you have a Dockerfile:
 
-#### Example
+        FROM ubuntu:14.04
+        RUN apt-get update
+        RUN apt-get install -y curl
 
-Below is a well-formed `RUN` instruction that demonstrates the above
-recommendations. Note that the last package, `s3cmd`, specifies a version
-`1.1.0*`. If the image previously used an older version, specifying the new one
-will cause a cache bust of `apt-get update` and ensure the installation of
-the new version (which in this case had a new, required feature).
+After building the image, all layers are in the Docker cache. Suppose you later
+modify `apt-get install` by adding extra package:
+
+        FROM ubuntu:14.04
+        RUN apt-get update
+        RUN apt-get install -y curl nginx
+
+Docker sees the initial and modified instructions as identical and reuses the
+cache from previous steps. As a result the `apt-get update` is *NOT* executed
+because the build uses the cached version. Because the `apt-get update` is not
+run, your build can potentially get an outdated version of the `curl` and `nginx`
+packages.
+
+Using  `RUN apt-get update && apt-get install -y` ensures your Dockerfile
+installs the latest package versions with no further coding or manual
+intervention. This technique is known as "cache busting". You can also achieve
+cache-busting by specifying a package version. This is known as version pinning,
+for example:
+
+        RUN apt-get update && apt-get install -y \
+            package-bar \
+            package-baz \
+            package-foo=1.3.*
+
+Version pinning forces the build to retrieve a particular version regardless of
+what’s in the cache. This technique can also reduce failures due to unanticipated changes
+in required packages.
+
+Below is a well-formed `RUN` instruction that demonstrates all the `apt-get`
+recommendations.
 
     RUN apt-get update && apt-get install -y \
         aufs-tools \
         automake \
-        btrfs-tools \
         build-essential \
         curl \
         dpkg-sig \
-        git \
-        iptables \
-        libapparmor-dev \
         libcap-dev \
         libsqlite3-dev \
         lxc=1.0* \
         mercurial \
-        parallel \
         reprepro \
         ruby1.9.1 \
         ruby1.9.1-dev \
-        s3cmd=1.1.0*
+        s3cmd=1.1.* \
+     && apt-get clean \
+     && rm -rf /var/lib/apt/lists/*
 
-Writing the instruction this way also helps you avoid potential duplication of
-a given package because it is much easier to read than an instruction like:
+The `s3cmd` instructions specifies a version `1.1.0*`. If the image previously
+used an older version, specifying the new one causes a cache bust of `apt-get
+update` and ensure the installation of the new version. Listing packages on
+each line can also prevent mistakes in package duplication.
 
-    RUN apt-get install -y package-foo && apt-get install -y package-bar
+In addition, cleaning up the apt cache and removing `/var/lib/apt/lists` helps
+keep the image size down. Since the `RUN` statement starts with
+`apt-get update`, the package cache will always be refreshed prior to
+`apt-get install`.
 
 ### CMD
 
@@ -225,7 +249,7 @@ perl, etc), for example, `CMD ["perl", "-de0"]`, `CMD ["python"]`, or
 `CMD` should rarely be used in the manner of `CMD [“param”, “param”]` in
 conjunction with [`ENTRYPOINT`](https://docs.docker.com/reference/builder/#entrypoint), unless
 you and your expected users are already quite familiar with how `ENTRYPOINT`
-works. 
+works.
 
 ### EXPOSE
 
@@ -414,7 +438,7 @@ You should avoid installing or using `sudo` since it has unpredictable TTY and
 signal-forwarding behavior that can cause more problems than it solves. If
 you absolutely need functionality similar to `sudo` (e.g., initializing the
 daemon as root but running it as non-root), you may be able to use
-[“gosu”](https://github.com/tianon/gosu). 
+[“gosu”](https://github.com/tianon/gosu).
 
 Lastly, to reduce layers and complexity, avoid switching `USER` back
 and forth frequently.
@@ -443,7 +467,7 @@ A Docker build executes `ONBUILD` commands before any command in a child
 `ONBUILD` is useful for images that are going to be built `FROM` a given
 image. For example, you would use `ONBUILD` for a language stack image that
 builds arbitrary user software written in that language within the
-`Dockerfile`, as you can see in [Ruby’s `ONBUILD` variants](https://github.com/docker-library/ruby/blob/master/2.1/onbuild/Dockerfile). 
+`Dockerfile`, as you can see in [Ruby’s `ONBUILD` variants](https://github.com/docker-library/ruby/blob/master/2.1/onbuild/Dockerfile).
 
 Images built from `ONBUILD` should get a separate tag, for example:
 `ruby:1.9-onbuild` or `ruby:2.0-onbuild`.
@@ -467,5 +491,5 @@ These Official Repositories have exemplary `Dockerfile`s:
 * [Dockerfile Reference](https://docs.docker.com/reference/builder/)
 * [More about Base Images](https://docs.docker.com/articles/baseimages/)
 * [More about Automated Builds](https://docs.docker.com/docker-hub/builds/)
-* [Guidelines for Creating Official 
+* [Guidelines for Creating Official
 Repositories](https://docs.docker.com/docker-hub/official_repos/)

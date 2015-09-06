@@ -35,8 +35,13 @@ import (
 	"github.com/opencontainers/runc/libcontainer/label"
 )
 
+// DefaultPathEnv is unix style list of directories to search for
+// executables. Each directory is separated from the next by a colon
+// ':' character .
 const DefaultPathEnv = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 
+// Container holds the fields specific to unixen implementations. See
+// CommonContainer for standard fields common to all containers.
 type Container struct {
 	CommonContainer
 
@@ -47,15 +52,15 @@ type Container struct {
 	HostsPath       string
 	MountPoints     map[string]*mountPoint
 	ResolvConfPath  string
-	UpdateDns       bool
-	Volumes         map[string]string // Deprecated since 1.7, kept for backwards compatibility
-	VolumesRW       map[string]bool   // Deprecated since 1.7, kept for backwards compatibility
+
+	Volumes   map[string]string // Deprecated since 1.7, kept for backwards compatibility
+	VolumesRW map[string]bool   // Deprecated since 1.7, kept for backwards compatibility
 }
 
 func killProcessDirectly(container *Container) error {
 	if _, err := container.WaitStop(10 * time.Second); err != nil {
 		// Ensure that we don't kill ourselves
-		if pid := container.GetPid(); pid != 0 {
+		if pid := container.getPID(); pid != 0 {
 			logrus.Infof("Container %s failed to exit within 10 seconds of kill - trying direct SIGKILL", stringid.TruncateID(container.ID))
 			if err := syscall.Kill(pid, 9); err != nil {
 				if err != syscall.ESRCH {
@@ -73,7 +78,7 @@ func (container *Container) setupLinkedContainers() ([]string, error) {
 		env    []string
 		daemon = container.daemon
 	)
-	children, err := daemon.Children(container.Name)
+	children, err := daemon.children(container.Name)
 	if err != nil {
 		return nil, err
 	}
@@ -231,7 +236,7 @@ func populateCommand(c *Container, env []string) error {
 	for _, ul := range ulimits {
 		ulIdx[ul.Name] = ul
 	}
-	for name, ul := range c.daemon.config.Ulimits {
+	for name, ul := range c.daemon.configStore.Ulimits {
 		if _, exists := ulIdx[name]; !exists {
 			ulimits = append(ulimits, ul)
 		}
@@ -277,7 +282,7 @@ func populateCommand(c *Container, env []string) error {
 
 	c.command = &execdriver.Command{
 		ID:                 c.ID,
-		Rootfs:             c.RootfsPath(),
+		Rootfs:             c.rootfsPath(),
 		ReadonlyRootfs:     c.hostConfig.ReadonlyRootfs,
 		InitPath:           "/.dockerinit",
 		WorkingDir:         c.Config.WorkingDir,
@@ -292,8 +297,8 @@ func populateCommand(c *Container, env []string) error {
 		CapDrop:            c.hostConfig.CapDrop.Slice(),
 		GroupAdd:           c.hostConfig.GroupAdd,
 		ProcessConfig:      processConfig,
-		ProcessLabel:       c.GetProcessLabel(),
-		MountLabel:         c.GetMountLabel(),
+		ProcessLabel:       c.getProcessLabel(),
+		MountLabel:         c.getMountLabel(),
 		LxcConfig:          lxcConfig,
 		AppArmorProfile:    c.AppArmorProfile,
 		CgroupParent:       c.hostConfig.CgroupParent,
@@ -321,8 +326,8 @@ func mergeDevices(defaultDevices, userDevices []*configs.Device) []*configs.Devi
 	return append(devs, userDevices...)
 }
 
-// GetSize, return real size, virtual size
-func (container *Container) GetSize() (int64, int64) {
+// GetSize returns the real size & virtual size of the container.
+func (container *Container) getSize() (int64, int64) {
 	var (
 		sizeRw, sizeRootfs int64
 		err                error
@@ -373,7 +378,7 @@ func (container *Container) trySetNetworkMount(destination string, path string) 
 }
 
 func (container *Container) buildHostnameFile() error {
-	hostnamePath, err := container.GetRootResourcePath("hostname")
+	hostnamePath, err := container.getRootResourcePath("hostname")
 	if err != nil {
 		return err
 	}
@@ -385,51 +390,53 @@ func (container *Container) buildHostnameFile() error {
 	return ioutil.WriteFile(container.HostnamePath, []byte(container.Config.Hostname+"\n"), 0644)
 }
 
-func (container *Container) buildJoinOptions() ([]libnetwork.EndpointOption, error) {
+func (container *Container) buildSandboxOptions() ([]libnetwork.SandboxOption, error) {
 	var (
-		joinOptions []libnetwork.EndpointOption
+		sboxOptions []libnetwork.SandboxOption
 		err         error
 		dns         []string
 		dnsSearch   []string
 	)
 
-	joinOptions = append(joinOptions, libnetwork.JoinOptionHostname(container.Config.Hostname),
-		libnetwork.JoinOptionDomainname(container.Config.Domainname))
+	sboxOptions = append(sboxOptions, libnetwork.OptionHostname(container.Config.Hostname),
+		libnetwork.OptionDomainname(container.Config.Domainname))
 
 	if container.hostConfig.NetworkMode.IsHost() {
-		joinOptions = append(joinOptions, libnetwork.JoinOptionUseDefaultSandbox())
+		sboxOptions = append(sboxOptions, libnetwork.OptionUseDefaultSandbox())
+		sboxOptions = append(sboxOptions, libnetwork.OptionOriginHostsPath("/etc/hosts"))
+		sboxOptions = append(sboxOptions, libnetwork.OptionOriginResolvConfPath("/etc/resolv.conf"))
 	}
 
-	container.HostsPath, err = container.GetRootResourcePath("hosts")
+	container.HostsPath, err = container.getRootResourcePath("hosts")
 	if err != nil {
 		return nil, err
 	}
-	joinOptions = append(joinOptions, libnetwork.JoinOptionHostsPath(container.HostsPath))
+	sboxOptions = append(sboxOptions, libnetwork.OptionHostsPath(container.HostsPath))
 
-	container.ResolvConfPath, err = container.GetRootResourcePath("resolv.conf")
+	container.ResolvConfPath, err = container.getRootResourcePath("resolv.conf")
 	if err != nil {
 		return nil, err
 	}
-	joinOptions = append(joinOptions, libnetwork.JoinOptionResolvConfPath(container.ResolvConfPath))
+	sboxOptions = append(sboxOptions, libnetwork.OptionResolvConfPath(container.ResolvConfPath))
 
 	if len(container.hostConfig.DNS) > 0 {
 		dns = container.hostConfig.DNS
-	} else if len(container.daemon.config.Dns) > 0 {
-		dns = container.daemon.config.Dns
+	} else if len(container.daemon.configStore.DNS) > 0 {
+		dns = container.daemon.configStore.DNS
 	}
 
 	for _, d := range dns {
-		joinOptions = append(joinOptions, libnetwork.JoinOptionDNS(d))
+		sboxOptions = append(sboxOptions, libnetwork.OptionDNS(d))
 	}
 
 	if len(container.hostConfig.DNSSearch) > 0 {
 		dnsSearch = container.hostConfig.DNSSearch
-	} else if len(container.daemon.config.DnsSearch) > 0 {
-		dnsSearch = container.daemon.config.DnsSearch
+	} else if len(container.daemon.configStore.DNSSearch) > 0 {
+		dnsSearch = container.daemon.configStore.DNSSearch
 	}
 
 	for _, ds := range dnsSearch {
-		joinOptions = append(joinOptions, libnetwork.JoinOptionDNSSearch(ds))
+		sboxOptions = append(sboxOptions, libnetwork.OptionDNSSearch(ds))
 	}
 
 	if container.NetworkSettings.SecondaryIPAddresses != nil {
@@ -439,13 +446,13 @@ func (container *Container) buildJoinOptions() ([]libnetwork.EndpointOption, err
 		}
 
 		for _, a := range container.NetworkSettings.SecondaryIPAddresses {
-			joinOptions = append(joinOptions, libnetwork.JoinOptionExtraHost(name, a.Addr))
+			sboxOptions = append(sboxOptions, libnetwork.OptionExtraHost(name, a.Addr))
 		}
 	}
 
 	var childEndpoints, parentEndpoints []string
 
-	children, err := container.daemon.Children(container.Name)
+	children, err := container.daemon.children(container.Name)
 	if err != nil {
 		return nil, err
 	}
@@ -458,7 +465,7 @@ func (container *Container) buildJoinOptions() ([]libnetwork.EndpointOption, err
 		if alias != child.Name[1:] {
 			aliasList = aliasList + " " + child.Name[1:]
 		}
-		joinOptions = append(joinOptions, libnetwork.JoinOptionExtraHost(aliasList, child.NetworkSettings.IPAddress))
+		sboxOptions = append(sboxOptions, libnetwork.OptionExtraHost(aliasList, child.NetworkSettings.IPAddress))
 		if child.NetworkSettings.EndpointID != "" {
 			childEndpoints = append(childEndpoints, child.NetworkSettings.EndpointID)
 		}
@@ -467,10 +474,10 @@ func (container *Container) buildJoinOptions() ([]libnetwork.EndpointOption, err
 	for _, extraHost := range container.hostConfig.ExtraHosts {
 		// allow IPv6 addresses in extra hosts; only split on first ":"
 		parts := strings.SplitN(extraHost, ":", 2)
-		joinOptions = append(joinOptions, libnetwork.JoinOptionExtraHost(parts[0], parts[1]))
+		sboxOptions = append(sboxOptions, libnetwork.OptionExtraHost(parts[0], parts[1]))
 	}
 
-	refs := container.daemon.ContainerGraph().RefPaths(container.ID)
+	refs := container.daemon.containerGraph().RefPaths(container.ID)
 	for _, ref := range refs {
 		if ref.ParentID == "0" {
 			continue
@@ -481,9 +488,9 @@ func (container *Container) buildJoinOptions() ([]libnetwork.EndpointOption, err
 			logrus.Error(err)
 		}
 
-		if c != nil && !container.daemon.config.DisableBridge && container.hostConfig.NetworkMode.IsPrivate() {
+		if c != nil && !container.daemon.configStore.DisableBridge && container.hostConfig.NetworkMode.IsPrivate() {
 			logrus.Debugf("Update /etc/hosts of %s for alias %s with ip %s", c.ID, ref.Name, container.NetworkSettings.IPAddress)
-			joinOptions = append(joinOptions, libnetwork.JoinOptionParentUpdate(c.NetworkSettings.EndpointID, ref.Name, container.NetworkSettings.IPAddress))
+			sboxOptions = append(sboxOptions, libnetwork.OptionParentUpdate(c.ID, ref.Name, container.NetworkSettings.IPAddress))
 			if c.NetworkSettings.EndpointID != "" {
 				parentEndpoints = append(parentEndpoints, c.NetworkSettings.EndpointID)
 			}
@@ -497,9 +504,9 @@ func (container *Container) buildJoinOptions() ([]libnetwork.EndpointOption, err
 		},
 	}
 
-	joinOptions = append(joinOptions, libnetwork.JoinOptionGeneric(linkOptions))
+	sboxOptions = append(sboxOptions, libnetwork.OptionGeneric(linkOptions))
 
-	return joinOptions, nil
+	return sboxOptions, nil
 }
 
 func (container *Container) buildPortMapInfo(n libnetwork.Network, ep libnetwork.Endpoint, networkSettings *network.Settings) (*network.Settings, error) {
@@ -623,12 +630,10 @@ func (container *Container) updateJoinInfo(ep libnetwork.Endpoint) error {
 		container.NetworkSettings.IPv6Gateway = epInfo.GatewayIPv6().String()
 	}
 
-	container.NetworkSettings.SandboxKey = epInfo.SandboxKey()
-
 	return nil
 }
 
-func (container *Container) updateNetworkSettings(n libnetwork.Network, ep libnetwork.Endpoint) error {
+func (container *Container) updateEndpointNetworkSettings(n libnetwork.Network, ep libnetwork.Endpoint) error {
 	networkSettings := &network.Settings{NetworkID: n.ID(), EndpointID: ep.ID()}
 
 	networkSettings, err := container.buildPortMapInfo(n, ep, networkSettings)
@@ -642,42 +647,37 @@ func (container *Container) updateNetworkSettings(n libnetwork.Network, ep libne
 	}
 
 	if container.hostConfig.NetworkMode == runconfig.NetworkMode("bridge") {
-		networkSettings.Bridge = container.daemon.config.Bridge.Iface
+		networkSettings.Bridge = container.daemon.configStore.Bridge.Iface
 	}
 
 	container.NetworkSettings = networkSettings
 	return nil
 }
 
+func (container *Container) updateSandboxNetworkSettings(sb libnetwork.Sandbox) error {
+	container.NetworkSettings.SandboxID = sb.ID()
+	container.NetworkSettings.SandboxKey = sb.Key()
+	return nil
+}
+
 // UpdateNetwork is used to update the container's network (e.g. when linked containers
 // get removed/unlinked).
-func (container *Container) UpdateNetwork() error {
-	n, err := container.daemon.netController.NetworkByID(container.NetworkSettings.NetworkID)
+func (container *Container) updateNetwork() error {
+	ctrl := container.daemon.netController
+	sid := container.NetworkSettings.SandboxID
+
+	sb, err := ctrl.SandboxByID(sid)
 	if err != nil {
-		return fmt.Errorf("error locating network id %s: %v", container.NetworkSettings.NetworkID, err)
+		return fmt.Errorf("error locating sandbox id %s: %v", sid, err)
 	}
 
-	ep, err := n.EndpointByID(container.NetworkSettings.EndpointID)
-	if err != nil {
-		return fmt.Errorf("error locating endpoint id %s: %v", container.NetworkSettings.EndpointID, err)
-	}
-
-	if err := ep.Leave(container.ID); err != nil {
-		return fmt.Errorf("endpoint leave failed: %v", err)
-
-	}
-
-	joinOptions, err := container.buildJoinOptions()
+	options, err := container.buildSandboxOptions()
 	if err != nil {
 		return fmt.Errorf("Update network failed: %v", err)
 	}
 
-	if err := ep.Join(container.ID, joinOptions...); err != nil {
-		return fmt.Errorf("endpoint join failed: %v", err)
-	}
-
-	if err := container.updateJoinInfo(ep); err != nil {
-		return fmt.Errorf("Updating join info failed: %v", err)
+	if err := sb.Refresh(options...); err != nil {
+		return fmt.Errorf("Update network failed: Failure in refresh sandbox %s: %v", sid, err)
 	}
 
 	return nil
@@ -707,8 +707,6 @@ func (container *Container) buildCreateEndpointOptions() ([]libnetwork.EndpointO
 			}
 		}
 	}
-
-	container.NetworkSettings.PortMapping = nil
 
 	ports := make([]nat.Port, len(portSpecs))
 	var i int
@@ -813,7 +811,7 @@ func (container *Container) secondaryNetworkRequired(primaryNetworkType string) 
 		return false
 	}
 
-	if container.daemon.config.DisableBridge {
+	if container.daemon.configStore.DisableBridge {
 		return false
 	}
 
@@ -826,7 +824,7 @@ func (container *Container) secondaryNetworkRequired(primaryNetworkType string) 
 	return false
 }
 
-func (container *Container) AllocateNetwork() error {
+func (container *Container) allocateNetwork() error {
 	mode := container.hostConfig.NetworkMode
 	controller := container.daemon.netController
 	if container.Config.NetworkDisabled || mode.IsContainer() {
@@ -847,7 +845,7 @@ func (container *Container) AllocateNetwork() error {
 		return fmt.Errorf("conflicting options: publishing a service and network mode")
 	}
 
-	if runconfig.NetworkMode(networkDriver).IsBridge() && container.daemon.config.DisableBridge {
+	if runconfig.NetworkMode(networkDriver).IsBridge() && container.daemon.configStore.DisableBridge {
 		container.Config.NetworkDisabled = true
 		return nil
 	}
@@ -871,11 +869,12 @@ func (container *Container) AllocateNetwork() error {
 		return err
 	}
 
-	return container.WriteHostConfig()
+	return container.writeHostConfig()
 }
 
 func (container *Container) configureNetwork(networkName, service, networkDriver string, canCreateNetwork bool) error {
 	controller := container.daemon.netController
+
 	n, err := controller.NetworkByName(networkName)
 	if err != nil {
 		if _, ok := err.(libnetwork.ErrNoSuchNetwork); !ok || !canCreateNetwork {
@@ -904,16 +903,32 @@ func (container *Container) configureNetwork(networkName, service, networkDriver
 		}
 	}
 
-	if err := container.updateNetworkSettings(n, ep); err != nil {
+	if err := container.updateEndpointNetworkSettings(n, ep); err != nil {
 		return err
 	}
 
-	joinOptions, err := container.buildJoinOptions()
-	if err != nil {
-		return err
+	var sb libnetwork.Sandbox
+	controller.WalkSandboxes(func(s libnetwork.Sandbox) bool {
+		if s.ContainerID() == container.ID {
+			sb = s
+			return true
+		}
+		return false
+	})
+	if sb == nil {
+		options, err := container.buildSandboxOptions()
+		if err != nil {
+			return err
+		}
+		sb, err = controller.NewSandbox(container.ID, options...)
+		if err != nil {
+			return err
+		}
 	}
 
-	if err := ep.Join(container.ID, joinOptions...); err != nil {
+	container.updateSandboxNetworkSettings(sb)
+
+	if err := ep.Join(sb); err != nil {
 		return err
 	}
 
@@ -955,7 +970,7 @@ func (container *Container) initializeNetworking() error {
 
 	}
 
-	if err := container.AllocateNetwork(); err != nil {
+	if err := container.allocateNetwork(); err != nil {
 		return err
 	}
 
@@ -1023,17 +1038,24 @@ func (container *Container) getNetworkedContainer() (*Container, error) {
 	}
 }
 
-func (container *Container) ReleaseNetwork() {
+func (container *Container) releaseNetwork() {
 	if container.hostConfig.NetworkMode.IsContainer() || container.Config.NetworkDisabled {
 		return
 	}
 
+	sid := container.NetworkSettings.SandboxID
 	eid := container.NetworkSettings.EndpointID
 	nid := container.NetworkSettings.NetworkID
 
 	container.NetworkSettings = &network.Settings{}
 
-	if nid == "" || eid == "" {
+	if sid == "" || nid == "" || eid == "" {
+		return
+	}
+
+	sb, err := container.daemon.netController.SandboxByID(sid)
+	if err != nil {
+		logrus.Errorf("error locating sandbox id %s: %v", sid, err)
 		return
 	}
 
@@ -1049,17 +1071,9 @@ func (container *Container) ReleaseNetwork() {
 		return
 	}
 
-	switch {
-	case container.hostConfig.NetworkMode.IsHost():
-		if err := ep.Leave(container.ID); err != nil {
-			logrus.Errorf("Error leaving endpoint id %s for container %s: %v", eid, container.ID, err)
-			return
-		}
-	default:
-		if err := container.daemon.netController.LeaveAll(container.ID); err != nil {
-			logrus.Errorf("Leave all failed for  %s: %v", container.ID, err)
-			return
-		}
+	if err := sb.Delete(); err != nil {
+		logrus.Errorf("Error deleting sandbox id %s for container %s: %v", sid, container.ID, err)
+		return
 	}
 
 	// In addition to leaving all endpoints, delete implicitly created endpoint
@@ -1070,7 +1084,7 @@ func (container *Container) ReleaseNetwork() {
 	}
 }
 
-func (container *Container) UnmountVolumes(forceSyscall bool) error {
+func (container *Container) unmountVolumes(forceSyscall bool) error {
 	var volumeMounts []mountPoint
 
 	for _, mntPoint := range container.MountPoints {
@@ -1189,7 +1203,7 @@ func (container *Container) isDestinationMounted(destination string) bool {
 func (container *Container) prepareMountPoints() error {
 	for _, config := range container.MountPoints {
 		if len(config.Driver) > 0 {
-			v, err := createVolume(config.Name, config.Driver)
+			v, err := container.daemon.createVolume(config.Name, config.Driver, nil)
 			if err != nil {
 				return err
 			}
@@ -1199,13 +1213,22 @@ func (container *Container) prepareMountPoints() error {
 	return nil
 }
 
-func (container *Container) removeMountPoints() error {
+func (container *Container) removeMountPoints(rm bool) error {
+	var rmErrors []string
 	for _, m := range container.MountPoints {
-		if m.Volume != nil {
-			if err := removeVolume(m.Volume); err != nil {
-				return err
+		if m.Volume == nil {
+			continue
+		}
+		container.daemon.volumes.Decrement(m.Volume)
+		if rm {
+			if err := container.daemon.volumes.Remove(m.Volume); err != nil {
+				rmErrors = append(rmErrors, fmt.Sprintf("%v\n", err))
+				continue
 			}
 		}
+	}
+	if len(rmErrors) > 0 {
+		return fmt.Errorf("Error removing volumes:\n%v", rmErrors)
 	}
 	return nil
 }

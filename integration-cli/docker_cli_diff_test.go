@@ -8,6 +8,7 @@ import (
 
 // ensure that an added file shows up in docker diff
 func (s *DockerSuite) TestDiffFilenameShownInOutput(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	containerCmd := `echo foo > /root/bar`
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "sh", "-c", containerCmd)
 
@@ -28,6 +29,7 @@ func (s *DockerSuite) TestDiffFilenameShownInOutput(c *check.C) {
 
 // test to ensure GH #3840 doesn't occur any more
 func (s *DockerSuite) TestDiffEnsureDockerinitFilesAreIgnored(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	// this is a list of files which shouldn't show up in `docker diff`
 	dockerinitFiles := []string{"/etc/resolv.conf", "/etc/hostname", "/etc/hosts", "/.dockerinit", "/.dockerenv"}
 	containerCount := 5
@@ -49,6 +51,7 @@ func (s *DockerSuite) TestDiffEnsureDockerinitFilesAreIgnored(c *check.C) {
 }
 
 func (s *DockerSuite) TestDiffEnsureOnlyKmsgAndPtmx(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "sleep", "0")
 
 	cleanCID := strings.TrimSpace(out)

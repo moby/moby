@@ -10,6 +10,11 @@ import (
 	"github.com/docker/docker/pkg/jsonmessage"
 )
 
+var (
+	headerRegexp     = regexp.MustCompile(`^(?:(.+)/(.+?))\((.+)\).*$`)
+	errInvalidHeader = errors.New("Bad header, should be in format `docker/version (platform)`")
+)
+
 // Download requests a given URL and returns an io.Reader.
 func Download(url string) (resp *http.Response, err error) {
 	if resp, err = http.Get(url); err != nil {
@@ -39,21 +44,13 @@ type ServerHeader struct {
 // ParseServerHeader extracts pieces from an HTTP server header
 // which is in the format "docker/version (os)" eg docker/1.8.0-dev (windows).
 func ParseServerHeader(hdr string) (*ServerHeader, error) {
-	re := regexp.MustCompile(`.*\((.+)\).*$`)
-	r := &ServerHeader{}
-	if matches := re.FindStringSubmatch(hdr); matches != nil {
-		r.OS = matches[1]
-		parts := strings.Split(hdr, "/")
-		if len(parts) != 2 {
-			return nil, errors.New("Bad header: '/' missing")
-		}
-		r.App = parts[0]
-		v := strings.Split(parts[1], " ")
-		if len(v) != 2 {
-			return nil, errors.New("Bad header: Expected single space")
-		}
-		r.Ver = v[0]
-		return r, nil
+	matches := headerRegexp.FindStringSubmatch(hdr)
+	if len(matches) != 4 {
+		return nil, errInvalidHeader
 	}
-	return nil, errors.New("Bad header: Failed regex match")
+	return &ServerHeader{
+		App: strings.TrimSpace(matches[1]),
+		Ver: strings.TrimSpace(matches[2]),
+		OS:  strings.TrimSpace(matches[3]),
+	}, nil
 }

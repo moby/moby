@@ -192,6 +192,12 @@ options for `zfs` start with `zfs`.
      resize support, dynamically changing thin-pool features, automatic thinp
      metadata checking when lvm activates the thin-pool, etc.
 
+     As a fallback if no thin pool is provided, loopback files will be
+     created. Loopback is very slow, but can be used without any
+     pre-configuration of storage. It is strongly recommended that you do 
+     not use loopback in production. Ensure your Docker daemon has a
+     `--storage-opt dm.thinpooldev` argument provided.
+
      Example use:
 
         docker daemon --storage-opt dm.thinpooldev=/dev/mapper/thin-pool
@@ -441,6 +447,12 @@ daemon as described above.
 Local registries, whose IP address falls in the 127.0.0.0/8 range, are
 automatically marked as insecure as of Docker 1.3.2. It is not recommended to
 rely on this, as it may change in the future.
+
+Enabling `--insecure-registry`, i.e., allowing un-encrypted and/or untrusted
+communication, can be useful when running a local registry.  However, 
+because its use creates security vulnerabilities it should ONLY be enabled for
+testing purposes.  For increased security, users should add their CA to their 
+system's list of trusted CAs instead of enabling `--insecure-registry`.
 
 ## Running a Docker daemon behind a HTTPS_PROXY
 

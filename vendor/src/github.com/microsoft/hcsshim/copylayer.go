@@ -8,6 +8,10 @@ import (
 	"github.com/Sirupsen/logrus"
 )
 
+// CopyLayer performs a commit of the srcId (which is expected to be a read-write
+// layer) into a new read-only layer at dstId.  This requires the full list of
+// on-disk paths to parent layers, provided in parentLayerPaths, in order to
+// complete the commit.
 func CopyLayer(info DriverInfo, srcId, dstId string, parentLayerPaths []string) error {
 	title := "hcsshim::CopyLayer "
 	logrus.Debugf(title+"srcId %s dstId", srcId, dstId)

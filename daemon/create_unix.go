@@ -54,16 +54,17 @@ func createContainerPlatformSpecificSettings(container *Container, config *runco
 			}
 		}
 
-		v, err := createVolume(name, volumeDriver)
+		v, err := container.daemon.createVolume(name, volumeDriver, nil)
 		if err != nil {
 			return err
 		}
+
 		if err := label.Relabel(v.Path(), container.MountLabel, "z"); err != nil {
 			return err
 		}
 
 		// never attempt to copy existing content in a container FS to a shared volume
-		if volumeDriver == volume.DefaultDriverName || volumeDriver == "" {
+		if v.DriverName() == volume.DefaultDriverName {
 			if err := container.copyImagePathContent(v, destination); err != nil {
 				return err
 			}

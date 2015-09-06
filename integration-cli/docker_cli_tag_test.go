@@ -9,6 +9,7 @@ import (
 
 // tagging a named image in a new unprefixed repo should work
 func (s *DockerSuite) TestTagUnprefixedRepoByName(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	if err := pullImageIfNotExist("busybox:latest"); err != nil {
 		c.Fatal("couldn't find the busybox:latest image locally and failed to pull it")
 	}
@@ -18,6 +19,7 @@ func (s *DockerSuite) TestTagUnprefixedRepoByName(c *check.C) {
 
 // tagging an image by ID in a new unprefixed repo should work
 func (s *DockerSuite) TestTagUnprefixedRepoByID(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	imageID, err := inspectField("busybox", "Id")
 	c.Assert(err, check.IsNil)
 	dockerCmd(c, "tag", imageID, "testfoobarbaz")
@@ -52,6 +54,7 @@ func (s *DockerSuite) TestTagInvalidPrefixedRepo(c *check.C) {
 
 // ensure we allow the use of valid tags
 func (s *DockerSuite) TestTagValidPrefixedRepo(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	if err := pullImageIfNotExist("busybox:latest"); err != nil {
 		c.Fatal("couldn't find the busybox:latest image locally and failed to pull it")
 	}
@@ -70,6 +73,7 @@ func (s *DockerSuite) TestTagValidPrefixedRepo(c *check.C) {
 
 // tag an image with an existed tag name without -f option should fail
 func (s *DockerSuite) TestTagExistedNameWithoutForce(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	if err := pullImageIfNotExist("busybox:latest"); err != nil {
 		c.Fatal("couldn't find the busybox:latest image locally and failed to pull it")
 	}
@@ -83,6 +87,7 @@ func (s *DockerSuite) TestTagExistedNameWithoutForce(c *check.C) {
 
 // tag an image with an existed tag name with -f option should work
 func (s *DockerSuite) TestTagExistedNameWithForce(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	if err := pullImageIfNotExist("busybox:latest"); err != nil {
 		c.Fatal("couldn't find the busybox:latest image locally and failed to pull it")
 	}
@@ -92,6 +97,7 @@ func (s *DockerSuite) TestTagExistedNameWithForce(c *check.C) {
 }
 
 func (s *DockerSuite) TestTagWithPrefixHyphen(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	if err := pullImageIfNotExist("busybox:latest"); err != nil {
 		c.Fatal("couldn't find the busybox:latest image locally and failed to pull it")
 	}
@@ -115,6 +121,7 @@ func (s *DockerSuite) TestTagWithPrefixHyphen(c *check.C) {
 // ensure tagging using official names works
 // ensure all tags result in the same name
 func (s *DockerSuite) TestTagOfficialNames(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	names := []string{
 		"docker.io/busybox",
 		"index.docker.io/busybox",

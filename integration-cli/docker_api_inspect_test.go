@@ -10,6 +10,7 @@ import (
 )
 
 func (s *DockerSuite) TestInspectApiContainerResponse(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "true")
 
 	cleanedContainerID := strings.TrimSpace(out)

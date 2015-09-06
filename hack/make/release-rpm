@@ -47,7 +47,7 @@ for distro in "${distros[@]}"; do
 		fi
 
 		# path to rpms
-		RPMFILE=( "bundles/$VERSION/build-rpm/$version/RPMS/x86_64/docker-engine"*.rpm "bundles/$VERSION/build-rpm/$version/SRPMS/docker-engine"*.rpm )
+		RPMFILE=( "bundles/$VERSION/build-rpm/$version/RPMS/"*"/docker-engine"*.rpm "bundles/$VERSION/build-rpm/$version/SRPMS/docker-engine"*.rpm )
 
 		# if we have a $GPG_PASSPHRASE we may as well
 		# sign the rpms before adding to repo

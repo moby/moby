@@ -87,12 +87,30 @@ default foreground mode:
 
 ### Detached (-d)
 
-In detached mode (`-d=true` or just `-d`), all I/O should be done
-through network connections or shared volumes because the container is
-no longer listening to the command line where you executed `docker run`.
-You can reattach to a detached container with `docker`
-[*attach*](/reference/commandline/attach). If you choose to run a
-container in the detached mode, then you cannot use the `--rm` option.
+To start a container in detached mode, you use `-d=true` or just `-d` option. By
+design, containers started in detached mode exit when the root process used to
+run the container exits. A container in detached mode cannot be automatically
+removed when it stops, this means you cannot use the `--rm` option with `-d` option.
+
+Do not pass a `service x start` command to a detached container. For example, this
+command attempts to start the `nginx` service.
+
+    $ docker run -d -p 80:80 my_image service nginx start
+
+This succeeds in starting the `nginx` service inside the container. However, it
+fails the detached container paradigm in that, the root process (`service nginx
+start`) returns and the detached container stops as designed. As a result, the
+`nginx` service is started but could not be used. Instead, to start a process
+such as the `nginx` web server do the following:
+
+    $ docker run -d -p 80:80 my_image nginx -g 'daemon off;'
+
+To do input/output with a detached container use network connections or shared
+volumes. These are required because the container is no longer listening to the
+command line where `docker run` was run.
+
+To reattach to a detached container, use `docker`
+[*attach*](/reference/commandline/attach) command.
 
 ### Foreground
 
@@ -402,7 +420,16 @@ Docker supports the following restart policies:
       <td>
         Always restart the container regardless of the exit status.
         When you specify always, the Docker daemon will try to restart
-        the container indefinitely.
+        the container indefinitely. The container will also always start
+        on daemon startup, regardless of the current state of the container.
+      </td>
+    </tr>
+    <tr>
+      <td><strong>unless-stopped</strong></td>
+      <td>
+        Always restart the container regardless of the exit status, but
+        do not start it on daemon startup if the container has been put
+        to a stopped state before.
       </td>
     </tr>
   </tbody>
@@ -659,8 +686,8 @@ limit and "K" the kernel limit. There are three possible ways to set limits:
       <td class="no-wrap"><strong>U != 0, K &lt; U</strong></td>
       <td>
         Kernel memory is a subset of the user memory. This setup is useful in
-        deployments where the total amount of memory per-cgroup is overcommited.
-        Overcommiting kernel memory limits is definitely not recommended, since the
+        deployments where the total amount of memory per-cgroup is overcommitted.
+        Overcommitting kernel memory limits is definitely not recommended, since the
         box can still run out of non-reclaimable memory.
         In this case, the you can configure K so that the sum of all groups is
         never greater than the total memory. Then, freely set U at the expense of
@@ -670,7 +697,7 @@ limit and "K" the kernel limit. There are three possible ways to set limits:
     <tr>
       <td class="no-wrap"><strong>U != 0, K &gt; U</strong></td>
       <td>
-        Since kernel memory charges are also fed to the user counter and reclaimation
+        Since kernel memory charges are also fed to the user counter and reclamation
         is triggered for the container for both kinds of memory. This configuration
         gives the admin a unified view of memory. It is also useful for people
         who just want to track kernel memory usage.

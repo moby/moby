@@ -41,6 +41,8 @@ the running containers.
                           status=(created|restarting|running|paused|exited)
                           name=<string> - container's name
                           id=<ID> - container's ID
+                          ancestor=(<image-name>[:tag]|<image-id>|<image@digest>) - filters containers that were
+                          created from the given image or a descendant.
 
 **-l**, **--latest**=*true*|*false*
    Show only the latest created container, include non-running ones. The default is *false*.

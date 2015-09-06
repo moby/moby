@@ -25,6 +25,7 @@ package plugins
 import (
 	"errors"
 	"sync"
+	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/tlsconfig"
@@ -109,27 +110,45 @@ func (p *Plugin) activateWithLock() error {
 }
 
 func load(name string) (*Plugin, error) {
-	storage.Lock()
+	return loadWithRetry(name, true)
+}
+
+func loadWithRetry(name string, retry bool) (*Plugin, error) {
 	registry := newLocalRegistry()
-	pl, err := registry.Plugin(name)
-	if err == nil {
-		storage.plugins[name] = pl
-	}
-	storage.Unlock()
+	start := time.Now()
 
-	if err != nil {
-		return nil, err
-	}
+	var retries int
+	for {
+		pl, err := registry.Plugin(name)
+		if err != nil {
+			if !retry {
+				return nil, err
+			}
 
-	err = pl.activate()
+			timeOff := backoff(retries)
+			if abort(start, timeOff) {
+				return nil, err
+			}
+			retries++
+			logrus.Warnf("Unable to locate plugin: %s, retrying in %v", name, timeOff)
+			time.Sleep(timeOff)
+			continue
+		}
 
-	if err != nil {
 		storage.Lock()
-		delete(storage.plugins, name)
+		storage.plugins[name] = pl
 		storage.Unlock()
-	}
 
-	return pl, err
+		err = pl.activate()
+
+		if err != nil {
+			storage.Lock()
+			delete(storage.plugins, name)
+			storage.Unlock()
+		}
+
+		return pl, err
+	}
 }
 
 func get(name string) (*Plugin, error) {

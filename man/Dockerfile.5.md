@@ -58,6 +58,8 @@ A Dockerfile is similar to a Makefile.
 
   `FROM image:tag`
 
+  `FROM image@digest`
+
   -- The **FROM** instruction sets the base image for subsequent instructions. A
   valid Dockerfile must have **FROM** as its first instruction. The image can be any
   valid image. It is easy to start by pulling an image from the public
@@ -72,8 +74,12 @@ A Dockerfile is similar to a Makefile.
   -- If no tag is given to the **FROM** instruction, Docker applies the 
   `latest` tag. If the used tag does not exist, an error is returned.
 
+  -- If no digest is given to the **FROM** instruction, Docker applies the 
+  `latest` tag. If the used tag does not exist, an error is returned.
+
 **MAINTAINER**
   -- **MAINTAINER** sets the Author field for the generated images.
+  Useful for providing users with an email or url for support.
 
 **RUN**
   -- **RUN** has two forms:
@@ -114,7 +120,7 @@ A Dockerfile is similar to a Makefile.
   CMD command param1 param2
   ```
 
-  -- There can be only one **CMD** in a Dockerfile. If more than one **CMD** is listed, only
+  -- There should be only one **CMD** in a Dockerfile. If more than one **CMD** is listed, only
   the last **CMD** takes effect.
   The main purpose of a **CMD** is to provide defaults for an executing container.
   These defaults may include an executable, or they can omit the executable. If
@@ -150,13 +156,20 @@ A Dockerfile is similar to a Makefile.
   the image.
 
 **LABEL**
-  -- `LABEL <key>[=<value>] [<key>[=<value>] ...]`
+  -- `LABEL <key>[=<value>] [<key>[=<value>] ...]`or 
+  ```
+  LABEL <key>[ <value>]
+  LABEL <key>[ <value>]
+  ...
+  ```
   The **LABEL** instruction adds metadata to an image. A **LABEL** is a
   key-value pair. To include spaces within a **LABEL** value, use quotes and
   backslashes as you would in command-line parsing.
 
   ```
-  LABEL "com.example.vendor"="ACME Incorporated"
+  LABEL com.example.vendor="ACME Incorporated"
+  or
+  LABEL com.example.vendor "ACME Incorporated"
   ```
 
   An image can have more than one label. To specify multiple labels, separate
@@ -179,7 +192,7 @@ A Dockerfile is similar to a Makefile.
   -- `ENV <key> <value>`
   The **ENV** instruction sets the environment variable <key> to
   the value `<value>`. This value is passed to all future 
-  RUN, **ENTRYPOINT**, and **CMD** instructions. This is
+  **RUN**, **ENTRYPOINT**, and **CMD** instructions. This is
   functionally equivalent to prefixing the command with `<key>=<value>`.  The
   environment variables that are set with **ENV** persist when a container is run
   from the resulting image. Use `docker inspect` to inspect these values, and
@@ -205,8 +218,11 @@ A Dockerfile is similar to a Makefile.
   then they must be relative to the source directory that is being built
   (the context of the build). The `<dest>` is the absolute path, or path relative
   to **WORKDIR**, into which the source is copied inside the target container.
-  All new files and directories are created with mode 0755 and with the uid 
-  and gid of **0**.
+  If the `<src>` argument is a local file in a recognized compression format
+  (tar, gzip, bzip2, etc) then it is unpacked at the specified `<dest>` in the
+  container's filesystem.  Note that only local compressed files will be unpacked,
+  i.e., the URL download and archive unpacking features cannot be used together.
+  All new directories are created with mode 0755 and with the uid and gid of **0**.
 
 **COPY**
   -- **COPY** has two forms:
@@ -223,8 +239,10 @@ A Dockerfile is similar to a Makefile.
   the path to a file or directory relative to the source directory that is
   being built (the context of the build) or a remote file URL. The `<dest>` is an
   absolute path, or a path relative to **WORKDIR**, into which the source will
-  be copied inside the target container. All new files and directories are
-  created with mode **0755** and with the uid and gid of **0**.
+  be copied inside the target container. If you **COPY** an archive file it will
+  land in the container exactly as it appears in the build context without any 
+  attempt to unpack it.  All new files and directories are created with mode **0755**
+  and with the uid and gid of **0**.
 
 **ENTRYPOINT**
   -- **ENTRYPOINT** has two forms:
@@ -241,7 +259,7 @@ A Dockerfile is similar to a Makefile.
   container that can be run as an executable. When you specify an **ENTRYPOINT**,
   the whole container runs as if it was only that executable.  The **ENTRYPOINT**
   instruction adds an entry command that is not overwritten when arguments are
-  passed to docker run. This is different from the behavior of CMD. This allows
+  passed to docker run. This is different from the behavior of **CMD**. This allows
   arguments to be passed to the entrypoint, for instance `docker run <image> -d`
   passes the -d argument to the **ENTRYPOINT**.  Specify parameters either in the
   **ENTRYPOINT** JSON array (as in the preferred exec form above), or by using a **CMD**
@@ -327,3 +345,4 @@ A Dockerfile is similar to a Makefile.
 # HISTORY
 *May 2014, Compiled by Zac Dover (zdover at redhat dot com) based on docker.com Dockerfile documentation.
 *Feb 2015, updated by Brian Goff (cpuguy83@gmail.com) for readability
+*Sept 2015, updated by Sally O'Malley (somalley@redhat.com) 

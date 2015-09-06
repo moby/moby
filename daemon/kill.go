@@ -19,7 +19,7 @@ func (daemon *Daemon) ContainerKill(name string, sig uint64) error {
 		}
 	} else {
 		// Otherwise, just send the requested signal
-		if err := container.KillSig(int(sig)); err != nil {
+		if err := container.killSig(int(sig)); err != nil {
 			return err
 		}
 	}
