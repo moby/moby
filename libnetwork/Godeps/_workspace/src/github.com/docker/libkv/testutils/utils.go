@@ -1,19 +1,21 @@
-package store
+package testutils
 
 import (
 	"testing"
 	"time"
 
+	"github.com/docker/libkv/store"
 	"github.com/stretchr/testify/assert"
 )
 
-// TestStore is an helper testing method that is
+// RunTestStore is an helper testing method that is
 // called by each K/V backend sub-package testing
-func TestStore(t *testing.T, kv Store, backup Store) {
+func RunTestStore(t *testing.T, kv store.Store, backup store.Store) {
 	testPutGetDelete(t, kv)
 	testWatch(t, kv)
 	testWatchTree(t, kv)
 	testAtomicPut(t, kv)
+	testAtomicPutCreate(t, kv)
 	testAtomicDelete(t, kv)
 	testLockUnlock(t, kv)
 	testPutEphemeral(t, kv, backup)
@@ -21,7 +23,7 @@ func TestStore(t *testing.T, kv Store, backup Store) {
 	testDeleteTree(t, kv)
 }
 
-func testPutGetDelete(t *testing.T, kv Store) {
+func testPutGetDelete(t *testing.T, kv store.Store) {
 	key := "foo"
 	value := []byte("bar")
 
@@ -48,7 +50,7 @@ func testPutGetDelete(t *testing.T, kv Store) {
 	assert.Nil(t, pair)
 }
 
-func testWatch(t *testing.T, kv Store) {
+func testWatch(t *testing.T, kv store.Store) {
 	key := "hello"
 	value := []byte("world")
 	newValue := []byte("world!")
@@ -105,7 +107,7 @@ func testWatch(t *testing.T, kv Store) {
 	}
 }
 
-func testWatchTree(t *testing.T, kv Store) {
+func testWatchTree(t *testing.T, kv store.Store) {
 	dir := "tree"
 
 	node1 := "tree/node1"
@@ -159,7 +161,7 @@ func testWatchTree(t *testing.T, kv Store) {
 	}
 }
 
-func testAtomicPut(t *testing.T, kv Store) {
+func testAtomicPut(t *testing.T, kv store.Store) {
 	key := "hello"
 	value := []byte("world")
 
@@ -176,7 +178,7 @@ func testAtomicPut(t *testing.T, kv Store) {
 	assert.Equal(t, pair.Value, value)
 	assert.NotEqual(t, pair.LastIndex, 0)
 
-	// This CAS should fail: no previous
+	// This CAS should fail: previous exists.
 	success, _, err := kv.AtomicPut("hello", []byte("WORLD"), nil, nil)
 	assert.Error(t, err)
 	assert.False(t, success)
@@ -186,14 +188,48 @@ func testAtomicPut(t *testing.T, kv Store) {
 	assert.NoError(t, err)
 	assert.True(t, success)
 
-	// This CAS should fail
+	// This CAS should fail, key exists.
 	pair.LastIndex = 0
 	success, _, err = kv.AtomicPut("hello", []byte("WORLDWORLD"), pair, nil)
 	assert.Error(t, err)
 	assert.False(t, success)
 }
 
-func testAtomicDelete(t *testing.T, kv Store) {
+func testAtomicPutCreate(t *testing.T, kv store.Store) {
+	// Use a key in a new directory to ensure Stores will create directories
+	// that don't yet exist.
+	key := "put/create"
+	value := []byte("putcreate")
+
+	// AtomicPut the key, previous = nil indicates create.
+	success, _, err := kv.AtomicPut(key, value, nil, nil)
+	assert.NoError(t, err)
+	assert.True(t, success)
+
+	// Get should return the value and an incremented index
+	pair, err := kv.Get(key)
+	assert.NoError(t, err)
+	if assert.NotNil(t, pair) {
+		assert.NotNil(t, pair.Value)
+	}
+	assert.Equal(t, pair.Value, value)
+
+	// Attempting to create again should fail.
+	success, _, err = kv.AtomicPut(key, value, nil, nil)
+	assert.Error(t, err)
+	assert.False(t, success)
+
+	// This CAS should succeed, since it has the value from Get()
+	success, _, err = kv.AtomicPut(key, []byte("PUTCREATE"), pair, nil)
+	assert.NoError(t, err)
+	assert.True(t, success)
+
+	// Delete the key, ensures runs of the test don't interfere with each other.
+	err = kv.DeleteTree("put")
+	assert.NoError(t, err)
+}
+
+func testAtomicDelete(t *testing.T, kv store.Store) {
 	key := "atomic"
 	value := []byte("world")
 
@@ -225,12 +261,12 @@ func testAtomicDelete(t *testing.T, kv Store) {
 	assert.True(t, success)
 }
 
-func testLockUnlock(t *testing.T, kv Store) {
+func testLockUnlock(t *testing.T, kv store.Store) {
 	key := "foo"
 	value := []byte("bar")
 
 	// We should be able to create a new lock on key
-	lock, err := kv.NewLock(key, &LockOptions{Value: value})
+	lock, err := kv.NewLock(key, &store.LockOptions{Value: value})
 	assert.NoError(t, err)
 	assert.NotNil(t, lock)
 
@@ -262,7 +298,7 @@ func testLockUnlock(t *testing.T, kv Store) {
 	assert.NotEqual(t, pair.LastIndex, 0)
 }
 
-func testPutEphemeral(t *testing.T, kv Store, otherConn Store) {
+func testPutEphemeral(t *testing.T, kv store.Store, otherConn store.Store) {
 	firstKey := "first"
 	firstValue := []byte("foo")
 
@@ -270,11 +306,11 @@ func testPutEphemeral(t *testing.T, kv Store, otherConn Store) {
 	secondValue := []byte("bar")
 
 	// Put the first key with the Ephemeral flag
-	err := otherConn.Put(firstKey, firstValue, &WriteOptions{Ephemeral: true})
+	err := otherConn.Put(firstKey, firstValue, &store.WriteOptions{Ephemeral: true})
 	assert.NoError(t, err)
 
 	// Put a second key with the Ephemeral flag
-	err = otherConn.Put(secondKey, secondValue, &WriteOptions{Ephemeral: true})
+	err = otherConn.Put(secondKey, secondValue, &store.WriteOptions{Ephemeral: true})
 	assert.NoError(t, err)
 
 	// Get on firstKey should work
@@ -291,7 +327,7 @@ func testPutEphemeral(t *testing.T, kv Store, otherConn Store) {
 	otherConn.Close()
 
 	// Let the session expire
-	time.Sleep(5 * time.Second)
+	time.Sleep(3 * time.Second)
 
 	// Get on firstKey shouldn't work
 	pair, err = kv.Get(firstKey)
@@ -304,7 +340,7 @@ func testPutEphemeral(t *testing.T, kv Store, otherConn Store) {
 	assert.Nil(t, pair)
 }
 
-func testList(t *testing.T, kv Store) {
+func testList(t *testing.T, kv store.Store) {
 	prefix := "nodes"
 
 	firstKey := "nodes/first"
@@ -344,7 +380,7 @@ func testList(t *testing.T, kv Store) {
 	assert.Nil(t, pairs)
 }
 
-func testDeleteTree(t *testing.T, kv Store) {
+func testDeleteTree(t *testing.T, kv store.Store) {
 	prefix := "nodes"
 
 	firstKey := "nodes/first"

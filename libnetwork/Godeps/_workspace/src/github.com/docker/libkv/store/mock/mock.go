@@ -16,8 +16,8 @@ type Mock struct {
 	Options *store.Config
 }
 
-// InitializeMock creates a Mock store.
-func InitializeMock(endpoints []string, options *store.Config) (store.Store, error) {
+// New creates a Mock store
+func New(endpoints []string, options *store.Config) (store.Store, error) {
 	s := &Mock{}
 	s.Endpoints = endpoints
 	s.Options = options
