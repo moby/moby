@@ -39,7 +39,7 @@ func (s *DockerSuite) TestBuildApiDockerfilePath(c *check.C) {
 		c.Fatal(err)
 	}
 
-	if !strings.Contains(string(out), "must be within the build context") {
+	if !strings.Contains(string(out), "Forbidden path outside the build context") {
 		c.Fatalf("Didn't complain about leaving build context: %s", out)
 	}
 }

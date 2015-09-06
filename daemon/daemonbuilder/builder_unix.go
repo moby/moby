@@ -1,6 +1,6 @@
-// +build !windows
+// +build freebsd linux
 
-package dockerfile
+package daemonbuilder
 
 import (
 	"os"
