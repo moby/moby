@@ -49,15 +49,6 @@ type Daemon struct {
 	userlandProxy  bool
 }
 
-func enableUserlandProxy() bool {
-	if env := os.Getenv("DOCKER_USERLANDPROXY"); env != "" {
-		if val, err := strconv.ParseBool(env); err != nil {
-			return val
-		}
-	}
-	return true
-}
-
 // NewDaemon returns a Daemon instance to be used for testing.
 // This will create a directory such as d123456789 in the folder specified by $DEST.
 // The daemon will not automatically start.
