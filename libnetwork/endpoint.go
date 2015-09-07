@@ -304,7 +304,11 @@ func (ep *endpoint) Join(sbox Sandbox, options ...EndpointOption) error {
 	if err = sb.populateNetworkResources(ep); err != nil {
 		return err
 	}
-	return nil
+
+	if sb.needDefaultGW() {
+		return sb.setupDefaultGW(ep)
+	}
+	return sb.clearDefaultGW()
 }
 
 func (ep *endpoint) hasInterface(iName string) bool {
@@ -361,7 +365,18 @@ func (ep *endpoint) Leave(sbox Sandbox, options ...EndpointOption) error {
 		return err
 	}
 
-	return sb.clearNetworkResources(ep)
+	if err := sb.clearNetworkResources(ep); err != nil {
+		return err
+	}
+
+	if sb.needDefaultGW() {
+		ep := sb.getEPwithoutGateway()
+		if ep == nil {
+			return fmt.Errorf("endpoint without GW expected, but not found")
+		}
+		return sb.setupDefaultGW(ep)
+	}
+	return sb.clearDefaultGW()
 }
 
 func (ep *endpoint) Delete() error {

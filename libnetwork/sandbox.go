@@ -149,6 +149,11 @@ func (sb *sandbox) Delete() error {
 
 	// Detach from all endpoints
 	for _, ep := range sb.getConnectedEndpoints() {
+		// endpoint in the Gateway network will be cleaned up
+		// when when sandbox no longer needs external connectivity
+		if ep.endpointInGWNetwork() {
+			continue
+		}
 		if err := ep.Leave(sb); err != nil {
 			log.Warnf("Failed detaching sandbox %s from endpoint %s: %v\n", sb.ID(), ep.ID(), err)
 		}
@@ -747,6 +752,17 @@ func (eh epHeap) Len() int { return len(eh) }
 func (eh epHeap) Less(i, j int) bool {
 	ci, _ := eh[i].getSandbox()
 	cj, _ := eh[j].getSandbox()
+
+	epi := eh[i]
+	epj := eh[j]
+
+	if epi.endpointInGWNetwork() {
+		return true
+	}
+
+	if epj.endpointInGWNetwork() {
+		return false
+	}
 
 	cip, ok := ci.epPriority[eh[i].ID()]
 	if !ok {
