@@ -491,7 +491,7 @@ func (daemon *Daemon) newContainer(name string, config *runconfig.Config, imgID 
 }
 
 // GetFullContainerName returns a constructed container name. I think
-// it has to do with the fact that a container is a file on disek and
+// it has to do with the fact that a container is a file on disk and
 // this is sort of just creating a file name.
 func GetFullContainerName(name string) (string, error) {
 	if name == "" {
