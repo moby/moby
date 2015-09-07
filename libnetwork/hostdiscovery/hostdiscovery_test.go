@@ -8,7 +8,7 @@ import (
 	"time"
 
 	mapset "github.com/deckarep/golang-set"
-	_ "github.com/docker/libnetwork/netutils"
+	_ "github.com/docker/libnetwork/testutils"
 
 	"github.com/docker/libnetwork/config"
 	"github.com/docker/swarm/discovery"

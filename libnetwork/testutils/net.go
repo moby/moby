@@ -1,4 +1,4 @@
-package netutils
+package testutils
 
 import "flag"
 

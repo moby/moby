@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/docker/libnetwork/driverapi"
+	_ "github.com/docker/libnetwork/testutils"
 )
 
 type driverTester struct {

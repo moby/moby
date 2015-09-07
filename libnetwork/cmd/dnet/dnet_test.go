@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/libnetwork/netutils"
+	"github.com/docker/libnetwork/testutils"
 )
 
 const dnetCommandName = "dnet"
@@ -15,7 +15,7 @@ const dnetCommandName = "dnet"
 var origStdOut = os.Stdout
 
 func TestDnetDaemonCustom(t *testing.T) {
-	if !netutils.IsRunningInContainer() {
+	if !testutils.IsRunningInContainer() {
 		t.Skip("This test must run inside a container ")
 	}
 	customPort := 4567
@@ -36,7 +36,7 @@ func TestDnetDaemonCustom(t *testing.T) {
 }
 
 func TestDnetDaemonInvalidCustom(t *testing.T) {
-	if !netutils.IsRunningInContainer() {
+	if !testutils.IsRunningInContainer() {
 		t.Skip("This test must run inside a container ")
 	}
 	customPort := 4668
@@ -57,7 +57,7 @@ func TestDnetDaemonInvalidCustom(t *testing.T) {
 }
 
 func TestDnetDaemonInvalidParams(t *testing.T) {
-	if !netutils.IsRunningInContainer() {
+	if !testutils.IsRunningInContainer() {
 		t.Skip("This test must run inside a container ")
 	}
 	args := []string{dnetCommandName, "-d=false", "-H=tcp:/127.0.0.1:8080"}
@@ -74,7 +74,7 @@ func TestDnetDaemonInvalidParams(t *testing.T) {
 }
 
 func TestDnetDefaultsWithFlags(t *testing.T) {
-	if !netutils.IsRunningInContainer() {
+	if !testutils.IsRunningInContainer() {
 		t.Skip("This test must run inside a container ")
 	}
 	doneChan := make(chan bool)
@@ -97,7 +97,7 @@ func TestDnetDefaultsWithFlags(t *testing.T) {
 }
 
 func TestDnetMain(t *testing.T) {
-	if !netutils.IsRunningInContainer() {
+	if !testutils.IsRunningInContainer() {
 		t.Skip("This test must run inside a container ")
 	}
 	customPort := 4568

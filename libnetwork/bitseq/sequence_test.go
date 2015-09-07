@@ -3,7 +3,7 @@ package bitseq
 import (
 	"testing"
 
-	_ "github.com/docker/libnetwork/netutils"
+	_ "github.com/docker/libnetwork/testutils"
 )
 
 func TestSequenceGetAvailableBit(t *testing.T) {

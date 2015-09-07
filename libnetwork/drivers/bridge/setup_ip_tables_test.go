@@ -5,8 +5,8 @@ import (
 	"testing"
 
 	"github.com/docker/libnetwork/iptables"
-	"github.com/docker/libnetwork/osl"
 	"github.com/docker/libnetwork/portmapper"
+	"github.com/docker/libnetwork/testutils"
 )
 
 const (
@@ -15,7 +15,7 @@ const (
 
 func TestProgramIPTable(t *testing.T) {
 	// Create a test bridge with a basic bridge configuration (name + IPv4).
-	defer osl.SetupTestOSContext(t)()
+	defer testutils.SetupTestOSContext(t)()
 	createTestBridge(getBasicTestConfig(), &bridgeInterface{}, t)
 
 	// Store various iptables chain rules we care for.
@@ -39,7 +39,7 @@ func TestProgramIPTable(t *testing.T) {
 
 func TestSetupIPChains(t *testing.T) {
 	// Create a test bridge with a basic bridge configuration (name + IPv4).
-	defer osl.SetupTestOSContext(t)()
+	defer testutils.SetupTestOSContext(t)()
 
 	driverconfig := &configuration{
 		EnableIPTables: true,

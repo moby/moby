@@ -1,9 +1,11 @@
-package osl
+package testutils
 
 import (
 	"runtime"
 	"syscall"
 	"testing"
+
+	"github.com/docker/libnetwork/ns"
 )
 
 // SetupTestOSContext joins a new network namespace, and returns its associated
@@ -26,7 +28,7 @@ func SetupTestOSContext(t *testing.T) func() {
 
 	// Since we are switching to a new test namespace make
 	// sure to re-initialize initNs context
-	nsInit()
+	ns.Init()
 
 	return func() {
 		if err := syscall.Close(fd); err != nil {

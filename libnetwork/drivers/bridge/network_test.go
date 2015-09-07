@@ -5,12 +5,12 @@ import (
 
 	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/netlabel"
-	"github.com/docker/libnetwork/osl"
+	"github.com/docker/libnetwork/testutils"
 	"github.com/vishvananda/netlink"
 )
 
 func TestLinkCreate(t *testing.T) {
-	defer osl.SetupTestOSContext(t)()
+	defer testutils.SetupTestOSContext(t)()
 	d := newDriver()
 	dr := d.(*driver)
 
@@ -109,7 +109,7 @@ func TestLinkCreate(t *testing.T) {
 }
 
 func TestLinkCreateTwo(t *testing.T) {
-	defer osl.SetupTestOSContext(t)()
+	defer testutils.SetupTestOSContext(t)()
 	d := newDriver()
 
 	if err := d.Config(nil); err != nil {
@@ -145,7 +145,7 @@ func TestLinkCreateTwo(t *testing.T) {
 }
 
 func TestLinkCreateNoEnableIPv6(t *testing.T) {
-	defer osl.SetupTestOSContext(t)()
+	defer testutils.SetupTestOSContext(t)()
 	d := newDriver()
 
 	if err := d.Config(nil); err != nil {
@@ -179,7 +179,7 @@ func TestLinkCreateNoEnableIPv6(t *testing.T) {
 }
 
 func TestLinkDelete(t *testing.T) {
-	defer osl.SetupTestOSContext(t)()
+	defer testutils.SetupTestOSContext(t)()
 	d := newDriver()
 
 	if err := d.Config(nil); err != nil {

@@ -6,7 +6,7 @@ import (
 
 	"github.com/docker/docker/pkg/reexec"
 	"github.com/docker/libnetwork/netlabel"
-	"github.com/docker/libnetwork/osl"
+	"github.com/docker/libnetwork/testutils"
 	"github.com/docker/libnetwork/types"
 )
 
@@ -18,7 +18,7 @@ func TestMain(m *testing.M) {
 }
 
 func TestPortMappingConfig(t *testing.T) {
-	defer osl.SetupTestOSContext(t)()
+	defer testutils.SetupTestOSContext(t)()
 	d := newDriver()
 
 	config := &configuration{
