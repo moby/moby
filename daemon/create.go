@@ -21,10 +21,11 @@ func (daemon *Daemon) ContainerCreate(name string, config *runconfig.Config, hos
 	}
 
 	warnings, err := daemon.verifyContainerSettings(hostConfig, config)
-	daemon.adaptContainerSettings(hostConfig, adjustCPUShares)
 	if err != nil {
 		return nil, warnings, err
 	}
+
+	daemon.adaptContainerSettings(hostConfig, adjustCPUShares)
 
 	container, buildWarnings, err := daemon.Create(config, hostConfig, name)
 	if err != nil {
