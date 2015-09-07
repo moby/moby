@@ -9,6 +9,7 @@ import (
 	"sync/atomic"
 
 	"github.com/boltdb/bolt"
+	"github.com/docker/libkv"
 	"github.com/docker/libkv/store"
 )
 
@@ -34,6 +35,11 @@ type BoltDB struct {
 const (
 	libkvmetadatalen = 8
 )
+
+// Register registers boltdb to libkv
+func Register() {
+	libkv.AddStore(store.BOLTDB, New)
+}
 
 // New opens a new BoltDB connection to the specified path and bucket
 func New(endpoints []string, options *store.Config) (store.Store, error) {
