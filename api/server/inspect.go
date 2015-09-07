@@ -7,7 +7,13 @@ import (
 	"github.com/docker/docker/context"
 )
 
-// getContainersByName inspects containers configuration and serializes it as json.
+// @Title getContainersByName
+// @Description Retrieve the JSON representation of a container
+// @Param   version     path    string     false        "API version number"
+// @Param   name        path    string     true         "Container ID or name"
+// @Success 200 {object} types.ContainerJSON
+// @SubApi /containers
+// @Router /containers/:name/json [get]
 func (s *Server) getContainersByName(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")

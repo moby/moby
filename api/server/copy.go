@@ -14,6 +14,14 @@ import (
 )
 
 // postContainersCopy is deprecated in favor of getContainersArchive.
+// @Title postContainersCopy
+// @Deprecated
+// @Description Copy a resource from the container to the host
+// @Param   version     path    string     false        "API version number"
+// @Param   name        path    string     true         "Container ID or name"
+// @Param   copyConfig  body    []byte     true         "Resource configuration and location"
+// @Success 200
+// @Router /containers/:name/copy [post]
 func (s *Server) postContainersCopy(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
@@ -68,6 +76,13 @@ func setContainerPathStatHeader(stat *types.ContainerPathStat, header http.Heade
 	return nil
 }
 
+// @Title headContainersArchive
+// @Description Stat the container resource
+// @Param   version     path    string     false        "API version number"
+// @Param   name        path    string     true         "Container ID or name"
+// @Param   path        query   string     true         "Resource path inside the container"
+// @Success 200
+// @Router /containers/:name/archive [head]
 func (s *Server) headContainersArchive(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	v, err := archiveFormValues(r, vars)
 	if err != nil {
@@ -82,6 +97,13 @@ func (s *Server) headContainersArchive(ctx context.Context, w http.ResponseWrite
 	return setContainerPathStatHeader(stat, w.Header())
 }
 
+// @Title getContainersArchive
+// @Description Get a resource from the container in tar format
+// @Param   version     path    string     false        "API version number"
+// @Param   name        path    string     true         "Container ID or name"
+// @Param   path        query   string     true         "Resource path inside the container"
+// @Success 200
+// @Router /containers/:name/archive [get]
 func (s *Server) getContainersArchive(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	v, err := archiveFormValues(r, vars)
 	if err != nil {
@@ -104,6 +126,13 @@ func (s *Server) getContainersArchive(ctx context.Context, w http.ResponseWriter
 	return err
 }
 
+// @Title putContainersArchive
+// @Description Move a resource from the host to the container
+// @Param   version     path    string     false        "API version number"
+// @Param   name        path    string     true         "Container ID or name"
+// @Param   path        query   string     true         "Resource path in the host"
+// @Success 200
+// @Router /containers/:name/archive [put]
 func (s *Server) putContainersArchive(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	v, err := archiveFormValues(r, vars)
 	if err != nil {

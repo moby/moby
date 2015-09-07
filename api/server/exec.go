@@ -14,6 +14,13 @@ import (
 	"github.com/docker/docker/runconfig"
 )
 
+// @Title getExecByID
+// @Description Get exec process within the container by exec ID
+// @Param   version     path    string     false        "API version number"
+// @Param   id          path    string     true         "Execution ID"
+// @Success 200 {object} daemon.ExecConfig
+// @SubApi /exec
+// @Router /exec/:id/json [get]
 func (s *Server) getExecByID(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if vars == nil {
 		return fmt.Errorf("Missing parameter 'id'")
@@ -27,6 +34,14 @@ func (s *Server) getExecByID(ctx context.Context, w http.ResponseWriter, r *http
 	return writeJSON(w, http.StatusOK, eConfig)
 }
 
+// @Title postContainerExecCreate
+// @Description Create a new execution process inside the container
+// @Param   version     path    string     false        "API version number"
+// @Param   name        path    string     true         "Container ID or name"
+// @Param   execConfig  body    []byte     true         "Execution configuration"
+// @Success 201 {object} types.ContainerExecCreateResponse
+// @SubApi /containers
+// @Router /containers/:name/exec [post]
 func (s *Server) postContainerExecCreate(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := parseForm(r); err != nil {
 		return err
@@ -58,7 +73,14 @@ func (s *Server) postContainerExecCreate(ctx context.Context, w http.ResponseWri
 	})
 }
 
-// TODO(vishh): Refactor the code to avoid having to specify stream config as part of both create and start.
+// @Title postContainerExecStart
+// @Description Start an execution process inside the container
+// @Param   version         path    string     false        "API version number"
+// @Param   name            path    string     true         "Container ID or name"
+// @Param   execStartCheck  body    []byte     true         "Execution configuration"
+// @Success 200
+// @SubApi /exec
+// @Router /exec/:name/start [post]
 func (s *Server) postContainerExecStart(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := parseForm(r); err != nil {
 		return err
@@ -106,6 +128,15 @@ func (s *Server) postContainerExecStart(ctx context.Context, w http.ResponseWrit
 	return nil
 }
 
+// @Title postContainerExecResize
+// @Description Resize tty for the execution process
+// @Param   version     path    string     false        "API version number"
+// @Param   name        path    string     true         "Container ID or name"
+// @Param   h           query   integer    false        "High of the tty"
+// @Param   w           query   integer    false        "Width of the tty"
+// @Success 200
+// @SubApi /exec
+// @Router /exec/:name/resize [post]
 func (s *Server) postContainerExecResize(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := parseForm(r); err != nil {
 		return err

@@ -22,6 +22,18 @@ import (
 	"github.com/docker/docker/utils"
 )
 
+// @Title postCommit
+// @Description Commit a new layer into an image
+// @Param   version     path    string     false        "API version number"
+// @Param   container   form    string     true         "Name of the container to extract the layer from"
+// @Param   pause       form    bool       false        "Pause the container"
+// @Param   repo        form    string     true         "Name of the image to commit the layer to"
+// @Param   tag         form    string     false        "Tag for the image"
+// @Param   author      form    string     false        "Person who committed the new layer"
+// @Param   comment     form    string     false        "Message to describe the changes"
+// @Param   changes     form    []string   true         "List of changes to commit"
+// @Success 200 {object} types.ContainerCommitResponse
+// @Router /commit [post]
 func (s *Server) postCommit(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := parseForm(r); err != nil {
 		return err
@@ -64,7 +76,17 @@ func (s *Server) postCommit(ctx context.Context, w http.ResponseWriter, r *http.
 	})
 }
 
-// Creates an image from Pull or from Import
+// @Title postImagesCreate
+// @Description Create an image from Pull or Import
+// @Param   version     path    string     false        "API version number"
+// @Param   fromImage   form    string     false        "Name of the image to inherit from"
+// @Param   fromSrc     form    string     false        "Source to import the image from"
+// @Param   repo        form    string     true         "Name of the image to create"
+// @Param   tag         form    string     false        "Tag for the image"
+// @Param   message     form    string     false        "Message to describe the changes"
+// @Success 200
+// @SubApi /images
+// @Router /images/create [post]
 func (s *Server) postImagesCreate(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := parseForm(r); err != nil {
 		return err
@@ -141,6 +163,14 @@ func (s *Server) postImagesCreate(ctx context.Context, w http.ResponseWriter, r 
 	return nil
 }
 
+// @Title postImagesPush
+// @Description Push an image to the registry
+// @Param   version     path    string     false        "API version number"
+// @Param   name        path    string     true         "Name of the image to push"
+// @Param   tag         form    string     false        "Tag for the image"
+// @Success 200
+// @SubApi /images
+// @Router /images/:name/push [post]
 func (s *Server) postImagesPush(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
@@ -193,6 +223,14 @@ func (s *Server) postImagesPush(ctx context.Context, w http.ResponseWriter, r *h
 	return nil
 }
 
+// @Title getImagesGet
+// @Description Get an image from the registry
+// @Param   version     path    string     false        "API version number"
+// @Param   name        path    string     true         "Name of the image to get"
+// @Param   names       form    []string   false        "Names of the image to get"
+// @Success 200
+// @SubApi /images
+// @Router /images/:name/get [get]
 func (s *Server) getImagesGet(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
@@ -221,10 +259,23 @@ func (s *Server) getImagesGet(ctx context.Context, w http.ResponseWriter, r *htt
 	return nil
 }
 
+// @Title postImagesLoad
+// @Description Load an image from the host
+// @Param   version     path    string     false        "API version number"
+// @Success 200
+// @SubApi /images
+// @Router /images/load [post]
 func (s *Server) postImagesLoad(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	return s.daemon.Repositories().Load(r.Body, w)
 }
 
+// @Title deleteImages
+// @Description Delete the image from the host
+// @Param   version     path    string     false        "API version number"
+// @Param   name        path    string     true         "Name of the image to delete"
+// @Success 204
+// @SubApi /images
+// @Router /images/:name [delete]
 func (s *Server) deleteImages(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := parseForm(r); err != nil {
 		return err
@@ -250,6 +301,13 @@ func (s *Server) deleteImages(ctx context.Context, w http.ResponseWriter, r *htt
 	return writeJSON(w, http.StatusOK, list)
 }
 
+// @Title getImagesByName
+// @Description Retrieve the information for the image
+// @Param   version     path    string     false        "API version number"
+// @Param   name        path    string     true         "Name of the image"
+// @Success 200 {object} types.ImagesInspect
+// @SubApi /images
+// @Router /images/:name/json [get]
 func (s *Server) getImagesByName(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
@@ -263,6 +321,28 @@ func (s *Server) getImagesByName(ctx context.Context, w http.ResponseWriter, r *
 	return writeJSON(w, http.StatusOK, imageInspect)
 }
 
+// @Title postBuild
+// @Description Build an image
+// @Param   version       path    string     false        "API version number"
+// @Param   forcerm       form    bool       false        "Remove intermediate containers after completion"
+// @Param   rm            form    string     false        "Remove intermediate containers after completion"
+// @Param   pull          form    bool       false        "Attempt to download a newer version of the image"
+// @Param   remote        form    string     false        "Remote URL to build from, either a tarball or git repository"
+// @Param   dockerfile    form    string     true         "Path to the dockerfile"
+// @Param   t             form    string     true         "Image name"
+// @Param   q             form    bool       false        "Supporess the verbose output"
+// @Param   nocache       form    bool       false        "Do not use the cache when building the image"
+// @Param   memswap       form    integer    false        "Total memory limit, memory + swap"
+// @Param   memory        form    integer    false        "Memory limit"
+// @Param   cpushares     form    integer    false        "Relative CPU shares"
+// @Param   cpuperiod     form    integer    false        "CPU completely fair scheduler period"
+// @Param   cpuquota      form    integer    false        "CPU completely fair scheduler quota"
+// @Param   cpusetcpus    form    string     false        "CPUs in which to allow execution"
+// @Param   cpusetmems    form    string     false        "Memory nodes in which to allow execution"
+// @Param   cgroupparent  form    string     false        "Path to the parent cgroup"
+// @Param   ulimits       form    string     false        "Ulimit options as JSON"
+// @Success 200
+// @Router /build [post]
 func (s *Server) postBuild(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	var (
 		authConfigs        = map[string]cliconfig.AuthConfig{}
@@ -348,6 +428,14 @@ func (s *Server) postBuild(ctx context.Context, w http.ResponseWriter, r *http.R
 	return nil
 }
 
+// @Title getImagesJSON
+// @Description Retrieve the information for all the images in the host
+// @Param   version     path    string     false        "API version number"
+// @Param   filters     form    string     false        "Filters to the image list"
+// @Param   all         form    bool       false        "Show images that are not currently being used"
+// @Success 200 {array} types.Image
+// @SubApi /images
+// @Router /images/json [get]
 func (s *Server) getImagesJSON(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := parseForm(r); err != nil {
 		return err
@@ -362,6 +450,13 @@ func (s *Server) getImagesJSON(ctx context.Context, w http.ResponseWriter, r *ht
 	return writeJSON(w, http.StatusOK, images)
 }
 
+// @Title getImagesHistory
+// @Description Retrieve the history information for the image
+// @Param   version     path    string     false        "API version number"
+// @Param   name        path    string     true         "Name of the image"
+// @Success 200 {array} types.ImageHistory
+// @SubApi /images
+// @Router /images/:name/history [get]
 func (s *Server) getImagesHistory(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
@@ -376,6 +471,16 @@ func (s *Server) getImagesHistory(ctx context.Context, w http.ResponseWriter, r 
 	return writeJSON(w, http.StatusOK, history)
 }
 
+// @Title postImagesTag
+// @Description Retrieve the history information for the image
+// @Param   version     path    string     false        "API version number"
+// @Param   name        path    string     true         "Name of the image"
+// @Param   repo        form    string     true         "Repository name to push the image to"
+// @Param   tag         form    string     true         "Name of the tag to push"
+// @Param   force       form    bool       false        "Force push the tag"
+// @Success 201
+// @SubApi /images
+// @Router /images/:name/tag [post]
 func (s *Server) postImagesTag(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := parseForm(r); err != nil {
 		return err
@@ -396,6 +501,13 @@ func (s *Server) postImagesTag(ctx context.Context, w http.ResponseWriter, r *ht
 	return nil
 }
 
+// @Title getImagesSearch
+// @Description Search images in the remote registry
+// @Param   version     path    string     false        "API version number"
+// @Param   term        form    string     true         "Term to search in the registry"
+// @Success 200 {object} registry.SearchResults
+// @SubApi /images
+// @Router /images/search [get]
 func (s *Server) getImagesSearch(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := parseForm(r); err != nil {
 		return err

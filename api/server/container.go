@@ -19,6 +19,12 @@ import (
 	"github.com/docker/docker/runconfig"
 )
 
+// @Title getContainersJSON
+// @Description Retrieve the JSON representation of a list of containers
+// @Param   version     path    string     false        "API version number"
+// @Success 200 {array} types.Container
+// @SubApi /containers
+// @Router /containers/json [get]
 func (s *Server) getContainersJSON(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := parseForm(r); err != nil {
 		return err
@@ -48,6 +54,14 @@ func (s *Server) getContainersJSON(ctx context.Context, w http.ResponseWriter, r
 	return writeJSON(w, http.StatusOK, containers)
 }
 
+// @Title getContainersStats
+// @Description Retrieve the JSON representation of a container stats
+// @Param   version     path    string     false        "API version number"
+// @Param   name        path    string     true         "Container ID or name"
+// @Param   stream      query   boolean    false        "Container ID or name"
+// @Success 200 {array} types.Stats
+// @SubApi /containers
+// @Router /containers/:name/stats [get]
 func (s *Server) getContainersStats(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := parseForm(r); err != nil {
 		return err
@@ -89,6 +103,19 @@ func (s *Server) getContainersStats(ctx context.Context, w http.ResponseWriter, 
 	return s.daemon.ContainerStats(container, config)
 }
 
+// @Title getContainersLogs
+// @Description Retrieve the JSON representation of a container logs
+// @Param   version     path    string     false        "API version number"
+// @Param   name        path    string     true         "Container ID or name"
+// @Param   stdout      query   boolean    false        "Display stdout messages"
+// @Param   stderr      query   boolean    false        "Display stderr messages"
+// @Param   since       query   integer    false        "Display logs since a given timestamp"
+// @Param   follow      query   boolean    false        "Stream the logs to the output"
+// @Param   timestamps  query   boolean    false        "Add timestamps to the logs or not"
+// @Param   tail        query   boolean    false        "Retrieve N number of lines from the tail of the logs"
+// @Success 200 {array} []byte
+// @SubApi /containers
+// @Router /containers/:name/logs [get]
 func (s *Server) getContainersLogs(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := parseForm(r); err != nil {
 		return err
@@ -146,6 +173,13 @@ func (s *Server) getContainersLogs(ctx context.Context, w http.ResponseWriter, r
 	return nil
 }
 
+// @Title getContainersExport
+// @Description Export a container as a tarball
+// @Param   version     path    string     false        "API version number"
+// @Param   name        path    string     true         "Container ID or name"
+// @Success 200 {array} []byte
+// @SubApi /containers
+// @Router /containers/:name/export [get]
 func (s *Server) getContainersExport(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
@@ -154,6 +188,14 @@ func (s *Server) getContainersExport(ctx context.Context, w http.ResponseWriter,
 	return s.daemon.ContainerExport(vars["name"], w)
 }
 
+// @Title postContainersStart
+// @Description Start a container that has previously been created
+// @Param   version     path    string     false        "API version number"
+// @Param   name        path    string     true         "Container ID or name"
+// @Param   hostConfig  body    []byte     false        "Container host configuration"
+// @Success 204
+// @SubApi /containers
+// @Router /containers/:name/start [post]
 func (s *Server) postContainersStart(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
@@ -190,6 +232,13 @@ func (s *Server) postContainersStart(ctx context.Context, w http.ResponseWriter,
 	return nil
 }
 
+// @Title postContainersStop
+// @Description Stop a running container
+// @Param   version     path    string     false        "API version number"
+// @Param   name        path    string     true         "Container ID or name"
+// @Success 204
+// @SubApi /containers
+// @Router /containers/:name/stop [post]
 func (s *Server) postContainersStop(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := parseForm(r); err != nil {
 		return err
@@ -212,6 +261,14 @@ func (s *Server) postContainersStop(ctx context.Context, w http.ResponseWriter, 
 	return nil
 }
 
+// @Title postContainersKill
+// @Description Kill a running container
+// @Param   version     path    string     false        "API version number"
+// @Param   name        path    string     true         "Container ID or name"
+// @Param   signal      query   string     false        "Signal to kill the container"
+// @Success 204
+// @SubApi /containers
+// @Router /containers/:name/kill [post]
 func (s *Server) postContainersKill(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
@@ -260,6 +317,14 @@ func (s *Server) postContainersKill(ctx context.Context, w http.ResponseWriter, 
 	return nil
 }
 
+// @Title postContainersRestart
+// @Description Restart a running container
+// @Param   version     path    string     false        "API version number"
+// @Param   name        path    string     true         "Container ID or name"
+// @Param   t           query   integer    false        "Timeout to wait until the container starts again"
+// @Success 204
+// @SubApi /containers
+// @Router /containers/:name/restart [post]
 func (s *Server) postContainersRestart(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := parseForm(r); err != nil {
 		return err
@@ -279,6 +344,13 @@ func (s *Server) postContainersRestart(ctx context.Context, w http.ResponseWrite
 	return nil
 }
 
+// @Title postContainersPause
+// @Description Pause a running container
+// @Param   version     path    string     false        "API version number"
+// @Param   name        path    string     true         "Container ID or name"
+// @Success 204
+// @SubApi /containers
+// @Router /containers/:name/pause [post]
 func (s *Server) postContainersPause(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
@@ -296,6 +368,13 @@ func (s *Server) postContainersPause(ctx context.Context, w http.ResponseWriter,
 	return nil
 }
 
+// @Title postContainersUnpause
+// @Description Unpause a paused container
+// @Param   version     path    string     false        "API version number"
+// @Param   name        path    string     true         "Container ID or name"
+// @Success 204
+// @SubApi /containers
+// @Router /containers/:name/unpause [post]
 func (s *Server) postContainersUnpause(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
@@ -313,6 +392,13 @@ func (s *Server) postContainersUnpause(ctx context.Context, w http.ResponseWrite
 	return nil
 }
 
+// @Title postContainersWait
+// @Description Wait for a container until it starts
+// @Param   version     path    string     false        "API version number"
+// @Param   name        path    string     true         "Container ID or name"
+// @Success 200 {object} types.ContainerWaitResponse
+// @SubApi /containers
+// @Router /containers/:name/wait [post]
 func (s *Server) postContainersWait(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
@@ -328,6 +414,13 @@ func (s *Server) postContainersWait(ctx context.Context, w http.ResponseWriter, 
 	})
 }
 
+// @Title getContainersChanges
+// @Description Get a list of changes in the container filesystem since it was started
+// @Param   version     path    string     false        "API version number"
+// @Param   name        path    string     true         "Container ID or name"
+// @Success 200 {object} archive.Changes
+// @SubApi /containers
+// @Router /containers/:name/changes [get]
 func (s *Server) getContainersChanges(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
@@ -341,6 +434,14 @@ func (s *Server) getContainersChanges(ctx context.Context, w http.ResponseWriter
 	return writeJSON(w, http.StatusOK, changes)
 }
 
+// @Title getContainersTop
+// @Description Get a list of processes running inside the container and their status
+// @Param   version     path    string     false        "API version number"
+// @Param   name        path    string     true         "Container ID or name"
+// @Param   ps_args     query   string     false        "Arguments to send to the top command inside the container"
+// @Success 200 {object} types.ContainerProcessList
+// @SubApi /containers
+// @Router /containers/:name/top [get]
 func (s *Server) getContainersTop(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
@@ -358,6 +459,14 @@ func (s *Server) getContainersTop(ctx context.Context, w http.ResponseWriter, r 
 	return writeJSON(w, http.StatusOK, procList)
 }
 
+// @Title postContainerRename
+// @Description Rename a container
+// @Param   version     path    string     false        "API version number"
+// @Param   name        path    string     true         "Container ID or name"
+// @Param   name        form    string     true         "New name for the container"
+// @Success 204
+// @SubApi /containers
+// @Router /containers/:name/rename [post]
 func (s *Server) postContainerRename(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := parseForm(r); err != nil {
 		return err
@@ -375,6 +484,14 @@ func (s *Server) postContainerRename(ctx context.Context, w http.ResponseWriter,
 	return nil
 }
 
+// @Title postContainerCreate
+// @Description Create a new container from an image
+// @Param   version     path    string     false        "API version number"
+// @Param   name        form    string     false        "Container name"
+// @Param   hostConfig  body    []byte     false        "Container host configuration"
+// @Success 201 {object} types.ContainerCreateResponse
+// @SubApi /containers
+// @Router /containers/:name/create [post]
 func (s *Server) postContainersCreate(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := parseForm(r); err != nil {
 		return err
@@ -405,6 +522,16 @@ func (s *Server) postContainersCreate(ctx context.Context, w http.ResponseWriter
 	})
 }
 
+// @Title deleteContainers
+// @Description Create a new container from an image
+// @Param   version     path    string     false        "API version number"
+// @Param   name        path    string     true         "Container name"
+// @Param   force       query   boolean    false        "Force remove the container"
+// @Param   v           query   boolean    false        "Remove the volumes associated to the container"
+// @Param   link        query   boolean    false        "Remove the links to other containers"
+// @Success 204
+// @SubApi /containers
+// @Router /containers/:name [delete]
 func (s *Server) deleteContainers(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := parseForm(r); err != nil {
 		return err
@@ -433,6 +560,15 @@ func (s *Server) deleteContainers(ctx context.Context, w http.ResponseWriter, r 
 	return nil
 }
 
+// @Title postContainersResize
+// @Description Change the tty size of the container
+// @Param   version     path    string     false        "API version number"
+// @Param   name        path    string     true         "Container name"
+// @Param   h           query   integer    false        "High of the tty"
+// @Param   w           query   integer    false        "Width of the tty"
+// @Success 200
+// @SubApi /containers
+// @Router /containers/:name/resize [post]
 func (s *Server) postContainersResize(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := parseForm(r); err != nil {
 		return err
@@ -453,6 +589,18 @@ func (s *Server) postContainersResize(ctx context.Context, w http.ResponseWriter
 	return s.daemon.ContainerResize(vars["name"], height, width)
 }
 
+// @Title postContainersAttach
+// @Description Attach to the container's tty
+// @Param   version     path    string     false        "API version number"
+// @Param   name        path    string     true         "Container name"
+// @Param   stdin       query   boolean    false        "Attach stdin to the container"
+// @Param   stdout      query   boolean    false        "Attach stdout to the container"
+// @Param   stderr      query   boolean    false        "Attach stderr to the container"
+// @Param   logs        query   boolean    false        "Attach logs from the container"
+// @Param   stream      query   boolean    false        "Stream logs from the container"
+// @Success 200
+// @SubApi /containers
+// @Router /containers/:name/attach [post]
 func (s *Server) postContainersAttach(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := parseForm(r); err != nil {
 		return err
@@ -495,6 +643,15 @@ func (s *Server) postContainersAttach(ctx context.Context, w http.ResponseWriter
 	return nil
 }
 
+// @Title wsContainersAttach
+// @Description Attach to the container via a websocket
+// @Param   version     path    string     false        "API version number"
+// @Param   name        path    string     true         "Container name"
+// @Param   logs        query   boolean    false        "Attach logs from the container"
+// @Param   stream      query   boolean    false        "Stream logs from the container"
+// @Success 200
+// @SubApi /containers
+// @Router /containers/:name/attach [post]
 func (s *Server) wsContainersAttach(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := parseForm(r); err != nil {
 		return err

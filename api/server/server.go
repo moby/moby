@@ -1,3 +1,14 @@
+// Package server contains the api handlers and other api functions.
+// @APIVersion 1.21
+// @APITitle Docker server API
+// @APIDescription API to manage Docker containers
+// @License Apache 2
+// @LicenseUrl http://opensource.org/licenses/Apache-2.0
+//
+// @SubApi Containers API [/containers]
+// @SubApi Images API [/images]
+// @SubApi Volumes API [/volumes]
+// @SubApi Exec API [/exec]
 package server
 
 import (
