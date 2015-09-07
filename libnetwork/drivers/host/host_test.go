@@ -3,7 +3,7 @@ package host
 import (
 	"testing"
 
-	_ "github.com/docker/libnetwork/netutils"
+	_ "github.com/docker/libnetwork/testutils"
 	"github.com/docker/libnetwork/types"
 )
 

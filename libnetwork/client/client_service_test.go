@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"testing"
 
-	_ "github.com/docker/libnetwork/netutils"
+	_ "github.com/docker/libnetwork/testutils"
 )
 
 func TestClientServiceInvalidCommand(t *testing.T) {

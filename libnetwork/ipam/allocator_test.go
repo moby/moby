@@ -10,7 +10,7 @@ import (
 	"github.com/docker/libnetwork/bitseq"
 	"github.com/docker/libnetwork/config"
 	"github.com/docker/libnetwork/datastore"
-	_ "github.com/docker/libnetwork/netutils"
+	_ "github.com/docker/libnetwork/testutils"
 )
 
 var ds datastore.DataStore

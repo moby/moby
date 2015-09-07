@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/docker/libnetwork/netlabel"
-	_ "github.com/docker/libnetwork/netutils"
+	_ "github.com/docker/libnetwork/testutils"
 )
 
 func TestInvalidConfig(t *testing.T) {

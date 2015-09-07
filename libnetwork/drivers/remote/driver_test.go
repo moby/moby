@@ -10,7 +10,7 @@ import (
 
 	"github.com/docker/docker/pkg/plugins"
 	"github.com/docker/libnetwork/driverapi"
-	_ "github.com/docker/libnetwork/netutils"
+	_ "github.com/docker/libnetwork/testutils"
 	"github.com/docker/libnetwork/types"
 )
 

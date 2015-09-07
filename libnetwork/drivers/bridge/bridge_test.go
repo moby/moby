@@ -11,13 +11,13 @@ import (
 	"github.com/docker/libnetwork/iptables"
 	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/libnetwork/netutils"
-	"github.com/docker/libnetwork/osl"
+	"github.com/docker/libnetwork/testutils"
 	"github.com/docker/libnetwork/types"
 	"github.com/vishvananda/netlink"
 )
 
 func TestCreateFullOptions(t *testing.T) {
-	defer osl.SetupTestOSContext(t)()
+	defer testutils.SetupTestOSContext(t)()
 	d := newDriver()
 
 	config := &configuration{
@@ -69,7 +69,7 @@ func TestCreateFullOptions(t *testing.T) {
 }
 
 func TestCreate(t *testing.T) {
-	defer osl.SetupTestOSContext(t)()
+	defer testutils.SetupTestOSContext(t)()
 	d := newDriver()
 
 	if err := d.Config(nil); err != nil {
@@ -102,7 +102,7 @@ func TestCreate(t *testing.T) {
 }
 
 func TestCreateFail(t *testing.T) {
-	defer osl.SetupTestOSContext(t)()
+	defer testutils.SetupTestOSContext(t)()
 	d := newDriver()
 
 	if err := d.Config(nil); err != nil {
@@ -119,7 +119,7 @@ func TestCreateFail(t *testing.T) {
 }
 
 func TestCreateMultipleNetworks(t *testing.T) {
-	defer osl.SetupTestOSContext(t)()
+	defer testutils.SetupTestOSContext(t)()
 	d := newDriver()
 	dd, _ := d.(*driver)
 
@@ -283,7 +283,7 @@ func TestQueryEndpointInfoHairpin(t *testing.T) {
 }
 
 func testQueryEndpointInfo(t *testing.T, ulPxyEnabled bool) {
-	defer osl.SetupTestOSContext(t)()
+	defer testutils.SetupTestOSContext(t)()
 	d := newDriver()
 	dd, _ := d.(*driver)
 
@@ -354,7 +354,7 @@ func testQueryEndpointInfo(t *testing.T, ulPxyEnabled bool) {
 }
 
 func TestCreateLinkWithOptions(t *testing.T) {
-	defer osl.SetupTestOSContext(t)()
+	defer testutils.SetupTestOSContext(t)()
 	d := newDriver()
 
 	if err := d.Config(nil); err != nil {
@@ -413,7 +413,7 @@ func getPortMapping() []types.PortBinding {
 }
 
 func TestLinkContainers(t *testing.T) {
-	defer osl.SetupTestOSContext(t)()
+	defer testutils.SetupTestOSContext(t)()
 
 	d := newDriver()
 
@@ -630,7 +630,7 @@ func TestValidateConfig(t *testing.T) {
 }
 
 func TestSetDefaultGw(t *testing.T) {
-	defer osl.SetupTestOSContext(t)()
+	defer testutils.SetupTestOSContext(t)()
 	d := newDriver()
 
 	if err := d.Config(nil); err != nil {

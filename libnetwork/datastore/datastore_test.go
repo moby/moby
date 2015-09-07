@@ -6,8 +6,8 @@ import (
 	"testing"
 
 	"github.com/docker/libnetwork/config"
-	_ "github.com/docker/libnetwork/netutils"
 	"github.com/docker/libnetwork/options"
+	_ "github.com/docker/libnetwork/testutils"
 	"github.com/stretchr/testify/assert"
 )
 

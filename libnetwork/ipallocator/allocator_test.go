@@ -5,6 +5,8 @@ import (
 	"math/big"
 	"net"
 	"testing"
+
+	_ "github.com/docker/libnetwork/testutils"
 )
 
 func TestConversion(t *testing.T) {

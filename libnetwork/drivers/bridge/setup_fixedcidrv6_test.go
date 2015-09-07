@@ -4,11 +4,11 @@ import (
 	"net"
 	"testing"
 
-	"github.com/docker/libnetwork/osl"
+	"github.com/docker/libnetwork/testutils"
 )
 
 func TestSetupFixedCIDRv6(t *testing.T) {
-	defer osl.SetupTestOSContext(t)()
+	defer testutils.SetupTestOSContext(t)()
 
 	config := &networkConfiguration{}
 	br := newInterface(config)

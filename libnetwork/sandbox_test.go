@@ -4,9 +4,9 @@ import (
 	"testing"
 
 	"github.com/docker/libnetwork/netlabel"
-	"github.com/docker/libnetwork/netutils"
 	"github.com/docker/libnetwork/options"
 	"github.com/docker/libnetwork/osl"
+	"github.com/docker/libnetwork/testutils"
 )
 
 func createEmptyCtrlr() *controller {
@@ -83,8 +83,8 @@ func TestSandboxAddEmpty(t *testing.T) {
 }
 
 func TestSandboxAddMultiPrio(t *testing.T) {
-	if !netutils.IsRunningInContainer() {
-		defer osl.SetupTestOSContext(t)()
+	if !testutils.IsRunningInContainer() {
+		defer testutils.SetupTestOSContext(t)()
 	}
 
 	c, nw, _ := getTestEnv(t)
@@ -160,8 +160,8 @@ func TestSandboxAddMultiPrio(t *testing.T) {
 }
 
 func TestSandboxAddSamePrio(t *testing.T) {
-	if !netutils.IsRunningInContainer() {
-		defer osl.SetupTestOSContext(t)()
+	if !testutils.IsRunningInContainer() {
+		defer testutils.SetupTestOSContext(t)()
 	}
 
 	c, nw1, nw2 := getTestEnv(t)

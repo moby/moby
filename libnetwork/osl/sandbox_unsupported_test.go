@@ -7,9 +7,7 @@ import (
 	"testing"
 )
 
-var (
-	ErrNotImplemented = errors.New("not implemented")
-)
+var ErrNotImplemented = errors.New("not implemented")
 
 func newKey(t *testing.T) (string, error) {
 	return nil, ErrNotImplemented
