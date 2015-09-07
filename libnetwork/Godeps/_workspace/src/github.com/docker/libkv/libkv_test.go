@@ -7,7 +7,6 @@ import (
 	"github.com/docker/libkv/store"
 	"github.com/docker/libkv/store/consul"
 	"github.com/docker/libkv/store/etcd"
-	"github.com/docker/libkv/store/mock"
 	"github.com/docker/libkv/store/zookeeper"
 	"github.com/stretchr/testify/assert"
 )
@@ -63,16 +62,6 @@ func TestNewStoreZookeeper(t *testing.T) {
 
 	if _, ok := kv.(*zookeeper.Zookeeper); !ok {
 		t.Fatal("Error while initializing store zookeeper")
-	}
-}
-
-func TestNewStoreMock(t *testing.T) {
-	kv, err := NewStore(store.MOCK, []string{}, &store.Config{})
-	assert.NoError(t, err)
-	assert.NotNil(t, kv)
-
-	if _, ok := kv.(*mock.Mock); !ok {
-		t.Fatal("Error while initializing mock store")
 	}
 }
 

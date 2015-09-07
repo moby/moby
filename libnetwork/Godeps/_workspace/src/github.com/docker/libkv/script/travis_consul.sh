@@ -12,7 +12,7 @@ unzip "${CONSUL_VERSION}_linux_amd64.zip"
 
 # make config for minimum ttl
 touch config.json
-echo "{\"session_ttl_min\": \"2s\"}" >> config.json
+echo "{\"session_ttl_min\": \"1s\"}" >> config.json
 
 # check
 ./consul --version

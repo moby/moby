@@ -10,14 +10,12 @@ import (
 type Backend string
 
 const (
-	// MOCK backend
-	MOCK Backend = "mock"
 	// CONSUL backend
-	CONSUL = "consul"
+	CONSUL Backend = "consul"
 	// ETCD backend
-	ETCD = "etcd"
+	ETCD Backend = "etcd"
 	// ZK backend
-	ZK = "zk"
+	ZK Backend = "zk"
 )
 
 var (
@@ -79,7 +77,8 @@ type Store interface {
 	// DeleteTree deletes a range of keys under a given directory
 	DeleteTree(directory string) error
 
-	// Atomic operation on a single value
+	// Atomic CAS operation on a single value.
+	// Pass previous = nil to create a new key.
 	AtomicPut(key string, value []byte, previous *KVPair, options *WriteOptions) (bool, *KVPair, error)
 
 	// Atomic delete of a single value

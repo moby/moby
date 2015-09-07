@@ -33,9 +33,9 @@ const (
 	defaultUpdateTime = 5 * time.Second
 )
 
-// InitializeEtcd creates a new Etcd client given
-// a list of endpoints and an optional tls config
-func InitializeEtcd(addrs []string, options *store.Config) (store.Store, error) {
+// New creates a new Etcd client given a list
+// of endpoints and an optional tls config
+func New(addrs []string, options *store.Config) (store.Store, error) {
 	s := &Etcd{}
 
 	entries := store.CreateEndpoints(addrs, "http")
@@ -278,11 +278,32 @@ func (s *Etcd) WatchTree(directory string, stopCh <-chan struct{}) (<-chan []*st
 // AtomicPut put a value at "key" if the key has not been
 // modified in the meantime, throws an error if this is the case
 func (s *Etcd) AtomicPut(key string, value []byte, previous *store.KVPair, options *store.WriteOptions) (bool, *store.KVPair, error) {
-	if previous == nil {
-		return false, nil, store.ErrPreviousNotSpecified
-	}
 
-	meta, err := s.client.CompareAndSwap(store.Normalize(key), string(value), 0, "", previous.LastIndex)
+	var meta *etcd.Response
+	var err error
+	if previous != nil {
+		meta, err = s.client.CompareAndSwap(store.Normalize(key), string(value), 0, "", previous.LastIndex)
+	} else {
+		// Interpret previous == nil as Atomic Create
+		meta, err = s.client.Create(store.Normalize(key), string(value), 0)
+		if etcdError, ok := err.(*etcd.EtcdError); ok {
+
+			// Directory doesn't exist.
+			if etcdError.ErrorCode == 104 {
+				// Remove the last element (the actual key)
+				// and create the full directory path
+				err = s.createDirectory(store.GetDirectory(key))
+				if err != nil {
+					return false, nil, err
+				}
+
+				// Now that the directory is created, create the key
+				if _, err := s.client.Create(key, string(value), 0); err != nil {
+					return false, nil, err
+				}
+			}
+		}
+	}
 	if err != nil {
 		if etcdError, ok := err.(*etcd.EtcdError); ok {
 			// Compare Failed
