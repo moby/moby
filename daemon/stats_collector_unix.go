@@ -89,12 +89,6 @@ func (s *statsCollector) run() {
 	var pairs []publishersPair
 
 	for range time.Tick(s.interval) {
-		systemUsage, err := s.getSystemCPUUsage()
-		if err != nil {
-			logrus.Errorf("collecting system cpu usage: %v", err)
-			continue
-		}
-
 		// it does not make sense in the first iteration,
 		// but saves allocations in further iterations
 		pairs = pairs[:0]
@@ -105,6 +99,15 @@ func (s *statsCollector) run() {
 			pairs = append(pairs, publishersPair{container, publisher})
 		}
 		s.m.Unlock()
+		if len(pairs) == 0 {
+			continue
+		}
+
+		systemUsage, err := s.getSystemCPUUsage()
+		if err != nil {
+			logrus.Errorf("collecting system cpu usage: %v", err)
+			continue
+		}
 
 		for _, pair := range pairs {
 			stats, err := pair.container.stats()
