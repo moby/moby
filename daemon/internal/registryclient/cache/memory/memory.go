@@ -25,8 +25,8 @@ func NewInMemoryBlobDescriptorCacheProvider() cache.BlobDescriptorCacheProvider 
 	}
 }
 
-func (imbdcp *inMemoryBlobDescriptorCacheProvider) RepositoryScoped(canonicalName string) (distribution.BlobDescriptorService, error) {
-	if _, err := reference.NewRepository(canonicalName); err != nil {
+func (imbdcp *inMemoryBlobDescriptorCacheProvider) RepositoryScoped(repo string) (distribution.BlobDescriptorService, error) {
+	if _, err := reference.ParseNamed(repo); err != nil {
 		return nil, err
 	}
 
@@ -34,9 +34,9 @@ func (imbdcp *inMemoryBlobDescriptorCacheProvider) RepositoryScoped(canonicalNam
 	defer imbdcp.mu.RUnlock()
 
 	return &repositoryScopedInMemoryBlobDescriptorCache{
-		repo:       canonicalName,
+		repo:       repo,
 		parent:     imbdcp,
-		repository: imbdcp.repositories[canonicalName],
+		repository: imbdcp.repositories[repo],
 	}, nil
 }
 

@@ -97,9 +97,9 @@ func (r *registry) Repositories(ctx context.Context, entries []string, last stri
 	return numFilled, returnErr
 }
 
-// NewRepository creates a new Repository for the given canonical repository name and base URL.
-func NewRepository(ctx context.Context, canonicalName, baseURL string, transport http.RoundTripper) (distribution.Repository, error) {
-	if _, err := reference.NewRepository(canonicalName); err != nil {
+// NewRepository creates a new Repository for the given repository name and base URL.
+func NewRepository(ctx context.Context, name, baseURL string, transport http.RoundTripper) (distribution.Repository, error) {
+	if _, err := reference.ParseNamed(name); err != nil {
 		return nil, err
 	}
 
@@ -116,7 +116,7 @@ func NewRepository(ctx context.Context, canonicalName, baseURL string, transport
 	return &repository{
 		client:  client,
 		ub:      ub,
-		name:    canonicalName,
+		name:    name,
 		context: ctx,
 	}, nil
 }
