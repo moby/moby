@@ -199,6 +199,10 @@ func (d *dnetConnection) dnetDaemon() error {
 	post.Methods("GET", "PUT", "POST", "DELETE").HandlerFunc(httpHandler)
 	post = r.PathPrefix("/services").Subrouter()
 	post.Methods("GET", "PUT", "POST", "DELETE").HandlerFunc(httpHandler)
+	post = r.PathPrefix("/{.*}/sandboxes").Subrouter()
+	post.Methods("GET", "PUT", "POST", "DELETE").HandlerFunc(httpHandler)
+	post = r.PathPrefix("/sandboxes").Subrouter()
+	post.Methods("GET", "PUT", "POST", "DELETE").HandlerFunc(httpHandler)
 	return http.ListenAndServe(d.addr, r)
 }
 
