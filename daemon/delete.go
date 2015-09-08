@@ -55,7 +55,10 @@ func (daemon *Daemon) ContainerRm(name string, config *ContainerRmConfig) error 
 		return fmt.Errorf("Cannot destroy container %s: %v", name, err)
 	}
 
-	container.removeMountPoints(config.RemoveVolume)
+	if err := container.removeMountPoints(config.RemoveVolume); err != nil {
+		logrus.Errorf("%v", err)
+	}
+
 	return nil
 }
 
