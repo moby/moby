@@ -26,7 +26,7 @@ func kill(id string, pid int) error {
 
 	// Terminate Process
 	if err = hcsshim.TerminateProcessInComputeSystem(id, uint32(pid)); err != nil {
-		logrus.Warnf("Failed to terminate pid %d in %s", id, pid, err)
+		logrus.Warnf("Failed to terminate pid %d in %s: %q", pid, id, err)
 		// Ignore errors
 		err = nil
 	}
@@ -34,13 +34,13 @@ func kill(id string, pid int) error {
 	if terminateMode {
 		// Terminate the compute system
 		if err = hcsshim.TerminateComputeSystem(id); err != nil {
-			logrus.Errorf("Failed to terminate %s - %s", id, err)
+			logrus.Errorf("Failed to terminate %s - %q", id, err)
 		}
 
 	} else {
 		// Shutdown the compute system
 		if err = hcsshim.ShutdownComputeSystem(id); err != nil {
-			logrus.Errorf("Failed to shutdown %s - %s", id, err)
+			logrus.Errorf("Failed to shutdown %s - %q", id, err)
 		}
 	}
 	return err
