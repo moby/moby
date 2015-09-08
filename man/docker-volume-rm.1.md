@@ -7,11 +7,11 @@ docker-volume-rm - Remove a volume
 # SYNOPSIS
 **docker volume rm**
 
-[OPTIONS] [VOLUME NAME]
+[OPTIONS] VOLUME [VOLUME...]
 
 # DESCRIPTION
 
-Removes a volume. You cannot remove a volume that is in use by a container.
+Removes one or more volumes. You cannot remove a volume that is in use by a container.
 
     ```
     $ docker volume rm hello

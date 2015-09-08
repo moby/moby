@@ -10,13 +10,13 @@ parent = "smn_cli"
 
 # volume rm
 
-    Usage: docker volume rm [OPTIONS] [VOLUME NAME]
+    Usage: docker volume rm [OPTIONS] VOLUME [VOLUME...]
 
     Remove a volume
 
     --help=false       Print usage
 
-Removes a volume. You cannot remove a volume that is in use by a container.
+Removes one or more volumes. You cannot remove a volume that is in use by a container.
 
   $ docker volume rm hello
   hello

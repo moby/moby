@@ -10,9 +10,9 @@ parent = "smn_cli"
 
 # volume inspect
 
-    Usage: docker volume inspect [OPTIONS] [VOLUME NAME]
+    Usage: docker volume inspect [OPTIONS] VOLUME [VOLUME...]
 
-    Inspect a volume
+    Inspect one or more volumes
 
     -f, --format=       Format the output using the given go template.
 

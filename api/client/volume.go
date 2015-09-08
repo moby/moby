@@ -102,7 +102,7 @@ func (cli *DockerCli) CmdVolumeLs(args ...string) error {
 //
 // Usage: docker volume inspect [OPTIONS] VOLUME [VOLUME...]
 func (cli *DockerCli) CmdVolumeInspect(args ...string) error {
-	cmd := Cli.Subcmd("volume inspect", []string{"[VOLUME NAME]"}, "Return low-level information on a volume", true)
+	cmd := Cli.Subcmd("volume inspect", []string{"VOLUME [VOLUME...]"}, "Return low-level information on a volume", true)
 	tmplStr := cmd.String([]string{"f", "-format"}, "", "Format the output using the given go template.")
 	if err := cmd.Parse(args); err != nil {
 		return nil
@@ -210,7 +210,7 @@ func (cli *DockerCli) CmdVolumeCreate(args ...string) error {
 //
 // Usage: docker volume rm VOLUME [VOLUME...]
 func (cli *DockerCli) CmdVolumeRm(args ...string) error {
-	cmd := Cli.Subcmd("volume rm", []string{"[NAME]"}, "Remove a volume", true)
+	cmd := Cli.Subcmd("volume rm", []string{"VOLUME [VOLUME...]"}, "Remove a volume", true)
 	cmd.Require(flag.Min, 1)
 	cmd.ParseFlags(args, true)
 
