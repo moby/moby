@@ -14,4 +14,9 @@ func (s *Server) registerSubRouter() {
 	subrouter.Methods("GET", "POST", "PUT", "DELETE").HandlerFunc(httpHandler)
 	subrouter = s.router.PathPrefix("/services").Subrouter()
 	subrouter.Methods("GET", "POST", "PUT", "DELETE").HandlerFunc(httpHandler)
+
+	subrouter = s.router.PathPrefix("/v{version:[0-9.]+}/sandboxes").Subrouter()
+	subrouter.Methods("GET", "POST", "PUT", "DELETE").HandlerFunc(httpHandler)
+	subrouter = s.router.PathPrefix("/sandboxes").Subrouter()
+	subrouter.Methods("GET", "POST", "PUT", "DELETE").HandlerFunc(httpHandler)
 }
