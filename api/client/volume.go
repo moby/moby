@@ -32,7 +32,7 @@ func (cli *DockerCli) CmdVolume(args ...string) error {
 		description += fmt.Sprintf("  %-25.25s%s\n", cmd[0], cmd[1])
 	}
 
-	description += "\nRun 'docker volume COMMAND --help' for more information on a command."
+	description += "\nRun 'docker volume COMMAND --help' for more information on a command"
 	cmd := Cli.Subcmd("volume", []string{"[COMMAND]"}, description, true)
 	cmd.Require(flag.Exact, 0)
 	cmd.ParseFlags(args, true)
@@ -103,13 +103,14 @@ func (cli *DockerCli) CmdVolumeLs(args ...string) error {
 // Usage: docker volume inspect [OPTIONS] VOLUME [VOLUME...]
 func (cli *DockerCli) CmdVolumeInspect(args ...string) error {
 	cmd := Cli.Subcmd("volume inspect", []string{"VOLUME [VOLUME...]"}, "Return low-level information on a volume", true)
-	tmplStr := cmd.String([]string{"f", "-format"}, "", "Format the output using the given go template.")
-	if err := cmd.Parse(args); err != nil {
-		return nil
-	}
+	tmplStr := cmd.String([]string{"f", "-format"}, "", "Format the output using the given go template")
 
 	cmd.Require(flag.Min, 1)
 	cmd.ParseFlags(args, true)
+
+	if err := cmd.Parse(args); err != nil {
+		return nil
+	}
 
 	var tmpl *template.Template
 	if *tmplStr != "" {

@@ -101,9 +101,10 @@ func (s *DockerSuite) TestHelpTextVerify(c *check.C) {
 			// Skip first line
 			helpOut = helpOut[1:]
 		}
-		for _, cmd := range helpOut {
-			var stderr string
 
+		// Create the list of commands we want to test
+		cmdsToTest := []string{}
+		for _, cmd := range helpOut {
 			// Stop on blank line or non-idented line
 			if cmd == "" || !unicode.IsSpace(rune(cmd[0])) {
 				break
@@ -111,10 +112,25 @@ func (s *DockerSuite) TestHelpTextVerify(c *check.C) {
 
 			// Grab just the first word of each line
 			cmd = strings.Split(strings.TrimSpace(cmd), " ")[0]
-			cmds = append(cmds, cmd)
+			cmds = append(cmds, cmd) // Saving count for later
+
+			cmdsToTest = append(cmdsToTest, cmd)
+		}
+
+		// Add some 'two word' commands - would be nice to automatically
+		// calculate this list - somehow
+		cmdsToTest = append(cmdsToTest, "volume create")
+		cmdsToTest = append(cmdsToTest, "volume inspect")
+		cmdsToTest = append(cmdsToTest, "volume ls")
+		cmdsToTest = append(cmdsToTest, "volume rm")
+
+		for _, cmd := range cmdsToTest {
+			var stderr string
+
+			args := strings.Split(cmd+" --help", " ")
 
 			// Check the full usage text
-			helpCmd := exec.Command(dockerBinary, cmd, "--help")
+			helpCmd := exec.Command(dockerBinary, args...)
 			helpCmd.Env = newEnvs
 			out, stderr, ec, err = runCommandWithStdoutStderr(helpCmd)
 			if len(stderr) != 0 {
@@ -168,7 +184,9 @@ func (s *DockerSuite) TestHelpTextVerify(c *check.C) {
 
 			// For each command make sure we generate an error
 			// if we give a bad arg
-			dCmd := exec.Command(dockerBinary, cmd, "--badArg")
+			args = strings.Split(cmd+" --badArg", " ")
+
+			dCmd := exec.Command(dockerBinary, args...)
 			out, stderr, ec, err = runCommandWithStdoutStderr(dCmd)
 			if len(out) != 0 || len(stderr) == 0 || ec == 0 || err == nil {
 				c.Fatalf("Bad results from 'docker %s --badArg'\nec:%d\nstdout:%s\nstderr:%s\nerr:%q", cmd, ec, out, stderr, err)
@@ -209,14 +227,14 @@ func (s *DockerSuite) TestHelpTextVerify(c *check.C) {
 
 				ec = 0
 				if _, ok := skipNoArgs[cmd]; !ok {
-					args = []string{cmd}
+					args = strings.Split(cmd, " ")
 					dCmd = exec.Command(dockerBinary, args...)
 					stdout, stderr, ec, err = runCommandWithStdoutStderr(dCmd)
 				}
 
 				// If its ok w/o any args then try again with an arg
 				if ec == 0 {
-					args = []string{cmd, "badArg"}
+					args = strings.Split(cmd+" badArg", " ")
 					dCmd = exec.Command(dockerBinary, args...)
 					stdout, stderr, ec, err = runCommandWithStdoutStderr(dCmd)
 				}
