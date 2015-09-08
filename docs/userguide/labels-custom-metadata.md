@@ -59,7 +59,7 @@ notation. Use the following guidelines to name your keys:
   cumbersome namespaces on the command-line.
 
 
-These are guidelines and Docker does not *enforce* them. Failing following these
+These are guidelines and Docker does not *enforce* them. Failing to follow these
 guidelines can result in conflicting labels. If you're building a tool that uses
 labels, you *should* use namespaces for your label keys.
 
