@@ -72,7 +72,7 @@ func main() {
 		InterfaceType string
 		RPCName       string
 		BuildTags     map[string]struct{}
-		*parsedPkg
+		*ParsedPkg
 	}{toLower(*typeName), *rpcName, flBuildTags.GetValues(), pkg}
 	var buf bytes.Buffer
 

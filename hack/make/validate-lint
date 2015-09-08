@@ -2,116 +2,15 @@
 
 source "${MAKEDIR}/.validate"
 
-# We will eventually get to the point when packages should be the complete list
-# of subpackages, vendoring excluded, as given by:
-#
-# packages=( $(go list ./... 2> /dev/null | grep -vE "^github.com/docker/docker/vendor" || true ) )
-
-packages=(
-	api
-	api/client
-	api/client/ps
-	api/server
-	api/types
-	builder
-	builder/command
-	builder/parser
-	builder/parser/dumper
-	cliconfig
-	daemon
-	daemon/events
-	daemon/execdriver
-	daemon/execdriver/execdrivers
-	daemon/execdriver/lxc
-	daemon/execdriver/native
-	daemon/execdriver/native/template
-	daemon/execdriver/windows
-	daemon/graphdriver
-	daemon/graphdriver/aufs
-	daemon/graphdriver/devmapper
-	daemon/graphdriver/overlay
-	daemon/graphdriver/vfs
-	daemon/graphdriver/zfs
-	daemon/logger
-	daemon/logger/fluentd
-	daemon/logger/gelf
-	daemon/logger/journald
-	daemon/logger/jsonfilelog
-	daemon/logger/syslog
-	daemon/network
-	docker
-	dockerinit
-	graph
-	graph/tags
-	image
-	integration-cli
-	opts
-	pkg/archive
-	pkg/broadcastwriter
-	pkg/chrootarchive
-	pkg/directory
-	pkg/fileutils
-	pkg/graphdb
-	pkg/homedir
-	pkg/httputils
-	pkg/ioutils
-	pkg/jsonlog
-	pkg/jsonmessage
-	pkg/listenbuffer
-	pkg/mflag
-	pkg/mflag/example
-	pkg/mount
-	pkg/namesgenerator
-	pkg/nat
-	pkg/parsers
-	pkg/parsers/filters
-	pkg/parsers/kernel
-	pkg/parsers/operatingsystem
-	pkg/pidfile
-	pkg/plugins
-	pkg/pools
-	pkg/progressreader
-	pkg/promise
-	pkg/proxy
-	pkg/pubsub
-	pkg/random
-	pkg/reexec
-	pkg/signal
-	pkg/sockets
-	pkg/stdcopy
-	pkg/streamformatter
-	pkg/stringid
-	pkg/stringutils
-	pkg/symlink
-	pkg/sysinfo
-	pkg/system
-	pkg/tailfile
-	pkg/tarsum
-	pkg/term
-	pkg/term/windows
-	pkg/timeoutconn
-	pkg/timeutils
-	pkg/tlsconfig
-	pkg/truncindex
-	pkg/urlutil
-	pkg/ulimit
-	pkg/units
-	pkg/useragent
-	pkg/version
-	registry
-	runconfig
-	trust
-	utils
-	volume
-	volume/local
-	volume/drivers
-)
+packages=( $(go list ./... 2> /dev/null | grep -vE "^github.com/docker/docker/vendor|^github.com/docker/docker/autogen" || true ) )
 
 errors=()
 for p in "${packages[@]}"; do
+	# Remove the github.com/docker/docker/ prefix from listed package
+	package="${p#github.com/docker/docker/}"
 	# Run golint on package/*.go file explicitly to validate all go files
 	# and not just the ones for the current platform.
-	failedLint=$(golint "$p"/*.go)
+	failedLint=$(golint $package/*.go)
 	if [ "$failedLint" ]; then
 		errors+=( "$failedLint" )
 	fi

@@ -82,7 +82,7 @@ func openNextAvailableLoopback(index int, sparseFile *os.File) (loopFile *os.Fil
 	return loopFile, nil
 }
 
-// attachLoopDevice attaches the given sparse file to the next
+// AttachLoopDevice attaches the given sparse file to the next
 // available loopback device. It returns an opened *os.File.
 func AttachLoopDevice(sparseName string) (loop *os.File, err error) {
 
@@ -108,7 +108,7 @@ func AttachLoopDevice(sparseName string) (loop *os.File, err error) {
 	}
 
 	// Set the status of the loopback device
-	loopInfo := &LoopInfo64{
+	loopInfo := &loopInfo64{
 		loFileName: stringToLoopName(loopFile.Name()),
 		loOffset:   0,
 		loFlags:    LoFlagsAutoClear,

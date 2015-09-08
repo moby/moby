@@ -266,7 +266,7 @@ func (devices *DeviceSet) allocateTransactionID() uint64 {
 }
 
 func (devices *DeviceSet) updatePoolTransactionID() error {
-	if err := devicemapper.SetTransactionId(devices.getPoolDevName(), devices.TransactionID, devices.OpenTransactionID); err != nil {
+	if err := devicemapper.SetTransactionID(devices.getPoolDevName(), devices.TransactionID, devices.OpenTransactionID); err != nil {
 		return fmt.Errorf("Error setting devmapper transaction ID: %s", err)
 	}
 	devices.TransactionID = devices.OpenTransactionID
@@ -596,7 +596,7 @@ func (devices *DeviceSet) createRegisterDevice(hash string) (*devInfo, error) {
 
 	for {
 		if err := devicemapper.CreateDevice(devices.getPoolDevName(), deviceID); err != nil {
-			if devicemapper.DeviceIdExists(err) {
+			if devicemapper.DeviceIDExists(err) {
 				// Device ID already exists. This should not
 				// happen. Now we have a mechianism to find
 				// a free device ID. So something is not right.
@@ -648,7 +648,7 @@ func (devices *DeviceSet) createRegisterSnapDevice(hash string, baseInfo *devInf
 
 	for {
 		if err := devicemapper.CreateSnapDevice(devices.getPoolDevName(), deviceID, baseInfo.Name(), baseInfo.DeviceID); err != nil {
-			if devicemapper.DeviceIdExists(err) {
+			if devicemapper.DeviceIDExists(err) {
 				// Device ID already exists. This should not
 				// happen. Now we have a mechianism to find
 				// a free device ID. So something is not right.

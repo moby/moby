@@ -22,7 +22,7 @@ func TestParseEmptyInterface(t *testing.T) {
 
 func TestParseNonInterfaceType(t *testing.T) {
 	_, err := Parse(testFixture, "wobble")
-	if _, ok := err.(ErrUnexpectedType); !ok {
+	if _, ok := err.(errUnexpectedType); !ok {
 		t.Fatal("expected type error when parsing non-interface type")
 	}
 }
@@ -109,7 +109,7 @@ func TestParseWithMultipleFuncs(t *testing.T) {
 
 func TestParseWithUnamedReturn(t *testing.T) {
 	_, err := Parse(testFixture, "Fooer4")
-	if !strings.HasSuffix(err.Error(), ErrBadReturn.Error()) {
+	if !strings.HasSuffix(err.Error(), errBadReturn.Error()) {
 		t.Fatalf("expected ErrBadReturn, got %v", err)
 	}
 }
