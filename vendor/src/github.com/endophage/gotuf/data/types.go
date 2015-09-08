@@ -3,7 +3,6 @@ package data
 import (
 	"crypto/sha256"
 	"crypto/sha512"
-	"encoding/json"
 	"fmt"
 	"hash"
 	"io"
@@ -12,6 +11,7 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/jfrazelle/go/canonical/json"
 )
 
 type KeyAlgorithm string
@@ -83,6 +83,17 @@ func ValidTUFType(typ, role string) bool {
 type Signed struct {
 	Signed     json.RawMessage `json:"signed"`
 	Signatures []Signature     `json:"signatures"`
+}
+
+type SignedCommon struct {
+	Type    string    `json:"_type"`
+	Expires time.Time `json:"expires"`
+	Version int       `json:"version"`
+}
+
+type SignedMeta struct {
+	Signed     SignedCommon `json:"signed"`
+	Signatures []Signature  `json:"signatures"`
 }
 
 type Signature struct {

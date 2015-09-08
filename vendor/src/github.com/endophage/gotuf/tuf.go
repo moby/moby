@@ -258,16 +258,12 @@ func (tr *TufRepo) InitTimestamp() error {
 // SetRoot parses the Signed object into a SignedRoot object, sets
 // the keys and roles in the KeyDB, and sets the TufRepo.Root field
 // to the SignedRoot object.
-func (tr *TufRepo) SetRoot(s *data.Signed) error {
-	r, err := data.RootFromSigned(s)
-	if err != nil {
-		return err
-	}
-	for _, key := range r.Signed.Keys {
+func (tr *TufRepo) SetRoot(s *data.SignedRoot) error {
+	for _, key := range s.Signed.Keys {
 		logrus.Debug("Adding key ", key.ID())
 		tr.keysDB.AddKey(key)
 	}
-	for roleName, role := range r.Signed.Roles {
+	for roleName, role := range s.Signed.Roles {
 		logrus.Debugf("Adding role %s with keys %s", roleName, strings.Join(role.KeyIDs, ","))
 		baseRole, err := data.NewRole(
 			roleName,
@@ -284,48 +280,35 @@ func (tr *TufRepo) SetRoot(s *data.Signed) error {
 			return err
 		}
 	}
-	tr.Root = r
+	tr.Root = s
 	return nil
 }
 
 // SetTimestamp parses the Signed object into a SignedTimestamp object
 // and sets the TufRepo.Timestamp field.
-func (tr *TufRepo) SetTimestamp(s *data.Signed) error {
-	ts, err := data.TimestampFromSigned(s)
-	if err != nil {
-		return err
-	}
-	tr.Timestamp = ts
+func (tr *TufRepo) SetTimestamp(s *data.SignedTimestamp) error {
+	tr.Timestamp = s
 	return nil
 }
 
 // SetSnapshot parses the Signed object into a SignedSnapshots object
 // and sets the TufRepo.Snapshot field.
-func (tr *TufRepo) SetSnapshot(s *data.Signed) error {
-	snap, err := data.SnapshotFromSigned(s)
-	if err != nil {
-		return err
-	}
-
-	tr.Snapshot = snap
+func (tr *TufRepo) SetSnapshot(s *data.SignedSnapshot) error {
+	tr.Snapshot = s
 	return nil
 }
 
 // SetTargets parses the Signed object into a SignedTargets object,
 // reads the delegated roles and keys into the KeyDB, and sets the
 // SignedTargets object agaist the role in the TufRepo.Targets map.
-func (tr *TufRepo) SetTargets(role string, s *data.Signed) error {
-	t, err := data.TargetsFromSigned(s)
-	if err != nil {
-		return err
-	}
-	for _, k := range t.Signed.Delegations.Keys {
+func (tr *TufRepo) SetTargets(role string, s *data.SignedTargets) error {
+	for _, k := range s.Signed.Delegations.Keys {
 		tr.keysDB.AddKey(k)
 	}
-	for _, r := range t.Signed.Delegations.Roles {
+	for _, r := range s.Signed.Delegations.Roles {
 		tr.keysDB.AddRole(r)
 	}
-	tr.Targets[role] = t
+	tr.Targets[role] = s
 	return nil
 }
 

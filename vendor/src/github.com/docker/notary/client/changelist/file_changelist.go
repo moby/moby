@@ -28,30 +28,51 @@ func NewFileChangelist(dir string) (*FileChangelist, error) {
 	return &FileChangelist{dir: dir}, nil
 }
 
+// getFileNames reads directory, filtering out child directories
+func getFileNames(dirName string) ([]os.FileInfo, error) {
+	var dirListing, fileInfos []os.FileInfo
+	dir, err := os.Open(dirName)
+	if err != nil {
+		return fileInfos, err
+	}
+	defer dir.Close()
+	dirListing, err = dir.Readdir(0)
+	if err != nil {
+		return fileInfos, err
+	}
+	for _, f := range dirListing {
+		if f.IsDir() {
+			continue
+		}
+		fileInfos = append(fileInfos, f)
+	}
+	return fileInfos, nil
+}
+
+// Read a JSON formatted file from disk; convert to TufChange struct
+func unmarshalFile(dirname string, f os.FileInfo) (*TufChange, error) {
+	c := &TufChange{}
+	raw, err := ioutil.ReadFile(path.Join(dirname, f.Name()))
+	if err != nil {
+		return c, err
+	}
+	err = json.Unmarshal(raw, c)
+	if err != nil {
+		return c, err
+	}
+	return c, nil
+}
+
 // List returns a list of sorted changes
 func (cl FileChangelist) List() []Change {
 	var changes []Change
-	dir, err := os.Open(cl.dir)
-	if err != nil {
-		return changes
-	}
-	defer dir.Close()
-	fileInfos, err := dir.Readdir(0)
+	fileInfos, err := getFileNames(cl.dir)
 	if err != nil {
 		return changes
 	}
 	sort.Sort(fileChanges(fileInfos))
 	for _, f := range fileInfos {
-		if f.IsDir() {
-			continue
-		}
-		raw, err := ioutil.ReadFile(path.Join(cl.dir, f.Name()))
-		if err != nil {
-			logrus.Warn(err.Error())
-			continue
-		}
-		c := &TufChange{}
-		err = json.Unmarshal(raw, c)
+		c, err := unmarshalFile(cl.dir, f)
 		if err != nil {
 			logrus.Warn(err.Error())
 			continue
@@ -92,6 +113,47 @@ func (cl FileChangelist) Clear(archive string) error {
 func (cl FileChangelist) Close() error {
 	// Nothing to do here
 	return nil
+}
+
+// NewIterator creates an iterator from FileChangelist
+func (cl FileChangelist) NewIterator() (ChangeIterator, error) {
+	fileInfos, err := getFileNames(cl.dir)
+	if err != nil {
+		return &FileChangeListIterator{}, err
+	}
+	sort.Sort(fileChanges(fileInfos))
+	return &FileChangeListIterator{dirname: cl.dir, collection: fileInfos}, nil
+}
+
+// IteratorBoundsError is an Error type used by Next()
+type IteratorBoundsError int
+
+// Error implements the Error interface
+func (e IteratorBoundsError) Error() string {
+	return fmt.Sprintf("Iterator index (%d) out of bounds", e)
+}
+
+// FileChangeListIterator is a concrete instance of ChangeIterator
+type FileChangeListIterator struct {
+	index      int
+	dirname    string
+	collection []os.FileInfo
+}
+
+// Next returns the next Change in the FileChangeList
+func (m *FileChangeListIterator) Next() (item Change, err error) {
+	if m.index >= len(m.collection) {
+		return nil, IteratorBoundsError(m.index)
+	}
+	f := m.collection[m.index]
+	m.index++
+	item, err = unmarshalFile(m.dirname, f)
+	return
+}
+
+// HasNext indicates whether iterator is exhausted
+func (m *FileChangeListIterator) HasNext() bool {
+	return m.index < len(m.collection)
 }
 
 type fileChanges []os.FileInfo
