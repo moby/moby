@@ -2,16 +2,20 @@
 
 package server
 
-func (s *Server) registerSubRouter() {
-	httpHandler := s.daemon.NetworkAPIRouter()
+func (s *Server) registerNetworkRouter() {
+	ws := s.newWebService()
 
-	subrouter := s.router.PathPrefix("/v{version:[0-9.]+}/networks").Subrouter()
-	subrouter.Methods("GET", "POST", "PUT", "DELETE").HandlerFunc(httpHandler)
-	subrouter = s.router.PathPrefix("/networks").Subrouter()
-	subrouter.Methods("GET", "POST", "PUT", "DELETE").HandlerFunc(httpHandler)
+	handler := restfulHTTPRoute(s.daemon.NetworkAPIRouter())
 
-	subrouter = s.router.PathPrefix("/v{version:[0-9.]+}/services").Subrouter()
-	subrouter.Methods("GET", "POST", "PUT", "DELETE").HandlerFunc(httpHandler)
-	subrouter = s.router.PathPrefix("/services").Subrouter()
-	subrouter.Methods("GET", "POST", "PUT", "DELETE").HandlerFunc(httpHandler)
+	networkRouterMethods := []string{"GET", "POST", "PUT", "DELETE"}
+	networkRouterPaths := []string{"/networks", "/services"}
+
+	for _, method := range networkRouterMethods {
+		for _, route := range networkRouterPaths {
+			ws.Route(ws.Method(method).Path(versionPath + route).To(handler))
+			ws.Route(ws.Method(method).Path(route).To(handler))
+		}
+	}
+
+	s.router.Add(ws)
 }

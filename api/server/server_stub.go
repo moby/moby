@@ -2,5 +2,5 @@
 
 package server
 
-func (s *Server) registerSubRouter() {
+func (s *Server) registerNetworkRouter() {
 }

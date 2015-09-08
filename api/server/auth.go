@@ -7,12 +7,13 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/cliconfig"
 	"github.com/docker/docker/pkg/version"
+	restful "github.com/emicklei/go-restful"
 )
 
-func (s *Server) postAuth(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (s *Server) postAuth(version version.Version, w *restful.Response, r *restful.Request) error {
 	var config *cliconfig.AuthConfig
-	err := json.NewDecoder(r.Body).Decode(&config)
-	r.Body.Close()
+	err := json.NewDecoder(r.Request.Body).Decode(&config)
+	r.Request.Body.Close()
 	if err != nil {
 		return err
 	}

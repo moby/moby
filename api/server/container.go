@@ -18,38 +18,35 @@ import (
 	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/docker/pkg/version"
 	"github.com/docker/docker/runconfig"
+	restful "github.com/emicklei/go-restful"
 )
 
-func (s *Server) getContainersByName(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	if vars == nil {
-		return fmt.Errorf("Missing parameter")
-	}
-
+func (s *Server) getContainersByName(version version.Version, w *restful.Response, r *restful.Request) error {
 	if version.LessThan("1.20") && runtime.GOOS != "windows" {
-		return getContainersByNameDownlevel(w, s, vars["name"])
+		return getContainersByNameDownlevel(w, s, r.PathParameter("name"))
 	}
 
-	containerJSON, err := s.daemon.ContainerInspect(vars["name"])
+	containerJSON, err := s.daemon.ContainerInspect(r.PathParameter("name"))
 	if err != nil {
 		return err
 	}
 	return writeJSON(w, http.StatusOK, containerJSON)
 }
 
-func (s *Server) getContainersJSON(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	if err := parseForm(r); err != nil {
+func (s *Server) getContainersJSON(version version.Version, w *restful.Response, r *restful.Request) error {
+	if err := parseForm(r.Request); err != nil {
 		return err
 	}
 
 	config := &daemon.ContainersConfig{
-		All:     boolValue(r, "all"),
-		Size:    boolValue(r, "size"),
-		Since:   r.Form.Get("since"),
-		Before:  r.Form.Get("before"),
-		Filters: r.Form.Get("filters"),
+		All:     boolValue(r.Request, "all"),
+		Size:    boolValue(r.Request, "size"),
+		Since:   r.Request.Form.Get("since"),
+		Before:  r.Request.Form.Get("before"),
+		Filters: r.Request.Form.Get("filters"),
 	}
 
-	if tmpLimit := r.Form.Get("limit"); tmpLimit != "" {
+	if tmpLimit := r.Request.Form.Get("limit"); tmpLimit != "" {
 		limit, err := strconv.Atoi(tmpLimit)
 		if err != nil {
 			return err
@@ -65,15 +62,12 @@ func (s *Server) getContainersJSON(version version.Version, w http.ResponseWrite
 	return writeJSON(w, http.StatusOK, containers)
 }
 
-func (s *Server) getContainersStats(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	if err := parseForm(r); err != nil {
+func (s *Server) getContainersStats(version version.Version, w *restful.Response, r *restful.Request) error {
+	if err := parseForm(r.Request); err != nil {
 		return err
 	}
-	if vars == nil {
-		return fmt.Errorf("Missing parameter")
-	}
 
-	stream := boolValueOrDefault(r, "stream", true)
+	stream := boolValueOrDefault(r.Request, "stream", true)
 	var out io.Writer
 	if !stream {
 		w.Header().Set("Content-Type", "application/json")
@@ -83,7 +77,7 @@ func (s *Server) getContainersStats(version version.Version, w http.ResponseWrit
 	}
 
 	var closeNotifier <-chan bool
-	if notifier, ok := w.(http.CloseNotifier); ok {
+	if notifier, ok := w.ResponseWriter.(http.CloseNotifier); ok {
 		closeNotifier = notifier.CloseNotify()
 	}
 
@@ -93,26 +87,23 @@ func (s *Server) getContainersStats(version version.Version, w http.ResponseWrit
 		Stop:      closeNotifier,
 	}
 
-	return s.daemon.ContainerStats(vars["name"], config)
+	return s.daemon.ContainerStats(r.PathParameter("name"), config)
 }
 
-func (s *Server) getContainersLogs(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	if err := parseForm(r); err != nil {
+func (s *Server) getContainersLogs(version version.Version, w *restful.Response, r *restful.Request) error {
+	if err := parseForm(r.Request); err != nil {
 		return err
-	}
-	if vars == nil {
-		return fmt.Errorf("Missing parameter")
 	}
 
 	// Validate args here, because we can't return not StatusOK after job.Run() call
-	stdout, stderr := boolValue(r, "stdout"), boolValue(r, "stderr")
+	stdout, stderr := boolValue(r.Request, "stdout"), boolValue(r.Request, "stderr")
 	if !(stdout || stderr) {
 		return fmt.Errorf("Bad parameters: you must choose at least one stream")
 	}
 
 	var since time.Time
-	if r.Form.Get("since") != "" {
-		s, err := strconv.ParseInt(r.Form.Get("since"), 10, 64)
+	if r.Request.Form.Get("since") != "" {
+		s, err := strconv.ParseInt(r.Request.Form.Get("since"), 10, 64)
 		if err != nil {
 			return err
 		}
@@ -120,11 +111,11 @@ func (s *Server) getContainersLogs(version version.Version, w http.ResponseWrite
 	}
 
 	var closeNotifier <-chan bool
-	if notifier, ok := w.(http.CloseNotifier); ok {
+	if notifier, ok := w.ResponseWriter.(http.CloseNotifier); ok {
 		closeNotifier = notifier.CloseNotify()
 	}
 
-	c, err := s.daemon.Get(vars["name"])
+	c, err := s.daemon.Get(r.PathParameter("name"))
 	if err != nil {
 		return err
 	}
@@ -136,10 +127,10 @@ func (s *Server) getContainersLogs(version version.Version, w http.ResponseWrite
 	outStream.Write(nil)
 
 	logsConfig := &daemon.ContainerLogsConfig{
-		Follow:     boolValue(r, "follow"),
-		Timestamps: boolValue(r, "timestamps"),
+		Follow:     boolValue(r.Request, "follow"),
+		Timestamps: boolValue(r.Request, "timestamps"),
 		Since:      since,
-		Tail:       r.Form.Get("tail"),
+		Tail:       r.Request.Form.Get("tail"),
 		UseStdout:  stdout,
 		UseStderr:  stderr,
 		OutStream:  outStream,
@@ -153,19 +144,11 @@ func (s *Server) getContainersLogs(version version.Version, w http.ResponseWrite
 	return nil
 }
 
-func (s *Server) getContainersExport(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	if vars == nil {
-		return fmt.Errorf("Missing parameter")
-	}
-
-	return s.daemon.ContainerExport(vars["name"], w)
+func (s *Server) getContainersExport(version version.Version, w *restful.Response, r *restful.Request) error {
+	return s.daemon.ContainerExport(r.PathParameter("name"), w)
 }
 
-func (s *Server) postContainersStart(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	if vars == nil {
-		return fmt.Errorf("Missing parameter")
-	}
-
+func (s *Server) postContainersStart(version version.Version, w *restful.Response, r *restful.Request) error {
 	// If contentLength is -1, we can assumed chunked encoding
 	// or more technically that the length is unknown
 	// https://golang.org/src/pkg/net/http/request.go#L139
@@ -173,12 +156,12 @@ func (s *Server) postContainersStart(version version.Version, w http.ResponseWri
 	// including r.TransferEncoding
 	// allow a nil body for backwards compatibility
 	var hostConfig *runconfig.HostConfig
-	if r.Body != nil && (r.ContentLength > 0 || r.ContentLength == -1) {
-		if err := checkForJSON(r); err != nil {
+	if r.Request.Body != nil && (r.Request.ContentLength > 0 || r.Request.ContentLength == -1) {
+		if err := checkForJSON(r.Request); err != nil {
 			return err
 		}
 
-		c, err := runconfig.DecodeHostConfig(r.Body)
+		c, err := runconfig.DecodeHostConfig(r.Request.Body)
 		if err != nil {
 			return err
 		}
@@ -186,7 +169,7 @@ func (s *Server) postContainersStart(version version.Version, w http.ResponseWri
 		hostConfig = c
 	}
 
-	if err := s.daemon.ContainerStart(vars["name"], hostConfig); err != nil {
+	if err := s.daemon.ContainerStart(r.PathParameter("name"), hostConfig); err != nil {
 		if err.Error() == "Container already started" {
 			w.WriteHeader(http.StatusNotModified)
 			return nil
@@ -197,17 +180,14 @@ func (s *Server) postContainersStart(version version.Version, w http.ResponseWri
 	return nil
 }
 
-func (s *Server) postContainersStop(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	if err := parseForm(r); err != nil {
+func (s *Server) postContainersStop(version version.Version, w *restful.Response, r *restful.Request) error {
+	if err := parseForm(r.Request); err != nil {
 		return err
 	}
-	if vars == nil {
-		return fmt.Errorf("Missing parameter")
-	}
 
-	seconds, _ := strconv.Atoi(r.Form.Get("t"))
+	seconds, _ := strconv.Atoi(r.Request.Form.Get("t"))
 
-	if err := s.daemon.ContainerStop(vars["name"], seconds); err != nil {
+	if err := s.daemon.ContainerStop(r.PathParameter("name"), seconds); err != nil {
 		if err.Error() == "Container already stopped" {
 			w.WriteHeader(http.StatusNotModified)
 			return nil
@@ -219,19 +199,16 @@ func (s *Server) postContainersStop(version version.Version, w http.ResponseWrit
 	return nil
 }
 
-func (s *Server) postContainersKill(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	if vars == nil {
-		return fmt.Errorf("Missing parameter")
-	}
-	if err := parseForm(r); err != nil {
+func (s *Server) postContainersKill(version version.Version, w *restful.Response, r *restful.Request) error {
+	if err := parseForm(r.Request); err != nil {
 		return err
 	}
 
 	var sig uint64
-	name := vars["name"]
+	name := r.PathParameter("name")
 
 	// If we have a signal, look at it. Otherwise, do nothing
-	if sigStr := r.Form.Get("signal"); sigStr != "" {
+	if sigStr := r.Request.Form.Get("signal"); sigStr != "" {
 		// Check if we passed the signal as a number:
 		// The largest legal signal is 31, so let's parse on 5 bits
 		sigN, err := strconv.ParseUint(sigStr, 10, 5)
@@ -266,17 +243,13 @@ func (s *Server) postContainersKill(version version.Version, w http.ResponseWrit
 	return nil
 }
 
-func (s *Server) postContainersRestart(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	if err := parseForm(r); err != nil {
+func (s *Server) postContainersRestart(version version.Version, w *restful.Response, r *restful.Request) error {
+	if err := parseForm(r.Request); err != nil {
 		return err
 	}
-	if vars == nil {
-		return fmt.Errorf("Missing parameter")
-	}
+	timeout, _ := strconv.Atoi(r.Request.Form.Get("t"))
 
-	timeout, _ := strconv.Atoi(r.Form.Get("t"))
-
-	if err := s.daemon.ContainerRestart(vars["name"], timeout); err != nil {
+	if err := s.daemon.ContainerRestart(r.PathParameter("name"), timeout); err != nil {
 		return err
 	}
 
@@ -285,32 +258,12 @@ func (s *Server) postContainersRestart(version version.Version, w http.ResponseW
 	return nil
 }
 
-func (s *Server) postContainersPause(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	if vars == nil {
-		return fmt.Errorf("Missing parameter")
-	}
-	if err := parseForm(r); err != nil {
+func (s *Server) postContainersPause(version version.Version, w *restful.Response, r *restful.Request) error {
+	if err := parseForm(r.Request); err != nil {
 		return err
 	}
 
-	if err := s.daemon.ContainerPause(vars["name"]); err != nil {
-		return err
-	}
-
-	w.WriteHeader(http.StatusNoContent)
-
-	return nil
-}
-
-func (s *Server) postContainersUnpause(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	if vars == nil {
-		return fmt.Errorf("Missing parameter")
-	}
-	if err := parseForm(r); err != nil {
-		return err
-	}
-
-	if err := s.daemon.ContainerUnpause(vars["name"]); err != nil {
+	if err := s.daemon.ContainerPause(r.PathParameter("name")); err != nil {
 		return err
 	}
 
@@ -319,12 +272,22 @@ func (s *Server) postContainersUnpause(version version.Version, w http.ResponseW
 	return nil
 }
 
-func (s *Server) postContainersWait(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	if vars == nil {
-		return fmt.Errorf("Missing parameter")
+func (s *Server) postContainersUnpause(version version.Version, w *restful.Response, r *restful.Request) error {
+	if err := parseForm(r.Request); err != nil {
+		return err
 	}
 
-	status, err := s.daemon.ContainerWait(vars["name"], -1*time.Second)
+	if err := s.daemon.ContainerUnpause(r.PathParameter("name")); err != nil {
+		return err
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+
+	return nil
+}
+
+func (s *Server) postContainersWait(version version.Version, w *restful.Response, r *restful.Request) error {
+	status, err := s.daemon.ContainerWait(r.PathParameter("name"), -1*time.Second)
 	if err != nil {
 		return err
 	}
@@ -334,12 +297,8 @@ func (s *Server) postContainersWait(version version.Version, w http.ResponseWrit
 	})
 }
 
-func (s *Server) getContainersChanges(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	if vars == nil {
-		return fmt.Errorf("Missing parameter")
-	}
-
-	changes, err := s.daemon.ContainerChanges(vars["name"])
+func (s *Server) getContainersChanges(version version.Version, w *restful.Response, r *restful.Request) error {
+	changes, err := s.daemon.ContainerChanges(r.PathParameter("name"))
 	if err != nil {
 		return err
 	}
@@ -347,16 +306,12 @@ func (s *Server) getContainersChanges(version version.Version, w http.ResponseWr
 	return writeJSON(w, http.StatusOK, changes)
 }
 
-func (s *Server) getContainersTop(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	if vars == nil {
-		return fmt.Errorf("Missing parameter")
-	}
-
-	if err := parseForm(r); err != nil {
+func (s *Server) getContainersTop(version version.Version, w *restful.Response, r *restful.Request) error {
+	if err := parseForm(r.Request); err != nil {
 		return err
 	}
 
-	procList, err := s.daemon.ContainerTop(vars["name"], r.Form.Get("ps_args"))
+	procList, err := s.daemon.ContainerTop(r.PathParameter("name"), r.Request.Form.Get("ps_args"))
 	if err != nil {
 		return err
 	}
@@ -364,16 +319,13 @@ func (s *Server) getContainersTop(version version.Version, w http.ResponseWriter
 	return writeJSON(w, http.StatusOK, procList)
 }
 
-func (s *Server) postContainerRename(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	if err := parseForm(r); err != nil {
+func (s *Server) postContainerRename(version version.Version, w *restful.Response, r *restful.Request) error {
+	if err := parseForm(r.Request); err != nil {
 		return err
 	}
-	if vars == nil {
-		return fmt.Errorf("Missing parameter")
-	}
 
-	name := vars["name"]
-	newName := r.Form.Get("name")
+	name := r.PathParameter("name")
+	newName := r.Request.Form.Get("name")
 	if err := s.daemon.ContainerRename(name, newName); err != nil {
 		return err
 	}
@@ -381,19 +333,19 @@ func (s *Server) postContainerRename(version version.Version, w http.ResponseWri
 	return nil
 }
 
-func (s *Server) postContainersCreate(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	if err := parseForm(r); err != nil {
+func (s *Server) postContainersCreate(version version.Version, w *restful.Response, r *restful.Request) error {
+	if err := parseForm(r.Request); err != nil {
 		return err
 	}
-	if err := checkForJSON(r); err != nil {
+	if err := checkForJSON(r.Request); err != nil {
 		return err
 	}
 	var (
 		warnings []string
-		name     = r.Form.Get("name")
+		name     = r.Request.Form.Get("name")
 	)
 
-	config, hostConfig, err := runconfig.DecodeContainerConfig(r.Body)
+	config, hostConfig, err := runconfig.DecodeContainerConfig(r.Request.Body)
 	if err != nil {
 		return err
 	}
@@ -410,19 +362,16 @@ func (s *Server) postContainersCreate(version version.Version, w http.ResponseWr
 	})
 }
 
-func (s *Server) deleteContainers(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	if err := parseForm(r); err != nil {
+func (s *Server) deleteContainers(version version.Version, w *restful.Response, r *restful.Request) error {
+	if err := parseForm(r.Request); err != nil {
 		return err
 	}
-	if vars == nil {
-		return fmt.Errorf("Missing parameter")
-	}
 
-	name := vars["name"]
+	name := r.PathParameter("name")
 	config := &daemon.ContainerRmConfig{
-		ForceRemove:  boolValue(r, "force"),
-		RemoveVolume: boolValue(r, "v"),
-		RemoveLink:   boolValue(r, "link"),
+		ForceRemove:  boolValue(r.Request, "force"),
+		RemoveVolume: boolValue(r.Request, "v"),
+		RemoveLink:   boolValue(r.Request, "link"),
 	}
 
 	if err := s.daemon.ContainerRm(name, config); err != nil {
@@ -438,35 +387,29 @@ func (s *Server) deleteContainers(version version.Version, w http.ResponseWriter
 	return nil
 }
 
-func (s *Server) postContainersResize(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	if err := parseForm(r); err != nil {
+func (s *Server) postContainersResize(version version.Version, w *restful.Response, r *restful.Request) error {
+	if err := parseForm(r.Request); err != nil {
 		return err
 	}
-	if vars == nil {
-		return fmt.Errorf("Missing parameter")
-	}
 
-	height, err := strconv.Atoi(r.Form.Get("h"))
+	height, err := strconv.Atoi(r.Request.Form.Get("h"))
 	if err != nil {
 		return err
 	}
-	width, err := strconv.Atoi(r.Form.Get("w"))
+	width, err := strconv.Atoi(r.Request.Form.Get("w"))
 	if err != nil {
 		return err
 	}
 
-	return s.daemon.ContainerResize(vars["name"], height, width)
+	return s.daemon.ContainerResize(r.PathParameter("name"), height, width)
 }
 
-func (s *Server) postContainersAttach(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	if err := parseForm(r); err != nil {
+func (s *Server) postContainersAttach(version version.Version, w *restful.Response, r *restful.Request) error {
+	if err := parseForm(r.Request); err != nil {
 		return err
 	}
-	if vars == nil {
-		return fmt.Errorf("Missing parameter")
-	}
 
-	cont, err := s.daemon.Get(vars["name"])
+	cont, err := s.daemon.Get(r.PathParameter("name"))
 	if err != nil {
 		return err
 	}
@@ -477,7 +420,7 @@ func (s *Server) postContainersAttach(version version.Version, w http.ResponseWr
 	}
 	defer closeStreams(inStream, outStream)
 
-	if _, ok := r.Header["Upgrade"]; ok {
+	if h := r.HeaderParameter("Upgrade"); h == "" {
 		fmt.Fprintf(outStream, "HTTP/1.1 101 UPGRADED\r\nContent-Type: application/vnd.docker.raw-stream\r\nConnection: Upgrade\r\nUpgrade: tcp\r\n\r\n")
 	} else {
 		fmt.Fprintf(outStream, "HTTP/1.1 200 OK\r\nContent-Type: application/vnd.docker.raw-stream\r\n\r\n")
@@ -486,11 +429,11 @@ func (s *Server) postContainersAttach(version version.Version, w http.ResponseWr
 	attachWithLogsConfig := &daemon.ContainerAttachWithLogsConfig{
 		InStream:  inStream,
 		OutStream: outStream,
-		UseStdin:  boolValue(r, "stdin"),
-		UseStdout: boolValue(r, "stdout"),
-		UseStderr: boolValue(r, "stderr"),
-		Logs:      boolValue(r, "logs"),
-		Stream:    boolValue(r, "stream"),
+		UseStdin:  boolValue(r.Request, "stdin"),
+		UseStdout: boolValue(r.Request, "stdout"),
+		UseStderr: boolValue(r.Request, "stderr"),
+		Logs:      boolValue(r.Request, "logs"),
+		Stream:    boolValue(r.Request, "stream"),
 	}
 
 	if err := s.daemon.ContainerAttachWithLogs(cont, attachWithLogsConfig); err != nil {
@@ -500,15 +443,12 @@ func (s *Server) postContainersAttach(version version.Version, w http.ResponseWr
 	return nil
 }
 
-func (s *Server) wsContainersAttach(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	if err := parseForm(r); err != nil {
+func (s *Server) wsContainersAttach(version version.Version, w *restful.Response, r *restful.Request) error {
+	if err := parseForm(r.Request); err != nil {
 		return err
 	}
-	if vars == nil {
-		return fmt.Errorf("Missing parameter")
-	}
 
-	cont, err := s.daemon.Get(vars["name"])
+	cont, err := s.daemon.Get(r.PathParameter("name"))
 	if err != nil {
 		return err
 	}
@@ -520,8 +460,8 @@ func (s *Server) wsContainersAttach(version version.Version, w http.ResponseWrit
 			InStream:  ws,
 			OutStream: ws,
 			ErrStream: ws,
-			Logs:      boolValue(r, "logs"),
-			Stream:    boolValue(r, "stream"),
+			Logs:      boolValue(r.Request, "logs"),
+			Stream:    boolValue(r.Request, "stream"),
 		}
 
 		if err := s.daemon.ContainerWsAttachWithLogs(cont, wsAttachWithLogsConfig); err != nil {
@@ -529,7 +469,7 @@ func (s *Server) wsContainersAttach(version version.Version, w http.ResponseWrit
 		}
 	})
 	ws := websocket.Server{Handler: h, Handshake: nil}
-	ws.ServeHTTP(w, r)
+	ws.ServeHTTP(w, r.Request)
 
 	return nil
 }

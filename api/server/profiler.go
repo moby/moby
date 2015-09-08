@@ -6,20 +6,30 @@ import (
 	"net/http"
 	"net/http/pprof"
 
-	"github.com/gorilla/mux"
+	restful "github.com/emicklei/go-restful"
 )
 
-func profilerSetup(mainRouter *mux.Router, path string) {
-	var r = mainRouter.PathPrefix(path).Subrouter()
-	r.HandleFunc("/vars", expVars)
-	r.HandleFunc("/pprof/", pprof.Index)
-	r.HandleFunc("/pprof/cmdline", pprof.Cmdline)
-	r.HandleFunc("/pprof/profile", pprof.Profile)
-	r.HandleFunc("/pprof/symbol", pprof.Symbol)
-	r.HandleFunc("/pprof/block", pprof.Handler("block").ServeHTTP)
-	r.HandleFunc("/pprof/heap", pprof.Handler("heap").ServeHTTP)
-	r.HandleFunc("/pprof/goroutine", pprof.Handler("goroutine").ServeHTTP)
-	r.HandleFunc("/pprof/threadcreate", pprof.Handler("threadcreate").ServeHTTP)
+func profilerRouter(path string) *restful.WebService {
+	ws := new(restful.WebService)
+	ws.Path(path)
+
+	ws.Route(ws.GET("/vars").To(restfulHTTPRoute(expVars)))
+	ws.Route(ws.GET("/pprof/").To(restfulHTTPRoute(pprof.Index)))
+	ws.Route(ws.GET("/pprof/cmdline").To(restfulHTTPRoute(pprof.Cmdline)))
+	ws.Route(ws.GET("/pprof/profile").To(restfulHTTPRoute(pprof.Profile)))
+	ws.Route(ws.GET("/pprof/symbol").To(restfulHTTPRoute(pprof.Symbol)))
+	ws.Route(ws.GET("/pprof/block").To(restfulHTTPRoute(pprof.Handler("block").ServeHTTP)))
+	ws.Route(ws.GET("/pprof/heap").To(restfulHTTPRoute(pprof.Handler("heap").ServeHTTP)))
+	ws.Route(ws.GET("/pprof/goroutine").To(restfulHTTPRoute(pprof.Handler("goroutine").ServeHTTP)))
+	ws.Route(ws.GET("/pprof/threadcreate").To(restfulHTTPRoute(pprof.Handler("threadcreate").ServeHTTP)))
+
+	return ws
+}
+
+func restfulHTTPRoute(handler func(w http.ResponseWriter, r *http.Request)) restful.RouteFunction {
+	return func(req *restful.Request, resp *restful.Response) {
+		handler(resp.ResponseWriter, req.Request)
+	}
 }
 
 // Replicated from expvar.go as not public.

@@ -18,9 +18,10 @@ import (
 	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/docker/docker/pkg/version"
 	"github.com/docker/docker/utils"
+	restful "github.com/emicklei/go-restful"
 )
 
-func (s *Server) getVersion(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (s *Server) getVersion(version version.Version, w *restful.Response, r *restful.Request) error {
 	v := &types.Version{
 		Version:    dockerversion.VERSION,
 		APIVersion: api.Version,
@@ -42,7 +43,7 @@ func (s *Server) getVersion(version version.Version, w http.ResponseWriter, r *h
 	return writeJSON(w, http.StatusOK, v)
 }
 
-func (s *Server) getInfo(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (s *Server) getInfo(version version.Version, w *restful.Response, r *restful.Request) error {
 	info, err := s.daemon.SystemInfo()
 	if err != nil {
 		return err
@@ -51,13 +52,13 @@ func (s *Server) getInfo(version version.Version, w http.ResponseWriter, r *http
 	return writeJSON(w, http.StatusOK, info)
 }
 
-func (s *Server) getEvents(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	if err := parseForm(r); err != nil {
+func (s *Server) getEvents(version version.Version, w *restful.Response, r *restful.Request) error {
+	if err := parseForm(r.Request); err != nil {
 		return err
 	}
 	var since int64 = -1
-	if r.Form.Get("since") != "" {
-		s, err := strconv.ParseInt(r.Form.Get("since"), 10, 64)
+	if r.Request.Form.Get("since") != "" {
+		s, err := strconv.ParseInt(r.Request.Form.Get("since"), 10, 64)
 		if err != nil {
 			return err
 		}
@@ -65,8 +66,8 @@ func (s *Server) getEvents(version version.Version, w http.ResponseWriter, r *ht
 	}
 
 	var until int64 = -1
-	if r.Form.Get("until") != "" {
-		u, err := strconv.ParseInt(r.Form.Get("until"), 10, 64)
+	if r.Request.Form.Get("until") != "" {
+		u, err := strconv.ParseInt(r.Request.Form.Get("until"), 10, 64)
 		if err != nil {
 			return err
 		}
@@ -80,7 +81,7 @@ func (s *Server) getEvents(version version.Version, w http.ResponseWriter, r *ht
 		timer = time.NewTimer(dur)
 	}
 
-	ef, err := filters.FromParam(r.Form.Get("filters"))
+	ef, err := filters.FromParam(r.Request.Form.Get("filters"))
 	if err != nil {
 		return err
 	}
@@ -150,7 +151,7 @@ func (s *Server) getEvents(version version.Version, w http.ResponseWriter, r *ht
 	}
 
 	var closeNotify <-chan bool
-	if closeNotifier, ok := w.(http.CloseNotifier); ok {
+	if closeNotifier, ok := w.ResponseWriter.(http.CloseNotifier); ok {
 		closeNotify = closeNotifier.CloseNotify()
 	}
 

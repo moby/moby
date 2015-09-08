@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	restful "github.com/emicklei/go-restful"
 )
 
 func boolValue(r *http.Request, k string) bool {
@@ -35,16 +37,13 @@ type archiveOptions struct {
 	path string
 }
 
-func archiveFormValues(r *http.Request, vars map[string]string) (archiveOptions, error) {
-	if vars == nil {
-		return archiveOptions{}, fmt.Errorf("Missing parameter")
-	}
-	if err := parseForm(r); err != nil {
+func archiveFormValues(r *restful.Request) (archiveOptions, error) {
+	if err := parseForm(r.Request); err != nil {
 		return archiveOptions{}, err
 	}
 
-	name := vars["name"]
-	path := filepath.FromSlash(r.Form.Get("path"))
+	name := r.PathParameter("name")
+	path := filepath.FromSlash(r.Request.Form.Get("path"))
 
 	switch {
 	case name == "":

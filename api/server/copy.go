@@ -11,20 +11,17 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/pkg/version"
+	restful "github.com/emicklei/go-restful"
 )
 
 // postContainersCopy is deprecated in favor of getContainersArchive.
-func (s *Server) postContainersCopy(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	if vars == nil {
-		return fmt.Errorf("Missing parameter")
-	}
-
-	if err := checkForJSON(r); err != nil {
+func (s *Server) postContainersCopy(version version.Version, w *restful.Response, r *restful.Request) error {
+	if err := checkForJSON(r.Request); err != nil {
 		return err
 	}
 
 	cfg := types.CopyConfig{}
-	if err := json.NewDecoder(r.Body).Decode(&cfg); err != nil {
+	if err := json.NewDecoder(r.Request.Body).Decode(&cfg); err != nil {
 		return err
 	}
 
@@ -32,14 +29,14 @@ func (s *Server) postContainersCopy(version version.Version, w http.ResponseWrit
 		return fmt.Errorf("Path cannot be empty")
 	}
 
-	data, err := s.daemon.ContainerCopy(vars["name"], cfg.Resource)
+	data, err := s.daemon.ContainerCopy(r.PathParameter("name"), cfg.Resource)
 	if err != nil {
 		if strings.Contains(strings.ToLower(err.Error()), "no such id") {
 			w.WriteHeader(http.StatusNotFound)
 			return nil
 		}
 		if os.IsNotExist(err) {
-			return fmt.Errorf("Could not find the file %s in container %s", cfg.Resource, vars["name"])
+			return fmt.Errorf("Could not find the file %s in container %s", cfg.Resource, r.PathParameter("name"))
 		}
 		return err
 	}
@@ -68,8 +65,8 @@ func setContainerPathStatHeader(stat *types.ContainerPathStat, header http.Heade
 	return nil
 }
 
-func (s *Server) headContainersArchive(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	v, err := archiveFormValues(r, vars)
+func (s *Server) headContainersArchive(version version.Version, w *restful.Response, r *restful.Request) error {
+	v, err := archiveFormValues(r)
 	if err != nil {
 		return err
 	}
@@ -82,8 +79,8 @@ func (s *Server) headContainersArchive(version version.Version, w http.ResponseW
 	return setContainerPathStatHeader(stat, w.Header())
 }
 
-func (s *Server) getContainersArchive(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	v, err := archiveFormValues(r, vars)
+func (s *Server) getContainersArchive(version version.Version, w *restful.Response, r *restful.Request) error {
+	v, err := archiveFormValues(r)
 	if err != nil {
 		return err
 	}
@@ -104,12 +101,12 @@ func (s *Server) getContainersArchive(version version.Version, w http.ResponseWr
 	return err
 }
 
-func (s *Server) putContainersArchive(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	v, err := archiveFormValues(r, vars)
+func (s *Server) putContainersArchive(version version.Version, w *restful.Response, r *restful.Request) error {
+	v, err := archiveFormValues(r)
 	if err != nil {
 		return err
 	}
 
-	noOverwriteDirNonDir := boolValue(r, "noOverwriteDirNonDir")
-	return s.daemon.ContainerExtractToDir(v.name, v.path, noOverwriteDirNonDir, r.Body)
+	noOverwriteDirNonDir := boolValue(r.Request, "noOverwriteDirNonDir")
+	return s.daemon.ContainerExtractToDir(v.name, v.path, noOverwriteDirNonDir, r.Request.Body)
 }

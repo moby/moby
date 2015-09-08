@@ -8,17 +8,14 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"runtime"
 	"strings"
-
-	"github.com/gorilla/mux"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api"
-	"github.com/docker/docker/autogen/dockerversion"
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/pkg/sockets"
 	"github.com/docker/docker/pkg/version"
+	restful "github.com/emicklei/go-restful"
 )
 
 // Config provides the configuration for the API server
@@ -35,9 +32,9 @@ type Config struct {
 type Server struct {
 	daemon  *daemon.Daemon
 	cfg     *Config
-	router  *mux.Router
 	start   chan struct{}
 	servers []serverCloser
+	router  *restful.Container
 }
 
 // New returns a new instance of the server based on the specified configuration.
@@ -46,8 +43,7 @@ func New(cfg *Config) *Server {
 		cfg:   cfg,
 		start: make(chan struct{}),
 	}
-	r := createRouter(srv)
-	srv.router = r
+	srv.router = createRouter(srv)
 	return srv
 }
 
@@ -122,10 +118,10 @@ func (s *HTTPServer) Close() error {
 
 // HTTPAPIFunc is an adapter to allow the use of ordinary functions as Docker API endpoints.
 // Any function that has the appropriate signature can be register as a API endpoint (e.g. getVersion).
-type HTTPAPIFunc func(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error
+type HTTPAPIFunc func(version.Version, *restful.Response, *restful.Request) error
 
-func hijackServer(w http.ResponseWriter) (io.ReadCloser, io.Writer, error) {
-	conn, _, err := w.(http.Hijacker).Hijack()
+func hijackServer(resp *restful.Response) (io.ReadCloser, io.Writer, error) {
+	conn, _, err := resp.ResponseWriter.(http.Hijacker).Hijack()
 	if err != nil {
 		return nil, nil, err
 	}
@@ -219,18 +215,7 @@ func writeJSON(w http.ResponseWriter, code int, v interface{}) error {
 	return json.NewEncoder(w).Encode(v)
 }
 
-func (s *Server) optionsHandler(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	w.WriteHeader(http.StatusOK)
-	return nil
-}
-func writeCorsHeaders(w http.ResponseWriter, r *http.Request, corsHeaders string) {
-	logrus.Debugf("CORS header is enabled and set to: %s", corsHeaders)
-	w.Header().Add("Access-Control-Allow-Origin", corsHeaders)
-	w.Header().Add("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, X-Registry-Auth")
-	w.Header().Add("Access-Control-Allow-Methods", "HEAD, GET, POST, DELETE, PUT, OPTIONS")
-}
-
-func (s *Server) ping(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (s *Server) ping(version version.Version, w *restful.Response, r *restful.Request) error {
 	_, err := w.Write([]byte{'O', 'K'})
 	return err
 }
@@ -248,153 +233,29 @@ func (s *Server) initTCPSocket(addr string) (l net.Listener, err error) {
 	return
 }
 
-func makeHTTPHandler(logging bool, localMethod string, localRoute string, handlerFunc HTTPAPIFunc, corsHeaders string, dockerVersion version.Version) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		// log the request
-		logrus.Debugf("Calling %s %s", localMethod, localRoute)
-
-		if logging {
-			logrus.Infof("%s %s", r.Method, r.RequestURI)
-		}
-
-		if strings.Contains(r.Header.Get("User-Agent"), "Docker-Client/") {
-			userAgent := strings.Split(r.Header.Get("User-Agent"), "/")
-
-			// v1.20 onwards includes the GOOS of the client after the version
-			// such as Docker/1.7.0 (linux)
-			if len(userAgent) == 2 && strings.Contains(userAgent[1], " ") {
-				userAgent[1] = strings.Split(userAgent[1], " ")[0]
-			}
-
-			if len(userAgent) == 2 && !dockerVersion.Equal(version.Version(userAgent[1])) {
-				logrus.Debugf("Warning: client and server don't have the same version (client: %s, server: %s)", userAgent[1], dockerVersion)
-			}
-		}
-		version := version.Version(mux.Vars(r)["version"])
-		if version == "" {
-			version = api.Version
-		}
-		if corsHeaders != "" {
-			writeCorsHeaders(w, r, corsHeaders)
-		}
-
-		if version.GreaterThan(api.Version) {
-			http.Error(w, fmt.Errorf("client is newer than server (client API version: %s, server API version: %s)", version, api.Version).Error(), http.StatusBadRequest)
-			return
-		}
-		if version.LessThan(api.MinVersion) {
-			http.Error(w, fmt.Errorf("client is too old, minimum supported API version is %s, please upgrade your client to a newer version", api.MinVersion).Error(), http.StatusBadRequest)
-			return
-		}
-
-		w.Header().Set("Server", "Docker/"+dockerversion.VERSION+" ("+runtime.GOOS+")")
-
-		if err := handlerFunc(version, w, r, mux.Vars(r)); err != nil {
-			logrus.Errorf("Handler for %s %s returned error: %s", localMethod, localRoute, err)
-			httpError(w, err)
-		}
+// we keep enableCors just for legacy usage, need to be removed in the future
+func createRouter(s *Server) *restful.Container {
+	container := restful.NewContainer()
+	restful.SetLogger(webLogger{})
+	if os.Getenv("DEBUG") != "" {
+		container.Add(profilerRouter("/debug"))
+		restful.EnableTracing(true)
 	}
+
+	container.Add(mainRouter(s))
+	return container
 }
 
-// we keep enableCors just for legacy usage, need to be removed in the future
-func createRouter(s *Server) *mux.Router {
-	r := mux.NewRouter()
-	if os.Getenv("DEBUG") != "" {
-		profilerSetup(r, "/debug/")
+func (s *Server) createHTTPServer(ls []net.Listener, addr string) []serverCloser {
+	var res []serverCloser
+	for _, l := range ls {
+		res = append(res, &HTTPServer{
+			&http.Server{
+				Addr:    addr,
+				Handler: s.router,
+			},
+			l,
+		})
 	}
-	m := map[string]map[string]HTTPAPIFunc{
-		"HEAD": {
-			"/containers/{name:.*}/archive": s.headContainersArchive,
-		},
-		"GET": {
-			"/_ping":                          s.ping,
-			"/events":                         s.getEvents,
-			"/info":                           s.getInfo,
-			"/version":                        s.getVersion,
-			"/images/json":                    s.getImagesJSON,
-			"/images/search":                  s.getImagesSearch,
-			"/images/get":                     s.getImagesGet,
-			"/images/{name:.*}/get":           s.getImagesGet,
-			"/images/{name:.*}/history":       s.getImagesHistory,
-			"/images/{name:.*}/json":          s.getImagesByName,
-			"/containers/json":                s.getContainersJSON,
-			"/containers/{name:.*}/export":    s.getContainersExport,
-			"/containers/{name:.*}/changes":   s.getContainersChanges,
-			"/containers/{name:.*}/json":      s.getContainersByName,
-			"/containers/{name:.*}/top":       s.getContainersTop,
-			"/containers/{name:.*}/logs":      s.getContainersLogs,
-			"/containers/{name:.*}/stats":     s.getContainersStats,
-			"/containers/{name:.*}/attach/ws": s.wsContainersAttach,
-			"/exec/{id:.*}/json":              s.getExecByID,
-			"/containers/{name:.*}/archive":   s.getContainersArchive,
-			"/volumes":                        s.getVolumesList,
-			"/volumes/{name:.*}":              s.getVolumeByName,
-		},
-		"POST": {
-			"/auth":                         s.postAuth,
-			"/commit":                       s.postCommit,
-			"/build":                        s.postBuild,
-			"/images/create":                s.postImagesCreate,
-			"/images/load":                  s.postImagesLoad,
-			"/images/{name:.*}/push":        s.postImagesPush,
-			"/images/{name:.*}/tag":         s.postImagesTag,
-			"/containers/create":            s.postContainersCreate,
-			"/containers/{name:.*}/kill":    s.postContainersKill,
-			"/containers/{name:.*}/pause":   s.postContainersPause,
-			"/containers/{name:.*}/unpause": s.postContainersUnpause,
-			"/containers/{name:.*}/restart": s.postContainersRestart,
-			"/containers/{name:.*}/start":   s.postContainersStart,
-			"/containers/{name:.*}/stop":    s.postContainersStop,
-			"/containers/{name:.*}/wait":    s.postContainersWait,
-			"/containers/{name:.*}/resize":  s.postContainersResize,
-			"/containers/{name:.*}/attach":  s.postContainersAttach,
-			"/containers/{name:.*}/copy":    s.postContainersCopy,
-			"/containers/{name:.*}/exec":    s.postContainerExecCreate,
-			"/exec/{name:.*}/start":         s.postContainerExecStart,
-			"/exec/{name:.*}/resize":        s.postContainerExecResize,
-			"/containers/{name:.*}/rename":  s.postContainerRename,
-			"/volumes":                      s.postVolumesCreate,
-		},
-		"PUT": {
-			"/containers/{name:.*}/archive": s.putContainersArchive,
-		},
-		"DELETE": {
-			"/containers/{name:.*}": s.deleteContainers,
-			"/images/{name:.*}":     s.deleteImages,
-			"/volumes/{name:.*}":    s.deleteVolumes,
-		},
-		"OPTIONS": {
-			"": s.optionsHandler,
-		},
-	}
-
-	// If "api-cors-header" is not given, but "api-enable-cors" is true, we set cors to "*"
-	// otherwise, all head values will be passed to HTTP handler
-	corsHeaders := s.cfg.CorsHeaders
-	if corsHeaders == "" && s.cfg.EnableCors {
-		corsHeaders = "*"
-	}
-
-	for method, routes := range m {
-		for route, fct := range routes {
-			logrus.Debugf("Registering %s, %s", method, route)
-			// NOTE: scope issue, make sure the variables are local and won't be changed
-			localRoute := route
-			localFct := fct
-			localMethod := method
-
-			// build the handler function
-			f := makeHTTPHandler(s.cfg.Logging, localMethod, localRoute, localFct, corsHeaders, version.Version(s.cfg.Version))
-
-			// add the new route
-			if localRoute == "" {
-				r.Methods(localMethod).HandlerFunc(f)
-			} else {
-				r.Path("/v{version:[0-9.]+}" + localRoute).Methods(localMethod).HandlerFunc(f)
-				r.Path(localRoute).Methods(localMethod).HandlerFunc(f)
-			}
-		}
-	}
-
-	return r
+	return res
 }
