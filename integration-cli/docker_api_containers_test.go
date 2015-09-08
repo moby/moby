@@ -1525,3 +1525,29 @@ func (s *DockerSuite) TestContainersApiGetContainersJSONEmpty(c *check.C) {
 		c.Fatalf("Expected empty response to be `[]`, got %q", string(body))
 	}
 }
+
+func (s *DockerSuite) TestPostContainersCreateWithWrongCpusetValues(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+
+	c1 := struct {
+		Image      string
+		CpusetCpus string
+	}{"busybox", "1-42,,"}
+	name := "wrong-cpuset-cpus"
+	status, body, err := sockRequest("POST", "/containers/create?name="+name, c1)
+	c.Assert(err, check.IsNil)
+	c.Assert(status, check.Equals, http.StatusInternalServerError)
+	expected := "Invalid value 1-42,, for cpuset cpus.\n"
+	c.Assert(string(body), check.Equals, expected, check.Commentf("Expected output to contain %q, got %q", expected, string(body)))
+
+	c2 := struct {
+		Image      string
+		CpusetMems string
+	}{"busybox", "42-3,1--"}
+	name = "wrong-cpuset-mems"
+	status, body, err = sockRequest("POST", "/containers/create?name="+name, c2)
+	c.Assert(err, check.IsNil)
+	c.Assert(status, check.Equals, http.StatusInternalServerError)
+	expected = "Invalid value 42-3,1-- for cpuset mems.\n"
+	c.Assert(string(body), check.Equals, expected, check.Commentf("Expected output to contain %q, got %q", expected, string(body)))
+}

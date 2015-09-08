@@ -126,7 +126,7 @@ func checkCgroupBlkioInfo(quiet bool) cgroupBlkioInfo {
 
 // checkCgroupCpusetInfo reads the cpuset information from the cpuset cgroup mount point.
 func checkCgroupCpusetInfo(quiet bool) cgroupCpusetInfo {
-	_, err := cgroups.FindCgroupMountpoint("cpuset")
+	mountPoint, err := cgroups.FindCgroupMountpoint("cpuset")
 	if err != nil {
 		if !quiet {
 			logrus.Warn(err)
@@ -134,7 +134,21 @@ func checkCgroupCpusetInfo(quiet bool) cgroupCpusetInfo {
 		return cgroupCpusetInfo{}
 	}
 
-	return cgroupCpusetInfo{Cpuset: true}
+	cpus, err := ioutil.ReadFile(path.Join(mountPoint, "cpuset.cpus"))
+	if err != nil {
+		return cgroupCpusetInfo{}
+	}
+
+	mems, err := ioutil.ReadFile(path.Join(mountPoint, "cpuset.mems"))
+	if err != nil {
+		return cgroupCpusetInfo{}
+	}
+
+	return cgroupCpusetInfo{
+		Cpuset: true,
+		Cpus:   strings.TrimSpace(string(cpus)),
+		Mems:   strings.TrimSpace(string(mems)),
+	}
 }
 
 func cgroupEnabled(mountPoint, name string) bool {

@@ -13,6 +13,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/autogen/dockerversion"
 	"github.com/docker/docker/daemon/graphdriver"
+	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/pkg/fileutils"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/parsers/kernel"
@@ -194,6 +195,20 @@ func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *runconfig.HostC
 		hostConfig.CpusetCpus = ""
 		hostConfig.CpusetMems = ""
 	}
+	cpusAvailable, err := sysInfo.IsCpusetCpusAvailable(hostConfig.CpusetCpus)
+	if err != nil {
+		return warnings, derr.ErrorCodeInvalidCpusetCpus.WithArgs(hostConfig.CpusetCpus)
+	}
+	if !cpusAvailable {
+		return warnings, derr.ErrorCodeNotAvailableCpusetCpus.WithArgs(hostConfig.CpusetCpus, sysInfo.Cpus)
+	}
+	memsAvailable, err := sysInfo.IsCpusetMemsAvailable(hostConfig.CpusetMems)
+	if err != nil {
+		return warnings, derr.ErrorCodeInvalidCpusetMems.WithArgs(hostConfig.CpusetMems)
+	}
+	if !memsAvailable {
+		return warnings, derr.ErrorCodeNotAvailableCpusetMems.WithArgs(hostConfig.CpusetMems, sysInfo.Mems)
+	}
 	if hostConfig.BlkioWeight > 0 && !sysInfo.BlkioWeight {
 		warnings = append(warnings, "Your kernel does not support Block I/O weight. Weight discarded.")
 		logrus.Warnf("Your kernel does not support Block I/O weight. Weight discarded.")
@@ -234,10 +249,7 @@ func checkSystem() error {
 	if os.Geteuid() != 0 {
 		return fmt.Errorf("The Docker daemon needs to be run as root")
 	}
-	if err := checkKernel(); err != nil {
-		return err
-	}
-	return nil
+	return checkKernel()
 }
 
 // configureKernelSecuritySupport configures and validate security support for the kernel
