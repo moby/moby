@@ -8,11 +8,11 @@ docker-volume-inspect - Get low-level information about a volume
 **docker volume inspect**
 [**-f**|**--format**[=**]]
 
-[OPTIONS] [VOLUME NAME]
+[OPTIONS] VOLUME [VOLUME...]
 
 # DESCRIPTION
 
-Returns information about a volume. By default, this command renders all results
+Returns information about one or more volumes. By default, this command renders all results
 in a JSON array. You can specify an alternate format to execute a given template
 is executed for each result. Go's
 http://golang.org/pkg/text/template/ package describes all the details of the
