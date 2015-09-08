@@ -268,14 +268,12 @@ func getBackendID(cli *NetworkCli, servID string) (string, error) {
 	)
 
 	if obj, _, err = readBody(cli.call("GET", "/services/"+servID+"/backend", nil, nil)); err == nil {
-		var bkl []sandboxResource
-		if err := json.NewDecoder(bytes.NewReader(obj)).Decode(&bkl); err == nil {
-			if len(bkl) > 0 {
-				bk = bkl[0].ID
-			}
+		var sr sandboxResource
+		if err := json.NewDecoder(bytes.NewReader(obj)).Decode(&sr); err == nil {
+			bk = sr.ContainerID
 		} else {
 			// Only print a message, don't make the caller cli fail for this
-			fmt.Fprintf(cli.out, "Failed to retrieve backend list for service %s (%v)", servID, err)
+			fmt.Fprintf(cli.out, "Failed to retrieve backend list for service %s (%v)\n", servID, err)
 		}
 	}
 
