@@ -6,15 +6,16 @@ import (
 	"testing"
 
 	"github.com/docker/docker/runconfig"
-	"github.com/docker/docker/volume"
-	"github.com/docker/docker/volume/drivers"
+	volumedriver "github.com/docker/docker/volume/drivers"
 )
 
 type fakeDriver struct{}
 
-func (fakeDriver) Name() string                                                      { return "fake" }
-func (fakeDriver) Create(name string, opts map[string]string) (volume.Volume, error) { return nil, nil }
-func (fakeDriver) Remove(v volume.Volume) error                                      { return nil }
+func (fakeDriver) New(string, interface{}) volumedriver.Driver     { return nil }
+func (fakeDriver) Name() string                                    { return "fake" }
+func (fakeDriver) Create(name string) (volumedriver.Volume, error) { return nil, nil }
+func (fakeDriver) Remove(v volumedriver.Volume) error              { return nil }
+func (fakeDriver) GetVolume(string) volumedriver.Volume            { return nil }
 
 func TestGetVolumeDriver(t *testing.T) {
 	_, err := getVolumeDriver("missing")
@@ -22,7 +23,7 @@ func TestGetVolumeDriver(t *testing.T) {
 		t.Fatal("Expected error, was nil")
 	}
 
-	volumedrivers.Register(fakeDriver{}, "fake")
+	volumedriver.Register(fakeDriver{}, "fake")
 	d, err := getVolumeDriver("fake")
 	if err != nil {
 		t.Fatal(err)

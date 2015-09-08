@@ -14,7 +14,7 @@ import (
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/volume"
 	volumedrivers "github.com/docker/docker/volume/drivers"
-	"github.com/docker/docker/volume/local"
+	"github.com/docker/docker/volume/drivers/local"
 )
 
 //

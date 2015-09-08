@@ -16,7 +16,7 @@ import (
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/volume"
 	volumedrivers "github.com/docker/docker/volume/drivers"
-	"github.com/docker/docker/volume/local"
+	"github.com/docker/docker/volume/drivers/local"
 	"github.com/opencontainers/runc/libcontainer/label"
 )
 
@@ -387,13 +387,21 @@ func (daemon *Daemon) registerMountPoints(container *Container, hostConfig *runc
 }
 
 // createVolume creates a volume.
-func (daemon *Daemon) createVolume(name, driverName string, opts map[string]string) (volume.Volume, error) {
+func (daemon *Daemon) createVolume(name, driverName string, opts volumedrivers.Opts) (volumedrivers.Volume, error) {
 	v, err := daemon.volumes.Create(name, driverName, opts)
 	if err != nil {
 		return nil, err
 	}
 	daemon.volumes.Increment(v)
 	return v, nil
+}
+
+func removeVolume(v volumedrivers.Volume) error {
+	vd, err := getVolumeDriver(v.DriverName())
+	if err != nil {
+		return nil
+	}
+	return vd.Remove(v)
 }
 
 // parseVolumeSource parses the origin sources that's mounted into the container.

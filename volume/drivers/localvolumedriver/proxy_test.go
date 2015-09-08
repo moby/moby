@@ -1,4 +1,4 @@
-package volumedrivers
+package localvolumedriver
 
 import (
 	"fmt"
@@ -48,7 +48,7 @@ func TestVolumeRequestError(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	driver := volumeDriverProxy{client}
+	driver := VolumeDriverProxy{client}
 
 	if err = driver.Create("volume", nil); err == nil {
 		t.Fatal("Expected error, was nil")

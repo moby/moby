@@ -167,13 +167,17 @@ func Get(name, imp string) (*Plugin, error) {
 	if err != nil {
 		return nil, err
 	}
-	for _, driver := range pl.Manifest.Implements {
-		logrus.Debugf("%s implements: %s", name, driver)
-		if driver == imp {
-			return pl, nil
+	if imp != "" {
+		for _, driver := range pl.Manifest.Implements {
+			logrus.Debugf("%s implements: %s", name, driver)
+			if driver == imp {
+				return pl, nil
+			}
 		}
+		return nil, ErrNotImplements
 	}
-	return nil, ErrNotImplements
+
+	return pl, nil
 }
 
 // Handle adds the specified function to the extpointHandlers.

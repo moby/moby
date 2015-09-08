@@ -29,7 +29,7 @@ import (
 	"github.com/docker/docker/pkg/promise"
 	"github.com/docker/docker/pkg/symlink"
 	"github.com/docker/docker/runconfig"
-	"github.com/docker/docker/volume"
+	"github.com/docker/docker/volume/drivers"
 )
 
 var (
@@ -1116,7 +1116,7 @@ func (container *Container) mountVolumes() error {
 	return nil
 }
 
-func (container *Container) copyImagePathContent(v volume.Volume, destination string) error {
+func (container *Container) copyImagePathContent(v volumedrivers.Volume, destination string) error {
 	rootfs, err := symlink.FollowSymlinkInScope(filepath.Join(container.basefs, destination), container.basefs)
 	if err != nil {
 		return err
