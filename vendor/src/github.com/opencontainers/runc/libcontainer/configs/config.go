@@ -72,8 +72,12 @@ type Config struct {
 	// bind mounts are writtable.
 	Readonlyfs bool `json:"readonlyfs"`
 
-	// Privatefs will mount the container's rootfs as private where mount points from the parent will not propogate
-	Privatefs bool `json:"privatefs"`
+	// RootfsMountPropagation is the rootfs mount propagation mode.
+	// On linux it is one of the followings:
+	// "rprivate": rootfs is mounted as recursively private.
+	// (MS_PRIVATE | MS_REC)
+	// "rslave": rootfs is mounted as recursively slave (MS_SLAVE | MS_REC)
+	RootfsMountPropagation MountPropagationMode `json:"rootfsPropagation"`
 
 	// Mounts specify additional source and destination paths that will be mounted inside the container's
 	// rootfs and mount namespace if specified

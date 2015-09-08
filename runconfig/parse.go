@@ -32,6 +32,10 @@ var (
 	ErrConflictNetworkExposePorts = fmt.Errorf("Conflicting options: --expose and the network mode (--expose)")
 )
 
+var (
+	defaultRootMount = "rprivate"
+)
+
 // Parse parses the specified args for the specified command and generates a Config,
 // a HostConfig and returns them with the specified command.
 // If the specified args are not valid, it will return an error.
@@ -93,6 +97,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		flLoggingDriver   = cmd.String([]string{"-log-driver"}, "", "Logging driver for container")
 		flCgroupParent    = cmd.String([]string{"-cgroup-parent"}, "", "Optional parent cgroup for the container")
 		flVolumeDriver    = cmd.String([]string{"-volume-driver"}, "", "Optional volume driver for the container")
+		flRootMount       = cmd.String([]string{"-rootmount"}, "", "Rootfs mount propogation mode")
 	)
 
 	cmd.Var(&flAttach, []string{"a", "-attach"}, "Attach to STDIN, STDOUT or STDERR")
@@ -302,7 +307,10 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 	if err != nil {
 		return nil, nil, cmd, err
 	}
-
+	rootMount, err := parseRootMount(*flRootMount)
+	if err != nil {
+		return nil, nil, cmd, fmt.Errorf("--rootmount: %v", err)
+	}
 	config := &Config{
 		Hostname:        hostname,
 		Domainname:      domainname,
@@ -323,6 +331,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		WorkingDir:      *flWorkingDir,
 		Labels:          convertKVStringsToMap(labels),
 		VolumeDriver:    *flVolumeDriver,
+		RootMount:       rootMount,
 	}
 
 	hostConfig := &HostConfig{
@@ -497,4 +506,18 @@ func ParseDevice(device string) (DeviceMapping, error) {
 		CgroupPermissions: permissions,
 	}
 	return deviceMapping, nil
+}
+
+// parseRootMount returns the parsed rootfs mount propogation or an error indicating what is incorrect
+func parseRootMount(propogation string) (string, error) {
+	if propogation == "" {
+		return defaultRootMount, nil
+	}
+
+	switch propogation {
+	case "container_private", "container_slave", "container_shared":
+		return propogation, nil
+	default:
+		return "", fmt.Errorf("invalid mount propogation mode %s", propogation)
+	}
 }
