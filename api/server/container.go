@@ -103,7 +103,7 @@ func (s *Server) getContainersStats(version version.Version, w http.ResponseWrit
 		Stop:      closeNotifier,
 	}
 
-	return s.daemon.ContainerStats(vars["name"], config)
+	return s.daemon.ContainerStats(container, config)
 }
 
 func (s *Server) getContainersLogs(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
