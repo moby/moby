@@ -9,11 +9,11 @@ import (
 	flag "github.com/docker/docker/pkg/mflag"
 )
 
-// CmdRestart restarts one or more running containers.
+// CmdRestart restarts one or more containers.
 //
 // Usage: docker restart [OPTIONS] CONTAINER [CONTAINER...]
 func (cli *DockerCli) CmdRestart(args ...string) error {
-	cmd := Cli.Subcmd("restart", []string{"CONTAINER [CONTAINER...]"}, "Restart a running container", true)
+	cmd := Cli.Subcmd("restart", []string{"CONTAINER [CONTAINER...]"}, "Restart a container", true)
 	nSeconds := cmd.Int([]string{"t", "-time"}, 10, "Seconds to wait for stop before killing the container")
 	cmd.Require(flag.Min, 1)
 

@@ -279,7 +279,7 @@ complete -c docker -A -f -n '__fish_seen_subcommand_from push' -a '(__fish_print
 complete -c docker -f -n '__fish_docker_no_subcommand' -a rename -d 'Rename an existing container'
 
 # restart
-complete -c docker -f -n '__fish_docker_no_subcommand' -a restart -d 'Restart a running container'
+complete -c docker -f -n '__fish_docker_no_subcommand' -a restart -d 'Restart a container'
 complete -c docker -A -f -n '__fish_seen_subcommand_from restart' -l help -d 'Print usage'
 complete -c docker -A -f -n '__fish_seen_subcommand_from restart' -s t -l time -d 'Number of seconds to try to stop for before killing the container. Once killed it will then be restarted. Default is 10 seconds.'
 complete -c docker -A -f -n '__fish_seen_subcommand_from restart' -a '(__fish_print_docker_containers running)' -d "Container"

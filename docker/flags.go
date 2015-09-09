@@ -46,7 +46,7 @@ var dockerCommands = []command{
 	{"pull", "Pull an image or a repository from a registry"},
 	{"push", "Push an image or a repository to a registry"},
 	{"rename", "Rename a container"},
-	{"restart", "Restart a running container"},
+	{"restart", "Restart a container"},
 	{"rm", "Remove one or more containers"},
 	{"rmi", "Remove one or more images"},
 	{"run", "Run a command in a new container"},

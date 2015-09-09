@@ -13,7 +13,7 @@ weight=1
 
     Usage: docker restart [OPTIONS] CONTAINER [CONTAINER...]
 
-    Restart a running container
+    Restart a container
 
       -t, --time=10      Seconds to wait for stop before killing the container
 
