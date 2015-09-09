@@ -126,6 +126,7 @@ func (r *Root) Create(name string, _ map[string]string) (volume.Volume, error) {
 func (r *Root) Remove(v volume.Volume) error {
 	r.m.Lock()
 	defer r.m.Unlock()
+
 	lv, ok := v.(*localVolume)
 	if !ok {
 		return errors.New("unknown volume type")
@@ -133,18 +134,32 @@ func (r *Root) Remove(v volume.Volume) error {
 
 	realPath, err := filepath.EvalSymlinks(lv.path)
 	if err != nil {
-		return err
-	}
-	if !r.scopedPath(realPath) {
-		return fmt.Errorf("Unable to remove a directory of out the Docker root: %s", realPath)
+		if !os.IsNotExist(err) {
+			return err
+		}
+		realPath = filepath.Dir(lv.path)
 	}
 
-	if err := os.RemoveAll(realPath); err != nil {
+	if !r.scopedPath(realPath) {
+		return fmt.Errorf("Unable to remove a directory of out the Docker root %s: %s", r.scope, realPath)
+	}
+
+	if err := removePath(realPath); err != nil {
 		return err
 	}
 
 	delete(r.volumes, lv.name)
-	return os.RemoveAll(filepath.Dir(lv.path))
+	return removePath(filepath.Dir(lv.path))
+}
+
+func removePath(path string) error {
+	if err := os.RemoveAll(path); err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
+	return nil
 }
 
 // Get looks up the volume for the given name and returns it if found
@@ -162,7 +177,7 @@ func (r *Root) Get(name string) (volume.Volume, error) {
 // is under Docker's root and the valid local paths.
 func (r *Root) scopedPath(realPath string) bool {
 	// Volumes path for Docker version >= 1.7
-	if strings.HasPrefix(realPath, filepath.Join(r.scope, volumesPathName)) {
+	if strings.HasPrefix(realPath, filepath.Join(r.scope, volumesPathName)) && realPath != filepath.Join(r.scope, volumesPathName) {
 		return true
 	}
 
