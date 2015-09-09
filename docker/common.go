@@ -106,7 +106,8 @@ func setDaemonLogLevel(logLevel string) {
 // validateAuthnOpt checks if a passed-in option value is a recognized
 // client authentication option.
 func validateAuthnOpt(option string) (string, error) {
-	if strings.HasPrefix(option, "plugins=") {
+	if strings.HasPrefix(option, "plugins=") ||
+		strings.HasPrefix(option, "certmap=") {
 		return option, nil
 	}
 	return "", fmt.Errorf("invalid authentication option %s", option)

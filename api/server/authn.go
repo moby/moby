@@ -95,6 +95,22 @@ func (s *Server) httpAuthenticate(w http.ResponseWriter, r *http.Request, option
 			}
 		}
 	}
+	pname, user := getUserFromTLSClientCertificate(w, r, options)
+	if user.Name != "" || user.HaveUID {
+		if user.Name != "" && user.HaveUID {
+			logrus.Infof("%s identifies client as \"%s\"(UID %d)", pname, user.Name, user.UID)
+		} else if user.Name != "" {
+			logrus.Infof("%s identifies client as \"%s\"", pname, user.Name)
+		} else {
+			logrus.Infof("%s identifies client as UID %d", pname, user.UID)
+		}
+		context.Set(r, AuthnUser, user)
+		if session != nil {
+			session.Values[User{}] = user
+			sessions.Save(r, w)
+		}
+		return user, nil
+	}
 	if len(s.authenticators) == 0 {
 		return User{}, errors.ErrorCodeNoAuthentication
 	}
