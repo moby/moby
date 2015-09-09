@@ -1,4 +1,4 @@
-.PHONY: all all-local build build-local check check-code check-format run-tests check-local install-deps coveralls circle-ci
+.PHONY: all all-local build build-local check check-code check-format run-tests check-local integration-tests install-deps coveralls circle-ci
 SHELL=/bin/bash
 build_image=libnetwork-build
 dockerargs = --privileged -v $(shell pwd):/go/src/github.com/docker/libnetwork -w /go/src/github.com/docker/libnetwork
@@ -7,8 +7,15 @@ docker = docker run --rm -it ${dockerargs} ${container_env} ${build_image}
 ciargs = -e "COVERALLS_TOKEN=$$COVERALLS_TOKEN" -e "INSIDECONTAINER=-incontainer=true"
 cidocker = docker run ${ciargs} ${dockerargs} golang:1.4
 
-all: ${build_image}.created
-	${docker} ./wrapmake.sh all-local
+all: ${build_image}.created build check integration-tests
+
+integration-tests:
+	@if [ ! -d ./integration-tmp ]; then \
+	    mkdir -p ./integration-tmp;	\
+	    git clone https://github.com/sstephenson/bats.git ./integration-tmp/bats; \
+	    ./integration-tmp/bats/install.sh ./integration-tmp; \
+	fi
+	@./integration-tmp/bin/bats ./test/integration/dnet
 
 all-local: check-local build-local
 
@@ -19,13 +26,16 @@ ${build_image}.created:
 	touch ${build_image}.created
 
 build: ${build_image}.created
-	${docker} ./wrapmake.sh build-local
+	@echo "Building code... "
+	@${docker} ./wrapmake.sh build-local
+	@echo "Done building code"
 
 build-local:
-	$(shell which godep) go build -tags libnetwork_discovery ./...
+	@$(shell which godep) go build -tags libnetwork_discovery ./...
+	@$(shell which godep) go build -o ./cmd/dnet/dnet ./cmd/dnet
 
 check: ${build_image}.created
-	${docker} ./wrapmake.sh check-local
+	@${docker} ./wrapmake.sh check-local
 
 check-code:
 	@echo "Checking code... "
@@ -76,4 +86,5 @@ coveralls:
 # The following target is a workaround for this
 
 circle-ci:
-	@${cidocker} make install-deps check-local coveralls
+	@${cidocker} make install-deps build-local check-local coveralls
+	make integration-tests
