@@ -2,15 +2,14 @@
 
 source "${MAKEDIR}/.validate"
 
-packages=( $(go list ./... 2> /dev/null | grep -vE "^github.com/docker/docker/vendor|^github.com/docker/docker/autogen" || true ) )
+IFS=$'\n'
+files=( $(validate_diff --diff-filter=ACMR --name-only -- '*.go' | grep -v '^vendor/' || true) )
+unset IFS
 
 errors=()
-for p in "${packages[@]}"; do
-	# Remove the github.com/docker/docker/ prefix from listed package
-	package="${p#github.com/docker/docker/}"
-	# Run golint on package/*.go file explicitly to validate all go files
-	# and not just the ones for the current platform.
-	failedLint=$(golint $package/*.go)
+for f in "${files[@]}"; do
+	# we use "git show" here to validate that what's committed passes go vet
+	failedLint=$(golint "$f")
 	if [ "$failedLint" ]; then
 		errors+=( "$failedLint" )
 	fi
