@@ -1,13 +1,17 @@
 package main
 
 import (
+	"crypto/x509"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"net/http"
 	"os"
 	"os/exec"
 	"strconv"
 	"strings"
 
+	"github.com/docker/docker/api/server"
 	"github.com/go-check/check"
 )
 
@@ -450,4 +454,77 @@ func (s *DockerAuthnSuite) TestExternalUnixAuthnBad2(c *check.C) {
 	out, err := s.ds.d.CmdWithArgs(daemonArgs, "-D", "info")
 	c.Assert(err, check.ErrorMatches, "exit status 1")
 	c.Assert(strings.Contains(out, "Unable to attempt to authenticate to docker daemon"), check.Equals, true, check.Commentf("actual output is: %s", out))
+}
+
+func (s *DockerAuthnSuite) MapClientCertificateToUser(w http.ResponseWriter, r *http.Request) {
+	req := server.CertmapPluginRequest{Options: make(map[string]string)}
+	resp := server.CertmapPluginResponse{Header: make(http.Header)}
+	w.Header().Set("Content-Type", "application/vnd.docker.plugins.v1+json")
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		s.ds.d.c.Fatalf("Error parsing MapClientCertificateToUser request from docker daemon: %v", err)
+		return
+	}
+	certs, err := x509.ParseCertificates(req.Certificate)
+	if err != nil {
+		s.ds.d.c.Fatalf("Error parsing MapClientCertificateToUser certificates from docker daemon: %v", err)
+		return
+	}
+	if len(certs) == 0 || certs[0] == nil {
+		s.ds.d.c.Fatalf("No certificates in MapClientCertificateToUser request from docker daemon")
+		return
+	}
+	subject := certs[0].Subject
+	// Actual mappers should be much smarter than this.
+	resp.AuthedUser.Name = subject.CommonName
+	json.NewEncoder(w).Encode(resp)
+}
+
+func (s *DockerAuthnSuite) TestExternalCertAuthnGood1(c *check.C) {
+	serverOpts := []string{
+		"--host", s.daemonAddr, "-a",
+		"--tlsverify",
+		"--tlscacert", "fixtures/https/ca.pem",
+		"--tlscert", "fixtures/https/server-cert.pem",
+		"--tlskey", "fixtures/https/server-key.pem",
+		"--authn-opt", "certmap=test-authn-certmap",
+	}
+	clientOpts := []string{
+		"-D", "--host", "tcp://" + s.daemonAddr,
+		"--tlsverify",
+		"--tlscacert", "fixtures/https/ca.pem",
+		"--tlscert", "fixtures/https/client-cert.pem",
+		"--tlskey", "fixtures/https/client-key.pem",
+	}
+	if err := s.ds.d.Start(serverOpts...); err != nil {
+		c.Fatalf("Could not start daemon: %v", err)
+	}
+	out, err := s.ds.d.CmdWithArgs(clientOpts, "info")
+	if err != nil {
+		c.Fatalf("Error Occurred: %v and output: %s", err, out)
+	}
+}
+
+func (s *DockerAuthnSuite) TestExternalCertAuthnBad1(c *check.C) {
+	serverOpts := []string{
+		"--host", s.daemonAddr, "-a",
+		"--tlsverify",
+		"--tlscacert", "fixtures/https/ca.pem",
+		"--tlscert", "fixtures/https/server-cert.pem",
+		"--tlskey", "fixtures/https/server-key.pem",
+		"--authn-opt", "certmap=test-authn-certmap",
+	}
+	clientOpts := []string{
+		"-D", "--host", "tcp://" + s.daemonAddr,
+		"--tlsverify",
+		"--tlscacert", "fixtures/https/ca.pem",
+		"--tlscert", "fixtures/https/client-rogue-cert.pem",
+		"--tlskey", "fixtures/https/client-rogue-key.pem",
+	}
+	if err := s.ds.d.Start(serverOpts...); err != nil {
+		c.Fatalf("Could not start daemon: %v", err)
+	}
+	out, err := s.ds.d.CmdWithArgs(clientOpts, "info")
+	c.Assert(err, check.ErrorMatches, "exit status 1")
+	c.Assert(strings.Contains(out, "bad certificate"), check.Equals, true, check.Commentf("actual output is: %s", out))
 }

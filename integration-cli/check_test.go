@@ -2,9 +2,15 @@ package main
 
 import (
 	"debug/elf"
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"net/http"
+	"net/http/httptest"
+	"os"
 	"testing"
 
+	"github.com/docker/docker/pkg/plugins"
 	"github.com/docker/docker/pkg/reexec"
 	"github.com/go-check/check"
 )
@@ -184,6 +190,7 @@ func init() {
 }
 
 type DockerAuthnSuite struct {
+	server     *httptest.Server
 	ds         *DockerDaemonSuite
 	krb5       *Krb5Env
 	basic      *BasicEnv
@@ -200,6 +207,30 @@ func (s *DockerAuthnSuite) SetUpSuite(c *check.C) {
 	if _, err = binary.DynamicSymbols(); err != nil {
 		c.Assert(err, check.ErrorMatches, "no symbol section")
 		c.Skip("Docker binary was linked statically, skipping authentication tests")
+	}
+
+	mux := http.NewServeMux()
+	s.server = httptest.NewServer(mux)
+	mux.HandleFunc("/Plugin.Activate", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/vnd.docker.plugins.v1+json")
+		json.NewEncoder(w).Encode(plugins.Manifest{Implements: []string{"ClientCertificateMapper"}})
+	})
+	mux.HandleFunc("/ClientCertificateMapper.MapClientCertificateToUser", s.MapClientCertificateToUser)
+
+	if err := os.MkdirAll("/etc/docker/plugins", 0755); err != nil {
+		c.Fatal(err)
+	}
+	if err := ioutil.WriteFile("/etc/docker/plugins/test-authn-certmap.spec", []byte(s.server.URL), 0644); err != nil {
+		c.Fatal(err)
+	}
+}
+
+func (s *DockerAuthnSuite) TearDownSuite(c *check.C) {
+	if s.server != nil {
+		s.server.Close()
+	}
+	if err := os.RemoveAll("/etc/docker/plugins"); err != nil {
+		c.Fatal(err)
 	}
 }
 
