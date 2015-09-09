@@ -25,8 +25,8 @@ downloaded from a registry: by default the
 In this section we're going to explore Docker images a bit more
 including:
 
-* Managing and working with images locally on your Docker host;
-* Creating basic images;
+* Managing and working with images locally on your Docker host.
+* Creating basic images.
 * Uploading images to [Docker Hub Registry](https://registry.hub.docker.com).
 
 ## Listing images on the host
