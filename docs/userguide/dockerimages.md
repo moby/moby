@@ -575,8 +575,8 @@ containers. Now learn how to build whole application stacks with Docker
 by linking together multiple Docker containers.
 
 Test your Dockerfile knowledge with the
-[Dockerfile tutorial](/userguide/level1).
+[Dockerfile tutorial](/docs/userguide/level1).
 
-Go to [Linking Containers Together](/userguide/dockerlinks).
+Go to [Linking Containers Together](/docs/userguide/dockerlinks).
 
 
