@@ -71,16 +71,17 @@ func (d *driver) DeleteNetwork(nid string) error {
 }
 
 func (d *driver) CreateEndpoint(nid, eid string, epInfo driverapi.EndpointInfo, epOptions map[string]interface{}) error {
+	var reqIface *api.EndpointInterface
+
 	if epInfo == nil {
 		return fmt.Errorf("must not be called with nil EndpointInfo")
 	}
 
-	reqIfaces := make([]*api.EndpointInterface, len(epInfo.Interfaces()))
-	for i, iface := range epInfo.Interfaces() {
+	iface := epInfo.Interface()
+	if iface != nil {
 		addr4 := iface.Address()
 		addr6 := iface.AddressIPv6()
-		reqIfaces[i] = &api.EndpointInterface{
-			ID:          iface.ID(),
+		reqIface = &api.EndpointInterface{
 			Address:     addr4.String(),
 			AddressIPv6: addr6.String(),
 			MacAddress:  iface.MacAddress().String(),
@@ -89,7 +90,7 @@ func (d *driver) CreateEndpoint(nid, eid string, epInfo driverapi.EndpointInfo, 
 	create := &api.CreateEndpointRequest{
 		NetworkID:  nid,
 		EndpointID: eid,
-		Interfaces: reqIfaces,
+		Interface:  reqIface,
 		Options:    epOptions,
 	}
 	var res api.CreateEndpointResponse
@@ -97,25 +98,26 @@ func (d *driver) CreateEndpoint(nid, eid string, epInfo driverapi.EndpointInfo, 
 		return err
 	}
 
-	ifaces, err := parseInterfaces(res)
+	inIface, err := parseInterface(res)
 	if err != nil {
 		return err
 	}
-	if len(reqIfaces) > 0 && len(ifaces) > 0 {
-		// We're not supposed to add interfaces if there already are
-		// some. Attempt to roll back
-		return errorWithRollback("driver attempted to add more interfaces", d.DeleteEndpoint(nid, eid))
+	if reqIface != nil && inIface != nil {
+		// We're not supposed to add interface if there is already
+		// one. Attempt to roll back
+		return errorWithRollback("driver attempted to add interface ignoring the one provided", d.DeleteEndpoint(nid, eid))
 	}
-	for _, iface := range ifaces {
+
+	if inIface != nil {
 		var addr4, addr6 net.IPNet
-		if iface.Address != nil {
-			addr4 = *(iface.Address)
+		if inIface.Address != nil {
+			addr4 = *(inIface.Address)
 		}
-		if iface.AddressIPv6 != nil {
-			addr6 = *(iface.AddressIPv6)
+		if inIface.AddressIPv6 != nil {
+			addr6 = *(inIface.AddressIPv6)
 		}
-		if err := epInfo.AddInterface(iface.ID, iface.MacAddress, addr4, addr6); err != nil {
-			return errorWithRollback(fmt.Sprintf("failed to AddInterface %v: %s", iface, err), d.DeleteEndpoint(nid, eid))
+		if err := epInfo.AddInterface(inIface.MacAddress, addr4, addr6); err != nil {
+			return errorWithRollback(fmt.Sprintf("failed to AddInterface %v: %s", inIface, err), d.DeleteEndpoint(nid, eid))
 		}
 	}
 	return nil
@@ -165,18 +167,13 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 		return err
 	}
 
-	// Expect each interface ID given by CreateEndpoint to have an
-	// entry at that index in the names supplied here. In other words,
-	// if you supply 0..n interfaces with IDs 0..n above, you should
-	// supply the names in the same order.
-	ifaceNames := res.InterfaceNames
-	for _, iface := range jinfo.InterfaceNames() {
-		i := iface.ID()
-		if i >= len(ifaceNames) || i < 0 {
-			return fmt.Errorf("no correlating interface %d in supplied interface names", i)
-		}
-		supplied := ifaceNames[i]
-		if err := iface.SetNames(supplied.SrcName, supplied.DstPrefix); err != nil {
+	ifaceName := res.InterfaceName
+	if ifaceName == nil {
+		return fmt.Errorf("no interface name information received")
+	}
+
+	if iface := jinfo.InterfaceName(); iface != nil {
+		if err := iface.SetNames(ifaceName.SrcName, ifaceName.DstPrefix); err != nil {
 			return errorWithRollback(fmt.Sprintf("failed to set interface name: %s", err), d.Leave(nid, eid))
 		}
 	}
@@ -204,7 +201,7 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 			return err
 		}
 		for _, route := range routes {
-			if jinfo.AddStaticRoute(route.Destination, route.RouteType, route.NextHop, route.InterfaceID) != nil {
+			if jinfo.AddStaticRoute(route.Destination, route.RouteType, route.NextHop) != nil {
 				return errorWithRollback(fmt.Sprintf("failed to set static route: %v", route), d.Leave(nid, eid))
 			}
 		}
@@ -229,7 +226,7 @@ func parseStaticRoutes(r api.JoinResponse) ([]*types.StaticRoute, error) {
 	var routes = make([]*types.StaticRoute, len(r.StaticRoutes))
 	for i, inRoute := range r.StaticRoutes {
 		var err error
-		outRoute := &types.StaticRoute{InterfaceID: inRoute.InterfaceID, RouteType: inRoute.RouteType}
+		outRoute := &types.StaticRoute{RouteType: inRoute.RouteType}
 
 		if inRoute.Destination != "" {
 			if outRoute.Destination, err = toAddr(inRoute.Destination); err != nil {
@@ -250,13 +247,13 @@ func parseStaticRoutes(r api.JoinResponse) ([]*types.StaticRoute, error) {
 }
 
 // parseInterfaces validates all the parameters of an Interface and returns them.
-func parseInterfaces(r api.CreateEndpointResponse) ([]*api.Interface, error) {
-	var (
-		Interfaces = make([]*api.Interface, len(r.Interfaces))
-	)
-	for i, inIf := range r.Interfaces {
+func parseInterface(r api.CreateEndpointResponse) (*api.Interface, error) {
+	var outIf *api.Interface
+
+	inIf := r.Interface
+	if inIf != nil {
 		var err error
-		outIf := &api.Interface{ID: inIf.ID}
+		outIf = &api.Interface{}
 		if inIf.Address != "" {
 			if outIf.Address, err = toAddr(inIf.Address); err != nil {
 				return nil, err
@@ -272,9 +269,9 @@ func parseInterfaces(r api.CreateEndpointResponse) ([]*api.Interface, error) {
 				return nil, err
 			}
 		}
-		Interfaces[i] = outIf
 	}
-	return Interfaces, nil
+
+	return outIf, nil
 }
 
 func toAddr(ipAddr string) (*net.IPNet, error) {

@@ -45,18 +45,16 @@ type Driver interface {
 
 // EndpointInfo provides a go interface to fetch or populate endpoint assigned network resources.
 type EndpointInfo interface {
-	// Interfaces returns a list of interfaces bound to the endpoint.
-	// If the list is not empty the driver is only expected to consume the interfaces.
-	// It is an error to try to add interfaces to a non-empty list.
-	// If the list is empty the driver is expected to populate with 0 or more interfaces.
-	Interfaces() []InterfaceInfo
+	// Interface returns the interface bound to the endpoint.
+	// If the value is not nil the driver is only expected to consume the interface.
+	// It is an error to try to add interface if the passed down value is non-nil
+	// If the value is nil the driver is expected to add an interface
+	Interface() InterfaceInfo
 
-	// AddInterface is used by the driver to add an interface to the interface list.
-	// This method will return an error if the driver attempts to add interfaces
-	// if the Interfaces() method returned a non-empty list.
-	// ID field need only have significance within the endpoint so it can be a simple
-	// monotonically increasing number
-	AddInterface(ID int, mac net.HardwareAddr, ipv4 net.IPNet, ipv6 net.IPNet) error
+	// AddInterface is used by the driver to add an interface for the endpoint.
+	// This method will return an error if the driver attempts to add interface
+	// if the Interface() method returned a non-nil value.
+	AddInterface(mac net.HardwareAddr, ipv4 net.IPNet, ipv6 net.IPNet) error
 }
 
 // InterfaceInfo provides a go interface for drivers to retrive
@@ -70,10 +68,6 @@ type InterfaceInfo interface {
 
 	// AddressIPv6 returns the IPv6 address.
 	AddressIPv6() net.IPNet
-
-	// ID returns the numerical id of the interface and has significance only within
-	// the endpoint.
-	ID() int
 }
 
 // InterfaceNameInfo provides a go interface for the drivers to assign names
@@ -81,18 +75,14 @@ type InterfaceInfo interface {
 type InterfaceNameInfo interface {
 	// SetNames method assigns the srcName and dstPrefix for the interface.
 	SetNames(srcName, dstPrefix string) error
-
-	// ID returns the numerical id that was assigned to the interface by the driver
-	// CreateEndpoint.
-	ID() int
 }
 
 // JoinInfo represents a set of resources that the driver has the ability to provide during
 // join time.
 type JoinInfo interface {
-	// InterfaceNames returns a list of InterfaceNameInfo go interface to facilitate
-	// setting the names for the interfaces.
-	InterfaceNames() []InterfaceNameInfo
+	// InterfaceName returns a InterfaceNameInfo go interface to facilitate
+	// setting the names for the interface.
+	InterfaceName() InterfaceNameInfo
 
 	// SetGateway sets the default IPv4 gateway when a container joins the endpoint.
 	SetGateway(net.IP) error
@@ -102,7 +92,7 @@ type JoinInfo interface {
 
 	// AddStaticRoute adds a routes to the sandbox.
 	// It may be used in addtion to or instead of a default gateway (as above).
-	AddStaticRoute(destination *net.IPNet, routeType int, nextHop net.IP, interfaceID int) error
+	AddStaticRoute(destination *net.IPNet, routeType int, nextHop net.IP) error
 }
 
 // DriverCallback provides a Callback interface for Drivers into LibNetwork

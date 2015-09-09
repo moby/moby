@@ -58,13 +58,14 @@ func TestCreateFullOptions(t *testing.T) {
 
 	// Verify the IP address allocated for the endpoint belongs to the container network
 	epOptions := make(map[string]interface{})
-	te := &testEndpoint{ifaces: []*testInterface{}}
+	te := &testEndpoint{}
 	err = d.CreateEndpoint("dummy", "ep1", te, epOptions)
 	if err != nil {
 		t.Fatalf("Failed to create an endpoint : %s", err.Error())
 	}
-	if !cnw.Contains(te.Interfaces()[0].Address().IP) {
-		t.Fatalf("endpoint got assigned address outside of container network(%s): %s", cnw.String(), te.Interfaces()[0].Address())
+
+	if !cnw.Contains(te.Interface().Address().IP) {
+		t.Fatalf("endpoint got assigned address outside of container network(%s): %s", cnw.String(), te.Interface().Address())
 	}
 }
 
@@ -207,7 +208,6 @@ func verifyV4INCEntries(networks map[string]*bridgeNetwork, numEntries int, t *t
 }
 
 type testInterface struct {
-	id      int
 	mac     net.HardwareAddr
 	addr    net.IPNet
 	addrv6  net.IPNet
@@ -216,7 +216,7 @@ type testInterface struct {
 }
 
 type testEndpoint struct {
-	ifaces         []*testInterface
+	iface          *testInterface
 	gw             net.IP
 	gw6            net.IP
 	hostsPath      string
@@ -224,24 +224,18 @@ type testEndpoint struct {
 	routes         []types.StaticRoute
 }
 
-func (te *testEndpoint) Interfaces() []driverapi.InterfaceInfo {
-	iList := make([]driverapi.InterfaceInfo, len(te.ifaces))
-
-	for i, iface := range te.ifaces {
-		iList[i] = iface
+func (te *testEndpoint) Interface() driverapi.InterfaceInfo {
+	if te.iface != nil {
+		return te.iface
 	}
 
-	return iList
-}
-
-func (te *testEndpoint) AddInterface(id int, mac net.HardwareAddr, ipv4 net.IPNet, ipv6 net.IPNet) error {
-	iface := &testInterface{id: id, addr: ipv4, addrv6: ipv6}
-	te.ifaces = append(te.ifaces, iface)
 	return nil
 }
 
-func (i *testInterface) ID() int {
-	return i.id
+func (te *testEndpoint) AddInterface(mac net.HardwareAddr, ipv4 net.IPNet, ipv6 net.IPNet) error {
+	iface := &testInterface{addr: ipv4, addrv6: ipv6}
+	te.iface = iface
+	return nil
 }
 
 func (i *testInterface) MacAddress() net.HardwareAddr {
@@ -262,14 +256,12 @@ func (i *testInterface) SetNames(srcName string, dstName string) error {
 	return nil
 }
 
-func (te *testEndpoint) InterfaceNames() []driverapi.InterfaceNameInfo {
-	iList := make([]driverapi.InterfaceNameInfo, len(te.ifaces))
-
-	for i, iface := range te.ifaces {
-		iList[i] = iface
+func (te *testEndpoint) InterfaceName() driverapi.InterfaceNameInfo {
+	if te.iface != nil {
+		return te.iface
 	}
 
-	return iList
+	return nil
 }
 
 func (te *testEndpoint) SetGateway(gw net.IP) error {
@@ -282,8 +274,8 @@ func (te *testEndpoint) SetGatewayIPv6(gw6 net.IP) error {
 	return nil
 }
 
-func (te *testEndpoint) AddStaticRoute(destination *net.IPNet, routeType int, nextHop net.IP, interfaceID int) error {
-	te.routes = append(te.routes, types.StaticRoute{Destination: destination, RouteType: routeType, NextHop: nextHop, InterfaceID: interfaceID})
+func (te *testEndpoint) AddStaticRoute(destination *net.IPNet, routeType int, nextHop net.IP) error {
+	te.routes = append(te.routes, types.StaticRoute{Destination: destination, RouteType: routeType, NextHop: nextHop})
 	return nil
 }
 
@@ -327,7 +319,7 @@ func testQueryEndpointInfo(t *testing.T, ulPxyEnabled bool) {
 	epOptions := make(map[string]interface{})
 	epOptions[netlabel.PortMap] = portMappings
 
-	te := &testEndpoint{ifaces: []*testInterface{}}
+	te := &testEndpoint{}
 	err = d.CreateEndpoint("net1", "ep1", te, epOptions)
 	if err != nil {
 		t.Fatalf("Failed to create an endpoint : %s", err.Error())
@@ -387,7 +379,7 @@ func TestCreateLinkWithOptions(t *testing.T) {
 	epOptions := make(map[string]interface{})
 	epOptions[netlabel.MacAddress] = mac
 
-	te := &testEndpoint{ifaces: []*testInterface{}}
+	te := &testEndpoint{}
 	err = d.CreateEndpoint("net1", "ep", te, epOptions)
 	if err != nil {
 		t.Fatalf("Failed to create an endpoint: %s", err.Error())
@@ -398,7 +390,7 @@ func TestCreateLinkWithOptions(t *testing.T) {
 		t.Fatalf("Failed to join the endpoint: %v", err)
 	}
 
-	ifaceName := te.ifaces[0].srcName
+	ifaceName := te.iface.srcName
 	veth, err := netlink.LinkByName(ifaceName)
 	if err != nil {
 		t.Fatal(err)
@@ -456,24 +448,24 @@ func TestLinkContainers(t *testing.T) {
 	epOptions := make(map[string]interface{})
 	epOptions[netlabel.ExposedPorts] = exposedPorts
 
-	te1 := &testEndpoint{ifaces: []*testInterface{}}
+	te1 := &testEndpoint{}
 	err = d.CreateEndpoint("net1", "ep1", te1, epOptions)
 	if err != nil {
 		t.Fatalf("Failed to create an endpoint : %s", err.Error())
 	}
 
-	addr1 := te1.ifaces[0].addr
+	addr1 := te1.iface.addr
 	if addr1.IP.To4() == nil {
 		t.Fatalf("No Ipv4 address assigned to the endpoint:  ep1")
 	}
 
-	te2 := &testEndpoint{ifaces: []*testInterface{}}
+	te2 := &testEndpoint{}
 	err = d.CreateEndpoint("net1", "ep2", te2, nil)
 	if err != nil {
 		t.Fatalf("Failed to create an endpoint : %s", err.Error())
 	}
 
-	addr2 := te2.ifaces[0].addr
+	addr2 := te2.iface.addr
 	if addr2.IP.To4() == nil {
 		t.Fatalf("No Ipv4 address assigned to the endpoint:  ep2")
 	}
@@ -683,7 +675,7 @@ func TestSetDefaultGw(t *testing.T) {
 		t.Fatalf("Failed to create bridge: %v", err)
 	}
 
-	te := &testEndpoint{ifaces: []*testInterface{}}
+	te := &testEndpoint{}
 	err = d.CreateEndpoint("dummy", "ep", te, nil)
 	if err != nil {
 		t.Fatalf("Failed to create endpoint: %v", err)

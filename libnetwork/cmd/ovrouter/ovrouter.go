@@ -21,7 +21,6 @@ type endpoint struct {
 	addr net.IPNet
 	mac  net.HardwareAddr
 	name string
-	id   int
 }
 
 func (r *router) RegisterDriver(name string, driver driverapi.Driver, c driverapi.Capability) error {
@@ -29,29 +28,23 @@ func (r *router) RegisterDriver(name string, driver driverapi.Driver, c driverap
 	return nil
 }
 
-func (ep *endpoint) Interfaces() []driverapi.InterfaceInfo {
+func (ep *endpoint) Interface() driverapi.InterfaceInfo {
 	return nil
 }
 
-func (ep *endpoint) AddInterface(ID int, mac net.HardwareAddr, ipv4 net.IPNet, ipv6 net.IPNet) error {
-	ep.id = ID
+func (ep *endpoint) AddInterface(mac net.HardwareAddr, ipv4 net.IPNet, ipv6 net.IPNet) error {
 	ep.addr = ipv4
 	ep.mac = mac
 	return nil
 }
 
-func (ep *endpoint) InterfaceNames() []driverapi.InterfaceNameInfo {
-	return []driverapi.InterfaceNameInfo{ep}
-
+func (ep *endpoint) InterfaceName() driverapi.InterfaceNameInfo {
+	return ep
 }
 
 func (ep *endpoint) SetNames(srcName, dstPrefix string) error {
 	ep.name = srcName
 	return nil
-}
-
-func (ep *endpoint) ID() int {
-	return ep.id
 }
 
 func (ep *endpoint) SetGateway(net.IP) error {
@@ -63,7 +56,7 @@ func (ep *endpoint) SetGatewayIPv6(net.IP) error {
 }
 
 func (ep *endpoint) AddStaticRoute(destination *net.IPNet, routeType int,
-	nextHop net.IP, interfaceID int) error {
+	nextHop net.IP) error {
 	return nil
 }
 

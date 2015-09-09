@@ -20,7 +20,7 @@ Libnetwork implements Container Network Model (CNM) which formalizes the steps r
 **Sandbox**
 
 A Sandbox contains the configuration of a container's network stack.
-This includes management of the container's interfaces, routing table and DNS settings. 
+This includes management of the container's interfaces, routing table and DNS settings.
 An implementation of a Sandbox could be a Linux Network Namespace, a FreeBSD Jail or other similar concept.
 A Sandbox may contain *many* endpoints from *multiple* networks.
 
@@ -84,7 +84,7 @@ Consumers of the CNM, like Docker for example, interact through the CNM Objects 
 
 7. `endpoint.Delete()` is used to delete an endpoint from a network. This results in deleting an endpoint and cleaning up the cached `sandbox.Info`.
 
-8. `network.Delete()` is used to delete a network. LibNetwork will not allow the delete to proceed if there are any existing endpoints attached to the Network. 
+8. `network.Delete()` is used to delete a network. LibNetwork will not allow the delete to proceed if there are any existing endpoints attached to the Network.
 
 
 ## Implementation Details
@@ -95,7 +95,7 @@ LibNetwork's Network and Endpoint APIs are primarily for managing the correspond
 
 ### Sandbox
 
-Libnetwork provides a framework to implement of a Sandbox in multiple operating systems. Currently we have implemented Sandbox for Linux using `namespace_linux.go` and `configure_linux.go` in `sandbox` package 
+Libnetwork provides a framework to implement of a Sandbox in multiple operating systems. Currently we have implemented Sandbox for Linux using `namespace_linux.go` and `configure_linux.go` in `sandbox` package
 This creates a Network Namespace for each sandbox which is uniquely identified by a path on the host filesystem.
 Netlink calls are used to move interfaces from the global namespace to the Sandbox namespace.
 Netlink is also used to manage the routing table in the namespace.
@@ -111,7 +111,7 @@ Drivers are essentially an extension of libnetwork and provides the actual imple
 * `driver.CreateEndpoint`
 * `driver.DeleteEndpoint`
 * `driver.Join`
-* `driver.Leave` 
+* `driver.Leave`
 
 These Driver facing APIs makes use of unique identifiers (`networkid`,`endpointid`,...) instead of names (as seen in user-facing APIs).
 
@@ -121,11 +121,11 @@ The APIs are still work in progress and there can be changes to these based on t
 
  * `Driver.CreateEndpoint`
 
-This method is passed an interface `EndpointInfo`, with methods `Interfaces` and `AddInterface`.
+This method is passed an interface `EndpointInfo`, with methods `Interface` and `AddInterface`.
 
-If the slice returned by `Interfaces` is non-empty, the driver is expected to make use of the interface information therein (e.g., treating the address or addresses as statically supplied), and must return an error if it cannot. If the slice is empty, the driver should allocate zero or more _fresh_ interfaces, and use `AddInterface` to record them; or return an error if it cannot.
+If the value returned by `Interface` is non-nil, the driver is expected to make use of the interface information therein (e.g., treating the address or addresses as statically supplied), and must return an error if it cannot. If the value is `nil`, the driver should allocate exactly one _fresh_ interface, and use `AddInterface` to record them; or return an error if it cannot.
 
-It is forbidden to use `AddInterface` if `Interfaces` is non-empty.
+It is forbidden to use `AddInterface` if `Interface` is non-nil.
 
 ## Implementations
 
@@ -155,4 +155,3 @@ For more details on its design, please see the [Overlay Driver Design](overlay.m
 The `remote` package does not provide a driver, but provides a means of supporting drivers over a remote transport.
 This allows a driver to be written in a language of your choice.
 For further details, please see the [Remote Driver Design](remote.md).
-

@@ -51,10 +51,10 @@ func (d *driver) CreateEndpoint(nid, eid string, epInfo driverapi.EndpointInfo,
 		id: eid,
 	}
 
-	if epInfo != nil && (len(epInfo.Interfaces()) > 0) {
-		addr := epInfo.Interfaces()[0].Address()
+	if epInfo != nil && epInfo.Interface() != nil {
+		addr := epInfo.Interface().Address()
 		ep.addr = &addr
-		ep.mac = epInfo.Interfaces()[0].MacAddress()
+		ep.mac = epInfo.Interface().MacAddress()
 		n.addEndpoint(ep)
 		return nil
 	}
@@ -74,7 +74,7 @@ func (d *driver) CreateEndpoint(nid, eid string, epInfo driverapi.EndpointInfo,
 
 	ep.mac = netutils.GenerateMACFromIP(ep.addr.IP)
 
-	err = epInfo.AddInterface(1, ep.mac, *ep.addr, net.IPNet{})
+	err = epInfo.AddInterface(ep.mac, *ep.addr, net.IPNet{})
 	if err != nil {
 		return fmt.Errorf("could not add interface to endpoint info: %v", err)
 	}

@@ -10,9 +10,11 @@ import (
 
 // EndpointInfo provides an interface to retrieve network resources bound to the endpoint.
 type EndpointInfo interface {
-	// InterfaceList returns an interface list which were assigned to the endpoint
-	// by the driver. This can be used after the endpoint has been created.
-	InterfaceList() []InterfaceInfo
+	// Iface returns InterfaceInfo, go interface that can be used
+	// to get more information on the interface which was assigned to
+	// the endpoint by the driver. This can be used after the
+	// endpoint has been created.
+	Iface() InterfaceInfo
 
 	// Gateway returns the IPv4 gateway assigned by the driver.
 	// This will only return a valid value if a container has joined the endpoint.
@@ -39,7 +41,6 @@ type InterfaceInfo interface {
 }
 
 type endpointInterface struct {
-	id        int
 	mac       net.HardwareAddr
 	addr      net.IPNet
 	addrv6    net.IPNet
@@ -50,7 +51,6 @@ type endpointInterface struct {
 
 func (epi *endpointInterface) MarshalJSON() ([]byte, error) {
 	epMap := make(map[string]interface{})
-	epMap["id"] = epi.id
 	epMap["mac"] = epi.mac.String()
 	epMap["addr"] = epi.addr.String()
 	epMap["addrv6"] = epi.addrv6.String()
@@ -69,7 +69,6 @@ func (epi *endpointInterface) UnmarshalJSON(b []byte) (err error) {
 	if err := json.Unmarshal(b, &epMap); err != nil {
 		return err
 	}
-	epi.id = int(epMap["id"].(float64))
 
 	mac, _ := net.ParseMAC(epMap["mac"].(string))
 	epi.mac = mac
@@ -128,49 +127,40 @@ func (ep *endpoint) DriverInfo() (map[string]interface{}, error) {
 	return driver.EndpointOperInfo(nid, epid)
 }
 
-func (ep *endpoint) InterfaceList() []InterfaceInfo {
+func (ep *endpoint) Iface() InterfaceInfo {
 	ep.Lock()
 	defer ep.Unlock()
 
-	iList := make([]InterfaceInfo, len(ep.iFaces))
-
-	for i, iface := range ep.iFaces {
-		iList[i] = iface
+	if ep.iface != nil {
+		return ep.iface
 	}
 
-	return iList
+	return nil
 }
 
-func (ep *endpoint) Interfaces() []driverapi.InterfaceInfo {
+func (ep *endpoint) Interface() driverapi.InterfaceInfo {
 	ep.Lock()
 	defer ep.Unlock()
 
-	iList := make([]driverapi.InterfaceInfo, len(ep.iFaces))
-
-	for i, iface := range ep.iFaces {
-		iList[i] = iface
+	if ep.iface != nil {
+		return ep.iface
 	}
 
-	return iList
+	return nil
 }
 
-func (ep *endpoint) AddInterface(id int, mac net.HardwareAddr, ipv4 net.IPNet, ipv6 net.IPNet) error {
+func (ep *endpoint) AddInterface(mac net.HardwareAddr, ipv4 net.IPNet, ipv6 net.IPNet) error {
 	ep.Lock()
 	defer ep.Unlock()
 
 	iface := &endpointInterface{
-		id:     id,
 		addr:   *types.GetIPNetCopy(&ipv4),
 		addrv6: *types.GetIPNetCopy(&ipv6),
 	}
 	iface.mac = types.GetMacCopy(mac)
 
-	ep.iFaces = append(ep.iFaces, iface)
+	ep.iface = iface
 	return nil
-}
-
-func (epi *endpointInterface) ID() int {
-	return epi.id
 }
 
 func (epi *endpointInterface) MacAddress() net.HardwareAddr {
@@ -191,24 +181,22 @@ func (epi *endpointInterface) SetNames(srcName string, dstPrefix string) error {
 	return nil
 }
 
-func (ep *endpoint) InterfaceNames() []driverapi.InterfaceNameInfo {
+func (ep *endpoint) InterfaceName() driverapi.InterfaceNameInfo {
 	ep.Lock()
 	defer ep.Unlock()
 
-	iList := make([]driverapi.InterfaceNameInfo, len(ep.iFaces))
-
-	for i, iface := range ep.iFaces {
-		iList[i] = iface
+	if ep.iface != nil {
+		return ep.iface
 	}
 
-	return iList
+	return nil
 }
 
-func (ep *endpoint) AddStaticRoute(destination *net.IPNet, routeType int, nextHop net.IP, interfaceID int) error {
+func (ep *endpoint) AddStaticRoute(destination *net.IPNet, routeType int, nextHop net.IP) error {
 	ep.Lock()
 	defer ep.Unlock()
 
-	r := types.StaticRoute{Destination: destination, RouteType: routeType, NextHop: nextHop, InterfaceID: interfaceID}
+	r := types.StaticRoute{Destination: destination, RouteType: routeType, NextHop: nextHop}
 
 	if routeType == types.NEXTHOP {
 		// If the route specifies a next-hop, then it's loosely routed (i.e. not bound to a particular interface).
@@ -223,14 +211,12 @@ func (ep *endpoint) AddStaticRoute(destination *net.IPNet, routeType int, nextHo
 }
 
 func (ep *endpoint) addInterfaceRoute(route *types.StaticRoute) error {
-	for _, iface := range ep.iFaces {
-		if iface.id == route.InterfaceID {
-			iface.routes = append(iface.routes, route.Destination)
-			return nil
-		}
-	}
-	return types.BadRequestErrorf("Interface with ID %d doesn't exist.",
-		route.InterfaceID)
+	ep.Lock()
+	defer ep.Unlock()
+
+	iface := ep.iface
+	iface.routes = append(iface.routes, route.Destination)
+	return nil
 }
 
 func (ep *endpoint) Sandbox() Sandbox {
