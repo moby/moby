@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -19,22 +18,6 @@ import (
 	"github.com/docker/docker/pkg/version"
 	"github.com/docker/docker/runconfig"
 )
-
-func (s *Server) getContainersByName(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	if vars == nil {
-		return fmt.Errorf("Missing parameter")
-	}
-
-	if version.LessThan("1.20") && runtime.GOOS != "windows" {
-		return getContainersByNameDownlevel(w, s, vars["name"])
-	}
-
-	containerJSON, err := s.daemon.ContainerInspect(vars["name"])
-	if err != nil {
-		return err
-	}
-	return writeJSON(w, http.StatusOK, containerJSON)
-}
 
 func (s *Server) getContainersJSON(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := parseForm(r); err != nil {

@@ -80,6 +80,7 @@ This section lists each version from latest to oldest.  Each listing includes a 
 * `POST /volumes` to create a volume.
 * `GET /volumes/(name)` get low-level information about a volume.
 * `DELETE /volumes/(name)`remove a volume with the specified name.
+* `VolumeDriver` has been moved from config to hostConfig to make the configuration portable.
 
 
 ### v1.20 API changes

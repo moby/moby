@@ -10,3 +10,8 @@ func setPlatformSpecificContainerFields(container *Container, contJSONBase *type
 func addMountPoints(container *Container) []types.MountPoint {
 	return nil
 }
+
+// ContainerInspectPre120 get containers for pre 1.20 APIs.
+func (daemon *Daemon) ContainerInspectPre120(name string) (*types.ContainerJSON, error) {
+	return daemon.ContainerInspect(name)
+}

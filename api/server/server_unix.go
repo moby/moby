@@ -103,16 +103,6 @@ func allocateDaemonPort(addr string) error {
 	return nil
 }
 
-// getContainersByNameDownlevel performs processing for pre 1.20 APIs. This
-// is only relevant on non-Windows daemons.
-func getContainersByNameDownlevel(w http.ResponseWriter, s *Server, namevar string) error {
-	containerJSONRaw, err := s.daemon.ContainerInspectPre120(namevar)
-	if err != nil {
-		return err
-	}
-	return writeJSON(w, http.StatusOK, containerJSONRaw)
-}
-
 // listenFD returns the specified socket activated files as a slice of
 // net.Listeners or all of the activated files if "*" is given.
 func listenFD(addr string) ([]net.Listener, error) {

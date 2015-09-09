@@ -274,24 +274,39 @@ type ContainerJSON struct {
 	Config *runconfig.Config
 }
 
-// ContainerJSONPre120 is a backcompatibility struct along with ContainerConfig.
+// ContainerJSON120 is a backcompatibility struct along with ContainerConfig120.
+type ContainerJSON120 struct {
+	*ContainerJSONBase
+	Mounts []MountPoint
+	Config *ContainerConfig120
+}
+
+// ContainerJSONPre120 is a backcompatibility struct along with ContainerConfigPre120.
 // Note this is not used by the Windows daemon.
 type ContainerJSONPre120 struct {
 	*ContainerJSONBase
 	Volumes   map[string]string
 	VolumesRW map[string]bool
-	Config    *ContainerConfig
+	Config    *ContainerConfigPre120
 }
 
-// ContainerConfig is a backcompatibility struct used in ContainerJSONPre120
-type ContainerConfig struct {
+// ContainerConfigPre120 is a backcompatibility struct used in ContainerJSONPre120
+type ContainerConfigPre120 struct {
 	*runconfig.Config
 
 	// backward compatibility, they now live in HostConfig
-	Memory     int64
-	MemorySwap int64
-	CPUShares  int64  `json:"CpuShares"`
-	CPUSet     string `json:"CpuSet"`
+	VolumeDriver string
+	Memory       int64
+	MemorySwap   int64
+	CPUShares    int64  `json:"CpuShares"`
+	CPUSet       string `json:"CpuSet"`
+}
+
+// ContainerConfig120 is a backcompatibility struct used in ContainerJSON120
+type ContainerConfig120 struct {
+	*runconfig.Config
+	// backward compatibility, it lives now in HostConfig
+	VolumeDriver string
 }
 
 // MountPoint represents a mount point configuration inside the container.

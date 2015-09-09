@@ -253,15 +253,11 @@ func (s *DockerExternalVolumeSuite) TestStartExternalNamedVolumeDriverCheckBindL
 
 	img := "test-checkbindlocalvolume"
 
-	args := []string{"--host", s.d.sock()}
-	buildOut, err := buildImageArgs(args, img, dockerfile, true)
-	fmt.Println(buildOut)
+	_, err := buildImageWithOutInDamon(s.d.sock(), img, dockerfile, true)
+	c.Assert(err, check.IsNil)
 
 	out, err := s.d.Cmd("run", "--rm", "--name", "test-data-nobind", "-v", "external-volume-test:/tmp/external-volume-test", "--volume-driver", "test-external-volume-driver", img, "cat", "/nobindthenlocalvol/test")
-	if err != nil {
-		fmt.Println(out)
-		c.Fatal(err)
-	}
+	c.Assert(err, check.IsNil)
 
 	if !strings.Contains(out, expected) {
 		c.Fatalf("External volume mount failed. Output: %s\n", out)

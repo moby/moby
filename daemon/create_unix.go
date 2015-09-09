@@ -16,7 +16,7 @@ import (
 )
 
 // createContainerPlatformSpecificSettings performs platform specific container create functionality
-func createContainerPlatformSpecificSettings(container *Container, config *runconfig.Config, img *image.Image) error {
+func createContainerPlatformSpecificSettings(container *Container, config *runconfig.Config, hostConfig *runconfig.HostConfig, img *image.Image) error {
 	for spec := range config.Volumes {
 		var (
 			name, destination string
@@ -44,7 +44,7 @@ func createContainerPlatformSpecificSettings(container *Container, config *runco
 			return fmt.Errorf("cannot mount volume over existing file, file exists %s", path)
 		}
 
-		volumeDriver := config.VolumeDriver
+		volumeDriver := hostConfig.VolumeDriver
 		if destination != "" && img != nil {
 			if _, ok := img.ContainerConfig.Volumes[destination]; ok {
 				// check for whether bind is not specified and then set to local

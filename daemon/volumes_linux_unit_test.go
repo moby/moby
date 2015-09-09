@@ -5,7 +5,6 @@ package daemon
 import (
 	"testing"
 
-	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/volume"
 	"github.com/docker/docker/volume/drivers"
 )
@@ -56,8 +55,7 @@ func TestParseBindMount(t *testing.T) {
 	}
 
 	for _, c := range cases {
-		conf := &runconfig.Config{VolumeDriver: c.driver}
-		m, err := parseBindMount(c.bind, c.mountLabel, conf)
+		m, err := parseBindMount(c.bind, c.mountLabel, c.driver)
 		if c.fail {
 			if err == nil {
 				t.Fatalf("Expected error, was nil, for spec %s\n", c.bind)

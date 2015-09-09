@@ -1382,22 +1382,14 @@ func createTmpFile(c *check.C, content string) string {
 	return filename
 }
 
-func buildImageArgs(args []string, name, dockerfile string, useCache bool) (string, error) {
-	id, _, err := buildImageWithOutArgs(args, name, dockerfile, useCache)
-	return id, err
-}
-
-func buildImageWithOutArgs(args []string, name, dockerfile string, useCache bool) (string, string, error) {
+func buildImageWithOutInDamon(socket string, name, dockerfile string, useCache bool) (string, error) {
+	args := []string{"--host", socket}
 	buildCmd := buildImageCmdArgs(args, name, dockerfile, useCache)
 	out, exitCode, err := runCommandWithOutput(buildCmd)
 	if err != nil || exitCode != 0 {
-		return "", out, fmt.Errorf("failed to build the image: %s", out)
+		return out, fmt.Errorf("failed to build the image: %s, error: %v", out, err)
 	}
-	id, err := getIDByName(name)
-	if err != nil {
-		return "", out, err
-	}
-	return id, out, nil
+	return out, nil
 }
 
 func buildImageCmdArgs(args []string, name, dockerfile string, useCache bool) *exec.Cmd {

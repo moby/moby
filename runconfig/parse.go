@@ -322,7 +322,6 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		Entrypoint:      entrypoint,
 		WorkingDir:      *flWorkingDir,
 		Labels:          convertKVStringsToMap(labels),
-		VolumeDriver:    *flVolumeDriver,
 	}
 
 	hostConfig := &HostConfig{
@@ -362,6 +361,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		Ulimits:          flUlimits.GetList(),
 		LogConfig:        LogConfig{Type: *flLoggingDriver, Config: loggingOpts},
 		CgroupParent:     *flCgroupParent,
+		VolumeDriver:     *flVolumeDriver,
 	}
 
 	applyExperimentalFlags(expFlags, config, hostConfig)

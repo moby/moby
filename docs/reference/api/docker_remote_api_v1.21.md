@@ -196,7 +196,8 @@ Create a container
              "Ulimits": [{}],
              "LogConfig": { "Type": "json-file", "Config": {} },
              "SecurityOpt": [""],
-             "CgroupParent": ""
+             "CgroupParent": "",
+	      "VolumeDriver": ""
           }
       }
 
@@ -300,6 +301,7 @@ Json Parameters:
           Available types: `json-file`, `syslog`, `journald`, `gelf`, `none`.
           `json-file` logging driver.
     -   **CgroupParent** - Path to `cgroups` under which the container's `cgroup` is created. If the path is not absolute, the path is considered to be relative to the `cgroups` path of the init process. Cgroups are created if they do not already exist.
+    -   **VolumeDriver** - Driver that this container users to mount volumes.
 
 Query Parameters:
 
@@ -407,7 +409,8 @@ Return low-level information on the container `id`
 			},
 			"SecurityOpt": null,
 			"VolumesFrom": null,
-			"Ulimits": [{}]
+			"Ulimits": [{}],
+			"VolumeDriver": ""
 		},
 		"HostnamePath": "/var/lib/docker/containers/ba033ac4401106a3b513bc9d639eee123ad78ca3616b921167cd74b20e25ed39/hostname",
 		"HostsPath": "/var/lib/docker/containers/ba033ac4401106a3b513bc9d639eee123ad78ca3616b921167cd74b20e25ed39/hosts",
