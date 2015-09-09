@@ -51,7 +51,7 @@ How mature is the code providing kernel namespaces and private
 networking? Kernel namespaces were introduced [between kernel version
 2.6.15 and
 2.6.26](http://lxc.sourceforge.net/index.php/about/kernel-namespaces/).
-This means that since July 2008 (date of the 2.6.26 release, now 5 years
+This means that since July 2008 (date of the 2.6.26 release, now 7 years
 ago), namespace code has been exercised and scrutinized on a large
 number of production systems. And there is more: the design and
 inspiration for the namespaces code are even older. Namespaces are
