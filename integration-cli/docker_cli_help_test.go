@@ -202,9 +202,10 @@ func (s *DockerSuite) TestHelpTextVerify(c *check.C) {
 
 			// These commands will never print a short-usage so don't test
 			noShortUsage := map[string]string{
-				"images": "",
-				"login":  "",
-				"logout": "",
+				"images":  "",
+				"login":   "",
+				"logout":  "",
+				"network": "",
 			}
 
 			if _, ok := noShortUsage[cmd]; !ok {
@@ -257,11 +258,14 @@ func (s *DockerSuite) TestHelpTextVerify(c *check.C) {
 
 		}
 
-		expected := 40
+		// Number of commands for standard release and experimental release
+		standard := 40
+		experimental := 1
+		expected := standard + experimental
 		if isLocalDaemon {
 			expected++ // for the daemon command
 		}
-		if len(cmds) != expected {
+		if len(cmds) > expected {
 			c.Fatalf("Wrong # of cmds(%d), it should be: %d\nThe list:\n%q",
 				len(cmds), expected, cmds)
 		}
