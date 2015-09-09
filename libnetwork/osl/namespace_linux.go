@@ -172,15 +172,6 @@ func reexecCreateNamespace() {
 }
 
 func createNetworkNamespace(path string, osCreate bool) error {
-	runtime.LockOSThread()
-	defer runtime.UnlockOSThread()
-
-	origns, err := netns.Get()
-	if err != nil {
-		return err
-	}
-	defer origns.Close()
-
 	if err := createNamespaceFile(path); err != nil {
 		return err
 	}
