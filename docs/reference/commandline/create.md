@@ -65,6 +65,7 @@ Creates a new container.
       --restart="no"                Restart policy (no, on-failure[:max-retry], always, unless-stopped)
       --security-opt=[]             Security options
       --stop-signal="SIGTERM"       Signal to stop a container
+      --shm-size=[]                 Size of `/dev/shm`. The format is `<number><unit>`. `number` must be greater than `0`.  Unit is optional and can be `b` (bytes), `k` (kilobytes), `m` (megabytes), or `g` (gigabytes). If you omit the unit, the system uses bytes. If you omit the size entirely, the system uses `64m`.
       -t, --tty=false               Allocate a pseudo-TTY
       -u, --user=""                 Username or UID
       --ulimit=[]                   Ulimit options

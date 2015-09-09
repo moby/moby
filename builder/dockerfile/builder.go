@@ -60,6 +60,7 @@ type Config struct {
 
 	Memory       int64
 	MemorySwap   int64
+	ShmSize      int64
 	CPUShares    int64
 	CPUPeriod    int64
 	CPUQuota     int64

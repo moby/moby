@@ -508,6 +508,7 @@ func (b *Builder) create() (*daemon.Container, error) {
 		CgroupParent: b.CgroupParent,
 		Memory:       b.Memory,
 		MemorySwap:   b.MemorySwap,
+		ShmSize:      b.ShmSize,
 		Ulimits:      b.Ulimits,
 		Isolation:    b.Isolation,
 	}

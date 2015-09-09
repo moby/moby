@@ -211,6 +211,7 @@ type HostConfig struct {
 	SecurityOpt       []string              // List of string values to customize labels for MLS systems, such as SELinux.
 	Ulimits           []*ulimit.Ulimit      // List of ulimits to be set in the container
 	UTSMode           UTSMode               // UTS namespace to use for the container
+	ShmSize           int64                 // Total shm memory usage
 
 	// Applicable to Windows
 	ConsoleSize [2]int         // Initial console size

@@ -19,6 +19,7 @@ docker-build - Build a new image from the source code at PATH
 [**-t**|**--tag**[=*[]*]]
 [**-m**|**--memory**[=*MEMORY*]]
 [**--memory-swap**[=*MEMORY-SWAP*]]
+[**--shm-size**[=*SHM-SIZE*]]
 [**--cpu-period**[=*0*]]
 [**--cpu-quota**[=*0*]]
 [**--cpuset-cpus**[=*CPUSET-CPUS*]]
@@ -89,6 +90,11 @@ set as the **URL**, the repository is cloned locally and then sent as the contex
 
 **--memory-swap**=*MEMORY-SWAP*
   Total memory (memory + swap), '-1' to disable swap.
+
+**--shm-size**=*SHM-SIZE*
+  Size of `/dev/shm`. The format is `<number><unit>`. `number` must be greater than `0`.
+  Unit is optional and can be `b` (bytes), `k` (kilobytes), `m` (megabytes), or `g` (gigabytes). If you omit the unit, the system uses bytes.
+  If you omit the size entirely, the system uses `64m`.
 
 **--cpu-shares**=*0*
   CPU shares (relative weight).
