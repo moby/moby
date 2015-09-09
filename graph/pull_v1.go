@@ -191,6 +191,7 @@ func (p *v1Puller) pullRepository(askedTag string) error {
 				return
 			}
 			broadcaster.Write(p.sf.FormatProgress(stringid.TruncateID(img.ID), "Download complete", nil))
+			broadcaster.Close()
 
 			errors <- nil
 		}

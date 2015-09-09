@@ -95,7 +95,7 @@ func (p *v2Puller) pullV2Repository(tag string) (err error) {
 	}
 
 	writeStatus(taggedName, broadcaster, p.sf, layersDownloaded)
-
+	broadcaster.Close()
 	return nil
 }
 
