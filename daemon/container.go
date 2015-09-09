@@ -803,7 +803,8 @@ func (container *Container) stats() (*execdriver.ResourceStats, error) {
 	return container.daemon.stats(container)
 }
 
-func (container *Container) getExecIDs() []string {
+// GetExecIDs returns the list of exec commands for the container.
+func (container *Container) GetExecIDs() []string {
 	return container.execCommands.List()
 }
 
