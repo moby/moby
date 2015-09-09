@@ -64,7 +64,7 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 	if username == "" {
 		promptDefault("Username", authconfig.Username)
 		username = readInput(cli.in, cli.out)
-		username = strings.Trim(username, " ")
+		username = strings.TrimSpace(username)
 		if username == "" {
 			username = authconfig.Username
 		}
