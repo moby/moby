@@ -594,6 +594,10 @@ container:
 | `--blkio-weight=0`         | Block IO weight (relative weight) accepts a weight value between 10 and 1000.               |
 | `--oom-kill-disable=false` | Whether to disable OOM Killer for the container or not.                                     |
 | `--memory-swappiness=""  ` | Tune a container's memory swappiness behavior. Accepts an integer between 0 and 100.        |
+| `--shm-size=""  `          | Size of `/dev/shm`. The format is `<number><unit>`. `number` must be greater than `0`.      |
+|                            | Unit  is  optional   and   can  be  `b` (bytes),  `k` (kilobytes),   `m` (megabytes),   or  |
+|                            | `g` (gigabytes).  If  you  omit  the  unit,  the system  uses bytes.  If you omit the size  |
+|                            | entirely, the system uses `64m`.                                                            |
 
 ### User memory constraints
 
