@@ -155,7 +155,7 @@ func (daemon *Daemon) VolumeRm(name string) error {
 		if err == ErrVolumeInUse {
 			return fmt.Errorf("Conflict: %v", err)
 		}
-		return err
+		return fmt.Errorf("Error while removing volume %s: %v", name, err)
 	}
 	return nil
 }
