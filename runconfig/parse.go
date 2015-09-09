@@ -55,11 +55,13 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		flVolumesFrom = opts.NewListOpts(nil)
 		flLxcOpts     = opts.NewListOpts(nil)
 		flEnvFile     = opts.NewListOpts(nil)
+		flEnvDir      = opts.NewListOpts(nil)
 		flCapAdd      = opts.NewListOpts(nil)
 		flCapDrop     = opts.NewListOpts(nil)
 		flGroupAdd    = opts.NewListOpts(nil)
 		flSecurityOpt = opts.NewListOpts(nil)
 		flLabelsFile  = opts.NewListOpts(nil)
+		flLabelsDir   = opts.NewListOpts(nil)
 		flLoggingOpts = opts.NewListOpts(nil)
 
 		flNetwork         = cmd.Bool([]string{"#n", "#-networking"}, true, "Enable networking for this container")
@@ -101,8 +103,10 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 	cmd.Var(&flDevices, []string{"-device"}, "Add a host device to the container")
 	cmd.Var(&flLabels, []string{"l", "-label"}, "Set meta data on a container")
 	cmd.Var(&flLabelsFile, []string{"-label-file"}, "Read in a line delimited file of labels")
+	cmd.Var(&flLabelsDir, []string{"-label-dir"}, "Read in a directory of labels")
 	cmd.Var(&flEnv, []string{"e", "-env"}, "Set environment variables")
 	cmd.Var(&flEnvFile, []string{"-env-file"}, "Read in a file of environment variables")
+	cmd.Var(&flEnvDir, []string{"-env-dir"}, "Read in a directory of environment files")
 	cmd.Var(&flPublish, []string{"p", "-publish"}, "Publish a container's port(s) to the host")
 	cmd.Var(&flExpose, []string{"#expose", "-expose"}, "Expose a port or a range of ports")
 	cmd.Var(&flDNS, []string{"#dns", "-dns"}, "Set custom DNS servers")
@@ -267,13 +271,13 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 	}
 
 	// collect all the environment variables for the container
-	envVariables, err := readKVStrings(flEnvFile.GetAll(), flEnv.GetAll())
+	envVariables, err := readKVStrings(flEnvDir.GetAll(), flEnvFile.GetAll(), flEnv.GetAll())
 	if err != nil {
 		return nil, nil, cmd, err
 	}
 
 	// collect all the labels for the container
-	labels, err := readKVStrings(flLabelsFile.GetAll(), flLabels.GetAll())
+	labels, err := readKVStrings(flLabelsDir.GetAll(), flLabelsFile.GetAll(), flLabels.GetAll())
 	if err != nil {
 		return nil, nil, cmd, err
 	}
@@ -374,8 +378,15 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 }
 
 // reads a file of line terminated key=value pairs and override that with override parameter
-func readKVStrings(files []string, override []string) ([]string, error) {
+func readKVStrings(dirs, files, override []string) ([]string, error) {
 	envVariables := []string{}
+	for _, ed := range dirs {
+		parsedVars, err := opts.ParseEnvDir(ed)
+		if err != nil {
+			return nil, err
+		}
+		envVariables = append(envVariables, parsedVars...)
+	}
 	for _, ef := range files {
 		parsedVars, err := opts.ParseEnvFile(ef)
 		if err != nil {
