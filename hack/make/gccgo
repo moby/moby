@@ -8,14 +8,14 @@ BINARY_FULLNAME="$BINARY_NAME$BINARY_EXTENSION"
 source "${MAKEDIR}/.go-autogen"
 
 if [[ "${BUILDFLAGS[@]}" =~ 'netgo ' ]]; then
-	EXTLDFLAGS_STATIC_DOCKER+=' -lnetgo'
+	EXTLDFLAGS_STATIC+=' -lnetgo'
 fi
 go build -compiler=gccgo \
 	-o "$DEST/$BINARY_FULLNAME" \
 	"${BUILDFLAGS[@]}" \
 	-gccgoflags "
 		-g
-		$EXTLDFLAGS_STATIC_DOCKER
+		$EXTLDFLAGS_STATIC
 		-Wl,--no-export-dynamic
 		-ldl
 	" \
