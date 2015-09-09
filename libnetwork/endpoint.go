@@ -1,6 +1,7 @@
 package libnetwork
 
 import (
+	"container/heap"
 	"encoding/json"
 	"fmt"
 	"net"
@@ -289,10 +290,25 @@ func (ep *endpoint) Join(sbox Sandbox, options ...EndpointOption) error {
 		return err
 	}
 
+	sb.Lock()
+	heap.Push(&sb.endpoints, ep)
+	sb.Unlock()
+	defer func() {
+		if err != nil {
+			for i, e := range sb.getConnectedEndpoints() {
+				if e == ep {
+					sb.Lock()
+					heap.Remove(&sb.endpoints, i)
+					sb.Unlock()
+					return
+				}
+			}
+		}
+	}()
+
 	if err = sb.populateNetworkResources(ep); err != nil {
 		return err
 	}
-
 	return nil
 }
 

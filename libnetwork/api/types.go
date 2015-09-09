@@ -57,6 +57,7 @@ type sandboxCreate struct {
 	DNS               []string    `json:"dns"`
 	ExtraHosts        []extraHost `json:"extra_hosts"`
 	UseDefaultSandbox bool        `json:"use_default_sandbox"`
+	UseExternalKey    bool        `json:"use_external_key"`
 }
 
 // endpointJoin represents the expected body of the "join endpoint" or "leave endpoint" http request messages
