@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/pkg/integration"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/runconfig"
 	"github.com/go-check/check"
@@ -319,7 +320,7 @@ func (s *DockerSuite) TestGetContainerStatsRmRunning(c *check.C) {
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
 	id := strings.TrimSpace(out)
 
-	buf := &channelBuffer{make(chan []byte, 1)}
+	buf := &integration.ChannelBuffer{make(chan []byte, 1)}
 	defer buf.Close()
 	chErr := make(chan error)
 	go func() {
