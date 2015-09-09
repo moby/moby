@@ -3100,7 +3100,7 @@ func (s *DockerSuite) TestRunModeNetContainerHostname(c *check.C) {
 
 func (s *DockerSuite) TestRunNetworkNotInitializedNoneMode(c *check.C) {
 	testRequires(c, DaemonIsLinux)
-	out, _, err := dockerCmdWithError("run", "-d", "--net=none", "busybox", "top")
+	out, _ := dockerCmd(c, "run", "-d", "--net=none", "busybox", "top")
 	id := strings.TrimSpace(out)
 	res, err := inspectField(id, "NetworkSettings.IPAddress")
 	c.Assert(err, check.IsNil)
