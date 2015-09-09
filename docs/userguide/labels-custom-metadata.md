@@ -48,9 +48,9 @@ notation. Use the following guidelines to name your keys:
   reserved for Docker's internal use.
 
 - Keys should only consist of lower-cased alphanumeric characters,
-  dots and dashes (for example, `[a-z0-9-.]`)
+  dots and dashes (for example, `[a-z0-9-.]`).
 
-- Keys should start *and* end with an alpha numeric character
+- Keys should start *and* end with an alpha numeric character.
 
 - Keys may not contain consecutive dots or dashes.
 
