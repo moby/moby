@@ -4,10 +4,9 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"golang.org/x/net/context"
-
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/cliconfig"
+	"github.com/docker/docker/context"
 )
 
 func (s *Server) postAuth(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {

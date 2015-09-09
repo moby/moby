@@ -8,18 +8,16 @@ import (
 	"net/http"
 	"strings"
 
-	"golang.org/x/net/context"
-
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/cliconfig"
+	"github.com/docker/docker/context"
 	"github.com/docker/docker/graph"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/pkg/ulimit"
-	"github.com/docker/docker/pkg/version"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/utils"
 )
@@ -36,7 +34,7 @@ func (s *Server) postCommit(ctx context.Context, w http.ResponseWriter, r *http.
 	cname := r.Form.Get("container")
 
 	pause := boolValue(r, "pause")
-	version, _ := ctx.Value("api-version").(version.Version)
+	version := ctx.Version()
 	if r.FormValue("pause") == "" && version.GreaterThanOrEqualTo("1.13") {
 		pause = true
 	}
@@ -283,7 +281,7 @@ func (s *Server) postBuild(ctx context.Context, w http.ResponseWriter, r *http.R
 
 	w.Header().Set("Content-Type", "application/json")
 
-	version, _ := ctx.Value("api-version").(version.Version)
+	version := ctx.Version()
 	if boolValue(r, "forcerm") && version.GreaterThanOrEqualTo("1.12") {
 		buildConfig.Remove = true
 	} else if r.FormValue("rm") == "" && version.GreaterThanOrEqualTo("1.12") {

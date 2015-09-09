@@ -12,11 +12,11 @@ import (
 	"strings"
 
 	"github.com/gorilla/mux"
-	"golang.org/x/net/context"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/autogen/dockerversion"
+	"github.com/docker/docker/context"
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/pkg/sockets"
 	"github.com/docker/docker/pkg/stringid"
@@ -261,14 +261,14 @@ func makeHTTPHandler(logging bool, localMethod string, localRoute string, handle
 		// as 'args' on the function call.
 
 		reqID := stringid.TruncateID(stringid.GenerateNonCryptoID())
-		api_version := version.Version(mux.Vars(r)["version"])
-		if api_version == "" {
-			api_version = api.Version
+		apiVersion := version.Version(mux.Vars(r)["version"])
+		if apiVersion == "" {
+			apiVersion = api.Version
 		}
 
 		ctx := context.Background()
-		ctx = context.WithValue(ctx, "docker-request-id", reqID)
-		ctx = context.WithValue(ctx, "api-version", api_version)
+		ctx = context.WithValue(ctx, context.RequestID, reqID)
+		ctx = context.WithValue(ctx, context.APIVersion, apiVersion)
 
 		// log the request
 		logrus.Debugf("Calling %s %s", localMethod, localRoute)
@@ -294,11 +294,11 @@ func makeHTTPHandler(logging bool, localMethod string, localRoute string, handle
 			writeCorsHeaders(w, r, corsHeaders)
 		}
 
-		if api_version.GreaterThan(api.Version) {
-			http.Error(w, fmt.Errorf("client is newer than server (client API version: %s, server API version: %s)", api_version, api.Version).Error(), http.StatusBadRequest)
+		if apiVersion.GreaterThan(api.Version) {
+			http.Error(w, fmt.Errorf("client is newer than server (client API version: %s, server API version: %s)", apiVersion, api.Version).Error(), http.StatusBadRequest)
 			return
 		}
-		if api_version.LessThan(api.MinVersion) {
+		if apiVersion.LessThan(api.MinVersion) {
 			http.Error(w, fmt.Errorf("client is too old, minimum supported API version is %s, please upgrade your client to a newer version", api.MinVersion).Error(), http.StatusBadRequest)
 			return
 		}
