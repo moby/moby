@@ -6,11 +6,10 @@ docker-volume-create - Create a new volume
 
 # SYNOPSIS
 **docker volume create**
-[**-d**|**--driver**[=*local*]]
-[**--name**[=**]]
-[**-o**|**--opt**[=**]]
-
-[OPTIONS]
+[**-d**|**--driver**[=*DRIVER*]]
+[**--help**]
+[**--name**[=*NAME*]]
+[**-o**|**--opt**[=*[]*]]
 
 # DESCRIPTION
 
@@ -40,11 +39,16 @@ different volume drivers may do different things (or nothing at all).
 *Note*: The built-in `local` volume driver does not currently accept any options.
 
 # OPTIONS
-**-d**, **--driver**=[]
-   Specify volume driver name
+**-d**, **--driver**="local"
+  Specify volume driver name
+
+**--help**
+  Print usage statement
+
 **--name**=""
   Specify volume name
-**-o**, **--opt**=map[]
+
+**-o**, **--opt**=[]
   Set driver specific options
 
 # HISTORY
