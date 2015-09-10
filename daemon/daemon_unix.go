@@ -312,8 +312,8 @@ func networkOptions(dconfig *Config) ([]nwconfig.Option, error) {
 		options = append(options, nwconfig.OptionDefaultNetwork(dn))
 	}
 
-	if strings.TrimSpace(dconfig.NetworkKVStore) != "" {
-		kv := strings.Split(dconfig.NetworkKVStore, "://")
+	if strings.TrimSpace(dconfig.ClusterStore) != "" {
+		kv := strings.Split(dconfig.ClusterStore, "://")
 		if len(kv) < 2 {
 			return nil, fmt.Errorf("kv store daemon config must be of the form KV-PROVIDER://KV-URL")
 		}

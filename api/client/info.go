@@ -103,6 +103,9 @@ func (cli *DockerCli) CmdInfo(args ...string) error {
 	}
 
 	ioutils.FprintfIfTrue(cli.out, "Experimental: %v\n", info.ExperimentalBuild)
+	if info.ClusterStore != "" {
+		fmt.Fprintf(cli.out, "Cluster store: %s\n", info.ClusterStore)
+	}
 
 	return nil
 }

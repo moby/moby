@@ -1821,6 +1821,7 @@ Display system-wide information
         "CpuCfsPeriod": true,
         "CpuCfsQuota": true,
         "Debug": false,
+        "DiscoveryBackend": "etcd://localhost:2379",
         "DockerRootDir": "/var/lib/docker",
         "Driver": "btrfs",
         "DriverStatus": [[""]],
