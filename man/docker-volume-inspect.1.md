@@ -6,9 +6,9 @@ docker-volume-inspect - Get low-level information about a volume
 
 # SYNOPSIS
 **docker volume inspect**
-[**-f**|**--format**[=**]]
-
-[OPTIONS] VOLUME [VOLUME...]
+[**-f**|**--format**[=*FORMAT*]]
+[**--help**]
+VOLUME [VOLUME...]
 
 # DESCRIPTION
 
@@ -20,7 +20,10 @@ format.
 
 # OPTIONS
 **-f**, **--format**=""
-   Format the output using the given go template.
+  Format the output using the given go template.
+
+**--help**
+  Print usage statement
 
 # HISTORY
 July 2015, created by Brian Goff <cpuguy83@gmail.com>
