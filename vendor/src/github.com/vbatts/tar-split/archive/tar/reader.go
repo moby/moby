@@ -159,17 +159,19 @@ func (tr *Reader) Next() (*Header, error) {
 		if err != nil {
 			return nil, err
 		}
-		var b []byte
+		var buf []byte
 		if tr.RawAccounting {
 			if _, err = tr.rawBytes.Write(realname); err != nil {
 				return nil, err
 			}
-			b = tr.RawBytes()
+			buf = make([]byte, tr.rawBytes.Len())
+			copy(buf[:], tr.RawBytes())
 		}
 		hdr, err := tr.Next()
 		// since the above call to Next() resets the buffer, we need to throw the bytes over
 		if tr.RawAccounting {
-			if _, err = tr.rawBytes.Write(b); err != nil {
+			buf = append(buf, tr.RawBytes()...)
+			if _, err = tr.rawBytes.Write(buf); err != nil {
 				return nil, err
 			}
 		}
@@ -181,17 +183,19 @@ func (tr *Reader) Next() (*Header, error) {
 		if err != nil {
 			return nil, err
 		}
-		var b []byte
+		var buf []byte
 		if tr.RawAccounting {
 			if _, err = tr.rawBytes.Write(realname); err != nil {
 				return nil, err
 			}
-			b = tr.RawBytes()
+			buf = make([]byte, tr.rawBytes.Len())
+			copy(buf[:], tr.RawBytes())
 		}
 		hdr, err := tr.Next()
 		// since the above call to Next() resets the buffer, we need to throw the bytes over
 		if tr.RawAccounting {
-			if _, err = tr.rawBytes.Write(b); err != nil {
+			buf = append(buf, tr.RawBytes()...)
+			if _, err = tr.rawBytes.Write(buf); err != nil {
 				return nil, err
 			}
 		}

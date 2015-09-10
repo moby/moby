@@ -76,6 +76,7 @@ func NewDaemonCli() *DaemonCli {
 
 	// TODO(tiborvass): remove InstallFlags?
 	daemonConfig := new(daemon.Config)
+	daemonConfig.LogConfig.Config = make(map[string]string)
 	daemonConfig.InstallFlags(daemonFlags, presentInHelp)
 	daemonConfig.InstallFlags(flag.CommandLine, absentFromHelp)
 	registryOptions := new(registry.Options)
@@ -206,10 +207,6 @@ func (cli *DaemonCli) CmdDaemon(args ...string) error {
 				logrus.Error(err)
 			}
 		}()
-	}
-
-	if cli.LogConfig.Config == nil {
-		cli.LogConfig.Config = make(map[string]string)
 	}
 
 	serverConfig := &apiserver.ServerConfig{

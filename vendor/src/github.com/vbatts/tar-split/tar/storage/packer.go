@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 )
 
-// ErrDuplicatePath is occured when a tar archive has more than one entry for
-// the same file path
+// ErrDuplicatePath occurs when a tar archive has more than one entry for the
+// same file path
 var ErrDuplicatePath = errors.New("duplicates of file paths not supported")
 
 // Packer describes the methods to pack Entries to a storage destination
@@ -65,7 +65,7 @@ func (jup *jsonUnpacker) Next() (*Entry, error) {
 		if _, ok := jup.seen[cName]; ok {
 			return nil, ErrDuplicatePath
 		}
-		jup.seen[cName] = emptyByte
+		jup.seen[cName] = struct{}{}
 	}
 
 	return &e, err
@@ -90,11 +90,7 @@ type jsonPacker struct {
 	seen seenNames
 }
 
-type seenNames map[string]byte
-
-// used in the seenNames map. byte is a uint8, and we'll re-use the same one
-// for minimalism.
-const emptyByte byte = 0
+type seenNames map[string]struct{}
 
 func (jp *jsonPacker) AddEntry(e Entry) (int, error) {
 	// check early for dup name
@@ -103,7 +99,7 @@ func (jp *jsonPacker) AddEntry(e Entry) (int, error) {
 		if _, ok := jp.seen[cName]; ok {
 			return -1, ErrDuplicatePath
 		}
-		jp.seen[cName] = emptyByte
+		jp.seen[cName] = struct{}{}
 	}
 
 	e.Position = jp.pos
@@ -117,7 +113,7 @@ func (jp *jsonPacker) AddEntry(e Entry) (int, error) {
 	return e.Position, nil
 }
 
-// NewJSONPacker provides an Packer that writes each Entry (SegmentType and
+// NewJSONPacker provides a Packer that writes each Entry (SegmentType and
 // FileType) as a json document.
 //
 // The Entries are delimited by new line.

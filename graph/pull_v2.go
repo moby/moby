@@ -77,7 +77,7 @@ func (p *v2Puller) pullV2Repository(tag string) (err error) {
 	if err != nil {
 		if c != nil {
 			// Another pull of the same repository is already taking place; just wait for it to finish
-			p.sf.FormatStatus("", "Repository %s already being pulled by another client. Waiting.", p.repoInfo.CanonicalName)
+			p.config.OutStream.Write(p.sf.FormatStatus("", "Repository %s already being pulled by another client. Waiting.", p.repoInfo.CanonicalName))
 			<-c
 			return nil
 		}
@@ -140,9 +140,9 @@ func (p *v2Puller) download(di *downloadInfo) {
 		return
 	}
 
-	blobs := p.repo.Blobs(nil)
+	blobs := p.repo.Blobs(context.Background())
 
-	desc, err := blobs.Stat(nil, di.digest)
+	desc, err := blobs.Stat(context.Background(), di.digest)
 	if err != nil {
 		logrus.Debugf("Error statting layer: %v", err)
 		di.err <- err
@@ -150,7 +150,7 @@ func (p *v2Puller) download(di *downloadInfo) {
 	}
 	di.size = desc.Size
 
-	layerDownload, err := blobs.Open(nil, di.digest)
+	layerDownload, err := blobs.Open(context.Background(), di.digest)
 	if err != nil {
 		logrus.Debugf("Error fetching layer: %v", err)
 		di.err <- err
@@ -223,6 +223,9 @@ func (p *v2Puller) pullV2Tag(tag, taggedName string) (verified bool, err error) 
 	go func() {
 		if _, err := io.Copy(out, pipeReader); err != nil {
 			logrus.Errorf("error copying from layer download progress reader: %s", err)
+			if err := pipeReader.CloseWithError(err); err != nil {
+				logrus.Errorf("error closing the progress reader: %s", err)
+			}
 		}
 	}()
 	defer func() {
@@ -232,6 +235,9 @@ func (p *v2Puller) pullV2Tag(tag, taggedName string) (verified bool, err error) 
 			// set the error. All successive reads/writes will return with this
 			// error.
 			pipeWriter.CloseWithError(errors.New("download canceled"))
+		} else {
+			// If no error then just close the pipe.
+			pipeWriter.Close()
 		}
 	}()
 
