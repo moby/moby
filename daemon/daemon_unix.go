@@ -22,6 +22,7 @@ import (
 	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/utils"
+	"github.com/docker/docker/volume"
 	"github.com/docker/libnetwork"
 	nwconfig "github.com/docker/libnetwork/config"
 	"github.com/docker/libnetwork/drivers/bridge"
@@ -603,10 +604,10 @@ func (daemon *Daemon) newBaseContainer(id string) Container {
 			State:        NewState(),
 			execCommands: newExecStore(),
 			root:         daemon.containerRoot(id),
+			MountPoints:  make(map[string]*volume.MountPoint),
 		},
-		MountPoints: make(map[string]*mountPoint),
-		Volumes:     make(map[string]string),
-		VolumesRW:   make(map[string]bool),
+		Volumes:   make(map[string]string),
+		VolumesRW: make(map[string]bool),
 	}
 }
 

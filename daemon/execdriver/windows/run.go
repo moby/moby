@@ -2,8 +2,6 @@
 
 package windows
 
-// Note this is alpha code for the bring up of containers on Windows.
-
 import (
 	"encoding/json"
 	"errors"
@@ -60,18 +58,25 @@ type device struct {
 	Settings   interface{}
 }
 
+type mappedDir struct {
+	HostPath      string
+	ContainerPath string
+	ReadOnly      bool
+}
+
 type containerInit struct {
-	SystemType              string   // HCS requires this to be hard-coded to "Container"
-	Name                    string   // Name of the container. We use the docker ID.
-	Owner                   string   // The management platform that created this container
-	IsDummy                 bool     // Used for development purposes.
-	VolumePath              string   // Windows volume path for scratch space
-	Devices                 []device // Devices used by the container
-	IgnoreFlushesDuringBoot bool     // Optimisation hint for container startup in Windows
-	LayerFolderPath         string   // Where the layer folders are located
-	Layers                  []layer  // List of storage layers
-	ProcessorWeight         int64    // CPU Shares 1..9 on Windows; or 0 is platform default.
-	HostName                string   // Hostname
+	SystemType              string      // HCS requires this to be hard-coded to "Container"
+	Name                    string      // Name of the container. We use the docker ID.
+	Owner                   string      // The management platform that created this container
+	IsDummy                 bool        // Used for development purposes.
+	VolumePath              string      // Windows volume path for scratch space
+	Devices                 []device    // Devices used by the container
+	IgnoreFlushesDuringBoot bool        // Optimisation hint for container startup in Windows
+	LayerFolderPath         string      // Where the layer folders are located
+	Layers                  []layer     // List of storage layers
+	ProcessorWeight         int64       // CPU Shares 1..9 on Windows; or 0 is platform default.
+	HostName                string      // Hostname
+	MappedDirectories       []mappedDir // List of mapped directories (volumes/mounts)
 }
 
 // defaultOwner is a tag passed to HCS to allow it to differentiate between
@@ -105,17 +110,27 @@ func (d *Driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, hooks execd
 		HostName:                c.Hostname,
 	}
 
-	for i := 0; i < len(c.LayerPaths); i++ {
-		_, filename := filepath.Split(c.LayerPaths[i])
+	for _, layerPath := range c.LayerPaths {
+		_, filename := filepath.Split(layerPath)
 		g, err := hcsshim.NameToGuid(filename)
 		if err != nil {
 			return execdriver.ExitStatus{ExitCode: -1}, err
 		}
 		cu.Layers = append(cu.Layers, layer{
 			ID:   g.ToString(),
-			Path: c.LayerPaths[i],
+			Path: layerPath,
 		})
 	}
+
+	// Add the mounts (volumes, bind mounts etc) to the structure
+	mds := make([]mappedDir, len(c.Mounts))
+	for i, mount := range c.Mounts {
+		mds[i] = mappedDir{
+			HostPath:      mount.Source,
+			ContainerPath: mount.Destination,
+			ReadOnly:      !mount.Writable}
+	}
+	cu.MappedDirectories = mds
 
 	// TODO Windows. At some point, when there is CLI on docker run to
 	// enable the IP Address of the container to be passed into docker run,

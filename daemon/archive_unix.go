@@ -8,7 +8,7 @@ package daemon
 func checkIfPathIsInAVolume(container *Container, absPath string) (bool, error) {
 	var toVolume bool
 	for _, mnt := range container.MountPoints {
-		if toVolume = mnt.hasResource(absPath); toVolume {
+		if toVolume = mnt.HasResource(absPath); toVolume {
 			if mnt.RW {
 				break
 			}

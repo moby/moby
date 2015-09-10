@@ -274,58 +274,6 @@ func TestValidateLink(t *testing.T) {
 	}
 }
 
-func TestValidatePath(t *testing.T) {
-	valid := []string{
-		"/home",
-		"/home:/home",
-		"/home:/something/else",
-		"/with space",
-		"/home:/with space",
-		"relative:/absolute-path",
-		"hostPath:/containerPath:ro",
-		"/hostPath:/containerPath:rw",
-		"/rw:/ro",
-		"/path:rw",
-		"/path:ro",
-		"/rw:rw",
-	}
-	invalid := map[string]string{
-		"":                "bad format for path: ",
-		"./":              "./ is not an absolute path",
-		"../":             "../ is not an absolute path",
-		"/:../":           "../ is not an absolute path",
-		"/:path":          "path is not an absolute path",
-		":":               "bad format for path: :",
-		"/tmp:":           " is not an absolute path",
-		":test":           "bad format for path: :test",
-		":/test":          "bad format for path: :/test",
-		"tmp:":            " is not an absolute path",
-		":test:":          "bad format for path: :test:",
-		"::":              "bad format for path: ::",
-		":::":             "bad format for path: :::",
-		"/tmp:::":         "bad format for path: /tmp:::",
-		":/tmp::":         "bad format for path: :/tmp::",
-		"path:ro":         "path is not an absolute path",
-		"/path:/path:sw":  "bad mode specified: sw",
-		"/path:/path:rwz": "bad mode specified: rwz",
-	}
-
-	for _, path := range valid {
-		if _, err := ValidatePath(path); err != nil {
-			t.Fatalf("ValidatePath(`%q`) should succeed: error %q", path, err)
-		}
-	}
-
-	for path, expectedError := range invalid {
-		if _, err := ValidatePath(path); err == nil {
-			t.Fatalf("ValidatePath(`%q`) should have failed validation", path)
-		} else {
-			if err.Error() != expectedError {
-				t.Fatalf("ValidatePath(`%q`) error should contain %q, got %q", path, expectedError, err.Error())
-			}
-		}
-	}
-}
 func TestValidateDevice(t *testing.T) {
 	valid := []string{
 		"/home",

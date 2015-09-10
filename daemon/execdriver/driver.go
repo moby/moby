@@ -165,16 +165,8 @@ type ResourceStats struct {
 	SystemUsage uint64    `json:"system_usage"`
 }
 
-// Mount contains information for a mount operation.
-type Mount struct {
-	Source      string `json:"source"`
-	Destination string `json:"destination"`
-	Writable    bool   `json:"writable"`
-	Private     bool   `json:"private"`
-	Slave       bool   `json:"slave"`
-}
-
 // User contains the uid and gid representing a Unix user
+// TODO Windows: Factor out User
 type User struct {
 	UID int `json:"root_uid"`
 	GID int `json:"root_gid"`

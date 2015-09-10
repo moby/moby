@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -30,8 +31,10 @@ import (
 	"github.com/docker/docker/pkg/promise"
 	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/docker/pkg/symlink"
+	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/volume"
+	"github.com/docker/docker/volume/store"
 )
 
 var (
@@ -72,6 +75,7 @@ type CommonContainer struct {
 	RestartCount           int
 	HasBeenStartedBefore   bool
 	HasBeenManuallyStopped bool // used for unless-stopped restart policy
+	MountPoints            map[string]*volume.MountPoint
 	hostConfig             *runconfig.HostConfig
 	command                *execdriver.Command
 	monitor                *containerMonitor
@@ -1108,29 +1112,109 @@ func (container *Container) mountVolumes() error {
 	return nil
 }
 
-func (container *Container) copyImagePathContent(v volume.Volume, destination string) error {
-	rootfs, err := symlink.FollowSymlinkInScope(filepath.Join(container.basefs, destination), container.basefs)
-	if err != nil {
-		return err
-	}
-
-	if _, err = ioutil.ReadDir(rootfs); err != nil {
-		if os.IsNotExist(err) {
-			return nil
+func (container *Container) prepareMountPoints() error {
+	for _, config := range container.MountPoints {
+		if len(config.Driver) > 0 {
+			v, err := container.daemon.createVolume(config.Name, config.Driver, nil)
+			if err != nil {
+				return err
+			}
+			config.Volume = v
 		}
+	}
+	return nil
+}
+
+func (container *Container) removeMountPoints(rm bool) error {
+	var rmErrors []string
+	for _, m := range container.MountPoints {
+		if m.Volume == nil {
+			continue
+		}
+		container.daemon.volumes.Decrement(m.Volume)
+		if rm {
+			err := container.daemon.volumes.Remove(m.Volume)
+			// ErrVolumeInUse is ignored because having this
+			// volume being referenced by other container is
+			// not an error, but an implementation detail.
+			// This prevents docker from logging "ERROR: Volume in use"
+			// where there is another container using the volume.
+			if err != nil && err != store.ErrVolumeInUse {
+				rmErrors = append(rmErrors, err.Error())
+			}
+		}
+	}
+	if len(rmErrors) > 0 {
+		return derr.ErrorCodeRemovingVolume.WithArgs(strings.Join(rmErrors, "\n"))
+	}
+	return nil
+}
+
+func (container *Container) unmountVolumes(forceSyscall bool) error {
+	var (
+		volumeMounts []volume.MountPoint
+		err          error
+	)
+
+	for _, mntPoint := range container.MountPoints {
+		dest, err := container.GetResourcePath(mntPoint.Destination)
+		if err != nil {
+			return err
+		}
+
+		volumeMounts = append(volumeMounts, volume.MountPoint{Destination: dest, Volume: mntPoint.Volume})
+	}
+
+	// Append any network mounts to the list (this is a no-op on Windows)
+	if volumeMounts, err = appendNetworkMounts(container, volumeMounts); err != nil {
 		return err
 	}
 
-	path, err := v.Mount()
-	if err != nil {
-		return err
+	for _, volumeMount := range volumeMounts {
+		if forceSyscall {
+			system.UnmountWithSyscall(volumeMount.Destination)
+		}
+
+		if volumeMount.Volume != nil {
+			if err := volumeMount.Volume.Unmount(); err != nil {
+				return err
+			}
+		}
 	}
 
-	if err := copyExistingContents(rootfs, path); err != nil {
-		return err
-	}
+	return nil
+}
 
-	return v.Unmount()
+func (container *Container) addBindMountPoint(name, source, destination string, rw bool) {
+	container.MountPoints[destination] = &volume.MountPoint{
+		Name:        name,
+		Source:      source,
+		Destination: destination,
+		RW:          rw,
+	}
+}
+
+func (container *Container) addLocalMountPoint(name, destination string, rw bool) {
+	container.MountPoints[destination] = &volume.MountPoint{
+		Name:        name,
+		Driver:      volume.DefaultDriverName,
+		Destination: destination,
+		RW:          rw,
+	}
+}
+
+func (container *Container) addMountPointWithVolume(destination string, vol volume.Volume, rw bool) {
+	container.MountPoints[destination] = &volume.MountPoint{
+		Name:        vol.Name(),
+		Driver:      vol.DriverName(),
+		Destination: destination,
+		RW:          rw,
+		Volume:      vol,
+	}
+}
+
+func (container *Container) isDestinationMounted(destination string) bool {
+	return container.MountPoints[destination] != nil
 }
 
 func (container *Container) stopSignal() int {
