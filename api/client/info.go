@@ -103,6 +103,9 @@ func (cli *DockerCli) CmdInfo(args ...string) error {
 	if info.ExperimentalBuild {
 		fmt.Fprintf(cli.out, "Experimental: true\n")
 	}
+	if info.DiscoveryBackend != "" {
+		fmt.Fprintf(cli.out, "Discovery backend: %s\n", info.DiscoveryBackend)
+	}
 
 	return nil
 }

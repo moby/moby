@@ -33,6 +33,7 @@ import (
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/broadcastwriter"
+	"github.com/docker/docker/pkg/discovery"
 	"github.com/docker/docker/pkg/fileutils"
 	"github.com/docker/docker/pkg/graphdb"
 	"github.com/docker/docker/pkg/ioutils"
@@ -113,6 +114,7 @@ type Daemon struct {
 	EventsService    *events.Events
 	netController    libnetwork.NetworkController
 	volumes          *volumeStore
+	discoveryWatcher discovery.Watcher
 	root             string
 	shutdown         bool
 }
@@ -745,6 +747,21 @@ func NewDaemon(config *Config, registryService *registry.Service) (daemon *Daemo
 	ed, err := execdrivers.NewDriver(config.ExecDriver, config.ExecOptions, config.ExecRoot, config.Root, sysInitPath, sysInfo)
 	if err != nil {
 		return nil, err
+	}
+
+	// Initialize discovery. When a discovery backend is not specified, we rely on the network
+	// key-value store by default.
+	if config.DiscoveryBackend == "" {
+		config.DiscoveryBackend = config.NetworkKVStore
+	}
+	// Discovery is only enabled when the daemon is launched with a given discovery address to be
+	// advertised to the backend. When initialized, the daemon is registered and we can store the
+	// discovery backend as its read-only DiscoveryWatcher version.
+	if config.DiscoveryAddress != "" {
+		var err error
+		if d.discoveryWatcher, err = initDiscovery(config.DiscoveryBackend, config.DiscoveryAddress); err != nil {
+			return nil, fmt.Errorf("discovery initialization failed (%v)", err)
+		}
 	}
 
 	d.ID = trustKey.PublicKey().KeyID()
