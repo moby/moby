@@ -23,6 +23,7 @@ container's logging driver. The following options are supported:
 | `journald`  | Journald logging driver for Docker. Writes log messages to `journald`.                                                        |
 | `gelf`      | Graylog Extended Log Format (GELF) logging driver for Docker. Writes log messages to a GELF endpoint likeGraylog or Logstash. |
 | `fluentd`   | Fluentd logging driver for Docker. Writes log messages to `fluentd` (forward input).                                          |
+| `awslogs`   | Amazon CloudWatch Logs logging driver for Docker. Writes log messages to Amazon CloudWatch Logs.                              |
 
 The `docker logs`command is available only for the `json-file` logging driver.  
 
@@ -128,3 +129,15 @@ For example, to specify both additional options:
 If container cannot connect to the Fluentd daemon on the specified address,
 the container stops immediately. For detailed information on working with this
 logging driver, see [the fluentd logging driver](/reference/logging/fluentd/)
+
+## Specify Amazon CloudWatch Logs options
+
+The Amazon CloudWatch Logs logging driver supports the following options:
+
+    --log-opt awslogs-region=<aws_region>
+    --log-opt awslogs-group=<log_group_name>
+    --log-opt awslogs-stream=<log_stream_name>
+
+
+For detailed information on working with this logging driver, see [the awslogs logging driver](/reference/logging/awslogs/)
+reference documentation.

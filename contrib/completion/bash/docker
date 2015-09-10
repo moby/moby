@@ -279,6 +279,7 @@ __docker_log_driver_options() {
 	local gelf_options="gelf-address gelf-tag"
 	local json_file_options="max-file max-size"
 	local syslog_options="syslog-address syslog-facility syslog-tag"
+	local awslogs_options="awslogs-region awslogs-group awslogs-stream"
 
 	case $(__docker_value_of_option --log-driver) in
 		'')
@@ -295,6 +296,9 @@ __docker_log_driver_options() {
 			;;
 		syslog)
 			COMPREPLY=( $( compgen -W "$syslog_options" -S = -- "$cur" ) )
+			;;
+		awslogs)
+			COMPREPLY=( $( compgen -W "$awslogs_options" -S = -- "$cur" ) )
 			;;
 		*)
 			return

@@ -1011,6 +1011,7 @@ container's logging driver. The following options are supported:
 | `journald`  | Journald logging driver for Docker. Writes log messages to `journald`.                                                        |
 | `gelf`      | Graylog Extended Log Format (GELF) logging driver for Docker. Writes log messages to a GELF endpoint likeGraylog or Logstash. |
 | `fluentd`   | Fluentd logging driver for Docker. Writes log messages to `fluentd` (forward input).                                          |
+| `awslogs`   | Amazon CloudWatch Logs logging driver for Docker. Writes log messages to Amazon CloudWatch Logs                               |
 
 	The `docker logs`command is available only for the `json-file` logging
 driver.  For detailed information on working with logging drivers, see
