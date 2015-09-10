@@ -1193,8 +1193,8 @@ func (f *fakeSandbox) SetKey(key string) error {
 }
 
 func TestExternalKey(t *testing.T) {
-	if !netutils.IsRunningInContainer() {
-		defer osl.SetupTestOSContext(t)()
+	if !testutils.IsRunningInContainer() {
+		defer testutils.SetupTestOSContext(t)()
 	}
 
 	n, err := createTestNetwork(bridgeNetType, "testnetwork", options.Generic{
