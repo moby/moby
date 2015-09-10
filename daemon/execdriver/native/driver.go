@@ -196,7 +196,7 @@ func (d *Driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 }
 
 // notifyOnOOM returns a channel that signals if the container received an OOM notification
-// for any process.  If it is unable to subscribe to OOM notifications then a closed
+// for any process. If it is unable to subscribe to OOM notifications then a closed
 // channel is returned as it will be non-blocking and return the correct result when read.
 func notifyOnOOM(container libcontainer.Container) <-chan struct{} {
 	oom, err := container.NotifyOOM()
