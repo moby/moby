@@ -20,11 +20,11 @@ func (s *Server) getContainersByName(ctx context.Context, w http.ResponseWriter,
 
 	switch {
 	case version.LessThan("1.20"):
-		json, err = s.daemon.ContainerInspectPre120(vars["name"])
+		json, err = s.daemon.ContainerInspectPre120(ctx, vars["name"])
 	case version.Equal("1.20"):
-		json, err = s.daemon.ContainerInspect120(vars["name"])
+		json, err = s.daemon.ContainerInspect120(ctx, vars["name"])
 	default:
-		json, err = s.daemon.ContainerInspect(vars["name"])
+		json, err = s.daemon.ContainerInspect(ctx, vars["name"])
 	}
 
 	if err != nil {

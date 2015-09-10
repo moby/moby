@@ -22,6 +22,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/builder/parser"
 	"github.com/docker/docker/cliconfig"
+	"github.com/docker/docker/context"
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/graph"
 	"github.com/docker/docker/image"
@@ -75,7 +76,7 @@ func (b *builder) readContext(context io.Reader) (err error) {
 	return
 }
 
-func (b *builder) commit(id string, autoCmd *stringutils.StrSlice, comment string) error {
+func (b *builder) commit(ctx context.Context, id string, autoCmd *stringutils.StrSlice, comment string) error {
 	if b.disableCommit {
 		return nil
 	}
@@ -92,7 +93,7 @@ func (b *builder) commit(id string, autoCmd *stringutils.StrSlice, comment strin
 		}
 		defer func(cmd *stringutils.StrSlice) { b.Config.Cmd = cmd }(cmd)
 
-		hit, err := b.probeCache()
+		hit, err := b.probeCache(ctx)
 		if err != nil {
 			return err
 		}
@@ -100,18 +101,18 @@ func (b *builder) commit(id string, autoCmd *stringutils.StrSlice, comment strin
 			return nil
 		}
 
-		container, err := b.create()
+		container, err := b.create(ctx)
 		if err != nil {
 			return err
 		}
 		id = container.ID
 
-		if err := container.Mount(); err != nil {
+		if err := container.Mount(ctx); err != nil {
 			return err
 		}
-		defer container.Unmount()
+		defer container.Unmount(ctx)
 	}
-	container, err := b.Daemon.Get(id)
+	container, err := b.Daemon.Get(ctx, id)
 	if err != nil {
 		return err
 	}
@@ -127,11 +128,11 @@ func (b *builder) commit(id string, autoCmd *stringutils.StrSlice, comment strin
 	}
 
 	// Commit the container
-	image, err := b.Daemon.Commit(container, commitCfg)
+	image, err := b.Daemon.Commit(ctx, container, commitCfg)
 	if err != nil {
 		return err
 	}
-	b.Daemon.Graph().Retain(b.id, image.ID)
+	b.Daemon.Graph(ctx).Retain(b.id, image.ID)
 	b.activeImages = append(b.activeImages, image.ID)
 	b.image = image.ID
 	return nil
@@ -145,7 +146,7 @@ type copyInfo struct {
 	tmpDir     string
 }
 
-func (b *builder) runContextCommand(args []string, allowRemote bool, allowDecompression bool, cmdName string) error {
+func (b *builder) runContextCommand(ctx context.Context, args []string, allowRemote bool, allowDecompression bool, cmdName string) error {
 	if b.context == nil {
 		return fmt.Errorf("No context given. Impossible to use %s", cmdName)
 	}
@@ -223,7 +224,7 @@ func (b *builder) runContextCommand(args []string, allowRemote bool, allowDecomp
 	}
 	defer func(cmd *stringutils.StrSlice) { b.Config.Cmd = cmd }(cmd)
 
-	hit, err := b.probeCache()
+	hit, err := b.probeCache(ctx)
 	if err != nil {
 		return err
 	}
@@ -232,16 +233,16 @@ func (b *builder) runContextCommand(args []string, allowRemote bool, allowDecomp
 		return nil
 	}
 
-	container, _, err := b.Daemon.ContainerCreate("", b.Config, nil, true)
+	container, _, err := b.Daemon.ContainerCreate(ctx, "", b.Config, nil, true)
 	if err != nil {
 		return err
 	}
 	b.TmpContainers[container.ID] = struct{}{}
 
-	if err := container.Mount(); err != nil {
+	if err := container.Mount(ctx); err != nil {
 		return err
 	}
-	defer container.Unmount()
+	defer container.Unmount(ctx)
 
 	for _, ci := range copyInfos {
 		if err := b.addContext(container, ci.origPath, ci.destPath, ci.decompress); err != nil {
@@ -249,7 +250,7 @@ func (b *builder) runContextCommand(args []string, allowRemote bool, allowDecomp
 		}
 	}
 
-	if err := b.commit(container.ID, cmd, fmt.Sprintf("%s %s in %s", cmdName, origPaths, dest)); err != nil {
+	if err := b.commit(ctx, container.ID, cmd, fmt.Sprintf("%s %s in %s", cmdName, origPaths, dest)); err != nil {
 		return err
 	}
 	return nil
@@ -484,7 +485,7 @@ func containsWildcards(name string) bool {
 	return false
 }
 
-func (b *builder) pullImage(name string) (*image.Image, error) {
+func (b *builder) pullImage(ctx context.Context, name string) (*image.Image, error) {
 	remote, tag := parsers.ParseRepositoryTag(name)
 	if tag == "" {
 		tag = "latest"
@@ -510,11 +511,11 @@ func (b *builder) pullImage(name string) (*image.Image, error) {
 		OutStream:  ioutils.NopWriteCloser(b.OutOld),
 	}
 
-	if err := b.Daemon.Repositories().Pull(remote, tag, imagePullConfig); err != nil {
+	if err := b.Daemon.Repositories(ctx).Pull(ctx, remote, tag, imagePullConfig); err != nil {
 		return nil, err
 	}
 
-	image, err := b.Daemon.Repositories().LookupImage(name)
+	image, err := b.Daemon.Repositories(ctx).LookupImage(name)
 	if err != nil {
 		return nil, err
 	}
@@ -522,7 +523,7 @@ func (b *builder) pullImage(name string) (*image.Image, error) {
 	return image, nil
 }
 
-func (b *builder) processImageFrom(img *image.Image) error {
+func (b *builder) processImageFrom(ctx context.Context, img *image.Image) error {
 	b.image = img.ID
 
 	if img.Config != nil {
@@ -562,7 +563,7 @@ func (b *builder) processImageFrom(img *image.Image) error {
 				return fmt.Errorf("%s isn't allowed as an ONBUILD trigger", n.Value)
 			}
 
-			if err := b.dispatch(i, n); err != nil {
+			if err := b.dispatch(ctx, i, n); err != nil {
 				return err
 			}
 		}
@@ -576,12 +577,12 @@ func (b *builder) processImageFrom(img *image.Image) error {
 // in the current server `b.Daemon`. If an image is found, probeCache returns
 // `(true, nil)`. If no image is found, it returns `(false, nil)`. If there
 // is any error, it returns `(false, err)`.
-func (b *builder) probeCache() (bool, error) {
+func (b *builder) probeCache(ctx context.Context) (bool, error) {
 	if !b.UtilizeCache || b.cacheBusted {
 		return false, nil
 	}
 
-	cache, err := b.Daemon.ImageGetCached(b.image, b.Config)
+	cache, err := b.Daemon.ImageGetCached(ctx, b.image, b.Config)
 	if err != nil {
 		return false, err
 	}
@@ -594,12 +595,12 @@ func (b *builder) probeCache() (bool, error) {
 	fmt.Fprintf(b.OutStream, " ---> Using cache\n")
 	logrus.Debugf("[BUILDER] Use cached version")
 	b.image = cache.ID
-	b.Daemon.Graph().Retain(b.id, cache.ID)
+	b.Daemon.Graph(ctx).Retain(b.id, cache.ID)
 	b.activeImages = append(b.activeImages, cache.ID)
 	return true, nil
 }
 
-func (b *builder) create() (*daemon.Container, error) {
+func (b *builder) create(ctx context.Context) (*daemon.Container, error) {
 	if b.image == "" && !b.noBaseImage {
 		return nil, fmt.Errorf("Please provide a source image with `from` prior to run")
 	}
@@ -620,7 +621,7 @@ func (b *builder) create() (*daemon.Container, error) {
 	config := *b.Config
 
 	// Create the container
-	c, warnings, err := b.Daemon.ContainerCreate("", b.Config, hostConfig, true)
+	c, warnings, err := b.Daemon.ContainerCreate(ctx, "", b.Config, hostConfig, true)
 	if err != nil {
 		return nil, err
 	}
@@ -643,14 +644,14 @@ func (b *builder) create() (*daemon.Container, error) {
 	return c, nil
 }
 
-func (b *builder) run(c *daemon.Container) error {
+func (b *builder) run(ctx context.Context, c *daemon.Container) error {
 	var errCh chan error
 	if b.Verbose {
 		errCh = c.Attach(nil, b.OutStream, b.ErrStream)
 	}
 
 	//start the container
-	if err := c.Start(); err != nil {
+	if err := c.Start(ctx); err != nil {
 		return err
 	}
 
@@ -660,7 +661,7 @@ func (b *builder) run(c *daemon.Container) error {
 		select {
 		case <-b.cancelled:
 			logrus.Debugln("Build cancelled, killing container:", c.ID)
-			c.Kill()
+			c.Kill(ctx)
 		case <-finished:
 		}
 	}()
@@ -791,13 +792,13 @@ func copyAsDirectory(source, destination string, destExisted bool) error {
 	return fixPermissions(source, destination, 0, 0, destExisted)
 }
 
-func (b *builder) clearTmp() {
+func (b *builder) clearTmp(ctx context.Context) {
 	for c := range b.TmpContainers {
 		rmConfig := &daemon.ContainerRmConfig{
 			ForceRemove:  true,
 			RemoveVolume: true,
 		}
-		if err := b.Daemon.ContainerRm(c, rmConfig); err != nil {
+		if err := b.Daemon.ContainerRm(ctx, c, rmConfig); err != nil {
 			fmt.Fprintf(b.OutStream, "Error removing intermediate container %s: %v\n", stringid.TruncateID(c), err)
 			return
 		}

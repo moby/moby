@@ -5,6 +5,7 @@ package daemon
 import (
 	"strings"
 
+	"github.com/docker/docker/context"
 	"github.com/docker/docker/daemon/execdriver"
 	derr "github.com/docker/docker/errors"
 )
@@ -25,7 +26,7 @@ func killProcessDirectly(container *Container) error {
 	return nil
 }
 
-func (container *Container) setupLinkedContainers() ([]string, error) {
+func (container *Container) setupLinkedContainers(ctx context.Context) ([]string, error) {
 	return nil, nil
 }
 
@@ -34,7 +35,7 @@ func (container *Container) createDaemonEnvironment(linkedEnv []string) []string
 	return container.Config.Env
 }
 
-func (container *Container) initializeNetworking() error {
+func (container *Container) initializeNetworking(ctx context.Context) error {
 	return nil
 }
 
@@ -42,7 +43,7 @@ func (container *Container) setupWorkingDirectory() error {
 	return nil
 }
 
-func populateCommand(c *Container, env []string) error {
+func populateCommand(ctx context.Context, c *Container, env []string) error {
 	en := &execdriver.Network{
 		Interface: nil,
 	}
@@ -135,7 +136,7 @@ func populateCommand(c *Container, env []string) error {
 }
 
 // GetSize returns real size & virtual size
-func (container *Container) getSize() (int64, int64) {
+func (container *Container) getSize(ctx context.Context) (int64, int64) {
 	// TODO Windows
 	return 0, 0
 }
@@ -150,7 +151,7 @@ func (container *Container) allocateNetwork() error {
 	return nil
 }
 
-func (container *Container) updateNetwork() error {
+func (container *Container) updateNetwork(ctx context.Context) error {
 	return nil
 }
 

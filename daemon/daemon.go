@@ -20,6 +20,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api"
+	"github.com/docker/docker/context"
 	"github.com/docker/docker/daemon/events"
 	"github.com/docker/docker/daemon/execdriver"
 	"github.com/docker/docker/daemon/execdriver/execdrivers"
@@ -127,14 +128,14 @@ type Daemon struct {
 //  - A partial container ID prefix (e.g. short ID) of any length that is
 //    unique enough to only return a single container object
 //  If none of these searches succeed, an error is returned
-func (daemon *Daemon) Get(prefixOrName string) (*Container, error) {
+func (daemon *Daemon) Get(ctx context.Context, prefixOrName string) (*Container, error) {
 	if containerByID := daemon.containers.Get(prefixOrName); containerByID != nil {
 		// prefix is an exact match to a full container ID
 		return containerByID, nil
 	}
 
 	// GetByName will match only an exact name provided; we ignore errors
-	if containerByName, _ := daemon.GetByName(prefixOrName); containerByName != nil {
+	if containerByName, _ := daemon.GetByName(ctx, prefixOrName); containerByName != nil {
 		// prefix is an exact match to a full container Name
 		return containerByName, nil
 	}
@@ -152,8 +153,8 @@ func (daemon *Daemon) Get(prefixOrName string) (*Container, error) {
 
 // Exists returns a true if a container of the specified ID or name exists,
 // false otherwise.
-func (daemon *Daemon) Exists(id string) bool {
-	c, _ := daemon.Get(id)
+func (daemon *Daemon) Exists(ctx context.Context, id string) bool {
+	c, _ := daemon.Get(ctx, id)
 	return c != nil
 }
 
@@ -178,8 +179,8 @@ func (daemon *Daemon) load(id string) (*Container, error) {
 }
 
 // Register makes a container object usable by the daemon as <container.ID>
-func (daemon *Daemon) Register(container *Container) error {
-	if container.daemon != nil || daemon.Exists(container.ID) {
+func (daemon *Daemon) Register(ctx context.Context, container *Container) error {
+	if container.daemon != nil || daemon.Exists(ctx, container.ID) {
 		return fmt.Errorf("Container is already loaded")
 	}
 	if err := validateID(container.ID); err != nil {
@@ -217,10 +218,7 @@ func (daemon *Daemon) Register(container *Container) error {
 		}
 		daemon.execDriver.Terminate(cmd)
 
-		if err := container.unmountIpcMounts(); err != nil {
-			logrus.Errorf("%s: Failed to umount ipc filesystems: %v", container.ID, err)
-		}
-		if err := container.Unmount(); err != nil {
+		if err := container.Unmount(ctx); err != nil {
 			logrus.Debugf("unmount error %s", err)
 		}
 		if err := container.toDiskLocking(); err != nil {
@@ -254,7 +252,7 @@ func (daemon *Daemon) ensureName(container *Container) error {
 	return nil
 }
 
-func (daemon *Daemon) restore() error {
+func (daemon *Daemon) restore(ctx context.Context) error {
 	type cr struct {
 		container  *Container
 		registered bool
@@ -324,7 +322,7 @@ func (daemon *Daemon) restore() error {
 				}
 			}
 
-			if err := daemon.Register(container); err != nil {
+			if err := daemon.Register(ctx, container); err != nil {
 				logrus.Errorf("Failed to register container %s: %s", container.ID, err)
 				// The container register failed should not be started.
 				return
@@ -335,7 +333,7 @@ func (daemon *Daemon) restore() error {
 			if daemon.configStore.AutoRestart && container.shouldRestart() {
 				logrus.Debugf("Starting container %s", container.ID)
 
-				if err := container.Start(); err != nil {
+				if err := container.Start(ctx); err != nil {
 					logrus.Errorf("Failed to start container %s: %s", container.ID, err)
 				}
 			}
@@ -365,7 +363,7 @@ func (daemon *Daemon) mergeAndVerifyConfig(config *runconfig.Config, img *image.
 	return nil
 }
 
-func (daemon *Daemon) generateIDAndName(name string) (string, string, error) {
+func (daemon *Daemon) generateIDAndName(ctx context.Context, name string) (string, string, error) {
 	var (
 		err error
 		id  = stringid.GenerateNonCryptoID()
@@ -378,14 +376,14 @@ func (daemon *Daemon) generateIDAndName(name string) (string, string, error) {
 		return id, name, nil
 	}
 
-	if name, err = daemon.reserveName(id, name); err != nil {
+	if name, err = daemon.reserveName(ctx, id, name); err != nil {
 		return "", "", err
 	}
 
 	return id, name, nil
 }
 
-func (daemon *Daemon) reserveName(id, name string) (string, error) {
+func (daemon *Daemon) reserveName(ctx context.Context, id, name string) (string, error) {
 	if !validContainerNamePattern.MatchString(name) {
 		return "", fmt.Errorf("Invalid container name (%s), only %s are allowed", name, validContainerNameChars)
 	}
@@ -399,7 +397,7 @@ func (daemon *Daemon) reserveName(id, name string) (string, error) {
 			return "", err
 		}
 
-		conflictingContainer, err := daemon.GetByName(name)
+		conflictingContainer, err := daemon.GetByName(ctx, name)
 		if err != nil {
 			if strings.Contains(err.Error(), "Could not find entity") {
 				return "", err
@@ -469,12 +467,12 @@ func (daemon *Daemon) getEntrypointAndArgs(configEntrypoint *stringutils.StrSlic
 	return entrypoint, args
 }
 
-func (daemon *Daemon) newContainer(name string, config *runconfig.Config, imgID string) (*Container, error) {
+func (daemon *Daemon) newContainer(ctx context.Context, name string, config *runconfig.Config, imgID string) (*Container, error) {
 	var (
 		id  string
 		err error
 	)
-	id, name, err = daemon.generateIDAndName(name)
+	id, name, err = daemon.generateIDAndName(ctx, name)
 	if err != nil {
 		return nil, err
 	}
@@ -511,7 +509,7 @@ func GetFullContainerName(name string) (string, error) {
 }
 
 // GetByName returns a container given a name.
-func (daemon *Daemon) GetByName(name string) (*Container, error) {
+func (daemon *Daemon) GetByName(ctx context.Context, name string) (*Container, error) {
 	fullName, err := GetFullContainerName(name)
 	if err != nil {
 		return nil, err
@@ -530,7 +528,7 @@ func (daemon *Daemon) GetByName(name string) (*Container, error) {
 // children returns all child containers of the container with the
 // given name. The containers are returned as a map from the container
 // name to a pointer to Container.
-func (daemon *Daemon) children(name string) (map[string]*Container, error) {
+func (daemon *Daemon) children(ctx context.Context, name string) (map[string]*Container, error) {
 	name, err := GetFullContainerName(name)
 	if err != nil {
 		return nil, err
@@ -538,7 +536,7 @@ func (daemon *Daemon) children(name string) (map[string]*Container, error) {
 	children := make(map[string]*Container)
 
 	err = daemon.containerGraphDB.Walk(name, func(p string, e *graphdb.Entity) error {
-		c, err := daemon.Get(e.ID())
+		c, err := daemon.Get(ctx, e.ID())
 		if err != nil {
 			return err
 		}
@@ -574,7 +572,7 @@ func (daemon *Daemon) registerLink(parent, child *Container, alias string) error
 
 // NewDaemon sets up everything for the daemon to be able to service
 // requests from the webserver.
-func NewDaemon(config *Config, registryService *registry.Service) (daemon *Daemon, err error) {
+func NewDaemon(ctx context.Context, config *Config, registryService *registry.Service) (daemon *Daemon, err error) {
 	setDefaultMtu(config)
 
 	// Ensure we have compatible configuration options
@@ -642,7 +640,7 @@ func NewDaemon(config *Config, registryService *registry.Service) (daemon *Daemo
 	// Ensure the graph driver is shutdown at a later point
 	defer func() {
 		if err != nil {
-			if err := d.Shutdown(); err != nil {
+			if err := d.Shutdown(ctx); err != nil {
 				logrus.Error(err)
 			}
 		}
@@ -776,7 +774,7 @@ func NewDaemon(config *Config, registryService *registry.Service) (daemon *Daemo
 
 	go d.execCommandGC()
 
-	if err := d.restore(); err != nil {
+	if err := d.restore(ctx); err != nil {
 		return nil, err
 	}
 
@@ -784,12 +782,12 @@ func NewDaemon(config *Config, registryService *registry.Service) (daemon *Daemo
 }
 
 // Shutdown stops the daemon.
-func (daemon *Daemon) Shutdown() error {
+func (daemon *Daemon) Shutdown(ctx context.Context) error {
 	daemon.shutdown = true
 	if daemon.containers != nil {
 		group := sync.WaitGroup{}
 		logrus.Debug("starting clean shutdown of all containers...")
-		for _, container := range daemon.List() {
+		for _, container := range daemon.List(ctx) {
 			c := container
 			if c.IsRunning() {
 				logrus.Debugf("stopping %s", c.ID)
@@ -812,7 +810,7 @@ func (daemon *Daemon) Shutdown() error {
 							logrus.Debugf("sending SIGTERM to container %s with error: %v", c.ID, err)
 							return
 						}
-						if err := c.unpause(); err != nil {
+						if err := c.unpause(ctx); err != nil {
 							logrus.Debugf("Failed to unpause container %s with error: %v", c.ID, err)
 							return
 						}
@@ -827,7 +825,7 @@ func (daemon *Daemon) Shutdown() error {
 						}
 					} else {
 						// If container failed to exit in 10 seconds of SIGTERM, then using the force
-						if err := c.Stop(10); err != nil {
+						if err := c.Stop(ctx, 10); err != nil {
 							logrus.Errorf("Stop container %s with error: %v", c.ID, err)
 						}
 					}
@@ -865,7 +863,7 @@ func (daemon *Daemon) Shutdown() error {
 
 // Mount sets container.basefs
 // (is it not set coming in? why is it unset?)
-func (daemon *Daemon) Mount(container *Container) error {
+func (daemon *Daemon) Mount(ctx context.Context, container *Container) error {
 	dir, err := daemon.driver.Get(container.ID, container.getMountLabel())
 	if err != nil {
 		return fmt.Errorf("Error getting container %s from driver %s: %s", container.ID, daemon.driver, err)
@@ -890,14 +888,14 @@ func (daemon *Daemon) unmount(container *Container) error {
 	return nil
 }
 
-func (daemon *Daemon) run(c *Container, pipes *execdriver.Pipes, startCallback execdriver.DriverCallback) (execdriver.ExitStatus, error) {
+func (daemon *Daemon) run(ctx context.Context, c *Container, pipes *execdriver.Pipes, startCallback execdriver.DriverCallback) (execdriver.ExitStatus, error) {
 	hooks := execdriver.Hooks{
 		Start: startCallback,
 	}
-	hooks.PreStart = append(hooks.PreStart, func(processConfig *execdriver.ProcessConfig, pid int, chOOM <-chan struct{}) error {
+	hooks.PreStart = append(hooks.PreStart, func(ctx context.Context, processConfig *execdriver.ProcessConfig, pid int, chOOM <-chan struct{}) error {
 		return c.setNetworkNamespaceKey(pid)
 	})
-	return daemon.execDriver.Run(c.command, pipes, hooks)
+	return daemon.execDriver.Run(ctx, c.command, pipes, hooks)
 }
 
 func (daemon *Daemon) kill(c *Container, sig int) error {
@@ -964,12 +962,12 @@ func (daemon *Daemon) createRootfs(container *Container) error {
 // which need direct access to daemon.graph.
 // Once the tests switch to using engine and jobs, this method
 // can go away.
-func (daemon *Daemon) Graph() *graph.Graph {
+func (daemon *Daemon) Graph(ctx context.Context) *graph.Graph {
 	return daemon.graph
 }
 
 // Repositories returns all repositories.
-func (daemon *Daemon) Repositories() *graph.TagStore {
+func (daemon *Daemon) Repositories(ctx context.Context) *graph.TagStore {
 	return daemon.repositories
 }
 
@@ -983,13 +981,13 @@ func (daemon *Daemon) systemInitPath() string {
 
 // GraphDriver returns the currently used driver for processing
 // container layers.
-func (daemon *Daemon) GraphDriver() graphdriver.Driver {
+func (daemon *Daemon) GraphDriver(ctx context.Context) graphdriver.Driver {
 	return daemon.driver
 }
 
 // ExecutionDriver returns the currently used driver for creating and
 // starting execs in a container.
-func (daemon *Daemon) ExecutionDriver() execdriver.Driver {
+func (daemon *Daemon) ExecutionDriver(ctx context.Context) execdriver.Driver {
 	return daemon.execDriver
 }
 
@@ -1001,9 +999,9 @@ func (daemon *Daemon) containerGraph() *graphdb.Database {
 // of the image with imgID, that had the same config when it was
 // created. nil is returned if a child cannot be found. An error is
 // returned if the parent image cannot be found.
-func (daemon *Daemon) ImageGetCached(imgID string, config *runconfig.Config) (*image.Image, error) {
+func (daemon *Daemon) ImageGetCached(ctx context.Context, imgID string, config *runconfig.Config) (*image.Image, error) {
 	// Retrieve all images
-	images := daemon.Graph().Map()
+	images := daemon.Graph(ctx).Map()
 
 	// Store the tree in a map of map (map[parentId][childId])
 	imageMap := make(map[string]map[string]struct{})
@@ -1039,7 +1037,7 @@ func tempDir(rootDir string) (string, error) {
 	return tmpDir, system.MkdirAll(tmpDir, 0700)
 }
 
-func (daemon *Daemon) setHostConfig(container *Container, hostConfig *runconfig.HostConfig) error {
+func (daemon *Daemon) setHostConfig(ctx context.Context, container *Container, hostConfig *runconfig.HostConfig) error {
 	container.Lock()
 	if err := parseSecurityOpt(container, hostConfig); err != nil {
 		container.Unlock()
@@ -1049,14 +1047,14 @@ func (daemon *Daemon) setHostConfig(container *Container, hostConfig *runconfig.
 
 	// Do not lock while creating volumes since this could be calling out to external plugins
 	// Don't want to block other actions, like `docker ps` because we're waiting on an external plugin
-	if err := daemon.registerMountPoints(container, hostConfig); err != nil {
+	if err := daemon.registerMountPoints(ctx, container, hostConfig); err != nil {
 		return err
 	}
 
 	container.Lock()
 	defer container.Unlock()
 	// Register any links from the host config before starting the container
-	if err := daemon.registerLinks(container, hostConfig); err != nil {
+	if err := daemon.registerLinks(ctx, container, hostConfig); err != nil {
 		return err
 	}
 
@@ -1094,7 +1092,7 @@ func getDefaultRouteMtu() (int, error) {
 
 // verifyContainerSettings performs validation of the hostconfig and config
 // structures.
-func (daemon *Daemon) verifyContainerSettings(hostConfig *runconfig.HostConfig, config *runconfig.Config) ([]string, error) {
+func (daemon *Daemon) verifyContainerSettings(ctx context.Context, hostConfig *runconfig.HostConfig, config *runconfig.Config) ([]string, error) {
 
 	// First perform verification of settings common across all platforms.
 	if config != nil {
@@ -1131,7 +1129,7 @@ func (daemon *Daemon) verifyContainerSettings(hostConfig *runconfig.HostConfig, 
 	}
 
 	// Now do platform-specific verification
-	return verifyPlatformContainerSettings(daemon, hostConfig, config)
+	return verifyPlatformContainerSettings(ctx, daemon, hostConfig, config)
 }
 
 func configureVolumes(config *Config) (*store.VolumeStore, error) {

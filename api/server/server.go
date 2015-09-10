@@ -18,6 +18,7 @@ import (
 	"github.com/docker/docker/context"
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/pkg/sockets"
+	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/utils"
 )
 
@@ -41,12 +42,12 @@ type Server struct {
 }
 
 // New returns a new instance of the server based on the specified configuration.
-func New(cfg *Config) *Server {
+func New(ctx context.Context, cfg *Config) *Server {
 	srv := &Server{
 		cfg:   cfg,
 		start: make(chan struct{}),
 	}
-	srv.router = createRouter(srv)
+	srv.router = createRouter(ctx, srv)
 	return srv
 }
 
@@ -290,7 +291,7 @@ func (s *Server) initTCPSocket(addr string) (l net.Listener, err error) {
 	return
 }
 
-func (s *Server) makeHTTPHandler(localMethod string, localRoute string, localHandler HTTPAPIFunc) http.HandlerFunc {
+func (s *Server) makeHTTPHandler(ctx context.Context, localMethod string, localRoute string, localHandler HTTPAPIFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// log the handler generation
 		logrus.Debugf("Calling %s %s", localMethod, localRoute)
@@ -302,7 +303,8 @@ func (s *Server) makeHTTPHandler(localMethod string, localRoute string, localHan
 		// apply to all requests. Data that is specific to the
 		// immediate function being called should still be passed
 		// as 'args' on the function call.
-		ctx := context.Background()
+		reqID := stringid.TruncateID(stringid.GenerateNonCryptoID())
+		ctx = context.WithValue(ctx, context.RequestID, reqID)
 		handlerFunc := s.handleWithGlobalMiddlewares(localHandler)
 
 		if err := handlerFunc(ctx, w, r, mux.Vars(r)); err != nil {
@@ -314,7 +316,7 @@ func (s *Server) makeHTTPHandler(localMethod string, localRoute string, localHan
 
 // createRouter initializes the main router the server uses.
 // we keep enableCors just for legacy usage, need to be removed in the future
-func createRouter(s *Server) *mux.Router {
+func createRouter(ctx context.Context, s *Server) *mux.Router {
 	r := mux.NewRouter()
 	if os.Getenv("DEBUG") != "" {
 		profilerSetup(r, "/debug/")
@@ -394,7 +396,7 @@ func createRouter(s *Server) *mux.Router {
 			localMethod := method
 
 			// build the handler function
-			f := s.makeHTTPHandler(localMethod, localRoute, localFct)
+			f := s.makeHTTPHandler(ctx, localMethod, localRoute, localFct)
 
 			// add the new route
 			if localRoute == "" {

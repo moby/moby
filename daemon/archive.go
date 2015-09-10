@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/context"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/chrootarchive"
 	"github.com/docker/docker/pkg/ioutils"
@@ -20,8 +21,8 @@ var ErrExtractPointNotDirectory = errors.New("extraction point is not a director
 
 // ContainerCopy performs a deprecated operation of archiving the resource at
 // the specified path in the conatiner identified by the given name.
-func (daemon *Daemon) ContainerCopy(name string, res string) (io.ReadCloser, error) {
-	container, err := daemon.Get(name)
+func (daemon *Daemon) ContainerCopy(ctx context.Context, name string, res string) (io.ReadCloser, error) {
+	container, err := daemon.Get(ctx, name)
 	if err != nil {
 		return nil, err
 	}
@@ -30,30 +31,30 @@ func (daemon *Daemon) ContainerCopy(name string, res string) (io.ReadCloser, err
 		res = res[1:]
 	}
 
-	return container.copy(res)
+	return container.copy(ctx, res)
 }
 
 // ContainerStatPath stats the filesystem resource at the specified path in the
 // container identified by the given name.
-func (daemon *Daemon) ContainerStatPath(name string, path string) (stat *types.ContainerPathStat, err error) {
-	container, err := daemon.Get(name)
+func (daemon *Daemon) ContainerStatPath(ctx context.Context, name string, path string) (stat *types.ContainerPathStat, err error) {
+	container, err := daemon.Get(ctx, name)
 	if err != nil {
 		return nil, err
 	}
 
-	return container.StatPath(path)
+	return container.StatPath(ctx, path)
 }
 
 // ContainerArchivePath creates an archive of the filesystem resource at the
 // specified path in the container identified by the given name. Returns a
 // tar archive of the resource and whether it was a directory or a single file.
-func (daemon *Daemon) ContainerArchivePath(name string, path string) (content io.ReadCloser, stat *types.ContainerPathStat, err error) {
-	container, err := daemon.Get(name)
+func (daemon *Daemon) ContainerArchivePath(ctx context.Context, name string, path string) (content io.ReadCloser, stat *types.ContainerPathStat, err error) {
+	container, err := daemon.Get(ctx, name)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	return container.ArchivePath(path)
+	return container.ArchivePath(ctx, path)
 }
 
 // ContainerExtractToDir extracts the given archive to the specified location
@@ -62,13 +63,13 @@ func (daemon *Daemon) ContainerArchivePath(name string, path string) (content io
 // be ErrExtractPointNotDirectory. If noOverwriteDirNonDir is true then it will
 // be an error if unpacking the given content would cause an existing directory
 // to be replaced with a non-directory and vice versa.
-func (daemon *Daemon) ContainerExtractToDir(name, path string, noOverwriteDirNonDir bool, content io.Reader) error {
-	container, err := daemon.Get(name)
+func (daemon *Daemon) ContainerExtractToDir(ctx context.Context, name, path string, noOverwriteDirNonDir bool, content io.Reader) error {
+	container, err := daemon.Get(ctx, name)
 	if err != nil {
 		return err
 	}
 
-	return container.ExtractToDir(path, noOverwriteDirNonDir, content)
+	return container.ExtractToDir(ctx, path, noOverwriteDirNonDir, content)
 }
 
 // resolvePath resolves the given path in the container to a resource on the
@@ -133,14 +134,14 @@ func (container *Container) statPath(resolvedPath, absPath string) (stat *types.
 
 // StatPath stats the filesystem resource at the specified path in this
 // container. Returns stat info about the resource.
-func (container *Container) StatPath(path string) (stat *types.ContainerPathStat, err error) {
+func (container *Container) StatPath(ctx context.Context, path string) (stat *types.ContainerPathStat, err error) {
 	container.Lock()
 	defer container.Unlock()
 
-	if err = container.Mount(); err != nil {
+	if err = container.Mount(ctx); err != nil {
 		return nil, err
 	}
-	defer container.Unmount()
+	defer container.Unmount(ctx)
 
 	err = container.mountVolumes()
 	defer container.unmountVolumes(true)
@@ -159,7 +160,7 @@ func (container *Container) StatPath(path string) (stat *types.ContainerPathStat
 // ArchivePath creates an archive of the filesystem resource at the specified
 // path in this container. Returns a tar archive of the resource and stat info
 // about the resource.
-func (container *Container) ArchivePath(path string) (content io.ReadCloser, stat *types.ContainerPathStat, err error) {
+func (container *Container) ArchivePath(ctx context.Context, path string) (content io.ReadCloser, stat *types.ContainerPathStat, err error) {
 	container.Lock()
 
 	defer func() {
@@ -171,7 +172,7 @@ func (container *Container) ArchivePath(path string) (content io.ReadCloser, sta
 		}
 	}()
 
-	if err = container.Mount(); err != nil {
+	if err = container.Mount(ctx); err != nil {
 		return nil, nil, err
 	}
 
@@ -180,7 +181,7 @@ func (container *Container) ArchivePath(path string) (content io.ReadCloser, sta
 			// unmount any volumes
 			container.unmountVolumes(true)
 			// unmount the container's rootfs
-			container.Unmount()
+			container.Unmount(ctx)
 		}
 	}()
 
@@ -214,12 +215,12 @@ func (container *Container) ArchivePath(path string) (content io.ReadCloser, sta
 	content = ioutils.NewReadCloserWrapper(data, func() error {
 		err := data.Close()
 		container.unmountVolumes(true)
-		container.Unmount()
+		container.Unmount(ctx)
 		container.Unlock()
 		return err
 	})
 
-	container.logEvent("archive-path")
+	container.logEvent(ctx, "archive-path")
 
 	return content, stat, nil
 }
@@ -230,14 +231,14 @@ func (container *Container) ArchivePath(path string) (content io.ReadCloser, sta
 // noOverwriteDirNonDir is true then it will be an error if unpacking the
 // given content would cause an existing directory to be replaced with a non-
 // directory and vice versa.
-func (container *Container) ExtractToDir(path string, noOverwriteDirNonDir bool, content io.Reader) (err error) {
+func (container *Container) ExtractToDir(ctx context.Context, path string, noOverwriteDirNonDir bool, content io.Reader) (err error) {
 	container.Lock()
 	defer container.Unlock()
 
-	if err = container.Mount(); err != nil {
+	if err = container.Mount(ctx); err != nil {
 		return err
 	}
-	defer container.Unmount()
+	defer container.Unmount(ctx)
 
 	err = container.mountVolumes()
 	defer container.unmountVolumes(true)
@@ -318,7 +319,7 @@ func (container *Container) ExtractToDir(path string, noOverwriteDirNonDir bool,
 		return err
 	}
 
-	container.logEvent("extract-to-dir")
+	container.logEvent(ctx, "extract-to-dir")
 
 	return nil
 }

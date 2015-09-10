@@ -2,5 +2,9 @@
 
 package server
 
-func (s *Server) registerSubRouter() {
+import (
+	"github.com/docker/docker/context"
+)
+
+func (s *Server) registerSubRouter(ctx context.Context) {
 }
