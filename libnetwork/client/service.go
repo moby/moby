@@ -115,7 +115,7 @@ func lookupContainerID(cli *NetworkCli, cnNameID string) (string, error) {
 }
 
 func lookupSandboxID(cli *NetworkCli, containerID string) (string, error) {
-	obj, _, err := readBody(cli.call("GET", fmt.Sprintf("/sandboxes?container-id=%s", containerID), nil, nil))
+	obj, _, err := readBody(cli.call("GET", fmt.Sprintf("/sandboxes?partial-container-id=%s", containerID), nil, nil))
 	if err != nil {
 		return "", err
 	}
