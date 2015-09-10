@@ -52,7 +52,7 @@ type DockerCli struct {
 	outFd uintptr
 	// isTerminalIn indicates whether the client's STDIN is a TTY
 	isTerminalIn bool
-	// isTerminalOut dindicates whether the client's STDOUT is a TTY
+	// isTerminalOut indicates whether the client's STDOUT is a TTY
 	isTerminalOut bool
 	// transport holds the client transport instance.
 	transport *http.Transport
