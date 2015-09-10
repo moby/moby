@@ -81,6 +81,7 @@ This section lists each version from latest to oldest.  Each listing includes a 
 * `GET /volumes/(name)` get low-level information about a volume.
 * `DELETE /volumes/(name)`remove a volume with the specified name.
 * `VolumeDriver` has been moved from config to hostConfig to make the configuration portable.
+* `GET /images/(name)/json` now returns information about tags of the image.
 
 
 ### v1.20 API changes

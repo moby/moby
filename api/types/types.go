@@ -96,6 +96,7 @@ type GraphDriverData struct {
 // GET "/images/{name:.*}/json"
 type ImageInspect struct {
 	ID              string `json:"Id"`
+	Tags            []string
 	Parent          string
 	Comment         string
 	Created         string
