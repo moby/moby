@@ -77,6 +77,12 @@ func (broadcaster *Broadcaster) receiveWrites(observer io.Writer) {
 
 		broadcaster.Lock()
 
+		// If we are behind, we need to catch up instead of waiting
+		// or handling a closure.
+		if len(broadcaster.history) != n {
+			continue
+		}
+
 		// detect closure of the broadcast writer
 		if broadcaster.closed() {
 			broadcaster.Unlock()
@@ -84,9 +90,7 @@ func (broadcaster *Broadcaster) receiveWrites(observer io.Writer) {
 			return
 		}
 
-		if len(broadcaster.history) == n {
-			broadcaster.cond.Wait()
-		}
+		broadcaster.cond.Wait()
 
 		// Mutex is still locked as the loop continues
 	}
