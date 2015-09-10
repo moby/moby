@@ -414,7 +414,7 @@ func (c *controller) NewSandbox(containerID string, options ...SandboxOption) (S
 		return nil, err
 	}
 
-	if sb.osSbox == nil {
+	if sb.osSbox == nil && !sb.config.useExternalKey {
 		if sb.osSbox, err = osl.NewSandbox(sb.Key(), !sb.config.useDefaultSandBox); err != nil {
 			return nil, fmt.Errorf("failed to create new osl sandbox: %v", err)
 		}

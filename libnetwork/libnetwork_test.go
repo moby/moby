@@ -1188,6 +1188,117 @@ func (f *fakeSandbox) Delete() error {
 	return nil
 }
 
+func (f *fakeSandbox) SetKey(key string) error {
+	return nil
+}
+
+func TestExternalKey(t *testing.T) {
+	if !netutils.IsRunningInContainer() {
+		defer osl.SetupTestOSContext(t)()
+	}
+
+	n, err := createTestNetwork(bridgeNetType, "testnetwork", options.Generic{
+		netlabel.GenericData: options.Generic{
+			"BridgeName":            "testnetwork",
+			"AllowNonDefaultBridge": true,
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if err := n.Delete(); err != nil {
+			t.Fatal(err)
+		}
+	}()
+
+	ep, err := n.CreateEndpoint("ep1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		err = ep.Delete()
+		if err != nil {
+			t.Fatal(err)
+		}
+	}()
+
+	ep2, err := n.CreateEndpoint("ep2")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		err = ep2.Delete()
+		if err != nil {
+			t.Fatal(err)
+		}
+	}()
+
+	cnt, err := controller.NewSandbox(containerID,
+		libnetwork.OptionHostname("test"),
+		libnetwork.OptionDomainname("docker.io"),
+		libnetwork.OptionUseExternalKey(),
+		libnetwork.OptionExtraHost("web", "192.168.0.1"))
+	defer func() {
+		if err := cnt.Delete(); err != nil {
+			t.Fatal(err)
+		}
+	}()
+
+	// Join endpoint to sandbox before SetKey
+	err = ep.Join(cnt)
+	runtime.LockOSThread()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		err = ep.Leave(cnt)
+		runtime.LockOSThread()
+		if err != nil {
+			t.Fatal(err)
+		}
+	}()
+
+	sbox := ep.Info().Sandbox()
+	if sbox == nil {
+		t.Fatalf("Expected to have a valid Sandbox")
+	}
+
+	// Setting an non-existing key (namespace) must fail
+	if err := sbox.SetKey("this-must-fail"); err == nil {
+		t.Fatalf("Setkey must fail if the corresponding namespace is not created")
+	}
+
+	// Create a new OS sandbox using the osl API before using it in SetKey
+	if _, err := osl.NewSandbox("ValidKey", true); err != nil {
+		t.Fatalf("Failed to create new osl sandbox")
+	}
+
+	if err := sbox.SetKey("ValidKey"); err != nil {
+		t.Fatalf("Setkey failed with %v", err)
+	}
+
+	// Join endpoint to sandbox after SetKey
+	err = ep2.Join(sbox)
+	if err != nil {
+		t.Fatal(err)
+	}
+	runtime.LockOSThread()
+	defer func() {
+		err = ep2.Leave(sbox)
+		runtime.LockOSThread()
+		if err != nil {
+			t.Fatal(err)
+		}
+	}()
+
+	if ep.Info().Sandbox().Key() != ep2.Info().Sandbox().Key() {
+		t.Fatalf("ep1 and ep2 returned different container sandbox key")
+	}
+
+	checkSandbox(t, ep.Info())
+}
+
 func TestEndpointDeleteWithActiveContainer(t *testing.T) {
 	if !testutils.IsRunningInContainer() {
 		defer testutils.SetupTestOSContext(t)()
