@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
+	"regexp"
+	"strings"
 
 	"github.com/docker/docker/api/types"
 	Cli "github.com/docker/docker/cli"
@@ -29,8 +31,43 @@ func (cli *DockerCli) CmdRmi(args ...string) error {
 		v.Set("noprune", "1")
 	}
 
+	nameArgs := []string{}
+	images := []types.Image{}
+	wild, _ := regexp.Compile(`([a-zA-Z0-9.-_:]*)(\*(.*))?`)
+	for _, arg := range cmd.Args() {
+		if strings.Contains(arg, "*") {
+			if len(images) == 0 {
+				serverResp, err := cli.call("GET", "/images/json?"+v.Encode(), nil, nil)
+				if err != nil {
+					return err
+				}
+				defer serverResp.body.Close()
+				images = []types.Image{}
+				if err := json.NewDecoder(serverResp.body).Decode(&images); err != nil {
+					return err
+				}
+			}
+			parts := wild.FindStringSubmatch(arg)
+			filterPat, _ := regexp.Compile("^" + regexp.QuoteMeta(parts[1]) + ".*" + regexp.QuoteMeta(parts[3]) + "$")
+			for _, img := range images {
+				found := false
+				for _, t := range img.RepoTags {
+					if filterPat.MatchString(t) {
+						found = true
+						break
+					}
+				}
+				if found {
+					nameArgs = append(nameArgs, img.ID)
+				}
+			}
+		} else {
+			nameArgs = append(nameArgs, arg)
+		}
+	}
+
 	var errNames []string
-	for _, name := range cmd.Args() {
+	for _, name := range nameArgs {
 		serverResp, err := cli.call("DELETE", "/images/"+name+"?"+v.Encode(), nil, nil)
 		if err != nil {
 			fmt.Fprintf(cli.err, "%s\n", err)
