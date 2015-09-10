@@ -509,7 +509,7 @@ func (container *Container) buildSandboxOptions() ([]libnetwork.SandboxOption, e
 	return sboxOptions, nil
 }
 
-func (container *Container) buildPortMapInfo(n libnetwork.Network, ep libnetwork.Endpoint, networkSettings *network.Settings) (*network.Settings, error) {
+func (container *Container) buildPortMapInfo(ep libnetwork.Endpoint, networkSettings *network.Settings) (*network.Settings, error) {
 	if ep == nil {
 		return nil, fmt.Errorf("invalid endpoint while building port map info")
 	}
@@ -565,7 +565,7 @@ func (container *Container) buildPortMapInfo(n libnetwork.Network, ep libnetwork
 	return networkSettings, nil
 }
 
-func (container *Container) buildEndpointInfo(n libnetwork.Network, ep libnetwork.Endpoint, networkSettings *network.Settings) (*network.Settings, error) {
+func (container *Container) buildEndpointInfo(ep libnetwork.Endpoint, networkSettings *network.Settings) (*network.Settings, error) {
 	if ep == nil {
 		return nil, fmt.Errorf("invalid endpoint while building port map info")
 	}
@@ -636,12 +636,12 @@ func (container *Container) updateJoinInfo(ep libnetwork.Endpoint) error {
 func (container *Container) updateEndpointNetworkSettings(n libnetwork.Network, ep libnetwork.Endpoint) error {
 	networkSettings := &network.Settings{NetworkID: n.ID(), EndpointID: ep.ID()}
 
-	networkSettings, err := container.buildPortMapInfo(n, ep, networkSettings)
+	networkSettings, err := container.buildPortMapInfo(ep, networkSettings)
 	if err != nil {
 		return err
 	}
 
-	networkSettings, err = container.buildEndpointInfo(n, ep, networkSettings)
+	networkSettings, err = container.buildEndpointInfo(ep, networkSettings)
 	if err != nil {
 		return err
 	}

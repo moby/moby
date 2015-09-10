@@ -170,13 +170,7 @@ func (daemon *Daemon) load(id string) (*Container, error) {
 }
 
 // Register makes a container object usable by the daemon as <container.ID>
-// This is a wrapper for register
 func (daemon *Daemon) Register(container *Container) error {
-	return daemon.register(container, true)
-}
-
-// register makes a container object usable by the daemon as <container.ID>
-func (daemon *Daemon) register(container *Container, updateSuffixarray bool) error {
 	if container.daemon != nil || daemon.Exists(container.ID) {
 		return fmt.Errorf("Container is already loaded")
 	}
@@ -319,7 +313,7 @@ func (daemon *Daemon) restore() error {
 				}
 			}
 
-			if err := daemon.register(container, false); err != nil {
+			if err := daemon.Register(container); err != nil {
 				logrus.Debugf("Failed to register container %s: %s", container.ID, err)
 			}
 
