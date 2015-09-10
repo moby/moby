@@ -24,9 +24,6 @@ type Broadcaster struct {
 	history [][]byte
 	// wg is a WaitGroup used to wait for all writes to finish on Close
 	wg sync.WaitGroup
-	// isClosed is set to true when Close is called to avoid closing c
-	// multiple times.
-	isClosed bool
 	// result is the argument passed to the first call of Close, and
 	// returned to callers of Wait
 	result error
@@ -141,11 +138,10 @@ func (broadcaster *Broadcaster) Add(w io.Writer) error {
 // argument is a result that should be returned to waiters blocking on Wait.
 func (broadcaster *Broadcaster) CloseWithError(result error) {
 	broadcaster.Lock()
-	if broadcaster.isClosed {
+	if broadcaster.closed() {
 		broadcaster.Unlock()
 		return
 	}
-	broadcaster.isClosed = true
 	broadcaster.result = result
 	close(broadcaster.c)
 	broadcaster.cond.Broadcast()
@@ -161,9 +157,11 @@ func (broadcaster *Broadcaster) Close() {
 	broadcaster.CloseWithError(nil)
 }
 
-// Wait blocks until the operation is marked as completed by the Done method.
-// It returns the argument that was passed to Close.
+// Wait blocks until the operation is marked as completed by the Close method,
+// and all writer goroutines have completed. It returns the argument that was
+// passed to Close.
 func (broadcaster *Broadcaster) Wait() error {
 	<-broadcaster.c
+	broadcaster.wg.Wait()
 	return broadcaster.result
 }
