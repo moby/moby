@@ -87,6 +87,8 @@ func setupMockHTTPCallback() {
 				return nopCloser{bytes.NewBufferString("")}, dummyHTTPHdr, 400, fmt.Errorf("Bad Request")
 			} else if strings.Contains(path, fmt.Sprintf("sandboxes?container-id=%s", mockContainerID)) {
 				rsp = string(mockSbListJSON)
+			} else if strings.Contains(path, fmt.Sprintf("sandboxes?partial-container-id=%s", mockContainerID)) {
+				rsp = string(mockSbListJSON)
 			}
 		case "POST":
 			var data []byte
