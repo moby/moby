@@ -40,7 +40,7 @@ import (
 // ':' character .
 const DefaultPathEnv = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 
-// Container holds the fields specific to unixen implementations. See
+// Container holds the fields specific to the unix implementations. See
 // CommonContainer for standard fields common to all containers.
 type Container struct {
 	CommonContainer
