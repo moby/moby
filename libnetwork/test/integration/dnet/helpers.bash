@@ -1,17 +1,19 @@
 function start_consul() {
+    stop_consul
     docker run -d --name=pr_consul -p 8500:8500 -p 8300-8302:8300-8302/tcp -p 8300-8302:8300-8302/udp -h consul progrium/consul -server -bootstrap
     sleep 2
 }
 
 function stop_consul() {
-    docker stop pr_consul
+    docker stop pr_consul || true
     # You cannot destroy a container in Circle CI. So do not attempt destroy in circleci
     if [ -z "$CIRCLECI" ]; then
-	docker rm pr_consul
+	docker rm -f pr_consul || true
     fi
 }
 
 function start_dnet() {
+    stop_dnet $1
     name="dnet-$1"
     hport=$((41000+${1}-1))
 
@@ -38,11 +40,11 @@ EOF
 
 function stop_dnet() {
     name="dnet-$1"
-    rm -rf /tmp/dnet/${name}
-    docker stop ${name}
+    rm -rf /tmp/dnet/${name} || true
+    docker stop ${name} || true
     # You cannot destroy a container in Circle CI. So do not attempt destroy in circleci
     if [ -z "$CIRCLECI" ]; then
-	docker rm ${name} || true
+	docker rm -f ${name} || true
     fi
 
 }
