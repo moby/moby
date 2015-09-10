@@ -4,17 +4,19 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/docker/docker/pkg/version"
+	"github.com/docker/docker/context"
 )
 
 // getContainersByName inspects containers configuration and serializes it as json.
-func (s *Server) getContainersByName(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (s *Server) getContainersByName(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
 	}
 
 	var json interface{}
 	var err error
+
+	version := ctx.Version()
 
 	switch {
 	case version.LessThan("1.20"):
