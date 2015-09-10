@@ -5,13 +5,14 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/context"
 )
 
 // ContainerInspect returns low-level information about a
 // container. Returns an error if the container cannot be found, or if
 // there is an error getting the data.
-func (daemon *Daemon) ContainerInspect(name string) (*types.ContainerJSON, error) {
-	container, err := daemon.Get(name)
+func (daemon *Daemon) ContainerInspect(ctx context.Context, name string) (*types.ContainerJSON, error) {
+	container, err := daemon.Get(ctx, name)
 	if err != nil {
 		return nil, err
 	}
@@ -19,7 +20,7 @@ func (daemon *Daemon) ContainerInspect(name string) (*types.ContainerJSON, error
 	container.Lock()
 	defer container.Unlock()
 
-	base, err := daemon.getInspectData(container)
+	base, err := daemon.getInspectData(ctx, container)
 	if err != nil {
 		return nil, err
 	}
@@ -30,8 +31,8 @@ func (daemon *Daemon) ContainerInspect(name string) (*types.ContainerJSON, error
 }
 
 // ContainerInspect120 serializes the master version of a container into a json type.
-func (daemon *Daemon) ContainerInspect120(name string) (*types.ContainerJSON120, error) {
-	container, err := daemon.Get(name)
+func (daemon *Daemon) ContainerInspect120(ctx context.Context, name string) (*types.ContainerJSON120, error) {
+	container, err := daemon.Get(ctx, name)
 	if err != nil {
 		return nil, err
 	}
@@ -39,7 +40,7 @@ func (daemon *Daemon) ContainerInspect120(name string) (*types.ContainerJSON120,
 	container.Lock()
 	defer container.Unlock()
 
-	base, err := daemon.getInspectData(container)
+	base, err := daemon.getInspectData(ctx, container)
 	if err != nil {
 		return nil, err
 	}
@@ -53,11 +54,11 @@ func (daemon *Daemon) ContainerInspect120(name string) (*types.ContainerJSON120,
 	return &types.ContainerJSON120{base, mountPoints, config}, nil
 }
 
-func (daemon *Daemon) getInspectData(container *Container) (*types.ContainerJSONBase, error) {
+func (daemon *Daemon) getInspectData(ctx context.Context, container *Container) (*types.ContainerJSONBase, error) {
 	// make a copy to play with
 	hostConfig := *container.hostConfig
 
-	if children, err := daemon.children(container.Name); err == nil {
+	if children, err := daemon.children(ctx, container.Name); err == nil {
 		for linkAlias, child := range children {
 			hostConfig.Links = append(hostConfig.Links, fmt.Sprintf("%s:%s", child.Name, linkAlias))
 		}
@@ -120,7 +121,7 @@ func (daemon *Daemon) getInspectData(container *Container) (*types.ContainerJSON
 
 // ContainerExecInspect returns low-level information about the exec
 // command. An error is returned if the exec cannot be found.
-func (daemon *Daemon) ContainerExecInspect(id string) (*ExecConfig, error) {
+func (daemon *Daemon) ContainerExecInspect(ctx context.Context, id string) (*ExecConfig, error) {
 	eConfig, err := daemon.getExecConfig(id)
 	if err != nil {
 		return nil, err
@@ -130,7 +131,7 @@ func (daemon *Daemon) ContainerExecInspect(id string) (*ExecConfig, error) {
 
 // VolumeInspect looks up a volume by name. An error is returned if
 // the volume cannot be found.
-func (daemon *Daemon) VolumeInspect(name string) (*types.Volume, error) {
+func (daemon *Daemon) VolumeInspect(ctx context.Context, name string) (*types.Volume, error) {
 	v, err := daemon.volumes.Get(name)
 	if err != nil {
 		return nil, err

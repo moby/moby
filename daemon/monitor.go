@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/context"
 	"github.com/docker/docker/daemon/execdriver"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/runconfig"
@@ -84,9 +85,9 @@ func (m *containerMonitor) ExitOnNext() {
 
 // Close closes the container's resources such as networking allocations and
 // unmounts the contatiner's root filesystem
-func (m *containerMonitor) Close() error {
+func (m *containerMonitor) Close(ctx context.Context) error {
 	// Cleanup networking and mounts
-	m.container.cleanup()
+	m.container.cleanup(ctx)
 
 	// FIXME: here is race condition between two RUN instructions in Dockerfile
 	// because they share same runconfig and change image. Must be fixed
@@ -101,7 +102,7 @@ func (m *containerMonitor) Close() error {
 }
 
 // Start starts the containers process and monitors it according to the restart policy
-func (m *containerMonitor) Start() error {
+func (m *containerMonitor) Start(ctx context.Context) error {
 	var (
 		err        error
 		exitStatus execdriver.ExitStatus
@@ -117,7 +118,7 @@ func (m *containerMonitor) Start() error {
 			m.container.setStopped(&exitStatus)
 			defer m.container.Unlock()
 		}
-		m.Close()
+		m.Close(ctx)
 	}()
 	// reset stopped flag
 	if m.container.HasBeenManuallyStopped {
@@ -138,11 +139,11 @@ func (m *containerMonitor) Start() error {
 
 		pipes := execdriver.NewPipes(m.container.stdin, m.container.stdout, m.container.stderr, m.container.Config.OpenStdin)
 
-		m.container.logEvent("start")
+		m.container.logEvent(ctx, "start")
 
 		m.lastStartTime = time.Now()
 
-		if exitStatus, err = m.container.daemon.run(m.container, pipes, m.callback); err != nil {
+		if exitStatus, err = m.container.daemon.run(ctx, m.container, pipes, m.callback); err != nil {
 			// if we receive an internal error from the initial start of a container then lets
 			// return it instead of entering the restart loop
 			if m.container.RestartCount == 0 {
@@ -162,7 +163,7 @@ func (m *containerMonitor) Start() error {
 
 		if m.shouldRestart(exitStatus.ExitCode) {
 			m.container.setRestarting(&exitStatus)
-			m.container.logEvent("die")
+			m.container.logEvent(ctx, "die")
 			m.resetContainer(true)
 
 			// sleep with a small time increment between each restart to help avoid issues cased by quickly
@@ -177,7 +178,7 @@ func (m *containerMonitor) Start() error {
 			continue
 		}
 
-		m.container.logEvent("die")
+		m.container.logEvent(ctx, "die")
 		m.resetContainer(true)
 		return err
 	}
@@ -245,11 +246,11 @@ func (m *containerMonitor) shouldRestart(exitCode int) bool {
 
 // callback ensures that the container's state is properly updated after we
 // received ack from the execution drivers
-func (m *containerMonitor) callback(processConfig *execdriver.ProcessConfig, pid int, chOOM <-chan struct{}) error {
+func (m *containerMonitor) callback(ctx context.Context, processConfig *execdriver.ProcessConfig, pid int, chOOM <-chan struct{}) error {
 	go func() {
 		_, ok := <-chOOM
 		if ok {
-			m.container.logEvent("oom")
+			m.container.logEvent(ctx, "oom")
 		}
 	}()
 

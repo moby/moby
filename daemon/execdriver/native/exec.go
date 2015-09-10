@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"syscall"
 
+	"github.com/docker/docker/context"
 	"github.com/docker/docker/daemon/execdriver"
 	"github.com/opencontainers/runc/libcontainer"
 	// Blank import 'nsenter' so that init in that package will call c
@@ -19,7 +20,7 @@ import (
 
 // Exec implements the exec driver Driver interface,
 // it calls libcontainer APIs to execute a container.
-func (d *Driver) Exec(c *execdriver.Command, processConfig *execdriver.ProcessConfig, pipes *execdriver.Pipes, hooks execdriver.Hooks) (int, error) {
+func (d *Driver) Exec(ctx context.Context, c *execdriver.Command, processConfig *execdriver.ProcessConfig, pipes *execdriver.Pipes, hooks execdriver.Hooks) (int, error) {
 	active := d.activeContainers[c.ID]
 	if active == nil {
 		return -1, fmt.Errorf("No active container exists with ID %s", c.ID)
@@ -57,7 +58,7 @@ func (d *Driver) Exec(c *execdriver.Command, processConfig *execdriver.ProcessCo
 		// non-blocking and return the correct result when read.
 		chOOM := make(chan struct{})
 		close(chOOM)
-		hooks.Start(&c.ProcessConfig, pid, chOOM)
+		hooks.Start(ctx, &c.ProcessConfig, pid, chOOM)
 	}
 
 	ps, err := p.Wait()

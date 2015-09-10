@@ -7,6 +7,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/digest"
 	"github.com/docker/docker/cliconfig"
+	"github.com/docker/docker/context"
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/registry"
 )
@@ -67,7 +68,7 @@ func (s *TagStore) NewPusher(endpoint registry.APIEndpoint, localRepo Repository
 }
 
 // Push initiates a push operation on the repository named localName.
-func (s *TagStore) Push(localName string, imagePushConfig *ImagePushConfig) error {
+func (s *TagStore) Push(ctx context.Context, localName string, imagePushConfig *ImagePushConfig) error {
 	// FIXME: Allow to interrupt current push when new push of same image is done.
 
 	var sf = streamformatter.NewJSONStreamFormatter()
@@ -115,7 +116,7 @@ func (s *TagStore) Push(localName string, imagePushConfig *ImagePushConfig) erro
 
 		}
 
-		s.eventsService.Log("push", repoInfo.LocalName, "")
+		s.eventsService.Log(ctx, "push", repoInfo.LocalName, "")
 		return nil
 	}
 

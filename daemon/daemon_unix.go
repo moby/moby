@@ -13,6 +13,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/autogen/dockerversion"
+	"github.com/docker/docker/context"
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/pkg/fileutils"
 	"github.com/docker/docker/pkg/parsers"
@@ -114,12 +115,12 @@ func (daemon *Daemon) adaptContainerSettings(hostConfig *runconfig.HostConfig, a
 
 // verifyPlatformContainerSettings performs platform-specific validation of the
 // hostconfig and config structures.
-func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *runconfig.HostConfig, config *runconfig.Config) ([]string, error) {
+func verifyPlatformContainerSettings(ctx context.Context, daemon *Daemon, hostConfig *runconfig.HostConfig, config *runconfig.Config) ([]string, error) {
 	warnings := []string{}
 	sysInfo := sysinfo.New(true)
 
-	if hostConfig.LxcConf.Len() > 0 && !strings.Contains(daemon.ExecutionDriver().Name(), "lxc") {
-		return warnings, fmt.Errorf("Cannot use --lxc-conf with execdriver: %s", daemon.ExecutionDriver().Name())
+	if hostConfig.LxcConf.Len() > 0 && !strings.Contains(daemon.ExecutionDriver(ctx).Name(), "lxc") {
+		return warnings, fmt.Errorf("Cannot use --lxc-conf with execdriver: %s", daemon.ExecutionDriver(ctx).Name())
 	}
 
 	// memory subsystem checks and adjustments
@@ -484,12 +485,12 @@ func setupInitLayer(initLayer string) error {
 
 // NetworkAPIRouter implements a feature for server-experimental,
 // directly calling into libnetwork.
-func (daemon *Daemon) NetworkAPIRouter() func(w http.ResponseWriter, req *http.Request) {
+func (daemon *Daemon) NetworkAPIRouter(ctx context.Context) func(w http.ResponseWriter, req *http.Request) {
 	return nwapi.NewHTTPHandler(daemon.netController)
 }
 
 // registerLinks writes the links to a file.
-func (daemon *Daemon) registerLinks(container *Container, hostConfig *runconfig.HostConfig) error {
+func (daemon *Daemon) registerLinks(ctx context.Context, container *Container, hostConfig *runconfig.HostConfig) error {
 	if hostConfig == nil || hostConfig.Links == nil {
 		return nil
 	}
@@ -499,14 +500,14 @@ func (daemon *Daemon) registerLinks(container *Container, hostConfig *runconfig.
 		if err != nil {
 			return err
 		}
-		child, err := daemon.Get(name)
+		child, err := daemon.Get(ctx, name)
 		if err != nil {
 			//An error from daemon.Get() means this name could not be found
 			return fmt.Errorf("Could not get container for %s", name)
 		}
 		for child.hostConfig.NetworkMode.IsContainer() {
 			parts := strings.SplitN(string(child.hostConfig.NetworkMode), ":", 2)
-			child, err = daemon.Get(parts[1])
+			child, err = daemon.Get(ctx, parts[1])
 			if err != nil {
 				return fmt.Errorf("Could not get container for %s", parts[1])
 			}

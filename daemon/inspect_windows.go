@@ -1,6 +1,9 @@
 package daemon
 
-import "github.com/docker/docker/api/types"
+import (
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/context"
+)
 
 // This sets platform-specific fields
 func setPlatformSpecificContainerFields(container *Container, contJSONBase *types.ContainerJSONBase) *types.ContainerJSONBase {
@@ -12,6 +15,6 @@ func addMountPoints(container *Container) []types.MountPoint {
 }
 
 // ContainerInspectPre120 get containers for pre 1.20 APIs.
-func (daemon *Daemon) ContainerInspectPre120(name string) (*types.ContainerJSON, error) {
-	return daemon.ContainerInspect(name)
+func (daemon *Daemon) ContainerInspectPre120(ctx context.Context, name string) (*types.ContainerJSON, error) {
+	return daemon.ContainerInspect(ctx, name)
 }

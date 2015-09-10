@@ -8,6 +8,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/context"
 	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/graphdb"
@@ -20,7 +21,7 @@ type iterationAction int
 
 // containerReducer represents a reducer for a container.
 // Returns the object to serialize by the api.
-type containerReducer func(*Container, *listContext) (*types.Container, error)
+type containerReducer func(context.Context, *Container, *listContext) (*types.Container, error)
 
 const (
 	// includeContainer is the action to include a container in the reducer.
@@ -35,7 +36,7 @@ const (
 var errStopIteration = errors.New("container list iteration stopped")
 
 // List returns an array of all containers registered in the daemon.
-func (daemon *Daemon) List() []*Container {
+func (daemon *Daemon) List(ctx context.Context) []*Container {
 	return daemon.containers.List()
 }
 
@@ -79,21 +80,21 @@ type listContext struct {
 }
 
 // Containers returns the list of containers to show given the user's filtering.
-func (daemon *Daemon) Containers(config *ContainersConfig) ([]*types.Container, error) {
-	return daemon.reduceContainers(config, daemon.transformContainer)
+func (daemon *Daemon) Containers(ctx context.Context, config *ContainersConfig) ([]*types.Container, error) {
+	return daemon.reduceContainers(ctx, config, daemon.transformContainer)
 }
 
 // reduceContainer parses the user filtering and generates the list of containers to return based on a reducer.
-func (daemon *Daemon) reduceContainers(config *ContainersConfig, reducer containerReducer) ([]*types.Container, error) {
+func (daemon *Daemon) reduceContainers(ctx context.Context, config *ContainersConfig, reducer containerReducer) ([]*types.Container, error) {
 	containers := []*types.Container{}
 
-	ctx, err := daemon.foldFilter(config)
+	fctx, err := daemon.foldFilter(ctx, config)
 	if err != nil {
 		return nil, err
 	}
 
-	for _, container := range daemon.List() {
-		t, err := daemon.reducePsContainer(container, ctx, reducer)
+	for _, container := range daemon.List(ctx) {
+		t, err := daemon.reducePsContainer(ctx, container, fctx, reducer)
 		if err != nil {
 			if err != errStopIteration {
 				return nil, err
@@ -102,19 +103,19 @@ func (daemon *Daemon) reduceContainers(config *ContainersConfig, reducer contain
 		}
 		if t != nil {
 			containers = append(containers, t)
-			ctx.idx++
+			fctx.idx++
 		}
 	}
 	return containers, nil
 }
 
 // reducePsContainer is the basic representation for a container as expected by the ps command.
-func (daemon *Daemon) reducePsContainer(container *Container, ctx *listContext, reducer containerReducer) (*types.Container, error) {
+func (daemon *Daemon) reducePsContainer(ctx context.Context, container *Container, lctx *listContext, reducer containerReducer) (*types.Container, error) {
 	container.Lock()
 	defer container.Unlock()
 
 	// filter containers to return
-	action := includeContainerInList(container, ctx)
+	action := includeContainerInList(container, lctx)
 	switch action {
 	case excludeContainer:
 		return nil, nil
@@ -123,11 +124,11 @@ func (daemon *Daemon) reducePsContainer(container *Container, ctx *listContext, 
 	}
 
 	// transform internal container struct into api structs
-	return reducer(container, ctx)
+	return reducer(ctx, container, lctx)
 }
 
 // foldFilter generates the container filter based in the user's filtering options.
-func (daemon *Daemon) foldFilter(config *ContainersConfig) (*listContext, error) {
+func (daemon *Daemon) foldFilter(ctx context.Context, config *ContainersConfig) (*listContext, error) {
 	psFilters, err := filters.FromParam(config.Filters)
 	if err != nil {
 		return nil, err
@@ -159,11 +160,11 @@ func (daemon *Daemon) foldFilter(config *ContainersConfig) (*listContext, error)
 	var ancestorFilter bool
 	if ancestors, ok := psFilters["ancestor"]; ok {
 		ancestorFilter = true
-		byParents := daemon.Graph().ByParent()
+		byParents := daemon.Graph(ctx).ByParent()
 		// The idea is to walk the graph down the most "efficient" way.
 		for _, ancestor := range ancestors {
 			// First, get the imageId of the ancestor filter (yay)
-			image, err := daemon.Repositories().LookupImage(ancestor)
+			image, err := daemon.Repositories(ctx).LookupImage(ancestor)
 			if err != nil {
 				logrus.Warnf("Error while looking up for image %v", ancestor)
 				continue
@@ -185,14 +186,14 @@ func (daemon *Daemon) foldFilter(config *ContainersConfig) (*listContext, error)
 
 	var beforeCont, sinceCont *Container
 	if config.Before != "" {
-		beforeCont, err = daemon.Get(config.Before)
+		beforeCont, err = daemon.Get(ctx, config.Before)
 		if err != nil {
 			return nil, err
 		}
 	}
 
 	if config.Since != "" {
-		sinceCont, err = daemon.Get(config.Since)
+		sinceCont, err = daemon.Get(ctx, config.Since)
 		if err != nil {
 			return nil, err
 		}
@@ -286,13 +287,13 @@ func includeContainerInList(container *Container, ctx *listContext) iterationAct
 }
 
 // transformContainer generates the container type expected by the docker ps command.
-func (daemon *Daemon) transformContainer(container *Container, ctx *listContext) (*types.Container, error) {
+func (daemon *Daemon) transformContainer(ctx context.Context, container *Container, lctx *listContext) (*types.Container, error) {
 	newC := &types.Container{
 		ID:    container.ID,
-		Names: ctx.names[container.ID],
+		Names: lctx.names[container.ID],
 	}
 
-	img, err := daemon.Repositories().LookupImage(container.Config.Image)
+	img, err := daemon.Repositories(ctx).LookupImage(container.Config.Image)
 	if err != nil {
 		// If the image can no longer be found by its original reference,
 		// it makes sense to show the ID instead of a stale reference.
@@ -349,8 +350,8 @@ func (daemon *Daemon) transformContainer(container *Container, ctx *listContext)
 		}
 	}
 
-	if ctx.Size {
-		sizeRw, sizeRootFs := container.getSize()
+	if lctx.Size {
+		sizeRw, sizeRootFs := container.getSize(ctx)
 		newC.SizeRw = sizeRw
 		newC.SizeRootFs = sizeRootFs
 	}
@@ -361,7 +362,7 @@ func (daemon *Daemon) transformContainer(container *Container, ctx *listContext)
 
 // Volumes lists known volumes, using the filter to restrict the range
 // of volumes returned.
-func (daemon *Daemon) Volumes(filter string) ([]*types.Volume, error) {
+func (daemon *Daemon) Volumes(ctx context.Context, filter string) ([]*types.Volume, error) {
 	var volumesOut []*types.Volume
 	volFilters, err := filters.FromParam(filter)
 	if err != nil {
