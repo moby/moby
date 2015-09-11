@@ -285,7 +285,7 @@ func (s *DockerSuite) TestLogsFollowGoroutinesWithStdout(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "while true; do echo hello; sleep 2; done")
 	id := strings.TrimSpace(out)
-	c.Assert(waitRun(id), check.IsNil)
+	c.Assert(waitRun(s, id), check.IsNil)
 
 	type info struct {
 		NGoroutines int
@@ -337,7 +337,7 @@ func (s *DockerSuite) TestLogsFollowGoroutinesNoOutput(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "while true; do sleep 2; done")
 	id := strings.TrimSpace(out)
-	c.Assert(waitRun(id), check.IsNil)
+	c.Assert(waitRun(s, id), check.IsNil)
 
 	type info struct {
 		NGoroutines int

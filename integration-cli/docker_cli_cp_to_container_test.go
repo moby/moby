@@ -24,7 +24,7 @@ import (
 func (s *DockerSuite) TestCpToErrSrcNotExists(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	cID := makeTestContainer(c, testContainerOptions{})
-	defer deleteContainer(cID)
+	defer deleteContainer(s, cID)
 
 	tmpDir := getTestDir(c, "test-cp-to-err-src-not-exists")
 	defer os.RemoveAll(tmpDir)
@@ -47,7 +47,7 @@ func (s *DockerSuite) TestCpToErrSrcNotExists(c *check.C) {
 func (s *DockerSuite) TestCpToErrSrcNotDir(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	cID := makeTestContainer(c, testContainerOptions{})
-	defer deleteContainer(cID)
+	defer deleteContainer(s, cID)
 
 	tmpDir := getTestDir(c, "test-cp-to-err-src-not-dir")
 	defer os.RemoveAll(tmpDir)
@@ -72,7 +72,7 @@ func (s *DockerSuite) TestCpToErrSrcNotDir(c *check.C) {
 func (s *DockerSuite) TestCpToErrDstParentNotExists(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	cID := makeTestContainer(c, testContainerOptions{addContent: true})
-	defer deleteContainer(cID)
+	defer deleteContainer(s, cID)
 
 	tmpDir := getTestDir(c, "test-cp-to-err-dst-parent-not-exists")
 	defer os.RemoveAll(tmpDir)
@@ -110,7 +110,7 @@ func (s *DockerSuite) TestCpToErrDstParentNotExists(c *check.C) {
 func (s *DockerSuite) TestCpToErrDstNotDir(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	cID := makeTestContainer(c, testContainerOptions{addContent: true})
-	defer deleteContainer(cID)
+	defer deleteContainer(s, cID)
 
 	tmpDir := getTestDir(c, "test-cp-to-err-dst-not-dir")
 	defer os.RemoveAll(tmpDir)
@@ -164,7 +164,7 @@ func (s *DockerSuite) TestCpToSymlinkDestination(c *check.C) {
 	cID := makeTestContainer(c, testContainerOptions{
 		volumes: defaultVolumes(testVol), // Our bind mount is at /vol2
 	})
-	defer deleteContainer(cID)
+	defer deleteContainer(s, cID)
 
 	// First, copy a local file to a symlink to a file in the container. This
 	// should overwrite the symlink target contents with the source contents.
@@ -287,7 +287,7 @@ func (s *DockerSuite) TestCpToCaseA(c *check.C) {
 	cID := makeTestContainer(c, testContainerOptions{
 		workDir: "/root", command: makeCatFileCommand("itWorks.txt"),
 	})
-	defer deleteContainer(cID)
+	defer deleteContainer(s, cID)
 
 	tmpDir := getTestDir(c, "test-cp-to-case-a")
 	defer os.RemoveAll(tmpDir)
@@ -314,7 +314,7 @@ func (s *DockerSuite) TestCpToCaseB(c *check.C) {
 	cID := makeTestContainer(c, testContainerOptions{
 		command: makeCatFileCommand("testDir/file1"),
 	})
-	defer deleteContainer(cID)
+	defer deleteContainer(s, cID)
 
 	tmpDir := getTestDir(c, "test-cp-to-case-b")
 	defer os.RemoveAll(tmpDir)
@@ -342,7 +342,7 @@ func (s *DockerSuite) TestCpToCaseC(c *check.C) {
 		addContent: true, workDir: "/root",
 		command: makeCatFileCommand("file2"),
 	})
-	defer deleteContainer(cID)
+	defer deleteContainer(s, cID)
 
 	tmpDir := getTestDir(c, "test-cp-to-case-c")
 	defer os.RemoveAll(tmpDir)
@@ -376,7 +376,7 @@ func (s *DockerSuite) TestCpToCaseD(c *check.C) {
 		addContent: true,
 		command:    makeCatFileCommand("/dir1/file1"),
 	})
-	defer deleteContainer(cID)
+	defer deleteContainer(s, cID)
 
 	tmpDir := getTestDir(c, "test-cp-to-case-d")
 	defer os.RemoveAll(tmpDir)
@@ -407,7 +407,7 @@ func (s *DockerSuite) TestCpToCaseD(c *check.C) {
 		addContent: true,
 		command:    makeCatFileCommand("/dir1/file1"),
 	})
-	defer deleteContainer(cID)
+	defer deleteContainer(s, cID)
 
 	dstDir = containerCpPathTrailingSep(cID, "dir1")
 
@@ -435,7 +435,7 @@ func (s *DockerSuite) TestCpToCaseE(c *check.C) {
 	cID := makeTestContainer(c, testContainerOptions{
 		command: makeCatFileCommand("/testDir/file1-1"),
 	})
-	defer deleteContainer(cID)
+	defer deleteContainer(s, cID)
 
 	tmpDir := getTestDir(c, "test-cp-to-case-e")
 	defer os.RemoveAll(tmpDir)
@@ -460,7 +460,7 @@ func (s *DockerSuite) TestCpToCaseE(c *check.C) {
 	cID = makeTestContainer(c, testContainerOptions{
 		command: makeCatFileCommand("/testDir/file1-1"),
 	})
-	defer deleteContainer(cID)
+	defer deleteContainer(s, cID)
 
 	dstDir = containerCpPathTrailingSep(cID, "testDir")
 
@@ -482,7 +482,7 @@ func (s *DockerSuite) TestCpToCaseF(c *check.C) {
 	cID := makeTestContainer(c, testContainerOptions{
 		addContent: true, workDir: "/root",
 	})
-	defer deleteContainer(cID)
+	defer deleteContainer(s, cID)
 
 	tmpDir := getTestDir(c, "test-cp-to-case-f")
 	defer os.RemoveAll(tmpDir)
@@ -511,7 +511,7 @@ func (s *DockerSuite) TestCpToCaseG(c *check.C) {
 		addContent: true, workDir: "/root",
 		command: makeCatFileCommand("dir2/dir1/file1-1"),
 	})
-	defer deleteContainer(cID)
+	defer deleteContainer(s, cID)
 
 	tmpDir := getTestDir(c, "test-cp-to-case-g")
 	defer os.RemoveAll(tmpDir)
@@ -542,7 +542,7 @@ func (s *DockerSuite) TestCpToCaseG(c *check.C) {
 		addContent: true,
 		command:    makeCatFileCommand("/dir2/dir1/file1-1"),
 	})
-	defer deleteContainer(cID)
+	defer deleteContainer(s, cID)
 
 	dstDir = containerCpPathTrailingSep(cID, "/dir2")
 
@@ -570,7 +570,7 @@ func (s *DockerSuite) TestCpToCaseH(c *check.C) {
 	cID := makeTestContainer(c, testContainerOptions{
 		command: makeCatFileCommand("/testDir/file1-1"),
 	})
-	defer deleteContainer(cID)
+	defer deleteContainer(s, cID)
 
 	tmpDir := getTestDir(c, "test-cp-to-case-h")
 	defer os.RemoveAll(tmpDir)
@@ -595,7 +595,7 @@ func (s *DockerSuite) TestCpToCaseH(c *check.C) {
 	cID = makeTestContainer(c, testContainerOptions{
 		command: makeCatFileCommand("/testDir/file1-1"),
 	})
-	defer deleteContainer(cID)
+	defer deleteContainer(s, cID)
 
 	dstDir = containerCpPathTrailingSep(cID, "testDir")
 
@@ -617,7 +617,7 @@ func (s *DockerSuite) TestCpToCaseI(c *check.C) {
 	cID := makeTestContainer(c, testContainerOptions{
 		addContent: true, workDir: "/root",
 	})
-	defer deleteContainer(cID)
+	defer deleteContainer(s, cID)
 
 	tmpDir := getTestDir(c, "test-cp-to-case-i")
 	defer os.RemoveAll(tmpDir)
@@ -647,7 +647,7 @@ func (s *DockerSuite) TestCpToCaseJ(c *check.C) {
 		addContent: true, workDir: "/root",
 		command: makeCatFileCommand("/dir2/file1-1"),
 	})
-	defer deleteContainer(cID)
+	defer deleteContainer(s, cID)
 
 	tmpDir := getTestDir(c, "test-cp-to-case-j")
 	defer os.RemoveAll(tmpDir)
@@ -677,7 +677,7 @@ func (s *DockerSuite) TestCpToCaseJ(c *check.C) {
 	cID = makeTestContainer(c, testContainerOptions{
 		command: makeCatFileCommand("/dir2/file1-1"),
 	})
-	defer deleteContainer(cID)
+	defer deleteContainer(s, cID)
 
 	dstDir = containerCpPathTrailingSep(cID, "/dir2")
 
@@ -709,7 +709,7 @@ func (s *DockerSuite) TestCpToErrReadOnlyRootfs(c *check.C) {
 		readOnly: true, workDir: "/root",
 		command: makeCatFileCommand("shouldNotExist"),
 	})
-	defer deleteContainer(cID)
+	defer deleteContainer(s, cID)
 
 	srcPath := cpPath(tmpDir, "file1")
 	dstPath := containerCpPath(cID, "/root/shouldNotExist")
@@ -742,7 +742,7 @@ func (s *DockerSuite) TestCpToErrReadOnlyVolume(c *check.C) {
 		volumes: defaultVolumes(tmpDir), workDir: "/root",
 		command: makeCatFileCommand("/vol_ro/shouldNotExist"),
 	})
-	defer deleteContainer(cID)
+	defer deleteContainer(s, cID)
 
 	srcPath := cpPath(tmpDir, "file1")
 	dstPath := containerCpPath(cID, "/vol_ro/shouldNotExist")

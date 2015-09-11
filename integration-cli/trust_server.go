@@ -142,9 +142,9 @@ func trustCmdEnv(cmd *exec.Cmd, server, offlinePwd, taggingPwd string) {
 func (s *DockerTrustSuite) setupTrustedImage(c *check.C, name string) string {
 	repoName := fmt.Sprintf("%v/dockercli/%s:latest", privateRegistryURL, name)
 	// tag the image and upload it to the private registry
-	dockerCmd(c, "tag", "busybox", repoName)
+	s.Cmd(c, "tag", "busybox", repoName)
 
-	pushCmd := exec.Command(dockerBinary, "push", repoName)
+	pushCmd := s.MakeCmd("push", repoName)
 	s.trustedCmd(pushCmd)
 	out, _, err := runCommandWithOutput(pushCmd)
 	if err != nil {
@@ -154,9 +154,7 @@ func (s *DockerTrustSuite) setupTrustedImage(c *check.C, name string) string {
 		c.Fatalf("Missing expected output on trusted push:\n%s", out)
 	}
 
-	if out, status := dockerCmd(c, "rmi", repoName); status != 0 {
-		c.Fatalf("Error removing image %q\n%s", repoName, out)
-	}
+	s.Cmd(c, "rmi", repoName)
 
 	return repoName
 }

@@ -32,7 +32,7 @@ func (s *DockerSuite) TestRestartRunningContainer(c *check.C) {
 
 	cleanedContainerID := strings.TrimSpace(out)
 
-	c.Assert(waitRun(cleanedContainerID), check.IsNil)
+	c.Assert(waitRun(s, cleanedContainerID), check.IsNil)
 
 	out, _ = dockerCmd(c, "logs", cleanedContainerID)
 	if out != "foobar\n" {
@@ -43,7 +43,7 @@ func (s *DockerSuite) TestRestartRunningContainer(c *check.C) {
 
 	out, _ = dockerCmd(c, "logs", cleanedContainerID)
 
-	c.Assert(waitRun(cleanedContainerID), check.IsNil)
+	c.Assert(waitRun(s, cleanedContainerID), check.IsNil)
 
 	if out != "foobar\nfoobar\n" {
 		c.Errorf("container should've printed 'foobar' twice")
@@ -62,7 +62,7 @@ func (s *DockerSuite) TestRestartWithVolumes(c *check.C) {
 		c.Errorf("expect 1 volume received %s", out)
 	}
 
-	source, err := inspectMountSourceField(cleanedContainerID, "/test")
+	source, err := inspectMountSourceField(s, cleanedContainerID, "/test")
 	c.Assert(err, check.IsNil)
 
 	dockerCmd(c, "restart", cleanedContainerID)
@@ -72,7 +72,7 @@ func (s *DockerSuite) TestRestartWithVolumes(c *check.C) {
 		c.Errorf("expect 1 volume after restart received %s", out)
 	}
 
-	sourceAfterRestart, err := inspectMountSourceField(cleanedContainerID, "/test")
+	sourceAfterRestart, err := inspectMountSourceField(s, cleanedContainerID, "/test")
 	c.Assert(err, check.IsNil)
 
 	if source != sourceAfterRestart {
@@ -85,7 +85,7 @@ func (s *DockerSuite) TestRestartPolicyNO(c *check.C) {
 	out, _ := dockerCmd(c, "run", "-d", "--restart=no", "busybox", "false")
 
 	id := strings.TrimSpace(string(out))
-	name, err := inspectField(id, "HostConfig.RestartPolicy.Name")
+	name, err := inspectField(s, id, "HostConfig.RestartPolicy.Name")
 	c.Assert(err, check.IsNil)
 	if name != "no" {
 		c.Fatalf("Container restart policy name is %s, expected %s", name, "no")
@@ -97,13 +97,13 @@ func (s *DockerSuite) TestRestartPolicyAlways(c *check.C) {
 	out, _ := dockerCmd(c, "run", "-d", "--restart=always", "busybox", "false")
 
 	id := strings.TrimSpace(string(out))
-	name, err := inspectField(id, "HostConfig.RestartPolicy.Name")
+	name, err := inspectField(s, id, "HostConfig.RestartPolicy.Name")
 	c.Assert(err, check.IsNil)
 	if name != "always" {
 		c.Fatalf("Container restart policy name is %s, expected %s", name, "always")
 	}
 
-	MaximumRetryCount, err := inspectField(id, "HostConfig.RestartPolicy.MaximumRetryCount")
+	MaximumRetryCount, err := inspectField(s, id, "HostConfig.RestartPolicy.MaximumRetryCount")
 	c.Assert(err, check.IsNil)
 
 	// MaximumRetryCount=0 if the restart policy is always
@@ -117,7 +117,7 @@ func (s *DockerSuite) TestRestartPolicyOnFailure(c *check.C) {
 	out, _ := dockerCmd(c, "run", "-d", "--restart=on-failure:1", "busybox", "false")
 
 	id := strings.TrimSpace(string(out))
-	name, err := inspectField(id, "HostConfig.RestartPolicy.Name")
+	name, err := inspectField(s, id, "HostConfig.RestartPolicy.Name")
 	c.Assert(err, check.IsNil)
 	if name != "on-failure" {
 		c.Fatalf("Container restart policy name is %s, expected %s", name, "on-failure")
@@ -132,15 +132,15 @@ func (s *DockerSuite) TestContainerRestartwithGoodContainer(c *check.C) {
 	out, _ := dockerCmd(c, "run", "-d", "--restart=on-failure:3", "busybox", "true")
 
 	id := strings.TrimSpace(string(out))
-	if err := waitInspect(id, "{{ .State.Restarting }} {{ .State.Running }}", "false false", 5); err != nil {
+	if err := waitInspect(s, id, "{{ .State.Restarting }} {{ .State.Running }}", "false false", 5); err != nil {
 		c.Fatal(err)
 	}
-	count, err := inspectField(id, "RestartCount")
+	count, err := inspectField(s, id, "RestartCount")
 	c.Assert(err, check.IsNil)
 	if count != "0" {
 		c.Fatalf("Container was restarted %s times, expected %d", count, 0)
 	}
-	MaximumRetryCount, err := inspectField(id, "HostConfig.RestartPolicy.MaximumRetryCount")
+	MaximumRetryCount, err := inspectField(s, id, "HostConfig.RestartPolicy.MaximumRetryCount")
 	c.Assert(err, check.IsNil)
 	if MaximumRetryCount != "3" {
 		c.Fatalf("Container Maximum Retry Count is %s, expected %s", MaximumRetryCount, "3")

@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"os/exec"
 	"strings"
 
 	"github.com/go-check/check"
@@ -22,19 +21,18 @@ func (s *DockerRegistrySuite) TestPullImageWithAliases(c *check.C) {
 
 	// Tag and push the same image multiple times.
 	for _, repo := range repos {
-		dockerCmd(c, "tag", "busybox", repo)
-		dockerCmd(c, "push", repo)
+		s.Cmd(c, "tag", "busybox", repo)
+		s.Cmd(c, "push", repo)
 	}
 
 	// Clear local images store.
-	args := append([]string{"rmi"}, repos...)
-	dockerCmd(c, args...)
+	s.Cmd(c, "rmi", repos...)
 
 	// Pull a single tag and verify it doesn't bring down all aliases.
-	dockerCmd(c, "pull", repos[0])
-	dockerCmd(c, "inspect", repos[0])
+	s.Cmd(c, "pull", repos[0])
+	s.Cmd(c, "inspect", repos[0])
 	for _, repo := range repos[1:] {
-		if _, _, err := dockerCmdWithError("inspect", repo); err == nil {
+		if _, err := s.CmdWithError("inspect", repo); err == nil {
 			c.Fatalf("Image %v shouldn't have been pulled down", repo)
 		}
 	}
@@ -47,7 +45,7 @@ func (s *DockerRegistrySuite) TestConcurrentPullWholeRepo(c *check.C) {
 	repos := []string{}
 	for _, tag := range []string{"recent", "fresh", "todays"} {
 		repo := fmt.Sprintf("%v:%v", repoName, tag)
-		_, err := buildImage(repo, fmt.Sprintf(`
+		_, err := buildImage(s, repo, fmt.Sprintf(`
 		    FROM busybox
 		    ENTRYPOINT ["/bin/echo"]
 		    ENV FOO foo
@@ -57,13 +55,12 @@ func (s *DockerRegistrySuite) TestConcurrentPullWholeRepo(c *check.C) {
 		if err != nil {
 			c.Fatal(err)
 		}
-		dockerCmd(c, "push", repo)
+		s.Cmd(c, "push", repo)
 		repos = append(repos, repo)
 	}
 
 	// Clear local images store.
-	args := append([]string{"rmi"}, repos...)
-	dockerCmd(c, args...)
+	s.Cmd(c, "rmi", repos...)
 
 	// Run multiple re-pulls concurrently
 	results := make(chan error)
@@ -71,7 +68,7 @@ func (s *DockerRegistrySuite) TestConcurrentPullWholeRepo(c *check.C) {
 
 	for i := 0; i != numPulls; i++ {
 		go func() {
-			_, _, err := runCommandWithOutput(exec.Command(dockerBinary, "pull", "-a", repoName))
+			_, _, err := runCommandWithOutput(s.MakeCmd("pull", "-a", repoName))
 			results <- err
 		}()
 	}
@@ -85,8 +82,8 @@ func (s *DockerRegistrySuite) TestConcurrentPullWholeRepo(c *check.C) {
 
 	// Ensure all tags were pulled successfully
 	for _, repo := range repos {
-		dockerCmd(c, "inspect", repo)
-		out, _ := dockerCmd(c, "run", "--rm", repo)
+		s.Cmd(c, "inspect", repo)
+		out := s.Cmd(c, "run", "--rm", repo)
 		if strings.TrimSpace(out) != "/bin/sh -c echo "+repo {
 			c.Fatalf("CMD did not contain /bin/sh -c echo %s: %s", repo, out)
 		}
@@ -103,7 +100,7 @@ func (s *DockerRegistrySuite) TestConcurrentFailingPull(c *check.C) {
 
 	for i := 0; i != numPulls; i++ {
 		go func() {
-			_, _, err := runCommandWithOutput(exec.Command(dockerBinary, "pull", repoName+":asdfasdf"))
+			_, _, err := runCommandWithOutput(s.MakeCmd("pull", repoName+":asdfasdf"))
 			results <- err
 		}()
 	}
@@ -126,7 +123,7 @@ func (s *DockerRegistrySuite) TestConcurrentPullMultipleTags(c *check.C) {
 	repos := []string{}
 	for _, tag := range []string{"recent", "fresh", "todays"} {
 		repo := fmt.Sprintf("%v:%v", repoName, tag)
-		_, err := buildImage(repo, fmt.Sprintf(`
+		_, err := buildImage(s, repo, fmt.Sprintf(`
 		    FROM busybox
 		    ENTRYPOINT ["/bin/echo"]
 		    ENV FOO foo
@@ -136,20 +133,19 @@ func (s *DockerRegistrySuite) TestConcurrentPullMultipleTags(c *check.C) {
 		if err != nil {
 			c.Fatal(err)
 		}
-		dockerCmd(c, "push", repo)
+		s.Cmd(c, "push", repo)
 		repos = append(repos, repo)
 	}
 
 	// Clear local images store.
-	args := append([]string{"rmi"}, repos...)
-	dockerCmd(c, args...)
+	s.Cmd(c, "rmi", repos...)
 
 	// Re-pull individual tags, in parallel
 	results := make(chan error)
 
 	for _, repo := range repos {
 		go func(repo string) {
-			_, _, err := runCommandWithOutput(exec.Command(dockerBinary, "pull", repo))
+			_, _, err := runCommandWithOutput(s.MakeCmd("pull", repo))
 			results <- err
 		}(repo)
 	}
@@ -163,8 +159,8 @@ func (s *DockerRegistrySuite) TestConcurrentPullMultipleTags(c *check.C) {
 
 	// Ensure all tags were pulled successfully
 	for _, repo := range repos {
-		dockerCmd(c, "inspect", repo)
-		out, _ := dockerCmd(c, "run", "--rm", repo)
+		s.Cmd(c, "inspect", repo)
+		out := s.Cmd(c, "run", "--rm", repo)
 		if strings.TrimSpace(out) != "/bin/sh -c echo "+repo {
 			c.Fatalf("CMD did not contain /bin/sh -c echo %s: %s", repo, out)
 		}

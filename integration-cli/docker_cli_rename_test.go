@@ -14,11 +14,11 @@ func (s *DockerSuite) TestRenameStoppedContainer(c *check.C) {
 	cleanedContainerID := strings.TrimSpace(out)
 	dockerCmd(c, "wait", cleanedContainerID)
 
-	name, err := inspectField(cleanedContainerID, "Name")
+	name, err := inspectField(s, cleanedContainerID, "Name")
 	newName := "new_name" + stringid.GenerateNonCryptoID()
 	dockerCmd(c, "rename", "first_name", newName)
 
-	name, err = inspectField(cleanedContainerID, "Name")
+	name, err = inspectField(s, cleanedContainerID, "Name")
 	if err != nil {
 		c.Fatal(err)
 	}
@@ -36,7 +36,7 @@ func (s *DockerSuite) TestRenameRunningContainer(c *check.C) {
 	cleanedContainerID := strings.TrimSpace(out)
 	dockerCmd(c, "rename", "first_name", newName)
 
-	name, err := inspectField(cleanedContainerID, "Name")
+	name, err := inspectField(s, cleanedContainerID, "Name")
 	if err != nil {
 		c.Fatal(err)
 	}
@@ -52,7 +52,7 @@ func (s *DockerSuite) TestRenameCheckNames(c *check.C) {
 	newName := "new_name" + stringid.GenerateNonCryptoID()
 	dockerCmd(c, "rename", "first_name", newName)
 
-	name, err := inspectField(newName, "Name")
+	name, err := inspectField(s, newName, "Name")
 	if err != nil {
 		c.Fatal(err)
 	}
@@ -60,7 +60,7 @@ func (s *DockerSuite) TestRenameCheckNames(c *check.C) {
 		c.Fatal("Failed to rename container ")
 	}
 
-	name, err = inspectField("first_name", "Name")
+	name, err = inspectField(s, "first_name", "Name")
 	if err == nil && !strings.Contains(err.Error(), "No such image or container: first_name") {
 		c.Fatal(err)
 	}

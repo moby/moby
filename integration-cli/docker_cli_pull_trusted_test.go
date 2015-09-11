@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"io/ioutil"
-	"os/exec"
 	"strings"
 	"time"
 
@@ -14,7 +13,7 @@ func (s *DockerTrustSuite) TestTrustedPull(c *check.C) {
 	repoName := s.setupTrustedImage(c, "trusted-pull")
 
 	// Try pull
-	pullCmd := exec.Command(dockerBinary, "pull", repoName)
+	pullCmd := s.MakeCmd("pull", repoName)
 	s.trustedCmd(pullCmd)
 	out, _, err := runCommandWithOutput(pullCmd)
 	if err != nil {
@@ -25,10 +24,10 @@ func (s *DockerTrustSuite) TestTrustedPull(c *check.C) {
 		c.Fatalf("Missing expected output on trusted push:\n%s", out)
 	}
 
-	dockerCmd(c, "rmi", repoName)
+	s.Cmd(c, "rmi", repoName)
 
 	// Try untrusted pull to ensure we pushed the tag to the registry
-	pullCmd = exec.Command(dockerBinary, "pull", "--disable-content-trust=true", repoName)
+	pullCmd = s.MakeCmd("pull", "--disable-content-trust=true", repoName)
 	s.trustedCmd(pullCmd)
 	out, _, err = runCommandWithOutput(pullCmd)
 	if err != nil {
@@ -44,7 +43,7 @@ func (s *DockerTrustSuite) TestTrustedIsolatedPull(c *check.C) {
 	repoName := s.setupTrustedImage(c, "trusted-isolatd-pull")
 
 	// Try pull (run from isolated directory without trust information)
-	pullCmd := exec.Command(dockerBinary, "--config", "/tmp/docker-isolated", "pull", repoName)
+	pullCmd := s.MakeCmd("--config", "/tmp/docker-isolated", "pull", repoName)
 	s.trustedCmd(pullCmd)
 	out, _, err := runCommandWithOutput(pullCmd)
 	if err != nil {
@@ -55,18 +54,18 @@ func (s *DockerTrustSuite) TestTrustedIsolatedPull(c *check.C) {
 		c.Fatalf("Missing expected output on trusted push:\n%s", out)
 	}
 
-	dockerCmd(c, "rmi", repoName)
+	s.Cmd(c, "rmi", repoName)
 }
 
 func (s *DockerTrustSuite) TestUntrustedPull(c *check.C) {
 	repoName := fmt.Sprintf("%v/dockercli/trusted:latest", privateRegistryURL)
 	// tag the image and upload it to the private registry
-	dockerCmd(c, "tag", "busybox", repoName)
-	dockerCmd(c, "push", repoName)
-	dockerCmd(c, "rmi", repoName)
+	s.Cmd(c, "tag", "busybox", repoName)
+	s.Cmd(c, "push", repoName)
+	s.Cmd(c, "rmi", repoName)
 
 	// Try trusted pull on untrusted tag
-	pullCmd := exec.Command(dockerBinary, "pull", repoName)
+	pullCmd := s.MakeCmd("pull", repoName)
 	s.trustedCmd(pullCmd)
 	out, _, err := runCommandWithOutput(pullCmd)
 	if err == nil {
@@ -87,7 +86,7 @@ func (s *DockerTrustSuite) TestPullWhenCertExpired(c *check.C) {
 
 	runAtDifferentDate(elevenYearsFromNow, func() {
 		// Try pull
-		pullCmd := exec.Command(dockerBinary, "pull", repoName)
+		pullCmd := s.MakeCmd("pull", repoName)
 		s.trustedCmd(pullCmd)
 		out, _, err := runCommandWithOutput(pullCmd)
 		if err == nil {
@@ -101,7 +100,7 @@ func (s *DockerTrustSuite) TestPullWhenCertExpired(c *check.C) {
 
 	runAtDifferentDate(elevenYearsFromNow, func() {
 		// Try pull
-		pullCmd := exec.Command(dockerBinary, "pull", "--disable-content-trust", repoName)
+		pullCmd := s.MakeCmd("pull", "--disable-content-trust", repoName)
 		s.trustedCmd(pullCmd)
 		out, _, err := runCommandWithOutput(pullCmd)
 		if err != nil {
@@ -122,9 +121,9 @@ func (s *DockerTrustSuite) TestTrustedPullFromBadTrustServer(c *check.C) {
 	}
 
 	// tag the image and upload it to the private registry
-	dockerCmd(c, "tag", "busybox", repoName)
+	s.Cmd(c, "tag", "busybox", repoName)
 
-	pushCmd := exec.Command(dockerBinary, "push", repoName)
+	pushCmd := s.MakeCmd("push", repoName)
 	s.trustedCmd(pushCmd)
 	out, _, err := runCommandWithOutput(pushCmd)
 	if err != nil {
@@ -134,10 +133,10 @@ func (s *DockerTrustSuite) TestTrustedPullFromBadTrustServer(c *check.C) {
 		c.Fatalf("Missing expected output on trusted push:\n%s", out)
 	}
 
-	dockerCmd(c, "rmi", repoName)
+	s.Cmd(c, "rmi", repoName)
 
 	// Try pull
-	pullCmd := exec.Command(dockerBinary, "pull", repoName)
+	pullCmd := s.MakeCmd("pull", repoName)
 	s.trustedCmd(pullCmd)
 	out, _, err = runCommandWithOutput(pullCmd)
 	if err != nil {
@@ -148,7 +147,7 @@ func (s *DockerTrustSuite) TestTrustedPullFromBadTrustServer(c *check.C) {
 		c.Fatalf("Missing expected output on trusted push:\n%s", out)
 	}
 
-	dockerCmd(c, "rmi", repoName)
+	s.Cmd(c, "rmi", repoName)
 
 	// Kill the notary server, start a new "evil" one.
 	s.not.Close()
@@ -159,10 +158,10 @@ func (s *DockerTrustSuite) TestTrustedPullFromBadTrustServer(c *check.C) {
 
 	// In order to make an evil server, lets re-init a client (with a different trust dir) and push new data.
 	// tag an image and upload it to the private registry
-	dockerCmd(c, "--config", evilLocalConfigDir, "tag", "busybox", repoName)
+	s.Cmd(c, "--config", evilLocalConfigDir, "tag", "busybox", repoName)
 
 	// Push up to the new server
-	pushCmd = exec.Command(dockerBinary, "--config", evilLocalConfigDir, "push", repoName)
+	pushCmd = s.MakeCmd("--config", evilLocalConfigDir, "push", repoName)
 	s.trustedCmd(pushCmd)
 	out, _, err = runCommandWithOutput(pushCmd)
 	if err != nil {
@@ -173,7 +172,7 @@ func (s *DockerTrustSuite) TestTrustedPullFromBadTrustServer(c *check.C) {
 	}
 
 	// Now, try pulling with the original client from this new trust server. This should fail.
-	pullCmd = exec.Command(dockerBinary, "pull", repoName)
+	pullCmd = s.MakeCmd("pull", repoName)
 	s.trustedCmd(pullCmd)
 	out, _, err = runCommandWithOutput(pullCmd)
 	if err == nil {
@@ -189,10 +188,10 @@ func (s *DockerTrustSuite) TestTrustedPullWithExpiredSnapshot(c *check.C) {
 	c.Skip("Currently changes system time, causing instability")
 	repoName := fmt.Sprintf("%v/dockercliexpiredtimestamppull/trusted:latest", privateRegistryURL)
 	// tag the image and upload it to the private registry
-	dockerCmd(c, "tag", "busybox", repoName)
+	s.Cmd(c, "tag", "busybox", repoName)
 
 	// Push with default passphrases
-	pushCmd := exec.Command(dockerBinary, "push", repoName)
+	pushCmd := s.MakeCmd("push", repoName)
 	s.trustedCmd(pushCmd)
 	out, _, err := runCommandWithOutput(pushCmd)
 	if err != nil {
@@ -203,7 +202,7 @@ func (s *DockerTrustSuite) TestTrustedPullWithExpiredSnapshot(c *check.C) {
 		c.Fatalf("Missing expected output on trusted push:\n%s", out)
 	}
 
-	dockerCmd(c, "rmi", repoName)
+	s.Cmd(c, "rmi", repoName)
 
 	// Snapshots last for three years. This should be expired
 	fourYearsLater := time.Now().Add(time.Hour * 24 * 365 * 4)
@@ -211,7 +210,7 @@ func (s *DockerTrustSuite) TestTrustedPullWithExpiredSnapshot(c *check.C) {
 	// Should succeed because the server transparently re-signs one
 	runAtDifferentDate(fourYearsLater, func() {
 		// Try pull
-		pullCmd := exec.Command(dockerBinary, "pull", repoName)
+		pullCmd := s.MakeCmd("pull", repoName)
 		s.trustedCmd(pullCmd)
 		out, _, err = runCommandWithOutput(pullCmd)
 		if err == nil {

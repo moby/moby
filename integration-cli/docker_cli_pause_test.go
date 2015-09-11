@@ -9,13 +9,13 @@ import (
 
 func (s *DockerSuite) TestPause(c *check.C) {
 	testRequires(c, DaemonIsLinux)
-	defer unpauseAllContainers()
+	defer unpauseAllContainers(s)
 
 	name := "testeventpause"
 	dockerCmd(c, "run", "-d", "--name", name, "busybox", "top")
 
 	dockerCmd(c, "pause", name)
-	pausedContainers, err := getSliceOfPausedContainers()
+	pausedContainers, err := getSliceOfPausedContainers(s)
 	if err != nil {
 		c.Fatalf("error thrown while checking if containers were paused: %v", err)
 	}
@@ -45,7 +45,7 @@ func (s *DockerSuite) TestPause(c *check.C) {
 
 func (s *DockerSuite) TestPauseMultipleContainers(c *check.C) {
 	testRequires(c, DaemonIsLinux)
-	defer unpauseAllContainers()
+	defer unpauseAllContainers(s)
 
 	containers := []string{
 		"testpausewithmorecontainers1",
@@ -55,7 +55,7 @@ func (s *DockerSuite) TestPauseMultipleContainers(c *check.C) {
 		dockerCmd(c, "run", "-d", "--name", name, "busybox", "top")
 	}
 	dockerCmd(c, append([]string{"pause"}, containers...)...)
-	pausedContainers, err := getSliceOfPausedContainers()
+	pausedContainers, err := getSliceOfPausedContainers(s)
 	if err != nil {
 		c.Fatalf("error thrown while checking if containers were paused: %v", err)
 	}

@@ -36,7 +36,7 @@ func (s *DockerSuite) TestSaveAndLoadRepoStdout(c *check.C) {
 	tmpFile, err = os.Open(tmpFile.Name())
 	c.Assert(err, check.IsNil)
 
-	deleteImages(repoName)
+	deleteImages(s, repoName)
 
 	loadCmd := exec.Command(dockerBinary, "load")
 	loadCmd.Stdin = tmpFile
@@ -51,7 +51,7 @@ func (s *DockerSuite) TestSaveAndLoadRepoStdout(c *check.C) {
 		c.Fatalf("inspect is not the same after a save / load")
 	}
 
-	deleteImages(repoName)
+	deleteImages(s, repoName)
 
 	pty, tty, err := pty.Open()
 	if err != nil {

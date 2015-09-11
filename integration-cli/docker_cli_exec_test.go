@@ -149,7 +149,7 @@ func (s *DockerSuite) TestExecExitStatus(c *check.C) {
 
 func (s *DockerSuite) TestExecPausedContainer(c *check.C) {
 	testRequires(c, DaemonIsLinux)
-	defer unpauseAllContainers()
+	defer unpauseAllContainers(s)
 
 	out, _ := dockerCmd(c, "run", "-d", "--name", "testing", "busybox", "top")
 	ContainerID := strings.TrimSpace(out)
@@ -195,7 +195,7 @@ func (s *DockerSuite) TestExecTtyWithoutStdin(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-d", "-ti", "busybox")
 	id := strings.TrimSpace(out)
-	c.Assert(waitRun(id), check.IsNil)
+	c.Assert(waitRun(s, id), check.IsNil)
 
 	errChan := make(chan error)
 	go func() {
@@ -319,7 +319,7 @@ func (s *DockerSuite) TestInspectExecID(c *check.C) {
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
 	id := strings.TrimSuffix(out, "\n")
 
-	out, err := inspectField(id, "ExecIDs")
+	out, err := inspectField(s, id, "ExecIDs")
 	if err != nil {
 		c.Fatalf("failed to inspect container: %s, %v", out, err)
 	}
@@ -339,7 +339,7 @@ func (s *DockerSuite) TestInspectExecID(c *check.C) {
 	tries := 10
 	for i := 0; i < tries; i++ {
 		// Since its still running we should see exec as part of the container
-		out, err = inspectField(id, "ExecIDs")
+		out, err = inspectField(s, id, "ExecIDs")
 		if err != nil {
 			c.Fatalf("failed to inspect container: %s, %v", out, err)
 		}
@@ -355,7 +355,7 @@ func (s *DockerSuite) TestInspectExecID(c *check.C) {
 	}
 
 	// Save execID for later
-	execID, err := inspectFilter(id, "index .ExecIDs 0")
+	execID, err := inspectFilter(s, id, "index .ExecIDs 0")
 	if err != nil {
 		c.Fatalf("failed to get the exec id: %v", err)
 	}
@@ -372,7 +372,7 @@ func (s *DockerSuite) TestInspectExecID(c *check.C) {
 	cmd.Wait()
 
 	// All execs for the container should be gone now
-	out, err = inspectField(id, "ExecIDs")
+	out, err = inspectField(s, id, "ExecIDs")
 	if err != nil {
 		c.Fatalf("failed to inspect container: %s, %v", out, err)
 	}
@@ -487,9 +487,9 @@ func (s *DockerSuite) TestRunMutableNetworkFiles(c *check.C) {
 	testRequires(c, SameHostDaemon)
 
 	for _, fn := range []string{"resolv.conf", "hosts"} {
-		deleteAllContainers()
+		deleteAllContainers(s)
 
-		content, err := runCommandAndReadContainerFile(fn, exec.Command(dockerBinary, "run", "-d", "--name", "c1", "busybox", "sh", "-c", fmt.Sprintf("echo success >/etc/%s && top", fn)))
+		content, err := runCommandAndReadContainerFile(s, fn, exec.Command(dockerBinary, "run", "-d", "--name", "c1", "busybox", "sh", "-c", fmt.Sprintf("echo success >/etc/%s && top", fn)))
 		if err != nil {
 			c.Fatal(err)
 		}
@@ -586,7 +586,7 @@ func (s *DockerSuite) TestExecWithPrivileged(c *check.C) {
 func (s *DockerSuite) TestExecWithImageUser(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	name := "testbuilduser"
-	_, err := buildImage(name,
+	_, err := buildImage(s, name,
 		`FROM busybox
 		RUN echo 'dockerio:x:1001:1001::/bin:/bin/false' >> /etc/passwd
 		USER dockerio`,

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"os/exec"
 	"strings"
 	"time"
 
@@ -16,9 +15,9 @@ import (
 func (s *DockerRegistrySuite) TestPushBusyboxImage(c *check.C) {
 	repoName := fmt.Sprintf("%v/dockercli/busybox", privateRegistryURL)
 	// tag the image to upload it to the private registry
-	dockerCmd(c, "tag", "busybox", repoName)
+	s.Cmd(c, "tag", "busybox", repoName)
 	// push the image to the registry
-	dockerCmd(c, "push", repoName)
+	s.Cmd(c, "push", repoName)
 }
 
 // pushing an image without a prefix should throw an error
@@ -32,7 +31,7 @@ func (s *DockerRegistrySuite) TestPushUntagged(c *check.C) {
 	repoName := fmt.Sprintf("%v/dockercli/busybox", privateRegistryURL)
 
 	expected := "Repository does not exist"
-	if out, _, err := dockerCmdWithError("push", repoName); err == nil {
+	if out, err := s.CmdWithError("push", repoName); err == nil {
 		c.Fatalf("pushing the image to the private registry should have failed: output %q", out)
 	} else if !strings.Contains(out, expected) {
 		c.Fatalf("pushing the image failed with an unexpected message: expected %q, got %q", expected, out)
@@ -44,7 +43,7 @@ func (s *DockerRegistrySuite) TestPushBadTag(c *check.C) {
 
 	expected := "does not exist"
 
-	if out, _, err := dockerCmdWithError("push", repoName); err == nil {
+	if out, err := s.CmdWithError("push", repoName); err == nil {
 		c.Fatalf("pushing the image to the private registry should have failed: output %q", out)
 	} else if !strings.Contains(out, expected) {
 		c.Fatalf("pushing the image failed with an unexpected message: expected %q, got %q", expected, out)
@@ -56,14 +55,14 @@ func (s *DockerRegistrySuite) TestPushMultipleTags(c *check.C) {
 	repoTag1 := fmt.Sprintf("%v/dockercli/busybox:t1", privateRegistryURL)
 	repoTag2 := fmt.Sprintf("%v/dockercli/busybox:t2", privateRegistryURL)
 	// tag the image and upload it to the private registry
-	dockerCmd(c, "tag", "busybox", repoTag1)
+	s.Cmd(c, "tag", "busybox", repoTag1)
 
-	dockerCmd(c, "tag", "busybox", repoTag2)
+	s.Cmd(c, "tag", "busybox", repoTag2)
 
-	dockerCmd(c, "push", repoName)
+	s.Cmd(c, "push", repoName)
 
 	// Ensure layer list is equivalent for repoTag1 and repoTag2
-	out1, _ := dockerCmd(c, "pull", repoTag1)
+	out1 := s.Cmd(c, "pull", repoTag1)
 	if strings.Contains(out1, "Tag t1 not found") {
 		c.Fatalf("Unable to pull pushed image: %s", out1)
 	}
@@ -75,7 +74,7 @@ func (s *DockerRegistrySuite) TestPushMultipleTags(c *check.C) {
 		}
 	}
 
-	out2, _ := dockerCmd(c, "pull", repoTag2)
+	out2 := s.Cmd(c, "pull", repoTag2)
 	if strings.Contains(out2, "Tag t2 not found") {
 		c.Fatalf("Unable to pull pushed image: %s", out1)
 	}
@@ -113,7 +112,7 @@ func (s *DockerRegistrySuite) TestPushEmptyLayer(c *check.C) {
 		c.Fatalf("Could not open test tarball: %v", err)
 	}
 
-	importCmd := exec.Command(dockerBinary, "import", "-", repoName)
+	importCmd := s.MakeCmd("import", "-", repoName)
 	importCmd.Stdin = freader
 	out, _, err := runCommandWithOutput(importCmd)
 	if err != nil {
@@ -121,7 +120,7 @@ func (s *DockerRegistrySuite) TestPushEmptyLayer(c *check.C) {
 	}
 
 	// Now verify we can push it
-	if out, _, err := dockerCmdWithError("push", repoName); err != nil {
+	if out, err := s.CmdWithError("push", repoName); err != nil {
 		c.Fatalf("pushing the image to the private registry has failed: %s, %v", out, err)
 	}
 }
@@ -129,9 +128,9 @@ func (s *DockerRegistrySuite) TestPushEmptyLayer(c *check.C) {
 func (s *DockerTrustSuite) TestTrustedPush(c *check.C) {
 	repoName := fmt.Sprintf("%v/dockercli/trusted:latest", privateRegistryURL)
 	// tag the image and upload it to the private registry
-	dockerCmd(c, "tag", "busybox", repoName)
+	s.Cmd(c, "tag", "busybox", repoName)
 
-	pushCmd := exec.Command(dockerBinary, "push", repoName)
+	pushCmd := s.MakeCmd("push", repoName)
 	s.trustedCmd(pushCmd)
 	out, _, err := runCommandWithOutput(pushCmd)
 	if err != nil {
@@ -145,9 +144,9 @@ func (s *DockerTrustSuite) TestTrustedPush(c *check.C) {
 func (s *DockerTrustSuite) TestTrustedPushWithFaillingServer(c *check.C) {
 	repoName := fmt.Sprintf("%v/dockercli/trusted:latest", privateRegistryURL)
 	// tag the image and upload it to the private registry
-	dockerCmd(c, "tag", "busybox", repoName)
+	s.Cmd(c, "tag", "busybox", repoName)
 
-	pushCmd := exec.Command(dockerBinary, "push", repoName)
+	pushCmd := s.MakeCmd("push", repoName)
 	s.trustedCmdWithServer(pushCmd, "example/")
 	out, _, err := runCommandWithOutput(pushCmd)
 	if err == nil {
@@ -162,9 +161,9 @@ func (s *DockerTrustSuite) TestTrustedPushWithFaillingServer(c *check.C) {
 func (s *DockerTrustSuite) TestTrustedPushWithoutServerAndUntrusted(c *check.C) {
 	repoName := fmt.Sprintf("%v/dockercli/trusted:latest", privateRegistryURL)
 	// tag the image and upload it to the private registry
-	dockerCmd(c, "tag", "busybox", repoName)
+	s.Cmd(c, "tag", "busybox", repoName)
 
-	pushCmd := exec.Command(dockerBinary, "push", "--disable-content-trust", repoName)
+	pushCmd := s.MakeCmd("push", "--disable-content-trust", repoName)
 	s.trustedCmdWithServer(pushCmd, "example/")
 	out, _, err := runCommandWithOutput(pushCmd)
 	if err != nil {
@@ -179,10 +178,10 @@ func (s *DockerTrustSuite) TestTrustedPushWithoutServerAndUntrusted(c *check.C) 
 func (s *DockerTrustSuite) TestTrustedPushWithExistingTag(c *check.C) {
 	repoName := fmt.Sprintf("%v/dockercli/trusted:latest", privateRegistryURL)
 	// tag the image and upload it to the private registry
-	dockerCmd(c, "tag", "busybox", repoName)
-	dockerCmd(c, "push", repoName)
+	s.Cmd(c, "tag", "busybox", repoName)
+	s.Cmd(c, "push", repoName)
 
-	pushCmd := exec.Command(dockerBinary, "push", repoName)
+	pushCmd := s.MakeCmd("push", repoName)
 	s.trustedCmd(pushCmd)
 	out, _, err := runCommandWithOutput(pushCmd)
 	if err != nil {
@@ -197,10 +196,10 @@ func (s *DockerTrustSuite) TestTrustedPushWithExistingTag(c *check.C) {
 func (s *DockerTrustSuite) TestTrustedPushWithExistingSignedTag(c *check.C) {
 	repoName := fmt.Sprintf("%v/dockerclipushpush/trusted:latest", privateRegistryURL)
 	// tag the image and upload it to the private registry
-	dockerCmd(c, "tag", "busybox", repoName)
+	s.Cmd(c, "tag", "busybox", repoName)
 
 	// Do a trusted push
-	pushCmd := exec.Command(dockerBinary, "push", repoName)
+	pushCmd := s.MakeCmd("push", repoName)
 	s.trustedCmd(pushCmd)
 	out, _, err := runCommandWithOutput(pushCmd)
 	if err != nil {
@@ -212,7 +211,7 @@ func (s *DockerTrustSuite) TestTrustedPushWithExistingSignedTag(c *check.C) {
 	}
 
 	// Do another trusted push
-	pushCmd = exec.Command(dockerBinary, "push", repoName)
+	pushCmd = s.MakeCmd("push", repoName)
 	s.trustedCmd(pushCmd)
 	out, _, err = runCommandWithOutput(pushCmd)
 	if err != nil {
@@ -223,10 +222,10 @@ func (s *DockerTrustSuite) TestTrustedPushWithExistingSignedTag(c *check.C) {
 		c.Fatalf("Missing expected output on trusted push with existing tag:\n%s", out)
 	}
 
-	dockerCmd(c, "rmi", repoName)
+	s.Cmd(c, "rmi", repoName)
 
 	// Try pull to ensure the double push did not break our ability to pull
-	pullCmd := exec.Command(dockerBinary, "pull", repoName)
+	pullCmd := s.MakeCmd("pull", repoName)
 	s.trustedCmd(pullCmd)
 	out, _, err = runCommandWithOutput(pullCmd)
 	if err != nil {
@@ -241,10 +240,10 @@ func (s *DockerTrustSuite) TestTrustedPushWithExistingSignedTag(c *check.C) {
 func (s *DockerTrustSuite) TestTrustedPushWithIncorrectPassphraseForNonRoot(c *check.C) {
 	repoName := fmt.Sprintf("%v/dockercliincorretpwd/trusted:latest", privateRegistryURL)
 	// tag the image and upload it to the private registry
-	dockerCmd(c, "tag", "busybox", repoName)
+	s.Cmd(c, "tag", "busybox", repoName)
 
 	// Push with default passphrases
-	pushCmd := exec.Command(dockerBinary, "push", repoName)
+	pushCmd := s.MakeCmd("push", repoName)
 	s.trustedCmd(pushCmd)
 	out, _, err := runCommandWithOutput(pushCmd)
 	if err != nil {
@@ -256,7 +255,7 @@ func (s *DockerTrustSuite) TestTrustedPushWithIncorrectPassphraseForNonRoot(c *c
 	}
 
 	// Push with wrong passphrases
-	pushCmd = exec.Command(dockerBinary, "push", repoName)
+	pushCmd = s.MakeCmd("push", repoName)
 	s.trustedCmdWithPassphrases(pushCmd, "12345678", "87654321")
 	out, _, err = runCommandWithOutput(pushCmd)
 	if err == nil {
@@ -272,10 +271,10 @@ func (s *DockerTrustSuite) TestTrustedPushWithExpiredSnapshot(c *check.C) {
 	c.Skip("Currently changes system time, causing instability")
 	repoName := fmt.Sprintf("%v/dockercliexpiredsnapshot/trusted:latest", privateRegistryURL)
 	// tag the image and upload it to the private registry
-	dockerCmd(c, "tag", "busybox", repoName)
+	s.Cmd(c, "tag", "busybox", repoName)
 
 	// Push with default passphrases
-	pushCmd := exec.Command(dockerBinary, "push", repoName)
+	pushCmd := s.MakeCmd("push", repoName)
 	s.trustedCmd(pushCmd)
 	out, _, err := runCommandWithOutput(pushCmd)
 	if err != nil {
@@ -291,7 +290,7 @@ func (s *DockerTrustSuite) TestTrustedPushWithExpiredSnapshot(c *check.C) {
 
 	runAtDifferentDate(fourYearsLater, func() {
 		// Push with wrong passphrases
-		pushCmd = exec.Command(dockerBinary, "push", repoName)
+		pushCmd = s.MakeCmd("push", repoName)
 		s.trustedCmd(pushCmd)
 		out, _, err = runCommandWithOutput(pushCmd)
 		if err == nil {
@@ -308,10 +307,10 @@ func (s *DockerTrustSuite) TestTrustedPushWithExpiredTimestamp(c *check.C) {
 	c.Skip("Currently changes system time, causing instability")
 	repoName := fmt.Sprintf("%v/dockercliexpiredtimestamppush/trusted:latest", privateRegistryURL)
 	// tag the image and upload it to the private registry
-	dockerCmd(c, "tag", "busybox", repoName)
+	s.Cmd(c, "tag", "busybox", repoName)
 
 	// Push with default passphrases
-	pushCmd := exec.Command(dockerBinary, "push", repoName)
+	pushCmd := s.MakeCmd("push", repoName)
 	s.trustedCmd(pushCmd)
 	out, _, err := runCommandWithOutput(pushCmd)
 	if err != nil {
@@ -327,7 +326,7 @@ func (s *DockerTrustSuite) TestTrustedPushWithExpiredTimestamp(c *check.C) {
 
 	// Should succeed because the server transparently re-signs one
 	runAtDifferentDate(threeWeeksLater, func() {
-		pushCmd := exec.Command(dockerBinary, "push", repoName)
+		pushCmd := s.MakeCmd("push", repoName)
 		s.trustedCmd(pushCmd)
 		out, _, err := runCommandWithOutput(pushCmd)
 		if err != nil {

@@ -116,7 +116,7 @@ func (s *DockerSuite) TestRunAttachDetach(c *check.C) {
 	if err := cmd.Start(); err != nil {
 		c.Fatal(err)
 	}
-	c.Assert(waitRun(name), check.IsNil)
+	c.Assert(waitRun(s, name), check.IsNil)
 
 	if _, err := cpty.Write([]byte("hello\n")); err != nil {
 		c.Fatal(err)
@@ -145,7 +145,7 @@ func (s *DockerSuite) TestRunAttachDetach(c *check.C) {
 		ch <- struct{}{}
 	}()
 
-	running, err := inspectField(name, "State.Running")
+	running, err := inspectField(s, name, "State.Running")
 	if err != nil {
 		c.Fatal(err)
 	}
@@ -177,7 +177,7 @@ func (s *DockerSuite) TestRunEchoStdoutWithCPUQuota(c *check.C) {
 		c.Errorf("container should've printed 'test'")
 	}
 
-	out, err = inspectField("test", "HostConfig.CpuQuota")
+	out, err = inspectField(s, "test", "HostConfig.CpuQuota")
 	c.Assert(err, check.IsNil)
 
 	if out != "8000" {
@@ -192,7 +192,7 @@ func (s *DockerSuite) TestRunWithCpuPeriod(c *check.C) {
 		c.Fatalf("failed to run container: %v", err)
 	}
 
-	out, err := inspectField("test", "HostConfig.CpuPeriod")
+	out, err := inspectField(s, "test", "HostConfig.CpuPeriod")
 	c.Assert(err, check.IsNil)
 	if out != "50000" {
 		c.Fatalf("setting the CPU CFS period failed")
@@ -204,7 +204,7 @@ func (s *DockerSuite) TestRunWithKernelMemory(c *check.C) {
 
 	dockerCmd(c, "run", "--kernel-memory", "50M", "--name", "test", "busybox", "true")
 
-	out, err := inspectField("test", "HostConfig.KernelMemory")
+	out, err := inspectField(s, "test", "HostConfig.KernelMemory")
 	c.Assert(err, check.IsNil)
 	if out != "52428800" {
 		c.Fatalf("setting the kernel memory limit failed")
@@ -320,7 +320,7 @@ func (s *DockerSuite) TestStopContainerSignal(c *check.C) {
 	out, _ := dockerCmd(c, "run", "--stop-signal", "SIGUSR1", "-d", "busybox", "/bin/sh", "-c", `trap 'echo "exit trapped"; exit 0' USR1; while true; do sleep 1; done`)
 	containerID := strings.TrimSpace(out)
 
-	if err := waitRun(containerID); err != nil {
+	if err := waitRun(s, containerID); err != nil {
 		c.Fatal(err)
 	}
 

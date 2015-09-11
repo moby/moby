@@ -18,7 +18,7 @@ func (s *DockerSuite) TestCliStatsNoStreamGetCpu(c *check.C) {
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "while true;do echo 'Hello'; usleep 100000; done")
 
 	id := strings.TrimSpace(out)
-	c.Assert(waitRun(id), check.IsNil)
+	c.Assert(waitRun(s, id), check.IsNil)
 
 	resp, body, err := sockRequestRaw("GET", fmt.Sprintf("/containers/%s/stats?stream=false", id), nil, "")
 	c.Assert(err, check.IsNil)
@@ -81,7 +81,7 @@ func (s *DockerSuite) TestApiNetworkStats(c *check.C) {
 	// Run container for 30 secs
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
 	id := strings.TrimSpace(out)
-	c.Assert(waitRun(id), check.IsNil)
+	c.Assert(waitRun(s, id), check.IsNil)
 
 	// Retrieve the container address
 	contIP := findContainerIP(c, id)

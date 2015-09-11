@@ -3,14 +3,11 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"reflect"
 	"strings"
 	"time"
-
-	"os/exec"
-
-	"io/ioutil"
 
 	"github.com/docker/docker/pkg/nat"
 	"github.com/go-check/check"
@@ -191,7 +188,7 @@ func (s *DockerSuite) TestCreateVolumesCreated(c *check.C) {
 	name := "test_create_volume"
 	dockerCmd(c, "create", "--name", name, "-v", "/foo", "busybox")
 
-	dir, err := inspectMountSourceField(name, "/foo")
+	dir, err := inspectMountSourceField(s, name, "/foo")
 	if err != nil {
 		c.Fatalf("Error getting volume host path: %q", err)
 	}
@@ -212,7 +209,7 @@ func (s *DockerSuite) TestCreateLabels(c *check.C) {
 	dockerCmd(c, "create", "--name", name, "-l", "k1=v1", "--label", "k2=v2", "busybox")
 
 	actual := make(map[string]string)
-	err := inspectFieldAndMarshall(name, "Config.Labels", &actual)
+	err := inspectFieldAndMarshall(s, name, "Config.Labels", &actual)
 	if err != nil {
 		c.Fatal(err)
 	}
@@ -225,7 +222,7 @@ func (s *DockerSuite) TestCreateLabels(c *check.C) {
 func (s *DockerSuite) TestCreateLabelFromImage(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	imageName := "testcreatebuildlabel"
-	_, err := buildImage(imageName,
+	_, err := buildImage(s, imageName,
 		`FROM busybox
 		LABEL k1=v1 k2=v2`,
 		true)
@@ -238,7 +235,7 @@ func (s *DockerSuite) TestCreateLabelFromImage(c *check.C) {
 	dockerCmd(c, "create", "--name", name, "-l", "k2=x", "--label", "k3=v3", imageName)
 
 	actual := make(map[string]string)
-	err = inspectFieldAndMarshall(name, "Config.Labels", &actual)
+	err = inspectFieldAndMarshall(s, name, "Config.Labels", &actual)
 	if err != nil {
 		c.Fatal(err)
 	}
@@ -288,7 +285,7 @@ func (s *DockerTrustSuite) TestTrustedCreate(c *check.C) {
 	repoName := s.setupTrustedImage(c, "trusted-create")
 
 	// Try create
-	createCmd := exec.Command(dockerBinary, "create", repoName)
+	createCmd := s.MakeCmd("create", repoName)
 	s.trustedCmd(createCmd)
 	out, _, err := runCommandWithOutput(createCmd)
 	if err != nil {
@@ -299,10 +296,10 @@ func (s *DockerTrustSuite) TestTrustedCreate(c *check.C) {
 		c.Fatalf("Missing expected output on trusted push:\n%s", out)
 	}
 
-	dockerCmd(c, "rmi", repoName)
+	s.Cmd(c, "rmi", repoName)
 
 	// Try untrusted create to ensure we pushed the tag to the registry
-	createCmd = exec.Command(dockerBinary, "create", "--disable-content-trust=true", repoName)
+	createCmd = s.MakeCmd("create", "--disable-content-trust=true", repoName)
 	s.trustedCmd(createCmd)
 	out, _, err = runCommandWithOutput(createCmd)
 	if err != nil {
@@ -317,12 +314,12 @@ func (s *DockerTrustSuite) TestTrustedCreate(c *check.C) {
 func (s *DockerTrustSuite) TestUntrustedCreate(c *check.C) {
 	repoName := fmt.Sprintf("%v/dockercli/trusted:latest", privateRegistryURL)
 	// tag the image and upload it to the private registry
-	dockerCmd(c, "tag", "busybox", repoName)
-	dockerCmd(c, "push", repoName)
-	dockerCmd(c, "rmi", repoName)
+	s.Cmd(c, "tag", "busybox", repoName)
+	s.Cmd(c, "push", repoName)
+	s.Cmd(c, "rmi", repoName)
 
 	// Try trusted create on untrusted tag
-	createCmd := exec.Command(dockerBinary, "create", repoName)
+	createCmd := s.MakeCmd("create", repoName)
 	s.trustedCmd(createCmd)
 	out, _, err := runCommandWithOutput(createCmd)
 	if err == nil {
@@ -338,7 +335,7 @@ func (s *DockerTrustSuite) TestTrustedIsolatedCreate(c *check.C) {
 	repoName := s.setupTrustedImage(c, "trusted-isolated-create")
 
 	// Try create
-	createCmd := exec.Command(dockerBinary, "--config", "/tmp/docker-isolated-create", "create", repoName)
+	createCmd := s.MakeCmd("--config", "/tmp/docker-isolated-create", "create", repoName)
 	s.trustedCmd(createCmd)
 	out, _, err := runCommandWithOutput(createCmd)
 	if err != nil {
@@ -349,7 +346,7 @@ func (s *DockerTrustSuite) TestTrustedIsolatedCreate(c *check.C) {
 		c.Fatalf("Missing expected output on trusted push:\n%s", out)
 	}
 
-	dockerCmd(c, "rmi", repoName)
+	s.Cmd(c, "rmi", repoName)
 }
 
 func (s *DockerTrustSuite) TestCreateWhenCertExpired(c *check.C) {
@@ -361,7 +358,7 @@ func (s *DockerTrustSuite) TestCreateWhenCertExpired(c *check.C) {
 
 	runAtDifferentDate(elevenYearsFromNow, func() {
 		// Try create
-		createCmd := exec.Command(dockerBinary, "create", repoName)
+		createCmd := s.MakeCmd("create", repoName)
 		s.trustedCmd(createCmd)
 		out, _, err := runCommandWithOutput(createCmd)
 		if err == nil {
@@ -375,7 +372,7 @@ func (s *DockerTrustSuite) TestCreateWhenCertExpired(c *check.C) {
 
 	runAtDifferentDate(elevenYearsFromNow, func() {
 		// Try create
-		createCmd := exec.Command(dockerBinary, "create", "--disable-content-trust", repoName)
+		createCmd := s.MakeCmd("create", "--disable-content-trust", repoName)
 		s.trustedCmd(createCmd)
 		out, _, err := runCommandWithOutput(createCmd)
 		if err != nil {
@@ -396,9 +393,9 @@ func (s *DockerTrustSuite) TestTrustedCreateFromBadTrustServer(c *check.C) {
 	}
 
 	// tag the image and upload it to the private registry
-	dockerCmd(c, "tag", "busybox", repoName)
+	s.Cmd(c, "tag", "busybox", repoName)
 
-	pushCmd := exec.Command(dockerBinary, "push", repoName)
+	pushCmd := s.MakeCmd("push", repoName)
 	s.trustedCmd(pushCmd)
 	out, _, err := runCommandWithOutput(pushCmd)
 	if err != nil {
@@ -408,10 +405,10 @@ func (s *DockerTrustSuite) TestTrustedCreateFromBadTrustServer(c *check.C) {
 		c.Fatalf("Missing expected output on trusted push:\n%s", out)
 	}
 
-	dockerCmd(c, "rmi", repoName)
+	s.Cmd(c, "rmi", repoName)
 
 	// Try create
-	createCmd := exec.Command(dockerBinary, "create", repoName)
+	createCmd := s.MakeCmd("create", repoName)
 	s.trustedCmd(createCmd)
 	out, _, err = runCommandWithOutput(createCmd)
 	if err != nil {
@@ -422,7 +419,7 @@ func (s *DockerTrustSuite) TestTrustedCreateFromBadTrustServer(c *check.C) {
 		c.Fatalf("Missing expected output on trusted push:\n%s", out)
 	}
 
-	dockerCmd(c, "rmi", repoName)
+	s.Cmd(c, "rmi", repoName)
 
 	// Kill the notary server, start a new "evil" one.
 	s.not.Close()
@@ -433,10 +430,10 @@ func (s *DockerTrustSuite) TestTrustedCreateFromBadTrustServer(c *check.C) {
 
 	// In order to make an evil server, lets re-init a client (with a different trust dir) and push new data.
 	// tag an image and upload it to the private registry
-	dockerCmd(c, "--config", evilLocalConfigDir, "tag", "busybox", repoName)
+	s.Cmd(c, "--config", evilLocalConfigDir, "tag", "busybox", repoName)
 
 	// Push up to the new server
-	pushCmd = exec.Command(dockerBinary, "--config", evilLocalConfigDir, "push", repoName)
+	pushCmd = s.MakeCmd("--config", evilLocalConfigDir, "push", repoName)
 	s.trustedCmd(pushCmd)
 	out, _, err = runCommandWithOutput(pushCmd)
 	if err != nil {
@@ -447,7 +444,7 @@ func (s *DockerTrustSuite) TestTrustedCreateFromBadTrustServer(c *check.C) {
 	}
 
 	// Now, try creating with the original client from this new trust server. This should fail.
-	createCmd = exec.Command(dockerBinary, "create", repoName)
+	createCmd = s.MakeCmd("create", repoName)
 	s.trustedCmd(createCmd)
 	out, _, err = runCommandWithOutput(createCmd)
 	if err == nil {
@@ -463,7 +460,7 @@ func (s *DockerSuite) TestCreateStopSignal(c *check.C) {
 	name := "test_create_stop_signal"
 	dockerCmd(c, "create", "--name", name, "--stop-signal", "9", "busybox")
 
-	res, err := inspectFieldJSON(name, "Config.StopSignal")
+	res, err := inspectFieldJSON(s, name, "Config.StopSignal")
 	c.Assert(err, check.IsNil)
 
 	if res != `"9"` {

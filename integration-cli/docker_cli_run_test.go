@@ -162,7 +162,7 @@ func (s *DockerSuite) TestRunLinksContainerWithContainerName(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	dockerCmd(c, "run", "-i", "-t", "-d", "--name", "parent", "busybox")
 
-	ip, err := inspectField("parent", "NetworkSettings.IPAddress")
+	ip, err := inspectField(s, "parent", "NetworkSettings.IPAddress")
 	c.Assert(err, check.IsNil)
 
 	out, _ := dockerCmd(c, "run", "--link", "parent:test", "busybox", "/bin/cat", "/etc/hosts")
@@ -177,7 +177,7 @@ func (s *DockerSuite) TestRunLinksContainerWithContainerId(c *check.C) {
 	cID, _ := dockerCmd(c, "run", "-i", "-t", "-d", "busybox")
 
 	cID = strings.TrimSpace(cID)
-	ip, err := inspectField(cID, "NetworkSettings.IPAddress")
+	ip, err := inspectField(s, cID, "NetworkSettings.IPAddress")
 	c.Assert(err, check.IsNil)
 
 	out, _ := dockerCmd(c, "run", "--link", cID+":test", "busybox", "/bin/cat", "/etc/hosts")
@@ -233,7 +233,7 @@ func (s *DockerSuite) TestRunCreateVolumesInSymlinkDir(c *check.C) {
 	f.Close()
 
 	dockerFile := fmt.Sprintf("FROM busybox\nRUN mkdir -p %s\nRUN ln -s %s /test", dir, dir)
-	if _, err := buildImage(name, dockerFile, false); err != nil {
+	if _, err := buildImage(s, name, dockerFile, false); err != nil {
 		c.Fatal(err)
 	}
 
@@ -361,7 +361,7 @@ func (s *DockerSuite) TestRunCreateVolumeWithSymlink(c *check.C) {
 		c.Fatalf("[run] err: %v, exitcode: %d", err, exitCode)
 	}
 
-	volPath, err := inspectMountSourceField("test-createvolumewithsymlink", "/bar/foo")
+	volPath, err := inspectMountSourceField(s, "test-createvolumewithsymlink", "/bar/foo")
 	if err != nil {
 		c.Fatalf("[inspect] err: %v", err)
 	}
@@ -1047,7 +1047,7 @@ func (s *DockerSuite) TestRunNonRootUserResolvName(c *check.C) {
 
 	dockerCmd(c, "run", "--name=testperm", "--user=default", "busybox", "ping", "-c", "1", "apt.dockerproject.org")
 
-	cID, err := getIDByName("testperm")
+	cID, err := getIDByName(s, "testperm")
 	if err != nil {
 		c.Fatal(err)
 	}
@@ -1095,7 +1095,7 @@ func (s *DockerSuite) TestRunResolvconfUpdate(c *check.C) {
 
 	//1. test that a restarting container gets an updated resolv.conf
 	dockerCmd(c, "run", "--name='first'", "busybox", "true")
-	containerID1, err := getIDByName("first")
+	containerID1, err := getIDByName(s, "first")
 	if err != nil {
 		c.Fatal(err)
 	}
@@ -1125,7 +1125,7 @@ func (s *DockerSuite) TestRunResolvconfUpdate(c *check.C) {
 	//2. test that a restarting container does not receive resolv.conf updates
 	//   if it modified the container copy of the starting point resolv.conf
 	dockerCmd(c, "run", "--name='second'", "busybox", "sh", "-c", "echo 'search mylittlepony.com' >>/etc/resolv.conf")
-	containerID2, err := getIDByName("second")
+	containerID2, err := getIDByName(s, "second")
 	if err != nil {
 		c.Fatal(err)
 	}
@@ -1214,7 +1214,7 @@ func (s *DockerSuite) TestRunResolvconfUpdate(c *check.C) {
 
 	// Run the container so it picks up the old settings
 	dockerCmd(c, "run", "--name='third'", "busybox", "true")
-	containerID3, err := getIDByName("third")
+	containerID3, err := getIDByName(s, "third")
 	if err != nil {
 		c.Fatal(err)
 	}
@@ -1300,36 +1300,36 @@ func (s *DockerSuite) TestRunState(c *check.C) {
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
 
 	id := strings.TrimSpace(out)
-	state, err := inspectField(id, "State.Running")
+	state, err := inspectField(s, id, "State.Running")
 	c.Assert(err, check.IsNil)
 	if state != "true" {
 		c.Fatal("Container state is 'not running'")
 	}
-	pid1, err := inspectField(id, "State.Pid")
+	pid1, err := inspectField(s, id, "State.Pid")
 	c.Assert(err, check.IsNil)
 	if pid1 == "0" {
 		c.Fatal("Container state Pid 0")
 	}
 
 	dockerCmd(c, "stop", id)
-	state, err = inspectField(id, "State.Running")
+	state, err = inspectField(s, id, "State.Running")
 	c.Assert(err, check.IsNil)
 	if state != "false" {
 		c.Fatal("Container state is 'running'")
 	}
-	pid2, err := inspectField(id, "State.Pid")
+	pid2, err := inspectField(s, id, "State.Pid")
 	c.Assert(err, check.IsNil)
 	if pid2 == pid1 {
 		c.Fatalf("Container state Pid %s, but expected %s", pid2, pid1)
 	}
 
 	dockerCmd(c, "start", id)
-	state, err = inspectField(id, "State.Running")
+	state, err = inspectField(s, id, "State.Running")
 	c.Assert(err, check.IsNil)
 	if state != "true" {
 		c.Fatal("Container state is 'not running'")
 	}
-	pid3, err := inspectField(id, "State.Pid")
+	pid3, err := inspectField(s, id, "State.Pid")
 	c.Assert(err, check.IsNil)
 	if pid3 == pid1 {
 		c.Fatalf("Container state Pid %s, but expected %s", pid2, pid1)
@@ -1340,7 +1340,7 @@ func (s *DockerSuite) TestRunState(c *check.C) {
 func (s *DockerSuite) TestRunCopyVolumeUidGid(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	name := "testrunvolumesuidgid"
-	_, err := buildImage(name,
+	_, err := buildImage(s, name,
 		`FROM busybox
 		RUN echo 'dockerio:x:1001:1001::/bin:/bin/false' >> /etc/passwd
 		RUN echo 'dockerio:x:1001:' >> /etc/group
@@ -1362,7 +1362,7 @@ func (s *DockerSuite) TestRunCopyVolumeUidGid(c *check.C) {
 func (s *DockerSuite) TestRunCopyVolumeContent(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	name := "testruncopyvolumecontent"
-	_, err := buildImage(name,
+	_, err := buildImage(s, name,
 		`FROM busybox
 		RUN mkdir -p /hello/local && echo hello > /hello/local/world`,
 		true)
@@ -1380,7 +1380,7 @@ func (s *DockerSuite) TestRunCopyVolumeContent(c *check.C) {
 func (s *DockerSuite) TestRunCleanupCmdOnEntrypoint(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	name := "testrunmdcleanuponentrypoint"
-	if _, err := buildImage(name,
+	if _, err := buildImage(s, name,
 		`FROM busybox
 		ENTRYPOINT ["echo"]
 		CMD ["testingpoint"]`,
@@ -1451,7 +1451,7 @@ func (s *DockerSuite) TestRunExitOnStdinClose(c *check.C) {
 	case <-time.After(1 * time.Second):
 		c.Fatal("docker run failed to exit on stdin close")
 	}
-	state, err := inspectField(name, "State.Running")
+	state, err := inspectField(s, name, "State.Running")
 	c.Assert(err, check.IsNil)
 
 	if state != "false" {
@@ -1662,7 +1662,7 @@ func (s *DockerSuite) TestRunInspectMacAddress(c *check.C) {
 	out, _ := dockerCmd(c, "run", "-d", "--mac-address="+mac, "busybox", "top")
 
 	id := strings.TrimSpace(out)
-	inspectedMac, err := inspectField(id, "NetworkSettings.MacAddress")
+	inspectedMac, err := inspectField(s, id, "NetworkSettings.MacAddress")
 	c.Assert(err, check.IsNil)
 	if inspectedMac != mac {
 		c.Fatalf("docker inspect outputs wrong MAC address: %q, should be: %q", inspectedMac, mac)
@@ -1685,7 +1685,7 @@ func (s *DockerSuite) TestRunDeallocatePortOnMissingIptablesRule(c *check.C) {
 	out, _ := dockerCmd(c, "run", "-d", "-p", "23:23", "busybox", "top")
 
 	id := strings.TrimSpace(out)
-	ip, err := inspectField(id, "NetworkSettings.IPAddress")
+	ip, err := inspectField(s, id, "NetworkSettings.IPAddress")
 	c.Assert(err, check.IsNil)
 	iptCmd := exec.Command("iptables", "-D", "DOCKER", "-d", fmt.Sprintf("%s/32", ip),
 		"!", "-i", "docker0", "-o", "docker0", "-p", "tcp", "-m", "tcp", "--dport", "23", "-j", "ACCEPT")
@@ -1693,7 +1693,7 @@ func (s *DockerSuite) TestRunDeallocatePortOnMissingIptablesRule(c *check.C) {
 	if err != nil {
 		c.Fatal(err, out)
 	}
-	if err := deleteContainer(id); err != nil {
+	if err := deleteContainer(s, id); err != nil {
 		c.Fatal(err)
 	}
 
@@ -1824,7 +1824,7 @@ func (s *DockerSuite) TestRunCreateVolumeEtc(c *check.C) {
 
 func (s *DockerSuite) TestVolumesNoCopyData(c *check.C) {
 	testRequires(c, DaemonIsLinux)
-	if _, err := buildImage("dataimage",
+	if _, err := buildImage(s, "dataimage",
 		`FROM busybox
 		RUN mkdir -p /foo
 		RUN touch /foo/bar`,
@@ -1859,7 +1859,7 @@ func (s *DockerSuite) TestRunNoOutputFromPullInStdout(c *check.C) {
 
 func (s *DockerSuite) TestRunVolumesCleanPaths(c *check.C) {
 	testRequires(c, DaemonIsLinux)
-	if _, err := buildImage("run_volumes_clean_paths",
+	if _, err := buildImage(s, "run_volumes_clean_paths",
 		`FROM busybox
 		VOLUME /foo/`,
 		true); err != nil {
@@ -1868,23 +1868,23 @@ func (s *DockerSuite) TestRunVolumesCleanPaths(c *check.C) {
 
 	dockerCmd(c, "run", "-v", "/foo", "-v", "/bar/", "--name", "dark_helmet", "run_volumes_clean_paths")
 
-	out, err := inspectMountSourceField("dark_helmet", "/foo/")
+	out, err := inspectMountSourceField(s, "dark_helmet", "/foo/")
 	if err != errMountNotFound {
 		c.Fatalf("Found unexpected volume entry for '/foo/' in volumes\n%q", out)
 	}
 
-	out, err = inspectMountSourceField("dark_helmet", "/foo")
+	out, err = inspectMountSourceField(s, "dark_helmet", "/foo")
 	c.Assert(err, check.IsNil)
 	if !strings.Contains(out, volumesConfigPath) {
 		c.Fatalf("Volume was not defined for /foo\n%q", out)
 	}
 
-	out, err = inspectMountSourceField("dark_helmet", "/bar/")
+	out, err = inspectMountSourceField(s, "dark_helmet", "/bar/")
 	if err != errMountNotFound {
 		c.Fatalf("Found unexpected volume entry for '/bar/' in volumes\n%q", out)
 	}
 
-	out, err = inspectMountSourceField("dark_helmet", "/bar")
+	out, err = inspectMountSourceField(s, "dark_helmet", "/bar")
 	c.Assert(err, check.IsNil)
 	if !strings.Contains(out, volumesConfigPath) {
 		c.Fatalf("Volume was not defined for /bar\n%q", out)
@@ -1920,7 +1920,7 @@ func (s *DockerSuite) TestRunAllowPortRangeThroughExpose(c *check.C) {
 	out, _ := dockerCmd(c, "run", "-d", "--expose", "3000-3003", "-P", "busybox", "top")
 
 	id := strings.TrimSpace(out)
-	portstr, err := inspectFieldJSON(id, "NetworkSettings.Ports")
+	portstr, err := inspectFieldJSON(s, id, "NetworkSettings.Ports")
 	c.Assert(err, check.IsNil)
 	var ports nat.PortMap
 	if err = unmarshalJSON([]byte(portstr), &ports); err != nil {
@@ -1955,7 +1955,7 @@ func (s *DockerSuite) TestRunUnknownCommand(c *check.C) {
 	_, _, err := dockerCmdWithError("start", cID)
 	c.Assert(err, check.NotNil)
 
-	rc, err := inspectField(cID, "State.ExitCode")
+	rc, err := inspectField(s, cID, "State.ExitCode")
 	c.Assert(err, check.IsNil)
 	if rc == "0" {
 		c.Fatalf("ExitCode(%v) cannot be 0", rc)
@@ -1989,12 +1989,12 @@ func (s *DockerSuite) TestRunModeIpcContainer(c *check.C) {
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
 
 	id := strings.TrimSpace(out)
-	state, err := inspectField(id, "State.Running")
+	state, err := inspectField(s, id, "State.Running")
 	c.Assert(err, check.IsNil)
 	if state != "true" {
 		c.Fatal("Container state is 'not running'")
 	}
-	pid1, err := inspectField(id, "State.Pid")
+	pid1, err := inspectField(s, id, "State.Pid")
 	c.Assert(err, check.IsNil)
 
 	parentContainerIpc, err := os.Readlink(fmt.Sprintf("/proc/%s/ns/ipc", pid1))
@@ -2034,8 +2034,8 @@ func (s *DockerSuite) TestContainerNetworkMode(c *check.C) {
 
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
 	id := strings.TrimSpace(out)
-	c.Assert(waitRun(id), check.IsNil)
-	pid1, err := inspectField(id, "State.Pid")
+	c.Assert(waitRun(s, id), check.IsNil)
+	pid1, err := inspectField(s, id, "State.Pid")
 	c.Assert(err, check.IsNil)
 
 	parentContainerNet, err := os.Readlink(fmt.Sprintf("/proc/%s/ns/net", pid1))
@@ -2230,7 +2230,7 @@ func (s *DockerSuite) TestRunAllowPortRangeThroughPublish(c *check.C) {
 	out, _ := dockerCmd(c, "run", "-d", "--expose", "3000-3003", "-p", "3000-3003", "busybox", "top")
 
 	id := strings.TrimSpace(out)
-	portstr, err := inspectFieldJSON(id, "NetworkSettings.Ports")
+	portstr, err := inspectFieldJSON(s, id, "NetworkSettings.Ports")
 	c.Assert(err, check.IsNil)
 
 	var ports nat.PortMap
@@ -2250,7 +2250,7 @@ func (s *DockerSuite) TestRunSetDefaultRestartPolicy(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	dockerCmd(c, "run", "-d", "--name", "test", "busybox", "top")
 
-	out, err := inspectField("test", "HostConfig.RestartPolicy.Name")
+	out, err := inspectField(s, "test", "HostConfig.RestartPolicy.Name")
 	c.Assert(err, check.IsNil)
 	if out != "no" {
 		c.Fatalf("Set default restart policy failed")
@@ -2262,17 +2262,17 @@ func (s *DockerSuite) TestRunRestartMaxRetries(c *check.C) {
 	out, _ := dockerCmd(c, "run", "-d", "--restart=on-failure:3", "busybox", "false")
 
 	id := strings.TrimSpace(string(out))
-	if err := waitInspect(id, "{{ .State.Restarting }} {{ .State.Running }}", "false false", 10); err != nil {
+	if err := waitInspect(s, id, "{{ .State.Restarting }} {{ .State.Running }}", "false false", 10); err != nil {
 		c.Fatal(err)
 	}
 
-	count, err := inspectField(id, "RestartCount")
+	count, err := inspectField(s, id, "RestartCount")
 	c.Assert(err, check.IsNil)
 	if count != "3" {
 		c.Fatalf("Container was restarted %s times, expected %d", count, 3)
 	}
 
-	MaximumRetryCount, err := inspectField(id, "HostConfig.RestartPolicy.MaximumRetryCount")
+	MaximumRetryCount, err := inspectField(s, id, "HostConfig.RestartPolicy.MaximumRetryCount")
 	c.Assert(err, check.IsNil)
 	if MaximumRetryCount != "3" {
 		c.Fatalf("Container Maximum Retry Count is %s, expected %s", MaximumRetryCount, "3")
@@ -2379,7 +2379,7 @@ func (s *DockerSuite) TestRunContainerWithRmFlagExitCodeNotEqualToZero(c *check.
 		c.Fatal("Expected docker run to fail", out, err)
 	}
 
-	out, err = getAllContainers()
+	out, err = getAllContainers(s)
 	if err != nil {
 		c.Fatal(out, err)
 	}
@@ -2397,7 +2397,7 @@ func (s *DockerSuite) TestRunContainerWithRmFlagCannotStartContainer(c *check.C)
 		c.Fatal("Expected docker run to fail", out, err)
 	}
 
-	out, err = getAllContainers()
+	out, err = getAllContainers(s)
 	if err != nil {
 		c.Fatal(out, err)
 	}
@@ -2412,7 +2412,7 @@ func (s *DockerSuite) TestRunPidHostWithChildIsKillable(c *check.C) {
 	name := "ibuildthecloud"
 	dockerCmd(c, "run", "-d", "--pid=host", "--name", name, "busybox", "sh", "-c", "sleep 30; echo hi")
 
-	c.Assert(waitRun(name), check.IsNil)
+	c.Assert(waitRun(s, name), check.IsNil)
 
 	errchan := make(chan error)
 	go func() {
@@ -2579,13 +2579,13 @@ func (s *DockerSuite) TestVolumeFromMixedRWOptions(c *check.C) {
 	dockerCmd(c, "run", "--volumes-from", "parent:ro", "--name", "test-volumes-1", "busybox", "true")
 	dockerCmd(c, "run", "--volumes-from", "parent:rw", "--name", "test-volumes-2", "busybox", "true")
 
-	mRO, err := inspectMountPoint("test-volumes-1", "/test")
+	mRO, err := inspectMountPoint(s, "test-volumes-1", "/test")
 	c.Assert(err, check.IsNil)
 	if mRO.RW {
 		c.Fatalf("Expected RO volume was RW")
 	}
 
-	mRW, err := inspectMountPoint("test-volumes-2", "/test")
+	mRW, err := inspectMountPoint(s, "test-volumes-2", "/test")
 	c.Assert(err, check.IsNil)
 	if !mRW.RW {
 		c.Fatalf("Expected RW volume was RO")
@@ -2680,7 +2680,7 @@ func (s *DockerTrustSuite) TestTrustedRun(c *check.C) {
 	repoName := s.setupTrustedImage(c, "trusted-run")
 
 	// Try run
-	runCmd := exec.Command(dockerBinary, "run", repoName)
+	runCmd := s.MakeCmd("run", repoName)
 	s.trustedCmd(runCmd)
 	out, _, err := runCommandWithOutput(runCmd)
 	if err != nil {
@@ -2691,10 +2691,10 @@ func (s *DockerTrustSuite) TestTrustedRun(c *check.C) {
 		c.Fatalf("Missing expected output on trusted push:\n%s", out)
 	}
 
-	dockerCmd(c, "rmi", repoName)
+	s.Cmd(c, "rmi", repoName)
 
 	// Try untrusted run to ensure we pushed the tag to the registry
-	runCmd = exec.Command(dockerBinary, "run", "--disable-content-trust=true", repoName)
+	runCmd = s.MakeCmd("run", "--disable-content-trust=true", repoName)
 	s.trustedCmd(runCmd)
 	out, _, err = runCommandWithOutput(runCmd)
 	if err != nil {
@@ -2710,12 +2710,12 @@ func (s *DockerTrustSuite) TestUntrustedRun(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	repoName := fmt.Sprintf("%v/dockercli/trusted:latest", privateRegistryURL)
 	// tag the image and upload it to the private registry
-	dockerCmd(c, "tag", "busybox", repoName)
-	dockerCmd(c, "push", repoName)
-	dockerCmd(c, "rmi", repoName)
+	s.Cmd(c, "tag", "busybox", repoName)
+	s.Cmd(c, "push", repoName)
+	s.Cmd(c, "rmi", repoName)
 
 	// Try trusted run on untrusted tag
-	runCmd := exec.Command(dockerBinary, "run", repoName)
+	runCmd := s.MakeCmd("run", repoName)
 	s.trustedCmd(runCmd)
 	out, _, err := runCommandWithOutput(runCmd)
 	if err == nil {
@@ -2737,7 +2737,7 @@ func (s *DockerTrustSuite) TestRunWhenCertExpired(c *check.C) {
 
 	runAtDifferentDate(elevenYearsFromNow, func() {
 		// Try run
-		runCmd := exec.Command(dockerBinary, "run", repoName)
+		runCmd := s.MakeCmd("run", repoName)
 		s.trustedCmd(runCmd)
 		out, _, err := runCommandWithOutput(runCmd)
 		if err == nil {
@@ -2751,7 +2751,7 @@ func (s *DockerTrustSuite) TestRunWhenCertExpired(c *check.C) {
 
 	runAtDifferentDate(elevenYearsFromNow, func() {
 		// Try run
-		runCmd := exec.Command(dockerBinary, "run", "--disable-content-trust", repoName)
+		runCmd := s.MakeCmd("run", "--disable-content-trust", repoName)
 		s.trustedCmd(runCmd)
 		out, _, err := runCommandWithOutput(runCmd)
 		if err != nil {
@@ -2773,9 +2773,9 @@ func (s *DockerTrustSuite) TestTrustedRunFromBadTrustServer(c *check.C) {
 	}
 
 	// tag the image and upload it to the private registry
-	dockerCmd(c, "tag", "busybox", repoName)
+	s.Cmd(c, "tag", "busybox", repoName)
 
-	pushCmd := exec.Command(dockerBinary, "push", repoName)
+	pushCmd := s.MakeCmd("push", repoName)
 	s.trustedCmd(pushCmd)
 	out, _, err := runCommandWithOutput(pushCmd)
 	if err != nil {
@@ -2785,10 +2785,10 @@ func (s *DockerTrustSuite) TestTrustedRunFromBadTrustServer(c *check.C) {
 		c.Fatalf("Missing expected output on trusted push:\n%s", out)
 	}
 
-	dockerCmd(c, "rmi", repoName)
+	s.Cmd(c, "rmi", repoName)
 
 	// Try run
-	runCmd := exec.Command(dockerBinary, "run", repoName)
+	runCmd := s.MakeCmd("run", repoName)
 	s.trustedCmd(runCmd)
 	out, _, err = runCommandWithOutput(runCmd)
 	if err != nil {
@@ -2799,7 +2799,7 @@ func (s *DockerTrustSuite) TestTrustedRunFromBadTrustServer(c *check.C) {
 		c.Fatalf("Missing expected output on trusted push:\n%s", out)
 	}
 
-	dockerCmd(c, "rmi", repoName)
+	s.Cmd(c, "rmi", repoName)
 
 	// Kill the notary server, start a new "evil" one.
 	s.not.Close()
@@ -2810,10 +2810,10 @@ func (s *DockerTrustSuite) TestTrustedRunFromBadTrustServer(c *check.C) {
 
 	// In order to make an evil server, lets re-init a client (with a different trust dir) and push new data.
 	// tag an image and upload it to the private registry
-	dockerCmd(c, "--config", evilLocalConfigDir, "tag", "busybox", repoName)
+	s.Cmd(c, "--config", evilLocalConfigDir, "tag", "busybox", repoName)
 
 	// Push up to the new server
-	pushCmd = exec.Command(dockerBinary, "--config", evilLocalConfigDir, "push", repoName)
+	pushCmd = s.MakeCmd("--config", evilLocalConfigDir, "push", repoName)
 	s.trustedCmd(pushCmd)
 	out, _, err = runCommandWithOutput(pushCmd)
 	if err != nil {
@@ -2824,7 +2824,7 @@ func (s *DockerTrustSuite) TestTrustedRunFromBadTrustServer(c *check.C) {
 	}
 
 	// Now, try running with the original client from this new trust server. This should fail.
-	runCmd = exec.Command(dockerBinary, "run", repoName)
+	runCmd = s.MakeCmd("run", repoName)
 	s.trustedCmd(runCmd)
 	out, _, err = runCommandWithOutput(runCmd)
 	if err == nil {
@@ -2842,8 +2842,8 @@ func (s *DockerSuite) TestPtraceContainerProcsFromHost(c *check.C) {
 
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
 	id := strings.TrimSpace(out)
-	c.Assert(waitRun(id), check.IsNil)
-	pid1, err := inspectField(id, "State.Pid")
+	c.Assert(waitRun(s, id), check.IsNil)
+	pid1, err := inspectField(s, id, "State.Pid")
 	c.Assert(err, check.IsNil)
 
 	_, err = os.Readlink(fmt.Sprintf("/proc/%s/ns/net", pid1))
@@ -2900,7 +2900,7 @@ func (s *DockerSuite) TestRunCreateContainerFailedCleanUp(c *check.C) {
 	_, _, err := dockerCmdWithError("run", "--name", name, "--link", "nothing:nothing", "busybox")
 	c.Assert(err, check.Not(check.IsNil), check.Commentf("Expected docker run to fail!"))
 
-	containerID, err := inspectField(name, "Id")
+	containerID, err := inspectField(s, name, "Id")
 	c.Assert(containerID, check.Equals, "", check.Commentf("Expected not to have this container: %s!", containerID))
 }
 
@@ -2939,7 +2939,7 @@ func (s *DockerSuite) TestRunContainerWithCgroupParent(c *check.C) {
 	if len(cgroupPaths) == 0 {
 		c.Fatalf("unexpected output - %q", string(out))
 	}
-	id, err := getIDByName(name)
+	id, err := getIDByName(s, name)
 	c.Assert(err, check.IsNil)
 	expectedCgroup := path.Join(cgroupParent, id)
 	found := false
@@ -2967,7 +2967,7 @@ func (s *DockerSuite) TestRunContainerWithCgroupParentAbsPath(c *check.C) {
 	if len(cgroupPaths) == 0 {
 		c.Fatalf("unexpected output - %q", string(out))
 	}
-	id, err := getIDByName(name)
+	id, err := getIDByName(s, name)
 	c.Assert(err, check.IsNil)
 	expectedCgroup := path.Join(cgroupParent, id)
 	found := false
@@ -3102,7 +3102,7 @@ func (s *DockerSuite) TestRunNetworkNotInitializedNoneMode(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-d", "--net=none", "busybox", "top")
 	id := strings.TrimSpace(out)
-	res, err := inspectField(id, "NetworkSettings.IPAddress")
+	res, err := inspectField(s, id, "NetworkSettings.IPAddress")
 	c.Assert(err, check.IsNil)
 	if res != "" {
 		c.Fatalf("For 'none' mode network must not be initialized, but container got IP: %s", res)

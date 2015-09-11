@@ -31,7 +31,7 @@ func (s *DockerSuite) TestSaveXzAndLoadRepoStdout(c *check.C) {
 	if err != nil {
 		c.Fatalf("failed to save repo: %v %v", out, err)
 	}
-	deleteImages(repoName)
+	deleteImages(s, repoName)
 
 	loadCmd := exec.Command(dockerBinary, "load")
 	loadCmd.Stdin = strings.NewReader(repoTarball)
@@ -65,7 +65,7 @@ func (s *DockerSuite) TestSaveXzGzAndLoadRepoStdout(c *check.C) {
 		c.Fatalf("failed to save repo: %v %v", out, err)
 	}
 
-	deleteImages(repoName)
+	deleteImages(s, repoName)
 
 	loadCmd := exec.Command(dockerBinary, "load")
 	loadCmd.Stdin = strings.NewReader(out)
@@ -146,7 +146,7 @@ func (s *DockerSuite) TestSaveAndLoadRepoFlags(c *check.C) {
 
 	repoName := "foobar-save-load-test"
 
-	deleteImages(repoName)
+	deleteImages(s, repoName)
 	dockerCmd(c, "commit", name, repoName)
 
 	before, _ := dockerCmd(c, "inspect", repoName)
@@ -205,7 +205,7 @@ func (s *DockerSuite) TestSaveRepoWithMultipleImages(c *check.C) {
 	idFoo := makeImage("busybox:latest", tagFoo)
 	idBar := makeImage("busybox:latest", tagBar)
 
-	deleteImages(repoName)
+	deleteImages(s, repoName)
 
 	// create the archive
 	out, _, err := runCommandPipelineWithOutput(
@@ -244,7 +244,7 @@ func (s *DockerSuite) TestSaveDirectoryPermissions(c *check.C) {
 	os.Mkdir(extractionDirectory, 0777)
 
 	defer os.RemoveAll(tmpDir)
-	_, err = buildImage(name,
+	_, err = buildImage(s, name,
 		`FROM busybox
 	RUN adduser -D user && mkdir -p /opt/a/b && chown -R user:user /opt/a
 	RUN touch /opt/a/b/c && chown user:user /opt/a/b/c`,

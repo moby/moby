@@ -9,7 +9,7 @@ import (
 	"github.com/go-check/check"
 )
 
-func startServerContainer(c *check.C, msg string, port int) string {
+func startServerContainer(c *check.C, s CmdMaker, msg string, port int) string {
 	name := "server"
 	cmd := []string{
 		"-d",
@@ -17,7 +17,7 @@ func startServerContainer(c *check.C, msg string, port int) string {
 		"busybox",
 		"sh", "-c", fmt.Sprintf("echo %q | nc -lp %d", msg, port),
 	}
-	if err := waitForContainer(name, cmd...); err != nil {
+	if err := waitForContainer(s, name, cmd...); err != nil {
 		c.Fatalf("Failed to launch server container: %v", err)
 	}
 	return name
@@ -42,22 +42,11 @@ func getExternalAddress(c *check.C) net.IP {
 	return ifaceIP
 }
 
-func getContainerLogs(c *check.C, containerID string) string {
-	out, _ := dockerCmd(c, "logs", containerID)
-	return strings.Trim(out, "\r\n")
-}
-
-func getContainerStatus(c *check.C, containerID string) string {
-	out, err := inspectField(containerID, "State.Running")
-	c.Assert(err, check.IsNil)
-	return out
-}
-
 func (s *DockerSuite) TestNetworkNat(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	testRequires(c, SameHostDaemon, NativeExecDriver)
 	msg := "it works"
-	startServerContainer(c, msg, 8080)
+	startServerContainer(c, s, msg, 8080)
 	endpoint := getExternalAddress(c)
 	conn, err := net.Dial("tcp", fmt.Sprintf("%s:%d", endpoint.String(), 8080))
 	if err != nil {
@@ -80,7 +69,7 @@ func (s *DockerSuite) TestNetworkLocalhostTCPNat(c *check.C) {
 	var (
 		msg = "hi yall"
 	)
-	startServerContainer(c, msg, 8081)
+	startServerContainer(c, s, msg, 8081)
 	conn, err := net.Dial("tcp", "localhost:8081")
 	if err != nil {
 		c.Fatalf("Failed to connect to container (%v)", err)
@@ -100,7 +89,7 @@ func (s *DockerSuite) TestNetworkLoopbackNat(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	testRequires(c, SameHostDaemon, NativeExecDriver)
 	msg := "it works"
-	startServerContainer(c, msg, 8080)
+	startServerContainer(c, s, msg, 8080)
 	endpoint := getExternalAddress(c)
 	out, _ := dockerCmd(c, "run", "-t", "--net=container:server", "busybox",
 		"sh", "-c", fmt.Sprintf("stty raw && nc -w 5 %s 8080", endpoint.String()))

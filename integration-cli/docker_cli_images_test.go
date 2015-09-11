@@ -21,12 +21,12 @@ func (s *DockerSuite) TestImagesEnsureImageIsListed(c *check.C) {
 
 func (s *DockerSuite) TestImagesEnsureImageWithTagIsListed(c *check.C) {
 	testRequires(c, DaemonIsLinux)
-	_, err := buildImage("imagewithtag:v1",
+	_, err := buildImage(s, "imagewithtag:v1",
 		`FROM scratch
 		MAINTAINER dockerio1`, true)
 	c.Assert(err, check.IsNil)
 
-	_, err = buildImage("imagewithtag:v2",
+	_, err = buildImage(s, "imagewithtag:v2",
 		`FROM scratch
 		MAINTAINER dockerio1`, true)
 	c.Assert(err, check.IsNil)
@@ -55,21 +55,21 @@ func (s *DockerSuite) TestImagesEnsureImageWithBadTagIsNotListed(c *check.C) {
 
 func (s *DockerSuite) TestImagesOrderedByCreationDate(c *check.C) {
 	testRequires(c, DaemonIsLinux)
-	id1, err := buildImage("order:test_a",
+	id1, err := buildImage(s, "order:test_a",
 		`FROM scratch
 		MAINTAINER dockerio1`, true)
 	if err != nil {
 		c.Fatal(err)
 	}
 	time.Sleep(1 * time.Second)
-	id2, err := buildImage("order:test_c",
+	id2, err := buildImage(s, "order:test_c",
 		`FROM scratch
 		MAINTAINER dockerio2`, true)
 	if err != nil {
 		c.Fatal(err)
 	}
 	time.Sleep(1 * time.Second)
-	id3, err := buildImage("order:test_b",
+	id3, err := buildImage(s, "order:test_b",
 		`FROM scratch
 		MAINTAINER dockerio3`, true)
 	if err != nil {
@@ -101,21 +101,21 @@ func (s *DockerSuite) TestImagesFilterLabel(c *check.C) {
 	imageName1 := "images_filter_test1"
 	imageName2 := "images_filter_test2"
 	imageName3 := "images_filter_test3"
-	image1ID, err := buildImage(imageName1,
+	image1ID, err := buildImage(s, imageName1,
 		`FROM scratch
 		 LABEL match me`, true)
 	if err != nil {
 		c.Fatal(err)
 	}
 
-	image2ID, err := buildImage(imageName2,
+	image2ID, err := buildImage(s, imageName2,
 		`FROM scratch
 		 LABEL match="me too"`, true)
 	if err != nil {
 		c.Fatal(err)
 	}
 
-	image3ID, err := buildImage(imageName3,
+	image3ID, err := buildImage(s, imageName3,
 		`FROM scratch
 		 LABEL nomatch me`, true)
 	if err != nil {
@@ -138,7 +138,7 @@ func (s *DockerSuite) TestImagesFilterLabel(c *check.C) {
 func (s *DockerSuite) TestImagesFilterSpaceTrimCase(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	imageName := "images_filter_test"
-	buildImage(imageName,
+	buildImage(s, imageName,
 		`FROM scratch
 		 RUN touch /test/foo
 		 RUN touch /test/bar

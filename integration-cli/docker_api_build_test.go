@@ -46,7 +46,7 @@ func (s *DockerSuite) TestBuildApiDockerfilePath(c *check.C) {
 
 func (s *DockerSuite) TestBuildApiDockerFileRemote(c *check.C) {
 	testRequires(c, DaemonIsLinux)
-	server, err := fakeStorage(map[string]string{
+	server, err := fakeStorage(s, map[string]string{
 		"testD": `FROM busybox
 COPY * /tmp/
 RUN find / -name ba*
@@ -95,7 +95,7 @@ func (s *DockerSuite) TestBuildApiRemoteTarballContext(c *check.C) {
 		c.Fatalf("failed to close tar archive: %v", err)
 	}
 
-	server, err := fakeBinaryStorage(map[string]*bytes.Buffer{
+	server, err := fakeBinaryStorage(s, map[string]*bytes.Buffer{
 		"testT.tar": buffer,
 	})
 	c.Assert(err, check.IsNil)
@@ -143,7 +143,7 @@ RUN echo 'right'
 		c.Fatalf("failed to close tar archive: %v", err)
 	}
 
-	server, err := fakeBinaryStorage(map[string]*bytes.Buffer{
+	server, err := fakeBinaryStorage(s, map[string]*bytes.Buffer{
 		"testT.tar": buffer,
 	})
 	c.Assert(err, check.IsNil)
@@ -165,7 +165,7 @@ RUN echo 'right'
 
 func (s *DockerSuite) TestBuildApiLowerDockerfile(c *check.C) {
 	testRequires(c, DaemonIsLinux)
-	git, err := newFakeGit("repo", map[string]string{
+	git, err := newFakeGit(s, "repo", map[string]string{
 		"dockerfile": `FROM busybox
 RUN echo from dockerfile`,
 	}, false)
@@ -191,7 +191,7 @@ RUN echo from dockerfile`,
 
 func (s *DockerSuite) TestBuildApiBuildGitWithF(c *check.C) {
 	testRequires(c, DaemonIsLinux)
-	git, err := newFakeGit("repo", map[string]string{
+	git, err := newFakeGit(s, "repo", map[string]string{
 		"baz": `FROM busybox
 RUN echo from baz`,
 		"Dockerfile": `FROM busybox
@@ -220,7 +220,7 @@ RUN echo from Dockerfile`,
 
 func (s *DockerSuite) TestBuildApiDoubleDockerfile(c *check.C) {
 	testRequires(c, UnixCli) // dockerfile overwrites Dockerfile on Windows
-	git, err := newFakeGit("repo", map[string]string{
+	git, err := newFakeGit(s, "repo", map[string]string{
 		"Dockerfile": `FROM busybox
 RUN echo from Dockerfile`,
 		"dockerfile": `FROM busybox

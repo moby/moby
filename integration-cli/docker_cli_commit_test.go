@@ -39,7 +39,7 @@ func (s *DockerSuite) TestCommitWithoutPause(c *check.C) {
 //test commit a paused container should not unpause it after commit
 func (s *DockerSuite) TestCommitPausedContainer(c *check.C) {
 	testRequires(c, DaemonIsLinux)
-	defer unpauseAllContainers()
+	defer unpauseAllContainers(s)
 	out, _ := dockerCmd(c, "run", "-i", "-d", "busybox")
 
 	cleanedContainerID := strings.TrimSpace(out)
@@ -48,7 +48,7 @@ func (s *DockerSuite) TestCommitPausedContainer(c *check.C) {
 
 	out, _ = dockerCmd(c, "commit", cleanedContainerID)
 
-	out, err := inspectField(cleanedContainerID, "State.Paused")
+	out, err := inspectField(s, cleanedContainerID, "State.Paused")
 	c.Assert(err, check.IsNil)
 	if !strings.Contains(out, "true") {
 		c.Fatalf("commit should not unpause a paused container")
@@ -161,7 +161,7 @@ func (s *DockerSuite) TestCommitChange(c *check.C) {
 	}
 
 	for conf, value := range expected {
-		res, err := inspectField(imageID, conf)
+		res, err := inspectField(s, imageID, conf)
 		c.Assert(err, check.IsNil)
 		if res != value {
 			c.Errorf("%s('%s'), expected %s", conf, res, value)
@@ -189,11 +189,11 @@ func (s *DockerSuite) TestCommitMergeConfigRun(c *check.C) {
 		Cmd []string
 	}
 	config1 := cfg{}
-	if err := inspectFieldAndMarshall(id, "Config", &config1); err != nil {
+	if err := inspectFieldAndMarshall(s, id, "Config", &config1); err != nil {
 		c.Fatal(err)
 	}
 	config2 := cfg{}
-	if err := inspectFieldAndMarshall(name, "Config", &config2); err != nil {
+	if err := inspectFieldAndMarshall(s, name, "Config", &config2); err != nil {
 		c.Fatal(err)
 	}
 

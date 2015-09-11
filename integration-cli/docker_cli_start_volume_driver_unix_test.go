@@ -19,7 +19,7 @@ import (
 
 func init() {
 	check.Suite(&DockerExternalVolumeSuite{
-		ds: &DockerSuite{},
+		DockerSuite: &DockerSuite{},
 	})
 }
 
@@ -33,8 +33,9 @@ type eventCounter struct {
 }
 
 type DockerExternalVolumeSuite struct {
+	*DockerSuite
+
 	server *httptest.Server
-	ds     *DockerSuite
 	d      *Daemon
 	ec     *eventCounter
 }
@@ -46,7 +47,7 @@ func (s *DockerExternalVolumeSuite) SetUpTest(c *check.C) {
 
 func (s *DockerExternalVolumeSuite) TearDownTest(c *check.C) {
 	s.d.Stop()
-	s.ds.TearDownTest(c)
+	s.DockerSuite.TearDownTest(c)
 }
 
 func (s *DockerExternalVolumeSuite) SetUpSuite(c *check.C) {
@@ -355,7 +356,7 @@ func (s *DockerExternalVolumeSuite) TestStartExternalVolumeDriverBindExternalVol
 		Name   string
 		Driver string
 	}
-	out, err := inspectFieldJSON("testing", "Mounts")
+	out, err := inspectFieldJSON(s, "testing", "Mounts")
 	c.Assert(err, check.IsNil)
 	c.Assert(json.NewDecoder(strings.NewReader(out)).Decode(&mounts), check.IsNil)
 	c.Assert(len(mounts), check.Equals, 1, check.Commentf(out))

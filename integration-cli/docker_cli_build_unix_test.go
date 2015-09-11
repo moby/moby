@@ -38,7 +38,7 @@ func (s *DockerSuite) TestBuildResourceConstraintsAreUsed(c *check.C) {
 		Ulimits    []*ulimit.Ulimit
 	}
 
-	cfg, err := inspectFieldJSON(cID, "HostConfig")
+	cfg, err := inspectFieldJSON(s, cID, "HostConfig")
 	if err != nil {
 		c.Fatal(err)
 	}
@@ -55,7 +55,7 @@ func (s *DockerSuite) TestBuildResourceConstraintsAreUsed(c *check.C) {
 	// Make sure constraints aren't saved to image
 	dockerCmd(c, "run", "--name=test", name)
 
-	cfg, err = inspectFieldJSON("test", "HostConfig")
+	cfg, err = inspectFieldJSON(s, "test", "HostConfig")
 	if err != nil {
 		c.Fatal(err)
 	}

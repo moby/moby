@@ -23,7 +23,7 @@ import (
 
 func (s *DockerSuite) TestContainerApiGetAll(c *check.C) {
 	testRequires(c, DaemonIsLinux)
-	startCount, err := getContainerCount()
+	startCount, err := getContainerCount(s)
 	if err != nil {
 		c.Fatalf("Cannot query container count: %v", err)
 	}
@@ -199,7 +199,7 @@ func (s *DockerSuite) TestContainerApiStartVolumeBinds(c *check.C) {
 	c.Assert(err, check.IsNil)
 	c.Assert(status, check.Equals, http.StatusNoContent)
 
-	pth, err := inspectMountSourceField(name, "/tmp")
+	pth, err := inspectMountSourceField(s, name, "/tmp")
 	if err != nil {
 		c.Fatal(err)
 	}
@@ -261,11 +261,11 @@ func (s *DockerSuite) TestContainerApiStartVolumesFrom(c *check.C) {
 	c.Assert(err, check.IsNil)
 	c.Assert(status, check.Equals, http.StatusNoContent)
 
-	pth, err := inspectMountSourceField(name, volPath)
+	pth, err := inspectMountSourceField(s, name, volPath)
 	if err != nil {
 		c.Fatal(err)
 	}
-	pth2, err := inspectMountSourceField(volName, volPath)
+	pth2, err := inspectMountSourceField(s, volName, volPath)
 	if err != nil {
 		c.Fatal(err)
 	}
@@ -454,7 +454,7 @@ func (s *DockerSuite) TestPostContainerBindNormalVolume(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	dockerCmd(c, "create", "-v", "/foo", "--name=one", "busybox")
 
-	fooDir, err := inspectMountSourceField("one", "/foo")
+	fooDir, err := inspectMountSourceField(s, "one", "/foo")
 	if err != nil {
 		c.Fatal(err)
 	}
@@ -466,7 +466,7 @@ func (s *DockerSuite) TestPostContainerBindNormalVolume(c *check.C) {
 	c.Assert(err, check.IsNil)
 	c.Assert(status, check.Equals, http.StatusNoContent)
 
-	fooDir2, err := inspectMountSourceField("two", "/foo")
+	fooDir2, err := inspectMountSourceField(s, "two", "/foo")
 	if err != nil {
 		c.Fatal(err)
 	}
@@ -478,7 +478,7 @@ func (s *DockerSuite) TestPostContainerBindNormalVolume(c *check.C) {
 
 func (s *DockerSuite) TestContainerApiPause(c *check.C) {
 	testRequires(c, DaemonIsLinux)
-	defer unpauseAllContainers()
+	defer unpauseAllContainers(s)
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "sleep", "30")
 	ContainerID := strings.TrimSpace(out)
 
@@ -486,7 +486,7 @@ func (s *DockerSuite) TestContainerApiPause(c *check.C) {
 	c.Assert(err, check.IsNil)
 	c.Assert(status, check.Equals, http.StatusNoContent)
 
-	pausedContainers, err := getSliceOfPausedContainers()
+	pausedContainers, err := getSliceOfPausedContainers(s)
 
 	if err != nil {
 		c.Fatalf("error thrown while checking if containers were paused: %v", err)
@@ -500,7 +500,7 @@ func (s *DockerSuite) TestContainerApiPause(c *check.C) {
 	c.Assert(err, check.IsNil)
 	c.Assert(status, check.Equals, http.StatusNoContent)
 
-	pausedContainers, err = getSliceOfPausedContainers()
+	pausedContainers, err = getSliceOfPausedContainers(s)
 
 	if err != nil {
 		c.Fatalf("error thrown while checking if containers were paused: %v", err)
@@ -515,7 +515,7 @@ func (s *DockerSuite) TestContainerApiTop(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "top")
 	id := strings.TrimSpace(string(out))
-	c.Assert(waitRun(id), check.IsNil)
+	c.Assert(waitRun(s, id), check.IsNil)
 
 	type topResp struct {
 		Titles    []string
@@ -566,7 +566,7 @@ func (s *DockerSuite) TestContainerApiCommit(c *check.C) {
 		c.Fatal(err)
 	}
 
-	cmd, err := inspectField(img.ID, "Config.Cmd")
+	cmd, err := inspectField(s, img.ID, "Config.Cmd")
 	if err != nil {
 		c.Fatal(err)
 	}
@@ -599,19 +599,19 @@ func (s *DockerSuite) TestContainerApiCommitWithLabelInConfig(c *check.C) {
 		c.Fatal(err)
 	}
 
-	label1, err := inspectFieldMap(img.ID, "Config.Labels", "key1")
+	label1, err := inspectFieldMap(s, img.ID, "Config.Labels", "key1")
 	if err != nil {
 		c.Fatal(err)
 	}
 	c.Assert(label1, check.Equals, "value1")
 
-	label2, err := inspectFieldMap(img.ID, "Config.Labels", "key2")
+	label2, err := inspectFieldMap(s, img.ID, "Config.Labels", "key2")
 	if err != nil {
 		c.Fatal(err)
 	}
 	c.Assert(label2, check.Equals, "value2")
 
-	cmd, err := inspectField(img.ID, "Config.Cmd")
+	cmd, err := inspectField(s, img.ID, "Config.Cmd")
 	if err != nil {
 		c.Fatal(err)
 	}
@@ -811,11 +811,11 @@ func (s *DockerSuite) TestContainerApiCreateWithCpuSharesCpuset(c *check.C) {
 
 	c.Assert(json.Unmarshal(body, &containerJSON), check.IsNil)
 
-	out, err := inspectField(containerJSON.ID, "HostConfig.CpuShares")
+	out, err := inspectField(s, containerJSON.ID, "HostConfig.CpuShares")
 	c.Assert(err, check.IsNil)
 	c.Assert(out, check.Equals, "512")
 
-	outCpuset, errCpuset := inspectField(containerJSON.ID, "HostConfig.CpusetCpus")
+	outCpuset, errCpuset := inspectField(s, containerJSON.ID, "HostConfig.CpusetCpus")
 	c.Assert(errCpuset, check.IsNil, check.Commentf("Output: %s", outCpuset))
 	c.Assert(outCpuset, check.Equals, "0,1")
 }
@@ -921,7 +921,7 @@ func (s *DockerSuite) TestContainerApiPostCreateNull(c *check.C) {
 		c.Fatal(err)
 	}
 
-	out, err := inspectField(container.ID, "HostConfig.CpusetCpus")
+	out, err := inspectField(s, container.ID, "HostConfig.CpusetCpus")
 	if err != nil {
 		c.Fatal(err, out)
 	}
@@ -929,12 +929,12 @@ func (s *DockerSuite) TestContainerApiPostCreateNull(c *check.C) {
 		c.Fatalf("expected empty string, got %q", out)
 	}
 
-	outMemory, errMemory := inspectField(container.ID, "HostConfig.Memory")
+	outMemory, errMemory := inspectField(s, container.ID, "HostConfig.Memory")
 	c.Assert(outMemory, check.Equals, "0")
 	if errMemory != nil {
 		c.Fatal(errMemory, outMemory)
 	}
-	outMemorySwap, errMemorySwap := inspectField(container.ID, "HostConfig.MemorySwap")
+	outMemorySwap, errMemorySwap := inspectField(s, container.ID, "HostConfig.MemorySwap")
 	c.Assert(outMemorySwap, check.Equals, "0")
 	if errMemorySwap != nil {
 		c.Fatal(errMemorySwap, outMemorySwap)
@@ -995,7 +995,7 @@ func (s *DockerSuite) TestContainerApiRename(c *check.C) {
 	// 204 No Content is expected, not 200
 	c.Assert(statusCode, check.Equals, http.StatusNoContent)
 
-	name, err := inspectField(containerID, "Name")
+	name, err := inspectField(s, containerID, "Name")
 	if name != "/"+newName {
 		c.Fatalf("Failed to rename container, expected %v, got %v. Container rename API failed", newName, name)
 	}
@@ -1010,7 +1010,7 @@ func (s *DockerSuite) TestContainerApiKill(c *check.C) {
 	c.Assert(err, check.IsNil)
 	c.Assert(status, check.Equals, http.StatusNoContent)
 
-	state, err := inspectField(name, "State.Running")
+	state, err := inspectField(s, name, "State.Running")
 	if err != nil {
 		c.Fatal(err)
 	}
@@ -1028,7 +1028,7 @@ func (s *DockerSuite) TestContainerApiRestart(c *check.C) {
 	c.Assert(err, check.IsNil)
 	c.Assert(status, check.Equals, http.StatusNoContent)
 
-	if err := waitInspect(name, "{{ .State.Restarting  }} {{ .State.Running  }}", "false true", 5); err != nil {
+	if err := waitInspect(s, name, "{{ .State.Restarting  }} {{ .State.Running  }}", "false true", 5); err != nil {
 		c.Fatal(err)
 	}
 }
@@ -1038,13 +1038,13 @@ func (s *DockerSuite) TestContainerApiRestartNotimeoutParam(c *check.C) {
 	name := "test-api-restart-no-timeout-param"
 	out, _ := dockerCmd(c, "run", "-di", "--name", name, "busybox", "top")
 	id := strings.TrimSpace(out)
-	c.Assert(waitRun(id), check.IsNil)
+	c.Assert(waitRun(s, id), check.IsNil)
 
 	status, _, err := sockRequest("POST", "/containers/"+name+"/restart", nil)
 	c.Assert(err, check.IsNil)
 	c.Assert(status, check.Equals, http.StatusNoContent)
 
-	if err := waitInspect(name, "{{ .State.Restarting  }} {{ .State.Running  }}", "false true", 5); err != nil {
+	if err := waitInspect(s, name, "{{ .State.Restarting  }} {{ .State.Running  }}", "false true", 5); err != nil {
 		c.Fatal(err)
 	}
 }
@@ -1082,7 +1082,7 @@ func (s *DockerSuite) TestContainerApiStop(c *check.C) {
 	c.Assert(err, check.IsNil)
 	c.Assert(status, check.Equals, http.StatusNoContent)
 
-	if err := waitInspect(name, "{{ .State.Running  }}", "false", 5); err != nil {
+	if err := waitInspect(s, name, "{{ .State.Running  }}", "false", 5); err != nil {
 		c.Fatal(err)
 	}
 
@@ -1101,7 +1101,7 @@ func (s *DockerSuite) TestContainerApiWait(c *check.C) {
 	c.Assert(err, check.IsNil)
 	c.Assert(status, check.Equals, http.StatusOK)
 
-	if err := waitInspect(name, "{{ .State.Running  }}", "false", 5); err != nil {
+	if err := waitInspect(s, name, "{{ .State.Running  }}", "false", 5); err != nil {
 		c.Fatal(err)
 	}
 
@@ -1190,7 +1190,7 @@ func (s *DockerSuite) TestContainerApiDelete(c *check.C) {
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
 
 	id := strings.TrimSpace(out)
-	c.Assert(waitRun(id), check.IsNil)
+	c.Assert(waitRun(s, id), check.IsNil)
 
 	dockerCmd(c, "stop", id)
 
@@ -1211,7 +1211,7 @@ func (s *DockerSuite) TestContainerApiDeleteForce(c *check.C) {
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
 
 	id := strings.TrimSpace(out)
-	c.Assert(waitRun(id), check.IsNil)
+	c.Assert(waitRun(s, id), check.IsNil)
 
 	status, _, err := sockRequest("DELETE", "/containers/"+id+"?force=1", nil)
 	c.Assert(err, check.IsNil)
@@ -1223,14 +1223,14 @@ func (s *DockerSuite) TestContainerApiDeleteRemoveLinks(c *check.C) {
 	out, _ := dockerCmd(c, "run", "-d", "--name", "tlink1", "busybox", "top")
 
 	id := strings.TrimSpace(out)
-	c.Assert(waitRun(id), check.IsNil)
+	c.Assert(waitRun(s, id), check.IsNil)
 
 	out, _ = dockerCmd(c, "run", "--link", "tlink1:tlink1", "--name", "tlink2", "-d", "busybox", "top")
 
 	id2 := strings.TrimSpace(out)
-	c.Assert(waitRun(id2), check.IsNil)
+	c.Assert(waitRun(s, id2), check.IsNil)
 
-	links, err := inspectFieldJSON(id2, "HostConfig.Links")
+	links, err := inspectFieldJSON(s, id2, "HostConfig.Links")
 	c.Assert(err, check.IsNil)
 
 	if links != "[\"/tlink1:/tlink2/tlink1\"]" {
@@ -1241,7 +1241,7 @@ func (s *DockerSuite) TestContainerApiDeleteRemoveLinks(c *check.C) {
 	c.Assert(err, check.IsNil)
 	c.Assert(status, check.Equals, http.StatusNoContent)
 
-	linksPostRm, err := inspectFieldJSON(id2, "HostConfig.Links")
+	linksPostRm, err := inspectFieldJSON(s, id2, "HostConfig.Links")
 	c.Assert(err, check.IsNil)
 
 	if linksPostRm != "null" {
@@ -1254,7 +1254,7 @@ func (s *DockerSuite) TestContainerApiDeleteConflict(c *check.C) {
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
 
 	id := strings.TrimSpace(out)
-	c.Assert(waitRun(id), check.IsNil)
+	c.Assert(waitRun(s, id), check.IsNil)
 
 	status, _, err := sockRequest("DELETE", "/containers/"+id, nil)
 	c.Assert(err, check.IsNil)
@@ -1268,9 +1268,9 @@ func (s *DockerSuite) TestContainerApiDeleteRemoveVolume(c *check.C) {
 	out, _ := dockerCmd(c, "run", "-d", "-v", "/testvolume", "busybox", "top")
 
 	id := strings.TrimSpace(out)
-	c.Assert(waitRun(id), check.IsNil)
+	c.Assert(waitRun(s, id), check.IsNil)
 
-	source, err := inspectMountSourceField(id, "/testvolume")
+	source, err := inspectMountSourceField(s, id, "/testvolume")
 	_, err = os.Stat(source)
 	c.Assert(err, check.IsNil)
 
@@ -1316,7 +1316,7 @@ func (s *DockerSuite) TestContainersApiChunkedEncoding(c *check.C) {
 		c.Fatalf("expected status code 204, got %d", resp.StatusCode)
 	}
 
-	out, err = inspectFieldJSON(id, "HostConfig.Binds")
+	out, err = inspectFieldJSON(s, id, "HostConfig.Binds")
 	if err != nil {
 		c.Fatal(err)
 	}
@@ -1340,14 +1340,14 @@ func (s *DockerSuite) TestPostContainerStop(c *check.C) {
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
 
 	containerID := strings.TrimSpace(out)
-	c.Assert(waitRun(containerID), check.IsNil)
+	c.Assert(waitRun(s, containerID), check.IsNil)
 
 	statusCode, _, err := sockRequest("POST", "/containers/"+containerID+"/stop", nil)
 	c.Assert(err, check.IsNil)
 	// 204 No Content is expected, not 200
 	c.Assert(statusCode, check.Equals, http.StatusNoContent)
 
-	if err := waitInspect(containerID, "{{ .State.Running  }}", "false", 5); err != nil {
+	if err := waitInspect(s, containerID, "{{ .State.Running  }}", "false", 5); err != nil {
 		c.Fatal(err)
 	}
 }
@@ -1427,7 +1427,7 @@ func (s *DockerSuite) TestPostContainersStartWithoutLinksInHostConfig(c *check.C
 	name := "test-host-config-links"
 	dockerCmd(c, "create", "--name", name, "busybox", "top")
 
-	hc, err := inspectFieldJSON(name, "HostConfig")
+	hc, err := inspectFieldJSON(s, name, "HostConfig")
 	c.Assert(err, check.IsNil)
 	config := `{"HostConfig":` + hc + `}`
 
@@ -1444,7 +1444,7 @@ func (s *DockerSuite) TestPostContainersStartWithLinksInHostConfig(c *check.C) {
 	dockerCmd(c, "run", "--name", "foo", "-d", "busybox", "top")
 	dockerCmd(c, "create", "--name", name, "--link", "foo:bar", "busybox", "top")
 
-	hc, err := inspectFieldJSON(name, "HostConfig")
+	hc, err := inspectFieldJSON(s, name, "HostConfig")
 	c.Assert(err, check.IsNil)
 	config := `{"HostConfig":` + hc + `}`
 
@@ -1462,7 +1462,7 @@ func (s *DockerSuite) TestPostContainersStartWithLinksInHostConfigIdLinked(c *ch
 	id := strings.TrimSpace(out)
 	dockerCmd(c, "create", "--name", name, "--link", id, "busybox", "top")
 
-	hc, err := inspectFieldJSON(name, "HostConfig")
+	hc, err := inspectFieldJSON(s, name, "HostConfig")
 	c.Assert(err, check.IsNil)
 	config := `{"HostConfig":` + hc + `}`
 
@@ -1498,7 +1498,7 @@ func (s *DockerSuite) TestPutContainerArchiveErrSymlinkInVolumeToReadOnlyRootfs(
 		readOnly: true,
 		volumes:  defaultVolumes(testVol), // Our bind mount is at /vol2
 	})
-	defer deleteContainer(cID)
+	defer deleteContainer(s, cID)
 
 	// Attempt to extract to a symlink in the volume which points to a
 	// directory outside the volume. This should cause an error because the
