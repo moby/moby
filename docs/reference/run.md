@@ -1081,25 +1081,26 @@ or two examples of how to pass more parameters to that ENTRYPOINT:
 
 The following `run` command options work with container networking:
 
-    --expose=[]: Expose a port or a range of ports inside the container.
-                 These are additional to those exposed by the `EXPOSE` instruction
-    -P=false   : Publish all exposed ports to the host interfaces
-    -p=[]      : Publish a container᾿s port or a range of ports to the host
-                   format: ip:hostPort:containerPort | ip::containerPort | hostPort:containerPort | containerPort
-                   Both hostPort and containerPort can be specified as a
-                   range of ports. When specifying ranges for both, the
-                   number of container ports in the range must match the
-                   number of host ports in the range, for example:
-                       -p 1234-1236:1234-1236/tcp
+    --expose=[]     : Expose a port or a range of ports inside the container.
+                      These are additional to those exposed by the `EXPOSE` instruction
+    -P=false        : Publish all exposed ports to the host interfaces
+    -p=[]           : Publish a container᾿s port or a range of ports to the host
+                      format: ip:hostPort:containerPort | ip::containerPort | hostPort:containerPort | containerPort
+                      Both hostPort and containerPort can be specified as a
+                      range of ports. When specifying ranges for both, the
+                      number of container ports in the range must match the
+                      number of host ports in the range, for example:
+                        -p 1234-1236:1234-1236/tcp
 
-                   When specifying a range for hostPort only, the
-                   containerPort must not be a range.  In this case the
-                   container port is published somewhere within the
-                   specified hostPort range. (e.g., `-p 1234-1236:1234/tcp`)
+                      When specifying a range for hostPort only, the
+                      containerPort must not be a range.  In this case the
+                      container port is published somewhere within the
+                      specified hostPort range. (e.g., `-p 1234-1236:1234/tcp`)
 
-                   (use 'docker port' to see the actual mapping)
-
-    --link=""  : Add link to another container (<name or id>:alias or <name or id>)
+                      (use 'docker port' to see the actual mapping)
+    --port-range="" : Overrides the default ephemeral range for dynamic port
+                      allocations for this container
+    --link=""       : Add link to another container (<name or id>:alias or <name or id>)
 
 With the exception of the `EXPOSE` directive, an image developer hasn't
 got much control over networking. The `EXPOSE` instruction defines the

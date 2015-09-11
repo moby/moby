@@ -136,6 +136,9 @@ Finally, several networking options can only be provided when calling
  *  `-P` or `--publish-all=true|false` — see
     [Binding container ports](#binding-ports)
 
+ *  `--port-range=RANGE` — see
+    [Binding container ports](#binding-ports)
+
 To supply networking options to the Docker server at startup, use the
 `DOCKER_OPTS` variable in the Docker upstart configuration file. For Ubuntu, edit the
 variable in `/etc/default/docker` or `/etc/sysconfig/docker` for CentOS.
@@ -430,6 +433,9 @@ Mapping can be specified explicitly using `-p SPEC` or `--publish=SPEC` option.
 It allows you to particularize which port on docker server - which can be any
 port at all, not just one within the *ephemeral port range* — you want mapped
 to which port in the container.
+
+You can optionally supply `--port-range=RANGE` which overrides the *ephemeral
+port range* for dynamic allocations on this container.
 
 Either way, you should be able to peek at what Docker has accomplished
 in your network stack by examining your NAT tables.

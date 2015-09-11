@@ -723,6 +723,19 @@ func (container *Container) buildCreateEndpointOptions() ([]libnetwork.EndpointO
 
 		pb := types.PortBinding{Port: expose.Port, Proto: expose.Proto}
 		binding := bindings[port]
+
+		if container.hostConfig.PublishAllPorts && len(binding) == 0 {
+			if container.hostConfig.PortRange != "" {
+				bindings[port] = []nat.PortBinding{}
+				bindings[port] = append(bindings[port], nat.PortBinding{
+					HostPort: container.hostConfig.PortRange,
+				})
+				binding = bindings[port]
+			} else {
+				pbList = append(pbList, pb)
+			}
+		}
+
 		for i := 0; i < len(binding); i++ {
 			pbCopy := pb.GetCopy()
 			newP, err := nat.NewPort(nat.SplitProtoPort(binding[i].HostPort))
@@ -739,9 +752,6 @@ func (container *Container) buildCreateEndpointOptions() ([]libnetwork.EndpointO
 			pbList = append(pbList, pbCopy)
 		}
 
-		if container.hostConfig.PublishAllPorts && len(binding) == 0 {
-			pbList = append(pbList, pb)
-		}
 	}
 
 	createOptions = append(createOptions,
