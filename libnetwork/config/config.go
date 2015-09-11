@@ -109,7 +109,7 @@ func (c *Config) ProcessOptions(options ...Option) {
 
 // IsValidName validates configuration objects supported by libnetwork
 func IsValidName(name string) bool {
-	if name == "" || strings.Contains(name, ".") {
+	if strings.TrimSpace(name) == "" || strings.Contains(name, ".") {
 		return false
 	}
 	return true

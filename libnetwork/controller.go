@@ -218,11 +218,11 @@ func (c *controller) ConfigureNetworkDriver(networkType string, options map[stri
 }
 
 func (c *controller) RegisterDriver(networkType string, driver driverapi.Driver, capability driverapi.Capability) error {
-	c.Lock()
 	if !config.IsValidName(networkType) {
-		c.Unlock()
 		return ErrInvalidName(networkType)
 	}
+
+	c.Lock()
 	if _, ok := c.drivers[networkType]; ok {
 		c.Unlock()
 		return driverapi.ErrActiveRegistration(networkType)
