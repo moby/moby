@@ -132,6 +132,53 @@
 		{
 			"ImportPath": "github.com/vishvananda/netlink",
 			"Rev": "4b5dce31de6d42af5bb9811c6d265472199e0fec"
+		},
+		{
+			"ImportPath": "github.com/opencontainers/runc/libcontainer",
+			"Comment": "v0.0.3",
+			"Rev": "072fa6fdccaba49b11ba91ad4265b1ec1043787e"
+		},
+		{
+			"ImportPath": "github.com/coreos/go-systemd/dbus",
+			"Comment": "v3",
+			"Rev": "be94bc700879ae8217780e9d141789a2defa302b"
+		},
+		{
+			"ImportPath": "github.com/coreos/go-systemd/util",
+			"Comment": "v3",
+			"Rev": "be94bc700879ae8217780e9d141789a2defa302b"
+		},
+		{
+			"ImportPath": "github.com/docker/docker/pkg/mount",
+			"Comment": "v1.4.1-4127-gb81f2ee",
+			"Rev": "b81f2ee5f20d094c13893f565ce716595c539d22"
+		},
+		{
+			"ImportPath": "github.com/docker/docker/pkg/symlink",
+			"Comment": "v1.4.1-4127-gb81f2ee",
+			"Rev": "b81f2ee5f20d094c13893f565ce716595c539d22"
+		},
+		{
+			"ImportPath": "github.com/docker/docker/pkg/term",
+			"Comment": "v1.4.1-4127-gb81f2ee",
+			"Rev": "b81f2ee5f20d094c13893f565ce716595c539d22"
+		},
+		{
+			"ImportPath": "github.com/docker/docker/pkg/units",
+			"Comment": "v1.4.1-4127-gb81f2ee",
+			"Rev": "b81f2ee5f20d094c13893f565ce716595c539d22"
+		},
+		{
+			"ImportPath": "github.com/golang/protobuf/proto",
+			"Rev": "f7137ae6b19afbfd61a94b746fda3b3fe0491874"
+		},
+		{
+			"ImportPath": "github.com/opencontainers/specs",
+			"Rev": "5b31bb2b7771e5074a4eb14eca432da1ca5182d6"
+		},
+		{
+			"ImportPath": "github.com/syndtr/gocapability/capability",
+			"Rev": "e55e5833692b49e49a0073ad5baf7803f21bebf4"
 		}
 	]
 }

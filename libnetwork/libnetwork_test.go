@@ -2,6 +2,7 @@ package libnetwork_test
 
 import (
 	"bytes"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -9,8 +10,10 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"os/exec"
 	"runtime"
 	"strconv"
+	"strings"
 	"sync"
 	"testing"
 
@@ -25,6 +28,8 @@ import (
 	"github.com/docker/libnetwork/osl"
 	"github.com/docker/libnetwork/testutils"
 	"github.com/docker/libnetwork/types"
+	"github.com/opencontainers/runc/libcontainer"
+	"github.com/opencontainers/runc/libcontainer/configs"
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netns"
 )
@@ -1193,6 +1198,14 @@ func (f *fakeSandbox) SetKey(key string) error {
 }
 
 func TestExternalKey(t *testing.T) {
+	externalKeyTest(t, false)
+}
+
+func TestExternalKeyWithReexec(t *testing.T) {
+	externalKeyTest(t, true)
+}
+
+func externalKeyTest(t *testing.T, reexec bool) {
 	if !testutils.IsRunningInContainer() {
 		defer testutils.SetupTestOSContext(t)()
 	}
@@ -1264,9 +1277,16 @@ func TestExternalKey(t *testing.T) {
 		t.Fatalf("Expected to have a valid Sandbox")
 	}
 
-	// Setting an non-existing key (namespace) must fail
-	if err := sbox.SetKey("this-must-fail"); err == nil {
-		t.Fatalf("Setkey must fail if the corresponding namespace is not created")
+	if reexec {
+		err := reexecSetKey("this-must-fail", containerID, controller.ID())
+		if err == nil {
+			t.Fatalf("SetExternalKey must fail if the corresponding namespace is not created")
+		}
+	} else {
+		// Setting an non-existing key (namespace) must fail
+		if err := sbox.SetKey("this-must-fail"); err == nil {
+			t.Fatalf("Setkey must fail if the corresponding namespace is not created")
+		}
 	}
 
 	// Create a new OS sandbox using the osl API before using it in SetKey
@@ -1274,8 +1294,15 @@ func TestExternalKey(t *testing.T) {
 		t.Fatalf("Failed to create new osl sandbox")
 	}
 
-	if err := sbox.SetKey("ValidKey"); err != nil {
-		t.Fatalf("Setkey failed with %v", err)
+	if reexec {
+		err := reexecSetKey("ValidKey", containerID, controller.ID())
+		if err != nil {
+			t.Fatalf("SetExternalKey failed with %v", err)
+		}
+	} else {
+		if err := sbox.SetKey("ValidKey"); err != nil {
+			t.Fatalf("Setkey failed with %v", err)
+		}
 	}
 
 	// Join endpoint to sandbox after SetKey
@@ -1297,6 +1324,28 @@ func TestExternalKey(t *testing.T) {
 	}
 
 	checkSandbox(t, ep.Info())
+}
+
+func reexecSetKey(key string, containerID string, controllerID string) error {
+	var (
+		state libcontainer.State
+		b     []byte
+		err   error
+	)
+
+	state.NamespacePaths = make(map[configs.NamespaceType]string)
+	state.NamespacePaths[configs.NamespaceType("NEWNET")] = key
+	if b, err = json.Marshal(state); err != nil {
+		return err
+	}
+	cmd := &exec.Cmd{
+		Path:   reexec.Self(),
+		Args:   append([]string{"libnetwork-setkey"}, containerID, controllerID),
+		Stdin:  strings.NewReader(string(b)),
+		Stdout: os.Stdout,
+		Stderr: os.Stderr,
+	}
+	return cmd.Run()
 }
 
 func TestEndpointDeleteWithActiveContainer(t *testing.T) {
