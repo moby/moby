@@ -14,7 +14,7 @@ exec 41>&1 42>&2
 
 export DOCKER_GRAPHDRIVER=${DOCKER_GRAPHDRIVER:-vfs}
 export DOCKER_EXECDRIVER=${DOCKER_EXECDRIVER:-native}
-export DOCKER_USERLANDPROXY=${DOCKER_USERLANDPROXY:-true}
+export DOCKER_USERLANDPROXY=${DOCKER_USERLANDPROXY:-false}
 
 # example usage: DOCKER_STORAGE_OPTS="dm.basesize=20G,dm.loopdatasize=200G"
 storage_params=""

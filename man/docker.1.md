@@ -161,7 +161,7 @@ unix://[/path/to/socket] to use.
   Default is false.
 
 **--userland-proxy**=*true*|*false*
-    Rely on a userland proxy implementation for inter-container and outside-to-container loopback communications. Default is true.
+    Rely on a userland proxy implementation for inter-container and outside-to-container loopback communications. Default is false.
 
 **-v**, **--version**=*true*|*false*
   Print version information and quit. Default is false.

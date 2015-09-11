@@ -69,7 +69,7 @@ func NewDaemon(c *check.C) *Daemon {
 		c.Fatalf("Could not create %s/graph directory", daemonFolder)
 	}
 
-	userlandProxy := true
+	userlandProxy := false
 	if env := os.Getenv("DOCKER_USERLANDPROXY"); env != "" {
 		if val, err := strconv.ParseBool(env); err != nil {
 			userlandProxy = val

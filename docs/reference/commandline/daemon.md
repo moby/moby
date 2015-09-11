@@ -56,7 +56,7 @@ weight=1
       --tlscert="~/.docker/cert.pem"         Path to TLS certificate file
       --tlskey="~/.docker/key.pem"           Path to TLS key file
       --tlsverify=false                      Use TLS and verify the remote
-      --userland-proxy=true                  Use userland proxy for loopback traffic
+      --userland-proxy=false                  Use userland proxy for loopback traffic
 
 Options with [] may be specified multiple times.
 
