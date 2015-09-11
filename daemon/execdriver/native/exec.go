@@ -52,7 +52,12 @@ func (d *Driver) Exec(c *execdriver.Command, processConfig *execdriver.ProcessCo
 			p.Wait()
 			return -1, err
 		}
-		hooks.Start(&c.ProcessConfig, pid)
+
+		// A closed channel for OOM is returned here as it will be
+		// non-blocking and return the correct result when read.
+		chOOM := make(chan struct{})
+		close(chOOM)
+		hooks.Start(&c.ProcessConfig, pid, chOOM)
 	}
 
 	ps, err := p.Wait()

@@ -27,8 +27,9 @@ var (
 // DriverCallback defines a callback function which is used in "Run" and "Exec".
 // This allows work to be done in the parent process when the child is passing
 // through PreStart, Start and PostStop events.
-// Callbacks are provided a processConfig pointer and the pid of the child
-type DriverCallback func(processConfig *ProcessConfig, pid int) error
+// Callbacks are provided a processConfig pointer and the pid of the child.
+// The channel will be used to notify the OOM events.
+type DriverCallback func(processConfig *ProcessConfig, pid int, chOOM <-chan struct{}) error
 
 // Hooks is a struct containing function pointers to callbacks
 // used by any execdriver implementation exploiting hooks capabilities

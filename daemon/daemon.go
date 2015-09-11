@@ -881,7 +881,7 @@ func (daemon *Daemon) run(c *Container, pipes *execdriver.Pipes, startCallback e
 	hooks := execdriver.Hooks{
 		Start: startCallback,
 	}
-	hooks.PreStart = append(hooks.PreStart, func(processConfig *execdriver.ProcessConfig, pid int) error {
+	hooks.PreStart = append(hooks.PreStart, func(processConfig *execdriver.ProcessConfig, pid int, chOOM <-chan struct{}) error {
 		return c.setNetworkNamespaceKey(pid)
 	})
 	return daemon.execDriver.Run(c.command, pipes, hooks)
