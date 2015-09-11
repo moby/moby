@@ -46,8 +46,10 @@ RUN apt-get update && apt-get install -y \
 	libapparmor-dev \
 	libcap-dev \
 	libsqlite3-dev \
+	libsystemd-journal-dev \
 	mercurial \
 	parallel \
+	pkg-config \
 	python-mock \
 	python-pip \
 	python-websocket \

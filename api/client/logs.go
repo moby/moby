@@ -2,7 +2,6 @@ package client
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/url"
 	"time"
 
@@ -35,10 +34,6 @@ func (cli *DockerCli) CmdLogs(args ...string) error {
 	var c types.ContainerJSON
 	if err := json.NewDecoder(serverResp.body).Decode(&c); err != nil {
 		return err
-	}
-
-	if logType := c.HostConfig.LogConfig.Type; logType != "json-file" {
-		return fmt.Errorf("\"logs\" command is supported only for \"json-file\" logging driver (got: %s)", logType)
 	}
 
 	v := url.Values{}
