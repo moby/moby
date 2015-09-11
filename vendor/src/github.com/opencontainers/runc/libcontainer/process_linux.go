@@ -13,6 +13,7 @@ import (
 	"syscall"
 
 	"github.com/opencontainers/runc/libcontainer/cgroups"
+	"github.com/opencontainers/runc/libcontainer/configs"
 	"github.com/opencontainers/runc/libcontainer/system"
 )
 
@@ -138,11 +139,9 @@ func (p *setnsProcess) terminate() error {
 
 func (p *setnsProcess) wait() (*os.ProcessState, error) {
 	err := p.cmd.Wait()
-	if err != nil {
-		return p.cmd.ProcessState, err
-	}
 
-	return p.cmd.ProcessState, nil
+	// Return actual ProcessState even on Wait error
+	return p.cmd.ProcessState, err
 }
 
 func (p *setnsProcess) pid() int {
@@ -175,9 +174,9 @@ func (p *initProcess) externalDescriptors() []string {
 	return p.fds
 }
 
-func (p *initProcess) start() error {
+func (p *initProcess) start() (err error) {
 	defer p.parentPipe.Close()
-	err := p.cmd.Start()
+	err = p.cmd.Start()
 	p.childPipe.Close()
 	if err != nil {
 		return newSystemError(err)
@@ -202,6 +201,18 @@ func (p *initProcess) start() error {
 			p.manager.Destroy()
 		}
 	}()
+	if p.config.Config.Hooks != nil {
+		s := configs.HookState{
+			ID:   p.container.id,
+			Pid:  p.pid(),
+			Root: p.config.Config.Rootfs,
+		}
+		for _, hook := range p.config.Config.Hooks.Prestart {
+			if err := hook.Run(s); err != nil {
+				return newSystemError(err)
+			}
+		}
+	}
 	if err := p.createNetworkInterfaces(); err != nil {
 		return newSystemError(err)
 	}
@@ -286,9 +297,7 @@ func (p *initProcess) setExternalDescriptors(newFds []string) {
 }
 
 func getPipeFds(pid int) ([]string, error) {
-	var fds []string
-
-	fds = make([]string, 3)
+	fds := make([]string, 3)
 
 	dirPath := filepath.Join("/proc", strconv.Itoa(pid), "/fd")
 	for i := 0; i < 3; i++ {

@@ -59,7 +59,7 @@ func createContainerPlatformSpecificSettings(container *Container, config *runco
 			return err
 		}
 
-		if err := label.Relabel(v.Path(), container.MountLabel, "z"); err != nil {
+		if err := label.Relabel(v.Path(), container.MountLabel, true); err != nil {
 			return err
 		}
 
