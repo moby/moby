@@ -367,7 +367,7 @@ func platformSupports(command string) error {
 		return nil
 	}
 	switch command {
-	case "expose", "volume", "user":
+	case "expose", "volume", "user", "stopsignal":
 		return fmt.Errorf("The daemon on this platform does not support the command '%s'", command)
 	}
 	return nil

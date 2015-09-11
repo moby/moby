@@ -540,6 +540,9 @@ func volume(b *builder, args []string, attributes map[string]bool, original stri
 //
 // Set the signal that will be used to kill the container.
 func stopSignal(b *builder, args []string, attributes map[string]bool, original string) error {
+	if runtime.GOOS == "windows" {
+		return fmt.Errorf("STOPSIGNAL is not supported on Windows")
+	}
 	if len(args) != 1 {
 		return fmt.Errorf("STOPSIGNAL requires exactly one argument")
 	}
