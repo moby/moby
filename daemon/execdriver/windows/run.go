@@ -291,7 +291,11 @@ func (d *Driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, hooks execd
 	d.Unlock()
 
 	if hooks.Start != nil {
-		hooks.Start(&c.ProcessConfig, int(pid))
+		// A closed channel for OOM is returned here as it will be
+		// non-blocking and return the correct result when read.
+		chOOM := make(chan struct{})
+		close(chOOM)
+		hooks.Start(&c.ProcessConfig, int(pid), chOOM)
 	}
 
 	var exitCode int32

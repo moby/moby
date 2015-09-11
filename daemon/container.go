@@ -783,7 +783,7 @@ func (container *Container) exec(ExecConfig *ExecConfig) error {
 	container.Lock()
 	defer container.Unlock()
 
-	callback := func(processConfig *execdriver.ProcessConfig, pid int) error {
+	callback := func(processConfig *execdriver.ProcessConfig, pid int, chOOM <-chan struct{}) error {
 		if processConfig.Tty {
 			// The callback is called after the process Start()
 			// so we are in the parent process. In TTY mode, stdin/out/err is the PtySlave
