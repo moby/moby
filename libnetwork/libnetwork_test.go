@@ -57,7 +57,6 @@ func TestMain(m *testing.M) {
 
 	err := controller.ConfigureNetworkDriver(bridgeNetType, genericOption)
 	if err != nil {
-		//m.Fatal(err)
 		os.Exit(1)
 	}
 
@@ -1256,6 +1255,7 @@ func externalKeyTest(t *testing.T, reexec bool) {
 		if err := cnt.Delete(); err != nil {
 			t.Fatal(err)
 		}
+		osl.GC()
 	}()
 
 	// Join endpoint to sandbox before SetKey
@@ -1290,8 +1290,14 @@ func externalKeyTest(t *testing.T, reexec bool) {
 	}
 
 	// Create a new OS sandbox using the osl API before using it in SetKey
-	if _, err := osl.NewSandbox("ValidKey", true); err != nil {
+	if extOsBox, err := osl.NewSandbox("ValidKey", true); err != nil {
 		t.Fatalf("Failed to create new osl sandbox")
+	} else {
+		defer func() {
+			if err := extOsBox.Destroy(); err != nil {
+				log.Warnf("Failed to remove os sandbox: %v", err)
+			}
+		}()
 	}
 
 	if reexec {
