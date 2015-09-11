@@ -13,13 +13,6 @@ func createEmptyCtrlr() *controller {
 	return &controller{sandboxes: sandboxTable{}}
 }
 
-func createEmptyEndpoint() *endpoint {
-	return &endpoint{
-		joinInfo: &endpointJoinInfo{},
-		iFaces:   []*endpointInterface{},
-	}
-}
-
 func getTestEnv(t *testing.T) (NetworkController, Network, Network) {
 	c, err := New()
 	if err != nil {

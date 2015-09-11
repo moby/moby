@@ -49,7 +49,7 @@ func TestPortMappingConfig(t *testing.T) {
 		t.Fatalf("Failed to create bridge: %v", err)
 	}
 
-	te := &testEndpoint{ifaces: []*testInterface{}}
+	te := &testEndpoint{}
 	err = d.CreateEndpoint("dummy", "ep1", te, epOptions)
 	if err != nil {
 		t.Fatalf("Failed to create the endpoint: %s", err.Error())

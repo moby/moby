@@ -317,10 +317,10 @@ func (sb *sandbox) populateNetworkResources(ep *endpoint) error {
 
 	ep.Lock()
 	joinInfo := ep.joinInfo
-	ifaces := ep.iFaces
+	i := ep.iface
 	ep.Unlock()
 
-	for _, i := range ifaces {
+	if i != nil {
 		var ifaceOptions []osl.IfaceOption
 
 		ifaceOptions = append(ifaceOptions, sb.osSbox.InterfaceOptions().Address(&i.addr), sb.osSbox.InterfaceOptions().Routes(i.routes))

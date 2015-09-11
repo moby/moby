@@ -32,7 +32,6 @@ const (
 	vethLen                 = 7
 	containerVethPrefix     = "eth"
 	maxAllocatePortAttempts = 10
-	ifaceID                 = 1
 )
 
 var (
@@ -883,8 +882,8 @@ func (d *driver) CreateEndpoint(nid, eid string, epInfo driverapi.EndpointInfo, 
 		return errors.New("invalid endpoint info passed")
 	}
 
-	if len(epInfo.Interfaces()) != 0 {
-		return errors.New("non empty interface list passed to bridge(local) driver")
+	if epInfo.Interface() != nil {
+		return errors.New("non-nil interface passed to bridge(local) driver")
 	}
 
 	// Get the network handler and make sure it exists
@@ -1070,7 +1069,7 @@ func (d *driver) CreateEndpoint(nid, eid string, epInfo driverapi.EndpointInfo, 
 		endpoint.addrv6 = ipv6Addr
 	}
 
-	err = epInfo.AddInterface(ifaceID, endpoint.macAddress, *ipv4Addr, *ipv6Addr)
+	err = epInfo.AddInterface(endpoint.macAddress, *ipv4Addr, *ipv6Addr)
 	if err != nil {
 		return err
 	}
@@ -1244,14 +1243,10 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 		return EndpointNotFoundError(eid)
 	}
 
-	for _, iNames := range jinfo.InterfaceNames() {
-		// Make sure to set names on the correct interface ID.
-		if iNames.ID() == ifaceID {
-			err = iNames.SetNames(endpoint.srcName, containerVethPrefix)
-			if err != nil {
-				return err
-			}
-		}
+	iNames := jinfo.InterfaceName()
+	err = iNames.SetNames(endpoint.srcName, containerVethPrefix)
+	if err != nil {
+		return err
 	}
 
 	err = jinfo.SetGateway(network.bridge.gatewayIPv4)

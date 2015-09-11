@@ -305,7 +305,6 @@ func (n *network) CreateEndpoint(name string, options ...EndpointOption) (Endpoi
 	}
 
 	ep := &endpoint{name: name,
-		iFaces:  []*endpointInterface{},
 		generic: make(map[string]interface{})}
 	ep.id = stringid.GenerateRandomID()
 	ep.network = n
@@ -409,7 +408,7 @@ func (n *network) isGlobalScoped() (bool, error) {
 func (n *network) updateSvcRecord(ep *endpoint, isAdd bool) {
 	n.Lock()
 	var recs []etchosts.Record
-	for _, iface := range ep.InterfaceList() {
+	if iface := ep.Iface(); iface != nil {
 		if isAdd {
 			n.svcRecords[ep.Name()] = iface.Address().IP
 			n.svcRecords[ep.Name()+"."+n.name] = iface.Address().IP
