@@ -1,7 +1,6 @@
 package graph
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -74,14 +73,17 @@ func (p *v2Puller) pullV2Repository(tag string) (err error) {
 	}
 
 	broadcaster, found := p.poolAdd("pull", taggedName)
+	broadcaster.Add(p.config.OutStream)
 	if found {
 		// Another pull of the same repository is already taking place; just wait for it to finish
-		broadcaster.Add(p.config.OutStream)
-		broadcaster.Wait()
-		return nil
+		return broadcaster.Wait()
 	}
-	defer p.poolRemove("pull", taggedName)
-	broadcaster.Add(p.config.OutStream)
+
+	// This must use a closure so it captures the value of err when the
+	// function returns, not when the 'defer' is evaluated.
+	defer func() {
+		p.poolRemoveWithError("pull", taggedName, err)
+	}()
 
 	var layersDownloaded bool
 	for _, tag := range tags {
@@ -101,13 +103,14 @@ func (p *v2Puller) pullV2Repository(tag string) (err error) {
 
 // downloadInfo is used to pass information from download to extractor
 type downloadInfo struct {
-	img     *image.Image
-	tmpFile *os.File
-	digest  digest.Digest
-	layer   distribution.ReadSeekCloser
-	size    int64
-	err     chan error
-	out     io.Writer // Download progress is written here.
+	img         *image.Image
+	tmpFile     *os.File
+	digest      digest.Digest
+	layer       distribution.ReadSeekCloser
+	size        int64
+	err         chan error
+	poolKey     string
+	broadcaster *progressreader.Broadcaster
 }
 
 type errVerification struct{}
@@ -116,26 +119,6 @@ func (errVerification) Error() string { return "verification failed" }
 
 func (p *v2Puller) download(di *downloadInfo) {
 	logrus.Debugf("pulling blob %q to %s", di.digest, di.img.ID)
-
-	out := di.out
-
-	broadcaster, found := p.poolAdd("pull", "img:"+di.img.ID)
-	if found {
-		broadcaster.Add(out)
-		broadcaster.Wait()
-		out.Write(p.sf.FormatProgress(stringid.TruncateID(di.img.ID), "Download complete", nil))
-		di.err <- nil
-		return
-	}
-
-	broadcaster.Add(out)
-	defer p.poolRemove("pull", "img:"+di.img.ID)
-	tmpFile, err := ioutil.TempFile("", "GetImageBlob")
-	if err != nil {
-		di.err <- err
-		return
-	}
-	di.tmpFile = tmpFile
 
 	blobs := p.repo.Blobs(context.Background())
 
@@ -163,16 +146,16 @@ func (p *v2Puller) download(di *downloadInfo) {
 
 	reader := progressreader.New(progressreader.Config{
 		In:        ioutil.NopCloser(io.TeeReader(layerDownload, verifier)),
-		Out:       broadcaster,
+		Out:       di.broadcaster,
 		Formatter: p.sf,
 		Size:      di.size,
 		NewLines:  false,
 		ID:        stringid.TruncateID(di.img.ID),
 		Action:    "Downloading",
 	})
-	io.Copy(tmpFile, reader)
+	io.Copy(di.tmpFile, reader)
 
-	broadcaster.Write(p.sf.FormatProgress(stringid.TruncateID(di.img.ID), "Verifying Checksum", nil))
+	di.broadcaster.Write(p.sf.FormatProgress(stringid.TruncateID(di.img.ID), "Verifying Checksum", nil))
 
 	if !verifier.Verified() {
 		err = fmt.Errorf("filesystem layer verification failed for digest %s", di.digest)
@@ -181,9 +164,9 @@ func (p *v2Puller) download(di *downloadInfo) {
 		return
 	}
 
-	broadcaster.Write(p.sf.FormatProgress(stringid.TruncateID(di.img.ID), "Download complete", nil))
+	di.broadcaster.Write(p.sf.FormatProgress(stringid.TruncateID(di.img.ID), "Download complete", nil))
 
-	logrus.Debugf("Downloaded %s to tempfile %s", di.img.ID, tmpFile.Name())
+	logrus.Debugf("Downloaded %s to tempfile %s", di.img.ID, di.tmpFile.Name())
 	di.layer = layerDownload
 
 	di.err <- nil
@@ -209,33 +192,6 @@ func (p *v2Puller) pullV2Tag(out io.Writer, tag, taggedName string) (verified bo
 		logrus.Printf("Image manifest for %s has been verified", taggedName)
 	}
 
-	// By using a pipeWriter for each of the downloads to write their progress
-	// to, we can avoid an issue where this function returns an error but
-	// leaves behind running download goroutines. By splitting the writer
-	// with a pipe, we can close the pipe if there is any error, consequently
-	// causing each download to cancel due to an error writing to this pipe.
-	pipeReader, pipeWriter := io.Pipe()
-	go func() {
-		if _, err := io.Copy(out, pipeReader); err != nil {
-			logrus.Errorf("error copying from layer download progress reader: %s", err)
-			if err := pipeReader.CloseWithError(err); err != nil {
-				logrus.Errorf("error closing the progress reader: %s", err)
-			}
-		}
-	}()
-	defer func() {
-		if err != nil {
-			// All operations on the pipe are synchronous. This call will wait
-			// until all current readers/writers are done using the pipe then
-			// set the error. All successive reads/writes will return with this
-			// error.
-			pipeWriter.CloseWithError(errors.New("download canceled"))
-		} else {
-			// If no error then just close the pipe.
-			pipeWriter.Close()
-		}
-	}()
-
 	out.Write(p.sf.FormatStatus(tag, "Pulling from %s", p.repo.Name()))
 
 	var downloads []*downloadInfo
@@ -243,6 +199,16 @@ func (p *v2Puller) pullV2Tag(out io.Writer, tag, taggedName string) (verified bo
 	var layerIDs []string
 	defer func() {
 		p.graph.Release(p.sessionID, layerIDs...)
+
+		for _, d := range downloads {
+			p.poolRemoveWithError("pull", d.poolKey, err)
+			if d.tmpFile != nil {
+				d.tmpFile.Close()
+				if err := os.RemoveAll(d.tmpFile.Name()); err != nil {
+					logrus.Errorf("Failed to remove temp file: %s", d.tmpFile.Name())
+				}
+			}
+		}
 	}()
 
 	for i := len(manifest.FSLayers) - 1; i >= 0; i-- {
@@ -263,29 +229,31 @@ func (p *v2Puller) pullV2Tag(out io.Writer, tag, taggedName string) (verified bo
 		out.Write(p.sf.FormatProgress(stringid.TruncateID(img.ID), "Pulling fs layer", nil))
 
 		d := &downloadInfo{
-			img:    img,
-			digest: manifest.FSLayers[i].BlobSum,
+			img:     img,
+			poolKey: "layer:" + img.ID,
+			digest:  manifest.FSLayers[i].BlobSum,
 			// TODO: seems like this chan buffer solved hanging problem in go1.5,
 			// this can indicate some deeper problem that somehow we never take
 			// error from channel in loop below
 			err: make(chan error, 1),
-			out: pipeWriter,
 		}
+
+		tmpFile, err := ioutil.TempFile("", "GetImageBlob")
+		if err != nil {
+			return false, err
+		}
+		d.tmpFile = tmpFile
+
 		downloads = append(downloads, d)
 
-		go p.download(d)
-	}
-
-	// run clean for all downloads to prevent leftovers
-	for _, d := range downloads {
-		defer func(d *downloadInfo) {
-			if d.tmpFile != nil {
-				d.tmpFile.Close()
-				if err := os.RemoveAll(d.tmpFile.Name()); err != nil {
-					logrus.Errorf("Failed to remove temp file: %s", d.tmpFile.Name())
-				}
-			}
-		}(d)
+		broadcaster, found := p.poolAdd("pull", d.poolKey)
+		broadcaster.Add(out)
+		d.broadcaster = broadcaster
+		if found {
+			d.err <- nil
+		} else {
+			go p.download(d)
+		}
 	}
 
 	var tagUpdated bool
@@ -293,14 +261,21 @@ func (p *v2Puller) pullV2Tag(out io.Writer, tag, taggedName string) (verified bo
 		if err := <-d.err; err != nil {
 			return false, err
 		}
+
 		if d.layer == nil {
+			// Wait for a different pull to download and extract
+			// this layer.
+			err = d.broadcaster.Wait()
+			if err != nil {
+				return false, err
+			}
 			continue
 		}
-		// if tmpFile is empty assume download and extracted elsewhere
+
 		d.tmpFile.Seek(0, 0)
 		reader := progressreader.New(progressreader.Config{
 			In:        d.tmpFile,
-			Out:       out,
+			Out:       d.broadcaster,
 			Formatter: p.sf,
 			Size:      d.size,
 			NewLines:  false,
@@ -317,8 +292,8 @@ func (p *v2Puller) pullV2Tag(out io.Writer, tag, taggedName string) (verified bo
 			return false, err
 		}
 
-		// FIXME: Pool release here for parallel tag pull (ensures any downloads block until fully extracted)
-		out.Write(p.sf.FormatProgress(stringid.TruncateID(d.img.ID), "Pull complete", nil))
+		d.broadcaster.Write(p.sf.FormatProgress(stringid.TruncateID(d.img.ID), "Pull complete", nil))
+		d.broadcaster.Close()
 		tagUpdated = true
 	}
 
