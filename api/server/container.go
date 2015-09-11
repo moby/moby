@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"golang.org/x/net/websocket"
@@ -220,32 +221,18 @@ func (s *Server) postContainersKill(ctx context.Context, w http.ResponseWriter, 
 		return err
 	}
 
-	var sig uint64
+	var sig syscall.Signal
 	name := vars["name"]
 
 	// If we have a signal, look at it. Otherwise, do nothing
 	if sigStr := r.Form.Get("signal"); sigStr != "" {
-		// Check if we passed the signal as a number:
-		// The largest legal signal is 31, so let's parse on 5 bits
-		sigN, err := strconv.ParseUint(sigStr, 10, 5)
-		if err != nil {
-			// The signal is not a number, treat it as a string (either like
-			// "KILL" or like "SIGKILL")
-			syscallSig, ok := signal.SignalMap[strings.TrimPrefix(sigStr, "SIG")]
-			if !ok {
-				return fmt.Errorf("Invalid signal: %s", sigStr)
-			}
-			sig = uint64(syscallSig)
-		} else {
-			sig = sigN
-		}
-
-		if sig == 0 {
-			return fmt.Errorf("Invalid signal: %s", sigStr)
+		var err error
+		if sig, err = signal.ParseSignal(sigStr); err != nil {
+			return err
 		}
 	}
 
-	if err := s.daemon.ContainerKill(name, sig); err != nil {
+	if err := s.daemon.ContainerKill(name, uint64(sig)); err != nil {
 		_, isStopped := err.(daemon.ErrContainerNotRunning)
 		// Return error that's not caused because the container is stopped.
 		// Return error if the container is not running and the api is >= 1.20

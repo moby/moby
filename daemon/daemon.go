@@ -1076,6 +1076,13 @@ func (daemon *Daemon) verifyContainerSettings(hostConfig *runconfig.HostConfig, 
 				return nil, fmt.Errorf("The working directory '%s' is invalid. It needs to be an absolute path.", config.WorkingDir)
 			}
 		}
+
+		if len(config.StopSignal) > 0 {
+			_, err := signal.ParseSignal(config.StopSignal)
+			if err != nil {
+				return nil, err
+			}
+		}
 	}
 
 	if hostConfig == nil {

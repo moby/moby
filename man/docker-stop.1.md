@@ -19,7 +19,7 @@ Stop a running container (Send SIGTERM, and then SIGKILL after
   Print usage statement
 
 **-t**, **--time**=10
-   Number of seconds to wait for the container to stop before killing it. Default is 10 seconds.
+  Number of seconds to wait for the container to stop before killing it. Default is 10 seconds.
 
 #See also
 **docker-start(1)** to restart a stopped container.

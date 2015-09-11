@@ -51,6 +51,7 @@ docker-create - Create a new container
 [**--read-only**[=*false*]]
 [**--restart**[=*RESTART*]]
 [**--security-opt**[=*[]*]]
+[**--stop-signal**[=*SIGNAL*]]
 [**-t**|**--tty**[=*false*]]
 [**-u**|**--user**[=*USER*]]
 [**--ulimit**[=*[]*]]
@@ -238,6 +239,9 @@ This value should always larger than **-m**, so you should always use this with 
 
 **--security-opt**=[]
    Security Options
+
+**--stop-signal**=SIGTERM
+  Signal to stop a container. Default is SIGTERM.
 
 **-t**, **--tty**=*true*|*false*
    Allocate a pseudo-TTY. The default is *false*.

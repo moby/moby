@@ -315,3 +315,19 @@ func (s *DockerSuite) TestRunWithSwappinessInvalid(c *check.C) {
 		c.Fatalf("failed. test was able to set invalid value, output: %q", out)
 	}
 }
+
+func (s *DockerSuite) TestStopContainerSignal(c *check.C) {
+	out, _ := dockerCmd(c, "run", "--stop-signal", "SIGUSR1", "-d", "busybox", "/bin/sh", "-c", `trap 'echo "exit trapped"; exit 0' USR1; while true; do sleep 1; done`)
+	containerID := strings.TrimSpace(out)
+
+	if err := waitRun(containerID); err != nil {
+		c.Fatal(err)
+	}
+
+	dockerCmd(c, "stop", containerID)
+	out, _ = dockerCmd(c, "logs", containerID)
+
+	if !strings.Contains(out, "exit trapped") {
+		c.Fatalf("Expected `exit trapped` in the log, got %v", out)
+	}
+}

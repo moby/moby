@@ -166,6 +166,7 @@ Create a container
            "ExposedPorts": {
                    "22/tcp": {}
            },
+           "StopSignal": "SIGTERM",
            "HostConfig": {
              "Binds": ["/tmp:/tmp"],
              "Links": ["redis3:redis"],
@@ -250,6 +251,7 @@ Json Parameters:
       container
 -   **ExposedPorts** - An object mapping ports to an empty object in the form of:
       `"ExposedPorts": { "<port>/<tcp|udp>: {}" }`
+-   **StopSignal** - Signal to stop a container as a string or unsigned integer. `SIGTERM` by default.
 -   **HostConfig**
     -   **Binds** – A list of volume bindings for this container. Each volume binding is a string in one of these forms:
            + `container_path` to create a new volume for the container
@@ -367,7 +369,8 @@ Return low-level information on the container `id`
 			"Tty": false,
 			"User": "",
 			"Volumes": null,
-			"WorkingDir": ""
+			"WorkingDir": "",
+			"StopSignal": "SIGTERM"
 		},
 		"Created": "2015-01-06T15:47:31.485331387Z",
 		"Driver": "devicemapper",

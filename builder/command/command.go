@@ -17,6 +17,7 @@ const (
 	Expose     = "expose"
 	Volume     = "volume"
 	User       = "user"
+	StopSignal = "stopsignal"
 )
 
 // Commands is list of all Dockerfile commands
@@ -35,4 +36,5 @@ var Commands = map[string]struct{}{
 	Expose:     {},
 	Volume:     {},
 	User:       {},
+	StopSignal: {},
 }

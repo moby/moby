@@ -5660,3 +5660,18 @@ func (s *DockerSuite) TestBuildNullStringInAddCopyVolume(c *check.C) {
 	_, err = buildImageFromContext(name, ctx, true)
 	c.Assert(err, check.IsNil)
 }
+
+func (s *DockerSuite) TestBuildStopSignal(c *check.C) {
+	name := "test_build_stop_signal"
+	_, err := buildImage(name,
+		`FROM busybox
+		 STOPSIGNAL SIGKILL`,
+		true)
+	c.Assert(err, check.IsNil)
+	res, err := inspectFieldJSON(name, "Config.StopSignal")
+	c.Assert(err, check.IsNil)
+
+	if res != `"SIGKILL"` {
+		c.Fatalf("Signal %s, expected SIGKILL", res)
+	}
+}

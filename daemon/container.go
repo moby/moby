@@ -27,6 +27,7 @@ import (
 	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/nat"
 	"github.com/docker/docker/pkg/promise"
+	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/docker/pkg/symlink"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/volume"
@@ -495,10 +496,10 @@ func (container *Container) Kill() error {
 	return nil
 }
 
-// Stop halts a container by sending SIGTERM, waiting for the given
+// Stop halts a container by sending a stop signal, waiting for the given
 // duration in seconds, and then calling SIGKILL and waiting for the
 // process to exit. If a negative duration is given, Stop will wait
-// for SIGTERM forever. If the container is not running Stop returns
+// for the initial signal forever. If the container is not running Stop returns
 // immediately.
 func (container *Container) Stop(seconds int) error {
 	if !container.IsRunning() {
@@ -506,9 +507,9 @@ func (container *Container) Stop(seconds int) error {
 	}
 
 	// 1. Send a SIGTERM
-	if err := container.killPossiblyDeadProcess(int(syscall.SIGTERM)); err != nil {
+	if err := container.killPossiblyDeadProcess(container.stopSignal()); err != nil {
 		logrus.Infof("Failed to send SIGTERM to the process, force killing")
-		if err := container.killPossiblyDeadProcess(int(syscall.SIGKILL)); err != nil {
+		if err := container.killPossiblyDeadProcess(9); err != nil {
 			return err
 		}
 	}
@@ -1139,4 +1140,16 @@ func (container *Container) copyImagePathContent(v volume.Volume, destination st
 	}
 
 	return v.Unmount()
+}
+
+func (container *Container) stopSignal() int {
+	var stopSignal syscall.Signal
+	if container.Config.StopSignal != "" {
+		stopSignal, _ = signal.ParseSignal(container.Config.StopSignal)
+	}
+
+	if int(stopSignal) == 0 {
+		stopSignal, _ = signal.ParseSignal(signal.DefaultStopSignal)
+	}
+	return int(stopSignal)
 }

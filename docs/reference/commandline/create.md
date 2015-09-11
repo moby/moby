@@ -61,6 +61,7 @@ Creates a new container.
       --read-only=false             Mount the container's root filesystem as read only
       --restart="no"                Restart policy (no, on-failure[:max-retry], always, unless-stopped)
       --security-opt=[]             Security options
+      --stop-signal="SIGTERM"       Signal to stop a container
       -t, --tty=false               Allocate a pseudo-TTY
       --disable-content-trust=true  Skip image verification
       -u, --user=""                 Username or UID
