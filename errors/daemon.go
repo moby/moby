@@ -654,7 +654,7 @@ var (
 		Value:          "CONTAINERNOTRUNNING",
 		Message:        "Container %s is not running: %s",
 		Description:    "An attempt was made to retrieve the information about an 'exec' but the container is not running",
-		HTTPStatusCode: http.StatusInternalServerError,
+		HTTPStatusCode: http.StatusConflict,
 	})
 
 	// ErrorCodeNoExecID is generated when we try to get the info
@@ -672,7 +672,7 @@ var (
 		Value:          "EXECPAUSED",
 		Message:        "Container %s is paused, unpause the container before exec",
 		Description:    "An attempt to start an 'exec' was made, but the owning container is paused",
-		HTTPStatusCode: http.StatusInternalServerError,
+		HTTPStatusCode: http.StatusConflict,
 	})
 
 	// ErrorCodeExecRunning is generated when we try to start an exec
