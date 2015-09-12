@@ -2226,8 +2226,9 @@ Json Parameters:
 
 Status Codes:
 
--   **201** – no error
+-   **200** – no error
 -   **404** – no such exec instance
+-   **409** - container is stopped or paused
 
     **Stream details**:
     Similar to the stream behavior of `POST /container/(id)/attach` API

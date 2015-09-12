@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/go-check/check"
 )
@@ -46,4 +47,45 @@ func (s *DockerSuite) TestExecApiCreateNoValidContentType(c *check.C) {
 	if !bytes.Contains(b, []byte("Content-Type specified")) {
 		c.Fatalf("Expected message when creating exec command with invalid Content-Type specified")
 	}
+}
+
+func (s *DockerSuite) TestExecAPIStart(c *check.C) {
+	dockerCmd(c, "run", "-d", "--name", "test", "busybox", "top")
+
+	createExec := func() string {
+		_, b, err := sockRequest("POST", fmt.Sprintf("/containers/%s/exec", "test"), map[string]interface{}{"Cmd": []string{"true"}})
+		c.Assert(err, check.IsNil, check.Commentf(string(b)))
+
+		createResp := struct {
+			ID string `json:"Id"`
+		}{}
+		c.Assert(json.Unmarshal(b, &createResp), check.IsNil, check.Commentf(string(b)))
+		return createResp.ID
+	}
+
+	startExec := func(id string, code int) {
+		resp, body, err := sockRequestRaw("POST", fmt.Sprintf("/exec/%s/start", id), strings.NewReader(`{"Detach": true}`), "application/json")
+		c.Assert(err, check.IsNil)
+
+		b, err := readBody(body)
+		c.Assert(err, check.IsNil, check.Commentf(string(b)))
+		c.Assert(resp.StatusCode, check.Equals, code, check.Commentf(string(b)))
+	}
+
+	startExec(createExec(), http.StatusOK)
+
+	id := createExec()
+	dockerCmd(c, "stop", "test")
+
+	startExec(id, http.StatusNotFound)
+
+	dockerCmd(c, "start", "test")
+	startExec(id, http.StatusNotFound)
+
+	// make sure exec is created before pausing
+	id = createExec()
+	dockerCmd(c, "pause", "test")
+	startExec(id, http.StatusConflict)
+	dockerCmd(c, "unpause", "test")
+	startExec(id, http.StatusOK)
 }
