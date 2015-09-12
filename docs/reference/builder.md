@@ -311,6 +311,12 @@ commands using a base image that does not contain `/bin/sh`.
 > If you want shell processing then either use the *shell* form or execute 
 > a shell directly, for example: `RUN [ "sh", "-c", "echo", "$HOME" ]`.
 
+> **Note**:
+> If you choose to use the *shell* form, any time you want to continue a single
+> `RUN` instruction onto the next line, it has to be ended with a backslash `\`.
+> For example,  `RUN /bin/bash -c 'source $HOME/.bashrc ;\` then on the next
+> line ` echo $HOME '`.
+
 The cache for `RUN` instructions isn't invalidated automatically during
 the next build. The cache for an instruction like 
 `RUN apt-get dist-upgrade -y` will be reused during the next build. The 
