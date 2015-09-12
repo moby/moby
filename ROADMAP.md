@@ -130,7 +130,7 @@ we intend to take advantage of it in the Engine.
 ## 2.1 Docker exec
 
 We won't accept patches expanding the surface of `docker exec`, which we intend to keep as a
-*debugging* feature, as well as being strongly dependent on the the Runtime ingredient effort.
+*debugging* feature, as well as being strongly dependent on the Runtime ingredient effort.
 
 ## 2.2 Dockerfile syntax
 
