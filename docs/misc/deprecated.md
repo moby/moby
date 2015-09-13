@@ -12,6 +12,16 @@ parent = "mn_use_docker"
 
 The following list of features are deprecated.
 
+### Command line short variant options
+**Deprecated In Release: v1.9**
+
+**Target For Removal In Release: v1.11**
+
+The following short variant options are deprecated in favor of their long
+variants:
+
+    docker run -c (--cpu-shares)
+
 ### Driver Specific Log Tags
 **Deprecated In Release: v1.9**
 
@@ -22,8 +32,6 @@ Because of which, the driver specific log tag options `syslog-tag`, `gelf-tag` a
 `fluentd-tag` have been deprecated in favor of the generic `tag` option.
 
     docker --log-driver=syslog --log-opt tag="{{.ImageName}}/{{.Name}}/{{.ID}}"
-
-
 
 ### LXC built-in exec driver
 **Deprecated In Release: v1.8**
