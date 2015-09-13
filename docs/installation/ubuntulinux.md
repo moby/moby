@@ -323,7 +323,8 @@ NetworkManager (this might slow your network).
 
 4. Restart both the NetworkManager and Docker.
 
-        $ sudo restart network-manager $ sudo restart docker
+        $ sudo restart network-manager 
+        $ sudo restart docker
 
 ### Configure Docker to start on boot
 
