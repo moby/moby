@@ -16,19 +16,19 @@ particular, when communicating over an untrusted medium such as the internet, it
 is critical to ensure the integrity and publisher of all the data a system
 operates on. You use Docker to push and pull images (data) to a registry. Content trust
 gives you the ability to both verify the integrity and the publisher of all the
-data received from a registry over any channel. 
+data received from a registry over any channel.
 
 Content trust is currently only available for users of the public Docker Hub. It
 is currently not available for the Docker Trusted Registry or for private
 registries.
 
-## Understand trust in Docker 
+## Understand trust in Docker
 
 Content trust allows operations with a remote Docker registry to enforce
 client-side signing and verification of image tags. Content trust provides the
 ability to use digital signatures for data sent to and received from remote
 Docker registries. These signatures allow client-side verification of the
-integrity and publisher of specific image tags. 
+integrity and publisher of specific image tags.
 
 Currently, content trust is disabled by default. You must enabled it by setting
 the `DOCKER_CONTENT_TRUST` environment variable.
@@ -36,7 +36,7 @@ the `DOCKER_CONTENT_TRUST` environment variable.
 Once content trust is enabled, image publishers can sign their images. Image consumers can
 ensure that the images they use are signed. publishers and consumers can be
 individuals alone or in organizations. Docker's content trust supports users and
-automated processes such as builds. 
+automated processes such as builds.
 
 ### Image tags and content trust
 
@@ -48,7 +48,7 @@ An individual image record has the following identifier:
 
 A particular image `REPOSITORY` can have multiple tags. For example, `latest` and
  `3.1.2` are both tags on the `mongo` image. An image publisher can build an image
- and tag combination many times changing the image with each build. 
+ and tag combination many times changing the image with each build.
 
 Content trust is associated with the `TAG` portion of an image. Each image
 repository has a set of keys that image publishers use to sign an image tag.
@@ -67,7 +67,7 @@ Publishers can choose to sign a specific tag or not. As a result, the content of
 an unsigned tag and that of a signed tag with the same name may not match. For
 example, a publisher can push a tagged image `someimage:latest` and sign it.
 Later, the same publisher can push an unsigned `someimage:latest` image. This second
-push replaces the last unsigned tag `latest` but does not affect the signed `latest` version. 
+push replaces the last unsigned tag `latest` but does not affect the signed `latest` version.
 The ability to choose which tags they can sign, allows publishers to iterate over
 the unsigned version of an image before officially signing it.
 
@@ -92,9 +92,9 @@ operate with content trust are:
 
 * `push`
 * `build`
-* `create` 
+* `create`
 * `pull`
-* `run` 
+* `run`
 
 For example, with content trust enabled a `docker pull someimage:latest` only
 succeeds if `someimage:latest` is signed. However, an operation with an explicit
@@ -105,7 +105,7 @@ $ docker pull someimage@sha256:d149ab53f8718e987c3a3024bb8aa0e2caadf6c0328f1d9d8
 ```
 
 Trust for an image tag is managed through the use of signing keys. Docker's content
-trust makes use four different keys: 
+trust makes use four different keys:
 
 | Key                 | Description                                                                                                                                                                                                                                                                                                                                                                         |
 |---------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -126,25 +126,25 @@ The following image depicts the various signing keys and their relationships:
 >Correcting this loss requires intervention from [Docker
 >Support](https://support.docker.com) to reset the repository state. This loss
 >also requires **manual intervention** from every consumer that used a signed
->tag from this repository prior to the loss. 
+>tag from this repository prior to the loss.
 
 You should backup the offline key somewhere safe. Given that it is only required
 to create new repositories, it is a good idea to store it offline. Make sure you
 read [Manage keys for content trust](/security/trust/trust_key_mng) information
-for details on creating, securing, and backing up your keys. 
+for details on creating, securing, and backing up your keys.
 
 ## Survey of typical content trust operations
 
 This section surveys the typical trusted operations users perform with Docker
 images.
 
-### Enable content trust
+### Enable and disable content trust per-shell or per-invocation
 
-Enable content trust by setting the `DOCKER_CONTENT_TRUST` environment variable.
-Enabling per-shell is useful because you can have one shell configured for
-trusted operations and another terminal shell for untrusted operations. You can
-also add this declaration to your shell profile to have it turned on always by
-default.
+In a shell, you can enable content trust by setting the `DOCKER_CONTENT_TRUST`
+environment variable. Enabling per-shell is useful because you can have one
+shell configured for trusted operations and another terminal shell for untrusted
+operations. You can also add this declaration to your shell profile to have it
+turned on always by default.
 
 To enable content trust in a `bash` shell enter the following command:
 
@@ -152,23 +152,36 @@ To enable content trust in a `bash` shell enter the following command:
 export DOCKER_CONTENT_TRUST=1
 ```
 
-Once set, each of the "tag" operations require key for trusted tag. All of these
-commands also support the `--disable-content-trust` flag. This flag allows
-publishers to run individual operations on tagged images without content trust on an
-as-needed basis. 
+Once set, each of the "tag" operations requires a key for a trusted tag.
+
+In an environment where `DOCKER_CONTENT_TRUST` is set, you can use the
+`--disable-content-trust` flag to run individual operations on tagged images
+without content trust on an as-needed basis.
+
+```bash
+$  docker pull --disable-content-trust docker/trusttest:untrusted
+```
+
+To invoke a command with content trust enabled regardless of whether or how the `DOCKER_CONTENT_TRUST` variable is set:
+
+```bash
+$  docker build --disable-content-trust=false -t docker/trusttest:testing .
+```
+
+All of the trusted operations support the `--disable-content-trust` flag.
 
 
 ### Push trusted content
 
-To create signed content for a specific image tag, simply enable content trust and push
-a tagged image. If this is the first time you have pushed an image using content trust
-on your system, the session looks like this:
+To create signed content for a specific image tag, simply enable content trust
+and push a tagged image. If this is the first time you have pushed an image
+using content trust on your system, the session looks like this:
 
 ```bash
 $ docker push docker/trusttest:latest
 The push refers to a repository [docker.io/docker/trusttest] (len: 1)
-9a61b6b1315e: Image already exists 
-902b87aaaec9: Image already exists 
+9a61b6b1315e: Image already exists
+902b87aaaec9: Image already exists
 latest: digest: sha256:d02adacee0ac7a5be140adb94fa1dae64f4e71a68696e7f8e7cbf9db8dd49418 size: 3220
 Signing and pushing trust metadata
 You are about to create a new offline signing key passphrase. This passphrase
@@ -177,31 +190,31 @@ choose a long, complex passphrase and be careful to keep the password and the
 key file itself secure and backed up. It is highly recommended that you use a
 password manager to generate the passphrase and keep it safe. There will be no
 way to recover this key. You can find the key in your config directory.
-Enter passphrase for new offline key with id a1d96fb: 
-Repeat passphrase for new offline key with id a1d96fb: 
-Enter passphrase for new tagging key with id docker.io/docker/trusttest (3a932f1): 
-Repeat passphrase for new tagging key with id docker.io/docker/trusttest (3a932f1): 
+Enter passphrase for new offline key with id a1d96fb:
+Repeat passphrase for new offline key with id a1d96fb:
+Enter passphrase for new tagging key with id docker.io/docker/trusttest (3a932f1):
+Repeat passphrase for new tagging key with id docker.io/docker/trusttest (3a932f1):
 Finished initializing "docker.io/docker/trusttest"
 ```
-When you push your first tagged image with content trust enabled, the  `docker` client
-recognizes this is your first push and:
- 
+When you push your first tagged image with content trust enabled, the  `docker`
+client recognizes this is your first push and:
+
  - alerts you that it will create a new offline key
  - requests a passphrase for the key
  - generates an offline key in the `~/.docker/trust` directory
  - generates a tagging key for in the `~/.docker/trust` directory
- 
-The passphrase you chose for both the offline key and your content key-pair should
-be randomly generated and stored in a *password manager*. 
 
-It is important to note, if you had left off the `latest` tag, content trust is skipped.
-This is true even if content trust is enabled and even if this is your first push. 
+The passphrase you chose for both the offline key and your content key-pair
+should be randomly generated and stored in a *password manager*.
+
+> **NOTE**: If you omit the `latest` tag, content trust is skipped. This is true
+even if content trust is enabled and even if this is your first push.
 
 ```bash
 $ docker push docker/trusttest
 The push refers to a repository [docker.io/docker/trusttest] (len: 1)
-9a61b6b1315e: Image successfully pushed 
-902b87aaaec9: Image successfully pushed 
+9a61b6b1315e: Image successfully pushed
+902b87aaaec9: Image successfully pushed
 latest: digest: sha256:a9a9c4402604b703bed1c847f6d85faac97686e48c579bd9c3b0fa6694a398fc size: 3220
 No tag specified, skipping trust metadata push
 ```
@@ -215,13 +228,13 @@ you create can use that same offline key:
 ```bash
 $ docker push docker.io/docker/seaside:latest
 The push refers to a repository [docker.io/docker/seaside] (len: 1)
-a9539b34a6ab: Image successfully pushed 
-b3dbab3810fc: Image successfully pushed 
+a9539b34a6ab: Image successfully pushed
+b3dbab3810fc: Image successfully pushed
 latest: digest: sha256:d2ba1e603661a59940bfad7072eba698b79a8b20ccbb4e3bfb6f9e367ea43939 size: 3346
 Signing and pushing trust metadata
-Enter key passphrase for offline key with id a1d96fb: 
-Enter passphrase for new tagging key with id docker.io/docker/seaside (bb045e3): 
-Repeat passphrase for new tagging key with id docker.io/docker/seaside (bb045e3): 
+Enter key passphrase for offline key with id a1d96fb:
+Enter passphrase for new tagging key with id docker.io/docker/seaside (bb045e3):
+Repeat passphrase for new tagging key with id docker.io/docker/seaside (bb045e3):
 Finished initializing "docker.io/docker/seaside"
 ```
 
@@ -232,7 +245,7 @@ these.
 ### Pull image content
 
 A common way to consume an image is to `pull` it. With content trust enabled, the Docker
-client only allows `docker pull` to retrieve signed images. 
+client only allows `docker pull` to retrieve signed images.
 
 ```
 $  docker pull docker/seaside
@@ -286,6 +299,3 @@ $  docker push --disable-content-trust docker/trusttest:untrusted
 * [Manage keys for content trust](/security/trust/trust_key_mng)
 * [Automation with content trust](/security/trust/trust_automation)
 * [Play in a content trust sandbox](/security/trust/trust_sandbox)
-
-
-
