@@ -1,4 +1,4 @@
-//go:generate pluginrpc-gen -i $GOFILE -o proxy.go -type VolumeDriver -name VolumeDriver
+//go:generate pluginrpc-gen -i $GOFILE -o proxy.go -type volumeDriver -name volumeDriver
 
 package volumedrivers
 
@@ -23,8 +23,10 @@ func NewVolumeDriver(name string, c client) volume.Driver {
 
 type opts map[string]string
 
-// VolumeDriver defines the available functions that volume plugins must implement.
-type VolumeDriver interface {
+// volumeDriver defines the available functions that volume plugins must implement.
+// This interface is only defined to generate the proxy objects.
+// It's not intended to be public or reused.
+type volumeDriver interface {
 	// Create a volume with the given name
 	Create(name string, opts opts) (err error)
 	// Remove the volume with the given name
