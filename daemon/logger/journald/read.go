@@ -220,10 +220,6 @@ func (s *journald) readLogs(logWatcher *logger.LogWatcher, config logger.ReadCon
 	}
 	// Add a match to have the library do the searching for us.
 	cmatch = C.CString("CONTAINER_ID_FULL=" + s.vars["CONTAINER_ID_FULL"])
-	if cmatch == nil {
-		logWatcher.Err <- fmt.Errorf("error reading container ID")
-		return
-	}
 	defer C.free(unsafe.Pointer(cmatch))
 	rc = C.sd_journal_add_match(j, unsafe.Pointer(cmatch), C.strlen(cmatch))
 	if rc != 0 {
