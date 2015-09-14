@@ -101,6 +101,13 @@ func (daemon *Daemon) Create(config *runconfig.Config, hostConfig *runconfig.Hos
 	if err := daemon.setHostConfig(container, hostConfig); err != nil {
 		return nil, nil, err
 	}
+	defer func() {
+		if retErr != nil {
+			if err := container.removeMountPoints(true); err != nil {
+				logrus.Error(err)
+			}
+		}
+	}()
 	if err := container.Mount(); err != nil {
 		return nil, nil, err
 	}

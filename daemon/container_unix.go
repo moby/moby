@@ -1208,14 +1208,19 @@ func (container *Container) removeMountPoints(rm bool) error {
 		}
 		container.daemon.volumes.Decrement(m.Volume)
 		if rm {
-			if err := container.daemon.volumes.Remove(m.Volume); err != nil {
-				rmErrors = append(rmErrors, fmt.Sprintf("%v\n", err))
-				continue
+			err := container.daemon.volumes.Remove(m.Volume)
+			// ErrVolumeInUse is ignored because having this
+			// volume being referenced by othe container is
+			// not an error, but an implementation detail.
+			// This prevents docker from logging "ERROR: Volume in use"
+			// where there is another container using the volume.
+			if err != nil && err != ErrVolumeInUse {
+				rmErrors = append(rmErrors, err.Error())
 			}
 		}
 	}
 	if len(rmErrors) > 0 {
-		return fmt.Errorf("Error removing volumes:\n%v", rmErrors)
+		return fmt.Errorf("Error removing volumes:\n%v", strings.Join(rmErrors, "\n"))
 	}
 	return nil
 }

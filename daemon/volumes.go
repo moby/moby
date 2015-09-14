@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/pkg/chrootarchive"
 	"github.com/docker/docker/pkg/system"
@@ -139,6 +140,7 @@ func (s *volumeStore) Create(name, driverName string, opts map[string]string) (v
 		return v, nil
 	}
 	s.mu.Unlock()
+	logrus.Debugf("Registering new volume reference: driver %s, name %s", driverName, name)
 
 	vd, err := getVolumeDriver(driverName)
 	if err != nil {
@@ -173,6 +175,7 @@ func (s *volumeStore) Remove(v volume.Volume) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	name := v.Name()
+	logrus.Debugf("Removing volume reference: driver %s, name %s", v.DriverName(), name)
 	vc, exists := s.vols[name]
 	if !exists {
 		return ErrNoSuchVolume
@@ -197,6 +200,7 @@ func (s *volumeStore) Remove(v volume.Volume) error {
 func (s *volumeStore) Increment(v volume.Volume) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	logrus.Debugf("Incrementing volume reference: driver %s, name %s", v.DriverName(), v.Name())
 
 	vc, exists := s.vols[v.Name()]
 	if !exists {
@@ -211,6 +215,7 @@ func (s *volumeStore) Increment(v volume.Volume) {
 func (s *volumeStore) Decrement(v volume.Volume) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	logrus.Debugf("Decrementing volume reference: driver %s, name %s", v.DriverName(), v.Name())
 
 	vc, exists := s.vols[v.Name()]
 	if !exists {
