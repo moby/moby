@@ -295,6 +295,17 @@ any point in an image's history, much like source control.
 The *exec* form makes it possible to avoid shell string munging, and to `RUN`
 commands using a base image that does not contain `/bin/sh`.
 
+In the *shell* form you can use a `\` (backslash) to continue a single
+RUN instruction onto the next line. For example, consider these two lines:
+```
+RUN /bin/bash -c 'source $HOME/.bashrc ;\
+echo $HOME'
+```
+Together they are equivalent to this single line:
+```
+RUN /bin/bash -c 'source $HOME/.bashrc ; echo $HOME'
+```
+
 > **Note**:
 > To use a different shell, other than '/bin/sh', use the *exec* form
 > passing in the desired shell. For example,
@@ -310,12 +321,6 @@ commands using a base image that does not contain `/bin/sh`.
 > `RUN [ "echo", "$HOME" ]` will not do variable substitution on `$HOME`.
 > If you want shell processing then either use the *shell* form or execute 
 > a shell directly, for example: `RUN [ "sh", "-c", "echo", "$HOME" ]`.
-
-> **Note**:
-> If you choose to use the *shell* form, any time you want to continue a single
-> `RUN` instruction onto the next line, it has to be ended with a backslash `\`.
-> For example,  `RUN /bin/bash -c 'source $HOME/.bashrc ;\` then on the next
-> line ` echo $HOME '`.
 
 The cache for `RUN` instructions isn't invalidated automatically during
 the next build. The cache for an instruction like 
