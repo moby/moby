@@ -27,6 +27,8 @@ func setupRootfs(config *configs.Config, console *linuxConsole) (err error) {
 	if err := prepareRoot(config); err != nil {
 		return newSystemError(err)
 	}
+
+	setupDev := len(config.Devices) == 0
 	for _, m := range config.Mounts {
 		for _, precmd := range m.PremountCmds {
 			if err := mountCmd(precmd); err != nil {
@@ -43,14 +45,16 @@ func setupRootfs(config *configs.Config, console *linuxConsole) (err error) {
 			}
 		}
 	}
-	if err := createDevices(config); err != nil {
-		return newSystemError(err)
-	}
-	if err := setupPtmx(config, console); err != nil {
-		return newSystemError(err)
-	}
-	if err := setupDevSymlinks(config.Rootfs); err != nil {
-		return newSystemError(err)
+	if !setupDev {
+		if err := createDevices(config); err != nil {
+			return newSystemError(err)
+		}
+		if err := setupPtmx(config, console); err != nil {
+			return newSystemError(err)
+		}
+		if err := setupDevSymlinks(config.Rootfs); err != nil {
+			return newSystemError(err)
+		}
 	}
 	if err := syscall.Chdir(config.Rootfs); err != nil {
 		return newSystemError(err)
@@ -63,8 +67,10 @@ func setupRootfs(config *configs.Config, console *linuxConsole) (err error) {
 	if err != nil {
 		return newSystemError(err)
 	}
-	if err := reOpenDevNull(config.Rootfs); err != nil {
-		return newSystemError(err)
+	if !setupDev {
+		if err := reOpenDevNull(config.Rootfs); err != nil {
+			return newSystemError(err)
+		}
 	}
 	if config.Readonlyfs {
 		if err := setReadonly(); err != nil {
@@ -131,6 +137,11 @@ func mountToRootfs(m *configs.Mount, rootfs, mountLabel string) error {
 			return err
 		}
 		return syscall.Mount(m.Source, dest, m.Device, uintptr(m.Flags), data)
+	case "securityfs":
+		if err := os.MkdirAll(dest, 0755); err != nil {
+			return err
+		}
+		return syscall.Mount(m.Source, dest, m.Device, uintptr(m.Flags), data)
 	case "bind":
 		stat, err := os.Stat(m.Source)
 		if err != nil {
@@ -160,7 +171,11 @@ func mountToRootfs(m *configs.Mount, rootfs, mountLabel string) error {
 			}
 		}
 		if m.Relabel != "" {
-			if err := label.Relabel(m.Source, mountLabel, m.Relabel); err != nil {
+			if err := label.Validate(m.Relabel); err != nil {
+				return err
+			}
+			shared := label.IsShared(m.Relabel)
+			if err := label.Relabel(m.Source, mountLabel, shared); err != nil {
 				return err
 			}
 		}

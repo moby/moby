@@ -21,6 +21,9 @@ const cgroupNamePrefix = "name="
 
 // https://www.kernel.org/doc/Documentation/cgroups/cgroups.txt
 func FindCgroupMountpoint(subsystem string) (string, error) {
+	// We are not using mount.GetMounts() because it's super-inefficient,
+	// parsing it directly sped up x10 times because of not using Sscanf.
+	// It was one of two major performance drawbacks in container start.
 	f, err := os.Open("/proc/self/mountinfo")
 	if err != nil {
 		return "", err
@@ -44,7 +47,7 @@ func FindCgroupMountpoint(subsystem string) (string, error) {
 	return "", NewNotFoundError(subsystem)
 }
 
-func FindCgroupMountpointAndSource(subsystem string) (string, string, error) {
+func FindCgroupMountpointAndRoot(subsystem string) (string, string, error) {
 	f, err := os.Open("/proc/self/mountinfo")
 	if err != nil {
 		return "", "", err
@@ -69,15 +72,28 @@ func FindCgroupMountpointAndSource(subsystem string) (string, string, error) {
 }
 
 func FindCgroupMountpointDir() (string, error) {
-	mounts, err := mount.GetMounts()
+	f, err := os.Open("/proc/self/mountinfo")
 	if err != nil {
 		return "", err
 	}
+	defer f.Close()
 
-	for _, mount := range mounts {
-		if mount.Fstype == "cgroup" {
-			return filepath.Dir(mount.Mountpoint), nil
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		text := scanner.Text()
+		fields := strings.Split(text, " ")
+		// Safe as mountinfo encodes mountpoints with spaces as \040.
+		index := strings.Index(text, " - ")
+		postSeparatorFields := strings.Fields(text[index+3:])
+		if len(postSeparatorFields) < 3 {
+			return "", fmt.Errorf("Error found less than 3 fields post '-' in %q", text)
 		}
+		if postSeparatorFields[0] == "cgroup" {
+			return filepath.Dir(fields[4]), nil
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		return "", err
 	}
 
 	return "", NewNotFoundError("cgroup")

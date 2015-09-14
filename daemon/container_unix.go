@@ -1112,12 +1112,9 @@ func (container *Container) unmountVolumes(forceSyscall bool) error {
 
 func (container *Container) networkMounts() []execdriver.Mount {
 	var mounts []execdriver.Mount
-	mode := "Z"
-	if container.hostConfig.NetworkMode.IsContainer() {
-		mode = "z"
-	}
+	shared := container.hostConfig.NetworkMode.IsContainer()
 	if container.ResolvConfPath != "" {
-		label.Relabel(container.ResolvConfPath, container.MountLabel, mode)
+		label.Relabel(container.ResolvConfPath, container.MountLabel, shared)
 		writable := !container.hostConfig.ReadonlyRootfs
 		if m, exists := container.MountPoints["/etc/resolv.conf"]; exists {
 			writable = m.RW
@@ -1130,7 +1127,7 @@ func (container *Container) networkMounts() []execdriver.Mount {
 		})
 	}
 	if container.HostnamePath != "" {
-		label.Relabel(container.HostnamePath, container.MountLabel, mode)
+		label.Relabel(container.HostnamePath, container.MountLabel, shared)
 		writable := !container.hostConfig.ReadonlyRootfs
 		if m, exists := container.MountPoints["/etc/hostname"]; exists {
 			writable = m.RW
@@ -1143,7 +1140,7 @@ func (container *Container) networkMounts() []execdriver.Mount {
 		})
 	}
 	if container.HostsPath != "" {
-		label.Relabel(container.HostsPath, container.MountLabel, mode)
+		label.Relabel(container.HostsPath, container.MountLabel, shared)
 		writable := !container.hostConfig.ReadonlyRootfs
 		if m, exists := container.MountPoints["/etc/hosts"]; exists {
 			writable = m.RW

@@ -17,7 +17,7 @@ import (
 type MemoryGroup struct {
 }
 
-func (s *MemoryGroup) Apply(d *data) error {
+func (s *MemoryGroup) Apply(d *data) (err error) {
 	path, err := d.path("memory")
 	if err != nil {
 		if cgroups.IsNotFound(err) {
@@ -28,21 +28,22 @@ func (s *MemoryGroup) Apply(d *data) error {
 	if err := os.MkdirAll(path, 0755); err != nil {
 		return err
 	}
+
+	defer func() {
+		if err != nil {
+			os.RemoveAll(path)
+		}
+	}()
+
 	if err := s.Set(path, d.c); err != nil {
 		return err
 	}
 
 	// We need to join memory cgroup after set memory limits, because
 	// kmem.limit_in_bytes can only be set when the cgroup is empty.
-	_, err = d.join("memory")
-	if err != nil {
+	if _, err = d.join("memory"); err != nil {
 		return err
 	}
-	defer func() {
-		if err != nil {
-			os.RemoveAll(path)
-		}
-	}()
 
 	return nil
 }

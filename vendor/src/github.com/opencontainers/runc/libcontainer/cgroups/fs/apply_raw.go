@@ -83,7 +83,7 @@ type data struct {
 	pid    int
 }
 
-func (m *Manager) Apply(pid int) error {
+func (m *Manager) Apply(pid int) (err error) {
 	if m.Cgroups == nil {
 		return nil
 	}
@@ -235,12 +235,12 @@ func getCgroupData(c *configs.Cgroup, pid int) (*data, error) {
 	}, nil
 }
 
-func (raw *data) parent(subsystem, mountpoint, src string) (string, error) {
-	initPath, err := cgroups.GetInitCgroupDir(subsystem)
+func (raw *data) parent(subsystem, mountpoint, root string) (string, error) {
+	initPath, err := cgroups.GetThisCgroupDir(subsystem)
 	if err != nil {
 		return "", err
 	}
-	relDir, err := filepath.Rel(src, initPath)
+	relDir, err := filepath.Rel(root, initPath)
 	if err != nil {
 		return "", err
 	}
@@ -248,7 +248,7 @@ func (raw *data) parent(subsystem, mountpoint, src string) (string, error) {
 }
 
 func (raw *data) path(subsystem string) (string, error) {
-	mnt, src, err := cgroups.FindCgroupMountpointAndSource(subsystem)
+	mnt, root, err := cgroups.FindCgroupMountpointAndRoot(subsystem)
 	// If we didn't mount the subsystem, there is no point we make the path.
 	if err != nil {
 		return "", err
@@ -259,7 +259,7 @@ func (raw *data) path(subsystem string) (string, error) {
 		return filepath.Join(raw.root, filepath.Base(mnt), raw.cgroup), nil
 	}
 
-	parent, err := raw.parent(subsystem, mnt, src)
+	parent, err := raw.parent(subsystem, mnt, root)
 	if err != nil {
 		return "", err
 	}

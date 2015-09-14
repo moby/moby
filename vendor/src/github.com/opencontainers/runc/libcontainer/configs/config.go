@@ -1,5 +1,11 @@
 package configs
 
+import (
+	"bytes"
+	"encoding/json"
+	"os/exec"
+)
+
 type Rlimit struct {
 	Type int    `json:"type"`
 	Hard uint64 `json:"hard"`
@@ -13,36 +19,46 @@ type IDMap struct {
 	Size        int `json:"size"`
 }
 
+// Seccomp represents syscall restrictions
 type Seccomp struct {
-	Syscalls []*Syscall `json:"syscalls"`
+	DefaultAction Action     `json:"default_action"`
+	Syscalls      []*Syscall `json:"syscalls"`
 }
 
+// An action to be taken upon rule match in Seccomp
 type Action int
 
 const (
-	Kill Action = iota - 3
+	Kill Action = iota - 4
+	Errno
 	Trap
 	Allow
 )
 
+// A comparison operator to be used when matching syscall arguments in Seccomp
 type Operator int
 
 const (
 	EqualTo Operator = iota
 	NotEqualTo
-	GreatherThan
+	GreaterThan
+	GreaterThanOrEqualTo
 	LessThan
+	LessThanOrEqualTo
 	MaskEqualTo
 )
 
+// A rule to match a specific syscall argument in Seccomp
 type Arg struct {
-	Index int      `json:"index"`
-	Value uint32   `json:"value"`
-	Op    Operator `json:"op"`
+	Index    uint     `json:"index"`
+	Value    uint64   `json:"value"`
+	ValueTwo uint64   `json:"value_two"`
+	Op       Operator `json:"op"`
 }
 
+// An rule to match a syscall in Seccomp
 type Syscall struct {
-	Value  int    `json:"value"`
+	Name   string `json:"name"`
 	Action Action `json:"action"`
 	Args   []*Arg `json:"args"`
 }
@@ -117,6 +133,12 @@ type Config struct {
 	// If Rlimits are not set, the container will inherit rlimits from the parent process
 	Rlimits []Rlimit `json:"rlimits"`
 
+	// OomScoreAdj specifies the adjustment to be made by the kernel when calculating oom scores
+	// for a process. Valid values are between the range [-1000, '1000'], where processes with
+	// higher scores are preferred for being killed.
+	// More information about kernel oom score calculation here: https://lwn.net/Articles/317814/
+	OomScoreAdj int `json:"oom_score_adj"`
+
 	// AdditionalGroups specifies the gids that should be added to supplementary groups
 	// in addition to those that the user belongs to.
 	AdditionalGroups []string `json:"additional_groups"`
@@ -140,7 +162,79 @@ type Config struct {
 	Sysctl map[string]string `json:"sysctl"`
 
 	// Seccomp allows actions to be taken whenever a syscall is made within the container.
-	// By default, all syscalls are allowed with actions to allow, trap, kill, or return an errno
-	// can be specified on a per syscall basis.
+	// A number of rules are given, each having an action to be taken if a syscall matches it.
+	// A default action to be taken if no rules match is also given.
 	Seccomp *Seccomp `json:"seccomp"`
+
+	// Hooks are a collection of actions to perform at various container lifecycle events.
+	// Hooks are not able to be marshaled to json but they are also not needed to.
+	Hooks *Hooks `json:"-"`
+}
+
+type Hooks struct {
+	// Prestart commands are executed after the container namespaces are created,
+	// but before the user supplied command is executed from init.
+	Prestart []Hook
+
+	// Poststop commands are executed after the container init process exits.
+	Poststop []Hook
+}
+
+// HookState is the payload provided to a hook on execution.
+type HookState struct {
+	ID   string `json:"id"`
+	Pid  int    `json:"pid"`
+	Root string `json:"root"`
+}
+
+type Hook interface {
+	// Run executes the hook with the provided state.
+	Run(HookState) error
+}
+
+// NewFunctionHooks will call the provided function when the hook is run.
+func NewFunctionHook(f func(HookState) error) FuncHook {
+	return FuncHook{
+		run: f,
+	}
+}
+
+type FuncHook struct {
+	run func(HookState) error
+}
+
+func (f FuncHook) Run(s HookState) error {
+	return f.run(s)
+}
+
+type Command struct {
+	Path string   `json:"path"`
+	Args []string `json:"args"`
+	Env  []string `json:"env"`
+	Dir  string   `json:"dir"`
+}
+
+// NewCommandHooks will execute the provided command when the hook is run.
+func NewCommandHook(cmd Command) CommandHook {
+	return CommandHook{
+		Command: cmd,
+	}
+}
+
+type CommandHook struct {
+	Command
+}
+
+func (c Command) Run(s HookState) error {
+	b, err := json.Marshal(s)
+	if err != nil {
+		return err
+	}
+	cmd := exec.Cmd{
+		Path:  c.Path,
+		Args:  c.Args,
+		Env:   c.Env,
+		Stdin: bytes.NewReader(b),
+	}
+	return cmd.Run()
 }
