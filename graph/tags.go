@@ -277,14 +277,7 @@ func (store *TagStore) setLoad(repoName, tag, imageName string, force bool, out 
 		return err
 	}
 	if err := tags.ValidateTagName(tag); err != nil {
-		if _, formatError := err.(tags.ErrTagInvalidFormat); !formatError {
-			return err
-		}
-		if _, dErr := digest.ParseDigest(tag); dErr != nil {
-			// Still return the tag validation error.
-			// It's more likely to be a user generated issue.
-			return err
-		}
+		return err
 	}
 	if err := store.reload(); err != nil {
 		return err
