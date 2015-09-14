@@ -10,8 +10,8 @@ parent = "smn_containers"
 
 # Get started with containers
 
-This guide assumes you have a working installation of Docker. To verify Docker is 
-installed, use the following command:
+This guide assumes you have a working installation of Docker. To verify Docker
+is installed, use the following command:
 
     # Check that you have a working install
     $ docker info
@@ -19,12 +19,14 @@ installed, use the following command:
 If you get `docker: command not found` or something like
 `/var/lib/docker/repositories: permission denied` you may have an
 incomplete Docker installation or insufficient privileges to access
-Docker on your machine. 
+Docker on your machine. With the default installation of Docker `docker`
+commands need to be run by a user that is in the `docker` group or by the
+`root` user.
 
-Additionally, depending on your Docker system configuration, you may be required
-to preface each `docker` command with `sudo`. To avoid having to use `sudo` with
-the `docker` command, your system administrator can create a Unix group called
-`docker` and add users to it.
+Depending on your Docker system configuration, you may be required
+to preface each `docker` command with `sudo`. One way to avoid having to use
+`sudo` with the `docker` commands is to create a Unix group called `docker` and
+add users that will be entering `docker` commands to the 'docker' group.
 
 For more information about installing Docker or `sudo` configuration, refer to
 the [installation](/installation) instructions for your operating system.
@@ -53,9 +55,13 @@ To run an interactive shell in the Ubuntu image:
 
     $ docker run -i -t ubuntu /bin/bash       
   
-The `-i` flag starts an interactive container. The `-t` flag creates a pseudo-TTY that attaches `stdin` and `stdout`.  
+The `-i` flag starts an interactive container. The `-t` flag creates a
+pseudo-TTY that attaches `stdin` and `stdout`.  
 
-To detach the `tty` without exiting the shell, use the escape sequence `Ctrl-p` + `Ctrl-q`. The container will continue to exist in a stopped state once exited. To list all containers, stopped and running use the `docker ps -a` command.
+To detach the `tty` without exiting the shell, use the escape sequence
+`Ctrl-p` + `Ctrl-q`. The container will continue to exist in a stopped state
+once exited. To list all containers, stopped and running, use the `docker ps -a`
+command.
 
 ## Bind Docker to another host/port or a Unix socket
 
@@ -171,7 +177,9 @@ TCP and a Unix socket
 Save your containers state to an image, so the state can be
 re-used.
 
-When you commit your container, Docker only stores the diff (difference) between the source image and the current state of the container's image. To list images you already have, use the `docker images` command. 
+When you commit your container, Docker only stores the diff (difference) between
+the source image and the current state of the container's image. To list images
+you already have, use the `docker images` command. 
 
     # Commit your container to a new named image
     $ docker commit <container> <some_name>
