@@ -65,13 +65,10 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 		return fmt.Errorf("could not set mac address to the container interface: %v", err)
 	}
 
-	for _, iNames := range jinfo.InterfaceNames() {
-		// Make sure to set names on the correct interface ID.
-		if iNames.ID() == 1 {
-			err = iNames.SetNames(name2, "eth")
-			if err != nil {
-				return err
-			}
+	if iNames := jinfo.InterfaceName(); iNames != nil {
+		err = iNames.SetNames(name2, "eth")
+		if err != nil {
+			return err
 		}
 	}
 

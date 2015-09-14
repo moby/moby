@@ -157,30 +157,43 @@ func (n *networkNamespace) NeighborOptions() NeighborOptionSetter {
 	return n
 }
 
+func mountNetworkNamespace(basePath string, lnPath string) error {
+	if err := syscall.Mount(basePath, lnPath, "bind", syscall.MS_BIND, ""); err != nil {
+		return err
+	}
+
+	if err := loopbackUp(); err != nil {
+		return err
+	}
+	return nil
+}
+
+// GetSandboxForExternalKey returns sandbox object for the supplied path
+func GetSandboxForExternalKey(basePath string, key string) (Sandbox, error) {
+	var err error
+	if err = createNamespaceFile(key); err != nil {
+		return nil, err
+	}
+	n := &networkNamespace{path: basePath}
+	n.InvokeFunc(func() {
+		err = mountNetworkNamespace(basePath, key)
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &networkNamespace{path: key}, nil
+}
+
 func reexecCreateNamespace() {
 	if len(os.Args) < 2 {
 		log.Fatal("no namespace path provided")
 	}
-
-	if err := syscall.Mount("/proc/self/ns/net", os.Args[1], "bind", syscall.MS_BIND, ""); err != nil {
-		log.Fatal(err)
-	}
-
-	if err := loopbackUp(); err != nil {
+	if err := mountNetworkNamespace("/proc/self/ns/net", os.Args[1]); err != nil {
 		log.Fatal(err)
 	}
 }
 
 func createNetworkNamespace(path string, osCreate bool) error {
-	runtime.LockOSThread()
-	defer runtime.UnlockOSThread()
-
-	origns, err := netns.Get()
-	if err != nil {
-		return err
-	}
-	defer origns.Close()
-
 	if err := createNamespaceFile(path); err != nil {
 		return err
 	}

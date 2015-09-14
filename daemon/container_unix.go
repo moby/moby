@@ -580,12 +580,10 @@ func (container *Container) buildEndpointInfo(ep libnetwork.Endpoint, networkSet
 		return networkSettings, nil
 	}
 
-	ifaceList := epInfo.InterfaceList()
-	if len(ifaceList) == 0 {
+	iface := epInfo.Iface()
+	if iface == nil {
 		return networkSettings, nil
 	}
-
-	iface := ifaceList[0]
 
 	ones, _ := iface.Address().Mask.Size()
 	networkSettings.IPAddress = iface.Address().IP.String()
@@ -595,24 +593,6 @@ func (container *Container) buildEndpointInfo(ep libnetwork.Endpoint, networkSet
 		onesv6, _ := iface.AddressIPv6().Mask.Size()
 		networkSettings.GlobalIPv6Address = iface.AddressIPv6().IP.String()
 		networkSettings.GlobalIPv6PrefixLen = onesv6
-	}
-
-	if len(ifaceList) == 1 {
-		return networkSettings, nil
-	}
-
-	networkSettings.SecondaryIPAddresses = make([]network.Address, 0, len(ifaceList)-1)
-	networkSettings.SecondaryIPv6Addresses = make([]network.Address, 0, len(ifaceList)-1)
-	for _, iface := range ifaceList[1:] {
-		ones, _ := iface.Address().Mask.Size()
-		addr := network.Address{Addr: iface.Address().IP.String(), PrefixLen: ones}
-		networkSettings.SecondaryIPAddresses = append(networkSettings.SecondaryIPAddresses, addr)
-
-		if iface.AddressIPv6().IP.To16() != nil {
-			onesv6, _ := iface.AddressIPv6().Mask.Size()
-			addrv6 := network.Address{Addr: iface.AddressIPv6().IP.String(), PrefixLen: onesv6}
-			networkSettings.SecondaryIPv6Addresses = append(networkSettings.SecondaryIPv6Addresses, addrv6)
-		}
 	}
 
 	return networkSettings, nil

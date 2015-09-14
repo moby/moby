@@ -249,6 +249,9 @@ func (sc *sandboxCreate) parseOptions() []libnetwork.SandboxOption {
 	if sc.UseDefaultSandbox {
 		setFctList = append(setFctList, libnetwork.OptionUseDefaultSandbox())
 	}
+	if sc.UseExternalKey {
+		setFctList = append(setFctList, libnetwork.OptionUseExternalKey())
+	}
 	if sc.DNS != nil {
 		for _, d := range sc.DNS {
 			setFctList = append(setFctList, libnetwork.OptionDNS(d))
