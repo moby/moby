@@ -3116,3 +3116,24 @@ func (s *DockerSuite) TestTwoContainersInNetHost(c *check.C) {
 	dockerCmd(c, "stop", "first")
 	dockerCmd(c, "stop", "second")
 }
+
+// #11957 - stdin with no tty does not exit if stdin is not closed even though container exited
+func (s *DockerSuite) TestRunStdinBlockedAfterContainerExit(c *check.C) {
+	cmd := exec.Command(dockerBinary, "run", "-i", "--name=test", "busybox", "true")
+	in, err := cmd.StdinPipe()
+	c.Assert(err, check.IsNil)
+	defer in.Close()
+	c.Assert(cmd.Start(), check.IsNil)
+
+	waitChan := make(chan error)
+	go func() {
+		waitChan <- cmd.Wait()
+	}()
+
+	select {
+	case err := <-waitChan:
+		c.Assert(err, check.IsNil)
+	case <-time.After(3 * time.Second):
+		c.Fatal("timeout waiting for command to exit")
+	}
+}
