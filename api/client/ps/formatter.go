@@ -1,7 +1,12 @@
 package ps
 
 import (
+	"bytes"
+	"fmt"
 	"io"
+	"strings"
+	"text/tabwriter"
+	"text/template"
 
 	"github.com/docker/docker/api/types"
 )
@@ -70,4 +75,66 @@ func tableFormat(ctx Context, containers []types.Container) {
 	}
 
 	customFormat(ctx, containers)
+}
+
+func customFormat(ctx Context, containers []types.Container) {
+	var (
+		table  bool
+		header string
+		format = ctx.Format
+		buffer = bytes.NewBufferString("")
+	)
+
+	if strings.HasPrefix(ctx.Format, tableKey) {
+		table = true
+		format = format[len(tableKey):]
+	}
+
+	format = strings.Trim(format, " ")
+	r := strings.NewReplacer(`\t`, "\t", `\n`, "\n")
+	format = r.Replace(format)
+
+	if table && ctx.Size {
+		format += "\t{{.Size}}"
+	}
+
+	tmpl, err := template.New("").Parse(format)
+	if err != nil {
+		buffer.WriteString(fmt.Sprintf("Template parsing error: %v\n", err))
+		buffer.WriteTo(ctx.Output)
+		return
+	}
+
+	for _, container := range containers {
+		containerCtx := &containerContext{
+			trunc: ctx.Trunc,
+			c:     container,
+		}
+		if err := tmpl.Execute(buffer, containerCtx); err != nil {
+			buffer = bytes.NewBufferString(fmt.Sprintf("Template parsing error: %v\n", err))
+			buffer.WriteTo(ctx.Output)
+			return
+		}
+		if table && len(header) == 0 {
+			header = containerCtx.fullHeader()
+		}
+		buffer.WriteString("\n")
+	}
+
+	if table {
+		if len(header) == 0 {
+			// if we still don't have a header, we didn't have any containers so we need to fake it to get the right headers from the template
+			containerCtx := &containerContext{}
+			tmpl.Execute(bytes.NewBufferString(""), containerCtx)
+			header = containerCtx.fullHeader()
+		}
+
+		t := tabwriter.NewWriter(ctx.Output, 20, 1, 3, ' ', 0)
+		t.Write([]byte(header))
+		t.Write([]byte("\n"))
+		buffer.WriteTo(t)
+		t.Flush()
+	} else {
+		buffer.WriteTo(ctx.Output)
+	}
 }
