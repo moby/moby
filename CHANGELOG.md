@@ -1,5 +1,32 @@
 # Changelog
 
+## 1.8.2 (2015-09-10)
+
+### Distribution:
+
+- Fixes rare edge case of handling GNU LongLink and LongName entries.
+- Fix ^C on docker pull.
+- Fix docker pull issues on client disconnection.
+- Fix issue that caused the daemon to panic when loggers weren't configured properly.
+- Fix goroutine leak pulling images from registry V2.
+
+### Runtime:
+
+- Fix a bug mounting cgroups for docker daemons running inside docker containers.
+- Initialize log configuration properly.
+
+### Client:
+
+- Handle `-q` flag in `docker ps` properly when there is a default format.
+
+### Networking:
+
+- Fix several corner cases with netlink.
+
+### Contrib:
+
+- Fix several issues with bash completion.
+
 ## 1.8.1 (2015-08-12)
 
 ### Distribution
