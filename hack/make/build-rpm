@@ -24,6 +24,11 @@ set -e
 		rpmRelease="0.${rcVersion}.rc${rcVersion}"
 	fi
 
+	DOCKER_GITCOMMIT=$(git rev-parse --short HEAD)
+	if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
+		DOCKER_GITCOMMIT="$DOCKER_GITCOMMIT-dirty"
+	fi
+
 	# if we have a "-dev" suffix or have change in Git, let's make this package version more complex so it works better
 	if [[ "$VERSION" == *-dev ]] || [ -n "$(git status --porcelain)" ]; then
 		gitUnix="$(git log -1 --pretty='%at')"
@@ -60,7 +65,8 @@ set -e
 			echo 'ENV DOCKER_EXPERIMENTAL 1' >> "$DEST/$version/Dockerfile.build"
 		fi
 		cat >> "$DEST/$version/Dockerfile.build" <<-EOF
-			RUN mkdir -p /root/rpmbuild/SOURCES
+			RUN mkdir -p /root/rpmbuild/SOURCES \
+				&& echo '%_topdir /root/rpmbuild' > /root/.rpmmacros
 			WORKDIR /root/rpmbuild
 			RUN ln -sfv /usr/src/${rpmName}/hack/make/.build-rpm SPECS
 			WORKDIR /root/rpmbuild/SPECS
@@ -70,11 +76,11 @@ set -e
 		EOF
 		# selinux policy referencing systemd things won't work on non-systemd versions
 		# of centos or rhel, which we don't support anyways
-		if [ "$suite" -gt 6 ]; then
+		if [ "${suite%.*}" -gt 6 ] && [[ "$version" != opensuse* ]]; then
 			cat >> "$DEST/$version/Dockerfile.build" <<-EOF
 				RUN tar -cz -C /usr/src/${rpmName}/contrib -f /root/rpmbuild/SOURCES/${rpmName}-selinux.tar.gz ${rpmName}-selinux
 				RUN { echo '* $rpmDate $rpmPackager $rpmVersion-$rpmRelease'; echo '* Version: $VERSION'; } >> ${rpmName}-selinux.spec && tail >&2 ${rpmName}-selinux.spec
-				RUN rpmbuild -ba --define '_release $rpmRelease' --define '_version $rpmVersion' --define '_origversion $VERSION' ${rpmName}-selinux.spec
+				RUN rpmbuild -ba --define '_gitcommit $DOCKER_GITCOMMIT' --define '_release $rpmRelease' --define '_version $rpmVersion' --define '_origversion $VERSION' ${rpmName}-selinux.spec
 			EOF
 		fi
 		tempImage="docker-temp/build-rpm:$version"

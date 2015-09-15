@@ -17,7 +17,7 @@ Packager: Docker <support@docker.com>
 %global debug_package %{nil}
 
 # is_systemd conditional
-%if 0%{?fedora} >= 21 || 0%{?centos} >= 7 || 0%{?rhel} >= 7
+%if 0%{?fedora} >= 21 || 0%{?centos} >= 7 || 0%{?rhel} >= 7 || 0%{?suse_version} >= 1300
 %global is_systemd 1
 %endif
 
@@ -26,8 +26,10 @@ Packager: Docker <support@docker.com>
 # only require systemd on those systems
 %if 0%{?is_systemd}
 BuildRequires: pkgconfig(systemd)
-BuildRequires: pkgconfig(libsystemd-journal)
 Requires: systemd-units
+%if !0%{?suse_version}
+BuildRequires: pkgconfig(libsystemd-journal)
+%endif
 %else
 Requires(post): chkconfig
 Requires(preun): chkconfig
@@ -102,6 +104,7 @@ depending on a particular stack or provider.
 %endif
 
 %build
+export DOCKER_GITCOMMIT=%{_gitcommit}
 ./hack/make.sh dynbinary
 # ./man/md2man-all.sh runs outside the build container (if at all), since we don't have go-md2man here
 
