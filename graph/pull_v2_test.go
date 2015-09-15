@@ -1,6 +1,8 @@
 package graph
 
 import (
+	"encoding/json"
+	"io/ioutil"
 	"reflect"
 	"strings"
 	"testing"
@@ -96,5 +98,97 @@ func TestFixManifestLayersBadParent(t *testing.T) {
 
 	if err := fixManifestLayers(&duplicateLayerManifest); err == nil || !strings.Contains(err.Error(), "Invalid parent ID.") {
 		t.Fatalf("expected an invalid parent ID error from fixManifestLayers")
+	}
+}
+
+// TestValidateManifest verifies the validateManifest function
+func TestValidateManifest(t *testing.T) {
+	expectedDigest := "sha256:02fee8c3220ba806531f606525eceb83f4feb654f62b207191b1c9209188dedd"
+	expectedFSLayer0 := digest.Digest("sha256:a3ed95caeb02ffe68cdd9fd84406680ae93d633cb16422d00e8a7c22955b46d4")
+
+	// Good manifest
+
+	goodManifestBytes, err := ioutil.ReadFile("fixtures/validate_manifest/good_manifest")
+	if err != nil {
+		t.Fatal("error reading fixture:", err)
+	}
+
+	var goodSignedManifest manifest.SignedManifest
+	err = json.Unmarshal(goodManifestBytes, &goodSignedManifest)
+	if err != nil {
+		t.Fatal("error unmarshaling manifest:", err)
+	}
+
+	verifiedManifest, err := verifyManifest(&goodSignedManifest, expectedDigest)
+	if err != nil {
+		t.Fatal("validateManifest failed:", err)
+	}
+
+	if verifiedManifest.FSLayers[0].BlobSum != expectedFSLayer0 {
+		t.Fatal("unexpected FSLayer in good manifest")
+	}
+
+	// "Extra data" manifest
+
+	extraDataManifestBytes, err := ioutil.ReadFile("fixtures/validate_manifest/extra_data_manifest")
+	if err != nil {
+		t.Fatal("error reading fixture:", err)
+	}
+
+	var extraDataSignedManifest manifest.SignedManifest
+	err = json.Unmarshal(extraDataManifestBytes, &extraDataSignedManifest)
+	if err != nil {
+		t.Fatal("error unmarshaling manifest:", err)
+	}
+
+	verifiedManifest, err = verifyManifest(&extraDataSignedManifest, expectedDigest)
+	if err != nil {
+		t.Fatal("validateManifest failed:", err)
+	}
+
+	if verifiedManifest.FSLayers[0].BlobSum != expectedFSLayer0 {
+		t.Fatal("unexpected FSLayer in extra data manifest")
+	}
+
+	// Bad manifest
+
+	badManifestBytes, err := ioutil.ReadFile("fixtures/validate_manifest/bad_manifest")
+	if err != nil {
+		t.Fatal("error reading fixture:", err)
+	}
+
+	var badSignedManifest manifest.SignedManifest
+	err = json.Unmarshal(badManifestBytes, &badSignedManifest)
+	if err != nil {
+		t.Fatal("error unmarshaling manifest:", err)
+	}
+
+	verifiedManifest, err = verifyManifest(&badSignedManifest, expectedDigest)
+	if err == nil || !strings.HasPrefix(err.Error(), "image verification failed for digest") {
+		t.Fatal("expected validateManifest to fail with digest error")
+	}
+
+	// Manifest with no signature
+
+	expectedWholeFileDigest := "7ec3615a120efcdfc270e9c7ea4183330775a3e52a09e2efb194b9a7c18e5ff7"
+
+	noSignatureManifestBytes, err := ioutil.ReadFile("fixtures/validate_manifest/no_signature_manifest")
+	if err != nil {
+		t.Fatal("error reading fixture:", err)
+	}
+
+	var noSignatureSignedManifest manifest.SignedManifest
+	err = json.Unmarshal(noSignatureManifestBytes, &noSignatureSignedManifest)
+	if err != nil {
+		t.Fatal("error unmarshaling manifest:", err)
+	}
+
+	verifiedManifest, err = verifyManifest(&noSignatureSignedManifest, expectedWholeFileDigest)
+	if err != nil {
+		t.Fatal("validateManifest failed:", err)
+	}
+
+	if verifiedManifest.FSLayers[0].BlobSum != expectedFSLayer0 {
+		t.Fatal("unexpected FSLayer in no-signature manifest")
 	}
 }
