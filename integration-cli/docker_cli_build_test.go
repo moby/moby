@@ -5662,6 +5662,7 @@ func (s *DockerSuite) TestBuildNullStringInAddCopyVolume(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildStopSignal(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	name := "test_build_stop_signal"
 	_, err := buildImage(name,
 		`FROM busybox
