@@ -18,7 +18,7 @@ set -e
 YUMDIR=$DOCKER_RELEASE_DIR/yum/repo
 
 # manage the repos for each distribution separately
-distros=( fedora centos oraclelinux )
+distros=( fedora centos opensuse oraclelinux )
 
 # get the release
 release="main"
