@@ -2014,10 +2014,10 @@ and Docker images report:
     HTTP/1.1 200 OK
     Content-Type: application/json
 
-    {"status": "create", "id": "dfdf82bd3881","from": "ubuntu:latest", "time":1374067924}
-    {"status": "start", "id": "dfdf82bd3881","from": "ubuntu:latest", "time":1374067924}
-    {"status": "stop", "id": "dfdf82bd3881","from": "ubuntu:latest", "time":1374067966}
-    {"status": "destroy", "id": "dfdf82bd3881","from": "ubuntu:latest", "time":1374067970}
+    {"status":"pull","id":"busybox:latest","time":1442421700,"timeNano":1442421700598988358}
+    {"status":"create","id":"5745704abe9caa5","from":"busybox","time":1442421716,"timeNano":1442421716853979870}
+    {"status":"attach","id":"5745704abe9caa5","from":"busybox","time":1442421716,"timeNano":1442421716894759198}
+    {"status":"start","id":"5745704abe9caa5","from":"busybox","time":1442421716,"timeNano":1442421716983607193}
 
 Query Parameters:
 
