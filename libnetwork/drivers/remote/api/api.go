@@ -16,6 +16,12 @@ func (r *Response) GetError() string {
 	return r.Err
 }
 
+// GetCapabilityResponse is the response of GetCapability request
+type GetCapabilityResponse struct {
+	Response
+	Scope string
+}
+
 // CreateNetworkRequest requests a new network.
 type CreateNetworkRequest struct {
 	// A network ID that remote plugins are expected to store for future

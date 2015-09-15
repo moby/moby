@@ -28,14 +28,38 @@ func newDriver(name string, client *plugins.Client) driverapi.Driver {
 // plugin is activated.
 func Init(dc driverapi.DriverCallback) error {
 	plugins.Handle(driverapi.NetworkPluginEndpointType, func(name string, client *plugins.Client) {
-		c := driverapi.Capability{
-			Scope: driverapi.GlobalScope,
+		// negotiate driver capability with client
+		d := newDriver(name, client)
+		c, err := d.(*driver).getCapabilities()
+		if err != nil {
+			log.Errorf("error getting capability for %s due to %v", name, err)
+			return
 		}
-		if err := dc.RegisterDriver(name, newDriver(name, client), c); err != nil {
+		if err = dc.RegisterDriver(name, d, *c); err != nil {
 			log.Errorf("error registering driver for %s due to %v", name, err)
 		}
 	})
 	return nil
+}
+
+// Get capability from client
+func (d *driver) getCapabilities() (*driverapi.Capability, error) {
+	var capResp api.GetCapabilityResponse
+	if err := d.call("GetCapabilities", nil, &capResp); err != nil {
+		return nil, err
+	}
+
+	c := &driverapi.Capability{}
+	switch capResp.Scope {
+	case "global":
+		c.Scope = driverapi.GlobalScope
+	case "local":
+		c.Scope = driverapi.LocalScope
+	default:
+		return nil, fmt.Errorf("invalid capability: expecting 'local' or 'global', got %s", capResp.Scope)
+	}
+
+	return c, nil
 }
 
 // Config is not implemented for remote drivers, since it is assumed

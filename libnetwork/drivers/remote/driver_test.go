@@ -153,6 +153,91 @@ func (test *testEndpoint) AddStaticRoute(destination *net.IPNet, routeType int, 
 	return nil
 }
 
+func TestGetEmptyCapabilities(t *testing.T) {
+	var plugin = "test-net-driver-empty-cap"
+
+	mux := http.NewServeMux()
+	defer setupPlugin(t, plugin, mux)()
+
+	handle(t, mux, "GetCapabilities", func(msg map[string]interface{}) interface{} {
+		return map[string]interface{}{}
+	})
+
+	p, err := plugins.Get(plugin, driverapi.NetworkPluginEndpointType)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	d := newDriver(plugin, p.Client)
+	if d.Type() != plugin {
+		t.Fatal("Driver type does not match that given")
+	}
+
+	_, err = d.(*driver).getCapabilities()
+	if err == nil {
+		t.Fatal("There should be error reported when get empty capability")
+	}
+}
+
+func TestGetExtraCapabilities(t *testing.T) {
+	var plugin = "test-net-driver-extra-cap"
+
+	mux := http.NewServeMux()
+	defer setupPlugin(t, plugin, mux)()
+
+	handle(t, mux, "GetCapabilities", func(msg map[string]interface{}) interface{} {
+		return map[string]interface{}{
+			"Scope": "local",
+			"foo":   "bar",
+		}
+	})
+
+	p, err := plugins.Get(plugin, driverapi.NetworkPluginEndpointType)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	d := newDriver(plugin, p.Client)
+	if d.Type() != plugin {
+		t.Fatal("Driver type does not match that given")
+	}
+
+	c, err := d.(*driver).getCapabilities()
+	if err != nil {
+		t.Fatal(err)
+	} else if c.Scope != driverapi.LocalScope {
+		t.Fatalf("get capability '%s', expecting 'local'", c.Scope)
+	}
+}
+
+func TestGetInvalidCapabilities(t *testing.T) {
+	var plugin = "test-net-driver-invalid-cap"
+
+	mux := http.NewServeMux()
+	defer setupPlugin(t, plugin, mux)()
+
+	handle(t, mux, "GetCapabilities", func(msg map[string]interface{}) interface{} {
+		return map[string]interface{}{
+			"Scope": "fake",
+		}
+	})
+
+	p, err := plugins.Get(plugin, driverapi.NetworkPluginEndpointType)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	d := newDriver(plugin, p.Client)
+	if d.Type() != plugin {
+		t.Fatal("Driver type does not match that given")
+	}
+
+	_, err = d.(*driver).getCapabilities()
+	if err == nil {
+		t.Fatal("There should be error reported when get invalid capability")
+	}
+}
+
 func TestRemoteDriver(t *testing.T) {
 	var plugin = "test-net-driver"
 
@@ -177,6 +262,11 @@ func TestRemoteDriver(t *testing.T) {
 
 	var networkID string
 
+	handle(t, mux, "GetCapabilities", func(msg map[string]interface{}) interface{} {
+		return map[string]interface{}{
+			"Scope": "global",
+		}
+	})
 	handle(t, mux, "CreateNetwork", func(msg map[string]interface{}) interface{} {
 		nid := msg["NetworkID"]
 		var ok bool
@@ -245,38 +335,45 @@ func TestRemoteDriver(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	driver := newDriver(plugin, p.Client)
-	if driver.Type() != plugin {
+	d := newDriver(plugin, p.Client)
+	if d.Type() != plugin {
 		t.Fatal("Driver type does not match that given")
 	}
 
+	c, err := d.(*driver).getCapabilities()
+	if err != nil {
+		t.Fatal(err)
+	} else if c.Scope != driverapi.GlobalScope {
+		t.Fatalf("get capability '%s', expecting 'global'", c.Scope)
+	}
+
 	netID := "dummy-network"
-	err = driver.CreateNetwork(netID, map[string]interface{}{})
+	err = d.CreateNetwork(netID, map[string]interface{}{})
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	endID := "dummy-endpoint"
-	err = driver.CreateEndpoint(netID, endID, ep, map[string]interface{}{})
+	err = d.CreateEndpoint(netID, endID, ep, map[string]interface{}{})
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	joinOpts := map[string]interface{}{"foo": "fooValue"}
-	err = driver.Join(netID, endID, "sandbox-key", ep, joinOpts)
+	err = d.Join(netID, endID, "sandbox-key", ep, joinOpts)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err = driver.EndpointOperInfo(netID, endID); err != nil {
+	if _, err = d.EndpointOperInfo(netID, endID); err != nil {
 		t.Fatal(err)
 	}
-	if err = driver.Leave(netID, endID); err != nil {
+	if err = d.Leave(netID, endID); err != nil {
 		t.Fatal(err)
 	}
-	if err = driver.DeleteEndpoint(netID, endID); err != nil {
+	if err = d.DeleteEndpoint(netID, endID); err != nil {
 		t.Fatal(err)
 	}
-	if err = driver.DeleteNetwork(netID); err != nil {
+	if err = d.DeleteNetwork(netID); err != nil {
 		t.Fatal(err)
 	}
 }

@@ -49,6 +49,16 @@ When loaded, a remote driver process receives an HTTP POST on the URL `/Plugin.A
 
 Other entries in the list value are allowed; `"NetworkDriver"` indicates that the plugin should be registered with LibNetwork as a driver.
 
+### Set capability
+
+After Handshake, the remote driver will receive another POST message to the URL `/NetworkDriver.GetCapabilities` with no payload. The driver's response should have the form:
+
+{
+	"Scope": "local"
+}
+
+Value of "Scope" should be either "local" or "global" which indicates the capability of remote driver, values beyond these will fail driver's registration and return an error to the caller.
+
 ### Create network
 
 When the proxy is asked to create a network, the remote process shall receive a POST to the URL `/NetworkDriver.CreateNetwork` of the form
