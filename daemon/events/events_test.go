@@ -1,6 +1,7 @@
 package events
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -80,39 +81,55 @@ func TestEventsLogTimeout(t *testing.T) {
 	}
 }
 
-func TestEventsCap(t *testing.T) {
+func TestLogEvents(t *testing.T) {
 	e := New()
-	for i := 0; i < eventsLimit+1; i++ {
-		e.Log("action", "id", "from")
-	}
-	// let all events go through
-	time.Sleep(1 * time.Second)
 
+	for i := 0; i < eventsLimit+16; i++ {
+		action := fmt.Sprintf("action_%d", i)
+		id := fmt.Sprintf("cont_%d", i)
+		from := fmt.Sprintf("image_%d", i)
+		e.Log(action, id, from)
+	}
+	time.Sleep(50 * time.Millisecond)
 	current, l := e.Subscribe()
-	if len(current) != eventsLimit {
-		t.Fatalf("Must be %d events, got %d", eventsLimit, len(current))
+	for i := 0; i < 10; i++ {
+		num := i + eventsLimit + 16
+		action := fmt.Sprintf("action_%d", num)
+		id := fmt.Sprintf("cont_%d", num)
+		from := fmt.Sprintf("image_%d", num)
+		e.Log(action, id, from)
 	}
 	if len(e.events) != eventsLimit {
 		t.Fatalf("Must be %d events, got %d", eventsLimit, len(e.events))
 	}
 
-	for i := 0; i < 10; i++ {
-		e.Log("action", "id", "from")
-	}
-	// let all events go through
-	time.Sleep(1 * time.Second)
-
 	var msgs []*jsonmessage.JSONMessage
 	for len(msgs) < 10 {
-		select {
-		case m := <-l:
-			jm, ok := (m).(*jsonmessage.JSONMessage)
-			if !ok {
-				t.Fatalf("Unexpected type %T", m)
-			}
-			msgs = append(msgs, jm)
-		default:
-			t.Fatalf("There is no enough events in channel")
+		m := <-l
+		jm, ok := (m).(*jsonmessage.JSONMessage)
+		if !ok {
+			t.Fatalf("Unexpected type %T", m)
 		}
+		msgs = append(msgs, jm)
+	}
+	if len(current) != eventsLimit {
+		t.Fatalf("Must be %d events, got %d", eventsLimit, len(current))
+	}
+	first := current[0]
+	if first.Status != "action_16" {
+		t.Fatalf("First action is %s, must be action_16", first.Status)
+	}
+	last := current[len(current)-1]
+	if last.Status != "action_79" {
+		t.Fatalf("Last action is %s, must be action_79", last.Status)
+	}
+
+	firstC := msgs[0]
+	if firstC.Status != "action_80" {
+		t.Fatalf("First action is %s, must be action_80", firstC.Status)
+	}
+	lastC := msgs[len(msgs)-1]
+	if lastC.Status != "action_89" {
+		t.Fatalf("Last action is %s, must be action_89", lastC.Status)
 	}
 }
