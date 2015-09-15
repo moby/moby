@@ -816,3 +816,32 @@ func TestSetDefaultGw(t *testing.T) {
 		t.Fatalf("Failed to configure default gateway. Expected %v. Found %v", gw6, te.gw6)
 	}
 }
+
+type fakeCallBack struct{}
+
+func (cb fakeCallBack) RegisterDriver(name string, driver driverapi.Driver, capability driverapi.Capability) error {
+	return nil
+}
+
+func TestCleanupIptableRules(t *testing.T) {
+	defer testutils.SetupTestOSContext(t)()
+	bridgeChain := []iptables.ChainInfo{
+		iptables.ChainInfo{Name: DockerChain, Table: iptables.Nat},
+		iptables.ChainInfo{Name: DockerChain, Table: iptables.Filter},
+		iptables.ChainInfo{Name: IsolationChain, Table: iptables.Filter},
+	}
+	if _, _, _, err := setupIPChains(&configuration{EnableIPTables: true}); err != nil {
+		t.Fatalf("Error setting up ip chains: %v", err)
+	}
+	for _, chainInfo := range bridgeChain {
+		if !iptables.ExistChain(chainInfo.Name, chainInfo.Table) {
+			t.Fatalf("iptables chain %s of %s table should have been created", chainInfo.Name, chainInfo.Table)
+		}
+	}
+	Init(fakeCallBack{}, make(map[string]interface{}))
+	for _, chainInfo := range bridgeChain {
+		if iptables.ExistChain(chainInfo.Name, chainInfo.Table) {
+			t.Fatalf("iptables chain %s of %s table should have been deleted", chainInfo.Name, chainInfo.Table)
+		}
+	}
+}
