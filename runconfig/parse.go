@@ -148,13 +148,14 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		attachStderr = true
 	}
 
+	var err error
+
 	var flMemory int64
 	if *flMemoryString != "" {
-		parsedMemory, err := units.RAMInBytes(*flMemoryString)
+		flMemory, err = units.RAMInBytes(*flMemoryString)
 		if err != nil {
 			return nil, nil, cmd, err
 		}
-		flMemory = parsedMemory
 	}
 
 	var memorySwap int64
@@ -162,21 +163,19 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		if *flMemorySwap == "-1" {
 			memorySwap = -1
 		} else {
-			parsedMemorySwap, err := units.RAMInBytes(*flMemorySwap)
+			memorySwap, err = units.RAMInBytes(*flMemorySwap)
 			if err != nil {
 				return nil, nil, cmd, err
 			}
-			memorySwap = parsedMemorySwap
 		}
 	}
 
 	var KernelMemory int64
 	if *flKernelMemory != "" {
-		parsedKernelMemory, err := units.RAMInBytes(*flKernelMemory)
+		KernelMemory, err = units.RAMInBytes(*flKernelMemory)
 		if err != nil {
 			return nil, nil, cmd, err
 		}
-		KernelMemory = parsedKernelMemory
 	}
 
 	swappiness := *flSwappiness
