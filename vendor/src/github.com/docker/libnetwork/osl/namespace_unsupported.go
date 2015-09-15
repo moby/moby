@@ -6,3 +6,7 @@ package osl
 // and waits for it.
 func GC() {
 }
+
+func GetSandboxForExternalKey(path string, key string) (Sandbox, error) {
+	return nil, nil
+}

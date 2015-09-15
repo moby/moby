@@ -266,12 +266,6 @@ type StaticRoute struct {
 
 	// NextHop will be resolved by the kernel (i.e. as a loose hop).
 	NextHop net.IP
-
-	// InterfaceID must refer to a defined interface on the
-	// Endpoint to which the routes are specified.  Routes specified this way
-	// are interpreted as directly connected to the specified interface (no
-	// next hop will be used).
-	InterfaceID int
 }
 
 // GetCopy returns a copy of this StaticRoute structure
@@ -279,9 +273,9 @@ func (r *StaticRoute) GetCopy() *StaticRoute {
 	d := GetIPNetCopy(r.Destination)
 	nh := GetIPCopy(r.NextHop)
 	return &StaticRoute{Destination: d,
-		RouteType:   r.RouteType,
-		NextHop:     nh,
-		InterfaceID: r.InterfaceID}
+		RouteType: r.RouteType,
+		NextHop:   nh,
+	}
 }
 
 /******************************

@@ -32,6 +32,8 @@ type Sandbox interface {
 	// Refresh leaves all the endpoints, resets and re-apply the options,
 	// re-joins all the endpoints without destroying the osl sandbox
 	Refresh(options ...SandboxOption) error
+	// SetKey updates the Sandbox Key
+	SetKey(key string) error
 	// Delete destroys this container after detaching it from all connected endpoints.
 	Delete() error
 }
@@ -102,6 +104,7 @@ type containerConfig struct {
 	resolvConfPathConfig
 	generic           map[string]interface{}
 	useDefaultSandBox bool
+	useExternalKey    bool
 	prio              int // higher the value, more the priority
 }
 
@@ -241,8 +244,14 @@ func (sb *sandbox) getConnectedEndpoints() []*endpoint {
 }
 
 func (sb *sandbox) updateGateway(ep *endpoint) error {
-	sb.osSbox.UnsetGateway()
-	sb.osSbox.UnsetGatewayIPv6()
+	sb.Lock()
+	osSbox := sb.osSbox
+	sb.Unlock()
+	if osSbox == nil {
+		return nil
+	}
+	osSbox.UnsetGateway()
+	osSbox.UnsetGatewayIPv6()
 
 	if ep == nil {
 		return nil
@@ -252,24 +261,66 @@ func (sb *sandbox) updateGateway(ep *endpoint) error {
 	joinInfo := ep.joinInfo
 	ep.Unlock()
 
-	if err := sb.osSbox.SetGateway(joinInfo.gw); err != nil {
+	if err := osSbox.SetGateway(joinInfo.gw); err != nil {
 		return fmt.Errorf("failed to set gateway while updating gateway: %v", err)
 	}
 
-	if err := sb.osSbox.SetGatewayIPv6(joinInfo.gw6); err != nil {
+	if err := osSbox.SetGatewayIPv6(joinInfo.gw6); err != nil {
 		return fmt.Errorf("failed to set IPv6 gateway while updating gateway: %v", err)
 	}
 
 	return nil
 }
 
+func (sb *sandbox) SetKey(basePath string) error {
+	var err error
+	if basePath == "" {
+		return types.BadRequestErrorf("invalid sandbox key")
+	}
+
+	sb.Lock()
+	if sb.osSbox != nil {
+		sb.Unlock()
+		return types.ForbiddenErrorf("failed to set sandbox key : already assigned")
+	}
+	sb.Unlock()
+	osSbox, err := osl.GetSandboxForExternalKey(basePath, sb.Key())
+	if err != nil {
+		return err
+	}
+	sb.Lock()
+	sb.osSbox = osSbox
+	sb.Unlock()
+	defer func() {
+		if err != nil {
+			sb.Lock()
+			sb.osSbox = nil
+			sb.Unlock()
+		}
+	}()
+
+	for _, ep := range sb.getConnectedEndpoints() {
+		if err = sb.populateNetworkResources(ep); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (sb *sandbox) populateNetworkResources(ep *endpoint) error {
+	sb.Lock()
+	if sb.osSbox == nil {
+		sb.Unlock()
+		return nil
+	}
+	sb.Unlock()
+
 	ep.Lock()
 	joinInfo := ep.joinInfo
-	ifaces := ep.iFaces
+	i := ep.iface
 	ep.Unlock()
 
-	for _, i := range ifaces {
+	if i != nil {
 		var ifaceOptions []osl.IfaceOption
 
 		ifaceOptions = append(ifaceOptions, sb.osSbox.InterfaceOptions().Address(&i.addr), sb.osSbox.InterfaceOptions().Routes(i.routes))
@@ -292,7 +343,6 @@ func (sb *sandbox) populateNetworkResources(ep *endpoint) error {
 	}
 
 	sb.Lock()
-	heap.Push(&sb.endpoints, ep)
 	highEp := sb.endpoints[0]
 	sb.Unlock()
 	if ep == highEp {
@@ -305,24 +355,28 @@ func (sb *sandbox) populateNetworkResources(ep *endpoint) error {
 }
 
 func (sb *sandbox) clearNetworkResources(ep *endpoint) error {
-
-	for _, i := range sb.osSbox.Info().Interfaces() {
-		// Only remove the interfaces owned by this endpoint from the sandbox.
-		if ep.hasInterface(i.SrcName()) {
-			if err := i.Remove(); err != nil {
-				log.Debugf("Remove interface failed: %v", err)
+	sb.Lock()
+	osSbox := sb.osSbox
+	sb.Unlock()
+	if osSbox != nil {
+		for _, i := range osSbox.Info().Interfaces() {
+			// Only remove the interfaces owned by this endpoint from the sandbox.
+			if ep.hasInterface(i.SrcName()) {
+				if err := i.Remove(); err != nil {
+					log.Debugf("Remove interface failed: %v", err)
+				}
 			}
 		}
-	}
 
-	ep.Lock()
-	joinInfo := ep.joinInfo
-	ep.Unlock()
+		ep.Lock()
+		joinInfo := ep.joinInfo
+		ep.Unlock()
 
-	// Remove non-interface routes.
-	for _, r := range joinInfo.StaticRoutes {
-		if err := sb.osSbox.RemoveStaticRoute(r); err != nil {
-			log.Debugf("Remove route failed: %v", err)
+		// Remove non-interface routes.
+		for _, r := range joinInfo.StaticRoutes {
+			if err := osSbox.RemoveStaticRoute(r); err != nil {
+				log.Debugf("Remove route failed: %v", err)
+			}
 		}
 	}
 
@@ -667,6 +721,14 @@ func OptionDNSOptions(options string) SandboxOption {
 func OptionUseDefaultSandbox() SandboxOption {
 	return func(sb *sandbox) {
 		sb.config.useDefaultSandBox = true
+	}
+}
+
+// OptionUseExternalKey function returns an option setter for using provided namespace
+// instead of creating one.
+func OptionUseExternalKey() SandboxOption {
+	return func(sb *sandbox) {
+		sb.config.useExternalKey = true
 	}
 }
 

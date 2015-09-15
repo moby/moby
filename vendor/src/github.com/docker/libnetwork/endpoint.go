@@ -1,6 +1,7 @@
 package libnetwork
 
 import (
+	"container/heap"
 	"encoding/json"
 	"fmt"
 	"net"
@@ -49,7 +50,7 @@ type endpoint struct {
 	name          string
 	id            string
 	network       *network
-	iFaces        []*endpointInterface
+	iface         *endpointInterface
 	joinInfo      *endpointJoinInfo
 	sandboxID     string
 	exposedPorts  []types.TransportPort
@@ -67,7 +68,7 @@ func (ep *endpoint) MarshalJSON() ([]byte, error) {
 	epMap := make(map[string]interface{})
 	epMap["name"] = ep.name
 	epMap["id"] = ep.id
-	epMap["ep_iface"] = ep.iFaces
+	epMap["ep_iface"] = ep.iface
 	epMap["exposed_ports"] = ep.exposedPorts
 	epMap["generic"] = ep.generic
 	epMap["sandbox"] = ep.sandboxID
@@ -86,12 +87,7 @@ func (ep *endpoint) UnmarshalJSON(b []byte) (err error) {
 	ep.id = epMap["id"].(string)
 
 	ib, _ := json.Marshal(epMap["ep_iface"])
-	var ifaces []endpointInterface
-	json.Unmarshal(ib, &ifaces)
-	ep.iFaces = make([]*endpointInterface, 0)
-	for _, iface := range ifaces {
-		ep.iFaces = append(ep.iFaces, &iface)
-	}
+	json.Unmarshal(ib, ep.iface)
 
 	tb, _ := json.Marshal(epMap["exposed_ports"])
 	var tPorts []types.TransportPort
@@ -289,10 +285,25 @@ func (ep *endpoint) Join(sbox Sandbox, options ...EndpointOption) error {
 		return err
 	}
 
+	sb.Lock()
+	heap.Push(&sb.endpoints, ep)
+	sb.Unlock()
+	defer func() {
+		if err != nil {
+			for i, e := range sb.getConnectedEndpoints() {
+				if e == ep {
+					sb.Lock()
+					heap.Remove(&sb.endpoints, i)
+					sb.Unlock()
+					return
+				}
+			}
+		}
+	}()
+
 	if err = sb.populateNetworkResources(ep); err != nil {
 		return err
 	}
-
 	return nil
 }
 
@@ -300,13 +311,7 @@ func (ep *endpoint) hasInterface(iName string) bool {
 	ep.Lock()
 	defer ep.Unlock()
 
-	for _, iface := range ep.iFaces {
-		if iface.srcName == iName {
-			return true
-		}
-	}
-
-	return false
+	return ep.iface != nil && ep.iface.srcName == iName
 }
 
 func (ep *endpoint) Leave(sbox Sandbox, options ...EndpointOption) error {
@@ -463,8 +468,8 @@ func (ep *endpoint) getFirstInterfaceAddress() net.IP {
 	ep.Lock()
 	defer ep.Unlock()
 
-	if len(ep.iFaces) != 0 && ep.iFaces[0] != nil {
-		return ep.iFaces[0].addr.IP
+	if ep.iface != nil {
+		return ep.iface.addr.IP
 	}
 
 	return nil

@@ -820,9 +820,9 @@ func (daemon *Daemon) Shutdown() error {
 		}
 		group.Wait()
 
-		// trigger libnetwork GC only if it's initialized
+		// trigger libnetwork Stop only if it's initialized
 		if daemon.netController != nil {
-			daemon.netController.GC()
+			daemon.netController.Stop()
 		}
 	}
 

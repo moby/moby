@@ -4,6 +4,7 @@
 *.so
 
 # Folders
+integration-tmp/
 _obj
 _test
 

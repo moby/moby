@@ -65,6 +65,9 @@ import (
 // NetworkController provides the interface for controller instance which manages
 // networks.
 type NetworkController interface {
+	// ID provides an unique identity for the controller
+	ID() string
+
 	// ConfigureNetworkDriver applies the passed options to the driver instance for the specified network type
 	ConfigureNetworkDriver(networkType string, options map[string]interface{}) error
 
@@ -99,8 +102,8 @@ type NetworkController interface {
 	// SandboxByID returns the Sandbox which has the passed id. If not found, a types.NotFoundError is returned.
 	SandboxByID(id string) (Sandbox, error)
 
-	// GC triggers immediate garbage collection of resources which are garbage collected.
-	GC()
+	// Stop network controller
+	Stop()
 }
 
 // NetworkWalker is a client provided function which will be used to walk the Networks.
@@ -122,11 +125,13 @@ type endpointTable map[string]*endpoint
 type sandboxTable map[string]*sandbox
 
 type controller struct {
-	networks  networkTable
-	drivers   driverTable
-	sandboxes sandboxTable
-	cfg       *config.Config
-	store     datastore.DataStore
+	id             string
+	networks       networkTable
+	drivers        driverTable
+	sandboxes      sandboxTable
+	cfg            *config.Config
+	store          datastore.DataStore
+	extKeyListener net.Listener
 	sync.Mutex
 }
 
@@ -138,6 +143,7 @@ func New(cfgOptions ...config.Option) (NetworkController, error) {
 		cfg.ProcessOptions(cfgOptions...)
 	}
 	c := &controller{
+		id:        stringid.GenerateRandomID(),
 		cfg:       cfg,
 		networks:  networkTable{},
 		sandboxes: sandboxTable{},
@@ -159,7 +165,15 @@ func New(cfgOptions ...config.Option) (NetworkController, error) {
 		}
 	}
 
+	if err := c.startExternalKeyListener(); err != nil {
+		return nil, err
+	}
+
 	return c, nil
+}
+
+func (c *controller) ID() string {
+	return c.id
 }
 
 func (c *controller) validateHostDiscoveryConfig() bool {
@@ -204,11 +218,11 @@ func (c *controller) ConfigureNetworkDriver(networkType string, options map[stri
 }
 
 func (c *controller) RegisterDriver(networkType string, driver driverapi.Driver, capability driverapi.Capability) error {
-	c.Lock()
 	if !config.IsValidName(networkType) {
-		c.Unlock()
 		return ErrInvalidName(networkType)
 	}
+
+	c.Lock()
 	if _, ok := c.drivers[networkType]; ok {
 		c.Unlock()
 		return driverapi.ErrActiveRegistration(networkType)
@@ -414,7 +428,7 @@ func (c *controller) NewSandbox(containerID string, options ...SandboxOption) (S
 		return nil, err
 	}
 
-	if sb.osSbox == nil {
+	if sb.osSbox == nil && !sb.config.useExternalKey {
 		if sb.osSbox, err = osl.NewSandbox(sb.Key(), !sb.config.useDefaultSandBox); err != nil {
 			return nil, fmt.Errorf("failed to create new osl sandbox: %v", err)
 		}
@@ -514,6 +528,7 @@ func (c *controller) isDriverGlobalScoped(networkType string) (bool, error) {
 	return false, nil
 }
 
-func (c *controller) GC() {
+func (c *controller) Stop() {
+	c.stopExternalKeyListener()
 	osl.GC()
 }
