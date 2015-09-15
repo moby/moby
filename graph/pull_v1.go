@@ -158,7 +158,7 @@ func (p *v1Puller) pullRepository(askedTag string) error {
 			for _, ep := range p.repoInfo.Index.Mirrors {
 				ep += "v1/"
 				broadcaster.Write(p.sf.FormatProgress(stringid.TruncateID(img.ID), fmt.Sprintf("Pulling image (%s) from %s, mirror: %s", img.Tag, p.repoInfo.CanonicalName, ep), nil))
-				if isDownloaded, err = p.pullImage(broadcaster, img.ID, ep, repoData.Tokens); err != nil {
+				if isDownloaded, err = p.pullImage(broadcaster, img.ID, ep); err != nil {
 					// Don't report errors when pulling from mirrors.
 					logrus.Debugf("Error pulling image (%s) from %s, mirror: %s, %s", img.Tag, p.repoInfo.CanonicalName, ep, err)
 					continue
@@ -170,7 +170,7 @@ func (p *v1Puller) pullRepository(askedTag string) error {
 			if !success {
 				for _, ep := range repoData.Endpoints {
 					broadcaster.Write(p.sf.FormatProgress(stringid.TruncateID(img.ID), fmt.Sprintf("Pulling image (%s) from %s, endpoint: %s", img.Tag, p.repoInfo.CanonicalName, ep), nil))
-					if isDownloaded, err = p.pullImage(broadcaster, img.ID, ep, repoData.Tokens); err != nil {
+					if isDownloaded, err = p.pullImage(broadcaster, img.ID, ep); err != nil {
 						// It's not ideal that only the last error is returned, it would be better to concatenate the errors.
 						// As the error is also given to the output stream the user will see the error.
 						lastErr = err
@@ -224,7 +224,7 @@ func (p *v1Puller) pullRepository(askedTag string) error {
 	return nil
 }
 
-func (p *v1Puller) pullImage(out io.Writer, imgID, endpoint string, token []string) (layersDownloaded bool, err error) {
+func (p *v1Puller) pullImage(out io.Writer, imgID, endpoint string) (layersDownloaded bool, err error) {
 	var history []string
 	history, err = p.session.GetRemoteHistory(imgID, endpoint)
 	if err != nil {

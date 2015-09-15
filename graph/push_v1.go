@@ -139,7 +139,6 @@ func (s *TagStore) createImageIndex(images []string, tags map[string][]string) [
 type imagePushData struct {
 	id       string
 	endpoint string
-	tokens   []string
 }
 
 // lookupImageOnEndpoint checks the specified endpoint to see if an image exists
@@ -184,7 +183,6 @@ func (p *v1Pusher) pushImageToEndpoint(endpoint string, imageIDs []string, tags 
 		imageData <- imagePushData{
 			id:       id,
 			endpoint: endpoint,
-			tokens:   repo.Tokens,
 		}
 	}
 	// close the channel to notify the workers that there will be no more images to check.
@@ -197,7 +195,7 @@ func (p *v1Pusher) pushImageToEndpoint(endpoint string, imageIDs []string, tags 
 	// is very important that is why we are still iterating over the ordered list of imageIDs.
 	for _, id := range imageIDs {
 		if _, push := shouldPush[id]; push {
-			if _, err := p.pushImage(id, endpoint, repo.Tokens); err != nil {
+			if _, err := p.pushImage(id, endpoint); err != nil {
 				// FIXME: Continue on error?
 				return err
 			}
@@ -254,7 +252,7 @@ func (p *v1Pusher) pushRepository(tag string) error {
 	return err
 }
 
-func (p *v1Pusher) pushImage(imgID, ep string, token []string) (checksum string, err error) {
+func (p *v1Pusher) pushImage(imgID, ep string) (checksum string, err error) {
 	jsonRaw, err := p.graph.RawJSON(imgID)
 	if err != nil {
 		return "", fmt.Errorf("Cannot retrieve the path for {%s}: %s", imgID, err)
