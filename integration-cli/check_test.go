@@ -10,6 +10,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/docker/docker/pkg/authorization"
 	"github.com/docker/docker/pkg/plugins"
 	"github.com/docker/docker/pkg/reexec"
 	"github.com/go-check/check"
@@ -213,14 +214,24 @@ func (s *DockerAuthnSuite) SetUpSuite(c *check.C) {
 	s.server = httptest.NewServer(mux)
 	mux.HandleFunc("/Plugin.Activate", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/vnd.docker.plugins.v1+json")
-		json.NewEncoder(w).Encode(plugins.Manifest{Implements: []string{"ClientCertificateMapper"}})
+		json.NewEncoder(w).Encode(plugins.Manifest{Implements: []string{"ClientCertificateMapper", "Authentication", authorization.AuthZApiImplements}})
 	})
 	mux.HandleFunc("/ClientCertificateMapper.MapClientCertificateToUser", s.MapClientCertificateToUser)
+	mux.HandleFunc("/Authentication.GetChallenge", s.GetChallenge)
+	mux.HandleFunc("/Authentication.CheckResponse", s.CheckResponse)
+	mux.HandleFunc("/AuthZPlugin.AuthZReq", s.AuthzRequest)
+	mux.HandleFunc("/AuthZPlugin.AuthZRes", s.AuthzResponse)
 
 	if err := os.MkdirAll("/etc/docker/plugins", 0755); err != nil {
 		c.Fatal(err)
 	}
 	if err := ioutil.WriteFile("/etc/docker/plugins/test-authn-certmap.spec", []byte(s.server.URL), 0644); err != nil {
+		c.Fatal(err)
+	}
+	if err := ioutil.WriteFile("/etc/docker/plugins/test-authn-plugin.spec", []byte(s.server.URL), 0644); err != nil {
+		c.Fatal(err)
+	}
+	if err := ioutil.WriteFile("/etc/docker/plugins/test-authz-plugin.spec", []byte(s.server.URL), 0644); err != nil {
 		c.Fatal(err)
 	}
 }

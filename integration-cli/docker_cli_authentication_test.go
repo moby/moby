@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/docker/docker/api/server"
+	"github.com/docker/docker/pkg/authorization"
 	"github.com/go-check/check"
 )
 
@@ -527,4 +528,184 @@ func (s *DockerAuthnSuite) TestExternalCertAuthnBad1(c *check.C) {
 	out, err := s.ds.d.CmdWithArgs(clientOpts, "info")
 	c.Assert(err, check.ErrorMatches, "exit status 1")
 	c.Assert(strings.Contains(out, "bad certificate"), check.Equals, true, check.Commentf("actual output is: %s", out))
+}
+
+func (s *DockerAuthnSuite) GetChallenge(w http.ResponseWriter, r *http.Request) {
+	req := server.AuthnPluginRequest{URL: make(map[string]string), Options: make(map[string]string)}
+	resp := server.AuthnPluginResponse{Header: make(http.Header)}
+	w.Header().Set("Content-Type", "application/vnd.docker.plugins.v1+json")
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		s.ds.d.c.Fatalf("Error parsing Authentication.GetChallenge request from docker daemon: %v", err)
+		return
+	}
+	resp.Header.Add("WWW-Authenticate", "Bearer")
+	json.NewEncoder(w).Encode(resp)
+}
+
+func (s *DockerAuthnSuite) CheckResponse(w http.ResponseWriter, r *http.Request) {
+	req := server.AuthnPluginRequest{URL: make(map[string]string), Options: make(map[string]string)}
+	resp := server.AuthnPluginResponse{Header: make(http.Header)}
+	w.Header().Set("Content-Type", "application/vnd.docker.plugins.v1+json")
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		s.ds.d.c.Fatalf("Error parsing Authentication.CheckResponse request from docker daemon: %v", err)
+		return
+	}
+	headers := req.Header[http.CanonicalHeaderKey("Authorization")]
+	for _, h := range headers {
+		fields := strings.SplitN(strings.Replace(h, "\t", " ", -1), " ", 2)
+		if fields[0] == "Bearer" {
+			if fields[1] == "YES-I-AM-A-BEAR" {
+				resp.AuthedUser.Scheme = "Bearer"
+				resp.AuthedUser.Name = "Bear"
+			}
+			if fields[1] == "SO-MANY-BEARS" {
+				resp.AuthedUser.Scheme = "Bearer"
+				resp.AuthedUser.Name = "SomeOtherBear"
+			}
+		}
+	}
+	json.NewEncoder(w).Encode(resp)
+}
+
+func (s *DockerAuthnSuite) AuthzRequest(w http.ResponseWriter, r *http.Request) {
+	req := authorization.Request{}
+	resp := authorization.Response{}
+	w.Header().Set("Content-Type", "application/vnd.docker.plugins.v1+json")
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		s.ds.d.c.Fatalf("Error parsing AuthZ.Req request from docker daemon: %v", err)
+		return
+	}
+	resp.Allow = req.User == "Bear"
+	if !resp.Allow {
+		if req.User != "" {
+			resp.Msg = "Authorization denied: not the bear we were looking for."
+		} else {
+			resp.Msg = "Authorization denied: client not authenticated."
+		}
+	}
+	json.NewEncoder(w).Encode(resp)
+}
+
+func (s *DockerAuthnSuite) AuthzResponse(w http.ResponseWriter, r *http.Request) {
+	req := authorization.Request{}
+	resp := authorization.Response{}
+	w.Header().Set("Content-Type", "application/vnd.docker.plugins.v1+json")
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		s.ds.d.c.Fatalf("Error parsing AuthZ.Rep request from docker daemon: %v", err)
+		return
+	}
+	resp.Allow = req.User == "Bear"
+	if !resp.Allow {
+		if req.User != "" {
+			resp.Msg = "Authorization denied: not the bear we were looking for."
+		} else {
+			resp.Msg = "Authorization denied: client not authenticated."
+		}
+	}
+	json.NewEncoder(w).Encode(resp)
+}
+
+func (s *DockerAuthnSuite) TestPluginAuthnGood1(c *check.C) {
+	serverOpts := []string{
+		"--host", s.daemonAddr, "-a",
+		"--authn-opt", "plugins=test-authn-plugin",
+	}
+	clientOpts := []string{
+		"-D", "--host", "tcp://" + s.daemonAddr,
+	}
+	if err := s.ds.d.Start(serverOpts...); err != nil {
+		c.Fatalf("Could not start daemon: %v", err)
+	}
+	out, err := s.ds.d.CmdWithArgs(clientOpts, "--authn-opt", "bearer.token=YES-I-AM-A-BEAR", "info")
+	if err != nil {
+		c.Fatalf("Error Occurred: %v and output: %s", err, out)
+	}
+}
+
+func (s *DockerAuthnSuite) TestPluginAuthnBad1(c *check.C) {
+	serverOpts := []string{
+		"--host", s.daemonAddr, "-a",
+		"--authn-opt", "plugins=test-authn-plugin",
+	}
+	clientOpts := []string{
+		"-D", "--host", "tcp://" + s.daemonAddr,
+	}
+	if err := s.ds.d.Start(serverOpts...); err != nil {
+		c.Fatalf("Could not start daemon: %v", err)
+	}
+	out, err := s.ds.d.CmdWithArgs(clientOpts, "--authn-opt", "bearer.token=NO-I-AM-NOT-A-BEAR", "info")
+	c.Assert(err, check.ErrorMatches, "exit status 1")
+	c.Assert(strings.Contains(out, "Failed to authenticate to docker daemon"), check.Equals, true, check.Commentf("actual output is: %s", out))
+}
+
+func (s *DockerAuthnSuite) TestPluginAuthnGood2(c *check.C) {
+	serverOpts := []string{
+		"--host", s.daemonAddr, "-a",
+		"--authn-opt", "plugins=test-authn-plugin",
+		"--authorization-plugin", "test-authz-plugin",
+	}
+	clientOpts := []string{
+		"-D", "--host", "tcp://" + s.daemonAddr,
+	}
+	if err := s.ds.d.Start(serverOpts...); err != nil {
+		c.Fatalf("Could not start daemon: %v", err)
+	}
+	out, err := s.ds.d.CmdWithArgs(clientOpts, "--authn-opt", "bearer.token=YES-I-AM-A-BEAR", "info")
+	if err != nil {
+		c.Fatalf("Error Occurred: %v and output: %s", err, out)
+	}
+}
+
+func (s *DockerAuthnSuite) TestPluginAuthnBad2a(c *check.C) {
+	serverOpts := []string{
+		"--host", s.daemonAddr,
+		"--authorization-plugin", "test-authz-plugin",
+	}
+	clientOpts := []string{
+		"-D", "--host", "tcp://" + s.daemonAddr,
+	}
+	if err := s.ds.d.Start(serverOpts...); err != nil {
+		c.Fatalf("Could not start daemon: %v", err)
+	}
+	out, err := s.ds.d.CmdWithArgs(clientOpts, "info")
+	c.Assert(err, check.ErrorMatches, "exit status 1")
+	c.Assert(strings.Contains(out, "Authorization denied: client not authenticated."), check.Equals, true, check.Commentf("actual output is: %s", out))
+}
+
+func (s *DockerAuthnSuite) TestPluginAuthnBad2b(c *check.C) {
+	serverOpts := []string{
+		"--host", s.daemonAddr, "-a",
+		"--authn-opt", "plugins=test-authn-plugin",
+		"--authorization-plugin", "test-authz-plugin",
+	}
+	clientOpts := []string{
+		"-D", "--host", "tcp://" + s.daemonAddr,
+	}
+	if err := s.ds.d.Start(serverOpts...); err != nil {
+		c.Fatalf("Could not start daemon: %v", err)
+	}
+	out, err := s.ds.d.CmdWithArgs(clientOpts, "--authn-opt", "bearer.token=NO-I-AM-NOT-A-BEAR", "info")
+	c.Assert(err, check.ErrorMatches, "exit status 1")
+	c.Assert(strings.Contains(out, "Failed to authenticate to docker daemon"), check.Equals, true, check.Commentf("actual output is: %s", out))
+}
+
+func (s *DockerAuthnSuite) TestPluginAuthnBad2c(c *check.C) {
+	serverOpts := []string{
+		"--host", s.daemonAddr, "-a",
+		"--authn-opt", "plugins=test-authn-plugin",
+		"--authorization-plugin", "test-authz-plugin",
+	}
+	clientOpts := []string{
+		"-D", "--host", "tcp://" + s.daemonAddr,
+	}
+	if err := s.ds.d.Start(serverOpts...); err != nil {
+		c.Fatalf("Could not start daemon: %v", err)
+	}
+	out, err := s.ds.d.CmdWithArgs(clientOpts, "--authn-opt", "bearer.token=SO-MANY-BEARS", "info")
+	c.Assert(err, check.ErrorMatches, "exit status 1")
+	c.Assert(strings.Contains(out, "Authorization denied: not the bear we were looking for."), check.Equals, true, check.Commentf("actual output is: %s", out))
 }
