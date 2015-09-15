@@ -3,6 +3,7 @@ package server
 import (
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -343,7 +344,7 @@ func (s *Server) postBuild(ctx context.Context, w http.ResponseWriter, r *http.R
 			return err
 		}
 		sf := streamformatter.NewJSONStreamFormatter()
-		w.Write(sf.FormatError(err))
+		w.Write(sf.FormatError(errors.New(utils.GetErrorMessage(err))))
 	}
 	return nil
 }
