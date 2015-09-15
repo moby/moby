@@ -1,6 +1,7 @@
 package graph
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -17,9 +18,7 @@ import (
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/registry"
-	"github.com/docker/docker/trust"
 	"github.com/docker/docker/utils"
-	"github.com/docker/libtrust"
 	"golang.org/x/net/context"
 )
 
@@ -250,7 +249,7 @@ func (p *v2Puller) download(di *downloadInfo) {
 	di.err <- nil
 }
 
-func (p *v2Puller) pullV2Tag(tag, taggedName string) (verified bool, err error) {
+func (p *v2Puller) pullV2Tag(tag, taggedName string) (tagUpdated bool, err error) {
 	logrus.Debugf("Pulling tag from V2 registry: %q", tag)
 	out := p.config.OutStream
 
@@ -259,25 +258,26 @@ func (p *v2Puller) pullV2Tag(tag, taggedName string) (verified bool, err error) 
 		return false, err
 	}
 
-	manifest, err := manSvc.GetByTag(tag)
+	unverifiedManifest, err := manSvc.GetByTag(tag)
 	if err != nil {
 		return false, err
 	}
-	verified, err = p.validateManifest(manifest, tag)
+	if unverifiedManifest == nil {
+		return false, fmt.Errorf("image manifest does not exist for tag %q", tag)
+	}
+	var verifiedManifest *manifest.Manifest
+	verifiedManifest, err = verifyManifest(unverifiedManifest, tag)
 	if err != nil {
 		return false, err
-	}
-	if verified {
-		logrus.Printf("Image manifest for %s has been verified", taggedName)
 	}
 
 	// remove duplicate layers and check parent chain validity
-	err = fixManifestLayers(&manifest.Manifest)
+	err = fixManifestLayers(verifiedManifest)
 	if err != nil {
 		return false, err
 	}
 
-	imgs, err := p.getImageInfos(manifest.Manifest)
+	imgs, err := p.getImageInfos(*verifiedManifest)
 	if err != nil {
 		return false, err
 	}
@@ -311,18 +311,18 @@ func (p *v2Puller) pullV2Tag(tag, taggedName string) (verified bool, err error) 
 
 	out.Write(p.sf.FormatStatus(tag, "Pulling from %s", p.repo.Name()))
 
-	downloads := make([]downloadInfo, len(manifest.FSLayers))
+	downloads := make([]downloadInfo, len(verifiedManifest.FSLayers))
 
 	layerIDs := []string{}
 	defer func() {
 		p.graph.Release(p.sessionID, layerIDs...)
 	}()
 
-	for i := len(manifest.FSLayers) - 1; i >= 0; i-- {
+	for i := len(verifiedManifest.FSLayers) - 1; i >= 0; i-- {
 
 		img := imgs[i]
 		downloads[i].img = img
-		downloads[i].digest = manifest.FSLayers[i].BlobSum
+		downloads[i].digest = verifiedManifest.FSLayers[i].BlobSum
 
 		p.graph.Retain(p.sessionID, img.id)
 		layerIDs = append(layerIDs, img.id)
@@ -348,7 +348,6 @@ func (p *v2Puller) pullV2Tag(tag, taggedName string) (verified bool, err error) 
 		go p.download(&downloads[i])
 	}
 
-	var tagUpdated bool
 	for i := len(downloads) - 1; i >= 0; i-- {
 		d := &downloads[i]
 		if d.err != nil {
@@ -413,7 +412,7 @@ func (p *v2Puller) pullV2Tag(tag, taggedName string) (verified bool, err error) 
 		}
 	}
 
-	manifestDigest, _, err := digestFromManifest(manifest, p.repoInfo.LocalName)
+	manifestDigest, _, err := digestFromManifest(unverifiedManifest, p.repoInfo.LocalName)
 	if err != nil {
 		return false, err
 	}
@@ -431,10 +430,6 @@ func (p *v2Puller) pullV2Tag(tag, taggedName string) (verified bool, err error) 
 		} else {
 			tagUpdated = true
 		}
-	}
-
-	if verified && tagUpdated {
-		out.Write(p.sf.FormatStatus(p.repo.Name()+":"+tag, "The image you are pulling has been verified. Important: image verification is a tech preview feature and should not be relied on to provide security."))
 	}
 
 	if utils.DigestReference(tag) {
@@ -459,84 +454,49 @@ func (p *v2Puller) pullV2Tag(tag, taggedName string) (verified bool, err error) 
 	return tagUpdated, nil
 }
 
-// verifyTrustedKeys checks the keys provided against the trust store,
-// ensuring that the provided keys are trusted for the namespace. The keys
-// provided from this method must come from the signatures provided as part of
-// the manifest JWS package, obtained from unpackSignedManifest or libtrust.
-func (p *v2Puller) verifyTrustedKeys(namespace string, keys []libtrust.PublicKey) (verified bool, err error) {
-	if namespace[0] != '/' {
-		namespace = "/" + namespace
-	}
-
-	for _, key := range keys {
-		b, err := key.MarshalJSON()
-		if err != nil {
-			return false, fmt.Errorf("error marshalling public key: %s", err)
-		}
-		// Check key has read/write permission (0x03)
-		v, err := p.trustService.CheckKey(namespace, b, 0x03)
-		if err != nil {
-			vErr, ok := err.(trust.NotVerifiedError)
-			if !ok {
-				return false, fmt.Errorf("error running key check: %s", err)
-			}
-			logrus.Debugf("Key check result: %v", vErr)
-		}
-		verified = v
-	}
-
-	if verified {
-		logrus.Debug("Key check result: verified")
-	}
-
-	return
-}
-
-func (p *v2Puller) validateManifest(m *manifest.SignedManifest, tag string) (verified bool, err error) {
+func verifyManifest(signedManifest *manifest.SignedManifest, tag string) (m *manifest.Manifest, err error) {
 	// If pull by digest, then verify the manifest digest. NOTE: It is
 	// important to do this first, before any other content validation. If the
 	// digest cannot be verified, don't even bother with those other things.
 	if manifestDigest, err := digest.ParseDigest(tag); err == nil {
 		verifier, err := digest.NewDigestVerifier(manifestDigest)
 		if err != nil {
-			return false, err
+			return nil, err
 		}
-		payload, err := m.Payload()
+		payload, err := signedManifest.Payload()
 		if err != nil {
-			return false, err
+			// If this failed, the signatures section was corrupted
+			// or missing. Treat the entire manifest as the payload.
+			payload = signedManifest.Raw
 		}
 		if _, err := verifier.Write(payload); err != nil {
-			return false, err
+			return nil, err
 		}
 		if !verifier.Verified() {
 			err := fmt.Errorf("image verification failed for digest %s", manifestDigest)
 			logrus.Error(err)
-			return false, err
+			return nil, err
 		}
+
+		var verifiedManifest manifest.Manifest
+		if err = json.Unmarshal(payload, &verifiedManifest); err != nil {
+			return nil, err
+		}
+		m = &verifiedManifest
+	} else {
+		m = &signedManifest.Manifest
 	}
 
-	// TODO(tiborvass): what's the usecase for having manifest == nil and err == nil ? Shouldn't be the error be "DoesNotExist" ?
-	if m == nil {
-		return false, fmt.Errorf("image manifest does not exist for tag %q", tag)
-	}
 	if m.SchemaVersion != 1 {
-		return false, fmt.Errorf("unsupported schema version %d for tag %q", m.SchemaVersion, tag)
+		return nil, fmt.Errorf("unsupported schema version %d for tag %q", m.SchemaVersion, tag)
 	}
 	if len(m.FSLayers) != len(m.History) {
-		return false, fmt.Errorf("length of history not equal to number of layers for tag %q", tag)
+		return nil, fmt.Errorf("length of history not equal to number of layers for tag %q", tag)
 	}
 	if len(m.FSLayers) == 0 {
-		return false, fmt.Errorf("no FSLayers in manifest for tag %q", tag)
+		return nil, fmt.Errorf("no FSLayers in manifest for tag %q", tag)
 	}
-	keys, err := manifest.Verify(m)
-	if err != nil {
-		return false, fmt.Errorf("error verifying manifest for tag %q: %v", tag, err)
-	}
-	verified, err = p.verifyTrustedKeys(m.Name, keys)
-	if err != nil {
-		return false, fmt.Errorf("error verifying manifest keys: %v", err)
-	}
-	return verified, nil
+	return m, nil
 }
 
 // fixManifestLayers removes repeated layers from the manifest and checks the
