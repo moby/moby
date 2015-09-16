@@ -11,9 +11,11 @@ var (
 		"admiring",
 		"adoring",
 		"agitated",
+		"amazing",
 		"angry",
 		"backstabbing",
 		"berserk",
+		"big",
 		"boring",
 		"clever",
 		"cocky",
@@ -32,6 +34,7 @@ var (
 		"fervent",
 		"focused",
 		"furious",
+		"gigantic",
 		"gloomy",
 		"goofy",
 		"grave",
@@ -56,6 +59,7 @@ var (
 		"sad",
 		"serene",
 		"sharp",
+		"small",
 		"sick",
 		"silly",
 		"sleepy",
@@ -105,6 +109,9 @@ var (
 
 		// Alexander Graham Bell - an eminent Scottish-born scientist, inventor, engineer and innovator who is credited with inventing the first practical telephone - https://en.wikipedia.org/wiki/Alexander_Graham_Bell
 		"bell",
+	
+		// Jeffrey Preston "Jeff" Bezos is an American entrepreneur and investor. https://en.wikipedia.org/wiki/Jeff_Bezos
+		"bezos",
 
 		// Homi J Bhabha - was an Indian nuclear physicist, founding director, and professor of physics at the Tata Institute of Fundamental Research. Colloquially known as "father of Indian nuclear programme"- https://en.wikipedia.org/wiki/Homi_J._Bhabha
 		"bhabha",
@@ -156,6 +163,9 @@ var (
 
 		// Marie Curie discovered radioactivity. https://en.wikipedia.org/wiki/Marie_Curie.
 		"curie",
+	
+		// Rick Dalzell was the Chief Information Officer and Senior Vice President of Amazon.com from 1997 until November 2007. https://en.wikipedia.org/wiki/Rick_Dalzell
+		"dalzell",
 
 		// Charles Darwin established the principles of natural evolution. https://en.wikipedia.org/wiki/Charles_Darwin.
 		"darwin",
@@ -195,6 +205,9 @@ var (
 
 		// Galileo was a founding father of modern astronomy, and faced politics and obscurantism to establish scientific truth.  https://en.wikipedia.org/wiki/Galileo_Galilei
 		"galileo",
+	
+		// William Henry "Bill" Gates III is an American business magnate, philanthropist, investor, computer programmer, and inventor. https://en.wikipedia.org/wiki/Bill_Gates
+		"gates",
 
 		// Adele Goldberg, was one of the designers and developers of the Smalltalk language. https://en.wikipedia.org/wiki/Adele_Goldberg_(computer_scientist)
 		"goldberg",
@@ -237,6 +250,9 @@ var (
 
 		// Mary Lou Jepsen, was the founder and chief technology officer of One Laptop Per Child (OLPC), and the founder of Pixel Qi. https://en.wikipedia.org/wiki/Mary_Lou_Jepsen
 		"jepsen",
+	
+		// Steven Paul Jobs was an American businessman. https://en.wikipedia.org/wiki/Steve_Jobs
+		"jobs",
 
 		// Karen Spärck Jones came up with the concept of inverse document frequency, which is used in most search engines today. https://en.wikipedia.org/wiki/Karen_Sp%C3%A4rck_Jones
 		"jones",
