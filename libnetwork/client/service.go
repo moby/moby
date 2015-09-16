@@ -120,7 +120,7 @@ func lookupSandboxID(cli *NetworkCli, containerID string) (string, error) {
 		return "", err
 	}
 
-	var sandboxList []sandboxResource
+	var sandboxList []SandboxResource
 	err = json.Unmarshal(obj, &sandboxList)
 	if err != nil {
 		return "", err
@@ -268,7 +268,7 @@ func getBackendID(cli *NetworkCli, servID string) (string, error) {
 	)
 
 	if obj, _, err = readBody(cli.call("GET", "/services/"+servID+"/backend", nil, nil)); err == nil {
-		var sr sandboxResource
+		var sr SandboxResource
 		if err := json.NewDecoder(bytes.NewReader(obj)).Decode(&sr); err == nil {
 			bk = sr.ContainerID
 		} else {

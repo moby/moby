@@ -1,0 +1,31 @@
+#!/usr/bin/env bats
+
+load helpers
+
+@test "Test dnet custom port" {
+    start_dnet 1 a none null 4567
+    dnet_cmd 4567 network ls
+    stop_dnet 1 a
+}
+
+@test "Test dnet invalid custom port" {
+    start_dnet 1 b none null 4567
+    run dnet_cmd 4568 network ls
+    echo ${output}
+    [ "$status" -ne 0 ]
+    stop_dnet 1 b
+}
+
+@test "Test dnet invalid params" {
+    start_dnet 1 c none null
+    run dnet_cmd 8080 network ls
+    echo ${output}
+    [ "$status" -ne 0 ]
+    run ./cmd/dnet/dnet -H=unix://var/run/dnet.sock network ls
+    echo ${output}
+    [ "$status" -ne 0 ]
+    run ./cmd/dnet/dnet -H= -l=invalid network ls
+    echo ${output}
+    [ "$status" -ne 0 ]
+    stop_dnet 1 c
+}
