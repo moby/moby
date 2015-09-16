@@ -87,6 +87,9 @@ func (s *DockerSuite) TestRunWithVolumesIsRecursive(c *check.C) {
 
 func (s *DockerSuite) TestRunDeviceDirectory(c *check.C) {
 	testRequires(c, NativeExecDriver)
+	if _, err := os.Stat("/dev/snd"); err != nil {
+		c.Skip("Host does not have /dev/snd")
+	}
 
 	out, _ := dockerCmd(c, "run", "--device", "/dev/snd:/dev/snd", "busybox", "sh", "-c", "ls /dev/snd/")
 	if actual := strings.Trim(out, "\r\n"); !strings.Contains(out, "timer") {
