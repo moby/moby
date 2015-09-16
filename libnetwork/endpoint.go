@@ -87,7 +87,7 @@ func (ep *endpoint) UnmarshalJSON(b []byte) (err error) {
 	ep.id = epMap["id"].(string)
 
 	ib, _ := json.Marshal(epMap["ep_iface"])
-	json.Unmarshal(ib, ep.iface)
+	json.Unmarshal(ib, &ep.iface)
 
 	tb, _ := json.Marshal(epMap["exposed_ports"])
 	var tPorts []types.TransportPort
