@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/pkg/plugins"
+	"github.com/docker/libnetwork/datastore"
 	"github.com/docker/libnetwork/driverapi"
 	_ "github.com/docker/libnetwork/testutils"
 	"github.com/docker/libnetwork/types"
@@ -205,8 +206,8 @@ func TestGetExtraCapabilities(t *testing.T) {
 	c, err := d.(*driver).getCapabilities()
 	if err != nil {
 		t.Fatal(err)
-	} else if c.Scope != driverapi.LocalScope {
-		t.Fatalf("get capability '%s', expecting 'local'", c.Scope)
+	} else if c.DataScope != datastore.LocalScope {
+		t.Fatalf("get capability '%s', expecting 'local'", c.DataScope)
 	}
 }
 
@@ -343,8 +344,8 @@ func TestRemoteDriver(t *testing.T) {
 	c, err := d.(*driver).getCapabilities()
 	if err != nil {
 		t.Fatal(err)
-	} else if c.Scope != driverapi.GlobalScope {
-		t.Fatalf("get capability '%s', expecting 'global'", c.Scope)
+	} else if c.DataScope != datastore.GlobalScope {
+		t.Fatalf("get capability '%s', expecting 'global'", c.DataScope)
 	}
 
 	netID := "dummy-network"

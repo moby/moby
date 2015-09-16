@@ -47,6 +47,7 @@ func TestMain(m *testing.M) {
 	}
 
 	if err := createController(); err != nil {
+		log.Errorf("Error creating controller: %v", err)
 		os.Exit(1)
 	}
 
@@ -65,7 +66,11 @@ func createController() error {
 	genericOption := make(map[string]interface{})
 	genericOption[netlabel.GenericData] = option
 
-	controller, err = libnetwork.New(config.OptionDriverConfig(bridgeNetType, genericOption))
+	cfgOptions, err := libnetwork.OptionBoltdbWithRandomDBFile()
+	if err != nil {
+		return err
+	}
+	controller, err = libnetwork.New(append(cfgOptions, config.OptionDriverConfig(bridgeNetType, genericOption))...)
 	if err != nil {
 		return err
 	}

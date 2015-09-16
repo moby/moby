@@ -256,7 +256,7 @@ func (c *controller) NewNetwork(networkType, name string, options ...NetworkOpti
 		return nil, err
 	}
 
-	if err := c.updateNetworkToStore(network); err != nil {
+	if err := c.updateToStore(network); err != nil {
 		log.Warnf("couldnt create network %s: %v", network.name, err)
 		if e := network.Delete(); e != nil {
 			log.Warnf("couldnt cleanup network %s: %v", network.name, err)
@@ -293,8 +293,10 @@ func (c *controller) addNetwork(n *network) error {
 	if err := d.CreateNetwork(n.id, n.generic); err != nil {
 		return err
 	}
-	if err := n.watchEndpoints(); err != nil {
-		return err
+	if n.isGlobalScoped() {
+		if err := n.watchEndpoints(); err != nil {
+			return err
+		}
 	}
 	c.Lock()
 	c.networks[n.id] = n

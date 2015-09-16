@@ -50,9 +50,9 @@ title = "LibNetwork Configuration file"
 [daemon]
   debug = false
   labels = ["com.docker.network.driver.overlay.bind_interface=eth0"]
-[datastore]
+[globalstore]
   embedded = false
-[datastore.client]
+[globalstore.client]
   provider = "consul"
   Address = "${bridge_ip}:8500"
 EOF
