@@ -176,3 +176,8 @@ func (a *Allocator) deleteFromStore() error {
 	}
 	return store.DeleteObjectAtomic(a)
 }
+
+// DataScope method returns the storage scope of the datastore
+func (a *Allocator) DataScope() datastore.DataScope {
+	return datastore.GlobalScope
+}

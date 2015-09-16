@@ -83,11 +83,11 @@ func processConfig(cfg *config.Config) []config.Option {
 	if cfg.Daemon.Labels != nil {
 		options = append(options, config.OptionLabels(cfg.Daemon.Labels))
 	}
-	if strings.TrimSpace(cfg.Datastore.Client.Provider) != "" {
-		options = append(options, config.OptionKVProvider(cfg.Datastore.Client.Provider))
+	if strings.TrimSpace(cfg.GlobalStore.Client.Provider) != "" {
+		options = append(options, config.OptionKVProvider(cfg.GlobalStore.Client.Provider))
 	}
-	if strings.TrimSpace(cfg.Datastore.Client.Address) != "" {
-		options = append(options, config.OptionKVProviderURL(cfg.Datastore.Client.Address))
+	if strings.TrimSpace(cfg.GlobalStore.Client.Address) != "" {
+		options = append(options, config.OptionKVProviderURL(cfg.GlobalStore.Client.Address))
 	}
 	return options
 }

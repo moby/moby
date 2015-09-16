@@ -6,41 +6,82 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/libkv/store"
+	"github.com/docker/libnetwork/config"
 	"github.com/docker/libnetwork/datastore"
 )
 
-func (c *controller) validateDatastoreConfig() bool {
-	return c.cfg != nil && c.cfg.Datastore.Client.Provider != "" && c.cfg.Datastore.Client.Address != ""
+var (
+	defaultLocalStoreConfig = config.DatastoreCfg{
+		Embedded: true,
+		Client: config.DatastoreClientCfg{
+			Provider: "boltdb",
+			Address:  defaultPrefix + "/boltdb.db",
+			Config: &store.Config{
+				Bucket: "libnetwork",
+			},
+		},
+	}
+)
+
+func (c *controller) validateGlobalStoreConfig() bool {
+	return c.cfg != nil && c.cfg.GlobalStore.Client.Provider != "" && c.cfg.GlobalStore.Client.Address != ""
 }
 
-func (c *controller) initDataStore() error {
+func (c *controller) initGlobalStore() error {
 	c.Lock()
 	cfg := c.cfg
 	c.Unlock()
-	if !c.validateDatastoreConfig() {
-		return fmt.Errorf("datastore initialization requires a valid configuration")
+	if !c.validateGlobalStoreConfig() {
+		return fmt.Errorf("globalstore initialization requires a valid configuration")
 	}
 
-	store, err := datastore.NewDataStore(&cfg.Datastore)
+	store, err := datastore.NewDataStore(&cfg.GlobalStore)
 	if err != nil {
 		return err
 	}
 	c.Lock()
-	c.store = store
+	c.globalStore = store
 	c.Unlock()
 
-	nws, err := c.getNetworksFromStore()
+	nws, err := c.getNetworksFromGlobalStore()
 	if err == nil {
 		c.processNetworkUpdate(nws, nil)
 	} else if err != datastore.ErrKeyNotFound {
-		log.Warnf("failed to read networks from datastore during init : %v", err)
+		log.Warnf("failed to read networks from globalstore during init : %v", err)
 	}
 	return c.watchNetworks()
 }
 
-func (c *controller) getNetworksFromStore() ([]*store.KVPair, error) {
+func (c *controller) initLocalStore() error {
 	c.Lock()
-	cs := c.store
+	cfg := c.cfg
+	c.Unlock()
+	localStore, err := datastore.NewDataStore(c.getLocalStoreConfig(cfg))
+	if err != nil {
+		return err
+	}
+	c.Lock()
+	c.localStore = localStore
+	c.Unlock()
+
+	nws, err := c.getNetworksFromLocalStore()
+	if err == nil {
+		c.processNetworkUpdate(nws, nil)
+	} else if err != datastore.ErrKeyNotFound {
+		log.Warnf("failed to read networks from localstore during init : %v", err)
+	}
+	eps, err := c.getEndpointsFromLocalStore()
+	if err == nil {
+		c.processEndpointsUpdate(eps, nil)
+	} else if err != datastore.ErrKeyNotFound {
+		log.Warnf("failed to read endpoints from localstore during init : %v", err)
+	}
+	return nil
+}
+
+func (c *controller) getNetworksFromGlobalStore() ([]*store.KVPair, error) {
+	c.Lock()
+	cs := c.globalStore
 	c.Unlock()
 	return cs.KVStore().List(datastore.Key(datastore.NetworkKeyPrefix))
 }
@@ -55,13 +96,7 @@ func (c *controller) newNetworkFromStore(n *network) error {
 }
 
 func (c *controller) updateNetworkToStore(n *network) error {
-	global, err := n.isGlobalScoped()
-	if err != nil || !global {
-		return err
-	}
-	c.Lock()
-	cs := c.store
-	c.Unlock()
+	cs := c.getDataStore(n.DataScope())
 	if cs == nil {
 		log.Debugf("datastore not initialized. Network %s is not added to the store", n.Name())
 		return nil
@@ -71,13 +106,7 @@ func (c *controller) updateNetworkToStore(n *network) error {
 }
 
 func (c *controller) deleteNetworkFromStore(n *network) error {
-	global, err := n.isGlobalScoped()
-	if err != nil || !global {
-		return err
-	}
-	c.Lock()
-	cs := c.store
-	c.Unlock()
+	cs := c.getDataStore(n.DataScope())
 	if cs == nil {
 		log.Debugf("datastore not initialized. Network %s is not deleted from datastore", n.Name())
 		return nil
@@ -88,14 +117,6 @@ func (c *controller) deleteNetworkFromStore(n *network) error {
 	}
 
 	return nil
-}
-
-func (c *controller) getNetworkFromStore(nid string) (*network, error) {
-	n := network{id: nid}
-	if err := c.store.GetObject(datastore.Key(n.Key()...), &n); err != nil {
-		return nil, err
-	}
-	return &n, nil
 }
 
 func (c *controller) newEndpointFromStore(key string, ep *endpoint) error {
@@ -115,16 +136,9 @@ func (c *controller) newEndpointFromStore(key string, ep *endpoint) error {
 
 func (c *controller) updateEndpointToStore(ep *endpoint) error {
 	ep.Lock()
-	n := ep.network
 	name := ep.name
 	ep.Unlock()
-	global, err := n.isGlobalScoped()
-	if err != nil || !global {
-		return err
-	}
-	c.Lock()
-	cs := c.store
-	c.Unlock()
+	cs := c.getDataStore(ep.DataScope())
 	if cs == nil {
 		log.Debugf("datastore not initialized. endpoint %s is not added to the store", name)
 		return nil
@@ -133,26 +147,8 @@ func (c *controller) updateEndpointToStore(ep *endpoint) error {
 	return cs.PutObjectAtomic(ep)
 }
 
-func (c *controller) getEndpointFromStore(eid string) (*endpoint, error) {
-	ep := endpoint{id: eid}
-	if err := c.store.GetObject(datastore.Key(ep.Key()...), &ep); err != nil {
-		return nil, err
-	}
-	return &ep, nil
-}
-
 func (c *controller) deleteEndpointFromStore(ep *endpoint) error {
-	ep.Lock()
-	n := ep.network
-	ep.Unlock()
-	global, err := n.isGlobalScoped()
-	if err != nil || !global {
-		return err
-	}
-
-	c.Lock()
-	cs := c.store
-	c.Unlock()
+	cs := c.getDataStore(ep.DataScope())
 	if cs == nil {
 		log.Debugf("datastore not initialized. endpoint %s is not deleted from datastore", ep.Name())
 		return nil
@@ -166,12 +162,12 @@ func (c *controller) deleteEndpointFromStore(ep *endpoint) error {
 }
 
 func (c *controller) watchNetworks() error {
-	if !c.validateDatastoreConfig() {
+	if !c.validateGlobalStoreConfig() {
 		return nil
 	}
 
 	c.Lock()
-	cs := c.store
+	cs := c.globalStore
 	c.Unlock()
 
 	networkKey := datastore.Key(datastore.NetworkKeyPrefix)
@@ -191,8 +187,7 @@ func (c *controller) watchNetworks() error {
 				lview := c.networks
 				c.Unlock()
 				for k, v := range lview {
-					global, _ := v.isGlobalScoped()
-					if global {
+					if v.isGlobalScoped() {
 						tmpview[k] = v
 					}
 				}
@@ -207,7 +202,7 @@ func (c *controller) watchNetworks() error {
 						continue
 					}
 					tmp := network{}
-					if err := c.store.GetObject(datastore.Key(existing.Key()...), &tmp); err != datastore.ErrKeyNotFound {
+					if err := c.globalStore.GetObject(datastore.Key(existing.Key()...), &tmp); err != datastore.ErrKeyNotFound {
 						continue
 					}
 					if err := existing.deleteNetwork(); err != nil {
@@ -221,12 +216,12 @@ func (c *controller) watchNetworks() error {
 }
 
 func (n *network) watchEndpoints() error {
-	if !n.ctrlr.validateDatastoreConfig() {
+	if !n.ctrlr.validateGlobalStoreConfig() {
 		return nil
 	}
 
 	n.Lock()
-	cs := n.ctrlr.store
+	cs := n.ctrlr.globalStore
 	tmp := endpoint{network: n}
 	n.stopWatchCh = make(chan struct{})
 	stopCh := n.stopWatchCh
@@ -251,28 +246,11 @@ func (n *network) watchEndpoints() error {
 				lview := n.endpoints
 				n.Unlock()
 				for k, v := range lview {
-					global, _ := v.network.isGlobalScoped()
-					if global {
+					if v.network.isGlobalScoped() {
 						tmpview[k] = v
 					}
 				}
-				for _, epe := range eps {
-					var ep endpoint
-					err := json.Unmarshal(epe.Value, &ep)
-					if err != nil {
-						log.Error(err)
-						continue
-					}
-					delete(tmpview, ep.id)
-					ep.SetIndex(epe.LastIndex)
-					ep.network = n
-					if n.ctrlr.processEndpointUpdate(&ep) {
-						err = n.ctrlr.newEndpointFromStore(epe.Key, &ep)
-						if err != nil {
-							log.Error(err)
-						}
-					}
-				}
+				n.ctrlr.processEndpointsUpdate(eps, &tmpview)
 				// Delete processing
 				for k := range tmpview {
 					n.Lock()
@@ -380,4 +358,68 @@ func ensureKeys(key string, cs datastore.DataStore) error {
 		return nil
 	}
 	return cs.KVStore().Put(key, []byte{}, nil)
+}
+
+func (c *controller) getLocalStoreConfig(cfg *config.Config) *config.DatastoreCfg {
+	if cfg != nil && cfg.LocalStore.Client.Provider != "" && cfg.LocalStore.Client.Address != "" {
+		return &cfg.LocalStore
+	}
+	return &defaultLocalStoreConfig
+}
+
+func (c *controller) getNetworksFromLocalStore() ([]*store.KVPair, error) {
+	c.Lock()
+	cs := c.localStore
+	c.Unlock()
+	return cs.KVStore().List(datastore.Key(datastore.NetworkKeyPrefix))
+}
+
+func (c *controller) getDataStore(dataScope datastore.DataScope) (dataStore datastore.DataStore) {
+	c.Lock()
+	if dataScope == datastore.GlobalScope {
+		dataStore = c.globalStore
+	} else if dataScope == datastore.LocalScope {
+		dataStore = c.localStore
+	}
+	c.Unlock()
+	return
+}
+
+func (c *controller) getEndpointsFromLocalStore() ([]*store.KVPair, error) {
+	c.Lock()
+	cs := c.localStore
+	c.Unlock()
+	return cs.KVStore().List(datastore.Key(datastore.EndpointKeyPrefix))
+}
+
+func (c *controller) processEndpointsUpdate(eps []*store.KVPair, prune *endpointTable) {
+	for _, epe := range eps {
+		var ep endpoint
+		err := json.Unmarshal(epe.Value, &ep)
+		if err != nil {
+			log.Error(err)
+			continue
+		}
+		if prune != nil {
+			delete(*prune, ep.id)
+		}
+		ep.SetIndex(epe.LastIndex)
+		if nid, err := ep.networkIDFromKey(epe.Key); err != nil {
+			log.Error(err)
+			continue
+		} else {
+			if n, err := c.NetworkByID(nid); err != nil {
+				log.Error(err)
+				continue
+			} else {
+				ep.network = n.(*network)
+			}
+		}
+		if c.processEndpointUpdate(&ep) {
+			err = c.newEndpointFromStore(epe.Key, &ep)
+			if err != nil {
+				log.Error(err)
+			}
+		}
+	}
 }

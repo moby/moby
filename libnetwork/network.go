@@ -69,6 +69,7 @@ type network struct {
 	svcRecords  svcMap
 	dbExists    bool
 	stopWatchCh chan struct{}
+	dataScope   datastore.DataScope
 	sync.Mutex
 }
 
@@ -138,6 +139,12 @@ func (n *network) Exists() bool {
 	n.Lock()
 	defer n.Unlock()
 	return n.dbExists
+}
+
+func (n *network) DataScope() datastore.DataScope {
+	n.Lock()
+	defer n.Unlock()
+	return n.dataScope
 }
 
 func (n *network) EndpointCnt() uint64 {
@@ -398,11 +405,8 @@ func (n *network) EndpointByID(id string) (Endpoint, error) {
 	return nil, ErrNoSuchEndpoint(id)
 }
 
-func (n *network) isGlobalScoped() (bool, error) {
-	n.Lock()
-	c := n.ctrlr
-	n.Unlock()
-	return c.isDriverGlobalScoped(n.networkType)
+func (n *network) isGlobalScoped() bool {
+	return n.DataScope() == datastore.GlobalScope
 }
 
 func (n *network) updateSvcRecord(ep *endpoint, isAdd bool) {

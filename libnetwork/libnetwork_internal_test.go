@@ -28,5 +28,5 @@ func TestDriverRegistration(t *testing.T) {
 
 func SetTestDataStore(c NetworkController, custom datastore.DataStore) {
 	con := c.(*controller)
-	con.store = custom
+	con.globalStore = custom
 }

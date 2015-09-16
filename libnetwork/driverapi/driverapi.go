@@ -1,6 +1,10 @@
 package driverapi
 
-import "net"
+import (
+	"net"
+
+	"github.com/docker/libnetwork/datastore"
+)
 
 // NetworkPluginEndpointType represents the Endpoint Type used by Plugin system
 const NetworkPluginEndpointType = "NetworkDriver"
@@ -98,17 +102,7 @@ type DriverCallback interface {
 	RegisterDriver(name string, driver Driver, capability Capability) error
 }
 
-// Scope indicates the drivers scope capability
-type Scope int
-
-const (
-	// LocalScope represents the driver capable of providing networking services for containers in a single host
-	LocalScope Scope = iota
-	// GlobalScope represents the driver capable of providing networking services for containers across hosts
-	GlobalScope
-)
-
 // Capability represents the high level capabilities of the drivers which libnetwork can make use of
 type Capability struct {
-	Scope Scope
+	DataScope datastore.DataScope
 }

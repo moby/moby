@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
+	"strings"
 	"sync"
 
 	log "github.com/Sirupsen/logrus"
@@ -130,15 +131,15 @@ func (ep *endpoint) KeyPrefix() []string {
 	return []string{datastore.EndpointKeyPrefix, ep.getNetwork().id}
 }
 
-func (ep *endpoint) networkIDFromKey(key []string) (string, error) {
-	// endpoint Key structure : endpoint/network-id/endpoint-id
-	// it's an invalid key if the key doesn't have all the 3 key elements above
-	if key == nil || len(key) < 3 || key[0] != datastore.EndpointKeyPrefix {
+func (ep *endpoint) networkIDFromKey(key string) (string, error) {
+	// endpoint Key structure : docker/libnetwork/endpoint/${network-id}/${endpoint-id}
+	// it's an invalid key if the key doesn't have all the 5 key elements above
+	keyElements := strings.Split(key, "/")
+	if !strings.HasPrefix(key, datastore.Key(datastore.EndpointKeyPrefix)) || len(keyElements) < 5 {
 		return "", fmt.Errorf("invalid endpoint key : %v", key)
 	}
-
-	// network-id is placed at index=1. pls refer to endpoint.Key() method
-	return key[1], nil
+	// network-id is placed at index=3. pls refer to endpoint.Key() method
+	return strings.Split(key, "/")[3], nil
 }
 
 func (ep *endpoint) Value() []byte {
@@ -539,4 +540,10 @@ func JoinOptionPriority(ep Endpoint, prio int) EndpointOption {
 		}
 		sb.epPriority[ep.id] = prio
 	}
+}
+
+func (ep *endpoint) DataScope() datastore.DataScope {
+	ep.Lock()
+	defer ep.Unlock()
+	return ep.network.dataScope
 }

@@ -162,6 +162,10 @@ func (n *dummyObject) Exists() bool {
 	return n.DBExists
 }
 
+func (n *dummyObject) DataScope() DataScope {
+	return LocalScope
+}
+
 func (n *dummyObject) MarshalJSON() ([]byte, error) {
 	netMap := make(map[string]interface{})
 	netMap["name"] = n.Name

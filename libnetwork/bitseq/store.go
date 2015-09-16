@@ -70,6 +70,11 @@ func (h *Handle) Exists() bool {
 	return h.dbExists
 }
 
+// DataScope method returns the storage scope of the datastore
+func (h *Handle) DataScope() datastore.DataScope {
+	return datastore.GlobalScope
+}
+
 func (h *Handle) watchForChanges() error {
 	h.Lock()
 	store := h.store

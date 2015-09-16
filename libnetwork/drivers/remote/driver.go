@@ -6,6 +6,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/plugins"
+	"github.com/docker/libnetwork/datastore"
 	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/drivers/remote/api"
 	"github.com/docker/libnetwork/types"
@@ -52,9 +53,9 @@ func (d *driver) getCapabilities() (*driverapi.Capability, error) {
 	c := &driverapi.Capability{}
 	switch capResp.Scope {
 	case "global":
-		c.Scope = driverapi.GlobalScope
+		c.DataScope = datastore.GlobalScope
 	case "local":
-		c.Scope = driverapi.LocalScope
+		c.DataScope = datastore.LocalScope
 	default:
 		return nil, fmt.Errorf("invalid capability: expecting 'local' or 'global', got %s", capResp.Scope)
 	}
