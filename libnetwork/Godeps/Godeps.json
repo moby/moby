@@ -167,6 +167,11 @@
 		{
 			"ImportPath": "github.com/vishvananda/netns",
 			"Rev": "493029407eeb434d0c2d44e02ea072ff2488d322"
+		},
+		{
+			"ImportPath": "github.com/boltdb/bolt",
+			"Comment": "v1.0-117-g0f053fa",
+			"Rev": "0f053fabc06119583d61937a0a06ef0ba0f1b301"
 		}
 	]
 }
