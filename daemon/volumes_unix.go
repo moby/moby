@@ -295,7 +295,7 @@ func (daemon *Daemon) registerMountPoints(container *Container, hostConfig *runc
 	}
 
 	// 2. Read volumes from other containers.
-	for _, v := range hostConfig.VolumesFrom {
+	for _, v := range hostConfig.VolumesFrom.Slice() {
 		containerID, mode, err := parseVolumesFrom(v)
 		if err != nil {
 			return err
@@ -328,7 +328,7 @@ func (daemon *Daemon) registerMountPoints(container *Container, hostConfig *runc
 	}
 
 	// 3. Read bind mounts
-	for _, b := range hostConfig.Binds {
+	for _, b := range hostConfig.Binds.Slice() {
 		// #10618
 		bind, err := parseBindMount(b, hostConfig.VolumeDriver)
 		if err != nil {

@@ -93,7 +93,7 @@ func (container *Container) setupLinkedContainers() ([]string, error) {
 				container.NetworkSettings.IPAddress,
 				child.NetworkSettings.IPAddress,
 				linkAlias,
-				child.Config.Env,
+				child.Config.Env.Slice(),
 				child.Config.ExposedPorts,
 			)
 
@@ -127,7 +127,7 @@ func (container *Container) createDaemonEnvironment(linkedEnv []string) []string
 	// because the env on the container can override certain default values
 	// we need to replace the 'env' keys where they match and append anything
 	// else.
-	env = utils.ReplaceOrAppendEnvValues(env, container.Config.Env)
+	env = utils.ReplaceOrAppendEnvValues(env, container.Config.Env.Slice())
 
 	return env
 }
@@ -419,8 +419,8 @@ func (container *Container) buildSandboxOptions() ([]libnetwork.SandboxOption, e
 	}
 	sboxOptions = append(sboxOptions, libnetwork.OptionResolvConfPath(container.ResolvConfPath))
 
-	if len(container.hostConfig.DNS) > 0 {
-		dns = container.hostConfig.DNS
+	if container.hostConfig.DNS.Len() > 0 {
+		dns = container.hostConfig.DNS.Slice()
 	} else if len(container.daemon.configStore.DNS) > 0 {
 		dns = container.daemon.configStore.DNS
 	}
@@ -429,8 +429,8 @@ func (container *Container) buildSandboxOptions() ([]libnetwork.SandboxOption, e
 		sboxOptions = append(sboxOptions, libnetwork.OptionDNS(d))
 	}
 
-	if len(container.hostConfig.DNSSearch) > 0 {
-		dnsSearch = container.hostConfig.DNSSearch
+	if container.hostConfig.DNSSearch.Len() > 0 {
+		dnsSearch = container.hostConfig.DNSSearch.Slice()
 	} else if len(container.daemon.configStore.DNSSearch) > 0 {
 		dnsSearch = container.daemon.configStore.DNSSearch
 	}
@@ -471,7 +471,7 @@ func (container *Container) buildSandboxOptions() ([]libnetwork.SandboxOption, e
 		}
 	}
 
-	for _, extraHost := range container.hostConfig.ExtraHosts {
+	for _, extraHost := range container.hostConfig.ExtraHosts.Slice() {
 		// allow IPv6 addresses in extra hosts; only split on first ":"
 		parts := strings.SplitN(extraHost, ":", 2)
 		sboxOptions = append(sboxOptions, libnetwork.OptionExtraHost(parts[0], parts[1]))

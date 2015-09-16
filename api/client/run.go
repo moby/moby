@@ -63,11 +63,11 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		os.Exit(1)
 	}
 
-	if len(hostConfig.DNS) > 0 {
+	if hostConfig.DNS.Len() > 0 {
 		// check the DNS settings passed via --dns against
 		// localhost regexp to warn if they are trying to
 		// set a DNS to a localhost address
-		for _, dnsIP := range hostConfig.DNS {
+		for _, dnsIP := range hostConfig.DNS.Slice() {
 			if dns.IsLocalhost(dnsIP) {
 				fmt.Fprintf(cli.err, "WARNING: Localhost DNS setting (--dns=%s) may fail in containers.\n", dnsIP)
 				break

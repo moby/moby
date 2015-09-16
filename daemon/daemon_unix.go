@@ -44,7 +44,7 @@ func parseSecurityOpt(container *Container, config *runconfig.HostConfig) error 
 		err       error
 	)
 
-	for _, opt := range config.SecurityOpt {
+	for _, opt := range config.SecurityOpt.Slice() {
 		con := strings.SplitN(opt, ":", 2)
 		if len(con) == 1 {
 			return fmt.Errorf("Invalid --security-opt: %q", opt)
@@ -501,11 +501,11 @@ func (daemon *Daemon) NetworkAPIRouter() func(w http.ResponseWriter, req *http.R
 
 // registerLinks writes the links to a file.
 func (daemon *Daemon) registerLinks(container *Container, hostConfig *runconfig.HostConfig) error {
-	if hostConfig == nil || hostConfig.Links == nil {
+	if hostConfig == nil || hostConfig.Links == nil || hostConfig.Links.Len() == 0 {
 		return nil
 	}
 
-	for _, l := range hostConfig.Links {
+	for _, l := range hostConfig.Links.Slice() {
 		name, alias, err := parsers.ParseLink(l)
 		if err != nil {
 			return err
@@ -533,11 +533,8 @@ func (daemon *Daemon) registerLinks(container *Container, hostConfig *runconfig.
 	// After we load all the links into the daemon
 	// set them to nil on the hostconfig
 	hostConfig.Links = nil
-	if err := container.writeHostConfig(); err != nil {
-		return err
-	}
 
-	return nil
+	return container.writeHostConfig()
 }
 
 func (daemon *Daemon) newBaseContainer(id string) Container {

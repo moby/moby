@@ -24,7 +24,7 @@ type Config struct {
 	Tty             bool                  // Attach standard streams to a tty, including stdin if it is not closed.
 	OpenStdin       bool                  // Open stdin
 	StdinOnce       bool                  // If true, close stdin after the 1 attached client disconnects.
-	Env             []string              // List of environment variable to set in the container
+	Env             *stringutils.StrSlice // List of environment variable to set in the container
 	Cmd             *stringutils.StrSlice // Command to run when starting the container
 	Image           string                // Name of the image as it was passed by the operator (eg. could be symbolic)
 	Volumes         map[string]struct{}   // List of volumes (mounts) used for the container

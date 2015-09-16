@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/docker/docker/pkg/nat"
+	"github.com/docker/docker/pkg/stringutils"
 )
 
 // Merge merges two Config, the image container configuration (defaults values),
@@ -28,13 +29,14 @@ func Merge(userConf, imageConf *Config) error {
 		}
 	}
 
-	if len(userConf.Env) == 0 {
+	if userConf.Env.Len() == 0 {
 		userConf.Env = imageConf.Env
 	} else {
-		for _, imageEnv := range imageConf.Env {
+		userConfEnv := userConf.Env.Slice()
+		for _, imageEnv := range imageConf.Env.Slice() {
 			found := false
 			imageEnvKey := strings.Split(imageEnv, "=")[0]
-			for _, userEnv := range userConf.Env {
+			for _, userEnv := range userConfEnv {
 				userEnvKey := strings.Split(userEnv, "=")[0]
 				if imageEnvKey == userEnvKey {
 					found = true
@@ -42,9 +44,10 @@ func Merge(userConf, imageConf *Config) error {
 				}
 			}
 			if !found {
-				userConf.Env = append(userConf.Env, imageEnv)
+				userConfEnv = append(userConfEnv, imageEnv)
 			}
 		}
+		userConf.Env = stringutils.NewStrSlice(userConfEnv...)
 	}
 
 	if userConf.Entrypoint.Len() == 0 {

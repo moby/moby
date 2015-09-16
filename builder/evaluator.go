@@ -336,7 +336,7 @@ func (b *builder) dispatch(stepN int, ast *parser.Node) error {
 		str = ast.Value
 		if _, ok := replaceEnvAllowed[cmd]; ok {
 			var err error
-			str, err = ProcessWord(ast.Value, b.Config.Env)
+			str, err = ProcessWord(ast.Value, b.Config.Env.Slice())
 			if err != nil {
 				return err
 			}

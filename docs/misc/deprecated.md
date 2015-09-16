@@ -12,13 +12,40 @@ parent = "mn_use_docker"
 
 The following list of features are deprecated.
 
+### Config/HostConfig API fields type
+**Deprecated In Release: v1.9**
+
+**Target For Removal In Release: v1.11**
+
+Passing a json value of type `string` via remote API on container create and
+start for the following `Config` and `HostConfig` fields is deprecated. Valid
+type for these fields is only `array`.
+
+For `Config`:
+
+    Env
+    Command
+    Entrypoint
+
+For `HostConfig`:
+
+    Binds
+    Links
+    DNS
+    DNSSearch
+    ExtraHosts
+    VolumesFrom
+    CapAdd
+    CapDrop
+    SecurityOpt
+
 ### LXC built-in exec driver
 **Deprecated In Release: v1.8**
 
 **Target For Removal In Release: v1.10**
 
 The built-in LXC execution driver is deprecated for an external implementation.
-The lxc-conf flag and API fields will also be removed. 
+The lxc-conf flag and API fields will also be removed.
 
 ### Old Command Line Options
 **Deprecated In Release: [v1.8.0](/release-notes/#docker-engine-1-8-0)**
@@ -29,7 +56,7 @@ The flags `-d` and `--daemon` are deprecated in favor of the `daemon` subcommand
 
     docker daemon -H ...
 
-The following single-dash (`-opt`) variant of certain command line options 
+The following single-dash (`-opt`) variant of certain command line options
 are deprecated and replaced with double-dash options (`--opt`):
 
     docker attach -nostdin

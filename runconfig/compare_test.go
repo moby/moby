@@ -31,8 +31,8 @@ func TestCompare(t *testing.T) {
 	volumes3 := make(map[string]struct{})
 	volumes3["/test1"] = struct{}{}
 	volumes3["/test3"] = struct{}{}
-	envs1 := []string{"ENV1=value1", "ENV2=value2"}
-	envs2 := []string{"ENV1=value1", "ENV3=value3"}
+	envs1 := stringutils.NewStrSlice("ENV1=value1", "ENV2=value2")
+	envs2 := stringutils.NewStrSlice("ENV1=value1", "ENV3=value3")
 	entrypoint1 := stringutils.NewStrSlice("/bin/sh", "-c")
 	entrypoint2 := stringutils.NewStrSlice("/bin/sh", "-d")
 	entrypoint3 := stringutils.NewStrSlice("/bin/sh", "-c", "echo")
