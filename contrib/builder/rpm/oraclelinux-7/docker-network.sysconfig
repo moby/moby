@@ -1,0 +1,2 @@
+# /etc/sysconfig/docker-network
+DOCKER_NETWORK_OPTIONS=

@@ -134,6 +134,17 @@ install -p -m 644 contrib/init/systemd/docker.socket $RPM_BUILD_ROOT/%{_unitdir}
 install -p -m 644 contrib/init/sysvinit-redhat/docker.sysconfig $RPM_BUILD_ROOT/etc/sysconfig/docker
 install -p -m 755 contrib/init/sysvinit-redhat/docker $RPM_BUILD_ROOT/%{_initddir}/docker
 %endif
+
+# Restore /etc/sysconfig/docker-* configuration on Oracle Linux 7 via systemd drop-in file
+%if 0%{?oraclelinux} >= 7
+install -d $RPM_BUILD_ROOT/%{_sysconfdir}/systemd/system/docker.service.d
+install -d $RPM_BUILD_ROOT/%{_sysconfdir}/sysconfig
+install -p -m 644 contrib/builder/rpm/oraclelinux-7/docker-sysconfig.conf $RPM_BUILD_ROOT/%{_sysconfdir}/systemd/system/docker.service.d/docker-sysconfig.conf
+install -p -m 644 contrib/builder/rpm/oraclelinux-7/docker.sysconfig $RPM_BUILD_ROOT/%{_sysconfdir}/sysconfig/docker
+install -p -m 644 contrib/builder/rpm/oraclelinux-7/docker-network.sysconfig $RPM_BUILD_ROOT/%{_sysconfdir}/sysconfig/docker-network
+install -p -m 644 contrib/builder/rpm/oraclelinux-7/docker-storage.sysconfig $RPM_BUILD_ROOT/%{_sysconfdir}/sysconfig/docker-storage
+%endif
+
 # add bash completions
 install -d $RPM_BUILD_ROOT/usr/share/bash-completion/completions
 install -d $RPM_BUILD_ROOT/usr/share/zsh/vendor-completions
@@ -171,6 +182,12 @@ install -p -m 644 contrib/syntax/nano/Dockerfile.nanorc $RPM_BUILD_ROOT/usr/shar
 %else
 /etc/sysconfig/docker
 /%{_initddir}/docker
+%endif
+%if 0%{?oraclelinux} >= 7
+%{_sysconfdir}/systemd/system/docker.service.d/docker-sysconfig.conf
+%config(noreplace) %{_sysconfdir}/sysconfig/docker
+%config(noreplace) %{_sysconfdir}/sysconfig/docker-network
+%config(noreplace) %{_sysconfdir}/sysconfig/docker-storage
 %endif
 /usr/share/bash-completion/completions/docker
 /usr/share/zsh/vendor-completions/_docker
