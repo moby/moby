@@ -20,7 +20,7 @@ clone git github.com/tchap/go-patricia v2.1.0
 clone git golang.org/x/net 3cffabab72adf04f8e3b01c5baf775361837b5fe https://github.com/golang/net.git
 
 #get libnetwork packages
-clone git github.com/docker/libnetwork 927d2765909ddc3a5dd49b649ae9ef121c0fbef0
+clone git github.com/docker/libnetwork 00a92f066e628e4c6d50979c070df377575aad18
 clone git github.com/armon/go-metrics eb0af217e5e9747e41dd5303755356b62d28e3ec
 clone git github.com/hashicorp/go-msgpack 71c2886f5a673a35f909803f38ece5810165097b
 clone git github.com/hashicorp/memberlist 9a1e242e454d2443df330bdd51a436d5a9058fc4

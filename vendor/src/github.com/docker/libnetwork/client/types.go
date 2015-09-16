@@ -21,8 +21,8 @@ type serviceResource struct {
 	Network string `json:"network"`
 }
 
-// sandboxResource is the body of "get service backend" response message
-type sandboxResource struct {
+// SandboxResource is the body of "get service backend" response message
+type SandboxResource struct {
 	ID          string `json:"id"`
 	Key         string `json:"key"`
 	ContainerID string `json:"container_id"`
@@ -52,7 +52,8 @@ type serviceAttach struct {
 	SandboxID string `json:"sandbox_id"`
 }
 
-type sandboxCreate struct {
+// SandboxCreate is the body of the "post /sandboxes" http request message
+type SandboxCreate struct {
 	ContainerID       string      `json:"container_id"`
 	HostName          string      `json:"host_name"`
 	DomainName        string      `json:"domain_name"`

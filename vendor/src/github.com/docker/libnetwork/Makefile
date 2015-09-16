@@ -31,7 +31,7 @@ build: ${build_image}.created
 	@echo "Done building code"
 
 build-local:
-	@$(shell which godep) go build -tags libnetwork_discovery ./...
+	@$(shell which godep) go build  ./...
 	@$(shell which godep) go build -o ./cmd/dnet/dnet ./cmd/dnet
 
 check: ${build_image}.created
