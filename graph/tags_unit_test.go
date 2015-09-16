@@ -13,7 +13,6 @@ import (
 	_ "github.com/docker/docker/daemon/graphdriver/vfs" // import the vfs driver so it is used in the tests
 	"github.com/docker/docker/graph/tags"
 	"github.com/docker/docker/image"
-	"github.com/docker/docker/trust"
 	"github.com/docker/docker/utils"
 )
 
@@ -63,15 +62,9 @@ func mkTestTagStore(root string, t *testing.T) *TagStore {
 		t.Fatal(err)
 	}
 
-	trust, err := trust.NewStore(root + "/trust")
-	if err != nil {
-		t.Fatal(err)
-	}
-
 	tagCfg := &TagStoreConfig{
 		Graph:  graph,
 		Events: events.New(),
-		Trust:  trust,
 	}
 	store, err := NewTagStore(path.Join(root, "tags"), tagCfg)
 	if err != nil {

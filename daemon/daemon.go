@@ -50,7 +50,6 @@ import (
 	"github.com/docker/docker/pkg/truncindex"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/runconfig"
-	"github.com/docker/docker/trust"
 	volumedrivers "github.com/docker/docker/volume/drivers"
 	"github.com/docker/docker/volume/local"
 	"github.com/docker/docker/volume/store"
@@ -738,10 +737,6 @@ func NewDaemon(config *Config, registryService *registry.Service) (daemon *Daemo
 	if err := system.MkdirAll(trustDir, 0700); err != nil {
 		return nil, err
 	}
-	trustService, err := trust.NewStore(trustDir)
-	if err != nil {
-		return nil, fmt.Errorf("could not create trust store: %s", err)
-	}
 
 	eventsService := events.New()
 	logrus.Debug("Creating repository list")
@@ -750,7 +745,6 @@ func NewDaemon(config *Config, registryService *registry.Service) (daemon *Daemo
 		Key:      trustKey,
 		Registry: registryService,
 		Events:   eventsService,
-		Trust:    trustService,
 	}
 	repositories, err := graph.NewTagStore(filepath.Join(config.Root, "repositories-"+d.driver.String()), tagCfg)
 	if err != nil {
