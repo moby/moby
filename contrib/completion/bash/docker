@@ -533,6 +533,7 @@ _docker_daemon() {
 		--default-ulimit
 		--dns
 		--dns-search
+		--dns-opt
 		--exec-driver -e
 		--exec-opt
 		--exec-root
@@ -1124,6 +1125,7 @@ _docker_run() {
 		--cpu-shares -c
 		--device
 		--dns
+		--dns-opt
 		--dns-search
 		--entrypoint
 		--env -e

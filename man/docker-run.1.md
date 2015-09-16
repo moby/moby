@@ -21,6 +21,7 @@ docker-run - Run a command in a new container
 [**-d**|**--detach**[=*false*]]
 [**--device**[=*[]*]]
 [**--dns**[=*[]*]]
+[**--dns-opt**[=*[]*]]
 [**--dns-search**[=*[]*]]
 [**-e**|**--env**[=*[]*]]
 [**--entrypoint**[=*ENTRYPOINT*]]
@@ -184,6 +185,9 @@ stopping the process by pressing the keys CTRL-P CTRL-Q.
 
 **--dns-search**=[]
    Set custom DNS search domains (Use --dns-search=. if you don't wish to set the search domain)
+
+**--dns-opt**=[]
+   Set custom DNS options
 
 **--dns**=[]
    Set custom DNS servers

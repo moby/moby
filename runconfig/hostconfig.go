@@ -232,8 +232,9 @@ type HostConfig struct {
 	PortBindings     nat.PortMap           // Port mapping between the exposed port (container) and the host
 	Links            []string              // List of links (in the name:alias form)
 	PublishAllPorts  bool                  // Should docker publish all exposed port for the container
-	DNS              []string              `json:"Dns"`       // List of DNS server to lookup
-	DNSSearch        []string              `json:"DnsSearch"` // List of DNSSearch to look for
+	DNS              []string              `json:"Dns"`        // List of DNS server to lookup
+	DNSOptions       []string              `json:"DnsOptions"` // List of DNSOption to look for
+	DNSSearch        []string              `json:"DnsSearch"`  // List of DNSSearch to look for
 	ExtraHosts       []string              // List of extra hosts
 	VolumesFrom      []string              // List of volumes to take from other container
 	Devices          []DeviceMapping       // List of devices to map inside the container

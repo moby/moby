@@ -226,8 +226,9 @@ __docker_subcommand() {
         "($help)*--cap-drop=-[Drop Linux capabilities]:capability: "
         "($help)--cidfile=-[Write the container ID to the file]:CID file:_files"
         "($help)*--device=-[Add a host device to the container]:device:_files"
-        "($help)*--dns=-[Set custom dns servers]:dns server: "
-        "($help)*--dns-search=-[Set custom DNS search domains]:dns domains: "
+        "($help)*--dns=-[Set custom DNS servers]:DNS server: "
+        "($help)*--dns-opt=-[Set custom DNS options]:DNS option: "
+        "($help)*--dns-search=-[Set custom DNS search domains]:DNS domains: "
         "($help)*"{-e,--env=-}"[Set environment variables]:environment variable: "
         "($help)--entrypoint=-[Overwrite the default entrypoint of the image]:entry point: "
         "($help)*--env-file=-[Read environment variables from a file]:environment file:_files"
@@ -599,7 +600,8 @@ _docker() {
         "($help)--default-gateway[Container default gateway IPv4 address]:IPv4 address: " \
         "($help)--default-gateway-v6[Container default gateway IPv6 address]:IPv6 address: " \
         "($help)*--dns=-[DNS server to use]:DNS: " \
-        "($help)*--dns-search=-[DNS search domains to use]" \
+        "($help)*--dns-search=-[DNS search domains to use]:DNS search: " \
+        "($help)*--dns-opt=-[DNS options to use]:DNS option: " \
         "($help)*--default-ulimit=-[Set default ulimit settings for containers]:ulimit: " \
         "($help -e --exec-driver)"{-e,--exec-driver=-}"[Exec driver to use]:driver:(native lxc windows)" \
         "($help)*--exec-opt=-[Set exec driver options]:exec driver options: " \

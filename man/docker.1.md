@@ -56,6 +56,9 @@ To see the man page for a command run **man docker <command>**.
 **--dns**=""
   Force Docker to use specific DNS servers
 
+**--dns-opt**=[]
+  DNS options to use.
+
 **--dns-search**=[]
   DNS search domains to use.
 

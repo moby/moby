@@ -397,6 +397,7 @@ func (container *Container) buildSandboxOptions() ([]libnetwork.SandboxOption, e
 		err         error
 		dns         []string
 		dnsSearch   []string
+		dnsOptions  []string
 	)
 
 	sboxOptions = append(sboxOptions, libnetwork.OptionHostname(container.Config.Hostname),
@@ -442,6 +443,16 @@ func (container *Container) buildSandboxOptions() ([]libnetwork.SandboxOption, e
 
 	for _, ds := range dnsSearch {
 		sboxOptions = append(sboxOptions, libnetwork.OptionDNSSearch(ds))
+	}
+
+	if len(container.hostConfig.DNSOptions) > 0 {
+		dnsOptions = container.hostConfig.DNSOptions
+	} else if len(container.daemon.configStore.DNSOptions) > 0 {
+		dnsOptions = container.daemon.configStore.DNSOptions
+	}
+
+	for _, ds := range dnsOptions {
+		sboxOptions = append(sboxOptions, libnetwork.OptionDNSOptions(ds))
 	}
 
 	if container.NetworkSettings.SecondaryIPAddresses != nil {

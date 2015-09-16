@@ -30,6 +30,7 @@ weight=1
       -d, --detach=false            Run container in background and print container ID
       --device=[]                   Add a host device to the container
       --dns=[]                      Set custom DNS servers
+      --dns-opt=[]                  Set custom DNS options
       --dns-search=[]               Set custom DNS search domains
       -e, --env=[]                  Set environment variables
       --entrypoint=""               Overwrite the default ENTRYPOINT of the image
