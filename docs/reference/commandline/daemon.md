@@ -445,6 +445,13 @@ Local registries, whose IP address falls in the 127.0.0.0/8 range, are
 automatically marked as insecure as of Docker 1.3.2. It is not recommended to
 rely on this, as it may change in the future.
 
+## Legacy Registries
+
+Enabling `--no-legacy-registry` forces a docker daemon to only interact with
+registries which support the V2 protocol.  Specifically, the daemon will not
+attempt `push`, `pull` and `login` to v1 registries.  The exception to this
+is `search` which can still be performed on v1 registries.
+
 ## Running a Docker daemon behind a HTTPS_PROXY
 
 When running inside a LAN that uses a `HTTPS` proxy, the Docker Hub
