@@ -6,10 +6,11 @@ import (
 	"os/exec"
 	"testing"
 
-	"github.com/go-check/check"
 	"io/ioutil"
 	"strings"
 	"time"
+
+	"github.com/go-check/check"
 )
 
 const dockerBinary = "docker"
@@ -159,6 +160,7 @@ func (s *DockerCmdSuite) TestDockerCmdSuccess(c *check.C) {
 // DockerCmdWithTimeout tests
 
 func (s *DockerCmdSuite) TestDockerCmdWithTimeout(c *check.C) {
+	c.Skip("racey test")
 	cmds := []struct {
 		binary           string
 		args             []string
