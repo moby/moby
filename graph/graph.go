@@ -263,7 +263,7 @@ func (graph *Graph) Register(img *image.Image, layerData io.Reader) (err error) 
 	// (FIXME: make that mandatory for drivers).
 	graph.driver.Remove(img.ID)
 
-	tmp, err := graph.mktemp("")
+	tmp, err := graph.mktemp()
 	defer os.RemoveAll(tmp)
 	if err != nil {
 		return fmt.Errorf("mktemp failed: %s", err)
@@ -301,7 +301,7 @@ func (graph *Graph) TempLayerArchive(id string, sf *streamformatter.StreamFormat
 	if err != nil {
 		return nil, err
 	}
-	tmp, err := graph.mktemp("")
+	tmp, err := graph.mktemp()
 	if err != nil {
 		return nil, err
 	}
@@ -323,7 +323,7 @@ func (graph *Graph) TempLayerArchive(id string, sf *streamformatter.StreamFormat
 }
 
 // mktemp creates a temporary sub-directory inside the graph's filesystem.
-func (graph *Graph) mktemp(id string) (string, error) {
+func (graph *Graph) mktemp() (string, error) {
 	dir := filepath.Join(graph.root, "_tmp", stringid.GenerateNonCryptoID())
 	if err := system.MkdirAll(dir, 0700); err != nil {
 		return "", err
@@ -332,7 +332,7 @@ func (graph *Graph) mktemp(id string) (string, error) {
 }
 
 func (graph *Graph) newTempFile() (*os.File, error) {
-	tmp, err := graph.mktemp("")
+	tmp, err := graph.mktemp()
 	if err != nil {
 		return nil, err
 	}
@@ -345,7 +345,7 @@ func (graph *Graph) Delete(name string) error {
 	if err != nil {
 		return err
 	}
-	tmp, err := graph.mktemp("")
+	tmp, err := graph.mktemp()
 	graph.idIndex.Delete(id)
 	if err == nil {
 		if err := os.Rename(graph.imageRoot(id), tmp); err != nil {
