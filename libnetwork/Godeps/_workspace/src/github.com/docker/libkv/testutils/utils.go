@@ -1,6 +1,7 @@
 package testutils
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -8,50 +9,89 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// RunTestStore is an helper testing method that is
-// called by each K/V backend sub-package testing
-func RunTestStore(t *testing.T, kv store.Store, backup store.Store) {
-	testPutGetDelete(t, kv)
-	testWatch(t, kv)
-	testWatchTree(t, kv)
-	testAtomicPut(t, kv)
-	testAtomicPutCreate(t, kv)
-	testAtomicDelete(t, kv)
-	testLockUnlock(t, kv)
-	testPutEphemeral(t, kv, backup)
+// RunTestCommon tests the minimal required APIs which
+// should be supported by all K/V backends
+func RunTestCommon(t *testing.T, kv store.Store) {
+	testPutGetDeleteExists(t, kv)
 	testList(t, kv)
 	testDeleteTree(t, kv)
 }
 
-func testPutGetDelete(t *testing.T, kv store.Store) {
-	key := "foo"
+// RunTestAtomic tests the Atomic operations by the K/V
+// backends
+func RunTestAtomic(t *testing.T, kv store.Store) {
+	testAtomicPut(t, kv)
+	testAtomicPutCreate(t, kv)
+	testAtomicDelete(t, kv)
+}
+
+// RunTestWatch tests the watch/monitor APIs supported
+// by the K/V backends.
+func RunTestWatch(t *testing.T, kv store.Store) {
+	testWatch(t, kv)
+	testWatchTree(t, kv)
+}
+
+// RunTestLock tests the KV pair Lock/Unlock APIs supported
+// by the K/V backends.
+func RunTestLock(t *testing.T, kv store.Store) {
+	testLockUnlock(t, kv)
+}
+
+// RunTestTTL tests the TTL funtionality of the K/V backend.
+func RunTestTTL(t *testing.T, kv store.Store, backup store.Store) {
+	testPutTTL(t, kv, backup)
+}
+
+func testPutGetDeleteExists(t *testing.T, kv store.Store) {
+	// Get a not exist key should return ErrKeyNotFound
+	pair, err := kv.Get("/testPutGetDelete_not_exist_key")
+	assert.Equal(t, store.ErrKeyNotFound, err)
+
 	value := []byte("bar")
+	for _, key := range []string{
+		"testPutGetDeleteExists",
+		"testPutGetDeleteExists/",
+		"testPutGetDeleteExists/testbar/",
+		"testPutGetDeleteExists/testbar/testfoobar",
+	} {
+		failMsg := fmt.Sprintf("Fail key %s", key)
+		// Put the key
+		err = kv.Put(key, value, nil)
+		assert.NoError(t, err, failMsg)
 
-	// Put the key
-	err := kv.Put(key, value, nil)
-	assert.NoError(t, err)
+		// Get should return the value and an incremented index
+		pair, err = kv.Get(key)
+		assert.NoError(t, err, failMsg)
+		if assert.NotNil(t, pair, failMsg) {
+			assert.NotNil(t, pair.Value, failMsg)
+		}
+		assert.Equal(t, pair.Value, value, failMsg)
+		assert.NotEqual(t, pair.LastIndex, 0, failMsg)
 
-	// Get should return the value and an incremented index
-	pair, err := kv.Get(key)
-	assert.NoError(t, err)
-	if assert.NotNil(t, pair) {
-		assert.NotNil(t, pair.Value)
+		// Exists should return true
+		exists, err := kv.Exists(key)
+		assert.NoError(t, err, failMsg)
+		assert.True(t, exists, failMsg)
+
+		// Delete the key
+		err = kv.Delete(key)
+		assert.NoError(t, err, failMsg)
+
+		// Get should fail
+		pair, err = kv.Get(key)
+		assert.Error(t, err, failMsg)
+		assert.Nil(t, pair, failMsg)
+
+		// Exists should return false
+		exists, err = kv.Exists(key)
+		assert.NoError(t, err, failMsg)
+		assert.False(t, exists, failMsg)
 	}
-	assert.Equal(t, pair.Value, value)
-	assert.NotEqual(t, pair.LastIndex, 0)
-
-	// Delete the key
-	err = kv.Delete(key)
-	assert.NoError(t, err)
-
-	// Get should fail
-	pair, err = kv.Get(key)
-	assert.Error(t, err)
-	assert.Nil(t, pair)
 }
 
 func testWatch(t *testing.T, kv store.Store) {
-	key := "hello"
+	key := "testWatch"
 	value := []byte("world")
 	newValue := []byte("world!")
 
@@ -108,15 +148,15 @@ func testWatch(t *testing.T, kv store.Store) {
 }
 
 func testWatchTree(t *testing.T, kv store.Store) {
-	dir := "tree"
+	dir := "testWatchTree"
 
-	node1 := "tree/node1"
+	node1 := "testWatchTree/node1"
 	value1 := []byte("node1")
 
-	node2 := "tree/node2"
+	node2 := "testWatchTree/node2"
 	value2 := []byte("node2")
 
-	node3 := "tree/node3"
+	node3 := "testWatchTree/node3"
 	value3 := []byte("node3")
 
 	err := kv.Put(node1, value1, nil)
@@ -162,7 +202,7 @@ func testWatchTree(t *testing.T, kv store.Store) {
 }
 
 func testAtomicPut(t *testing.T, kv store.Store) {
-	key := "hello"
+	key := "testAtomicPut"
 	value := []byte("world")
 
 	// Put the key
@@ -179,18 +219,18 @@ func testAtomicPut(t *testing.T, kv store.Store) {
 	assert.NotEqual(t, pair.LastIndex, 0)
 
 	// This CAS should fail: previous exists.
-	success, _, err := kv.AtomicPut("hello", []byte("WORLD"), nil, nil)
+	success, _, err := kv.AtomicPut(key, []byte("WORLD"), nil, nil)
 	assert.Error(t, err)
 	assert.False(t, success)
 
 	// This CAS should succeed
-	success, _, err = kv.AtomicPut("hello", []byte("WORLD"), pair, nil)
+	success, _, err = kv.AtomicPut(key, []byte("WORLD"), pair, nil)
 	assert.NoError(t, err)
 	assert.True(t, success)
 
 	// This CAS should fail, key exists.
 	pair.LastIndex = 0
-	success, _, err = kv.AtomicPut("hello", []byte("WORLDWORLD"), pair, nil)
+	success, _, err = kv.AtomicPut(key, []byte("WORLDWORLD"), pair, nil)
 	assert.Error(t, err)
 	assert.False(t, success)
 }
@@ -198,7 +238,7 @@ func testAtomicPut(t *testing.T, kv store.Store) {
 func testAtomicPutCreate(t *testing.T, kv store.Store) {
 	// Use a key in a new directory to ensure Stores will create directories
 	// that don't yet exist.
-	key := "put/create"
+	key := "testAtomicPutCreate/create"
 	value := []byte("putcreate")
 
 	// AtomicPut the key, previous = nil indicates create.
@@ -223,14 +263,10 @@ func testAtomicPutCreate(t *testing.T, kv store.Store) {
 	success, _, err = kv.AtomicPut(key, []byte("PUTCREATE"), pair, nil)
 	assert.NoError(t, err)
 	assert.True(t, success)
-
-	// Delete the key, ensures runs of the test don't interfere with each other.
-	err = kv.DeleteTree("put")
-	assert.NoError(t, err)
 }
 
 func testAtomicDelete(t *testing.T, kv store.Store) {
-	key := "atomic"
+	key := "testAtomicDelete"
 	value := []byte("world")
 
 	// Put the key
@@ -262,11 +298,11 @@ func testAtomicDelete(t *testing.T, kv store.Store) {
 }
 
 func testLockUnlock(t *testing.T, kv store.Store) {
-	key := "foo"
+	key := "testLockUnlock"
 	value := []byte("bar")
 
 	// We should be able to create a new lock on key
-	lock, err := kv.NewLock(key, &store.LockOptions{Value: value})
+	lock, err := kv.NewLock(key, &store.LockOptions{Value: value, TTL: 2 * time.Second})
 	assert.NoError(t, err)
 	assert.NotNil(t, lock)
 
@@ -288,6 +324,11 @@ func testLockUnlock(t *testing.T, kv store.Store) {
 	err = lock.Unlock()
 	assert.NoError(t, err)
 
+	// Lock should succeed again
+	lockChan, err = lock.Lock()
+	assert.NoError(t, err)
+	assert.NotNil(t, lockChan)
+
 	// Get should work
 	pair, err = kv.Get(key)
 	assert.NoError(t, err)
@@ -298,19 +339,19 @@ func testLockUnlock(t *testing.T, kv store.Store) {
 	assert.NotEqual(t, pair.LastIndex, 0)
 }
 
-func testPutEphemeral(t *testing.T, kv store.Store, otherConn store.Store) {
-	firstKey := "first"
+func testPutTTL(t *testing.T, kv store.Store, otherConn store.Store) {
+	firstKey := "testPutTTL"
 	firstValue := []byte("foo")
 
 	secondKey := "second"
 	secondValue := []byte("bar")
 
 	// Put the first key with the Ephemeral flag
-	err := otherConn.Put(firstKey, firstValue, &store.WriteOptions{Ephemeral: true})
+	err := otherConn.Put(firstKey, firstValue, &store.WriteOptions{TTL: 2 * time.Second})
 	assert.NoError(t, err)
 
 	// Put a second key with the Ephemeral flag
-	err = otherConn.Put(secondKey, secondValue, &store.WriteOptions{Ephemeral: true})
+	err = otherConn.Put(secondKey, secondValue, &store.WriteOptions{TTL: 2 * time.Second})
 	assert.NoError(t, err)
 
 	// Get on firstKey should work
@@ -341,12 +382,12 @@ func testPutEphemeral(t *testing.T, kv store.Store, otherConn store.Store) {
 }
 
 func testList(t *testing.T, kv store.Store) {
-	prefix := "nodes"
+	prefix := "testList"
 
-	firstKey := "nodes/first"
+	firstKey := "testList/first"
 	firstValue := []byte("first")
 
-	secondKey := "nodes/second"
+	secondKey := "testList/second"
 	secondValue := []byte("second")
 
 	// Put the first key
@@ -358,35 +399,37 @@ func testList(t *testing.T, kv store.Store) {
 	assert.NoError(t, err)
 
 	// List should work and return the two correct values
-	pairs, err := kv.List(prefix)
-	assert.NoError(t, err)
-	if assert.NotNil(t, pairs) {
-		assert.Equal(t, len(pairs), 2)
-	}
-
-	// Check pairs, those are not necessarily in Put order
-	for _, pair := range pairs {
-		if pair.Key == firstKey {
-			assert.Equal(t, pair.Value, firstValue)
+	for _, parent := range []string{prefix, prefix + "/"} {
+		pairs, err := kv.List(parent)
+		assert.NoError(t, err)
+		if assert.NotNil(t, pairs) {
+			assert.Equal(t, len(pairs), 2)
 		}
-		if pair.Key == secondKey {
-			assert.Equal(t, pair.Value, secondValue)
+
+		// Check pairs, those are not necessarily in Put order
+		for _, pair := range pairs {
+			if pair.Key == firstKey {
+				assert.Equal(t, pair.Value, firstValue)
+			}
+			if pair.Key == secondKey {
+				assert.Equal(t, pair.Value, secondValue)
+			}
 		}
 	}
 
 	// List should fail: the key does not exist
-	pairs, err = kv.List("idontexist")
-	assert.Error(t, err)
+	pairs, err := kv.List("idontexist")
+	assert.Equal(t, store.ErrKeyNotFound, err)
 	assert.Nil(t, pairs)
 }
 
 func testDeleteTree(t *testing.T, kv store.Store) {
-	prefix := "nodes"
+	prefix := "testDeleteTree"
 
-	firstKey := "nodes/first"
+	firstKey := "testDeleteTree/first"
 	firstValue := []byte("first")
 
-	secondKey := "nodes/second"
+	secondKey := "testDeleteTree/second"
 	secondValue := []byte("second")
 
 	// Put the first key
@@ -427,4 +470,25 @@ func testDeleteTree(t *testing.T, kv store.Store) {
 	pair, err = kv.Get(secondKey)
 	assert.Error(t, err)
 	assert.Nil(t, pair)
+}
+
+// RunCleanup cleans up keys introduced by the tests
+func RunCleanup(t *testing.T, kv store.Store) {
+	for _, key := range []string{
+		"testPutGetDeleteExists",
+		"testWatch",
+		"testWatchTree",
+		"testAtomicPut",
+		"testAtomicPutCreate",
+		"testAtomicDelete",
+		"testLockUnlock",
+		"testPutTTL",
+		"testList",
+		"testDeleteTree",
+	} {
+		err := kv.DeleteTree(key)
+		assert.True(t, err == nil || err == store.ErrKeyNotFound, fmt.Sprintf("failed to delete tree key %s: %v", key, err))
+		err = kv.Delete(key)
+		assert.True(t, err == nil || err == store.ErrKeyNotFound, fmt.Sprintf("failed to delete key %s: %v", key, err))
+	}
 }

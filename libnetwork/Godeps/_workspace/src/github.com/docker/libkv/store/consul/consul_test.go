@@ -4,19 +4,22 @@ import (
 	"testing"
 	"time"
 
+	"github.com/docker/libkv"
 	"github.com/docker/libkv/store"
 	"github.com/docker/libkv/testutils"
 	"github.com/stretchr/testify/assert"
 )
 
+var (
+	client = "localhost:8500"
+)
+
 func makeConsulClient(t *testing.T) store.Store {
-	client := "localhost:8500"
 
 	kv, err := New(
 		[]string{client},
 		&store.Config{
 			ConnectionTimeout: 3 * time.Second,
-			EphemeralTTL:      2 * time.Second,
 		},
 	)
 
@@ -27,11 +30,28 @@ func makeConsulClient(t *testing.T) store.Store {
 	return kv
 }
 
+func TestRegister(t *testing.T) {
+	Register()
+
+	kv, err := libkv.NewStore(store.CONSUL, []string{client}, nil)
+	assert.NoError(t, err)
+	assert.NotNil(t, kv)
+
+	if _, ok := kv.(*Consul); !ok {
+		t.Fatal("Error registering and initializing consul")
+	}
+}
+
 func TestConsulStore(t *testing.T) {
 	kv := makeConsulClient(t)
 	backup := makeConsulClient(t)
 
-	testutils.RunTestStore(t, kv, backup)
+	testutils.RunTestCommon(t, kv)
+	testutils.RunTestAtomic(t, kv)
+	testutils.RunTestWatch(t, kv)
+	testutils.RunTestLock(t, kv)
+	testutils.RunTestTTL(t, kv, backup)
+	testutils.RunCleanup(t, kv)
 }
 
 func TestGetActiveSession(t *testing.T) {
@@ -43,7 +63,7 @@ func TestGetActiveSession(t *testing.T) {
 	value := []byte("bar")
 
 	// Put the first key with the Ephemeral flag
-	err := kv.Put(key, value, &store.WriteOptions{Ephemeral: true})
+	err := kv.Put(key, value, &store.WriteOptions{TTL: 2 * time.Second})
 	assert.NoError(t, err)
 
 	// Session should not be empty
