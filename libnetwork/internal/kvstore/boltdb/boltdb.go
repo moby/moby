@@ -55,7 +55,12 @@ func New(endpoints []string, options *store.Config) (store.Store, error) {
 	if err := os.MkdirAll(dir, 0750); err != nil {
 		return nil, err
 	}
-	db, err := bolt.Open(endpoints[0], 0644, nil)
+
+	var boltOptions *bolt.Options
+	if options != nil {
+		boltOptions = &bolt.Options{Timeout: options.ConnectionTimeout}
+	}
+	db, err := bolt.Open(endpoints[0], 0644, boltOptions)
 	if err != nil {
 		return nil, err
 	}
