@@ -56,7 +56,7 @@ func (s *containerStats) Collect(cli *DockerCli, streamStats bool) {
 	)
 	go func() {
 		for {
-			var v *types.Stats
+			var v *types.StatsJSON
 			if err := dec.Decode(&v); err != nil {
 				u <- err
 				return
@@ -80,8 +80,7 @@ func (s *containerStats) Collect(cli *DockerCli, streamStats bool) {
 			s.Memory = float64(v.MemoryStats.Usage)
 			s.MemoryLimit = float64(v.MemoryStats.Limit)
 			s.MemoryPercentage = memPercent
-			s.NetworkRx = float64(v.Network.RxBytes)
-			s.NetworkTx = float64(v.Network.TxBytes)
+			s.NetworkRx, s.NetworkTx = calculateNetwork(v.Networks)
 			s.BlockRead = float64(blkRead)
 			s.BlockWrite = float64(blkWrite)
 			s.mu.Unlock()
@@ -198,7 +197,7 @@ func (cli *DockerCli) CmdStats(args ...string) error {
 	return nil
 }
 
-func calculateCPUPercent(previousCPU, previousSystem uint64, v *types.Stats) float64 {
+func calculateCPUPercent(previousCPU, previousSystem uint64, v *types.StatsJSON) float64 {
 	var (
 		cpuPercent = 0.0
 		// calculate the change for the cpu usage of the container in between readings
@@ -223,4 +222,14 @@ func calculateBlockIO(blkio types.BlkioStats) (blkRead uint64, blkWrite uint64) 
 		}
 	}
 	return
+}
+
+func calculateNetwork(network map[string]types.NetworkStats) (float64, float64) {
+	var rx, tx float64
+
+	for _, v := range network {
+		rx += float64(v.RxBytes)
+		tx += float64(v.TxBytes)
+	}
+	return rx, tx
 }
