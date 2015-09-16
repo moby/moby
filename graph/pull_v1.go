@@ -60,6 +60,9 @@ func (p *v1Puller) Pull(tag string) (fallback bool, err error) {
 		// TODO(dmcgowan): Check if should fallback
 		return false, err
 	}
+	out := p.config.OutStream
+	out.Write(p.sf.FormatStatus("", "%s: this image was pulled from a legacy registry.  Important: This registry version will not be supported in future versions of docker.", p.repoInfo.CanonicalName))
+
 	return false, nil
 }
 
