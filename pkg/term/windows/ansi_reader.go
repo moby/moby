@@ -208,7 +208,7 @@ func keyToString(keyEvent *winterm.KEY_EVENT_RECORD, escapeSequence []byte) stri
 // formatVirtualKey converts a virtual key (e.g., up arrow) into the appropriate ANSI string.
 func formatVirtualKey(key winterm.WORD, controlState winterm.DWORD, escapeSequence []byte) string {
 	shift, alt, control := getControlKeys(controlState)
-	modifier := getControlKeysModifier(shift, alt, control, false)
+	modifier := getControlKeysModifier(shift, alt, control)
 
 	if format, ok := arrowKeyMapPrefix[key]; ok {
 		return fmt.Sprintf(format, escapeSequence, modifier)
@@ -230,7 +230,7 @@ func getControlKeys(controlState winterm.DWORD) (shift, alt, control bool) {
 }
 
 // getControlKeysModifier returns the ANSI modifier for the given combination of control keys.
-func getControlKeysModifier(shift, alt, control, meta bool) string {
+func getControlKeysModifier(shift, alt, control bool) string {
 	if shift && alt && control {
 		return ansiterm.KEY_CONTROL_PARAM_8
 	}
