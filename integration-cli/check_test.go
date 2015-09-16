@@ -32,10 +32,13 @@ func init() {
 type DockerRegistrySuite struct {
 	ds  *DockerSuite
 	reg *testRegistryV2
+	d   *Daemon
 }
 
 func (s *DockerRegistrySuite) SetUpTest(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	s.reg = setupRegistry(c)
+	s.d = NewDaemon(c)
 }
 
 func (s *DockerRegistrySuite) TearDownTest(c *check.C) {
@@ -45,6 +48,7 @@ func (s *DockerRegistrySuite) TearDownTest(c *check.C) {
 	if s.ds != nil {
 		s.ds.TearDownTest(c)
 	}
+	s.d.Stop()
 }
 
 func init() {

@@ -44,6 +44,10 @@ var (
 	ErrInvalidRepositoryName = errors.New("Invalid repository name (ex: \"registry.domain.tld/myrepos\")")
 
 	emptyServiceConfig = NewServiceConfig(nil)
+
+	// V2Only controls access to legacy registries.  If it is set to true via the
+	// command line flag the daemon will not attempt to contact v1 legacy registries
+	V2Only = false
 )
 
 // InstallFlags adds command-line options to the top-level flag parser for
@@ -53,6 +57,7 @@ func (options *Options) InstallFlags(cmd *flag.FlagSet, usageFn func(string) str
 	cmd.Var(&options.Mirrors, []string{"-registry-mirror"}, usageFn("Preferred Docker registry mirror"))
 	options.InsecureRegistries = opts.NewListOpts(ValidateIndexName)
 	cmd.Var(&options.InsecureRegistries, []string{"-insecure-registry"}, usageFn("Enable insecure registry communication"))
+	cmd.BoolVar(&V2Only, []string{"-no-legacy-registry"}, false, "Do not contact legacy registries")
 }
 
 type netIPNet net.IPNet
