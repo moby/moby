@@ -182,12 +182,12 @@ __docker_pos_first_nonflag() {
 # globs like '--log-level|-l'
 # Only positions between the command and the current word are considered.
 __docker_value_of_option() {
-	local option_glob=$1
+	local option_extglob=$(__docker_to_extglob "$1")
 
 	local counter=$((command_pos + 1))
 	while [ $counter -lt $cword ]; do
 		case ${words[$counter]} in
-			@($option_glob) )
+			$option_extglob )
 				echo ${words[$counter + 1]}
 				break
 				;;
