@@ -174,8 +174,9 @@ func getDevicesFromPath(deviceMapping runconfig.DeviceMapping) (devs []*configs.
 func populateCommand(c *Container, env []string) error {
 	var en *execdriver.Network
 	if !c.Config.NetworkDisabled {
-		en = &execdriver.Network{
-			NamespacePath: c.NetworkSettings.SandboxKey,
+		en = &execdriver.Network{}
+		if !c.daemon.execDriver.SupportsHooks() || c.hostConfig.NetworkMode.IsHost() {
+			en.NamespacePath = c.NetworkSettings.SandboxKey
 		}
 
 		parts := strings.SplitN(string(c.hostConfig.NetworkMode), ":", 2)
@@ -405,6 +406,10 @@ func (container *Container) buildSandboxOptions() ([]libnetwork.SandboxOption, e
 		sboxOptions = append(sboxOptions, libnetwork.OptionUseDefaultSandbox())
 		sboxOptions = append(sboxOptions, libnetwork.OptionOriginHostsPath("/etc/hosts"))
 		sboxOptions = append(sboxOptions, libnetwork.OptionOriginResolvConfPath("/etc/resolv.conf"))
+	} else if container.daemon.execDriver.SupportsHooks() {
+		// OptionUseExternalKey is mandatory for userns support.
+		// But optional for non-userns support
+		sboxOptions = append(sboxOptions, libnetwork.OptionUseExternalKey())
 	}
 
 	container.HostsPath, err = container.getRootResourcePath("hosts")
@@ -945,6 +950,20 @@ func (container *Container) initializeNetworking() error {
 	}
 
 	return container.buildHostnameFile()
+}
+
+// called from the libcontainer pre-start hook to set the network
+// namespace configuration linkage to the libnetwork "sandbox" entity
+func (container *Container) setNetworkNamespaceKey(pid int) error {
+	path := fmt.Sprintf("/proc/%d/ns/net", pid)
+	var sandbox libnetwork.Sandbox
+	search := libnetwork.SandboxContainerWalker(&sandbox, container.ID)
+	container.daemon.netController.WalkSandboxes(search)
+	if sandbox == nil {
+		return fmt.Errorf("no sandbox present for %s", container.ID)
+	}
+
+	return sandbox.SetKey(path)
 }
 
 func (container *Container) getIpcContainer() (*Container, error) {

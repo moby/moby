@@ -811,7 +811,7 @@ func (container *Container) exec(ExecConfig *ExecConfig) error {
 	container.Lock()
 	defer container.Unlock()
 
-	callback := func(processConfig *execdriver.ProcessConfig, pid int) {
+	callback := func(processConfig *execdriver.ProcessConfig, pid int) error {
 		if processConfig.Tty {
 			// The callback is called after the process Start()
 			// so we are in the parent process. In TTY mode, stdin/out/err is the PtySlave
@@ -821,6 +821,7 @@ func (container *Container) exec(ExecConfig *ExecConfig) error {
 			}
 		}
 		close(ExecConfig.waitStart)
+		return nil
 	}
 
 	// We use a callback here instead of a goroutine and an chan for
@@ -837,7 +838,7 @@ func (container *Container) exec(ExecConfig *ExecConfig) error {
 	return nil
 }
 
-func (container *Container) monitorExec(ExecConfig *ExecConfig, callback execdriver.StartCallback) error {
+func (container *Container) monitorExec(ExecConfig *ExecConfig, callback execdriver.DriverCallback) error {
 	var (
 		err      error
 		exitCode int

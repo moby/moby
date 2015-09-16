@@ -131,9 +131,9 @@ type execOutput struct {
 
 // Run implements the exec driver Driver interface,
 // it calls libcontainer APIs to run a container.
-func (d *Driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallback execdriver.StartCallback) (execdriver.ExitStatus, error) {
+func (d *Driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, hooks execdriver.Hooks) (execdriver.ExitStatus, error) {
 	// take the Command and populate the libcontainer.Config from it
-	container, err := d.createContainer(c)
+	container, err := d.createContainer(c, hooks)
 	if err != nil {
 		return execdriver.ExitStatus{ExitCode: -1}, err
 	}
@@ -165,14 +165,14 @@ func (d *Driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 		return execdriver.ExitStatus{ExitCode: -1}, err
 	}
 
-	if startCallback != nil {
+	if hooks.Start != nil {
 		pid, err := p.Pid()
 		if err != nil {
 			p.Signal(os.Kill)
 			p.Wait()
 			return execdriver.ExitStatus{ExitCode: -1}, err
 		}
-		startCallback(&c.ProcessConfig, pid)
+		hooks.Start(&c.ProcessConfig, pid)
 	}
 
 	oom := notifyOnOOM(cont)
@@ -476,4 +476,10 @@ func setupPipes(container *configs.Config, processConfig *execdriver.ProcessConf
 	}
 	processConfig.Terminal = term
 	return nil
+}
+
+// SupportsHooks implements the execdriver Driver interface.
+// The libcontainer/runC-based native execdriver does exploit the hook mechanism
+func (d *Driver) SupportsHooks() bool {
+	return true
 }

@@ -12,7 +12,7 @@ import (
 )
 
 // Exec implements the exec driver Driver interface.
-func (d *Driver) Exec(c *execdriver.Command, processConfig *execdriver.ProcessConfig, pipes *execdriver.Pipes, startCallback execdriver.StartCallback) (int, error) {
+func (d *Driver) Exec(c *execdriver.Command, processConfig *execdriver.ProcessConfig, pipes *execdriver.Pipes, hooks execdriver.Hooks) (int, error) {
 
 	var (
 		term     execdriver.Terminal
@@ -69,8 +69,8 @@ func (d *Driver) Exec(c *execdriver.Command, processConfig *execdriver.ProcessCo
 	processConfig.Terminal = term
 
 	// Invoke the start callback
-	if startCallback != nil {
-		startCallback(&c.ProcessConfig, int(pid))
+	if hooks.Start != nil {
+		hooks.Start(&c.ProcessConfig, int(pid))
 	}
 
 	if exitCode, err = hcsshim.WaitForProcessInComputeSystem(c.ID, pid); err != nil {

@@ -875,8 +875,14 @@ func (daemon *Daemon) unmount(container *Container) error {
 	return nil
 }
 
-func (daemon *Daemon) run(c *Container, pipes *execdriver.Pipes, startCallback execdriver.StartCallback) (execdriver.ExitStatus, error) {
-	return daemon.execDriver.Run(c.command, pipes, startCallback)
+func (daemon *Daemon) run(c *Container, pipes *execdriver.Pipes, startCallback execdriver.DriverCallback) (execdriver.ExitStatus, error) {
+	hooks := execdriver.Hooks{
+		Start: startCallback,
+	}
+	hooks.PreStart = append(hooks.PreStart, func(processConfig *execdriver.ProcessConfig, pid int) error {
+		return c.setNetworkNamespaceKey(pid)
+	})
+	return daemon.execDriver.Run(c.command, pipes, hooks)
 }
 
 func (daemon *Daemon) kill(c *Container, sig int) error {

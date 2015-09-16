@@ -138,6 +138,11 @@ func (container *Container) getSize() (int64, int64) {
 	return 0, 0
 }
 
+// setNetworkNamespaceKey is a no-op on Windows.
+func (container *Container) setNetworkNamespaceKey(pid int) error {
+	return nil
+}
+
 // allocateNetwork is a no-op on Windows.
 func (container *Container) allocateNetwork() error {
 	return nil
