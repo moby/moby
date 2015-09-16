@@ -9,7 +9,6 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"strings"
 	"sync"
 
 	"github.com/docker/docker/volume"
@@ -23,11 +22,8 @@ const (
 	volumesPathName    = "volumes"
 )
 
-var (
-	// ErrNotFound is the typed error returned when the requested volume name can't be found
-	ErrNotFound = errors.New("volume not found")
-	oldVfsDir   = filepath.Join("vfs", "dir")
-)
+// ErrNotFound is the typed error returned when the requested volume name can't be found
+var ErrNotFound = errors.New("volume not found")
 
 // New instantiates a new Root instance with the provided scope. Scope
 // is the base path that the Root instance uses to store its
@@ -171,22 +167,6 @@ func (r *Root) Get(name string) (volume.Volume, error) {
 		return nil, ErrNotFound
 	}
 	return v, nil
-}
-
-// scopedPath verifies that the path where the volume is located
-// is under Docker's root and the valid local paths.
-func (r *Root) scopedPath(realPath string) bool {
-	// Volumes path for Docker version >= 1.7
-	if strings.HasPrefix(realPath, filepath.Join(r.scope, volumesPathName)) && realPath != filepath.Join(r.scope, volumesPathName) {
-		return true
-	}
-
-	// Volumes path for Docker version < 1.7
-	if strings.HasPrefix(realPath, filepath.Join(r.scope, oldVfsDir)) {
-		return true
-	}
-
-	return false
 }
 
 // localVolume implements the Volume interface from the volume package and
