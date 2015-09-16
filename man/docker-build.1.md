@@ -53,22 +53,15 @@ cloned locally and then sent as the context.
    The default is *Dockerfile*.
 
 **--build-arg**=*variable*
-   Set value for build-time variable. This option allows you to specify
-values of the variables that are available for expansion/substitution in the
-Dockerfile instructions like ADD, COPY etc, without an explicit prior definition by
-the ENV instruction. The build-time variables are also passed as environment
-context for the command(s) that will be executed as part of RUN instruction
-of Dockerfile, if there is no explicit prior definition by the ENV instruction.
-Normally, these variables are not persisted in the resulting Docker image. This gives
-the flexibility to build an image by passing host specific environment variables (like
-http_proxy) that will be used on the RUN commands without affecting portability
-of the generated image.
-However, as with any variable, they can be persisted in the final image if they are used in an
-ENV instruction (e.g. ENV myName=$myName will save myName in the image).
+   name and value of a **buildarg**.
 
-Only the build-time variables that are defined using the ARG instruction of Dockerfile
-are allowed to be expanded or passed as environment to the RUN command. Read more about
-ARG instruction in Dockerfile reference.
+   For example, if you want to pass a value for `http_proxy`, use
+   `--bulid-arg=http_proxy="http://some.proxy.url"`
+
+   Users pass these values at build-time. Docker uses the `buildargs` as the
+   environment context for command(s) run via the Dockerfile's `RUN` instruction
+   or for variable expansion in other Dockerfile instructions. This is not meant
+   for passing secret values. [Read more about the buildargs instruction](/reference/builder/#arg)
 
 **--force-rm**=*true*|*false*
    Always remove intermediate containers, even after unsuccessful builds. The default is *false*.

@@ -1058,19 +1058,20 @@ useful interactions between `ARG` and `ENV` instructions:
 4 RUN echo $CONT_IMG_VER
 ```
 
-The command line passes the `--build-arg` and sets the `v2.0.1` value. And the `ARG
-CONT_IMG_VER` is defined on line 2 of the Dockerfile. On line 3, the `ENV`
-instruction of the same name resolves to `v2.0.1` as the build-time variable
-was passed from the command line and expanded here.
+Unlike an `ARG` instruction, `ENV` values are always persisted in the built
+image. Consider a docker build without the --build-arg flag:
+
+```
+$ docker build Dockerfile
+```
+
+Using this Dockerfile example, `CONT_IMG_VER` is still persisted in the image but
+its value would be `v1.0.0` as it is the default set in line 3 by the `ENV` instruction.
 
 The variable expansion technique in this example allows you to pass arguments
-from the command line and persist them in the final image by leveraging the `ENV`
-instruction. Variable expansion is only supported for the `Dockerfile` instructions
-described [here](#environment-replacement).
-
-Unlike an `ARG` instruction, `ENV` values are always persisted in the built image. If
-`docker build` were run without setting the `--build-arg` flag, then
-`CONT_IMG_VER` is still persisted in the image but its value would be `v1.0.0`.
+from the command line and persist them in the final image by leveraging the
+`ENV` instruction. Variable expansion is only supported for [a limited set of
+Dockerfile instructions.](#environment-replacement)
 
 Docker has a set of predefined `ARG` variables that you can use without a
 corresponding `ARG` instruction in the Dockerfile.
