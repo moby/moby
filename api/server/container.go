@@ -59,16 +59,6 @@ func (s *Server) getContainersStats(ctx context.Context, w http.ResponseWriter, 
 	}
 
 	stream := boolValueOrDefault(r, "stream", true)
-
-	// If the container is not running and requires no stream, return an empty stats.
-	container, err := s.daemon.Get(vars["name"])
-	if err != nil {
-		return err
-	}
-	if !container.IsRunning() && !stream {
-		return writeJSON(w, http.StatusOK, &types.Stats{})
-	}
-
 	var out io.Writer
 	if !stream {
 		w.Header().Set("Content-Type", "application/json")
@@ -90,7 +80,7 @@ func (s *Server) getContainersStats(ctx context.Context, w http.ResponseWriter, 
 		Version:   version,
 	}
 
-	return s.daemon.ContainerStats(container, config)
+	return s.daemon.ContainerStats(vars["name"], config)
 }
 
 func (s *Server) getContainersLogs(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
