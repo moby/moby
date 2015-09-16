@@ -227,6 +227,8 @@ func (s *volumeStore) Decrement(v volume.Volume) {
 
 // Count returns the usage count of the passed in volume
 func (s *volumeStore) Count(v volume.Volume) int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	vc, exists := s.vols[v.Name()]
 	if !exists {
 		return 0
@@ -236,6 +238,8 @@ func (s *volumeStore) Count(v volume.Volume) int {
 
 // List returns all the available volumes
 func (s *volumeStore) List() []volume.Volume {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	var ls []volume.Volume
 	for _, vc := range s.vols {
 		ls = append(ls, vc.Volume)

@@ -471,7 +471,7 @@ editing this setting.
 > container. In such conflicting situation, Docker created iptables rules will
 > take precedence and route to the container.
 
-The `--userland-proxy` parameter, false by default, provides a userland
+The `--userland-proxy` parameter, true by default, provides a userland
 implementation for inter-container and outside-to-container communication. When
 disabled, Docker uses both an additional `MASQUERADE` iptable rule and the
 `net.ipv4.route_localnet` kernel parameter which allow the host machine to
@@ -735,7 +735,7 @@ options are configurable at server startup:
 
  *  `--fixed-cidr=CIDR` — restrict the IP range from the `docker0` subnet,
     using the standard CIDR notation like `172.167.1.0/28`. This range must
-    be and IPv4 range for fixed IPs (ex: 10.20.0.0/16) and must be a subset
+    be an IPv4 range for fixed IPs (ex: 10.20.0.0/16) and must be a subset
     of the bridge IP range (`docker0` or set using `--bridge`). For example
     with `--fixed-cidr=192.168.1.0/25`, IPs for your containers will be chosen
     from the first half of `192.168.1.0/24` subnet.

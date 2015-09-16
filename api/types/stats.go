@@ -89,10 +89,25 @@ type NetworkStats struct {
 
 // Stats is Ultimate struct aggregating all types of stats of one container
 type Stats struct {
-	Read        time.Time    `json:"read"`
-	Network     NetworkStats `json:"network,omitempty"`
-	PreCPUStats CPUStats     `json:"precpu_stats,omitempty"`
-	CPUStats    CPUStats     `json:"cpu_stats,omitempty"`
-	MemoryStats MemoryStats  `json:"memory_stats,omitempty"`
-	BlkioStats  BlkioStats   `json:"blkio_stats,omitempty"`
+	Read        time.Time   `json:"read"`
+	PreCPUStats CPUStats    `json:"precpu_stats,omitempty"`
+	CPUStats    CPUStats    `json:"cpu_stats,omitempty"`
+	MemoryStats MemoryStats `json:"memory_stats,omitempty"`
+	BlkioStats  BlkioStats  `json:"blkio_stats,omitempty"`
+}
+
+// StatsJSONPre121 is a backcompatibility struct along with ContainerConfig
+type StatsJSONPre121 struct {
+	Stats
+
+	// Network is for fallback stats where API Version < 1.21
+	Network NetworkStats `json:"network,omitempty"`
+}
+
+// StatsJSON is newly used Networks
+type StatsJSON struct {
+	Stats
+
+	// Networks request version >=1.21
+	Networks map[string]NetworkStats `json:"networks,omitempty"`
 }

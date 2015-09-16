@@ -17,6 +17,7 @@ import (
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/signal"
+	"github.com/docker/docker/pkg/version"
 	"github.com/docker/docker/runconfig"
 )
 
@@ -81,10 +82,12 @@ func (s *Server) getContainersStats(ctx context.Context, w http.ResponseWriter, 
 		closeNotifier = notifier.CloseNotify()
 	}
 
+	version, _ := ctx.Value("api-version").(version.Version)
 	config := &daemon.ContainerStatsConfig{
 		Stream:    stream,
 		OutStream: out,
 		Stop:      closeNotifier,
+		Version:   version,
 	}
 
 	return s.daemon.ContainerStats(container, config)
