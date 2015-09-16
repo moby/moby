@@ -88,24 +88,18 @@ clean() {
 
 	echo -n 'collecting import graph, '
 	local IFS=$'\n'
-	packages+=( $(
-		for platform in "${dockerPlatforms[@]}"; do
-			export GOOS="${platform%/*}";
-			export GOARCH="${platform##*/}";
-			for buildTags in "${buildTagCombos[@]}"; do
-				go list -e -tags "$buildTags" -f '{{join .Deps "\n"}}' "${packages[@]}"
-			done
-		done | grep -E "^${PROJECT}" | grep -vE "^${PROJECT}/vendor" | sort -u
-	) )
 	local imports=( $(
 		for platform in "${dockerPlatforms[@]}"; do
 			export GOOS="${platform%/*}";
 			export GOARCH="${platform##*/}";
 			for buildTags in "${buildTagCombos[@]}"; do
-				go list -e -tags "$buildTags" -f '{{join .Deps "\n"}}' "${packages[@]}"
-				go list -e -tags "$buildTags" -f '{{join .TestImports "\n"}}' "${packages[@]}"
+				pkgs=( $(go list -e -tags "$buildTags" -f '{{join .Deps "\n"}}' "${packages[@]}" | grep -E "^${PROJECT}" | grep -vE "^${PROJECT}/vendor" | sort -u) )
+				pkgs+=( ${packages[@]} )
+				testImports=( $(go list -e -tags "$buildTags" -f '{{join .TestImports "\n"}}' "${pkgs[@]}" | sort -u) )
+				printf '%s\n' "${testImports[@]}"
+				go list -e -tags "$buildTags" -f '{{join .Deps "\n"}}' "${packages[@]} ${testImports[@]}"
 			done
-		done | grep -vE '^${PROJECT}' | sort -u
+		done | grep -vE "^${PROJECT}" | sort -u
 	) )
 	imports=( $(go list -e -f '{{if not .Standard}}{{.ImportPath}}{{end}}' "${imports[@]}") )
 	unset IFS
