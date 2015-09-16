@@ -2853,7 +2853,7 @@ func (s *DockerSuite) TestPtraceContainerProcsFromHost(c *check.C) {
 }
 
 func (s *DockerSuite) TestAppArmorDeniesPtrace(c *check.C) {
-	testRequires(c, SameHostDaemon, NativeExecDriver, Apparmor, DaemonIsLinux)
+	testRequires(c, SameHostDaemon, NativeExecDriver, Apparmor, DaemonIsLinux, NotGCCGO)
 
 	// Run through 'sh' so we are NOT pid 1. Pid 1 may be able to trace
 	// itself, but pid>1 should not be able to trace pid1.
