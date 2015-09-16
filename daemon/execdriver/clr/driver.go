@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"net"
 	"path"
 	"strconv"
 	"strings"
@@ -675,33 +676,34 @@ func (d *driver) setupNetwork(c *execdriver.Command) error {
 	var output []byte
 	var err error
 
-	if len(c.EndpointInfo) == 1 {
-		e := c.EndpointInfo[0]
-		bridgeName = e[netlabel.BridgeName].(string)
-		bridgeLinkName = e[netlabel.BridgeLinkName].(string)
+	for _, info := range c.EndpointInfo {
+		if info[netlabel.MacAddress].(net.HardwareAddr).String() == c.NetworkSettings.MacAddress {
+			bridgeName = info[netlabel.BridgeName].(string)
+			bridgeLinkName = info[netlabel.BridgeLinkName].(string)
+		}
 	}
 
 	// Strip existing veth
 	cmd := exec.Command("ip", "link", "del", bridgeLinkName)
 	if output, err = cmd.CombinedOutput(); err != nil {
-		logrus.Debugf("%s setupNetwork error: %s", driverName, output)
+		logrus.Debugf("%s setupNetwork error: %s %v, %s", driverName, cmd.Path, cmd.Args, output)
 		return err
 	}
 
 	cmd = exec.Command("ip", "tuntap", "add", "dev", ifname, "mode", "tap", "vnet_hdr")
 	if output, err = cmd.CombinedOutput(); err != nil {
-		logrus.Debugf("%s setupNetwork error: %s", driverName, output)
+		logrus.Debugf("%s setupNetwork error: %s %v, %s", driverName, cmd.Path, cmd.Args, output)
 		return err
 	}
 	cmd = exec.Command("ip", "link", "set", "dev", ifname, "master", bridgeName)
 	if output, err = cmd.CombinedOutput(); err != nil {
-		logrus.Debugf("%s setupNetwork error: %s", driverName, output)
+		logrus.Debugf("%s setupNetwork error: %s %v, %s", driverName, cmd.Path, cmd.Args, output)
 		return err
 	}
 
 	cmd = exec.Command("ip", "link", "set", "dev", ifname, "up")
 	if output, err = cmd.CombinedOutput(); err != nil {
-		logrus.Debugf("%s setupNetwork error: %s", driverName, output)
+		logrus.Debugf("%s setupNetwork error: %s %v, %s", driverName, cmd.Path, cmd.Args, output)
 		return err
 	}
 
