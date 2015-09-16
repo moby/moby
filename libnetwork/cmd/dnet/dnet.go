@@ -10,7 +10,7 @@ import (
 	"os"
 	"strings"
 
-	flag "github.com/docker/docker/pkg/mflag"
+	"github.com/codegangsta/cli"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/reexec"
 
@@ -18,7 +18,6 @@ import (
 	"github.com/docker/docker/pkg/term"
 	"github.com/docker/libnetwork"
 	"github.com/docker/libnetwork/api"
-	"github.com/docker/libnetwork/client"
 	"github.com/docker/libnetwork/config"
 	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/libnetwork/options"
@@ -36,6 +35,8 @@ const (
 	defaultCfgFile    = "/etc/default/libnetwork.toml"
 )
 
+var epConn *dnetConnection
+
 func main() {
 	if reexec.Init() {
 		return
@@ -44,7 +45,7 @@ func main() {
 	_, stdout, stderr := term.StdStreams()
 	logrus.SetOutput(stderr)
 
-	err := dnetCommand(stdout, stderr)
+	err := dnetApp(stdout, stderr)
 	if err != nil {
 		os.Exit(1)
 	}
@@ -89,61 +90,16 @@ func processConfig(cfg *config.Config) []config.Option {
 	return options
 }
 
-func dnetCommand(stdout, stderr io.Writer) error {
-	flag.Parse()
+func dnetApp(stdout, stderr io.Writer) error {
+	app := cli.NewApp()
 
-	if *flHelp {
-		flag.Usage()
-		return nil
-	}
+	app.Name = "dnet"
+	app.Usage = "A self-sufficient runtime for container networking."
+	app.Flags = dnetFlags
+	app.Before = processFlags
+	app.Commands = dnetCommands
 
-	if *flLogLevel != "" {
-		lvl, err := logrus.ParseLevel(*flLogLevel)
-		if err != nil {
-			fmt.Fprintf(stderr, "Unable to parse logging level: %s\n", *flLogLevel)
-			return err
-		}
-		logrus.SetLevel(lvl)
-	} else {
-		logrus.SetLevel(logrus.InfoLevel)
-	}
-
-	if *flDebug {
-		logrus.SetLevel(logrus.DebugLevel)
-	}
-
-	if *flHost == "" {
-		defaultHost := os.Getenv("DNET_HOST")
-		if defaultHost == "" {
-			// TODO : Add UDS support
-			defaultHost = fmt.Sprintf("tcp://%s:%d", DefaultHTTPHost, DefaultHTTPPort)
-		}
-		*flHost = defaultHost
-	}
-
-	dc, err := newDnetConnection(*flHost)
-	if err != nil {
-		if *flDaemon {
-			logrus.Error(err)
-		} else {
-			fmt.Fprint(stderr, err)
-		}
-		return err
-	}
-
-	if *flDaemon {
-		err := dc.dnetDaemon()
-		if err != nil {
-			logrus.Errorf("dnet Daemon exited with an error : %v", err)
-		}
-		return err
-	}
-
-	cli := client.NewNetworkCli(stdout, stderr, dc.httpCall)
-	if err := cli.Cmd("dnet", flag.Args()...); err != nil {
-		fmt.Fprintln(stderr, err)
-		return err
-	}
+	app.Run(os.Args)
 	return nil
 }
 
@@ -177,8 +133,8 @@ type dnetConnection struct {
 	addr string
 }
 
-func (d *dnetConnection) dnetDaemon() error {
-	cfg, err := parseConfig(*flCfgFile)
+func (d *dnetConnection) dnetDaemon(cfgFile string) error {
+	cfg, err := parseConfig(cfgFile)
 	var cOptions []config.Option
 	if err == nil {
 		cOptions = processConfig(cfg)

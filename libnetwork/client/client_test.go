@@ -47,8 +47,8 @@ func setupMockHTTPCallback() {
 	srvList = append(srvList, ep)
 	mockServiceListJSON, _ = json.Marshal(srvList)
 
-	var sbxList []sandboxResource
-	sb := sandboxResource{ID: mockSandboxID, ContainerID: mockContainerID}
+	var sbxList []SandboxResource
+	sb := SandboxResource{ID: mockSandboxID, ContainerID: mockContainerID}
 	mockSbJSON, _ = json.Marshal(sb)
 	sbxList = append(sbxList, sb)
 	mockSbListJSON, _ = json.Marshal(sbxList)

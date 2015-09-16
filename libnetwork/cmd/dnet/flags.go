@@ -4,48 +4,84 @@ import (
 	"fmt"
 	"os"
 
-	flag "github.com/docker/docker/pkg/mflag"
+	"github.com/Sirupsen/logrus"
+	"github.com/codegangsta/cli"
 )
-
-type command struct {
-	name        string
-	description string
-}
-
-type byName []command
 
 var (
-	flDaemon   = flag.Bool([]string{"d", "-daemon"}, false, "Enable daemon mode")
-	flHost     = flag.String([]string{"H", "-host"}, "", "Daemon socket to connect to")
-	flLogLevel = flag.String([]string{"l", "-log-level"}, "info", "Set the logging level")
-	flDebug    = flag.Bool([]string{"D", "-debug"}, false, "Enable debug mode")
-	flCfgFile  = flag.String([]string{"c", "-cfg-file"}, "/etc/default/libnetwork.toml", "Configuration file")
-	flHelp     = flag.Bool([]string{"h", "-help"}, false, "Print usage")
-
-	dnetCommands = []command{
-		{"network", "Network management commands"},
-		{"service", "Service management commands"},
+	dnetFlags = []cli.Flag{
+		cli.BoolFlag{
+			Name:  "d, -daemon",
+			Usage: "Enable daemon mode",
+		},
+		cli.StringFlag{
+			Name:  "H, -host",
+			Value: "",
+			Usage: "Daemon socket to connect to",
+		},
+		cli.StringFlag{
+			Name:  "l, -log-level",
+			Value: "info",
+			Usage: "Set the logging level",
+		},
+		cli.BoolFlag{
+			Name:  "D, -debug",
+			Usage: "Enable debug mode",
+		},
+		cli.StringFlag{
+			Name:  "c, -cfg-file",
+			Value: "/etc/default/libnetwork.toml",
+			Usage: "Configuration file",
+		},
 	}
 )
 
-func init() {
-	flag.Usage = func() {
-		fmt.Fprint(os.Stdout, "Usage: dnet [OPTIONS] COMMAND [arg...]\n\nA self-sufficient runtime for container networking.\n\nOptions:\n")
+func processFlags(c *cli.Context) error {
+	var err error
 
-		flag.CommandLine.SetOutput(os.Stdout)
-		flag.PrintDefaults()
-
-		help := "\nCommands:\n"
-
-		for _, cmd := range dnetCommands {
-			help += fmt.Sprintf("    %-10.10s%s\n", cmd.name, cmd.description)
+	if c.String("l") != "" {
+		lvl, err := logrus.ParseLevel(c.String("l"))
+		if err != nil {
+			fmt.Printf("Unable to parse logging level: %s\n", c.String("l"))
+			os.Exit(1)
 		}
-
-		help += "\nRun 'dnet COMMAND --help' for more information on a command."
-		fmt.Fprintf(os.Stdout, "%s\n", help)
+		logrus.SetLevel(lvl)
+	} else {
+		logrus.SetLevel(logrus.InfoLevel)
 	}
-}
 
-func printUsage() {
-	fmt.Println("Usage: dnet <OPTIONS> COMMAND [arg...]")
+	if c.Bool("D") {
+		logrus.SetLevel(logrus.DebugLevel)
+	}
+
+	hostFlag := c.String("H")
+	if hostFlag == "" {
+		defaultHost := os.Getenv("DNET_HOST")
+		if defaultHost == "" {
+			// TODO : Add UDS support
+			defaultHost = fmt.Sprintf("tcp://%s:%d", DefaultHTTPHost, DefaultHTTPPort)
+		}
+		hostFlag = defaultHost
+	}
+
+	epConn, err = newDnetConnection(hostFlag)
+	if err != nil {
+		if c.Bool("d") {
+			logrus.Error(err)
+		} else {
+			fmt.Println(err)
+		}
+		os.Exit(1)
+	}
+
+	if c.Bool("d") {
+		err = epConn.dnetDaemon(c.String("c"))
+		if err != nil {
+			logrus.Errorf("dnet Daemon exited with an error : %v", err)
+			os.Exit(1)
+		}
+		os.Exit(1)
+	}
+
+	return nil
 }
