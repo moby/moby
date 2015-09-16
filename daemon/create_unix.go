@@ -3,11 +3,11 @@
 package daemon
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 
+	derr "github.com/docker/docker/api/errors"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/runconfig"
@@ -41,7 +41,7 @@ func createContainerPlatformSpecificSettings(container *Container, config *runco
 
 		stat, err := os.Stat(path)
 		if err == nil && !stat.IsDir() {
-			return fmt.Errorf("cannot mount volume over existing file, file exists %s", path)
+			return derr.ErrorCodeMountOverFile.WithArgs(path)
 		}
 
 		volumeDriver := hostConfig.VolumeDriver

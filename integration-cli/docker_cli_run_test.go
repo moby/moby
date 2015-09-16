@@ -3000,7 +3000,7 @@ func (s *DockerSuite) TestRunContainerNetworkModeToSelf(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	out, _, err := dockerCmdWithError("run", "--name=me", "--net=container:me", "busybox", "true")
 	if err == nil || !strings.Contains(out, "cannot join own network") {
-		c.Fatalf("using container net mode to self should result in an error")
+		c.Fatalf("using container net mode to self should result in an error\nerr: %q\nout: %s", err, out)
 	}
 }
 

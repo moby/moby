@@ -10,6 +10,7 @@ import (
 	"sync"
 
 	"github.com/Sirupsen/logrus"
+	derr "github.com/docker/docker/api/errors"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/pkg/chrootarchive"
 	"github.com/docker/docker/pkg/system"
@@ -59,7 +60,7 @@ func (m *mountPoint) Setup() (string, error) {
 		return m.Source, nil
 	}
 
-	return "", fmt.Errorf("Unable to setup mount point, neither source nor volume defined")
+	return "", derr.ErrorCodeMountSetup
 }
 
 // hasResource checks whether the given absolute path for a container is in

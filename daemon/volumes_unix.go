@@ -3,7 +3,6 @@
 package daemon
 
 import (
-	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -11,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/Sirupsen/logrus"
+	derr "github.com/docker/docker/api/errors"
 	"github.com/docker/docker/daemon/execdriver"
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/runconfig"
@@ -72,18 +72,18 @@ func parseBindMount(spec, volumeDriver string) (*mountPoint, error) {
 		bind.Destination = arr[1]
 		mode := arr[2]
 		if !volume.ValidMountMode(mode) {
-			return nil, fmt.Errorf("invalid mode for volumes-from: %s", mode)
+			return nil, derr.ErrorCodeVolumeInvalidMode.WithArgs(mode)
 		}
 		bind.RW = volume.ReadWrite(mode)
 		// Mode field is used by SELinux to decide whether to apply label
 		bind.Mode = mode
 	default:
-		return nil, fmt.Errorf("Invalid volume specification: %s", spec)
+		return nil, derr.ErrorCodeVolumeInvalid.WithArgs(spec)
 	}
 
 	//validate the volumes destination path
 	if !filepath.IsAbs(bind.Destination) {
-		return nil, fmt.Errorf("Invalid volume destination path: %s mount path must be absolute.", bind.Destination)
+		return nil, derr.ErrorCodeVolumeAbs.WithArgs(bind.Destination)
 	}
 
 	name, source, err := parseVolumeSource(arr[0])
@@ -263,7 +263,7 @@ func (daemon *Daemon) verifyVolumesInfo(container *Container) error {
 // parseVolumesFrom ensure that the supplied volumes-from is valid.
 func parseVolumesFrom(spec string) (string, string, error) {
 	if len(spec) == 0 {
-		return "", "", fmt.Errorf("malformed volumes-from specification: %s", spec)
+		return "", "", derr.ErrorCodeVolumeFromBlank.WithArgs(spec)
 	}
 
 	specParts := strings.SplitN(spec, ":", 2)
@@ -273,7 +273,7 @@ func parseVolumesFrom(spec string) (string, string, error) {
 	if len(specParts) == 2 {
 		mode = specParts[1]
 		if !volume.ValidMountMode(mode) {
-			return "", "", fmt.Errorf("invalid mode for volumes-from: %s", mode)
+			return "", "", derr.ErrorCodeVolumeMode.WithArgs(mode)
 		}
 	}
 	return id, mode, nil
@@ -336,7 +336,7 @@ func (daemon *Daemon) registerMountPoints(container *Container, hostConfig *runc
 		}
 
 		if binds[bind.Destination] {
-			return fmt.Errorf("Duplicate bind mount %s", bind.Destination)
+			return derr.ErrorCodeVolumeDup.WithArgs(bind.Destination)
 		}
 
 		if len(bind.Name) > 0 && len(bind.Driver) > 0 {
