@@ -42,6 +42,21 @@
 # options immediately following their corresponding long form.
 # This order should be applied to lists, alternatives and code blocks.
 
+__docker_aliases_list() {
+	docker ${config:+--config "$config"} alias -l
+}
+
+__docker_aliases() {
+	local IFS=$'\n'
+	local aliases=( $(__docker_aliases_list) )
+	unset IFS
+	COMPREPLY=( $(compgen -W "${aliases[*]}" -- "$cur") )
+}
+
+__docker_aliased_command() {
+	docker ${config:+--config "$config"} alias -e $1 2>/dev/null
+}
+
 __docker_q() {
 	docker ${host:+-H "$host"} ${config:+--config "$config"} 2>/dev/null "$@"
 }
@@ -402,6 +417,34 @@ _docker_docker() {
 			local counter=$( __docker_pos_first_nonflag $(__docker_to_extglob "$global_options_with_args") )
 			if [ $cword -eq $counter ]; then
 				COMPREPLY=( $( compgen -W "${commands[*]} help" -- "$cur" ) )
+			fi
+			;;
+	esac
+}
+
+_docker_alias() {
+	case "$prev" in
+		--delete|-d)
+			__docker_aliases
+			return
+			;;
+		--expand|-e)
+			__docker_aliases
+			return
+			;;
+		--list|-)
+				return
+			;;
+	esac
+
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--help --delete --expand --list" -- "$cur" ) )
+			;;
+		*)
+			local counter=$( __docker_pos_first_nonflag '-d|--delete|-e|--expand' )
+			if [ $cword -eq $counter ]; then
+				__docker_aliases	
 			fi
 			;;
 	esac
@@ -1561,6 +1604,7 @@ _docker() {
 	shopt -s extglob
 
 	local commands=(
+		alias
 		attach
 		build
 		commit
@@ -1602,6 +1646,7 @@ _docker() {
 		version
 		volume
 		wait
+		$(__docker_aliases_list)
 	)
 
 	# These options are valid as global options for all client commands
@@ -1658,7 +1703,21 @@ _docker() {
 	done
 
 	local completions_func=_docker_${command}
-	declare -F $completions_func >/dev/null && $completions_func
+	if [ -n "$(type -t ${completions_func})" ] && [ "$(type -t ${completions_func})" = function ]; then
+		declare -F $completions_func >/dev/null && $completions_func
+	else
+		local expansion=( $(__docker_aliased_command "$command") )
+		case "${expansion[0]}" in
+			\!*)
+				__docker_containers_all
+				;;
+			*)
+				completions_func=_docker_${expansion[0]}
+				declare -F $completions_func >/dev/null && $completions_func
+				;;
+		esac
+		
+	fi
 
 	eval "$previous_extglob_setting"
 	return 0

@@ -16,6 +16,7 @@ import (
 	"github.com/docker/docker/pkg/sockets"
 	"github.com/docker/docker/pkg/term"
 	"github.com/docker/docker/pkg/tlsconfig"
+	"os/exec"
 )
 
 // DockerCli represents the docker command line client.
@@ -115,7 +116,7 @@ func NewDockerCli(in io.ReadCloser, out, err io.Writer, clientFlags *cli.ClientF
 			}
 			hosts = []string{defaultHost}
 		case 1:
-			// only accept one host to talk to
+		// only accept one host to talk to
 		default:
 			return errors.New("Please specify only one -H")
 		}
@@ -154,14 +155,58 @@ func NewDockerCli(in io.ReadCloser, out, err io.Writer, clientFlags *cli.ClientF
 		}
 		sockets.ConfigureTCPTransport(cli.transport, cli.proto, cli.addr)
 
-		configFile, e := cliconfig.Load(cliconfig.ConfigDir())
-		if e != nil {
-			fmt.Fprintf(cli.err, "WARNING: Error loading config file:%v\n", e)
+		// probably unnecessary since ResolveAlias is always called
+		if cli.configFile == nil {
+			cli.initConfig()
 		}
-		cli.configFile = configFile
 
 		return nil
 	}
 
 	return cli
+}
+
+// initConfig initialize the config file
+func (dockerCli *DockerCli) initConfig() {
+	configFile, e := cliconfig.Load(cliconfig.ConfigDir())
+	if e != nil {
+		fmt.Fprintf(dockerCli.err, "WARNING: Error loading config file:%v\n", e)
+	}
+	dockerCli.configFile = configFile
+}
+
+func (dockerCli *DockerCli) ResolveAlias(aliasName string) (alias cli.Alias, aliasResolved bool) {
+	dockerCli.initConfig()
+	if aliasCmd, exists := dockerCli.configFile.Aliases[aliasName]; exists {
+		if IsComplexAlias(aliasCmd[0]) {
+			// if cmd starts with a ! it's a complex alias
+			return &cli.ComplexAlias{SimpleAlias: cli.SimpleAlias{Name: aliasName, Cmd: aliasCmd}, CmdExecutor: dockerCli.ComplexAliasExecutor}, true
+		} else {
+			//simple case
+			return &cli.SimpleAlias{Name: aliasName, Cmd: aliasCmd}, true
+		}
+	}
+	return nil, false
+}
+
+func (cli *DockerCli) ComplexAliasExecutor(args []string) error {
+	// strip leading '!'
+	args[0] = args[0][1:]
+	cmdString := strings.Join(args, " ")
+
+	cmd := exec.Command("sh", "-c", cmdString)
+
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	cmd.Stdin = os.Stdin
+
+	if err := cmd.Start(); err != nil {
+		return err
+	}
+
+	if err := cmd.Wait(); err != nil {
+		return err
+	}
+
+	return nil
 }
