@@ -10,7 +10,7 @@ file. The errors for each package are defined here instead of within
 their respective package structure so that Docker CLI code that may need
 to import these error definition files will not need to know or understand
 the engine's package/directory structure. In other words, all they should
-need to do is import `.../docker/api/errors` and they will automatically
+need to do is import `.../docker/errors` and they will automatically
 pick up all Docker engine defined errors.  This also gives the engine
 developers the freedom to change the engine packaging structure (e.g. to
 CRUD packages) without worrying about breaking existing clients.
@@ -47,7 +47,7 @@ When processing an errcode error, if you are looking for a particular
 error then you can do something like:
 
 ```
-import derr "github.com/docker/docker/api/errors"
+import derr "github.com/docker/docker/errors"
 
 ...
 

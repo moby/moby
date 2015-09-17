@@ -15,10 +15,10 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
-	derr "github.com/docker/docker/api/errors"
 	"github.com/docker/docker/daemon/execdriver"
 	"github.com/docker/docker/daemon/links"
 	"github.com/docker/docker/daemon/network"
+	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/pkg/directory"
 	"github.com/docker/docker/pkg/nat"
 	"github.com/docker/docker/pkg/stringid"

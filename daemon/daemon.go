@@ -20,11 +20,11 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api"
-	derr "github.com/docker/docker/api/errors"
 	"github.com/docker/docker/daemon/events"
 	"github.com/docker/docker/daemon/execdriver"
 	"github.com/docker/docker/daemon/execdriver/execdrivers"
 	"github.com/docker/docker/daemon/graphdriver"
+	derr "github.com/docker/docker/errors"
 	// register vfs
 	_ "github.com/docker/docker/daemon/graphdriver/vfs"
 	"github.com/docker/docker/daemon/logger"

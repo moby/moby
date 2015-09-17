@@ -10,8 +10,8 @@ import (
 	"strings"
 
 	"github.com/Sirupsen/logrus"
-	derr "github.com/docker/docker/api/errors"
 	"github.com/docker/docker/daemon/execdriver"
+	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/volume"

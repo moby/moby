@@ -218,7 +218,7 @@ func httpError(w http.ResponseWriter, err error) {
 	case errcode.Error:
 		// For reference, if you're looking for a particular error
 		// then you can do something like :
-		//   import ( derr "github.com/docker/docker/api/errors" )
+		//   import ( derr "github.com/docker/docker/errors" )
 		//   if daError.ErrorCode() == derr.ErrorCodeNoSuchContainer { ... }
 
 		daError, _ := err.(errcode.Error)

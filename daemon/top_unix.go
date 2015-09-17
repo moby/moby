@@ -7,8 +7,8 @@ import (
 	"strconv"
 	"strings"
 
-	derr "github.com/docker/docker/api/errors"
 	"github.com/docker/docker/api/types"
+	derr "github.com/docker/docker/errors"
 )
 
 // ContainerTop lists the processes running inside of the given
