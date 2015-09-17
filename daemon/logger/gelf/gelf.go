@@ -14,6 +14,7 @@ import (
 	"github.com/Graylog2/go-gelf/gelf"
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/logger"
+	"github.com/docker/docker/daemon/logger/loggerutils"
 	"github.com/docker/docker/pkg/urlutil"
 )
 
@@ -64,6 +65,12 @@ func New(ctx logger.Context) (logger.Logger, error) {
 	// remove trailing slash from container name
 	containerName := bytes.TrimLeft([]byte(ctx.ContainerName), "/")
 
+	// parse log tag
+	tag, err := loggerutils.ParseLogTag(ctx, "")
+	if err != nil {
+		return nil, err
+	}
+
 	fields := gelfFields{
 		hostname:      hostname,
 		containerID:   ctx.ContainerID,
@@ -71,7 +78,7 @@ func New(ctx logger.Context) (logger.Logger, error) {
 		imageID:       ctx.ContainerImageID,
 		imageName:     ctx.ContainerImageName,
 		command:       ctx.Command(),
-		tag:           ctx.Config["gelf-tag"],
+		tag:           tag,
 		created:       ctx.ContainerCreated,
 	}
 
@@ -135,6 +142,7 @@ func ValidateLogOpt(cfg map[string]string) error {
 		switch key {
 		case "gelf-address":
 		case "gelf-tag":
+		case "tag":
 		default:
 			return fmt.Errorf("unknown log opt '%s' for gelf log driver", key)
 		}

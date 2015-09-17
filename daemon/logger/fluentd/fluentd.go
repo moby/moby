@@ -3,16 +3,15 @@
 package fluentd
 
 import (
-	"bytes"
 	"fmt"
 	"math"
 	"net"
 	"strconv"
 	"strings"
-	"text/template"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/logger"
+	"github.com/docker/docker/daemon/logger/loggerutils"
 	"github.com/fluent/fluent-logger-golang/fluent"
 )
 
@@ -21,12 +20,6 @@ type fluentd struct {
 	containerID   string
 	containerName string
 	writer        *fluent.Fluent
-}
-
-type receiver struct {
-	ID     string
-	FullID string
-	Name   string
 }
 
 const (
@@ -48,9 +41,13 @@ func init() {
 func parseConfig(ctx logger.Context) (string, int, string, error) {
 	host := defaultHostName
 	port := defaultPort
-	tag := "docker." + ctx.ContainerID[:12]
 
 	config := ctx.Config
+
+	tag, err := loggerutils.ParseLogTag(ctx, "docker.{{.ID}}")
+	if err != nil {
+		return "", 0, "", err
+	}
 
 	if address := config["fluentd-address"]; address != "" {
 		if h, p, err := net.SplitHostPort(address); err != nil {
@@ -66,23 +63,6 @@ func parseConfig(ctx logger.Context) (string, int, string, error) {
 			host = h
 			port = portnum
 		}
-	}
-
-	if config["fluentd-tag"] != "" {
-		receiver := &receiver{
-			ID:     ctx.ContainerID[:12],
-			FullID: ctx.ContainerID,
-			Name:   ctx.ContainerName,
-		}
-		tmpl, err := template.New("tag").Parse(config["fluentd-tag"])
-		if err != nil {
-			return "", 0, "", err
-		}
-		buf := new(bytes.Buffer)
-		if err := tmpl.Execute(buf, receiver); err != nil {
-			return "", 0, "", err
-		}
-		tag = buf.String()
 	}
 
 	return host, port, tag, nil
@@ -130,6 +110,7 @@ func ValidateLogOpt(cfg map[string]string) error {
 		switch key {
 		case "fluentd-address":
 		case "fluentd-tag":
+		case "tag":
 		default:
 			return fmt.Errorf("unknown log opt '%s' for fluentd log driver", key)
 		}

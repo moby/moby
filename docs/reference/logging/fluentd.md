@@ -5,6 +5,7 @@ description = "Describes how to use the fluentd logging driver."
 keywords = ["Fluentd, docker, logging, driver"]
 [menu.main]
 parent = "smn_logging"
+weight=2
 +++
 <![end-metadata]-->
 
@@ -32,7 +33,7 @@ The `docker logs` command is not available for this logging driver.
 Some options are supported by specifying `--log-opt` as many times as needed:
 
  - `fluentd-address`: specify `host:port` to connect `localhost:24224`
- - `fluentd-tag`: specify tag for fluentd message, which interpret some markup, ex `{{.ID}}`, `{{.FullID}}` or `{{.Name}}` `docker.{{.ID}}`
+ - `tag`: specify tag for fluentd message, which interpret some markup, ex `{{.ID}}`, `{{.FullID}}` or `{{.Name}}` `docker.{{.ID}}`
 
 
 Configure the default logging driver by passing the
@@ -65,24 +66,12 @@ By default, the logging driver connects to `localhost:24224`. Supply the
 
     docker run --log-driver=fluentd --log-opt fluentd-address=myhost.local:24224
 
-### fluentd-tag
+### tag
 
-Every Fluentd's event has a tag that indicates where the log comes from. By
-default, the driver uses the `docker.{{.ID}}` tag.  Use the `fluentd-tag` option
-to change this behavior.
+By default, Docker uses the first 12 characters of the container ID to tag log messages.
+Refer to the [log tag option documentation](/reference/logging/log_tags/) for customizing
+the log tag format.
 
-When specifying a `fluentd-tag` value, you can use the following markup tags:
-
- - `{{.ID}}`: short container id (12 characters)
- - `{{.FullID}}`: full container id
- - `{{.Name}}`: container name
-
-## Note regarding container names
-
-At startup time, the system sets the `container_name` field and `{{.Name}}`
-in the tags to their values at startup. If you use `docker rename` to rename a
-container, the new name is not be reflected in  `fluentd` messages. Instead,
-these messages continue to use the original container name.
 
 ## Fluentd daemon management with Docker
 
