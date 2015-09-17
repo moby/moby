@@ -56,7 +56,7 @@ change an existing one.
 
 Before submitting any code change, you should run the entire Docker test suite.
 The `Makefile` contains a target for the entire test suite. The target's name
-is simply `test`. The make file contains several targets for testing:
+is simply `test`. The `Makefile` contains several targets for testing:
 
 <style type="text/css">
 .monospaced {font-family: Monaco, Consolas, "Lucida Console", monospace !important;}
