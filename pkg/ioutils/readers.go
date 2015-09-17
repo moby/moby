@@ -5,11 +5,7 @@ import (
 	"encoding/hex"
 	"io"
 	"sync"
-
-	"github.com/docker/docker/pkg/random"
 )
-
-var rndSrc = random.NewSource()
 
 type readCloserWrapper struct {
 	io.Reader
