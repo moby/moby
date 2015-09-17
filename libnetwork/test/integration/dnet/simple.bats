@@ -5,7 +5,7 @@ load helpers
 function setup() {
     if [ "${BATS_TEST_NUMBER}" -eq 1 ]; then
 	start_consul
-	start_dnet 1 simple multihost overlay
+	start_dnet 1 simple multihost test
     fi
 }
 
@@ -26,12 +26,13 @@ function teardown() {
     driver=$(echo ${lines[1]} | cut -d" " -f3)
     echo ${name} ${driver}
     [ "$name" = "multihost" ]
-    [ "$driver" = "overlay" ]
+    [ "$driver" = "test" ]
 }
 
 @test "Test network create" {
     echo $(docker ps)
-    run dnet_cmd $(inst_id2port 1) network create -d overlay mh1
+    run dnet_cmd $(inst_id2port 1) network create -d test mh1
+    echo ${output}
     [ "$status" -eq 0 ]
     line=$(dnet_cmd $(inst_id2port 1) network ls | grep mh1)
     echo ${line}
@@ -39,13 +40,13 @@ function teardown() {
     driver=$(echo ${line} | cut -d" " -f3)
     echo ${name} ${driver}
     [ "$name" = "mh1" ]
-    [ "$driver" = "overlay" ]
+    [ "$driver" = "test" ]
     dnet_cmd $(inst_id2port 1) network rm mh1
 }
 
 @test "Test network delete with id" {
     echo $(docker ps)
-    run dnet_cmd $(inst_id2port 1) network create -d overlay mh1
+    run dnet_cmd $(inst_id2port 1) network create -d test mh1
     [ "$status" -eq 0 ]
     echo ${output}
     dnet_cmd $(inst_id2port 1) network rm ${output}
@@ -82,7 +83,6 @@ function teardown() {
 }
 
 @test "Test service attach" {
-    skip_for_circleci
     echo $(docker ps)
     dnet_cmd $(inst_id2port 1) service publish svc1.multihost
     dnet_cmd $(inst_id2port 1) container create container_1
