@@ -7,7 +7,9 @@ import (
 	"time"
 
 	// TODO Windows: Factor out ulimit
+	"github.com/docker/docker/daemon/network"
 	"github.com/docker/docker/pkg/ulimit"
+	"github.com/docker/docker/runconfig"
 	"github.com/opencontainers/runc/libcontainer"
 	"github.com/opencontainers/runc/libcontainer/configs"
 )
@@ -150,31 +152,34 @@ type ProcessConfig struct {
 //
 // Process wrapps an os/exec.Cmd to add more metadata
 type Command struct {
-	ID                 string            `json:"id"`
-	Rootfs             string            `json:"rootfs"` // root fs of the container
-	ReadonlyRootfs     bool              `json:"readonly_rootfs"`
-	InitPath           string            `json:"initpath"` // dockerinit
-	WorkingDir         string            `json:"working_dir"`
-	ConfigPath         string            `json:"config_path"` // this should be able to be removed when the lxc template is moved into the driver
-	Network            *Network          `json:"network"`
-	Ipc                *Ipc              `json:"ipc"`
-	Pid                *Pid              `json:"pid"`
-	UTS                *UTS              `json:"uts"`
-	Resources          *Resources        `json:"resources"`
-	Mounts             []Mount           `json:"mounts"`
-	AllowedDevices     []*configs.Device `json:"allowed_devices"`
-	AutoCreatedDevices []*configs.Device `json:"autocreated_devices"`
-	CapAdd             []string          `json:"cap_add"`
-	CapDrop            []string          `json:"cap_drop"`
-	GroupAdd           []string          `json:"group_add"`
-	ContainerPid       int               `json:"container_pid"`  // the pid for the process inside a container
-	ProcessConfig      ProcessConfig     `json:"process_config"` // Describes the init process of the container.
-	ProcessLabel       string            `json:"process_label"`
-	MountLabel         string            `json:"mount_label"`
-	LxcConfig          []string          `json:"lxc_config"`
-	AppArmorProfile    string            `json:"apparmor_profile"`
-	CgroupParent       string            `json:"cgroup_parent"` // The parent cgroup for this command.
-	FirstStart         bool              `json:"first_start"`
-	LayerPaths         []string          `json:"layer_paths"` // Windows needs to know the layer paths and folder for a command
-	LayerFolder        string            `json:"layer_folder"`
+	ID                 string                   `json:"id"`
+	Rootfs             string                   `json:"rootfs"` // root fs of the container
+	ReadonlyRootfs     bool                     `json:"readonly_rootfs"`
+	InitPath           string                   `json:"initpath"` // dockerinit
+	WorkingDir         string                   `json:"working_dir"`
+	ConfigPath         string                   `json:"config_path"` // this should be able to be removed when the lxc template is moved into the driver
+	Network            *Network                 `json:"network"`
+	Ipc                *Ipc                     `json:"ipc"`
+	Pid                *Pid                     `json:"pid"`
+	UTS                *UTS                     `json:"uts"`
+	Resources          *Resources               `json:"resources"`
+	Mounts             []Mount                  `json:"mounts"`
+	AllowedDevices     []*configs.Device        `json:"allowed_devices"`
+	AutoCreatedDevices []*configs.Device        `json:"autocreated_devices"`
+	CapAdd             []string                 `json:"cap_add"`
+	CapDrop            []string                 `json:"cap_drop"`
+	GroupAdd           []string                 `json:"group_add"`
+	ContainerPid       int                      `json:"container_pid"`  // the pid for the process inside a container
+	ProcessConfig      ProcessConfig            `json:"process_config"` // Describes the init process of the container.
+	ProcessLabel       string                   `json:"process_label"`
+	MountLabel         string                   `json:"mount_label"`
+	LxcConfig          []string                 `json:"lxc_config"`
+	AppArmorProfile    string                   `json:"apparmor_profile"`
+	CgroupParent       string                   `json:"cgroup_parent"` // The parent cgroup for this command.
+	FirstStart         bool                     `json:"first_start"`
+	LayerPaths         []string                 `json:"layer_paths"` // Windows needs to know the layer paths and folder for a command
+	LayerFolder        string                   `json:"layer_folder"`
+	NetworkSettings    *network.Settings        `json:"network_settings"`
+	EndpointInfo       []map[string]interface{} `json:"endpoint_info"`
+	HostConfig         *runconfig.HostConfig
 }
