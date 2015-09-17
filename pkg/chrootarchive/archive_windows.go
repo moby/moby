@@ -4,6 +4,7 @@ import (
 	"io"
 
 	"github.com/docker/docker/pkg/archive"
+	"github.com/docker/docker/pkg/longpath"
 )
 
 // chroot is not supported by Windows
@@ -17,5 +18,5 @@ func invokeUnpack(decompressedArchive io.ReadCloser,
 	// Windows is different to Linux here because Windows does not support
 	// chroot. Hence there is no point sandboxing a chrooted process to
 	// do the unpack. We call inline instead within the daemon process.
-	return archive.Unpack(decompressedArchive, dest, options)
+	return archive.Unpack(decompressedArchive, longpath.AddPrefix(dest), options)
 }

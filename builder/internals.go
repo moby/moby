@@ -34,6 +34,7 @@ import (
 	"github.com/docker/docker/pkg/progressreader"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/pkg/stringutils"
+	"github.com/docker/docker/pkg/symlink"
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/pkg/tarsum"
 	"github.com/docker/docker/pkg/urlutil"
@@ -42,7 +43,7 @@ import (
 )
 
 func (b *builder) readContext(context io.Reader) (err error) {
-	tmpdirPath, err := ioutil.TempDir("", "docker-build")
+	tmpdirPath, err := getTempDir("", "docker-build")
 	if err != nil {
 		return
 	}
@@ -305,7 +306,7 @@ func calcCopyInfo(b *builder, cmdName string, cInfos *[]*copyInfo, origPath stri
 		}
 
 		// Create a tmp dir
-		tmpDirName, err := ioutil.TempDir(b.contextPath, "docker-remote")
+		tmpDirName, err := getTempDir(b.contextPath, "docker-remote")
 		if err != nil {
 			return err
 		}
@@ -684,14 +685,14 @@ func (b *builder) run(c *daemon.Container) error {
 
 func (b *builder) checkPathForAddition(orig string) error {
 	origPath := filepath.Join(b.contextPath, orig)
-	origPath, err := filepath.EvalSymlinks(origPath)
+	origPath, err := symlink.EvalSymlinks(origPath)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return fmt.Errorf("%s: no such file or directory", orig)
 		}
 		return err
 	}
-	contextPath, err := filepath.EvalSymlinks(b.contextPath)
+	contextPath, err := symlink.EvalSymlinks(b.contextPath)
 	if err != nil {
 		return err
 	}
