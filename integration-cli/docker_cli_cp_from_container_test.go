@@ -25,7 +25,7 @@ import (
 func (s *DockerSuite) TestCpFromErrSrcNotExists(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	cID := makeTestContainer(c, testContainerOptions{})
-	defer deleteContainer(cID)
+	defer deleteContainer(s, cID)
 
 	tmpDir := getTestDir(c, "test-cp-from-err-src-not-exists")
 	defer os.RemoveAll(tmpDir)
@@ -45,7 +45,7 @@ func (s *DockerSuite) TestCpFromErrSrcNotExists(c *check.C) {
 func (s *DockerSuite) TestCpFromErrSrcNotDir(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	cID := makeTestContainer(c, testContainerOptions{addContent: true})
-	defer deleteContainer(cID)
+	defer deleteContainer(s, cID)
 
 	tmpDir := getTestDir(c, "test-cp-from-err-src-not-dir")
 	defer os.RemoveAll(tmpDir)
@@ -65,7 +65,7 @@ func (s *DockerSuite) TestCpFromErrSrcNotDir(c *check.C) {
 func (s *DockerSuite) TestCpFromErrDstParentNotExists(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	cID := makeTestContainer(c, testContainerOptions{addContent: true})
-	defer deleteContainer(cID)
+	defer deleteContainer(s, cID)
 
 	tmpDir := getTestDir(c, "test-cp-from-err-dst-parent-not-exists")
 	defer os.RemoveAll(tmpDir)
@@ -102,7 +102,7 @@ func (s *DockerSuite) TestCpFromErrDstParentNotExists(c *check.C) {
 func (s *DockerSuite) TestCpFromErrDstNotDir(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	cID := makeTestContainer(c, testContainerOptions{addContent: true})
-	defer deleteContainer(cID)
+	defer deleteContainer(s, cID)
 
 	tmpDir := getTestDir(c, "test-cp-from-err-dst-not-dir")
 	defer os.RemoveAll(tmpDir)
@@ -139,7 +139,7 @@ func (s *DockerSuite) TestCpFromErrDstNotDir(c *check.C) {
 func (s *DockerSuite) TestCpFromSymlinkDestination(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	cID := makeTestContainer(c, testContainerOptions{addContent: true})
-	defer deleteContainer(cID)
+	defer deleteContainer(s, cID)
 
 	tmpDir := getTestDir(c, "test-cp-from-err-dst-not-dir")
 	defer os.RemoveAll(tmpDir)
@@ -267,7 +267,7 @@ func (s *DockerSuite) TestCpFromCaseA(c *check.C) {
 	cID := makeTestContainer(c, testContainerOptions{
 		addContent: true, workDir: "/root",
 	})
-	defer deleteContainer(cID)
+	defer deleteContainer(s, cID)
 
 	tmpDir := getTestDir(c, "test-cp-from-case-a")
 	defer os.RemoveAll(tmpDir)
@@ -290,7 +290,7 @@ func (s *DockerSuite) TestCpFromCaseA(c *check.C) {
 func (s *DockerSuite) TestCpFromCaseB(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	cID := makeTestContainer(c, testContainerOptions{addContent: true})
-	defer deleteContainer(cID)
+	defer deleteContainer(s, cID)
 
 	tmpDir := getTestDir(c, "test-cp-from-case-b")
 	defer os.RemoveAll(tmpDir)
@@ -315,7 +315,7 @@ func (s *DockerSuite) TestCpFromCaseC(c *check.C) {
 	cID := makeTestContainer(c, testContainerOptions{
 		addContent: true, workDir: "/root",
 	})
-	defer deleteContainer(cID)
+	defer deleteContainer(s, cID)
 
 	tmpDir := getTestDir(c, "test-cp-from-case-c")
 	defer os.RemoveAll(tmpDir)
@@ -345,7 +345,7 @@ func (s *DockerSuite) TestCpFromCaseC(c *check.C) {
 func (s *DockerSuite) TestCpFromCaseD(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	cID := makeTestContainer(c, testContainerOptions{addContent: true})
-	defer deleteContainer(cID)
+	defer deleteContainer(s, cID)
 
 	tmpDir := getTestDir(c, "test-cp-from-case-d")
 	defer os.RemoveAll(tmpDir)
@@ -397,7 +397,7 @@ func (s *DockerSuite) TestCpFromCaseD(c *check.C) {
 func (s *DockerSuite) TestCpFromCaseE(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	cID := makeTestContainer(c, testContainerOptions{addContent: true})
-	defer deleteContainer(cID)
+	defer deleteContainer(s, cID)
 
 	tmpDir := getTestDir(c, "test-cp-from-case-e")
 	defer os.RemoveAll(tmpDir)
@@ -438,7 +438,7 @@ func (s *DockerSuite) TestCpFromCaseF(c *check.C) {
 	cID := makeTestContainer(c, testContainerOptions{
 		addContent: true, workDir: "/root",
 	})
-	defer deleteContainer(cID)
+	defer deleteContainer(s, cID)
 
 	tmpDir := getTestDir(c, "test-cp-from-case-f")
 	defer os.RemoveAll(tmpDir)
@@ -466,7 +466,7 @@ func (s *DockerSuite) TestCpFromCaseG(c *check.C) {
 	cID := makeTestContainer(c, testContainerOptions{
 		addContent: true, workDir: "/root",
 	})
-	defer deleteContainer(cID)
+	defer deleteContainer(s, cID)
 
 	tmpDir := getTestDir(c, "test-cp-from-case-g")
 	defer os.RemoveAll(tmpDir)
@@ -514,7 +514,7 @@ func (s *DockerSuite) TestCpFromCaseG(c *check.C) {
 func (s *DockerSuite) TestCpFromCaseH(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	cID := makeTestContainer(c, testContainerOptions{addContent: true})
-	defer deleteContainer(cID)
+	defer deleteContainer(s, cID)
 
 	tmpDir := getTestDir(c, "test-cp-from-case-h")
 	defer os.RemoveAll(tmpDir)
@@ -556,7 +556,7 @@ func (s *DockerSuite) TestCpFromCaseI(c *check.C) {
 	cID := makeTestContainer(c, testContainerOptions{
 		addContent: true, workDir: "/root",
 	})
-	defer deleteContainer(cID)
+	defer deleteContainer(s, cID)
 
 	tmpDir := getTestDir(c, "test-cp-from-case-i")
 	defer os.RemoveAll(tmpDir)
@@ -585,7 +585,7 @@ func (s *DockerSuite) TestCpFromCaseJ(c *check.C) {
 	cID := makeTestContainer(c, testContainerOptions{
 		addContent: true, workDir: "/root",
 	})
-	defer deleteContainer(cID)
+	defer deleteContainer(s, cID)
 
 	tmpDir := getTestDir(c, "test-cp-from-case-j")
 	defer os.RemoveAll(tmpDir)

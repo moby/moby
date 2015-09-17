@@ -74,7 +74,7 @@ func (s *DockerSuite) TestLinksInspectLinksStarted(c *check.C) {
 	dockerCmd(c, "run", "-d", "--name", "container1", "busybox", "top")
 	dockerCmd(c, "run", "-d", "--name", "container2", "busybox", "top")
 	dockerCmd(c, "run", "-d", "--name", "testinspectlink", "--link", "container1:alias1", "--link", "container2:alias2", "busybox", "top")
-	links, err := inspectFieldJSON("testinspectlink", "HostConfig.Links")
+	links, err := inspectFieldJSON(s, "testinspectlink", "HostConfig.Links")
 	if err != nil {
 		c.Fatal(err)
 	}
@@ -102,7 +102,7 @@ func (s *DockerSuite) TestLinksInspectLinksStopped(c *check.C) {
 	dockerCmd(c, "run", "-d", "--name", "container1", "busybox", "top")
 	dockerCmd(c, "run", "-d", "--name", "container2", "busybox", "top")
 	dockerCmd(c, "run", "-d", "--name", "testinspectlink", "--link", "container1:alias1", "--link", "container2:alias2", "busybox", "true")
-	links, err := inspectFieldJSON("testinspectlink", "HostConfig.Links")
+	links, err := inspectFieldJSON(s, "testinspectlink", "HostConfig.Links")
 	if err != nil {
 		c.Fatal(err)
 	}
@@ -140,14 +140,14 @@ func (s *DockerSuite) TestLinksHostsFilesInject(c *check.C) {
 	out, _ = dockerCmd(c, "run", "-itd", "--name", "two", "--link", "one:onetwo", "busybox", "top")
 	idTwo := strings.TrimSpace(out)
 
-	c.Assert(waitRun(idTwo), check.IsNil)
+	c.Assert(waitRun(s, idTwo), check.IsNil)
 
-	contentOne, err := readContainerFileWithExec(idOne, "/etc/hosts")
+	contentOne, err := readContainerFileWithExec(s, idOne, "/etc/hosts")
 	if err != nil {
 		c.Fatal(err, string(contentOne))
 	}
 
-	contentTwo, err := readContainerFileWithExec(idTwo, "/etc/hosts")
+	contentTwo, err := readContainerFileWithExec(s, idTwo, "/etc/hosts")
 	if err != nil {
 		c.Fatal(err, string(contentTwo))
 	}
@@ -165,11 +165,11 @@ func (s *DockerSuite) TestLinksUpdateOnRestart(c *check.C) {
 	out, _ := dockerCmd(c, "run", "-d", "--name", "two", "--link", "one:onetwo", "--link", "one:one", "busybox", "top")
 	id := strings.TrimSpace(string(out))
 
-	realIP, err := inspectField("one", "NetworkSettings.IPAddress")
+	realIP, err := inspectField(s, "one", "NetworkSettings.IPAddress")
 	if err != nil {
 		c.Fatal(err)
 	}
-	content, err := readContainerFileWithExec(id, "/etc/hosts")
+	content, err := readContainerFileWithExec(s, id, "/etc/hosts")
 	if err != nil {
 		c.Fatal(err, string(content))
 	}
@@ -188,11 +188,11 @@ func (s *DockerSuite) TestLinksUpdateOnRestart(c *check.C) {
 		c.Fatalf("For 'onetwo' alias expected IP: %s, got: %s", realIP, ip)
 	}
 	dockerCmd(c, "restart", "one")
-	realIP, err = inspectField("one", "NetworkSettings.IPAddress")
+	realIP, err = inspectField(s, "one", "NetworkSettings.IPAddress")
 	if err != nil {
 		c.Fatal(err)
 	}
-	content, err = readContainerFileWithExec(id, "/etc/hosts")
+	content, err = readContainerFileWithExec(s, id, "/etc/hosts")
 	if err != nil {
 		c.Fatal(err, string(content))
 	}
@@ -220,14 +220,14 @@ func (s *DockerSuite) TestLinkShortDefinition(c *check.C) {
 	out, _ := dockerCmd(c, "run", "-d", "--name", "shortlinkdef", "busybox", "top")
 
 	cid := strings.TrimSpace(out)
-	c.Assert(waitRun(cid), check.IsNil)
+	c.Assert(waitRun(s, cid), check.IsNil)
 
 	out, _ = dockerCmd(c, "run", "-d", "--name", "link2", "--link", "shortlinkdef", "busybox", "top")
 
 	cid2 := strings.TrimSpace(out)
-	c.Assert(waitRun(cid2), check.IsNil)
+	c.Assert(waitRun(s, cid2), check.IsNil)
 
-	links, err := inspectFieldJSON(cid2, "HostConfig.Links")
+	links, err := inspectFieldJSON(s, cid2, "HostConfig.Links")
 	c.Assert(err, check.IsNil)
 	c.Assert(links, check.Equals, "[\"/shortlinkdef:/link2/shortlinkdef\"]")
 }

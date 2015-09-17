@@ -96,7 +96,7 @@ func (s *DockerSuite) TestRmiImgIDMultipleTag(c *check.C) {
 		c.Fatalf("tag busybox to create 2 more images with same imageID; docker images shows: %q\n", imagesAfter)
 	}
 
-	imgID, err := inspectField("busybox-one:tag1", "Id")
+	imgID, err := inspectField(s, "busybox-one:tag1", "Id")
 	c.Assert(err, check.IsNil)
 
 	// run a container with the image
@@ -147,7 +147,7 @@ func (s *DockerSuite) TestRmiImgIDForce(c *check.C) {
 			c.Fatalf("tag busybox to create 4 more images with same imageID; docker images shows: %q\n", imagesAfter)
 		}
 	}
-	imgID, err := inspectField("busybox-test", "Id")
+	imgID, err := inspectField(s, "busybox-test", "Id")
 	c.Assert(err, check.IsNil)
 
 	// first checkout without force it fails
@@ -169,7 +169,7 @@ func (s *DockerSuite) TestRmiImgIDForce(c *check.C) {
 func (s *DockerSuite) TestRmiImageIDForceWithRunningContainersAndMultipleTags(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	dockerfile := "FROM busybox\nRUN echo test 14116\n"
-	imgID, err := buildImage("test-14116", dockerfile, false)
+	imgID, err := buildImage(s, "test-14116", dockerfile, false)
 	c.Assert(err, check.IsNil)
 
 	newTag := "newtag"
@@ -283,7 +283,7 @@ func (s *DockerSuite) TestRmiContainerImageNotFound(c *check.C) {
 	imageIds := make([]string, 2)
 	for i, name := range imageNames {
 		dockerfile := fmt.Sprintf("FROM busybox\nMAINTAINER %s\nRUN echo %s\n", name, name)
-		id, err := buildImage(name, dockerfile, false)
+		id, err := buildImage(s, name, dockerfile, false)
 		c.Assert(err, check.IsNil)
 		imageIds[i] = id
 	}
@@ -314,7 +314,7 @@ RUN echo 0 #layer0
 RUN echo 1 #layer1
 RUN echo 2 #layer2
 `
-	_, err := buildImage(image, dockerfile, false)
+	_, err := buildImage(s, image, dockerfile, false)
 	c.Assert(err, check.IsNil)
 
 	out, _ := dockerCmd(c, "history", "-q", image)

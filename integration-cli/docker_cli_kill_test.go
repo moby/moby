@@ -12,7 +12,7 @@ func (s *DockerSuite) TestKillContainer(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
 	cleanedContainerID := strings.TrimSpace(out)
-	c.Assert(waitRun(cleanedContainerID), check.IsNil)
+	c.Assert(waitRun(s, cleanedContainerID), check.IsNil)
 
 	dockerCmd(c, "kill", cleanedContainerID)
 
@@ -37,7 +37,7 @@ func (s *DockerSuite) TestKillDifferentUserContainer(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-u", "daemon", "-d", "busybox", "top")
 	cleanedContainerID := strings.TrimSpace(out)
-	c.Assert(waitRun(cleanedContainerID), check.IsNil)
+	c.Assert(waitRun(s, cleanedContainerID), check.IsNil)
 
 	dockerCmd(c, "kill", cleanedContainerID)
 
@@ -52,11 +52,11 @@ func (s *DockerSuite) TestKillWithSignal(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
 	cid := strings.TrimSpace(out)
-	c.Assert(waitRun(cid), check.IsNil)
+	c.Assert(waitRun(s, cid), check.IsNil)
 
 	dockerCmd(c, "kill", "-s", "SIGWINCH", cid)
 
-	running, _ := inspectField(cid, "State.Running")
+	running, _ := inspectField(s, cid, "State.Running")
 	if running != "true" {
 		c.Fatal("Container should be in running state after SIGWINCH")
 	}
@@ -66,7 +66,7 @@ func (s *DockerSuite) TestKillWithInvalidSignal(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
 	cid := strings.TrimSpace(out)
-	c.Assert(waitRun(cid), check.IsNil)
+	c.Assert(waitRun(s, cid), check.IsNil)
 
 	out, _, err := dockerCmdWithError("kill", "-s", "0", cid)
 	c.Assert(err, check.NotNil)
@@ -74,14 +74,14 @@ func (s *DockerSuite) TestKillWithInvalidSignal(c *check.C) {
 		c.Fatal("Kill with an invalid signal didn't error out correctly")
 	}
 
-	running, _ := inspectField(cid, "State.Running")
+	running, _ := inspectField(s, cid, "State.Running")
 	if running != "true" {
 		c.Fatal("Container should be in running state after an invalid signal")
 	}
 
 	out, _ = dockerCmd(c, "run", "-d", "busybox", "top")
 	cid = strings.TrimSpace(out)
-	c.Assert(waitRun(cid), check.IsNil)
+	c.Assert(waitRun(s, cid), check.IsNil)
 
 	out, _, err = dockerCmdWithError("kill", "-s", "SIG42", cid)
 	c.Assert(err, check.NotNil)
@@ -89,7 +89,7 @@ func (s *DockerSuite) TestKillWithInvalidSignal(c *check.C) {
 		c.Fatal("Kill with an invalid signal error out correctly")
 	}
 
-	running, _ = inspectField(cid, "State.Running")
+	running, _ = inspectField(s, cid, "State.Running")
 	if running != "true" {
 		c.Fatal("Container should be in running state after an invalid signal")
 	}

@@ -199,14 +199,14 @@ func (s *DockerSuite) TestEventsContainerEventsSinceUnixEpoch(c *check.C) {
 func (s *DockerSuite) TestEventsImageUntagDelete(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	name := "testimageevents"
-	_, err := buildImage(name,
+	_, err := buildImage(s, name,
 		`FROM scratch
 		MAINTAINER "docker"`,
 		true)
 	if err != nil {
 		c.Fatal(err)
 	}
-	if err := deleteImages(name); err != nil {
+	if err := deleteImages(s, name); err != nil {
 		c.Fatal(err)
 	}
 	out, _ := dockerCmd(c, "events", "--since=0", fmt.Sprintf("--until=%d", daemonTime(c).Unix()))
@@ -390,7 +390,7 @@ func (s *DockerSuite) TestEventsFilterContainer(c *check.C) {
 
 	for _, name := range []string{"container_1", "container_2"} {
 		dockerCmd(c, "run", "--name", name, "busybox", "true")
-		id, err := inspectField(name, "Id")
+		id, err := inspectField(s, name, "Id")
 		if err != nil {
 			c.Fatal(err)
 		}
@@ -519,7 +519,7 @@ func (s *DockerSuite) TestEventsCommit(c *check.C) {
 
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
 	cID := strings.TrimSpace(out)
-	c.Assert(waitRun(cID), check.IsNil)
+	c.Assert(waitRun(s, cID), check.IsNil)
 
 	dockerCmd(c, "commit", "-m", "test", cID)
 	dockerCmd(c, "stop", cID)
@@ -535,7 +535,7 @@ func (s *DockerSuite) TestEventsCopy(c *check.C) {
 	since := daemonTime(c).Unix()
 
 	// Build a test image.
-	id, err := buildImage("cpimg", `
+	id, err := buildImage(s, "cpimg", `
 		  FROM busybox
 		  RUN echo HI > /tmp/file`, true)
 	if err != nil {
@@ -576,7 +576,7 @@ func (s *DockerSuite) TestEventsResize(c *check.C) {
 
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
 	cID := strings.TrimSpace(out)
-	c.Assert(waitRun(cID), check.IsNil)
+	c.Assert(waitRun(s, cID), check.IsNil)
 
 	endpoint := "/containers/" + cID + "/resize?h=80&w=24"
 	status, _, err := sockRequest("POST", endpoint, nil)
@@ -647,7 +647,7 @@ func (s *DockerSuite) TestEventsTop(c *check.C) {
 
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
 	cID := strings.TrimSpace(out)
-	c.Assert(waitRun(cID), check.IsNil)
+	c.Assert(waitRun(s, cID), check.IsNil)
 
 	dockerCmd(c, "top", cID)
 	dockerCmd(c, "stop", cID)
@@ -673,15 +673,15 @@ func (s *DockerRegistrySuite) TestEventsImageFilterPush(c *check.C) {
 	since := daemonTime(c).Unix()
 	repoName := fmt.Sprintf("%v/dockercli/testf", privateRegistryURL)
 
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
+	out := s.Cmd(c, "run", "-d", "busybox", "top")
 	cID := strings.TrimSpace(out)
-	c.Assert(waitRun(cID), check.IsNil)
+	c.Assert(waitRun(s, cID), check.IsNil)
 
-	dockerCmd(c, "commit", cID, repoName)
-	dockerCmd(c, "stop", cID)
-	dockerCmd(c, "push", repoName)
+	s.Cmd(c, "commit", cID, repoName)
+	s.Cmd(c, "stop", cID)
+	s.Cmd(c, "push", repoName)
 
-	out, _ = dockerCmd(c, "events", "--since=0", "-f", "image="+repoName, "-f", "event=push", "--until="+strconv.Itoa(int(since)))
+	out = s.Cmd(c, "events", "--since=0", "-f", "image="+repoName, "-f", "event=push", "--until="+strconv.Itoa(int(since)))
 	if !strings.Contains(out, repoName+": push\n") {
 		c.Fatalf("Missing 'push' log event for image %s\n%s", repoName, out)
 	}

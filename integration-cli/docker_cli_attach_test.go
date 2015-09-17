@@ -22,7 +22,7 @@ func (s *DockerSuite) TestAttachMultipleAndRestart(c *check.C) {
 	endGroup.Add(3)
 	startGroup.Add(3)
 
-	if err := waitForContainer("attacher", "-d", "busybox", "/bin/sh", "-c", "while true; do sleep 1; echo hello; done"); err != nil {
+	if err := waitForContainer(s, "attacher", "-d", "busybox", "/bin/sh", "-c", "while true; do sleep 1; echo hello; done"); err != nil {
 		c.Fatal(err)
 	}
 
@@ -92,7 +92,7 @@ func (s *DockerSuite) TestAttachTtyWithoutStdin(c *check.C) {
 	out, _ := dockerCmd(c, "run", "-d", "-ti", "busybox")
 
 	id := strings.TrimSpace(out)
-	c.Assert(waitRun(id), check.IsNil)
+	c.Assert(waitRun(s, id), check.IsNil)
 
 	defer func() {
 		cmd := exec.Command(dockerBinary, "kill", id)
@@ -166,7 +166,7 @@ func (s *DockerSuite) TestAttachDisconnect(c *check.C) {
 	}
 
 	// Expect container to still be running after stdin is closed
-	running, err := inspectField(id, "State.Running")
+	running, err := inspectField(s, id, "State.Running")
 	if err != nil {
 		c.Fatal(err)
 	}

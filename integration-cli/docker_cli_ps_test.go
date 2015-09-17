@@ -33,13 +33,13 @@ func (s *DockerSuite) TestPsListContainersBase(c *check.C) {
 	fourthID := strings.TrimSpace(out)
 
 	// make sure the second is running
-	c.Assert(waitRun(secondID), check.IsNil)
+	c.Assert(waitRun(s, secondID), check.IsNil)
 
 	// make sure third one is not running
 	dockerCmd(c, "wait", thirdID)
 
 	// make sure the forth is running
-	c.Assert(waitRun(fourthID), check.IsNil)
+	c.Assert(waitRun(s, fourthID), check.IsNil)
 
 	// all
 	out, _ = dockerCmd(c, "ps", "-a")
@@ -173,7 +173,7 @@ func (s *DockerSuite) TestPsListContainersSize(c *check.C) {
 
 	name := "test_size"
 	out, _ := dockerCmd(c, "run", "--name", name, "busybox", "sh", "-c", "echo 1 > test")
-	id, err := getIDByName(name)
+	id, err := getIDByName(s, name)
 	if err != nil {
 		c.Fatal(err)
 	}
@@ -295,19 +295,19 @@ func (s *DockerSuite) TestPsListContainersFilterAncestorImage(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	// Build images
 	imageName1 := "images_ps_filter_test1"
-	imageID1, err := buildImage(imageName1,
+	imageID1, err := buildImage(s, imageName1,
 		`FROM busybox
 		 LABEL match me 1`, true)
 	c.Assert(err, check.IsNil)
 
 	imageName1Tagged := "images_ps_filter_test1:tag"
-	imageID1Tagged, err := buildImage(imageName1Tagged,
+	imageID1Tagged, err := buildImage(s, imageName1Tagged,
 		`FROM busybox
 		 LABEL match me 1 tagged`, true)
 	c.Assert(err, check.IsNil)
 
 	imageName2 := "images_ps_filter_test2"
-	imageID2, err := buildImage(imageName2,
+	imageID2, err := buildImage(s, imageName2,
 		fmt.Sprintf(`FROM %s
 		 LABEL match me 2`, imageName1), true)
 	c.Assert(err, check.IsNil)
@@ -439,13 +439,13 @@ func (s *DockerSuite) TestPsListContainersFilterExited(c *check.C) {
 	dockerCmd(c, "run", "-d", "--name", "top", "busybox", "top")
 
 	dockerCmd(c, "run", "--name", "zero1", "busybox", "true")
-	firstZero, err := getIDByName("zero1")
+	firstZero, err := getIDByName(s, "zero1")
 	if err != nil {
 		c.Fatal(err)
 	}
 
 	dockerCmd(c, "run", "--name", "zero2", "busybox", "true")
-	secondZero, err := getIDByName("zero2")
+	secondZero, err := getIDByName(s, "zero2")
 	if err != nil {
 		c.Fatal(err)
 	}
@@ -454,7 +454,7 @@ func (s *DockerSuite) TestPsListContainersFilterExited(c *check.C) {
 		c.Fatal("Should fail.", out, err)
 	}
 
-	firstNonZero, err := getIDByName("nonzero1")
+	firstNonZero, err := getIDByName(s, "nonzero1")
 	if err != nil {
 		c.Fatal(err)
 	}
@@ -462,7 +462,7 @@ func (s *DockerSuite) TestPsListContainersFilterExited(c *check.C) {
 	if out, _, err := dockerCmdWithError("run", "--name", "nonzero2", "busybox", "false"); err == nil {
 		c.Fatal("Should fail.", out, err)
 	}
-	secondNonZero, err := getIDByName("nonzero2")
+	secondNonZero, err := getIDByName(s, "nonzero2")
 	if err != nil {
 		c.Fatal(err)
 	}
@@ -706,7 +706,7 @@ func (s *DockerSuite) TestPsImageIDAfterUpdate(c *check.C) {
 	out, _, err := runCommandWithOutput(runCmd)
 	c.Assert(err, check.IsNil)
 
-	originalImageID, err := getIDByName(originalImageName)
+	originalImageID, err := getIDByName(s, originalImageName)
 	c.Assert(err, check.IsNil)
 
 	runCmd = exec.Command(dockerBinary, "run", "-d", originalImageName, "top")

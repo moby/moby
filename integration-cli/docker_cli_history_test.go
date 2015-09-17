@@ -14,7 +14,7 @@ import (
 func (s *DockerSuite) TestBuildHistory(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	name := "testbuildhistory"
-	_, err := buildImage(name, `FROM busybox
+	_, err := buildImage(s, name, `FROM busybox
 RUN echo "A"
 RUN echo "B"
 RUN echo "C"

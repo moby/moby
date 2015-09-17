@@ -74,7 +74,7 @@ func (s *DockerSuite) TestStartRecordError(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	// when container runs successfully, we should not have state.Error
 	dockerCmd(c, "run", "-d", "-p", "9999:9999", "--name", "test", "busybox", "top")
-	stateErr, err := inspectField("test", "State.Error")
+	stateErr, err := inspectField(s, "test", "State.Error")
 	c.Assert(err, check.IsNil)
 	if stateErr != "" {
 		c.Fatalf("Expected to not have state error but got state.Error(%q)", stateErr)
@@ -86,7 +86,7 @@ func (s *DockerSuite) TestStartRecordError(c *check.C) {
 		c.Fatalf("Expected error but got none, output %q", out)
 	}
 
-	stateErr, err = inspectField("test2", "State.Error")
+	stateErr, err = inspectField(s, "test2", "State.Error")
 	c.Assert(err, check.IsNil)
 	expected := "port is already allocated"
 	if stateErr == "" || !strings.Contains(stateErr, expected) {
@@ -96,7 +96,7 @@ func (s *DockerSuite) TestStartRecordError(c *check.C) {
 	// Expect the conflict to be resolved when we stop the initial container
 	dockerCmd(c, "stop", "test")
 	dockerCmd(c, "start", "test2")
-	stateErr, err = inspectField("test2", "State.Error")
+	stateErr, err = inspectField(s, "test2", "State.Error")
 	c.Assert(err, check.IsNil)
 	if stateErr != "" {
 		c.Fatalf("Expected to not have state error but got state.Error(%q)", stateErr)
@@ -105,7 +105,7 @@ func (s *DockerSuite) TestStartRecordError(c *check.C) {
 
 func (s *DockerSuite) TestStartPausedContainer(c *check.C) {
 	testRequires(c, DaemonIsLinux)
-	defer unpauseAllContainers()
+	defer unpauseAllContainers(s)
 
 	dockerCmd(c, "run", "-d", "--name", "testing", "busybox", "top")
 
@@ -128,7 +128,7 @@ func (s *DockerSuite) TestStartMultipleContainers(c *check.C) {
 	// stop 'parent' container
 	dockerCmd(c, "stop", "parent")
 
-	out, err := inspectField("parent", "State.Running")
+	out, err := inspectField(s, "parent", "State.Running")
 	c.Assert(err, check.IsNil)
 	if out != "false" {
 		c.Fatal("Container should be stopped")
@@ -142,7 +142,7 @@ func (s *DockerSuite) TestStartMultipleContainers(c *check.C) {
 	}
 
 	for container, expected := range map[string]string{"parent": "true", "child_first": "false", "child_second": "true"} {
-		out, err := inspectField(container, "State.Running")
+		out, err := inspectField(s, container, "State.Running")
 		c.Assert(err, check.IsNil)
 		if out != expected {
 			c.Fatal("Container running state wrong")
@@ -173,7 +173,7 @@ func (s *DockerSuite) TestStartAttachMultipleContainers(c *check.C) {
 
 	// confirm the state of all the containers be stopped
 	for container, expected := range map[string]string{"test1": "false", "test2": "false", "test3": "false"} {
-		out, err := inspectField(container, "State.Running")
+		out, err := inspectField(s, container, "State.Running")
 		if err != nil {
 			c.Fatal(out, err)
 		}

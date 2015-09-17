@@ -16,7 +16,7 @@ import (
 func (s *DockerHubPullSuite) TestPullFromCentralRegistry(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	out := s.Cmd(c, "pull", "hello-world")
-	defer deleteImages("hello-world")
+	defer deleteImages(s, "hello-world")
 
 	c.Assert(out, checker.Contains, "Using default tag: latest", check.Commentf("expected the 'latest' tag to be automatically assumed"))
 	c.Assert(out, checker.Contains, "Pulling from library/hello-world", check.Commentf("expected the 'library/' prefix to be automatically assumed"))
@@ -65,7 +65,7 @@ func (s *DockerHubPullSuite) TestPullNonExistingImage(c *check.C) {
 func (s *DockerHubPullSuite) TestPullFromCentralRegistryImplicitRefParts(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	s.Cmd(c, "pull", "hello-world")
-	defer deleteImages("hello-world")
+	defer deleteImages(s, "hello-world")
 
 	for _, i := range []string{
 		"hello-world",

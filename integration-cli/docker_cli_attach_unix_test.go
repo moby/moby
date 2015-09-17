@@ -19,7 +19,7 @@ func (s *DockerSuite) TestAttachClosedOnContainerStop(c *check.C) {
 	out, _ := dockerCmd(c, "run", "-dti", "busybox", "sleep", "2")
 
 	id := strings.TrimSpace(out)
-	c.Assert(waitRun(id), check.IsNil)
+	c.Assert(waitRun(s, id), check.IsNil)
 
 	errChan := make(chan error)
 	go func() {
@@ -71,7 +71,7 @@ func (s *DockerSuite) TestAttachAfterDetach(c *check.C) {
 		close(errChan)
 	}()
 
-	c.Assert(waitRun(name), check.IsNil)
+	c.Assert(waitRun(s, name), check.IsNil)
 
 	cpty.Write([]byte{16})
 	time.Sleep(100 * time.Millisecond)
@@ -133,7 +133,7 @@ func (s *DockerSuite) TestAttachAfterDetach(c *check.C) {
 func (s *DockerSuite) TestAttachDetach(c *check.C) {
 	out, _ := dockerCmd(c, "run", "-itd", "busybox", "cat")
 	id := strings.TrimSpace(out)
-	c.Assert(waitRun(id), check.IsNil)
+	c.Assert(waitRun(s, id), check.IsNil)
 
 	cpty, tty, err := pty.Open()
 	if err != nil {
@@ -151,7 +151,7 @@ func (s *DockerSuite) TestAttachDetach(c *check.C) {
 	if err := cmd.Start(); err != nil {
 		c.Fatal(err)
 	}
-	c.Assert(waitRun(id), check.IsNil)
+	c.Assert(waitRun(s, id), check.IsNil)
 
 	if _, err := cpty.Write([]byte("hello\n")); err != nil {
 		c.Fatal(err)
@@ -179,7 +179,7 @@ func (s *DockerSuite) TestAttachDetach(c *check.C) {
 		ch <- struct{}{}
 	}()
 
-	running, err := inspectField(id, "State.Running")
+	running, err := inspectField(s, id, "State.Running")
 	if err != nil {
 		c.Fatal(err)
 	}
@@ -203,7 +203,7 @@ func (s *DockerSuite) TestAttachDetach(c *check.C) {
 func (s *DockerSuite) TestAttachDetachTruncatedID(c *check.C) {
 	out, _ := dockerCmd(c, "run", "-itd", "busybox", "cat")
 	id := stringid.TruncateID(strings.TrimSpace(out))
-	c.Assert(waitRun(id), check.IsNil)
+	c.Assert(waitRun(s, id), check.IsNil)
 
 	cpty, tty, err := pty.Open()
 	if err != nil {
@@ -248,7 +248,7 @@ func (s *DockerSuite) TestAttachDetachTruncatedID(c *check.C) {
 		ch <- struct{}{}
 	}()
 
-	running, err := inspectField(id, "State.Running")
+	running, err := inspectField(s, id, "State.Running")
 	if err != nil {
 		c.Fatal(err)
 	}

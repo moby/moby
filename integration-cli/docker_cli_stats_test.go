@@ -12,7 +12,7 @@ func (s *DockerSuite) TestCliStatsNoStream(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
 	id := strings.TrimSpace(out)
-	c.Assert(waitRun(id), check.IsNil)
+	c.Assert(waitRun(s, id), check.IsNil)
 
 	statsCmd := exec.Command(dockerBinary, "stats", "--no-stream", id)
 	chErr := make(chan error)

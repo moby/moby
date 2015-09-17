@@ -15,7 +15,7 @@ func (s *DockerSuite) TestWaitNonBlockedExitZero(c *check.C) {
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "sh", "-c", "true")
 	containerID := strings.TrimSpace(out)
 
-	if err := waitInspect(containerID, "{{.State.Running}}", "false", 1); err != nil {
+	if err := waitInspect(s, containerID, "{{.State.Running}}", "false", 1); err != nil {
 		c.Fatal("Container should have stopped by now")
 	}
 
@@ -32,7 +32,7 @@ func (s *DockerSuite) TestWaitBlockedExitZero(c *check.C) {
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "trap 'exit 0' TERM; while true; do sleep 0.01; done")
 	containerID := strings.TrimSpace(out)
 
-	c.Assert(waitRun(containerID), check.IsNil)
+	c.Assert(waitRun(s, containerID), check.IsNil)
 
 	chWait := make(chan string)
 	go func() {
@@ -60,7 +60,7 @@ func (s *DockerSuite) TestWaitNonBlockedExitRandom(c *check.C) {
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "sh", "-c", "exit 99")
 	containerID := strings.TrimSpace(out)
 
-	if err := waitInspect(containerID, "{{.State.Running}}", "false", 1); err != nil {
+	if err := waitInspect(s, containerID, "{{.State.Running}}", "false", 1); err != nil {
 		c.Fatal("Container should have stopped by now")
 	}
 
@@ -76,7 +76,7 @@ func (s *DockerSuite) TestWaitBlockedExitRandom(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "trap 'exit 99' TERM; while true; do sleep 0.01; done")
 	containerID := strings.TrimSpace(out)
-	c.Assert(waitRun(containerID), check.IsNil)
+	c.Assert(waitRun(s, containerID), check.IsNil)
 
 	chWait := make(chan error)
 	waitCmd := exec.Command(dockerBinary, "wait", containerID)

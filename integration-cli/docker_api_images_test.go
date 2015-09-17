@@ -52,7 +52,7 @@ func (s *DockerSuite) TestApiImagesFilter(c *check.C) {
 func (s *DockerSuite) TestApiImagesSaveAndLoad(c *check.C) {
 	testRequires(c, Network)
 	testRequires(c, DaemonIsLinux)
-	out, err := buildImage("saveandload", "FROM hello-world\nENV FOO bar", false)
+	out, err := buildImage(s, "saveandload", "FROM hello-world\nENV FOO bar", false)
 	if err != nil {
 		c.Fatal(err)
 	}
@@ -82,7 +82,7 @@ func (s *DockerSuite) TestApiImagesDelete(c *check.C) {
 	testRequires(c, Network)
 	testRequires(c, DaemonIsLinux)
 	name := "test-api-images-delete"
-	out, err := buildImage(name, "FROM hello-world\nENV FOO bar", false)
+	out, err := buildImage(s, name, "FROM hello-world\nENV FOO bar", false)
 	if err != nil {
 		c.Fatal(err)
 	}
@@ -107,7 +107,7 @@ func (s *DockerSuite) TestApiImagesHistory(c *check.C) {
 	testRequires(c, Network)
 	testRequires(c, DaemonIsLinux)
 	name := "test-api-images-history"
-	out, err := buildImage(name, "FROM hello-world\nENV FOO bar", false)
+	out, err := buildImage(s, name, "FROM hello-world\nENV FOO bar", false)
 	c.Assert(err, check.IsNil)
 
 	id := strings.TrimSpace(out)
