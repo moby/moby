@@ -305,26 +305,6 @@ func (container *Container) Start() (err error) {
 	return container.waitForStart()
 }
 
-func (container *Container) run() error {
-	if err := container.Start(); err != nil {
-		return err
-	}
-	container.HasBeenStartedBefore = true
-	container.WaitStop(-1 * time.Second)
-	return nil
-}
-
-func (container *Container) output() (output []byte, err error) {
-	pipe := container.StdoutPipe()
-	defer pipe.Close()
-	if err := container.Start(); err != nil {
-		return nil, err
-	}
-	output, err = ioutil.ReadAll(pipe)
-	container.WaitStop(-1 * time.Second)
-	return output, err
-}
-
 // streamConfig.StdinPipe returns a WriteCloser which can be used to feed data
 // to the standard input of the container's active process.
 // Container.StdoutPipe and Container.StderrPipe each return a ReadCloser
