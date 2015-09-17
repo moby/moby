@@ -49,7 +49,7 @@ func init() {
 }
 
 func createBasePath() {
-	err := os.MkdirAll(prefix, 0644)
+	err := os.MkdirAll(prefix, 0755)
 	if err != nil {
 		panic("Could not create net namespace path directory")
 	}
