@@ -50,7 +50,7 @@ type Config struct {
 type ClientTLSConfig struct {
 	CertFile   string
 	KeyFile    string
-	CACertFile string // Really should be []string, but etcd...
+	CACertFile string
 }
 
 // Store represents the backend K/V storage
