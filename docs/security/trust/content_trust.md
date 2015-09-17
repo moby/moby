@@ -104,8 +104,9 @@ content hash always succeeds as long as the hash exists:
 $ docker pull someimage@sha256:d149ab53f8718e987c3a3024bb8aa0e2caadf6c0328f1d9d850b2a2a67f2819a
 ```
 
-Trust for an image tag is managed through the use of signing keys. Docker's content
-trust makes use four different keys:
+Trust for an image tag is managed through the use of signing keys. A key set is
+created when an operation using content trust is first invoked. Docker's content
+trust makes use of four different keys: 
 
 | Key                 | Description                                                                                                                                                                                                                                                                                                                                                                         |
 |---------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -131,7 +132,7 @@ The following image depicts the various signing keys and their relationships:
 You should backup the offline key somewhere safe. Given that it is only required
 to create new repositories, it is a good idea to store it offline. Make sure you
 read [Manage keys for content trust](/security/trust/trust_key_mng) information
-for details on creating, securing, and backing up your keys.
+for details on securing, and backing up your keys. 
 
 ## Survey of typical content trust operations
 
