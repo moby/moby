@@ -22,7 +22,18 @@ type ContainerStatsConfig struct {
 
 // ContainerStats writes information about the container to the stream
 // given in the config object.
-func (daemon *Daemon) ContainerStats(container *Container, config *ContainerStatsConfig) error {
+func (daemon *Daemon) ContainerStats(prefixOrName string, config *ContainerStatsConfig) error {
+
+	container, err := daemon.Get(prefixOrName)
+	if err != nil {
+		return err
+	}
+
+	// If the container is not running and requires no stream, return an empty stats.
+	if !container.IsRunning() && !config.Stream {
+		return json.NewEncoder(config.OutStream).Encode(&types.Stats{})
+	}
+
 	updates, err := daemon.subscribeToContainerStats(container)
 	if err != nil {
 		return err
