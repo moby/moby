@@ -156,6 +156,13 @@ func (cli *DockerCli) hijack(method, path string, setRawTerminal bool, in io.Rea
 	req.Host = cli.addr
 
 	dial, err := cli.dial()
+	if err != nil {
+		if strings.Contains(err.Error(), "connection refused") {
+			return fmt.Errorf("Cannot connect to the Docker daemon. Is 'docker daemon' running on this host?")
+		}
+		return err
+	}
+
 	// When we set up a TCP connection for hijack, there could be long periods
 	// of inactivity (a long running command with no output) that in certain
 	// network setups may cause ECONNTIMEOUT, leaving the client in an unknown
@@ -165,12 +172,7 @@ func (cli *DockerCli) hijack(method, path string, setRawTerminal bool, in io.Rea
 		tcpConn.SetKeepAlive(true)
 		tcpConn.SetKeepAlivePeriod(30 * time.Second)
 	}
-	if err != nil {
-		if strings.Contains(err.Error(), "connection refused") {
-			return fmt.Errorf("Cannot connect to the Docker daemon. Is 'docker daemon' running on this host?")
-		}
-		return err
-	}
+
 	clientconn := httputil.NewClientConn(dial, nil)
 	defer clientconn.Close()
 
