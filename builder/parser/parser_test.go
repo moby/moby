@@ -73,3 +73,40 @@ func TestTestData(t *testing.T) {
 		}
 	}
 }
+
+func TestParseWords(t *testing.T) {
+	tests := []map[string][]string{
+		{
+			"input":  {"foo"},
+			"expect": {"foo"},
+		},
+		{
+			"input":  {"foo bar"},
+			"expect": {"foo", "bar"},
+		},
+		{
+			"input":  {"foo=bar"},
+			"expect": {"foo=bar"},
+		},
+		{
+			"input":  {"foo bar 'abc xyz'"},
+			"expect": {"foo", "bar", "'abc xyz'"},
+		},
+		{
+			"input":  {`foo bar "abc xyz"`},
+			"expect": {"foo", "bar", `"abc xyz"`},
+		},
+	}
+
+	for _, test := range tests {
+		words := parseWords(test["input"][0])
+		if len(words) != len(test["expect"]) {
+			t.Fatalf("length check failed. input: %v, expect: %v, output: %v", test["input"][0], test["expect"], words)
+		}
+		for i, word := range words {
+			if word != test["expect"][i] {
+				t.Fatalf("word check failed for word: %q. input: %v, expect: %v, output: %v", word, test["input"][0], test["expect"], words)
+			}
+		}
+	}
+}

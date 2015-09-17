@@ -54,6 +54,7 @@ var replaceEnvAllowed = map[string]struct{}{
 	command.Volume:     {},
 	command.User:       {},
 	command.StopSignal: {},
+	command.Arg:        {},
 }
 
 var evaluateTable map[string]func(*builder, []string, map[string]bool, string) error
@@ -75,6 +76,7 @@ func init() {
 		command.Volume:     volume,
 		command.User:       user,
 		command.StopSignal: stopSignal,
+		command.Arg:        arg,
 	}
 }
 
@@ -110,6 +112,9 @@ type builder struct {
 	StreamFormatter *streamformatter.StreamFormatter
 
 	Config *runconfig.Config // runconfig for cmd, run, entrypoint etc.
+
+	buildArgs        map[string]string // build-time args received in build context for expansion/substitution and commands in 'run'.
+	allowedBuildArgs map[string]bool   // list of build-time args that are allowed for expansion/substitution and passing to commands in 'run'.
 
 	// both of these are controlled by the Remove and ForceRemove options in BuildOpts
 	TmpContainers map[string]struct{} // a map of containers used for removes
@@ -194,6 +199,18 @@ func (b *builder) Run(context io.Reader) (string, error) {
 		}
 	}
 
+	// check if there are any leftover build-args that were passed but not
+	// consumed during build. Return an error, if there are any.
+	leftoverArgs := []string{}
+	for arg := range b.buildArgs {
+		if !b.isBuildArgAllowed(arg) {
+			leftoverArgs = append(leftoverArgs, arg)
+		}
+	}
+	if len(leftoverArgs) > 0 {
+		return "", fmt.Errorf("One or more build-args %v were not consumed, failing build.", leftoverArgs)
+	}
+
 	if b.image == "" {
 		return "", fmt.Errorf("No image was generated. Is your Dockerfile empty?")
 	}
@@ -268,6 +285,18 @@ func (b *builder) readDockerfile() error {
 	return nil
 }
 
+// determine if build arg is part of built-in args or user
+// defined args in Dockerfile at any point in time.
+func (b *builder) isBuildArgAllowed(arg string) bool {
+	if _, ok := BuiltinAllowedBuildArgs[arg]; ok {
+		return true
+	}
+	if _, ok := b.allowedBuildArgs[arg]; ok {
+		return true
+	}
+	return false
+}
+
 // This method is the entrypoint to all statement handling routines.
 //
 // Almost all nodes will have this structure:
@@ -330,13 +359,34 @@ func (b *builder) dispatch(stepN int, ast *parser.Node) error {
 	msgList := make([]string, n)
 
 	var i int
+	// Append the build-time args to config-environment.
+	// This allows builder config to override the variables, making the behavior similar to
+	// a shell script i.e. `ENV foo bar` overrides value of `foo` passed in build
+	// context. But `ENV foo $foo` will use the value from build context if one
+	// isn't already been defined by a previous ENV primitive.
+	// Note, we get this behavior because we know that ProcessWord() will
+	// stop on the first occurrence of a variable name and not notice
+	// a subsequent one. So, putting the buildArgs list after the Config.Env
+	// list, in 'envs', is safe.
+	envs := b.Config.Env
+	for key, val := range b.buildArgs {
+		if !b.isBuildArgAllowed(key) {
+			// skip build-args that are not in allowed list, meaning they have
+			// not been defined by an "ARG" Dockerfile command yet.
+			// This is an error condition but only if there is no "ARG" in the entire
+			// Dockerfile, so we'll generate any necessary errors after we parsed
+			// the entire file (see 'leftoverArgs' processing in evaluator.go )
+			continue
+		}
+		envs = append(envs, fmt.Sprintf("%s=%s", key, val))
+	}
 	for ast.Next != nil {
 		ast = ast.Next
 		var str string
 		str = ast.Value
 		if _, ok := replaceEnvAllowed[cmd]; ok {
 			var err error
-			str, err = ProcessWord(ast.Value, b.Config.Env)
+			str, err = ProcessWord(ast.Value, envs)
 			if err != nil {
 				return err
 			}

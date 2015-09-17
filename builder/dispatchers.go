@@ -327,15 +327,59 @@ func run(b *builder, args []string, attributes map[string]bool, original string)
 		return err
 	}
 
+	// stash the cmd
 	cmd := b.Config.Cmd
-	// set Cmd manually, this is special case only for Dockerfiles
-	b.Config.Cmd = config.Cmd
 	runconfig.Merge(b.Config, config)
+	// stash the config environment
+	env := b.Config.Env
 
 	defer func(cmd *stringutils.StrSlice) { b.Config.Cmd = cmd }(cmd)
+	defer func(env []string) { b.Config.Env = env }(env)
 
-	logrus.Debugf("[BUILDER] Command to be executed: %v", b.Config.Cmd)
+	// derive the net build-time environment for this run. We let config
+	// environment override the build time environment.
+	// This means that we take the b.buildArgs list of env vars and remove
+	// any of those variables that are defined as part of the container. In other
+	// words, anything in b.Config.Env. What's left is the list of build-time env
+	// vars that we need to add to each RUN command - note the list could be empty.
+	//
+	// We don't persist the build time environment with container's config
+	// environment, but just sort and prepend it to the command string at time
+	// of commit.
+	// This helps with tracing back the image's actual environment at the time
+	// of RUN, without leaking it to the final image. It also aids cache
+	// lookup for same image built with same build time environment.
+	cmdBuildEnv := []string{}
+	configEnv := runconfig.ConvertKVStringsToMap(b.Config.Env)
+	for key, val := range b.buildArgs {
+		if !b.isBuildArgAllowed(key) {
+			// skip build-args that are not in allowed list, meaning they have
+			// not been defined by an "ARG" Dockerfile command yet.
+			// This is an error condition but only if there is no "ARG" in the entire
+			// Dockerfile, so we'll generate any necessary errors after we parsed
+			// the entire file (see 'leftoverArgs' processing in evaluator.go )
+			continue
+		}
+		if _, ok := configEnv[key]; !ok {
+			cmdBuildEnv = append(cmdBuildEnv, fmt.Sprintf("%s=%s", key, val))
+		}
+	}
 
+	// derive the command to use for probeCache() and to commit in this container.
+	// Note that we only do this if there are any build-time env vars.  Also, we
+	// use the special argument "|#" at the start of the args array. This will
+	// avoid conflicts with any RUN command since commands can not
+	// start with | (vertical bar). The "#" (number of build envs) is there to
+	// help ensure proper cache matches. We don't want a RUN command
+	// that starts with "foo=abc" to be considered part of a build-time env var.
+	saveCmd := config.Cmd
+	if len(cmdBuildEnv) > 0 {
+		sort.Strings(cmdBuildEnv)
+		tmpEnv := append([]string{fmt.Sprintf("|%d", len(cmdBuildEnv))}, cmdBuildEnv...)
+		saveCmd = stringutils.NewStrSlice(append(tmpEnv, saveCmd.Slice()...)...)
+	}
+
+	b.Config.Cmd = saveCmd
 	hit, err := b.probeCache()
 	if err != nil {
 		return err
@@ -343,6 +387,13 @@ func run(b *builder, args []string, attributes map[string]bool, original string)
 	if hit {
 		return nil
 	}
+
+	// set Cmd manually, this is special case only for Dockerfiles
+	b.Config.Cmd = config.Cmd
+	// set build-time environment for 'run'.
+	b.Config.Env = append(b.Config.Env, cmdBuildEnv...)
+
+	logrus.Debugf("[BUILDER] Command to be executed: %v", b.Config.Cmd)
 
 	c, err := b.create()
 	if err != nil {
@@ -358,6 +409,12 @@ func run(b *builder, args []string, attributes map[string]bool, original string)
 	if err != nil {
 		return err
 	}
+
+	// revert to original config environment and set the command string to
+	// have the build-time env vars in it (if any) so that future cache look-ups
+	// properly match it.
+	b.Config.Env = env
+	b.Config.Cmd = saveCmd
 	if err := b.commit(c.ID, cmd, "run"); err != nil {
 		return err
 	}
@@ -556,4 +613,48 @@ func stopSignal(b *builder, args []string, attributes map[string]bool, original 
 
 	b.Config.StopSignal = sig
 	return b.commit("", b.Config.Cmd, fmt.Sprintf("STOPSIGNAL %v", args))
+}
+
+// ARG name[=value]
+//
+// Adds the variable foo to the trusted list of variables that can be passed
+// to builder using the --build-arg flag for expansion/subsitution or passing to 'run'.
+// Dockerfile author may optionally set a default value of this variable.
+func arg(b *builder, args []string, attributes map[string]bool, original string) error {
+	if len(args) != 1 {
+		return fmt.Errorf("ARG requires exactly one argument definition")
+	}
+
+	var (
+		name       string
+		value      string
+		hasDefault bool
+	)
+
+	arg := args[0]
+	// 'arg' can just be a name or name-value pair. Note that this is different
+	// from 'env' that handles the split of name and value at the parser level.
+	// The reason for doing it differently for 'arg' is that we support just
+	// defining an arg and not assign it a value (while 'env' always expects a
+	// name-value pair). If possible, it will be good to harmonize the two.
+	if strings.Contains(arg, "=") {
+		parts := strings.SplitN(arg, "=", 2)
+		name = parts[0]
+		value = parts[1]
+		hasDefault = true
+	} else {
+		name = arg
+		hasDefault = false
+	}
+	// add the arg to allowed list of build-time args from this step on.
+	b.allowedBuildArgs[name] = true
+
+	// If there is a default value associated with this arg then add it to the
+	// b.buildArgs if one is not already passed to the builder. The args passed
+	// to builder override the defaut value of 'arg'.
+	if _, ok := b.buildArgs[name]; !ok && hasDefault {
+		b.buildArgs[name] = value
+	}
+
+	return b.commit("", b.Config.Cmd, fmt.Sprintf("ARG %s", arg))
 }
