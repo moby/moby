@@ -192,8 +192,8 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 	}
 
 	ifaceName := res.InterfaceName
-	if ifaceName == nil {
-		return fmt.Errorf("no interface name information received")
+	if jinfo.InterfaceName() != nil && ifaceName == nil {
+		return fmt.Errorf("no interface name information received while one is expected")
 	}
 
 	if iface := jinfo.InterfaceName(); iface != nil {

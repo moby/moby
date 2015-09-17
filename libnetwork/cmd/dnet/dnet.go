@@ -7,6 +7,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"strings"
 
@@ -19,6 +20,7 @@ import (
 	"github.com/docker/libnetwork"
 	"github.com/docker/libnetwork/api"
 	"github.com/docker/libnetwork/config"
+	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/libnetwork/options"
 	"github.com/gorilla/mux"
@@ -134,6 +136,10 @@ type dnetConnection struct {
 }
 
 func (d *dnetConnection) dnetDaemon(cfgFile string) error {
+	if err := startTestDriver(); err != nil {
+		return fmt.Errorf("failed to start test driver: %v\n", err)
+	}
+
 	cfg, err := parseConfig(cfgFile)
 	var cOptions []config.Option
 	if err == nil {
@@ -160,6 +166,64 @@ func (d *dnetConnection) dnetDaemon(cfgFile string) error {
 	post = r.PathPrefix("/sandboxes").Subrouter()
 	post.Methods("GET", "PUT", "POST", "DELETE").HandlerFunc(httpHandler)
 	return http.ListenAndServe(d.addr, r)
+}
+
+func startTestDriver() error {
+	mux := http.NewServeMux()
+	server := httptest.NewServer(mux)
+	if server == nil {
+		return fmt.Errorf("Failed to start a HTTP Server")
+	}
+
+	mux.HandleFunc("/Plugin.Activate", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/vnd.docker.plugins.v1+json")
+		fmt.Fprintf(w, `{"Implements": ["%s"]}`, driverapi.NetworkPluginEndpointType)
+	})
+
+	mux.HandleFunc(fmt.Sprintf("/%s.GetCapabilities", driverapi.NetworkPluginEndpointType), func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/vnd.docker.plugins.v1+json")
+		fmt.Fprintf(w, `{"Scope":"global"}`)
+	})
+
+	mux.HandleFunc(fmt.Sprintf("/%s.CreateNetwork", driverapi.NetworkPluginEndpointType), func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/vnd.docker.plugins.v1+json")
+		fmt.Fprintf(w, "null")
+	})
+
+	mux.HandleFunc(fmt.Sprintf("/%s.DeleteNetwork", driverapi.NetworkPluginEndpointType), func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/vnd.docker.plugins.v1+json")
+		fmt.Fprintf(w, "null")
+	})
+
+	mux.HandleFunc(fmt.Sprintf("/%s.CreateEndpoint", driverapi.NetworkPluginEndpointType), func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/vnd.docker.plugins.v1+json")
+		fmt.Fprintf(w, "null")
+	})
+
+	mux.HandleFunc(fmt.Sprintf("/%s.DeleteEndpoint", driverapi.NetworkPluginEndpointType), func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/vnd.docker.plugins.v1+json")
+		fmt.Fprintf(w, "null")
+	})
+
+	mux.HandleFunc(fmt.Sprintf("/%s.Join", driverapi.NetworkPluginEndpointType), func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/vnd.docker.plugins.v1+json")
+		fmt.Fprintf(w, "null")
+	})
+
+	mux.HandleFunc(fmt.Sprintf("/%s.Leave", driverapi.NetworkPluginEndpointType), func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/vnd.docker.plugins.v1+json")
+		fmt.Fprintf(w, "null")
+	})
+
+	if err := os.MkdirAll("/usr/share/docker/plugins", 0755); err != nil {
+		return err
+	}
+
+	if err := ioutil.WriteFile("/usr/share/docker/plugins/test.spec", []byte(server.URL), 0644); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func newDnetConnection(val string) (*dnetConnection, error) {
