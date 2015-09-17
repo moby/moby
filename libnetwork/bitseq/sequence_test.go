@@ -9,58 +9,75 @@ import (
 func TestSequenceGetAvailableBit(t *testing.T) {
 	input := []struct {
 		head    *sequence
+		from    uint32
 		bytePos uint32
 		bitPos  uint32
 	}{
-		{&sequence{block: 0x0, count: 0}, invalidPos, invalidPos},
-		{&sequence{block: 0x0, count: 1}, 0, 0},
-		{&sequence{block: 0x0, count: 100}, 0, 0},
+		{&sequence{block: 0x0, count: 0}, 0, invalidPos, invalidPos},
+		{&sequence{block: 0x0, count: 1}, 0, 0, 0},
+		{&sequence{block: 0x0, count: 100}, 0, 0, 0},
 
-		{&sequence{block: 0x80000000, count: 0}, invalidPos, invalidPos},
-		{&sequence{block: 0x80000000, count: 1}, 0, 1},
-		{&sequence{block: 0x80000000, count: 100}, 0, 1},
+		{&sequence{block: 0x80000000, count: 0}, 0, invalidPos, invalidPos},
+		{&sequence{block: 0x80000000, count: 1}, 0, 0, 1},
+		{&sequence{block: 0x80000000, count: 100}, 0, 0, 1},
 
-		{&sequence{block: 0xFF000000, count: 0}, invalidPos, invalidPos},
-		{&sequence{block: 0xFF000000, count: 1}, 1, 0},
-		{&sequence{block: 0xFF000000, count: 100}, 1, 0},
+		{&sequence{block: 0xFF000000, count: 0}, 0, invalidPos, invalidPos},
+		{&sequence{block: 0xFF000000, count: 1}, 0, 1, 0},
+		{&sequence{block: 0xFF000000, count: 100}, 0, 1, 0},
 
-		{&sequence{block: 0xFF800000, count: 0}, invalidPos, invalidPos},
-		{&sequence{block: 0xFF800000, count: 1}, 1, 1},
-		{&sequence{block: 0xFF800000, count: 100}, 1, 1},
+		{&sequence{block: 0xFF800000, count: 0}, 0, invalidPos, invalidPos},
+		{&sequence{block: 0xFF800000, count: 1}, 0, 1, 1},
+		{&sequence{block: 0xFF800000, count: 100}, 0, 1, 1},
 
-		{&sequence{block: 0xFFC0FF00, count: 0}, invalidPos, invalidPos},
-		{&sequence{block: 0xFFC0FF00, count: 1}, 1, 2},
-		{&sequence{block: 0xFFC0FF00, count: 100}, 1, 2},
+		{&sequence{block: 0xFFC0FF00, count: 0}, 0, invalidPos, invalidPos},
+		{&sequence{block: 0xFFC0FF00, count: 1}, 0, 1, 2},
+		{&sequence{block: 0xFFC0FF00, count: 100}, 0, 1, 2},
 
-		{&sequence{block: 0xFFE0FF00, count: 0}, invalidPos, invalidPos},
-		{&sequence{block: 0xFFE0FF00, count: 1}, 1, 3},
-		{&sequence{block: 0xFFE0FF00, count: 100}, 1, 3},
+		{&sequence{block: 0xFFE0FF00, count: 0}, 0, invalidPos, invalidPos},
+		{&sequence{block: 0xFFE0FF00, count: 1}, 0, 1, 3},
+		{&sequence{block: 0xFFE0FF00, count: 100}, 0, 1, 3},
 
-		{&sequence{block: 0xFFFEFF00, count: 0}, invalidPos, invalidPos},
-		{&sequence{block: 0xFFFEFF00, count: 1}, 1, 7},
-		{&sequence{block: 0xFFFEFF00, count: 100}, 1, 7},
+		{&sequence{block: 0xFFFEFF00, count: 0}, 0, invalidPos, invalidPos},
+		{&sequence{block: 0xFFFEFF00, count: 1}, 0, 1, 7},
+		{&sequence{block: 0xFFFEFF00, count: 100}, 0, 1, 7},
 
-		{&sequence{block: 0xFFFFC0FF, count: 0}, invalidPos, invalidPos},
-		{&sequence{block: 0xFFFFC0FF, count: 1}, 2, 2},
-		{&sequence{block: 0xFFFFC0FF, count: 100}, 2, 2},
+		{&sequence{block: 0xFFFFC0FF, count: 0}, 0, invalidPos, invalidPos},
+		{&sequence{block: 0xFFFFC0FF, count: 1}, 0, 2, 2},
+		{&sequence{block: 0xFFFFC0FF, count: 100}, 0, 2, 2},
 
-		{&sequence{block: 0xFFFFFF00, count: 0}, invalidPos, invalidPos},
-		{&sequence{block: 0xFFFFFF00, count: 1}, 3, 0},
-		{&sequence{block: 0xFFFFFF00, count: 100}, 3, 0},
+		{&sequence{block: 0xFFFFFF00, count: 0}, 0, invalidPos, invalidPos},
+		{&sequence{block: 0xFFFFFF00, count: 1}, 0, 3, 0},
+		{&sequence{block: 0xFFFFFF00, count: 100}, 0, 3, 0},
 
-		{&sequence{block: 0xFFFFFFFE, count: 0}, invalidPos, invalidPos},
-		{&sequence{block: 0xFFFFFFFE, count: 1}, 3, 7},
-		{&sequence{block: 0xFFFFFFFE, count: 100}, 3, 7},
+		{&sequence{block: 0xFFFFFFFE, count: 0}, 0, invalidPos, invalidPos},
+		{&sequence{block: 0xFFFFFFFE, count: 1}, 0, 3, 7},
+		{&sequence{block: 0xFFFFFFFE, count: 100}, 0, 3, 7},
 
-		{&sequence{block: 0xFFFFFFFF, count: 0}, invalidPos, invalidPos},
-		{&sequence{block: 0xFFFFFFFF, count: 1}, invalidPos, invalidPos},
-		{&sequence{block: 0xFFFFFFFF, count: 100}, invalidPos, invalidPos},
+		{&sequence{block: 0xFFFFFFFF, count: 0}, 0, invalidPos, invalidPos},
+		{&sequence{block: 0xFFFFFFFF, count: 1}, 0, invalidPos, invalidPos},
+		{&sequence{block: 0xFFFFFFFF, count: 100}, 0, invalidPos, invalidPos},
+
+		// now test with offset
+		{&sequence{block: 0x0, count: 0}, 0, invalidPos, invalidPos},
+		{&sequence{block: 0x0, count: 0}, 31, invalidPos, invalidPos},
+		{&sequence{block: 0x0, count: 0}, 32, invalidPos, invalidPos},
+		{&sequence{block: 0x0, count: 1}, 0, 0, 0},
+		{&sequence{block: 0x0, count: 1}, 1, 0, 1},
+		{&sequence{block: 0x0, count: 1}, 31, 3, 7},
+		{&sequence{block: 0xF0FF0000, count: 1}, 0, 0, 4},
+		{&sequence{block: 0xF0FF0000, count: 1}, 8, 2, 0},
+		{&sequence{block: 0xFFFFFFFF, count: 1}, 0, invalidPos, invalidPos},
+		{&sequence{block: 0xFFFFFFFF, count: 1}, 16, invalidPos, invalidPos},
+		{&sequence{block: 0xFFFFFFFF, count: 1}, 31, invalidPos, invalidPos},
+		{&sequence{block: 0xFFFFFFFE, count: 1}, 0, 3, 7},
+		{&sequence{block: 0xFFFFFFFF, count: 2}, 0, invalidPos, invalidPos},
+		{&sequence{block: 0xFFFFFFFF, count: 2}, 32, invalidPos, invalidPos},
 	}
 
 	for n, i := range input {
-		b, bb, err := i.head.getAvailableBit()
+		b, bb, err := i.head.getAvailableBit(i.from)
 		if b != i.bytePos || bb != i.bitPos {
-			t.Fatalf("Error in sequence.getAvailableBit() (%d).\nExp: (%d, %d)\nGot: (%d, %d), err: %v", n, i.bytePos, i.bitPos, b, bb, err)
+			t.Fatalf("Error in sequence.getAvailableBit(%d) (%d).\nExp: (%d, %d)\nGot: (%d, %d), err: %v", i.from, n, i.bytePos, i.bitPos, b, bb, err)
 		}
 	}
 }
@@ -140,7 +157,7 @@ func TestGetFirstAvailable(t *testing.T) {
 	}
 
 	for n, i := range input {
-		bytePos, bitPos, _ := getFirstAvailable(i.mask)
+		bytePos, bitPos, _ := getFirstAvailable(i.mask, 0)
 		if bytePos != i.bytePos || bitPos != i.bitPos {
 			t.Fatalf("Error in (%d) getFirstAvailable(). Expected (%d, %d). Got (%d, %d)", n, i.bytePos, i.bitPos, bytePos, bitPos)
 		}
@@ -487,11 +504,134 @@ func TestSetUnset(t *testing.T) {
 	}
 	// set and unset all one by one
 	for hnd.Unselected() > 0 {
-		hnd.SetAny()
+		if _, err := hnd.SetAny(); err != nil {
+			t.Fatal(err)
+		}
 	}
 	i := uint32(0)
 	for hnd.Unselected() < numBits {
-		hnd.Unset(i)
+		if err := hnd.Unset(i); err != nil {
+			t.Fatal(err)
+		}
 		i++
+	}
+}
+
+func TestSetInRange(t *testing.T) {
+	numBits := uint32(1024 * blockLen)
+	hnd, err := NewHandle("", nil, "", numBits)
+	if err != nil {
+		t.Fatal(err)
+	}
+	hnd.head = getTestSequence()
+
+	firstAv := uint32(100*blockLen + blockLen - 1)
+
+	if o, err := hnd.SetAnyInRange(4, 3); err == nil {
+		t.Fatalf("Expected failure. Got success with ordinal:%d", o)
+	}
+
+	if o, err := hnd.SetAnyInRange(5, 5); err == nil {
+		t.Fatalf("Expected failure. Got success with ordinal:%d", o)
+	}
+
+	if o, err := hnd.SetAnyInRange(0, numBits); err == nil {
+		t.Fatalf("Expected failure. Got success with ordinal:%d", o)
+	}
+
+	o, err := hnd.SetAnyInRange(100*blockLen, 101*blockLen)
+	if err != nil {
+		t.Fatalf("Unexpected failure: (%d, %v)", o, err)
+	}
+	if o != firstAv {
+		t.Fatalf("Unexpected ordinal: %d", o)
+	}
+
+	if o, err := hnd.SetAnyInRange(0, blockLen); err == nil {
+		t.Fatalf("Expected failure. Got success with ordinal:%d", o)
+	}
+
+	if o, err := hnd.SetAnyInRange(0, firstAv-1); err == nil {
+		t.Fatalf("Expected failure. Got success with ordinal:%d", o)
+	}
+
+	if o, err := hnd.SetAnyInRange(111*blockLen, 161*blockLen); err == nil {
+		t.Fatalf("Expected failure. Got success with ordinal:%d", o)
+	}
+
+	o, err = hnd.SetAnyInRange(161*blockLen, 162*blockLen)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if o != 161*blockLen+30 {
+		t.Fatalf("Unexpected ordinal: %d", o)
+	}
+
+	o, err = hnd.SetAnyInRange(161*blockLen, 162*blockLen)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if o != 161*blockLen+31 {
+		t.Fatalf("Unexpected ordinal: %d", o)
+	}
+
+	o, err = hnd.SetAnyInRange(161*blockLen, 162*blockLen)
+	if err == nil {
+		t.Fatalf("Expected failure. Got success with ordinal:%d", o)
+	}
+
+	if _, err := hnd.SetAnyInRange(0, numBits-1); err != nil {
+		t.Fatalf("Unexpected failure: %v", err)
+	}
+
+	// create a non multiple of 32 mask
+	hnd, err = NewHandle("", nil, "", 30)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// set all bit in the first range
+	for hnd.Unselected() > 22 {
+		if o, err := hnd.SetAnyInRange(0, 7); err != nil {
+			t.Fatalf("Unexpected failure: (%d, %v)", o, err)
+		}
+	}
+	// try one more set, which should fail
+	o, err = hnd.SetAnyInRange(0, 7)
+	if err == nil {
+		t.Fatalf("Expected failure. Got success with ordinal:%d", o)
+	}
+	if err != errNoBitAvailable {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	// set all bit in a second range
+	for hnd.Unselected() > 14 {
+		if o, err := hnd.SetAnyInRange(8, 15); err != nil {
+			t.Fatalf("Unexpected failure: (%d, %v)", o, err)
+		}
+	}
+
+	// try one more set, which should fail
+	o, err = hnd.SetAnyInRange(0, 15)
+	if err == nil {
+		t.Fatalf("Expected failure. Got success with ordinal:%d", o)
+	}
+	if err != errNoBitAvailable {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	// set all bit in a range which includes the last bit
+	for hnd.Unselected() > 12 {
+		if o, err := hnd.SetAnyInRange(28, 29); err != nil {
+			t.Fatalf("Unexpected failure: (%d, %v)", o, err)
+		}
+	}
+	o, err = hnd.SetAnyInRange(28, 29)
+	if err == nil {
+		t.Fatalf("Expected failure. Got success with ordinal:%d", o)
+	}
+	if err != errNoBitAvailable {
+		t.Fatalf("Unexpected error: %v", err)
 	}
 }
