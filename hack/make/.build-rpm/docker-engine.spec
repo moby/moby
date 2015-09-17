@@ -169,7 +169,7 @@ install -p -m 644 contrib/syntax/nano/Dockerfile.nanorc $RPM_BUILD_ROOT/usr/shar
 /%{_unitdir}/docker.service
 /%{_unitdir}/docker.socket
 %else
-/etc/sysconfig/docker
+%config(noreplace,missingok) /etc/sysconfig/docker
 /%{_initddir}/docker
 %endif
 /usr/share/bash-completion/completions/docker
