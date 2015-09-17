@@ -23,12 +23,6 @@ type fluentd struct {
 	writer        *fluent.Fluent
 }
 
-type receiver struct {
-	ID     string
-	FullID string
-	Name   string
-}
-
 const (
 	name             = "fluentd"
 	defaultHostName  = "localhost"
@@ -69,17 +63,12 @@ func parseConfig(ctx logger.Context) (string, int, string, error) {
 	}
 
 	if config["fluentd-tag"] != "" {
-		receiver := &receiver{
-			ID:     ctx.ContainerID[:12],
-			FullID: ctx.ContainerID,
-			Name:   ctx.ContainerName,
-		}
 		tmpl, err := template.New("tag").Parse(config["fluentd-tag"])
 		if err != nil {
 			return "", 0, "", err
 		}
 		buf := new(bytes.Buffer)
-		if err := tmpl.Execute(buf, receiver); err != nil {
+		if err := tmpl.Execute(buf, ctx); err != nil {
 			return "", 0, "", err
 		}
 		tag = buf.String()

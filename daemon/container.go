@@ -733,6 +733,7 @@ func (container *Container) getLogger() (logger.Logger, error) {
 		ContainerImageID:    container.ImageID,
 		ContainerImageName:  container.Config.Image,
 		ContainerCreated:    container.Created,
+		ContainerConfig:     container.Config,
 	}
 
 	// Set logging file for "json-logger"
