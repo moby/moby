@@ -1,4 +1,4 @@
-.PHONY: all all-local build build-local check check-code check-format run-tests check-local integration-tests install-deps coveralls circle-ci
+.PHONY: all all-local build build-local check check-code check-format run-tests check-local integration-tests install-deps coveralls circle-ci start-services
 SHELL=/bin/bash
 build_image=libnetwork-build
 dockerargs = --privileged -v $(shell pwd):/go/src/github.com/docker/libnetwork -w /go/src/github.com/docker/libnetwork
@@ -67,10 +67,10 @@ run-tests:
 	done
 	@echo "Done running tests"
 
-check-local:	check-format check-code run-tests
+check-local: 	check-format check-code start-services run-tests
 
 install-deps:
-	apt-get update && apt-get -y install iptables
+	apt-get update && apt-get -y install iptables zookeeperd
 	git clone https://github.com/golang/tools /go/src/golang.org/x/tools
 	go install golang.org/x/tools/cmd/vet
 	go install golang.org/x/tools/cmd/goimports
@@ -88,3 +88,6 @@ coveralls:
 circle-ci:
 	@${cidocker} make install-deps build-local check-local coveralls
 	make integration-tests
+
+start-services:
+	service zookeeper start
