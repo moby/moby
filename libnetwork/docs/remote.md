@@ -53,9 +53,9 @@ Other entries in the list value are allowed; `"NetworkDriver"` indicates that th
 
 After Handshake, the remote driver will receive another POST message to the URL `/NetworkDriver.GetCapabilities` with no payload. The driver's response should have the form:
 
-{
-	"Scope": "local"
-}
+	{
+		"Scope": "local"
+	}
 
 Value of "Scope" should be either "local" or "global" which indicates the capability of remote driver, values beyond these will fail driver's registration and return an error to the caller.
 
