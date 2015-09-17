@@ -269,6 +269,7 @@ func (s *DockerCmdSuite) TestDockerCmdInDir(c *check.C) {
 // DockerCmdInDirWithTimeout tests
 
 func (s *DockerCmdSuite) TestDockerCmdInDirWithTimeout(c *check.C) {
+	c.Skip("racey test")
 	tempFolder, err := ioutil.TempDir("", "test-docker-cmd-in-dir")
 	c.Assert(err, check.IsNil)
 
