@@ -9,7 +9,7 @@ import (
 	"github.com/go-check/check"
 )
 
-func (s *DockerSuite) TestCliStatsNoStream(c *check.C) {
+func (s *DockerSuite) TestStatsNoStream(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
 	id := strings.TrimSpace(out)
@@ -39,5 +39,20 @@ func (s *DockerSuite) TestCliStatsNoStream(c *check.C) {
 		statsCmd.Process.Kill()
 		c.Fatalf("stats did not return immediately when not streaming")
 	}
+}
 
+func (s *DockerSuite) TestStatsContainerNotFound(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+
+	out, _, err := dockerCmdWithError("stats", "notfound")
+	c.Assert(err, check.NotNil)
+	if !strings.Contains(out, "no such id: notfound") {
+		c.Fatalf("Expected to fail on not found container stats, got %q instead", out)
+	}
+
+	out, _, err = dockerCmdWithError("stats", "--no-stream", "notfound")
+	c.Assert(err, check.NotNil)
+	if !strings.Contains(out, "no such id: notfound") {
+		c.Fatalf("Expected to fail on not found container stats with --no-stream, got %q instead", out)
+	}
 }

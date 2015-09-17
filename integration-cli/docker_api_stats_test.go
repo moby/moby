@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"os/exec"
 	"runtime"
 	"strconv"
@@ -13,7 +14,7 @@ import (
 	"github.com/go-check/check"
 )
 
-func (s *DockerSuite) TestCliStatsNoStreamGetCpu(c *check.C) {
+func (s *DockerSuite) TestApiStatsNoStreamGetCpu(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "while true;do echo 'Hello'; usleep 100000; done")
 
@@ -39,7 +40,7 @@ func (s *DockerSuite) TestCliStatsNoStreamGetCpu(c *check.C) {
 	}
 }
 
-func (s *DockerSuite) TestStoppedContainerStatsGoroutines(c *check.C) {
+func (s *DockerSuite) TestApiStatsStoppedContainerInGoroutines(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "echo 1")
 	id := strings.TrimSpace(out)
@@ -75,7 +76,7 @@ func (s *DockerSuite) TestStoppedContainerStatsGoroutines(c *check.C) {
 	}
 }
 
-func (s *DockerSuite) TestApiNetworkStats(c *check.C) {
+func (s *DockerSuite) TestApiStatsNetworkStats(c *check.C) {
 	testRequires(c, SameHostDaemon)
 	testRequires(c, DaemonIsLinux)
 	// Run container for 30 secs
@@ -132,4 +133,16 @@ func getNetworkStats(c *check.C, id string) map[string]types.NetworkStats {
 	body.Close()
 
 	return st.Networks
+}
+
+func (s *DockerSuite) TestApiStatsContainerNotFound(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+
+	status, _, err := sockRequest("GET", "/containers/nonexistent/stats", nil)
+	c.Assert(err, check.IsNil)
+	c.Assert(status, check.Equals, http.StatusNotFound)
+
+	status, _, err = sockRequest("GET", "/containers/nonexistent/stats?stream=0", nil)
+	c.Assert(err, check.IsNil)
+	c.Assert(status, check.Equals, http.StatusNotFound)
 }
