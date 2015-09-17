@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	derr "github.com/docker/docker/api/errors"
 	"github.com/docker/docker/daemon/execdriver"
 	"github.com/docker/docker/pkg/units"
 )
@@ -111,7 +112,7 @@ func wait(waitChan <-chan struct{}, timeout time.Duration) error {
 	}
 	select {
 	case <-time.After(timeout):
-		return fmt.Errorf("Timed out: %v", timeout)
+		return derr.ErrorCodeTimedOut.WithArgs(timeout)
 	case <-waitChan:
 		return nil
 	}
@@ -251,7 +252,7 @@ func (s *State) setRemovalInProgress() error {
 	s.Lock()
 	defer s.Unlock()
 	if s.removalInProgress {
-		return fmt.Errorf("Status is already RemovalInProgress")
+		return derr.ErrorCodeAlreadyRemoving
 	}
 	s.removalInProgress = true
 	return nil

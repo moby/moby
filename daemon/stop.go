@@ -1,6 +1,8 @@
 package daemon
 
-import "fmt"
+import (
+	derr "github.com/docker/docker/api/errors"
+)
 
 // ContainerStop looks for the given container and terminates it,
 // waiting the given number of seconds before forcefully killing the
@@ -14,10 +16,10 @@ func (daemon *Daemon) ContainerStop(name string, seconds int) error {
 		return err
 	}
 	if !container.IsRunning() {
-		return fmt.Errorf("Container already stopped")
+		return derr.ErrorCodeStopped
 	}
 	if err := container.Stop(seconds); err != nil {
-		return fmt.Errorf("Cannot stop container %s: %s\n", name, err)
+		return derr.ErrorCodeCantStop.WithArgs(name, err)
 	}
 	return nil
 }
