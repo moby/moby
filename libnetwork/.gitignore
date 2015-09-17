@@ -23,6 +23,7 @@ _testmain.go
 *.exe
 *.test
 *.prof
+cmd/dnet/dnet
 
 # Coverage
 *.tmp
