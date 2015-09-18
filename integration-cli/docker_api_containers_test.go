@@ -1514,3 +1514,14 @@ func (s *DockerSuite) TestPutContainerArchiveErrSymlinkInVolumeToReadOnlyRootfs(
 		c.Fatalf("expected ErrContainerRootfsReadonly error, but got %d: %s", statusCode, string(body))
 	}
 }
+
+func (s *DockerSuite) TestContainersApiGetContainersJSONEmpty(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+
+	status, body, err := sockRequest("GET", "/containers/json?all=1", nil)
+	c.Assert(err, check.IsNil)
+	c.Assert(status, check.Equals, http.StatusOK)
+	if string(body) != "[]\n" {
+		c.Fatalf("Expected empty response to be `[]`, got %q", string(body))
+	}
+}

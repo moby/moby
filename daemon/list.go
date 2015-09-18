@@ -84,7 +84,7 @@ func (daemon *Daemon) Containers(config *ContainersConfig) ([]*types.Container, 
 
 // reduceContainer parses the user filtering and generates the list of containers to return based on a reducer.
 func (daemon *Daemon) reduceContainers(config *ContainersConfig, reducer containerReducer) ([]*types.Container, error) {
-	var containers []*types.Container
+	containers := []*types.Container{}
 
 	ctx, err := daemon.foldFilter(config)
 	if err != nil {
