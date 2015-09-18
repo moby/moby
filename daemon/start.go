@@ -3,7 +3,7 @@ package daemon
 import (
 	"runtime"
 
-	derr "github.com/docker/docker/api/errors"
+	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/utils"
 )
