@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -141,17 +140,6 @@ func CopyFile(src, dst string) (int64, error) {
 	}
 	defer df.Close()
 	return io.Copy(df, sf)
-}
-
-// GetTotalUsedFds Returns the number of used File Descriptors by
-// reading it via /proc filesystem.
-func GetTotalUsedFds() int {
-	if fds, err := ioutil.ReadDir(fmt.Sprintf("/proc/%d/fd", os.Getpid())); err != nil {
-		logrus.Errorf("Error opening /proc/%d/fd: %s", os.Getpid(), err)
-	} else {
-		return len(fds)
-	}
-	return -1
 }
 
 // ReadSymlinkedDirectory returns the target directory of a symlink.
