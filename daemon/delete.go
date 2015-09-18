@@ -6,6 +6,7 @@ import (
 	"path"
 
 	"github.com/Sirupsen/logrus"
+	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/volume/store"
 )
 
@@ -31,11 +32,11 @@ func (daemon *Daemon) ContainerRm(name string, config *ContainerRmConfig) error 
 		}
 		parent, n := path.Split(name)
 		if parent == "/" {
-			return fmt.Errorf("Conflict, cannot remove the default name of the container")
+			return derr.ErrorCodeDefaultName
 		}
 		pe := daemon.containerGraph().Get(parent)
 		if pe == nil {
-			return fmt.Errorf("Cannot get parent %s for name %s", parent, name)
+			return derr.ErrorCodeNoParent.WithArgs(parent, name)
 		}
 
 		if err := daemon.containerGraph().Delete(name); err != nil {
@@ -53,7 +54,8 @@ func (daemon *Daemon) ContainerRm(name string, config *ContainerRmConfig) error 
 	}
 
 	if err := daemon.rm(container, config.ForceRemove); err != nil {
-		return fmt.Errorf("Cannot destroy container %s: %v", name, err)
+		// return derr.ErrorCodeCantDestroy.WithArgs(name, utils.GetErrorMessage(err))
+		return err
 	}
 
 	if err := container.removeMountPoints(config.RemoveVolume); err != nil {
@@ -67,10 +69,10 @@ func (daemon *Daemon) ContainerRm(name string, config *ContainerRmConfig) error 
 func (daemon *Daemon) rm(container *Container, forceRemove bool) (err error) {
 	if container.IsRunning() {
 		if !forceRemove {
-			return fmt.Errorf("Conflict, You cannot remove a running container. Stop the container before attempting removal or use -f")
+			return derr.ErrorCodeRmRunning
 		}
 		if err := container.Kill(); err != nil {
-			return fmt.Errorf("Could not kill running container, cannot remove - %v", err)
+			return derr.ErrorCodeRmFailed.WithArgs(err)
 		}
 	}
 
@@ -80,12 +82,12 @@ func (daemon *Daemon) rm(container *Container, forceRemove bool) (err error) {
 
 	element := daemon.containers.Get(container.ID)
 	if element == nil {
-		return fmt.Errorf("Container %v not found - maybe it was already destroyed?", container.ID)
+		return derr.ErrorCodeRmNotFound.WithArgs(container.ID)
 	}
 
 	// Container state RemovalInProgress should be used to avoid races.
 	if err = container.setRemovalInProgress(); err != nil {
-		return fmt.Errorf("Failed to set container state to RemovalInProgress: %s", err)
+		return derr.ErrorCodeRmState.WithArgs(err)
 	}
 
 	defer container.resetRemovalInProgress()
@@ -120,20 +122,20 @@ func (daemon *Daemon) rm(container *Container, forceRemove bool) (err error) {
 	}
 
 	if err = daemon.driver.Remove(container.ID); err != nil {
-		return fmt.Errorf("Driver %s failed to remove root filesystem %s: %s", daemon.driver, container.ID, err)
+		return derr.ErrorCodeRmDriverFS.WithArgs(daemon.driver, container.ID, err)
 	}
 
 	initID := fmt.Sprintf("%s-init", container.ID)
 	if err := daemon.driver.Remove(initID); err != nil {
-		return fmt.Errorf("Driver %s failed to remove init filesystem %s: %s", daemon.driver, initID, err)
+		return derr.ErrorCodeRmInit.WithArgs(daemon.driver, initID, err)
 	}
 
 	if err = os.RemoveAll(container.root); err != nil {
-		return fmt.Errorf("Unable to remove filesystem for %v: %v", container.ID, err)
+		return derr.ErrorCodeRmFS.WithArgs(container.ID, err)
 	}
 
 	if err = daemon.execDriver.Clean(container.ID); err != nil {
-		return fmt.Errorf("Unable to remove execdriver data for %s: %s", container.ID, err)
+		return derr.ErrorCodeRmExecDriver.WithArgs(container.ID, err)
 	}
 
 	selinuxFreeLxcContexts(container.ProcessLabel)
@@ -154,9 +156,9 @@ func (daemon *Daemon) VolumeRm(name string) error {
 	}
 	if err := daemon.volumes.Remove(v); err != nil {
 		if err == store.ErrVolumeInUse {
-			return fmt.Errorf("Conflict: %v", err)
+			return derr.ErrorCodeRmVolumeInUse.WithArgs(err)
 		}
-		return fmt.Errorf("Error while removing volume %s: %v", name, err)
+		return derr.ErrorCodeRmVolume.WithArgs(name, err)
 	}
 	return nil
 }

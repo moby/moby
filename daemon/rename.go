@@ -1,7 +1,7 @@
 package daemon
 
 import (
-	"fmt"
+	derr "github.com/docker/docker/errors"
 )
 
 // ContainerRename changes the name of a container, using the oldName
@@ -9,7 +9,7 @@ import (
 // reserved.
 func (daemon *Daemon) ContainerRename(oldName, newName string) error {
 	if oldName == "" || newName == "" {
-		return fmt.Errorf("Neither old nor new names may be empty")
+		return derr.ErrorCodeEmptyRename
 	}
 
 	container, err := daemon.Get(oldName)
@@ -22,7 +22,7 @@ func (daemon *Daemon) ContainerRename(oldName, newName string) error {
 	container.Lock()
 	defer container.Unlock()
 	if newName, err = daemon.reserveName(container.ID, newName); err != nil {
-		return fmt.Errorf("Error when allocating new name: %s", err)
+		return derr.ErrorCodeRenameTaken.WithArgs(err)
 	}
 
 	container.Name = newName
@@ -35,7 +35,7 @@ func (daemon *Daemon) ContainerRename(oldName, newName string) error {
 
 	if err := daemon.containerGraphDB.Delete(oldName); err != nil {
 		undo()
-		return fmt.Errorf("Failed to delete container %q: %v", oldName, err)
+		return derr.ErrorCodeRenameDelete.WithArgs(oldName, err)
 	}
 
 	if err := container.toDisk(); err != nil {

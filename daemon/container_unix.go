@@ -973,7 +973,7 @@ func (container *Container) setNetworkNamespaceKey(pid int) error {
 	search := libnetwork.SandboxContainerWalker(&sandbox, container.ID)
 	container.daemon.netController.WalkSandboxes(search)
 	if sandbox == nil {
-		return fmt.Errorf("no sandbox present for %s", container.ID)
+		return derr.ErrorCodeNoSandbox.WithArgs(container.ID)
 	}
 
 	return sandbox.SetKey(path)
