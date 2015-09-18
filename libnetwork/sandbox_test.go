@@ -3,6 +3,7 @@ package libnetwork
 import (
 	"testing"
 
+	"github.com/docker/libnetwork/config"
 	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/libnetwork/options"
 	"github.com/docker/libnetwork/osl"
@@ -14,21 +15,19 @@ func createEmptyCtrlr() *controller {
 }
 
 func getTestEnv(t *testing.T) (NetworkController, Network, Network) {
-	c, err := New()
-	if err != nil {
-		t.Fatal(err)
-	}
+	netType := "bridge"
 
 	option := options.Generic{
 		"EnableIPForwarding": true,
 	}
 	genericOption := make(map[string]interface{})
 	genericOption[netlabel.GenericData] = option
-	if err := c.ConfigureNetworkDriver("bridge", genericOption); err != nil {
+
+	c, err := New(config.OptionDriverConfig(netType, genericOption))
+	if err != nil {
 		t.Fatal(err)
 	}
 
-	netType := "bridge"
 	name1 := "test_nw_1"
 	netOption1 := options.Generic{
 		netlabel.GenericData: options.Generic{

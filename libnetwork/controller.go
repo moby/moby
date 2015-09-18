@@ -47,7 +47,6 @@ import (
 	"container/heap"
 	"fmt"
 	"net"
-	"strings"
 	"sync"
 
 	log "github.com/Sirupsen/logrus"
@@ -57,7 +56,6 @@ import (
 	"github.com/docker/libnetwork/datastore"
 	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/hostdiscovery"
-	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/libnetwork/osl"
 	"github.com/docker/libnetwork/types"
 )
@@ -67,9 +65,6 @@ import (
 type NetworkController interface {
 	// ID provides an unique identity for the controller
 	ID() string
-
-	// ConfigureNetworkDriver applies the passed options to the driver instance for the specified network type
-	ConfigureNetworkDriver(networkType string, options map[string]interface{}) error
 
 	// Config method returns the bootup configuration for the controller
 	Config() config.Config
@@ -139,7 +134,11 @@ type controller struct {
 func New(cfgOptions ...config.Option) (NetworkController, error) {
 	var cfg *config.Config
 	if len(cfgOptions) > 0 {
-		cfg = &config.Config{}
+		cfg = &config.Config{
+			Daemon: config.DaemonCfg{
+				DriverCfg: make(map[string]interface{}),
+			},
+		}
 		cfg.ProcessOptions(cfgOptions...)
 	}
 	c := &controller{
@@ -207,16 +206,6 @@ func (c *controller) Config() config.Config {
 	return *c.cfg
 }
 
-func (c *controller) ConfigureNetworkDriver(networkType string, options map[string]interface{}) error {
-	c.Lock()
-	dd, ok := c.drivers[networkType]
-	c.Unlock()
-	if !ok {
-		return NetworkTypeError(networkType)
-	}
-	return dd.driver.Config(options)
-}
-
 func (c *controller) RegisterDriver(networkType string, driver driverapi.Driver, capability driverapi.Capability) error {
 	if !config.IsValidName(networkType) {
 		return ErrInvalidName(networkType)
@@ -228,31 +217,7 @@ func (c *controller) RegisterDriver(networkType string, driver driverapi.Driver,
 		return driverapi.ErrActiveRegistration(networkType)
 	}
 	c.drivers[networkType] = &driverData{driver, capability}
-
-	if c.cfg == nil {
-		c.Unlock()
-		return nil
-	}
-
-	opt := make(map[string]interface{})
-	for _, label := range c.cfg.Daemon.Labels {
-		if strings.HasPrefix(label, netlabel.DriverPrefix+"."+networkType) {
-			opt[netlabel.Key(label)] = netlabel.Value(label)
-		}
-	}
-
-	if capability.Scope == driverapi.GlobalScope && c.validateDatastoreConfig() {
-		opt[netlabel.KVProvider] = c.cfg.Datastore.Client.Provider
-		opt[netlabel.KVProviderURL] = c.cfg.Datastore.Client.Address
-	}
-
 	c.Unlock()
-
-	if len(opt) != 0 {
-		if err := driver.Config(opt); err != nil {
-			return err
-		}
-	}
 
 	return nil
 }

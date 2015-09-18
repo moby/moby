@@ -21,6 +21,7 @@ type DaemonCfg struct {
 	DefaultNetwork string
 	DefaultDriver  string
 	Labels         []string
+	DriverCfg      map[string]interface{}
 }
 
 // ClusterCfg represents cluster configuration
@@ -68,6 +69,13 @@ func OptionDefaultDriver(dd string) Option {
 	return func(c *Config) {
 		log.Infof("Option DefaultDriver: %s", dd)
 		c.Daemon.DefaultDriver = strings.TrimSpace(dd)
+	}
+}
+
+// OptionDriverConfig returns an option setter for driver configuration.
+func OptionDriverConfig(networkType string, config map[string]interface{}) Option {
+	return func(c *Config) {
+		c.Daemon.DriverCfg[networkType] = config
 	}
 }
 

@@ -21,6 +21,7 @@ import (
 	"github.com/docker/docker/pkg/plugins"
 	"github.com/docker/docker/pkg/reexec"
 	"github.com/docker/libnetwork"
+	"github.com/docker/libnetwork/config"
 	"github.com/docker/libnetwork/datastore"
 	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/netlabel"
@@ -48,17 +49,6 @@ func TestMain(m *testing.M) {
 	if err := createController(); err != nil {
 		os.Exit(1)
 	}
-	option := options.Generic{
-		"EnableIPForwarding": true,
-	}
-
-	genericOption := make(map[string]interface{})
-	genericOption[netlabel.GenericData] = option
-
-	err := controller.ConfigureNetworkDriver(bridgeNetType, genericOption)
-	if err != nil {
-		os.Exit(1)
-	}
 
 	libnetwork.SetTestDataStore(controller, datastore.NewCustomDataStore(datastore.NewMockStore()))
 
@@ -68,7 +58,14 @@ func TestMain(m *testing.M) {
 func createController() error {
 	var err error
 
-	controller, err = libnetwork.New()
+	option := options.Generic{
+		"EnableIPForwarding": true,
+	}
+
+	genericOption := make(map[string]interface{})
+	genericOption[netlabel.GenericData] = option
+
+	controller, err = libnetwork.New(config.OptionDriverConfig(bridgeNetType, genericOption))
 	if err != nil {
 		return err
 	}

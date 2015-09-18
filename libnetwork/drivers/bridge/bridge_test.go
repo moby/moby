@@ -44,7 +44,7 @@ func TestCreateFullOptions(t *testing.T) {
 	genericOption := make(map[string]interface{})
 	genericOption[netlabel.GenericData] = config
 
-	if err := d.Config(genericOption); err != nil {
+	if err := d.configure(genericOption); err != nil {
 		t.Fatalf("Failed to setup driver config: %v", err)
 	}
 
@@ -86,7 +86,7 @@ func TestCreate(t *testing.T) {
 	defer testutils.SetupTestOSContext(t)()
 	d := newDriver()
 
-	if err := d.Config(nil); err != nil {
+	if err := d.configure(nil); err != nil {
 		t.Fatalf("Failed to setup driver config: %v", err)
 	}
 
@@ -119,7 +119,7 @@ func TestCreateFail(t *testing.T) {
 	defer testutils.SetupTestOSContext(t)()
 	d := newDriver()
 
-	if err := d.Config(nil); err != nil {
+	if err := d.configure(nil); err != nil {
 		t.Fatalf("Failed to setup driver config: %v", err)
 	}
 
@@ -135,7 +135,6 @@ func TestCreateFail(t *testing.T) {
 func TestCreateMultipleNetworks(t *testing.T) {
 	defer testutils.SetupTestOSContext(t)()
 	d := newDriver()
-	dd, _ := d.(*driver)
 
 	config := &configuration{
 		EnableIPTables: true,
@@ -143,7 +142,7 @@ func TestCreateMultipleNetworks(t *testing.T) {
 	genericOption := make(map[string]interface{})
 	genericOption[netlabel.GenericData] = config
 
-	if err := d.Config(genericOption); err != nil {
+	if err := d.configure(genericOption); err != nil {
 		t.Fatalf("Failed to setup driver config: %v", err)
 	}
 
@@ -167,7 +166,7 @@ func TestCreateMultipleNetworks(t *testing.T) {
 	}
 
 	// Verify the network isolation rules are installed, each network subnet should appear 4 times
-	verifyV4INCEntries(dd.networks, 4, t)
+	verifyV4INCEntries(d.networks, 4, t)
 
 	config4 := &networkConfiguration{BridgeName: "net_test_4", AllowNonDefaultBridge: true}
 	genericOption[netlabel.GenericData] = config4
@@ -176,19 +175,19 @@ func TestCreateMultipleNetworks(t *testing.T) {
 	}
 
 	// Now 6 times
-	verifyV4INCEntries(dd.networks, 6, t)
+	verifyV4INCEntries(d.networks, 6, t)
 
 	d.DeleteNetwork("1")
-	verifyV4INCEntries(dd.networks, 4, t)
+	verifyV4INCEntries(d.networks, 4, t)
 
 	d.DeleteNetwork("2")
-	verifyV4INCEntries(dd.networks, 2, t)
+	verifyV4INCEntries(d.networks, 2, t)
 
 	d.DeleteNetwork("3")
-	verifyV4INCEntries(dd.networks, 0, t)
+	verifyV4INCEntries(d.networks, 0, t)
 
 	d.DeleteNetwork("4")
-	verifyV4INCEntries(dd.networks, 0, t)
+	verifyV4INCEntries(d.networks, 0, t)
 }
 
 func verifyV4INCEntries(networks map[string]*bridgeNetwork, numEntries int, t *testing.T) {
@@ -290,7 +289,6 @@ func TestQueryEndpointInfoHairpin(t *testing.T) {
 func testQueryEndpointInfo(t *testing.T, ulPxyEnabled bool) {
 	defer testutils.SetupTestOSContext(t)()
 	d := newDriver()
-	dd, _ := d.(*driver)
 
 	config := &configuration{
 		EnableIPTables:      true,
@@ -299,7 +297,7 @@ func testQueryEndpointInfo(t *testing.T, ulPxyEnabled bool) {
 	genericOption := make(map[string]interface{})
 	genericOption[netlabel.GenericData] = config
 
-	if err := d.Config(genericOption); err != nil {
+	if err := d.configure(genericOption); err != nil {
 		t.Fatalf("Failed to setup driver config: %v", err)
 	}
 
@@ -325,7 +323,7 @@ func testQueryEndpointInfo(t *testing.T, ulPxyEnabled bool) {
 		t.Fatalf("Failed to create an endpoint : %s", err.Error())
 	}
 
-	network, ok := dd.networks["net1"]
+	network, ok := d.networks["net1"]
 	if !ok {
 		t.Fatalf("Cannot find network %s inside driver", "net1")
 	}
@@ -362,7 +360,7 @@ func TestCreateLinkWithOptions(t *testing.T) {
 	defer testutils.SetupTestOSContext(t)()
 	d := newDriver()
 
-	if err := d.Config(nil); err != nil {
+	if err := d.configure(nil); err != nil {
 		t.Fatalf("Failed to setup driver config: %v", err)
 	}
 
@@ -428,7 +426,7 @@ func TestLinkContainers(t *testing.T) {
 	genericOption := make(map[string]interface{})
 	genericOption[netlabel.GenericData] = config
 
-	if err := d.Config(genericOption); err != nil {
+	if err := d.configure(genericOption); err != nil {
 		t.Fatalf("Failed to setup driver config: %v", err)
 	}
 
@@ -638,7 +636,7 @@ func TestSetDefaultGw(t *testing.T) {
 	defer testutils.SetupTestOSContext(t)()
 	d := newDriver()
 
-	if err := d.Config(nil); err != nil {
+	if err := d.configure(nil); err != nil {
 		t.Fatalf("Failed to setup driver config: %v", err)
 	}
 
