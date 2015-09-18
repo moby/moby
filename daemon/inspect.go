@@ -2,58 +2,33 @@ package daemon
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/runconfig"
 )
 
 // ContainerInspect returns low-level information about a
 // container. Returns an error if the container cannot be found, or if
 // there is an error getting the data.
-func (daemon *Daemon) ContainerInspect(name string) (*types.ContainerJSON, error) {
+func (daemon *Daemon) ContainerInspect(name string, decorator func(*Container, *runconfig.HostConfig, map[string]string) error) error {
 	container, err := daemon.Get(name)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	container.Lock()
 	defer container.Unlock()
 
-	base, err := daemon.getInspectData(container)
+	hostConfig := daemon.inspectHostConfig(container)
+	graphDriverData, err := daemon.driver.GetMetadata(container.ID)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	mountPoints := addMountPoints(container)
-
-	return &types.ContainerJSON{base, mountPoints, container.Config}, nil
+	return decorator(container, hostConfig, graphDriverData)
 }
 
-// ContainerInspect120 serializes the master version of a container into a json type.
-func (daemon *Daemon) ContainerInspect120(name string) (*types.ContainerJSON120, error) {
-	container, err := daemon.Get(name)
-	if err != nil {
-		return nil, err
-	}
-
-	container.Lock()
-	defer container.Unlock()
-
-	base, err := daemon.getInspectData(container)
-	if err != nil {
-		return nil, err
-	}
-
-	mountPoints := addMountPoints(container)
-	config := &types.ContainerConfig120{
-		container.Config,
-		container.hostConfig.VolumeDriver,
-	}
-
-	return &types.ContainerJSON120{base, mountPoints, config}, nil
-}
-
-func (daemon *Daemon) getInspectData(container *Container) (*types.ContainerJSONBase, error) {
+func (daemon *Daemon) inspectHostConfig(container *Container) *runconfig.HostConfig {
 	// make a copy to play with
 	hostConfig := *container.hostConfig
 
@@ -72,50 +47,7 @@ func (daemon *Daemon) getInspectData(container *Container) (*types.ContainerJSON
 		hostConfig.LogConfig.Config = daemon.defaultLogConfig.Config
 	}
 
-	containerState := &types.ContainerState{
-		Status:     container.State.StateString(),
-		Running:    container.State.Running,
-		Paused:     container.State.Paused,
-		Restarting: container.State.Restarting,
-		OOMKilled:  container.State.OOMKilled,
-		Dead:       container.State.Dead,
-		Pid:        container.State.Pid,
-		ExitCode:   container.State.ExitCode,
-		Error:      container.State.Error,
-		StartedAt:  container.State.StartedAt.Format(time.RFC3339Nano),
-		FinishedAt: container.State.FinishedAt.Format(time.RFC3339Nano),
-	}
-
-	contJSONBase := &types.ContainerJSONBase{
-		ID:              container.ID,
-		Created:         container.Created.Format(time.RFC3339Nano),
-		Path:            container.Path,
-		Args:            container.Args,
-		State:           containerState,
-		Image:           container.ImageID,
-		NetworkSettings: container.NetworkSettings,
-		LogPath:         container.LogPath,
-		Name:            container.Name,
-		RestartCount:    container.RestartCount,
-		Driver:          container.Driver,
-		ExecDriver:      container.ExecDriver,
-		MountLabel:      container.MountLabel,
-		ProcessLabel:    container.ProcessLabel,
-		ExecIDs:         container.getExecIDs(),
-		HostConfig:      &hostConfig,
-	}
-
-	// Now set any platform-specific fields
-	contJSONBase = setPlatformSpecificContainerFields(container, contJSONBase)
-
-	contJSONBase.GraphDriver.Name = container.Driver
-	graphDriverData, err := daemon.driver.GetMetadata(container.ID)
-	if err != nil {
-		return nil, err
-	}
-	contJSONBase.GraphDriver.Data = graphDriverData
-
-	return contJSONBase, nil
+	return &hostConfig
 }
 
 // ContainerExecInspect returns low-level information about the exec

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/docker/docker/api/server/decorators"
 	"github.com/docker/docker/context"
 )
 
@@ -13,23 +14,6 @@ func (s *Server) getContainersByName(ctx context.Context, w http.ResponseWriter,
 		return fmt.Errorf("Missing parameter")
 	}
 
-	var json interface{}
-	var err error
-
-	version := ctx.Version()
-
-	switch {
-	case version.LessThan("1.20"):
-		json, err = s.daemon.ContainerInspectPre120(vars["name"])
-	case version.Equal("1.20"):
-		json, err = s.daemon.ContainerInspect120(vars["name"])
-	default:
-		json, err = s.daemon.ContainerInspect(vars["name"])
-	}
-
-	if err != nil {
-		return err
-	}
-
-	return writeJSON(w, http.StatusOK, json)
+	writer := decorators.NewInspectDecorator(ctx.Version(), w)
+	return s.daemon.ContainerInspect(vars["name"], writer.HandleFunc)
 }
