@@ -227,7 +227,7 @@ func (s *DockerSuite) TestRunEchoStdoutWitCPUShares(c *check.C) {
 func (s *DockerSuite) TestRunEchoStdoutWithCPUSharesAndMemoryLimit(c *check.C) {
 	testRequires(c, cpuShare)
 	testRequires(c, memoryLimitSupport)
-	out, _ := dockerCmd(c, "run", "--cpu-shares", "1000", "-m", "16m", "busybox", "echo", "test")
+	out, _, _ := dockerCmdWithStdoutStderr(c, "run", "--cpu-shares", "1000", "-m", "16m", "busybox", "echo", "test")
 	if out != "test\n" {
 		c.Errorf("container should've printed 'test', got %q instead", out)
 	}
@@ -291,7 +291,7 @@ func (s *DockerSuite) TestRunOOMExitCode(c *check.C) {
 // "test" should be printed
 func (s *DockerSuite) TestRunEchoStdoutWithMemoryLimit(c *check.C) {
 	testRequires(c, memoryLimitSupport)
-	out, _ := dockerCmd(c, "run", "-m", "16m", "busybox", "echo", "test")
+	out, _, _ := dockerCmdWithStdoutStderr(c, "run", "-m", "16m", "busybox", "echo", "test")
 	out = strings.Trim(out, "\r\n")
 
 	if expected := "test"; out != expected {
