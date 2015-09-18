@@ -89,3 +89,14 @@ The following double-dash options are deprecated and have no replacement:
     docker ps --since-id
     docker ps --before-id
     docker search --trusted
+
+### Auto-creating missing host paths for bind mounts
+**Deprected in Release: v1.9**
+
+**Target for Removal in Release: 1.11**
+
+When creating a container with a bind-mounted volume-- `docker run -v /host/path:/container/path` --
+docker was automatically creating the `/host/path` if it didn't already exist.
+
+This auto-creation of the host path is deprecated and docker will error out if
+the path does not exist.

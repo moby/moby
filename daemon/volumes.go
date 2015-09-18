@@ -53,6 +53,7 @@ func (m *mountPoint) Setup() (string, error) {
 			if !os.IsNotExist(err) {
 				return "", err
 			}
+			logrus.Warnf("Auto-creating non-existant volume host path %s, this is deprecated and will be removed soon", m.Source)
 			if err := system.MkdirAll(m.Source, 0755); err != nil {
 				return "", err
 			}
