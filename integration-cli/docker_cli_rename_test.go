@@ -74,6 +74,14 @@ func (s *DockerSuite) TestRenameInvalidName(c *check.C) {
 		c.Fatalf("Renaming container to invalid name should have failed: %s\n%v", out, err)
 	}
 
+	if out, _, err := dockerCmdWithError("rename", "myname", ""); err == nil || !strings.Contains(out, "may be empty") {
+		c.Fatalf("Renaming container to empty name should have failed: %s\n%v", out, err)
+	}
+
+	if out, _, err := dockerCmdWithError("rename", "", "newname"); err == nil || !strings.Contains(out, "may be empty") {
+		c.Fatalf("Renaming container to empty name should have failed: %s\n%v", out, err)
+	}
+
 	if out, _, err := dockerCmdWithError("ps", "-a"); err != nil || !strings.Contains(out, "myname") {
 		c.Fatalf("Output of docker ps should have included 'myname': %s\n%v", out, err)
 	}
