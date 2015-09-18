@@ -45,7 +45,8 @@ func (e *Events) Evict(l chan interface{}) {
 // Log broadcasts event to listeners. Each listener has 100 millisecond for
 // receiving event or it will be skipped.
 func (e *Events) Log(action, id, from string) {
-	jm := &jsonmessage.JSONMessage{Status: action, ID: id, From: from, Time: time.Now().UTC().Unix()}
+	now := time.Now().UTC()
+	jm := &jsonmessage.JSONMessage{Status: action, ID: id, From: from, Time: now.Unix(), TimeNano: now.UnixNano()}
 	e.mu.Lock()
 	if len(e.events) == cap(e.events) {
 		// discard oldest event
