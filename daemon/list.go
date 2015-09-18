@@ -8,6 +8,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types"
+	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/graphdb"
 	"github.com/docker/docker/pkg/nat"
@@ -370,7 +371,7 @@ func (daemon *Daemon) Volumes(filter string) ([]*types.Volume, error) {
 	filterUsed := false
 	if i, ok := volFilters["dangling"]; ok {
 		if len(i) > 1 {
-			return nil, fmt.Errorf("Conflict: cannot use more than 1 value for `dangling` filter")
+			return nil, derr.ErrorCodeDanglingOne
 		}
 
 		filterValue := i[0]

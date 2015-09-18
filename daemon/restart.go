@@ -1,6 +1,8 @@
 package daemon
 
-import "fmt"
+import (
+	derr "github.com/docker/docker/errors"
+)
 
 // ContainerRestart stops and starts a container. It attempts to
 // gracefully stop the container within the given timeout, forcefully
@@ -14,7 +16,7 @@ func (daemon *Daemon) ContainerRestart(name string, seconds int) error {
 		return err
 	}
 	if err := container.Restart(seconds); err != nil {
-		return fmt.Errorf("Cannot restart container %s: %s\n", name, err)
+		return derr.ErrorCodeCantRestart.WithArgs(name, err)
 	}
 	return nil
 }

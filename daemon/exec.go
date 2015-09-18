@@ -1,7 +1,6 @@
 package daemon
 
 import (
-	"fmt"
 	"io"
 	"io/ioutil"
 	"strings"
@@ -10,6 +9,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/execdriver"
+	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/pkg/broadcastwriter"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/pools"
@@ -80,7 +80,7 @@ func (ExecConfig *ExecConfig) resize(h, w int) error {
 	select {
 	case <-ExecConfig.waitStart:
 	case <-time.After(time.Second):
-		return fmt.Errorf("Exec %s is not running, so it can not be resized.", ExecConfig.ID)
+		return derr.ErrorCodeExecResize.WithArgs(ExecConfig.ID)
 	}
 	return ExecConfig.ProcessConfig.Terminal.Resize(h, w)
 }
@@ -104,12 +104,12 @@ func (d *Daemon) getExecConfig(name string) (*ExecConfig, error) {
 	if ExecConfig != nil && d.containers.Get(ExecConfig.Container.ID) != nil {
 
 		if !ExecConfig.Container.IsRunning() {
-			return nil, fmt.Errorf("Container %s is not running", ExecConfig.Container.ID)
+			return nil, derr.ErrorCodeContainerNotRunning.WithArgs(ExecConfig.Container.ID)
 		}
 		return ExecConfig, nil
 	}
 
-	return nil, fmt.Errorf("No such exec instance '%s' found in daemon", name)
+	return nil, derr.ErrorCodeNoExecID.WithArgs(name)
 }
 
 func (d *Daemon) unregisterExecCommand(ExecConfig *ExecConfig) {
@@ -124,10 +124,10 @@ func (d *Daemon) getActiveContainer(name string) (*Container, error) {
 	}
 
 	if !container.IsRunning() {
-		return nil, fmt.Errorf("Container %s is not running", name)
+		return nil, derr.ErrorCodeNotRunning.WithArgs(name)
 	}
 	if container.isPaused() {
-		return nil, fmt.Errorf("Container %s is paused, unpause the container before exec", name)
+		return nil, derr.ErrorCodeExecPaused.WithArgs(name)
 	}
 	return container, nil
 }
@@ -196,7 +196,7 @@ func (d *Daemon) ContainerExecStart(execName string, stdin io.ReadCloser, stdout
 		ExecConfig.Lock()
 		defer ExecConfig.Unlock()
 		if ExecConfig.Running {
-			err = fmt.Errorf("Error: Exec command %s is already running", execName)
+			err = derr.ErrorCodeExecRunning.WithArgs(execName)
 		}
 		ExecConfig.Running = true
 	}()
@@ -244,13 +244,13 @@ func (d *Daemon) ContainerExecStart(execName string, stdin io.ReadCloser, stdout
 
 	go func() {
 		if err := container.exec(ExecConfig); err != nil {
-			execErr <- fmt.Errorf("Cannot run exec command %s in container %s: %s", execName, container.ID, err)
+			execErr <- derr.ErrorCodeExecCantRun.WithArgs(execName, container.ID, err)
 		}
 	}()
 	select {
 	case err := <-attachErr:
 		if err != nil {
-			return fmt.Errorf("attach failed with error: %s", err)
+			return derr.ErrorCodeExecAttach.WithArgs(err)
 		}
 		return nil
 	case err := <-execErr:
@@ -260,7 +260,7 @@ func (d *Daemon) ContainerExecStart(execName string, stdin io.ReadCloser, stdout
 
 		// Maybe the container stopped while we were trying to exec
 		if !container.IsRunning() {
-			return fmt.Errorf("container stopped while running exec")
+			return derr.ErrorCodeExecContainerStopped
 		}
 		return err
 	}
