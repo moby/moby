@@ -288,7 +288,7 @@ func (ms *manifests) GetByTag(tag string, options ...distribution.ManifestServic
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode == http.StatusNotModified {
-		return nil, nil
+		return nil, distribution.ErrManifestNotModified
 	} else if SuccessStatus(resp.StatusCode) {
 		var sm schema1.SignedManifest
 		decoder := json.NewDecoder(resp.Body)

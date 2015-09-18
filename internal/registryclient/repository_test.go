@@ -603,12 +603,9 @@ func TestManifestFetchWithEtag(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	m2, err := ms.GetByTag("latest", AddEtagToTag("latest", d1.String()))
-	if err != nil {
+	_, err = ms.GetByTag("latest", AddEtagToTag("latest", d1.String()))
+	if err != distribution.ErrManifestNotModified {
 		t.Fatal(err)
-	}
-	if m2 != nil {
-		t.Fatal("Expected empty manifest for matching etag")
 	}
 }
 
