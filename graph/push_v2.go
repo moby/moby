@@ -66,7 +66,10 @@ func (p *v2Pusher) pushV2Repository(tag string) (err error) {
 	if len(tag) > 0 {
 		taggedName = utils.ImageReference(localName, tag)
 	}
-	broadcaster, found := p.poolAdd("push", taggedName)
+	broadcaster, found := p.acquirePush(taggedName, p.repoInfo.CanonicalName,
+		func() {
+			p.config.OutStream.Write(p.sf.FormatStatus("", "Repository %s is presently being pulled. Waiting.", p.repoInfo.CanonicalName))
+		})
 	if found {
 		// Another push or pull of the same repository is already taking
 		// place; just wait for it to finish
@@ -77,7 +80,7 @@ func (p *v2Pusher) pushV2Repository(tag string) (err error) {
 	// This must use a closure so it captures the value of err when the
 	// function returns, not when the 'defer' is evaluated.
 	defer func() {
-		p.poolRemoveWithError("push", taggedName, err)
+		p.releasePushWithError(taggedName, p.repoInfo.CanonicalName, err)
 	}()
 	broadcaster.Add(p.config.OutStream)
 
@@ -232,7 +235,10 @@ func (p *v2Pusher) pushV2Image(out io.Writer, bs distribution.BlobService, img *
 	// We must include the repo name in this key, because cross-repo pushes
 	// may not be deduplicated.
 	poolKey := "layerpush:" + p.repoInfo.LocalName + ":" + img.ID
-	transferBroadcaster, found := p.poolAdd("push", poolKey)
+	transferBroadcaster, found := p.acquirePush(poolKey, p.repoInfo.CanonicalName,
+		func() {
+			out.Write(p.sf.FormatStatus(stringid.TruncateID(img.ID), "Waiting for pull to complete before pushing"))
+		})
 	transferBroadcaster.Add(out)
 	if found {
 		// This layer is already being uploaded. Wait for the upload to
@@ -243,7 +249,7 @@ func (p *v2Pusher) pushV2Image(out io.Writer, bs distribution.BlobService, img *
 	// This must use a closure so it captures the value of err when the
 	// function returns, not when the 'defer' is evaluated.
 	defer func() {
-		p.poolRemoveWithError("push", poolKey, err)
+		p.releasePushWithError(poolKey, p.repoInfo.CanonicalName, err)
 	}()
 
 	transferBroadcaster.Write(p.sf.FormatProgress(stringid.TruncateID(img.ID), "Preparing", nil))
