@@ -36,6 +36,7 @@ var dockerCommands = []command{
 	{"info", "Display system-wide information"},
 	{"inspect", "Return low-level information on a container or image"},
 	{"kill", "Kill a running container"},
+	{"label", "Manage Docker daemon label"},
 	{"load", "Load an image from a tar archive or STDIN"},
 	{"login", "Register or log in to a Docker registry"},
 	{"logout", "Log out from a Docker registry"},
