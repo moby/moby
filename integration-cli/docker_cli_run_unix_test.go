@@ -299,7 +299,10 @@ func (s *DockerSuite) TestRunEchoStdoutWithMemoryLimit(c *check.C) {
 	}
 }
 
-// should run without memory swap
+// TestRunWithoutMemoryswapLimit sets memory limit and disables swap
+// memory limit, this means the processes in the container can use
+// 16M memory and as much swap memory as they need (if the host
+// supports swap memory).
 func (s *DockerSuite) TestRunWithoutMemoryswapLimit(c *check.C) {
 	testRequires(c, NativeExecDriver)
 	testRequires(c, memoryLimitSupport)
