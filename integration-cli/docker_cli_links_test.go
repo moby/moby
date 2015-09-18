@@ -2,10 +2,11 @@ package main
 
 import (
 	"fmt"
-	"github.com/go-check/check"
 	"reflect"
 	"regexp"
 	"strings"
+
+	"github.com/go-check/check"
 )
 
 func (s *DockerSuite) TestLinksPingUnlinkedContainers(c *check.C) {
@@ -233,7 +234,7 @@ func (s *DockerSuite) TestLinkShortDefinition(c *check.C) {
 }
 
 func (s *DockerSuite) TestLinksNetworkHostContainer(c *check.C) {
-	testRequires(c, DaemonIsLinux)
+	testRequires(c, DaemonIsLinux, NotUserNamespace)
 	dockerCmd(c, "run", "-d", "--net", "host", "--name", "host_container", "busybox", "top")
 	out, _, err := dockerCmdWithError("run", "--name", "should_fail", "--link", "host_container:tester", "busybox", "true")
 	if err == nil || !strings.Contains(out, "--net=host can't be used with links. This would result in undefined behavior") {
@@ -242,7 +243,7 @@ func (s *DockerSuite) TestLinksNetworkHostContainer(c *check.C) {
 }
 
 func (s *DockerSuite) TestLinksEtcHostsRegularFile(c *check.C) {
-	testRequires(c, DaemonIsLinux)
+	testRequires(c, DaemonIsLinux, NotUserNamespace)
 	out, _ := dockerCmd(c, "run", "--net=host", "busybox", "ls", "-la", "/etc/hosts")
 	if !strings.HasPrefix(out, "-") {
 		c.Errorf("/etc/hosts should be a regular file")

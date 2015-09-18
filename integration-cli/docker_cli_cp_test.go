@@ -589,6 +589,8 @@ func (s *DockerSuite) TestCpSpecialFiles(c *check.C) {
 }
 
 func (s *DockerSuite) TestCpVolumePath(c *check.C) {
+	//  stat /tmp/cp-test-volumepath851508420/test gets permission denied for the user
+	testRequires(c, NotUserNamespace)
 	testRequires(c, DaemonIsLinux)
 	testRequires(c, SameHostDaemon)
 

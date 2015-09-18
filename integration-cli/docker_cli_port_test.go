@@ -249,7 +249,7 @@ func (s *DockerSuite) TestUnpublishedPortsInPsOutput(c *check.C) {
 }
 
 func (s *DockerSuite) TestPortHostBinding(c *check.C) {
-	testRequires(c, DaemonIsLinux)
+	testRequires(c, DaemonIsLinux, NotUserNamespace)
 	out, _ := dockerCmd(c, "run", "-d", "-p", "9876:80", "busybox",
 		"nc", "-l", "-p", "80")
 	firstID := strings.TrimSpace(out)
@@ -272,7 +272,7 @@ func (s *DockerSuite) TestPortHostBinding(c *check.C) {
 }
 
 func (s *DockerSuite) TestPortExposeHostBinding(c *check.C) {
-	testRequires(c, DaemonIsLinux)
+	testRequires(c, DaemonIsLinux, NotUserNamespace)
 	out, _ := dockerCmd(c, "run", "-d", "-P", "--expose", "80", "busybox",
 		"nc", "-l", "-p", "80")
 	firstID := strings.TrimSpace(out)

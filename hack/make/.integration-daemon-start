@@ -26,6 +26,12 @@ if [ -n "$DOCKER_STORAGE_OPTS" ]; then
 	unset IFS
 fi
 
+# example usage: DOCKER_STORAGE_OPTS="dm.basesize=20G,dm.loopdatasize=200G"
+extra_params=""
+if [ "$DOCKER_REMAP_ROOT" ]; then
+	extra_params="--root $DOCKER_REMAP_ROOT"
+fi
+
 if [ -z "$DOCKER_TEST_HOST" ]; then
 	# Start apparmor if it is enabled
 	if [ -e "/sys/module/apparmor/parameters/enabled" ] && [ "$(cat /sys/module/apparmor/parameters/enabled)" == "Y" ]; then
@@ -47,6 +53,7 @@ if [ -z "$DOCKER_TEST_HOST" ]; then
 		--pidfile "$DEST/docker.pid" \
 		--userland-proxy="$DOCKER_USERLANDPROXY" \
 		$storage_params \
+		$extra_params \
 			&> "$DEST/docker.log"
 	) &
 	# make sure that if the script exits unexpectedly, we stop this daemon we just started

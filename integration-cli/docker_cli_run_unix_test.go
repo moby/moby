@@ -57,6 +57,8 @@ func (s *DockerSuite) TestRunRedirectStdout(c *check.C) {
 
 // Test recursive bind mount works by default
 func (s *DockerSuite) TestRunWithVolumesIsRecursive(c *check.C) {
+	// /tmp gets permission denied
+	testRequires(c, NotUserNamespace)
 	tmpDir, err := ioutil.TempDir("", "docker_recursive_mount_test")
 	if err != nil {
 		c.Fatal(err)
@@ -90,7 +92,7 @@ func (s *DockerSuite) TestRunWithVolumesIsRecursive(c *check.C) {
 }
 
 func (s *DockerSuite) TestRunDeviceDirectory(c *check.C) {
-	testRequires(c, NativeExecDriver)
+	testRequires(c, NativeExecDriver, NotUserNamespace)
 	if _, err := os.Stat("/dev/snd"); err != nil {
 		c.Skip("Host does not have /dev/snd")
 	}

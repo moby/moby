@@ -107,6 +107,10 @@ func (d *Daemon) Start(arg ...string) error {
 		fmt.Sprintf("--userland-proxy=%t", d.userlandProxy),
 	)
 
+	if root := os.Getenv("DOCKER_REMAP_ROOT"); root != "" {
+		args = append(args, []string{"--root", root}...)
+	}
+
 	// If we don't explicitly set the log-level or debug flag(-D) then
 	// turn on debug mode
 	foundIt := false
