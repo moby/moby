@@ -211,8 +211,6 @@ func (ms *manifests) Tags() ([]string, error) {
 		}
 
 		return tagsResponse.Tags, nil
-	} else if resp.StatusCode == http.StatusNotFound {
-		return nil, nil
 	}
 	return nil, handleErrorResponse(resp)
 }
