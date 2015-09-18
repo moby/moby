@@ -6,6 +6,7 @@ import (
 	"path"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/volume/store"
 )
 
 // ContainerRmConfig is a holder for passing in runtime config.
@@ -152,7 +153,7 @@ func (daemon *Daemon) VolumeRm(name string) error {
 		return err
 	}
 	if err := daemon.volumes.Remove(v); err != nil {
-		if err == ErrVolumeInUse {
+		if err == store.ErrVolumeInUse {
 			return fmt.Errorf("Conflict: %v", err)
 		}
 		return fmt.Errorf("Error while removing volume %s: %v", name, err)

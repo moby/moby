@@ -97,3 +97,12 @@ func Lookup(name string) (volume.Driver, error) {
 	drivers.extensions[name] = d
 	return d, nil
 }
+
+// GetDriver returns a volume driver by it's name.
+// If the driver is empty, it looks for the local driver.
+func GetDriver(name string) (volume.Driver, error) {
+	if name == "" {
+		name = volume.DefaultDriverName
+	}
+	return Lookup(name)
+}
