@@ -24,7 +24,7 @@ func (cli *DockerCli) CmdExec(args ...string) error {
 		return Cli.StatusError{StatusCode: 1}
 	}
 
-	serverResp, err := cli.call("POST", "/containers/"+execConfig.Container+"/exec", execConfig, map[string][]string{"Content-Type": []string{"application/json"}})
+	serverResp, err := cli.call("POST", "/containers/"+execConfig.Container+"/exec", execConfig, map[string][]string{"Content-Type": {"application/json"}})
 	if err != nil {
 		return err
 	}
