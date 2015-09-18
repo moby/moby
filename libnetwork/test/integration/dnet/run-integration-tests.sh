@@ -81,9 +81,9 @@ unset cmap[dnet-3-multi]
 ## Setup
 start_dnet 1 overlay 1>>${INTEGRATION_ROOT}/test.log 2>&1
 cmap[dnet-1-overlay]=dnet-1-overlay
-start_dnet 2 overlay $(docker inspect --format '{{.NetworkSettings.IPAddress}}' dnet-1-overlay) 1>>${INTEGRATION_ROOT}/test.log 2>&1
+start_dnet 2 overlay 1>>${INTEGRATION_ROOT}/test.log 2>&1
 cmap[dnet-2-overlay]=dnet-2-overlay
-start_dnet 3 overlay $(docker inspect --format '{{.NetworkSettings.IPAddress}}' dnet-2-overlay) 1>>${INTEGRATION_ROOT}/test.log 2>&1
+start_dnet 3 overlay 1>>${INTEGRATION_ROOT}/test.log 2>&1
 cmap[dnet-3-overlay]=dnet-3-overlay
 
 ## Run the test cases

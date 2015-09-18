@@ -3,17 +3,21 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"os/signal"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/codegangsta/cli"
+	"github.com/docker/docker/pkg/discovery"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/reexec"
 
@@ -37,6 +41,8 @@ const (
 	DefaultUnixSocket = "/var/run/dnet.sock"
 	cfgFileEnv        = "LIBNETWORK_CFG"
 	defaultCfgFile    = "/etc/default/libnetwork.toml"
+	defaultHeartbeat  = time.Duration(10) * time.Second
+	ttlFactor         = 2
 )
 
 var epConn *dnetConnection
@@ -91,7 +97,64 @@ func processConfig(cfg *config.Config) []config.Option {
 	if strings.TrimSpace(cfg.GlobalStore.Client.Address) != "" {
 		options = append(options, config.OptionKVProviderURL(cfg.GlobalStore.Client.Address))
 	}
+	dOptions, err := startDiscovery(&cfg.Cluster)
+	if err != nil {
+		logrus.Infof("Skipping discovery : %s", err.Error())
+	} else {
+		options = append(options, dOptions...)
+	}
+
 	return options
+}
+
+func startDiscovery(cfg *config.ClusterCfg) ([]config.Option, error) {
+	if cfg == nil {
+		return nil, fmt.Errorf("discovery requires a valid configuration")
+	}
+
+	hb := time.Duration(cfg.Heartbeat) * time.Second
+	if hb == 0 {
+		hb = defaultHeartbeat
+	}
+	logrus.Infof("discovery : %s $s", cfg.Discovery, hb.String())
+	d, err := discovery.New(cfg.Discovery, hb, ttlFactor*hb)
+	if err != nil {
+		return nil, err
+	}
+
+	if cfg.Address == "" {
+		iface, err := net.InterfaceByName("eth0")
+		if err != nil {
+			return nil, err
+		}
+		addrs, err := iface.Addrs()
+		if err != nil || len(addrs) == 0 {
+			return nil, err
+		}
+		ip, _, _ := net.ParseCIDR(addrs[0].String())
+		cfg.Address = ip.String()
+	}
+
+	if ip := net.ParseIP(cfg.Address); ip == nil {
+		return nil, errors.New("address config should be either ipv4 or ipv6 address")
+	}
+
+	if err := d.Register(cfg.Address + ":0"); err != nil {
+		return nil, err
+	}
+
+	options := []config.Option{config.OptionDiscoveryWatcher(d), config.OptionDiscoveryAddress(cfg.Address)}
+	go func() {
+		for {
+			select {
+			case <-time.After(hb):
+				if err := d.Register(cfg.Address + ":0"); err != nil {
+					logrus.Warn(err)
+				}
+			}
+		}
+	}()
+	return options, nil
 }
 
 func dnetApp(stdout, stderr io.Writer) error {

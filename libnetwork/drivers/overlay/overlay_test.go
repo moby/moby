@@ -1,11 +1,11 @@
 package overlay
 
 import (
+	"net"
 	"testing"
 	"time"
 
 	"github.com/docker/libnetwork/driverapi"
-	"github.com/docker/libnetwork/netlabel"
 	_ "github.com/docker/libnetwork/testutils"
 )
 
@@ -17,16 +17,28 @@ type driverTester struct {
 const testNetworkType = "overlay"
 
 func setupDriver(t *testing.T) *driverTester {
-	opt := make(map[string]interface{})
-	opt[netlabel.OverlayBindInterface] = "eth0"
 	dt := &driverTester{t: t}
-	if err := Init(dt, opt); err != nil {
+	if err := Init(dt, nil); err != nil {
 		t.Fatal(err)
 	}
 
 	if err := dt.d.configure(); err != nil {
 		t.Fatal(err)
 	}
+
+	iface, err := net.InterfaceByName("eth0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	addrs, err := iface.Addrs()
+	if err != nil || len(addrs) == 0 {
+		t.Fatal(err)
+	}
+	data := driverapi.NodeDiscoveryData{
+		Address: addrs[0].String(),
+		Self:    true,
+	}
+	dt.d.DiscoverNew(driverapi.NodeDiscovery, data)
 	return dt
 }
 

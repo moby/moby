@@ -1,79 +1,14 @@
-// +build libnetwork_discovery
-
 package hostdiscovery
 
 import (
 	"net"
 	"testing"
-	"time"
 
 	mapset "github.com/deckarep/golang-set"
 	_ "github.com/docker/libnetwork/testutils"
 
-	"github.com/docker/libnetwork/config"
-	"github.com/docker/swarm/discovery"
+	"github.com/docker/docker/pkg/discovery"
 )
-
-func TestDiscovery(t *testing.T) {
-	_, err := net.DialTimeout("tcp", "discovery-stage.hub.docker.com:80", 10*time.Second)
-	if err != nil {
-		t.Skip("Skipping Discovery test which need connectivity to discovery-stage.hub.docker.com")
-	}
-
-	hd := NewHostDiscovery()
-	config, err := config.ParseConfig("libnetwork.toml")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	err = hd.StartDiscovery(&config.Cluster, func(hosts []net.IP) {}, func(hosts []net.IP) {})
-	if err != nil {
-		t.Fatal(err)
-	}
-	time.Sleep(time.Duration(config.Cluster.Heartbeat*2) * time.Second)
-	hosts, err := hd.Fetch()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	found := false
-	for _, ip := range hosts {
-		if ip.Equal(net.ParseIP(config.Cluster.Address)) {
-			found = true
-		}
-	}
-	if !found {
-		t.Fatalf("Expecting hosts. But none discovered ")
-	}
-	err = hd.StopDiscovery()
-	if err != nil {
-		t.Fatal(err)
-	}
-}
-
-func TestBadDiscovery(t *testing.T) {
-	_, err := net.DialTimeout("tcp", "discovery-stage.hub.docker.com:80", 10*time.Second)
-	if err != nil {
-		t.Skip("Skipping Discovery test which need connectivity to discovery-stage.hub.docker.com")
-	}
-
-	hd := NewHostDiscovery()
-	cfg := &config.Config{}
-	cfg.Cluster.Discovery = ""
-	err = hd.StartDiscovery(&cfg.Cluster, func(hosts []net.IP) {}, func(hosts []net.IP) {})
-	if err == nil {
-		t.Fatal("Invalid discovery configuration must fail")
-	}
-	cfg, err = config.ParseConfig("libnetwork.toml")
-	if err != nil {
-		t.Fatal(err)
-	}
-	cfg.Cluster.Address = "invalid"
-	err = hd.StartDiscovery(&cfg.Cluster, func(hosts []net.IP) {}, func(hosts []net.IP) {})
-	if err == nil {
-		t.Fatal("Invalid discovery address configuration must fail")
-	}
-}
 
 func TestDiff(t *testing.T) {
 	existing := mapset.NewSetFromSlice([]interface{}{"1.1.1.1", "2.2.2.2"})
