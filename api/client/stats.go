@@ -99,6 +99,11 @@ func (s *containerStats) Collect(cli *DockerCli, streamStats bool) {
 			s.CPUPercentage = 0
 			s.Memory = 0
 			s.MemoryPercentage = 0
+			s.MemoryLimit = 0
+			s.NetworkRx = 0
+			s.NetworkTx = 0
+			s.BlockRead = 0
+			s.BlockWrite = 0
 			s.mu.Unlock()
 		case err := <-u:
 			if err != nil {
