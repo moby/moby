@@ -20,8 +20,8 @@ weight=1
       -t, --timestamps=false    Show timestamps
       --tail="all"              Number of lines to show from the end of the logs
 
-NOTE: this command is available only for containers with `json-file` and
-`journald` logging drivers.
+> **Note**: this command is available only for containers with `json-file` and
+> `journald` logging drivers.
 
 The `docker logs` command batch-retrieves logs present at the time of execution.
 
@@ -31,8 +31,8 @@ the container's `STDOUT` and `STDERR`.
 Passing a negative number or a non-integer to `--tail` is invalid and the
 value is set to `all` in that case.
 
-The `docker logs --timestamp` commands will add an RFC3339Nano
-timestamp, for example `2014-09-16T06:17:46.000000000Z`, to each
+The `docker logs --timestamp` commands will add an [RFC3339Nano timestamp](https://golang.org/pkg/time/#pkg-constants)
+, for example `2014-09-16T06:17:46.000000000Z`, to each
 log entry. To ensure that the timestamps for are aligned the
 nano-second part of the timestamp will be padded with zero when necessary.
 
