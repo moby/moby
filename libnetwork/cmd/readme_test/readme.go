@@ -4,25 +4,21 @@ import (
 	"fmt"
 
 	"github.com/docker/libnetwork"
+	"github.com/docker/libnetwork/config"
 	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/libnetwork/options"
 	"github.com/docker/libnetwork/types"
 )
 
 func main() {
-	// Create a new controller instance
-	controller, err := libnetwork.New()
-	if err != nil {
-		return
-	}
-
 	// Select and configure the network driver
 	networkType := "bridge"
 
+	// Create a new controller instance
 	driverOptions := options.Generic{}
 	genericOption := make(map[string]interface{})
 	genericOption[netlabel.GenericData] = driverOptions
-	err = controller.ConfigureNetworkDriver(networkType, genericOption)
+	controller, err := libnetwork.New(config.OptionDriverConfig(networkType, genericOption))
 	if err != nil {
 		return
 	}

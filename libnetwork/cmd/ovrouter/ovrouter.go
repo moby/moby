@@ -65,12 +65,6 @@ func main() {
 		return
 	}
 
-	r := &router{}
-	if err := overlay.Init(r); err != nil {
-		fmt.Printf("Failed to initialize overlay driver: %v\n", err)
-		os.Exit(1)
-	}
-
 	opt := make(map[string]interface{})
 	if len(os.Args) > 1 {
 		opt[netlabel.OverlayBindInterface] = os.Args[1]
@@ -85,7 +79,11 @@ func main() {
 		opt[netlabel.KVProviderURL] = os.Args[4]
 	}
 
-	r.d.Config(opt)
+	r := &router{}
+	if err := overlay.Init(r, opt); err != nil {
+		fmt.Printf("Failed to initialize overlay driver: %v\n", err)
+		os.Exit(1)
+	}
 
 	if err := r.d.CreateNetwork("testnetwork",
 		map[string]interface{}{}); err != nil {

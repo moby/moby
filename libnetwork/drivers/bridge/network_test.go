@@ -12,9 +12,8 @@ import (
 func TestLinkCreate(t *testing.T) {
 	defer testutils.SetupTestOSContext(t)()
 	d := newDriver()
-	dr := d.(*driver)
 
-	if err := d.Config(nil); err != nil {
+	if err := d.configure(nil); err != nil {
 		t.Fatalf("Failed to setup driver config: %v", err)
 	}
 
@@ -79,7 +78,7 @@ func TestLinkCreate(t *testing.T) {
 		t.Fatalf("Could not find source link %s: %v", te.iface.srcName, err)
 	}
 
-	n, ok := dr.networks["dummy"]
+	n, ok := d.networks["dummy"]
 	if !ok {
 		t.Fatalf("Cannot find network %s inside driver", "dummy")
 	}
@@ -108,7 +107,7 @@ func TestLinkCreateTwo(t *testing.T) {
 	defer testutils.SetupTestOSContext(t)()
 	d := newDriver()
 
-	if err := d.Config(nil); err != nil {
+	if err := d.configure(nil); err != nil {
 		t.Fatalf("Failed to setup driver config: %v", err)
 	}
 
@@ -144,7 +143,7 @@ func TestLinkCreateNoEnableIPv6(t *testing.T) {
 	defer testutils.SetupTestOSContext(t)()
 	d := newDriver()
 
-	if err := d.Config(nil); err != nil {
+	if err := d.configure(nil); err != nil {
 		t.Fatalf("Failed to setup driver config: %v", err)
 	}
 
@@ -178,7 +177,7 @@ func TestLinkDelete(t *testing.T) {
 	defer testutils.SetupTestOSContext(t)()
 	d := newDriver()
 
-	if err := d.Config(nil); err != nil {
+	if err := d.configure(nil); err != nil {
 		t.Fatalf("Failed to setup driver config: %v", err)
 	}
 

@@ -67,19 +67,25 @@ func onceInit() {
 }
 
 // Init registers a new instance of overlay driver
-func Init(dc driverapi.DriverCallback) error {
+func Init(dc driverapi.DriverCallback, config map[string]interface{}) error {
 	once.Do(onceInit)
 
 	c := driverapi.Capability{
 		Scope: driverapi.GlobalScope,
 	}
 
-	return dc.RegisterDriver(networkType, &driver{
+	d := &driver{
 		networks: networkTable{},
 		peerDb: peerNetworkMap{
 			mp: map[string]peerMap{},
 		},
-	}, c)
+	}
+
+	if err := d.configure(config); err != nil {
+		return err
+	}
+
+	return dc.RegisterDriver(networkType, d, c)
 }
 
 // Fini cleans up the driver resources
@@ -95,9 +101,13 @@ func Fini(drv driverapi.Driver) {
 	}
 }
 
-func (d *driver) Config(option map[string]interface{}) error {
+func (d *driver) configure(option map[string]interface{}) error {
 	var onceDone bool
 	var err error
+
+	if len(option) == 0 {
+		return nil
+	}
 
 	d.Do(func() {
 		onceDone = true

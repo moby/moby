@@ -93,11 +93,6 @@ func createTestNetwork(t *testing.T, network string) (libnetwork.NetworkControll
 		t.Fatal(err)
 	}
 
-	err = c.ConfigureNetworkDriver(bridgeNetType, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-
 	netOption := options.Generic{
 		netlabel.GenericData: options.Generic{
 			"BridgeName":            network,
@@ -184,10 +179,6 @@ func TestCreateDeleteNetwork(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = c.ConfigureNetworkDriver(bridgeNetType, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
 
 	badBody, err := json.Marshal("bad body")
 	if err != nil {
@@ -259,10 +250,6 @@ func TestGetNetworksAndEndpoints(t *testing.T) {
 	defer testutils.SetupTestOSContext(t)()
 
 	c, err := libnetwork.New()
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = c.ConfigureNetworkDriver(bridgeNetType, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -532,11 +519,6 @@ func TestProcGetServices(t *testing.T) {
 	defer testutils.SetupTestOSContext(t)()
 
 	c, err := libnetwork.New()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	err = c.ConfigureNetworkDriver(bridgeNetType, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1124,10 +1106,6 @@ func TestCreateDeleteEndpoints(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = c.ConfigureNetworkDriver(bridgeNetType, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
 
 	nc := networkCreate{Name: "firstNet", NetworkType: bridgeNetType}
 	body, err := json.Marshal(nc)
@@ -1247,10 +1225,6 @@ func TestJoinLeave(t *testing.T) {
 	defer testutils.SetupTestOSContext(t)()
 
 	c, err := libnetwork.New()
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = c.ConfigureNetworkDriver(bridgeNetType, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1694,11 +1668,6 @@ func TestHttpHandlerUninit(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = c.ConfigureNetworkDriver(bridgeNetType, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-
 	h := &httpHandler{c: c}
 	h.initRouter()
 	if h.r == nil {
@@ -1793,10 +1762,6 @@ func TestEndToEnd(t *testing.T) {
 	rsp := newWriter()
 
 	c, err := libnetwork.New()
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = c.ConfigureNetworkDriver(bridgeNetType, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

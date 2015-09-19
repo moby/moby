@@ -26,7 +26,7 @@ func newDriver(name string, client *plugins.Client) driverapi.Driver {
 
 // Init makes sure a remote driver is registered when a network driver
 // plugin is activated.
-func Init(dc driverapi.DriverCallback) error {
+func Init(dc driverapi.DriverCallback, config map[string]interface{}) error {
 	plugins.Handle(driverapi.NetworkPluginEndpointType, func(name string, client *plugins.Client) {
 		// negotiate driver capability with client
 		d := newDriver(name, client)

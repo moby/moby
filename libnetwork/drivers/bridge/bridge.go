@@ -97,7 +97,6 @@ type bridgeNetwork struct {
 
 type driver struct {
 	config      *configuration
-	configured  bool
 	network     *bridgeNetwork
 	natChain    *iptables.ChainInfo
 	filterChain *iptables.ChainInfo
@@ -106,13 +105,13 @@ type driver struct {
 }
 
 // New constructs a new bridge driver
-func newDriver() driverapi.Driver {
+func newDriver() *driver {
 	ipAllocator = ipallocator.New()
 	return &driver{networks: map[string]*bridgeNetwork{}, config: &configuration{}}
 }
 
 // Init registers a new instance of bridge driver
-func Init(dc driverapi.DriverCallback) error {
+func Init(dc driverapi.DriverCallback, config map[string]interface{}) error {
 	if _, err := os.Stat("/proc/sys/net/bridge"); err != nil {
 		if out, err := exec.Command("modprobe", "-va", "bridge", "br_netfilter").CombinedOutput(); err != nil {
 			logrus.Warnf("Running modprobe bridge br_netfilter failed with message: %s, error: %v", out, err)
@@ -128,10 +127,15 @@ func Init(dc driverapi.DriverCallback) error {
 		logrus.Warnf("Failed to remove existing iptables entries in %s : %v", DockerChain, err)
 	}
 
+	d := newDriver()
+	if err := d.configure(config); err != nil {
+		return err
+	}
+
 	c := driverapi.Capability{
 		Scope: driverapi.LocalScope,
 	}
-	return dc.RegisterDriver(networkType, newDriver(), c)
+	return dc.RegisterDriver(networkType, d, c)
 }
 
 // Validate performs a static validation on the network configuration parameters.
@@ -426,16 +430,12 @@ func (c *networkConfiguration) conflictsWithNetworks(id string, others []*bridge
 	return nil
 }
 
-func (d *driver) Config(option map[string]interface{}) error {
+func (d *driver) configure(option map[string]interface{}) error {
 	var config *configuration
 	var err error
 
 	d.Lock()
 	defer d.Unlock()
-
-	if d.configured {
-		return &ErrConfigExists{}
-	}
 
 	genericData, ok := option[netlabel.GenericData]
 	if !ok || genericData == nil {
@@ -469,7 +469,6 @@ func (d *driver) Config(option map[string]interface{}) error {
 		}
 	}
 
-	d.configured = true
 	d.config = config
 	return nil
 }
@@ -567,20 +566,12 @@ func (d *driver) getNetworks() []*bridgeNetwork {
 
 // Create a new network using bridge plugin
 func (d *driver) CreateNetwork(id string, option map[string]interface{}) error {
-	var (
-		err          error
-		configLocked bool
-	)
+	var err error
 
 	defer osl.InitOSContext()()
 
 	// Sanity checks
 	d.Lock()
-	if !d.configured {
-		configLocked = true
-		d.configured = true
-	}
-
 	if _, ok := d.networks[id]; ok {
 		d.Unlock()
 		return types.ForbiddenErrorf("network %s exists", id)
@@ -619,10 +610,6 @@ func (d *driver) CreateNetwork(id string, option map[string]interface{}) error {
 	defer func() {
 		if err != nil {
 			d.Lock()
-			if configLocked {
-				d.configured = false
-			}
-
 			delete(d.networks, id)
 			d.Unlock()
 		}

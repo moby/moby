@@ -5,24 +5,22 @@ import (
 	"time"
 
 	"github.com/docker/libnetwork/driverapi"
+	"github.com/docker/libnetwork/netlabel"
 	_ "github.com/docker/libnetwork/testutils"
 )
 
 type driverTester struct {
 	t *testing.T
-	d driverapi.Driver
+	d *driver
 }
 
 const testNetworkType = "overlay"
 
 func setupDriver(t *testing.T) *driverTester {
-	dt := &driverTester{t: t}
-	if err := Init(dt); err != nil {
-		t.Fatal(err)
-	}
-
 	opt := make(map[string]interface{})
-	if err := dt.d.Config(opt); err != nil {
+	opt[netlabel.OverlayBindInterface] = "eth0"
+	dt := &driverTester{t: t}
+	if err := Init(dt, opt); err != nil {
 		t.Fatal(err)
 	}
 
@@ -60,14 +58,14 @@ func (dt *driverTester) RegisterDriver(name string, drv driverapi.Driver,
 }
 
 func TestOverlayInit(t *testing.T) {
-	if err := Init(&driverTester{t: t}); err != nil {
+	if err := Init(&driverTester{t: t}, nil); err != nil {
 		t.Fatal(err)
 	}
 }
 
 func TestOverlayFiniWithoutConfig(t *testing.T) {
 	dt := &driverTester{t: t}
-	if err := Init(dt); err != nil {
+	if err := Init(dt, nil); err != nil {
 		t.Fatal(err)
 	}
 
@@ -76,11 +74,11 @@ func TestOverlayFiniWithoutConfig(t *testing.T) {
 
 func TestOverlayNilConfig(t *testing.T) {
 	dt := &driverTester{t: t}
-	if err := Init(dt); err != nil {
+	if err := Init(dt, nil); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := dt.d.Config(nil); err != nil {
+	if err := dt.d.configure(nil); err != nil {
 		t.Fatal(err)
 	}
 
@@ -92,7 +90,7 @@ func TestOverlayConfig(t *testing.T) {
 
 	time.Sleep(1 * time.Second)
 
-	d := dt.d.(*driver)
+	d := dt.d
 	if d.notifyCh == nil {
 		t.Fatal("Driver notify channel wasn't initialzed after Config method")
 	}
@@ -108,19 +106,9 @@ func TestOverlayConfig(t *testing.T) {
 	cleanupDriver(t, dt)
 }
 
-func TestOverlayMultipleConfig(t *testing.T) {
-	dt := setupDriver(t)
-
-	if err := dt.d.Config(nil); err == nil {
-		t.Fatal("Expected a failure, instead succeded")
-	}
-
-	cleanupDriver(t, dt)
-}
-
 func TestOverlayType(t *testing.T) {
 	dt := &driverTester{t: t}
-	if err := Init(dt); err != nil {
+	if err := Init(dt, nil); err != nil {
 		t.Fatal(err)
 	}
 
