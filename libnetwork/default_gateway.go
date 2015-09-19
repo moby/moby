@@ -68,8 +68,9 @@ func (sb *sandbox) setupDefaultGW(srcEp *endpoint) error {
 	if err != nil {
 		return fmt.Errorf("container %s: endpoint create on GW Network failed: %v", sb.containerID, err)
 	}
+	epLocal := newEp.(*endpoint)
 
-	if err := newEp.Join(sb); err != nil {
+	if err := epLocal.sbJoin(sb); err != nil {
 		return fmt.Errorf("container %s: endpoint join on GW Network failed: %v", sb.containerID, err)
 	}
 	return nil
@@ -82,7 +83,7 @@ func (sb *sandbox) clearDefaultGW() error {
 		return nil
 	}
 
-	if err := ep.Leave(sb); err != nil {
+	if err := ep.sbLeave(sb); err != nil {
 		return fmt.Errorf("container %s: endpoint leaving GW Network failed: %v", sb.containerID, err)
 	}
 	if err := ep.Delete(); err != nil {
