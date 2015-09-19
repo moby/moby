@@ -146,7 +146,7 @@ func (s *DockerSuite) TestEventsContainerEvents(c *check.C) {
 	if createEvent[len(createEvent)-1] != "create" {
 		c.Fatalf("event should be create, not %#v", createEvent)
 	}
-	if attachEvent[len(createEvent)-1] != "attach" {
+	if attachEvent[len(attachEvent)-1] != "attach" {
 		c.Fatalf("event should be attach, not %#v", attachEvent)
 	}
 	if startEvent[len(startEvent)-1] != "start" {
