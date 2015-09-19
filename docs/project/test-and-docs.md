@@ -107,7 +107,10 @@ Run the entire test suite on your current repository:
     * cross-compiles all the binaries for the various operating systems
     * runs all the tests in the system
 
-    It can take several minutes to run all the tests. When they complete
+    It can take approximate one hour to run all the tests. The time depends
+    on your host performance. The default timeout is 60 minutes, which is
+    defined in hack/make.sh(${TIMEOUT:=60m}). You can modify the timeout
+    value on the basis of your host performance. When they complete
     successfully, you see the output concludes with something like this:
 
 
