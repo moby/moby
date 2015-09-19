@@ -7,20 +7,24 @@ import (
 )
 
 // convertStatsToAPITypes converts the libcontainer.Stats to the api specific
-// structs.  This is done to preserve API compatibility and versioning.
-func convertStatsToAPITypes(ls *libcontainer.Stats) *types.Stats {
-	s := &types.Stats{}
+// structs. This is done to preserve API compatibility and versioning.
+func convertStatsToAPITypes(ls *libcontainer.Stats) *types.StatsJSON {
+	s := &types.StatsJSON{}
 	if ls.Interfaces != nil {
-		s.Network = types.NetworkStats{}
+		s.Networks = make(map[string]types.NetworkStats)
 		for _, iface := range ls.Interfaces {
-			s.Network.RxBytes += iface.RxBytes
-			s.Network.RxPackets += iface.RxPackets
-			s.Network.RxErrors += iface.RxErrors
-			s.Network.RxDropped += iface.RxDropped
-			s.Network.TxBytes += iface.TxBytes
-			s.Network.TxPackets += iface.TxPackets
-			s.Network.TxErrors += iface.TxErrors
-			s.Network.TxDropped += iface.TxDropped
+			// For API Version >= 1.21, the original data of network will
+			// be returned.
+			s.Networks[iface.Name] = types.NetworkStats{
+				RxBytes:   iface.RxBytes,
+				RxPackets: iface.RxPackets,
+				RxErrors:  iface.RxErrors,
+				RxDropped: iface.RxDropped,
+				TxBytes:   iface.TxBytes,
+				TxPackets: iface.TxPackets,
+				TxErrors:  iface.TxErrors,
+				TxDropped: iface.TxDropped,
+			}
 		}
 	}
 

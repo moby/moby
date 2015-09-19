@@ -14,10 +14,10 @@ func TestValidTagName(t *testing.T) {
 }
 
 func TestInvalidTagName(t *testing.T) {
-	validTags := []string{"-9", ".foo", "-test", ".", "-"}
-	for _, tag := range validTags {
+	inValidTags := []string{"-9", ".foo", "-test", ".", "-"}
+	for _, tag := range inValidTags {
 		if err := ValidateTagName(tag); err == nil {
-			t.Errorf("'%s' shouldn't have been a valid tag", tag)
+			t.Errorf("'%s' should've been an invalid tag", tag)
 		}
 	}
 }

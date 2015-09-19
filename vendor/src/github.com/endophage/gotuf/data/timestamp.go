@@ -2,10 +2,9 @@ package data
 
 import (
 	"bytes"
-	"encoding/json"
 	"time"
 
-	cjson "github.com/tent/canonical-json-go"
+	"github.com/jfrazelle/go/canonical/json"
 )
 
 type SignedTimestamp struct {
@@ -44,7 +43,7 @@ func NewTimestamp(snapshot *Signed) (*SignedTimestamp, error) {
 }
 
 func (ts SignedTimestamp) ToSigned() (*Signed, error) {
-	s, err := cjson.Marshal(ts.Signed)
+	s, err := json.MarshalCanonical(ts.Signed)
 	if err != nil {
 		return nil, err
 	}

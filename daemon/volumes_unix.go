@@ -3,7 +3,6 @@
 package daemon
 
 import (
-	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -12,6 +11,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/execdriver"
+	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/volume"
@@ -59,7 +59,7 @@ func (container *Container) setupMounts() ([]execdriver.Mount, error) {
 }
 
 // parseBindMount validates the configuration of mount information in runconfig is valid.
-func parseBindMount(spec string, mountLabel string, config *runconfig.Config) (*mountPoint, error) {
+func parseBindMount(spec, volumeDriver string) (*mountPoint, error) {
 	bind := &mountPoint{
 		RW: true,
 	}
@@ -72,13 +72,18 @@ func parseBindMount(spec string, mountLabel string, config *runconfig.Config) (*
 		bind.Destination = arr[1]
 		mode := arr[2]
 		if !volume.ValidMountMode(mode) {
-			return nil, fmt.Errorf("invalid mode for volumes-from: %s", mode)
+			return nil, derr.ErrorCodeVolumeInvalidMode.WithArgs(mode)
 		}
 		bind.RW = volume.ReadWrite(mode)
 		// Mode field is used by SELinux to decide whether to apply label
 		bind.Mode = mode
 	default:
-		return nil, fmt.Errorf("Invalid volume specification: %s", spec)
+		return nil, derr.ErrorCodeVolumeInvalid.WithArgs(spec)
+	}
+
+	//validate the volumes destination path
+	if !filepath.IsAbs(bind.Destination) {
+		return nil, derr.ErrorCodeVolumeAbs.WithArgs(bind.Destination)
 	}
 
 	name, source, err := parseVolumeSource(arr[0])
@@ -87,7 +92,7 @@ func parseBindMount(spec string, mountLabel string, config *runconfig.Config) (*
 	}
 
 	if len(source) == 0 {
-		bind.Driver = config.VolumeDriver
+		bind.Driver = volumeDriver
 		if len(bind.Driver) == 0 {
 			bind.Driver = volume.DefaultDriverName
 		}
@@ -258,7 +263,7 @@ func (daemon *Daemon) verifyVolumesInfo(container *Container) error {
 // parseVolumesFrom ensure that the supplied volumes-from is valid.
 func parseVolumesFrom(spec string) (string, string, error) {
 	if len(spec) == 0 {
-		return "", "", fmt.Errorf("malformed volumes-from specification: %s", spec)
+		return "", "", derr.ErrorCodeVolumeFromBlank.WithArgs(spec)
 	}
 
 	specParts := strings.SplitN(spec, ":", 2)
@@ -268,7 +273,7 @@ func parseVolumesFrom(spec string) (string, string, error) {
 	if len(specParts) == 2 {
 		mode = specParts[1]
 		if !volume.ValidMountMode(mode) {
-			return "", "", fmt.Errorf("invalid mode for volumes-from: %s", mode)
+			return "", "", derr.ErrorCodeVolumeMode.WithArgs(mode)
 		}
 	}
 	return id, mode, nil
@@ -325,13 +330,13 @@ func (daemon *Daemon) registerMountPoints(container *Container, hostConfig *runc
 	// 3. Read bind mounts
 	for _, b := range hostConfig.Binds {
 		// #10618
-		bind, err := parseBindMount(b, container.MountLabel, container.Config)
+		bind, err := parseBindMount(b, hostConfig.VolumeDriver)
 		if err != nil {
 			return err
 		}
 
 		if binds[bind.Destination] {
-			return fmt.Errorf("Duplicate bind mount %s", bind.Destination)
+			return derr.ErrorCodeVolumeDup.WithArgs(bind.Destination)
 		}
 
 		if len(bind.Name) > 0 && len(bind.Driver) > 0 {
@@ -342,13 +347,16 @@ func (daemon *Daemon) registerMountPoints(container *Container, hostConfig *runc
 			}
 			bind.Volume = v
 			bind.Source = v.Path()
+			// bind.Name is an already existing volume, we need to use that here
+			bind.Driver = v.DriverName()
 			// Since this is just a named volume and not a typical bind, set to shared mode `z`
 			if bind.Mode == "" {
 				bind.Mode = "z"
 			}
 		}
 
-		if err := label.Relabel(bind.Source, container.MountLabel, bind.Mode); err != nil {
+		shared := label.IsShared(bind.Mode)
+		if err := label.Relabel(bind.Source, container.MountLabel, shared); err != nil {
 			return err
 		}
 		binds[bind.Destination] = true

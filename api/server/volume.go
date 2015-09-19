@@ -5,10 +5,10 @@ import (
 	"net/http"
 
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/pkg/version"
+	"github.com/docker/docker/context"
 )
 
-func (s *Server) getVolumesList(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (s *Server) getVolumesList(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := parseForm(r); err != nil {
 		return err
 	}
@@ -20,7 +20,7 @@ func (s *Server) getVolumesList(version version.Version, w http.ResponseWriter, 
 	return writeJSON(w, http.StatusOK, &types.VolumesListResponse{Volumes: volumes})
 }
 
-func (s *Server) getVolumeByName(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (s *Server) getVolumeByName(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := parseForm(r); err != nil {
 		return err
 	}
@@ -32,7 +32,7 @@ func (s *Server) getVolumeByName(version version.Version, w http.ResponseWriter,
 	return writeJSON(w, http.StatusOK, v)
 }
 
-func (s *Server) postVolumesCreate(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (s *Server) postVolumesCreate(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := parseForm(r); err != nil {
 		return err
 	}
@@ -53,7 +53,7 @@ func (s *Server) postVolumesCreate(version version.Version, w http.ResponseWrite
 	return writeJSON(w, http.StatusCreated, volume)
 }
 
-func (s *Server) deleteVolumes(version version.Version, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (s *Server) deleteVolumes(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := parseForm(r); err != nil {
 		return err
 	}

@@ -9,6 +9,7 @@ import (
 )
 
 func (s *DockerSuite) TestKillContainer(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
 	cleanedContainerID := strings.TrimSpace(out)
 	c.Assert(waitRun(cleanedContainerID), check.IsNil)
@@ -22,6 +23,7 @@ func (s *DockerSuite) TestKillContainer(c *check.C) {
 }
 
 func (s *DockerSuite) TestKillofStoppedContainer(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
 	cleanedContainerID := strings.TrimSpace(out)
 
@@ -32,6 +34,7 @@ func (s *DockerSuite) TestKillofStoppedContainer(c *check.C) {
 }
 
 func (s *DockerSuite) TestKillDifferentUserContainer(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-u", "daemon", "-d", "busybox", "top")
 	cleanedContainerID := strings.TrimSpace(out)
 	c.Assert(waitRun(cleanedContainerID), check.IsNil)
@@ -46,6 +49,7 @@ func (s *DockerSuite) TestKillDifferentUserContainer(c *check.C) {
 
 // regression test about correct signal parsing see #13665
 func (s *DockerSuite) TestKillWithSignal(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
 	cid := strings.TrimSpace(out)
 	c.Assert(waitRun(cid), check.IsNil)
@@ -59,6 +63,7 @@ func (s *DockerSuite) TestKillWithSignal(c *check.C) {
 }
 
 func (s *DockerSuite) TestKillWithInvalidSignal(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
 	cid := strings.TrimSpace(out)
 	c.Assert(waitRun(cid), check.IsNil)
@@ -91,6 +96,7 @@ func (s *DockerSuite) TestKillWithInvalidSignal(c *check.C) {
 }
 
 func (s *DockerSuite) TestKillofStoppedContainerAPIPre120(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	dockerCmd(c, "run", "--name", "docker-kill-test-api", "-d", "busybox", "top")
 	dockerCmd(c, "stop", "docker-kill-test-api")
 

@@ -24,6 +24,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/httputils"
+	"github.com/docker/docker/pkg/integration"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/stringutils"
 	"github.com/go-check/check"
@@ -47,15 +48,6 @@ type Daemon struct {
 	execDriver     string
 	wait           chan error
 	userlandProxy  bool
-}
-
-func enableUserlandProxy() bool {
-	if env := os.Getenv("DOCKER_USERLANDPROXY"); env != "" {
-		if val, err := strconv.ParseBool(env); err != nil {
-			return val
-		}
-	}
-	return true
 }
 
 // NewDaemon returns a Daemon instance to be used for testing.
@@ -502,10 +494,9 @@ func init() {
 	// Obtain the daemon platform so that it can be used by tests to make
 	// intelligent decisions about how to configure themselves, and validate
 	// that the target platform is valid.
-	res, b, err := sockRequestRaw("GET", "/version", nil, "application/json")
-	defer b.Close()
-	if err != nil || res.StatusCode != http.StatusOK {
-		panic("Init failed to get version: " + err.Error() + " " + string(res.StatusCode))
+	res, _, err := sockRequestRaw("GET", "/version", nil, "application/json")
+	if err != nil || res == nil || (res != nil && res.StatusCode != http.StatusOK) {
+		panic(fmt.Errorf("Init failed to get version: %v. Res=%v", err.Error(), res))
 	}
 	svrHeader, _ := httputils.ParseServerHeader(res.Header.Get("Server"))
 	daemonPlatform = svrHeader.OS
@@ -631,52 +622,30 @@ func pullImageIfNotExist(image string) (err error) {
 }
 
 func dockerCmdWithError(args ...string) (string, int, error) {
-	return runCommandWithOutput(exec.Command(dockerBinary, args...))
+	return integration.DockerCmdWithError(dockerBinary, args...)
 }
 
 func dockerCmdWithStdoutStderr(c *check.C, args ...string) (string, string, int) {
-	stdout, stderr, status, err := runCommandWithStdoutStderr(exec.Command(dockerBinary, args...))
-	if c != nil {
-		c.Assert(err, check.IsNil, check.Commentf("%q failed with errors: %s, %v", strings.Join(args, " "), stderr, err))
-	}
-	return stdout, stderr, status
+	return integration.DockerCmdWithStdoutStderr(dockerBinary, c, args...)
 }
 
 func dockerCmd(c *check.C, args ...string) (string, int) {
-	out, status, err := runCommandWithOutput(exec.Command(dockerBinary, args...))
-	c.Assert(err, check.IsNil, check.Commentf("%q failed with errors: %s, %v", strings.Join(args, " "), out, err))
-	return out, status
+	return integration.DockerCmd(dockerBinary, c, args...)
 }
 
 // execute a docker command with a timeout
 func dockerCmdWithTimeout(timeout time.Duration, args ...string) (string, int, error) {
-	out, status, err := runCommandWithOutputAndTimeout(exec.Command(dockerBinary, args...), timeout)
-	if err != nil {
-		return out, status, fmt.Errorf("%q failed with errors: %v : %q)", strings.Join(args, " "), err, out)
-	}
-	return out, status, err
+	return integration.DockerCmdWithTimeout(dockerBinary, timeout, args...)
 }
 
 // execute a docker command in a directory
 func dockerCmdInDir(c *check.C, path string, args ...string) (string, int, error) {
-	dockerCommand := exec.Command(dockerBinary, args...)
-	dockerCommand.Dir = path
-	out, status, err := runCommandWithOutput(dockerCommand)
-	if err != nil {
-		return out, status, fmt.Errorf("%q failed with errors: %v : %q)", strings.Join(args, " "), err, out)
-	}
-	return out, status, err
+	return integration.DockerCmdInDir(dockerBinary, path, args...)
 }
 
 // execute a docker command in a directory with a timeout
 func dockerCmdInDirWithTimeout(timeout time.Duration, path string, args ...string) (string, int, error) {
-	dockerCommand := exec.Command(dockerBinary, args...)
-	dockerCommand.Dir = path
-	out, status, err := runCommandWithOutputAndTimeout(dockerCommand, timeout)
-	if err != nil {
-		return out, status, fmt.Errorf("%q failed with errors: %v : %q)", strings.Join(args, " "), err, out)
-	}
-	return out, status, err
+	return integration.DockerCmdInDirWithTimeout(dockerBinary, timeout, path, args...)
 }
 
 func findContainerIP(c *check.C, id string, vargs ...string) string {
@@ -1056,11 +1025,12 @@ func getContainerState(c *check.C, id string) (int, bool, error) {
 	return exitStatus, running, nil
 }
 
-func buildImageCmd(name, dockerfile string, useCache bool) *exec.Cmd {
+func buildImageCmd(name, dockerfile string, useCache bool, buildFlags ...string) *exec.Cmd {
 	args := []string{"-D", "build", "-t", name}
 	if !useCache {
 		args = append(args, "--no-cache")
 	}
+	args = append(args, buildFlags...)
 	args = append(args, "-")
 	buildCmd := exec.Command(dockerBinary, args...)
 	buildCmd.Stdin = strings.NewReader(dockerfile)
@@ -1068,8 +1038,8 @@ func buildImageCmd(name, dockerfile string, useCache bool) *exec.Cmd {
 
 }
 
-func buildImageWithOut(name, dockerfile string, useCache bool) (string, string, error) {
-	buildCmd := buildImageCmd(name, dockerfile, useCache)
+func buildImageWithOut(name, dockerfile string, useCache bool, buildFlags ...string) (string, string, error) {
+	buildCmd := buildImageCmd(name, dockerfile, useCache, buildFlags...)
 	out, exitCode, err := runCommandWithOutput(buildCmd)
 	if err != nil || exitCode != 0 {
 		return "", out, fmt.Errorf("failed to build the image: %s", out)
@@ -1081,8 +1051,8 @@ func buildImageWithOut(name, dockerfile string, useCache bool) (string, string, 
 	return id, out, nil
 }
 
-func buildImageWithStdoutStderr(name, dockerfile string, useCache bool) (string, string, string, error) {
-	buildCmd := buildImageCmd(name, dockerfile, useCache)
+func buildImageWithStdoutStderr(name, dockerfile string, useCache bool, buildFlags ...string) (string, string, string, error) {
+	buildCmd := buildImageCmd(name, dockerfile, useCache, buildFlags...)
 	stdout, stderr, exitCode, err := runCommandWithStdoutStderr(buildCmd)
 	if err != nil || exitCode != 0 {
 		return "", stdout, stderr, fmt.Errorf("failed to build the image: %s", stdout)
@@ -1094,16 +1064,17 @@ func buildImageWithStdoutStderr(name, dockerfile string, useCache bool) (string,
 	return id, stdout, stderr, nil
 }
 
-func buildImage(name, dockerfile string, useCache bool) (string, error) {
-	id, _, err := buildImageWithOut(name, dockerfile, useCache)
+func buildImage(name, dockerfile string, useCache bool, buildFlags ...string) (string, error) {
+	id, _, err := buildImageWithOut(name, dockerfile, useCache, buildFlags...)
 	return id, err
 }
 
-func buildImageFromContext(name string, ctx *FakeContext, useCache bool) (string, error) {
+func buildImageFromContext(name string, ctx *FakeContext, useCache bool, buildFlags ...string) (string, error) {
 	args := []string{"build", "-t", name}
 	if !useCache {
 		args = append(args, "--no-cache")
 	}
+	args = append(args, buildFlags...)
 	args = append(args, ".")
 	buildCmd := exec.Command(dockerBinary, args...)
 	buildCmd.Dir = ctx.Dir
@@ -1114,11 +1085,12 @@ func buildImageFromContext(name string, ctx *FakeContext, useCache bool) (string
 	return getIDByName(name)
 }
 
-func buildImageFromPath(name, path string, useCache bool) (string, error) {
+func buildImageFromPath(name, path string, useCache bool, buildFlags ...string) (string, error) {
 	args := []string{"build", "-t", name}
 	if !useCache {
 		args = append(args, "--no-cache")
 	}
+	args = append(args, buildFlags...)
 	args = append(args, path)
 	buildCmd := exec.Command(dockerBinary, args...)
 	out, exitCode, err := runCommandWithOutput(buildCmd)
@@ -1392,22 +1364,14 @@ func createTmpFile(c *check.C, content string) string {
 	return filename
 }
 
-func buildImageArgs(args []string, name, dockerfile string, useCache bool) (string, error) {
-	id, _, err := buildImageWithOutArgs(args, name, dockerfile, useCache)
-	return id, err
-}
-
-func buildImageWithOutArgs(args []string, name, dockerfile string, useCache bool) (string, string, error) {
+func buildImageWithOutInDamon(socket string, name, dockerfile string, useCache bool) (string, error) {
+	args := []string{"--host", socket}
 	buildCmd := buildImageCmdArgs(args, name, dockerfile, useCache)
 	out, exitCode, err := runCommandWithOutput(buildCmd)
 	if err != nil || exitCode != 0 {
-		return "", out, fmt.Errorf("failed to build the image: %s", out)
+		return out, fmt.Errorf("failed to build the image: %s, error: %v", out, err)
 	}
-	id, err := getIDByName(name)
-	if err != nil {
-		return "", out, err
-	}
-	return id, out, nil
+	return out, nil
 }
 
 func buildImageCmdArgs(args []string, name, dockerfile string, useCache bool) *exec.Cmd {
@@ -1420,4 +1384,61 @@ func buildImageCmdArgs(args []string, name, dockerfile string, useCache bool) *e
 	buildCmd.Stdin = strings.NewReader(dockerfile)
 	return buildCmd
 
+}
+
+func waitForContainer(contID string, args ...string) error {
+	args = append([]string{"run", "--name", contID}, args...)
+	cmd := exec.Command(dockerBinary, args...)
+	if _, err := runCommand(cmd); err != nil {
+		return err
+	}
+
+	if err := waitRun(contID); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// waitRun will wait for the specified container to be running, maximum 5 seconds.
+func waitRun(contID string) error {
+	return waitInspect(contID, "{{.State.Running}}", "true", 5)
+}
+
+// waitInspect will wait for the specified container to have the specified string
+// in the inspect output. It will wait until the specified timeout (in seconds)
+// is reached.
+func waitInspect(name, expr, expected string, timeout int) error {
+	after := time.After(time.Duration(timeout) * time.Second)
+
+	for {
+		cmd := exec.Command(dockerBinary, "inspect", "-f", expr, name)
+		out, _, err := runCommandWithOutput(cmd)
+		if err != nil {
+			if !strings.Contains(out, "No such") {
+				return fmt.Errorf("error executing docker inspect: %v\n%s", err, out)
+			}
+			select {
+			case <-after:
+				return err
+			default:
+				time.Sleep(10 * time.Millisecond)
+				continue
+			}
+		}
+
+		out = strings.TrimSpace(out)
+		if out == expected {
+			break
+		}
+
+		select {
+		case <-after:
+			return fmt.Errorf("condition \"%q == %q\" not true in time", out, expected)
+		default:
+		}
+
+		time.Sleep(100 * time.Millisecond)
+	}
+	return nil
 }

@@ -286,9 +286,9 @@ aws cloudfront  create-invalidation --profile docs.docker.com --distribution-id 
 
 ### Generate the man pages 
 
-For information on generating man pages (short for manual page), see [the man
-page directory](https://github.com/docker/docker/tree/master/docker) in this
-project.
+For information on generating man pages (short for manual page), see the README.md
+document in [the man page directory](https://github.com/docker/docker/tree/master/docker)
+in this project.
 
 
 

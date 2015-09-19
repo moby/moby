@@ -17,7 +17,7 @@ create network namespaces and allocate interfaces for containers to use.
 	}
 
 	// Create a network for containers to join.
-	// NewNetwork accepts Variadic optional arguments that libnetwork and Drivers can make of
+	// NewNetwork accepts Variadic optional arguments that libnetwork and Drivers can make use of
 	network, err := controller.NewNetwork(networkType, "network1")
 	if err != nil {
 		return
@@ -32,8 +32,7 @@ create network namespaces and allocate interfaces for containers to use.
 		return
 	}
 
-	// A container can join the endpoint by providing the container ID to the join
-	// api.
+	// A container can join the endpoint by providing the container ID to the join api.
 	// Join accepts Variadic arguments which will be made use of by libnetwork and Drivers
 	err = ep.Join("container1",
 		libnetwork.JoinOptionHostname("test"),
@@ -45,6 +44,7 @@ create network namespaces and allocate interfaces for containers to use.
 package libnetwork
 
 import (
+	"container/heap"
 	"fmt"
 	"net"
 	"strings"
@@ -58,13 +58,16 @@ import (
 	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/hostdiscovery"
 	"github.com/docker/libnetwork/netlabel"
-	"github.com/docker/libnetwork/sandbox"
+	"github.com/docker/libnetwork/osl"
 	"github.com/docker/libnetwork/types"
 )
 
 // NetworkController provides the interface for controller instance which manages
 // networks.
 type NetworkController interface {
+	// ID provides an unique identity for the controller
+	ID() string
+
 	// ConfigureNetworkDriver applies the passed options to the driver instance for the specified network type
 	ConfigureNetworkDriver(networkType string, options map[string]interface{}) error
 
@@ -87,16 +90,29 @@ type NetworkController interface {
 	// NetworkByID returns the Network which has the passed id. If not found, the error ErrNoSuchNetwork is returned.
 	NetworkByID(id string) (Network, error)
 
-	// LeaveAll accepts a container id and attempts to leave all endpoints that the container has joined
-	LeaveAll(id string) error
+	// NewSandbox cretes a new network sandbox for the passed container id
+	NewSandbox(containerID string, options ...SandboxOption) (Sandbox, error)
 
-	// GC triggers immediate garbage collection of resources which are garbage collected.
-	GC()
+	// Sandboxes returns the list of Sandbox(s) managed by this controller.
+	Sandboxes() []Sandbox
+
+	// WlakSandboxes uses the provided function to walk the Sandbox(s) managed by this controller.
+	WalkSandboxes(walker SandboxWalker)
+
+	// SandboxByID returns the Sandbox which has the passed id. If not found, a types.NotFoundError is returned.
+	SandboxByID(id string) (Sandbox, error)
+
+	// Stop network controller
+	Stop()
 }
 
 // NetworkWalker is a client provided function which will be used to walk the Networks.
 // When the function returns true, the walk will stop.
 type NetworkWalker func(nw Network) bool
+
+// SandboxWalker is a client provided function which will be used to walk the Sandboxes.
+// When the function returns true, the walk will stop.
+type SandboxWalker func(sb Sandbox) bool
 
 type driverData struct {
 	driver     driverapi.Driver
@@ -104,16 +120,18 @@ type driverData struct {
 }
 
 type driverTable map[string]*driverData
-type networkTable map[types.UUID]*network
-type endpointTable map[types.UUID]*endpoint
-type sandboxTable map[string]*sandboxData
+type networkTable map[string]*network
+type endpointTable map[string]*endpoint
+type sandboxTable map[string]*sandbox
 
 type controller struct {
-	networks  networkTable
-	drivers   driverTable
-	sandboxes sandboxTable
-	cfg       *config.Config
-	store     datastore.DataStore
+	id             string
+	networks       networkTable
+	drivers        driverTable
+	sandboxes      sandboxTable
+	cfg            *config.Config
+	store          datastore.DataStore
+	extKeyListener net.Listener
 	sync.Mutex
 }
 
@@ -125,6 +143,7 @@ func New(cfgOptions ...config.Option) (NetworkController, error) {
 		cfg.ProcessOptions(cfgOptions...)
 	}
 	c := &controller{
+		id:        stringid.GenerateRandomID(),
 		cfg:       cfg,
 		networks:  networkTable{},
 		sandboxes: sandboxTable{},
@@ -146,7 +165,15 @@ func New(cfgOptions ...config.Option) (NetworkController, error) {
 		}
 	}
 
+	if err := c.startExternalKeyListener(); err != nil {
+		return nil, err
+	}
+
 	return c, nil
+}
+
+func (c *controller) ID() string {
+	return c.id
 }
 
 func (c *controller) validateHostDiscoveryConfig() bool {
@@ -191,11 +218,11 @@ func (c *controller) ConfigureNetworkDriver(networkType string, options map[stri
 }
 
 func (c *controller) RegisterDriver(networkType string, driver driverapi.Driver, capability driverapi.Capability) error {
-	c.Lock()
 	if !config.IsValidName(networkType) {
-		c.Unlock()
 		return ErrInvalidName(networkType)
 	}
+
+	c.Lock()
 	if _, ok := c.drivers[networkType]; ok {
 		c.Unlock()
 		return driverapi.ErrActiveRegistration(networkType)
@@ -250,7 +277,7 @@ func (c *controller) NewNetwork(networkType, name string, options ...NetworkOpti
 	network := &network{
 		name:        name,
 		networkType: networkType,
-		id:          types.UUID(stringid.GenerateRandomID()),
+		id:          stringid.GenerateRandomID(),
 		ctrlr:       c,
 		endpoints:   endpointTable{},
 	}
@@ -356,10 +383,117 @@ func (c *controller) NetworkByID(id string) (Network, error) {
 	}
 	c.Lock()
 	defer c.Unlock()
-	if n, ok := c.networks[types.UUID(id)]; ok {
+	if n, ok := c.networks[id]; ok {
 		return n, nil
 	}
 	return nil, ErrNoSuchNetwork(id)
+}
+
+// NewSandbox creates a new sandbox for the passed container id
+func (c *controller) NewSandbox(containerID string, options ...SandboxOption) (Sandbox, error) {
+	var err error
+
+	if containerID == "" {
+		return nil, types.BadRequestErrorf("invalid container ID")
+	}
+
+	var existing Sandbox
+	look := SandboxContainerWalker(&existing, containerID)
+	c.WalkSandboxes(look)
+	if existing != nil {
+		return nil, types.BadRequestErrorf("container %s is already present: %v", containerID, existing)
+	}
+
+	// Create sandbox and process options first. Key generation depends on an option
+	sb := &sandbox{
+		id:          stringid.GenerateRandomID(),
+		containerID: containerID,
+		endpoints:   epHeap{},
+		epPriority:  map[string]int{},
+		config:      containerConfig{},
+		controller:  c,
+	}
+	// This sandbox may be using an existing osl sandbox, sharing it with another sandbox
+	var peerSb Sandbox
+	c.WalkSandboxes(SandboxKeyWalker(&peerSb, sb.Key()))
+	if peerSb != nil {
+		sb.osSbox = peerSb.(*sandbox).osSbox
+	}
+
+	heap.Init(&sb.endpoints)
+
+	sb.processOptions(options...)
+
+	if err = sb.setupResolutionFiles(); err != nil {
+		return nil, err
+	}
+
+	if sb.osSbox == nil && !sb.config.useExternalKey {
+		if sb.osSbox, err = osl.NewSandbox(sb.Key(), !sb.config.useDefaultSandBox); err != nil {
+			return nil, fmt.Errorf("failed to create new osl sandbox: %v", err)
+		}
+	}
+
+	c.Lock()
+	c.sandboxes[sb.id] = sb
+	c.Unlock()
+
+	return sb, nil
+}
+
+func (c *controller) Sandboxes() []Sandbox {
+	c.Lock()
+	defer c.Unlock()
+
+	list := make([]Sandbox, 0, len(c.sandboxes))
+	for _, s := range c.sandboxes {
+		list = append(list, s)
+	}
+
+	return list
+}
+
+func (c *controller) WalkSandboxes(walker SandboxWalker) {
+	for _, sb := range c.Sandboxes() {
+		if walker(sb) {
+			return
+		}
+	}
+}
+
+func (c *controller) SandboxByID(id string) (Sandbox, error) {
+	if id == "" {
+		return nil, ErrInvalidID(id)
+	}
+	c.Lock()
+	s, ok := c.sandboxes[id]
+	c.Unlock()
+	if !ok {
+		return nil, types.NotFoundErrorf("sandbox %s not found", id)
+	}
+	return s, nil
+}
+
+// SandboxContainerWalker returns a Sandbox Walker function which looks for an existing Sandbox with the passed containerID
+func SandboxContainerWalker(out *Sandbox, containerID string) SandboxWalker {
+	return func(sb Sandbox) bool {
+		if sb.ContainerID() == containerID {
+			*out = sb
+			return true
+		}
+		return false
+	}
+}
+
+// SandboxKeyWalker returns a Sandbox Walker function which looks for an existing Sandbox with the passed key
+func SandboxKeyWalker(out *Sandbox, key string) SandboxWalker {
+	return func(sb Sandbox) bool {
+		if sb.Key() == key {
+			*out = sb
+			return true
+		}
+		return false
+	}
 }
 
 func (c *controller) loadDriver(networkType string) (*driverData, error) {
@@ -394,6 +528,7 @@ func (c *controller) isDriverGlobalScoped(networkType string) (bool, error) {
 	return false, nil
 }
 
-func (c *controller) GC() {
-	sandbox.GC()
+func (c *controller) Stop() {
+	c.stopExternalKeyListener()
+	osl.GC()
 }

@@ -9,7 +9,7 @@ import (
 )
 
 func (s *DockerSuite) TestLinksPingUnlinkedContainers(c *check.C) {
-
+	testRequires(c, DaemonIsLinux)
 	_, exitCode, err := dockerCmdWithError("run", "--rm", "busybox", "sh", "-c", "ping -c 1 alias1 -W 1 && ping -c 1 alias2 -W 1")
 
 	if exitCode == 0 {
@@ -22,7 +22,7 @@ func (s *DockerSuite) TestLinksPingUnlinkedContainers(c *check.C) {
 
 // Test for appropriate error when calling --link with an invalid target container
 func (s *DockerSuite) TestLinksInvalidContainerTarget(c *check.C) {
-
+	testRequires(c, DaemonIsLinux)
 	out, _, err := dockerCmdWithError("run", "--link", "bogus:alias", "busybox", "true")
 
 	if err == nil {
@@ -35,7 +35,7 @@ func (s *DockerSuite) TestLinksInvalidContainerTarget(c *check.C) {
 }
 
 func (s *DockerSuite) TestLinksPingLinkedContainers(c *check.C) {
-
+	testRequires(c, DaemonIsLinux)
 	dockerCmd(c, "run", "-d", "--name", "container1", "--hostname", "fred", "busybox", "top")
 	dockerCmd(c, "run", "-d", "--name", "container2", "--hostname", "wilma", "busybox", "top")
 
@@ -53,7 +53,7 @@ func (s *DockerSuite) TestLinksPingLinkedContainers(c *check.C) {
 }
 
 func (s *DockerSuite) TestLinksPingLinkedContainersAfterRename(c *check.C) {
-
+	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-d", "--name", "container1", "busybox", "top")
 	idA := strings.TrimSpace(out)
 	out, _ = dockerCmd(c, "run", "-d", "--name", "container2", "busybox", "top")
@@ -66,6 +66,7 @@ func (s *DockerSuite) TestLinksPingLinkedContainersAfterRename(c *check.C) {
 }
 
 func (s *DockerSuite) TestLinksInspectLinksStarted(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	var (
 		expected = map[string]struct{}{"/container1:/testinspectlink/alias1": {}, "/container2:/testinspectlink/alias2": {}}
 		result   []string
@@ -93,6 +94,7 @@ func (s *DockerSuite) TestLinksInspectLinksStarted(c *check.C) {
 }
 
 func (s *DockerSuite) TestLinksInspectLinksStopped(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	var (
 		expected = map[string]struct{}{"/container1:/testinspectlink/alias1": {}, "/container2:/testinspectlink/alias2": {}}
 		result   []string
@@ -121,7 +123,7 @@ func (s *DockerSuite) TestLinksInspectLinksStopped(c *check.C) {
 }
 
 func (s *DockerSuite) TestLinksNotStartedParentNotFail(c *check.C) {
-
+	testRequires(c, DaemonIsLinux)
 	dockerCmd(c, "create", "--name=first", "busybox", "top")
 	dockerCmd(c, "create", "--name=second", "--link=first:first", "busybox", "top")
 	dockerCmd(c, "start", "first")
@@ -129,6 +131,7 @@ func (s *DockerSuite) TestLinksNotStartedParentNotFail(c *check.C) {
 }
 
 func (s *DockerSuite) TestLinksHostsFilesInject(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	testRequires(c, SameHostDaemon, ExecSupport)
 
 	out, _ := dockerCmd(c, "run", "-itd", "--name", "one", "busybox", "top")
@@ -156,6 +159,7 @@ func (s *DockerSuite) TestLinksHostsFilesInject(c *check.C) {
 }
 
 func (s *DockerSuite) TestLinksUpdateOnRestart(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	testRequires(c, SameHostDaemon, ExecSupport)
 	dockerCmd(c, "run", "-d", "--name", "one", "busybox", "top")
 	out, _ := dockerCmd(c, "run", "-d", "--name", "two", "--link", "one:onetwo", "--link", "one:one", "busybox", "top")
@@ -201,6 +205,7 @@ func (s *DockerSuite) TestLinksUpdateOnRestart(c *check.C) {
 }
 
 func (s *DockerSuite) TestLinksEnvs(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	dockerCmd(c, "run", "-d", "-e", "e1=", "-e", "e2=v2", "-e", "e3=v3=v3", "--name=first", "busybox", "top")
 	out, _ := dockerCmd(c, "run", "--name=second", "--link=first:first", "busybox", "env")
 	if !strings.Contains(out, "FIRST_ENV_e1=\n") ||
@@ -211,6 +216,7 @@ func (s *DockerSuite) TestLinksEnvs(c *check.C) {
 }
 
 func (s *DockerSuite) TestLinkShortDefinition(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-d", "--name", "shortlinkdef", "busybox", "top")
 
 	cid := strings.TrimSpace(out)
@@ -227,6 +233,7 @@ func (s *DockerSuite) TestLinkShortDefinition(c *check.C) {
 }
 
 func (s *DockerSuite) TestLinksNetworkHostContainer(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	dockerCmd(c, "run", "-d", "--net", "host", "--name", "host_container", "busybox", "top")
 	out, _, err := dockerCmdWithError("run", "--name", "should_fail", "--link", "host_container:tester", "busybox", "true")
 	if err == nil || !strings.Contains(out, "--net=host can't be used with links. This would result in undefined behavior") {
@@ -235,6 +242,7 @@ func (s *DockerSuite) TestLinksNetworkHostContainer(c *check.C) {
 }
 
 func (s *DockerSuite) TestLinksEtcHostsRegularFile(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "--net=host", "busybox", "ls", "-la", "/etc/hosts")
 	if !strings.HasPrefix(out, "-") {
 		c.Errorf("/etc/hosts should be a regular file")

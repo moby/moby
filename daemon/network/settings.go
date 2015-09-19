@@ -13,6 +13,7 @@ type Address struct {
 type Settings struct {
 	Bridge                 string
 	EndpointID             string
+	SandboxID              string
 	Gateway                string
 	GlobalIPv6Address      string
 	GlobalIPv6PrefixLen    int
@@ -24,7 +25,6 @@ type Settings struct {
 	LinkLocalIPv6PrefixLen int
 	MacAddress             string
 	NetworkID              string
-	PortMapping            map[string]map[string]string // Deprecated
 	Ports                  nat.PortMap
 	SandboxKey             string
 	SecondaryIPAddresses   []Address

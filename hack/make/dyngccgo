@@ -13,7 +13,7 @@ fi
 
 (
 	export IAMSTATIC="false"
-	export EXTLDFLAGS_STATIC_DOCKER=''
+	export EXTLDFLAGS_STATIC=''
 	export LDFLAGS_STATIC_DOCKER=''
 	export BUILDFLAGS=( "${BUILDFLAGS[@]/netgo /}" ) # disable netgo, since we don't need it for a dynamic binary
 	export BUILDFLAGS=( "${BUILDFLAGS[@]/static_build /}" ) # we're not building a "static" binary here

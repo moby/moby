@@ -13,6 +13,7 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/docker/distribution/registry/api/errcode"
 	"github.com/docker/docker/autogen/dockerversion"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/fileutils"
@@ -199,9 +200,13 @@ func ReplaceOrAppendEnvValues(defaults, overrides []string) []string {
 // can be read and returns an error if some files can't be read
 // symlinks which point to non-existing files don't trigger an error
 func ValidateContextDirectory(srcPath string, excludes []string) error {
-	return filepath.Walk(filepath.Join(srcPath, "."), func(filePath string, f os.FileInfo, err error) error {
+	contextRoot, err := getContextRoot(srcPath)
+	if err != nil {
+		return err
+	}
+	return filepath.Walk(contextRoot, func(filePath string, f os.FileInfo, err error) error {
 		// skip this directory/file if it's not in the path, it won't get added to the context
-		if relFilePath, err := filepath.Rel(srcPath, filePath); err != nil {
+		if relFilePath, err := filepath.Rel(contextRoot, filePath); err != nil {
 			return err
 		} else if skip, err := fileutils.Matches(relFilePath, excludes); err != nil {
 			return err
@@ -285,4 +290,23 @@ func ImageReference(repo, ref string) string {
 // is of the form <algorithm>:<digest>.
 func DigestReference(ref string) bool {
 	return strings.Contains(ref, ":")
+}
+
+// GetErrorMessage returns the human readable message associated with
+// the passed-in error. In some cases the default Error() func returns
+// something that is less than useful so based on its types this func
+// will go and get a better piece of text.
+func GetErrorMessage(err error) string {
+	switch err.(type) {
+	case errcode.Error:
+		e, _ := err.(errcode.Error)
+		return e.Message
+
+	case errcode.ErrorCode:
+		ec, _ := err.(errcode.ErrorCode)
+		return ec.Message()
+
+	default:
+		return err.Error()
+	}
 }

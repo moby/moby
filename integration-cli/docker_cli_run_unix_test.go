@@ -87,6 +87,9 @@ func (s *DockerSuite) TestRunWithVolumesIsRecursive(c *check.C) {
 
 func (s *DockerSuite) TestRunDeviceDirectory(c *check.C) {
 	testRequires(c, NativeExecDriver)
+	if _, err := os.Stat("/dev/snd"); err != nil {
+		c.Skip("Host does not have /dev/snd")
+	}
 
 	out, _ := dockerCmd(c, "run", "--device", "/dev/snd:/dev/snd", "busybox", "sh", "-c", "ls /dev/snd/")
 	if actual := strings.Trim(out, "\r\n"); !strings.Contains(out, "timer") {
@@ -214,9 +217,9 @@ func (s *DockerSuite) TestRunWithKernelMemory(c *check.C) {
 // "test" should be printed
 func (s *DockerSuite) TestRunEchoStdoutWitCPUShares(c *check.C) {
 	testRequires(c, cpuShare)
-	out, _ := dockerCmd(c, "run", "-c", "1000", "busybox", "echo", "test")
+	out, _ := dockerCmd(c, "run", "--cpu-shares", "1000", "busybox", "echo", "test")
 	if out != "test\n" {
-		c.Errorf("container should've printed 'test'")
+		c.Errorf("container should've printed 'test', got %q instead", out)
 	}
 }
 
@@ -224,7 +227,7 @@ func (s *DockerSuite) TestRunEchoStdoutWitCPUShares(c *check.C) {
 func (s *DockerSuite) TestRunEchoStdoutWithCPUSharesAndMemoryLimit(c *check.C) {
 	testRequires(c, cpuShare)
 	testRequires(c, memoryLimitSupport)
-	out, _, _ := dockerCmdWithStdoutStderr(c, "run", "-c", "1000", "-m", "16m", "busybox", "echo", "test")
+	out, _, _ := dockerCmdWithStdoutStderr(c, "run", "--cpu-shares", "1000", "-m", "16m", "busybox", "echo", "test")
 	if out != "test\n" {
 		c.Errorf("container should've printed 'test', got %q instead", out)
 	}
@@ -270,7 +273,8 @@ func (s *DockerSuite) TestRunOOMExitCode(c *check.C) {
 	errChan := make(chan error)
 	go func() {
 		defer close(errChan)
-		out, exitCode, _ := dockerCmdWithError("run", "-m", "4MB", "busybox", "sh", "-c", "x=a; while true; do x=$x$x$x$x; done")
+		//changing memory to 40MB from 4MB due to an issue with GCCGO that test fails to start the container.
+		out, exitCode, _ := dockerCmdWithError("run", "-m", "40MB", "busybox", "sh", "-c", "x=a; while true; do x=$x$x$x$x; done")
 		if expected := 137; exitCode != expected {
 			errChan <- fmt.Errorf("wrong exit code for OOM container: expected %d, got %d (output: %q)", expected, exitCode, out)
 		}
@@ -295,7 +299,10 @@ func (s *DockerSuite) TestRunEchoStdoutWithMemoryLimit(c *check.C) {
 	}
 }
 
-// should run without memory swap
+// TestRunWithoutMemoryswapLimit sets memory limit and disables swap
+// memory limit, this means the processes in the container can use
+// 16M memory and as much swap memory as they need (if the host
+// supports swap memory).
 func (s *DockerSuite) TestRunWithoutMemoryswapLimit(c *check.C) {
 	testRequires(c, NativeExecDriver)
 	testRequires(c, memoryLimitSupport)
@@ -313,5 +320,21 @@ func (s *DockerSuite) TestRunWithSwappinessInvalid(c *check.C) {
 	out, _, err := dockerCmdWithError("run", "--memory-swappiness", "101", "busybox", "true")
 	if err == nil {
 		c.Fatalf("failed. test was able to set invalid value, output: %q", out)
+	}
+}
+
+func (s *DockerSuite) TestStopContainerSignal(c *check.C) {
+	out, _ := dockerCmd(c, "run", "--stop-signal", "SIGUSR1", "-d", "busybox", "/bin/sh", "-c", `trap 'echo "exit trapped"; exit 0' USR1; while true; do sleep 1; done`)
+	containerID := strings.TrimSpace(out)
+
+	if err := waitRun(containerID); err != nil {
+		c.Fatal(err)
+	}
+
+	dockerCmd(c, "stop", containerID)
+	out, _ = dockerCmd(c, "logs", containerID)
+
+	if !strings.Contains(out, "exit trapped") {
+		c.Fatalf("Expected `exit trapped` in the log, got %v", out)
 	}
 }

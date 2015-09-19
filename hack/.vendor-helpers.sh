@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
 
+PROJECT=github.com/docker/docker
+
 # Downloads dependencies into vendor/ directory
 mkdir -p vendor
 
 rm -rf .gopath
 mkdir -p .gopath/src/github.com/docker
-ln -sf ../../../.. .gopath/src/github.com/docker/docker
+ln -sf ../../../.. .gopath/src/${PROJECT}
 export GOPATH="${PWD}/.gopath:${PWD}/vendor"
 
 clone() {
@@ -28,7 +30,7 @@ clone() {
 	case "$vcs" in
 		git)
 			git clone --quiet --no-checkout "$url" "$target"
-			( cd "$target" && git reset --quiet --hard "$rev" )
+			( cd "$target" && git checkout --quiet "$rev" && git reset --quiet --hard "$rev" )
 			;;
 		hg)
 			hg clone --quiet --updaterev "$rev" "$url" "$target"
@@ -65,11 +67,10 @@ _dockerfile_env() {
 
 clean() {
 	local packages=(
-		github.com/docker/docker/docker # package main
-		github.com/docker/docker/dockerinit # package main
-		github.com/docker/docker/integration-cli # external tests
+		"${PROJECT}/docker" # package main
+		"${PROJECT}/dockerinit" # package main
+		"${PROJECT}/integration-cli" # external tests
 	)
-
 	local dockerPlatforms=( linux/amd64 $(_dockerfile_env DOCKER_CROSSPLATFORMS) )
 	local dockerBuildTags="$(_dockerfile_env DOCKER_BUILDTAGS)"
 	local buildTagCombos=(
@@ -92,9 +93,13 @@ clean() {
 			export GOOS="${platform%/*}";
 			export GOARCH="${platform##*/}";
 			for buildTags in "${buildTagCombos[@]}"; do
-				go list -e -tags "$buildTags" -f '{{join .Deps "\n"}}' "${packages[@]}"
+				pkgs=( $(go list -e -tags "$buildTags" -f '{{join .Deps "\n"}}' "${packages[@]}" | grep -E "^${PROJECT}" | grep -vE "^${PROJECT}/vendor" | sort -u) )
+				pkgs+=( ${packages[@]} )
+				testImports=( $(go list -e -tags "$buildTags" -f '{{join .TestImports "\n"}}' "${pkgs[@]}" | sort -u) )
+				printf '%s\n' "${testImports[@]}"
+				go list -e -tags "$buildTags" -f '{{join .Deps "\n"}}' "${packages[@]} ${testImports[@]}"
 			done
-		done | grep -vE '^github.com/docker/docker' | sort -u
+		done | grep -vE "^${PROJECT}" | sort -u
 	) )
 	imports=( $(go list -e -f '{{if not .Standard}}{{.ImportPath}}{{end}}' "${imports[@]}") )
 	unset IFS

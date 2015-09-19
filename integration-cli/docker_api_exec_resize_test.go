@@ -13,6 +13,7 @@ import (
 )
 
 func (s *DockerSuite) TestExecResizeApiHeightWidthNoInt(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
 	cleanedContainerID := strings.TrimSpace(out)
 
@@ -24,6 +25,7 @@ func (s *DockerSuite) TestExecResizeApiHeightWidthNoInt(c *check.C) {
 
 // Part of #14845
 func (s *DockerSuite) TestExecResizeImmediatelyAfterExecStart(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	testRequires(c, NativeExecDriver)
 
 	name := "exec_resize_test"

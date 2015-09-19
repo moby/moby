@@ -24,6 +24,7 @@ import (
 	"github.com/docker/docker/daemon/execdriver"
 	"github.com/docker/docker/daemon/execdriver/execdrivers"
 	"github.com/docker/docker/daemon/graphdriver"
+	derr "github.com/docker/docker/errors"
 	// register vfs
 	_ "github.com/docker/docker/daemon/graphdriver/vfs"
 	"github.com/docker/docker/daemon/logger"
@@ -46,6 +47,8 @@ import (
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/trust"
+	volumedrivers "github.com/docker/docker/volume/drivers"
+	"github.com/docker/docker/volume/local"
 	"github.com/docker/libnetwork"
 	"github.com/opencontainers/runc/libcontainer/netlink"
 )
@@ -137,6 +140,10 @@ func (daemon *Daemon) Get(prefixOrName string) (*Container, error) {
 
 	containerID, indexError := daemon.idIndex.Get(prefixOrName)
 	if indexError != nil {
+		// When truncindex defines an error type, use that instead
+		if strings.Contains(indexError.Error(), "no such id") {
+			return nil, derr.ErrorCodeNoSuchContainer.WithArgs(prefixOrName)
+		}
 		return nil, indexError
 	}
 	return daemon.containers.Get(containerID), nil
@@ -170,13 +177,7 @@ func (daemon *Daemon) load(id string) (*Container, error) {
 }
 
 // Register makes a container object usable by the daemon as <container.ID>
-// This is a wrapper for register
 func (daemon *Daemon) Register(container *Container) error {
-	return daemon.register(container, true)
-}
-
-// register makes a container object usable by the daemon as <container.ID>
-func (daemon *Daemon) register(container *Container, updateSuffixarray bool) error {
 	if container.daemon != nil || daemon.Exists(container.ID) {
 		return fmt.Errorf("Container is already loaded")
 	}
@@ -319,8 +320,10 @@ func (daemon *Daemon) restore() error {
 				}
 			}
 
-			if err := daemon.register(container, false); err != nil {
-				logrus.Debugf("Failed to register container %s: %s", container.ID, err)
+			if err := daemon.Register(container); err != nil {
+				logrus.Errorf("Failed to register container %s: %s", container.ID, err)
+				// The container register failed should not be started.
+				return
 			}
 
 			// check the restart policy on the containers and restart any container with
@@ -329,7 +332,7 @@ func (daemon *Daemon) restore() error {
 				logrus.Debugf("Starting container %s", container.ID)
 
 				if err := container.Start(); err != nil {
-					logrus.Debugf("Failed to start container %s: %s", container.ID, err)
+					logrus.Errorf("Failed to start container %s: %s", container.ID, err)
 				}
 			}
 		}(c.container, c.registered)
@@ -491,7 +494,7 @@ func (daemon *Daemon) newContainer(name string, config *runconfig.Config, imgID 
 }
 
 // GetFullContainerName returns a constructed container name. I think
-// it has to do with the fact that a container is a file on disek and
+// it has to do with the fact that a container is a file on disk and
 // this is sort of just creating a file name.
 func GetFullContainerName(name string) (string, error) {
 	if name == "" {
@@ -826,9 +829,9 @@ func (daemon *Daemon) Shutdown() error {
 		}
 		group.Wait()
 
-		// trigger libnetwork GC only if it's initialized
+		// trigger libnetwork Stop only if it's initialized
 		if daemon.netController != nil {
-			daemon.netController.GC()
+			daemon.netController.Stop()
 		}
 	}
 
@@ -874,8 +877,14 @@ func (daemon *Daemon) unmount(container *Container) error {
 	return nil
 }
 
-func (daemon *Daemon) run(c *Container, pipes *execdriver.Pipes, startCallback execdriver.StartCallback) (execdriver.ExitStatus, error) {
-	return daemon.execDriver.Run(c.command, pipes, startCallback)
+func (daemon *Daemon) run(c *Container, pipes *execdriver.Pipes, startCallback execdriver.DriverCallback) (execdriver.ExitStatus, error) {
+	hooks := execdriver.Hooks{
+		Start: startCallback,
+	}
+	hooks.PreStart = append(hooks.PreStart, func(processConfig *execdriver.ProcessConfig, pid int) error {
+		return c.setNetworkNamespaceKey(pid)
+	})
+	return daemon.execDriver.Run(c.command, pipes, hooks)
 }
 
 func (daemon *Daemon) kill(c *Container, sig int) error {
@@ -886,20 +895,12 @@ func (daemon *Daemon) stats(c *Container) (*execdriver.ResourceStats, error) {
 	return daemon.execDriver.Stats(c.ID)
 }
 
-func (daemon *Daemon) subscribeToContainerStats(name string) (chan interface{}, error) {
-	c, err := daemon.Get(name)
-	if err != nil {
-		return nil, err
-	}
+func (daemon *Daemon) subscribeToContainerStats(c *Container) (chan interface{}, error) {
 	ch := daemon.statsCollector.collect(c)
 	return ch, nil
 }
 
-func (daemon *Daemon) unsubscribeToContainerStats(name string, ch chan interface{}) error {
-	c, err := daemon.Get(name)
-	if err != nil {
-		return err
-	}
+func (daemon *Daemon) unsubscribeToContainerStats(c *Container, ch chan interface{}) error {
 	daemon.statsCollector.unsubscribe(c, ch)
 	return nil
 }
@@ -1084,8 +1085,18 @@ func (daemon *Daemon) verifyContainerSettings(hostConfig *runconfig.HostConfig, 
 
 	// First perform verification of settings common across all platforms.
 	if config != nil {
-		if config.WorkingDir != "" && !system.IsAbs(config.WorkingDir) {
-			return nil, fmt.Errorf("The working directory '%s' is invalid. It needs to be an absolute path.", config.WorkingDir)
+		if config.WorkingDir != "" {
+			config.WorkingDir = filepath.FromSlash(config.WorkingDir) // Ensure in platform semantics
+			if !system.IsAbs(config.WorkingDir) {
+				return nil, fmt.Errorf("The working directory '%s' is invalid. It needs to be an absolute path.", config.WorkingDir)
+			}
+		}
+
+		if len(config.StopSignal) > 0 {
+			_, err := signal.ParseSignal(config.StopSignal)
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 
@@ -1108,4 +1119,13 @@ func (daemon *Daemon) verifyContainerSettings(hostConfig *runconfig.HostConfig, 
 
 	// Now do platform-specific verification
 	return verifyPlatformContainerSettings(daemon, hostConfig, config)
+}
+
+func configureVolumes(config *Config) (*volumeStore, error) {
+	volumesDriver, err := local.New(config.Root)
+	if err != nil {
+		return nil, err
+	}
+	volumedrivers.Register(volumesDriver, volumesDriver.Name())
+	return newVolumeStore(volumesDriver.List()), nil
 }

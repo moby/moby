@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"testing"
 
-	_ "code.google.com/p/gosqlite/sqlite3"
+	_ "github.com/mattn/go-sqlite3"
 )
 
 func newTestDb(t *testing.T) (*Database, string) {

@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"os/exec"
 	"runtime"
 	"strconv"
@@ -13,7 +14,8 @@ import (
 	"github.com/go-check/check"
 )
 
-func (s *DockerSuite) TestCliStatsNoStreamGetCpu(c *check.C) {
+func (s *DockerSuite) TestApiStatsNoStreamGetCpu(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "while true;do echo 'Hello'; usleep 100000; done")
 
 	id := strings.TrimSpace(out)
@@ -38,7 +40,8 @@ func (s *DockerSuite) TestCliStatsNoStreamGetCpu(c *check.C) {
 	}
 }
 
-func (s *DockerSuite) TestStoppedContainerStatsGoroutines(c *check.C) {
+func (s *DockerSuite) TestApiStatsStoppedContainerInGoroutines(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "echo 1")
 	id := strings.TrimSpace(out)
 
@@ -73,8 +76,9 @@ func (s *DockerSuite) TestStoppedContainerStatsGoroutines(c *check.C) {
 	}
 }
 
-func (s *DockerSuite) TestApiNetworkStats(c *check.C) {
+func (s *DockerSuite) TestApiStatsNetworkStats(c *check.C) {
 	testRequires(c, SameHostDaemon)
+	testRequires(c, DaemonIsLinux)
 	// Run container for 30 secs
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
 	id := strings.TrimSpace(out)
@@ -84,8 +88,18 @@ func (s *DockerSuite) TestApiNetworkStats(c *check.C) {
 	contIP := findContainerIP(c, id)
 	numPings := 10
 
+	var preRxPackets uint64
+	var preTxPackets uint64
+	var postRxPackets uint64
+	var postTxPackets uint64
+
 	// Get the container networking stats before and after pinging the container
 	nwStatsPre := getNetworkStats(c, id)
+	for _, v := range nwStatsPre {
+		preRxPackets += v.RxPackets
+		preTxPackets += v.TxPackets
+	}
+
 	countParam := "-c"
 	if runtime.GOOS == "windows" {
 		countParam = "-n" // Ping count parameter is -n on Windows
@@ -94,18 +108,22 @@ func (s *DockerSuite) TestApiNetworkStats(c *check.C) {
 	pingouts := string(pingout[:])
 	c.Assert(err, check.IsNil)
 	nwStatsPost := getNetworkStats(c, id)
+	for _, v := range nwStatsPost {
+		postRxPackets += v.RxPackets
+		postTxPackets += v.TxPackets
+	}
 
 	// Verify the stats contain at least the expected number of packets (account for ARP)
-	expRxPkts := 1 + nwStatsPre.RxPackets + uint64(numPings)
-	expTxPkts := 1 + nwStatsPre.TxPackets + uint64(numPings)
-	c.Assert(nwStatsPost.TxPackets >= expTxPkts, check.Equals, true,
-		check.Commentf("Reported less TxPackets than expected. Expected >= %d. Found %d. %s", expTxPkts, nwStatsPost.TxPackets, pingouts))
-	c.Assert(nwStatsPost.RxPackets >= expRxPkts, check.Equals, true,
-		check.Commentf("Reported less Txbytes than expected. Expected >= %d. Found %d. %s", expRxPkts, nwStatsPost.RxPackets, pingouts))
+	expRxPkts := 1 + preRxPackets + uint64(numPings)
+	expTxPkts := 1 + preTxPackets + uint64(numPings)
+	c.Assert(postTxPackets >= expTxPkts, check.Equals, true,
+		check.Commentf("Reported less TxPackets than expected. Expected >= %d. Found %d. %s", expTxPkts, postTxPackets, pingouts))
+	c.Assert(postRxPackets >= expRxPkts, check.Equals, true,
+		check.Commentf("Reported less Txbytes than expected. Expected >= %d. Found %d. %s", expRxPkts, postRxPackets, pingouts))
 }
 
-func getNetworkStats(c *check.C, id string) types.NetworkStats {
-	var st *types.Stats
+func getNetworkStats(c *check.C, id string) map[string]types.NetworkStats {
+	var st *types.StatsJSON
 
 	_, body, err := sockRequestRaw("GET", fmt.Sprintf("/containers/%s/stats?stream=false", id), nil, "")
 	c.Assert(err, check.IsNil)
@@ -114,5 +132,17 @@ func getNetworkStats(c *check.C, id string) types.NetworkStats {
 	c.Assert(err, check.IsNil)
 	body.Close()
 
-	return st.Network
+	return st.Networks
+}
+
+func (s *DockerSuite) TestApiStatsContainerNotFound(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+
+	status, _, err := sockRequest("GET", "/containers/nonexistent/stats", nil)
+	c.Assert(err, check.IsNil)
+	c.Assert(status, check.Equals, http.StatusNotFound)
+
+	status, _, err = sockRequest("GET", "/containers/nonexistent/stats?stream=0", nil)
+	c.Assert(err, check.IsNil)
+	c.Assert(status, check.Equals, http.StatusNotFound)
 }

@@ -330,8 +330,8 @@ traffic will be routed though this bridge to the container.
 With the networking mode set to `host` a container will share the host's
 network stack and all interfaces from the host will be available to the
 container.  The container's hostname will match the hostname on the host
-system.  Note that `--add-host` `--hostname`  `--dns` `--dns-search` and
-`--mac-address` is invalid in `host` netmode.
+system.  Note that `--add-host` `--hostname`  `--dns` `--dns-search`
+`--dns-opt` and `--mac-address` are invalid in `host` netmode.
 
 Compared to the default `bridge` mode, the `host` mode gives *significantly*
 better networking performance since it uses the host's native networking stack
@@ -348,9 +348,9 @@ or a High Performance Web Server.
 With the networking mode set to `container` a container will share the
 network stack of another container.  The other container's name must be
 provided in the format of `--net container:<name|id>`. Note that `--add-host`
-`--hostname` `--dns` `--dns-search` and `--mac-address` is invalid
-in `container` netmode, and `--publish` `--publish-all` `--expose` are also
-invalid in `container` netmode.
+`--hostname` `--dns` `--dns-search` `--dns-opt` and `--mac-address` are
+invalid in `container` netmode, and `--publish` `--publish-all` `--expose` are
+also invalid in `container` netmode.
 
 Example running a Redis container with Redis binding to `localhost` then
 running the `redis-cli` command and connecting to the Redis server over the
@@ -1011,9 +1011,10 @@ container's logging driver. The following options are supported:
 | `journald`  | Journald logging driver for Docker. Writes log messages to `journald`.                                                        |
 | `gelf`      | Graylog Extended Log Format (GELF) logging driver for Docker. Writes log messages to a GELF endpoint likeGraylog or Logstash. |
 | `fluentd`   | Fluentd logging driver for Docker. Writes log messages to `fluentd` (forward input).                                          |
+| `awslogs`   | Amazon CloudWatch Logs logging driver for Docker. Writes log messages to Amazon CloudWatch Logs                               |
 
-	The `docker logs`command is available only for the `json-file` logging
-driver.  For detailed information on working with logging drivers, see
+The `docker logs` command is available only for the `json-file` and `journald`
+logging drivers.  For detailed information on working with logging drivers, see
 [Configure a logging driver](/reference/logging/overview/).
 
 
@@ -1259,6 +1260,19 @@ containers*](/userguide/dockervolumes). A developer can define
 one or more `VOLUME`'s associated with an image, but only the operator
 can give access from one container to another (or from a container to a
 volume mounted on the host).
+
+The `container-dir` must always be an absolute path such as `/src/docs`. 
+The `host-dir` can either be an absolute path or a `name` value. If you 
+supply an absolute path for the `host-dir`, Docker bind-mounts to the path 
+you specify. If you supply a `name`, Docker creates a named volume by that `name`.
+
+A `name` value must start with start with an alphanumeric character, 
+followed by `a-z0-9`, `_` (underscore), `.` (period) or `-` (hyphen). 
+An absolute path starts with a `/` (forward slash).
+
+For example, you can specify either `/foo` or `foo` for a `host-dir` value. 
+If you supply the `/foo` value, Docker creates a bind-mount. If you supply 
+the `foo` specification, Docker creates a named volume.
 
 ### USER
 

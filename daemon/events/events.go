@@ -45,19 +45,18 @@ func (e *Events) Evict(l chan interface{}) {
 // Log broadcasts event to listeners. Each listener has 100 millisecond for
 // receiving event or it will be skipped.
 func (e *Events) Log(action, id, from string) {
-	go func() {
-		e.mu.Lock()
-		jm := &jsonmessage.JSONMessage{Status: action, ID: id, From: from, Time: time.Now().UTC().Unix()}
-		if len(e.events) == cap(e.events) {
-			// discard oldest event
-			copy(e.events, e.events[1:])
-			e.events[len(e.events)-1] = jm
-		} else {
-			e.events = append(e.events, jm)
-		}
-		e.mu.Unlock()
-		e.pub.Publish(jm)
-	}()
+	now := time.Now().UTC()
+	jm := &jsonmessage.JSONMessage{Status: action, ID: id, From: from, Time: now.Unix(), TimeNano: now.UnixNano()}
+	e.mu.Lock()
+	if len(e.events) == cap(e.events) {
+		// discard oldest event
+		copy(e.events, e.events[1:])
+		e.events[len(e.events)-1] = jm
+	} else {
+		e.events = append(e.events, jm)
+	}
+	e.mu.Unlock()
+	e.pub.Publish(jm)
 }
 
 // SubscribersCount returns number of event listeners

@@ -8,13 +8,14 @@ package devicemapper
 */
 import "C"
 
+// LibraryDeferredRemovalsupport is supported when statically linked.
 const LibraryDeferredRemovalSupport = true
 
-func dmTaskDeferredRemoveFct(task *CDmTask) int {
+func dmTaskDeferredRemoveFct(task *cdmTask) int {
 	return int(C.dm_task_deferred_remove((*C.struct_dm_task)(task)))
 }
 
-func dmTaskGetInfoWithDeferredFct(task *CDmTask, info *Info) int {
+func dmTaskGetInfoWithDeferredFct(task *cdmTask, info *Info) int {
 	Cinfo := C.struct_dm_info{}
 	defer func() {
 		info.Exists = int(Cinfo.exists)

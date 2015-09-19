@@ -250,7 +250,7 @@ func (m *containerMonitor) shouldRestart(exitCode int) bool {
 
 // callback ensures that the container's state is properly updated after we
 // received ack from the execution drivers
-func (m *containerMonitor) callback(processConfig *execdriver.ProcessConfig, pid int) {
+func (m *containerMonitor) callback(processConfig *execdriver.ProcessConfig, pid int) error {
 	if processConfig.Tty {
 		// The callback is called after the process Start()
 		// so we are in the parent process. In TTY mode, stdin/out/err is the PtySlave
@@ -273,6 +273,7 @@ func (m *containerMonitor) callback(processConfig *execdriver.ProcessConfig, pid
 	if err := m.container.toDiskLocking(); err != nil {
 		logrus.Errorf("Error saving container to disk: %v", err)
 	}
+	return nil
 }
 
 // resetContainer resets the container's IO and ensures that the command is able to be executed again

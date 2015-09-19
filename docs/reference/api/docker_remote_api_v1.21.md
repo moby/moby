@@ -166,6 +166,7 @@ Create a container
            "ExposedPorts": {
                    "22/tcp": {}
            },
+           "StopSignal": "SIGTERM",
            "HostConfig": {
              "Binds": ["/tmp:/tmp"],
              "Links": ["redis3:redis"],
@@ -185,6 +186,7 @@ Create a container
              "Privileged": false,
              "ReadonlyRootfs": false,
              "Dns": ["8.8.8.8"],
+             "DnsOptions": [""],
              "DnsSearch": [""],
              "ExtraHosts": null,
              "VolumesFrom": ["parent", "other:ro"],
@@ -196,7 +198,8 @@ Create a container
              "Ulimits": [{}],
              "LogConfig": { "Type": "json-file", "Config": {} },
              "SecurityOpt": [""],
-             "CgroupParent": ""
+             "CgroupParent": "",
+	      "VolumeDriver": ""
           }
       }
 
@@ -249,6 +252,7 @@ Json Parameters:
       container
 -   **ExposedPorts** - An object mapping ports to an empty object in the form of:
       `"ExposedPorts": { "<port>/<tcp|udp>: {}" }`
+-   **StopSignal** - Signal to stop a container as a string or unsigned integer. `SIGTERM` by default.
 -   **HostConfig**
     -   **Binds** – A list of volume bindings for this container. Each volume binding is a string in one of these forms:
            + `container_path` to create a new volume for the container
@@ -269,6 +273,7 @@ Json Parameters:
     -   **ReadonlyRootfs** - Mount the container's root filesystem as read only.
           Specified as a boolean value.
     -   **Dns** - A list of DNS servers for the container to use.
+    -   **DnsOptions** - A list of DNS options
     -   **DnsSearch** - A list of DNS search domains
     -   **ExtraHosts** - A list of hostnames/IP mappings to add to the
         container's `/etc/hosts` file. Specified in the form `["hostname:IP"]`.
@@ -292,14 +297,15 @@ Json Parameters:
           `{ "PathOnHost": "/dev/deviceName", "PathInContainer": "/dev/deviceName", "CgroupPermissions": "mrw"}`
     -   **Ulimits** - A list of ulimits to set in the container, specified as
           `{ "Name": <name>, "Soft": <soft limit>, "Hard": <hard limit> }`, for example:
-          `Ulimits: { "Name": "nofile", "Soft": 1024, "Hard", 2048 }}`
+          `Ulimits: { "Name": "nofile", "Soft": 1024, "Hard": 2048 }`
     -   **SecurityOpt**: A list of string values to customize labels for MLS
         systems, such as SELinux.
     -   **LogConfig** - Log configuration for the container, specified as a JSON object in the form
           `{ "Type": "<driver_name>", "Config": {"key1": "val1"}}`.
-          Available types: `json-file`, `syslog`, `journald`, `gelf`, `none`.
+          Available types: `json-file`, `syslog`, `journald`, `gelf`, `awslogs`, `none`.
           `json-file` logging driver.
     -   **CgroupParent** - Path to `cgroups` under which the container's `cgroup` is created. If the path is not absolute, the path is considered to be relative to the `cgroups` path of the init process. Cgroups are created if they do not already exist.
+    -   **VolumeDriver** - Driver that this container users to mount volumes.
 
 Query Parameters:
 
@@ -365,7 +371,8 @@ Return low-level information on the container `id`
 			"Tty": false,
 			"User": "",
 			"Volumes": null,
-			"WorkingDir": ""
+			"WorkingDir": "",
+			"StopSignal": "SIGTERM"
 		},
 		"Created": "2015-01-06T15:47:31.485331387Z",
 		"Driver": "devicemapper",
@@ -383,6 +390,7 @@ Return low-level information on the container `id`
 			"CpuPeriod": 100000,
 			"Devices": [],
 			"Dns": null,
+			"DnsOptions": null,
 			"DnsSearch": null,
 			"ExtraHosts": null,
 			"IpcMode": "",
@@ -407,7 +415,8 @@ Return low-level information on the container `id`
 			},
 			"SecurityOpt": null,
 			"VolumesFrom": null,
-			"Ulimits": [{}]
+			"Ulimits": [{}],
+			"VolumeDriver": ""
 		},
 		"HostnamePath": "/var/lib/docker/containers/ba033ac4401106a3b513bc9d639eee123ad78ca3616b921167cd74b20e25ed39/hostname",
 		"HostsPath": "/var/lib/docker/containers/ba033ac4401106a3b513bc9d639eee123ad78ca3616b921167cd74b20e25ed39/hosts",
@@ -422,7 +431,6 @@ Return low-level information on the container `id`
 			"IPAddress": "",
 			"IPPrefixLen": 0,
 			"MacAddress": "",
-			"PortMapping": null,
 			"Ports": null
 		},
 		"Path": "/bin/sh",
@@ -626,15 +634,27 @@ This endpoint returns a live stream of a container's resource usage statistics.
 
       {
          "read" : "2015-01-08T22:57:31.547920715Z",
-         "network" : {
-            "rx_dropped" : 0,
-            "rx_bytes" : 648,
-            "rx_errors" : 0,
-            "tx_packets" : 8,
-            "tx_dropped" : 0,
-            "rx_packets" : 8,
-            "tx_errors" : 0,
-            "tx_bytes" : 648
+         "network": {
+                 "eth0": {
+                     "rx_bytes": 5338,
+                     "rx_dropped": 0,
+                     "rx_errors": 0,
+                     "rx_packets": 36,
+                     "tx_bytes": 648,
+                     "tx_dropped": 0,
+                     "tx_errors": 0,
+                     "tx_packets": 8
+                 },
+                 "eth5": {
+                     "rx_bytes": 4641,
+                     "rx_dropped": 0,
+                     "rx_errors": 0,
+                     "rx_packets": 26,
+                     "tx_bytes": 690,
+                     "tx_dropped": 0,
+                     "tx_errors": 0,
+                     "tx_packets": 9
+                 }
          },
          "memory_stats" : {
             "stats" : {
@@ -1347,11 +1367,37 @@ Query Parameters:
 -   **memswap** - Total memory (memory + swap), `-1` to disable swap.
 -   **cpushares** - CPU shares (relative weight).
 -   **cpusetcpus** - CPUs in which to allow execution (e.g., `0-3`, `0,1`).
+-   **buildargs** – JSON map of string pairs for build-time variables. Users pass
+        these values at build-time. Docker uses the `buildargs` as the environment
+        context for command(s) run via the Dockerfile's `RUN` instruction or for
+        variable expansion in other Dockerfile instructions. This is not meant for
+        passing secret values. [Read more about the buildargs instruction](/reference/builder/#arg)
 
     Request Headers:
 
 -   **Content-type** – Set to `"application/tar"`.
--   **X-Registry-Config** – base64-encoded ConfigFile object
+-   **X-Registry-Config** – A base64-url-safe-encoded Registry Auth Config JSON
+        object with the following structure:
+
+            {
+                "docker.example.com": {
+                    "username": "janedoe",
+                    "password": "hunter2"
+                },
+                "https://index.docker.io/v1/": {
+                    "username": "mobydock",
+                    "password": "conta1n3rize14"
+                }
+            }
+
+        This object maps the hostname of a registry to an object containing the
+        "username" and "password" for that registry. Multiple registries may
+        be specified as the build may be based on an image requiring
+        authentication to pull from any arbitrary registry. Only the registry
+        domain name (and port if not the default "443") are required. However
+        (for legacy reasons) the "official" Docker, Inc. hosted registry must
+        be specified with both a "https://" prefix and a "/v1/" suffix even
+        though Docker will prefer to use the v2 registry API.
 
 Status Codes:
 
@@ -1410,7 +1456,7 @@ Return low-level information on the image `name`
 
 **Example request**:
 
-    GET /images/ubuntu/json HTTP/1.1
+    GET /images/example/json HTTP/1.1
 
 **Example response**:
 
@@ -1418,34 +1464,90 @@ Return low-level information on the image `name`
     Content-Type: application/json
 
     {
-         "Created": "2013-03-23T22:24:18.818426-07:00",
-         "Container": "3d67245a8d72ecf13f33dffac9f79dcdf70f75acb84d308770391510e0c23ad0",
-         "ContainerConfig":
-                 {
-                         "Hostname": "",
-                         "User": "",
-                         "AttachStdin": false,
-                         "AttachStdout": false,
-                         "AttachStderr": false,
-                         "Tty": true,
-                         "OpenStdin": true,
-                         "StdinOnce": false,
-                         "Env": null,
-                         "Cmd": ["/bin/bash"],
-                         "Dns": null,
-                         "Image": "ubuntu",
-                         "Labels": {
-                             "com.example.vendor": "Acme",
-                             "com.example.license": "GPL",
-                             "com.example.version": "1.0"
-                         },
-                         "Volumes": null,
-                         "VolumesFrom": "",
-                         "WorkingDir": ""
-                 },
-         "Id": "b750fe79269d2ec9a3c593ef05b4332b1d1a02a62b4accb2c21d589ff2f5f2dc",
-         "Parent": "27cf784147099545",
-         "Size": 6824592
+       "Id" : "85f05633ddc1c50679be2b16a0479ab6f7637f8884e0cfe0f4d20e1ebb3d6e7c",
+       "Container" : "cb91e48a60d01f1e27028b4fc6819f4f290b3cf12496c8176ec714d0d390984a",
+       "Comment" : "",
+       "Os" : "linux",
+       "Architecture" : "amd64",
+       "Parent" : "91e54dfb11794fad694460162bf0cb0a4fa710cfa3f60979c177d920813e267c",
+       "ContainerConfig" : {
+          "Tty" : false,
+          "Hostname" : "e611e15f9c9d",
+          "Volumes" : null,
+          "Domainname" : "",
+          "AttachStdout" : false,
+          "PublishService" : "",
+          "AttachStdin" : false,
+          "OpenStdin" : false,
+          "StdinOnce" : false,
+          "NetworkDisabled" : false,
+          "OnBuild" : [],
+          "Image" : "91e54dfb11794fad694460162bf0cb0a4fa710cfa3f60979c177d920813e267c",
+          "User" : "",
+          "WorkingDir" : "",
+          "Entrypoint" : null,
+          "MacAddress" : "",
+          "AttachStderr" : false,
+          "Labels" : {
+             "com.example.license" : "GPL",
+             "com.example.version" : "1.0",
+             "com.example.vendor" : "Acme"
+          },
+          "Env" : [
+             "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+          ],
+          "ExposedPorts" : null,
+          "Cmd" : [
+             "/bin/sh",
+             "-c",
+             "#(nop) LABEL com.example.vendor=Acme com.example.license=GPL com.example.version=1.0"
+          ]
+       },
+       "DockerVersion" : "1.9.0-dev",
+       "VirtualSize" : 188359297,
+       "Size" : 0,
+       "Author" : "",
+       "Created" : "2015-09-10T08:30:53.26995814Z",
+       "GraphDriver" : {
+          "Name" : "aufs",
+          "Data" : null
+       },
+       "Tags" : [
+          "example:1.0",
+          "example:latest",
+          "example:stable"
+       ],
+       "Config" : {
+          "Image" : "91e54dfb11794fad694460162bf0cb0a4fa710cfa3f60979c177d920813e267c",
+          "NetworkDisabled" : false,
+          "OnBuild" : [],
+          "StdinOnce" : false,
+          "PublishService" : "",
+          "AttachStdin" : false,
+          "OpenStdin" : false,
+          "Domainname" : "",
+          "AttachStdout" : false,
+          "Tty" : false,
+          "Hostname" : "e611e15f9c9d",
+          "Volumes" : null,
+          "Cmd" : [
+             "/bin/bash"
+          ],
+          "ExposedPorts" : null,
+          "Env" : [
+             "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+          ],
+          "Labels" : {
+             "com.example.vendor" : "Acme",
+             "com.example.version" : "1.0",
+             "com.example.license" : "GPL"
+          },
+          "Entrypoint" : null,
+          "MacAddress" : "",
+          "AttachStderr" : false,
+          "WorkingDir" : "",
+          "User" : ""
+       }
     }
 
 Status Codes:
@@ -1912,10 +2014,10 @@ and Docker images report:
     HTTP/1.1 200 OK
     Content-Type: application/json
 
-    {"status": "create", "id": "dfdf82bd3881","from": "ubuntu:latest", "time":1374067924}
-    {"status": "start", "id": "dfdf82bd3881","from": "ubuntu:latest", "time":1374067924}
-    {"status": "stop", "id": "dfdf82bd3881","from": "ubuntu:latest", "time":1374067966}
-    {"status": "destroy", "id": "dfdf82bd3881","from": "ubuntu:latest", "time":1374067970}
+    {"status":"pull","id":"busybox:latest","time":1442421700,"timeNano":1442421700598988358}
+    {"status":"create","id":"5745704abe9caa5","from":"busybox","time":1442421716,"timeNano":1442421716853979870}
+    {"status":"attach","id":"5745704abe9caa5","from":"busybox","time":1442421716,"timeNano":1442421716894759198}
+    {"status":"start","id":"5745704abe9caa5","from":"busybox","time":1442421716,"timeNano":1442421716983607193}
 
 Query Parameters:
 
@@ -2223,7 +2325,6 @@ Return low-level information about the `exec` command `id`.
           "MacAddress" : "02:42:ac:11:00:02",
           "Gateway" : "172.17.42.1",
           "Bridge" : "docker0",
-          "PortMapping" : null,
           "Ports" : {}
         },
         "ResolvConfPath" : "/var/lib/docker/containers/8f177a186b977fb451136e0fdf182abff5599a08b3c7f6ef0d36a55aaf89634c/resolv.conf",
@@ -2237,7 +2338,7 @@ Return low-level information about the `exec` command `id`.
         "ProcessLabel" : "",
         "AppArmorProfile" : "",
         "RestartCount" : 0,
-        "Mounts" : [],
+        "Mounts" : []
       }
     }
 

@@ -59,17 +59,7 @@ func CheckRouteOverlaps(toCheck *net.IPNet) error {
 
 // NetworkOverlaps detects overlap between one IPNet and another
 func NetworkOverlaps(netX *net.IPNet, netY *net.IPNet) bool {
-	// Check if both netX and netY are ipv4 or ipv6
-	if (netX.IP.To4() != nil && netY.IP.To4() != nil) ||
-		(netX.IP.To4() == nil && netY.IP.To4() == nil) {
-		if firstIP, _ := NetworkRange(netX); netY.Contains(firstIP) {
-			return true
-		}
-		if firstIP, _ := NetworkRange(netY); netX.Contains(firstIP) {
-			return true
-		}
-	}
-	return false
+	return netX.Contains(netY.IP) || netY.Contains(netX.IP)
 }
 
 // NetworkRange calculates the first and last IP addresses in an IPNet
@@ -179,54 +169,4 @@ func GenerateIfaceName(prefix string, len int) (string, error) {
 		}
 	}
 	return "", types.InternalErrorf("could not generate interface name")
-}
-
-func byteArrayToInt(array []byte, numBytes int) uint64 {
-	if numBytes <= 0 || numBytes > 8 {
-		panic("Invalid argument")
-	}
-	num := 0
-	for i := 0; i <= len(array)-1; i++ {
-		num += int(array[len(array)-1-i]) << uint(i*8)
-	}
-	return uint64(num)
-}
-
-// ATo64 converts a byte array into a uint32
-func ATo64(array []byte) uint64 {
-	return byteArrayToInt(array, 8)
-}
-
-// ATo32 converts a byte array into a uint32
-func ATo32(array []byte) uint32 {
-	return uint32(byteArrayToInt(array, 4))
-}
-
-// ATo16 converts a byte array into a uint16
-func ATo16(array []byte) uint16 {
-	return uint16(byteArrayToInt(array, 2))
-}
-
-func intToByteArray(val uint64, numBytes int) []byte {
-	array := make([]byte, numBytes)
-	for i := numBytes - 1; i >= 0; i-- {
-		array[i] = byte(val & 0xff)
-		val = val >> 8
-	}
-	return array
-}
-
-// U64ToA converts a uint64 to a byte array
-func U64ToA(val uint64) []byte {
-	return intToByteArray(uint64(val), 8)
-}
-
-// U32ToA converts a uint64 to a byte array
-func U32ToA(val uint32) []byte {
-	return intToByteArray(uint64(val), 4)
-}
-
-// U16ToA converts a uint64 to a byte array
-func U16ToA(val uint16) []byte {
-	return intToByteArray(uint64(val), 2)
 }

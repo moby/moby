@@ -6,7 +6,8 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/daemon/execdriver"
-	"github.com/docker/libnetwork/sandbox"
+	"github.com/docker/docker/pkg/version"
+	"github.com/docker/libnetwork/osl"
 	"github.com/opencontainers/runc/libcontainer"
 )
 
@@ -16,12 +17,24 @@ type ContainerStatsConfig struct {
 	Stream    bool
 	OutStream io.Writer
 	Stop      <-chan bool
+	Version   version.Version
 }
 
 // ContainerStats writes information about the container to the stream
 // given in the config object.
-func (daemon *Daemon) ContainerStats(name string, config *ContainerStatsConfig) error {
-	updates, err := daemon.subscribeToContainerStats(name)
+func (daemon *Daemon) ContainerStats(prefixOrName string, config *ContainerStatsConfig) error {
+
+	container, err := daemon.Get(prefixOrName)
+	if err != nil {
+		return err
+	}
+
+	// If the container is not running and requires no stream, return an empty stats.
+	if !container.IsRunning() && !config.Stream {
+		return json.NewEncoder(config.OutStream).Encode(&types.Stats{})
+	}
+
+	updates, err := daemon.subscribeToContainerStats(container)
 	if err != nil {
 		return err
 	}
@@ -31,10 +44,10 @@ func (daemon *Daemon) ContainerStats(name string, config *ContainerStatsConfig) 
 	}
 
 	var preCPUStats types.CPUStats
-	getStat := func(v interface{}) *types.Stats {
+	getStatJSON := func(v interface{}) *types.StatsJSON {
 		update := v.(*execdriver.ResourceStats)
 		// Retrieve the nw statistics from libnetwork and inject them in the Stats
-		if nwStats, err := daemon.getNetworkStats(name); err == nil {
+		if nwStats, err := daemon.getNetworkStats(container); err == nil {
 			update.Stats.Interfaces = nwStats
 		}
 		ss := convertStatsToAPITypes(update.Stats)
@@ -48,7 +61,7 @@ func (daemon *Daemon) ContainerStats(name string, config *ContainerStatsConfig) 
 
 	enc := json.NewEncoder(config.OutStream)
 
-	defer daemon.unsubscribeToContainerStats(name, updates)
+	defer daemon.unsubscribeToContainerStats(container, updates)
 
 	noStreamFirstFrame := true
 	for {
@@ -58,14 +71,64 @@ func (daemon *Daemon) ContainerStats(name string, config *ContainerStatsConfig) 
 				return nil
 			}
 
-			s := getStat(v)
+			statsJSON := getStatJSON(v)
+			if config.Version.LessThan("1.21") {
+				var (
+					rxBytes   uint64
+					rxPackets uint64
+					rxErrors  uint64
+					rxDropped uint64
+					txBytes   uint64
+					txPackets uint64
+					txErrors  uint64
+					txDropped uint64
+				)
+				for _, v := range statsJSON.Networks {
+					rxBytes += v.RxBytes
+					rxPackets += v.RxPackets
+					rxErrors += v.RxErrors
+					rxDropped += v.RxDropped
+					txBytes += v.TxBytes
+					txPackets += v.TxPackets
+					txErrors += v.TxErrors
+					txDropped += v.TxDropped
+				}
+				statsJSONPre121 := &types.StatsJSONPre121{
+					Stats: statsJSON.Stats,
+					Network: types.NetworkStats{
+						RxBytes:   rxBytes,
+						RxPackets: rxPackets,
+						RxErrors:  rxErrors,
+						RxDropped: rxDropped,
+						TxBytes:   txBytes,
+						TxPackets: txPackets,
+						TxErrors:  txErrors,
+						TxDropped: txDropped,
+					},
+				}
+
+				if !config.Stream && noStreamFirstFrame {
+					// prime the cpu stats so they aren't 0 in the final output
+					noStreamFirstFrame = false
+					continue
+				}
+
+				if err := enc.Encode(statsJSONPre121); err != nil {
+					return err
+				}
+
+				if !config.Stream {
+					return nil
+				}
+			}
+
 			if !config.Stream && noStreamFirstFrame {
 				// prime the cpu stats so they aren't 0 in the final output
 				noStreamFirstFrame = false
 				continue
 			}
 
-			if err := enc.Encode(s); err != nil {
+			if err := enc.Encode(statsJSON); err != nil {
 				return err
 			}
 
@@ -78,24 +141,15 @@ func (daemon *Daemon) ContainerStats(name string, config *ContainerStatsConfig) 
 	}
 }
 
-func (daemon *Daemon) getNetworkStats(name string) ([]*libcontainer.NetworkInterface, error) {
+func (daemon *Daemon) getNetworkStats(c *Container) ([]*libcontainer.NetworkInterface, error) {
 	var list []*libcontainer.NetworkInterface
 
-	c, err := daemon.Get(name)
+	sb, err := daemon.netController.SandboxByID(c.NetworkSettings.SandboxID)
 	if err != nil {
 		return list, err
 	}
 
-	nw, err := daemon.netController.NetworkByID(c.NetworkSettings.NetworkID)
-	if err != nil {
-		return list, err
-	}
-	ep, err := nw.EndpointByID(c.NetworkSettings.EndpointID)
-	if err != nil {
-		return list, err
-	}
-
-	stats, err := ep.Statistics()
+	stats, err := sb.Statistics()
 	if err != nil {
 		return list, err
 	}
@@ -108,7 +162,7 @@ func (daemon *Daemon) getNetworkStats(name string) ([]*libcontainer.NetworkInter
 	return list, nil
 }
 
-func convertLnNetworkStats(name string, stats *sandbox.InterfaceStatistics) *libcontainer.NetworkInterface {
+func convertLnNetworkStats(name string, stats *osl.InterfaceStatistics) *libcontainer.NetworkInterface {
 	n := &libcontainer.NetworkInterface{Name: name}
 	n.RxBytes = stats.RxBytes
 	n.RxPackets = stats.RxPackets

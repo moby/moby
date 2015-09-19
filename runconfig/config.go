@@ -28,13 +28,13 @@ type Config struct {
 	Cmd             *stringutils.StrSlice // Command to run when starting the container
 	Image           string                // Name of the image as it was passed by the operator (eg. could be symbolic)
 	Volumes         map[string]struct{}   // List of volumes (mounts) used for the container
-	VolumeDriver    string                // Name of the volume driver used to mount volumes
 	WorkingDir      string                // Current directory (PWD) in the command will be launched
 	Entrypoint      *stringutils.StrSlice // Entrypoint to run when starting the container
 	NetworkDisabled bool                  // Is network disabled
 	MacAddress      string                // Mac Address of the container
 	OnBuild         []string              // ONBUILD metadata that were defined on the image Dockerfile
 	Labels          map[string]string     // List of labels set to this container
+	StopSignal      string                // Signal to stop a container
 }
 
 // DecodeContainerConfig decodes a json encoded config into a ContainerConfigWrapper

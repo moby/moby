@@ -138,6 +138,10 @@ __docker_containers_and_images() {
 	COMPREPLY+=( "${containers[@]}" )
 }
 
+__docker_volumes() {
+	COMPREPLY=( $(compgen -W "$(__docker_q volume ls -q)" -- "$cur") )
+}
+
 # Finds the position of the first word that is neither option nor an option's argument.
 # If there are options that require arguments, you should pass a glob describing those
 # options, e.g. "--option1|-o|--option2"
@@ -178,12 +182,12 @@ __docker_pos_first_nonflag() {
 # globs like '--log-level|-l'
 # Only positions between the command and the current word are considered.
 __docker_value_of_option() {
-	local option_glob=$1
+	local option_extglob=$(__docker_to_extglob "$1")
 
 	local counter=$((command_pos + 1))
 	while [ $counter -lt $cword ]; do
 		case ${words[$counter]} in
-			@($option_glob) )
+			$option_extglob )
 				echo ${words[$counter + 1]}
 				break
 				;;
@@ -275,6 +279,7 @@ __docker_log_driver_options() {
 	local gelf_options="gelf-address gelf-tag"
 	local json_file_options="max-file max-size"
 	local syslog_options="syslog-address syslog-facility syslog-tag"
+	local awslogs_options="awslogs-region awslogs-group awslogs-stream"
 
 	case $(__docker_value_of_option --log-driver) in
 		'')
@@ -291,6 +296,9 @@ __docker_log_driver_options() {
 			;;
 		syslog)
 			COMPREPLY=( $( compgen -W "$syslog_options" -S = -- "$cur" ) )
+			;;
+		awslogs)
+			COMPREPLY=( $( compgen -W "$awslogs_options" -S = -- "$cur" ) )
 			;;
 		*)
 			return
@@ -525,6 +533,7 @@ _docker_daemon() {
 		--default-ulimit
 		--dns
 		--dns-search
+		--dns-opt
 		--exec-driver -e
 		--exec-opt
 		--exec-root
@@ -1116,6 +1125,7 @@ _docker_run() {
 		--cpu-shares -c
 		--device
 		--dns
+		--dns-opt
 		--dns-search
 		--entrypoint
 		--env -e
@@ -1141,6 +1151,7 @@ _docker_run() {
 		--publish -p
 		--restart
 		--security-opt
+		--stop-signal
 		--ulimit
 		--user -u
 		--uts
@@ -1441,6 +1452,99 @@ _docker_version() {
 	esac
 }
 
+_docker_volume_create() {
+	case "$prev" in
+		--driver|-d)
+			COMPREPLY=( $( compgen -W "local" -- "$cur" ) )
+			return
+			;;
+		--name|--opt|-o)
+			return
+			;;
+	esac
+
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--driver -d --help --name --opt -o" -- "$cur" ) )
+			;;
+	esac
+}
+
+_docker_volume_inspect() {
+	case "$prev" in
+		--format|-f)
+			return
+			;;
+	esac
+
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--format -f --help" -- "$cur" ) )
+			;;
+		*)
+			__docker_volumes
+			;;
+	esac
+}
+
+_docker_volume_ls() {
+	case "$prev" in
+		--filter|-f)
+			COMPREPLY=( $( compgen -W "dangling=true" -- "$cur" ) )
+			return
+			;;
+	esac
+
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--filter -f --help --quiet -q" -- "$cur" ) )
+			;;
+	esac
+}
+
+_docker_volume_rm() {
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--help" -- "$cur" ) )
+			;;
+		*)
+			__docker_volumes
+			;;
+	esac
+}
+
+_docker_volume() {
+	local subcommands=(
+		create
+		inspect
+		ls
+		rm
+	)
+
+	local counter=$(($command_pos + 1))
+	while [ $counter -lt $cword ]; do
+		case "${words[$counter]}" in
+			$(__docker_to_extglob "${subcommands[*]}") )
+				local subcommand=${words[$counter]}
+				local completions_func=_docker_volume_$subcommand
+				declare -F $completions_func >/dev/null && $completions_func
+				return
+				;;
+
+		esac
+		(( counter++ ))
+	done
+
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--help" -- "$cur" ) )
+			;;
+		*)
+			COMPREPLY=( $( compgen -W "${subcommands[*]}" -- "$cur" ) )
+			;;
+	esac
+}
+
 _docker_wait() {
 	case "$cur" in
 		-*)
@@ -1496,6 +1600,7 @@ _docker() {
 		top
 		unpause
 		version
+		volume
 		wait
 	)
 

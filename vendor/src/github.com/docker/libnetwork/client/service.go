@@ -114,6 +114,25 @@ func lookupContainerID(cli *NetworkCli, cnNameID string) (string, error) {
 	return "", fmt.Errorf("Cannot find container ID in json response")
 }
 
+func lookupSandboxID(cli *NetworkCli, containerID string) (string, error) {
+	obj, _, err := readBody(cli.call("GET", fmt.Sprintf("/sandboxes?partial-container-id=%s", containerID), nil, nil))
+	if err != nil {
+		return "", err
+	}
+
+	var sandboxList []SandboxResource
+	err = json.Unmarshal(obj, &sandboxList)
+	if err != nil {
+		return "", err
+	}
+
+	if len(sandboxList) == 0 {
+		return "", fmt.Errorf("cannot find sandbox for container: %s", containerID)
+	}
+
+	return sandboxList[0].ID, nil
+}
+
 // CmdService handles the service UI
 func (cli *NetworkCli) CmdService(chain string, args ...string) error {
 	cmd := cli.Subcmd(chain, "service", "COMMAND [OPTIONS] [arg...]", serviceUsage(chain), false)
@@ -249,14 +268,12 @@ func getBackendID(cli *NetworkCli, servID string) (string, error) {
 	)
 
 	if obj, _, err = readBody(cli.call("GET", "/services/"+servID+"/backend", nil, nil)); err == nil {
-		var bkl []backendResource
-		if err := json.NewDecoder(bytes.NewReader(obj)).Decode(&bkl); err == nil {
-			if len(bkl) > 0 {
-				bk = bkl[0].ID
-			}
+		var sr SandboxResource
+		if err := json.NewDecoder(bytes.NewReader(obj)).Decode(&sr); err == nil {
+			bk = sr.ContainerID
 		} else {
 			// Only print a message, don't make the caller cli fail for this
-			fmt.Fprintf(cli.out, "Failed to retrieve backend list for service %s (%v)", servID, err)
+			fmt.Fprintf(cli.out, "Failed to retrieve backend list for service %s (%v)\n", servID, err)
 		}
 	}
 
@@ -310,13 +327,18 @@ func (cli *NetworkCli) CmdServiceAttach(chain string, args ...string) error {
 		return err
 	}
 
+	sandboxID, err := lookupSandboxID(cli, containerID)
+	if err != nil {
+		return err
+	}
+
 	sn, nn := parseServiceName(cmd.Arg(1))
 	serviceID, err := lookupServiceID(cli, nn, sn)
 	if err != nil {
 		return err
 	}
 
-	nc := serviceAttach{ContainerID: containerID}
+	nc := serviceAttach{SandboxID: sandboxID}
 
 	_, _, err = readBody(cli.call("POST", "/services/"+serviceID+"/backend", nc, nil))
 
@@ -338,12 +360,17 @@ func (cli *NetworkCli) CmdServiceDetach(chain string, args ...string) error {
 		return err
 	}
 
+	sandboxID, err := lookupSandboxID(cli, containerID)
+	if err != nil {
+		return err
+	}
+
 	serviceID, err := lookupServiceID(cli, nn, sn)
 	if err != nil {
 		return err
 	}
 
-	_, _, err = readBody(cli.call("DELETE", "/services/"+serviceID+"/backend/"+containerID, nil, nil))
+	_, _, err = readBody(cli.call("DELETE", "/services/"+serviceID+"/backend/"+sandboxID, nil, nil))
 	if err != nil {
 		return err
 	}

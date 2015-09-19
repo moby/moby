@@ -25,7 +25,7 @@ The Docker maintainers take security seriously. If you discover a security
 issue, please bring it to their attention right away!
 
 Please **DO NOT** file a public issue, instead send your report privately to
-[security@docker.com](mailto:security@docker.com), 
+[security@docker.com](mailto:security@docker.com).
 
 Security reports are greatly appreciated and we will publicly thank you for it.
 We also like to send gifts&mdash;if you're into Docker schwag, make sure to let

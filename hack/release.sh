@@ -63,6 +63,13 @@ fi
 VERSION=$(< VERSION)
 BUCKET=$AWS_S3_BUCKET
 
+if command -v git &> /dev/null && git rev-parse &> /dev/null; then
+	if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
+		echo "You cannot run the release script on a repo with uncommitted changes"
+		usage
+	fi
+fi
+
 # These are the 2 keys we've used to sign the deb's
 #   release (get.docker.com)
 #	GPG_KEY="36A1D7869245C8950F966E92D8576A8BA88D21E9"

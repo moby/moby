@@ -1,6 +1,11 @@
 package daemon
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/docker/docker/pkg/signal"
+	"github.com/docker/docker/runconfig"
+)
 
 func TestGetFullName(t *testing.T) {
 	name, err := GetFullContainerName("testing")
@@ -29,5 +34,33 @@ func TestValidContainerNames(t *testing.T) {
 		if !validContainerNamePattern.MatchString(name) {
 			t.Fatalf("%q is a valid container name and was returned as invalid.", name)
 		}
+	}
+}
+
+func TestContainerStopSignal(t *testing.T) {
+	c := &Container{
+		CommonContainer: CommonContainer{
+			Config: &runconfig.Config{},
+		},
+	}
+
+	def, err := signal.ParseSignal(signal.DefaultStopSignal)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	s := c.stopSignal()
+	if s != int(def) {
+		t.Fatalf("Expected %v, got %v", def, s)
+	}
+
+	c = &Container{
+		CommonContainer: CommonContainer{
+			Config: &runconfig.Config{StopSignal: "SIGKILL"},
+		},
+	}
+	s = c.stopSignal()
+	if s != 9 {
+		t.Fatalf("Expected 9, got %v", s)
 	}
 }

@@ -21,8 +21,6 @@ import (
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/utils"
-	volumedrivers "github.com/docker/docker/volume/drivers"
-	"github.com/docker/docker/volume/local"
 	"github.com/docker/libnetwork"
 	nwapi "github.com/docker/libnetwork/api"
 	nwconfig "github.com/docker/libnetwork/config"
@@ -236,9 +234,9 @@ func checkSystem() error {
 func configureKernelSecuritySupport(config *Config, driverName string) error {
 	if config.EnableSelinuxSupport {
 		if selinuxEnabled() {
-			// As Docker on btrfs and SELinux are incompatible at present, error on both being enabled
-			if driverName == "btrfs" {
-				return fmt.Errorf("SELinux is not supported with the BTRFS graph driver")
+			// As Docker on either btrfs or overlayFS and SELinux are incompatible at present, error on both being enabled
+			if driverName == "btrfs" || driverName == "overlay" {
+				return fmt.Errorf("SELinux is not supported with the %s graph driver", driverName)
 			}
 			logrus.Debug("SELinux enabled successfully")
 		} else {
@@ -253,15 +251,6 @@ func configureKernelSecuritySupport(config *Config, driverName string) error {
 // MigrateIfDownlevel is a wrapper for AUFS migration for downlevel
 func migrateIfDownlevel(driver graphdriver.Driver, root string) error {
 	return migrateIfAufs(driver, root)
-}
-
-func configureVolumes(config *Config) (*volumeStore, error) {
-	volumesDriver, err := local.New(config.Root)
-	if err != nil {
-		return nil, err
-	}
-	volumedrivers.Register(volumesDriver, volumesDriver.Name())
-	return newVolumeStore(volumesDriver.List()), nil
 }
 
 func configureSysInit(config *Config) (string, error) {

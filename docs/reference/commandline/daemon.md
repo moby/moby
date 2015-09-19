@@ -23,6 +23,7 @@ weight=1
       --default-gateway=""                   Container default gateway IPv4 address
       --default-gateway-v6=""                Container default gateway IPv6 address
       --dns=[]                               DNS server to use
+      --dns-opt=[]                           DNS options to use
       --dns-search=[]                        DNS search domains to use
       --default-ulimit=[]                    Set default ulimit settings for containers
       -e, --exec-driver="native"             Exec driver to use
@@ -447,6 +448,12 @@ daemon as described above.
 Local registries, whose IP address falls in the 127.0.0.0/8 range, are
 automatically marked as insecure as of Docker 1.3.2. It is not recommended to
 rely on this, as it may change in the future.
+
+Enabling `--insecure-registry`, i.e., allowing un-encrypted and/or untrusted
+communication, can be useful when running a local registry.  However, 
+because its use creates security vulnerabilities it should ONLY be enabled for
+testing purposes.  For increased security, users should add their CA to their 
+system's list of trusted CAs instead of enabling `--insecure-registry`.
 
 ## Running a Docker daemon behind a HTTPS_PROXY
 

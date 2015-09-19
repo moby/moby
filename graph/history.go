@@ -27,8 +27,7 @@ func (graph *Graph) WalkHistory(img *image.Image, handler func(image.Image) erro
 	return nil
 }
 
-// depth returns the number of parents for a
-// current image
+// depth returns the number of parents for the current image
 func (graph *Graph) depth(img *image.Image) (int, error) {
 	var (
 		count  = 0
@@ -38,8 +37,7 @@ func (graph *Graph) depth(img *image.Image) (int, error) {
 
 	for parent != nil {
 		count++
-		parent, err = graph.GetParent(parent)
-		if err != nil {
+		if parent, err = graph.GetParent(parent); err != nil {
 			return -1, err
 		}
 	}

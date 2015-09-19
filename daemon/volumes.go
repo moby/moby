@@ -9,7 +9,9 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types"
+	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/pkg/chrootarchive"
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/volume"
@@ -51,6 +53,7 @@ func (m *mountPoint) Setup() (string, error) {
 			if !os.IsNotExist(err) {
 				return "", err
 			}
+			logrus.Warnf("Auto-creating non-existant volume host path %s, this is deprecated and will be removed soon", m.Source)
 			if err := system.MkdirAll(m.Source, 0755); err != nil {
 				return "", err
 			}
@@ -58,7 +61,7 @@ func (m *mountPoint) Setup() (string, error) {
 		return m.Source, nil
 	}
 
-	return "", fmt.Errorf("Unable to setup mount point, neither source nor volume defined")
+	return "", derr.ErrorCodeMountSetup
 }
 
 // hasResource checks whether the given absolute path for a container is in
@@ -139,6 +142,7 @@ func (s *volumeStore) Create(name, driverName string, opts map[string]string) (v
 		return v, nil
 	}
 	s.mu.Unlock()
+	logrus.Debugf("Registering new volume reference: driver %s, name %s", driverName, name)
 
 	vd, err := getVolumeDriver(driverName)
 	if err != nil {
@@ -173,6 +177,7 @@ func (s *volumeStore) Remove(v volume.Volume) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	name := v.Name()
+	logrus.Debugf("Removing volume reference: driver %s, name %s", v.DriverName(), name)
 	vc, exists := s.vols[name]
 	if !exists {
 		return ErrNoSuchVolume
@@ -197,6 +202,7 @@ func (s *volumeStore) Remove(v volume.Volume) error {
 func (s *volumeStore) Increment(v volume.Volume) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	logrus.Debugf("Incrementing volume reference: driver %s, name %s", v.DriverName(), v.Name())
 
 	vc, exists := s.vols[v.Name()]
 	if !exists {
@@ -211,6 +217,7 @@ func (s *volumeStore) Increment(v volume.Volume) {
 func (s *volumeStore) Decrement(v volume.Volume) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	logrus.Debugf("Decrementing volume reference: driver %s, name %s", v.DriverName(), v.Name())
 
 	vc, exists := s.vols[v.Name()]
 	if !exists {
@@ -222,6 +229,8 @@ func (s *volumeStore) Decrement(v volume.Volume) {
 
 // Count returns the usage count of the passed in volume
 func (s *volumeStore) Count(v volume.Volume) int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	vc, exists := s.vols[v.Name()]
 	if !exists {
 		return 0
@@ -231,6 +240,8 @@ func (s *volumeStore) Count(v volume.Volume) int {
 
 // List returns all the available volumes
 func (s *volumeStore) List() []volume.Volume {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	var ls []volume.Volume
 	for _, vc := range s.vols {
 		ls = append(ls, vc.Volume)

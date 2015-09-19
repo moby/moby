@@ -12,6 +12,7 @@ import (
 )
 
 func (s *DockerSuite) TestImagesEnsureImageIsListed(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "images")
 	if !strings.Contains(out, "busybox") {
 		c.Fatal("images should've listed busybox")
@@ -19,6 +20,7 @@ func (s *DockerSuite) TestImagesEnsureImageIsListed(c *check.C) {
 }
 
 func (s *DockerSuite) TestImagesEnsureImageWithTagIsListed(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	_, err := buildImage("imagewithtag:v1",
 		`FROM scratch
 		MAINTAINER dockerio1`, true)
@@ -52,6 +54,7 @@ func (s *DockerSuite) TestImagesEnsureImageWithBadTagIsNotListed(c *check.C) {
 }
 
 func (s *DockerSuite) TestImagesOrderedByCreationDate(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	id1, err := buildImage("order:test_a",
 		`FROM scratch
 		MAINTAINER dockerio1`, true)
@@ -94,6 +97,7 @@ func (s *DockerSuite) TestImagesErrorWithInvalidFilterNameTest(c *check.C) {
 }
 
 func (s *DockerSuite) TestImagesFilterLabel(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	imageName1 := "images_filter_test1"
 	imageName2 := "images_filter_test2"
 	imageName3 := "images_filter_test3"
@@ -132,6 +136,7 @@ func (s *DockerSuite) TestImagesFilterLabel(c *check.C) {
 }
 
 func (s *DockerSuite) TestImagesFilterSpaceTrimCase(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	imageName := "images_filter_test"
 	buildImage(imageName,
 		`FROM scratch
@@ -170,6 +175,7 @@ func (s *DockerSuite) TestImagesFilterSpaceTrimCase(c *check.C) {
 }
 
 func (s *DockerSuite) TestImagesEnsureDanglingImageOnlyListedOnce(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	// create container 1
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "true")
 	containerID1 := strings.TrimSpace(out)

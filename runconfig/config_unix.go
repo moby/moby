@@ -32,11 +32,17 @@ func (w *ContainerConfigWrapper) getHostConfig() *HostConfig {
 			w.InnerHostConfig.CpusetCpus = hc.CpusetCpus
 		}
 
+		if hc.VolumeDriver != "" && w.InnerHostConfig.VolumeDriver == "" {
+			w.InnerHostConfig.VolumeDriver = hc.VolumeDriver
+		}
+
 		hc = w.InnerHostConfig
 	}
 
-	if hc != nil && w.Cpuset != "" && hc.CpusetCpus == "" {
-		hc.CpusetCpus = w.Cpuset
+	if hc != nil {
+		if w.Cpuset != "" && hc.CpusetCpus == "" {
+			hc.CpusetCpus = w.Cpuset
+		}
 	}
 
 	// Make sure NetworkMode has an acceptable value. We do this to ensure

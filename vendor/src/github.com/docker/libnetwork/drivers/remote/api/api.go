@@ -16,6 +16,12 @@ func (r *Response) GetError() string {
 	return r.Err
 }
 
+// GetCapabilityResponse is the response of GetCapability request
+type GetCapabilityResponse struct {
+	Response
+	Scope string
+}
+
 // CreateNetworkRequest requests a new network.
 type CreateNetworkRequest struct {
 	// A network ID that remote plugins are expected to store for future
@@ -48,13 +54,12 @@ type CreateEndpointRequest struct {
 	NetworkID string
 	// The ID of the endpoint for later reference.
 	EndpointID string
-	Interfaces []*EndpointInterface
+	Interface  *EndpointInterface
 	Options    map[string]interface{}
 }
 
 // EndpointInterface represents an interface endpoint.
 type EndpointInterface struct {
-	ID          int
 	Address     string
 	AddressIPv6 string
 	MacAddress  string
@@ -63,12 +68,11 @@ type EndpointInterface struct {
 // CreateEndpointResponse is the response to the CreateEndpoint action.
 type CreateEndpointResponse struct {
 	Response
-	Interfaces []*EndpointInterface
+	Interface *EndpointInterface
 }
 
 // Interface is the representation of a linux interface.
 type Interface struct {
-	ID          int
 	Address     *net.IPNet
 	AddressIPv6 *net.IPNet
 	MacAddress  net.HardwareAddr
@@ -118,18 +122,15 @@ type StaticRoute struct {
 	Destination string
 	RouteType   int
 	NextHop     string
-	InterfaceID int
 }
 
 // JoinResponse is the response to a JoinRequest.
 type JoinResponse struct {
 	Response
-	InterfaceNames []*InterfaceName
-	Gateway        string
-	GatewayIPv6    string
-	HostsPath      string
-	ResolvConfPath string
-	StaticRoutes   []StaticRoute
+	InterfaceName *InterfaceName
+	Gateway       string
+	GatewayIPv6   string
+	StaticRoutes  []StaticRoute
 }
 
 // LeaveRequest describes the API for detaching an endpoint from a sandbox.

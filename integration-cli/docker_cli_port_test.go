@@ -11,7 +11,7 @@ import (
 )
 
 func (s *DockerSuite) TestPortList(c *check.C) {
-
+	testRequires(c, DaemonIsLinux)
 	// one port
 	out, _ := dockerCmd(c, "run", "-d", "-p", "9876:80", "busybox", "top")
 	firstID := strings.TrimSpace(out)
@@ -181,6 +181,7 @@ func stopRemoveContainer(id string, c *check.C) {
 }
 
 func (s *DockerSuite) TestUnpublishedPortsInPsOutput(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	// Run busybox with command line expose (equivalent to EXPOSE in image's Dockerfile) for the following ports
 	port1 := 80
 	port2 := 443
@@ -248,6 +249,7 @@ func (s *DockerSuite) TestUnpublishedPortsInPsOutput(c *check.C) {
 }
 
 func (s *DockerSuite) TestPortHostBinding(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-d", "-p", "9876:80", "busybox",
 		"nc", "-l", "-p", "80")
 	firstID := strings.TrimSpace(out)
@@ -270,6 +272,7 @@ func (s *DockerSuite) TestPortHostBinding(c *check.C) {
 }
 
 func (s *DockerSuite) TestPortExposeHostBinding(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-d", "-P", "--expose", "80", "busybox",
 		"nc", "-l", "-p", "80")
 	firstID := strings.TrimSpace(out)

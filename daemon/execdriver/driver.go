@@ -24,10 +24,22 @@ var (
 	ErrDriverNotFound          = errors.New("The requested docker init has not been found")
 )
 
-// StartCallback defines a callback function.
-// It's used by 'Run' and 'Exec', does some work in parent process
-// after child process is started.
-type StartCallback func(*ProcessConfig, int)
+// DriverCallback defines a callback function which is used in "Run" and "Exec".
+// This allows work to be done in the parent process when the child is passing
+// through PreStart, Start and PostStop events.
+// Callbacks are provided a processConfig pointer and the pid of the child
+type DriverCallback func(processConfig *ProcessConfig, pid int) error
+
+// Hooks is a struct containing function pointers to callbacks
+// used by any execdriver implementation exploiting hooks capabilities
+type Hooks struct {
+	// PreStart is called before container's CMD/ENTRYPOINT is executed
+	PreStart []DriverCallback
+	// Start is called after the container's process is full started
+	Start DriverCallback
+	// PostStop is called after the container process exits
+	PostStop []DriverCallback
+}
 
 // Info is driver specific information based on
 // processes registered with the driver
@@ -56,11 +68,11 @@ type ExitStatus struct {
 type Driver interface {
 	// Run executes the process, blocks until the process exits and returns
 	// the exit code. It's the last stage on Docker side for running a container.
-	Run(c *Command, pipes *Pipes, startCallback StartCallback) (ExitStatus, error)
+	Run(c *Command, pipes *Pipes, hooks Hooks) (ExitStatus, error)
 
 	// Exec executes the process in an existing container, blocks until the
 	// process exits and returns the exit code.
-	Exec(c *Command, processConfig *ProcessConfig, pipes *Pipes, startCallback StartCallback) (int, error)
+	Exec(c *Command, processConfig *ProcessConfig, pipes *Pipes, hooks Hooks) (int, error)
 
 	// Kill sends signals to process in container.
 	Kill(c *Command, sig int) error
@@ -89,6 +101,9 @@ type Driver interface {
 
 	// Stats returns resource stats for a running container
 	Stats(id string) (*ResourceStats, error)
+
+	// SupportsHooks refers to the driver capability to exploit pre/post hook functionality
+	SupportsHooks() bool
 }
 
 // Ipc settings of the container

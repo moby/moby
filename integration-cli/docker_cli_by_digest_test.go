@@ -60,6 +60,7 @@ func setupImageWithTag(c *check.C, tag string) (digest.Digest, error) {
 }
 
 func (s *DockerRegistrySuite) TestPullByTagDisplaysDigest(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	pushDigest, err := setupImage(c)
 	if err != nil {
 		c.Fatalf("error setting up image: %v", err)
@@ -82,6 +83,7 @@ func (s *DockerRegistrySuite) TestPullByTagDisplaysDigest(c *check.C) {
 }
 
 func (s *DockerRegistrySuite) TestPullByDigest(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	pushDigest, err := setupImage(c)
 	if err != nil {
 		c.Fatalf("error setting up image: %v", err)
@@ -105,6 +107,7 @@ func (s *DockerRegistrySuite) TestPullByDigest(c *check.C) {
 }
 
 func (s *DockerRegistrySuite) TestPullByDigestNoFallback(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	// pull from the registry using the <name>@<digest> reference
 	imageReference := fmt.Sprintf("%s@sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", repoName)
 	out, _, err := dockerCmdWithError("pull", imageReference)
@@ -446,6 +449,7 @@ func (s *DockerRegistrySuite) TestDeleteImageByIDOnlyPulledByDigest(c *check.C) 
 // TestPullFailsWithAlteredManifest tests that a `docker pull` fails when
 // we have modified a manifest blob and its digest cannot be verified.
 func (s *DockerRegistrySuite) TestPullFailsWithAlteredManifest(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	manifestDigest, err := setupImage(c)
 	if err != nil {
 		c.Fatalf("error setting up image: %v", err)
@@ -495,6 +499,7 @@ func (s *DockerRegistrySuite) TestPullFailsWithAlteredManifest(c *check.C) {
 // TestPullFailsWithAlteredLayer tests that a `docker pull` fails when
 // we have modified a layer blob and its digest cannot be verified.
 func (s *DockerRegistrySuite) TestPullFailsWithAlteredLayer(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	manifestDigest, err := setupImage(c)
 	if err != nil {
 		c.Fatalf("error setting up image: %v", err)

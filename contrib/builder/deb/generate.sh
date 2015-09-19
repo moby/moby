@@ -56,6 +56,12 @@ for version in "${versions[@]}"; do
 		libdevmapper-dev # for "libdevmapper.h"
 		libsqlite3-dev # for "sqlite3.h"
 	)
+	# packaging for "sd-journal.h" and libraries varies
+	case "$suite" in
+		precise) ;;
+		sid|stretch|wily) packages+=( libsystemd-dev );;
+		*) packages+=( libsystemd-journal-dev );;
+	esac
 
 	if [ "$suite" = 'precise' ]; then
 		# precise has a few package issues

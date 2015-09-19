@@ -9,6 +9,7 @@ import (
 )
 
 func (s *DockerSuite) TestRmiWithContainerFails(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	errSubstr := "is using it"
 
 	// create a container
@@ -36,6 +37,7 @@ func (s *DockerSuite) TestRmiWithContainerFails(c *check.C) {
 }
 
 func (s *DockerSuite) TestRmiTag(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	imagesBefore, _ := dockerCmd(c, "images", "-a")
 	dockerCmd(c, "tag", "busybox", "utest:tag1")
 	dockerCmd(c, "tag", "busybox", "utest/docker:tag2")
@@ -73,6 +75,7 @@ func (s *DockerSuite) TestRmiTag(c *check.C) {
 }
 
 func (s *DockerSuite) TestRmiImgIDMultipleTag(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	out, _, err := dockerCmdWithError("run", "-d", "busybox", "/bin/sh", "-c", "mkdir '/busybox-one'")
 	if err != nil {
 		c.Fatalf("failed to create a container:%s, %v", out, err)
@@ -121,6 +124,7 @@ func (s *DockerSuite) TestRmiImgIDMultipleTag(c *check.C) {
 }
 
 func (s *DockerSuite) TestRmiImgIDForce(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	out, _, err := dockerCmdWithError("run", "-d", "busybox", "/bin/sh", "-c", "mkdir '/busybox-test'")
 	if err != nil {
 		c.Fatalf("failed to create a container:%s, %v", out, err)
@@ -163,6 +167,7 @@ func (s *DockerSuite) TestRmiImgIDForce(c *check.C) {
 
 // See https://github.com/docker/docker/issues/14116
 func (s *DockerSuite) TestRmiImageIDForceWithRunningContainersAndMultipleTags(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	dockerfile := "FROM busybox\nRUN echo test 14116\n"
 	imgID, err := buildImage("test-14116", dockerfile, false)
 	c.Assert(err, check.IsNil)
@@ -179,6 +184,7 @@ func (s *DockerSuite) TestRmiImageIDForceWithRunningContainersAndMultipleTags(c 
 }
 
 func (s *DockerSuite) TestRmiTagWithExistingContainers(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	container := "test-delete-tag"
 	newtag := "busybox:newtag"
 	bb := "busybox:latest"
@@ -198,6 +204,7 @@ func (s *DockerSuite) TestRmiTagWithExistingContainers(c *check.C) {
 }
 
 func (s *DockerSuite) TestRmiForceWithExistingContainers(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	image := "busybox-clone"
 
 	cmd := exec.Command(dockerBinary, "build", "--no-cache", "-t", image, "-")
@@ -218,6 +225,7 @@ MAINTAINER foo`)
 }
 
 func (s *DockerSuite) TestRmiWithMultipleRepositories(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	newRepo := "127.0.0.1:5000/busybox"
 	oldRepo := "busybox"
 	newTag := "busybox:test"
@@ -246,6 +254,7 @@ func (s *DockerSuite) TestRmiWithMultipleRepositories(c *check.C) {
 }
 
 func (s *DockerSuite) TestRmiBlank(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	// try to delete a blank image name
 	out, _, err := dockerCmdWithError("rmi", "")
 	if err == nil {
@@ -268,6 +277,7 @@ func (s *DockerSuite) TestRmiBlank(c *check.C) {
 }
 
 func (s *DockerSuite) TestRmiContainerImageNotFound(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	// Build 2 images for testing.
 	imageNames := []string{"test1", "test2"}
 	imageIds := make([]string, 2)
@@ -295,6 +305,7 @@ func (s *DockerSuite) TestRmiContainerImageNotFound(c *check.C) {
 
 // #13422
 func (s *DockerSuite) TestRmiUntagHistoryLayer(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	image := "tmp1"
 	// Build a image for testing.
 	dockerfile := `FROM busybox

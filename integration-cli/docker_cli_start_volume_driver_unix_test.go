@@ -253,15 +253,11 @@ func (s *DockerExternalVolumeSuite) TestStartExternalNamedVolumeDriverCheckBindL
 
 	img := "test-checkbindlocalvolume"
 
-	args := []string{"--host", s.d.sock()}
-	buildOut, err := buildImageArgs(args, img, dockerfile, true)
-	fmt.Println(buildOut)
+	_, err := buildImageWithOutInDamon(s.d.sock(), img, dockerfile, true)
+	c.Assert(err, check.IsNil)
 
 	out, err := s.d.Cmd("run", "--rm", "--name", "test-data-nobind", "-v", "external-volume-test:/tmp/external-volume-test", "--volume-driver", "test-external-volume-driver", img, "cat", "/nobindthenlocalvol/test")
-	if err != nil {
-		fmt.Println(out)
-		c.Fatal(err)
-	}
+	c.Assert(err, check.IsNil)
 
 	if !strings.Contains(out, expected) {
 		c.Fatalf("External volume mount failed. Output: %s\n", out)
@@ -309,4 +305,60 @@ func (s *DockerExternalVolumeSuite) TestStartExternalVolumeDriverLookupNotBlocke
 		c.Fatal("volume creates are blocked by previous create requests when previous driver is down")
 		cmd2.Process.Kill()
 	}
+}
+
+func (s *DockerExternalVolumeSuite) TestStartExternalVolumeDriverRetryNotImmediatelyExists(c *check.C) {
+	if err := s.d.StartWithBusybox(); err != nil {
+		c.Fatal(err)
+	}
+
+	specPath := "/etc/docker/plugins/test-external-volume-driver-retry.spec"
+	os.RemoveAll(specPath)
+	defer os.RemoveAll(specPath)
+
+	errchan := make(chan error)
+	go func() {
+		if out, err := s.d.Cmd("run", "--rm", "--name", "test-data-retry", "-v", "external-volume-test:/tmp/external-volume-test", "--volume-driver", "test-external-volume-driver-retry", "busybox:latest"); err != nil {
+			errchan <- fmt.Errorf("%v:\n%s", err, out)
+		}
+		close(errchan)
+	}()
+	go func() {
+		// wait for a retry to occur, then create spec to allow plugin to register
+		time.Sleep(2000 * time.Millisecond)
+		if err := ioutil.WriteFile(specPath, []byte(s.server.URL), 0644); err != nil {
+			c.Fatal(err)
+		}
+	}()
+
+	select {
+	case err := <-errchan:
+		if err != nil {
+			c.Fatal(err)
+		}
+	case <-time.After(8 * time.Second):
+		c.Fatal("volume creates fail when plugin not immediately available")
+	}
+
+	c.Assert(s.ec.activations, check.Equals, 1)
+	c.Assert(s.ec.creations, check.Equals, 1)
+	c.Assert(s.ec.removals, check.Equals, 1)
+	c.Assert(s.ec.mounts, check.Equals, 1)
+	c.Assert(s.ec.unmounts, check.Equals, 1)
+}
+
+func (s *DockerExternalVolumeSuite) TestStartExternalVolumeDriverBindExternalVolume(c *check.C) {
+	dockerCmd(c, "volume", "create", "-d", "test-external-volume-driver", "--name", "foo")
+	dockerCmd(c, "run", "-d", "--name", "testing", "-v", "foo:/bar", "busybox", "top")
+
+	var mounts []struct {
+		Name   string
+		Driver string
+	}
+	out, err := inspectFieldJSON("testing", "Mounts")
+	c.Assert(err, check.IsNil)
+	c.Assert(json.NewDecoder(strings.NewReader(out)).Decode(&mounts), check.IsNil)
+	c.Assert(len(mounts), check.Equals, 1, check.Commentf(out))
+	c.Assert(mounts[0].Name, check.Equals, "foo")
+	c.Assert(mounts[0].Driver, check.Equals, "test-external-volume-driver")
 }

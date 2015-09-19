@@ -19,6 +19,7 @@ type CommonConfig struct {
 	Context        map[string][]string
 	DisableBridge  bool
 	DNS            []string
+	DNSOptions     []string
 	DNSSearch      []string
 	ExecDriver     string
 	ExecOptions    []string
@@ -51,6 +52,7 @@ func (config *Config) InstallCommonFlags(cmd *flag.FlagSet, usageFn func(string)
 	cmd.IntVar(&config.Mtu, []string{"#mtu", "-mtu"}, 0, usageFn("Set the containers network MTU"))
 	// FIXME: why the inconsistency between "hosts" and "sockets"?
 	cmd.Var(opts.NewListOptsRef(&config.DNS, opts.ValidateIPAddress), []string{"#dns", "-dns"}, usageFn("DNS server to use"))
+	cmd.Var(opts.NewListOptsRef(&config.DNSOptions, nil), []string{"-dns-opt"}, usageFn("DNS options to use"))
 	cmd.Var(opts.NewListOptsRef(&config.DNSSearch, opts.ValidateDNSSearch), []string{"-dns-search"}, usageFn("DNS search domains to use"))
 	cmd.Var(opts.NewListOptsRef(&config.Labels, opts.ValidateLabel), []string{"-label"}, usageFn("Set key=value labels to the daemon"))
 	cmd.StringVar(&config.LogConfig.Type, []string{"-log-driver"}, "json-file", usageFn("Default driver for container logs"))

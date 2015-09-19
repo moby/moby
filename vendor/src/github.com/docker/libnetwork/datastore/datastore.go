@@ -6,6 +6,9 @@ import (
 
 	"github.com/docker/libkv"
 	"github.com/docker/libkv/store"
+	"github.com/docker/libkv/store/consul"
+	"github.com/docker/libkv/store/etcd"
+	"github.com/docker/libkv/store/zookeeper"
 	"github.com/docker/libnetwork/config"
 	"github.com/docker/libnetwork/types"
 )
@@ -65,6 +68,12 @@ const (
 )
 
 var rootChain = []string{"docker", "libnetwork"}
+
+func init() {
+	consul.Register()
+	zookeeper.Register()
+	etcd.Register()
+}
 
 //Key provides convenient method to create a Key
 func Key(key ...string) string {

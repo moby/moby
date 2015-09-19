@@ -10,9 +10,11 @@ import (
 
 // EndpointInfo provides an interface to retrieve network resources bound to the endpoint.
 type EndpointInfo interface {
-	// InterfaceList returns an interface list which were assigned to the endpoint
-	// by the driver. This can be used after the endpoint has been created.
-	InterfaceList() []InterfaceInfo
+	// Iface returns InterfaceInfo, go interface that can be used
+	// to get more information on the interface which was assigned to
+	// the endpoint by the driver. This can be used after the
+	// endpoint has been created.
+	Iface() InterfaceInfo
 
 	// Gateway returns the IPv4 gateway assigned by the driver.
 	// This will only return a valid value if a container has joined the endpoint.
@@ -22,10 +24,8 @@ type EndpointInfo interface {
 	// This will only return a valid value if a container has joined the endpoint.
 	GatewayIPv6() net.IP
 
-	// SandboxKey returns the sanbox key for the container which has joined
-	// the endpoint. If there is no container joined then this will return an
-	// empty string.
-	SandboxKey() string
+	// Sandbox returns the attached sandbox if there, nil otherwise.
+	Sandbox() Sandbox
 }
 
 // InterfaceInfo provides an interface to retrieve interface addresses bound to the endpoint.
@@ -40,16 +40,7 @@ type InterfaceInfo interface {
 	AddressIPv6() net.IPNet
 }
 
-// ContainerInfo provides an interface to retrieve the info about the container attached to the endpoint
-type ContainerInfo interface {
-	// ID returns the ID of the container
-	ID() string
-	// Labels returns the container's labels
-	Labels() map[string]interface{}
-}
-
 type endpointInterface struct {
-	id        int
 	mac       net.HardwareAddr
 	addr      net.IPNet
 	addrv6    net.IPNet
@@ -60,7 +51,6 @@ type endpointInterface struct {
 
 func (epi *endpointInterface) MarshalJSON() ([]byte, error) {
 	epMap := make(map[string]interface{})
-	epMap["id"] = epi.id
 	epMap["mac"] = epi.mac.String()
 	epMap["addr"] = epi.addr.String()
 	epMap["addrv6"] = epi.addrv6.String()
@@ -79,7 +69,6 @@ func (epi *endpointInterface) UnmarshalJSON(b []byte) (err error) {
 	if err := json.Unmarshal(b, &epMap); err != nil {
 		return err
 	}
-	epi.id = int(epMap["id"].(float64))
 
 	mac, _ := net.ParseMAC(epMap["mac"].(string))
 	epi.mac = mac
@@ -115,23 +104,9 @@ func (epi *endpointInterface) UnmarshalJSON(b []byte) (err error) {
 }
 
 type endpointJoinInfo struct {
-	gw             net.IP
-	gw6            net.IP
-	hostsPath      string
-	resolvConfPath string
-	StaticRoutes   []*types.StaticRoute
-}
-
-func (ep *endpoint) ContainerInfo() ContainerInfo {
-	ep.Lock()
-	ci := ep.container
-	defer ep.Unlock()
-
-	// Need this since we return the interface
-	if ci == nil {
-		return nil
-	}
-	return ci
+	gw           net.IP
+	gw6          net.IP
+	StaticRoutes []*types.StaticRoute
 }
 
 func (ep *endpoint) Info() EndpointInfo {
@@ -152,49 +127,40 @@ func (ep *endpoint) DriverInfo() (map[string]interface{}, error) {
 	return driver.EndpointOperInfo(nid, epid)
 }
 
-func (ep *endpoint) InterfaceList() []InterfaceInfo {
+func (ep *endpoint) Iface() InterfaceInfo {
 	ep.Lock()
 	defer ep.Unlock()
 
-	iList := make([]InterfaceInfo, len(ep.iFaces))
-
-	for i, iface := range ep.iFaces {
-		iList[i] = iface
+	if ep.iface != nil {
+		return ep.iface
 	}
 
-	return iList
+	return nil
 }
 
-func (ep *endpoint) Interfaces() []driverapi.InterfaceInfo {
+func (ep *endpoint) Interface() driverapi.InterfaceInfo {
 	ep.Lock()
 	defer ep.Unlock()
 
-	iList := make([]driverapi.InterfaceInfo, len(ep.iFaces))
-
-	for i, iface := range ep.iFaces {
-		iList[i] = iface
+	if ep.iface != nil {
+		return ep.iface
 	}
 
-	return iList
+	return nil
 }
 
-func (ep *endpoint) AddInterface(id int, mac net.HardwareAddr, ipv4 net.IPNet, ipv6 net.IPNet) error {
+func (ep *endpoint) AddInterface(mac net.HardwareAddr, ipv4 net.IPNet, ipv6 net.IPNet) error {
 	ep.Lock()
 	defer ep.Unlock()
 
 	iface := &endpointInterface{
-		id:     id,
 		addr:   *types.GetIPNetCopy(&ipv4),
 		addrv6: *types.GetIPNetCopy(&ipv6),
 	}
 	iface.mac = types.GetMacCopy(mac)
 
-	ep.iFaces = append(ep.iFaces, iface)
+	ep.iface = iface
 	return nil
-}
-
-func (epi *endpointInterface) ID() int {
-	return epi.id
 }
 
 func (epi *endpointInterface) MacAddress() net.HardwareAddr {
@@ -215,24 +181,22 @@ func (epi *endpointInterface) SetNames(srcName string, dstPrefix string) error {
 	return nil
 }
 
-func (ep *endpoint) InterfaceNames() []driverapi.InterfaceNameInfo {
+func (ep *endpoint) InterfaceName() driverapi.InterfaceNameInfo {
 	ep.Lock()
 	defer ep.Unlock()
 
-	iList := make([]driverapi.InterfaceNameInfo, len(ep.iFaces))
-
-	for i, iface := range ep.iFaces {
-		iList[i] = iface
+	if ep.iface != nil {
+		return ep.iface
 	}
 
-	return iList
+	return nil
 }
 
-func (ep *endpoint) AddStaticRoute(destination *net.IPNet, routeType int, nextHop net.IP, interfaceID int) error {
+func (ep *endpoint) AddStaticRoute(destination *net.IPNet, routeType int, nextHop net.IP) error {
 	ep.Lock()
 	defer ep.Unlock()
 
-	r := types.StaticRoute{Destination: destination, RouteType: routeType, NextHop: nextHop, InterfaceID: interfaceID}
+	r := types.StaticRoute{Destination: destination, RouteType: routeType, NextHop: nextHop}
 
 	if routeType == types.NEXTHOP {
 		// If the route specifies a next-hop, then it's loosely routed (i.e. not bound to a particular interface).
@@ -247,25 +211,20 @@ func (ep *endpoint) AddStaticRoute(destination *net.IPNet, routeType int, nextHo
 }
 
 func (ep *endpoint) addInterfaceRoute(route *types.StaticRoute) error {
-	for _, iface := range ep.iFaces {
-		if iface.id == route.InterfaceID {
-			iface.routes = append(iface.routes, route.Destination)
-			return nil
-		}
-	}
-	return types.BadRequestErrorf("Interface with ID %d doesn't exist.",
-		route.InterfaceID)
-}
-
-func (ep *endpoint) SandboxKey() string {
 	ep.Lock()
 	defer ep.Unlock()
 
-	if ep.container == nil {
-		return ""
-	}
+	iface := ep.iface
+	iface.routes = append(iface.routes, route.Destination)
+	return nil
+}
 
-	return ep.container.data.SandboxKey
+func (ep *endpoint) Sandbox() Sandbox {
+	cnt, ok := ep.getSandbox()
+	if !ok {
+		return nil
+	}
+	return cnt
 }
 
 func (ep *endpoint) Gateway() net.IP {
@@ -303,21 +262,5 @@ func (ep *endpoint) SetGatewayIPv6(gw6 net.IP) error {
 	defer ep.Unlock()
 
 	ep.joinInfo.gw6 = types.GetIPCopy(gw6)
-	return nil
-}
-
-func (ep *endpoint) SetHostsPath(path string) error {
-	ep.Lock()
-	defer ep.Unlock()
-
-	ep.joinInfo.hostsPath = path
-	return nil
-}
-
-func (ep *endpoint) SetResolvConfPath(path string) error {
-	ep.Lock()
-	defer ep.Unlock()
-
-	ep.joinInfo.resolvConfPath = path
 	return nil
 }

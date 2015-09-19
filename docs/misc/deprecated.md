@@ -12,13 +12,34 @@ parent = "mn_use_docker"
 
 The following list of features are deprecated.
 
+### Command line short variant options
+**Deprecated In Release: v1.9**
+
+**Target For Removal In Release: v1.11**
+
+The following short variant options are deprecated in favor of their long
+variants:
+
+    docker run -c (--cpu-shares)
+
+### Driver Specific Log Tags
+**Deprecated In Release: v1.9**
+
+**Target For Removal In Release: v1.11**
+
+Log tags are now generated in a standard way across different logging drivers.
+Because of which, the driver specific log tag options `syslog-tag`, `gelf-tag` and
+`fluentd-tag` have been deprecated in favor of the generic `tag` option.
+
+    docker --log-driver=syslog --log-opt tag="{{.ImageName}}/{{.Name}}/{{.ID}}"
+
 ### LXC built-in exec driver
 **Deprecated In Release: v1.8**
 
 **Target For Removal In Release: v1.10**
 
 The built-in LXC execution driver is deprecated for an external implementation.
-The lxc-conf flag and API fields will also be removed. 
+The lxc-conf flag and API fields will also be removed.
 
 ### Old Command Line Options
 **Deprecated In Release: [v1.8.0](/release-notes/#docker-engine-1-8-0)**
@@ -29,7 +50,7 @@ The flags `-d` and `--daemon` are deprecated in favor of the `daemon` subcommand
 
     docker daemon -H ...
 
-The following single-dash (`-opt`) variant of certain command line options 
+The following single-dash (`-opt`) variant of certain command line options
 are deprecated and replaced with double-dash options (`--opt`):
 
     docker attach -nostdin
@@ -68,3 +89,14 @@ The following double-dash options are deprecated and have no replacement:
     docker ps --since-id
     docker ps --before-id
     docker search --trusted
+
+### Auto-creating missing host paths for bind mounts
+**Deprected in Release: v1.9**
+
+**Target for Removal in Release: 1.11**
+
+When creating a container with a bind-mounted volume-- `docker run -v /host/path:/container/path` --
+docker was automatically creating the `/host/path` if it didn't already exist.
+
+This auto-creation of the host path is deprecated and docker will error out if
+the path does not exist.

@@ -63,7 +63,7 @@ argument of `DST_PATH`, the behavior is as follows:
     - `DST_PATH` exists and is a directory
         - `SRC_PATH` does not end with `/.`
             - the source directory is copied into this directory
-        - `SRC_PAPTH` does end with `/.`
+        - `SRC_PATH` does end with `/.`
             - the *content* of the source directory is copied into this
               directory
 

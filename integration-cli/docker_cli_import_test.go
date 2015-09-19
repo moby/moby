@@ -12,6 +12,7 @@ import (
 )
 
 func (s *DockerSuite) TestImportDisplay(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "true")
 	cleanedContainerID := strings.TrimSpace(out)
 
@@ -35,6 +36,7 @@ func (s *DockerSuite) TestImportDisplay(c *check.C) {
 }
 
 func (s *DockerSuite) TestImportBadURL(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	out, _, err := dockerCmdWithError("import", "http://nourl/bad")
 	if err == nil {
 		c.Fatal("import was supposed to fail but didn't")
@@ -45,6 +47,7 @@ func (s *DockerSuite) TestImportBadURL(c *check.C) {
 }
 
 func (s *DockerSuite) TestImportFile(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	dockerCmd(c, "run", "--name", "test-import", "busybox", "true")
 
 	temporaryFile, err := ioutil.TempFile("", "exportImportTest")
@@ -74,6 +77,7 @@ func (s *DockerSuite) TestImportFile(c *check.C) {
 }
 
 func (s *DockerSuite) TestImportFileWithMessage(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	dockerCmd(c, "run", "--name", "test-import", "busybox", "true")
 
 	temporaryFile, err := ioutil.TempFile("", "exportImportTest")

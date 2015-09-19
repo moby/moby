@@ -137,6 +137,16 @@ var (
 		},
 		"Test requires support for IPv6",
 	}
+	NotGCCGO = testRequirement{
+		func() bool {
+			out, err := exec.Command("go", "version").Output()
+			if err != nil && strings.Contains(string(out), "gccgo") {
+				return true
+			}
+			return false
+		},
+		"Test requires native Golang compiler instead of GCCGO",
+	}
 )
 
 // testRequires checks if the environment satisfies the requirements

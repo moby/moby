@@ -102,7 +102,7 @@ server when it starts up, and cannot be changed once it is running:
  *  `--userland-proxy=true|false` — see
     [Binding container ports](#binding-ports)
 
-There are two networking options that can be supplied either at startup
+There are three networking options that can be supplied either at startup
 or when `docker run` is invoked.  When provided at startup, set the
 default value that `docker run` will later use if the options are not
 specified:
@@ -111,6 +111,9 @@ specified:
     [Configuring DNS](#dns)
 
  *  `--dns-search=DOMAIN...` — see
+    [Configuring DNS](#dns)
+
+ *  `--dns-opt=OPTION...` — see
     [Configuring DNS](#dns)
 
 Finally, several networking options can only be provided when calling
@@ -215,12 +218,16 @@ Four different options affect container domain name services.
     only look up `host` but also `host.example.com`.
     Use `--dns-search=.` if you don't wish to set the search domain.
 
-Regarding DNS settings, in the absence of either the `--dns=IP_ADDRESS...`
-or the `--dns-search=DOMAIN...` option, Docker makes each container's
-`/etc/resolv.conf` look like the `/etc/resolv.conf` of the host machine (where
-the `docker` daemon runs).  When creating the container's `/etc/resolv.conf`,
-the daemon filters out all localhost IP address `nameserver` entries from
-the host's original file.
+ *  `--dns-opt=OPTION...` — sets the options used by DNS resolvers
+    by writing an `options` line into the container's `/etc/resolv.conf`.
+    See documentation for `resolv.conf` for a list of valid options.
+
+Regarding DNS settings, in the absence of the `--dns=IP_ADDRESS...`,
+`--dns-search=DOMAIN...`, or `--dns-opt=OPTION...` options, Docker makes
+each container's `/etc/resolv.conf` look like the `/etc/resolv.conf` of the
+host machine (where the `docker` daemon runs).  When creating the container's
+`/etc/resolv.conf`, the daemon filters out all localhost IP address
+`nameserver` entries from the host's original file.
 
 Filtering is necessary because all localhost addresses on the host are
 unreachable from the container's network.  After this filtering, if there 
@@ -253,9 +260,9 @@ of a facility to ensure atomic writes of the `resolv.conf` file while the
 container is running. If the container's `resolv.conf` has been edited since
 it was started with the default configuration, no replacement will be
 attempted as it would overwrite the changes performed by the container.
-If the options (`--dns` or `--dns-search`) have been used to modify the 
-default host configuration, then the replacement with an updated host's
-`/etc/resolv.conf` will not happen as well.
+If the options (`--dns`, `--dns-search`, or `--dns-opt`) have been used to
+modify the default host configuration, then the replacement with an updated
+host's `/etc/resolv.conf` will not happen as well.
 
 > **Note**:
 > For containers which were created prior to the implementation of
@@ -735,7 +742,7 @@ options are configurable at server startup:
 
  *  `--fixed-cidr=CIDR` — restrict the IP range from the `docker0` subnet,
     using the standard CIDR notation like `172.167.1.0/28`. This range must
-    be and IPv4 range for fixed IPs (ex: 10.20.0.0/16) and must be a subset
+    be an IPv4 range for fixed IPs (ex: 10.20.0.0/16) and must be a subset
     of the bridge IP range (`docker0` or set using `--bridge`). For example
     with `--fixed-cidr=192.168.1.0/25`, IPs for your containers will be chosen
     from the first half of `192.168.1.0/24` subnet.

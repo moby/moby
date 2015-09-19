@@ -125,7 +125,7 @@ func killNetNsProc(proc *os.Process) {
 
 // Run implements the exec driver Driver interface,
 // it calls 'exec.Cmd' to launch lxc commands to run a container.
-func (d *Driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallback execdriver.StartCallback) (execdriver.ExitStatus, error) {
+func (d *Driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, hooks execdriver.Hooks) (execdriver.ExitStatus, error) {
 	var (
 		term     execdriver.Terminal
 		err      error
@@ -324,9 +324,9 @@ func (d *Driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, startCallba
 
 	c.ContainerPid = pid
 
-	if startCallback != nil {
+	if hooks.Start != nil {
 		logrus.Debugf("Invoking startCallback")
-		startCallback(&c.ProcessConfig, pid)
+		hooks.Start(&c.ProcessConfig, pid)
 	}
 
 	oomKill := false
@@ -870,7 +870,7 @@ func (t *TtyConsole) Close() error {
 
 // Exec implements the exec driver Driver interface,
 // it is not implemented by lxc.
-func (d *Driver) Exec(c *execdriver.Command, processConfig *execdriver.ProcessConfig, pipes *execdriver.Pipes, startCallback execdriver.StartCallback) (int, error) {
+func (d *Driver) Exec(c *execdriver.Command, processConfig *execdriver.ProcessConfig, pipes *execdriver.Pipes, hooks execdriver.Hooks) (int, error) {
 	return -1, ErrExec
 }
 
@@ -882,4 +882,10 @@ func (d *Driver) Stats(id string) (*execdriver.ResourceStats, error) {
 		return nil, fmt.Errorf("%s is not a key in active containers", id)
 	}
 	return execdriver.Stats(d.containerDir(id), d.activeContainers[id].container.Cgroups.Memory, d.machineMemory)
+}
+
+// SupportsHooks implements the execdriver Driver interface.
+// The LXC execdriver does not support the hook mechanism, which is currently unique to runC/libcontainer.
+func (d *Driver) SupportsHooks() bool {
+	return false
 }

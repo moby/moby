@@ -26,9 +26,16 @@ func getRemoteStore(baseURL, gun string, rt http.RoundTripper) (store.RemoteStor
 }
 
 func applyChangelist(repo *tuf.TufRepo, cl changelist.Changelist) error {
-	changes := cl.List()
-	logrus.Debugf("applying %d changes", len(changes))
-	for _, c := range changes {
+	it, err := cl.NewIterator()
+	if err != nil {
+		return err
+	}
+	index := 0
+	for it.HasNext() {
+		c, err := it.Next()
+		if err != nil {
+			return err
+		}
 		switch c.Scope() {
 		case changelist.ScopeTargets:
 			err := applyTargetsChange(repo, c)
@@ -38,7 +45,9 @@ func applyChangelist(repo *tuf.TufRepo, cl changelist.Changelist) error {
 		default:
 			logrus.Debug("scope not supported: ", c.Scope())
 		}
+		index++
 	}
+	logrus.Debugf("applied %d change(s)", index)
 	return nil
 }
 

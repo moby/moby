@@ -80,7 +80,14 @@ This section lists each version from latest to oldest.  Each listing includes a 
 * `POST /volumes` to create a volume.
 * `GET /volumes/(name)` get low-level information about a volume.
 * `DELETE /volumes/(name)`remove a volume with the specified name.
-
+* `VolumeDriver` has been moved from config to hostConfig to make the configuration portable.
+* `GET /images/(name)/json` now returns information about tags of the image.
+* The `config` option now accepts the field `StopSignal`, which specifies the signal to use to kill a container.
+* `GET /containers/(id)/stats` will return networking information respectively for each interface.
+* The `hostConfig` option now accepts the field `DnsOptions`, which specifies a
+list of DNS options to be used in the container.
+* `POST /build` now optionally takes a serialized map of build-time variables.
+* `GET /events` now includes a `timenano` field, in addition to the existing `time` field.
 
 ### v1.20 API changes
 

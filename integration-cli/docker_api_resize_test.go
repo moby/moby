@@ -8,6 +8,7 @@ import (
 )
 
 func (s *DockerSuite) TestResizeApiResponse(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
 	cleanedContainerID := strings.TrimSpace(out)
 
@@ -18,6 +19,7 @@ func (s *DockerSuite) TestResizeApiResponse(c *check.C) {
 }
 
 func (s *DockerSuite) TestResizeApiHeightWidthNoInt(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
 	cleanedContainerID := strings.TrimSpace(out)
 
@@ -28,6 +30,7 @@ func (s *DockerSuite) TestResizeApiHeightWidthNoInt(c *check.C) {
 }
 
 func (s *DockerSuite) TestResizeApiResponseWhenContainerNotStarted(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "true")
 	cleanedContainerID := strings.TrimSpace(out)
 

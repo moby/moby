@@ -34,6 +34,7 @@ import (
 	"github.com/docker/docker/pkg/progressreader"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/pkg/stringutils"
+	"github.com/docker/docker/pkg/symlink"
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/pkg/tarsum"
 	"github.com/docker/docker/pkg/urlutil"
@@ -42,7 +43,7 @@ import (
 )
 
 func (b *builder) readContext(context io.Reader) (err error) {
-	tmpdirPath, err := ioutil.TempDir("", "docker-build")
+	tmpdirPath, err := getTempDir("", "docker-build")
 	if err != nil {
 		return
 	}
@@ -305,7 +306,7 @@ func calcCopyInfo(b *builder, cmdName string, cInfos *[]*copyInfo, origPath stri
 		}
 
 		// Create a tmp dir
-		tmpDirName, err := ioutil.TempDir(b.contextPath, "docker-remote")
+		tmpDirName, err := getTempDir(b.contextPath, "docker-remote")
 		if err != nil {
 			return err
 		}
@@ -348,8 +349,11 @@ func calcCopyInfo(b *builder, cmdName string, cInfos *[]*copyInfo, origPath stri
 			}
 		}
 
-		if err := system.UtimesNano(tmpFileName, times); err != nil {
-			return err
+		// Windows does not support UtimesNano.
+		if runtime.GOOS != "windows" {
+			if err := system.UtimesNano(tmpFileName, times); err != nil {
+				return err
+			}
 		}
 
 		ci.origPath = filepath.Join(filepath.Base(tmpDirName), filepath.Base(tmpFileName))
@@ -360,7 +364,7 @@ func calcCopyInfo(b *builder, cmdName string, cInfos *[]*copyInfo, origPath stri
 			if err != nil {
 				return err
 			}
-			path := u.Path
+			path := filepath.FromSlash(u.Path) // Ensure in platform semantics
 			if strings.HasSuffix(path, string(os.PathSeparator)) {
 				path = path[:len(path)-1]
 			}
@@ -532,7 +536,11 @@ func (b *builder) processImageFrom(img *image.Image) error {
 
 	// Process ONBUILD triggers if they exist
 	if nTriggers := len(b.Config.OnBuild); nTriggers != 0 {
-		fmt.Fprintf(b.ErrStream, "# Executing %d build triggers\n", nTriggers)
+		word := "trigger"
+		if nTriggers > 1 {
+			word = "triggers"
+		}
+		fmt.Fprintf(b.ErrStream, "# Executing %d build %s...\n", nTriggers, word)
 	}
 
 	// Copy the ONBUILD triggers, and remove them from the config, since the config will be committed.
@@ -540,7 +548,7 @@ func (b *builder) processImageFrom(img *image.Image) error {
 	b.Config.OnBuild = []string{}
 
 	// parse the ONBUILD triggers by invoking the parser
-	for stepN, step := range onBuildTriggers {
+	for _, step := range onBuildTriggers {
 		ast, err := parser.Parse(strings.NewReader(step))
 		if err != nil {
 			return err
@@ -553,8 +561,6 @@ func (b *builder) processImageFrom(img *image.Image) error {
 			case "MAINTAINER", "FROM":
 				return fmt.Errorf("%s isn't allowed as an ONBUILD trigger", n.Value)
 			}
-
-			fmt.Fprintf(b.OutStream, "Trigger %d, %s\n", stepN, step)
 
 			if err := b.dispatch(i, n); err != nil {
 				return err
@@ -679,14 +685,14 @@ func (b *builder) run(c *daemon.Container) error {
 
 func (b *builder) checkPathForAddition(orig string) error {
 	origPath := filepath.Join(b.contextPath, orig)
-	origPath, err := filepath.EvalSymlinks(origPath)
+	origPath, err := symlink.EvalSymlinks(origPath)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return fmt.Errorf("%s: no such file or directory", orig)
 		}
 		return err
 	}
-	contextPath, err := filepath.EvalSymlinks(b.contextPath)
+	contextPath, err := symlink.EvalSymlinks(b.contextPath)
 	if err != nil {
 		return err
 	}

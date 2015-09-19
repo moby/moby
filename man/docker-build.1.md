@@ -8,6 +8,7 @@ docker-build - Build a new image from the source code at PATH
 **docker build**
 [**--help**]
 [**-f**|**--file**[=*PATH/Dockerfile*]]
+[**--build-arg**[=*[]*]]
 [**--force-rm**[=*false*]]
 [**--no-cache**[=*false*]]
 [**--pull**[=*false*]]
@@ -50,6 +51,17 @@ cloned locally and then sent as the context.
    tarball or a Git repository, then the path must be relative to the root of
    the remote context. In all cases, the file must be within the build context.
    The default is *Dockerfile*.
+
+**--build-arg**=*variable*
+   name and value of a **buildarg**.
+
+   For example, if you want to pass a value for `http_proxy`, use
+   `--bulid-arg=http_proxy="http://some.proxy.url"`
+
+   Users pass these values at build-time. Docker uses the `buildargs` as the
+   environment context for command(s) run via the Dockerfile's `RUN` instruction
+   or for variable expansion in other Dockerfile instructions. This is not meant
+   for passing secret values. [Read more about the buildargs instruction](/reference/builder/#arg)
 
 **--force-rm**=*true*|*false*
    Always remove intermediate containers, even after unsuccessful builds. The default is *false*.

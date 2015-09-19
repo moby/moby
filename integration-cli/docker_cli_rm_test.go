@@ -8,6 +8,7 @@ import (
 )
 
 func (s *DockerSuite) TestRmContainerWithRemovedVolume(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	testRequires(c, SameHostDaemon)
 
 	dockerCmd(c, "run", "--name", "losemyvolumes", "-v", "/tmp/testing:/test", "busybox", "true")
@@ -20,12 +21,14 @@ func (s *DockerSuite) TestRmContainerWithRemovedVolume(c *check.C) {
 }
 
 func (s *DockerSuite) TestRmContainerWithVolume(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	dockerCmd(c, "run", "--name", "foo", "-v", "/srv", "busybox", "true")
 
 	dockerCmd(c, "rm", "-v", "foo")
 }
 
 func (s *DockerSuite) TestRmRunningContainer(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	createRunningContainer(c, "foo")
 
 	if _, _, err := dockerCmdWithError("rm", "foo"); err == nil {
@@ -34,6 +37,7 @@ func (s *DockerSuite) TestRmRunningContainer(c *check.C) {
 }
 
 func (s *DockerSuite) TestRmForceRemoveRunningContainer(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	createRunningContainer(c, "foo")
 
 	// Stop then remove with -s
@@ -41,7 +45,7 @@ func (s *DockerSuite) TestRmForceRemoveRunningContainer(c *check.C) {
 }
 
 func (s *DockerSuite) TestRmContainerOrphaning(c *check.C) {
-
+	testRequires(c, DaemonIsLinux)
 	dockerfile1 := `FROM busybox:latest
 	ENTRYPOINT ["/bin/true"]`
 	img := "test-container-orphaning"

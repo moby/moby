@@ -4,10 +4,12 @@ import (
 	"os/exec"
 	"strings"
 
+	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/go-check/check"
 )
 
 func (s *DockerSuite) TestVolumeCliCreate(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	dockerCmd(c, "volume", "create")
 
 	_, err := runCommand(exec.Command(dockerBinary, "volume", "create", "-d", "nosuchdriver"))
@@ -19,6 +21,7 @@ func (s *DockerSuite) TestVolumeCliCreate(c *check.C) {
 }
 
 func (s *DockerSuite) TestVolumeCliInspect(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	c.Assert(
 		exec.Command(dockerBinary, "volume", "inspect", "doesntexist").Run(),
 		check.Not(check.IsNil),
@@ -36,6 +39,7 @@ func (s *DockerSuite) TestVolumeCliInspect(c *check.C) {
 }
 
 func (s *DockerSuite) TestVolumeCliLs(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "volume", "create")
 	id := strings.TrimSpace(out)
 
@@ -51,7 +55,42 @@ func (s *DockerSuite) TestVolumeCliLs(c *check.C) {
 	c.Assert(strings.Contains(out, "test\n"), check.Equals, true)
 }
 
+func (s *DockerSuite) TestVolumeCliLsFilterDangling(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+
+	dockerCmd(c, "volume", "create", "--name", "testnotinuse1")
+	dockerCmd(c, "volume", "create", "--name", "testisinuse1")
+	dockerCmd(c, "volume", "create", "--name", "testisinuse2")
+
+	// Make sure both "created" (but not started), and started
+	// containers are included in reference counting
+	dockerCmd(c, "run", "--name", "volume-test1", "-v", "testisinuse1:/foo", "busybox", "true")
+	dockerCmd(c, "create", "--name", "volume-test2", "-v", "testisinuse2:/foo", "busybox", "true")
+
+	out, _ := dockerCmd(c, "volume", "ls")
+
+	// No filter, all volumes should show
+	c.Assert(out, checker.Contains, "testnotinuse1\n", check.Commentf("expected volume 'testnotinuse1' in output"))
+	c.Assert(out, checker.Contains, "testisinuse1\n", check.Commentf("expected volume 'testisinuse1' in output"))
+	c.Assert(out, checker.Contains, "testisinuse2\n", check.Commentf("expected volume 'testisinuse2' in output"))
+
+	out, _ = dockerCmd(c, "volume", "ls", "--filter", "dangling=false")
+
+	// Same as above, but expicitly disabling dangling
+	c.Assert(out, checker.Contains, "testnotinuse1\n", check.Commentf("expected volume 'testnotinuse1' in output"))
+	c.Assert(out, checker.Contains, "testisinuse1\n", check.Commentf("expected volume 'testisinuse1' in output"))
+	c.Assert(out, checker.Contains, "testisinuse2\n", check.Commentf("expected volume 'testisinuse2' in output"))
+
+	out, _ = dockerCmd(c, "volume", "ls", "--filter", "dangling=true")
+
+	// Filter "dangling" volumes; ony "dangling" (unused) volumes should be in the output
+	c.Assert(out, checker.Contains, "testnotinuse1\n", check.Commentf("expected volume 'testnotinuse1' in output"))
+	c.Assert(out, check.Not(checker.Contains), "testisinuse1\n", check.Commentf("volume 'testisinuse1' in output, but not expected"))
+	c.Assert(out, check.Not(checker.Contains), "testisinuse2\n", check.Commentf("volume 'testisinuse2' in output, but not expected"))
+}
+
 func (s *DockerSuite) TestVolumeCliRm(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "volume", "create")
 	id := strings.TrimSpace(out)
 

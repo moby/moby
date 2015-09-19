@@ -65,9 +65,9 @@ After downloading the appropriate binary, you can follow the instructions
 ### Build an experimental binary
 You can also build the experimental binary from the standard development environment by adding
 `DOCKER_EXPERIMENTAL=1` to the environment where you run `make` to build Docker binaries. For example,
-to build a dynamically-linked Docker binary with the experimental features enabled:
+to build a Docker binary with the experimental features enabled:
 
-        $ DOCKER_EXPERIMENTAL=1 make dynbinary
+        $ DOCKER_EXPERIMENTAL=1 make binary
 
 ## Current experimental features
 

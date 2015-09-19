@@ -1,11 +1,11 @@
 package daemon
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types"
+	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/graph/tags"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/parsers"
@@ -17,26 +17,27 @@ import (
 // ContainerCreate takes configs and creates a container.
 func (daemon *Daemon) ContainerCreate(name string, config *runconfig.Config, hostConfig *runconfig.HostConfig, adjustCPUShares bool) (*Container, []string, error) {
 	if config == nil {
-		return nil, nil, fmt.Errorf("Config cannot be empty in order to create a container")
+		return nil, nil, derr.ErrorCodeEmptyConfig
 	}
 
 	warnings, err := daemon.verifyContainerSettings(hostConfig, config)
-	daemon.adaptContainerSettings(hostConfig, adjustCPUShares)
 	if err != nil {
 		return nil, warnings, err
 	}
+
+	daemon.adaptContainerSettings(hostConfig, adjustCPUShares)
 
 	container, buildWarnings, err := daemon.Create(config, hostConfig, name)
 	if err != nil {
 		if daemon.Graph().IsNotExist(err, config.Image) {
 			if strings.Contains(config.Image, "@") {
-				return nil, warnings, fmt.Errorf("No such image: %s", config.Image)
+				return nil, warnings, derr.ErrorCodeNoSuchImageHash.WithArgs(config.Image)
 			}
 			img, tag := parsers.ParseRepositoryTag(config.Image)
 			if tag == "" {
 				tag = tags.DefaultTag
 			}
-			return nil, warnings, fmt.Errorf("No such image: %s:%s", img, tag)
+			return nil, warnings, derr.ErrorCodeNoSuchImageTag.WithArgs(img, tag)
 		}
 		return nil, warnings, err
 	}
@@ -100,12 +101,19 @@ func (daemon *Daemon) Create(config *runconfig.Config, hostConfig *runconfig.Hos
 	if err := daemon.setHostConfig(container, hostConfig); err != nil {
 		return nil, nil, err
 	}
+	defer func() {
+		if retErr != nil {
+			if err := container.removeMountPoints(true); err != nil {
+				logrus.Error(err)
+			}
+		}
+	}()
 	if err := container.Mount(); err != nil {
 		return nil, nil, err
 	}
 	defer container.Unmount()
 
-	if err := createContainerPlatformSpecificSettings(container, config, img); err != nil {
+	if err := createContainerPlatformSpecificSettings(container, config, hostConfig, img); err != nil {
 		return nil, nil, err
 	}
 

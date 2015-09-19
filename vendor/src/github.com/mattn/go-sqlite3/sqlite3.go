@@ -48,21 +48,21 @@ _sqlite3_bind_blob(sqlite3_stmt *stmt, int n, void *p, int np) {
 #include <stdint.h>
 
 static int
-_sqlite3_exec(sqlite3* db, const char* pcmd, long* rowid, long* changes)
+_sqlite3_exec(sqlite3* db, const char* pcmd, long long* rowid, long long* changes)
 {
   int rv = sqlite3_exec(db, pcmd, 0, 0, 0);
-  *rowid = (long) sqlite3_last_insert_rowid(db);
-  *changes = (long) sqlite3_changes(db);
+  *rowid = (long long) sqlite3_last_insert_rowid(db);
+  *changes = (long long) sqlite3_changes(db);
   return rv;
 }
 
 static int
-_sqlite3_step(sqlite3_stmt* stmt, long* rowid, long* changes)
+_sqlite3_step(sqlite3_stmt* stmt, long long* rowid, long long* changes)
 {
   int rv = sqlite3_step(stmt);
   sqlite3* db = sqlite3_db_handle(stmt);
-  *rowid = (long) sqlite3_last_insert_rowid(db);
-  *changes = (long) sqlite3_changes(db);
+  *rowid = (long long) sqlite3_last_insert_rowid(db);
+  *changes = (long long) sqlite3_changes(db);
   return rv;
 }
 
@@ -243,7 +243,7 @@ func (c *SQLiteConn) exec(cmd string) (driver.Result, error) {
 	pcmd := C.CString(cmd)
 	defer C.free(unsafe.Pointer(pcmd))
 
-	var rowid, changes C.long
+	var rowid, changes C.longlong
 	rv := C._sqlite3_exec(c.db, pcmd, &rowid, &changes)
 	if rv != C.SQLITE_OK {
 		return nil, c.lastError()
@@ -355,23 +355,8 @@ func (d *SQLiteDriver) Open(dsn string) (driver.Conn, error) {
 	conn := &SQLiteConn{db: db, loc: loc, txlock: txlock}
 
 	if len(d.Extensions) > 0 {
-		rv = C.sqlite3_enable_load_extension(db, 1)
-		if rv != C.SQLITE_OK {
-			return nil, errors.New(C.GoString(C.sqlite3_errmsg(db)))
-		}
-
-		for _, extension := range d.Extensions {
-			cext := C.CString(extension)
-			defer C.free(unsafe.Pointer(cext))
-			rv = C.sqlite3_load_extension(db, cext, nil, nil)
-			if rv != C.SQLITE_OK {
-				return nil, errors.New(C.GoString(C.sqlite3_errmsg(db)))
-			}
-		}
-
-		rv = C.sqlite3_enable_load_extension(db, 0)
-		if rv != C.SQLITE_OK {
-			return nil, errors.New(C.GoString(C.sqlite3_errmsg(db)))
+		if err := conn.loadExtensions(d.Extensions); err != nil {
+			return nil, err
 		}
 	}
 
@@ -536,7 +521,7 @@ func (s *SQLiteStmt) Exec(args []driver.Value) (driver.Result, error) {
 		C.sqlite3_clear_bindings(s.s)
 		return nil, err
 	}
-	var rowid, changes C.long
+	var rowid, changes C.longlong
 	rv := C._sqlite3_step(s.s, &rowid, &changes)
 	if rv != C.SQLITE_ROW && rv != C.SQLITE_OK && rv != C.SQLITE_DONE {
 		err := s.c.lastError()

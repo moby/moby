@@ -19,7 +19,7 @@ parent = "smn_cli"
     --name=               Specify volume name
     -o, --opt=map[]       Set driver specific options
 
-Creates a new volume that containers can can consume and store data in. If a name is not specified, Docker generates a random name. You create a volume and then configure the container to use it, for example:
+Creates a new volume that containers can consume and store data in. If a name is not specified, Docker generates a random name. You create a volume and then configure the container to use it, for example:
 
   $ docker volume create --name hello
   hello

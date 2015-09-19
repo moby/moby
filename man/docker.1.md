@@ -56,6 +56,9 @@ To see the man page for a command run **man docker <command>**.
 **--dns**=""
   Force Docker to use specific DNS servers
 
+**--dns-opt**=[]
+  DNS options to use.
+
 **--dns-search**=[]
   DNS search domains to use.
 
@@ -90,7 +93,11 @@ unix://[/path/to/socket] to use.
   Allow unrestricted inter\-container and Docker daemon host communication. If disabled, containers can still be linked together using **--link** option (see **docker-run(1)**). Default is true.
 
 **--insecure-registry**=[]
-  Enable insecure registry communication.
+  Enable insecure registry communication, i.e., enable un-encrypted and/or untrusted communication.
+  
+  List of insecure registries can contain an element with CIDR notation to specify a whole subnet. Insecure registries accept HTTP and/or accept HTTPS with certificates from unknown CAs.
+  
+  Enabling `--insecure-registry` is useful when running a local registry.  However, because its use creates security vulnerabilities it should ONLY be enabled for testing purposes.  For increased security, users should add their CA to their system's list of trusted CAs instead of using `--insecure-registry`. 
 
 **--ip**=""
   Default IP address to use when binding container ports. Default is `0.0.0.0`.
@@ -115,9 +122,10 @@ unix://[/path/to/socket] to use.
 **--label**="[]"
   Set key=value labels to the daemon (displayed in `docker info`)
 
-**--log-driver**="*json-file*|*syslog*|*journald*|*gelf*|*fluentd*|*none*"
+**--log-driver**="*json-file*|*syslog*|*journald*|*gelf*|*fluentd*|*awslogs*|*none*"
   Default driver for container logs. Default is `json-file`.
-  **Warning**: `docker logs` command works only for `json-file` logging driver.
+  **Warning**: the `docker logs` command works only for the `json-file` and
+  `journald` logging drivers.
 
 **--log-opt**=[]
   Logging driver specific options.

@@ -6,10 +6,9 @@ docker-volume-ls - List all volumes
 
 # SYNOPSIS
 **docker volume ls**
-[**-f**|**--filter**[=**]]
-[**-q**|**--quiet**[=**]]
-
-[OPTIONS]
+[**-f**|**--filter**[=*FILTER*]]
+[**--help**]
+[**-q**|**--quiet**[=*true*|*false*]]
 
 # DESCRIPTION
 
@@ -19,7 +18,11 @@ There is a single supported filter `dangling=value` which takes a boolean of `tr
 
 # OPTIONS
 **-f**, **--filter**=""
-   Provide filter values (i.e. 'dangling=true')
+  Provide filter values (i.e. 'dangling=true')
+
+**--help**
+  Print usage statement
+
 **-q**, **--quiet**=false
   Only display volume names
 

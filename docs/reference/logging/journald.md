@@ -5,6 +5,7 @@ description = "Describes how to use the fluentd logging driver."
 keywords = ["Fluentd, docker, logging, driver"]
 [menu.main]
 parent = "smn_logging"
+weight = 2
 +++
 <![end-metadata]-->
 
@@ -12,7 +13,7 @@ parent = "smn_logging"
 
 The `journald` logging driver sends container logs to the [systemd
 journal](http://www.freedesktop.org/software/systemd/man/systemd-journald.service.html).  Log entries can be retrieved using the `journalctl`
-command or through use of the journal API.
+command, through use of the journal API, or using the `docker logs` command.
 
 In addition to the text of the log message itself, the `journald` log
 driver stores the following metadata in the journal with each message:

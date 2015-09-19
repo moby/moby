@@ -183,16 +183,6 @@ made through a pull request.
 	# be approved by the chief architect.
 	"Chief Architect" = "shykes"
 
-	# The Chief Operator is responsible for the day-to-day operations of the project including:
-	# - facilitating communications amongst all the contributors;
-	# - tracking release schedules;
-	# - managing the relationship with downstream distributions and upstream dependencies;
-	# - helping new contributors to get involved and become successful contributors and maintainers
-	#
-	# The role is also responsible for managing and measuring the success of the overall project
-	# and ensuring it is governed properly working in concert with the Docker Governance Advisory Board (DGAB).
-	"Chief Operator" = "spf13"
-
 	[Org.Operators]
 
 	# The operators make sure the trains run on time. They are responsible for overall operations
@@ -341,7 +331,6 @@ made through a pull request.
 				"moxiegirl",
 				"thaJeztah",
 				"jamtur01",
-				"spf13",
 				"sven"
 			]
 
@@ -551,11 +540,6 @@ made through a pull request.
 	Name = "Solomon Hykes"
 	Email = "solomon@docker.com"
 	GitHub = "shykes"
-
-	[people.spf13]
-	Name = "Steve Francia"
-	Email = "steve.francia@gmail.com"
-	GitHub = "spf13"
 
 	[people.sven]
 	Name = "Sven Dowideit"

@@ -38,6 +38,7 @@ func (s *DockerSuite) TestCpLocalOnly(c *check.C) {
 // Test for #5656
 // Check that garbage paths don't escape the container's rootfs
 func (s *DockerSuite) TestCpGarbagePath(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	out, exitCode := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "mkdir -p '"+cpTestPath+"' && echo -n '"+cpContainerContents+"' > "+cpFullPath)
 	if exitCode != 0 {
 		c.Fatal("failed to create a container", out)
@@ -95,6 +96,7 @@ func (s *DockerSuite) TestCpGarbagePath(c *check.C) {
 
 // Check that relative paths are relative to the container's rootfs
 func (s *DockerSuite) TestCpRelativePath(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	out, exitCode := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "mkdir -p '"+cpTestPath+"' && echo -n '"+cpContainerContents+"' > "+cpFullPath)
 	if exitCode != 0 {
 		c.Fatal("failed to create a container", out)
@@ -160,6 +162,7 @@ func (s *DockerSuite) TestCpRelativePath(c *check.C) {
 
 // Check that absolute paths are relative to the container's rootfs
 func (s *DockerSuite) TestCpAbsolutePath(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	out, exitCode := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "mkdir -p '"+cpTestPath+"' && echo -n '"+cpContainerContents+"' > "+cpFullPath)
 	if exitCode != 0 {
 		c.Fatal("failed to create a container", out)
@@ -219,6 +222,7 @@ func (s *DockerSuite) TestCpAbsolutePath(c *check.C) {
 // Test for #5619
 // Check that absolute symlinks are still relative to the container's rootfs
 func (s *DockerSuite) TestCpAbsoluteSymlink(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	out, exitCode := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "mkdir -p '"+cpTestPath+"' && echo -n '"+cpContainerContents+"' > "+cpFullPath+" && ln -s "+cpFullPath+" container_path")
 	if exitCode != 0 {
 		c.Fatal("failed to create a container", out)
@@ -271,6 +275,7 @@ func (s *DockerSuite) TestCpAbsoluteSymlink(c *check.C) {
 // Check that symlinks to a directory behave as expected when copying one from
 // a container.
 func (s *DockerSuite) TestCpFromSymlinkToDirectory(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	out, exitCode := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "mkdir -p '"+cpTestPath+"' && echo -n '"+cpContainerContents+"' > "+cpFullPath+" && ln -s "+cpTestPathParent+" /dir_link")
 	if exitCode != 0 {
 		c.Fatal("failed to create a container", out)
@@ -330,6 +335,7 @@ func (s *DockerSuite) TestCpFromSymlinkToDirectory(c *check.C) {
 // Check that symlinks to a directory behave as expected when copying one to a
 // container.
 func (s *DockerSuite) TestCpToSymlinkToDirectory(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	testRequires(c, SameHostDaemon) // Requires local volume mount bind.
 
 	testVol, err := ioutil.TempDir("", "test-cp-to-symlink-to-dir-")
@@ -434,6 +440,7 @@ func (s *DockerSuite) TestCpToSymlinkToDirectory(c *check.C) {
 // Test for #5619
 // Check that symlinks which are part of the resource path are still relative to the container's rootfs
 func (s *DockerSuite) TestCpSymlinkComponent(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	out, exitCode := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "mkdir -p '"+cpTestPath+"' && echo -n '"+cpContainerContents+"' > "+cpFullPath+" && ln -s "+cpTestPath+" container_path")
 	if exitCode != 0 {
 		c.Fatal("failed to create a container", out)
@@ -492,6 +499,7 @@ func (s *DockerSuite) TestCpSymlinkComponent(c *check.C) {
 
 // Check that cp with unprivileged user doesn't return any error
 func (s *DockerSuite) TestCpUnprivilegedUser(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	testRequires(c, UnixCli) // uses chmod/su: not available on windows
 
 	out, exitCode := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "touch "+cpTestName)
@@ -527,6 +535,7 @@ func (s *DockerSuite) TestCpUnprivilegedUser(c *check.C) {
 }
 
 func (s *DockerSuite) TestCpSpecialFiles(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	testRequires(c, SameHostDaemon)
 
 	outDir, err := ioutil.TempDir("", "cp-test-special-files")
@@ -580,6 +589,7 @@ func (s *DockerSuite) TestCpSpecialFiles(c *check.C) {
 }
 
 func (s *DockerSuite) TestCpVolumePath(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	testRequires(c, SameHostDaemon)
 
 	tmpDir, err := ioutil.TempDir("", "cp-test-volumepath")
@@ -679,6 +689,7 @@ func (s *DockerSuite) TestCpVolumePath(c *check.C) {
 }
 
 func (s *DockerSuite) TestCpToDot(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	out, exitCode := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "echo lololol > /test")
 	if exitCode != 0 {
 		c.Fatal("failed to create a container", out)
@@ -712,6 +723,7 @@ func (s *DockerSuite) TestCpToDot(c *check.C) {
 }
 
 func (s *DockerSuite) TestCpToStdout(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	out, exitCode := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "echo lololol > /test")
 	if exitCode != 0 {
 		c.Fatalf("failed to create a container:%s\n", out)
@@ -765,6 +777,7 @@ func (s *DockerSuite) TestCpNameHasColon(c *check.C) {
 }
 
 func (s *DockerSuite) TestCopyAndRestart(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	expectedMsg := "hello"
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "echo", expectedMsg)
 	id := strings.TrimSpace(string(out))
@@ -793,6 +806,7 @@ func (s *DockerSuite) TestCopyAndRestart(c *check.C) {
 }
 
 func (s *DockerSuite) TestCopyCreatedContainer(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	dockerCmd(c, "create", "--name", "test_cp", "-v", "/test", "busybox")
 
 	tmpDir, err := ioutil.TempDir("", "test")

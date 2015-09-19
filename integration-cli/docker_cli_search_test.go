@@ -8,7 +8,7 @@ import (
 
 // search for repos named  "registry" on the central registry
 func (s *DockerSuite) TestSearchOnCentralRegistry(c *check.C) {
-	testRequires(c, Network)
+	testRequires(c, Network, DaemonIsLinux)
 
 	out, exitCode := dockerCmd(c, "search", "busybox")
 	if exitCode != 0 {

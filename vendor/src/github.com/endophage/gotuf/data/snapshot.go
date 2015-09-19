@@ -2,11 +2,10 @@ package data
 
 import (
 	"bytes"
-	"encoding/json"
 	"time"
 
 	"github.com/Sirupsen/logrus"
-	cjson "github.com/tent/canonical-json-go"
+	"github.com/jfrazelle/go/canonical/json"
 )
 
 type SignedSnapshot struct {
@@ -61,7 +60,7 @@ func (sp *SignedSnapshot) hashForRole(role string) []byte {
 }
 
 func (sp SignedSnapshot) ToSigned() (*Signed, error) {
-	s, err := cjson.Marshal(sp.Signed)
+	s, err := json.MarshalCanonical(sp.Signed)
 	if err != nil {
 		return nil, err
 	}

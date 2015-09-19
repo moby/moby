@@ -13,6 +13,7 @@ import (
 
 // Regression test for #9414
 func (s *DockerSuite) TestExecApiCreateNoCmd(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	name := "exec_test"
 	dockerCmd(c, "run", "-d", "-t", "--name", name, "busybox", "/bin/sh")
 
@@ -26,6 +27,7 @@ func (s *DockerSuite) TestExecApiCreateNoCmd(c *check.C) {
 }
 
 func (s *DockerSuite) TestExecApiCreateNoValidContentType(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	name := "exec_test"
 	dockerCmd(c, "run", "-d", "-t", "--name", name, "busybox", "/bin/sh")
 

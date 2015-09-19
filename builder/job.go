@@ -46,6 +46,18 @@ var validCommitCommands = map[string]bool{
 	"workdir":    true,
 }
 
+// BuiltinAllowedBuildArgs is list of built-in allowed build args
+var BuiltinAllowedBuildArgs = map[string]bool{
+	"HTTP_PROXY":  true,
+	"http_proxy":  true,
+	"HTTPS_PROXY": true,
+	"https_proxy": true,
+	"FTP_PROXY":   true,
+	"ftp_proxy":   true,
+	"NO_PROXY":    true,
+	"no_proxy":    true,
+}
+
 // Config contains all configs for a build job
 type Config struct {
 	DockerfileName string
@@ -66,6 +78,7 @@ type Config struct {
 	CgroupParent   string
 	Ulimits        []*ulimit.Ulimit
 	AuthConfigs    map[string]cliconfig.AuthConfig
+	BuildArgs      map[string]string
 
 	Stdout  io.Writer
 	Context io.ReadCloser
@@ -191,26 +204,28 @@ func Build(d *daemon.Daemon, buildConfig *Config) error {
 			Writer:          buildConfig.Stdout,
 			StreamFormatter: sf,
 		},
-		Verbose:         !buildConfig.SuppressOutput,
-		UtilizeCache:    !buildConfig.NoCache,
-		Remove:          buildConfig.Remove,
-		ForceRemove:     buildConfig.ForceRemove,
-		Pull:            buildConfig.Pull,
-		OutOld:          buildConfig.Stdout,
-		StreamFormatter: sf,
-		AuthConfigs:     buildConfig.AuthConfigs,
-		dockerfileName:  buildConfig.DockerfileName,
-		cpuShares:       buildConfig.CPUShares,
-		cpuPeriod:       buildConfig.CPUPeriod,
-		cpuQuota:        buildConfig.CPUQuota,
-		cpuSetCpus:      buildConfig.CPUSetCpus,
-		cpuSetMems:      buildConfig.CPUSetMems,
-		cgroupParent:    buildConfig.CgroupParent,
-		memory:          buildConfig.Memory,
-		memorySwap:      buildConfig.MemorySwap,
-		ulimits:         buildConfig.Ulimits,
-		cancelled:       buildConfig.WaitCancelled(),
-		id:              stringid.GenerateRandomID(),
+		Verbose:          !buildConfig.SuppressOutput,
+		UtilizeCache:     !buildConfig.NoCache,
+		Remove:           buildConfig.Remove,
+		ForceRemove:      buildConfig.ForceRemove,
+		Pull:             buildConfig.Pull,
+		OutOld:           buildConfig.Stdout,
+		StreamFormatter:  sf,
+		AuthConfigs:      buildConfig.AuthConfigs,
+		dockerfileName:   buildConfig.DockerfileName,
+		cpuShares:        buildConfig.CPUShares,
+		cpuPeriod:        buildConfig.CPUPeriod,
+		cpuQuota:         buildConfig.CPUQuota,
+		cpuSetCpus:       buildConfig.CPUSetCpus,
+		cpuSetMems:       buildConfig.CPUSetMems,
+		cgroupParent:     buildConfig.CgroupParent,
+		memory:           buildConfig.Memory,
+		memorySwap:       buildConfig.MemorySwap,
+		ulimits:          buildConfig.Ulimits,
+		cancelled:        buildConfig.WaitCancelled(),
+		id:               stringid.GenerateRandomID(),
+		buildArgs:        buildConfig.BuildArgs,
+		allowedBuildArgs: make(map[string]bool),
 	}
 
 	defer func() {

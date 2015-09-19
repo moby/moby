@@ -26,6 +26,7 @@ Packager: Docker <support@docker.com>
 # only require systemd on those systems
 %if 0%{?is_systemd}
 BuildRequires: pkgconfig(systemd)
+BuildRequires: pkgconfig(libsystemd-journal)
 Requires: systemd-units
 %else
 Requires(post): chkconfig
@@ -129,11 +130,10 @@ install -d $RPM_BUILD_ROOT/%{_initddir}
 install -d $RPM_BUILD_ROOT/%{_unitdir}
 install -p -m 644 contrib/init/systemd/docker.service $RPM_BUILD_ROOT/%{_unitdir}/docker.service
 install -p -m 644 contrib/init/systemd/docker.socket $RPM_BUILD_ROOT/%{_unitdir}/docker.socket
-%endif
-
+%else
 install -p -m 644 contrib/init/sysvinit-redhat/docker.sysconfig $RPM_BUILD_ROOT/etc/sysconfig/docker
 install -p -m 755 contrib/init/sysvinit-redhat/docker $RPM_BUILD_ROOT/%{_initddir}/docker
-
+%endif
 # add bash completions
 install -d $RPM_BUILD_ROOT/usr/share/bash-completion/completions
 install -d $RPM_BUILD_ROOT/usr/share/zsh/vendor-completions
@@ -168,9 +168,10 @@ install -p -m 644 contrib/syntax/nano/Dockerfile.nanorc $RPM_BUILD_ROOT/usr/shar
 %if 0%{?is_systemd}
 /%{_unitdir}/docker.service
 /%{_unitdir}/docker.socket
-%endif
-/etc/sysconfig/docker
+%else
+%config(noreplace,missingok) /etc/sysconfig/docker
 /%{_initddir}/docker
+%endif
 /usr/share/bash-completion/completions/docker
 /usr/share/zsh/vendor-completions/_docker
 /usr/share/fish/completions/docker.fish

@@ -223,30 +223,30 @@ func validatePath(val string, validator func(string) bool) (string, error) {
 		return val, fmt.Errorf("bad format for path: %s", val)
 	}
 
-	splited := strings.SplitN(val, ":", 3)
-	if splited[0] == "" {
+	split := strings.SplitN(val, ":", 3)
+	if split[0] == "" {
 		return val, fmt.Errorf("bad format for path: %s", val)
 	}
-	switch len(splited) {
+	switch len(split) {
 	case 1:
-		containerPath = splited[0]
+		containerPath = split[0]
 		val = path.Clean(containerPath)
 	case 2:
-		if isValid := validator(splited[1]); isValid {
-			containerPath = splited[0]
-			mode = splited[1]
+		if isValid := validator(split[1]); isValid {
+			containerPath = split[0]
+			mode = split[1]
 			val = fmt.Sprintf("%s:%s", path.Clean(containerPath), mode)
 		} else {
-			containerPath = splited[1]
-			val = fmt.Sprintf("%s:%s", splited[0], path.Clean(containerPath))
+			containerPath = split[1]
+			val = fmt.Sprintf("%s:%s", split[0], path.Clean(containerPath))
 		}
 	case 3:
-		containerPath = splited[1]
-		mode = splited[2]
-		if isValid := validator(splited[2]); !isValid {
+		containerPath = split[1]
+		mode = split[2]
+		if isValid := validator(split[2]); !isValid {
 			return val, fmt.Errorf("bad mode specified: %s", mode)
 		}
-		val = fmt.Sprintf("%s:%s:%s", splited[0], containerPath, mode)
+		val = fmt.Sprintf("%s:%s:%s", split[0], containerPath, mode)
 	}
 
 	if !path.IsAbs(containerPath) {

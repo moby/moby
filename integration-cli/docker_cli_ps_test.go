@@ -17,8 +17,8 @@ import (
 	"github.com/docker/docker/pkg/stringid"
 )
 
-func (s *DockerSuite) TestPsListContainers(c *check.C) {
-
+func (s *DockerSuite) TestPsListContainersBase(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
 	firstID := strings.TrimSpace(out)
 
@@ -44,13 +44,13 @@ func (s *DockerSuite) TestPsListContainers(c *check.C) {
 	// all
 	out, _ = dockerCmd(c, "ps", "-a")
 	if !assertContainerList(out, []string{fourthID, thirdID, secondID, firstID}) {
-		c.Errorf("Container list is not in the correct order: %s", out)
+		c.Errorf("ALL: Container list is not in the correct order: \n%s", out)
 	}
 
 	// running
 	out, _ = dockerCmd(c, "ps")
 	if !assertContainerList(out, []string{fourthID, secondID, firstID}) {
-		c.Errorf("Container list is not in the correct order: %s", out)
+		c.Errorf("RUNNING: Container list is not in the correct order: \n%s", out)
 	}
 
 	// from here all flag '-a' is ignored
@@ -59,48 +59,48 @@ func (s *DockerSuite) TestPsListContainers(c *check.C) {
 	out, _ = dockerCmd(c, "ps", "-n=2", "-a")
 	expected := []string{fourthID, thirdID}
 	if !assertContainerList(out, expected) {
-		c.Errorf("Container list is not in the correct order: %s", out)
+		c.Errorf("LIMIT & ALL: Container list is not in the correct order: \n%s", out)
 	}
 
 	out, _ = dockerCmd(c, "ps", "-n=2")
 	if !assertContainerList(out, expected) {
-		c.Errorf("Container list is not in the correct order: %s", out)
+		c.Errorf("LIMIT: Container list is not in the correct order: \n%s", out)
 	}
 
 	// since
 	out, _ = dockerCmd(c, "ps", "--since", firstID, "-a")
 	expected = []string{fourthID, thirdID, secondID}
 	if !assertContainerList(out, expected) {
-		c.Errorf("Container list is not in the correct order: %s", out)
+		c.Errorf("SINCE & ALL: Container list is not in the correct order: \n%s", out)
 	}
 
 	out, _ = dockerCmd(c, "ps", "--since", firstID)
 	if !assertContainerList(out, expected) {
-		c.Errorf("Container list is not in the correct order: %s", out)
+		c.Errorf("SINCE: Container list is not in the correct order: \n%s", out)
 	}
 
 	// before
 	out, _ = dockerCmd(c, "ps", "--before", thirdID, "-a")
 	expected = []string{secondID, firstID}
 	if !assertContainerList(out, expected) {
-		c.Errorf("Container list is not in the correct order: %s", out)
+		c.Errorf("BEFORE & ALL: Container list is not in the correct order: \n%s", out)
 	}
 
 	out, _ = dockerCmd(c, "ps", "--before", thirdID)
 	if !assertContainerList(out, expected) {
-		c.Errorf("Container list is not in the correct order: %s", out)
+		c.Errorf("BEFORE: Container list is not in the correct order: \n%s", out)
 	}
 
 	// since & before
 	out, _ = dockerCmd(c, "ps", "--since", firstID, "--before", fourthID, "-a")
 	expected = []string{thirdID, secondID}
 	if !assertContainerList(out, expected) {
-		c.Errorf("Container list is not in the correct order: %s", out)
+		c.Errorf("SINCE, BEFORE & ALL: Container list is not in the correct order: \n%s", out)
 	}
 
 	out, _ = dockerCmd(c, "ps", "--since", firstID, "--before", fourthID)
 	if !assertContainerList(out, expected) {
-		c.Errorf("Container list is not in the correct order: %s", out)
+		c.Errorf("SINCE, BEFORE: Container list is not in the correct order: \n%s", out)
 	}
 
 	// since & limit
@@ -108,35 +108,35 @@ func (s *DockerSuite) TestPsListContainers(c *check.C) {
 	expected = []string{fourthID, thirdID}
 
 	if !assertContainerList(out, expected) {
-		c.Errorf("Container list is not in the correct order: %s", out)
+		c.Errorf("SINCE, LIMIT & ALL: Container list is not in the correct order: \n%s", out)
 	}
 
 	out, _ = dockerCmd(c, "ps", "--since", firstID, "-n=2")
 	if !assertContainerList(out, expected) {
-		c.Errorf("Container list is not in the correct order: %s", out)
+		c.Errorf("SINCE, LIMIT: Container list is not in the correct order: \n%s", out)
 	}
 
 	// before & limit
 	out, _ = dockerCmd(c, "ps", "--before", fourthID, "-n=1", "-a")
 	expected = []string{thirdID}
 	if !assertContainerList(out, expected) {
-		c.Errorf("Container list is not in the correct order: %s", out)
+		c.Errorf("BEFORE, LIMIT & ALL: Container list is not in the correct order: \n%s", out)
 	}
 
 	out, _ = dockerCmd(c, "ps", "--before", fourthID, "-n=1")
 	if !assertContainerList(out, expected) {
-		c.Errorf("Container list is not in the correct order: %s", out)
+		c.Errorf("BEFORE, LIMIT: Container list is not in the correct order: \n%s", out)
 	}
 
 	out, _ = dockerCmd(c, "ps", "--since", firstID, "--before", fourthID, "-n=1", "-a")
 	expected = []string{thirdID}
 	if !assertContainerList(out, expected) {
-		c.Errorf("Container list is not in the correct order: %s", out)
+		c.Errorf("SINCE, BEFORE, LIMIT & ALL: Container list is not in the correct order: \n%s", out)
 	}
 
 	out, _ = dockerCmd(c, "ps", "--since", firstID, "--before", fourthID, "-n=1")
 	if !assertContainerList(out, expected) {
-		c.Errorf("Container list is not in the correct order: %s", out)
+		c.Errorf("SINCE, BEFORE, LIMIT: Container list is not in the correct order: \n%s", out)
 	}
 
 }
@@ -159,6 +159,7 @@ func assertContainerList(out string, expected []string) bool {
 }
 
 func (s *DockerSuite) TestPsListContainersSize(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	dockerCmd(c, "run", "-d", "busybox", "echo", "hello")
 
 	baseOut, _ := dockerCmd(c, "ps", "-s", "-n=1")
@@ -211,6 +212,7 @@ func (s *DockerSuite) TestPsListContainersSize(c *check.C) {
 }
 
 func (s *DockerSuite) TestPsListContainersFilterStatus(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	// FIXME: this should test paused, but it makes things hang and its wonky
 	// this is because paused containers can't be controlled by signals
 
@@ -246,7 +248,7 @@ func (s *DockerSuite) TestPsListContainersFilterStatus(c *check.C) {
 }
 
 func (s *DockerSuite) TestPsListContainersFilterID(c *check.C) {
-
+	testRequires(c, DaemonIsLinux)
 	// start container
 	out, _ := dockerCmd(c, "run", "-d", "busybox")
 	firstID := strings.TrimSpace(out)
@@ -264,7 +266,7 @@ func (s *DockerSuite) TestPsListContainersFilterID(c *check.C) {
 }
 
 func (s *DockerSuite) TestPsListContainersFilterName(c *check.C) {
-
+	testRequires(c, DaemonIsLinux)
 	// start container
 	out, _ := dockerCmd(c, "run", "-d", "--name=a_name_to_match", "busybox")
 	firstID := strings.TrimSpace(out)
@@ -290,6 +292,7 @@ func (s *DockerSuite) TestPsListContainersFilterName(c *check.C) {
 // - Run containers for each of those image (busybox, images_ps_filter_test1, images_ps_filter_test2)
 // - Filter them out :P
 func (s *DockerSuite) TestPsListContainersFilterAncestorImage(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	// Build images
 	imageName1 := "images_ps_filter_test1"
 	imageID1, err := buildImage(imageName1,
@@ -389,6 +392,7 @@ func checkPsAncestorFilterOutput(c *check.C, out string, filterName string, expe
 }
 
 func (s *DockerSuite) TestPsListContainersFilterLabel(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	// start container
 	out, _ := dockerCmd(c, "run", "-d", "-l", "match=me", "-l", "second=tag", "busybox")
 	firstID := strings.TrimSpace(out)
@@ -431,7 +435,7 @@ func (s *DockerSuite) TestPsListContainersFilterLabel(c *check.C) {
 }
 
 func (s *DockerSuite) TestPsListContainersFilterExited(c *check.C) {
-
+	testRequires(c, DaemonIsLinux)
 	dockerCmd(c, "run", "-d", "--name", "top", "busybox", "top")
 
 	dockerCmd(c, "run", "--name", "zero1", "busybox", "true")
@@ -491,6 +495,7 @@ func (s *DockerSuite) TestPsListContainersFilterExited(c *check.C) {
 }
 
 func (s *DockerSuite) TestPsRightTagName(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	tag := "asybox:shmatest"
 	dockerCmd(c, "tag", "busybox", tag)
 
@@ -539,6 +544,7 @@ func (s *DockerSuite) TestPsRightTagName(c *check.C) {
 }
 
 func (s *DockerSuite) TestPsLinkedWithNoTrunc(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	dockerCmd(c, "run", "--name=first", "-d", "busybox", "top")
 	dockerCmd(c, "run", "--name=second", "--link=first:first", "-d", "busybox", "top")
 
@@ -558,7 +564,7 @@ func (s *DockerSuite) TestPsLinkedWithNoTrunc(c *check.C) {
 }
 
 func (s *DockerSuite) TestPsGroupPortRange(c *check.C) {
-
+	testRequires(c, DaemonIsLinux)
 	portRange := "3800-3900"
 	dockerCmd(c, "run", "-d", "--name", "porttest", "-p", portRange+":"+portRange, "busybox", "top")
 
@@ -572,6 +578,7 @@ func (s *DockerSuite) TestPsGroupPortRange(c *check.C) {
 }
 
 func (s *DockerSuite) TestPsWithSize(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	dockerCmd(c, "run", "-d", "--name", "sizetest", "busybox", "top")
 
 	out, _ := dockerCmd(c, "ps", "--size")
@@ -581,6 +588,7 @@ func (s *DockerSuite) TestPsWithSize(c *check.C) {
 }
 
 func (s *DockerSuite) TestPsListContainersFilterCreated(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	// create a container
 	out, _ := dockerCmd(c, "create", "busybox")
 	cID := strings.TrimSpace(out)
@@ -619,6 +627,7 @@ func (s *DockerSuite) TestPsListContainersFilterCreated(c *check.C) {
 }
 
 func (s *DockerSuite) TestPsFormatMultiNames(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	//create 2 containers and link them
 	dockerCmd(c, "run", "--name=child", "-d", "busybox", "top")
 	dockerCmd(c, "run", "--name=parent", "--link=child:linkedone", "-d", "busybox", "top")
@@ -650,6 +659,7 @@ func (s *DockerSuite) TestPsFormatMultiNames(c *check.C) {
 }
 
 func (s *DockerSuite) TestPsFormatHeaders(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	// make sure no-container "docker ps" still prints the header row
 	out, _ := dockerCmd(c, "ps", "--format", "table {{.ID}}")
 	if out != "CONTAINER ID\n" {
@@ -665,6 +675,7 @@ func (s *DockerSuite) TestPsFormatHeaders(c *check.C) {
 }
 
 func (s *DockerSuite) TestPsDefaultFormatAndQuiet(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	config := `{
 		"psFormat": "{{ .ID }} default"
 }`
@@ -686,6 +697,7 @@ func (s *DockerSuite) TestPsDefaultFormatAndQuiet(c *check.C) {
 
 // Test for GitHub issue #12595
 func (s *DockerSuite) TestPsImageIDAfterUpdate(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 
 	originalImageName := "busybox:TestPsImageIDAfterUpdate-original"
 	updatedImageName := "busybox:TestPsImageIDAfterUpdate-updated"

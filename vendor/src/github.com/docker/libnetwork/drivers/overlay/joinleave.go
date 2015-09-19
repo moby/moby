@@ -4,12 +4,11 @@ import (
 	"fmt"
 
 	"github.com/docker/libnetwork/driverapi"
-	"github.com/docker/libnetwork/types"
 	"github.com/vishvananda/netlink"
 )
 
 // Join method is invoked when a Sandbox is attached to an endpoint.
-func (d *driver) Join(nid, eid types.UUID, sboxKey string, jinfo driverapi.JoinInfo, options map[string]interface{}) error {
+func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo, options map[string]interface{}) error {
 	if err := validateID(nid, eid); err != nil {
 		return err
 	}
@@ -36,27 +35,40 @@ func (d *driver) Join(nid, eid types.UUID, sboxKey string, jinfo driverapi.JoinI
 		return err
 	}
 
+	// Set the container interface and its peer MTU to 1450 to allow
+	// for 50 bytes vxlan encap (inner eth header(14) + outer IP(20) +
+	// outer UDP(8) + vxlan header(8))
+	veth, err := netlink.LinkByName(name1)
+	if err != nil {
+		return fmt.Errorf("cound not find link by name %s: %v", name1, err)
+	}
+	err = netlink.LinkSetMTU(veth, vxlanVethMTU)
+	if err != nil {
+		return err
+	}
+
 	if err := sbox.AddInterface(name1, "veth",
 		sbox.InterfaceOptions().Master("bridge1")); err != nil {
 		return fmt.Errorf("could not add veth pair inside the network sandbox: %v", err)
 	}
 
-	veth, err := netlink.LinkByName(name2)
+	veth, err = netlink.LinkByName(name2)
 	if err != nil {
 		return fmt.Errorf("could not find link by name %s: %v", name2, err)
+	}
+	err = netlink.LinkSetMTU(veth, vxlanVethMTU)
+	if err != nil {
+		return err
 	}
 
 	if err := netlink.LinkSetHardwareAddr(veth, ep.mac); err != nil {
 		return fmt.Errorf("could not set mac address to the container interface: %v", err)
 	}
 
-	for _, iNames := range jinfo.InterfaceNames() {
-		// Make sure to set names on the correct interface ID.
-		if iNames.ID() == 1 {
-			err = iNames.SetNames(name2, "eth")
-			if err != nil {
-				return err
-			}
+	if iNames := jinfo.InterfaceName(); iNames != nil {
+		err = iNames.SetNames(name2, "eth")
+		if err != nil {
+			return err
 		}
 	}
 
@@ -77,7 +89,7 @@ func (d *driver) Join(nid, eid types.UUID, sboxKey string, jinfo driverapi.JoinI
 }
 
 // Leave method is invoked when a Sandbox detaches from an endpoint.
-func (d *driver) Leave(nid, eid types.UUID) error {
+func (d *driver) Leave(nid, eid string) error {
 	if err := validateID(nid, eid); err != nil {
 		return err
 	}
