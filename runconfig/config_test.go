@@ -2,9 +2,11 @@ package runconfig
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"runtime"
+	"strings"
 	"testing"
 
 	"github.com/docker/docker/pkg/stringutils"
@@ -59,4 +61,59 @@ func TestDecodeContainerConfig(t *testing.T) {
 			t.Fatalf("Expected memory to be 1000, found %d\n", h.Memory)
 		}
 	}
+}
+
+// TestDecodeContainerConfigIsolation validates the isolation level passed
+// to the daemon in the hostConfig structure. Note this is platform specific
+// as to what level of container isolation is supported.
+func TestDecodeContainerConfigIsolation(t *testing.T) {
+
+	// An invalid isolation level
+	if _, _, err := callDecodeContainerConfigIsolation("invalid"); err != nil {
+		if !strings.Contains(err.Error(), `invalid --isolation: "invalid"`) {
+			t.Fatal(err)
+		}
+	}
+
+	// Blank isolation level (== default)
+	if _, _, err := callDecodeContainerConfigIsolation(""); err != nil {
+		t.Fatal("Blank isolation should have succeeded")
+	}
+
+	// Default isolation level
+	if _, _, err := callDecodeContainerConfigIsolation("default"); err != nil {
+		t.Fatal("default isolation should have succeeded")
+	}
+
+	// Hyper-V Containers isolation level (Valid on Windows only)
+	if runtime.GOOS == "windows" {
+		if _, _, err := callDecodeContainerConfigIsolation("hyperv"); err != nil {
+			t.Fatal("hyperv isolation should have succeeded")
+		}
+	} else {
+		if _, _, err := callDecodeContainerConfigIsolation("hyperv"); err != nil {
+			if !strings.Contains(err.Error(), `invalid --isolation: "hyperv"`) {
+				t.Fatal(err)
+			}
+		}
+	}
+}
+
+// callDecodeContainerConfigIsolation is a utility function to call
+// DecodeContainerConfig for validating isolation levels
+func callDecodeContainerConfigIsolation(isolation string) (*Config, *HostConfig, error) {
+	var (
+		b   []byte
+		err error
+	)
+	w := ContainerConfigWrapper{
+		Config: &Config{},
+		HostConfig: &HostConfig{
+			NetworkMode: "none",
+			Isolation:   IsolationLevel(isolation)},
+	}
+	if b, err = json.Marshal(w); err != nil {
+		return nil, nil, fmt.Errorf("Error on marshal %s", err.Error())
+	}
+	return DecodeContainerConfig(bytes.NewReader(b))
 }

@@ -269,7 +269,7 @@ func (container *Container) Start() (err error) {
 		}
 	}()
 
-	if err := container.Mount(); err != nil {
+	if err := container.conditionalMountOnStart(); err != nil {
 		return err
 	}
 
@@ -341,9 +341,7 @@ func (container *Container) cleanup() {
 		logrus.Errorf("%s: Failed to umount ipc filesystems: %v", container.ID, err)
 	}
 
-	if err := container.Unmount(); err != nil {
-		logrus.Errorf("%s: Failed to umount filesystem: %v", container.ID, err)
-	}
+	container.conditionalUnmountOnCleanup()
 
 	for _, eConfig := range container.execCommands.s {
 		container.daemon.unregisterExecCommand(eConfig)

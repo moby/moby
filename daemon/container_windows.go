@@ -5,6 +5,7 @@ package daemon
 import (
 	"strings"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/execdriver"
 	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/volume"
@@ -144,6 +145,7 @@ func populateCommand(c *Container, env []string) error {
 		LayerFolder:    layerFolder,
 		LayerPaths:     layerPaths,
 		Hostname:       c.Config.Hostname,
+		Isolated:       c.hostConfig.Isolation.IsHyperV(),
 	}
 
 	return nil
@@ -193,4 +195,27 @@ func (container *Container) ipcMounts() []execdriver.Mount {
 
 func getDefaultRouteMtu() (int, error) {
 	return -1, errSystemNotSupported
+}
+
+// conditionalMountOnStart is a platform specific helper function during the
+// container start to call mount.
+func (container *Container) conditionalMountOnStart() error {
+	// We do not mount if a Hyper-V container
+	if !container.hostConfig.Isolation.IsHyperV() {
+		if err := container.Mount(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// conditionalUnmountOnCleanup is a platform specific helper function called
+// during the cleanup of a container to unmount.
+func (container *Container) conditionalUnmountOnCleanup() {
+	// We do not unmount if a Hyper-V container
+	if !container.hostConfig.Isolation.IsHyperV() {
+		if err := container.Unmount(); err != nil {
+			logrus.Errorf("%v: Failed to umount filesystem: %v", container.ID, err)
+		}
+	}
 }

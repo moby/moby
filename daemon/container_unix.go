@@ -1433,3 +1433,20 @@ func (container *Container) ipcMounts() []execdriver.Mount {
 func detachMounted(path string) error {
 	return syscall.Unmount(path, syscall.MNT_DETACH)
 }
+
+// conditionalMountOnStart is a platform specific helper function during the
+// container start to call mount.
+func (container *Container) conditionalMountOnStart() error {
+	if err := container.Mount(); err != nil {
+		return err
+	}
+	return nil
+}
+
+// conditionalUnmountOnCleanup is a platform specific helper function called
+// during the cleanup of a container to unmount.
+func (container *Container) conditionalUnmountOnCleanup() {
+	if err := container.Unmount(); err != nil {
+		logrus.Errorf("%v: Failed to umount filesystem: %v", container.ID, err)
+	}
+}

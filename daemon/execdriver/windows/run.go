@@ -77,6 +77,8 @@ type containerInit struct {
 	ProcessorWeight         int64       // CPU Shares 1..9 on Windows; or 0 is platform default.
 	HostName                string      // Hostname
 	MappedDirectories       []mappedDir // List of mapped directories (volumes/mounts)
+	SandboxPath             string      // Location of unmounted sandbox (used for Hyper-V containers, not Windows Server containers)
+	HvPartition             bool        // True if it a Hyper-V Container
 }
 
 // defaultOwner is a tag passed to HCS to allow it to differentiate between
@@ -108,6 +110,14 @@ func (d *Driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, hooks execd
 		LayerFolderPath:         c.LayerFolder,
 		ProcessorWeight:         c.Resources.CPUShares,
 		HostName:                c.Hostname,
+		HvPartition:             c.Isolated,
+	}
+
+	if c.Isolated {
+		cu.SandboxPath = filepath.Dir(c.LayerFolder)
+	} else {
+		cu.VolumePath = c.Rootfs
+		cu.LayerFolderPath = c.LayerFolder
 	}
 
 	for _, layerPath := range c.LayerPaths {

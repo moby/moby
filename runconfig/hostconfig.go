@@ -19,6 +19,16 @@ type KeyValuePair struct {
 // NetworkMode represents the container network stack.
 type NetworkMode string
 
+// IsolationLevel represents the isolation level of a container. The supported
+// values are platform specific
+type IsolationLevel string
+
+// IsDefault indicates the default isolation level of a container. On Linux this
+// is LXC. On Windows, this is a Windows Server Container.
+func (i IsolationLevel) IsDefault() bool {
+	return strings.ToLower(string(i)) == "default" || string(i) == ""
+}
+
 // IpcMode represents the container ipc stack.
 type IpcMode string
 
@@ -254,6 +264,7 @@ type HostConfig struct {
 	CgroupParent      string                // Parent cgroup.
 	ConsoleSize       [2]int                // Initial console size on Windows
 	VolumeDriver      string                // Name of the volume driver used to mount volumes
+	Isolation         IsolationLevel        // Isolation level of the container (eg default, hyperv)
 }
 
 // DecodeHostConfig creates a HostConfig based on the specified Reader.
