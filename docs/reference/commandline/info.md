@@ -26,25 +26,26 @@ For example:
      Root Dir: /var/lib/docker/aufs
      Backing Filesystem: extfs
      Dirs: 545
+     Dirperm1 Supported: true
     Execution Driver: native-0.2
     Logging Driver: json-file
-    Kernel Version: 3.13.0-24-generic
-    Operating System: Ubuntu 14.04 LTS
-    CPUs: 1
-    Name: prod-server-42
-    ID: 7TRN:IPZB:QYBB:VPBQ:UMPP:KARE:6ZNR:XE6T:7EWV:PKF4:ZOJD:TPYS
-    Total Memory: 2 GiB
-    Debug mode (server): false
-    Debug mode (client): true
-    File Descriptors: 10
-    Goroutines: 9
-    System Time: Tue Mar 10 18:38:57 UTC 2015
-    EventsListeners: 0
-    Init Path: /usr/bin/docker
-    Docker Root Dir: /var/lib/docker
-    Http Proxy: http://test:test@localhost:8080
-    Https Proxy: https://test:test@localhost:8080
-    No Proxy: 9.81.1.160
+    Kernel Version: 3.19.0-22-generic
+    Operating System: Ubuntu 15.04
+    CPUs: 24
+    Total Memory: 62.86 GiB
+    Name: docker
+    ID: I54V:OLXT:HVMM:TPKO:JPHQ:CQCD:JNLC:O3BZ:4ZVJ:43XJ:PFHZ:6N2S
+    Debug mode (server): true
+     File Descriptors: 59
+     Goroutines: 159
+     System Time: 2015-09-23T14:04:20.699842089+08:00
+     EventsListeners: 0
+     Init SHA1:
+     Init Path: /usr/bin/docker
+     Docker Root Dir: /var/lib/docker
+     Http Proxy: http://test:test@localhost:8080
+     Https Proxy: https://test:test@localhost:8080
+    WARNING: No swap limit support
     Username: svendowideit
     Registry: [https://index.docker.io/v1/]
     Labels:
