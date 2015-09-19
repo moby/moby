@@ -2,33 +2,6 @@
 
 load helpers
 
-function setup() {
-    if [ "${BATS_TEST_NUMBER}" -eq 1 ]; then
-	start_consul
-	start_dnet 1 simple multihost test
-    fi
-}
-
-function teardown() {
-    if [ "${BATS_TEST_NUMBER}" -eq 6 ]; then
-	stop_dnet 1 simple
-	stop_consul
-    fi
-}
-
-@test "Test default network" {
-    echo $(docker ps)
-    run dnet_cmd $(inst_id2port 1) network ls
-    [ "$status" -eq 0 ]
-    echo ${output}
-    echo ${lines[1]}
-    name=$(echo ${lines[1]} | cut -d" " -f2)
-    driver=$(echo ${lines[1]} | cut -d" " -f3)
-    echo ${name} ${driver}
-    [ "$name" = "multihost" ]
-    [ "$driver" = "test" ]
-}
-
 @test "Test network create" {
     echo $(docker ps)
     run dnet_cmd $(inst_id2port 1) network create -d test mh1
@@ -54,9 +27,10 @@ function teardown() {
 
 @test "Test service create" {
     echo $(docker ps)
+    dnet_cmd $(inst_id2port 1) network create -d test multihost
     run dnet_cmd $(inst_id2port 1) service publish svc1.multihost
-    [ "$status" -eq 0 ]
     echo ${output}
+    [ "$status" -eq 0 ]
     run dnet_cmd $(inst_id2port 1) service ls
     [ "$status" -eq 0 ]
     echo ${output}
@@ -67,10 +41,12 @@ function teardown() {
     [ "$network" = "multihost" ]
     [ "$svc" = "svc1" ]
     dnet_cmd $(inst_id2port 1) service unpublish svc1.multihost
+    dnet_cmd $(inst_id2port 1) network rm multihost
 }
 
 @test "Test service delete with id" {
     echo $(docker ps)
+    dnet_cmd $(inst_id2port 1) network create -d test multihost
     run dnet_cmd $(inst_id2port 1) service publish svc1.multihost
     [ "$status" -eq 0 ]
     echo ${output}
@@ -79,11 +55,13 @@ function teardown() {
     echo ${output}
     echo ${lines[1]}
     id=$(echo ${lines[1]} | cut -d" " -f1)
-    dnet_cmd $(inst_id2port 1) service unpublish ${id}
+    dnet_cmd $(inst_id2port 1) service unpublish ${id}.multihost
+    dnet_cmd $(inst_id2port 1) network rm multihost
 }
 
 @test "Test service attach" {
     echo $(docker ps)
+    dnet_cmd $(inst_id2port 1) network create -d test multihost
     dnet_cmd $(inst_id2port 1) service publish svc1.multihost
     dnet_cmd $(inst_id2port 1) container create container_1
     dnet_cmd $(inst_id2port 1) service attach container_1 svc1.multihost
@@ -96,4 +74,5 @@ function teardown() {
     dnet_cmd $(inst_id2port 1) service detach container_1 svc1.multihost
     dnet_cmd $(inst_id2port 1) container rm container_1
     dnet_cmd $(inst_id2port 1) service unpublish svc1.multihost
+    dnet_cmd $(inst_id2port 1) network rm multihost
 }

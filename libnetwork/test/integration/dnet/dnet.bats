@@ -3,13 +3,13 @@
 load helpers
 
 @test "Test dnet custom port" {
-    start_dnet 1 a none null 4567
+    start_dnet 1 a 4567
     dnet_cmd 4567 network ls
     stop_dnet 1 a
 }
 
 @test "Test dnet invalid custom port" {
-    start_dnet 1 b none null 4567
+    start_dnet 1 b 4567
     run dnet_cmd 4568 network ls
     echo ${output}
     [ "$status" -ne 0 ]
@@ -17,7 +17,7 @@ load helpers
 }
 
 @test "Test dnet invalid params" {
-    start_dnet 1 c none null
+    start_dnet 1 c
     run dnet_cmd 8080 network ls
     echo ${output}
     [ "$status" -ne 0 ]
