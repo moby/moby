@@ -226,6 +226,7 @@ type HostConfig struct {
 	CpusetMems       string                // CpusetMems 0-2, 0,1
 	CPUQuota         int64                 `json:"CpuQuota"` // CPU CFS (Completely Fair Scheduler) quota
 	BlkioWeight      int64                 // Block IO weight (relative weight vs. other containers)
+	BlkioReadLimit   int64                 // Block IO read limit (in bytes per second)
 	OomKillDisable   bool                  // Whether to disable OOM Killer or not
 	MemorySwappiness *int64                // Tuning container memory swappiness behaviour
 	Privileged       bool                  // Is the container in privileged mode

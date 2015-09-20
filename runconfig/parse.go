@@ -86,6 +86,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		flCpusetCpus      = cmd.String([]string{"#-cpuset", "-cpuset-cpus"}, "", "CPUs in which to allow execution (0-3, 0,1)")
 		flCpusetMems      = cmd.String([]string{"-cpuset-mems"}, "", "MEMs in which to allow execution (0-3, 0,1)")
 		flBlkioWeight     = cmd.Int64([]string{"-blkio-weight"}, 0, "Block IO (relative weight), between 10 and 1000")
+		flBlkioReadLimit  = cmd.Int64([]string{"-blkio-read-limit"}, -1, "Block IO read limit, in bytes per second. Default no limit")
 		flSwappiness      = cmd.Int64([]string{"-memory-swappiness"}, -1, "Tuning container memory swappiness (0 to 100)")
 		flNetMode         = cmd.String([]string{"-net"}, "default", "Set the Network mode for the container")
 		flMacAddress      = cmd.String([]string{"-mac-address"}, "", "Container MAC address (e.g. 92:d0:c6:0a:29:33)")
@@ -341,6 +342,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		CpusetMems:       *flCpusetMems,
 		CPUQuota:         *flCPUQuota,
 		BlkioWeight:      *flBlkioWeight,
+		BlkioReadLimit:   *flBlkioReadLimit,
 		OomKillDisable:   *flOomKillDisable,
 		MemorySwappiness: flSwappiness,
 		Privileged:       *flPrivileged,
