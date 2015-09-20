@@ -109,7 +109,7 @@ complete -c docker -A -f -n '__fish_seen_subcommand_from commit' -s p -l pause -
 complete -c docker -A -f -n '__fish_seen_subcommand_from commit' -a '(__fish_print_docker_containers all)' -d "Container"
 
 # cp
-complete -c docker -f -n '__fish_docker_no_subcommand' -a cp -d "Copy files/folders from a container's filesystem to the host path"
+complete -c docker -f -n '__fish_docker_no_subcommand' -a cp -d "Copy files/folders between a container and the local filesystem"
 complete -c docker -A -f -n '__fish_seen_subcommand_from cp' -l help -d 'Print usage'
 
 # create
