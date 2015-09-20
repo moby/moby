@@ -11,7 +11,7 @@ weight=1
 
 # version
 
-    Usage: docker version
+    Usage: docker version [OPTIONS]
 
     Show the Docker version information.
 
