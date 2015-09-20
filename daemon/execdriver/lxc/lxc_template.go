@@ -91,9 +91,9 @@ lxc.mount.entry = {{$value.Source}} {{escapeFstabSpaces $ROOTFS}}/{{escapeFstabS
 {{if .Resources}}
 {{if .Resources.Memory}}
 lxc.cgroup.memory.limit_in_bytes = {{.Resources.Memory}}
-{{with $memSwap := getMemorySwap .Resources}}
-lxc.cgroup.memory.memsw.limit_in_bytes = {{$memSwap}}
 {{end}}
+{{if gt .Resources.MemorySwap 0}}
+lxc.cgroup.memory.memsw.limit_in_bytes = {{.Resources.MemorySwap}}
 {{end}}
 {{if gt .Resources.MemoryReservation 0}}
 lxc.cgroup.memory.soft_limit_in_bytes = {{.Resources.MemoryReservation}}
@@ -209,15 +209,6 @@ func isDirectory(source string) string {
 	return "file"
 }
 
-func getMemorySwap(v *execdriver.Resources) int64 {
-	// By default, MemorySwap is set to twice the size of RAM.
-	// If you want to omit MemorySwap, set it to `-1'.
-	if v.MemorySwap < 0 {
-		return 0
-	}
-	return v.Memory * 2
-}
-
 func getLabel(c map[string][]string, name string) string {
 	label := c["label"]
 	for _, l := range label {
@@ -242,7 +233,6 @@ func getHostname(env []string) string {
 func init() {
 	var err error
 	funcMap := template.FuncMap{
-		"getMemorySwap":     getMemorySwap,
 		"escapeFstabSpaces": escapeFstabSpaces,
 		"formatMountLabel":  label.FormatMountLabel,
 		"isDirectory":       isDirectory,
