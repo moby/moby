@@ -1615,14 +1615,6 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithContainerWithRestartPolicyAlway
 	c.Assert(strings.TrimSpace(out), check.Equals, id[:12])
 }
 
-func (s *DockerDaemonSuite) TestDaemonCorruptedSyslogAddress(c *check.C) {
-	c.Assert(s.d.Start("--log-driver=syslog", "--log-opt", "syslog-address=corrupted:1234"), check.NotNil)
-	runCmd := exec.Command("grep", "Failed to set log opts: syslog-address should be in form proto://address", s.d.LogfileName())
-	if out, _, err := runCommandWithOutput(runCmd); err != nil {
-		c.Fatalf("Expected 'Error starting daemon' message; but doesn't exist in log: %q, err: %v", out, err)
-	}
-}
-
 func (s *DockerDaemonSuite) TestDaemonWideLogConfig(c *check.C) {
 	if err := s.d.StartWithBusybox("--log-driver=json-file", "--log-opt=max-size=1k"); err != nil {
 		c.Fatal(err)
@@ -1696,4 +1688,28 @@ func (s *DockerDaemonSuite) TestDaemonRestartLocalVolumes(c *check.C) {
 
 	_, err = s.d.Cmd("volume", "inspect", "test")
 	c.Assert(err, check.IsNil)
+}
+
+func (s *DockerDaemonSuite) TestDaemonCorruptedLogDriverAddress(c *check.C) {
+	for _, driver := range []string{
+		"syslog",
+		"gelf",
+	} {
+		args := []string{"--log-driver=" + driver, "--log-opt", driver + "-address=corrupted:42"}
+		c.Assert(s.d.Start(args...), check.NotNil, check.Commentf(fmt.Sprintf("Expected daemon not to start with invalid %s-address provided", driver)))
+		expected := fmt.Sprintf("Failed to set log opts: %s-address should be in form proto://address", driver)
+		runCmd := exec.Command("grep", expected, s.d.LogfileName())
+		if out, _, err := runCommandWithOutput(runCmd); err != nil {
+			c.Fatalf("Expected %q message; but doesn't exist in log: %q, err: %v", expected, out, err)
+		}
+	}
+}
+
+func (s *DockerDaemonSuite) TestDaemonCorruptedFluentdAddress(c *check.C) {
+	c.Assert(s.d.Start("--log-driver=fluentd", "--log-opt", "fluentd-address=corrupted:c"), check.NotNil)
+	expected := "Failed to set log opts: invalid fluentd-address corrupted:c: "
+	runCmd := exec.Command("grep", expected, s.d.LogfileName())
+	if out, _, err := runCommandWithOutput(runCmd); err != nil {
+		c.Fatalf("Expected %q message; but doesn't exist in log: %q, err: %v", expected, out, err)
+	}
 }
