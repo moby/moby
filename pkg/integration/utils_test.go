@@ -355,7 +355,7 @@ func TestRandomUnixTmpDirPath(t *testing.T) {
 	}
 }
 
-func TestConsumeWithSpeedWith(t *testing.T) {
+func TestConsumeWithSpeed(t *testing.T) {
 	reader := strings.NewReader("1234567890")
 	chunksize := 2
 
@@ -365,7 +365,7 @@ func TestConsumeWithSpeedWith(t *testing.T) {
 	}
 
 	if bytes1 != 10 {
-		t.Fatalf("Expected to have read 10 bytes, got %s", bytes1)
+		t.Fatalf("Expected to have read 10 bytes, got %d", bytes1)
 	}
 
 }
@@ -387,7 +387,7 @@ func TestConsumeWithSpeedWithStop(t *testing.T) {
 	}
 
 	if bytes1 != 2 {
-		t.Fatalf("Expected to have read 2 bytes, got %s", bytes1)
+		t.Fatalf("Expected to have read 2 bytes, got %d", bytes1)
 	}
 
 }
