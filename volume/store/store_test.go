@@ -3,6 +3,7 @@ package store
 import (
 	"testing"
 
+	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/volume"
 	"github.com/docker/docker/volume/drivers"
 	vt "github.com/docker/docker/volume/testutils"
@@ -30,7 +31,7 @@ func TestGet(t *testing.T) {
 		t.Fatalf("Expected fake1 volume, got %v", v)
 	}
 
-	if _, err := s.Get("fake4"); err != ErrNoSuchVolume {
+	if _, err := s.Get("fake4"); err != derr.ErrorCodeNoSuchVolume {
 		t.Fatalf("Expected ErrNoSuchVolume error, got %v", err)
 	}
 }
@@ -62,7 +63,7 @@ func TestCreate(t *testing.T) {
 func TestRemove(t *testing.T) {
 	volumedrivers.Register(vt.FakeDriver{}, "fake")
 	s := New()
-	if err := s.Remove(vt.NoopVolume{}); err != ErrNoSuchVolume {
+	if err := s.Remove(vt.NoopVolume{}); err != derr.ErrorCodeNoSuchVolume {
 		t.Fatalf("Expected ErrNoSuchVolume error, got %v", err)
 	}
 	v, err := s.Create("fake1", "fake", nil)
@@ -70,7 +71,7 @@ func TestRemove(t *testing.T) {
 		t.Fatal(err)
 	}
 	s.Increment(v)
-	if err := s.Remove(v); err != ErrVolumeInUse {
+	if err := s.Remove(v); err != derr.ErrorCodeVolumeInUse {
 		t.Fatalf("Expected ErrVolumeInUse error, got %v", err)
 	}
 	s.Decrement(v)
