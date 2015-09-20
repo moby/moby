@@ -43,6 +43,10 @@ func (daemon *Daemon) ContainerRename(oldName, newName string) error {
 		return err
 	}
 
+	if err := container.updateNetwork(); err != nil {
+		return fmt.Errorf("Failed to update network of container %q: %v", oldName, err)
+	}
+
 	container.logEvent("rename")
 	return nil
 }
