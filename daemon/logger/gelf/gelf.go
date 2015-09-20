@@ -147,28 +147,35 @@ func ValidateLogOpt(cfg map[string]string) error {
 			return fmt.Errorf("unknown log opt '%s' for gelf log driver", key)
 		}
 	}
+
+	if _, err := parseAddress(cfg["gelf-address"]); err != nil {
+		return err
+	}
+
 	return nil
 }
 
 func parseAddress(address string) (string, error) {
-	if urlutil.IsTransportURL(address) {
-		url, err := url.Parse(address)
-		if err != nil {
-			return "", err
-		}
-
-		// we support only udp
-		if url.Scheme != "udp" {
-			return "", fmt.Errorf("gelf: endpoint needs to be UDP")
-		}
-
-		// get host and port
-		if _, _, err = net.SplitHostPort(url.Host); err != nil {
-			return "", fmt.Errorf("gelf: please provide gelf-address as udp://host:port")
-		}
-
-		return url.Host, nil
+	if address == "" {
+		return "", nil
+	}
+	if !urlutil.IsTransportURL(address) {
+		return "", fmt.Errorf("gelf-address should be in form proto://address, got %v", address)
+	}
+	url, err := url.Parse(address)
+	if err != nil {
+		return "", err
 	}
 
-	return "", nil
+	// we support only udp
+	if url.Scheme != "udp" {
+		return "", fmt.Errorf("gelf: endpoint needs to be UDP")
+	}
+
+	// get host and port
+	if _, _, err = net.SplitHostPort(url.Host); err != nil {
+		return "", fmt.Errorf("gelf: please provide gelf-address as udp://host:port")
+	}
+
+	return url.Host, nil
 }

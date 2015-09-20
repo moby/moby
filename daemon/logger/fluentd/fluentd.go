@@ -38,44 +38,20 @@ func init() {
 	}
 }
 
-func parseConfig(ctx logger.Context) (string, int, string, error) {
-	host := defaultHostName
-	port := defaultPort
-
-	config := ctx.Config
-
-	tag, err := loggerutils.ParseLogTag(ctx, "docker.{{.ID}}")
-	if err != nil {
-		return "", 0, "", err
-	}
-
-	if address := config["fluentd-address"]; address != "" {
-		if h, p, err := net.SplitHostPort(address); err != nil {
-			if !strings.Contains(err.Error(), "missing port in address") {
-				return "", 0, "", err
-			}
-			host = h
-		} else {
-			portnum, err := strconv.Atoi(p)
-			if err != nil {
-				return "", 0, "", err
-			}
-			host = h
-			port = portnum
-		}
-	}
-
-	return host, port, tag, nil
-}
-
 // New creates a fluentd logger using the configuration passed in on
 // the context. Supported context configuration variables are
 // fluentd-address & fluentd-tag.
 func New(ctx logger.Context) (logger.Logger, error) {
-	host, port, tag, err := parseConfig(ctx)
+	host, port, err := parseAddress(ctx.Config["fluentd-address"])
 	if err != nil {
 		return nil, err
 	}
+
+	tag, err := loggerutils.ParseLogTag(ctx, "docker.{{.ID}}")
+	if err != nil {
+		return nil, err
+	}
+
 	logrus.Debugf("logging driver fluentd configured for container:%s, host:%s, port:%d, tag:%s.", ctx.ContainerID, host, port, tag)
 
 	// logger tries to recoonect 2**32 - 1 times
@@ -104,6 +80,14 @@ func (f *fluentd) Log(msg *logger.Message) error {
 	return f.writer.PostWithTime(f.tag, msg.Timestamp, data)
 }
 
+func (f *fluentd) Close() error {
+	return f.writer.Close()
+}
+
+func (f *fluentd) Name() string {
+	return name
+}
+
 // ValidateLogOpt looks for fluentd specific log options fluentd-address & fluentd-tag.
 func ValidateLogOpt(cfg map[string]string) error {
 	for key := range cfg {
@@ -115,13 +99,30 @@ func ValidateLogOpt(cfg map[string]string) error {
 			return fmt.Errorf("unknown log opt '%s' for fluentd log driver", key)
 		}
 	}
+
+	if _, _, err := parseAddress(cfg["fluentd-address"]); err != nil {
+		return err
+	}
+
 	return nil
 }
 
-func (f *fluentd) Close() error {
-	return f.writer.Close()
-}
+func parseAddress(address string) (string, int, error) {
+	if address == "" {
+		return defaultHostName, defaultPort, nil
+	}
 
-func (f *fluentd) Name() string {
-	return name
+	host, port, err := net.SplitHostPort(address)
+	if err != nil {
+		if !strings.Contains(err.Error(), "missing port in address") {
+			return "", 0, fmt.Errorf("invalid fluentd-address %s: %s", address, err)
+		}
+		return host, defaultPort, nil
+	}
+
+	portnum, err := strconv.Atoi(port)
+	if err != nil {
+		return "", 0, fmt.Errorf("invalid fluentd-address %s: %s", address, err)
+	}
+	return host, portnum, nil
 }
