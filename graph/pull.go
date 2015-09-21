@@ -30,7 +30,7 @@ type Puller interface {
 	// Pull returns an error if any, as well as a boolean that determines whether to retry Pull on the next configured endpoint.
 	//
 	// TODO(tiborvass): have Pull() take a reference to repository + tag, so that the puller itself is repository-agnostic.
-	Pull(tag string) (fallback bool, err error)
+	Pull(tag string, dryRun bool) (fallback bool, err error)
 }
 
 // NewPuller returns a Puller interface that will pull from either a v1 or v2
@@ -62,7 +62,7 @@ func NewPuller(s *TagStore, endpoint registry.APIEndpoint, repoInfo *registry.Re
 
 // Pull initiates a pull operation. image is the repository name to pull, and
 // tag may be either empty, or indicate a specific tag to pull.
-func (s *TagStore) Pull(image string, tag string, imagePullConfig *ImagePullConfig) error {
+func (s *TagStore) Pull(image string, tag string, imagePullConfig *ImagePullConfig, dryRun bool) error {
 	var sf = streamformatter.NewJSONStreamFormatter()
 
 	// Resolve the Repository name from fqn to RepositoryInfo
@@ -112,7 +112,7 @@ func (s *TagStore) Pull(image string, tag string, imagePullConfig *ImagePullConf
 			lastErr = err
 			continue
 		}
-		if fallback, err := puller.Pull(tag); err != nil {
+		if fallback, err := puller.Pull(tag, dryRun); err != nil {
 			if fallback {
 				if _, ok := err.(registry.ErrNoSupport); !ok {
 					// Because we found an error that's not ErrNoSupport, discard all subsequent ErrNoSupport errors.
@@ -145,8 +145,10 @@ func (s *TagStore) Pull(image string, tag string, imagePullConfig *ImagePullConf
 // status message indicates that a newer image was downloaded. Otherwise, it
 // indicates that the image is up to date. requestedTag is the tag the message
 // will refer to.
-func writeStatus(requestedTag string, out io.Writer, sf *streamformatter.StreamFormatter, layersDownloaded bool) {
-	if layersDownloaded {
+func writeStatus(requestedTag string, out io.Writer, sf *streamformatter.StreamFormatter, layersDownloaded bool, dryRun bool) {
+	if dryRun {
+		out.Write(sf.FormatStatus("", "Status: Dry Run completed for %s", requestedTag))
+	} else if layersDownloaded {
 		out.Write(sf.FormatStatus("", "Status: Downloaded newer image for %s", requestedTag))
 	} else {
 		out.Write(sf.FormatStatus("", "Status: Image is up to date for %s", requestedTag))
