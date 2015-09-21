@@ -137,6 +137,10 @@ func getVolumeDriver(name string) (volume.Driver, error) {
 func (s *volumeStore) Create(name, driverName string, opts map[string]string) (volume.Volume, error) {
 	s.mu.Lock()
 	if vc, exists := s.vols[name]; exists {
+		if vc.Volume.DriverName() != driverName {
+			s.mu.Unlock()
+			return nil, fmt.Errorf("Conflict: volume '%s' exist with volume diver '%s'", name, vc.Volume.DriverName())
+		}
 		v := vc.Volume
 		s.mu.Unlock()
 		return v, nil
