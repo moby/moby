@@ -96,7 +96,6 @@ func mountCmd(cmd configs.Command) error {
 func mountToRootfs(m *configs.Mount, rootfs, mountLabel string) error {
 	var (
 		dest = m.Destination
-		data = label.FormatMountLabel(m.Data, mountLabel)
 	)
 	if !strings.HasPrefix(dest, rootfs) {
 		dest = filepath.Join(rootfs, dest)
@@ -107,12 +106,12 @@ func mountToRootfs(m *configs.Mount, rootfs, mountLabel string) error {
 		if err := os.MkdirAll(dest, 0755); err != nil {
 			return err
 		}
-		return syscall.Mount(m.Source, dest, m.Device, uintptr(m.Flags), "")
+		return m.MountPropagate(rootfs, mountLabel)
 	case "mqueue":
 		if err := os.MkdirAll(dest, 0755); err != nil {
 			return err
 		}
-		if err := syscall.Mount(m.Source, dest, m.Device, uintptr(m.Flags), ""); err != nil {
+		if err := m.MountPropagate(rootfs, mountLabel); err != nil {
 			return err
 		}
 		return label.SetFileLabel(dest, mountLabel)
@@ -123,7 +122,7 @@ func mountToRootfs(m *configs.Mount, rootfs, mountLabel string) error {
 				return err
 			}
 		}
-		if err := syscall.Mount(m.Source, dest, m.Device, uintptr(m.Flags), data); err != nil {
+		if err := m.MountPropagate(rootfs, mountLabel); err != nil {
 			return err
 		}
 		if stat != nil {
@@ -136,12 +135,12 @@ func mountToRootfs(m *configs.Mount, rootfs, mountLabel string) error {
 		if err := os.MkdirAll(dest, 0755); err != nil {
 			return err
 		}
-		return syscall.Mount(m.Source, dest, m.Device, uintptr(m.Flags), data)
+		return m.MountPropagate(rootfs, mountLabel)
 	case "securityfs":
 		if err := os.MkdirAll(dest, 0755); err != nil {
 			return err
 		}
-		return syscall.Mount(m.Source, dest, m.Device, uintptr(m.Flags), data)
+		return m.MountPropagate(rootfs, mountLabel)
 	case "bind":
 		stat, err := os.Stat(m.Source)
 		if err != nil {
@@ -162,13 +161,12 @@ func mountToRootfs(m *configs.Mount, rootfs, mountLabel string) error {
 		if err := createIfNotExists(dest, stat.IsDir()); err != nil {
 			return err
 		}
-		if err := syscall.Mount(m.Source, dest, m.Device, uintptr(m.Flags), data); err != nil {
+		if err := m.MountPropagate(rootfs, mountLabel); err != nil {
 			return err
 		}
-		if m.Flags&syscall.MS_RDONLY != 0 {
-			if err := syscall.Mount(m.Source, dest, m.Device, uintptr(m.Flags|syscall.MS_REMOUNT), ""); err != nil {
-				return err
-			}
+		// bind mount won't change mount options, we need remount to make mount options effective.
+		if err := m.Remount(rootfs); err != nil {
+			return err
 		}
 		if m.Relabel != "" {
 			if err := label.Validate(m.Relabel); err != nil {
@@ -176,11 +174,6 @@ func mountToRootfs(m *configs.Mount, rootfs, mountLabel string) error {
 			}
 			shared := label.IsShared(m.Relabel)
 			if err := label.Relabel(m.Source, mountLabel, shared); err != nil {
-				return err
-			}
-		}
-		if m.Flags&syscall.MS_PRIVATE != 0 {
-			if err := syscall.Mount("", dest, "none", uintptr(syscall.MS_PRIVATE), ""); err != nil {
 				return err
 			}
 		}
@@ -197,11 +190,12 @@ func mountToRootfs(m *configs.Mount, rootfs, mountLabel string) error {
 			}
 		}
 		tmpfs := &configs.Mount{
-			Source:      "tmpfs",
-			Device:      "tmpfs",
-			Destination: m.Destination,
-			Flags:       defaultMountFlags,
-			Data:        "mode=755",
+			Source:           "tmpfs",
+			Device:           "tmpfs",
+			Destination:      m.Destination,
+			Flags:            defaultMountFlags,
+			Data:             "mode=755",
+			PropagationFlags: m.PropagationFlags,
 		}
 		if err := mountToRootfs(tmpfs, rootfs, mountLabel); err != nil {
 			return err
@@ -236,8 +230,11 @@ func mountToRootfs(m *configs.Mount, rootfs, mountLabel string) error {
 		}
 		if m.Flags&syscall.MS_RDONLY != 0 {
 			// remount cgroup root as readonly
-			rootfsCgroup := filepath.Join(rootfs, m.Destination)
-			if err := syscall.Mount("", rootfsCgroup, "", defaultMountFlags|syscall.MS_REMOUNT|syscall.MS_RDONLY, ""); err != nil {
+			mcgrouproot := &configs.Mount{
+				Destination: m.Destination,
+				Flags:       defaultMountFlags | syscall.MS_RDONLY,
+			}
+			if err := mcgrouproot.Remount(rootfs); err != nil {
 				return err
 			}
 		}
@@ -253,10 +250,15 @@ func getCgroupMounts(m *configs.Mount) ([]*configs.Mount, error) {
 		return nil, err
 	}
 
+	cgroupPaths, err := cgroups.ParseCgroupFile("/proc/self/cgroup")
+	if err != nil {
+		return nil, err
+	}
+
 	var binds []*configs.Mount
 
 	for _, mm := range mounts {
-		dir, err := mm.GetThisCgroupDir()
+		dir, err := mm.GetThisCgroupDir(cgroupPaths)
 		if err != nil {
 			return nil, err
 		}
@@ -265,10 +267,11 @@ func getCgroupMounts(m *configs.Mount) ([]*configs.Mount, error) {
 			return nil, err
 		}
 		binds = append(binds, &configs.Mount{
-			Device:      "bind",
-			Source:      filepath.Join(mm.Mountpoint, relDir),
-			Destination: filepath.Join(m.Destination, strings.Join(mm.Subsystems, ",")),
-			Flags:       syscall.MS_BIND | syscall.MS_REC | m.Flags,
+			Device:           "bind",
+			Source:           filepath.Join(mm.Mountpoint, relDir),
+			Destination:      filepath.Join(m.Destination, strings.Join(mm.Subsystems, ",")),
+			Flags:            syscall.MS_BIND | syscall.MS_REC | m.Flags,
+			PropagationFlags: m.PropagationFlags,
 		})
 	}
 
