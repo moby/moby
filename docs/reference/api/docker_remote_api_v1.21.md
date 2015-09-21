@@ -1860,6 +1860,7 @@ Display system-wide information
         },
         "SwapLimit": false,
         "SystemTime": "2015-03-10T11:11:23.730591467-07:00"
+        "ServerVersion": "1.9.0"
     }
 
 Status Codes:

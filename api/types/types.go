@@ -215,6 +215,7 @@ type Info struct {
 	Name               string
 	Labels             []string
 	ExperimentalBuild  bool
+	ServerVersion      string
 }
 
 // ExecStartCheck is a temp struct used by execStart
