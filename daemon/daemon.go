@@ -117,6 +117,7 @@ type Daemon struct {
 	discoveryWatcher discovery.Watcher
 	root             string
 	shutdown         bool
+	associated       bool
 }
 
 // Get looks for a container using the provided information, which could be
@@ -749,19 +750,8 @@ func NewDaemon(config *Config, registryService *registry.Service) (daemon *Daemo
 		return nil, err
 	}
 
-	// Initialize discovery. When a discovery backend is not specified, we rely on the network
-	// key-value store by default.
-	if config.DiscoveryBackend == "" {
-		config.DiscoveryBackend = config.NetworkKVStore
-	}
-	// Discovery is only enabled when the daemon is launched with a given discovery address to be
-	// advertised to the backend. When initialized, the daemon is registered and we can store the
-	// discovery backend as its read-only DiscoveryWatcher version.
-	if config.DiscoveryAddress != "" {
-		var err error
-		if d.discoveryWatcher, err = initDiscovery(config.DiscoveryBackend, config.DiscoveryAddress); err != nil {
-			return nil, fmt.Errorf("discovery initialization failed (%v)", err)
-		}
+	if err := initDiscoveryConfig(config); err != nil {
+		return nil, err
 	}
 
 	d.ID = trustKey.PublicKey().KeyID()
@@ -781,6 +771,10 @@ func NewDaemon(config *Config, registryService *registry.Service) (daemon *Daemo
 	d.volumes = volStore
 	d.root = config.Root
 	go d.execCommandGC()
+
+	if err := d.Join(d.configStore.Discovery); err != nil {
+		return nil, err
+	}
 
 	if err := d.restore(); err != nil {
 		return nil, err

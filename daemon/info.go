@@ -90,7 +90,7 @@ func (daemon *Daemon) SystemInfo() (*types.Info, error) {
 		DockerRootDir:      daemon.config().Root,
 		Labels:             daemon.config().Labels,
 		ExperimentalBuild:  utils.ExperimentalBuild(),
-		DiscoveryBackend:   daemon.config().DiscoveryBackend,
+		DiscoveryBackend:   daemon.config().Discovery.Backend,
 	}
 
 	// TODO Windows. Refactor this more once sysinfo is refactored into

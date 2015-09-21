@@ -1,6 +1,7 @@
 package daemon
 
 import (
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/opts"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/runconfig"
@@ -33,17 +34,7 @@ type CommonConfig struct {
 	Root           string
 	TrustKeyPath   string
 	DefaultNetwork string
-	NetworkKVStore string
-
-	// DiscoveryAddress is the network endpoint that the Engine advertises to the backend for the
-	// purpose of node discovery. This should be a 'host:port' combination on which that daemon
-	// instance is reachable by other hosts.
-	DiscoveryAddress string
-
-	// DiscoveryBackend is the URL of a discovery backend, and accepts many different schemes (e.g.,
-	// consul://, etcd://, ...). By default, we assume that the NetworkKVStore can be used when a
-	// discovery backend is left unspecified.
-	DiscoveryBackend string
+	Discovery      types.DiscoveryConfig
 }
 
 // InstallCommonFlags adds command-line options to the top-level flag parser for
@@ -67,6 +58,6 @@ func (config *Config) InstallCommonFlags(cmd *flag.FlagSet, usageFn func(string)
 	cmd.Var(opts.NewListOptsRef(&config.Labels, opts.ValidateLabel), []string{"-label"}, usageFn("Set key=value labels to the daemon"))
 	cmd.StringVar(&config.LogConfig.Type, []string{"-log-driver"}, "json-file", usageFn("Default driver for container logs"))
 	cmd.Var(opts.NewMapOpts(config.LogConfig.Config, nil), []string{"-log-opt"}, usageFn("Set log driver options"))
-	cmd.StringVar(&config.DiscoveryAddress, []string{"-discovery-address"}, "", usageFn("Address of the daemon instance to advertise"))
-	cmd.StringVar(&config.DiscoveryBackend, []string{"-discovery-backend"}, "", usageFn("URL of the discovery backend"))
+	cmd.StringVar(&config.Discovery.Address, []string{"-discovery-address"}, "", usageFn("Address of the daemon instance to advertise"))
+	cmd.StringVar(&config.Discovery.Backend, []string{"-discovery-backend"}, "", usageFn("URL of the discovery backend"))
 }
