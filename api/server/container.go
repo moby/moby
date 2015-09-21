@@ -94,7 +94,11 @@ func (s *Server) getContainersLogs(ctx context.Context, w http.ResponseWriter, r
 		return fmt.Errorf("Missing parameter")
 	}
 
-	// Validate args here, because we can't return not StatusOK after job.Run() call
+	// Args are validated before the stream starts because when it starts we're
+	// sending HTTP 200 by writing an empty chunk of data to tell the client that
+	// daemon is going to stream. By sending this initial HTTP 200 we can't report
+	// any error after the stream starts (i.e. container not found, wrong parameters)
+	// with the appropriate status code.
 	stdout, stderr := boolValue(r, "stdout"), boolValue(r, "stderr")
 	if !(stdout || stderr) {
 		return fmt.Errorf("Bad parameters: you must choose at least one stream")
