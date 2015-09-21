@@ -5675,6 +5675,7 @@ func (s *DockerSuite) TestBuildStopSignal(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildBuildTimeArg(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	imgName := "bldargtest"
 	envKey := "foo"
 	envVal := "bar"
@@ -5700,6 +5701,7 @@ func (s *DockerSuite) TestBuildBuildTimeArg(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildBuildTimeArgHistory(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	imgName := "bldargtest"
 	envKey := "foo"
 	envVal := "bar"
@@ -5725,6 +5727,7 @@ func (s *DockerSuite) TestBuildBuildTimeArgHistory(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildBuildTimeArgCacheHit(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	imgName := "bldargtest"
 	envKey := "foo"
 	envVal := "bar"
@@ -5751,6 +5754,7 @@ func (s *DockerSuite) TestBuildBuildTimeArgCacheHit(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildBuildTimeArgCacheMissExtraArg(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	imgName := "bldargtest"
 	envKey := "foo"
 	envVal := "bar"
@@ -5782,6 +5786,7 @@ func (s *DockerSuite) TestBuildBuildTimeArgCacheMissExtraArg(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildBuildTimeArgCacheMissSameArgDiffVal(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	imgName := "bldargtest"
 	envKey := "foo"
 	envVal := "bar"
@@ -5813,6 +5818,7 @@ func (s *DockerSuite) TestBuildBuildTimeArgCacheMissSameArgDiffVal(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildBuildTimeArgOverrideArgDefinedBeforeEnv(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	imgName := "bldargtest"
 	envKey := "foo"
 	envVal := "bar"
@@ -5841,6 +5847,7 @@ func (s *DockerSuite) TestBuildBuildTimeArgOverrideArgDefinedBeforeEnv(c *check.
 }
 
 func (s *DockerSuite) TestBuildBuildTimeArgOverrideEnvDefinedBeforeArg(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	imgName := "bldargtest"
 	envKey := "foo"
 	envVal := "bar"
@@ -5869,6 +5876,7 @@ func (s *DockerSuite) TestBuildBuildTimeArgOverrideEnvDefinedBeforeArg(c *check.
 }
 
 func (s *DockerSuite) TestBuildBuildTimeArgExpansion(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	imgName := "bldvarstest"
 
 	wdVar := "WDIR"
@@ -5978,6 +5986,7 @@ func (s *DockerSuite) TestBuildBuildTimeArgExpansion(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildBuildTimeArgExpansionOverride(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	imgName := "bldvarstest"
 	envKey := "foo"
 	envVal := "bar"
@@ -6007,6 +6016,7 @@ func (s *DockerSuite) TestBuildBuildTimeArgExpansionOverride(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildBuildTimeArgUntrustedDefinedAfterUse(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	imgName := "bldargtest"
 	envKey := "foo"
 	envVal := "bar"
@@ -6032,6 +6042,7 @@ func (s *DockerSuite) TestBuildBuildTimeArgUntrustedDefinedAfterUse(c *check.C) 
 }
 
 func (s *DockerSuite) TestBuildBuildTimeArgBuiltinArg(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	imgName := "bldargtest"
 	envKey := "HTTP_PROXY"
 	envVal := "bar"
@@ -6056,6 +6067,7 @@ func (s *DockerSuite) TestBuildBuildTimeArgBuiltinArg(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildBuildTimeArgDefaultOverride(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	imgName := "bldargtest"
 	envKey := "foo"
 	envVal := "bar"
@@ -6083,6 +6095,7 @@ func (s *DockerSuite) TestBuildBuildTimeArgDefaultOverride(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildBuildTimeArgMultiArgsSameLine(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	imgName := "bldargtest"
 	envKey := "foo"
 	envKey1 := "foo1"
@@ -6099,6 +6112,7 @@ func (s *DockerSuite) TestBuildBuildTimeArgMultiArgsSameLine(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildBuildTimeArgUnconsumedArg(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	imgName := "bldargtest"
 	envKey := "foo"
 	envVal := "bar"
@@ -6119,6 +6133,7 @@ func (s *DockerSuite) TestBuildBuildTimeArgUnconsumedArg(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildBuildTimeArgQuotedValVariants(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	imgName := "bldargtest"
 	envKey := "foo"
 	envKey1 := "foo1"
@@ -6144,6 +6159,7 @@ func (s *DockerSuite) TestBuildBuildTimeArgQuotedValVariants(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildBuildTimeArgEmptyValVariants(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	imgName := "bldargtest"
 	envKey := "foo"
 	envKey1 := "foo1"
@@ -6163,6 +6179,7 @@ func (s *DockerSuite) TestBuildBuildTimeArgEmptyValVariants(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildBuildTimeArgDefintionWithNoEnvInjection(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	imgName := "bldargtest"
 	envKey := "foo"
 	args := []string{}
