@@ -121,18 +121,28 @@ type errVerification struct{}
 
 func (errVerification) Error() string { return "verification failed" }
 
+func (p *v2Puller) extractSize(di *downloadInfo) (size int64, err error) {
+	blobs := p.repo.Blobs(context.Background())
+	desc, err := blobs.Stat(context.Background(), di.digest)
+	if err != nil {
+		logrus.Debugf("Error statting layer: %v", err)
+	}
+	return desc.Size, err
+}
+
 func (p *v2Puller) download(di *downloadInfo) {
 	logrus.Debugf("pulling blob %q to %s", di.digest, di.img.ID)
 
 	blobs := p.repo.Blobs(context.Background())
 
-	desc, err := blobs.Stat(context.Background(), di.digest)
-	if err != nil {
-		logrus.Debugf("Error statting layer: %v", err)
-		di.err <- err
-		return
+	if di.size == 0 {
+		size, err := p.extractSize(di)
+		di.size = size
+		if err != nil {
+			di.err <- err
+			return
+		}
 	}
-	di.size = desc.Size
 
 	layerDownload, err := blobs.Open(context.Background(), di.digest)
 	if err != nil {
@@ -215,9 +225,8 @@ func (p *v2Puller) pullV2Tag(out io.Writer, tag, taggedName string, dryRun bool)
 		}
 	}()
 
-	var totalSize int64
-	totalSize = 0
-	nbLayers := 0
+	var layerSizes map[string]int64
+	layerSizes = make(map[string]int64)
 
 	if dryRun {
 		out.Write(p.sf.FormatStatus(tag, "**** Dry Run - nothing will be downloaded ****"))
@@ -242,31 +251,29 @@ func (p *v2Puller) pullV2Tag(out io.Writer, tag, taggedName string, dryRun bool)
 		}
 
 		digest := manifest.FSLayers[i].BlobSum
-		blobs := p.repo.Blobs(context.Background())
-		desc, err := blobs.Stat(context.Background(), digest)
-		if err != nil {
-			logrus.Debugf("Error statting layer: %v", err)
-			return false, err
-		}
-
-		totalSize += desc.Size
-		nbLayers++
-		if dryRun {
-			logrus.Debugf("%v layer size is %v bytes", stringid.TruncateID(img.ID), desc.Size)
-			continue
-		}
-
-		out.Write(p.sf.FormatProgress(stringid.TruncateID(img.ID), "Pulling fs layer", nil))
-
 		d := &downloadInfo{
 			img:     img,
 			poolKey: "layer:" + img.ID,
 			digest:  digest,
+			size:    0,
 			// TODO: seems like this chan buffer solved hanging problem in go1.5,
 			// this can indicate some deeper problem that somehow we never take
 			// error from channel in loop below
 			err: make(chan error, 1),
 		}
+
+		if dryRun {
+			size, err := p.extractSize(d)
+			if err != nil {
+				return false, err
+			}
+			d.size = size
+			logrus.Debugf("Layer %s size: %v", digest.String(), size)
+			layerSizes[digest.String()] = d.size
+			continue
+		}
+
+		out.Write(p.sf.FormatProgress(stringid.TruncateID(img.ID), "Pulling fs layer", nil))
 
 		tmpFile, err := ioutil.TempFile("", "GetImageBlob")
 		if err != nil {
@@ -286,7 +293,12 @@ func (p *v2Puller) pullV2Tag(out io.Writer, tag, taggedName string, dryRun bool)
 		}
 	}
 	if dryRun {
-		out.Write(p.sf.FormatStatus(tag, "Dry Run: %v bytes to be downloaded, in %v layers", totalSize, nbLayers))
+		var totalSize int64
+		totalSize = 0
+		for _, v := range layerSizes {
+			totalSize += v
+		}
+		out.Write(p.sf.FormatStatus(tag, "Dry Run: %v bytes to be downloaded, in %v layers", totalSize, len(layerSizes)))
 		return true, nil
 	}
 
