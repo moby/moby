@@ -61,6 +61,7 @@ func getEnv(key string, env []string) string {
 
 // SetupCgroups setups cgroup resources for a container.
 func SetupCgroups(container *configs.Config, c *Command) error {
+	ioutil.WriteFile("/home/pratik/Desktop/dump2", []byte(c.Resources.BlkioReadLimit), 0644)
 	if c.Resources != nil {
 		container.Cgroups.CpuShares = c.Resources.CPUShares
 		container.Cgroups.Memory = c.Resources.Memory
@@ -71,6 +72,7 @@ func SetupCgroups(container *configs.Config, c *Command) error {
 		container.Cgroups.CpuPeriod = c.Resources.CPUPeriod
 		container.Cgroups.CpuQuota = c.Resources.CPUQuota
 		container.Cgroups.BlkioWeight = c.Resources.BlkioWeight
+		container.Cgroups.BlkioThrottleReadBpsDevice = c.Resources.BlkioReadLimit
 		container.Cgroups.OomKillDisable = c.Resources.OomKillDisable
 		container.Cgroups.MemorySwappiness = c.Resources.MemorySwappiness
 	}

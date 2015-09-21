@@ -3,6 +3,7 @@
 package fs
 
 import (
+	"io/ioutil"
 	"bufio"
 	"fmt"
 	"os"
@@ -31,6 +32,7 @@ func (s *BlkioGroup) Apply(d *data) error {
 }
 
 func (s *BlkioGroup) Set(path string, cgroup *configs.Cgroup) error {
+	ioutil.WriteFile("/home/pratik/Desktop/dump", []byte("hello " + cgroup.BlkioThrottleReadBpsDevice), 0644)
 	if cgroup.BlkioWeight != 0 {
 		if err := writeFile(path, "blkio.weight", strconv.FormatInt(cgroup.BlkioWeight, 10)); err != nil {
 			return err
