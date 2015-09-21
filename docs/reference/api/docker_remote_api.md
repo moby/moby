@@ -88,6 +88,7 @@ This section lists each version from latest to oldest.  Each listing includes a 
 list of DNS options to be used in the container.
 * `POST /build` now optionally takes a serialized map of build-time variables.
 * `GET /events` now includes a `timenano` field, in addition to the existing `time` field.
+* `GET /info` now lists engine version information.
 
 ### v1.20 API changes
 
