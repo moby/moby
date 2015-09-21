@@ -100,7 +100,10 @@ func UnpackLayer(dest string, layer Reader) (size int64, err error) {
 					return 0, err
 				}
 			}
-			continue
+
+			if hdr.Name != ".wh..wh..opq" {
+				continue
+			}
 		}
 		path := filepath.Join(dest, hdr.Name)
 		rel, err := filepath.Rel(dest, path)
@@ -116,9 +119,23 @@ func UnpackLayer(dest string, layer Reader) (size int64, err error) {
 
 		if strings.HasPrefix(base, ".wh.") {
 			originalBase := base[len(".wh."):]
-			originalPath := filepath.Join(filepath.Dir(path), originalBase)
-			if err := os.RemoveAll(originalPath); err != nil {
-				return 0, err
+			dir := filepath.Dir(path)
+			if originalBase == ".wh..opq" {
+				fi, err := os.Lstat(dir)
+				if err != nil && !os.IsNotExist(err) {
+					return 0, err
+				}
+				if err := os.RemoveAll(dir); err != nil {
+					return 0, err
+				}
+				if err := os.Mkdir(dir, fi.Mode()&os.ModePerm); err != nil {
+					return 0, err
+				}
+			} else {
+				originalPath := filepath.Join(dir, originalBase)
+				if err := os.RemoveAll(originalPath); err != nil {
+					return 0, err
+				}
 			}
 		} else {
 			// If path exits we almost always just want to remove and replace it.
