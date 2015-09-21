@@ -9,7 +9,7 @@ import (
 // reserved.
 func (daemon *Daemon) ContainerRename(oldName, newName string) error {
 	if oldName == "" || newName == "" {
-		return fmt.Errorf("usage: docker rename OLD_NAME NEW_NAME")
+		return fmt.Errorf("Neither old nor new names may be empty")
 	}
 
 	container, err := daemon.Get(oldName)
