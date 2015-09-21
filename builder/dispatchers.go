@@ -546,10 +546,6 @@ func expose(b *builder, args []string, attributes map[string]bool, original stri
 // ENTRYPOINT/CMD at container run time.
 //
 func user(b *builder, args []string, attributes map[string]bool, original string) error {
-	if runtime.GOOS == "windows" {
-		return derr.ErrorCodeNotOnWindows.WithArgs("USER")
-	}
-
 	if len(args) != 1 {
 		return derr.ErrorCodeExactlyOneArg.WithArgs("USER")
 	}
@@ -567,9 +563,6 @@ func user(b *builder, args []string, attributes map[string]bool, original string
 // Expose the volume /foo for use. Will also accept the JSON array form.
 //
 func volume(b *builder, args []string, attributes map[string]bool, original string) error {
-	if runtime.GOOS == "windows" {
-		return derr.ErrorCodeNotOnWindows.WithArgs("VOLUME")
-	}
 	if len(args) == 0 {
 		return derr.ErrorCodeAtLeastOneArg.WithArgs("VOLUME")
 	}
@@ -598,9 +591,6 @@ func volume(b *builder, args []string, attributes map[string]bool, original stri
 //
 // Set the signal that will be used to kill the container.
 func stopSignal(b *builder, args []string, attributes map[string]bool, original string) error {
-	if runtime.GOOS == "windows" {
-		return fmt.Errorf("STOPSIGNAL is not supported on Windows")
-	}
 	if len(args) != 1 {
 		return fmt.Errorf("STOPSIGNAL requires exactly one argument")
 	}
