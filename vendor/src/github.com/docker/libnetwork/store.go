@@ -174,7 +174,11 @@ func (c *controller) watchNetworks() error {
 	cs := c.store
 	c.Unlock()
 
-	nwPairs, err := cs.KVStore().WatchTree(datastore.Key(datastore.NetworkKeyPrefix), nil)
+	networkKey := datastore.Key(datastore.NetworkKeyPrefix)
+	if err := ensureKeys(networkKey, cs); err != nil {
+		return fmt.Errorf("failed to ensure if the network keys are valid and present in store: %v", err)
+	}
+	nwPairs, err := cs.KVStore().WatchTree(networkKey, nil)
 	if err != nil {
 		return err
 	}
@@ -228,7 +232,11 @@ func (n *network) watchEndpoints() error {
 	stopCh := n.stopWatchCh
 	n.Unlock()
 
-	epPairs, err := cs.KVStore().WatchTree(datastore.Key(tmp.KeyPrefix()...), stopCh)
+	endpointKey := datastore.Key(tmp.KeyPrefix()...)
+	if err := ensureKeys(endpointKey, cs); err != nil {
+		return fmt.Errorf("failed to ensure if the endpoint keys are valid and present in store: %v", err)
+	}
+	epPairs, err := cs.KVStore().WatchTree(endpointKey, stopCh)
 	if err != nil {
 		return err
 	}
@@ -361,4 +369,15 @@ func (c *controller) processEndpointUpdate(ep *endpoint) bool {
 	ee.Unlock()
 
 	return false
+}
+
+func ensureKeys(key string, cs datastore.DataStore) error {
+	exists, err := cs.KVStore().Exists(key)
+	if err != nil {
+		return err
+	}
+	if exists {
+		return nil
+	}
+	return cs.KVStore().Put(key, []byte{}, nil)
 }
