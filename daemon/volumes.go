@@ -210,7 +210,6 @@ func (s *volumeStore) Increment(v volume.Volume) {
 		return
 	}
 	vc.count++
-	return
 }
 
 // Decrement decrements the usage count of the passed in volume by 1
@@ -224,7 +223,6 @@ func (s *volumeStore) Decrement(v volume.Volume) {
 		return
 	}
 	vc.count--
-	return
 }
 
 // Count returns the usage count of the passed in volume
