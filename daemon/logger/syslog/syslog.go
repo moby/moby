@@ -81,7 +81,7 @@ func New(ctx logger.Context) (logger.Logger, error) {
 		proto,
 		address,
 		facility,
-		path.Base(os.Args[0])+"/"+tag,
+		path.Base(os.Args[0])+"-"+tag,
 	)
 	if err != nil {
 		return nil, err
