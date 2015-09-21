@@ -14,6 +14,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/autogen/dockerversion"
 	"github.com/docker/docker/daemon/graphdriver"
+	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/pkg/fileutils"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/parsers/kernel"
@@ -512,7 +513,7 @@ func (daemon *Daemon) registerLinks(container *Container, hostConfig *runconfig.
 			}
 		}
 		if child.hostConfig.NetworkMode.IsHost() {
-			return runconfig.ErrConflictHostNetworkAndLinks
+			return derr.ErrorCodeConflictHostNetworkAndLinks
 		}
 		if err := daemon.registerLink(container, child, alias); err != nil {
 			return err
