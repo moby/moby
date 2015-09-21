@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strings"
 	"syscall"
 
 	"github.com/docker/docker/context"
@@ -35,6 +36,13 @@ func (d *Driver) Exec(ctx context.Context, c *execdriver.Command, processConfig 
 
 	if processConfig.Privileged {
 		p.Capabilities = execdriver.GetAllCapabilities()
+	}
+	// add CAP_ prefix to all caps for new libcontainer update to match
+	// the spec format.
+	for i, s := range p.Capabilities {
+		if !strings.HasPrefix(s, "CAP_") {
+			p.Capabilities[i] = fmt.Sprintf("CAP_%s", s)
+		}
 	}
 
 	config := active.Config()
