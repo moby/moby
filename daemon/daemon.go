@@ -33,6 +33,7 @@ import (
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/broadcastwriter"
+	"github.com/docker/docker/pkg/discovery"
 	"github.com/docker/docker/pkg/fileutils"
 	"github.com/docker/docker/pkg/graphdb"
 	"github.com/docker/docker/pkg/ioutils"
@@ -115,8 +116,10 @@ type Daemon struct {
 	EventsService    *events.Events
 	netController    libnetwork.NetworkController
 	volumes          *volumeStore
+	discoveryWatcher discovery.Watcher
 	root             string
 	shutdown         bool
+	associated       bool
 }
 
 // Get looks for a container using the provided information, which could be
@@ -749,6 +752,10 @@ func NewDaemon(config *Config, registryService *registry.Service) (daemon *Daemo
 		return nil, err
 	}
 
+	if err := initDiscoveryConfig(config); err != nil {
+		return nil, err
+	}
+
 	d.ID = trustKey.PublicKey().KeyID()
 	d.repository = daemonRepo
 	d.containers = &contStore{s: make(map[string]*Container)}
@@ -766,6 +773,10 @@ func NewDaemon(config *Config, registryService *registry.Service) (daemon *Daemo
 	d.volumes = volStore
 	d.root = config.Root
 	go d.execCommandGC()
+
+	if err := d.Join(d.configStore.Discovery); err != nil {
+		return nil, err
+	}
 
 	if err := d.restore(); err != nil {
 		return nil, err

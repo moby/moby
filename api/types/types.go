@@ -215,6 +215,7 @@ type Info struct {
 	Name               string
 	Labels             []string
 	ExperimentalBuild  bool
+	DiscoveryBackend   string
 }
 
 // ExecStartCheck is a temp struct used by execStart
@@ -339,4 +340,29 @@ type VolumeCreateRequest struct {
 	Name       string            // Name is the requested name of the volume
 	Driver     string            // Driver is the name of the driver that should be used to create the volume
 	DriverOpts map[string]string // DriverOpts holds the driver specific options to use for when creating the volume.
+}
+
+// DiscoveryConfig contains the information needed to associate this engine
+// which other engines
+type DiscoveryConfig struct {
+	NetworkKVStore string
+
+	// Address is the network endpoint that the Engine advertises to the backend for the
+	// purpose of node discovery. This should be a 'host:port' combination on which that daemon
+	// instance is reachable by other hosts.
+	Address string
+
+	// Backend is the URL of a discovery backend, and accepts many different schemes (e.g.,
+	// consul://, etcd://, ...). By default, we assume that the NetworkKVStore can be used when a
+	// discovery backend is left unspecified.
+	Backend string
+}
+
+func (d *DiscoveryConfig) IsEmpty() bool {
+	return d.NetworkKVStore == "" && d.Address == "" && d.Backend == ""
+}
+
+// The result of a Join call
+type JoinResponse struct {
+	Status string
 }
