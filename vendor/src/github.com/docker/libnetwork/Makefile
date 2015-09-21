@@ -1,4 +1,4 @@
-.PHONY: all all-local build build-local check check-code check-format run-tests check-local integration-tests install-deps coveralls circle-ci
+.PHONY: all all-local build build-local check check-code check-format run-tests check-local integration-tests install-deps coveralls circle-ci start-services clean
 SHELL=/bin/bash
 build_image=libnetwork-build
 dockerargs = --privileged -v $(shell pwd):/go/src/github.com/docker/libnetwork -w /go/src/github.com/docker/libnetwork
@@ -7,15 +7,24 @@ docker = docker run --rm -it ${dockerargs} ${container_env} ${build_image}
 ciargs = -e "COVERALLS_TOKEN=$$COVERALLS_TOKEN" -e "INSIDECONTAINER=-incontainer=true"
 cidocker = docker run ${ciargs} ${dockerargs} golang:1.4
 
-all: ${build_image}.created build check integration-tests
+all: ${build_image}.created build check integration-tests clean
 
-integration-tests:
+integration-tests: ./cmd/dnet/dnet
 	@if [ ! -d ./integration-tmp ]; then \
 	    mkdir -p ./integration-tmp;	\
 	    git clone https://github.com/sstephenson/bats.git ./integration-tmp/bats; \
 	    ./integration-tmp/bats/install.sh ./integration-tmp; \
 	fi
 	@./integration-tmp/bin/bats ./test/integration/dnet
+
+./cmd/dnet/dnet:
+	make build-local
+
+clean:
+	@if [ -e ./cmd/dnet/dnet ]; then \
+		echo "Removing dnet binary"; \
+		rm -rf ./cmd/dnet/dnet; \
+	fi
 
 all-local: check-local build-local
 
@@ -67,10 +76,10 @@ run-tests:
 	done
 	@echo "Done running tests"
 
-check-local:	check-format check-code run-tests
+check-local: 	check-format check-code start-services run-tests
 
 install-deps:
-	apt-get update && apt-get -y install iptables
+	apt-get update && apt-get -y install iptables zookeeperd
 	git clone https://github.com/golang/tools /go/src/golang.org/x/tools
 	go install golang.org/x/tools/cmd/vet
 	go install golang.org/x/tools/cmd/goimports
@@ -88,3 +97,6 @@ coveralls:
 circle-ci:
 	@${cidocker} make install-deps build-local check-local coveralls
 	make integration-tests
+
+start-services:
+	service zookeeper start
