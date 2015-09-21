@@ -65,7 +65,13 @@ func (d *Driver) createContainer(ctx context.Context, c *execdriver.Command, hoo
 			return nil, err
 		}
 	}
-
+	// add CAP_ prefix to all caps for new libcontainer update to match
+	// the spec format.
+	for i, s := range container.Capabilities {
+		if !strings.HasPrefix(s, "CAP_") {
+			container.Capabilities[i] = fmt.Sprintf("CAP_%s", s)
+		}
+	}
 	container.AdditionalGroups = c.GroupAdd
 
 	if c.AppArmorProfile != "" {
