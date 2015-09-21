@@ -946,7 +946,7 @@ list of capabilities that are kept. The following table lists the Linux capabili
 
 Further reference information is available on the [capabilities(7) - Linux man page](http://linux.die.net/man/7/capabilities)
 
-Both flags support the value `all`, so if the
+Both flags support the value `ALL`, so if the
 operator wants to have all capabilities but `MKNOD` they could use:
 
     $ docker run --cap-add=ALL --cap-drop=MKNOD ...
