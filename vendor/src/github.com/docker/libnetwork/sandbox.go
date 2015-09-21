@@ -416,6 +416,7 @@ func (sb *sandbox) clearNetworkResources(ep *endpoint) error {
 
 const (
 	defaultPrefix = "/var/lib/docker/network/files"
+	dirPerm       = 0755
 	filePerm      = 0644
 )
 
@@ -777,7 +778,7 @@ func (eh *epHeap) Pop() interface{} {
 }
 
 func createBasePath(dir string) error {
-	return os.MkdirAll(dir, filePerm)
+	return os.MkdirAll(dir, dirPerm)
 }
 
 func createFile(path string) error {
