@@ -96,8 +96,8 @@ lxc.cgroup.memory.soft_limit_in_bytes = {{.Resources.Memory}}
 lxc.cgroup.memory.memsw.limit_in_bytes = {{$memSwap}}
 {{end}}
 {{end}}
-{{if .Resources.KernelMemory}}
-lxc.cgroup.memory.kmem.limit_in_bytes = {{.Resources.Memory}}
+{{if gt .Resources.KernelMemory 0}}
+lxc.cgroup.memory.kmem.limit_in_bytes = {{.Resources.KernelMemory}}
 {{end}}
 {{if .Resources.CPUShares}}
 lxc.cgroup.cpu.shares = {{.Resources.CPUShares}}
