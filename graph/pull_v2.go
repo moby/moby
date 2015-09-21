@@ -250,7 +250,7 @@ func (p *v2Puller) pullV2Tag(out io.Writer, tag, taggedName string, dryRun bool)
 		}
 
 		totalSize += desc.Size
-		nbLayers ++
+		nbLayers++
 		if dryRun {
 			logrus.Debugf("%v layer size is %v bytes", stringid.TruncateID(img.ID), desc.Size)
 			continue
