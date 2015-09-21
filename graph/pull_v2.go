@@ -77,7 +77,7 @@ func (p *v2Puller) pullV2Repository(tag string, dryRun bool) (err error) {
 	if found {
 		// Another pull of the same repository is already taking place; just wait for it to finish
 		if dryRun {
-			fmt.Printf("!!! Another pull of the same image is already running, dry-run is not possible unless you restart the Docker daemon !!!\n")
+			broadcaster.Write(p.sf.FormatStatus(tag, "!!! Another pull of the same image is already running, dry-run is not possible unless you restart the Docker daemon !!!"))
 		}
 		return broadcaster.Wait()
 	}
@@ -220,7 +220,7 @@ func (p *v2Puller) pullV2Tag(out io.Writer, tag, taggedName string, dryRun bool)
 	nbLayers := 0
 
 	if dryRun {
-		fmt.Printf("**** Dry Run - nothing will be downloaded ****\n")
+		out.Write(p.sf.FormatStatus(tag, "**** Dry Run - nothing will be downloaded ****"))
 	}
 
 	for i := len(manifest.FSLayers) - 1; i >= 0; i-- {
