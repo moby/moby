@@ -720,7 +720,17 @@ func NewDaemon(config *Config, registryService *registry.Service) (daemon *Daemo
 		}
 	}
 
-	d.netController, err = initNetworkController(config)
+	// Discovery is only enabled when the daemon is launched with an address to advertise.  When
+	// initialized, the daemon is registered and we can store the discovery backend as its read-only
+	// DiscoveryWatcher version.
+	if config.ClusterStore != "" && config.ClusterAdvertise != "" {
+		var err error
+		if d.discoveryWatcher, err = initDiscovery(config.ClusterStore, config.ClusterAdvertise); err != nil {
+			return nil, fmt.Errorf("discovery initialization failed (%v)", err)
+		}
+	}
+
+	d.netController, err = d.initNetworkController(config)
 	if err != nil {
 		return nil, fmt.Errorf("Error initializing network controller: %v", err)
 	}
@@ -752,16 +762,6 @@ func NewDaemon(config *Config, registryService *registry.Service) (daemon *Daemo
 	ed, err := execdrivers.NewDriver(config.ExecDriver, config.ExecOptions, config.ExecRoot, config.Root, sysInitPath, sysInfo)
 	if err != nil {
 		return nil, err
-	}
-
-	// Discovery is only enabled when the daemon is launched with an address to advertise.  When
-	// initialized, the daemon is registered and we can store the discovery backend as its read-only
-	// DiscoveryWatcher version.
-	if config.ClusterStore != "" && config.ClusterAdvertise != "" {
-		var err error
-		if d.discoveryWatcher, err = initDiscovery(config.ClusterStore, config.ClusterAdvertise); err != nil {
-			return nil, fmt.Errorf("discovery initialization failed (%v)", err)
-		}
 	}
 
 	d.ID = trustKey.PublicKey().KeyID()
