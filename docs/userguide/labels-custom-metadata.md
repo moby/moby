@@ -161,8 +161,20 @@ List all images with `vendor` `ACME`:
     $ docker images --filter "label=vendor=ACME"
 
 
-## Daemon labels
+## Container labels
 
+    docker run \
+       -d \
+       --label com.example.group="webservers" \
+       --label com.example.environment="production" \
+       busybox \
+       top
+
+Please refer to the [Query labels](#query-labels) section above for information
+on how to query labels set on a container.
+
+
+## Daemon labels
 
     docker daemon \
       --dns 8.8.8.8 \
