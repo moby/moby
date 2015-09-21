@@ -72,6 +72,7 @@ type containerInit struct {
 	LayerFolderPath         string   // Where the layer folders are located
 	Layers                  []layer  // List of storage layers
 	ProcessorWeight         int64    // CPU Shares 1..9 on Windows; or 0 is platform default.
+	HostName                string   // Hostname
 }
 
 // defaultOwner is a tag passed to HCS to allow it to differentiate between
@@ -102,6 +103,7 @@ func (d *Driver) Run(ctx context.Context, c *execdriver.Command, pipes *execdriv
 		IgnoreFlushesDuringBoot: c.FirstStart,
 		LayerFolderPath:         c.LayerFolder,
 		ProcessorWeight:         c.Resources.CPUShares,
+		HostName:                c.Hostname,
 	}
 
 	for i := 0; i < len(c.LayerPaths); i++ {
