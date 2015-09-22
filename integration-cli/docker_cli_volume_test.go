@@ -140,3 +140,22 @@ func (s *DockerSuite) TestVolumeCliNoArgs(c *check.C) {
 	expected := "Usage:	docker volume [OPTIONS] [COMMAND]"
 	c.Assert(strings.Contains(stderr, expected), check.Equals, true)
 }
+
+func (s *DockerSuite) TestVolumeWithinBindMount(c *check.C) {
+	dockerFile := `FROM busybox
+	VOLUME /var/demo/inner`
+
+	if _, err := buildImage("volume_within_bind", dockerFile, false); err != nil {
+		c.Fatal(err)
+	}
+
+	dockerCmd(c, "run", "--name", "volume_within_bind_container", "-d", "-v", "/tmp:/var/demo", "volume_within_bind", "true")
+
+	if _, err := inspectMountPoint("volume_within_bind_container", "/var/demo"); err != nil {
+		c.Fatal(err)
+	}
+
+	if m, err := inspectMountPoint("volume_within_bind_container", "/var/demo/inner"); err != errMountNotFound {
+		c.Fatalf("Expected /var/demo/inner to not be mounted as volume, got %v", m)
+	}
+}

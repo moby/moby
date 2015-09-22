@@ -1195,8 +1195,22 @@ func (container *Container) addMountPointWithVolume(destination string, vol volu
 	}
 }
 
+// isDestinationMounted checks if the path to mount inside the container is
+// already mounted, or if one of the parent directories inside the container
+// is also mounted. Preventing volumes from being created when the destination
+// is inside a bind mounted directory from the host.
 func (container *Container) isDestinationMounted(destination string) bool {
-	return container.MountPoints[destination] != nil
+	if container.MountPoints[destination] != nil {
+		return true
+	}
+
+	for _, m := range container.MountPoints {
+		if strings.HasPrefix(destination, m.Destination) {
+			return true
+		}
+	}
+
+	return false
 }
 
 func (container *Container) prepareMountPoints() error {
