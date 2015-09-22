@@ -146,7 +146,11 @@ func (d *Driver) createNetwork(container *configs.Config, c *execdriver.Command,
 			configs.NewFunctionHook(func(s configs.HookState) error {
 				if len(hooks.PreStart) > 0 {
 					for _, fnHook := range hooks.PreStart {
-						if err := fnHook(&c.ProcessConfig, s.Pid); err != nil {
+						// A closed channel for OOM is returned here as it will be
+						// non-blocking and return the correct result when read.
+						chOOM := make(chan struct{})
+						close(chOOM)
+						if err := fnHook(&c.ProcessConfig, s.Pid, chOOM); err != nil {
 							return err
 						}
 					}

@@ -162,9 +162,6 @@ func (m *containerMonitor) Start() error {
 
 		if m.shouldRestart(exitStatus.ExitCode) {
 			m.container.setRestarting(&exitStatus)
-			if exitStatus.OOMKilled {
-				m.container.logEvent("oom")
-			}
 			m.container.logEvent("die")
 			m.resetContainer(true)
 
@@ -179,9 +176,7 @@ func (m *containerMonitor) Start() error {
 			}
 			continue
 		}
-		if exitStatus.OOMKilled {
-			m.container.logEvent("oom")
-		}
+
 		m.container.logEvent("die")
 		m.resetContainer(true)
 		return err
@@ -250,7 +245,14 @@ func (m *containerMonitor) shouldRestart(exitCode int) bool {
 
 // callback ensures that the container's state is properly updated after we
 // received ack from the execution drivers
-func (m *containerMonitor) callback(processConfig *execdriver.ProcessConfig, pid int) error {
+func (m *containerMonitor) callback(processConfig *execdriver.ProcessConfig, pid int, chOOM <-chan struct{}) error {
+	go func() {
+		_, ok := <-chOOM
+		if ok {
+			m.container.logEvent("oom")
+		}
+	}()
+
 	if processConfig.Tty {
 		// The callback is called after the process Start()
 		// so we are in the parent process. In TTY mode, stdin/out/err is the PtySlave
