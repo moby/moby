@@ -45,13 +45,13 @@ There are many networking solutions available to suit a broad range of use-cases
 		return
 	}
 
-	// Create the sandbox for the containr.
+	// Create the sandbox for the container.
+	// NewSandbox accepts Variadic optional arguments which libnetwork can use.
 	sbx, err := controller.NewSandbox("container1",
 		libnetwork.OptionHostname("test"),
 		libnetwork.OptionDomainname("docker.io"))
 
 	// A sandbox can join the endpoint via the join api.
-	// Join accepts Variadic arguments which libnetwork and Drivers can use.
 	err = ep.Join(sbx)
 	if err != nil {
 		return
