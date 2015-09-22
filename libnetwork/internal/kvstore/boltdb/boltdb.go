@@ -257,6 +257,9 @@ func (b *BoltDB) AtomicPut(key string, value []byte, previous *store.KVPair, opt
 			return store.ErrKeyModified
 		}
 		if previous != nil {
+			if len(val) == 0 {
+				return store.ErrKeyNotFound
+			}
 			dbIndex = binary.LittleEndian.Uint64(val[:libkvmetadatalen])
 			if dbIndex != previous.LastIndex {
 				return store.ErrKeyModified
