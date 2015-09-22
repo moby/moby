@@ -61,6 +61,8 @@ type KV interface {
 	Exists() bool
 	// DataScope indicates the storage scope of the KV object
 	DataScope() DataScope
+	// Skip provides a way for a KV Object to avoid persisting it in the KV Store
+	Skip() bool
 }
 
 // DataScope indicates the storage scope

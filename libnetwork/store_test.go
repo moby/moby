@@ -79,6 +79,33 @@ func testLocalBackend(t *testing.T, provider, url string, storeConfig *store.Con
 	}
 }
 
+func TestNoPersist(t *testing.T) {
+	cfgOptions, err := OptionBoltdbWithRandomDBFile()
+	if err != nil {
+		t.Fatalf("Error creating random boltdb file : %v", err)
+	}
+	ctrl, err := New(cfgOptions...)
+	if err != nil {
+		t.Fatalf("Error new controller: %v", err)
+	}
+	nw, err := ctrl.NewNetwork("host", "host", NetworkOptionPersist(false))
+	if err != nil {
+		t.Fatalf("Error creating default \"host\" network: %v", err)
+	}
+	ep, err := nw.CreateEndpoint("newendpoint", []EndpointOption{}...)
+	if err != nil {
+		t.Fatalf("Error creating endpoint: %v", err)
+	}
+	store := ctrl.(*controller).localStore.KVStore()
+	if exists, _ := store.Exists(datastore.Key(datastore.NetworkKeyPrefix, string(nw.ID()))); exists {
+		t.Fatalf("Network with persist=false should not be stored in KV Store")
+	}
+	if exists, _ := store.Exists(datastore.Key([]string{datastore.EndpointKeyPrefix, string(nw.ID()), string(ep.ID())}...)); exists {
+		t.Fatalf("Endpoint in Network with persist=false should not be stored in KV Store")
+	}
+	store.Close()
+}
+
 // OptionBoltdbWithRandomDBFile function returns a random dir for local store backend
 func OptionBoltdbWithRandomDBFile() ([]config.Option, error) {
 	tmp, err := ioutil.TempFile("", "libnetwork-")

@@ -297,6 +297,10 @@ func (n *network) Exists() bool {
 	return n.dbExists
 }
 
+func (n *network) Skip() bool {
+	return false
+}
+
 func (n *network) SetValue(value []byte) error {
 	var vni uint32
 	err := json.Unmarshal(value, &vni)
