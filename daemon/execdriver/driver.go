@@ -200,6 +200,7 @@ type ProcessConfig struct {
 // and CgroupParent.
 type Command struct {
 	ID                 string            `json:"id"`
+	Name               string            `json:"name"`   // name of the container eg stupified_hodgkin
 	Rootfs             string            `json:"rootfs"` // root fs of the container
 	ReadonlyRootfs     bool              `json:"readonly_rootfs"`
 	InitPath           string            `json:"initpath"` // dockerinit
