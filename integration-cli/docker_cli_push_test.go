@@ -154,7 +154,7 @@ func (s *DockerTrustSuite) TestTrustedPushWithFaillingServer(c *check.C) {
 		c.Fatalf("Missing error while running trusted push w/ no server")
 	}
 
-	if !strings.Contains(string(out), "Error establishing connection to notary repository") {
+	if !strings.Contains(string(out), "error contacting notary server") {
 		c.Fatalf("Missing expected output on trusted push:\n%s", out)
 	}
 }
