@@ -12,6 +12,8 @@ const (
 	stdWriterPrefixLen = 8
 	stdWriterFdIndex   = 0
 	stdWriterSizeIndex = 4
+
+	startingBufLen = 32*1024 + stdWriterPrefixLen + 1
 )
 
 // StdType prefixes type and length to standard stream.
@@ -80,7 +82,7 @@ var errInvalidStdHeader = errors.New("Unrecognized input header")
 // `written` will hold the total number of bytes written to `dstout` and `dsterr`.
 func StdCopy(dstout, dsterr io.Writer, src io.Reader) (written int64, err error) {
 	var (
-		buf       = make([]byte, 32*1024+stdWriterPrefixLen+1)
+		buf       = make([]byte, startingBufLen)
 		bufLen    = len(buf)
 		nr, nw    int
 		er, ew    error

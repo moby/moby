@@ -85,6 +85,30 @@ func TestWriteDoesNotReturnNegativeWrittenBytes(t *testing.T) {
 	}
 }
 
+func TestStdCopyWriteAndRead(t *testing.T) {
+	buffer := new(bytes.Buffer)
+	stdOutBytes := []byte(strings.Repeat("o", startingBufLen))
+	dstOut := NewStdWriter(buffer, Stdout)
+	_, err := dstOut.Write(stdOutBytes)
+	if err != nil {
+		t.Fatal(err)
+	}
+	stdErrBytes := []byte(strings.Repeat("e", startingBufLen))
+	dstErr := NewStdWriter(buffer, Stderr)
+	_, err = dstErr.Write(stdErrBytes)
+	if err != nil {
+		t.Fatal(err)
+	}
+	written, err := StdCopy(ioutil.Discard, ioutil.Discard, buffer)
+	if err != nil {
+		t.Fatal(err)
+	}
+	expectedTotalWritten := len(stdOutBytes) + len(stdErrBytes)
+	if written != int64(expectedTotalWritten) {
+		t.Fatalf("Expected to have total of %d bytes written, got %d", expectedTotalWritten, written)
+	}
+}
+
 func TestStdCopyWithInvalidInputHeader(t *testing.T) {
 	dstOut := NewStdWriter(ioutil.Discard, Stdout)
 	dstErr := NewStdWriter(ioutil.Discard, Stderr)
