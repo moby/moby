@@ -275,10 +275,10 @@ __docker_log_drivers() {
 
 __docker_log_driver_options() {
 	# see docs/reference/logging/index.md
-	local fluentd_options="fluentd-address fluentd-tag"
-	local gelf_options="gelf-address gelf-tag"
+	local fluentd_options="fluentd-address tag"
+	local gelf_options="gelf-address tag"
 	local json_file_options="max-file max-size"
-	local syslog_options="syslog-address syslog-facility syslog-tag"
+	local syslog_options="syslog-address syslog-facility tag"
 	local awslogs_options="awslogs-region awslogs-group awslogs-stream"
 
 	case $(__docker_value_of_option --log-driver) in
