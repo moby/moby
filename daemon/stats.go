@@ -40,6 +40,9 @@ func (daemon *Daemon) ContainerStats(prefixOrName string, config *ContainerStats
 	}
 
 	if config.Stream {
+		// Write an empty chunk of data.
+		// This is to ensure that the HTTP status code is sent immediately,
+		// even if the container has not yet produced any data.
 		config.OutStream.Write(nil)
 	}
 

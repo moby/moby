@@ -111,8 +111,12 @@ func (s *Server) getEvents(ctx context.Context, w http.ResponseWriter, r *http.R
 	d := s.daemon
 	es := d.EventsService
 	w.Header().Set("Content-Type", "application/json")
+
 	outStream := ioutils.NewWriteFlusher(w)
-	outStream.Write(nil) // make sure response is sent immediately
+	// Write an empty chunk of data.
+	// This is to ensure that the HTTP status code is sent immediately,
+	// so that it will not block the receiver.
+	outStream.Write(nil)
 	enc := json.NewEncoder(outStream)
 
 	getContainerID := func(cn string) string {
