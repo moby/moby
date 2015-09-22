@@ -47,6 +47,10 @@ for version in "${versions[@]}"; do
 			# get "Development Tools" packages and dependencies
 			echo 'RUN yum groupinstall -y "Development Tools"' >> "$version/Dockerfile"
 			;;
+		opensuse:*)
+			# get rpm-build and curl packages and dependencies
+			echo 'RUN zypper install -n ca-certificates* curl gzip rpm-build' >> "$version/Dockerfile"
+			;;
 		*)
 			echo 'RUN yum install -y @development-tools fedora-packager' >> "$version/Dockerfile"
 			;;
@@ -70,7 +74,17 @@ for version in "${versions[@]}"; do
 			packages=( --enablerepo=ol7_optional_latest "${packages[*]}" )
 			;;
 	esac
-	echo "RUN yum install -y ${packages[*]}" >> "$version/Dockerfile"
+
+	case "$from" in
+		opensuse:*)
+			packages=( "${packages[@]/btrfs-progs-devel/libbtrfs-devel}" )
+			# use zypper
+			echo "RUN zypper install -n ${packages[*]}" >> "$version/Dockerfile"
+			;;
+		*)
+			echo "RUN yum install -y ${packages[*]}" >> "$version/Dockerfile"
+			;;
+	esac
 
 	echo >> "$version/Dockerfile"
 
