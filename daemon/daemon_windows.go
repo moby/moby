@@ -5,6 +5,7 @@ import (
 	"os"
 	"syscall"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/graphdriver"
 	// register the windows graph driver
 	_ "github.com/docker/docker/daemon/graphdriver/windows"
@@ -16,6 +17,8 @@ import (
 const (
 	defaultVirtualSwitch = "Virtual Switch"
 	platformSupported    = true
+	windowsMinCPUShares  = 1
+	windowsMaxCPUShares  = 9
 )
 
 func parseSecurityOpt(container *Container, config *runconfig.HostConfig) error {
@@ -33,6 +36,13 @@ func checkKernel() error {
 // adaptContainerSettings is called during container creation to modify any
 // settings necessary in the HostConfig structure.
 func (daemon *Daemon) adaptContainerSettings(hostConfig *runconfig.HostConfig, adjustCPUShares bool) {
+	if hostConfig.CPUShares < 0 {
+		logrus.Warnf("Changing requested CPUShares of %d to minimum allowed of %d", hostConfig.CPUShares, windowsMinCPUShares)
+		hostConfig.CPUShares = windowsMinCPUShares
+	} else if hostConfig.CPUShares > windowsMaxCPUShares {
+		logrus.Warnf("Changing requested CPUShares of %d to maximum allowed of %d", hostConfig.CPUShares, windowsMaxCPUShares)
+		hostConfig.CPUShares = windowsMaxCPUShares
+	}
 }
 
 // verifyPlatformContainerSettings performs platform-specific validation of the

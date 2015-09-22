@@ -186,7 +186,7 @@ type ProcessConfig struct {
 	ConsoleSize [2]int   `json:"-"` // h,w of initial console size
 }
 
-// Command wrapps an os/exec.Cmd to add more metadata
+// Command wraps an os/exec.Cmd to add more metadata
 //
 // TODO Windows: Factor out unused fields such as LxcConfig, AppArmorProfile,
 // and CgroupParent.
