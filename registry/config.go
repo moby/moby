@@ -295,14 +295,17 @@ func splitReposName(reposName string) (string, string) {
 }
 
 // NewRepositoryInfo validates and breaks down a repository name into a RepositoryInfo
-func (config *ServiceConfig) NewRepositoryInfo(reposName string) (*RepositoryInfo, error) {
+func (config *ServiceConfig) NewRepositoryInfo(reposName string, bySearch bool) (*RepositoryInfo, error) {
 	if err := validateNoSchema(reposName); err != nil {
 		return nil, err
 	}
 
 	indexName, remoteName := splitReposName(reposName)
-	if err := validateRemoteName(remoteName); err != nil {
-		return nil, err
+
+	if !bySearch {
+		if err := validateRemoteName(remoteName); err != nil {
+			return nil, err
+		}
 	}
 
 	repoInfo := &RepositoryInfo{
@@ -354,7 +357,18 @@ func (repoInfo *RepositoryInfo) GetSearchTerm() string {
 // ParseRepositoryInfo performs the breakdown of a repository name into a RepositoryInfo, but
 // lacks registry configuration.
 func ParseRepositoryInfo(reposName string) (*RepositoryInfo, error) {
-	return emptyServiceConfig.NewRepositoryInfo(reposName)
+	return emptyServiceConfig.NewRepositoryInfo(reposName, false)
+}
+
+// ParseIndexInfo will use repository name to get back an indexInfo.
+func ParseIndexInfo(reposName string) (*IndexInfo, error) {
+	indexName, _ := splitReposName(reposName)
+
+	indexInfo, err := emptyServiceConfig.NewIndexInfo(indexName)
+	if err != nil {
+		return nil, err
+	}
+	return indexInfo, nil
 }
 
 // NormalizeLocalName transforms a repository name into a normalize LocalName
