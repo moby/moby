@@ -8,7 +8,6 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"runtime"
 	"strings"
 
 	"github.com/gorilla/mux"
@@ -16,12 +15,9 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/registry/api/errcode"
 	"github.com/docker/docker/api"
-	"github.com/docker/docker/autogen/dockerversion"
 	"github.com/docker/docker/context"
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/pkg/sockets"
-	"github.com/docker/docker/pkg/stringid"
-	"github.com/docker/docker/pkg/version"
 )
 
 // Config provides the configuration for the API server
@@ -49,8 +45,7 @@ func New(cfg *Config) *Server {
 		cfg:   cfg,
 		start: make(chan struct{}),
 	}
-	r := createRouter(srv)
-	srv.router = r
+	srv.router = createRouter(srv)
 	return srv
 }
 
@@ -294,8 +289,11 @@ func (s *Server) initTCPSocket(addr string) (l net.Listener, err error) {
 	return
 }
 
-func makeHTTPHandler(logging bool, localMethod string, localRoute string, handlerFunc HTTPAPIFunc, corsHeaders string, dockerVersion version.Version) http.HandlerFunc {
+func (s *Server) makeHTTPHandler(localMethod string, localRoute string, localHandler HTTPAPIFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		// log the handler generation
+		logrus.Debugf("Calling %s %s", localMethod, localRoute)
+
 		// Define the context that we'll pass around to share info
 		// like the docker-request-id.
 		//
@@ -303,51 +301,8 @@ func makeHTTPHandler(logging bool, localMethod string, localRoute string, handle
 		// apply to all requests. Data that is specific to the
 		// immediate function being called should still be passed
 		// as 'args' on the function call.
-
-		reqID := stringid.TruncateID(stringid.GenerateNonCryptoID())
-		apiVersion := version.Version(mux.Vars(r)["version"])
-		if apiVersion == "" {
-			apiVersion = api.Version
-		}
-
 		ctx := context.Background()
-		ctx = context.WithValue(ctx, context.RequestID, reqID)
-		ctx = context.WithValue(ctx, context.APIVersion, apiVersion)
-
-		// log the request
-		logrus.Debugf("Calling %s %s", localMethod, localRoute)
-
-		if logging {
-			logrus.Infof("%s %s", r.Method, r.RequestURI)
-		}
-
-		if strings.Contains(r.Header.Get("User-Agent"), "Docker-Client/") {
-			userAgent := strings.Split(r.Header.Get("User-Agent"), "/")
-
-			// v1.20 onwards includes the GOOS of the client after the version
-			// such as Docker/1.7.0 (linux)
-			if len(userAgent) == 2 && strings.Contains(userAgent[1], " ") {
-				userAgent[1] = strings.Split(userAgent[1], " ")[0]
-			}
-
-			if len(userAgent) == 2 && !dockerVersion.Equal(version.Version(userAgent[1])) {
-				logrus.Debugf("Warning: client and server don't have the same version (client: %s, server: %s)", userAgent[1], dockerVersion)
-			}
-		}
-		if corsHeaders != "" {
-			writeCorsHeaders(w, r, corsHeaders)
-		}
-
-		if apiVersion.GreaterThan(api.Version) {
-			http.Error(w, fmt.Errorf("client is newer than server (client API version: %s, server API version: %s)", apiVersion, api.Version).Error(), http.StatusBadRequest)
-			return
-		}
-		if apiVersion.LessThan(api.MinVersion) {
-			http.Error(w, fmt.Errorf("client is too old, minimum supported API version is %s, please upgrade your client to a newer version", api.MinVersion).Error(), http.StatusBadRequest)
-			return
-		}
-
-		w.Header().Set("Server", "Docker/"+dockerversion.VERSION+" ("+runtime.GOOS+")")
+		handlerFunc := s.handleWithGlobalMiddlewares(localHandler)
 
 		if err := handlerFunc(ctx, w, r, mux.Vars(r)); err != nil {
 			logrus.Errorf("Handler for %s %s returned error: %s", localMethod, localRoute, err)
@@ -356,6 +311,7 @@ func makeHTTPHandler(logging bool, localMethod string, localRoute string, handle
 	}
 }
 
+// createRouter initializes the main router the server uses.
 // we keep enableCors just for legacy usage, need to be removed in the future
 func createRouter(s *Server) *mux.Router {
 	r := mux.NewRouter()
@@ -428,13 +384,6 @@ func createRouter(s *Server) *mux.Router {
 		},
 	}
 
-	// If "api-cors-header" is not given, but "api-enable-cors" is true, we set cors to "*"
-	// otherwise, all head values will be passed to HTTP handler
-	corsHeaders := s.cfg.CorsHeaders
-	if corsHeaders == "" && s.cfg.EnableCors {
-		corsHeaders = "*"
-	}
-
 	for method, routes := range m {
 		for route, fct := range routes {
 			logrus.Debugf("Registering %s, %s", method, route)
@@ -444,7 +393,7 @@ func createRouter(s *Server) *mux.Router {
 			localMethod := method
 
 			// build the handler function
-			f := makeHTTPHandler(s.cfg.Logging, localMethod, localRoute, localFct, corsHeaders, version.Version(s.cfg.Version))
+			f := s.makeHTTPHandler(localMethod, localRoute, localFct)
 
 			// add the new route
 			if localRoute == "" {
