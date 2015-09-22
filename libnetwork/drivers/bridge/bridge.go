@@ -14,6 +14,7 @@ import (
 	"syscall"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/libnetwork/datastore"
 	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/ipallocator"
 	"github.com/docker/libnetwork/iptables"
@@ -133,7 +134,7 @@ func Init(dc driverapi.DriverCallback, config map[string]interface{}) error {
 	}
 
 	c := driverapi.Capability{
-		Scope: driverapi.LocalScope,
+		DataScope: datastore.LocalScope,
 	}
 	return dc.RegisterDriver(networkType, d, c)
 }

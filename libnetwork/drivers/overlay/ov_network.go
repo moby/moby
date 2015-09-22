@@ -306,6 +306,10 @@ func (n *network) SetValue(value []byte) error {
 	return err
 }
 
+func (n *network) DataScope() datastore.DataScope {
+	return datastore.GlobalScope
+}
+
 func (n *network) writeToStore() error {
 	return n.driver.store.PutObjectAtomic(n)
 }

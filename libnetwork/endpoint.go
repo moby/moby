@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
+	"strings"
 	"sync"
 
 	log "github.com/Sirupsen/logrus"
@@ -130,15 +131,15 @@ func (ep *endpoint) KeyPrefix() []string {
 	return []string{datastore.EndpointKeyPrefix, ep.getNetwork().id}
 }
 
-func (ep *endpoint) networkIDFromKey(key []string) (string, error) {
-	// endpoint Key structure : endpoint/network-id/endpoint-id
-	// it's an invalid key if the key doesn't have all the 3 key elements above
-	if key == nil || len(key) < 3 || key[0] != datastore.EndpointKeyPrefix {
+func (ep *endpoint) networkIDFromKey(key string) (string, error) {
+	// endpoint Key structure : docker/libnetwork/endpoint/${network-id}/${endpoint-id}
+	// it's an invalid key if the key doesn't have all the 5 key elements above
+	keyElements := strings.Split(key, "/")
+	if !strings.HasPrefix(key, datastore.Key(datastore.EndpointKeyPrefix)) || len(keyElements) < 5 {
 		return "", fmt.Errorf("invalid endpoint key : %v", key)
 	}
-
-	// network-id is placed at index=1. pls refer to endpoint.Key() method
-	return key[1], nil
+	// network-id is placed at index=3. pls refer to endpoint.Key() method
+	return strings.Split(key, "/")[3], nil
 }
 
 func (ep *endpoint) Value() []byte {
@@ -281,8 +282,10 @@ func (ep *endpoint) Join(sbox Sandbox, options ...EndpointOption) error {
 		return err
 	}
 
-	if err = network.ctrlr.updateEndpointToStore(ep); err != nil {
-		return err
+	if !ep.isLocalScoped() {
+		if err = network.ctrlr.updateToStore(ep); err != nil {
+			return err
+		}
 	}
 
 	sb.Lock()
@@ -354,11 +357,13 @@ func (ep *endpoint) Leave(sbox Sandbox, options ...EndpointOption) error {
 	d := n.driver
 	n.Unlock()
 
-	if err := c.updateEndpointToStore(ep); err != nil {
-		ep.Lock()
-		ep.sandboxID = sid
-		ep.Unlock()
-		return err
+	if !ep.isLocalScoped() {
+		if err := c.updateToStore(ep); err != nil {
+			ep.Lock()
+			ep.sandboxID = sid
+			ep.Unlock()
+			return err
+		}
 	}
 
 	if err := d.Leave(n.id, ep.id); err != nil {
@@ -394,27 +399,31 @@ func (ep *endpoint) Delete() error {
 	n.Unlock()
 	ep.Unlock()
 
-	if err = ctrlr.deleteEndpointFromStore(ep); err != nil {
-		return err
+	if !ep.isLocalScoped() {
+		if err = ctrlr.deleteFromStore(ep); err != nil {
+			return err
+		}
 	}
 	defer func() {
 		if err != nil {
-			ep.SetIndex(0)
-			if e := ctrlr.updateEndpointToStore(ep); e != nil {
-				log.Warnf("failed to recreate endpoint in store %s : %v", name, err)
+			ep.dbExists = false
+			if !ep.isLocalScoped() {
+				if e := ctrlr.updateToStore(ep); e != nil {
+					log.Warnf("failed to recreate endpoint in store %s : %v", name, e)
+				}
 			}
 		}
 	}()
 
 	// Update the endpoint count in network and update it in the datastore
 	n.DecEndpointCnt()
-	if err = ctrlr.updateNetworkToStore(n); err != nil {
+	if err = ctrlr.updateToStore(n); err != nil {
 		return err
 	}
 	defer func() {
 		if err != nil {
 			n.IncEndpointCnt()
-			if e := ctrlr.updateNetworkToStore(n); e != nil {
+			if e := ctrlr.updateToStore(n); e != nil {
 				log.Warnf("failed to update network %s : %v", n.name, e)
 			}
 		}
@@ -539,4 +548,14 @@ func JoinOptionPriority(ep Endpoint, prio int) EndpointOption {
 		}
 		sb.epPriority[ep.id] = prio
 	}
+}
+
+func (ep *endpoint) DataScope() datastore.DataScope {
+	ep.Lock()
+	defer ep.Unlock()
+	return ep.network.dataScope
+}
+
+func (ep *endpoint) isLocalScoped() bool {
+	return ep.DataScope() == datastore.LocalScope
 }

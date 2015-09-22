@@ -69,6 +69,7 @@ type network struct {
 	svcRecords  svcMap
 	dbExists    bool
 	stopWatchCh chan struct{}
+	dataScope   datastore.DataScope
 	sync.Mutex
 }
 
@@ -138,6 +139,12 @@ func (n *network) Exists() bool {
 	n.Lock()
 	defer n.Unlock()
 	return n.dbExists
+}
+
+func (n *network) DataScope() datastore.DataScope {
+	n.Lock()
+	defer n.Unlock()
+	return n.dataScope
 }
 
 func (n *network) EndpointCnt() uint64 {
@@ -233,12 +240,21 @@ func (n *network) Delete() error {
 
 	// deleteNetworkFromStore performs an atomic delete operation and the network.endpointCnt field will help
 	// prevent any possible race between endpoint join and network delete
-	if err = ctrlr.deleteNetworkFromStore(n); err != nil {
+	if err = ctrlr.deleteFromStore(n); err != nil {
 		if err == datastore.ErrKeyModified {
 			return types.InternalErrorf("operation in progress. delete failed for network %s. Please try again.")
 		}
 		return err
 	}
+
+	defer func() {
+		if err != nil {
+			n.dbExists = false
+			if e := ctrlr.updateToStore(n); e != nil {
+				log.Warnf("failed to recreate network in store %s : %v", n.name, e)
+			}
+		}
+	}()
 
 	if err = n.deleteNetwork(); err != nil {
 		return err
@@ -315,13 +331,13 @@ func (n *network) CreateEndpoint(name string, options ...EndpointOption) (Endpoi
 	n.Unlock()
 
 	n.IncEndpointCnt()
-	if err = ctrlr.updateNetworkToStore(n); err != nil {
+	if err = ctrlr.updateToStore(n); err != nil {
 		return nil, err
 	}
 	defer func() {
 		if err != nil {
 			n.DecEndpointCnt()
-			if err = ctrlr.updateNetworkToStore(n); err != nil {
+			if err = ctrlr.updateToStore(n); err != nil {
 				log.Warnf("endpoint count cleanup failed when updating network for %s : %v", name, err)
 			}
 		}
@@ -337,8 +353,10 @@ func (n *network) CreateEndpoint(name string, options ...EndpointOption) (Endpoi
 		}
 	}()
 
-	if err = ctrlr.updateEndpointToStore(ep); err != nil {
-		return nil, err
+	if !ep.isLocalScoped() {
+		if err = ctrlr.updateToStore(ep); err != nil {
+			return nil, err
+		}
 	}
 
 	return ep, nil
@@ -398,11 +416,8 @@ func (n *network) EndpointByID(id string) (Endpoint, error) {
 	return nil, ErrNoSuchEndpoint(id)
 }
 
-func (n *network) isGlobalScoped() (bool, error) {
-	n.Lock()
-	c := n.ctrlr
-	n.Unlock()
-	return c.isDriverGlobalScoped(n.networkType)
+func (n *network) isGlobalScoped() bool {
+	return n.DataScope() == datastore.GlobalScope
 }
 
 func (n *network) updateSvcRecord(ep *endpoint, isAdd bool) {

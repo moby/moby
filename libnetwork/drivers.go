@@ -29,9 +29,9 @@ func makeDriverConfig(c *controller, ntype string) map[string]interface{} {
 
 	config := make(map[string]interface{})
 
-	if c.validateDatastoreConfig() {
-		config[netlabel.KVProvider] = c.cfg.Datastore.Client.Provider
-		config[netlabel.KVProviderURL] = c.cfg.Datastore.Client.Address
+	if c.validateGlobalStoreConfig() {
+		config[netlabel.KVProvider] = c.cfg.GlobalStore.Client.Provider
+		config[netlabel.KVProviderURL] = c.cfg.GlobalStore.Client.Address
 	}
 
 	for _, label := range c.cfg.Daemon.Labels {
