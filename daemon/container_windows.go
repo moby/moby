@@ -72,8 +72,10 @@ func populateCommand(c *Container, env []string) error {
 	// TODO Windows. This can probably be factored out.
 	pid.HostPid = c.hostConfig.PidMode.IsHost()
 
-	// TODO Windows. Resource controls to be implemented later.
-	resources := &execdriver.Resources{}
+	// TODO Windows. More resource controls to be implemented later.
+	resources := &execdriver.Resources{
+		CPUShares: c.hostConfig.CPUShares,
+	}
 
 	// TODO Windows. Further refactoring required (privileged/user)
 	processConfig := execdriver.ProcessConfig{
