@@ -1028,7 +1028,7 @@ func (s *DockerSuite) TestContainerApiRestart(c *check.C) {
 	c.Assert(err, check.IsNil)
 	c.Assert(status, check.Equals, http.StatusNoContent)
 
-	if err := waitInspect(name, "{{ .State.Restarting  }} {{ .State.Running  }}", "false true", 5); err != nil {
+	if err := waitInspect(name, "{{ .State.Restarting  }} {{ .State.Running  }}", "false true", 5*time.Second); err != nil {
 		c.Fatal(err)
 	}
 }
@@ -1044,7 +1044,7 @@ func (s *DockerSuite) TestContainerApiRestartNotimeoutParam(c *check.C) {
 	c.Assert(err, check.IsNil)
 	c.Assert(status, check.Equals, http.StatusNoContent)
 
-	if err := waitInspect(name, "{{ .State.Restarting  }} {{ .State.Running  }}", "false true", 5); err != nil {
+	if err := waitInspect(name, "{{ .State.Restarting  }} {{ .State.Running  }}", "false true", 5*time.Second); err != nil {
 		c.Fatal(err)
 	}
 }
@@ -1082,7 +1082,7 @@ func (s *DockerSuite) TestContainerApiStop(c *check.C) {
 	c.Assert(err, check.IsNil)
 	c.Assert(status, check.Equals, http.StatusNoContent)
 
-	if err := waitInspect(name, "{{ .State.Running  }}", "false", 5); err != nil {
+	if err := waitInspect(name, "{{ .State.Running  }}", "false", 5*time.Second); err != nil {
 		c.Fatal(err)
 	}
 
@@ -1101,7 +1101,7 @@ func (s *DockerSuite) TestContainerApiWait(c *check.C) {
 	c.Assert(err, check.IsNil)
 	c.Assert(status, check.Equals, http.StatusOK)
 
-	if err := waitInspect(name, "{{ .State.Running  }}", "false", 5); err != nil {
+	if err := waitInspect(name, "{{ .State.Running  }}", "false", 5*time.Second); err != nil {
 		c.Fatal(err)
 	}
 
@@ -1347,7 +1347,7 @@ func (s *DockerSuite) TestPostContainerStop(c *check.C) {
 	// 204 No Content is expected, not 200
 	c.Assert(statusCode, check.Equals, http.StatusNoContent)
 
-	if err := waitInspect(containerID, "{{ .State.Running  }}", "false", 5); err != nil {
+	if err := waitInspect(containerID, "{{ .State.Running  }}", "false", 5*time.Second); err != nil {
 		c.Fatal(err)
 	}
 }
