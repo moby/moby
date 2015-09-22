@@ -111,6 +111,11 @@ func (a *Allocator) Exists() bool {
 	return a.dbExists
 }
 
+// Skip provides a way for a KV Object to avoid persisting it in the KV Store
+func (a *Allocator) Skip() bool {
+	return false
+}
+
 func (a *Allocator) watchForChanges() error {
 	if a.store == nil {
 		return nil

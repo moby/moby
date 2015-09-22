@@ -68,6 +68,7 @@ type network struct {
 	dbIndex     uint64
 	svcRecords  svcMap
 	dbExists    bool
+	persist     bool
 	stopWatchCh chan struct{}
 	dataScope   datastore.DataScope
 	sync.Mutex
@@ -141,6 +142,12 @@ func (n *network) Exists() bool {
 	return n.dbExists
 }
 
+func (n *network) Skip() bool {
+	n.Lock()
+	defer n.Unlock()
+	return !n.persist
+}
+
 func (n *network) DataScope() datastore.DataScope {
 	n.Lock()
 	defer n.Unlock()
@@ -174,6 +181,7 @@ func (n *network) MarshalJSON() ([]byte, error) {
 	netMap["endpointCnt"] = n.endpointCnt
 	netMap["enableIPv6"] = n.enableIPv6
 	netMap["generic"] = n.generic
+	netMap["persist"] = n.persist
 	return json.Marshal(netMap)
 }
 
@@ -191,6 +199,9 @@ func (n *network) UnmarshalJSON(b []byte) (err error) {
 	if netMap["generic"] != nil {
 		n.generic = netMap["generic"].(map[string]interface{})
 	}
+	if netMap["persist"] != nil {
+		n.persist = netMap["persist"].(bool)
+	}
 	return nil
 }
 
@@ -207,6 +218,13 @@ func NetworkOptionGeneric(generic map[string]interface{}) NetworkOption {
 		if _, ok := generic[netlabel.EnableIPv6]; ok {
 			n.enableIPv6 = generic[netlabel.EnableIPv6].(bool)
 		}
+	}
+}
+
+// NetworkOptionPersist returns an option setter to set persistence policy for a network
+func NetworkOptionPersist(persist bool) NetworkOption {
+	return func(n *network) {
+		n.persist = persist
 	}
 }
 

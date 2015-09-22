@@ -173,6 +173,10 @@ func (ep *endpoint) Exists() bool {
 	return ep.dbExists
 }
 
+func (ep *endpoint) Skip() bool {
+	return ep.getNetwork().Skip()
+}
+
 func (ep *endpoint) processOptions(options ...EndpointOption) {
 	ep.Lock()
 	defer ep.Unlock()

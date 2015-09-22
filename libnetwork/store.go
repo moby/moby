@@ -110,6 +110,9 @@ func (c *controller) newEndpointFromStore(key string, ep *endpoint) error {
 }
 
 func (c *controller) updateToStore(kvObject datastore.KV) error {
+	if kvObject.Skip() {
+		return nil
+	}
 	cs := c.getDataStore(kvObject.DataScope())
 	if cs == nil {
 		log.Debugf("datastore not initialized. kv object %s is not added to the store", datastore.Key(kvObject.Key()...))
@@ -120,6 +123,9 @@ func (c *controller) updateToStore(kvObject datastore.KV) error {
 }
 
 func (c *controller) deleteFromStore(kvObject datastore.KV) error {
+	if kvObject.Skip() {
+		return nil
+	}
 	cs := c.getDataStore(kvObject.DataScope())
 	if cs == nil {
 		log.Debugf("datastore not initialized. kv object %s is not deleted from datastore", datastore.Key(kvObject.Key()...))
@@ -188,7 +194,7 @@ func (c *controller) watchNetworks() error {
 }
 
 func (n *network) watchEndpoints() error {
-	if !n.ctrlr.validateGlobalStoreConfig() {
+	if n.Skip() || !n.ctrlr.validateGlobalStoreConfig() {
 		return nil
 	}
 

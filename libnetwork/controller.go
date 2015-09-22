@@ -248,6 +248,7 @@ func (c *controller) NewNetwork(networkType, name string, options ...NetworkOpti
 		id:          stringid.GenerateRandomID(),
 		ctrlr:       c,
 		endpoints:   endpointTable{},
+		persist:     true,
 	}
 
 	network.processOptions(options...)
