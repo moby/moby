@@ -250,8 +250,9 @@ func (c *linuxContainer) Destroy() error {
 	c.initProcess = nil
 	if c.config.Hooks != nil {
 		s := configs.HookState{
-			ID:   c.id,
-			Root: c.config.Rootfs,
+			Version: c.config.Version,
+			ID:      c.id,
+			Root:    c.config.Rootfs,
 		}
 		for _, hook := range c.config.Hooks.Poststop {
 			if err := hook.Run(s); err != nil {
