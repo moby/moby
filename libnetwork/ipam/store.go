@@ -2,7 +2,6 @@ package ipam
 
 import (
 	"encoding/json"
-	"net"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/libnetwork/datastore"
@@ -13,14 +12,14 @@ import (
 func (a *Allocator) Key() []string {
 	a.Lock()
 	defer a.Unlock()
-	return []string{a.App, a.ID}
+	return []string{dsConfigKey}
 }
 
 // KeyPrefix returns the immediate parent key that can be used for tree walk
 func (a *Allocator) KeyPrefix() []string {
 	a.Lock()
 	defer a.Unlock()
-	return []string{a.App}
+	return []string{dsConfigKey}
 }
 
 // Value marshals the data to be stored in the KV store
@@ -31,9 +30,14 @@ func (a *Allocator) Value() []byte {
 	if a.subnets == nil {
 		return []byte{}
 	}
+	m := map[string]interface{}{}
+	for k, v := range a.subnets {
+		m[k.String()] = v
+	}
 
-	b, err := subnetsToByteArray(a.subnets)
+	b, err := json.Marshal(m)
 	if err != nil {
+		log.Warnf("Failed to marshal ipam configured subnets")
 		return nil
 	}
 	return b
@@ -41,52 +45,19 @@ func (a *Allocator) Value() []byte {
 
 // SetValue unmarshalls the data from the KV store.
 func (a *Allocator) SetValue(value []byte) error {
-	a.subnets = byteArrayToSubnets(value)
-	return nil
-}
-
-func subnetsToByteArray(m map[subnetKey]*SubnetInfo) ([]byte, error) {
-	if m == nil {
-		return nil, nil
-	}
-
-	mm := make(map[string]string, len(m))
-	for k, v := range m {
-		mm[k.String()] = v.Subnet.String()
-	}
-
-	return json.Marshal(mm)
-}
-
-func byteArrayToSubnets(ba []byte) map[subnetKey]*SubnetInfo {
-	m := map[subnetKey]*SubnetInfo{}
-
-	if ba == nil || len(ba) == 0 {
-		return m
-	}
-
-	var mm map[string]string
-	err := json.Unmarshal(ba, &mm)
+	var m map[string]*PoolData
+	err := json.Unmarshal(value, &m)
 	if err != nil {
-		log.Warnf("Failed to decode subnets byte array: %v", err)
-		return m
+		return err
 	}
-	for ks, vs := range mm {
-		sk := subnetKey{}
-		if err := sk.FromString(ks); err != nil {
-			log.Warnf("Failed to decode subnets map entry: (%s, %s)", ks, vs)
-			continue
+	for ks, d := range m {
+		k := SubnetKey{}
+		if err := k.FromString(ks); err != nil {
+			return err
 		}
-		si := &SubnetInfo{}
-		_, nw, err := net.ParseCIDR(vs)
-		if err != nil {
-			log.Warnf("Failed to decode subnets map entry value: (%s, %s)", ks, vs)
-			continue
-		}
-		si.Subnet = nw
-		m[sk] = si
+		a.subnets[k] = d
 	}
-	return m
+	return nil
 }
 
 // Index returns the latest DB Index as seen by this object
@@ -130,7 +101,6 @@ func (a *Allocator) watchForChanges() error {
 			select {
 			case kvPair := <-kvpChan:
 				if kvPair != nil {
-					log.Debugf("Got notification for key %v: %v", kvPair.Key, kvPair.Value)
 					a.subnetConfigFromStore(kvPair)
 				}
 			}

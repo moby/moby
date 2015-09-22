@@ -306,8 +306,8 @@ func (h *Handle) validateOrdinal(ordinal uint32) error {
 }
 
 // Destroy removes from the datastore the data belonging to this handle
-func (h *Handle) Destroy() {
-	h.deleteFromStore()
+func (h *Handle) Destroy() error {
+	return h.deleteFromStore()
 }
 
 // ToByteArray converts this handle's data into a byte array

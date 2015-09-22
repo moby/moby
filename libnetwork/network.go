@@ -60,6 +60,7 @@ type network struct {
 	name        string
 	networkType string
 	id          string
+	ipamType    string
 	driver      driverapi.Driver
 	enableIPv6  bool
 	endpointCnt uint64
@@ -178,6 +179,7 @@ func (n *network) MarshalJSON() ([]byte, error) {
 	netMap["name"] = n.name
 	netMap["id"] = n.id
 	netMap["networkType"] = n.networkType
+	netMap["ipamType"] = n.ipamType
 	netMap["endpointCnt"] = n.endpointCnt
 	netMap["enableIPv6"] = n.enableIPv6
 	netMap["generic"] = n.generic
@@ -193,6 +195,7 @@ func (n *network) UnmarshalJSON(b []byte) (err error) {
 	}
 	n.name = netMap["name"].(string)
 	n.id = netMap["id"].(string)
+	n.ipamType = netMap["ipamType"].(string)
 	n.networkType = netMap["networkType"].(string)
 	n.endpointCnt = uint64(netMap["endpointCnt"].(float64))
 	n.enableIPv6 = netMap["enableIPv6"].(bool)
@@ -239,9 +242,7 @@ func (n *network) processOptions(options ...NetworkOption) {
 func (n *network) Delete() error {
 	var err error
 
-	n.Lock()
-	ctrlr := n.ctrlr
-	n.Unlock()
+	ctrlr := n.getController()
 
 	ctrlr.Lock()
 	_, ok := ctrlr.networks[n.id]
@@ -338,15 +339,12 @@ func (n *network) CreateEndpoint(name string, options ...EndpointOption) (Endpoi
 		return nil, types.ForbiddenErrorf("service endpoint with name %s already exists", name)
 	}
 
-	ep := &endpoint{name: name,
-		generic: make(map[string]interface{})}
+	ep := &endpoint{name: name, generic: make(map[string]interface{})}
 	ep.id = stringid.GenerateRandomID()
 	ep.network = n
 	ep.processOptions(options...)
 
-	n.Lock()
-	ctrlr := n.ctrlr
-	n.Unlock()
+	ctrlr := n.getController()
 
 	n.IncEndpointCnt()
 	if err = ctrlr.updateToStore(n); err != nil {

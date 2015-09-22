@@ -29,7 +29,8 @@ cmd/dnet/dnet
 *.tmp
 *.coverprofile
 
-# IDE files
+# IDE files and folders
 .project
+.settings/
 
 libnetwork-build.created

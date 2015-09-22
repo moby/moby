@@ -4,6 +4,9 @@ import (
 	"strings"
 
 	"github.com/docker/libnetwork/driverapi"
+	"github.com/docker/libnetwork/ipamapi"
+	builtinIpam "github.com/docker/libnetwork/ipams/builtin"
+	remoteIpam "github.com/docker/libnetwork/ipams/remote"
 	"github.com/docker/libnetwork/netlabel"
 )
 
@@ -52,4 +55,16 @@ func makeDriverConfig(c *controller, ntype string) map[string]interface{} {
 	}
 
 	return config
+}
+
+func initIpams(ic ipamapi.Callback, lDs, gDs interface{}) error {
+	for _, fn := range [](func(ipamapi.Callback, interface{}, interface{}) error){
+		builtinIpam.Init,
+		remoteIpam.Init,
+	} {
+		if err := fn(ic, lDs, gDs); err != nil {
+			return err
+		}
+	}
+	return nil
 }
