@@ -40,13 +40,19 @@ func NewClient(addr string, tlsConfig tlsconfig.Options) (*Client, error) {
 
 	protoAndAddr := strings.Split(addr, "://")
 	sockets.ConfigureTCPTransport(tr, protoAndAddr[0], protoAndAddr[1])
-	return &Client{&http.Client{Transport: tr}, protoAndAddr[1]}, nil
+
+	scheme := protoAndAddr[0]
+	if scheme != "https" {
+		scheme = "http"
+	}
+	return &Client{&http.Client{Transport: tr}, scheme, protoAndAddr[1]}, nil
 }
 
 // Client represents a plugin client.
 type Client struct {
-	http *http.Client // http client to use
-	addr string       // http address of the plugin
+	http   *http.Client // http client to use
+	scheme string       // scheme protocol of the plugin
+	addr   string       // http address of the plugin
 }
 
 // Call calls the specified method with the specified arguments for the plugin.
@@ -66,7 +72,7 @@ func (c *Client) callWithRetry(serviceMethod string, args interface{}, ret inter
 		return err
 	}
 	req.Header.Add("Accept", versionMimetype)
-	req.URL.Scheme = "http"
+	req.URL.Scheme = c.scheme
 	req.URL.Host = c.addr
 
 	var retries int
