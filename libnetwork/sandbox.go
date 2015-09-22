@@ -347,15 +347,16 @@ func (sb *sandbox) populateNetworkResources(ep *endpoint) error {
 		}
 	}
 
-	sb.Lock()
-	highEp := sb.endpoints[0]
-	sb.Unlock()
-	if ep == highEp {
-		if err := sb.updateGateway(ep); err != nil {
-			return err
+	for _, gwep := range sb.getConnectedEndpoints() {
+		if len(gwep.Gateway()) > 0 {
+			if gwep != ep {
+				return nil
+			}
+			if err := sb.updateGateway(gwep); err != nil {
+				return err
+			}
 		}
 	}
-
 	return nil
 }
 
@@ -394,26 +395,33 @@ func (sb *sandbox) clearNetworkResources(ep *endpoint) error {
 		return nil
 	}
 
-	highEpBefore := sb.endpoints[0]
 	var (
-		i int
-		e *endpoint
+		gwepBefore, gwepAfter *endpoint
+		index                 = -1
 	)
-	for i, e = range sb.endpoints {
+	for i, e := range sb.endpoints {
 		if e == ep {
+			index = i
+		}
+		if len(e.Gateway()) > 0 && gwepBefore == nil {
+			gwepBefore = e
+		}
+		if index != -1 && gwepBefore != nil {
 			break
 		}
 	}
-	heap.Remove(&sb.endpoints, i)
-	var highEpAfter *endpoint
-	if len(sb.endpoints) > 0 {
-		highEpAfter = sb.endpoints[0]
+	heap.Remove(&sb.endpoints, index)
+	for _, e := range sb.endpoints {
+		if len(e.Gateway()) > 0 {
+			gwepAfter = e
+			break
+		}
 	}
 	delete(sb.epPriority, ep.ID())
 	sb.Unlock()
 
-	if highEpBefore != highEpAfter {
-		sb.updateGateway(highEpAfter)
+	if gwepAfter != nil && gwepBefore != gwepAfter {
+		sb.updateGateway(gwepAfter)
 	}
 
 	return nil
@@ -634,6 +642,38 @@ func (sb *sandbox) updateDNS(ipv6Enabled bool) error {
 	return os.Rename(tmpResolvFile.Name(), sb.config.resolvConfPath)
 }
 
+// joinLeaveStart waits to ensure there are no joins or leaves in progress and
+// marks this join/leave in progress without race
+func (sb *sandbox) joinLeaveStart() {
+	sb.Lock()
+	defer sb.Unlock()
+
+	for sb.joinLeaveDone != nil {
+		joinLeaveDone := sb.joinLeaveDone
+		sb.Unlock()
+
+		select {
+		case <-joinLeaveDone:
+		}
+
+		sb.Lock()
+	}
+
+	sb.joinLeaveDone = make(chan struct{})
+}
+
+// joinLeaveEnd marks the end of this join/leave operation and
+// signals the same without race to other join and leave waiters
+func (sb *sandbox) joinLeaveEnd() {
+	sb.Lock()
+	defer sb.Unlock()
+
+	if sb.joinLeaveDone != nil {
+		close(sb.joinLeaveDone)
+		sb.joinLeaveDone = nil
+	}
+}
+
 // OptionHostname function returns an option setter for hostname option to
 // be passed to NewSandbox method.
 func OptionHostname(name string) SandboxOption {
@@ -757,11 +797,11 @@ func (eh epHeap) Less(i, j int) bool {
 	epj := eh[j]
 
 	if epi.endpointInGWNetwork() {
-		return true
+		return false
 	}
 
 	if epj.endpointInGWNetwork() {
-		return false
+		return true
 	}
 
 	cip, ok := ci.epPriority[eh[i].ID()]

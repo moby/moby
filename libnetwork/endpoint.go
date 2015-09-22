@@ -188,40 +188,7 @@ func (ep *endpoint) processOptions(options ...EndpointOption) {
 	}
 }
 
-// joinLeaveStart waits to ensure there are no joins or leaves in progress and
-// marks this join/leave in progress without race
-func (ep *endpoint) joinLeaveStart() {
-	ep.Lock()
-	defer ep.Unlock()
-
-	for ep.joinLeaveDone != nil {
-		joinLeaveDone := ep.joinLeaveDone
-		ep.Unlock()
-
-		select {
-		case <-joinLeaveDone:
-		}
-
-		ep.Lock()
-	}
-
-	ep.joinLeaveDone = make(chan struct{})
-}
-
-// joinLeaveEnd marks the end of this join/leave operation and
-// signals the same without race to other join and leave waiters
-func (ep *endpoint) joinLeaveEnd() {
-	ep.Lock()
-	defer ep.Unlock()
-
-	if ep.joinLeaveDone != nil {
-		close(ep.joinLeaveDone)
-		ep.joinLeaveDone = nil
-	}
-}
-
 func (ep *endpoint) Join(sbox Sandbox, options ...EndpointOption) error {
-	var err error
 
 	if sbox == nil {
 		return types.BadRequestErrorf("endpoint cannot be joined by nil container")
@@ -232,8 +199,18 @@ func (ep *endpoint) Join(sbox Sandbox, options ...EndpointOption) error {
 		return types.BadRequestErrorf("not a valid Sandbox interface")
 	}
 
-	ep.joinLeaveStart()
-	defer ep.joinLeaveEnd()
+	sb.joinLeaveStart()
+	defer sb.joinLeaveEnd()
+
+	return ep.sbJoin(sbox, options...)
+}
+
+func (ep *endpoint) sbJoin(sbox Sandbox, options ...EndpointOption) error {
+	var err error
+	sb, ok := sbox.(*sandbox)
+	if !ok {
+		return types.BadRequestErrorf("not a valid Sandbox interface")
+	}
 
 	ep.Lock()
 	if ep.sandboxID != "" {
@@ -326,13 +303,22 @@ func (ep *endpoint) hasInterface(iName string) bool {
 }
 
 func (ep *endpoint) Leave(sbox Sandbox, options ...EndpointOption) error {
-	ep.joinLeaveStart()
-	defer ep.joinLeaveEnd()
-
 	if sbox == nil || sbox.ID() == "" || sbox.Key() == "" {
 		return types.BadRequestErrorf("invalid Sandbox passed to enpoint leave: %v", sbox)
 	}
 
+	sb, ok := sbox.(*sandbox)
+	if !ok {
+		return types.BadRequestErrorf("not a valid Sandbox interface")
+	}
+
+	sb.joinLeaveStart()
+	defer sb.joinLeaveEnd()
+
+	return ep.sbLeave(sbox, options...)
+}
+
+func (ep *endpoint) sbLeave(sbox Sandbox, options ...EndpointOption) error {
 	sb, ok := sbox.(*sandbox)
 	if !ok {
 		return types.BadRequestErrorf("not a valid Sandbox interface")
