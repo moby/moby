@@ -2,16 +2,13 @@
 Package libnetwork provides the basic functionality and extension points to
 create network namespaces and allocate interfaces for containers to use.
 
-	// Create a new controller instance
-	controller, _err := libnetwork.New(nil)
-
-	// Select and configure the network driver
 	networkType := "bridge"
 
+	// Create a new controller instance
 	driverOptions := options.Generic{}
 	genericOption := make(map[string]interface{})
 	genericOption[netlabel.GenericData] = driverOptions
-	err := controller.ConfigureNetworkDriver(networkType, genericOption)
+	controller, err := libnetwork.New(config.OptionDriverConfig(networkType, genericOption))
 	if err != nil {
 		return
 	}
@@ -32,11 +29,14 @@ create network namespaces and allocate interfaces for containers to use.
 		return
 	}
 
-	// A container can join the endpoint by providing the container ID to the join api.
-	// Join accepts Variadic arguments which will be made use of by libnetwork and Drivers
-	err = ep.Join("container1",
-		libnetwork.JoinOptionHostname("test"),
-		libnetwork.JoinOptionDomainname("docker.io"))
+	// Create the sandbox for the container.
+	// NewSandbox accepts Variadic optional arguments which libnetwork can use.
+	sbx, err := controller.NewSandbox("container1",
+		libnetwork.OptionHostname("test"),
+		libnetwork.OptionDomainname("docker.io"))
+
+	// A sandbox can join the endpoint via the join api.
+	err = ep.Join(sbx)
 	if err != nil {
 		return
 	}
