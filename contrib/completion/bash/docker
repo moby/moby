@@ -212,6 +212,12 @@ __docker_to_extglob() {
 	echo "@($extglob)"
 }
 
+# suppress trailing whitespace
+__docker_nospace() {
+	# compopt is not available in ancient bash versions
+	type compopt &>/dev/null && compopt -o nospace
+}
+
 __docker_resolve_hostname() {
 	command -v host >/dev/null 2>&1 || return
 	COMPREPLY=( $(host 2>/dev/null "${cur%:}" | awk '/has address/ {print $4}') )
@@ -305,7 +311,7 @@ __docker_log_driver_options() {
 			;;
 	esac
 
-	compopt -o nospace
+	__docker_nospace
 }
 
 __docker_complete_log_driver_options() {
@@ -314,12 +320,12 @@ __docker_complete_log_driver_options() {
 	case "${words[$cword-2]}$prev=" in
 		*gelf-address=*)
 			COMPREPLY=( $( compgen -W "udp" -S "://" -- "${cur#=}" ) )
-			compopt -o nospace
+			__docker_nospace
 			return
 			;;
 		*syslog-address=*)
 			COMPREPLY=( $( compgen -W "tcp udp unix" -S "://" -- "${cur#=}" ) )
-			compopt -o nospace
+			__docker_nospace
 			return
 			;;
 		*syslog-facility=*)
@@ -492,7 +498,7 @@ _docker_cp() {
 					*)
 						__docker_containers_all
 						COMPREPLY=( $( compgen -W "${COMPREPLY[*]}" -S ':' ) )
-						compopt -o nospace
+						__docker_nospace
 						return
 						;;
 				esac
@@ -599,7 +605,7 @@ _docker_daemon() {
 					return
 					;;
 			esac
-			compopt -o nospace
+			__docker_nospace
 			return
 			;;
 		--log-level|-l)
@@ -662,7 +668,7 @@ _docker_events() {
 	case "$prev" in
 		--filter|-f)
 			COMPREPLY=( $( compgen -S = -W "container event image" -- "$cur" ) )
-			compopt -o nospace
+			__docker_nospace
 			return
 			;;
 		--since|--until)
@@ -777,7 +783,7 @@ _docker_images() {
 		--filter|-f)
 			COMPREPLY=( $( compgen -W "dangling=true label=" -- "$cur" ) )
 			if [ "$COMPREPLY" = "label=" ]; then
-				compopt -o nospace
+				__docker_nospace
 			fi
 			return
 			;;
@@ -975,7 +981,7 @@ _docker_ps() {
 			;;
 		--filter|-f)
 			COMPREPLY=( $( compgen -S = -W "ancestor exited id label name status" -- "$cur" ) )
-			compopt -o nospace
+			__docker_nospace
 			return
 			;;
 		--format|-n)
@@ -1207,18 +1213,18 @@ _docker_run() {
 					;;
 				'')
 					COMPREPLY=( $( compgen -W '/' -- "$cur" ) )
-					compopt -o nospace
+					__docker_nospace
 					;;
 				/*)
 					_filedir
-					compopt -o nospace
+					__docker_nospace
 					;;
 			esac
 			return
 			;;
 		--env|-e)
 			COMPREPLY=( $( compgen -e -- "$cur" ) )
-			compopt -o nospace
+			__docker_nospace
 			return
 			;;
 		--ipc)
@@ -1230,7 +1236,7 @@ _docker_run() {
 				*)
 					COMPREPLY=( $( compgen -W 'host container:' -- "$cur" ) )
 					if [ "$COMPREPLY" = "container:" ]; then
-						compopt -o nospace
+						__docker_nospace
 					fi
 					;;
 			esac
@@ -1243,7 +1249,7 @@ _docker_run() {
 				*)
 					__docker_containers_running
 					COMPREPLY=( $( compgen -W "${COMPREPLY[*]}" -S ':' ) )
-					compopt -o nospace
+					__docker_nospace
 					;;
 			esac
 			return
@@ -1265,7 +1271,7 @@ _docker_run() {
 				*)
 					COMPREPLY=( $( compgen -W "bridge none container: host" -- "$cur") )
 					if [ "${COMPREPLY[*]}" = "container:" ] ; then
-						compopt -o nospace
+						__docker_nospace
 					fi
 					;;
 			esac
@@ -1289,12 +1295,12 @@ _docker_run() {
 					local cur=${cur##*:}
 					COMPREPLY=( $( compgen -W "user: role: type: level: disable" -- "$cur") )
 					if [ "${COMPREPLY[*]}" != "disable" ] ; then
-						compopt -o nospace
+						__docker_nospace
 					fi
 					;;
 				*)
 					COMPREPLY=( $( compgen -W "label apparmor" -S ":" -- "$cur") )
-					compopt -o nospace
+					__docker_nospace
 					;;
 			esac
 			return
