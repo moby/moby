@@ -18,7 +18,7 @@ const (
 // RepositoryNameComponentRegexp restricts registry path component names to
 // start with at least one letter or number, with following parts able to
 // be separated by one period, dash or underscore.
-var RepositoryNameComponentRegexp = regexp.MustCompile(`[a-z0-9]+(?:[._-][a-z0-9]+)*`)
+var RepositoryNameComponentRegexp = regexp.MustCompile(`[a-z0-9]+(?:[._-]+[a-z0-9]+)*`)
 
 // RepositoryNameComponentAnchoredRegexp is the version of
 // RepositoryNameComponentRegexp which must completely match the content
