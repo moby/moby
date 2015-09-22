@@ -203,9 +203,10 @@ func (p *initProcess) start() (err error) {
 	}()
 	if p.config.Config.Hooks != nil {
 		s := configs.HookState{
-			ID:   p.container.id,
-			Pid:  p.pid(),
-			Root: p.config.Config.Rootfs,
+			Version: p.container.config.Version,
+			ID:      p.container.id,
+			Pid:     p.pid(),
+			Root:    p.config.Config.Rootfs,
 		}
 		for _, hook := range p.config.Config.Hooks.Prestart {
 			if err := hook.Run(s); err != nil {

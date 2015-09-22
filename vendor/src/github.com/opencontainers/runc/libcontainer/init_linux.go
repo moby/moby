@@ -187,16 +187,10 @@ func setupUser(config *initConfig) error {
 			return err
 		}
 	}
-	// change the permissions on the STDIO of the current process so that when the user
-	// is changed for the container, it's STDIO of the process matches the user.
-	for _, fd := range []uintptr{
-		os.Stdin.Fd(),
-		os.Stderr.Fd(),
-		os.Stdout.Fd(),
-	} {
-		if err := syscall.Fchown(int(fd), execUser.Uid, execUser.Gid); err != nil {
-			return err
-		}
+	// before we change to the container's user make sure that the processes STDIO
+	// is correctly owned by the user that we are switching to.
+	if err := fixStdioPermissions(execUser); err != nil {
+		return err
 	}
 	suppGroups := append(execUser.Sgids, addGroups...)
 	if err := syscall.Setgroups(suppGroups); err != nil {
@@ -212,6 +206,34 @@ func setupUser(config *initConfig) error {
 	// if we didn't get HOME already, set it based on the user's HOME
 	if envHome := os.Getenv("HOME"); envHome == "" {
 		if err := os.Setenv("HOME", execUser.Home); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// fixStdioPermissions fixes the permissions of PID 1's STDIO within the container to the specified user.
+// The ownership needs to match because it is created outside of the container and needs to be
+// localized.
+func fixStdioPermissions(u *user.ExecUser) error {
+	var null syscall.Stat_t
+	if err := syscall.Stat("/dev/null", &null); err != nil {
+		return err
+	}
+	for _, fd := range []uintptr{
+		os.Stdin.Fd(),
+		os.Stderr.Fd(),
+		os.Stdout.Fd(),
+	} {
+		var s syscall.Stat_t
+		if err := syscall.Fstat(int(fd), &s); err != nil {
+			return err
+		}
+		// skip chown of /dev/null if it was used as one of the STDIO fds.
+		if s.Rdev == null.Rdev {
+			continue
+		}
+		if err := syscall.Fchown(int(fd), u.Uid, u.Gid); err != nil {
 			return err
 		}
 	}
