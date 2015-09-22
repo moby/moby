@@ -105,3 +105,19 @@ func TestAbortRetry(t *testing.T) {
 		}
 	}
 }
+
+func TestClientScheme(t *testing.T) {
+	cases := map[string]string{
+		"tcp://127.0.0.1:8080":          "http",
+		"unix:///usr/local/plugins/foo": "http",
+		"http://127.0.0.1:8080":         "http",
+		"https://127.0.0.1:8080":        "https",
+	}
+
+	for addr, scheme := range cases {
+		c, _ := NewClient(addr, tlsconfig.Options{InsecureSkipVerify: true})
+		if c.scheme != scheme {
+			t.Fatalf("URL scheme mismatch, expected %s, got %s", scheme, c.scheme)
+		}
+	}
+}
