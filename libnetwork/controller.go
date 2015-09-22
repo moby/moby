@@ -487,6 +487,9 @@ func (c *controller) loadDriver(networkType string) (*driverData, error) {
 }
 
 func (c *controller) Stop() {
+	if c.localStore != nil {
+		c.localStore.KVStore().Close()
+	}
 	c.stopExternalKeyListener()
 	osl.GC()
 }

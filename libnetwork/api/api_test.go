@@ -92,6 +92,7 @@ func createTestNetwork(t *testing.T, network string) (libnetwork.NetworkControll
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer c.Stop()
 
 	netOption := options.Generic{
 		netlabel.GenericData: options.Generic{
@@ -179,6 +180,7 @@ func TestCreateDeleteNetwork(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer c.Stop()
 
 	badBody, err := json.Marshal("bad body")
 	if err != nil {
@@ -253,6 +255,7 @@ func TestGetNetworksAndEndpoints(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer c.Stop()
 
 	ops := options.Generic{
 		netlabel.GenericData: map[string]string{
@@ -522,6 +525,7 @@ func TestProcGetServices(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer c.Stop()
 
 	// Create 2 networks
 	netName1 := "production"
@@ -999,6 +1003,7 @@ func TestDetectGetNetworksInvalidQueryComposition(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer c.Stop()
 
 	vars := map[string]string{urlNwName: "x", urlNwPID: "y"}
 	_, errRsp := procGetNetworks(c, vars, nil)
@@ -1106,6 +1111,7 @@ func TestCreateDeleteEndpoints(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer c.Stop()
 
 	nc := networkCreate{Name: "firstNet", NetworkType: bridgeNetType}
 	body, err := json.Marshal(nc)
@@ -1228,6 +1234,7 @@ func TestJoinLeave(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer c.Stop()
 
 	nb, err := json.Marshal(networkCreate{Name: "network", NetworkType: bridgeNetType})
 	if err != nil {
@@ -1667,6 +1674,7 @@ func TestHttpHandlerUninit(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer c.Stop()
 
 	h := &httpHandler{c: c}
 	h.initRouter()
@@ -1733,6 +1741,7 @@ func TestHttpHandlerBadBody(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer c.Stop()
 	handleRequest := NewHTTPHandler(c)
 
 	req, err := http.NewRequest("POST", "/v1.19/networks", &localReader{beBad: true})
@@ -1765,6 +1774,7 @@ func TestEndToEnd(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer c.Stop()
 
 	handleRequest := NewHTTPHandler(c)
 
@@ -2213,6 +2223,7 @@ func TestEndToEndErrorMessage(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer c.Stop()
 	handleRequest := NewHTTPHandler(c)
 
 	body := []byte{}

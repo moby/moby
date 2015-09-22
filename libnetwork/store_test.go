@@ -15,20 +15,21 @@ import (
 )
 
 func TestZooKeeperBackend(t *testing.T) {
-	if err := testNewController(t, "zk", "127.0.0.1:2181"); err != nil {
+	c, err := testNewController(t, "zk", "127.0.0.1:2181")
+	if err != nil {
 		t.Fatal(err)
 	}
+	c.Stop()
 }
 
-func testNewController(t *testing.T, provider, url string) error {
+func testNewController(t *testing.T, provider, url string) (NetworkController, error) {
 	cfgOptions, err := OptionBoltdbWithRandomDBFile()
 	if err != nil {
-		return err
+		return nil, err
 	}
 	cfgOptions = append(cfgOptions, config.OptionKVProvider(provider))
 	cfgOptions = append(cfgOptions, config.OptionKVProviderURL(url))
-	_, err = New(cfgOptions...)
-	return err
+	return New(cfgOptions...)
 }
 
 func TestBoltdbBackend(t *testing.T) {
@@ -51,6 +52,7 @@ func testLocalBackend(t *testing.T, provider, url string, storeConfig *store.Con
 	genericOption[netlabel.GenericData] = driverOptions
 	cfgOptions = append(cfgOptions, config.OptionDriverConfig("host", genericOption))
 
+	fmt.Printf("URL : %s\n", url)
 	ctrl, err := New(cfgOptions...)
 	if err != nil {
 		t.Fatalf("Error new controller: %v", err)
@@ -108,14 +110,10 @@ func TestLocalStoreLockTimeout(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Error new controller: %v", err)
 	}
+	defer ctrl.Stop()
 	// Use the same boltdb file without closing the previous controller
 	_, err = New(cfgOptions...)
 	if err == nil {
 		t.Fatalf("Multiple boldtdb connection must fail")
 	}
-	store := ctrl.(*controller).localStore.KVStore()
-	if store == nil {
-		t.Fatalf("Invalid LocalStore access connection")
-	}
-	store.Close()
 }
