@@ -183,7 +183,8 @@ do_install() {
 			fi
 		;;
 
-		debian)
+		debian|linuxmint)
+			lsb_dist=debian
 			dist_version="$(cat /etc/debian_version | sed 's/\/.*//' | sed 's/\..*//')"
 			case "$dist_version" in
 				8)
