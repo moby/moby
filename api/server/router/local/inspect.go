@@ -1,14 +1,15 @@
-package server
+package local
 
 import (
 	"fmt"
 	"net/http"
 
+	"github.com/docker/docker/api/server/httputils"
 	"golang.org/x/net/context"
 )
 
 // getContainersByName inspects containers configuration and serializes it as json.
-func (s *Server) getContainersByName(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (s *router) getContainersByName(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
 	}
@@ -16,7 +17,7 @@ func (s *Server) getContainersByName(ctx context.Context, w http.ResponseWriter,
 	var json interface{}
 	var err error
 
-	version := versionFromContext(ctx)
+	version := httputils.VersionFromContext(ctx)
 
 	switch {
 	case version.LessThan("1.20"):
@@ -31,5 +32,5 @@ func (s *Server) getContainersByName(ctx context.Context, w http.ResponseWriter,
 		return err
 	}
 
-	return writeJSON(w, http.StatusOK, json)
+	return httputils.WriteJSON(w, http.StatusOK, json)
 }

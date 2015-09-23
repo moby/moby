@@ -224,21 +224,6 @@ func (cli *DaemonCli) CmdDaemon(args ...string) error {
 		serverConfig.TLSConfig = tlsConfig
 	}
 
-	api := apiserver.New(serverConfig)
-
-	// The serve API routine never exits unless an error occurs
-	// We need to start it as a goroutine and wait on it so
-	// daemon doesn't exit
-	serveAPIWait := make(chan error)
-	go func() {
-		if err := api.ServeAPI(commonFlags.Hosts); err != nil {
-			logrus.Errorf("ServeAPI error: %v", err)
-			serveAPIWait <- err
-			return
-		}
-		serveAPIWait <- nil
-	}()
-
 	if err := migrateKey(); err != nil {
 		logrus.Fatal(err)
 	}
@@ -264,6 +249,22 @@ func (cli *DaemonCli) CmdDaemon(args ...string) error {
 		"graphdriver": d.GraphDriver().String(),
 	}).Info("Docker daemon")
 
+	api := apiserver.New(serverConfig)
+	api.InitRouters(d)
+
+	// The serve API routine never exits unless an error occurs
+	// We need to start it as a goroutine and wait on it so
+	// daemon doesn't exit
+	serveAPIWait := make(chan error)
+	go func() {
+		if err := api.ServeAPI(commonFlags.Hosts); err != nil {
+			logrus.Errorf("ServeAPI error: %v", err)
+			serveAPIWait <- err
+			return
+		}
+		serveAPIWait <- nil
+	}()
+
 	signal.Trap(func() {
 		api.Close()
 		<-serveAPIWait
@@ -277,7 +278,8 @@ func (cli *DaemonCli) CmdDaemon(args ...string) error {
 
 	// after the daemon is done setting up we can tell the api to start
 	// accepting connections with specified daemon
-	api.AcceptConnections(d)
+	notifySystem()
+	api.AcceptConnections()
 
 	// Daemon is fully initialized and handling API traffic
 	// Wait for serve API to complete

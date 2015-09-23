@@ -5,7 +5,6 @@ package daemon
 import (
 	"fmt"
 	"net"
-	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -22,7 +21,6 @@ import (
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/utils"
 	"github.com/docker/libnetwork"
-	nwapi "github.com/docker/libnetwork/api"
 	nwconfig "github.com/docker/libnetwork/config"
 	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/libnetwork/options"
@@ -487,12 +485,6 @@ func setupInitLayer(initLayer string) error {
 
 	// Layer is ready to use, if it wasn't before.
 	return nil
-}
-
-// NetworkAPIRouter implements a feature for server-experimental,
-// directly calling into libnetwork.
-func (daemon *Daemon) NetworkAPIRouter() func(w http.ResponseWriter, req *http.Request) {
-	return nwapi.NewHTTPHandler(daemon.netController)
 }
 
 // registerLinks writes the links to a file.
