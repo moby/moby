@@ -19,7 +19,7 @@ set -e
 
 export PATH=/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin:/usr/local/bin
 
-BASE=$(basename $0)
+BASE=docker
 
 # modify these in /etc/default/$BASE (/etc/default/docker)
 DOCKER=/usr/bin/$BASE
