@@ -1,12 +1,12 @@
 package graph
 
 import (
-	"fmt"
 	"io"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/cliconfig"
 	"github.com/docker/docker/context"
+	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/utils"
@@ -58,7 +58,7 @@ func NewPuller(s *TagStore, endpoint registry.APIEndpoint, repoInfo *registry.Re
 			repoInfo: repoInfo,
 		}, nil
 	}
-	return nil, fmt.Errorf("unknown version %d for registry %s", endpoint.Version, endpoint.URL)
+	return nil, derr.ErrorCodeRegistryVersion.WithArgs(endpoint.Version, endpoint.URL)
 }
 
 // Pull initiates a pull operation. image is the repository name to pull, and
@@ -137,7 +137,7 @@ func (s *TagStore) Pull(ctx context.Context, image string, tag string, imagePull
 	}
 
 	if lastErr == nil {
-		lastErr = fmt.Errorf("no endpoints found for %s", image)
+		lastErr = derr.ErrorCodeImageEndpoints.WithArgs(image)
 	}
 	return lastErr
 }

@@ -11,6 +11,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/registry/client/transport"
+	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/progressreader"
 	"github.com/docker/docker/pkg/streamformatter"
@@ -70,7 +71,7 @@ func (p *v1Puller) pullRepository(askedTag string) error {
 	repoData, err := p.session.GetRepositoryData(p.repoInfo.RemoteName)
 	if err != nil {
 		if strings.Contains(err.Error(), "HTTP code: 404") {
-			return fmt.Errorf("Error: image %s not found", utils.ImageReference(p.repoInfo.RemoteName, askedTag))
+			return derr.ErrorCodeImageNotFoundInV1Repository.WithArgs(utils.ImageReference(p.repoInfo.RemoteName, askedTag))
 		}
 		// Unexpected HTTP error
 		return err
@@ -87,7 +88,7 @@ func (p *v1Puller) pullRepository(askedTag string) error {
 	}
 	if err != nil {
 		if err == registry.ErrRepoNotFound && askedTag != "" {
-			return fmt.Errorf("Tag %s not found in repository %s", askedTag, p.repoInfo.CanonicalName)
+			return derr.ErrorCodeTagNotFoundInV1Repository.WithArgs(askedTag, p.repoInfo.CanonicalName)
 		}
 		logrus.Errorf("unable to get remote tags: %s", err)
 		return err
@@ -111,7 +112,7 @@ func (p *v1Puller) pullRepository(askedTag string) error {
 		// Otherwise, check that the tag exists and use only that one
 		id, exists := tagsList[askedTag]
 		if !exists {
-			return fmt.Errorf("Tag %s not found in repository %s", askedTag, p.repoInfo.CanonicalName)
+			return derr.ErrorCodeTagNotFoundInV1Repository.WithArgs(askedTag, p.repoInfo.CanonicalName)
 		}
 		repoData.ImgList[id].Tag = askedTag
 	}
@@ -183,7 +184,7 @@ func (p *v1Puller) pullRepository(askedTag string) error {
 				}
 			}
 			if !success {
-				err := fmt.Errorf("Error pulling image (%s) from %s, %v", img.Tag, p.repoInfo.CanonicalName, lastErr)
+				err := derr.ErrorCodeImagePullErrorFromV1Repository.WithArgs(img.Tag, p.repoInfo.CanonicalName, lastErr)
 				broadcaster.Write(p.sf.FormatProgress(stringid.TruncateID(img.ID), err.Error(), nil))
 				errors <- err
 				broadcaster.CloseWithError(err)
@@ -284,7 +285,7 @@ func (p *v1Puller) pullImage(out io.Writer, imgID, endpoint string) (layersDownl
 				layersDownloaded = true
 				if err != nil && j == retries {
 					broadcaster.Write(p.sf.FormatProgress(stringid.TruncateID(id), "Error pulling dependent layers", nil))
-					return layersDownloaded, fmt.Errorf("Failed to parse json: %s", err)
+					return layersDownloaded, derr.ErrorCodeParsingImageJSON.WithArgs(err)
 				} else if err != nil {
 					time.Sleep(time.Duration(j) * 500 * time.Millisecond)
 					continue

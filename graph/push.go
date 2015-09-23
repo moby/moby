@@ -1,13 +1,13 @@
 package graph
 
 import (
-	"fmt"
 	"io"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/digest"
 	"github.com/docker/docker/cliconfig"
 	"github.com/docker/docker/context"
+	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/registry"
 )
@@ -64,7 +64,7 @@ func (s *TagStore) NewPusher(endpoint registry.APIEndpoint, localRepo Repository
 			sf:        sf,
 		}, nil
 	}
-	return nil, fmt.Errorf("unknown version %d for registry %s", endpoint.Version, endpoint.URL)
+	return nil, derr.ErrorCodeUnknownRegistry.WithArgs(endpoint.Version, endpoint.URL)
 }
 
 // Push initiates a push operation on the repository named localName.
@@ -94,7 +94,7 @@ func (s *TagStore) Push(ctx context.Context, localName string, imagePushConfig *
 	// If it fails, try to get the repository
 	localRepo, exists := s.Repositories[repoInfo.LocalName]
 	if !exists {
-		return fmt.Errorf("Repository does not exist: %s", repoInfo.LocalName)
+		return derr.ErrorCodeNoRepository.WithArgs(repoInfo.LocalName)
 	}
 
 	var lastErr error
@@ -121,7 +121,7 @@ func (s *TagStore) Push(ctx context.Context, localName string, imagePushConfig *
 	}
 
 	if lastErr == nil {
-		lastErr = fmt.Errorf("no endpoints found for %s", repoInfo.CanonicalName)
+		lastErr = derr.ErrorCodeNoEndpointsForRepository.WithArgs(repoInfo.CanonicalName)
 	}
 	return lastErr
 }

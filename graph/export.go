@@ -137,7 +137,7 @@ func (s *TagStore) exportImage(name, tempdir string) error {
 			return err
 		}
 		if written != len(imageInspectRaw) {
-			logrus.Warnf("%d byes should have been written instead %d have been written", written, len(imageInspectRaw))
+			logrus.Warnf("%d bytes should have been written instead %d have been written", written, len(imageInspectRaw))
 		}
 
 		// serialize filesystem

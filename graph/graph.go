@@ -4,7 +4,6 @@ import (
 	"compress/gzip"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
@@ -19,6 +18,7 @@ import (
 	"github.com/docker/distribution/digest"
 	"github.com/docker/docker/autogen/dockerversion"
 	"github.com/docker/docker/daemon/graphdriver"
+	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/progressreader"
@@ -173,20 +173,20 @@ func (graph *Graph) Exists(id string) bool {
 func (graph *Graph) Get(name string) (*image.Image, error) {
 	id, err := graph.idIndex.Get(name)
 	if err != nil {
-		return nil, fmt.Errorf("could not find image: %v", err)
+		return nil, derr.ErrorCodeNoSuchImage.WithArgs(err)
 	}
 	img, err := graph.loadImage(id)
 	if err != nil {
 		return nil, err
 	}
 	if img.ID != id {
-		return nil, fmt.Errorf("Image stored at '%s' has wrong id '%s'", id, img.ID)
+		return nil, derr.ErrorCodeImageIDConflict.WithArgs(id, img.ID)
 	}
 
 	if img.Size < 0 {
 		size, err := graph.driver.DiffSize(img.ID, img.Parent)
 		if err != nil {
-			return nil, fmt.Errorf("unable to calculate size of image id %q: %s", img.ID, err)
+			return nil, derr.ErrorCodeImageSizingConflict.WithArgs(img.ID, err)
 		}
 
 		img.Size = size
@@ -266,7 +266,7 @@ func (graph *Graph) Register(img *image.Image, layerData io.Reader) (err error) 
 	tmp, err := graph.mktemp()
 	defer os.RemoveAll(tmp)
 	if err != nil {
-		return fmt.Errorf("mktemp failed: %s", err)
+		return derr.ErrorCodeMakeTempFailure.WithArgs(err)
 	}
 
 	// Create root filesystem in the driver
@@ -288,7 +288,7 @@ func (graph *Graph) Register(img *image.Image, layerData io.Reader) (err error) 
 
 func createRootFilesystemInDriver(graph *Graph, img *image.Image) error {
 	if err := graph.driver.Create(img.ID, img.Parent); err != nil {
-		return fmt.Errorf("Driver %s failed to create image rootfs %s: %s", graph.driver, img.ID, err)
+		return derr.ErrorCodeDriverRootFSCreateFailure.WithArgs(graph.driver, img.ID, err)
 	}
 	return nil
 }
@@ -495,7 +495,7 @@ func (graph *Graph) loadImage(id string) (*image.Image, error) {
 // saveSize stores the `size` in the provided graph `img` directory `root`.
 func (graph *Graph) saveSize(root string, size int64) error {
 	if err := ioutil.WriteFile(filepath.Join(root, layersizeFileName), []byte(strconv.FormatInt(size, 10)), 0600); err != nil {
-		return fmt.Errorf("Error storing image size in %s/%s: %s", root, layersizeFileName, err)
+		return derr.ErrorCodeBadImageSizeWriteOP.WithArgs(root, layersizeFileName, err)
 	}
 	return nil
 }
@@ -507,7 +507,7 @@ func (graph *Graph) SetDigest(id string, dgst digest.Digest) error {
 
 	root := graph.imageRoot(id)
 	if err := ioutil.WriteFile(filepath.Join(root, digestFileName), []byte(dgst.String()), 0600); err != nil {
-		return fmt.Errorf("Error storing digest in %s/%s: %s", root, digestFileName, err)
+		return derr.ErrorCodeBadDigestWriteOP.WithArgs(root, digestFileName, err)
 	}
 	return nil
 }
@@ -534,7 +534,7 @@ func (graph *Graph) RawJSON(id string) ([]byte, error) {
 
 	buf, err := ioutil.ReadFile(jsonPath(root))
 	if err != nil {
-		return nil, fmt.Errorf("Failed to read json for image %s: %s", id, err)
+		return nil, derr.ErrorCodeReadJSONImage.WithArgs(id, err)
 	}
 
 	return buf, nil
@@ -628,7 +628,7 @@ func (graph *Graph) assembleTarLayer(img *image.Image) (io.ReadCloser, error) {
 		logrus.Debugf("[graph] TarLayer with reassembly: %s", img.ID)
 		mfz, err := gzip.NewReader(mf)
 		if err != nil {
-			pW.CloseWithError(fmt.Errorf("[graph] error with %s:  %s", mFileName, err))
+			pW.CloseWithError(derr.ErrorCodeGraphTarLayer.WithArgs(mFileName, err))
 			return
 		}
 		defer mfz.Close()

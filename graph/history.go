@@ -1,10 +1,10 @@
 package graph
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/docker/docker/api/types"
+	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/utils"
 )
@@ -21,7 +21,7 @@ func (graph *Graph) WalkHistory(img *image.Image, handler func(image.Image) erro
 		}
 		currentImg, err = graph.GetParent(currentImg)
 		if err != nil {
-			return fmt.Errorf("Error while getting parent image: %v", err)
+			return derr.ErrorCodeGraphGetParent.WithArgs(err)
 		}
 	}
 	return nil
@@ -60,7 +60,7 @@ func (graph *Graph) CheckDepth(img *image.Image) error {
 		return err
 	}
 	if depth+2 >= MaxImageDepth {
-		return fmt.Errorf("Cannot create container with more than %d parents", MaxImageDepth)
+		return derr.ErrorCodeGraphParentDepthLimit.WithArgs(MaxImageDepth)
 	}
 	return nil
 }

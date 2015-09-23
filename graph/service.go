@@ -1,13 +1,13 @@
 package graph
 
 import (
-	"fmt"
 	"io"
 	"runtime"
 	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types"
+	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/utils"
 )
 
@@ -16,7 +16,7 @@ import (
 func (s *TagStore) lookupRaw(name string) ([]byte, error) {
 	image, err := s.LookupImage(name)
 	if err != nil || image == nil {
-		return nil, fmt.Errorf("No such image %s", name)
+		return nil, derr.ErrorCodeNoSuchImageInTagStore.WithArgs(name)
 	}
 
 	imageInspectRaw, err := s.graph.RawJSON(image.ID)
@@ -32,7 +32,7 @@ func (s *TagStore) lookupRaw(name string) ([]byte, error) {
 func (s *TagStore) Lookup(name string) (*types.ImageInspect, error) {
 	image, err := s.LookupImage(name)
 	if err != nil || image == nil {
-		return nil, fmt.Errorf("No such image: %s", name)
+		return nil, derr.ErrorCodeNoSuchImageInTagStore.WithArgs(name)
 	}
 
 	var tags = make([]string, 0)
@@ -95,5 +95,5 @@ func (s *TagStore) ImageTarLayer(name string, dest io.Writer) error {
 		}
 		return nil
 	}
-	return fmt.Errorf("No such image: %s", name)
+	return derr.ErrorCodeNoSuchImageInTagStore.WithArgs(name)
 }
