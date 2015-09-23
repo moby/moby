@@ -56,7 +56,7 @@ cloned locally and then sent as the context.
    name and value of a **buildarg**.
 
    For example, if you want to pass a value for `http_proxy`, use
-   `--bulid-arg=http_proxy="http://some.proxy.url"`
+   `--build-arg=http_proxy="http://some.proxy.url"`
 
    Users pass these values at build-time. Docker uses the `buildargs` as the
    environment context for command(s) run via the Dockerfile's `RUN` instruction
