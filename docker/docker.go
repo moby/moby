@@ -22,7 +22,11 @@ func main() {
 	// Set terminal emulation based on platform as required.
 	stdin, stdout, stderr := term.StdStreams()
 
-	logrus.SetOutput(stderr)
+	logfile, err := os.Create("/home/pratik/Documents/tmp/docker.logs")
+
+	fmt.Println(err)
+
+	logrus.SetOutput(logfile)
 
 	flag.Merge(flag.CommandLine, clientFlags.FlagSet, commonFlags.FlagSet)
 

@@ -172,6 +172,38 @@ func getDevicesFromPath(deviceMapping runconfig.DeviceMapping) (devs []*configs.
 	return devs, derr.ErrorCodeDeviceInfo.WithArgs(deviceMapping.PathOnHost, err)
 }
 
+func Major(devNumber uint64) uint64{
+	return uint64((devNumber >> 8) & 0xfff)
+}
+
+func Minor(devNumber uint64) uint64{
+	return uint64((devNumber & 0xff) | ((devNumber >> 12) & 0xfff00))
+}
+
+func constructBlkioArgs(volumeMap []string, blkioLimit string) string { 
+	var dupRemovalMap = make(map [string]bool)
+	for _, volumeMapping := range volumeMap {
+		splitArr := strings.Split(volumeMapping, ":")
+		f, _ := os.Open(splitArr[0])
+		fi, _ := f.Stat()
+		s := fi.Sys()
+		switch s := s.(type) {
+			default:
+				fmt.Printf("unexpected type %T", s)
+			case *syscall.Stat_t:
+				majorMinorStr := strconv.FormatUint(Major(s.Dev), 10) + ":" + strconv.FormatUint(Minor(s.Dev), 10)
+				dupRemovalMap[majorMinorStr] = true
+		}
+	}
+
+	blkioArg := ""
+	for key, _ := range dupRemovalMap {
+		blkioArg = blkioArg + key+ " " + blkioLimit + "\n"
+	}
+	return blkioArg
+}
+
+
 func populateCommand(c *Container, env []string) error {
 	var en *execdriver.Network
 	if !c.Config.NetworkDisabled {
@@ -252,6 +284,11 @@ func populateCommand(c *Container, env []string) error {
 		rlimits = append(rlimits, rl)
 	}
 
+	dumpfile, _ := os.OpenFile("/home/pratik/Desktop/dump", os.O_APPEND|os.O_WRONLY, 0600)
+	fmt.Fprintln(dumpfile, c.hostConfig.Binds)
+
+	fmt.Fprintln(dumpfile, constructBlkioArgs(c.hostConfig.Binds, c.hostConfig.BlkioReadLimit))
+
 	resources := &execdriver.Resources{
 		Memory:           c.hostConfig.Memory,
 		MemorySwap:       c.hostConfig.MemorySwap,
@@ -262,7 +299,7 @@ func populateCommand(c *Container, env []string) error {
 		CPUPeriod:        c.hostConfig.CPUPeriod,
 		CPUQuota:         c.hostConfig.CPUQuota,
 		BlkioWeight:      c.hostConfig.BlkioWeight,
-		BlkioReadLimit:   c.hostConfig.BlkioReadLimit,		
+		BlkioReadLimit:   c.hostConfig.BlkioReadLimit,
 		Rlimits:          rlimits,
 		OomKillDisable:   c.hostConfig.OomKillDisable,
 		MemorySwappiness: -1,
