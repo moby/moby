@@ -24,7 +24,7 @@ var dockerCommands = []command{
 	{"attach", "Attach to a running container"},
 	{"build", "Build an image from a Dockerfile"},
 	{"commit", "Create a new image from a container's changes"},
-	{"cp", "Copy files/folders from a container to a HOSTDIR or to STDOUT"},
+	{"cp", "Copy files/folders between a container and the local filesystem"},
 	{"create", "Create a new container"},
 	{"diff", "Inspect changes on a container's filesystem"},
 	{"events", "Get real time events from the server"},

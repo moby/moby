@@ -184,7 +184,7 @@ unix://[/path/to/socket] to use.
   See **docker-commit(1)** for full documentation on the **commit** command.
 
 **cp**
-  Copy files/folders from a container's filesystem to the host
+  Copy files/folders between a container and the local filesystem
   See **docker-cp(1)** for full documentation on the **cp** command.
 
 **create**
