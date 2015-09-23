@@ -2,10 +2,10 @@ package image
 
 import (
 	"encoding/json"
-	"fmt"
 	"regexp"
 	"time"
 
+	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/runconfig"
 )
 
@@ -53,7 +53,7 @@ func NewImgJSON(src []byte) (*Image, error) {
 // ValidateID checks whether an ID string is a valid image ID.
 func ValidateID(id string) error {
 	if ok := validHex.MatchString(id); !ok {
-		return fmt.Errorf("image ID '%s' is invalid", id)
+		return derr.ErrorCodeInvalidImageID.WithArgs(id)
 	}
 	return nil
 }
