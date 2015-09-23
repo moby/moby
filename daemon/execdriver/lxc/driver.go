@@ -326,21 +326,21 @@ func (d *Driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, hooks execd
 
 	oomKill := false
 	oomKillNotification, err := notifyOnOOM(cgroupPaths)
+	if err != nil {
+		logrus.Warnf("Your kernel does not support OOM notifications: %s", err)
+	}
 
 	if hooks.Start != nil {
 		logrus.Debugf("Invoking startCallback")
 		hooks.Start(&c.ProcessConfig, pid, oomKillNotification)
-
 	}
 
 	<-waitLock
 	exitCode := getExitCode(c)
 
-	if err == nil {
+	if oomKillNotification != nil {
 		_, oomKill = <-oomKillNotification
 		logrus.Debugf("oomKill error: %v, waitErr: %v", oomKill, waitErr)
-	} else {
-		logrus.Warnf("Your kernel does not support OOM notifications: %s", err)
 	}
 
 	// check oom error
