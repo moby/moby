@@ -37,6 +37,7 @@ func TestGet(t *testing.T) {
 
 func TestCreate(t *testing.T) {
 	volumedrivers.Register(vt.FakeDriver{}, "fake")
+	volumedrivers.Register(vt.FakeDriver{}, "feka")
 	s := New()
 	v, err := s.Create("fake1", "fake", nil)
 	if err != nil {
@@ -56,6 +57,11 @@ func TestCreate(t *testing.T) {
 	_, err = s.Create("fakeError", "fake", map[string]string{"error": "create error"})
 	if err == nil || err.Error() != "create error" {
 		t.Fatalf("Expected create error, got %v", err)
+	}
+
+	_, err = s.Create("fake1", "feka", nil)
+	if err == nil || err.Error() != "volume fake1 already exist in driver fake" {
+		t.Fatalf("Expected volume exist error, got nil")
 	}
 }
 
