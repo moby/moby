@@ -39,6 +39,7 @@ import (
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/namesgenerator"
 	"github.com/docker/docker/pkg/nat"
+	"github.com/docker/docker/pkg/parsers/filters"
 	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/pkg/stringutils"
@@ -526,6 +527,36 @@ func (daemon *Daemon) GetByName(name string) (*Container, error) {
 		return nil, fmt.Errorf("Could not find container for entity id %s", entity.ID())
 	}
 	return e, nil
+}
+
+// GetEventFilter returns a filters.Filter for a set of filters
+func (daemon *Daemon) GetEventFilter(filter filters.Args) *events.Filter {
+	// incoming container filter can be name, id or partial id, convert to
+	// a full container id
+	for i, cn := range filter["container"] {
+		c, err := daemon.Get(cn)
+		if err != nil {
+			filter["container"][i] = ""
+		} else {
+			filter["container"][i] = c.ID
+		}
+	}
+	return events.NewFilter(filter, daemon.GetLabels)
+}
+
+// GetLabels for a container or image id
+func (daemon *Daemon) GetLabels(id string) map[string]string {
+	// TODO: TestCase
+	container := daemon.containers.Get(id)
+	if container != nil {
+		return container.Config.Labels
+	}
+
+	img, err := daemon.repositories.LookupImage(id)
+	if err == nil {
+		return img.ContainerConfig.Labels
+	}
+	return nil
 }
 
 // children returns all child containers of the container with the
