@@ -42,14 +42,17 @@ and will thank you for it!
 Check that [our issue database](https://github.com/docker/docker/issues)
 doesn't already include that problem or suggestion before submitting an issue.
 If you find a match, add a quick "+1" or "I have this problem too." Doing this
-helps prioritize the most common problems and requests.
+helps prioritize the most common problems and requests. **DO NOT DO THAT** to
+subscribe to the issue unless you have something meaningful to add to the
+conversation. The best way to subscribe the issue is by clicking Subscribe
+button in top right of the page.
 
 When reporting issues, please include your host OS (Ubuntu 12.04, Fedora 19,
 etc). Please include:
 
 * The output of `uname -a`.
 * The output of `docker version`.
-* The output of `docker -D info`.
+* The output of `docker info`.
 
 Please also include the steps required to reproduce the problem if possible and
 applicable. This information will help us review and fix your issue faster.
