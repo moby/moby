@@ -47,9 +47,13 @@ func (s *VolumeStore) AddAll(vols []volume.Volume) {
 func (s *VolumeStore) Create(name, driverName string, opts map[string]string) (volume.Volume, error) {
 	s.mu.Lock()
 	if vc, exists := s.vols[name]; exists {
-		v := vc.Volume
+		if driverName == vc.Volume.DriverName() ||
+			(driverName == "" && vc.Volume.DriverName() == volume.DefaultDriverName) {
+			s.mu.Unlock()
+			return vc.Volume, nil
+		}
 		s.mu.Unlock()
-		return v, nil
+		return nil, errors.New("volume " + vc.Volume.Name() + " already exist in driver " + vc.Volume.DriverName())
 	}
 	s.mu.Unlock()
 	logrus.Debugf("Registering new volume reference: driver %s, name %s", driverName, name)
