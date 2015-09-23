@@ -63,7 +63,7 @@ func (cli *DockerCli) CmdSearch(args ...string) error {
 	w := tabwriter.NewWriter(cli.out, 10, 1, 3, ' ', 0)
 	fmt.Fprintf(w, "NAME\tDESCRIPTION\tSTARS\tOFFICIAL\tAUTOMATED\n")
 	for _, res := range results {
-		if ((*automated || *trusted) && (!res.IsTrusted && !res.IsAutomated)) || (int(*stars) > res.StarCount) {
+		if (*automated && !res.IsAutomated) || (int(*stars) > res.StarCount) || (*trusted && !res.IsTrusted) {
 			continue
 		}
 		desc := strings.Replace(res.Description, "\n", " ", -1)
