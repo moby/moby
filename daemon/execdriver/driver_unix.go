@@ -64,7 +64,7 @@ func SetupCgroups(container *configs.Config, c *Command) error {
 	if c.Resources != nil {
 		container.Cgroups.CpuShares = c.Resources.CPUShares
 		container.Cgroups.Memory = c.Resources.Memory
-		container.Cgroups.MemoryReservation = c.Resources.Memory
+		container.Cgroups.MemoryReservation = c.Resources.MemoryReservation
 		container.Cgroups.MemorySwap = c.Resources.MemorySwap
 		container.Cgroups.CpusetCpus = c.Resources.CpusetCpus
 		container.Cgroups.CpusetMems = c.Resources.CpusetMems
