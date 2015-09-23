@@ -56,12 +56,6 @@ func handleGlobalDaemonFlag() {
 	}
 
 	if *flDaemon {
-		if *flHelp {
-			// We do not show the help output here, instead, we tell the user about the new daemon command,
-			// because the help output is so long they would not see the warning anyway.
-			fmt.Fprintln(os.Stderr, "Please use 'docker daemon --help' instead.")
-			os.Exit(0)
-		}
 		daemonCli.(*DaemonCli).CmdDaemon(flag.Args()...)
 		os.Exit(0)
 	}

@@ -50,16 +50,16 @@ func main() {
 		return
 	}
 
-	clientCli := client.NewDockerCli(stdin, stdout, stderr, clientFlags)
-	// TODO: remove once `-d` is retired
-	handleGlobalDaemonFlag()
-
 	if *flHelp {
 		// if global flag --help is present, regardless of what other options and commands there are,
 		// just print the usage.
 		flag.Usage()
 		return
 	}
+
+	// TODO: remove once `-d` is retired
+	handleGlobalDaemonFlag()
+	clientCli := client.NewDockerCli(stdin, stdout, stderr, clientFlags)
 
 	c := cli.New(clientCli, daemonCli)
 	if err := c.Run(flag.Args()...); err != nil {
