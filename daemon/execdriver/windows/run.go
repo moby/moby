@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"syscall"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/execdriver"
@@ -258,7 +259,7 @@ func (d *Driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, hooks execd
 	createProcessParms.CommandLine = c.ProcessConfig.Entrypoint
 	for _, arg := range c.ProcessConfig.Arguments {
 		logrus.Debugln("appending ", arg)
-		createProcessParms.CommandLine += " " + arg
+		createProcessParms.CommandLine += " " + syscall.EscapeArg(arg)
 	}
 	logrus.Debugf("CommandLine: %s", createProcessParms.CommandLine)
 
