@@ -69,6 +69,7 @@ type containerInit struct {
 	IgnoreFlushesDuringBoot bool     // Optimisation hint for container startup in Windows
 	LayerFolderPath         string   // Where the layer folders are located
 	Layers                  []layer  // List of storage layers
+	ProcessorWeight         int64    // CPU Shares 1..9 on Windows; or 0 is platform default.
 }
 
 // defaultOwner is a tag passed to HCS to allow it to differentiate between
@@ -98,6 +99,7 @@ func (d *Driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, hooks execd
 		VolumePath:              c.Rootfs,
 		IgnoreFlushesDuringBoot: c.FirstStart,
 		LayerFolderPath:         c.LayerFolder,
+		ProcessorWeight:         c.Resources.CPUShares,
 	}
 
 	for i := 0; i < len(c.LayerPaths); i++ {
