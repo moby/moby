@@ -83,7 +83,7 @@ RUN cd /usr/src/lxc \
 	&& ldconfig
 
 # Install Go
-ENV GO_VERSION 1.4.2
+ENV GO_VERSION 1.4.3
 RUN curl -sSL https://golang.org/dl/go${GO_VERSION}.src.tar.gz | tar -v -C /usr/local -xz \
 	&& mkdir -p /go/bin
 ENV PATH /go/bin:/usr/local/go/bin:$PATH
