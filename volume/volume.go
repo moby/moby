@@ -21,7 +21,11 @@ type Driver interface {
 	// Create makes a new volume with the given id.
 	Create(name string, opts map[string]string) (Volume, error)
 	// Remove deletes the volume.
-	Remove(Volume) error
+	Remove(vol Volume) (err error)
+	// List lists all the volumes the driver has
+	List() ([]Volume, error)
+	// Get retreives the volume with the requested name
+	Get(name string) (Volume, error)
 }
 
 // Volume is a place to store data. It is backed by a specific driver, and can be mounted.

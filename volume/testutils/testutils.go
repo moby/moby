@@ -50,19 +50,55 @@ func (FakeVolume) Mount() (string, error) { return "fake", nil }
 func (FakeVolume) Unmount() error { return nil }
 
 // FakeDriver is a driver that generates fake volumes
-type FakeDriver struct{}
+type FakeDriver struct {
+	name string
+	vols map[string]volume.Volume
+}
+
+// NewFakeDriver creates a new FakeDriver with the specified name
+func NewFakeDriver(name string) volume.Driver {
+	return &FakeDriver{
+		name: name,
+		vols: make(map[string]volume.Volume),
+	}
+}
 
 // Name is the name of the driver
-func (FakeDriver) Name() string { return "fake" }
+func (d *FakeDriver) Name() string { return d.name }
 
 // Create initializes a fake volume.
 // It returns an error if the options include an "error" key with a message
-func (FakeDriver) Create(name string, opts map[string]string) (volume.Volume, error) {
+func (d *FakeDriver) Create(name string, opts map[string]string) (volume.Volume, error) {
 	if opts != nil && opts["error"] != "" {
 		return nil, fmt.Errorf(opts["error"])
 	}
-	return NewFakeVolume(name), nil
+	v := NewFakeVolume(name)
+	d.vols[name] = v
+	return v, nil
 }
 
 // Remove deletes a volume.
-func (FakeDriver) Remove(v volume.Volume) error { return nil }
+func (d *FakeDriver) Remove(v volume.Volume) error {
+	if _, exists := d.vols[v.Name()]; !exists {
+		return fmt.Errorf("no such volume")
+	}
+	delete(d.vols, v.Name())
+	return nil
+}
+
+// List lists the volumes
+func (d *FakeDriver) List() ([]volume.Volume, error) {
+	var vols []volume.Volume
+	for _, v := range d.vols {
+		vols = append(vols, v)
+	}
+	return vols, nil
+}
+
+// Get gets the volume
+func (d *FakeDriver) Get(name string) (volume.Volume, error) {
+	if v, exists := d.vols[name]; exists {
+		return v, nil
+	}
+	return nil, fmt.Errorf("no such volume")
+}

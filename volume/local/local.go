@@ -82,12 +82,12 @@ type Root struct {
 }
 
 // List lists all the volumes
-func (r *Root) List() []volume.Volume {
+func (r *Root) List() ([]volume.Volume, error) {
 	var ls []volume.Volume
 	for _, v := range r.volumes {
 		ls = append(ls, v)
 	}
-	return ls
+	return ls, nil
 }
 
 // DataPath returns the constructed path of this volume.
