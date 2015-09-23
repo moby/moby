@@ -3,6 +3,7 @@ package libnetwork
 import (
 	"encoding/json"
 	"fmt"
+	"time"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/libkv/store"
@@ -11,13 +12,15 @@ import (
 )
 
 var (
+	defaultBoltTimeout      = 3 * time.Second
 	defaultLocalStoreConfig = config.DatastoreCfg{
 		Embedded: true,
 		Client: config.DatastoreClientCfg{
 			Provider: "boltdb",
 			Address:  defaultPrefix + "/boltdb.db",
 			Config: &store.Config{
-				Bucket: "libnetwork",
+				Bucket:            "libnetwork",
+				ConnectionTimeout: defaultBoltTimeout,
 			},
 		},
 	}

@@ -53,7 +53,9 @@ func TestMain(m *testing.M) {
 
 	libnetwork.SetTestDataStore(controller, datastore.NewCustomDataStore(datastore.NewMockStore()))
 
-	os.Exit(m.Run())
+	x := m.Run()
+	controller.Stop()
+	os.Exit(x)
 }
 
 func createController() error {
@@ -2071,12 +2073,13 @@ func TestInvalidRemoteDriver(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	controller, err := libnetwork.New()
+	ctrlr, err := libnetwork.New()
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer ctrlr.Stop()
 
-	_, err = controller.NewNetwork("invalid-network-driver", "dummy",
+	_, err = ctrlr.NewNetwork("invalid-network-driver", "dummy",
 		libnetwork.NetworkOptionGeneric(getEmptyGenericOption()))
 	if err == nil {
 		t.Fatal("Expected to fail. But instead succeeded")

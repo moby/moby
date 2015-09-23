@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/docker/libkv/store"
 	"github.com/docker/libnetwork/config"
@@ -14,27 +15,30 @@ import (
 )
 
 func TestZooKeeperBackend(t *testing.T) {
-	if err := testNewController(t, "zk", "127.0.0.1:2181"); err != nil {
+	c, err := testNewController(t, "zk", "127.0.0.1:2181")
+	if err != nil {
 		t.Fatal(err)
 	}
+	c.Stop()
 }
 
-func testNewController(t *testing.T, provider, url string) error {
+func testNewController(t *testing.T, provider, url string) (NetworkController, error) {
 	cfgOptions, err := OptionBoltdbWithRandomDBFile()
 	if err != nil {
-		return err
+		return nil, err
 	}
 	cfgOptions = append(cfgOptions, config.OptionKVProvider(provider))
 	cfgOptions = append(cfgOptions, config.OptionKVProviderURL(url))
-	_, err = New(cfgOptions...)
-	return err
+	return New(cfgOptions...)
 }
 
 func TestBoltdbBackend(t *testing.T) {
 	defer os.Remove(defaultLocalStoreConfig.Client.Address)
 	testLocalBackend(t, "", "", nil)
 	defer os.Remove("/tmp/boltdb.db")
-	testLocalBackend(t, "boltdb", "/tmp/boltdb.db", &store.Config{Bucket: "testBackend"})
+	config := &store.Config{Bucket: "testBackend", ConnectionTimeout: 3 * time.Second}
+	testLocalBackend(t, "boltdb", "/tmp/boltdb.db", config)
+
 }
 
 func testLocalBackend(t *testing.T, provider, url string, storeConfig *store.Config) {
@@ -48,6 +52,7 @@ func testLocalBackend(t *testing.T, provider, url string, storeConfig *store.Con
 	genericOption[netlabel.GenericData] = driverOptions
 	cfgOptions = append(cfgOptions, config.OptionDriverConfig("host", genericOption))
 
+	fmt.Printf("URL : %s\n", url)
 	ctrl, err := New(cfgOptions...)
 	if err != nil {
 		t.Fatalf("Error new controller: %v", err)
@@ -118,6 +123,24 @@ func OptionBoltdbWithRandomDBFile() ([]config.Option, error) {
 	cfgOptions := []config.Option{}
 	cfgOptions = append(cfgOptions, config.OptionLocalKVProvider("boltdb"))
 	cfgOptions = append(cfgOptions, config.OptionLocalKVProviderURL(tmp.Name()))
-	cfgOptions = append(cfgOptions, config.OptionLocalKVProviderConfig(&store.Config{Bucket: "testBackend"}))
+	sCfg := &store.Config{Bucket: "testBackend", ConnectionTimeout: 3 * time.Second}
+	cfgOptions = append(cfgOptions, config.OptionLocalKVProviderConfig(sCfg))
 	return cfgOptions, nil
+}
+
+func TestLocalStoreLockTimeout(t *testing.T) {
+	cfgOptions, err := OptionBoltdbWithRandomDBFile()
+	if err != nil {
+		t.Fatalf("Error getting random boltdb configs %v", err)
+	}
+	ctrl, err := New(cfgOptions...)
+	if err != nil {
+		t.Fatalf("Error new controller: %v", err)
+	}
+	defer ctrl.Stop()
+	// Use the same boltdb file without closing the previous controller
+	_, err = New(cfgOptions...)
+	if err == nil {
+		t.Fatalf("Multiple boldtdb connection must fail")
+	}
 }

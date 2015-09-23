@@ -106,7 +106,7 @@
 		},
 		{
 			"ImportPath": "github.com/docker/libkv",
-			"Rev": "a0a57ed3755665e9a402a3df315402134eb6625f"
+			"Rev": "ea7ff6ae76485ab93ac36799d3e13b1905787ffe"
 		},
 		{
 			"ImportPath": "github.com/godbus/dbus",
