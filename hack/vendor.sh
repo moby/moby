@@ -36,7 +36,7 @@ clone git github.com/boltdb/bolt v1.0
 
 # get graph and distribution packages
 clone git github.com/docker/distribution ec87e9b6971d831f0eff752ddb54fb64693e51cd # docker/1.8 branch
-clone git github.com/vbatts/tar-split v0.9.6
+clone git github.com/vbatts/tar-split v0.9.10
 
 clone git github.com/docker/notary ac05822d7d71ef077df3fc24f506672282a1feea
 clone git github.com/endophage/gotuf 9bcdad0308e34a49f38448b8ad436ad8860825ce
