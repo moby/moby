@@ -1733,8 +1733,8 @@ func (s *DockerDaemonSuite) TestDaemonRestartRmVolumeInUse(c *check.C) {
 	c.Assert(s.d.Restart(), check.IsNil)
 
 	out, err = s.d.Cmd("volume", "rm", "test")
-	c.Assert(err, check.Not(check.IsNil), check.Commentf("should not be able to remove in use volume after daemon restart"))
-	c.Assert(strings.Contains(out, "in use"), check.Equals, true)
+	c.Assert(err, check.NotNil, check.Commentf("should not be able to remove in use volume after daemon restart"))
+	c.Assert(out, checker.Contains, "in use")
 }
 
 func (s *DockerDaemonSuite) TestDaemonRestartLocalVolumes(c *check.C) {
