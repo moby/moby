@@ -42,7 +42,12 @@ func TestMount(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if _, err := driver.Get(image.ID, ""); err != nil {
+	cacheID, err := graph.GetCacheID(image.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := driver.Get(cacheID, ""); err != nil {
 		t.Fatal(err)
 	}
 
