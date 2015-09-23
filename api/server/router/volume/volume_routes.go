@@ -14,11 +14,11 @@ func (v *volumeRouter) getVolumesList(ctx context.Context, w http.ResponseWriter
 		return err
 	}
 
-	volumes, err := v.backend.Volumes(r.Form.Get("filters"))
+	volumes, warnings, err := v.backend.Volumes(r.Form.Get("filters"))
 	if err != nil {
 		return err
 	}
-	return httputils.WriteJSON(w, http.StatusOK, &types.VolumesListResponse{Volumes: volumes})
+	return httputils.WriteJSON(w, http.StatusOK, &types.VolumesListResponse{Volumes: volumes, Warnings: warnings})
 }
 
 func (v *volumeRouter) getVolumeByName(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {

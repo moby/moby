@@ -151,6 +151,7 @@ func (daemon *Daemon) VolumeRm(name string) error {
 	if err != nil {
 		return err
 	}
+
 	if err := daemon.volumes.Remove(v); err != nil {
 		if volumestore.IsInUse(err) {
 			return derr.ErrorCodeRmVolumeInUse.WithArgs(err)

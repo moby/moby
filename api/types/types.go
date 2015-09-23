@@ -366,7 +366,8 @@ type Volume struct {
 // VolumesListResponse contains the response for the remote API:
 // GET "/volumes"
 type VolumesListResponse struct {
-	Volumes []*Volume // Volumes is the list of volumes being returned
+	Volumes  []*Volume // Volumes is the list of volumes being returned
+	Warnings []string  // Warnings is a list of warnings that occurred when getting the list from the volume drivers
 }
 
 // VolumeCreateRequest contains the response for the remote API:
