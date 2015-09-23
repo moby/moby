@@ -48,7 +48,7 @@ __docker_get_containers() {
     shift
     [[ $kind = (stopped|all) ]] && args=($args -a)
 
-    lines=(${(f)"$(_call_program commands docker $docker_options ps $args)"})
+    lines=(${(f)"$(_call_program commands docker $docker_options ps --no-trunc $args)"})
 
     # Parse header line to find columns
     local i=1 j=1 k header=${lines[1]}
@@ -60,13 +60,14 @@ __docker_get_containers() {
         begin[${header[$i,$((j-1))]}]=$i
         end[${header[$i,$((j-1))]}]=$k
     done
+    end[${header[$i,$((j-1))]}]=-1 # Last column, should go to the end of the line
     lines=(${lines[2,-1]})
 
     # Container ID
     local line
     local s
     for line in $lines; do
-        s="${line[${begin[CONTAINER ID]},${end[CONTAINER ID]}]%% ##}"
+        s="${${line[${begin[CONTAINER ID]},${end[CONTAINER ID]}]%% ##}[0,12]}"
         s="$s:${(l:15:: :::)${${line[${begin[CREATED]},${end[CREATED]}]/ ago/}%% ##}}"
         s="$s, ${${${line[${begin[IMAGE]},${end[IMAGE]}]}/:/\\:}%% ##}"
         if [[ ${line[${begin[STATUS]},${end[STATUS]}]} = Exit* ]]; then
@@ -76,20 +77,25 @@ __docker_get_containers() {
         fi
     done
 
-    # Names
-    local name
+    # Names: we only display the one without slash. All other names
+    # are generated and may clutter the completion. However, with
+    # Swarm, all names may be prefixed by the swarm node name.
     local -a names
     for line in $lines; do
-        names=(${(ps:,:)${${line[${begin[NAMES]},-1]}%% *}})
-        for name in $names; do
-            s="${name}:${(l:15:: :::)${${line[${begin[CREATED]},${end[CREATED]}]/ ago/}%% ##}}"
-            s="$s, ${${${line[${begin[IMAGE]},${end[IMAGE]}]}/:/\\:}%% ##}"
-            if [[ ${line[${begin[STATUS]},${end[STATUS]}]} = Exit* ]]; then
-                stopped=($stopped ${s#*/})
-            else
-                running=($running ${s#*/})
-            fi
-        done
+        names=(${(ps:,:)${${line[${begin[NAMES]},${end[NAMES]}]}%% *}})
+        # First step: find a common prefix and strip it (swarm node case)
+        (( ${#${(u)names%%/*}} == 1 )) && names=${names#${names[1]%%/*}/}
+        # Second step: only keep the first name without a /
+        s=${${names:#*/*}[1]}
+        # If no name, well give up.
+        (( $#s != 0 )) || continue
+        s="$s:${(l:15:: :::)${${line[${begin[CREATED]},${end[CREATED]}]/ ago/}%% ##}}"
+        s="$s, ${${${line[${begin[IMAGE]},${end[IMAGE]}]}/:/\\:}%% ##}"
+        if [[ ${line[${begin[STATUS]},${end[STATUS]}]} = Exit* ]]; then
+            stopped=($stopped $s)
+        else
+            running=($running $s)
+        fi
     done
 
     [[ $kind = (running|all) ]] && _describe -t containers-running "running containers" running "$@" && ret=0
@@ -177,6 +183,89 @@ __docker_search() {
     _wanted dockersearch expl 'available images' compadd -a result
 }
 
+__docker_volumes() {
+    [[ $PREFIX = -* ]] && return 1
+    integer ret=1
+    declare -a lines volumes
+
+    lines=(${(f)"$(_call_program commands docker $docker_options volume ls)"})
+
+    # Parse header line to find columns
+    local i=1 j=1 k header=${lines[1]}
+    declare -A begin end
+    while (( j < ${#header} - 1 )); do
+        i=$(( j + ${${header[$j,-1]}[(i)[^ ]]} - 1 ))
+        j=$(( i + ${${header[$i,-1]}[(i)  ]} - 1 ))
+        k=$(( j + ${${header[$j,-1]}[(i)[^ ]]} - 2 ))
+        begin[${header[$i,$((j-1))]}]=$i
+        end[${header[$i,$((j-1))]}]=$k
+    done
+    end[${header[$i,$((j-1))]}]=-1
+    lines=(${lines[2,-1]})
+
+    # Names
+    local line s
+    for line in $lines; do
+        s="${line[${begin[VOLUME NAME]},${end[VOLUME NAME]}]%% ##}"
+        s="$s:${(l:7:: :::)${${line[${begin[DRIVER]},${end[DRIVER]}]}%% ##}}"
+        volumes=($volumes $s)
+    done
+
+    _describe -t volumes-list "volumes" volumes && ret=0
+    return ret
+}
+
+__docker_volume_commands() {
+    local -a _docker_volume_subcommands
+    _docker_volume_subcommands=(
+        "create:Create a volume"
+        "inspect:Return low-level information on a volume"
+        "ls:List volumes"
+        "rm:Remove a volume"
+    )
+    _describe -t docker-volume-commands "docker volume command" _docker_volume_subcommands
+}
+
+__docker_volume_subcommand() {
+    local -a _command_args opts_help
+    local expl help="--help"
+    integer ret=1
+
+    opts_help=("(: -)--help[Print usage]")
+
+    case "$words[1]" in
+        (create)
+            _arguments \
+                $opts_help \
+                "($help -d --driver)"{-d,--driver=-}"[Specify volume driver name]:Driver name: " \
+                "($help)--name=-[Specify volume name]" \
+                "($help -o --opt)*"{-o,--opt=-}"[Set driver specific options]:Driver option: " && ret=0
+            ;;
+        (inspect)
+            _arguments \
+                $opts_help \
+                "($help -f --format=-)"{-f,--format=-}"[Format the output using the given go template]:template: " \
+                "($help -)1:volume:__docker_volumes" && ret=0
+            ;;
+        (ls)
+            _arguments \
+                $opts_help \
+                "($help -f --filter)*"{-f,--filter=-}"[Provide filter values (i.e. 'dangling=true')]:filter: " \
+                "($help -q --quiet)"{-q,--quiet}"[Only display volume names]" && ret=0
+            ;;
+        (rm)
+            _arguments \
+                $opts_help \
+                "($help -):volume:__docker_volumes" && ret=0
+            ;;
+        (help)
+            _arguments ":subcommand:__docker_volume_commands" && ret=0
+            ;;
+    esac
+
+    return ret
+}
+
 __docker_caching_policy() {
   oldp=( "$1"(Nmh+1) )     # 1 hour
   (( $#oldp ))
@@ -196,19 +285,19 @@ __docker_commands() {
         local -a lines
         lines=(${(f)"$(_call_program commands docker 2>&1)"})
         _docker_subcommands=(${${${lines[$((${lines[(i)Commands:]} + 1)),${lines[(I)    *]}]}## #}/ ##/:})
-        _docker_subcommands=($_docker_subcommands 'help:Show help for a command')
+        _docker_subcommands=($_docker_subcommands 'daemon:Enable daemon mode' 'help:Show help for a command')
         _store_cache docker_subcommands _docker_subcommands
     fi
     _describe -t docker-commands "docker command" _docker_subcommands
 }
 
 __docker_subcommand() {
-    local -a _command_args opts_help opts_cpumem opts_create
-    local expl help="-h --help"
+    local -a _command_args opts_help opts_cpumemlimit opts_create
+    local expl help="--help"
     integer ret=1
 
-    opts_help=("(: -)"{-h,--help}"[Print usage]")
-    opts_cpumem=(
+    opts_help=("(: -)--help[Print usage]")
+    opts_cpumemlimit=(
         "($help -c --cpu-shares)"{-c,--cpu-shares=-}"[CPU shares (relative weight)]:CPU shares:(0 10 100 200 500 800 1000)"
         "($help)--cgroup-parent=-[Parent cgroup for the container]:cgroup: "
         "($help)--cpu-period=-[Limit the CPU CFS (Completely Fair Scheduler) period]:CPU period: "
@@ -217,6 +306,7 @@ __docker_subcommand() {
         "($help)--cpuset-mems=-[MEMs in which to allow execution]:MEMs: "
         "($help -m --memory)"{-m,--memory=-}"[Memory limit]:Memory limit: "
         "($help)--memory-swap=-[Total memory limit with swap]:Memory limit: "
+        "($help)*--ulimit=-[ulimit options]:ulimit: "
     )
     opts_create=(
         "($help -a --attach)"{-a,--attach=-}"[Attach to stdin, stdout or stderr]:device:(STDIN STDOUT STDERR)"
@@ -237,6 +327,7 @@ __docker_subcommand() {
         "($help -h --hostname)"{-h,--hostname=-}"[Container host name]:hostname:_hosts"
         "($help -i --interactive)"{-i,--interactive}"[Keep stdin open even if not attached]"
         "($help)--ipc=-[IPC namespace to use]:IPC namespace: "
+        "($help)--kernel-memory[Kernel memory limit in bytes.]:Memory limit: "
         "($help)*--link=-[Add link to another container]:link:->link"
         "($help)*"{-l,--label=-}"[Set meta data on a container]:label: "
         "($help)--log-driver=-[Default driver for container logs]:Logging driver:(json-file syslog journald gelf fluentd awslogs none)"
@@ -255,7 +346,6 @@ __docker_subcommand() {
         "($help)*--security-opt=-[Security options]:security option: "
         "($help -t --tty)"{-t,--tty}"[Allocate a pseudo-tty]"
         "($help -u --user)"{-u,--user=-}"[Username or UID]:user:_users"
-        "($help)*--ulimit=-[ulimit options]:ulimit: "
         "($help)*-v[Bind mount a volume]:volume: "
         "($help)*--volumes-from=-[Mount volumes from the specified container]:volume: "
         "($help -w --workdir)"{-w,--workdir=-}"[Working directory inside the container]:directory:_directories"
@@ -272,7 +362,7 @@ __docker_subcommand() {
         (build)
             _arguments \
                 $opts_help \
-                $opts_cpumem \
+                $opts_cpumemlimit \
                 "($help -f --file)"{-f,--file=-}"[Name of the Dockerfile]:Dockerfile:_files" \
                 "($help)--force-rm[Always remove intermediate containers]" \
                 "($help)--no-cache[Do not use cache when building the image]" \
@@ -310,7 +400,7 @@ __docker_subcommand() {
         (create)
             _arguments \
                 $opts_help \
-                $opts_cpumem \
+                $opts_cpumemlimit \
                 $opts_create \
                 "($help -): :__docker_images" \
                 "($help -):command: _command_names -e" \
@@ -326,6 +416,51 @@ __docker_subcommand() {
                     ;;
             esac
 
+            ;;
+        (daemon)
+            _arguments \
+                $opts_help \
+                "($help)--api-cors-header=-[Set CORS headers in the remote API]:CORS headers: " \
+                "($help -b --bridge)"{-b,--bridge=-}"[Attach containers to a network bridge]:bridge:_net_interfaces" \
+                "($help)--bip=-[Specify network bridge IP]" \
+                "($help -D --debug)"{-D,--debug}"[Enable debug mode]" \
+                "($help)--default-gateway[Container default gateway IPv4 address]:IPv4 address: " \
+                "($help)--default-gateway-v6[Container default gateway IPv6 address]:IPv6 address: " \
+                "($help)*--dns=-[DNS server to use]:DNS: " \
+                "($help)*--dns-search=-[DNS search domains to use]:DNS search: " \
+                "($help)*--dns-opt=-[DNS options to use]:DNS option: " \
+                "($help)*--default-ulimit=-[Set default ulimit settings for containers]:ulimit: " \
+                "($help -e --exec-driver)"{-e,--exec-driver=-}"[Exec driver to use]:driver:(native lxc windows)" \
+                "($help)*--exec-opt=-[Set exec driver options]:exec driver options: " \
+                "($help)--exec-root=-[Root of the Docker execdriver]:path:_directories" \
+                "($help)--fixed-cidr=-[IPv4 subnet for fixed IPs]:IPv4 subnet: " \
+                "($help)--fixed-cidr-v6=-[IPv6 subnet for fixed IPs]:IPv6 subnet: " \
+                "($help -G --group)"{-G,--group=-}"[Group for the unix socket]:group:_groups" \
+                "($help -g --graph)"{-g,--graph=-}"[Root of the Docker runtime]:path:_directories" \
+                "($help -H --host)"{-H,--host=-}"[tcp://host:port to bind/connect to]:host: " \
+                "($help)--icc[Enable inter-container communication]" \
+                "($help)*--insecure-registry=-[Enable insecure registry communication]:registry: " \
+                "($help)--ip=-[Default IP when binding container ports]" \
+                "($help)--ip-forward[Enable net.ipv4.ip_forward]" \
+                "($help)--ip-masq[Enable IP masquerading]" \
+                "($help)--iptables[Enable addition of iptables rules]" \
+                "($help)--ipv6[Enable IPv6 networking]" \
+                "($help -l --log-level)"{-l,--log-level=-}"[Set the logging level]:level:(debug info warn error fatal)" \
+                "($help)*--label=-[Set key=value labels to the daemon]:label: " \
+                "($help)--log-driver=-[Default driver for container logs]:Logging driver:(json-file syslog journald gelf fluentd awslogs none)" \
+                "($help)*--log-opt=-[Log driver specific options]:log driver options: " \
+                "($help)--mtu=-[Set the containers network MTU]:mtu:(0 576 1420 1500 9000)" \
+                "($help -p --pidfile)"{-p,--pidfile=-}"[Path to use for daemon PID file]:PID file:_files" \
+                "($help)*--registry-mirror=-[Preferred Docker registry mirror]:registry mirror: " \
+                "($help -s --storage-driver)"{-s,--storage-driver=-}"[Storage driver to use]:driver:(aufs devicemapper btrfs zfs overlay)" \
+                "($help)--selinux-enabled[Enable selinux support]" \
+                "($help)*--storage-opt=-[Set storage driver options]:storage driver options: " \
+                "($help)--tls[Use TLS]" \
+                "($help)--tlscacert=-[Trust certs signed only by this CA]:PEM file:_files -g "*.(pem|crt)"" \
+                "($help)--tlscert=-[Path to TLS certificate file]:PEM file:_files -g "*.(pem|crt)"" \
+                "($help)--tlskey=-[Path to TLS key file]:Key file:_files -g "*.(pem|key)"" \
+                "($help)--tlsverify[Use TLS and verify the remote]" \
+                "($help)--userland-proxy[Use userland proxy for loopback traffic]" && ret=0
             ;;
         (diff)
             _arguments \
@@ -345,6 +480,7 @@ __docker_subcommand() {
                 $opts_help \
                 "($help -d --detach)"{-d,--detach}"[Detached mode: leave the container running in the background]" \
                 "($help -i --interactive)"{-i,--interactive}"[Keep stdin open even if not attached]" \
+                "($help)--privileged[Give extended Linux capabilities to the command]" \
                 "($help -t --tty)"{-t,--tty}"[Allocate a pseudo-tty]" \
                 "($help -u --user)"{-u,--user=-}"[Username or UID]:user:_users" \
                 "($help -):containers:__docker_runningcontainers" \
@@ -394,11 +530,24 @@ __docker_subcommand() {
                 $opts_help && ret=0
             ;;
         (inspect)
+            local state
             _arguments \
                 $opts_help \
                 "($help -f --format=-)"{-f,--format=-}"[Format the output using the given go template]:template: " \
                 "($help)--type=-[Return JSON for specified type]:type:(image container)" \
-                "($help -)*:containers:__docker_containers" && ret=0
+                "($help -)*: :->values" && ret=0
+
+            case $state in
+                (values)
+                    if [[ ${words[(r)--type=container]} == --type=container ]]; then
+                        __docker_containers && ret=0
+                    elif [[ ${words[(r)--type=image]} == --type=image ]]; then
+                        __docker_images && ret=0
+                    else
+                        __docker_images && __docker_containers && ret=0
+                    fi
+                    ;;
+            esac
             ;;
         (kill)
             _arguments \
@@ -450,6 +599,7 @@ __docker_subcommand() {
                 "($help -a --all)"{-a,--all}"[Show all containers]" \
                 "($help)--before=-[Show only container created before...]:containers:__docker_containers" \
                 "($help)*"{-f,--filter=-}"[Filter values]:filter: " \
+                "($help)--format[Pretty-print containers using a Go template]:format: " \
                 "($help -l --latest)"{-l,--latest}"[Show only the latest created container]" \
                 "($help)-n[Show n last created containers, include non-running one]:n:(1 5 10 25 50)" \
                 "($help)--no-trunc[Do not truncate output]" \
@@ -498,12 +648,12 @@ __docker_subcommand() {
         (run)
             _arguments \
                 $opts_help \
-                $opts_cpumem \
+                $opts_cpumemlimit \
                 $opts_create \
                 "($help -d --detach)"{-d,--detach}"[Detached mode: leave the container running in the background]" \
                 "($help)--rm[Remove intermediate containers when it exits]" \
                 "($help)--sig-proxy[Proxy all received signals to the process (non-TTY mode only)]" \
-                "($help)--stop-signal[Signal to kill a container]" \
+                "($help)--stop-signal=-[Signal to kill a container]:signal:_signals" \
                 "($help -): :__docker_images" \
                 "($help -):command: _command_names -e" \
                 "($help -)*::arguments: _normal" && ret=0
@@ -565,6 +715,23 @@ __docker_subcommand() {
             esac
 
             ;;
+        (volume)
+            local curcontext="$curcontext" state
+            _arguments \
+                $opts_help \
+                "($help -): :->command" \
+                "($help -)*:: :->option-or-argument" && ret=0
+
+            case $state in
+                (command)
+                    __docker_volume_commands && ret=0
+                    ;;
+                (option-or-argument)
+                    curcontext=${curcontext%:*:*}:docker-$words[-1]:
+                    __docker_volume_subcommand && ret=0
+                    ;;
+            esac
+            ;;
         (wait)
             _arguments \
                 $opts_help \
@@ -592,42 +759,10 @@ _docker() {
 
     _arguments -C \
         "(: -)"{-h,--help}"[Print usage]" \
-        "($help)--api-cors-header=-[Set CORS headers in the remote API]:CORS headers: " \
-        "($help -b --bridge)"{-b,--bridge=-}"[Attach containers to a network bridge]:bridge:_net_interfaces" \
-        "($help)--bip=-[Specify network bridge IP]" \
+        "($help)--config[Location of client config files]:path:_directories" \
         "($help -D --debug)"{-D,--debug}"[Enable debug mode]" \
-        "($help -d --daeamon)"{-d,--daemon}"[Enable daemon mode]" \
-        "($help)--default-gateway[Container default gateway IPv4 address]:IPv4 address: " \
-        "($help)--default-gateway-v6[Container default gateway IPv6 address]:IPv6 address: " \
-        "($help)*--dns=-[DNS server to use]:DNS: " \
-        "($help)*--dns-search=-[DNS search domains to use]:DNS search: " \
-        "($help)*--dns-opt=-[DNS options to use]:DNS option: " \
-        "($help)*--default-ulimit=-[Set default ulimit settings for containers]:ulimit: " \
-        "($help -e --exec-driver)"{-e,--exec-driver=-}"[Exec driver to use]:driver:(native lxc windows)" \
-        "($help)*--exec-opt=-[Set exec driver options]:exec driver options: " \
-        "($help)--exec-root=-[Root of the Docker execdriver]:path:_directories" \
-        "($help)--fixed-cidr=-[IPv4 subnet for fixed IPs]:IPv4 subnet: " \
-        "($help)--fixed-cidr-v6=-[IPv6 subnet for fixed IPs]:IPv6 subnet: " \
-        "($help -G --group)"{-G,--group=-}"[Group for the unix socket]:group:_groups" \
-        "($help -g --graph)"{-g,--graph=-}"[Root of the Docker runtime]:path:_directories" \
         "($help -H --host)"{-H,--host=-}"[tcp://host:port to bind/connect to]:host: " \
-        "($help)--icc[Enable inter-container communication]" \
-        "($help)*--insecure-registry=-[Enable insecure registry communication]:registry: " \
-        "($help)--ip=-[Default IP when binding container ports]" \
-        "($help)--ip-forward[Enable net.ipv4.ip_forward]" \
-        "($help)--ip-masq[Enable IP masquerading]" \
-        "($help)--iptables[Enable addition of iptables rules]" \
-        "($help)--ipv6[Enable IPv6 networking]" \
         "($help -l --log-level)"{-l,--log-level=-}"[Set the logging level]:level:(debug info warn error fatal)" \
-        "($help)*--label=-[Set key=value labels to the daemon]:label: " \
-        "($help)--log-driver=-[Default driver for container logs]:Logging driver:(json-file syslog journald gelf fluentd awslogs none)" \
-        "($help)*--log-opt=-[Log driver specific options]:log driver options: " \
-        "($help)--mtu=-[Set the containers network MTU]:mtu:(0 576 1420 1500 9000)" \
-        "($help -p --pidfile)"{-p,--pidfile=-}"[Path to use for daemon PID file]:PID file:_files" \
-        "($help)*--registry-mirror=-[Preferred Docker registry mirror]:registry mirror: " \
-        "($help -s --storage-driver)"{-s,--storage-driver=-}"[Storage driver to use]:driver:(aufs devicemapper btrfs zfs overlay)" \
-        "($help)--selinux-enabled[Enable selinux support]" \
-        "($help)*--storage-opt=-[Set storage driver options]:storage driver options: " \
         "($help)--tls[Use TLS]" \
         "($help)--tlscacert=-[Trust certs signed only by this CA]:PEM file:_files -g "*.(pem|crt)"" \
         "($help)--tlscert=-[Path to TLS certificate file]:PEM file:_files -g "*.(pem|crt)"" \
@@ -639,7 +774,8 @@ _docker() {
         "($help -)*:: :->option-or-argument" && ret=0
 
     local host=${opt_args[-H]}${opt_args[--host]}
-    local docker_options=${host:+--host $host}
+    local config=${opt_args[--config]}
+    local docker_options="${host:+--host $host} ${config:+--config $config}"
 
     case $state in
         (command)
