@@ -53,6 +53,7 @@ echo_docker_as_nonroot() {
 
 # Check if this is a forked Linux distro
 check_forked() {
+	
 	# Check for lsb_release command existence, it usually exists in forked distros
 	if command_exists lsb_release; then
 		# Check if the `-u` option is supported
@@ -76,6 +77,20 @@ check_forked() {
 			cat <<-EOF
 			Upstream release is '$lsb_dist' version '$dist_version'.
 			EOF
+		else
+			if [ -r /etc/debian_version ]; then
+				# We're Debian and don't even know it!
+				lsb_dist=debian
+				dist_version="$(cat /etc/debian_version | sed 's/\/.*//' | sed 's/\..*//')"
+				case "$dist_version" in
+					8)
+						dist_version="jessie"
+					;;
+					7)
+						dist_version="wheezy"
+					;;
+				esac
+			fi
 		fi
 	fi
 }
