@@ -4,8 +4,6 @@ import (
 	"encoding/json"
 	"net/http"
 	"runtime"
-	"strconv"
-	"strings"
 	"time"
 
 	"github.com/Sirupsen/logrus"
@@ -54,26 +52,27 @@ func (s *router) getInfo(ctx context.Context, w http.ResponseWriter, r *http.Req
 	return httputils.WriteJSON(w, http.StatusOK, info)
 }
 
+func buildOutputEncoder(w http.ResponseWriter) *json.Encoder {
+	w.Header().Set("Content-Type", "application/json")
+	outStream := ioutils.NewWriteFlusher(w)
+	// Write an empty chunk of data.
+	// This is to ensure that the HTTP status code is sent immediately,
+	// so that it will not block the receiver.
+	outStream.Write(nil)
+	return json.NewEncoder(outStream)
+}
+
 func (s *router) getEvents(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
-	var since int64 = -1
-	if r.Form.Get("since") != "" {
-		s, err := strconv.ParseInt(r.Form.Get("since"), 10, 64)
-		if err != nil {
-			return err
-		}
-		since = s
+	since, err := httputils.Int64ValueOrDefault(r, "since", -1)
+	if err != nil {
+		return err
 	}
-
-	var until int64 = -1
-	if r.Form.Get("until") != "" {
-		u, err := strconv.ParseInt(r.Form.Get("until"), 10, 64)
-		if err != nil {
-			return err
-		}
-		until = u
+	until, err := httputils.Int64ValueOrDefault(r, "until", -1)
+	if err != nil {
+		return err
 	}
 
 	timer := time.NewTimer(0)
@@ -88,70 +87,30 @@ func (s *router) getEvents(ctx context.Context, w http.ResponseWriter, r *http.R
 		return err
 	}
 
-	isFiltered := func(field string, filter []string) bool {
-		if len(field) == 0 {
-			return false
-		}
-		if len(filter) == 0 {
-			return false
-		}
-		for _, v := range filter {
-			if v == field {
-				return false
-			}
-			if strings.Contains(field, ":") {
-				image := strings.Split(field, ":")
-				if image[0] == v {
-					return false
-				}
-			}
-		}
-		return true
-	}
-
+	enc := buildOutputEncoder(w)
 	d := s.daemon
 	es := d.EventsService
-	w.Header().Set("Content-Type", "application/json")
-
-	outStream := ioutils.NewWriteFlusher(w)
-	// Write an empty chunk of data.
-	// This is to ensure that the HTTP status code is sent immediately,
-	// so that it will not block the receiver.
-	outStream.Write(nil)
-	enc := json.NewEncoder(outStream)
-
-	getContainerID := func(cn string) string {
-		c, err := d.Get(cn)
-		if err != nil {
-			return ""
-		}
-		return c.ID
-	}
-
-	sendEvent := func(ev *jsonmessage.JSONMessage) error {
-		//incoming container filter can be name,id or partial id, convert and replace as a full container id
-		for i, cn := range ef["container"] {
-			ef["container"][i] = getContainerID(cn)
-		}
-
-		if isFiltered(ev.Status, ef["event"]) || (isFiltered(ev.ID, ef["image"]) &&
-			isFiltered(ev.From, ef["image"])) || isFiltered(ev.ID, ef["container"]) {
-			return nil
-		}
-
-		return enc.Encode(ev)
-	}
-
 	current, l := es.Subscribe()
+	defer es.Evict(l)
+
+	eventFilter := d.GetEventFilter(ef)
+	handleEvent := func(ev *jsonmessage.JSONMessage) error {
+		if eventFilter.Include(ev) {
+			if err := enc.Encode(ev); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+
 	if since == -1 {
 		current = nil
 	}
-	defer es.Evict(l)
 	for _, ev := range current {
 		if ev.Time < since {
 			continue
 		}
-		if err := sendEvent(ev); err != nil {
+		if err := handleEvent(ev); err != nil {
 			return err
 		}
 	}
@@ -168,7 +127,7 @@ func (s *router) getEvents(ctx context.Context, w http.ResponseWriter, r *http.R
 			if !ok {
 				continue
 			}
-			if err := sendEvent(jev); err != nil {
+			if err := handleEvent(jev); err != nil {
 				return err
 			}
 		case <-timer.C:
