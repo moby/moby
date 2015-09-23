@@ -450,12 +450,9 @@ func (s *DockerSuite) TestRunExitCode(c *check.C) {
 		exit int
 		err  error
 	)
-	if daemonPlatform == "windows" {
-		// FIXME Windows: Work out the bug in busybox why exit doesn't set the exit code.
-		_, exit, err = dockerCmdWithError("run", WindowsBaseImage, "cmd", "/s", "/c", "exit 72")
-	} else {
-		_, exit, err = dockerCmdWithError("run", "busybox", "/bin/sh", "-c", "exit 72")
-	}
+
+	_, exit, err = dockerCmdWithError("run", "busybox", "/bin/sh", "-c", "exit 72")
+
 	if err == nil {
 		c.Fatal("should not have a non nil error")
 	}
