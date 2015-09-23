@@ -223,15 +223,29 @@ func (s *DockerSuite) TestRunWithDaemonFlags(c *check.C) {
 
 // Regression test for #4979
 func (s *DockerSuite) TestRunWithVolumesFromExited(c *check.C) {
-	// TODO Windows: This test cannot run on a Windows daemon as Windows does
-	// not support volumes
-	testRequires(c, DaemonIsLinux)
-	out, exitCode := dockerCmd(c, "run", "--name", "test-data", "--volume", "/some/dir", "busybox", "touch", "/some/dir/file")
+
+	var (
+		out      string
+		exitCode int
+	)
+
+	// Create a file in a volume
+	if daemonPlatform == "windows" {
+		testRequires(c, WindowsDaemonSupportsVolumes)
+		out, exitCode = dockerCmd(c, "run", "--name", "test-data", "--volume", `c:\some\dir`, WindowsBaseImage, `cmd /c echo hello > c:\some\dir\file`)
+	} else {
+		out, exitCode = dockerCmd(c, "run", "--name", "test-data", "--volume", "/some/dir", "busybox", "touch", "/some/dir/file")
+	}
 	if exitCode != 0 {
 		c.Fatal("1", out, exitCode)
 	}
 
-	out, exitCode = dockerCmd(c, "run", "--volumes-from", "test-data", "busybox", "cat", "/some/dir/file")
+	// Read the file from another container using --volumes-from to access the volume in the second container
+	if daemonPlatform == "windows" {
+		out, exitCode = dockerCmd(c, "run", "--volumes-from", "test-data", WindowsBaseImage, `cmd /c type c:\some\dir\file`)
+	} else {
+		out, exitCode = dockerCmd(c, "run", "--volumes-from", "test-data", "busybox", "cat", "/some/dir/file")
+	}
 	if exitCode != 0 {
 		c.Fatal("2", out, exitCode)
 	}
@@ -240,9 +254,17 @@ func (s *DockerSuite) TestRunWithVolumesFromExited(c *check.C) {
 // Volume path is a symlink which also exists on the host, and the host side is a file not a dir
 // But the volume call is just a normal volume, not a bind mount
 func (s *DockerSuite) TestRunCreateVolumesInSymlinkDir(c *check.C) {
-	// TODO Windows: This test cannot run on a Windows daemon as Windows does
-	// not support volumes
-	testRequires(c, DaemonIsLinux, SameHostDaemon, NativeExecDriver)
+	var (
+		dockerFile    string
+		containerPath string
+		cmd           string
+	)
+	if daemonPlatform == "windows" {
+		testRequires(c, SameHostDaemon, WindowsDaemonSupportsVolumes)
+	} else {
+		testRequires(c, SameHostDaemon, NativeExecDriver)
+	}
+
 	name := "test-volume-symlink"
 
 	dir, err := ioutil.TempDir("", name)
@@ -257,52 +279,84 @@ func (s *DockerSuite) TestRunCreateVolumesInSymlinkDir(c *check.C) {
 	}
 	f.Close()
 
-	dockerFile := fmt.Sprintf("FROM busybox\nRUN mkdir -p %s\nRUN ln -s %s /test", dir, dir)
+	if daemonPlatform == "windows" {
+		dockerFile = fmt.Sprintf("FROM %s\nRUN mkdir %s\nRUN mklink /D c:\\test %s", WindowsBaseImage, dir, dir)
+		containerPath = `c:\test\test`
+		cmd = "tasklist"
+	} else {
+		dockerFile = fmt.Sprintf("FROM busybox\nRUN mkdir -p %s\nRUN ln -s %s /test", dir, dir)
+		containerPath = "/test/test"
+		cmd = "true"
+	}
 	if _, err := buildImage(name, dockerFile, false); err != nil {
 		c.Fatal(err)
 	}
 
-	dockerCmd(c, "run", "-v", "/test/test", name)
+	dockerCmd(c, "run", "-v", containerPath, name, cmd)
 }
 
 func (s *DockerSuite) TestRunVolumesMountedAsReadonly(c *check.C) {
-	// TODO Windows: This test cannot run on a Windows daemon as Windows does
-	// not support volumes
+	// TODO Windows (Post TP4): This test cannot run on a Windows daemon as
+	// Windows does not support read-only bind mounts.
 	testRequires(c, DaemonIsLinux)
 	if _, code, err := dockerCmdWithError("run", "-v", "/test:/test:ro", "busybox", "touch", "/test/somefile"); err == nil || code == 0 {
 		c.Fatalf("run should fail because volume is ro: exit code %d", code)
 	}
 }
 
-func (s *DockerSuite) TestRunVolumesFromInReadonlyMode(c *check.C) {
-	// TODO Windows: This test cannot run on a Windows daemon as Windows does
-	// not support volumes
+func (s *DockerSuite) TestRunVolumesFromInReadonlyModeFails(c *check.C) {
+	// TODO Windows (Post TP4): This test cannot run on a Windows daemon as
+	// Windows does not support read-only bind mounts. Modified for when ro is supported.
 	testRequires(c, DaemonIsLinux)
-	dockerCmd(c, "run", "--name", "parent", "-v", "/test", "busybox", "true")
+	var (
+		volumeDir string
+		fileInVol string
+	)
+	if daemonPlatform == "windows" {
+		testRequires(c, WindowsDaemonSupportsVolumes)
+		volumeDir = `c:/test` // Forward-slash as using busybox
+		fileInVol = `c:/test/file`
+	} else {
+		testRequires(c, DaemonIsLinux)
+		volumeDir = "/test"
+		fileInVol = `/test/file`
+	}
+	dockerCmd(c, "run", "--name", "parent", "-v", volumeDir, "busybox", "true")
 
-	if _, code, err := dockerCmdWithError("run", "--volumes-from", "parent:ro", "busybox", "touch", "/test/file"); err == nil || code == 0 {
+	if _, code, err := dockerCmdWithError("run", "--volumes-from", "parent:ro", "busybox", "touch", fileInVol); err == nil || code == 0 {
 		c.Fatalf("run should fail because volume is ro: exit code %d", code)
 	}
 }
 
 // Regression test for #1201
 func (s *DockerSuite) TestRunVolumesFromInReadWriteMode(c *check.C) {
-	// TODO Windows: This test cannot run on a Windows daemon as Windows does
-	// not support volumes
-	testRequires(c, DaemonIsLinux)
-	dockerCmd(c, "run", "--name", "parent", "-v", "/test", "busybox", "true")
-	dockerCmd(c, "run", "--volumes-from", "parent:rw", "busybox", "touch", "/test/file")
-
-	if out, _, err := dockerCmdWithError("run", "--volumes-from", "parent:bar", "busybox", "touch", "/test/file"); err == nil || !strings.Contains(out, "invalid mode: bar") {
-		c.Fatalf("running --volumes-from foo:bar should have failed with invalid mode: %q", out)
+	var (
+		volumeDir string
+		fileInVol string
+	)
+	if daemonPlatform == "windows" {
+		testRequires(c, WindowsDaemonSupportsVolumes)
+		volumeDir = `c:/test` // Forward-slash as using busybox
+		fileInVol = `c:/test/file`
+	} else {
+		testRequires(c, DaemonIsLinux)
+		volumeDir = "/test"
+		fileInVol = "/test/file"
 	}
 
-	dockerCmd(c, "run", "--volumes-from", "parent", "busybox", "touch", "/test/file")
+	dockerCmd(c, "run", "--name", "parent", "-v", volumeDir, "busybox", "true")
+	dockerCmd(c, "run", "--volumes-from", "parent:rw", "busybox", "touch", fileInVol)
+
+	if out, _, err := dockerCmdWithError("run", "--volumes-from", "parent:bar", "busybox", "touch", fileInVol); err == nil || !strings.Contains(out, "invalid mode: bar") {
+		c.Fatalf("running --volumes-from parent:bar should have failed with invalid mount mode: %q", out)
+	}
+
+	dockerCmd(c, "run", "--volumes-from", "parent", "busybox", "touch", fileInVol)
 }
 
 func (s *DockerSuite) TestVolumesFromGetsProperMode(c *check.C) {
-	// TODO Windows: This test cannot run on a Windows daemon as Windows does
-	// not support volumes
+	// TODO Windows: This test cannot yet run on a Windows daemon as Windows does
+	// not support read-only bind mounts as at TP4
 	testRequires(c, DaemonIsLinux)
 	dockerCmd(c, "run", "--name", "parent", "-v", "/test:/test:ro", "busybox", "true")
 
@@ -321,36 +375,54 @@ func (s *DockerSuite) TestVolumesFromGetsProperMode(c *check.C) {
 
 // Test for GH#10618
 func (s *DockerSuite) TestRunNoDupVolumes(c *check.C) {
-	// TODO Windows: This test cannot run on a Windows daemon as Windows does
-	// not support volumes
-	testRequires(c, DaemonIsLinux)
-	mountstr1 := randomTmpDirPath("test1", daemonPlatform) + ":/someplace"
-	mountstr2 := randomTmpDirPath("test2", daemonPlatform) + ":/someplace"
+	path1 := randomTmpDirPath("test1", daemonPlatform)
+	path2 := randomTmpDirPath("test2", daemonPlatform)
+
+	someplace := ":/someplace"
+	if daemonPlatform == "windows" {
+		// Windows requires that the source directory exists before calling HCS
+		testRequires(c, SameHostDaemon, WindowsDaemonSupportsVolumes)
+		someplace = `:c:\someplace`
+		if err := os.MkdirAll(path1, 0755); err != nil {
+			c.Fatalf("Failed to create %s: %q", path1, err)
+		}
+		defer os.RemoveAll(path1)
+		if err := os.MkdirAll(path2, 0755); err != nil {
+			c.Fatalf("Failed to create %s: %q", path1, err)
+		}
+		defer os.RemoveAll(path2)
+	}
+	mountstr1 := path1 + someplace
+	mountstr2 := path2 + someplace
 
 	if out, _, err := dockerCmdWithError("run", "-v", mountstr1, "-v", mountstr2, "busybox", "true"); err == nil {
 		c.Fatal("Expected error about duplicate volume definitions")
 	} else {
 		if !strings.Contains(out, "Duplicate bind mount") {
-			c.Fatalf("Expected 'duplicate volume' error, got %v", err)
+			c.Fatalf("Expected 'duplicate volume' error, got %v", out)
 		}
 	}
 }
 
 // Test for #1351
 func (s *DockerSuite) TestRunApplyVolumesFromBeforeVolumes(c *check.C) {
-	// TODO Windows: This test cannot run on a Windows daemon as Windows does
-	// not support volumes
-	testRequires(c, DaemonIsLinux)
-	dockerCmd(c, "run", "--name", "parent", "-v", "/test", "busybox", "touch", "/test/foo")
-	dockerCmd(c, "run", "--volumes-from", "parent", "-v", "/test", "busybox", "cat", "/test/foo")
+	prefix := ""
+	if daemonPlatform == "windows" {
+		testRequires(c, WindowsDaemonSupportsVolumes)
+		prefix = `c:`
+	}
+	dockerCmd(c, "run", "--name", "parent", "-v", prefix+"/test", "busybox", "touch", prefix+"/test/foo")
+	dockerCmd(c, "run", "--volumes-from", "parent", "-v", prefix+"/test", "busybox", "cat", prefix+"/test/foo")
 }
 
 func (s *DockerSuite) TestRunMultipleVolumesFrom(c *check.C) {
-	// TODO Windows: This test cannot run on a Windows daemon as Windows does
-	// not support volumes
-	testRequires(c, DaemonIsLinux)
-	dockerCmd(c, "run", "--name", "parent1", "-v", "/test", "busybox", "touch", "/test/foo")
-	dockerCmd(c, "run", "--name", "parent2", "-v", "/other", "busybox", "touch", "/other/bar")
+	prefix := ""
+	if daemonPlatform == "windows" {
+		testRequires(c, WindowsDaemonSupportsVolumes)
+		prefix = `c:`
+	}
+	dockerCmd(c, "run", "--name", "parent1", "-v", prefix+"/test", "busybox", "touch", prefix+"/test/foo")
+	dockerCmd(c, "run", "--name", "parent2", "-v", prefix+"/other", "busybox", "touch", prefix+"/other/bar")
 	dockerCmd(c, "run", "--volumes-from", "parent1", "--volumes-from", "parent2", "busybox", "sh", "-c", "cat /test/foo && cat /other/bar")
 }
 
@@ -375,17 +447,18 @@ func (s *DockerSuite) TestRunVerifyContainerID(c *check.C) {
 
 // Test that creating a container with a volume doesn't crash. Regression test for #995.
 func (s *DockerSuite) TestRunCreateVolume(c *check.C) {
-	// TODO Windows: This test cannot run on a Windows daemon as Windows does
-	// not support volumes
-	testRequires(c, DaemonIsLinux)
-	dockerCmd(c, "run", "-v", "/var/lib/data", "busybox", "true")
+	prefix := ""
+	if daemonPlatform == "windows" {
+		testRequires(c, WindowsDaemonSupportsVolumes)
+		prefix = `c:`
+	}
+	dockerCmd(c, "run", "-v", prefix+"/var/lib/data", "busybox", "true")
 }
 
 // Test that creating a volume with a symlink in its path works correctly. Test for #5152.
 // Note that this bug happens only with symlinks with a target that starts with '/'.
 func (s *DockerSuite) TestRunCreateVolumeWithSymlink(c *check.C) {
-	// TODO Windows: This test cannot run on a Windows daemon as Windows does
-	// not support volumes
+	// Cannot run on Windows as relies on Linux-specific functionality (sh -c mount...)
 	testRequires(c, DaemonIsLinux)
 	image := "docker-test-createvolumewithsymlink"
 
@@ -421,27 +494,39 @@ func (s *DockerSuite) TestRunCreateVolumeWithSymlink(c *check.C) {
 
 // Tests that a volume path that has a symlink exists in a container mounting it with `--volumes-from`.
 func (s *DockerSuite) TestRunVolumesFromSymlinkPath(c *check.C) {
-	// TODO Windows: This test cannot run on a Windows daemon as Windows does
-	// not support volumes
-	testRequires(c, DaemonIsLinux)
+	if daemonPlatform == "windows" {
+		testRequires(c, WindowsDaemonSupportsVolumes)
+	}
+
 	name := "docker-test-volumesfromsymlinkpath"
+	prefix := ""
+	dfContents := `FROM busybox
+		RUN ln -s home /foo
+		VOLUME ["/foo/bar"]`
+
+	if daemonPlatform == "windows" {
+		prefix = `c:`
+		dfContents = `FROM ` + WindowsBaseImage + `
+	    RUN mkdir c:\home
+		RUN mklink /D c:\foo c:\home 
+		VOLUME ["c:/foo/bar"]
+		ENTRYPOINT c:\windows\system32\cmd.exe`
+	}
 
 	buildCmd := exec.Command(dockerBinary, "build", "-t", name, "-")
-	buildCmd.Stdin = strings.NewReader(`FROM busybox
-		RUN ln -s home /foo
-		VOLUME ["/foo/bar"]`)
+	buildCmd.Stdin = strings.NewReader(dfContents)
 	buildCmd.Dir = workingDirectory
 	err := buildCmd.Run()
 	if err != nil {
 		c.Fatalf("could not build 'docker-test-volumesfromsymlinkpath': %v", err)
 	}
 
-	_, exitCode, err := dockerCmdWithError("run", "--name", "test-volumesfromsymlinkpath", name)
+	out, exitCode, err := dockerCmdWithError("run", "--name", "test-volumesfromsymlinkpath", name)
 	if err != nil || exitCode != 0 {
-		c.Fatalf("[run] (volume) err: %v, exitcode: %d", err, exitCode)
+		c.Fatalf("[run] (volume) err: %v, exitcode: %d, out: %s", err, exitCode, out)
 	}
 
-	_, exitCode, err = dockerCmdWithError("run", "--volumes-from", "test-volumesfromsymlinkpath", "busybox", "sh", "-c", "ls /foo | grep -q bar")
+	_, exitCode, err = dockerCmdWithError("run", "--volumes-from", "test-volumesfromsymlinkpath", "busybox", "sh", "-c", "ls "+prefix+"/foo | grep -q bar")
 	if err != nil || exitCode != 0 {
 		c.Fatalf("[run] err: %v, exitcode: %d", err, exitCode)
 	}
@@ -544,6 +629,15 @@ func (s *DockerSuite) TestRunUserNotFound(c *check.C) {
 }
 
 func (s *DockerSuite) TestRunTwoConcurrentContainers(c *check.C) {
+	// TODO Windows. There are two bugs in TP4 which means this test cannot
+	// be reliably enabled. The first is a race condition where sometimes
+	// HCS CreateComputeSystem() will fail "Invalid class string". #4985252 and
+	// #4493430.
+	//
+	// The second, which is seen more readily by increasing the number of concurrent
+	// containers to 5 or more, is that CSRSS hangs. This may fixed in the TP4 ZDP.
+	// #4898773.
+	testRequires(c, DaemonIsLinux)
 	sleepTime := "2"
 	if daemonPlatform == "windows" {
 		sleepTime = "5" // Make more reliable on Windows
@@ -1005,14 +1099,24 @@ func (s *DockerSuite) TestRunRootWorkdir(c *check.C) {
 }
 
 func (s *DockerSuite) TestRunAllowBindMountingRoot(c *check.C) {
-	testRequires(c, DaemonIsLinux)
-	dockerCmd(c, "run", "-v", "/:/host", "busybox", "ls", "/host")
+	if daemonPlatform == "windows" {
+		testRequires(c, WindowsDaemonSupportsVolumes)
+		// Windows busybox will fail with Permission Denied on items such as pagefile.sys
+		dockerCmd(c, "run", "-v", `c:\:c:\host`, WindowsBaseImage, "cmd", "-c", "dir", `c:\host`)
+	} else {
+		dockerCmd(c, "run", "-v", "/:/host", "busybox", "ls", "/host")
+	}
 }
 
 func (s *DockerSuite) TestRunDisallowBindMountingRootToRoot(c *check.C) {
-	// Not applicable on Windows as Windows does not support volumes
-	testRequires(c, DaemonIsLinux)
-	out, _, err := dockerCmdWithError("run", "-v", "/:/", "busybox", "ls", "/host")
+	mount := "/:/"
+	targetDir := "/host"
+	if daemonPlatform == "windows" {
+		testRequires(c, WindowsDaemonSupportsVolumes)
+		mount = `c:\:c\`
+		targetDir = "c:/host" // Forward slash as using busybox
+	}
+	out, _, err := dockerCmdWithError("run", "-v", mount, "busybox", "ls", targetDir)
 	if err == nil {
 		c.Fatal(out, err)
 	}
@@ -1466,7 +1570,7 @@ func (s *DockerSuite) TestRunState(c *check.C) {
 
 // Test for #1737
 func (s *DockerSuite) TestRunCopyVolumeUidGid(c *check.C) {
-	// Not applicable on Windows as it does not support volumes, uid or gid
+	// Not applicable on Windows as it does not support uid or gid in this way
 	testRequires(c, DaemonIsLinux)
 	name := "testrunvolumesuidgid"
 	_, err := buildImage(name,
@@ -1489,7 +1593,8 @@ func (s *DockerSuite) TestRunCopyVolumeUidGid(c *check.C) {
 
 // Test for #1582
 func (s *DockerSuite) TestRunCopyVolumeContent(c *check.C) {
-	// Not applicable on Windows as it does not support volumes
+	// TODO Windows, post TP4. Windows does not yet support volume functionality
+	// that copies from the image to the volume.
 	testRequires(c, DaemonIsLinux)
 	name := "testruncopyvolumecontent"
 	_, err := buildImage(name,
@@ -1712,10 +1817,12 @@ func (s *DockerSuite) TestRunEntrypoint(c *check.C) {
 }
 
 func (s *DockerSuite) TestRunBindMounts(c *check.C) {
-	// /tmp gets permission denied
-	testRequires(c, NotUserNamespace)
-	// Cannot run on Windows as Windows does not support volumes
-	testRequires(c, DaemonIsLinux, SameHostDaemon)
+	testRequires(c, SameHostDaemon)
+	if daemonPlatform == "windows" {
+		testRequires(c, WindowsDaemonSupportsVolumes)
+	} else {
+		testRequires(c, DaemonIsLinux, NotUserNamespace)
+	}
 
 	tmpDir, err := ioutil.TempDir("", "docker-test-container")
 	if err != nil {
@@ -1725,14 +1832,21 @@ func (s *DockerSuite) TestRunBindMounts(c *check.C) {
 	defer os.RemoveAll(tmpDir)
 	writeFile(path.Join(tmpDir, "touch-me"), "", c)
 
-	// Test reading from a read-only bind mount
-	out, _ := dockerCmd(c, "run", "-v", fmt.Sprintf("%s:/tmp:ro", tmpDir), "busybox", "ls", "/tmp")
-	if !strings.Contains(out, "touch-me") {
-		c.Fatal("Container failed to read from bind mount")
+	// TODO Windows Post TP4. Windows does not yet support :ro binds
+	if daemonPlatform != "windows" {
+		// Test reading from a read-only bind mount
+		out, _ := dockerCmd(c, "run", "-v", fmt.Sprintf("%s:/tmp:ro", tmpDir), "busybox", "ls", "/tmp")
+		if !strings.Contains(out, "touch-me") {
+			c.Fatal("Container failed to read from bind mount")
+		}
 	}
 
 	// test writing to bind mount
-	dockerCmd(c, "run", "-v", fmt.Sprintf("%s:/tmp:rw", tmpDir), "busybox", "touch", "/tmp/holla")
+	if daemonPlatform == "windows" {
+		dockerCmd(c, "run", "-v", fmt.Sprintf(`%s:c:\tmp:rw`, tmpDir), "busybox", "touch", "c:/tmp/holla")
+	} else {
+		dockerCmd(c, "run", "-v", fmt.Sprintf("%s:/tmp:rw", tmpDir), "busybox", "touch", "/tmp/holla")
+	}
 
 	readFile(path.Join(tmpDir, "holla"), c) // Will fail if the file doesn't exist
 
@@ -1742,12 +1856,15 @@ func (s *DockerSuite) TestRunBindMounts(c *check.C) {
 		c.Fatal("Container bind mounted illegal directory")
 	}
 
-	// test mount a file
-	dockerCmd(c, "run", "-v", fmt.Sprintf("%s/holla:/tmp/holla:rw", tmpDir), "busybox", "sh", "-c", "echo -n 'yotta' > /tmp/holla")
-	content := readFile(path.Join(tmpDir, "holla"), c) // Will fail if the file doesn't exist
-	expected := "yotta"
-	if content != expected {
-		c.Fatalf("Output should be %q, actual out: %q", expected, content)
+	// Windows does not (and likely never will) support mounting a single file
+	if daemonPlatform != "windows" {
+		// test mount a file
+		dockerCmd(c, "run", "-v", fmt.Sprintf("%s/holla:/tmp/holla:rw", tmpDir), "busybox", "sh", "-c", "echo -n 'yotta' > /tmp/holla")
+		content := readFile(path.Join(tmpDir, "holla"), c) // Will fail if the file doesn't exist
+		expected := "yotta"
+		if content != expected {
+			c.Fatalf("Output should be %q, actual out: %q", expected, content)
+		}
 	}
 }
 
@@ -1806,16 +1923,11 @@ func (s *DockerSuite) TestRunCidFileCheckIDLength(c *check.C) {
 }
 
 func (s *DockerSuite) TestRunSetMacAddress(c *check.C) {
-	// TODO Windows. Test modified to be theoretically Windows compatible,
-	// but the version of busybox being used on Windows doesn't handle
-	// sh -c ipconfig -all (or /all). It ignores the *all bit. This could
-	// be a bug in busybox.
-	testRequires(c, DaemonIsLinux)
 	mac := "12:34:56:78:9a:bc"
-
 	var out string
 	if daemonPlatform == "windows" {
 		out, _ = dockerCmd(c, "run", "-i", "--rm", fmt.Sprintf("--mac-address=%s", mac), "busybox", "sh", "-c", "ipconfig /all | grep 'Physical Address' | awk '{print $12}'")
+		mac = strings.Replace(strings.ToUpper(mac), ":", "-", -1) // To Windows-style MACs
 	} else {
 		out, _ = dockerCmd(c, "run", "-i", "--rm", fmt.Sprintf("--mac-address=%s", mac), "busybox", "/bin/sh", "-c", "ip link show eth0 | tail -1 | awk '{print $2}'")
 	}
@@ -1912,10 +2024,13 @@ func (s *DockerSuite) TestRunAllocatePortInReservedRange(c *check.C) {
 
 // Regression test for #7792
 func (s *DockerSuite) TestRunMountOrdering(c *check.C) {
-	// tmp gets permission denied
-	testRequires(c, NotUserNamespace)
-	// Not applicable on Windows as Windows does not support volumes
-	testRequires(c, SameHostDaemon, DaemonIsLinux)
+	// TODO Windows: Post TP4. Updated, but Windows does not support nested mounts currently.
+	testRequires(c, SameHostDaemon, DaemonIsLinux, NotUserNamespace)
+	prefix := ""
+	if daemonPlatform == "windows" {
+		testRequires(c, WindowsDaemonSupportsVolumes)
+		prefix = "c:"
+	}
 
 	tmpDir, err := ioutil.TempDir("", "docker_nested_mount_test")
 	if err != nil {
@@ -1948,20 +2063,23 @@ func (s *DockerSuite) TestRunMountOrdering(c *check.C) {
 	}
 
 	dockerCmd(c, "run",
-		"-v", fmt.Sprintf("%s:/tmp", tmpDir),
-		"-v", fmt.Sprintf("%s:/tmp/foo", fooDir),
-		"-v", fmt.Sprintf("%s:/tmp/tmp2", tmpDir2),
-		"-v", fmt.Sprintf("%s:/tmp/tmp2/foo", fooDir),
+		"-v", fmt.Sprintf("%s:"+prefix+"/tmp", tmpDir),
+		"-v", fmt.Sprintf("%s:"+prefix+"/tmp/foo", fooDir),
+		"-v", fmt.Sprintf("%s:"+prefix+"/tmp/tmp2", tmpDir2),
+		"-v", fmt.Sprintf("%s:"+prefix+"/tmp/tmp2/foo", fooDir),
 		"busybox:latest", "sh", "-c",
-		"ls /tmp/touch-me && ls /tmp/foo/touch-me && ls /tmp/tmp2/touch-me && ls /tmp/tmp2/foo/touch-me")
+		"ls "+prefix+"/tmp/touch-me && ls "+prefix+"/tmp/foo/touch-me && ls "+prefix+"/tmp/tmp2/touch-me && ls "+prefix+"/tmp/tmp2/foo/touch-me")
 }
 
 // Regression test for https://github.com/docker/docker/issues/8259
 func (s *DockerSuite) TestRunReuseBindVolumeThatIsSymlink(c *check.C) {
-	// /tmp gets permission denied
-	testRequires(c, NotUserNamespace)
 	// Not applicable on Windows as Windows does not support volumes
-	testRequires(c, SameHostDaemon, DaemonIsLinux)
+	testRequires(c, SameHostDaemon, DaemonIsLinux, NotUserNamespace)
+	prefix := ""
+	if daemonPlatform == "windows" {
+		testRequires(c, WindowsDaemonSupportsVolumes)
+		prefix = "c:"
+	}
 
 	tmpDir, err := ioutil.TempDir(os.TempDir(), "testlink")
 	if err != nil {
@@ -1976,16 +2094,17 @@ func (s *DockerSuite) TestRunReuseBindVolumeThatIsSymlink(c *check.C) {
 	defer os.RemoveAll(linkPath)
 
 	// Create first container
-	dockerCmd(c, "run", "-v", fmt.Sprintf("%s:/tmp/test", linkPath), "busybox", "ls", "-lh", "/tmp/test")
+	dockerCmd(c, "run", "-v", fmt.Sprintf("%s:"+prefix+"/tmp/test", linkPath), "busybox", "ls", prefix+"/tmp/test")
 
 	// Create second container with same symlinked path
 	// This will fail if the referenced issue is hit with a "Volume exists" error
-	dockerCmd(c, "run", "-v", fmt.Sprintf("%s:/tmp/test", linkPath), "busybox", "ls", "-lh", "/tmp/test")
+	dockerCmd(c, "run", "-v", fmt.Sprintf("%s:"+prefix+"/tmp/test", linkPath), "busybox", "ls", prefix+"/tmp/test")
 }
 
 //GH#10604: Test an "/etc" volume doesn't overlay special bind mounts in container
 func (s *DockerSuite) TestRunCreateVolumeEtc(c *check.C) {
-	// Not applicable on Windows as Windows does not support volumes
+	// While Windows supports volumes, it does not support --add-host hence
+	// this test is not applicable on Windows.
 	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "--dns=127.0.0.1", "-v", "/etc", "busybox", "cat", "/etc/resolv.conf")
 	if !strings.Contains(out, "nameserver 127.0.0.1") {
@@ -2005,7 +2124,8 @@ func (s *DockerSuite) TestRunCreateVolumeEtc(c *check.C) {
 }
 
 func (s *DockerSuite) TestVolumesNoCopyData(c *check.C) {
-	// Not applicable on Windows as Windows does not support volumes
+	// TODO Windows (Post TP4). Windows does not support volumes which
+	// are pre-populated such as is built in the dockerfile used in this test.
 	testRequires(c, DaemonIsLinux)
 	if _, err := buildImage("dataimage",
 		`FROM busybox
@@ -2041,37 +2161,42 @@ func (s *DockerSuite) TestRunNoOutputFromPullInStdout(c *check.C) {
 }
 
 func (s *DockerSuite) TestRunVolumesCleanPaths(c *check.C) {
-	// Not applicable on Windows as Windows does not support volumes
-	testRequires(c, DaemonIsLinux)
+	prefix := ""
+	slash := `/`
+	if daemonPlatform == "windows" {
+		testRequires(c, WindowsDaemonSupportsVolumes)
+		prefix = "c:"
+		slash = `\`
+	}
 	if _, err := buildImage("run_volumes_clean_paths",
 		`FROM busybox
-		VOLUME /foo/`,
+		VOLUME `+prefix+`/foo/`,
 		true); err != nil {
 		c.Fatal(err)
 	}
 
-	dockerCmd(c, "run", "-v", "/foo", "-v", "/bar/", "--name", "dark_helmet", "run_volumes_clean_paths")
+	dockerCmd(c, "run", "-v", prefix+"/foo", "-v", prefix+"/bar/", "--name", "dark_helmet", "run_volumes_clean_paths")
 
-	out, err := inspectMountSourceField("dark_helmet", "/foo/")
+	out, err := inspectMountSourceField("dark_helmet", prefix+slash+"foo"+slash)
 	if err != errMountNotFound {
-		c.Fatalf("Found unexpected volume entry for '/foo/' in volumes\n%q", out)
+		c.Fatalf("Found unexpected volume entry for '%s/foo/' in volumes\n%q", prefix, out)
 	}
 
-	out, err = inspectMountSourceField("dark_helmet", "/foo")
+	out, err = inspectMountSourceField("dark_helmet", prefix+slash+`foo`)
 	c.Assert(err, check.IsNil)
-	if !strings.Contains(out, volumesConfigPath) {
-		c.Fatalf("Volume was not defined for /foo\n%q", out)
+	if !strings.Contains(strings.ToLower(out), strings.ToLower(volumesConfigPath)) {
+		c.Fatalf("Volume was not defined for %s/foo\n%q", prefix, out)
 	}
 
-	out, err = inspectMountSourceField("dark_helmet", "/bar/")
+	out, err = inspectMountSourceField("dark_helmet", prefix+slash+"bar"+slash)
 	if err != errMountNotFound {
-		c.Fatalf("Found unexpected volume entry for '/bar/' in volumes\n%q", out)
+		c.Fatalf("Found unexpected volume entry for '%s/bar/' in volumes\n%q", prefix, out)
 	}
 
-	out, err = inspectMountSourceField("dark_helmet", "/bar")
+	out, err = inspectMountSourceField("dark_helmet", prefix+slash+"bar")
 	c.Assert(err, check.IsNil)
-	if !strings.Contains(out, volumesConfigPath) {
-		c.Fatalf("Volume was not defined for /bar\n%q", out)
+	if !strings.Contains(strings.ToLower(out), strings.ToLower(volumesConfigPath)) {
+		c.Fatalf("Volume was not defined for %s/bar\n%q", prefix, out)
 	}
 }
 
@@ -2409,7 +2534,7 @@ func (s *DockerSuite) TestRunNonLocalMacAddress(c *check.C) {
 	if daemonPlatform == "windows" {
 		cmd = "ipconfig /all"
 		image = WindowsBaseImage
-		expected = strings.Replace(addr, ":", "-", -1)
+		expected = strings.Replace(strings.ToUpper(addr), ":", "-", -1)
 
 	}
 
@@ -2614,11 +2739,13 @@ func (s *DockerSuite) TestRunContainerWithReadonlyRootfsWithAddHostFlag(c *check
 }
 
 func (s *DockerSuite) TestRunVolumesFromRestartAfterRemoved(c *check.C) {
-	// TODO Windows. Not applicable on Windows which does not support volumes.
-	// This may be possible to add in the future.
-	testRequires(c, DaemonIsLinux)
-	dockerCmd(c, "run", "-d", "--name", "voltest", "-v", "/foo", "busybox")
-	dockerCmd(c, "run", "-d", "--name", "restarter", "--volumes-from", "voltest", "busybox", "top")
+	prefix := ""
+	if daemonPlatform == "windows" {
+		prefix = "c:"
+		testRequires(c, WindowsDaemonSupportsVolumes)
+	}
+	dockerCmd(c, "run", "-d", "--name", "voltest", "-v", prefix+"/foo", "busybox", "sleep", "60")
+	dockerCmd(c, "run", "-d", "--name", "restarter", "--volumes-from", "voltest", "busybox", "sleep", "60")
 
 	// Remove the main volume container and restart the consuming container
 	dockerCmd(c, "rm", "-f", "voltest")
@@ -2844,19 +2971,31 @@ func (s *DockerSuite) TestRunCapAddCHOWN(c *check.C) {
 
 // https://github.com/docker/docker/pull/14498
 func (s *DockerSuite) TestVolumeFromMixedRWOptions(c *check.C) {
-	// Not applicable on Windows as volumes are not supported on Winodws
-	testRequires(c, DaemonIsLinux)
-	dockerCmd(c, "run", "--name", "parent", "-v", "/test", "busybox", "true")
-	dockerCmd(c, "run", "--volumes-from", "parent:ro", "--name", "test-volumes-1", "busybox", "true")
-	dockerCmd(c, "run", "--volumes-from", "parent:rw", "--name", "test-volumes-2", "busybox", "true")
-
-	mRO, err := inspectMountPoint("test-volumes-1", "/test")
-	c.Assert(err, check.IsNil)
-	if mRO.RW {
-		c.Fatalf("Expected RO volume was RW")
+	// TODO Windows post TP4. Enable the read-only bits once they are
+	// supported on the platform.
+	prefix := ""
+	slash := `/`
+	if daemonPlatform == "windows" {
+		testRequires(c, WindowsDaemonSupportsVolumes)
+		prefix = "c:"
+		slash = `\`
 	}
 
-	mRW, err := inspectMountPoint("test-volumes-2", "/test")
+	dockerCmd(c, "run", "--name", "parent", "-v", prefix+"/test", "busybox", "true")
+	if daemonPlatform != "windows" {
+		dockerCmd(c, "run", "--volumes-from", "parent:ro", "--name", "test-volumes-1", "busybox", "true")
+	}
+	dockerCmd(c, "run", "--volumes-from", "parent:rw", "--name", "test-volumes-2", "busybox", "true")
+
+	if daemonPlatform != "windows" {
+		mRO, err := inspectMountPoint("test-volumes-1", prefix+slash+"test")
+		c.Assert(err, check.IsNil)
+		if mRO.RW {
+			c.Fatalf("Expected RO volume was RW")
+		}
+	}
+
+	mRW, err := inspectMountPoint("test-volumes-2", prefix+slash+"test")
 	c.Assert(err, check.IsNil)
 	if !mRW.RW {
 		c.Fatalf("Expected RW volume was RO")
@@ -3189,14 +3328,20 @@ func (s *DockerSuite) TestRunCreateContainerFailedCleanUp(c *check.C) {
 }
 
 func (s *DockerSuite) TestRunNamedVolume(c *check.C) {
-	// TODO Windows: This may be possible to modify once Windows supports volumes
+	prefix := ""
+	slash := `/`
+	if daemonPlatform == "windows" {
+		testRequires(c, WindowsDaemonSupportsVolumes)
+		prefix = "c:"
+		slash = `\`
+	}
 	testRequires(c, DaemonIsLinux)
-	dockerCmd(c, "run", "--name=test", "-v", "testing:/foo", "busybox", "sh", "-c", "echo hello > /foo/bar")
+	dockerCmd(c, "run", "--name=test", "-v", "testing:"+prefix+slash+"foo", "busybox", "sh", "-c", "echo hello > "+prefix+"/foo/bar")
 
-	out, _ := dockerCmd(c, "run", "--volumes-from", "test", "busybox", "sh", "-c", "cat /foo/bar")
+	out, _ := dockerCmd(c, "run", "--volumes-from", "test", "busybox", "sh", "-c", "cat "+prefix+"/foo/bar")
 	c.Assert(strings.TrimSpace(out), check.Equals, "hello")
 
-	out, _ = dockerCmd(c, "run", "-v", "testing:/foo", "busybox", "sh", "-c", "cat /foo/bar")
+	out, _ = dockerCmd(c, "run", "-v", "testing:"+prefix+slash+"foo", "busybox", "sh", "-c", "cat "+prefix+"/foo/bar")
 	c.Assert(strings.TrimSpace(out), check.Equals, "hello")
 }
 
@@ -3598,6 +3743,8 @@ func (s *DockerSuite) TestRunStdinBlockedAfterContainerExit(c *check.C) {
 }
 
 func (s *DockerSuite) TestRunWrongCpusetCpusFlagValue(c *check.C) {
+	// TODO Windows: This needs validation (error out) in the daemon.
+	testRequires(c, DaemonIsLinux)
 	out, _, err := dockerCmdWithError("run", "--cpuset-cpus", "1-10,11--", "busybox", "true")
 	c.Assert(err, check.NotNil)
 	expected := "Error response from daemon: Invalid value 1-10,11-- for cpuset cpus.\n"
@@ -3605,6 +3752,8 @@ func (s *DockerSuite) TestRunWrongCpusetCpusFlagValue(c *check.C) {
 }
 
 func (s *DockerSuite) TestRunWrongCpusetMemsFlagValue(c *check.C) {
+	// TODO Windows: This needs validation (error out) in the daemon.
+	testRequires(c, DaemonIsLinux)
 	out, _, err := dockerCmdWithError("run", "--cpuset-mems", "1-42--", "busybox", "true")
 	c.Assert(err, check.NotNil)
 	expected := "Error response from daemon: Invalid value 1-42-- for cpuset mems.\n"

@@ -637,6 +637,29 @@ func init() {
 	if daemonPlatform != "linux" && daemonPlatform != "windows" {
 		panic("Cannot run tests against platform: " + daemonPlatform)
 	}
+
+	// On Windows, extract out the version as we need to make selective
+	// decisions during integration testing as and when features are implemented.
+	if daemonPlatform == "windows" {
+		if body, err := ioutil.ReadAll(res.Body); err == nil {
+			var server types.Version
+			if err := json.Unmarshal(body, &server); err == nil {
+				// eg in "10.0 10550 (10550.1000.amd64fre.branch.date-time)" we want 10550
+				windowsDaemonKV, _ = strconv.Atoi(strings.Split(server.KernelVersion, " ")[1])
+			}
+		}
+	}
+
+	// Now we know the daemon platform, can set paths used by tests.
+	if daemonPlatform == "windows" {
+		dockerBasePath = `c:\programdata\docker`
+		volumesConfigPath = dockerBasePath + `\volumes`
+		containerStoragePath = dockerBasePath + `\containers`
+	} else {
+		dockerBasePath = "/var/lib/docker"
+		volumesConfigPath = dockerBasePath + "/volumes"
+		containerStoragePath = dockerBasePath + "/containers"
+	}
 }
 
 func deleteAllImages() error {
