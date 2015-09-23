@@ -49,7 +49,7 @@ for version in "${versions[@]}"; do
 			;;
 		opensuse:*)
 			# get rpm-build and curl packages and dependencies
-			echo 'RUN zypper install -n ca-certificates* curl gzip rpm-build' >> "$version/Dockerfile"
+			echo 'RUN zypper --non-interactive install ca-certificates* curl gzip rpm-build' >> "$version/Dockerfile"
 			;;
 		*)
 			echo 'RUN yum install -y @development-tools fedora-packager' >> "$version/Dockerfile"
@@ -79,7 +79,7 @@ for version in "${versions[@]}"; do
 		opensuse:*)
 			packages=( "${packages[@]/btrfs-progs-devel/libbtrfs-devel}" )
 			# use zypper
-			echo "RUN zypper install -n ${packages[*]}" >> "$version/Dockerfile"
+			echo "RUN zypper --non-interactive install ${packages[*]}" >> "$version/Dockerfile"
 			;;
 		*)
 			echo "RUN yum install -y ${packages[*]}" >> "$version/Dockerfile"
