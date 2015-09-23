@@ -544,6 +544,7 @@ container:
 |----------------------------|---------------------------------------------------------------------------------------------|
 | `-m`, `--memory="" `       | Memory limit (format: `<number>[<unit>]`, where unit = b, k, m or g)                        |
 | `--memory-swap=""`         | Total memory limit (memory + swap, format: `<number>[<unit>]`, where unit = b, k, m or g)   |
+| `--memory-reservation=""`  | Memory soft limit (format: `<number>[<unit>]`, where unit = b, k, m or g)                   |
 | `--kernel-memory=""`       | Kernel memory limit (format: `<number>[<unit>]`, where unit = b, k, m or g)                 |
 | `-c`, `--cpu-shares=0`     | CPU shares (relative weight)                                                                |
 | `--cpu-period=0`           | Limit the CPU CFS (Completely Fair Scheduler) period                                        |
@@ -628,6 +629,43 @@ would be 2*300M, so processes can use 300M swap memory as well.
 
 We set both memory and swap memory, so the processes in the container can use
 300M memory and 700M swap memory.
+
+Memory reservation is a kind of memory soft limit that allows for greater
+sharing of memory. Under normal circumstances, containers can use as much of
+the memory as needed and are constrained only by the hard limits set with the
+`-m`/`--memory` option. When memory reservation is set, Docker detects memory
+contention or low memory and forces containers to restrict their consumption to
+a reservation limit.
+
+Always set the memory reservation value below the hard limit, otherwise the hard
+limit takes precedence. A reservation of 0 is the same as setting no
+reservation. By default (without reservation set), memory reservation is the
+same as the hard memory limit.
+
+Memory reservation is a soft-limit feature and does not guarantee the limit
+won't be exceeded. Instead, the feature attempts to ensure that, when memory is
+heavily contended for, memory is allocated based on the reservation hints/setup. 
+
+The following example limits the memory (`-m`) to 500M and sets the memory
+reservation to 200M.
+
+```bash
+$ docker run -ti -m 500M --memory-reservation 200M ubuntu:14.04 /bin/bash
+```
+
+Under this configuration, when the container consumes memory more than 200M and
+less than 500M, the next system memory reclaim attempts to shrink container
+memory below 200M.
+
+The following example set memory reservation to 1G without a hard memory limit.
+
+```bash
+$ docker run -ti --memory-reservation 1G ubuntu:14.04 /bin/bash
+```
+
+The container can use as much memory as it needs. The memory reservation setting
+ensures the container doesn't consume too much memory for long time, because
+every memory reclaim shrinks the container's consumption to the reservation.
 
 By default, kernel kills processes in a container if an out-of-memory (OOM)
 error occurs. To change this behaviour, use the `--oom-kill-disable` option.

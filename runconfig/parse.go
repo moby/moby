@@ -64,38 +64,39 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		flLabelsFile  = opts.NewListOpts(nil)
 		flLoggingOpts = opts.NewListOpts(nil)
 
-		flNetwork         = cmd.Bool([]string{"#n", "#-networking"}, true, "Enable networking for this container")
-		flPrivileged      = cmd.Bool([]string{"#privileged", "-privileged"}, false, "Give extended privileges to this container")
-		flPidMode         = cmd.String([]string{"-pid"}, "", "PID namespace to use")
-		flUTSMode         = cmd.String([]string{"-uts"}, "", "UTS namespace to use")
-		flPublishAll      = cmd.Bool([]string{"P", "-publish-all"}, false, "Publish all exposed ports to random ports")
-		flStdin           = cmd.Bool([]string{"i", "-interactive"}, false, "Keep STDIN open even if not attached")
-		flTty             = cmd.Bool([]string{"t", "-tty"}, false, "Allocate a pseudo-TTY")
-		flOomKillDisable  = cmd.Bool([]string{"-oom-kill-disable"}, false, "Disable OOM Killer")
-		flContainerIDFile = cmd.String([]string{"#cidfile", "-cidfile"}, "", "Write the container ID to the file")
-		flEntrypoint      = cmd.String([]string{"#entrypoint", "-entrypoint"}, "", "Overwrite the default ENTRYPOINT of the image")
-		flHostname        = cmd.String([]string{"h", "-hostname"}, "", "Container host name")
-		flMemoryString    = cmd.String([]string{"m", "-memory"}, "", "Memory limit")
-		flMemorySwap      = cmd.String([]string{"-memory-swap"}, "", "Total memory (memory + swap), '-1' to disable swap")
-		flKernelMemory    = cmd.String([]string{"-kernel-memory"}, "", "Kernel memory limit")
-		flUser            = cmd.String([]string{"u", "-user"}, "", "Username or UID (format: <name|uid>[:<group|gid>])")
-		flWorkingDir      = cmd.String([]string{"w", "-workdir"}, "", "Working directory inside the container")
-		flCPUShares       = cmd.Int64([]string{"#c", "-cpu-shares"}, 0, "CPU shares (relative weight)")
-		flCPUPeriod       = cmd.Int64([]string{"-cpu-period"}, 0, "Limit CPU CFS (Completely Fair Scheduler) period")
-		flCPUQuota        = cmd.Int64([]string{"-cpu-quota"}, 0, "Limit CPU CFS (Completely Fair Scheduler) quota")
-		flCpusetCpus      = cmd.String([]string{"#-cpuset", "-cpuset-cpus"}, "", "CPUs in which to allow execution (0-3, 0,1)")
-		flCpusetMems      = cmd.String([]string{"-cpuset-mems"}, "", "MEMs in which to allow execution (0-3, 0,1)")
-		flBlkioWeight     = cmd.Int64([]string{"-blkio-weight"}, 0, "Block IO (relative weight), between 10 and 1000")
-		flSwappiness      = cmd.Int64([]string{"-memory-swappiness"}, -1, "Tuning container memory swappiness (0 to 100)")
-		flNetMode         = cmd.String([]string{"-net"}, "default", "Set the Network mode for the container")
-		flMacAddress      = cmd.String([]string{"-mac-address"}, "", "Container MAC address (e.g. 92:d0:c6:0a:29:33)")
-		flIpcMode         = cmd.String([]string{"-ipc"}, "", "IPC namespace to use")
-		flRestartPolicy   = cmd.String([]string{"-restart"}, "no", "Restart policy to apply when a container exits")
-		flReadonlyRootfs  = cmd.Bool([]string{"-read-only"}, false, "Mount the container's root filesystem as read only")
-		flLoggingDriver   = cmd.String([]string{"-log-driver"}, "", "Logging driver for container")
-		flCgroupParent    = cmd.String([]string{"-cgroup-parent"}, "", "Optional parent cgroup for the container")
-		flVolumeDriver    = cmd.String([]string{"-volume-driver"}, "", "Optional volume driver for the container")
-		flStopSignal      = cmd.String([]string{"-stop-signal"}, signal.DefaultStopSignal, fmt.Sprintf("Signal to stop a container, %v by default", signal.DefaultStopSignal))
+		flNetwork           = cmd.Bool([]string{"#n", "#-networking"}, true, "Enable networking for this container")
+		flPrivileged        = cmd.Bool([]string{"#privileged", "-privileged"}, false, "Give extended privileges to this container")
+		flPidMode           = cmd.String([]string{"-pid"}, "", "PID namespace to use")
+		flUTSMode           = cmd.String([]string{"-uts"}, "", "UTS namespace to use")
+		flPublishAll        = cmd.Bool([]string{"P", "-publish-all"}, false, "Publish all exposed ports to random ports")
+		flStdin             = cmd.Bool([]string{"i", "-interactive"}, false, "Keep STDIN open even if not attached")
+		flTty               = cmd.Bool([]string{"t", "-tty"}, false, "Allocate a pseudo-TTY")
+		flOomKillDisable    = cmd.Bool([]string{"-oom-kill-disable"}, false, "Disable OOM Killer")
+		flContainerIDFile   = cmd.String([]string{"#cidfile", "-cidfile"}, "", "Write the container ID to the file")
+		flEntrypoint        = cmd.String([]string{"#entrypoint", "-entrypoint"}, "", "Overwrite the default ENTRYPOINT of the image")
+		flHostname          = cmd.String([]string{"h", "-hostname"}, "", "Container host name")
+		flMemoryString      = cmd.String([]string{"m", "-memory"}, "", "Memory limit")
+		flMemoryReservation = cmd.String([]string{"-memory-reservation"}, "", "Memory soft limit")
+		flMemorySwap        = cmd.String([]string{"-memory-swap"}, "", "Total memory (memory + swap), '-1' to disable swap")
+		flKernelMemory      = cmd.String([]string{"-kernel-memory"}, "", "Kernel memory limit")
+		flUser              = cmd.String([]string{"u", "-user"}, "", "Username or UID (format: <name|uid>[:<group|gid>])")
+		flWorkingDir        = cmd.String([]string{"w", "-workdir"}, "", "Working directory inside the container")
+		flCPUShares         = cmd.Int64([]string{"#c", "-cpu-shares"}, 0, "CPU shares (relative weight)")
+		flCPUPeriod         = cmd.Int64([]string{"-cpu-period"}, 0, "Limit CPU CFS (Completely Fair Scheduler) period")
+		flCPUQuota          = cmd.Int64([]string{"-cpu-quota"}, 0, "Limit CPU CFS (Completely Fair Scheduler) quota")
+		flCpusetCpus        = cmd.String([]string{"#-cpuset", "-cpuset-cpus"}, "", "CPUs in which to allow execution (0-3, 0,1)")
+		flCpusetMems        = cmd.String([]string{"-cpuset-mems"}, "", "MEMs in which to allow execution (0-3, 0,1)")
+		flBlkioWeight       = cmd.Int64([]string{"-blkio-weight"}, 0, "Block IO (relative weight), between 10 and 1000")
+		flSwappiness        = cmd.Int64([]string{"-memory-swappiness"}, -1, "Tuning container memory swappiness (0 to 100)")
+		flNetMode           = cmd.String([]string{"-net"}, "default", "Set the Network mode for the container")
+		flMacAddress        = cmd.String([]string{"-mac-address"}, "", "Container MAC address (e.g. 92:d0:c6:0a:29:33)")
+		flIpcMode           = cmd.String([]string{"-ipc"}, "", "IPC namespace to use")
+		flRestartPolicy     = cmd.String([]string{"-restart"}, "no", "Restart policy to apply when a container exits")
+		flReadonlyRootfs    = cmd.Bool([]string{"-read-only"}, false, "Mount the container's root filesystem as read only")
+		flLoggingDriver     = cmd.String([]string{"-log-driver"}, "", "Logging driver for container")
+		flCgroupParent      = cmd.String([]string{"-cgroup-parent"}, "", "Optional parent cgroup for the container")
+		flVolumeDriver      = cmd.String([]string{"-volume-driver"}, "", "Optional volume driver for the container")
+		flStopSignal        = cmd.String([]string{"-stop-signal"}, signal.DefaultStopSignal, fmt.Sprintf("Signal to stop a container, %v by default", signal.DefaultStopSignal))
 	)
 
 	cmd.Var(&flAttach, []string{"a", "-attach"}, "Attach to STDIN, STDOUT or STDERR")
@@ -155,6 +156,14 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 	var flMemory int64
 	if *flMemoryString != "" {
 		flMemory, err = units.RAMInBytes(*flMemoryString)
+		if err != nil {
+			return nil, nil, cmd, err
+		}
+	}
+
+	var MemoryReservation int64
+	if *flMemoryReservation != "" {
+		MemoryReservation, err = units.RAMInBytes(*flMemoryReservation)
 		if err != nil {
 			return nil, nil, cmd, err
 		}
@@ -329,44 +338,45 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 	}
 
 	hostConfig := &HostConfig{
-		Binds:            binds,
-		ContainerIDFile:  *flContainerIDFile,
-		LxcConf:          lxcConf,
-		Memory:           flMemory,
-		MemorySwap:       memorySwap,
-		KernelMemory:     KernelMemory,
-		CPUShares:        *flCPUShares,
-		CPUPeriod:        *flCPUPeriod,
-		CpusetCpus:       *flCpusetCpus,
-		CpusetMems:       *flCpusetMems,
-		CPUQuota:         *flCPUQuota,
-		BlkioWeight:      *flBlkioWeight,
-		OomKillDisable:   *flOomKillDisable,
-		MemorySwappiness: flSwappiness,
-		Privileged:       *flPrivileged,
-		PortBindings:     portBindings,
-		Links:            flLinks.GetAll(),
-		PublishAllPorts:  *flPublishAll,
-		DNS:              flDNS.GetAll(),
-		DNSSearch:        flDNSSearch.GetAll(),
-		DNSOptions:       flDNSOptions.GetAll(),
-		ExtraHosts:       flExtraHosts.GetAll(),
-		VolumesFrom:      flVolumesFrom.GetAll(),
-		NetworkMode:      NetworkMode(*flNetMode),
-		IpcMode:          ipcMode,
-		PidMode:          pidMode,
-		UTSMode:          utsMode,
-		Devices:          deviceMappings,
-		CapAdd:           stringutils.NewStrSlice(flCapAdd.GetAll()...),
-		CapDrop:          stringutils.NewStrSlice(flCapDrop.GetAll()...),
-		GroupAdd:         flGroupAdd.GetAll(),
-		RestartPolicy:    restartPolicy,
-		SecurityOpt:      flSecurityOpt.GetAll(),
-		ReadonlyRootfs:   *flReadonlyRootfs,
-		Ulimits:          flUlimits.GetList(),
-		LogConfig:        LogConfig{Type: *flLoggingDriver, Config: loggingOpts},
-		CgroupParent:     *flCgroupParent,
-		VolumeDriver:     *flVolumeDriver,
+		Binds:             binds,
+		ContainerIDFile:   *flContainerIDFile,
+		LxcConf:           lxcConf,
+		Memory:            flMemory,
+		MemoryReservation: MemoryReservation,
+		MemorySwap:        memorySwap,
+		KernelMemory:      KernelMemory,
+		CPUShares:         *flCPUShares,
+		CPUPeriod:         *flCPUPeriod,
+		CpusetCpus:        *flCpusetCpus,
+		CpusetMems:        *flCpusetMems,
+		CPUQuota:          *flCPUQuota,
+		BlkioWeight:       *flBlkioWeight,
+		OomKillDisable:    *flOomKillDisable,
+		MemorySwappiness:  flSwappiness,
+		Privileged:        *flPrivileged,
+		PortBindings:      portBindings,
+		Links:             flLinks.GetAll(),
+		PublishAllPorts:   *flPublishAll,
+		DNS:               flDNS.GetAll(),
+		DNSSearch:         flDNSSearch.GetAll(),
+		DNSOptions:        flDNSOptions.GetAll(),
+		ExtraHosts:        flExtraHosts.GetAll(),
+		VolumesFrom:       flVolumesFrom.GetAll(),
+		NetworkMode:       NetworkMode(*flNetMode),
+		IpcMode:           ipcMode,
+		PidMode:           pidMode,
+		UTSMode:           utsMode,
+		Devices:           deviceMappings,
+		CapAdd:            stringutils.NewStrSlice(flCapAdd.GetAll()...),
+		CapDrop:           stringutils.NewStrSlice(flCapDrop.GetAll()...),
+		GroupAdd:          flGroupAdd.GetAll(),
+		RestartPolicy:     restartPolicy,
+		SecurityOpt:       flSecurityOpt.GetAll(),
+		ReadonlyRootfs:    *flReadonlyRootfs,
+		Ulimits:           flUlimits.GetList(),
+		LogConfig:         LogConfig{Type: *flLoggingDriver, Config: loggingOpts},
+		CgroupParent:      *flCgroupParent,
+		VolumeDriver:      *flVolumeDriver,
 	}
 
 	applyExperimentalFlags(expFlags, config, hostConfig)

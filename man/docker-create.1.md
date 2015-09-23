@@ -40,6 +40,7 @@ docker-create - Create a new container
 [**--lxc-conf**[=*[]*]]
 [**-m**|**--memory**[=*MEMORY*]]
 [**--mac-address**[=*MAC-ADDRESS*]]
+[**--memory-reservation**[=*MEMORY-RESERVATION*]]
 [**--memory-swap**[=*MEMORY-SWAP*]]
 [**--memory-swappiness**[=*MEMORY-SWAPPINESS*]]
 [**--name**[=*NAME*]]
@@ -195,6 +196,15 @@ system's page size (the value would be very large, that's millions of trillions)
 
 **--mac-address**=""
    Container MAC address (e.g. 92:d0:c6:0a:29:33)
+
+**--memory-reservation**=""
+   Memory soft limit (format: <number>[<unit>], where unit = b, k, m or g)
+
+   After setting memory reservation, when the system detects memory contention
+or low memory, containers are forced to restrict their consumption to their
+reservation. So you should always set the value below **--memory**, otherwise the
+hard limit will take precedence. By default, memory reservation will be the same
+as memory limit.
 
 **--memory-swap**=""
    Total memory limit (memory + swap)

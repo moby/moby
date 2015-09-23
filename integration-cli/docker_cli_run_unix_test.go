@@ -323,6 +323,22 @@ func (s *DockerSuite) TestRunWithSwappinessInvalid(c *check.C) {
 	}
 }
 
+func (s *DockerSuite) TestRunWithMemoryReservation(c *check.C) {
+	testRequires(c, memoryReservationSupport)
+	dockerCmd(c, "run", "--memory-reservation", "200M", "busybox", "true")
+}
+
+func (s *DockerSuite) TestRunWithMemoryReservationInvalid(c *check.C) {
+	testRequires(c, memoryLimitSupport)
+	testRequires(c, memoryReservationSupport)
+	out, _, err := dockerCmdWithError("run", "-m", "500M", "--memory-reservation", "800M", "busybox", "true")
+	c.Assert(err, check.NotNil)
+	expected := "Minimum memory limit should be larger than memory reservation limit"
+	if !strings.Contains(strings.TrimSpace(out), expected) {
+		c.Fatalf("run container should fail with invalid memory reservation, output: %q", out)
+	}
+}
+
 func (s *DockerSuite) TestStopContainerSignal(c *check.C) {
 	out, _ := dockerCmd(c, "run", "--stop-signal", "SIGUSR1", "-d", "busybox", "/bin/sh", "-c", `trap 'echo "exit trapped"; exit 0' USR1; while true; do sleep 1; done`)
 	containerID := strings.TrimSpace(out)

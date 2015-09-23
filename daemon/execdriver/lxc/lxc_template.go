@@ -91,10 +91,12 @@ lxc.mount.entry = {{$value.Source}} {{escapeFstabSpaces $ROOTFS}}/{{escapeFstabS
 {{if .Resources}}
 {{if .Resources.Memory}}
 lxc.cgroup.memory.limit_in_bytes = {{.Resources.Memory}}
-lxc.cgroup.memory.soft_limit_in_bytes = {{.Resources.Memory}}
 {{with $memSwap := getMemorySwap .Resources}}
 lxc.cgroup.memory.memsw.limit_in_bytes = {{$memSwap}}
 {{end}}
+{{end}}
+{{if gt .Resources.MemoryReservation 0}}
+lxc.cgroup.memory.soft_limit_in_bytes = {{.Resources.MemoryReservation}}
 {{end}}
 {{if gt .Resources.KernelMemory 0}}
 lxc.cgroup.memory.kmem.limit_in_bytes = {{.Resources.KernelMemory}}

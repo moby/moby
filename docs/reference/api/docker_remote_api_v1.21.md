@@ -173,6 +173,7 @@ Create a container
              "LxcConf": {"lxc.utsname":"docker"},
              "Memory": 0,
              "MemorySwap": 0,
+             "MemoryReservation": 0,
              "KernelMemory": 0,
              "CpuShares": 512,
              "CpuPeriod": 100000,
@@ -223,6 +224,7 @@ Json Parameters:
 -   **Memory** - Memory limit in bytes.
 -   **MemorySwap** - Total memory limit (memory + swap); set `-1` to disable swap
       You must use this with `memory` and make the swap value larger than `memory`.
+-   **MemoryReservation** - Memory soft limit in bytes.
 -   **KernelMemory** - Kernel memory limit in bytes.
 -   **CpuShares** - An integer value containing the container's CPU Shares
       (ie. the relative weight vs other containers).
@@ -398,6 +400,7 @@ Return low-level information on the container `id`
 			"LxcConf": [],
 			"Memory": 0,
 			"MemorySwap": 0,
+			"MemoryReservation": 0,
 			"KernelMemory": 0,
 			"OomKillDisable": false,
 			"NetworkMode": "bridge",
