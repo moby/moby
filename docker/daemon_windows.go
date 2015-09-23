@@ -27,3 +27,7 @@ func setDefaultUmask() error {
 func getDaemonConfDir() string {
 	return os.Getenv("PROGRAMDATA") + `\docker\config`
 }
+
+// notifySystem sends a message to the host when the server is ready to be used
+func notifySystem() {
+}

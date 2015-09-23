@@ -1,4 +1,4 @@
-package server
+package httputils
 
 import (
 	"net/http"
@@ -26,7 +26,7 @@ func TestBoolValue(t *testing.T) {
 		r, _ := http.NewRequest("POST", "", nil)
 		r.Form = v
 
-		a := boolValue(r, "test")
+		a := BoolValue(r, "test")
 		if a != e {
 			t.Fatalf("Value: %s, expected: %v, actual: %v", c, e, a)
 		}
@@ -35,7 +35,7 @@ func TestBoolValue(t *testing.T) {
 
 func TestBoolValueOrDefault(t *testing.T) {
 	r, _ := http.NewRequest("GET", "", nil)
-	if !boolValueOrDefault(r, "queryparam", true) {
+	if !BoolValueOrDefault(r, "queryparam", true) {
 		t.Fatal("Expected to get true default value, got false")
 	}
 
@@ -43,7 +43,7 @@ func TestBoolValueOrDefault(t *testing.T) {
 	v.Set("param", "")
 	r, _ = http.NewRequest("GET", "", nil)
 	r.Form = v
-	if boolValueOrDefault(r, "param", true) {
+	if BoolValueOrDefault(r, "param", true) {
 		t.Fatal("Expected not to get true")
 	}
 }
@@ -62,7 +62,7 @@ func TestInt64ValueOrZero(t *testing.T) {
 		r, _ := http.NewRequest("POST", "", nil)
 		r.Form = v
 
-		a := int64ValueOrZero(r, "test")
+		a := Int64ValueOrZero(r, "test")
 		if a != e {
 			t.Fatalf("Value: %s, expected: %v, actual: %v", c, e, a)
 		}

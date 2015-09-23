@@ -7,21 +7,19 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api"
+	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/autogen/dockerversion"
 	"github.com/docker/docker/errors"
 	"github.com/docker/docker/pkg/version"
 	"golang.org/x/net/context"
 )
 
-// apiVersionKey is the client's requested API version.
-const apiVersionKey = "api-version"
-
 // middleware is an adapter to allow the use of ordinary functions as Docker API filters.
 // Any function that has the appropriate signature can be register as a middleware.
-type middleware func(handler HTTPAPIFunc) HTTPAPIFunc
+type middleware func(handler httputils.APIFunc) httputils.APIFunc
 
 // loggingMiddleware logs each request when logging is enabled.
-func (s *Server) loggingMiddleware(handler HTTPAPIFunc) HTTPAPIFunc {
+func (s *Server) loggingMiddleware(handler httputils.APIFunc) httputils.APIFunc {
 	return func(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 		if s.cfg.Logging {
 			logrus.Infof("%s %s", r.Method, r.RequestURI)
@@ -31,7 +29,7 @@ func (s *Server) loggingMiddleware(handler HTTPAPIFunc) HTTPAPIFunc {
 }
 
 // userAgentMiddleware checks the User-Agent header looking for a valid docker client spec.
-func (s *Server) userAgentMiddleware(handler HTTPAPIFunc) HTTPAPIFunc {
+func (s *Server) userAgentMiddleware(handler httputils.APIFunc) httputils.APIFunc {
 	return func(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 		if strings.Contains(r.Header.Get("User-Agent"), "Docker-Client/") {
 			dockerVersion := version.Version(s.cfg.Version)
@@ -53,7 +51,7 @@ func (s *Server) userAgentMiddleware(handler HTTPAPIFunc) HTTPAPIFunc {
 }
 
 // corsMiddleware sets the CORS header expectations in the server.
-func (s *Server) corsMiddleware(handler HTTPAPIFunc) HTTPAPIFunc {
+func (s *Server) corsMiddleware(handler httputils.APIFunc) httputils.APIFunc {
 	return func(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 		// If "api-cors-header" is not given, but "api-enable-cors" is true, we set cors to "*"
 		// otherwise, all head values will be passed to HTTP handler
@@ -70,7 +68,7 @@ func (s *Server) corsMiddleware(handler HTTPAPIFunc) HTTPAPIFunc {
 }
 
 // versionMiddleware checks the api version requirements before passing the request to the server handler.
-func versionMiddleware(handler HTTPAPIFunc) HTTPAPIFunc {
+func versionMiddleware(handler httputils.APIFunc) httputils.APIFunc {
 	return func(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 		apiVersion := version.Version(vars["version"])
 		if apiVersion == "" {
@@ -85,7 +83,7 @@ func versionMiddleware(handler HTTPAPIFunc) HTTPAPIFunc {
 		}
 
 		w.Header().Set("Server", "Docker/"+dockerversion.VERSION+" ("+runtime.GOOS+")")
-		ctx = context.WithValue(ctx, apiVersionKey, apiVersion)
+		ctx = context.WithValue(ctx, httputils.APIVersionKey, apiVersion)
 		return handler(ctx, w, r, vars)
 	}
 }
@@ -103,7 +101,8 @@ func versionMiddleware(handler HTTPAPIFunc) HTTPAPIFunc {
 //			)
 //		)
 //	)
-func (s *Server) handleWithGlobalMiddlewares(handler HTTPAPIFunc) HTTPAPIFunc {
+// )
+func (s *Server) handleWithGlobalMiddlewares(handler httputils.APIFunc) httputils.APIFunc {
 	middlewares := []middleware{
 		versionMiddleware,
 		s.corsMiddleware,
@@ -116,17 +115,4 @@ func (s *Server) handleWithGlobalMiddlewares(handler HTTPAPIFunc) HTTPAPIFunc {
 		h = m(h)
 	}
 	return h
-}
-
-// versionFromContext returns an API version from the context using apiVersionKey.
-// It panics if the context value does not have version.Version type.
-func versionFromContext(ctx context.Context) (ver version.Version) {
-	if ctx == nil {
-		return
-	}
-	val := ctx.Value(apiVersionKey)
-	if val == nil {
-		return
-	}
-	return val.(version.Version)
 }

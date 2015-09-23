@@ -1,4 +1,4 @@
-package server
+package local
 
 import (
 	"encoding/base64"
@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/cliconfig"
@@ -23,19 +24,19 @@ import (
 	"golang.org/x/net/context"
 )
 
-func (s *Server) postCommit(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	if err := parseForm(r); err != nil {
+func (s *router) postCommit(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
 
-	if err := checkForJSON(r); err != nil {
+	if err := httputils.CheckForJSON(r); err != nil {
 		return err
 	}
 
 	cname := r.Form.Get("container")
 
-	pause := boolValue(r, "pause")
-	version := versionFromContext(ctx)
+	pause := httputils.BoolValue(r, "pause")
+	version := httputils.VersionFromContext(ctx)
 	if r.FormValue("pause") == "" && version.GreaterThanOrEqualTo("1.13") {
 		pause = true
 	}
@@ -60,14 +61,14 @@ func (s *Server) postCommit(ctx context.Context, w http.ResponseWriter, r *http.
 		return err
 	}
 
-	return writeJSON(w, http.StatusCreated, &types.ContainerCommitResponse{
+	return httputils.WriteJSON(w, http.StatusCreated, &types.ContainerCommitResponse{
 		ID: imgID,
 	})
 }
 
 // Creates an image from Pull or from Import
-func (s *Server) postImagesCreate(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	if err := parseForm(r); err != nil {
+func (s *router) postImagesCreate(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
 
@@ -142,7 +143,7 @@ func (s *Server) postImagesCreate(ctx context.Context, w http.ResponseWriter, r 
 	return nil
 }
 
-func (s *Server) postImagesPush(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (s *router) postImagesPush(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
 	}
@@ -153,7 +154,7 @@ func (s *Server) postImagesPush(ctx context.Context, w http.ResponseWriter, r *h
 			metaHeaders[k] = v
 		}
 	}
-	if err := parseForm(r); err != nil {
+	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
 	authConfig := &cliconfig.AuthConfig{}
@@ -194,11 +195,11 @@ func (s *Server) postImagesPush(ctx context.Context, w http.ResponseWriter, r *h
 	return nil
 }
 
-func (s *Server) getImagesGet(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (s *router) getImagesGet(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
 	}
-	if err := parseForm(r); err != nil {
+	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
 
@@ -222,12 +223,12 @@ func (s *Server) getImagesGet(ctx context.Context, w http.ResponseWriter, r *htt
 	return nil
 }
 
-func (s *Server) postImagesLoad(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (s *router) postImagesLoad(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	return s.daemon.Repositories().Load(r.Body, w)
 }
 
-func (s *Server) deleteImages(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	if err := parseForm(r); err != nil {
+func (s *router) deleteImages(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
 	if vars == nil {
@@ -240,18 +241,18 @@ func (s *Server) deleteImages(ctx context.Context, w http.ResponseWriter, r *htt
 		return fmt.Errorf("image name cannot be blank")
 	}
 
-	force := boolValue(r, "force")
-	prune := !boolValue(r, "noprune")
+	force := httputils.BoolValue(r, "force")
+	prune := !httputils.BoolValue(r, "noprune")
 
 	list, err := s.daemon.ImageDelete(name, force, prune)
 	if err != nil {
 		return err
 	}
 
-	return writeJSON(w, http.StatusOK, list)
+	return httputils.WriteJSON(w, http.StatusOK, list)
 }
 
-func (s *Server) getImagesByName(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (s *router) getImagesByName(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
 	}
@@ -261,10 +262,10 @@ func (s *Server) getImagesByName(ctx context.Context, w http.ResponseWriter, r *
 		return err
 	}
 
-	return writeJSON(w, http.StatusOK, imageInspect)
+	return httputils.WriteJSON(w, http.StatusOK, imageInspect)
 }
 
-func (s *Server) postBuild(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (s *router) postBuild(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	var (
 		authConfigs        = map[string]cliconfig.AuthConfig{}
 		authConfigsEncoded = r.Header.Get("X-Registry-Config")
@@ -282,15 +283,15 @@ func (s *Server) postBuild(ctx context.Context, w http.ResponseWriter, r *http.R
 
 	w.Header().Set("Content-Type", "application/json")
 
-	version := versionFromContext(ctx)
-	if boolValue(r, "forcerm") && version.GreaterThanOrEqualTo("1.12") {
+	version := httputils.VersionFromContext(ctx)
+	if httputils.BoolValue(r, "forcerm") && version.GreaterThanOrEqualTo("1.12") {
 		buildConfig.Remove = true
 	} else if r.FormValue("rm") == "" && version.GreaterThanOrEqualTo("1.12") {
 		buildConfig.Remove = true
 	} else {
-		buildConfig.Remove = boolValue(r, "rm")
+		buildConfig.Remove = httputils.BoolValue(r, "rm")
 	}
-	if boolValue(r, "pull") && version.GreaterThanOrEqualTo("1.16") {
+	if httputils.BoolValue(r, "pull") && version.GreaterThanOrEqualTo("1.16") {
 		buildConfig.Pull = true
 	}
 
@@ -301,15 +302,15 @@ func (s *Server) postBuild(ctx context.Context, w http.ResponseWriter, r *http.R
 	buildConfig.RemoteURL = r.FormValue("remote")
 	buildConfig.DockerfileName = r.FormValue("dockerfile")
 	buildConfig.RepoName = r.FormValue("t")
-	buildConfig.SuppressOutput = boolValue(r, "q")
-	buildConfig.NoCache = boolValue(r, "nocache")
-	buildConfig.ForceRemove = boolValue(r, "forcerm")
+	buildConfig.SuppressOutput = httputils.BoolValue(r, "q")
+	buildConfig.NoCache = httputils.BoolValue(r, "nocache")
+	buildConfig.ForceRemove = httputils.BoolValue(r, "forcerm")
 	buildConfig.AuthConfigs = authConfigs
-	buildConfig.MemorySwap = int64ValueOrZero(r, "memswap")
-	buildConfig.Memory = int64ValueOrZero(r, "memory")
-	buildConfig.CPUShares = int64ValueOrZero(r, "cpushares")
-	buildConfig.CPUPeriod = int64ValueOrZero(r, "cpuperiod")
-	buildConfig.CPUQuota = int64ValueOrZero(r, "cpuquota")
+	buildConfig.MemorySwap = httputils.Int64ValueOrZero(r, "memswap")
+	buildConfig.Memory = httputils.Int64ValueOrZero(r, "memory")
+	buildConfig.CPUShares = httputils.Int64ValueOrZero(r, "cpushares")
+	buildConfig.CPUPeriod = httputils.Int64ValueOrZero(r, "cpuperiod")
+	buildConfig.CPUQuota = httputils.Int64ValueOrZero(r, "cpuquota")
 	buildConfig.CPUSetCpus = r.FormValue("cpusetcpus")
 	buildConfig.CPUSetMems = r.FormValue("cpusetmems")
 	buildConfig.CgroupParent = r.FormValue("cgroupparent")
@@ -358,21 +359,21 @@ func (s *Server) postBuild(ctx context.Context, w http.ResponseWriter, r *http.R
 	return nil
 }
 
-func (s *Server) getImagesJSON(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	if err := parseForm(r); err != nil {
+func (s *router) getImagesJSON(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
 
 	// FIXME: The filter parameter could just be a match filter
-	images, err := s.daemon.Repositories().Images(r.Form.Get("filters"), r.Form.Get("filter"), boolValue(r, "all"))
+	images, err := s.daemon.Repositories().Images(r.Form.Get("filters"), r.Form.Get("filter"), httputils.BoolValue(r, "all"))
 	if err != nil {
 		return err
 	}
 
-	return writeJSON(w, http.StatusOK, images)
+	return httputils.WriteJSON(w, http.StatusOK, images)
 }
 
-func (s *Server) getImagesHistory(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (s *router) getImagesHistory(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
 	}
@@ -383,11 +384,11 @@ func (s *Server) getImagesHistory(ctx context.Context, w http.ResponseWriter, r 
 		return err
 	}
 
-	return writeJSON(w, http.StatusOK, history)
+	return httputils.WriteJSON(w, http.StatusOK, history)
 }
 
-func (s *Server) postImagesTag(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	if err := parseForm(r); err != nil {
+func (s *router) postImagesTag(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
 	if vars == nil {
@@ -396,7 +397,7 @@ func (s *Server) postImagesTag(ctx context.Context, w http.ResponseWriter, r *ht
 
 	repo := r.Form.Get("repo")
 	tag := r.Form.Get("tag")
-	force := boolValue(r, "force")
+	force := httputils.BoolValue(r, "force")
 	name := vars["name"]
 	if err := s.daemon.Repositories().Tag(repo, tag, name, force); err != nil {
 		return err
@@ -406,8 +407,8 @@ func (s *Server) postImagesTag(ctx context.Context, w http.ResponseWriter, r *ht
 	return nil
 }
 
-func (s *Server) getImagesSearch(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	if err := parseForm(r); err != nil {
+func (s *router) getImagesSearch(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
 	var (
@@ -433,5 +434,5 @@ func (s *Server) getImagesSearch(ctx context.Context, w http.ResponseWriter, r *
 	if err != nil {
 		return err
 	}
-	return writeJSON(w, http.StatusOK, query.Results)
+	return httputils.WriteJSON(w, http.StatusOK, query.Results)
 }

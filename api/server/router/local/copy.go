@@ -1,4 +1,4 @@
-package server
+package local
 
 import (
 	"encoding/base64"
@@ -9,17 +9,18 @@ import (
 	"os"
 	"strings"
 
+	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/types"
 	"golang.org/x/net/context"
 )
 
 // postContainersCopy is deprecated in favor of getContainersArchive.
-func (s *Server) postContainersCopy(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (s *router) postContainersCopy(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
 	}
 
-	if err := checkForJSON(r); err != nil {
+	if err := httputils.CheckForJSON(r); err != nil {
 		return err
 	}
 
@@ -68,13 +69,13 @@ func setContainerPathStatHeader(stat *types.ContainerPathStat, header http.Heade
 	return nil
 }
 
-func (s *Server) headContainersArchive(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	v, err := archiveFormValues(r, vars)
+func (s *router) headContainersArchive(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	v, err := httputils.ArchiveFormValues(r, vars)
 	if err != nil {
 		return err
 	}
 
-	stat, err := s.daemon.ContainerStatPath(v.name, v.path)
+	stat, err := s.daemon.ContainerStatPath(v.Name, v.Path)
 	if err != nil {
 		return err
 	}
@@ -82,13 +83,13 @@ func (s *Server) headContainersArchive(ctx context.Context, w http.ResponseWrite
 	return setContainerPathStatHeader(stat, w.Header())
 }
 
-func (s *Server) getContainersArchive(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	v, err := archiveFormValues(r, vars)
+func (s *router) getContainersArchive(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	v, err := httputils.ArchiveFormValues(r, vars)
 	if err != nil {
 		return err
 	}
 
-	tarArchive, stat, err := s.daemon.ContainerArchivePath(v.name, v.path)
+	tarArchive, stat, err := s.daemon.ContainerArchivePath(v.Name, v.Path)
 	if err != nil {
 		return err
 	}
@@ -104,12 +105,12 @@ func (s *Server) getContainersArchive(ctx context.Context, w http.ResponseWriter
 	return err
 }
 
-func (s *Server) putContainersArchive(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	v, err := archiveFormValues(r, vars)
+func (s *router) putContainersArchive(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	v, err := httputils.ArchiveFormValues(r, vars)
 	if err != nil {
 		return err
 	}
 
-	noOverwriteDirNonDir := boolValue(r, "noOverwriteDirNonDir")
-	return s.daemon.ContainerExtractToDir(v.name, v.path, noOverwriteDirNonDir, r.Body)
+	noOverwriteDirNonDir := httputils.BoolValue(r, "noOverwriteDirNonDir")
+	return s.daemon.ContainerExtractToDir(v.Name, v.Path, noOverwriteDirNonDir, r.Body)
 }

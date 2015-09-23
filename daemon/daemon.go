@@ -1131,6 +1131,11 @@ func (daemon *Daemon) verifyContainerSettings(hostConfig *runconfig.HostConfig, 
 	return verifyPlatformContainerSettings(daemon, hostConfig, config)
 }
 
+// NetworkController exposes the libnetwork interface to manage networks.
+func (daemon *Daemon) NetworkController() libnetwork.NetworkController {
+	return daemon.netController
+}
+
 func configureVolumes(config *Config) (*store.VolumeStore, error) {
 	volumesDriver, err := local.New(config.Root)
 	if err != nil {
