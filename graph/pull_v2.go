@@ -137,11 +137,11 @@ func (p *v2Puller) download(di *downloadInfo) {
 
 	if di.size == 0 {
 		size, err := p.extractSize(di)
-		di.size = size
 		if err != nil {
 			di.err <- err
 			return
 		}
+		di.size = size
 	}
 
 	layerDownload, err := blobs.Open(context.Background(), di.digest)
@@ -225,8 +225,7 @@ func (p *v2Puller) pullV2Tag(out io.Writer, tag, taggedName string, dryRun bool)
 		}
 	}()
 
-	var layerSizes map[string]int64
-	layerSizes = make(map[string]int64)
+	layerSizes := make(map[string]int64)
 
 	if dryRun {
 		out.Write(p.sf.FormatStatus(tag, "**** Dry Run - nothing will be downloaded ****"))
@@ -255,7 +254,6 @@ func (p *v2Puller) pullV2Tag(out io.Writer, tag, taggedName string, dryRun bool)
 			img:     img,
 			poolKey: "layer:" + img.ID,
 			digest:  digest,
-			size:    0,
 			// TODO: seems like this chan buffer solved hanging problem in go1.5,
 			// this can indicate some deeper problem that somehow we never take
 			// error from channel in loop below
@@ -267,9 +265,8 @@ func (p *v2Puller) pullV2Tag(out io.Writer, tag, taggedName string, dryRun bool)
 			if err != nil {
 				return false, err
 			}
-			d.size = size
 			logrus.Debugf("Layer %s size: %v", digest.String(), size)
-			layerSizes[digest.String()] = d.size
+			layerSizes[digest.String()] = size
 			continue
 		}
 
@@ -294,7 +291,6 @@ func (p *v2Puller) pullV2Tag(out io.Writer, tag, taggedName string, dryRun bool)
 	}
 	if dryRun {
 		var totalSize int64
-		totalSize = 0
 		for _, v := range layerSizes {
 			totalSize += v
 		}
