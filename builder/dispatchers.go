@@ -209,7 +209,7 @@ func from(ctx context.Context, b *builder, args []string, attributes map[string]
 		return nil
 	}
 
-	image, err := b.Daemon.Repositories(ctx).LookupImage(name)
+	image, err := b.Daemon.Repositories().LookupImage(name)
 	if b.Pull {
 		image, err = b.pullImage(ctx, name)
 		if err != nil {
@@ -217,7 +217,7 @@ func from(ctx context.Context, b *builder, args []string, attributes map[string]
 		}
 	}
 	if err != nil {
-		if b.Daemon.Graph(ctx).IsNotExist(err, name) {
+		if b.Daemon.Graph().IsNotExist(err, name) {
 			image, err = b.pullImage(ctx, name)
 		}
 

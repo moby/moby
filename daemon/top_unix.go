@@ -31,7 +31,7 @@ func (daemon *Daemon) ContainerTop(ctx context.Context, name string, psArgs stri
 		return nil, derr.ErrorCodeNotRunning.WithArgs(name)
 	}
 
-	pids, err := daemon.ExecutionDriver(ctx).GetPidsForContainer(container.ID)
+	pids, err := daemon.ExecutionDriver().GetPidsForContainer(container.ID)
 	if err != nil {
 		return nil, err
 	}

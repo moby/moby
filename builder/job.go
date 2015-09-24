@@ -230,7 +230,7 @@ func Build(ctx context.Context, d *daemon.Daemon, buildConfig *Config) error {
 	}
 
 	defer func() {
-		builder.Daemon.Graph(ctx).Release(builder.id, builder.activeImages...)
+		builder.Daemon.Graph().Release(builder.id, builder.activeImages...)
 	}()
 
 	id, err := builder.Run(ctx, context)
@@ -238,7 +238,7 @@ func Build(ctx context.Context, d *daemon.Daemon, buildConfig *Config) error {
 		return err
 	}
 	if repoName != "" {
-		return d.Repositories(ctx).Tag(repoName, tag, id, true)
+		return d.Repositories().Tag(repoName, tag, id, true)
 	}
 	return nil
 }
