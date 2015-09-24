@@ -53,13 +53,13 @@ func (cli *DockerCli) CmdInfo(args ...string) error {
 
 	if info.Debug {
 		fmt.Fprintf(cli.out, "Debug mode (server): %v\n", info.Debug)
-		fmt.Fprintf(cli.out, "File Descriptors: %d\n", info.NFd)
-		fmt.Fprintf(cli.out, "Goroutines: %d\n", info.NGoroutines)
-		fmt.Fprintf(cli.out, "System Time: %s\n", info.SystemTime)
-		fmt.Fprintf(cli.out, "EventsListeners: %d\n", info.NEventsListener)
-		fmt.Fprintf(cli.out, "Init SHA1: %s\n", info.InitSha1)
-		fmt.Fprintf(cli.out, "Init Path: %s\n", info.InitPath)
-		fmt.Fprintf(cli.out, "Docker Root Dir: %s\n", info.DockerRootDir)
+		fmt.Fprintf(cli.out, " File Descriptors: %d\n", info.NFd)
+		fmt.Fprintf(cli.out, " Goroutines: %d\n", info.NGoroutines)
+		fmt.Fprintf(cli.out, " System Time: %s\n", info.SystemTime)
+		fmt.Fprintf(cli.out, " EventsListeners: %d\n", info.NEventsListener)
+		fmt.Fprintf(cli.out, " Init SHA1: %s\n", info.InitSha1)
+		fmt.Fprintf(cli.out, " Init Path: %s\n", info.InitPath)
+		fmt.Fprintf(cli.out, " Docker Root Dir: %s\n", info.DockerRootDir)
 	}
 
 	ioutils.FprintfIfNotEmpty(cli.out, "Http Proxy: %s\n", info.HTTPProxy)
@@ -73,7 +73,8 @@ func (cli *DockerCli) CmdInfo(args ...string) error {
 			fmt.Fprintf(cli.out, "Registry: %v\n", info.IndexServerAddress)
 		}
 	}
-	// Only output these warnings if the server supports these features
+
+	// Only output these warnings if the server does not support these features
 	if h, err := httputils.ParseServerHeader(serverResp.header.Get("Server")); err == nil {
 		if h.OS != "windows" {
 			if !info.MemoryLimit {
@@ -101,9 +102,7 @@ func (cli *DockerCli) CmdInfo(args ...string) error {
 		}
 	}
 
-	if info.ExperimentalBuild {
-		fmt.Fprintf(cli.out, "Experimental: true\n")
-	}
+	ioutils.FprintfIfTrue(cli.out, "Experimental: %v\n", info.ExperimentalBuild)
 
 	return nil
 }

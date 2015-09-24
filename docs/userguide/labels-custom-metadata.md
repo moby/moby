@@ -185,29 +185,36 @@ on how to query labels set on a container.
 
 These labels appear as part of the `docker info` output for the daemon:
 
-    docker -D info
+    $ docker -D info
     Containers: 12
     Images: 672
+    Engine Version: 1.9.0
     Storage Driver: aufs
      Root Dir: /var/lib/docker/aufs
      Backing Filesystem: extfs
      Dirs: 697
+     Dirperm1 Supported: true
     Execution Driver: native-0.2
     Logging Driver: json-file
-    Kernel Version: 3.13.0-32-generic
-    Operating System: Ubuntu 14.04.1 LTS
-    CPUs: 1
-    Total Memory: 994.1 MiB
-    Name: docker.example.com
-    ID: RC3P:JTCT:32YS:XYSB:YUBG:VFED:AAJZ:W3YW:76XO:D7NN:TEVU:UCRW
-    Debug mode (server): false
-    Debug mode (client): true
-    File Descriptors: 11
-    Goroutines: 14
-    EventsListeners: 0
-    Init Path: /usr/bin/docker
-    Docker Root Dir: /var/lib/docker
+    Kernel Version: 3.19.0-22-generic
+    Operating System: Ubuntu 15.04
+    CPUs: 24
+    Total Memory: 62.86 GiB
+    Name: docker
+    ID: I54V:OLXT:HVMM:TPKO:JPHQ:CQCD:JNLC:O3BZ:4ZVJ:43XJ:PFHZ:6N2S
+    Debug mode (server): true
+     File Descriptors: 59
+     Goroutines: 159
+     System Time: 2015-09-23T14:04:20.699842089+08:00
+     EventsListeners: 0
+     Init SHA1:
+     Init Path: /usr/bin/docker
+     Docker Root Dir: /var/lib/docker
+     Http Proxy: http://test:test@localhost:8080
+     Https Proxy: https://test:test@localhost:8080
     WARNING: No swap limit support
+    Username: svendowideit
+    Registry: [https://index.docker.io/v1/]
     Labels:
      com.example.environment=production
      com.example.storage=ssd
