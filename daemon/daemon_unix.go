@@ -122,8 +122,8 @@ func verifyPlatformContainerSettings(ctx context.Context, daemon *Daemon, hostCo
 	warnings := []string{}
 	sysInfo := sysinfo.New(true)
 
-	if hostConfig.LxcConf.Len() > 0 && !strings.Contains(daemon.ExecutionDriver(ctx).Name(), "lxc") {
-		return warnings, fmt.Errorf("Cannot use --lxc-conf with execdriver: %s", daemon.ExecutionDriver(ctx).Name())
+	if hostConfig.LxcConf.Len() > 0 && !strings.Contains(daemon.ExecutionDriver().Name(), "lxc") {
+		return warnings, fmt.Errorf("Cannot use --lxc-conf with execdriver: %s", daemon.ExecutionDriver().Name())
 	}
 
 	// memory subsystem checks and adjustments
@@ -496,7 +496,7 @@ func setupInitLayer(initLayer string) error {
 
 // NetworkAPIRouter implements a feature for server-experimental,
 // directly calling into libnetwork.
-func (daemon *Daemon) NetworkAPIRouter(ctx context.Context) func(w http.ResponseWriter, req *http.Request) {
+func (daemon *Daemon) NetworkAPIRouter() func(w http.ResponseWriter, req *http.Request) {
 	return nwapi.NewHTTPHandler(daemon.netController)
 }
 

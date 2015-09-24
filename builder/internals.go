@@ -132,7 +132,7 @@ func (b *builder) commit(ctx context.Context, id string, autoCmd *stringutils.St
 	if err != nil {
 		return err
 	}
-	b.Daemon.Graph(ctx).Retain(b.id, image.ID)
+	b.Daemon.Graph().Retain(b.id, image.ID)
 	b.activeImages = append(b.activeImages, image.ID)
 	b.image = image.ID
 	return nil
@@ -511,11 +511,11 @@ func (b *builder) pullImage(ctx context.Context, name string) (*image.Image, err
 		OutStream:  ioutils.NopWriteCloser(b.OutOld),
 	}
 
-	if err := b.Daemon.Repositories(ctx).Pull(ctx, remote, tag, imagePullConfig); err != nil {
+	if err := b.Daemon.Repositories().Pull(ctx, remote, tag, imagePullConfig); err != nil {
 		return nil, err
 	}
 
-	image, err := b.Daemon.Repositories(ctx).LookupImage(name)
+	image, err := b.Daemon.Repositories().LookupImage(name)
 	if err != nil {
 		return nil, err
 	}
@@ -595,7 +595,7 @@ func (b *builder) probeCache(ctx context.Context) (bool, error) {
 	fmt.Fprintf(b.OutStream, " ---> Using cache\n")
 	logrus.Debugf("[BUILDER] Use cached version")
 	b.image = cache.ID
-	b.Daemon.Graph(ctx).Retain(b.id, cache.ID)
+	b.Daemon.Graph().Retain(b.id, cache.ID)
 	b.activeImages = append(b.activeImages, cache.ID)
 	return true, nil
 }

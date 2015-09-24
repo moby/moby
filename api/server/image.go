@@ -112,7 +112,7 @@ func (s *Server) postImagesCreate(ctx context.Context, w http.ResponseWriter, r 
 			OutStream:   output,
 		}
 
-		err = s.daemon.Repositories(ctx).Pull(ctx, image, tag, imagePullConfig)
+		err = s.daemon.Repositories().Pull(ctx, image, tag, imagePullConfig)
 	} else { //import
 		if tag == "" {
 			repo, tag = parsers.ParseRepositoryTag(repo)
@@ -129,7 +129,7 @@ func (s *Server) postImagesCreate(ctx context.Context, w http.ResponseWriter, r 
 			return err
 		}
 
-		err = s.daemon.Repositories(ctx).Import(ctx, src, repo, tag, message, r.Body, output, newConfig)
+		err = s.daemon.Repositories().Import(ctx, src, repo, tag, message, r.Body, output, newConfig)
 	}
 	if err != nil {
 		if !output.Flushed() {
@@ -184,7 +184,7 @@ func (s *Server) postImagesPush(ctx context.Context, w http.ResponseWriter, r *h
 
 	w.Header().Set("Content-Type", "application/json")
 
-	if err := s.daemon.Repositories(ctx).Push(ctx, name, imagePushConfig); err != nil {
+	if err := s.daemon.Repositories().Push(ctx, name, imagePushConfig); err != nil {
 		if !output.Flushed() {
 			return err
 		}
@@ -212,7 +212,7 @@ func (s *Server) getImagesGet(ctx context.Context, w http.ResponseWriter, r *htt
 		names = r.Form["names"]
 	}
 
-	if err := s.daemon.Repositories(ctx).ImageExport(names, output); err != nil {
+	if err := s.daemon.Repositories().ImageExport(names, output); err != nil {
 		if !output.Flushed() {
 			return err
 		}
@@ -223,7 +223,7 @@ func (s *Server) getImagesGet(ctx context.Context, w http.ResponseWriter, r *htt
 }
 
 func (s *Server) postImagesLoad(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	return s.daemon.Repositories(ctx).Load(r.Body, w)
+	return s.daemon.Repositories().Load(r.Body, w)
 }
 
 func (s *Server) deleteImages(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
@@ -256,7 +256,7 @@ func (s *Server) getImagesByName(ctx context.Context, w http.ResponseWriter, r *
 		return fmt.Errorf("Missing parameter")
 	}
 
-	imageInspect, err := s.daemon.Repositories(ctx).Lookup(vars["name"])
+	imageInspect, err := s.daemon.Repositories().Lookup(vars["name"])
 	if err != nil {
 		return err
 	}
@@ -364,7 +364,7 @@ func (s *Server) getImagesJSON(ctx context.Context, w http.ResponseWriter, r *ht
 	}
 
 	// FIXME: The filter parameter could just be a match filter
-	images, err := s.daemon.Repositories(ctx).Images(r.Form.Get("filters"), r.Form.Get("filter"), boolValue(r, "all"))
+	images, err := s.daemon.Repositories().Images(r.Form.Get("filters"), r.Form.Get("filter"), boolValue(r, "all"))
 	if err != nil {
 		return err
 	}
@@ -378,7 +378,7 @@ func (s *Server) getImagesHistory(ctx context.Context, w http.ResponseWriter, r 
 	}
 
 	name := vars["name"]
-	history, err := s.daemon.Repositories(ctx).History(name)
+	history, err := s.daemon.Repositories().History(name)
 	if err != nil {
 		return err
 	}
@@ -398,7 +398,7 @@ func (s *Server) postImagesTag(ctx context.Context, w http.ResponseWriter, r *ht
 	tag := r.Form.Get("tag")
 	force := boolValue(r, "force")
 	name := vars["name"]
-	if err := s.daemon.Repositories(ctx).Tag(repo, tag, name, force); err != nil {
+	if err := s.daemon.Repositories().Tag(repo, tag, name, force); err != nil {
 		return err
 	}
 	s.daemon.EventsService.Log(ctx, "tag", utils.ImageReference(repo, tag), "")

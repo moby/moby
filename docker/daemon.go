@@ -151,11 +151,6 @@ func getGlobalFlag() (globalFlag *flag.Flag) {
 
 // CmdDaemon is the daemon command, called the raw arguments after `docker daemon`.
 func (cli *DaemonCli) CmdDaemon(args ...string) error {
-	// This may need to be made even more global - it all depends
-	// on whether we want the CLI to have a context object too.
-	// For now we'll leave it as a daemon-side object only.
-	ctx := context.Background()
-
 	// warn from uuid package when running the daemon
 	uuid.Loggerf = logrus.Warnf
 
@@ -230,7 +225,7 @@ func (cli *DaemonCli) CmdDaemon(args ...string) error {
 		serverConfig.TLSConfig = tlsConfig
 	}
 
-	api := apiserver.New(ctx, serverConfig)
+	api := apiserver.New(serverConfig)
 
 	// The serve API routine never exits unless an error occurs
 	// We need to start it as a goroutine and wait on it so
@@ -251,7 +246,7 @@ func (cli *DaemonCli) CmdDaemon(args ...string) error {
 	cli.TrustKeyPath = commonFlags.TrustKey
 
 	registryService := registry.NewService(cli.registryOptions)
-	d, err := daemon.NewDaemon(ctx, cli.Config, registryService)
+	d, err := daemon.NewDaemon(cli.Config, registryService)
 	if err != nil {
 		if pfile != nil {
 			if err := pfile.Remove(); err != nil {
@@ -266,14 +261,14 @@ func (cli *DaemonCli) CmdDaemon(args ...string) error {
 	logrus.WithFields(logrus.Fields{
 		"version":     dockerversion.VERSION,
 		"commit":      dockerversion.GITCOMMIT,
-		"execdriver":  d.ExecutionDriver(ctx).Name(),
-		"graphdriver": d.GraphDriver(ctx).String(),
+		"execdriver":  d.ExecutionDriver().Name(),
+		"graphdriver": d.GraphDriver().String(),
 	}).Info("Docker daemon")
 
 	signal.Trap(func() {
 		api.Close()
 		<-serveAPIWait
-		shutdownDaemon(ctx, d, 15)
+		shutdownDaemon(d, 15)
 		if pfile != nil {
 			if err := pfile.Remove(); err != nil {
 				logrus.Error(err)
@@ -283,12 +278,12 @@ func (cli *DaemonCli) CmdDaemon(args ...string) error {
 
 	// after the daemon is done setting up we can tell the api to start
 	// accepting connections with specified daemon
-	api.AcceptConnections(ctx, d)
+	api.AcceptConnections(d)
 
 	// Daemon is fully initialized and handling API traffic
 	// Wait for serve API to complete
 	errAPI := <-serveAPIWait
-	shutdownDaemon(ctx, d, 15)
+	shutdownDaemon(d, 15)
 	if errAPI != nil {
 		if pfile != nil {
 			if err := pfile.Remove(); err != nil {
@@ -303,10 +298,10 @@ func (cli *DaemonCli) CmdDaemon(args ...string) error {
 // shutdownDaemon just wraps daemon.Shutdown() to handle a timeout in case
 // d.Shutdown() is waiting too long to kill container or worst it's
 // blocked there
-func shutdownDaemon(ctx context.Context, d *daemon.Daemon, timeout time.Duration) {
+func shutdownDaemon(d *daemon.Daemon, timeout time.Duration) {
 	ch := make(chan struct{})
 	go func() {
-		d.Shutdown(ctx)
+		d.Shutdown(context.Background())
 		close(ch)
 	}()
 	select {
