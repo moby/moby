@@ -57,7 +57,7 @@ func Init(home string, options []string) (graphdriver.Driver, error) {
 		home:      home,
 	}
 
-	return graphdriver.NaiveDiffDriver(d), nil
+	return graphdriver.NewNaiveDiffDriver(d), nil
 }
 
 func (d *Driver) String() string {

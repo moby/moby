@@ -232,7 +232,7 @@ func (devices *DeviceSet) hasImage(name string) bool {
 
 // ensureImage creates a sparse file of <size> bytes at the path
 // <root>/devicemapper/<name>.
-// If the file already exists, it does nothing.
+// If the file already exists and new size is larger than its current size, it grows to the new size.
 // Either way it returns the full path.
 func (devices *DeviceSet) ensureImage(name string, size int64) (string, error) {
 	dirname := devices.loopbackDir()
@@ -242,7 +242,7 @@ func (devices *DeviceSet) ensureImage(name string, size int64) (string, error) {
 		return "", err
 	}
 
-	if _, err := os.Stat(filename); err != nil {
+	if fi, err := os.Stat(filename); err != nil {
 		if !os.IsNotExist(err) {
 			return "", err
 		}
@@ -255,6 +255,19 @@ func (devices *DeviceSet) ensureImage(name string, size int64) (string, error) {
 
 		if err := file.Truncate(size); err != nil {
 			return "", err
+		}
+	} else {
+		if fi.Size() < size {
+			file, err := os.OpenFile(filename, os.O_RDWR|os.O_CREATE, 0600)
+			if err != nil {
+				return "", err
+			}
+			defer file.Close()
+			if err := file.Truncate(size); err != nil {
+				return "", fmt.Errorf("Unable to grow loopback file %s: %v", filename, err)
+			}
+		} else if fi.Size() > size {
+			logrus.Warnf("Can't shrink loopback file %s", filename)
 		}
 	}
 	return filename, nil
