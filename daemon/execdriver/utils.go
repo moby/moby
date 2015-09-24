@@ -119,6 +119,5 @@ func TweakCapabilities(basics, adds, drops []string) ([]string, error) {
 			newCaps = append(newCaps, strings.ToUpper(cap))
 		}
 	}
-
 	return newCaps, nil
 }

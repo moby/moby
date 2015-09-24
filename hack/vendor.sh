@@ -42,7 +42,7 @@ clone git github.com/endophage/gotuf 9bcdad0308e34a49f38448b8ad436ad8860825ce
 clone git github.com/jfrazelle/go 6e461eb70cb4187b41a84e9a567d7137bdbe0f16
 clone git github.com/agl/ed25519 d2b94fd789ea21d12fac1a4443dd3a3f79cda72c
 
-clone git github.com/opencontainers/runc v0.0.4 # libcontainer
+clone git github.com/opencontainers/runc aac9179bbadbf958054ce97ab368ac178140e5da # libcontainer
 # libcontainer deps (see src/github.com/docker/libcontainer/update-vendor.sh)
 clone git github.com/coreos/go-systemd v3
 clone git github.com/godbus/dbus v2

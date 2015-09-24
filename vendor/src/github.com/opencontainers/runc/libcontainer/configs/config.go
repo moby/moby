@@ -20,8 +20,12 @@ type IDMap struct {
 }
 
 // Seccomp represents syscall restrictions
+// By default, only the native architecture of the kernel is allowed to be used
+// for syscalls. Additional architectures can be added by specifying them in
+// Architectures.
 type Seccomp struct {
 	DefaultAction Action     `json:"default_action"`
+	Architectures []string   `json:"architectures"`
 	Syscalls      []*Syscall `json:"syscalls"`
 }
 
@@ -169,6 +173,9 @@ type Config struct {
 	// Hooks are a collection of actions to perform at various container lifecycle events.
 	// Hooks are not able to be marshaled to json but they are also not needed to.
 	Hooks *Hooks `json:"-"`
+
+	// Version is the version of opencontainer specification that is supported.
+	Version string `json:"version"`
 }
 
 type Hooks struct {
@@ -182,9 +189,10 @@ type Hooks struct {
 
 // HookState is the payload provided to a hook on execution.
 type HookState struct {
-	ID   string `json:"id"`
-	Pid  int    `json:"pid"`
-	Root string `json:"root"`
+	Version string `json:"version"`
+	ID      string `json:"id"`
+	Pid     int    `json:"pid"`
+	Root    string `json:"root"`
 }
 
 type Hook interface {
