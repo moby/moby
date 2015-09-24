@@ -61,8 +61,8 @@ func listTar(f io.Reader) ([]string, error) {
 	return integration.ListTar(f)
 }
 
-func randomUnixTmpDirPath(s string) string {
-	return integration.RandomUnixTmpDirPath(s)
+func randomTmpDirPath(s string) string {
+	return integration.RandomTmpDirPath(s)
 }
 
 func consumeWithSpeed(reader io.Reader, chunkSize int, interval time.Duration, stop chan bool) (n int, err error) {
