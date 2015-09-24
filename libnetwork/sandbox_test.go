@@ -35,8 +35,7 @@ func getTestEnv(t *testing.T) (NetworkController, Network, Network) {
 	name1 := "test_nw_1"
 	netOption1 := options.Generic{
 		netlabel.GenericData: options.Generic{
-			"BridgeName":            name1,
-			"AllowNonDefaultBridge": true,
+			"BridgeName": name1,
 		},
 	}
 	n1, err := c.NewNetwork(netType, name1, NetworkOptionGeneric(netOption1))
@@ -47,8 +46,7 @@ func getTestEnv(t *testing.T) (NetworkController, Network, Network) {
 	name2 := "test_nw_2"
 	netOption2 := options.Generic{
 		netlabel.GenericData: options.Generic{
-			"BridgeName":            name2,
-			"AllowNonDefaultBridge": true,
+			"BridgeName": name2,
 		},
 	}
 	n2, err := c.NewNetwork(netType, name2, NetworkOptionGeneric(netOption2))

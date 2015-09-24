@@ -288,14 +288,13 @@ func TestBridge(t *testing.T) {
 
 	netOption := options.Generic{
 		netlabel.GenericData: options.Generic{
-			"BridgeName":            "testnetwork",
-			"AddressIPv4":           subnet,
-			"FixedCIDR":             cidr,
-			"FixedCIDRv6":           cidrv6,
-			"EnableIPv6":            true,
-			"EnableICC":             true,
-			"AllowNonDefaultBridge": true,
-			"EnableIPMasquerade":    true,
+			"BridgeName":         "testnetwork",
+			"AddressIPv4":        subnet,
+			"FixedCIDR":          cidr,
+			"FixedCIDRv6":        cidrv6,
+			"EnableIPv6":         true,
+			"EnableICC":          true,
+			"EnableIPMasquerade": true,
 		},
 	}
 
@@ -389,8 +388,7 @@ func TestNetworkName(t *testing.T) {
 
 	netOption := options.Generic{
 		netlabel.GenericData: options.Generic{
-			"BridgeName":            "testnetwork",
-			"AllowNonDefaultBridge": true,
+			"BridgeName": "testnetwork",
 		},
 	}
 
@@ -426,8 +424,7 @@ func TestNetworkType(t *testing.T) {
 
 	netOption := options.Generic{
 		netlabel.GenericData: options.Generic{
-			"BridgeName":            "testnetwork",
-			"AllowNonDefaultBridge": true,
+			"BridgeName": "testnetwork",
 		},
 	}
 
@@ -453,8 +450,7 @@ func TestNetworkID(t *testing.T) {
 
 	netOption := options.Generic{
 		netlabel.GenericData: options.Generic{
-			"BridgeName":            "testnetwork",
-			"AllowNonDefaultBridge": true,
+			"BridgeName": "testnetwork",
 		},
 	}
 
@@ -479,8 +475,8 @@ func TestDeleteNetworkWithActiveEndpoints(t *testing.T) {
 	}
 
 	netOption := options.Generic{
-		"BridgeName":            "testnetwork",
-		"AllowNonDefaultBridge": true}
+		"BridgeName": "testnetwork",
+	}
 	option := options.Generic{
 		netlabel.GenericData: netOption,
 	}
@@ -520,8 +516,8 @@ func TestUnknownNetwork(t *testing.T) {
 	}
 
 	netOption := options.Generic{
-		"BridgeName":            "testnetwork",
-		"AllowNonDefaultBridge": true}
+		"BridgeName": "testnetwork",
+	}
 	option := options.Generic{
 		netlabel.GenericData: netOption,
 	}
@@ -558,9 +554,9 @@ func TestUnknownEndpoint(t *testing.T) {
 	subnet.IP = ip
 
 	netOption := options.Generic{
-		"BridgeName":            "testnetwork",
-		"AddressIPv4":           subnet,
-		"AllowNonDefaultBridge": true}
+		"BridgeName":  "testnetwork",
+		"AddressIPv4": subnet,
+	}
 	option := options.Generic{
 		netlabel.GenericData: netOption,
 	}
@@ -602,8 +598,7 @@ func TestNetworkEndpointsWalkers(t *testing.T) {
 	// Create network 1 and add 2 endpoint: ep11, ep12
 	netOption := options.Generic{
 		netlabel.GenericData: options.Generic{
-			"BridgeName":            "network1",
-			"AllowNonDefaultBridge": true,
+			"BridgeName": "network1",
 		},
 	}
 
@@ -675,8 +670,7 @@ func TestNetworkEndpointsWalkers(t *testing.T) {
 	// Create network 2
 	netOption = options.Generic{
 		netlabel.GenericData: options.Generic{
-			"BridgeName":            "network2",
-			"AllowNonDefaultBridge": true,
+			"BridgeName": "network2",
 		},
 	}
 
@@ -733,8 +727,7 @@ func TestDuplicateEndpoint(t *testing.T) {
 
 	netOption := options.Generic{
 		netlabel.GenericData: options.Generic{
-			"BridgeName":            "testnetwork",
-			"AllowNonDefaultBridge": true,
+			"BridgeName": "testnetwork",
 		},
 	}
 	n, err := createTestNetwork(bridgeNetType, "testnetwork", netOption)
@@ -784,8 +777,7 @@ func TestControllerQuery(t *testing.T) {
 	// Create network 1
 	netOption := options.Generic{
 		netlabel.GenericData: options.Generic{
-			"BridgeName":            "network1",
-			"AllowNonDefaultBridge": true,
+			"BridgeName": "network1",
 		},
 	}
 	net1, err := createTestNetwork(bridgeNetType, "network1", netOption)
@@ -801,8 +793,7 @@ func TestControllerQuery(t *testing.T) {
 	// Create network 2
 	netOption = options.Generic{
 		netlabel.GenericData: options.Generic{
-			"BridgeName":            "network2",
-			"AllowNonDefaultBridge": true,
+			"BridgeName": "network2",
 		},
 	}
 	net2, err := createTestNetwork(bridgeNetType, "network2", netOption)
@@ -888,8 +879,7 @@ func TestNetworkQuery(t *testing.T) {
 	// Create network 1 and add 2 endpoint: ep11, ep12
 	netOption := options.Generic{
 		netlabel.GenericData: options.Generic{
-			"BridgeName":            "network1",
-			"AllowNonDefaultBridge": true,
+			"BridgeName": "network1",
 		},
 	}
 	net1, err := createTestNetwork(bridgeNetType, "network1", netOption)
@@ -1010,8 +1000,7 @@ func TestEndpointJoin(t *testing.T) {
 	// Create network 1 and add 2 endpoint: ep11, ep12
 	n1, err := createTestNetwork(bridgeNetType, "testnetwork1", options.Generic{
 		netlabel.GenericData: options.Generic{
-			"BridgeName":            "testnetwork1",
-			"AllowNonDefaultBridge": true,
+			"BridgeName": "testnetwork1",
 		},
 	})
 	if err != nil {
@@ -1121,8 +1110,7 @@ func TestEndpointJoin(t *testing.T) {
 	n2, err := createTestNetwork(bridgeNetType, "testnetwork2",
 		options.Generic{
 			netlabel.GenericData: options.Generic{
-				"BridgeName":            "testnetwork2",
-				"AllowNonDefaultBridge": true,
+				"BridgeName": "testnetwork2",
 			},
 		})
 	if err != nil {
@@ -1213,8 +1201,7 @@ func externalKeyTest(t *testing.T, reexec bool) {
 
 	n, err := createTestNetwork(bridgeNetType, "testnetwork", options.Generic{
 		netlabel.GenericData: options.Generic{
-			"BridgeName":            "testnetwork",
-			"AllowNonDefaultBridge": true,
+			"BridgeName": "testnetwork",
 		},
 	})
 	if err != nil {
@@ -1363,8 +1350,7 @@ func TestEndpointDeleteWithActiveContainer(t *testing.T) {
 
 	n, err := createTestNetwork(bridgeNetType, "testnetwork", options.Generic{
 		netlabel.GenericData: options.Generic{
-			"BridgeName":            "testnetwork",
-			"AllowNonDefaultBridge": true,
+			"BridgeName": "testnetwork",
 		},
 	})
 	if err != nil {
@@ -1427,8 +1413,7 @@ func TestEndpointMultipleJoins(t *testing.T) {
 
 	n, err := createTestNetwork(bridgeNetType, "testmultiple", options.Generic{
 		netlabel.GenericData: options.Generic{
-			"BridgeName":            "testmultiple",
-			"AllowNonDefaultBridge": true,
+			"BridgeName": "testmultiple",
 		},
 	})
 	if err != nil {
@@ -1499,8 +1484,7 @@ func TestLeaveAll(t *testing.T) {
 
 	n, err := createTestNetwork(bridgeNetType, "testnetwork", options.Generic{
 		netlabel.GenericData: options.Generic{
-			"BridgeName":            "testnetwork",
-			"AllowNonDefaultBridge": true,
+			"BridgeName": "testnetwork",
 		},
 	})
 	if err != nil {
@@ -1563,8 +1547,7 @@ func TestontainerInvalidLeave(t *testing.T) {
 
 	n, err := createTestNetwork(bridgeNetType, "testnetwork", options.Generic{
 		netlabel.GenericData: options.Generic{
-			"BridgeName":            "testnetwork",
-			"AllowNonDefaultBridge": true,
+			"BridgeName": "testnetwork",
 		},
 	})
 	if err != nil {
@@ -1630,8 +1613,7 @@ func TestEndpointUpdateParent(t *testing.T) {
 
 	n, err := createTestNetwork("bridge", "testnetwork", options.Generic{
 		netlabel.GenericData: options.Generic{
-			"BridgeName":            "testnetwork",
-			"AllowNonDefaultBridge": true,
+			"BridgeName": "testnetwork",
 		},
 	})
 	if err != nil {
@@ -1736,9 +1718,8 @@ func TestEnableIPv6(t *testing.T) {
 	netOption := options.Generic{
 		netlabel.EnableIPv6: true,
 		netlabel.GenericData: options.Generic{
-			"BridgeName":            "testnetwork",
-			"FixedCIDRv6":           cidrv6,
-			"AllowNonDefaultBridge": true,
+			"BridgeName":  "testnetwork",
+			"FixedCIDRv6": cidrv6,
 		},
 	}
 
@@ -1909,8 +1890,7 @@ func TestResolvConf(t *testing.T) {
 
 	netOption := options.Generic{
 		netlabel.GenericData: options.Generic{
-			"BridgeName":            "testnetwork",
-			"AllowNonDefaultBridge": true,
+			"BridgeName": "testnetwork",
 		},
 	}
 	n, err := createTestNetwork("bridge", "testnetwork", netOption)
@@ -2178,8 +2158,7 @@ func createGlobalInstance(t *testing.T) {
 
 	netOption := options.Generic{
 		netlabel.GenericData: options.Generic{
-			"BridgeName":            "network",
-			"AllowNonDefaultBridge": true,
+			"BridgeName": "network",
 		},
 	}
 

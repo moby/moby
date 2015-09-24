@@ -115,8 +115,7 @@ func createDefaultNetwork(c libnetwork.NetworkController) {
 		// Bridge driver is special due to legacy reasons
 		if d == "bridge" {
 			genericOption[netlabel.GenericData] = map[string]interface{}{
-				"BridgeName":            nw,
-				"AllowNonDefaultBridge": "true",
+				"BridgeName": nw,
 			}
 			networkOption := libnetwork.NetworkOptionGeneric(genericOption)
 			createOptions = append(createOptions, networkOption)

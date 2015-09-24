@@ -59,7 +59,7 @@ type networkConfiguration struct {
 	DefaultGatewayIPv4    net.IP
 	DefaultGatewayIPv6    net.IP
 	DefaultBindingIP      net.IP
-	AllowNonDefaultBridge bool
+	DisableBridgeCreation bool
 }
 
 // endpointConfiguration represents the user specified configuration for the sandbox endpoint
@@ -249,13 +249,13 @@ func (c *networkConfiguration) fromMap(data map[string]interface{}) error {
 		}
 	}
 
-	if i, ok := data["AllowNonDefaultBridge"]; ok && i != nil {
+	if i, ok := data["DisableBridgeCreation"]; ok && i != nil {
 		if s, ok := i.(string); ok {
-			if c.AllowNonDefaultBridge, err = strconv.ParseBool(s); err != nil {
-				return types.BadRequestErrorf("failed to parse AllowNonDefaultBridge value: %s", err.Error())
+			if c.DisableBridgeCreation, err = strconv.ParseBool(s); err != nil {
+				return types.BadRequestErrorf("failed to parse DisableBridgeCreation value: %s", err.Error())
 			}
 		} else {
-			return types.BadRequestErrorf("invalid type for AllowNonDefaultBridge value")
+			return types.BadRequestErrorf("invalid type for DisableBridgeCreation value")
 		}
 	}
 

@@ -123,7 +123,7 @@ func TestCreateFail(t *testing.T) {
 		t.Fatalf("Failed to setup driver config: %v", err)
 	}
 
-	netconfig := &networkConfiguration{BridgeName: "dummy0"}
+	netconfig := &networkConfiguration{BridgeName: "dummy0", DisableBridgeCreation: true}
 	genericOption := make(map[string]interface{})
 	genericOption[netlabel.GenericData] = netconfig
 
@@ -146,20 +146,20 @@ func TestCreateMultipleNetworks(t *testing.T) {
 		t.Fatalf("Failed to setup driver config: %v", err)
 	}
 
-	config1 := &networkConfiguration{BridgeName: "net_test_1", AllowNonDefaultBridge: true}
+	config1 := &networkConfiguration{BridgeName: "net_test_1"}
 	genericOption = make(map[string]interface{})
 	genericOption[netlabel.GenericData] = config1
 	if err := d.CreateNetwork("1", genericOption); err != nil {
 		t.Fatalf("Failed to create bridge: %v", err)
 	}
 
-	config2 := &networkConfiguration{BridgeName: "net_test_2", AllowNonDefaultBridge: true}
+	config2 := &networkConfiguration{BridgeName: "net_test_2"}
 	genericOption[netlabel.GenericData] = config2
 	if err := d.CreateNetwork("2", genericOption); err != nil {
 		t.Fatalf("Failed to create bridge: %v", err)
 	}
 
-	config3 := &networkConfiguration{BridgeName: "net_test_3", AllowNonDefaultBridge: true}
+	config3 := &networkConfiguration{BridgeName: "net_test_3"}
 	genericOption[netlabel.GenericData] = config3
 	if err := d.CreateNetwork("3", genericOption); err != nil {
 		t.Fatalf("Failed to create bridge: %v", err)
@@ -168,7 +168,7 @@ func TestCreateMultipleNetworks(t *testing.T) {
 	// Verify the network isolation rules are installed, each network subnet should appear 4 times
 	verifyV4INCEntries(d.networks, 4, t)
 
-	config4 := &networkConfiguration{BridgeName: "net_test_4", AllowNonDefaultBridge: true}
+	config4 := &networkConfiguration{BridgeName: "net_test_4"}
 	genericOption[netlabel.GenericData] = config4
 	if err := d.CreateNetwork("4", genericOption); err != nil {
 		t.Fatalf("Failed to create bridge: %v", err)
