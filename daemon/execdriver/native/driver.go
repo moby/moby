@@ -167,7 +167,6 @@ func (d *Driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, hooks execd
 
 	oom := notifyOnOOM(cont)
 	if hooks.Start != nil {
-
 		pid, err := p.Pid()
 		if err != nil {
 			p.Signal(os.Kill)
