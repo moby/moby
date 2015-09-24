@@ -9,7 +9,9 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 
 	"github.com/codegangsta/cli"
 	"github.com/docker/docker/pkg/parsers"
@@ -165,7 +167,22 @@ func (d *dnetConnection) dnetDaemon(cfgFile string) error {
 	post.Methods("GET", "PUT", "POST", "DELETE").HandlerFunc(httpHandler)
 	post = r.PathPrefix("/sandboxes").Subrouter()
 	post.Methods("GET", "PUT", "POST", "DELETE").HandlerFunc(httpHandler)
+
+	handleSignals(controller)
+
 	return http.ListenAndServe(d.addr, r)
+}
+
+func handleSignals(controller libnetwork.NetworkController) {
+	c := make(chan os.Signal, 1)
+	signals := []os.Signal{os.Interrupt, syscall.SIGTERM, syscall.SIGQUIT}
+	signal.Notify(c, signals...)
+	go func() {
+		for _ = range c {
+			controller.Stop()
+			os.Exit(0)
+		}
+	}()
 }
 
 func startTestDriver() error {
