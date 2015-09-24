@@ -322,8 +322,8 @@ func (s *DockerSuite) TestRunNoDupVolumes(c *check.C) {
 	// TODO Windows: This test cannot run on a Windows daemon as Windows does
 	// not support volumes
 	testRequires(c, DaemonIsLinux)
-	mountstr1 := randomTmpDirPath("test1") + ":/someplace"
-	mountstr2 := randomTmpDirPath("test2") + ":/someplace"
+	mountstr1 := randomTmpDirPath("test1", daemonPlatform) + ":/someplace"
+	mountstr2 := randomTmpDirPath("test2", daemonPlatform) + ":/someplace"
 
 	if out, _, err := dockerCmdWithError("run", "-v", mountstr1, "-v", mountstr2, "busybox", "true"); err == nil {
 		c.Fatal("Expected error about duplicate volume definitions")
@@ -2015,7 +2015,7 @@ func (s *DockerSuite) TestVolumesNoCopyData(c *check.C) {
 		c.Fatalf("Data was copied on volumes-from but shouldn't be:\n%q", out)
 	}
 
-	tmpDir := randomTmpDirPath("docker_test_bind_mount_copy_data")
+	tmpDir := randomTmpDirPath("docker_test_bind_mount_copy_data", daemonPlatform)
 	if out, _, err := dockerCmdWithError("run", "-v", tmpDir+":/foo", "dataimage", "ls", "-lh", "/foo/bar"); err == nil || !strings.Contains(out, "No such file or directory") {
 		c.Fatalf("Data was copied on bind-mount but shouldn't be:\n%q", out)
 	}
