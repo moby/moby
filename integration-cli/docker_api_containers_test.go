@@ -191,7 +191,7 @@ func (s *DockerSuite) TestContainerApiStartVolumeBinds(c *check.C) {
 	c.Assert(err, check.IsNil)
 	c.Assert(status, check.Equals, http.StatusCreated)
 
-	bindPath := randomUnixTmpDirPath("test")
+	bindPath := randomTmpDirPath("test")
 	config = map[string]interface{}{
 		"Binds": []string{bindPath + ":/tmp"},
 	}
@@ -222,8 +222,8 @@ func (s *DockerSuite) TestContainerApiStartDupVolumeBinds(c *check.C) {
 	c.Assert(err, check.IsNil)
 	c.Assert(status, check.Equals, http.StatusCreated)
 
-	bindPath1 := randomUnixTmpDirPath("test1")
-	bindPath2 := randomUnixTmpDirPath("test2")
+	bindPath1 := randomTmpDirPath("test1")
+	bindPath2 := randomTmpDirPath("test2")
 
 	config = map[string]interface{}{
 		"Binds": []string{bindPath1 + ":/tmp", bindPath2 + ":/tmp"},

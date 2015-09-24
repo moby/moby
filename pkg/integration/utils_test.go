@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -341,10 +342,13 @@ func TestListTar(t *testing.T) {
 	}
 }
 
-func TestRandomUnixTmpDirPath(t *testing.T) {
-	path := RandomUnixTmpDirPath("something")
+func TestRandomTmpDirPath(t *testing.T) {
+	path := RandomTmpDirPath("something")
 
 	prefix := "/tmp/something"
+	if runtime.GOOS == "windows" {
+		prefix = os.Getenv("TEMP") + `\something`
+	}
 	expectedSize := len(prefix) + 11
 
 	if !strings.HasPrefix(path, prefix) {

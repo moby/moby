@@ -9,8 +9,9 @@ import (
 	"io"
 	"os"
 	"os/exec"
-	"path"
+	"path/filepath"
 	"reflect"
+	"runtime"
 	"strings"
 	"syscall"
 	"time"
@@ -244,10 +245,14 @@ func ListTar(f io.Reader) ([]string, error) {
 	}
 }
 
-// RandomUnixTmpDirPath provides a temporary unix path with rand string appended.
+// RandomTmpDirPath provides a temporary path with rand string appended.
 // does not create or checks if it exists.
-func RandomUnixTmpDirPath(s string) string {
-	return path.Join("/tmp", fmt.Sprintf("%s.%s", s, stringutils.GenerateRandomAlphaOnlyString(10)))
+func RandomTmpDirPath(s string) string {
+	tmp := "/tmp"
+	if runtime.GOOS == "windows" {
+		tmp = os.Getenv("TEMP")
+	}
+	return filepath.Join(tmp, fmt.Sprintf("%s.%s", s, stringutils.GenerateRandomAlphaOnlyString(10)))
 }
 
 // ConsumeWithSpeed reads chunkSize bytes from reader after every interval.
