@@ -343,7 +343,7 @@ func TestListTar(t *testing.T) {
 }
 
 func TestRandomTmpDirPath(t *testing.T) {
-	path := RandomTmpDirPath("something")
+	path := RandomTmpDirPath("something", runtime.GOOS)
 
 	prefix := "/tmp/something"
 	if runtime.GOOS == "windows" {
