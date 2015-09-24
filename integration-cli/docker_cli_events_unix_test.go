@@ -56,6 +56,7 @@ func (s *DockerSuite) TestEventsRedirectStdout(c *check.C) {
 
 func (s *DockerSuite) TestEventsOOMDisableFalse(c *check.C) {
 	testRequires(c, DaemonIsLinux)
+	testRequires(c, NativeExecDriver)
 	testRequires(c, oomControl)
 
 	errChan := make(chan error)
@@ -103,6 +104,7 @@ func (s *DockerSuite) TestEventsOOMDisableFalse(c *check.C) {
 
 func (s *DockerSuite) TestEventsOOMDisableTrue(c *check.C) {
 	testRequires(c, DaemonIsLinux)
+	testRequires(c, NativeExecDriver)
 	testRequires(c, oomControl)
 
 	errChan := make(chan error)
