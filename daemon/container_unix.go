@@ -172,37 +172,42 @@ func getDevicesFromPath(deviceMapping runconfig.DeviceMapping) (devs []*configs.
 	return devs, derr.ErrorCodeDeviceInfo.WithArgs(deviceMapping.PathOnHost, err)
 }
 
-func Major(devNumber uint64) uint64{
+func Major(devNumber uint64) uint64 {
 	return uint64((devNumber >> 8) & 0xfff)
 }
 
-func Minor(devNumber uint64) uint64{
+func Minor(devNumber uint64) uint64 {
 	return uint64((devNumber & 0xff) | ((devNumber >> 12) & 0xfff00))
 }
 
-func constructBlkioArgs(volumeMap []string, blkioLimit string) string { 
-	var dupRemovalMap = make(map [string]bool)
+func constructBlkioArgs(volumeMap []string, blkioLimit string) string {
+	if blkioLimit == "" {
+		return ""
+	}
+	if len(volumeMap) == 0 {
+		volumeMap = append(volumeMap, "/var/lib/docker")
+	}
+	var dupRemovalMap = make(map[string]bool)
 	for _, volumeMapping := range volumeMap {
 		splitArr := strings.Split(volumeMapping, ":")
 		f, _ := os.Open(splitArr[0])
 		fi, _ := f.Stat()
 		s := fi.Sys()
 		switch s := s.(type) {
-			default:
-				fmt.Printf("unexpected type %T", s)
-			case *syscall.Stat_t:
-				majorMinorStr := strconv.FormatUint(Major(s.Dev), 10) + ":" + strconv.FormatUint(Minor(s.Dev), 10)
-				dupRemovalMap[majorMinorStr] = true
+		default:
+			fmt.Printf("unexpected type %T", s)
+		case *syscall.Stat_t:
+			majorMinorStr := strconv.FormatUint(Major(s.Dev), 10) + ":" + strconv.FormatUint(Minor(s.Dev), 10)
+			dupRemovalMap[majorMinorStr] = true
 		}
 	}
 
 	blkioArg := ""
 	for key, _ := range dupRemovalMap {
-		blkioArg = blkioArg + key+ " " + blkioLimit + "\n"
+		blkioArg = blkioArg + key + " " + blkioLimit + "\n"
 	}
 	return blkioArg
 }
-
 
 func populateCommand(c *Container, env []string) error {
 	var en *execdriver.Network
@@ -285,7 +290,7 @@ func populateCommand(c *Container, env []string) error {
 	}
 
 	dumpfile, _ := os.OpenFile("/home/pratik/Desktop/dump", os.O_APPEND|os.O_WRONLY, 0600)
-	fmt.Fprintln(dumpfile, c.hostConfig.Binds)
+	fmt.Fprintln(dumpfile, c.hostConfig.Binds, c.hostConfig.BlkioReadLimit)
 
 	fmt.Fprintln(dumpfile, constructBlkioArgs(c.hostConfig.Binds, c.hostConfig.BlkioReadLimit))
 
@@ -299,7 +304,7 @@ func populateCommand(c *Container, env []string) error {
 		CPUPeriod:        c.hostConfig.CPUPeriod,
 		CPUQuota:         c.hostConfig.CPUQuota,
 		BlkioWeight:      c.hostConfig.BlkioWeight,
-		BlkioReadLimit:   c.hostConfig.BlkioReadLimit,
+		BlkioReadLimit:   constructBlkioArgs(c.hostConfig.Binds, c.hostConfig.BlkioReadLimit),
 		Rlimits:          rlimits,
 		OomKillDisable:   c.hostConfig.OomKillDisable,
 		MemorySwappiness: -1,
