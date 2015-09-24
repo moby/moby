@@ -49,6 +49,10 @@ func checkCgroupMem(quiet bool) cgroupMemInfo {
 	if !quiet && !swapLimit {
 		logrus.Warn("Your kernel does not support swap memory limit.")
 	}
+	memoryReservation := cgroupEnabled(mountPoint, "memory.soft_limit_in_bytes")
+	if !quiet && !memoryReservation {
+		logrus.Warn("Your kernel does not support memory reservation.")
+	}
 	oomKillDisable := cgroupEnabled(mountPoint, "memory.oom_control")
 	if !quiet && !oomKillDisable {
 		logrus.Warnf("Your kernel does not support oom control.")
@@ -63,11 +67,12 @@ func checkCgroupMem(quiet bool) cgroupMemInfo {
 	}
 
 	return cgroupMemInfo{
-		MemoryLimit:      true,
-		SwapLimit:        swapLimit,
-		OomKillDisable:   oomKillDisable,
-		MemorySwappiness: memorySwappiness,
-		KernelMemory:     kernelMemory,
+		MemoryLimit:       true,
+		SwapLimit:         swapLimit,
+		MemoryReservation: memoryReservation,
+		OomKillDisable:    oomKillDisable,
+		MemorySwappiness:  memorySwappiness,
+		KernelMemory:      kernelMemory,
 	}
 }
 

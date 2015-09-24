@@ -110,6 +110,9 @@ func (daemon *Daemon) adaptContainerSettings(hostConfig *runconfig.HostConfig, a
 		// By default, MemorySwap is set to twice the size of Memory.
 		hostConfig.MemorySwap = hostConfig.Memory * 2
 	}
+	if hostConfig.MemoryReservation == 0 && hostConfig.Memory > 0 {
+		hostConfig.MemoryReservation = hostConfig.Memory
+	}
 }
 
 // verifyPlatformContainerSettings performs platform-specific validation of the
@@ -153,6 +156,14 @@ func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *runconfig.HostC
 		if swappiness < -1 || swappiness > 100 {
 			return warnings, fmt.Errorf("Invalid value: %v, valid memory swappiness range is 0-100.", swappiness)
 		}
+	}
+	if hostConfig.MemoryReservation > 0 && !sysInfo.MemoryReservation {
+		warnings = append(warnings, "Your kernel does not support memory soft limit capabilities. Limitation discarded.")
+		logrus.Warnf("Your kernel does not support memory soft limit capabilities. Limitation discarded.")
+		hostConfig.MemoryReservation = 0
+	}
+	if hostConfig.Memory > 0 && hostConfig.MemoryReservation > 0 && hostConfig.Memory < hostConfig.MemoryReservation {
+		return warnings, fmt.Errorf("Minimum memory limit should be larger than memory reservation limit, see usage.")
 	}
 	if hostConfig.KernelMemory > 0 && !sysInfo.KernelMemory {
 		warnings = append(warnings, "Your kernel does not support kernel memory limit capabilities. Limitation discarded.")

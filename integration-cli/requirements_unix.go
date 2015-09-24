@@ -45,6 +45,12 @@ var (
 		},
 		"Test requires an environment that supports cgroup memory limit.",
 	}
+	memoryReservationSupport = testRequirement{
+		func() bool {
+			return SysInfo.MemoryReservation
+		},
+		"Test requires an environment that supports cgroup memory reservation.",
+	}
 	swapMemorySupport = testRequirement{
 		func() bool {
 			return SysInfo.SwapLimit

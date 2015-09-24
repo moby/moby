@@ -31,6 +31,9 @@ type cgroupMemInfo struct {
 	// Whether swap limit is supported or not
 	SwapLimit bool
 
+	// Whether soft limit is supported or not
+	MemoryReservation bool
+
 	// Whether OOM killer disalbe is supported or not
 	OomKillDisable bool
 

@@ -1151,6 +1151,7 @@ _docker_run() {
 		--memory -m
 		--memory-swap
 		--memory-swappiness
+		--memory-reservation
 		--name
 		--net
 		--pid
