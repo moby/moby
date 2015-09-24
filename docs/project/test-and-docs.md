@@ -114,15 +114,39 @@ Run the entire test suite on your current repository:
     successfully, you see the output concludes with something like this:
 
 
-        [PASSED]: top - sleep process should be listed in privileged mode
-        [PASSED]: version - verify that it works and that the output is properly formatted
+        PASS: docker_cli_pull_test.go:133: DockerHubPullSuite.TestPullClientDisconnect	1.127s
+        PASS: docker_cli_pull_test.go:16: DockerHubPullSuite.TestPullFromCentralRegistry	1.049s
+        PASS: docker_cli_pull_test.go:65: DockerHubPullSuite.TestPullFromCentralRegistryImplicitRefParts	9.795s
+        PASS: docker_cli_pull_test.go:42: DockerHubPullSuite.TestPullNonExistingImage	2.158s
+        PASS: docker_cli_pull_test.go:92: DockerHubPullSuite.TestPullScratchNotAllowed	0.044s
+        OK: 918 passed, 13 skipped
         PASS
-        coverage: 70.8% of statements
-        ---> Making bundle: test-docker-py (in bundles/1.5.0-dev/test-docker-py)
-        +++ exec docker daemon --debug --host unix:///go/src/github.com/docker/docker/bundles/1.5.0-dev/test-docker-py/docker.sock --storage-driver vfs --exec-driver native --pidfile /go/src/github.com/docker/docker/bundles/1.5.0-dev/test-docker-py/docker.pid
-        .................................................................
+        coverage: 72.9% of statements
+        ok  	github.com/docker/docker/integration-cli	1638.553s
+        ---> Making bundle: .integration-daemon-stop (in bundles/1.9.0-dev/test-integration-cli)
+        ++++ cat bundles/1.9.0-dev/test-integration-cli/docker.pid
+        +++ kill 9453
+        +++ /etc/init.d/apparmor stop
+         * Clearing AppArmor profiles cache
+           ...done.
+        All profile caches have been cleared, but no profiles have been unloaded.
+        Unloading profiles will leave already running processes permanently
+        unconfined, which can lead to unexpected situations.
+
+        To set a process to complain mode, use the command line tool
+        'aa-complain'. To really tear down all profiles, run the init script
+        with the 'teardown' option."
+
+        ---> Making bundle: test-docker-py (in bundles/1.9.0-dev/test-docker-py)
+        ---> Making bundle: .integration-daemon-start (in bundles/1.9.0-dev/test-docker-py)
+        +++ /etc/init.d/apparmor start
+         * Starting AppArmor profiles
+        Skipping profile in /etc/apparmor.d/disable: usr.sbin.rsyslogd
+           ...done.
+        +++ exec docker daemon --debug --host unix:///go/src/github.com/docker/docker/bundles/1.9.0-dev/test-docker-py/docker.sock --storage-driver overlay --exec-driver native --pidfile bundles/1.9.0-dev/test-docker-py/docker.pid --userland-proxy=true
+        ..............s..............s......................................
         ----------------------------------------------------------------------
-        Ran 65 tests in 89.266s
+        Ran 68 tests in 79.135s
  
 
 ### Run test targets inside the development container
