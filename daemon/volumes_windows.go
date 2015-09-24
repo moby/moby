@@ -3,6 +3,7 @@
 package daemon
 
 import (
+	"github.com/docker/docker/context"
 	"github.com/docker/docker/daemon/execdriver"
 	"github.com/docker/docker/runconfig"
 )
@@ -31,6 +32,6 @@ func (daemon *Daemon) verifyVolumesInfo(container *Container) error {
 // registerMountPoints initializes the container mount points with the
 // configured volumes and bind mounts. Windows does not support volumes or
 // mount points.
-func (daemon *Daemon) registerMountPoints(container *Container, hostConfig *runconfig.HostConfig) error {
+func (daemon *Daemon) registerMountPoints(ctx context.Context, container *Container, hostConfig *runconfig.HostConfig) error {
 	return nil
 }

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/context"
 	"github.com/docker/docker/daemon/execdriver"
 	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/pkg/broadcastwriter"
@@ -117,8 +118,8 @@ func (d *Daemon) unregisterExecCommand(ExecConfig *ExecConfig) {
 	d.execCommands.Delete(ExecConfig.ID)
 }
 
-func (d *Daemon) getActiveContainer(name string) (*Container, error) {
-	container, err := d.Get(name)
+func (d *Daemon) getActiveContainer(ctx context.Context, name string) (*Container, error) {
+	container, err := d.Get(ctx, name)
 	if err != nil {
 		return nil, err
 	}
@@ -133,13 +134,13 @@ func (d *Daemon) getActiveContainer(name string) (*Container, error) {
 }
 
 // ContainerExecCreate sets up an exec in a running container.
-func (d *Daemon) ContainerExecCreate(config *runconfig.ExecConfig) (string, error) {
+func (d *Daemon) ContainerExecCreate(ctx context.Context, config *runconfig.ExecConfig) (string, error) {
 	// Not all drivers support Exec (LXC for example)
 	if err := checkExecSupport(d.execDriver.Name()); err != nil {
 		return "", err
 	}
 
-	container, err := d.getActiveContainer(config.Container)
+	container, err := d.getActiveContainer(ctx, config.Container)
 	if err != nil {
 		return "", err
 	}
@@ -174,14 +175,14 @@ func (d *Daemon) ContainerExecCreate(config *runconfig.ExecConfig) (string, erro
 
 	d.registerExecCommand(ExecConfig)
 
-	container.logEvent("exec_create: " + ExecConfig.ProcessConfig.Entrypoint + " " + strings.Join(ExecConfig.ProcessConfig.Arguments, " "))
+	container.logEvent(ctx, "exec_create: "+ExecConfig.ProcessConfig.Entrypoint+" "+strings.Join(ExecConfig.ProcessConfig.Arguments, " "))
 
 	return ExecConfig.ID, nil
 }
 
 // ContainerExecStart starts a previously set up exec instance. The
 // std streams are set up.
-func (d *Daemon) ContainerExecStart(execName string, stdin io.ReadCloser, stdout io.Writer, stderr io.Writer) error {
+func (d *Daemon) ContainerExecStart(ctx context.Context, execName string, stdin io.ReadCloser, stdout io.Writer, stderr io.Writer) error {
 	var (
 		cStdin           io.ReadCloser
 		cStdout, cStderr io.Writer
@@ -207,7 +208,7 @@ func (d *Daemon) ContainerExecStart(execName string, stdin io.ReadCloser, stdout
 	logrus.Debugf("starting exec command %s in container %s", ExecConfig.ID, ExecConfig.Container.ID)
 	container := ExecConfig.Container
 
-	container.logEvent("exec_start: " + ExecConfig.ProcessConfig.Entrypoint + " " + strings.Join(ExecConfig.ProcessConfig.Arguments, " "))
+	container.logEvent(ctx, "exec_start: "+ExecConfig.ProcessConfig.Entrypoint+" "+strings.Join(ExecConfig.ProcessConfig.Arguments, " "))
 
 	if ExecConfig.OpenStdin {
 		r, w := io.Pipe()
@@ -243,7 +244,7 @@ func (d *Daemon) ContainerExecStart(execName string, stdin io.ReadCloser, stdout
 	// the exitStatus) even after the cmd is done running.
 
 	go func() {
-		if err := container.exec(ExecConfig); err != nil {
+		if err := container.exec(ctx, ExecConfig); err != nil {
 			execErr <- derr.ErrorCodeExecCantRun.WithArgs(execName, container.ID, err)
 		}
 	}()
@@ -267,11 +268,11 @@ func (d *Daemon) ContainerExecStart(execName string, stdin io.ReadCloser, stdout
 }
 
 // Exec calls the underlying exec driver to run
-func (d *Daemon) Exec(c *Container, ExecConfig *ExecConfig, pipes *execdriver.Pipes, startCallback execdriver.DriverCallback) (int, error) {
+func (d *Daemon) Exec(ctx context.Context, c *Container, ExecConfig *ExecConfig, pipes *execdriver.Pipes, startCallback execdriver.DriverCallback) (int, error) {
 	hooks := execdriver.Hooks{
 		Start: startCallback,
 	}
-	exitStatus, err := d.execDriver.Exec(c.command, ExecConfig.ProcessConfig, pipes, hooks)
+	exitStatus, err := d.execDriver.Exec(ctx, c.command, ExecConfig.ProcessConfig, pipes, hooks)
 
 	// On err, make sure we don't leave ExitCode at zero
 	if err != nil && exitStatus == 0 {

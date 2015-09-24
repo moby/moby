@@ -410,7 +410,7 @@ func (s *DockerSuite) TestEventsFilterContainer(c *check.C) {
 			}
 
 			// Check the id
-			parsedID := strings.TrimSuffix(e[1], ":")
+			parsedID := strings.TrimSuffix(e[3], ":")
 			if parsedID != id {
 				return fmt.Errorf("expected event for container id %s: %s - parsed container id: %s", id, event, parsedID)
 			}
@@ -684,5 +684,80 @@ func (s *DockerRegistrySuite) TestEventsImageFilterPush(c *check.C) {
 	out, _ = dockerCmd(c, "events", "--since=0", "-f", "image="+repoName, "-f", "event=push", "--until="+strconv.Itoa(int(since)))
 	if !strings.Contains(out, repoName+": push\n") {
 		c.Fatalf("Missing 'push' log event for image %s\n%s", repoName, out)
+	}
+}
+
+func (s *DockerSuite) TestEventsReqID(c *check.C) {
+	// Tests for the "[reqid: xxx]" field in Events
+	testRequires(c, DaemonIsLinux)
+
+	reqIDMatch := `[^ ]+ \[reqid: ([0-9a-z]{12})\] [0-9a-z]+: `
+	reqIDRE := regexp.MustCompile(reqIDMatch)
+
+	// Simple test just to make sure it works at all
+	dockerCmd(c, "create", "busybox", "true")
+
+	out, _ := dockerCmd(c, "events", "--since=0", "--until=0s")
+	events := strings.Split(strings.TrimSpace(out), "\n")
+
+	if len(events) == 0 {
+		c.Fatalf("Wrong # of events, should just be one, got:\n%v\n", events)
+	}
+
+	createEvent := events[len(events)-1]
+
+	matched, err := regexp.MatchString(reqIDMatch, createEvent)
+	if err != nil || !matched {
+		c.Fatalf("Error finding reqID in event: %v\n", createEvent)
+	}
+
+	reqID1 := reqIDRE.FindStringSubmatch(createEvent)[1]
+
+	// Now make sure another cmd doesn't get the same reqID
+	dockerCmd(c, "create", "busybox", "true")
+
+	out, _ = dockerCmd(c, "events", "--since=0", "--until=0s")
+	events = strings.Split(strings.TrimSpace(out), "\n")
+	createEvent = events[len(events)-1]
+
+	matched, err = regexp.MatchString(reqIDMatch, createEvent)
+	if err != nil || !matched {
+		c.Fatalf("Error finding reqID in event: %v\n", createEvent)
+	}
+
+	reqID2 := reqIDRE.FindStringSubmatch(createEvent)[1]
+
+	if reqID1 == reqID2 {
+		c.Fatalf("Should not have the same reqID(%s):\n%v\n", reqID1, createEvent)
+	}
+
+	// Now make sure a build **does** use the same reqID for all
+	// 4 events that are generated
+	_, err = buildImage("reqidimg", `
+		  FROM busybox
+		  RUN echo HI`, true)
+	if err != nil {
+		c.Fatalf("Couldn't create image: %q", err)
+	}
+
+	out, _ = dockerCmd(c, "events", "--since=0", "--until=0s")
+	events = strings.Split(strings.TrimSpace(out), "\n")
+
+	// Get last event's reqID - will use it to find other matching events
+	lastEvent := events[len(events)-1]
+	reqID := reqIDRE.FindStringSubmatch(lastEvent)[1]
+
+	// Find all events with this same reqID
+	eventList := []string{lastEvent}
+	for i := len(events) - 2; i >= 0; i-- {
+		tmpID := reqIDRE.FindStringSubmatch(events[i])[1]
+		if tmpID != reqID {
+			break
+		}
+		eventList = append(eventList, events[i])
+	}
+
+	if len(eventList) != 5 { // create, start, die, commit, destroy
+		c.Fatalf("Wrong # of matching events - should be 5:\n%q\n", eventList)
 	}
 }

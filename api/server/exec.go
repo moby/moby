@@ -19,7 +19,7 @@ func (s *Server) getExecByID(ctx context.Context, w http.ResponseWriter, r *http
 		return fmt.Errorf("Missing parameter 'id'")
 	}
 
-	eConfig, err := s.daemon.ContainerExecInspect(vars["id"])
+	eConfig, err := s.daemon.ContainerExecInspect(ctx, vars["id"])
 	if err != nil {
 		return err
 	}
@@ -47,7 +47,7 @@ func (s *Server) postContainerExecCreate(ctx context.Context, w http.ResponseWri
 	}
 
 	// Register an instance of Exec in container.
-	id, err := s.daemon.ContainerExecCreate(execConfig)
+	id, err := s.daemon.ContainerExecCreate(ctx, execConfig)
 	if err != nil {
 		logrus.Errorf("Error setting up exec command in container %s: %s", name, err)
 		return err
@@ -100,7 +100,7 @@ func (s *Server) postContainerExecStart(ctx context.Context, w http.ResponseWrit
 	}
 
 	// Now run the user process in container.
-	if err := s.daemon.ContainerExecStart(execName, stdin, stdout, stderr); err != nil {
+	if err := s.daemon.ContainerExecStart(ctx, execName, stdin, stdout, stderr); err != nil {
 		fmt.Fprintf(outStream, "Error running exec in container: %v\n", err)
 	}
 	return nil
@@ -123,5 +123,5 @@ func (s *Server) postContainerExecResize(ctx context.Context, w http.ResponseWri
 		return err
 	}
 
-	return s.daemon.ContainerExecResize(vars["name"], height, width)
+	return s.daemon.ContainerExecResize(ctx, vars["name"], height, width)
 }

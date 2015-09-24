@@ -5,6 +5,8 @@ import (
 	"os"
 	"path"
 
+	"github.com/docker/docker/context"
+
 	"github.com/Sirupsen/logrus"
 	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/volume/store"
@@ -19,8 +21,8 @@ type ContainerRmConfig struct {
 // is returned if the container is not found, or if the remove
 // fails. If the remove succeeds, the container name is released, and
 // network links are removed.
-func (daemon *Daemon) ContainerRm(name string, config *ContainerRmConfig) error {
-	container, err := daemon.Get(name)
+func (daemon *Daemon) ContainerRm(ctx context.Context, name string, config *ContainerRmConfig) error {
+	container, err := daemon.Get(ctx, name)
 	if err != nil {
 		return err
 	}
@@ -43,9 +45,9 @@ func (daemon *Daemon) ContainerRm(name string, config *ContainerRmConfig) error 
 			return err
 		}
 
-		parentContainer, _ := daemon.Get(pe.ID())
+		parentContainer, _ := daemon.Get(ctx, pe.ID())
 		if parentContainer != nil {
-			if err := parentContainer.updateNetwork(); err != nil {
+			if err := parentContainer.updateNetwork(ctx); err != nil {
 				logrus.Debugf("Could not update network to remove link %s: %v", n, err)
 			}
 		}
@@ -53,7 +55,7 @@ func (daemon *Daemon) ContainerRm(name string, config *ContainerRmConfig) error 
 		return nil
 	}
 
-	if err := daemon.rm(container, config.ForceRemove); err != nil {
+	if err := daemon.rm(ctx, container, config.ForceRemove); err != nil {
 		// return derr.ErrorCodeCantDestroy.WithArgs(name, utils.GetErrorMessage(err))
 		return err
 	}
@@ -66,12 +68,12 @@ func (daemon *Daemon) ContainerRm(name string, config *ContainerRmConfig) error 
 }
 
 // Destroy unregisters a container from the daemon and cleanly removes its contents from the filesystem.
-func (daemon *Daemon) rm(container *Container, forceRemove bool) (err error) {
+func (daemon *Daemon) rm(ctx context.Context, container *Container, forceRemove bool) (err error) {
 	if container.IsRunning() {
 		if !forceRemove {
 			return derr.ErrorCodeRmRunning
 		}
-		if err := container.Kill(); err != nil {
+		if err := container.Kill(ctx); err != nil {
 			return derr.ErrorCodeRmFailed.WithArgs(err)
 		}
 	}
@@ -92,7 +94,7 @@ func (daemon *Daemon) rm(container *Container, forceRemove bool) (err error) {
 
 	defer container.resetRemovalInProgress()
 
-	if err = container.Stop(3); err != nil {
+	if err = container.Stop(ctx, 3); err != nil {
 		return err
 	}
 
@@ -113,7 +115,7 @@ func (daemon *Daemon) rm(container *Container, forceRemove bool) (err error) {
 			daemon.idIndex.Delete(container.ID)
 			daemon.containers.Delete(container.ID)
 			os.RemoveAll(container.root)
-			container.logEvent("destroy")
+			container.logEvent(ctx, "destroy")
 		}
 	}()
 
@@ -142,14 +144,14 @@ func (daemon *Daemon) rm(container *Container, forceRemove bool) (err error) {
 	daemon.idIndex.Delete(container.ID)
 	daemon.containers.Delete(container.ID)
 
-	container.logEvent("destroy")
+	container.logEvent(ctx, "destroy")
 	return nil
 }
 
 // VolumeRm removes the volume with the given name.
 // If the volume is referenced by a container it is not removed
 // This is called directly from the remote API
-func (daemon *Daemon) VolumeRm(name string) error {
+func (daemon *Daemon) VolumeRm(ctx context.Context, name string) error {
 	v, err := daemon.volumes.Get(name)
 	if err != nil {
 		return err

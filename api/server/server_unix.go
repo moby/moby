@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/docker/docker/context"
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/pkg/sockets"
 	"github.com/docker/libnetwork/portallocator"
@@ -63,10 +64,10 @@ func (s *Server) newServer(proto, addr string) ([]serverCloser, error) {
 // AcceptConnections allows clients to connect to the API server.
 // Referenced Daemon is notified about this server, and waits for the
 // daemon acknowledgement before the incoming connections are accepted.
-func (s *Server) AcceptConnections(d *daemon.Daemon) {
+func (s *Server) AcceptConnections(ctx context.Context, d *daemon.Daemon) {
 	// Tell the init daemon we are accepting requests
 	s.daemon = d
-	s.registerSubRouter()
+	s.registerSubRouter(ctx)
 	go systemdDaemon.SdNotify("READY=1")
 	// close the lock so the listeners start accepting connections
 	select {
