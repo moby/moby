@@ -13,7 +13,7 @@ integration-tests: ./cmd/dnet/dnet
 	@./test/integration/dnet/run-integration-tests.sh
 
 ./cmd/dnet/dnet:
-	make build-local
+	make build
 
 clean:
 	@if [ -e ./cmd/dnet/dnet ]; then \

@@ -54,16 +54,15 @@ func (sb *sandbox) processOptions(options ...SandboxOption) {
 type epHeap []*endpoint
 
 type sandbox struct {
-	id          string
-	containerID string
-	config      containerConfig
-	osSbox      osl.Sandbox
-	controller  *controller
-	refCnt      int
-	endpoints   epHeap
-	epPriority  map[string]int
-	//hostsPath      string
-	//resolvConfPath string
+	id            string
+	containerID   string
+	config        containerConfig
+	osSbox        osl.Sandbox
+	controller    *controller
+	refCnt        int
+	hostsOnce     sync.Once
+	endpoints     epHeap
+	epPriority    map[string]int
 	joinLeaveDone chan struct{}
 	sync.Mutex
 }
@@ -460,22 +459,47 @@ func (sb *sandbox) buildHostsFile() error {
 }
 
 func (sb *sandbox) updateHostsFile(ifaceIP string, svcRecords []etchosts.Record) error {
+	var err error
+
 	if sb.config.originHostsPath != "" {
 		return nil
 	}
 
-	// Rebuild the hosts file accounting for the passed interface IP and service records
-	extraContent := make([]etchosts.Record, 0, len(sb.config.extraHosts)+len(svcRecords))
+	max := func(a, b int) int {
+		if a < b {
+			return b
+		}
 
-	for _, extraHost := range sb.config.extraHosts {
-		extraContent = append(extraContent, etchosts.Record{Hosts: extraHost.name, IP: extraHost.IP})
+		return a
 	}
 
+	extraContent := make([]etchosts.Record, 0,
+		max(len(sb.config.extraHosts), len(svcRecords)))
+
+	sb.hostsOnce.Do(func() {
+		// Rebuild the hosts file accounting for the passed
+		// interface IP and service records
+
+		for _, extraHost := range sb.config.extraHosts {
+			extraContent = append(extraContent,
+				etchosts.Record{Hosts: extraHost.name, IP: extraHost.IP})
+		}
+
+		err = etchosts.Build(sb.config.hostsPath, ifaceIP,
+			sb.config.hostName, sb.config.domainName, extraContent)
+	})
+
+	if err != nil {
+		return err
+	}
+
+	extraContent = extraContent[:0]
 	for _, svc := range svcRecords {
 		extraContent = append(extraContent, svc)
 	}
 
-	return etchosts.Build(sb.config.hostsPath, ifaceIP, sb.config.hostName, sb.config.domainName, extraContent)
+	sb.addHostsEntries(extraContent)
+	return nil
 }
 
 func (sb *sandbox) addHostsEntries(recs []etchosts.Record) {
