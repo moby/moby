@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/docker/docker/api/types"
+	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/graph/tags"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/parsers"
@@ -69,7 +70,7 @@ func (daemon *Daemon) ImageDelete(imageRef string, force, prune bool) ([]types.I
 				// this image would remain "dangling" and since
 				// we really want to avoid that the client must
 				// explicitly force its removal.
-				return nil, fmt.Errorf("conflict: unable to remove repository reference %q (must force) - container %s is using its referenced image %s", imageRef, stringid.TruncateID(container.ID), stringid.TruncateID(img.ID))
+				return nil, derr.ErrorCodeImgDelUsed.WithArgs(imageRef, stringid.TruncateID(container.ID), stringid.TruncateID(img.ID))
 			}
 		}
 
@@ -238,7 +239,7 @@ func (daemon *Daemon) imageDeleteHelper(img *image.Image, records *[]types.Image
 	// either running or stopped).
 	parentImg, err := daemon.Graph().Get(img.Parent)
 	if err != nil {
-		return fmt.Errorf("unable to get parent image: %v", err)
+		return derr.ErrorCodeImgNoParent.WithArgs(err)
 	}
 
 	// Do not force prunings, but do so quietly (stopping on any encountered

@@ -18,6 +18,7 @@ import (
 	"github.com/docker/docker/context"
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/pkg/sockets"
+	"github.com/docker/docker/utils"
 )
 
 // Config provides the configuration for the API server
@@ -248,7 +249,7 @@ func httpError(w http.ResponseWriter, err error) {
 		statusCode = http.StatusInternalServerError
 	}
 
-	logrus.WithFields(logrus.Fields{"statusCode": statusCode, "err": err}).Error("HTTP Error")
+	logrus.WithFields(logrus.Fields{"statusCode": statusCode, "err": utils.GetErrorMessage(err)}).Error("HTTP Error")
 	http.Error(w, errMsg, statusCode)
 }
 
@@ -305,7 +306,7 @@ func (s *Server) makeHTTPHandler(localMethod string, localRoute string, localHan
 		handlerFunc := s.handleWithGlobalMiddlewares(localHandler)
 
 		if err := handlerFunc(ctx, w, r, mux.Vars(r)); err != nil {
-			logrus.Errorf("Handler for %s %s returned error: %s", localMethod, localRoute, err)
+			logrus.Errorf("Handler for %s %s returned error: %s", localMethod, localRoute, utils.GetErrorMessage(err))
 			httpError(w, err)
 		}
 	}

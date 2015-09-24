@@ -1,13 +1,13 @@
 package daemon
 
 import (
-	"fmt"
 	"io"
 	"strconv"
 	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/logger"
+	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/pkg/stdcopy"
 )
 
@@ -32,7 +32,7 @@ type ContainerLogsConfig struct {
 // configured with the given struct.
 func (daemon *Daemon) ContainerLogs(container *Container, config *ContainerLogsConfig) error {
 	if !(config.UseStdout || config.UseStderr) {
-		return fmt.Errorf("You must choose at least one stream")
+		return derr.ErrorCodeNeedStream
 	}
 
 	outStream := config.OutStream
