@@ -103,7 +103,7 @@ func Init(base string, opt []string) (graphdriver.Driver, error) {
 		options:          options,
 		filesystemsCache: filesystemsCache,
 	}
-	return graphdriver.NaiveDiffDriver(d), nil
+	return graphdriver.NewNaiveDiffDriver(d), nil
 }
 
 func parseOptions(opt []string) (zfsOptions, error) {

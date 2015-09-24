@@ -23,7 +23,7 @@ func Init(home string, options []string) (graphdriver.Driver, error) {
 	d := &Driver{
 		home: home,
 	}
-	return graphdriver.NaiveDiffDriver(d), nil
+	return graphdriver.NewNaiveDiffDriver(d), nil
 }
 
 // Driver holds information about the driver, home directory of the driver.

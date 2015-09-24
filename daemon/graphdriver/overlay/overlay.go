@@ -43,7 +43,7 @@ type naiveDiffDriverWithApply struct {
 // NaiveDiffDriverWithApply returns a NaiveDiff driver with custom ApplyDiff.
 func NaiveDiffDriverWithApply(driver ApplyDiffProtoDriver) graphdriver.Driver {
 	return &naiveDiffDriverWithApply{
-		Driver:    graphdriver.NaiveDiffDriver(driver),
+		Driver:    graphdriver.NewNaiveDiffDriver(driver),
 		applyDiff: driver,
 	}
 }
