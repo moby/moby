@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/docker/docker/pkg/mount"
 	"github.com/go-check/check"
 	"github.com/kr/pty"
@@ -205,13 +206,16 @@ func (s *DockerSuite) TestRunWithCpuPeriod(c *check.C) {
 func (s *DockerSuite) TestRunWithKernelMemory(c *check.C) {
 	testRequires(c, kernelMemorySupport)
 
-	dockerCmd(c, "run", "--kernel-memory", "50M", "--name", "test", "busybox", "true")
+	dockerCmd(c, "run", "--kernel-memory", "50M", "--name", "test1", "busybox", "true")
 
-	out, err := inspectField("test", "HostConfig.KernelMemory")
+	out, err := inspectField("test1", "HostConfig.KernelMemory")
 	c.Assert(err, check.IsNil)
-	if out != "52428800" {
-		c.Fatalf("setting the kernel memory limit failed")
-	}
+	c.Assert(out, check.Equals, "52428800")
+
+	out, _, err = dockerCmdWithError("run", "--kernel-memory", "-16m", "--name", "test2", "busybox", "echo", "test")
+	expected := "invalid size"
+	c.Assert(err, check.NotNil)
+	c.Assert(out, checker.Contains, expected)
 }
 
 // "test" should be printed
