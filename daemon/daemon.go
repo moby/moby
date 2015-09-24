@@ -217,6 +217,9 @@ func (daemon *Daemon) Register(container *Container) error {
 		}
 		daemon.execDriver.Terminate(cmd)
 
+		if err := container.unmountIpcMounts(); err != nil {
+			logrus.Errorf("%s: Failed to umount ipc filesystems: %v", container.ID, err)
+		}
 		if err := container.Unmount(); err != nil {
 			logrus.Debugf("unmount error %s", err)
 		}
@@ -766,6 +769,11 @@ func NewDaemon(config *Config, registryService *registry.Service) (daemon *Daemo
 	d.EventsService = eventsService
 	d.volumes = volStore
 	d.root = config.Root
+
+	if err := d.cleanupMounts(); err != nil {
+		return nil, err
+	}
+
 	go d.execCommandGC()
 
 	if err := d.restore(); err != nil {
@@ -846,6 +854,10 @@ func (daemon *Daemon) Shutdown() error {
 		if err := daemon.driver.Cleanup(); err != nil {
 			logrus.Errorf("Error during graph storage driver.Cleanup(): %v", err)
 		}
+	}
+
+	if err := daemon.cleanupMounts(); err != nil {
+		return err
 	}
 
 	return nil

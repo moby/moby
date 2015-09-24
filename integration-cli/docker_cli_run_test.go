@@ -2179,7 +2179,7 @@ func (s *DockerSuite) TestRunModeIpcContainer(c *check.C) {
 	// Not applicable on Windows as uses Unix-specific capabilities
 	testRequires(c, SameHostDaemon, DaemonIsLinux)
 
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
+	out, _ := dockerCmd(c, "run", "-d", "busybox", "sh", "-c", "echo -n test > /dev/shm/test && top")
 
 	id := strings.TrimSpace(out)
 	state, err := inspectField(id, "State.Running")
@@ -2199,6 +2199,11 @@ func (s *DockerSuite) TestRunModeIpcContainer(c *check.C) {
 	out = strings.Trim(out, "\n")
 	if parentContainerIpc != out {
 		c.Fatalf("IPC different with --ipc=container:%s %s != %s\n", id, parentContainerIpc, out)
+	}
+
+	catOutput, _ := dockerCmd(c, "run", fmt.Sprintf("--ipc=container:%s", id), "busybox", "cat", "/dev/shm/test")
+	if catOutput != "test" {
+		c.Fatalf("Output of /dev/shm/test expected test but found: %s", catOutput)
 	}
 }
 

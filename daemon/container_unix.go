@@ -52,6 +52,8 @@ type Container struct {
 	AppArmorProfile string
 	HostnamePath    string
 	HostsPath       string
+	ShmPath         string
+	MqueuePath      string
 	MountPoints     map[string]*mountPoint
 	ResolvConfPath  string
 
@@ -192,6 +194,16 @@ func populateCommand(c *Container, env []string) error {
 	}
 
 	ipc := &execdriver.Ipc{}
+	var err error
+	c.ShmPath, err = c.shmPath()
+	if err != nil {
+		return err
+	}
+
+	c.MqueuePath, err = c.mqueuePath()
+	if err != nil {
+		return err
+	}
 
 	if c.hostConfig.IpcMode.IsContainer() {
 		ic, err := c.getIpcContainer()
@@ -199,8 +211,14 @@ func populateCommand(c *Container, env []string) error {
 			return err
 		}
 		ipc.ContainerID = ic.ID
+		c.ShmPath = ic.ShmPath
+		c.MqueuePath = ic.MqueuePath
 	} else {
 		ipc.HostIpc = c.hostConfig.IpcMode.IsHost()
+		if ipc.HostIpc {
+			c.ShmPath = "/dev/shm"
+			c.MqueuePath = "/dev/mqueue"
+		}
 	}
 
 	pid := &execdriver.Pid{}
@@ -1235,4 +1253,100 @@ func (container *Container) removeMountPoints(rm bool) error {
 		return derr.ErrorCodeRemovingVolume.WithArgs(strings.Join(rmErrors, "\n"))
 	}
 	return nil
+}
+
+func (container *Container) shmPath() (string, error) {
+	return container.getRootResourcePath("shm")
+}
+func (container *Container) mqueuePath() (string, error) {
+	return container.getRootResourcePath("mqueue")
+}
+
+func (container *Container) setupIpcDirs() error {
+	shmPath, err := container.shmPath()
+	if err != nil {
+		return err
+	}
+
+	if err := os.MkdirAll(shmPath, 0700); err != nil {
+		return err
+	}
+
+	if err := syscall.Mount("shm", shmPath, "tmpfs", uintptr(syscall.MS_NOEXEC|syscall.MS_NOSUID|syscall.MS_NODEV), label.FormatMountLabel("mode=1777,size=65536k", container.getMountLabel())); err != nil {
+		return fmt.Errorf("mounting shm tmpfs: %s", err)
+	}
+
+	mqueuePath, err := container.mqueuePath()
+	if err != nil {
+		return err
+	}
+
+	if err := os.MkdirAll(mqueuePath, 0700); err != nil {
+		return err
+	}
+
+	if err := syscall.Mount("mqueue", mqueuePath, "mqueue", uintptr(syscall.MS_NOEXEC|syscall.MS_NOSUID|syscall.MS_NODEV), ""); err != nil {
+		return fmt.Errorf("mounting mqueue mqueue : %s", err)
+	}
+
+	return nil
+}
+
+func (container *Container) unmountIpcMounts() error {
+	if container.hostConfig.IpcMode.IsContainer() || container.hostConfig.IpcMode.IsHost() {
+		return nil
+	}
+
+	var errors []string
+	shmPath, err := container.shmPath()
+	if err != nil {
+		logrus.Error(err)
+		errors = append(errors, err.Error())
+	} else {
+		if err := detachMounted(shmPath); err != nil {
+			logrus.Errorf("failed to umount %s: %v", shmPath, err)
+			errors = append(errors, err.Error())
+		}
+
+	}
+
+	mqueuePath, err := container.mqueuePath()
+	if err != nil {
+		logrus.Error(err)
+		errors = append(errors, err.Error())
+	} else {
+		if err := detachMounted(mqueuePath); err != nil {
+			logrus.Errorf("failed to umount %s: %v", mqueuePath, err)
+			errors = append(errors, err.Error())
+		}
+	}
+
+	if len(errors) > 0 {
+		return fmt.Errorf("failed to cleanup ipc mounts:\n%v", strings.Join(errors, "\n"))
+	}
+
+	return nil
+}
+
+func (container *Container) ipcMounts() []execdriver.Mount {
+	var mounts []execdriver.Mount
+	label.SetFileLabel(container.ShmPath, container.MountLabel)
+	mounts = append(mounts, execdriver.Mount{
+		Source:      container.ShmPath,
+		Destination: "/dev/shm",
+		Writable:    true,
+		Private:     true,
+	})
+	label.SetFileLabel(container.MqueuePath, container.MountLabel)
+	mounts = append(mounts, execdriver.Mount{
+		Source:      container.MqueuePath,
+		Destination: "/dev/mqueue",
+		Writable:    true,
+		Private:     true,
+	})
+	return mounts
+}
+
+func detachMounted(path string) error {
+	return syscall.Unmount(path, syscall.MNT_DETACH)
 }
