@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"net"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -53,7 +52,6 @@ import (
 	"github.com/docker/docker/volume/local"
 	"github.com/docker/docker/volume/store"
 	"github.com/docker/libnetwork"
-	"github.com/vishvananda/netlink"
 )
 
 var (
@@ -1076,25 +1074,6 @@ func setDefaultMtu(config *Config) {
 }
 
 var errNoDefaultRoute = errors.New("no default route was found")
-
-// getDefaultRouteMtu returns the MTU for the default route's interface.
-func getDefaultRouteMtu() (int, error) {
-	routes, err := netlink.RouteList(nil, 0)
-	if err != nil {
-		return 0, err
-	}
-	for _, r := range routes {
-		// a nil Dst means that this is the default route.
-		if r.Dst == nil {
-			i, err := net.InterfaceByIndex(r.LinkIndex)
-			if err != nil {
-				continue
-			}
-			return i.MTU, nil
-		}
-	}
-	return 0, errNoDefaultRoute
-}
 
 // verifyContainerSettings performs validation of the hostconfig and config
 // structures.

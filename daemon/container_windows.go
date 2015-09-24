@@ -183,3 +183,7 @@ func (container *Container) unmountIpcMounts() error {
 func (container *Container) ipcMounts() []execdriver.Mount {
 	return nil
 }
+
+func getDefaultRouteMtu() (int, error) {
+	return -1, errSystemNotSupported
+}
