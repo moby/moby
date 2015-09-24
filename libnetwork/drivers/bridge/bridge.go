@@ -516,7 +516,7 @@ func parseNetworkGenericOptions(data interface{}) (*networkConfiguration, error)
 	return config, err
 }
 
-func parseNetworkOptions(option options.Generic) (*networkConfiguration, error) {
+func parseNetworkOptions(id string, option options.Generic) (*networkConfiguration, error) {
 	var err error
 	config := &networkConfiguration{}
 
@@ -537,6 +537,9 @@ func parseNetworkOptions(option options.Generic) (*networkConfiguration, error) 
 		return nil, err
 	}
 
+	if config.BridgeName == "" && config.DisableBridgeCreation == false {
+		config.BridgeName = "br-" + id[:12]
+	}
 	return config, nil
 }
 
@@ -580,7 +583,7 @@ func (d *driver) CreateNetwork(id string, option map[string]interface{}) error {
 	d.Unlock()
 
 	// Parse and validate the config. It should not conflict with existing networks' config
-	config, err := parseNetworkOptions(option)
+	config, err := parseNetworkOptions(id, option)
 	if err != nil {
 		return err
 	}
