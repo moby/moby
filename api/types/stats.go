@@ -96,14 +96,6 @@ type Stats struct {
 	BlkioStats  BlkioStats  `json:"blkio_stats,omitempty"`
 }
 
-// StatsJSONPre121 is a backcompatibility struct along with ContainerConfig
-type StatsJSONPre121 struct {
-	Stats
-
-	// Network is for fallback stats where API Version < 1.21
-	Network NetworkStats `json:"network,omitempty"`
-}
-
 // StatsJSON is newly used Networks
 type StatsJSON struct {
 	Stats
