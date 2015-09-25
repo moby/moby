@@ -1,6 +1,8 @@
 package runconfig
 
 import (
+	"strings"
+
 	flag "github.com/docker/docker/pkg/mflag"
 )
 
@@ -36,7 +38,7 @@ func ParseExec(cmd *flag.FlagSet, args []string) (*ExecConfig, error) {
 	if err := cmd.ParseFlags(args, true); err != nil {
 		return nil, err
 	}
-	container = cmd.Arg(0)
+	container = strings.TrimPrefix(cmd.Arg(0), "/")
 	parsedArgs := cmd.Args()
 	execCmd = parsedArgs[1:]
 

@@ -2,6 +2,7 @@ package client
 
 import (
 	"fmt"
+	"strings"
 
 	Cli "github.com/docker/docker/cli"
 	flag "github.com/docker/docker/pkg/mflag"
@@ -18,7 +19,8 @@ func (cli *DockerCli) CmdUnpause(args ...string) error {
 
 	var errNames []string
 	for _, name := range cmd.Args() {
-		if _, _, err := readBody(cli.call("POST", fmt.Sprintf("/containers/%s/unpause", name), nil, nil)); err != nil {
+		cleanName := strings.TrimPrefix(name, "/")
+		if _, _, err := readBody(cli.call("POST", fmt.Sprintf("/containers/%s/unpause", cleanName), nil, nil)); err != nil {
 			fmt.Fprintf(cli.err, "%s\n", err)
 			errNames = append(errNames, name)
 		} else {
