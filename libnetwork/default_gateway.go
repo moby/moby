@@ -94,10 +94,9 @@ func (sb *sandbox) clearDefaultGW() error {
 
 func (c *controller) createGWNetwork() (Network, error) {
 	netOption := options.Generic{
-		"BridgeName":            libnGWNetwork,
-		"EnableICC":             false,
-		"AllowNonDefaultBridge": true,
-		"EnableIPMasquerade":    true,
+		"BridgeName":         libnGWNetwork,
+		"EnableICC":          false,
+		"EnableIPMasquerade": true,
 	}
 
 	n, err := c.NewNetwork("bridge", libnGWNetwork,

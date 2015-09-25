@@ -96,8 +96,7 @@ func createTestNetwork(t *testing.T, network string) (libnetwork.NetworkControll
 
 	netOption := options.Generic{
 		netlabel.GenericData: options.Generic{
-			"BridgeName":            network,
-			"AllowNonDefaultBridge": true,
+			"BridgeName": network,
 		},
 	}
 	netGeneric := libnetwork.NetworkOptionGeneric(netOption)
@@ -212,10 +211,9 @@ func TestCreateDeleteNetwork(t *testing.T) {
 	ops := options.Generic{
 		netlabel.EnableIPv6: true,
 		netlabel.GenericData: map[string]string{
-			"BridgeName":            "abc",
-			"AllowNonDefaultBridge": "true",
-			"FixedCIDRv6":           "fe80::1/64",
-			"AddressIP":             "172.28.30.254/24",
+			"BridgeName":  "abc",
+			"FixedCIDRv6": "fe80::1/64",
+			"AddressIP":   "172.28.30.254/24",
 		},
 	}
 	nc := networkCreate{Name: "network_1", NetworkType: bridgeNetType, Options: ops}
@@ -259,8 +257,7 @@ func TestGetNetworksAndEndpoints(t *testing.T) {
 
 	ops := options.Generic{
 		netlabel.GenericData: map[string]string{
-			"BridgeName":            "api_test_nw",
-			"AllowNonDefaultBridge": "true",
+			"BridgeName": "api_test_nw",
 		},
 	}
 
@@ -531,8 +528,7 @@ func TestProcGetServices(t *testing.T) {
 	netName1 := "production"
 	netOption := options.Generic{
 		netlabel.GenericData: options.Generic{
-			"BridgeName":            netName1,
-			"AllowNonDefaultBridge": true,
+			"BridgeName": netName1,
 		},
 	}
 	nw1, err := c.NewNetwork(bridgeNetType, netName1, libnetwork.NetworkOptionGeneric(netOption))
@@ -543,8 +539,7 @@ func TestProcGetServices(t *testing.T) {
 	netName2 := "work-dev"
 	netOption = options.Generic{
 		netlabel.GenericData: options.Generic{
-			"BridgeName":            netName2,
-			"AllowNonDefaultBridge": true,
+			"BridgeName": netName2,
 		},
 	}
 	nw2, err := c.NewNetwork(bridgeNetType, netName2, libnetwork.NetworkOptionGeneric(netOption))
@@ -1781,14 +1776,13 @@ func TestEndToEnd(t *testing.T) {
 	ops := options.Generic{
 		netlabel.EnableIPv6: true,
 		netlabel.GenericData: map[string]string{
-			"BridgeName":            "cdef",
-			"FixedCIDRv6":           "fe80:2000::1/64",
-			"EnableIPv6":            "true",
-			"Mtu":                   "1460",
-			"EnableIPTables":        "true",
-			"AddressIP":             "172.28.30.254/16",
-			"EnableUserlandProxy":   "true",
-			"AllowNonDefaultBridge": "true",
+			"BridgeName":          "cdef",
+			"FixedCIDRv6":         "fe80:2000::1/64",
+			"EnableIPv6":          "true",
+			"Mtu":                 "1460",
+			"EnableIPTables":      "true",
+			"AddressIP":           "172.28.30.254/16",
+			"EnableUserlandProxy": "true",
 		},
 	}
 
