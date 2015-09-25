@@ -10,15 +10,10 @@ cidocker = docker run ${ciargs} ${dockerargs} golang:1.4
 all: ${build_image}.created build check integration-tests clean
 
 integration-tests: ./cmd/dnet/dnet
-	@if [ ! -d ./integration-tmp ]; then \
-	    mkdir -p ./integration-tmp;	\
-	    git clone https://github.com/sstephenson/bats.git ./integration-tmp/bats; \
-	    ./integration-tmp/bats/install.sh ./integration-tmp; \
-	fi
-	@./integration-tmp/bin/bats ./test/integration/dnet
+	@./test/integration/dnet/run-integration-tests.sh
 
 ./cmd/dnet/dnet:
-	make build-local
+	make build
 
 clean:
 	@if [ -e ./cmd/dnet/dnet ]; then \
@@ -76,7 +71,7 @@ run-tests:
 	done
 	@echo "Done running tests"
 
-check-local: 	check-format check-code start-services run-tests
+check-local:	check-format check-code start-services run-tests
 
 install-deps:
 	apt-get update && apt-get -y install iptables zookeeperd

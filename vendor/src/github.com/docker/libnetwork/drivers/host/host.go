@@ -3,6 +3,7 @@ package host
 import (
 	"sync"
 
+	"github.com/docker/libnetwork/datastore"
 	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/types"
 )
@@ -15,15 +16,11 @@ type driver struct {
 }
 
 // Init registers a new instance of host driver
-func Init(dc driverapi.DriverCallback) error {
+func Init(dc driverapi.DriverCallback, config map[string]interface{}) error {
 	c := driverapi.Capability{
-		Scope: driverapi.LocalScope,
+		DataScope: datastore.LocalScope,
 	}
 	return dc.RegisterDriver(networkType, &driver{}, c)
-}
-
-func (d *driver) Config(option map[string]interface{}) error {
-	return nil
 }
 
 func (d *driver) CreateNetwork(id string, option map[string]interface{}) error {

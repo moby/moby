@@ -6,6 +6,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/plugins"
+	"github.com/docker/libnetwork/datastore"
 	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/drivers/remote/api"
 	"github.com/docker/libnetwork/types"
@@ -26,7 +27,7 @@ func newDriver(name string, client *plugins.Client) driverapi.Driver {
 
 // Init makes sure a remote driver is registered when a network driver
 // plugin is activated.
-func Init(dc driverapi.DriverCallback) error {
+func Init(dc driverapi.DriverCallback, config map[string]interface{}) error {
 	plugins.Handle(driverapi.NetworkPluginEndpointType, func(name string, client *plugins.Client) {
 		// negotiate driver capability with client
 		d := newDriver(name, client)
@@ -52,9 +53,9 @@ func (d *driver) getCapabilities() (*driverapi.Capability, error) {
 	c := &driverapi.Capability{}
 	switch capResp.Scope {
 	case "global":
-		c.Scope = driverapi.GlobalScope
+		c.DataScope = datastore.GlobalScope
 	case "local":
-		c.Scope = driverapi.LocalScope
+		c.DataScope = datastore.LocalScope
 	default:
 		return nil, fmt.Errorf("invalid capability: expecting 'local' or 'global', got %s", capResp.Scope)
 	}

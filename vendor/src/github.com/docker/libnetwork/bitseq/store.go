@@ -70,6 +70,16 @@ func (h *Handle) Exists() bool {
 	return h.dbExists
 }
 
+// Skip provides a way for a KV Object to avoid persisting it in the KV Store
+func (h *Handle) Skip() bool {
+	return false
+}
+
+// DataScope method returns the storage scope of the datastore
+func (h *Handle) DataScope() datastore.DataScope {
+	return datastore.GlobalScope
+}
+
 func (h *Handle) watchForChanges() error {
 	h.Lock()
 	store := h.store
