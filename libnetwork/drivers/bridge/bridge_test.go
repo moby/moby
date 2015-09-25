@@ -123,7 +123,7 @@ func TestCreateFail(t *testing.T) {
 		t.Fatalf("Failed to setup driver config: %v", err)
 	}
 
-	netconfig := &networkConfiguration{BridgeName: "dummy0", DisableBridgeCreation: true}
+	netconfig := &networkConfiguration{BridgeName: "dummy0", DefaultBridge: true}
 	genericOption := make(map[string]interface{})
 	genericOption[netlabel.GenericData] = netconfig
 

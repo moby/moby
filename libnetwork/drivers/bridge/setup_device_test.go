@@ -33,7 +33,7 @@ func TestSetupNewBridge(t *testing.T) {
 func TestSetupNewNonDefaultBridge(t *testing.T) {
 	defer testutils.SetupTestOSContext(t)()
 
-	config := &networkConfiguration{BridgeName: "test0", DisableBridgeCreation: true}
+	config := &networkConfiguration{BridgeName: "test0", DefaultBridge: true}
 	br := &bridgeInterface{}
 
 	err := setupDevice(config, br)

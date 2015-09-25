@@ -163,7 +163,7 @@ func New(cfgOptions ...config.Option) (NetworkController, error) {
 			log.Debugf("Failed to Initialize Discovery : %v", err)
 		}
 		if err := c.initLocalStore(); err != nil {
-			return nil, fmt.Errorf("Failed to Initialize LocalDatastore due to %v.", err)
+			log.Debugf("Failed to Initialize LocalDatastore due to %v.", err)
 		}
 	}
 
