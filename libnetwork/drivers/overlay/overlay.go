@@ -101,7 +101,6 @@ func Fini(drv driverapi.Driver) {
 }
 
 func (d *driver) configure() error {
-	var onceDone bool
 	var err error
 
 	if len(d.config) == 0 {
@@ -109,8 +108,6 @@ func (d *driver) configure() error {
 	}
 
 	d.Do(func() {
-		onceDone = true
-
 		if ifaceName, ok := d.config[netlabel.OverlayBindInterface]; ok {
 			d.ifaceName = ifaceName.(string)
 		}
