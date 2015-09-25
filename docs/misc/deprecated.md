@@ -68,3 +68,7 @@ The following double-dash options are deprecated and have no replacement:
     docker ps --since-id
     docker ps --before-id
     docker search --trusted
+
+### Interacting with V1 registries
+
+Version 1.8.3 adds a flag (`--no-legacy-registry=false`) which prevents the docker daemon from `pull`, `push`, and `login` operations against v1 registries.  Though disabled by default, this signals the intent to deprecate the v1 protocol.

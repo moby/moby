@@ -125,6 +125,9 @@ unix://[/path/to/socket] to use.
 **--mtu**=VALUE
   Set the containers network mtu. Default is `0`.
 
+**--no-legacy-registry=**true|false
+  Do not contact legacy registries
+
 **-p**, **--pidfile**=""
   Path to use for daemon PID file. Default is `/var/run/docker.pid`
 
