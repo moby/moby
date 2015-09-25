@@ -165,6 +165,7 @@ install -p -m 644 contrib/syntax/nano/Dockerfile.nanorc $RPM_BUILD_ROOT/usr/shar
 
 # list files owned by the package here
 %files
+%doc AUTHORS CHANGELOG.md CONTRIBUTING.md LICENSE MAINTAINERS NOTICE README.md
 /%{_bindir}/docker
 /%{_libexecdir}/docker/dockerinit
 /%{_sysconfdir}/udev/rules.d/80-docker.rules
