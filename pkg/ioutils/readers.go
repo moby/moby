@@ -84,6 +84,9 @@ func NewBufReaderWithDrainbufAndBuffer(r io.Reader, drainBuffer []byte, buffer i
 
 func (r *bufReader) drain() {
 	for {
+		//Call to scheduler is made to yield from this goroutine.
+		//This avoids goroutine looping here when n=0,err=nil, fixes code hangs when run with GCC Go.
+		callSchedulerIfNecessary()
 		n, err := r.reader.Read(r.drainBuf)
 		r.Lock()
 		if err != nil {
@@ -98,7 +101,6 @@ func (r *bufReader) drain() {
 		}
 		r.wait.Signal()
 		r.Unlock()
-		callSchedulerIfNecessary()
 		if err != nil {
 			break
 		}
