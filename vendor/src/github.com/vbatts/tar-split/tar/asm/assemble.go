@@ -39,7 +39,7 @@ func NewOutputTarStream(fg storage.FileGetter, up storage.Unpacker) io.ReadClose
 				if entry.Size == 0 {
 					continue
 				}
-				fh, err := fg.Get(entry.Name)
+				fh, err := fg.Get(entry.GetName())
 				if err != nil {
 					pw.CloseWithError(err)
 					return
@@ -56,7 +56,7 @@ func NewOutputTarStream(fg storage.FileGetter, up storage.Unpacker) io.ReadClose
 					// but since it's coming through the PipeReader, the context of
 					// _which_ file would be lost...
 					fh.Close()
-					pw.CloseWithError(fmt.Errorf("file integrity checksum failed for %q", entry.Name))
+					pw.CloseWithError(fmt.Errorf("file integrity checksum failed for %q", entry.GetName()))
 					return
 				}
 				fh.Close()
