@@ -77,7 +77,7 @@ func (s *DockerSuite) TestNetHostname(c *check.C) {
 	if out, _, err = runCommandWithOutput(runCmd); err == nil {
 		c.Fatalf(out, err)
 	}
-	checkContains("invalid --net: weird", out, c)
+	checkContains("network weird not found", out, c)
 }
 
 func (s *DockerSuite) TestConflictContainerNetworkAndLinks(c *check.C) {

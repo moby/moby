@@ -15,14 +15,10 @@ func ValidateNetMode(c *Config, hc *HostConfig) error {
 		return nil
 	}
 	parts := strings.Split(string(hc.NetworkMode), ":")
-	switch mode := parts[0]; mode {
-	case "default", "bridge", "none", "host":
-	case "container":
+	if parts[0] == "container" {
 		if len(parts) < 2 || parts[1] == "" {
 			return fmt.Errorf("--net: invalid net mode: invalid container format container:<name|id>")
 		}
-	default:
-		return fmt.Errorf("invalid --net: %s", hc.NetworkMode)
 	}
 
 	if (hc.NetworkMode.IsHost() || hc.NetworkMode.IsContainer()) && c.Hostname != "" {
@@ -35,6 +31,10 @@ func ValidateNetMode(c *Config, hc *HostConfig) error {
 
 	if hc.NetworkMode.IsContainer() && len(hc.Links) > 0 {
 		return ErrConflictContainerNetworkAndLinks
+	}
+
+	if hc.NetworkMode.IsUserDefined() && len(hc.Links) > 0 {
+		return ErrConflictUserDefinedNetworkAndLinks
 	}
 
 	if (hc.NetworkMode.IsHost() || hc.NetworkMode.IsContainer()) && len(hc.DNS) > 0 {
