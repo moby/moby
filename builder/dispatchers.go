@@ -315,7 +315,7 @@ func run(ctx context.Context, b *builder, args []string, attributes map[string]b
 		if runtime.GOOS != "windows" {
 			args = append([]string{"/bin/sh", "-c"}, args...)
 		} else {
-			args = append([]string{"cmd", "/S /C"}, args...)
+			args = append([]string{"cmd", "/S", "/C"}, args...)
 		}
 	}
 
@@ -439,7 +439,7 @@ func cmd(ctx context.Context, b *builder, args []string, attributes map[string]b
 		if runtime.GOOS != "windows" {
 			cmdSlice = append([]string{"/bin/sh", "-c"}, cmdSlice...)
 		} else {
-			cmdSlice = append([]string{"cmd", "/S /C"}, cmdSlice...)
+			cmdSlice = append([]string{"cmd", "/S", "/C"}, cmdSlice...)
 		}
 	}
 
@@ -483,7 +483,7 @@ func entrypoint(ctx context.Context, b *builder, args []string, attributes map[s
 		if runtime.GOOS != "windows" {
 			b.Config.Entrypoint = stringutils.NewStrSlice("/bin/sh", "-c", parsed[0])
 		} else {
-			b.Config.Entrypoint = stringutils.NewStrSlice("cmd", "/S /C", parsed[0])
+			b.Config.Entrypoint = stringutils.NewStrSlice("cmd", "/S", "/C", parsed[0])
 		}
 	}
 
