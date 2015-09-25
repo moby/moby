@@ -39,6 +39,7 @@ docker-daemon - Enable daemon mode
 [**--log-driver**[=*json-file*]]
 [**--log-opt**[=*map[]*]]
 [**--mtu**[=*0*]]
+[**--no-legacy-registry**[=*false*]]
 [**-p**|**--pidfile**[=*/var/run/docker.pid*]]
 [**--registry-mirror**[=*[]*]]
 [**-s**|**--storage-driver**[=*STORAGE-DRIVER*]]
@@ -165,6 +166,9 @@ unix://[/path/to/socket] to use.
 
 **--mtu**=VALUE
   Set the containers network mtu. Default is `0`.
+
+**--no-legacy-registry**=*true*|*false*
+  Do not contact legacy registries
 
 **-p**, **--pidfile**=""
   Path to use for daemon PID file. Default is `/var/run/docker.pid`

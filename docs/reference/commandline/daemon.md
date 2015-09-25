@@ -47,6 +47,7 @@ weight=1
       --log-driver="json-file"               Default driver for container logs
       --log-opt=[]                           Log driver specific options
       --mtu=0                                Set the containers network MTU
+      --no-legacy-registry=false             Do not contact legacy registries
       -p, --pidfile="/var/run/docker.pid"    Path to use for daemon PID file
       --registry-mirror=[]                   Preferred Docker registry mirror
       -s, --storage-driver=""                Storage driver to use
@@ -454,6 +455,10 @@ communication, can be useful when running a local registry.  However,
 because its use creates security vulnerabilities it should ONLY be enabled for
 testing purposes.  For increased security, users should add their CA to their 
 system's list of trusted CAs instead of enabling `--insecure-registry`.
+
+## Legacy Registries
+
+Enabling `--no-legacy-registry` forces a docker daemon to only interact with registries which support the V2 protocol.  Specifically, the daemon will not attempt `push`, `pull` and `login` to v1 registries.  The exception to this is `search` which can still be performed on v1 registries.
 
 ## Running a Docker daemon behind a HTTPS_PROXY
 
