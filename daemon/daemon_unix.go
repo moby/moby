@@ -313,15 +313,16 @@ func networkOptions(dconfig *Config) ([]nwconfig.Option, error) {
 	}
 
 	if strings.TrimSpace(dconfig.NetworkKVStore) != "" {
-		kv := strings.Split(dconfig.NetworkKVStore, ":")
+		kv := strings.Split(dconfig.NetworkKVStore, "://")
 		if len(kv) < 2 {
-			return nil, fmt.Errorf("kv store daemon config must be of the form KV-PROVIDER:KV-URL")
+			return nil, fmt.Errorf("kv store daemon config must be of the form KV-PROVIDER://KV-URL")
 		}
 		options = append(options, nwconfig.OptionKVProvider(kv[0]))
-		options = append(options, nwconfig.OptionKVProviderURL(strings.Join(kv[1:], ":")))
+		options = append(options, nwconfig.OptionKVProviderURL(strings.Join(kv[1:], "://")))
 	}
 
 	options = append(options, nwconfig.OptionLabels(dconfig.Labels))
+	options = append(options, driverOptions(dconfig)...)
 	return options, nil
 }
 
@@ -336,24 +337,13 @@ func initNetworkController(config *Config) (libnetwork.NetworkController, error)
 		return nil, fmt.Errorf("error obtaining controller instance: %v", err)
 	}
 
-	// Initialize default driver "null"
-
-	if err := controller.ConfigureNetworkDriver("null", options.Generic{}); err != nil {
-		return nil, fmt.Errorf("Error initializing null driver: %v", err)
-	}
-
 	// Initialize default network on "null"
-	if _, err := controller.NewNetwork("null", "none"); err != nil {
+	if _, err := controller.NewNetwork("null", "none", libnetwork.NetworkOptionPersist(false)); err != nil {
 		return nil, fmt.Errorf("Error creating default \"null\" network: %v", err)
 	}
 
-	// Initialize default driver "host"
-	if err := controller.ConfigureNetworkDriver("host", options.Generic{}); err != nil {
-		return nil, fmt.Errorf("Error initializing host driver: %v", err)
-	}
-
 	// Initialize default network on "host"
-	if _, err := controller.NewNetwork("host", "host"); err != nil {
+	if _, err := controller.NewNetwork("host", "host", libnetwork.NetworkOptionPersist(false)); err != nil {
 		return nil, fmt.Errorf("Error creating default \"host\" network: %v", err)
 	}
 
@@ -367,18 +357,22 @@ func initNetworkController(config *Config) (libnetwork.NetworkController, error)
 	return controller, nil
 }
 
-func initBridgeDriver(controller libnetwork.NetworkController, config *Config) error {
-	option := options.Generic{
+func driverOptions(config *Config) []nwconfig.Option {
+	bridgeConfig := options.Generic{
 		"EnableIPForwarding":  config.Bridge.EnableIPForward,
 		"EnableIPTables":      config.Bridge.EnableIPTables,
 		"EnableUserlandProxy": config.Bridge.EnableUserlandProxy}
+	bridgeOption := options.Generic{netlabel.GenericData: bridgeConfig}
 
-	if err := controller.ConfigureNetworkDriver("bridge", options.Generic{netlabel.GenericData: option}); err != nil {
-		return fmt.Errorf("Error initializing bridge driver: %v", err)
-	}
+	dOptions := []nwconfig.Option{}
+	dOptions = append(dOptions, nwconfig.OptionDriverConfig("bridge", bridgeOption))
+	return dOptions
+}
 
+func initBridgeDriver(controller libnetwork.NetworkController, config *Config) error {
 	netOption := options.Generic{
 		"BridgeName":         config.Bridge.Iface,
+		"DefaultBridge":      true,
 		"Mtu":                config.Mtu,
 		"EnableIPMasquerade": config.Bridge.EnableIPMasq,
 		"EnableICC":          config.Bridge.InterContainerCommunication,
@@ -430,7 +424,8 @@ func initBridgeDriver(controller libnetwork.NetworkController, config *Config) e
 		libnetwork.NetworkOptionGeneric(options.Generic{
 			netlabel.GenericData: netOption,
 			netlabel.EnableIPv6:  config.Bridge.EnableIPv6,
-		}))
+		}),
+		libnetwork.NetworkOptionPersist(false))
 	if err != nil {
 		return fmt.Errorf("Error creating default \"bridge\" network: %v", err)
 	}

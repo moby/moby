@@ -813,25 +813,6 @@ func createNetwork(controller libnetwork.NetworkController, dnet string, driver 
 	return controller.NewNetwork(driver, dnet, createOptions...)
 }
 
-func (container *Container) secondaryNetworkRequired(ctx context.Context, primaryNetworkType string) bool {
-	switch primaryNetworkType {
-	case "bridge", "none", "host", "container":
-		return false
-	}
-
-	if container.daemon.configStore.DisableBridge {
-		return false
-	}
-
-	if container.Config.ExposedPorts != nil && len(container.Config.ExposedPorts) > 0 {
-		return true
-	}
-	if container.hostConfig.PortBindings != nil && len(container.hostConfig.PortBindings) > 0 {
-		return true
-	}
-	return false
-}
-
 func (container *Container) allocateNetwork(ctx context.Context) error {
 	mode := container.hostConfig.NetworkMode
 	controller := container.daemon.netController
@@ -864,13 +845,6 @@ func (container *Container) allocateNetwork(ctx context.Context) error {
 		service = strings.Replace(container.Name, ".", "-", -1)
 		// Service names dont like "/" in them. removing it instead of failing for backward compatibility
 		service = strings.Replace(service, "/", "", -1)
-	}
-
-	if container.secondaryNetworkRequired(ctx, networkDriver) {
-		// Configure Bridge as secondary network for port binding purposes
-		if err := container.configureNetwork(ctx, "bridge", service, "bridge", false); err != nil {
-			return err
-		}
 	}
 
 	if err := container.configureNetwork(ctx, networkName, service, networkDriver, mode.IsDefault()); err != nil {
