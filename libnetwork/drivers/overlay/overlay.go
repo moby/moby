@@ -31,6 +31,7 @@ type driver struct {
 	exitCh       chan chan struct{}
 	ifaceName    string
 	neighIP      string
+	config       map[string]interface{}
 	peerDb       peerNetworkMap
 	serfInstance *serf.Serf
 	networks     networkTable
@@ -80,10 +81,7 @@ func Init(dc driverapi.DriverCallback, config map[string]interface{}) error {
 		peerDb: peerNetworkMap{
 			mp: map[string]peerMap{},
 		},
-	}
-
-	if err := d.configure(config); err != nil {
-		return err
+		config: config,
 	}
 
 	return dc.RegisterDriver(networkType, d, c)
@@ -102,27 +100,27 @@ func Fini(drv driverapi.Driver) {
 	}
 }
 
-func (d *driver) configure(option map[string]interface{}) error {
+func (d *driver) configure() error {
 	var onceDone bool
 	var err error
 
-	if len(option) == 0 {
+	if len(d.config) == 0 {
 		return nil
 	}
 
 	d.Do(func() {
 		onceDone = true
 
-		if ifaceName, ok := option[netlabel.OverlayBindInterface]; ok {
+		if ifaceName, ok := d.config[netlabel.OverlayBindInterface]; ok {
 			d.ifaceName = ifaceName.(string)
 		}
 
-		if neighIP, ok := option[netlabel.OverlayNeighborIP]; ok {
+		if neighIP, ok := d.config[netlabel.OverlayNeighborIP]; ok {
 			d.neighIP = neighIP.(string)
 		}
 
-		provider, provOk := option[netlabel.KVProvider]
-		provURL, urlOk := option[netlabel.KVProviderURL]
+		provider, provOk := d.config[netlabel.KVProvider]
+		provURL, urlOk := d.config[netlabel.KVProviderURL]
 
 		if provOk && urlOk {
 			cfg := &config.DatastoreCfg{
@@ -131,7 +129,7 @@ func (d *driver) configure(option map[string]interface{}) error {
 					Address:  provURL.(string),
 				},
 			}
-			provConfig, confOk := option[netlabel.KVProviderConfig]
+			provConfig, confOk := d.config[netlabel.KVProviderConfig]
 			if confOk {
 				cfg.Client.Config = provConfig.(*store.Config)
 			}
@@ -160,10 +158,6 @@ func (d *driver) configure(option map[string]interface{}) error {
 		}
 
 	})
-
-	if !onceDone {
-		return fmt.Errorf("config already applied to driver")
-	}
 
 	return err
 }
