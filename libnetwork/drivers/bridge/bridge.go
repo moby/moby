@@ -48,18 +48,18 @@ type configuration struct {
 
 // networkConfiguration for network specific configuration
 type networkConfiguration struct {
-	BridgeName            string
-	AddressIPv4           *net.IPNet
-	FixedCIDR             *net.IPNet
-	FixedCIDRv6           *net.IPNet
-	EnableIPv6            bool
-	EnableIPMasquerade    bool
-	EnableICC             bool
-	Mtu                   int
-	DefaultGatewayIPv4    net.IP
-	DefaultGatewayIPv6    net.IP
-	DefaultBindingIP      net.IP
-	DisableBridgeCreation bool
+	BridgeName         string
+	AddressIPv4        *net.IPNet
+	FixedCIDR          *net.IPNet
+	FixedCIDRv6        *net.IPNet
+	EnableIPv6         bool
+	EnableIPMasquerade bool
+	EnableICC          bool
+	Mtu                int
+	DefaultGatewayIPv4 net.IP
+	DefaultGatewayIPv6 net.IP
+	DefaultBindingIP   net.IP
+	DefaultBridge      bool
 }
 
 // endpointConfiguration represents the user specified configuration for the sandbox endpoint
@@ -249,13 +249,13 @@ func (c *networkConfiguration) fromMap(data map[string]interface{}) error {
 		}
 	}
 
-	if i, ok := data["DisableBridgeCreation"]; ok && i != nil {
+	if i, ok := data["DefaultBridge"]; ok && i != nil {
 		if s, ok := i.(string); ok {
-			if c.DisableBridgeCreation, err = strconv.ParseBool(s); err != nil {
-				return types.BadRequestErrorf("failed to parse DisableBridgeCreation value: %s", err.Error())
+			if c.DefaultBridge, err = strconv.ParseBool(s); err != nil {
+				return types.BadRequestErrorf("failed to parse DefaultBridge value: %s", err.Error())
 			}
 		} else {
-			return types.BadRequestErrorf("invalid type for DisableBridgeCreation value")
+			return types.BadRequestErrorf("invalid type for DefaultBridge value")
 		}
 	}
 
@@ -516,7 +516,7 @@ func parseNetworkGenericOptions(data interface{}) (*networkConfiguration, error)
 	return config, err
 }
 
-func parseNetworkOptions(option options.Generic) (*networkConfiguration, error) {
+func parseNetworkOptions(id string, option options.Generic) (*networkConfiguration, error) {
 	var err error
 	config := &networkConfiguration{}
 
@@ -537,6 +537,9 @@ func parseNetworkOptions(option options.Generic) (*networkConfiguration, error) 
 		return nil, err
 	}
 
+	if config.BridgeName == "" && config.DefaultBridge == false {
+		config.BridgeName = "br-" + id[:12]
+	}
 	return config, nil
 }
 
@@ -580,7 +583,7 @@ func (d *driver) CreateNetwork(id string, option map[string]interface{}) error {
 	d.Unlock()
 
 	// Parse and validate the config. It should not conflict with existing networks' config
-	config, err := parseNetworkOptions(option)
+	config, err := parseNetworkOptions(id, option)
 	if err != nil {
 		return err
 	}

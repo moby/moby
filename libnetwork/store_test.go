@@ -133,14 +133,18 @@ func TestLocalStoreLockTimeout(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Error getting random boltdb configs %v", err)
 	}
-	ctrl, err := New(cfgOptions...)
+	ctrl1, err := New(cfgOptions...)
 	if err != nil {
 		t.Fatalf("Error new controller: %v", err)
 	}
-	defer ctrl.Stop()
+	defer ctrl1.Stop()
 	// Use the same boltdb file without closing the previous controller
-	_, err = New(cfgOptions...)
-	if err == nil {
-		t.Fatalf("Multiple boldtdb connection must fail")
+	ctrl2, _ := New(cfgOptions...)
+	if err != nil {
+		t.Fatalf("Error new controller: %v", err)
+	}
+	store := ctrl2.(*controller).localStore
+	if store != nil {
+		t.Fatalf("localstore is expected to be nil")
 	}
 }

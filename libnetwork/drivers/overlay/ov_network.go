@@ -40,6 +40,10 @@ func (d *driver) CreateNetwork(id string, option map[string]interface{}) error {
 		return fmt.Errorf("invalid network id")
 	}
 
+	if err := d.configure(); err != nil {
+		return err
+	}
+
 	n := &network{
 		id:        id,
 		driver:    d,

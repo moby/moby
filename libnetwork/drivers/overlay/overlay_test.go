@@ -24,6 +24,9 @@ func setupDriver(t *testing.T) *driverTester {
 		t.Fatal(err)
 	}
 
+	if err := dt.d.configure(); err != nil {
+		t.Fatal(err)
+	}
 	return dt
 }
 
@@ -78,7 +81,7 @@ func TestOverlayNilConfig(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := dt.d.configure(nil); err != nil {
+	if err := dt.d.configure(); err != nil {
 		t.Fatal(err)
 	}
 
