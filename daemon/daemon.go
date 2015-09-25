@@ -1100,6 +1100,10 @@ func (daemon *Daemon) verifyContainerSettings(ctx context.Context, hostConfig *r
 		return nil, nil
 	}
 
+	if hostConfig.VolumeDriver != "" {
+		logrus.Warnf("volume driver as specified with `--volume-driver %q` is deprecated", hostConfig.VolumeDriver)
+	}
+
 	for port := range hostConfig.PortBindings {
 		_, portStr := nat.SplitProtoPort(string(port))
 		if _, err := nat.ParsePort(portStr); err != nil {
