@@ -5,6 +5,8 @@ import (
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/docker/docker/utils"
 )
 
 func TestValidateIPAddress(t *testing.T) {
@@ -319,8 +321,8 @@ func TestValidatePath(t *testing.T) {
 		if _, err := ValidatePath(path); err == nil {
 			t.Fatalf("ValidatePath(`%q`) should have failed validation", path)
 		} else {
-			if err.Error() != expectedError {
-				t.Fatalf("ValidatePath(`%q`) error should contain %q, got %q", path, expectedError, err.Error())
+			if utils.GetErrorMessage(err) != expectedError {
+				t.Fatalf("ValidatePath(`%q`) error should contain %q, got %q", path, expectedError, utils.GetErrorMessage(err))
 			}
 		}
 	}
@@ -369,8 +371,8 @@ func TestValidateDevice(t *testing.T) {
 		if _, err := ValidateDevice(path); err == nil {
 			t.Fatalf("ValidateDevice(`%q`) should have failed validation", path)
 		} else {
-			if err.Error() != expectedError {
-				t.Fatalf("ValidateDevice(`%q`) error should contain %q, got %q", path, expectedError, err.Error())
+			if utils.GetErrorMessage(err) != expectedError {
+				t.Fatalf("ValidateDevice(`%q`) error should contain %q, got %q", path, expectedError, utils.GetErrorMessage(err))
 			}
 		}
 	}
@@ -407,7 +409,7 @@ func TestValidateEnv(t *testing.T) {
 }
 
 func TestValidateLabel(t *testing.T) {
-	if _, err := ValidateLabel("label"); err == nil || err.Error() != "bad attribute format: label" {
+	if _, err := ValidateLabel("label"); err == nil || utils.GetErrorMessage(err) != "bad attribute format: label" {
 		t.Fatalf("Expected an error [bad attribute format: label], go %v", err)
 	}
 	if actual, err := ValidateLabel("key1=value1"); err != nil || actual != "key1=value1" {

@@ -1,8 +1,9 @@
 package opts
 
 import (
-	"fmt"
 	"net"
+
+	derr "github.com/docker/docker/errors"
 )
 
 // IPOpt holds an IP. It is used to store values from CLI flags.
@@ -26,7 +27,7 @@ func NewIPOpt(ref *net.IP, defaultVal string) *IPOpt {
 func (o *IPOpt) Set(val string) error {
 	ip := net.ParseIP(val)
 	if ip == nil {
-		return fmt.Errorf("%s is not an ip address", val)
+		return derr.ErrorCodeInvalidIPFormat.WithArgs(val)
 	}
 	*o.IP = ip
 	return nil
