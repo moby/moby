@@ -291,9 +291,6 @@ func processCreateDefaults(c libnetwork.NetworkController, nc *networkCreate) {
 		if _, ok := gData["BridgeName"]; !ok {
 			gData["BridgeName"] = nc.Name
 		}
-		if _, ok := gData["AllowNonDefaultBridge"]; !ok {
-			gData["AllowNonDefaultBridge"] = "true"
-		}
 		nc.Options[netlabel.GenericData] = genericData
 	}
 }

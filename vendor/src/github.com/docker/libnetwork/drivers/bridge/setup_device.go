@@ -15,7 +15,7 @@ func setupDevice(config *networkConfiguration, i *bridgeInterface) error {
 
 	// We only attempt to create the bridge when the requested device name is
 	// the default one.
-	if config.BridgeName != DefaultBridgeName && !config.AllowNonDefaultBridge {
+	if config.BridgeName != DefaultBridgeName && config.DefaultBridge {
 		return NonDefaultBridgeExistError(config.BridgeName)
 	}
 

@@ -2,16 +2,13 @@
 Package libnetwork provides the basic functionality and extension points to
 create network namespaces and allocate interfaces for containers to use.
 
-	// Create a new controller instance
-	controller, _err := libnetwork.New(nil)
-
-	// Select and configure the network driver
 	networkType := "bridge"
 
+	// Create a new controller instance
 	driverOptions := options.Generic{}
 	genericOption := make(map[string]interface{})
 	genericOption[netlabel.GenericData] = driverOptions
-	err := controller.ConfigureNetworkDriver(networkType, genericOption)
+	controller, err := libnetwork.New(config.OptionDriverConfig(networkType, genericOption))
 	if err != nil {
 		return
 	}
@@ -32,11 +29,14 @@ create network namespaces and allocate interfaces for containers to use.
 		return
 	}
 
-	// A container can join the endpoint by providing the container ID to the join api.
-	// Join accepts Variadic arguments which will be made use of by libnetwork and Drivers
-	err = ep.Join("container1",
-		libnetwork.JoinOptionHostname("test"),
-		libnetwork.JoinOptionDomainname("docker.io"))
+	// Create the sandbox for the container.
+	// NewSandbox accepts Variadic optional arguments which libnetwork can use.
+	sbx, err := controller.NewSandbox("container1",
+		libnetwork.OptionHostname("test"),
+		libnetwork.OptionDomainname("docker.io"))
+
+	// A sandbox can join the endpoint via the join api.
+	err = ep.Join(sbx)
 	if err != nil {
 		return
 	}
@@ -47,7 +47,6 @@ import (
 	"container/heap"
 	"fmt"
 	"net"
-	"strings"
 	"sync"
 
 	log "github.com/Sirupsen/logrus"
@@ -57,7 +56,6 @@ import (
 	"github.com/docker/libnetwork/datastore"
 	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/hostdiscovery"
-	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/libnetwork/osl"
 	"github.com/docker/libnetwork/types"
 )
@@ -67,9 +65,6 @@ import (
 type NetworkController interface {
 	// ID provides an unique identity for the controller
 	ID() string
-
-	// ConfigureNetworkDriver applies the passed options to the driver instance for the specified network type
-	ConfigureNetworkDriver(networkType string, options map[string]interface{}) error
 
 	// Config method returns the bootup configuration for the controller
 	Config() config.Config
@@ -125,13 +120,13 @@ type endpointTable map[string]*endpoint
 type sandboxTable map[string]*sandbox
 
 type controller struct {
-	id             string
-	networks       networkTable
-	drivers        driverTable
-	sandboxes      sandboxTable
-	cfg            *config.Config
-	store          datastore.DataStore
-	extKeyListener net.Listener
+	id                      string
+	networks                networkTable
+	drivers                 driverTable
+	sandboxes               sandboxTable
+	cfg                     *config.Config
+	globalStore, localStore datastore.DataStore
+	extKeyListener          net.Listener
 	sync.Mutex
 }
 
@@ -139,7 +134,11 @@ type controller struct {
 func New(cfgOptions ...config.Option) (NetworkController, error) {
 	var cfg *config.Config
 	if len(cfgOptions) > 0 {
-		cfg = &config.Config{}
+		cfg = &config.Config{
+			Daemon: config.DaemonCfg{
+				DriverCfg: make(map[string]interface{}),
+			},
+		}
 		cfg.ProcessOptions(cfgOptions...)
 	}
 	c := &controller{
@@ -153,7 +152,7 @@ func New(cfgOptions ...config.Option) (NetworkController, error) {
 	}
 
 	if cfg != nil {
-		if err := c.initDataStore(); err != nil {
+		if err := c.initGlobalStore(); err != nil {
 			// Failing to initalize datastore is a bad situation to be in.
 			// But it cannot fail creating the Controller
 			log.Debugf("Failed to Initialize Datastore due to %v. Operating in non-clustered mode", err)
@@ -162,6 +161,9 @@ func New(cfgOptions ...config.Option) (NetworkController, error) {
 			// Failing to initalize discovery is a bad situation to be in.
 			// But it cannot fail creating the Controller
 			log.Debugf("Failed to Initialize Discovery : %v", err)
+		}
+		if err := c.initLocalStore(); err != nil {
+			log.Debugf("Failed to Initialize LocalDatastore due to %v.", err)
 		}
 	}
 
@@ -207,16 +209,6 @@ func (c *controller) Config() config.Config {
 	return *c.cfg
 }
 
-func (c *controller) ConfigureNetworkDriver(networkType string, options map[string]interface{}) error {
-	c.Lock()
-	dd, ok := c.drivers[networkType]
-	c.Unlock()
-	if !ok {
-		return NetworkTypeError(networkType)
-	}
-	return dd.driver.Config(options)
-}
-
 func (c *controller) RegisterDriver(networkType string, driver driverapi.Driver, capability driverapi.Capability) error {
 	if !config.IsValidName(networkType) {
 		return ErrInvalidName(networkType)
@@ -228,31 +220,7 @@ func (c *controller) RegisterDriver(networkType string, driver driverapi.Driver,
 		return driverapi.ErrActiveRegistration(networkType)
 	}
 	c.drivers[networkType] = &driverData{driver, capability}
-
-	if c.cfg == nil {
-		c.Unlock()
-		return nil
-	}
-
-	opt := make(map[string]interface{})
-	for _, label := range c.cfg.Daemon.Labels {
-		if strings.HasPrefix(label, netlabel.DriverPrefix+"."+networkType) {
-			opt[netlabel.Key(label)] = netlabel.Value(label)
-		}
-	}
-
-	if capability.Scope == driverapi.GlobalScope && c.validateDatastoreConfig() {
-		opt[netlabel.KVProvider] = c.cfg.Datastore.Client.Provider
-		opt[netlabel.KVProviderURL] = c.cfg.Datastore.Client.Address
-	}
-
 	c.Unlock()
-
-	if len(opt) != 0 {
-		if err := driver.Config(opt); err != nil {
-			return err
-		}
-	}
 
 	return nil
 }
@@ -280,6 +248,7 @@ func (c *controller) NewNetwork(networkType, name string, options ...NetworkOpti
 		id:          stringid.GenerateRandomID(),
 		ctrlr:       c,
 		endpoints:   endpointTable{},
+		persist:     true,
 	}
 
 	network.processOptions(options...)
@@ -288,7 +257,7 @@ func (c *controller) NewNetwork(networkType, name string, options ...NetworkOpti
 		return nil, err
 	}
 
-	if err := c.updateNetworkToStore(network); err != nil {
+	if err := c.updateToStore(network); err != nil {
 		log.Warnf("couldnt create network %s: %v", network.name, err)
 		if e := network.Delete(); e != nil {
 			log.Warnf("couldnt cleanup network %s: %v", network.name, err)
@@ -317,6 +286,7 @@ func (c *controller) addNetwork(n *network) error {
 	n.Lock()
 	n.svcRecords = svcMap{}
 	n.driver = dd.driver
+	n.dataScope = dd.capability.DataScope
 	d := n.driver
 	n.Unlock()
 
@@ -324,8 +294,10 @@ func (c *controller) addNetwork(n *network) error {
 	if err := d.CreateNetwork(n.id, n.generic); err != nil {
 		return err
 	}
-	if err := n.watchEndpoints(); err != nil {
-		return err
+	if n.isGlobalScoped() {
+		if err := n.watchEndpoints(); err != nil {
+			return err
+		}
 	}
 	c.Lock()
 	c.networks[n.id] = n
@@ -515,20 +487,10 @@ func (c *controller) loadDriver(networkType string) (*driverData, error) {
 	return dd, nil
 }
 
-func (c *controller) isDriverGlobalScoped(networkType string) (bool, error) {
-	c.Lock()
-	dd, ok := c.drivers[networkType]
-	c.Unlock()
-	if !ok {
-		return false, types.NotFoundErrorf("driver not found for %s", networkType)
-	}
-	if dd.capability.Scope == driverapi.GlobalScope {
-		return true, nil
-	}
-	return false, nil
-}
-
 func (c *controller) Stop() {
+	if c.localStore != nil {
+		c.localStore.KVStore().Close()
+	}
 	c.stopExternalKeyListener()
 	osl.GC()
 }
