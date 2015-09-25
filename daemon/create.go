@@ -16,14 +16,14 @@ import (
 )
 
 // ContainerCreate takes configs and creates a container.
-func (daemon *Daemon) ContainerCreate(ctx context.Context, name string, config *runconfig.Config, hostConfig *runconfig.HostConfig, adjustCPUShares bool) (*Container, []string, error) {
+func (daemon *Daemon) ContainerCreate(ctx context.Context, name string, config *runconfig.Config, hostConfig *runconfig.HostConfig, adjustCPUShares bool) (types.ContainerCreateResponse, error) {
 	if config == nil {
-		return nil, nil, derr.ErrorCodeEmptyConfig
+		return types.ContainerCreateResponse{}, derr.ErrorCodeEmptyConfig
 	}
 
 	warnings, err := daemon.verifyContainerSettings(ctx, hostConfig, config)
 	if err != nil {
-		return nil, warnings, err
+		return types.ContainerCreateResponse{"", warnings}, err
 	}
 
 	daemon.adaptContainerSettings(hostConfig, adjustCPUShares)
@@ -32,20 +32,20 @@ func (daemon *Daemon) ContainerCreate(ctx context.Context, name string, config *
 	if err != nil {
 		if daemon.Graph(ctx).IsNotExist(err, config.Image) {
 			if strings.Contains(config.Image, "@") {
-				return nil, warnings, derr.ErrorCodeNoSuchImageHash.WithArgs(config.Image)
+				return types.ContainerCreateResponse{"", warnings}, derr.ErrorCodeNoSuchImageHash.WithArgs(config.Image)
 			}
 			img, tag := parsers.ParseRepositoryTag(config.Image)
 			if tag == "" {
 				tag = tags.DefaultTag
 			}
-			return nil, warnings, derr.ErrorCodeNoSuchImageTag.WithArgs(img, tag)
+			return types.ContainerCreateResponse{"", warnings}, derr.ErrorCodeNoSuchImageTag.WithArgs(img, tag)
 		}
-		return nil, warnings, err
+		return types.ContainerCreateResponse{"", warnings}, err
 	}
 
 	warnings = append(warnings, buildWarnings...)
 
-	return container, warnings, nil
+	return types.ContainerCreateResponse{container.ID, warnings}, nil
 }
 
 // Create creates a new container from the given configuration with a given name.

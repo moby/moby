@@ -366,10 +366,8 @@ func (s *Server) postContainersCreate(ctx context.Context, w http.ResponseWriter
 	if err := checkForJSON(r); err != nil {
 		return err
 	}
-	var (
-		warnings []string
-		name     = r.Form.Get("name")
-	)
+
+	name := r.Form.Get("name")
 
 	config, hostConfig, err := runconfig.DecodeContainerConfig(r.Body)
 	if err != nil {
@@ -378,15 +376,12 @@ func (s *Server) postContainersCreate(ctx context.Context, w http.ResponseWriter
 	version := ctx.Version()
 	adjustCPUShares := version.LessThan("1.19")
 
-	container, warnings, err := s.daemon.ContainerCreate(ctx, name, config, hostConfig, adjustCPUShares)
+	ccr, err := s.daemon.ContainerCreate(ctx, name, config, hostConfig, adjustCPUShares)
 	if err != nil {
 		return err
 	}
 
-	return writeJSON(w, http.StatusCreated, &types.ContainerCreateResponse{
-		ID:       container.ID,
-		Warnings: warnings,
-	})
+	return writeJSON(w, http.StatusCreated, ccr)
 }
 
 func (s *Server) deleteContainers(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {

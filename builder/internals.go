@@ -233,10 +233,15 @@ func (b *builder) runContextCommand(ctx context.Context, args []string, allowRem
 		return nil
 	}
 
-	container, _, err := b.Daemon.ContainerCreate(ctx, "", b.Config, nil, true)
+	ccr, err := b.Daemon.ContainerCreate(ctx, "", b.Config, nil, true)
 	if err != nil {
 		return err
 	}
+	container, err := b.Daemon.Get(ctx, ccr.ID)
+	if err != nil {
+		return err
+	}
+
 	b.TmpContainers[container.ID] = struct{}{}
 
 	if err := container.Mount(ctx); err != nil {
@@ -621,12 +626,16 @@ func (b *builder) create(ctx context.Context) (*daemon.Container, error) {
 	config := *b.Config
 
 	// Create the container
-	c, warnings, err := b.Daemon.ContainerCreate(ctx, "", b.Config, hostConfig, true)
+	ccr, err := b.Daemon.ContainerCreate(ctx, "", b.Config, hostConfig, true)
 	if err != nil {
 		return nil, err
 	}
-	for _, warning := range warnings {
+	for _, warning := range ccr.Warnings {
 		fmt.Fprintf(b.OutStream, " ---> [Warning] %s\n", warning)
+	}
+	c, err := b.Daemon.Get(ctx, ccr.ID)
+	if err != nil {
+		return nil, err
 	}
 
 	b.TmpContainers[c.ID] = struct{}{}
