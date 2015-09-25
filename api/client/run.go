@@ -79,6 +79,10 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		return nil
 	}
 
+	if hostConfig.VolumeDriver != "" {
+		fmt.Fprint(cli.err, "--volume-driver is deprecated and may be removed in a future release. Please use `docker volume create` instead.\n")
+	}
+
 	if !*flDetach {
 		if err := cli.CheckTtyInput(config.AttachStdin, config.Tty); err != nil {
 			return err

@@ -22,6 +22,9 @@ variants:
 
     docker run -c (--cpu-shares)
 
+`docker run --volume-driver` is now deprecated in favor of `docker volume
+create`.
+
 ### Driver Specific Log Tags
 **Deprecated In Release: v1.9**
 
