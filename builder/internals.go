@@ -89,7 +89,7 @@ func (b *builder) commit(ctx context.Context, id string, autoCmd *stringutils.St
 		if runtime.GOOS != "windows" {
 			b.Config.Cmd = stringutils.NewStrSlice("/bin/sh", "-c", "#(nop) "+comment)
 		} else {
-			b.Config.Cmd = stringutils.NewStrSlice("cmd", "/S /C", "REM (nop) "+comment)
+			b.Config.Cmd = stringutils.NewStrSlice("cmd", "/S", "/C", "REM (nop) "+comment)
 		}
 		defer func(cmd *stringutils.StrSlice) { b.Config.Cmd = cmd }(cmd)
 
@@ -220,7 +220,7 @@ func (b *builder) runContextCommand(ctx context.Context, args []string, allowRem
 	if runtime.GOOS != "windows" {
 		b.Config.Cmd = stringutils.NewStrSlice("/bin/sh", "-c", fmt.Sprintf("#(nop) %s %s in %s", cmdName, srcHash, dest))
 	} else {
-		b.Config.Cmd = stringutils.NewStrSlice("cmd", "/S /C", fmt.Sprintf("REM (nop) %s %s in %s", cmdName, srcHash, dest))
+		b.Config.Cmd = stringutils.NewStrSlice("cmd", "/S", "/C", fmt.Sprintf("REM (nop) %s %s in %s", cmdName, srcHash, dest))
 	}
 	defer func(cmd *stringutils.StrSlice) { b.Config.Cmd = cmd }(cmd)
 
