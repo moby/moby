@@ -25,6 +25,9 @@ type DockerCli struct {
 	// initializing closure
 	init func() error
 
+	// initializing closure for config file
+	initConfig func()
+
 	// proto holds the client protocol i.e. unix.
 	proto string
 	// addr holds the client address.
@@ -98,9 +101,21 @@ func NewDockerCli(in io.ReadCloser, out, err io.Writer, clientFlags *cli.ClientF
 		keyFile: clientFlags.Common.TrustKey,
 	}
 
+	cli.initConfig = func() {
+		clientFlags.PostParse()
+		configFile, e := cliconfig.Load(cliconfig.ConfigDir())
+		if e != nil {
+			fmt.Fprintf(cli.err, "WARNING: Error loading config file:%v\n", e)
+		}
+		cli.configFile = configFile
+	}
+
 	cli.init = func() error {
 
-		clientFlags.PostParse()
+		// probably unnecessary since ResolveAlias is always called
+		if cli.configFile == nil {
+			cli.initConfig()
+		}
 
 		hosts := clientFlags.Common.Hosts
 
@@ -155,24 +170,10 @@ func NewDockerCli(in io.ReadCloser, out, err io.Writer, clientFlags *cli.ClientF
 		}
 		sockets.ConfigureTCPTransport(cli.transport, cli.proto, cli.addr)
 
-		// probably unnecessary since ResolveAlias is always called
-		if cli.configFile == nil {
-			cli.initConfig()
-		}
-
 		return nil
 	}
 
 	return cli
-}
-
-// initConfig initialize the config file
-func (dockerCli *DockerCli) initConfig() {
-	configFile, e := cliconfig.Load(cliconfig.ConfigDir())
-	if e != nil {
-		fmt.Fprintf(dockerCli.err, "WARNING: Error loading config file:%v\n", e)
-	}
-	dockerCli.configFile = configFile
 }
 
 func (dockerCli *DockerCli) ResolveAlias(aliasName string) (alias cli.Alias, aliasResolved bool) {

@@ -41,7 +41,7 @@ func expandAlias(cli *DockerCli, key string, showOnlyCommand bool) error {
 			outputAlias(cli, key, command)
 		}
 	} else {
-		return fmt.Errorf("Alias %s does not exist", key)
+		fmt.Fprintf(cli.out, "Alias %s does not exist\n", key)
 	}
 	return nil
 }
@@ -51,7 +51,7 @@ func deleteAlias(cli *DockerCli, key string) error {
 	if err := cli.configFile.Save(); err != nil {
 		return fmt.Errorf("Error saving config file: %v", err)
 	} else {
-		return fmt.Errorf("Alias %s has been deleted", key)
+		fmt.Fprintf(cli.out, "Alias %s has been deleted\n", key)
 	}
 	return nil
 }

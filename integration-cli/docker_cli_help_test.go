@@ -202,6 +202,7 @@ func (s *DockerSuite) TestHelpTextVerify(c *check.C) {
 
 			// These commands will never print a short-usage so don't test
 			noShortUsage := map[string]string{
+				"alias":   "",
 				"images":  "",
 				"login":   "",
 				"logout":  "",
