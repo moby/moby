@@ -308,14 +308,14 @@ func (b *builder) isBuildArgAllowed(arg string) bool {
 //
 // ONBUILD is a special case; in this case the parser will emit:
 // Child[Node, Child[Node, Node...]] where the first node is the literal
-// "onbuild" and the child entrypoint is the command of the ONBUILD statmeent,
+// "onbuild" and the child entrypoint is the command of the ONBUILD statement,
 // such as `RUN` in ONBUILD RUN foo. There is special case logic in here to
 // deal with that, at least until it becomes more of a general concern with new
 // features.
 func (b *builder) dispatch(ctx context.Context, stepN int, ast *parser.Node) error {
 	cmd := ast.Value
 
-	// To ensure the user is give a decent error message if the platform
+	// To ensure the user is given a decent error message if the platform
 	// on which the daemon is running does not support a builder command.
 	if err := platformSupports(strings.ToLower(cmd)); err != nil {
 		return err
