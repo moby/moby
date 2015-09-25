@@ -30,6 +30,9 @@ const (
 	// KVProviderURL constant represents the KV provider URL
 	KVProviderURL = DriverPrefix + ".kv_provider_url"
 
+	// KVProviderConfig constant represents the KV provider Config
+	KVProviderConfig = DriverPrefix + ".kv_provider_config"
+
 	// OverlayBindInterface constant represents overlay driver bind interface
 	OverlayBindInterface = DriverPrefix + ".overlay.bind_interface"
 

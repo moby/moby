@@ -53,8 +53,8 @@ func setupBridgeIPv4(config *networkConfiguration, i *bridgeInterface) error {
 
 	// Do not try to configure IPv4 on a non-default bridge unless you are
 	// specifically asked to do so.
-	if config.BridgeName != DefaultBridgeName && !config.AllowNonDefaultBridge {
-		return NonDefaultBridgeExistError(config.BridgeName)
+	if config.BridgeName != DefaultBridgeName && config.DefaultBridge {
+		return NonDefaultBridgeNeedsIPError(config.BridgeName)
 	}
 
 	bridgeIPv4, err := electBridgeIPv4(config)

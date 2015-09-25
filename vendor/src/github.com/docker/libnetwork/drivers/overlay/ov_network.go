@@ -40,6 +40,10 @@ func (d *driver) CreateNetwork(id string, option map[string]interface{}) error {
 		return fmt.Errorf("invalid network id")
 	}
 
+	if err := d.configure(); err != nil {
+		return err
+	}
+
 	n := &network{
 		id:        id,
 		driver:    d,
@@ -297,6 +301,10 @@ func (n *network) Exists() bool {
 	return n.dbExists
 }
 
+func (n *network) Skip() bool {
+	return false
+}
+
 func (n *network) SetValue(value []byte) error {
 	var vni uint32
 	err := json.Unmarshal(value, &vni)
@@ -304,6 +312,10 @@ func (n *network) SetValue(value []byte) error {
 		n.setVxlanID(vni)
 	}
 	return err
+}
+
+func (n *network) DataScope() datastore.DataScope {
+	return datastore.GlobalScope
 }
 
 func (n *network) writeToStore() error {

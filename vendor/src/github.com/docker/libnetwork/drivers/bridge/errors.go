@@ -211,6 +211,17 @@ func (ndbee NonDefaultBridgeExistError) Error() string {
 // Forbidden denotes the type of this error
 func (ndbee NonDefaultBridgeExistError) Forbidden() {}
 
+// NonDefaultBridgeNeedsIPError is returned when a non-default
+// bridge config is passed but it has no ip configured
+type NonDefaultBridgeNeedsIPError string
+
+func (ndbee NonDefaultBridgeNeedsIPError) Error() string {
+	return fmt.Sprintf("bridge device with non default name %s must have a valid IP address", string(ndbee))
+}
+
+// Forbidden denotes the type of this error
+func (ndbee NonDefaultBridgeNeedsIPError) Forbidden() {}
+
 // FixedCIDRv4Error is returned when fixed-cidrv4 configuration
 // failed.
 type FixedCIDRv4Error struct {

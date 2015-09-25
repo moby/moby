@@ -54,16 +54,15 @@ func (sb *sandbox) processOptions(options ...SandboxOption) {
 type epHeap []*endpoint
 
 type sandbox struct {
-	id          string
-	containerID string
-	config      containerConfig
-	osSbox      osl.Sandbox
-	controller  *controller
-	refCnt      int
-	endpoints   epHeap
-	epPriority  map[string]int
-	//hostsPath      string
-	//resolvConfPath string
+	id            string
+	containerID   string
+	config        containerConfig
+	osSbox        osl.Sandbox
+	controller    *controller
+	refCnt        int
+	hostsOnce     sync.Once
+	endpoints     epHeap
+	epPriority    map[string]int
 	joinLeaveDone chan struct{}
 	sync.Mutex
 }
@@ -149,6 +148,11 @@ func (sb *sandbox) Delete() error {
 
 	// Detach from all endpoints
 	for _, ep := range sb.getConnectedEndpoints() {
+		// endpoint in the Gateway network will be cleaned up
+		// when when sandbox no longer needs external connectivity
+		if ep.endpointInGWNetwork() {
+			continue
+		}
 		if err := ep.Leave(sb); err != nil {
 			log.Warnf("Failed detaching sandbox %s from endpoint %s: %v\n", sb.ID(), ep.ID(), err)
 		}
@@ -342,15 +346,16 @@ func (sb *sandbox) populateNetworkResources(ep *endpoint) error {
 		}
 	}
 
-	sb.Lock()
-	highEp := sb.endpoints[0]
-	sb.Unlock()
-	if ep == highEp {
-		if err := sb.updateGateway(ep); err != nil {
-			return err
+	for _, gwep := range sb.getConnectedEndpoints() {
+		if len(gwep.Gateway()) > 0 {
+			if gwep != ep {
+				return nil
+			}
+			if err := sb.updateGateway(gwep); err != nil {
+				return err
+			}
 		}
 	}
-
 	return nil
 }
 
@@ -389,26 +394,33 @@ func (sb *sandbox) clearNetworkResources(ep *endpoint) error {
 		return nil
 	}
 
-	highEpBefore := sb.endpoints[0]
 	var (
-		i int
-		e *endpoint
+		gwepBefore, gwepAfter *endpoint
+		index                 = -1
 	)
-	for i, e = range sb.endpoints {
+	for i, e := range sb.endpoints {
 		if e == ep {
+			index = i
+		}
+		if len(e.Gateway()) > 0 && gwepBefore == nil {
+			gwepBefore = e
+		}
+		if index != -1 && gwepBefore != nil {
 			break
 		}
 	}
-	heap.Remove(&sb.endpoints, i)
-	var highEpAfter *endpoint
-	if len(sb.endpoints) > 0 {
-		highEpAfter = sb.endpoints[0]
+	heap.Remove(&sb.endpoints, index)
+	for _, e := range sb.endpoints {
+		if len(e.Gateway()) > 0 {
+			gwepAfter = e
+			break
+		}
 	}
 	delete(sb.epPriority, ep.ID())
 	sb.Unlock()
 
-	if highEpBefore != highEpAfter {
-		sb.updateGateway(highEpAfter)
+	if gwepAfter != nil && gwepBefore != gwepAfter {
+		sb.updateGateway(gwepAfter)
 	}
 
 	return nil
@@ -447,22 +459,47 @@ func (sb *sandbox) buildHostsFile() error {
 }
 
 func (sb *sandbox) updateHostsFile(ifaceIP string, svcRecords []etchosts.Record) error {
+	var err error
+
 	if sb.config.originHostsPath != "" {
 		return nil
 	}
 
-	// Rebuild the hosts file accounting for the passed interface IP and service records
-	extraContent := make([]etchosts.Record, 0, len(sb.config.extraHosts)+len(svcRecords))
+	max := func(a, b int) int {
+		if a < b {
+			return b
+		}
 
-	for _, extraHost := range sb.config.extraHosts {
-		extraContent = append(extraContent, etchosts.Record{Hosts: extraHost.name, IP: extraHost.IP})
+		return a
 	}
 
+	extraContent := make([]etchosts.Record, 0,
+		max(len(sb.config.extraHosts), len(svcRecords)))
+
+	sb.hostsOnce.Do(func() {
+		// Rebuild the hosts file accounting for the passed
+		// interface IP and service records
+
+		for _, extraHost := range sb.config.extraHosts {
+			extraContent = append(extraContent,
+				etchosts.Record{Hosts: extraHost.name, IP: extraHost.IP})
+		}
+
+		err = etchosts.Build(sb.config.hostsPath, ifaceIP,
+			sb.config.hostName, sb.config.domainName, extraContent)
+	})
+
+	if err != nil {
+		return err
+	}
+
+	extraContent = extraContent[:0]
 	for _, svc := range svcRecords {
 		extraContent = append(extraContent, svc)
 	}
 
-	return etchosts.Build(sb.config.hostsPath, ifaceIP, sb.config.hostName, sb.config.domainName, extraContent)
+	sb.addHostsEntries(extraContent)
+	return nil
 }
 
 func (sb *sandbox) addHostsEntries(recs []etchosts.Record) {
@@ -629,6 +666,38 @@ func (sb *sandbox) updateDNS(ipv6Enabled bool) error {
 	return os.Rename(tmpResolvFile.Name(), sb.config.resolvConfPath)
 }
 
+// joinLeaveStart waits to ensure there are no joins or leaves in progress and
+// marks this join/leave in progress without race
+func (sb *sandbox) joinLeaveStart() {
+	sb.Lock()
+	defer sb.Unlock()
+
+	for sb.joinLeaveDone != nil {
+		joinLeaveDone := sb.joinLeaveDone
+		sb.Unlock()
+
+		select {
+		case <-joinLeaveDone:
+		}
+
+		sb.Lock()
+	}
+
+	sb.joinLeaveDone = make(chan struct{})
+}
+
+// joinLeaveEnd marks the end of this join/leave operation and
+// signals the same without race to other join and leave waiters
+func (sb *sandbox) joinLeaveEnd() {
+	sb.Lock()
+	defer sb.Unlock()
+
+	if sb.joinLeaveDone != nil {
+		close(sb.joinLeaveDone)
+		sb.joinLeaveDone = nil
+	}
+}
+
 // OptionHostname function returns an option setter for hostname option to
 // be passed to NewSandbox method.
 func OptionHostname(name string) SandboxOption {
@@ -747,6 +816,17 @@ func (eh epHeap) Len() int { return len(eh) }
 func (eh epHeap) Less(i, j int) bool {
 	ci, _ := eh[i].getSandbox()
 	cj, _ := eh[j].getSandbox()
+
+	epi := eh[i]
+	epj := eh[j]
+
+	if epi.endpointInGWNetwork() {
+		return false
+	}
+
+	if epj.endpointInGWNetwork() {
+		return true
+	}
 
 	cip, ok := ci.epPriority[eh[i].ID()]
 	if !ok {
