@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/url"
 	"strings"
 	"text/template"
 
@@ -27,6 +28,7 @@ func (cli *DockerCli) CmdInspect(args ...string) error {
 	cmd := Cli.Subcmd("inspect", []string{"CONTAINER|IMAGE [CONTAINER|IMAGE...]"}, Cli.DockerCommands["inspect"].Description, true)
 	tmplStr := cmd.String([]string{"f", "#format", "-format"}, "", "Format the output using the given go template")
 	inspectType := cmd.String([]string{"-type"}, "", "Return JSON for specified type, (e.g image or container)")
+	size := cmd.Bool([]string{"s", "-size"}, false, "Display total file sizes if the type is container")
 	cmd.Require(flag.Min, 1)
 
 	cmd.ParseFlags(args, true)
@@ -51,10 +53,15 @@ func (cli *DockerCli) CmdInspect(args ...string) error {
 	status := 0
 	isImage := false
 
+	v := url.Values{}
+	if *size {
+		v.Set("size", "1")
+	}
+
 	for _, name := range cmd.Args() {
 
 		if *inspectType == "" || *inspectType == "container" {
-			obj, _, err = readBody(cli.call("GET", "/containers/"+name+"/json", nil, nil))
+			obj, _, err = readBody(cli.call("GET", "/containers/"+name+"/json?"+v.Encode(), nil, nil))
 			if err != nil && *inspectType == "container" {
 				if strings.Contains(err.Error(), "No such") {
 					fmt.Fprintf(cli.err, "Error: No such container: %s\n", name)

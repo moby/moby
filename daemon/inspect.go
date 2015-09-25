@@ -11,7 +11,7 @@ import (
 // ContainerInspect returns low-level information about a
 // container. Returns an error if the container cannot be found, or if
 // there is an error getting the data.
-func (daemon *Daemon) ContainerInspect(name string) (*types.ContainerJSON, error) {
+func (daemon *Daemon) ContainerInspect(name string, size bool) (*types.ContainerJSON, error) {
 	container, err := daemon.Get(name)
 	if err != nil {
 		return nil, err
@@ -20,7 +20,7 @@ func (daemon *Daemon) ContainerInspect(name string) (*types.ContainerJSON, error
 	container.Lock()
 	defer container.Unlock()
 
-	base, err := daemon.getInspectData(container)
+	base, err := daemon.getInspectData(container, size)
 	if err != nil {
 		return nil, err
 	}
@@ -40,7 +40,7 @@ func (daemon *Daemon) ContainerInspect120(name string) (*v1p20.ContainerJSON, er
 	container.Lock()
 	defer container.Unlock()
 
-	base, err := daemon.getInspectData(container)
+	base, err := daemon.getInspectData(container, false)
 	if err != nil {
 		return nil, err
 	}
@@ -54,7 +54,7 @@ func (daemon *Daemon) ContainerInspect120(name string) (*v1p20.ContainerJSON, er
 	return &v1p20.ContainerJSON{base, mountPoints, config}, nil
 }
 
-func (daemon *Daemon) getInspectData(container *Container) (*types.ContainerJSONBase, error) {
+func (daemon *Daemon) getInspectData(container *Container, size bool) (*types.ContainerJSONBase, error) {
 	// make a copy to play with
 	hostConfig := *container.hostConfig
 
@@ -104,6 +104,16 @@ func (daemon *Daemon) getInspectData(container *Container) (*types.ContainerJSON
 		ProcessLabel:    container.ProcessLabel,
 		ExecIDs:         container.getExecIDs(),
 		HostConfig:      &hostConfig,
+	}
+
+	var (
+		sizeRw     int64
+		sizeRootFs int64
+	)
+	if size {
+		sizeRw, sizeRootFs = container.getSize()
+		contJSONBase.SizeRw = &sizeRw
+		contJSONBase.SizeRootFs = &sizeRootFs
 	}
 
 	// Now set any platform-specific fields

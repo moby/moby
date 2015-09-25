@@ -92,6 +92,7 @@ list of DNS options to be used in the container.
 * `GET /info` now lists engine version information.
 * `GET /containers/json` will return `ImageID` of the image used by container.
 * `POST /exec/(name)/start` will now return an HTTP 409 when the container is either stopped or paused.
+* `GET /containers/(name)/json` now accepts a `size` parameter. Setting this parameter to '1' returns container size information in the `SizeRw` and `SizeRootFs` fields.
 
 ### v1.20 API changes
 
