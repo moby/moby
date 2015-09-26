@@ -1892,6 +1892,8 @@ Query Parameters:
 -   **comment** – commit message
 -   **author** – author (e.g., "John Hannibal Smith
     <[hannibal@a-team.com](mailto:hannibal%40a-team.com)>")
+-   **pause** – 1/True/true or 0/False/false, whether to pause the container before committing
+-   **changes** – Dockerfile instructions to apply while committing
 
 Status Codes:
 
