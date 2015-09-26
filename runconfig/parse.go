@@ -2,6 +2,7 @@ package runconfig
 
 import (
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 
@@ -75,6 +76,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		flContainerIDFile   = cmd.String([]string{"#cidfile", "-cidfile"}, "", "Write the container ID to the file")
 		flEntrypoint        = cmd.String([]string{"#entrypoint", "-entrypoint"}, "", "Overwrite the default ENTRYPOINT of the image")
 		flHostname          = cmd.String([]string{"h", "-hostname"}, "", "Container host name")
+		flHostenvs          = cmd.Bool([]string{"H", "-hostenvs"}, false, "Pass through host ENVIRONMENT variables")
 		flMemoryString      = cmd.String([]string{"m", "-memory"}, "", "Memory limit")
 		flMemoryReservation = cmd.String([]string{"-memory-reservation"}, "", "Memory soft limit")
 		flMemorySwap        = cmd.String([]string{"-memory-swap"}, "", "Total memory (memory + swap), '-1' to disable swap")
@@ -282,6 +284,11 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 	envVariables, err := readKVStrings(flEnvFile.GetAll(), flEnv.GetAll())
 	if err != nil {
 		return nil, nil, cmd, err
+	}
+
+	// add in host environments if asked for
+	if *flHostenvs {
+		envVariables = append(envVariables, os.Environ()...)
 	}
 
 	// collect all the labels for the container
