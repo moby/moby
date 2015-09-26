@@ -2,7 +2,6 @@
 package osl
 
 import (
-	"fmt"
 	"net"
 
 	"github.com/docker/libnetwork/types"
@@ -150,22 +149,5 @@ type Interface interface {
 	Remove() error
 
 	// Statistics returns the statistics for this interface
-	Statistics() (*InterfaceStatistics, error)
-}
-
-// InterfaceStatistics represents the interface's statistics
-type InterfaceStatistics struct {
-	RxBytes   uint64
-	RxPackets uint64
-	RxErrors  uint64
-	RxDropped uint64
-	TxBytes   uint64
-	TxPackets uint64
-	TxErrors  uint64
-	TxDropped uint64
-}
-
-func (is *InterfaceStatistics) String() string {
-	return fmt.Sprintf("\nRxBytes: %d, RxPackets: %d, RxErrors: %d, RxDropped: %d, TxBytes: %d, TxPackets: %d, TxErrors: %d, TxDropped: %d",
-		is.RxBytes, is.RxPackets, is.RxErrors, is.RxDropped, is.TxBytes, is.TxPackets, is.TxErrors, is.TxDropped)
+	Statistics() (*types.InterfaceStatistics, error)
 }

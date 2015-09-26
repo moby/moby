@@ -1172,7 +1172,7 @@ func (f *fakeSandbox) Labels() map[string]interface{} {
 	return nil
 }
 
-func (f *fakeSandbox) Statistics() (map[string]*osl.InterfaceStatistics, error) {
+func (f *fakeSandbox) Statistics() (map[string]*types.InterfaceStatistics, error) {
 	return nil, nil
 }
 
