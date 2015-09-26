@@ -24,6 +24,7 @@ docker-create - Create a new container
 [**--device-read-iops**[=*[]*]]
 [**--device-write-bps**[=*[]*]]
 [**--device-write-iops**[=*[]*]]
+[**--disable-content-trust**[=*true*]]
 [**--dns**[=*[]*]]
 [**--dns-search**[=*[]*]]
 [**--dns-opt**[=*[]*]]
@@ -59,7 +60,7 @@ docker-create - Create a new container
 [**-p**|**--publish**[=*[]*]]
 [**--pid**[=*[]*]]
 [**--privileged**]
-[**--pull**[=*false*]]
+[**--pull**[=*<content-trust>*]]]
 [**--read-only**]
 [**--restart**[=*RESTART*]]
 [**--security-opt**[=*[]*]]
@@ -144,6 +145,9 @@ two memory nodes.
 
 **--device-write-iops**=[]
     Limit write rate (IO per second) to a device (e.g. --device-write-iops=/dev/sda:1000)
+
+**--disable-content-trust**=*true*|*false*
+   Skip image verification. The default is the inverse of the DOCKER_CONTENT_TRUST environment value, if set, otherwise the default is *true*.
 
 **--dns**=[]
    Set custom DNS servers
@@ -295,7 +299,7 @@ unit, `b` is used. Set LIMIT to `-1` to enable unlimited swap.
    Give extended privileges to this container. The default is *false*.
 
 **--pull**=*true*|*false*
-   Always attempt to pull a newer version of the image.
+   Always attempt to pull a newer version of the image. The default is set to whether or not content-trust is enabled.  See --disable-content-trust.
 
 **--read-only**=*true*|*false*
    Mount the container's root filesystem as read only.

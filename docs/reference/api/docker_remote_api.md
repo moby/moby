@@ -128,6 +128,7 @@ This section lists each version from latest to oldest.  Each listing includes a 
 * `GET /networks/{network-id}` Now returns IPAM config options for custom IPAM plugins if any
   are available.
 * `GET /networks/<network-id>` now returns subnets info for user-defined networks.
+* `POST /build` now takes a string `pull` parameter instead of a boolean.  Can be one of 'never', 'missing', or 'always'.
 
 ### v1.21 API changes
 

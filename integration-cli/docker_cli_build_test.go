@@ -6619,3 +6619,71 @@ func (s *DockerSuite) TestBuildFailsGitNotCallable(c *check.C) {
 	c.Assert(err, checker.NotNil)
 	c.Assert(out, checker.Contains, "unable to prepare context: unable to find 'git': ")
 }
+
+func (s *DockerSuite) TestBuildWithPull(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+	name := "testbuildpull"
+	dockerFile := `
+	FROM hello-world
+	`
+
+	// FROM image is pulled when missing (default)
+	_, out, err := buildImageWithOut(name, dockerFile, true)
+	c.Assert(err, check.IsNil, check.Commentf(out))
+	c.Assert(out, checker.Contains, "Pulling from ", check.Commentf("expected pull fallback"))
+
+	// FROM image is not pulled if already exists
+	_, out, err = buildImageWithOut(name, dockerFile, true)
+	c.Assert(err, check.IsNil, check.Commentf(out))
+	c.Assert(out, check.Not(checker.Contains), "Pulling from ", check.Commentf("unexpected pull fallback"))
+
+	// build with --pull stills try to pull the image from hub
+	// even if the image exists on local
+	_, out, err = buildImageWithOut(name, dockerFile, true, "--pull")
+	c.Assert(err, check.IsNil, check.Commentf(out))
+	if !(strings.Contains(out, "Downloaded newer image for hello-world:latest") || strings.Contains(out, "Image is up to date for hello-world:latest")) {
+		c.Fatalf("expected to download latest image from docker hub")
+	}
+}
+
+func (s *DockerTrustSuite) TestTrustedBuildWithPull(c *check.C) {
+	repoName := s.setupTrustedImage(c, "trusted-build-with-pull")
+	name := "testtrustedbuildpull"
+	dockerFile := fmt.Sprintf(`
+	FROM %s
+	`, repoName)
+
+	// FROM image is pulled when missing (default)
+	buildCmd := buildImageCmd(name, dockerFile, true)
+	s.trustedCmd(buildCmd)
+	out, _, err := runCommandWithOutput(buildCmd)
+	c.Assert(err, check.IsNil, check.Commentf(out))
+	c.Assert(out, checker.Contains, "Pulling from ", check.Commentf("expected pull fallback"))
+
+	// FROM image is not pulled if it already exists
+	// build with --pull (default, for trust) verifies the image is up to date
+	// no pull should be performed in this case (just verification)
+	buildCmd = buildImageCmd(name, dockerFile, true, "--pull")
+	s.trustedCmd(buildCmd)
+	out, _, err = runCommandWithOutput(buildCmd)
+	c.Assert(err, check.IsNil, check.Commentf(out))
+	c.Assert(out, checker.Contains, "successfully verified targets", check.Commentf("expected trust verification"))
+	c.Assert(out, checker.Not(checker.Contains), "Pulling from ", check.Commentf("unexpected pull fallback"))
+
+	// FROM image with --pull=false is neither pulled nor verified
+	buildCmd = buildImageCmd(name, dockerFile, true, "--pull=false")
+	s.trustedCmd(buildCmd)
+	out, _, err = runCommandWithOutput(buildCmd)
+	c.Assert(err, check.IsNil, check.Commentf(out))
+	c.Assert(out, checker.Not(checker.Contains), "successfully verified targets", check.Commentf("unexpected trust verification"))
+	c.Assert(out, checker.Not(checker.Contains), "Pulling from ", check.Commentf("unexpected pull"))
+
+	// FROM image with --pull=false is neither pulled nor verified
+	// gives an error if there is no local image
+	dockerCmd(c, "rmi", repoName)
+	buildCmd = buildImageCmd(name, dockerFile, true, "--pull=false")
+	s.trustedCmd(buildCmd)
+	out, _, err = runCommandWithOutput(buildCmd)
+	c.Assert(err, check.NotNil, check.Commentf("expected error on trusted --pull=false:\n%s", out))
+	c.Assert(out, checker.Contains, "no such id", check.Commentf("out: %s", out))
+}

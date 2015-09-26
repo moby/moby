@@ -1591,7 +1591,10 @@ Query Parameters:
 		called `Dockerfile`.
 -   **q** – Suppress verbose build output.
 -   **nocache** – Do not use the cache when building the image.
--   **pull** - Attempt to pull the image even if an older image exists locally.
+-   **pull** - String value containing the pull behavior to use for parent image.  The default value is `missing`. Can be set to one of:
+        + `never` pull parent image.  Will produce error if no local image exists.
+        + `missing` image will be pulled.  Local image will be used if it exists.
+        + `always` pull parent image, even if there is already a matching local image.
 -   **rm** - Remove intermediate containers after a successful build (default behavior).
 -   **forcerm** - Always remove intermediate containers (includes `rm`).
 -   **memory** - Set memory limit for build.

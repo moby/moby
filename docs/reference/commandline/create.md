@@ -75,7 +75,7 @@ Creates a new container.
       -p, --publish=[]              Publish a container's port(s) to the host
       --pid=""                      PID namespace to use
       --privileged                  Give extended privileges to this container
-      --pull=false                  Always attempt to pull a newer version of the image
+      --pull=<content-trust>        Always attempt to pull a newer version of the image
       --read-only                   Mount the container's root filesystem as read only
       --restart="no"                Restart policy (no, on-failure[:max-retry], always, unless-stopped)
       --security-opt=[]             Security options

@@ -26,6 +26,7 @@ docker-run - Run a command in a new container
 [**--device-read-iops**[=*[]*]]
 [**--device-write-bps**[=*[]*]]
 [**--device-write-iops**[=*[]*]]
+[**--disable-content-trust**[=*true*]]
 [**--dns**[=*[]*]]
 [**--dns-opt**[=*[]*]]
 [**--dns-search**[=*[]*]]
@@ -61,7 +62,7 @@ docker-run - Run a command in a new container
 [**-p**|**--publish**[=*[]*]]
 [**--pid**[=*[]*]]
 [**--privileged**]
-[**--pull**[=*false*]]
+[**--pull**[=*<content-trust>*]]]
 [**--read-only**]
 [**--restart**[=*RESTART*]]
 [**--rm**]
@@ -217,6 +218,9 @@ See **config-json(5)** for documentation on using a configuration file.
 
 **--device-write-iops**=[]
    Limit write rate a a device (e.g. --device-write-iops=/dev/sda:1000)
+
+**--disable-content-trust**=*true*|*false*
+   Skip image verification. The default is the inverse of the DOCKER_CONTENT_TRUST environment value, if set, otherwise the default is *true*.
 
 **--dns-search**=[]
    Set custom DNS search domains (Use --dns-search=. if you don't wish to set the search domain)
@@ -440,7 +444,7 @@ allow the container nearly all the same access to the host as processes running
 outside of a container on the host.
 
 **--pull**=*true*|*false*
-   Always attempt to pull a newer version of the image.
+   Always attempt to pull a newer version of the image. The default is set to whether or not content-trust is enabled.  See --disable-content-trust.
 
 **--read-only**=*true*|*false*
    Mount the container's root filesystem as read only.

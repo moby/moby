@@ -9,12 +9,13 @@ docker-build - Build a new image from the source code at PATH
 [**--build-arg**[=*[]*]]
 [**--cpu-shares**[=*0*]]
 [**--cgroup-parent**[=*CGROUP-PARENT*]]
+[**--disable-content-trust**[=*true*]]
 [**--help**]
 [**-f**|**--file**[=*PATH/Dockerfile*]]
 [**--force-rm**]
 [**--isolation**[=*default*]]
 [**--no-cache**]
-[**--pull**]
+[**--pull**[=*<content-trust>*]]]
 [**-q**|**--quiet**]
 [**--rm**[=*true*]]
 [**-t**|**--tag**[=*[]*]]
@@ -78,7 +79,7 @@ set as the **URL**, the repository is cloned locally and then sent as the contex
   Print usage statement
 
 **--pull**=*true*|*false*
-   Always attempt to pull a newer version of the image. The default is *false*.
+   Always attempt to pull a newer version of the FROM image. The default is set to whether or not content-trust is enabled.  See --disable-content-trust.
 
 **-q**, **--quiet**=*true*|*false*
    Suppress the build output and print image ID on success. The default is *false*.
@@ -188,6 +189,10 @@ two memory nodes.
 
   If the path is not absolute, the path is considered relative to the `cgroups` path of the init process.
 Cgroups are created if they do not already exist.
+
+**--disable-content-trust**=*true*|*false*
+  Skip image verification. The default is the inverse of the DOCKER_CONTENT_TRUST environment value, if set, otherwise the default is *true*.
+
 
 **--ulimit**=[]
   Ulimit options

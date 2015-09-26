@@ -13,6 +13,7 @@ import (
 	"github.com/docker/engine-api/client"
 	"github.com/docker/engine-api/types"
 	"github.com/docker/engine-api/types/container"
+	"github.com/docker/engine-api/types/image"
 	networktypes "github.com/docker/engine-api/types/network"
 )
 
@@ -22,7 +23,8 @@ type createConfig struct {
 	networkingConfig *networktypes.NetworkingConfig // NetworkingConfig of the container
 	cidfile          string                         // File the where the ContainerID is written
 	name             string                         // The name assign to the container
-	pull             bool                           // Always to pull a newer version of the image
+	pull             image.PullBehavior             // How to deal with image pulls
+	translator       reference.TranslatorFunc       // Callback for trusted reference conversion
 }
 
 func (cli *DockerCli) pullImage(image string) error {
@@ -91,16 +93,11 @@ func newCIDFile(path string) (*cidFile, error) {
 
 func (cli *DockerCli) createContainer(createConfig *createConfig) (*types.ContainerCreateResponse, error) {
 	config := createConfig.config
-	hostConfig := createConfig.hostConfig
-	networkingConfig := createConfig.networkingConfig
-	cidfile := createConfig.cidfile
-	name := createConfig.name
-	pull := createConfig.pull
-
 	var containerIDFile *cidFile
-	if cidfile != "" {
+
+	if createConfig.cidfile != "" {
 		var err error
-		if containerIDFile, err = newCIDFile(cidfile); err != nil {
+		if containerIDFile, err = newCIDFile(createConfig.cidfile); err != nil {
 			return nil, err
 		}
 		defer containerIDFile.Close()
@@ -112,47 +109,60 @@ func (cli *DockerCli) createContainer(createConfig *createConfig) (*types.Contai
 	}
 	ref = reference.WithDefaultTag(ref)
 
-	var trustedRef reference.Canonical
-
-	if pull {
+	var (
+		namedTaggedRef reference.NamedTagged
+		trustedRef     reference.Canonical
+	)
+	if createConfig.translator != nil {
+		// Updating config.Image to the trusted (notary) reference
+		// should be sufficient to deal with --pull=true on the first create attempt.
+		// Note: This update is only attempted in the case of a NamedTagged reference.
+		var ok bool
+		if namedTaggedRef, ok = ref.(reference.NamedTagged); ok {
+			trustedRef, err = createConfig.translator(namedTaggedRef)
+			if err != nil {
+				return nil, err
+			}
+			config.Image = trustedRef.String()
+		}
+	}
+	if createConfig.pull == image.PullAlways {
 		if err := cli.pullImageCustomOut(config.Image, cli.err); err != nil {
 			return nil, err
 		}
 	}
 
-	if ref, ok := ref.(reference.NamedTagged); ok && isTrusted() {
-		var err error
-		trustedRef, err = cli.trustedReference(ref)
-		if err != nil {
+	//create the container
+	response, err := cli.client.ContainerCreate(config, createConfig.hostConfig, createConfig.networkingConfig, createConfig.name)
+
+	if err != nil {
+		// deal with image not found case, return error for anything else.
+		if !client.IsErrImageNotFound(err) {
 			return nil, err
 		}
-		config.Image = trustedRef.String()
-	}
-	//create the container
-	response, err := cli.client.ContainerCreate(config, hostConfig, networkingConfig, name)
 
-	//if image not found try to pull it
-	if err != nil {
-		if client.IsErrImageNotFound(err) {
-			fmt.Fprintf(cli.err, "Unable to find image '%s' locally\n", ref.String())
+		fmt.Fprintf(cli.err, "Unable to find image '%s' locally\n", ref.String())
 
-			// we don't want to write to stdout anything apart from container.ID
-			if err = cli.pullImageCustomOut(config.Image, cli.err); err != nil {
+		if createConfig.pull != image.PullMissing {
+			return nil, err
+		}
+
+		// we don't want to write to stdout anything apart from container.ID
+		if err = cli.pullImageCustomOut(config.Image, cli.err); err != nil {
+			return nil, err
+		}
+		if trustedRef != nil {
+			// We successfully pulled an updated trusted image for the given named reference.
+			// Tag it with the trusted canonical reference.
+			if err := cli.tagTrusted(trustedRef, namedTaggedRef); err != nil {
 				return nil, err
 			}
-			if ref, ok := ref.(reference.NamedTagged); ok && trustedRef != nil {
-				if err := cli.tagTrusted(trustedRef, ref); err != nil {
-					return nil, err
-				}
-			}
-			// Retry
-			var retryErr error
-			response, retryErr = cli.client.ContainerCreate(config, hostConfig, networkingConfig, name)
-			if retryErr != nil {
-				return nil, retryErr
-			}
-		} else {
-			return nil, err
+		}
+		// Retry
+		var retryErr error
+		response, retryErr = cli.client.ContainerCreate(config, createConfig.hostConfig, createConfig.networkingConfig, createConfig.name)
+		if retryErr != nil {
+			return nil, retryErr
 		}
 	}
 
@@ -172,7 +182,7 @@ func (cli *DockerCli) createContainer(createConfig *createConfig) (*types.Contai
 // Usage: docker create [OPTIONS] IMAGE [COMMAND] [ARG...]
 func (cli *DockerCli) CmdCreate(args ...string) error {
 	cmd := Cli.Subcmd("create", []string{"IMAGE [COMMAND] [ARG...]"}, Cli.DockerCommands["create"].Description, true)
-	flPull := cmd.Bool([]string{"-pull"}, false, "Always attempt to pull a newer version of the image")
+	flPull := addPullFlag(cmd)
 	addTrustedFlags(cmd, true)
 
 	// These are flags not stored in Config/HostConfig
@@ -190,13 +200,16 @@ func (cli *DockerCli) CmdCreate(args ...string) error {
 		cmd.Usage()
 		return nil
 	}
+
+	pullBehavior, translator := cli.trustedPullBehavior(flPull.Val())
 	createConfig := &createConfig{
 		config:           config,
 		hostConfig:       hostConfig,
 		networkingConfig: networkingConfig,
 		cidfile:          hostConfig.ContainerIDFile,
 		name:             *flName,
-		pull:             *flPull,
+		pull:             pullBehavior,
+		translator:       translator,
 	}
 	response, err := cli.createContainer(createConfig)
 	if err != nil {

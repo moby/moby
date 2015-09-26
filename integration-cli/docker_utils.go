@@ -1241,7 +1241,7 @@ func getContainerState(c *check.C, id string) (int, bool, error) {
 }
 
 func buildImageCmd(name, dockerfile string, useCache bool, buildFlags ...string) *exec.Cmd {
-	args := []string{"-D", "build", "-t", name}
+	args := []string{"-D", "-l", "debug", "build", "-t", name}
 	if !useCache {
 		args = append(args, "--no-cache")
 	}
@@ -1626,7 +1626,7 @@ func buildImageWithOutInDamon(socket string, name, dockerfile string, useCache b
 }
 
 func buildImageCmdArgs(args []string, name, dockerfile string, useCache bool) *exec.Cmd {
-	args = append(args, []string{"-D", "build", "-t", name}...)
+	args = append(args, []string{"-D", "-l", "debug", "build", "-t", name}...)
 	if !useCache {
 		args = append(args, "--no-cache")
 	}
