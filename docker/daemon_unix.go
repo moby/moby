@@ -3,7 +3,6 @@
 package main
 
 import (
-	"fmt"
 	"os"
 	"syscall"
 
@@ -12,6 +11,7 @@ import (
 	"github.com/docker/docker/pkg/system"
 
 	_ "github.com/docker/docker/daemon/execdriver/native"
+	derr "github.com/docker/docker/errors"
 )
 
 func setPlatformServerConfig(serverConfig *apiserver.Config, daemonCfg *daemon.Config) *apiserver.Config {
@@ -39,7 +39,7 @@ func setDefaultUmask() error {
 	desiredUmask := 0022
 	syscall.Umask(desiredUmask)
 	if umask := syscall.Umask(desiredUmask); umask != desiredUmask {
-		return fmt.Errorf("failed to set umask: expected %#o, got %#o", desiredUmask, umask)
+		return derr.ErrorCodeSetUmaskFailed.WithArgs(desiredUmask, umask)
 	}
 
 	return nil
