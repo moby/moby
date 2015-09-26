@@ -254,8 +254,6 @@ made through a pull request.
 	#
 	# It is common for core maintainers to "branch out" to join or start a subsystem.
 
-
-
 		people = [
 			"calavera",
 			"crosbymichael",
@@ -268,10 +266,10 @@ made through a pull request.
 			"tibor",
 			"unclejack",
 			"vbatts",
+			"vdemeester",
 			"vieux",
 			"vishh"
 		]
-
 
 	[Org.Subsystems]
 
@@ -570,6 +568,11 @@ made through a pull request.
 	Name = "Vincent Batts"
 	Email = "vbatts@redhat.com"
 	GitHub = "vbatts"
+
+	[people.vdemeester]
+	Name = "Vincent Demeester"
+	Email = "vincent@sbr.pm"
+	GitHub = "vdemeester"
 
 	[people.vieux]
 	Name = "Victor Vieux"
