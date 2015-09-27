@@ -254,8 +254,6 @@ made through a pull request.
 	#
 	# It is common for core maintainers to "branch out" to join or start a subsystem.
 
-
-
 		people = [
 			"calavera",
 			"crosbymichael",
@@ -268,10 +266,10 @@ made through a pull request.
 			"tibor",
 			"unclejack",
 			"vbatts",
+			"vdemeester",
 			"vieux",
 			"vishh"
 		]
-
 
 	[Org.Subsystems]
 
@@ -511,6 +509,11 @@ made through a pull request.
 	Email = "josh.hawn@docker.com"
 	Github = "jlhawn"
 
+	[people.jnagal]
+	Name = "Rohit Jnagal"
+	Email = "jnagal@google.com"
+	GitHub = "rjnagal"
+
 	[people.lk4d4]
 	Name = "Alexander Morozov"
 	Email = "lk4d4@docker.com"
@@ -520,6 +523,11 @@ made through a pull request.
 	Name = "Mary Anthony"
 	Email = "mary.anthony@docker.com"
 	GitHub = "moxiegirl"
+
+	[people.mpatel]
+	Name = "Mrunal Patel"
+	Email = "mpatel@redhat.com"
+	GitHub = "mrunalp"
 
 	[people.nathanmccauley]
 	Name = "Nathan McCauley"
@@ -566,37 +574,32 @@ made through a pull request.
 	Email = "tibor@docker.com"
 	GitHub = "tiborvass"
 
+	[people.unclejack]
+	Name = "Cristian Staretu"
+	Email = "cristian.staretu@gmail.com"
+	GitHub = "unclejack"
+
 	[people.vbatts]
 	Name = "Vincent Batts"
 	Email = "vbatts@redhat.com"
 	GitHub = "vbatts"
+
+	[people.vdemeester]
+	Name = "Vincent Demeester"
+	Email = "vincent@sbr.pm"
+	GitHub = "vdemeester"
 
 	[people.vieux]
 	Name = "Victor Vieux"
 	Email = "vieux@docker.com"
 	GitHub = "vieux"
 
-	[people.vmarmol]
-	Name = "Victor Marmol"
-	Email = "vmarmol@google.com"
-	GitHub = "vmarmol"
-
-	[people.jnagal]
-	Name = "Rohit Jnagal"
-	Email = "jnagal@google.com"
-	GitHub = "rjnagal"
-
-	[people.mpatel]
-	Name = "Mrunal Patel"
-	Email = "mpatel@redhat.com"
-	GitHub = "mrunalp"
-
-	[people.unclejack]
-	Name = "Cristian Staretu"
-	Email = "cristian.staretu@gmail.com"
-	GitHub = "unclejack"
-
 	[people.vishh]
 	Name = "Vishnu Kannan"
 	Email = "vishnuk@google.com"
 	GitHub = "vishh"
+
+	[people.vmarmol]
+	Name = "Victor Marmol"
+	Email = "vmarmol@google.com"
+	GitHub = "vmarmol"
