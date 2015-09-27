@@ -155,6 +155,7 @@ the `Dockerfile`:
 * `COPY`
 * `ENV`
 * `EXPOSE`
+* `LABEL`
 * `USER`
 * `WORKDIR`
 * `VOLUME`
