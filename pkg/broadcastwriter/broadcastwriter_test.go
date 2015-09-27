@@ -13,6 +13,12 @@ type dummyWriter struct {
 	failOnWrite bool
 }
 
+func equal(t *testing.T, dw *dummyWriter, value string) {
+	if dw.String() != value {
+		t.Errorf("Buffer contains %q", dw.String())
+	}
+}
+
 func (dw *dummyWriter) Write(p []byte) (n int, err error) {
 	if dw.failOnWrite {
 		return 0, errors.New("Fake fail")
@@ -38,13 +44,9 @@ func TestBroadcastWriter(t *testing.T) {
 	writer.AddWriter(bufferB)
 	writer.Write([]byte("foo"))
 
-	if bufferA.String() != "foo" {
-		t.Errorf("Buffer contains %v", bufferA.String())
-	}
+	equal(t, bufferA, "foo")
 
-	if bufferB.String() != "foo" {
-		t.Errorf("Buffer contains %v", bufferB.String())
-	}
+	equal(t, bufferB, "foo")
 
 	// Test2: bufferA and bufferB should contain "foobar",
 	// while bufferC should only contain "bar"
@@ -52,36 +54,23 @@ func TestBroadcastWriter(t *testing.T) {
 	writer.AddWriter(bufferC)
 	writer.Write([]byte("bar"))
 
-	if bufferA.String() != "foobar" {
-		t.Errorf("Buffer contains %v", bufferA.String())
-	}
+	equal(t, bufferA, "foobar")
 
-	if bufferB.String() != "foobar" {
-		t.Errorf("Buffer contains %v", bufferB.String())
-	}
+	equal(t, bufferB, "foobar")
 
-	if bufferC.String() != "bar" {
-		t.Errorf("Buffer contains %v", bufferC.String())
-	}
+	equal(t, bufferC, "bar")
 
 	// Test3: Test eviction on failure
 	bufferA.failOnWrite = true
 	writer.Write([]byte("fail"))
-	if bufferA.String() != "foobar" {
-		t.Errorf("Buffer contains %v", bufferA.String())
-	}
-	if bufferC.String() != "barfail" {
-		t.Errorf("Buffer contains %v", bufferC.String())
-	}
+	equal(t, bufferA, "foobar")
+	equal(t, bufferC, "barfail")
+
 	// Even though we reset the flag, no more writes should go in there
 	bufferA.failOnWrite = false
 	writer.Write([]byte("test"))
-	if bufferA.String() != "foobar" {
-		t.Errorf("Buffer contains %v", bufferA.String())
-	}
-	if bufferC.String() != "barfailtest" {
-		t.Errorf("Buffer contains %v", bufferC.String())
-	}
+	equal(t, bufferA, "foobar")
+	equal(t, bufferC, "barfailtest")
 
 	// Test4: Test eviction on multiple simultaneous failures
 	bufferB.failOnWrite = true
