@@ -1,13 +1,12 @@
 package graphdriver
 
 import (
-	"errors"
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/Sirupsen/logrus"
+	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/pkg/archive"
 )
 
@@ -24,13 +23,6 @@ var (
 	DefaultDriver string
 	// All registred drivers
 	drivers map[string]InitFunc
-
-	// ErrNotSupported returned when driver is not supported.
-	ErrNotSupported = errors.New("driver not supported")
-	// ErrPrerequisites retuned when driver does not meet prerequisites.
-	ErrPrerequisites = errors.New("prerequisites for driver not satisfied (wrong filesystem?)")
-	// ErrIncompatibleFS returned when file system is not supported.
-	ErrIncompatibleFS = fmt.Errorf("backing file system is unsupported for this graph driver")
 )
 
 // InitFunc initializes the storage driver.
@@ -99,7 +91,7 @@ func init() {
 // Register registers a InitFunc for the driver.
 func Register(name string, initFunc InitFunc) error {
 	if _, exists := drivers[name]; exists {
-		return fmt.Errorf("Name already registered %s", name)
+		return derr.ErrorCodeGDErrRegister.WithArgs(name)
 	}
 	drivers[name] = initFunc
 
@@ -112,7 +104,7 @@ func GetDriver(name, home string, options []string) (Driver, error) {
 		return initFunc(filepath.Join(home, name), options)
 	}
 	logrus.Errorf("Failed to GetDriver graph %s %s", name, home)
-	return nil, ErrNotSupported
+	return nil, derr.ErrorCodeGDNotSupported
 }
 
 // New creates the driver and initializes it at the specified root.
@@ -157,7 +149,7 @@ func New(root string, options []string) (driver Driver, err error) {
 	for _, name := range priority {
 		driver, err = GetDriver(name, root, options)
 		if err != nil {
-			if err == ErrNotSupported || err == ErrPrerequisites || err == ErrIncompatibleFS {
+			if err == derr.ErrorCodeGDNotSupported || err == derr.ErrorCodeGDErrPrereqs || err == derr.ErrorCodeGDErrFSNotSupported {
 				continue
 			}
 			return nil, err
@@ -168,14 +160,14 @@ func New(root string, options []string) (driver Driver, err error) {
 	// Check all registered drivers if no priority driver is found
 	for _, initFunc := range drivers {
 		if driver, err = initFunc(root, options); err != nil {
-			if err == ErrNotSupported || err == ErrPrerequisites || err == ErrIncompatibleFS {
+			if err == derr.ErrorCodeGDNotSupported || err == derr.ErrorCodeGDErrPrereqs || err == derr.ErrorCodeGDErrFSNotSupported {
 				continue
 			}
 			return nil, err
 		}
 		return driver, nil
 	}
-	return nil, fmt.Errorf("No supported storage backend found")
+	return nil, derr.ErrorCodeGDNoStorage
 }
 
 // scanPriorDrivers returns an un-ordered scan of directories of prior storage drivers
@@ -202,7 +194,7 @@ func checkPriorDriver(name, root string) error {
 
 	if len(priorDrivers) > 0 {
 
-		return fmt.Errorf("%q contains other graphdrivers: %s; Please cleanup or explicitly choose storage driver (-s <DRIVER>)", root, strings.Join(priorDrivers, ","))
+		return derr.ErrorCodeGDErrMultipleDrivers.WithArgs(root, strings.Join(priorDrivers, ","))
 	}
 	return nil
 }

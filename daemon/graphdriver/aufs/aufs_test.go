@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/daemon/graphdriver"
+	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/reexec"
 )
@@ -28,7 +29,7 @@ func init() {
 func testInit(dir string, t *testing.T) graphdriver.Driver {
 	d, err := Init(dir, nil)
 	if err != nil {
-		if err == graphdriver.ErrNotSupported {
+		if err == derr.ErrorCodeGDNotSupported {
 			t.Skip(err)
 		} else {
 			t.Fatal(err)

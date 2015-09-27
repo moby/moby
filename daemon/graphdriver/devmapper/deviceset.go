@@ -19,7 +19,7 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/docker/daemon/graphdriver"
+	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/pkg/devicemapper"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/units"
@@ -264,7 +264,7 @@ func (devices *DeviceSet) ensureImage(name string, size int64) (string, error) {
 			}
 			defer file.Close()
 			if err := file.Truncate(size); err != nil {
-				return "", fmt.Errorf("Unable to grow loopback file %s: %v", filename, err)
+				return "", derr.ErrorCodeDMapErrLoopBack.WithArgs(filename, err)
 			}
 		} else if fi.Size() > size {
 			logrus.Warnf("Can't shrink loopback file %s", filename)
@@ -280,7 +280,7 @@ func (devices *DeviceSet) allocateTransactionID() uint64 {
 
 func (devices *DeviceSet) updatePoolTransactionID() error {
 	if err := devicemapper.SetTransactionID(devices.getPoolDevName(), devices.TransactionID, devices.OpenTransactionID); err != nil {
-		return fmt.Errorf("Error setting devmapper transaction ID: %s", err)
+		return derr.ErrorCodeDMapErrSetTxID.WithArgs(err)
 	}
 	devices.TransactionID = devices.OpenTransactionID
 	return nil
@@ -288,7 +288,7 @@ func (devices *DeviceSet) updatePoolTransactionID() error {
 
 func (devices *DeviceSet) removeMetadata(info *devInfo) error {
 	if err := os.RemoveAll(devices.metadataFile(info)); err != nil {
-		return fmt.Errorf("Error removing metadata file %s: %s", devices.metadataFile(info), err)
+		return derr.ErrorCodeDMapErrRemoveMetadata.WithArgs(devices.metadataFile(info), err)
 	}
 	return nil
 }
@@ -297,24 +297,24 @@ func (devices *DeviceSet) removeMetadata(info *devInfo) error {
 func (devices *DeviceSet) writeMetaFile(jsonData []byte, filePath string) error {
 	tmpFile, err := ioutil.TempFile(devices.metadataDir(), ".tmp")
 	if err != nil {
-		return fmt.Errorf("Error creating metadata file: %s", err)
+		return derr.ErrorCodeDMapErrCreateMetadata.WithArgs(err)
 	}
 
 	n, err := tmpFile.Write(jsonData)
 	if err != nil {
-		return fmt.Errorf("Error writing metadata to %s: %s", tmpFile.Name(), err)
+		return derr.ErrorCodeDMapErrWriteMetadata.WithArgs(tmpFile.Name(), err)
 	}
 	if n < len(jsonData) {
 		return io.ErrShortWrite
 	}
 	if err := tmpFile.Sync(); err != nil {
-		return fmt.Errorf("Error syncing metadata file %s: %s", tmpFile.Name(), err)
+		return derr.ErrorCodeDMapErrSyncMetadata.WithArgs(tmpFile.Name(), err)
 	}
 	if err := tmpFile.Close(); err != nil {
-		return fmt.Errorf("Error closing metadata file %s: %s", tmpFile.Name(), err)
+		return derr.ErrorCodeDMapErrCloseMetadata.WithArgs(tmpFile.Name(), err)
 	}
 	if err := os.Rename(tmpFile.Name(), filePath); err != nil {
-		return fmt.Errorf("Error committing metadata file %s: %s", tmpFile.Name(), err)
+		return derr.ErrorCodeDMapErrCommitMetadata.WithArgs(tmpFile.Name(), err)
 	}
 
 	return nil
@@ -323,7 +323,7 @@ func (devices *DeviceSet) writeMetaFile(jsonData []byte, filePath string) error 
 func (devices *DeviceSet) saveMetadata(info *devInfo) error {
 	jsonData, err := json.Marshal(info)
 	if err != nil {
-		return fmt.Errorf("Error encoding metadata to json: %s", err)
+		return derr.ErrorCodeDMapErrEncodeMetadata.WithArgs(err)
 	}
 	if err := devices.writeMetaFile(jsonData, devices.metadataFile(info)); err != nil {
 		return err
@@ -362,7 +362,7 @@ func (devices *DeviceSet) lookupDevice(hash string) (*devInfo, error) {
 	if info == nil {
 		info = devices.loadMetadata(hash)
 		if info == nil {
-			return nil, fmt.Errorf("Unknown device %s", hash)
+			return nil, derr.ErrorCodeDMapUnknownDevice.WithArgs(hash)
 		}
 
 		devices.Devices[hash] = info
@@ -397,7 +397,7 @@ func (devices *DeviceSet) deviceFileWalkFunction(path string, finfo os.FileInfo)
 
 	dinfo := devices.loadMetadata(hash)
 	if dinfo == nil {
-		return fmt.Errorf("Error loading device metadata file %s", hash)
+		return derr.ErrorCodeDMapErrLoadMetadata.WithArgs(hash)
 	}
 
 	if dinfo.DeviceID > maxDeviceID {
@@ -485,7 +485,7 @@ func (devices *DeviceSet) activateDeviceIfNeeded(info *devInfo) error {
 	// Make sure deferred removal on device is canceled, if one was
 	// scheduled.
 	if err := devices.cancelDeferredRemoval(info); err != nil {
-		return fmt.Errorf("Deivce Deferred Removal Cancellation Failed: %s", err)
+		return derr.ErrorCodeDMapErrDefRemCancel.WithArgs(err)
 	}
 
 	if devinfo, _ := devicemapper.GetInfo(info.Name()); devinfo != nil && devinfo.Exists != 0 {
@@ -519,7 +519,7 @@ func (devices *DeviceSet) createFilesystem(info *devInfo) error {
 		}
 		err = exec.Command("tune2fs", append([]string{"-c", "-1", "-i", "0"}, devname)...).Run()
 	default:
-		err = fmt.Errorf("Unsupported filesystem type %s", devices.filesystem)
+		err = derr.ErrorCodeDMapUnsupportedFSType.WithArgs(devices.filesystem)
 	}
 	if err != nil {
 		return err
@@ -592,7 +592,7 @@ func (devices *DeviceSet) getNextFreeDeviceID() (int, error) {
 		devices.incNextDeviceID()
 	}
 
-	return 0, fmt.Errorf("Unable to find a free device ID")
+	return 0, derr.ErrorCodeDMapNoDeviceID
 }
 
 func (devices *DeviceSet) createRegisterDevice(hash string) (*devInfo, error) {
@@ -742,7 +742,7 @@ func (devices *DeviceSet) verifyBaseDeviceUUID(baseInfo *devInfo) error {
 	}
 
 	if devices.BaseDeviceUUID != uuid {
-		return fmt.Errorf("Current Base Device UUID:%s does not match with stored UUID:%s", uuid, devices.BaseDeviceUUID)
+		return derr.ErrorCodeDMapVerifyUUIDFailed.WithArgs(uuid, devices.BaseDeviceUUID)
 	}
 
 	return nil
@@ -775,13 +775,13 @@ func (devices *DeviceSet) setupBaseImage() error {
 		// return success.
 		if devices.BaseDeviceUUID == "" {
 			if err := devices.saveBaseDeviceUUID(oldInfo); err != nil {
-				return fmt.Errorf("Could not query and save base device UUID:%v", err)
+				return derr.ErrorCodeDMapQuerySaveUUIDFailed.WithArgs(err)
 			}
 			return nil
 		}
 
 		if err := devices.verifyBaseDeviceUUID(oldInfo); err != nil {
-			return fmt.Errorf("Base Device UUID verification failed. Possibly using a different thin pool than last invocation:%v", err)
+			return derr.ErrorCodeDMapVerifyBaseDevFailed.WithArgs(err)
 		}
 		return nil
 	}
@@ -799,12 +799,10 @@ func (devices *DeviceSet) setupBaseImage() error {
 			return err
 		}
 		if dataUsed != 0 {
-			return fmt.Errorf("Unable to take ownership of thin-pool (%s) that already has used data blocks",
-				devices.thinPoolDevice)
+			return derr.ErrorCodeDMapErrPoolUsed.WithArgs(devices.thinPoolDevice)
 		}
 		if transactionID != 0 {
-			return fmt.Errorf("Unable to take ownership of thin-pool (%s) with non-zero transaction ID",
-				devices.thinPoolDevice)
+			return derr.ErrorCodeDMapErrPoolTxUsed.WithArgs(devices.thinPoolDevice)
 		}
 	}
 
@@ -833,7 +831,7 @@ func (devices *DeviceSet) setupBaseImage() error {
 	}
 
 	if err := devices.saveBaseDeviceUUID(info); err != nil {
-		return fmt.Errorf("Could not query and save base device UUID:%v", err)
+		return derr.ErrorCodeDMapQuerySaveUUIDFailed.WithArgs(err)
 	}
 
 	return nil
@@ -905,12 +903,12 @@ func (devices *DeviceSet) ResizePool(size int64) error {
 	}
 
 	if fi.Size() > size {
-		return fmt.Errorf("Can't shrink file")
+		return derr.ErrorCodeDMapErrShrinkDataFile
 	}
 
 	dataloopback := devicemapper.FindLoopDeviceFor(datafile)
 	if dataloopback == nil {
-		return fmt.Errorf("Unable to find loopback mount for: %s", datafilename)
+		return derr.ErrorCodeDMapNoDataLoopback.WithArgs(datafilename)
 	}
 	defer dataloopback.Close()
 
@@ -922,33 +920,33 @@ func (devices *DeviceSet) ResizePool(size int64) error {
 
 	metadataloopback := devicemapper.FindLoopDeviceFor(metadatafile)
 	if metadataloopback == nil {
-		return fmt.Errorf("Unable to find loopback mount for: %s", metadatafilename)
+		return derr.ErrorCodeDMapNoMetadataLoopback.WithArgs(metadatafilename)
 	}
 	defer metadataloopback.Close()
 
 	// Grow loopback file
 	if err := datafile.Truncate(size); err != nil {
-		return fmt.Errorf("Unable to grow loopback file: %s", err)
+		return derr.ErrorCodeDMapErrGrowLoopback.WithArgs(err)
 	}
 
 	// Reload size for loopback device
 	if err := devicemapper.LoopbackSetCapacity(dataloopback); err != nil {
-		return fmt.Errorf("Unable to update loopback capacity: %s", err)
+		return derr.ErrorCodeDMapErrUpdateLoopback.WithArgs(err)
 	}
 
 	// Suspend the pool
 	if err := devicemapper.SuspendDevice(devices.getPoolName()); err != nil {
-		return fmt.Errorf("Unable to suspend pool: %s", err)
+		return derr.ErrorCodeDMapErrSuspendPool.WithArgs(err)
 	}
 
 	// Reload with the new block sizes
 	if err := devicemapper.ReloadPool(devices.getPoolName(), dataloopback, metadataloopback, devices.thinpBlockSize); err != nil {
-		return fmt.Errorf("Unable to reload pool: %s", err)
+		return derr.ErrorCodeDMapErrReloadPool.WithArgs(err)
 	}
 
 	// Resume the pool
 	if err := devicemapper.ResumeDevice(devices.getPoolName()); err != nil {
-		return fmt.Errorf("Unable to resume pool: %s", err)
+		return derr.ErrorCodeDMapErrResumePool.WithArgs(err)
 	}
 
 	return nil
@@ -973,7 +971,7 @@ func (devices *DeviceSet) loadTransactionMetaData() error {
 func (devices *DeviceSet) saveTransactionMetaData() error {
 	jsonData, err := json.Marshal(&devices.transaction)
 	if err != nil {
-		return fmt.Errorf("Error encoding metadata to json: %s", err)
+		return derr.ErrorCodeDMapErrEncodeMetadata.WithArgs(err)
 	}
 
 	return devices.writeMetaFile(jsonData, devices.transactionMetaFile())
@@ -1031,7 +1029,7 @@ func (devices *DeviceSet) processPendingTransaction() error {
 	// Pool transaction ID is not same as open transaction. There is
 	// a transaction which was not completed.
 	if err := devices.rollbackTransaction(); err != nil {
-		return fmt.Errorf("Rolling back open transaction failed: %s", err)
+		return derr.ErrorCodeDMapErrRollbackTx.WithArgs(err)
 	}
 
 	devices.OpenTransactionID = devices.TransactionID
@@ -1055,7 +1053,7 @@ func (devices *DeviceSet) loadDeviceSetMetaData() error {
 func (devices *DeviceSet) saveDeviceSetMetaData() error {
 	jsonData, err := json.Marshal(devices)
 	if err != nil {
-		return fmt.Errorf("Error encoding metadata to json: %s", err)
+		return derr.ErrorCodeDMapErrEncodeMetadata.WithArgs(err)
 	}
 
 	return devices.writeMetaFile(jsonData, devices.deviceSetMetaFile())
@@ -1066,7 +1064,7 @@ func (devices *DeviceSet) openTransaction(hash string, DeviceID int) error {
 	devices.DeviceIDHash = hash
 	devices.DeviceID = DeviceID
 	if err := devices.saveTransactionMetaData(); err != nil {
-		return fmt.Errorf("Error saving transaction metadata: %s", err)
+		return derr.ErrorCodeDMapErrSaveTx.WithArgs(err)
 	}
 	return nil
 }
@@ -1074,7 +1072,7 @@ func (devices *DeviceSet) openTransaction(hash string, DeviceID int) error {
 func (devices *DeviceSet) refreshTransaction(DeviceID int) error {
 	devices.DeviceID = DeviceID
 	if err := devices.saveTransactionMetaData(); err != nil {
-		return fmt.Errorf("Error saving transaction metadata: %s", err)
+		return derr.ErrorCodeDMapErrSaveTx.WithArgs(err)
 	}
 	return nil
 }
@@ -1098,7 +1096,7 @@ func determineDriverCapabilities(version string) error {
 	versionSplit := strings.Split(version, ".")
 	major, err := strconv.Atoi(versionSplit[0])
 	if err != nil {
-		return graphdriver.ErrNotSupported
+		return derr.ErrorCodeGDNotSupported
 	}
 
 	if major > 4 {
@@ -1112,7 +1110,7 @@ func determineDriverCapabilities(version string) error {
 
 	minor, err := strconv.Atoi(versionSplit[1])
 	if err != nil {
-		return graphdriver.ErrNotSupported
+		return derr.ErrorCodeGDNotSupported
 	}
 
 	/*
@@ -1154,7 +1152,7 @@ func getLoopFileDeviceMajMin(filename string) (string, uint64, uint64, error) {
 	defer file.Close()
 	loopbackDevice := devicemapper.FindLoopDeviceFor(file)
 	if loopbackDevice == nil {
-		return "", 0, 0, fmt.Errorf("[devmapper]: Unable to find loopback mount for: %s", filename)
+		return "", 0, 0, derr.ErrorCodeDMapErrNoLoopback.WithArgs(filename)
 	}
 	defer loopbackDevice.Close()
 
@@ -1254,11 +1252,11 @@ func (devices *DeviceSet) initDevmapper(doInit bool) error {
 	version, err := devicemapper.GetDriverVersion()
 	if err != nil {
 		// Can't even get driver version, assume not supported
-		return graphdriver.ErrNotSupported
+		return derr.ErrorCodeGDNotSupported
 	}
 
 	if err := determineDriverCapabilities(version); err != nil {
-		return graphdriver.ErrNotSupported
+		return derr.ErrorCodeGDNotSupported
 	}
 
 	// If user asked for deferred removal and both library and driver
@@ -1281,7 +1279,7 @@ func (devices *DeviceSet) initDevmapper(doInit bool) error {
 
 	st, err := os.Stat(devices.root)
 	if err != nil {
-		return fmt.Errorf("Error looking up dir %s: %s", devices.root, err)
+		return derr.ErrorCodeDMapNoDir.WithArgs(devices.root, err)
 	}
 	sysSt := st.Sys().(*syscall.Stat_t)
 	// "reg-" stands for "regular file".
@@ -1450,7 +1448,7 @@ func (devices *DeviceSet) AddDevice(hash, baseHash string) error {
 	defer devices.Unlock()
 
 	if info, _ := devices.lookupDevice(hash); info != nil {
-		return fmt.Errorf("device %s already exists", hash)
+		return derr.ErrorCodeDmapErrDevExists.WithArgs(hash)
 	}
 
 	if err := devices.createRegisterSnapDevice(hash, baseInfo); err != nil {
@@ -1705,7 +1703,7 @@ func (devices *DeviceSet) MountDevice(hash, path, mountLabel string) error {
 
 	if info.mountCount > 0 {
 		if path != info.mountPath {
-			return fmt.Errorf("Trying to mount devmapper device in multiple places (%s, %s)", info.mountPath, path)
+			return derr.ErrorCodeDMapErrDevMounted.WithArgs(info.mountPath, path)
 		}
 
 		info.mountCount++
@@ -1713,7 +1711,7 @@ func (devices *DeviceSet) MountDevice(hash, path, mountLabel string) error {
 	}
 
 	if err := devices.activateDeviceIfNeeded(info); err != nil {
-		return fmt.Errorf("Error activating devmapper device for '%s': %s", hash, err)
+		return derr.ErrorCodeDMapErrDevActivate.WithArgs(hash, err)
 	}
 
 	fstype, err := ProbeFsType(info.DevName())
@@ -1732,7 +1730,7 @@ func (devices *DeviceSet) MountDevice(hash, path, mountLabel string) error {
 	options = joinMountOptions(options, label.FormatMountLabel("", mountLabel))
 
 	if err := syscall.Mount(info.DevName(), path, fstype, syscall.MS_MGC_VAL, options); err != nil {
-		return fmt.Errorf("Error mounting '%s' on '%s': %s", info.DevName(), path, err)
+		return derr.ErrorCodeDmapErrDevMount.WithArgs(info.DevName(), path, err)
 	}
 
 	info.mountCount = 1
@@ -1758,7 +1756,7 @@ func (devices *DeviceSet) UnmountDevice(hash string) error {
 	defer devices.Unlock()
 
 	if info.mountCount == 0 {
-		return fmt.Errorf("UnmountDevice: device not-mounted id %s", hash)
+		return derr.ErrorCodeDMapErrDevUnmount.WithArgs(hash)
 	}
 
 	info.mountCount--
@@ -1856,7 +1854,7 @@ func (devices *DeviceSet) GetDeviceStatus(hash string) (*DevStatus, error) {
 	}
 
 	if err := devices.activateDeviceIfNeeded(info); err != nil {
-		return nil, fmt.Errorf("Error activating devmapper device for '%s': %s", hash, err)
+		return nil, derr.ErrorCodeDMapErrDevActivate.WithArgs(hash, err)
 	}
 
 	sizeInSectors, mappedSectors, highestMappedSector, err := devices.deviceStatus(info.DevName())
@@ -2021,7 +2019,7 @@ func NewDeviceSet(root string, doInit bool, options []string) (*DeviceSet, error
 			devices.metaDataLoopbackSize = size
 		case "dm.fs":
 			if val != "ext4" && val != "xfs" {
-				return nil, fmt.Errorf("Unsupported filesystem %s\n", val)
+				return nil, derr.ErrorCodeDMapUnsupportedFS.WithArgs(val)
 			}
 			devices.filesystem = val
 		case "dm.mkfsarg":
@@ -2060,7 +2058,7 @@ func NewDeviceSet(root string, doInit bool, options []string) (*DeviceSet, error
 			}
 
 		default:
-			return nil, fmt.Errorf("Unknown option %s\n", key)
+			return nil, derr.ErrorCodeDMapUnknownOption.WithArgs(key)
 		}
 	}
 

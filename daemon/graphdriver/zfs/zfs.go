@@ -15,6 +15,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/graphdriver"
+	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/parsers"
 	zfs "github.com/mistifyio/go-zfs"
@@ -46,13 +47,13 @@ func Init(base string, opt []string) (graphdriver.Driver, error) {
 
 	if _, err := exec.LookPath("zfs"); err != nil {
 		logrus.Debugf("[zfs] zfs command is not available: %v", err)
-		return nil, graphdriver.ErrPrerequisites
+		return nil, derr.ErrorCodeGDErrPrereqs
 	}
 
 	file, err := os.OpenFile("/dev/zfs", os.O_RDWR, 600)
 	if err != nil {
 		logrus.Debugf("[zfs] cannot open /dev/zfs: %v", err)
-		return nil, graphdriver.ErrPrerequisites
+		return nil, derr.ErrorCodeGDErrPrereqs
 	}
 	defer file.Close()
 
@@ -82,7 +83,7 @@ func Init(base string, opt []string) (graphdriver.Driver, error) {
 
 	filesystems, err := zfs.Filesystems(options.fsName)
 	if err != nil {
-		return nil, fmt.Errorf("Cannot find root filesystem %s: %v", options.fsName, err)
+		return nil, derr.ErrorCodeZFSErrNoRoot.WithArgs(options.fsName, err)
 	}
 
 	filesystemsCache := make(map[string]bool, len(filesystems))
@@ -95,7 +96,7 @@ func Init(base string, opt []string) (graphdriver.Driver, error) {
 	}
 
 	if rootDataset == nil {
-		return nil, fmt.Errorf("BUG: zfs get all -t filesystem -rHp '%s' should contain '%s'", options.fsName, options.fsName)
+		return nil, derr.ErrorCodeZFSErrMissingRootDS.WithArgs(options.fsName, options.fsName)
 	}
 
 	d := &Driver{
@@ -119,7 +120,7 @@ func parseOptions(opt []string) (zfsOptions, error) {
 		case "zfs.fsname":
 			options.fsName = val
 		default:
-			return options, fmt.Errorf("Unknown option %s", key)
+			return options, derr.ErrorCodeZFSUnknownOption.WithArgs(key)
 		}
 	}
 	return options, nil
@@ -128,7 +129,7 @@ func parseOptions(opt []string) (zfsOptions, error) {
 func lookupZfsDataset(rootdir string) (string, error) {
 	var stat syscall.Stat_t
 	if err := syscall.Stat(rootdir, &stat); err != nil {
-		return "", fmt.Errorf("Failed to access '%s': %s", rootdir, err)
+		return "", derr.ErrorCodeZFSErrAccess.WithArgs(rootdir, err)
 	}
 	wantedDev := stat.Dev
 
@@ -147,7 +148,7 @@ func lookupZfsDataset(rootdir string) (string, error) {
 		}
 	}
 
-	return "", fmt.Errorf("Failed to find zfs dataset mounted on '%s' in /proc/mounts", rootdir)
+	return "", derr.ErrorCodeZFSErrNoDS.WithArgs(rootdir)
 }
 
 // Driver holds information about the driver, such as zfs dataset, options and cache.
@@ -301,7 +302,7 @@ func (d *Driver) Get(id, mountLabel string) (string, error) {
 
 	err := mount.Mount(filesystem, mountpoint, "zfs", options)
 	if err != nil {
-		return "", fmt.Errorf("error creating zfs mount of %s to %s: %v", filesystem, mountpoint, err)
+		return "", derr.ErrorCodeZFSErrMount.WithArgs(filesystem, mountpoint, err)
 	}
 
 	return mountpoint, nil
@@ -313,7 +314,7 @@ func (d *Driver) Put(id string) error {
 	logrus.Debugf(`[zfs] unmount("%s")`, mountpoint)
 
 	if err := mount.Unmount(mountpoint); err != nil {
-		return fmt.Errorf("error unmounting to %s: %v", mountpoint, err)
+		return derr.ErrorCodeZFSErrUnmount.WithArgs(mountpoint, err)
 	}
 	return nil
 }
