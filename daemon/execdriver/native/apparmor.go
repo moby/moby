@@ -4,7 +4,6 @@ package native
 
 import (
 	"bufio"
-	"fmt"
 	"io"
 	"os"
 	"os/exec"
@@ -12,6 +11,7 @@ import (
 	"strings"
 	"text/template"
 
+	derr "github.com/docker/docker/errors"
 	"github.com/opencontainers/runc/libcontainer/apparmor"
 )
 
@@ -119,7 +119,7 @@ func installAppArmorProfile() error {
 
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("Error loading docker apparmor profile: %s (%s)", err, output)
+		return derr.ErrorCodeLoadAppArmorProfileFailed.WithArgs(err, output)
 	}
 	return nil
 }

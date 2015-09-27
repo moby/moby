@@ -1,9 +1,9 @@
 package execdriver
 
 import (
-	"fmt"
 	"strings"
 
+	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/pkg/stringutils"
 	"github.com/syndtr/gocapability/capability"
 )
@@ -81,7 +81,7 @@ func TweakCapabilities(basics, adds, drops []string) ([]string, error) {
 			continue
 		}
 		if !stringutils.InSlice(allCaps, cap) {
-			return nil, fmt.Errorf("Unknown capability drop: %q", cap)
+			return nil, derr.ErrorCodeUnknownCapDrop.WithArgs(cap)
 		}
 	}
 
@@ -111,7 +111,7 @@ func TweakCapabilities(basics, adds, drops []string) ([]string, error) {
 		}
 
 		if !stringutils.InSlice(allCaps, cap) {
-			return nil, fmt.Errorf("Unknown capability to add: %q", cap)
+			return nil, derr.ErrorCodeUnknownCapAdd.WithArgs(cap)
 		}
 
 		// add cap if not already in the list

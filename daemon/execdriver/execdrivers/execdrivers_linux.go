@@ -3,13 +3,13 @@
 package execdrivers
 
 import (
-	"fmt"
 	"path"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/execdriver"
 	"github.com/docker/docker/daemon/execdriver/lxc"
 	"github.com/docker/docker/daemon/execdriver/native"
+	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/pkg/sysinfo"
 )
 
@@ -25,5 +25,5 @@ func NewDriver(name string, options []string, root, libPath, initPath string, sy
 	case "native":
 		return native.NewDriver(path.Join(root, "execdriver", "native"), initPath, options)
 	}
-	return nil, fmt.Errorf("unknown exec driver %s", name)
+	return nil, derr.ErrorCodeExecDriverUnknown.WithArgs(name)
 }

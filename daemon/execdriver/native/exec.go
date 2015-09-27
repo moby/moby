@@ -11,6 +11,7 @@ import (
 
 	"github.com/docker/docker/context"
 	"github.com/docker/docker/daemon/execdriver"
+	derr "github.com/docker/docker/errors"
 	"github.com/opencontainers/runc/libcontainer"
 	// Blank import 'nsenter' so that init in that package will call c
 	// function 'nsexec()' to do 'setns' before Go runtime take over,
@@ -24,7 +25,7 @@ import (
 func (d *Driver) Exec(ctx context.Context, c *execdriver.Command, processConfig *execdriver.ProcessConfig, pipes *execdriver.Pipes, hooks execdriver.Hooks) (int, error) {
 	active := d.activeContainers[c.ID]
 	if active == nil {
-		return -1, fmt.Errorf("No active container exists with ID %s", c.ID)
+		return -1, derr.ErrorCodeNoContainerWithID.WithArgs(c.ID)
 	}
 
 	p := &libcontainer.Process{

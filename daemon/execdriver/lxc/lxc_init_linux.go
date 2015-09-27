@@ -3,8 +3,7 @@
 package lxc
 
 import (
-	"fmt"
-
+	derr "github.com/docker/docker/errors"
 	"github.com/opencontainers/runc/libcontainer/utils"
 )
 
@@ -13,7 +12,7 @@ func finalizeNamespace(args *InitArgs) error {
 		return err
 	}
 	if err := setupUser(args.User); err != nil {
-		return fmt.Errorf("setup user %s", err)
+		return derr.ErrorCodeErrSetupUser.WithArgs(err)
 	}
 	if err := setupWorkingDirectory(args); err != nil {
 		return err

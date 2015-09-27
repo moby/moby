@@ -7,7 +7,6 @@ package windows
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -17,6 +16,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/context"
 	"github.com/docker/docker/daemon/execdriver"
+	derr "github.com/docker/docker/errors"
 	"github.com/microsoft/hcsshim"
 )
 
@@ -132,11 +132,11 @@ func (d *Driver) Run(ctx context.Context, c *execdriver.Command, pipes *execdriv
 		for i, v := range c.Network.Interface.PortBindings {
 			proto := strings.ToUpper(i.Proto())
 			if proto != "TCP" && proto != "UDP" {
-				return execdriver.ExitStatus{ExitCode: -1}, fmt.Errorf("invalid protocol %s", i.Proto())
+				return execdriver.ExitStatus{ExitCode: -1}, derr.ErrorCodeWinErrInvProtocol.WithArgs(i.Proto())
 			}
 
 			if len(v) > 1 {
-				return execdriver.ExitStatus{ExitCode: -1}, fmt.Errorf("Windows does not support more than one host port in NAT settings")
+				return execdriver.ExitStatus{ExitCode: -1}, derr.ErrorCodeWinErrMultiplePorts
 			}
 
 			for _, v2 := range v {
@@ -145,16 +145,16 @@ func (d *Driver) Run(ctx context.Context, c *execdriver.Command, pipes *execdriv
 					err          error
 				)
 				if len(v2.HostIP) != 0 {
-					return execdriver.ExitStatus{ExitCode: -1}, fmt.Errorf("Windows does not support host IP addresses in NAT settings")
+					return execdriver.ExitStatus{ExitCode: -1}, derr.ErrorCodeWinErrInvHostIPInNAT
 				}
 				if ePort, err = strconv.Atoi(v2.HostPort); err != nil {
-					return execdriver.ExitStatus{ExitCode: -1}, fmt.Errorf("invalid container port %s: %s", v2.HostPort, err)
+					return execdriver.ExitStatus{ExitCode: -1}, derr.ErrorCodeWinErrInvPort.WithArgs(v2.HostPort, err)
 				}
 				if iPort, err = strconv.Atoi(i.Port()); err != nil {
-					return execdriver.ExitStatus{ExitCode: -1}, fmt.Errorf("invalid internal port %s: %s", i.Port(), err)
+					return execdriver.ExitStatus{ExitCode: -1}, derr.ErrorCodeWinErrInvInternalPort.WithArgs(i.Port(), err)
 				}
 				if iPort < 0 || iPort > 65535 || ePort < 0 || ePort > 65535 {
-					return execdriver.ExitStatus{ExitCode: -1}, fmt.Errorf("specified NAT port is not in allowed range")
+					return execdriver.ExitStatus{ExitCode: -1}, derr.ErrorCodeWinErrInvPortRange
 				}
 				pbs = append(pbs,
 					portBinding{ExternalPort: ePort,

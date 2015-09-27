@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/docker/docker/daemon/execdriver"
+	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/pkg/sysinfo"
 )
 
@@ -13,7 +14,7 @@ import (
 func NewDriver(name string, options []string, root, libPath, initPath string, sysInfo *sysinfo.SysInfo) (execdriver.Driver, error) {
 	switch name {
 	case "jail":
-		return nil, fmt.Errorf("jail driver not yet supported on FreeBSD")
+		return nil, derr.ErrorCodeExecDriverNotSupported
 	}
-	return nil, fmt.Errorf("unknown exec driver %s", name)
+	return nil, derr.ErrorCodeExecDriverUnknown.WithArgs(name)
 }

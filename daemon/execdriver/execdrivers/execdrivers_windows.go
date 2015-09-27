@@ -3,10 +3,9 @@
 package execdrivers
 
 import (
-	"fmt"
-
 	"github.com/docker/docker/daemon/execdriver"
 	"github.com/docker/docker/daemon/execdriver/windows"
+	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/pkg/sysinfo"
 )
 
@@ -16,5 +15,5 @@ func NewDriver(name string, options []string, root, libPath, initPath string, sy
 	case "windows":
 		return windows.NewDriver(root, initPath, options)
 	}
-	return nil, fmt.Errorf("unknown exec driver %s", name)
+	return nil, derr.ErrorCodeExecDriverUnknown.WithArgs(name)
 }
