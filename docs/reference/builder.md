@@ -45,8 +45,8 @@ Dockerfile.
 >the build to transfer the entire contents of your hard drive to the Docker
 >daemon. 
 
-To use a file in the build context, the `Dockerfile` refers to the file with
-an instruction, for example,  a `COPY` instruction. To increase the build's
+To use a file in the build context, the `Dockerfile` refers to the file specified
+in an instruction, for example,  a `COPY` instruction. To increase the build's
 performance, exclude files and directories by adding a `.dockerignore` file to
 the context directory.  For information about how to [create a `.dockerignore`
 file](#dockerignore-file) see the documentation on this page.
@@ -55,12 +55,15 @@ Traditionally, the `Dockerfile` is called `Dockerfile` and located in the root
 of the context. You use the `-f` flag with `docker build` to point to a Dockerfile
 anywhere in your file system.
 
+    $ docker build -f /path/to/a/Dockerfile .
+
 You can specify a repository and tag at which to save the new image if
 the build succeeds:
 
     $ docker build -t shykes/myapp .
 
-The Docker daemon will run your steps one-by-one, committing the result
+The Docker daemon runs the instructions in the `Dockerfile` one-by-one,
+committing the result of each instruction
 to a new image if necessary, before finally outputting the ID of your
 new image. The Docker daemon will automatically clean up the context you
 sent.
@@ -69,10 +72,11 @@ Note that each instruction is run independently, and causes a new image
 to be created - so `RUN cd /tmp` will not have any effect on the next
 instructions.
 
-Whenever possible, Docker will re-use the intermediate images,
-accelerating `docker build` significantly (indicated by `Using cache` -
-see the [`Dockerfile` Best Practices
-guide](/articles/dockerfile_best-practices/#build-cache) for more information):
+Whenever possible, Docker will re-use the intermediate images (cache),
+to accelerate the `docker build` process significantly. This is indicated by
+the `Using cache` message in the console output.
+(For more information, see the [Build cache section](/articles/dockerfile_best-practices/#build-cache)) in the
+`Dockerfile` best practices guide:
 
     $ docker build -t SvenDowideit/ambassador .
     Uploading context 10.24 kB
@@ -97,7 +101,7 @@ Here is the format of the `Dockerfile`:
     # Comment
     INSTRUCTION arguments
 
-The Instruction is not case-sensitive, however convention is for them to
+The instruction is not case-sensitive, however convention is for them to
 be UPPERCASE in order to distinguish them from arguments more easily.
 
 Docker runs the instructions in a `Dockerfile` in order. **The
@@ -216,7 +220,7 @@ This file causes the following build behavior:
 | `*/*/temp*`    | Exclude files starting with name `temp` from any subdirectory that is two levels below the root directory. For example, the file `/somedir/subdir/temporary.txt` is ignored. |
 | `temp?`        | Exclude the files that match the pattern in the root directory. For example, the files `tempa`, `tempb` in the root directory are ignored.                                   |
 | `*.md `        | Exclude all markdown files in the root directory.                                                                                                                            |
-| `!LICENSE.md`  | Exception to the Markdown files exclusion is this file,  `LICENSE.md`, Include this file in the build.                                                                       |
+| `!LICENSE.md`  | Exception to the Markdown files exclusion. `LICENSE.md`is included  in the build.                                                                       |
 
 The placement of  `!` exception rules influences the matching algorithm; the
 last line of the `.dockerignore` that matches a particular file determines
@@ -261,13 +265,13 @@ its first instruction. The image can be any valid image – it is especially eas
 to start by **pulling an image** from the [*Public Repositories*](
 /userguide/dockerrepos).
 
-`FROM` must be the first non-comment instruction in the `Dockerfile`.
+- `FROM` must be the first non-comment instruction in the `Dockerfile`.
 
-`FROM` can appear multiple times within a single `Dockerfile` in order to create
+- `FROM` can appear multiple times within a single `Dockerfile` in order to create
 multiple images. Simply make a note of the last image ID output by the commit
 before each new `FROM` command.
 
-The `tag` or `digest` values are optional. If you omit either of them, the builder
+- The `tag` or `digest` values are optional. If you omit either of them, the builder
 assumes a `latest` by default. The builder returns an error if it cannot match
 the `tag` value.
 
@@ -282,7 +286,7 @@ generated images.
 
 RUN has 2 forms:
 
-- `RUN <command>` (the command is run in a shell - `/bin/sh -c` - *shell* form)
+- `RUN <command>` (*shell* form, the command is run in a shell - `/bin/sh -c`)
 - `RUN ["executable", "param1", "param2"]` (*exec* form)
 
 The `RUN` instruction will execute any commands in a new layer on top of the
@@ -415,28 +419,31 @@ default specified in `CMD`.
 
 The `LABEL` instruction adds metadata to an image. A `LABEL` is a
 key-value pair. To include spaces within a `LABEL` value, use quotes and
-backslashes as you would in command-line parsing.
+backslashes as you would in command-line parsing. A few usage examples:
 
     LABEL "com.example.vendor"="ACME Incorporated"
-
-An image can have more than one label. To specify multiple labels, separate each
-key-value pair with whitespace.
-
     LABEL com.example.label-with-value="foo"
     LABEL version="1.0"
     LABEL description="This text illustrates \
     that label-values can span multiple lines."
 
-Docker recommends combining labels in a single `LABEL` instruction where
+An image can have more than one label. To specify multiple labels,
+Docker recommends combining labels into a single `LABEL` instruction where
 possible. Each `LABEL` instruction produces a new layer which can result in an
-inefficient image if you use many labels. This example results in four image
-layers. 
+inefficient image if you use many labels. This example results in a single image
+layer. 
 
     LABEL multi.label1="value1" multi.label2="value2" other="value3"
+
+The above can also be written as:
+
+    LABEL multi.label1="value1" \
+          multi.label2="value2" \
+          other="value3"
     
-Labels are additive including `LABEL`s in `FROM` images. As the system
-encounters and then applies a new label, new `key`s override any previous labels
-with identical keys.    
+Labels are additive including `LABEL`s in `FROM` images. If Docker
+encounters a label/key that already exists, the new value overrides any previous
+labels with identical keys.
 
 To view an image's labels, use the `docker inspect` command.
 
@@ -497,14 +504,14 @@ and
     ENV myCat fluffy
 
 will yield the same net results in the final container, but the first form 
-does it all in one layer.
+is preferred because it produces a single cache layer.
 
 The environment variables set using `ENV` will persist when a container is run
 from the resulting image. You can view the values using `docker inspect`, and
 change them using `docker run --env <key>=<value>`.
 
 > **Note**:
-> Environment persistence can cause unexpected effects. For example,
+> Environment persistence can cause unexpected side effects. For example,
 > setting `ENV DEBIAN_FRONTEND noninteractive` may confuse apt-get
 > users on a Debian-based image. To set a value for a single command, use
 > `RUN <key>=<value> <command>`.
@@ -525,16 +532,16 @@ directories then they must be relative to the source directory that is
 being built (the context of the build).
 
 Each `<src>` may contain wildcards and matching will be done using Go's
-[filepath.Match](http://golang.org/pkg/path/filepath#Match) rules.
-For most command line uses this should act as expected, for example:
+[filepath.Match](http://golang.org/pkg/path/filepath#Match) rules. For example:
 
     ADD hom* /mydir/        # adds all files starting with "hom"
-    ADD hom?.txt /mydir/    # ? is replaced with any single character
+    ADD hom?.txt /mydir/    # ? is replaced with any single character, e.g., "home.txt"
 
 The `<dest>` is an absolute path, or a path relative to `WORKDIR`, into which
 the source will be copied inside the destination container.
 
-    ADD test aDir/          # adds "test" to `WORKDIR`/aDir/
+    ADD test relativeDir/          # adds "test" to `WORKDIR`/relativeDir/
+    ADD test /absoluteDir          # adds "test" to /absoluteDir
 
 All new files and directories are created with a UID and GID of 0.
 
@@ -567,7 +574,7 @@ of whether or not the file has changed and the cache should be updated.
 guide](/articles/dockerfile_best-practices/#build-cache) for more information.
 
 
-The copy obeys the following rules:
+`ADD` obeys the following rules:
 
 - The `<src>` path must be inside the *context* of the build;
   you cannot `ADD ../something /something`, because the first step of a
@@ -586,6 +593,7 @@ The copy obeys the following rules:
 
 - If `<src>` is a directory, the entire contents of the directory are copied, 
   including filesystem metadata. 
+
 > **Note**:
 > The directory itself is not copied, just its contents.
 
@@ -628,16 +636,16 @@ Multiple `<src>` resource may be specified but they must be relative
 to the source directory that is being built (the context of the build).
 
 Each `<src>` may contain wildcards and matching will be done using Go's
-[filepath.Match](http://golang.org/pkg/path/filepath#Match) rules.
-For most command line uses this should act as expected, for example:
+[filepath.Match](http://golang.org/pkg/path/filepath#Match) rules. For example:
 
     COPY hom* /mydir/        # adds all files starting with "hom"
-    COPY hom?.txt /mydir/    # ? is replaced with any single character
+    COPY hom?.txt /mydir/    # ? is replaced with any single character, e.g., "home.txt"
 
 The `<dest>` is an absolute path, or a path relative to `WORKDIR`, into which
 the source will be copied inside the destination container.
 
-    COPY test aDir/          # adds "test" to `WORKDIR`/aDir/
+    COPY test relativeDir/   # adds "test" to `WORKDIR`/relativeDir/
+    COPY test /absoluteDir   # adds "test" to /absoluteDir
 
 All new files and directories are created with a UID and GID of 0.
 
@@ -645,7 +653,7 @@ All new files and directories are created with a UID and GID of 0.
 > If you build using STDIN (`docker build - < somefile`), there is no
 > build context, so `COPY` can't be used.
 
-The copy obeys the following rules:
+`COPY` obeys the following rules:
 
 - The `<src>` path must be inside the *context* of the build;
   you cannot `COPY ../something /something`, because the first step of a
@@ -654,6 +662,7 @@ The copy obeys the following rules:
 
 - If `<src>` is a directory, the entire contents of the directory are copied, 
   including filesystem metadata. 
+
 > **Note**:
 > The directory itself is not copied, just its contents.
 
@@ -677,7 +686,7 @@ The copy obeys the following rules:
 ENTRYPOINT has two forms:
 
 - `ENTRYPOINT ["executable", "param1", "param2"]`
-  (the preferred *exec* form)
+  (*exec* form, preferred)
 - `ENTRYPOINT command param1 param2`
   (*shell* form)
 
