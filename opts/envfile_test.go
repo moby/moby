@@ -28,6 +28,8 @@ func TestParseEnvFileGoodFile(t *testing.T) {
 # comment
 
 _foobar=foobaz
+with.dots=working
+and_underscore=working too
 `
 	// Adding a newline + a line with pure whitespace.
 	// This is being done like this instead of the block above
@@ -47,6 +49,8 @@ _foobar=foobaz
 		"foo=bar",
 		"baz=quux",
 		"_foobar=foobaz",
+		"with.dots=working",
+		"and_underscore=working too",
 	}
 
 	if !reflect.DeepEqual(lines, expectedLines) {
@@ -96,7 +100,7 @@ func TestParseEnvFileBadlyFormattedFile(t *testing.T) {
 	if _, ok := err.(ErrBadEnvVariable); !ok {
 		t.Fatalf("Expected a ErrBadEnvVariable, got [%v]", err)
 	}
-	expectedMessage := "poorly formatted environment: variable 'f   ' is not a valid environment variable"
+	expectedMessage := "poorly formatted environment: variable 'f   ' has white spaces"
 	if err.Error() != expectedMessage {
 		t.Fatalf("Expected [%v], got [%v]", expectedMessage, err.Error())
 	}
@@ -131,7 +135,7 @@ another invalid line`
 	if _, ok := err.(ErrBadEnvVariable); !ok {
 		t.Fatalf("Expected a ErrBadEnvvariable, got [%v]", err)
 	}
-	expectedMessage := "poorly formatted environment: variable 'first line' is not a valid environment variable"
+	expectedMessage := "poorly formatted environment: variable 'first line' has white spaces"
 	if err.Error() != expectedMessage {
 		t.Fatalf("Expected [%v], got [%v]", expectedMessage, err.Error())
 	}
