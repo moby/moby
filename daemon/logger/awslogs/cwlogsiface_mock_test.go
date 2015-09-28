@@ -49,6 +49,26 @@ func (m *mockcwlogsclient) PutLogEvents(input *cloudwatchlogs.PutLogEventsInput)
 	return output.successResult, output.errorResult
 }
 
+type mockmetadataclient struct {
+	regionResult chan *regionResult
+}
+
+type regionResult struct {
+	successResult string
+	errorResult   error
+}
+
+func newMockMetadataClient() *mockmetadataclient {
+	return &mockmetadataclient{
+		regionResult: make(chan *regionResult, 1),
+	}
+}
+
+func (m *mockmetadataclient) Region() (string, error) {
+	output := <-m.regionResult
+	return output.successResult, output.errorResult
+}
+
 func test() {
 	_ = &logStream{
 		client: newMockClient(),

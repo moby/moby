@@ -32,7 +32,10 @@ func TestNewAWSLogsClientUserAgentHandler(t *testing.T) {
 		},
 	}
 
-	client := newAWSLogsClient(ctx)
+	client, err := newAWSLogsClient(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
 	realClient, ok := client.(*cloudwatchlogs.CloudWatchLogs)
 	if !ok {
 		t.Fatal("Could not cast client to cloudwatchlogs.CloudWatchLogs")
@@ -50,6 +53,25 @@ func TestNewAWSLogsClientUserAgentHandler(t *testing.T) {
 	if userAgent != expectedUserAgentString {
 		t.Errorf("Wrong User-Agent string, expected \"%s\" but was \"%s\"",
 			expectedUserAgentString, userAgent)
+	}
+}
+
+func TestNewAWSLogsClientRegionDetect(t *testing.T) {
+	ctx := logger.Context{
+		Config: map[string]string{},
+	}
+
+	mockMetadata := newMockMetadataClient()
+	newRegionFinder = func() regionFinder {
+		return mockMetadata
+	}
+	mockMetadata.regionResult <- &regionResult{
+		successResult: "us-east-1",
+	}
+
+	_, err := newAWSLogsClient(ctx)
+	if err != nil {
+		t.Fatal(err)
 	}
 }
 

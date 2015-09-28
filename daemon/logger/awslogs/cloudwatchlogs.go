@@ -2,6 +2,7 @@
 package awslogs
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"runtime"
@@ -14,6 +15,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/defaults"
+	"github.com/aws/aws-sdk-go/aws/ec2metadata"
 	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/cloudwatchlogs"
 	"github.com/docker/docker/daemon/logger"
@@ -58,6 +60,10 @@ type api interface {
 	PutLogEvents(*cloudwatchlogs.PutLogEventsInput) (*cloudwatchlogs.PutLogEventsOutput, error)
 }
 
+type regionFinder interface {
+	Region() (string, error)
+}
+
 type byTimestamp []*cloudwatchlogs.InputLogEvent
 
 // init registers the awslogs driver and sets the default region, if provided
@@ -85,13 +91,17 @@ func New(ctx logger.Context) (logger.Logger, error) {
 	if ctx.Config[logStreamKey] != "" {
 		logStreamName = ctx.Config[logStreamKey]
 	}
+	client, err := newAWSLogsClient(ctx)
+	if err != nil {
+		return nil, err
+	}
 	containerStream := &logStream{
 		logStreamName: logStreamName,
 		logGroupName:  logGroupName,
-		client:        newAWSLogsClient(ctx),
+		client:        client,
 		messages:      make(chan *logger.Message, 4096),
 	}
-	err := containerStream.create()
+	err = containerStream.create()
 	if err != nil {
 		return nil, err
 	}
@@ -100,13 +110,38 @@ func New(ctx logger.Context) (logger.Logger, error) {
 	return containerStream, nil
 }
 
-func newAWSLogsClient(ctx logger.Context) api {
+// newRegionFinder is a variable such that the implementation
+// can be swapped out for unit tests.
+var newRegionFinder = func() regionFinder {
+	return ec2metadata.New(nil)
+}
+
+// newAWSLogsClient creates the service client for Amazon CloudWatch Logs.
+// Customizations to the default client from the SDK include a Docker-specific
+// User-Agent string and automatic region detection using the EC2 Instance
+// Metadata Service when region is otherwise unspecified.
+func newAWSLogsClient(ctx logger.Context) (api, error) {
 	config := defaults.DefaultConfig
 	if ctx.Config[regionKey] != "" {
 		config = defaults.DefaultConfig.Merge(&aws.Config{
 			Region: aws.String(ctx.Config[regionKey]),
 		})
 	}
+	if config.Region == nil || *config.Region == "" {
+		logrus.Info("Trying to get region from EC2 Metadata")
+		ec2MetadataClient := newRegionFinder()
+		region, err := ec2MetadataClient.Region()
+		if err != nil {
+			logrus.WithFields(logrus.Fields{
+				"error": err,
+			}).Error("Could not get region from EC2 metadata, environment, or log option")
+			return nil, errors.New("Cannot determine region for awslogs driver")
+		}
+		config.Region = &region
+	}
+	logrus.WithFields(logrus.Fields{
+		"region": *config.Region,
+	}).Debug("Created awslogs client")
 	client := cloudwatchlogs.New(config)
 
 	client.Handlers.Build.PushBackNamed(request.NamedHandler{
@@ -118,7 +153,7 @@ func newAWSLogsClient(ctx logger.Context) api {
 					version.VERSION, runtime.GOOS, currentAgent))
 		},
 	})
-	return client
+	return client, nil
 }
 
 // Name returns the name of the awslogs logging driver
@@ -311,12 +346,6 @@ func ValidateLogOpt(cfg map[string]string) error {
 	}
 	if cfg[logGroupKey] == "" {
 		return fmt.Errorf("must specify a value for log opt '%s'", logGroupKey)
-	}
-	if cfg[regionKey] == "" && os.Getenv(regionEnvKey) == "" {
-		return fmt.Errorf(
-			"must specify a value for environment variable '%s' or log opt '%s'",
-			regionEnvKey,
-			regionKey)
 	}
 	return nil
 }
