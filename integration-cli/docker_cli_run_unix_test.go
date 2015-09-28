@@ -322,9 +322,13 @@ func (s *DockerSuite) TestRunWithSwappiness(c *check.C) {
 func (s *DockerSuite) TestRunWithSwappinessInvalid(c *check.C) {
 	testRequires(c, memorySwappinessSupport)
 	out, _, err := dockerCmdWithError("run", "--memory-swappiness", "101", "busybox", "true")
-	if err == nil {
-		c.Fatalf("failed. test was able to set invalid value, output: %q", out)
-	}
+	c.Assert(err, check.NotNil)
+	expected := "Valid memory swappiness range is 0-100"
+	c.Assert(out, checker.Contains, expected, check.Commentf("Expected output to contain %q, not %q", out, expected))
+
+	out, _, err = dockerCmdWithError("run", "--memory-swappiness", "-10", "busybox", "true")
+	c.Assert(err, check.NotNil)
+	c.Assert(out, checker.Contains, expected, check.Commentf("Expected output to contain %q, not %q", out, expected))
 }
 
 func (s *DockerSuite) TestRunWithMemoryReservation(c *check.C) {
