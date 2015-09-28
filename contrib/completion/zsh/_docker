@@ -426,6 +426,8 @@ __docker_subcommand() {
                 "($help -D --debug)"{-D,--debug}"[Enable debug mode]" \
                 "($help)--default-gateway[Container default gateway IPv4 address]:IPv4 address: " \
                 "($help)--default-gateway-v6[Container default gateway IPv6 address]:IPv6 address: " \
+                "($help)--cluster-store=-[URL of the distributed storage backend]:Cluster Store:->cluser-store" \
+                "($help)--cluster-advertise=-[Address of the daemon instance to advertise]:Instance to advertise (host\:port): " \
                 "($help)*--dns=-[DNS server to use]:DNS: " \
                 "($help)*--dns-search=-[DNS search domains to use]:DNS search: " \
                 "($help)*--dns-opt=-[DNS options to use]:DNS option: " \
@@ -461,6 +463,17 @@ __docker_subcommand() {
                 "($help)--tlskey=-[Path to TLS key file]:Key file:_files -g "*.(pem|key)"" \
                 "($help)--tlsverify[Use TLS and verify the remote]" \
                 "($help)--userland-proxy[Use userland proxy for loopback traffic]" && ret=0
+
+            case $state in
+                (cluser-store)
+                    if compset -P '*://'; then
+                        _message 'host:port' && ret=0
+                    else
+                        store=('consul' 'etcd' 'zk')
+                        _describe -t cluster-store "Cluster Store" store -qS "://" && ret=0
+                    fi
+                    ;;
+            esac
             ;;
         (diff)
             _arguments \
