@@ -12,6 +12,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
+	"github.com/aws/aws-sdk-go/aws/defaults"
 	"github.com/aws/aws-sdk-go/service/cloudwatchlogs"
 	"github.com/docker/docker/daemon/logger"
 )
@@ -57,7 +58,7 @@ type byTimestamp []*cloudwatchlogs.InputLogEvent
 // init registers the awslogs driver and sets the default region, if provided
 func init() {
 	if os.Getenv(regionEnvKey) != "" {
-		aws.DefaultConfig.Region = aws.String(os.Getenv(regionEnvKey))
+		defaults.DefaultConfig.Region = aws.String(os.Getenv(regionEnvKey))
 	}
 	if err := logger.RegisterLogDriver(name, New); err != nil {
 		logrus.Fatal(err)
@@ -79,9 +80,9 @@ func New(ctx logger.Context) (logger.Logger, error) {
 	if ctx.Config[logStreamKey] != "" {
 		logStreamName = ctx.Config[logStreamKey]
 	}
-	config := aws.DefaultConfig
+	config := defaults.DefaultConfig
 	if ctx.Config[regionKey] != "" {
-		config = aws.DefaultConfig.Merge(&aws.Config{
+		config = defaults.DefaultConfig.Merge(&aws.Config{
 			Region: aws.String(ctx.Config[regionKey]),
 		})
 	}

@@ -64,7 +64,7 @@ clone git github.com/tinylib/msgp 75ee40d2601edf122ef667e2a07d600d4c44490c
 clone git gopkg.in/fsnotify.v1 v1.2.0
 
 # awslogs deps
-clone git github.com/aws/aws-sdk-go v0.7.1
+clone git github.com/aws/aws-sdk-go v0.9.9
 clone git github.com/vaughan0/go-ini a98ad7ee00ec53921f08832bc06ecf7fd600e6a1
 
 clean
