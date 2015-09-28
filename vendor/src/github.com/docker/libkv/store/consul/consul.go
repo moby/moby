@@ -87,7 +87,7 @@ func (s *Consul) setTLS(tls *tls.Config) {
 	s.config.Scheme = "https"
 }
 
-// SetTimeout sets the timout for connecting to Consul
+// SetTimeout sets the timeout for connecting to Consul
 func (s *Consul) setTimeout(time time.Duration) {
 	s.config.WaitTime = time
 }
