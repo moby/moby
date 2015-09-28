@@ -1,13 +1,13 @@
 package graph
 
 import (
-	"fmt"
 	"io"
 	"os"
 	"sync"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/registry/client/transport"
+	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/progressreader"
 	"github.com/docker/docker/pkg/streamformatter"
@@ -103,7 +103,7 @@ func (p *v1Pusher) getImageList(requestedTag string) ([]string, map[string][]str
 		imageList = append(imageList, imageListForThisTag...)
 	}
 	if len(imageList) == 0 {
-		return nil, nil, fmt.Errorf("No images found for the requested repository / tag")
+		return nil, nil, derr.ErrorCodeNoImagesFound
 	}
 	logrus.Debugf("Image list: %v", imageList)
 	logrus.Debugf("Tags by image: %v", tagsByImage)
@@ -227,7 +227,7 @@ func (p *v1Pusher) pushRepository(tag string) error {
 	}
 
 	if _, found := p.poolAdd("push", p.repoInfo.LocalName); found {
-		return fmt.Errorf("push or pull %s is already in progress", p.repoInfo.LocalName)
+		return derr.ErrorCodeRegistryBusy.WithArgs(p.repoInfo.LocalName)
 	}
 	defer p.poolRemove("push", p.repoInfo.LocalName)
 
@@ -255,7 +255,7 @@ func (p *v1Pusher) pushRepository(tag string) error {
 func (p *v1Pusher) pushImage(imgID, ep string) (checksum string, err error) {
 	jsonRaw, err := p.graph.RawJSON(imgID)
 	if err != nil {
-		return "", fmt.Errorf("Cannot retrieve the path for {%s}: %s", imgID, err)
+		return "", derr.ErrorCodeImageAtPath.WithArgs(imgID, err)
 	}
 	p.out.Write(p.sf.FormatProgress(stringid.TruncateID(imgID), "Pushing", nil))
 
@@ -274,7 +274,7 @@ func (p *v1Pusher) pushImage(imgID, ep string) (checksum string, err error) {
 
 	layerData, err := p.graph.TempLayerArchive(imgID, p.sf, p.out)
 	if err != nil {
-		return "", fmt.Errorf("Failed to generate layer archive: %s", err)
+		return "", derr.ErrorCodeGenerateLayer.WithArgs(err)
 	}
 	defer os.RemoveAll(layerData.Name())
 

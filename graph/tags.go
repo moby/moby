@@ -13,7 +13,9 @@ import (
 	"sync"
 
 	"github.com/docker/distribution/digest"
+	"github.com/docker/distribution/registry/api/errcode"
 	"github.com/docker/docker/daemon/events"
+	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/graph/tags"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/parsers"
@@ -245,7 +247,7 @@ func (store *TagStore) Delete(repoName, ref string) (bool, error) {
 
 	repoRefs, exists := store.Repositories[repoName]
 	if !exists {
-		return false, fmt.Errorf("No such repository: %s", repoName)
+		return false, derr.ErrorCodeNoSuchRepositoryInTagStore.WithArgs(repoName)
 	}
 
 	if _, exists := repoRefs[ref]; exists {
@@ -282,7 +284,10 @@ func (store *TagStore) setLoad(repoName, tag, imageName string, force bool, out 
 		return err
 	}
 	if err := tags.ValidateTagName(tag); err != nil {
-		if _, formatError := err.(tags.ErrTagInvalidFormat); !formatError {
+		theErr, isDerr := err.(errcode.ErrorCoder)
+		formatError := isDerr && theErr.ErrorCode() == derr.ErrorCodeTagNameFormat
+
+		if !formatError {
 			return err
 		}
 		if _, dErr := digest.ParseDigest(tag); dErr != nil {
@@ -301,7 +306,7 @@ func (store *TagStore) setLoad(repoName, tag, imageName string, force bool, out 
 		if old, exists := store.Repositories[repoName][tag]; exists {
 
 			if !force {
-				return fmt.Errorf("Conflict: Tag %s is already set to image %s, if you want to replace it, please use -f option", tag, old)
+				return derr.ErrorCodeStoreImageConflict.WithArgs(tag, old)
 			}
 
 			if old != img.ID && out != nil {
@@ -345,7 +350,7 @@ func (store *TagStore) SetDigest(repoName, digest, imageName string) error {
 		repoRefs = Repository{}
 		store.Repositories[repoName] = repoRefs
 	} else if oldID, exists := repoRefs[digest]; exists && oldID != img.ID {
-		return fmt.Errorf("Conflict: Digest %s is already set to image %s", digest, oldID)
+		return derr.ErrorCodeStoreDigestConflict.WithArgs(digest, oldID)
 	}
 
 	repoRefs[digest] = img.ID
@@ -416,10 +421,10 @@ func (store *TagStore) GetRepoRefs() map[string][]string {
 // validateRepoName validates the name of a repository.
 func validateRepoName(name string) error {
 	if name == "" {
-		return fmt.Errorf("Repository name can't be empty")
+		return derr.ErrorCodeRepositoryNameIsEmpty
 	}
 	if name == "scratch" {
-		return fmt.Errorf("'scratch' is a reserved name")
+		return derr.ErrorCodeRepositoryNameConflictWithScratch
 	}
 	return nil
 }
@@ -477,7 +482,7 @@ func (store *TagStore) poolRemoveWithError(kind, key string, broadcasterResult e
 			delete(store.pushingPool, key)
 		}
 	default:
-		return fmt.Errorf("Unknown pool type")
+		return derr.ErrorCodeUnknownPoolType
 	}
 	return nil
 }

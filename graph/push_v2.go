@@ -1,7 +1,6 @@
 package graph
 
 import (
-	"fmt"
 	"io"
 	"io/ioutil"
 
@@ -9,6 +8,7 @@ import (
 	"github.com/docker/distribution"
 	"github.com/docker/distribution/digest"
 	"github.com/docker/distribution/manifest"
+	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/progressreader"
 	"github.com/docker/docker/pkg/streamformatter"
@@ -47,7 +47,7 @@ func (p *v2Pusher) getImageTags(askedTag string) ([]string, error) {
 	logrus.Debugf("Checking %q against %#v", askedTag, p.localRepo)
 	if len(askedTag) > 0 {
 		if _, ok := p.localRepo[askedTag]; !ok || utils.DigestReference(askedTag) {
-			return nil, fmt.Errorf("Tag does not exist for %s", askedTag)
+			return nil, derr.ErrorCodeNoSuchTag.WithArgs(askedTag)
 		}
 		return []string{askedTag}, nil
 	}
@@ -63,16 +63,16 @@ func (p *v2Pusher) getImageTags(askedTag string) ([]string, error) {
 func (p *v2Pusher) pushV2Repository(tag string) error {
 	localName := p.repoInfo.LocalName
 	if _, found := p.poolAdd("push", localName); found {
-		return fmt.Errorf("push or pull %s is already in progress", localName)
+		return derr.ErrorCodeRegistryBusy.WithArgs(localName)
 	}
 	defer p.poolRemove("push", localName)
 
 	tags, err := p.getImageTags(tag)
 	if err != nil {
-		return fmt.Errorf("error getting tags for %s: %s", localName, err)
+		return derr.ErrorCodeGettingTagsForImage.WithArgs(localName, err)
 	}
 	if len(tags) == 0 {
-		return fmt.Errorf("no tags to push for %s", localName)
+		return derr.ErrorCodeNoTagsInPush.WithArgs(localName)
 	}
 
 	for _, tag := range tags {
@@ -89,7 +89,7 @@ func (p *v2Pusher) pushV2Tag(tag string) error {
 
 	layerID, exists := p.localRepo[tag]
 	if !exists {
-		return fmt.Errorf("tag does not exist: %s", tag)
+		return derr.ErrorCodeNoSuchTagV2Repos.WithArgs(tag)
 	}
 
 	layersSeen := make(map[string]bool)
@@ -140,7 +140,7 @@ func (p *v2Pusher) pushV2Tag(tag string) error {
 
 		jsonData, err := p.graph.RawJSON(layer.ID)
 		if err != nil {
-			return fmt.Errorf("cannot retrieve the path for %s: %s", layer.ID, err)
+			return derr.ErrorCodeImageAtPathV2Repos.WithArgs(layer.ID, err)
 		}
 
 		var exists bool
@@ -168,7 +168,7 @@ func (p *v2Pusher) pushV2Tag(tag string) error {
 		case ErrDigestNotSet:
 			// nop
 		case digest.ErrDigestInvalidFormat, digest.ErrDigestUnsupported:
-			return fmt.Errorf("error getting image checksum: %v", err)
+			return derr.ErrorCodeImageDigest.WithArgs(err)
 		}
 
 		// if digest was empty or not saved, or if blob does not exist on the remote repository,

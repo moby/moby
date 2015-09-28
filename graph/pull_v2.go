@@ -1,7 +1,6 @@
 package graph
 
 import (
-	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
@@ -10,6 +9,7 @@ import (
 	"github.com/docker/distribution"
 	"github.com/docker/distribution/digest"
 	"github.com/docker/distribution/manifest"
+	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/progressreader"
 	"github.com/docker/docker/pkg/streamformatter"
@@ -113,10 +113,6 @@ type downloadInfo struct {
 	broadcaster *progressreader.Broadcaster
 }
 
-type errVerification struct{}
-
-func (errVerification) Error() string { return "verification failed" }
-
 func (p *v2Puller) download(di *downloadInfo) {
 	logrus.Debugf("pulling blob %q to %s", di.digest, di.img.ID)
 
@@ -158,7 +154,7 @@ func (p *v2Puller) download(di *downloadInfo) {
 	di.broadcaster.Write(p.sf.FormatProgress(stringid.TruncateID(di.img.ID), "Verifying Checksum", nil))
 
 	if !verifier.Verified() {
-		err = fmt.Errorf("filesystem layer verification failed for digest %s", di.digest)
+		err = derr.ErrorCodeWriteDigestToFSFailed.WithArgs(di.digest)
 		logrus.Error(err)
 		di.err <- err
 		return
@@ -356,14 +352,14 @@ func (p *v2Puller) verifyTrustedKeys(namespace string, keys []libtrust.PublicKey
 	for _, key := range keys {
 		b, err := key.MarshalJSON()
 		if err != nil {
-			return false, fmt.Errorf("error marshalling public key: %s", err)
+			return false, derr.ErrorCodeMarshalPublicKey.WithArgs(err)
 		}
 		// Check key has read/write permission (0x03)
 		v, err := p.trustService.CheckKey(namespace, b, 0x03)
 		if err != nil {
 			vErr, ok := err.(trust.NotVerifiedError)
 			if !ok {
-				return false, fmt.Errorf("error running key check: %s", err)
+				return false, derr.ErrorCodeKeyCheck.WithArgs(err)
 			}
 			logrus.Debugf("Key check result: %v", vErr)
 		}
@@ -394,7 +390,7 @@ func (p *v2Puller) validateManifest(m *manifest.SignedManifest, tag string) (ver
 			return false, err
 		}
 		if !verifier.Verified() {
-			err := fmt.Errorf("image verification failed for digest %s", manifestDigest)
+			err := derr.ErrorCodeWriteImageToFSFailed.WithArgs(manifestDigest)
 			logrus.Error(err)
 			return false, err
 		}
@@ -402,24 +398,24 @@ func (p *v2Puller) validateManifest(m *manifest.SignedManifest, tag string) (ver
 
 	// TODO(tiborvass): what's the usecase for having manifest == nil and err == nil ? Shouldn't be the error be "DoesNotExist" ?
 	if m == nil {
-		return false, fmt.Errorf("image manifest does not exist for tag %q", tag)
+		return false, derr.ErrorCodeNoManifest.WithArgs(tag)
 	}
 	if m.SchemaVersion != 1 {
-		return false, fmt.Errorf("unsupported schema version %d for tag %q", m.SchemaVersion, tag)
+		return false, derr.ErrorCodeManifestWithUnknownSchema.WithArgs(m.SchemaVersion, tag)
 	}
 	if len(m.FSLayers) != len(m.History) {
-		return false, fmt.Errorf("length of history not equal to number of layers for tag %q", tag)
+		return false, derr.ErrorCodeManifestHistoryConflict.WithArgs(tag)
 	}
 	if len(m.FSLayers) == 0 {
-		return false, fmt.Errorf("no FSLayers in manifest for tag %q", tag)
+		return false, derr.ErrorCodeEmptyManifestHistory.WithArgs(tag)
 	}
 	keys, err := manifest.Verify(m)
 	if err != nil {
-		return false, fmt.Errorf("error verifying manifest for tag %q: %v", tag, err)
+		return false, derr.ErrorCodeFromManifestVerify.WithArgs(tag, err)
 	}
 	verified, err = p.verifyTrustedKeys(m.Name, keys)
 	if err != nil {
-		return false, fmt.Errorf("error verifying manifest keys: %v", err)
+		return false, derr.ErrorCodeManifestKeys.WithArgs(err)
 	}
 	return verified, nil
 }
