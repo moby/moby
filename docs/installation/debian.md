@@ -5,6 +5,7 @@ description = "Instructions for installing Docker on Debian."
 keywords = ["Docker, Docker documentation, installation,  debian"]
 [menu.main]
 parent = "smn_linux"
+weight=-2
 +++
 <![end-metadata]-->
 
@@ -12,113 +13,98 @@ parent = "smn_linux"
 
 Docker is supported on the following versions of Debian:
 
+ - [*Debian testing stretch (64-bit)*](#debian-wheezy-stable-7-x-64-bit)
  - [*Debian 8.0 Jessie (64-bit)*](#debian-jessie-80-64-bit)
  - [*Debian 7.7 Wheezy (64-bit)*](#debian-wheezy-stable-7-x-64-bit)
 
-## Debian Jessie 8.0 (64-bit)
+ >**Note**: If you previously installed Docker using `apt`, make sure you update
+ your `apt` sources to the new `apt` repository.
 
-Debian 8 comes with a 3.16.0 Linux kernel, the `docker.io` package can be found in the `jessie-backports` repository. Reasoning behind this can be found <a href="https://lists.debian.org/debian-release/2015/03/msg00685.html" target="_blank">here</a>. Instructions how to enable the backports repository can be found <a href="http://backports.debian.org/Instructions/" target="_blank">here</a>.
+## Prerequisites
 
-> **Note**:
-> Debian contains a much older KDE3/GNOME2 package called ``docker``, so the
-> package and the executable are called ``docker.io``.
+ Docker requires a 64-bit installation regardless of your Debian version.
+ Additionally, your kernel must be 3.10 at minimum. The latest 3.10 minor
+ version or a newer maintained version are also acceptable.
 
-### Installation
+ Kernels older than 3.10 lack some of the features required to run Docker
+ containers. These older versions are known to have bugs which cause data loss
+ and frequently panic under certain conditions.
 
-Make sure you enabled the `jessie-backports` repository, as stated above.
+ To check your current kernel version, open a terminal and use `uname -r` to
+ display your kernel version:
 
-To install the latest Debian package (may not be the latest Docker release):
+     $ uname -r
 
-    $ sudo apt-get update
-    $ sudo apt-get install docker.io
+### Update your apt repository
 
-To verify that everything has worked as expected:
+Docker's `apt` repository contains Docker 1.7.1 and higher. To set `apt` to use
+from the new repository:
 
-    $ sudo docker run --rm hello-world
+ 1. If you haven't already done so, log into your machine as a user with `sudo` or `root` privileges.
 
-This command downloads and runs the `hello-world` image in a container. When the
-container runs, it prints an informational message. Then, it exits.
+ 2. Open a terminal window.
 
-If you need to add an HTTP Proxy, set a different directory or partition for the
-Docker runtime files, or make other customizations, read our Systemd article to
-learn how to [customize your Systemd Docker daemon options](/articles/systemd/).
+ 3. Purge any older repositories.
 
-> **Note**:
-> If you want to enable memory and swap accounting see
-> [this](/installation/ubuntulinux/#adjust-memory-and-swap-accounting).
+         $ apt-get purge lxc-docker*
+         $ apt-get purge docker.io*
 
-### Uninstallation
+ 4. Add the new `gpg` key.
 
-To uninstall the Docker package:
+         $ apt-key adv --keyserver hkp://pgp.mit.edu:80 --recv-keys 58118E89F3A912897C070ADBF76221572C52609D
 
-    $ sudo apt-get purge docker.io
+ 5. Open the `/etc/apt/sources.list.d/docker.list` file in your favorite editor.
 
-To uninstall the Docker package and dependencies that are no longer needed:
+     If the file doesn't exist, create it.
 
-    $ sudo apt-get autoremove --purge docker.io
+ 6. Remove any existing entries.
 
-The above commands will not remove images, containers, volumes, or user created
-configuration files on your host. If you wish to delete all images, containers,
-and volumes run the following command:
+ 7. Add an entry for your Debian operating system.
 
-    $ rm -rf /var/lib/docker
+     The possible entries are:
 
-You must delete the user created configuration files manually.
+         # Debian Wheezy
+        deb https://apt.dockerproject.org/repo debian-wheezy main
+        # Debian Jessie
+        deb https://apt.dockerproject.org/repo debian-jessie main
+        # Debian Stretch/Sid
+        deb https://apt.dockerproject.org/repo debian-stretch main
 
-## Debian Wheezy/Stable 7.x (64-bit)
+ 8. Save and close the file.
 
-Docker requires Kernel 3.8+, while Wheezy ships with Kernel 3.2 (for more details
-on why 3.8 is required, see discussion on
-[bug #407](https://github.com/docker/docker/issues/407)).
+ 9. Update the `apt` package index.
 
-Fortunately, wheezy-backports currently has [Kernel 3.16
-](https://packages.debian.org/search?suite=wheezy-backports&section=all&arch=any&searchon=names&keywords=linux-image-amd64),
-which is officially supported by Docker.
+         $ apt-get update
 
-### Installation
+ 10. Verify that `apt` is pulling from the right repository.
 
-1. Install Kernel from wheezy-backports
+         $ apt-cache policy docker-engine
 
-    Add the following line to your `/etc/apt/sources.list`
+     From now on when you run `apt-get upgrade`, `apt` pulls from the new apt repository.  
 
-    `deb http://http.debian.net/debian wheezy-backports main`
+## Install Docker
 
-    then install the `linux-image-amd64` package (note the use of
-    `-t wheezy-backports`)
+Before installing Docker, make sure you have set your `apt` repository correctly as described in the prerequisites.
+
+1. Update the `apt` package index.
 
         $ sudo apt-get update
-        $ sudo apt-get install -t wheezy-backports linux-image-amd64
 
-2. Restart your system. This is necessary for Debian to use your new kernel.
+2. Install Docker.
 
-3. Install Docker using the get.docker.com script:
+        $ sudo apt-get install docker-engine
 
-    `curl -sSL https://get.docker.com/ | sh`
+5. Start the `docker` daemon.
 
->**Note**: If your company is behind a filtering proxy, you may find that the
->`apt-key`
->command fails for the Docker repo during installation. To work around this,
->add the key directly using the following:
->
->       $ curl -sSL https://get.docker.com/gpg | sudo apt-key add -
+        $ sudo service docker start
 
-### Uninstallation
+6. Verify `docker` is installed correctly.
 
-To uninstall the Docker package:
+        $ sudo docker run hello-world
 
-    $ sudo apt-get purge docker-engine
+    This command downloads a test image and runs it in a container. When the
+    container runs, it prints an informational message. Then, it exits.
 
-To uninstall the Docker package and dependencies that are no longer needed:
-
-    $ sudo apt-get autoremove --purge docker-engine
-
-The above commands will not remove images, containers, volumes, or user created
-configuration files on your host. If you wish to delete all images, containers,
-and volumes run the following command:
-
-    $ rm -rf /var/lib/docker
-
-You must delete the user created configuration files manually.
 
 ## Giving non-root access
 
@@ -154,6 +140,29 @@ use the `-G` flag to specify an alternative group.
     # Restart the Docker daemon.
     $ sudo service docker restart
 
+## Upgrade Docker
+
+To install the latest version of Docker with `apt-get`:
+
+    $ apt-get upgrade docker-engine
+
+## Uninstall
+
+To uninstall the Docker package:
+
+    $ sudo apt-get purge docker-engine
+
+To uninstall the Docker package and dependencies that are no longer needed:
+
+    $ sudo apt-get autoremove --purge docker-engine
+
+The above commands will not remove images, containers, volumes, or user created
+configuration files on your host. If you wish to delete all images, containers,
+and volumes run the following command:
+
+    $ rm -rf /var/lib/docker
+
+You must delete the user created configuration files manually.
 
 ## What next?
 
