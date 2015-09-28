@@ -256,15 +256,15 @@ func validatePath(val string, validator func(string) bool) (string, error) {
 }
 
 // ValidateEnv validates an environment variable and returns it.
-// It uses EnvironmentVariableRegexp to ensure the name of the environment variable is valid.
 // If no value is specified, it returns the current value using os.Getenv.
+//
+// As on ParseEnvFile and related to #16585, environment variable names
+// are not validate what so ever, it's up to application inside docker
+// to validate them or not.
 func ValidateEnv(val string) (string, error) {
 	arr := strings.Split(val, "=")
 	if len(arr) > 1 {
 		return val, nil
-	}
-	if !EnvironmentVariableRegexp.MatchString(arr[0]) {
-		return val, ErrBadEnvVariable{fmt.Sprintf("variable '%s' is not a valid environment variable", val)}
 	}
 	if !doesEnvExist(val) {
 		return val, nil
