@@ -48,7 +48,7 @@ func (daemon *Daemon) ContainerAttachWithLogs(ctx context.Context, prefixOrName 
 }
 
 // ContainerWsAttachWithLogsConfig attach with websockets, since all
-// stream data is delegated to the websocket to handle, there
+// stream data is delegated to the websocket to handle there.
 type ContainerWsAttachWithLogsConfig struct {
 	InStream             io.ReadCloser
 	OutStream, ErrStream io.Writer
