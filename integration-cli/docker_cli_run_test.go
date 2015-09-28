@@ -2140,7 +2140,7 @@ func (s *DockerSuite) TestRunUnknownCommand(c *check.C) {
 	// the command which will fail.
 	if daemonPlatform == "windows" {
 		// Wait for it to exit.
-		waitExited(cID, 30)
+		waitExited(cID, 30*time.Second)
 		c.Assert(err, check.IsNil)
 	} else {
 		c.Assert(err, check.NotNil)
