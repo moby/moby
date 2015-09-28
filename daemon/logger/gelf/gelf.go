@@ -6,7 +6,6 @@ package gelf
 
 import (
 	"bytes"
-	"fmt"
 	"net"
 	"net/url"
 	"time"
@@ -15,6 +14,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/daemon/logger/loggerutils"
+	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/pkg/urlutil"
 )
 
@@ -59,7 +59,7 @@ func New(ctx logger.Context) (logger.Logger, error) {
 	// collect extra data for GELF message
 	hostname, err := ctx.Hostname()
 	if err != nil {
-		return nil, fmt.Errorf("gelf: cannot access hostname to set source field")
+		return nil, derr.ErrorCodeLogGelfErrHostNameAccess
 	}
 
 	// remove trailing slash from container name
@@ -85,7 +85,7 @@ func New(ctx logger.Context) (logger.Logger, error) {
 	// create new gelfWriter
 	gelfWriter, err := gelf.NewWriter(address)
 	if err != nil {
-		return nil, fmt.Errorf("gelf: cannot connect to GELF endpoint: %s %v", address, err)
+		return nil, derr.ErrorCodeLogGelfInvEndpoint.WithArgs(address, err)
 	}
 
 	return &gelfLogger{
@@ -122,7 +122,7 @@ func (s *gelfLogger) Log(msg *logger.Message) error {
 	}
 
 	if err := s.writer.WriteMessage(&m); err != nil {
-		return fmt.Errorf("gelf: cannot send GELF message: %v", err)
+		return derr.ErrorCodeLogGelfFailedToWrite.WithArgs(err)
 	}
 	return nil
 }
@@ -144,7 +144,7 @@ func ValidateLogOpt(cfg map[string]string) error {
 		case "gelf-tag":
 		case "tag":
 		default:
-			return fmt.Errorf("unknown log opt '%s' for gelf log driver", key)
+			return derr.ErrorCodeLogGelfErrOpt.WithArgs(key)
 		}
 	}
 
@@ -160,7 +160,7 @@ func parseAddress(address string) (string, error) {
 		return "", nil
 	}
 	if !urlutil.IsTransportURL(address) {
-		return "", fmt.Errorf("gelf-address should be in form proto://address, got %v", address)
+		return "", derr.ErrorCodeLogGelfInvAddress.WithArgs(address)
 	}
 	url, err := url.Parse(address)
 	if err != nil {
@@ -169,12 +169,12 @@ func parseAddress(address string) (string, error) {
 
 	// we support only udp
 	if url.Scheme != "udp" {
-		return "", fmt.Errorf("gelf: endpoint needs to be UDP")
+		return "", derr.ErrorCodeLogGelfErrNotUDP
 	}
 
 	// get host and port
 	if _, _, err = net.SplitHostPort(url.Host); err != nil {
-		return "", fmt.Errorf("gelf: please provide gelf-address as udp://host:port")
+		return "", derr.ErrorCodeLogGelfInvHostPort
 	}
 
 	return url.Host, nil

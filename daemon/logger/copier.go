@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Sirupsen/logrus"
+	derr "github.com/docker/docker/errors"
 )
 
 // Copier can copy logs from specified sources to Logger and attach
@@ -51,13 +51,13 @@ func (c *Copier) copySrc(name string, src io.Reader) {
 		// e.g. it can return a full entry and EOF.
 		if err == nil || len(line) > 0 {
 			if logErr := c.dst.Log(&Message{ContainerID: c.cid, Line: line, Source: name, Timestamp: time.Now().UTC()}); logErr != nil {
-				logrus.Errorf("Failed to log msg %q for logger %s: %s", line, c.dst.Name(), logErr)
+				derr.ErrorCodeLogFailedToWrite.WithArgs(line, c.dst.Name(), logErr)
 			}
 		}
 
 		if err != nil {
 			if err != io.EOF {
-				logrus.Errorf("Error scanning log stream: %s", err)
+				derr.ErrorCodeLogErrScan.WithArgs(err)
 			}
 			return
 		}

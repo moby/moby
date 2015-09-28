@@ -1,7 +1,7 @@
 package logger
 
 import (
-	"fmt"
+	derr "github.com/docker/docker/errors"
 	"sync"
 )
 
@@ -23,7 +23,7 @@ func (lf *logdriverFactory) register(name string, c Creator) error {
 	defer lf.m.Unlock()
 
 	if _, ok := lf.registry[name]; ok {
-		return fmt.Errorf("logger: log driver named '%s' is already registered", name)
+		return derr.ErrorCodeLogDriverAlreadyReg.WithArgs(name)
 	}
 	lf.registry[name] = c
 	return nil
@@ -34,7 +34,7 @@ func (lf *logdriverFactory) registerLogOptValidator(name string, l LogOptValidat
 	defer lf.m.Unlock()
 
 	if _, ok := lf.optValidator[name]; ok {
-		return fmt.Errorf("logger: log validator named '%s' is already registered", name)
+		return derr.ErrorCodeLogValAlreadyReg.WithArgs(name)
 	}
 	lf.optValidator[name] = l
 	return nil
@@ -46,7 +46,7 @@ func (lf *logdriverFactory) get(name string) (Creator, error) {
 
 	c, ok := lf.registry[name]
 	if !ok {
-		return c, fmt.Errorf("logger: no log driver named '%s' is registered", name)
+		return c, derr.ErrorCodeLogErrNoDriverReg.WithArgs(name)
 	}
 	return c, nil
 }

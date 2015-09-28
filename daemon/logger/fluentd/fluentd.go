@@ -3,7 +3,6 @@
 package fluentd
 
 import (
-	"fmt"
 	"math"
 	"net"
 	"strconv"
@@ -12,6 +11,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/daemon/logger/loggerutils"
+	derr "github.com/docker/docker/errors"
 	"github.com/fluent/fluent-logger-golang/fluent"
 )
 
@@ -96,7 +96,7 @@ func ValidateLogOpt(cfg map[string]string) error {
 		case "fluentd-tag":
 		case "tag":
 		default:
-			return fmt.Errorf("unknown log opt '%s' for fluentd log driver", key)
+			return derr.ErrorCodeLogFluentdErrOpt.WithArgs(key)
 		}
 	}
 
@@ -115,14 +115,14 @@ func parseAddress(address string) (string, int, error) {
 	host, port, err := net.SplitHostPort(address)
 	if err != nil {
 		if !strings.Contains(err.Error(), "missing port in address") {
-			return "", 0, fmt.Errorf("invalid fluentd-address %s: %s", address, err)
+			return "", 0, derr.ErrorCodeLogFluentdInvAddr.WithArgs(address, err)
 		}
 		return host, defaultPort, nil
 	}
 
 	portnum, err := strconv.Atoi(port)
 	if err != nil {
-		return "", 0, fmt.Errorf("invalid fluentd-address %s: %s", address, err)
+		return "", 0, derr.ErrorCodeLogFluentdInvAddr.WithArgs(address, err)
 	}
 	return host, portnum, nil
 }
