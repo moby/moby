@@ -20,6 +20,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api"
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/daemon/events"
 	"github.com/docker/docker/daemon/execdriver"
 	"github.com/docker/docker/daemon/execdriver/execdrivers"
@@ -1013,6 +1014,69 @@ func (daemon *Daemon) Graph() *graph.Graph {
 // Repositories returns all repositories.
 func (daemon *Daemon) Repositories() *graph.TagStore {
 	return daemon.repositories
+}
+
+// TagImage creates a tag in the repository reponame, pointing to the image named
+// imageName. If force is true, an existing tag with the same name may be
+// overwritten.
+func (daemon *Daemon) TagImage(repoName, tag, imageName string, force bool) error {
+	return daemon.repositories.Tag(repoName, tag, imageName, force)
+}
+
+// PullImage initiates a pull operation. image is the repository name to pull, and
+// tag may be either empty, or indicate a specific tag to pull.
+func (daemon *Daemon) PullImage(image string, tag string, imagePullConfig *graph.ImagePullConfig) error {
+	return daemon.repositories.Pull(image, tag, imagePullConfig)
+}
+
+// ImportImage imports an image, getting the archived layer data either from
+// inConfig (if src is "-"), or from a URI specified in src. Progress output is
+// written to outStream. Repository and tag names can optionally be given in
+// the repo and tag arguments, respectively.
+func (daemon *Daemon) ImportImage(src, repo, tag, msg string, inConfig io.ReadCloser, outStream io.Writer, containerConfig *runconfig.Config) error {
+	return daemon.repositories.Import(src, repo, tag, msg, inConfig, outStream, containerConfig)
+}
+
+// ExportImage exports a list of images to the given output stream. The
+// exported images are archived into a tar when written to the output
+// stream. All images with the given tag and all versions containing
+// the same tag are exported. names is the set of tags to export, and
+// outStream is the writer which the images are written to.
+func (daemon *Daemon) ExportImage(names []string, outStream io.Writer) error {
+	return daemon.repositories.ImageExport(names, outStream)
+}
+
+// PushImage initiates a push operation on the repository named localName.
+func (daemon *Daemon) PushImage(localName string, imagePushConfig *graph.ImagePushConfig) error {
+	return daemon.repositories.Push(localName, imagePushConfig)
+}
+
+// LookupImage looks up an image by name and returns it as an ImageInspect
+// structure.
+func (daemon *Daemon) LookupImage(name string) (*types.ImageInspect, error) {
+	return daemon.repositories.Lookup(name)
+}
+
+// LoadImage uploads a set of images into the repository. This is the
+// complement of ImageExport.  The input stream is an uncompressed tar
+// ball containing images and metadata.
+func (daemon *Daemon) LoadImage(inTar io.ReadCloser, outStream io.Writer) error {
+	return daemon.repositories.Load(inTar, outStream)
+}
+
+// ListImages returns a filtered list of images. filterArgs is a JSON-encoded set
+// of filter arguments which will be interpreted by pkg/parsers/filters.
+// filter is a shell glob string applied to repository names. The argument
+// named all controls whether all images in the graph are filtered, or just
+// the heads.
+func (daemon *Daemon) ListImages(filterArgs, filter string, all bool) ([]*types.Image, error) {
+	return daemon.repositories.Images(filterArgs, filter, all)
+}
+
+// ImageHistory returns a slice of ImageHistory structures for the specified image
+// name by walking the image lineage.
+func (daemon *Daemon) ImageHistory(name string) ([]*types.ImageHistory, error) {
+	return daemon.repositories.History(name)
 }
 
 func (daemon *Daemon) config() *Config {
