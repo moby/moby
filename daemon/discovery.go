@@ -20,12 +20,12 @@ const (
 
 // initDiscovery initialized the nodes discovery subsystem by connecting to the specified backend
 // and start a registration loop to advertise the current node under the specified address.
-func initDiscovery(backend, address string) (discovery.Backend, error) {
+func initDiscovery(backend, address string, clusterOpts map[string]string) (discovery.Backend, error) {
 	var (
 		discoveryBackend discovery.Backend
 		err              error
 	)
-	if discoveryBackend, err = discovery.New(backend, defaultDiscoveryHeartbeat, defaultDiscoveryTTL); err != nil {
+	if discoveryBackend, err = discovery.New(backend, defaultDiscoveryHeartbeat, defaultDiscoveryTTL, clusterOpts); err != nil {
 		return nil, err
 	}
 
