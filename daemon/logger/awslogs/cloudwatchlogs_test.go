@@ -2,14 +2,19 @@ package awslogs
 
 import (
 	"errors"
+	"fmt"
+	"net/http"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
+	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/cloudwatchlogs"
 	"github.com/docker/docker/daemon/logger"
+	"github.com/docker/docker/version"
 )
 
 const (
@@ -19,6 +24,34 @@ const (
 	nextSequenceToken = "nextSequenceToken"
 	logline           = "this is a log line"
 )
+
+func TestNewAWSLogsClientUserAgentHandler(t *testing.T) {
+	ctx := logger.Context{
+		Config: map[string]string{
+			regionKey: "us-east-1",
+		},
+	}
+
+	client := newAWSLogsClient(ctx)
+	realClient, ok := client.(*cloudwatchlogs.CloudWatchLogs)
+	if !ok {
+		t.Fatal("Could not cast client to cloudwatchlogs.CloudWatchLogs")
+	}
+	buildHandlerList := realClient.Handlers.Build
+	request := &request.Request{
+		HTTPRequest: &http.Request{
+			Header: http.Header{},
+		},
+	}
+	buildHandlerList.Run(request)
+	expectedUserAgentString := fmt.Sprintf("Docker %s (%s) %s/%s",
+		version.VERSION, runtime.GOOS, aws.SDKName, aws.SDKVersion)
+	userAgent := request.HTTPRequest.Header.Get("User-Agent")
+	if userAgent != expectedUserAgentString {
+		t.Errorf("Wrong User-Agent string, expected \"%s\" but was \"%s\"",
+			expectedUserAgentString, userAgent)
+	}
+}
 
 func TestCreateSuccess(t *testing.T) {
 	mockClient := newMockClient()

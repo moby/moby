@@ -4,6 +4,7 @@ package awslogs
 import (
 	"fmt"
 	"os"
+	"runtime"
 	"sort"
 	"strings"
 	"sync"
@@ -13,8 +14,10 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/defaults"
+	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/cloudwatchlogs"
 	"github.com/docker/docker/daemon/logger"
+	"github.com/docker/docker/version"
 )
 
 const (
@@ -36,6 +39,8 @@ const (
 	resourceAlreadyExistsCode = "ResourceAlreadyExistsException"
 	dataAlreadyAcceptedCode   = "DataAlreadyAcceptedException"
 	invalidSequenceTokenCode  = "InvalidSequenceTokenException"
+
+	userAgentHeader = "User-Agent"
 )
 
 type logStream struct {
@@ -80,16 +85,10 @@ func New(ctx logger.Context) (logger.Logger, error) {
 	if ctx.Config[logStreamKey] != "" {
 		logStreamName = ctx.Config[logStreamKey]
 	}
-	config := defaults.DefaultConfig
-	if ctx.Config[regionKey] != "" {
-		config = defaults.DefaultConfig.Merge(&aws.Config{
-			Region: aws.String(ctx.Config[regionKey]),
-		})
-	}
 	containerStream := &logStream{
 		logStreamName: logStreamName,
 		logGroupName:  logGroupName,
-		client:        cloudwatchlogs.New(config),
+		client:        newAWSLogsClient(ctx),
 		messages:      make(chan *logger.Message, 4096),
 	}
 	err := containerStream.create()
@@ -99,6 +98,27 @@ func New(ctx logger.Context) (logger.Logger, error) {
 	go containerStream.collectBatch()
 
 	return containerStream, nil
+}
+
+func newAWSLogsClient(ctx logger.Context) api {
+	config := defaults.DefaultConfig
+	if ctx.Config[regionKey] != "" {
+		config = defaults.DefaultConfig.Merge(&aws.Config{
+			Region: aws.String(ctx.Config[regionKey]),
+		})
+	}
+	client := cloudwatchlogs.New(config)
+
+	client.Handlers.Build.PushBackNamed(request.NamedHandler{
+		Name: "DockerUserAgentHandler",
+		Fn: func(r *request.Request) {
+			currentAgent := r.HTTPRequest.Header.Get(userAgentHeader)
+			r.HTTPRequest.Header.Set(userAgentHeader,
+				fmt.Sprintf("Docker %s (%s) %s",
+					version.VERSION, runtime.GOOS, currentAgent))
+		},
+	})
+	return client
 }
 
 // Name returns the name of the awslogs logging driver
