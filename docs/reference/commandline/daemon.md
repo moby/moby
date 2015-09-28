@@ -22,6 +22,8 @@ weight=1
       -D, --debug=false                      Enable debug mode
       --default-gateway=""                   Container default gateway IPv4 address
       --default-gateway-v6=""                Container default gateway IPv6 address
+      --cluster-store=""                     URL of the distributed storage backend
+      --cluster-advertise=""                 Address of the daemon instance to advertise
       --dns=[]                               DNS server to use
       --dns-opt=[]                           DNS options to use
       --dns-search=[]                        DNS search domains to use
@@ -483,6 +485,12 @@ these defaults are not set, `ulimit` settings will be inherited, if not set on
 Be careful setting `nproc` with the `ulimit` flag as `nproc` is designed by Linux to
 set the maximum number of processes available to a user, not to a container. For details
 please check the [run](run.md) reference.
+
+## Nodes discovery
+
+`--cluster-advertise` specifies the 'host:port' combination that this particular
+daemon instance should use when advertising itself to the cluster. The daemon
+should be reachable by remote hosts on this 'host:port' combination.
 
 ## Miscellaneous options
 

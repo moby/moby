@@ -5,10 +5,10 @@ Using the above experimental UI `docker network`, `docker service` and `--publis
 
 Since `network` and `service` objects are globally significant, this feature requires distributed states provided by the `libkv` project.
 Using `libkv`, the user can plug any of the supported Key-Value store (such as consul, etcd or zookeeper).
-User can specify the Key-Value store of choice using the `--kv-store` daemon flag, which takes configuration value of format `PROVIDER:URL`, where
+User can specify the Key-Value store of choice using the `--cluster-store` daemon flag, which takes configuration value of format `PROVIDER:URL`, where
 `PROVIDER` is the name of the Key-Value store (such as consul, etcd or zookeeper) and
 `URL` is the url to reach the Key-Value store.
-Example : `docker daemon --kv-store=consul:localhost:8500`
+Example : `docker daemon --cluster-store=consul://localhost:8500`
 
 Send us feedback and comments on [#14083](https://github.com/docker/docker/issues/14083)
 or on the usual Google Groups (docker-user, docker-dev) and IRC channels.
