@@ -534,6 +534,8 @@ _docker_daemon() {
 		--api-cors-header
 		--bip
 		--bridge -b
+		--cluster-advertise
+		--cluster-store
 		--default-gateway
 		--default-gateway-v6
 		--default-ulimit
@@ -560,6 +562,11 @@ _docker_daemon() {
 	"
 
 	case "$prev" in
+		--cluster-store)
+			COMPREPLY=( $( compgen -W "consul etcd zk" -S "://" -- "$cur" ) )
+			__docker_nospace
+			return
+			;;
 		--exec-root|--graph|-g)
 			_filedir -d
 			return
