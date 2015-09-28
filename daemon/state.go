@@ -121,7 +121,7 @@ func wait(waitChan <-chan struct{}, timeout time.Duration) error {
 // waitRunning waits until state is running. If state is already
 // running it returns immediately. If you want wait forever you must
 // supply negative timeout. Returns pid, that was passed to
-// setRunningLocking.
+// setRunning.
 func (s *State) waitRunning(timeout time.Duration) (int, error) {
 	s.Lock()
 	if s.Running {
@@ -176,12 +176,6 @@ func (s *State) getExitCode() int {
 	res := s.ExitCode
 	s.Unlock()
 	return res
-}
-
-func (s *State) setRunningLocking(pid int) {
-	s.Lock()
-	s.setRunning(pid)
-	s.Unlock()
 }
 
 func (s *State) setRunning(pid int) {
