@@ -19,6 +19,7 @@ import (
 	"unsafe"
 
 	"github.com/docker/docker/daemon/graphdriver"
+	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/pkg/mount"
 )
 
@@ -37,7 +38,7 @@ func Init(home string, options []string) (graphdriver.Driver, error) {
 	}
 
 	if graphdriver.FsMagic(buf.Type) != graphdriver.FsMagicBtrfs {
-		return nil, graphdriver.ErrPrerequisites
+		return nil, derr.ErrorCodeGDErrPrereqs
 	}
 
 	if err := os.MkdirAll(home, 0700); err != nil {
@@ -100,7 +101,7 @@ func openDir(path string) (*C.DIR, error) {
 
 	dir := C.opendir(Cpath)
 	if dir == nil {
-		return nil, fmt.Errorf("Can't open dir")
+		return nil, derr.ErrorCodeBtrfsOpenDirFailed
 	}
 	return dir, nil
 }
@@ -130,7 +131,7 @@ func subvolCreate(path, name string) error {
 	_, _, errno := syscall.Syscall(syscall.SYS_IOCTL, getDirFd(dir), C.BTRFS_IOC_SUBVOL_CREATE,
 		uintptr(unsafe.Pointer(&args)))
 	if errno != 0 {
-		return fmt.Errorf("Failed to create btrfs subvolume: %v", errno.Error())
+		return derr.ErrorCodeBtrfsSubVolCreateFailed.WithArgs(errno.Error())
 	}
 	return nil
 }
@@ -157,7 +158,7 @@ func subvolSnapshot(src, dest, name string) error {
 	_, _, errno := syscall.Syscall(syscall.SYS_IOCTL, getDirFd(destDir), C.BTRFS_IOC_SNAP_CREATE_V2,
 		uintptr(unsafe.Pointer(&args)))
 	if errno != 0 {
-		return fmt.Errorf("Failed to create btrfs snapshot: %v", errno.Error())
+		return derr.ErrorCodeBtrfsSnapshotCreateFailed.WithArgs(errno.Error())
 	}
 	return nil
 }
@@ -188,18 +189,18 @@ func subvolDelete(dirpath, name string) error {
 		if f.IsDir() && p != path.Join(dirpath, name) {
 			sv, err := isSubvolume(p)
 			if err != nil {
-				return fmt.Errorf("Failed to test if %s is a btrfs subvolume: %v", p, err)
+				return derr.ErrorCodeBtrfsErrIsSubVol.WithArgs(p, err)
 			}
 			if sv {
 				if err := subvolDelete(p, f.Name()); err != nil {
-					return fmt.Errorf("Failed to destroy btrfs child subvolume (%s) of parent (%s): %v", p, dirpath, err)
+					return derr.ErrorCodeBtrfsErrDelSubVol.WithArgs(p, dirpath, err)
 				}
 			}
 		}
 		return nil
 	}
 	if err := filepath.Walk(path.Join(dirpath, name), walkSubvolumes); err != nil {
-		return fmt.Errorf("Recursively walking subvolumes for %s failed: %v", dirpath, err)
+		return derr.ErrorCodeBtrfsErrWalkSubVols.WithArgs(dirpath, err)
 	}
 
 	// all subvolumes have been removed
@@ -210,7 +211,7 @@ func subvolDelete(dirpath, name string) error {
 	_, _, errno := syscall.Syscall(syscall.SYS_IOCTL, getDirFd(dir), C.BTRFS_IOC_SNAP_DESTROY,
 		uintptr(unsafe.Pointer(&args)))
 	if errno != 0 {
-		return fmt.Errorf("Failed to destroy btrfs snapshot %s for %s: %v", dirpath, name, errno.Error())
+		return derr.ErrorCodeBtrfsErrDelSnapshot.WithArgs(dirpath, name, errno.Error())
 	}
 	return nil
 }
@@ -266,7 +267,7 @@ func (d *Driver) Get(id, mountLabel string) (string, error) {
 	}
 
 	if !st.IsDir() {
-		return "", fmt.Errorf("%s: not a directory", dir)
+		return "", derr.ErrorCodeBtrfsNotADir.WithArgs(dir)
 	}
 
 	return dir, nil

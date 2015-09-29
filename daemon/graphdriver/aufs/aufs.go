@@ -35,6 +35,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/graphdriver"
+	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/chrootarchive"
 	"github.com/docker/docker/pkg/directory"
@@ -44,8 +45,6 @@ import (
 )
 
 var (
-	// ErrAufsNotSupported is returned if aufs is not supported by the host.
-	ErrAufsNotSupported = fmt.Errorf("AUFS was not found in /proc/filesystems")
 	incompatibleFsMagic = []graphdriver.FsMagic{
 		graphdriver.FsMagicBtrfs,
 		graphdriver.FsMagicAufs,
@@ -76,7 +75,7 @@ func Init(root string, options []string) (graphdriver.Driver, error) {
 
 	// Try to load the aufs kernel module
 	if err := supportsAufs(); err != nil {
-		return nil, graphdriver.ErrNotSupported
+		return nil, derr.ErrorCodeGDNotSupported
 	}
 
 	fsMagic, err := graphdriver.GetFSMagic(root)
@@ -89,7 +88,7 @@ func Init(root string, options []string) (graphdriver.Driver, error) {
 
 	for _, magic := range incompatibleFsMagic {
 		if fsMagic == magic {
-			return nil, graphdriver.ErrIncompatibleFS
+			return nil, derr.ErrorCodeGDErrFSNotSupported
 		}
 	}
 
@@ -142,7 +141,7 @@ func supportsAufs() error {
 			return nil
 		}
 	}
-	return ErrAufsNotSupported
+	return derr.ErrorCodeAufsNotSupported
 }
 
 func (a *Driver) rootPath() string {
@@ -393,7 +392,7 @@ func (a *Driver) mount(id, mountLabel string) error {
 	}
 
 	if err := a.aufsMount(layers, rw, target, mountLabel); err != nil {
-		return fmt.Errorf("error creating aufs mount to %s: %v", target, err)
+		return derr.ErrorCodeAufsMountFailed.WithArgs(target, err)
 	}
 	return nil
 }

@@ -4,7 +4,7 @@ package devmapper
 
 import (
 	"bytes"
-	"fmt"
+	derr "github.com/docker/docker/errors"
 	"os"
 	"path/filepath"
 	"syscall"
@@ -66,7 +66,7 @@ func ProbeFsType(device string) (string, error) {
 	}
 
 	if uint64(l) != maxLen {
-		return "", fmt.Errorf("unable to detect filesystem type of %s, short read", device)
+		return "", derr.ErrorCodeDMapErrDetectFSType.WithArgs(device)
 	}
 
 	for _, p := range probes {
@@ -75,7 +75,7 @@ func ProbeFsType(device string) (string, error) {
 		}
 	}
 
-	return "", fmt.Errorf("Unknown filesystem type on %s", device)
+	return "", derr.ErrorCodeDMapUnknownFSType.WithArgs(device)
 }
 
 func joinMountOptions(a, b string) string {

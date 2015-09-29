@@ -5,6 +5,7 @@ package aufs
 import (
 	"encoding/json"
 	"fmt"
+	derr "github.com/docker/docker/errors"
 	"io/ioutil"
 	"os"
 	"path"
@@ -171,7 +172,7 @@ func tryRelocate(oldPath, newPath string) error {
 	}
 	if err := os.Rename(oldPath, newPath); err != nil {
 		if sErr := os.Symlink(oldPath, newPath); sErr != nil {
-			return fmt.Errorf("Unable to relocate %s to %s: Rename err %s Symlink err %s", oldPath, newPath, err, sErr)
+			return derr.ErrorCodeAufsRelocFailed.WithArgs(oldPath, newPath, err, sErr)
 		}
 	}
 	return nil

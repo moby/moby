@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/daemon/graphdriver"
+	derr "github.com/docker/docker/errors"
 )
 
 var (
@@ -77,7 +78,7 @@ func newDriver(t *testing.T, name string) *Driver {
 	d, err := graphdriver.GetDriver(name, root, nil)
 	if err != nil {
 		t.Logf("graphdriver: %v\n", err)
-		if err == graphdriver.ErrNotSupported || err == graphdriver.ErrPrerequisites || err == graphdriver.ErrIncompatibleFS {
+		if err == derr.ErrorCodeGDNotSupported || err == derr.ErrorCodeGDErrPrereqs || err == derr.ErrorCodeGDErrFSNotSupported {
 			t.Skipf("Driver %s not supported", name)
 		}
 		t.Fatal(err)

@@ -3,11 +3,11 @@
 package vfs
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 
 	"github.com/docker/docker/daemon/graphdriver"
+	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/pkg/chrootarchive"
 	"github.com/docker/docker/pkg/system"
 	"github.com/opencontainers/runc/libcontainer/label"
@@ -71,7 +71,7 @@ func (d *Driver) Create(id, parent string) error {
 	}
 	parentDir, err := d.Get(parent, "")
 	if err != nil {
-		return fmt.Errorf("%s: %s", parent, err)
+		return derr.ErrorCodeVFSErrDetectParent.WithArgs(parent, err)
 	}
 	if err := chrootarchive.CopyWithTar(parentDir, dir); err != nil {
 		return err
@@ -97,7 +97,7 @@ func (d *Driver) Get(id, mountLabel string) (string, error) {
 	if st, err := os.Stat(dir); err != nil {
 		return "", err
 	} else if !st.IsDir() {
-		return "", fmt.Errorf("%s: not a directory", dir)
+		return "", derr.ErrorCodeVFSErrFindDir.WithArgs(dir)
 	}
 	return dir, nil
 }

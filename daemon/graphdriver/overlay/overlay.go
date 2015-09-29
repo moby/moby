@@ -14,6 +14,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/graphdriver"
+	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/chrootarchive"
 	"github.com/opencontainers/runc/libcontainer/label"
@@ -22,16 +23,11 @@ import (
 // This is a small wrapper over the NaiveDiffWriter that lets us have a custom
 // implementation of ApplyDiff()
 
-var (
-	// ErrApplyDiffFallback is returned to indicate that a normal ApplyDiff is applied as a fallback from Naive diff writer.
-	ErrApplyDiffFallback = fmt.Errorf("Fall back to normal ApplyDiff")
-)
-
 // ApplyDiffProtoDriver wraps the ProtoDriver by extending the inteface with ApplyDiff method.
 type ApplyDiffProtoDriver interface {
 	graphdriver.ProtoDriver
 	// ApplyDiff writes the diff to the archive for the given id and parent id.
-	// It returns the size in bytes written if successful, an error ErrApplyDiffFallback is returned otherwise.
+	// It returns the size in bytes written if successful, an error ErrorCodeOVApplyDiffFallback is returned otherwise.
 	ApplyDiff(id, parent string, diff archive.Reader) (size int64, err error)
 }
 
@@ -51,7 +47,7 @@ func NaiveDiffDriverWithApply(driver ApplyDiffProtoDriver) graphdriver.Driver {
 // ApplyDiff creates a diff layer with either the NaiveDiffDriver or with a fallback.
 func (d *naiveDiffDriverWithApply) ApplyDiff(id, parent string, diff archive.Reader) (int64, error) {
 	b, err := d.applyDiff.ApplyDiff(id, parent, diff)
-	if err == ErrApplyDiffFallback {
+	if err == derr.ErrorCodeOVApplyDiffFallback {
 		return d.Driver.ApplyDiff(id, parent, diff)
 	}
 	return b, err
@@ -112,7 +108,7 @@ func init() {
 func Init(home string, options []string) (graphdriver.Driver, error) {
 
 	if err := supportsOverlay(); err != nil {
-		return nil, graphdriver.ErrNotSupported
+		return nil, derr.ErrorCodeGDNotSupported
 	}
 
 	fsMagic, err := graphdriver.GetFSMagic(home)
@@ -127,13 +123,13 @@ func Init(home string, options []string) (graphdriver.Driver, error) {
 	switch fsMagic {
 	case graphdriver.FsMagicBtrfs:
 		logrus.Error("'overlay' is not supported over btrfs.")
-		return nil, graphdriver.ErrIncompatibleFS
+		return nil, derr.ErrorCodeGDErrFSNotSupported
 	case graphdriver.FsMagicAufs:
 		logrus.Error("'overlay' is not supported over aufs.")
-		return nil, graphdriver.ErrIncompatibleFS
+		return nil, derr.ErrorCodeGDErrFSNotSupported
 	case graphdriver.FsMagicZfs:
 		logrus.Error("'overlay' is not supported over zfs.")
-		return nil, graphdriver.ErrIncompatibleFS
+		return nil, derr.ErrorCodeGDErrFSNotSupported
 	}
 
 	// Create the driver home dir
@@ -167,7 +163,7 @@ func supportsOverlay() error {
 		}
 	}
 	logrus.Error("'overlay' not found as a supported filesystem on this host. Please ensure kernel is new enough and has overlay support loaded.")
-	return graphdriver.ErrNotSupported
+	return derr.ErrorCodeGDNotSupported
 }
 
 func (d *Driver) String() string {
@@ -351,7 +347,7 @@ func (d *Driver) Get(id string, mountLabel string) (string, error) {
 
 	opts := fmt.Sprintf("lowerdir=%s,upperdir=%s,workdir=%s", lowerDir, upperDir, workDir)
 	if err := syscall.Mount("overlay", mergedDir, "overlay", 0, label.FormatMountLabel(opts, mountLabel)); err != nil {
-		return "", fmt.Errorf("error creating overlay mount to %s: %v", mergedDir, err)
+		return "", derr.ErrorCodeOVErrCreateMount.WithArgs(mergedDir, err)
 	}
 	mount.path = mergedDir
 	mount.mounted = true
@@ -396,17 +392,17 @@ func (d *Driver) Put(id string) error {
 	return nil
 }
 
-// ApplyDiff applies the new layer on top of the root, if parent does not exist with will return a ErrApplyDiffFallback error.
+// ApplyDiff applies the new layer on top of the root, if parent does not exist with will return a ErrorCodeOVApplyDiffFallback error.
 func (d *Driver) ApplyDiff(id string, parent string, diff archive.Reader) (size int64, err error) {
 	dir := d.dir(id)
 
 	if parent == "" {
-		return 0, ErrApplyDiffFallback
+		return 0, derr.ErrorCodeOVApplyDiffFallback
 	}
 
 	parentRootDir := path.Join(d.dir(parent), "root")
 	if _, err := os.Stat(parentRootDir); err != nil {
-		return 0, ErrApplyDiffFallback
+		return 0, derr.ErrorCodeOVApplyDiffFallback
 	}
 
 	// We now know there is a parent, and it has a "root" directory containing
