@@ -71,11 +71,6 @@ to build a Docker binary with the experimental features enabled:
 
 ## Current experimental features
 
-* [Network plugins](plugins_network.md)
-* [Networking and Services UI](networking.md)
-* [Native multi-host networking](network_overlay.md)
-* [Compose, Swarm and networking integration](compose_swarm_networking.md)
-
 ## How to comment on an experimental feature
 
 Each feature's documentation includes a list of proposal pull requests or PRs associated with the feature. If you want to comment on or suggest a change to a feature, please add it to the existing feature PR.  

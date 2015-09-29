@@ -347,7 +347,7 @@ allowing linked communication to continue.
 # Next step
 
 Now that you know how to link Docker containers together, the next step is
-learning how to manage data, volumes and mounts inside your containers.
+learning how to take complete control over docker networking.
 
-Go to [Managing Data in Containers](/userguide/dockervolumes).
+Go to [Docker Networking](/userguide/dockernetworks.md).
 
