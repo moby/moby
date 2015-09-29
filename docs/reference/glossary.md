@@ -132,6 +132,12 @@ namespaces, cgroups, capabilities, and filesystem access controls. It allows
 you to manage the lifecycle of the container performing additional operations
 after the container is created.
 
+## libnetwork
+
+libnetwork provides a native Go implementation for creating and managing container
+network namespaces and other network resources. It manage the networking lifecycle 
+of the container performing additional operations after the container is created.
+
 ## link
 
 links provide an interface to connect Docker containers running on the same host
@@ -149,7 +155,12 @@ installs Docker on them, then configures the Docker client to talk to them.
 
 *Also known as : docker-machine*
 
-## overlay
+## overlay network driver
+
+Overlay network driver provides out of the box multi-host network connectivity
+for docker containers in a cluster.
+
+## overlay storage driver
 
 OverlayFS is a [filesystem](#filesystem) service for Linux which implements a
 [union mount](http://en.wikipedia.org/wiki/Union_mount) for other file systems.
