@@ -287,24 +287,10 @@ func Exactly(t TestingT, expected, actual interface{}, msgAndArgs ...interface{}
 //
 // Returns whether the assertion was successful (true) or not (false).
 func NotNil(t TestingT, object interface{}, msgAndArgs ...interface{}) bool {
-
-	success := true
-
-	if object == nil {
-		success = false
-	} else {
-		value := reflect.ValueOf(object)
-		kind := value.Kind()
-		if kind >= reflect.Chan && kind <= reflect.Slice && value.IsNil() {
-			success = false
-		}
+	if !isNil(object) {
+		return true
 	}
-
-	if !success {
-		Fail(t, "Expected value not to be nil.", msgAndArgs...)
-	}
-
-	return success
+	return Fail(t, "Expected value not to be nil.", msgAndArgs...)
 }
 
 // isNil checks if a specified object is nil or not, without Failing.
