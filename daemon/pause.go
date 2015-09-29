@@ -1,18 +1,17 @@
 package daemon
 
 import (
-	"github.com/docker/docker/context"
 	derr "github.com/docker/docker/errors"
 )
 
 // ContainerPause pauses a container
-func (daemon *Daemon) ContainerPause(ctx context.Context, name string) error {
-	container, err := daemon.Get(ctx, name)
+func (daemon *Daemon) ContainerPause(name string) error {
+	container, err := daemon.Get(name)
 	if err != nil {
 		return err
 	}
 
-	if err := container.pause(ctx); err != nil {
+	if err := container.pause(); err != nil {
 		return derr.ErrorCodePauseError.WithArgs(name, err)
 	}
 

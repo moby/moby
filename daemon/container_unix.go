@@ -15,7 +15,6 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/docker/context"
 	"github.com/docker/docker/daemon/execdriver"
 	"github.com/docker/docker/daemon/links"
 	"github.com/docker/docker/daemon/network"
@@ -78,12 +77,12 @@ func killProcessDirectly(container *Container) error {
 	return nil
 }
 
-func (container *Container) setupLinkedContainers(ctx context.Context) ([]string, error) {
+func (container *Container) setupLinkedContainers() ([]string, error) {
 	var (
 		env    []string
 		daemon = container.daemon
 	)
-	children, err := daemon.children(ctx, container.Name)
+	children, err := daemon.children(container.Name)
 	if err != nil {
 		return nil, err
 	}
@@ -176,7 +175,7 @@ func getDevicesFromPath(deviceMapping runconfig.DeviceMapping) (devs []*configs.
 	return devs, derr.ErrorCodeDeviceInfo.WithArgs(deviceMapping.PathOnHost, err)
 }
 
-func populateCommand(ctx context.Context, c *Container, env []string) error {
+func populateCommand(c *Container, env []string) error {
 	var en *execdriver.Network
 	if !c.Config.NetworkDisabled {
 		en = &execdriver.Network{}
@@ -186,7 +185,7 @@ func populateCommand(ctx context.Context, c *Container, env []string) error {
 
 		parts := strings.SplitN(string(c.hostConfig.NetworkMode), ":", 2)
 		if parts[0] == "container" {
-			nc, err := c.getNetworkedContainer(ctx)
+			nc, err := c.getNetworkedContainer()
 			if err != nil {
 				return err
 			}
@@ -207,7 +206,7 @@ func populateCommand(ctx context.Context, c *Container, env []string) error {
 	}
 
 	if c.hostConfig.IpcMode.IsContainer() {
-		ic, err := c.getIpcContainer(ctx)
+		ic, err := c.getIpcContainer()
 		if err != nil {
 			return err
 		}
@@ -350,18 +349,18 @@ func mergeDevices(defaultDevices, userDevices []*configs.Device) []*configs.Devi
 }
 
 // GetSize returns the real size & virtual size of the container.
-func (container *Container) getSize(ctx context.Context) (int64, int64) {
+func (container *Container) getSize() (int64, int64) {
 	var (
 		sizeRw, sizeRootfs int64
 		err                error
 		driver             = container.daemon.driver
 	)
 
-	if err := container.Mount(ctx); err != nil {
+	if err := container.Mount(); err != nil {
 		logrus.Errorf("Failed to compute size of container rootfs %s: %s", container.ID, err)
 		return sizeRw, sizeRootfs
 	}
-	defer container.Unmount(ctx)
+	defer container.Unmount()
 
 	initID := fmt.Sprintf("%s-init", container.ID)
 	sizeRw, err = driver.DiffSize(container.ID, initID)
@@ -413,7 +412,7 @@ func (container *Container) buildHostnameFile() error {
 	return ioutil.WriteFile(container.HostnamePath, []byte(container.Config.Hostname+"\n"), 0644)
 }
 
-func (container *Container) buildSandboxOptions(ctx context.Context) ([]libnetwork.SandboxOption, error) {
+func (container *Container) buildSandboxOptions() ([]libnetwork.SandboxOption, error) {
 	var (
 		sboxOptions []libnetwork.SandboxOption
 		err         error
@@ -490,7 +489,7 @@ func (container *Container) buildSandboxOptions(ctx context.Context) ([]libnetwo
 
 	var childEndpoints, parentEndpoints []string
 
-	children, err := container.daemon.children(ctx, container.Name)
+	children, err := container.daemon.children(container.Name)
 	if err != nil {
 		return nil, err
 	}
@@ -521,7 +520,7 @@ func (container *Container) buildSandboxOptions(ctx context.Context) ([]libnetwo
 			continue
 		}
 
-		c, err := container.daemon.Get(ctx, ref.ParentID)
+		c, err := container.daemon.Get(ref.ParentID)
 		if err != nil {
 			logrus.Error(err)
 		}
@@ -680,7 +679,7 @@ func (container *Container) updateSandboxNetworkSettings(sb libnetwork.Sandbox) 
 
 // UpdateNetwork is used to update the container's network (e.g. when linked containers
 // get removed/unlinked).
-func (container *Container) updateNetwork(ctx context.Context) error {
+func (container *Container) updateNetwork() error {
 	ctrl := container.daemon.netController
 	sid := container.NetworkSettings.SandboxID
 
@@ -689,7 +688,7 @@ func (container *Container) updateNetwork(ctx context.Context) error {
 		return derr.ErrorCodeNoSandbox.WithArgs(sid, err)
 	}
 
-	options, err := container.buildSandboxOptions(ctx)
+	options, err := container.buildSandboxOptions()
 	if err != nil {
 		return derr.ErrorCodeNetworkUpdate.WithArgs(err)
 	}
@@ -813,7 +812,7 @@ func createNetwork(controller libnetwork.NetworkController, dnet string, driver 
 	return controller.NewNetwork(driver, dnet, createOptions...)
 }
 
-func (container *Container) allocateNetwork(ctx context.Context) error {
+func (container *Container) allocateNetwork() error {
 	mode := container.hostConfig.NetworkMode
 	controller := container.daemon.netController
 	if container.Config.NetworkDisabled || mode.IsContainer() {
@@ -847,14 +846,14 @@ func (container *Container) allocateNetwork(ctx context.Context) error {
 		service = strings.Replace(service, "/", "", -1)
 	}
 
-	if err := container.configureNetwork(ctx, networkName, service, networkDriver, mode.IsDefault()); err != nil {
+	if err := container.configureNetwork(networkName, service, networkDriver, mode.IsDefault()); err != nil {
 		return err
 	}
 
 	return container.writeHostConfig()
 }
 
-func (container *Container) configureNetwork(ctx context.Context, networkName, service, networkDriver string, canCreateNetwork bool) error {
+func (container *Container) configureNetwork(networkName, service, networkDriver string, canCreateNetwork bool) error {
 	controller := container.daemon.netController
 
 	n, err := controller.NetworkByName(networkName)
@@ -898,7 +897,7 @@ func (container *Container) configureNetwork(ctx context.Context, networkName, s
 		return false
 	})
 	if sb == nil {
-		options, err := container.buildSandboxOptions(ctx)
+		options, err := container.buildSandboxOptions()
 		if err != nil {
 			return err
 		}
@@ -921,12 +920,12 @@ func (container *Container) configureNetwork(ctx context.Context, networkName, s
 	return nil
 }
 
-func (container *Container) initializeNetworking(ctx context.Context) error {
+func (container *Container) initializeNetworking() error {
 	var err error
 
 	if container.hostConfig.NetworkMode.IsContainer() {
 		// we need to get the hosts files from the container to join
-		nc, err := container.getNetworkedContainer(ctx)
+		nc, err := container.getNetworkedContainer()
 		if err != nil {
 			return err
 		}
@@ -952,7 +951,7 @@ func (container *Container) initializeNetworking(ctx context.Context) error {
 
 	}
 
-	if err := container.allocateNetwork(ctx); err != nil {
+	if err := container.allocateNetwork(); err != nil {
 		return err
 	}
 
@@ -973,9 +972,9 @@ func (container *Container) setNetworkNamespaceKey(pid int) error {
 	return sandbox.SetKey(path)
 }
 
-func (container *Container) getIpcContainer(ctx context.Context) (*Container, error) {
+func (container *Container) getIpcContainer() (*Container, error) {
 	containerID := container.hostConfig.IpcMode.Container()
-	c, err := container.daemon.Get(ctx, containerID)
+	c, err := container.daemon.Get(containerID)
 	if err != nil {
 		return nil, err
 	}
@@ -1011,14 +1010,14 @@ func (container *Container) setupWorkingDirectory() error {
 	return nil
 }
 
-func (container *Container) getNetworkedContainer(ctx context.Context) (*Container, error) {
+func (container *Container) getNetworkedContainer() (*Container, error) {
 	parts := strings.SplitN(string(container.hostConfig.NetworkMode), ":", 2)
 	switch parts[0] {
 	case "container":
 		if len(parts) != 2 {
 			return nil, derr.ErrorCodeParseContainer
 		}
-		nc, err := container.daemon.Get(ctx, parts[1])
+		nc, err := container.daemon.Get(parts[1])
 		if err != nil {
 			return nil, err
 		}

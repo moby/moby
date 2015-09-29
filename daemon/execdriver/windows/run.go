@@ -15,7 +15,6 @@ import (
 	"syscall"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/docker/context"
 	"github.com/docker/docker/daemon/execdriver"
 	"github.com/microsoft/hcsshim"
 )
@@ -80,7 +79,7 @@ type containerInit struct {
 const defaultOwner = "docker"
 
 // Run implements the exec driver Driver interface
-func (d *Driver) Run(ctx context.Context, c *execdriver.Command, pipes *execdriver.Pipes, hooks execdriver.Hooks) (execdriver.ExitStatus, error) {
+func (d *Driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, hooks execdriver.Hooks) (execdriver.ExitStatus, error) {
 
 	var (
 		term execdriver.Terminal
@@ -299,7 +298,7 @@ func (d *Driver) Run(ctx context.Context, c *execdriver.Command, pipes *execdriv
 		// non-blocking and return the correct result when read.
 		chOOM := make(chan struct{})
 		close(chOOM)
-		hooks.Start(ctx, &c.ProcessConfig, int(pid), chOOM)
+		hooks.Start(&c.ProcessConfig, int(pid), chOOM)
 	}
 
 	var exitCode int32

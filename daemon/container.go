@@ -15,7 +15,6 @@ import (
 	"github.com/opencontainers/runc/libcontainer/label"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/docker/context"
 	"github.com/docker/docker/daemon/execdriver"
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/daemon/logger/jsonfilelog"
@@ -171,10 +170,9 @@ func (container *Container) writeHostConfig() error {
 	return ioutil.WriteFile(pth, data, 0666)
 }
 
-func (container *Container) logEvent(ctx context.Context, action string) {
+func (container *Container) logEvent(action string) {
 	d := container.daemon
 	d.EventsService.Log(
-		ctx,
 		action,
 		container.ID,
 		container.Config.Image,
@@ -240,7 +238,7 @@ func (container *Container) exportContainerRw() (archive.Archive, error) {
 // container needs, such as storage and networking, as well as links
 // between containers. The container is left waiting for a signal to
 // begin running.
-func (container *Container) Start(ctx context.Context) (err error) {
+func (container *Container) Start() (err error) {
 	container.Lock()
 	defer container.Unlock()
 
@@ -262,12 +260,12 @@ func (container *Container) Start(ctx context.Context) (err error) {
 				container.ExitCode = 128
 			}
 			container.toDisk()
-			container.cleanup(ctx)
-			container.logEvent(ctx, "die")
+			container.cleanup()
+			container.logEvent("die")
 		}
 	}()
 
-	if err := container.Mount(ctx); err != nil {
+	if err := container.Mount(); err != nil {
 		return err
 	}
 
@@ -275,10 +273,10 @@ func (container *Container) Start(ctx context.Context) (err error) {
 	// backwards API compatibility.
 	container.hostConfig = runconfig.SetDefaultNetModeIfBlank(container.hostConfig)
 
-	if err := container.initializeNetworking(ctx); err != nil {
+	if err := container.initializeNetworking(); err != nil {
 		return err
 	}
-	linkedEnv, err := container.setupLinkedContainers(ctx)
+	linkedEnv, err := container.setupLinkedContainers()
 	if err != nil {
 		return err
 	}
@@ -286,7 +284,7 @@ func (container *Container) Start(ctx context.Context) (err error) {
 		return err
 	}
 	env := container.createDaemonEnvironment(linkedEnv)
-	if err := populateCommand(ctx, container, env); err != nil {
+	if err := populateCommand(container, env); err != nil {
 		return err
 	}
 
@@ -303,7 +301,7 @@ func (container *Container) Start(ctx context.Context) (err error) {
 	mounts = append(mounts, container.ipcMounts()...)
 
 	container.command.Mounts = mounts
-	return container.waitForStart(ctx)
+	return container.waitForStart()
 }
 
 // streamConfig.StdinPipe returns a WriteCloser which can be used to feed data
@@ -336,14 +334,14 @@ func (container *Container) isNetworkAllocated() bool {
 
 // cleanup releases any network resources allocated to the container along with any rules
 // around how containers are linked together.  It also unmounts the container's root filesystem.
-func (container *Container) cleanup(ctx context.Context) {
+func (container *Container) cleanup() {
 	container.releaseNetwork()
 
 	if err := container.unmountIpcMounts(); err != nil {
 		logrus.Errorf("%s: Failed to umount ipc filesystems: %v", container.ID, err)
 	}
 
-	if err := container.Unmount(ctx); err != nil {
+	if err := container.Unmount(); err != nil {
 		logrus.Errorf("%s: Failed to umount filesystem: %v", container.ID, err)
 	}
 
@@ -359,7 +357,7 @@ func (container *Container) cleanup(ctx context.Context) {
 // to send the signal. An error is returned if the container is paused
 // or not running, or if there is a problem returned from the
 // underlying kill command.
-func (container *Container) killSig(ctx context.Context, sig int) error {
+func (container *Container) killSig(sig int) error {
 	logrus.Debugf("Sending %d to %s", sig, container.ID)
 	container.Lock()
 	defer container.Unlock()
@@ -387,13 +385,13 @@ func (container *Container) killSig(ctx context.Context, sig int) error {
 	if err := container.daemon.kill(container, sig); err != nil {
 		return err
 	}
-	container.logEvent(ctx, "kill")
+	container.logEvent("kill")
 	return nil
 }
 
 // Wrapper aroung killSig() suppressing "no such process" error.
-func (container *Container) killPossiblyDeadProcess(ctx context.Context, sig int) error {
-	err := container.killSig(ctx, sig)
+func (container *Container) killPossiblyDeadProcess(sig int) error {
+	err := container.killSig(sig)
 	if err == syscall.ESRCH {
 		logrus.Debugf("Cannot kill process (pid=%d) with signal %d: no such process.", container.getPID(), sig)
 		return nil
@@ -401,7 +399,7 @@ func (container *Container) killPossiblyDeadProcess(ctx context.Context, sig int
 	return err
 }
 
-func (container *Container) pause(ctx context.Context) error {
+func (container *Container) pause() error {
 	container.Lock()
 	defer container.Unlock()
 
@@ -419,11 +417,11 @@ func (container *Container) pause(ctx context.Context) error {
 		return err
 	}
 	container.Paused = true
-	container.logEvent(ctx, "pause")
+	container.logEvent("pause")
 	return nil
 }
 
-func (container *Container) unpause(ctx context.Context) error {
+func (container *Container) unpause() error {
 	container.Lock()
 	defer container.Unlock()
 
@@ -441,18 +439,18 @@ func (container *Container) unpause(ctx context.Context) error {
 		return err
 	}
 	container.Paused = false
-	container.logEvent(ctx, "unpause")
+	container.logEvent("unpause")
 	return nil
 }
 
 // Kill forcefully terminates a container.
-func (container *Container) Kill(ctx context.Context) error {
+func (container *Container) Kill() error {
 	if !container.IsRunning() {
 		return derr.ErrorCodeNotRunning.WithArgs(container.ID)
 	}
 
 	// 1. Send SIGKILL
-	if err := container.killPossiblyDeadProcess(ctx, int(syscall.SIGKILL)); err != nil {
+	if err := container.killPossiblyDeadProcess(int(syscall.SIGKILL)); err != nil {
 		// While normally we might "return err" here we're not going to
 		// because if we can't stop the container by this point then
 		// its probably because its already stopped. Meaning, between
@@ -486,15 +484,15 @@ func (container *Container) Kill(ctx context.Context) error {
 // process to exit. If a negative duration is given, Stop will wait
 // for the initial signal forever. If the container is not running Stop returns
 // immediately.
-func (container *Container) Stop(ctx context.Context, seconds int) error {
+func (container *Container) Stop(seconds int) error {
 	if !container.IsRunning() {
 		return nil
 	}
 
 	// 1. Send a SIGTERM
-	if err := container.killPossiblyDeadProcess(ctx, container.stopSignal()); err != nil {
+	if err := container.killPossiblyDeadProcess(container.stopSignal()); err != nil {
 		logrus.Infof("Failed to send SIGTERM to the process, force killing")
-		if err := container.killPossiblyDeadProcess(ctx, 9); err != nil {
+		if err := container.killPossiblyDeadProcess(9); err != nil {
 			return err
 		}
 	}
@@ -503,13 +501,13 @@ func (container *Container) Stop(ctx context.Context, seconds int) error {
 	if _, err := container.WaitStop(time.Duration(seconds) * time.Second); err != nil {
 		logrus.Infof("Container %v failed to exit within %d seconds of SIGTERM - using the force", container.ID, seconds)
 		// 3. If it doesn't, then send SIGKILL
-		if err := container.Kill(ctx); err != nil {
+		if err := container.Kill(); err != nil {
 			container.WaitStop(-1 * time.Second)
 			return err
 		}
 	}
 
-	container.logEvent(ctx, "stop")
+	container.logEvent("stop")
 	return nil
 }
 
@@ -517,61 +515,61 @@ func (container *Container) Stop(ctx context.Context, seconds int) error {
 // container. When stopping, wait for the given duration in seconds to
 // gracefully stop, before forcefully terminating the container. If
 // given a negative duration, wait forever for a graceful stop.
-func (container *Container) Restart(ctx context.Context, seconds int) error {
+func (container *Container) Restart(seconds int) error {
 	// Avoid unnecessarily unmounting and then directly mounting
 	// the container when the container stops and then starts
 	// again
-	if err := container.Mount(ctx); err == nil {
-		defer container.Unmount(ctx)
+	if err := container.Mount(); err == nil {
+		defer container.Unmount()
 	}
 
-	if err := container.Stop(ctx, seconds); err != nil {
+	if err := container.Stop(seconds); err != nil {
 		return err
 	}
 
-	if err := container.Start(ctx); err != nil {
+	if err := container.Start(); err != nil {
 		return err
 	}
 
-	container.logEvent(ctx, "restart")
+	container.logEvent("restart")
 	return nil
 }
 
 // Resize changes the TTY of the process running inside the container
 // to the given height and width. The container must be running.
-func (container *Container) Resize(ctx context.Context, h, w int) error {
+func (container *Container) Resize(h, w int) error {
 	if !container.IsRunning() {
 		return derr.ErrorCodeNotRunning.WithArgs(container.ID)
 	}
 	if err := container.command.ProcessConfig.Terminal.Resize(h, w); err != nil {
 		return err
 	}
-	container.logEvent(ctx, "resize")
+	container.logEvent("resize")
 	return nil
 }
 
-func (container *Container) export(ctx context.Context) (archive.Archive, error) {
-	if err := container.Mount(ctx); err != nil {
+func (container *Container) export() (archive.Archive, error) {
+	if err := container.Mount(); err != nil {
 		return nil, err
 	}
 
 	archive, err := archive.Tar(container.basefs, archive.Uncompressed)
 	if err != nil {
-		container.Unmount(ctx)
+		container.Unmount()
 		return nil, err
 	}
 	arch := ioutils.NewReadCloserWrapper(archive, func() error {
 		err := archive.Close()
-		container.Unmount(ctx)
+		container.Unmount()
 		return err
 	})
-	container.logEvent(ctx, "export")
+	container.logEvent("export")
 	return arch, err
 }
 
 // Mount sets container.basefs
-func (container *Container) Mount(ctx context.Context) error {
-	return container.daemon.Mount(ctx, container)
+func (container *Container) Mount() error {
+	return container.daemon.Mount(container)
 }
 
 func (container *Container) changes() ([]archive.Change, error) {
@@ -580,7 +578,7 @@ func (container *Container) changes() ([]archive.Change, error) {
 	return container.daemon.changes(container)
 }
 
-func (container *Container) getImage(ctx context.Context) (*image.Image, error) {
+func (container *Container) getImage() (*image.Image, error) {
 	if container.daemon == nil {
 		return nil, derr.ErrorCodeImageUnregContainer
 	}
@@ -589,7 +587,7 @@ func (container *Container) getImage(ctx context.Context) (*image.Image, error) 
 
 // Unmount asks the daemon to release the layered filesystems that are
 // mounted by the container.
-func (container *Container) Unmount(ctx context.Context) error {
+func (container *Container) Unmount() error {
 	return container.daemon.unmount(container)
 }
 
@@ -614,7 +612,7 @@ func validateID(id string) error {
 	return nil
 }
 
-func (container *Container) copy(ctx context.Context, resource string) (rc io.ReadCloser, err error) {
+func (container *Container) copy(resource string) (rc io.ReadCloser, err error) {
 	container.Lock()
 
 	defer func() {
@@ -626,7 +624,7 @@ func (container *Container) copy(ctx context.Context, resource string) (rc io.Re
 		}
 	}()
 
-	if err := container.Mount(ctx); err != nil {
+	if err := container.Mount(); err != nil {
 		return nil, err
 	}
 
@@ -635,7 +633,7 @@ func (container *Container) copy(ctx context.Context, resource string) (rc io.Re
 			// unmount any volumes
 			container.unmountVolumes(true)
 			// unmount the container's rootfs
-			container.Unmount(ctx)
+			container.Unmount()
 		}
 	}()
 
@@ -671,11 +669,11 @@ func (container *Container) copy(ctx context.Context, resource string) (rc io.Re
 	reader := ioutils.NewReadCloserWrapper(archive, func() error {
 		err := archive.Close()
 		container.unmountVolumes(true)
-		container.Unmount(ctx)
+		container.Unmount()
 		container.Unlock()
 		return err
 	})
-	container.logEvent(ctx, "copy")
+	container.logEvent("copy")
 	return reader, nil
 }
 
@@ -754,14 +752,14 @@ func (container *Container) startLogging() error {
 	return nil
 }
 
-func (container *Container) waitForStart(ctx context.Context) error {
+func (container *Container) waitForStart() error {
 	container.monitor = newContainerMonitor(container, container.hostConfig.RestartPolicy)
 
 	// block until we either receive an error from the initial start of the container's
 	// process or until the process is running in the container
 	select {
 	case <-container.monitor.startSignal:
-	case err := <-promise.Go(func() error { return container.monitor.Start(ctx) }):
+	case err := <-promise.Go(container.monitor.Start):
 		return err
 	}
 
@@ -792,11 +790,11 @@ func (container *Container) getExecIDs() []string {
 	return container.execCommands.List()
 }
 
-func (container *Container) exec(ctx context.Context, ExecConfig *ExecConfig) error {
+func (container *Container) exec(ExecConfig *ExecConfig) error {
 	container.Lock()
 	defer container.Unlock()
 
-	callback := func(ctx context.Context, processConfig *execdriver.ProcessConfig, pid int, chOOM <-chan struct{}) error {
+	callback := func(processConfig *execdriver.ProcessConfig, pid int, chOOM <-chan struct{}) error {
 		if processConfig.Tty {
 			// The callback is called after the process Start()
 			// so we are in the parent process. In TTY mode, stdin/out/err is the PtySlave
@@ -811,7 +809,7 @@ func (container *Container) exec(ctx context.Context, ExecConfig *ExecConfig) er
 
 	// We use a callback here instead of a goroutine and an chan for
 	// synchronization purposes
-	cErr := promise.Go(func() error { return container.monitorExec(ctx, ExecConfig, callback) })
+	cErr := promise.Go(func() error { return container.monitorExec(ExecConfig, callback) })
 
 	// Exec should not return until the process is actually running
 	select {
@@ -823,13 +821,13 @@ func (container *Container) exec(ctx context.Context, ExecConfig *ExecConfig) er
 	return nil
 }
 
-func (container *Container) monitorExec(ctx context.Context, ExecConfig *ExecConfig, callback execdriver.DriverCallback) error {
+func (container *Container) monitorExec(ExecConfig *ExecConfig, callback execdriver.DriverCallback) error {
 	var (
 		err      error
 		exitCode int
 	)
 	pipes := execdriver.NewPipes(ExecConfig.streamConfig.stdin, ExecConfig.streamConfig.stdout, ExecConfig.streamConfig.stderr, ExecConfig.OpenStdin)
-	exitCode, err = container.daemon.Exec(ctx, container, ExecConfig, pipes, callback)
+	exitCode, err = container.daemon.Exec(container, ExecConfig, pipes, callback)
 	if err != nil {
 		logrus.Errorf("Error running command in existing container %s: %s", container.ID, err)
 	}
@@ -862,7 +860,7 @@ func (container *Container) Attach(stdin io.ReadCloser, stdout io.Writer, stderr
 	return attach(&container.streamConfig, container.Config.OpenStdin, container.Config.StdinOnce, container.Config.Tty, stdin, stdout, stderr)
 }
 
-func (container *Container) attachWithLogs(ctx context.Context, stdin io.ReadCloser, stdout, stderr io.Writer, logs, stream bool) error {
+func (container *Container) attachWithLogs(stdin io.ReadCloser, stdout, stderr io.Writer, logs, stream bool) error {
 	if logs {
 		logDriver, err := container.getLogger()
 		if err != nil {
@@ -894,7 +892,7 @@ func (container *Container) attachWithLogs(ctx context.Context, stdin io.ReadClo
 		}
 	}
 
-	container.logEvent(ctx, "attach")
+	container.logEvent("attach")
 
 	//stream
 	if stream {

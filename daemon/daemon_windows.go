@@ -6,7 +6,6 @@ import (
 	"syscall"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/docker/context"
 	"github.com/docker/docker/daemon/graphdriver"
 	// register the windows graph driver
 	_ "github.com/docker/docker/daemon/graphdriver/windows"
@@ -48,7 +47,7 @@ func (daemon *Daemon) adaptContainerSettings(hostConfig *runconfig.HostConfig, a
 
 // verifyPlatformContainerSettings performs platform-specific validation of the
 // hostconfig and config structures.
-func verifyPlatformContainerSettings(ctx context.Context, daemon *Daemon, hostConfig *runconfig.HostConfig, config *runconfig.Config) ([]string, error) {
+func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *runconfig.HostConfig, config *runconfig.Config) ([]string, error) {
 	return nil, nil
 }
 
@@ -105,7 +104,7 @@ func initNetworkController(config *Config) (libnetwork.NetworkController, error)
 
 // registerLinks sets up links between containers and writes the
 // configuration out for persistence.
-func (daemon *Daemon) registerLinks(ctx context.Context, container *Container, hostConfig *runconfig.HostConfig) error {
+func (daemon *Daemon) registerLinks(container *Container, hostConfig *runconfig.HostConfig) error {
 	// TODO Windows. Factored out for network modes. There may be more
 	// refactoring required here.
 
@@ -118,7 +117,7 @@ func (daemon *Daemon) registerLinks(ctx context.Context, container *Container, h
 		if err != nil {
 			return err
 		}
-		child, err := daemon.Get(ctx, name)
+		child, err := daemon.Get(name)
 		if err != nil {
 			//An error from daemon.Get() means this name could not be found
 			return fmt.Errorf("Could not get container for %s", name)

@@ -5,12 +5,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/context"
 	"github.com/docker/docker/pkg/jsonmessage"
 )
 
 func TestEventsLog(t *testing.T) {
-	ctx := context.Background()
 	e := New()
 	_, l1 := e.Subscribe()
 	_, l2 := e.Subscribe()
@@ -20,7 +18,7 @@ func TestEventsLog(t *testing.T) {
 	if count != 2 {
 		t.Fatalf("Must be 2 subscribers, got %d", count)
 	}
-	e.Log(ctx, "test", "cont", "image")
+	e.Log("test", "cont", "image")
 	select {
 	case msg := <-l1:
 		jmsg, ok := msg.(*jsonmessage.JSONMessage)
@@ -66,14 +64,13 @@ func TestEventsLog(t *testing.T) {
 }
 
 func TestEventsLogTimeout(t *testing.T) {
-	ctx := context.Background()
 	e := New()
 	_, l := e.Subscribe()
 	defer e.Evict(l)
 
 	c := make(chan struct{})
 	go func() {
-		e.Log(ctx, "test", "cont", "image")
+		e.Log("test", "cont", "image")
 		close(c)
 	}()
 
@@ -85,14 +82,13 @@ func TestEventsLogTimeout(t *testing.T) {
 }
 
 func TestLogEvents(t *testing.T) {
-	ctx := context.Background()
 	e := New()
 
 	for i := 0; i < eventsLimit+16; i++ {
 		action := fmt.Sprintf("action_%d", i)
 		id := fmt.Sprintf("cont_%d", i)
 		from := fmt.Sprintf("image_%d", i)
-		e.Log(ctx, action, id, from)
+		e.Log(action, id, from)
 	}
 	time.Sleep(50 * time.Millisecond)
 	current, l := e.Subscribe()
@@ -101,7 +97,7 @@ func TestLogEvents(t *testing.T) {
 		action := fmt.Sprintf("action_%d", num)
 		id := fmt.Sprintf("cont_%d", num)
 		from := fmt.Sprintf("image_%d", num)
-		e.Log(ctx, action, id, from)
+		e.Log(action, id, from)
 	}
 	if len(e.events) != eventsLimit {
 		t.Fatalf("Must be %d events, got %d", eventsLimit, len(e.events))

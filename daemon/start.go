@@ -3,15 +3,14 @@ package daemon
 import (
 	"runtime"
 
-	"github.com/docker/docker/context"
 	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/utils"
 )
 
 // ContainerStart starts a container.
-func (daemon *Daemon) ContainerStart(ctx context.Context, name string, hostConfig *runconfig.HostConfig) error {
-	container, err := daemon.Get(ctx, name)
+func (daemon *Daemon) ContainerStart(name string, hostConfig *runconfig.HostConfig) error {
+	container, err := daemon.Get(name)
 	if err != nil {
 		return err
 	}
@@ -29,7 +28,7 @@ func (daemon *Daemon) ContainerStart(ctx context.Context, name string, hostConfi
 		// This is kept for backward compatibility - hostconfig should be passed when
 		// creating a container, not during start.
 		if hostConfig != nil {
-			if err := daemon.setHostConfig(ctx, container, hostConfig); err != nil {
+			if err := daemon.setHostConfig(container, hostConfig); err != nil {
 				return err
 			}
 		}
@@ -41,11 +40,11 @@ func (daemon *Daemon) ContainerStart(ctx context.Context, name string, hostConfi
 
 	// check if hostConfig is in line with the current system settings.
 	// It may happen cgroups are umounted or the like.
-	if _, err = daemon.verifyContainerSettings(ctx, container.hostConfig, nil); err != nil {
+	if _, err = daemon.verifyContainerSettings(container.hostConfig, nil); err != nil {
 		return err
 	}
 
-	if err := container.Start(ctx); err != nil {
+	if err := container.Start(); err != nil {
 		return derr.ErrorCodeCantStart.WithArgs(name, utils.GetErrorMessage(err))
 	}
 

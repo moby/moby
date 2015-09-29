@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/docker/context"
 	"github.com/docker/docker/daemon/execdriver"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/pools"
@@ -132,9 +131,9 @@ type execOutput struct {
 
 // Run implements the exec driver Driver interface,
 // it calls libcontainer APIs to run a container.
-func (d *Driver) Run(ctx context.Context, c *execdriver.Command, pipes *execdriver.Pipes, hooks execdriver.Hooks) (execdriver.ExitStatus, error) {
+func (d *Driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, hooks execdriver.Hooks) (execdriver.ExitStatus, error) {
 	// take the Command and populate the libcontainer.Config from it
-	container, err := d.createContainer(ctx, c, hooks)
+	container, err := d.createContainer(c, hooks)
 	if err != nil {
 		return execdriver.ExitStatus{ExitCode: -1}, err
 	}
@@ -175,7 +174,7 @@ func (d *Driver) Run(ctx context.Context, c *execdriver.Command, pipes *execdriv
 			p.Wait()
 			return execdriver.ExitStatus{ExitCode: -1}, err
 		}
-		hooks.Start(ctx, &c.ProcessConfig, pid, oom)
+		hooks.Start(&c.ProcessConfig, pid, oom)
 	}
 
 	waitF := p.Wait

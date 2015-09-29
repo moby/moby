@@ -14,7 +14,6 @@ import (
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/builder/parser"
 	"github.com/docker/docker/cliconfig"
-	"github.com/docker/docker/context"
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/graph/tags"
 	"github.com/docker/docker/pkg/archive"
@@ -113,7 +112,7 @@ func NewBuildConfig() *Config {
 
 // Build is the main interface of the package, it gathers the Builder
 // struct and calls builder.Run() to do all the real build job.
-func Build(ctx context.Context, d *daemon.Daemon, buildConfig *Config) error {
+func Build(d *daemon.Daemon, buildConfig *Config) error {
 	var (
 		repoName string
 		tag      string
@@ -230,15 +229,15 @@ func Build(ctx context.Context, d *daemon.Daemon, buildConfig *Config) error {
 	}
 
 	defer func() {
-		builder.Daemon.Graph(ctx).Release(builder.id, builder.activeImages...)
+		builder.Daemon.Graph().Release(builder.id, builder.activeImages...)
 	}()
 
-	id, err := builder.Run(ctx, context)
+	id, err := builder.Run(context)
 	if err != nil {
 		return err
 	}
 	if repoName != "" {
-		return d.Repositories(ctx).Tag(repoName, tag, id, true)
+		return d.Repositories().Tag(repoName, tag, id, true)
 	}
 	return nil
 }
@@ -248,7 +247,7 @@ func Build(ctx context.Context, d *daemon.Daemon, buildConfig *Config) error {
 //
 // - call parse.Parse() to get AST root from Dockerfile entries
 // - do build by calling builder.dispatch() to call all entries' handling routines
-func BuildFromConfig(ctx context.Context, d *daemon.Daemon, c *runconfig.Config, changes []string) (*runconfig.Config, error) {
+func BuildFromConfig(d *daemon.Daemon, c *runconfig.Config, changes []string) (*runconfig.Config, error) {
 	ast, err := parser.Parse(bytes.NewBufferString(strings.Join(changes, "\n")))
 	if err != nil {
 		return nil, err
@@ -270,7 +269,7 @@ func BuildFromConfig(ctx context.Context, d *daemon.Daemon, c *runconfig.Config,
 	}
 
 	for i, n := range ast.Children {
-		if err := builder.dispatch(ctx, i, n); err != nil {
+		if err := builder.dispatch(i, n); err != nil {
 			return nil, err
 		}
 	}
@@ -290,8 +289,8 @@ type CommitConfig struct {
 }
 
 // Commit will create a new image from a container's changes
-func Commit(ctx context.Context, name string, d *daemon.Daemon, c *CommitConfig) (string, error) {
-	container, err := d.Get(ctx, name)
+func Commit(name string, d *daemon.Daemon, c *CommitConfig) (string, error) {
+	container, err := d.Get(name)
 	if err != nil {
 		return "", err
 	}
@@ -305,7 +304,7 @@ func Commit(ctx context.Context, name string, d *daemon.Daemon, c *CommitConfig)
 		c.Config = &runconfig.Config{}
 	}
 
-	newConfig, err := BuildFromConfig(ctx, d, c.Config, c.Changes)
+	newConfig, err := BuildFromConfig(d, c.Config, c.Changes)
 	if err != nil {
 		return "", err
 	}
@@ -323,7 +322,7 @@ func Commit(ctx context.Context, name string, d *daemon.Daemon, c *CommitConfig)
 		Config:  newConfig,
 	}
 
-	img, err := d.Commit(ctx, container, commitCfg)
+	img, err := d.Commit(container, commitCfg)
 	if err != nil {
 		return "", err
 	}
