@@ -295,6 +295,17 @@ $  docker push --disable-content-trust docker/trusttest:untrusted
 ...
 ```
 
+## Daemon-enforced trust
+
+When the docker daemon is started with `--untrusted-pull=false`, all it will
+only pull images with valid content signatures. This is similar to setting
+`DOCKER_CONTENT_TRUST` in the CLI, but it affects all clients, both CLI and
+users of the Remote API.
+
+**Note**: The signature enforcement only happens on `pull` operations; users
+with access to the daemon can locally build or manually tag images with any
+image tag.
+
 ## Related information
 
 * [Manage keys for content trust](trust_key_mng.md)

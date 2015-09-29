@@ -263,3 +263,240 @@ func (s *DockerTrustSuite) TestTrustedOfflinePull(c *check.C) {
 		c.Fatalf("Missing expected output on trusted pull:\n%s", out)
 	}
 }
+
+func (s *DockerDaemonTrustSuite) TestDaemonTrustedPull(c *check.C) {
+	repoName := s.dts.setupTrustedImage(c, "daemon-trusted-pull")
+
+	if err := s.startDaemon(); err != nil {
+		c.Fatal(err)
+	}
+
+	// Try pull
+	out, err := s.d.Cmd("pull", repoName)
+	if err != nil {
+		c.Fatalf("Error running trusted pull: %s\n%s", err, out)
+	}
+
+	if !strings.Contains(string(out), "Tagging") {
+		c.Fatalf("Missing expected output on trusted pull:\n%s", out)
+	}
+
+	s.d.CmdOrAssert("rmi", repoName)
+}
+
+func (s *DockerDaemonTrustSuite) TestDaemonUntrustedPull(c *check.C) {
+	repoName := fmt.Sprintf("%v/dockercli/daemon-trusted:latest", privateRegistryURL)
+	// tag the image and upload it to the private registry
+	dockerCmd(c, "tag", "busybox", repoName)
+	dockerCmd(c, "push", repoName)
+	dockerCmd(c, "rmi", repoName)
+
+	if err := s.startDaemon(); err != nil {
+		c.Fatal(err)
+	}
+
+	// Try trusted pull on untrusted tag
+	out, err := s.d.Cmd("pull", repoName)
+	if err == nil {
+		c.Fatalf("Error expected when running trusted pull with:\n%s", out)
+	}
+
+	if !strings.Contains(string(out), "no trust data available") {
+		c.Fatalf("Missing expected output on trusted pull:\n%s", out)
+	}
+}
+
+func (s *DockerDaemonTrustSuite) TestDaemonPullWhenCertExpired(c *check.C) {
+	c.Skip("Currently changes system time, causing instability")
+	repoName := s.dts.setupTrustedImage(c, "daemon-trusted-cert-expired")
+
+	// Certificates have 10 years of expiration
+	elevenYearsFromNow := time.Now().Add(time.Hour * 24 * 365 * 11)
+
+	if err := s.startDaemon(); err != nil {
+		c.Fatal(err)
+	}
+
+	runAtDifferentDate(elevenYearsFromNow, func() {
+		// Try pull
+		out, err := s.d.Cmd("pull", repoName)
+		if err == nil {
+			c.Fatalf("Error running trusted pull in the distant future: %s\n%s", err, out)
+		}
+
+		if !strings.Contains(string(out), "could not validate the path to a trusted root") {
+			c.Fatalf("Missing expected output on trusted pull in the distant future:\n%s", out)
+		}
+	})
+
+	if err := s.restartDaemon("--untrusted-pull=true"); err != nil {
+		c.Fatal(err)
+	}
+
+	runAtDifferentDate(elevenYearsFromNow, func() {
+		// Try pull
+		out, err := s.d.Cmd("pull", repoName)
+		if err != nil {
+			c.Fatalf("Error running untrusted pull in the distant future: %s\n%s", err, out)
+		}
+
+		if !strings.Contains(string(out), "Status: Downloaded") {
+			c.Fatalf("Missing expected output on untrusted pull in the distant future:\n%s", out)
+		}
+	})
+}
+
+func (s *DockerDaemonTrustSuite) TestDaemonTrustedPullFromBadTrustServer(c *check.C) {
+	repoName := fmt.Sprintf("%v/dockerclievilpull/daemon-trusted:latest", privateRegistryURL)
+	evilLocalConfigDir, err := ioutil.TempDir("", "evil-local-config-dir")
+	if err != nil {
+		c.Fatalf("Failed to create local temp dir")
+	}
+
+	// tag the image and upload it to the private registry
+	dockerCmd(c, "tag", "busybox", repoName)
+
+	pushCmd := exec.Command(dockerBinary, "push", repoName)
+	s.dts.trustedCmd(pushCmd)
+	out, _, err := runCommandWithOutput(pushCmd)
+	if err != nil {
+		c.Fatalf("Error running trusted push: %s\n%s", err, out)
+	}
+	if !strings.Contains(string(out), "Signing and pushing trust metadata") {
+		c.Fatalf("Missing expected output on trusted push:\n%s", out)
+	}
+
+	dockerCmd(c, "rmi", repoName)
+
+	if err := s.startDaemon(); err != nil {
+		c.Fatal(err)
+	}
+
+	// Try pull
+	out, err = s.d.Cmd("pull", repoName)
+	if err != nil {
+		c.Fatalf("Error running trusted pull: %s\n%s", err, out)
+	}
+
+	if !strings.Contains(string(out), "Tagging") {
+		c.Fatalf("Missing expected output on trusted pull:\n%s", out)
+	}
+
+	s.d.CmdOrAssert("rmi", repoName)
+
+	// Kill the notary server, start a new "evil" one.
+	s.dts.not.Close()
+	s.dts.not, err = newTestNotary(c)
+	if err != nil {
+		c.Fatalf("Restarting notary server failed.")
+	}
+
+	// In order to make an evil server, lets re-init a client (with a different trust dir) and push new data.
+	// tag an image and upload it to the private registry
+	dockerCmd(c, "--config", evilLocalConfigDir, "tag", "busybox", repoName)
+
+	// Push up to the new server
+	pushCmd = exec.Command(dockerBinary, "--config", evilLocalConfigDir, "push", repoName)
+	s.dts.trustedCmd(pushCmd)
+	out, _, err = runCommandWithOutput(pushCmd)
+	if err != nil {
+		c.Fatalf("Error running trusted push: %s\n%s", err, out)
+	}
+	if !strings.Contains(string(out), "Signing and pushing trust metadata") {
+		c.Fatalf("Missing expected output on trusted push:\n%s", out)
+	}
+
+	// Now, try pulling with the original client from this new trust server. This should fail.
+	out, err = s.d.Cmd("pull", repoName)
+	if err == nil {
+		c.Fatalf("Expected to fail on this pull due to different remote data: %s\n%s", err, out)
+	}
+
+	if !strings.Contains(string(out), "failed to validate data with current trusted certificates") {
+		c.Fatalf("Missing expected output on trusted pull:\n%s", out)
+	}
+}
+
+func (s *DockerDaemonTrustSuite) TestDaemonTrustedPullWithExpiredSnapshot(c *check.C) {
+	c.Skip("Currently changes system time, causing instability")
+	repoName := fmt.Sprintf("%v/dockercliexpiredtimestamppull/daemon-trusted:latest", privateRegistryURL)
+	// tag the image and upload it to the private registry
+	dockerCmd(c, "tag", "busybox", repoName)
+
+	// Push with default passphrases
+	pushCmd := exec.Command(dockerBinary, "push", repoName)
+	s.dts.trustedCmd(pushCmd)
+	out, _, err := runCommandWithOutput(pushCmd)
+	if err != nil {
+		c.Fatalf("trusted push failed: %s\n%s", err, out)
+	}
+
+	if !strings.Contains(string(out), "Signing and pushing trust metadata") {
+		c.Fatalf("Missing expected output on trusted push:\n%s", out)
+	}
+
+	dockerCmd(c, "rmi", repoName)
+
+	// Snapshots last for three years. This should be expired
+	fourYearsLater := time.Now().Add(time.Hour * 24 * 365 * 4)
+
+	if err := s.startDaemon(); err != nil {
+		c.Fatal(err)
+	}
+
+	runAtDifferentDate(fourYearsLater, func() {
+		// Try pull
+		out, err = s.d.Cmd("pull", repoName)
+		if err == nil {
+			c.Fatalf("Missing expected error running trusted pull with expired snapshots")
+		}
+
+		if !strings.Contains(string(out), "repository out-of-date") {
+			c.Fatalf("Missing expected output on trusted pull with expired snapshot:\n%s", out)
+		}
+	})
+}
+
+func (s *DockerDaemonTrustSuite) TestDaemonTrustedOfflinePull(c *check.C) {
+	repoName := s.dts.setupTrustedImage(c, "daemon-trusted-offline-pull")
+
+	if err := s.startDaemonWithServer("https://invalidnotaryserver"); err != nil {
+		c.Fatal(err)
+	}
+	out, err := s.d.Cmd("pull", repoName)
+	if err == nil {
+		c.Fatalf("Expected error pulling with invalid notary server:\n%s", out)
+	}
+
+	if !strings.Contains(string(out), "no trust data available") {
+		c.Fatalf("Missing expected output on trusted pull:\n%s", out)
+	}
+
+	// Do valid trusted pull to warm cache
+	if err := s.restartDaemon(); err != nil {
+		c.Fatal(err)
+	}
+	out, err = s.d.Cmd("pull", repoName)
+	if err != nil {
+		c.Fatalf("Error running trusted pull: %s\n%s", err, out)
+	}
+
+	if !strings.Contains(string(out), "Tagging") {
+		c.Fatalf("Missing expected output on trusted pull:\n%s", out)
+	}
+
+	s.d.CmdOrAssert("rmi", repoName)
+
+	// Try pull again with invalid notary server, should use cache
+	if err := s.restartDaemonWithServer("https://invalidnotaryserver"); err != nil {
+		c.Fatal(err)
+	}
+	out, err = s.d.Cmd("pull", repoName)
+	if err != nil {
+		c.Fatalf("Error running trusted pull: %s\n%s", err, out)
+	}
+
+	if !strings.Contains(string(out), "Tagging") {
+		c.Fatalf("Missing expected output on trusted pull:\n%s", out)
+	}
+}
