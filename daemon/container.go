@@ -244,15 +244,15 @@ func (streamConfig *streamConfig) StdinPipe() io.WriteCloser {
 }
 
 func (streamConfig *streamConfig) StdoutPipe() io.ReadCloser {
-	reader, writer := io.Pipe()
-	streamConfig.stdout.Add(writer)
-	return ioutils.NewBufReader(reader)
+	bytesPipe := ioutils.NewBytesPipe(nil)
+	streamConfig.stdout.Add(bytesPipe)
+	return bytesPipe
 }
 
 func (streamConfig *streamConfig) StderrPipe() io.ReadCloser {
-	reader, writer := io.Pipe()
-	streamConfig.stderr.Add(writer)
-	return ioutils.NewBufReader(reader)
+	bytesPipe := ioutils.NewBytesPipe(nil)
+	streamConfig.stderr.Add(bytesPipe)
+	return bytesPipe
 }
 
 // ExitOnNext signals to the monitor that it should not restart the container
