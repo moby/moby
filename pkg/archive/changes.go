@@ -102,7 +102,7 @@ func Changes(layers []string, rw string) ([]Change, error) {
 		}
 
 		// Skip AUFS metadata
-		if matched, err := filepath.Match(string(os.PathSeparator)+".wh..wh.*", path); err != nil || matched {
+		if matched, err := filepath.Match(string(os.PathSeparator)+WhiteoutMetaPrefix+"*", path); err != nil || matched {
 			return err
 		}
 
@@ -113,8 +113,8 @@ func Changes(layers []string, rw string) ([]Change, error) {
 		// Find out what kind of modification happened
 		file := filepath.Base(path)
 		// If there is a whiteout, then the file was removed
-		if strings.HasPrefix(file, ".wh.") {
-			originalFile := file[len(".wh."):]
+		if strings.HasPrefix(file, WhiteoutPrefix) {
+			originalFile := file[len(WhiteoutPrefix):]
 			change.Path = filepath.Join(filepath.Dir(path), originalFile)
 			change.Kind = ChangeDelete
 		} else {
@@ -362,7 +362,7 @@ func ExportChanges(dir string, changes []Change) (Archive, error) {
 			if change.Kind == ChangeDelete {
 				whiteOutDir := filepath.Dir(change.Path)
 				whiteOutBase := filepath.Base(change.Path)
-				whiteOut := filepath.Join(whiteOutDir, ".wh."+whiteOutBase)
+				whiteOut := filepath.Join(whiteOutDir, WhiteoutPrefix+whiteOutBase)
 				timestamp := time.Now()
 				hdr := &tar.Header{
 					Name:       whiteOut[1:],
