@@ -37,13 +37,18 @@ func (n *network) deleteEndpoint(eid string) {
 
 func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo,
 	epOptions map[string]interface{}) error {
-	if err := validateID(nid, eid); err != nil {
+	var err error
+
+	if err = validateID(nid, eid); err != nil {
 		return err
 	}
 
 	n := d.network(nid)
 	if n == nil {
-		return fmt.Errorf("network id %q not found", nid)
+		n, err = d.createNetworkfromStore(nid)
+		if err != nil {
+			return fmt.Errorf("network id %q not found", nid)
+		}
 	}
 
 	ep := &endpoint{
@@ -51,9 +56,12 @@ func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo,
 		addr: ifInfo.Address(),
 		mac:  ifInfo.MacAddress(),
 	}
-
 	if ep.addr == nil {
 		return fmt.Errorf("create endpoint was not passed interface IP address")
+	}
+
+	if s := n.getSubnetforIP(ep.addr); s == nil {
+		return fmt.Errorf("no matching subnet for IP %q in network %q\n", ep.addr, nid)
 	}
 
 	if ep.mac == nil {
