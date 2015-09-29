@@ -7,7 +7,6 @@ import (
 	"time"
 
 	// TODO Windows: Factor out ulimit
-	"github.com/docker/docker/context"
 	"github.com/docker/docker/pkg/ulimit"
 	"github.com/opencontainers/runc/libcontainer"
 	"github.com/opencontainers/runc/libcontainer/configs"
@@ -30,7 +29,7 @@ var (
 // through PreStart, Start and PostStop events.
 // Callbacks are provided a processConfig pointer and the pid of the child.
 // The channel will be used to notify the OOM events.
-type DriverCallback func(ctx context.Context, processConfig *ProcessConfig, pid int, chOOM <-chan struct{}) error
+type DriverCallback func(processConfig *ProcessConfig, pid int, chOOM <-chan struct{}) error
 
 // Hooks is a struct containing function pointers to callbacks
 // used by any execdriver implementation exploiting hooks capabilities
@@ -70,11 +69,11 @@ type ExitStatus struct {
 type Driver interface {
 	// Run executes the process, blocks until the process exits and returns
 	// the exit code. It's the last stage on Docker side for running a container.
-	Run(ctx context.Context, c *Command, pipes *Pipes, hooks Hooks) (ExitStatus, error)
+	Run(c *Command, pipes *Pipes, hooks Hooks) (ExitStatus, error)
 
 	// Exec executes the process in an existing container, blocks until the
 	// process exits and returns the exit code.
-	Exec(ctx context.Context, c *Command, processConfig *ProcessConfig, pipes *Pipes, hooks Hooks) (int, error)
+	Exec(c *Command, processConfig *ProcessConfig, pipes *Pipes, hooks Hooks) (int, error)
 
 	// Kill sends signals to process in container.
 	Kill(c *Command, sig int) error

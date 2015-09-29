@@ -45,7 +45,7 @@ func (s *Server) getVersion(ctx context.Context, w http.ResponseWriter, r *http.
 }
 
 func (s *Server) getInfo(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	info, err := s.daemon.SystemInfo(ctx)
+	info, err := s.daemon.SystemInfo()
 	if err != nil {
 		return err
 	}
@@ -120,7 +120,7 @@ func (s *Server) getEvents(ctx context.Context, w http.ResponseWriter, r *http.R
 	enc := json.NewEncoder(outStream)
 
 	getContainerID := func(cn string) string {
-		c, err := d.Get(ctx, cn)
+		c, err := d.Get(cn)
 		if err != nil {
 			return ""
 		}

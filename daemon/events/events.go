@@ -4,8 +4,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/docker/docker/context"
-
 	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/docker/docker/pkg/pubsub"
 )
@@ -46,9 +44,9 @@ func (e *Events) Evict(l chan interface{}) {
 
 // Log broadcasts event to listeners. Each listener has 100 millisecond for
 // receiving event or it will be skipped.
-func (e *Events) Log(ctx context.Context, action, id, from string) {
+func (e *Events) Log(action, id, from string) {
 	now := time.Now().UTC()
-	jm := &jsonmessage.JSONMessage{RequestID: ctx.RequestID(), Status: action, ID: id, From: from, Time: now.Unix(), TimeNano: now.UnixNano()}
+	jm := &jsonmessage.JSONMessage{Status: action, ID: id, From: from, Time: now.Unix(), TimeNano: now.UnixNano()}
 	e.mu.Lock()
 	if len(e.events) == cap(e.events) {
 		// discard oldest event

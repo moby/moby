@@ -8,7 +8,6 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/autogen/dockerversion"
-	"github.com/docker/docker/context"
 	"github.com/docker/docker/pkg/fileutils"
 	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/docker/docker/pkg/parsers/operatingsystem"
@@ -19,8 +18,8 @@ import (
 )
 
 // SystemInfo returns information about the host server the daemon is running on.
-func (daemon *Daemon) SystemInfo(ctx context.Context) (*types.Info, error) {
-	images := daemon.Graph(ctx).Map()
+func (daemon *Daemon) SystemInfo() (*types.Info, error) {
+	images := daemon.Graph().Map()
 	var imgcount int
 	if images == nil {
 		imgcount = 0
@@ -66,10 +65,10 @@ func (daemon *Daemon) SystemInfo(ctx context.Context) (*types.Info, error) {
 
 	v := &types.Info{
 		ID:                 daemon.ID,
-		Containers:         len(daemon.List(ctx)),
+		Containers:         len(daemon.List()),
 		Images:             imgcount,
-		Driver:             daemon.GraphDriver(ctx).String(),
-		DriverStatus:       daemon.GraphDriver(ctx).Status(),
+		Driver:             daemon.GraphDriver().String(),
+		DriverStatus:       daemon.GraphDriver().Status(),
 		IPv4Forwarding:     !sysInfo.IPv4ForwardingDisabled,
 		BridgeNfIptables:   !sysInfo.BridgeNfCallIptablesDisabled,
 		BridgeNfIP6tables:  !sysInfo.BridgeNfCallIP6tablesDisabled,
@@ -77,7 +76,7 @@ func (daemon *Daemon) SystemInfo(ctx context.Context) (*types.Info, error) {
 		NFd:                fileutils.GetTotalUsedFds(),
 		NGoroutines:        runtime.NumGoroutine(),
 		SystemTime:         time.Now().Format(time.RFC3339Nano),
-		ExecutionDriver:    daemon.ExecutionDriver(ctx).Name(),
+		ExecutionDriver:    daemon.ExecutionDriver().Name(),
 		LoggingDriver:      daemon.defaultLogConfig.Type,
 		NEventsListener:    daemon.EventsService.SubscribersCount(),
 		KernelVersion:      kernelVersion,

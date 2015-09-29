@@ -1,19 +1,18 @@
 package daemon
 
 import (
-	"github.com/docker/docker/context"
 	derr "github.com/docker/docker/errors"
 )
 
 // ContainerRename changes the name of a container, using the oldName
 // to find the container. An error is returned if newName is already
 // reserved.
-func (daemon *Daemon) ContainerRename(ctx context.Context, oldName, newName string) error {
+func (daemon *Daemon) ContainerRename(oldName, newName string) error {
 	if oldName == "" || newName == "" {
 		return derr.ErrorCodeEmptyRename
 	}
 
-	container, err := daemon.Get(ctx, oldName)
+	container, err := daemon.Get(oldName)
 	if err != nil {
 		return err
 	}
@@ -22,7 +21,7 @@ func (daemon *Daemon) ContainerRename(ctx context.Context, oldName, newName stri
 
 	container.Lock()
 	defer container.Unlock()
-	if newName, err = daemon.reserveName(ctx, container.ID, newName); err != nil {
+	if newName, err = daemon.reserveName(container.ID, newName); err != nil {
 		return derr.ErrorCodeRenameTaken.WithArgs(err)
 	}
 
@@ -30,7 +29,7 @@ func (daemon *Daemon) ContainerRename(ctx context.Context, oldName, newName stri
 
 	undo := func() {
 		container.Name = oldName
-		daemon.reserveName(ctx, container.ID, oldName)
+		daemon.reserveName(container.ID, oldName)
 		daemon.containerGraphDB.Delete(newName)
 	}
 
@@ -44,6 +43,6 @@ func (daemon *Daemon) ContainerRename(ctx context.Context, oldName, newName stri
 		return err
 	}
 
-	container.logEvent(ctx, "rename")
+	container.logEvent("rename")
 	return nil
 }

@@ -5,7 +5,6 @@ import (
 	"io"
 
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/context"
 	"github.com/docker/docker/daemon/execdriver"
 	"github.com/docker/docker/pkg/version"
 	"github.com/docker/libnetwork/osl"
@@ -23,9 +22,9 @@ type ContainerStatsConfig struct {
 
 // ContainerStats writes information about the container to the stream
 // given in the config object.
-func (daemon *Daemon) ContainerStats(ctx context.Context, prefixOrName string, config *ContainerStatsConfig) error {
+func (daemon *Daemon) ContainerStats(prefixOrName string, config *ContainerStatsConfig) error {
 
-	container, err := daemon.Get(ctx, prefixOrName)
+	container, err := daemon.Get(prefixOrName)
 	if err != nil {
 		return err
 	}

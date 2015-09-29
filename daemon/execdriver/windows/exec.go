@@ -7,13 +7,12 @@ import (
 	"fmt"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/docker/context"
 	"github.com/docker/docker/daemon/execdriver"
 	"github.com/microsoft/hcsshim"
 )
 
 // Exec implements the exec driver Driver interface.
-func (d *Driver) Exec(ctx context.Context, c *execdriver.Command, processConfig *execdriver.ProcessConfig, pipes *execdriver.Pipes, hooks execdriver.Hooks) (int, error) {
+func (d *Driver) Exec(c *execdriver.Command, processConfig *execdriver.ProcessConfig, pipes *execdriver.Pipes, hooks execdriver.Hooks) (int, error) {
 
 	var (
 		term     execdriver.Terminal
@@ -75,7 +74,7 @@ func (d *Driver) Exec(ctx context.Context, c *execdriver.Command, processConfig 
 		// non-blocking and return the correct result when read.
 		chOOM := make(chan struct{})
 		close(chOOM)
-		hooks.Start(ctx, &c.ProcessConfig, int(pid), chOOM)
+		hooks.Start(&c.ProcessConfig, int(pid), chOOM)
 	}
 
 	if exitCode, err = hcsshim.WaitForProcessInComputeSystem(c.ID, pid); err != nil {

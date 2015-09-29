@@ -32,7 +32,6 @@ import (
 	"github.com/docker/docker/builder/command"
 	"github.com/docker/docker/builder/parser"
 	"github.com/docker/docker/cliconfig"
-	"github.com/docker/docker/context"
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/pkg/fileutils"
 	"github.com/docker/docker/pkg/streamformatter"
@@ -58,10 +57,10 @@ var replaceEnvAllowed = map[string]struct{}{
 	command.Arg:        {},
 }
 
-var evaluateTable map[string]func(context.Context, *builder, []string, map[string]bool, string) error
+var evaluateTable map[string]func(*builder, []string, map[string]bool, string) error
 
 func init() {
-	evaluateTable = map[string]func(context.Context, *builder, []string, map[string]bool, string) error{
+	evaluateTable = map[string]func(*builder, []string, map[string]bool, string) error{
 		command.Env:        env,
 		command.Label:      label,
 		command.Maintainer: maintainer,
@@ -159,7 +158,7 @@ type builder struct {
 //   processing.
 // * Print a happy message and return the image ID.
 //
-func (b *builder) Run(ctx context.Context, context io.Reader) (string, error) {
+func (b *builder) Run(context io.Reader) (string, error) {
 	if err := b.readContext(context); err != nil {
 		return "", err
 	}
@@ -188,15 +187,15 @@ func (b *builder) Run(ctx context.Context, context io.Reader) (string, error) {
 		default:
 			// Not cancelled yet, keep going...
 		}
-		if err := b.dispatch(ctx, i, n); err != nil {
+		if err := b.dispatch(i, n); err != nil {
 			if b.ForceRemove {
-				b.clearTmp(ctx)
+				b.clearTmp()
 			}
 			return "", err
 		}
 		fmt.Fprintf(b.OutStream, " ---> %s\n", stringid.TruncateID(b.image))
 		if b.Remove {
-			b.clearTmp(ctx)
+			b.clearTmp()
 		}
 	}
 
@@ -312,7 +311,7 @@ func (b *builder) isBuildArgAllowed(arg string) bool {
 // such as `RUN` in ONBUILD RUN foo. There is special case logic in here to
 // deal with that, at least until it becomes more of a general concern with new
 // features.
-func (b *builder) dispatch(ctx context.Context, stepN int, ast *parser.Node) error {
+func (b *builder) dispatch(stepN int, ast *parser.Node) error {
 	cmd := ast.Value
 
 	// To ensure the user is given a decent error message if the platform
@@ -405,7 +404,7 @@ func (b *builder) dispatch(ctx context.Context, stepN int, ast *parser.Node) err
 	if f, ok := evaluateTable[cmd]; ok {
 		b.BuilderFlags = NewBFlags()
 		b.BuilderFlags.Args = flags
-		return f(ctx, b, strList, attrs, original)
+		return f(b, strList, attrs, original)
 	}
 
 	return fmt.Errorf("Unknown instruction: %s", strings.ToUpper(cmd))

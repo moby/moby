@@ -55,7 +55,7 @@ func (s *Server) postCommit(ctx context.Context, w http.ResponseWriter, r *http.
 		Config:  c,
 	}
 
-	imgID, err := builder.Commit(ctx, cname, s.daemon, commitCfg)
+	imgID, err := builder.Commit(cname, s.daemon, commitCfg)
 	if err != nil {
 		return err
 	}
@@ -112,7 +112,7 @@ func (s *Server) postImagesCreate(ctx context.Context, w http.ResponseWriter, r 
 			OutStream:   output,
 		}
 
-		err = s.daemon.Repositories(ctx).Pull(ctx, image, tag, imagePullConfig)
+		err = s.daemon.Repositories().Pull(image, tag, imagePullConfig)
 	} else { //import
 		if tag == "" {
 			repo, tag = parsers.ParseRepositoryTag(repo)
@@ -124,12 +124,12 @@ func (s *Server) postImagesCreate(ctx context.Context, w http.ResponseWriter, r 
 		// generated from the download to be available to the output
 		// stream processing below
 		var newConfig *runconfig.Config
-		newConfig, err = builder.BuildFromConfig(ctx, s.daemon, &runconfig.Config{}, r.Form["changes"])
+		newConfig, err = builder.BuildFromConfig(s.daemon, &runconfig.Config{}, r.Form["changes"])
 		if err != nil {
 			return err
 		}
 
-		err = s.daemon.Repositories(ctx).Import(ctx, src, repo, tag, message, r.Body, output, newConfig)
+		err = s.daemon.Repositories().Import(src, repo, tag, message, r.Body, output, newConfig)
 	}
 	if err != nil {
 		if !output.Flushed() {
@@ -184,7 +184,7 @@ func (s *Server) postImagesPush(ctx context.Context, w http.ResponseWriter, r *h
 
 	w.Header().Set("Content-Type", "application/json")
 
-	if err := s.daemon.Repositories(ctx).Push(ctx, name, imagePushConfig); err != nil {
+	if err := s.daemon.Repositories().Push(name, imagePushConfig); err != nil {
 		if !output.Flushed() {
 			return err
 		}
@@ -212,7 +212,7 @@ func (s *Server) getImagesGet(ctx context.Context, w http.ResponseWriter, r *htt
 		names = r.Form["names"]
 	}
 
-	if err := s.daemon.Repositories(ctx).ImageExport(names, output); err != nil {
+	if err := s.daemon.Repositories().ImageExport(names, output); err != nil {
 		if !output.Flushed() {
 			return err
 		}
@@ -223,7 +223,7 @@ func (s *Server) getImagesGet(ctx context.Context, w http.ResponseWriter, r *htt
 }
 
 func (s *Server) postImagesLoad(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	return s.daemon.Repositories(ctx).Load(r.Body, w)
+	return s.daemon.Repositories().Load(r.Body, w)
 }
 
 func (s *Server) deleteImages(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
@@ -243,7 +243,7 @@ func (s *Server) deleteImages(ctx context.Context, w http.ResponseWriter, r *htt
 	force := boolValue(r, "force")
 	prune := !boolValue(r, "noprune")
 
-	list, err := s.daemon.ImageDelete(ctx, name, force, prune)
+	list, err := s.daemon.ImageDelete(name, force, prune)
 	if err != nil {
 		return err
 	}
@@ -256,7 +256,7 @@ func (s *Server) getImagesByName(ctx context.Context, w http.ResponseWriter, r *
 		return fmt.Errorf("Missing parameter")
 	}
 
-	imageInspect, err := s.daemon.Repositories(ctx).Lookup(vars["name"])
+	imageInspect, err := s.daemon.Repositories().Lookup(vars["name"])
 	if err != nil {
 		return err
 	}
@@ -346,7 +346,7 @@ func (s *Server) postBuild(ctx context.Context, w http.ResponseWriter, r *http.R
 		}()
 	}
 
-	if err := builder.Build(ctx, s.daemon, buildConfig); err != nil {
+	if err := builder.Build(s.daemon, buildConfig); err != nil {
 		// Do not write the error in the http output if it's still empty.
 		// This prevents from writing a 200(OK) when there is an interal error.
 		if !output.Flushed() {
@@ -364,7 +364,7 @@ func (s *Server) getImagesJSON(ctx context.Context, w http.ResponseWriter, r *ht
 	}
 
 	// FIXME: The filter parameter could just be a match filter
-	images, err := s.daemon.Repositories(ctx).Images(r.Form.Get("filters"), r.Form.Get("filter"), boolValue(r, "all"))
+	images, err := s.daemon.Repositories().Images(r.Form.Get("filters"), r.Form.Get("filter"), boolValue(r, "all"))
 	if err != nil {
 		return err
 	}
@@ -378,7 +378,7 @@ func (s *Server) getImagesHistory(ctx context.Context, w http.ResponseWriter, r 
 	}
 
 	name := vars["name"]
-	history, err := s.daemon.Repositories(ctx).History(name)
+	history, err := s.daemon.Repositories().History(name)
 	if err != nil {
 		return err
 	}
@@ -398,10 +398,10 @@ func (s *Server) postImagesTag(ctx context.Context, w http.ResponseWriter, r *ht
 	tag := r.Form.Get("tag")
 	force := boolValue(r, "force")
 	name := vars["name"]
-	if err := s.daemon.Repositories(ctx).Tag(repo, tag, name, force); err != nil {
+	if err := s.daemon.Repositories().Tag(repo, tag, name, force); err != nil {
 		return err
 	}
-	s.daemon.EventsService.Log(ctx, "tag", utils.ImageReference(repo, tag), "")
+	s.daemon.EventsService.Log("tag", utils.ImageReference(repo, tag), "")
 	w.WriteHeader(http.StatusCreated)
 	return nil
 }

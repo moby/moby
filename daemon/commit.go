@@ -1,7 +1,6 @@
 package daemon
 
 import (
-	"github.com/docker/docker/context"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/runconfig"
 )
@@ -19,10 +18,10 @@ type ContainerCommitConfig struct {
 
 // Commit creates a new filesystem image from the current state of a container.
 // The image can optionally be tagged into a repository.
-func (daemon *Daemon) Commit(ctx context.Context, container *Container, c *ContainerCommitConfig) (*image.Image, error) {
+func (daemon *Daemon) Commit(container *Container, c *ContainerCommitConfig) (*image.Image, error) {
 	if c.Pause && !container.isPaused() {
-		container.pause(ctx)
-		defer container.unpause(ctx)
+		container.pause()
+		defer container.unpause()
 	}
 
 	rwTar, err := container.exportContainerRw()
@@ -47,6 +46,6 @@ func (daemon *Daemon) Commit(ctx context.Context, container *Container, c *Conta
 			return img, err
 		}
 	}
-	container.logEvent(ctx, "commit")
+	container.logEvent("commit")
 	return img, nil
 }

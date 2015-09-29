@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/docker/docker/context"
 	"github.com/docker/docker/pkg/httputils"
 	"github.com/docker/docker/pkg/progressreader"
 	"github.com/docker/docker/pkg/streamformatter"
@@ -17,7 +16,7 @@ import (
 // inConfig (if src is "-"), or from a URI specified in src. Progress output is
 // written to outStream. Repository and tag names can optionally be given in
 // the repo and tag arguments, respectively.
-func (s *TagStore) Import(ctx context.Context, src string, repo string, tag string, msg string, inConfig io.ReadCloser, outStream io.Writer, containerConfig *runconfig.Config) error {
+func (s *TagStore) Import(src string, repo string, tag string, msg string, inConfig io.ReadCloser, outStream io.Writer, containerConfig *runconfig.Config) error {
 	var (
 		sf      = streamformatter.NewJSONStreamFormatter()
 		archive io.ReadCloser
@@ -75,6 +74,6 @@ func (s *TagStore) Import(ctx context.Context, src string, repo string, tag stri
 		logID = utils.ImageReference(logID, tag)
 	}
 
-	s.eventsService.Log(ctx, "import", logID, "")
+	s.eventsService.Log("import", logID, "")
 	return nil
 }

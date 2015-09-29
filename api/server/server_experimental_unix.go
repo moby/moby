@@ -2,12 +2,8 @@
 
 package server
 
-import (
-	"github.com/docker/docker/context"
-)
-
-func (s *Server) registerSubRouter(ctx context.Context) {
-	httpHandler := s.daemon.NetworkAPIRouter(ctx)
+func (s *Server) registerSubRouter() {
+	httpHandler := s.daemon.NetworkAPIRouter()
 
 	subrouter := s.router.PathPrefix("/v{version:[0-9.]+}/networks").Subrouter()
 	subrouter.Methods("GET", "POST", "PUT", "DELETE").HandlerFunc(httpHandler)
