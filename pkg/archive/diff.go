@@ -83,11 +83,11 @@ func UnpackLayer(dest string, layer Reader) (size int64, err error) {
 		}
 
 		// Skip AUFS metadata dirs
-		if strings.HasPrefix(hdr.Name, ".wh..wh.") {
+		if strings.HasPrefix(hdr.Name, WhiteoutMetaPrefix) {
 			// Regular files inside /.wh..wh.plnk can be used as hardlink targets
 			// We don't want this directory, but we need the files in them so that
 			// such hardlinks can be resolved.
-			if strings.HasPrefix(hdr.Name, ".wh..wh.plnk") && hdr.Typeflag == tar.TypeReg {
+			if strings.HasPrefix(hdr.Name, WhiteoutLinkDir) && hdr.Typeflag == tar.TypeReg {
 				basename := filepath.Base(hdr.Name)
 				aufsHardlinks[basename] = hdr
 				if aufsTempdir == "" {
@@ -101,7 +101,7 @@ func UnpackLayer(dest string, layer Reader) (size int64, err error) {
 				}
 			}
 
-			if hdr.Name != ".wh..wh..opq" {
+			if hdr.Name != WhiteoutOpaqueDir {
 				continue
 			}
 		}
@@ -117,10 +117,9 @@ func UnpackLayer(dest string, layer Reader) (size int64, err error) {
 		}
 		base := filepath.Base(path)
 
-		if strings.HasPrefix(base, ".wh.") {
-			originalBase := base[len(".wh."):]
+		if strings.HasPrefix(base, WhiteoutPrefix) {
 			dir := filepath.Dir(path)
-			if originalBase == ".wh..opq" {
+			if base == WhiteoutOpaqueDir {
 				fi, err := os.Lstat(dir)
 				if err != nil && !os.IsNotExist(err) {
 					return 0, err
@@ -132,6 +131,7 @@ func UnpackLayer(dest string, layer Reader) (size int64, err error) {
 					return 0, err
 				}
 			} else {
+				originalBase := base[len(WhiteoutPrefix):]
 				originalPath := filepath.Join(dir, originalBase)
 				if err := os.RemoveAll(originalPath); err != nil {
 					return 0, err
@@ -156,7 +156,7 @@ func UnpackLayer(dest string, layer Reader) (size int64, err error) {
 
 			// Hard links into /.wh..wh.plnk don't work, as we don't extract that directory, so
 			// we manually retarget these into the temporary files we extracted them into
-			if hdr.Typeflag == tar.TypeLink && strings.HasPrefix(filepath.Clean(hdr.Linkname), ".wh..wh.plnk") {
+			if hdr.Typeflag == tar.TypeLink && strings.HasPrefix(filepath.Clean(hdr.Linkname), WhiteoutLinkDir) {
 				linkBasename := filepath.Base(hdr.Linkname)
 				srcHdr = aufsHardlinks[linkBasename]
 				if srcHdr == nil {
