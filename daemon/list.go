@@ -36,7 +36,7 @@ const (
 var errStopIteration = errors.New("container list iteration stopped")
 
 // List returns an array of all containers registered in the daemon.
-func (daemon *Daemon) List() []*Container {
+func (daemon *Daemon) List(ctx context.Context) []*Container {
 	return daemon.containers.List()
 }
 
@@ -93,7 +93,7 @@ func (daemon *Daemon) reduceContainers(ctx context.Context, config *ContainersCo
 		return nil, err
 	}
 
-	for _, container := range daemon.List() {
+	for _, container := range daemon.List(ctx) {
 		t, err := daemon.reducePsContainer(ctx, container, fctx, reducer)
 		if err != nil {
 			if err != errStopIteration {
@@ -160,11 +160,11 @@ func (daemon *Daemon) foldFilter(ctx context.Context, config *ContainersConfig) 
 	var ancestorFilter bool
 	if ancestors, ok := psFilters["ancestor"]; ok {
 		ancestorFilter = true
-		byParents := daemon.Graph().ByParent()
+		byParents := daemon.Graph(ctx).ByParent()
 		// The idea is to walk the graph down the most "efficient" way.
 		for _, ancestor := range ancestors {
 			// First, get the imageId of the ancestor filter (yay)
-			image, err := daemon.Repositories().LookupImage(ancestor)
+			image, err := daemon.Repositories(ctx).LookupImage(ancestor)
 			if err != nil {
 				logrus.Warnf("Error while looking up for image %v", ancestor)
 				continue
@@ -293,7 +293,7 @@ func (daemon *Daemon) transformContainer(ctx context.Context, container *Contain
 		Names: lctx.names[container.ID],
 	}
 
-	img, err := daemon.Repositories().LookupImage(container.Config.Image)
+	img, err := daemon.Repositories(ctx).LookupImage(container.Config.Image)
 	if err != nil {
 		// If the image can no longer be found by its original reference,
 		// it makes sense to show the ID instead of a stale reference.

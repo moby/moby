@@ -54,7 +54,7 @@ import (
 func (daemon *Daemon) ImageDelete(ctx context.Context, imageRef string, force, prune bool) ([]types.ImageDelete, error) {
 	records := []types.ImageDelete{}
 
-	img, err := daemon.Repositories().LookupImage(imageRef)
+	img, err := daemon.Repositories(ctx).LookupImage(imageRef)
 	if err != nil {
 		return nil, err
 	}
@@ -66,7 +66,7 @@ func (daemon *Daemon) ImageDelete(ctx context.Context, imageRef string, force, p
 		// true, there are multiple repository references to this
 		// image, or there are no containers using the given reference.
 		if !(force || daemon.imageHasMultipleRepositoryReferences(ctx, img.ID)) {
-			if container := daemon.getContainerUsingImage(img.ID); container != nil {
+			if container := daemon.getContainerUsingImage(ctx, img.ID); container != nil {
 				// If we removed the repository reference then
 				// this image would remain "dangling" and since
 				// we really want to avoid that the client must
@@ -91,7 +91,7 @@ func (daemon *Daemon) ImageDelete(ctx context.Context, imageRef string, force, p
 		// repository reference to the image then we will want to
 		// remove that reference.
 		// FIXME: Is this the behavior we want?
-		repoRefs := daemon.Repositories().ByID()[img.ID]
+		repoRefs := daemon.Repositories(ctx).ByID()[img.ID]
 		if len(repoRefs) == 1 {
 			parsedRef, err := daemon.removeImageRef(ctx, repoRefs[0])
 			if err != nil {
@@ -117,13 +117,13 @@ func isImageIDPrefix(imageID, possiblePrefix string) bool {
 // imageHasMultipleRepositoryReferences returns whether there are multiple
 // repository references to the given imageID.
 func (daemon *Daemon) imageHasMultipleRepositoryReferences(ctx context.Context, imageID string) bool {
-	return len(daemon.Repositories().ByID()[imageID]) > 1
+	return len(daemon.Repositories(ctx).ByID()[imageID]) > 1
 }
 
 // getContainerUsingImage returns a container that was created using the given
 // imageID. Returns nil if there is no such container.
-func (daemon *Daemon) getContainerUsingImage(imageID string) *Container {
-	for _, container := range daemon.List() {
+func (daemon *Daemon) getContainerUsingImage(ctx context.Context, imageID string) *Container {
+	for _, container := range daemon.List(ctx) {
 		if container.ImageID == imageID {
 			return container
 		}
@@ -146,7 +146,7 @@ func (daemon *Daemon) removeImageRef(ctx context.Context, repositoryRef string) 
 	// Ignore the boolean value returned, as far as we're concerned, this
 	// is an idempotent operation and it's okay if the reference didn't
 	// exist in the first place.
-	_, err := daemon.Repositories().Delete(repository, ref)
+	_, err := daemon.Repositories(ctx).Delete(repository, ref)
 
 	return utils.ImageReference(repository, ref), err
 }
@@ -157,7 +157,7 @@ func (daemon *Daemon) removeImageRef(ctx context.Context, repositoryRef string) 
 // daemon's event service. An "Untagged" types.ImageDelete is added to the
 // given list of records.
 func (daemon *Daemon) removeAllReferencesToImageID(ctx context.Context, imgID string, records *[]types.ImageDelete) error {
-	imageRefs := daemon.Repositories().ByID()[imgID]
+	imageRefs := daemon.Repositories(ctx).ByID()[imgID]
 
 	for _, imageRef := range imageRefs {
 		parsedRef, err := daemon.removeImageRef(ctx, imageRef)
@@ -224,7 +224,7 @@ func (daemon *Daemon) imageDeleteHelper(ctx context.Context, img *image.Image, r
 		return err
 	}
 
-	if err := daemon.Graph().Delete(img.ID); err != nil {
+	if err := daemon.Graph(ctx).Delete(img.ID); err != nil {
 		return err
 	}
 
@@ -238,7 +238,7 @@ func (daemon *Daemon) imageDeleteHelper(ctx context.Context, img *image.Image, r
 	// We need to prune the parent image. This means delete it if there are
 	// no tags/digests referencing it and there are no containers using it (
 	// either running or stopped).
-	parentImg, err := daemon.Graph().Get(img.Parent)
+	parentImg, err := daemon.Graph(ctx).Get(img.Parent)
 	if err != nil {
 		return derr.ErrorCodeImgNoParent.WithArgs(err)
 	}
@@ -271,7 +271,7 @@ func (daemon *Daemon) checkImageDeleteConflict(ctx context.Context, img *image.I
 
 func (daemon *Daemon) checkImageDeleteHardConflict(ctx context.Context, img *image.Image) *imageDeleteConflict {
 	// Check if the image ID is being used by a pull or build.
-	if daemon.Graph().IsHeld(img.ID) {
+	if daemon.Graph(ctx).IsHeld(img.ID) {
 		return &imageDeleteConflict{
 			hard:    true,
 			imgID:   img.ID,
@@ -280,7 +280,7 @@ func (daemon *Daemon) checkImageDeleteHardConflict(ctx context.Context, img *ima
 	}
 
 	// Check if the image has any descendent images.
-	if daemon.Graph().HasChildren(img) {
+	if daemon.Graph(ctx).HasChildren(img) {
 		return &imageDeleteConflict{
 			hard:    true,
 			imgID:   img.ID,
@@ -289,7 +289,7 @@ func (daemon *Daemon) checkImageDeleteHardConflict(ctx context.Context, img *ima
 	}
 
 	// Check if any running container is using the image.
-	for _, container := range daemon.List() {
+	for _, container := range daemon.List(ctx) {
 		if !container.IsRunning() {
 			// Skip this until we check for soft conflicts later.
 			continue
@@ -309,7 +309,7 @@ func (daemon *Daemon) checkImageDeleteHardConflict(ctx context.Context, img *ima
 
 func (daemon *Daemon) checkImageDeleteSoftConflict(ctx context.Context, img *image.Image) *imageDeleteConflict {
 	// Check if any repository tags/digest reference this image.
-	if daemon.Repositories().HasReferences(img) {
+	if daemon.Repositories(ctx).HasReferences(img) {
 		return &imageDeleteConflict{
 			imgID:   img.ID,
 			message: "image is referenced in one or more repositories",
@@ -317,7 +317,7 @@ func (daemon *Daemon) checkImageDeleteSoftConflict(ctx context.Context, img *ima
 	}
 
 	// Check if any stopped containers reference this image.
-	for _, container := range daemon.List() {
+	for _, container := range daemon.List(ctx) {
 		if container.IsRunning() {
 			// Skip this as it was checked above in hard conflict conditions.
 			continue
@@ -338,5 +338,5 @@ func (daemon *Daemon) checkImageDeleteSoftConflict(ctx context.Context, img *ima
 // that there are no repository references to the given image and it has no
 // child images.
 func (daemon *Daemon) imageIsDangling(ctx context.Context, img *image.Image) bool {
-	return !(daemon.Repositories().HasReferences(img) || daemon.Graph().HasChildren(img))
+	return !(daemon.Repositories(ctx).HasReferences(img) || daemon.Graph(ctx).HasChildren(img))
 }

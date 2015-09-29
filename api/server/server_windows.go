@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 
+	"github.com/docker/docker/context"
 	"github.com/docker/docker/daemon"
 )
 
@@ -42,9 +43,9 @@ func (s *Server) newServer(proto, addr string) ([]serverCloser, error) {
 }
 
 // AcceptConnections allows router to start listening for the incoming requests.
-func (s *Server) AcceptConnections(d *daemon.Daemon) {
+func (s *Server) AcceptConnections(ctx context.Context, d *daemon.Daemon) {
 	s.daemon = d
-	s.registerSubRouter()
+	s.registerSubRouter(ctx)
 	// close the lock so the listeners start accepting connections
 	select {
 	case <-s.start:

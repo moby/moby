@@ -253,7 +253,7 @@ func (daemon *Daemon) ensureName(container *Container) error {
 	return nil
 }
 
-func (daemon *Daemon) restore() error {
+func (daemon *Daemon) restore(ctx context.Context) error {
 	type cr struct {
 		container  *Container
 		registered bool
@@ -309,7 +309,6 @@ func (daemon *Daemon) restore() error {
 	}
 
 	group := sync.WaitGroup{}
-	ctx := context.Background()
 	for _, c := range containers {
 		group.Add(1)
 
@@ -574,7 +573,7 @@ func (daemon *Daemon) registerLink(parent, child *Container, alias string) error
 
 // NewDaemon sets up everything for the daemon to be able to service
 // requests from the webserver.
-func NewDaemon(config *Config, registryService *registry.Service) (daemon *Daemon, err error) {
+func NewDaemon(ctx context.Context, config *Config, registryService *registry.Service) (daemon *Daemon, err error) {
 	setDefaultMtu(config)
 
 	// Ensure we have compatible configuration options
@@ -642,7 +641,7 @@ func NewDaemon(config *Config, registryService *registry.Service) (daemon *Daemo
 	// Ensure the graph driver is shutdown at a later point
 	defer func() {
 		if err != nil {
-			if err := d.Shutdown(context.Background()); err != nil {
+			if err := d.Shutdown(ctx); err != nil {
 				logrus.Error(err)
 			}
 		}
@@ -786,7 +785,7 @@ func NewDaemon(config *Config, registryService *registry.Service) (daemon *Daemo
 
 	go d.execCommandGC()
 
-	if err := d.restore(); err != nil {
+	if err := d.restore(ctx); err != nil {
 		return nil, err
 	}
 
@@ -799,7 +798,7 @@ func (daemon *Daemon) Shutdown(ctx context.Context) error {
 	if daemon.containers != nil {
 		group := sync.WaitGroup{}
 		logrus.Debug("starting clean shutdown of all containers...")
-		for _, container := range daemon.List() {
+		for _, container := range daemon.List(ctx) {
 			c := container
 			if c.IsRunning() {
 				logrus.Debugf("stopping %s", c.ID)
@@ -974,12 +973,12 @@ func (daemon *Daemon) createRootfs(container *Container) error {
 // which need direct access to daemon.graph.
 // Once the tests switch to using engine and jobs, this method
 // can go away.
-func (daemon *Daemon) Graph() *graph.Graph {
+func (daemon *Daemon) Graph(ctx context.Context) *graph.Graph {
 	return daemon.graph
 }
 
 // Repositories returns all repositories.
-func (daemon *Daemon) Repositories() *graph.TagStore {
+func (daemon *Daemon) Repositories(ctx context.Context) *graph.TagStore {
 	return daemon.repositories
 }
 
@@ -993,13 +992,13 @@ func (daemon *Daemon) systemInitPath() string {
 
 // GraphDriver returns the currently used driver for processing
 // container layers.
-func (daemon *Daemon) GraphDriver() graphdriver.Driver {
+func (daemon *Daemon) GraphDriver(ctx context.Context) graphdriver.Driver {
 	return daemon.driver
 }
 
 // ExecutionDriver returns the currently used driver for creating and
 // starting execs in a container.
-func (daemon *Daemon) ExecutionDriver() execdriver.Driver {
+func (daemon *Daemon) ExecutionDriver(ctx context.Context) execdriver.Driver {
 	return daemon.execDriver
 }
 
@@ -1013,7 +1012,7 @@ func (daemon *Daemon) containerGraph() *graphdb.Database {
 // returned if the parent image cannot be found.
 func (daemon *Daemon) ImageGetCached(ctx context.Context, imgID string, config *runconfig.Config) (*image.Image, error) {
 	// Retrieve all images
-	images := daemon.Graph().Map()
+	images := daemon.Graph(ctx).Map()
 
 	// Store the tree in a map of map (map[parentId][childId])
 	imageMap := make(map[string]map[string]struct{})
