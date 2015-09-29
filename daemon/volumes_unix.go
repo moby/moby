@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -102,6 +103,12 @@ func parseBindMount(spec, volumeDriver string) (*mountPoint, error) {
 	}
 
 	if len(source) == 0 {
+		//validate the name of named volume
+		nameRegex := regexp.MustCompile(`(^.+[^0-9A-Za-z_]+$)|(/)`)
+		if nameRegex.MatchString(name) {
+			return nil, derr.ErrorCodeVolumeName.WithArgs(name)
+		}
+
 		bind.Driver = volumeDriver
 		if len(bind.Driver) == 0 {
 			bind.Driver = volume.DefaultDriverName
