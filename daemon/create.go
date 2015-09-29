@@ -30,7 +30,7 @@ func (daemon *Daemon) ContainerCreate(ctx context.Context, name string, config *
 
 	container, buildWarnings, err := daemon.Create(ctx, config, hostConfig, name)
 	if err != nil {
-		if daemon.Graph().IsNotExist(err, config.Image) {
+		if daemon.Graph(ctx).IsNotExist(err, config.Image) {
 			if strings.Contains(config.Image, "@") {
 				return types.ContainerCreateResponse{"", warnings}, derr.ErrorCodeNoSuchImageHash.WithArgs(config.Image)
 			}
