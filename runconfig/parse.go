@@ -198,6 +198,10 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 	// add any bind targets to the list of container volumes
 	for bind := range flVolumes.GetMap() {
 		if arr := strings.Split(bind, ":"); len(arr) > 1 {
+			if arr[1] == "ro" && len(arr) == 2 || arr[1] == "rw" && len(arr) == 2 {
+				continue
+			}
+
 			if arr[1] == "/" {
 				return nil, nil, cmd, fmt.Errorf("Invalid bind mount: destination can't be '/'")
 			}

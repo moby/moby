@@ -21,7 +21,26 @@ func createContainerPlatformSpecificSettings(container *Container, config *runco
 		var (
 			name, destination string
 			parts             = strings.Split(spec, ":")
+			mode              = true
 		)
+
+		switch len(parts) {
+		case 2:
+			if parts[1] == "ro" {
+				mode = false
+				parts = parts[:1]
+			} else if parts[1] == "rw" {
+				parts = parts[:1]
+			}
+		case 3:
+			if parts[2] == "ro" {
+				mode = false
+				parts = parts[:2]
+			} else if parts[2] == "rw" {
+				parts = parts[:2]
+			}
+		}
+
 		switch len(parts) {
 		case 2:
 			name, destination = parts[0], filepath.Clean(parts[1])
@@ -70,7 +89,7 @@ func createContainerPlatformSpecificSettings(container *Container, config *runco
 			}
 		}
 
-		container.addMountPointWithVolume(destination, v, true)
+		container.addMountPointWithVolume(destination, v, mode)
 	}
 	return nil
 }
