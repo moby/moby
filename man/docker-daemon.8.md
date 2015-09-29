@@ -17,6 +17,7 @@ docker-daemon - Enable daemon mode
 [**--default-gateway-v6**[=*DEFAULT-GATEWAY-V6*]]
 [**--default-ulimit**[=*[]*]]
 [**--dns**[=*[]*]]
+[**--dns-opt**[=*[]*]]
 [**--dns-search**[=*[]*]]
 [**-e**|**--exec-driver**[=*native*]]
 [**--exec-opt**[=*[]*]]
@@ -89,6 +90,9 @@ format.
 
 **--dns**=""
   Force Docker to use specific DNS servers
+
+**--dns-opt**=""
+  DNS options to use.
 
 **--dns-search**=[]
   DNS search domains to use.
