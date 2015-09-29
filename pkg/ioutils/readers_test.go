@@ -129,13 +129,16 @@ func TestBufReaderCloseWithNonReaderCloser(t *testing.T) {
 }
 
 // implements io.ReadCloser
-type simpleReaderCloser struct{}
+type simpleReaderCloser struct {
+	err error
+}
 
 func (r *simpleReaderCloser) Read(p []byte) (n int, err error) {
-	return 0, nil
+	return 0, r.err
 }
 
 func (r *simpleReaderCloser) Close() error {
+	r.err = io.EOF
 	return nil
 }
 
