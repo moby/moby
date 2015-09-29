@@ -5,7 +5,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/docker/docker/context"
+	"golang.org/x/net/context"
 )
 
 func TestMiddlewares(t *testing.T) {
@@ -19,11 +19,8 @@ func TestMiddlewares(t *testing.T) {
 	ctx := context.Background()
 
 	localHandler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-		if ctx.Version() == "" {
+		if versionFromContext(ctx) == "" {
 			t.Fatalf("Expected version, got empty string")
-		}
-		if ctx.RequestID() == "" {
-			t.Fatalf("Expected request-id, got empty string")
 		}
 		return nil
 	}
