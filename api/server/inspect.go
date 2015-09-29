@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/docker/docker/context"
+	"golang.org/x/net/context"
 )
 
 // getContainersByName inspects containers configuration and serializes it as json.
@@ -16,7 +16,7 @@ func (s *Server) getContainersByName(ctx context.Context, w http.ResponseWriter,
 	var json interface{}
 	var err error
 
-	version := ctx.Version()
+	version := versionFromContext(ctx)
 
 	switch {
 	case version.LessThan("1.20"):

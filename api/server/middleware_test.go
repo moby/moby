@@ -6,13 +6,13 @@ import (
 	"testing"
 
 	"github.com/docker/distribution/registry/api/errcode"
-	"github.com/docker/docker/context"
 	"github.com/docker/docker/errors"
+	"golang.org/x/net/context"
 )
 
 func TestVersionMiddleware(t *testing.T) {
 	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-		if ctx.Version() == "" {
+		if versionFromContext(ctx) == "" {
 			t.Fatalf("Expected version, got empty string")
 		}
 		return nil
@@ -30,7 +30,7 @@ func TestVersionMiddleware(t *testing.T) {
 
 func TestVersionMiddlewareWithErrors(t *testing.T) {
 	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-		if ctx.Version() == "" {
+		if versionFromContext(ctx) == "" {
 			t.Fatalf("Expected version, got empty string")
 		}
 		return nil
@@ -52,23 +52,5 @@ func TestVersionMiddlewareWithErrors(t *testing.T) {
 	err = h(ctx, resp, req, vars)
 	if derr, ok := err.(errcode.Error); !ok || derr.ErrorCode() != errors.ErrorCodeNewerClientVersion {
 		t.Fatalf("Expected ErrorCodeNewerClientVersion, got %v", err)
-	}
-}
-
-func TestRequestIDMiddleware(t *testing.T) {
-	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-		if ctx.RequestID() == "" {
-			t.Fatalf("Expected request-id, got empty string")
-		}
-		return nil
-	}
-
-	h := requestIDMiddleware(handler)
-
-	req, _ := http.NewRequest("GET", "/containers/json", nil)
-	resp := httptest.NewRecorder()
-	ctx := context.Background()
-	if err := h(ctx, resp, req, map[string]string{}); err != nil {
-		t.Fatal(err)
 	}
 }

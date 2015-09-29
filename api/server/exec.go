@@ -9,9 +9,9 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/context"
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/docker/docker/runconfig"
+	"golang.org/x/net/context"
 )
 
 func (s *Server) getExecByID(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {

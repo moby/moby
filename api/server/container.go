@@ -9,19 +9,17 @@ import (
 	"syscall"
 	"time"
 
-	"golang.org/x/net/websocket"
-
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/registry/api/errcode"
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/context"
 	"github.com/docker/docker/daemon"
 	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/signal"
-	"github.com/docker/docker/pkg/version"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/utils"
+	"golang.org/x/net/context"
+	"golang.org/x/net/websocket"
 )
 
 func (s *Server) getContainersJSON(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
@@ -75,12 +73,11 @@ func (s *Server) getContainersStats(ctx context.Context, w http.ResponseWriter, 
 		closeNotifier = notifier.CloseNotify()
 	}
 
-	version, _ := ctx.Value("api-version").(version.Version)
 	config := &daemon.ContainerStatsConfig{
 		Stream:    stream,
 		OutStream: out,
 		Stop:      closeNotifier,
-		Version:   version,
+		Version:   versionFromContext(ctx),
 	}
 
 	return s.daemon.ContainerStats(vars["name"], config)
@@ -234,7 +231,7 @@ func (s *Server) postContainersKill(ctx context.Context, w http.ResponseWriter, 
 		// Return error that's not caused because the container is stopped.
 		// Return error if the container is not running and the api is >= 1.20
 		// to keep backwards compatibility.
-		version := ctx.Version()
+		version := versionFromContext(ctx)
 		if version.GreaterThanOrEqualTo("1.20") || !isStopped {
 			return fmt.Errorf("Cannot kill container %s: %v", name, err)
 		}
@@ -373,7 +370,7 @@ func (s *Server) postContainersCreate(ctx context.Context, w http.ResponseWriter
 	if err != nil {
 		return err
 	}
-	version := ctx.Version()
+	version := versionFromContext(ctx)
 	adjustCPUShares := version.LessThan("1.19")
 
 	ccr, err := s.daemon.ContainerCreate(name, config, hostConfig, adjustCPUShares)
