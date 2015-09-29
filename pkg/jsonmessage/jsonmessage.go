@@ -92,7 +92,6 @@ func (p *JSONProgress) String() string {
 // the created time, where it from, status, ID of the
 // message. It's used for docker events.
 type JSONMessage struct {
-	RequestID       string        `json:"reqid,omitempty"`
 	Stream          string        `json:"stream,omitempty"`
 	Status          string        `json:"status,omitempty"`
 	Progress        *JSONProgress `json:"progressDetail,omitempty"`
@@ -127,9 +126,6 @@ func (jm *JSONMessage) Display(out io.Writer, isTerminal bool) error {
 		fmt.Fprintf(out, "%s ", time.Unix(0, jm.TimeNano).Format(timeutils.RFC3339NanoFixed))
 	} else if jm.Time != 0 {
 		fmt.Fprintf(out, "%s ", time.Unix(jm.Time, 0).Format(timeutils.RFC3339NanoFixed))
-	}
-	if jm.RequestID != "" {
-		fmt.Fprintf(out, "[reqid: %s] ", jm.RequestID)
 	}
 	if jm.ID != "" {
 		fmt.Fprintf(out, "%s: ", jm.ID)

@@ -8,11 +8,13 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/autogen/dockerversion"
-	"github.com/docker/docker/context"
 	"github.com/docker/docker/errors"
-	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/pkg/version"
+	"golang.org/x/net/context"
 )
+
+// apiVersionKey is the client's requested API version.
+const apiVersionKey = "api-version"
 
 // middleware is an adapter to allow the use of ordinary functions as Docker API filters.
 // Any function that has the appropriate signature can be register as a middleware.
@@ -24,16 +26,6 @@ func (s *Server) loggingMiddleware(handler HTTPAPIFunc) HTTPAPIFunc {
 		if s.cfg.Logging {
 			logrus.Infof("%s %s", r.Method, r.RequestURI)
 		}
-		return handler(ctx, w, r, vars)
-	}
-}
-
-// requestIDMiddleware generates a uniq ID for each request.
-// This ID travels inside the context for tracing purposes.
-func requestIDMiddleware(handler HTTPAPIFunc) HTTPAPIFunc {
-	return func(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-		reqID := stringid.TruncateID(stringid.GenerateNonCryptoID())
-		ctx = context.WithValue(ctx, context.RequestID, reqID)
 		return handler(ctx, w, r, vars)
 	}
 }
@@ -93,7 +85,7 @@ func versionMiddleware(handler HTTPAPIFunc) HTTPAPIFunc {
 		}
 
 		w.Header().Set("Server", "Docker/"+dockerversion.VERSION+" ("+runtime.GOOS+")")
-		ctx = context.WithValue(ctx, context.APIVersion, apiVersion)
+		ctx = context.WithValue(ctx, apiVersionKey, apiVersion)
 		return handler(ctx, w, r, vars)
 	}
 }
@@ -104,7 +96,6 @@ func versionMiddleware(handler HTTPAPIFunc) HTTPAPIFunc {
 //
 // Example: handleWithGlobalMiddlewares(s.getContainersName)
 //
-// requestIDMiddlware(
 //	s.loggingMiddleware(
 //		s.userAgentMiddleware(
 //			s.corsMiddleware(
@@ -112,14 +103,12 @@ func versionMiddleware(handler HTTPAPIFunc) HTTPAPIFunc {
 //			)
 //		)
 //	)
-// )
 func (s *Server) handleWithGlobalMiddlewares(handler HTTPAPIFunc) HTTPAPIFunc {
 	middlewares := []middleware{
 		versionMiddleware,
 		s.corsMiddleware,
 		s.userAgentMiddleware,
 		s.loggingMiddleware,
-		requestIDMiddleware,
 	}
 
 	h := handler
@@ -127,4 +116,17 @@ func (s *Server) handleWithGlobalMiddlewares(handler HTTPAPIFunc) HTTPAPIFunc {
 		h = m(h)
 	}
 	return h
+}
+
+// versionFromContext returns an API version from the context using apiVersionKey.
+// It panics if the context value does not have version.Version type.
+func versionFromContext(ctx context.Context) (ver version.Version) {
+	if ctx == nil {
+		return
+	}
+	val := ctx.Value(apiVersionKey)
+	if val == nil {
+		return
+	}
+	return val.(version.Version)
 }

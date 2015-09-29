@@ -17,7 +17,6 @@ import (
 	"github.com/docker/docker/autogen/dockerversion"
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cliconfig"
-	"github.com/docker/docker/context"
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/opts"
@@ -301,7 +300,7 @@ func (cli *DaemonCli) CmdDaemon(args ...string) error {
 func shutdownDaemon(d *daemon.Daemon, timeout time.Duration) {
 	ch := make(chan struct{})
 	go func() {
-		d.Shutdown(context.Background())
+		d.Shutdown()
 		close(ch)
 	}()
 	select {

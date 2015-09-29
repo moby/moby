@@ -10,16 +10,14 @@ import (
 	"os"
 	"strings"
 
-	"github.com/gorilla/mux"
-
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/registry/api/errcode"
 	"github.com/docker/docker/api"
-	"github.com/docker/docker/context"
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/pkg/sockets"
-	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/utils"
+	"github.com/gorilla/mux"
+	"golang.org/x/net/context"
 )
 
 // Config provides the configuration for the API server
@@ -304,9 +302,6 @@ func (s *Server) makeHTTPHandler(localMethod string, localRoute string, localHan
 		// immediate function being called should still be passed
 		// as 'args' on the function call.
 		ctx := context.Background()
-
-		reqID := stringid.TruncateID(stringid.GenerateNonCryptoID())
-		ctx = context.WithValue(ctx, context.RequestID, reqID)
 		handlerFunc := s.handleWithGlobalMiddlewares(localHandler)
 
 		if err := handlerFunc(ctx, w, r, mux.Vars(r)); err != nil {

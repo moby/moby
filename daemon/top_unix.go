@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/context"
 	derr "github.com/docker/docker/errors"
 )
 
@@ -17,12 +16,12 @@ import (
 // "-ef" if no args are given.  An error is returned if the container
 // is not found, or is not running, or if there are any problems
 // running ps, or parsing the output.
-func (daemon *Daemon) ContainerTop(ctx context.Context, name string, psArgs string) (*types.ContainerProcessList, error) {
+func (daemon *Daemon) ContainerTop(name string, psArgs string) (*types.ContainerProcessList, error) {
 	if psArgs == "" {
 		psArgs = "-ef"
 	}
 
-	container, err := daemon.Get(ctx, name)
+	container, err := daemon.Get(name)
 	if err != nil {
 		return nil, err
 	}
@@ -77,6 +76,6 @@ func (daemon *Daemon) ContainerTop(ctx context.Context, name string, psArgs stri
 			}
 		}
 	}
-	container.logEvent(ctx, "top")
+	container.logEvent("top")
 	return procList, nil
 }

@@ -5,7 +5,7 @@ import (
 	"net/http"
 
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/context"
+	"golang.org/x/net/context"
 )
 
 func (s *Server) getVolumesList(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
@@ -13,7 +13,7 @@ func (s *Server) getVolumesList(ctx context.Context, w http.ResponseWriter, r *h
 		return err
 	}
 
-	volumes, err := s.daemon.Volumes(ctx, r.Form.Get("filters"))
+	volumes, err := s.daemon.Volumes(r.Form.Get("filters"))
 	if err != nil {
 		return err
 	}
@@ -25,7 +25,7 @@ func (s *Server) getVolumeByName(ctx context.Context, w http.ResponseWriter, r *
 		return err
 	}
 
-	v, err := s.daemon.VolumeInspect(ctx, vars["name"])
+	v, err := s.daemon.VolumeInspect(vars["name"])
 	if err != nil {
 		return err
 	}
@@ -46,7 +46,7 @@ func (s *Server) postVolumesCreate(ctx context.Context, w http.ResponseWriter, r
 		return err
 	}
 
-	volume, err := s.daemon.VolumeCreate(ctx, req.Name, req.Driver, req.DriverOpts)
+	volume, err := s.daemon.VolumeCreate(req.Name, req.Driver, req.DriverOpts)
 	if err != nil {
 		return err
 	}
@@ -57,7 +57,7 @@ func (s *Server) deleteVolumes(ctx context.Context, w http.ResponseWriter, r *ht
 	if err := parseForm(r); err != nil {
 		return err
 	}
-	if err := s.daemon.VolumeRm(ctx, vars["name"]); err != nil {
+	if err := s.daemon.VolumeRm(vars["name"]); err != nil {
 		return err
 	}
 	w.WriteHeader(http.StatusNoContent)

@@ -9,7 +9,6 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/docker/docker/context"
 	"github.com/docker/docker/daemon/execdriver"
 	"github.com/opencontainers/runc/libcontainer/apparmor"
 	"github.com/opencontainers/runc/libcontainer/configs"
@@ -19,7 +18,7 @@ import (
 
 // createContainer populates and configures the container type with the
 // data provided by the execdriver.Command
-func (d *Driver) createContainer(ctx context.Context, c *execdriver.Command, hooks execdriver.Hooks) (*configs.Config, error) {
+func (d *Driver) createContainer(c *execdriver.Command, hooks execdriver.Hooks) (*configs.Config, error) {
 	container := execdriver.InitContainer(c)
 
 	if err := d.createIpc(container, c); err != nil {
@@ -34,7 +33,7 @@ func (d *Driver) createContainer(ctx context.Context, c *execdriver.Command, hoo
 		return nil, err
 	}
 
-	if err := d.createNetwork(ctx, container, c, hooks); err != nil {
+	if err := d.createNetwork(container, c, hooks); err != nil {
 		return nil, err
 	}
 
@@ -120,7 +119,7 @@ func generateIfaceName() (string, error) {
 	return "", errors.New("Failed to find name for new interface")
 }
 
-func (d *Driver) createNetwork(ctx context.Context, container *configs.Config, c *execdriver.Command, hooks execdriver.Hooks) error {
+func (d *Driver) createNetwork(container *configs.Config, c *execdriver.Command, hooks execdriver.Hooks) error {
 	if c.Network == nil {
 		return nil
 	}
@@ -157,7 +156,7 @@ func (d *Driver) createNetwork(ctx context.Context, container *configs.Config, c
 						// non-blocking and return the correct result when read.
 						chOOM := make(chan struct{})
 						close(chOOM)
-						if err := fnHook(ctx, &c.ProcessConfig, s.Pid, chOOM); err != nil {
+						if err := fnHook(&c.ProcessConfig, s.Pid, chOOM); err != nil {
 							return err
 						}
 					}

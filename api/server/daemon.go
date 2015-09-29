@@ -12,12 +12,12 @@ import (
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/autogen/dockerversion"
-	"github.com/docker/docker/context"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/docker/docker/pkg/parsers/filters"
 	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/docker/docker/utils"
+	"golang.org/x/net/context"
 )
 
 func (s *Server) getVersion(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
@@ -31,7 +31,7 @@ func (s *Server) getVersion(ctx context.Context, w http.ResponseWriter, r *http.
 		BuildTime:  dockerversion.BUILDTIME,
 	}
 
-	version := ctx.Version()
+	version := versionFromContext(ctx)
 
 	if version.GreaterThanOrEqualTo("1.19") {
 		v.Experimental = utils.ExperimentalBuild()
@@ -45,7 +45,7 @@ func (s *Server) getVersion(ctx context.Context, w http.ResponseWriter, r *http.
 }
 
 func (s *Server) getInfo(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	info, err := s.daemon.SystemInfo(ctx)
+	info, err := s.daemon.SystemInfo()
 	if err != nil {
 		return err
 	}
@@ -120,7 +120,7 @@ func (s *Server) getEvents(ctx context.Context, w http.ResponseWriter, r *http.R
 	enc := json.NewEncoder(outStream)
 
 	getContainerID := func(cn string) string {
-		c, err := d.Get(ctx, cn)
+		c, err := d.Get(cn)
 		if err != nil {
 			return ""
 		}

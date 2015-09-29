@@ -1,7 +1,6 @@
 package daemon
 
 import (
-	"github.com/docker/docker/context"
 	derr "github.com/docker/docker/errors"
 )
 
@@ -11,15 +10,15 @@ import (
 // will wait for a graceful termination. An error is returned if the
 // container is not found, is already stopped, or if there is a
 // problem stopping the container.
-func (daemon *Daemon) ContainerStop(ctx context.Context, name string, seconds int) error {
-	container, err := daemon.Get(ctx, name)
+func (daemon *Daemon) ContainerStop(name string, seconds int) error {
+	container, err := daemon.Get(name)
 	if err != nil {
 		return err
 	}
 	if !container.IsRunning() {
 		return derr.ErrorCodeStopped
 	}
-	if err := container.Stop(ctx, seconds); err != nil {
+	if err := container.Stop(seconds); err != nil {
 		return derr.ErrorCodeCantStop.WithArgs(name, err)
 	}
 	return nil

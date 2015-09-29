@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/docker/context"
 	"github.com/docker/docker/daemon/logger"
 	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/pkg/stdcopy"
@@ -31,7 +30,7 @@ type ContainerLogsConfig struct {
 
 // ContainerLogs hooks up a container's stdout and stderr streams
 // configured with the given struct.
-func (daemon *Daemon) ContainerLogs(ctx context.Context, container *Container, config *ContainerLogsConfig) error {
+func (daemon *Daemon) ContainerLogs(container *Container, config *ContainerLogsConfig) error {
 	if !(config.UseStdout || config.UseStderr) {
 		return derr.ErrorCodeNeedStream
 	}

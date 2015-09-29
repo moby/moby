@@ -3,7 +3,6 @@ package daemon
 import (
 	"io"
 
-	"github.com/docker/docker/context"
 	"github.com/docker/docker/pkg/stdcopy"
 )
 
@@ -16,8 +15,8 @@ type ContainerAttachWithLogsConfig struct {
 }
 
 // ContainerAttachWithLogs attaches to logs according to the config passed in. See ContainerAttachWithLogsConfig.
-func (daemon *Daemon) ContainerAttachWithLogs(ctx context.Context, prefixOrName string, c *ContainerAttachWithLogsConfig) error {
-	container, err := daemon.Get(ctx, prefixOrName)
+func (daemon *Daemon) ContainerAttachWithLogs(prefixOrName string, c *ContainerAttachWithLogsConfig) error {
+	container, err := daemon.Get(prefixOrName)
 	if err != nil {
 		return err
 	}
@@ -44,7 +43,7 @@ func (daemon *Daemon) ContainerAttachWithLogs(ctx context.Context, prefixOrName 
 		stderr = errStream
 	}
 
-	return container.attachWithLogs(ctx, stdin, stdout, stderr, c.Logs, c.Stream)
+	return container.attachWithLogs(stdin, stdout, stderr, c.Logs, c.Stream)
 }
 
 // ContainerWsAttachWithLogsConfig attach with websockets, since all
@@ -56,10 +55,10 @@ type ContainerWsAttachWithLogsConfig struct {
 }
 
 // ContainerWsAttachWithLogs websocket connection
-func (daemon *Daemon) ContainerWsAttachWithLogs(ctx context.Context, prefixOrName string, c *ContainerWsAttachWithLogsConfig) error {
-	container, err := daemon.Get(ctx, prefixOrName)
+func (daemon *Daemon) ContainerWsAttachWithLogs(prefixOrName string, c *ContainerWsAttachWithLogsConfig) error {
+	container, err := daemon.Get(prefixOrName)
 	if err != nil {
 		return err
 	}
-	return container.attachWithLogs(ctx, c.InStream, c.OutStream, c.ErrStream, c.Logs, c.Stream)
+	return container.attachWithLogs(c.InStream, c.OutStream, c.ErrStream, c.Logs, c.Stream)
 }

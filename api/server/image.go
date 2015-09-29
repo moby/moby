@@ -13,7 +13,6 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/cliconfig"
-	"github.com/docker/docker/context"
 	"github.com/docker/docker/graph"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/parsers"
@@ -21,6 +20,7 @@ import (
 	"github.com/docker/docker/pkg/ulimit"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/utils"
+	"golang.org/x/net/context"
 )
 
 func (s *Server) postCommit(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
@@ -35,7 +35,7 @@ func (s *Server) postCommit(ctx context.Context, w http.ResponseWriter, r *http.
 	cname := r.Form.Get("container")
 
 	pause := boolValue(r, "pause")
-	version := ctx.Version()
+	version := versionFromContext(ctx)
 	if r.FormValue("pause") == "" && version.GreaterThanOrEqualTo("1.13") {
 		pause = true
 	}
@@ -55,7 +55,7 @@ func (s *Server) postCommit(ctx context.Context, w http.ResponseWriter, r *http.
 		Config:  c,
 	}
 
-	imgID, err := builder.Commit(ctx, cname, s.daemon, commitCfg)
+	imgID, err := builder.Commit(cname, s.daemon, commitCfg)
 	if err != nil {
 		return err
 	}
@@ -112,7 +112,7 @@ func (s *Server) postImagesCreate(ctx context.Context, w http.ResponseWriter, r 
 			OutStream:   output,
 		}
 
-		err = s.daemon.Repositories().Pull(ctx, image, tag, imagePullConfig)
+		err = s.daemon.Repositories().Pull(image, tag, imagePullConfig)
 	} else { //import
 		if tag == "" {
 			repo, tag = parsers.ParseRepositoryTag(repo)
@@ -124,12 +124,12 @@ func (s *Server) postImagesCreate(ctx context.Context, w http.ResponseWriter, r 
 		// generated from the download to be available to the output
 		// stream processing below
 		var newConfig *runconfig.Config
-		newConfig, err = builder.BuildFromConfig(ctx, s.daemon, &runconfig.Config{}, r.Form["changes"])
+		newConfig, err = builder.BuildFromConfig(s.daemon, &runconfig.Config{}, r.Form["changes"])
 		if err != nil {
 			return err
 		}
 
-		err = s.daemon.Repositories().Import(ctx, src, repo, tag, message, r.Body, output, newConfig)
+		err = s.daemon.Repositories().Import(src, repo, tag, message, r.Body, output, newConfig)
 	}
 	if err != nil {
 		if !output.Flushed() {
@@ -184,7 +184,7 @@ func (s *Server) postImagesPush(ctx context.Context, w http.ResponseWriter, r *h
 
 	w.Header().Set("Content-Type", "application/json")
 
-	if err := s.daemon.Repositories().Push(ctx, name, imagePushConfig); err != nil {
+	if err := s.daemon.Repositories().Push(name, imagePushConfig); err != nil {
 		if !output.Flushed() {
 			return err
 		}
@@ -243,7 +243,7 @@ func (s *Server) deleteImages(ctx context.Context, w http.ResponseWriter, r *htt
 	force := boolValue(r, "force")
 	prune := !boolValue(r, "noprune")
 
-	list, err := s.daemon.ImageDelete(ctx, name, force, prune)
+	list, err := s.daemon.ImageDelete(name, force, prune)
 	if err != nil {
 		return err
 	}
@@ -282,7 +282,7 @@ func (s *Server) postBuild(ctx context.Context, w http.ResponseWriter, r *http.R
 
 	w.Header().Set("Content-Type", "application/json")
 
-	version := ctx.Version()
+	version := versionFromContext(ctx)
 	if boolValue(r, "forcerm") && version.GreaterThanOrEqualTo("1.12") {
 		buildConfig.Remove = true
 	} else if r.FormValue("rm") == "" && version.GreaterThanOrEqualTo("1.12") {
@@ -346,7 +346,7 @@ func (s *Server) postBuild(ctx context.Context, w http.ResponseWriter, r *http.R
 		}()
 	}
 
-	if err := builder.Build(ctx, s.daemon, buildConfig); err != nil {
+	if err := builder.Build(s.daemon, buildConfig); err != nil {
 		// Do not write the error in the http output if it's still empty.
 		// This prevents from writing a 200(OK) when there is an interal error.
 		if !output.Flushed() {
@@ -401,7 +401,7 @@ func (s *Server) postImagesTag(ctx context.Context, w http.ResponseWriter, r *ht
 	if err := s.daemon.Repositories().Tag(repo, tag, name, force); err != nil {
 		return err
 	}
-	s.daemon.EventsService.Log(ctx, "tag", utils.ImageReference(repo, tag), "")
+	s.daemon.EventsService.Log("tag", utils.ImageReference(repo, tag), "")
 	w.WriteHeader(http.StatusCreated)
 	return nil
 }
