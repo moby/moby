@@ -8,12 +8,15 @@ import (
 	"github.com/Sirupsen/logrus"
 )
 
+// TCPProxy is a proxy for TCP connections. It implements the Proxy interface to
+// handle TCP traffic forwarding between the frontend and backend addresses.
 type TCPProxy struct {
 	listener     *net.TCPListener
 	frontendAddr *net.TCPAddr
 	backendAddr  *net.TCPAddr
 }
 
+// NewTCPProxy creates a new TCPProxy.
 func NewTCPProxy(frontendAddr, backendAddr *net.TCPAddr) (*TCPProxy, error) {
 	listener, err := net.ListenTCP("tcp", frontendAddr)
 	if err != nil {
@@ -53,7 +56,7 @@ func (proxy *TCPProxy) clientLoop(client *net.TCPConn, quit chan bool) {
 	go broker(client, backend)
 	go broker(backend, client)
 
-	var transferred int64 = 0
+	var transferred int64
 	for i := 0; i < 2; i++ {
 		select {
 		case written := <-event:
@@ -72,6 +75,7 @@ func (proxy *TCPProxy) clientLoop(client *net.TCPConn, quit chan bool) {
 	backend.Close()
 }
 
+// Run starts forwarding the traffic using TCP.
 func (proxy *TCPProxy) Run() {
 	quit := make(chan bool)
 	defer close(quit)
@@ -85,6 +89,11 @@ func (proxy *TCPProxy) Run() {
 	}
 }
 
-func (proxy *TCPProxy) Close()                 { proxy.listener.Close() }
+// Close stops forwarding the traffic.
+func (proxy *TCPProxy) Close() { proxy.listener.Close() }
+
+// FrontendAddr returns the TCP address on which the proxy is listening.
 func (proxy *TCPProxy) FrontendAddr() net.Addr { return proxy.frontendAddr }
-func (proxy *TCPProxy) BackendAddr() net.Addr  { return proxy.backendAddr }
+
+// BackendAddr returns the TCP proxied address.
+func (proxy *TCPProxy) BackendAddr() net.Addr { return proxy.backendAddr }

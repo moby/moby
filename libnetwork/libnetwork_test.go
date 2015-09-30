@@ -2040,16 +2040,16 @@ func TestInvalidRemoteDriver(t *testing.T) {
 		fmt.Fprintln(w, `{"Implements": ["InvalidDriver"]}`)
 	})
 
-	if err := os.MkdirAll("/usr/share/docker/plugins", 0755); err != nil {
+	if err := os.MkdirAll("/etc/docker/plugins", 0755); err != nil {
 		t.Fatal(err)
 	}
 	defer func() {
-		if err := os.RemoveAll("/usr/share/docker/plugins"); err != nil {
+		if err := os.RemoveAll("/etc/docker/plugins"); err != nil {
 			t.Fatal(err)
 		}
 	}()
 
-	if err := ioutil.WriteFile("/usr/share/docker/plugins/invalid-network-driver.spec", []byte(server.URL), 0644); err != nil {
+	if err := ioutil.WriteFile("/etc/docker/plugins/invalid-network-driver.spec", []byte(server.URL), 0644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -2095,16 +2095,16 @@ func TestValidRemoteDriver(t *testing.T) {
 		fmt.Fprintf(w, "null")
 	})
 
-	if err := os.MkdirAll("/usr/share/docker/plugins", 0755); err != nil {
+	if err := os.MkdirAll("/etc/docker/plugins", 0755); err != nil {
 		t.Fatal(err)
 	}
 	defer func() {
-		if err := os.RemoveAll("/usr/share/docker/plugins"); err != nil {
+		if err := os.RemoveAll("/etc/docker/plugins"); err != nil {
 			t.Fatal(err)
 		}
 	}()
 
-	if err := ioutil.WriteFile("/usr/share/docker/plugins/valid-network-driver.spec", []byte(server.URL), 0644); err != nil {
+	if err := ioutil.WriteFile("/etc/docker/plugins/valid-network-driver.spec", []byte(server.URL), 0644); err != nil {
 		t.Fatal(err)
 	}
 

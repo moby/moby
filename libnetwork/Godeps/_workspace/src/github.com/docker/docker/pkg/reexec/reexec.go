@@ -30,8 +30,7 @@ func Init() bool {
 	return false
 }
 
-// Self returns the path to the current processes binary
-func Self() string {
+func naiveSelf() string {
 	name := os.Args[0]
 	if filepath.Base(name) == name {
 		if lp, err := exec.LookPath(name); err == nil {

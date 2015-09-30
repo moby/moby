@@ -457,8 +457,8 @@ func TestParseFedoraMountinfoFields(t *testing.T) {
 	if len(infos) != expectedLength {
 		t.Fatalf("Expected %d entries, got %d", expectedLength, len(infos))
 	}
-	mi := MountInfo{
-		Id:         15,
+	mi := Info{
+		ID:         15,
 		Parent:     35,
 		Major:      0,
 		Minor:      3,

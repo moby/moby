@@ -231,11 +231,11 @@ func startTestDriver() error {
 		fmt.Fprintf(w, "null")
 	})
 
-	if err := os.MkdirAll("/usr/share/docker/plugins", 0755); err != nil {
+	if err := os.MkdirAll("/etc/docker/plugins", 0755); err != nil {
 		return err
 	}
 
-	if err := ioutil.WriteFile("/usr/share/docker/plugins/test.spec", []byte(server.URL), 0644); err != nil {
+	if err := ioutil.WriteFile("/etc/docker/plugins/test.spec", []byte(server.URL), 0644); err != nil {
 		return err
 	}
 
