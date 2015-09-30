@@ -21,6 +21,18 @@ func assertSrvNotAvailable(c *check.C, sname, name string) {
 	}
 }
 
+func assertSrvCntIsAvailable(c *check.C, cname, sname, name string) {
+	if !isCntPresent(c, cname, sname, name) {
+		c.Fatalf("Container %s attached to service %s on network %s not found in service ls o/p", cname, sname, name)
+	}
+}
+
+func assertSrvCntNotAvailable(c *check.C, cname, sname, name string) {
+	if isCntPresent(c, cname, sname, name) {
+		c.Fatalf("Found container %s attached to service %s on network %s in service ls o/p", cname, sname, name)
+	}
+}
+
 func isSrvPresent(c *check.C, sname, name string) bool {
 	out, _, _ := dockerCmdWithStdoutStderr(c, "service", "ls")
 	lines := strings.Split(out, "\n")
@@ -64,6 +76,14 @@ func (s *DockerSuite) TestDockerPublishServiceFlag(c *check.C) {
 	cid := strings.TrimSpace(out)
 
 	// Verify container is attached in service ps o/p
-	assertSrvIsAvailable(c, "telnet", "production")
+	assertSrvCntIsAvailable(c, cid, "telnet", "production")
+
 	dockerCmd(c, "rm", "-f", cid)
+	assertSrvCntNotAvailable(c, cid, "telnet", "production")
+
+	dockerCmdWithStdoutStderr(c, "service", "unpublish", "telnet.production")
+	assertSrvNotAvailable(c, "telnet", "production")
+
+	dockerCmdWithStdoutStderr(c, "network", "rm", "production")
+	assertNwNotAvailable(c, "production")
 }
