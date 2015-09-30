@@ -8,6 +8,13 @@ import (
 	"golang.org/x/net/context"
 )
 
+// @Title getVolumesList
+// @Description Get the list of volumes registered
+// @Param   version     path    string     false        "API version number"
+// @Param   filters     form    string     false        "Filters for the list of volumes"
+// @Success 200 {object} types.VolumesListResponse
+// @SubApi /volumes
+// @Router /volumes [get]
 func (s *Server) getVolumesList(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := parseForm(r); err != nil {
 		return err
@@ -20,6 +27,13 @@ func (s *Server) getVolumesList(ctx context.Context, w http.ResponseWriter, r *h
 	return writeJSON(w, http.StatusOK, &types.VolumesListResponse{Volumes: volumes})
 }
 
+// @Title getVolumeByName
+// @Description Get the list of volumes registered
+// @Param   version     path    string     false        "API version number"
+// @Param   name        path    string     true         "Name of the volume"
+// @Success 200 {object} types.Volume
+// @SubApi /volumes
+// @Router /volumes/:name [get]
 func (s *Server) getVolumeByName(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := parseForm(r); err != nil {
 		return err
@@ -32,6 +46,13 @@ func (s *Server) getVolumeByName(ctx context.Context, w http.ResponseWriter, r *
 	return writeJSON(w, http.StatusOK, v)
 }
 
+// @Title postVolumesCreate
+// @Description Create a new volume in the host
+// @Param   version     path    string     false        "API version number"
+// @Param   request     form    []byte     true         "Volume configuration"
+// @Success 201 {object} types.Volume
+// @SubApi /volumes
+// @Router /volumes [post]
 func (s *Server) postVolumesCreate(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := parseForm(r); err != nil {
 		return err
@@ -53,6 +74,13 @@ func (s *Server) postVolumesCreate(ctx context.Context, w http.ResponseWriter, r
 	return writeJSON(w, http.StatusCreated, volume)
 }
 
+// @Title deleteVolumes
+// @Description Delete the volume from the host
+// @Param   version     path    string     false        "API version number"
+// @Param   name        path    string     true         "Name of the volume"
+// @Success 204
+// @SubApi /volumes
+// @Router /volumes/:name [delete]
 func (s *Server) deleteVolumes(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := parseForm(r); err != nil {
 		return err

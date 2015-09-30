@@ -20,6 +20,11 @@ import (
 	"golang.org/x/net/context"
 )
 
+// @Title getVersion
+// @Description Retrieve the version information for the Docker server
+// @Param   version     path    string     false        "API version number"
+// @Success 200 {object} types.Version
+// @Router /version [get]
 func (s *Server) getVersion(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	v := &types.Version{
 		Version:    dockerversion.VERSION,
@@ -44,6 +49,11 @@ func (s *Server) getVersion(ctx context.Context, w http.ResponseWriter, r *http.
 	return writeJSON(w, http.StatusOK, v)
 }
 
+// @Title getInfo
+// @Description Retrieve the Docker server information
+// @Param   version     path    string     false        "API version number"
+// @Success 200 {object} types.Info
+// @Router /info [get]
 func (s *Server) getInfo(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	info, err := s.daemon.SystemInfo()
 	if err != nil {
@@ -53,6 +63,14 @@ func (s *Server) getInfo(ctx context.Context, w http.ResponseWriter, r *http.Req
 	return writeJSON(w, http.StatusOK, info)
 }
 
+// @Title getEvents
+// @Description Retrieve the events generated in the server
+// @Param   version     path    string     false        "API version number"
+// @Param   since       form    string     false        "Timestamp to start processing events from"
+// @Param   until       form    string     false        "Timestamp to end processing events"
+// @Param   filters     form    string     false        "JSON encoded value of filters to process on the event list"
+// @Success 200 {object} jsonmessage.JSONMessage
+// @Router /events [get]
 func (s *Server) getEvents(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := parseForm(r); err != nil {
 		return err
