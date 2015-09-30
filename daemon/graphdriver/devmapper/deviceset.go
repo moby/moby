@@ -1477,12 +1477,10 @@ func (devices *DeviceSet) deleteDevice(info *devInfo) error {
 		}
 	}
 
-	devinfo, _ := devicemapper.GetInfo(info.Name())
-	if devinfo != nil && devinfo.Exists != 0 {
-		if err := devices.removeDevice(info.Name()); err != nil {
-			logrus.Debugf("Error removing device: %s", err)
-			return err
-		}
+	// Try to deactivate deivce in case it is active.
+	if err := devices.deactivateDevice(info); err != nil {
+		logrus.Debugf("Error deactivating device: %s", err)
+		return err
 	}
 
 	if err := devices.openTransaction(info.Hash, info.DeviceID); err != nil {
