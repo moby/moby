@@ -5641,7 +5641,7 @@ func (s *DockerSuite) TestBuildNullStringInAddCopyVolume(c *check.C) {
 
 	ctx, err := fakeContext(`
 		FROM busybox
-		
+
 		ADD null /
 		COPY nullfile /
 		VOLUME nullvolume
@@ -6193,4 +6193,16 @@ func (s *DockerSuite) TestBuildBuildTimeArgDefintionWithNoEnvInjection(c *check.
 		}
 		c.Fatalf("unexpected number of occurrences of the arg in output: %q expected: 1", out)
 	}
+}
+
+func (s *DockerSuite) TestBuildNoNamedVolume(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+	dockerCmd(c, "run", "-v", "testname:/foo", "busybox", "sh", "-c", "touch /foo/oops")
+
+	dockerFile := `FROM busybox
+	VOLUME testname:/foo
+	RUN ls /foo/oops
+	`
+	_, err := buildImage("test", dockerFile, false)
+	c.Assert(err, check.NotNil, check.Commentf("image build should have failed"))
 }
