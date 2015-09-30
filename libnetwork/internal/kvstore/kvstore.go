@@ -43,6 +43,7 @@ type Config struct {
 	TLS               *tls.Config
 	ConnectionTimeout time.Duration
 	Bucket            string
+	PersistConnection bool
 }
 
 // ClientTLSConfig contains data for a Client TLS configuration in the form
