@@ -515,7 +515,7 @@ func (b *builder) pullImage(name string) (*image.Image, error) {
 		OutStream:  ioutils.NopWriteCloser(b.OutOld),
 	}
 
-	if err := b.Daemon.Repositories().Pull(remote, tag, imagePullConfig); err != nil {
+	if err := b.Daemon.Repositories().Pull(remote, tag, imagePullConfig, false); err != nil {
 		return nil, err
 	}
 

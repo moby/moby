@@ -76,6 +76,7 @@ func (s *Server) postImagesCreate(ctx context.Context, w http.ResponseWriter, r 
 		repo    = r.Form.Get("repo")
 		tag     = r.Form.Get("tag")
 		message = r.Form.Get("message")
+		dryRun  = r.Form.Get("dryRun")
 	)
 	authEncoded := r.Header.Get("X-Registry-Auth")
 	authConfig := &cliconfig.AuthConfig{}
@@ -112,7 +113,7 @@ func (s *Server) postImagesCreate(ctx context.Context, w http.ResponseWriter, r 
 			OutStream:   output,
 		}
 
-		err = s.daemon.Repositories().Pull(image, tag, imagePullConfig)
+		err = s.daemon.Repositories().Pull(image, tag, imagePullConfig, dryRun != "")
 	} else { //import
 		if tag == "" {
 			repo, tag = parsers.ParseRepositoryTag(repo)

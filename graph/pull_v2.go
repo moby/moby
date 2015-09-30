@@ -31,7 +31,7 @@ type v2Puller struct {
 	sessionID string
 }
 
-func (p *v2Puller) Pull(tag string) (fallback bool, err error) {
+func (p *v2Puller) Pull(tag string, dryRun bool) (fallback bool, err error) {
 	// TODO(tiborvass): was ReceiveTimeout
 	p.repo, err = NewV2Repository(p.repoInfo, p.endpoint, p.config.MetaHeaders, p.config.AuthConfig, "pull")
 	if err != nil {
@@ -41,7 +41,7 @@ func (p *v2Puller) Pull(tag string) (fallback bool, err error) {
 
 	p.sessionID = stringid.GenerateRandomID()
 
-	if err := p.pullV2Repository(tag); err != nil {
+	if err := p.pullV2Repository(tag, dryRun); err != nil {
 		if registry.ContinueOnError(err) {
 			logrus.Debugf("Error trying v2 registry: %v", err)
 			return true, err
@@ -51,7 +51,7 @@ func (p *v2Puller) Pull(tag string) (fallback bool, err error) {
 	return false, nil
 }
 
-func (p *v2Puller) pullV2Repository(tag string) (err error) {
+func (p *v2Puller) pullV2Repository(tag string, dryRun bool) (err error) {
 	var tags []string
 	taggedName := p.repoInfo.LocalName
 	if len(tag) > 0 {
@@ -76,6 +76,9 @@ func (p *v2Puller) pullV2Repository(tag string) (err error) {
 	broadcaster.Add(p.config.OutStream)
 	if found {
 		// Another pull of the same repository is already taking place; just wait for it to finish
+		if dryRun {
+			broadcaster.Write(p.sf.FormatStatus(tag, "!!! Another pull of the same image is already running, dry-run is not possible unless you restart the Docker daemon !!!"))
+		}
 		return broadcaster.Wait()
 	}
 
@@ -89,14 +92,15 @@ func (p *v2Puller) pullV2Repository(tag string) (err error) {
 	for _, tag := range tags {
 		// pulledNew is true if either new layers were downloaded OR if existing images were newly tagged
 		// TODO(tiborvass): should we change the name of `layersDownload`? What about message in WriteStatus?
-		pulledNew, err := p.pullV2Tag(broadcaster, tag, taggedName)
+		pulledNew, err := p.pullV2Tag(broadcaster, tag, taggedName, dryRun)
+
 		if err != nil {
 			return err
 		}
 		layersDownloaded = layersDownloaded || pulledNew
 	}
 
-	writeStatus(taggedName, broadcaster, p.sf, layersDownloaded)
+	writeStatus(taggedName, broadcaster, p.sf, layersDownloaded, dryRun)
 
 	return nil
 }
@@ -117,18 +121,28 @@ type errVerification struct{}
 
 func (errVerification) Error() string { return "verification failed" }
 
+func (p *v2Puller) extractSize(di *downloadInfo) (size int64, err error) {
+	blobs := p.repo.Blobs(context.Background())
+	desc, err := blobs.Stat(context.Background(), di.digest)
+	if err != nil {
+		logrus.Debugf("Error statting layer: %v", err)
+	}
+	return desc.Size, err
+}
+
 func (p *v2Puller) download(di *downloadInfo) {
 	logrus.Debugf("pulling blob %q to %s", di.digest, di.img.ID)
 
 	blobs := p.repo.Blobs(context.Background())
 
-	desc, err := blobs.Stat(context.Background(), di.digest)
-	if err != nil {
-		logrus.Debugf("Error statting layer: %v", err)
-		di.err <- err
-		return
+	if di.size == 0 {
+		size, err := p.extractSize(di)
+		if err != nil {
+			di.err <- err
+			return
+		}
+		di.size = size
 	}
-	di.size = desc.Size
 
 	layerDownload, err := blobs.Open(context.Background(), di.digest)
 	if err != nil {
@@ -172,7 +186,7 @@ func (p *v2Puller) download(di *downloadInfo) {
 	di.err <- nil
 }
 
-func (p *v2Puller) pullV2Tag(out io.Writer, tag, taggedName string) (verified bool, err error) {
+func (p *v2Puller) pullV2Tag(out io.Writer, tag, taggedName string, dryRun bool) (verified bool, err error) {
 	logrus.Debugf("Pulling tag from V2 registry: %q", tag)
 
 	manSvc, err := p.repo.Manifests(context.Background())
@@ -211,12 +225,20 @@ func (p *v2Puller) pullV2Tag(out io.Writer, tag, taggedName string) (verified bo
 		}
 	}()
 
+	layerSizes := make(map[string]int64)
+
+	if dryRun {
+		out.Write(p.sf.FormatStatus(tag, "**** Dry Run - nothing will be downloaded ****"))
+	}
+
 	for i := len(manifest.FSLayers) - 1; i >= 0; i-- {
+
 		img, err := image.NewImgJSON([]byte(manifest.History[i].V1Compatibility))
 		if err != nil {
 			logrus.Debugf("error getting image v1 json: %v", err)
 			return false, err
 		}
+
 		p.graph.Retain(p.sessionID, img.ID)
 		layerIDs = append(layerIDs, img.ID)
 
@@ -226,17 +248,29 @@ func (p *v2Puller) pullV2Tag(out io.Writer, tag, taggedName string) (verified bo
 			out.Write(p.sf.FormatProgress(stringid.TruncateID(img.ID), "Already exists", nil))
 			continue
 		}
-		out.Write(p.sf.FormatProgress(stringid.TruncateID(img.ID), "Pulling fs layer", nil))
 
+		digest := manifest.FSLayers[i].BlobSum
 		d := &downloadInfo{
 			img:     img,
 			poolKey: "layer:" + img.ID,
-			digest:  manifest.FSLayers[i].BlobSum,
+			digest:  digest,
 			// TODO: seems like this chan buffer solved hanging problem in go1.5,
 			// this can indicate some deeper problem that somehow we never take
 			// error from channel in loop below
 			err: make(chan error, 1),
 		}
+
+		if dryRun {
+			size, err := p.extractSize(d)
+			if err != nil {
+				return false, err
+			}
+			logrus.Debugf("Layer %s size: %v", digest.String(), size)
+			layerSizes[digest.String()] = size
+			continue
+		}
+
+		out.Write(p.sf.FormatProgress(stringid.TruncateID(img.ID), "Pulling fs layer", nil))
 
 		tmpFile, err := ioutil.TempFile("", "GetImageBlob")
 		if err != nil {
@@ -254,6 +288,14 @@ func (p *v2Puller) pullV2Tag(out io.Writer, tag, taggedName string) (verified bo
 		} else {
 			go p.download(d)
 		}
+	}
+	if dryRun {
+		var totalSize int64
+		for _, v := range layerSizes {
+			totalSize += v
+		}
+		out.Write(p.sf.FormatStatus(tag, "Dry Run: %v bytes to be downloaded, in %v layers", totalSize, len(layerSizes)))
+		return true, nil
 	}
 
 	var tagUpdated bool

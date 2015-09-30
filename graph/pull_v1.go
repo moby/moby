@@ -28,10 +28,15 @@ type v1Puller struct {
 	session  *registry.Session
 }
 
-func (p *v1Puller) Pull(tag string) (fallback bool, err error) {
+func (p *v1Puller) Pull(tag string, dryRun bool) (fallback bool, err error) {
 	if utils.DigestReference(tag) {
 		// Allowing fallback, because HTTPS v1 is before HTTP v2
 		return true, registry.ErrNoSupport{errors.New("Cannot pull by digest with v1 registry")}
+	}
+
+	if dryRun {
+		// Only in v2 for now
+		return true, registry.ErrNoSupport{errors.New("Dry Run not supported with v1 registry")}
 	}
 
 	tlsConfig, err := p.registryService.TLSConfig(p.repoInfo.Index.Name)
@@ -56,14 +61,14 @@ func (p *v1Puller) Pull(tag string) (fallback bool, err error) {
 		logrus.Debugf("Fallback from error: %s", err)
 		return true, err
 	}
-	if err := p.pullRepository(tag); err != nil {
+	if err := p.pullRepository(tag, dryRun); err != nil {
 		// TODO(dmcgowan): Check if should fallback
 		return false, err
 	}
 	return false, nil
 }
 
-func (p *v1Puller) pullRepository(askedTag string) error {
+func (p *v1Puller) pullRepository(askedTag string, dryRun bool) error {
 	out := p.config.OutStream
 	out.Write(p.sf.FormatStatus("", "Pulling repository %s", p.repoInfo.CanonicalName))
 
@@ -220,7 +225,7 @@ func (p *v1Puller) pullRepository(askedTag string) error {
 	if len(askedTag) > 0 {
 		requestedTag = utils.ImageReference(p.repoInfo.LocalName, askedTag)
 	}
-	writeStatus(requestedTag, out, p.sf, layersDownloaded)
+	writeStatus(requestedTag, out, p.sf, layersDownloaded, dryRun)
 	return nil
 }
 
