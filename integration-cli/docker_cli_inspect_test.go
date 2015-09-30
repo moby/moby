@@ -51,6 +51,7 @@ func (s *DockerSuite) TestInspectDefault(c *check.C) {
 }
 
 func (s *DockerSuite) TestInspectStatus(c *check.C) {
+	defer unpauseAllContainers()
 	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
 	out = strings.TrimSpace(out)
