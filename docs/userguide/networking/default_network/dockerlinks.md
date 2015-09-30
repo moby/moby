@@ -1,36 +1,44 @@
 <!--[metadata]>
 +++
-title = "Linking containers together"
+title = "Legacy container links"
 description = "Learn how to connect Docker containers together."
 keywords = ["Examples, Usage, user guide, links, linking, docker, documentation, examples, names, name, container naming, port, map, network port,  network"]
 [menu.main]
-parent = "smn_containers"
-weight = 4
+parent = "smn_networking_def"
+weight=-2
 +++
 <![end-metadata]-->
 
-# Linking containers together
+# Legacy container links
 
-In [the Using Docker section](usingdocker.md), you saw how you can
-connect to a service running inside a Docker container via a network
-port. But a port connection is only one way you can interact with services and
-applications running inside Docker containers. In this section, we'll briefly revisit
-connecting via a network port and then we'll introduce you to another method of access:
-container linking.
+The information in this section explains legacy container links within the Docker default bridge. This is a `bridge` network named `bridge` created automatically when you install Docker.  
+
+Before the [Docker networks feature](../dockernetworks.md), you could use the
+Docker link feature to allow containers to discover each other and securely
+transfer information about one container to another container. With the
+introduction of the Docker networks feature, you can still create links but they
+are only supported on the default `bridge` network named `bridge` and appearing
+in your network stack as `docker0`.
+
+This section briefly discuss connecting via a network port and then goes into
+detail on container linking. While links are still supported on Docker's default
+network (`bridge bridge`), you should avoid them in preference of the Docker
+networks feature. Linking is expected to be deprecated and removed in a future
+release.
 
 ## Connect using network port mapping
 
-In [the Using Docker section](usingdocker.md), you created a
+In [the Using Docker section](../../usingdocker.md), you created a
 container that ran a Python Flask application:
 
     $ docker run -d -P training/webapp python app.py
 
-> **Note:** 
+> **Note:**
 > Containers have an internal network and an IP address
 > (as we saw when we used the `docker inspect` command to show the container's
-> IP address in the [Using Docker](usingdocker.md) section).
+> IP address in the [Using Docker](../../usingdocker.md) section).
 > Docker can have a variety of network configurations. You can see more
-> information on Docker networking [here](../articles/networking.md).
+> information on Docker networking [here](../index.md).
 
 When that container was created, the `-P` flag was used to automatically map
 any network port inside it to a random high port within an *ephemeral port
@@ -42,7 +50,7 @@ range* on your Docker host. Next, when `docker ps` was run, you saw that port
     bc533791f3f5  training/webapp:latest  python app.py 5 seconds ago  Up 2 seconds  0.0.0.0:49155->5000/tcp  nostalgic_morse
 
 You also saw how you can bind a container's ports to a specific port using
-the `-p` flag. Here port 80 of the host is mapped to port 5000 of the 
+the `-p` flag. Here port 80 of the host is mapped to port 5000 of the
 container:
 
     $ docker run -d -p 80:5000 training/webapp python app.py
@@ -85,15 +93,15 @@ configurations. For example, if you've bound the container port to the
     $ docker port nostalgic_morse 5000
     127.0.0.1:49155
 
-> **Note:** 
+> **Note:**
 > The `-p` flag can be used multiple times to configure multiple ports.
 
 ## Connect with the linking system
 
-Network port mappings are not the only way Docker containers can connect
-to one another. Docker also has a linking system that allows you to link
-multiple containers together and send connection information from one to another.
-When containers are linked, information about a source container can be sent to a
+Network port mappings are not the only way Docker containers can connect to one
+another. Docker also has a linking system that allows you to link multiple
+containers together and send connection information from one to another. When
+containers are linked, information about a source container can be sent to a
 recipient container. This allows the recipient to see selected data describing
 aspects of the source container.
 
@@ -137,11 +145,11 @@ You can also use `docker inspect` to return the container's name.
 
 ## Communication across links
 
-Links allow containers to discover each other and securely transfer information about one
-container to another container. When you set up a link, you create a conduit between a
-source container and a recipient container. The recipient can then access select data
-about the source. To create a link, you use the `--link` flag. First, create a new
-container, this time one containing a database.
+Links allow containers to discover each other and securely transfer information
+about one container to another container. When you set up a link, you create a
+conduit between a source container and a recipient container. The recipient can
+then access select data about the source. To create a link, you use the `--link`
+flag. First, create a new container, this time one containing a database.
 
     $ docker run -d --name db training/postgres
 
@@ -200,7 +208,7 @@ recipient container in two ways:
 
 Docker creates several environment variables when you link containers. Docker
 automatically creates environment variables in the target container based on
-the `--link` parameters.  It will also expose all environment variables 
+the `--link` parameters.  It will also expose all environment variables
 originating from Docker from the source container. These include variables from:
 
 * the `ENV` commands in the source container's Dockerfile
@@ -253,8 +261,8 @@ that port is used for both tcp and udp, then the tcp one is specified.
 
 Finally, Docker also exposes each Docker originated environment variable
 from the source container as an environment variable in the target. For each
-variable Docker creates an `<alias>_ENV_<name>` variable in the target 
-container. The variable's value is set to the value Docker used when it 
+variable Docker creates an `<alias>_ENV_<name>` variable in the target
+container. The variable's value is set to the value Docker used when it
 started the source container.
 
 Returning back to our database example, you can run the `env`
@@ -306,7 +314,7 @@ container:
 
 You can see two relevant host entries. The first is an entry for the `web`
 container that uses the Container ID as a host name. The second entry uses the
-link alias to reference the IP address of the `db` container. In addition to 
+link alias to reference the IP address of the `db` container. In addition to
 the alias you provide, the linked container's name--if unique from the alias
 provided to the `--link` parameter--and the linked container's hostname will
 also be added in `/etc/hosts` for the linked container's IP address. You can ping
@@ -319,7 +327,7 @@ that host now via any of these entries:
     56 bytes from 172.17.0.5: icmp_seq=1 ttl=64 time=0.250 ms
     56 bytes from 172.17.0.5: icmp_seq=2 ttl=64 time=0.256 ms
 
-> **Note:** 
+> **Note:**
 > In the example, you'll note you had to install `ping` because it was not included
 > in the container initially.
 
@@ -327,7 +335,7 @@ Here, you used the `ping` command to ping the `db` container using its host entr
 which resolves to `172.17.0.5`. You can use this host entry to configure an application
 to make use of your `db` container.
 
-> **Note:** 
+> **Note:**
 > You can link multiple recipient containers to a single source. For
 > example, you could have multiple (differently named) web containers attached to your
 >`db` container.
@@ -344,10 +352,4 @@ allowing linked communication to continue.
     . . .
     172.17.0.9  db
 
-# Next step
-
-Now that you know how to link Docker containers together, the next step is
-learning how to take complete control over docker networking.
-
-Go to [Docker Networking](dockernetworks.md).
-
+# Related information

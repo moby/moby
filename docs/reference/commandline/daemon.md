@@ -23,7 +23,7 @@ weight = -1
       --default-gateway=""                   Container default gateway IPv4 address
       --default-gateway-v6=""                Container default gateway IPv6 address
       --cluster-store=""                     URL of the distributed storage backend
-      --cluster-advertise=""                 Address of the daemon instance to advertise
+      --cluster-advertise=""                 Address of the daemon instance on the cluster
       --cluster-store-opt=map[]              Set cluster options
       --dns=[]                               DNS server to use
       --dns-opt=[]                           DNS options to use
@@ -547,13 +547,16 @@ please check the [run](run.md) reference.
 
 ## Nodes discovery
 
-`--cluster-advertise` specifies the 'host:port' combination that this particular
-daemon instance should use when advertising itself to the cluster. The daemon
-is reached by remote hosts on this 'host:port' combination.
+The `--cluster-advertise` option specifies the 'host:port' or `interface:port`
+combination that this particular daemon instance should use when advertising
+itself to the cluster. The daemon is reached by remote hosts through this value.
+If you  specify an interface, make sure it includes the IP address of the actual
+Docker host. For Engine installation created through `docker-machine`, the
+interface is typically `eth1`.
 
 The daemon uses [libkv](https://github.com/docker/libkv/) to advertise
-the node within the cluster.  Some Key/Value backends support mutual
-TLS, and the client TLS settings used by the daemon can be configured
+the node within the cluster. Some key-value backends support mutual
+TLS. To configure the client TLS settings used by the daemon can be configured
 using the `--cluster-store-opt` flag, specifying the paths to PEM encoded
 files. For example:
 

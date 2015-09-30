@@ -2,7 +2,7 @@
 +++
 title = "network rm"
 description = "the network rm command description and usage"
-keywords = ["network, rm"]
+keywords = ["network, rm, user-defined"]
 [menu.main]
 parent = "smn_cli"
 +++

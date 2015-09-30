@@ -2,7 +2,7 @@
 +++
 title = "network create"
 description = "The network create command description and usage"
-keywords = ["network create"]
+keywords = ["network, create"]
 [menu.main]
 parent = "smn_cli"
 +++
@@ -55,7 +55,7 @@ The `docker daemon` options that support the `overlay` network are:
 
 To read more about these options and how to configure them, see ["*Get started
 with multi-host network*"](../../userguide/networking/get-started-overlay.md).
- 
+
 It is also a good idea, though not required, that you install Docker Swarm on to
 manage the cluster that makes up your network. Swarm provides sophisticated
 discovery and server management that can assist your implementation.

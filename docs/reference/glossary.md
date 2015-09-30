@@ -135,16 +135,14 @@ after the container is created.
 ## libnetwork
 
 libnetwork provides a native Go implementation for creating and managing container
-network namespaces and other network resources. It manage the networking lifecycle 
+network namespaces and other network resources. It manage the networking lifecycle
 of the container performing additional operations after the container is created.
 
 ## link
 
-links provide an interface to connect Docker containers running on the same host
-to each other without exposing the hosts' network ports. When you set up a link,
-you create a conduit between a source container and a recipient container.
-The recipient can then access select data about the source. To create a link,
-you can use the `--link` flag.
+links provide a legacy interface to connect Docker containers running on the
+same host to each other without exposing the hosts' network ports. Use the
+Docker networks feature instead.
 
 ## Machine
 
@@ -221,4 +219,3 @@ Compared to to containers, a Virtual Machine is heavier to run, provides more is
 gets its own set of resources and does minimal sharing.
 
 *Also known as : VM*
-
