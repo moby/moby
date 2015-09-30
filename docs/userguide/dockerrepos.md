@@ -1,28 +1,28 @@
 <!--[metadata]>
 +++
-title = "Get started with Docker Hub"
+title = "Store images on Docker Hub"
 description = "Learn how to use the Docker Hub to manage Docker images and work flow"
 keywords = ["repo, Docker Hub, Docker Hub, registry, index, repositories, usage, pull image, push image, image,  documentation"]
 [menu.main]
-parent = "smn_images"
-weight = 2
+parent = "smn_containers"
 +++
 <![end-metadata]-->
 
-# Get started with Docker Hub
+# Store images on Docker Hub
 
-So far you've learned how to use the command line to run Docker on your local host.
-You've learned how to [pull down images](usingdocker.md) to build containers
-from existing images and you've learned how to [create your own images](dockerimages.md).
+So far you've learned how to use the command line to run Docker on your local
+host. You've learned how to [pull down images](usingdocker.md) to build
+containers from existing images and you've learned how to [create your own
+images](dockerimages.md).
 
-Next, you're going to learn how to use the [Docker Hub](https://hub.docker.com) to
-simplify and enhance your Docker workflows.
+Next, you're going to learn how to use the [Docker Hub](https://hub.docker.com)
+to simplify and enhance your Docker workflows.
 
-The [Docker Hub](https://hub.docker.com) is a public registry maintained by Docker,
-Inc. It contains over 15,000 images you can download and use to build containers. It also
-provides authentication, work group structure, workflow tools like webhooks and build
-triggers, and privacy tools like private repositories for storing images you don't want
-to share publicly.
+The [Docker Hub](https://hub.docker.com) is a public registry maintained by
+Docker, Inc. It contains images you can download and use to build
+containers. It also provides authentication, work group structure, workflow
+tools like webhooks and build triggers, and privacy tools like private
+repositories for storing images you don't want to share publicly.
 
 ## Docker commands and Docker Hub
 

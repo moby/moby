@@ -86,14 +86,10 @@ specified image, and then `starts` it using the specified command. That is,
 previous changes intact using `docker start`. See `docker ps -a` to view a list
 of all containers.
 
-There is detailed information about `docker run` in the [Docker run reference](run.md).
-
 The `docker run` command can be used in combination with `docker commit` to
-[*change the command that a container runs*](commit.md).
+[*change the command that a container runs*](commit.md). There is additional detailed information about `docker run` in the [Docker run reference](../run.md).
 
-See the [Docker User Guide](../../userguide/dockerlinks.md) for more detailed
-information about the `--expose`, `-p`, `-P` and `--link` parameters,
-and linking containers.
+For information on connecting a container to a network, see the ["*Docker network overview*"](../../userguide/networking/index.md).
 
 ## Examples
 
@@ -185,16 +181,15 @@ manipulate the host's Docker daemon.
 
     $ docker run -p 127.0.0.1:80:8080 ubuntu bash
 
-This binds port `8080` of the container to port `80` on `127.0.0.1` of
-the host machine. The [Docker User Guide](../../userguide/dockerlinks.md)
+This binds port `8080` of the container to port `80` on `127.0.0.1` of the host
+machine. The [Docker User
+Guide](../../userguide/networking/default_network/dockerlinks.md)
 explains in detail how to manipulate ports in Docker.
 
     $ docker run --expose 80 ubuntu bash
 
-This exposes port `80` of the container for use within a link without
-publishing the port to the host system's interfaces. The [Docker User
-Guide](../../userguide/dockerlinks.md) explains in detail how to manipulate
-ports in Docker.
+This exposes port `80` of the container without publishing the port to the host
+system's interfaces.
 
 ### Set environment variables (-e, --env, --env-file)
 
@@ -302,21 +297,29 @@ For additional information on working with labels, see [*Labels - custom
 metadata in Docker*](../../userguide/labels-custom-metadata.md) in the Docker User
 Guide.
 
-### Add link to another container (--link)
+### Connect a container to a network (--net)
 
-    $ docker run --link /redis:redis --name console ubuntu bash
+When you start a container use the `--net` flag to connect it to a network.
+This adds the `busybox` container to the `mynet` network.
 
-The `--link` flag will link the container named `/redis` into the newly
-created container with the alias `redis`. The new container can access the
-network and environment of the `redis` container via environment variables.
-The `--link` flag will also just accept the form `<name or id>` in which case
-the alias will match the name. For instance, you could have written the previous
-example as:
+```bash
+$ docker run -itd --net=my-multihost-network busybox
+```
 
-    $ docker run --link redis --name console ubuntu bash
+If you want to add a running container to a network use the `docker network connect` subcommand.
 
-The `--name` flag will assign the name `console` to the newly created
-container.
+You can connect multiple containers to the same network. Once connected, the
+containers can communicate easily need only another container's IP address
+or name. For `overlay` networks or custom plugins that support multi-host
+connectivity, containers connected to the same multi-host network but launched
+from different Engines can also communicate in this way.
+
+**Note**: Service discovery is unavailable on the default bridge network.
+Containers can communicate via their IP addresses by default. To communicate
+by name, they must be linked.
+
+You can disconnect a container from a network using the `docker network
+disconnect` command.
 
 ### Mount volumes from container (--volumes-from)
 
@@ -537,34 +540,3 @@ the three processes quota set for the `daemon` user.
 The `--stop-signal` flag sets the system call signal that will be sent to the container to exit.
 This signal can be a valid unsigned number that matches a position in the kernel's syscall table, for instance 9,
 or a signal name in the format SIGNAME, for instance SIGKILL.
-
-### A complete example
-
-    $ docker run -d --name static static-web-files sh
-    $ docker run -d --expose=8098 --name riak riakserver
-    $ docker run -d -m 100m -e DEVELOPMENT=1 -e BRANCH=example-code -v $(pwd):/app/bin:ro --name app appserver
-    $ docker run -d -p 1443:443 --dns=10.0.0.1 --dns-search=dev.org -v /var/log/httpd --volumes-from static --link riak --link app -h www.sven.dev.org --name web webserver
-    $ docker run -t -i --rm --volumes-from web -w /var/log/httpd busybox tail -f access.log
-
-This example shows five containers that might be set up to test a web
-application change:
-
-1. Start a pre-prepared volume image `static-web-files` (in the background)
-   that has CSS, image and static HTML in it, (with a `VOLUME` instruction in
-   the Dockerfile to allow the web server to use those files);
-2. Start a pre-prepared `riakserver` image, give the container name `riak` and
-   expose port `8098` to any containers that link to it;
-3. Start the `appserver` image, restricting its memory usage to 100MB, setting
-   two environment variables `DEVELOPMENT` and `BRANCH` and bind-mounting the
-   current directory (`$(pwd)`) in the container in read-only mode as `/app/bin`;
-4. Start the `webserver`, mapping port `443` in the container to port `1443` on
-   the Docker server, setting the DNS server to `10.0.0.1` and DNS search
-   domain to `dev.org`, creating a volume to put the log files into (so we can
-   access it from another container), then importing the files from the volume
-   exposed by the `static` container, and linking to all exposed ports from
-   `riak` and `app`. Lastly, we set the hostname to `web.sven.dev.org` so its
-   consistent with the pre-generated SSL certificate;
-5. Finally, we create a container that runs `tail -f access.log` using the logs
-   volume from the `web` container, setting the workdir to `/var/log/httpd`. The
-   `--rm` option means that when the container exits, the container's layer is
-   removed.

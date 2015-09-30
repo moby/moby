@@ -1,17 +1,16 @@
 <!--[metadata]>
 +++
-title = "Get started with containers"
+title = "Quickstart containers"
 description = "Common usage and commands"
 keywords = ["Examples, Usage, basic commands, docker, documentation,  examples"]
 [menu.main]
-parent = "smn_containers"
+parent = "mn_fun_docker"
 +++
 <![end-metadata]-->
 
-# Get started with containers
+# Quickstart containers
 
-This guide assumes you have a working installation of Docker. To verify Docker
-is installed, use the following command:
+This quickstart assumes you have a working installation of Docker. To verify Docker is installed, use the following command:
 
     # Check that you have a working install
     $ docker info
@@ -54,7 +53,7 @@ image cache.
 To run an interactive shell in the Ubuntu image:
 
     $ docker run -i -t ubuntu /bin/bash       
-  
+
 The `-i` flag starts an interactive container. The `-t` flag creates a
 pseudo-TTY that attaches `stdin` and `stdout`.  
 
@@ -183,7 +182,7 @@ re-used.
 
 When you commit your container, Docker only stores the diff (difference) between
 the source image and the current state of the container's image. To list images
-you already have, use the `docker images` command. 
+you already have, use the `docker images` command.
 
     # Commit your container to a new named image
     $ docker commit <container> <some_name>
@@ -193,7 +192,8 @@ you already have, use the `docker images` command.
 
 You now have an image state from which you can create new instances.
 
-Read more about [*Share Images via
-Repositories*](../userguide/dockerrepos.md) or
-continue to the complete [*Command
-Line*](../reference/commandline/cli.md)
+## Where to go next
+
+* Work your way through the [Docker User Guide](../userguide/index.md)
+* Read more about [*Share Images via Repositories*](../userguide/dockerrepos.md)
+* Review [*Command Line*](../reference/commandline/cli.md)

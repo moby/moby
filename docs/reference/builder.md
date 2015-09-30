@@ -43,7 +43,7 @@ Dockerfile.
 
 >**Warning**: Do not use your root directory, `/`, as the `PATH` as it causes
 >the build to transfer the entire contents of your hard drive to the Docker
->daemon. 
+>daemon.
 
 To use a file in the build context, the `Dockerfile` refers to the file specified
 in an instruction, for example,  a `COPY` instruction. To increase the build's
@@ -159,7 +159,7 @@ Example (parsed representation is displayed after the `#`):
     ADD . $foo       # ADD . /bar
     COPY \$foo /quux # COPY $foo /quux
 
-Environment variables are supported by the following list of instructions in 
+Environment variables are supported by the following list of instructions in
 the `Dockerfile`:
 
 * `ADD`
@@ -177,7 +177,7 @@ as well as:
 * `ONBUILD` (when combined with one of the supported instructions above)
 
 > **Note**:
-> prior to 1.4, `ONBUILD` instructions did **NOT** support environment 
+> prior to 1.4, `ONBUILD` instructions did **NOT** support environment
 > variable, even when combined with any of the instructions listed above.
 
 Environment variable substitution will use the same value for each variable
@@ -187,7 +187,7 @@ throughout the entire command. In other words, in this example:
     ENV abc=bye def=$abc
     ENV ghi=$abc
 
-will result in `def` having a value of `hello`, not `bye`. However, 
+will result in `def` having a value of `hello`, not `bye`. However,
 `ghi` will have a value of `bye` because it is not part of the same command
 that set `abc` to `bye`.
 
@@ -354,13 +354,13 @@ RUN /bin/bash -c 'source $HOME/.bashrc ; echo $HOME'
 > Unlike the *shell* form, the *exec* form does not invoke a command shell.
 > This means that normal shell processing does not happen. For example,
 > `RUN [ "echo", "$HOME" ]` will not do variable substitution on `$HOME`.
-> If you want shell processing then either use the *shell* form or execute 
+> If you want shell processing then either use the *shell* form or execute
 > a shell directly, for example: `RUN [ "sh", "-c", "echo", "$HOME" ]`.
 
 The cache for `RUN` instructions isn't invalidated automatically during
-the next build. The cache for an instruction like 
-`RUN apt-get dist-upgrade -y` will be reused during the next build. The 
-cache for `RUN` instructions can be invalidated by using the `--no-cache` 
+the next build. The cache for an instruction like
+`RUN apt-get dist-upgrade -y` will be reused during the next build. The
+cache for `RUN` instructions can be invalidated by using the `--no-cache`
 flag, for example `docker build --no-cache`.
 
 See the [`Dockerfile` Best Practices
@@ -399,8 +399,8 @@ the executable, in which case you must specify an `ENTRYPOINT`
 instruction as well.
 
 > **Note**:
-> If `CMD` is used to provide default arguments for the `ENTRYPOINT` 
-> instruction, both the `CMD` and `ENTRYPOINT` instructions should be specified 
+> If `CMD` is used to provide default arguments for the `ENTRYPOINT`
+> instruction, both the `CMD` and `ENTRYPOINT` instructions should be specified
 > with the JSON array format.
 
 > **Note**:
@@ -411,7 +411,7 @@ instruction as well.
 > Unlike the *shell* form, the *exec* form does not invoke a command shell.
 > This means that normal shell processing does not happen. For example,
 > `CMD [ "echo", "$HOME" ]` will not do variable substitution on `$HOME`.
-> If you want shell processing then either use the *shell* form or execute 
+> If you want shell processing then either use the *shell* form or execute
 > a shell directly, for example: `CMD [ "sh", "-c", "echo", "$HOME" ]`.
 
 When used in the shell or exec formats, the `CMD` instruction sets the command
@@ -461,7 +461,7 @@ An image can have more than one label. To specify multiple labels,
 Docker recommends combining labels into a single `LABEL` instruction where
 possible. Each `LABEL` instruction produces a new layer which can result in an
 inefficient image if you use many labels. This example results in a single image
-layer. 
+layer.
 
     LABEL multi.label1="value1" multi.label2="value2" other="value3"
 
@@ -470,7 +470,7 @@ The above can also be written as:
     LABEL multi.label1="value1" \
           multi.label2="value2" \
           other="value3"
-    
+
 Labels are additive including `LABEL`s in `FROM` images. If Docker
 encounters a label/key that already exists, the new value overrides any previous
 labels with identical keys.
@@ -494,12 +494,15 @@ To view an image's labels, use the `docker inspect` command.
 The `EXPOSE` instruction informs Docker that the container listens on the
 specified network ports at runtime. `EXPOSE` does not make the ports of the
 container accessible to the host. To do that, you must use either the `-p` flag
-to publish a range of ports or the `-P` flag to publish all of the exposed ports.
-You can expose one port number and publish it externally under another number.
- 
-Docker uses exposed and published ports to interconnect containers using links
-(see [Linking containers together](../userguide/dockerlinks.md))
-and to set up port redirection on the host system when [using the -P flag](run.md#expose-incoming-ports).
+to publish a range of ports or the `-P` flag to publish all of the exposed
+ports. You can expose one port number and publish it externally under another
+number.
+
+To set up port redirection on the host system, see [using the -P
+flag](run.md#expose-incoming-ports). The Docker network feature supports
+creating networks without the need to expose ports within the network, for
+detailed information see the  [overview of this
+feature](../userguide/networking/index.md)).
 
 ## ENV
 
@@ -507,17 +510,18 @@ and to set up port redirection on the host system when [using the -P flag](run.m
     ENV <key>=<value> ...
 
 The `ENV` instruction sets the environment variable `<key>` to the value
-`<value>`. This value will be in the environment of all "descendent" `Dockerfile`
-commands and can be [replaced inline](#environment-replacement) in many as well.
+`<value>`. This value will be in the environment of all "descendent"
+`Dockerfile` commands and can be [replaced inline](#environment-replacement) in
+many as well.
 
 The `ENV` instruction has two forms. The first form, `ENV <key> <value>`,
 will set a single variable to a value. The entire string after the first
-space will be treated as the `<value>` - including characters such as 
+space will be treated as the `<value>` - including characters such as
 spaces and quotes.
 
-The second form, `ENV <key>=<value> ...`, allows for multiple variables to 
-be set at one time. Notice that the second form uses the equals sign (=) 
-in the syntax, while the first form does not. Like command line parsing, 
+The second form, `ENV <key>=<value> ...`, allows for multiple variables to
+be set at one time. Notice that the second form uses the equals sign (=)
+in the syntax, while the first form does not. Like command line parsing,
 quotes and backslashes can be used to include spaces within values.
 
 For example:
@@ -531,7 +535,7 @@ and
     ENV myDog Rex The Dog
     ENV myCat fluffy
 
-will yield the same net results in the final container, but the first form 
+will yield the same net results in the final container, but the first form
 is preferred because it produces a single cache layer.
 
 The environment variables set using `ENV` will persist when a container is run
@@ -555,8 +559,8 @@ whitespace)
 The `ADD` instruction copies new files, directories or remote file URLs from `<src>`
 and adds them to the filesystem of the container at the path `<dest>`.  
 
-Multiple `<src>` resource may be specified but if they are files or 
-directories then they must be relative to the source directory that is 
+Multiple `<src>` resource may be specified but if they are files or
+directories then they must be relative to the source directory that is
 being built (the context of the build).
 
 Each `<src>` may contain wildcards and matching will be done using Go's
@@ -619,8 +623,8 @@ guide](../articles/dockerfile_best-practices.md#build-cache) for more informatio
   appropriate filename can be discovered in this case (`http://example.com`
   will not work).
 
-- If `<src>` is a directory, the entire contents of the directory are copied, 
-  including filesystem metadata. 
+- If `<src>` is a directory, the entire contents of the directory are copied,
+  including filesystem metadata.
 
 > **Note**:
 > The directory itself is not copied, just its contents.
@@ -640,7 +644,7 @@ guide](../articles/dockerfile_best-practices.md#build-cache) for more informatio
   at `<dest>/base(<src>)`.
 
 - If multiple `<src>` resources are specified, either directly or due to the
-  use of a wildcard, then `<dest>` must be a directory, and it must end with 
+  use of a wildcard, then `<dest>` must be a directory, and it must end with
   a slash `/`.
 
 - If `<dest>` does not end with a trailing slash, it will be considered a
@@ -688,8 +692,8 @@ All new files and directories are created with a UID and GID of 0.
   `docker build` is to send the context directory (and subdirectories) to the
   docker daemon.
 
-- If `<src>` is a directory, the entire contents of the directory are copied, 
-  including filesystem metadata. 
+- If `<src>` is a directory, the entire contents of the directory are copied,
+  including filesystem metadata.
 
 > **Note**:
 > The directory itself is not copied, just its contents.
@@ -700,7 +704,7 @@ All new files and directories are created with a UID and GID of 0.
   at `<dest>/base(<src>)`.
 
 - If multiple `<src>` resources are specified, either directly or due to the
-  use of a wildcard, then `<dest>` must be a directory, and it must end with 
+  use of a wildcard, then `<dest>` must be a directory, and it must end with
   a slash `/`.
 
 - If `<dest>` does not end with a trailing slash, it will be considered a
@@ -729,7 +733,7 @@ Command line arguments to `docker run <image>` will be appended after all
 elements in an *exec* form `ENTRYPOINT`, and will override all elements specified
 using `CMD`.
 This allows arguments to be passed to the entry point, i.e., `docker run <image> -d`
-will pass the `-d` argument to the entry point. 
+will pass the `-d` argument to the entry point.
 You can override the `ENTRYPOINT` instruction using the `docker run --entrypoint`
 flag.
 
@@ -760,10 +764,10 @@ When you run the container, you can see that `top` is the only process:
     %Cpu(s):  0.1 us,  0.1 sy,  0.0 ni, 99.7 id,  0.0 wa,  0.0 hi,  0.0 si,  0.0 st
     KiB Mem:   2056668 total,  1616832 used,   439836 free,    99352 buffers
     KiB Swap:  1441840 total,        0 used,  1441840 free.  1324440 cached Mem
-    
+
       PID USER      PR  NI    VIRT    RES    SHR S %CPU %MEM     TIME+ COMMAND
         1 root      20   0   19744   2336   2080 R  0.0  0.1   0:00.04 top
-    
+
 To examine the result further, you can use `docker exec`:
 
     $ docker exec -it test ps aux
@@ -867,7 +871,7 @@ sys	0m 0.03s
 > Unlike the *shell* form, the *exec* form does not invoke a command shell.
 > This means that normal shell processing does not happen. For example,
 > `ENTRYPOINT [ "echo", "$HOME" ]` will not do variable substitution on `$HOME`.
-> If you want shell processing then either use the *shell* form or execute 
+> If you want shell processing then either use the *shell* form or execute
 > a shell directly, for example: `ENTRYPOINT [ "sh", "-c", "echo", "$HOME" ]`.
 > Variables that are defined in the `Dockerfile`using `ENV`, will be substituted by
 > the `Dockerfile` parser.
@@ -941,12 +945,12 @@ and marks it as holding externally mounted volumes from native host or other
 containers. The value can be a JSON array, `VOLUME ["/var/log/"]`, or a plain
 string with multiple arguments, such as `VOLUME /var/log` or `VOLUME /var/log
 /var/db`. For more information/examples and mounting instructions via the
-Docker client, refer to 
+Docker client, refer to
 [*Share Directories via Volumes*](../userguide/dockervolumes.md#mount-a-host-directory-as-a-data-volume)
 documentation.
 
-The `docker run` command initializes the newly created volume with any data 
-that exists at the specified location within the base image. For example, 
+The `docker run` command initializes the newly created volume with any data
+that exists at the specified location within the base image. For example,
 consider the following Dockerfile snippet:
 
     FROM ubuntu
@@ -955,7 +959,7 @@ consider the following Dockerfile snippet:
     VOLUME /myvol
 
 This Dockerfile results in an image that causes `docker run`, to
-create a new mount point at `/myvol` and copy the  `greeting` file 
+create a new mount point at `/myvol` and copy the  `greeting` file
 into the newly created volume.
 
 > **Note**:

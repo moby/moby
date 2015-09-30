@@ -98,7 +98,7 @@ with several powerful functionalities:
 
  - *Sharing.* Docker has access to a public registry [on Docker Hub](https://hub.docker.com/)
  where thousands of people have uploaded useful images: anything from Redis,
- CouchDB, PostgreSQL to IRC bouncers to Rails app servers to Hadoop to base 
+ CouchDB, PostgreSQL to IRC bouncers to Rails app servers to Hadoop to base
  images for various Linux distros. The
  [*registry*](https://docs.docker.com/registry/) also
  includes an official "standard library" of useful containers maintained by the
@@ -135,8 +135,7 @@ thousands or even millions of containers running in parallel.
 
 ### How do I connect Docker containers?
 
-Currently the recommended way to link containers is via the link primitive. You
-can see details of how to [work with links here](../userguide/dockerlinks.md).
+Currently the recommended way to connect containers is via the Docker network feature. You can see details of how to [work with Docker networks here](https://docs.docker.com/networking).
 
 Also useful for more flexible service portability is the [Ambassador linking
 pattern](../articles/ambassador_pattern_linking.md).
@@ -154,19 +153,19 @@ the container will continue to as well. You can see a more substantial example
 
 Linux:
 
- - Ubuntu 12.04, 13.04 et al 
- - Fedora 19/20+ 
- - RHEL 6.5+ 
- - CentOS 6+ 
- - Gentoo 
- - ArchLinux 
- - openSUSE 12.3+ 
+ - Ubuntu 12.04, 13.04 et al
+ - Fedora 19/20+
+ - RHEL 6.5+
+ - CentOS 6+
+ - Gentoo
+ - ArchLinux
+ - openSUSE 12.3+
  - CRUX 3.0+
 
 Cloud:
 
- - Amazon EC2 
- - Google Compute Engine 
+ - Amazon EC2
+ - Google Compute Engine
  - Microsoft Azure
  - Rackspace
 
@@ -263,11 +262,11 @@ how to do this, check the documentation for your OS.
 You can find more answers on:
 
 
-- [Docker user mailinglist](https://groups.google.com/d/forum/docker-user) 
-- [Docker developer mailinglist](https://groups.google.com/d/forum/docker-dev) 
-- [IRC, docker on freenode](irc://chat.freenode.net#docker) 
-- [GitHub](https://github.com/docker/docker) 
-- [Ask questions on Stackoverflow](http://stackoverflow.com/search?q=docker) 
+- [Docker user mailinglist](https://groups.google.com/d/forum/docker-user)
+- [Docker developer mailinglist](https://groups.google.com/d/forum/docker-dev)
+- [IRC, docker on freenode](irc://chat.freenode.net#docker)
+- [GitHub](https://github.com/docker/docker)
+- [Ask questions on Stackoverflow](http://stackoverflow.com/search?q=docker)
 - [Join the conversation on Twitter](http://twitter.com/docker)
 
 Looking for something else to read? Checkout the [User Guide](../userguide/).

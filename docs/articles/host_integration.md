@@ -4,8 +4,7 @@ title = "Automatically start containers"
 description = "How to generate scripts for upstart, systemd, etc."
 keywords = ["systemd, upstart, supervisor, docker, documentation,  host integration"]
 [menu.main]
-parent = "smn_containers"
-weight = 99
+parent = "smn_administrate"
 +++
 <![end-metadata]-->
 
