@@ -1521,6 +1521,13 @@ func (devices *DeviceSet) DeleteDevice(hash string) error {
 	devices.Lock()
 	defer devices.Unlock()
 
+	// If mountcount is not zero, that means devices is still in use
+	// or has not been Put() properly. Fail device deletion.
+
+	if info.mountCount != 0 {
+		return fmt.Errorf("devmapper: Can't delete device %v as it is still mounted. mntCount=%v", info.Hash, info.mountCount)
+	}
+
 	return devices.deleteDevice(info)
 }
 
