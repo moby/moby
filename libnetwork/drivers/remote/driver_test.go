@@ -3,8 +3,10 @@ package remote
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"testing"
 
@@ -35,26 +37,29 @@ func handle(t *testing.T, mux *http.ServeMux, method string, h func(map[string]i
 }
 
 func setupPlugin(t *testing.T, name string, mux *http.ServeMux) func() {
-	if err := os.MkdirAll("/usr/share/docker/plugins", 0755); err != nil {
+	if err := os.MkdirAll("/etc/docker/plugins", 0755); err != nil {
 		t.Fatal(err)
 	}
 
-	listener, err := net.Listen("unix", fmt.Sprintf("/usr/share/docker/plugins/%s.sock", name))
-	if err != nil {
-		t.Fatal("Could not listen to the plugin socket")
+	server := httptest.NewServer(mux)
+	if server == nil {
+		t.Fatal("Failed to start a HTTP Server")
+	}
+
+	if err := ioutil.WriteFile(fmt.Sprintf("/etc/docker/plugins/%s.spec", name), []byte(server.URL), 0644); err != nil {
+		t.Fatal(err)
 	}
 
 	mux.HandleFunc("/Plugin.Activate", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/vnd.docker.plugins.v1+json")
 		fmt.Fprintf(w, `{"Implements": ["%s"]}`, driverapi.NetworkPluginEndpointType)
 	})
 
-	go http.Serve(listener, mux)
-
 	return func() {
-		listener.Close()
-		if err := os.RemoveAll("/usr/share/docker/plugins"); err != nil {
+		if err := os.RemoveAll("/etc/docker/plugins"); err != nil {
 			t.Fatal(err)
 		}
+		server.Close()
 	}
 }
 

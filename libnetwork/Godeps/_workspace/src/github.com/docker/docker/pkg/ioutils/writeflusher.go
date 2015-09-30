@@ -6,6 +6,7 @@ import (
 	"sync"
 )
 
+// WriteFlusher wraps the Write and Flush operation.
 type WriteFlusher struct {
 	sync.Mutex
 	w       io.Writer
@@ -30,12 +31,15 @@ func (wf *WriteFlusher) Flush() {
 	wf.flusher.Flush()
 }
 
+// Flushed returns the state of flushed.
+// If it's flushed, return true, or else it return false.
 func (wf *WriteFlusher) Flushed() bool {
 	wf.Lock()
 	defer wf.Unlock()
 	return wf.flushed
 }
 
+// NewWriteFlusher returns a new WriteFlusher.
 func NewWriteFlusher(w io.Writer) *WriteFlusher {
 	var flusher http.Flusher
 	if f, ok := w.(http.Flusher); ok {
