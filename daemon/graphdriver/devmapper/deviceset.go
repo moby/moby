@@ -388,6 +388,11 @@ func (devices *DeviceSet) deviceFileWalkFunction(path string, finfo os.FileInfo)
 		return nil
 	}
 
+	if finfo.Name() == transactionMetaFile {
+		logrus.Debugf("Skipping file %s", path)
+		return nil
+	}
+
 	logrus.Debugf("Loading data for file %s", path)
 
 	hash := finfo.Name()
@@ -1516,6 +1521,13 @@ func (devices *DeviceSet) DeleteDevice(hash string) error {
 	devices.Lock()
 	defer devices.Unlock()
 
+	// If mountcount is not zero, that means devices is still in use
+	// or has not been Put() properly. Fail device deletion.
+
+	if info.mountCount != 0 {
+		return fmt.Errorf("devmapper: Can't delete device %v as it is still mounted. mntCount=%v", info.Hash, info.mountCount)
+	}
+
 	return devices.deleteDevice(info)
 }
 
@@ -1781,7 +1793,7 @@ func (devices *DeviceSet) UnmountDevice(hash string) error {
 	return nil
 }
 
-// HasDevice returns true if the device is in the hash and mounted.
+// HasDevice returns true if the device metadata exists.
 func (devices *DeviceSet) HasDevice(hash string) bool {
 	devices.Lock()
 	defer devices.Unlock()
