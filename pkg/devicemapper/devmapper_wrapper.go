@@ -77,7 +77,7 @@ const (
 	LoopSetCapacity = C.LOOP_SET_CAPACITY
 )
 
-// LOOP consts. (?)
+// LOOP consts.
 const (
 	LoFlagsAutoClear = C.LO_FLAGS_AUTOCLEAR
 	LoFlagsReadOnly  = C.LO_FLAGS_READ_ONLY
@@ -86,7 +86,7 @@ const (
 	LoNameSize       = C.LO_NAME_SIZE
 )
 
-// DeviceMapper Udev consts. (?)
+// Devicemapper cookie flags.
 const (
 	DmUdevDisableSubsystemRulesFlag = C.DM_UDEV_DISABLE_SUBSYSTEM_RULES_FLAG
 	DmUdevDisableDiskRulesFlag      = C.DM_UDEV_DISABLE_DISK_RULES_FLAG

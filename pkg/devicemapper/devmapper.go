@@ -109,7 +109,7 @@ type (
 	}
 	// TaskType represents a type of task
 	TaskType int
-	// AddNodeType represents a type of node to be added (?)
+	// AddNodeType represents a type of node to be added
 	AddNodeType int
 )
 
@@ -309,7 +309,7 @@ func FindLoopDeviceFor(file *os.File) *os.File {
 	return nil
 }
 
-// UdevWait wakes any processes that are waiting for udev to complete the specified cookie. (?)
+// UdevWait waits for any processes that are waiting for udev to complete the specified cookie.
 func UdevWait(cookie *uint) error {
 	if res := DmUdevWait(*cookie); res != 1 {
 		logrus.Debugf("Failed to wait on udev cookie %d", *cookie)
@@ -318,7 +318,7 @@ func UdevWait(cookie *uint) error {
 	return nil
 }
 
-// LogInitVerbose is an interface to initialize the verbose logger for the device mapper library. (?)
+// LogInitVerbose is an interface to initialize the verbose logger for the device mapper library.
 func LogInitVerbose(level int) {
 	DmLogInitVerbose(level)
 }
@@ -706,7 +706,7 @@ func ResumeDevice(name string) error {
 	return nil
 }
 
-// CreateDevice creates a device with the specified poolName with the specified device id. (?)
+// CreateDevice creates a device with the specified poolName with the specified device id.
 func CreateDevice(poolName string, deviceID int) error {
 	logrus.Debugf("[devmapper] CreateDevice(poolName=%v, deviceID=%v)", poolName, deviceID)
 	task, err := TaskCreateNamed(deviceTargetMsg, poolName)
@@ -735,7 +735,7 @@ func CreateDevice(poolName string, deviceID int) error {
 	return nil
 }
 
-// DeleteDevice deletes a device with the specified poolName with the specified device id. (?)
+// DeleteDevice deletes a device with the specified poolName with the specified device id.
 func DeleteDevice(poolName string, deviceID int) error {
 	task, err := TaskCreateNamed(deviceTargetMsg, poolName)
 	if task == nil {
@@ -763,7 +763,7 @@ func ActivateDevice(poolName string, name string, deviceID int, size uint64) err
 }
 
 // ActivateDeviceWithExternal activates the device identified by the specified
-// poolName, name and deviceID with the specified size. (?)
+// poolName, name and deviceID with the specified size.
 func ActivateDeviceWithExternal(poolName string, name string, deviceID int, size uint64, external string) error {
 	return activateDevice(poolName, name, deviceID, size, external)
 }
