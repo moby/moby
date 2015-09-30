@@ -260,7 +260,7 @@ func (s *DockerSuite) TestHelpTextVerify(c *check.C) {
 
 		// Number of commands for standard release and experimental release
 		standard := 40
-		experimental := 1
+		experimental := 2
 		expected := standard + experimental
 		if isLocalDaemon {
 			expected++ // for the daemon command
