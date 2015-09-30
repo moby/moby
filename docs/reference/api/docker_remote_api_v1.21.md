@@ -233,7 +233,7 @@ Json Parameters:
 -   **CpuShares** - An integer value containing the container's CPU Shares
       (ie. the relative weight vs other containers).
 -   **CpuPeriod** - The length of a CPU period in microseconds.
--   **Cpuset** - Deprecated please don't use. Use `CpusetCpus` instead. 
+-   **Cpuset** - Deprecated please don't use. Use `CpusetCpus` instead.
 -   **CpusetCpus** - String value containing the `cgroups CpusetCpus` to use.
 -   **CpusetMems** - Memory nodes (MEMs) in which to allow execution (0-3, 0,1). Only effective on NUMA systems.
 -   **BlkioWeight** - Block IO weight (relative weight) accepts a weight value between 10 and 1000.
@@ -1363,7 +1363,7 @@ or being killed.
 
 Query Parameters:
 
--   **dockerfile** - Path within the build context to the Dockerfile. This is 
+-   **dockerfile** - Path within the build context to the Dockerfile. This is
         ignored if `remote` is specified and points to an individual filename.
 -   **t** – A repository name (and optionally a tag) to apply to
         the resulting image in case of success.
@@ -2038,9 +2038,10 @@ Query Parameters:
 -   **since** – Timestamp used for polling
 -   **until** – Timestamp used for polling
 -   **filters** – A json encoded value of the filters (a map[string][]string) to process on the event list. Available filters:
+  -   `container=<string>`; -- container to filter
   -   `event=<string>`; -- event to filter
   -   `image=<string>`; -- image to filter
-  -   `container=<string>`; -- container to filter
+  -   `label=<string>`; -- image and container label to filter
 
 Status Codes:
 
