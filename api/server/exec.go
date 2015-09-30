@@ -63,6 +63,9 @@ func (s *Server) postContainerExecStart(ctx context.Context, w http.ResponseWrit
 	if err := parseForm(r); err != nil {
 		return err
 	}
+	if err := checkForJSON(r); err != nil {
+		return err
+	}
 	var (
 		execName                  = vars["name"]
 		stdin, inStream           io.ReadCloser
