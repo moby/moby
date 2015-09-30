@@ -40,10 +40,18 @@ func (cli *DockerCli) CmdEvents(args ...string) error {
 	}
 	ref := time.Now()
 	if *since != "" {
-		v.Set("since", timeutils.GetTimestamp(*since, ref))
+		ts, err := timeutils.GetTimestamp(*since, ref)
+		if err != nil {
+			return err
+		}
+		v.Set("since", ts)
 	}
 	if *until != "" {
-		v.Set("until", timeutils.GetTimestamp(*until, ref))
+		ts, err := timeutils.GetTimestamp(*until, ref)
+		if err != nil {
+			return err
+		}
+		v.Set("until", ts)
 	}
 	if len(eventFilterArgs) > 0 {
 		filterJSON, err := filters.ToParam(eventFilterArgs)
