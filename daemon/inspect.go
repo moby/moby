@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/versions/v1p20"
 )
 
 // ContainerInspect returns low-level information about a
@@ -30,7 +31,7 @@ func (daemon *Daemon) ContainerInspect(name string) (*types.ContainerJSON, error
 }
 
 // ContainerInspect120 serializes the master version of a container into a json type.
-func (daemon *Daemon) ContainerInspect120(name string) (*types.ContainerJSON120, error) {
+func (daemon *Daemon) ContainerInspect120(name string) (*v1p20.ContainerJSON, error) {
 	container, err := daemon.Get(name)
 	if err != nil {
 		return nil, err
@@ -45,12 +46,12 @@ func (daemon *Daemon) ContainerInspect120(name string) (*types.ContainerJSON120,
 	}
 
 	mountPoints := addMountPoints(container)
-	config := &types.ContainerConfig120{
+	config := &v1p20.ContainerConfig{
 		container.Config,
 		container.hostConfig.VolumeDriver,
 	}
 
-	return &types.ContainerJSON120{base, mountPoints, config}, nil
+	return &v1p20.ContainerJSON{base, mountPoints, config}, nil
 }
 
 func (daemon *Daemon) getInspectData(container *Container) (*types.ContainerJSONBase, error) {
