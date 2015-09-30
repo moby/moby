@@ -1786,7 +1786,7 @@ func (devices *DeviceSet) UnmountDevice(hash string) error {
 	return nil
 }
 
-// HasDevice returns true if the device is in the hash and mounted.
+// HasDevice returns true if the device metadata exists.
 func (devices *DeviceSet) HasDevice(hash string) bool {
 	devices.Lock()
 	defer devices.Unlock()
