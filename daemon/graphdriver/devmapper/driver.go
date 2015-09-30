@@ -196,7 +196,7 @@ func (d *Driver) Put(id string) error {
 	return err
 }
 
-// Exists checks to see if the device is mounted.
+// Exists checks to see if the device exists.
 func (d *Driver) Exists(id string) bool {
 	return d.DeviceSet.HasDevice(id)
 }
