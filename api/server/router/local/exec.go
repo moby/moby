@@ -1,4 +1,4 @@
-package server
+package local
 
 import (
 	"encoding/json"
@@ -8,13 +8,14 @@ import (
 	"strconv"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/docker/docker/runconfig"
 	"golang.org/x/net/context"
 )
 
-func (s *Server) getExecByID(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (s *router) getExecByID(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if vars == nil {
 		return fmt.Errorf("Missing parameter 'id'")
 	}
@@ -24,14 +25,14 @@ func (s *Server) getExecByID(ctx context.Context, w http.ResponseWriter, r *http
 		return err
 	}
 
-	return writeJSON(w, http.StatusOK, eConfig)
+	return httputils.WriteJSON(w, http.StatusOK, eConfig)
 }
 
-func (s *Server) postContainerExecCreate(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	if err := parseForm(r); err != nil {
+func (s *router) postContainerExecCreate(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
-	if err := checkForJSON(r); err != nil {
+	if err := httputils.CheckForJSON(r); err != nil {
 		return err
 	}
 	name := vars["name"]
@@ -53,14 +54,14 @@ func (s *Server) postContainerExecCreate(ctx context.Context, w http.ResponseWri
 		return err
 	}
 
-	return writeJSON(w, http.StatusCreated, &types.ContainerExecCreateResponse{
+	return httputils.WriteJSON(w, http.StatusCreated, &types.ContainerExecCreateResponse{
 		ID: id,
 	})
 }
 
 // TODO(vishh): Refactor the code to avoid having to specify stream config as part of both create and start.
-func (s *Server) postContainerExecStart(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	if err := parseForm(r); err != nil {
+func (s *router) postContainerExecStart(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
 	var (
@@ -77,11 +78,11 @@ func (s *Server) postContainerExecStart(ctx context.Context, w http.ResponseWrit
 	if !execStartCheck.Detach {
 		var err error
 		// Setting up the streaming http interface.
-		inStream, outStream, err = hijackServer(w)
+		inStream, outStream, err = httputils.HijackConnection(w)
 		if err != nil {
 			return err
 		}
-		defer closeStreams(inStream, outStream)
+		defer httputils.CloseStreams(inStream, outStream)
 
 		if _, ok := r.Header["Upgrade"]; ok {
 			fmt.Fprintf(outStream, "HTTP/1.1 101 UPGRADED\r\nContent-Type: application/vnd.docker.raw-stream\r\nConnection: Upgrade\r\nUpgrade: tcp\r\n\r\n")
@@ -106,8 +107,8 @@ func (s *Server) postContainerExecStart(ctx context.Context, w http.ResponseWrit
 	return nil
 }
 
-func (s *Server) postContainerExecResize(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	if err := parseForm(r); err != nil {
+func (s *router) postContainerExecResize(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
 	if vars == nil {

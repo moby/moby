@@ -1,4 +1,4 @@
-package server
+package local
 
 import (
 	"encoding/json"
@@ -10,6 +10,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api"
+	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/autogen/dockerversion"
 	"github.com/docker/docker/pkg/ioutils"
@@ -20,7 +21,7 @@ import (
 	"golang.org/x/net/context"
 )
 
-func (s *Server) getVersion(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (s *router) getVersion(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	v := &types.Version{
 		Version:    dockerversion.VERSION,
 		APIVersion: api.Version,
@@ -31,7 +32,7 @@ func (s *Server) getVersion(ctx context.Context, w http.ResponseWriter, r *http.
 		BuildTime:  dockerversion.BUILDTIME,
 	}
 
-	version := versionFromContext(ctx)
+	version := httputils.VersionFromContext(ctx)
 
 	if version.GreaterThanOrEqualTo("1.19") {
 		v.Experimental = utils.ExperimentalBuild()
@@ -41,20 +42,20 @@ func (s *Server) getVersion(ctx context.Context, w http.ResponseWriter, r *http.
 		v.KernelVersion = kernelVersion.String()
 	}
 
-	return writeJSON(w, http.StatusOK, v)
+	return httputils.WriteJSON(w, http.StatusOK, v)
 }
 
-func (s *Server) getInfo(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (s *router) getInfo(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	info, err := s.daemon.SystemInfo()
 	if err != nil {
 		return err
 	}
 
-	return writeJSON(w, http.StatusOK, info)
+	return httputils.WriteJSON(w, http.StatusOK, info)
 }
 
-func (s *Server) getEvents(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	if err := parseForm(r); err != nil {
+func (s *router) getEvents(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
 	var since int64 = -1

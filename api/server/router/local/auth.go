@@ -1,15 +1,16 @@
-package server
+package local
 
 import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/cliconfig"
 	"golang.org/x/net/context"
 )
 
-func (s *Server) postAuth(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (s *router) postAuth(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	var config *cliconfig.AuthConfig
 	err := json.NewDecoder(r.Body).Decode(&config)
 	r.Body.Close()
@@ -20,7 +21,7 @@ func (s *Server) postAuth(ctx context.Context, w http.ResponseWriter, r *http.Re
 	if err != nil {
 		return err
 	}
-	return writeJSON(w, http.StatusOK, &types.AuthResponse{
+	return httputils.WriteJSON(w, http.StatusOK, &types.AuthResponse{
 		Status: status,
 	})
 }
