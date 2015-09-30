@@ -388,6 +388,11 @@ func (devices *DeviceSet) deviceFileWalkFunction(path string, finfo os.FileInfo)
 		return nil
 	}
 
+	if finfo.Name() == transactionMetaFile {
+		logrus.Debugf("Skipping file %s", path)
+		return nil
+	}
+
 	logrus.Debugf("Loading data for file %s", path)
 
 	hash := finfo.Name()
