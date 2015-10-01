@@ -321,8 +321,7 @@ func (a *Driver) Put(id string) error {
 func (a *Driver) Diff(id, parent string) (archive.Archive, error) {
 	// AUFS doesn't need the parent layer to produce a diff.
 	return archive.TarWithOptions(path.Join(a.rootPath(), "diff", id), &archive.TarOptions{
-		Compression:     archive.Uncompressed,
-		ExcludePatterns: []string{".wh..wh.*"},
+		Compression: archive.Uncompressed,
 	})
 }
 
