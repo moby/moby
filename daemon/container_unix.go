@@ -1237,31 +1237,40 @@ func (container *Container) mqueuePath() (string, error) {
 	return container.getRootResourcePath("mqueue")
 }
 
+func (container *Container) hasMountFor(path string) bool {
+	_, exists := container.MountPoints[path]
+	return exists
+}
+
 func (container *Container) setupIpcDirs() error {
-	shmPath, err := container.shmPath()
-	if err != nil {
-		return err
+	if !container.hasMountFor("/dev/shm") {
+		shmPath, err := container.shmPath()
+		if err != nil {
+			return err
+		}
+
+		if err := os.MkdirAll(shmPath, 0700); err != nil {
+			return err
+		}
+
+		if err := syscall.Mount("shm", shmPath, "tmpfs", uintptr(syscall.MS_NOEXEC|syscall.MS_NOSUID|syscall.MS_NODEV), label.FormatMountLabel("mode=1777,size=65536k", container.getMountLabel())); err != nil {
+			return fmt.Errorf("mounting shm tmpfs: %s", err)
+		}
 	}
 
-	if err := os.MkdirAll(shmPath, 0700); err != nil {
-		return err
-	}
+	if !container.hasMountFor("/dev/mqueue") {
+		mqueuePath, err := container.mqueuePath()
+		if err != nil {
+			return err
+		}
 
-	if err := syscall.Mount("shm", shmPath, "tmpfs", uintptr(syscall.MS_NOEXEC|syscall.MS_NOSUID|syscall.MS_NODEV), label.FormatMountLabel("mode=1777,size=65536k", container.getMountLabel())); err != nil {
-		return fmt.Errorf("mounting shm tmpfs: %s", err)
-	}
+		if err := os.MkdirAll(mqueuePath, 0700); err != nil {
+			return err
+		}
 
-	mqueuePath, err := container.mqueuePath()
-	if err != nil {
-		return err
-	}
-
-	if err := os.MkdirAll(mqueuePath, 0700); err != nil {
-		return err
-	}
-
-	if err := syscall.Mount("mqueue", mqueuePath, "mqueue", uintptr(syscall.MS_NOEXEC|syscall.MS_NOSUID|syscall.MS_NODEV), ""); err != nil {
-		return fmt.Errorf("mounting mqueue mqueue : %s", err)
+		if err := syscall.Mount("mqueue", mqueuePath, "mqueue", uintptr(syscall.MS_NOEXEC|syscall.MS_NOSUID|syscall.MS_NODEV), ""); err != nil {
+			return fmt.Errorf("mounting mqueue mqueue : %s", err)
+		}
 	}
 
 	return nil
@@ -1273,26 +1282,31 @@ func (container *Container) unmountIpcMounts() error {
 	}
 
 	var errors []string
-	shmPath, err := container.shmPath()
-	if err != nil {
-		logrus.Error(err)
-		errors = append(errors, err.Error())
-	} else {
-		if err := detachMounted(shmPath); err != nil {
-			logrus.Errorf("failed to umount %s: %v", shmPath, err)
-			errors = append(errors, err.Error())
-		}
 
+	if !container.hasMountFor("/dev/shm") {
+		shmPath, err := container.shmPath()
+		if err != nil {
+			logrus.Error(err)
+			errors = append(errors, err.Error())
+		} else {
+			if err := detachMounted(shmPath); err != nil {
+				logrus.Errorf("failed to umount %s: %v", shmPath, err)
+				errors = append(errors, err.Error())
+			}
+
+		}
 	}
 
-	mqueuePath, err := container.mqueuePath()
-	if err != nil {
-		logrus.Error(err)
-		errors = append(errors, err.Error())
-	} else {
-		if err := detachMounted(mqueuePath); err != nil {
-			logrus.Errorf("failed to umount %s: %v", mqueuePath, err)
+	if !container.hasMountFor("/dev/mqueue") {
+		mqueuePath, err := container.mqueuePath()
+		if err != nil {
+			logrus.Error(err)
 			errors = append(errors, err.Error())
+		} else {
+			if err := detachMounted(mqueuePath); err != nil {
+				logrus.Errorf("failed to umount %s: %v", mqueuePath, err)
+				errors = append(errors, err.Error())
+			}
 		}
 	}
 
@@ -1305,20 +1319,26 @@ func (container *Container) unmountIpcMounts() error {
 
 func (container *Container) ipcMounts() []execdriver.Mount {
 	var mounts []execdriver.Mount
-	label.SetFileLabel(container.ShmPath, container.MountLabel)
-	mounts = append(mounts, execdriver.Mount{
-		Source:      container.ShmPath,
-		Destination: "/dev/shm",
-		Writable:    true,
-		Private:     true,
-	})
-	label.SetFileLabel(container.MqueuePath, container.MountLabel)
-	mounts = append(mounts, execdriver.Mount{
-		Source:      container.MqueuePath,
-		Destination: "/dev/mqueue",
-		Writable:    true,
-		Private:     true,
-	})
+
+	if !container.hasMountFor("/dev/shm") {
+		label.SetFileLabel(container.ShmPath, container.MountLabel)
+		mounts = append(mounts, execdriver.Mount{
+			Source:      container.ShmPath,
+			Destination: "/dev/shm",
+			Writable:    true,
+			Private:     true,
+		})
+	}
+
+	if !container.hasMountFor("/dev/mqueue") {
+		label.SetFileLabel(container.MqueuePath, container.MountLabel)
+		mounts = append(mounts, execdriver.Mount{
+			Source:      container.MqueuePath,
+			Destination: "/dev/mqueue",
+			Writable:    true,
+			Private:     true,
+		})
+	}
 	return mounts
 }
 
