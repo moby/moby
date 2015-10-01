@@ -11,11 +11,10 @@ import (
 
 // non-blocking wait with 0 exit code
 func (s *DockerSuite) TestWaitNonBlockedExitZero(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "sh", "-c", "true")
 	containerID := strings.TrimSpace(out)
 
-	if err := waitInspect(containerID, "{{.State.Running}}", "false", 1*time.Second); err != nil {
+	if err := waitInspect(containerID, "{{.State.Running}}", "false", 30*time.Second); err != nil {
 		c.Fatal("Container should have stopped by now")
 	}
 
@@ -28,8 +27,10 @@ func (s *DockerSuite) TestWaitNonBlockedExitZero(c *check.C) {
 
 // blocking wait with 0 exit code
 func (s *DockerSuite) TestWaitBlockedExitZero(c *check.C) {
+	// Windows busybox does not support trap in this way, not sleep with sub-second
+	// granularity. It will always exit 0x40010004.
 	testRequires(c, DaemonIsLinux)
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "trap 'exit 0' TERM; while true; do sleep 0.01; done")
+	out, _ := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "trap 'exit 0' TERM; while true; do usleep 10; done")
 	containerID := strings.TrimSpace(out)
 
 	c.Assert(waitRun(containerID), check.IsNil)
@@ -56,11 +57,10 @@ func (s *DockerSuite) TestWaitBlockedExitZero(c *check.C) {
 
 // non-blocking wait with random exit code
 func (s *DockerSuite) TestWaitNonBlockedExitRandom(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "sh", "-c", "exit 99")
 	containerID := strings.TrimSpace(out)
 
-	if err := waitInspect(containerID, "{{.State.Running}}", "false", 1*time.Second); err != nil {
+	if err := waitInspect(containerID, "{{.State.Running}}", "false", 30*time.Second); err != nil {
 		c.Fatal("Container should have stopped by now")
 	}
 
@@ -73,8 +73,9 @@ func (s *DockerSuite) TestWaitNonBlockedExitRandom(c *check.C) {
 
 // blocking wait with random exit code
 func (s *DockerSuite) TestWaitBlockedExitRandom(c *check.C) {
+	// Cannot run on Windows as trap in Windows busybox does not support trap in this way.
 	testRequires(c, DaemonIsLinux)
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "trap 'exit 99' TERM; while true; do sleep 0.01; done")
+	out, _ := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "trap 'exit 99' TERM; while true; do usleep 10; done")
 	containerID := strings.TrimSpace(out)
 	c.Assert(waitRun(containerID), check.IsNil)
 
