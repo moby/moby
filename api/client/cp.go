@@ -26,22 +26,26 @@ const (
 	acrossContainers = fromContainer | toContainer
 )
 
+type cpConfig struct {
+	followLink bool
+}
+
 // CmdCp copies files/folders to or from a path in a container.
 //
-// When copying from a container, if LOCALPATH is '-' the data is written as a
+// When copying from a container, if DEST_PATH is '-' the data is written as a
 // tar archive file to STDOUT.
 //
-// When copying to a container, if LOCALPATH is '-' the data is read as a tar
-// archive file from STDIN, and the destination CONTAINER:PATH, must specify
+// When copying to a container, if SRC_PATH is '-' the data is read as a tar
+// archive file from STDIN, and the destination CONTAINER:DEST_PATH, must specify
 // a directory.
 //
 // Usage:
-// 	docker cp CONTAINER:PATH LOCALPATH|-
-// 	docker cp LOCALPATH|- CONTAINER:PATH
+// 	docker cp CONTAINER:SRC_PATH DEST_PATH|-
+// 	docker cp SRC_PATH|- CONTAINER:DEST_PATH
 func (cli *DockerCli) CmdCp(args ...string) error {
 	cmd := Cli.Subcmd(
 		"cp",
-		[]string{"CONTAINER:PATH LOCALPATH|-", "LOCALPATH|- CONTAINER:PATH"},
+		[]string{"CONTAINER:SRC_PATH DEST_PATH|-", "SRC_PATH|- CONTAINER:DEST_PATH"},
 		strings.Join([]string{
 			Cli.DockerCommands["cp"].Description,
 			"\nUse '-' as the source to read a tar archive from stdin\n",
@@ -51,6 +55,8 @@ func (cli *DockerCli) CmdCp(args ...string) error {
 		}, ""),
 		true,
 	)
+
+	followLink := cmd.Bool([]string{"L", "-follow-link"}, false, "Always follow symbol link in SRC_PATH")
 
 	cmd.Require(flag.Exact, 2)
 	cmd.ParseFlags(args, true)
@@ -73,11 +79,15 @@ func (cli *DockerCli) CmdCp(args ...string) error {
 		direction |= toContainer
 	}
 
+	cpParam := &cpConfig{
+		followLink: *followLink,
+	}
+
 	switch direction {
 	case fromContainer:
-		return cli.copyFromContainer(srcContainer, srcPath, dstPath)
+		return cli.copyFromContainer(srcContainer, srcPath, dstPath, cpParam)
 	case toContainer:
-		return cli.copyToContainer(srcPath, dstContainer, dstPath)
+		return cli.copyToContainer(srcPath, dstContainer, dstPath, cpParam)
 	case acrossContainers:
 		// Copying between containers isn't supported.
 		return fmt.Errorf("copying between containers is not supported")
@@ -161,13 +171,33 @@ func resolveLocalPath(localPath string) (absPath string, err error) {
 	return archive.PreserveTrailingDotOrSeparator(absPath, localPath), nil
 }
 
-func (cli *DockerCli) copyFromContainer(srcContainer, srcPath, dstPath string) (err error) {
+func (cli *DockerCli) copyFromContainer(srcContainer, srcPath, dstPath string, cpParam *cpConfig) (err error) {
 	if dstPath != "-" {
 		// Get an absolute destination path.
 		dstPath, err = resolveLocalPath(dstPath)
 		if err != nil {
 			return err
 		}
+	}
+
+	// if client requests to follow symbol link, then must decide target file to be copied
+	var rebaseName string
+	if cpParam.followLink {
+		srcStat, err := cli.statContainerPath(srcContainer, srcPath)
+
+		// If the destination is a symbolic link, we should follow it.
+		if err == nil && srcStat.Mode&os.ModeSymlink != 0 {
+			linkTarget := srcStat.LinkTarget
+			if !system.IsAbs(linkTarget) {
+				// Join with the parent directory.
+				srcParent, _ := archive.SplitPathDirEntry(srcPath)
+				linkTarget = filepath.Join(srcParent, linkTarget)
+			}
+
+			linkTarget, rebaseName = archive.GetRebaseName(srcPath, linkTarget)
+			srcPath = linkTarget
+		}
+
 	}
 
 	query := make(url.Values, 1)
@@ -205,18 +235,24 @@ func (cli *DockerCli) copyFromContainer(srcContainer, srcPath, dstPath string) (
 
 	// Prepare source copy info.
 	srcInfo := archive.CopyInfo{
-		Path:   srcPath,
-		Exists: true,
-		IsDir:  stat.Mode.IsDir(),
+		Path:       srcPath,
+		Exists:     true,
+		IsDir:      stat.Mode.IsDir(),
+		RebaseName: rebaseName,
 	}
 
+	preArchive := response.body
+	if len(srcInfo.RebaseName) != 0 {
+		_, srcBase := archive.SplitPathDirEntry(srcInfo.Path)
+		preArchive = archive.RebaseArchiveEntries(response.body, srcBase, srcInfo.RebaseName)
+	}
 	// See comments in the implementation of `archive.CopyTo` for exactly what
 	// goes into deciding how and whether the source archive needs to be
 	// altered for the correct copy behavior.
-	return archive.CopyTo(response.body, srcInfo, dstPath)
+	return archive.CopyTo(preArchive, srcInfo, dstPath)
 }
 
-func (cli *DockerCli) copyToContainer(srcPath, dstContainer, dstPath string) (err error) {
+func (cli *DockerCli) copyToContainer(srcPath, dstContainer, dstPath string, cpParam *cpConfig) (err error) {
 	if srcPath != "-" {
 		// Get an absolute source path.
 		srcPath, err = resolveLocalPath(srcPath)
@@ -271,7 +307,7 @@ func (cli *DockerCli) copyToContainer(srcPath, dstContainer, dstPath string) (er
 		}
 	} else {
 		// Prepare source copy info.
-		srcInfo, err := archive.CopyInfoSourcePath(srcPath)
+		srcInfo, err := archive.CopyInfoSourcePath(srcPath, cpParam.followLink)
 		if err != nil {
 			return err
 		}

@@ -10,81 +10,79 @@ parent = "smn_cli"
 
 # cp
 
-    Usage: docker cp [OPTIONS] CONTAINER:PATH LOCALPATH|-
-           docker cp [OPTIONS] LOCALPATH|- CONTAINER:PATH
+    Usage: docker cp [OPTIONS] CONTAINER:SRC_PATH DEST_PATH | -
+           docker cp [OPTIONS] SRC_PATH | - CONTAINER:DEST_PATH
 
     Copy files/folders between a container and the local filesystem
 
-      --help=false        Print usage
+      -L, --follow-link=false    Always follow symbol link in SRC_PATH
+      --help=false               Print usage
 
-In the first synopsis form, the `docker cp` utility copies the contents of
-`PATH` from the filesystem of `CONTAINER` to the `LOCALPATH` (or stream as
-a tar archive to `STDOUT` if `-` is specified).
+The `docker cp` utility copies the contents of `SRC_PATH` to the `DEST_PATH`.
+You can copy from the container's file system to the local machine or the
+reverse, from the local filesystem to the container. If `-` is specified for
+either the `SRC_PATH` or `DEST_PATH`, you can also stream a tar archive from
+`STDIN` or to `STDOUT`. The `CONTAINER` can be a running or stopped container.
+The `SRC_PATH` or `DEST_PATH` be a file or directory.
 
-In the second synopsis form, the contents of `LOCALPATH` (or a tar archive
-streamed from `STDIN` if `-` is specified) are copied from the local machine to
-`PATH` in the filesystem of `CONTAINER`.
+The `docker cp` command assumes container paths are relative to the container's 
+`/` (root) directory. This means supplying the initial forward slash is optional;
+The command sees `compassionate_darwin:/tmp/foo/myfile.txt` and
+`compassionate_darwin:tmp/foo/myfile.txt` as identical. Local machine paths can
+be an absolute or relative value. The command interprets a local machine's
+relative paths as relative to the current working directory where `docker cp` is
+run.
 
-You can copy to or from either a running or stopped container. The `PATH` can
-be a file or directory. The `docker cp` command assumes all `CONTAINER:PATH`
-values are relative to the `/` (root) directory of the container. This means
-supplying the initial forward slash is optional; The command sees
-`compassionate_darwin:/tmp/foo/myfile.txt` and
-`compassionate_darwin:tmp/foo/myfile.txt` as identical. If a `LOCALPATH` value
-is not absolute, is it considered relative to the current working directory.
-
-Behavior is similar to the common Unix utility `cp -a` in that directories are
+The `cp` command behaves like the Unix `cp -a` command in that directories are
 copied recursively with permissions preserved if possible. Ownership is set to
-the user and primary group on the receiving end of the transfer. For example,
-files copied to a container will be created with `UID:GID` of the root user.
-Files copied to the local machine will be created with the `UID:GID` of the
-user which invoked the `docker cp` command.
+the user and primary group at the destination. For example, files copied to a
+container are created with `UID:GID` of the root user. Files copied to the local
+machine are created with the `UID:GID` of the user which invoked the `docker cp`
+command.  If you specify the `-L` option, `docker cp` follows any symbolic link
+in the `SRC_PATH`.
 
 Assuming a path separator of `/`, a first argument of `SRC_PATH` and second
-argument of `DST_PATH`, the behavior is as follows:
+argument of `DEST_PATH`, the behavior is as follows:
 
 - `SRC_PATH` specifies a file
-    - `DST_PATH` does not exist
-        - the file is saved to a file created at `DST_PATH`
-    - `DST_PATH` does not exist and ends with `/`
+    - `DEST_PATH` does not exist
+        - the file is saved to a file created at `DEST_PATH`
+    - `DEST_PATH` does not exist and ends with `/`
         - Error condition: the destination directory must exist.
-    - `DST_PATH` exists and is a file
-        - the destination is overwritten with the contents of the source file
-    - `DST_PATH` exists and is a directory
+    - `DEST_PATH` exists and is a file
+        - the destination is overwritten with the source file's contents
+    - `DEST_PATH` exists and is a directory
         - the file is copied into this directory using the basename from
           `SRC_PATH`
 - `SRC_PATH` specifies a directory
-    - `DST_PATH` does not exist
-        - `DST_PATH` is created as a directory and the *contents* of the source
+    - `DEST_PATH` does not exist
+        - `DEST_PATH` is created as a directory and the *contents* of the source
            directory are copied into this directory
-    - `DST_PATH` exists and is a file
+    - `DEST_PATH` exists and is a file
         - Error condition: cannot copy a directory to a file
-    - `DST_PATH` exists and is a directory
+    - `DEST_PATH` exists and is a directory
         - `SRC_PATH` does not end with `/.`
             - the source directory is copied into this directory
         - `SRC_PATH` does end with `/.`
             - the *content* of the source directory is copied into this
               directory
 
-The command requires `SRC_PATH` and `DST_PATH` to exist according to the above
+The command requires `SRC_PATH` and `DEST_PATH` to exist according to the above
 rules. If `SRC_PATH` is local and is a symbolic link, the symbolic link, not
-the target, is copied.
+the target, is copied by default. To copy the link target and not the link, specify 
+the `-L` option.
 
-A colon (`:`) is used as a delimiter between `CONTAINER` and `PATH`, but `:`
-could also be in a valid `LOCALPATH`, like `file:name.txt`. This ambiguity is
-resolved by requiring a `LOCALPATH` with a `:` to be made explicit with a
-relative or absolute path, for example:
+A colon (`:`) is used as a delimiter between `CONTAINER` and its path. You can
+also use `:` when specifying paths to a `SRC_PATH` or `DEST_PATH` on a local
+machine, for example  `file:name.txt`. If you use a `:` in a local machine path,
+you must be explicit with a relative or absolute path, for example:
 
     `/path/to/file:name.txt` or `./file:name.txt`
 
 It is not possible to copy certain system files such as resources under
 `/proc`, `/sys`, `/dev`, and mounts created by the user in the container.
 
-Using `-` as the first argument in place of a `LOCALPATH` will stream the
-contents of `STDIN` as a tar archive which will be extracted to the `PATH` in
-the filesystem of the destination container. In this case, `PATH` must specify
-a directory.
-
-Using `-` as the second argument in place of a `LOCALPATH` will stream the
-contents of the resource from the source container as a tar archive to
-`STDOUT`.
+Using `-` as the `SRC_PATH` streams the contents of `STDIN` as a tar archive.
+The command extracts the content of the tar to the `DEST_PATH` in container's
+filesystem. In this case, `DEST_PATH` must specify a directory. Using `-` as
+`DEST_PATH` streams the contents of the resource as a tar archive to `STDOUT`.
