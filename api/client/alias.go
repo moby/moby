@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-func IsComplexAlias(aliasCmd string) bool {
+func isComplexAlias(aliasCmd string) bool {
 	return strings.Index(aliasCmd, "!") == 0
 }
 
@@ -50,9 +50,8 @@ func deleteAlias(cli *DockerCli, key string) error {
 	delete(cli.configFile.Aliases, key)
 	if err := cli.configFile.Save(); err != nil {
 		return fmt.Errorf("Error saving config file: %v", err)
-	} else {
-		fmt.Fprintf(cli.out, "Alias %s has been deleted\n", key)
 	}
+	fmt.Fprintf(cli.out, "Alias %s has been deleted\n", key)
 	return nil
 }
 
@@ -63,9 +62,8 @@ func saveAlias(cli *DockerCli, alias string, command []string) error {
 	cli.configFile.Aliases[alias] = command
 	if err := cli.configFile.Save(); err != nil {
 		return fmt.Errorf("Error saving config file: %v", err)
-	} else {
-		fmt.Fprintf(cli.out, "Alias %v has been updated\n", alias)
 	}
+	fmt.Fprintf(cli.out, "Alias %v has been updated\n", alias)
 	return nil
 }
 

@@ -64,20 +64,20 @@ type DockerCli struct {
 
 // Initialize calls the init function that will setup the configuration for the client
 // such as the TLS, tcp and other parameters used to run the client.
-func (cli *DockerCli) Initialize() error {
-	if cli.init == nil {
+func (dockerCli *DockerCli) Initialize() error {
+	if dockerCli.init == nil {
 		return nil
 	}
-	return cli.init()
+	return dockerCli.init()
 }
 
 // CheckTtyInput checks if we are trying to attach to a container tty
 // from a non-tty client input stream, and if so, returns an error.
-func (cli *DockerCli) CheckTtyInput(attachStdin, ttyMode bool) error {
+func (dockerCli *DockerCli) CheckTtyInput(attachStdin, ttyMode bool) error {
 	// In order to attach to a container tty, input stream for the client must
 	// be a tty itself: redirecting or piping the client standard input is
 	// incompatible with `docker run -t`, `docker exec -t` or `docker attach`.
-	if ttyMode && attachStdin && !cli.isTerminalIn {
+	if ttyMode && attachStdin && !dockerCli.isTerminalIn {
 		return errors.New("cannot enable tty mode on non tty input")
 	}
 	return nil
@@ -85,8 +85,8 @@ func (cli *DockerCli) CheckTtyInput(attachStdin, ttyMode bool) error {
 
 // PsFormat returns the format string specified in the configuration.
 // String contains columns and format specification, for example {{ID}\t{{Name}}.
-func (cli *DockerCli) PsFormat() string {
-	return cli.configFile.PsFormat
+func (dockerCli *DockerCli) PsFormat() string {
+	return dockerCli.configFile.PsFormat
 }
 
 // NewDockerCli returns a DockerCli instance with IO output and error streams set by in, out and err.
@@ -176,24 +176,26 @@ func NewDockerCli(in io.ReadCloser, out, err io.Writer, clientFlags *cli.ClientF
 	return cli
 }
 
+// ResolveAlias tries to match name with an alias
+// if there is a match, it returns an Alias object
 func (dockerCli *DockerCli) ResolveAlias(aliasName string) (alias cli.Alias, aliasResolved bool) {
 	dockerCli.initConfig()
 	if aliasCmd, exists := dockerCli.configFile.Aliases[aliasName]; exists {
-		if IsComplexAlias(aliasCmd[0]) {
+		if isComplexAlias(aliasCmd[0]) {
 			// if cmd starts with a ! it's a complex alias
 			return &cli.ComplexAlias{SimpleAlias: cli.SimpleAlias{Name: aliasName, Cmd: aliasCmd}, CmdExecutor: dockerCli.ComplexAliasExecutor}, true
-		} else {
-			//simple case
-			return &cli.SimpleAlias{Name: aliasName, Cmd: aliasCmd}, true
 		}
+		//simple case
+		return &cli.SimpleAlias{Name: aliasName, Cmd: aliasCmd}, true
 	}
 	return nil, false
 }
 
-func (cli *DockerCli) ComplexAliasExecutor(args []string) error {
+// ComplexAliasExecutor executes the given aliasCommand in a shell
+func (dockerCli *DockerCli) ComplexAliasExecutor(aliasCommand []string) error {
 	// strip leading '!'
-	args[0] = args[0][1:]
-	cmdString := strings.Join(args, " ")
+	aliasCommand[0] = aliasCommand[0][1:]
+	cmdString := strings.Join(aliasCommand, " ")
 
 	cmd := exec.Command("sh", "-c", cmdString)
 

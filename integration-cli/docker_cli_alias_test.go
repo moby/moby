@@ -80,9 +80,9 @@ func (s *DockerSuite) TestAliasSimpleRun(c *check.C) {
 	dockerCmd(c, "alias", "r", "run", "-d")
 
 	out, _ := dockerCmd(c, "r", "busybox", "top")
-	containerId := strings.TrimSpace(out)
+	containerID := strings.TrimSpace(out)
 
-	c.Assert(waitRun(containerId), check.IsNil)
+	c.Assert(waitRun(containerID), check.IsNil)
 }
 
 func (s *DockerSuite) TestAliasComplexRun(c *check.C) {
@@ -92,8 +92,8 @@ func (s *DockerSuite) TestAliasComplexRun(c *check.C) {
 	out, _ := dockerCmd(c, "alias")
 	c.Assert(out, check.Equals, "alias r=!f(){ docker run -d $*; }; f\n")
 
-	containerId, _ := dockerCmd(c, "r", "busybox", "top")
-	containerId = strings.TrimSpace(containerId)
+	containerID, _ := dockerCmd(c, "r", "busybox", "top")
+	containerID = strings.TrimSpace(containerID)
 
-	c.Assert(waitRun(containerId), check.IsNil)
+	c.Assert(waitRun(containerID), check.IsNil)
 }
