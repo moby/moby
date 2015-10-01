@@ -16,7 +16,6 @@ import (
 	"runtime"
 	"sort"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/Sirupsen/logrus"
@@ -337,23 +336,19 @@ func calcCopyInfo(b *builder, cmdName string, cInfos *[]*copyInfo, origPath stri
 
 		// Set the mtime to the Last-Modified header value if present
 		// Otherwise just remove atime and mtime
-		times := make([]syscall.Timespec, 2)
+		mTime := time.Time{}
 
 		lastMod := resp.Header.Get("Last-Modified")
 		if lastMod != "" {
-			mTime, err := http.ParseTime(lastMod)
 			// If we can't parse it then just let it default to 'zero'
 			// otherwise use the parsed time value
-			if err == nil {
-				times[1] = syscall.NsecToTimespec(mTime.UnixNano())
+			if parsedMTime, err := http.ParseTime(lastMod); err == nil {
+				mTime = parsedMTime
 			}
 		}
 
-		// Windows does not support UtimesNano.
-		if runtime.GOOS != "windows" {
-			if err := system.UtimesNano(tmpFileName, times); err != nil {
-				return err
-			}
+		if err := system.Chtimes(tmpFileName, time.Time{}, mTime); err != nil {
+			return err
 		}
 
 		ci.origPath = filepath.Join(filepath.Base(tmpDirName), filepath.Base(tmpFileName))
