@@ -425,7 +425,7 @@ func (s *router) postBuild(ctx context.Context, w http.ResponseWriter, r *http.R
 	}
 
 	if repoName != "" {
-		if err := s.daemon.Repositories().Tag(repoName, tag, string(imgID), true); err != nil {
+		if err := s.daemon.TagImage(repoName, tag, string(imgID), true); err != nil {
 			return errf(err)
 		}
 	}
