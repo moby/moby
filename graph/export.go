@@ -2,10 +2,12 @@ package graph
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/archive"
@@ -88,6 +90,9 @@ func (s *TagStore) ImageExport(names []string, outStream io.Writer) error {
 		if err := f.Close(); err != nil {
 			return err
 		}
+		if err := os.Chtimes(filepath.Join(tempdir, "repositories"), time.Unix(0, 0), time.Unix(0, 0)); err != nil {
+			return err
+		}
 	} else {
 		logrus.Debugf("There were no repositories to write")
 	}
@@ -128,7 +133,11 @@ func (s *TagStore) exportImage(name, tempdir string) error {
 		if err != nil {
 			return err
 		}
-		imageInspectRaw, err := s.lookupRaw(n)
+		img, err := s.LookupImage(n)
+		if err != nil || img == nil {
+			return fmt.Errorf("No such image %s", n)
+		}
+		imageInspectRaw, err := s.graph.RawJSON(img.ID)
 		if err != nil {
 			return err
 		}
@@ -149,11 +158,13 @@ func (s *TagStore) exportImage(name, tempdir string) error {
 			return err
 		}
 
-		// find parent
-		img, err := s.LookupImage(n)
-		if err != nil {
-			return err
+		for _, fname := range []string{"", "VERSION", "json", "layer.tar"} {
+			if err := os.Chtimes(filepath.Join(tmpImageDir, fname), img.Created, img.Created); err != nil {
+				return err
+			}
 		}
+
+		// try again with parent
 		n = img.Parent
 	}
 	return nil
