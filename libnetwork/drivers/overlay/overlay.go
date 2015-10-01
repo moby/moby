@@ -6,6 +6,7 @@ import (
 	"net"
 	"sync"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/libkv/store"
 	"github.com/docker/libnetwork/config"
 	"github.com/docker/libnetwork/datastore"
@@ -29,7 +30,7 @@ type driver struct {
 	eventCh      chan serf.Event
 	notifyCh     chan ovNotify
 	exitCh       chan chan struct{}
-	ifaceName    string
+	bindAddress  string
 	neighIP      string
 	config       map[string]interface{}
 	peerDb       peerNetworkMap
@@ -38,7 +39,8 @@ type driver struct {
 	store        datastore.DataStore
 	ipAllocator  *idm.Idm
 	vxlanIdm     *idm.Idm
-	sync.Once
+	once         sync.Once
+	joinOnce     sync.Once
 	sync.Mutex
 }
 
@@ -107,15 +109,7 @@ func (d *driver) configure() error {
 		return nil
 	}
 
-	d.Do(func() {
-		if ifaceName, ok := d.config[netlabel.OverlayBindInterface]; ok {
-			d.ifaceName = ifaceName.(string)
-		}
-
-		if neighIP, ok := d.config[netlabel.OverlayNeighborIP]; ok {
-			d.neighIP = neighIP.(string)
-		}
-
+	d.once.Do(func() {
 		provider, provOk := d.config[netlabel.KVProvider]
 		provURL, urlOk := d.config[netlabel.KVProviderURL]
 
@@ -148,12 +142,6 @@ func (d *driver) configure() error {
 			err = fmt.Errorf("failed to initalize ipam id manager: %v", err)
 			return
 		}
-
-		err = d.serfInit()
-		if err != nil {
-			err = fmt.Errorf("initializing serf instance failed: %v", err)
-		}
-
 	})
 
 	return err
@@ -161,4 +149,51 @@ func (d *driver) configure() error {
 
 func (d *driver) Type() string {
 	return networkType
+}
+
+func (d *driver) nodeJoin(node string, self bool) {
+	if self && node != "" && !d.isSerfAlive() {
+		d.Lock()
+		d.bindAddress = node
+		d.Unlock()
+		err := d.serfInit()
+		if err != nil {
+			logrus.Errorf("initializing serf instance failed: %v", err)
+			return
+		}
+	}
+
+	if d.serfInstance != nil && !self && node != "" {
+		var err error
+		d.joinOnce.Do(func() {
+			d.Lock()
+			d.neighIP = node
+			d.Unlock()
+			err = d.serfJoin()
+		})
+		if err != nil {
+			logrus.Errorf("joining serf neighbor %s failed: %v", node, err)
+			d.Lock()
+			d.joinOnce = sync.Once{}
+			d.Unlock()
+			return
+		}
+	}
+}
+
+// DiscoverNew is a notification for a new discovery event, such as a new node joining a cluster
+func (d *driver) DiscoverNew(dType driverapi.DiscoveryType, data interface{}) error {
+	if dType == driverapi.NodeDiscovery {
+		nodeData, ok := data.(driverapi.NodeDiscoveryData)
+		if !ok {
+			return fmt.Errorf("invalid discovery data")
+		}
+		d.nodeJoin(nodeData.Address, nodeData.Self)
+	}
+	return nil
+}
+
+// DiscoverDelete is a notification for a discovery delete event, such as a node leaving a cluster
+func (d *driver) DiscoverDelete(dType driverapi.DiscoveryType, data interface{}) error {
+	return nil
 }

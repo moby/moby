@@ -70,6 +70,9 @@ title = "LibNetwork Configuration file"
 [daemon]
   debug = false
   labels = [${labels}]
+[cluster]
+  discovery = "consul://${bridge_ip}:8500"
+  Heartbeat = 10
 [globalstore]
   embedded = false
 [globalstore.client]

@@ -335,6 +335,12 @@ func TestRemoteDriver(t *testing.T) {
 			},
 		}
 	})
+	handle(t, mux, "DiscoverNew", func(msg map[string]interface{}) interface{} {
+		return map[string]string{}
+	})
+	handle(t, mux, "DiscoverDelete", func(msg map[string]interface{}) interface{} {
+		return map[string]interface{}{}
+	})
 
 	p, err := plugins.Get(plugin, driverapi.NetworkPluginEndpointType)
 	if err != nil {
@@ -380,6 +386,16 @@ func TestRemoteDriver(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err = d.DeleteNetwork(netID); err != nil {
+		t.Fatal(err)
+	}
+
+	data := driverapi.NodeDiscoveryData{
+		Address: "192.168.1.1",
+	}
+	if err = d.DiscoverNew(driverapi.NodeDiscovery, data); err != nil {
+		t.Fatal(err)
+	}
+	if err = d.DiscoverDelete(driverapi.NodeDiscovery, data); err != nil {
 		t.Fatal(err)
 	}
 }
