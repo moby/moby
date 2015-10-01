@@ -1800,23 +1800,6 @@ func (devices *DeviceSet) HasDevice(hash string) bool {
 	return info != nil
 }
 
-// HasActivatedDevice return true if the device exists.
-func (devices *DeviceSet) HasActivatedDevice(hash string) bool {
-	info, _ := devices.lookupDevice(hash)
-	if info == nil {
-		return false
-	}
-
-	info.lock.Lock()
-	defer info.lock.Unlock()
-
-	devices.Lock()
-	defer devices.Unlock()
-
-	devinfo, _ := devicemapper.GetInfo(info.Name())
-	return devinfo != nil && devinfo.Exists != 0
-}
-
 // List returns a list of device ids.
 func (devices *DeviceSet) List() []string {
 	devices.Lock()
