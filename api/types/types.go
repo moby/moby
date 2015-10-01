@@ -178,6 +178,7 @@ type Version struct {
 	KernelVersion string `json:",omitempty"`
 	Experimental  bool   `json:",omitempty"`
 	BuildTime     string `json:",omitempty"`
+	PkgVersion    string `json:",omitempty"`
 }
 
 // Info contains response of Remote API:

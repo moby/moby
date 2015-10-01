@@ -10,26 +10,29 @@ import (
 	"github.com/docker/docker/autogen/dockerversion"
 	Cli "github.com/docker/docker/cli"
 	flag "github.com/docker/docker/pkg/mflag"
+	"github.com/docker/docker/pkg/rpm"
 	"github.com/docker/docker/utils"
 )
 
 var versionTemplate = `Client:
- Version:      {{.Client.Version}}
- API version:  {{.Client.APIVersion}}
- Go version:   {{.Client.GoVersion}}
- Git commit:   {{.Client.GitCommit}}
- Built:        {{.Client.BuildTime}}
- OS/Arch:      {{.Client.Os}}/{{.Client.Arch}}{{if .Client.Experimental}}
- Experimental: {{.Client.Experimental}}{{end}}{{if .ServerOK}}
+ Version:         {{.Client.Version}}
+ API version:     {{.Client.APIVersion}}
+ Package version: {{.Client.PkgVersion}}
+ Go version:      {{.Client.GoVersion}}
+ Git commit:      {{.Client.GitCommit}}
+ Built:           {{.Client.BuildTime}}
+ OS/Arch:         {{.Client.Os}}/{{.Client.Arch}}{{if .Client.Experimental}}
+ Experimental:    {{.Client.Experimental}}{{end}}{{if .ServerOK}}
 
 Server:
- Version:      {{.Server.Version}}
- API version:  {{.Server.APIVersion}}
- Go version:   {{.Server.GoVersion}}
- Git commit:   {{.Server.GitCommit}}
- Built:        {{.Server.BuildTime}}
- OS/Arch:      {{.Server.Os}}/{{.Server.Arch}}{{if .Server.Experimental}}
- Experimental: {{.Server.Experimental}}{{end}}{{end}}`
+ Version:         {{.Server.Version}}
+ API version:     {{.Server.APIVersion}}
+ Package version: {{.Server.PkgVersion}}
+ Go version:      {{.Server.GoVersion}}
+ Git commit:      {{.Server.GitCommit}}
+ Built:           {{.Server.BuildTime}}
+ OS/Arch:         {{.Server.Os}}/{{.Server.Arch}}{{if .Server.Experimental}}
+ Experimental:    {{.Server.Experimental}}{{end}}{{end}}`
 
 type versionData struct {
 	Client   types.Version
@@ -58,6 +61,7 @@ func (cli *DockerCli) CmdVersion(args ...string) (err error) {
 			Status: "Template parsing error: " + err.Error()}
 	}
 
+	packageVersion, _ := rpm.Version("/usr/bin/docker")
 	vd := versionData{
 		Client: types.Version{
 			Version:      dockerversion.VERSION,
@@ -68,6 +72,7 @@ func (cli *DockerCli) CmdVersion(args ...string) (err error) {
 			Os:           runtime.GOOS,
 			Arch:         runtime.GOARCH,
 			Experimental: utils.ExperimentalBuild(),
+			PkgVersion:   packageVersion,
 		},
 	}
 
