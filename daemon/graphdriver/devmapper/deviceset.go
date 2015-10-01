@@ -405,11 +405,6 @@ func (devices *DeviceSet) deviceFileWalkFunction(path string, finfo os.FileInfo)
 		return fmt.Errorf("Error loading device metadata file %s", hash)
 	}
 
-	if dinfo.DeviceID > maxDeviceID {
-		logrus.Errorf("Ignoring Invalid DeviceID=%d", dinfo.DeviceID)
-		return nil
-	}
-
 	devices.Lock()
 	devices.markDeviceIDUsed(dinfo.DeviceID)
 	devices.Unlock()
@@ -712,6 +707,11 @@ func (devices *DeviceSet) loadMetadata(hash string) *devInfo {
 	}
 
 	if err := json.Unmarshal(jsonData, &info); err != nil {
+		return nil
+	}
+
+	if info.DeviceID > maxDeviceID {
+		logrus.Errorf("Ignoring Invalid DeviceId=%d", info.DeviceID)
 		return nil
 	}
 
@@ -1477,12 +1477,10 @@ func (devices *DeviceSet) deleteDevice(info *devInfo) error {
 		}
 	}
 
-	devinfo, _ := devicemapper.GetInfo(info.Name())
-	if devinfo != nil && devinfo.Exists != 0 {
-		if err := devices.removeDevice(info.Name()); err != nil {
-			logrus.Debugf("Error removing device: %s", err)
-			return err
-		}
+	// Try to deactivate deivce in case it is active.
+	if err := devices.deactivateDevice(info); err != nil {
+		logrus.Debugf("Error deactivating device: %s", err)
+		return err
 	}
 
 	if err := devices.openTransaction(info.Hash, info.DeviceID); err != nil {
