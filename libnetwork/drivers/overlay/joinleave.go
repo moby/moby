@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"net"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/docker/libnetwork/driverapi"
+	"github.com/docker/libnetwork/types"
 	"github.com/vishvananda/netlink"
 )
 
@@ -76,6 +78,15 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 
 	if err := netlink.LinkSetHardwareAddr(veth, ep.mac); err != nil {
 		return fmt.Errorf("could not set mac address (%v) to the container interface: %v", ep.mac, err)
+	}
+
+	for _, sub := range n.subnets {
+		if sub == s {
+			continue
+		}
+		if err := jinfo.AddStaticRoute(sub.subnetIP, types.NEXTHOP, s.gwIP.IP); err != nil {
+			log.Errorf("Adding subnet %s static route in network %q failed\n", s.subnetIP, n.id)
+		}
 	}
 
 	if iNames := jinfo.InterfaceName(); iNames != nil {
