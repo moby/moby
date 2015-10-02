@@ -75,6 +75,10 @@ func (s *router) postContainerExecStart(ctx context.Context, w http.ResponseWrit
 		return err
 	}
 
+	if exists, err := s.daemon.ExecExists(execName); !exists {
+		return err
+	}
+
 	if !execStartCheck.Detach {
 		var err error
 		// Setting up the streaming http interface.
@@ -102,6 +106,9 @@ func (s *router) postContainerExecStart(ctx context.Context, w http.ResponseWrit
 
 	// Now run the user process in container.
 	if err := s.daemon.ContainerExecStart(execName, stdin, stdout, stderr); err != nil {
+		if execStartCheck.Detach {
+			return err
+		}
 		fmt.Fprintf(outStream, "Error running exec in container: %v\n", err)
 	}
 	return nil
