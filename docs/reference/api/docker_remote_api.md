@@ -89,6 +89,7 @@ list of DNS options to be used in the container.
 * `POST /build` now optionally takes a serialized map of build-time variables.
 * `GET /events` now includes a `timenano` field, in addition to the existing `time` field.
 * `GET /info` now lists engine version information.
+* `GET /containers/json` will return `ImageID` of the image used by container.
 
 ### v1.20 API changes
 
