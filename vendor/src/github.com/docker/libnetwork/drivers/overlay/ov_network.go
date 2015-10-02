@@ -156,22 +156,7 @@ func (n *network) initSandbox() error {
 		return fmt.Errorf("could not create bridge inside the network sandbox: %v", err)
 	}
 
-	vxlanName, err := createVxlan(n.vxlanID())
-	if err != nil {
-		return err
-	}
-
-	if err := sbox.AddInterface(vxlanName, "vxlan",
-		sbox.InterfaceOptions().Master("bridge1")); err != nil {
-		return fmt.Errorf("could not add vxlan interface inside the network sandbox: %v",
-			err)
-	}
-
-	n.vxlanName = vxlanName
-
 	n.setSandbox(sbox)
-
-	n.driver.peerDbUpdateSandbox(n.id)
 
 	var nlSock *nl.NetlinkSocket
 	sbox.InvokeFunc(func() {
@@ -182,7 +167,27 @@ func (n *network) initSandbox() error {
 	})
 
 	go n.watchMiss(nlSock)
+	return n.initVxlan()
+}
 
+func (n *network) initVxlan() error {
+	var vxlanName string
+	n.Lock()
+	sbox := n.sbox
+	n.Unlock()
+
+	vxlanName, err := createVxlan(n.vxlanID())
+	if err != nil {
+		return err
+	}
+
+	if err = sbox.AddInterface(vxlanName, "vxlan",
+		sbox.InterfaceOptions().Master("bridge1")); err != nil {
+		return fmt.Errorf("could not add vxlan interface inside the network sandbox: %v", err)
+	}
+
+	n.vxlanName = vxlanName
+	n.driver.peerDbUpdateSandbox(n.id)
 	return nil
 }
 
