@@ -5,6 +5,7 @@ import (
 	"mime"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/Sirupsen/logrus"
@@ -37,22 +38,17 @@ func (r byPrivatePort) Less(i, j int) bool { return r[i].PrivatePort < r[j].Priv
 // e.g. "0.0.0.0:80->9090/tcp, 9988/tcp"
 // it's used by command 'docker ps'
 func DisplayablePorts(ports []types.Port) string {
-	var (
-		result          = []string{}
-		hostMappings    = []string{}
-		firstInGroupMap map[string]int
-		lastInGroupMap  map[string]int
-	)
-	firstInGroupMap = make(map[string]int)
-	lastInGroupMap = make(map[string]int)
+	type portGroup struct {
+		first int
+		last  int
+	}
+	groupMap := make(map[string]*portGroup)
+	var result []string
+	var hostMappings []string
 	sort.Sort(byPrivatePort(ports))
 	for _, port := range ports {
-		var (
-			current      = port.PrivatePort
-			portKey      = port.Type
-			firstInGroup int
-			lastInGroup  int
-		)
+		current := port.PrivatePort
+		portKey := port.Type
 		if port.IP != "" {
 			if port.PublicPort != current {
 				hostMappings = append(hostMappings, fmt.Sprintf("%s:%d->%d/%s", port.IP, port.PublicPort, port.PrivatePort, port.Type))
@@ -60,45 +56,38 @@ func DisplayablePorts(ports []types.Port) string {
 			}
 			portKey = fmt.Sprintf("%s/%s", port.IP, port.Type)
 		}
-		firstInGroup = firstInGroupMap[portKey]
-		lastInGroup = lastInGroupMap[portKey]
+		group := groupMap[portKey]
 
-		if firstInGroup == 0 {
-			firstInGroupMap[portKey] = current
-			lastInGroupMap[portKey] = current
+		if group == nil {
+			groupMap[portKey] = &portGroup{first: current, last: current}
+			continue
+		}
+		if current == (group.last + 1) {
+			group.last = current
 			continue
 		}
 
-		if current == (lastInGroup + 1) {
-			lastInGroupMap[portKey] = current
-			continue
-		}
-		result = append(result, formGroup(portKey, firstInGroup, lastInGroup))
-		firstInGroupMap[portKey] = current
-		lastInGroupMap[portKey] = current
+		result = append(result, formGroup(portKey, group.first, group.last))
+		groupMap[portKey] = &portGroup{first: current, last: current}
 	}
-	for portKey, firstInGroup := range firstInGroupMap {
-		result = append(result, formGroup(portKey, firstInGroup, lastInGroupMap[portKey]))
+	for portKey, g := range groupMap {
+		result = append(result, formGroup(portKey, g.first, g.last))
 	}
 	result = append(result, hostMappings...)
 	return strings.Join(result, ", ")
 }
 
 func formGroup(key string, start, last int) string {
-	var (
-		group     string
-		parts     = strings.Split(key, "/")
-		groupType = parts[0]
-		ip        = ""
-	)
+	parts := strings.Split(key, "/")
+	groupType := parts[0]
+	var ip string
 	if len(parts) > 1 {
 		ip = parts[0]
 		groupType = parts[1]
 	}
-	if start == last {
-		group = fmt.Sprintf("%d", start)
-	} else {
-		group = fmt.Sprintf("%d-%d", start, last)
+	group := strconv.Itoa(start)
+	if start != last {
+		group = fmt.Sprintf("%s-%d", group, last)
 	}
 	if ip != "" {
 		group = fmt.Sprintf("%s:%s->%s", ip, group, group)
