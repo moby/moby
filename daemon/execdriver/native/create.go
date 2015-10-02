@@ -13,6 +13,7 @@ import (
 	"github.com/docker/libcontainer/apparmor"
 	"github.com/docker/libcontainer/configs"
 	"github.com/docker/libcontainer/devices"
+	"github.com/docker/libcontainer/utils"
 )
 
 // createContainer populates and configures the container type with the
@@ -79,9 +80,9 @@ func (d *driver) createContainer(c *execdriver.Command) (*configs.Config, error)
 func generateIfaceName(ethname string) (string, error) {
 	for i := 0; i < 15; i++ {
 		var name = ethname
-		/*if err != nil {
+		if err != nil {
 			continue
-		}*/
+		}
 		if _, err := net.InterfaceByName(name); err != nil {
 			if strings.Contains(err.Error(), "no such") {
 				return name, nil
