@@ -47,9 +47,11 @@ import (
 	"container/heap"
 	"fmt"
 	"net"
+	"strings"
 	"sync"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/docker/docker/pkg/discovery"
 	"github.com/docker/docker/pkg/plugins"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/libnetwork/config"
@@ -126,6 +128,7 @@ type controller struct {
 	sandboxes               sandboxTable
 	cfg                     *config.Config
 	globalStore, localStore datastore.DataStore
+	discovery               hostdiscovery.HostDiscovery
 	extKeyListener          net.Listener
 	sync.Mutex
 }
@@ -157,7 +160,7 @@ func New(cfgOptions ...config.Option) (NetworkController, error) {
 			// But it cannot fail creating the Controller
 			log.Debugf("Failed to Initialize Datastore due to %v. Operating in non-clustered mode", err)
 		}
-		if err := c.initDiscovery(); err != nil {
+		if err := c.initDiscovery(cfg.Cluster.Watcher); err != nil {
 			// Failing to initalize discovery is a bad situation to be in.
 			// But it cannot fail creating the Controller
 			log.Debugf("Failed to Initialize Discovery : %v", err)
@@ -185,19 +188,57 @@ func (c *controller) validateHostDiscoveryConfig() bool {
 	return true
 }
 
-func (c *controller) initDiscovery() error {
+func (c *controller) initDiscovery(watcher discovery.Watcher) error {
 	if c.cfg == nil {
 		return fmt.Errorf("discovery initialization requires a valid configuration")
 	}
 
-	hostDiscovery := hostdiscovery.NewHostDiscovery()
-	return hostDiscovery.StartDiscovery(&c.cfg.Cluster, c.hostJoinCallback, c.hostLeaveCallback)
+	c.discovery = hostdiscovery.NewHostDiscovery(watcher)
+	return c.discovery.Watch(c.hostJoinCallback, c.hostLeaveCallback)
 }
 
-func (c *controller) hostJoinCallback(hosts []net.IP) {
+func (c *controller) hostJoinCallback(nodes []net.IP) {
+	c.processNodeDiscovery(nodes, true)
 }
 
-func (c *controller) hostLeaveCallback(hosts []net.IP) {
+func (c *controller) hostLeaveCallback(nodes []net.IP) {
+	c.processNodeDiscovery(nodes, false)
+}
+
+func (c *controller) processNodeDiscovery(nodes []net.IP, add bool) {
+	c.Lock()
+	drivers := []*driverData{}
+	for _, d := range c.drivers {
+		drivers = append(drivers, d)
+	}
+	c.Unlock()
+
+	for _, d := range drivers {
+		c.pushNodeDiscovery(d, nodes, add)
+	}
+}
+
+func (c *controller) pushNodeDiscovery(d *driverData, nodes []net.IP, add bool) {
+	var self net.IP
+	if c.cfg != nil {
+		addr := strings.Split(c.cfg.Cluster.Address, ":")
+		self = net.ParseIP(addr[0])
+	}
+	if d == nil || d.capability.DataScope != datastore.GlobalScope || nodes == nil {
+		return
+	}
+	for _, node := range nodes {
+		nodeData := driverapi.NodeDiscoveryData{Address: node.String(), Self: node.Equal(self)}
+		var err error
+		if add {
+			err = d.driver.DiscoverNew(driverapi.NodeDiscovery, nodeData)
+		} else {
+			err = d.driver.DiscoverDelete(driverapi.NodeDiscovery, nodeData)
+		}
+		if err != nil {
+			log.Debugf("discovery notification error : %v", err)
+		}
+	}
 }
 
 func (c *controller) Config() config.Config {
@@ -219,8 +260,14 @@ func (c *controller) RegisterDriver(networkType string, driver driverapi.Driver,
 		c.Unlock()
 		return driverapi.ErrActiveRegistration(networkType)
 	}
-	c.drivers[networkType] = &driverData{driver, capability}
+	dData := &driverData{driver, capability}
+	c.drivers[networkType] = dData
+	hd := c.discovery
 	c.Unlock()
+
+	if hd != nil {
+		c.pushNodeDiscovery(dData, hd.Fetch(), true)
+	}
 
 	return nil
 }
@@ -483,6 +530,16 @@ func (c *controller) loadDriver(networkType string) (*driverData, error) {
 	dd, ok := c.drivers[networkType]
 	if !ok {
 		return nil, ErrInvalidNetworkDriver(networkType)
+	}
+	return dd, nil
+}
+
+func (c *controller) getDriver(networkType string) (*driverData, error) {
+	c.Lock()
+	defer c.Unlock()
+	dd, ok := c.drivers[networkType]
+	if !ok {
+		return nil, types.NotFoundErrorf("driver %s not found", networkType)
 	}
 	return dd, nil
 }
