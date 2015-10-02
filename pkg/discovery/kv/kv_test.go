@@ -9,58 +9,66 @@ import (
 	"github.com/docker/docker/pkg/discovery"
 	"github.com/docker/libkv/store"
 	libkvmock "github.com/docker/libkv/store/mock"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+
+	"github.com/go-check/check"
 )
 
-func TestInitialize(t *testing.T) {
+// Hook up gocheck into the "go test" runner.
+func Test(t *testing.T) { check.TestingT(t) }
+
+type DiscoverySuite struct{}
+
+var _ = check.Suite(&DiscoverySuite{})
+
+func (ds *DiscoverySuite) TestInitialize(c *check.C) {
 	storeMock, err := libkvmock.New([]string{"127.0.0.1"}, nil)
-	assert.NotNil(t, storeMock)
-	assert.NoError(t, err)
+	c.Assert(storeMock, check.NotNil)
+	c.Assert(err, check.IsNil)
 
 	d := &Discovery{backend: store.CONSUL}
 	d.Initialize("127.0.0.1", 0, 0)
 	d.store = storeMock
 
 	s := d.store.(*libkvmock.Mock)
-	assert.Len(t, s.Endpoints, 1)
-	assert.Equal(t, s.Endpoints[0], "127.0.0.1")
-	assert.Equal(t, d.path, discoveryPath)
+	c.Assert(s.Endpoints, check.HasLen, 1)
+	c.Assert(s.Endpoints[0], check.Equals, "127.0.0.1")
+	c.Assert(d.path, check.Equals, discoveryPath)
 
 	storeMock, err = libkvmock.New([]string{"127.0.0.1:1234"}, nil)
-	assert.NotNil(t, storeMock)
-	assert.NoError(t, err)
+	c.Assert(storeMock, check.NotNil)
+	c.Assert(err, check.IsNil)
 
 	d = &Discovery{backend: store.CONSUL}
 	d.Initialize("127.0.0.1:1234/path", 0, 0)
 	d.store = storeMock
 
 	s = d.store.(*libkvmock.Mock)
-	assert.Len(t, s.Endpoints, 1)
-	assert.Equal(t, s.Endpoints[0], "127.0.0.1:1234")
-	assert.Equal(t, d.path, "path/"+discoveryPath)
+	c.Assert(s.Endpoints, check.HasLen, 1)
+	c.Assert(s.Endpoints[0], check.Equals, "127.0.0.1:1234")
+	c.Assert(d.path, check.Equals, "path/"+discoveryPath)
 
 	storeMock, err = libkvmock.New([]string{"127.0.0.1:1234", "127.0.0.2:1234", "127.0.0.3:1234"}, nil)
-	assert.NotNil(t, storeMock)
-	assert.NoError(t, err)
+	c.Assert(storeMock, check.NotNil)
+	c.Assert(err, check.IsNil)
 
 	d = &Discovery{backend: store.CONSUL}
 	d.Initialize("127.0.0.1:1234,127.0.0.2:1234,127.0.0.3:1234/path", 0, 0)
 	d.store = storeMock
 
 	s = d.store.(*libkvmock.Mock)
-	if assert.Len(t, s.Endpoints, 3) {
-		assert.Equal(t, s.Endpoints[0], "127.0.0.1:1234")
-		assert.Equal(t, s.Endpoints[1], "127.0.0.2:1234")
-		assert.Equal(t, s.Endpoints[2], "127.0.0.3:1234")
-	}
-	assert.Equal(t, d.path, "path/"+discoveryPath)
+	c.Assert(s.Endpoints, check.HasLen, 3)
+	c.Assert(s.Endpoints[0], check.Equals, "127.0.0.1:1234")
+	c.Assert(s.Endpoints[1], check.Equals, "127.0.0.2:1234")
+	c.Assert(s.Endpoints[2], check.Equals, "127.0.0.3:1234")
+
+	c.Assert(d.path, check.Equals, "path/"+discoveryPath)
 }
 
-func TestWatch(t *testing.T) {
+func (ds *DiscoverySuite) TestWatch(c *check.C) {
 	storeMock, err := libkvmock.New([]string{"127.0.0.1:1234"}, nil)
-	assert.NotNil(t, storeMock)
-	assert.NoError(t, err)
+	c.Assert(storeMock, check.NotNil)
+	c.Assert(err, check.IsNil)
 
 	d := &Discovery{backend: store.CONSUL}
 	d.Initialize("127.0.0.1:1234/path", 0, 0)
@@ -86,7 +94,7 @@ func TestWatch(t *testing.T) {
 	ch, errCh := d.Watch(stopCh)
 
 	// It should fire an error since the first WatchTree call failed.
-	assert.EqualError(t, <-errCh, "test error")
+	c.Assert(<-errCh, check.ErrorMatches, "test error")
 	// We have to drain the error channel otherwise Watch will get stuck.
 	go func() {
 		for range errCh {
@@ -95,13 +103,13 @@ func TestWatch(t *testing.T) {
 
 	// Push the entries into the store channel and make sure discovery emits.
 	mockCh <- kvs
-	assert.Equal(t, <-ch, expected)
+	c.Assert(<-ch, check.DeepEquals, expected)
 
 	// Add a new entry.
 	expected = append(expected, &discovery.Entry{Host: "3.3.3.3", Port: "3333"})
 	kvs = append(kvs, &store.KVPair{Key: path.Join("path", discoveryPath, "3.3.3.3"), Value: []byte("3.3.3.3:3333")})
 	mockCh <- kvs
-	assert.Equal(t, <-ch, expected)
+	c.Assert(<-ch, check.DeepEquals, expected)
 
 	// Make sure that if an error occurs it retries.
 	// This third call to WatchTree will be checked later by AssertExpectations.
@@ -112,8 +120,8 @@ func TestWatch(t *testing.T) {
 
 	// Stop and make sure it closes all channels.
 	close(stopCh)
-	assert.Nil(t, <-ch)
-	assert.Nil(t, <-errCh)
+	c.Assert(<-ch, check.IsNil)
+	c.Assert(<-errCh, check.IsNil)
 
-	s.AssertExpectations(t)
+	s.AssertExpectations(c)
 }
