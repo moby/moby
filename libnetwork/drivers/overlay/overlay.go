@@ -152,7 +152,7 @@ func (d *driver) Type() string {
 }
 
 func (d *driver) nodeJoin(node string, self bool) {
-	if self && node != "" && !d.isSerfAlive() {
+	if self && !d.isSerfAlive() {
 		d.Lock()
 		d.bindAddress = node
 		d.Unlock()
@@ -163,13 +163,17 @@ func (d *driver) nodeJoin(node string, self bool) {
 		}
 	}
 
-	if d.serfInstance != nil && !self && node != "" {
+	d.Lock()
+	if !self {
+		d.neighIP = node
+	}
+	neighIP := d.neighIP
+	d.Unlock()
+
+	if d.serfInstance != nil && neighIP != "" {
 		var err error
 		d.joinOnce.Do(func() {
-			d.Lock()
-			d.neighIP = node
-			d.Unlock()
-			err = d.serfJoin()
+			err = d.serfJoin(neighIP)
 		})
 		if err != nil {
 			logrus.Errorf("joining serf neighbor %s failed: %v", node, err)
@@ -185,7 +189,7 @@ func (d *driver) nodeJoin(node string, self bool) {
 func (d *driver) DiscoverNew(dType driverapi.DiscoveryType, data interface{}) error {
 	if dType == driverapi.NodeDiscovery {
 		nodeData, ok := data.(driverapi.NodeDiscoveryData)
-		if !ok {
+		if !ok || nodeData.Address == "" {
 			return fmt.Errorf("invalid discovery data")
 		}
 		d.nodeJoin(nodeData.Address, nodeData.Self)
