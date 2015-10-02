@@ -288,8 +288,9 @@ func includeContainerInList(container *Container, ctx *listContext) iterationAct
 // transformContainer generates the container type expected by the docker ps command.
 func (daemon *Daemon) transformContainer(container *Container, ctx *listContext) (*types.Container, error) {
 	newC := &types.Container{
-		ID:    container.ID,
-		Names: ctx.names[container.ID],
+		ID:      container.ID,
+		Names:   ctx.names[container.ID],
+		ImageID: container.ImageID,
 	}
 
 	img, err := daemon.Repositories().LookupImage(container.Config.Image)
