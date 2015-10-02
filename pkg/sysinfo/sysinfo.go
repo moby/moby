@@ -1,5 +1,7 @@
 package sysinfo
 
+import "github.com/docker/docker/pkg/parsers"
+
 // SysInfo stores information about which features a kernel supports.
 // TODO Windows: Factor out platform specific capabilities.
 type SysInfo struct {
@@ -63,4 +65,41 @@ type cgroupBlkioInfo struct {
 type cgroupCpusetInfo struct {
 	// Whether Cpuset is supported or not
 	Cpuset bool
+
+	// Available Cpuset's cpus
+	Cpus string
+
+	// Available Cpuset's memory nodes
+	Mems string
+}
+
+// IsCpusetCpusAvailable returns `true` if the provided string set is contained
+// in cgroup's cpuset.cpus set, `false` otherwise.
+// If error is not nil a parsing error occurred.
+func (c cgroupCpusetInfo) IsCpusetCpusAvailable(provided string) (bool, error) {
+	return isCpusetListAvailable(provided, c.Cpus)
+}
+
+// IsCpusetMemsAvailable returns `true` if the provided string set is contained
+// in cgroup's cpuset.mems set, `false` otherwise.
+// If error is not nil a parsing error occurred.
+func (c cgroupCpusetInfo) IsCpusetMemsAvailable(provided string) (bool, error) {
+	return isCpusetListAvailable(provided, c.Mems)
+}
+
+func isCpusetListAvailable(provided, available string) (bool, error) {
+	parsedProvided, err := parsers.ParseUintList(provided)
+	if err != nil {
+		return false, err
+	}
+	parsedAvailable, err := parsers.ParseUintList(available)
+	if err != nil {
+		return false, err
+	}
+	for k := range parsedProvided {
+		if !parsedAvailable[k] {
+			return false, nil
+		}
+	}
+	return true, nil
 }

@@ -9,11 +9,14 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/docker/docker/pkg/mount"
+	"github.com/docker/docker/pkg/parsers"
+	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/go-check/check"
 	"github.com/kr/pty"
 )
@@ -373,4 +376,42 @@ func (s *DockerSuite) TestRunSwapLessThanMemoryLimit(c *check.C) {
 	if !strings.Contains(out, expected) {
 		c.Fatalf("Expected output to contain %q, not %q", out, expected)
 	}
+}
+
+func (s *DockerSuite) TestRunInvalidCpusetCpusFlagValue(c *check.C) {
+	testRequires(c, cgroupCpuset)
+
+	sysInfo := sysinfo.New(true)
+	cpus, err := parsers.ParseUintList(sysInfo.Cpus)
+	c.Assert(err, check.IsNil)
+	var invalid int
+	for i := 0; i <= len(cpus)+1; i++ {
+		if !cpus[i] {
+			invalid = i
+			break
+		}
+	}
+	out, _, err := dockerCmdWithError("run", "--cpuset-cpus", strconv.Itoa(invalid), "busybox", "true")
+	c.Assert(err, check.NotNil)
+	expected := fmt.Sprintf("Error response from daemon: Requested CPUs are not available - requested %s, available: %s.\n", strconv.Itoa(invalid), sysInfo.Cpus)
+	c.Assert(out, check.Equals, expected, check.Commentf("Expected output to contain %q, got %q", expected, out))
+}
+
+func (s *DockerSuite) TestRunInvalidCpusetMemsFlagValue(c *check.C) {
+	testRequires(c, cgroupCpuset)
+
+	sysInfo := sysinfo.New(true)
+	mems, err := parsers.ParseUintList(sysInfo.Mems)
+	c.Assert(err, check.IsNil)
+	var invalid int
+	for i := 0; i <= len(mems)+1; i++ {
+		if !mems[i] {
+			invalid = i
+			break
+		}
+	}
+	out, _, err := dockerCmdWithError("run", "--cpuset-mems", strconv.Itoa(invalid), "busybox", "true")
+	c.Assert(err, check.NotNil)
+	expected := fmt.Sprintf("Error response from daemon: Requested memory nodes are not available - requested %s, available: %s.\n", strconv.Itoa(invalid), sysInfo.Mems)
+	c.Assert(out, check.Equals, expected, check.Commentf("Expected output to contain %q, got %q", expected, out))
 }

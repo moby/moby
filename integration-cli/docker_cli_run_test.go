@@ -3407,3 +3407,17 @@ func (s *DockerSuite) TestRunStdinBlockedAfterContainerExit(c *check.C) {
 		c.Fatal("timeout waiting for command to exit")
 	}
 }
+
+func (s *DockerSuite) TestRunWrongCpusetCpusFlagValue(c *check.C) {
+	out, _, err := dockerCmdWithError("run", "--cpuset-cpus", "1-10,11--", "busybox", "true")
+	c.Assert(err, check.NotNil)
+	expected := "Error response from daemon: Invalid value 1-10,11-- for cpuset cpus.\n"
+	c.Assert(out, check.Equals, expected, check.Commentf("Expected output to contain %q, got %q", expected, out))
+}
+
+func (s *DockerSuite) TestRunWrongCpusetMemsFlagValue(c *check.C) {
+	out, _, err := dockerCmdWithError("run", "--cpuset-mems", "1-42--", "busybox", "true")
+	c.Assert(err, check.NotNil)
+	expected := "Error response from daemon: Invalid value 1-42-- for cpuset mems.\n"
+	c.Assert(out, check.Equals, expected, check.Commentf("Expected output to contain %q, got %q", expected, out))
+}
