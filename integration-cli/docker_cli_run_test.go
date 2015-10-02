@@ -2229,6 +2229,23 @@ func (s *DockerSuite) TestRunModeIpcContainerNotRunning(c *check.C) {
 	}
 }
 
+func (s *DockerSuite) TestRunMountShmMqueueFromHost(c *check.C) {
+	// Not applicable on Windows as uses Unix-specific capabilities
+	testRequires(c, SameHostDaemon, DaemonIsLinux)
+
+	dockerCmd(c, "run", "-d", "--name", "shmfromhost", "-v", "/dev/shm:/dev/shm", "busybox", "sh", "-c", "echo -n test > /dev/shm/test && top")
+	volPath, err := inspectMountSourceField("shmfromhost", "/dev/shm")
+	c.Assert(err, check.IsNil)
+	if volPath != "/dev/shm" {
+		c.Fatalf("volumePath should have been /dev/shm, was %s", volPath)
+	}
+
+	out, _ := dockerCmd(c, "run", "--name", "ipchost", "--ipc", "host", "busybox", "cat", "/dev/shm/test")
+	if out != "test" {
+		c.Fatalf("Output of /dev/shm/test expected test but found: %s", out)
+	}
+}
+
 func (s *DockerSuite) TestContainerNetworkMode(c *check.C) {
 	// Not applicable on Windows as uses Unix-specific capabilities
 	testRequires(c, SameHostDaemon, DaemonIsLinux)
