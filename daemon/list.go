@@ -177,7 +177,7 @@ func (daemon *Daemon) foldFilter(config *ContainersConfig) (*listContext, error)
 		}
 	}
 
-	names := map[string][]string{}
+	names := make(map[string][]string)
 	daemon.containerGraph().Walk("/", func(p string, e *graphdb.Entity) error {
 		names[e.ID()] = append(names[e.ID()], p)
 		return nil
@@ -291,6 +291,10 @@ func (daemon *Daemon) transformContainer(container *Container, ctx *listContext)
 		ID:      container.ID,
 		Names:   ctx.names[container.ID],
 		ImageID: container.ImageID,
+	}
+	if newC.Names == nil {
+		// Dead containers will often have no name, so make sure the response isn't  null
+		newC.Names = []string{}
 	}
 
 	img, err := daemon.Repositories().LookupImage(container.Config.Image)
