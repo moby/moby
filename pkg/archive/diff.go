@@ -9,7 +9,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
-	"syscall"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/pools"
@@ -184,8 +183,7 @@ func UnpackLayer(dest string, layer Reader) (size int64, err error) {
 
 	for _, hdr := range dirs {
 		path := filepath.Join(dest, hdr.Name)
-		ts := []syscall.Timespec{timeToTimespec(hdr.AccessTime), timeToTimespec(hdr.ModTime)}
-		if err := syscall.UtimesNano(path, ts); err != nil {
+		if err := system.Chtimes(path, hdr.AccessTime, hdr.ModTime); err != nil {
 			return 0, err
 		}
 	}

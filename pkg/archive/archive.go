@@ -375,19 +375,19 @@ func createTarFile(path, extractDir string, hdr *tar.Header, reader io.Reader, L
 		return err
 	}
 
-	ts := []syscall.Timespec{timeToTimespec(hdr.AccessTime), timeToTimespec(hdr.ModTime)}
-	// syscall.UtimesNano doesn't support a NOFOLLOW flag atm
+	// system.Chtimes doesn't support a NOFOLLOW flag atm
 	if hdr.Typeflag == tar.TypeLink {
 		if fi, err := os.Lstat(hdr.Linkname); err == nil && (fi.Mode()&os.ModeSymlink == 0) {
-			if err := system.UtimesNano(path, ts); err != nil && err != system.ErrNotSupportedPlatform {
+			if err := system.Chtimes(path, hdr.AccessTime, hdr.ModTime); err != nil {
 				return err
 			}
 		}
 	} else if hdr.Typeflag != tar.TypeSymlink {
-		if err := system.UtimesNano(path, ts); err != nil && err != system.ErrNotSupportedPlatform {
+		if err := system.Chtimes(path, hdr.AccessTime, hdr.ModTime); err != nil {
 			return err
 		}
 	} else {
+		ts := []syscall.Timespec{timeToTimespec(hdr.AccessTime), timeToTimespec(hdr.ModTime)}
 		if err := system.LUtimesNano(path, ts); err != nil && err != system.ErrNotSupportedPlatform {
 			return err
 		}
@@ -644,8 +644,8 @@ loop:
 
 	for _, hdr := range dirs {
 		path := filepath.Join(dest, hdr.Name)
-		ts := []syscall.Timespec{timeToTimespec(hdr.AccessTime), timeToTimespec(hdr.ModTime)}
-		if err := syscall.UtimesNano(path, ts); err != nil {
+
+		if err := system.Chtimes(path, hdr.AccessTime, hdr.ModTime); err != nil {
 			return err
 		}
 	}
