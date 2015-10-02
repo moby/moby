@@ -75,11 +75,7 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 
 	d.peerDbAdd(nid, eid, ep.addr.IP, ep.mac,
 		net.ParseIP(d.bindAddress), true)
-	d.notifyCh <- ovNotify{
-		action: "join",
-		nid:    nid,
-		eid:    eid,
-	}
+	d.pushLocalEndpointEvent("join", nid, eid)
 
 	return nil
 }
