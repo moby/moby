@@ -83,11 +83,11 @@ func UnpackLayer(dest string, layer Reader) (size int64, err error) {
 		}
 
 		// Skip AUFS metadata dirs
-		if strings.HasPrefix(hdr.Name, ".wh..wh.") {
+		if strings.HasPrefix(hdr.Name, WhiteoutMetaPrefix) {
 			// Regular files inside /.wh..wh.plnk can be used as hardlink targets
 			// We don't want this directory, but we need the files in them so that
 			// such hardlinks can be resolved.
-			if strings.HasPrefix(hdr.Name, ".wh..wh.plnk") && hdr.Typeflag == tar.TypeReg {
+			if strings.HasPrefix(hdr.Name, WhiteoutLinkDir) && hdr.Typeflag == tar.TypeReg {
 				basename := filepath.Base(hdr.Name)
 				aufsHardlinks[basename] = hdr
 				if aufsTempdir == "" {
@@ -100,7 +100,10 @@ func UnpackLayer(dest string, layer Reader) (size int64, err error) {
 					return 0, err
 				}
 			}
-			continue
+
+			if hdr.Name != WhiteoutOpaqueDir {
+				continue
+			}
 		}
 		path := filepath.Join(dest, hdr.Name)
 		rel, err := filepath.Rel(dest, path)
@@ -114,11 +117,25 @@ func UnpackLayer(dest string, layer Reader) (size int64, err error) {
 		}
 		base := filepath.Base(path)
 
-		if strings.HasPrefix(base, ".wh.") {
-			originalBase := base[len(".wh."):]
-			originalPath := filepath.Join(filepath.Dir(path), originalBase)
-			if err := os.RemoveAll(originalPath); err != nil {
-				return 0, err
+		if strings.HasPrefix(base, WhiteoutPrefix) {
+			dir := filepath.Dir(path)
+			if base == WhiteoutOpaqueDir {
+				fi, err := os.Lstat(dir)
+				if err != nil && !os.IsNotExist(err) {
+					return 0, err
+				}
+				if err := os.RemoveAll(dir); err != nil {
+					return 0, err
+				}
+				if err := os.Mkdir(dir, fi.Mode()&os.ModePerm); err != nil {
+					return 0, err
+				}
+			} else {
+				originalBase := base[len(WhiteoutPrefix):]
+				originalPath := filepath.Join(dir, originalBase)
+				if err := os.RemoveAll(originalPath); err != nil {
+					return 0, err
+				}
 			}
 		} else {
 			// If path exits we almost always just want to remove and replace it.
@@ -139,7 +156,7 @@ func UnpackLayer(dest string, layer Reader) (size int64, err error) {
 
 			// Hard links into /.wh..wh.plnk don't work, as we don't extract that directory, so
 			// we manually retarget these into the temporary files we extracted them into
-			if hdr.Typeflag == tar.TypeLink && strings.HasPrefix(filepath.Clean(hdr.Linkname), ".wh..wh.plnk") {
+			if hdr.Typeflag == tar.TypeLink && strings.HasPrefix(filepath.Clean(hdr.Linkname), WhiteoutLinkDir) {
 				linkBasename := filepath.Base(hdr.Linkname)
 				srcHdr = aufsHardlinks[linkBasename]
 				if srcHdr == nil {
