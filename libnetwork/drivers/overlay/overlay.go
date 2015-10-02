@@ -174,6 +174,9 @@ func (d *driver) nodeJoin(node string, self bool) {
 		var err error
 		d.joinOnce.Do(func() {
 			err = d.serfJoin(neighIP)
+			if err == nil {
+				d.pushLocalDb()
+			}
 		})
 		if err != nil {
 			logrus.Errorf("joining serf neighbor %s failed: %v", node, err)
@@ -182,6 +185,17 @@ func (d *driver) nodeJoin(node string, self bool) {
 			d.Unlock()
 			return
 		}
+	}
+}
+
+func (d *driver) pushLocalEndpointEvent(action, nid, eid string) {
+	if !d.isSerfAlive() {
+		return
+	}
+	d.notifyCh <- ovNotify{
+		action: "join",
+		nid:    nid,
+		eid:    eid,
 	}
 }
 
