@@ -68,13 +68,13 @@ func (d *driver) serfInit() error {
 	return nil
 }
 
-func (d *driver) serfJoin() error {
-	if d.neighIP == "" {
+func (d *driver) serfJoin(neighIP string) error {
+	if neighIP == "" {
 		return fmt.Errorf("no neighbor to join")
 	}
-	if _, err := d.serfInstance.Join([]string{d.neighIP}, false); err != nil {
+	if _, err := d.serfInstance.Join([]string{neighIP}, false); err != nil {
 		return fmt.Errorf("Failed to join the cluster at neigh IP %s: %v",
-			d.neighIP, err)
+			neighIP, err)
 	}
 	return nil
 }
