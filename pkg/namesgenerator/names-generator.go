@@ -11,9 +11,12 @@ var (
 		"admiring",
 		"adoring",
 		"agitated",
+		"amazing",
 		"angry",
+		"awesome",
 		"backstabbing",
 		"berserk",
+		"big",
 		"boring",
 		"clever",
 		"cocky",
@@ -32,6 +35,7 @@ var (
 		"fervent",
 		"focused",
 		"furious",
+		"gigantic",
 		"gloomy",
 		"goofy",
 		"grave",
@@ -59,11 +63,13 @@ var (
 		"sick",
 		"silly",
 		"sleepy",
+		"small",
 		"stoic",
 		"stupefied",
 		"suspicious",
 		"tender",
 		"thirsty",
+		"tiny",
 		"trusting",
 	}
 
@@ -198,6 +204,9 @@ var (
 
 		// Galileo was a founding father of modern astronomy, and faced politics and obscurantism to establish scientific truth.  https://en.wikipedia.org/wiki/Galileo_Galilei
 		"galileo",
+
+		// William Henry "Bill" Gates III is an American business magnate, philanthropist, investor, computer programmer, and inventor. https://en.wikipedia.org/wiki/Bill_Gates
+		"gates",
 
 		// Adele Goldberg, was one of the designers and developers of the Smalltalk language. https://en.wikipedia.org/wiki/Adele_Goldberg_(computer_scientist)
 		"goldberg",
@@ -375,6 +384,9 @@ var (
 
 		// Srinivasa Ramanujan - Indian mathematician and autodidact who made extraordinary contributions to mathematical analysis, number theory, infinite series, and continued fractions. - https://en.wikipedia.org/wiki/Srinivasa_Ramanujan
 		"ramanujan",
+
+		// Sally Kristen Ride was an American physicist and astronaut. She was the first American woman in space, and the youngest American astronaut. https://en.wikipedia.org/wiki/Sally_Ride
+		"ride",
 
 		// Dennis Ritchie - co-creator of UNIX and the C programming language. - https://en.wikipedia.org/wiki/Dennis_Ritchie
 		"ritchie",
