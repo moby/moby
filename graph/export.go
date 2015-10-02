@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/Sirupsen/logrus"
@@ -69,6 +70,18 @@ func (s *TagStore) ImageExport(names []string, outStream io.Writer) error {
 				// and will not need to be added to this map
 				if len(repoTag) > 0 {
 					addKey(repoName, repoTag, img.ID)
+				} else {
+					//This must be an ID. Here repoName is an ID.
+					nonTruncID, err := s.graph.GetTruncIndex().Get(repoName)
+					if err != nil {
+						return err
+					}
+					reverseLookupMap := s.ByID()
+					repos := reverseLookupMap[nonTruncID]
+					for _, repo := range repos {
+						repoSplit := strings.SplitN(repo, ":", 2)
+						addKey(repoSplit[0], repoSplit[1], nonTruncID)
+					}
 				}
 				if err := s.exportImage(img.ID, tempdir); err != nil {
 					return err
