@@ -227,7 +227,7 @@ high majority of submissions should have a single commit, so if in doubt: squash
 down to one.
 
 After every commit, [make sure the test suite passes]
-((https://docs.docker.com/project/test-and-docs/)). Include documentation
+(https://docs.docker.com/project/test-and-docs/). Include documentation
 changes in the same pull request so that a revert would remove all traces of
 the feature or fix.
 
