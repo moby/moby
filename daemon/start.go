@@ -20,7 +20,7 @@ func (daemon *Daemon) ContainerStart(name string, hostConfig *runconfig.HostConf
 	}
 
 	if container.IsRunning() {
-		return derr.ErrorCodeAlreadyStarted
+		return derr.ErrorCodeAlreadyStarted.WithArgs(name)
 	}
 
 	// Windows does not have the backwards compatibility issue here.

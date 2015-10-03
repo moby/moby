@@ -182,3 +182,17 @@ func (s *DockerSuite) TestStartAttachMultipleContainers(c *check.C) {
 		}
 	}
 }
+
+func (s *DockerSuite) TestStartContainerAlreadyStarted(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+
+	name := "already-started"
+	dockerCmd(c, "run", "-d", "--name", name, "busybox", "top")
+	c.Assert(waitRun(name), check.IsNil)
+	out, _, err := dockerCmdWithError("start", name)
+	c.Assert(err, check.NotNil)
+	expected := fmt.Sprintf("Conflict: container %s already started", name)
+	if !strings.Contains(out, expected) {
+		c.Fatalf("Expected %s, got %s", expected, out)
+	}
+}
