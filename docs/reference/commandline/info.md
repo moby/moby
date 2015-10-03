@@ -12,9 +12,11 @@ weight=1
 # info
 
 
-    Usage: docker info
+    Usage: docker info [OPTIONS]
 
     Display system-wide information
+
+      --help=false        Print usage
 
 For example:
 

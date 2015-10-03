@@ -16,6 +16,7 @@ weight=1
     Tag an image into a repository
 
       -f, --force=false    Force
+      --help=false         Print usage
 
 You can group your images together using names and tags, and then upload them
 to [*Share Images via Repositories*](/userguide/dockerrepos/#contributing-to-docker-hub).

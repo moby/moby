@@ -18,13 +18,14 @@ weight=1
       -a, --all=false       Show all containers (default shows just running)
       --before=""           Show only container created before Id or Name
       -f, --filter=[]       Filter output based on conditions provided
+      --format=[]           Pretty-print containers using a Go template
+      --help=false          Print usage
       -l, --latest=false    Show the latest created container, include non-running
       -n=-1                 Show n last created containers, include non-running
       --no-trunc=false      Don't truncate output
       -q, --quiet=false     Only display numeric IDs
       -s, --size=false      Display total file sizes
       --since=""            Show created since Id or Name, include non-running
-      --format=[]       Pretty-print containers using a Go template
 
 Running `docker ps --no-trunc` showing 2 linked containers.
 

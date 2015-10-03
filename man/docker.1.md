@@ -190,7 +190,7 @@ inside it)
   See **docker-search(1)** for full documentation on the **search** command.
 
 **start**
-  Start a stopped container
+  Start a container
   See **docker-start(1)** for full documentation on the **start** command.
 
 **stats**
@@ -198,7 +198,7 @@ inside it)
   See **docker-stats(1)** for full documentation on the **stats** command.
 
 **stop**
-  Stop a running container
+  Stop a container
   See **docker-stop(1)** for full documentation on the **stop** command.
 
 **tag**

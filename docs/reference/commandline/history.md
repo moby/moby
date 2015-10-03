@@ -16,6 +16,7 @@ weight=1
     Show the history of an image
 
       -H, --human=true     Print sizes and dates in human readable format
+      --help=false         Print usage
       --no-trunc=false     Don't truncate output
       -q, --quiet=false    Only show numeric IDs
 

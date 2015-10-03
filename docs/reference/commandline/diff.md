@@ -11,9 +11,11 @@ weight=1
 
 # diff
 
-    Usage: docker diff CONTAINER
+    Usage: docker diff [OPTIONS] CONTAINER
 
     Inspect changes on a container's filesystem
+
+      --help=false        Print usage
 
 List the changed files and directories in a container᾿s filesystem
  There are 3 events that are listed in the `diff`:

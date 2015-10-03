@@ -6,9 +6,11 @@ docker-build - Build a new image from the source code at PATH
 
 # SYNOPSIS
 **docker build**
+[**--build-arg**[=*[]*]]
+[**-c**|**--cpu-shares**[=*0*]]
+[**--cgroup-parent**[=*CGROUP-PARENT*]]
 [**--help**]
 [**-f**|**--file**[=*PATH/Dockerfile*]]
-[**--build-arg**[=*[]*]]
 [**--force-rm**[=*false*]]
 [**--no-cache**[=*false*]]
 [**--pull**[=*false*]]
@@ -17,14 +19,11 @@ docker-build - Build a new image from the source code at PATH
 [**-t**|**--tag**[=*TAG*]]
 [**-m**|**--memory**[=*MEMORY*]]
 [**--memory-swap**[=*MEMORY-SWAP*]]
-[**-c**|**--cpu-shares**[=*0*]]
 [**--cpu-period**[=*0*]]
 [**--cpu-quota**[=*0*]]
 [**--cpuset-cpus**[=*CPUSET-CPUS*]]
 [**--cpuset-mems**[=*CPUSET-MEMS*]]
-[**--cgroup-parent**[=*CGROUP-PARENT*]]
 [**--ulimit**[=*[]*]]
-
 PATH | URL | -
 
 # DESCRIPTION
@@ -34,9 +33,9 @@ directory to the Docker daemon. The contents of this directory would
 be used by **ADD** commands found within the Dockerfile.
 
 Warning, this will send a lot of data to the Docker daemon depending
-on the contents of the current directory. The build is run by the Docker 
+on the contents of the current directory. The build is run by the Docker
 daemon, not by the CLI, so the whole context must be transferred to the daemon. 
-The Docker CLI reports "Sending build context to Docker daemon" when the context is sent to 
+The Docker CLI reports "Sending build context to Docker daemon" when the context is sent to
 the daemon.
 
 When the URL to a tarball archive or to a single Dockerfile is given, no context is sent from
