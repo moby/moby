@@ -206,6 +206,7 @@ func (s *DockerSuite) TestHelpTextVerify(c *check.C) {
 				"login":   "",
 				"logout":  "",
 				"network": "",
+				"stats":   "",
 			}
 
 			if _, ok := noShortUsage[cmd]; !ok {
