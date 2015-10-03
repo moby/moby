@@ -458,9 +458,9 @@ var (
 	// that is already stopped.
 	ErrorCodeStopped = errcode.Register(errGroup, errcode.ErrorDescriptor{
 		Value:          "STOPPED",
-		Message:        "Container already stopped",
+		Message:        "Conflict: container %s already stopped",
 		Description:    "An attempt was made to stop a container, but the container is already stopped",
-		HTTPStatusCode: http.StatusNotModified,
+		HTTPStatusCode: http.StatusConflict,
 	})
 
 	// ErrorCodeCantStop is generated when we try to stop a container
@@ -527,9 +527,9 @@ var (
 	// that is already running.
 	ErrorCodeAlreadyStarted = errcode.Register(errGroup, errcode.ErrorDescriptor{
 		Value:          "ALREADYSTARTED",
-		Message:        "Container already started",
+		Message:        "Conflict: container %s already started",
 		Description:    "An attempt to start a container was made, but the container is already started",
-		HTTPStatusCode: http.StatusNotModified,
+		HTTPStatusCode: http.StatusConflict,
 	})
 
 	// ErrorCodeHostConfigStart is generated when a HostConfig is passed
@@ -617,7 +617,7 @@ var (
 	// but it is being used.
 	ErrorCodeImgDelUsed = errcode.Register(errGroup, errcode.ErrorDescriptor{
 		Value:          "IMGDELUSED",
-		Message:        "conflict: unable to remove repository reference %q (must force) - container %s is using its referenced image %s",
+		Message:        "Conflict: unable to remove repository reference %q (must force) - container %s is using its referenced image %s",
 		Description:    "An attempt was made to delete an image but it is currently being used",
 		HTTPStatusCode: http.StatusConflict,
 	})
@@ -715,7 +715,7 @@ var (
 	// default name of a container.
 	ErrorCodeDefaultName = errcode.Register(errGroup, errcode.ErrorDescriptor{
 		Value:          "DEFAULTNAME",
-		Message:        "Conflict, cannot remove the default name of the container",
+		Message:        "Conflict: cannot remove the default name of the container",
 		Description:    "An attempt to delete the default name of a container was made, but that is not allowed",
 		HTTPStatusCode: http.StatusConflict,
 	})
@@ -742,7 +742,7 @@ var (
 	// but its still running.
 	ErrorCodeRmRunning = errcode.Register(errGroup, errcode.ErrorDescriptor{
 		Value:          "RMRUNNING",
-		Message:        "Conflict, You cannot remove a running container. Stop the container before attempting removal or use -f",
+		Message:        "Conflict: You cannot remove a running container. Stop the container before attempting removal or use -f",
 		Description:    "An attempt was made to delete a container but the container is still running, try to either stop it first or use '-f'",
 		HTTPStatusCode: http.StatusConflict,
 	})

@@ -1551,3 +1551,28 @@ func (s *DockerSuite) TestPostContainersCreateWithWrongCpusetValues(c *check.C) 
 	expected = "Invalid value 42-3,1-- for cpuset mems.\n"
 	c.Assert(string(body), check.Equals, expected, check.Commentf("Expected output to contain %q, got %q", expected, string(body)))
 }
+
+func (s *DockerSuite) TestContainersApiPostContainersStartAlreadyStarted(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+
+	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
+	id := strings.TrimSpace(out)
+	c.Assert(waitRun(id), check.IsNil)
+	status, body, err := sockRequest("POST", "/containers/"+id+"/start", nil)
+	c.Assert(err, check.IsNil)
+	c.Assert(status, check.Equals, http.StatusConflict)
+	c.Assert(string(body), check.Equals, fmt.Sprintf("Conflict: container %s already started\n", id))
+}
+
+func (s *DockerSuite) TestContainersApiPostContainersStopAlreadyStopped(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+
+	out, _ := dockerCmd(c, "run", "-d", "busybox", "true")
+	id := strings.TrimSpace(out)
+	// just making sure `true` finished
+	time.Sleep(3 * time.Second)
+	status, body, err := sockRequest("POST", "/containers/"+id+"/stop", nil)
+	c.Assert(err, check.IsNil)
+	c.Assert(status, check.Equals, http.StatusConflict)
+	c.Assert(string(body), check.Equals, fmt.Sprintf("Conflict: container %s already stopped\n", id))
+}
