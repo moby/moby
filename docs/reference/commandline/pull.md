@@ -17,6 +17,7 @@ weight=1
 
       -a, --all-tags=false          Download all tagged images in the repository
       --disable-content-trust=true  Skip image verification
+      --help=false                  Print usage
 
 Most of your images will be created on top of a base image from the
 [Docker Hub](https://hub.docker.com) registry.

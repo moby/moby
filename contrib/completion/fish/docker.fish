@@ -360,7 +360,7 @@ complete -c docker -A -f -n '__fish_seen_subcommand_from search' -l no-trunc -d 
 complete -c docker -A -f -n '__fish_seen_subcommand_from search' -s s -l stars -d 'Only displays with at least x stars'
 
 # start
-complete -c docker -f -n '__fish_docker_no_subcommand' -a start -d 'Start a stopped container'
+complete -c docker -f -n '__fish_docker_no_subcommand' -a start -d 'Start a container'
 complete -c docker -A -f -n '__fish_seen_subcommand_from start' -s a -l attach -d "Attach container's STDOUT and STDERR and forward all signals to the process"
 complete -c docker -A -f -n '__fish_seen_subcommand_from start' -l help -d 'Print usage'
 complete -c docker -A -f -n '__fish_seen_subcommand_from start' -s i -l interactive -d "Attach container's STDIN"
@@ -373,7 +373,7 @@ complete -c docker -A -f -n '__fish_seen_subcommand_from stats' -l no-stream -d 
 complete -c docker -A -f -n '__fish_seen_subcommand_from stats' -a '(__fish_print_docker_containers running)' -d "Container"
 
 # stop
-complete -c docker -f -n '__fish_docker_no_subcommand' -a stop -d 'Stop a running container'
+complete -c docker -f -n '__fish_docker_no_subcommand' -a stop -d 'Stop a container'
 complete -c docker -A -f -n '__fish_seen_subcommand_from stop' -l help -d 'Print usage'
 complete -c docker -A -f -n '__fish_seen_subcommand_from stop' -s t -l time -d 'Number of seconds to wait for the container to stop before killing it. Default is 10 seconds.'
 complete -c docker -A -f -n '__fish_seen_subcommand_from stop' -a '(__fish_print_docker_containers running)' -d "Container"

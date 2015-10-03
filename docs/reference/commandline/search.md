@@ -16,6 +16,7 @@ weight=1
     Search the Docker Hub for images
 
       --automated=false    Only show automated builds
+      --help=false         Print usage
       --no-trunc=false     Don't truncate output
       -s, --stars=0        Only displays with at least x stars
 

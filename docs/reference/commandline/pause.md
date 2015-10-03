@@ -11,9 +11,11 @@ weight=1
 
 # pause
 
-    Usage: docker pause CONTAINER [CONTAINER...]
+    Usage: docker pause [OPTIONS] CONTAINER [CONTAINER...]
 
     Pause all processes within a container
+
+      --help=false    Print usage
 
 The `docker pause` command uses the cgroups freezer to suspend all processes in
 a container. Traditionally, when suspending a process the `SIGSTOP` signal is

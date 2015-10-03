@@ -11,6 +11,8 @@ weight=1
 
 # top
 
-    Usage: docker top CONTAINER [ps OPTIONS]
+    Usage: docker top [OPTIONS] CONTAINER [ps OPTIONS]
 
     Display the running processes of a container
+
+      --help=false    Print usage

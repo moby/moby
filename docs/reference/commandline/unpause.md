@@ -11,9 +11,11 @@ weight=1
 
 # unpause
 
-    Usage: docker unpause CONTAINER [CONTAINER...]
+    Usage: docker unpause [OPTIONS] CONTAINER [CONTAINER...]
 
     Unpause all processes within a container
+
+      --help=false    Print usage
 
 The `docker unpause` command uses the cgroups freezer to un-suspend all
 processes in a container.

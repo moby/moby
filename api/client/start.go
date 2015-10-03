@@ -41,11 +41,11 @@ func (cli *DockerCli) forwardAllSignals(cid string) chan os.Signal {
 	return sigc
 }
 
-// CmdStart starts one or more stopped containers.
+// CmdStart starts one or more containers.
 //
 // Usage: docker start [OPTIONS] CONTAINER [CONTAINER...]
 func (cli *DockerCli) CmdStart(args ...string) error {
-	cmd := Cli.Subcmd("start", []string{"CONTAINER [CONTAINER...]"}, "Start one or more stopped containers", true)
+	cmd := Cli.Subcmd("start", []string{"CONTAINER [CONTAINER...]"}, "Start one or more containers", true)
 	attach := cmd.Bool([]string{"a", "-attach"}, false, "Attach STDOUT/STDERR and forward signals")
 	openStdin := cmd.Bool([]string{"i", "-interactive"}, false, "Attach container's STDIN")
 	cmd.Require(flag.Min, 1)

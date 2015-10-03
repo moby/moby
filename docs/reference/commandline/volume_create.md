@@ -14,10 +14,10 @@ parent = "smn_cli"
 
     Create a volume
 
-    -d, --driver=local    Specify volume driver name
-    --help=false          Print usage
-    --name=               Specify volume name
-    -o, --opt=map[]       Set driver specific options
+      -d, --driver=local    Specify volume driver name
+      --help=false          Print usage
+      --name=               Specify volume name
+      -o, --opt=map[]       Set driver specific options
 
 Creates a new volume that containers can consume and store data in. If a name is not specified, Docker generates a random name. You create a volume and then configure the container to use it, for example:
 
@@ -25,7 +25,7 @@ Creates a new volume that containers can consume and store data in. If a name is
   hello
   $ docker run -d -v hello:/world busybox ls /world
 
-The mount is created inside the container's `/src` directory. Docker does not support relative paths for mount points inside the container. 
+The mount is created inside the container's `/src` directory. Docker does not support relative paths for mount points inside the container.
 
 Multiple containers can use the same volume in the same time period. This is useful if two containers need access to shared data. For example, if one container writes and the other reads the data.
 
