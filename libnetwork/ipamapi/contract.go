@@ -15,8 +15,6 @@ const (
 	DefaultIPAM = "default"
 	// PluginEndpointType represents the Endpoint Type used by Plugin system
 	PluginEndpointType = "IPAM"
-	// Gateway is the key for the gateway option
-	Gateway = "gateway"
 )
 
 // Callback provides a Callback interface for registering an IPAM instance into LibNetwork

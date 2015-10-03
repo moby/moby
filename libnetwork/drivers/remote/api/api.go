@@ -34,6 +34,9 @@ type CreateNetworkRequest struct {
 
 	// A free form map->object interface for communication of options.
 	Options map[string]interface{}
+
+	// IPAMData contains the address pool information for this network
+	IPv4Data, IPv6Data []driverapi.IPAMData
 }
 
 // CreateNetworkResponse is the response to the CreateNetworkRequest.

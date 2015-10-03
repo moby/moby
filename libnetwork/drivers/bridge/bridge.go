@@ -569,7 +569,7 @@ func (d *driver) getNetworks() []*bridgeNetwork {
 }
 
 // Create a new network using bridge plugin
-func (d *driver) CreateNetwork(id string, option map[string]interface{}) error {
+func (d *driver) CreateNetwork(id string, option map[string]interface{}, ipV4Data, ipV6Data []driverapi.IPAMData) error {
 	var err error
 
 	defer osl.InitOSContext()()
@@ -861,7 +861,7 @@ func setHairpinMode(link netlink.Link, enable bool) error {
 	return nil
 }
 
-func (d *driver) CreateEndpoint(nid, eid string, epInfo driverapi.EndpointInfo, epOptions map[string]interface{}) error {
+func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo, epOptions map[string]interface{}) error {
 	var (
 		ipv6Addr *net.IPNet
 		err      error
@@ -869,12 +869,8 @@ func (d *driver) CreateEndpoint(nid, eid string, epInfo driverapi.EndpointInfo, 
 
 	defer osl.InitOSContext()()
 
-	if epInfo == nil {
-		return errors.New("invalid endpoint info passed")
-	}
-
-	if epInfo.Interface() != nil {
-		return errors.New("non-nil interface passed to bridge(local) driver")
+	if ifInfo == nil {
+		return errors.New("invalid interface info passed")
 	}
 
 	// Get the network handler and make sure it exists
@@ -1060,15 +1056,25 @@ func (d *driver) CreateEndpoint(nid, eid string, epInfo driverapi.EndpointInfo, 
 		endpoint.addrv6 = ipv6Addr
 	}
 
-	err = epInfo.AddInterface(endpoint.macAddress, *ipv4Addr, *ipv6Addr)
-	if err != nil {
-		return err
-	}
-
 	// Program any required port mapping and store them in the endpoint
 	endpoint.portMapping, err = n.allocatePorts(epConfig, endpoint, config.DefaultBindingIP, d.config.EnableUserlandProxy)
 	if err != nil {
 		return err
+	}
+
+	err = ifInfo.SetMacAddress(endpoint.macAddress)
+	if err != nil {
+		return err
+	}
+	err = ifInfo.SetIPAddress(ipv4Addr)
+	if err != nil {
+		return err
+	}
+	if config.EnableIPv6 {
+		err = ifInfo.SetIPAddress(ipv6Addr)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil

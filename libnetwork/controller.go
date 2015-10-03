@@ -301,15 +301,17 @@ func (c *controller) RegisterIpamDriver(name string, driver ipamapi.Ipam) error 
 	}
 
 	c.Lock()
-	if _, ok := c.ipamDrivers[name]; ok {
-		c.Unlock()
+	_, ok := c.ipamDrivers[name]
+	c.Unlock()
+	if ok {
 		return driverapi.ErrActiveRegistration(name)
 	}
-	l, g, err := driver.GetDefaultAddressSpaces()
+	locAS, glbAS, err := driver.GetDefaultAddressSpaces()
 	if err != nil {
 		return fmt.Errorf("ipam driver %s failed to return default address spaces: %v", name, err)
 	}
-	c.ipamDrivers[name] = &ipamData{driver: driver, defaultLocalAddressSpace: l, defaultGlobalAddressSpace: g}
+	c.Lock()
+	c.ipamDrivers[name] = &ipamData{driver: driver, defaultLocalAddressSpace: locAS, defaultGlobalAddressSpace: glbAS}
 	c.Unlock()
 
 	log.Debugf("Registering ipam provider: %s", name)
@@ -346,14 +348,30 @@ func (c *controller) NewNetwork(networkType, name string, options ...NetworkOpti
 
 	network.processOptions(options...)
 
-	if err := c.addNetwork(network); err != nil {
+	if _, err := c.loadNetworkDriver(network); err != nil {
 		return nil, err
 	}
 
-	if err := c.updateToStore(network); err != nil {
+	cnfs, err := network.ipamAllocate()
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		if err != nil {
+			for _, cn := range cnfs {
+				cn()
+			}
+		}
+	}()
+
+	if err = c.addNetwork(network); err != nil {
+		return nil, err
+	}
+
+	if err = c.updateToStore(network); err != nil {
 		log.Warnf("couldnt create network %s: %v", network.name, err)
 		if e := network.Delete(); e != nil {
-			log.Warnf("couldnt cleanup network %s: %v", network.name, err)
+			log.Warnf("couldnt cleanup network %s on network create failure (%v): %v", network.name, err, e)
 		}
 		return nil, err
 	}
@@ -362,28 +380,15 @@ func (c *controller) NewNetwork(networkType, name string, options ...NetworkOpti
 }
 
 func (c *controller) addNetwork(n *network) error {
-	c.Lock()
-	// Check if a driver for the specified network type is available
-	dd, ok := c.drivers[n.networkType]
-	c.Unlock()
-
-	if !ok {
-		var err error
-		dd, err = c.loadDriver(n.networkType)
-		if err != nil {
-			return err
-		}
+	if _, err := c.loadNetworkDriver(n); err != nil {
+		return err
 	}
-
 	n.Lock()
-	n.svcRecords = svcMap{}
-	n.driver = dd.driver
-	n.dataScope = dd.capability.DataScope
 	d := n.driver
 	n.Unlock()
 
 	// Create the network
-	if err := d.CreateNetwork(n.id, n.generic); err != nil {
+	if err := d.CreateNetwork(n.id, n.generic, n.getIPv4Data(), n.getIPv6Data()); err != nil {
 		return err
 	}
 	if n.isGlobalScoped() {
@@ -620,4 +625,25 @@ func (c *controller) Stop() {
 	}
 	c.stopExternalKeyListener()
 	osl.GC()
+}
+
+func (c *controller) loadNetworkDriver(n *network) (driverapi.Driver, error) {
+	// Check if a driver for the specified network type is available
+	c.Lock()
+	dd, ok := c.drivers[n.networkType]
+	c.Unlock()
+	if !ok {
+		var err error
+		dd, err = c.loadDriver(n.networkType)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	n.Lock()
+	n.svcRecords = svcMap{}
+	n.driver = dd.driver
+	n.dataScope = dd.capability.DataScope
+	n.Unlock()
+	return dd.driver, nil
 }

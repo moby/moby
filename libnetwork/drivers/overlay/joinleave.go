@@ -25,8 +25,7 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 	}
 
 	if err := n.joinSandbox(); err != nil {
-		return fmt.Errorf("network sandbox join failed: %v",
-			err)
+		return fmt.Errorf("network sandbox join failed: %v", err)
 	}
 
 	sbox := n.sandbox()
@@ -63,7 +62,7 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 	}
 
 	if err := netlink.LinkSetHardwareAddr(veth, ep.mac); err != nil {
-		return fmt.Errorf("could not set mac address to the container interface: %v", err)
+		return fmt.Errorf("could not set mac address (%v) to the container interface: %v", ep.mac, err)
 	}
 
 	if iNames := jinfo.InterfaceName(); iNames != nil {

@@ -10,6 +10,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/libnetwork/datastore"
+	"github.com/docker/libnetwork/ipamapi"
 	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/libnetwork/types"
 )
@@ -71,7 +72,9 @@ func (ep *endpoint) MarshalJSON() ([]byte, error) {
 	epMap["id"] = ep.id
 	epMap["ep_iface"] = ep.iface
 	epMap["exposed_ports"] = ep.exposedPorts
-	epMap["generic"] = ep.generic
+	if ep.generic != nil {
+		epMap["generic"] = ep.generic
+	}
 	epMap["sandbox"] = ep.sandboxID
 	return json.Marshal(epMap)
 }
@@ -98,8 +101,8 @@ func (ep *endpoint) UnmarshalJSON(b []byte) (err error) {
 	cb, _ := json.Marshal(epMap["sandbox"])
 	json.Unmarshal(cb, &ep.sandboxID)
 
-	if epMap["generic"] != nil {
-		ep.generic = epMap["generic"].(map[string]interface{})
+	if v, ok := epMap["generic"]; ok {
+		ep.generic = v.(map[string]interface{})
 	}
 	return nil
 }
@@ -423,6 +426,8 @@ func (ep *endpoint) Delete() error {
 		return err
 	}
 
+	ep.releaseAddress()
+
 	return nil
 }
 
@@ -482,7 +487,7 @@ func (ep *endpoint) getFirstInterfaceAddress() net.IP {
 	ep.Lock()
 	defer ep.Unlock()
 
-	if ep.iface != nil {
+	if ep.iface.addr != nil {
 		return ep.iface.addr.IP
 	}
 
@@ -548,4 +553,49 @@ func (ep *endpoint) DataScope() datastore.DataScope {
 
 func (ep *endpoint) isLocalScoped() bool {
 	return ep.DataScope() == datastore.LocalScope
+}
+
+func (ep *endpoint) assignAddress() error {
+	var (
+		ipam ipamapi.Ipam
+		err  error
+	)
+	n := ep.getNetwork()
+	if n.Type() == "host" || n.Type() == "null" || n.Type() == "bridge" {
+		return nil
+	}
+	ipam, err = n.getController().getIpamDriver(n.ipamType)
+	if err != nil {
+		return err
+	}
+	for _, d := range n.getIPInfo() {
+		var addr *net.IPNet
+		addr, _, err = ipam.RequestAddress(d.PoolID, nil, nil)
+		if err == nil {
+			ep.Lock()
+			ep.iface.addr = addr
+			ep.iface.poolID = d.PoolID
+			ep.Unlock()
+			return nil
+		}
+		if err != ipamapi.ErrNoAvailableIPs {
+			return err
+		}
+	}
+	return fmt.Errorf("no available ip addresses on this network address pools: %s (%s)", n.Name(), n.ID())
+}
+
+func (ep *endpoint) releaseAddress() {
+	n := ep.getNetwork()
+	if n.Type() == "host" || n.Type() == "null" || n.Type() == "bridge" {
+		return
+	}
+	ipam, err := n.getController().getIpamDriver(n.ipamType)
+	if err != nil {
+		log.Warnf("Failed to retrieve ipam driver to release interface address on delete of endpoint %s (%s): %v", ep.Name(), ep.ID(), err)
+		return
+	}
+	if err := ipam.ReleaseAddress(ep.iface.poolID, ep.iface.addr.IP); err != nil {
+		log.Warnf("Failed to release ip address %s on delete of endpoint %s (%s): %v", ep.iface.addr.IP, ep.Name(), ep.ID(), err)
+	}
 }

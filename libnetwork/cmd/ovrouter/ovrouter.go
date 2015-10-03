@@ -10,6 +10,7 @@ import (
 	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/drivers/overlay"
 	"github.com/docker/libnetwork/netlabel"
+	"github.com/docker/libnetwork/types"
 	"github.com/vishvananda/netlink"
 )
 
@@ -18,7 +19,7 @@ type router struct {
 }
 
 type endpoint struct {
-	addr net.IPNet
+	addr *net.IPNet
 	mac  net.HardwareAddr
 	name string
 }
@@ -32,9 +33,40 @@ func (ep *endpoint) Interface() driverapi.InterfaceInfo {
 	return nil
 }
 
-func (ep *endpoint) AddInterface(mac net.HardwareAddr, ipv4 net.IPNet, ipv6 net.IPNet) error {
-	ep.addr = ipv4
-	ep.mac = mac
+func (ep *endpoint) SetMacAddress(mac net.HardwareAddr) error {
+	if ep.mac != nil {
+		return types.ForbiddenErrorf("endpoint interface MAC address present (%s). Cannot be modified with %s.", ep.mac, mac)
+	}
+	if mac == nil {
+		return types.BadRequestErrorf("tried to set nil MAC address to endpoint interface")
+	}
+	ep.mac = types.GetMacCopy(mac)
+	return nil
+}
+
+func (ep *endpoint) SetIPAddress(address *net.IPNet) error {
+	if address.IP == nil {
+		return types.BadRequestErrorf("tried to set nil IP address to endpoint interface")
+	}
+	if address.IP.To4() == nil {
+		return types.NotImplementedErrorf("do not support ipv6 yet")
+	}
+	if ep.addr != nil {
+		return types.ForbiddenErrorf("endpoint interface IP present (%s). Cannot be modified with %s.", ep.addr, address)
+	}
+	ep.addr = types.GetIPNetCopy(address)
+	return nil
+}
+
+func (ep *endpoint) MacAddress() net.HardwareAddr {
+	return types.GetMacCopy(ep.mac)
+}
+
+func (ep *endpoint) Address() *net.IPNet {
+	return types.GetIPNetCopy(ep.addr)
+}
+
+func (ep *endpoint) AddressIPv6() *net.IPNet {
 	return nil
 }
 
@@ -86,7 +118,7 @@ func main() {
 	}
 
 	if err := r.d.CreateNetwork("testnetwork",
-		map[string]interface{}{}); err != nil {
+		map[string]interface{}{}, nil, nil); err != nil {
 		fmt.Printf("Failed to create network in the driver: %v\n", err)
 		os.Exit(1)
 	}
@@ -111,7 +143,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	ipAddr := &netlink.Addr{IPNet: &ep.addr, Label: ""}
+	ipAddr := &netlink.Addr{IPNet: ep.addr, Label: ""}
 	if err := netlink.AddrAdd(link, ipAddr); err != nil {
 		fmt.Printf("Failed to add address to the interface: %v\n", err)
 		os.Exit(1)
