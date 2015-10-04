@@ -11,6 +11,8 @@ weight=1
 
 # wait
 
-    Usage: docker wait CONTAINER [CONTAINER...]
+    Usage: docker wait [OPTIONS] CONTAINER [CONTAINER...]
 
     Block until a container stops, then print its exit code.
+
+      --help=false    Print usage

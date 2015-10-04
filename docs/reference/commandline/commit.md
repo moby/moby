@@ -17,6 +17,7 @@ weight=1
 
       -a, --author=""     Author (e.g., "John Hannibal Smith <hannibal@a-team.com>")
       -c, --change=[]     Apply specified Dockerfile instructions while committing the image
+      --help=false        Print usage
       -m, --message=""    Commit message
       -p, --pause=true    Pause container during commit
 

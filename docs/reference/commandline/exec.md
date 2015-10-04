@@ -16,6 +16,7 @@ weight=1
     Run a command in a running container
 
       -d, --detach=false         Detached mode: run command in the background
+      --help=false               Print usage
       -i, --interactive=false    Keep STDIN open even if not attached
       --privileged=false         Give extended Linux capabilities to the command
       -t, --tty=false            Allocate a pseudo-TTY

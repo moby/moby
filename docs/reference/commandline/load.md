@@ -15,6 +15,7 @@ weight=1
 
     Load an image from a tar archive or STDIN
 
+      --help=false       Print usage
       -i, --input=""     Read from a tar archive file, instead of STDIN. The tarball may be compressed with gzip, bzip, or xz
 
 Loads a tarred repository from a file or the standard input stream.

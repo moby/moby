@@ -16,6 +16,7 @@ weight=1
     Remove one or more containers
 
       -f, --force=false      Force the removal of a running container (uses SIGKILL)
+      --help=false           Print usage
       -l, --link=false       Remove the specified link
       -v, --volumes=false    Remove the volumes associated with the container
 

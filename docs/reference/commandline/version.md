@@ -16,6 +16,7 @@ weight=1
     Show the Docker version information.
 
       -f, --format=""    Format the output using the given go template
+      --help=false       Print usage
 
 By default, this will render all version information in an easy to read
 layout. If a format is specified, the given template will be executed instead.

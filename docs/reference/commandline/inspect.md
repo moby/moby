@@ -15,10 +15,10 @@ weight=1
 
     Return low-level information on a container or image
 
-      -f, --format=""    Format the output using the given go template
-
-     --type=container|image  Return JSON for specified type, permissible 
-                             values are "image" or "container"
+      -f, --format=""         Format the output using the given go template
+      --help=false            Print usage
+      --type=container|image  Return JSON for specified type, permissible
+                              values are "image" or "container"
 
 By default, this will render all results in a JSON array. If a format is
 specified, the given template will be executed for each result.

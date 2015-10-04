@@ -15,6 +15,7 @@ weight=1
 
     Attach to a running container
 
+      --help=false        Print usage
       --no-stdin=false    Do not attach STDIN
       --sig-proxy=true    Proxy all received signals to the process
 

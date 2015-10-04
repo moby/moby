@@ -1,9 +1,6 @@
 % DOCKER(1) Docker User Manuals
-
-% Shishir Mahajan 
-
+% Shishir Mahajan
 % SEPTEMBER 2015
-
 # NAME
 docker-daemon - Enable daemon mode
 
