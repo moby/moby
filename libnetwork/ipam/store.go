@@ -4,95 +4,77 @@ import (
 	"encoding/json"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/docker/libkv/store"
 	"github.com/docker/libnetwork/datastore"
 	"github.com/docker/libnetwork/types"
 )
 
 // Key provides the Key to be used in KV Store
-func (a *Allocator) Key() []string {
-	a.Lock()
-	defer a.Unlock()
-	return []string{dsConfigKey}
+func (cfg *PoolsConfig) Key() []string {
+	cfg.Lock()
+	defer cfg.Unlock()
+	return []string{cfg.id}
 }
 
 // KeyPrefix returns the immediate parent key that can be used for tree walk
-func (a *Allocator) KeyPrefix() []string {
-	a.Lock()
-	defer a.Unlock()
+func (cfg *PoolsConfig) KeyPrefix() []string {
+	cfg.Lock()
+	defer cfg.Unlock()
 	return []string{dsConfigKey}
 }
 
 // Value marshals the data to be stored in the KV store
-func (a *Allocator) Value() []byte {
-	a.Lock()
-	defer a.Unlock()
-
-	if a.subnets == nil {
-		return []byte{}
-	}
-	m := map[string]interface{}{}
-	for k, v := range a.subnets {
-		m[k.String()] = v
-	}
-
-	b, err := json.Marshal(m)
+func (cfg *PoolsConfig) Value() []byte {
+	b, err := json.Marshal(cfg)
 	if err != nil {
-		log.Warnf("Failed to marshal ipam configured subnets")
+		log.Warnf("Failed to marshal ipam configured pools: %v", err)
 		return nil
 	}
 	return b
 }
 
 // SetValue unmarshalls the data from the KV store.
-func (a *Allocator) SetValue(value []byte) error {
-	var m map[string]*PoolData
-	err := json.Unmarshal(value, &m)
-	if err != nil {
+func (cfg *PoolsConfig) SetValue(value []byte) error {
+	rc := &PoolsConfig{subnets: make(map[SubnetKey]*PoolData)}
+	if err := json.Unmarshal(value, rc); err != nil {
 		return err
 	}
-	for ks, d := range m {
-		k := SubnetKey{}
-		if err := k.FromString(ks); err != nil {
-			return err
-		}
-		a.subnets[k] = d
-	}
+	cfg.subnets = rc.subnets
 	return nil
 }
 
 // Index returns the latest DB Index as seen by this object
-func (a *Allocator) Index() uint64 {
-	a.Lock()
-	defer a.Unlock()
-	return a.dbIndex
+func (cfg *PoolsConfig) Index() uint64 {
+	cfg.Lock()
+	defer cfg.Unlock()
+	return cfg.dbIndex
 }
 
 // SetIndex method allows the datastore to store the latest DB Index into this object
-func (a *Allocator) SetIndex(index uint64) {
-	a.Lock()
-	a.dbIndex = index
-	a.dbExists = true
-	a.Unlock()
+func (cfg *PoolsConfig) SetIndex(index uint64) {
+	cfg.Lock()
+	cfg.dbIndex = index
+	cfg.dbExists = true
+	cfg.Unlock()
 }
 
 // Exists method is true if this object has been stored in the DB.
-func (a *Allocator) Exists() bool {
-	a.Lock()
-	defer a.Unlock()
-	return a.dbExists
+func (cfg *PoolsConfig) Exists() bool {
+	cfg.Lock()
+	defer cfg.Unlock()
+	return cfg.dbExists
 }
 
 // Skip provides a way for a KV Object to avoid persisting it in the KV Store
-func (a *Allocator) Skip() bool {
+func (cfg *PoolsConfig) Skip() bool {
 	return false
 }
 
-func (a *Allocator) watchForChanges() error {
-	if a.store == nil {
+func (cfg *PoolsConfig) watchForChanges() error {
+	if cfg.ds == nil {
 		return nil
 	}
-
-	kvpChan, err := a.store.KVStore().Watch(datastore.Key(a.Key()...), nil)
+	kvpChan, err := cfg.ds.KVStore().Watch(datastore.Key(cfg.Key()...), nil)
 	if err != nil {
 		return err
 	}
@@ -101,7 +83,7 @@ func (a *Allocator) watchForChanges() error {
 			select {
 			case kvPair := <-kvpChan:
 				if kvPair != nil {
-					a.subnetConfigFromStore(kvPair)
+					cfg.readFromKey(kvPair)
 				}
 			}
 		}
@@ -109,50 +91,40 @@ func (a *Allocator) watchForChanges() error {
 	return nil
 }
 
-func (a *Allocator) readFromStore() error {
-	a.Lock()
-	store := a.store
-	a.Unlock()
-
-	if store == nil {
+func (cfg *PoolsConfig) writeToStore() error {
+	if cfg.ds == nil {
 		return nil
 	}
-
-	kvPair, err := a.store.KVStore().Get(datastore.Key(a.Key()...))
-	if err != nil {
-		return err
-	}
-
-	a.subnetConfigFromStore(kvPair)
-
-	return nil
-}
-
-func (a *Allocator) writeToStore() error {
-	a.Lock()
-	store := a.store
-	a.Unlock()
-	if store == nil {
-		return nil
-	}
-	err := store.PutObjectAtomic(a)
+	err := cfg.ds.PutObjectAtomic(cfg)
 	if err == datastore.ErrKeyModified {
 		return types.RetryErrorf("failed to perform atomic write (%v). retry might fix the error", err)
 	}
 	return err
 }
 
-func (a *Allocator) deleteFromStore() error {
-	a.Lock()
-	store := a.store
-	a.Unlock()
-	if store == nil {
+func (cfg *PoolsConfig) readFromStore() error {
+	if cfg.ds == nil {
 		return nil
 	}
-	return store.DeleteObjectAtomic(a)
+	return cfg.ds.GetObject(datastore.Key(cfg.Key()...), cfg)
+}
+
+func (cfg *PoolsConfig) readFromKey(kvPair *store.KVPair) {
+	if cfg.dbIndex < kvPair.LastIndex {
+		cfg.SetValue(kvPair.Value)
+		cfg.dbIndex = kvPair.LastIndex
+		cfg.dbExists = true
+	}
+}
+
+func (cfg *PoolsConfig) deleteFromStore() error {
+	if cfg.ds == nil {
+		return nil
+	}
+	return cfg.ds.DeleteObjectAtomic(cfg)
 }
 
 // DataScope method returns the storage scope of the datastore
-func (a *Allocator) DataScope() datastore.DataScope {
-	return datastore.GlobalScope
+func (cfg *PoolsConfig) DataScope() datastore.DataScope {
+	return cfg.scope
 }
