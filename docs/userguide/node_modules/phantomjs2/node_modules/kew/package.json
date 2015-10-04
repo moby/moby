@@ -1,0 +1,69 @@
+{
+  "name": "kew",
+  "description": "a lightweight promise library for node",
+  "version": "0.4.0",
+  "homepage": "https://github.com/Obvious/kew",
+  "authors": [
+    "Jeremy Stanley <github@azulus.com> (https://github.com/azulus)",
+    "Nick Santos <nick@medium.com>",
+    "Xiao Ma <x@medium.com>"
+  ],
+  "contributors": [],
+  "keywords": [
+    "kew",
+    "promises"
+  ],
+  "main": "./kew.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Obvious/kew.git"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "q": "0.9.7",
+    "nodeunit": "0.8.1",
+    "closure-npc": "0.1.3"
+  },
+  "scripts": {
+    "test": "nodeunit test && closure-npc ./test/closure_test.js --jscomp_error=checkTypes"
+  },
+  "bugs": {
+    "url": "https://github.com/Obvious/kew/issues"
+  },
+  "_id": "kew@0.4.0",
+  "dist": {
+    "shasum": "da97484f1b06502146f3c60cec05ac6012cd993f",
+    "tarball": "http://registry.npmjs.org/kew/-/kew-0.4.0.tgz"
+  },
+  "_from": "kew@0.4.0",
+  "_npmVersion": "1.3.24",
+  "_npmUser": {
+    "name": "nicks",
+    "email": "nicholas.j.santos@gmail.com"
+  },
+  "maintainers": [
+    {
+      "name": "azulus",
+      "email": "npm@azulus.com"
+    },
+    {
+      "name": "nicks",
+      "email": "nicholas.j.santos@gmail.com"
+    },
+    {
+      "name": "dpup",
+      "email": "dan@pupi.us"
+    },
+    {
+      "name": "medium",
+      "email": "npm@medium.com"
+    },
+    {
+      "name": "xiao",
+      "email": "x@medium.com"
+    }
+  ],
+  "directories": {},
+  "_shasum": "da97484f1b06502146f3c60cec05ac6012cd993f",
+  "_resolved": "https://registry.npmjs.org/kew/-/kew-0.4.0.tgz"
+}
