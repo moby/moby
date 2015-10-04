@@ -613,8 +613,9 @@ func (s *DockerSuite) TestExecOnReadonlyContainer(c *check.C) {
 }
 
 // #15750
+// TODO Fix this test on windows #16738
 func (s *DockerSuite) TestExecStartFails(c *check.C) {
-	testRequires(c, DaemonIsLinux)
+	testRequires(c, DaemonIsLinux, SameHostDaemon)
 	name := "exec-15750"
 	dockerCmd(c, "run", "-d", "--name", name, "busybox", "top")
 	c.Assert(waitRun(name), check.IsNil)
