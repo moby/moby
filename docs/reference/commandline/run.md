@@ -216,7 +216,8 @@ An example of a file passed with `--env-file`
     _TEST_BAR=FOO
     TEST_APP_42=magic
     helloWorld=true
-    # 123qwe=bar <- is not valid
+    123qwe=bar
+    org.spring.config=something
 
     # pass through this variable from the caller
     TEST_PASSTHROUGH
@@ -231,6 +232,8 @@ An example of a file passed with `--env-file`
     helloWorld=true
     TEST_PASSTHROUGH=howdy
     HOME=/root
+    123qwe=bar
+    org.spring.config=something
 
     $ docker run --env-file ./env.list busybox env
     PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
@@ -243,9 +246,8 @@ An example of a file passed with `--env-file`
     helloWorld=true
     TEST_PASSTHROUGH=
     HOME=/root
-
-> **Note**: Environment variables names must consist solely of letters, numbers,
-> and underscores - and cannot start with a number.
+    123qwe=bar
+    org.spring.config=something
 
 A label is a a `key=value` pair that applies metadata to a container. To label a container with two labels:
 
