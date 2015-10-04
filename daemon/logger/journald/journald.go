@@ -6,6 +6,7 @@ package journald
 
 import (
 	"fmt"
+	"strings"
 	"sync"
 
 	"github.com/Sirupsen/logrus"
@@ -46,10 +47,16 @@ func New(ctx logger.Context) (logger.Logger, error) {
 	if name[0] == '/' {
 		name = name[1:]
 	}
+
 	vars := map[string]string{
 		"CONTAINER_ID":      ctx.ContainerID[:12],
 		"CONTAINER_ID_FULL": ctx.ContainerID,
-		"CONTAINER_NAME":    name}
+		"CONTAINER_NAME":    name,
+	}
+	extraAttrs := ctx.ExtraAttributes(strings.ToTitle)
+	for k, v := range extraAttrs {
+		vars[k] = v
+	}
 	return &journald{vars: vars, readers: readerList{readers: make(map[*logger.LogWatcher]*logger.LogWatcher)}}, nil
 }
 
@@ -58,6 +65,8 @@ func New(ctx logger.Context) (logger.Logger, error) {
 func validateLogOpt(cfg map[string]string) error {
 	for key := range cfg {
 		switch key {
+		case "labels":
+		case "env":
 		default:
 			return fmt.Errorf("unknown log opt '%s' for journald log driver", key)
 		}
