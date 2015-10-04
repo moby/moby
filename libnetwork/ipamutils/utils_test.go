@@ -77,7 +77,7 @@ func TestElectInterfaceAddress(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if len(ipv4Nw) == 0 {
+	if ipv4Nw == nil {
 		t.Fatalf("unexpected empty ipv4 network addresses")
 	}
 
@@ -85,8 +85,8 @@ func TestElectInterfaceAddress(t *testing.T) {
 		t.Fatalf("unexpected empty ipv4 network addresses")
 	}
 
-	if nws != ipv4Nw[0].String() {
-		t.Fatalf("expected %s. got %s", nws, ipv4Nw[0])
+	if nws != ipv4Nw.String() {
+		t.Fatalf("expected %s. got %s", nws, ipv4Nw)
 	}
 }
 

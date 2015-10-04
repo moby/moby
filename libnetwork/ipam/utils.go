@@ -36,33 +36,6 @@ func getAddressRange(pool string) (*AddressRange, error) {
 	return &AddressRange{nw, ipToUint32(types.GetMinimalIP(lIP)), ipToUint32(types.GetMinimalIP(hIP))}, nil
 }
 
-func initLocalPredefinedPools() []*net.IPNet {
-	pl := make([]*net.IPNet, 0, 274)
-	mask := []byte{255, 255, 0, 0}
-	for i := 17; i < 32; i++ {
-		pl = append(pl, &net.IPNet{IP: []byte{172, byte(i), 0, 0}, Mask: mask})
-	}
-	for i := 0; i < 256; i++ {
-		pl = append(pl, &net.IPNet{IP: []byte{10, byte(i), 0, 0}, Mask: mask})
-	}
-	mask24 := []byte{255, 255, 255, 0}
-	for i := 42; i < 45; i++ {
-		pl = append(pl, &net.IPNet{IP: []byte{192, 168, byte(i), 0}, Mask: mask24})
-	}
-	return pl
-}
-
-func initGlobalPredefinedPools() []*net.IPNet {
-	pl := make([]*net.IPNet, 0, 256*256)
-	mask := []byte{255, 255, 255, 0}
-	for i := 0; i < 256; i++ {
-		for j := 0; j < 256; j++ {
-			pl = append(pl, &net.IPNet{IP: []byte{10, byte(i), byte(j), 0}, Mask: mask})
-		}
-	}
-	return pl
-}
-
 // Check subnets size. In case configured subnet is v6 and host size is
 // greater than 32 bits, adjust subnet to /96.
 func adjustAndCheckSubnetSize(subnet *net.IPNet) (*net.IPNet, error) {

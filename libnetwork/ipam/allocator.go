@@ -10,7 +10,7 @@ import (
 	"github.com/docker/libnetwork/bitseq"
 	"github.com/docker/libnetwork/datastore"
 	"github.com/docker/libnetwork/ipamapi"
-	"github.com/docker/libnetwork/netutils"
+	"github.com/docker/libnetwork/ipamutils"
 	"github.com/docker/libnetwork/types"
 )
 
@@ -61,8 +61,8 @@ func NewAllocator(lcDs, glDs datastore.DataStore) (*Allocator, error) {
 	}
 
 	a.predefined = map[string][]*net.IPNet{
-		localAddressSpace:  initLocalPredefinedPools(),
-		globalAddressSpace: initGlobalPredefinedPools(),
+		localAddressSpace:  ipamutils.PredefinedBroadNetworks,
+		globalAddressSpace: ipamutils.PredefinedGranularNetworks,
 	}
 
 	a.addrSpace2Configs = map[string]*PoolsConfig{
@@ -307,7 +307,8 @@ func (a *Allocator) getPredefinedPool(as string, ipV6 bool) (*net.IPNet, error) 
 
 		if !cfg.contains(as, nw) {
 			if as == localAddressSpace {
-				if err := netutils.CheckRouteOverlaps(nw); err == nil {
+				// Check if nw overlap with system routes, name servers
+				if _, err := ipamutils.FindAvailableNetwork([]*net.IPNet{nw}); err == nil {
 					return nw, nil
 				}
 				continue
