@@ -65,6 +65,13 @@ func NewHandle(app string, ds datastore.DataStore, id string, numElements uint32
 		return nil, err
 	}
 
+	// If the handle is not in store, write it.
+	if !h.Exists() {
+		if err := h.writeToStore(); err != nil {
+			return nil, fmt.Errorf("failed to write bitsequence to store: %v", err)
+		}
+	}
+
 	return h, nil
 }
 
