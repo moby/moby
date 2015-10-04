@@ -2,6 +2,7 @@ package jsonlog
 
 import (
 	"bytes"
+	"encoding/json"
 	"unicode/utf8"
 )
 
@@ -12,6 +13,9 @@ type JSONLogs struct {
 	Log     []byte `json:"log,omitempty"`
 	Stream  string `json:"stream,omitempty"`
 	Created string `json:"time"`
+
+	// json-encoded bytes
+	RawAttrs json.RawMessage `json:"attrs,omitempty"`
 }
 
 // MarshalJSONBuf is based on the same method from JSONLog
@@ -33,6 +37,15 @@ func (mj *JSONLogs) MarshalJSONBuf(buf *bytes.Buffer) error {
 		}
 		buf.WriteString(`"stream":`)
 		ffjsonWriteJSONString(buf, mj.Stream)
+	}
+	if len(mj.RawAttrs) > 0 {
+		if first == true {
+			first = false
+		} else {
+			buf.WriteString(`,`)
+		}
+		buf.WriteString(`"attrs":`)
+		buf.Write(mj.RawAttrs)
 	}
 	if first == true {
 		first = false
