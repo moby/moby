@@ -41,12 +41,13 @@ func (cli *DockerCli) CmdSearch(args ...string) error {
 
 	// Resolve the Repository name from fqn to hostname + name
 	taglessRemote, _ := parsers.ParseRepositoryTag(name)
-	repoInfo, err := registry.ParseRepositoryInfo(taglessRemote)
+
+	indexInfo, err := registry.ParseIndexInfo(taglessRemote)
 	if err != nil {
 		return err
 	}
 
-	rdr, _, err := cli.clientRequestAttemptLogin("GET", "/images/search?"+v.Encode(), nil, nil, repoInfo.Index, "search")
+	rdr, _, err := cli.clientRequestAttemptLogin("GET", "/images/search?"+v.Encode(), nil, nil, indexInfo, "search")
 	if err != nil {
 		return err
 	}
