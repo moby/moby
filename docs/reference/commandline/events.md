@@ -48,9 +48,10 @@ container container 588a23dac085 *AND* the event type is *start*
 
 The currently supported filters are:
 
-* container
-* event
-* image
+* container (`container=<name or id>`)
+* event (`event=<event type>`)
+* image (`image=<tag or id>`)
+* label (`label=<key>` or `label=<key>=<value>`)
 
 ## Examples
 
@@ -133,4 +134,3 @@ relative to the current time on the client machine:
     2014-05-10T17:42:14.999999999Z07:00 4386fb97867d: (from ubuntu-1:14.04) stop
     2014-05-10T17:42:14.999999999Z07:00 7805c1d35632: (from redis:2.8) die
     2014-09-03T15:49:29.999999999Z07:00 7805c1d35632: (from redis:2.8) stop
-

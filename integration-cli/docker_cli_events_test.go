@@ -13,6 +13,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/go-check/check"
 )
 
@@ -383,6 +384,65 @@ func (s *DockerSuite) TestEventsFilterImageName(c *check.C) {
 
 }
 
+func (s *DockerSuite) TestEventsFilterLabels(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+	since := daemonTime(c).Unix()
+	label := "io.docker.testing=foo"
+
+	out, _ := dockerCmd(c, "run", "-d", "-l", label, "busybox:latest", "true")
+	container1 := strings.TrimSpace(out)
+
+	out, _ = dockerCmd(c, "run", "-d", "busybox", "true")
+	container2 := strings.TrimSpace(out)
+
+	out, _ = dockerCmd(
+		c,
+		"events",
+		fmt.Sprintf("--since=%d", since),
+		fmt.Sprintf("--until=%d", daemonTime(c).Unix()),
+		"--filter", fmt.Sprintf("label=%s", label))
+
+	events := strings.Split(strings.TrimSpace(out), "\n")
+	c.Assert(len(events), checker.Equals, 3)
+
+	for _, e := range events {
+		c.Assert(e, checker.Contains, container1)
+		c.Assert(e, check.Not(checker.Contains), container2)
+	}
+}
+
+func (s *DockerSuite) TestEventsFilterImageLabels(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+	since := daemonTime(c).Unix()
+	name := "labelfilterimage"
+	label := "io.docker.testing=image"
+
+	// Build a test image.
+	_, err := buildImage(name, `
+		FROM busybox:latest
+		LABEL io.docker.testing=image`, true)
+	if err != nil {
+		c.Fatalf("Couldn't create image: %q", err)
+	}
+
+	dockerCmd(c, "tag", name, "labelfiltertest:tag1")
+	dockerCmd(c, "tag", name, "labelfiltertest:tag2")
+	dockerCmd(c, "tag", "busybox:latest", "labelfiltertest:tag3")
+
+	out, _ := dockerCmd(
+		c,
+		"events",
+		fmt.Sprintf("--since=%d", since),
+		fmt.Sprintf("--until=%d", daemonTime(c).Unix()),
+		"--filter", fmt.Sprintf("label=%s", label))
+
+	events := strings.Split(strings.TrimSpace(out), "\n")
+	c.Assert(len(events), checker.Equals, 2, check.Commentf("Events == %s", events))
+	for _, e := range events {
+		c.Assert(e, checker.Contains, "labelfiltertest")
+	}
+}
+
 func (s *DockerSuite) TestEventsFilterContainer(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	since := fmt.Sprintf("%d", daemonTime(c).Unix())
@@ -401,7 +461,7 @@ func (s *DockerSuite) TestEventsFilterContainer(c *check.C) {
 
 	checkEvents := func(id string, events []string) error {
 		if len(events) != 4 { // create, attach, start, die
-			return fmt.Errorf("expected 3 events, got %v", events)
+			return fmt.Errorf("expected 4 events, got %v", events)
 		}
 		for _, event := range events {
 			e := strings.Fields(event)
