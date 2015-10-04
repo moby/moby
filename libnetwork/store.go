@@ -45,14 +45,7 @@ func (c *controller) initGlobalStore() error {
 	c.Lock()
 	c.globalStore = store
 	c.Unlock()
-
-	nws, err := c.getNetworksFromStore(true)
-	if err == nil {
-		c.processNetworkUpdate(nws, nil)
-	} else if err != datastore.ErrKeyNotFound {
-		log.Warnf("failed to read networks from globalstore during init : %v", err)
-	}
-	return c.watchNetworks()
+	return nil
 }
 
 func (c *controller) initLocalStore() error {
@@ -66,14 +59,37 @@ func (c *controller) initLocalStore() error {
 	c.Lock()
 	c.localStore = localStore
 	c.Unlock()
+	return nil
+}
 
-	nws, err := c.getNetworksFromStore(false)
+func (c *controller) restoreFromGlobalStore() error {
+	c.Lock()
+	s := c.globalStore
+	c.Unlock()
+	if s == nil {
+		return nil
+	}
+	c.restore("global")
+	return c.watchNetworks()
+}
+
+func (c *controller) restoreFromLocalStore() error {
+	c.Lock()
+	s := c.localStore
+	c.Unlock()
+	if s != nil {
+		c.restore("local")
+	}
+	return nil
+}
+
+func (c *controller) restore(store string) {
+	nws, err := c.getNetworksFromStore(store == "global")
 	if err == nil {
 		c.processNetworkUpdate(nws, nil)
 	} else if err != datastore.ErrKeyNotFound {
-		log.Warnf("failed to read networks from localstore during init : %v", err)
+		log.Warnf("failed to read networks from %s store during init : %v", store, err)
 	}
-	return nil
 }
 
 func (c *controller) getNetworksFromStore(global bool) ([]*store.KVPair, error) {

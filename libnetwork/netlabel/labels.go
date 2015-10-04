@@ -38,6 +38,9 @@ const (
 
 	// OverlayNeighborIP constant represents overlay driver neighbor IP
 	OverlayNeighborIP = DriverPrefix + ".overlay.neighbor_ip"
+
+	// Gateway represents the gateway for the network
+	Gateway = Prefix + ".gateway"
 )
 
 // Key extracts the key portion of the label

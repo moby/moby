@@ -6,7 +6,6 @@ import (
 	"flag"
 	"fmt"
 	"io/ioutil"
-	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -268,23 +267,20 @@ func TestBridge(t *testing.T) {
 		defer testutils.SetupTestOSContext(t)()
 	}
 
-	ip, subnet, err := net.ParseCIDR("192.168.100.1/24")
+	subnet, err := types.ParseCIDR("192.168.100.1/24")
 	if err != nil {
 		t.Fatal(err)
 	}
-	subnet.IP = ip
 
-	ip, cidr, err := net.ParseCIDR("192.168.100.2/28")
+	cidr, err := types.ParseCIDR("192.168.100.2/28")
 	if err != nil {
 		t.Fatal(err)
 	}
-	cidr.IP = ip
 
-	ip, cidrv6, err := net.ParseCIDR("fe90::1/96")
+	cidrv6, err := types.ParseCIDR("fe90::1/96")
 	if err != nil {
 		t.Fatal(err)
 	}
-	cidrv6.IP = ip
 
 	log.Debug("Adding a bridge")
 
@@ -549,11 +545,10 @@ func TestUnknownEndpoint(t *testing.T) {
 		defer testutils.SetupTestOSContext(t)()
 	}
 
-	ip, subnet, err := net.ParseCIDR("192.168.100.1/24")
+	subnet, err := types.ParseCIDR("192.168.100.1/24")
 	if err != nil {
 		t.Fatal(err)
 	}
-	subnet.IP = ip
 
 	netOption := options.Generic{
 		"BridgeName":  "testnetwork",
@@ -1026,10 +1021,9 @@ func TestEndpointJoin(t *testing.T) {
 
 	// Validate if ep.Info() only gives me IP address info and not names and gateway during CreateEndpoint()
 	info := ep1.Info()
-	if iface := info.Iface(); iface != nil {
-		if iface.Address().IP.To4() == nil {
-			t.Fatalf("Invalid IP address returned: %v", iface.Address())
-		}
+	iface := info.Iface()
+	if iface.Address() != nil && iface.Address().IP.To4() == nil {
+		t.Fatalf("Invalid IP address returned: %v", iface.Address())
 	}
 
 	if info.Gateway().To4() != nil {
@@ -1711,11 +1705,10 @@ func TestEnableIPv6(t *testing.T) {
 		}
 	}()
 
-	ip, cidrv6, err := net.ParseCIDR("fe80::1/64")
+	cidrv6, err := types.ParseCIDR("fe80::1/64")
 	if err != nil {
 		t.Fatal(err)
 	}
-	cidrv6.IP = ip
 
 	netOption := options.Generic{
 		netlabel.EnableIPv6: true,

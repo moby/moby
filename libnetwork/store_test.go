@@ -52,7 +52,6 @@ func testLocalBackend(t *testing.T, provider, url string, storeConfig *store.Con
 	genericOption[netlabel.GenericData] = driverOptions
 	cfgOptions = append(cfgOptions, config.OptionDriverConfig("host", genericOption))
 
-	fmt.Printf("URL : %s\n", url)
 	ctrl, err := New(cfgOptions...)
 	if err != nil {
 		t.Fatalf("Error new controller: %v", err)
@@ -139,7 +138,7 @@ func TestLocalStoreLockTimeout(t *testing.T) {
 	}
 	defer ctrl1.Stop()
 	// Use the same boltdb file without closing the previous controller
-	ctrl2, _ := New(cfgOptions...)
+	ctrl2, err := New(cfgOptions...)
 	if err != nil {
 		t.Fatalf("Error new controller: %v", err)
 	}

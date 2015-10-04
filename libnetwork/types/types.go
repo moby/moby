@@ -154,6 +154,9 @@ func ParseProtocol(s string) Protocol {
 
 // GetMacCopy returns a copy of the passed MAC address
 func GetMacCopy(from net.HardwareAddr) net.HardwareAddr {
+	if from == nil {
+		return nil
+	}
 	to := make(net.HardwareAddr, len(from))
 	copy(to, from)
 	return to
@@ -161,6 +164,9 @@ func GetMacCopy(from net.HardwareAddr) net.HardwareAddr {
 
 // GetIPCopy returns a copy of the passed IP address
 func GetIPCopy(from net.IP) net.IP {
+	if from == nil {
+		return nil
+	}
 	to := make(net.IP, len(from))
 	copy(to, from)
 	return to
@@ -222,23 +228,32 @@ func GetMinimalIPNet(nw *net.IPNet) *net.IPNet {
 
 var v4inV6MaskPrefix = []byte{0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff}
 
-// GetHostPartIP returns the host portion of the ip address identified by the mask.
-// IP address representation is not modified. If address and mask are not compatible
-// an error is returned.
-func GetHostPartIP(ip net.IP, mask net.IPMask) (net.IP, error) {
+// compareIPMask checks if the passed ip and mask are semantically compatible.
+// It returns the byte indexes for the address and mask so that caller can
+// do bitwise operations without modifying address representation.
+func compareIPMask(ip net.IP, mask net.IPMask) (is int, ms int, err error) {
 	// Find the effective starting of address and mask
-	is := 0
-	ms := 0
 	if len(ip) == net.IPv6len && ip.To4() != nil {
 		is = 12
 	}
 	if len(ip[is:]) == net.IPv4len && len(mask) == net.IPv6len && bytes.Equal(mask[:12], v4inV6MaskPrefix) {
 		ms = 12
 	}
-
 	// Check if address and mask are semantically compatible
 	if len(ip[is:]) != len(mask[ms:]) {
-		return nil, fmt.Errorf("cannot compute host portion ip address as ip and mask are not compatible: (%#v, %#v)", ip, mask)
+		err = fmt.Errorf("ip and mask are not compatible: (%#v, %#v)", ip, mask)
+	}
+	return
+}
+
+// GetHostPartIP returns the host portion of the ip address identified by the mask.
+// IP address representation is not modified. If address and mask are not compatible
+// an error is returned.
+func GetHostPartIP(ip net.IP, mask net.IPMask) (net.IP, error) {
+	// Find the effective starting of address and mask
+	is, ms, err := compareIPMask(ip, mask)
+	if err != nil {
+		return nil, fmt.Errorf("cannot compute host portion ip address because %s", err)
 	}
 
 	// Compute host portion
@@ -248,6 +263,34 @@ func GetHostPartIP(ip net.IP, mask net.IPMask) (net.IP, error) {
 	}
 
 	return out, nil
+}
+
+// GetBroadcastIP returns the broadcast ip address for the passed network (ip and mask).
+// IP address representation is not modified. If address and mask are not compatible
+// an error is returned.
+func GetBroadcastIP(ip net.IP, mask net.IPMask) (net.IP, error) {
+	// Find the effective starting of address and mask
+	is, ms, err := compareIPMask(ip, mask)
+	if err != nil {
+		return nil, fmt.Errorf("cannot compute broadcast ip address because %s", err)
+	}
+
+	// Compute broadcast address
+	out := GetIPCopy(ip)
+	for i := 0; i < len(mask[ms:]); i++ {
+		out[is+i] |= ^mask[ms+i]
+	}
+
+	return out, nil
+}
+
+// ParseCIDR returns the *net.IPNet represented by the passed CIDR notation
+func ParseCIDR(cidr string) (n *net.IPNet, e error) {
+	var i net.IP
+	if i, n, e = net.ParseCIDR(cidr); e == nil {
+		n.IP = i
+	}
+	return
 }
 
 const (

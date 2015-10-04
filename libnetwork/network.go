@@ -55,22 +55,94 @@ type EndpointWalker func(ep Endpoint) bool
 
 type svcMap map[string]net.IP
 
+// IpamConf contains all the ipam related configurations for a network
+type IpamConf struct {
+	PreferredPool string
+	SubPool       string
+	Options       map[string]string // IPAM input options
+	IsV6          bool
+	Gateway       string
+	AuxAddresses  map[string]string
+}
+
+// Validate checks whether the configuration is valid
+func (c *IpamConf) Validate() error {
+	if c.Gateway != "" && nil == net.ParseIP(c.Gateway) {
+		return types.BadRequestErrorf("invalid gateway address %s in IpamConf dtructure", c.Gateway)
+	}
+	return nil
+}
+
+// IpamInfo contains all the ipam related operational info for a network
+type IpamInfo struct {
+	PoolID string
+	Meta   map[string]string
+	driverapi.IPAMData
+}
+
+// MarshalJSON encodes IpamInfo into json message
+func (i *IpamInfo) MarshalJSON() ([]byte, error) {
+	m := map[string]interface{}{
+		"PoolID": i.PoolID,
+	}
+	v, err := json.Marshal(&i.IPAMData)
+	if err != nil {
+		return nil, err
+	}
+	m["IPAMData"] = string(v)
+
+	if i.Meta != nil {
+		m["Meta"] = i.Meta
+	}
+	return json.Marshal(m)
+}
+
+// UnmarshalJSON decodes json message into PoolData
+func (i *IpamInfo) UnmarshalJSON(data []byte) error {
+	var (
+		m   map[string]interface{}
+		err error
+	)
+	if err = json.Unmarshal(data, &m); err != nil {
+		return err
+	}
+	i.PoolID = m["PoolID"].(string)
+	if v, ok := m["Meta"]; ok {
+		b, _ := json.Marshal(v)
+		if err = json.Unmarshal(b, &i.Meta); err != nil {
+			return err
+		}
+	}
+	if v, ok := m["IPAMData"]; ok {
+		if err = json.Unmarshal([]byte(v.(string)), &i.IPAMData); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 type network struct {
-	ctrlr       *controller
-	name        string
-	networkType string
-	id          string
-	driver      driverapi.Driver
-	enableIPv6  bool
-	endpointCnt uint64
-	endpoints   endpointTable
-	generic     options.Generic
-	dbIndex     uint64
-	svcRecords  svcMap
-	dbExists    bool
-	persist     bool
-	stopWatchCh chan struct{}
-	dataScope   datastore.DataScope
+	ctrlr        *controller
+	name         string
+	networkType  string
+	id           string
+	ipamType     string
+	driver       driverapi.Driver
+	addrSpace    string
+	ipamV4Config []*IpamConf
+	ipamV6Config []*IpamConf
+	ipamV4Info   []*IpamInfo
+	ipamV6Info   []*IpamInfo
+	enableIPv6   bool
+	endpointCnt  uint64
+	endpoints    endpointTable
+	generic      options.Generic
+	dbIndex      uint64
+	svcRecords   svcMap
+	dbExists     bool
+	persist      bool
+	stopWatchCh  chan struct{}
+	dataScope    datastore.DataScope
 	sync.Mutex
 }
 
@@ -178,10 +250,42 @@ func (n *network) MarshalJSON() ([]byte, error) {
 	netMap["name"] = n.name
 	netMap["id"] = n.id
 	netMap["networkType"] = n.networkType
+	netMap["ipamType"] = n.ipamType
+	netMap["addrSpace"] = n.addrSpace
 	netMap["endpointCnt"] = n.endpointCnt
 	netMap["enableIPv6"] = n.enableIPv6
-	netMap["generic"] = n.generic
+	if n.generic != nil {
+		netMap["generic"] = n.generic
+	}
 	netMap["persist"] = n.persist
+	if len(n.ipamV4Config) > 0 {
+		ics, err := json.Marshal(n.ipamV4Config)
+		if err != nil {
+			return nil, err
+		}
+		netMap["ipamV4Config"] = string(ics)
+	}
+	if len(n.ipamV4Info) > 0 {
+		iis, err := json.Marshal(n.ipamV4Info)
+		if err != nil {
+			return nil, err
+		}
+		netMap["ipamV4Info"] = string(iis)
+	}
+	if len(n.ipamV6Config) > 0 {
+		ics, err := json.Marshal(n.ipamV6Config)
+		if err != nil {
+			return nil, err
+		}
+		netMap["ipamV6Config"] = string(ics)
+	}
+	if len(n.ipamV6Info) > 0 {
+		iis, err := json.Marshal(n.ipamV6Info)
+		if err != nil {
+			return nil, err
+		}
+		netMap["ipamV6Info"] = string(iis)
+	}
 	return json.Marshal(netMap)
 }
 
@@ -193,14 +297,36 @@ func (n *network) UnmarshalJSON(b []byte) (err error) {
 	}
 	n.name = netMap["name"].(string)
 	n.id = netMap["id"].(string)
+	n.ipamType = netMap["ipamType"].(string)
+	n.addrSpace = netMap["addrSpace"].(string)
 	n.networkType = netMap["networkType"].(string)
 	n.endpointCnt = uint64(netMap["endpointCnt"].(float64))
 	n.enableIPv6 = netMap["enableIPv6"].(bool)
-	if netMap["generic"] != nil {
-		n.generic = netMap["generic"].(map[string]interface{})
+	if v, ok := netMap["generic"]; ok {
+		n.generic = v.(map[string]interface{})
 	}
-	if netMap["persist"] != nil {
-		n.persist = netMap["persist"].(bool)
+	if v, ok := netMap["persist"]; ok {
+		n.persist = v.(bool)
+	}
+	if v, ok := netMap["ipamV4Config"]; ok {
+		if err := json.Unmarshal([]byte(v.(string)), &n.ipamV4Config); err != nil {
+			return err
+		}
+	}
+	if v, ok := netMap["ipamV4Info"]; ok {
+		if err := json.Unmarshal([]byte(v.(string)), &n.ipamV4Info); err != nil {
+			return err
+		}
+	}
+	if v, ok := netMap["ipamV6Config"]; ok {
+		if err := json.Unmarshal([]byte(v.(string)), &n.ipamV6Config); err != nil {
+			return err
+		}
+	}
+	if v, ok := netMap["ipamV6Info"]; ok {
+		if err := json.Unmarshal([]byte(v.(string)), &n.ipamV6Info); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -228,6 +354,16 @@ func NetworkOptionPersist(persist bool) NetworkOption {
 	}
 }
 
+// NetworkOptionIpam function returns an option setter for the ipam configuration for this network
+func NetworkOptionIpam(ipamDriver string, addrSpace string, ipV4 []*IpamConf, ipV6 []*IpamConf) NetworkOption {
+	return func(n *network) {
+		n.ipamType = ipamDriver
+		n.addrSpace = addrSpace
+		n.ipamV4Config = ipV4
+		n.ipamV6Config = ipV6
+	}
+}
+
 func (n *network) processOptions(options ...NetworkOption) {
 	for _, opt := range options {
 		if opt != nil {
@@ -239,9 +375,7 @@ func (n *network) processOptions(options ...NetworkOption) {
 func (n *network) Delete() error {
 	var err error
 
-	n.Lock()
-	ctrlr := n.ctrlr
-	n.Unlock()
+	ctrlr := n.getController()
 
 	ctrlr.Lock()
 	_, ok := ctrlr.networks[n.id]
@@ -277,6 +411,8 @@ func (n *network) Delete() error {
 	if err = n.deleteNetwork(); err != nil {
 		return err
 	}
+
+	n.ipamRelease()
 
 	return nil
 }
@@ -319,7 +455,7 @@ func (n *network) addEndpoint(ep *endpoint) error {
 		}
 	}()
 
-	err = d.CreateEndpoint(n.id, ep.id, ep, ep.generic)
+	err = d.CreateEndpoint(n.id, ep.id, ep.Interface(), ep.generic)
 	if err != nil {
 		return types.InternalErrorf("failed to create endpoint %s on network %s: %v", ep.Name(), n.Name(), err)
 	}
@@ -338,15 +474,21 @@ func (n *network) CreateEndpoint(name string, options ...EndpointOption) (Endpoi
 		return nil, types.ForbiddenErrorf("service endpoint with name %s already exists", name)
 	}
 
-	ep := &endpoint{name: name,
-		generic: make(map[string]interface{})}
+	ep := &endpoint{name: name, generic: make(map[string]interface{}), iface: &endpointInterface{}}
 	ep.id = stringid.GenerateRandomID()
 	ep.network = n
 	ep.processOptions(options...)
 
-	n.Lock()
-	ctrlr := n.ctrlr
-	n.Unlock()
+	if err = ep.assignAddress(); err != nil {
+		return nil, err
+	}
+	defer func() {
+		if err != nil {
+			ep.releaseAddress()
+		}
+	}()
+
+	ctrlr := n.getController()
 
 	n.IncEndpointCnt()
 	if err = ctrlr.updateToStore(n); err != nil {
@@ -441,7 +583,7 @@ func (n *network) isGlobalScoped() bool {
 func (n *network) updateSvcRecord(ep *endpoint, isAdd bool) {
 	n.Lock()
 	var recs []etchosts.Record
-	if iface := ep.Iface(); iface != nil {
+	if iface := ep.Iface(); iface.Address() != nil {
 		if isAdd {
 			n.svcRecords[ep.Name()] = iface.Address().IP
 			n.svcRecords[ep.Name()+"."+n.name] = iface.Address().IP
@@ -503,4 +645,162 @@ func (n *network) getController() *controller {
 	n.Lock()
 	defer n.Unlock()
 	return n.ctrlr
+}
+
+func (n *network) ipamAllocate() ([]func(), error) {
+	var (
+		cnl []func()
+		err error
+	)
+
+	// For now also exclude bridge from using new ipam
+	if n.Type() == "host" || n.Type() == "null" || n.Type() == "bridge" {
+		return cnl, nil
+	}
+
+	ipam, err := n.getController().getIpamDriver(n.ipamType)
+	if err != nil {
+		return nil, err
+	}
+
+	if n.addrSpace == "" {
+		if n.addrSpace, err = n.deriveAddressSpace(); err != nil {
+			return nil, err
+		}
+	}
+
+	if n.ipamV4Config == nil {
+		n.ipamV4Config = []*IpamConf{&IpamConf{}}
+	}
+
+	n.ipamV4Info = make([]*IpamInfo, len(n.ipamV4Config))
+
+	for i, cfg := range n.ipamV4Config {
+		if err = cfg.Validate(); err != nil {
+			return nil, err
+		}
+		d := &IpamInfo{}
+		n.ipamV4Info[i] = d
+
+		d.PoolID, d.Pool, d.Meta, err = ipam.RequestPool(n.addrSpace, cfg.PreferredPool, cfg.SubPool, cfg.Options, cfg.IsV6)
+		if err != nil {
+			return nil, err
+		}
+
+		defer func() {
+			if err != nil {
+				if err := ipam.ReleasePool(d.PoolID); err != nil {
+					log.Warnf("Failed to release address pool %s after failure to create network %s (%s)", d.PoolID, n.Name(), n.ID())
+				}
+			}
+		}()
+
+		if gws, ok := d.Meta[netlabel.Gateway]; ok {
+			if d.Gateway, err = types.ParseCIDR(gws); err != nil {
+				return nil, types.BadRequestErrorf("failed to parse gateway address (%v) returned by ipam driver: %v", gws, err)
+			}
+		}
+
+		// If user requested a specific gateway, libnetwork will allocate it
+		// irrespective of whether ipam driver returned a gateway already.
+		// If none of the above is true, libnetwork will allocate one.
+		if cfg.Gateway != "" || d.Gateway == nil {
+			if d.Gateway, _, err = ipam.RequestAddress(d.PoolID, net.ParseIP(cfg.Gateway), nil); err != nil {
+				return nil, types.InternalErrorf("failed to allocate gateway (%v): %v", cfg.Gateway, err)
+			}
+		}
+
+		cnl = append(cnl, func() {
+			if err := ipam.ReleaseAddress(d.PoolID, d.Gateway.IP); err != nil {
+				log.Warnf("Failed to release gw address %s after failure to create network %s (%s)", d.Gateway, n.Name(), n.ID())
+			}
+		})
+		if cfg.AuxAddresses != nil {
+			var ip net.IP
+			d.IPAMData.AuxAddresses = make(map[string]*net.IPNet, len(cfg.AuxAddresses))
+			for k, v := range cfg.AuxAddresses {
+				if ip = net.ParseIP(v); ip == nil {
+					return nil, types.BadRequestErrorf("non parsable secondary ip address %s (%s) passed for network %s", k, v, n.Name())
+				}
+				if d.IPAMData.AuxAddresses[k], _, err = ipam.RequestAddress(d.PoolID, net.ParseIP(cfg.Gateway), nil); err != nil {
+					return nil, types.InternalErrorf("failed to allocate secondary ip address %s(%s): %v", k, v, err)
+				}
+			}
+		}
+	}
+
+	return cnl, nil
+}
+
+func (n *network) ipamRelease() {
+	// For now also exclude bridge from using new ipam
+	if n.Type() == "host" || n.Type() == "null" || n.Type() == "bridge" {
+		return
+	}
+	ipam, err := n.getController().getIpamDriver(n.ipamType)
+	if err != nil {
+		log.Warnf("Failed to retrieve ipam driver to release address pool(s) on delete of network %s (%s): %v", n.Name(), n.ID(), err)
+		return
+	}
+	for _, d := range n.ipamV4Info {
+		if d.Gateway != nil {
+			if err := ipam.ReleaseAddress(d.PoolID, d.Gateway.IP); err != nil {
+				log.Warnf("Failed to release gateway ip address %s on delete of network %s (%s): %v", d.Gateway.IP, n.Name(), n.ID(), err)
+			}
+		}
+		if d.IPAMData.AuxAddresses != nil {
+			for k, nw := range d.IPAMData.AuxAddresses {
+				if err := ipam.ReleaseAddress(d.PoolID, nw.IP); err != nil {
+					log.Warnf("Failed to release secondary ip address %s (%v) on delete of network %s (%s): %v", k, nw.IP, n.Name(), n.ID(), err)
+				}
+			}
+		}
+		if err := ipam.ReleasePool(d.PoolID); err != nil {
+			log.Warnf("Failed to release address pool %s on delete of network %s (%s): %v", d.PoolID, n.Name(), n.ID(), err)
+		}
+	}
+}
+
+func (n *network) getIPInfo() []*IpamInfo {
+	n.Lock()
+	defer n.Unlock()
+	l := make([]*IpamInfo, 0, len(n.ipamV4Info))
+	for _, d := range n.ipamV4Info {
+		l = append(l, d)
+	}
+	return l
+}
+
+func (n *network) getIPv4Data() []driverapi.IPAMData {
+	l := make([]driverapi.IPAMData, 0, len(n.ipamV4Info))
+	n.Lock()
+	for _, d := range n.ipamV4Info {
+		l = append(l, d.IPAMData)
+	}
+	n.Unlock()
+	return l
+}
+
+func (n *network) getIPv6Data() []driverapi.IPAMData {
+	l := make([]driverapi.IPAMData, 0, len(n.ipamV6Info))
+	n.Lock()
+	for _, d := range n.ipamV6Info {
+		l = append(l, d.IPAMData)
+	}
+	n.Unlock()
+	return l
+}
+
+func (n *network) deriveAddressSpace() (string, error) {
+	c := n.getController()
+	c.Lock()
+	ipd, ok := c.ipamDrivers[n.ipamType]
+	c.Unlock()
+	if !ok {
+		return "", types.NotFoundErrorf("could not find ipam driver %s to get default address space", n.ipamType)
+	}
+	if n.isGlobalScoped() {
+		return ipd.defaultGlobalAddressSpace, nil
+	}
+	return ipd.defaultLocalAddressSpace, nil
 }

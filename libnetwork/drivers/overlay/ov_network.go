@@ -9,7 +9,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/libnetwork/datastore"
-	"github.com/docker/libnetwork/ipallocator"
+	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/osl"
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netlink/nl"
@@ -18,24 +18,24 @@ import (
 type networkTable map[string]*network
 
 type network struct {
-	id          string
-	vni         uint32
-	dbIndex     uint64
-	dbExists    bool
-	sbox        osl.Sandbox
-	endpoints   endpointTable
-	ipAllocator *ipallocator.IPAllocator
-	gw          net.IP
-	vxlanName   string
-	driver      *driver
-	joinCnt     int
-	once        *sync.Once
-	initEpoch   int
-	initErr     error
+	id        string
+	vni       uint32
+	dbIndex   uint64
+	dbExists  bool
+	sbox      osl.Sandbox
+	endpoints endpointTable
+	vxlanName string
+	driver    *driver
+	joinCnt   int
+	once      *sync.Once
+	initEpoch int
+	initErr   error
+	subnets   []*net.IPNet
+	gateways  []*net.IPNet
 	sync.Mutex
 }
 
-func (d *driver) CreateNetwork(id string, option map[string]interface{}) error {
+func (d *driver) CreateNetwork(id string, option map[string]interface{}, ipV4Data, ipV6Data []driverapi.IPAMData) error {
 	if id == "" {
 		return fmt.Errorf("invalid network id")
 	}
@@ -51,7 +51,13 @@ func (d *driver) CreateNetwork(id string, option map[string]interface{}) error {
 		once:      &sync.Once{},
 	}
 
-	n.gw = bridgeIP.IP
+	n.subnets = make([]*net.IPNet, len(ipV4Data))
+	n.gateways = make([]*net.IPNet, len(ipV4Data))
+
+	for i, ipd := range ipV4Data {
+		n.subnets[i] = ipd.Pool
+		n.gateways[i] = ipd.Gateway
+	}
 
 	d.addNetwork(n)
 
@@ -151,7 +157,7 @@ func (n *network) initSandbox() error {
 
 	// Add a bridge inside the namespace
 	if err := sbox.AddInterface("bridge1", "br",
-		sbox.InterfaceOptions().Address(bridgeIP),
+		sbox.InterfaceOptions().Address(n.gateways[0]),
 		sbox.InterfaceOptions().Bridge(true)); err != nil {
 		return fmt.Errorf("could not create bridge inside the network sandbox: %v", err)
 	}

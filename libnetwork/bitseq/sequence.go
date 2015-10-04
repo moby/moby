@@ -306,8 +306,23 @@ func (h *Handle) validateOrdinal(ordinal uint32) error {
 }
 
 // Destroy removes from the datastore the data belonging to this handle
-func (h *Handle) Destroy() {
-	h.deleteFromStore()
+func (h *Handle) Destroy() error {
+	for {
+		if err := h.deleteFromStore(); err != nil {
+			if _, ok := err.(types.RetryError); !ok {
+				return fmt.Errorf("internal failure while destroying the sequence: %v", err)
+			}
+			// Fetch latest
+			if err := h.store.GetObject(datastore.Key(h.Key()...), h); err != nil {
+				if err == datastore.ErrKeyNotFound { // already removed
+					return nil
+				}
+				return fmt.Errorf("failed to fetch from store when destroying the sequence: %v", err)
+			}
+			continue
+		}
+		return nil
+	}
 }
 
 // ToByteArray converts this handle's data into a byte array

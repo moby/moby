@@ -1,9 +1,7 @@
 package overlay
 
 import (
-	"encoding/binary"
 	"fmt"
-	"net"
 	"sync"
 
 	"github.com/Sirupsen/logrus"
@@ -44,36 +42,8 @@ type driver struct {
 	sync.Mutex
 }
 
-var (
-	bridgeSubnet, bridgeIP *net.IPNet
-	once                   sync.Once
-	bridgeSubnetInt        uint32
-)
-
-func onceInit() {
-	var err error
-	_, bridgeSubnet, err = net.ParseCIDR("172.21.0.0/16")
-	if err != nil {
-		panic("could not parse cid 172.21.0.0/16")
-	}
-
-	bridgeSubnetInt = binary.BigEndian.Uint32(bridgeSubnet.IP.To4())
-
-	ip, subnet, err := net.ParseCIDR("172.21.255.254/16")
-	if err != nil {
-		panic("could not parse cid 172.21.255.254/16")
-	}
-
-	bridgeIP = &net.IPNet{
-		IP:   ip,
-		Mask: subnet.Mask,
-	}
-}
-
 // Init registers a new instance of overlay driver
 func Init(dc driverapi.DriverCallback, config map[string]interface{}) error {
-	once.Do(onceInit)
-
 	c := driverapi.Capability{
 		DataScope: datastore.GlobalScope,
 	}
