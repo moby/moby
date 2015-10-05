@@ -1469,29 +1469,14 @@ func (devices *DeviceSet) AddDevice(hash, baseHash string) error {
 	return nil
 }
 
-// Should be called with devices.Lock() held.
-func (devices *DeviceSet) deleteDevice(info *devInfo) error {
-	if devices.doBlkDiscard {
-		// This is a workaround for the kernel not discarding block so
-		// on the thin pool when we remove a thinp device, so we do it
-		// manually
-		if err := devices.activateDeviceIfNeeded(info); err == nil {
-			if err := devicemapper.BlockDeviceDiscard(info.DevName()); err != nil {
-				logrus.Debugf("Error discarding block on device: %s (ignoring)", err)
-			}
-		}
-	}
-
-	// Try to deactivate deivce in case it is active.
-	if err := devices.deactivateDevice(info); err != nil {
-		logrus.Debugf("Error deactivating device: %s", err)
-		return err
-	}
-
+// Should be caled with devices.Lock() held.
+func (devices *DeviceSet) deleteTransaction(info *devInfo) error {
 	if err := devices.openTransaction(info.Hash, info.DeviceID); err != nil {
-		logrus.Debugf("Error opening transaction hash = %s deviceID = %d", "", info.DeviceID)
+		logrus.Debugf("Error opening transaction hash = %s deviceId = %d", "", info.DeviceID)
 		return err
 	}
+
+	defer devices.closeTransaction()
 
 	if err := devicemapper.DeleteDevice(devices.getPoolDevName(), info.DeviceID); err != nil {
 		logrus.Debugf("Error deleting device: %s", err)
@@ -1502,7 +1487,49 @@ func (devices *DeviceSet) deleteDevice(info *devInfo) error {
 		return err
 	}
 
-	if err := devices.closeTransaction(); err != nil {
+	return nil
+}
+
+// Issue discard only if device open count is zero.
+func (devices *DeviceSet) issueDiscard(info *devInfo) error {
+	logrus.Debugf("devmapper: issueDiscard(device: %s). START", info.Hash)
+	defer logrus.Debugf("devmapper: issueDiscard(device: %s). END", info.Hash)
+	// This is a workaround for the kernel not discarding block so
+	// on the thin pool when we remove a thinp device, so we do it
+	// manually
+	if err := devices.activateDeviceIfNeeded(info); err != nil {
+		return err
+	}
+
+	devinfo, err := devicemapper.GetInfo(info.Name())
+	if err != nil {
+		return err
+	}
+
+	if devinfo.OpenCount != 0 {
+		logrus.Debugf("devmapper: Device: %s is in use. OpenCount=%d. Not issuing discards.", info.Hash, devinfo.OpenCount)
+		return nil
+	}
+
+	if err := devicemapper.BlockDeviceDiscard(info.DevName()); err != nil {
+		logrus.Debugf("Error discarding block on device: %s (ignoring)", err)
+	}
+	return nil
+}
+
+// Should be called with devices.Lock() held.
+func (devices *DeviceSet) deleteDevice(info *devInfo) error {
+	if devices.doBlkDiscard {
+		devices.issueDiscard(info)
+	}
+
+	// Try to deactivate device in case it is active.
+	if err := devices.deactivateDevice(info); err != nil {
+		logrus.Debugf("Error deactivating device: %s", err)
+		return err
+	}
+
+	if err := devices.deleteTransaction(info); err != nil {
 		return err
 	}
 
@@ -1657,6 +1684,14 @@ func (devices *DeviceSet) Shutdown() error {
 	var devs []*devInfo
 
 	devices.Lock()
+	// Save DeviceSet Metadata first. Docker kills all threads if they
+	// don't finish in certain time. It is possible that Shutdown()
+	// routine does not finish in time as we loop trying to deactivate
+	// some devices while these are busy. In that case shutdown() routine
+	// will be killed and we will not get a chance to save deviceset
+	// metadata. Hence save this early before trying to deactivate devices.
+	devices.saveDeviceSetMetaData()
+
 	for _, info := range devices.Devices {
 		devs = append(devs, info)
 	}
@@ -1698,8 +1733,6 @@ func (devices *DeviceSet) Shutdown() error {
 			logrus.Debugf("Shutdown deactivate pool , error: %s", err)
 		}
 	}
-
-	devices.saveDeviceSetMetaData()
 	devices.Unlock()
 
 	return nil
