@@ -301,7 +301,7 @@ func (store *TagStore) setLoad(repoName, tag, imageName string, force bool, out 
 		if old, exists := store.Repositories[repoName][tag]; exists {
 
 			if !force {
-				return fmt.Errorf("Conflict: Tag %s is already set to image %s, if you want to replace it, please use -f option", tag, old)
+				return fmt.Errorf("Conflict: Tag %s:%s is already set to image %s, if you want to replace it, please use -f option", repoName, tag, old[:12])
 			}
 
 			if old != img.ID && out != nil {
