@@ -79,7 +79,7 @@ func (s *Server) ServeAPI() error {
 		srv.srv.Handler = s.CreateMux()
 		go func(srv *HTTPServer) {
 			var err error
-			logrus.Errorf("API listen on %s", srv.l.Addr())
+			logrus.Infof("API listen on %s", srv.l.Addr())
 			if err = srv.Serve(); err != nil && strings.Contains(err.Error(), "use of closed network connection") {
 				err = nil
 			}
