@@ -2,7 +2,6 @@ package server
 
 import (
 	"crypto/tls"
-	"fmt"
 	"net"
 	"net/http"
 	"os"
@@ -28,22 +27,39 @@ type Config struct {
 	Version     string
 	SocketGroup string
 	TLSConfig   *tls.Config
+	Addrs       []Addr
 }
 
 // Server contains instance details for the server
 type Server struct {
 	cfg     *Config
 	start   chan struct{}
-	servers []serverCloser
+	servers []*HTTPServer
 	routers []router.Router
 }
 
+// Addr contains string representation of address and its protocol (tcp, unix...).
+type Addr struct {
+	Proto string
+	Addr  string
+}
+
 // New returns a new instance of the server based on the specified configuration.
-func New(cfg *Config) *Server {
-	return &Server{
+// It allocates resources which will be needed for ServeAPI(ports, unix-sockets).
+func New(cfg *Config) (*Server, error) {
+	s := &Server{
 		cfg:   cfg,
 		start: make(chan struct{}),
 	}
+	for _, addr := range cfg.Addrs {
+		srv, err := s.newServer(addr.Proto, addr.Addr)
+		if err != nil {
+			return nil, err
+		}
+		logrus.Debugf("Server created for HTTP on %s (%s)", addr.Proto, addr.Addr)
+		s.servers = append(s.servers, srv...)
+	}
+	return s, nil
 }
 
 // Close closes servers and thus stop receiving requests
@@ -55,39 +71,23 @@ func (s *Server) Close() {
 	}
 }
 
-type serverCloser interface {
-	Serve() error
-	Close() error
-}
-
-// ServeAPI loops through all of the protocols sent in to docker and spawns
-// off a go routine to setup a serving http.Server for each.
-func (s *Server) ServeAPI(protoAddrs []string) error {
-	var chErrors = make(chan error, len(protoAddrs))
-
-	for _, protoAddr := range protoAddrs {
-		protoAddrParts := strings.SplitN(protoAddr, "://", 2)
-		if len(protoAddrParts) != 2 {
-			return fmt.Errorf("bad format, expected PROTO://ADDR")
-		}
-		srv, err := s.newServer(protoAddrParts[0], protoAddrParts[1])
-		if err != nil {
-			return err
-		}
-		s.servers = append(s.servers, srv...)
-
-		for _, s := range srv {
-			logrus.Infof("Listening for HTTP on %s (%s)", protoAddrParts[0], protoAddrParts[1])
-			go func(s serverCloser) {
-				if err := s.Serve(); err != nil && strings.Contains(err.Error(), "use of closed network connection") {
-					err = nil
-				}
-				chErrors <- err
-			}(s)
-		}
+// ServeAPI loops through all initialized servers and spawns goroutine
+// with Server method for each. It sets CreateMux() as Handler also.
+func (s *Server) ServeAPI() error {
+	var chErrors = make(chan error, len(s.servers))
+	for _, srv := range s.servers {
+		srv.srv.Handler = s.CreateMux()
+		go func(srv *HTTPServer) {
+			var err error
+			logrus.Errorf("API listen on %s", srv.l.Addr())
+			if err = srv.Serve(); err != nil && strings.Contains(err.Error(), "use of closed network connection") {
+				err = nil
+			}
+			chErrors <- err
+		}(srv)
 	}
 
-	for i := 0; i < len(protoAddrs); i++ {
+	for i := 0; i < len(s.servers); i++ {
 		err := <-chErrors
 		if err != nil {
 			return err
