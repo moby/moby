@@ -219,7 +219,9 @@ func (daemon *Daemon) Register(container *Container) error {
 		container.setStoppedLocking(&execdriver.ExitStatus{ExitCode: 137})
 		// use the current driver and ensure that the container is dead x.x
 		cmd := &execdriver.Command{
-			ID: container.ID,
+			CommonCommand: execdriver.CommonCommand{
+				ID: container.ID,
+			},
 		}
 		daemon.execDriver.Terminate(cmd)
 

@@ -80,11 +80,6 @@ func populateCommand(c *Container, env []string) error {
 		return derr.ErrorCodeInvalidNetworkMode.WithArgs(c.hostConfig.NetworkMode)
 	}
 
-	pid := &execdriver.Pid{}
-
-	// TODO Windows. This can probably be factored out.
-	pid.HostPid = c.hostConfig.PidMode.IsHost()
-
 	// TODO Windows. More resource controls to be implemented later.
 	resources := &execdriver.Resources{
 		CommonResources: execdriver.CommonResources{
@@ -126,26 +121,23 @@ func populateCommand(c *Container, env []string) error {
 	}
 	layerFolder := m["dir"]
 
-	// TODO Windows: Factor out remainder of unused fields.
 	c.command = &execdriver.Command{
-		ID:             c.ID,
-		Rootfs:         c.rootfsPath(),
-		ReadonlyRootfs: c.hostConfig.ReadonlyRootfs,
-		InitPath:       "/.dockerinit",
-		WorkingDir:     c.Config.WorkingDir,
-		Network:        en,
-		Pid:            pid,
-		Resources:      resources,
-		CapAdd:         c.hostConfig.CapAdd.Slice(),
-		CapDrop:        c.hostConfig.CapDrop.Slice(),
-		ProcessConfig:  processConfig,
-		ProcessLabel:   c.getProcessLabel(),
-		MountLabel:     c.getMountLabel(),
-		FirstStart:     !c.HasBeenStartedBefore,
-		LayerFolder:    layerFolder,
-		LayerPaths:     layerPaths,
-		Hostname:       c.Config.Hostname,
-		Isolated:       c.hostConfig.Isolation.IsHyperV(),
+		CommonCommand: execdriver.CommonCommand{
+			ID:            c.ID,
+			Rootfs:        c.rootfsPath(),
+			InitPath:      "/.dockerinit",
+			WorkingDir:    c.Config.WorkingDir,
+			Network:       en,
+			MountLabel:    c.getMountLabel(),
+			Resources:     resources,
+			ProcessConfig: processConfig,
+			ProcessLabel:  c.getProcessLabel(),
+		},
+		FirstStart:  !c.HasBeenStartedBefore,
+		LayerFolder: layerFolder,
+		LayerPaths:  layerPaths,
+		Hostname:    c.Config.Hostname,
+		Isolated:    c.hostConfig.Isolation.IsHyperV(),
 	}
 
 	return nil

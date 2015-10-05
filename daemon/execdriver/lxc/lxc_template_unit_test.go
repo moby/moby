@@ -45,19 +45,21 @@ func TestLXCConfig(t *testing.T) {
 		t.Fatal(err)
 	}
 	command := &execdriver.Command{
-		ID: "1",
-		Resources: &execdriver.Resources{
-			MemorySwap: int64(swap),
-			CommonResources: execdriver.CommonResources{
-				Memory:    int64(mem),
-				CPUShares: int64(cpu),
+		CommonCommand: execdriver.CommonCommand{
+			ID: "1",
+			Network: &execdriver.Network{
+				Mtu: 1500,
+			},
+			ProcessConfig: execdriver.ProcessConfig{},
+			Resources: &execdriver.Resources{
+				MemorySwap: int64(swap),
+				CommonResources: execdriver.CommonResources{
+					Memory:    int64(mem),
+					CPUShares: int64(cpu),
+				},
 			},
 		},
-		Network: &execdriver.Network{
-			Mtu: 1500,
-		},
 		AllowedDevices: make([]*configs.Device, 0),
-		ProcessConfig:  execdriver.ProcessConfig{},
 	}
 	p, err := driver.generateLXCConfig(command)
 	if err != nil {
@@ -87,15 +89,17 @@ func TestCustomLxcConfig(t *testing.T) {
 		Privileged: false,
 	}
 	command := &execdriver.Command{
-		ID: "1",
+		CommonCommand: execdriver.CommonCommand{
+			ID: "1",
+			Network: &execdriver.Network{
+				Mtu: 1500,
+			},
+			ProcessConfig: processConfig,
+		},
 		LxcConfig: []string{
 			"lxc.utsname = docker",
 			"lxc.cgroup.cpuset.cpus = 0,1",
 		},
-		Network: &execdriver.Network{
-			Mtu: 1500,
-		},
-		ProcessConfig: processConfig,
 	}
 
 	p, err := driver.generateLXCConfig(command)
@@ -218,16 +222,18 @@ func TestCustomLxcConfigMounts(t *testing.T) {
 		},
 	}
 	command := &execdriver.Command{
-		ID: "1",
+		CommonCommand: execdriver.CommonCommand{
+			ID: "1",
+			Network: &execdriver.Network{
+				Mtu: 1500,
+			},
+			Mounts:        mounts,
+			ProcessConfig: processConfig,
+		},
 		LxcConfig: []string{
 			"lxc.utsname = docker",
 			"lxc.cgroup.cpuset.cpus = 0,1",
 		},
-		Network: &execdriver.Network{
-			Mtu: 1500,
-		},
-		Mounts:        mounts,
-		ProcessConfig: processConfig,
 	}
 
 	p, err := driver.generateLXCConfig(command)
@@ -260,14 +266,16 @@ func TestCustomLxcConfigMisc(t *testing.T) {
 
 	processConfig.Env = []string{"HOSTNAME=testhost"}
 	command := &execdriver.Command{
-		ID: "1",
+		CommonCommand: execdriver.CommonCommand{
+			ID: "1",
+			Network: &execdriver.Network{
+				Mtu: 1500,
+			},
+			ProcessConfig: processConfig,
+		},
 		LxcConfig: []string{
 			"lxc.cgroup.cpuset.cpus = 0,1",
 		},
-		Network: &execdriver.Network{
-			Mtu: 1500,
-		},
-		ProcessConfig:   processConfig,
 		CapAdd:          []string{"net_admin", "syslog"},
 		CapDrop:         []string{"kill", "mknod"},
 		AppArmorProfile: "lxc-container-default-with-nesting",
@@ -311,17 +319,19 @@ func TestCustomLxcConfigMiscOverride(t *testing.T) {
 
 	processConfig.Env = []string{"HOSTNAME=testhost"}
 	command := &execdriver.Command{
-		ID: "1",
+		CommonCommand: execdriver.CommonCommand{
+			ID: "1",
+			Network: &execdriver.Network{
+				Mtu: 1500,
+			},
+			ProcessConfig: processConfig,
+		},
 		LxcConfig: []string{
 			"lxc.cgroup.cpuset.cpus = 0,1",
 			"lxc.network.ipv4 = 172.0.0.1",
 		},
-		Network: &execdriver.Network{
-			Mtu: 1500,
-		},
-		ProcessConfig: processConfig,
-		CapAdd:        []string{"NET_ADMIN", "SYSLOG"},
-		CapDrop:       []string{"KILL", "MKNOD"},
+		CapAdd:  []string{"NET_ADMIN", "SYSLOG"},
+		CapDrop: []string{"KILL", "MKNOD"},
 	}
 
 	p, err := driver.generateLXCConfig(command)
