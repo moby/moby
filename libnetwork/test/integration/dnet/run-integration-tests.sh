@@ -79,6 +79,18 @@ stop_dnet 3 multi 1>>${INTEGRATION_ROOT}/test.log 2>&1
 unset cmap[dnet-3-multi]
 
 ## Setup
+start_dnet 1 bridge 1>>${INTEGRATION_ROOT}/test.log 2>&1
+cmap[dnet-1-bridge]=dnet-1-bridge
+
+## Run the test cases
+./integration-tmp/bin/bats ./test/integration/dnet/bridge.bats
+#docker logs dnet-1-bridge
+
+## Teardown
+stop_dnet 1 bridge 1>>${INTEGRATION_ROOT}/test.log 2>&1
+unset cmap[dnet-1-bridge]
+
+## Setup
 start_dnet 1 overlay 1>>${INTEGRATION_ROOT}/test.log 2>&1
 cmap[dnet-1-overlay]=dnet-1-overlay
 start_dnet 2 overlay 1>>${INTEGRATION_ROOT}/test.log 2>&1

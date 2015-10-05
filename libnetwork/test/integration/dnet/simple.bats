@@ -7,6 +7,8 @@ load helpers
     run dnet_cmd $(inst_id2port 1) network create -d test mh1
     echo ${output}
     [ "$status" -eq 0 ]
+    run dnet_cmd $(inst_id2port 1) network ls
+    echo ${output}
     line=$(dnet_cmd $(inst_id2port 1) network ls | grep mh1)
     echo ${line}
     name=$(echo ${line} | cut -d" " -f2)
@@ -32,9 +34,9 @@ load helpers
     echo ${output}
     [ "$status" -eq 0 ]
     run dnet_cmd $(inst_id2port 1) service ls
-    [ "$status" -eq 0 ]
     echo ${output}
     echo ${lines[1]}
+    [ "$status" -eq 0 ]
     svc=$(echo ${lines[1]} | cut -d" " -f2)
     network=$(echo ${lines[1]} | cut -d" " -f3)
     echo ${svc} ${network}

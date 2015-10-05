@@ -6,6 +6,23 @@ function dnet_container_name() {
     echo dnet-$1-$2
 }
 
+function get_sbox_id() {
+    local line
+
+    line=$(dnet_cmd $(inst_id2port ${1}) service ls | grep ${2})
+    echo ${line} | cut -d" " -f5
+}
+
+function net_connect() {
+	dnet_cmd $(inst_id2port ${1}) service publish ${2}.${3}
+	dnet_cmd $(inst_id2port ${1}) service attach ${2} ${2}.${3}
+}
+
+function net_disconnect() {
+	dnet_cmd $(inst_id2port ${1}) service detach ${2} ${2}.${3}
+	dnet_cmd $(inst_id2port ${1}) service unpublish ${2}.${3}
+}
+
 function start_consul() {
     stop_consul
     docker run -d \
@@ -28,6 +45,7 @@ function stop_consul() {
 }
 
 function start_dnet() {
+    local inst suffix name hport cport hopt neighip bridge_ip labels tomlfile
     inst=$1
     shift
     suffix=$1
@@ -39,7 +57,6 @@ function start_dnet() {
     hport=$((41000+${inst}-1))
     cport=2385
     hopt=""
-    isnum='^[0-9]+$'
 
     while [ -n "$1" ]
     do
@@ -62,10 +79,12 @@ function start_dnet() {
 	labels="\"com.docker.network.driver.overlay.bind_interface=eth0\", \"com.docker.network.driver.overlay.neighbor_ip=${neighip}\""
     fi
 
+    echo "parsed values: " ${name} ${hport} ${cport} ${hopt} ${neighip} ${labels}
+
     mkdir -p /tmp/dnet/${name}
     tomlfile="/tmp/dnet/${name}/libnetwork.toml"
     cat > ${tomlfile} <<EOF
-title = "LibNetwork Configuration file"
+title = "LibNetwork Configuration file for ${name}"
 
 [daemon]
   debug = false
@@ -73,13 +92,13 @@ title = "LibNetwork Configuration file"
 [cluster]
   discovery = "consul://${bridge_ip}:8500"
   Heartbeat = 10
-[globalstore]
-  embedded = false
-[globalstore.client]
-  provider = "consul"
-  Address = "${bridge_ip}:8500"
+[scopes]
+  [scopes.global]
+    embedded = false
+    [scopes.global.client]
+      provider = "consul"
+      address = "${bridge_ip}:8500"
 EOF
-    echo "parsed values: " ${name} ${hport} ${cport} ${hopt}
     docker run \
 	   -d \
 	   --name=${name}  \
@@ -101,6 +120,8 @@ function skip_for_circleci() {
 }
 
 function stop_dnet() {
+    local name
+
     name=$(dnet_container_name $1 $2)
     rm -rf /tmp/dnet/${name} || true
     docker stop ${name} || true
@@ -111,6 +132,8 @@ function stop_dnet() {
 }
 
 function dnet_cmd() {
+    local hport
+
     hport=$1
     shift
     ./cmd/dnet/dnet -H tcp://127.0.0.1:${hport} $*
@@ -121,6 +144,8 @@ function dnet_exec() {
 }
 
 function runc() {
+    local dnet
+
     dnet=${1}
     shift
     dnet_exec ${dnet} "cp /var/lib/docker/network/files/${1}*/* /scratch/rootfs/etc"
