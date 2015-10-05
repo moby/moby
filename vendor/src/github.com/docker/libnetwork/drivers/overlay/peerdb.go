@@ -56,7 +56,23 @@ func (pKey *peerKey) Scan(state fmt.ScanState, verb rune) error {
 
 var peerDbWg sync.WaitGroup
 
-func (d *driver) peerDbWalk(nid string, f func(*peerKey, *peerEntry) bool) error {
+func (d *driver) peerDbWalk(f func(string, *peerKey, *peerEntry) bool) error {
+	d.peerDb.Lock()
+	nids := []string{}
+	for nid := range d.peerDb.mp {
+		nids = append(nids, nid)
+	}
+	d.peerDb.Unlock()
+
+	for _, nid := range nids {
+		d.peerDbNetworkWalk(nid, func(pKey *peerKey, pEntry *peerEntry) bool {
+			return f(nid, pKey, pEntry)
+		})
+	}
+	return nil
+}
+
+func (d *driver) peerDbNetworkWalk(nid string, f func(*peerKey, *peerEntry) bool) error {
 	d.peerDb.Lock()
 	pMap, ok := d.peerDb.mp[nid]
 	if !ok {
@@ -89,7 +105,7 @@ func (d *driver) peerDbSearch(nid string, peerIP net.IP) (net.HardwareAddr, net.
 		found   bool
 	)
 
-	err := d.peerDbWalk(nid, func(pKey *peerKey, pEntry *peerEntry) bool {
+	err := d.peerDbNetworkWalk(nid, func(pKey *peerKey, pEntry *peerEntry) bool {
 		if pKey.peerIP.Equal(peerIP) {
 			peerMac = pKey.peerMac
 			vtep = pEntry.vtep
@@ -279,4 +295,13 @@ func (d *driver) peerDelete(nid, eid string, peerIP net.IP,
 	}
 
 	return nil
+}
+
+func (d *driver) pushLocalDb() {
+	d.peerDbWalk(func(nid string, pKey *peerKey, pEntry *peerEntry) bool {
+		if pEntry.isLocal {
+			d.pushLocalEndpointEvent("join", nid, pEntry.eid)
+		}
+		return false
+	})
 }

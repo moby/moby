@@ -5,6 +5,7 @@ import (
 
 	"github.com/BurntSushi/toml"
 	log "github.com/Sirupsen/logrus"
+	"github.com/docker/docker/pkg/discovery"
 	"github.com/docker/libkv/store"
 	"github.com/docker/libnetwork/netlabel"
 )
@@ -27,8 +28,9 @@ type DaemonCfg struct {
 
 // ClusterCfg represents cluster configuration
 type ClusterCfg struct {
-	Discovery string
+	Watcher   discovery.Watcher
 	Address   string
+	Discovery string
 	Heartbeat uint64
 }
 
@@ -105,6 +107,20 @@ func OptionKVProviderURL(url string) Option {
 	return func(c *Config) {
 		log.Infof("Option OptionKVProviderURL: %s", url)
 		c.GlobalStore.Client.Address = strings.TrimSpace(url)
+	}
+}
+
+// OptionDiscoveryWatcher function returns an option setter for discovery watcher
+func OptionDiscoveryWatcher(watcher discovery.Watcher) Option {
+	return func(c *Config) {
+		c.Cluster.Watcher = watcher
+	}
+}
+
+// OptionDiscoveryAddress function returns an option setter for self discovery address
+func OptionDiscoveryAddress(address string) Option {
+	return func(c *Config) {
+		c.Cluster.Address = address
 	}
 }
 

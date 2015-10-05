@@ -4,7 +4,11 @@ with a remote driver.
 */
 package api
 
-import "net"
+import (
+	"net"
+
+	"github.com/docker/libnetwork/driverapi"
+)
 
 // Response is the basic response structure used in all responses.
 type Response struct {
@@ -141,5 +145,16 @@ type LeaveRequest struct {
 
 // LeaveResponse is the answer to LeaveRequest.
 type LeaveResponse struct {
+	Response
+}
+
+// DiscoveryNotification represents a discovery notification
+type DiscoveryNotification struct {
+	DiscoveryType driverapi.DiscoveryType
+	DiscoveryData interface{}
+}
+
+// DiscoveryResponse is used by libnetwork to log any plugin error processing the discovery notifications
+type DiscoveryResponse struct {
 	Response
 }
