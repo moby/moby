@@ -102,6 +102,9 @@ use the `exit` command or enter Ctrl-D to finish.
 As with our previous container, once the Bash shell process has
 finished, the container is stopped.
 
+<img src="/userguide/hello_world_images/interactivecontainer.gif">
+
+
 ## A daemonized Hello world
 
 Now a container that runs a command and then exits has some uses but
@@ -194,6 +197,8 @@ Let's check it worked with the `docker ps` command.
 
     $ docker ps
     CONTAINER ID  IMAGE         COMMAND               CREATED        STATUS       PORTS NAMES
+
+<img src="/userguide/hello_world_images/daemonized.gif">
 
 Excellent. Our container has been stopped.
 
