@@ -425,16 +425,16 @@ func (a *Allocator) getAddress(nw *net.IPNet, bitmask *bitseq.Handle, prefAddres
 	}
 	if ipr == nil && prefAddress == nil {
 		ordinal, err = bitmask.SetAny()
-	} else if ipr != nil {
-		base.IP = ipr.Sub.IP
-		ordinal, err = bitmask.SetAnyInRange(ipr.Start, ipr.End)
-	} else {
+	} else if prefAddress != nil {
 		hostPart, e := types.GetHostPartIP(prefAddress, base.Mask)
 		if e != nil {
 			return nil, fmt.Errorf("failed to allocate preferred address %s: %v", prefAddress.String(), e)
 		}
 		ordinal = ipToUint32(types.GetMinimalIP(hostPart))
 		err = bitmask.Set(ordinal)
+	} else {
+		base.IP = ipr.Sub.IP
+		ordinal, err = bitmask.SetAnyInRange(ipr.Start, ipr.End)
 	}
 	if err != nil {
 		return nil, ipamapi.ErrNoAvailableIPs
