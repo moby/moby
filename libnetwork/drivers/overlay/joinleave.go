@@ -24,8 +24,21 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 		return fmt.Errorf("could not find endpoint with id %s", eid)
 	}
 
+	s := n.getSubnetforIP(ep.addr)
+	if s == nil {
+		return fmt.Errorf("could not find subnet for endpoint %s", eid)
+	}
+
+	if err := n.obtainVxlanID(s); err != nil {
+		return fmt.Errorf("couldn't get vxlan id for %q: %v", s.subnetIP.String(), err)
+	}
+
 	if err := n.joinSandbox(); err != nil {
 		return fmt.Errorf("network sandbox join failed: %v", err)
+	}
+
+	if err := n.joinSubnetSandbox(s); err != nil {
+		return fmt.Errorf("subnet sandbox join failed for %q: %v", s.subnetIP.String(), err)
 	}
 
 	sbox := n.sandbox()
@@ -48,7 +61,7 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 	}
 
 	if err := sbox.AddInterface(name1, "veth",
-		sbox.InterfaceOptions().Master("bridge1")); err != nil {
+		sbox.InterfaceOptions().Master(s.brName)); err != nil {
 		return fmt.Errorf("could not add veth pair inside the network sandbox: %v", err)
 	}
 
@@ -72,7 +85,7 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 		}
 	}
 
-	d.peerDbAdd(nid, eid, ep.addr.IP, ep.mac,
+	d.peerDbAdd(nid, eid, ep.addr.IP, ep.addr.Mask, ep.mac,
 		net.ParseIP(d.bindAddress), true)
 	d.pushLocalEndpointEvent("join", nid, eid)
 
