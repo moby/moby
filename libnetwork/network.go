@@ -722,7 +722,7 @@ func (n *network) ipamAllocate() ([]func(), error) {
 				if ip = net.ParseIP(v); ip == nil {
 					return nil, types.BadRequestErrorf("non parsable secondary ip address %s (%s) passed for network %s", k, v, n.Name())
 				}
-				if d.IPAMData.AuxAddresses[k], _, err = ipam.RequestAddress(d.PoolID, net.ParseIP(cfg.Gateway), nil); err != nil {
+				if d.IPAMData.AuxAddresses[k], _, err = ipam.RequestAddress(d.PoolID, ip, nil); err != nil {
 					return nil, types.InternalErrorf("failed to allocate secondary ip address %s(%s): %v", k, v, err)
 				}
 			}
