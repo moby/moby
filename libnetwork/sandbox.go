@@ -247,6 +247,19 @@ func (sb *sandbox) getConnectedEndpoints() []*endpoint {
 	return eps
 }
 
+func (sb *sandbox) getEndpoint(id string) *endpoint {
+	sb.Lock()
+	defer sb.Unlock()
+
+	for _, ep := range sb.endpoints {
+		if ep.id == id {
+			return ep
+		}
+	}
+
+	return nil
+}
+
 func (sb *sandbox) updateGateway(ep *endpoint) error {
 	sb.Lock()
 	osSbox := sb.osSbox
@@ -359,7 +372,13 @@ func (sb *sandbox) populateNetworkResources(ep *endpoint) error {
 	return nil
 }
 
-func (sb *sandbox) clearNetworkResources(ep *endpoint) error {
+func (sb *sandbox) clearNetworkResources(origEp *endpoint) error {
+	ep := sb.getEndpoint(origEp.id)
+	if ep == nil {
+		return fmt.Errorf("could not find the sandbox endpoint data for endpoint %s",
+			ep.name)
+	}
+
 	sb.Lock()
 	osSbox := sb.osSbox
 	sb.Unlock()
@@ -837,7 +856,7 @@ func (eh epHeap) Less(i, j int) bool {
 		cjp = 0
 	}
 	if cip == cjp {
-		return eh[i].getNetwork().Name() < eh[j].getNetwork().Name()
+		return eh[i].network.Name() < eh[j].network.Name()
 	}
 
 	return cip > cjp

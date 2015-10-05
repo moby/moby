@@ -50,7 +50,7 @@ func TestMain(m *testing.M) {
 		os.Exit(1)
 	}
 
-	libnetwork.SetTestDataStore(controller, datastore.NewCustomDataStore(datastore.NewMockStore()))
+	//libnetwork.SetTestDataStore(controller, datastore.NewCustomDataStore(datastore.NewMockStore()))
 
 	x := m.Run()
 	controller.Stop()
@@ -59,6 +59,9 @@ func TestMain(m *testing.M) {
 
 func createController() error {
 	var err error
+
+	// Cleanup local datastore file
+	os.Remove(datastore.DefaultScopes("")[datastore.LocalScope].Client.Address)
 
 	option := options.Generic{
 		"EnableIPForwarding": true,
@@ -354,27 +357,6 @@ func TestNilRemoteDriver(t *testing.T) {
 	}
 
 	if _, ok := err.(types.NotFoundError); !ok {
-		t.Fatalf("Did not fail with expected error. Actual error: %v", err)
-	}
-}
-
-func TestDuplicateNetwork(t *testing.T) {
-	if !testutils.IsRunningInContainer() {
-		defer testutils.SetupTestOSContext(t)()
-	}
-
-	// Creating a default bridge name network (can't be removed)
-	_, err := controller.NewNetwork(bridgeNetType, "testdup")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = controller.NewNetwork(bridgeNetType, "testdup")
-	if err == nil {
-		t.Fatal("Expected to fail. But instead succeeded")
-	}
-
-	if _, ok := err.(libnetwork.NetworkNameError); !ok {
 		t.Fatalf("Did not fail with expected error. Actual error: %v", err)
 	}
 }
@@ -703,7 +685,7 @@ func TestNetworkEndpointsWalkers(t *testing.T) {
 	if netWanted == nil {
 		t.Fatal(err)
 	}
-	if net1 != netWanted {
+	if net1.ID() != netWanted.ID() {
 		t.Fatal(err)
 	}
 
@@ -712,7 +694,7 @@ func TestNetworkEndpointsWalkers(t *testing.T) {
 	if netWanted == nil {
 		t.Fatal(err)
 	}
-	if net2 != netWanted {
+	if net2.ID() != netWanted.ID() {
 		t.Fatal(err)
 	}
 }
@@ -843,7 +825,7 @@ func TestControllerQuery(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Unexpected failure for NetworkByID(): %v", err)
 	}
-	if net1 != g {
+	if net1.ID() != g.ID() {
 		t.Fatalf("NetworkByID() returned unexpected element: %v", g)
 	}
 
@@ -863,7 +845,7 @@ func TestControllerQuery(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Unexpected failure for NetworkByID(): %v", err)
 	}
-	if net2 != g {
+	if net2.ID() != g.ID() {
 		t.Fatalf("NetworkByID() returned unexpected element: %v", g)
 	}
 }
@@ -940,7 +922,7 @@ func TestNetworkQuery(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if ep12 != e {
+	if ep12.ID() != e.ID() {
 		t.Fatalf("EndpointByID() returned %v instead of %v", e, ep12)
 	}
 

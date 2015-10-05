@@ -1,10 +1,6 @@
 package driverapi
 
-import (
-	"net"
-
-	"github.com/docker/libnetwork/datastore"
-)
+import "net"
 
 // NetworkPluginEndpointType represents the Endpoint Type used by Plugin system
 const NetworkPluginEndpointType = "NetworkDriver"
@@ -105,7 +101,7 @@ type DriverCallback interface {
 
 // Capability represents the high level capabilities of the drivers which libnetwork can make use of
 type Capability struct {
-	DataScope datastore.DataScope
+	DataScope string
 }
 
 // DiscoveryType represents the type of discovery element the DiscoverNew function is invoked on

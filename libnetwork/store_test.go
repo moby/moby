@@ -33,7 +33,7 @@ func testNewController(t *testing.T, provider, url string) (NetworkController, e
 }
 
 func TestBoltdbBackend(t *testing.T) {
-	defer os.Remove(defaultLocalStoreConfig.Client.Address)
+	defer os.Remove(datastore.DefaultScopes("")[datastore.LocalScope].Client.Address)
 	testLocalBackend(t, "", "", nil)
 	defer os.Remove("/tmp/boltdb.db")
 	config := &store.Config{Bucket: "testBackend", ConnectionTimeout: 3 * time.Second}
@@ -64,7 +64,7 @@ func testLocalBackend(t *testing.T, provider, url string, storeConfig *store.Con
 	if err != nil {
 		t.Fatalf("Error creating endpoint: %v", err)
 	}
-	store := ctrl.(*controller).localStore.KVStore()
+	store := ctrl.(*controller).getStore(datastore.LocalScope).KVStore()
 	if exists, err := store.Exists(datastore.Key(datastore.NetworkKeyPrefix, string(nw.ID()))); !exists || err != nil {
 		t.Fatalf("Network key should have been created.")
 	}
@@ -100,7 +100,7 @@ func TestNoPersist(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Error creating endpoint: %v", err)
 	}
-	store := ctrl.(*controller).localStore.KVStore()
+	store := ctrl.(*controller).getStore(datastore.LocalScope).KVStore()
 	if exists, _ := store.Exists(datastore.Key(datastore.NetworkKeyPrefix, string(nw.ID()))); exists {
 		t.Fatalf("Network with persist=false should not be stored in KV Store")
 	}
@@ -138,12 +138,8 @@ func TestLocalStoreLockTimeout(t *testing.T) {
 	}
 	defer ctrl1.Stop()
 	// Use the same boltdb file without closing the previous controller
-	ctrl2, err := New(cfgOptions...)
-	if err != nil {
-		t.Fatalf("Error new controller: %v", err)
-	}
-	store := ctrl2.(*controller).localStore
-	if store != nil {
-		t.Fatalf("localstore is expected to be nil")
+	_, err = New(cfgOptions...)
+	if err == nil {
+		t.Fatalf("Expected to fail but succeeded")
 	}
 }

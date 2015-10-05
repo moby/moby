@@ -45,12 +45,13 @@ type network struct {
 }
 
 func (d *driver) CreateNetwork(id string, option map[string]interface{}, ipV4Data, ipV6Data []driverapi.IPAMData) error {
-	var err error
 	if id == "" {
 		return fmt.Errorf("invalid network id")
 	}
 
-	if err = d.configure(); err != nil {
+	// Since we perform lazy configuration make sure we try
+	// configuring the driver when we enter CreateNetwork
+	if err := d.configure(); err != nil {
 		return err
 	}
 
@@ -71,29 +72,16 @@ func (d *driver) CreateNetwork(id string, option map[string]interface{}, ipV4Dat
 		n.subnets = append(n.subnets, s)
 	}
 
-	for {
-		// If the datastore has the network object already
-		// there is no need to do a write.
-		err = d.store.GetObject(datastore.Key(n.Key()...), n)
-		if err == nil || err != datastore.ErrKeyNotFound {
-			break
-		}
-
-		err = n.writeToStore()
-		if err == nil || err != datastore.ErrKeyModified {
-			break
-		}
-	}
-
-	if err != nil {
+	if err := n.writeToStore(); err != nil {
 		return fmt.Errorf("failed to update data store for network %v: %v", n.id, err)
 	}
+
 	d.addNetwork(n)
 
 	return nil
 }
 
-func (d *driver) createNetworkfromStore(nid string) (*network, error) {
+/* func (d *driver) createNetworkfromStore(nid string) (*network, error) {
 	n := &network{
 		id:        nid,
 		driver:    d,
@@ -107,7 +95,7 @@ func (d *driver) createNetworkfromStore(nid string) (*network, error) {
 		return nil, fmt.Errorf("unable to get network %q from data store, %v", nid, err)
 	}
 	return n, nil
-}
+}*/
 
 func (d *driver) DeleteNetwork(nid string) error {
 	if nid == "" {
@@ -313,9 +301,34 @@ func (d *driver) deleteNetwork(nid string) {
 
 func (d *driver) network(nid string) *network {
 	d.Lock()
-	defer d.Unlock()
+	networks := d.networks
+	d.Unlock()
 
-	return d.networks[nid]
+	n, ok := networks[nid]
+	if !ok {
+		n = d.getNetworkFromStore(nid)
+		if n != nil {
+			n.driver = d
+			n.endpoints = endpointTable{}
+			n.once = &sync.Once{}
+			networks[nid] = n
+		}
+	}
+
+	return n
+}
+
+func (d *driver) getNetworkFromStore(nid string) *network {
+	if d.store == nil {
+		return nil
+	}
+
+	n := &network{id: nid}
+	if err := d.store.GetObject(datastore.Key(n.Key()...), n); err != nil {
+		return nil
+	}
+
+	return n
 }
 
 func (n *network) sandbox() osl.Sandbox {
@@ -408,30 +421,23 @@ func (n *network) SetValue(value []byte) error {
 	subnetIP, _ := types.ParseCIDR(subnetIPstr)
 	gwIP, _ := types.ParseCIDR(gwIPstr)
 
-	// If the network is being created by reading from the
-	// datastore subnets have to created. If the network
-	// already exists update only the subnets' vni field
-	if len(n.subnets) == 0 {
-		s := &subnet{
-			subnetIP: subnetIP,
-			gwIP:     gwIP,
-			vni:      vni,
-			once:     &sync.Once{},
-		}
-		n.subnets = append(n.subnets, s)
-		return nil
+	s := &subnet{
+		subnetIP: subnetIP,
+		gwIP:     gwIP,
+		vni:      vni,
+		once:     &sync.Once{},
 	}
+	n.subnets = append(n.subnets, s)
 
 	sNet := n.getMatchingSubnet(subnetIP)
 	if sNet != nil {
-		if vni != 0 {
-			sNet.vni = vni
-		}
+		sNet.vni = vni
 	}
+
 	return nil
 }
 
-func (n *network) DataScope() datastore.DataScope {
+func (n *network) DataScope() string {
 	return datastore.GlobalScope
 }
 

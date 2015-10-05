@@ -7,19 +7,21 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/discovery"
 	"github.com/docker/libkv/store"
+	"github.com/docker/libnetwork/datastore"
 	"github.com/docker/libnetwork/netlabel"
 )
 
 // Config encapsulates configurations of various Libnetwork components
 type Config struct {
-	Daemon                  DaemonCfg
-	Cluster                 ClusterCfg
-	GlobalStore, LocalStore DatastoreCfg
+	Daemon  DaemonCfg
+	Cluster ClusterCfg
+	Scopes  map[string]*datastore.ScopeCfg
 }
 
 // DaemonCfg represents libnetwork core configuration
 type DaemonCfg struct {
 	Debug          bool
+	DataDir        string
 	DefaultNetwork string
 	DefaultDriver  string
 	Labels         []string
@@ -34,26 +36,28 @@ type ClusterCfg struct {
 	Heartbeat uint64
 }
 
-// DatastoreCfg represents Datastore configuration.
-type DatastoreCfg struct {
-	Embedded bool
-	Client   DatastoreClientCfg
-}
-
-// DatastoreClientCfg represents Datastore Client-only mode configuration
-type DatastoreClientCfg struct {
-	Provider string
-	Address  string
-	Config   *store.Config
+// LoadDefaultScopes loads default scope configs for scopes which
+// doesn't have explicit user specified configs.
+func (c *Config) LoadDefaultScopes(dataDir string) {
+	for k, v := range datastore.DefaultScopes(dataDir) {
+		if _, ok := c.Scopes[k]; !ok {
+			c.Scopes[k] = v
+		}
+	}
 }
 
 // ParseConfig parses the libnetwork configuration file
 func ParseConfig(tomlCfgFile string) (*Config, error) {
-	var cfg Config
-	if _, err := toml.DecodeFile(tomlCfgFile, &cfg); err != nil {
+	cfg := &Config{
+		Scopes: map[string]*datastore.ScopeCfg{},
+	}
+
+	if _, err := toml.DecodeFile(tomlCfgFile, cfg); err != nil {
 		return nil, err
 	}
-	return &cfg, nil
+
+	cfg.LoadDefaultScopes(cfg.Daemon.DataDir)
+	return cfg, nil
 }
 
 // Option is a option setter function type used to pass varios configurations
@@ -98,7 +102,10 @@ func OptionLabels(labels []string) Option {
 func OptionKVProvider(provider string) Option {
 	return func(c *Config) {
 		log.Infof("Option OptionKVProvider: %s", provider)
-		c.GlobalStore.Client.Provider = strings.TrimSpace(provider)
+		if _, ok := c.Scopes[datastore.GlobalScope]; !ok {
+			c.Scopes[datastore.GlobalScope] = &datastore.ScopeCfg{}
+		}
+		c.Scopes[datastore.GlobalScope].Client.Provider = strings.TrimSpace(provider)
 	}
 }
 
@@ -106,7 +113,10 @@ func OptionKVProvider(provider string) Option {
 func OptionKVProviderURL(url string) Option {
 	return func(c *Config) {
 		log.Infof("Option OptionKVProviderURL: %s", url)
-		c.GlobalStore.Client.Address = strings.TrimSpace(url)
+		if _, ok := c.Scopes[datastore.GlobalScope]; !ok {
+			c.Scopes[datastore.GlobalScope] = &datastore.ScopeCfg{}
+		}
+		c.Scopes[datastore.GlobalScope].Client.Address = strings.TrimSpace(url)
 	}
 }
 
@@ -121,6 +131,13 @@ func OptionDiscoveryWatcher(watcher discovery.Watcher) Option {
 func OptionDiscoveryAddress(address string) Option {
 	return func(c *Config) {
 		c.Cluster.Address = address
+	}
+}
+
+// OptionDataDir function returns an option setter for data folder
+func OptionDataDir(dataDir string) Option {
+	return func(c *Config) {
+		c.Daemon.DataDir = dataDir
 	}
 }
 
@@ -145,7 +162,10 @@ func IsValidName(name string) bool {
 func OptionLocalKVProvider(provider string) Option {
 	return func(c *Config) {
 		log.Infof("Option OptionLocalKVProvider: %s", provider)
-		c.LocalStore.Client.Provider = strings.TrimSpace(provider)
+		if _, ok := c.Scopes[datastore.LocalScope]; !ok {
+			c.Scopes[datastore.LocalScope] = &datastore.ScopeCfg{}
+		}
+		c.Scopes[datastore.LocalScope].Client.Provider = strings.TrimSpace(provider)
 	}
 }
 
@@ -153,7 +173,10 @@ func OptionLocalKVProvider(provider string) Option {
 func OptionLocalKVProviderURL(url string) Option {
 	return func(c *Config) {
 		log.Infof("Option OptionLocalKVProviderURL: %s", url)
-		c.LocalStore.Client.Address = strings.TrimSpace(url)
+		if _, ok := c.Scopes[datastore.LocalScope]; !ok {
+			c.Scopes[datastore.LocalScope] = &datastore.ScopeCfg{}
+		}
+		c.Scopes[datastore.LocalScope].Client.Address = strings.TrimSpace(url)
 	}
 }
 
@@ -161,6 +184,9 @@ func OptionLocalKVProviderURL(url string) Option {
 func OptionLocalKVProviderConfig(config *store.Config) Option {
 	return func(c *Config) {
 		log.Infof("Option OptionLocalKVProviderConfig: %v", config)
-		c.LocalStore.Client.Config = config
+		if _, ok := c.Scopes[datastore.LocalScope]; !ok {
+			c.Scopes[datastore.LocalScope] = &datastore.ScopeCfg{}
+		}
+		c.Scopes[datastore.LocalScope].Client.Config = config
 	}
 }
