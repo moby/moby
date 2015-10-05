@@ -271,6 +271,11 @@ func (n *networkNamespace) AddInterface(srcName, dstPrefix string, options ...If
 			return fmt.Errorf("failed to set link up: %v", err)
 		}
 
+		// Set the routes on the interface. This can only be done when the interface is up.
+		if err := setInterfaceRoutes(iface, i); err != nil {
+			return fmt.Errorf("error setting interface %q routes to %q: %v", iface.Attrs().Name, i.Routes(), err)
+		}
+
 		n.Lock()
 		n.iFaces = append(n.iFaces, i)
 		n.Unlock()
@@ -288,7 +293,6 @@ func configureInterface(iface netlink.Link, i *nwIface) error {
 		{setInterfaceName, fmt.Sprintf("error renaming interface %q to %q", ifaceName, i.DstName())},
 		{setInterfaceIP, fmt.Sprintf("error setting interface %q IP to %q", ifaceName, i.Address())},
 		{setInterfaceIPv6, fmt.Sprintf("error setting interface %q IPv6 to %q", ifaceName, i.AddressIPv6())},
-		{setInterfaceRoutes, fmt.Sprintf("error setting interface %q routes to %q", ifaceName, i.Routes())},
 		{setInterfaceMaster, fmt.Sprintf("error setting interface %q master to %q", ifaceName, i.DstMaster())},
 	}
 
@@ -346,7 +350,7 @@ func setInterfaceRoutes(iface netlink.Link, i *nwIface) error {
 
 // In older kernels (like the one in Centos 6.6 distro) sysctl does not have netns support. Therefore
 // we cannot gather the statistics from /sys/class/net/<dev>/statistics/<counter> files. Per-netns stats
-// are naturally found in /proc/net/dev in kernels which support netns (ifconfig relyes on that).
+// are naturally found in /proc/net/dev in kernels which support netns (ifconfig relies on that).
 const (
 	netStatsFile = "/proc/net/dev"
 	base         = "[ ]*%s:([ ]+[0-9]+){16}"

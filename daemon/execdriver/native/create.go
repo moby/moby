@@ -64,7 +64,13 @@ func (d *Driver) createContainer(c *execdriver.Command, hooks execdriver.Hooks) 
 			return nil, err
 		}
 	}
-
+	// add CAP_ prefix to all caps for new libcontainer update to match
+	// the spec format.
+	for i, s := range container.Capabilities {
+		if !strings.HasPrefix(s, "CAP_") {
+			container.Capabilities[i] = fmt.Sprintf("CAP_%s", s)
+		}
+	}
 	container.AdditionalGroups = c.GroupAdd
 
 	if c.AppArmorProfile != "" {
@@ -146,7 +152,11 @@ func (d *Driver) createNetwork(container *configs.Config, c *execdriver.Command,
 			configs.NewFunctionHook(func(s configs.HookState) error {
 				if len(hooks.PreStart) > 0 {
 					for _, fnHook := range hooks.PreStart {
-						if err := fnHook(&c.ProcessConfig, s.Pid); err != nil {
+						// A closed channel for OOM is returned here as it will be
+						// non-blocking and return the correct result when read.
+						chOOM := make(chan struct{})
+						close(chOOM)
+						if err := fnHook(&c.ProcessConfig, s.Pid, chOOM); err != nil {
 							return err
 						}
 					}

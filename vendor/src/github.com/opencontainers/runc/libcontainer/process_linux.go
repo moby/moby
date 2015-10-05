@@ -58,7 +58,7 @@ func (p *setnsProcess) signal(sig os.Signal) error {
 	if !ok {
 		return errors.New("os: unsupported signal type")
 	}
-	return syscall.Kill(p.cmd.Process.Pid, s)
+	return syscall.Kill(p.pid(), s)
 }
 
 func (p *setnsProcess) start() (err error) {
@@ -67,7 +67,7 @@ func (p *setnsProcess) start() (err error) {
 		return newSystemError(err)
 	}
 	if len(p.cgroupPaths) > 0 {
-		if err := cgroups.EnterPid(p.cgroupPaths, p.cmd.Process.Pid); err != nil {
+		if err := cgroups.EnterPid(p.cgroupPaths, p.pid()); err != nil {
 			return newSystemError(err)
 		}
 	}
@@ -203,9 +203,10 @@ func (p *initProcess) start() (err error) {
 	}()
 	if p.config.Config.Hooks != nil {
 		s := configs.HookState{
-			ID:   p.container.id,
-			Pid:  p.pid(),
-			Root: p.config.Config.Rootfs,
+			Version: p.container.config.Version,
+			ID:      p.container.id,
+			Pid:     p.pid(),
+			Root:    p.config.Config.Rootfs,
 		}
 		for _, hook := range p.config.Config.Hooks.Prestart {
 			if err := hook.Run(s); err != nil {
@@ -289,7 +290,7 @@ func (p *initProcess) signal(sig os.Signal) error {
 	if !ok {
 		return errors.New("os: unsupported signal type")
 	}
-	return syscall.Kill(p.cmd.Process.Pid, s)
+	return syscall.Kill(p.pid(), s)
 }
 
 func (p *initProcess) setExternalDescriptors(newFds []string) {

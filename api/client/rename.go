@@ -2,6 +2,7 @@ package client
 
 import (
 	"fmt"
+	"strings"
 
 	Cli "github.com/docker/docker/cli"
 	flag "github.com/docker/docker/pkg/mflag"
@@ -16,8 +17,12 @@ func (cli *DockerCli) CmdRename(args ...string) error {
 
 	cmd.ParseFlags(args, true)
 
-	oldName := cmd.Arg(0)
-	newName := cmd.Arg(1)
+	oldName := strings.TrimSpace(cmd.Arg(0))
+	newName := strings.TrimSpace(cmd.Arg(1))
+
+	if oldName == "" || newName == "" {
+		return fmt.Errorf("Error: Neither old nor new names may be empty")
+	}
 
 	if _, _, err := readBody(cli.call("POST", fmt.Sprintf("/containers/%s/rename?name=%s", oldName, newName), nil, nil)); err != nil {
 		fmt.Fprintf(cli.err, "%s\n", err)

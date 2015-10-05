@@ -8,6 +8,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types"
+	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/graphdb"
 	"github.com/docker/docker/pkg/nat"
@@ -176,7 +177,7 @@ func (daemon *Daemon) foldFilter(config *ContainersConfig) (*listContext, error)
 		}
 	}
 
-	names := map[string][]string{}
+	names := make(map[string][]string)
 	daemon.containerGraph().Walk("/", func(p string, e *graphdb.Entity) error {
 		names[e.ID()] = append(names[e.ID()], p)
 		return nil
@@ -287,8 +288,13 @@ func includeContainerInList(container *Container, ctx *listContext) iterationAct
 // transformContainer generates the container type expected by the docker ps command.
 func (daemon *Daemon) transformContainer(container *Container, ctx *listContext) (*types.Container, error) {
 	newC := &types.Container{
-		ID:    container.ID,
-		Names: ctx.names[container.ID],
+		ID:      container.ID,
+		Names:   ctx.names[container.ID],
+		ImageID: container.ImageID,
+	}
+	if newC.Names == nil {
+		// Dead containers will often have no name, so make sure the response isn't  null
+		newC.Names = []string{}
 	}
 
 	img, err := daemon.Repositories().LookupImage(container.Config.Image)
@@ -370,7 +376,7 @@ func (daemon *Daemon) Volumes(filter string) ([]*types.Volume, error) {
 	filterUsed := false
 	if i, ok := volFilters["dangling"]; ok {
 		if len(i) > 1 {
-			return nil, fmt.Errorf("Conflict: cannot use more than 1 value for `dangling` filter")
+			return nil, derr.ErrorCodeDanglingOne
 		}
 
 		filterValue := i[0]

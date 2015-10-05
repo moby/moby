@@ -19,7 +19,7 @@ set -e
 
 export PATH=/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin:/usr/local/bin
 
-BASE=$(basename $0)
+BASE=docker
 
 # modify these in /etc/default/$BASE (/etc/default/docker)
 DOCKER=/usr/bin/$BASE
@@ -117,7 +117,7 @@ case "$1" in
 		check_init
 		fail_unless_root
 		log_begin_msg "Stopping $DOCKER_DESC: $BASE"
-		start-stop-daemon --stop --pidfile "$DOCKER_SSD_PIDFILE"
+		start-stop-daemon --stop --pidfile "$DOCKER_SSD_PIDFILE" --retry 10
 		log_end_msg $?
 		;;
 

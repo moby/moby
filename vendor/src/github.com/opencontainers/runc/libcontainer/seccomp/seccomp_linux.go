@@ -37,6 +37,18 @@ func InitSeccomp(config *configs.Seccomp) error {
 		return fmt.Errorf("error creating filter: %s", err)
 	}
 
+	// Add extra architectures
+	for _, arch := range config.Architectures {
+		scmpArch, err := libseccomp.GetArchFromString(arch)
+		if err != nil {
+			return err
+		}
+
+		if err := filter.AddArch(scmpArch); err != nil {
+			return err
+		}
+	}
+
 	// Unset no new privs bit
 	if err := filter.SetNoNewPrivsBit(false); err != nil {
 		return fmt.Errorf("error setting no new privileges: %s", err)

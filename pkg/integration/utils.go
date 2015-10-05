@@ -9,7 +9,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
-	"path"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"syscall"
@@ -105,8 +105,16 @@ func RunCommandWithOutputForDuration(cmd *exec.Cmd, duration time.Duration) (out
 	cmd.Stderr = &outputBuffer
 
 	done := make(chan error)
+
+	// Start the command in the main thread..
+	err = cmd.Start()
+	if err != nil {
+		err = fmt.Errorf("Fail to start command %v : %v", cmd, err)
+	}
+
 	go func() {
-		exitErr := cmd.Run()
+		// And wait for it to exit in the goroutine :)
+		exitErr := cmd.Wait()
 		exitCode = ProcessExitCode(exitErr)
 		done <- exitErr
 	}()
@@ -244,10 +252,18 @@ func ListTar(f io.Reader) ([]string, error) {
 	}
 }
 
-// RandomUnixTmpDirPath provides a temporary unix path with rand string appended.
+// RandomTmpDirPath provides a temporary path with rand string appended.
 // does not create or checks if it exists.
-func RandomUnixTmpDirPath(s string) string {
-	return path.Join("/tmp", fmt.Sprintf("%s.%s", s, stringutils.GenerateRandomAlphaOnlyString(10)))
+func RandomTmpDirPath(s string, platform string) string {
+	tmp := "/tmp"
+	if platform == "windows" {
+		tmp = os.Getenv("TEMP")
+	}
+	path := filepath.Join(tmp, fmt.Sprintf("%s.%s", s, stringutils.GenerateRandomAlphaOnlyString(10)))
+	if platform == "windows" {
+		return filepath.FromSlash(path) // Using \
+	}
+	return filepath.ToSlash(path) // Using /
 }
 
 // ConsumeWithSpeed reads chunkSize bytes from reader after every interval.

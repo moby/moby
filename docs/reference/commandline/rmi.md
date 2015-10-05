@@ -16,8 +16,8 @@ weight=1
     Remove one or more images
 
       -f, --force=false    Force removal of the image
+      --help=false         Print usage
       --no-prune=false     Do not delete untagged parents
-
 
 You can remove an image using its short or long ID, its tag, or its digest. If
 an image has one or more tag or digest reference, you must remove all of them

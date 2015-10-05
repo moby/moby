@@ -324,13 +324,14 @@ func (d *Driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, hooks execd
 
 	c.ContainerPid = pid
 
-	if hooks.Start != nil {
-		logrus.Debugf("Invoking startCallback")
-		hooks.Start(&c.ProcessConfig, pid)
-	}
-
 	oomKill := false
 	oomKillNotification, err := notifyOnOOM(cgroupPaths)
+
+	if hooks.Start != nil {
+		logrus.Debugf("Invoking startCallback")
+		hooks.Start(&c.ProcessConfig, pid, oomKillNotification)
+
+	}
 
 	<-waitLock
 	exitCode := getExitCode(c)

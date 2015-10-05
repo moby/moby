@@ -41,6 +41,7 @@ docker-run - Run a command in a new container
 [**--lxc-conf**[=*[]*]]
 [**-m**|**--memory**[=*MEMORY*]]
 [**--mac-address**[=*MAC-ADDRESS*]]
+[**--memory-reservation**[=*MEMORY-RESERVATION*]]
 [**--memory-swap**[=*MEMORY-SWAP*]]
 [**--memory-swappiness**[=*MEMORY-SWAPPINESS*]]
 [**--name**[=*NAME*]]
@@ -289,6 +290,15 @@ supports swap memory, then the **-m** memory setting can be larger than physical
 RAM. If a limit of 0 is specified (not using **-m**), the container's memory is
 not limited. The actual limit may be rounded up to a multiple of the operating
 system's page size (the value would be very large, that's millions of trillions).
+
+**--memory-reservation**=""
+   Memory soft limit (format: <number>[<unit>], where unit = b, k, m or g)
+
+   After setting memory reservation, when the system detects memory contention
+or low memory, containers are forced to restrict their consumption to their
+reservation. So you should always set the value below **--memory**, otherwise the
+hard limit will take precedence. By default, memory reservation will be the same
+as memory limit.
 
 **--memory-swap**=""
    Total memory limit (memory + swap)

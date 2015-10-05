@@ -72,8 +72,10 @@ func populateCommand(c *Container, env []string) error {
 	// TODO Windows. This can probably be factored out.
 	pid.HostPid = c.hostConfig.PidMode.IsHost()
 
-	// TODO Windows. Resource controls to be implemented later.
-	resources := &execdriver.Resources{}
+	// TODO Windows. More resource controls to be implemented later.
+	resources := &execdriver.Resources{
+		CPUShares: c.hostConfig.CPUShares,
+	}
 
 	// TODO Windows. Further refactoring required (privileged/user)
 	processConfig := execdriver.ProcessConfig{
@@ -167,4 +169,20 @@ func (container *Container) prepareMountPoints() error {
 // removeMountPoints is a no-op on Windows.
 func (container *Container) removeMountPoints(_ bool) error {
 	return nil
+}
+
+func (container *Container) setupIpcDirs() error {
+	return nil
+}
+
+func (container *Container) unmountIpcMounts() error {
+	return nil
+}
+
+func (container *Container) ipcMounts() []execdriver.Mount {
+	return nil
+}
+
+func getDefaultRouteMtu() (int, error) {
+	return -1, errSystemNotSupported
 }

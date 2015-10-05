@@ -87,12 +87,12 @@ func (s *sequence) toString() string {
 }
 
 // GetAvailableBit returns the position of the first unset bit in the bitmask represented by this sequence
-func (s *sequence) getAvailableBit() (uint32, uint32, error) {
+func (s *sequence) getAvailableBit(from uint32) (uint32, uint32, error) {
 	if s.block == blockMAX || s.count == 0 {
-		return invalidPos, invalidPos, fmt.Errorf("no available bit")
+		return invalidPos, invalidPos, errNoBitAvailable
 	}
-	bits := uint32(0)
-	bitSel := blockFirstBit
+	bits := from
+	bitSel := blockFirstBit >> from
 	for bitSel > 0 && s.block&bitSel != 0 {
 		bitSel >>= 1
 		bits++
@@ -186,12 +186,23 @@ func (h *Handle) getCopy() *Handle {
 	}
 }
 
+// SetAnyInRange atomically sets the first unset bit in the specified range in the sequence and returns the corresponding ordinal
+func (h *Handle) SetAnyInRange(start, end uint32) (uint32, error) {
+	if end-start <= 0 || end >= h.bits {
+		return invalidPos, fmt.Errorf("invalid bit range [%d, %d]", start, end)
+	}
+	if h.Unselected() == 0 {
+		return invalidPos, errNoBitAvailable
+	}
+	return h.set(0, start, end, true, false)
+}
+
 // SetAny atomically sets the first unset bit in the sequence and returns the corresponding ordinal
 func (h *Handle) SetAny() (uint32, error) {
 	if h.Unselected() == 0 {
 		return invalidPos, errNoBitAvailable
 	}
-	return h.set(0, true, false)
+	return h.set(0, 0, h.bits-1, true, false)
 }
 
 // Set atomically sets the corresponding bit in the sequence
@@ -199,7 +210,7 @@ func (h *Handle) Set(ordinal uint32) error {
 	if err := h.validateOrdinal(ordinal); err != nil {
 		return err
 	}
-	_, err := h.set(ordinal, false, false)
+	_, err := h.set(ordinal, 0, 0, false, false)
 	return err
 }
 
@@ -208,7 +219,7 @@ func (h *Handle) Unset(ordinal uint32) error {
 	if err := h.validateOrdinal(ordinal); err != nil {
 		return err
 	}
-	_, err := h.set(ordinal, false, true)
+	_, err := h.set(ordinal, 0, 0, false, true)
 	return err
 }
 
@@ -225,7 +236,7 @@ func (h *Handle) IsSet(ordinal uint32) bool {
 }
 
 // set/reset the bit
-func (h *Handle) set(ordinal uint32, any bool, release bool) (uint32, error) {
+func (h *Handle) set(ordinal, start, end uint32, any bool, release bool) (uint32, error) {
 	var (
 		bitPos  uint32
 		bytePos uint32
@@ -240,8 +251,11 @@ func (h *Handle) set(ordinal uint32, any bool, release bool) (uint32, error) {
 			bytePos, bitPos = ordinalToPos(ordinal)
 		} else {
 			if any {
-				bytePos, bitPos, err = getFirstAvailable(h.head)
+				bytePos, bitPos, err = getFirstAvailable(h.head, start)
 				ret = posToOrdinal(bytePos, bitPos)
+				if end < ret {
+					err = errNoBitAvailable
+				}
 			} else {
 				bytePos, bitPos, err = checkIfAvailable(h.head, ordinal)
 				ret = ordinal
@@ -285,7 +299,7 @@ func (h *Handle) set(ordinal uint32, any bool, release bool) (uint32, error) {
 
 // checks is needed because to cover the case where the number of bits is not a multiple of blockLen
 func (h *Handle) validateOrdinal(ordinal uint32) error {
-	if ordinal > h.bits {
+	if ordinal >= h.bits {
 		return fmt.Errorf("bit does not belong to the sequence")
 	}
 	return nil
@@ -353,16 +367,24 @@ func (h *Handle) String() string {
 		h.app, h.id, h.dbIndex, h.bits, h.unselected, h.head.toString())
 }
 
-// getFirstAvailable looks for the first unset bit in passed mask
-func getFirstAvailable(head *sequence) (uint32, uint32, error) {
-	byteIndex := uint32(0)
-	current := head
+// getFirstAvailable looks for the first unset bit in passed mask starting from start
+func getFirstAvailable(head *sequence, start uint32) (uint32, uint32, error) {
+	// Find sequence which contains the start bit
+	byteStart, bitStart := ordinalToPos(start)
+	current, _, _, inBlockBytePos := findSequence(head, byteStart)
+
+	// Derive the this sequence offsets
+	byteOffset := byteStart - inBlockBytePos
+	bitOffset := inBlockBytePos*8 + bitStart
+
 	for current != nil {
 		if current.block != blockMAX {
-			bytePos, bitPos, err := current.getAvailableBit()
-			return byteIndex + bytePos, bitPos, err
+			bytePos, bitPos, err := current.getAvailableBit(bitOffset)
+			return byteOffset + bytePos, bitPos, err
 		}
-		byteIndex += current.count * blockBytes
+		// Moving to next block: Reset bit offset.
+		bitOffset = 0
+		byteOffset += current.count * blockBytes
 		current = current.next
 	}
 	return invalidPos, invalidPos, errNoBitAvailable
@@ -371,8 +393,7 @@ func getFirstAvailable(head *sequence) (uint32, uint32, error) {
 // checkIfAvailable checks if the bit correspondent to the specified ordinal is unset
 // If the ordinal is beyond the sequence limits, a negative response is returned
 func checkIfAvailable(head *sequence, ordinal uint32) (uint32, uint32, error) {
-	bytePos := ordinal / 8
-	bitPos := ordinal % 8
+	bytePos, bitPos := ordinalToPos(ordinal)
 
 	// Find the sequence containing this byte
 	current, _, _, inBlockBytePos := findSequence(head, bytePos)

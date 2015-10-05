@@ -5,6 +5,7 @@ import (
 	"io"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/versions/v1p20"
 	"github.com/docker/docker/daemon/execdriver"
 	"github.com/docker/docker/pkg/version"
 	"github.com/docker/libnetwork/osl"
@@ -40,6 +41,9 @@ func (daemon *Daemon) ContainerStats(prefixOrName string, config *ContainerStats
 	}
 
 	if config.Stream {
+		// Write an empty chunk of data.
+		// This is to ensure that the HTTP status code is sent immediately,
+		// even if the container has not yet produced any data.
 		config.OutStream.Write(nil)
 	}
 
@@ -93,7 +97,7 @@ func (daemon *Daemon) ContainerStats(prefixOrName string, config *ContainerStats
 					txErrors += v.TxErrors
 					txDropped += v.TxDropped
 				}
-				statsJSONPre121 := &types.StatsJSONPre121{
+				statsJSONPre121 := &v1p20.StatsJSON{
 					Stats: statsJSON.Stats,
 					Network: types.NetworkStats{
 						RxBytes:   rxBytes,

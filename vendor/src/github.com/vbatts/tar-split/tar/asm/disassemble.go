@@ -92,13 +92,16 @@ func NewInputTarStream(r io.Reader, p storage.Packer, fp storage.FilePutter) (io
 				}
 			}
 
-			// File entries added, regardless of size
-			_, err = p.AddEntry(storage.Entry{
+			entry := storage.Entry{
 				Type:    storage.FileType,
-				Name:    hdr.Name,
 				Size:    hdr.Size,
 				Payload: csum,
-			})
+			}
+			// For proper marshalling of non-utf8 characters
+			entry.SetName(hdr.Name)
+
+			// File entries added, regardless of size
+			_, err = p.AddEntry(entry)
 			if err != nil {
 				pW.CloseWithError(err)
 				return

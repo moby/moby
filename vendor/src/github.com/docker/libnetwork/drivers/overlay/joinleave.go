@@ -72,11 +72,6 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 		}
 	}
 
-	err = jinfo.SetGateway(bridgeIP.IP)
-	if err != nil {
-		return err
-	}
-
 	d.peerDbAdd(nid, eid, ep.addr.IP, ep.mac,
 		d.serfInstance.LocalMember().Addr, true)
 	d.notifyCh <- ovNotify{

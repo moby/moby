@@ -2,7 +2,7 @@
 % Docker Community
 % JUNE 2014
 # NAME
-docker-stop - Stop a running container by sending SIGTERM and then SIGKILL after a grace period
+docker-stop - Stop a container by sending SIGTERM and then SIGKILL after a grace period
 
 # SYNOPSIS
 **docker stop**
@@ -11,7 +11,7 @@ docker-stop - Stop a running container by sending SIGTERM and then SIGKILL after
 CONTAINER [CONTAINER...]
 
 # DESCRIPTION
-Stop a running container (Send SIGTERM, and then SIGKILL after
+Stop a container (Send SIGTERM, and then SIGKILL after
  grace period)
 
 # OPTIONS

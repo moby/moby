@@ -314,7 +314,7 @@ func run(b *builder, args []string, attributes map[string]bool, original string)
 		if runtime.GOOS != "windows" {
 			args = append([]string{"/bin/sh", "-c"}, args...)
 		} else {
-			args = append([]string{"cmd", "/S /C"}, args...)
+			args = append([]string{"cmd", "/S", "/C"}, args...)
 		}
 	}
 
@@ -438,7 +438,7 @@ func cmd(b *builder, args []string, attributes map[string]bool, original string)
 		if runtime.GOOS != "windows" {
 			cmdSlice = append([]string{"/bin/sh", "-c"}, cmdSlice...)
 		} else {
-			cmdSlice = append([]string{"cmd", "/S /C"}, cmdSlice...)
+			cmdSlice = append([]string{"cmd", "/S", "/C"}, cmdSlice...)
 		}
 	}
 
@@ -482,7 +482,7 @@ func entrypoint(b *builder, args []string, attributes map[string]bool, original 
 		if runtime.GOOS != "windows" {
 			b.Config.Entrypoint = stringutils.NewStrSlice("/bin/sh", "-c", parsed[0])
 		} else {
-			b.Config.Entrypoint = stringutils.NewStrSlice("cmd", "/S /C", parsed[0])
+			b.Config.Entrypoint = stringutils.NewStrSlice("cmd", "/S", "/C", parsed[0])
 		}
 	}
 
@@ -546,10 +546,6 @@ func expose(b *builder, args []string, attributes map[string]bool, original stri
 // ENTRYPOINT/CMD at container run time.
 //
 func user(b *builder, args []string, attributes map[string]bool, original string) error {
-	if runtime.GOOS == "windows" {
-		return derr.ErrorCodeNotOnWindows.WithArgs("USER")
-	}
-
 	if len(args) != 1 {
 		return derr.ErrorCodeExactlyOneArg.WithArgs("USER")
 	}
@@ -567,9 +563,6 @@ func user(b *builder, args []string, attributes map[string]bool, original string
 // Expose the volume /foo for use. Will also accept the JSON array form.
 //
 func volume(b *builder, args []string, attributes map[string]bool, original string) error {
-	if runtime.GOOS == "windows" {
-		return derr.ErrorCodeNotOnWindows.WithArgs("VOLUME")
-	}
 	if len(args) == 0 {
 		return derr.ErrorCodeAtLeastOneArg.WithArgs("VOLUME")
 	}
@@ -598,9 +591,6 @@ func volume(b *builder, args []string, attributes map[string]bool, original stri
 //
 // Set the signal that will be used to kill the container.
 func stopSignal(b *builder, args []string, attributes map[string]bool, original string) error {
-	if runtime.GOOS == "windows" {
-		return fmt.Errorf("STOPSIGNAL is not supported on Windows")
-	}
 	if len(args) != 1 {
 		return fmt.Errorf("STOPSIGNAL requires exactly one argument")
 	}

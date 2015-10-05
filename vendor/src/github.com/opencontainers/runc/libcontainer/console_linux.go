@@ -75,7 +75,7 @@ func (c *linuxConsole) Close() error {
 
 // mount initializes the console inside the rootfs mounting with the specified mount label
 // and applying the correct ownership of the console.
-func (c *linuxConsole) mount(rootfs, mountLabel string, uid, gid int) error {
+func (c *linuxConsole) mount(rootfs, mountLabel string) error {
 	oldMask := syscall.Umask(0000)
 	defer syscall.Umask(oldMask)
 	if err := label.SetFileLabel(c.slavePath, mountLabel); err != nil {

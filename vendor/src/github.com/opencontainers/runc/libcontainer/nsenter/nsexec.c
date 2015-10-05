@@ -65,11 +65,11 @@ static int clone_parent(jmp_buf * env)
 
 void nsexec()
 {
-	char *namespaces[] = { "ipc", "uts", "net", "pid", "mnt" };
+	char *namespaces[] = { "ipc", "uts", "net", "pid", "mnt", "user" };
 	const int num = sizeof(namespaces) / sizeof(char *);
 	jmp_buf env;
 	char buf[PATH_MAX], *val;
-	int i, tfd, child, len, pipenum, consolefd = -1;
+	int i, tfd, self_tfd, child, len, pipenum, consolefd = -1;
 	pid_t pid;
 	char *console;
 
@@ -114,15 +114,28 @@ void nsexec()
 		exit(1);
 	}
 
+	self_tfd = open("/proc/self/ns", O_DIRECTORY | O_RDONLY);
+	if (self_tfd == -1) {
+		pr_perror("Failed to open /proc/self/ns");
+		exit(1);
+	}
+
 	for (i = 0; i < num; i++) {
 		struct stat st;
+		struct stat self_st;
 		int fd;
 
 		/* Symlinks on all namespaces exist for dead processes, but they can't be opened */
-		if (fstatat(tfd, namespaces[i], &st, AT_SYMLINK_NOFOLLOW) == -1) {
+		if (fstatat(tfd, namespaces[i], &st, 0) == -1) {
 			// Ignore nonexistent namespaces.
 			if (errno == ENOENT)
 				continue;
+		}
+
+		/* Skip namespaces we're already part of */
+		if (fstatat(self_tfd, namespaces[i], &self_st, 0) != -1 &&
+		    st.st_ino == self_st.st_ino) {
+			continue;
 		}
 
 		fd = openat(tfd, namespaces[i], O_RDONLY);
@@ -138,6 +151,9 @@ void nsexec()
 		}
 		close(fd);
 	}
+
+	close(self_tfd);
+	close(tfd);
 
 	if (setjmp(env) == 1) {
 		// Child

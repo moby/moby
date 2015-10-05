@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strings"
 	"syscall"
 
 	"github.com/docker/docker/daemon/execdriver"
@@ -35,6 +36,13 @@ func (d *Driver) Exec(c *execdriver.Command, processConfig *execdriver.ProcessCo
 	if processConfig.Privileged {
 		p.Capabilities = execdriver.GetAllCapabilities()
 	}
+	// add CAP_ prefix to all caps for new libcontainer update to match
+	// the spec format.
+	for i, s := range p.Capabilities {
+		if !strings.HasPrefix(s, "CAP_") {
+			p.Capabilities[i] = fmt.Sprintf("CAP_%s", s)
+		}
+	}
 
 	config := active.Config()
 	if err := setupPipes(&config, processConfig, p, pipes); err != nil {
@@ -52,7 +60,12 @@ func (d *Driver) Exec(c *execdriver.Command, processConfig *execdriver.ProcessCo
 			p.Wait()
 			return -1, err
 		}
-		hooks.Start(&c.ProcessConfig, pid)
+
+		// A closed channel for OOM is returned here as it will be
+		// non-blocking and return the correct result when read.
+		chOOM := make(chan struct{})
+		close(chOOM)
+		hooks.Start(&c.ProcessConfig, pid, chOOM)
 	}
 
 	ps, err := p.Wait()

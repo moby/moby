@@ -11,8 +11,10 @@ weight=1
 
 # rename
 
-    Usage: docker rename OLD_NAME NEW_NAME
+    Usage: docker rename [OPTIONS] OLD_NAME NEW_NAME
 
-    rename a existing container to a NEW_NAME
+    Rename a container
+
+      --help=false    Print usage
 
 The `docker rename` command allows the container to be renamed to a different name.

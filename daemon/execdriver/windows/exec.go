@@ -70,7 +70,11 @@ func (d *Driver) Exec(c *execdriver.Command, processConfig *execdriver.ProcessCo
 
 	// Invoke the start callback
 	if hooks.Start != nil {
-		hooks.Start(&c.ProcessConfig, int(pid))
+		// A closed channel for OOM is returned here as it will be
+		// non-blocking and return the correct result when read.
+		chOOM := make(chan struct{})
+		close(chOOM)
+		hooks.Start(&c.ProcessConfig, int(pid), chOOM)
 	}
 
 	if exitCode, err = hcsshim.WaitForProcessInComputeSystem(c.ID, pid); err != nil {

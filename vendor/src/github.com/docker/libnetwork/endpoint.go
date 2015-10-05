@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
+	"strings"
 	"sync"
 
 	log "github.com/Sirupsen/logrus"
@@ -130,15 +131,15 @@ func (ep *endpoint) KeyPrefix() []string {
 	return []string{datastore.EndpointKeyPrefix, ep.getNetwork().id}
 }
 
-func (ep *endpoint) networkIDFromKey(key []string) (string, error) {
-	// endpoint Key structure : endpoint/network-id/endpoint-id
-	// it's an invalid key if the key doesn't have all the 3 key elements above
-	if key == nil || len(key) < 3 || key[0] != datastore.EndpointKeyPrefix {
+func (ep *endpoint) networkIDFromKey(key string) (string, error) {
+	// endpoint Key structure : docker/libnetwork/endpoint/${network-id}/${endpoint-id}
+	// it's an invalid key if the key doesn't have all the 5 key elements above
+	keyElements := strings.Split(key, "/")
+	if !strings.HasPrefix(key, datastore.Key(datastore.EndpointKeyPrefix)) || len(keyElements) < 5 {
 		return "", fmt.Errorf("invalid endpoint key : %v", key)
 	}
-
-	// network-id is placed at index=1. pls refer to endpoint.Key() method
-	return key[1], nil
+	// network-id is placed at index=3. pls refer to endpoint.Key() method
+	return strings.Split(key, "/")[3], nil
 }
 
 func (ep *endpoint) Value() []byte {
@@ -172,6 +173,10 @@ func (ep *endpoint) Exists() bool {
 	return ep.dbExists
 }
 
+func (ep *endpoint) Skip() bool {
+	return ep.getNetwork().Skip()
+}
+
 func (ep *endpoint) processOptions(options ...EndpointOption) {
 	ep.Lock()
 	defer ep.Unlock()
@@ -183,40 +188,7 @@ func (ep *endpoint) processOptions(options ...EndpointOption) {
 	}
 }
 
-// joinLeaveStart waits to ensure there are no joins or leaves in progress and
-// marks this join/leave in progress without race
-func (ep *endpoint) joinLeaveStart() {
-	ep.Lock()
-	defer ep.Unlock()
-
-	for ep.joinLeaveDone != nil {
-		joinLeaveDone := ep.joinLeaveDone
-		ep.Unlock()
-
-		select {
-		case <-joinLeaveDone:
-		}
-
-		ep.Lock()
-	}
-
-	ep.joinLeaveDone = make(chan struct{})
-}
-
-// joinLeaveEnd marks the end of this join/leave operation and
-// signals the same without race to other join and leave waiters
-func (ep *endpoint) joinLeaveEnd() {
-	ep.Lock()
-	defer ep.Unlock()
-
-	if ep.joinLeaveDone != nil {
-		close(ep.joinLeaveDone)
-		ep.joinLeaveDone = nil
-	}
-}
-
 func (ep *endpoint) Join(sbox Sandbox, options ...EndpointOption) error {
-	var err error
 
 	if sbox == nil {
 		return types.BadRequestErrorf("endpoint cannot be joined by nil container")
@@ -227,8 +199,18 @@ func (ep *endpoint) Join(sbox Sandbox, options ...EndpointOption) error {
 		return types.BadRequestErrorf("not a valid Sandbox interface")
 	}
 
-	ep.joinLeaveStart()
-	defer ep.joinLeaveEnd()
+	sb.joinLeaveStart()
+	defer sb.joinLeaveEnd()
+
+	return ep.sbJoin(sbox, options...)
+}
+
+func (ep *endpoint) sbJoin(sbox Sandbox, options ...EndpointOption) error {
+	var err error
+	sb, ok := sbox.(*sandbox)
+	if !ok {
+		return types.BadRequestErrorf("not a valid Sandbox interface")
+	}
 
 	ep.Lock()
 	if ep.sandboxID != "" {
@@ -281,8 +263,10 @@ func (ep *endpoint) Join(sbox Sandbox, options ...EndpointOption) error {
 		return err
 	}
 
-	if err = network.ctrlr.updateEndpointToStore(ep); err != nil {
-		return err
+	if !ep.isLocalScoped() {
+		if err = network.ctrlr.updateToStore(ep); err != nil {
+			return err
+		}
 	}
 
 	sb.Lock()
@@ -304,7 +288,11 @@ func (ep *endpoint) Join(sbox Sandbox, options ...EndpointOption) error {
 	if err = sb.populateNetworkResources(ep); err != nil {
 		return err
 	}
-	return nil
+
+	if sb.needDefaultGW() {
+		return sb.setupDefaultGW(ep)
+	}
+	return sb.clearDefaultGW()
 }
 
 func (ep *endpoint) hasInterface(iName string) bool {
@@ -315,13 +303,22 @@ func (ep *endpoint) hasInterface(iName string) bool {
 }
 
 func (ep *endpoint) Leave(sbox Sandbox, options ...EndpointOption) error {
-	ep.joinLeaveStart()
-	defer ep.joinLeaveEnd()
-
 	if sbox == nil || sbox.ID() == "" || sbox.Key() == "" {
 		return types.BadRequestErrorf("invalid Sandbox passed to enpoint leave: %v", sbox)
 	}
 
+	sb, ok := sbox.(*sandbox)
+	if !ok {
+		return types.BadRequestErrorf("not a valid Sandbox interface")
+	}
+
+	sb.joinLeaveStart()
+	defer sb.joinLeaveEnd()
+
+	return ep.sbLeave(sbox, options...)
+}
+
+func (ep *endpoint) sbLeave(sbox Sandbox, options ...EndpointOption) error {
 	sb, ok := sbox.(*sandbox)
 	if !ok {
 		return types.BadRequestErrorf("not a valid Sandbox interface")
@@ -350,18 +347,31 @@ func (ep *endpoint) Leave(sbox Sandbox, options ...EndpointOption) error {
 	d := n.driver
 	n.Unlock()
 
-	if err := c.updateEndpointToStore(ep); err != nil {
-		ep.Lock()
-		ep.sandboxID = sid
-		ep.Unlock()
-		return err
+	if !ep.isLocalScoped() {
+		if err := c.updateToStore(ep); err != nil {
+			ep.Lock()
+			ep.sandboxID = sid
+			ep.Unlock()
+			return err
+		}
 	}
 
 	if err := d.Leave(n.id, ep.id); err != nil {
 		return err
 	}
 
-	return sb.clearNetworkResources(ep)
+	if err := sb.clearNetworkResources(ep); err != nil {
+		return err
+	}
+
+	if sb.needDefaultGW() {
+		ep := sb.getEPwithoutGateway()
+		if ep == nil {
+			return fmt.Errorf("endpoint without GW expected, but not found")
+		}
+		return sb.setupDefaultGW(ep)
+	}
+	return sb.clearDefaultGW()
 }
 
 func (ep *endpoint) Delete() error {
@@ -379,27 +389,31 @@ func (ep *endpoint) Delete() error {
 	n.Unlock()
 	ep.Unlock()
 
-	if err = ctrlr.deleteEndpointFromStore(ep); err != nil {
-		return err
+	if !ep.isLocalScoped() {
+		if err = ctrlr.deleteFromStore(ep); err != nil {
+			return err
+		}
 	}
 	defer func() {
 		if err != nil {
-			ep.SetIndex(0)
-			if e := ctrlr.updateEndpointToStore(ep); e != nil {
-				log.Warnf("failed to recreate endpoint in store %s : %v", name, err)
+			ep.dbExists = false
+			if !ep.isLocalScoped() {
+				if e := ctrlr.updateToStore(ep); e != nil {
+					log.Warnf("failed to recreate endpoint in store %s : %v", name, e)
+				}
 			}
 		}
 	}()
 
 	// Update the endpoint count in network and update it in the datastore
 	n.DecEndpointCnt()
-	if err = ctrlr.updateNetworkToStore(n); err != nil {
+	if err = ctrlr.updateToStore(n); err != nil {
 		return err
 	}
 	defer func() {
 		if err != nil {
 			n.IncEndpointCnt()
-			if e := ctrlr.updateNetworkToStore(n); e != nil {
+			if e := ctrlr.updateToStore(n); e != nil {
 				log.Warnf("failed to update network %s : %v", n.name, e)
 			}
 		}
@@ -524,4 +538,14 @@ func JoinOptionPriority(ep Endpoint, prio int) EndpointOption {
 		}
 		sb.epPriority[ep.id] = prio
 	}
+}
+
+func (ep *endpoint) DataScope() datastore.DataScope {
+	ep.Lock()
+	defer ep.Unlock()
+	return ep.network.dataScope
+}
+
+func (ep *endpoint) isLocalScoped() bool {
+	return ep.DataScope() == datastore.LocalScope
 }

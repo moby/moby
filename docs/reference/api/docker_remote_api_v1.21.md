@@ -47,6 +47,7 @@ List containers
                  "Id": "8dfafdbc3a40",
                  "Names":["/boring_feynman"],
                  "Image": "ubuntu:latest",
+		 "ImageID": "d74508fb6632491cea586a1fd7d748dfc5274cd6fdfedee309ecdcbc2bf5cb82",
                  "Command": "echo 1",
                  "Created": 1367854155,
                  "Status": "Exit 0",
@@ -63,6 +64,7 @@ List containers
                  "Id": "9cd87474be90",
                  "Names":["/coolName"],
                  "Image": "ubuntu:latest",
+		 "ImageID": "d74508fb6632491cea586a1fd7d748dfc5274cd6fdfedee309ecdcbc2bf5cb82",
                  "Command": "echo 222222",
                  "Created": 1367854155,
                  "Status": "Exit 0",
@@ -75,6 +77,7 @@ List containers
                  "Id": "3176a2479c92",
                  "Names":["/sleepy_dog"],
                  "Image": "ubuntu:latest",
+		 "ImageID": "d74508fb6632491cea586a1fd7d748dfc5274cd6fdfedee309ecdcbc2bf5cb82",
                  "Command": "echo 3333333333333333",
                  "Created": 1367854154,
                  "Status": "Exit 0",
@@ -87,6 +90,7 @@ List containers
                  "Id": "4cb07b47f9fb",
                  "Names":["/running_cat"],
                  "Image": "ubuntu:latest",
+		 "ImageID": "d74508fb6632491cea586a1fd7d748dfc5274cd6fdfedee309ecdcbc2bf5cb82",
                  "Command": "echo 444444444444444444444444444444444",
                  "Created": 1367854152,
                  "Status": "Exit 0",
@@ -173,6 +177,7 @@ Create a container
              "LxcConf": {"lxc.utsname":"docker"},
              "Memory": 0,
              "MemorySwap": 0,
+             "MemoryReservation": 0,
              "KernelMemory": 0,
              "CpuShares": 512,
              "CpuPeriod": 100000,
@@ -223,11 +228,12 @@ Json Parameters:
 -   **Memory** - Memory limit in bytes.
 -   **MemorySwap** - Total memory limit (memory + swap); set `-1` to disable swap
       You must use this with `memory` and make the swap value larger than `memory`.
+-   **MemoryReservation** - Memory soft limit in bytes.
 -   **KernelMemory** - Kernel memory limit in bytes.
 -   **CpuShares** - An integer value containing the container's CPU Shares
       (ie. the relative weight vs other containers).
 -   **CpuPeriod** - The length of a CPU period in microseconds.
--   **Cpuset** - Deprecated please don't use. Use `CpusetCpus` instead. 
+-   **Cpuset** - Deprecated please don't use. Use `CpusetCpus` instead.
 -   **CpusetCpus** - String value containing the `cgroups CpusetCpus` to use.
 -   **CpusetMems** - Memory nodes (MEMs) in which to allow execution (0-3, 0,1). Only effective on NUMA systems.
 -   **BlkioWeight** - Block IO weight (relative weight) accepts a weight value between 10 and 1000.
@@ -398,6 +404,7 @@ Return low-level information on the container `id`
 			"LxcConf": [],
 			"Memory": 0,
 			"MemorySwap": 0,
+			"MemoryReservation": 0,
 			"KernelMemory": 0,
 			"OomKillDisable": false,
 			"NetworkMode": "bridge",
@@ -1250,7 +1257,8 @@ Status Codes:
          "Id": "8dbd9e392a964056420e5d58ca5cc376ef18e2de93b5cc90e868a1bbc8318c1c",
          "Created": 1365714795,
          "Size": 131506275,
-         "VirtualSize": 131506275
+         "VirtualSize": 131506275,
+         "Labels": {}
       },
       {
          "RepoTags": [
@@ -1261,7 +1269,10 @@ Status Codes:
          "Id": "b750fe79269d2ec9a3c593ef05b4332b1d1a02a62b4accb2c21d589ff2f5f2dc",
          "Created": 1364102658,
          "Size": 24653,
-         "VirtualSize": 180116135
+         "VirtualSize": 180116135,
+         "Labels": {
+            "com.example.version": "v1"
+         }
       }
     ]
 
@@ -1287,7 +1298,8 @@ Status Codes:
           "playdate:latest"
         ],
         "Size": 0,
-        "VirtualSize": 2429728
+        "VirtualSize": 2429728,
+        "Labels": {}
       }
     ]
 
@@ -1351,7 +1363,7 @@ or being killed.
 
 Query Parameters:
 
--   **dockerfile** - Path within the build context to the Dockerfile. This is 
+-   **dockerfile** - Path within the build context to the Dockerfile. This is
         ignored if `remote` is specified and points to an individual filename.
 -   **t** – A repository name (and optionally a tag) to apply to
         the resulting image in case of success.
@@ -1818,6 +1830,7 @@ Display system-wide information
         "CpuCfsPeriod": true,
         "CpuCfsQuota": true,
         "Debug": false,
+        "DiscoveryBackend": "etcd://localhost:2379",
         "DockerRootDir": "/var/lib/docker",
         "Driver": "btrfs",
         "DriverStatus": [[""]],
@@ -1860,6 +1873,7 @@ Display system-wide information
         },
         "SwapLimit": false,
         "SystemTime": "2015-03-10T11:11:23.730591467-07:00"
+        "ServerVersion": "1.9.0"
     }
 
 Status Codes:
@@ -1967,7 +1981,7 @@ Create a new image from a container's changes
 **Example response**:
 
     HTTP/1.1 201 Created
-    Content-Type: application/vnd.docker.raw-stream
+    Content-Type: application/json
 
     {"Id": "596069db4bf5"}
 
@@ -2024,9 +2038,10 @@ Query Parameters:
 -   **since** – Timestamp used for polling
 -   **until** – Timestamp used for polling
 -   **filters** – A json encoded value of the filters (a map[string][]string) to process on the event list. Available filters:
+  -   `container=<string>`; -- container to filter
   -   `event=<string>`; -- event to filter
   -   `image=<string>`; -- image to filter
-  -   `container=<string>`; -- container to filter
+  -   `label=<string>`; -- image and container label to filter
 
 Status Codes:
 
@@ -2212,8 +2227,9 @@ Json Parameters:
 
 Status Codes:
 
--   **201** – no error
+-   **200** – no error
 -   **404** – no such exec instance
+-   **409** - container is stopped or paused
 
     **Stream details**:
     Similar to the stream behavior of `POST /container/(id)/attach` API

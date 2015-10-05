@@ -16,7 +16,6 @@ import (
 	"runtime"
 	"sort"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/Sirupsen/logrus"
@@ -88,7 +87,7 @@ func (b *builder) commit(id string, autoCmd *stringutils.StrSlice, comment strin
 		if runtime.GOOS != "windows" {
 			b.Config.Cmd = stringutils.NewStrSlice("/bin/sh", "-c", "#(nop) "+comment)
 		} else {
-			b.Config.Cmd = stringutils.NewStrSlice("cmd", "/S /C", "REM (nop) "+comment)
+			b.Config.Cmd = stringutils.NewStrSlice("cmd", "/S", "/C", "REM (nop) "+comment)
 		}
 		defer func(cmd *stringutils.StrSlice) { b.Config.Cmd = cmd }(cmd)
 
@@ -219,7 +218,7 @@ func (b *builder) runContextCommand(args []string, allowRemote bool, allowDecomp
 	if runtime.GOOS != "windows" {
 		b.Config.Cmd = stringutils.NewStrSlice("/bin/sh", "-c", fmt.Sprintf("#(nop) %s %s in %s", cmdName, srcHash, dest))
 	} else {
-		b.Config.Cmd = stringutils.NewStrSlice("cmd", "/S /C", fmt.Sprintf("REM (nop) %s %s in %s", cmdName, srcHash, dest))
+		b.Config.Cmd = stringutils.NewStrSlice("cmd", "/S", "/C", fmt.Sprintf("REM (nop) %s %s in %s", cmdName, srcHash, dest))
 	}
 	defer func(cmd *stringutils.StrSlice) { b.Config.Cmd = cmd }(cmd)
 
@@ -232,10 +231,15 @@ func (b *builder) runContextCommand(args []string, allowRemote bool, allowDecomp
 		return nil
 	}
 
-	container, _, err := b.Daemon.ContainerCreate("", b.Config, nil, true)
+	ccr, err := b.Daemon.ContainerCreate("", b.Config, nil, true)
 	if err != nil {
 		return err
 	}
+	container, err := b.Daemon.Get(ccr.ID)
+	if err != nil {
+		return err
+	}
+
 	b.TmpContainers[container.ID] = struct{}{}
 
 	if err := container.Mount(); err != nil {
@@ -337,23 +341,19 @@ func calcCopyInfo(b *builder, cmdName string, cInfos *[]*copyInfo, origPath stri
 
 		// Set the mtime to the Last-Modified header value if present
 		// Otherwise just remove atime and mtime
-		times := make([]syscall.Timespec, 2)
+		mTime := time.Time{}
 
 		lastMod := resp.Header.Get("Last-Modified")
 		if lastMod != "" {
-			mTime, err := http.ParseTime(lastMod)
 			// If we can't parse it then just let it default to 'zero'
 			// otherwise use the parsed time value
-			if err == nil {
-				times[1] = syscall.NsecToTimespec(mTime.UnixNano())
+			if parsedMTime, err := http.ParseTime(lastMod); err == nil {
+				mTime = parsedMTime
 			}
 		}
 
-		// Windows does not support UtimesNano.
-		if runtime.GOOS != "windows" {
-			if err := system.UtimesNano(tmpFileName, times); err != nil {
-				return err
-			}
+		if err := system.Chtimes(tmpFileName, time.Time{}, mTime); err != nil {
+			return err
 		}
 
 		ci.origPath = filepath.Join(filepath.Base(tmpDirName), filepath.Base(tmpFileName))
@@ -620,12 +620,16 @@ func (b *builder) create() (*daemon.Container, error) {
 	config := *b.Config
 
 	// Create the container
-	c, warnings, err := b.Daemon.ContainerCreate("", b.Config, hostConfig, true)
+	ccr, err := b.Daemon.ContainerCreate("", b.Config, hostConfig, true)
 	if err != nil {
 		return nil, err
 	}
-	for _, warning := range warnings {
+	for _, warning := range ccr.Warnings {
 		fmt.Fprintf(b.OutStream, " ---> [Warning] %s\n", warning)
+	}
+	c, err := b.Daemon.Get(ccr.ID)
+	if err != nil {
+		return nil, err
 	}
 
 	b.TmpContainers[c.ID] = struct{}{}

@@ -13,6 +13,9 @@ type Mount struct {
 	// Mount flags.
 	Flags int `json:"flags"`
 
+	// Propagation Flags
+	PropagationFlags []int `json:"propagation_flags"`
+
 	// Mount data applied to the mount.
 	Data string `json:"data"`
 

@@ -165,17 +165,18 @@ func (d *Driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, hooks execd
 		return execdriver.ExitStatus{ExitCode: -1}, err
 	}
 
+	oom := notifyOnOOM(cont)
 	if hooks.Start != nil {
+
 		pid, err := p.Pid()
 		if err != nil {
 			p.Signal(os.Kill)
 			p.Wait()
 			return execdriver.ExitStatus{ExitCode: -1}, err
 		}
-		hooks.Start(&c.ProcessConfig, pid)
+		hooks.Start(&c.ProcessConfig, pid, oom)
 	}
 
-	oom := notifyOnOOM(cont)
 	waitF := p.Wait
 	if nss := cont.Config().Namespaces; !nss.Contains(configs.NEWPID) {
 		// we need such hack for tracking processes with inherited fds,

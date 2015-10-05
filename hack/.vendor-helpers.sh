@@ -108,6 +108,8 @@ clean() {
 	findArgs=(
 		# This directory contains only .c and .h files which are necessary
 		-path vendor/src/github.com/mattn/go-sqlite3/code
+		# This directory is needed for compiling the unit tests
+		-o -path vendor/src/github.com/stretchr/objx
 	)
 	for import in "${imports[@]}"; do
 		[ "${#findArgs[@]}" -eq 0 ] || findArgs+=( -or )

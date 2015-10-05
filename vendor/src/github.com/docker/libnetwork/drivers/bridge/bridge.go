@@ -14,6 +14,7 @@ import (
 	"syscall"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/libnetwork/datastore"
 	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/ipallocator"
 	"github.com/docker/libnetwork/iptables"
@@ -47,18 +48,18 @@ type configuration struct {
 
 // networkConfiguration for network specific configuration
 type networkConfiguration struct {
-	BridgeName            string
-	AddressIPv4           *net.IPNet
-	FixedCIDR             *net.IPNet
-	FixedCIDRv6           *net.IPNet
-	EnableIPv6            bool
-	EnableIPMasquerade    bool
-	EnableICC             bool
-	Mtu                   int
-	DefaultGatewayIPv4    net.IP
-	DefaultGatewayIPv6    net.IP
-	DefaultBindingIP      net.IP
-	AllowNonDefaultBridge bool
+	BridgeName         string
+	AddressIPv4        *net.IPNet
+	FixedCIDR          *net.IPNet
+	FixedCIDRv6        *net.IPNet
+	EnableIPv6         bool
+	EnableIPMasquerade bool
+	EnableICC          bool
+	Mtu                int
+	DefaultGatewayIPv4 net.IP
+	DefaultGatewayIPv6 net.IP
+	DefaultBindingIP   net.IP
+	DefaultBridge      bool
 }
 
 // endpointConfiguration represents the user specified configuration for the sandbox endpoint
@@ -97,7 +98,6 @@ type bridgeNetwork struct {
 
 type driver struct {
 	config      *configuration
-	configured  bool
 	network     *bridgeNetwork
 	natChain    *iptables.ChainInfo
 	filterChain *iptables.ChainInfo
@@ -106,13 +106,13 @@ type driver struct {
 }
 
 // New constructs a new bridge driver
-func newDriver() driverapi.Driver {
+func newDriver() *driver {
 	ipAllocator = ipallocator.New()
 	return &driver{networks: map[string]*bridgeNetwork{}, config: &configuration{}}
 }
 
 // Init registers a new instance of bridge driver
-func Init(dc driverapi.DriverCallback) error {
+func Init(dc driverapi.DriverCallback, config map[string]interface{}) error {
 	if _, err := os.Stat("/proc/sys/net/bridge"); err != nil {
 		if out, err := exec.Command("modprobe", "-va", "bridge", "br_netfilter").CombinedOutput(); err != nil {
 			logrus.Warnf("Running modprobe bridge br_netfilter failed with message: %s, error: %v", out, err)
@@ -128,10 +128,15 @@ func Init(dc driverapi.DriverCallback) error {
 		logrus.Warnf("Failed to remove existing iptables entries in %s : %v", DockerChain, err)
 	}
 
-	c := driverapi.Capability{
-		Scope: driverapi.LocalScope,
+	d := newDriver()
+	if err := d.configure(config); err != nil {
+		return err
 	}
-	return dc.RegisterDriver(networkType, newDriver(), c)
+
+	c := driverapi.Capability{
+		DataScope: datastore.LocalScope,
+	}
+	return dc.RegisterDriver(networkType, d, c)
 }
 
 // Validate performs a static validation on the network configuration parameters.
@@ -244,13 +249,13 @@ func (c *networkConfiguration) fromMap(data map[string]interface{}) error {
 		}
 	}
 
-	if i, ok := data["AllowNonDefaultBridge"]; ok && i != nil {
+	if i, ok := data["DefaultBridge"]; ok && i != nil {
 		if s, ok := i.(string); ok {
-			if c.AllowNonDefaultBridge, err = strconv.ParseBool(s); err != nil {
-				return types.BadRequestErrorf("failed to parse AllowNonDefaultBridge value: %s", err.Error())
+			if c.DefaultBridge, err = strconv.ParseBool(s); err != nil {
+				return types.BadRequestErrorf("failed to parse DefaultBridge value: %s", err.Error())
 			}
 		} else {
-			return types.BadRequestErrorf("invalid type for AllowNonDefaultBridge value")
+			return types.BadRequestErrorf("invalid type for DefaultBridge value")
 		}
 	}
 
@@ -426,16 +431,12 @@ func (c *networkConfiguration) conflictsWithNetworks(id string, others []*bridge
 	return nil
 }
 
-func (d *driver) Config(option map[string]interface{}) error {
+func (d *driver) configure(option map[string]interface{}) error {
 	var config *configuration
 	var err error
 
 	d.Lock()
 	defer d.Unlock()
-
-	if d.configured {
-		return &ErrConfigExists{}
-	}
 
 	genericData, ok := option[netlabel.GenericData]
 	if !ok || genericData == nil {
@@ -469,7 +470,6 @@ func (d *driver) Config(option map[string]interface{}) error {
 		}
 	}
 
-	d.configured = true
 	d.config = config
 	return nil
 }
@@ -516,7 +516,7 @@ func parseNetworkGenericOptions(data interface{}) (*networkConfiguration, error)
 	return config, err
 }
 
-func parseNetworkOptions(option options.Generic) (*networkConfiguration, error) {
+func parseNetworkOptions(id string, option options.Generic) (*networkConfiguration, error) {
 	var err error
 	config := &networkConfiguration{}
 
@@ -537,6 +537,9 @@ func parseNetworkOptions(option options.Generic) (*networkConfiguration, error) 
 		return nil, err
 	}
 
+	if config.BridgeName == "" && config.DefaultBridge == false {
+		config.BridgeName = "br-" + id[:12]
+	}
 	return config, nil
 }
 
@@ -567,20 +570,12 @@ func (d *driver) getNetworks() []*bridgeNetwork {
 
 // Create a new network using bridge plugin
 func (d *driver) CreateNetwork(id string, option map[string]interface{}) error {
-	var (
-		err          error
-		configLocked bool
-	)
+	var err error
 
 	defer osl.InitOSContext()()
 
 	// Sanity checks
 	d.Lock()
-	if !d.configured {
-		configLocked = true
-		d.configured = true
-	}
-
 	if _, ok := d.networks[id]; ok {
 		d.Unlock()
 		return types.ForbiddenErrorf("network %s exists", id)
@@ -588,7 +583,7 @@ func (d *driver) CreateNetwork(id string, option map[string]interface{}) error {
 	d.Unlock()
 
 	// Parse and validate the config. It should not conflict with existing networks' config
-	config, err := parseNetworkOptions(option)
+	config, err := parseNetworkOptions(id, option)
 	if err != nil {
 		return err
 	}
@@ -619,10 +614,6 @@ func (d *driver) CreateNetwork(id string, option map[string]interface{}) error {
 	defer func() {
 		if err != nil {
 			d.Lock()
-			if configLocked {
-				d.configured = false
-			}
-
 			delete(d.networks, id)
 			d.Unlock()
 		}

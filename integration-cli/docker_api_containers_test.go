@@ -191,7 +191,7 @@ func (s *DockerSuite) TestContainerApiStartVolumeBinds(c *check.C) {
 	c.Assert(err, check.IsNil)
 	c.Assert(status, check.Equals, http.StatusCreated)
 
-	bindPath := randomUnixTmpDirPath("test")
+	bindPath := randomTmpDirPath("test", daemonPlatform)
 	config = map[string]interface{}{
 		"Binds": []string{bindPath + ":/tmp"},
 	}
@@ -222,8 +222,8 @@ func (s *DockerSuite) TestContainerApiStartDupVolumeBinds(c *check.C) {
 	c.Assert(err, check.IsNil)
 	c.Assert(status, check.Equals, http.StatusCreated)
 
-	bindPath1 := randomUnixTmpDirPath("test1")
-	bindPath2 := randomUnixTmpDirPath("test2")
+	bindPath1 := randomTmpDirPath("test1", daemonPlatform)
+	bindPath2 := randomTmpDirPath("test2", daemonPlatform)
 
 	config = map[string]interface{}{
 		"Binds": []string{bindPath1 + ":/tmp", bindPath2 + ":/tmp"},
@@ -1028,7 +1028,7 @@ func (s *DockerSuite) TestContainerApiRestart(c *check.C) {
 	c.Assert(err, check.IsNil)
 	c.Assert(status, check.Equals, http.StatusNoContent)
 
-	if err := waitInspect(name, "{{ .State.Restarting  }} {{ .State.Running  }}", "false true", 5); err != nil {
+	if err := waitInspect(name, "{{ .State.Restarting  }} {{ .State.Running  }}", "false true", 5*time.Second); err != nil {
 		c.Fatal(err)
 	}
 }
@@ -1044,7 +1044,7 @@ func (s *DockerSuite) TestContainerApiRestartNotimeoutParam(c *check.C) {
 	c.Assert(err, check.IsNil)
 	c.Assert(status, check.Equals, http.StatusNoContent)
 
-	if err := waitInspect(name, "{{ .State.Restarting  }} {{ .State.Running  }}", "false true", 5); err != nil {
+	if err := waitInspect(name, "{{ .State.Restarting  }} {{ .State.Running  }}", "false true", 5*time.Second); err != nil {
 		c.Fatal(err)
 	}
 }
@@ -1082,7 +1082,7 @@ func (s *DockerSuite) TestContainerApiStop(c *check.C) {
 	c.Assert(err, check.IsNil)
 	c.Assert(status, check.Equals, http.StatusNoContent)
 
-	if err := waitInspect(name, "{{ .State.Running  }}", "false", 5); err != nil {
+	if err := waitInspect(name, "{{ .State.Running  }}", "false", 5*time.Second); err != nil {
 		c.Fatal(err)
 	}
 
@@ -1101,7 +1101,7 @@ func (s *DockerSuite) TestContainerApiWait(c *check.C) {
 	c.Assert(err, check.IsNil)
 	c.Assert(status, check.Equals, http.StatusOK)
 
-	if err := waitInspect(name, "{{ .State.Running  }}", "false", 5); err != nil {
+	if err := waitInspect(name, "{{ .State.Running  }}", "false", 5*time.Second); err != nil {
 		c.Fatal(err)
 	}
 
@@ -1347,7 +1347,7 @@ func (s *DockerSuite) TestPostContainerStop(c *check.C) {
 	// 204 No Content is expected, not 200
 	c.Assert(statusCode, check.Equals, http.StatusNoContent)
 
-	if err := waitInspect(containerID, "{{ .State.Running  }}", "false", 5); err != nil {
+	if err := waitInspect(containerID, "{{ .State.Running  }}", "false", 5*time.Second); err != nil {
 		c.Fatal(err)
 	}
 }
@@ -1524,4 +1524,30 @@ func (s *DockerSuite) TestContainersApiGetContainersJSONEmpty(c *check.C) {
 	if string(body) != "[]\n" {
 		c.Fatalf("Expected empty response to be `[]`, got %q", string(body))
 	}
+}
+
+func (s *DockerSuite) TestPostContainersCreateWithWrongCpusetValues(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+
+	c1 := struct {
+		Image      string
+		CpusetCpus string
+	}{"busybox", "1-42,,"}
+	name := "wrong-cpuset-cpus"
+	status, body, err := sockRequest("POST", "/containers/create?name="+name, c1)
+	c.Assert(err, check.IsNil)
+	c.Assert(status, check.Equals, http.StatusInternalServerError)
+	expected := "Invalid value 1-42,, for cpuset cpus.\n"
+	c.Assert(string(body), check.Equals, expected, check.Commentf("Expected output to contain %q, got %q", expected, string(body)))
+
+	c2 := struct {
+		Image      string
+		CpusetMems string
+	}{"busybox", "42-3,1--"}
+	name = "wrong-cpuset-mems"
+	status, body, err = sockRequest("POST", "/containers/create?name="+name, c2)
+	c.Assert(err, check.IsNil)
+	c.Assert(status, check.Equals, http.StatusInternalServerError)
+	expected = "Invalid value 42-3,1-- for cpuset mems.\n"
+	c.Assert(string(body), check.Equals, expected, check.Commentf("Expected output to contain %q, got %q", expected, string(body)))
 }

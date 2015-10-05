@@ -52,7 +52,7 @@ func Init(home string, options []string) (graphdriver.Driver, error) {
 		home: home,
 	}
 
-	return graphdriver.NaiveDiffDriver(driver), nil
+	return graphdriver.NewNaiveDiffDriver(driver), nil
 }
 
 // Driver contains information about the filesystem mounted.

@@ -15,6 +15,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/go-check/check"
 )
 
@@ -616,9 +617,9 @@ func (s *DockerSuite) TestExecStartFails(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	name := "exec-15750"
 	dockerCmd(c, "run", "-d", "--name", name, "busybox", "top")
+	c.Assert(waitRun(name), check.IsNil)
 
-	_, errmsg, status := dockerCmdWithStdoutStderr(nil, "exec", name, "no-such-cmd")
-	if status == 255 && !strings.Contains(errmsg, "executable file not found") {
-		c.Fatal("exec error message not received. The daemon might had crashed")
-	}
+	out, _, err := dockerCmdWithError("exec", name, "no-such-cmd")
+	c.Assert(err, check.NotNil, check.Commentf(out))
+	c.Assert(out, checker.Contains, "executable file not found")
 }

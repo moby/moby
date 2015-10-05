@@ -89,3 +89,11 @@ func (s *DockerSuite) TestSearchCmdOptions(c *check.C) {
 		c.Fatalf("failed to search with stars&automated&no-trunc options on the central registry: %s", out)
 	}
 }
+
+// search for repos which start with "ubuntu-" on the central registry
+func (s *DockerSuite) TestSearchOnCentralRegistryWithDash(c *check.C) {
+	testRequires(c, Network, DaemonIsLinux)
+
+	out, exitCode := dockerCmd(c, "search", "ubuntu-")
+	c.Assert(exitCode, check.Equals, 0, check.Commentf("failed to search on the central registry: %s", out))
+}

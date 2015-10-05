@@ -27,6 +27,7 @@ import (
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/utils"
 	"github.com/docker/docker/volume"
+	"github.com/docker/docker/volume/store"
 	"github.com/docker/libnetwork"
 	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/libnetwork/options"
@@ -51,6 +52,8 @@ type Container struct {
 	AppArmorProfile string
 	HostnamePath    string
 	HostsPath       string
+	ShmPath         string
+	MqueuePath      string
 	MountPoints     map[string]*mountPoint
 	ResolvConfPath  string
 
@@ -191,6 +194,16 @@ func populateCommand(c *Container, env []string) error {
 	}
 
 	ipc := &execdriver.Ipc{}
+	var err error
+	c.ShmPath, err = c.shmPath()
+	if err != nil {
+		return err
+	}
+
+	c.MqueuePath, err = c.mqueuePath()
+	if err != nil {
+		return err
+	}
 
 	if c.hostConfig.IpcMode.IsContainer() {
 		ic, err := c.getIpcContainer()
@@ -198,8 +211,14 @@ func populateCommand(c *Container, env []string) error {
 			return err
 		}
 		ipc.ContainerID = ic.ID
+		c.ShmPath = ic.ShmPath
+		c.MqueuePath = ic.MqueuePath
 	} else {
 		ipc.HostIpc = c.hostConfig.IpcMode.IsHost()
+		if ipc.HostIpc {
+			c.ShmPath = "/dev/shm"
+			c.MqueuePath = "/dev/mqueue"
+		}
 	}
 
 	pid := &execdriver.Pid{}
@@ -253,18 +272,19 @@ func populateCommand(c *Container, env []string) error {
 	}
 
 	resources := &execdriver.Resources{
-		Memory:           c.hostConfig.Memory,
-		MemorySwap:       c.hostConfig.MemorySwap,
-		KernelMemory:     c.hostConfig.KernelMemory,
-		CPUShares:        c.hostConfig.CPUShares,
-		CpusetCpus:       c.hostConfig.CpusetCpus,
-		CpusetMems:       c.hostConfig.CpusetMems,
-		CPUPeriod:        c.hostConfig.CPUPeriod,
-		CPUQuota:         c.hostConfig.CPUQuota,
-		BlkioWeight:      c.hostConfig.BlkioWeight,
-		Rlimits:          rlimits,
-		OomKillDisable:   c.hostConfig.OomKillDisable,
-		MemorySwappiness: -1,
+		Memory:            c.hostConfig.Memory,
+		MemorySwap:        c.hostConfig.MemorySwap,
+		MemoryReservation: c.hostConfig.MemoryReservation,
+		KernelMemory:      c.hostConfig.KernelMemory,
+		CPUShares:         c.hostConfig.CPUShares,
+		CpusetCpus:        c.hostConfig.CpusetCpus,
+		CpusetMems:        c.hostConfig.CpusetMems,
+		CPUPeriod:         c.hostConfig.CPUPeriod,
+		CPUQuota:          c.hostConfig.CPUQuota,
+		BlkioWeight:       c.hostConfig.BlkioWeight,
+		Rlimits:           rlimits,
+		OomKillDisable:    c.hostConfig.OomKillDisable,
+		MemorySwappiness:  -1,
 	}
 
 	if c.hostConfig.MemorySwappiness != nil {
@@ -792,25 +812,6 @@ func createNetwork(controller libnetwork.NetworkController, dnet string, driver 
 	return controller.NewNetwork(driver, dnet, createOptions...)
 }
 
-func (container *Container) secondaryNetworkRequired(primaryNetworkType string) bool {
-	switch primaryNetworkType {
-	case "bridge", "none", "host", "container":
-		return false
-	}
-
-	if container.daemon.configStore.DisableBridge {
-		return false
-	}
-
-	if container.Config.ExposedPorts != nil && len(container.Config.ExposedPorts) > 0 {
-		return true
-	}
-	if container.hostConfig.PortBindings != nil && len(container.hostConfig.PortBindings) > 0 {
-		return true
-	}
-	return false
-}
-
 func (container *Container) allocateNetwork() error {
 	mode := container.hostConfig.NetworkMode
 	controller := container.daemon.netController
@@ -843,13 +844,6 @@ func (container *Container) allocateNetwork() error {
 		service = strings.Replace(container.Name, ".", "-", -1)
 		// Service names dont like "/" in them. removing it instead of failing for backward compatibility
 		service = strings.Replace(service, "/", "", -1)
-	}
-
-	if container.secondaryNetworkRequired(networkDriver) {
-		// Configure Bridge as secondary network for port binding purposes
-		if err := container.configureNetwork("bridge", service, "bridge", false); err != nil {
-			return err
-		}
 	}
 
 	if err := container.configureNetwork(networkName, service, networkDriver, mode.IsDefault()); err != nil {
@@ -972,7 +966,7 @@ func (container *Container) setNetworkNamespaceKey(pid int) error {
 	search := libnetwork.SandboxContainerWalker(&sandbox, container.ID)
 	container.daemon.netController.WalkSandboxes(search)
 	if sandbox == nil {
-		return fmt.Errorf("no sandbox present for %s", container.ID)
+		return derr.ErrorCodeNoSandbox.WithArgs(container.ID)
 	}
 
 	return sandbox.SetKey(path)
@@ -1225,7 +1219,7 @@ func (container *Container) removeMountPoints(rm bool) error {
 			// not an error, but an implementation detail.
 			// This prevents docker from logging "ERROR: Volume in use"
 			// where there is another container using the volume.
-			if err != nil && err != ErrVolumeInUse {
+			if err != nil && err != store.ErrVolumeInUse {
 				rmErrors = append(rmErrors, err.Error())
 			}
 		}
@@ -1234,4 +1228,120 @@ func (container *Container) removeMountPoints(rm bool) error {
 		return derr.ErrorCodeRemovingVolume.WithArgs(strings.Join(rmErrors, "\n"))
 	}
 	return nil
+}
+
+func (container *Container) shmPath() (string, error) {
+	return container.getRootResourcePath("shm")
+}
+func (container *Container) mqueuePath() (string, error) {
+	return container.getRootResourcePath("mqueue")
+}
+
+func (container *Container) hasMountFor(path string) bool {
+	_, exists := container.MountPoints[path]
+	return exists
+}
+
+func (container *Container) setupIpcDirs() error {
+	if !container.hasMountFor("/dev/shm") {
+		shmPath, err := container.shmPath()
+		if err != nil {
+			return err
+		}
+
+		if err := os.MkdirAll(shmPath, 0700); err != nil {
+			return err
+		}
+
+		if err := syscall.Mount("shm", shmPath, "tmpfs", uintptr(syscall.MS_NOEXEC|syscall.MS_NOSUID|syscall.MS_NODEV), label.FormatMountLabel("mode=1777,size=65536k", container.getMountLabel())); err != nil {
+			return fmt.Errorf("mounting shm tmpfs: %s", err)
+		}
+	}
+
+	if !container.hasMountFor("/dev/mqueue") {
+		mqueuePath, err := container.mqueuePath()
+		if err != nil {
+			return err
+		}
+
+		if err := os.MkdirAll(mqueuePath, 0700); err != nil {
+			return err
+		}
+
+		if err := syscall.Mount("mqueue", mqueuePath, "mqueue", uintptr(syscall.MS_NOEXEC|syscall.MS_NOSUID|syscall.MS_NODEV), ""); err != nil {
+			return fmt.Errorf("mounting mqueue mqueue : %s", err)
+		}
+	}
+
+	return nil
+}
+
+func (container *Container) unmountIpcMounts() error {
+	if container.hostConfig.IpcMode.IsContainer() || container.hostConfig.IpcMode.IsHost() {
+		return nil
+	}
+
+	var errors []string
+
+	if !container.hasMountFor("/dev/shm") {
+		shmPath, err := container.shmPath()
+		if err != nil {
+			logrus.Error(err)
+			errors = append(errors, err.Error())
+		} else {
+			if err := detachMounted(shmPath); err != nil {
+				logrus.Errorf("failed to umount %s: %v", shmPath, err)
+				errors = append(errors, err.Error())
+			}
+
+		}
+	}
+
+	if !container.hasMountFor("/dev/mqueue") {
+		mqueuePath, err := container.mqueuePath()
+		if err != nil {
+			logrus.Error(err)
+			errors = append(errors, err.Error())
+		} else {
+			if err := detachMounted(mqueuePath); err != nil {
+				logrus.Errorf("failed to umount %s: %v", mqueuePath, err)
+				errors = append(errors, err.Error())
+			}
+		}
+	}
+
+	if len(errors) > 0 {
+		return fmt.Errorf("failed to cleanup ipc mounts:\n%v", strings.Join(errors, "\n"))
+	}
+
+	return nil
+}
+
+func (container *Container) ipcMounts() []execdriver.Mount {
+	var mounts []execdriver.Mount
+
+	if !container.hasMountFor("/dev/shm") {
+		label.SetFileLabel(container.ShmPath, container.MountLabel)
+		mounts = append(mounts, execdriver.Mount{
+			Source:      container.ShmPath,
+			Destination: "/dev/shm",
+			Writable:    true,
+			Private:     true,
+		})
+	}
+
+	if !container.hasMountFor("/dev/mqueue") {
+		label.SetFileLabel(container.MqueuePath, container.MountLabel)
+		mounts = append(mounts, execdriver.Mount{
+			Source:      container.MqueuePath,
+			Destination: "/dev/mqueue",
+			Writable:    true,
+			Private:     true,
+		})
+	}
+	return mounts
+}
+
+func detachMounted(path string) error {
+	return syscall.Unmount(path, syscall.MNT_DETACH)
 }

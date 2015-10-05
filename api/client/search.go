@@ -41,12 +41,13 @@ func (cli *DockerCli) CmdSearch(args ...string) error {
 
 	// Resolve the Repository name from fqn to hostname + name
 	taglessRemote, _ := parsers.ParseRepositoryTag(name)
-	repoInfo, err := registry.ParseRepositoryInfo(taglessRemote)
+
+	indexInfo, err := registry.ParseIndexInfo(taglessRemote)
 	if err != nil {
 		return err
 	}
 
-	rdr, _, err := cli.clientRequestAttemptLogin("GET", "/images/search?"+v.Encode(), nil, nil, repoInfo.Index, "search")
+	rdr, _, err := cli.clientRequestAttemptLogin("GET", "/images/search?"+v.Encode(), nil, nil, indexInfo, "search")
 	if err != nil {
 		return err
 	}
@@ -63,7 +64,7 @@ func (cli *DockerCli) CmdSearch(args ...string) error {
 	w := tabwriter.NewWriter(cli.out, 10, 1, 3, ' ', 0)
 	fmt.Fprintf(w, "NAME\tDESCRIPTION\tSTARS\tOFFICIAL\tAUTOMATED\n")
 	for _, res := range results {
-		if ((*automated || *trusted) && (!res.IsTrusted && !res.IsAutomated)) || (int(*stars) > res.StarCount) {
+		if (*automated && !res.IsAutomated) || (int(*stars) > res.StarCount) || (*trusted && !res.IsTrusted) {
 			continue
 		}
 		desc := strings.Replace(res.Description, "\n", " ", -1)

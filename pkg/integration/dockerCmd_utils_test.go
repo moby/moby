@@ -160,7 +160,6 @@ func (s *DockerCmdSuite) TestDockerCmdSuccess(c *check.C) {
 // DockerCmdWithTimeout tests
 
 func (s *DockerCmdSuite) TestDockerCmdWithTimeout(c *check.C) {
-	c.Skip("racey test")
 	cmds := []struct {
 		binary           string
 		args             []string
@@ -269,7 +268,6 @@ func (s *DockerCmdSuite) TestDockerCmdInDir(c *check.C) {
 // DockerCmdInDirWithTimeout tests
 
 func (s *DockerCmdSuite) TestDockerCmdInDirWithTimeout(c *check.C) {
-	c.Skip("racey test")
 	tempFolder, err := ioutil.TempDir("", "test-docker-cmd-in-dir")
 	c.Assert(err, check.IsNil)
 
@@ -391,7 +389,8 @@ func TestHelperProcess(t *testing.T) {
 		case "a command that times out":
 			time.Sleep(10 * time.Millisecond)
 			fmt.Fprintf(os.Stdout, "too long, should be killed")
-			os.Exit(0)
+			// A random exit code (that should never happened in tests)
+			os.Exit(7)
 		case "run -ti ubuntu echo hello":
 			fmt.Fprintf(os.Stdout, "hello")
 		default:

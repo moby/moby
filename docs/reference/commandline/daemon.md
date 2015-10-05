@@ -22,6 +22,8 @@ weight=1
       -D, --debug=false                      Enable debug mode
       --default-gateway=""                   Container default gateway IPv4 address
       --default-gateway-v6=""                Container default gateway IPv6 address
+      --cluster-store=""                     URL of the distributed storage backend
+      --cluster-advertise=""                 Address of the daemon instance to advertise
       --dns=[]                               DNS server to use
       --dns-opt=[]                           DNS options to use
       --dns-search=[]                        DNS search domains to use
@@ -47,6 +49,7 @@ weight=1
       --log-driver="json-file"               Default driver for container logs
       --log-opt=[]                           Log driver specific options
       --mtu=0                                Set the containers network MTU
+      --no-legacy-registry=false             Do not contact legacy registries
       -p, --pidfile="/var/run/docker.pid"    Path to use for daemon PID file
       --registry-mirror=[]                   Preferred Docker registry mirror
       -s, --storage-driver=""                Storage driver to use
@@ -455,6 +458,10 @@ because its use creates security vulnerabilities it should ONLY be enabled for
 testing purposes.  For increased security, users should add their CA to their 
 system's list of trusted CAs instead of enabling `--insecure-registry`.
 
+## Legacy Registries
+
+Enabling `--no-legacy-registry` forces a docker daemon to only interact with registries which support the V2 protocol.  Specifically, the daemon will not attempt `push`, `pull` and `login` to v1 registries.  The exception to this is `search` which can still be performed on v1 registries.
+
 ## Running a Docker daemon behind a HTTPS_PROXY
 
 When running inside a LAN that uses a `HTTPS` proxy, the Docker Hub
@@ -483,6 +490,12 @@ these defaults are not set, `ulimit` settings will be inherited, if not set on
 Be careful setting `nproc` with the `ulimit` flag as `nproc` is designed by Linux to
 set the maximum number of processes available to a user, not to a container. For details
 please check the [run](run.md) reference.
+
+## Nodes discovery
+
+`--cluster-advertise` specifies the 'host:port' combination that this particular
+daemon instance should use when advertising itself to the cluster. The daemon
+should be reachable by remote hosts on this 'host:port' combination.
 
 ## Miscellaneous options
 

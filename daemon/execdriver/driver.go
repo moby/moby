@@ -27,8 +27,9 @@ var (
 // DriverCallback defines a callback function which is used in "Run" and "Exec".
 // This allows work to be done in the parent process when the child is passing
 // through PreStart, Start and PostStop events.
-// Callbacks are provided a processConfig pointer and the pid of the child
-type DriverCallback func(processConfig *ProcessConfig, pid int) error
+// Callbacks are provided a processConfig pointer and the pid of the child.
+// The channel will be used to notify the OOM events.
+type DriverCallback func(processConfig *ProcessConfig, pid int, chOOM <-chan struct{}) error
 
 // Hooks is a struct containing function pointers to callbacks
 // used by any execdriver implementation exploiting hooks capabilities
@@ -140,18 +141,19 @@ type UTS struct {
 // Currently these are all for cgroup configs.
 // TODO Windows: Factor out ulimit.Rlimit
 type Resources struct {
-	Memory           int64            `json:"memory"`
-	MemorySwap       int64            `json:"memory_swap"`
-	KernelMemory     int64            `json:"kernel_memory"`
-	CPUShares        int64            `json:"cpu_shares"`
-	CpusetCpus       string           `json:"cpuset_cpus"`
-	CpusetMems       string           `json:"cpuset_mems"`
-	CPUPeriod        int64            `json:"cpu_period"`
-	CPUQuota         int64            `json:"cpu_quota"`
-	BlkioWeight      int64            `json:"blkio_weight"`
-	Rlimits          []*ulimit.Rlimit `json:"rlimits"`
-	OomKillDisable   bool             `json:"oom_kill_disable"`
-	MemorySwappiness int64            `json:"memory_swappiness"`
+	Memory            int64            `json:"memory"`
+	MemorySwap        int64            `json:"memory_swap"`
+	MemoryReservation int64            `json:"memory_reservation"`
+	KernelMemory      int64            `json:"kernel_memory"`
+	CPUShares         int64            `json:"cpu_shares"`
+	CpusetCpus        string           `json:"cpuset_cpus"`
+	CpusetMems        string           `json:"cpuset_mems"`
+	CPUPeriod         int64            `json:"cpu_period"`
+	CPUQuota          int64            `json:"cpu_quota"`
+	BlkioWeight       int64            `json:"blkio_weight"`
+	Rlimits           []*ulimit.Rlimit `json:"rlimits"`
+	OomKillDisable    bool             `json:"oom_kill_disable"`
+	MemorySwappiness  int64            `json:"memory_swappiness"`
 }
 
 // ResourceStats contains information about resource usage by a container.
@@ -185,7 +187,7 @@ type ProcessConfig struct {
 	ConsoleSize [2]int   `json:"-"` // h,w of initial console size
 }
 
-// Command wrapps an os/exec.Cmd to add more metadata
+// Command wraps an os/exec.Cmd to add more metadata
 //
 // TODO Windows: Factor out unused fields such as LxcConfig, AppArmorProfile,
 // and CgroupParent.

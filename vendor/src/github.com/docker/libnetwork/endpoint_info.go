@@ -203,19 +203,8 @@ func (ep *endpoint) AddStaticRoute(destination *net.IPNet, routeType int, nextHo
 		ep.joinInfo.StaticRoutes = append(ep.joinInfo.StaticRoutes, &r)
 	} else {
 		// If the route doesn't specify a next-hop, it must be a connected route, bound to an interface.
-		if err := ep.addInterfaceRoute(&r); err != nil {
-			return err
-		}
+		ep.iface.routes = append(ep.iface.routes, r.Destination)
 	}
-	return nil
-}
-
-func (ep *endpoint) addInterfaceRoute(route *types.StaticRoute) error {
-	ep.Lock()
-	defer ep.Unlock()
-
-	iface := ep.iface
-	iface.routes = append(iface.routes, route.Destination)
 	return nil
 }
 
