@@ -852,7 +852,7 @@ func (n *network) ipamAllocateVersion(ipVer int, ipam ipamapi.Ipam) error {
 
 	*infoList = make([]*IpamInfo, len(*cfgList))
 
-	log.Debugf("allocating IPv%d pools for network %s (%s)", ipVer, n.Name(), n.ID())
+	log.Debugf("Allocating IPv%d pools for network %s (%s)", ipVer, n.Name(), n.ID())
 
 	for i, cfg := range *cfgList {
 		if err = cfg.Validate(); err != nil {

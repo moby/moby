@@ -56,15 +56,17 @@ type configuration struct {
 // networkConfiguration for network specific configuration
 type networkConfiguration struct {
 	BridgeName         string
-	AddressIPv4        *net.IPNet
 	EnableIPv6         bool
 	EnableIPMasquerade bool
 	EnableICC          bool
 	Mtu                int
-	DefaultGatewayIPv4 net.IP
-	DefaultGatewayIPv6 net.IP
 	DefaultBindingIP   net.IP
 	DefaultBridge      bool
+	// Internal fields set after ipam data parsing
+	AddressIPv4        *net.IPNet
+	AddressIPv6        *net.IPNet
+	DefaultGatewayIPv4 net.IP
+	DefaultGatewayIPv6 net.IP
 }
 
 // endpointConfiguration represents the user specified configuration for the sandbox endpoint
@@ -161,27 +163,39 @@ func (c *networkConfiguration) Validate() error {
 		}
 	}
 
+	// If default v6 gw is specified, AddressIPv6 must be specified and gw must belong to AddressIPv6 subnet
+	if c.EnableIPv6 && c.DefaultGatewayIPv6 != nil {
+		if c.AddressIPv6 == nil || !c.AddressIPv6.Contains(c.DefaultGatewayIPv6) {
+			return &ErrInvalidGateway{}
+		}
+	}
 	return nil
 }
 
 // Conflicts check if two NetworkConfiguration objects overlap
-func (c *networkConfiguration) Conflicts(o *networkConfiguration) bool {
+func (c *networkConfiguration) Conflicts(o *networkConfiguration) error {
 	if o == nil {
-		return false
+		return fmt.Errorf("same configuration")
 	}
 
 	// Also empty, becasue only one network with empty name is allowed
 	if c.BridgeName == o.BridgeName {
-		return true
+		return fmt.Errorf("networks have same name")
 	}
 
 	// They must be in different subnets
 	if (c.AddressIPv4 != nil && o.AddressIPv4 != nil) &&
 		(c.AddressIPv4.Contains(o.AddressIPv4.IP) || o.AddressIPv4.Contains(c.AddressIPv4.IP)) {
-		return true
+		return fmt.Errorf("networks have overlapping IPv4")
 	}
 
-	return false
+	// They must be in different v6 subnets
+	if (c.AddressIPv6 != nil && o.AddressIPv6 != nil) &&
+		(c.AddressIPv6.Contains(o.AddressIPv6.IP) || o.AddressIPv6.Contains(c.AddressIPv6.IP)) {
+		return fmt.Errorf("networks have overlapping IPv6")
+	}
+
+	return nil
 }
 
 // fromMap retrieve the configuration data from the map form.
@@ -456,18 +470,18 @@ func (c *networkConfiguration) processIPAM(id string, ipamV4Data, ipamV6Data []d
 		c.AddressIPv4 = types.GetIPNetCopy(ipamV4Data[0].Gateway)
 	}
 
-	if c.EnableIPv6 && len(ipamV6Data) == 0 {
-		return types.BadRequestErrorf("bridge network %s requires ipv6 configuration", id)
-	}
-
-	gw, ok := ipamV4Data[0].AuxAddresses[DefaultGatewayV4AuxKey]
-	if ok {
+	if gw, ok := ipamV4Data[0].AuxAddresses[DefaultGatewayV4AuxKey]; ok {
 		c.DefaultGatewayIPv4 = gw.IP
 	}
 
-	gw, ok = ipamV4Data[0].AuxAddresses[DefaultGatewayV6AuxKey]
-	if ok {
-		c.DefaultGatewayIPv6 = gw.IP
+	if len(ipamV6Data) > 0 {
+		if ipamV6Data[0].Gateway != nil {
+			c.AddressIPv6 = types.GetIPNetCopy(ipamV6Data[0].Gateway)
+		}
+
+		if gw, ok := ipamV6Data[0].AuxAddresses[DefaultGatewayV6AuxKey]; ok {
+			c.DefaultGatewayIPv6 = gw.IP
+		}
 	}
 
 	return nil
@@ -502,6 +516,9 @@ func parseNetworkOptions(id string, option options.Generic) (*networkConfigurati
 
 // Returns the non link-local IPv6 subnet for the containers attached to this bridge if found, nil otherwise
 func getV6Network(config *networkConfiguration, i *bridgeInterface) *net.IPNet {
+	if config.AddressIPv6 != nil {
+		return config.AddressIPv6
+	}
 	if i.bridgeIPv6 != nil && i.bridgeIPv6.IP != nil && !i.bridgeIPv6.IP.IsLinkLocalUnicast() {
 		return i.bridgeIPv6
 	}
@@ -551,8 +568,9 @@ func (d *driver) CreateNetwork(id string, option map[string]interface{}, ipV4Dat
 		nw.Lock()
 		nwConfig := nw.config
 		nw.Unlock()
-		if nwConfig.Conflicts(config) {
-			return types.ForbiddenErrorf("conflicts with network %s (%s)", nw.id, nw.config.BridgeName)
+		if err := nwConfig.Conflicts(config); err != nil {
+			return types.ForbiddenErrorf("cannot create network %s (%s): conflicts with network %s (%s): %s",
+				nwConfig.BridgeName, id, nw.id, nw.config.BridgeName, err.Error())
 		}
 	}
 
@@ -613,10 +631,7 @@ func (d *driver) CreateNetwork(id string, option map[string]interface{}, ipV4Dat
 	// Even if a bridge exists try to setup IPv4.
 	bridgeSetup.queueStep(setupBridgeIPv4)
 
-	enableIPv6Forwarding := false
-	if d.config.EnableIPForwarding {
-		enableIPv6Forwarding = true
-	}
+	enableIPv6Forwarding := d.config.EnableIPForwarding && config.AddressIPv6 != nil
 
 	// Conditionally queue setup steps depending on configuration values.
 	for _, step := range []struct {
@@ -797,11 +812,6 @@ func setHairpinMode(link netlink.Link, enable bool) error {
 }
 
 func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo, epOptions map[string]interface{}) error {
-	var (
-		ipv6Addr *net.IPNet
-		err      error
-	)
-
 	defer osl.InitOSContext()()
 
 	if ifInfo == nil {
@@ -931,7 +941,11 @@ func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo,
 		}
 	}
 
-	ipv4Addr := ifInfo.Address()
+	// Create the sandbox side pipe interface
+	endpoint.srcName = containerIfName
+	endpoint.macAddress = ifInfo.MacAddress()
+	endpoint.addr = ifInfo.Address()
+	endpoint.addrv6 = ifInfo.AddressIPv6()
 
 	// Down the interface before configuring mac address.
 	if err = netlink.LinkSetDown(sbox); err != nil {
@@ -939,41 +953,44 @@ func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo,
 	}
 
 	// Set the sbox's MAC. If specified, use the one configured by user, otherwise generate one based on IP.
-	mac := ifInfo.MacAddress()
-	if mac == nil {
-		mac = electMacAddress(epConfig, ipv4Addr.IP)
+	if endpoint.macAddress == nil {
+		endpoint.macAddress = electMacAddress(epConfig, endpoint.addr.IP)
+		if err := ifInfo.SetMacAddress(endpoint.macAddress); err != nil {
+			return err
+		}
 	}
-	err = netlink.LinkSetHardwareAddr(sbox, mac)
+	err = netlink.LinkSetHardwareAddr(sbox, endpoint.macAddress)
 	if err != nil {
 		return fmt.Errorf("could not set mac address for container interface %s: %v", containerIfName, err)
 	}
-	endpoint.macAddress = mac
 
 	// Up the host interface after finishing all netlink configuration
 	if err = netlink.LinkSetUp(host); err != nil {
 		return fmt.Errorf("could not set link up for host interface %s: %v", hostIfName, err)
 	}
 
-	ipv6Addr = ifInfo.AddressIPv6()
-	// Create the sandbox side pipe interface
-	endpoint.srcName = containerIfName
-	endpoint.addr = ipv4Addr
+	if endpoint.addrv6 == nil && config.EnableIPv6 {
+		var ip6 net.IP
+		network := n.bridge.bridgeIPv6
+		ones, _ := network.Mask.Size()
+		if ones <= 80 {
+			ip6 = make(net.IP, len(network.IP))
+			copy(ip6, network.IP)
+			for i, h := range endpoint.macAddress {
+				ip6[i+10] = h
+			}
+		}
 
-	if config.EnableIPv6 {
-		endpoint.addrv6 = ipv6Addr
+		endpoint.addrv6 = &net.IPNet{IP: ip6, Mask: network.Mask}
+		if err := ifInfo.SetIPAddress(endpoint.addrv6); err != nil {
+			return err
+		}
 	}
 
 	// Program any required port mapping and store them in the endpoint
 	endpoint.portMapping, err = n.allocatePorts(epConfig, endpoint, config.DefaultBindingIP, d.config.EnableUserlandProxy)
 	if err != nil {
 		return err
-	}
-
-	if ifInfo.MacAddress() == nil {
-		err = ifInfo.SetMacAddress(endpoint.macAddress)
-		if err != nil {
-			return err
-		}
 	}
 
 	return nil

@@ -102,8 +102,9 @@ func (a *Allocator) updateBitMasks(aSpace *addrSpace) error {
 	aSpace.Lock()
 	for k, v := range aSpace.subnets {
 		if v.Range == nil {
-			inserterList = append(inserterList,
-				func() error { return a.insertBitMask(k, v.Pool) })
+			kk := k
+			vv := v
+			inserterList = append(inserterList, func() error { return a.insertBitMask(kk, vv.Pool) })
 		}
 	}
 	aSpace.Unlock()
@@ -127,6 +128,7 @@ func (a *Allocator) GetDefaultAddressSpaces() (string, string, error) {
 
 // RequestPool returns an address pool along with its unique id.
 func (a *Allocator) RequestPool(addressSpace, pool, subPool string, options map[string]string, v6 bool) (string, *net.IPNet, map[string]string, error) {
+	log.Debugf("RequestPool(%s, %s, %s, %v, %t)", addressSpace, pool, subPool, options, v6)
 	k, nw, aw, ipr, err := a.parsePoolRequest(addressSpace, pool, subPool, v6)
 	if err != nil {
 		return "", nil, nil, ipamapi.ErrInvalidPool
@@ -160,6 +162,7 @@ retry:
 
 // ReleasePool releases the address pool identified by the passed id
 func (a *Allocator) ReleasePool(poolID string) error {
+	log.Debugf("ReleasePool(%s)", poolID)
 	k := SubnetKey{}
 	if err := k.FromString(poolID); err != nil {
 		return types.BadRequestErrorf("invalid pool id: %s", poolID)
@@ -343,6 +346,7 @@ func (a *Allocator) getPredefinedPool(as string, ipV6 bool) (*net.IPNet, error) 
 
 // RequestAddress returns an address from the specified pool ID
 func (a *Allocator) RequestAddress(poolID string, prefAddress net.IP, opts map[string]string) (*net.IPNet, map[string]string, error) {
+	log.Debugf("RequestAddress(%s, %v, %v)", poolID, prefAddress, opts)
 	k := SubnetKey{}
 	if err := k.FromString(poolID); err != nil {
 		return nil, nil, types.BadRequestErrorf("invalid pool id: %s", poolID)
@@ -391,6 +395,7 @@ func (a *Allocator) RequestAddress(poolID string, prefAddress net.IP, opts map[s
 
 // ReleaseAddress releases the address from the specified pool ID
 func (a *Allocator) ReleaseAddress(poolID string, address net.IP) error {
+	log.Debugf("ReleaseAddress(%s, %v)", poolID, address)
 	k := SubnetKey{}
 	if err := k.FromString(poolID); err != nil {
 		return types.BadRequestErrorf("invalid pool id: %s", poolID)

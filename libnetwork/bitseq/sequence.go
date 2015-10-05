@@ -5,6 +5,7 @@ package bitseq
 
 import (
 	"encoding/binary"
+	"encoding/json"
 	"fmt"
 	"sync"
 
@@ -390,6 +391,38 @@ func (h *Handle) String() string {
 	defer h.Unlock()
 	return fmt.Sprintf("App: %s, ID: %s, DBIndex: 0x%x, bits: %d, unselected: %d, sequence: %s",
 		h.app, h.id, h.dbIndex, h.bits, h.unselected, h.head.toString())
+}
+
+// MarshalJSON encodes Handle into json message
+func (h *Handle) MarshalJSON() ([]byte, error) {
+	m := map[string]interface{}{
+		"id": h.id,
+	}
+
+	b, err := h.ToByteArray()
+	if err != nil {
+		return nil, err
+	}
+	m["sequence"] = b
+	return json.Marshal(m)
+}
+
+// UnmarshalJSON decodes json message into Handle
+func (h *Handle) UnmarshalJSON(data []byte) error {
+	var (
+		m   map[string]interface{}
+		b   []byte
+		err error
+	)
+	if err = json.Unmarshal(data, &m); err != nil {
+		return err
+	}
+	h.id = m["id"].(string)
+	bi, _ := json.Marshal(m["sequence"])
+	if err := json.Unmarshal(bi, &b); err != nil {
+		return err
+	}
+	return h.FromByteArray(b)
 }
 
 // getFirstAvailable looks for the first unset bit in passed mask starting from start

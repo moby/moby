@@ -13,7 +13,7 @@ import (
 	"github.com/docker/libnetwork/bitseq"
 	"github.com/docker/libnetwork/datastore"
 	"github.com/docker/libnetwork/ipamapi"
-	"github.com/docker/libnetwork/netutils"
+	"github.com/docker/libnetwork/ipamutils"
 	_ "github.com/docker/libnetwork/testutils"
 	"github.com/docker/libnetwork/types"
 )
@@ -461,12 +461,7 @@ func TestPredefinedPool(t *testing.T) {
 		t.Fatalf("Expected failure for non default addr space")
 	}
 
-	i, available, err := getFirstAvailablePool(a, localAddressSpace, 2)
-	if err != nil {
-		t.Skip(err)
-	}
-
-	pid, _, _, err := a.RequestPool(localAddressSpace, available.String(), "", nil, false)
+	exp, err := ipamutils.FindAvailableNetwork(a.predefined[localAddressSpace])
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -475,8 +470,24 @@ func TestPredefinedPool(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if nw != a.predefined[localAddressSpace][i+1] {
-		t.Fatalf("Unexpected default network returned: %s", nw)
+	if !types.CompareIPNet(nw, exp) {
+		t.Fatalf("Unexpected default network returned: %s. Expected: %s", nw, exp)
+	}
+
+	pid, nw, _, err := a.RequestPool(localAddressSpace, exp.String(), "", nil, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !types.CompareIPNet(nw, exp) {
+		t.Fatalf("Unexpected default network returned: %s. Expected: %s", nw, exp)
+	}
+
+	nw2, err := a.getPredefinedPool(localAddressSpace, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if types.CompareIPNet(nw, nw2) {
+		t.Fatalf("Unexpected default network returned: %s = %s", nw2, nw)
 	}
 
 	if err := a.ReleasePool(pid); err != nil {
@@ -487,23 +498,9 @@ func TestPredefinedPool(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if nw != a.predefined[localAddressSpace][i] {
-		t.Fatalf("Unexpected default network returned: %s", nw)
+	if !types.CompareIPNet(nw, exp) {
+		t.Fatalf("Unexpected default network returned: %s. Expected %s", nw, exp)
 	}
-}
-
-func getFirstAvailablePool(a *Allocator, as string, atLeast int) (int, *net.IPNet, error) {
-	i := 0
-	for i < len(a.predefined[as])-1 {
-		if err := netutils.CheckRouteOverlaps(a.predefined[as][i]); err == nil {
-			break
-		}
-		i++
-	}
-	if i > len(a.predefined[as])-1-atLeast {
-		return 0, nil, fmt.Errorf("Not enough non-overlapping networks to run the test")
-	}
-	return i, a.predefined[as][i], nil
 }
 
 func TestAdjustAndCheckSubnet(t *testing.T) {

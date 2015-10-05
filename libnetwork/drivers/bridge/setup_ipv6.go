@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net"
+	"os"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/vishvananda/netlink"
@@ -57,12 +58,35 @@ func setupBridgeIPv6(config *networkConfiguration, i *bridgeInterface) error {
 	i.bridgeIPv6 = bridgeIPv6
 	i.gatewayIPv6 = i.bridgeIPv6.IP
 
+	if config.AddressIPv6 == nil {
+		return nil
+	}
+
+	// Setting route to global IPv6 subnet
+	logrus.Debugf("Adding route to IPv6 network %s via device %s", config.AddressIPv6.String(), config.BridgeName)
+	err = netlink.RouteAdd(&netlink.Route{
+		Scope:     netlink.SCOPE_UNIVERSE,
+		LinkIndex: i.Link.Attrs().Index,
+		Dst:       config.AddressIPv6,
+	})
+	if err != nil && !os.IsExist(err) {
+		logrus.Errorf("Could not add route to IPv6 network %s via device %s", config.AddressIPv6.String(), config.BridgeName)
+	}
+
 	return nil
 }
 
 func setupGatewayIPv6(config *networkConfiguration, i *bridgeInterface) error {
+	if config.AddressIPv6 == nil {
+		return &ErrInvalidContainerSubnet{}
+	}
+	if !config.AddressIPv6.Contains(config.DefaultGatewayIPv6) {
+		return &ErrInvalidGateway{}
+	}
+
 	// Store requested default gateway
 	i.gatewayIPv6 = config.DefaultGatewayIPv6
+
 	return nil
 }
 
