@@ -2,9 +2,10 @@
 +++
 title = "Installation on Ubuntu "
 description = "Instructions for installing Docker on Ubuntu. "
-keywords = ["Docker, Docker documentation, requirements, virtualbox, installation,  ubuntu"]
+keywords = ["Docker, Docker documentation, requirements, apt, installation,  ubuntu"]
 [menu.main]
 parent = "smn_linux"
+weight = -6
 +++
 <![end-metadata]-->
 
@@ -12,6 +13,7 @@ parent = "smn_linux"
 
 Docker is supported on these Ubuntu operating systems:
 
+- Ubuntu Wily 15.10
 - Ubuntu Vivid 15.04
 - Ubuntu Trusty 14.04 (LTS)
 - Ubuntu Precise 12.04 (LTS)
@@ -20,6 +22,8 @@ This page instructs you to install using Docker-managed release packages and
 installation mechanisms. Using these packages ensures you get the latest release
 of Docker. If you wish to install using Ubuntu-managed packages, consult your
 Ubuntu documentation.
+
+>**Note**: Ubuntu Utopic 14.10 exists in Docker's `apt` repository but it is no longer officially supported.
 
 ## Prerequisites
 
@@ -31,26 +35,70 @@ Kernels older than 3.10 lack some of the features required to run Docker
 containers. These older versions are known to have bugs which cause data loss
 and frequently panic under certain conditions.
 
-To check your current kernel version, open a terminal and use `uname -r` to display
-your kernel version:
+To check your current kernel version, open a terminal and use `uname -r` to
+display your kernel version:
 
     $ uname -r
     3.11.0-15-generic
 
->**Caution** Some Ubuntu OS versions **require a version higher than 3.10** to
->run Docker, see the prerequisites on this page that apply to your Ubuntu
->version.
+>**Note**: If you previously installed Docker using `apt`, make sure you update
+your `apt` sources to the new Docker repository.
 
+### Update your apt sources
 
-### For Vivid 15.04
+Docker's `apt` repository contains Docker 1.7.1 and higher. To set `apt` to use
+packages from the new repository:
 
-There are no prerequisites for this version.
+1. If you haven't already done so, log into your Ubuntu instance.
 
-### For Trusty 14.04
+2. Open a terminal window.
 
-There are no prerequisites for this version.
+3. Add the new `gpg` key.
 
-### For Precise 12.04 (LTS)
+        $ apt-key adv --keyserver hkp://pgp.mit.edu:80 --recv-keys 58118E89F3A912897C070ADBF76221572C52609D
+
+4. Open the `/etc/apt/sources.list.d/docker.list` file in your favorite editor.
+
+    If the file doesn't exist, create it.
+
+5. Remove any existing entries.
+
+6. Add an entry for your Ubuntu operating system.
+
+    The possible entries are:
+
+        # Ubuntu Precise
+        deb https://apt.dockerproject.org/repo ubuntu-precise main
+        # Ubuntu Trusty
+        deb https://apt.dockerproject.org/repo ubuntu-trusty main
+        # Ubuntu Vivid
+        deb https://apt.dockerproject.org/repo ubuntu-vivid main
+        # Ubuntu Wily
+        deb https://apt.dockerproject.org/repo ubuntu-wily main
+
+7. Save and close the `/etc/apt/sources.list.d/docker.list` file.
+
+8. Update the `apt` package index.
+
+        $ apt-get update
+
+9. Purge the old repo if it exists.
+
+        $ apt-get purge lxc-docker*
+
+10. Verify that `apt` is pulling from the right repository.
+
+        $ apt-cache policy docker-engine
+
+    From now on when you run `apt-get upgrade`, `apt` pulls from the new repository.  
+
+### Prerequisites by Ubuntu Version
+
+The following Ubuntu versions have no additional prerequisites:
+
+- Ubuntu Wily 15.10
+- Ubuntu Vivid 15.04
+- Ubuntu Trusty 14.04 (LTS)
 
 For Ubuntu Precise, Docker requires the 3.13 kernel version. If your kernel
 version is older than 3.13, you must upgrade it. Refer to this table to see
@@ -69,12 +117,13 @@ kernel, then you can skip these headers for the"trusty" kernel. If you're
 unsure, you should include this package for safety.</td> </tr> <tr> <td
 class="tg-031">xserver-xorg-lts-trusty</td> <td class="tg-031e"
 rowspan="2">Optional in non-graphical environments without Unity/Xorg.
-<i>Required</i> when running Docker on machine with a graphical environment.
-
-<p>To learn more about the reasons for these packages, read the installation
+<b>Required</b> when running Docker on machine with a graphical environment.
+<br>
+<br>To learn more about the reasons for these packages, read the installation
 instructions for backported kernels, specifically the <a
 href="https://wiki.ubuntu.com/Kernel/LTSEnablementStack" target="_blank">LTS
-Enablement Stack</a> &mdash; refer to note 5 under each version.</p></td> </tr>
+Enablement Stack</a> &mdash; refer to note 5 under each version.
+</td> </tr>
 <tr> <td class="tg-031">libgl1-mesa-glx-lts-trusty</td> </tr> </table> &nbsp;
 
 To upgrade your kernel and install the additional packages, do the following:
@@ -95,37 +144,24 @@ To upgrade your kernel and install the additional packages, do the following:
 
         $ sudo reboot
 
-5. After your system reboots, go ahead and [install Docker](#installation).
+5. After your system reboots, go ahead and install Docker.
 
-## Installation
+
+
+## Install
 
 Make sure you have installed the prerequisites for your Ubuntu version. Then,
 install Docker using the following:
 
 1. Log into your Ubuntu installation as a user with `sudo` privileges.
 
-2. Verify that you have `curl` installed.
-
-        $ which curl
-
-    If `curl` isn't installed, install it after updating your manager:
+2. Update your `apt` package index.
 
         $ sudo apt-get update
-        $ sudo apt-get install curl
 
-3. Get the latest Docker package.
+3. Install Docker.
 
-        $ curl -sSL https://get.docker.com/ | sh
-
-    The system prompts you for your `sudo` password. Then, it downloads and
-    installs Docker and its dependencies.
-
-    >**Note**: If your company is behind a filtering proxy, you may find that the
-    >`apt-key`
-    >command fails for the Docker repo during installation. To work around this,
-    >add the key directly using the following:
-    >
-    >       $ curl -sSL https://get.docker.com/gpg | sudo apt-key add -
+        $ sudo apt-get install docker-engine
 
 4. Start the `docker` daemon.
 
@@ -135,17 +171,18 @@ install Docker using the following:
 
         $ sudo docker run hello-world
 
-    This command downloads a test image and runs it in a container.
+    This command downloads a test image and runs it in a container. When the
+    container runs, it prints an informational message. Then, it exits.
 
-## Optional configurations for Docker on Ubuntu 
+## Optional configurations
 
 This section contains optional procedures for configuring your Ubuntu to work
 better with Docker.
 
-* [Create a docker group](#create-a-docker-group) 
-* [Adjust memory and swap accounting](#adjust-memory-and-swap-accounting) 
-* [Enable UFW forwarding](#enable-ufw-forwarding) 
-* [Configure a DNS server for use by Docker](#configure-a-dns-server-for-docker)
+* [Create a docker group](#create-a-docker-group)
+* [Adjust memory and swap accounting](#adjust-memory-and-swap-accounting)
+* [Enable UFW forwarding](#enable-ufw-forwarding)
+* [Configure a DNS server for use by Docker](#configure-a-dns-server-for-use-by-docker)
 * [Configure Docker to start on boot](#configure-docker-to-start-on-boot)
 
 ### Create a Docker group		
@@ -323,7 +360,7 @@ NetworkManager (this might slow your network).
 
 4. Restart both the NetworkManager and Docker.
 
-        $ sudo restart network-manager 
+        $ sudo restart network-manager
         $ sudo restart docker
 
 ### Configure Docker to start on boot
@@ -335,16 +372,14 @@ For `15.04` and up, to configure the `docker` daemon to start on boot, run
 
     $ sudo systemctl enable docker
 
-&nbsp;
-
 For `14.10` and below the above installation method automatically configures `upstart`
 to start the docker daemon on boot
 
 ## Upgrade Docker
 
-To install the latest version of Docker with `curl`:
+To install the latest version of Docker with `apt-get`:
 
-    $ curl -sSL https://get.docker.com/ | sh
+    $ apt-get upgrade docker-engine
 
 ## Uninstallation
 

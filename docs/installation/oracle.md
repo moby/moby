@@ -8,86 +8,143 @@ parent = "smn_linux"
 +++
 <![end-metadata]-->
 
-# Oracle Linux 6 and 7
+# Oracle Linux
 
-You do not require an Oracle Linux Support subscription to install Docker on
-Oracle Linux.
+Docker is supported Oracle Linux 6 and 7. You do not require an Oracle Linux
+Support subscription to install Docker on Oracle Linux.
 
-*For Oracle Linux customers with an active support subscription:*
-Docker is available in either the `ol6_x86_64_addons` or `ol7_x86_64_addons`
-channel for Oracle Linux 6 and Oracle Linux 7 on the [Unbreakable Linux Network
-(ULN)](https://linux.oracle.com).
+This page instructs you to install using Docker-managed release packages and
+installation mechanisms. Using these packages ensures you get the latest release
+of Docker. If you wish to install using Oracle-managed packages, consult your
+[Oracle Linux documentation](https://linux.oracle.com).
 
-*For Oracle Linux users without an active support subscription:*
-Docker is available in the appropriate `ol6_addons` or `ol7_addons` repository
-on [Oracle Public Yum](http://public-yum.oracle.com).
 
-Docker requires the use of the Unbreakable Enterprise Kernel Release 3 (3.8.13)
-or higher on Oracle Linux. This kernel supports the Docker btrfs storage engine
-on both Oracle Linux 6 and 7.
+## Prerequisites
 
 Due to current Docker limitations, Docker is only able to run only on the x86_64
-architecture.
+architecture. Docker requires the use of the Unbreakable Enterprise Kernel
+Release 3 (3.8.13) or higher on Oracle Linux. This kernel supports the Docker
+btrfs storage engine on both Oracle Linux 6 and 7.
 
-## To enable the *addons* channel via the Unbreakable Linux Network:
 
-1. Enable either the *ol6\_x86\_64\_addons* or *ol7\_x86\_64\_addons* channel
-via the ULN web interface.
-Consult the [Unbreakable Linux Network User's
-Guide](http://docs.oracle.com/cd/E52668_01/E39381/html/index.html) for
-documentation on subscribing to channels.
 
-## To enable the *addons* repository via Oracle Public Yum:
+## Install
 
-The latest release of Oracle Linux 6 and 7 are automatically configured to use
-the Oracle Public Yum repositories during installation. However, the *addons*
-repository is not enabled by default.
+1. Log into your machine as a user with `sudo` or `root` privileges.
 
-To enable the *addons* repository:
+2. Make sure your existing yum packages are up-to-date.
 
-1. Edit either `/etc/yum.repos.d/public-yum-ol6.repo` or
-`/etc/yum.repos.d/public-yum-ol7.repo`
-and set `enabled=1` in the `[ol6_addons]` or the `[ol7_addons]` stanza.
+        $ sudo yum update
 
-## Installation 
+3. Add the yum repo yourself.
 
-1. Ensure the appropriate *addons* channel or repository has been enabled.
+    For version 6:
 
-2. Use yum to install the Docker package:
+        $ cat >/etc/yum.repos.d/docker.repo <<-EOF
+        [dockerrepo]
+        name=Docker Repository
+        baseurl=https://yum.dockerproject.org/repo/main/oraclelinux/6
+        enabled=1
+        gpgcheck=1
+        gpgkey=https://yum.dockerproject.org/gpg
+        EOF
+
+    For version 7:
+
+        $ cat >/etc/yum.repos.d/docker.repo <<-EOF
+        [dockerrepo]
+        name=Docker Repository
+        baseurl=https://yum.dockerproject.org/repo/main/oraclelinux/7
+        enabled=1
+        gpgcheck=1
+        gpgkey=https://yum.dockerproject.org/gpg
+        EOF
+
+4. Install the Docker package.
 
         $ sudo yum install docker
 
-## Starting Docker 
+5. Start the Docker daemon.
 
-1. Now that it's installed, start the Docker daemon:
+     On Oracle Linux 6:
 
-    1. On Oracle Linux 6:
+        $ sudo service docker start
 
-            $ sudo service docker start
+     On Oracle Linux 7:
 
-    2. On Oracle Linux 7:
+        $ sudo systemctl start docker.service
 
-            $ sudo systemctl start docker.service
+6. Verify `docker` is installed correctly by running a test image in a container.
 
-2. If you want the Docker daemon to start automatically at boot:
+        $ sudo docker run hello-world
 
-    1. On Oracle Linux 6:
+## Optional configurations
 
-            $ sudo chkconfig docker on
+This section contains optional procedures for configuring your Oracle Linux to work
+better with Docker.
 
-    2. On Oracle Linux 7:
+* [Create a docker group](#create-a-docker-group)
+* [Configure Docker to start on boot](#configure-docker-to-start-on-boot)
+* [Use the btrfs storage engine](#use-the-btrfs-storage-engine)
 
-            $ sudo systemctl enable docker.service
+### Create a Docker group		
 
-**Done!**
+The `docker` daemon binds to a Unix socket instead of a TCP port. By default
+that Unix socket is owned by the user `root` and other users can access it with
+`sudo`. For this reason, `docker` daemon always runs as the `root` user.
 
-## Custom daemon options
+To avoid having to use `sudo` when you use the `docker` command, create a Unix
+group called `docker` and add users to it. When the `docker` daemon starts, it
+makes the ownership of the Unix socket read/writable by the `docker` group.
+
+>**Warning**: The `docker` group is equivalent to the `root` user; For details
+>on how this impacts security in your system, see [*Docker Daemon Attack
+>Surface*](/articles/security/#docker-daemon-attack-surface) for details.
+
+To create the `docker` group and add your user:
+
+1. Log into Oracle Linux as a user with `sudo` privileges.
+
+2. Create the `docker` group and add your user.
+
+        sudo usermod -aG docker username
+
+3. Log out and log back in.
+
+    This ensures your user is running with the correct permissions.
+
+4. Verify your work by running `docker` without `sudo`.
+
+        $ docker run hello-world
+
+	If this fails with a message similar to this:
+
+		Cannot connect to the Docker daemon. Is 'docker daemon' running on this host?
+
+	Check that the `DOCKER_HOST` environment variable is not set for your shell.
+	If it is, unset it.
+
+### Configure Docker to start on boot
+
+You can configure the  Docker daemon to start automatically at boot.
+
+On Oracle Linux 6:
+
+```
+$ sudo chkconfig docker on
+```
+
+On Oracle Linux 7:
+
+```
+$ sudo systemctl enable docker.service
+```
 
 If you need to add an HTTP Proxy, set a different directory or partition for the
 Docker runtime files, or make other customizations, read our systemd article to
 learn how to [customize your systemd Docker daemon options](/articles/systemd/).
 
-## Using the btrfs storage engine
+### Use the btrfs storage engine
 
 Docker on Oracle Linux 6 and 7 supports the use of the btrfs storage engine.
 Before enabling btrfs support, ensure that `/var/lib/docker` is stored on a
@@ -100,10 +157,10 @@ on how to create and mount btrfs filesystems.
 To enable btrfs support on Oracle Linux:
 
 1. Ensure that `/var/lib/docker` is on a btrfs filesystem.
-1. Edit `/etc/sysconfig/docker` and add `-s btrfs` to the `OTHER_ARGS` field.
-2. Restart the Docker daemon:
 
-You can now continue with the [Docker User Guide](/userguide/).
+2. Edit `/etc/sysconfig/docker` and add `-s btrfs` to the `OTHER_ARGS` field.
+
+3. Restart the Docker daemon:
 
 ## Uninstallation
 
