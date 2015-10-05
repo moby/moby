@@ -82,6 +82,9 @@ type Graph struct {
 	imageMutex       imageMutex // protect images in driver.
 	retained         *retainedLayers
 	tarSplitDisabled bool
+
+	parentRefs      map[string]int
+	parentRefsMutex sync.Mutex
 }
 
 // file names for ./graph/<ID>/
@@ -112,10 +115,11 @@ func NewGraph(root string, driver graphdriver.Driver) (*Graph, error) {
 	}
 
 	graph := &Graph{
-		root:     abspath,
-		idIndex:  truncindex.NewTruncIndex([]string{}),
-		driver:   driver,
-		retained: &retainedLayers{layerHolders: make(map[string]map[string]struct{})},
+		root:       abspath,
+		idIndex:    truncindex.NewTruncIndex([]string{}),
+		driver:     driver,
+		retained:   &retainedLayers{layerHolders: make(map[string]map[string]struct{})},
+		parentRefs: make(map[string]int),
 	}
 
 	// Windows does not currently support tarsplit functionality.
@@ -283,6 +287,13 @@ func (graph *Graph) Register(img *image.Image, layerData io.Reader) (err error) 
 		return err
 	}
 	graph.idIndex.Add(img.ID)
+
+	graph.parentRefsMutex.Lock()
+	if img.Parent != "" {
+		graph.parentRefs[img.Parent]++
+	}
+	graph.parentRefsMutex.Unlock()
+
 	return nil
 }
 
@@ -345,6 +356,10 @@ func (graph *Graph) Delete(name string) error {
 	if err != nil {
 		return err
 	}
+	img, err := graph.Get(id)
+	if err != nil {
+		return err
+	}
 	tmp, err := graph.mktemp()
 	graph.idIndex.Delete(id)
 	if err == nil {
@@ -359,6 +374,16 @@ func (graph *Graph) Delete(name string) error {
 	}
 	// Remove rootfs data from the driver
 	graph.driver.Remove(id)
+
+	graph.parentRefsMutex.Lock()
+	if img.Parent != "" {
+		graph.parentRefs[img.Parent]--
+		if graph.parentRefs[img.Parent] == 0 {
+			delete(graph.parentRefs, img.Parent)
+		}
+	}
+	graph.parentRefsMutex.Unlock()
+
 	// Remove the trashed image directory
 	return os.RemoveAll(tmp)
 }
@@ -376,9 +401,11 @@ func (graph *Graph) Map() map[string]*image.Image {
 // The walking order is undetermined.
 func (graph *Graph) walkAll(handler func(*image.Image)) {
 	graph.idIndex.Iterate(func(id string) {
-		if img, err := graph.Get(id); err != nil {
+		img, err := graph.Get(id)
+		if err != nil {
 			return
-		} else if handler != nil {
+		}
+		if handler != nil {
 			handler(img)
 		}
 	})
@@ -406,7 +433,10 @@ func (graph *Graph) ByParent() map[string][]*image.Image {
 
 // HasChildren returns whether the given image has any child images.
 func (graph *Graph) HasChildren(img *image.Image) bool {
-	return len(graph.ByParent()[img.ID]) > 0
+	graph.parentRefsMutex.Lock()
+	refCount := graph.parentRefs[img.ID]
+	graph.parentRefsMutex.Unlock()
+	return refCount > 0
 }
 
 // Retain keeps the images and layers that are in the pulling chain so that
@@ -424,13 +454,14 @@ func (graph *Graph) Release(sessionID string, layerIDs ...string) {
 // A head is an image which is not the parent of another image in the graph.
 func (graph *Graph) Heads() map[string]*image.Image {
 	heads := make(map[string]*image.Image)
-	byParent := graph.ByParent()
 	graph.walkAll(func(image *image.Image) {
 		// If it's not in the byParent lookup table, then
 		// it's not a parent -> so it's a head!
-		if _, exists := byParent[image.ID]; !exists {
+		graph.parentRefsMutex.Lock()
+		if _, exists := graph.parentRefs[image.ID]; !exists {
 			heads[image.ID] = image
 		}
+		graph.parentRefsMutex.Unlock()
 	})
 	return heads
 }
