@@ -1,3 +1,3 @@
-// +build !linux,!windows
+// +build !daemon
 
 package vfs
