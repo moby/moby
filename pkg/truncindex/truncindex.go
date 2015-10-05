@@ -1,4 +1,4 @@
-// Package truncindex package provides a general 'index tree', used by Docker
+// Package truncindex provides a general 'index tree', used by Docker
 // in order to be able to reference containers by only a few unambiguous
 // characters of their id.
 package truncindex
