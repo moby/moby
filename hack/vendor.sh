@@ -16,8 +16,6 @@ clone git github.com/kr/pty 5cf931ef8f
 clone git github.com/mattn/go-sqlite3 v1.1.0
 clone git github.com/microsoft/hcsshim 7f646aa6b26bcf90caee91e93cde4a80d0d8a83e
 clone git github.com/mistifyio/go-zfs v2.1.1
-clone git github.com/stretchr/objx cbeaeb16a013161a98496fad62933b1d21786672
-clone git github.com/stretchr/testify 2b15294402a895a4224659d181866f545991021e
 clone git github.com/tchap/go-patricia v2.1.0
 clone git golang.org/x/net 3cffabab72adf04f8e3b01c5baf775361837b5fe https://github.com/golang/net.git
 
