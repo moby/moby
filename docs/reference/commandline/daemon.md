@@ -175,6 +175,31 @@ Linux kernel as of [3.18.0](https://lkml.org/lkml/2014/10/26/137). Call
 > It is currently unsupported on `btrfs` or any Copy on Write filesystem
 > and should only be used over `ext4` partitions.
 
+### Storage driver compatibility
+
+Graph driver    | Distro                | Supported                       | binary type     | available binaries supporting the driver on the distro
+----------------|-----------------------|---------------------------------|-----------------|-----------------------------------------------------------------
+AUFS            | Ubuntu 12.04          | yes                             | static, dynamic | dynamic (distro specific), static (generic)
+AUFS            | Ubuntu 14.04          | yes                             | static, dynamic | dynamic (distro specific), static (generic)
+AUFS            | Debian                | yes                             | static, dynamic | dynamic (distro specific), static (generic)
+AUFS            | RHEL/CentOS/Fedora    | no (no kernel support for aufs) | -               | -
+btrfs           | Ubuntu 12.04          | yes                             | static, dynamic | dynamic (distro specific), static (generic)
+btrfs           | Ubuntu 14.04          | yes                             | static, dynamic | dynamic (distro specific), static (generic)
+btrfs           | Debian                | yes                             | static, dynamic | dynamic (distro specific), static (generic)
+btrfs           | RHEL/CentOS/Fedora    | yes                             | static, dynamic | dynamic (distro specific), static (generic)
+devicemapper    | Ubuntu 12.04          | yes                             | dynamic         | dynamic (distro specific)
+devicemapper    | Ubuntu 14.04          | yes                             | dynamic         | dynamic (distro specific)
+devicemapper    | Debian                | yes                             | dynamic         | dynamic (distro specific)
+devicemapper    | RHEL/CentOS/Fedora    | yes                             | dynamic         | dynamic (distro specific)
+overlay         | RHEL/CentOS/Fedora    | depends on kernel support       | static, dynamic | dynamic (distro specific), static (generic)
+overlay         | Ubuntu 12.04          | no (no kernel support)          | -               | -
+overlay         | Ubuntu 14.04          | no (no kernel support)          | -               | -
+overlay         | Debian Jessie         | only with kernel 3.18+          | -               | -
+zfs             | RHEL/CentOS/Fedora    | ?                               | -               | -
+zfs             | Ubuntu 12.04          | ?                               | -               | -
+zfs             | Ubuntu 14.04          | ?                               | -               | -
+zfs             | Debian Jessie         | ?                               | -               | -
+
 ### Storage driver options
 
 Particular storage-driver can be configured with options specified with
