@@ -1,0 +1,46 @@
+{
+  "author": {
+    "name": "Isaac Z. Schlueter",
+    "email": "i@izs.me",
+    "url": "http://blog.izs.me/"
+  },
+  "name": "uid-number",
+  "description": "Convert a username/group name to a uid/gid number",
+  "version": "0.0.5",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/isaacs/uid-number.git"
+  },
+  "main": "uid-number.js",
+  "dependencies": {},
+  "devDependencies": {},
+  "optionalDependencies": {},
+  "engines": {
+    "node": "*"
+  },
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/isaacs/uid-number/issues"
+  },
+  "homepage": "https://github.com/isaacs/uid-number",
+  "_id": "uid-number@0.0.5",
+  "dist": {
+    "shasum": "5a3db23ef5dbd55b81fce0ec9a2ac6fccdebb81e",
+    "tarball": "http://registry.npmjs.org/uid-number/-/uid-number-0.0.5.tgz"
+  },
+  "_from": "uid-number@0.0.5",
+  "_npmVersion": "1.4.3",
+  "_npmUser": {
+    "name": "isaacs",
+    "email": "i@izs.me"
+  },
+  "maintainers": [
+    {
+      "name": "isaacs",
+      "email": "i@izs.me"
+    }
+  ],
+  "directories": {},
+  "_shasum": "5a3db23ef5dbd55b81fce0ec9a2ac6fccdebb81e",
+  "_resolved": "https://registry.npmjs.org/uid-number/-/uid-number-0.0.5.tgz"
+}

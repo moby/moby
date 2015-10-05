@@ -1,0 +1,42 @@
+{
+  "name": "throttleit",
+  "description": "Throttle a function",
+  "version": "0.0.2",
+  "keywords": [],
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/component/throttle.git"
+  },
+  "dependencies": {},
+  "development": {},
+  "license": "MIT",
+  "component": {
+    "scripts": {
+      "throttle/index.js": "index.js"
+    }
+  },
+  "_id": "throttleit@0.0.2",
+  "dist": {
+    "shasum": "cfedf88e60c00dd9697b61fdd2a8343a9b680eaf",
+    "tarball": "http://registry.npmjs.org/throttleit/-/throttleit-0.0.2.tgz"
+  },
+  "_from": "throttleit@>=0.0.2 <0.1.0",
+  "_npmVersion": "1.2.15",
+  "_npmUser": {
+    "name": "tootallnate",
+    "email": "nathan@tootallnate.net"
+  },
+  "maintainers": [
+    {
+      "name": "tjholowaychuk",
+      "email": "tj@vision-media.ca"
+    },
+    {
+      "name": "tootallnate",
+      "email": "nathan@tootallnate.net"
+    }
+  ],
+  "directories": {},
+  "_shasum": "cfedf88e60c00dd9697b61fdd2a8343a9b680eaf",
+  "_resolved": "https://registry.npmjs.org/throttleit/-/throttleit-0.0.2.tgz"
+}
