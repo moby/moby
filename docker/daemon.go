@@ -223,6 +223,17 @@ func (cli *DaemonCli) CmdDaemon(args ...string) error {
 		}
 		serverConfig.TLSConfig = tlsConfig
 	}
+	for _, protoAddr := range commonFlags.Hosts {
+		protoAddrParts := strings.SplitN(protoAddr, "://", 2)
+		if len(protoAddrParts) != 2 {
+			logrus.Fatalf("bad format %s, expected PROTO://ADDR", protoAddr)
+		}
+		serverConfig.Addrs = append(serverConfig.Addrs, apiserver.Addr{Proto: protoAddrParts[0], Addr: protoAddrParts[1]})
+	}
+	api, err := apiserver.New(serverConfig)
+	if err != nil {
+		logrus.Fatal(err)
+	}
 
 	if err := migrateKey(); err != nil {
 		logrus.Fatal(err)
@@ -249,7 +260,6 @@ func (cli *DaemonCli) CmdDaemon(args ...string) error {
 		"graphdriver": d.GraphDriver().String(),
 	}).Info("Docker daemon")
 
-	api := apiserver.New(serverConfig)
 	api.InitRouters(d)
 
 	// The serve API routine never exits unless an error occurs
@@ -257,7 +267,7 @@ func (cli *DaemonCli) CmdDaemon(args ...string) error {
 	// daemon doesn't exit
 	serveAPIWait := make(chan error)
 	go func() {
-		if err := api.ServeAPI(commonFlags.Hosts); err != nil {
+		if err := api.ServeAPI(); err != nil {
 			logrus.Errorf("ServeAPI error: %v", err)
 			serveAPIWait <- err
 			return

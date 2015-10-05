@@ -9,7 +9,7 @@ import (
 )
 
 // NewServer sets up the required Server and does protocol specific checking.
-func (s *Server) newServer(proto, addr string) ([]serverCloser, error) {
+func (s *Server) newServer(proto, addr string) ([]*HTTPServer, error) {
 	var (
 		ls []net.Listener
 	)
@@ -25,12 +25,11 @@ func (s *Server) newServer(proto, addr string) ([]serverCloser, error) {
 		return nil, errors.New("Invalid protocol format. Windows only supports tcp.")
 	}
 
-	var res []serverCloser
+	var res []*HTTPServer
 	for _, l := range ls {
 		res = append(res, &HTTPServer{
 			&http.Server{
-				Addr:    addr,
-				Handler: s.CreateMux(),
+				Addr: addr,
 			},
 			l,
 		})

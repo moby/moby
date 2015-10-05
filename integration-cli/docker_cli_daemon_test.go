@@ -1462,7 +1462,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithSocketAsVolume(c *check.C) {
 
 	socket := filepath.Join(s.d.folder, "docker.sock")
 
-	out, err := s.d.Cmd("run", "-d", "-v", socket+":/sock", "busybox")
+	out, err := s.d.Cmd("run", "-d", "--restart=always", "-v", socket+":/sock", "busybox")
 	c.Assert(err, check.IsNil, check.Commentf("Output: %s", out))
 	c.Assert(s.d.Restart(), check.IsNil)
 }
