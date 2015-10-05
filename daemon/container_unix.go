@@ -279,19 +279,21 @@ func populateCommand(c *Container, env []string) error {
 	}
 
 	resources := &execdriver.Resources{
-		Memory:            c.hostConfig.Memory,
-		MemorySwap:        c.hostConfig.MemorySwap,
-		MemoryReservation: c.hostConfig.MemoryReservation,
-		KernelMemory:      c.hostConfig.KernelMemory,
-		CPUShares:         c.hostConfig.CPUShares,
-		CpusetCpus:        c.hostConfig.CpusetCpus,
-		CpusetMems:        c.hostConfig.CpusetMems,
-		CPUPeriod:         c.hostConfig.CPUPeriod,
-		CPUQuota:          c.hostConfig.CPUQuota,
-		BlkioWeight:       c.hostConfig.BlkioWeight,
-		Rlimits:           rlimits,
-		OomKillDisable:    c.hostConfig.OomKillDisable,
-		MemorySwappiness:  -1,
+		CommonResources: execdriver.CommonResources{
+			Memory:            c.hostConfig.Memory,
+			MemoryReservation: c.hostConfig.MemoryReservation,
+			CPUShares:         c.hostConfig.CPUShares,
+			BlkioWeight:       c.hostConfig.BlkioWeight,
+		},
+		MemorySwap:       c.hostConfig.MemorySwap,
+		KernelMemory:     c.hostConfig.KernelMemory,
+		CpusetCpus:       c.hostConfig.CpusetCpus,
+		CpusetMems:       c.hostConfig.CpusetMems,
+		CPUPeriod:        c.hostConfig.CPUPeriod,
+		CPUQuota:         c.hostConfig.CPUQuota,
+		Rlimits:          rlimits,
+		OomKillDisable:   c.hostConfig.OomKillDisable,
+		MemorySwappiness: -1,
 	}
 
 	if c.hostConfig.MemorySwappiness != nil {

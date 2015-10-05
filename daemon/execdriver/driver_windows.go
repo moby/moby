@@ -9,6 +9,14 @@ type Mount struct {
 	Writable    bool   `json:"writable"`
 }
 
+// Resources contains all resource configs for a driver.
+// Currently these are all for cgroup configs.
+type Resources struct {
+	CommonResources
+
+	// Fields below here are platform specific
+}
+
 // Network settings of the container
 type Network struct {
 	Interface   *NetworkInterface `json:"interface"`
