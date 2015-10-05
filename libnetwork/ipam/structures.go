@@ -27,13 +27,13 @@ type PoolData struct {
 	RefCount  int
 }
 
-// PoolsConfig contains the pool configurations
-type PoolsConfig struct {
+// addrSpace contains the pool configurations for the address space
+type addrSpace struct {
 	subnets  map[SubnetKey]*PoolData
 	dbIndex  uint64
 	dbExists bool
 	id       string
-	scope    datastore.DataScope
+	scope    string
 	ds       datastore.DataStore
 	alloc    *Allocator
 	sync.Mutex
@@ -153,18 +153,18 @@ func (p *PoolData) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// MarshalJSON returns the JSON encoding of the PoolsConfig object
-func (cfg *PoolsConfig) MarshalJSON() ([]byte, error) {
-	cfg.Lock()
-	defer cfg.Unlock()
+// MarshalJSON returns the JSON encoding of the addrSpace object
+func (aSpace *addrSpace) MarshalJSON() ([]byte, error) {
+	aSpace.Lock()
+	defer aSpace.Unlock()
 
 	m := map[string]interface{}{
-		"Scope": string(cfg.scope),
+		"Scope": string(aSpace.scope),
 	}
 
-	if cfg.subnets != nil {
+	if aSpace.subnets != nil {
 		s := map[string]*PoolData{}
-		for k, v := range cfg.subnets {
+		for k, v := range aSpace.subnets {
 			s[k.String()] = v
 		}
 		m["Subnets"] = s
@@ -173,10 +173,10 @@ func (cfg *PoolsConfig) MarshalJSON() ([]byte, error) {
 	return json.Marshal(m)
 }
 
-// UnmarshalJSON decodes data into the PoolsConfig object
-func (cfg *PoolsConfig) UnmarshalJSON(data []byte) error {
-	cfg.Lock()
-	defer cfg.Unlock()
+// UnmarshalJSON decodes data into the addrSpace object
+func (aSpace *addrSpace) UnmarshalJSON(data []byte) error {
+	aSpace.Lock()
+	defer aSpace.Unlock()
 
 	m := map[string]interface{}{}
 	err := json.Unmarshal(data, &m)
@@ -184,10 +184,10 @@ func (cfg *PoolsConfig) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
-	cfg.scope = datastore.LocalScope
+	aSpace.scope = datastore.LocalScope
 	s := m["Scope"].(string)
 	if s == string(datastore.GlobalScope) {
-		cfg.scope = datastore.GlobalScope
+		aSpace.scope = datastore.GlobalScope
 	}
 
 	if v, ok := m["Subnets"]; ok {
@@ -200,31 +200,81 @@ func (cfg *PoolsConfig) UnmarshalJSON(data []byte) error {
 		for ks, v := range s {
 			k := SubnetKey{}
 			k.FromString(ks)
-			cfg.subnets[k] = v
+			aSpace.subnets[k] = v
 		}
 	}
 
 	return nil
 }
 
-func (cfg *PoolsConfig) updatePoolDBOnAdd(k SubnetKey, nw *net.IPNet, ipr *AddressRange) (func() error, error) {
-	cfg.Lock()
-	defer cfg.Unlock()
+// CopyTo deep copies the pool data to the destination pooldata
+func (p *PoolData) CopyTo(dstP *PoolData) error {
+	dstP.ParentKey = p.ParentKey
+	dstP.Pool = types.GetIPNetCopy(p.Pool)
+
+	if p.Range != nil {
+		dstP.Range = &AddressRange{}
+		dstP.Range.Sub = types.GetIPNetCopy(p.Range.Sub)
+		dstP.Range.Start = p.Range.Start
+		dstP.Range.End = p.Range.End
+	}
+
+	dstP.RefCount = p.RefCount
+	return nil
+}
+
+func (aSpace *addrSpace) CopyTo(o datastore.KVObject) error {
+	aSpace.Lock()
+	defer aSpace.Unlock()
+
+	dstAspace := o.(*addrSpace)
+
+	dstAspace.id = aSpace.id
+	dstAspace.ds = aSpace.ds
+	dstAspace.alloc = aSpace.alloc
+	dstAspace.scope = aSpace.scope
+	dstAspace.dbIndex = aSpace.dbIndex
+	dstAspace.dbExists = aSpace.dbExists
+
+	dstAspace.subnets = make(map[SubnetKey]*PoolData)
+	for k, v := range aSpace.subnets {
+		dstAspace.subnets[k] = &PoolData{}
+		v.CopyTo(dstAspace.subnets[k])
+	}
+
+	return nil
+}
+
+func (aSpace *addrSpace) New() datastore.KVObject {
+	aSpace.Lock()
+	defer aSpace.Unlock()
+
+	return &addrSpace{
+		id:    aSpace.id,
+		ds:    aSpace.ds,
+		alloc: aSpace.alloc,
+		scope: aSpace.scope,
+	}
+}
+
+func (aSpace *addrSpace) updatePoolDBOnAdd(k SubnetKey, nw *net.IPNet, ipr *AddressRange) (func() error, error) {
+	aSpace.Lock()
+	defer aSpace.Unlock()
 
 	// Check if already allocated
-	if p, ok := cfg.subnets[k]; ok {
-		cfg.incRefCount(p, 1)
+	if p, ok := aSpace.subnets[k]; ok {
+		aSpace.incRefCount(p, 1)
 		return func() error { return nil }, nil
 	}
 
 	// If master pool, check for overlap
 	if ipr == nil {
-		if cfg.contains(k.AddressSpace, nw) {
+		if aSpace.contains(k.AddressSpace, nw) {
 			return nil, ipamapi.ErrPoolOverlap
 		}
 		// This is a new master pool, add it along with corresponding bitmask
-		cfg.subnets[k] = &PoolData{Pool: nw, RefCount: 1}
-		return func() error { return cfg.alloc.insertBitMask(cfg.ds, k, nw) }, nil
+		aSpace.subnets[k] = &PoolData{Pool: nw, RefCount: 1}
+		return func() error { return aSpace.alloc.insertBitMask(k, nw) }, nil
 	}
 
 	// This is a new non-master pool
@@ -234,38 +284,38 @@ func (cfg *PoolsConfig) updatePoolDBOnAdd(k SubnetKey, nw *net.IPNet, ipr *Addre
 		Range:     ipr,
 		RefCount:  1,
 	}
-	cfg.subnets[k] = p
+	aSpace.subnets[k] = p
 
 	// Look for parent pool
-	pp, ok := cfg.subnets[p.ParentKey]
+	pp, ok := aSpace.subnets[p.ParentKey]
 	if ok {
-		cfg.incRefCount(pp, 1)
+		aSpace.incRefCount(pp, 1)
 		return func() error { return nil }, nil
 	}
 
 	// Parent pool does not exist, add it along with corresponding bitmask
-	cfg.subnets[p.ParentKey] = &PoolData{Pool: nw, RefCount: 1}
-	return func() error { return cfg.alloc.insertBitMask(cfg.ds, p.ParentKey, nw) }, nil
+	aSpace.subnets[p.ParentKey] = &PoolData{Pool: nw, RefCount: 1}
+	return func() error { return aSpace.alloc.insertBitMask(p.ParentKey, nw) }, nil
 }
 
-func (cfg *PoolsConfig) updatePoolDBOnRemoval(k SubnetKey) (func() error, error) {
-	cfg.Lock()
-	defer cfg.Unlock()
+func (aSpace *addrSpace) updatePoolDBOnRemoval(k SubnetKey) (func() error, error) {
+	aSpace.Lock()
+	defer aSpace.Unlock()
 
-	p, ok := cfg.subnets[k]
+	p, ok := aSpace.subnets[k]
 	if !ok {
 		return nil, ipamapi.ErrBadPool
 	}
 
-	cfg.incRefCount(p, -1)
+	aSpace.incRefCount(p, -1)
 
 	c := p
 	for ok {
 		if c.RefCount == 0 {
-			delete(cfg.subnets, k)
+			delete(aSpace.subnets, k)
 			if c.Range == nil {
 				return func() error {
-					bm, err := cfg.alloc.retrieveBitmask(cfg.ds, k, c.Pool)
+					bm, err := aSpace.alloc.retrieveBitmask(k, c.Pool)
 					if err != nil {
 						return fmt.Errorf("could not find bitmask in datastore for pool %s removal: %v", k.String(), err)
 					}
@@ -274,24 +324,24 @@ func (cfg *PoolsConfig) updatePoolDBOnRemoval(k SubnetKey) (func() error, error)
 			}
 		}
 		k = c.ParentKey
-		c, ok = cfg.subnets[k]
+		c, ok = aSpace.subnets[k]
 	}
 
 	return func() error { return nil }, nil
 }
 
-func (cfg *PoolsConfig) incRefCount(p *PoolData, delta int) {
+func (aSpace *addrSpace) incRefCount(p *PoolData, delta int) {
 	c := p
 	ok := true
 	for ok {
 		c.RefCount += delta
-		c, ok = cfg.subnets[c.ParentKey]
+		c, ok = aSpace.subnets[c.ParentKey]
 	}
 }
 
 // Checks whether the passed subnet is a superset or subset of any of the subset in this config db
-func (cfg *PoolsConfig) contains(space string, nw *net.IPNet) bool {
-	for k, v := range cfg.subnets {
+func (aSpace *addrSpace) contains(space string, nw *net.IPNet) bool {
+	for k, v := range aSpace.subnets {
 		if space == k.AddressSpace && k.ChildSubnet == "" {
 			if nw.Contains(v.Pool.IP) || v.Pool.Contains(nw.IP) {
 				return true
@@ -299,4 +349,11 @@ func (cfg *PoolsConfig) contains(space string, nw *net.IPNet) bool {
 		}
 	}
 	return false
+}
+
+func (aSpace *addrSpace) store() datastore.DataStore {
+	aSpace.Lock()
+	defer aSpace.Unlock()
+
+	return aSpace.ds
 }
