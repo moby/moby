@@ -80,7 +80,7 @@ func (s *DockerSuite) TestTagExistedNameWithoutForce(c *check.C) {
 
 	dockerCmd(c, "tag", "busybox:latest", "busybox:test")
 	out, _, err := dockerCmdWithError("tag", "busybox:latest", "busybox:test")
-	if err == nil || !strings.Contains(out, "Conflict: Tag test is already set to image") {
+	if err == nil || !strings.Contains(out, "Conflict: Tag busybox:test is already set to image") {
 		c.Fatal("tag busybox busybox:test should have failed,because busybox:test is existed")
 	}
 }
