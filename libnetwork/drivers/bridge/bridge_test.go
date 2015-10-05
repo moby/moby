@@ -36,11 +36,9 @@ func TestCreateFullOptions(t *testing.T) {
 	netConfig := &networkConfiguration{
 		BridgeName:         DefaultBridgeName,
 		AddressIPv4:        nw,
-		FixedCIDR:          cnw,
 		DefaultGatewayIPv4: gw,
 		EnableIPv6:         true,
 	}
-	_, netConfig.FixedCIDRv6, _ = net.ParseCIDR("2001:db8::/48")
 	genericOption := make(map[string]interface{})
 	genericOption[netlabel.GenericData] = config
 
@@ -584,39 +582,6 @@ func TestValidateConfig(t *testing.T) {
 	// Bridge network
 	_, network, _ := net.ParseCIDR("172.28.0.0/16")
 
-	// Test FixedCIDR
-	_, containerSubnet, _ := net.ParseCIDR("172.27.0.0/16")
-	c = networkConfiguration{
-		AddressIPv4: network,
-		FixedCIDR:   containerSubnet,
-	}
-
-	err = c.Validate()
-	if err == nil {
-		t.Fatalf("Failed to detect invalid FixedCIDR network")
-	}
-
-	_, containerSubnet, _ = net.ParseCIDR("172.28.0.0/16")
-	c.FixedCIDR = containerSubnet
-	err = c.Validate()
-	if err != nil {
-		t.Fatalf("Unexpected validation error on FixedCIDR network")
-	}
-
-	_, containerSubnet, _ = net.ParseCIDR("172.28.0.0/15")
-	c.FixedCIDR = containerSubnet
-	err = c.Validate()
-	if err == nil {
-		t.Fatalf("Failed to detect invalid FixedCIDR network")
-	}
-
-	_, containerSubnet, _ = net.ParseCIDR("172.28.0.0/17")
-	c.FixedCIDR = containerSubnet
-	err = c.Validate()
-	if err != nil {
-		t.Fatalf("Unexpected validation error on FixedCIDR network")
-	}
-
 	// Test v4 gw
 	c.DefaultGatewayIPv4 = net.ParseIP("172.27.30.234")
 	err = c.Validate()
@@ -634,7 +599,6 @@ func TestValidateConfig(t *testing.T) {
 	_, containerSubnet, _ = net.ParseCIDR("2001:1234:ae:b004::/64")
 	c = networkConfiguration{
 		EnableIPv6:         true,
-		FixedCIDRv6:        containerSubnet,
 		DefaultGatewayIPv6: net.ParseIP("2001:1234:ac:b004::bad:a55"),
 	}
 	err = c.Validate()
@@ -646,12 +610,6 @@ func TestValidateConfig(t *testing.T) {
 	err = c.Validate()
 	if err != nil {
 		t.Fatalf("Unexpected validation error on v6 default gateway")
-	}
-
-	c.FixedCIDRv6 = nil
-	err = c.Validate()
-	if err == nil {
-		t.Fatalf("Failed to detect invalid v6 default gateway")
 	}
 }
 
@@ -683,7 +641,6 @@ func TestSetDefaultGw(t *testing.T) {
 	config := &networkConfiguration{
 		BridgeName:         DefaultBridgeName,
 		EnableIPv6:         true,
-		FixedCIDRv6:        subnetv6,
 		DefaultGatewayIPv4: gw4,
 		DefaultGatewayIPv6: gw6,
 	}

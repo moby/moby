@@ -275,24 +275,12 @@ func TestBridge(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	cidr, err := types.ParseCIDR("192.168.100.2/28")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	cidrv6, err := types.ParseCIDR("fe90::1/96")
-	if err != nil {
-		t.Fatal(err)
-	}
-
 	log.Debug("Adding a bridge")
 
 	netOption := options.Generic{
 		netlabel.GenericData: options.Generic{
 			"BridgeName":         "testnetwork",
 			"AddressIPv4":        subnet,
-			"FixedCIDR":          cidr,
-			"FixedCIDRv6":        cidrv6,
 			"EnableIPv6":         true,
 			"EnableICC":          true,
 			"EnableIPMasquerade": true,
@@ -1661,16 +1649,10 @@ func TestEnableIPv6(t *testing.T) {
 		}
 	}()
 
-	cidrv6, err := types.ParseCIDR("fe80::1/64")
-	if err != nil {
-		t.Fatal(err)
-	}
-
 	netOption := options.Generic{
 		netlabel.EnableIPv6: true,
 		netlabel.GenericData: options.Generic{
-			"BridgeName":  "testnetwork",
-			"FixedCIDRv6": cidrv6,
+			"BridgeName": "testnetwork",
 		},
 	}
 

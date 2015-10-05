@@ -74,18 +74,6 @@ func setupBridgeIPv4(config *networkConfiguration, i *bridgeInterface) error {
 	return nil
 }
 
-func allocateBridgeIP(config *networkConfiguration, i *bridgeInterface) error {
-	// Because of the way ipallocator manages the container address space,
-	// reserve bridge address only if it belongs to the container network
-	// (if defined), no need otherwise
-	if config.FixedCIDR == nil || config.FixedCIDR.Contains(i.bridgeIPv4.IP) {
-		if _, err := ipAllocator.RequestIP(i.bridgeIPv4, i.bridgeIPv4.IP); err != nil {
-			return fmt.Errorf("failed to reserve bridge IP %s: %v", i.bridgeIPv4.IP.String(), err)
-		}
-	}
-	return nil
-}
-
 func electBridgeIPv4(config *networkConfiguration) (*net.IPNet, error) {
 	// Use the requested IPv4 CIDR when available.
 	if config.AddressIPv4 != nil {
@@ -115,15 +103,6 @@ func electBridgeIPv4(config *networkConfiguration) (*net.IPNet, error) {
 func setupGatewayIPv4(config *networkConfiguration, i *bridgeInterface) error {
 	if !i.bridgeIPv4.Contains(config.DefaultGatewayIPv4) {
 		return &ErrInvalidGateway{}
-	}
-
-	// Because of the way ipallocator manages the container address space,
-	// reserve default gw address only if it belongs to the container network
-	// (if defined), no need otherwise
-	if config.FixedCIDR == nil || config.FixedCIDR.Contains(config.DefaultGatewayIPv4) {
-		if _, err := ipAllocator.RequestIP(i.bridgeIPv4, config.DefaultGatewayIPv4); err != nil {
-			return fmt.Errorf("failed to reserve default gateway %s: %v", config.DefaultGatewayIPv4.String(), err)
-		}
 	}
 
 	// Store requested default gateway
