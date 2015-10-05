@@ -9,37 +9,54 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/libnetwork/datastore"
-	"github.com/docker/libnetwork/ipallocator"
+	"github.com/docker/libnetwork/driverapi"
+	"github.com/docker/libnetwork/netutils"
 	"github.com/docker/libnetwork/osl"
+	"github.com/docker/libnetwork/types"
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netlink/nl"
 )
 
 type networkTable map[string]*network
 
+type subnet struct {
+	once      *sync.Once
+	vxlanName string
+	brName    string
+	vni       uint32
+	initErr   error
+	subnetIP  *net.IPNet
+	gwIP      *net.IPNet
+}
+
+type subnetJSON struct {
+	SubnetIP string
+	GwIP     string
+	Vni      uint32
+}
+
 type network struct {
-	id          string
-	vni         uint32
-	dbIndex     uint64
-	dbExists    bool
-	sbox        osl.Sandbox
-	endpoints   endpointTable
-	ipAllocator *ipallocator.IPAllocator
-	gw          net.IP
-	vxlanName   string
-	driver      *driver
-	joinCnt     int
-	once        *sync.Once
-	initEpoch   int
-	initErr     error
+	id        string
+	dbIndex   uint64
+	dbExists  bool
+	sbox      osl.Sandbox
+	endpoints endpointTable
+	driver    *driver
+	joinCnt   int
+	once      *sync.Once
+	initEpoch int
+	initErr   error
+	subnets   []*subnet
 	sync.Mutex
 }
 
-func (d *driver) CreateNetwork(id string, option map[string]interface{}) error {
+func (d *driver) CreateNetwork(id string, option map[string]interface{}, ipV4Data, ipV6Data []driverapi.IPAMData) error {
 	if id == "" {
 		return fmt.Errorf("invalid network id")
 	}
 
+	// Since we perform lazy configuration make sure we try
+	// configuring the driver when we enter CreateNetwork
 	if err := d.configure(); err != nil {
 		return err
 	}
@@ -49,18 +66,42 @@ func (d *driver) CreateNetwork(id string, option map[string]interface{}) error {
 		driver:    d,
 		endpoints: endpointTable{},
 		once:      &sync.Once{},
+		subnets:   []*subnet{},
 	}
 
-	n.gw = bridgeIP.IP
+	for _, ipd := range ipV4Data {
+		s := &subnet{
+			subnetIP: ipd.Pool,
+			gwIP:     ipd.Gateway,
+			once:     &sync.Once{},
+		}
+		n.subnets = append(n.subnets, s)
+	}
+
+	if err := n.writeToStore(); err != nil {
+		return fmt.Errorf("failed to update data store for network %v: %v", n.id, err)
+	}
 
 	d.addNetwork(n)
 
-	if err := n.obtainVxlanID(); err != nil {
-		return err
-	}
-
 	return nil
 }
+
+/* func (d *driver) createNetworkfromStore(nid string) (*network, error) {
+	n := &network{
+		id:        nid,
+		driver:    d,
+		endpoints: endpointTable{},
+		once:      &sync.Once{},
+		subnets:   []*subnet{},
+	}
+
+	err := d.store.GetObject(datastore.Key(n.Key()...), n)
+	if err != nil {
+		return nil, fmt.Errorf("unable to get network %q from data store, %v", nid, err)
+	}
+	return n, nil
+}*/
 
 func (d *driver) DeleteNetwork(nid string) error {
 	if nid == "" {
@@ -77,15 +118,13 @@ func (d *driver) DeleteNetwork(nid string) error {
 	return n.releaseVxlanID()
 }
 
-func (n *network) joinSandbox() error {
+func (n *network) incEndpointCount() {
 	n.Lock()
-	if n.joinCnt != 0 {
-		n.joinCnt++
-		n.Unlock()
-		return nil
-	}
-	n.Unlock()
+	defer n.Unlock()
+	n.joinCnt++
+}
 
+func (n *network) joinSandbox() error {
 	// If there is a race between two go routines here only one will win
 	// the other will wait.
 	n.once.Do(func() {
@@ -94,16 +133,14 @@ func (n *network) joinSandbox() error {
 		n.initErr = n.initSandbox()
 	})
 
-	// Increment joinCnt in all the goroutines only when the one time initSandbox
-	// was a success.
-	n.Lock()
-	if n.initErr == nil {
-		n.joinCnt++
-	}
-	err := n.initErr
-	n.Unlock()
+	return n.initErr
+}
 
-	return err
+func (n *network) joinSubnetSandbox(s *subnet) error {
+	s.once.Do(func() {
+		s.initErr = n.initSubnetSandbox(s)
+	})
+	return s.initErr
 }
 
 func (n *network) leaveSandbox() {
@@ -118,6 +155,9 @@ func (n *network) leaveSandbox() {
 	// Reinitialize the once variable so that we will be able to trigger one time
 	// sandbox initialization(again) when another container joins subsequently.
 	n.once = &sync.Once{}
+	for _, s := range n.subnets {
+		s.once = &sync.Once{}
+	}
 	n.Unlock()
 
 	n.destroySandbox()
@@ -130,12 +170,48 @@ func (n *network) destroySandbox() {
 			iface.Remove()
 		}
 
-		if err := deleteVxlan(n.vxlanName); err != nil {
-			logrus.Warnf("could not cleanup sandbox properly: %v", err)
+		for _, s := range n.subnets {
+			if s.vxlanName != "" {
+				err := deleteVxlan(s.vxlanName)
+				if err != nil {
+					logrus.Warnf("could not cleanup sandbox properly: %v", err)
+				}
+			}
 		}
-
 		sbox.Destroy()
 	}
+}
+
+func (n *network) initSubnetSandbox(s *subnet) error {
+	// create a bridge and vxlan device for this subnet and move it to the sandbox
+	brName, err := netutils.GenerateIfaceName("bridge", 7)
+	if err != nil {
+		return err
+	}
+	sbox := n.sandbox()
+
+	if err := sbox.AddInterface(brName, "br",
+		sbox.InterfaceOptions().Address(s.gwIP),
+		sbox.InterfaceOptions().Bridge(true)); err != nil {
+		return fmt.Errorf("bridge creation in sandbox failed for subnet %q: %v", s.subnetIP.IP.String(), err)
+	}
+
+	vxlanName, err := createVxlan(n.vxlanID(s))
+	if err != nil {
+		return err
+	}
+
+	if err := sbox.AddInterface(vxlanName, "vxlan",
+		sbox.InterfaceOptions().Master(brName)); err != nil {
+		return fmt.Errorf("vxlan interface creation failed for subnet %q: %v", s.subnetIP.IP.String(), err)
+	}
+
+	n.Lock()
+	s.vxlanName = vxlanName
+	s.brName = brName
+	n.Unlock()
+
+	return nil
 }
 
 func (n *network) initSandbox() error {
@@ -149,14 +225,9 @@ func (n *network) initSandbox() error {
 		return fmt.Errorf("could not create network sandbox: %v", err)
 	}
 
-	// Add a bridge inside the namespace
-	if err := sbox.AddInterface("bridge1", "br",
-		sbox.InterfaceOptions().Address(bridgeIP),
-		sbox.InterfaceOptions().Bridge(true)); err != nil {
-		return fmt.Errorf("could not create bridge inside the network sandbox: %v", err)
-	}
-
 	n.setSandbox(sbox)
+
+	n.driver.peerDbUpdateSandbox(n.id)
 
 	var nlSock *nl.NetlinkSocket
 	sbox.InvokeFunc(func() {
@@ -167,27 +238,6 @@ func (n *network) initSandbox() error {
 	})
 
 	go n.watchMiss(nlSock)
-	return n.initVxlan()
-}
-
-func (n *network) initVxlan() error {
-	var vxlanName string
-	n.Lock()
-	sbox := n.sbox
-	n.Unlock()
-
-	vxlanName, err := createVxlan(n.vxlanID())
-	if err != nil {
-		return err
-	}
-
-	if err = sbox.AddInterface(vxlanName, "vxlan",
-		sbox.InterfaceOptions().Master("bridge1")); err != nil {
-		return fmt.Errorf("could not add vxlan interface inside the network sandbox: %v", err)
-	}
-
-	n.vxlanName = vxlanName
-	n.driver.peerDbUpdateSandbox(n.id)
 	return nil
 }
 
@@ -218,14 +268,14 @@ func (n *network) watchMiss(nlSock *nl.NetlinkSocket) {
 				continue
 			}
 
-			mac, vtep, err := n.driver.resolvePeer(n.id, neigh.IP)
+			mac, IPmask, vtep, err := n.driver.resolvePeer(n.id, neigh.IP)
 			if err != nil {
 				logrus.Errorf("could not resolve peer %q: %v", neigh.IP, err)
 				continue
 			}
 
-			if err := n.driver.peerAdd(n.id, "dummy", neigh.IP, mac, vtep, true); err != nil {
-				logrus.Errorf("could not add neighbor entry for missed peer: %v", err)
+			if err := n.driver.peerAdd(n.id, "dummy", neigh.IP, IPmask, mac, vtep, true); err != nil {
+				logrus.Errorf("could not add neighbor entry for missed peer %q: %v", neigh.IP, err)
 			}
 		}
 	}
@@ -245,9 +295,34 @@ func (d *driver) deleteNetwork(nid string) {
 
 func (d *driver) network(nid string) *network {
 	d.Lock()
-	defer d.Unlock()
+	networks := d.networks
+	d.Unlock()
 
-	return d.networks[nid]
+	n, ok := networks[nid]
+	if !ok {
+		n = d.getNetworkFromStore(nid)
+		if n != nil {
+			n.driver = d
+			n.endpoints = endpointTable{}
+			n.once = &sync.Once{}
+			networks[nid] = n
+		}
+	}
+
+	return n
+}
+
+func (d *driver) getNetworkFromStore(nid string) *network {
+	if d.store == nil {
+		return nil
+	}
+
+	n := &network{id: nid}
+	if err := d.store.GetObject(datastore.Key(n.Key()...), n); err != nil {
+		return nil
+	}
+
+	return n
 }
 
 func (n *network) sandbox() osl.Sandbox {
@@ -263,16 +338,16 @@ func (n *network) setSandbox(sbox osl.Sandbox) {
 	n.Unlock()
 }
 
-func (n *network) vxlanID() uint32 {
+func (n *network) vxlanID(s *subnet) uint32 {
 	n.Lock()
 	defer n.Unlock()
 
-	return n.vni
+	return s.vni
 }
 
-func (n *network) setVxlanID(vni uint32) {
+func (n *network) setVxlanID(s *subnet, vni uint32) {
 	n.Lock()
-	n.vni = vni
+	s.vni = vni
 	n.Unlock()
 }
 
@@ -285,11 +360,22 @@ func (n *network) KeyPrefix() []string {
 }
 
 func (n *network) Value() []byte {
-	b, err := json.Marshal(n.vxlanID())
+	netJSON := []*subnetJSON{}
+
+	for _, s := range n.subnets {
+		sj := &subnetJSON{
+			SubnetIP: s.subnetIP.String(),
+			GwIP:     s.gwIP.String(),
+			Vni:      s.vni,
+		}
+		netJSON = append(netJSON, sj)
+	}
+
+	b, err := json.Marshal(netJSON)
+
 	if err != nil {
 		return []byte{}
 	}
-
 	return b
 }
 
@@ -311,15 +397,45 @@ func (n *network) Skip() bool {
 }
 
 func (n *network) SetValue(value []byte) error {
-	var vni uint32
-	err := json.Unmarshal(value, &vni)
-	if err == nil {
-		n.setVxlanID(vni)
+	var newNet bool
+	netJSON := []*subnetJSON{}
+
+	err := json.Unmarshal(value, &netJSON)
+	if err != nil {
+		return err
 	}
-	return err
+
+	if len(n.subnets) == 0 {
+		newNet = true
+	}
+
+	for _, sj := range netJSON {
+		subnetIPstr := sj.SubnetIP
+		gwIPstr := sj.GwIP
+		vni := sj.Vni
+
+		subnetIP, _ := types.ParseCIDR(subnetIPstr)
+		gwIP, _ := types.ParseCIDR(gwIPstr)
+
+		if newNet {
+			s := &subnet{
+				subnetIP: subnetIP,
+				gwIP:     gwIP,
+				vni:      vni,
+				once:     &sync.Once{},
+			}
+			n.subnets = append(n.subnets, s)
+		} else {
+			sNet := n.getMatchingSubnet(subnetIP)
+			if sNet != nil {
+				sNet.vni = vni
+			}
+		}
+	}
+	return nil
 }
 
-func (n *network) DataScope() datastore.DataScope {
+func (n *network) DataScope() string {
 	return datastore.GlobalScope
 }
 
@@ -332,7 +448,7 @@ func (n *network) releaseVxlanID() error {
 		return fmt.Errorf("no datastore configured. cannot release vxlan id")
 	}
 
-	if n.vxlanID() == 0 {
+	if len(n.subnets) == 0 {
 		return nil
 	}
 
@@ -346,38 +462,80 @@ func (n *network) releaseVxlanID() error {
 		return fmt.Errorf("failed to delete network to vxlan id map: %v", err)
 	}
 
-	n.driver.vxlanIdm.Release(n.vxlanID())
-	n.setVxlanID(0)
+	for _, s := range n.subnets {
+		n.driver.vxlanIdm.Release(uint64(n.vxlanID(s)))
+		n.setVxlanID(s, 0)
+	}
 	return nil
 }
 
-func (n *network) obtainVxlanID() error {
+func (n *network) obtainVxlanID(s *subnet) error {
+	//return if the subnet already has a vxlan id assigned
+	if s.vni != 0 {
+		return nil
+	}
+
 	if n.driver.store == nil {
 		return fmt.Errorf("no datastore configured. cannot obtain vxlan id")
 	}
 
 	for {
-		var vxlanID uint32
 		if err := n.driver.store.GetObject(datastore.Key(n.Key()...), n); err != nil {
-			if err == datastore.ErrKeyNotFound {
-				vxlanID, err = n.driver.vxlanIdm.GetID()
-				if err != nil {
-					return fmt.Errorf("failed to allocate vxlan id: %v", err)
-				}
+			return fmt.Errorf("getting network %q from datastore failed %v", n.id, err)
+		}
 
-				n.setVxlanID(vxlanID)
-				if err := n.writeToStore(); err != nil {
-					n.driver.vxlanIdm.Release(n.vxlanID())
-					n.setVxlanID(0)
-					if err == datastore.ErrKeyModified {
-						continue
-					}
-					return fmt.Errorf("failed to update data store with vxlan id: %v", err)
-				}
-				return nil
+		if s.vni == 0 {
+			vxlanID, err := n.driver.vxlanIdm.GetID()
+			if err != nil {
+				return fmt.Errorf("failed to allocate vxlan id: %v", err)
 			}
-			return fmt.Errorf("failed to obtain vxlan id from data store: %v", err)
+
+			n.setVxlanID(s, uint32(vxlanID))
+			if err := n.writeToStore(); err != nil {
+				n.driver.vxlanIdm.Release(uint64(n.vxlanID(s)))
+				n.setVxlanID(s, 0)
+				if err == datastore.ErrKeyModified {
+					continue
+				}
+				return fmt.Errorf("network %q failed to update data store: %v", n.id, err)
+			}
+			return nil
 		}
 		return nil
 	}
+}
+
+// getSubnetforIP returns the subnet to which the given IP belongs
+func (n *network) getSubnetforIP(ip *net.IPNet) *subnet {
+	for _, s := range n.subnets {
+		// first check if the mask lengths are the same
+		i, _ := s.subnetIP.Mask.Size()
+		j, _ := ip.Mask.Size()
+		if i != j {
+			continue
+		}
+		if s.subnetIP.Contains(ip.IP) {
+			return s
+		}
+	}
+	return nil
+}
+
+// getMatchingSubnet return the network's subnet that matches the input
+func (n *network) getMatchingSubnet(ip *net.IPNet) *subnet {
+	if ip == nil {
+		return nil
+	}
+	for _, s := range n.subnets {
+		// first check if the mask lengths are the same
+		i, _ := s.subnetIP.Mask.Size()
+		j, _ := ip.Mask.Size()
+		if i != j {
+			continue
+		}
+		if s.subnetIP.IP.Equal(ip.IP) {
+			return s
+		}
+	}
+	return nil
 }

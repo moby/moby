@@ -1,6 +1,8 @@
 package netlabel
 
-import "strings"
+import (
+	"strings"
+)
 
 const (
 	// Prefix constant marks the reserved label space for libnetwork
@@ -8,6 +10,10 @@ const (
 
 	// DriverPrefix constant marks the reserved label space for libnetwork drivers
 	DriverPrefix = Prefix + ".driver"
+
+	// DriverPrivatePrefix constant marks the reserved label space
+	// for internal libnetwork drivers
+	DriverPrivatePrefix = DriverPrefix + ".private"
 
 	// GenericData constant that helps to identify an option as a Generic constant
 	GenericData = Prefix + ".generic"
@@ -18,38 +24,83 @@ const (
 	// MacAddress constant represents Mac Address config of a Container
 	MacAddress = Prefix + ".endpoint.macaddress"
 
-	// ExposedPorts constant represents exposedports of a Container
+	// ExposedPorts constant represents the container's Exposed Ports
 	ExposedPorts = Prefix + ".endpoint.exposedports"
 
 	//EnableIPv6 constant represents enabling IPV6 at network level
 	EnableIPv6 = Prefix + ".enable_ipv6"
 
-	// KVProvider constant represents the KV provider backend
-	KVProvider = DriverPrefix + ".kv_provider"
-
-	// KVProviderURL constant represents the KV provider URL
-	KVProviderURL = DriverPrefix + ".kv_provider_url"
-
-	// KVProviderConfig constant represents the KV provider Config
-	KVProviderConfig = DriverPrefix + ".kv_provider_config"
+	// DriverMTU constant represents the MTU size for the network driver
+	DriverMTU = DriverPrefix + ".mtu"
 
 	// OverlayBindInterface constant represents overlay driver bind interface
 	OverlayBindInterface = DriverPrefix + ".overlay.bind_interface"
 
 	// OverlayNeighborIP constant represents overlay driver neighbor IP
 	OverlayNeighborIP = DriverPrefix + ".overlay.neighbor_ip"
+
+	// Gateway represents the gateway for the network
+	Gateway = Prefix + ".gateway"
 )
 
-// Key extracts the key portion of the label
-func Key(label string) string {
-	kv := strings.SplitN(label, "=", 2)
+var (
+	// GlobalKVProvider constant represents the KV provider backend
+	GlobalKVProvider = MakeKVProvider("global")
 
-	return kv[0]
+	// GlobalKVProviderURL constant represents the KV provider URL
+	GlobalKVProviderURL = MakeKVProviderURL("global")
+
+	// GlobalKVProviderConfig constant represents the KV provider Config
+	GlobalKVProviderConfig = MakeKVProviderConfig("global")
+
+	// LocalKVProvider constant represents the KV provider backend
+	LocalKVProvider = MakeKVProvider("local")
+
+	// LocalKVProviderURL constant represents the KV provider URL
+	LocalKVProviderURL = MakeKVProviderURL("local")
+
+	// LocalKVProviderConfig constant represents the KV provider Config
+	LocalKVProviderConfig = MakeKVProviderConfig("local")
+)
+
+// MakeKVProvider returns the kvprovider label for the scope
+func MakeKVProvider(scope string) string {
+	return DriverPrivatePrefix + scope + "kv_provider"
+}
+
+// MakeKVProviderURL returns the kvprovider url label for the scope
+func MakeKVProviderURL(scope string) string {
+	return DriverPrivatePrefix + scope + "kv_provider_url"
+}
+
+// MakeKVProviderConfig returns the kvprovider config label for the scope
+func MakeKVProviderConfig(scope string) string {
+	return DriverPrivatePrefix + scope + "kv_provider_config"
+}
+
+// Key extracts the key portion of the label
+func Key(label string) (key string) {
+	if kv := strings.SplitN(label, "=", 2); len(kv) > 0 {
+		key = kv[0]
+	}
+	return
 }
 
 // Value extracts the value portion of the label
-func Value(label string) string {
-	kv := strings.SplitN(label, "=", 2)
+func Value(label string) (value string) {
+	if kv := strings.SplitN(label, "=", 2); len(kv) > 1 {
+		value = kv[1]
+	}
+	return
+}
 
-	return kv[1]
+// KeyValue decomposes the label in the (key,value) pair
+func KeyValue(label string) (key string, value string) {
+	if kv := strings.SplitN(label, "=", 2); len(kv) > 0 {
+		key = kv[0]
+		if len(kv) > 1 {
+			value = kv[1]
+		}
+	}
+	return
 }

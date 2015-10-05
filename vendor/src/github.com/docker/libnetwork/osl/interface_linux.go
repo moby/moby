@@ -156,7 +156,7 @@ func (i *nwIface) Remove() error {
 }
 
 // Returns the sandbox's side veth interface statistics
-func (i *nwIface) Statistics() (*InterfaceStatistics, error) {
+func (i *nwIface) Statistics() (*types.InterfaceStatistics, error) {
 	i.Lock()
 	n := i.ns
 	i.Unlock()
@@ -165,7 +165,7 @@ func (i *nwIface) Statistics() (*InterfaceStatistics, error) {
 	path := n.path
 	n.Unlock()
 
-	s := &InterfaceStatistics{}
+	s := &types.InterfaceStatistics{}
 
 	err := nsInvoke(path, func(nsFD int) error { return nil }, func(callerFD int) error {
 		// For some reason ioutil.ReadFile(netStatsFile) reads the file in
@@ -356,7 +356,7 @@ const (
 	base         = "[ ]*%s:([ ]+[0-9]+){16}"
 )
 
-func scanInterfaceStats(data, ifName string, i *InterfaceStatistics) error {
+func scanInterfaceStats(data, ifName string, i *types.InterfaceStatistics) error {
 	var (
 		bktStr string
 		bkt    uint64

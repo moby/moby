@@ -10,7 +10,9 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/libnetwork/datastore"
+	"github.com/docker/libnetwork/ipamapi"
 	"github.com/docker/libnetwork/netlabel"
+	"github.com/docker/libnetwork/options"
 	"github.com/docker/libnetwork/types"
 )
 
@@ -71,7 +73,9 @@ func (ep *endpoint) MarshalJSON() ([]byte, error) {
 	epMap["id"] = ep.id
 	epMap["ep_iface"] = ep.iface
 	epMap["exposed_ports"] = ep.exposedPorts
-	epMap["generic"] = ep.generic
+	if ep.generic != nil {
+		epMap["generic"] = ep.generic
+	}
 	epMap["sandbox"] = ep.sandboxID
 	return json.Marshal(epMap)
 }
@@ -98,9 +102,40 @@ func (ep *endpoint) UnmarshalJSON(b []byte) (err error) {
 	cb, _ := json.Marshal(epMap["sandbox"])
 	json.Unmarshal(cb, &ep.sandboxID)
 
-	if epMap["generic"] != nil {
-		ep.generic = epMap["generic"].(map[string]interface{})
+	if v, ok := epMap["generic"]; ok {
+		ep.generic = v.(map[string]interface{})
 	}
+	return nil
+}
+
+func (ep *endpoint) New() datastore.KVObject {
+	return &endpoint{network: ep.getNetwork()}
+}
+
+func (ep *endpoint) CopyTo(o datastore.KVObject) error {
+	ep.Lock()
+	defer ep.Unlock()
+
+	dstEp := o.(*endpoint)
+	dstEp.name = ep.name
+	dstEp.id = ep.id
+	dstEp.sandboxID = ep.sandboxID
+	dstEp.dbIndex = ep.dbIndex
+	dstEp.dbExists = ep.dbExists
+
+	if ep.iface != nil {
+		dstEp.iface = &endpointInterface{}
+		ep.iface.CopyTo(dstEp.iface)
+	}
+
+	dstEp.exposedPorts = make([]types.TransportPort, len(ep.exposedPorts))
+	copy(dstEp.exposedPorts, ep.exposedPorts)
+
+	dstEp.generic = options.Generic{}
+	for k, v := range ep.generic {
+		dstEp.generic[k] = v
+	}
+
 	return nil
 }
 
@@ -119,16 +154,28 @@ func (ep *endpoint) Name() string {
 }
 
 func (ep *endpoint) Network() string {
-	return ep.getNetwork().name
+	if ep.network == nil {
+		return ""
+	}
+
+	return ep.network.name
 }
 
 // endpoint Key structure : endpoint/network-id/endpoint-id
 func (ep *endpoint) Key() []string {
-	return []string{datastore.EndpointKeyPrefix, ep.getNetwork().id, ep.id}
+	if ep.network == nil {
+		return nil
+	}
+
+	return []string{datastore.EndpointKeyPrefix, ep.network.id, ep.id}
 }
 
 func (ep *endpoint) KeyPrefix() []string {
-	return []string{datastore.EndpointKeyPrefix, ep.getNetwork().id}
+	if ep.network == nil {
+		return nil
+	}
+
+	return []string{datastore.EndpointKeyPrefix, ep.network.id}
 }
 
 func (ep *endpoint) networkIDFromKey(key string) (string, error) {
@@ -188,8 +235,22 @@ func (ep *endpoint) processOptions(options ...EndpointOption) {
 	}
 }
 
-func (ep *endpoint) Join(sbox Sandbox, options ...EndpointOption) error {
+func (ep *endpoint) getNetwork() *network {
+	ep.Lock()
+	defer ep.Unlock()
 
+	return ep.network
+}
+
+func (ep *endpoint) getNetworkFromStore() (*network, error) {
+	if ep.network == nil {
+		return nil, fmt.Errorf("invalid network object in endpoint %s", ep.Name())
+	}
+
+	return ep.network.ctrlr.getNetworkFromStore(ep.network.id)
+}
+
+func (ep *endpoint) Join(sbox Sandbox, options ...EndpointOption) error {
 	if sbox == nil {
 		return types.BadRequestErrorf("endpoint cannot be joined by nil container")
 	}
@@ -212,15 +273,27 @@ func (ep *endpoint) sbJoin(sbox Sandbox, options ...EndpointOption) error {
 		return types.BadRequestErrorf("not a valid Sandbox interface")
 	}
 
+	network, err := ep.getNetworkFromStore()
+	if err != nil {
+		return fmt.Errorf("failed to get network from store during join: %v", err)
+	}
+
+	ep, err = network.getEndpointFromStore(ep.ID())
+	if err != nil {
+		return fmt.Errorf("failed to get endpoint from store during join: %v", err)
+	}
+
 	ep.Lock()
 	if ep.sandboxID != "" {
 		ep.Unlock()
-		return types.ForbiddenErrorf("a sandbox has already joined the endpoint")
+		return types.ForbiddenErrorf("another container is attached to the same network endpoint")
 	}
+	ep.Unlock()
 
+	ep.Lock()
+	ep.network = network
 	ep.sandboxID = sbox.ID()
 	ep.joinInfo = &endpointJoinInfo{}
-	network := ep.network
 	epid := ep.id
 	ep.Unlock()
 	defer func() {
@@ -232,11 +305,15 @@ func (ep *endpoint) sbJoin(sbox Sandbox, options ...EndpointOption) error {
 	}()
 
 	network.Lock()
-	driver := network.driver
 	nid := network.id
 	network.Unlock()
 
 	ep.processOptions(options...)
+
+	driver, err := network.driver()
+	if err != nil {
+		return fmt.Errorf("failed to join endpoint: %v", err)
+	}
 
 	err = driver.Join(nid, epid, sbox.Key(), ep, sbox.Labels())
 	if err != nil {
@@ -259,14 +336,15 @@ func (ep *endpoint) sbJoin(sbox Sandbox, options ...EndpointOption) error {
 		return err
 	}
 
-	if err = sb.updateDNS(ep.getNetwork().enableIPv6); err != nil {
+	// Watch for service records
+	network.getController().watchSvcRecord(ep)
+
+	if err = sb.updateDNS(network.enableIPv6); err != nil {
 		return err
 	}
 
-	if !ep.isLocalScoped() {
-		if err = network.ctrlr.updateToStore(ep); err != nil {
-			return err
-		}
+	if err = network.getController().updateToStore(ep); err != nil {
+		return err
 	}
 
 	sb.Lock()
@@ -324,6 +402,16 @@ func (ep *endpoint) sbLeave(sbox Sandbox, options ...EndpointOption) error {
 		return types.BadRequestErrorf("not a valid Sandbox interface")
 	}
 
+	n, err := ep.getNetworkFromStore()
+	if err != nil {
+		return fmt.Errorf("failed to get network from store during leave: %v", err)
+	}
+
+	ep, err = n.getEndpointFromStore(ep.ID())
+	if err != nil {
+		return fmt.Errorf("failed to get endpoint from store during leave: %v", err)
+	}
+
 	ep.Lock()
 	sid := ep.sandboxID
 	ep.Unlock()
@@ -339,21 +427,19 @@ func (ep *endpoint) sbLeave(sbox Sandbox, options ...EndpointOption) error {
 
 	ep.Lock()
 	ep.sandboxID = ""
-	n := ep.network
+	ep.network = n
 	ep.Unlock()
 
-	n.Lock()
-	c := n.ctrlr
-	d := n.driver
-	n.Unlock()
+	if err := n.getController().updateToStore(ep); err != nil {
+		ep.Lock()
+		ep.sandboxID = sid
+		ep.Unlock()
+		return err
+	}
 
-	if !ep.isLocalScoped() {
-		if err := c.updateToStore(ep); err != nil {
-			ep.Lock()
-			ep.sandboxID = sid
-			ep.Unlock()
-			return err
-		}
+	d, err := n.driver()
+	if err != nil {
+		return fmt.Errorf("failed to leave endpoint: %v", err)
 	}
 
 	if err := d.Leave(n.id, ep.id); err != nil {
@@ -363,6 +449,9 @@ func (ep *endpoint) sbLeave(sbox Sandbox, options ...EndpointOption) error {
 	if err := sb.clearNetworkResources(ep); err != nil {
 		return err
 	}
+
+	// unwatch for service records
+	n.getController().unWatchSvcRecord(ep)
 
 	if sb.needDefaultGW() {
 		ep := sb.getEPwithoutGateway()
@@ -376,45 +465,44 @@ func (ep *endpoint) sbLeave(sbox Sandbox, options ...EndpointOption) error {
 
 func (ep *endpoint) Delete() error {
 	var err error
+	n, err := ep.getNetworkFromStore()
+	if err != nil {
+		return fmt.Errorf("failed to get network during Delete: %v", err)
+	}
+
+	ep, err = n.getEndpointFromStore(ep.ID())
+	if err != nil {
+		return fmt.Errorf("failed to get endpoint from store during Delete: %v", err)
+	}
+
 	ep.Lock()
 	epid := ep.id
 	name := ep.name
-	n := ep.network
 	if ep.sandboxID != "" {
 		ep.Unlock()
 		return &ActiveContainerError{name: name, id: epid}
 	}
-	n.Lock()
-	ctrlr := n.ctrlr
-	n.Unlock()
 	ep.Unlock()
 
-	if !ep.isLocalScoped() {
-		if err = ctrlr.deleteFromStore(ep); err != nil {
-			return err
-		}
-	}
-	defer func() {
-		if err != nil {
-			ep.dbExists = false
-			if !ep.isLocalScoped() {
-				if e := ctrlr.updateToStore(ep); e != nil {
-					log.Warnf("failed to recreate endpoint in store %s : %v", name, e)
-				}
-			}
-		}
-	}()
-
-	// Update the endpoint count in network and update it in the datastore
-	n.DecEndpointCnt()
-	if err = ctrlr.updateToStore(n); err != nil {
+	if err = n.getEpCnt().DecEndpointCnt(); err != nil {
 		return err
 	}
 	defer func() {
 		if err != nil {
-			n.IncEndpointCnt()
-			if e := ctrlr.updateToStore(n); e != nil {
+			if e := n.getEpCnt().IncEndpointCnt(); e != nil {
 				log.Warnf("failed to update network %s : %v", n.name, e)
+			}
+		}
+	}()
+
+	if err = n.getController().deleteFromStore(ep); err != nil {
+		return err
+	}
+	defer func() {
+		if err != nil {
+			ep.dbExists = false
+			if e := n.getController().updateToStore(ep); e != nil {
+				log.Warnf("failed to recreate endpoint in store %s : %v", name, e)
 			}
 		}
 	}()
@@ -422,6 +510,8 @@ func (ep *endpoint) Delete() error {
 	if err = ep.deleteEndpoint(); err != nil {
 		return err
 	}
+
+	ep.releaseAddress()
 
 	return nil
 }
@@ -433,36 +523,19 @@ func (ep *endpoint) deleteEndpoint() error {
 	epid := ep.id
 	ep.Unlock()
 
-	n.Lock()
-	_, ok := n.endpoints[epid]
-	if !ok {
-		n.Unlock()
-		return nil
+	driver, err := n.driver()
+	if err != nil {
+		return fmt.Errorf("failed to delete endpoint: %v", err)
 	}
 
-	nid := n.id
-	driver := n.driver
-	delete(n.endpoints, epid)
-	n.Unlock()
-
-	if err := driver.DeleteEndpoint(nid, epid); err != nil {
+	if err := driver.DeleteEndpoint(n.id, epid); err != nil {
 		if _, ok := err.(types.ForbiddenError); ok {
-			n.Lock()
-			n.endpoints[epid] = ep
-			n.Unlock()
 			return err
 		}
 		log.Warnf("driver error deleting endpoint %s : %v", name, err)
 	}
 
-	n.updateSvcRecord(ep, false)
 	return nil
-}
-
-func (ep *endpoint) getNetwork() *network {
-	ep.Lock()
-	defer ep.Unlock()
-	return ep.network
 }
 
 func (ep *endpoint) getSandbox() (*sandbox, bool) {
@@ -482,7 +555,7 @@ func (ep *endpoint) getFirstInterfaceAddress() net.IP {
 	ep.Lock()
 	defer ep.Unlock()
 
-	if ep.iface != nil {
+	if ep.iface.addr != nil {
 		return ep.iface.addr.IP
 	}
 
@@ -540,12 +613,94 @@ func JoinOptionPriority(ep Endpoint, prio int) EndpointOption {
 	}
 }
 
-func (ep *endpoint) DataScope() datastore.DataScope {
-	ep.Lock()
-	defer ep.Unlock()
-	return ep.network.dataScope
+func (ep *endpoint) DataScope() string {
+	return ep.getNetwork().DataScope()
 }
 
-func (ep *endpoint) isLocalScoped() bool {
-	return ep.DataScope() == datastore.LocalScope
+func (ep *endpoint) assignAddress() error {
+	var (
+		ipam ipamapi.Ipam
+		err  error
+	)
+
+	n := ep.getNetwork()
+	if n.Type() == "host" || n.Type() == "null" {
+		return nil
+	}
+
+	log.Debugf("Assigning addresses for endpoint %s's interface on network %s", ep.Name(), n.Name())
+
+	ipam, err = n.getController().getIpamDriver(n.ipamType)
+	if err != nil {
+		return err
+	}
+	err = ep.assignAddressVersion(4, ipam)
+	if err != nil {
+		return err
+	}
+	return ep.assignAddressVersion(6, ipam)
+}
+
+func (ep *endpoint) assignAddressVersion(ipVer int, ipam ipamapi.Ipam) error {
+	var (
+		poolID  *string
+		address **net.IPNet
+	)
+
+	n := ep.getNetwork()
+	switch ipVer {
+	case 4:
+		poolID = &ep.iface.v4PoolID
+		address = &ep.iface.addr
+	case 6:
+		poolID = &ep.iface.v6PoolID
+		address = &ep.iface.addrv6
+	default:
+		return types.InternalErrorf("incorrect ip version number passed: %d", ipVer)
+	}
+
+	ipInfo := n.getIPInfo(ipVer)
+
+	// ipv6 address is not mandatory
+	if len(ipInfo) == 0 && ipVer == 6 {
+		return nil
+	}
+
+	for _, d := range ipInfo {
+		addr, _, err := ipam.RequestAddress(d.PoolID, nil, nil)
+		if err == nil {
+			ep.Lock()
+			*address = addr
+			*poolID = d.PoolID
+			ep.Unlock()
+			return nil
+		}
+		if err != ipamapi.ErrNoAvailableIPs {
+			return err
+		}
+	}
+	return fmt.Errorf("no available IPv%d addresses on this network's address pools: %s (%s)", ipVer, n.Name(), n.ID())
+}
+
+func (ep *endpoint) releaseAddress() {
+	n := ep.getNetwork()
+	if n.Type() == "host" || n.Type() == "null" {
+		return
+	}
+
+	log.Debugf("Releasing addresses for endpoint %s's interface on network %s", ep.Name(), n.Name())
+
+	ipam, err := n.getController().getIpamDriver(n.ipamType)
+	if err != nil {
+		log.Warnf("Failed to retrieve ipam driver to release interface address on delete of endpoint %s (%s): %v", ep.Name(), ep.ID(), err)
+		return
+	}
+	if err := ipam.ReleaseAddress(ep.iface.v4PoolID, ep.iface.addr.IP); err != nil {
+		log.Warnf("Failed to release ip address %s on delete of endpoint %s (%s): %v", ep.iface.addr.IP, ep.Name(), ep.ID(), err)
+	}
+	if ep.iface.addrv6 != nil && ep.iface.addrv6.IP.IsGlobalUnicast() {
+		if err := ipam.ReleaseAddress(ep.iface.v6PoolID, ep.iface.addrv6.IP); err != nil {
+			log.Warnf("Failed to release ip address %s on delete of endpoint %s (%s): %v", ep.iface.addrv6.IP, ep.Name(), ep.ID(), err)
+		}
+	}
 }

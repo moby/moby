@@ -2,6 +2,7 @@ package libnetwork
 
 import (
 	"encoding/json"
+	"fmt"
 	"net"
 
 	"github.com/docker/libnetwork/driverapi"
@@ -34,26 +35,34 @@ type InterfaceInfo interface {
 	MacAddress() net.HardwareAddr
 
 	// Address returns the IPv4 address assigned to the endpoint.
-	Address() net.IPNet
+	Address() *net.IPNet
 
 	// AddressIPv6 returns the IPv6 address assigned to the endpoint.
-	AddressIPv6() net.IPNet
+	AddressIPv6() *net.IPNet
 }
 
 type endpointInterface struct {
 	mac       net.HardwareAddr
-	addr      net.IPNet
-	addrv6    net.IPNet
+	addr      *net.IPNet
+	addrv6    *net.IPNet
 	srcName   string
 	dstPrefix string
 	routes    []*net.IPNet
+	v4PoolID  string
+	v6PoolID  string
 }
 
 func (epi *endpointInterface) MarshalJSON() ([]byte, error) {
 	epMap := make(map[string]interface{})
-	epMap["mac"] = epi.mac.String()
-	epMap["addr"] = epi.addr.String()
-	epMap["addrv6"] = epi.addrv6.String()
+	if epi.mac != nil {
+		epMap["mac"] = epi.mac.String()
+	}
+	if epi.addr != nil {
+		epMap["addr"] = epi.addr.String()
+	}
+	if epi.addrv6 != nil {
+		epMap["addrv6"] = epi.addrv6.String()
+	}
 	epMap["srcName"] = epi.srcName
 	epMap["dstPrefix"] = epi.dstPrefix
 	var routes []string
@@ -61,28 +70,33 @@ func (epi *endpointInterface) MarshalJSON() ([]byte, error) {
 		routes = append(routes, route.String())
 	}
 	epMap["routes"] = routes
+	epMap["v4PoolID"] = epi.v4PoolID
+	epMap["v6PoolID"] = epi.v6PoolID
 	return json.Marshal(epMap)
 }
 
-func (epi *endpointInterface) UnmarshalJSON(b []byte) (err error) {
-	var epMap map[string]interface{}
-	if err := json.Unmarshal(b, &epMap); err != nil {
+func (epi *endpointInterface) UnmarshalJSON(b []byte) error {
+	var (
+		err   error
+		epMap map[string]interface{}
+	)
+	if err = json.Unmarshal(b, &epMap); err != nil {
 		return err
 	}
-
-	mac, _ := net.ParseMAC(epMap["mac"].(string))
-	epi.mac = mac
-
-	ip, ipnet, _ := net.ParseCIDR(epMap["addr"].(string))
-	if ipnet != nil {
-		ipnet.IP = ip
-		epi.addr = *ipnet
+	if v, ok := epMap["mac"]; ok {
+		if epi.mac, err = net.ParseMAC(v.(string)); err != nil {
+			return types.InternalErrorf("failed to decode endpoint interface mac address after json unmarshal: %s", v.(string))
+		}
 	}
-
-	ip, ipnet, _ = net.ParseCIDR(epMap["addrv6"].(string))
-	if ipnet != nil {
-		ipnet.IP = ip
-		epi.addrv6 = *ipnet
+	if v, ok := epMap["addr"]; ok {
+		if epi.addr, err = types.ParseCIDR(v.(string)); err != nil {
+			return types.InternalErrorf("failed to decode endpoint interface ipv4 address after json unmarshal: %v", err)
+		}
+	}
+	if v, ok := epMap["addrv6"]; ok {
+		if epi.addrv6, err = types.ParseCIDR(v.(string)); err != nil {
+			return types.InternalErrorf("failed to decode endpoint interface ipv6 address after json unmarshal: %v", err)
+		}
 	}
 
 	epi.srcName = epMap["srcName"].(string)
@@ -99,6 +113,24 @@ func (epi *endpointInterface) UnmarshalJSON(b []byte) (err error) {
 			epi.routes = append(epi.routes, ipr)
 		}
 	}
+	epi.v4PoolID = epMap["v4PoolID"].(string)
+	epi.v6PoolID = epMap["v6PoolID"].(string)
+
+	return nil
+}
+
+func (epi *endpointInterface) CopyTo(dstEpi *endpointInterface) error {
+	dstEpi.mac = types.GetMacCopy(epi.mac)
+	dstEpi.addr = types.GetIPNetCopy(epi.addr)
+	dstEpi.addrv6 = types.GetIPNetCopy(epi.addrv6)
+	dstEpi.srcName = epi.srcName
+	dstEpi.dstPrefix = epi.dstPrefix
+	dstEpi.v4PoolID = epi.v4PoolID
+	dstEpi.v6PoolID = epi.v6PoolID
+
+	for _, route := range epi.routes {
+		dstEpi.routes = append(dstEpi.routes, types.GetIPNetCopy(route))
+	}
 
 	return nil
 }
@@ -110,21 +142,38 @@ type endpointJoinInfo struct {
 }
 
 func (ep *endpoint) Info() EndpointInfo {
-	return ep
+	n, err := ep.getNetworkFromStore()
+	if err != nil {
+		return nil
+	}
+
+	ep, err = n.getEndpointFromStore(ep.ID())
+	if err != nil {
+		return nil
+	}
+
+	sb, ok := ep.getSandbox()
+	if !ok {
+		// endpoint hasn't joined any sandbox.
+		// Just return the endpoint
+		return ep
+	}
+
+	return sb.getEndpoint(ep.ID())
 }
 
 func (ep *endpoint) DriverInfo() (map[string]interface{}, error) {
-	ep.Lock()
-	network := ep.network
-	epid := ep.id
-	ep.Unlock()
+	n, err := ep.getNetworkFromStore()
+	if err != nil {
+		return nil, fmt.Errorf("could not find network in store for driver info: %v", err)
+	}
 
-	network.Lock()
-	driver := network.driver
-	nid := network.id
-	network.Unlock()
+	driver, err := n.driver()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get driver info: %v", err)
+	}
 
-	return driver.EndpointOperInfo(nid, epid)
+	return driver.EndpointOperInfo(n.ID(), ep.ID())
 }
 
 func (ep *endpoint) Iface() InterfaceInfo {
@@ -149,17 +198,32 @@ func (ep *endpoint) Interface() driverapi.InterfaceInfo {
 	return nil
 }
 
-func (ep *endpoint) AddInterface(mac net.HardwareAddr, ipv4 net.IPNet, ipv6 net.IPNet) error {
-	ep.Lock()
-	defer ep.Unlock()
-
-	iface := &endpointInterface{
-		addr:   *types.GetIPNetCopy(&ipv4),
-		addrv6: *types.GetIPNetCopy(&ipv6),
+func (epi *endpointInterface) SetMacAddress(mac net.HardwareAddr) error {
+	if epi.mac != nil {
+		return types.ForbiddenErrorf("endpoint interface MAC address present (%s). Cannot be modified with %s.", epi.mac, mac)
 	}
-	iface.mac = types.GetMacCopy(mac)
+	if mac == nil {
+		return types.BadRequestErrorf("tried to set nil MAC address to endpoint interface")
+	}
+	epi.mac = types.GetMacCopy(mac)
+	return nil
+}
 
-	ep.iface = iface
+func (epi *endpointInterface) SetIPAddress(address *net.IPNet) error {
+	if address.IP == nil {
+		return types.BadRequestErrorf("tried to set nil IP address to endpoint interface")
+	}
+	if address.IP.To4() == nil {
+		return setAddress(&epi.addrv6, address)
+	}
+	return setAddress(&epi.addr, address)
+}
+
+func setAddress(ifaceAddr **net.IPNet, address *net.IPNet) error {
+	if *ifaceAddr != nil {
+		return types.ForbiddenErrorf("endpoint interface IP present (%s). Cannot be modified with (%s).", *ifaceAddr, address)
+	}
+	*ifaceAddr = types.GetIPNetCopy(address)
 	return nil
 }
 
@@ -167,12 +231,12 @@ func (epi *endpointInterface) MacAddress() net.HardwareAddr {
 	return types.GetMacCopy(epi.mac)
 }
 
-func (epi *endpointInterface) Address() net.IPNet {
-	return (*types.GetIPNetCopy(&epi.addr))
+func (epi *endpointInterface) Address() *net.IPNet {
+	return types.GetIPNetCopy(epi.addr)
 }
 
-func (epi *endpointInterface) AddressIPv6() net.IPNet {
-	return (*types.GetIPNetCopy(&epi.addrv6))
+func (epi *endpointInterface) AddressIPv6() *net.IPNet {
+	return types.GetIPNetCopy(epi.addrv6)
 }
 
 func (epi *endpointInterface) SetNames(srcName string, dstPrefix string) error {

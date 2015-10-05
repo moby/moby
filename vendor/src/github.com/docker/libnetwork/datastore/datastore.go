@@ -1,8 +1,11 @@
 package datastore
 
 import (
+	"fmt"
+	"log"
 	"reflect"
 	"strings"
+	"sync"
 
 	"github.com/docker/libkv"
 	"github.com/docker/libkv/store"
@@ -10,26 +13,37 @@ import (
 	"github.com/docker/libkv/store/consul"
 	"github.com/docker/libkv/store/etcd"
 	"github.com/docker/libkv/store/zookeeper"
-	"github.com/docker/libnetwork/config"
 	"github.com/docker/libnetwork/types"
 )
 
 //DataStore exported
 type DataStore interface {
 	// GetObject gets data from datastore and unmarshals to the specified object
-	GetObject(key string, o KV) error
+	GetObject(key string, o KVObject) error
 	// PutObject adds a new Record based on an object into the datastore
-	PutObject(kvObject KV) error
+	PutObject(kvObject KVObject) error
 	// PutObjectAtomic provides an atomic add and update operation for a Record
-	PutObjectAtomic(kvObject KV) error
+	PutObjectAtomic(kvObject KVObject) error
 	// DeleteObject deletes a record
-	DeleteObject(kvObject KV) error
+	DeleteObject(kvObject KVObject) error
 	// DeleteObjectAtomic performs an atomic delete operation
-	DeleteObjectAtomic(kvObject KV) error
+	DeleteObjectAtomic(kvObject KVObject) error
 	// DeleteTree deletes a record
-	DeleteTree(kvObject KV) error
+	DeleteTree(kvObject KVObject) error
+	// Watchable returns whether the store is watchable are not
+	Watchable() bool
+	// Watch for changes on a KVObject
+	Watch(kvObject KVObject, stopCh <-chan struct{}) (<-chan KVObject, error)
+	// List returns of a list of KVObjects belonging to the parent
+	// key. The caller must pass a KVObject of the same type as
+	// the objects that need to be listed
+	List(string, KVObject) ([]KVObject, error)
+	// Scope returns the scope of the store
+	Scope() string
 	// KVStore returns access to the KV Store
 	KVStore() store.Store
+	// Close closes the data store
+	Close()
 }
 
 // ErrKeyModified is raised for an atomic update when the update is working on a stale state
@@ -39,11 +53,14 @@ var (
 )
 
 type datastore struct {
+	scope string
 	store store.Store
+	cache *cache
+	sync.Mutex
 }
 
-//KV Key Value interface used by objects to be part of the DataStore
-type KV interface {
+// KVObject is  Key/Value interface used by objects to be part of the DataStore
+type KVObject interface {
 	// Key method lets an object to provide the Key to be used in KV Store
 	Key() []string
 	// KeyPrefix method lets an object to return immediate parent key that can be used for tree walk
@@ -60,19 +77,39 @@ type KV interface {
 	// When SetIndex() is called, the object has been stored.
 	Exists() bool
 	// DataScope indicates the storage scope of the KV object
-	DataScope() DataScope
+	DataScope() string
 	// Skip provides a way for a KV Object to avoid persisting it in the KV Store
 	Skip() bool
 }
 
-// DataScope indicates the storage scope
-type DataScope int
+// KVConstructor interface defines methods which can construct a KVObject from another.
+type KVConstructor interface {
+	// New returns a new object which is created based on the
+	// source object
+	New() KVObject
+	// CopyTo deep copies the contents of the implementing object
+	// to the passed destination object
+	CopyTo(KVObject) error
+}
+
+// ScopeCfg represents Datastore configuration.
+type ScopeCfg struct {
+	Client ScopeClientCfg
+}
+
+// ScopeClientCfg represents Datastore Client-only mode configuration
+type ScopeClientCfg struct {
+	Provider string
+	Address  string
+	Config   *store.Config
+}
 
 const (
 	// LocalScope indicates to store the KV object in local datastore such as boltdb
-	LocalScope DataScope = iota
+	LocalScope = "local"
 	// GlobalScope indicates to store the KV object in global datastore such as consul/etcd/zookeeper
-	GlobalScope
+	GlobalScope   = "global"
+	defaultPrefix = "/var/lib/docker/network/files"
 )
 
 const (
@@ -82,13 +119,54 @@ const (
 	EndpointKeyPrefix = "endpoint"
 )
 
-var rootChain = []string{"docker", "libnetwork"}
+var (
+	defaultScopes = makeDefaultScopes()
+)
+
+func makeDefaultScopes() map[string]*ScopeCfg {
+	def := make(map[string]*ScopeCfg)
+	def[LocalScope] = &ScopeCfg{
+		Client: ScopeClientCfg{
+			Provider: "boltdb",
+			Address:  defaultPrefix + "/local-kv.db",
+			Config: &store.Config{
+				Bucket: "libnetwork",
+			},
+		},
+	}
+
+	return def
+}
+
+var rootChain = []string{"docker", "network", "v1.0"}
 
 func init() {
 	consul.Register()
 	zookeeper.Register()
 	etcd.Register()
 	boltdb.Register()
+}
+
+// DefaultScopes returns a map of default scopes and it's config for clients to use.
+func DefaultScopes(dataDir string) map[string]*ScopeCfg {
+	if dataDir != "" {
+		defaultScopes[LocalScope].Client.Address = dataDir + "/network/files/local-kv.db"
+		return defaultScopes
+	}
+
+	defaultScopes[LocalScope].Client.Address = defaultPrefix + "/local-kv.db"
+	return defaultScopes
+}
+
+// IsValid checks if the scope config has valid configuration.
+func (cfg *ScopeCfg) IsValid() bool {
+	if cfg == nil ||
+		strings.TrimSpace(cfg.Client.Provider) == "" ||
+		strings.TrimSpace(cfg.Client.Address) == "" {
+		return false
+	}
+
+	return true
 }
 
 //Key provides convenient method to create a Key
@@ -110,7 +188,11 @@ func ParseKey(key string) ([]string, error) {
 }
 
 // newClient used to connect to KV Store
-func newClient(kv string, addrs string, config *store.Config) (DataStore, error) {
+func newClient(scope string, kv string, addrs string, config *store.Config, cached bool) (DataStore, error) {
+	if cached && scope != LocalScope {
+		return nil, fmt.Errorf("caching supported only for scope %s", LocalScope)
+	}
+
 	if config == nil {
 		config = &store.Config{}
 	}
@@ -118,22 +200,82 @@ func newClient(kv string, addrs string, config *store.Config) (DataStore, error)
 	if err != nil {
 		return nil, err
 	}
-	ds := &datastore{store: store}
+
+	ds := &datastore{scope: scope, store: store}
+	if cached {
+		ds.cache = newCache(ds)
+	}
+
 	return ds, nil
 }
 
 // NewDataStore creates a new instance of LibKV data store
-func NewDataStore(cfg *config.DatastoreCfg) (DataStore, error) {
-	if cfg == nil {
-		return nil, types.BadRequestErrorf("invalid configuration passed to datastore")
+func NewDataStore(scope string, cfg *ScopeCfg) (DataStore, error) {
+	if cfg == nil || cfg.Client.Provider == "" || cfg.Client.Address == "" {
+		c, ok := defaultScopes[scope]
+		if !ok || c.Client.Provider == "" || c.Client.Address == "" {
+			return nil, fmt.Errorf("unexpected scope %s without configuration passed", scope)
+		}
+
+		cfg = c
 	}
-	// TODO : cfg.Embedded case
-	return newClient(cfg.Client.Provider, cfg.Client.Address, cfg.Client.Config)
+
+	var cached bool
+	if scope == LocalScope {
+		cached = true
+	}
+
+	return newClient(scope, cfg.Client.Provider, cfg.Client.Address, cfg.Client.Config, cached)
 }
 
-// NewCustomDataStore can be used by clients to plugin cusom datatore that adhers to store.Store
-func NewCustomDataStore(customStore store.Store) DataStore {
-	return &datastore{store: customStore}
+func (ds *datastore) Close() {
+	ds.store.Close()
+}
+
+func (ds *datastore) Scope() string {
+	return ds.scope
+}
+
+func (ds *datastore) Watchable() bool {
+	return ds.scope != LocalScope
+}
+
+func (ds *datastore) Watch(kvObject KVObject, stopCh <-chan struct{}) (<-chan KVObject, error) {
+	sCh := make(chan struct{})
+
+	ctor, ok := kvObject.(KVConstructor)
+	if !ok {
+		return nil, fmt.Errorf("error watching object type %T, object does not implement KVConstructor interface", kvObject)
+	}
+
+	kvpCh, err := ds.store.Watch(Key(kvObject.Key()...), sCh)
+	if err != nil {
+		return nil, err
+	}
+
+	kvoCh := make(chan KVObject)
+
+	go func() {
+		for {
+			select {
+			case <-stopCh:
+				close(sCh)
+				return
+			case kvPair := <-kvpCh:
+				dstO := ctor.New()
+
+				if err := dstO.SetValue(kvPair.Value); err != nil {
+					log.Printf("Could not unmarshal kvpair value = %s", string(kvPair.Value))
+					break
+				}
+
+				dstO.SetIndex(kvPair.LastIndex)
+				kvoCh <- dstO
+			}
+		}
+	}()
+
+	return kvoCh, nil
 }
 
 func (ds *datastore) KVStore() store.Store {
@@ -141,40 +283,76 @@ func (ds *datastore) KVStore() store.Store {
 }
 
 // PutObjectAtomic adds a new Record based on an object into the datastore
-func (ds *datastore) PutObjectAtomic(kvObject KV) error {
+func (ds *datastore) PutObjectAtomic(kvObject KVObject) error {
+	var (
+		previous *store.KVPair
+		pair     *store.KVPair
+		err      error
+	)
+	ds.Lock()
+	defer ds.Unlock()
+
 	if kvObject == nil {
 		return types.BadRequestErrorf("invalid KV Object : nil")
 	}
+
 	kvObjValue := kvObject.Value()
 
 	if kvObjValue == nil {
 		return types.BadRequestErrorf("invalid KV Object with a nil Value for key %s", Key(kvObject.Key()...))
 	}
 
-	var previous *store.KVPair
+	if kvObject.Skip() {
+		goto add_cache
+	}
+
 	if kvObject.Exists() {
 		previous = &store.KVPair{Key: Key(kvObject.Key()...), LastIndex: kvObject.Index()}
 	} else {
 		previous = nil
 	}
-	_, pair, err := ds.store.AtomicPut(Key(kvObject.Key()...), kvObjValue, previous, nil)
+
+	_, pair, err = ds.store.AtomicPut(Key(kvObject.Key()...), kvObjValue, previous, nil)
 	if err != nil {
 		return err
 	}
 
 	kvObject.SetIndex(pair.LastIndex)
+
+add_cache:
+	if ds.cache != nil {
+		return ds.cache.add(kvObject)
+	}
+
 	return nil
 }
 
 // PutObject adds a new Record based on an object into the datastore
-func (ds *datastore) PutObject(kvObject KV) error {
+func (ds *datastore) PutObject(kvObject KVObject) error {
+	ds.Lock()
+	defer ds.Unlock()
+
 	if kvObject == nil {
 		return types.BadRequestErrorf("invalid KV Object : nil")
 	}
-	return ds.putObjectWithKey(kvObject, kvObject.Key()...)
+
+	if kvObject.Skip() {
+		goto add_cache
+	}
+
+	if err := ds.putObjectWithKey(kvObject, kvObject.Key()...); err != nil {
+		return err
+	}
+
+add_cache:
+	if ds.cache != nil {
+		return ds.cache.add(kvObject)
+	}
+
+	return nil
 }
 
-func (ds *datastore) putObjectWithKey(kvObject KV, key ...string) error {
+func (ds *datastore) putObjectWithKey(kvObject KVObject, key ...string) error {
 	kvObjValue := kvObject.Value()
 
 	if kvObjValue == nil {
@@ -184,39 +362,143 @@ func (ds *datastore) putObjectWithKey(kvObject KV, key ...string) error {
 }
 
 // GetObject returns a record matching the key
-func (ds *datastore) GetObject(key string, o KV) error {
+func (ds *datastore) GetObject(key string, o KVObject) error {
+	ds.Lock()
+	defer ds.Unlock()
+
+	if ds.cache != nil {
+		return ds.cache.get(key, o)
+	}
+
 	kvPair, err := ds.store.Get(key)
 	if err != nil {
 		return err
 	}
-	err = o.SetValue(kvPair.Value)
-	if err != nil {
+
+	if err := o.SetValue(kvPair.Value); err != nil {
 		return err
 	}
 
-	// Make sure the object has a correct view of the DB index in case we need to modify it
-	// and update the DB.
+	// Make sure the object has a correct view of the DB index in
+	// case we need to modify it and update the DB.
 	o.SetIndex(kvPair.LastIndex)
 	return nil
 }
 
+func (ds *datastore) ensureKey(key string) error {
+	exists, err := ds.store.Exists(key)
+	if err != nil {
+		return err
+	}
+	if exists {
+		return nil
+	}
+	return ds.store.Put(key, []byte{}, nil)
+}
+
+func (ds *datastore) List(key string, kvObject KVObject) ([]KVObject, error) {
+	ds.Lock()
+	defer ds.Unlock()
+
+	if ds.cache != nil {
+		return ds.cache.list(kvObject)
+	}
+
+	// Bail out right away if the kvObject does not implement KVConstructor
+	ctor, ok := kvObject.(KVConstructor)
+	if !ok {
+		return nil, fmt.Errorf("error listing objects, object does not implement KVConstructor interface")
+	}
+
+	// Make sure the parent key exists
+	if err := ds.ensureKey(key); err != nil {
+		return nil, err
+	}
+
+	kvList, err := ds.store.List(key)
+	if err != nil {
+		return nil, err
+	}
+
+	var kvol []KVObject
+	for _, kvPair := range kvList {
+		if len(kvPair.Value) == 0 {
+			continue
+		}
+
+		dstO := ctor.New()
+		if err := dstO.SetValue(kvPair.Value); err != nil {
+			return nil, err
+		}
+
+		// Make sure the object has a correct view of the DB index in
+		// case we need to modify it and update the DB.
+		dstO.SetIndex(kvPair.LastIndex)
+
+		kvol = append(kvol, dstO)
+	}
+
+	return kvol, nil
+}
+
 // DeleteObject unconditionally deletes a record from the store
-func (ds *datastore) DeleteObject(kvObject KV) error {
+func (ds *datastore) DeleteObject(kvObject KVObject) error {
+	ds.Lock()
+	defer ds.Unlock()
+
+	// cleaup the cache first
+	if ds.cache != nil {
+		ds.cache.del(kvObject)
+	}
+
+	if kvObject.Skip() {
+		return nil
+	}
+
 	return ds.store.Delete(Key(kvObject.Key()...))
 }
 
 // DeleteObjectAtomic performs atomic delete on a record
-func (ds *datastore) DeleteObjectAtomic(kvObject KV) error {
+func (ds *datastore) DeleteObjectAtomic(kvObject KVObject) error {
+	ds.Lock()
+	defer ds.Unlock()
+
 	if kvObject == nil {
 		return types.BadRequestErrorf("invalid KV Object : nil")
 	}
 
 	previous := &store.KVPair{Key: Key(kvObject.Key()...), LastIndex: kvObject.Index()}
-	_, err := ds.store.AtomicDelete(Key(kvObject.Key()...), previous)
-	return err
+
+	if kvObject.Skip() {
+		goto del_cache
+	}
+
+	if _, err := ds.store.AtomicDelete(Key(kvObject.Key()...), previous); err != nil {
+		return err
+	}
+
+del_cache:
+	// cleanup the cache only if AtomicDelete went through successfully
+	if ds.cache != nil {
+		return ds.cache.del(kvObject)
+	}
+
+	return nil
 }
 
 // DeleteTree unconditionally deletes a record from the store
-func (ds *datastore) DeleteTree(kvObject KV) error {
+func (ds *datastore) DeleteTree(kvObject KVObject) error {
+	ds.Lock()
+	defer ds.Unlock()
+
+	// cleaup the cache first
+	if ds.cache != nil {
+		ds.cache.del(kvObject)
+	}
+
+	if kvObject.Skip() {
+		return nil
+	}
+
 	return ds.store.DeleteTree(Key(kvObject.KeyPrefix()...))
 }

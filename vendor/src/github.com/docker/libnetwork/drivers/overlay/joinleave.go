@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"net"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/docker/libnetwork/driverapi"
+	"github.com/docker/libnetwork/types"
 	"github.com/vishvananda/netlink"
 )
 
@@ -24,10 +26,26 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 		return fmt.Errorf("could not find endpoint with id %s", eid)
 	}
 
-	if err := n.joinSandbox(); err != nil {
-		return fmt.Errorf("network sandbox join failed: %v",
-			err)
+	s := n.getSubnetforIP(ep.addr)
+	if s == nil {
+		return fmt.Errorf("could not find subnet for endpoint %s", eid)
 	}
+
+	if err := n.obtainVxlanID(s); err != nil {
+		return fmt.Errorf("couldn't get vxlan id for %q: %v", s.subnetIP.String(), err)
+	}
+
+	if err := n.joinSandbox(); err != nil {
+		return fmt.Errorf("network sandbox join failed: %v", err)
+	}
+
+	if err := n.joinSubnetSandbox(s); err != nil {
+		return fmt.Errorf("subnet sandbox join failed for %q: %v", s.subnetIP.String(), err)
+	}
+
+	// joinSubnetSandbox gets called when an endpoint comes up on a new subnet in the
+	// overlay network. Hence the Endpoint count should be updated outside joinSubnetSandbox
+	n.incEndpointCount()
 
 	sbox := n.sandbox()
 
@@ -49,7 +67,7 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 	}
 
 	if err := sbox.AddInterface(name1, "veth",
-		sbox.InterfaceOptions().Master("bridge1")); err != nil {
+		sbox.InterfaceOptions().Master(s.brName)); err != nil {
 		return fmt.Errorf("could not add veth pair inside the network sandbox: %v", err)
 	}
 
@@ -63,7 +81,16 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 	}
 
 	if err := netlink.LinkSetHardwareAddr(veth, ep.mac); err != nil {
-		return fmt.Errorf("could not set mac address to the container interface: %v", err)
+		return fmt.Errorf("could not set mac address (%v) to the container interface: %v", ep.mac, err)
+	}
+
+	for _, sub := range n.subnets {
+		if sub == s {
+			continue
+		}
+		if err := jinfo.AddStaticRoute(sub.subnetIP, types.NEXTHOP, s.gwIP.IP); err != nil {
+			log.Errorf("Adding subnet %s static route in network %q failed\n", s.subnetIP, n.id)
+		}
 	}
 
 	if iNames := jinfo.InterfaceName(); iNames != nil {
@@ -73,7 +100,7 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 		}
 	}
 
-	d.peerDbAdd(nid, eid, ep.addr.IP, ep.mac,
+	d.peerDbAdd(nid, eid, ep.addr.IP, ep.addr.Mask, ep.mac,
 		net.ParseIP(d.bindAddress), true)
 	d.pushLocalEndpointEvent("join", nid, eid)
 

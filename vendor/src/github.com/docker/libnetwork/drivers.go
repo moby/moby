@@ -4,6 +4,9 @@ import (
 	"strings"
 
 	"github.com/docker/libnetwork/driverapi"
+	"github.com/docker/libnetwork/ipamapi"
+	builtinIpam "github.com/docker/libnetwork/ipams/builtin"
+	remoteIpam "github.com/docker/libnetwork/ipams/remote"
 	"github.com/docker/libnetwork/netlabel"
 )
 
@@ -29,11 +32,6 @@ func makeDriverConfig(c *controller, ntype string) map[string]interface{} {
 
 	config := make(map[string]interface{})
 
-	if c.validateGlobalStoreConfig() {
-		config[netlabel.KVProvider] = c.cfg.GlobalStore.Client.Provider
-		config[netlabel.KVProviderURL] = c.cfg.GlobalStore.Client.Address
-	}
-
 	for _, label := range c.cfg.Daemon.Labels {
 		if !strings.HasPrefix(netlabel.Key(label), netlabel.DriverPrefix+"."+ntype) {
 			continue
@@ -43,13 +41,38 @@ func makeDriverConfig(c *controller, ntype string) map[string]interface{} {
 	}
 
 	drvCfg, ok := c.cfg.Daemon.DriverCfg[ntype]
-	if !ok {
+	if ok {
+		for k, v := range drvCfg.(map[string]interface{}) {
+			config[k] = v
+		}
+	}
+
+	// We don't send datastore configs to external plugins
+	if ntype == "remote" {
 		return config
 	}
 
-	for k, v := range drvCfg.(map[string]interface{}) {
-		config[k] = v
+	for k, v := range c.cfg.Scopes {
+		if !v.IsValid() {
+			continue
+		}
+
+		config[netlabel.MakeKVProvider(k)] = v.Client.Provider
+		config[netlabel.MakeKVProviderURL(k)] = v.Client.Address
+		config[netlabel.MakeKVProviderConfig(k)] = v.Client.Config
 	}
 
 	return config
+}
+
+func initIpams(ic ipamapi.Callback, lDs, gDs interface{}) error {
+	for _, fn := range [](func(ipamapi.Callback, interface{}, interface{}) error){
+		builtinIpam.Init,
+		remoteIpam.Init,
+	} {
+		if err := fn(ic, lDs, gDs); err != nil {
+			return err
+		}
+	}
+	return nil
 }

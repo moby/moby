@@ -1,7 +1,6 @@
 package overlay
 
 import (
-	"encoding/binary"
 	"fmt"
 	"net"
 
@@ -36,9 +35,18 @@ func (n *network) deleteEndpoint(eid string) {
 	n.Unlock()
 }
 
-func (d *driver) CreateEndpoint(nid, eid string, epInfo driverapi.EndpointInfo,
+func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo,
 	epOptions map[string]interface{}) error {
-	if err := validateID(nid, eid); err != nil {
+	var err error
+
+	if err = validateID(nid, eid); err != nil {
+		return err
+	}
+
+	// Since we perform lazy configuration make sure we try
+	// configuring the driver when we enter CreateEndpoint since
+	// CreateNetwork may not be called in every node.
+	if err := d.configure(); err != nil {
 		return err
 	}
 
@@ -48,35 +56,23 @@ func (d *driver) CreateEndpoint(nid, eid string, epInfo driverapi.EndpointInfo,
 	}
 
 	ep := &endpoint{
-		id: eid,
+		id:   eid,
+		addr: ifInfo.Address(),
+		mac:  ifInfo.MacAddress(),
+	}
+	if ep.addr == nil {
+		return fmt.Errorf("create endpoint was not passed interface IP address")
 	}
 
-	if epInfo != nil && epInfo.Interface() != nil {
-		addr := epInfo.Interface().Address()
-		ep.addr = &addr
-		ep.mac = epInfo.Interface().MacAddress()
-		n.addEndpoint(ep)
-		return nil
+	if s := n.getSubnetforIP(ep.addr); s == nil {
+		return fmt.Errorf("no matching subnet for IP %q in network %q\n", ep.addr, nid)
 	}
 
-	ipID, err := d.ipAllocator.GetID()
-	if err != nil {
-		return fmt.Errorf("could not allocate ip from subnet %s: %v",
-			bridgeSubnet.String(), err)
-	}
-
-	ep.addr = &net.IPNet{
-		Mask: bridgeSubnet.Mask,
-	}
-	ep.addr.IP = make([]byte, 4)
-
-	binary.BigEndian.PutUint32(ep.addr.IP, bridgeSubnetInt+ipID)
-
-	ep.mac = netutils.GenerateMACFromIP(ep.addr.IP)
-
-	err = epInfo.AddInterface(ep.mac, *ep.addr, net.IPNet{})
-	if err != nil {
-		return fmt.Errorf("could not add interface to endpoint info: %v", err)
+	if ep.mac == nil {
+		ep.mac = netutils.GenerateMACFromIP(ep.addr.IP)
+		if err := ifInfo.SetMacAddress(ep.mac); err != nil {
+			return err
+		}
 	}
 
 	n.addEndpoint(ep)
@@ -99,7 +95,6 @@ func (d *driver) DeleteEndpoint(nid, eid string) error {
 		return fmt.Errorf("endpoint id %q not found", eid)
 	}
 
-	d.ipAllocator.Release(binary.BigEndian.Uint32(ep.addr.IP) - bridgeSubnetInt)
 	n.deleteEndpoint(eid)
 	return nil
 }
