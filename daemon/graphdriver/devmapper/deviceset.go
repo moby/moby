@@ -58,6 +58,7 @@ type devInfo struct {
 	Size          uint64 `json:"size"`
 	TransactionID uint64 `json:"transaction_id"`
 	Initialized   bool   `json:"initialized"`
+	Deleted       bool   `json:"deleted"`
 	devices       *DeviceSet
 
 	mountCount int
@@ -425,6 +426,8 @@ func (devices *DeviceSet) deviceFileWalkFunction(path string, finfo os.FileInfo)
 		hash = ""
 	}
 
+	// Include deleted devices also as cleanup delete device logic
+	// will go through it and see if there are any deleted devices.
 	if _, err := devices.lookupDevice(hash); err != nil {
 		return fmt.Errorf("Error looking up device %s:%v", hash, err)
 	}
@@ -494,8 +497,12 @@ func (devices *DeviceSet) registerDevice(id int, hash string, size uint64, trans
 	return info, nil
 }
 
-func (devices *DeviceSet) activateDeviceIfNeeded(info *devInfo) error {
+func (devices *DeviceSet) activateDeviceIfNeeded(info *devInfo, ignoreDeleted bool) error {
 	logrus.Debugf("activateDeviceIfNeeded(%v)", info.Hash)
+
+	if info.Deleted && !ignoreDeleted {
+		return fmt.Errorf("devmapper: Can't activate device %v as it is marked for deletion", info.Hash)
+	}
 
 	// Make sure deferred removal on device is canceled, if one was
 	// scheduled.
@@ -570,6 +577,35 @@ func (devices *DeviceSet) migrateOldMetaData() error {
 	return nil
 }
 
+// Cleanup deleted devices. It assumes that all the devices have been
+// loaded in the hash table. Should be called with devices.Lock() held.
+// Will drop the lock for device deletion and return with lock acquired.
+func (devices *DeviceSet) cleanupDeletedDevices() error {
+	var deletedDevices []*devInfo
+
+	for _, info := range devices.Devices {
+		if !info.Deleted {
+			continue
+		}
+		logrus.Debugf("devmapper: Found deleted device %s.", info.Hash)
+		deletedDevices = append(deletedDevices, info)
+	}
+
+	// Delete the deleted devices. DeleteDevice() first takes the info lock
+	// and then devices.Lock(). So drop it to avoid deadlock.
+	devices.Unlock()
+	defer devices.Lock()
+
+	for _, info := range deletedDevices {
+		// This will again try deferred deletion.
+		if err := devices.DeleteDevice(info.Hash, false); err != nil {
+			logrus.Warnf("devmapper: Deletion of device %s, device_id=%v failed:%v", info.Hash, info.DeviceID, err)
+		}
+	}
+
+	return nil
+}
+
 func (devices *DeviceSet) initMetaData() error {
 	devices.Lock()
 	defer devices.Unlock()
@@ -594,6 +630,11 @@ func (devices *DeviceSet) initMetaData() error {
 	if err := devices.processPendingTransaction(); err != nil {
 		return err
 	}
+
+	if err := devices.cleanupDeletedDevices(); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -758,7 +799,7 @@ func (devices *DeviceSet) verifyBaseDeviceUUID(baseInfo *devInfo) error {
 	devices.Lock()
 	defer devices.Unlock()
 
-	if err := devices.activateDeviceIfNeeded(baseInfo); err != nil {
+	if err := devices.activateDeviceIfNeeded(baseInfo, false); err != nil {
 		return err
 	}
 
@@ -780,7 +821,7 @@ func (devices *DeviceSet) saveBaseDeviceUUID(baseInfo *devInfo) error {
 	devices.Lock()
 	defer devices.Unlock()
 
-	if err := devices.activateDeviceIfNeeded(baseInfo); err != nil {
+	if err := devices.activateDeviceIfNeeded(baseInfo, false); err != nil {
 		return err
 	}
 
@@ -807,7 +848,7 @@ func (devices *DeviceSet) createBaseImage() error {
 
 	logrus.Debugf("Creating filesystem on base device-mapper thin volume")
 
-	if err := devices.activateDeviceIfNeeded(info); err != nil {
+	if err := devices.activateDeviceIfNeeded(info, false); err != nil {
 		return err
 	}
 
@@ -870,7 +911,7 @@ func (devices *DeviceSet) setupBaseImage() error {
 	// fresh.
 
 	if oldInfo != nil {
-		if oldInfo.Initialized {
+		if oldInfo.Initialized && !oldInfo.Deleted {
 			if err := devices.setupVerifyBaseImageUUID(oldInfo); err != nil {
 				return err
 			}
@@ -879,7 +920,10 @@ func (devices *DeviceSet) setupBaseImage() error {
 		}
 
 		logrus.Debugf("Removing uninitialized base image")
-		if err := devices.DeleteDevice(""); err != nil {
+		// If previous base device is in deferred delete state,
+		// that needs to be cleaned up first. So don't try
+		// deferred deletion.
+		if err := devices.DeleteDevice("", true); err != nil {
 			return err
 		}
 	}
@@ -1513,9 +1557,14 @@ func (devices *DeviceSet) AddDevice(hash, baseHash string) error {
 	logrus.Debugf("[deviceset] AddDevice(hash=%s basehash=%s)", hash, baseHash)
 	defer logrus.Debugf("[deviceset] AddDevice(hash=%s basehash=%s) END", hash, baseHash)
 
+	// If a deleted device exists, return error.
 	baseInfo, err := devices.lookupDeviceWithLock(baseHash)
 	if err != nil {
 		return err
+	}
+
+	if baseInfo.Deleted {
+		return fmt.Errorf("devmapper: Base device %v has been marked for deferred deletion", baseInfo.Hash)
 	}
 
 	baseInfo.lock.Lock()
@@ -1524,8 +1573,10 @@ func (devices *DeviceSet) AddDevice(hash, baseHash string) error {
 	devices.Lock()
 	defer devices.Unlock()
 
+	// Also include deleted devices in case hash of new device is
+	// same as one of the deleted devices.
 	if info, _ := devices.lookupDevice(hash); info != nil {
-		return fmt.Errorf("device %s already exists", hash)
+		return fmt.Errorf("device %s already exists. Deleted=%v", hash, info.Deleted)
 	}
 
 	if err := devices.createRegisterSnapDevice(hash, baseInfo); err != nil {
@@ -1535,8 +1586,26 @@ func (devices *DeviceSet) AddDevice(hash, baseHash string) error {
 	return nil
 }
 
+func (devices *DeviceSet) markForDeferredDeletion(info *devInfo) error {
+	// If device is already in deleted state, there is nothing to be done.
+	if info.Deleted {
+		return nil
+	}
+
+	logrus.Debugf("devmapper: Marking device %s for deferred deletion.", info.Hash)
+
+	info.Deleted = true
+
+	// save device metadata to refelect deleted state.
+	if err := devices.saveMetadata(info); err != nil {
+		info.Deleted = false
+		return err
+	}
+	return nil
+}
+
 // Should be caled with devices.Lock() held.
-func (devices *DeviceSet) deleteTransaction(info *devInfo) error {
+func (devices *DeviceSet) deleteTransaction(info *devInfo, syncDelete bool) error {
 	if err := devices.openTransaction(info.Hash, info.DeviceID); err != nil {
 		logrus.Debugf("Error opening transaction hash = %s deviceId = %d", "", info.DeviceID)
 		return err
@@ -1544,13 +1613,25 @@ func (devices *DeviceSet) deleteTransaction(info *devInfo) error {
 
 	defer devices.closeTransaction()
 
-	if err := devicemapper.DeleteDevice(devices.getPoolDevName(), info.DeviceID); err != nil {
-		logrus.Debugf("Error deleting device: %s", err)
-		return err
+	err := devicemapper.DeleteDevice(devices.getPoolDevName(), info.DeviceID)
+	if err != nil {
+		// If syncDelete is true, we want to return error. If deferred
+		// deletion is not enabled, we return an error. If error is
+		// something other then EBUSY, return an error.
+		if syncDelete || !devices.deferredDelete || err != devicemapper.ErrBusy {
+			logrus.Debugf("Error deleting device: %s", err)
+			return err
+		}
 	}
 
-	if err := devices.unregisterDevice(info.DeviceID, info.Hash); err != nil {
-		return err
+	if err == nil {
+		if err := devices.unregisterDevice(info.DeviceID, info.Hash); err != nil {
+			return err
+		}
+	} else {
+		if err := devices.markForDeferredDeletion(info); err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -1562,8 +1643,10 @@ func (devices *DeviceSet) issueDiscard(info *devInfo) error {
 	defer logrus.Debugf("devmapper: issueDiscard(device: %s). END", info.Hash)
 	// This is a workaround for the kernel not discarding block so
 	// on the thin pool when we remove a thinp device, so we do it
-	// manually
-	if err := devices.activateDeviceIfNeeded(info); err != nil {
+	// manually.
+	// Even if device is deferred deleted, activate it and isue
+	// discards.
+	if err := devices.activateDeviceIfNeeded(info, true); err != nil {
 		return err
 	}
 
@@ -1584,7 +1667,7 @@ func (devices *DeviceSet) issueDiscard(info *devInfo) error {
 }
 
 // Should be called with devices.Lock() held.
-func (devices *DeviceSet) deleteDevice(info *devInfo) error {
+func (devices *DeviceSet) deleteDevice(info *devInfo, syncDelete bool) error {
 	if devices.doBlkDiscard {
 		devices.issueDiscard(info)
 	}
@@ -1595,7 +1678,7 @@ func (devices *DeviceSet) deleteDevice(info *devInfo) error {
 		return err
 	}
 
-	if err := devices.deleteTransaction(info); err != nil {
+	if err := devices.deleteTransaction(info, syncDelete); err != nil {
 		return err
 	}
 
@@ -1604,8 +1687,12 @@ func (devices *DeviceSet) deleteDevice(info *devInfo) error {
 	return nil
 }
 
-// DeleteDevice deletes a device from the hash.
-func (devices *DeviceSet) DeleteDevice(hash string) error {
+// DeleteDevice will return success if device has been marked for deferred
+// removal. If one wants to override that and want DeleteDevice() to fail if
+// device was busy and could not be deleted, set syncDelete=true.
+func (devices *DeviceSet) DeleteDevice(hash string, syncDelete bool) error {
+	logrus.Debugf("devmapper: DeleteDevice(hash=%v syncDelete=%v) START", hash, syncDelete)
+	defer logrus.Debugf("devmapper: DeleteDevice(hash=%v syncDelete=%v) END", hash, syncDelete)
 	info, err := devices.lookupDeviceWithLock(hash)
 	if err != nil {
 		return err
@@ -1624,7 +1711,7 @@ func (devices *DeviceSet) DeleteDevice(hash string) error {
 		return fmt.Errorf("devmapper: Can't delete device %v as it is still mounted. mntCount=%v", info.Hash, info.mountCount)
 	}
 
-	return devices.deleteDevice(info)
+	return devices.deleteDevice(info, syncDelete)
 }
 
 func (devices *DeviceSet) deactivatePool() error {
@@ -1811,6 +1898,10 @@ func (devices *DeviceSet) MountDevice(hash, path, mountLabel string) error {
 		return err
 	}
 
+	if info.Deleted {
+		return fmt.Errorf("devmapper: Can't mount device %v as it has been marked for deferred deletion", info.Hash)
+	}
+
 	info.lock.Lock()
 	defer info.lock.Unlock()
 
@@ -1826,7 +1917,7 @@ func (devices *DeviceSet) MountDevice(hash, path, mountLabel string) error {
 		return nil
 	}
 
-	if err := devices.activateDeviceIfNeeded(info); err != nil {
+	if err := devices.activateDeviceIfNeeded(info, false); err != nil {
 		return fmt.Errorf("Error activating devmapper device for '%s': %s", hash, err)
 	}
 
@@ -1946,7 +2037,7 @@ func (devices *DeviceSet) GetDeviceStatus(hash string) (*DevStatus, error) {
 		TransactionID: info.TransactionID,
 	}
 
-	if err := devices.activateDeviceIfNeeded(info); err != nil {
+	if err := devices.activateDeviceIfNeeded(info, false); err != nil {
 		return nil, fmt.Errorf("Error activating devmapper device for '%s': %s", hash, err)
 	}
 
