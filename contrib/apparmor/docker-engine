@@ -22,7 +22,9 @@ profile /usr/bin/docker (attach_disconnected, complain) {
   network,
   capability,
   owner /** rw,
-  /var/lib/docker/** rwl,
+  @{DOCKER_GRAPH_PATH}/** rwl,
+  @{DOCKER_GRAPH_PATH}/linkgraph.db k,
+  @{DOCKER_GRAPH_PATH}/network/files/boltdb.db k,
 
   # For non-root client use:
   /dev/urandom r,
@@ -30,11 +32,15 @@ profile /usr/bin/docker (attach_disconnected, complain) {
   /proc/** r,
   /sys/kernel/mm/hugepages/ r,
   /etc/localtime r,
+  /etc/ld.so.cache r,
 
   ptrace peer=@{profile_name},
   ptrace (read) peer=docker-default,
   deny ptrace (trace) peer=docker-default,
   deny ptrace peer=/usr/bin/docker///bin/ps,
+
+  /usr/lib/** rm,
+  /lib/** rm,
 
   /usr/bin/docker pix,
   /sbin/xtables-multi rCx,
@@ -49,6 +55,7 @@ profile /usr/bin/docker (attach_disconnected, complain) {
   /bin/ps rCx,
   /bin/cat rCx,
   /sbin/zfs rCx,
+  /sbin/apparmor_parser rCx,
 
   # Transitions
   change_profile -> docker-*,
@@ -56,7 +63,7 @@ profile /usr/bin/docker (attach_disconnected, complain) {
 
   profile /bin/cat (complain) {
     /etc/ld.so.cache r,
-    /lib/** r,
+    /lib/** rm,
     /dev/null rw,
     /proc r,
     /bin/cat mr,
@@ -69,7 +76,7 @@ profile /usr/bin/docker (attach_disconnected, complain) {
     /etc/localtime r,
     /etc/passwd r,
     /etc/nsswitch.conf r,
-    /lib/** r,
+    /lib/** rm,
     /proc/[0-9]*/** r,
     /dev/null rw,
     /bin/ps mr,
@@ -107,7 +114,7 @@ profile /usr/bin/docker (attach_disconnected, complain) {
     @{DOCKER_GRAPH_PATH}/[0-9]*.[0-9]*/** rw,
 
     /sys/fs/aufs/** r,
-    /lib/** r,
+    /lib/** rm,
     /apparmor/.null r,
     /dev/null rw,
     /etc/ld.so.cache r,
@@ -119,7 +126,7 @@ profile /usr/bin/docker (attach_disconnected, complain) {
     signal (receive) peer=/usr/bin/docker,
     capability sys_module,
     /etc/ld.so.cache r,
-    /lib/** r,
+    /lib/** rm,
     /dev/null rw,
     /apparmor/.null rw,
     /sbin/modprobe rm,
@@ -132,17 +139,20 @@ profile /usr/bin/docker (attach_disconnected, complain) {
   profile /usr/bin/xz (complain) {
     signal (receive) peer=/usr/bin/docker,
     /etc/ld.so.cache r,
-    /lib/** r,
+    /lib/** rm,
     /usr/bin/xz rm,
     deny /proc/** rw,
     deny /sys/** rw,
   }
   profile /sbin/xtables-multi (attach_disconnected, complain) {
     /etc/ld.so.cache r,
-    /lib/** r,
+    /lib/** rm,
     /sbin/xtables-multi rm,
     /apparmor/.null w,
     /dev/null rw,
+
+    /proc r,
+
     capability net_raw,
     capability net_admin,
     network raw,
@@ -154,7 +164,7 @@ profile /usr/bin/docker (attach_disconnected, complain) {
   profile /sbin/mke2fs (complain) {
     /sbin/mke2fs rm,
 
-    /lib/** r,
+    /lib/** rm,
 
     /apparmor/.null w,
 
@@ -172,7 +182,7 @@ profile /usr/bin/docker (attach_disconnected, complain) {
   profile /sbin/tune2fs (complain) {
     /sbin/tune2fs rm,
 
-    /lib/** r,
+    /lib/** rm,
 
     /apparmor/.null w,
 
@@ -190,7 +200,7 @@ profile /usr/bin/docker (attach_disconnected, complain) {
   profile /sbin/blkid (complain) {
     /sbin/blkid rm,
 
-    /lib/** r,
+    /lib/** rm,
     /apparmor/.null w,
 
     /etc/ld.so.cache r,
@@ -206,5 +216,26 @@ profile /usr/bin/docker (attach_disconnected, complain) {
     capability mknod,
 
     mount -> @{DOCKER_GRAPH_PATH}/**,
+  }
+  profile /sbin/apparmor_parser (complain) {
+    /sbin/apparmor_parser rm,
+
+    /lib/** rm,
+
+    /etc/ld.so.cache r,
+    /etc/apparmor/** r,
+    /etc/apparmor.d/** r,
+    /etc/apparmor.d/cache/** w,
+
+    /dev/null rw,
+
+    /sys/kernel/security/apparmor/** r,
+    /sys/kernel/security/apparmor/.replace w,
+
+    /proc/[0-9]*/mounts r,
+    /proc/sys/kernel/osrelease r,
+    /proc r,
+
+    capability mac_admin,
   }
 }
