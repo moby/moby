@@ -24,7 +24,7 @@ type remoteError struct {
 	err    string
 }
 
-func (e *remoteError) Error() string {
+func (e remoteError) Error() string {
 	return fmt.Sprintf("Plugin Error: %s, %s", e.err, e.method)
 }
 
@@ -97,11 +97,11 @@ func (c *Client) callWithRetry(serviceMethod string, args interface{}, ret inter
 
 		defer resp.Body.Close()
 		if resp.StatusCode != http.StatusOK {
-			remoteErr, err := ioutil.ReadAll(resp.Body)
+			body, err := ioutil.ReadAll(resp.Body)
 			if err != nil {
-				return &remoteError{err.Error(), serviceMethod}
+				return remoteError{err.Error(), serviceMethod}
 			}
-			return &remoteError{string(remoteErr), serviceMethod}
+			return remoteError{string(body), serviceMethod}
 		}
 
 		return json.NewDecoder(resp.Body).Decode(&ret)
