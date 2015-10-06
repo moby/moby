@@ -48,7 +48,7 @@ $ consul agent -server -bootstrap -data-dir /tmp/consul -bind=<host-1-ip-address
 **host-2** Start the Consul agent:
 
 ``` 
-$ consul agent -data-dir /tmp/consul -bind <host-2-ip-address>
+$ consul agent -data-dir /tmp/consul -bind=<host-2-ip-address>
 $ consul join <host-1-ip-address>
 ```
 
