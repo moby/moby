@@ -107,7 +107,7 @@ to the world (via the `-p 6379:6379` port mapping):
     $ sudo ./contrib/mkimage-unittest.sh
     $ docker run -t -i --link redis:redis --name redis_ambassador -p 6379:6379 docker-ut sh
 
-    $ socat TCP4-LISTEN:6379,fork,reuseaddr TCP4:172.17.0.136:6379
+    $ socat -t 100000000 TCP4-LISTEN:6379,fork,reuseaddr TCP4:172.17.0.136:6379
 
 Now ping the Redis server via the ambassador:
 
@@ -116,7 +116,7 @@ Now go to a different server:
     $ sudo ./contrib/mkimage-unittest.sh
     $ docker run -t -i --expose 6379 --name redis_ambassador docker-ut sh
 
-    $ socat TCP4-LISTEN:6379,fork,reuseaddr TCP4:192.168.1.52:6379
+    $ socat -t 100000000 TCP4-LISTEN:6379,fork,reuseaddr TCP4:192.168.1.52:6379
 
 And get the `redis-cli` image so we can talk over the ambassador bridge.
 
@@ -127,8 +127,8 @@ And get the `redis-cli` image so we can talk over the ambassador bridge.
 
 ## The svendowideit/ambassador Dockerfile
 
-The `svendowideit/ambassador` image is a small `busybox` image with
-`socat` built in. When you start the container, it uses a small `sed`
+The `svendowideit/ambassador` image is based on the `alpine` image with
+`socat` installed. When you start the container, it uses a small `sed`
 script to parse out the (possibly multiple) link environment variables
 to set up the port forwarding. On the remote host, you need to set the
 variable using the `-e` command line option.
@@ -139,19 +139,21 @@ Will forward the local `1234` port to the remote IP and port, in this
 case `192.168.1.52:6379`.
 
     #
-    #
-    # first you need to build the docker-ut image
-    # using ./contrib/mkimage-unittest.sh
-    # then
-    #   docker build -t SvenDowideit/ambassador .
-    #   docker tag SvenDowideit/ambassador ambassador
+    # do
+    #   docker build -t svendowideit/ambassador .
     # then to run it (on the host that has the real backend on it)
-    #   docker run -t -i --link redis:redis --name redis_ambassador -p 6379:6379 ambassador
+    #   docker run -t -i -link redis:redis -name redis_ambassador -p 6379:6379 svendowideit/ambassador
     # on the remote host, you can set up another ambassador
-    #   docker run -t -i --name redis_ambassador --expose 6379 sh
+    #    docker run -t -i -name redis_ambassador -expose 6379 -e REDIS_PORT_6379_TCP=tcp://192.168.1.52:6379 svendowideit/ambassador sh
+    # you can read more about this process at https://docs.docker.com/articles/ambassador_pattern_linking/
 
-    FROM    docker-ut
-    MAINTAINER      SvenDowideit@home.org.au
+    # use alpine because its a minimal image with a package manager.
+    # prettymuch all that is needed is a container that has a functioning env and socat (or equivalent)
+    FROM	alpine:3.2
+    MAINTAINER	SvenDowideit@home.org.au
 
-
-    CMD     env | grep _TCP= | sed 's/.*_PORT_\([0-9]*\)_TCP=tcp:\/\/\(.*\):\(.*\)/socat TCP4-LISTEN:\1,fork,reuseaddr TCP4:\2:\3 \&/'  | sh && top
+    RUN apk update && \
+    	apk add socat && \
+    	rm -r /var/cache/
+    
+    CMD	env | grep _TCP= | sed 's/.*_PORT_\([0-9]*\)_TCP=tcp:\/\/\(.*\):\(.*\)/socat -t 100000000 TCP4-LISTEN:\1,fork,reuseaddr TCP4:\2:\3 \& wait/' | sh
