@@ -777,6 +777,38 @@ func (devices *DeviceSet) saveBaseDeviceUUID(baseInfo *devInfo) error {
 	return nil
 }
 
+func (devices *DeviceSet) createBaseImage() error {
+	logrus.Debugf("Initializing base device-mapper thin volume")
+
+	// Create initial device
+	info, err := devices.createRegisterDevice("")
+	if err != nil {
+		return err
+	}
+
+	logrus.Debugf("Creating filesystem on base device-mapper thin volume")
+
+	if err := devices.activateDeviceIfNeeded(info); err != nil {
+		return err
+	}
+
+	if err := devices.createFilesystem(info); err != nil {
+		return err
+	}
+
+	info.Initialized = true
+	if err := devices.saveMetadata(info); err != nil {
+		info.Initialized = false
+		return err
+	}
+
+	if err := devices.saveBaseDeviceUUID(info); err != nil {
+		return fmt.Errorf("Could not query and save base device UUID:%v", err)
+	}
+
+	return nil
+}
+
 func (devices *DeviceSet) setupBaseImage() error {
 	oldInfo, _ := devices.lookupDeviceWithLock("")
 	if oldInfo != nil && oldInfo.Initialized {
@@ -817,32 +849,9 @@ func (devices *DeviceSet) setupBaseImage() error {
 		}
 	}
 
-	logrus.Debugf("Initializing base device-mapper thin volume")
-
-	// Create initial device
-	info, err := devices.createRegisterDevice("")
-	if err != nil {
+	// Create new base image device
+	if err := devices.createBaseImage(); err != nil {
 		return err
-	}
-
-	logrus.Debugf("Creating filesystem on base device-mapper thin volume")
-
-	if err := devices.activateDeviceIfNeeded(info); err != nil {
-		return err
-	}
-
-	if err := devices.createFilesystem(info); err != nil {
-		return err
-	}
-
-	info.Initialized = true
-	if err := devices.saveMetadata(info); err != nil {
-		info.Initialized = false
-		return err
-	}
-
-	if err := devices.saveBaseDeviceUUID(info); err != nil {
-		return fmt.Errorf("Could not query and save base device UUID:%v", err)
 	}
 
 	return nil
