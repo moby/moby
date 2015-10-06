@@ -1,6 +1,9 @@
 package netlabel
 
-import "strings"
+import (
+	"fmt"
+	"strings"
+)
 
 const (
 	// Prefix constant marks the reserved label space for libnetwork
@@ -22,7 +25,7 @@ const (
 	// MacAddress constant represents Mac Address config of a Container
 	MacAddress = Prefix + ".endpoint.macaddress"
 
-	// ExposedPorts constant represents exposedports of a Container
+	// ExposedPorts constant represents the container's Exposed Ports
 	ExposedPorts = Prefix + ".endpoint.exposedports"
 
 	//EnableIPv6 constant represents enabling IPV6 at network level
@@ -85,4 +88,24 @@ func Value(label string) string {
 	kv := strings.SplitN(label, "=", 2)
 
 	return kv[1]
+}
+
+// KeyValue decomposes the label in the (key,value) pair
+func KeyValue(label string) (string, string, error) {
+	kv := strings.SplitN(label, "=", 2)
+	if len(kv) != 2 {
+		return "", "", fmt.Errorf("invalid label: %s", label)
+	}
+	return kv[0], kv[1], nil
+}
+
+// ToMap converts a list of labels in amap of (key,value) pairs
+func ToMap(labels []string) map[string]string {
+	m := make(map[string]string, len(labels))
+	for _, l := range labels {
+		if k, v, err := KeyValue(l); err == nil {
+			m[k] = v
+		}
+	}
+	return m
 }
