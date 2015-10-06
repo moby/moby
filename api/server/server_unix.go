@@ -27,10 +27,6 @@ func (s *Server) newServer(proto, addr string) ([]*HTTPServer, error) {
 		if err != nil {
 			return nil, err
 		}
-		// We don't want to start serving on these sockets until the
-		// daemon is initialized and installed. Otherwise required handlers
-		// won't be ready.
-		<-s.start
 	case "tcp":
 		l, err := s.initTCPSocket(addr)
 		if err != nil {
