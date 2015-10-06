@@ -26,9 +26,10 @@ func (d *Driver) Exec(c *execdriver.Command, processConfig *execdriver.ProcessCo
 		return -1, fmt.Errorf("No active container exists with ID %s", c.ID)
 	}
 
+	env := append(c.ProcessConfig.Env, processConfig.Cmd.Env...)
 	p := &libcontainer.Process{
 		Args: append([]string{processConfig.Entrypoint}, processConfig.Arguments...),
-		Env:  c.ProcessConfig.Env,
+		Env:  env,
 		Cwd:  c.WorkingDir,
 		User: processConfig.User,
 	}

@@ -1,6 +1,7 @@
 package runconfig
 
 import (
+	"github.com/docker/docker/opts"
 	flag "github.com/docker/docker/pkg/mflag"
 )
 
@@ -16,6 +17,7 @@ type ExecConfig struct {
 	AttachStdout bool     // Attach the standard error
 	Detach       bool     // Execute in detach mode
 	Cmd          []string // Execution commands and args
+	Env          []string // List of environment variable to set in the container
 }
 
 // ParseExec parses the specified args for the specified command and generates
@@ -29,9 +31,11 @@ func ParseExec(cmd *flag.FlagSet, args []string) (*ExecConfig, error) {
 		flDetach     = cmd.Bool([]string{"d", "-detach"}, false, "Detached mode: run command in the background")
 		flUser       = cmd.String([]string{"u", "-user"}, "", "Username or UID (format: <name|uid>[:<group|gid>])")
 		flPrivileged = cmd.Bool([]string{"-privileged"}, false, "Give extended privileges to the command")
+		flEnv        = opts.NewListOpts(opts.ValidateEnv)
 		execCmd      []string
 		container    string
 	)
+	cmd.Var(&flEnv, []string{"e", "-env"}, "Set environment variables")
 	cmd.Require(flag.Min, 2)
 	if err := cmd.ParseFlags(args, true); err != nil {
 		return nil, err
@@ -47,6 +51,7 @@ func ParseExec(cmd *flag.FlagSet, args []string) (*ExecConfig, error) {
 		Cmd:        execCmd,
 		Container:  container,
 		Detach:     *flDetach,
+		Env:        flEnv.GetAll(),
 	}
 
 	// If -d is not set, attach to everything by default

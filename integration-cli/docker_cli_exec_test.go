@@ -619,7 +619,7 @@ func (s *DockerSuite) TestExecStartFails(c *check.C) {
 	dockerCmd(c, "run", "-d", "--name", name, "busybox", "top")
 	c.Assert(waitRun(name), check.IsNil)
 
-	out, _, err := dockerCmdWithError("exec", name, "no-such-cmd")
+	out, _, err := dockerCmdWithError("exec", "-t", name, "no-such-cmd")
 	c.Assert(err, check.NotNil, check.Commentf(out))
 	c.Assert(out, checker.Contains, "executable file not found")
 }

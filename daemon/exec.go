@@ -3,6 +3,7 @@ package daemon
 import (
 	"io"
 	"io/ioutil"
+	"os/exec"
 	"strings"
 	"sync"
 	"time"
@@ -166,6 +167,9 @@ func (d *Daemon) ContainerExecCreate(config *runconfig.ExecConfig) (string, erro
 	}
 
 	processConfig := &execdriver.ProcessConfig{
+		Cmd: exec.Cmd{
+			Env: config.Env,
+		},
 		Tty:        config.Tty,
 		Entrypoint: entrypoint,
 		Arguments:  args,
