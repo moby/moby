@@ -40,6 +40,7 @@ var (
 	logLevel                     = devicemapper.LogLevelFatal
 	driverDeferredRemovalSupport = false
 	enableDeferredRemoval        = false
+	enableDeferredDeletion       = false
 )
 
 const deviceSetMetaFile string = "deviceset-metadata"
@@ -106,6 +107,7 @@ type DeviceSet struct {
 	transaction           `json:"-"`
 	overrideUdevSyncCheck bool
 	deferredRemove        bool   // use deferred removal
+	deferredDelete        bool   // use deferred deletion
 	BaseDeviceUUID        string //save UUID of base device
 }
 
@@ -141,6 +143,12 @@ type Status struct {
 	UdevSyncSupported bool
 	// DeferredRemoveEnabled is true then the device is not unmounted.
 	DeferredRemoveEnabled bool
+	// True if deferred deletion is enabled. This is different from
+	// deferred removal. "removal" means that device mapper device is
+	// deactivated. Thin device is still in thin pool and can be activated
+	// again. But "deletion" means that thin device will be deleted from
+	// thin pool and it can't be activated again.
+	DeferredDeleteEnabled bool
 }
 
 // Structure used to export image/container metadata in docker inspect.
@@ -1314,11 +1322,25 @@ func (devices *DeviceSet) initDevmapper(doInit bool) error {
 		return graphdriver.ErrNotSupported
 	}
 
-	// If user asked for deferred removal and both library and driver
-	// supports deferred removal use it.
-	if enableDeferredRemoval && driverDeferredRemovalSupport && devicemapper.LibraryDeferredRemovalSupport == true {
+	// If user asked for deferred removal then check both libdm library
+	// and kernel driver support deferred removal otherwise error out.
+	if enableDeferredRemoval {
+		if !driverDeferredRemovalSupport {
+			return fmt.Errorf("devmapper: Deferred removal can not be enabled as kernel does not support it")
+		}
+		if !devicemapper.LibraryDeferredRemovalSupport {
+			return fmt.Errorf("devmapper: Deferred removal can not be enabled as libdm does not support it")
+		}
 		logrus.Debugf("devmapper: Deferred removal support enabled.")
 		devices.deferredRemove = true
+	}
+
+	if enableDeferredDeletion {
+		if !devices.deferredRemove {
+			return fmt.Errorf("devmapper: Deferred deletion can not be enabled as deferred removal is not enabled. Enable deferred removal using --storage-opt dm.use_deferred_removal=true parameter")
+		}
+		logrus.Debugf("devmapper: Deferred deletion support enabled.")
+		devices.deferredDelete = true
 	}
 
 	// https://github.com/docker/docker/issues/4036
@@ -1996,6 +2018,7 @@ func (devices *DeviceSet) Status() *Status {
 	status.MetadataLoopback = devices.metadataLoopFile
 	status.UdevSyncSupported = devicemapper.UdevSyncSupported()
 	status.DeferredRemoveEnabled = devices.deferredRemove
+	status.DeferredDeleteEnabled = devices.deferredDelete
 
 	totalSizeInSectors, _, dataUsed, dataTotal, metadataUsed, metadataTotal, err := devices.poolStatus()
 	if err == nil {
@@ -2124,6 +2147,12 @@ func NewDeviceSet(root string, doInit bool, options []string) (*DeviceSet, error
 
 		case "dm.use_deferred_removal":
 			enableDeferredRemoval, err = strconv.ParseBool(val)
+			if err != nil {
+				return nil, err
+			}
+
+		case "dm.use_deferred_deletion":
+			enableDeferredDeletion, err = strconv.ParseBool(val)
 			if err != nil {
 				return nil, err
 			}
