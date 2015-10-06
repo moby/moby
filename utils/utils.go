@@ -15,6 +15,7 @@ import (
 
 	"github.com/docker/distribution/registry/api/errcode"
 	"github.com/docker/docker/autogen/dockerversion"
+	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/fileutils"
 	"github.com/docker/docker/pkg/stringid"
@@ -217,9 +218,9 @@ func ValidateContextDirectory(srcPath string, excludes []string) error {
 			return nil
 		}
 
-		if err != nil {
+		if err != nil { // scope note: this err was passed in as a parameter to walkfunc
 			if os.IsPermission(err) {
-				return fmt.Errorf("can't stat '%s'", filePath)
+				return derr.ErrorCodePermissionWalkingFileTree.WithArgs(filePath)
 			}
 			if os.IsNotExist(err) {
 				return nil
@@ -236,7 +237,7 @@ func ValidateContextDirectory(srcPath string, excludes []string) error {
 		if !f.IsDir() {
 			currentFile, err := os.Open(filePath)
 			if err != nil && os.IsPermission(err) {
-				return fmt.Errorf("no permission to read from '%s'", filePath)
+				return derr.ErrorCodePermissionOpeningFile.WithArgs(filePath)
 			}
 			currentFile.Close()
 		}
@@ -252,7 +253,7 @@ func ReadDockerIgnore(path string) ([]string, error) {
 	reader, err := os.Open(path)
 	if err != nil {
 		if !os.IsNotExist(err) {
-			return nil, fmt.Errorf("Error reading '%s': %v", path, err)
+			return nil, derr.ErrorCodeOpeningDockerIgnore.WithArgs(path, err)
 		}
 		return nil, nil
 	}
@@ -270,7 +271,7 @@ func ReadDockerIgnore(path string) ([]string, error) {
 		excludes = append(excludes, pattern)
 	}
 	if err = scanner.Err(); err != nil {
-		return nil, fmt.Errorf("Error reading '%s': %v", path, err)
+		return nil, derr.ErrorCodeScanningDockerIgnore.WithArgs(path, err)
 	}
 	return excludes, nil
 }

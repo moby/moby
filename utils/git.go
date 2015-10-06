@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/pkg/symlink"
 	"github.com/docker/docker/pkg/urlutil"
 )
@@ -34,7 +35,7 @@ func GitClone(remoteURL string) (string, error) {
 	clone := cloneArgs(u, root)
 
 	if output, err := git(clone...); err != nil {
-		return "", fmt.Errorf("Error trying to use git: %s (%s)", err, output)
+		return "", derr.ErrorCodeUsingGitClone.WithArgs(err, output)
 	}
 
 	return checkoutGit(fragment, root)
@@ -67,14 +68,14 @@ func checkoutGit(fragment, root string) (string, error) {
 
 	if len(refAndDir[0]) != 0 {
 		if output, err := gitWithinDir(root, "checkout", refAndDir[0]); err != nil {
-			return "", fmt.Errorf("Error trying to use git: %s (%s)", err, output)
+			return "", derr.ErrorCodeUsingGitCheckout.WithArgs(err, output)
 		}
 	}
 
 	if len(refAndDir) > 1 && len(refAndDir[1]) != 0 {
 		newCtx, err := symlink.FollowSymlinkInScope(filepath.Join(root, refAndDir[1]), root)
 		if err != nil {
-			return "", fmt.Errorf("Error setting git context, %q not within git root: %s", refAndDir[1], err)
+			return "", derr.ErrorCodeSettingGitContext.WithArgs(refAndDir[1], err)
 		}
 
 		fi, err := os.Stat(newCtx)
@@ -82,7 +83,7 @@ func checkoutGit(fragment, root string) (string, error) {
 			return "", err
 		}
 		if !fi.IsDir() {
-			return "", fmt.Errorf("Error setting git context, not a directory: %s", newCtx)
+			return "", derr.ErrorCodeGitContextMustBeSetToADirectory.WithArgs(newCtx)
 		}
 		root = newCtx
 	}
