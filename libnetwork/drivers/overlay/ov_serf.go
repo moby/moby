@@ -47,7 +47,7 @@ func (d *driver) serfInit() error {
 	config.UserCoalescePeriod = 1 * time.Second
 	config.UserQuiescentPeriod = 50 * time.Millisecond
 
-	config.LogOutput = logrus.StandardLogger().Out
+	config.LogOutput = &logWriter{}
 
 	s, err := serf.Create(config)
 	if err != nil {
@@ -89,12 +89,12 @@ func (d *driver) notifyEvent(event ovNotify) {
 		event.nid, event.eid)
 
 	if err := d.serfInstance.UserEvent(eName, []byte(ePayload), true); err != nil {
-		fmt.Printf("Sending user event failed: %v\n", err)
+		logrus.Errorf("Sending user event failed: %v\n", err)
 	}
 }
 
 func (d *driver) processEvent(u serf.UserEvent) {
-	fmt.Printf("Received user event name:%s, payload:%s\n", u.Name,
+	logrus.Debugf("Received user event name:%s, payload:%s\n", u.Name,
 		string(u.Payload))
 
 	var dummy, action, vtepStr, nid, eid, ipStr, maskStr, macStr string
@@ -107,11 +107,11 @@ func (d *driver) processEvent(u serf.UserEvent) {
 		fmt.Printf("Failed to scan value string: %v\n", err)
 	}
 
-	fmt.Printf("Parsed data = %s/%s/%s/%s/%s/%s\n", nid, eid, vtepStr, ipStr, maskStr, macStr)
+	logrus.Debugf("Parsed data = %s/%s/%s/%s/%s/%s\n", nid, eid, vtepStr, ipStr, maskStr, macStr)
 
 	mac, err := net.ParseMAC(macStr)
 	if err != nil {
-		fmt.Printf("Failed to parse mac: %v\n", err)
+		logrus.Errorf("Failed to parse mac: %v\n", err)
 	}
 
 	if d.serfInstance.LocalMember().Addr.String() == vtepStr {
@@ -122,18 +122,18 @@ func (d *driver) processEvent(u serf.UserEvent) {
 	case "join":
 		if err := d.peerAdd(nid, eid, net.ParseIP(ipStr), net.IPMask(net.ParseIP(maskStr).To4()), mac,
 			net.ParseIP(vtepStr), true); err != nil {
-			fmt.Printf("Peer add failed in the driver: %v\n", err)
+			logrus.Errorf("Peer add failed in the driver: %v\n", err)
 		}
 	case "leave":
 		if err := d.peerDelete(nid, eid, net.ParseIP(ipStr), net.IPMask(net.ParseIP(maskStr).To4()), mac,
 			net.ParseIP(vtepStr), true); err != nil {
-			fmt.Printf("Peer delete failed in the driver: %v\n", err)
+			logrus.Errorf("Peer delete failed in the driver: %v\n", err)
 		}
 	}
 }
 
 func (d *driver) processQuery(q *serf.Query) {
-	fmt.Printf("Received query name:%s, payload:%s\n", q.Name,
+	logrus.Debugf("Received query name:%s, payload:%s\n", q.Name,
 		string(q.Payload))
 
 	var nid, ipStr string
@@ -193,7 +193,7 @@ func (d *driver) startSerfLoop(eventCh chan serf.Event, notifyCh chan ovNotify,
 			}
 
 			if err := d.serfInstance.Leave(); err != nil {
-				fmt.Printf("failed leaving the cluster: %v\n", err)
+				logrus.Errorf("failed leaving the cluster: %v\n", err)
 			}
 
 			d.serfInstance.Shutdown()
